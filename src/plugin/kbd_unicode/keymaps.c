@@ -30,9 +30,6 @@
 #include "keynum.h"
 #include "getfd.h"
 
-static int read_kbd_table(struct keytable_entry *);
-
-
 /* DANG_BEGIN_MODULE
  * 
  * REMARK
@@ -2103,6 +2100,7 @@ struct keytable_entry keytable_list[] = {
     key_map_user, shift_map_user, alt_map_user,
     num_table_dot,},
   {0},
+  {0},
   {0}
 };
 
@@ -2134,15 +2132,29 @@ static char* pretty_keysym(t_keysym d)
 
 static t_keysym dosemu_val(unsigned k)
 {
+	struct char_set *keyb_charset;
+	unsigned char buff[1];
+	struct char_set_state keyb_state;
+	t_unicode ch;
+
 	unsigned t = KTYP(k), v = KVAL(k);
 	t_keysym d;
 	
 	d = KEY_VOID;
-	
+	if (t >= 14)
+		/* NR_TYPES is 14 in the kernel but keyboard.h doesn't
+		   give it. Gives the Unicode value ^ 0xf000 */
+		return k ^ 0xf000;
+
 	switch(t) {
 	case KT_LATIN:
 	case KT_LETTER: /* is this correct for all KT_LETTERS? */
-		d = v;
+		keyb_charset = trconfig.keyb_charset;
+		init_charset_state(&keyb_state, keyb_charset);
+		buff[0] = v;
+		charset_to_unicode(&keyb_state, &ch, buff, 1);
+		cleanup_charset_state(&keyb_state);
+		d = ch;
 		break;
 
 #if 0
@@ -2241,6 +2253,12 @@ static t_keysym dosemu_val(unsigned k)
 		case K_DTILDE: d = KEY_DEAD_TILDE; break;
 		case K_DDIERE: d = KEY_DEAD_DIAERESIS; break;
 		case K_DCEDIL: d = KEY_DEAD_CEDILLA; break;
+		}
+		break;
+
+	case KT_LOCK:
+		switch(k) {
+		case K_ALTGRLOCK: d = KEY_ALTGR_LOCK; break;
 		}
 		break;
 
@@ -2370,11 +2388,12 @@ static const struct keycode_map dosemu_to_kernel[] =
 	{NUM_PAUSE_BREAK,	119},
 };
 
-static int read_kbd_table(struct keytable_entry *kt)
+static int read_kbd_table(struct keytable_entry *kt,
+			  struct keytable_entry *altkt)
 {
 	int fd, i, j = -1;
 	struct kbentry ke;
-	int altgr_present;
+	int altgr_present, altgr_lock_present;
 	
 	fd = getfd();
 	if(fd < 0) {
@@ -2382,9 +2401,10 @@ static int read_kbd_table(struct keytable_entry *kt)
 	}
 	
 	altgr_present = 0;
+	altgr_lock_present = 0;
 	for(i = 0; i < sizeof(dosemu_to_kernel)/sizeof(dosemu_to_kernel[0]); i++) {
-		unsigned vp, vs, va, vc;
-		t_keysym kp, ks, ka, kc;
+		unsigned vp, vs, va, vsa, vc;
+		t_keysym kp, ks, ka, ksa, kc;
 		int kernel, dosemu;
 		kernel = dosemu_to_kernel[i].kernel;
 		dosemu = dosemu_to_kernel[i].dosemu;
@@ -2402,6 +2422,10 @@ static int read_kbd_table(struct keytable_entry *kt)
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		va = ke.kb_value;
 
+		ke.kb_table = (1 << KG_SHIFT) | (1 << KG_ALTGR);
+		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
+		vsa = ke.kb_value;
+		
 		ke.kb_table = 1 << KG_CTRL;
 		if ((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
 		vc = ke.kb_value;
@@ -2409,11 +2433,18 @@ static int read_kbd_table(struct keytable_entry *kt)
 		kp = dosemu_val(vp);
 		ks = dosemu_val(vs);
 		ka = dosemu_val(va);
+		ksa = dosemu_val(vsa);
 		kc = dosemu_val(vc);
 		if ((kp == KEY_MODE_SWITCH) || (ks == KEY_MODE_SWITCH) ||
 			(ka == KEY_MODE_SWITCH) || (kc == KEY_MODE_SWITCH)) {
 			k_printf("mode_switch\n");
 			altgr_present = 1;
+		}
+		if ((kp == KEY_ALTGR_LOCK) || (ks == KEY_ALTGR_LOCK) ||
+			(ka == KEY_ALTGR_LOCK) || (kc == KEY_ALTGR_LOCK)) {
+			k_printf("altgr lock\n");
+			altgr_lock_present = 1;
+			continue;
 		}
 		if (ka == kp) {
 			ka = U_VOID;
@@ -2430,6 +2461,7 @@ static int read_kbd_table(struct keytable_entry *kt)
 		if (ks != U_VOID) kt->shift_map[dosemu] = ks;
 		if (ka != U_VOID) kt->alt_map[dosemu]   = ka;
 		if (kc != U_VOID) kt->ctrl_map[dosemu]  = kc;
+		if (ksa != U_VOID) kt->shift_alt_map[dosemu] = ksa;
 #if 0
 		printf("%02x: ", dosemu);
 		printf("p: %04x->%-6s ", vp, pretty_keysym(kp));
@@ -2438,6 +2470,13 @@ static int read_kbd_table(struct keytable_entry *kt)
 		printf("c: %04x->%-6s ", vc, pretty_keysym(kc));
 		printf("\n");
 #endif
+	}
+	if (altgr_lock_present) {
+		altkt->name = "alt auto";
+		altkt->key_map = kt->alt_map;
+		altkt->alt_map = kt->key_map;
+		altkt->shift_map = kt->shift_alt_map;
+		altkt->shift_alt_map = kt->shift_map;
 	}
 	if (!altgr_present) {
 		for(i = 0; i < sizeof(kt->alt_map)/sizeof(kt->alt_map[0]); i++) {
@@ -2497,11 +2536,12 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 static int X11_DetectLayout (void)
 {
   Display *display;
-  unsigned match, mismatch, seq, i, syms, startsym;
+  unsigned match, mismatch, seq, i, syms, startsym, alternate;
   int score, keyc, key, pkey, ok = 0;
   KeySym keysym;
-  unsigned max_seq = 0;
-  int max_score = INT_MIN, ismatch = 0;
+  unsigned max_seq[3] = {0, 0};
+  int max_score[3] = {INT_MIN, INT_MIN};
+  int ismatch = 0;
   int min_keycode, max_keycode;
   t_unicode ckey[4] = {0, 0, 0, 0};
   t_keysym lkey[4] = {0, 0, 0, 0};
@@ -2523,11 +2563,9 @@ static int X11_DetectLayout (void)
   }
 
   init_charset_state(&X_charset, lookup_charset("X_keysym"));
-  for (kt = keytable_list; kt->name; kt++) {
+  for (kt = keytable_list, alternate = 0; kt->name; ) {
     k_printf("Attempting to match against \"%s\"\n", kt->name);
-    startsym = 0;
-    if (kt->flags & KT_ALTERNATE)
-      startsym = 2;
+    startsym = alternate << 1;
     match = 0;
     mismatch = 0;
     score = 0;
@@ -2587,21 +2625,24 @@ static int X11_DetectLayout (void)
     }
     k_printf("matches=%d, mismatches=%d, seq=%d, score=%d\n",
            match, mismatch, seq, score);
-    if ((kt->flags & KT_ALTERNATE) && score > 20) {
-      /* at the moment there's only one alternate layout so we can
-	 just use a threshold */
-      c_printf("CONF: detected alternate layout: %s\n", kt->name);
-      config.altkeytable = kt;
-    }
-    else if (score > max_score ||
-       (score == max_score && ((seq > max_seq) ||
-                               (seq == max_seq && kt->keyboard == KEYB_AUTO)))) {
+    if (score > max_score[alternate] ||
+       (score == max_score[alternate] && 
+	((seq > max_seq[alternate]) ||
+	 (seq == max_seq[alternate] && kt->keyboard == KEYB_AUTO)))) {
       /* best match so far */
-      config.keytable = kt;
-      max_score = score;
-      max_seq = seq;
+      if (alternate) {
+	/* alternate keyboards are optional so a threshold is used */
+	if (score > 20) config.altkeytable = kt;
+      }
+      else
+	config.keytable = kt;
+      max_score[alternate] = score;
+      max_seq[alternate] = seq;
       ismatch = !mismatch;
     }
+    alternate = !alternate;
+    if (!alternate)
+      kt++;
   }
   cleanup_charset_state(&X_charset);
 
@@ -2611,6 +2652,8 @@ static int X11_DetectLayout (void)
 	   config.keytable->name);
 
   c_printf("CONF: detected layout is \"%s\"\n", config.keytable->name);
+  if (config.altkeytable)
+    c_printf("CONF: detected alternate layout: %s\n", config.altkeytable->name);
   XCloseDisplay(display);
   return 0;
 }
@@ -2638,14 +2681,15 @@ void setup_default_keytable()
 	  ctrl_map[NUM_KEY_NUMS],
 	  shift_alt_map[NUM_KEY_NUMS],
 	  ctrl_alt_map[NUM_KEY_NUMS];
-  struct keytable_entry *kt;
+  struct keytable_entry *kt, *altkt;
   int i, idx;
 
-  idx = sizeof keytable_list / sizeof *keytable_list - 2;
+  idx = sizeof keytable_list / sizeof *keytable_list - 3;
 
   k_printf("KBD: setup_default_keytable: setting up table %d\n", idx);
 
   config.keytable = kt = keytable_list + idx;
+  config.altkeytable = altkt = kt + 1;
 
   kt->name = dt_name;
   kt->keyboard = KEYB_AUTO;
@@ -2659,6 +2703,11 @@ void setup_default_keytable()
   kt->ctrl_map = ctrl_map;
   kt->shift_alt_map = shift_alt_map;
   kt->ctrl_alt_map = ctrl_alt_map;
+
+  memcpy(altkt, kt, sizeof(*kt));
+  altkt->name = NULL;
+  altkt->keyboard = KEYB_AUTO;
+  altkt->flags = 0;
 
   /* Initialize everything to unknown */
   for(i = 0; i < NUM_KEY_NUMS; i++) {
@@ -2677,7 +2726,7 @@ void setup_default_keytable()
   memcpy(ctrl_map, ctrl_map_us, sizeof(ctrl_map_us));
 
   /* Now copy parameters for the linux kernel keymap */
-  if(read_kbd_table(kt)) {
+  if(read_kbd_table(kt, altkt)) {
     k_printf("setup_default_keytable: failed\n");
     kt->name = NULL;
   }
