@@ -2,9 +2,9 @@
 # mkpartition - for dosemu 0.51
 #    Robert Sanders, gt8134b@prism.gatech.edu
 #
-# $Date: 1994/04/16 01:30:17 $
+# $Date: 1994/05/05 00:17:35 $
 # $Source: /home/src/dosemu0.60/periph/RCS/mkpartition,v $
-# $Revision: 1.3 $
+# $Revision: 1.4 $
 # $State: Exp $
 #
 # For details about Direct Partition Access (DPA) read the manual
@@ -15,8 +15,8 @@ ME=`basename $0`                    # Name of the command
 DRIVE=$1                            # complete hard-disk-device
 PARTNUM=$2                          # number of the partition on $DRIVE
 PART=${DRIVE}${PARTNUM}             # complete name of the partition
-ETCD=/etc/dosemu                    # Directory, where the partition-file is
-PFILE=${ETCD}/partition             # Partial name of the partition file
+LIBDIR=/var/lib/dosemu              # Directory, where the partition-file is
+PFILE=${LIBDIR}/partition           # Partial name of the partition file
 
 echo "MKPARTITION for the Linux DOS-emulator "
 echo

@@ -1,0 +1,3 @@
+/usr/src/ipx/ipxbind eth0 010100e0 8022
+/usr/src/ipx/ipxroute 010101f1 e0000101:00:00:1b:15:f2:b5 8022
+/usr/src/ipx/ipxroute 010101fe e0000101:00:00:1b:15:e4:b2 8022

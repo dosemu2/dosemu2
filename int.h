@@ -1,12 +1,44 @@
 #define INT_H 1
 
+#include "ipx.h"
+
 /* 
- * $Date: 1994/04/30 22:12:30 $
+ * $Date: 1994/05/26 23:15:01 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 1.15 $
+ * $Revision: 1.25 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 1.25  1994/05/26  23:15:01  root
+ * Prep. for pre51_21.
+ *
+ * Revision 1.24  1994/05/21  23:39:19  root
+ * PRE51_19.TGZ with Lutz's latest updates.
+ *
+ * Revision 1.23  1994/05/18  00:15:51  root
+ * pre15_17.
+ *
+ * Revision 1.22  1994/05/16  23:13:23  root
+ * Prep for pre51_16.
+ *
+ * Revision 1.21  1994/05/13  17:21:00  root
+ * pre51_15.
+ *
+ * Revision 1.20  1994/05/10  23:08:10  root
+ * pre51_14.
+ *
+ * Revision 1.19  1994/05/09  23:35:11  root
+ * pre51_13.
+ *
+ * Revision 1.18  1994/05/05  00:16:26  root
+ * Prep for pre51_12.
+ *
+ * Revision 1.17  1994/05/04  22:16:00  root
+ * Patches by Alan to mouse subsystem.
+ *
+ * Revision 1.16  1994/05/04  21:56:55  root
+ * Prior to Alan's mouse patches.
+ *
  * Revision 1.15  1994/04/30  22:12:30  root
  * Prep for pre51_11.
  *
@@ -54,34 +86,37 @@
  *
  */
 
+extern int pkt_int(void);
+extern void pkt_init(int);
+extern int pkt_check_receive(void);
+extern void restore_screen(void);
+
+extern int fatalerr;
+
+#define IQUEUE_LEN 1000
 struct int_queue_struct {
   int interrupt;
   int (*callstart) ();
   int (*callend) ();
-};
+} int_queue[IQUEUE_LEN];
 
+#define NUM_INT_QUEUE 64
 struct int_queue_list_struct {
   struct int_queue_struct int_queue_ptr;
   int int_queue_return_addr;
   u_char in_use;
   struct vm86_regs saved_regs;
-};
+} int_queue_head[NUM_INT_QUEUE];
+
 /*
    This is here to allow multiple hard_int's to be running concurrently.
    Needed for programs that steal INT9 away from DOSEMU.
 */
 #define NUM_INT_QUEUE 64
 extern struct int_queue_list_struct int_queue_head[NUM_INT_QUEUE]; 
-
-/* int port61 = 0xd0;           the pseudo-8255 device on AT's */
-int port61 = 0x0e;              /* the pseudo-8255 device on AT's */
+extern int int_queue_running;
 
 extern inline void int_queue_run(void);
-
-/*
-   Allow checks via inport 0x64 for available scan codes
-*/
-extern u_char keys_ready;
 
 /* this holds all the configuration information, set in config_init() */
 extern unsigned int configuration;
@@ -104,12 +139,12 @@ extern struct itimerval itv;
 /* Once every 18 let's update leds */
 u_char leds = 0;
 
+/* This is not used at this time */
 inline void
 int08(void)
 {
-  do_hard_int(0x1c);
+  run_int(0x1c);
   REG(eflags) |= VIF;
-  /*	printf("Run 0x1c\n"); */
   return;
 }
 
@@ -137,8 +172,8 @@ int15(void)
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
     k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));
+/*
     CARRY;
-    /*
     if (LO(ax) & 0x80 )
       if (1 || !(LO(ax)&0x80) ){
 	fprintf(stderr, "Carrying it out\n");
@@ -224,6 +259,7 @@ int15(void)
     CARRY;
     return;			/* no ebios area */
   case 0xc2:
+	if (!mice->intdrv) 
         if (mice->type != MOUSE_PS2) {
                 REG(eax) = 0500;        /* No ps2 mouse device handler */
                 CARRY;
@@ -590,6 +626,7 @@ run_int(int i)
   unsigned char *ssp;
   unsigned long sp;
 
+#if 0
   if (i == 0x16 && config.hogthreshold && KBD_Head == KBD_Tail ) {
     static struct timeval tp1;
     static struct timeval tp2;
@@ -606,7 +643,6 @@ run_int(int i)
     time_count = (time_count + 1) % 10;
   }
 
-#if 0
   /* XXX bootstrap cs is now 0 */
   if (!(REG(eip) && REG(cs))) {
     error("run_int: not running NULL interrupt 0x%04x handler\n", i);
@@ -652,7 +688,7 @@ can_revector(int i)
        */
   case 0x21:			/* we want it first...then we'll pass it on */
   case 0x2f:			/* needed for XMS, redirector, and idle interrupt */
-if (mice->type == MOUSE_PS2) {
+if ((mice->type == MOUSE_PS2) || (mice->intdrv)) {
   case 0x74:			/* needed for PS/2 Mouse */
 }
   case 0xe6:			/* for redirector and helper (was 0xfe) */
@@ -668,7 +704,7 @@ if (mice->type == MOUSE_PS2) {
     break;
 
   case 0x33:			/* mouse...we're testing */
-    if (mice->intdrv == TRUE)
+    if (mice->intdrv)
       return 0;
     else
       return 1;
@@ -692,6 +728,7 @@ if (mice->type == MOUSE_PS2) {
   case 0x2a:
   case 0x60:
   case 0x61:
+  case 0x62:
   case 0x67:			/* EMS */
   case 0xfe:			/* Turbo Debugger and others... */
     return 1;
@@ -760,17 +797,9 @@ do_int(int i)
     return;
   case 0x15:			/* Cassette */
     int15();
+    REG(eflags) |= VIF;
     return;
   case 0x16:			/* KEYBOARD */
-
-#if 0
-    fprintf(stderr, "Goinf IN\n");
-    fprintf(stderr, "*DS:1A=0x%05x\n", *(us *) ((0x40 << 4) + 0x1a));
-    fprintf(stderr, "*DS:1C=0x%05x\n", *(us *) ((0x40 << 4) + 0x1c));
-    fprintf(stderr, "*DS:82=0x%05x\n", *(us *) ((0x40 << 4) + 0x82));
-    fprintf(stderr, "*DS:80=0x%05x\n", *(us *) ((0x40 << 4) + 0x80));
-#endif
-
     run_int(0x16);
     return;
   case 0x17:			/* PRINTER */
@@ -830,7 +859,7 @@ do_int(int i)
     goto default_handling;
 
   case 0x33:			/* mouse */
-if (mice->intdrv == TRUE) {
+if (mice->intdrv) {
     mouse_int();
     return;
 }
@@ -841,15 +870,15 @@ else
   case 0x67:			/* EMS */
     goto default_handling;
 
-  case 0x62:                  /* new packet driver interface */
+  case 0x60:			/* new packet driver interface */
     if (pkt_int())
       return;
     goto default_handling;
 
   case 0x74:			/* PS/2 Mouse */
-    int74();
-    return;
-    break;
+    return;			/* Need to implement real ps/2 mouse */
+    break; 			/* Should call hardware 0x12 */
+				/* for the moment, internaldriver only support */
 
   case 0xe6:			/* dos helper and mfs startup (was 0xfe) */
     if (dos_helper())
@@ -864,9 +893,7 @@ else
 
   case 0xe8:
     {
-      static unsigned char *ssp;
       static unsigned short *csp;
-      static unsigned long sp;
       static int x;
       csp = SEG_ADR((us *), cs, ip) - 1;
       for (x=1; x<=int_queue_running; x++) {
@@ -874,19 +901,25 @@ else
         if ((int)csp == int_queue_head[x].int_queue_return_addr) {
           /* if it's finished - clean up */
           /* call user cleanup function */
-          if (int_queue_head[x].int_queue_ptr.callend)
+          if (int_queue_head[x].int_queue_ptr.callend) {
     	    int_queue_head[x].int_queue_ptr.callend(int_queue_head[x].int_queue_ptr.interrupt);
+            int_queue_head[x].int_queue_ptr.callend = NULL;
+	  }
 
           /* restore registers */
           REGS = int_queue_head[x].saved_regs;
           REG(eflags) |= VIF;
 
           h_printf("e8 int_queue: finished %x\n", int_queue_head[x].int_queue_return_addr);
-          int_queue_running = x - 1;
-
+	  *OUTB_ADD=1;
+	  if (int_queue_running == x ) 
+            int_queue_running--;
+	  return;
         }
       }
     }
+    h_printf("e8 int_queue: shouldn't get here\n");
+    show_regs();
     return;
 
   default:

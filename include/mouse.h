@@ -16,6 +16,7 @@
 #define MOUSE_BUSMOUSE 4
 #define MOUSE_MOUSEMAN 5
 #define MOUSE_PS2 6
+#define MOUSE_HITACHI 7
 
 /* types of mouse events */
 #define DELTA_CURSOR		1
@@ -41,6 +42,11 @@ typedef struct mouse_structure {
   int type;
   int flags;
   boolean intdrv;
+  boolean cleardtr;
+  int baudRate;
+  int sampleRate;
+  int lastButtons;
+  int chordMiddle;
 } mouse_t;
 
 struct mouse_struct {

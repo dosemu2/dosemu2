@@ -1,0 +1,697 @@
+  The dosemu HOWTO
+  edited by Mike Deisher, deisher@dspsun.eas.asu.edu
+  v0.50.1, 30 April 1994 for dosemu 0.50pl1
+
+  This  is  the  `Frequently Asked Questions' (FAQ) / HOWTO document for
+  dosemu, The most up-to-date version of the dosemu-HOWTO may  be  found
+  in dspsun.eas.asu.edu:/pub/dosemu.
+
+  1.  The preliminaries
+
+  1.1.  What is dosemu, anyway?
+
+  To  quote  the  manual,  "dosemu  is  a  user-level program which uses
+  certain special features of the Linux kernel and the  80386  processor
+  to  run MS-DOS in what we in the biz call a `DOS box.'  The DOS box, a
+  combination of hardware and software trickery, has these capabilities:
+
+  o  the  ability  to  virtualize all input/output and processor control
+  instructions
+
+  o the ability to support the word size and  addressing  modes  of  the
+  iAPX86  processor family's "real mode," while still running within the
+  full protected mode environment
+
+  o the ability to trap all DOS and BIOS system calls and  emulate  such
+  calls as are necessary for proper operation and good performance
+
+  o  the  ability  to  simulate  a  hardware  environment over which DOS
+  programs are accustomed to having control.
+
+  o  the  ability  to  provide  MS-DOS  services  through  native  Linux
+  services;  for  example,  dosemu can provide a virtual hard disk drive
+  which is actually a Linux directory hierarchy."
+
+
+  1.2.  What's the newest version of dosemu and where can I get it?
+
+  The  newest  version of dosemu is dosemu0.50pl1 and can be ftp'ed from
+  the following sites:
+
+       dspsun.eas.asu.edu:/pub/dosemu/
+       tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/
+
+
+
+
+  1.3.  Where can I follow the development?
+
+  If you want to follow the development of dosemu, you  should  consider
+  subscribing  to  the  MSDOS channel on Linux-activists.  To subscribe,
+  send mail to linux-activists-request@niksula.hut.fi.  Your mail HEADER
+  or FIRST LINE must contain the line:
+
+                          X-Mn-Admin: join MSDOS
+
+
+  To  post  to  the  list,  send mail to linux-activists@niksula.hut.fi.
+  Your mail HEADER or FIRST LINE must contain the line:
+
+                          X-Mn-Key: MSDOS
+
+
+
+
+
+
+  1.4.  What documentation is available for dosemu?
+
+  The dosemu manual (dosemu.texinfo) written by Robert Sanders  has  not
+  been  updated  in some time but is still a good source of information.
+  It is distributed with dosemu.
+
+  The "dosemu Novice's Altering Guide" or DANG is  a  road  map  to  the
+  inner  workings  of dosemu.  It is designed for the adventurous, those
+  who wish to modify the source code themselves.  The DANG is maintained
+  by  Alistair  MacDonald (am20@unix.york.ac.uk) and is posted once in a
+  while to the MSDOS channel of Linux Activists.
+
+  The EMU success list (EMUsuccess.txt) is a list of all  programs  that
+  have  been reported to work with dosemu.  It is posted once in a while
+  to the MSDOS channel of Linux Activists.  The most recent version  can
+  be found on dspsun.eas.asu.edu:/pub/dosemu.
+
+  And  then,  of course, there is the dosemu FAQ/HOWTO.  But you already
+  know about that, don't you.  It is also posted once in a while to  the
+  MSDOS  channel  of  Linux  Activists.   The most recent version can be
+  found on dspsun.eas.asu.edu:/pub/dosemu.
+
+
+  2.  Compiling and installing dosemu
+
+  2.1.  What does emu.c:349: parse error before `outfuntype' mean?
+
+  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (12/1/93) that
+
+  A  fix  that  works is:  Change the 'outfuntype c' parm in line 349 to
+  'int (*c())(int)', and try again.
+
+  [Note: outfuntype is defined in termcap.h.  You  may  have  a  bad  or
+  incomplete termcap.h (termcap.h is not part of dosemu).]
+
+
+  2.2.  What does scan.o: Undefined symbol _yywrap mean?
+
+  Alan  David  Modra  (alan@spri.levels.unisa.edu.au) reported (2/16/94)
+  that
+
+  Flex-2.4.6 generates code that requires linking in libfl.a You need to
+  add -lfl to the linker command line:
+
+    gcc -o par scan.o parse.o -lfl
+
+
+  [Note:  edit parse/Makefile to incorporate this change]
+
+
+  2.3.  What does sh: -c: line 2: syntax error mean?
+
+  (3/18/94)
+
+  If the error message is
+
+     install -m 04755 dos /usr/bin
+     sh: -c: line 2: syntax error: unexpected end of file
+     make: *** [install] Error 2
+
+
+  then  you  are probably using Slackware.  Some people have had success
+  by simply commenting out line 183
+
+     @if [ -f /lib/libemu ]; then rm -f /lib/libemu
+
+  of the makefile.  (I don't know why this works!) If this does not work
+  for you, you can always just install the "dos" binary by hand
+
+     cp dos /usr/bin/
+     chmod 04755 /usr/bin/dos
+
+
+
+
+  2.4.  Can I use dosemu on a multi-user system?
+
+  Corey Sweeney (corey@amiganet.xnet.com) reported (12/8/93) that
+
+  If  you  running  dosemu on a system in which more then one person may
+  want to run dosemu, then you may want to change the directory of  your
+  hard  drive  image.   Currently  in  the /etc/dosemu/config file there
+  exists the line saying that the hard drive image is "hdimage".  If you
+  change  this  to  /etc/dosemu/hdimage then people do not have to worry
+  about what directory they are in when they  run  dosemu,  and  hdimage
+  does  not  have  to  be  moved each time you upgrade to the next patch
+  level.
+
+  If you do do this for multi-user dosemu, then you will  want  to  make
+  the  hdimage  in  /etc/dosemu  read-only  for  everyone but the dosemu
+  administrator.
+
+  Note that you can use the new emufs.sys  thing  to  mount  a  "public"
+  directory  and/or  a  "private"  directory  (a  sub-directory  in each
+  person's home directory).
+
+
+  3.  Hard disk setup
+
+  3.1.  How do I use my hard disk with dosemu?
+
+  First, mount your dos hard disk partition  as  a  Linux  subdirectory.
+  For example, you could create a directory in Linux such as /dos (mkdir
+  -m 755 /dos) and add a line like
+
+     /dev/hda1       /dos     msdos   umask=022
+
+
+  to your /etc/fstab.  (In this example, the hard disk is mounted  read-
+  only.   You  may  want  to mount it read/write by replacing "022" with
+  "000" and using the -m 777 option with mkdir).  Now mount  /dos.   Now
+  you can add a line like
+
+    lredir d: linux\fs/dos
+
+
+  to  the  AUTOEXEC.BAT file in your hdimage (see the comments on LREDIR
+  below).  On a multi-user system you may want to use
+
+    lredir d: linux\fs\${home}
+
+
+  where "home" is the name of an environmental  variable  that  contains
+  the location of the dos directory (/dos in this example).
+
+
+  Tim Bird (Tim_R_Bird@Novell.COM) states that LREDIR users should
+
+  be  careful  when they use LREDIR in the autoexec, because COMMAND.COM
+  will continue parsing the autoexec.bat from the  redirected  drive  as
+  the  same  file  offset  where  it left off in the autoexec.bat on the
+  physical  drive.   For  this  reason,  it  is  safest  to   have   the
+  autoexec.bat   on   the   redirected  drive  and  the  physical  drive
+  (diskimage) be the same.
+
+
+  Robert D. Warren (rw11258@xx.acs.appstate.edu) reported (4/28/94) that
+
+  I  boot  off a small hdimage file (less than 1 MB - and twice as large
+  as needs be at that), and the next to last line in my config.sys  file
+  on the hdimage boot image is:
+
+
+          install=c:\lredir.exe LINUX\FS\home/dos
+
+
+  This will execute lredir just before the command interpreter runs. And
+  I have successfully run it with both command.com and 4DOS.  This elim-
+  inates the offset problem using lredir in autoexec.bat.
+
+
+  3.2.  Can I use my stacked/double-spaced/super-stored disk?
+
+  At  this time, compressed drives cannot be accessed via the redirector
+  (lredir or emufs).  However, many people have had  success  by  simply
+  uncommenting the
+
+     disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
+
+
+  line in their dosemu config file.  A few others have had success using
+
+     disk { partition "/dev/hda1" 1 }
+
+
+
+  Holger  Schemel  (q99492@pbhrzx.uni-paderborn.de)  reported  (2/10/94)
+  that
+
+  Works  even  fine  under DOSEMU with MS-DOS 6.0. If you have problems,
+  then you have to edit the file 'DBLSPACE.INI' manually and change  the
+  disk letter to the letter your drive gets under DOSEMU.
+
+  Darren J Moffat (moffatd@dcs.gla.ac.uk) also reported (3/27/94) that
+
+  disk on hand since dos 6{.2} will change the MBR of the boot HD.
+
+
+  3.3.   I  get  an  error message about my config.sys file but it looks
+  fine.
+
+  Corey Sweeney (corey@amiganet.xnet.com) reported (12/8/93) that
+
+  Sometimes  when loading config.sys you will get a error message saying
+  something like "error in line 6 of config.sys".  The problem  will  go
+  away  if  you  add  several  carriage  returns  at  the  end  of  your
+  config.sys.
+
+
+  4.  Serial ports and mice
+
+  4.1.  Where are the (microsoft compatible) mouse drivers?
+
+  Tom Kimball (tk@pssparc2.oc.com) reported (11/24/93) that
+
+  Several people said to use a  different  mouse  driver  and  suggested
+  some.  I found a couple that seem to work fine.
+
+     oak.oakland.edu:/pub/msdos/mouse/mouse701.zip   (mscmouse)
+     oak.oakland.edu:/pub/msdos/mouse/gmous102.zip   (gmouse)
+
+
+
+
+  4.2.  Why doesn't the mouse driver work?
+
+  Scott D. Heavner (sdh@fishmonger.nouucp) reported (11/27/93) that
+
+  If  you  start  the  mouse driver and it just hangs (it might actually
+  take 30-60s), but if you are waiting longer  than  a  minute  for  the
+  mouse driver to start, remove any "timer" lines in your config file.
+
+
+  4.3.  How do I use dosemu over the serial ports?
+
+  Corey Sweeney (corey@amiganet.xnet.com) reported (12/8/93) that
+
+  If  you plan to be using dosemu over a serial line, telnet session, or
+  just don't want to use raw console mode, then you will  probably  want
+  to  get  to  know  the  termcap  file.   For those who don't know, the
+  termcap file is usually located in the /etc  directory.   It  contains
+  the  information  on  what  sequences  of  characters  to send to your
+  terminal,  and  what  sequences  of  characters  from  your   terminal
+  represent  what keystrokes.  If when you hit F5, and it does not work,
+  it will usually be the fault of a incorrect termcap entry.  (To  learn
+  more about termcaps look up the termcap man page.)
+
+  Now  the  information  in the termcap relates to entries in the dosemu
+  code.  So after you  put  k5=\E[[E  in  your  termcap,  whenever  your
+  terminal  sends  \E[[E, dosemu translates that and says "he hit the k5
+  key!"  Then it is up to dosemu to figure out what the proper  scancode
+  for  the k5 key is, and push that into the buffer in some magical way.
+  To determine the scancode, it looks up in a little table in  termio.c.
+  In termio.c under the line which (currently) says
+
+     #define FUNKEYS 20
+
+
+  There exist several lines following the form
+
+     {NULL, "termcap code", scancode} /* name of key */
+
+
+  so when it says
+
+     {NULL, "k5", 0x3f00} /* F5 */
+
+
+  it's saying that 0x3f00 is the scancode for F5, and that when the per-
+  son activates the k5 sequence (defined in the termcap) to stuff the F5
+  scancode into the buffer.
+
+  Now that's all fine and dandy for analyzing how dosemu does this,  but
+  you  probably  want  to  be  able  to  do  something  with  this   new
+  information.   Well you can add functionality for the F11 and F12 keys
+  (and any other keys that you can find the scancode for).
+
+  All you have to do is add a line to the termio.c table that says:
+
+     {NULL, "ka", 0x8500} /* F11 */
+
+
+  Then to actually get it to read the line you just put in, add  one  to
+  the FUNKEYS number.
+     #define FUNKEYS = 21
+
+
+  Then add a "ka" entry to your termcap.  After that, every time you hit
+  the sequence stored in your termcap for ka, your  dos  program  recog-
+  nizes an "F11."
+
+  Warning:   Make  sure that ka is not in use in your termcap.  If it is
+  you are headed for trouble.
+
+  Note:  The scancode for F12 is 0x8600.
+
+
+  4.4.  Why does dosemu clobber COM4?
+
+  Rob Janssen (rob@pe1chl.ampr.org) reported (3/24/94) that
+
+  According to jmorriso@bogomips.ee.ubc.ca, "dosemu still clobbers  COM4
+  (0x2e8,  IRQ  5).  0x2e8  isn't  in  ports{} in config.  I have to run
+  setserial /dev/cua3 irq 5 on it after dosemu exits."
+
+  This is caused by your VGA BIOS.  I have found that by enabling the IO
+  port trace and seeing where it was clobbered.
+
+  Disable  the "allowvideoportaccess on" line in config and it will work
+  fine.  When you then have problems with the video, try to enable  more
+  selective ranges of IO addresses (e.g., 40-43).
+
+
+  5.  dosemu and X-windows
+
+  5.1.  Can I run dosemu in console mode while running X?
+
+  Ronald Schalk (R.Schalk@uci.kun.nl) reported (1/17/94) that
+
+  Yes,  no  problem.   Just  remember  to  use  ctrl-alt-<Fn> to go to a
+  Virtual Console (VC), and you can run any Linux application (dosemu is
+  a  linux-application).  I've got almost always WP5.1 in a dos session.
+
+  [Note:  Use alt-F7 to switch back to X from dosemu.]
+
+  [Note: Some people have  reported  problems  when  dosemu  is  started
+  before X]
+
+
+  5.2.  Is it possible to run dosemu in an xterm?
+
+  Evmorfopoulos Dimitris (devmorfo@mtu.edu) reported (12/10/93) that
+
+  It is possible to run dosemu under an xterm, but without any graphics,
+  and with no more than 128 characters.
+
+  H. Peter Anvin (hpa@hook.eecs.nwu.edu) adds (2/6/94)
+
+  no more than 128 characters... unless you use a special font.  Someone
+  has  an IBM PC (CP 437) X font for use with ANSI-graphics on BBS's, as
+  well as a patch for Xterm that *might* include  character  translation
+  (for letters like \305, \304, \326 for example...)
+
+
+  6.  Video and sound
+
+  6.1.  Exiting from dosemu gives me a screen full of garbage.
+
+  Keith A Grider (kgrider@magnus.acs.ohio-state.edu) reported  (12/5/93)
+  that
+  I  have seen many postings concerning this with exit from X as well as
+  exiting from a graphic dos screen.  it seems to be prevalent among ATI
+  graphic  card  users as well as a few others.  The problem is that the
+  font information for the vga text screen is not being saved.  The only
+  way  I  have  been able to fix it is to download the vgalib-090.tar.gz
+  file from sunsite.unc.edu.  It is (I  believe)  in  the  pub/Linux/GCC
+  directory.   You get a lot of stuff that is not directly used to solve
+  this problem, but in the fonts directory  that  is  created  when  you
+  untar  the  file, there are 2 files of interest, runx and restorefont.
+  Read the README file in this directory.  Copy runx and restorefont  to
+  a  directory  in  your path.  when runx is used, for example, it saves
+  the font information in tmp/fontdata.  I use a file called  fix  which
+  consists of the line:
+
+     restorefont -r /tmp/fontdata
+
+
+  so  that  it  is easy to 'fix' a vt when I go there from X (i.e. ctrl-
+  alt-f2).  This should also work for dosemu.  I think the XFree86  peo-
+  ple  know about the problem and are working on a solution as this is a
+  bit of a kluge.
+
+
+  6.2.  How do I get dosemu to work with  my  Trident/Actix/other  video
+  card?
+
+  [The screen  flickers  violently,  displays  the  video  BIOS  startup
+  message, and hangs.]
+
+  Andrew Tridgell (tridge@nimbus.anu.edu.au) reported (1/29/94) that
+
+  I found with early versions it would work if I used:
+
+     ports { 0x42 }
+
+
+  but  that  sometimes  my  machine  would crash when it was cycling the
+  video bios in dosemu. This is because you're allowing the VGA bios  to
+  re-program your clock, which severely stuffs with Linux.
+
+  This prompted me to write the readonly and masking patches for dosemu,
+  which I believe are still in the latest version. I now use:
+
+     ports { readonly 0x42 }
+
+
+  and it boots dosemu more slowly, but more reliably.
+
+  Tim Shnaider (tims@kcbbs.gen.nz) also reported (1/18/94) that
+
+  One way of fixing this is to use the GETROM program to dump your video
+  bios  to  a file and edit the config file in the /etc/dosemu directory
+  There will be a few video lines.  Here is my video line
+
+     video { vga console graphics chipset trident memsize 1024 vbios_file
+     /etc/dosemu/vbios }
+
+
+  where vbios is the file generated by typing
+
+     getrom > vbios
+
+
+
+
+
+  6.3.  Why doesn't my soundcard software work with dosemu?
+
+  Hannu Savolainen (hsavolai@cs.Helsinki.FI) reported (3/21/94) that
+
+  The DOSEMU and any  DOS  program  with  it  run  under  control  of  a
+  protected  mode  operating  system.  This means that the memory is not
+  mapped as the program expects. If it  somehow  manages  to  start  DMA
+  based  recording  with SB, the recorded sound doesn't find it's way to
+  the application. It just destroys some data in the memory.
+
+
+  7.  Problems and fixes
+
+  7.1.  Why does dosemu lock up after one keystroke?
+
+  (12/17/93)
+
+  You need to turn on the keyboard interrupt in the dosemu config  file.
+  Add a line to the config file:
+
+
+     keybint on
+
+
+
+
+  7.2.  Why does my ethernet driver lock-up dosemu?
+
+  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (1/16/94) that
+
+  If  you  have  Linux  networking  turned  on  for your card, it is not
+  accessible to DOSEMU at this time.  It is also true that  the  default
+  dosemu  will  not  get interrupts from the kernel. That said, if you'd
+  like to give your NIC to dosemu for it to control, maybe for access to
+  Netware  on  the  network  through  a  NETX client, I do have a driver
+  (Silly Interrupt Generator) to put in the  kernel  that  any  program,
+  like dosemu can use to get at the interrupt for your NIC.  I use it in
+  DOSEMU to access a Novell Lite network.  Speed is not it's high point,
+  but it does seem to work :-).
+
+  Any  interested parties should E-mail me (jmaclean@fox.nstn.ns.ca) and
+  I'll pass along some directions.
+
+
+  7.3.  Why are my keystrokes echoed ttwwiiccee??
+
+  Nick Holloway (alfie@dcs.warwick.ac.uk) reported (2/22/94) that
+
+  After running dos after playing with some stty settings, I was getting
+  doubled key presses.  I can now reveal what the reason is!
+
+  It  only  happens  when  dos  is run on the console with 'istrip' set.
+  This is (I think) because the  raw  scancodes  are  mutilated  by  the
+  'istrip', so that key release events look like key press events.
+
+  So,  the  input  processing needs to be turned off when using the scan
+  codes on a console (it wouldn't be a  good  idea  to  do  it  for  tty
+  lines).
+
+
+  7.4.   more  than  24-hours?   Why  does dosemu give "divide overflow"
+  errors after running for
+
+  (1/17/94)
+
+
+  This  is  a  known  bug.   It will (hopefully) be fixed in an upcoming
+  release.  For now, you can simply exit dosemu and start it again.
+
+
+  7.5.  Where did the debugging output go?
+
+  As of dosemu0.49pl4, stderr is automatically redirected to  /dev/null.
+  Try  "dos  -D+a 2>debug" to turn on debugging information and redirect
+  it to the file "debug".
+
+
+  7.6.  Why do I get a segmentation fault error when I start dosemu?
+
+  James MacLean (jmaclean@fox.nstn.ns.ca) reported (3/10/94) that
+
+  For everyone suffering from seg faults, please try these 2 things:
+
+  1)  In  emu.c,  function  video_config_init(), add *(u_char *)0x462=0;
+  after the switch statement ends.
+
+  2) In emu.c, function  emulate(),  move  video_config_init()  to  just
+  after memory_setup() in the same function emulate().
+
+  [Note:  this applies only to dosemu0.50]
+
+
+  7.7.  Why are characters < 128 highlighted and blinking?
+
+  Chris Kuehnke (Christian.Kuehnke@Informatik.Uni-Oldenburg.DE) reported
+  (3/21/94) that
+
+  I think I've found a bug in dosemu0.50pl1; with a MDA  card  displayed
+  characters > 128 automagically appeared as highlighted and blinking.
+
+  This  patch fixed the problem for me [but on the other hand, maybe I'm
+  totally wrong ;-)]:
+
+  --- video.c~    Sat Mar 19 00:50:25 1994
+  +++ video.c     Sat Mar 19 20:36:10 1994
+  @@ -721,7 +721,7 @@
+     int x, y, i, tmp;
+     unsigned int s;
+     static int gfx_flag = 0;
+  -  char c;
+  +  u_char c;
+     us *sm;
+
+     if (d.video >= 3)
+
+
+
+
+  7.8.  Why will dosemu run in a term but not in the console?
+
+  JyiJiin Luo (jjluo@casbah.acns.nwu.edu) reported (4/19/94) that
+
+  I experienced exactly the same problem before. I figured out  all  the
+  video  shadow in my AMI BIOS must be disabled. Now dosemu runs fine on
+  my system.
+
+
+  7.9.  How can I speed up dosemu?
+
+  Mark Rejhon (mdrejhon@undergrad.math.uwaterloo.ca)  reported  (4/7/94)
+  that
+
+  TIP: Speed up your DOS "dir" listings by about 25%-50% or so by typing
+  break off at the DOS prompt or including it in autoexec.bat.
+
+  TIP: Use the nnansi.com ANSI driver to speed up the "dir" output  even
+  more  at  roughly  50%-100%  more.   It works properly in non-graphics
+  mode, unlike turbo.com.
+
+
+  Joel M. Hoffman (joel@rac1.wam.umd.edu) reported (4/23/94) that
+
+  Ironically, I've found that it's sometimes faster to run dosemu in  an
+  Emacs  terminal emulator rather than directly to the console.  Emacs's
+  output optimization is what makes the difference here.
+
+  Put the following in your .emacs:
+
+
+          (defun do-dos ()
+            (interactive)
+            (terminal-emulator "dos" "/usr/local/bin/dos" ()))
+
+
+  and then "emacs -f do-dos" will run  the  dosemu  inside  the  buffer.
+  Make sure you emacs window is 25x80, of course.
+
+
+
+  7.10.  My CDROM drive has problems reading some files under dosemu.
+
+  Vinod G Kulkarni (vinod@cse.iitb.ernet.in) reported (4/7/94) that
+
+  When a CDROM is mounted from linux and used from within DOSEMU (mapped
+  drive),  there  could  be some problems. The cdrom driver (iso9660) in
+  the kernel tries to find out the type of  the  file  (i.e.  binary  or
+  text).  If it can't find, it tries to guess the type of the file using
+  a heuristic. This heuristic fails  under  some  circumstances  when  a
+  (almost)  text  file is to be treated as binary.  (I do not know if it
+  is a bug or feature.)
+
+  The result of this is that if you copy such a file  from  cdrom  (from
+  linux  itself, and not necessarily dosemu), the resulting file will be
+  usually bigger than original file. (Blanks get  added  before  ^J,^M.)
+  So  a  program  running  in dosemu gives error or hangs, which you may
+  mistaken as problem of dosemu.
+
+  I could verify that this kind of heuristic is not used when the  cdrom
+  is used from DEC ALPHA system. (I nfs mounted the exported cdrom drive
+  and used under dosemu as a drive.)
+
+  To correct the behaviour, you can force the iso9660 file system not to
+  use  heuristic  at  all.  Make the following change and then recompile
+  your kernel.
+
+
+  File: /usr/src/linux/fs/isofs/file.c
+  In Function: static int isofs_file_read ()
+    ...
+             if (inode->u.isofs_i.i_file_format == ISOFS_FILE_UNKNOWN) {
+                  inode->u.isofs_i.i_file_format = ISOFS_FILE_BINARY ;
+                  /* ORIGINAL: isofs_determine_filetype(inode);  */
+             }
+    ...
+
+
+
+
+  8.  Contributing to the dosemu project
+
+  8.1.  Who is responsible for dosemu?
+
+  (3/18/94)
+
+  Dosemu is built upon the work of Matthias Lautner and Robert  Sanders.
+  James   B.   MacLean   (jmaclean@fox.nstn.ns.ca)  is  responsible  for
+  organizing the latest releases of dosemu.
+
+                         History of dosemu
+
+            Version    Date                Person
+           -------------------------------------------------
+            0.1        September 3, 1992   Matthias Lautner
+            0.2        September 13, 1992  Matthias Lautner
+            0.3        ???                 Matthias Lautner
+            0.4        November 26, 1992   Matthias Lautner
+            0.47       January 27, 1993    Robert Sanders
+            0.47.7     February 5, 1993    Robert Sanders
+            0.48       February 16, 1993   Robert Sanders
+            0.48pl1    February 18, 1993   Robert Sanders
+            0.49       May 20, 1993        Robert Sanders
+            0.49pl2    November 18, 1993   James MacLean
+            0.49pl3    November 30, 1993   James MacLean
+            0.49pl3.3  December 3, 1993    James MacLean
+            0.50       March 4, 1994       James MacLean
+            0.50pl1    March 18, 1994      James MacLean
+
+
+
+
+  8.2.  I want to help.  Who should I contact?
+
+  The dosemu project is a team effort.  If you wish to  contribute,  see
+  the  DPR  (DOSEMU  Project  Registry).  A current copy may be found in
+  dspsun.eas.asu.edu:/pub/dosemu.

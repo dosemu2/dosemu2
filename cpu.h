@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/04/30 01:05:16 $
+ * $Date: 1994/05/24 01:23:00 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.h,v $
- * $Revision: 1.18 $
+ * $Revision: 1.21 $
  * $State: Exp $
  */
 
@@ -34,15 +34,15 @@
 #define LO(reg)  (*(unsigned char *)&REG(e##reg))
 #define HI(reg)  (*((unsigned char *)&REG(e##reg) + 1))
 
-#define _LO(reg) (*(unsigned char *)&(scp->sc_e##reg))
-#define _HI(reg) (*((unsigned char *)&(scp->sc_e##reg) + 1))
+#define _LO(reg) (*(unsigned char *)&(scp->e##reg))
+#define _HI(reg) (*((unsigned char *)&(scp->e##reg) + 1))
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
 #define LWORD(reg)	(*((unsigned short *)&REG(reg)))
 #define HWORD(reg)	(*((unsigned short *)&REG(reg) + 1))
 
-#define _LWORD(reg)	(*((unsigned short *)&(scp->sc_##reg)))
-#define _HWORD(reg)	(*((unsigned short *)&(scp->sc_##reg) + 1))
+#define _LWORD(reg)	(*((unsigned short *)&(scp->##reg)))
+#define _HWORD(reg)	(*((unsigned short *)&(scp->##reg) + 1))
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
@@ -70,7 +70,7 @@ __asm__ __volatile__( \
 	"incw %w0\n\t" \
 	"movb (%1,%0),%h2\n\t" \
 	"incw %w0" \
-	: "=r" (ptr), "=r" (base), "=r" (__res) \
+	: "=r" (ptr), "=r" (base), "=q" (__res) \
 	: "0" (ptr), "1" (base), "2" (0)); \
 __res; })
 
@@ -131,146 +131,54 @@ CPU_EXTERN struct vec_t *ivecs;
 #define NOCARRY (LWORD(eflags) &= ~CF)
 
 struct sigcontext_struct {
-  unsigned short sc_gs, __gsh;
-  unsigned short sc_fs, __fsh;
-  unsigned short sc_es, __esh;
-  unsigned short sc_ds, __dsh;
-  unsigned long sc_edi;
-  unsigned long sc_esi;
-  unsigned long sc_ebp;
-  unsigned long sc_esp;
-  unsigned long sc_ebx;
-  unsigned long sc_edx;
-  unsigned long sc_ecx;
-  unsigned long sc_eax;
-  unsigned long sc_trapno;
-  unsigned long sc_err;
-  unsigned long sc_eip;
-  unsigned short sc_cs, __csh;
-  unsigned long sc_efl;
+  unsigned short gs, __gsh;
+  unsigned short fs, __fsh;
+  unsigned short es, __esh;
+  unsigned short ds, __dsh;
+  unsigned long edi;
+  unsigned long esi;
+  unsigned long ebp;
+  unsigned long esp;
+  unsigned long ebx;
+  unsigned long edx;
+  unsigned long ecx;
+  unsigned long eax;
+  unsigned long trapno;
+  unsigned long err;
+  unsigned long eip;
+  unsigned short cs, __csh;
+  unsigned long eflags;
   unsigned long esp_at_signal;
-  unsigned short sc_ss, __ssh;
+  unsigned short ss, __ssh;
   unsigned long i387;
   unsigned long oldmask;
   unsigned long cr2;
 };
 
-#define _gs	scp->sc_gs
-#define _fs	scp->sc_fs
-#define _es	scp->sc_es
-#define _ds	scp->sc_ds
-#define _edi	scp->sc_edi
-#define _esi	scp->sc_esi
-#define _ebp	scp->sc_ebp
-#define _esp	scp->sc_esp
-#define _ebx	scp->sc_ebx
-#define _edx	scp->sc_edx
-#define _ecx	scp->sc_ecx
-#define _eax	scp->sc_eax
-#define _eip	scp->sc_eip
-#define _cs	scp->sc_cs
-#define _eflags	scp->sc_efl
-#define _ss	scp->sc_ss
+#define _gs     (scp->gs)
+#define _fs     (scp->fs)
+#define _es     (scp->es)
+#define _ds     (scp->ds)
+#define _edi    (scp->edi)
+#define _esi    (scp->esi)
+#define _ebp    (scp->ebp)
+#define _esp    (scp->esp)
+#define _ebx    (scp->ebx)
+#define _edx    (scp->edx)
+#define _ecx    (scp->ecx)
+#define _eax    (scp->eax)
+#define _trapno (scp->trapno)
+#define _eip    (scp->eip)
+#define _cs     (scp->cs)
+#define _eflags (scp->eflags)
+#define _ss     (scp->ss)
 
-#ifdef DPMI
-struct pm86 {
-  unsigned short gs;
-  unsigned short fs;
-  unsigned short es;
-  unsigned short ds;
-  unsigned long edi;
-  unsigned long esi;
-  unsigned long ebp;
-  unsigned long esp;
-  unsigned long ebx;
-  unsigned long edx;
-  unsigned long ecx;
-  unsigned long eax;
-  unsigned long eflags;
-  unsigned long eip;
-  unsigned short cs, __csh;
-};
-
-struct RealModeCallStructure {
-  unsigned long edi;
-  unsigned long esi;
-  unsigned long ebp;
-  unsigned long esp;
-  unsigned long ebx;
-  unsigned long edx;
-  unsigned long ecx;
-  unsigned long eax;
-  unsigned short flags;
-  unsigned short es;
-  unsigned short ds;
-  unsigned short fs;
-  unsigned short gs;
-  unsigned short ip;
-  unsigned short cs;
-  unsigned short sp;
-  unsigned short ss;
-};
-#endif	/* DPMI */
-
-void sigtrap(int);
+void sigtrap(int, struct sigcontext_struct);
 void sigill(int, struct sigcontext_struct);
 void sigfpe(int);
 void sigsegv(int, struct sigcontext_struct);
 
 void show_regs(void), show_ints(int, int);
 __inline__ int do_hard_int(int), do_soft_int(int);
-
-short pop_short(struct vm86_regs *);
-
-void push_word(struct vm86_regs *, short);
-
-#ifdef DPMI
-#define DPMI_show_state \
-    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n" \
-	     "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n", \
-	     (long)_eip, (long)_esp, (long)_eflags, (long)_cs, (long)_ds, (long)_es, (long)_ss); \
-    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx  EFLAG: %08lx\n", \
-	     (long)_eax, (long)_ebx, (long)_ecx, (long)_edx, (long)_eflags); \
-    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n", \
-	     (long)_esi, (long)_edi, (long)_ebp); \
-    D_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n", \
-	     (long)_cs, (long)_ds, (long)_es, (long)_fs, (long)_gs); \
-    /* display the 10 bytes before and after CS:EIP.  the -> points \
-     * to the byte at address CS:EIP \
-     */ \
-    if (!((_cs) & 0x0004)) { \
-      /* GTD */ \
-      csp2 = (unsigned char *) _eip - 10; \
-    } \
-    else { \
-      /* LDT */ \
-      csp2 = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip) - 10; \
-    } \
-    D_printf("OPS  : "); \
-    for (i = 0; i < 10; i++) \
-      D_printf("%02x ", *csp2++); \
-    D_printf("-> "); \
-    for (i = 0; i < 10; i++) \
-      D_printf("%02x ", *csp2++); \
-    D_printf("\n"); \
-    if (!((_ss) & 0x0004)) { \
-      /* GTD */ \
-      ssp2 = (unsigned char *) _esp - 10; \
-    } \
-    else { \
-      /* LDT */ \
-      if (Segments[_ss>>3].is_32) \
-	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _esp ) - 10; \
-      else \
-	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10; \
-    } \
-    D_printf("STACK: "); \
-    for (i = 0; i < 10; i++) \
-      D_printf("%02x ", *ssp2++); \
-    D_printf("-> "); \
-    for (i = 0; i < 10; i++) \
-      D_printf("%02x ", *ssp2++); \
-    D_printf("\n");
-#endif /*DPMI*/
 
 #endif /* CPU_H */

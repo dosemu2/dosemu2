@@ -1,8 +1,12 @@
 
 How to quickly get dosemu up and running:
 
-Use linux v1.1.10+ and patch with kernel.1.1.10.diff 
-kernel.diff for 1.0.x kernels
+If you use linux v1.1.x update to v1.1.12 or above.
+If you use linux v1.0.x and don't want to update to v1.1.12+
+patch the kernel with kernel.1.0.x.diff
+
+This version of DOSEMU puts libdosemu from /etc/dosemu to /var/lib/dosemu.
+Also /etc/dosemu/config is now /etc/dosemu.conf.
 
 *** Note: This release redirects stderr, not stdout as before, therefore
 	attempts to redirect the debug output should be done on stderr.
@@ -32,12 +36,13 @@ after the normal QuickStart.
 2) Make dosemu:
 	- Modify the Makefile if you need special keyboard, etc
 	- Do 'make doeverything'
-	- Copy an edited examples/config.dist to /etc/dosemu/config
+	- Copy an edited examples/config.dist to /etc/dosemu.conf
 	  You'll see many options that can be set inside the config
 	- Copy exitemu.com from the ./commands subdirectory to the
 	  newly formatted diskette
-	- Copy ./hdimage.dist (located in dosemu0.50) to ./hdimage
-	  The first disk statement in your /etc/dosemu/config should
+	- Copy ./hdimage.dist (located in dosemu0.52) to 
+	  /var/lib/dosemu/hdimage.
+	  The first disk statement in your /etc/dosemu.conf should
 	  point to this file.
 3) Prepare DOSEMU:
 	- From the dosemu0.50 directory, type dos -A
@@ -58,7 +63,7 @@ after the normal QuickStart.
 5) Something not right?:
    First read the dosemu-HOWTO for Q&A's, then if no luck ...
    Please run a session 'dos -D+a 2>debug' and send jmaclean@fox.nstn.ns.ca
-   me your debug (gzip|uuencoded if large), your /etc/dosemu/config
+   me your debug (gzip|uuencoded if large), your /etc/dosemu.conf
    file, and background on the system your running (video card, linux 
    release, cpu size, memory).
 

@@ -96,4 +96,21 @@ void setup_rom_bios(void);
 void bios_configuration_init(void);        /* init BIOS-configuration */
 void bios_data_init(void);                 /* init BIOS-data-areas */
 
-#endif
+void INT16_dummy_start();
+void INT16_dummy_end();
+void INT09_dummy_start();
+void INT09_dummy_end();
+void INT08_dummy_start();
+void INT08_dummy_end();
+void DPMI_dummy_start();
+void DPMI_dummy_end();
+void DPMI_dpmi_init();
+void DPMI_return_from_dosint();
+void DPMI_return_from_realmode();
+void DPMI_raw_mode_switch();
+void DPMI_save_restore();
+void DPMI_API_extension();
+void DPMI_exception();
+void DPMI_interrupt();
+
+#endif /* BIOS_H */

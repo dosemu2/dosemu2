@@ -1,21 +1,24 @@
 /* ipx.c for the DOS emulator
  * 		Tim Bird, tbird@novell.com
  */
-#ifdef IPX
 #include "ipx.h"
+#ifdef IPX
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/vm86.h>
 #include <linux/sockios.h>
 #include <linux/ipx.h>
+#include <netinet/in.h>
 
 #include "timers.h"
 #include "memory.h"
 #include "emu.h"
+#include "inifile.h"
 
 #define MAX_PACKET_DATA		1500
 
@@ -28,24 +31,122 @@ far_t ESRPopRegistersIRet;
 
 static ipx_socket_t *ipx_socket_list = NULL;
 
-static unsigned int MyNetwork = 0x010101f0;
-
 /* FIXTHIS - get a real value for my address in here !! */
 static unsigned char MyAddress[10] =
-{0x01, 0x01, 0x01, 0xf0,
+{0x01, 0x01, 0x00, 0xe0,
  0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
 
-static u_short nextDynamicSocket = 0x4000;
+int 
+GetMyAddress( void )
+{
+  int sock;
+  struct sockaddr_ipx ipxs;
+  struct sockaddr_ipx ipxs2;
+  int len;
+  int i;
+  
+  sock=socket(AF_IPX,SOCK_DGRAM,PF_IPX);
+  if(sock==-1)
+  {
+    n_printf("IPX: could not open socket in GetMyAddress\n");
+    return(-1);
+  }
 
+  /* bind this socket to network 0 */  
+  ipxs.sipx_family=AF_IPX;
+  ipxs.sipx_network=0;
+  ipxs.sipx_port=0;
+  
+  if(bind(sock,(struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
+  {
+    n_printf("IPX: could bind to network 0 in GetMyAddress\n");
+    close( sock );
+    return(-1);
+  }
+  
+  len = sizeof(ipxs2);
+  if (getsockname(sock,(struct sockaddr *)&ipxs2,&len) < 0) {
+    n_printf("IPX: could not get socket name in GetMyAddress\n");
+    close( sock );
+    return(-1);
+  }
+
+  *((unsigned long *)MyAddress) = ipxs2.sipx_network;
+  for (i = 0; i < 6; i++) {
+    MyAddress[4+i] = ipxs2.sipx_node[i];
+  }
+  n_printf("IPX: using network address %02X%02X%02X%02X\n",
+    MyAddress[0], MyAddress[1], MyAddress[2], MyAddress[3] );
+  n_printf("IPX: using node address of %02X%02X%02X%02X%02X%02X\n",
+    MyAddress[4], MyAddress[5], MyAddress[6], MyAddress[7],
+    MyAddress[8], MyAddress[9] );
+  close( sock );
+  return(0);
+}
+  
 void
 InitIPXFarCallHelper(void)
 {
   u_char *ptr;
+  char value[40];
+  int addressTemp[6];
+  int numFields;
+  int ccode;
 
-#if 0
-  d.network = 1;
-#endif
-
+  ccode = GetMyAddress();
+  if( ccode ) {
+    n_printf("IPX: cannot initialize MyAddress\n");
+    n_printf("IPX: trying to read network and node address from DOS.INI\n");
+    
+    /* take some time here to read my address from the DOS.INI file */
+    GetValueFromIniFile( "/etc/dosemu/dos.ini", "ipx", "network", value );
+    if( strlen( value )==0 ) {
+      n_printf("IPX: cannot read IPX network address from dos.ini file\n");
+      n_printf("IPX: please create an [IPX] section in your dos.ini file\n");
+      n_printf("IPX: and add the line NETWORK=xxxxxxxx, where xxxxxxxx\n");
+      n_printf("IPX: is your IPX network number.\n");
+    } else {
+      numFields = sscanf( value, "%2x%2x%2x%2x",
+        &addressTemp[0], &addressTemp[1], &addressTemp[2], &addressTemp[3] );
+      if( numFields != 4 ) {
+        n_printf("IPX: invalid IPX network address read from dos.ini\n");
+        n_printf("IPX: please create an [IPX] section in your dos.ini file\n");
+        n_printf("IPX: and add the line NODE=xxxxxxxxxxxx, where xxxxxxxxxxxx\n");
+        n_printf("IPX: is your IPX node number.\n");
+      } else {
+        MyAddress[0] = addressTemp[0];
+        MyAddress[1] = addressTemp[1];
+        MyAddress[2] = addressTemp[2];
+        MyAddress[3] = addressTemp[3];
+      }
+    }
+    
+    GetValueFromIniFile( "/etc/dosemu/dos.ini", "ipx", "node", value );
+    if( strlen( value )==0 ) {
+      n_printf("IPX: cannot read IPX node address from dos.ini file\n");
+    } else {
+      numFields = sscanf( value, "%2x%2x%2x%2x%2x%2x",
+        &addressTemp[0], &addressTemp[1], &addressTemp[2], &addressTemp[3], 
+        &addressTemp[4], &addressTemp[5] );
+      if( numFields != 6 ) {
+        n_printf("IPX: invalid IPX node address read from dos.ini\n");
+      } else {
+        MyAddress[4] = addressTemp[0];
+        MyAddress[5] = addressTemp[1];
+        MyAddress[6] = addressTemp[2];
+        MyAddress[7] = addressTemp[3];
+        MyAddress[8] = addressTemp[4];
+        MyAddress[9] = addressTemp[5];
+      }
+    }
+  
+    n_printf("IPX: using network address %02X%02X%02X%02X\n",
+      MyAddress[0], MyAddress[1], MyAddress[2], MyAddress[3] );
+    n_printf("IPX: using node address of %02X%02X%02X%02X%02X%02X\n",
+      MyAddress[4], MyAddress[5], MyAddress[6], MyAddress[7],
+      MyAddress[8], MyAddress[6] );
+  }
+   
   ptr = (u_char *) IPX_ADD;
   *ptr++ = 0x50;		/* push ax - FarCallHandler removes this before returning */
   *ptr++ = 0xb0;		/* mov al, 7a */
@@ -93,7 +194,8 @@ IPXInt2FHandler(void)
   _regs.edi = IPX_OFF;
   _regs.es = IPX_SEG;
   n_printf("IPX: request for IPX far call handler address %lx:%lx\n",
-	   _regs.es, _regs.edi);
+	   (unsigned long)_regs.es, (unsigned long)_regs.edi);
+  return 1;
 }
 
 static void 
@@ -173,49 +275,48 @@ dumpBytes(u_char * memptr, int count)
   }
   for (i = 0; i < count; i++) {
     if (linecounter == 0) {
-      printf("%X: ", memptr);
+      n_printf("%X: ", (int)memptr);
     }
-    printf("%02X ", *memptr++);
+    n_printf("%02X ", *memptr++);
     if (linecounter == 7) {
-      printf("-");
+      n_printf("-");
     }
     linecounter++;
     if (linecounter == 16) {
-      printf("\n");
+      n_printf("\n");
       linecounter = 0;
     }
   }
-  printf("\n");
+  n_printf("\n");
 }
 
 void
 printECB(ECB_t * ECB)
 {
-  int i, linecounter;
-  u_char *memptr;
-
-  if (d.network) {
-    printf("--DOS ECB (dump)--\n");
+  int i;
+   
+  if( d.network ) {
+    n_printf("--DOS ECB (dump)--\n");
     dumpBytes((u_char *) ECB, 60);
-    printf("--DOS ECB--\n");
-    printf("Link             %04X:%04X\n", ECB->Link.segment, ECB->Link.offset);
-    printf("ESR		         %04X:%04X\n", ECB->ESRAddress.segment, ECB->ESRAddress.offset);
-    printf("InUseFlag        %02x\n", ECB->InUseFlag);
-    printf("CompletionCode   %02x\n", ECB->CompletionCode);
-    printf("ECBSocket	     %04x\n", SwapInt(ECB->ECBSocket));
-    printf("ImmediateAddress %02X%02X%02X%02X%02X%02X\n",
-	   ECB->ImmediateAddress[0],
-	   ECB->ImmediateAddress[1],
-	   ECB->ImmediateAddress[2],
-	   ECB->ImmediateAddress[3],
-	   ECB->ImmediateAddress[4],
-	   ECB->ImmediateAddress[5]);
-    printf("FragmentCount	 %d\n", ECB->FragmentCount);
+    n_printf("--DOS ECB--\n");
+    n_printf("Link             %04X:%04X\n", ECB->Link.segment, ECB->Link.offset);
+    n_printf("ESR              %04X:%04X\n", ECB->ESRAddress.segment, ECB->ESRAddress.offset);
+    n_printf("InUseFlag        %02x\n", ECB->InUseFlag);
+    n_printf("CompletionCode   %02x\n", ECB->CompletionCode);
+    n_printf("ECBSocket	     %04x\n", SwapInt(ECB->ECBSocket));
+    n_printf("ImmediateAddress %02X%02X%02X%02X%02X%02X\n",
+      ECB->ImmediateAddress[0],
+      ECB->ImmediateAddress[1],
+      ECB->ImmediateAddress[2],
+      ECB->ImmediateAddress[3],
+      ECB->ImmediateAddress[4],
+      ECB->ImmediateAddress[5]);
+    n_printf("FragmentCount	 %d\n", ECB->FragmentCount);
     for (i = 0; i < ECB->FragmentCount; i++) {
-      printf("Frag[%d].Length   %d\n", i, ECB->FragTable[i].Length);
-      printf("Frag[%d].Address	 %04X:%04X\n", i,
-	     ECB->FragTable[i].Address.segment,
-	     ECB->FragTable[i].Address.offset);
+      n_printf("Frag[%d].Length   %d\n", i, ECB->FragTable[i].Length);
+      n_printf("Frag[%d].Address	 %04X:%04X\n", i,
+        ECB->FragTable[i].Address.segment,
+        ECB->FragTable[i].Address.offset);
     }
   }
 }
@@ -223,43 +324,40 @@ printECB(ECB_t * ECB)
 void
 printIPXHeader(IPXPacket_t * IPXHeader)
 {
-  int i, linecounter;
-  u_char *memptr;
-
   if (d.network) {
-    printf("--IPX Header (dump)--\n");
+    n_printf("--IPX Header (dump)--\n");
     dumpBytes((u_char *) IPXHeader, 30);
-    printf("--IPX Header --\n");
-    printf("Checksum         %04X\n", IPXHeader->Checksum);
-    printf("Length           %d\n", SwapInt(IPXHeader->Length));
-    printf("TransportControl %d\n", IPXHeader->TransportControl);
-    printf("PacketType       %d\n", IPXHeader->PacketType);
-    printf("Destination      %02X%02X%02X%02X:%02X%02X%02X%02X%02X%02X:%02X%02X\n",
-	   IPXHeader->Destination.Network[0],
-	   IPXHeader->Destination.Network[1],
-	   IPXHeader->Destination.Network[2],
-	   IPXHeader->Destination.Network[3],
-	   IPXHeader->Destination.Node[0],
-	   IPXHeader->Destination.Node[1],
-	   IPXHeader->Destination.Node[2],
-	   IPXHeader->Destination.Node[3],
-	   IPXHeader->Destination.Node[4],
-	   IPXHeader->Destination.Node[5],
-	   IPXHeader->Destination.Socket[0],
-	   IPXHeader->Destination.Socket[1]);
-    printf("Source           %02X%02X%02X%02X:%02X%02X%02X%02X%02X%02X:%02X%02X\n",
-	   IPXHeader->Source.Network[0],
-	   IPXHeader->Source.Network[1],
-	   IPXHeader->Source.Network[2],
-	   IPXHeader->Source.Network[3],
-	   IPXHeader->Source.Node[0],
-	   IPXHeader->Source.Node[1],
-	   IPXHeader->Source.Node[2],
-	   IPXHeader->Source.Node[3],
-	   IPXHeader->Source.Node[4],
-	   IPXHeader->Source.Node[5],
-	   IPXHeader->Source.Socket[0],
-	   IPXHeader->Source.Socket[1]);
+    n_printf("--IPX Header --\n");
+    n_printf("Checksum         %04X\n", IPXHeader->Checksum);
+    n_printf("Length           %d\n", SwapInt(IPXHeader->Length));
+    n_printf("TransportControl %d\n", IPXHeader->TransportControl);
+    n_printf("PacketType       %d\n", IPXHeader->PacketType);
+    n_printf("Destination      %02X%02X%02X%02X:%02X%02X%02X%02X%02X%02X:%02X%02X\n",
+      IPXHeader->Destination.Network[0],
+      IPXHeader->Destination.Network[1],
+      IPXHeader->Destination.Network[2],
+      IPXHeader->Destination.Network[3],
+      IPXHeader->Destination.Node[0],
+      IPXHeader->Destination.Node[1],
+      IPXHeader->Destination.Node[2],
+      IPXHeader->Destination.Node[3],
+      IPXHeader->Destination.Node[4],
+      IPXHeader->Destination.Node[5],
+      IPXHeader->Destination.Socket[0],
+      IPXHeader->Destination.Socket[1]);
+    n_printf("Source           %02X%02X%02X%02X:%02X%02X%02X%02X%02X%02X:%02X%02X\n",
+      IPXHeader->Source.Network[0],
+      IPXHeader->Source.Network[1],
+      IPXHeader->Source.Network[2],
+      IPXHeader->Source.Network[3],
+      IPXHeader->Source.Node[0],
+      IPXHeader->Source.Node[1],
+      IPXHeader->Source.Node[2],
+      IPXHeader->Source.Node[3],
+      IPXHeader->Source.Node[4],
+      IPXHeader->Source.Node[5],
+      IPXHeader->Source.Socket[0],
+      IPXHeader->Source.Socket[1]);
   }
 }
 
@@ -269,6 +367,8 @@ IPXOpenSocket(u_short port, u_short * newPort)
   int sock;			/* sock here means Linux socket handle */
   int opt;
   struct sockaddr_ipx ipxs;
+  int len;
+  struct sockaddr_ipx ipxs2;
 
   /* FIXTHIS - do something with longevity flag */
   port = SwapInt(port);
@@ -280,10 +380,11 @@ IPXOpenSocket(u_short port, u_short * newPort)
   }
   /* FIXTHIS - kludge to support broken linux IPX stack */
   /* need to convert dynamic socket open into a real socket number */
-  if (port == 0) {
+/*  if (port == 0) {
     n_printf("IPX: using socket %x\n", nextDynamicSocket);
     port = nextDynamicSocket++;
   }
+*/
   /* do a socket call, then bind to this port */
   sock = socket(AF_IPX, SOCK_DGRAM, PF_IPX);
   if (sock == -1) {
@@ -311,27 +412,41 @@ IPXOpenSocket(u_short port, u_short * newPort)
   }
   /* allow setting the type field in the IPX header */
   opt = 1;
-  if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1) {
+  if (setsockopt(sock, SOL_SOCKET, SO_TYPE, &opt, sizeof(opt)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for type.\n");
     return (RCODE_SOCKET_TABLE_FULL);
   }
   ipxs.sipx_family = AF_IPX;
-  ipxs.sipx_network = htonl(MyNetwork);
+  ipxs.sipx_network = *((unsigned int *)&MyAddress[0]);
+/*  ipxs.sipx_network = htonl(MyNetwork); */
   ipxs.sipx_port = htons(port);
 
   /* now bind to this port */
   if (bind(sock, (struct sockaddr *) &ipxs, sizeof(ipxs)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not bind socket to address\n");
+    close( sock );
     return (RCODE_SOCKET_TABLE_FULL);
   }
-
+  
+  if( port==0 ) {
+    len = sizeof(ipxs2);
+    if (getsockname(sock,(struct sockaddr *)&ipxs2,&len) < 0) {
+      /* I can't think of anything else to return */
+      n_printf("IPX: could not get socket name in IPXOpenSocket\n");
+      close( sock );
+      return(RCODE_SOCKET_TABLE_FULL);
+    } else {
+      port = htons(ipxs2.sipx_port);
+      n_printf("IPX: opened dynamic socket %04x\n", port);
+    }
+  }
+  
   /* if we successfully bound to this port, then record it */
   ipx_insert_socket(port, /* PSP */ 0, sock);
-  n_printf("IPX: successfully opened socket %x\n",
-	   SwapInt(ipxs.sipx_port));
-  *newPort = ipxs.sipx_port;
+  n_printf("IPX: successfully opened socket %04x\n", port);
+  *newPort = htons(port);
   return (RCODE_SUCCESS);
 }
 
@@ -409,36 +524,44 @@ GatherFragmentData(char *buffer, ECB_t * ECB)
 void
 PrepareForESR(int iretFlag, ECB_t * ECB, far_t ECBPtr, u_char AXVal)
 {
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *)(REG(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+
   /* push all registers */
-  push_word(&_regs, LWORD(eax));
-  push_word(&_regs, LWORD(ebx));
-  push_word(&_regs, LWORD(ecx));
-  push_word(&_regs, LWORD(edx));
-  push_word(&_regs, LWORD(esi));
-  push_word(&_regs, LWORD(edi));
-  push_word(&_regs, LWORD(ebp));
-  push_word(&_regs, LWORD(ds));
-  push_word(&_regs, LWORD(es));
+  pushw(ssp, sp, LWORD(eax));
+  pushw(ssp, sp, LWORD(ebx));
+  pushw(ssp, sp, LWORD(ecx));
+  pushw(ssp, sp, LWORD(edx));
+  pushw(ssp, sp, LWORD(esi));
+  pushw(ssp, sp, LWORD(edi));
+  pushw(ssp, sp, LWORD(ebp));
+  pushw(ssp, sp, LWORD(ds));
+  pushw(ssp, sp, LWORD(es));
 
   /* push far return address for ESRPopRegisters... */
   if (iretFlag) {
-    push_word(&_regs, ESRPopRegistersIRet.segment);
-    push_word(&_regs, ESRPopRegistersIRet.offset);
+    pushw(ssp, sp, ESRPopRegistersIRet.segment);
+    pushw(ssp, sp, ESRPopRegistersIRet.offset);
   }
   else {
-    push_word(&_regs, ESRPopRegistersReturn.segment);
-    push_word(&_regs, ESRPopRegistersReturn.offset);
+    pushw(ssp, sp, ESRPopRegistersReturn.segment);
+    pushw(ssp, sp, ESRPopRegistersReturn.offset);
   }
 
+  LWORD(esp) -= 22;
+  
   _regs.cs = ECB->ESRAddress.segment;
   _regs.eip = ECB->ESRAddress.offset;
   _regs.es = ECBPtr.segment;
   _regs.esi = ECBPtr.offset;
   _regs.eax = AXVal;
 
-  n_printf("IPX: setup for ESR address at %04X:%04X\n",
+  n_printf("IPX: setup for ESR address at %04X:%04lX\n",
 	   _regs.cs, _regs.eip);
-  n_printf("IPX: ES:SI = %04X:%04X, AX = %X\n",
+  n_printf("IPX: ES:SI = %04X:%04lX, AX = %X\n",
 	   _regs.es, _regs.esi, LWORD(eax));
 }
 
@@ -475,7 +598,8 @@ IPXSendPacket(far_t ECBPtr)
   memcpy(&ipxs.sipx_network, IPXHeader->Destination.Network, 4);
   /* if destination address is 0, then send to my net */
   if (ipxs.sipx_network == 0) {
-    ipxs.sipx_network = htonl(MyNetwork);
+    ipxs.sipx_network = *((unsigned int *)&MyAddress[0]);
+/*  ipxs.sipx_network = htonl(MyNetwork); */
   }
   memcpy(&ipxs.sipx_node, IPXHeader->Destination.Node, 6);
   memcpy(&ipxs.sipx_port, IPXHeader->Destination.Socket, 2);
@@ -484,7 +608,7 @@ IPXSendPacket(far_t ECBPtr)
   if (mysock == NULL) {
     /* FIXTHIS - should do a bind, send, close here */
     /* DOS IPX allows sending on unopened sockets */
-    n_printf("IPX: send to unopened socket\n");
+    n_printf("IPX: send to unopened socket %04x\n", htons( ECB->ECBSocket ));
     return;
   }
   if (sendto(mysock->fd, (void *) &data, dataLen, 0,
@@ -651,7 +775,6 @@ AESTimerTick(void)
   ipx_socket_t *mysock;
   far_t ECBPtr;
   AESECB_t *ECB;
-  u_short rcode;
   int done;
 
   /* run through the socket list, and process any pending AES events */
@@ -726,10 +849,10 @@ ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
       IPXHeader->TransportControl = 1;
       IPXHeader->PacketType = 0;
       memcpy((u_char *) & IPXHeader->Destination, MyAddress, 10);
-      *(u_short *) & IPXHeader->Destination.Socket, ECB->ECBSocket;
+      *((u_short *) &IPXHeader->Destination.Socket) = ECB->ECBSocket;
       memcpy(IPXHeader->Source.Network, (char *) &sipx->sipx_network, 4);
       memcpy(IPXHeader->Source.Node, sipx->sipx_node, 6);
-      *(u_short *) & IPXHeader->Source.Socket = sipx->sipx_port;
+      *((u_short *) &IPXHeader->Source.Socket) = sipx->sipx_port;
       /* FIXTHIS - kludge for bug in linux IPX stack */
       /* IPX stack returns data count including IPX header */
       /*			dataLeftCount -= 30; */
@@ -901,11 +1024,19 @@ IPXFarCallHandler(void)
   u_short port;			/* port here means DOS IPX socket */
   u_short newPort;
   ECB_t *ECB;
-  unsigned short *ticks;
+  unsigned short *timerticks;
   u_char *AddrPtr;
   far_t ECBPtr;
+  unsigned long network, *networkPtr;
+  int hops, ticks;
+  unsigned char *ssp;
+  unsigned long sp;
 
-  LWORD(eax) = pop_word(&_regs);
+  ssp = (unsigned char *)(REG(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+
+  LWORD(eax) = popw(ssp, sp);
+  LWORD(esp) += 2;
   n_printf("IPX: request number 0x%lX\n", _regs.ebx);
   switch (LWORD(ebx)) {
   case IPX_OPEN_SOCKET:
@@ -921,9 +1052,22 @@ IPXFarCallHandler(void)
     /* do nothing here because routing is handled by IPX */
     /* normally this would return an ImmediateAddress, but */
     /* the ECB ImmediateAddress is never used, so just return */
-    LO(ax) = RCODE_SUCCESS;
-    /* FIXTHIS - should report back real transport time here! */
-    LWORD(ecx) = 2;
+    networkPtr = (unsigned long *)(((_regs.es & 0xffff)<<4) + LWORD(esi));
+    network = *networkPtr;
+    n_printf("IPX: GetLocalTarget for network %08lx\n", network );
+    if( network==0 || network== *((unsigned long *)&MyAddress[0]) ) {
+      n_printf("IPX: returning GLT success for local address\n");
+      LO(ax) = RCODE_SUCCESS;
+      LWORD(ecx) = 1;
+    } else {
+      if( IPXGetLocalTarget( network, &hops, &ticks )==0 ) {
+        LO(ax) = RCODE_SUCCESS;
+        LWORD(ecx) = ticks;
+      } else {
+        n_printf("IPX: GetLocalTarget failed.\n");
+        LO(ax) = RCODE_CANNOT_FIND_ROUTE;
+      }
+    }
     break;
   case IPX_FAST_SEND:
     n_printf("IPX: fast send\n");
@@ -964,19 +1108,20 @@ IPXFarCallHandler(void)
     ECBPtr.segment = _regs.es & 0xffff;
     ECBPtr.offset = LWORD(esi);
 
-    n_printf("IPX: schedule AES event ECB at %x\n", ECB);
-    n_printf("IPX: es:si = %x:%x\n", _regs.es & 0xffff, LWORD(esi));
+    n_printf("IPX: schedule AES event ECB at %x\n", (unsigned int)ECB);
+    n_printf("IPX: es:si = %x:%x\n", (unsigned int)(_regs.es & 0xffff),
+      LWORD(esi));
 
     /* put this packet on the queue of AES events for this socket */
     LO(ax) = IPXScheduleEvent(ECBPtr, IU_ECB_AES_WAITING,
 			      LWORD(eax));
     break;
   case IPX_GET_INTERVAL_MARKER:
-    /* Note that ticks is actually an unsigned long in BIOS */
+    /* Note that timerticks is actually an unsigned long in BIOS */
     /* this works because of intel lo-hi architecture */
-    ticks = BIOS_TICK_ADDR;
-    LWORD(eax) = *ticks;
-    n_printf("IPX: get interval marker %d\n", _regs.eax);
+    timerticks = BIOS_TICK_ADDR;
+    LWORD(eax) = *timerticks;
+    n_printf("IPX: get interval marker %d\n", LWORD(eax));
     /*			n_printf("IPX: doing extra relinquish control\n"); */
     IPXRelinquishControl();
     break;
@@ -1031,5 +1176,4 @@ ipx_close(void)
     s = ipx_socket_list;
   }
 }
-
 #endif

@@ -1,4 +1,5 @@
 #include <termcap.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/kd.h>
 #include <sys/vt.h>
@@ -6,6 +7,8 @@
 #include "emu.h"
 #include "termio.h"
 #include "video.h"
+
+extern int wait_vc_active(void);
 
 void set_console_video(void)
 {
@@ -65,16 +68,17 @@ void set_console_video(void)
 
   allow_switch();
   clear_screen(0, 7);
-  v_printf("VID: After clear_screen\n");
-
-
 }
+
+extern u_char in_linux_video;
 
 void clear_console_video(void)
 {
 
-  set_linux_video();
-  put_video_ram();		/* unmap the screen */
+  if (scr_state.current) {
+    set_linux_video();
+    put_video_ram();		/* unmap the screen */
+  }
 
   /* XXX - must be current console! */
 

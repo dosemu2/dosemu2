@@ -5,7 +5,7 @@
 
                         Dosemu Project Registry
 
-                                2/1/94
+                                5/3/94
 
 
         The DOSEMU Project register is a list of the dosemu projects
@@ -43,11 +43,10 @@ it to james and it will probably get into the next version of DOSEMU
 (assuming it's a usefull patch :)
 
 
-dosemu-HOWTO: - Michael E. Deisher
+DOSEMU FAQ: - Michael E. Deisher
 
         The dosemu FAQ is a list of Frequently asked questions for
 DOSEMU that is posted every blue moon to the DOSEMU mailing list.
-A current copy is always at dspsun.eas.asu.edu:/pub/dosemu.
 
 
 redirector maintaince: - (formerly Tim Bird(& hopefully again)) & James 
@@ -79,7 +78,7 @@ Video maintaince: - James (again, dosen't he ever rest :)
         This is mainly bug fixing the DOSEMU video routines.
 
 
-xwindows support: - Jason E Gorden
+*xwindows support: - Jason E Gorden
 
         xwindows support needs to be added.  Ideally dosemu, when run
 would open a color xterm, then run color text dos programs.  When a
@@ -117,7 +116,7 @@ Graphics in a xwindow is just a dream right now...
 {sunsite.unc.edu:/pub/Linux/X11/xutils/terms/ansi_xterm-src.tgz.
 
 
-text output: - Savio Lam & Corey Sweeney (Me)
+*text output: - Savio Lam & Corey Sweeney (Me)
 
 Color & the IBM charactor set must be added to dosemu.  By using
 ncurses, not only will we pick up a terminal-independant way of
@@ -133,6 +132,12 @@ Serial maintaince: - ronnie
 
         This is the code for modems & mice.  The tricky part will be
 getting the high speed modems to work.
+
+
+Serial performance increse & 16550 emulation - ???
+
+        He's pretty much done with this already.  It actually works at
+real baud rates now ( real < 4800).
 
 
 EMUsuccess.txt: - Michael E. Deisher
@@ -191,14 +196,40 @@ to the manual that you can come up with.  Send them to
 ****************************************************************
 
 
-------------------------------------------------------------------
+*Timers: - Larry Stephan
 
-The following projects need someone to work on them:
+This started out as just timer routines, but it has kind of expanded
+to include the programmable interrupt controller, programmable interval timer,
+real-time clock, a dos clock, and an interval timer for use by dosemu itself.
+Which makes it a little bigger than I can handle quickly.
+
+The PIC code is written, but not yet integrated with dosemu.  You can find
+it in the timer directory.  The rest of the code is getting there, but if
+someone wants to help speed it up, please let me know.  I'm sure there are
+plenty of pieces to keep a few people people busy.
+ 
+
+*DPMI support: - Lutz
+
+Lutz (molgedey@solid.theo-physik.uni-kiel.de) is the champion of the DPMI
+code propegating into DOSEMU. He's is already able to run emtex386.
+Specs for DPMI 0.9 are available from ftp.qdeck.com in /pub/memory or
+for DPMI 1.0 from ftp.intel.com:/pub/???????. You may have a look too in
+http://www.theo-physik.uni-kiel.de/~molgedey/projects/computing/linux/dosemu.
+
+One part of DPMI is getting Windows 3.1 to run. Lutz could need any help with
+it since he hates undocumented functions :-).
 
 
+*Performance improvements:  Linus & Lutz - (tim played with this, but
+had to do IPX) 
 
-Performance improvements:  (tim played with this, but had to do IPX)
+Ok linus took 30 seconds to write a kernel patch to add one feature
+that dosemu needs to the kernel.  Lutz got it working, and is trying
+to debug it now.  This has helped speed considerably.
 
+--------------------
+eirlier method-
  From messages to the msdos mailing list i believe that this is already
 being worked on by someone.  And from the little i saw, it seemed like
 they were taking the right approach to doing it.  It goes something as
@@ -239,6 +270,18 @@ be able to be stolen from the wine (wabi clone) project.
 {monitor(3), and prof(1)
 
 
+*Debian distribution: - Michael E. Deisher
+
+        Write instalation scripts & make sure that the dosemu system
+comforms to the debian instalation standard.  It would probably be a
+good idea for him to make james start following the FFSSTTD.
+
+
+------------------------------------------------------------------
+
+The following projects need someone to work on them:
+
+
 Memory:
 
 The memory for dosemu needs to be dynamically allocated.  This means
@@ -260,7 +303,8 @@ memory is allocated at run time, but when the dos program gives it up,
 dosemu hoards it.
 
 
-Standard memory footprint:
+Standard memory footprint: (dosemu has gone back to one process which
+helps this considerably.  I think we might be done here)
 
 The memory requirements to run the basic 640K dosemu session needs to
 be shrunk down.  I currently have no idea now to accomplish this one.
@@ -289,19 +333,6 @@ terminfo, And for any keys that don't have entries, create new
 "standards" of where to add them, and add them in.
 
 
-DPMI support: - (James is planning on trying to take this up, however
-if anyone has any idea how to go about doing this & would like to take
-it over it would be most appresiated, so that james can continue on
-his many other things)
-
-        steal some from wine & ask bob from wine.
-        get the specs from ftp.qdeck.com in /pub/memory
-
-
-Debian distribution: 
-
-        Write instalation scripts & make sure that the dosemu system
-comforms to the debian instalation standard.
 
 
 networking:
@@ -333,17 +364,21 @@ map to dynamically change drive mappings etc.
 {last part I need to work on is integrating my asynchronous callouts with 
 {the DOSEMU 2-process IPC system.
 
+
+sound driver - link emulated soundblaster card to the sound device.
+
+devide overflow error - fix the "24" hour bug.
+
+add .config file support (it checks the users home directory for a config
+file *then* looks for the default)
+
+
 ------------------------------------------------------------------------
 
 Future project ideas:
 
-sound driver - link emulated soundblaster card to the sound device.
 more video card drivers (eg. S3)
-devide overflow error - fix the "24" hour bug.
 how to become a developer document
-timers - i don't think they've been done yet.
-add .config file support (it checks the users hoem directory for a config
-file *then* looks for the default)
 internetional keyboard support - there used to be a problem with this.
         has it been fixed?
 
@@ -352,6 +387,21 @@ be called with "dos -s jill 2> /dev/tty8" - basically the idea here
 would be that people could distribute litte configuration files for
 certain programs.  (possibly called config.jill or config.simearth
 (you get the pattern))
+
+run console mode as non-root
+boot from memory image (this would decrase the delay before you run
+        your program.
+
+automatic dos program execution
+        1. write a shell script to do it.
+                (possibly write a "dcopy" command that when copying a
+                        XXX.exe file, creates a XXX shell script to
+                        run that program automatically.
+        2. automatic binaray execution by moddifiying the exec() process
+                in the kernel
+
+virtual dos integration.
+
 ------------------------------------------------------------------------
 The following is a list of the projects that have been completed:
 
@@ -374,40 +424,35 @@ to run most programs & emulator was broken. Performance: unbearable
 dosemu .49 - ran dos shell & had features to run many programs.
 emulator was broken. Performance: miserable
 
-dosemu .50 - (when released)  should be able to run many programs and
-will actually work!  :)  Performance: unless someone picks up the
-"performance" project, it will still be miserable.  But i hope someone
-does so we can make it just terrible.
+dosemu .50 - should be able to run many programs and
+will actually work!  :)  Performance: still miserable.
+
+dosemu .52 - (when released) should be able to run many programs, actually
+work, and performace should go off the scale!
 
 performance standards:
 
 (best)  awful           
         horibble        
         god awful       
-        terrible        (486dx-33 = 386dx-33)(note diff of floating point)
-        miserable       (486dx-50 = 386dx-33)(note diff of floating point)
+        terrible        (486dx-33 = 386dx-33?)(note diff of floating point)
+        miserable       (486dx-50 = 386dx-33?)(note diff of floating point)
 (worst) unbearable      
 
 
 ------------------------------------------------------------------------
 current dosemu information:
 
-latest release - dosemu .49pl3 (more then 2 patches available)
+latest release - dosemu .50pl1
 
-current development version - dosemu .49pre-pl4g
+current development version - dosemu .50pl11
 
 Note:  don't look for the development version unless you are planning
 on doing development work, because often certain features can be
 totally screwed on a development version because they have not been
 tested.
 
-**********************************************************************
-
-!!!everyone who believes that they can have new features & patches in
-by 2/10/94 please send me mail, so we can have some idea on what
-..49pl4 & .50 will look like!!!
-
------------------
+-------------------
 
 List of dosemu contributors addresses(in no paticular order):
 
@@ -419,3 +464,12 @@ Lawrence K Mao          - lkmao@quark.SFSU.EDU
 ronnie                  - ronnie@epact.se
 Michael E. Deisher      - deisher@enws99.EAS.ASU.EDU
 James Maclean           - jmaclean@fox.nstn.ns.ca
+Larry Stephan           - jlarry@ssnet.com
+Lutz Molgedey		- molgedey@solid.theo-physik.uni-kiel.de
+
+Corey Sweeney
+corey@bbs.xnet.com
+
+
+
+------------------------------

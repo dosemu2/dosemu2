@@ -1,14 +1,28 @@
 /* parse.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * rudimentary attempt at config file parsing for dosemu
+ * Parsing of config-files for the Linux-DOSEmulator
  *
- * $Date: 1994/04/29 23:53:26 $
+ * The parser is a hand-written state machine.
+ *
+ * $Date: 1994/05/18 00:16:55 $
  * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 1.2 $
+ * $Revision: 1.6 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.6  1994/05/18  00:16:55  root
+ * pre15_17
+ *
+ * Revision 1.5  1994/05/09  23:37:01  root
+ * pre51_13.
+ *
+ * Revision 1.4  1994/05/04  22:18:36  root
+ * Patches by Alan to mouse subsystem.
+ *
+ * Revision 1.3  1994/05/04  21:58:48  root
+ * Prior to Alan's patches to mouse code.
+ *
  * Revision 1.2  1994/04/29  23:53:26  root
  * Prior to Lutz's latest 94/04/29
  *
@@ -106,6 +120,8 @@
 #include <ctype.h>
 #include <string.h>
 #include <setjmp.h>
+#include <sys/stat.h>                    /* structure stat       */
+#include <unistd.h>                      /* prototype for stat() */
 
 #include "config.h"
 #include "emu.h"
@@ -120,8 +136,10 @@
 
 extern char* strdup(const char *); /* Not defined in string.h :-( */
 
-extern int allow_io(int, int, int, int, int);
-extern struct config_info config;
+extern struct config_info config;  /* Configuration information */
+
+int errors;               /* Number of errors detected while parsing */
+int warnings;             /* Number of warnings detected while parsing */
 
 jmp_buf exitpar;
 
@@ -154,18 +172,20 @@ typedef enum {
   SEC_DEBUG, DBG_IO, DBG_VIDEO, DBG_SERIAL, DBG_CONFIG, DBG_DISK,
              DBG_READ, DBG_WRITE, DBG_KEYB, DBG_PRINTER, DBG_WARNING,
              DBG_GENERAL, DBG_XMS, DBG_DPMI, DBG_MOUSE, DBG_HARDWARE,
-             DBG_IPC, DBG_EMS,
+             DBG_IPC, DBG_EMS, DBG_NET,
   SEC_KEYBOARD, KEYB_RAWKEYBOARD, KEYB_LAYOUT, KEYB_KEYBINT,
   EOL_COMMENT, P_COMMAND, P_OPTIONS, P_TIMEOUT,
   P_FILE, SEC_PORTS, PRT_RANGE, PRT_RDONLY, PRT_WRONLY,
   PRT_RDWR, PRT_ANDMASK, PRT_ORMASK, VAL_SPEAKER,
   V_CHUNKS, V_CHIPSET, V_MDA, V_VGA, V_CGA, V_EGA, V_VBIOSF,
   V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
-  V_MEMSIZE, V_VBIOSM, VAL_HOGTHRESHOLD, VAL_TIMER,
+  V_MEMSIZE, V_VBIOSM, V_VBIOS_SEG,
+  VAL_PKTFLAGS, VAL_HOGTHRESHOLD, VAL_TIMER,
   SEC_SERIAL, S_DEVICE, S_PORT, S_BASE, S_IRQ, S_MODEM, S_MOUSE,
-  S_MICROSOFT, S_MOUSESYSTEMS3, S_MOUSESYSTEMS5, S_MMSERIES, S_LOGITECH,
-  SEC_MOUSE, M_INTDRV, M_DEVICE, M_MICROSOFT, M_PS2, M_MOUSESYSTEMS, M_MMSERIES, 
-  M_LOGITECH, M_BUSMOUSE, M_MOUSEMAN,
+
+  SEC_MOUSE, M_INTDRV, M_BAUDRATE, M_DEVICE, M_MICROSOFT, M_PS2, 
+             M_MOUSESYSTEMS, M_MMSERIES, M_LOGITECH, M_BUSMOUSE, 
+             M_MOUSEMAN, M_HITACHI, M_CLEARDTR,
   VAL_DOSBANNER, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS,
   SEC_BOOTDISK, VAL_DPMI, VAL_ALLOWVIDEOPORTACCESS
 } tok_t;
@@ -191,9 +211,9 @@ typedef struct word_struct {
 typedef struct syn_struct {
   char *syn;
   char *trans;
-}
+} syn_t;
 
-syn_t;
+/***************************************************************/
 
 int do_top(word_t *, arg_t, arg_t);
 int do_num(word_t *, arg_t, arg_t);
@@ -234,6 +254,18 @@ int do_ports(word_t *, arg_t, arg_t);
 int glob_bad(word_t *, arg_t, arg_t);
 int porttok(word_t *, arg_t, arg_t);
 
+extern int allow_io(int, int, int, int, int);
+
+void parse_error(char *s);
+void parse_warning(char *s);
+int read_until_rtn_previous(FILE * fd, int goal);
+int same_name(char *str1, char *str2);
+char *synonym(syn_t * syntable, char *str);
+char *get_arg(FILE * fd);
+word_t *match_name(word_t * words, char *name);
+FILE *open_file(char *filename);
+void close_file(FILE * file);
+
 #define do_delim 0
 
 #define NULL_WORD	{NULL,NULLTOK,NULLFORM,glob_bad,0,0,}
@@ -263,6 +295,7 @@ word_t video_words[] =
   {"vbios_file", V_VBIOSF, VALUE, do_video},
   {"vbios_copy", V_VBIOSC, PRED, do_video},
   {"vbios_mmap", V_VBIOSM, PRED, do_video},
+  {"vbios_seg", V_VBIOS_SEG, VALUE, do_video},
   {"chunks", V_CHUNKS, VALUE, do_video},
   NULL_WORD
 };
@@ -287,6 +320,7 @@ word_t mouse_words[] =
   {"{", LBRACE, ODELIM, do_mouse},
   {"}", RBRACE, CDELIM, do_mouse},
   {"internaldriver", M_INTDRV, PRED, do_mouse},
+  {"baudrate", M_BAUDRATE, VALUE, do_mouse},
   {"device", M_DEVICE, VALUE, do_mouse},
   {"microsoft", M_MICROSOFT, PRED, do_mouse},
   {"ps2", M_PS2, PRED, do_mouse},
@@ -295,6 +329,8 @@ word_t mouse_words[] =
   {"logitech", M_LOGITECH, PRED, do_mouse},
   {"busmouse", M_BUSMOUSE, PRED, do_mouse},
   {"mouseman", M_MOUSEMAN, PRED, do_mouse},
+  {"hitachi", M_HITACHI, PRED, do_mouse},
+  {"cleardtr", M_CLEARDTR, PRED, do_mouse},
   NULL_WORD
 };
 
@@ -322,6 +358,7 @@ word_t debug_words[] =
   {"hardware", DBG_HARDWARE, VALUE, do_debug},
   {"ipc", DBG_IPC, VALUE, do_debug},
   {"ems", DBG_EMS, VALUE, do_debug},
+  {"network", DBG_NET, VALUE, do_debug},
   NULL_WORD
 };
 
@@ -416,6 +453,7 @@ word_t top_words[] =
   {"printer", SEC_PRINTER, SECTION, do_top, start_printer, stop_printer, printer_words},
   {"mathco", VAL_MATHCO, VALUE, do_num, 0, 0, null_words},
   {"ipxsupport", VAL_IPXSUP, VALUE, do_num, 0, 0, null_words},
+  {"pktdriver", VAL_PKTFLAGS, VALUE, do_num, 0, 0, null_words},
   {"speaker", VAL_SPEAKER, VALUE, do_num, 0, 0, null_words},
   {"boota", PRED_BOOTA, PRED, do_num, 0, 0, null_words},
   {"bootc", PRED_BOOTC, PRED, do_num, 0, 0, null_words},
@@ -441,22 +479,30 @@ word_t top_words[] =
 /* XXX - fix these synonyms! */
 syn_t global_syns[] =
 {
-  {"on", "1"},
+  {"on",  "1"},
   {"off", "0"},
   {"yes", "1"},
-  {"no", "0"},
+  {"no",  "0"},
+
+  {"8086",  "0"},              /* values from <linux/vm86.h> */
+  {"80186", "1"},
   {"80286", "2"},
   {"80386", "3"},
   {"80486", "4"},
-  {"emulated", "2"},
-  {"native", "1"},		/* for speaker */
-  {"s3", "4"},
-  {"diamond", "3"},
-  {"et4000", "2"},
-  {"trident", "1"},
-  {"plainvga", "0"},
+  {"80586", "5"},
 
-  {"finnish",       "0" },
+  {"native",   "1"},		/* for speaker */
+  {"emulated", "2"},
+
+  {"plainvga", "0"},
+  {"trident",  "1"},
+  {"et4000",   "2"},
+  {"diamond",  "3"},
+  {"s3",       "4"},
+
+  {"novell_hack", "1"},               /* Novell 8137->802.3 hack */
+
+  {"finnish",       "0" },       /* Ugly, must match the defines in emu.h */
   {"finnish-latin1","1" },
   {"us",            "2" },
   {"uk",            "3" },
@@ -496,6 +542,29 @@ int hdiskno = 0;
 int diskno = 0;
 
 /***************************** functions ***********************/
+
+/*
+ * parse_error - print an error message and count the number of error
+ *               that occured while parsing the config-file
+ */
+
+void parse_error(char *s)
+{
+  fprintf(stderr, "ERROR: %s\n",s);
+  errors = errors + 1;
+}
+
+/*
+ * parse_warinig - print a warning message and count the number of warnings
+ *                 that occured while parsing the config-file
+ */
+
+void parse_warning(char *s)
+{
+  fprintf(stderr, "WARNING: %s\n",s);
+  warnings = warnings + 1;
+}
+
 int
 read_until_rtn_previous(FILE * fd, int goal)
 {
@@ -515,10 +584,21 @@ read_until_rtn_previous(FILE * fd, int goal)
     return previous;
 }
 
-int
-glob_bad(word_t * word, arg_t a1, arg_t a2)
+/*
+ * glob_bad - unknown token read from config-file
+ */
+
+int glob_bad(word_t * word, arg_t a1, arg_t a2)
 {
-  c_printf("glob_bad called: %s!\n", word->name);
+  char *str;
+
+  str = malloc(128);
+
+  sprintf(str,"glob_bad called: %s!", word->name);
+  parse_error(str);
+
+  free(str);
+
   return word->token;
 }
 
@@ -706,16 +786,39 @@ get_arg(FILE * fd)
   return str;
 }
 
-FILE *
-open_file(char *filename)
+/*
+ * open_file - opens the configuration-file named *filename and returns
+ *             a file-pointer. The error/warning-counters are reset to zero.
+ */
+
+FILE *open_file(char *filename)
 {
-  return (globl_file = fopen(filename, "r"));
+  errors   = 0;                  /* Reset error counter */
+  warnings = 0;                  /* Reset counter for warnings */
+
+  return (globl_file = fopen(filename, "r")); /* Open config-file */
 }
 
-void
-close_file(FILE * file)
+/*
+ * close_file - Close the configuration file and issue a message about
+ *              errors/warnings that occured. If there were errors, the
+ *              flag early-exit is that, so dosemu won't really.
+ */
+
+void close_file(FILE * file)
 {
-  fclose(file);
+
+  fclose(file);                  /* Close the config-file */
+
+  fprintf(stderr, "%d error(s) detected while parsing the configuration-file\n",
+	 errors);
+  fprintf(stderr, "%d warning(s) detected while parsing the configuration-file\n",
+	 warnings);
+
+  if (errors != 0)               /* Exit dosemu on errors */
+    {
+      config.exitearly = TRUE;
+    }
 }
 
 word_t *
@@ -804,6 +907,11 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
       break;
     case VAL_IPXSUP:
       config.ipxsup = (atoi(arg) != 0);
+      c_printf("CONF: ipx support is %s\n",
+        config.ipxsup?"ON":"OFF");
+      break;
+    case VAL_PKTFLAGS:
+      config.pktflags = atoi(arg);
       break;
     case VAL_SPEAKER:
       config.speaker = atoi(arg);
@@ -849,8 +957,9 @@ int
 do_video(word_t * word, arg_t farg1, arg_t farg2)
 {
   char *arg = NULL;
+  char *end;
 
-  /* c_printf("do_video: %s %d\n", word->name, word->token, farg1, farg2); */
+/*   c_printf("do_video: %s %d\n", word->name, word->token); */
 
   switch (word->form) {
   case VALUE:
@@ -913,6 +1022,15 @@ do_video(word_t * word, arg_t farg1, arg_t farg2)
     config.vbios_copy = 1;
     config.mapped_bios = 1;
     break;
+  case V_VBIOS_SEG:
+    config.vbios_seg = strtol(arg,&end,0);
+    c_printf("CONF: VGA-BIOS-Segment %x\n", config.vbios_seg);
+    if ((config.vbios_seg != 0xe000) && (config.vbios_seg != 0xc000) )
+      {
+	config.vbios_seg = 0xc000;
+	c_printf("CONF: VGA-BIOS-Segment set to %x\n", config.vbios_seg);
+      }
+    break;
   default:
     error("CONF: unknown video token: %s\n", word->name);
     break;
@@ -961,6 +1079,7 @@ start_debug(word_t * word, arg_t farg1, arg_t farg2)
   d.hardware = flag;
   d.IPC = flag;
   d.EMS = flag;
+  d.network = flag;
 }
 
 /*
@@ -1002,7 +1121,8 @@ stop_mouse(word_t * word, arg_t farg1, arg_t farg2)
   }
   c_mouse++;
   config.num_mice = c_mouse;
-  c_printf("MOUSE: %s type %x using internaldriver: %s\n", mptr->dev, mptr->type, mptr->intdrv ? "yes" : "no");
+  c_printf("MOUSE: %s type %x using internaldriver: %s, baudrate: %d\n", 
+        mptr->dev, mptr->type, mptr->intdrv ? "yes" : "no", mptr->baudRate);
 }
 
 /*
@@ -1062,6 +1182,9 @@ do_mouse(word_t * word, arg_t farg1, arg_t farg2)
   case M_INTDRV:
     mptr->intdrv = TRUE;
     break;
+  case M_BAUDRATE:
+    mptr->baudRate = atoi(arg);
+    break; 
   case M_DEVICE:
     strcpy(mptr->dev, arg);   
     break;
@@ -1089,9 +1212,20 @@ do_mouse(word_t * word, arg_t farg1, arg_t farg2)
     mptr->type = MOUSE_MOUSEMAN;
     mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
     break;
+  case M_HITACHI:
+    mptr->type = MOUSE_HITACHI;
+    mptr->flags = CS8 | CREAD | CLOCAL | HUPCL;
+    break;
   case M_BUSMOUSE:
     mptr->type = MOUSE_BUSMOUSE;
     mptr->flags = 0;
+    break;
+  case M_CLEARDTR:
+    if (mptr->type == MOUSE_MOUSESYSTEMS)
+      mptr->cleardtr = TRUE;
+    else
+      parse_error("Option CLEARDTR is only valid for some MouseSystems-Mice");
+    break;
   default:
     error("CONF: Unknown mouse token: %s", word->name);
     break;
@@ -1190,6 +1324,10 @@ do_debug(word_t * word, arg_t farg1, arg_t farg2)
   case DBG_EMS:
     d.EMS = atoi(arg); 
     c_printf("DEBUG: EMS %s!\n", d.EMS ? "on" : "off");
+    break;
+  case DBG_NET:
+    d.network = atoi(arg); 
+    c_printf("DEBUG: network %s!\n", d.network ? "on" : "off");
     break;
   
   default:
@@ -1567,64 +1705,121 @@ do_top(word_t * word, arg_t arg1, arg_t arg2)
   return NULLFORM;
 }
 
-void
-start_disk(word_t * word, arg_t arg1, arg_t arg2)
+/*
+ * start_disk - start parsing one disk-statement
+ */
+
+void start_disk(word_t * word, arg_t arg1, arg_t arg2)
 {
-  if (word->token == SEC_BOOTDISK) {
-    dptr = &bootdisk;
+  switch(word->token)
+    {
+    case SEC_BOOTDISK:               /* bootdisk-section */
+      if (config.bootdisk)           /* Already a bootdisk configured ? */
+	parse_error("There is already a bootdisk configured");
+      
+      dptr = &bootdisk;              /* set pointer do bootdisk-struct */
+      
+      dptr->sectors = 0;             /* setup default-values           */
+      dptr->heads   = 0;
+      dptr->tracks  = 0;
+      dptr->type    = FLOPPY;
+      dptr->default_cmos = THREE_INCH_FLOPPY;
+      dptr->timeout = 0;
+      break;
 
-    dptr->sectors = dptr->heads = dptr->tracks = 0;
-    dptr->type = FLOPPY;
-    dptr->default_cmos = THREE_INCH_FLOPPY;
-    dptr->timeout = 0;
-  }
-  else if (word->token == SEC_FLOPPY) {
-    if (c_fdisks >= MAX_FDISKS) {
-      error("ERROR: config: too many floppy disks defined!\n");
-      dptr = &nulldisk;
+    case SEC_FLOPPY:                 /* floppy section */
+      if (c_fdisks >= MAX_FDISKS)
+	{
+	  parse_error("There are too many floppy disks defined");
+	  dptr = &nulldisk;          /* Dummy-Entry to avoid core-dumps */
+	}
+      else
+	dptr = &disktab[c_fdisks];
+
+      dptr->sectors = 0;             /* setup default values */
+      dptr->heads   = 0;
+      dptr->tracks  = 0;
+      dptr->type    = FLOPPY;
+      dptr->default_cmos = THREE_INCH_FLOPPY;
+      dptr->timeout = 0;
+      break;
+
+    case SEC_DISK:                   /* Hard-disk section */
+      if (c_hdisks >= MAX_HDISKS) 
+	{
+	  parse_error("There are too many hard disks defined");
+	  dptr = &nulldisk;          /* Dummy-Entry to avoid core-dumps */
+	}
+      else
+	dptr = &hdisktab[c_hdisks];
+      
+      dptr->type    =  NODISK;
+      dptr->sectors = -1;
+      dptr->heads   = -1;
+      dptr->tracks  = -1;
+      dptr->timeout = 0;
+      break;
+
+    default:
+      parse_error("unknown disk type in parsing a disk-section");
+      break;
     }
-    else
-      dptr = &disktab[c_fdisks];
 
-    dptr->sectors = dptr->heads = dptr->tracks = 0;
-    dptr->type = FLOPPY;
-    dptr->default_cmos = THREE_INCH_FLOPPY;
-    dptr->timeout = 0;
-  }
-  else {
-    if (c_hdisks >= MAX_HDISKS) {
-      error("ERROR: config: too many hard disks defined!\n");
-      dptr = &nulldisk;
-    }
-    else
-      dptr = &hdisktab[c_hdisks];
-
-    dptr->type = NODISK;
-    dptr->sectors = dptr->heads = dptr->tracks = -1;
-  }
-  dptr->dev_name = NULL;
+  dptr->dev_name = NULL;              /* default-values */
   dptr->rdonly = 0;
   dptr->header = 0;
 }
 
-void
-stop_disk(word_t * word, arg_t arg1, arg_t arg2)
+/*
+ * stop_disk - A disk-option has been parsed, do the last checks
+ */
+
+void stop_disk(word_t * word, arg_t arg1, arg_t arg2)
 {
-  if (dptr == &nulldisk)
-    return;
+  if (dptr == &nulldisk)              /* is there any disk? */
+    return;                           /* no, nothing to do */
 
-  if (!dptr->dev_name)
-    die("no device name!");
-  else
-    c_printf("device: %s ", dptr->dev_name);
+  if (!dptr->dev_name)                /* Is there a file/device-name? */
+    parse_error("disk: no device/file-name given!");
+  else                                /* check the file/device for existance */
+    {
+      struct stat file_status;        /* date for checking that file */
 
-  if (dptr->type == NODISK)
-    die("no device type!");
+      c_printf("device: %s ", dptr->dev_name);
+      if (stat(dptr->dev_name,&file_status) != 0) /* Does this file exist? */
+	{
+	  char *str;
+
+	  str = malloc(128);             /* No, issue an error-message */
+	  sprintf(str,"Disk-device/file %s doesn't exist.",dptr->dev_name);
+	  parse_error(str);
+
+	  free(str);
+	}
+    }
+
+  if (dptr->type == NODISK)    /* Is it one of bootdisk, floppy, harddisk ? */
+    parse_error("disk: no device/file-name given!"); /* No, error */
   else
     c_printf("type %d ", dptr->type);
 
   if (dptr->type == PARTITION)
-    c_printf("partition# %d ", dptr->part_info.number);
+    {
+      struct stat file_status;        /* date for checking that file */
+
+      c_printf("partition# %d ", dptr->part_info.number);
+      
+      if (stat(dptr->part_info.file,&file_status) != 0) /* check part_info */
+	{
+	  char *str;
+	  
+	  str = malloc(128);             /* issue an error-message */
+	  sprintf(str,"Partition-Info %s doesn't exist.",dptr->part_info.file);
+	  parse_error(str);
+	  
+	  free(str);
+	}
+    }
 
   if (dptr->header)
     c_printf("header_size: %ld ", (long) dptr->header);
@@ -1646,8 +1841,13 @@ stop_disk(word_t * word, arg_t arg1, arg_t arg2)
   }
 }
 
-int
-do_disk(word_t * word, arg_t farg1, arg_t farg2)
+/*
+ * do_disk - parse a disk-section of a config-file.
+ *           The sections for bootdisk, floppy and disk(harddisk)
+ *           are very similar, so all these sections are parsed here.
+ */
+
+int do_disk(word_t * word, arg_t farg1, arg_t farg2)
 {
   char *arg = NULL, *arg2 = NULL;
 
@@ -1687,10 +1887,14 @@ do_disk(word_t * word, arg_t farg1, arg_t farg2)
     dptr->heads = atoi(arg);
     break;
   case D_FILE:
+    if (dptr->dev_name != NULL)
+      parse_error("Two names for a disk-image file or device given.");
     dptr->dev_name = arg;
     arg = NULL;
     break;
   case D_HDIMAGE:
+    if (dptr->dev_name != NULL)
+      parse_error("Two names for a harddisk-image file given.");
     dptr->type = IMAGE;
     dptr->header = HEADER_SIZE;
     dptr->dev_name = arg;
@@ -1698,19 +1902,30 @@ do_disk(word_t * word, arg_t farg1, arg_t farg2)
     break;
   case D_WHOLEDISK:
   case D_HARD:
+    if (dptr->dev_name != NULL)
+      parse_error("Two names for a harddisk device given.");
     dptr->type = HDISK;
     dptr->dev_name = arg;
     arg = NULL;
     break;
   case D_FLOPPY:
+    if (dptr->dev_name != NULL)
+      parse_error("Two names for a floppy-device given.");
     dptr->type = FLOPPY;
     dptr->dev_name = arg;
     arg = NULL;
     break;
   case D_PARTITION:
+    if (dptr->dev_name != NULL)
+      parse_error("Two names for a partition given.");
     dptr->type = PARTITION;
     dptr->part_info.number = atoi(arg2);
     dptr->dev_name = arg;
+
+    dptr->part_info.file = malloc(strlen(PARTITION_PATH ".")+10); 
+    dptr->part_info.file = strcpy(dptr->part_info.file,PARTITION_PATH "."); 
+    dptr->part_info.file = strcat(dptr->part_info.file,dptr->dev_name+5);
+
     arg = NULL;
     break;
   case D_OFFSET:

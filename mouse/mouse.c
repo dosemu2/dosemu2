@@ -1,12 +1,18 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/04/30 01:05:16 $
- * $Source: /home/src/dosemu0.60/RCS/mouse.c,v $
- * $Revision: 1.16 $
+ * $Date: 1994/05/24 01:24:18 $
+ * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 1.2  1994/05/24  01:24:18  root
+ * Lutz's latest, int_queue_run() update.
+ *
+ * Revision 1.1  1994/05/04  22:17:27  root
+ * Initial revision
+ *
  * Revision 1.16  1994/04/30  01:05:16  root
  * Clean up.
  *
@@ -85,6 +91,8 @@
 #include "video.h"		/* video base address */
 #include "mouse.h"
 #include "serial.h"
+
+void DOSEMUSetupMouse(void);
 
 extern struct config_info config;
 
@@ -261,10 +269,10 @@ mouse_int(void)
     break;
  
   case 0x42:
-    LWORD(eax) = 0x42;	/* Configures mouse for Microsoft Mode */
+    LWORD(eax) = 0x42;		/* Configures mouse for Microsoft Mode */
   
-/*    LWORD(eax) = 0xffff;		 Uncomment this for PC Mouse Mode */
-/*    LWORD(ebx) = sizeof(mouse);	 applies to Genius Mouse too */
+   /* LWORD(eax) = 0xffff;	 Uncomment this for PC Mouse Mode */
+   /* LWORD(ebx) = sizeof(mouse);	 applies to Genius Mouse too */
     break;
 
   default:
@@ -398,6 +406,10 @@ mouse_set_gcur(void)
 {
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
+  LWORD(ebx) = 0;
+  LWORD(ecx) = 0;
+  LWORD(es) = *mousescreenmask;
+  LWORD(edx) = *mousecursormask;
 }
 
 void 
@@ -436,7 +448,8 @@ mouse_version(void)
 {
   LWORD(ebx) = MOUSE_VERSION;
   HI(cx) = 4;			/* ps2 mouse */
-  LO(cx) = 0;			/* 0=ps2 */
+  LO(cx) = 0;			/* Basically, treat the internal mouse */
+				/* driver as an IBM PS/2 mouse */
   m_printf("MOUSE: get version %04x\n", LWORD(ebx));
 }
 
@@ -474,7 +487,7 @@ mouse_keyboard(int sc)
 void 
 mouse_updown(void)
 {
-  m_printf("MOUSE: mouse moved from %d to %d\n", mouse.y, mouse.y - 1);
+  m_printf("MOUSE: mouse moved updown from %d to %d\n", mouse.y, mouse.y - 1);
   if (mouse.y < 0)
     mouse.y = 0;
   if (mouse.y > 199)
@@ -487,7 +500,7 @@ mouse_updown(void)
 void 
 mouse_leftright(void)
 {
-  m_printf("MOUSE: mouse moved from %d to %d\n", mouse.x, mouse.x - 1);
+  m_printf("MOUSE: mouse moved leftright from %d to %d\n", mouse.x, mouse.x - 1);
   if (mouse.x < 0)
     mouse.x = 0;
   if (mouse.x > 639)
@@ -658,46 +671,17 @@ mouse_sethandler(void *f, us * cs, us * ip)
   mouse.ipp = ip;
 }
 
-/* PS/2 Mouse Interrupt 0x12h-hardware 0x74-software */
-void
-int74(void)
-{
-  unsigned char buffer[64];
-  static unsigned char buffer2[8];
-  int bytes, i, dx, dy, lbutton, mbutton, rbutton;
-  static int dirty = 0;
-
-  bytes = RPT_SYSCALL(read(mice->fd, (char *)buffer, sizeof(buffer)));
-
-  for (i=0; i<bytes; i++) {
-    if (dirty == 0 && (buffer[i] & 0xC0) != 0) continue;
-    buffer2[dirty++] = buffer[i];
-    if (dirty != 3) continue;
-    mbutton = (buffer2[0] & 0x04) >> 2;   
-    rbutton = (buffer2[0] & 0x02) >> 1;
-    lbutton = (buffer2[0] & 0x01);        
-    dx = (buffer2[0] & 0x10) ?    buffer2[1]-256  :  buffer2[1];
-    dy = (buffer2[0] & 0x20) ?  -(buffer2[2]-256) : -buffer2[2];
-    dirty = 0;
-    mouse.x = mouse.x +dx;
-    mouse.y = mouse.y +dy;
-    if (dx) mouse_leftright();
-    if (dy) mouse_updown();
-    mouse.lbutton = lbutton;
-    mouse_lb();
-    mouse.rbutton = rbutton;
-    mouse_rb();
-/*
- *  mouse.mbutton = mbutton;
- *  mouse_mb();
- */
-  }
-}
-
 void
 mouse_init(void)
 {
   serial_t *sptr;
+
+  if (mice->intdrv) {
+    mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+    DOSEMUSetupMouse();
+    return;
+  }
+
   if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
     mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK)); 
   }
@@ -713,8 +697,13 @@ mouse_init(void)
 void
 mouse_close(void)
 {
+  if (mice->intdrv) {
+    DOS_SYSCALL(close(mice->fd));
+    return;
+  }
+
   if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE))
-  DOS_SYSCALL(close(mice->fd));
+    DOS_SYSCALL(close(mice->fd));
 }
 	
 #undef MOUSE_C

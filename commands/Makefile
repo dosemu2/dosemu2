@@ -15,13 +15,11 @@ checkin:
 	-ci exitemu.S vgaoff.S vgaon.S dumpconf.exe dumpconf.asm
 	-ci bootoff.S booton.S Makefile dosdbg.c lredir.c
 	-ci pdipx.com 
-	(cd linpkt ; make checkin)
 
 checkout:
 	-co -l exitemu.S vgaoff.S vgaon.S dumpconf.exe dumpconf.asm
 	-co -l bootoff.S booton.S Makefile dosdbg.c lredir.c
 	-co -l pdipx.com
-	(cd linpkt ; make checkout)
 
 clean:
 	rm -f exitemu.com vgaoff.com vgaon.com booton.com bootoff.com *.o
@@ -29,6 +27,5 @@ clean:
 dist: $(SRC) $(COM)
 	install -d $(DISTPATH)/commands
 	install -m 0644 Makefile $(SRC) $(COM) $(EXE) $(DISTPATH)/commands
-	(cd linpkt ; make dist)
 
 install:

@@ -1,3 +1,136 @@
+Thr May 26 1994 JES
+
+-	More mods to int_queue_run(). Changed where set_leds() is 
+	called.
+-	Moved int.h and int10.h to emu.c as that is where do_int()
+	is called mostly now.
+-	Scott's latest patches against 1.0.x & 1.1.x
+-	Rob's patches to remove linpkt from DOSEMU tree.
+
+Sat May 21 1994 JES
+
+-	Lutz's latest patches cleaning up DPMI, etc...
+
+Thr May 19 1994 JES
+
+-	Added Scotts proc/self/map kernel-diffs to ./kernel and
+	added his patches to bios_emm.c. Bios_emm.c is NOT using
+	these by default (See MMAP_EMS in bios_emm.c).
+-	Changed run_vm86() use of int_queue_running to *OUTB_ADD.
+-	Added extra sti to int10 bios handler.
+-	Added Jochen's patches to Makefile.
+
+Wed May 18 1994 JES
+
+-	Added EMS patch from Scott
+-	Added diffs from Jochen.
+-	Started work on keyboard simplifying. Made lastscan into
+	*LASTSCAN a bios area variable.
+
+Mon May 17 1994 Jochen
+
+-	Changed int 8&9 to use a memory location in bios for outb(0x20).
+	This nolonger needs to back off to DOSEMU from an outb20. This
+	caused vm86() not to return enough to run it's int8's, so 
+	sigalrm has been modified to be called more often. At the same
+	time I now have the pit controllers decremented. Not sure if
+	this will be of any use or not. For fun just change the 
+	TIMER_DIVISOR define at the top of emu.c
+	(Hopefully I'll do this for int9 scancodes next)
+
+-	Fixed bug in EMS coded Sunday that stopped Windows 3.0 from
+	properly launching programs.
+
+-	Makefile fixed to distribute ./ipxutils. Thanks Jochen.
+
+Mon May 16 1994 Jochen
+
+        * [ doc/dos.1 ]
+	Updating the manpage to 0.52, current changes
+	
+	* [ init/parse.c ]
+	Cleanup
+
+	* [ emu.c ]
+	Cleanup: Prototypes, parsing options, usage
+
+Mon 16 May 1994 JES
+
+-	Added conditional to outb20 so that pktdrvr does not require
+	outb20 call. (As should only hard int's)
+-	Added Lutz's fix for Sigsegv()'s.
+
+Sun 15 May 1994 JES
+
+-	To EMS added Alternate Map Register Set, OS/E Function Set.
+	Windows 3.0 now boots without EMS error(All necessary FNX's
+	are supported). Some other cleanup's to EMS including Handle
+	Naming.
+
+Thr 13 May 1994 JES
+
+-	Totally changed int_queue_run(). Now only int's requiring
+	callback will be forced to.
+
+Wed 11 May 1994 JES
+
+-	Markkk's latest serial.
+-	Made ipxutils subdir optionally compile
+
+Tue 10 May 1994 JES
+
+-	Made int08 inline, still need 0x1c to be inline too.
+-	Added back outb20 check to fix stacking of interrupts
+	which included int08 stacking.
+-	Floppy drive sticking has mysteriously vanished.
+
+Mon 9 May 1994 JES
+
+-	IPX updates by Tim Bird. Please look in ./ipxutils for more
+	info.
+-	Addition of -n pktdrvr option by Rob. Look in 
+	./examples/config.dist.
+	
+Sat 7 May 1994 Jochen
+
+	* [disk.c disk.h]
+	creating the name for the partition-decsription-file moved to
+	parse.c, because we need to check the existance of this file there.
+	without this file is running further useless. dosemu may hang
+	silently.
+
+	* [emu.c]
+	use config.exitearly instead of exitearly and stop dosemu earlier
+	when set.
+
+	* [parse.c config.dist include/mouse.h mouse/*]
+	attempt to use cleardtr for some mousesystem/microsoft compatible
+	mice. mostly unsuccesful.
+
+	* [init/Makefile init/parse.c]
+	more compiler warnings removed. Error-checking implemented.
+
+May 4, 1994  JES
+
+-	Jochen moves files around to conform to standards. Please
+	take care that your config is in the correct /etc/dosemu.conf
+	place.
+-	Alan improves on the internal mouse driver to include other
+	mice.
+-	Lutz includes patch against 1.1.11.
+
+May 2, 1994  JES
+
+-	Jochen latest. Makes video bios memory area configurable at
+	boot time. Brought int10 inline.
+-	Narrow allowed ports when videoportaccess on, hopefully stop
+	problem of serial port being touched inadvertantly :-(
+-	pktnew/libpacket patches from Rob.
+
+May 3, 1994 Jochen
+
+-       Files installed in places where they may match the FSSTND
+
 April 29, 1994  JES
 
 -	Lutz's Latest kernel diff's. Now just 1 small one against 

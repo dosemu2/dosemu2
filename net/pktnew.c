@@ -27,9 +27,6 @@
 #include <sys/time.h>
 #include <linux/if_ether.h>
 
-extern int GetDeviceMTU(char *);
-int pkt_check_receive(void);
-
 #define min(a,b)	((a) < (b)? (a) : (b))
 
 extern int OpenNetworkType(u_short);
@@ -48,21 +45,24 @@ struct pkt_globs
     unsigned char hw_address[8];	/* our hardware address */
     struct pkt_param param;		/* parameters */
     struct pkt_statistics stats;	/* counters */
+    int flags;				/* global flags */
+#define N_OPTION	0x01		/* Novell 802.3 <-> 8137 translation */
     char driver_name[8];		/* fixed string: driver name */
     short type;				/* our type */
     short size;				/* current packet's size */
     long receiver;			/* current receive handler */
     int helpvec;			/* vector number for helper */
-    unsigned char helper[56];		/* upcall helper */
+    unsigned char helper[60];		/* upcall helper */
 
     struct per_handle
     {
 	char in_use;			/* this handle in use? */
 	char class;			/* class it was access_type'd with */
 	short packet_type_len;		/* length of packet type */
+	int flags;			/* per-packet-type flags */
 	int sock;			/* fd for the socket */
 	long receiver;			/* receive handler */
-	char packet_type[20];		/* packet type for this handle */
+	char packet_type[16];		/* packet type for this handle */
     } handle[MAX_HANDLE];
 
     char buf[ETH_FRAME_LEN + 32];	/* packet buffer */
@@ -96,7 +96,7 @@ pkt_init (int vec)
     strcpy(ptr,"PKT DRVR");		/* signature as defined by driver spec */
     ptr += 9;
     *ptr++ = 0xcd;			/* 0xcd = INT */
-    *ptr++ = vec;	
+    *ptr++ = vec;
     *ptr++ = 0xca;			/* 0xca = RETF xx */
     *ptr++ = 2;
 
@@ -107,6 +107,7 @@ pkt_init (int vec)
     pg->classes[0] = ETHER_CLASS;
     pg->classes[1] = IEEE_CLASS;
     pg->type = 12;			/* dummy type (3c503) */
+    pg->flags = config.pktflags;	/* global config flags */
 
     pg->param.major_rev = 9;		/* pkt driver spec */
     pg->param.minor_rev = 1;
@@ -123,21 +124,23 @@ pkt_init (int vec)
     ptr = pg->helper;
 
     *ptr++ = 0x60;			/* pusha */
-    *ptr++ = 0x0e;			/* push cs */
-    *ptr++ = 0x1f;			/* pop ds */
-    *ptr++ = 0x8b; *ptr++ = 0x0e;	/* mov cx,[pg->size] */
+    *ptr++ = 0x1e;			/* push ds */
+    *ptr++ = 0x06;			/* push es */
+    *ptr++ = 0x2e; *ptr++ = 0x8b; *ptr++ = 0x0e; /* mov cx,cs:[pg->size] */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) >> 8;
-    *ptr++ = 0xe3; *ptr++ = 0x2a;	/* jcxz nothing */
+    *ptr++ = 0xe3; *ptr++ = 0x2c;	/* jcxz nothing */
     *ptr++ = 0x31; *ptr++ = 0xc0;	/* xor ax,ax */
     *ptr++ = 0x51;			/* push cx */
-    *ptr++ = 0xff; *ptr++ = 0x1e;	/* call [pg->receiver] */
+    *ptr++ = 0x2e; *ptr++ = 0xff; *ptr++ = 0x1e; /* call cs:[pg->receiver] */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) >> 8;
     *ptr++ = 0x59;			/* pop cx */
     *ptr++ = 0x8c; *ptr++ = 0xc0;	/* mov ax,es */
     *ptr++ = 0x09; *ptr++ = 0xf8;	/* or ax,di */
     *ptr++ = 0x74; *ptr++ = 0x16;	/* jz norecv */
+    *ptr++ = 0x0e;			/* push cs */
+    *ptr++ = 0x1f;			/* pop ds */
     *ptr++ = 0xbe;			/* mov si,pg->buf */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,buf)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,buf)) >> 8;
@@ -147,7 +150,6 @@ pkt_init (int vec)
     *ptr++ = 0xf3; *ptr++ = 0xa4;	/* rep movsb */
     *ptr++ = 0x59;			/* pop cx */
     *ptr++ = 0x5e;			/* pop si */
-    *ptr++ = 0x1e;			/* push ds */
     *ptr++ = 0x06;			/* push es */
     *ptr++ = 0x1f;			/* pop ds */
     *ptr++ = 0xb8;			/* mov ax,1 */
@@ -155,11 +157,12 @@ pkt_init (int vec)
     *ptr++ = 0x2e; *ptr++ = 0xff; *ptr++ = 0x1e; /* call cs:[pg->receiver] */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) >> 8;
-    *ptr++ = 0x1f;			/* pop ds */
-    *ptr++ = 0xc7; *ptr++ = 0x06;	/* mov [pg->size],0 */
+    *ptr++ = 0x2e; *ptr++ = 0xc7; *ptr++ = 0x06; /* norecv: mov cs:[pg->size],0 */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) >> 8;
     *ptr++ = 0x00; *ptr++ = 0x00;
+    *ptr++ = 0x07;			/* nothing: pop es */
+    *ptr++ = 0x1f;			/* pop ds */
     *ptr++ = 0x61;			/* popa */
     *ptr   = 0xcf;			/* iret */
 }
@@ -172,16 +175,16 @@ pkt_int ()
     struct per_handle *hdlp;
 
 #if 0
-    printf("NPKT: AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
+    pd_printf("NPKT: AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
-    printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
+    pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),
 		LWORD(cs),LWORD(ds),LWORD(es),LWORD(ss));
 #endif
 
-    /* first clear some flags that we may later set (e.g. on error) */
+    /* first clear CARRY flag that we may later set (on error) */
 
-    REG(eflags) &= ~(CF|PF|AF|ZF|SF);
+    NOCARRY;
 
     /* when BX seems like a valid handle, set the handle info pointer */
 
@@ -208,19 +211,19 @@ pkt_int ()
 
     case F_ACCESS_TYPE:
 	if (strchr(pg->classes,LO(ax)) == NULL) { /* check if_class */
-	    REG(edx) = E_NO_CLASS << 8;
+	    HI(dx) = E_NO_CLASS;
 	    break;
 	}
-	if (LWORD(ebx) != 0xffff && LWORD(ebx) != (u_short) pg->type) { /* check if_type */
-	    REG(edx) = E_NO_TYPE << 8;
+	if (LWORD(ebx) != 0xffff && LWORD(ebx) != pg->type) { /* check if_type */
+	    HI(dx) = E_NO_TYPE;
 	    break;
 	}
 	if (LO(dx) != 0 && LO(dx) != 1) {	/* check if_number */
-	    REG(edx) = E_NO_NUMBER << 8;
+	    HI(dx) = E_NO_NUMBER;
 	    break;
 	}
 	if (LWORD(ecx) > sizeof(pg->handle[0].packet_type)) { /* check len */
-	    REG(edx) = E_BAD_TYPE << 8;
+	    HI(dx) = E_BAD_TYPE;
 	    break;
 	}
 	/* now check if the type is not already in use, and find a free */
@@ -239,13 +242,13 @@ pkt_int ()
 		hdlp = &pg->handle[handle];
 
 		if (hdlp->in_use) {
-		    if ((u_char)hdlp->class == LO(ax) && /* same class? */
+		    if (hdlp->class == LO(ax) && /* same class? */
 			!memcmp(hdlp->packet_type, /* same type? (prefix) */
 				SEG_ADR((char *),ds,si),
-				min(LWORD(ecx),(u_short)hdlp->packet_type_len)))
+				min(LWORD(ecx),hdlp->packet_type_len)))
 		    {
-			REG(edx) = E_TYPE_INUSE << 8;
-			REG(eflags) |= CF;
+			HI(dx) = E_TYPE_INUSE;
+			CARRY;
 			return 1;
 		    }
 		} else {
@@ -256,11 +259,12 @@ pkt_int ()
 
 	    /* now see if we found a free handle, and allocate it */
 	    if (free_handle == -1) {
-		REG(edx) = E_NO_SPACE << 8;
+		HI(dx) = E_NO_SPACE;
 		break;
 	    }
 
 	    hdlp = &pg->handle[free_handle];
+	    memset(hdlp,0,sizeof(struct per_handle));
 	    hdlp->in_use = 1;
 	    hdlp->receiver = (LWORD(es) << 16) | LWORD(edi);
 	    hdlp->packet_type_len = LWORD(ecx);
@@ -270,21 +274,37 @@ pkt_int ()
 	    if (hdlp->class == IEEE_CLASS)
 		type = ETH_P_802_3;
 	    else {
-                if (hdlp->packet_type_len < 2)
-                   type = ETH_P_ALL;           /* get all packet types */
-                else {
-	  	    type = (hdlp->packet_type[0] << 8) | hdlp->packet_type[1];
+		if (hdlp->packet_type_len < 2)
+		    type = ETH_P_ALL;		/* get all packet types */
+		else {
+		    type = (hdlp->packet_type[0] << 8) |
+			   ((unsigned char) hdlp->packet_type[1]);
 
-		    if (type == 0)			/* sometimes this bogus type */
-		        type = ETH_P_802_3;		/* is used for status calls.. */
-	        }
+		    switch (type)
+		    {
+		    case 0:			/* sometimes this bogus type */
+			type = ETH_P_802_3;	/* is used for status calls.. */
+			break;
+
+		    case ETH_P_IPX:
+			if (hdlp->packet_type_len == 2 &&
+			    (pg->flags & N_OPTION)) /* Novell hack? */
+			{
+			    hdlp->flags |= N_OPTION;
+			    hdlp->packet_type[0] = hdlp->packet_type[1] = 0xff;
+			    hdlp->class = IEEE_CLASS;
+			    type = ETH_P_802_3;
+			}
+			break;
+		    }
+		}
 	    }
 
-	    hdlp->sock = OpenNetworkType(type);	/* open the socket */
+	    hdlp->sock = OpenNetworkType(type); /* open the socket */
 
 	    if (hdlp->sock < 0) {
 		hdlp->in_use = 0;		/* forget about this handle */
-		REG(edx) = E_BAD_TYPE << 8;
+		HI(dx) = E_BAD_TYPE;
 		break;
 	    }
 
@@ -294,7 +314,7 @@ pkt_int ()
 
     case F_RELEASE_TYPE:
 	if (hdlp == NULL) {
-	    REG(edx) = E_BAD_HANDLE << 8;
+	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
 	if (hdlp->in_use)
@@ -303,10 +323,10 @@ pkt_int ()
 	return 1;
 
     case F_SEND_PKT:
-    	pg->stats.packets_out++;
-    	pg->stats.bytes_out += LWORD(ecx);
+	pg->stats.packets_out++;
+	pg->stats.bytes_out += LWORD(ecx);
 
-    	/* unfortunately, a handle is not passed as a parameter for the */
+	/* unfortunately, a handle is not passed as a parameter for the */
 	/* SEND_PKT call.  so, we will have to scan the handle table to */
 	/* find a handle which is in use, and use its socket for the send */
 	{
@@ -316,6 +336,28 @@ pkt_int ()
 		hdlp = &pg->handle[handle];
 
 		if (hdlp->in_use) {
+		    if (pg->flags & N_OPTION)	/* Novell hack? */
+		    {
+			char *p;
+			short len;
+
+			p = SEG_ADR((char *),ds,si);
+			p += 2 * ETH_ALEN;	/* point to protocol type */
+
+			if (p[0] == (char)(ETH_P_IPX >> 8) &&
+			    p[1] == (char)ETH_P_IPX &&
+			    p[2] == (char)0xff && p[3] == (char)0xff)
+			{
+			    /* it is a Novell Ethernet-II packet, make it */
+			    /* "raw 802.3" by overwriting type with length */
+
+			    len = (p[4] << 8) | (unsigned char)p[5];
+			    len = (len + 1) & ~1; /* make length even */
+			    p[0] = len >> 8;
+			    p[1] = (char)len;
+			}
+		    }
+
 		    if (WriteToNetwork(hdlp->sock,devname,
 				SEG_ADR((char *),ds,si),LWORD(ecx)) >= 0)
 		    {
@@ -326,38 +368,41 @@ pkt_int ()
 				break;
 
 			return 1;
-		    } else
+		    } else {
+			warn("NPKT: WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
+			    hdlp->sock,devname,LWORD(ecx),errno);
 			break;
+		    }
 		}
 	    }
 
 	    pg->stats.errors_out++;
-	    REG(edx) = E_CANT_SEND << 8;
+	    HI(dx) = E_CANT_SEND;
 	}
 	break;
 
     case F_TERMINATE:
 	if (hdlp == NULL || !hdlp->in_use)
-	    REG(edx) = E_BAD_HANDLE << 8;
+	    HI(dx) = E_BAD_HANDLE;
 	else
-	    REG(edx) = E_CANT_TERM << 8;
+	    HI(dx) = E_CANT_TERM;
 
 	break;
 
     case F_GET_ADDRESS:
-    	if (LWORD(ecx) < ETH_ALEN) {
-	    REG(edx) = E_NO_SPACE << 8;
+	if (LWORD(ecx) < ETH_ALEN) {
+	    HI(dx) = E_NO_SPACE;
 	    break;
-        }
-    	REG(ecx) = ETH_ALEN;
-    	memcpy(SEG_ADR((char *),es,di),pg->hw_address,ETH_ALEN);
-    	return 1;
+	}
+	REG(ecx) = ETH_ALEN;
+	memcpy(SEG_ADR((char *),es,di),pg->hw_address,ETH_ALEN);
+	return 1;
 
     case F_RESET_IFACE:
 	if (hdlp == NULL || !hdlp->in_use)
-	    REG(edx) = E_BAD_HANDLE << 8;
+	    HI(dx) = E_BAD_HANDLE;
 	else
-	    REG(edx) = E_CANT_RESET << 8;
+	    HI(dx) = E_CANT_RESET;
 
 	break;
 
@@ -368,18 +413,18 @@ pkt_int ()
 
     case F_SET_RCV_MODE:
 	if (hdlp == NULL || !hdlp->in_use) {
-	    REG(edx) = E_BAD_HANDLE << 8;
+	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
 	if (LWORD(ecx) != 3) {			/* only mode 3 supported */
-	    REG(edx) = E_BAD_MODE << 8;
+	    HI(dx) = E_BAD_MODE;
 	    break;
 	}
 	return 1;
 
     case F_GET_RCV_MODE:
 	if (hdlp == NULL || !hdlp->in_use) {
-	    REG(edx) = E_BAD_HANDLE << 8;
+	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
 	REG(eax) = 3;
@@ -387,7 +432,7 @@ pkt_int ()
 
     case F_GET_STATS:
 	if (hdlp == NULL || !hdlp->in_use) {
-	    REG(edx) = E_BAD_HANDLE << 8;
+	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
 	REG(ds) = PKTDRV_SEG;
@@ -397,17 +442,17 @@ pkt_int ()
     default:
 	/* unhandled function, indicate an error */
 
-	REG(edx) = E_BAD_COMMAND << 8;
+	HI(dx) = E_BAD_COMMAND;
 	break;
     }
 
     /* fell through switch, indicate an error (DH set above) */
-    REG(eflags) |= CF;
+    CARRY;
 
 #if 0
-    printf("ERR:  AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
+    pd_printf("ERR:  AX=%04x BX=%04x CX=%04x DX=%04x FLAGS=%08x\n",
 		LWORD(eax),LWORD(ebx),LWORD(ecx),LWORD(edx),REG(eflags));
-    printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
+    pd_printf("      SI=%04x DI=%04x BP=%04x SP=%04x CS=%04x DS=%04x ES=%04x SS=%04x\n",
 		LWORD(esi),LWORD(edi),LWORD(ebp),LWORD(esp),
 		LWORD(cs),LWORD(ds),LWORD(es),LWORD(ss));
 #endif
@@ -452,11 +497,16 @@ pkt_check_receive()
 		if (hdlp->class == ETHER_CLASS)
 		    p = pg->buf + 2 * ETH_ALEN;		/* Ethernet-II */
 		else
-		    p = pg->buf + 2 * ETH_ALEN + 2;	/* IEEE 802 */
+		    p = pg->buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
 
 		if (!memcmp(p,hdlp->packet_type,hdlp->packet_type_len)) {
 		    pg->stats.packets_in++;
 		    pg->stats.bytes_in += size;
+
+		    if (hdlp->flags & N_OPTION) {	/* Novell hack? */
+			*--p = (char)ETH_P_IPX;	/* overwrite length with type */
+			*--p = (char)(ETH_P_IPX >> 8);
+		    }
 
 		    /* stuff things in global vars and queue a hardware */
 		    /* interrupt which will perform the upcall */

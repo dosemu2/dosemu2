@@ -3,12 +3,27 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/04/27 21:34:15 $
+ * $Date: 1994/05/26 23:15:01 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 1.26 $
+ * $Revision: 1.31 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.31  1994/05/26  23:15:01  root
+ * Prep. for pre51_21.
+ *
+ * Revision 1.30  1994/05/21  23:39:19  root
+ * PRE51_19.TGZ with Lutz's latest updates.
+ *
+ * Revision 1.29  1994/05/10  23:08:10  root
+ * pre51_14.
+ *
+ * Revision 1.28  1994/05/09  23:35:11  root
+ * pre51_13.
+ *
+ * Revision 1.27  1994/05/04  21:56:55  root
+ * Prior to Alan's mouse patches.
+ *
  * Revision 1.26  1994/04/27  21:34:15  root
  * Jochen's Latest.
  *
@@ -173,7 +188,7 @@ extern int in_readkeyboard;
 extern int in_vm86;
 
 extern int li, co, li2, co2;	/* lines, columns */
-extern int lastscan, scanseq;
+extern int scanseq;
 
 /* #define CO	80
    #define LI	25 */
@@ -298,11 +313,11 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
      int set_ioperm(int, int, int);
 
-#ifndef EMU_C
      extern struct debug_flags d;
      extern int gfx_mode;	/* flag for in gxf mode or not */
      extern u_char in_sighandler, in_ioctl;
      extern struct ioctlq iq, curi;
+#ifndef EMU_C
 
 #endif
 
@@ -380,6 +395,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        boolean mapped_sbios;	/* system BIOS */
        char *vbios_file;	/* loaded VBIOS file */
        boolean vbios_copy;
+       int vbios_seg;           /* VGA-BIOS-segment for mapping */
 
        boolean bootdisk;	/* Special bootdisk defined */
        boolean fastfloppy;
@@ -391,6 +407,8 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        u_short num_lpt;
        u_short num_ser;
        u_short num_mice;
+
+       int pktflags;		/* global flags for packet driver */
 
        unsigned int update, freq;	/* temp timer magic */
 
@@ -452,6 +470,8 @@ extern unsigned char *scrbuf;		/* the previously updated screen */
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
 
+#undef cli
+#undef sti
 extern void cli(void);
 extern void sti(void);
 extern int port_readable(int);

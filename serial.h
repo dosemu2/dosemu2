@@ -1,5 +1,11 @@
 /*
  * $Log: serial.h,v $
+ * Revision 1.20  1994/05/13  17:21:00  root
+ * pre51_15.
+ *
+ * Revision 2.9.1.1  1994/05/10  22:53:03  root
+ * Corresponds to serial 2.9.1.1, may be final for DOSEMU 0.52
+ *
  * Revision 1.19  1994/04/09  18:41:52  root
  * Prior to Lutz's kernel enhancements.
  *
@@ -185,7 +191,7 @@
 #define TX_FIFO_SIZE            16
 
 int stage;			/* Stage counter for serial interrupts */
-u_char irq_source_num[16];	/* Index to map from IRQ no. to serial port */
+u_char irq_source_num[255];	/* Index to map from IRQ no. to serial port */
 u_char com_port_used[17];       /* Used for auto-assign comport config */
 typedef struct serial_struct {
   char dev[255];		/* String to hold path to device file */
@@ -200,6 +206,7 @@ typedef struct serial_struct {
   u_char int_enab;		/* Interrupts Enable = OUT2 of MCR */
   u_char tx_timeout;		/* Receive Interrupt timeout counter */
   u_char rx_timeout;		/* Transmit Interrupt timeout counter */
+  u_char ms_counter;            /* [FUTURE USE] Counter to forced MS check */
   u_char uart_full;		/* UART full flag */
   u_char fifo_enable;		/* FIFO enabled flag */
   u_char tx_overflow;		/* Full outgoing buffer flag. */

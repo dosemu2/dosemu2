@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/04/13 00:07:09 $
+ * $Date: 1994/05/26 23:15:01 $
  * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 1.9 $
+ * $Revision: 1.14 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -83,7 +83,8 @@ int use_bootdisk = 0;
  *  |||..........,,,######################################
  *
  *   |   adds up to 1 sector (512 bytes) of Master Boot Record (MBR)
- *       THIS IS KEPT IN MEMORY, and is the file /etc/dosemu/partition.
+ *       THIS IS KEPT IN MEMORY, and is the file 
+ *       /var/lib/dosemu/partition.<partition>.
  *
  *   .   is any number of sectors before the desired partition start address.
  *       THESE SECTORS ARE NOT EMULATED, BUT MERELY SKIPPED
@@ -243,13 +244,13 @@ image_auto(struct disk *dp)
   lseek(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, header, HEADER_SIZE)) != HEADER_SIZE) {
     error("ERROR: could not read full header in image_init\n");
-    leavedos(1);
+    leavedos(19);
   }
 
   if (strncmp(header, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)) {
     error("ERROR: IMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
-    leavedos(1);
+    leavedos(20);
   }
 
   dp->heads = *(long *) &header[7];
@@ -270,7 +271,7 @@ hdisk_auto(struct disk *dp)
   if (ioctl(dp->fdesc, HDIO_GETGEO, &geo) < 0) {
     error("ERROR: can't get GEO of %s: %s\n", dp->dev_name,
 	  strerror(errno));
-    leavedos(1);
+    leavedos(21);
   }
   else {
     dp->sectors = geo.sectors;
@@ -295,7 +296,6 @@ partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
-  char *partition_file;                /* Name of the current partition-file */
 
 #define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
 			  (PART_INFO_LEN * (p-1)) + b)
@@ -307,24 +307,13 @@ partition_setup(struct disk *dp)
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
-  /* This is a really bad hack. Does anybody know how to do this right ? */
-  /* Take the (constant) beginning of the partition-description file and
-   * append the current partition name. So we can access more than one
-   * partition on one disk. 
-   */
-  partition_file = (char *)malloc(255);
-  partition_file = strcpy(partition_file,PARTITION_PATH "."); /*start with /etc/dosemu/partition*/
+  c_printf("CONFIG: Using partion file %s\n", dp->part_info.file);
 
-  partition_file = strcat(partition_file,dp->dev_name+5); /* append part */
-
-  c_printf("CONFIG: Using partion file %s\n", partition_file);
-
-  if ((part_fd = DOS_SYSCALL(open(partition_file, O_RDONLY))) == -1) {
+  if ((part_fd = DOS_SYSCALL(open(dp->part_info.file, O_RDONLY))) == -1) {
     error("ERROR: cannot open file %s for PARTITION %s\n",
-	  partition_file, dp->dev_name);
-    leavedos(1);
+	  dp->part_info.file, dp->dev_name);
+    leavedos(22);
   }
-  free(partition_file);
 
   RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
 
@@ -441,15 +430,18 @@ disk_close_all(void)
   if (config.bootdisk && bootdisk.fdesc >= 0) {
     (void) close(bootdisk.fdesc);
     bootdisk.fdesc = 0;
+    d_printf("BOOTDISK Closing\n");
   }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (dp->fdesc >= 0) {
+      d_printf("Floppy disk Closing %x\n", dp->fdesc);
       (void) close(dp->fdesc);
       dp->fdesc = -1;
     }
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
     if (dp->fdesc >= 0) {
+      d_printf("Hard disk Closing %x\n", dp->fdesc);
       (void) close(dp->fdesc);
       dp->fdesc = -1;
     }
@@ -474,13 +466,13 @@ disk_init(void)
     bootdisk.removeable = 0;
     if (bootdisk.fdesc < 0) {
       error("ERROR: can't open bootdisk %s\n", dp->dev_name);
-      leavedos(1);
+      leavedos(23);
     }
   }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("ERROR: can't stat %s\n", dp->dev_name);
-      leavedos(1);
+      leavedos(24);
     }
     if (S_ISBLK(stbuf.st_mode))
       d_printf("ISBLK\n");
@@ -494,7 +486,7 @@ disk_init(void)
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     if (dp->fdesc < 0) {
       error("ERROR: can't open %s\n", dp->dev_name);
-      leavedos(1);
+      leavedos(25);
     }
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
@@ -502,7 +494,7 @@ disk_init(void)
     dp->removeable = 0;
     if (dp->fdesc < 0) {
       error("ERROR: can't open %s\n", dp->dev_name);
-      leavedos(1);
+      leavedos(26);
     }
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
@@ -525,7 +517,7 @@ disk_init(void)
 #ifdef SILLY_GET_GEOMETRY
     if (RPT_SYSCALL(read(dp->fdesc, buf, 512)) != 512) {
       error("ERROR: can't read disk info of %s\n", dp->dev_name);
-      leavedos(1);
+      leavedos(27);
     }
 
     dp->sectors = *(us *) & buf[0x18];	/* sectors per track */
@@ -556,7 +548,7 @@ disk_init(void)
 
     if (s % (dp->sectors * dp->heads) != 0) {
       error("ERROR: incorrect track number of %s\n", dp->dev_name);
-      /* leavedos(1); */
+      /* leavedos(28); */
     }
 #endif
   }
@@ -617,7 +609,7 @@ int13(void)
 
   case 2:			/* read */
     FLUSHDISK(dp);
-    disk_open(dp);
+    disk_open(dp); /* <--- here is the dir a: bug(console vga) */
     head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
     track = (HI(cx)) |

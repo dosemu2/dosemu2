@@ -1,0 +1,164 @@
+James,
+
+Here are some files for the IPX emulator.  I have included everything
+for DOSEMU, the source code that I am using in my 1.0 kernel for IPX,
+as well as the linux IPX utilities that I use.  Before using DOSEMU
+IPX, linux IPX needs to have been initialized minimally with an ipxbind
+command to get the frame type and local net configured.  See the
+startipx shell script for an example of my setup.  After starting DOSEMU
+just run something which uses IPX (like a NetWare Lite client, or NETX, etc)
+I have had no problems here.  Make sure that network debugging is turned
+off, or it will be PAINFULLY slow, instead of just slow.
+
+I will send my "rundos" program along later.  I have some a couple of
+things I'd like to try first.
+
+On use of pushw instead of push_word, I see that sp is decremented with
+something like the following:
+
+        LWORD(esp) -= 8;
+        
+Does this result in a correct value for esp if a segment wrap occurs?
+The top portion of esp may not be important for vm86 mode.  The
+statement above will only modify the lower bottom 16 bits of esp, which
+on a segment wrap will not sign extend into the upper 16 bits.  I am
+following the example in the rest of the code, but it might be a good
+idea to find out if this matters.
+
+The convention that I use for this stuff is: if it ends in .diff it
+is a patch.  If it ends in .c or .h, its the whole file.  The kernel
+stuff is in the kernel subdirectory.  Other files are prefixed with
+their subdirectories in the DOSEMU tree.  (ie net.ipx.c = net/ipx.c)
+
+
+Tim Bird
+
+---------------------------------------------
+
+Subject: Re: About latest IPX (fwd)
+To: hein <<@fox.nstn.ns.ca:hein@student.tu-clausthal.de> (Jochen Hein)>
+Date: Wed, 11 May 1994 18:49:11 -0400 (ADT)
+Reply-To: jmaclean@fox.nstn.ns.ca
+X-Mailer: ELM [version 2.4 PL21]
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Length: 5427
+
+Well, when you get back, here some fun stuff far ya :-):
+
+Last time Tim_R_Bird@Novell.COM said:
+
+Here are some answers, hopefully:
+
+>Hi Tim. Looking  for some info on getting your IPX up and running.
+>
+>First of I had two parts :
+>
+>ipx_async_callback
+>&
+>ipx_async_callback_arg
+>
+>which I couldn't find anywhere. I take it they should be defined somehow 
+in
+>sock.h in socket?
+
+Boy is my face red!  As you have probably no doubt realized by now, the 
+kernel IPX stack that I sent you is not an exact duplicate of the one I 
+am running here.  You should remove all references to ipx_async_callback* 
+in the code.
+This would mean removing lines 430 and 431 in routine ipx_create(), and 
+lines 754-757, and 762 in routine ipx_rcv() (getting rid of the if 
+statement containing ipx_async_callback)  This async callback stuff 
+relates to code that I had to remove before sending the IPX stack code to 
+you.
+
+>Hi :-), Last time Jochen Hein said:
+>
+>>   How can I get my network-address when I run Netware Lite/Personal
+>>   Netware?
+>
+>Same Q here? Maybe some help using startipx, how to set it up?
+
+If you run the "NET INFO" command from your machine (I realize that since 
+we are bootstrapping here, this means that you will have to boot the 
+machine in regular DOS and run the NWLite or PNW software -- sorry), it 
+should tell you your network address.  If it does not, then you are 
+probably running on network 0.  If you have an NWLite or PNW network with 
+no other NetWare servers or routers, then there is no network number 
+defined.  One is not necessary in this case because there can be no 
+internetworking.  If you are on a regular NetWare LAN, then you can have 
+this station log in to a server, and use "USERLIST /A" to show the 
+address of the machine (the local station is shown with an asterisk).
+
+After some experimenting, I have determined that while the above 
+discussion is interesting, it is NOT necessary.  The only thing you need 
+to know is your ethernet frame type for IPX.  There are three main styles 
+of using IPX on ethernet - Ethernet II (referred to by Alan Cox as 
+"bluebook"), and ieee 802.3 and 802.2. In your startipx you only need to 
+bind the kernel IPX stack to your ethernet card and specify this frame 
+type.  Formerly you needed to specify the network address for this card, 
+but that is no longer necessary.  The kernel IPX stack auto-discovers its 
+network address.  Use the command "ipxbind" to bind the kernel IPX stack 
+to an ethernet card.  The parameters are:
+
+	ipxbind <driver> <network> <bluebook|ieee802.3|8022>
+
+where <driver> is the driver for the LAN card, network should be 
+specified as 0, and the frame type is one of the listed values.  Usually 
+the driver will be "eth0" for the ethernet card 0 driver.
+
+If you have a NET.CFG file and it specifies an ethernet frame type, use 
+that frame type.  Otherwise, most modern ethernet drivers display the 
+frame type as they come up.  Run IPXODI and your ethernet driver (ie 
+NE2000.COM) in DOS and note what is displayed.  Older ethernet drivers 
+defaulted to 802.3, while newer ones (since about 1992-3) default to 
+802.2.  As a last resort, try
+each frame type until one works.
+
+Finally, you no longer need to specify any routes in the startipx script 
+if you are only using the kernel IPX for DOSEMU support, since the DOSEMU 
+IPX will automatically add any routes needed by DOS programs.  This makes 
+the startipx script a single line in this case.
+
+My startipx in a corporate environment is:
+
+/usr/src/ipx/ipxbind eth0 0 8022
+
+This should also work for Personal NetWare environments.
+
+The startipx most likely to work well in a NetWare Lite environment is:
+
+/usr/src/ipx/ipxbind eth0 0 ieee802.3
+
+>> - Tim uses his own config-file (/etc/dosemu/dos.ini) I think it's
+>>   better to use only one config-file. Any coments?
+>
+>What was the reasoning behind the second config file?
+
+I am experimenting with .INI style configuration files.  The one 
+specified by dosemu IPX will not be necessary when the kernel IPX stack 
+works properly (it should not be needed with the stack I sent you).  I 
+will remove that code from ipx.c soon (hopefully).
+
+I have reasons, some of which I am not free to discuss, for preferring 
+...INI style configuration files.  Some technical benefits are that they 
+are easier to extend since the syntax and APIs to use them are simple and 
+straightforward.  I believe they are somewhat more user friendly because 
+of the uniform syntax (with section names and parameter-value pairs). The 
+APIs I sent you include facitilities to scan multiple configuration files 
+to allow per-user values to override system default values where 
+appropriate. However, they are slightly slower than parsed files, since 
+the APIs reopen the files often during the configuration.
+
+I agree that we should not have 2 configuration files.  If I were willing 
+to re-write the configuration code to use a DOSEMU.INI file instead of 
+the current parsed configuration file, do you think it would be 
+beneficial and/or acceptable?  I realize that this causes short-term 
+turmoil while people switch to the new configuration file format.  I can 
+certainly support both for a time, while people switch over.  I wish I 
+could tell you more about why this particular feature interests me.
+ 
+
+Tim Bird
+(tbird@novell.com)

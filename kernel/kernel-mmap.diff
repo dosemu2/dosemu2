@@ -1,0 +1,215 @@
+diff --recursive -c linux/fs/proc/inode.c linux.new/fs/proc/inode.c
+*** linux/fs/proc/inode.c	Wed Feb 23 01:47:59 1994
+--- linux.new/fs/proc/inode.c	Thu May 12 00:44:42 1994
+***************
+*** 141,147 ****
+  			inode->i_op = &proc_base_inode_operations;
+  			return;
+  		case 3:
+! 			inode->i_op = &proc_mem_inode_operations;
+  			inode->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
+  			return;
+  		case 4:
+--- 141,152 ----
+  			inode->i_op = &proc_base_inode_operations;
+  			return;
+  		case 3:
+!  			/* test for the /proc/self inode */
+!  			if (inode->i_ino>>16 == current->pid)
+!  			  inode->i_op = &proc_selfmem_inode_operations;
+!  			else 
+!  			  inode->i_op = &proc_mem_inode_operations;
+! /*			inode->i_op = &proc_mem_inode_operations; */
+  			inode->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
+  			return;
+  		case 4:
+diff --recursive -c linux/fs/proc/mem.c linux.new/fs/proc/mem.c
+*** linux/fs/proc/mem.c	Wed Dec  1 06:44:15 1993
+--- linux.new/fs/proc/mem.c	Tue May 17 11:33:00 1994
+***************
+*** 8,17 ****
+--- 8,22 ----
+  #include <linux/errno.h>
+  #include <linux/sched.h>
+  #include <linux/kernel.h>
++ #include <linux/malloc.h>
++ #include <linux/mm.h>
++ #include <linux/page.h>
+  
+  #include <asm/segment.h>
+  #include <asm/io.h>
+  
++ extern void file_mmap_free(struct vm_area_struct * area);
++ 
+  /*
+   * mem_write isn't really a good idea right now. It needs
+   * to check a lot more: if the process we try to write to 
+***************
+*** 138,143 ****
+--- 143,262 ----
+  	}
+  }
+  
++ 
++ /* There is some danger using this with shared memory.  You can
++  * mmap to a shared region and it will work fine.  When you shmdt
++  * the region, the mmap will not be deleted, however.  In fact,
++  * you will be able to access the data even when nattach is 0.
++  * The danger may come if you then reattach the shared memory
++  * because then you're liable to pick up the NEW shared data.
++  * Is that confusing?  Good.  You shouldn't be doing it in the
++  * first place!  (This is not to say don't map shared data.  By
++  * all means, knock yourself out.  Just don't muck about with the
++  * mmap'ed area after you free the shared region.)
++  * Scott Buchholz, scottb@eecs.nwu.edu, 5/23/94
++  */
++ 
++ int
++ selfmem_mmap(struct inode * inode, struct file * file,
++ 	unsigned long addr, size_t len, int prot, unsigned long off)
++ {
++   unsigned long *src_table, *dest_table;
++   unsigned long stmp, dtmp;
++   struct vm_area_struct *mpnt;
++   
++   /* null size ... should I report failure here? */
++   if (!len) 
++     return (unsigned long) -EINVAL;
++ 
++   /* check for overlap */
++   if ((off >= addr && off < (addr+len)) || (addr >= off && addr < (off+len))) 
++     return (unsigned long) -ENXIO;
++ 
++   for (stmp=addr, dtmp=off;
++        stmp < addr+len; stmp += PAGE_SIZE, dtmp += PAGE_SIZE) { 
++ 
++     src_table = PAGE_DIR_OFFSET(current->tss.cr3, stmp);
++ 
++     /* is there a directory entry? */
++     if (! *src_table) {
++       *src_table = (ulong)get_free_page(GFP_KERNEL);
++       if (! *src_table) { oom(current); *src_table=BAD_PAGE; }
++       else *src_table |= PAGE_TABLE;
++     }
++ 
++     src_table = (unsigned long *)((*src_table & PAGE_MASK) + PAGE_PTR(stmp));
++ 
++     /* is there a page entry?  -- if not, get one. */
++     if (! *src_table) {
++       *src_table = (ulong)get_free_page(GFP_KERNEL);
++       if (! *src_table) { oom(current); *src_table=BAD_PAGE; }
++       else *src_table |= PAGE_SHARED | PAGE_DIRTY;
++     }
++ 
++     dest_table = PAGE_DIR_OFFSET(current->tss.cr3, dtmp);
++ 
++     /* is there a directory entry? */
++     if (! *dest_table) {
++       *dest_table = (ulong)get_free_page(GFP_KERNEL);
++       if (! *dest_table) { oom(current); *dest_table=BAD_PAGE; }
++       else *dest_table |= PAGE_TABLE;
++     }
++     
++     dest_table = (unsigned long *)((*dest_table & PAGE_MASK) + PAGE_PTR(dtmp));
++ 
++     /* is there a page entry?  if so, get rid of it */
++     if (*dest_table) {
++       if (*dest_table & PAGE_PRESENT) {
++ 	free_page(*dest_table & PAGE_MASK);
++ 	--current->rss;
++       } else  /* if not present but some info in page_table, swapped out */
++ 	swap_free(*dest_table);
++     }
++     
++     /* check for src swapped */
++     if (! (*src_table & PAGE_PRESENT)) 
++       swap_in(src_table); /* fetch from swap */
++ 
++     /* set page dirty so it won't be swapped if mem_map[] > 1 
++      * this will also apply to the dest page
++      */
++     *src_table |= PAGE_DIRTY;
++ 
++     /* remap page. src page should not be swapped! */
++     *dest_table = *src_table;
++ 
++     mem_map[MAP_NR(*src_table)]++;  /* increase map count of src page */
++ 
++     mpnt = (struct vm_area_struct *)kmalloc(sizeof(struct vm_area_struct),
++                                            GFP_KERNEL);
++     if (!mpnt)
++       return (unsigned long) -EINVAL;   /* got something better to return? */
++ 
++     mpnt->vm_task = current;
++     mpnt->vm_start = dtmp;
++     mpnt->vm_end = dtmp + PAGE_SIZE;
++     mpnt->vm_page_prot = prot;
++     mpnt->vm_share = NULL;
++     mpnt->vm_inode = inode;
++     mpnt->vm_offset = stmp;
++     mpnt->vm_ops = NULL;
++     insert_vm_struct(current, mpnt);
++     merge_segments(current->mmap, NULL, NULL);
++   }
++ 
++   invalidate();        /* This clears the whole TLB, not just our entry
++                           (what a waste.) */
++   return off;
++ }
++ 
+  static struct file_operations proc_mem_operations = {
+  	mem_lseek,
+  	mem_read,
+***************
+*** 153,158 ****
+--- 272,308 ----
+  
+  struct inode_operations proc_mem_inode_operations = {
+  	&proc_mem_operations,	/* default base directory file-ops */
++ 	NULL,			/* create */
++ 	NULL,			/* lookup */
++ 	NULL,			/* link */
++ 	NULL,			/* unlink */
++ 	NULL,			/* symlink */
++ 	NULL,			/* mkdir */
++ 	NULL,			/* rmdir */
++ 	NULL,			/* mknod */
++ 	NULL,			/* rename */
++ 	NULL,			/* readlink */
++ 	NULL,			/* follow_link */
++ 	NULL,			/* bmap */
++ 	NULL,			/* truncate */
++ 	NULL			/* permission */
++ };
++ 
++ static struct file_operations proc_selfmem_operations = {
++ 	mem_lseek,
++ 	mem_read,
++ 	mem_write,
++ 	NULL,		/* mem_readdir */
++ 	NULL,		/* mem_select */
++ 	NULL,		/* mem_ioctl */
++ 	selfmem_mmap,	/* mmap */
++ 	NULL,		/* no special open code */
++ 	NULL,		/* no special release code */
++ 	NULL		/* can't fsync */
++ };
++ 
++ struct inode_operations proc_selfmem_inode_operations = {
++ 	&proc_selfmem_operations, /* default base directory file-ops */
+  	NULL,			/* create */
+  	NULL,			/* lookup */
+  	NULL,			/* link */
+diff --recursive -c linux/include/linux/proc_fs.h linux.new/include/linux/proc_fs.h
+*** linux/include/linux/proc_fs.h	Wed Dec  1 06:44:15 1993
+--- linux.new/include/linux/proc_fs.h	Thu May 12 00:44:36 1994
+***************
+*** 27,32 ****
+--- 27,33 ----
+  extern struct inode_operations proc_base_inode_operations;
+  extern struct inode_operations proc_net_inode_operations;
+  extern struct inode_operations proc_mem_inode_operations;
++ extern struct inode_operations proc_selfmem_inode_operations;
+  extern struct inode_operations proc_array_inode_operations;
+  extern struct inode_operations proc_kmsg_inode_operations;
+  extern struct inode_operations proc_link_inode_operations;

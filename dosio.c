@@ -4,12 +4,33 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/04/30 22:12:30 $
+ * $Date: 1994/05/26 23:15:01 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 1.17 $
+ * $Revision: 1.24 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 1.24  1994/05/26  23:15:01  root
+ * Prep. for pre51_21.
+ *
+ * Revision 1.23  1994/05/24  01:23:00  root
+ * Lutz's latest, int_queue_run() update.
+ *
+ * Revision 1.22  1994/05/21  23:39:19  root
+ * PRE51_19.TGZ with Lutz's latest updates.
+ *
+ * Revision 1.21  1994/05/18  00:15:51  root
+ * pre15_17.
+ *
+ * Revision 1.20  1994/05/13  17:21:00  root
+ * pre51_15.
+ *
+ * Revision 1.19  1994/05/10  23:08:10  root
+ * pre51_14.
+ *
+ * Revision 1.18  1994/05/04  22:16:00  root
+ * Patches by Alan to mouse subsystem.
+ *
  * Revision 1.17  1994/04/30  22:12:30  root
  * Prep for pre51_11.
  *
@@ -160,6 +181,12 @@
  */
 #define DOS_IO
 
+#define DBGTIME(x) {\
+                        struct timeval tv;\
+                        gettimeofday(&tv,NULL);\
+                        fprintf(stderr,"%c %06d:%06d\n",x,(int)tv.tv_sec,(int)tv.tv_usec);\
+                   }
+
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -184,8 +211,10 @@
 #include "mouse.h"
 #include "video.h"
 
-/* #define SIG 1 */
+extern void DOSEMUMouseEvents(void);
 
+/* #define SIG 1 */
+inline void scan_to_buffer(void);
 extern void bios_emm_init(void);
 extern void xms_init(void);
 extern void dump_kbuffer(void);
@@ -194,13 +223,11 @@ extern int_count[];
 extern struct config_info config;
 extern int in_readkeyboard, keybint;
 extern int ignore_segv;
-extern int pd_sock;
 
 #define PAGE_SIZE	4096
 
 u_long secno = 0;
 
-inline void dokey(int);
 inline void process_interrupt(int);
 
 /* my test shared memory IDs */
@@ -351,17 +378,15 @@ u_short scan_queue[SCANQ_LEN];
 int scan_queue_start = 0;
 int scan_queue_end = 0;
 u_char keys_ready = 0;
-u_char scanned = 0;
 extern int convKey();
 extern int InsKeyboard();
-extern u_char move_kbd_key_flags;
 
 fd_set fds;
 void
 io_select(void)
 {
-  int selrtn;
-  struct timeval tvptr;
+  static int selrtn;
+  static struct timeval tvptr;
 
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
@@ -373,7 +398,7 @@ io_select(void)
     FD_SET(SillyG, &fds);
 #endif
   
-  if (mice->type == MOUSE_PS2)
+  if (mice->intdrv)
     FD_SET(mice->fd, &fds);
 
   switch ((selrtn = select(10, &fds, NULL, NULL, &tvptr))) {
@@ -393,21 +418,20 @@ io_select(void)
 	  process_interrupt(SillyG);
 	}
 #endif
-      if (mice->type == MOUSE_PS2) 
+      if (mice->intdrv)
 	if (FD_ISSET(mice->fd, &fds)) {
- 	  do_soft_int(0x74);
+		m_printf("MOUSE: We have data\n");
+	  DOSEMUMouseEvents();
 	}
 
       if (FD_ISSET(kbd_fd, &fds)) {
-	dokey(kbd_fd);
+	getKeys();
       }
 
       /* XXX */
 #if 0
       fflush(stdout);
 #endif
-
-
       break;
     }
 
@@ -425,9 +449,8 @@ DOS_setscan(u_short scan)
   }
   else {
     k_printf("NOT Hard queue\n");
-    scanned = 0;
-    move_kbd_key_flags = 1;
     parent_nextscan();
+    scan_to_buffer();
   }
 
 }
@@ -445,11 +468,11 @@ set_keyboard_bios(void)
       inschr = convKey(HI(ax));
     }
     else
-      inschr = convKey(lastscan);
+      inschr = convKey(*LASTSCAN_ADD);
   }
   else
     inschr = lastchr;
-  k_printf("parent nextscan found inschr=0x%02x, lastchr = 0x%02x, lastscan = 0x%04x scaned=%d\n", inschr, lastchr, lastscan, scanned);
+  k_printf("parent nextscan found inschr=0x%02x, lastchr = 0x%02x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
   k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));
 }
@@ -476,36 +499,29 @@ inline void
 parent_nextscan()
 {
 
-  k_printf("ENTERING key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
-	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
-  k_printf("scanned=%d, start=%d, end=%d\n", scanned, scan_queue_start, scan_queue_end);
   keys_ready = 0;
-  if (!scanned && (scan_queue_start != scan_queue_end)) {
-    scanned = 1;
+  if (scan_queue_start != scan_queue_end) {
     keys_ready = 1;
     lastchr = scan_queue[scan_queue_start];
     if (scan_queue_start != scan_queue_end)
       scan_queue_start = (scan_queue_start + 1) % SCANQ_LEN;
     if (!config.console_keyb) {
-      lastscan = lastchr >> 8;
+      *LASTSCAN_ADD = lastchr >> 8;
     }
     else {
-      lastscan = lastchr;
+      *LASTSCAN_ADD = lastchr;
     }
   }
-  k_printf("parent nextscan lastscan = 0x%04x scaned=%d\n", lastscan, scanned);
-  if (move_kbd_key_flags) {
-    set_keyboard_bios();
-    insert_into_keybuffer();
-    move_kbd_key_flags = 0;
-  }
+  k_printf("Parent Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
+	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
+  k_printf("start=%d, end=%d, LASTSCAN=%x\n", scan_queue_start, scan_queue_end, *LASTSCAN_ADD);
 }
 
 inline void
-dokey(int fd)
-{
-  getKeys();
-  k_printf("After getKeys() dosipc.c\n");
+scan_to_buffer() {
+  k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", *LASTSCAN_ADD);
+  set_keyboard_bios();
+  insert_into_keybuffer();
 }
 
 inline void

@@ -13,12 +13,12 @@ SUBDIR=net
 
 # let gcc do extended checking
 
-CFLAGS=-O2 -Wall # -Wmissing-prototypes \
+CFLAGS=-O2 # -Wall # -Wmissing-prototypes \
 #       -Wstrict-prototypes -ansi -pedantic 
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = ipx.c libpacket.c pktdrvr.c pktnew.c
+CFILES = ipx.c ipxglt.c libpacket.c pktnew.c
 HFILES =       libpacket.h pktdrvr.h
 
 # Insert all source- and header-files here.
@@ -27,7 +27,7 @@ ALL = $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = ipx.o libpacket.o pktdrvr.o pktnew.o
+OBJS = ipx.o ipxglt.o libpacket.o pktnew.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(INCDIR) -c $<

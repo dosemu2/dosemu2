@@ -161,6 +161,7 @@ GetDeviceMTU(char *device)
   strcpy(req.ifr_name, device);
 
   err = ioctl(s, SIOCGIFMTU, &req);
+  close(s);	/* So I'll add this one as well.  Ok Alan? - Rob */
   if (err == -1)
     return err;
   return req.ifr_mtu;

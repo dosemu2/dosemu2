@@ -3,11 +3,29 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/04/27 23:39:57 $
+ * $Date: 1994/05/24 01:23:00 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 1.29 $
+ * $Revision: 1.35 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 1.35  1994/05/24  01:23:00  root
+ * Lutz's latest, int_queue_run() update.
+ *
+ * Revision 1.34  1994/05/21  23:39:19  root
+ * PRE51_19.TGZ with Lutz's latest updates.
+ *
+ * Revision 1.33  1994/05/18  00:15:51  root
+ * pre15_17.
+ *
+ * Revision 1.32  1994/05/13  23:20:15  root
+ * Pre51_15.
+ *
+ * Revision 1.31  1994/05/13  17:21:00  root
+ * pre51_15.
+ *
+ * Revision 1.30  1994/05/04  21:56:55  root
+ * Prior to Alan's mouse patches.
+ *
  * Revision 1.29  1994/04/27  23:39:57  root
  * Lutz's patches to get dosemu up under 1.1.9.
  *
@@ -84,6 +102,8 @@
    I set keepkey to reflect CF */
 u_char keepkey = 1;
 
+inline void child_set_flags(int );
+
 void clear_raw_mode();
 extern void clear_console_video();
 extern void clear_process_control();
@@ -99,14 +119,6 @@ void convascii(int *);
 /* Was a toggle key already port in'd */
 u_char ins_stat = 0, scroll_stat = 0, num_stat = 0, caps_stat = 0;
 
-/* these are the structures in keymaps.c */
-/* extern unsigned char shift_map[97], alt_map[97], key_map[97], num_table[15]; */
-
-#define key_map config.key_map
-#define shift_map config.shift_map
-#define alt_map config.alt_map
-#define num_table config.num_table
-
 extern struct config_info config;
 
 extern struct screen_stat scr_state;	/* main screen status variables */
@@ -119,11 +131,7 @@ extern int ignore_segv;
 unsigned int convscanKey(unsigned char);
 unsigned int queue;
 
-int lastscan = 0;
-
 #define put_queue(psc) (queue = psc)
-
-void release_vt(), acquire_vt();
 
 #ifdef USE_NCURSES
 static void
@@ -151,7 +159,6 @@ int kbd_flag(int), child_kbd_flag(int), key_flag(int);
 unsigned int child_kbd_flags = 0;
 
 int altchar = 0;
-u_char move_kbd_key_flags = 0;
 
 /* the file descriptor for /dev/mem when mmap'ing the video mem */
 int mem_fd = -1;
@@ -368,7 +375,7 @@ gettermcap(void)
   }
   if (tgetent(termcap, getenv("TERM")) != 1) {
     error("ERROR: no termcap \n");
-    leavedos(1);
+    leavedos(17);
   }
   if (li == 0 || co == 0) {
     li = tgetnum("li");		/* lines   */
@@ -398,7 +405,7 @@ gettermcap(void)
     me = NULL;
   if (li == 0 || co == 0) {
     error("ERROR: unknown window sizes \n");
-    leavedos(1);
+    leavedos(18);
   }
   for (fkp = funkey; fkp < &funkey[FUNKEYS]; fkp++) {
     fkp->esc = tgetstr(fkp->tce, &tp);
@@ -413,15 +420,24 @@ static void
 CloseKeyboard(void)
 {
   if (kbd_fd != -1) {
-    if (config.console_keyb)
+
+    if (config.console_keyb) {
+      v_printf("CloseKeyboard:clear raw keyb\n");
       clear_raw_mode();
-    if (config.console_video)
+    }
+    if (config.console_video) {
+      v_printf("CloseKeyboard:clear console video\n");
       clear_console_video();
+    }
 
-    if (config.console_keyb || config.console_video)
+    if (config.console_keyb || config.console_video) {
+      v_printf("CloseKeyboard: clear process control\n");
       clear_process_control();
+    }
 
+    v_printf("CloseKeyboard: F_SETFL\n");
     fcntl(kbd_fd, F_SETFL, old_kbd_flags);
+    v_printf("CloseKeyboard: TCSETAF\n");
     ioctl(kbd_fd, TCSETAF, &oldtermio);
 
     close(kbd_fd);
@@ -512,7 +528,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 1.29 1994/04/27 23:39:57 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 1.35 1994/05/24 01:23:00 root Exp root $\n");
 
   return 0;
 }
@@ -591,12 +607,14 @@ getKeys(void)
 
   /* IPC change here!...was read(kbd_fd... */
   cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE);
-
   k_printf("KEY: cc found %d characters\n", cc);
+
+  if (cc == -1) {
+    return;
+  }
 
   if (cc > 0 && config.console_keyb) {
     int i;
-
     for (i = 0; i < cc; i++) {
       child_set_flags(kbp[kbcount + i]);
       DOS_setscan(kbp[kbcount + i]);
@@ -617,7 +635,7 @@ getKeys(void)
 
 }
 
-void
+inline void
 child_set_flags(int sc)
 {
   switch (sc) {
@@ -883,6 +901,7 @@ InsKeyboard(unsigned short scancode)
   return 1;
 }
 
+/* Translate a scan code to a scancode|character combo */
 /* static */ unsigned int
 convKey(int scancode)
 {
@@ -895,10 +914,8 @@ convKey(int scancode)
   if (config.console_keyb) {
     unsigned int tmpcode = 0;
 
-    lastscan = scancode;
+    *LASTSCAN_ADD = scancode;
     tmpcode = convscanKey(scancode);
-    move_kbd_key_flags = 0;
-
     return tmpcode;
   }
   return 0;
@@ -940,7 +957,7 @@ termioInit()
   scr_state.current = 1;
   if (OpenKeyboard() != 0) {
     error("ERROR: can't open keyboard\n");
-    leavedos(1);
+    leavedos(19);
   }
 #ifndef USE_NCURSES
   gettermcap();
@@ -1289,7 +1306,6 @@ get_leds()
 
   do_ioctl(ioc_fd, KDGETLED, (int) &led_state);
 
-  move_kbd_key_flags = 1;
   if (led_state & (1 << LED_SCRLOCK)) {
     set_kbd_flag(KF_SCRLOCK);
   }
@@ -1308,7 +1324,6 @@ get_leds()
   else {
     clr_kbd_flag(KF_CAPSLOCK);
   }
-  move_kbd_key_flags = 0;
   k_printf("KEY: GET LEDS key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
 }
@@ -1327,12 +1342,12 @@ do_self(unsigned int sc)
              Command.                  hein@tlaloc.in.tu-clausthal.de       */
     if (config.keyboard == KEYB_GR_LATIN1) {
       if (kbd_flag(EKF_LALT))	/* Left-Alt-Key pressed ?            */
-	ch = alt_map[0];	/* Return Key with Alt-modifier      */
+	ch = config.alt_map[0];	/* Return Key with Alt-modifier      */
       else			/* otherwise (this is Alt-Gr)        */
-	ch = alt_map[sc];	/* Return key from alt_map           */    
+	ch = config.alt_map[sc]; /* Return key from alt_map          */    
     }
     else                        /* or no GR_LATIN1-keyboard          */
-      ch = alt_map[sc];		/* Return key from alt_map           */    
+      ch = config.alt_map[sc];	/* Return key from alt_map           */    
 
     if ((sc >= 2) && (sc <= 0xb))	/* numbers */
       sc += 0x76;
@@ -1344,9 +1359,9 @@ do_self(unsigned int sc)
 
   else if (kbd_flag(KF_LSHIFT) || kbd_flag(KF_RSHIFT) ||
 	   kbd_flag(KF_CTRL))
-    ch = shift_map[sc];
+    ch = config.shift_map[sc];
   else
-    ch = key_map[sc];
+    ch = config.key_map[sc];
 
 #if 0
   if (ch == 0)
@@ -1456,14 +1471,14 @@ cursor(unsigned int sc)
   if (kbd_flag(KF_ALT)) {
     int digit;
 
-    if ((digit = num_table[sc] - '0') <= 9)	/* is a number */
+    if ((digit = config.num_table[sc] - '0') <= 9)	/* is a number */
       altchar = altchar * 10 + digit;
   }
   else if (kbd_flag(KF_CTRL))
     put_queue(ctrl_cursor[sc]);
   else if (kbd_flag(KF_NUMLOCK) || kbd_flag(KF_LSHIFT)
 	   || kbd_flag(KF_RSHIFT))
-    put_queue((old_sc << 8) | num_table[sc]);
+    put_queue((old_sc << 8) | config.num_table[sc]);
   else
     put_queue(old_sc << 8);
 }
@@ -1490,7 +1505,7 @@ Tab(unsigned int sc)
   else if (kbd_flag(KF_LSHIFT) || kbd_flag(KF_RSHIFT))
     put_queue(sc << 8);
   else
-    put_queue(sc << 8 | key_map[sc]);
+    put_queue(sc << 8 | config.key_map[sc]);
 }
 
 static void

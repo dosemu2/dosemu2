@@ -3,12 +3,33 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/04/30 22:12:30 $
+ * $Date: 1994/05/26 23:15:01 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 1.42 $
+ * $Revision: 1.49 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 1.49  1994/05/26  23:15:01  root
+ * Prep. for pre51_21.
+ *
+ * Revision 1.48  1994/05/24  01:23:00  root
+ * Lutz's latest, int_queue_run() update.
+ *
+ * Revision 1.47  1994/05/21  23:39:19  root
+ * PRE51_19.TGZ with Lutz's latest updates.
+ *
+ * Revision 1.46  1994/05/16  23:13:23  root
+ * Prep for pre51_16.
+ *
+ * Revision 1.45  1994/05/13  17:21:00  root
+ * pre51_15.
+ *
+ * Revision 1.44  1994/05/10  23:08:10  root
+ * pre51_14.
+ *
+ * Revision 1.43  1994/05/04  21:56:55  root
+ * Prior to Alan's mouse patches.
+ *
  * Revision 1.42  1994/04/30  22:12:30  root
  * Prep for pre51_11.
  *
@@ -153,6 +174,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "config.h"
 #include "memory.h"
@@ -173,8 +195,6 @@ extern inline void do_int(int);
 extern int int_queue_running;
 extern void int_queue_run();
 extern void xms_control(void);
-extern void dpmi_init(void);
-extern print_ldt();
 
 extern inline int can_revector(int);
 
@@ -211,6 +231,8 @@ cpu_init(void)
     if (!can_revector(i) && i!=0x21)
       set_revectored(i, &vm86s.int_revectored);
   set_revectored(0x0c, &vm86s.int21_revectored);
+  if(config.hogthreshold)
+    set_revectored(0x16, &vm86s.int_revectored);
 
 #ifdef INTERNAL_EMS
   set_revectored(0x3e, &vm86s.int21_revectored);
@@ -218,12 +240,6 @@ cpu_init(void)
 #endif
   if(config.emusys || config.emubat)
     set_revectored(0x3d, &vm86s.int21_revectored);
-#if 0
-#ifdef DPMI
-  if (config.dpmi_size)
-    set_revectored(0x4c, &vm86s.int21_revectored);
-#endif
-#endif
 }
 
 void
@@ -245,7 +261,7 @@ show_regs(void)
     dbug_printf((vflags & i) ? "1" : "0");
 
   dbug_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx VFLAGS(h): %08lx",
-	      REG(eax), REG(ebx), REG(ecx), REG(edx), vflags);
+	      REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
   dbug_printf("\nESI: %08lx EDI: %08lx EBP: %08lx",
 	      REG(esi), REG(edi), REG(ebp));
   dbug_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
@@ -261,13 +277,15 @@ show_regs(void)
   PFLAG(ZF);
   PFLAG(SF);
   PFLAG(TF);
-  PFLAG(VIF);
+  PFLAG(IF);
   PFLAG(DF);
   PFLAG(OF);
   PFLAG(NT);
   PFLAG(RF);
   PFLAG(VM);
   PFLAG(AC);
+  PFLAG(VIF);
+  PFLAG(VIP);
   dbug_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 
   /* display the 10 bytes before and after CS:EIP.  the -> points
@@ -310,6 +328,9 @@ show_ints(int min, int max)
 inline int
 do_hard_int(int intno)
 {
+#ifdef DPMI
+  /* send hardware interrupts first to protected mode */
+#endif /* DPMI */
   queue_hard_int(intno, NULL, NULL);
   return (1);
 }
@@ -326,15 +347,11 @@ sigill(int sig, struct sigcontext_struct context)
 {
   unsigned char *csp;
   int i, dee;
-#ifdef DPMI
-  struct sigcontext_struct *scp = &context;
-  unsigned char *csp2, *ssp2;
 
-  if (_cs != UCODESEL){
-    D_printf("DPMI: sigill\n");
-    DPMI_show_state;
-  }
-#endif
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    return dpmi_sigill(&context);
+#endif /* DPMI */
 
   csp = SEG_ADR((unsigned char *), cs, ip);
 
@@ -366,7 +383,7 @@ sigill(int sig, struct sigcontext_struct context)
   if ((i & 0xf800) != 0xd800) {	/* not FPU insn */
     error("ERROR: not an FPU instruction, real illegal opcode!\n");
 #if 0
-    do_int(0x10);		/* Coprocessor error */
+    do_int(0x6);		/* Coprocessor error */
 #else
     fatalerr = 4;
 #endif
@@ -435,14 +452,26 @@ sigfpe(int sig)
 }
 
 void
-sigtrap(int sig)
+sigtrap(int sig, struct sigcontext_struct context)
 {
+  struct sigcontext_struct *scp = &context;
+
+#if 0
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    return dpmi_sigtrap(scp);
+#endif /* DPMI */
+#endif
+
+  if (!in_vm86)
+    error("ERROR: NON-VM86 SIGTRAP insn!\n");
+
   in_vm86 = 0;
 
-  if (LWORD(eflags) & TF)		/* trap flag */
-    LWORD(eip)++;
+  if (_trapno == 3)
+    return (void) do_int(3);
 
-  do_int(3);
+  do_int(1);
 }
 
 struct port_struct {
@@ -484,12 +513,18 @@ find_port(int port, int permission)
 /*
    for now, video_port_io flag allows special access for video regs
 */
-  if (((LWORD(cs) & 0xf000) == VBIOS_SEG) && config.allowvideoportaccess && scr_state.current) {
+  if (   ((LWORD(cs) & 0xf000) == config.vbios_seg) 
+      && config.allowvideoportaccess 
+      && scr_state.current) {
 #if 0
     v_printf("VID: checking port %x\n", port);
 #endif
+    if (port > 0x4000)
+      return (-1);
     port &= 0xfff;
-    if (port > 0x300 || port == 0x42 || port == 0x1ce || port == 0x1cf) {
+    if (    (port > 0x300 && port < 0x3f8) 
+         ||  port > 0x400
+         || port == 0x42 || port == 0x1ce || port == 0x1cf) {
       video_port_io = 1;
       return 1;
     }
@@ -630,33 +665,6 @@ write_port(int value, int port)
     iopl(0);
 
   return (1);
-}
-
-short
-pop_word(struct vm86_regs *pregs)
-{
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *)(WORD(pregs->ss) << 4);
-  sp = (unsigned long) WORD(pregs->esp);
-
-  pregs->esp += 2;
-  return WORD(popw(ssp, sp));
-}
-
-void
-push_word(struct vm86_regs *pregs, short word)
-{
-  unsigned char *ssp;
-  unsigned long sp;
-
-  ssp = (unsigned char *)(WORD(pregs->ss) << 4);
-  sp = (unsigned long) WORD(pregs->esp);
-
-  pregs->esp -= 2;
-
-  pushw(ssp, sp, word);
 }
 
 #undef CPU_C

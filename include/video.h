@@ -190,34 +190,34 @@ extern int vga_dumpregs(void);
 
 /* Defines for Monochrome Display Adapter */
 
-#define MDA_INIT_SCREEN_MODE   7/* 80x25 MDA monochrome */
+#define MDA_INIT_SCREEN_MODE   7 /* 80x25 MDA monochrome */
 #define MDA_CONF_SCREEN_MODE   (3<<4)	/* for int 11h info     */
 #define MDA_VIDEO_COMBO        1
-#define MDA_VIDEO_SUBSYS       1/* 1=mono               */
+#define MDA_VIDEO_SUBSYS       1 /* 1=mono               */
 /* #define BASE_CRTC               0x3b4  currently not used */
 
 /* Defines for Color Graphics Adapter */
 
-#define CGA_INIT_SCREEN_MODE   3/* 80x25 VGA color */
+#define CGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define CGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define CGA_VIDEO_COMBO        4/* 4=EGA (ok), 8=VGA (not ok??) */
-#define CGA_VIDEO_SUBSYS       0/* 0=color */
+#define CGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok??) */
+#define CGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
 /* Defines for Enhanched Graphics Adapter, same as CGA */
 
-#define EGA_INIT_SCREEN_MODE   3/* 80x25 VGA color */
+#define EGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define EGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define EGA_VIDEO_COMBO        4/* 4=EGA (ok), 8=VGA (not ok??) */
-#define EGA_VIDEO_SUBSYS       0/* 0=color */
+#define EGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok??) */
+#define EGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
 /* Defines for Video Graphic Array, same as CGA */
 
-#define VGA_INIT_SCREEN_MODE   3/* 80x25 VGA color */
+#define VGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define VGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define VGA_VIDEO_COMBO        4/* 4=EGA (ok), 8=VGA (not ok??) */
-#define VGA_VIDEO_SUBSYS       0/* 0=color */
+#define VGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok??) */
+#define VGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
 /* Values are set from emu.c depending on video-card defined in config */

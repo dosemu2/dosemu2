@@ -146,6 +146,15 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.38  1994/05/26  23:15:01  root
+ * Prep. for pre51_21.
+ *
+ * Revision 1.37  1994/05/13  17:21:00  root
+ * pre51_15.
+ *
+ * Revision 1.36  1994/05/04  21:56:55  root
+ * Prior to Alan's mouse patches.
+ *
  * Revision 1.35  1994/04/30  01:05:16  root
  * Clean Up.
  *
@@ -1157,6 +1166,7 @@ _get_dir(char *name, char *mname, char *mext)
 #if 1
   if (strncasecmp(mname, "NUL     ", strlen(mname)) == 0 &&
       strncasecmp(mext, "   ", strlen(mname)) == 0) {
+
     entry = make_entry();
     dir_list = entry;
     entry->next = NULL;
@@ -1172,7 +1182,9 @@ _get_dir(char *name, char *mname, char *mext)
   }
   else
 #endif
+
     while ((cur_ent = dos_readdir(cur_dir))) {
+
       if (cur_ent->d_ino == 0)
 	continue;
       if (cur_ent->d_namlen > 13)
@@ -3003,8 +3015,8 @@ dos_fs_redirect(state)
 
       /* clear TF (trap flag, singlestep), IF (interrupt flag), and
        * NT (nested task) bits of EFLAGS
-       */
       REG(eflags) &= ~(VIF | TF | IF | NT);
+       */
 
     }
 
@@ -3035,9 +3047,8 @@ dos_fs_redirect(state)
     if (find_file(fpath, &st)) {
       Debug0((dbg_fd, "st.st_mode = 0x%02x, handles=%d\n", st.st_mode, sft_handle_cnt(sft)));
       if ( /* !(st.st_mode & S_IFREG) || */ create_file) {
-	SETWORD(&(state->eax), 0x50);
-	Debug0((dbg_fd, "File exists '%s'\n",
-		fpath));
+	SETWORD(&(state->eax), FILE_ALREADY_EXISTS);
+	Debug0((dbg_fd, "File exists '%s'\n", fpath));
 	return (FALSE);
       }
     }
@@ -3108,8 +3119,8 @@ dos_fs_redirect(state)
 
       /* clear TF (trap flag, singlestep), IF (interrupt flag), and
        * NT (nested task) bits of EFLAGS
-       */
       REG(eflags) &= ~(VIF | TF | IF | NT);
+       */
 
     }
     return (TRUE);
@@ -3277,7 +3288,7 @@ dos_fs_redirect(state)
 	    (char *) sdb_template_ext(sdb), (int)hlist));
     if (last_find_drive && ((strncmp(last_find_name, sdb_template_name(sdb), 8) != 0 ||
 		   strncmp(last_find_ext, sdb_template_ext(sdb), 3) != 0) ||
-			    (last_find_dir != sdb_dir_entry(sdb)) ||
+/*			    (last_find_dir != sdb_dir_entry(sdb)) || */
 			    (last_find_drive != sdb_drive_letter(sdb)))) {
       Debug0((dbg_fd, "last_template!=this_template. popping. %.8s,%.3s\n", last_find_name, last_find_ext));
       Debug0((dbg_fd, "last_dir=%x,last_drive=%d sdb_dir=%d,sdb_drive=%d\n", last_find_dir, last_find_drive, sdb_dir_entry(sdb), sdb_drive_letter(sdb)));

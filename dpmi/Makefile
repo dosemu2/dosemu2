@@ -15,21 +15,21 @@ ALL = dpmi.c ldtlib.c dpmi.h \
 all: dpmi.o ldtlib.o ldt.o call.o testdpmi.com
 
 dpmi.o:
-	$(CC) -DDPMI $(INCDIR) -N -O6 -c -o $@ $<
+	$(CC) -DDPMI $(INCDIR) -N -O6 -c dpmi.c
 
 ldtlib.o:
-	$(CC) $(INCDIR) -N -O6 -c -o $@ $<
+	$(CC) $(INCDIR) -N -O6 -c ldtlib.c
 
 ldt.o:
-	$(CC) $(INCDIR) -N -O6 -c -o $@ $<
+	$(CC) $(INCDIR) -N -O6 -c ldt.c
 
 call.o:
 	$(CC) -N -O6 -c -o $@ call.S
 
 checkin:
-	-ci $(ALL) Makefile
+	-ci $(ALL) Makefile TODO
 checkout:
-	-co -l $(ALL) Makefile
+	-co -l $(ALL) Makefile TODO
 
 clean:
 	rm -f *.o *.com .depend
@@ -38,7 +38,7 @@ install:
 
 dist: $(ALL) Makefile
 	install -d $(DISTPATH)/dpmi
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/dpmi
+	install -m 0644 $(ALL) Makefile TODO $(DISTPATH)/dpmi
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend

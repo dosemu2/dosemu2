@@ -1,0 +1,16 @@
+--- keyboard.c.orig	Sun May  8 09:23:36 1994
++++ keyboard.c	Sun May  8 09:29:24 1994
+@@ -227,11 +227,13 @@
+ 	tty = TTY_TABLE(0);
+  	kbd = kbd_table + fg_console;
+ 	if ((raw_mode = vc_kbd_mode(kbd,VC_RAW))) {
++	        if (scancode == 0x54) clr_vc_kbd_mode(kbd,VC_RAW);
+  		put_queue(scancode);
+ 		/* we do not return yet, because we want to maintain
+ 		   the key_down array, so that we have the correct
+ 		   values when finishing RAW mode or when changing VT's */
+  	}
++	else if (scancode == 0x54) set_vc_kbd_mode(kbd,VC_RAW);
+ 	if (scancode == 0xe0 || scancode == 0xe1) {
+ 		prev_scancode = scancode;
+ 		goto end_kbd_intr;

@@ -13,9 +13,9 @@ struct pit {
    s0,				/* states */
    s1, s2, sm;
   unsigned long update, freq;
-}
+};
 
-pit;
+extern struct pit pit;
 
 void timer_tick(void), set_ticks(unsigned long);
 extern inline int int28(void);

@@ -8,8 +8,8 @@
 
                  DOSEMU Altering Novice's Guide 
 
-                          Version .11
-                        18th March 1994
+                          Version .12
+                         16th May 1994
 
 
         This document is the preliminary draft of a manual to help
@@ -24,8 +24,11 @@ information. (It was mostly ripped out of a mail message.)
 
 This file is a collective effort. If you don't like one of the
 explanations, or want to add anything, please send me something! My
-address is at the end of the guide.
+address is at the end of the guide. On which note, thanks to "Jochen
+Hein" who bullied me for a new copy & then made comments for me ...
 
+Also at the end of the guide is information on how the next version of this
+guide will be produced. Please read this if you are modifying the code.
 
 The files:
 
@@ -36,27 +39,38 @@ termio.c - Includes the keyboard routines.
         transmitted over serial lines. Termio.c also works out the
         mapping between the directly updated screen addresses and the
         actual screen being viewed when NOT in console video mode. 
+	The two different alt-keys are handled here. The mapping of
+	keys in different languages is done in here, but the
+	definitions are held elsewhere.
+
+	There is a default key map in here.
 
 
 keymaps.c - the definitions of which keys are related to which
-        scancodes in raw keyboard mode.
-        Basicallly the scan code of x on a US keyboard may be a
-        scancode of Y on a German keyboard. This way all types of
-        keyboards can be represented under dosemu.... I think 8-).
-        Also, as an example, the right alt key on many keyboards is
-        actually another function key altogether. 
+	scancodes in raw keyboard mode.
+	Basicallly the scan code of x on a US keyboard may be a
+	scancode of Y on a German keyboard. This way all types of
+	keyboards can be represented under dosemu.... I think 8-).
+	Also, as an example, the right alt key on many keyboards is
+	actually another function key altogether. 
 
 
-*video.c - The video stuff (raw & character)
-        All emulated video interrupts are here, int10 that is. All
-        efforts being made to properly save and restore the video
-        state between VC's, and some effort into controlling updates
-        to the VC while switched away are all here. Any new video
-        cards to be supported need to have their own set of
-        save/restore routines added here. The actual mmaping of the
-        absolute screen memory is programmed here also.
+video - The video stuff (raw & character)
+	This is actually a driectory, containing 'video.c', the main
+	video handling file, and the various drivers for the supported
+	cards.
+
+	All emulated video interrupts are here, int10 that is. All
+	efforts being made to properly save and restore the video
+	state between VC's, and some effort into controlling updates
+	to the VC while switched away are all here. The actual mmaping
+	of the absolute screen memory is programmed here also.
+
+	Any new video cards to be supported need to have their own set
+	of save/restore routines added here, in their own file.
+
         If you need to use a cards own bios then the parameter
-        graphics must added to the video statment in /etc/dosemu/config.
+        graphics must added to the video statment in /etc/dosemu.conf.
         Then DOSEMU will attempt to execute the card initialization
         routine which is supposed to be located at address c000:0003.
 
@@ -68,7 +82,7 @@ keymaps.c - the definitions of which keys are related to which
         This spec also includes the allocating UMB's, so they are also
         included as part of this file. The amount of xms memory
         returned to DOS programs via XMS requests, or int15 fnc88 is
-        set in /etc/dosemu/config via the XMS parameter.
+        set in /etc/dosemu.conf via the XMS parameter.
 
 
 **mfs.c - This file along with ./drivers/emufs.S are the device
@@ -112,8 +126,8 @@ cmos.c - (emulation of or access to) the cmos settings?
         attention throws dosemu out of real mode and into protected
         mode, where it handles the exception. 
 
-        >DOSEMU was at one point two processes, but is now all one again. As
-	>such, this file may have changed a lot.
+        DOSEMU was at one point two processes, but is now all one again. As
+	such, this file may have changed a lot.
 
 *cpu.c - Contains code to handle special cpu circumstances (ya, that's the
         ticket :-) ) like interrupts, I/O to ports that are not currently
@@ -129,6 +143,12 @@ cmos.c - (emulation of or access to) the cmos settings?
         handle possible O.K. situations like attempts to use a mathco when
         one does not exist.
 
+
+sigsegv.c - This handles all of the sigsegv()'s mentioned above. vm86
+	calls are now trapped in the kernel.
+
+networking - This is another subdirectory, containing all of the
+	currently emulated Network code is stored.
 
 *Bios_emm.c -  contains all the EMS calls and currently uses the
         /proc file system to mmap its own memory for use in the EMS
@@ -151,8 +171,76 @@ recognize.  Then try to find the section of the code that does what
 you want to change.
 
 
-Alistair
+The Future:
+===========
 
+The next version of the DANG will (hopefully) be produced automatically 
+and be available in a number of formats. The intention is to produce an
+online form, (ie info) and a written form, as now. To make this easier,
+and allow it to be updated more quickly the following conventions have 
+been proposed (Thanks Tim!):
+
+DANG_BEGIN_MODULE / DANG_END_MODULE
+	This will bracket a description of the file (normally at the
+	start).
+
+DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+	This brackets a description of functions (good this, isn't it!)
+	Not every function needs to be described in this way - just the
+	major ones. Since this needs to look vaguelly similar, I propose
+	the following:
+
+	Function name (on the same line as DANG_BEGIN_FUNCTION)
+	<Blank Line>
+	Parameters
+	<Blank Line>
+	Brief Description
+
+DANG_BEGIN_REMARK / DANG_END_REMARK
+	This brackets descriptions of obscure items, like data structures
+	and architecture.
+
+DANG_FIXTHIS
+	This is a one line item, indicating a an area requiring a fix, or
+	redesign.
+
+DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+	New Ideas Start Here! As Ideas are proposed, that get added with 
+	their description, so that future generations can laugh at or
+	code the ideas ..... These bracket the idea description.
+
+DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+	Changelogs - very useful for bug fixing, and avvailable for use
+	with DPR (or that's the theory)
+
+Not all of these may be used in DANG - but that doesn't mean that they 
+shouldn't be used in the code. (ie I don't think I'll be using the 
+CHANGELOG commands, but Corey might ...) The filter will strip these out
+of anything (but out of comments would be useful, if you want your code
+to still compile) and will remove comment markers as it goes ... Note that:
+
+/*
+ * DANG_BEGIN_REMARK
+ * Load of gibberish here ....
+ * ... continued here 
+ * DANG_END_REMARK
+ */
+
+Will be interpreted as (in the right place) :
+
+"Load of gibberish here .... ... continued here"
+
+As Tim so eloquently pointed out (& I quote without permission ...):
+ `Note that the DANG descriptions are not meant to replace good comments in 
+  the source code.  Rather, they should provide meaningful insight into the 
+  code when read "out-of-context" (ie in the DANG manual). Therefore, 
+  they should consist of the 10,000 foot view of the code, rather than 
+  contain the nitty-gritty details of code operation.'
+
+Note however, that the new format for the DANG will allow you to delve in
+deeply enough to find your way straight to the code (I hope), or shallowly
+enough for you to just say - "Nope, I don't want to do that!" (Which I 
+hope you won't say)
+
+Alistair MacDonald
 am20@unix.york.ac.uk
-
-

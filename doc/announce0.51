@@ -1,48 +1,59 @@
 
-Well, the jig is up. Everyone figured out quite quickly that dosemu0.50
-showed some major bugs, and the dosemu development team is very thankful
-for everyone bringing them to our attention. With your forgiveness we
-wish to submit this latest version 0.50pl1. Please use it in all instances
-where 0.50 was used before.
 
-  DOSEMU is a Linux specific application that allows Linux to run many
-DOS based programs. It requires a bootable DOS diskette and
-Linux 0.99pl14+ .
+Here comes the great, new, improved DOSEMU....Version 0.52!
 
-  Definitely still consider this ALPHA software, and as such please
+    DOSEMU is a Linux specific application that allows Linux to run many
+DOS based programs. It requires a bootable DOS disk and Linux 1.1.12+
+(with SYSV IPC support compiled in).  It will work with older 1.0.x 
+kernels after recompiling your kernel with kernel patches included
+with the DOSEMU package.
+
+    Definitely still consider this ALPHA software, and as such please
 beware it is not yet fully functional, or always smooth sailing.
 
-At this time, it should be locatable at:
+Very soon, (As of May 22) it should be locatable at:
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.52.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.52.tgz
+  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.52.tgz
 
-dspsun.eas.asu.edu:/pub/dosemu/dosemu0.50pl1.tgz
-Thanks to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher). Micheal
-may also have DOSEMU added to the Debian distribution down the road.
+    Thanks to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher) for dspsun.
+Micheal may also have DOSEMU added to the Debian distribution down the 
+road, now that DOSEMU 0.52 conforms to the Debian distribution format.
 
-and:
-tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.50pl1.tgz
-sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.50pl1.tgz
+    There has been many changes since DOSEMU 0.50pl1, so please go to 
+great caution to read the "QuickStart" file included with DOSEMU since 
+the location and format of files (including the configuration file) has 
+changed since the last public DOSEMU release.  One of the noteable
+changes is /etc/dosemu now becomes /var/lib/dosemu.
 
 Updated in this release:
+     -  Major speed improvement (2-5 times faster) compared to DOSEMU 0.50.
+	 Many thanks to Linus for the kernel enhancement, and always helpfull
+	 feedback.
+     -  EMS 4.0 support is now near-complete.
+     -  Improved foreign keyboard support.
+     -  Improved DPMI support, although far from complete.  Someday, 
+         maybe this summer, programs like Borland C++ or Maple V will work.
+	 Some RSX extender based programs like emtex386 are allready runing.
+     -  Improved serial support for modems.  More flexible with up to 4
+         ports, thanks to mdrejhon@csclub.uwaterloo.ca (Mark Rejhon)
+     -  Mice work a bit better, too, although not all drivers work.
+     -  S3 video code updated by niemann@swt.ruhr-uni-bochum.de 
+         (Christoph Niemann)
+     -  Real time clocks will become more accurate in the future, thanks to
+         preparation of new code.  Should make some video games run faster.
+     -  Easier Debug reports for you to send :-).
+     -  Major reorganization and cleanup.
 
--	S3 video code started by niemann@swt.ruhr-uni-bochum.de 
-	(Christoph Niemann)
--	More DPMI thanks to LUTZ.
--	Serial INT14 updated thanks to Mark Rejhon.
--	Modest changes in code to continue clean up. 
--	Fixed (kludged) bugs in VC switching, Added -Wall
-	to start cleaning up code. Changed do_int to inline, no
-	benefit.
--	DOSEMU becomes one again (one process)
-
-  As always, many, thanks to all who have helped with this release, 
+    As always, many, thanks to all who have helped with this release, 
 either by sending in bug reports so we knew something was wrong, by 
 sending in bug fixes (which may not have made it into this release), 
 or by just providing a sounding board for ideas that come up.
-  My apologies for not having answered every letter, and possibly 
+    My apologies for not having answered every letter, and possibly 
 missing some of the important information. If you know something you
 think we should, try to contact me again, please.
 
 Later,
 JES
 jmaclean@fox.nstn.ns.ca
---
+---

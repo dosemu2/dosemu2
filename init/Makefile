@@ -12,12 +12,11 @@ INCDIR= -I../include -I..
 
 # let gcc do extended checking
 
-CFLAGS=-O2 -Wall # -Wmissing-prototypes \
-#       -Wstrict-prototypes # -ansi -pedantic 
+CFLAGS=-O2 -Wall -Wmissing-prototypes \
+       -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
+#-Wwrite-strings
 
-# ANSI isn't possible right now, because some header-file aren't ANSI
-
-CFILES = parse.c
+CFILES = parse.c inifile.c
 HFILES = 
 
 # Insert all source- and header-files here.
@@ -26,7 +25,7 @@ ALL = $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = parse.o
+OBJS = parse.o inifile.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(INCDIR) -c $<
@@ -51,7 +50,7 @@ dist: $(ALL) Makefile
 	install -d $(DISTPATH)/init
 	install -m 0644 $(ALL) Makefile $(DISTPATH)/init
 
-depend dep: $(CFILES) $(HFILES)
+depend dep: $(CFILES)
 	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
 
 dummy:

@@ -12,33 +12,34 @@
 
 extern u_char in_dpmi;
 extern u_char in_dpmi_dos_int;
-extern u_char DPMIclient_is_32;
 extern us DPMI_SavedDOS_ss;
-extern us DPMI_SEL;
-extern us LDT_ALIAS;
 extern unsigned long DPMI_SavedDOS_esp;
-extern us DPMI_private_data_segment;
-extern void CallToInit(unsigned long, us, unsigned long, us, us, us);
-extern void dpmi_get_entry_point();
-extern void dpmi_control();
-extern void do_int31(int);
-extern u_char win31ldt(unsigned char *);
-
 extern void ReturnFrom_dpmi_control();
 
-us AllocateDescriptors(int);
-int FreeDescriptor(us);
-us ConvertSegmentToDescriptor(us);
-us GetNextSelectorIncrementValue(void);
-unsigned long GetSegmentBaseAddress(us);
-u_char SetSegmentBaseAddress(us, unsigned long);
-u_char SetSegmentLimit(us, unsigned long);
-u_char SetDescriptorAccessRights(us, us);
-us CreateCSAlias(us);
-u_char GetDescriptor(us, unsigned long *);
-u_char SetDescriptor(us, unsigned long *);
-u_char AllocateSpecificDescriptor(us);
-void GetFreeMemoryInformation(unsigned long *);
+void dpmi_get_entry_point();
+void dpmi_control();
+
+inline void dpmi_sigill(struct sigcontext_struct *);
+inline void dpmi_sigalrm(struct sigcontext_struct *);
+inline void dpmi_sigsegv(struct sigcontext_struct *);
+inline void dpmi_realmode_hlt(unsigned char *);
+
+/* this is used like: SEL_ADR(_ss, _esp) */
+#define SEL_ADR(seg, reg) \
+({ unsigned long __res; \
+  if (!((seg) & 0x0004)) { \
+    /* GTD */ \
+    __res = (unsigned long) reg; \
+  } else { \
+    /* LDT */ \
+    if (Segments[seg>>3].is_32) \
+      __res = (unsigned long) (GetSegmentBaseAddress(seg) + reg ); \
+    else \
+      __res = (unsigned long) (GetSegmentBaseAddress(seg) + *((unsigned short *)&(reg)) ); \
+  } \
+__res; })
+
+#define HLT_OFF(addr) ((unsigned long)addr-(unsigned long)DPMI_dummy_start)
 
 typedef struct interrupt_descriptor_s
 {
@@ -46,21 +47,105 @@ typedef struct interrupt_descriptor_s
     unsigned short	selector, __selectorh;
 } INTDESC;
 
-extern INTDESC Interrupt_Table[];
-extern INTDESC Exception_Table[];
-
 typedef struct segment_descriptor_s
 {
     unsigned long	base_addr;	/* Pointer to segment in flat memory */
     unsigned long	limit;		/* Limit of Segment */
     unsigned char	type;
     unsigned char	is_32;		/* one for is 32-bit Segment */
+    unsigned char	readonly;	/* one for read only Segments */	
     unsigned char	is_big;		/* Granularity */
     unsigned char	used;		/* Segment in use */
 } SEGDESC;
 
 #define MAX_SELECTORS	0x1800
+#define MODIFY_LDT_CONTENTS_DATA        0
+#define MODIFY_LDT_CONTENTS_STACK       1
+#define MODIFY_LDT_CONTENTS_CODE        2
 
 extern SEGDESC Segments[];
+
+struct pm86 {
+  unsigned short gs;
+  unsigned short fs;
+  unsigned short es;
+  unsigned short ds;
+  unsigned long edi;
+  unsigned long esi;
+  unsigned long ebp;
+  unsigned long esp;
+  unsigned long ebx;
+  unsigned long edx;
+  unsigned long ecx;
+  unsigned long eax;
+  unsigned long eflags;
+  unsigned long eip;
+  unsigned short cs, __csh;
+};
+
+struct RealModeCallStructure {
+  unsigned long edi;
+  unsigned long esi;
+  unsigned long ebp;
+  unsigned long esp;
+  unsigned long ebx;
+  unsigned long edx;
+  unsigned long ecx;
+  unsigned long eax;
+  unsigned short flags;
+  unsigned short es;
+  unsigned short ds;
+  unsigned short fs;
+  unsigned short gs;
+  unsigned short ip;
+  unsigned short cs;
+  unsigned short sp;
+  unsigned short ss;
+};
+
+#define DPMI_show_state \
+    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx  trapno:0x%02lx\n" \
+	     "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n", \
+	     _eip, _esp, _eflags, _trapno, _cs, _ds, _es, _ss, _fs, _gs); \
+    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n", \
+	     _eax, _ebx, _ecx, _edx); \
+    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n", \
+	     _esi, _edi, _ebp); \
+    /* display the 10 bytes before and after CS:EIP.  the -> points \
+     * to the byte at address CS:EIP \
+     */ \
+    if (!((_cs) & 0x0004)) { \
+      /* GTD */ \
+      csp2 = (unsigned char *) _eip - 10; \
+    } \
+    else { \
+      /* LDT */ \
+      csp2 = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip) - 10; \
+    } \
+    D_printf("OPS  : "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *csp2++); \
+    D_printf("-> "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *csp2++); \
+    D_printf("\n"); \
+    if (!((_ss) & 0x0004)) { \
+      /* GTD */ \
+      ssp2 = (unsigned char *) _esp - 10; \
+    } \
+    else { \
+      /* LDT */ \
+      if (Segments[_ss>>3].is_32) \
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _esp ) - 10; \
+      else \
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10; \
+    } \
+    D_printf("STACK: "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *ssp2++); \
+    D_printf("-> "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *ssp2++); \
+    D_printf("\n");
 
 #endif /* DPMI_H */

@@ -16,19 +16,19 @@ bootsect: bootsect.S
 	rm $*.tmp $*.o
 
 install:
-	install -d /etc/dosemu
-	install -m 0755 mkhdimage mkpartition getrom putrom /etc/dosemu 
+	install -d /usr/lib/dosemu
+	install -m 0755 mkhdimage mkpartition getrom putrom /usr/lib/dosemu 
 
 checkin:
-	-ci hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom
+	-ci keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom
 
 checkout:
-	-co -l hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom
+	-co -l keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom
 
 clean:
 	rm -f bootsect *.o hdinfo mkhdimage putrom
 
 dist: $(SRC) $(OBJ) mmap.diff
 	install -d $(DISTPATH)/periph
-	install -m 0644 Makefile mmap.diff $(SRC) $(DISTPATH)/periph
+	install -m 0644 Makefile keyboard.c.diff mmap.diff $(SRC) $(DISTPATH)/periph
 	install -m 0755 $(OBJ) $(DISTPATH)/periph

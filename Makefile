@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/04/30 01:05:16 $
+# $Date: 1994/05/26 23:15:01 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 1.50 $
+# $Revision: 1.59 $
 # $State: Exp $
 #
 
@@ -35,16 +35,18 @@ LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-# VIDEO_E000 = -DVIDEO_E000
-
 DPMIOBJS = dpmi/dpmi.o dpmi/ldtlib.o dpmi/call.o dpmi/ldt.o
+
+# For testing the internal IPX code
+# IPX = ipxutils
+
 #
 # SYNC_ALOT
 #  uncomment this if the emulator is crashing your machine and some debug info
 # isn't being sync'd to the debug file (stdout). shouldn't happen. :-)
 # SYNC_ALOT = -DSYNC_ALOT=1
 
-CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu/config\"
+CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\"
 
 ###################################################################
 ifdef DPMIOBJS
@@ -62,21 +64,21 @@ endif
 CLIENTSSUB=clients
 # NCURSES_OBJS=$(CLIENTSSUB)/ncurses.o
 
-SUBDIRS= boot commands doc drivers examples periph video include $(DPMISUB) \
-	$(CLIENTSSUB) timer init net
+SUBDIRS= boot commands doc drivers examples periph video mouse include \
+	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel
 
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
-	timers.c mouse.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
+	timers.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
         serial.c dyndeb.c sigsegv.c
 
-HFILES=cmos.h emu.h termio.h timers.h xms.h mouse.h dosio.h \
+HFILES=cmos.h emu.h termio.h timers.h xms.h dosio.h \
         cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
-        serial.h mutex.h int.h ports.h
+        serial.h mutex.h int.h int10.h ports.h
 
 SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
-	dosemu-HOWTO kernel.diff kernel.1.1.10.diff
+	DOSEMU-HOWTO
 BFILES=
 
 F_DOC=dosemu.texinfo Makefile dos.1 wp50
@@ -100,7 +102,9 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" 
 
 CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
-COPTFLAGS  = -N -s -O2 -m486 # -Wall -fomit-frame-pointer # -ansi -pedantic -Wmissing-prototypes -Wstrict-prototypes
+COPTFLAGS  = -N -s -O2 -funroll-loops
+
+# -Wall -fomit-frame-pointer # -ansi -pedantic -Wmissing-prototypes -Wstrict-prototypes
  
 ifdef DPMIOBJS
 DPMI = -DDPMI
@@ -108,8 +112,8 @@ else
 DPMI = 
 endif
 
-INCDIR     = -I./include
-CFLAGS     = $(DPMI) $(VIDEO_E000) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+INCDIR     = -I./include -I.
+CFLAGS     = $(DPMI) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
 LD86 = ld86 -0 -s
@@ -120,10 +124,6 @@ DISTPATH=$(DISTBASE)/$(DISTNAME)
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 
 all:	warnconf dos dossubdirs libdosemu
-
-liball: libdosemu
-	cp libdosemu /usr/lib
-	sync
 
 doeverything: clean config dep install
 
@@ -142,6 +142,7 @@ else
 	@echo "         Generating config.h..."
 	make config
 endif
+
 warnconf: config.h
 
 dos.o: config.h dos.c
@@ -152,32 +153,27 @@ dos:	dos.c $(DOSOBJS)
 	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) $(DOSLNK)
 
 libdosemu:	$(SHLIBOBJS) $(DPMIOBJS) $(NCURSES_OBJS)
-	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(DPMIOBJS) $(NCURSES_OBJS) $(SHLIBS) -ltermcap -lc
+	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ \
+	   $(SHLIBOBJS) $(DPMIOBJS) $(NCURSES_OBJS) $(SHLIBS) -ltermcap -lc
 # -lncurses
 
 dossubdirs: dummy
-	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE)) || exit; done
-
-clean:
-	rm -f $(OBJS) dos libdosemu *.s core config.h .depend dosconfig dosconfig.o *.tmp
-	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) clean) || exit; done
+	@for i in $(SUBDIRS); do \
+	    (cd $$i && echo $$i && $(MAKE)) || exit; \
+	done
 
 config: dosconfig
 	@./dosconfig $(CONFIGINFO) > config.h
 
-install: all /usr/bin/dos
+install: all
+	install -m 04755 dos /usr/bin
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	install -m 0755 libdosemu /usr/lib
-	install -d /etc/dosemu
-	touch -a /etc/dosemu/hdimage /etc/dosemu/diskimage
-	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) install) || exit; done
-	@echo "Remember to edit examples/config.dist and copy it to /etc/dosemu/config!"
-
-/usr/bin/dos: dos
-	install -m 04755 dos /usr/bin
-
-testlib:  libdosemu /usr/bin/dos 
-	cp libdosemu /usr/lib
+	install -d /var/lib/dosemu
+	@for i in $(SUBDIRS); do \
+	    (cd $$i && echo $$i && $(MAKE) install) || exit; \
+	done
+	@echo "Remember to edit examples/config.dist and copy it to /etc/dosemu.conf !"
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert
@@ -204,24 +200,49 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	cp .indent.pro $(DISTPATH)/.indent.pro
 	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
 ifdef DPMIOBJS
-	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) dist) || exit; done
+	@for i in $(SUBDIRS); do \
+	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
+	done
 else
-	@for i in $(SUBDIRS) dpmi; do (cd $$i && echo $$i && $(MAKE) dist) || exit; done
+	@for i in $(SUBDIRS) dpmi; do \
+	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
+	done
+endif
+ifdef IPX
+	@for i in $(SUBDIRS); do \
+	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
+	done
+else
+	@for i in $(SUBDIRS) ipxutils; do \
+	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
+	done
 endif
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
 	rm -rf $(DISTPATH)
 	@echo "FINAL .tgz FILE:"
 	@ls -l $(DISTFILE) 
 
+clean:
+	rm -f $(OBJS) dos libdosemu *.s core config.h .depend \
+	      dosconfig dosconfig.o *.tmp
+	@for i in $(SUBDIRS); do \
+             (cd $$i && echo $$i && $(MAKE) clean) || exit; \
+        done
+
+
 depend dep: 
 ifdef DPMIOBJS
-	cd dpmi;$(CPP) -MM -I../ $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
+	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
 endif
-	cd clients;$(CPP) -MM -I../ $(CFLAGS) *.c > .depend
+	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 	cd video; make depend
+	cd mouse; make depend
 	cd timer; make depend
 	cd init; make depend
 	cd net; make depend
+ifdef IPX
+	cd ipxutils; make depend
+endif
 	$(CPP) -MM $(CFLAGS) $(INCDIR) *.c > .depend;echo "bios.o : bios.S" >>.depend
 
 dummy:

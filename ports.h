@@ -1,12 +1,30 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/04/30 22:12:30 $
+ * $Date: 1994/05/26 23:15:01 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 1.7 $
+ * $Revision: 1.13 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 1.13  1994/05/26  23:15:01  root
+ * Prep. for pre51_21.
+ *
+ * Revision 1.12  1994/05/24  01:23:00  root
+ * Lutz's latest, int_queue_run() update.
+ *
+ * Revision 1.11  1994/05/21  23:39:19  root
+ * PRE51_19.TGZ with Lutz's latest updates.
+ *
+ * Revision 1.10  1994/05/18  00:15:51  root
+ * pre15_17.
+ *
+ * Revision 1.9  1994/05/13  17:21:00  root
+ * pre51_15.
+ *
+ * Revision 1.8  1994/05/10  23:08:10  root
+ * pre51_14.
+ *
  * Revision 1.7  1994/04/30  22:12:30  root
  * Prep for pre51_11.
  *
@@ -33,10 +51,17 @@
  *
  */
 
+/*
+   Allow checks via inport 0x64 for available scan codes
+*/
+extern u_char keys_ready;
+/* int port61 = 0xd0;           the pseudo-8255 device on AT's */
+int port61 = 0x0e;              /* the pseudo-8255 device on AT's */
+extern int fatalerr;
+struct pit pit;
+extern void set_leds(void);
 extern inline void poscur(int, int);
-
 extern int s3_8514_base;
-
 u_short microsoft_port_check = 0;
 
 inline int
@@ -68,22 +93,19 @@ inb(int port)
 
   switch (port) {
   case 0x60:
-    k_printf("direct 8042 about to read1: 0x%02x\n", lastscan);
-    parent_nextscan();
     if (keys_ready)
       microsoft_port_check = 0;
-    k_printf("direct 8042 read1: 0x%02x microsoft=%d\n", lastscan, microsoft_port_check);
-    /*	      tmp=lastscan;
-	      lastscan=0; */
+    k_printf("direct 8042 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
+    /*	      tmp=*LASTSCAN_ADD;
+	      *LASTSCAN_ADD=0; */
     if (microsoft_port_check)
       return microsoft_port_check;
     else
-      return lastscan;
+      return *LASTSCAN_ADD;
 
   case 0x64:
-    parent_nextscan();
     tmp = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
-    /* lastscan=0; */
+    /* *LASTSCAN_ADD=0; */
     k_printf("direct 8042 0x64 status check: 0x%02x keys_ready=%d, microsoft=%d\n", tmp, keys_ready, microsoft_port_check);
     return tmp;
     
@@ -96,17 +118,23 @@ inb(int port)
     return cmos_read(port);
 
   case 0x40:
-    pit.CNTR0 -= 20;
+#if 1 /* 05/17/94 Added to sigalrm */
+    pit.CNTR0 -= 0xff;
+#endif
     i_printf("inb [0x40] = 0x%02x  1st timer inb\n",
 	     pit.CNTR0);
     return pit.CNTR0;
   case 0x41:
-    pit.CNTR1 -= 20;
+#if 1 /* 05/17/94 Added to sigalrm */
+    pit.CNTR1 -= 0xff;
+#endif
     i_printf("inb [0x41] = 0x%02x  2nd timer inb\n",
 	     pit.CNTR1);
     return pit.CNTR1;
   case 0x42:
-    pit.CNTR2 -= 20;
+#if 1 /* 05/17/94 Added to sigalrm */
+    pit.CNTR2 -= 0xff;
+#endif
     i_printf("inb [0x42] = 0x%02x  3rd timer inb\n",
 	     pit.CNTR2);
     return pit.CNTR2;
@@ -226,10 +254,16 @@ outb(int port, int byte)
 
   switch (port) {
   case 0x20:
-    k_printf("OUTB 0x20 to byte=%x\n", byte);
+  case 0x21:
+    k_printf("OUTB 0x%x to byte=%x\n", port, byte);
 #if 0 /* 94/04/30 */
     REG(eflags) |= VIF;
 #endif
+#if 1 /* 94/05/11 */
+    *OUTB_ADD=1;
+#endif
+    if (byte != 0x20)
+      set_leds();
     break;
   case 0x60:
     k_printf("keyboard 0x60 outb = 0x%x\n", byte);
@@ -265,7 +299,7 @@ outb(int port, int byte)
   case 0x41:
   case 0x42:
   case 0x43:
-    /*      i_printf("timer outb 0x%02x\n", byte); */
+    i_printf("timer outb 0x%02x\n", byte);
     if ((port == 0x42) && (lastport == 0x42)) {
       if ((timer_beep == 1) &&
 	  (config.speaker == SPKR_EMULATED)) {

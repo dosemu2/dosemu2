@@ -1,12 +1,15 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/30 22:12:30 $
+ * $Date: 1994/05/04 21:56:55 $
  * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
- * $Revision: 1.13 $
+ * $Revision: 1.14 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.14  1994/05/04  21:56:55  root
+ * Prior to Alan's mouse patches.
+ *
  * Revision 1.13  1994/03/30  22:12:30  root
  * Prep for 0.51 pre 2.
  *
@@ -96,7 +99,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.13 1994/03/30 22:12:30 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.14 1994/05/04 21:56:55 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -228,14 +231,14 @@ umb_setup()
     umbs[umb].addr = (caddr_t) VBIOS_START;
     umbs[umb].size = 0x8000;
 
-#ifdef VIDEO_E000
-    Debug0((dbg_fd, "Fixing UMB for E000\n"));
-    umb = umb_find_unused();
-    umbs[umb].in_use = TRUE;
-    umbs[umb].free = FALSE;
-    umbs[umb].addr = (caddr_t) 0xc0000;
-    umbs[umb].size = 0x8000;
-#endif
+    if (config.vbios_seg == 0xe000) {
+      Debug0((dbg_fd, "Fixing UMB for E000\n"));
+      umb = umb_find_unused();
+      umbs[umb].in_use = TRUE;
+      umbs[umb].free = FALSE;
+      umbs[umb].addr = (caddr_t) 0xc0000;
+      umbs[umb].size = 0x8000;
+    }
 
   }
 

@@ -1,11 +1,13 @@
 /* ipx.h header file for IPX for the DOS emulator
  * 		Tim Bird, tbird@novell.com
  */
-#ifndef IPX_H
-#define IPX_H
+#ifndef IPXDMU_H
+#define IPXDMU_H
 
 /* commment out the next line to turn off IPX emulation */
-/* #define IPX 1 */
+/*
+#define IPX 1
+*/
 
 #include "../cpu.h"
 #include <sys/types.h>
@@ -48,6 +50,7 @@
 #define RCODE_ECB_NOT_IN_USE		0xff
 #define RCODE_SOCKET_NOT_OPEN       0xff
 #define RCODE_SOCKET_TABLE_FULL		0xfe
+#define RCODE_CANNOT_FIND_ROUTE         0xfa
 #define RCODE_CANNOT_CANCEL_EVENT	0xf9
 
 #define IU_ECB_FREE			0
@@ -125,5 +128,7 @@ extern void InitIPXFarCallHelper(void);
 extern int IPXInt2FHandler(void);
 extern int IPXFarCallHandler(void);
 extern void AESTimerTick(void);
+
+extern int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks );
 
 #endif /* IPX_H */

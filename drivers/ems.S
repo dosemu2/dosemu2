@@ -44,9 +44,9 @@
 !
 ! copied from emufs.S to make ems.S  -  7/19/93
 !
-! $Date: 1994/03/23 23:25:46 $
+! $Date: 1994/05/05 00:17:19 $
 ! $Source: /home/src/dosemu0.60/drivers/RCS/ems.S,v $
-! $Revision: 1.4 $
+! $Revision: 1.5 $
 ! $State: Exp $
 !
 
@@ -292,7 +292,7 @@ MFSin:
 	ret
 
 
-Mesage:	.ascii	"[dosemu 0.50pl1 EMS 4.0 driver installed]"
+Mesage:	.ascii	"[dosemu 0.52 EMS 4.0 driver installed]"
 	.byte	cr,lf,eom
 
 OutMess:
