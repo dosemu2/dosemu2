@@ -369,6 +369,8 @@ static Keymap_Scan_Type Xterm_Xkeys[] =
   {"\033OD",   KEY_LEFT | CTRL_MASK },  /* Le (putty) */
   {"\033OG",   KEY_PAD_5 | CTRL_MASK }, /* 5 (putty) */
 
+  {"\033[Z",   KEY_TAB | SHIFT_MASK },  /* Shift-Tab */
+
   /* some modern varieties of xterm recognize shift and ctrl (+ some others
      but these are the most important) */
   {"\033[2A",   KEY_UP | SHIFT_MASK },  /* Up */
