@@ -45,6 +45,8 @@ To send email to the maintainer of the Willows Twin Libraries.
 
 changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
  */
+
+#include "emu-globv.h"
 #include "config.h"
 
 #ifdef X86_EMULATOR
@@ -71,7 +73,7 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #include "emu-ldt.h"
 #include "port.h"
 
-#define FP_DISPHEX
+#undef	FP_DISPHEX
  
 static int isEMUon = 0;
 
@@ -114,8 +116,7 @@ extern int  dis_8086(unsigned int, const unsigned char *,
                      unsigned char *, int, unsigned int *, unsigned int *,
                      unsigned int, int);
 
-static char *e_emu_disasm(Interp_ENV *env, Interp_VAR *interp_var,
-	unsigned char *org, int is32)
+static char *e_emu_disasm(Interp_ENV *env, unsigned char *org, int is32)
 {
    static unsigned char buf[256];
    unsigned char frmtbuf[256];
@@ -168,8 +169,7 @@ char *Fnb5[4] = {
 };
 #endif
 
-static char *e_print_cpuemu_regs(Interp_ENV *env, Interp_VAR *interp_var,
-	int is32)
+static char *e_print_cpuemu_regs(Interp_ENV *env, int is32)
 {
 	static char buf[1024];
 	void *sp;
@@ -196,9 +196,12 @@ static char *e_print_cpuemu_regs(Interp_ENV *env, Interp_VAR *interp_var,
 #else
 	  p += sprintf(p,"flg=%08lx\n",lflags);
 #endif
-	  if (vm86f) {
+	  if (VM86F) {
 	    tsp = e_SP;
-	    p += sprintf(p,"\tstk=");
+	    if ((int)tsp & 1)
+	      p += sprintf(p," -odd-  stk=");
+	    else
+	      p += sprintf(p,"\tstk=");
 	    for (i=0; (i<10)&&(tsp<0x10000); i++) {
 	      sp = (void *)((e_SS<<4)+tsp);
 	      p += sprintf(p," %04x",*((unsigned short *)sp));
@@ -234,7 +237,7 @@ static char *e_print_cpuemu_regs(Interp_ENV *env, Interp_VAR *interp_var,
 	return buf;
 }
 
-static char *e_print_internal_regs(Interp_VAR *v)
+static char *e_print_internal_regs(Interp_ENV *v)
 {
 	static char buf[1024];
 	char *p;
@@ -283,8 +286,10 @@ static char *e_print_internal_regs(Interp_VAR *v)
 
 void e_debug_fp(ENV87 *ef)
 {
-	int i, ifpr;
-	ifpr = ef->fpstt;
+	int i, ifpr, fpus;
+
+	ifpr = ef->fpstt&7;
+	fpus = (ef->fpus & (~0x3800)) | (ifpr<<11);
 	for (i=0; i<8; i++) {
 #ifdef FP_DISPHEX
 	  { void *q = (void *)&(ef->fpregs[ifpr]);
@@ -292,22 +297,32 @@ void e_debug_fp(ENV87 *ef)
 	    *((unsigned long long *)q));
 	  }
 #else
-	  e_printf("FP%d\t%18.8Lf\n", ifpr, ef->fpregs[ifpr]);
+	  switch ((ef->fptag >> (ifpr<<1)) & 3) {
+	    case 0: case 1:
+		e_printf("FP%d\t%18.8Lf\n", ifpr, ef->fpregs[ifpr]);
+		break;
+	    case 2: e_printf("FP%d\tNaN/Inf\n", ifpr);
+	    	break;
+	    case 3: e_printf("FP%d\t****\n", ifpr);
+	    	break;
+	  }
 #endif
 	  ifpr = (ifpr+1) & 7;
 	}
-	e_printf(" sw=%04x cw=%04x\n", ef->fpus, ef->fpuc);
+	e_printf(" sw=%04x cw=%04x tag=%04x\n", fpus, ef->fpuc, ef->fptag);
 }
 
 
-void e_debug (Interp_ENV *env, unsigned char *P0, unsigned char *PC,
-  	Interp_VAR *interp_var, int is32)
+void e_debug (Interp_ENV *env, unsigned char *dP0, unsigned char *dPC,
+  	int is32)
 {
-	if ((d.emu>2) && TRACE_HIGH && (P0==PC)) {
+	if ((d.emu>2) && TRACE_HIGH && (dP0==dPC)) {
 	    e_printf("%ld\n%s%s    %s\n", instr_count,
-	    	e_print_cpuemu_regs(env,interp_var,is32),
-		e_print_internal_regs(interp_var),
-		e_emu_disasm(env,interp_var,PC,is32));
+		((((*dPC&0xf8)==0xd8) || (CEmuStat & CeS_LOCK)) ?
+		    "" :
+		    e_print_cpuemu_regs(env,is32)),
+		e_print_internal_regs(env),
+		e_emu_disasm(env,dPC,is32));
 	    isEMUon = 1;
 	}
 }

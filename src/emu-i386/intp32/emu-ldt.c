@@ -40,6 +40,7 @@ Additional copyright notes:
 
 */
 
+#include "emu-globv.h"
 #include "config.h"
 
 #ifdef X86_EMULATOR
@@ -57,7 +58,6 @@ Additional copyright notes:
 #include "emu-ldt.h"
 
 DSCR LDT[LDT_ENTRIES];
-extern int vm86f;
 
 
 BOOL
@@ -81,10 +81,11 @@ int SetSegreg(unsigned char **lp, unsigned char *big, unsigned long csel)
 {
 	WORD wFlags, sel;
 	sel = csel & 0xffff; csel &= 0xf0000;
-	if (vm86f) {
+	if (VM86F) {
 	    *lp = (unsigned char *)(sel<<4); *big=0;
+	    return 0;	/* always valid */
 	}
-	else if ((sel >> 3) == 0) {
+	if (sel < 4 /*(sel >> 3) == 0*/) {
 	    if ((csel==MK_CS)||(csel==MK_SS)) return EXCP0D_GPF;
 	}
 	else if ((sel & 4) == 0) {
@@ -98,7 +99,7 @@ int SetSegreg(unsigned char **lp, unsigned char *big, unsigned long csel)
 		if (csel==MK_SS) return EXCP0C_STACK;
 		  else return EXCP0B_NOSEG;
 	    }
-	    *big = ((wFlags & DF_32) != 0);
+	    *big = (wFlags & DF_32)? 0xff : 0;
 	    if (*big && !code32) {
 	      if (d.emu>3)
 	        e_printf("Large segment %#x in 16-bit mode\n",sel);
@@ -118,7 +119,7 @@ void ValidateAddr(unsigned char *addr, unsigned short sel)
 {
 	unsigned char *base;
 	WORD wFlags;
-	if (vm86f) return;	/* always ok */
+	if (VM86F) return;	/* always ok */
 	wFlags = GetSelectorFlags(sel);
 	if (sel&4) {	/* LDT */
 	  if (wFlags & DF_PRESENT) {

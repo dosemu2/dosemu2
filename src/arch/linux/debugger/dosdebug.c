@@ -154,7 +154,7 @@ void handle_console_input(void)
 {
   char buf[MHP_BUFFERSIZE];
   static char sbuf[MHP_BUFFERSIZE]="\n";
-  static sn=1;
+  static int sn=1;
   int n;
   
   n=read(0, buf, sizeof(buf));

@@ -5,13 +5,13 @@ config {
   mitshm on
   x on
   net on
-  dodebug on
+  dodebug off
   slangforce on
   oldslang off
   tmonoton on
   runasroot off
   linkstatic on
   newint on
-  cpuemu off
+  cpuemu on
   aspi on
 }

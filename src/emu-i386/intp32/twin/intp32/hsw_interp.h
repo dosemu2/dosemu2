@@ -48,8 +48,6 @@ changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 #define hsw_interp__h
 /* "@(#)hsw_interp.h	1.23 :/users/sccs/src/win/intp32/s.hsw_interp.h 1/23/97 17:25:08"  */
 
-#define P_VALIDATE
-
 #include "windows.h"
 #include "kerndef.h"
 #include "BinTypes.h"
@@ -573,20 +571,20 @@ changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 #define SHORT_FS_32 env->fs.fs
 #define SHORT_GS_16 env->gs.word16.gs
 #define SHORT_GS_32 env->gs.gs
-#define LONG_CS interp_var->seg_regs[0]
-#define LONG_DS interp_var->seg_regs[1]
-#define LONG_ES interp_var->seg_regs[2]
-#define LONG_SS interp_var->seg_regs[3]
-#define LONG_FS interp_var->seg_regs[4]
-#define LONG_GS interp_var->seg_regs[5]
-#define BIG_CS interp_var->bigseg[0]
-#define BIG_DS interp_var->bigseg[1]
-#define BIG_ES interp_var->bigseg[2]
-#define BIG_SS interp_var->bigseg[3]
-#define BIG_FS interp_var->bigseg[4]
-#define BIG_GS interp_var->bigseg[5]
+#define LONG_CS env->seg_regs[0]
+#define LONG_DS env->seg_regs[1]
+#define LONG_ES env->seg_regs[2]
+#define LONG_SS env->seg_regs[3]
+#define LONG_FS env->seg_regs[4]
+#define LONG_GS env->seg_regs[5]
+#define BIG_CS env->bigseg[0]
+#define BIG_DS env->bigseg[1]
+#define BIG_ES env->bigseg[2]
+#define BIG_SS env->bigseg[3]
+#define BIG_FS env->bigseg[4]
+#define BIG_GS env->bigseg[5]
 
-#define OVERRIDE interp_var->seg_regs[6]
+#define OVERRIDE env->seg_regs[6]
 #define INVALID_OVR	((unsigned char *)(-1l))
 
 #define SIGNb (res & 0x80)
@@ -619,42 +617,36 @@ changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 #define JUMP(lp)	PC = PC + 2 +(signed char)(*(lp)); 
 
 #if defined(DOSEMU) && defined(__i386__)
-#define TOS_WORD	(BIG_SS? *((unsigned short *)(LONG_SS+env->rsp.esp)):\
-			*((unsigned short *)(LONG_SS+env->rsp.sp.sp)))
+#define TOS_WORD	(BIG_SS? *((unsigned short *)(LONG_SS+ESP)):\
+			*((unsigned short *)(LONG_SS+SP)))
 
-#define PUSHWORD(w) if (BIG_SS) {env->rsp.esp-=2; \
-		*((unsigned short *)(LONG_SS+env->rsp.esp))=(w);} else \
-		{env->rsp.sp.sp-=2; \
-		*((unsigned short *)(LONG_SS+env->rsp.sp.sp))=(w);}
-#define PUSHQUAD(dw) if (BIG_SS) {env->rsp.esp-=4; \
-		*((unsigned long *)(LONG_SS+env->rsp.esp))=(dw);} else \
-		{env->rsp.sp.sp-=4; \
-		*((unsigned long *)(LONG_SS+env->rsp.sp.sp))=(dw);}
+#define PUSHWORD(w) if (BIG_SS) {ESP-=2; \
+		*((unsigned short *)(LONG_SS+ESP))=(w);} else \
+		{SP-=2; *((unsigned short *)(LONG_SS+SP))=(w);}
+#define PUSHQUAD(dw) if (BIG_SS) {ESP-=4; \
+		*((unsigned long *)(LONG_SS+ESP))=(dw);} else \
+		{SP-=4; *((unsigned long *)(LONG_SS+SP))=(dw);}
 
-#define POPWORD(w)  if (BIG_SS) {w=*((unsigned short *)(LONG_SS+env->rsp.esp));\
-		env->rsp.esp+=2;} else \
-		{w=*((unsigned short *)(LONG_SS+env->rsp.sp.sp));\
-		env->rsp.sp.sp+=2;}
-#define POPQUAD(dw)  if (BIG_SS) {dw=*((unsigned long *)(LONG_SS+env->rsp.esp));\
-		env->rsp.esp+=4;} else \
-		{dw=*((unsigned long *)(LONG_SS+env->rsp.sp.sp));\
-		env->rsp.sp.sp+=4;}
+#define POPWORD(w)  if (BIG_SS) {w=*((unsigned short *)(LONG_SS+ESP));\
+		ESP+=2;} else {w=*((unsigned short *)(LONG_SS+SP)); SP+=2;}
+#define POPQUAD(dw)  if (BIG_SS) {dw=*((unsigned long *)(LONG_SS+ESP));\
+		ESP+=4;} else {dw=*((unsigned long *)(LONG_SS+SP)); SP+=4;}
 #else
-#define PUSHWORD(w) {unsigned char *sp=interp_var->seg_regs[3]+env->rsp.sp.sp; \
+#define PUSHWORD(w) {unsigned char *sp=env->seg_regs[3]+env->rsp.sp.sp; \
 		*(sp-2)=w; \
 		*(sp-1)=w>>8; \
 		env->rsp.sp.sp-=2;}
-#define PUSHQUAD(w) {unsigned char *sp=interp_var->seg_regs[3]+env->rsp.sp.sp; \
+#define PUSHQUAD(w) {unsigned char *sp=env->seg_regs[3]+env->rsp.sp.sp; \
 		*(sp-4)=w; \
 		*(sp-3)=w>>8; \
 		*(sp-2)=w>>16; \
 		*(sp-1)=w>>24; \
 		env->rsp.sp.sp-=4;}
 
-#define POPWORD(w) {unsigned char *sp=interp_var->seg_regs[3]+env->rsp.sp.sp; \
+#define POPWORD(w) {unsigned char *sp=env->seg_regs[3]+env->rsp.sp.sp; \
 		w = *(sp) | (((unsigned short) (*(sp+1)))<<8); \
 		env->rsp.sp.sp+=2;}
-#define POPQUAD(w) {unsigned char *sp=interp_var->seg_regs[3]+env->rsp.sp.sp; \
+#define POPQUAD(w) {unsigned char *sp=env->seg_regs[3]+env->rsp.sp.sp; \
 		w = *(sp) | (((unsigned short) *(sp+1))<<8) | \
 			(((unsigned long) *(sp+2))<<16) | \
 			(((unsigned long) *(sp+3))<<24); \
@@ -666,11 +658,6 @@ changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 #ifdef DOSEMU
 extern int SetSegreg(unsigned char **lp, unsigned char *big,
 	unsigned long csel);
-#ifdef P_VALIDATE
-extern void ValidateAddr(unsigned char *addr, unsigned short sel);
-#else
-#define ValidateAddr(a,s)
-#endif
 #define SET_SEGREG(lp,big,mk,sel)	SetSegreg(&(lp),&(big),(mk|sel))
 
 #else
@@ -709,9 +696,61 @@ typedef	double	Ldouble;
 typedef struct tagENV87
 {   	Ldouble         fpregs[8];  /* floating point register stack */
 	int             fpstt;      /* top of register stack */
-	unsigned short  fpus, fpuc;
+	unsigned short  fpus, fpuc, fptag;
 } ENV87;
 
+
+/* X386 layout:
+ *		[-----------------res------------------] RES_32
+ *	CARRY	[------carry-------][------res16-------] RES_16
+ *		[byte_op-][-carryb-][--res8--][parity16]
+ *		BYTE_FLAG	      RES_8
+ */
+#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa) || defined(arm)
+typedef	union {
+		unsigned long res;
+		struct {
+			unsigned short carry;
+			unsigned short res16;
+		} word16;
+		struct {
+			unsigned char byte_op;
+			unsigned char carryb;
+			unsigned char res8;
+			unsigned char parity16;
+		} byte;
+	} Interp_VAR_flags_czsp;
+#elif defined(alpha)
+typedef	union {
+		unsigned long res;
+		struct {
+			unsigned short res16;
+			unsigned short carry;
+			unsigned int dummy1;
+		} word16;
+		struct {
+			unsigned char parity16;
+			unsigned char res8;
+			unsigned char carryb;
+			unsigned char byte_op;
+			unsigned int dummy1;
+		} byte;
+	} Interp_VAR_flags_czsp;
+#elif defined(X386) 
+typedef	union {
+		unsigned long res;
+		struct {
+			unsigned short res16;
+			unsigned short carry;
+		} word16;
+		struct {
+			unsigned char parity16;
+			unsigned char res8;
+			unsigned char carryb;
+			unsigned char byte_op;
+		} byte;
+	} Interp_VAR_flags_czsp;
+#endif
 
 #if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa) || defined(arm)
 typedef struct keyENV{
@@ -847,6 +886,37 @@ typedef struct keyENV{
 	unsigned long   level;
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
+	unsigned char *seg_regs[7];
+	Interp_VAR_flags_czsp flags_czsp;
+	union {
+		unsigned long longword;
+		struct {
+			unsigned short dummy;
+			unsigned short word;
+		} word16;
+		struct {
+			unsigned char dummy1;
+			unsigned char dummy2;
+			unsigned char byte;
+ 			unsigned char aux;
+		} byte;
+	} src1;
+	union {
+		unsigned long longword;
+		struct {
+			unsigned short dummy;
+			unsigned short word;
+		} word16;
+		struct {
+			unsigned char dummy1;
+			unsigned char dummy2;
+			unsigned char byte;
+ 			unsigned char aux;
+		} byte;
+	} src2;
+	unsigned char *reg1;	/* from REG field of mod_rm */
+	unsigned char *mem_ref;	/* from RM field of mod_rm */
+	int mode_reg;
 } Interp_ENV;
 #endif
 
@@ -988,6 +1058,50 @@ typedef struct keyENV{
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
 #endif
+	unsigned char *seg_regs[7];
+	Interp_VAR_flags_czsp flags_czsp;
+/*
+ *		[--------------longword----------------] SRC1_32
+ *		[                  ][------word--------] SRC1_16
+ *		[        ][        ][--byte--][--aux---]
+ *				      SRC1_8    AUX1_8
+ */
+	union {
+		unsigned long longword;
+		struct {
+			unsigned short word;
+			unsigned short dummy;
+		} word16;
+		struct {
+ 			unsigned char aux;
+			unsigned char byte;
+			unsigned char dummy2;
+			unsigned char dummy1;
+		} byte;
+	} src1;
+/*
+ *		[--------------longword----------------] SRC2_32
+ *		[                  ][------word--------] SRC2_16
+ *		[        ][        ][--byte--][--aux---]
+ *				      SRC2_8    AUX2_8
+ */
+	union {
+		unsigned long longword;
+		struct {
+			unsigned short word;
+			unsigned short dummy;
+		} word16;
+		struct {
+ 			unsigned char aux;
+			unsigned char byte;
+			unsigned char dummy2;
+			unsigned char dummy1;
+		} byte;
+	} src2;
+	unsigned char *reg1;	/* from REG field of mod_rm */
+	unsigned char *mem_ref;	/* from RM field of mod_rm */
+	int mode_reg;
+	unsigned char bigseg[6];
 } Interp_ENV;
 #endif
 
@@ -1139,215 +1253,73 @@ typedef struct keyENV{
 	unsigned long   level;
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
+	unsigned char *seg_regs[7];
+	Interp_VAR_flags_czsp flags_czsp;
+	union {
+		unsigned long longword;
+		struct {
+			unsigned short word;
+			unsigned short dummy;
+			unsigned int dummy1;
+		} word16;
+		struct {
+ 			unsigned char aux;
+			unsigned char byte;
+			unsigned char dummy2;
+			unsigned char dummy1;
+			unsigned int dummy3;
+		} byte;
+	} src1;
+	union {
+		unsigned long longword;
+		struct {
+			unsigned short word;
+			unsigned short dummy;
+			unsigned int dummy1;
+		} word16;
+		struct {
+ 			unsigned char aux;
+			unsigned char byte;
+			unsigned char dummy2;
+			unsigned char dummy1;
+			unsigned int dummy3;
+		} byte;
+	} src2;
+	unsigned char *reg1;	/* from REG field of mod_rm */
+	unsigned char *mem_ref;	/* from RM field of mod_rm */
+	int mode_reg;
 } Interp_ENV;
 #endif
 
-
-/* X386 layout:
- *		[-----------------res------------------] RES_32
- *	CARRY	[------carry-------][------res16-------] RES_16
- *		[byte_op-][-carryb-][--res8--][parity16]
- *		BYTE_FLAG	      RES_8
- */
-#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa) || defined(arm)
-typedef	union {
-		unsigned long res;
-		struct {
-			unsigned short carry;
-			unsigned short res16;
-		} word16;
-		struct {
-			unsigned char byte_op;
-			unsigned char carryb;
-			unsigned char res8;
-			unsigned char parity16;
-		} byte;
-	} Interp_VAR_flags_czsp;
-#elif defined(alpha)
-typedef	union {
-		unsigned long res;
-		struct {
-			unsigned short res16;
-			unsigned short carry;
-			unsigned int dummy1;
-		} word16;
-		struct {
-			unsigned char parity16;
-			unsigned char res8;
-			unsigned char carryb;
-			unsigned char byte_op;
-			unsigned int dummy1;
-		} byte;
-	} Interp_VAR_flags_czsp;
-#elif defined(X386) 
-typedef	union {
-		unsigned long res;
-		struct {
-			unsigned short res16;
-			unsigned short carry;
-		} word16;
-		struct {
-			unsigned char parity16;
-			unsigned char res8;
-			unsigned char carryb;
-			unsigned char byte_op;
-		} byte;
-	} Interp_VAR_flags_czsp;
-#endif
-
-#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa) || defined(arm)
-typedef struct {
-	unsigned char *seg_regs[7];
-	Interp_VAR_flags_czsp flags_czsp;
-	union {
-		unsigned long longword;
-		struct {
-			unsigned short dummy;
-			unsigned short word;
-		} word16;
-		struct {
-			unsigned char dummy1;
-			unsigned char dummy2;
-			unsigned char byte;
- 			unsigned char aux;
-		} byte;
-	} src1;
-	union {
-		unsigned long longword;
-		struct {
-			unsigned short dummy;
-			unsigned short word;
-		} word16;
-		struct {
-			unsigned char dummy1;
-			unsigned char dummy2;
-			unsigned char byte;
- 			unsigned char aux;
-		} byte;
-	} src2;
-	unsigned char *reg1;	/* from REG field of mod_rm */
-	unsigned char *mem_ref;	/* from RM field of mod_rm */
-	int mode_reg;
-} Interp_VAR;
-#endif
-
-#if defined(X386) 
-typedef struct {
-	unsigned char *seg_regs[7];
-	Interp_VAR_flags_czsp flags_czsp;
-/*
- *		[--------------longword----------------] SRC1_32
- *		[                  ][------word--------] SRC1_16
- *		[        ][        ][--byte--][--aux---]
- *				      SRC1_8    AUX1_8
- */
-	union {
-		unsigned long longword;
-		struct {
-			unsigned short word;
-			unsigned short dummy;
-		} word16;
-		struct {
- 			unsigned char aux;
-			unsigned char byte;
-			unsigned char dummy2;
-			unsigned char dummy1;
-		} byte;
-	} src1;
-/*
- *		[--------------longword----------------] SRC2_32
- *		[                  ][------word--------] SRC2_16
- *		[        ][        ][--byte--][--aux---]
- *				      SRC2_8    AUX2_8
- */
-	union {
-		unsigned long longword;
-		struct {
-			unsigned short word;
-			unsigned short dummy;
-		} word16;
-		struct {
- 			unsigned char aux;
-			unsigned char byte;
-			unsigned char dummy2;
-			unsigned char dummy1;
-		} byte;
-	} src2;
-	unsigned char *reg1;	/* from REG field of mod_rm */
-	unsigned char *mem_ref;	/* from RM field of mod_rm */
-	int mode_reg;
-	unsigned char bigseg[6];
-} Interp_VAR;
-#endif
-
-#if defined(alpha)
-typedef struct {
-	unsigned char *seg_regs[7];
-	Interp_VAR_flags_czsp flags_czsp;
-	union {
-		unsigned long longword;
-		struct {
-			unsigned short word;
-			unsigned short dummy;
-			unsigned int dummy1;
-		} word16;
-		struct {
- 			unsigned char aux;
-			unsigned char byte;
-			unsigned char dummy2;
-			unsigned char dummy1;
-			unsigned int dummy3;
-		} byte;
-	} src1;
-	union {
-		unsigned long longword;
-		struct {
-			unsigned short word;
-			unsigned short dummy;
-			unsigned int dummy1;
-		} word16;
-		struct {
- 			unsigned char aux;
-			unsigned char byte;
-			unsigned char dummy2;
-			unsigned char dummy1;
-			unsigned int dummy3;
-		} byte;
-	} src2;
-	unsigned char *reg1;	/* from REG field of mod_rm */
-	unsigned char *mem_ref;	/* from RM field of mod_rm */
-	int mode_reg;
-} Interp_VAR;
-#endif
 
 #ifndef DOSEMU_TYPESONLY
 
 /* CARRY is tricky, as it accesses also byte 3 (BYTE_OP); use with care
  * when writing into it, if in doubt use CARRYB -- AV */
-#define CARRY interp_var->flags_czsp.word16.carry
-#define CARRYB interp_var->flags_czsp.byte.carryb
-#define RES_32 interp_var->flags_czsp.res
-#define RES_16 interp_var->flags_czsp.word16.res16
-#define RES_8 interp_var->flags_czsp.byte.res8
-#define PAR_16 interp_var->flags_czsp.byte.parity16
-#define AUX1_8 interp_var->src1.byte.aux
-#define AUX2_8 interp_var->src2.byte.aux
-#define BYTE_FLAG interp_var->flags_czsp.byte.byte_op
-#define SRC1_32 interp_var->src1.longword
-#define SRC2_32 interp_var->src2.longword
-#define SRC1_16 interp_var->src1.word16.word
-#define SRC2_16 interp_var->src2.word16.word
-#define SRC1_8 interp_var->src1.byte.byte
-#define SRC2_8 interp_var->src2.byte.byte
-#define HREG1 (unsigned char *)(interp_var->reg1)
-#define XREG1 (unsigned short *)(interp_var->reg1)
-#define EREG1 (DWORD *)(interp_var->reg1)
-#define MEM_REF interp_var->mem_ref
+#define CARRY env->flags_czsp.word16.carry
+#define CARRYB env->flags_czsp.byte.carryb
+#define RES_32 env->flags_czsp.res
+#define RES_16 env->flags_czsp.word16.res16
+#define RES_8 env->flags_czsp.byte.res8
+#define PAR_16 env->flags_czsp.byte.parity16
+#define AUX1_8 env->src1.byte.aux
+#define AUX2_8 env->src2.byte.aux
+#define BYTE_FLAG env->flags_czsp.byte.byte_op
+#define SRC1_32 env->src1.longword
+#define SRC2_32 env->src2.longword
+#define SRC1_16 env->src1.word16.word
+#define SRC2_16 env->src2.word16.word
+#define SRC1_8 env->src1.byte.byte
+#define SRC2_8 env->src2.byte.byte
+#define HREG1 (unsigned char *)(env->reg1)
+#define XREG1 (unsigned short *)(env->reg1)
+#define EREG1 (DWORD *)(env->reg1)
+#define MEM_REF env->mem_ref
 
-#define IS_MODE_REG interp_var->mode_reg
+#define IS_MODE_REG env->mode_reg
 
 /* try to gain some speed/space/regs on a heavily-used macro... */
-#if defined(DOSEMU) && defined(__i686__)
+#if (GCC_VERSION_CODE>=2091) && defined(DOSEMU) && defined(__i686__)
 /* a bonus for Intel chips only ... never mind */
 #define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
 	__asm__ __volatile__ ("movl	%1,%%eax\n \
@@ -1358,7 +1330,7 @@ typedef struct {
 	: "g"(OVERRIDE), "g"(default) \
 	: "%eax", "memory"); \
 	_v; })
-#elif defined(DOSEMU) && defined(__i586__)
+#elif (GCC_VERSION_CODE>=2091) && defined(DOSEMU) && defined(__i586__)
 #define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
 	__asm__ __volatile__ ("movl	$-1,%%eax\n \
 	movl	%1,%0\n \
@@ -1369,6 +1341,7 @@ typedef struct {
 	: "%eax", "%ecx", "memory"); \
 	_v; })
 #else
+/* plain version for old gcc */
 #define ALLOW_OVERRIDE(default) ((OVERRIDE!=INVALID_OVR)?OVERRIDE:default)
 #endif
 
@@ -1388,6 +1361,8 @@ typedef struct {
  * The parameter s is for the SUB flags setting (1) vs the ADD case (0).
  * s should always be a compile-time constant to make gcc skip the code
  * we don't need.
+ *
+ * SETBFLAGS requires definition of variables: src1,src2,res
  */
 #define SETBFLAGS(s) { RES_32=((res&0x1ff)|(BYTE_OP<<16))<<8;\
 	SRC1_8=src1;\
@@ -1401,6 +1376,8 @@ typedef struct {
  * The parameter s is for the SUB flags setting (1) vs the ADD case (0).
  * s should always be a compile-time constant to make gcc skip the code
  * we don't need.
+ *
+ * SETWFLAGS requires definition of variables: src1,src2,res
  */
 #define SETWFLAGS(s) { RES_32=res&0x1ffff;\
 	SRC1_16=src1;\
@@ -1425,7 +1402,7 @@ typedef struct {
  * covering both cases, BUT that the sub carry is the inverse of what we
  * get for ADD if src2 is inverted (NOT negated!); see for yourself.
  */ 
-#define IS_CF_SETD ((unsigned)(((src1 ^ src2) & ~res) | (src1 & src2)) >> 31)
+#define IS_CF_SETD(s1,s2,r) ((unsigned)((((s1)^(s2)) & ~(r)) | ((s1)&(s2))) >> 31)
 
 /*
  * for 32-bit ops we pack hi and lo bytes into a 16-bit value; this way
@@ -1434,19 +1411,33 @@ typedef struct {
  * done by setting bit 8 if the original value was not zero, so that 16-bit
  * zero test will give the correct answer -- AV
  */
-#if defined(DOSEMU) && defined(__i386__)
+#if (GCC_VERSION_CODE < 2092) && defined(DOSEMU) && defined(__i386__)
 #define PACK32_16(sr,de)	__asm__ __volatile__ ("\
 	bswap	%0\n\
 	roll	$8,%0\n\
-	test	%2,%0\n\
+	testl	%0,%0\n\
 	je	1f\n\
-	orw	$0x100,%w0\n\
-1:	movw	%2,%w1"\
+	orb	$1,%h0\n\
+1:	movw	%w0,%w1"\
+	: "=q"(sr),"=g"(*((short *)&de))\
+	: "0"(sr)\
+	: "memory" )
+#elif (GCC_VERSION_CODE>=2092) && defined(DOSEMU) && defined(__i386__)
+/* gcc 2.7.2.3 and egcs-1.1 versions do not like this one,
+ * while development egcs versions accept it */
+#define PACK32_16(sr,de)	__asm__ __volatile__ ("\
+	bswap	%0\n\
+	roll	$8,%0\n\
+	testl	%0,%0\n\
+	je	1f\n\
+	orb	$1,%h0\n\
+1:	movw	%w0,%w1"\
 	: "=r"(sr),"=g"(*((short *)&de))\
 	: "0"(sr)\
 	: "memory" )
 #else
-#define PACK32_16(sr,de)	de=((((sr) >> 24) << 8) | ((sr) & 0xff))
+#define PACK32_16(sr,de)	de=((((sr)>>16)&0xff00) |\
+				((sr)&0xff) | ((sr)!=0? 0x100:0))
 #endif
 
 #if defined(DOSEMU) && defined(__i386__)
@@ -1459,13 +1450,15 @@ typedef struct {
  * carry-setting flag has to be compiled in, s is for the SUB flags
  * setting (1) vs the ADD case (0). c ad s should always be compile-time
  * constants to make gcc skip the code we don't need.
+ *
+ * SETDFLAGS requires definition of variables: src1,src2,res
  */
-#define SETDFLAGS(c,s) { register DWORD res1=res;\
-	PACK32_16(res1,RES_16);\
-	res1=src1; PACK32_16(res1,SRC1_16);\
-	if (s) {res1=(src2==0x80000000? 0:-src2); src2=~src2;}\
-	else res1=src2;	PACK32_16(res1,SRC2_16);\
-	if (c) CARRY = IS_CF_SETD ^ (s); else BYTE_FLAG=0;}
+#define SETDFLAGS(c,s) { register DWORD _res1=res;\
+	PACK32_16(_res1,RES_16);\
+	_res1=src1; PACK32_16(_res1,SRC1_16);\
+	if (s) {_res1=(src2==0x80000000? 0:-src2); src2=~src2;}\
+	else _res1=src2; PACK32_16(_res1,SRC2_16);\
+	if (c) CARRY = IS_CF_SETD(src1,src2,res) ^ (s); else BYTE_FLAG=0;}
 
 #else	/* original */
 
@@ -1510,7 +1503,6 @@ typedef union {
 #include "cpu-emu.h"
 #include "dosemu_debug.h"
 
-extern BOOL vm86f;
 #else
 #define error(s...)	fprintf(stderr,##s)
 extern void INT_handler(int, ENV *);
@@ -1519,47 +1511,45 @@ extern void INT_handler(int, ENV *);
 typedef void (*FUNCT_PTR)();
 
 #ifdef DEBUG
-extern void e_debug (Interp_ENV *env, unsigned char *P0, unsigned char *PC,
-  	Interp_VAR *interp_var, int is32);
-extern void e_debug_fp (ENV87 *ef);
+extern void e_debug (Interp_ENV *, unsigned char *, unsigned char *,
+  	int);
+extern void e_debug_fp (ENV87 *);
 #endif
 /* debug registers (DRs) emulation */
-extern int e_debug_check(unsigned char *PC);
+extern int e_debug_check(unsigned char *);
 
 extern unsigned char *
-  hsw_interp_16_16 (register Interp_ENV *env, unsigned char *P0,
-	register unsigned char *PC, Interp_VAR *interp_var, int *err,
-	int cycmax);
+  hsw_interp_16_16 (Interp_ENV *, unsigned char *,
+	unsigned char *, int *, int);
 extern unsigned char *
-  hsw_interp_16_32 (register Interp_ENV *env, unsigned char *P0,
-	register unsigned char *PC, Interp_VAR *interp_var, int *err);
+  hsw_interp_16_32 (Interp_ENV *, unsigned char *,
+	unsigned char *, int *);
 extern unsigned char *
-  hsw_interp_32_16 (register Interp_ENV *env, unsigned char *P0,
-	register unsigned char *PC, Interp_VAR *interp_var, int *err);
+  hsw_interp_32_16 (Interp_ENV *, unsigned char *,
+	unsigned char *, int *);
 extern unsigned char *
-  hsw_interp_32_32 (register Interp_ENV *env, unsigned char *P0,
-	register unsigned char *PC, Interp_VAR *interp_var, int *err,
-	int cycmax);
+  hsw_interp_32_32 (Interp_ENV *, unsigned char *,
+	unsigned char *, int *, int);
 
 extern int
-  hsw_modrm_16_byte (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
+  hsw_modrm_16_byte (Interp_ENV *, unsigned char *);
 extern int
-  hsw_modrm_16_word (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
+  hsw_modrm_16_word (Interp_ENV *, unsigned char *);
 extern int
-  hsw_modrm_16_quad (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
+  hsw_modrm_16_quad (Interp_ENV *, unsigned char *);
 extern int
-  hsw_modrm_32_byte (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
+  hsw_modrm_32_byte (Interp_ENV *, unsigned char *);
 extern int
-  hsw_modrm_32_word (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
+  hsw_modrm_32_word (Interp_ENV *, unsigned char *);
 extern int
-  hsw_modrm_32_quad (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
+  hsw_modrm_32_quad (Interp_ENV *, unsigned char *);
 
-extern void invoke_data (Interp_ENV *env);
+extern void invoke_data (Interp_ENV *);
 
 extern void
-trans_flags_to_interp(Interp_ENV *env, Interp_VAR *interp_var, DWORD flags);
+trans_flags_to_interp(Interp_ENV *, DWORD);
 extern DWORD
-trans_interp_flags(Interp_ENV *env, Interp_VAR *interp_var);
+trans_interp_flags(Interp_ENV *);
 
 #ifdef DOSEMU
 #define e_AL env->rax.x.x.h.l

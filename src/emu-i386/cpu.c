@@ -44,7 +44,7 @@ extern void xms_control(void);
 
 unsigned long CRs[5] =
 {
-	0x00000010,	/*0x8003003f?*/
+	0x00000013,	/* valid bits: 0xe005003f */
 	0x00000000,	/* invalid */
 	0x00000000,
 	0x00000000,
@@ -115,7 +115,6 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		 * 'cpurdtsc.exe' traps here */
 #ifdef X86_EMULATOR
 		if (config.cpuemu>1) {
-		  /* I guess we'll never come here...but who knows */
 		  extern unsigned long long EMUtime;
 		  REG(eax) = (unsigned long)EMUtime;
 		  REG(edx) = (unsigned long)(EMUtime>>32);

@@ -2425,6 +2425,7 @@ void dpmi_init()
     memset(ldt_buffer,0,LDT_ENTRIES*LDT_ENTRY_SIZE);
 #endif
     get_ldt(ldt_buffer);
+    flush_log();
 
     pm_block_handle_used = 1;
     DTA_over_1MB = 0;		/* from msdos.h */
@@ -2664,6 +2665,7 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	       p_dos_str("DPMI: Unhandled Execption %02x - Terminating Client\n"
 			 "It is likely that dosemu is unstable now and should be rebooted\n",
 			 trapno);
+	       flush_log();
 	       quit_dpmi(scp, 0xff);
   }
 }
@@ -3346,6 +3348,10 @@ if ((_ss & 4) == 4) {
       if (msdos_fault(scp))
 	  return;
 #ifdef __linux__
+#ifdef X86_EMULATOR
+      /* the other side of the trick */
+      _trapno = 13;
+#endif
       do_cpu_exception(scp);
 #endif
 #ifdef __NetBSD__

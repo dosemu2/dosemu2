@@ -25,6 +25,8 @@
 #define DPMI_private_paragraphs	((DPMI_max_rec_rm_func * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
 
+/* Aargh!! Is this the only way we have to know if a signal interrupted
+ * us in DPMI server or client code? */
 #ifdef __linux__
 #define UCODESEL 0x23
 #define UDATASEL 0x2b

@@ -76,37 +76,37 @@ BOOL LoadSegment(UINT);
 #define LDTgetIndex(w)		LDT[(w)>>3].bModIndex
 #define LDTsetIndex(w,d)	LDT[(w)>>3].bModIndex=(d)
 
-#define GetSelectorAddress(w)	(vm86f? (LPBYTE)(w<<4):\
+#define GetSelectorAddress(w)	(VM86F? (LPBYTE)(w<<4):\
 				((LDT[w>>3].w86Flags & DF_PRESENT)? \
 				LDTgetSelBase(w):0))
 
-#define SetPhysicalAddress(w,l) { if (!vm86f) LDTsetSelBase(w,(LPBYTE)l); }
+#define SetPhysicalAddress(w,l) { if (!VM86F) LDTsetSelBase(w,(LPBYTE)l); }
 
-#define	GetPhysicalAddress(w)	(vm86f? (LPBYTE)(w<<4):LDTgetSelBase(w))
+#define	GetPhysicalAddress(w)	(VM86F? (LPBYTE)(w<<4):LDTgetSelBase(w))
 
-#define GetSelectorLimit(w)	(vm86f? 0xffff:LDTgetSelLimit(w))
-#define GetSelectorByteLimit(w)	(vm86f? 0xffff:\
+#define GetSelectorLimit(w)	(VM86F? 0xffff:LDTgetSelLimit(w))
+#define GetSelectorByteLimit(w)	(VM86F? 0xffff:\
 				 (LDTgetFlags(w)&DF_PAGES?\
 				  (LDTgetSelLimit(w)<<12)|0xfff :\
 				  LDTgetSelLimit(w)))
 #define GetSelectorAddrMax(w)	(GetSelectorAddress(w)+GetSelectorByteLimit(w))
 
-#define SetSelectorLimit(w,d)	{ if (!vm86f) LDTsetSelLimit(w,(DWORD)d); }
+#define SetSelectorLimit(w,d)	{ if (!VM86F) LDTsetSelLimit(w,(DWORD)d); }
 
 /* unused
-#define GetSelectorHandle(w)	(vm86f? 1:LDTgetGlobal(w))
-#define SetSelectorHandle(w,h)	{ if (!vm86f) LDTsetGlobal(w,(HGLOBAL)h);}
+#define GetSelectorHandle(w)	(VM86F? 1:LDTgetGlobal(w))
+#define SetSelectorHandle(w,h)	{ if (!VM86F) LDTsetGlobal(w,(HGLOBAL)h);}
 */
 
-#define GetSelectorFlags(w)	(vm86f? 0x00f0:LDTgetFlags(w))
-#define SetSelectorFlags(w,wf)	{ if (!vm86f) LDTsetFlags(w,(WORD)wf); }
+#define GetSelectorFlags(w)	(VM86F? 0x00f0:LDTgetFlags(w))
+#define SetSelectorFlags(w,wf)	{ if (!VM86F) LDTsetFlags(w,(WORD)wf); }
 
-#define GetSelectorType(w)	(vm86f? 0:LDTgetType(w))
-#define SetSelectorType(w,bt)	{ if (!vm86f) LDTsetFlags(w,Sel86Flags[bt]), \
+#define GetSelectorType(w)	(VM86F? 0:LDTgetType(w))
+#define SetSelectorType(w,bt)	{ if (!VM86F) LDTsetFlags(w,Sel86Flags[bt]), \
 				  LDTsetType(w,(BYTE)bt); }
 /* unused
-#define GetModuleIndex(w)	(vm86f? 0:LDTgetIndex(w))
-#define SetModuleIndex(w,bi)	{ if (!vm86f) LDTsetIndex(w,(BYTE)bi); }
+#define GetModuleIndex(w)	(VM86F? 0:LDTgetIndex(w))
+#define SetModuleIndex(w,bi)	{ if (!VM86F) LDTsetIndex(w,(BYTE)bi); }
 */
 
 #else	/* !DOSEMU */

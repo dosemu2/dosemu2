@@ -393,6 +393,7 @@ emulate(int argc, char **argv)
 #endif
 
     srand(time(NULL));
+    memset(&config, 0, sizeof(config));
 
     if ((e=setjmp(NotJEnv))) {
         flush_log();

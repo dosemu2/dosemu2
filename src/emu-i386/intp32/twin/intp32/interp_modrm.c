@@ -47,6 +47,7 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
  */
 
+#include "emu-globv.h"
 #include "hsw_interp.h"
 #include "mod_rm.h"
 
@@ -94,7 +95,7 @@ hsw_modrm_sibd(Interp_ENV *env, int sib, unsigned char *base)
 }
 
 static int
-hsw_modrm_sib(Interp_ENV *env, Interp_VAR *interp_var, int sib, unsigned char **ovr)
+hsw_modrm_sib(Interp_ENV *env, int sib, unsigned char **ovr)
 {
 	*ovr = LONG_DS;		/* default */
 	switch(sib) {
@@ -354,1033 +355,1033 @@ hsw_modrm_sib(Interp_ENV *env, Interp_VAR *interp_var, int sib, unsigned char **
 #endif
 
 int
-hsw_modrm_16_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
+hsw_modrm_16_byte(Interp_ENV *env, unsigned char *mPC)
 {
 	DEBUG_ENTRY
-	switch(*(PC+1)) {
+	switch(*(mPC+1)) {
 		case MOD_AL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 	}
 	DEBUG_EXIT("------- [EA=%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
@@ -1388,1033 +1389,1033 @@ hsw_modrm_16_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 
 
 int
-hsw_modrm_16_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
+hsw_modrm_16_word(Interp_ENV *env, unsigned char *mPC)
 {
 	DEBUG_ENTRY
-	switch(*(PC+1)) {
+	switch(*(mPC+1)) {
 		case MOD_AX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 	}
 	DEBUG_EXIT("------- [EA=%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
@@ -2422,1033 +2423,1033 @@ hsw_modrm_16_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 
 
 int
-hsw_modrm_16_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
+hsw_modrm_16_quad(Interp_ENV *env, unsigned char *mPC)
 {
 	DEBUG_ENTRY
-	switch(*(PC+1)) {
+	switch(*(mPC+1)) {
 		case MOD_AX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI)&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_SI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(SI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(DI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_imm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_WORD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(BX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(PC+2))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+(signed char)*(mPC+2))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((SI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((DI+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+((BP+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((PC+2)))&0xffff);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+((BX+FETCH_WORD((mPC+2)))&0xffff);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 	}
 	DEBUG_EXIT("------- [EA=%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));
@@ -3456,1115 +3457,1115 @@ hsw_modrm_16_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 
 
 int
-hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
+hsw_modrm_32_byte(Interp_ENV *env, unsigned char *mPC)
 {
 	unsigned char *ovr;
 	int dsp;
 	DEBUG_ENTRY
-	switch(*(PC+1)) {
+	switch(*(mPC+1)) {
 		case MOD_AL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AL_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CL_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DL_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BL_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BL_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AH_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CH_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DH_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BH_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BH_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(AL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(CL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(DL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(BL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(AH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(CH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(DH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = &(BH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(AL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(CL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(DL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(BL);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BL);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(AH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(AH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(CH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(CH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(DH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(DH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = &(BH);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = &(BH);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(AL);
+			env->reg1 = &(AL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(CL);
+			env->reg1 = &(CL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(DL);
+			env->reg1 = &(DL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BL_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(BL);
+			env->reg1 = &(BL);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(AH);
+			env->reg1 = &(AH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(CH);
+			env->reg1 = &(CH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(DH);
+			env->reg1 = &(DH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_AL: 
 			MEM_REF = &(AL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_CL: 
 			MEM_REF = &(CL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_DL: 
 			MEM_REF = &(DL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_BL: 
 			MEM_REF = &(BL);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_AH: 
 			MEM_REF = &(AH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_CH: 
 			MEM_REF = &(CH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_DH: 
 			MEM_REF = &(DH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BH_EB_BH: 
 			MEM_REF = &(BH);
-			interp_var->reg1 = &(BH);
+			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 	}
 	DEBUG_EXIT("------- [EA=%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
@@ -4572,1115 +4573,1115 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 
 
 int
-hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
+hsw_modrm_32_word(Interp_ENV *env, unsigned char *mPC)
 {
 	unsigned char *ovr;
 	int dsp;
 	DEBUG_ENTRY
-	switch(*(PC+1)) {
+	switch(*(mPC+1)) {
 		case MOD_AX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SP_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BP_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SI_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DI_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(AX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(CX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(DX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(BX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(SP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(BP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(SI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(DI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(AX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(CX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(DX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(BX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(SP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(BP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(SI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(DI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(AX);
+			env->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(CX);
+			env->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(DX);
+			env->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(BX);
+			env->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(SP);
+			env->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(BP);
+			env->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(SI);
+			env->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_AX: 
 			MEM_REF = (unsigned char *)&(AX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_CX: 
 			MEM_REF = (unsigned char *)&(CX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DX: 
 			MEM_REF = (unsigned char *)&(DX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BX: 
 			MEM_REF = (unsigned char *)&(BX);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SP: 
 			MEM_REF = (unsigned char *)&(SP);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BP: 
 			MEM_REF = (unsigned char *)&(BP);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SI: 
 			MEM_REF = (unsigned char *)&(SI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DI: 
 			MEM_REF = (unsigned char *)&(DI);
-			interp_var->reg1 = (unsigned char *)&(DI);
+			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 	}
 	DEBUG_EXIT("------- [EA=%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
@@ -5688,1115 +5689,1115 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 
 
 int
-hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
+hsw_modrm_32_quad(Interp_ENV *env, unsigned char *mPC)
 {
 	unsigned char *ovr;
 	int dsp;
 	DEBUG_ENTRY
-	switch(*(PC+1)) {
+	switch(*(mPC+1)) {
 		case MOD_AX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_CX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BX_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BX_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SP_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BP_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_BP_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SI_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_SI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BXDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPSI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BPDI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_SI: {
-			unsigned char sib = *(PC+2);
+			unsigned char sib = *(mPC+2);
 			int incpc = 3;
 			if ((sib&7)==5) {
-			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  dsp = hsw_modrm_sibd(env,sib,(mPC+3));
 			  ovr = LONG_DS; incpc=7;
 			}
 			else
-			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			  dsp = hsw_modrm_sib(env,sib,&ovr);
 			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DI_DI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((mPC+2)));
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_imm16: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_DI_BX: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
 		case MOD_AX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPSIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPDIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_SIimm8: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(mPC+3));
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BXimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+(signed char)*(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BXSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EAX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BXDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ECX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPSIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPDIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_SIimm16: 
-			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
-			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			dsp = hsw_modrm_sib(env,*(mPC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(mPC+3));
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(ESI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BXimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(PC+2);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EDI)+FETCH_QUAD(mPC+2);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_AX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EAX);
+			env->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_CX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(ECX);
+			env->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EDX);
+			env->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BX_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EBX);
+			env->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SP_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(ESP);
+			env->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_BP_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EBP);
+			env->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_SI_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(ESI);
+			env->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_AX: 
 			MEM_REF = (unsigned char *)&(EAX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_CX: 
 			MEM_REF = (unsigned char *)&(ECX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DX: 
 			MEM_REF = (unsigned char *)&(EDX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BX: 
 			MEM_REF = (unsigned char *)&(EBX);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SP: 
 			MEM_REF = (unsigned char *)&(ESP);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_BP: 
 			MEM_REF = (unsigned char *)&(EBP);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_SI: 
 			MEM_REF = (unsigned char *)&(ESI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 		case MOD_DI_EW_DI: 
 			MEM_REF = (unsigned char *)&(EDI);
-			interp_var->reg1 = (unsigned char *)&(EDI);
+			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 	}
 	DEBUG_EXIT("------- [EA=%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));

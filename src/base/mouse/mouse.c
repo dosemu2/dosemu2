@@ -1408,7 +1408,7 @@ void mouse_move_absolute(int x, int y, int x_range, int y_range)
 
 	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
 		 x, y, x_range, y_range, mouse.x, mouse.y);
-	m_printf("mouse_move_absolute dx:%d dy%d mickeyx%d mickeyy%d\n", 
+	m_printf("mouse_move_absolute dx:%d dy:%d mickeyx%d mickeyy%d\n", 
 		 dx, dy, mouse.mickeyx, mouse.mickeyy);
 	/*
 	 * update the event mask

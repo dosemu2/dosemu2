@@ -73,7 +73,8 @@ static hitimer_t sigEMUtime = 0;
 static hitimer_t lastEMUsig = 0;
 static unsigned long sigEMUdelta = 0;
 static int last_emuretrace;
-int e_sig_pending = 0;
+static int in_e_dpmi = 0;
+int    CEmuStat = 0;
 
 Interp_ENV dosemu_env;
 Interp_ENV *envp_global; /* the current global pointer to the x86 environment */
@@ -400,6 +401,8 @@ static void emu_DPMI_show_state (struct sigcontext_struct *scp)
 
 void init_cpu (void)
 {
+  extern void init_npu(void);
+
 #ifdef EMU_STAT
   memset(InsFreq,0,sizeof(InsFreq));
 #endif
@@ -424,7 +427,7 @@ void init_cpu (void)
 		break;
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
-
+  init_npu();
 }
 
 /*
@@ -438,6 +441,9 @@ static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
 	 * the passed context is that of dosemu, NOT that of the
 	 * emulated CPU! */
 
+	if (!in_vm86 && !in_e_dpmi) {
+	    EMUtime = GETusTIME(0)*config.emuspeed;
+	}
 	if (EMUtime >= sigEMUtime) {
 		lastEMUsig = EMUtime;
 		sigEMUtime += sigEMUdelta;
@@ -447,6 +453,11 @@ static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
 	}
 	/* here we return back to dosemu */
 }
+
+/**/static void e_sigxcpu(int sig, struct sigcontext_struct context)
+/**/{
+/**/	d.emu=4;
+/**/}
 
 void enter_cpu_emu(void)
 {
@@ -461,12 +472,22 @@ void enter_cpu_emu(void)
 #ifdef X_SUPPORT
 	emu_under_X = (config.X != 0);
 #endif
+#ifdef SKIP_EMU_VBIOS
+	if ((ISEG(0x10)==INT10_WATCHER_SEG)&&(IOFF(0x10)==INT10_WATCHER_OFF))
+		IOFF(0x10)=CPUEMU_WATCHER_OFF;
+#endif
 	e_printf("EMU86: turning emuretrace ON\n");
 	last_emuretrace = config.emuretrace;
 	config.emuretrace = 2;
 
 	e_printf("EMU86: switching SIGALRMs\n");
+	EMUtime = GETusTIME(0)*config.emuspeed;
+	sigEMUdelta = config.realdelta*config.emuspeed;
+	sigEMUtime = EMUtime + sigEMUdelta;
+	e_printf("EMU86: base time=%Ld delta alrm=%ld speed=%d\n",EMUtime,
+		sigEMUdelta, config.emuspeed);
 	SETSIG(SIG_TIME, e_gen_sigalrm);
+/**/	SETSIG(SIGXCPU, e_sigxcpu);
 	flush_log();
 	dbug_printf("======================= ENTER CPU-EMU ===============\n");
 }
@@ -487,11 +508,16 @@ void leave_cpu_emu(void)
 	  { return ((struct _eops *)b)->n - ((struct _eops *)a)->n; }
 #endif
 	config.cpuemu=1;
+#ifdef SKIP_EMU_VBIOS
+	if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
+		IOFF(0x10)=INT10_WATCHER_OFF;
+#endif
 	e_printf("EMU86: turning emuretrace OFF\n");
 	config.emuretrace = last_emuretrace;
 
 	e_printf("EMU86: switching SIGALRMs\n");
 	NEWSETQSIG(SIG_TIME, sigalrm);
+/**/	SETSIG(SIGXCPU, SIG_IGN);
 	dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 
 #ifdef EMU_STAT
@@ -628,7 +654,8 @@ static int handle_vm86_fault(long *error_code)
 #define VM86_FAULT_RETURN \
 	if (vm86s.vm86plus.force_return_for_pic  && (eVEFLAGS & IF_MASK)) { \
 		return VM86_PICRETURN; } \
-	if (e_sig_pending) { e_sig_pending=0; return VM86_SIGNAL; } \
+	if (CEmuStat & (CeS_SIGPEND|CeS_SIGACT)) \
+		{ CEmuStat &= ~(CeS_SIGPEND|CeS_SIGACT); return VM86_SIGNAL; } \
 	return -1;
 	                                   
 	csp = (unsigned char *) (_CS << 4);
@@ -708,7 +735,6 @@ static int handle_vm86_fault(long *error_code)
 		if ((e=e_set_vflags_short(popw(ssp, sp))) >= 0)
 			return e;
 		VM86_FAULT_RETURN;
-
 	/* cli */
 	case 0xfa:
 		_IP++;
@@ -746,7 +772,6 @@ static char *retdescs[] =
 
 int e_vm86(void)
 {
-  static int first = 1;
   hitimer_t entrytime;
   long long detime;
   int xval,retval;
@@ -774,13 +799,6 @@ int e_vm86(void)
   detime = 0;
   totalcyc = 0;
   EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;	/* stretched time */
-  if (first) {
-	sigEMUdelta = config.realdelta*config.emuspeed;
-	sigEMUtime = EMUtime + sigEMUdelta;
-	e_printf("EMU86: base time=%Ld delta alrm=%ld speed=%d\n",EMUtime,
-		sigEMUdelta, config.emuspeed);
-	first=0;
-  }
   if (lastEMUsig && (d.emu>1))
     e_printf("EMU86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
     	EMUtime>>16,sigEMUtime>>16);
@@ -826,7 +844,8 @@ int e_vm86(void)
     retval = -1;
 
     if (xval==EXCP_SIGNAL) {	/* coming here for async interruptions */
-	if (e_sig_pending) { e_sig_pending=0; retval=VM86_SIGNAL; }
+	if (CEmuStat & (CeS_SIGPEND|CeS_SIGACT))
+		{ CEmuStat &= ~(CeS_SIGPEND|CeS_SIGACT); retval=VM86_SIGNAL; } \
     }
     else if (xval!=EXCP_GOBACK) {
 	/*
@@ -907,6 +926,7 @@ int e_dpmi(struct sigcontext_struct *scp)
   int xval,retval;
   long totalcyc;
 
+  in_e_dpmi = 1;
   detime = 0;
   totalcyc = 0;
   EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;	/* stretched time */
@@ -929,9 +949,11 @@ int e_dpmi(struct sigcontext_struct *scp)
     do {
       long icyc;
       /* switch to DPMI process */
+      in_dpmi_emu = 1;
+      CEmuStat &= ~CeS_MODE_MASK;
       xval = (LDT[scp->cs>>3].w86Flags & DF_32 ?
-      	(in_dpmi_emu=32, invoke_code32(envp_global, -1)) :
-      	(in_dpmi_emu=16, invoke_code16(envp_global, 0, -1))
+      	(CEmuStat|=MODE_DPMI16, invoke_code32(envp_global, -1)) :
+      	(CEmuStat|=MODE_DPMI32, invoke_code16(envp_global, 0, -1))
       );
       in_dpmi_emu = 0;
       /* 0 if ok, else exception code+1 or negative if dosemu err */
@@ -949,7 +971,7 @@ int e_dpmi(struct sigcontext_struct *scp)
     if (d.emu>1) e_printf("DPM86: EXCP %#x cyc=%ld eflags=%08lx\n",
 	xval-1, totalcyc, REG(eflags));
 
-/**/ envp_global->flags &= ~0x100;
+    envp_global->flags &= ~TF;	/* is it right? */
     Env2Scp (envp_global, scp, xval-1);
     retval = -1;
 
@@ -984,7 +1006,7 @@ int e_dpmi(struct sigcontext_struct *scp)
 	}
 	scp->trapno = 0;
 	if (retval < 0) {
-	   EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;
+	    EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;
 	}
     }
   }
@@ -1002,6 +1024,7 @@ int e_dpmi(struct sigcontext_struct *scp)
     if (d.emu>1) e_printf("\tdTIME = %Ld cyc\n", detime);
 #endif
   }
+  in_e_dpmi = 0;
   return retval;
 }
 
@@ -1055,8 +1078,11 @@ void e_dpmi_b0x(int op,struct sigcontext_struct *scp)
 	_eflags |= CF;
 	break;
   }
+  if (DRs[7] & 0xff) CEmuStat|=CeS_DRTRAP; else CEmuStat&=~CeS_DRTRAP;
+/*
   e_printf("DR0=%08lx DR1=%08lx DR2=%08lx DR3=%08lx\n",DRs[0],DRs[1],DRs[2],DRs[3]);
   e_printf("DR6=%08lx DR7=%08lx\n",DRs[6],DRs[7]);
+*/
 }
 
 

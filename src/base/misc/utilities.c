@@ -35,7 +35,9 @@
 #endif
 
 #define SHOW_TIME	1		/* 0 or 1 */
-#define SHOW_EIP	0
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #ifndef INITIAL_LOGBUFSIZE
 #define INITIAL_LOGBUFSIZE      0
@@ -44,9 +46,20 @@
 #define INITIAL_LOGFILELIMIT	(10*1024*1024)
 #endif
 
+#ifdef CIRCULAR_LOGBUFFER
+#define NUM_CIRC_LINES	32768
+#define SIZ_CIRC_LINES	384
+#define MAX_LINE_SIZE	(SIZ_CIRC_LINES-16)
+char *logbuf;
+static char *loglines[NUM_CIRC_LINES];
+static int loglineidx = 0;
+char *logptr;
+#else
+#define MAX_LINE_SIZE	1000
 static char logbuf_[INITIAL_LOGBUFSIZE+1025];
 char *logptr=logbuf_;
 char *logbuf=logbuf_;
+#endif
 int logbuf_size = INITIAL_LOGBUFSIZE;
 int logfile_limit = INITIAL_LOGFILELIMIT;
 int log_written = 0;
@@ -68,12 +81,19 @@ static char *timestamp (char *p)
   int i;
 
 #ifdef X86_EMULATOR
-  if ((config.cpuemu>1) && in_vm86) t=0; else
+  if ((config.cpuemu>1) && (in_vm86_emu || in_dpmi_emu)) t=0; else
 #endif
+#ifdef DBG_TIME
+  t = GETusTIME(0);
+#else
   t = pic_sys_time/1193;
+#endif
   /* [12345678]s - SYS time */
 #ifdef X86_EMULATOR
-    if ((config.cpuemu>1) && in_vm86) strcpy(p,"[********] "); else
+    if ((config.cpuemu>1) && ((in_vm86 && in_vm86_emu) || in_dpmi_emu)) {
+	if (VM86F) strcpy(p,"[--VM86--] ");
+	  else strcpy(p,(CEmuStat&CeS_MODE_PM32? "[==PM32==] ":"[==PM16==] "));
+    } else
 #endif
     {
       p[0] = '[';
@@ -87,21 +107,6 @@ static char *timestamp (char *p)
 #define timestamp(p)	(p)
 #endif
 
-
-#if SHOW_EIP
-static char *eipstamp (char *p)
-{
-  if (in_dpmi) {
-    sprintf(p,"[ %08lx] ",trc__neweip);
-  }
-  else {
-    sprintf(p,"[%04x:%04x] ",REG(cs),LWORD(eip));
-  }
-  return p+12;
-}
-#else
-#define eipstamp(p)	(p)
-#endif
 
 char *strprintable(char *s)
 {
@@ -159,36 +164,66 @@ int vlog_printf(int flg, const char *fmt, va_list args)
 #ifdef USE_THREADS
   lock_resource(resource_libc);
 #endif
+#ifdef CIRCULAR_LOGBUFFER
+  logptr = loglines[loglineidx++];
+#endif
   {
     char *q;
 
     q = (is_cr? timestamp(logptr) : logptr);
-    if (is_cr) q = eipstamp(q);
-    i = vsprintf(q, fmt, args) + (q-logptr);
-    if (i > 0) is_cr = (logptr[i-1]=='\n'); else i = 0;
+    i = vsnprintf(q, MAX_LINE_SIZE, fmt, args);
+    if (i < 0) {	/* truncated for buffer overflow */
+      i = MAX_LINE_SIZE-2;
+      q[i++]='\n'; q[i]=0; is_cr=1;
+    }
+    else if (i > 0) is_cr = (q[i-1]=='\n');
+    i += (q-logptr);
   }
+
+#ifdef CIRCULAR_LOGBUFFER
+  loglineidx %= NUM_CIRC_LINES;
+  *(loglines[loglineidx]) = 0;
+
+  if (flg == -1) {
+    char *p;
+    int i, k;
+    k = loglineidx;
+    for (i=0; i<NUM_CIRC_LINES; i++) {
+      p = loglines[k%NUM_CIRC_LINES]; k++;
+      if (*p) {
+	fprintf(dbg_fd, "%s", p);
+	*p = 0;
+      }
+    }
+    fprintf(dbg_fd,"****************** END CIRC_BUF\n");
+    fflush(dbg_fd);
+  }
+#else
   logptr += i;
 
   if ((dbg_fd==stderr) || ((logptr-logbuf) > logbuf_size) || (flg == -1)) {
     int fsz = logptr-logbuf;
-
     /* writing a big buffer can produce timer bursts, which under DPMI
      * can cause stack overflows!
      */
     if (terminal_pipe) {
       write(terminal_fd, logptr, fsz);
     }
-    write(fileno(dbg_fd), logbuf, fsz);
+    if (write(fileno(dbg_fd), logbuf, fsz) < 0) {
+      if (errno==ENOSPC) leavedos(0x4c4c);
+    }
     logptr = logbuf;
     if (logfile_limit) {
       log_written += fsz;
       if (log_written > logfile_limit) {
-        fseek(dbg_fd, 0, SEEK_SET);
+        fflush(dbg_fd);
         ftruncate(fileno(dbg_fd),0);
+        fseek(dbg_fd, 0, SEEK_SET);
         log_written = 0;
       }
     }
   }
+#endif
 #ifdef USE_THREADS
   unlock_resource(resource_libc);
 #endif
@@ -197,9 +232,22 @@ int vlog_printf(int flg, const char *fmt, va_list args)
 
 int log_printf(int flg, const char *fmt, ...)
 {
+#ifdef CIRCULAR_LOGBUFFER
+	static int first = 1;
+#endif
 	va_list args;
 	int ret;
 
+#ifdef CIRCULAR_LOGBUFFER
+	if (first) {
+	  int i;
+	  logbuf = calloc((NUM_CIRC_LINES+4), SIZ_CIRC_LINES);
+	  for (i=0; i<NUM_CIRC_LINES; i++)
+	    loglines[i] = logbuf + SIZ_CIRC_LINES*i;
+	  loglineidx = 0;
+	  first=0;
+	}
+#endif
 	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG)) {
 		if (!flg || !dbg_fd ) return 0;
 	}
@@ -395,7 +443,7 @@ char *assemble_path(char *dir, char *file, int append_pid)
 	s = malloc(strlen(dir)+1+strlen(file)+strlen(pid)+1);
 	if (!s) {
 		fprintf(stderr, "out of memory, giving up\n");
-		exit(1);
+		longjmp(NotJEnv, 0x4d);
 	}
 	sprintf(s, "%s/%s%s", dir, file, pid);
 	return s;
@@ -409,7 +457,7 @@ char *mkdir_under(char *basedir, char *dir, int append_pid)
 	if (!exists_dir(s)) {
 		if (mkdir(s, S_IRWXU)) {
 			fprintf(stderr, "can't create local %s directory, giving up\n", s);
-			exit(1);
+			longjmp(NotJEnv, 0x42);
 		}
 	}
 	return s;
@@ -421,7 +469,7 @@ char *get_path_in_HOME(char *path)
 
 	if (!home) {
 		fprintf(stderr, "odd environment, you don't have $HOME, giving up\n");
-		exit(1);
+		leavedos(0x45);
 	}
 	if (!path) {
 		return strdup(home);

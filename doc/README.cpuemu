@@ -1,0 +1,138 @@
+
+**********************************************************************
+** NOTE - This code is still under development and may be UNSTABLE ***
+**********************************************************************
+
+The CPU emulator was taken from the TWIN library from Willows Software
+(http://www.willows.com). Current version as of this writing is 3.1.12,
+but the emulator hasn't changed at least since version 3.1.1.
+
+Dosemu started to introduce the emulator in version 0.97. The first step
+was to port the vm86 kernel interface in November 1997. At that time, I
+was only able to boot DOS (up to the C:> prompt) in plain console mode.
+One year later, I have implemented the DPMI interface and 32-bit code.
+
+The original Willows emulator had only one entry point at 16-bit code:
+
+               |--67h--> 16/32 --66h-->|
+               |                       |
+  o--->16/16-->|                       |-->32/32
+               |                       |
+               |--66h--> 32/16 --67h-->|
+
+and the 32-bit code was, I guess, limited to the few instructions actually
+found in 16-bit Windows code.
+I made the emulator fully symmetric:
+
+               |--67h--> 16/32 --66h-->|
+               |<-66h---       <-67h---|
+  o--->16/16<->|                       |<->32/32<---o
+               |<-67h---       <-66h---|
+               |--66h--> 32/16 --67h-->|
+
+and implemented the missing parts of the 32-bit code interpreter and the
+DPMI interface. Work is in progress to go beyond DPMI so to have the whole
+range of modes (real-VM86-protected) directly available.
+
+
+The purposes of this emulator are:
+
+1) porting dosemu on other CPUs (Alpha,PPC,...)
+	it should be a straightforward task to port the TWIN part, which
+	was already portable, while porting the rest of dosemu could
+	be much more challenging, as it has a lot of ix86-isms
+2) allowing us to run 'ring-0' protected-mode programs
+	... up to Win95? Hmmm, wine will be there LONG before us.
+3) being a debugging tool for DOS programs and for dosemu itself
+	this is currently the only reason for emulating an ix86 on
+	an ix86 machine :-)
+
+**********************************************************************
+
+As of 1999/01/08, the programs I tested under the emulator include:
+
+- IBM PC DOS 7.0	RM		ok
+- ezedit		RM		ok
+- Borland tasmx		DPMI16		ok
+- Norton Commander 5	RM		ok - why it says 'Pentium 0 MHz'?
+- some djggp test pgms	DPMI32		ok
+- gcc (djgpp)		DPMI32		ok
+- doom[2]		DPMI32		ok
+- Borland C++3.1	DPMI16		ok
+- Xtree Gold		?		ok
+- joe			DPMI32		ok
+- MS Flight Sim 5.1	?		ok
+- Norton Diagnostics	?		ok - why it says 'Pentium 0 MHz'?
+- IDA 3.75 (DOS)	DPMI32		ok
+- UltiBoard 4.90	DPMI		ok
+- dope(demo)		?		ok but wrong colours
+- inside(demo)		?		ok
+
+What doesn't work yet:
+- some instructions are still unimplemented
+- there are still bugs in the FP code
+
+What will probably never work:
+- serial code, sound code, and all sort of fast,realtime stuff
+  (but who knows)
+
+Is the emulator slow? Of course yes, but not so much; on a 400MHz CPU
+the average speed is about that of a 486, with wide variations depending
+on the cpuemu/dosemu ratio. CPU-intensive programs are the slowest,
+text-mode apps like editors or file managers are almost as fast as the
+real thing, while graphics apps are normally quite slow.
+
+There are some speed tricks, like avoiding emulation of the video BIOS
+code in console mode, or directly calling vgaemu under X from the in/out
+instructions. Other (less portable) speed tricks involved stack and
+register allocation on the ix86 and helped getting a greater speedup (up
+to making doom _playable_); however, they are not available for all gcc
+versions.
+
+Note that FPU diagnostic programs will likely always fail, because many
+of the FP instructions are emulated with libc calls, and so have only
+double (64-bit) precision, instead of long double (80-bits) as in the
+real FPU. Besides, the emulated FPU doesn't support precision control
+and some other things (e.g. exceptions).
+
+**********************************************************************
+
+How to start dosemu with cpu-emu:
+
+Set
+	$_cpu = "emulated"
+
+in your dosemu.conf file. This _enables_ the use of the CPU emulator
+but doesn't _start_ it, unless you undefine DONT_START_EMU in cpu_emu.h
+(don't do it unless you want do debug DOS itself!).
+This was done to skip the (long and tiresome) boot phase of DOS and to
+make dosemu compatible with the normal (non-cpuemu) usage without the
+need of using extra parameters or editing dosemu.conf every time.
+
+In the default cpuemu configuration, then, dosemu behaves in the normal
+(real CPU) way until you explicitly switch it into CPU emulation mode.
+The commands to switch the cpuemu on/off are
+	ecpuon.com	and	ecpuoff.com
+Put them in your autoexec.bat where necessary. They are an interface
+to int0xe6 functions 0x90 and 0x91 (see src/base/async/int.c). You
+can directly call these functions from inside a program.
+
+You can edit the file src/include/cpu-emu.h to modify the emulator
+configuration parameters before compiling dosemu. Please do not change
+these settings unless you know what you are doing; see the included
+comments.
+
+There is an added debug option ('e') for the cpuemu. Note that using
+'a' enables all debug options BUT this one, if you really want a full
+debug trace you must use -Dae instead of -Da.
+Any setting of 'e' beyond 2 is VERY HEAVY both for your CPU and for
+the space on your hard disk, use this option with care if you need it
+(but... do you really _need_ it? :-)
+
+There are also some undocumented options, mainly for debugging cpuemu
+itself, so they'll better stay undocumented.
+
+Happy emulating.
+
+Alberto Vignani	- 1999/01/12
+

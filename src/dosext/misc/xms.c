@@ -620,7 +620,7 @@ FindFreeHandle(int start)
   /* first free handle is 1 */
   for (i = start; (i <= NUM_HANDLES) && (h == 0); i++) {
     if (!handles[i].valid) {
-      x_printf("\nXMS: found free handle: %d\n", i);
+      x_printf("XMS: found free handle: %d\n", i);
       h = i;
       break;
     }

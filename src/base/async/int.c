@@ -492,10 +492,6 @@ static int dos_helper(void)
   case DOS_HELPER_CPUEMUOFF:
   	if (config.cpuemu && !in_dpmi) leave_cpu_emu();
         break;
-  /* to be called from inside pgms */
-  case DOS_HELPER_CPUEMULEVEL:	/* logfile level=BL */
-	d.emu = LO(bx);
-	break;
 #endif
     case DOS_HELPER_XCONFIG:
 #if X_GRAPHICS

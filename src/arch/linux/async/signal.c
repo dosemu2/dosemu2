@@ -45,8 +45,8 @@ extern int errno;
 #endif
 
 #ifdef X86_EMULATOR
-extern int e_sig_pending;
-#define E_SIGNAL	if (config.cpuemu>1) e_sig_pending=1
+#include "cpu-emu.h"
+#define E_SIGNAL	if (config.cpuemu>1) CEmuStat|=CeS_SIGPEND
 #else
 #define E_SIGNAL
 #endif

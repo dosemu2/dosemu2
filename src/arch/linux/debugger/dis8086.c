@@ -743,7 +743,7 @@ int  dis_8086(unsigned int org,
 	
 	    case 0xa4:
 	      d86_printf("shld    ");
-	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      code = mod_reg_rm_r(code, seg, wreg, wreg, addr32);
 	      d86_printf(",%02X", *code++);
 	      break;
 
@@ -763,7 +763,7 @@ int  dis_8086(unsigned int org,
 
 	    case 0xac:
 	      d86_printf("shrd    ");
-	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      code = mod_reg_rm_r(code, seg, wreg, wreg, addr32);
 	      d86_printf(",%02X", *code++);
 	      break;
 

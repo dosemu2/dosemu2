@@ -1,4 +1,20 @@
-99/01/08 ver. 0.99.5 released
+99/01/09 ver. 0.99.6.1 unofficial pre-release
+	From Alberto
+	- further cpuemu patches (sync with dose9961.dff)
+	- further cpuemu patches (sync with h1toh2.dff)
+	- new README.cpuemu
+	From Hans
+	- preset the config structure with zero at the very startup.
+	  (suspecting accesses to uninitialized data, but I'm not sure)
+	- Oops the 99/01/08 version was wrong :-( corrected 0.99.5 -> 0.99.6
+	- fixed global.conf not passing $_cpu = "emulated" correctly.
+	- fixed rdtsc setting in global.conf (no hidden default any more)
+	- made $_rdtsc = (on) the default again (wish from Alberto)
+	- kludge: restricted asm contraints in PACK32_16 (intp32/hsw_interp.h)
+	  to avoid gcc bug in 2.7.2.x and egcs <= 2.91 (signal 11 on cc1)
+	- put USE_GLOBAL_EBP into cpu-emu.h as a configure option for cpuemu
+	  and made it default (realy increases emulation speed a lot).
+99/01/08 ver. 0.99.6 released
 	From Hans
 	- new script 'mknewyear'
 	- executed 'mknewyear' ;-)

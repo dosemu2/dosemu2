@@ -9,6 +9,7 @@ LD86 = $(_LD86_) -0
 
 D=$(REALTOPDIR)/etc
 DOSC=$(REALTOPDIR)/contrib/dosC/dist
+IDEST=/var/lib
 
 SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
     dexeconfig.c scsicheck.c
@@ -39,8 +40,9 @@ $(D)/hdimage.test: mkfatimage16
 	$(REALTOPDIR)/$(THISVERSION)/commands/* >$(D)/hdimage.test
 
 install:
-	install -d /usr/lib/dosemu
-	install -m 0755 mkhdimage putrom $(SCRIPT) /usr/lib/dosemu
+	install -d $(IDEST)/dosemu
+	install -m 0755 -s mkhdimage putrom scsicheck $(IDEST)/dosemu
+	install -m 0755 $(SCRIPT) $(IDEST)/dosemu
 
 checkin:
 	-ci -l keyboard.c.diff $(SRC) $(SCRIPT) Makefile
