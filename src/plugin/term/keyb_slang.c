@@ -765,6 +765,9 @@ static void define_remaining_characters(SLKeyMap_List_Type *m)
 
 	for(i = 0; i < 256; i++) {
 		unsigned char str[2];
+		if (i == '\033' || (keyb_state.Esc_Char != '@' &&
+				    keyb_state.Esc_Char == '@' + i))
+		  continue;
 		str[0] = i;
 		str[1] = '\0';
 
