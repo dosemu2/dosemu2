@@ -170,6 +170,7 @@ void clear_console_video(void)
 {
   if (scr_state.current) {
     set_linux_video();
+    release_perm();
     put_video_ram();		/* unmap the screen */
   }
 

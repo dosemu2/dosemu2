@@ -131,7 +131,6 @@ extern void clear_port_traceing(void);
 
 void yyerror(char *, ...);
 void yywarn(char *, ...);
-void keyb_toggle(int mask);
 void keyb_layout(int value);
 static void start_ports(void);
 static void start_mouse(void);
@@ -158,6 +157,7 @@ static void do_part(char *);
 static void start_bootdisk(void);
 static void start_floppy(void);
 static void stop_disk(int token);
+static void start_vnet(char *);
 static FILE* open_file(char* filename);
 static void close_file(FILE* file);
 static void write_to_syslog(char *message);
@@ -269,7 +269,6 @@ extern void yyrestart(FILE *input_file);
 %token RAWKEYBOARD
 %token PRESTROKE
 %token KEYTABLE SHIFT_MAP ALT_MAP NUMPAD_MAP DUMP
-%token TOGGLE TG_CS TG_SS TG_AS
 %token DGRAVE DACUTE DCIRCUM DTILDE DBREVE DABOVED DDIARES DABOVER DDACUTE DCEDILLA DIOTA DOGONEK DCARON
 	/* ipx */
 %token NETWORK PKTDRIVER
@@ -287,6 +286,8 @@ extern void yyrestart(FILE *input_file);
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
+%token VBIOS_POST
+
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
 %token UPDATEFREQ UPDATELINES COLOR ESCCHAR
@@ -573,13 +574,6 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    config.dosbanner = ($2!=0);
 		    c_printf("CONF: dosbanner %s\n", ($2) ? "on" : "off");
 		    }
-		| ALLOWVIDEOPORT bool
-		    { IFCLASS(CL_VPORT){
-		    if ($2 && !config.allowvideoportaccess && priv_lvl)
-		      yyerror("Can not enable video port access in user config file");
-		    config.allowvideoportaccess = ($2!=0);
-		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
-		    }}
 		| EMURETRACE bool
 		    { IFCLASS(CL_VPORT){
 		    if ($2 && !config.emuretrace && priv_lvl)
@@ -629,7 +623,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| NETDEV string_expr	{ config.netdev = $2; }
 		| NOVELLHACK bool	{ config.pktflags = ($2!=0); }
-		| VNET bool		{ config.vnet = ($2!=0); }
+		| VNET string_expr	{ start_vnet($2); free($2); }
 		| SPEAKER speaker
 		    {
 		    if ($2 == SPKR_NATIVE) {
@@ -1130,6 +1124,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		      c_printf("CONF: VGA-BIOS-Size set to 0x%x\n", config.vbios_size);
 		      }
 		   }
+		| VBIOS_POST		{ config.vbios_post = 1; }
 		| DUALMON		{ config.dualmon = 1; }
 		| FORCE_VT_SWITCH	{ config.force_vt_switch = 1; }
 		| PCI			{ config.pci_video = 1; }
@@ -1273,18 +1268,8 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
 		| LAYOUT L_AUTO		{ keyb_layout(-1); }
 		| RAWKEYBOARD bool	{ config.console_keyb = ($2!=0); }
-		| TOGGLE toggle_flags
 		| STRING
 		    { yyerror("unrecognized keyboard flag '%s'", $1);
-		      free($1);}
-		| error
-		;
-
-toggle_flags  : TG_SS { keyb_toggle(R_SHIFT | L_SHIFT); }
-		| TG_CS { keyb_toggle(R_CTRL | R_SHIFT); }
-		| TG_AS { keyb_toggle(R_ALT | R_SHIFT); }
-		| STRING
-		    { yyerror("unrecognized toggle flag '%s'", $1);
 		      free($1);}
 		| error
 		;
@@ -1978,6 +1963,19 @@ static void start_disk(void)
   dptr->dexeflags = 0;
 }
 
+static void start_vnet(char *mode) {
+  if (strlen(mode) == 0)
+    config.vnet = 0;
+  else if (strcasecmp(mode, "dosnet") == 0)
+    config.vnet = 1;
+  else if (strcasecmp(mode, "TAP") == 0)
+    config.vnet = 2;
+  else {
+    error("Unknown vnet mode %s\n", mode);
+    config.vnet = 0;
+  }
+}
+
 static void do_part(char *dev)
 {
   if (priv_lvl)
@@ -2075,10 +2073,6 @@ static void stop_disk(int token)
 }
 
 	/* keyboard */
-
-void keyb_toggle(int mask) {
-	config.toggle_mask = mask;
-}
 
 void keyb_layout(int layout)
 {

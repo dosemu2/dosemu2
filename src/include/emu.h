@@ -273,11 +273,10 @@ typedef struct vesamode_type_struct {
        int     realcpu;
        boolean mathco, smp, cpummx;
        boolean ipxsup;
-       boolean vnet;
+       int     vnet;
        char   *netdev;
        boolean pktdrv;
        boolean dosbanner;
-       boolean allowvideoportaccess;
        boolean emuretrace;
        boolean rdtsc;
        boolean timers;
@@ -288,6 +287,7 @@ typedef struct vesamode_type_struct {
        int vbios_seg;           /* VGA-BIOS-segment for mapping */
        int vbios_size;          /* size of VGA-BIOS (64K for vbios_seg=0xe000
        						     32K for vbios_seg=0xc000) */
+       boolean vbios_post;
 
        boolean bootdisk;	/* Special bootdisk defined */
        int  fastfloppy;
@@ -320,7 +320,6 @@ typedef struct vesamode_type_struct {
 
        struct keytable_entry *keytable;
        struct keytable_entry *altkeytable;
-       int toggle_mask;
 
        unsigned short detach;
        unsigned char *debugout;

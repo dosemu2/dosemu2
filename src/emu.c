@@ -400,6 +400,10 @@ emulate(int argc, char **argv)
 #endif
     timer_interrupt_init();	/* start sending int 8h int signals */
 
+    if (can_do_root_stuff && !under_root_login) {
+        g_printf("dropping root privileges\n");
+    }
+    priv_drop();
     while (!fatalerr) {
 	loopstep_run_vm86();
     }
@@ -493,6 +497,9 @@ leavedos(int sig)
     }
 #endif
     in_vm86 = 0;
+
+    /* terminate port server */
+    port_exit(sig);
 
     /* try to notify dosdebug */
     {

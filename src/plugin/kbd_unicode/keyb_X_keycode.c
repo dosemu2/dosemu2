@@ -559,14 +559,13 @@ void X_keycode_process_keys(XKeymapEvent *e)
 			int pressed;
 			keycode = i*8 + j;
 			pressed = c & (1 << j);
-			put_keycode(pressed, keycode, U_VOID);
+			put_keycode(pressed, keycode, KEY_VOID);
 		}
 	}
 }
 
 void X_keycode_process_key(XKeyEvent *e)
 {
-	static int first = 1;
 	struct mapped_X_event event;
 	Boolean make;
 	if (!X_keycode_initialized) {
@@ -577,13 +576,7 @@ void X_keycode_process_key(XKeyEvent *e)
 		 e->keycode, e->type);
 #endif
 	make = e->type == KeyPress;
-	if (first) {
-		first = 0;
-		X_sync_shiftstate(make, e->keycode, e->state);
-	}
-	if (!USING_XKB) {
-		X_sync_shiftstate(make, e->keycode, e->state);
-	}
+	X_sync_shiftstate(make, e->keycode, e->state);
 	map_X_event(display, e, &event);
 	put_keycode(make, e->keycode, event.key);
 	return;

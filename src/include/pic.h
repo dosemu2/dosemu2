@@ -147,6 +147,9 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 #define pic_sti() (pic_iflag=0,pic_set_mask, (void)0)          /*    emulate STI      */
 #define pic_cli() (pic_iflag=pic_irqall,pic_set_mask, (void)0) /*    emulate CLI      */
 
+#define CAN_SLEEP() (!(pic_icount || pic_isr || (REG(eflags) & VIP) || \
+    (pic_sys_time > pic_dos_time)))
+
 /* Experimental TIMER-IRQ CHAIN code */
 extern void timer_int_engine(void);
 

@@ -49,8 +49,6 @@ void keyb_server_close();
 #endif /* not __ASM__ */
 
 /* bits in t_shiftstate */
-#define KEYB_CZ_QWERTY        32
-#define KEYB_CZ_QWERTZ        33		
 #define CAPS_LOCK      0x0001
 #define NUM_LOCK       0x0002
 #define SCR_LOCK       0x0004

@@ -1644,33 +1644,6 @@ time_to_unix(u_short dos_date, u_short dos_time)
    return mktime(&T);
 }
 
-__inline__ int
-strip_char(char *ptr, char ch)
-{
-  int len = 0;
-  char *wptr;
-  char *rptr;
-
-  wptr = ptr;
-  rptr = ptr;
-
-  while (*rptr != EOS) {
-    if (*rptr == ch) {
-      rptr++;
-    }
-    else {
-      if (wptr != rptr)
-	*wptr = *rptr;
-      wptr++;
-      rptr++;
-      len++;
-    }
-  }
-  *wptr = EOS;
-
-  return (len);
-}
-
 __inline__ static void
 path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar)
 {
@@ -2820,6 +2793,7 @@ dos_fs_redirect(state_t *state)
   char fname[8];
   char fext[3];
   char fpath[MAXPATHLEN];
+  char buf[MAXPATHLEN];
   struct dir_ent *tmp;
   struct stat st;
   boolean_t long_path;
@@ -2906,10 +2880,11 @@ dos_fs_redirect(state_t *state)
     if (mkdir(fpath, 0775) != 0) {
       bs_pos = strrchr(fpath, '/');
       if (bs_pos == NULL)
-        bs_pos = fpath;      
+        bs_pos = fpath;
+      strcpy(buf, bs_pos);
       *bs_pos = EOS;
       find_file(fpath, &st);
-      *bs_pos = '/';
+      strcat(fpath, buf);
       Debug0((dbg_fd, "trying '%s'\n", fpath));
       if (mkdir(fpath, 0755) != 0) {
 	Debug0((dbg_fd, "make directory failed '%s'\n",
@@ -3213,27 +3188,26 @@ dos_fs_redirect(state_t *state)
     bs_pos = strrchr(fpath, '/');
     if (bs_pos == NULL)
       bs_pos = fpath;
+    strcpy(buf, bs_pos);
     *bs_pos = EOS;
     find_file(fpath, &st);
-    *bs_pos = '/';
-    {
-      char buf[MAXPATHLEN];
-      build_ufs_path(buf, filename1);
-      if (!find_file(buf, &st) || is_dos_device(buf)) {
-        Debug0((dbg_fd, "Rename '%s' error.\n", fpath));
-        SETWORD(&(state->eax), PATH_NOT_FOUND);
-        return (FALSE);
-      }
+    strcat(fpath, buf);
+
+    build_ufs_path(buf, filename1);
+    if (!find_file(buf, &st) || is_dos_device(buf)) {
+      Debug0((dbg_fd, "Rename '%s' error.\n", buf));
+      SETWORD(&(state->eax), PATH_NOT_FOUND);
+      return (FALSE);
+    }
       
-      if (rename(buf, fpath) != 0) {
-        SETWORD(&(state->eax), PATH_NOT_FOUND);
-        return (FALSE);
-      }
-      else {
-        Debug0((dbg_fd, "Rename file %s to %s\n",
-                fpath, buf));
-        return (TRUE);
-      }
+    if (rename(buf, fpath) != 0) {
+      SETWORD(&(state->eax), PATH_NOT_FOUND);
+      return (FALSE);
+    }
+    else {
+      Debug0((dbg_fd, "Rename file %s to %s\n",
+              buf, fpath));
+      return (TRUE);
     }
   case DELETE_FILE:		/* 0x13 */
     {
@@ -3275,7 +3249,7 @@ dos_fs_redirect(state_t *state)
           return (FALSE);
         }
         if (unlink(fpath) != 0) {
-          Debug0((dbg_fd, "Delete failed(%d) %s\n", errno, fpath));
+          Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errno), fpath));
           if (errno == EACCES) {
             SETWORD(&(state->eax), ACCESS_DENIED);
           } else {
@@ -3287,16 +3261,16 @@ dos_fs_redirect(state_t *state)
 	return (TRUE);
       }
 
-      bs_pos = strchr(fpath, '\0');
       while (de != NULL) {
 	if ((de->mode & S_IFMT) == S_IFREG) {
-	  bs_pos[0] = SLASH;
-	  memcpy(&bs_pos[1], de->name, 8);
-	  bs_pos[9] = '.';
-	  memcpy(&bs_pos[10], de->ext, 3);
-	  bs_pos[13] = EOS;
-	  strip_char(fpath, ' ');
 	  cnt = strlen(fpath);
+	  fpath[cnt] = SLASH;
+	  memcpy(&fpath[cnt+1], de->name, 8);
+	  for (cnt += 8; fpath[cnt] == ' '; cnt--);
+	  fpath[++cnt] = '.';
+	  memcpy(&fpath[cnt+1], de->ext, 3);
+	  for (cnt += 3; fpath[cnt] == ' '; cnt--);
+	  fpath[++cnt] = EOS;
 	  if (fpath[cnt - 1] == '.')
 	    fpath[cnt - 1] = EOS;
 	  if (find_file(fpath, &st)) {
@@ -3306,7 +3280,7 @@ dos_fs_redirect(state_t *state)
               errcode = unlink(fpath) ? errno : 0;
             }
             if (errcode != 0) {
-              Debug0((dbg_fd, "Delete failed(%d) %s\n", errcode, fpath));
+              Debug0((dbg_fd, "Delete failed(%s) %s\n", strerror(errcode), fpath));
             } else {
               Debug0((dbg_fd, "Deleted %s\n", fpath));
             }
@@ -3538,9 +3512,13 @@ dos_fs_redirect(state_t *state)
 
     if ((fd = open(fpath, (O_RDWR | O_CREAT),
 		   get_unix_attr(0664, attr))) < 0) {
+      bs_pos=strrchr(fpath, '/');
+      if (bs_pos == NULL)
+        bs_pos = fpath;
+      strcpy(buf, bs_pos);
       *bs_pos = EOS;
       find_file(fpath, &st);
-      *bs_pos = '/';
+      strcat(fpath, buf);
       Debug0((dbg_fd, "trying '%s'\n", fpath));
       if ((fd = open(fpath, (O_RDWR | O_CREAT),
 		     get_unix_attr(0664, attr))) < 0) {
@@ -3672,6 +3650,7 @@ dos_fs_redirect(state_t *state)
     bs_pos = strrchr(fpath, '/');
     if (bs_pos == NULL)
       bs_pos = fpath;
+    strcpy(buf, bs_pos);
     *bs_pos = EOS;
 
     auspr(bs_pos + 1, fname, fext);
@@ -3750,8 +3729,8 @@ dos_fs_redirect(state_t *state)
         SETWORD(&(state->eax), NO_MORE_FILES);
         return (FALSE);
       }
-				  
-      *bs_pos = '/';
+
+      strcat(fpath, buf);
       hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
       sdb_dir_entry(sdb) = hlist_index;
       return (TRUE);
@@ -3772,7 +3751,7 @@ dos_fs_redirect(state_t *state)
     if (long_path) {
       set_long_path_on_dirs(hlist);
     }
-    *bs_pos = '/';
+    strcat(fpath, buf);
     hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
     sdb_dir_entry(sdb) = hlist_index;
     firstfind = 1;

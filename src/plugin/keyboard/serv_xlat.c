@@ -429,13 +429,6 @@ static Boolean do_shift_keys(Boolean make, t_keysym key) {
    }
 #endif
 
-	 if (config.altkeytable && config.toggle_mask &&
-			 (shiftstate & config.toggle_mask) == config.toggle_mask) {
-		 lockaltmap = !lockaltmap;
-		 k_printf("KBD: locking alt map %d\n", lockaltmap);
-	 }
-
-
    return is_shift;
 }
 

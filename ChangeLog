@@ -1,3 +1,20 @@
+2003/01/17 ver 1.1.4.5 unofficial pre-release
+	From Stas
+	- remove $_toggle -- it is no longer needed.
+	- fix for TUN/TAP vnet configuration.
+	- implement POST less video init.
+	- Don't sleep inside IRQ handlers or when there is some async
+	  stuff to handle.
+	- Remove ESP and hogthreshold hack.
+	From Bart
+	- Drop root privileges just before booting and fork off a port
+	  server if necessary, that can handle the high port I/O using
+	  pipes. With this in effect, DPMI in suid-root DOSEMU should
+	  no longer be inherently insecure. 
+	- Fix for filename problems in the MFS if parts of the path were
+	  mangled (reported by Clarence).
+	- Remove unused "$_videoportaccess", introduce "$_vbios_post".
+	- Fix a few warnings.	
 2003/01/15 ver 1.1.4.4 unofficial pre-release
 	From Stas
 	- implement $_cli_timeout (an official hack that is necessary

@@ -144,55 +144,40 @@ static unsigned int wcf8_pend = 0;
 
 static void chk_pend(void)
 {
-    if (priv_iopl(3)) {
-      error("iopl(): %s\n", strerror(errno));
-      return;
-    }
     if (wcf8_pend) {
-	port_real_outd(0xcf8,wcf8_pend);
+	std_port_outd(0xcf8,wcf8_pend);
 	wcf8_pend=0;	/* clear at least bit 31 */
     }
 }
 
 static Bit8u pci_port_inb(ioport_t port)
 {
-	unsigned char ret;
 	chk_pend();
-	ret = port_real_inb(port);
-	priv_iopl(0);
-	return ret;
+	return std_port_inb(port);
 }
 
 static void pci_port_outb(ioport_t port, Bit8u byte)
 {
 	chk_pend();
-	port_real_outb(port,byte);
-	priv_iopl(0);
+	std_port_outb(port,byte);
 }
 
 static Bit16u pci_port_inw(ioport_t port)
 {
-	unsigned short ret;
 	chk_pend();
-	ret = port_real_inw(port);
-	priv_iopl(0);
-	return ret;
+	return std_port_inw(port);
 }
 
 static void pci_port_outw(ioport_t port, Bit16u value)
 {
 	chk_pend();
-	port_real_outw(port,value);
-	priv_iopl(0);
+	std_port_outw(port,value);
 }
 
 static Bit32u pci_port_ind(ioport_t port)
 {
-	unsigned int ret;
 	chk_pend();
-	ret = port_real_ind(port);
-	priv_iopl(0);
-	return ret;
+	return std_port_ind(port);
 }
 
 /* SIDOC_BEGIN_FUNCTION pci_read_header
@@ -213,8 +198,7 @@ static void pci_port_outd(ioport_t port, Bit32u value)
 	}
 	else {
 		chk_pend();
-		port_real_outd(port,value);
-		priv_iopl(0);
+		std_port_outd(port,value);
 	}
 }
 

@@ -260,12 +260,10 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 
 	xregs[2] = port_in(0x102);
 	port_out(1, 0x102);
-	priv_iopl(3);
-	xregs16[0] = port_in_w(0x8000 | s3_8514_base);	/* CUR_Y */
-	xregs16[1] = port_in_w(0x8400 | s3_8514_base);	/* CUR_X */
-	xregs16[2] = port_in_w(0x8800 | s3_8514_base);
-	xregs16[3] = port_in_w(0x8c00 | s3_8514_base);
-	priv_iopl(0);
+	xregs16[0] = std_port_inw(0x8000 | s3_8514_base);	/* CUR_Y */
+	xregs16[1] = std_port_inw(0x8400 | s3_8514_base);	/* CUR_X */
+	xregs16[2] = std_port_inw(0x8800 | s3_8514_base);
+	xregs16[3] = std_port_inw(0x8c00 | s3_8514_base);
 	port_out(xregs[2], 0x102);
 	emu_video_retrace_on();
 
@@ -353,12 +351,10 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 	out_crt(0x39, xregs[1]);
 
 	port_out(1, 0x102);
-	priv_iopl(3);
-	port_out_w(xregs16[0], 0x8000 | s3_8514_base);
-	port_out_w(xregs16[1], 0x8400 | s3_8514_base);
-	port_out_w(xregs16[2], 0x8800 | s3_8514_base);
-	port_out_w(xregs16[3], 0x8c00 | s3_8514_base);
-	priv_iopl(0);
+	std_port_outw(xregs16[0], 0x8000 | s3_8514_base);
+	std_port_outw(xregs16[1], 0x8400 | s3_8514_base);
+	std_port_outw(xregs16[2], 0x8800 | s3_8514_base);
+	std_port_outw(xregs16[3], 0x8c00 | s3_8514_base);
 	port_out(xregs[2], 0x102);
 	emu_video_retrace_on();
 }

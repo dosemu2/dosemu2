@@ -278,9 +278,9 @@ readPciCfg1(unsigned long reg)
 {
     unsigned long val;
     
-    port_real_outd(PCI_CONF_ADDR, reg);
-    val = port_real_ind(PCI_CONF_DATA);
-    port_real_outd(PCI_CONF_ADDR, 0);
+    std_port_outd(PCI_CONF_ADDR, reg);
+    val = std_port_ind(PCI_CONF_DATA);
+    std_port_outd(PCI_CONF_ADDR, 0);
     Z_printf("PCIBIOS: reading 0x%lx from 0x%lx\n",val,reg);
     return val;
 }
@@ -289,9 +289,9 @@ static void
 writePciCfg1(unsigned long reg, unsigned long val)
 {
     Z_printf("PCIBIOS writing: 0x%lx to 0x%lx\n",val,reg);
-    port_real_outd(PCI_CONF_ADDR, reg);
-    port_real_outd(PCI_CONF_DATA,val);
-    port_real_outd(PCI_CONF_ADDR, 0);
+    std_port_outd(PCI_CONF_ADDR, reg);
+    std_port_outd(PCI_CONF_DATA,val);
+    std_port_outd(PCI_CONF_ADDR, 0);
 }
 
 static unsigned long
@@ -303,10 +303,10 @@ readPciCfg2(unsigned long reg)
     unsigned char dev = (reg >> 11) & 0x1f;
     unsigned char num = reg & 0xff;
     
-    port_real_outb(PCI_MODE2_ENABLE_REG, 0xF1);
-    port_real_outb(PCI_MODE2_FORWARD_REG, bus); 
-    val = port_real_ind((dev << 8) + num);
-    port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    std_port_outb(PCI_MODE2_ENABLE_REG, 0xF1);
+    std_port_outb(PCI_MODE2_FORWARD_REG, bus); 
+    val = std_port_ind((dev << 8) + num);
+    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
     Z_printf("PCIBIOS: reading 0x%lx from 0x%lx\n",val,reg);
     return val;
 }
@@ -319,19 +319,17 @@ writePciCfg2(unsigned long reg, unsigned long val)
     unsigned char num = reg & 0xff;
 
     Z_printf("PCIBIOS writing: 0x%lx to 0x%lx\n",val,reg);
-    port_real_outb(PCI_MODE2_ENABLE_REG, 0xF1);
-    port_real_outb(PCI_MODE2_FORWARD_REG, bus); 
-    port_real_outd((dev << 8) + num,val);
-    port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    std_port_outb(PCI_MODE2_ENABLE_REG, 0xF1);
+    std_port_outb(PCI_MODE2_FORWARD_REG, bus); 
+    std_port_outd((dev << 8) + num,val);
+    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
 }
 
 static void
 write_dword(unsigned short loc,unsigned short reg,unsigned long val)
 {
     unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
-    priv_iopl(3);
     writePci(reg32, val);
-    priv_iopl(0);
 }
 
 static void
@@ -341,13 +339,11 @@ write_word(unsigned short loc,unsigned short reg,unsigned short word)
     unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
     int shift = reg & 0x2;
 
-    priv_iopl(3);
     val = readPci(reg32);
     val &= ~(unsigned long)(0xffff << (shift << 3));
     val |= word << (shift << 3);
     writePci(reg32, val);
 
-    priv_iopl(0);
 }
 
 static void
@@ -357,13 +353,10 @@ write_byte(unsigned short loc,unsigned short reg,unsigned char byte)
     unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
     int shift = reg & 0x3;
 
-    priv_iopl(3);
     val = readPci(reg32);
     val &= ~(unsigned long)(0xff << shift);
     val |= byte << (shift << 3);
     writePci(reg32, val);
-
-    priv_iopl(0);
 }
 
 static unsigned long
@@ -372,9 +365,7 @@ read_dword(unsigned short loc,unsigned short reg)
     unsigned long val;
     unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
 
-    priv_iopl(3);
     val = readPci(reg32);
-    priv_iopl(0);
     return val;
 }
 
@@ -385,10 +376,7 @@ read_word(unsigned short loc,unsigned short reg)
     int shift = reg & 0x2;
     unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
 
-    priv_iopl(3);
     val = (readPci(reg32) >> (shift << 3)) & 0xffff;
-    priv_iopl(0);
-
     return val;
 }
 
@@ -399,10 +387,7 @@ read_byte(unsigned short loc,unsigned short reg)
     int shift = reg & 0x3;
     unsigned long reg32 = loc << 8 | (reg & 0xfc) | PCI_EN;
 
-    priv_iopl(3);
     val = (readPci(reg32) >> (shift << 3)) & 0xff;
-    priv_iopl(0);
-
     return val;
 }
 

@@ -27,6 +27,7 @@
 #include "disks.h"
 #include "bios.h"
 #include "iodev.h"
+#include "pic.h"
 #include "lpt.h"
 #include "bitops.h"
 #include "xms.h"
@@ -311,7 +312,7 @@ static int dos_helper(void)
      * DANG_END_REMARK
      */
 #if 0
-    if (config.allowvideoportaccess) {
+    if (config.vga) {
       if (config.speaker != SPKR_NATIVE) {
 	v_printf("Giving temporary access to PIT#2\n");
 	set_ioperm(0x42, 2, 1);		/* port 0x43 too! */
@@ -336,7 +337,7 @@ static int dos_helper(void)
   case DOS_HELPER_VIDEO_INIT_DONE:
     v_printf("Finished with Video initialization\n");
 #if 0
-    if (config.allowvideoportaccess) {
+    if (config.vga) {
       if (config.speaker != SPKR_NATIVE) {
         v_printf("Removing temporary access to PIT#2\n");
         set_ioperm(0x42, 2, 0);
@@ -610,7 +611,7 @@ static void int15(u_char i)
     {
       case 0x00: {		/* giveup timeslice */
         static int trigger = 0;
-        if (config.hogthreshold) {
+        if (config.hogthreshold && CAN_SLEEP()) {
           if (trigger++ >= (config.hogthreshold - 1) * 100) {
             usleep(INT15_IDLE_USECS);
 	    trigger = 0;
@@ -1152,7 +1153,7 @@ static int ms_dos(int nr)
 
   case 0x2C: {                   /* get time & date */
       static int trigger = 0;
-      if (config.hogthreshold) {
+      if (config.hogthreshold && CAN_SLEEP()) {
         if (trigger++ >= (config.hogthreshold - 1) * 100) {
           usleep(INT2F_IDLE_USECS);
 	  trigger = 0;
@@ -1631,7 +1632,7 @@ static void int28(u_char i) {
     dos_post_boot();
   }
 
-  if (config.hogthreshold) {
+  if (config.hogthreshold && CAN_SLEEP()) {
     /* the hogthreshold value just got redefined to be the 'garrot' value */
     static int time_count = 0;
     if (++time_count >= config.hogthreshold * 50) {
@@ -1659,7 +1660,7 @@ static void int2f(u_char i)
   switch (LWORD(eax)) {
   case INT2F_IDLE_MAGIC: {  /* magic "give up time slice" value */
       static int trigger = 0;
-      if (config.hogthreshold) {
+      if (config.hogthreshold && CAN_SLEEP()) {
         if (trigger++ >= config.hogthreshold * 100) {
           usleep(INT2F_IDLE_USECS);
 	  trigger = 0;
@@ -1830,7 +1831,7 @@ m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
 /* Ok now we test to see if the mouse has been taking a break and we can let the 
  * system get on with some real work. :-) */
    if (trigger1 >= config.hogthreshold*200) {
-     if (config.hogthreshold && ++trigger >= config.hogthreshold)  {
+     if (config.hogthreshold && CAN_SLEEP() && ++trigger >= config.hogthreshold)  {
        m_printf("Ignoring the quiet mouse.\n");
        usleep(INT2F_IDLE_USECS);
        trigger=0;
@@ -2018,7 +2019,7 @@ void setup_interrupts(void) {
     interrupt_function[i] = default_interrupt;
 
     /* don't overwrite; these have been set during video init */
-    if(i == 0x1f || i == 0x43) continue;
+    if(video_ints[i]) continue;
 
     /* interrupts >= 0xc0 are scratch (BIOS stack), 
        unless defined by DOSEMU */	

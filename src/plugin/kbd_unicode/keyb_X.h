@@ -1,4 +1,5 @@
 #ifndef KEYB_X_H
+#define KEYB_X_H
 struct modifier_info {
 	int CapsLockMask;
 	KeyCode CapsLockKeycode;
@@ -11,6 +12,12 @@ struct modifier_info {
 	int InsLockMask;
 };
 extern struct modifier_info X_mi;
+struct mapped_X_event {
+	t_modifiers  modifiers;
+	t_unicode key;
+	Boolean make;
+};
+extern void map_X_event(Display *, XKeyEvent *, struct mapped_X_event *);
 /* Globals shared with X.c */
 extern Display *display;
 #ifdef HAVE_XKB

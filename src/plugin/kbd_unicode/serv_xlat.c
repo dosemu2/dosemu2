@@ -789,8 +789,7 @@ void init_rules(struct keyboard_rules *rules)
 {
 	int i;
 
-	rules->toggle_mask = config.toggle_mask;
-	rules->stickymap = rules->activemap = 0;
+	rules->activemap = 0;
 	for(i = 0; i < MAPS_MAX; i++) {
 		rules->maps[i].keyboard=KEYB_NO;
 	}
@@ -817,23 +816,6 @@ void keyb_reset_state(void)
 {
 	init_active_keyboard_state(&input_keyboard_state, &keyboard_rules);
 	init_active_keyboard_state(&dos_keyboard_state, &keyboard_rules);
-}
-void keyb_toggle_state(int map)
-{
-	struct keyboard_rules *rules = input_keyboard_state.rules;
-
-	if(map != -1) {
-		if(!rules->stickymap) {
-			rules->activemap = map;
-		}
-	} else {
-		if(++(rules->activemap) < MAPS_MAX && 
-			 rules->maps[rules->activemap].keyboard != KEYB_NO) {
-			rules->stickymap = 1;
-		}	else {
-			rules->activemap = rules->stickymap = 0;
-		}
-	}
 }
 /******************************************************************************************
  * Queue front end (keycode translation etc.)
@@ -1612,11 +1594,9 @@ static void put_keynum_r(Boolean make, t_keynum input_keynum, struct keyboard_st
 
 static void put_keynum(Boolean make, t_keynum input_keynum, t_keysym sym, struct keyboard_state *state)
 {
-	struct press_state *key;
-	if (sym != U_VOID) {
-		key = &state->rules->charset.keys[sym];
-		if (state->rules->activemap != key->map)
-			keyb_toggle_state(key->map);
+	if (sym != KEY_VOID) {
+		/* switch active keymap if needed */
+		state->rules->activemap = state->rules->charset.keys[sym].map;
 	}
 	put_keynum_r(make, input_keynum, state);
 }
@@ -2026,8 +2006,8 @@ static void put_character_symbol(
 	}
 	old_shiftstate = get_modifiers_r(state->shiftstate);
 	key = &state->rules->charset.keys[ch];
-	if (state->rules->activemap != key->map)
-		keyb_toggle_state(key->map);
+	/* switch active keymap if needed */
+	state->rules->activemap = key->map;
 	new_shiftstate = key->shiftstate | (old_shiftstate & key->shiftstate_mask);
 	if (key->deadsym == KEY_VOID) {
 		new_shiftstate |= modifiers;

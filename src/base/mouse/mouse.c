@@ -42,9 +42,6 @@
 #include "priv.h"
 #include "iodev.h"
 
-extern int get_perm ();
-extern int release_perm ();
-
 #ifdef X_SUPPORT
 extern void X_show_mouse_cursor(int yes);
 extern void X_set_mouse_cursor(int display, int x, int y, int x_range, int y_range);
@@ -1758,8 +1755,6 @@ text_cursor(void)
 void 
 graph_cursor(void)
 {
-  get_perm();
-  
   erase_graphics_cursor(&mouse_erase);
 
   /* draw_graphics_cursor wants screen coordinates, we have coordinates
@@ -1767,8 +1762,6 @@ graph_cursor(void)
   if (mouse.cursor_on == 0)
 	  draw_graphics_cursor(mouse.rx >> mouse.xshift, mouse.ry >> mouse.yshift,
 		mouse.hotx,mouse.hoty,16,16,&mouse_erase);
-
-  release_perm();
 }
 
 

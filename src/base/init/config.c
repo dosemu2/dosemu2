@@ -237,8 +237,8 @@ void dump_config_status(void *printfunc)
         config.num_ser, config.num_lpt, config.fastfloppy);
     (*print)("emusys \"%s\"\nemuini \"%s\"\n",
         (config.emusys ? config.emusys : ""), (config.emuini ? config.emuini : ""));
-    (*print)("dosbanner %d\nallowvideoportaccess %d\ndetach %d\n",
-        config.dosbanner, config.allowvideoportaccess, config.detach);
+    (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
+        config.dosbanner, config.vbios_post, config.detach);
     (*print)("debugout \"%s\"\n",
         (config.debugout ? config.debugout : (unsigned char *)""));
     {
@@ -638,7 +638,7 @@ static void config_post_process(void)
     if (config.vnet == 1) {
 	error("DOSNET is deprecated and will soon be removed.\n"
 	"Please consider using TAP instead.\n"
-	"To do this, you have to set $_vnet=(2)\n");
+	"To do this, you have to set $_vnet=\"TAP\"\n");
     }
 }
 

@@ -125,7 +125,6 @@ void get_screen_size (void)
 
 static void set_char_set (int cs)
 {
-   int i;
    switch (cs)
      {
 		 case CHARSET_KOI8:     	

@@ -48,10 +48,8 @@ extern int dos_has_vt;
 
 static void hga_restore_cursor(void)
 {
-  get_perm();
   port_out(10,0x03b4); port_out( 11,0x03b5);
   port_out(11,0x03b4); port_out( 12,0x03b5);
-  release_perm();
 }
 
 
@@ -62,8 +60,6 @@ void poshgacur(int x, int  y)
       hga_restore_cursor();
       return;
     }
-
-  get_perm();
 
   /* cursor address high */
   port_out(14,0x03b4); port_out( ( ( y*80+x ) & 0xFF00 )>>8 ,0x03b5);
@@ -76,8 +72,6 @@ void poshgacur(int x, int  y)
 
   /* cursor end */
   port_out(11,0x03b4); port_out( CURSOR_END(cursor_shape),0x03b5);
-
-  release_perm();
 
   return;
 }
@@ -112,8 +106,6 @@ void hgc_meminit(void)
 void mda_initialize(void)
 {
   cursor_shape = 0x0b0c;
-
-  get_perm();
 
   /* init 6845 Video-Controller */
   /* Values from c't 10/88 page 216 */
@@ -176,11 +168,6 @@ void mda_initialize(void)
   hgc_Mode = 0x28;
   hgc_Page = 0;
   video_initialized = 1;
-
-  /*  permissions _must_ be released, because we had to manage access
-   *  ourself, so we need an exception in vm86!
-   */
-  release_perm();
 }
 
 void mda_reinitialize(void)
@@ -262,8 +249,6 @@ void mda_reinitialize(void)
 #endif
 
 
-  get_perm();
-
   /* init 6845 Video-Controller */
   /* Values from c't 10/88 page 216 */
 
@@ -327,12 +312,6 @@ void mda_reinitialize(void)
   hgc_Mode = 0x28;
   hgc_Page = 0;
   video_initialized = 1;
-
-  /*  permissions _must_ be released, because we had to manage access
-   *  ourself, so we need an exception in vm86!
-   */
-  release_perm();
-
 }
 
 
@@ -357,10 +336,6 @@ void set_hgc_page(int page)
       HGC_PLEN,
       PROT_READ | PROT_WRITE,
       (void *) HGC_BASE0);
-
-
-   v_printf("Syncadr: soll %u\n",
-     (unsigned int) syncadr);
 
  /* save old visible page (page 1) */
  memcpy( phgcp1, syncadr, HGC_PLEN );
@@ -399,11 +374,6 @@ void set_hgc_page(int page)
     HGC_PLEN,
     PROT_READ | PROT_WRITE,
     (void *) HGC_BASE0);
-
-
-   v_printf("Syncadr: soll %u ist %u\n",
-     (unsigned int) syncadr,
-     (unsigned int) Test);
 
    /* save old visible page (page 0) */
    memcpy( phgcp0, syncadr, HGC_PLEN );

@@ -116,6 +116,7 @@
 
 #define INT10_SEG	ROMBIOSSEG
 #define INT10_OFF	0x4200
+#define INT10_POSTLESS_OFF	0x4220
 #define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
 
 /* int10 watcher for mouse support */

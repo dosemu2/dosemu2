@@ -34,12 +34,6 @@ struct keyboard_client {
   void   (*set_leds)(t_modifiers modifiers);
 };
 
-struct mapped_X_event {
-	t_modifiers  modifiers;
-	t_unicode key;
-	Boolean make;
-};
-
 EXTERN struct keyboard_client *Keyboard INIT(NULL);
 extern struct keyboard_client Keyboard_raw;
 extern struct keyboard_client Keyboard_slang;

@@ -174,9 +174,6 @@ gid_t get_orig_gid(void)
   return gid;
 }
 
-/* BIG NOTE:
- * The below 'priv_drop' should only be called from forked child processes !!
- */
 int priv_drop(void)
 {
   if (setreuid(uid,uid) || setregid(gid,gid))
@@ -184,6 +181,10 @@ int priv_drop(void)
       error("Cannot drop root uid or gid!\n");
       return 0;
     }
+  cur_euid = euid = uid;
+  cur_egid = egid = gid;
+  skip_priv_setting = 1;
+  if (uid) can_do_root_stuff = 0;
   return 1;
 }
 #endif /* __linux__ */

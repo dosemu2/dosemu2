@@ -235,7 +235,6 @@ set_linux_video (void)
 #endif
 	  restore_vga_state (&linux_regs);
 	}
-      release_perm ();
     }
 }
 
@@ -275,10 +274,17 @@ SIGRELEASE_call (void)
 #endif
 
 	  set_linux_video ();
-	  put_video_ram ();
+	  if (can_do_root_stuff) 
+	    { 
+	      release_perm ();
+	      put_video_ram ();
+	    }
 
 	  /*      if (config.vga) dos_pause(); */
 	  scr_state.current = 0;
+	  /* NOTE: if DOSEMU is not frozen then a DOS program in the background
+	     is capable of changing the screen appearance, even while in another
+	     console or X */
 	  freeze_dosemu();
 	}
     }
@@ -332,6 +338,7 @@ get_video_ram (int waitflag)
 
   char *textbuf = NULL, *vgabuf = NULL;
 
+  if (!can_do_root_stuff) return;
   v_printf ("get_video_ram STARTED\n");
   if (config.vga)
     {
@@ -605,11 +612,11 @@ set_vc_screen_page (int page)
 int
 get_perm (void)
 {
-  permissions++;
-  if (permissions > 1)
+  if (permissions > 0)
     {
       return 0;
     }
+  permissions++;
   if (config.vga)
     {				/* hope this will not lead to problems with ega/cga */
       /* get I/O permissions for VGA registers */
@@ -1103,50 +1110,8 @@ void
 install_int_10_handler (void)
 {
   unsigned char *ptr;
-
-#if 0
-  if (!config.usesX)
-    {
-      /* Wrapper around call to video init c000:0003 */
-      ptr = (u_char *) INT10_ADD;
-
-      *ptr++ = 0x50;		/* push ax          */
-      *ptr++ = 0xfb;		/* start interrupts STI  */
-
-      *ptr++ = 0xb0;
-      *ptr++ = 0x08;		/* mov  al,08  ; Start Video init     */
-
-      *ptr++ = 0xcd;
-      *ptr++ = DOS_HELPER_INT;		/* int  e6          */
-
-      if (config.vbios_seg == 0xe000)
-	{
-	  *ptr++ = 0x9a;
-	  *ptr++ = 0x03;
-	  *ptr++ = 0x00;
-	  *ptr++ = 0x00;
-	  *ptr++ = 0xe0;	/* call e000:0003   */
-	}
-      else
-	{
-	  *ptr++ = 0x9a;
-	  *ptr++ = 0x03;
-	  *ptr++ = 0x00;
-	  *ptr++ = 0x00;
-	  *ptr++ = 0xc0;	/* call c000:0003   */
-	}
-      *ptr++ = 0xb0;
-      *ptr++ = 0x09;		/* move al,09   ; Finished video init    */
-
-      *ptr++ = 0xcd;
-      *ptr++ = DOS_HELPER_INT;		/* int  e6          */
-
-      *ptr++ = 0x58;		/* pop ax           */
-      *ptr++ = 0xfb;		/* start interrupts STI  */
-      *ptr++ = 0xcb;		/* retf             */
-    }
-#else
-  if (config.vbios_seg == 0xe000) {
+  
+  if (config.vbios_seg == 0xe000 && config.vbios_post) {
     extern void bios_f000_int10ptr();
     ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_int10ptr - (long)bios_f000));
     *((long *)ptr) = 0xe0000003;
@@ -1154,5 +1119,4 @@ install_int_10_handler (void)
   }
   else
     v_printf("VID: install_int_10_handler: do nothing\n");
-#endif
 }

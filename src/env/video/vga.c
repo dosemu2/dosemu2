@@ -630,7 +630,7 @@ void init_vga_card(void)
   pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 4;
   WRITE_SEG_REG(cs, INT10_SEG);
-  LWORD(eip) = INT10_OFF;
+  LWORD(eip) = config.vbios_post ? INT10_OFF : INT10_POSTLESS_OFF;
 }
 
 /* End of video/vga.c */

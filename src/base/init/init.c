@@ -222,6 +222,9 @@ void hardware_setup(void)
 static inline void map_video_bios(void)
 {
   extern int load_file(char *name, int foffset, char *mstart, int msize);
+  uint32_t int_area[256];
+  uint16_t seg, off;
+  int i;
 
   v_printf("Mapping VBIOS = %d\n",config.mapped_bios);
 
@@ -246,6 +249,23 @@ static inline void map_video_bios(void)
 
     memcheck_addtype('V', "Video BIOS");
     memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
+    video_ints[0x1f] = 1;
+    video_ints[0x43] = 1;    
+    if (!config.vbios_post) {
+      load_file("/dev/mem", 0, (char *)int_area, sizeof(int_area));
+      for (i = 0; i < 256; i++) {
+        seg = int_area[i] >> 16;
+        off = int_area[i] & 0xffff;
+        g_printf("int0x%x was 0x%04x:0x%04x\n", i, seg, off);
+        if (seg == VBIOS_START >> 4) {
+          g_printf("Setting int0x%x to 0x%04x:0x%04x\n", i, seg, off);
+          SETIVEC(i, seg, off);
+          video_ints[i] = 1;
+        } else video_ints[i] = 0;
+      }
+      g_printf("Now initialising 0x40:0-ff\n");
+      load_file("/dev/mem", 0x40 << 4, (char *)(0x40 << 4), 0x100);
+    }
   }
 }
 
@@ -443,7 +463,7 @@ void device_init(void)
 #endif
    
   if (!config.vga)
-    config.allowvideoportaccess = 0;
+    config.vbios_post = 0;
  
   video_config_init();
   if (config.console && (config.speaker == SPKR_EMULATED)) {
@@ -498,7 +518,7 @@ void version_init(void) {
   running_kversion = atoi(strtok(version,".")) *1000000;
   running_kversion += atoi(strtok(NULL,".")) *1000;
   running_kversion += atoi(strtok(NULL,"."));
-  use_sigio=FASYNC;
+  use_sigio=O_ASYNC;
 #endif
   
 
@@ -509,7 +529,7 @@ void version_init(void) {
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
          unames.release[2] > 1 ) {
-      use_sigio=FASYNC;
+      use_sigio=O_ASYNC;
     }
   }
 #endif

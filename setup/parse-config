@@ -213,6 +213,10 @@ tolower($1) == "video" {
       write_entry( "video_graphics", "on")
       continue
     }
+    if (test == "vbios_post") {
+      write_entry( "video_vbios_post", "on")
+      continue
+    }
     if (test == "dualmon") {
       write_entry( "video_dualmon", "on")
       continue
@@ -251,12 +255,6 @@ tolower($1) == "video" {
     }
   }
   next;
-}
-
-tolower($1) == "allowvideoportaccess" {
-  get_line()
-  write_entry( "allowvideoportaccess", fields[1])
-  next
 }
 
 tolower($1) == "ports" {

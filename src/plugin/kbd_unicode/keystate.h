@@ -48,8 +48,7 @@ struct raw_key_state {
 struct keyboard_rules {
 	struct character_translate_rules charset;
 	struct scancode_translate_rules maps[MAPS_MAX];
-	int activemap, stickymap;
-	int toggle_mask;
+	int activemap;
 };
 
 struct keyboard_state {

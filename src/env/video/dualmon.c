@@ -75,8 +75,6 @@
 #include "hgc.h"
 #include "mapping.h"
 
-extern void close_kmem(), open_kmem();
-
 #define _IS_VS(s) (Video == ((struct video_system *)&(s)) )
 
 struct video_system *Video_default;

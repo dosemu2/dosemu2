@@ -522,6 +522,24 @@ CISH(bios_f000_int10ptr):
 	lret
 
 
+/* ----------------------------------------------------------------- */   
+/* Post-less video init
+ */
+	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_POSTLESS_OFF
+/* ======================= Addr = F800:4220 (FC220) */
+	pushw	%ax
+	cli
+	movb	$DOS_HELPER_VIDEO_INIT,%al		/*  Start Video init */
+	int	$DOSHELPER_INT
+	movw	$3,%ax
+	int	$0x10
+	movb	$DOS_HELPER_VIDEO_INIT_DONE,%al		/* Finished video init */
+	int     $DOSHELPER_INT
+	sti
+	popw	%ax
+	lret
+
+
 /* This is installed after video init (helper fcn 0x9) when the internal
 	mouse driver is in use.  It watches for mouse set commands and
 	resets the mouse driver when it sees one. */

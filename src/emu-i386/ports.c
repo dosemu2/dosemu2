@@ -35,6 +35,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/io.h>
 
 #include "emu.h"
 #include "port.h"
@@ -63,11 +64,7 @@ static const char *irq_handler_name[EMU_MAX_IRQS];
 
 #define SET_HANDLE(p,h)		port_handle_table[(Bit16u)(p)]=(h)
 #define EMU_HANDLER(port)	port_handler[port_handle_table[(Bit16u)(port)]]
-
-/* This is the same code that was used in cpu.c, priv_iopl is really
-   very slow */
-#define PORT_IOPLON(p,n)	if ((p)<0x400) set_ioperm((p),(n),1); else priv_iopl(3)
-#define PORT_IOPLOFF(p,n)	if ((p)<0x400) set_ioperm((p),(n),0); else priv_iopl(0)
+enum{TYPE_INB, TYPE_OUTB, TYPE_INW, TYPE_OUTW, TYPE_IND, TYPE_OUTD, TYPE_EXIT};
 
 /* any user or system device which creates a new handle can't be later
  * remapped by extra_port_init()
@@ -301,56 +298,72 @@ void port_outd(ioport_t port, Bit32u dword)
 /* default port I/O access
  */
 
+struct portreq 
+{
+        ioport_t port;
+        int type;
+        unsigned long word;
+};
+
+static int port_fd_out[2];
+static int port_fd_in[2];
+
 Bit8u std_port_inb(ioport_t port)
 {
-	Bit8u res;
-
-	PORT_IOPLON(port,1);
-	res = port_real_inb(port);
-	PORT_IOPLOFF(port,1);
-	return res;
+        struct portreq pr;
+        pr.port = port;
+        pr.type = TYPE_INB;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+	return pr.word;
 }
 
 void std_port_outb(ioport_t port, Bit8u byte)
 {
-	PORT_IOPLON(port,1);
-	port_real_outb(port, byte);
-	PORT_IOPLOFF(port,1);
+        struct portreq pr;
+        pr.word = byte;
+        pr.port = port;
+        pr.type = TYPE_OUTB;
+	write(port_fd_out[1], &pr, sizeof(pr));
 }
 
 Bit16u std_port_inw(ioport_t port)
 {
-	Bit16u res;
-
-	PORT_IOPLON(port,2);
-	res = port_real_inw(port);
-	PORT_IOPLOFF(port,2);
-	return res;
+        struct portreq pr;
+        pr.port = port;
+        pr.type = TYPE_INW;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+	return pr.word;
 }
 
 void std_port_outw(ioport_t port, Bit16u word)
 {
-	PORT_IOPLON(port,2);
-	port_real_outw(port, word);
-	PORT_IOPLOFF(port,2);
+        struct portreq pr;
+        pr.word = word;
+        pr.port = port;
+        pr.type = TYPE_OUTW;
+	write(port_fd_out[1], &pr, sizeof(pr));
 }
 
 Bit32u std_port_ind(ioport_t port)
 {
-	Bit32u res;
-	PORT_IOPLON(port,4);
-	res = port_real_ind(port);
-	PORT_IOPLOFF(port,4);
-	return res;
+        struct portreq pr;
+        pr.port = port;
+        pr.type = TYPE_IND;
+	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
+	return pr.word;
 }
 
 void std_port_outd(ioport_t port, Bit32u dword)
 {
-	PORT_IOPLON(port,4);
-	port_real_outd(port, dword);
-	PORT_IOPLOFF(port,4);
+        struct portreq pr;
+        pr.word = dword;
+        pr.port = port;
+        pr.type = TYPE_OUTD;
+	write(port_fd_out[1], &pr, sizeof(pr));
 }
-
 
 /* ---------------------------------------------------------------------- */
 /* the following functions are all static!				  */
@@ -418,12 +431,10 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	i_printf("Doing REP insb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).read_portb == std_port_inb) {
-	    PORT_IOPLON(port,1);
 	    while (count--) {
-	      *dest = port_real_inb(port);
+	      *dest = std_port_inb(port);
 	      dest += incr;
 	    }
-	    PORT_IOPLOFF(port,1);
 	}
 	else {
 	  while (count--) {
@@ -451,12 +462,10 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	i_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).write_portb == std_port_outb) {
-	    PORT_IOPLON(port,1);
 	    while (count--) {
-	      port_real_outb(port, *dest);
+	      std_port_outb(port, *dest);
 	      dest += incr;
 	    }
-	    PORT_IOPLOFF(port,1);
 	}
 	else {
 	  while (count--) {
@@ -484,12 +493,10 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	i_printf("Doing REP insw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).read_portw == std_port_inw) {
-	    PORT_IOPLON(port,2);
 	    while (count--) {
-	      *dest = port_real_inw(port);
+	      *dest = std_port_inw(port);
 	      dest += incr;
 	    }
-	    PORT_IOPLOFF(port,2);
 	}
 	else if (EMU_HANDLER(port).read_portw == NULL) {
 	  Bit16u res;
@@ -525,12 +532,10 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	i_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
 		count, base, df);
 	if (EMU_HANDLER(port).write_portw == std_port_outw) {
-	    PORT_IOPLON(port,2);
 	    while (count--) {
-	      port_real_outw(port, *dest);
+	      std_port_outw(port, *dest);
 	      dest += incr;
 	    }
-	    PORT_IOPLOFF(port,2);
 	}
 	else if (EMU_HANDLER(port).write_portw == NULL) {
 	  Bit16u res;
@@ -627,7 +632,6 @@ static Bit8u special_port_inb(ioport_t port)
 	if ((port==0x3ba)||(port==0x3da)) {
 		res = Misc_get_input_status_1();
 		if (!config.usesX && !r3da_pending && (config.emuretrace>1)) {
-			set_ioperm(0x3c0,1,0);
 			r3da_pending = port;
 		}
 	}
@@ -681,8 +685,7 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		    if (r3da_pending) {
 			(void)std_port_inb(r3da_pending);
 			r3da_pending = 0;
-			set_ioperm(0x3c0,1,1);
-			port_real_outb(0x3c0, byte);
+			std_port_outb(0x3c0, byte);
 			return;
 		    }
 		    goto defout;
@@ -829,6 +832,64 @@ int port_init(void)
 	return port_handles;	/* unused but useful */
 }
 
+/* port server: this function runs in a seperate process from the main
+   DOSEMU. This enables the main DOSEMU to drop root privileges. The
+   server can do that as well: by setting iopl(3).
+   Maybe this server should wrap DOSEMU rather than be forked from
+   it.
+*/
+void port_server(void)
+{
+        struct portreq pr;
+        unsigned char port_type;
+        priv_iopl(3);
+	priv_drop();
+        close(port_fd_in[0]);
+        close(port_fd_out[1]);
+        g_printf("server started\n");
+        for (;;) {
+                read(port_fd_out[0], &pr, sizeof(pr));
+                if (pr.type >= TYPE_EXIT)
+                        exit((int)pr.word);
+                port_type = port_handle_table[pr.port];
+                if (port_type != 0 && port_type < STD_HANDLES)
+                switch (pr.type) {
+                case TYPE_INB:
+                        if(port_handler[port_type].read_portb !=
+                           port_not_avail_inb)
+                                pr.word = port_real_inb(pr.port);
+                        break;
+                case TYPE_OUTB:
+                        if(port_handler[port_type].write_portb !=
+                           port_not_avail_outb)
+                                port_real_outb(pr.port, pr.word);
+                        break;
+                case TYPE_INW:
+                        if(port_handler[port_type].read_portw !=
+                           port_not_avail_inw)                        
+                                pr.word = port_real_inw(pr.port);
+                        break;
+                case TYPE_OUTW:
+                        if(port_handler[port_type].write_portw !=
+                           port_not_avail_outw)
+                                port_real_outw(pr.port, pr.word);
+                        break;
+                case TYPE_IND:
+                        if(port_handler[port_type].read_portd !=
+                           port_not_avail_ind)
+                                pr.word = port_real_ind(pr.port);
+                        break;
+                case TYPE_OUTD:
+                        if(port_handler[port_type].write_portd !=
+                           port_not_avail_outd)
+                                port_real_outd(pr.port, pr.word);
+                        break;
+                }
+                if (!(pr.type & 1))
+                        write(port_fd_in[1], &pr, sizeof(pr));
+        }
+}
+
 /* 
  * SIDOC_BEGIN_FUNCTION extra_port_init()
  *
@@ -933,7 +994,33 @@ int extra_port_init(void)
 	    SET_HANDLE_COND(i+1,HANDLE_SPECIAL);	/* W */
 	}
 
+        if (can_do_root_stuff) {
+                for (i = 0; i < sizeof(port_handle_table); i++) {
+                        if (port_handle_table[i] >= HANDLE_STD_IO &&
+                            port_handle_table[i] <= HANDLE_STD_WR) {
+                                /* fork the privileged port server */
+                                g_printf("starting port server\n");
+                                pipe(port_fd_out);
+                                pipe(port_fd_in);
+                                if (fork() == 0) {
+                                        port_server();
+                                }
+                                close(port_fd_in[1]);
+                                close(port_fd_out[0]);
+                                break;
+                        }
+                }
+        }
+
  	return 0;
+}
+
+void port_exit(int sig)
+{
+        struct portreq pr;
+        pr.type = TYPE_EXIT;
+        pr.word = (unsigned long)sig;
+        if (port_fd_out[1]) write(port_fd_out[1], &pr, sizeof(pr));
 }
 
 void release_ports (void)
@@ -1205,7 +1292,7 @@ set_ioperm(int start, int size, int flag)
 	PRIV_SAVE_AREA
 	int tmp;
 
-	if (!can_do_root_stuff || (start>0x3ff))
+	if ((!can_do_root_stuff && flag == 1) || (start>0x3ff))
 	    return -1;		/* don't bother */
 	if ((start+size)>0x3ff) size=0x400-start;
 
