@@ -461,7 +461,7 @@ run_vm86(void)
 	    ) &&
 	    SEGOFF2LINEAR(BIOSSEG, INT_OFF(VM86_ARG(retval))) !=
  		SEG_ADR((int), cs, ip) -2) {
-	  run_pm_int(VM86_ARG(retval));
+	  run_pm_dos_int(VM86_ARG(retval));
 	} else {
 	  do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG

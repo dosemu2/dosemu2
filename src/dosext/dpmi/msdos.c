@@ -30,17 +30,7 @@
 #include "dpmi.h"
 #include "msdos.h"
 
-enum { ES_INDEX = 0, CS_INDEX = 1, SS_INDEX = 2,  DS_INDEX = 3,
-       FS_INDEX = 4, GS_INDEX = 5 };
-
-#ifdef __linux__
-static struct sigcontext SAVED_REGS;
-static struct sigcontext MOUSE_SAVED_REGS;
-static struct sigcontext VIDEO_SAVED_REGS;
-static struct sigcontext INT15_SAVED_REGS;
-static struct sigcontext INT2f_SAVED_REGS;
-#define S_REG(reg) (SAVED_REGS.reg)
-#endif
+#define S_REG(reg) (DPMI_CLIENT.stack_frame.reg)
 
 #define TRANS_BUFFER_SEG EMM_SEGMENT
 
@@ -61,8 +51,6 @@ static struct sigcontext INT2f_SAVED_REGS;
 /* better way? */
 static unsigned short DS_MAPPED;
 static unsigned short ES_MAPPED;
-static int in_dos_21 = 0;
-static int last_dos_21 = 0;
 
 static void prepare_ems_frame(void)
 {
@@ -177,7 +165,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     /* only consider DOS and some BIOS services */
     switch (intr) {
     case 0x2f:
-	INT2f_SAVED_REGS = *scp;
 	if (_LWORD(eax) == 0x1684) {
 	    D_printf("DPMI: Get VxD entry point BX = 0x%04x\n",
 		     _LWORD(ebx));
@@ -267,7 +254,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	return MSDOS_DONE;
 
     case 0x10:			/* video */
-	VIDEO_SAVED_REGS = *scp;
 	switch (_HI(ax)) {
 	case 0x10:		/* Set/Get Palette Registers (EGA/VGA) */
 	    switch(_LO(ax)) {
@@ -308,7 +294,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	}
 	break;
     case 0x15:			/* misc */
-	INT15_SAVED_REGS = *scp;
 	switch (_HI(ax)) {
 	  case 0xc2:
 	    D_printf("DPMI: PS2MOUSE function 0x%x\n", _LO(ax));
@@ -338,13 +323,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	old_dos_terminate(scp, intr);
 	return 0;
     case 0x21:
-	if (in_dos_21) 
-	dbug_printf("DPMI: int21 AX=%#04x called recursively "
-		    "from inside %#04x, in_dos_21=%d\n",
-		_LWORD(eax), last_dos_21, in_dos_21);
-	last_dos_21 = _LWORD(eax);
-
-	SAVED_REGS = *scp;
 	switch (_HI(ax)) {
 	    /* first see if we don\'t need to go to real mode */
 	case 0x25:		/* set vector */
@@ -427,11 +405,9 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x5c:		/* lock */
 	case 0x66 ... 0x68:	
 	case 0xF8:		/* OEM SET vector */
-	    in_dos_21++;
 	    return 0;
 	case 0x00:		/* DOS terminate */
 	    old_dos_terminate(scp, intr);
-	    in_dos_21++;
 	    return 0;
 	case 0x09:		/* Print String */
 	    {
@@ -448,7 +424,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			break;
 		}
 	    }
-	    in_dos_21++;
 	    return 0;
 	case 0x0a:		/* buffered keyboard input */
 	case 0x38:
@@ -471,7 +446,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
                 DPMI_CLIENT.USER_DTA_SEL = 0;
             }
 	  }
-          in_dos_21++;
 	  return 0;
             
 	/* FCB functions */	    
@@ -492,7 +466,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    MEMCPY_DOS2DOS(SEG_ADR((void *), ds, dx),
 			(void *)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
 			0x50);
-	    in_dos_21++;
 	    return 0;
 	case 0x29:		/* Parse a file name for FCB */
 	    {
@@ -510,7 +483,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			    (void *)GetSegmentBaseAddress(_es) + D_16_32(_edi),
 			    0x50);
 	    }
-	    in_dos_21++;
 	    return 0;
 	case 0x44:		/* IOCTL */
 	    switch (_LO(ax)) {
@@ -519,7 +491,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		DS_MAPPED = 1;
 		break;
 	    default:
-		in_dos_21++;
 		return 0;
 	    }
 	    break;
@@ -527,7 +498,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(esi) = 0;
-	    in_dos_21++;
 	    return 0;
 	case 0x4b:		/* EXEC */
 	    D_printf("BCC: call dos exec.\n");
@@ -561,13 +531,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		DPMI_CLIENT.CURRENT_ENV_SEL = envp;
 	    }
 	  }
-	  in_dos_21++;
 	  return 0;
 
 	case 0x26:		/* create PSP */
 	    prepare_ems_frame();
 	    REG(edx) = TRANS_BUFFER_SEG;
-	    in_dos_21++;
 	    return 0;
 
 	case 0x55:		/* create & set PSP */
@@ -579,7 +547,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		DPMI_CLIENT.CURRENT_PSP = LWORD(edx);
 		DPMI_CLIENT.USER_PSP_SEL = 0;
 	    }
-	    in_dos_21++;
 	    return 0;
 
 	case 0x39:		/* mkdir */
@@ -604,7 +571,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		D_printf("%#x: '%s'\n", (int)src, src);
                 snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
-	    in_dos_21++;
 	    return 0;
 	case 0x3f:		/* dos read */
 	    set_io_buffer((char*)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
@@ -613,7 +579,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
 	    REG(ecx) = D_16_32(_ecx);
-	    in_dos_21++;
 	    fake_int_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF);
 	    return MSDOS_ALT_ENT;
 	case 0x40:		/* DOS Write */
@@ -623,7 +588,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
 	    REG(ecx) = D_16_32(_ecx);
-	    in_dos_21++;
 	    fake_int_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF);
 	    return MSDOS_ALT_ENT;
 	case 0x53:		/* Generate Drive Parameter Table  */
@@ -643,7 +607,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			    (void *)GetSegmentBaseAddress(_es) + D_16_32(_ebp),
 			    0x60);
 	    }
-	    in_dos_21++;
 	    return 0;
 	case 0x56:		/* rename file */
 	    {
@@ -660,11 +623,9 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		snprintf((char *)(REG(es)<<4), MAX_DOS_PATH, "%s",
 			     (char *)GetSegmentBaseAddress(_es) + D_16_32(_edi));
 	    }
-	    in_dos_21++;
 	    return 0;
 	case 0x57:		/* Get/Set File Date and Time Using Handle */
 	    if ((_LO(ax) == 0) || (_LO(ax) == 1)) {
-		in_dos_21++;
 		return 0;
 	    }
 	    ES_MAPPED = 1;
@@ -678,7 +639,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x5f:		/* redirection */
 	    switch (_LO(ax)) {
 	    case 0: case 1:
-		in_dos_21++;
 		return 0;
 	    case 2 ... 6:
 		prepare_ems_frame();
@@ -692,7 +652,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		MEMCPY_DOS2DOS(SEG_ADR((void *), es, di),
 			(void *)GetSegmentBaseAddress(_es) + D_16_32(_edi),
 			0x100);
-		in_dos_21++;
 		return 0;
 	    }
 	case 0x60:		/* Get Fully Qualified File Name */
@@ -704,7 +663,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    0x100);
 	    REG(es) = TRANS_BUFFER_SEG + 0x10;
 	    REG(edi) = 0;
-	    in_dos_21++;
 	    return 0;
 	case 0x6c:		/*  Extended Open/Create */
 	    {
@@ -718,7 +676,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		D_printf("%#x: '%s'\n", (int)src, src);
 		snprintf(dst, MAX_DOS_PATH, "%s", src);
 	    }
-	    in_dos_21++;
 	    return 0;
 	case 0x65:		/* internationalization */
     	    switch (_LO(ax)) {
@@ -753,7 +710,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			(void *)GetSegmentBaseAddress(_ds) + D_16_32(_edx));
 		    break;
 	    }
-            in_dos_21++;
             return 0;
     case 0x71:     /* LFN functions */
         {
@@ -766,7 +722,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
             dst = SEG_ADR((char *), ds, dx);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
-            in_dos_21++;
             return 0;
         case 0x4E: /* find first file */
             REG(ds) = TRANS_BUFFER_SEG;
@@ -776,7 +731,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
             dst = SEG_ADR((char *), ds, dx);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
-            in_dos_21++;
             return 0;
         case 0x4F: /* find next file */
             REG(es) = TRANS_BUFFER_SEG;
@@ -784,12 +738,10 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             src = (char *)GetSegmentBaseAddress(_es) + D_16_32(_edi);
             dst = SEG_ADR((char *), es, di);
             MEMCPY_DOS2DOS(dst, src, 0x13e);
-            in_dos_21++;
             return 0;
         case 0x47: /* get cur dir */
             REG(ds) = TRANS_BUFFER_SEG;
             REG(esi) = 0;
-            in_dos_21++;
             return 0;
 	case 0x60: /* canonicalize filename */
 	    REG(ds) = TRANS_BUFFER_SEG;
@@ -799,7 +751,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);	
 	    dst = SEG_ADR((char *), ds, si);
 	    snprintf(dst, MAX_DOS_PATH, "%s", src);
-	    in_dos_21++;
 	    return 0;
         case 0x6c: /* extended open/create */
             REG(ds) = TRANS_BUFFER_SEG;
@@ -807,10 +758,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);
             dst = SEG_ADR((char *), ds, si);
             snprintf(dst, MAX_DOS_PATH, "%s", src);
-            in_dos_21++;
             return 0;
         case 0xA1: /* close find */
-            in_dos_21++;
             return 0;
         default: /* all other subfuntions currently not supported */
             _eflags |= CF;
@@ -828,7 +777,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	D_printf("DPMI: msdos Absolute Disk Read/Write called.\n");
 	break;
     case 0x33:			/* mouse */
-	MOUSE_SAVED_REGS = *scp;
 	switch (_LWORD(eax)) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
 	    prepare_ems_frame();
@@ -894,7 +842,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     }
-    if (intr==0x21) in_dos_21++;
     return 0;
 }
 
@@ -981,9 +928,13 @@ void msdos_post_exec(void)
  * DANG_END_FUNCTION
  */
 
-void msdos_post_extender(int intr)
+int msdos_post_extender(int intr)
 {
-    D_printf("DPMI: post_extender: int 0x%x\n", intr);
+    int update_mask = ~0;
+#define PRESERVE1(rg) (update_mask &= ~(1 << rg##_INDEX))
+#define PRESERVE2(rg1, rg2) (update_mask &= ~((1 << rg1##_INDEX) | (1 << rg2##_INDEX)))
+#define SET_REG(rg, val) (PRESERVE1(rg), S_REG(rg) = (val))
+    D_printf("DPMI: post_extender: int 0x%x ax=0x%04x\n", intr, S_LWORD(eax));
 
     if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21 ) {
 	switch (S_HI(ax)) {	/* functions use DTA */
@@ -1026,70 +977,66 @@ void msdos_post_extender(int intr)
 
     switch (intr) {
     case 0x10:			/* video */
-	if ((VIDEO_SAVED_REGS.eax & 0xffff) == 0x1130) {
+	if (S_LWORD(eax) == 0x1130) {
 	    /* get current character generator infor */
-	    DPMI_CLIENT.stack_frame.es =
-		ConvertSegmentToDescriptor(REG(es));
-	    return;
-	} else
-	    break;
+	    SET_REG(es,	ConvertSegmentToDescriptor(REG(es)));
+	}
+	break;
     case 0x15:
 	/* we need to save regs at int15 because AH has the return value */
-	if ((INT15_SAVED_REGS.eax & 0xff00) == 0xc000) { /* Get Configuration */
+	if (S_HI(ax) == 0xc0) { /* Get Configuration */
                 if (REG(eflags)&CF)
-                        return;
-                if (!(DPMI_CLIENT.stack_frame.es =
-                         ConvertSegmentToDescriptor(REG(es)))) return;
-                break;
-      }
-        else
-                return;
+                        break;
+                SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+        }
+	break;
     case 0x2f:
-	switch (LO_WORD(INT2f_SAVED_REGS.eax)) {
+	switch (S_LWORD(eax)) {
 	    case 0x4310:
                 DPMI_CLIENT.XMS_call = MK_FARt(REG(es), LWORD(ebx));
-                DPMI_CLIENT.stack_frame.es = DPMI_CLIENT.DPMI_SEL;
-                DPMI_CLIENT.stack_frame.ebx = DPMI_OFF + HLT_OFF(DPMI_XMS_call);
+                SET_REG(es, DPMI_CLIENT.DPMI_SEL);
+                SET_REG(ebx, DPMI_OFF + HLT_OFF(DPMI_XMS_call));
 		break;
 	}
-	return;
+	break;
 
     case 0x21:
-	in_dos_21--;
 	switch (S_HI(ax)) {
 	case 0x09:		/* print String */
 	case 0x1a:		/* set DTA */
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    PRESERVE1(edx);
 	    break;
 	case 0x11: case 0x12:	/* findfirst/next using FCB */
  	case 0x13:		/* Delete using FCB */
  	case 0x16:		/* Create usring FCB */
  	case 0x17:		/* rename using FCB */
+ 	    PRESERVE1(edx);
 	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds)) + D_16_32(S_REG(edx)),
 			SEG_ADR((void *), ds, dx), 0x50);
- 	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
-	    break ;
+	    break;
 
 	case 0x29:		/* Parse a file name for FCB */
+	    PRESERVE2(esi, edi);
 	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds)) + D_16_32(S_REG(esi)),
 		/* Warning: SI altered, assume old value = 0, don't touch. */
 			    (void *)(REG(ds)<<4), 0x100);
-	    DPMI_CLIENT.stack_frame.esi = S_REG(esi) + LWORD(esi); 
-
+	    SET_REG(esi, S_REG(esi) + LWORD(esi));
 	    MEMCPY_DOS2DOS((void *)(GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(edi))),
 			    SEG_ADR((void *), es, di),  0x50);
-	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
 	    break;
 
 	case 0x2f:		/* GET DTA */
 	    if (SEG_ADR((void*), es, bx) == DTA_under_1MB) {
 		if (!DPMI_CLIENT.USER_DTA_SEL)
 		    error("Selector is not set for the translated DTA\n");
-		DPMI_CLIENT.stack_frame.es = DPMI_CLIENT.USER_DTA_SEL;
-		DPMI_CLIENT.stack_frame.ebx = DPMI_CLIENT.USER_DTA_OFF;
+		SET_REG(es, DPMI_CLIENT.USER_DTA_SEL);
+		SET_REG(ebx, DPMI_CLIENT.USER_DTA_OFF);
 	    } else {
-		DPMI_CLIENT.stack_frame.es = ConvertSegmentToDescriptor(REG(es));
-		HI_WORD(DPMI_CLIENT.stack_frame.ebx) = 0;
+		SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+		/* it is important to copy only the lower word of ebx
+		 * and make the higher word zero, so do it here instead
+		 * of relying on dpmi.c */
+		SET_REG(ebx, LWORD(ebx));
 	    }
 	    break;
 
@@ -1097,8 +1044,7 @@ void msdos_post_extender(int intr)
 	case 0x35:		/* GET Vector */
 	case 0x52:		/* Get List of List */
 	    if (!ES_MAPPED)
-	      DPMI_CLIENT.stack_frame.es =
-	               ConvertSegmentToDescriptor(REG(es));
+	      SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
 	    break;
 
 	case 0x39:		/* mkdir */
@@ -1110,50 +1056,48 @@ void msdos_post_extender(int intr)
 	case 0x43:		/* change attr */
 	case 0x4e:		/* find first */
 	case 0x5b:		/* Create */
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    PRESERVE1(edx);
 	    break;
 
 	case 0x50:		/* Set PSP */
-	    DPMI_CLIENT.stack_frame.ebx = S_REG(ebx);
+	    PRESERVE1(ebx);
 	    break;
 
 	case 0x6c:		/*  Extended Open/Create */
-	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    PRESERVE1(esi);
 	    break;
 	    
 	case 0x55:		/* create & set PSP */
 	  {
 	    unsigned short envp;
+	    PRESERVE1(edx);
 	    envp = *(unsigned short *)(((char *)(LWORD(edx)<<4)) + 0x2c);
 	    DPMI_CLIENT.CURRENT_ENV_SEL = ConvertSegmentToDescriptor(envp);
 	    if ( !in_dos_space(S_LWORD(edx), 0)) {
 		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_LWORD(edx)),
 		    SEG2LINEAR(LWORD(edx)), 0x100);
 	    }
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
 	  }
 	  break;
 
 	case 0x26:		/* create PSP */
+	    PRESERVE1(edx);
 	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_LWORD(edx)),
 		(void *)SEG2LINEAR(LWORD(edx)), 0x100);
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
 	  break;
 
         case 0x59:		/* Get EXTENDED ERROR INFORMATION */
 	    if(LWORD(eax) == 0x22 && !ES_MAPPED) { /* only this code has a pointer */
-		DPMI_CLIENT.stack_frame.es =
-			ConvertSegmentToDescriptor(REG(es));
+		SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
 	    }
 	    break;
 	case 0x38:
 	    if (S_LO(ax) == 0x00 && !DS_MAPPED) { /* get country info */
-		DPMI_CLIENT.stack_frame.ds =
-	               ConvertSegmentToDescriptor(REG(ds));
+		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
 	    }
 	    break;
 	case 0x47:		/* get CWD */
-	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    PRESERVE1(esi);
 	    if (LWORD(eflags) & CF)
 		break;
 	    snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
@@ -1166,8 +1110,7 @@ void msdos_post_extender(int intr)
 	case 0x48:		/* allocate memory */
 	    if (LWORD(eflags) & CF)
 		break;
-	    DPMI_CLIENT.stack_frame.eax =
-		ConvertSegmentToDescriptor(LWORD(eax));
+	    SET_REG(eax, ConvertSegmentToDescriptor(LWORD(eax)));
 	    break;
 #endif	    
 	case 0x51:		/* get PSP */
@@ -1185,49 +1128,44 @@ void msdos_post_extender(int intr)
 		*(unsigned short *)(((char *)(psp<<4))+0x2c) = envp;
 #endif
 		if (psp == DPMI_CLIENT.CURRENT_PSP && DPMI_CLIENT.USER_PSP_SEL) {
-		    DPMI_CLIENT.stack_frame.ebx = DPMI_CLIENT.USER_PSP_SEL;
+		    SET_REG(ebx, DPMI_CLIENT.USER_PSP_SEL);
 		} else {
-		    DPMI_CLIENT.stack_frame.ebx = ConvertSegmentToDescriptor(psp);
+		    SET_REG(ebx, ConvertSegmentToDescriptor(psp));
 		}
 	    }
 	    break;
 	case 0x53:		/* Generate Drive Parameter Table  */
-	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    PRESERVE2(esi, ebp);
 	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(ebp)),
 			    SEG_ADR((void *), es, bp),
 			    0x60);
-	    DPMI_CLIENT.stack_frame.ebp = S_REG(ebp);
 	    break ;
 	case 0x56:		/* rename */
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
-	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+	    PRESERVE2(edx, edi);
 	    break ;
 	case 0x5d:
 	    if (S_LO(ax) == 0x06) /* get address of DOS swappable area */
 				/*        -> DS:SI                     */
-		DPMI_CLIENT.stack_frame.ds = ConvertSegmentToDescriptor(REG(ds));
+		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
 	    break;
 	case 0x3f:
 	    unset_io_buffer();
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
-	    DPMI_CLIENT.stack_frame.ecx = S_REG(ecx);
+	    PRESERVE2(edx, ecx);
 	    break;
 	case 0x40:
 	    unset_io_buffer();
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
-	    DPMI_CLIENT.stack_frame.ecx = S_REG(ecx);
+	    PRESERVE2(edx, ecx);
 	    break;
 	case 0x5f:		/* redirection */
 	    switch (S_LO(ax)) {
 	    case 0: case 1:
 		break ;
 	    case 2 ... 6:
-		DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+		PRESERVE2(esi, edi);
 		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(ds))
 			+ D_16_32(S_REG(esi)),
 			SEG_ADR((void *), ds, si),
 			0x100);
-		DPMI_CLIENT.stack_frame.edi = S_REG(edi);
 		MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
 			+ D_16_32(S_REG(edi)),
 			SEG_ADR((void *), es, di),
@@ -1235,16 +1173,14 @@ void msdos_post_extender(int intr)
 	    }
 	    break;
 	case 0x60:		/* Canonicalize file name */
-	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
-	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+	    PRESERVE2(esi, edi);
 	    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
 			+ D_16_32(S_REG(edi)),
 			SEG_ADR((void *), es, di),
 			0x80);
 	    break;
 	case 0x65:		/* internationalization */
-	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
-	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    PRESERVE2(edi, edx);
 	    if (LWORD(eflags) & CF)
 		break;
     	    switch (S_LO(ax)) {
@@ -1273,13 +1209,13 @@ void msdos_post_extender(int intr)
         switch (S_LO(ax)) {
         case 0x3B:
         case 0x41:
-            DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    PRESERVE1(edx);
             break;
         case 0x4E:
-            DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    PRESERVE1(edx);
             /* fall thru */
         case 0x4F:
-            DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+	    PRESERVE1(edi);
             if (LWORD(eflags) & CF)
                 break;
             MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
@@ -1288,7 +1224,7 @@ void msdos_post_extender(int intr)
                         0x13E);
             break;
         case 0x47:
-            DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    PRESERVE1(esi);
             if (LWORD(eflags) & CF)
                 break;
 	    snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
@@ -1296,8 +1232,7 @@ void msdos_post_extender(int intr)
 		        SEG_ADR((char *), ds, si));
             break;
 	case 0x60:
-	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
-	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+	    PRESERVE2(esi, edi);
 	    if (LWORD(eflags) & CF)
 		break;
 	    snprintf((void *)GetSegmentBaseAddress(S_REG(es)) + 
@@ -1305,7 +1240,7 @@ void msdos_post_extender(int intr)
 		SEG_ADR((char *), es, di));
 	    break;
         case 0x6c:
-            DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    PRESERVE1(esi);
             break;
         };
 
@@ -1327,17 +1262,15 @@ void msdos_post_extender(int intr)
 	}
 	break;
     case 0x33:			/* mouse */
-	switch (MOUSE_SAVED_REGS.eax & 0xffff) {
+	switch (S_LWORD(eax)) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
-	    DPMI_CLIENT.stack_frame.edx = MOUSE_SAVED_REGS.edx;
+	    PRESERVE1(edx);
 	    break;
 	case 0x14:		/* swap call back */
-	    DPMI_CLIENT.stack_frame.es =
-                  	    ConvertSegmentToDescriptor(REG(es)); 
+	    SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
 	    break;
 	case 0x19:		/* Get User Alternate Interrupt Address */
-	    DPMI_CLIENT.stack_frame.ebx =
-                  	    ConvertSegmentToDescriptor(LWORD(ebx)); 
+	    SET_REG(ebx, ConvertSegmentToDescriptor(LWORD(ebx)));
 	    break;
 	default:
 	    break;
@@ -1348,6 +1281,7 @@ void msdos_post_extender(int intr)
     DS_MAPPED = 0;
     ES_MAPPED = 0;
     restore_ems_frame();
+    return update_mask;
 }
 
 static char decode_use_16bit;
@@ -1558,10 +1492,10 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
 
     switch (*csp) {
     case 0xc5:
-	*sreg = DS_INDEX;		/* LDS */
+	*sreg = ds_INDEX;		/* LDS */
 	break;
     case 0xc4:
-	*sreg = ES_INDEX;		/* LES */
+	*sreg = es_INDEX;		/* LES */
 	break;
     default:
 	return 0;
@@ -1647,17 +1581,17 @@ decode_pop_segreg(struct sigcontext_struct *scp, unsigned short
     case 0x1f:			/* pop ds */
 	len = 1;
 	*segment = *ssp;
-	*sreg = DS_INDEX;
+	*sreg = ds_INDEX;
 	break;
     case 0x07:			/* pop es */
 	len = 1;
 	*segment = *ssp;
-	*sreg = ES_INDEX;
+	*sreg = es_INDEX;
 	break;
     case 0x17:			/* pop ss */
 	len = 1;
 	*segment = *ssp;
-	*sreg = SS_INDEX;
+	*sreg = ss_INDEX;
 	break;
     case 0x0f:		/* two byte opcode */
 	csp++;
@@ -1665,12 +1599,12 @@ decode_pop_segreg(struct sigcontext_struct *scp, unsigned short
 	case 0xa1:		/* pop fs */
 	    len = 2;
 	    *segment = *ssp;
-	    *sreg = FS_INDEX;
+	    *sreg = fs_INDEX;
 	    break;
 	case 0xa9:		/* pop gs */
 	    len = 2;
 	    *segment = *ssp;
-	    *sreg = GS_INDEX;
+	    *sreg = gs_INDEX;
 	break;
 	}
     }
@@ -1695,7 +1629,7 @@ decode_retf_iret(struct sigcontext_struct *scp, unsigned short *segment,
 	    len = 1;
 	    _eip = decode_use_16bit ? ssp[0] : ((unsigned int *) ssp)[0];
 	    *segment = decode_use_16bit ? ssp[1] : ((unsigned int *) ssp)[1];
-	    *sreg = CS_INDEX;
+	    *sreg = cs_INDEX;
 	    _esp += decode_use_16bit ? 4 : 8;
 	    break;
     }
@@ -1735,7 +1669,7 @@ decode_jmp_f(struct sigcontext_struct *scp, unsigned short *segment,
 		((unsigned int *)(csp + 1))[0];
 	    *segment = decode_use_16bit ? ((unsigned short *)(csp + 3))[0] :
 		((unsigned short *)(csp + 5))[0];
-	    *sreg = CS_INDEX;
+	    *sreg = cs_INDEX;
 	    break;
     }
     if (len)
@@ -1949,28 +1883,28 @@ int msdos_fault(struct sigcontext_struct *scp)
 	return 0;
 #endif    
 
-    if (!(desc = (reg != CS_INDEX ? ConvertSegmentToDescriptor(segment) :
+    if (!(desc = (reg != cs_INDEX ? ConvertSegmentToDescriptor(segment) :
 	ConvertSegmentToCodeDescriptor(segment))))
 	return 0;
 
     /* OKay, all the sanity checks passed. Now we go and fix the selector */
     switch (reg) {
-    case ES_INDEX:
+    case es_INDEX:
 	new_sct.es = desc;
 	break;
-    case CS_INDEX:
+    case cs_INDEX:
 	new_sct.cs = desc;
 	break;
-    case SS_INDEX:
+    case ss_INDEX:
 	new_sct.ss = desc;
 	break;
-    case DS_INDEX:
+    case ds_INDEX:
 	new_sct.ds = desc;
 	break;
-    case FS_INDEX:
+    case fs_INDEX:
 	new_sct.fs = desc;
 	break;
-    case GS_INDEX:
+    case gs_INDEX:
 	new_sct.gs = desc;
 	break;
     default :

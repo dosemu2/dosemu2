@@ -779,6 +779,18 @@ CISH(DPMI_XMS_call):
 CISH(DPMI_return_from_XMS_call):
 	hlt
 /* ======================= Addr = F800:4A5A (FCA5A) */
+	.globl	CISH(DPMI_return_from_int_1c)
+CISH(DPMI_return_from_int_1c):
+	hlt
+/* ======================= Addr = F800:4A5B (FCA5B) */
+	.globl	CISH(DPMI_return_from_int_23)
+CISH(DPMI_return_from_int_23):
+	hlt
+/* ======================= Addr = F800:4A5C (FCA5C) */
+	.globl	CISH(DPMI_return_from_int_24)
+CISH(DPMI_return_from_int_24):
+	hlt
+/* ======================= Addr = F800:4A5D (FCA5D) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 

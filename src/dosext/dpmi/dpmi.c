@@ -615,7 +615,7 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
   Segments[ldt_entry].not_present = seg_not_present;
   Segments[ldt_entry].useable = useable;
   return 0;
-} 
+}
 
 static int SystemSelector(unsigned short selector)
 {
@@ -1219,6 +1219,45 @@ void indirect_dpmi_switch(struct sigcontext_struct *scp)
     copy_context(scp, &DPMI_CLIENT.stack_frame);
 }
 
+static void pm_to_rm_regs(struct sigcontext_struct *scp, unsigned int mask)
+{
+  REG(eflags) = eflags_VIF(_eflags);
+  if (mask & (1 << eax_INDEX))
+    REG(eax) = _eax;
+  if (mask & (1 << ebx_INDEX))
+    REG(ebx) = _ebx;
+  if (mask & (1 << ecx_INDEX))
+    REG(ecx) = _ecx;
+  if (mask & (1 << edx_INDEX))
+    REG(edx) = _edx;
+  if (mask & (1 << esi_INDEX))
+    REG(esi) = _esi;
+  if (mask & (1 << edi_INDEX))
+    REG(edi) = _edi;
+  if (mask & (1 << ebp_INDEX))
+    REG(ebp) = _ebp;
+}
+
+static void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
+{
+  DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
+      dpmi_mhp_TF;
+  if (mask & (1 << eax_INDEX))
+    DPMI_CLIENT.stack_frame.eax = REG(eax);
+  if (mask & (1 << ebx_INDEX))
+    DPMI_CLIENT.stack_frame.ebx = REG(ebx);
+  if (mask & (1 << ecx_INDEX))
+    DPMI_CLIENT.stack_frame.ecx = REG(ecx);
+  if (mask & (1 << edx_INDEX))
+    DPMI_CLIENT.stack_frame.edx = REG(edx);
+  if (mask & (1 << esi_INDEX))
+    DPMI_CLIENT.stack_frame.esi = REG(esi);
+  if (mask & (1 << edi_INDEX))
+    DPMI_CLIENT.stack_frame.edi = REG(edi);
+  if (mask & (1 << ebp_INDEX))
+    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
+}
+
 static void save_rm_context(void)
 {
   if (RealModeContext_Running >= DPMI_max_rec_rm_func) {
@@ -1308,7 +1347,7 @@ void fake_pm_int(void)
 
 static void get_ext_API(struct sigcontext_struct *scp)
 {
-      char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMI_CLIENT.is_32 ? _esi : _LWORD(esi)));
+      char *ptr = (char *) (GetSegmentBaseAddress(_ds) + D_16_32(_esi));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
       if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
         if (config.pm_dos_api) {
@@ -1765,7 +1804,7 @@ err:
 	  
   case 0x0500:
     GetFreeMemoryInformation( (unsigned int *)
-	(GetSegmentBaseAddress(_es) + (DPMI_CLIENT.is_32 ? _edi : _LWORD(edi))));
+	(GetSegmentBaseAddress(_es) + D_16_32(_edi)));
     break;
   case 0x0501:	/* Allocate Memory Block */
     { 
@@ -1879,7 +1918,7 @@ err:
 	old_len = block -> size;
 	
 	if(_edx & 0x2) {		/* update descriptor required */
-	    sel_array = (unsigned short *)(GetSegmentBaseAddress(_es) +_ebx);
+	    sel_array = (unsigned short *)(GetSegmentBaseAddress(_es) + D_16_32(_ebx));
 	    D_printf("DPMI: update descriptor required\n");
 	}
 	if((block = DPMIreallocLinear(handle, newsize, _edx & 1)) == NULL) {
@@ -2310,14 +2349,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
   }
 
   save_rm_regs();
-  REG(eflags) = eflags_VIF(_eflags);
-  REG(eax) = _eax;
-  REG(ebx) = _ebx;
-  REG(ecx) = _ecx;
-  REG(edx) = _edx;
-  REG(esi) = _esi;
-  REG(edi) = _edi;
-  REG(ebp) = _ebp;
+  pm_to_rm_regs(scp, ~0);
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
 
@@ -2348,7 +2380,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 /* DANG_BEGIN_FUNCTION run_pm_int
  *
  * This routine is used for running protected mode hardware
- * interrupts and software interrupts 0x1c, 0x23 and 0x24.
+ * interrupts.
  * run_pm_int() switches to the locked protected mode stack
  * and calls the handler. If no handler is installed the
  * real mode interrupt routine is called.
@@ -2438,6 +2470,96 @@ void run_pm_int(int i)
     *--ssp = DPMI_CLIENT.DPMI_SEL; 
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
     ADD_16_32(PMSTACK_ESP, -18);
+  }
+  DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
+  DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
+  DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
+  DPMI_CLIENT.stack_frame.esp = D_16_32(PMSTACK_ESP);
+  DPMI_CLIENT.stack_frame.eflags &= ~(TF | NT | AC);
+  in_dpmi_pm_stack++;
+  in_dpmi_dos_int = 0;
+  clear_IF();
+#ifdef USE_MHPDBG
+  mhp_debug(DBG_INTx + (i << 8), 0, 0);
+#endif
+}
+
+/* DANG_BEGIN_FUNCTION run_pm_dos_int
+ *
+ * This routine is used for reflecting the software
+ * interrupts 0x1c, 0x23 and 0x24 to protected mode.
+ *
+ * DANG_END_FUNCTION
+ */
+void run_pm_dos_int(int i)
+{
+  unsigned short CLIENT_PMSTACK_SEL, *ssp;
+  unsigned long ret_eip;
+
+  D_printf("DPMI: run_pm_dos_int(0x%02x) called\n",i);
+
+  if (DPMI_CLIENT.Interrupt_Table[i].selector == DPMI_CLIENT.DPMI_SEL) {
+    D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
+    do_int(i);
+    return;
+  }
+
+  save_pm_regs(&DPMI_CLIENT.stack_frame);
+  rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
+
+  if (!in_dpmi_pm_stack) {
+    D_printf("DPMI: Switching to locked stack\n");
+    CLIENT_PMSTACK_SEL = DPMI_CLIENT.PMSTACK_SEL;
+    if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL)
+      error("DPMI: run_pm_dos_int: App is working on host\'s PM locked stack, expect troubles!\n");
+  }
+  else {
+    D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+      in_dpmi_pm_stack);
+    CLIENT_PMSTACK_SEL = DPMI_CLIENT.stack_frame.ss;
+  }
+
+  if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
+    PMSTACK_ESP = client_esp(0);
+  else
+    PMSTACK_ESP = D_16_32(DPMI_pm_stack_size);
+
+  if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+  }
+
+  ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
+
+  switch(i) {
+    case 0x1c:
+      ret_eip = DPMI_OFF + HLT_OFF(DPMI_return_from_int_1c);
+      break;
+    case 0x23:
+      ret_eip = DPMI_OFF + HLT_OFF(DPMI_return_from_int_23);
+      break;
+    case 0x24:
+      ret_eip = DPMI_OFF + HLT_OFF(DPMI_return_from_int_24);
+      DPMI_CLIENT.stack_frame.ebp = ConvertSegmentToDescriptor(LWORD(ebp));
+      /* maybe copy the RM stack? */
+      break;
+    default:
+      error("run_pm_dos_int called with arg 0x%x\n", i);
+      leavedos(87);
+  }
+
+  D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
+  if (DPMI_CLIENT.is_32) {
+    ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+    *--ssp = (us) 0;
+    *--ssp = DPMI_CLIENT.DPMI_SEL;
+    ssp -= 2, *((unsigned long *) ssp) = ret_eip;
+    ADD_16_32(PMSTACK_ESP, -12);
+  } else {
+    *--ssp = (unsigned short) get_vFLAGS(DPMI_CLIENT.stack_frame.eflags);
+    *--ssp = DPMI_CLIENT.DPMI_SEL; 
+    *--ssp = ret_eip;
+    ADD_16_32(PMSTACK_ESP, -6);
   }
   DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
@@ -2670,14 +2792,7 @@ static void dpmi_init(void)
   DPMI_CLIENT.stack_frame.es	= ES;
   DPMI_CLIENT.stack_frame.fs	= 0;
   DPMI_CLIENT.stack_frame.gs	= 0;
-  DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0cd5 & REG(eflags));
-  DPMI_CLIENT.stack_frame.eax = REG(eax);
-  DPMI_CLIENT.stack_frame.ebx = REG(ebx);
-  DPMI_CLIENT.stack_frame.ecx = REG(ecx);
-  DPMI_CLIENT.stack_frame.edx = REG(edx);
-  DPMI_CLIENT.stack_frame.esi = REG(esi);
-  DPMI_CLIENT.stack_frame.edi = REG(edi);
-  DPMI_CLIENT.stack_frame.ebp = REG(ebp);
+  rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
   return; /* return immediately to the main loop */
 
 err:
@@ -2948,7 +3063,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #endif
 
   csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
-  ssp = (us *) (GetSegmentBaseAddress(_ss) + client_esp(scp));
+  ssp = (us *) SEL_ADR(_ss, _esp);
   
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {
@@ -3057,7 +3172,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  *--ssp = get_vFLAGS(_eflags);
 	  *--ssp = _cs;
 	  *--ssp = _LWORD(eip);
-	  _esp -= 6;
+	  _LWORD(esp) -= 6;
 	}
 	if (*csp<=7) {
 	  clear_IF();
@@ -3143,14 +3258,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  D_printf("DPMI: XMS call to 0x%x:0x%x\n",
 	    DPMI_CLIENT.XMS_call.segment, DPMI_CLIENT.XMS_call.offset);
 	  save_rm_regs();
-	  REG(eflags) = eflags_VIF(_eflags);
-	  REG(eax) = _eax;
-	  REG(ebx) = _ebx;
-	  REG(ecx) = _ecx;
-	  REG(edx) = _edx;
-	  REG(esi) = _esi;
-	  REG(edi) = _edi;
-	  REG(ebp) = _ebp;
+	  pm_to_rm_regs(scp, ~0);
 	  REG(cs) = DPMI_SEG;
 	  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_XMS_call);
 	  in_dpmi_dos_int = 1;
@@ -3298,7 +3406,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  struct RealModeCallStructure *rmreg;
 
 	  rmreg = (struct RealModeCallStructure *)(GetSegmentBaseAddress(_es)
-		                + (DPMI_CLIENT.is_32 ? _edi : _LWORD(edi)));
+		                + D_16_32(_edi));
 
 	  if (in_dpmi_pm_stack) {
 	    in_dpmi_pm_stack--;
@@ -3342,6 +3450,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  D_printf("DPMI: Return from mouse callback, in_dpmi_pm_stack=%i\n",
 	    in_dpmi_pm_stack);
 
+	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -3357,6 +3466,76 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  D_printf("DPMI: Return from PS2 mouse callback, in_dpmi_pm_stack=%i\n",
 	    in_dpmi_pm_stack);
 
+	  pm_to_rm_regs(scp, ~0);
+	  restore_pm_regs(scp);
+	  in_dpmi_dos_int = 1;
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_1c)) {
+
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during int1c callback!\n");
+//	      leavedos(91);
+	    }
+	  }
+	  D_printf("DPMI: Return from int1c, in_dpmi_pm_stack=%i\n",
+	    in_dpmi_pm_stack);
+
+	  pm_to_rm_regs(scp, ~0);
+	  restore_pm_regs(scp);
+	  in_dpmi_dos_int = 1;
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_23)) {
+	  struct sigcontext_struct old_ctx;
+	  unsigned long old_esp;
+	  int esp_delta;
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during int23 callback!\n");
+//	      leavedos(91);
+	    }
+	  }
+	  D_printf("DPMI: Return from int23 callback, in_dpmi_pm_stack=%i\n",
+	    in_dpmi_pm_stack);
+
+	  pm_to_rm_regs(scp, ~0);
+	  restore_pm_regs(&old_ctx);
+	  old_esp = in_dpmi_pm_stack ? D_16_32(old_ctx.esp) : D_16_32(DPMI_pm_stack_size);
+	  esp_delta = old_esp - D_16_32(_esp);
+	  if (esp_delta) {
+	    unsigned char *rm_ssp;
+	    unsigned short *ssp;
+	    unsigned long sp;
+	    D_printf("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
+	    rm_ssp = (unsigned char *) (REG(ss) << 4);
+	    sp = (unsigned long) LWORD(esp);
+	    ssp = (us *) SEL_ADR(_ss, _esp);
+	    esp_delta >>= DPMI_CLIENT.is_32;
+	    if (esp_delta == 2) {
+	      pushw(rm_ssp, sp, *ssp);
+	      LWORD(esp) -= 2;
+	    } else {
+	      error("DPMI: ret from int23 with esp_delta=%i\n", esp_delta);
+	    }
+	  }
+	  *scp = old_ctx;
+	  in_dpmi_dos_int = 1;
+
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_int_24)) {
+
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during int24 callback!\n");
+//	      leavedos(91);
+	    }
+	  }
+	  D_printf("DPMI: Return from int24 callback, in_dpmi_pm_stack=%i\n",
+	    in_dpmi_pm_stack);
+
+	  pm_to_rm_regs(scp, ~0);
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -3378,7 +3557,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _LWORD(eip) = *ssp++;
 	    _cs = *ssp++;
 	    set_EFLAGS(_eflags, *ssp++);
-	    _esp += 6;
+	    _LWORD(esp) += 6;
 	  }
 	  do_dpmi_int(scp, intr);
 
@@ -3728,39 +3907,22 @@ void dpmi_realmode_hlt(unsigned char * lina)
   } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) &&
 	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256)) ) {
     int intr = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_return_from_dosint);
+    int update_mask = ~0;
 
     D_printf("DPMI: Return from DOS Interrupt 0x%02x\n",intr);
 
-    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
-      dpmi_mhp_TF;
-    DPMI_CLIENT.stack_frame.eax = REG(eax);
-    DPMI_CLIENT.stack_frame.ebx = REG(ebx);
-    DPMI_CLIENT.stack_frame.ecx = REG(ecx);
-    DPMI_CLIENT.stack_frame.edx = REG(edx);
-    DPMI_CLIENT.stack_frame.esi = REG(esi);
-    DPMI_CLIENT.stack_frame.edi = REG(edi);
-    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
-
     if (config.pm_dos_api) {
-	msdos_post_extender(intr);
+	update_mask = msdos_post_extender(intr);
     }
 
+    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, update_mask);
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
   } else if (lina == (unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_XMS_call))) {
     D_printf("DPMI: Return from XMS call\n");
 
-    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
-      dpmi_mhp_TF;
-    DPMI_CLIENT.stack_frame.eax = REG(eax);
-    DPMI_CLIENT.stack_frame.ebx = REG(ebx);
-    DPMI_CLIENT.stack_frame.ecx = REG(ecx);
-    DPMI_CLIENT.stack_frame.edx = REG(edx);
-    DPMI_CLIENT.stack_frame.esi = REG(esi);
-    DPMI_CLIENT.stack_frame.edi = REG(edi);
-    DPMI_CLIENT.stack_frame.ebp = REG(ebp);
-
+    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
@@ -3866,14 +4028,7 @@ done:
     REG(eip) += 1;            /* skip halt to point to FAR RET */
     D_printf("DPMI: starting mouse callback\n");
     save_pm_regs(&DPMI_CLIENT.stack_frame);
-    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
-      dpmi_mhp_TF;
-    DPMI_CLIENT.stack_frame.eax = REG(eax);
-    DPMI_CLIENT.stack_frame.ebx = REG(ebx);
-    DPMI_CLIENT.stack_frame.ecx = REG(ecx);
-    DPMI_CLIENT.stack_frame.edx = REG(edx);
-    DPMI_CLIENT.stack_frame.esi = REG(esi);
-    DPMI_CLIENT.stack_frame.edi = REG(edi);
+    rm_to_pm_regs(&DPMI_CLIENT.stack_frame, ~0);
     DPMI_CLIENT.stack_frame.ds = ConvertSegmentToDescriptor(REG(ds));
     DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.mouseCallBack.selector;
     DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.mouseCallBack.offset;

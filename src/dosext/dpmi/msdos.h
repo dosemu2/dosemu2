@@ -20,7 +20,7 @@
  */
 
 extern int msdos_pre_extender(struct sigcontext_struct *scp, int intr);
-extern void msdos_post_extender(int intr);
+extern int msdos_post_extender(int intr);
 extern int msdos_fault(struct sigcontext_struct *scp);
 extern void msdos_pre_exec(struct sigcontext_struct *scp);
 extern void msdos_post_exec(void);
