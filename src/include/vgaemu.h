@@ -136,6 +136,8 @@
 #define CRTC_INDEX		0x3d4
 #define CRTC_DATA		0x3d5
 
+#define COLOR_SELECT		0x3d9
+
 #define INPUT_STATUS_1		0x3da
 #define FEATURE_CONTROL_W	0x3da
 
@@ -585,6 +587,7 @@ void Misc_init(void);
 void Misc_set_misc_output(unsigned char);
 unsigned char Misc_get_misc_output(void);
 void Misc_set_feature_ctrl(unsigned char);
+void Misc_set_color_select(unsigned char);
 unsigned char Misc_get_feature_ctrl(void);
 unsigned char Misc_get_input_status_0(void);
 unsigned char Misc_get_input_status_1(void);

@@ -1608,12 +1608,24 @@ void int10_new(void) /* with X but without dualmon */
 
 
     case 0x0b:		/* set bg/border color */
-      /* vgaemu does not use it!                             */
-      /* HI(bx) is supposed to be 0 here, no reason given.   */
-      i10_msg("set bg/border color to %x\n",LO(bx));
-      Attr_set_entry(0x11 /* OVERSCAN */, LO(bx));
+      {
+	unsigned char currentpalette = READ_BYTE(BIOS_VDU_COLOR_REGISTER);
+	if (HI(bx) == 0) {
+	  i10_msg("set bg/border color to %x\n",LO(bx));
+	  currentpalette &= ~0xf;
+	  currentpalette |= LO(bx) & 0xf;
+	} else if (HI(bx) == 1) {
+	  if (LO(bx))
+	    currentpalette |= 0x20;
+	  else
+	    currentpalette &= ~0x20;
+	} else {
+	  break;
+	}
+	Misc_set_color_select(currentpalette);
+	WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, currentpalette);
+      }
       break;
-
 
     case 0x0c:		/* write pixel */
       if(!using_text_mode())

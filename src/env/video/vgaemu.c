@@ -434,6 +434,10 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
       if(!vga.config.mono_port) CRTC_write_value(value);
       break;
 
+    case COLOR_SELECT:			/* 0x3d9 */
+      if(!vga.config.mono_port) Misc_set_color_select(value);
+      break;
+
     case FEATURE_CONTROL_W:		/* 0x3da */
       if(!vga.config.mono_port) Misc_set_feature_ctrl(value);
       break;

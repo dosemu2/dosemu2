@@ -134,6 +134,11 @@ void Misc_init()
 
   vga.config.mono_port = (vga.misc.misc_output & 1) ^ 1;
 
+  if (vga.VGA_mode == 0x6)
+    Misc_set_color_select(0x3f);
+  else
+    Misc_set_color_select(0x30);
+
   misc_msg("Misc_init done\n");
 }
 
@@ -166,6 +171,51 @@ void Misc_set_misc_output(unsigned char data)
   }
 }
 
+
+/*
+ * DANG_BEGIN_FUNCTION Misc_set_color_select
+ *
+ * Emulate CGA color select Register 0x3d9.
+ * This is a hardware emulation function.
+ * Don't do background colors for now.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void Misc_set_color_select(unsigned char data)
+{
+  int i;
+  int colors = 1 << vga.color_bits;
+
+  misc_deb2("Misc_set_color_select: 0x%02x\n", (unsigned) data);
+  if (vga.mode_class == TEXT) {
+    /* border colour */
+    vga.attr.data[0x11] = data & 0xf;
+    vga.attr.dirty[0x11] = True;
+  } else {
+    if (colors == 2) {
+      vga.attr.data[1] = data & 0xf;
+    } else if (colors == 4) {
+      if (data & 0x20) { /* cyan, magenta and white */
+	vga.attr.data[1] = 3;
+	vga.attr.data[2] = 5;
+	vga.attr.data[3] = 7;
+      } else { /* green, red and brown (yellow) */
+	vga.attr.data[1] = 2;
+	vga.attr.data[2] = 4;
+	vga.attr.data[3] = 6;
+      }
+    } else {
+      return;
+    }
+    vga.attr.data[0] = 0;
+    for (i = 0; i < colors; i++) {
+      vga.attr.dirty[i] = True;
+      if ((data & 0x10) && i > 0) /* bright colors */
+	vga.attr.data[i] |= 0x10;
+    }
+  }
+}
 
 /*
  * DANG_BEGIN_FUNCTION Misc_get_misc_output
