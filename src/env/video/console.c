@@ -187,6 +187,17 @@ void clear_console_video(void)
   if (config.console_video) {
     k_printf("KBD: Release mouse control\n");
     ioctl(console_fd, KDSETMODE, KD_TEXT);
+    clear_process_control();
+    /* if the Linux console uses fbcon we can force
+       a complete text redraw by doing round-trip
+       vc switches; otherwise (vgacon) it doesn't hurt */
+    if(!config.detach && config.vga) {
+      int arg;
+      ioctl(console_fd, VT_OPENQRY, &arg);
+      vt_activate(arg);
+      vt_activate(scr_state.console_no);
+      ioctl(console_fd, VT_DISALLOCATE, arg);
+    }
   }
 }
 
