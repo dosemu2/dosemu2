@@ -32,14 +32,8 @@ SFILES = vesabios.S
 ASFILES = remap_asm.S vesabios_pm.S
 ASOBJS  = remap_asm.o vesabios_pm.o
 
-AS86FLAGS=$(INCDIR)
-
-LD86=$(_LD86_)
-AS86=$(_AS86_)
-
 CFILES = miscemu.c video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
-	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) \
-	hgc.c dualmon.c $(ASOBJS)
+	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) hgc.c dualmon.c $(ASOBJS) vesabios.o
 HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h $(VHDRS) terminal.h $(XHDRS)
 OFILES = miscemu.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
 	 matrox.o wdvga.o sis.o $(VOBJS) console.o $(XOBJS) hgc.o dualmon.o terminal.o
@@ -49,19 +43,16 @@ ALL = $(CFILES) $(HFILES) #$(SFILES)
 
 SUBDIR=video
 
-all: vesabios.o lib
+all: lib
 
 
 #	NOTE: we force _whole_ generation of all tmp-files,
 #	      because we came into trouble with make dependencies recently
 
 vesabios.o: vesabios.S 
-	$(CC) -E --traditional $(AS86FLAGS) $< | $(SRCPATH)/tools/tools86 -E > $*.s
-	$(AS86) -0 -w -g -o $@.1.tmp $*.s
-	$(LD86) -0 -r -o $@.2.tmp $@.1.tmp
-	$(SRCPATH)/tools/tools86 $@.2.tmp
-	mv -f $@.2.tmp $@
-
+	$(CC) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,_start16 -traditional $< -o $@.tmp
+	strip -N _edata -N __bss_start -N _end $@.tmp
+	mv -f $@.tmp $@
 
 install:
 

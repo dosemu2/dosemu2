@@ -1,33 +1,27 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 
-! vgaoff.S, for dosemu 0.49, 4/16/93
-! Robert Sanders, gt8134b@prism.gatech.edu
-!
-! this is dangerous!
+# vgaoff.S, for dosemu 0.49, 4/16/93
+# Robert Sanders, gt8134b@prism.gatech.edu
+#
+# this is dangerous!
 
-use16
+.code16
 .text
-.data
-.bss
+	.globl	_start16
+_start16:
 
-.align 0
-
-.globl _main              ! for ld86
-_main:
-
-      .org       0x100
 #include "detect.h"
 
-	mov al, #4     ! card switch
-	mov bl, #0     ! off
-	int #0xe6
-	int #0x20  ! exit
+	movb $4, %al     # card switch
+	movb $0, %bl     # off
+	int $0xe6
+	int $0x20  # exit
 
-! note: the VGA permissions are left on. 
+# note: the VGA permissions are left on. 
 
 

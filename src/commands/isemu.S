@@ -1,67 +1,61 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
-! isemu.S, to generate isemu.com, for dosemu 0.67.16, 97/11/22
-! Display current DOSEMU-version
-!                                            Hans Lermen@fgan.de
-!
+# isemu.S, to generate isemu.com, for dosemu 0.67.16, 97/11/22
+# Display current DOSEMU-version
+#                                            Hans Lermen@fgan.de
+#
 
 .text
-.data
-.bss
-
-.align 0
-
-.globl _main	; for ld86
-_main:
-
-	.org	0x100	; which is were *.com files start
+.code16
+	.globl	_start16
+_start16:
 
 #include "detect.h"
 
-	cmp	dword ptr real_version,#0
+	cmpl	$0,real_version
 	jne	more_info
-	lea	si,simpletext
+	lea	simpletext,%si
 	call	print
-	xor	ax,ax
+	xorw	%ax,%ax
 	call	exit
 
 simpletext:
 	.ascii	"Dosemu detected"
-	db	13,10,0
+	.byte	13,10,0
 txt1:	.ascii	"Dosemu version "
-	db	0
+	.byte	0
 txt2:	.ascii	" detected"
-	db	13,10,0
+	.byte	13,10,0
 
 printdot:
-	mov	al,#0x2e	; '.'
+	movb	$'.',%al
 	call	printchar
 	ret
 
 more_info:
-	lea	si,txt1
+	lea	txt1,%si
 	call	print
-	movzx	ax,byte ptr real_version+3
+	movzbw	real_version+3,%ax
 	call	printdecimal
 	call	printdot
-	movzx	ax,byte ptr real_version+2
+	movzbw	real_version+2,%ax
 	call	printdecimal
 	call	printdot
-	movzx	ax,byte ptr real_version+1
+	movzbw	real_version+1,%ax
 	call	printdecimal
-	cmp	byte ptr real_version,#0
+	cmpb	$0,real_version
 	jz	more_info_1
 	call	printdot
-	movzx	ax,byte ptr real_version
+	movzbw	real_version,%ax
 	call	printdecimal
 	call	printdot
 more_info_1:
-	lea	si,txt2
+	lea	txt2,%si
 	call	print
-	xor	ax,ax
+	xorw	%ax,%ax
 	call	exit
 

@@ -10,12 +10,11 @@
 sub read_file {
 # USAGE: read_file("filename", \$buffer);
   local($file, $buf) = @_;
-  local @stat;
+  local $saved_rs = "undef";
   open(RFIN, "<$file") || return 0;
-  # We use stat/sysread instead of $$buf=join('',<RFIN>) in order
-  # to keep resources low
-  @stat = stat(RFIN);
-  sysread(RFIN, $$buf, $stat[7]);
+  if (defined $/) { $saved_rs = $/; undef $/; }
+  $$buf = <RFIN>;
+  if ($saved_rs ne "undef") { $/ = $saved_rs; }
   close(RFIN);
   return 1;
 }

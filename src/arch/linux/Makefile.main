@@ -117,8 +117,6 @@ DEBUG      = $(SYNC_ALOT)
 
 export CFLAGS
 
-LD86 = $(_LD86_) -0
-
 DISTBASE=/tmp
 DISTNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
@@ -197,7 +195,7 @@ debug:
 
 dos.o: include/config.h
 
-DOSSTATICFILES = dosstatic.c emu.o base/data.o base/bios/bios.o env/video/vesabios.o
+DOSSTATICFILES = dosstatic.c emu.o base/data.o 
 
 dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
@@ -226,17 +224,12 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 # Therefore: $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_))
 #           is NOT a typo !!!
 # (Hans Lermen, at state of 0.63.0.1)
-# the -Wl,-b commands are there to correct a bug in binutils 2.7.0.9,
-# but they can be left just to make clear that a couple of files are
-# actually a.out hacks made by tools86 - AV
 
 ifdef ELF
 $(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) \
-	    -Wl,-b,a.out-i386-linux base/bios/bios.o env/video/vesabios.o \
-	    -Wl,-b,elf32-i386 \
 	    $(SVGALIB) $(XLIBSW) $(SLANGLIB) -lc 
 	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map

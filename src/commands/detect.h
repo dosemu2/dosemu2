@@ -7,10 +7,10 @@
 /*
  * This is file detect.h
  * Used for DOSEMU supplied DOS-tools to detect DOSEMU
- * For as86 code also some rudimentary runtime system is supported
+ * For gas code also some rudimentary runtime system is supported
  * ( argc, argv, print, printnumber ..., exit )
  *
- * Copright (C) under GPL, The DOSEMU Team 1997
+ * Copyright (C) under GPL, The DOSEMU Team 1997-2001
  * Author: Hans Lermen@fgan.de
  */
 
@@ -30,80 +30,77 @@
 #define FAR far
 #endif
 
-#if defined(__ASSEMBLER__) && defined(__AS86__)
+#if defined(__ASSEMBLER__)
 
-/* this for as86 assembler code */
+/* this for assembler code */
 
-#define JMPL br /* 'br' on as86 does a 'jmp near label' */
+# assuming we have a *.com file (CS=DS=SS=ES)
+# assuming we are included just at the start point of the program
 
-; assumeing we have a *.com file (CS=DS=SS=ES)
-; assuming we are included just at the start point of the programm
+#ifndef SEGES
+#  define SEGES .byte 0x26;
+#endif
 
 	cld
-	push	es
-	les	si,magicptr
-	seg es
-	lodsd
-	cmp	eax,dword ptr exp_magic
+	pushw	%es
+	les	magicptr,%si
+	SEGES lodsl
+	cmpl	exp_magic, %eax
 	jne	check_old
-	seg es
-	lodsd
-	cmp	eax,dword ptr exp_magic+4
+	SEGES lodsl
+	cmpl	exp_magic+4, %eax
 	jne	check_old
-	seg es
-	lodsd
-	mov	dword ptr real_version,eax	! save dosemu version
-	pop	es
-	JMPL	ok_start_label
+	SEGES lodsl
+	movl	%eax, real_version	# save dosemu version
+	popw	%es
+	jmp	ok_start_label
 
 check_old:
-	les	si,dateptr
-	seg es
-	lodsd
-	cmp	eax,dword ptr exp_date
-	seg es
-	lodsd
-	pop	es
+	les	dateptr,%si
+	SEGES lodsl
+	cmpl	exp_date,%eax
+	SEGES lodsl
+	pop	%es
 	jne	check_failed
-	cmp	eax,dword ptr exp_date+4
+	cmpl	exp_date+4,%eax
 	jne	check_failed
-	JMPL	ok_start_label
+	jmp	ok_start_label
 
 check_failed:
-	mov	word ptr std_handle,#2 ; print to STDERR
-	lea	si,exit1msg
+	movw	$2,std_handle # print to STDERR
+	leaw	exit1msg,%si
 print_and_exit:
 	call	print
-	mov	al,#1
+	movb	$1,%al
 exit:
-	mov	ah,#0x4c
-	int	0x21
+	movb	$0x4c,%ah
+	int	$0x21
 
 printchar:
-	push	ax
-	push	bx
+	pushw	%ax
+	pushw	%bx
 #ifdef PRINT_USING_BIOS
-	mov	ah,#0x0E
-	xor	bx,bx
-	int	0x10
+	movb	$0x0E,%ah
+	xorw	%bx,%bx
+	int	$0x10
 #else
-	push	cx
-	push	dx
-	mov	dx,sp
-	add	dx,#6		; pointing to AL on stack
-	mov	ah,#0x40
-	mov	bx,word ptr std_handle
-	mov	cx,#1		; count =1
-	int	0x21
-	pop	dx
-	pop	cx
+	pushw	%cx
+	pushw	%dx
+	movw	%sp,%dx
+	addw	$6,%dx		# pointing to AL on stack
+	movb	$0x40,%ah
+	movw	std_handle,%bx
+	movw	$1,%cx		# count =1
+	int	$0x21
+	popw	%dx
+	popw	%cx
 #endif
-	pop	bx
-	pop	ax
+	popw	%bx
+	popw	%ax
 	ret
 
-; Print an ASCIIZ string to console
-; DS:SI pointing to the string
+# Print an ASCIIZ string to console
+# DS:SI pointing to the string
 print:
 	cld
 	jmp	print_entry
@@ -111,7 +108,7 @@ print_loop:
 	call	printchar
 print_entry:
 	lodsb
-	or	al,al
+	orb	%al,%al
 	jnz	print_loop
 	ret
 
@@ -119,128 +116,128 @@ hextable:
 	.ascii	"0123456789ABCDEF"
 
 printnibble:
-	push	ax
-	push	bx
-	mov	bx,ax
-	and	bx,#15
-	mov	al,byte ptr hextable[bx]
+	pushw	%ax
+	pushw	%bx
+	movw	%ax,%bx
+	andw	$15,%bx
+	movb	hextable(%bx), %al
 	call	printchar
-	pop	bx
-	pop	ax
+	popw	%bx
+	popw	%ax
 	ret
 	
 
-: Converts AX to ASCII and prints it
-; AX=number
-; CX=base     2,8,10,16  (e.g =10 to print decimal, =16 for hex)
-; All registers preserved
+# Converts AX to ASCII and prints it
+# AX=number
+# CX=base     2,8,10,16  (e.g =10 to print decimal, =16 for hex)
+# All registers preserved
 printnumber:
-	or	ax,ax
+	orw	%ax,%ax
 	jnz	printnumber_0
 	call	printnibble
 	ret
 printnumber_0:
-	push	ax
-	push	dx
+	pushw	%ax
+	pushw	%dx
 	call	printnumber_
-	pop	dx
-	pop	ax
+	popw	%dx
+	popw	%ax
 	ret
 printnumber_:
-	or	ax,ax
+	orw	%ax,%ax
 	jz	printnumber_1
-	xor	dx,dx
-	div	cx
-	push	dx
+	xorw	%dx,%dx
+	divw	%cx
+	pushw	%dx
 	call	printnumber_
-	pop	ax
+	popw	%ax
 	call	printnibble
 printnumber_1:
 	ret
 
 printdecimal:
-	mov	cx,#10
+	movw	$10,%cx
 	call	printnumber
 	ret
 
 printhex:
-	mov	cx,#16
+	movw	$16,%cx
 	call	printnumber
 	ret
 
-real_version:	.long	0	! here we insert the DOSEMU version
+real_version:	.long	0	# here we insert the DOSEMU version
 dateptr:	.long	DOSEMU_BIOS_DATE_LOCATION
 magicptr:	.long	DOSEMU_MAGIC_LOCATION
 exp_date:	.ascii	DOSEMU_BIOS_DATE
 exp_magic:	.ascii	DOSEMU_MAGIC
 exit1msg:	.ascii	"This program requires DOSEMU to run, aborting"
-		db	13,10,0
-std_handle:	dw	1       ;preset for STDOUT
+		.byte	13,10,0
+std_handle:	.word	1       #preset for STDOUT
 
 #ifdef NEED_ARGV
 ok_start_label:
-	movzx	cx,byte ptr [0x80]
+	movzbw	(0x80),%cx
 	jcxz	ok_start_label_1
-	mov	si,#0x81
-	lea	di,argv
+	movw	$0x81,%si
+	leaw	argv,%di
 argvscan_0:
 	lodsb
-	or	al,al
+	orb	%al,%al
 	jz	argvscan_finish
-	cmp	al,#13
+	cmpb	$13,%al
 	jz	argvscan_finish
-	cmp	al,#32
+	cmpb	$32,%al
 	jz	argvscan_skip
-	lea	ax,[si-1]
+	leaw	-1(%si),%ax
 	stosw
-	inc	word ptr argc
+	incw	argc
 	jmp	argvscan_2
 argvscan_skip:
 	loop	argvscan_0
 argvscan_finish:
-	mov	byte ptr [si-1],#0
+	movb	$0,-1(%si)
 ok_start_label_1:
-	JMPL	ok_start_label_2
+	jmp	ok_start_label_2
 
 argvscan_2:
 	lodsb
-	or	al,al
+	orb	%al,%al
 	jz	argvscan_finish
-	cmp	al,#13
+	cmpb	$13,%al
 	jz	argvscan_finish
-	cmp	al,#32
+	cmpb	$32,%al
 	jnz	argvscan_2
-	mov	byte ptr[si-1],#0
-	cmp	word ptr argc,#16
+	movb	$0,-1(%si)
+	cmpw	$16,argc
 	jb	argvscan_0
-	JMPL	ok_start_label_2
+	jmp	ok_start_label_2
 
 argc:	.word	0
 argv:	.word   0,0,0,0 ,0,0,0,0 ,0,0,0,0 ,0,0,0,0 ,0
 
 
-; Convert asciiz decimal pointed to by DS:SI int to binary
-; returns number in AX
+# Convert asciiz decimal pointed to by DS:SI int to binary
+# returns number in AX
 atoi:
-	push	dx
-	push	cx
-	xor	dx,dx
+	push	%dx
+	push	%cx
+	xor	%dx,%dx
 	cld
 atoi_loop:
 	lodsb
-	or	al,al
+	orb	%al,%al
 	jz	atoi_ex
-	and	ax,#15
-	mov	cx,dx
-	shl	dx,#3
-	add	dx,cx
-	add	dx,cx
-	add	dx,ax
+	andw	$15,%ax
+	movw	%dx,%cx
+	shlw	$3,%dx
+	addw	%cx,%dx
+	addw	%cx,%dx
+	addw	%ax,%dx
 	jmp	atoi_loop
 atoi_ex:
-	mov	ax,dx
-	pop	cx
-	pop	dx
+	movw	%dx,%ax
+	popw	%cx
+	popw	%dx
 	ret
 
 
@@ -249,7 +246,7 @@ ok_start_label_2:
 ok_start_label:
 #endif /* not NEED_ARGV */
 
-; here normal program start happens
+# here normal program start happens
 
 
 #else

@@ -7,17 +7,11 @@
 CFILES=int10.c hlt.c
 ALL=bios.S test.S $(CFILES)
 
-OBJS= $(CFILES:.c=.o)         # NOTE: bios.o must NOT go into lib !!!
-                              #       ( 'ELF ar' would die )
+OBJS= $(CFILES:.c=.o) bios.o
 SUBDIR=bios
 
 DEPENDS=$(CFILES:.c=.d)
 
-
-AS86FLAGS=$(INCDIR)
-
-LD86=$(_LD86_)
-AS86=$(_AS86_)
 
 IDIR=$(TOPDIR)/include
 
@@ -27,18 +21,16 @@ export CFLAGS
 # NOTE: currently we compile the following modules at other places:
 #      int10.c in src/env/video
 #
-all: lib bios.o
+all: lib
 
 
 #	NOTE: we force _whole_ generation of all tmp-files,
 #	      because we came into trouble with make dependencies recently
 
 bios.o: bios.S $(IDIR)/config.h $(IDIR)/macros86.h $(IDIR)/memory.h
-	$(CC) -E --traditional $(AS86FLAGS) $< | $(SRCPATH)/tools/tools86 -E > $*.s
-	$(AS86) -l -0 -w -g -o $@.1.tmp $*.s > $*.s.out
-	$(LD86) -0 -r -o $@.2.tmp $@.1.tmp
-	$(SRCPATH)/tools/tools86 $@.2.tmp
-	mv -f $@.2.tmp $@
+	$(CC) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,bios_f000 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
+	strip -N _edata -N __bss_start -N _end -N _etext -N blaBLA $@.tmp
+	mv -f $@.tmp $@
 
 bios:	bios.o
 

@@ -1,26 +1,21 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
-! turn CPU emulator ON
-! Alberto Vignani, vignani@tin.it
-!
+# turn CPU emulator ON
+# Alberto Vignani, vignani@tin.it
+#
 
 .text
-.data
-.bss
+.code16
+	.globl	_start16
+_start16:
 
-.align 0
-
-.globl _main              ! for ld86
-_main:
-
-      .org       0x100
 #include "detect.h"
 
-	mov al, #0x90
-	mov bx, #0
-	int #0xe6  ! disable bootdisk
-	int #0x20  ! exit
+	mov $0x90, %al
+	mov $0, %bx
+	int $0xe6  # disable bootdisk
+	int $0x20  # exit

@@ -1,3 +1,17 @@
+2001/02/09 ver. 1.1.1.2 unofficial pre-release
+	From Bart
+	- Converted all as86 code to gas using .code16
+	  Now we just need binutils > 2.9.1.0.25 and now as86 anymore
+	From Hans
+	- made mkpluginhooks restoring the previous status of plugin_enable
+	  if plugin_override took effect and the overriding plugin is
+	  disabled afterwards
+	- plugin_override now can take a list of overridable plugins.
+	- updated README.plugin
+	- better read_file in bisonpp.pl (never stop learning perl;-)
+	- some further work on Bart's gas stuff to make it better
+	  portable between different binutils and removed warnings
+	  for older binutils.
 2000/12/02 ver. 1.1.1.1 unofficial pre-release
 	From Bart
 	- fix for base-configure.in w.r.t. glibc 2.2: the awk script got

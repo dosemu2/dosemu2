@@ -76,16 +76,19 @@ The plugin_enable file
   This file is just for convenience, if it contains 'yes' the plug-in will
   be compiled in, if not or not existing, the whole plug-in and its
   subdirectories are ignored. So, you may have the tree installed even if
-  you don't want to compile it currently.
-
+  you don't want to compile it currently. If plugin_enable contains 'yes'
+  _and_ it is overridden (see plugin_override below), then it will be
+  temporary set to 'replaced' (which means disabling it) and reset to 'yes'
+  on cleanup ('mkpluginhooks clean').
 
 The plugin_override file
 ------------------------
 
   If this file exists _and_ the plugin is enabled (see plugin_enable), it
-  should contain the base name of an other plugin, that this plugin is
-  intended to replace. This feature is used to have multiple plugins
-  in the tree wich are mutual exclusive to each other. Example:
+  should contain a blank separated list of base names of other plugins,
+  that this plugin is intended to replace. This feature is used to have
+  multiple plugins in the tree wich are mutual exclusive to each other.
+  Example:
 
   Given you wrote a new keyboard code src/plugin/my_keyboard, which completely
   should replace the default one in src/plugin/keyboard, than you simply

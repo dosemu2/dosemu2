@@ -11,6 +11,8 @@ LIB=plugin_libdirs
 PINC=plugin_incdirs
 PARSDIR=src/base/init
 
+PDIRS=`cd $DIR; find ./ -maxdepth 1 -type d -printf ' %f'`
+
 function gendummy {
   for i in $HEADERS; do
     if [ "$1" = "clean" ]; then
@@ -21,8 +23,18 @@ function gendummy {
   done
 }
 
+function restore_enable {
+  if [ "$PDIRS" != " " ]; then
+    for d in $PDIRS; do
+      if [ -f $DIR/$d/$CONF/${PREF}enable -a "`cat $DIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
+        echo "yes" >$DIR/$d/$CONF/${PREF}enable
+      fi
+    done
+  fi
+}
 
 gendummy clean
+restore_enable
 rm -f $LIB $PINC $PARSDIR/{parser.y,lexer.l}
 if [ "$1" = "clean" ]; then
   exit 0
@@ -36,8 +48,6 @@ if [ ! -d $DIR ]; then
   exit 1
 fi
 
-PDIRS=`cd $DIR; find ./ -maxdepth 1 -type d -printf ' %f'`
-
 
 if [ "$PDIRS" != " " ]; then
 
@@ -46,10 +56,13 @@ if [ "$PDIRS" != " " ]; then
   for d in $PDIRS; do
     if [ -f $DIR/$d/$CONF/${PREF}enable -a "`cat $DIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
       if [ -f $DIR/$d/$CONF/${PREF}override ]; then
-        oplugin=`cat $DIR/$d/$CONF/${PREF}override`
-        if [ -f $DIR/$oplugin/$CONF/${PREF}enable ]; then
-          echo "no" >$DIR/$oplugin/$CONF/${PREF}enable
-        fi
+        for oplugin in `cat $DIR/$d/$CONF/${PREF}override`; do
+          if [ "$oplugin" != "" -a -d $DIR/$oplugin ]; then
+            if [ -f $DIR/$oplugin/$CONF/${PREF}enable -a "`cat $DIR/$oplugin/$CONF/${PREF}enable`" = "yes" ]; then
+              echo "replaced" >$DIR/$oplugin/$CONF/${PREF}enable
+            fi
+          fi
+        done
       fi
     fi
   done

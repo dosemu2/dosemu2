@@ -1,43 +1,38 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 
-! vgaon.S, for dosemu 0.49, 4/16/93
-! Robert Sanders, gt8134b@prism.gatech.edu
-!
-! this is dangerous!
+# vgaon.S, for dosemu 0.49, 4/16/93
+# Robert Sanders, gt8134b@prism.gatech.edu
+#
+# this is dangerous!
 
-use16
+.code16
 .text
-.data
-.bss
+	.globl	_start16
+_start16:
 
-.align 0
-
-.globl _main              ! for ld86
-_main:
-
-      .org       0x100
 #include "detect.h"
 
-	mov al, #3     ! dos helper I/O perms
-	mov bx, #0x70  ! starting port
-	mov cx, #2     ! # of ports
-	stc            ! set means get I/Operms
-	int #0xe6
-	mov al, #4
-	mov bl, #1
-	int #0xe6
-	mov al, #3     ! dos helper I/O perms
-	mov bx, #0x70  ! starting port
-	mov cx, #2     ! # of ports
-	clc            ! clear means release I/Operms
-	int #0xe6
-	int #0x20  ! exit
+	movb $3, %al    # dos helper I/O perms
+	movw $0x70, %bx # starting port
+	movw $2, %cx    # # of ports
+	stc             # set means get I/Operms
+	int $0xe6
+	movb $4, %al
+	movb $1, %bl
+	int $0xe6
+	movb $3, %al    # dos helper I/O perms
+	movw $0x70, %bx # starting port
+	movw $2, %cx    # # of ports
+	clc            # clear means release I/Operms
+	int $0xe6
+	int $0x20  # exit
 
-! note: the VGA permissions are left on. 
+# note: the VGA permissions are left on. 
 
 

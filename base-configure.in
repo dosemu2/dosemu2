@@ -15,8 +15,6 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_YACC
-AC_CHECK_PROG(AS86,as86,as86,none)
-AC_CHECK_PROG(LD86,ld86,ld86,none)
 
 dnl Checks for libraries.
 
@@ -528,7 +526,28 @@ dnl CPU emulator
   else
    AC_CHECKING("Compiling for native x86");
   fi
- 
+
+
+dnl Check for proper gas code16 functionality
+
+if echo '.code16;.text;addr32 pushw 4(%esp)' | as -o -- >/dev/null 2>&1; then
+  GASCODE16=1
+else
+  if echo '.code16;.text;addr32; pushw 4(%esp)' | as -o -- >/dev/null 2>&1; then
+    GASCODE16=0
+  else
+    echo ''
+    echo '*** error:'
+    echo '*** Your system has no complete code16 functional gas,'
+    echo '*** you must upgrade to atleast binutils-2.9.1.0.25'
+    echo '*** in order to compile DOSEMU ... giving up'
+    echo ''
+    exit 1
+  fi
+fi
+AC_DEFINE_UNQUOTED(GASCODE16, $GASCODE16)
+
+
 # -m486 is usually in the specs for the compiler
 case "$host_cpu" in
   i[[456]]86)
@@ -655,15 +674,6 @@ if test "$GCC" != "yes" ; then
   AC_MSG_WARN(sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC)
   AC_MSG_WARN(Of course you could also include the gcc bin directory in)
   AC_MSG_WARN(your path.)
-fi
-
-dnl as86 and ld86
-if test "$AS86" != "as86" -o "$LD86" != "ld86" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Your system doesn't seem to have as86 and/or ld86.)
-  AC_MSG_WARN(These programs are required to assemble the Dosemu)
-  AC_MSG_WARN(BIOS. Please install them.)
-  AC_MSG_ERROR( )
 fi
 
 dnl The bison problem

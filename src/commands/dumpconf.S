@@ -1,233 +1,211 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
-; Author: ???
-; what is this good for ??
+# Author: ???
+# what is this good for ??
 
-use16
-
+.code16
 .text
-.bss
-.data
-.align 0
+	.globl	_start16
+_start16:
 
+#------------------------------------------------------------------------------
 
+Header:	.long      -1              # link to the next driver
+        .word   0x8000          # device attribute
+        .word   Strat           # strategie routine
+        .word   Intr            # interrupt routine
+	.ascii	"DUMPCONF"      #
 
-	.org	0
+RHPtr:	.long	0               # Request Header Ptr
+StartPos: .word 0
+WaitKey: .word	0
 
-	.globl	_main		; just to make ld86 happy
-_main:
-
-;------------------------------------------------------------------------------
-
-Header:	dd      -1              ; link to the next driver
-        dw      0x8000          ; device attribute
-        dw      Strat           ; strategie routine
-        dw      Intr            ; interrupt routine
-	.ascii	"DUMPCONF"      ;
-
-RHPtr:	dd	0               ; Request Header Ptr
-StartPos: dw	0
-WaitKey: dw	0
-
-;------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 Strat:
-	seg cs
-        mov     word ptr RHPtr,bx
-	seg cs
-        mov     word ptr RHPtr+2,es
-        retf
+        movw    %bx, %cs:RHPtr
+        movw	%es, %cs:RHPtr+2
+        lret
 
-;------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 Intr:
-        push    ds
-        push    es
-        push    si
-        push    di
-        push    dx
-        push    cx
-        push    bx
-        push    ax
+        pushw    %ds
+        pushw    %es
+        pushw    %si
+        pushw    %di
+        pushw    %dx
+        pushw    %cx
+        pushw    %bx
+        pushw    %ax
 
-	seg cs
-        les     di,RHPtr   ; ES:DI = request header
-	seg es
-        mov     bl,byte ptr [di+2]  ; command
-        xor     bh,bh
-        cmp     bx,#0            ; valid ?
+        les     %cs:RHPtr,%di   # ES:DI = request header
+        movb    %es:2(%di),%bl  # command
+        xor     %bh,%bh
+        cmp     $0,%bx          # valid ?
         jne     Intr3
 
         call    work
 
 Intr3:
-	seg cs
-	les     di,RHPtr   ; ES:DI = request header (destroyed)
-	seg es
-        mov     word ptr [di+0xe],#0
-	seg es
-        mov     word ptr [di+0x10],cs
+	les     %cs:RHPtr,%di   # ES:DI = request header (destroyed)
+        movw    $0,%es:0xe(%di)
+        movw    %cs,%es:0x10(%di)
 
-	seg es
-        mov     word ptr [di + 3],#0x8100; transfer status bit
+        movw    $0x8100,%es:3(%di)	# transfer status bit
 
-Intr4:  pop     ax
-        pop     bx
-        pop     cx
-        pop     dx
-        pop     di
-        pop     si
-        pop     es
-        pop     ds
-        retf
+Intr4:  popw     %ax
+        popw     %bx
+        popw     %cx
+        popw     %dx
+        popw     %di
+        popw     %si
+        popw     %es
+        popw     %ds
+        lret
 
-;------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 DumpRawChar:
-        push    si
-        push    ax
-        push    cx
-        push    dx
-        mov     dl,al
-        mov     ah,#2
-        int     0x21
-        pop     dx
-        pop     cx
-        pop     ax
-        pop     si
+        pushw   %si
+        pushw   %ax
+        pushw   %cx
+        pushw   %dx
+        movb    %al,%dl
+        movb    $2,%ah
+        int     $0x21
+        popw    %dx
+        popw    %cx
+        popw    %ax
+        popw    %si
         ret
 
 DumpAsciiChar:
-        push    ax
-        cmp     al,#0x20
+        pushw   %ax
+        cmp     $0x20,%al
         jae     NoAdjust
-        mov     al,#0x21		;'!'
+        mov     $'!',%al
 NoAdjust:
         call    DumpRawChar
-        pop     ax
+        popw    %ax
         ret
 
 DumpHexChar:
-        push    si
-        push    ax
-        push    cx
+        pushw   %si
+        pushw   %ax
+        pushw   %cx
 
-        mov     ah,al
-        mov     cl,#4
-        shr     al,cl
-        cmp     al,#9
+        movb    %al, %ah
+        movb    $4, %cl
+        shrb    %cl,%al
+        cmpb    $9,%al
         jbe     Add0_1
-        sub     al,#10
-        add     al,#0x41		;'A'
+        subb    $10, %al
+        addb    $'A',%al
         jmp     DumpNibble1
 Add0_1:
-	add     al,#0x30		;'0'
+	add     $'0',%al
 DumpNibble1:
         call    DumpAsciiChar
 
-        mov     al,ah
-        and     al,#15
-        cmp     al,#9
+        movb    %ah,%al
+        andb    $15,%al
+        cmpb    $9,%al
         jbe     Add0_2
-        sub     al,#10
-        add     al,#0x41		;'A'
+        subb    $10,%al
+        addb    $'A',%al
         jmp     DumpNibble2
-Add0_2: add     al,#0x30		;'0'
+Add0_2: addb    $'0',%al
 DumpNibble2:
         call    DumpAsciiChar
 
-        mov     al,#0x30		;' '
+        movb    $0x30,%al		#' '; 
         call    DumpAsciiChar
 
-        pop     cx
-        pop     ax
-        pop     si
+        popw    %cx
+        popw    %ax
+        popw    %si
         ret
 
 DumpLine:
-        push    si
-        push    cx
-        push    si
-        mov     cx,#16
+        pushw   %si
+        pushw   %cx
+        pushw   %si
+        movw    $16,%cx
 DumpHex:
         lodsb
         call    DumpHexChar
         loop    DumpHex
 DumpChars:
-        mov     al,#0x20	;' '
+        movb    $' ', %al
         call    DumpAsciiChar
-        pop     si
-        mov     cx,#16
+        popw    %si
+        movw    $16,%cx
 DumpChar:
         lodsb
         call    DumpAsciiChar
         loop    DumpChar
 
-        mov     al,#13
+        movb    $13,%al
         call    DumpRawChar
-        mov     al,#10
+        movb    $10,%al
         call    DumpRawChar
 
-        pop     cx
-        pop     si
+        popw    %cx
+        popw    %si
         ret
 
 work:
-	seg es
-        lds     si,dword ptr [di + 18]         ;load config.sys line
-	seg cs
-        mov     word ptr StartPos,si
+	lds     %es:18(%di),%si        #load config.sys line
+        movw    %si,%cs:StartPos
         cld
 workfind:
-        lodsb                           ;load next char
-        cmp     al,#13                   ;EOL ?
+        lodsb                           #load next char
+        cmpb    $13,%al                 #EOL ?
         je      workret
-        cmp     al,#0x20	;' ', search first blank after driver name
+        cmpb    $' ', %al	#search first blank after driver name
         jne     workfind
 worknext:
-        lodsb                           ;load next char
-        cmp     al,#13                   ;EOL ?
+        lodsb                           #load next char
+        cmpb    $13,%al                 #EOL ?
         je      workdone
-        cmp     al,#24                   ;"!" (Read AnyKey ??)
+        cmpb    $24,%al                 #"!" (Read AnyKey ??)
         jne     worknext
-	seg cs
-        mov     word ptr WaitKey,#1
+        movw    $1,%cs:WaitKey
         jmp     worknext
 
 workdone:
-	seg cs
-        mov     si,word ptr StartPos
-        cmp     si,#64
+        movw    %cs:StartPos,%si
+        cmpw    $64,%si
         jae     NoPosAdjust
-        mov     si,#64
+        movw    $64,%si
 NoPosAdjust:
-        sub     si,#64
+        subw    $64,%si
         call    DumpLine
-        add     si,#16
+        addw    $16,%si
         call    DumpLine
-        add     si,#16
+        addw    $16,%si
         call    DumpLine
-        add     si,#16
+        addw    $16,%si
         call    DumpLine
-        add     si,#16
+        addw    $16,%si
         call    DumpLine
-        add     si,#16
+        addw    $16,%si
         call    DumpLine
-        add     si,#16
+        addw    $16,%si
         call    DumpLine
-        add     si,#16
+        addw    $16,%si
         call    DumpLine
-	seg cs
-        cmp     word ptr WaitKey,#0
+        cmpw    $0,%cs:WaitKey
         je      workret
 readkey:
-        mov     ax,#0xC07                ;flush buffer, read unfiltered keyboard
-                                        ;without echo
-        int     0x21
-        mov     ax,#0xC00                ;flush buffer
-        int     0x21
+        mov     $0xC07,%ax              #flush buffer, read unfiltered keyboard
+                                        #without echo
+        int     $0x21
+        mov     $0xC00,%ax              #flush buffer
+        int     $0x21
 workret:
         ret

@@ -4,9 +4,6 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-AS86 = $(_AS86_) -0 -a
-LD86 = $(_LD86_) -0
-
 D=$(REALTOPDIR)/etc
 DOSC=$(REALTOPDIR)/contrib/dosC/dist
 IDEST=/var/lib
@@ -21,16 +18,10 @@ SCRIPT=getrom
 all: $(OBJ)
 
 bootsect: bootsect.S
-	$(AS86) -a -0 -o bootsect.o bootsect.S # -l bootsect.lst
-	$(LD86) -s -o boot.tmp bootsect.o
-	dd if=boot.tmp of=bootsect bs=1 skip=32
-	rm boot.tmp
+	$(LD) -traditional -nostdlib -Wl,-Ttext,0,-e,_start16,-oformat,binary -s -o $@ $< # -Wa,-a > bootsect.lst
 
 %.com: %.S
-	$(AS86) -0 -o $*.o $<
-	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=32
-	rm $*.tmp $*.o
+	$(LD) -traditional -Wa,-a -Wl,-Ttext,100,-oformat,binary -nostdlib -s -o $@ $< > $<.out
 
 $(D)/hdimage.dist: mkfatimage
 	./mkfatimage -l DOSEMU $(REALTOPDIR)/$(THISVERSION)/commands/* >$(D)/hdimage.dist

@@ -1,27 +1,22 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
-! exitemu.S, to generate exitemu.com, for dosemu 0.49, 4/9/93
-! Robert Sanders, gt8134b@prism.gatech.edu
-!
+# exitemu.S, to generate exitemu.com, for dosemu 0.49, 4/9/93
+# Robert Sanders, gt8134b@prism.gatech.edu
+#
 
+.code16
 .text
-.data
-.bss
+	.globl	_start16
+_start16:
 
-.align 0
-
-.globl _main              ! for ld86
-_main:
-
-      .org       0x100
 #include "detect.h"
 
-	mov ax, #0xffff
-	int #0xe6         ! shouldn't return, but be sure with the HLT's
+	movw $0xffff, %ax
+	int $0xe6         # shouldn't return, but be sure with the HLT's
 	hlt
 	hlt
 	hlt
@@ -30,5 +25,4 @@ _main:
 	hlt
 	hlt
 	hlt
-
 

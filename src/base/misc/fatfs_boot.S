@@ -1,94 +1,87 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 
-! Boot sector for DOSEMU directly bootable redirected Unix directory
-!
-! Have a look at fatfs.c before modifying anything!!!
+# Boot sector for DOSEMU directly bootable redirected Unix directory
+#
+# Have a look at fatfs.c before modifying anything!!!
 
+.code16	
 .text
-.data
-.bss
+	.globl	_start16
+_start16:
+# added by ld to offsets: 0x7c40.
 
-.globl _main              ! for ld86
-_main:
+boot_ofs        = main - 0x40 
 
-      .org       0
+_io             = 0
+_ax             = 4
+_bx             = 6
+_cx             = 8
+_dx             = 0x0a
+_si             = 0x0c
+_di             = 0x0e
+_bp             = 0x10
+read_cnt        = 0x12
+unused_byte     = 0x13
+read_tabs       = 0x14
 
-boot_ofs        equ 0x7c00
+tab	=	boot_ofs + 0x3e
 
-_io             equ 0
-_ax             equ 4
-_bx             equ 6
-_cx             equ 8
-_dx             equ 0x0a
-_si             equ 0x0c
-_di             equ 0x0e
-_bp             equ 0x10
-read_cnt        equ 0x12
-unused_byte     equ 0x13
-read_tabs       equ 0x14
-
-	jmp	main
-
-	.org	0x3e
-tab:	.word	0
-	.org	0x40
 main:
 	cli
 	cld
-	xor	ax,ax
-	mov	ss,ax
-	mov	sp,#boot_ofs
+	xorw	%ax,%ax
+	movw	%ax,%ss
+	movw	$boot_ofs,%sp
 	sti
-	mov	ds,ax
-	mov	es,ax
-	mov	bp, [tab + boot_ofs]
-	lea	si,[bp + read_tabs]
+	movw	%ax,%ds
+	movw	%ax,%es
+	movw	tab,%bp
+	leaw	read_tabs(%bp),%si
 main_10:
-	dec	byte ptr [bp + read_cnt]
+	decb	read_cnt(%bp)
 	js	main_20
-	mov	dl,#0x80
-	mov	ah,#0x42
-	int	0x13
+	movb	$0x80,%dl
+	movb	$0x42,%ah
+	int	$0x13
 	jb	main_30
-	add	si,#0x10
+	addw	$0x10,%si
 	jmp	main_10
 main_20:
-	mov	ax,[bp + _ax]
-	mov	bx,[bp + _bx]
-	mov	cx,[bp + _cx]
-	mov	dx,[bp + _dx]
-	mov	si,[bp + _si]
-	mov	di,[bp + _di]
-	push	dx
-	push	ax
-	push	dword ptr [0x1e * 4]
-	push	#0
-	push	#0x1e * 4
-	push	dword ptr [bp + _io]
-	mov	bp,[bp + _bp]
-	retf
+	movw	_ax(%bp),%ax
+	movw	_bx(%bp),%bx
+	movw	_cx(%bp),%cx
+	movw	_dx(%bp),%dx
+	movw	_si(%bp),%si
+	movw	_di(%bp),%di
+	pushw	%dx
+	pushw	%ax
+	pushl	0x1e * 4
+	pushw	$0
+	pushw	$0x1e * 4
+	pushl	_io(%bp)
+	movw	_bp(%bp),%bp
+	lret
 main_30:
-	mov	si,#text + boot_ofs
+	mov	$text,%si
 write_msg:
 	lodsb
-	or	al,al
+	orb	%al,%al
 	jnz	write_msg_20
 write_msg_10:
-	mov	ah,#0
-	int	0x16
+	movb	$0,%ah
+	int	$0x16
 	jmp	write_msg_10
 write_msg_20:
-	mov	ah,#0x0e
-	mov	bx,#7
-	int	0x10
+	movb	$0x0e,%ah
+	movw	$7,%bx
+	int	$0x10
 	jmp	write_msg
 
-! 5 magic bytes (for IO.SYS compatibility) :-))
+# 5 magic bytes (for IO.SYS compatibility) :-))
 	.byte	4, 3, 2, 1, 13
 text:
-

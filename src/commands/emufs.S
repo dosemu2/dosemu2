@@ -1,97 +1,90 @@
-! 
-! All modifications in this file to the original code are
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# All modifications in this file to the original code are
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 
-!
-! 
-! Mach Operating System
-! Copyright (c) 1993,1992,1991,1990 Carnegie Mellon University
-! Copyright (c) 1991 IBM Corporation 
-! All Rights Reserved.
-! 
-! Permission to use, copy, modify and distribute this software and its
-! documentation is hereby granted, provided that both the copyright
-! notice and this permission notice appear in all copies of the
-! software, derivative works or modified versions, and any portions
-! thereof, and that both notices appear in supporting documentation,
-! and that the nema IBM not be used in advertising or publicity 
-! pertaining to distribution of the software without specific, written
-! prior permission.
-! 
-! CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
-! CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
-! ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
-! 
-! Carnegie Mellon requests users of this software to return to
-! 
-!  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
-!  School of Computer Science
-!  Carnegie Mellon University
-!  Pittsburgh PA 15213-3890
-! 
-! any improvements or extensions that they make and grant Carnegie Mellon
-! the rights to redistribute these changes.
-! 
-! MACHFS.ASM  MS-DOS device driver to interface mach file system
-! with the dos server's monitor.
-!
-! Version 1.1
-!
-! Gerald Malan (grm) 4/5/1991
-!
-! modified for the linux dos emulator by Andrew Tridgell 13/4/93
-! translated into as86 form by Robert Sanders ('murrcan style date!) 4/13/93
-! (I probably broke something, but it seems to work)
-!
+#
+# 
+# Mach Operating System
+# Copyright (c) 1993,1992,1991,1990 Carnegie Mellon University
+# Copyright (c) 1991 IBM Corporation 
+# All Rights Reserved.
+# 
+# Permission to use, copy, modify and distribute this software and its
+# documentation is hereby granted, provided that both the copyright
+# notice and this permission notice appear in all copies of the
+# software, derivative works or modified versions, and any portions
+# thereof, and that both notices appear in supporting documentation,
+# and that the nema IBM not be used in advertising or publicity 
+# pertaining to distribution of the software without specific, written
+# prior permission.
+# 
+# CARNEGIE MELLON AND IBM ALLOW FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+# CONDITION.  CARNEGIE MELLON AND IBM DISCLAIM ANY LIABILITY OF ANY KIND FOR
+# ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+# 
+# Carnegie Mellon requests users of this software to return to
+# 
+#  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+#  School of Computer Science
+#  Carnegie Mellon University
+#  Pittsburgh PA 15213-3890
+# 
+# any improvements or extensions that they make and grant Carnegie Mellon
+# the rights to redistribute these changes.
+# 
+# MACHFS.ASM  MS-DOS device driver to interface mach file system
+# with the dos server's monitor.
+#
+# Version 1.1
+#
+# Gerald Malan (grm) 4/5/1991
+#
+# modified for the linux dos emulator by Andrew Tridgell 13/4/93
+# translated into as86 form by Robert Sanders ('murrcan style date!) 4/13/93
+# (I probably broke something, but it seems to work)
+#
 
-use16
-
+.code16
 .text
-.bss
-.data
-.align 0
-
-	.org	0
+	.globl	_start16
+_start16:
 
 MaxCmd	=	12
 cr	=	0xd
 lf	=	0xa
-eom	=	'$'		! DOS end-of-string character (barf)
-Linuxfs	=	0xe6		! 0xe6 is Int for Mach Dos Server
-Mivec   = 	(Linuxfs * 4)   ! mem loc for the interrupt vector
-
-.globl _main
-_main:
+eom	=	'$'		# DOS end-of-string character (barf)
+Linuxfs	=	0xe6		# 0xe6 is Int for Mach Dos Server
+Mivec   = 	(Linuxfs * 4)   # mem loc for the interrupt vector
 
 Header:
-	.long	-1		! link to next device driver
-	.word	0		! attribute word for driver
-	.word	Strat		! ptr to strategy routine
-	.word	Intr		! ptr to interrupt service routine
-	.ascii	"LINUX   "	! logical-device name
+	.long	-1		# link to next device driver
+	.word	0		# attribute word for driver
+	.word	Strat		# ptr to strategy routine
+	.word	Intr		# ptr to interrupt service routine
+	.ascii	"LINUX   "	# logical-device name
 
-! the Strat and Intr routines are entered with a "far call".  I don't
-! know how to tell as86 that asI would in Turbo Assembler, so Ijust
-! explicitly "retf" at the end of their execution.  careful!
+# the Strat and Intr routines are entered with a "far call".  I don't
+# know how to tell as86 that asI would in Turbo Assembler, so Ijust
+# explicitly "retf" at the end of their execution.  careful!
 
-				! BPB from horse.mach.cs.cmu.edu
-Bpb:	.word	0x200		! Bytes per Sector
-	.byte	4		! Sectors per allocation unit
-	.word	1		! Number of reserved sectors
-	.byte	2		! Number of FATS
-	.word	0x200		! Max number of root entries
-	.word	0xac21		! Total number of sectors
-	.byte	0xf8		! Media Desc Byte
-	.word	0x2b		! Num sec per FAT
-	.word	0x23		! Sectors per track
-	.word	0xf		! Number of heads
-	.word	0		! Number of hidden sectors
-	.word	0		! High order word of hidden sectors
-	.long	0		! zero
+				# BPB from horse.mach.cs.cmu.edu
+Bpb:	.word	0x200		# Bytes per Sector
+	.byte	4		# Sectors per allocation unit
+	.word	1		# Number of reserved sectors
+	.byte	2		# Number of FATS
+	.word	0x200		# Max number of root entries
+	.word	0xac21		# Total number of sectors
+	.byte	0xf8		# Media Desc Byte
+	.word	0x2b		# Num sec per FAT
+	.word	0x23		# Sectors per track
+	.word	0xf		# Number of heads
+	.word	0		# Number of hidden sectors
+	.word	0		# High order word of hidden sectors
+	.long	0		# zero
 	.long	0
 	.long	0
 	.long	0
@@ -102,270 +95,250 @@ Bpb:	.word	0x200		! Bytes per Sector
 
 BPBptr:	.word	Bpb
 
-RHPtr:	.long	0		! ptr to request header
+RHPtr:	.long	0		# ptr to request header
 
-InitDone: .word 0		! 1 when initialisation is complete
+InitDone: .word 0		# 1 when initialisation is complete
 
 Dispatch:
 
-	.word	Init		! initialize driver
+	.word	Init		# initialize driver
 	.word	MediaChk
 	.word	BuildBpb
 	.word	Dummy
-	.word	Read		! read
+	.word	Read		# read
 	.word	Dummy
 	.word	Dummy
 	.word	Dummy
-	.word	Write		! write
-	.word	Write		! write with verify
+	.word	Write		# write
+	.word	Write		# write with verify
 	.word	Dummy
 	.word	Dummy
 	.word	Dummy
 
 Strat:
-! was...
-!	mov	word ptr cs:[RHPtr],bx
-!	mov	word ptr cs:[RHPtr+2],es
-	seg cs
-	mov	[RHPtr], bx
-	seg cs
-	mov	[RHPtr+2],es
-	retf
+# was...
+#	mov	word ptr cs:[RHPtr],bx
+#	mov	word ptr cs:[RHPtr+2],es
+	movw	%bx, %cs:RHPtr
+	movw	%es, %cs:RHPtr+2
+	lret
 
 
 Intr:
-	push	ax
-	push	bx
-	push	cx
-	push	dx
-	push	ds
-	push	es
-	push	di
-	push	si
-	push	bp
+	pushw	%ax
+	pushw	%bx
+	pushw	%cx
+	pushw	%dx
+	pushw	%ds
+	pushw	%es
+	pushw	%di
+	pushw	%si
+	pushw	%bp
 	
-	push	cs
-	pop	ds
+	pushw	%cs
+	popw	%ds
 
-	les	di,[RHPtr]	! let es:di = request header
+	les	RHPtr,%di	# let es:di = request header
 
-	seg es
-	movb	bl,[di+2]
-	xorb	bh,bh
-	cmp	bx, #MaxCmd
+	movb	%es:2(%di),%bl
+	xorb	%bh,%bh
+	cmpw	$MaxCmd,%bx
 	jle	Intr1
 	call	Error
 	jmp	Intr2
 
-Intr1:	shl	bx,#1
+Intr1:	shlw	%bx
 	
-	call	[bx+Dispatch]
+	call	*Dispatch(%bx)
 
-	les	di,[RHPtr]
+	les	RHPtr,%di
 
-Intr2:	or	ax,#0x100		! Merge done bit with status
-	seg es
-	mov	[di+3],ax
+Intr2:	or	$0x100,%ax		# Merge done bit with status
+	movw	%ax,%es:3(%di)
 
-	pop	bp
-	pop	si
-	pop	di
-	pop	es
-	pop	ds
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
-	retf
+	popw	%bp
+	popw	%si
+	popw	%di
+	popw	%es
+	popw	%ds
+	popw	%dx
+	popw	%cx
+	popw	%bx
+	popw	%ax
+	lret
 
 Dummy:
 	call MFSini
-	les	di, [RHPtr]
-	seg es
-	mov	bl, [di+2]
-	mov	bh, #3
+	les	RHPtr, %di
+	movb	%es:2(%di),%bl
+	movb	$3, %bh
 
-	mov     ax, #0x20
-	int	Linuxfs
+	movw    $0x20, %ax
+	int	$Linuxfs
 
-	xor	ax,ax
+	xorw	%ax,%ax
 	ret
 
 
 MediaChk:
 	call MFSini
-! was...
-!	mov	byte ptr es:[di+14],#-1	! disk has changed
-!	mov	word ptr es:[di+15], offset NoName
-!	mov	word ptr es:[di+17], cs	
-	seg es
-	movb	[di+14],#-1	! disk has changed
-	seg es
-	mov	[di+15], #NoName
-	seg es
-	mov	[di+17], cs	
-	xor	ax,ax
+# was...
+#	mov	byte ptr es:[di+14],$-1	# disk has changed
+#	mov	word ptr es:[di+15], offset NoName
+#	mov	word ptr es:[di+17], cs	
+	movb	$-1,%es:14(%di)	# disk has changed
+	movw	$NoName,%es:15(%di)
+	movw	%cs,%es:17(%di)
+	xorw	%ax,%ax
 	ret
 
 
 BuildBpb:
 	call MFSini
-! was...
-!	mov	word ptr es:[di+18],offset Bpb
-!	mov	word ptr es:[di+20],cs
-	seg es
-	mov	[di+18], #Bpb
-	seg es
-	mov	[di+20], cs
-	xor	ax,ax
+# was...
+#	mov	word ptr es:[di+18],offset Bpb
+#	mov	word ptr es:[di+20],cs
+	movw	$Bpb,%es:18(%di)
+	movw	%cs,%es:20(%di)
+	xorw	%ax,%ax
 	ret
 
 
 Read:
 	call MFSini
-	mov	bx,#0x101
-	mov ax,#0x20
-	int	Linuxfs
-	xor	ax,ax
+	movw	$0x101,%bx
+	movw	$0x20,%ax
+	int	$Linuxfs
+	xorw	%ax,%ax
 	ret
 
 
 Write:
 	call MFSini
-	mov	bx,#0x202
-	mov ax,#0x20
-	int	Linuxfs
-	xor	ax,ax
+	movw	$0x202,%bx
+	movw	$0x20,%ax
+	int	$Linuxfs
+	xorw	%ax,%ax
 	ret
 
 
 Error:
-	mov	ax,#0x8003
+	movw	$0x8003,%ax
 	ret
 
 
 MyIret:
-	xor	ax,ax
+	xorw	%ax,%ax
 	iret
 
 
 MFSini:
-	push es
-	push di
+	pushw %es
+	pushw %di
 
-	push cs
-	pop ds
-	mov ax,[InitDone]
-	cmp ax,#0
+	pushw %cs
+	popw %ds
+	movw InitDone,%ax
+	cmp $0,%ax
 	jne AlreadyDone
 
-	mov	ax, #0x3000
-	xor	bh,bh
-	int	0x21
-	push	ax
+	movw	$0x3000, %ax 
+	xorb	%bh,%bh
+	int	$0x21
+	pushw	%ax
 
-	mov	ah, #0x52
-	int	0x21
+	mov	$0x52, %ah
+	int	$0x21
 
-	mov	ax, #0x5d06
-	int	0x21
+	movw	$0x5d06, %ax
+	int	$0x21
 
-	pop	cx
-	push bx
-	pop dx
-	mov	bx, #0x500
-	mov     ax,#0x20
-	int	Linuxfs	
+	popw	%cx
+	pushw	%bx
+	popw	%dx
+	movw	$0x500, %bx
+	movw    $0x20, %ax
+	int	$Linuxfs	
 
-	push cs
-	pop ds
-	mov ax,#1
-	mov [InitDone],ax
+	pushw %cs
+	popw %ds
+	movw $1,%ax
+	movw %ax,InitDone
 
 AlreadyDone:
-	pop di
-	pop es
+	popw %di
+	popw %es
 	ret
 
 
 Init:
-	xor bx,bx
-	push	si
-	mov	si, #DirName
-	movb	[si], #0x24
-	mov     ax, #0x20
-	int	Linuxfs
-	pop	si
+	xorw %bx,%bx
+	pushw	%si
+	movw	$DirName, %si
+	movb	$0x24, (%si) 
+	movw    $0x20, %ax
+	int	$Linuxfs
+	popw	%si
 
-	cmp	ax, #0
+	cmpw	$0, %ax
 	jne	MFSin
 
 MFSout:
-	push cs
-	pop ds
-	mov	ah,  #9
-	mov	dx,  #OutMess
-	int	0x21
+	pushw %cs
+	popw %ds
+	movb	$9, %ah
+	movw	$OutMess, %dx
+	int	$0x21
 
-! was...
-!	mov	byte ptr es:[di+13],#0		! No units!!
-!	mov	word ptr es:[di+18],offset BPBptr
-!	mov	word ptr es:[di+20],cs
-!	mov	word ptr es:[di+14],#0		!Break addr = cs:0000
-!	mov	word ptr es:[di+16],cs
+# was...
+#	mov	byte ptr es:[di+13],#0		# No units!!
+#	mov	word ptr es:[di+18],offset BPBptr
+#	mov	word ptr es:[di+20],cs
+#	mov	word ptr es:[di+14],$0		#Break addr = cs:0000
+#	mov	word ptr es:[di+16],cs
 
-	seg es 
-	movb	[di+13],#0		! No units!!
-	seg es
-	mov	[di+18], #BPBptr
-	seg es
-	mov	[di+20],cs
-	seg es
-	mov	[di+14],#0		!Break addr = cs:0000
-	seg es
-	mov	[di+16],cs
+	movb	$0,%es:13(%di)		# No units!!
+	movw	$BPBptr, %es:18(%di)
+	movw	%cs, %es:20(%di)
+	movw	$0, %es:14(%di)		#Break addr = cs:0000
+	movw	%cs, %es:16(%di)
 
 	ret
 
 MFSin:
 	call	MFSini
 
-	seg es
-	movb	al, [di+22]
-	add	al, #0x41
+	movb	%es:22(%di),%al
+	add	$0x41, %al
 
-	push di
-	push cs
-	pop	ds
-	mov	di,  #Mesage1
-	movb	[di],al
+	pushw %di
+	pushw %cs
+	popw	%ds
+	movw	$Mesage1, %di
+	movb	%al, (%di)
 
-	mov	ah, #9
-	mov	dx, #Mesage
-	int	0x21
-	pop di
+	movb	$9, %ah
+	movw	$Mesage, %dx
+	int	$0x21
+	popw %di
 
-! was...
-!	mov	byte ptr es:[di+13],#1		! Number of units
-!	mov	word ptr es:[di+18],offset BPBptr
-!	mov	word ptr es:[di+20],cs
-!	mov	word ptr es:[di+14],offset Init
-!	mov	word ptr es:[di+16],cs
+# was...
+#	mov	byte ptr es:[di+13],$1		# Number of units
+#	mov	word ptr es:[di+18],offset BPBptr
+#	mov	word ptr es:[di+20],cs
+#	mov	word ptr es:[di+14],offset Init
+#	mov	word ptr es:[di+16],cs
 
-! this is part of diff9
-!	seg es
-!	movb	[di+13],#1		! Number of units
+# this is part of diff9
+#	seg es
+#	movb	[di+13],$1		# Number of units
 
-	seg es
-	mov	[di+18], #BPBptr
-	seg es
-	mov	[di+20],cs
-	seg es
-	mov	[di+14], #Init
-	seg es
-	mov	[di+16],cs
+	movw	$BPBptr, %es:18(%di)
+	movw	%cs, %es:20(%di)
+	movw	$Init, %es:14(%di)
+	movw	%cs, %es:16(%di)
 
-	xor ax,ax
+	xorw %ax,%ax
 
 	ret
 
@@ -386,5 +359,3 @@ OutMess:
 
 NoName:	.ascii	"NO NAME"
 	.byte	0
-
-	end

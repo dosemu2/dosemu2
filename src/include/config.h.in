@@ -189,6 +189,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define the EMU version */
 #undef EMUVER
 
+/* Define the stepping of gas code16 functionality */
+#undef GASCODE16
+
 /* 
  * Define if the compiler doesn't have __FUNCTION__ macro
  * This is very gcc specific (and very useful!). It is defined

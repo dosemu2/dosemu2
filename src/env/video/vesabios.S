@@ -56,47 +56,37 @@
  * in env/video/vesa.c.
  * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
+ * 2001/01/17: Converted to gas. Bart Oldeman <bart.oldeman@bristol.ac.uk>.
+ *
  * DANG_END_CHANGELOG
  *
  *
- * We must compile this with as86/ld86 as follows:
- *   gcc -E  vesabios.S | ../tools/tools86 -E >vesabios.s
- *   as86 -0 -w -g -o vesabios.o vesabios.s
- *   ld86 -0 -r -o vesabios vesabios.o
- *   ../tools/tools86 vesabios
- *   mv -f vesabios vesabios.o
- *
- * We also need to use the macro JMPL (label) if we want have a 16-bit
- * displacement. As86 is not able to do so without the -j switch,
- * and the -j switch also make all conditional jmp's 5 byte long.
- * See file macros86.h for details.
- *
- * NOTE: be careful with overlapping ".org",
- *       or ld86 will then reach your disk quotas !
+ * We must compile this with gas/ld as follows:
+ *   gcc -E  vesabios.S >vesabios.s
+ *   as -o vesabios.o vesabios.s
  *
  */
 
 #define __ASM__
 #include "memory.h"
-#include "macros86.h"
-#include "config.h"
 #ifdef __linux__
 #include <linux/linkage.h>
 #endif
 
+.code16
+.text
+	.globl	_start16
+_start16:
 
-		.text
 		.globl CISH(vgaemu_bios_start)
 		.globl CISH(vgaemu_bios_prod_name)
 		.globl CISH(vgaemu_bios_win_func)
 		.globl CISH(vgaemu_bios_end)
 
-		.org 0
-
 CISH(vgaemu_bios_start):
 		.byte	0x55, 0xaa	/* BIOS signature, required for BIOS extensions */
 		.byte	0x00		/* BIOS extension length in units of 512 bytes */
-		retf			/* BIOS init function */
+		lret			/* BIOS init function */
 		nop
 		
 CISH(vgaemu_bios_prod_name):
@@ -113,15 +103,14 @@ CISH(vgaemu_bios_prod_name):
 		.byte	0x00
 
 CISH(vgaemu_bios_win_func):
-		push	bx
+		pushw	%bx
 		/* 0x40 is our own special code, (cf. vesa.c),
 		 * make it 0x00 if you think it causes problems
 		 */
-		or	bh,#0x40
-		mov	ax,#0x4f05
-		int 	#0x10
-		pop	bx
-		retf
+		orb	$0x40,%bh
+		mov	$0x4f05,%ax
+		int 	$0x10
+		popw	%bx
+		lret
 
 CISH(vgaemu_bios_end):
-

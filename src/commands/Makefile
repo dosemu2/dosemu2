@@ -6,9 +6,6 @@
 
 SHELL=/bin/bash
 
-AS86 = $(_AS86_) -l
-LD86 = $(_LD86_) -0
-
 D=$(REALTOPDIR)/$(THISVERSION)/commands
 
 COM=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
@@ -47,23 +44,15 @@ DOSINVOKE_KEEP='keystroke "$(BOOTUP)$(GOTARGET)COMMAND\r"'
 PD=precompiled
 # --------------- end 'tcc via dosemu' --------------------
 
+INDIR=-I../include
 
 all: $(COM) $(SYS)
 
-%.s:	%.S detect.h
-	$(CC) -E -D__AS86__ --traditional -I../include $<  > $*.s
+$(D)/%.sys: %.S detect.h
+	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,-oformat,binary -nostdlib -s -o $@ $< > $*.s.out
 
-$(D)/%.sys: %.s
-	$(AS86) -0 -o $*.o $< > $<.out
-	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=32
-	rm $*.tmp $*.o
-
-$(D)/%.com: %.s
-	$(AS86) -0 -o $*.o $< > $<.out
-	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=288
-	rm -f $*.tmp $*.o
+$(D)/%.com: %.S detect.h
+	$(LD) $(INDIR) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,-oformat,binary -nostdlib -s -o $@ $< > $*.s.out
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
 		$(PD)/lredir.exe $(PD)/dosdbg.exe $(PD)/xmode.exe

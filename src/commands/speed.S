@@ -1,59 +1,56 @@
-! 
-! (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
-!
-! for details see file COPYING in the DOSEMU distribution
-!
+# 
+# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 
-! speed.S, to generate speed.com, for dosemu 0.67.16, 97/11/22
-! Set/Get HogThreshold
-!                                            Hans Lermen@fgan.de
-!
+# speed.S, to generate speed.com, for dosemu 0.67.16, 97/11/22
+# Set/Get HogThreshold
+#                                            Hans Lermen@fgan.de
+#
 
 .text
-.data
-.bss
-
-.align 0
-
-.globl _main	; for ld86
-_main:
-
-	.org	0x100	; which is were *.com files start
+.code16
+	.globl	_start16
+_start16:
 
 #define NEED_ARGV
 #include "detect.h"
 
-	cmp	argc,#1
+	cmp	$1,argc
 	je	ok_set
 	jb	ok_get
 abort:
-	lea	si,abortmsg
+	lea	abortmsg,%si
 	call	print_and_exit
 abortmsg:
 	.ascii	"USAGE: speed [hogthreshold]"
 linefeed:
-	db	13,10,0
+	.byte	13,10,0
 resultmsg:
 	.ascii	"Current hogthreshold value = "
-	db	0
+	.byte	0
 
 ok_set:
-	mov	si,argv
+	movw	argv,%si
 	call	atoi
-	cmp	ax,#255
+	cmpw	$255,%ax
 	ja	abort
-	mov	bx,ax
-	mov	ax,#0x12	; set HogThreshold
-	int	0xe6		; doshelper
+	movw	%ax,%bx
+	movw	$0x12,%ax	# set HogThreshold
+	int	$0xe6		# doshelper
 ok_get:
-	lea	si,resultmsg
+	lea	resultmsg,%si
 	call	print
-	mov	ax,#0x28	; get HogThreshold
-	mov	bx,#1		; bx=1 for Get Hogthreshold
-	int	0xe6		; doshelper
+	movw	$0x28,%ax	# get HogThreshold
+	movw	$1,%bx		# bx=1 for Get Hogthreshold
+	int	$0xe6		# doshelper
 	call	printdecimal
-	lea	si,linefeed
+	lea	linefeed,%si
 	call	print
-	mov	al,#0
+	movb	$0,%al
 	call	exit
+
+
+

@@ -242,8 +242,10 @@ void            bios_data_init(void);	/* init BIOS-data-areas */
 
 void            INT16_dummy_start();
 void            INT16_dummy_end();
+#if 0
 void            INT09_dummy_start();
 void            INT09_dummy_end();
+#endif
 void            INT08_dummy_start();
 void            INT08_dummy_end();
 void            INT70_dummy_start();

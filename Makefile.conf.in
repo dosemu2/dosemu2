@@ -52,9 +52,6 @@ ifdef X_GRAPHICS
   export X_GRAPHICS
 endif
 
-export _LD86_=@LD86@
-export _AS86_=@AS86@
-
 # This gets defined even if we chose via ./include/config.h NOT to
 # use the debugger
 export DEBUGGER=@DEBUGGER@
