@@ -445,13 +445,12 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      popa\n"
 "      popfl\n"
 "      lss    (%%esp),%%esp\n"		/* this is: pop ss; pop esp */
-"      jmp    __dpmi_switch_jmp\n"
+"      ljmp   *%%cs:__dpmi_switch_jmp\n"
 
       /* NOTE: we are putting the ljmp into .data (needing this kludge),
                 because we can't write to code space (Hans) */
 "      .data\n"
 "  __dpmi_switch_jmp:\n"
-"      .byte  0xEA\n"			/* ljmp */
 "  __neweip:\n"
 "      .long  0x12345678\n"
 "  __newcs:\n"
