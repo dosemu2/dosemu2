@@ -2,7 +2,7 @@
 
 /* 
  * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
+ * $Source: /usr/src/dosemu0.52/RCS/sigsegv.c,v $
  * $Revision: 2.1 $
  * $State: Exp $
  *

@@ -11,7 +11,7 @@
 
 <abstract>
 This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
-dosemu, The most up-to-date version of the dosemu-HOWTO may be found
+dosemu.  The most up-to-date version of the dosemu-HOWTO may be found
 in <tt>dspsun.eas.asu.edu:/pub/dosemu</tt>.
 </abstract>
 
@@ -176,10 +176,12 @@ by simply uncommenting the
 <verb>
    disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
 </verb>
-line in their dosemu config file.  A few others have had success using
+line in their dosemu config file.  Others have had success using
 <verb>
    disk { partition "/dev/hda1" 1 }
 </verb>
+and running the <tt>mkpartition</tt> utility (included in the dosemu
+distribution).
 
 Holger Schemel (<tt>q99492@pbhrzx.uni-paderborn.de</tt>) reported
 (2/10/94) that
@@ -341,6 +343,10 @@ Note that you can use the new emufs.sys thing to mount a "public"
 directory and/or a "private" directory (a sub-directory in each
 person's home directory).
 
+<p><tt/[/Note: Users may also create a personal configuration file
+named <tt>~/.dosrc</tt> (same format as <tt>/etc/dosemu.conf</tt>) to
+run their own copy of dos.]
+
 <sect1>How do I get Netware access from dosemu?
   
 <p>James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (6/13/94) that
@@ -368,7 +374,6 @@ driver existed.
 Any interested parties should E-mail me
 (<tt>jmaclean@fox.nstn.ns.ca</tt>) and I'll pass along some
 directions.
-
 
 <sect>dosemu and X-windows
 
@@ -540,8 +545,7 @@ so that key release events look like key press events.
 So, the input processing needs to be turned off when using the scan
 codes on a console (it wouldn't be a good idea to do it for tty lines).
 
-<sect1>Why does dosemu give "divide overflow" errors after running for
-       more than 24-hours? 
+<sect1>Why does dosemu give "divide overflow" errors after running for more than 24-hours? 
 
 <p>(1/17/94)
 
@@ -618,6 +622,21 @@ Put the following in your .emacs:
 and then "emacs -f do-dos" will run the dosemu inside the buffer.
 Make sure you emacs window is 25x80, of course.
 
+<p>Pete Heist (<tt>heistp@rpi.edu</tt>) reported (5/13/94) that
+
+If you compile it with the "<tt>-funroll-all-loops</tt>" option you
+will get MUCH faster screen output.  Some other parts of the emulator
+will run much faster as well.  Realize that the consequence of this is
+a larger executable which eats a little more memory, even though it's
+demand loaded.
+
+<p>Georg Wiegand (<tt>gw@gwcomp.e.open.de</tt>) reported (5/16/94)
+that
+
+You also can use the keyword <tt>HogThreshold</tt> in
+<tt>/etc/dosemu.conf</tt>.  The greater the following number the more
+calculating-time dosemu gets.  For example, I use "<tt>HogThreshold
+60000</tt>" on my 386/87-20 laptop.
 
 <sect1>My CDROM drive has problems reading some files under dosemu.
 
@@ -695,6 +714,4 @@ see the DPR (DOSEMU Project Registry).  A current copy may be found in
 <tt>dspsun.eas.asu.edu:/pub/dosemu</tt>.
 
 </article>
-
-
 

@@ -2,7 +2,7 @@
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
  * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.60/RCS/cmos.h,v $
+ * $Source: /usr/src/dosemu0.52/RCS/cmos.h,v $
  * $Revision: 2.1 $
  * $State: Exp $
  */

@@ -1,0 +1,396 @@
+  The DOSEMU Alterer Novices Guide DANG
+  Alistair MacDonald, am20@unix.york.ac.uk
+  For DOSEMU v0.52 pl
+
+  This Document is the DOSEMU Alterer Novices Guide. It is known as the
+  DANG.
+
+  1.  Introduction
+
+  This document is the preliminary draft of a manual to help people
+  understand the inner workings of dosemu.  It is the goal of this
+  document to create new dosemu hackers.  This concept was inspired by
+  the linux kernel hackers guide.
+
+  This Guide was concieved and originally written by " Corey Sweeney" <
+  corey@amiganet.chi.il.us> . It has been completely revised. It is now
+  generated automatically directly from the source code. Special thanks
+  to " James B. MacLean"  < jmaclean@fox.nstn.ns.ca>  for supplying the
+  original information. (It was mostly ripped out of a mail message.) "
+  Jochen Hein" has made many useful comments &	suggestions.
+
+  At the end if this document is a section detailing how this guide is
+  put together. This may help you when trying to locate the relevant
+  pieces of code. If you add new code, it would be useful if the
+  relevant markers are added where appropriate.
+
+  This file is a collective effort. If you don't like one of the
+  explanations, or want to add anything, please send me something!
+
+
+
+
+
+  2.  The Clients group of Modules
+
+  One of the long term aims of the DOSEMU development team is to provide
+  a client-server based system. This will allow people to add different
+  display systems in more simply. Those in current development are
+  detailed in this section.
+
+
+
+  2.1.	clients/ncurses.c Information
+
+  This is James' client based around NCURSES. It (un-)succesfully
+  demonstrates the procedure for making initial connections to the
+  server.
+
+
+
+  2.1.1.  Functions in clients/ncurses.c
+
+  These are the functions defined in clients/ncurses.c.
+
+
+  2.1.1.1.  main
+
+  main
+
+
+  o  argc - Number of Command Line arguments.
+
+  o  argv - Command Line arguments - as an array of char*'s
+
+  This function does all of the work associated with this client. It
+  grabs the shared memory used to hold the current Video data and makes
+  some comments about its current screen.
+
+
+
+
+
+  2.1.2.  Remarks in clients/ncurses.c
+
+  Some of the functions are undocumented. These are the trivial ones.
+
+
+  -----
+
+  You must be mad if you want to get involved in all of this Shared
+  memory stuff .... 8-)
+
+
+
+  2.1.3.  Items for Fixing in clients/ncurses.c
+
+  Apparently, nothing needs fixing in clients/ncurses.c.
+
+
+  2.1.4.  New Ideas for clients/ncurses.c
+
+  Apparently, there are no new ideas for clients/ncurses.c.
+
+
+  3.  The DPMI group of Modules
+
+  DPMI is Lutz's Baby. It's a really important part of the Emulator as
+  far as we are concerned, since it will allow us to run so many more
+  programs and, most importantly, bcc. This is the one thing that the
+  WINE developers want that we haven't been able to give them.
+
+  If you think you can help .... " Away you Go!"  (Sorry to those non-UK
+  folks ...  Thats a reference to a UK kids sports programme from my
+  youth ... anyway ...	enough of this banter. You'll be wanting to know
+  that this is all about DPMI ...)
+
+
+
+  3.1.	dpmi/dpmi.c Information
+
+  dpmi.c
+
+  DOS Protected Mode Interface allows DOS programs to run in the
+  protected mode of 2345..86 processors
+
+
+
+  3.1.1.  Functions in dpmi/dpmi.c
+
+  We appear to have no information on the functions in dpmi/dpmi.c.
+
+
+  3.1.2.  Remarks in dpmi/dpmi.c
+
+  Apparently, no-one has anything interesting to say about dpmi/dpmi.c.
+
+
+  3.1.3.  Items for Fixing in dpmi/dpmi.c
+
+  Apparently, nothing needs fixing in dpmi/dpmi.c.
+
+
+  3.1.4.  New Ideas for dpmi/dpmi.c
+
+  Simulate Local Descriptor Table for MS-Windows 3.1 must be read only,
+  so if krnl386.exe/krnl286.exe try to write to this table, we will bomb
+  into sigsegv() and and emulate direct ldt access
+
+
+  4.  The Video group of Modules
+
+  All of the Video handling code is in the " video"  subdirectory.
+
+  There is one file for each video card or chipset and the master file.
+  To Add a new card, it needs a set of save &  restore routines putting
+  in a file here.
+
+
+
+  4.1.	video/video.c Information
+
+  All of the emulated video interrupts are here (ie int10). In addition,
+  all the code to try and properly save &  restore the video state
+  between VC's and the attempts to control updates to the VC whilst the
+  user is using another. We map between the real screen address and that
+  used by DOSEMU here too.
+
+  Attempts to use a cards own bios require the addition of the parameter
+  the emulator try to execute the card's initialization routine which is
+  normally located at address c000:0003. This can now be changed as an
+  option.
+
+
+
+  4.1.1.  Functions in video/video.c
+
+  We appear to have no information on the functions in video/video.c.
+
+
+  4.1.2.  Remarks in video/video.c
+
+  Apparently, no-one has anything interesting to say about
+  video/video.c.
+
+
+  4.1.3.  Items for Fixing in video/video.c
+
+  Apparently, nothing needs fixing in video/video.c.
+
+
+  4.1.4.  New Ideas for video/video.c
+
+  Apparently, there are no new ideas for video/video.c.
+
+
+  5.  The Misc group of Modules
+
+  These are the remaining important files, that do not really fit into
+  another group. These should not be dismissed as unimportant - rather,
+  they are often amongst the most important.
+
+
+
+  5.1.	bios_emm.c Information
+
+  This provides the EMM Memory Management for DOSEMU. It was originally
+  part of the Mach Dos Emulator.
+
+  Recent work in this area has involved a patch to the Kernel. If this
+  is used and the DEFINE MMAP_EMS line used, a faster form of EMS memory
+  support is included, using the /proc filesystem.
+
+  In contrast to some of the comments (Yes, _I_ know the adage about
+  that...)  we appear to be supporting EMS 4.0, not 3.2
+
+
+
+  5.1.1.  Functions in bios_emm.c
+
+  We appear to have no information on the functions in bios_emm.c.
+
+
+  5.1.2.  Remarks in bios_emm.c
+
+  Apparently, no-one has anything interesting to say about bios_emm.c.
+
+
+  5.1.3.  Items for Fixing in bios_emm.c
+
+  Apparently, nothing needs fixing in bios_emm.c.
+
+
+  5.1.4.  New Ideas for bios_emm.c
+
+  Apparently, there are no new ideas for bios_emm.c.
+
+
+  5.2.	emu.c Information
+
+  This is where we call of the initialisation code. Everything not
+  covered elsewhere is handled here (Such logic !) By this we mean the
+  speakers, the standard memory, cassettes etc.
+
+  More than that, I cannot tell you - Things have changed a lot since I
+  last got an update ... 8-(
+
+
+  5.2.1.  Functions in emu.c
+
+  We appear to have no information on the functions in emu.c.
+
+
+  5.2.2.  Remarks in emu.c
+
+  Apparently, no-one has anything interesting to say about emu.c.
+
+
+  5.2.3.  Items for Fixing in emu.c
+
+  Apparently, nothing needs fixing in emu.c.
+
+
+  5.2.4.  New Ideas for emu.c
+
+  Apparently, there are no new ideas for emu.c.
+
+
+  5.3.	xms.c Information
+
+  Currently the XMS 3.0 spec is covered in this file. XMS is fairly
+  simple as it onbly deals with allocating extended memory and then
+  moving it around in specific calls. This spec also includes the
+  allocation of UMB's, so they are also included as part of this file.
+  The amount of xms memory returned to DOS programs via the XMS
+  requests, or int15 fnc88 is set in " /etc/dosemu.conf"  via the XMS
+  paramter.
+
+
+
+  5.3.1.  Functions in xms.c
+
+  We appear to have no information on the functions in xms.c.
+
+
+  5.3.2.  Remarks in xms.c
+
+  Apparently, no-one has anything interesting to say about xms.c.
+
+
+  5.3.3.  Items for Fixing in xms.c
+
+  Apparently, nothing needs fixing in xms.c.
+
+
+  5.3.4.  New Ideas for xms.c
+
+  Apparently, there are no new ideas for xms.c.
+
+
+  5.4.	termio.c Information
+
+  This handles the keyboard.
+
+  Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
+  codes as sent out by the kernel and 'xlate' uses plain ASCII as used
+  over serial lines. The mapping for different languages &  the two ALT-
+  keys is done here, but the definitions are elsewhere. Only the default
+  (US) keymap is stored here.
+
+
+
+  5.4.1.  Functions in termio.c
+
+  We appear to have no information on the functions in termio.c.
+
+
+  5.4.2.  Remarks in termio.c
+
+  Apparently, no-one has anything interesting to say about termio.c.
+
+
+  5.4.3.  Items for Fixing in termio.c
+
+  Apparently, nothing needs fixing in termio.c.
+
+
+  5.4.4.  New Ideas for termio.c
+
+  Apparently, there are no new ideas for termio.c.
+
+
+  5.5.	keymaps.c Information
+
+  These are definitions, giving which key is related to which scancode
+  in raw keyboard mode. Basically, the code of 'x' on a US keyboard may
+  be that of a 'Y' on a German keyboard. This way, all types of keyboard
+  can be represented under DOSEMU. Also, the right ALT-key is often a
+  function key in it's own right.
+
+
+  5.5.1.  Functions in keymaps.c
+
+  We appear to have no information on the functions in keymaps.c.
+
+
+  5.5.2.  Remarks in keymaps.c
+
+  Apparently, no-one has anything interesting to say about keymaps.c.
+
+
+  5.5.3.  Items for Fixing in keymaps.c
+
+  Apparently, nothing needs fixing in keymaps.c.
+
+
+  5.5.4.  New Ideas for keymaps.c
+
+  Apparently, there are no new ideas for keymaps.c.
+
+
+  6.  And Finally ...
+
+  The Following items are used to delimit the text used to create this
+  file.	Whilst it is not necessary to know this, they are included
+  because they may be useful for searching, as they are (at least at the
+  moment) reasonably unique.
+
+  DANG_BEGIN_MODULE / DANG_END_MODULE This will bracket a description of
+  the file (normally at the start).
+
+  DANG_BEGIN_FUNCTION / DANG_END_FUNCTION This brackets a description of
+  functions (good this, isn't it!)  Not every function needs to be
+  described in this way - just the major ones.
+
+  DANG_BEGIN_REMARK / DANG_END_REMARK This brackets descriptions of
+  obscure items, like data structures and architecture.
+
+  DANG_FIXTHIS This is a one line item, indicating a an area requiring a
+  fix, or redesign.
+
+  DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA New Ideas Start Here! As Ideas
+  are proposed, that get added with their description, so that future
+  generations can laugh at or code the ideas ..... These bracket the
+  idea description.
+
+  DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
+  bug fixing, and avvailable for use with DPR (or that's the theory)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

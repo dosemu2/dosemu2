@@ -1,11 +1,11 @@
 
 
-
-
-
-                        Dosemu Project Registry
-
-                                5/3/94
+                 _____________________________________
+                |                                     |
+                |       Dosemu Project Registry       |
+                |                                     |
+                |               6/15/94               |
+                |_____________________________________|
 
 
         The DOSEMU Project register is a list of the dosemu projects
@@ -49,7 +49,7 @@ DOSEMU FAQ: - Michael E. Deisher
 DOSEMU that is posted every blue moon to the DOSEMU mailing list.
 
 
-redirector maintaince: - (formerly Tim Bird(& hopefully again)) & James 
+Redirector maintaince: - (formerly Tim Bird(& hopefully again)) & James 
 
         This is mainly bug fixing the DOSEMU disk recdirector.
 
@@ -62,25 +62,25 @@ redirector maintaince: - (formerly Tim Bird(& hopefully again)) & James
 {into Linux file locks) are currently just stubs.
 
 
-EMS & XMS maintaince: - James
+EMS & XMS maintaince: - James MacLean
 
         This is mainly bug fixing the DOSEMU EMS driver & XMS memory
 system.
 
 
-Keyboard maintaince: - James
+Keyboard maintaince: - James MacLean
 
         This is mainly bug fixing the DOSEMU keyboard routines.
 
 
-Video maintaince: - James (again, dosen't he ever rest :)
+Video maintaince: - James MacLean (again, dosen't he ever rest :)
 
         This is mainly bug fixing the DOSEMU video routines.
 
 
-*xwindows support: - Jason E Gorden
+*Xwindows color/graphics support: - Jason E Gorden
 
-        xwindows support needs to be added.  Ideally dosemu, when run
+        Xwindows support needs to be added.  Ideally dosemu, when run
 would open a color xterm, then run color text dos programs.  When a
 graphics application was run, the video card should be emulated & a
 translation of the graphics should be sent to the window.  While this
@@ -116,28 +116,32 @@ Graphics in a xwindow is just a dream right now...
 {sunsite.unc.edu:/pub/Linux/X11/xutils/terms/ansi_xterm-src.tgz.
 
 
-*text output: - Savio Lam & Corey Sweeney (Me)
+*Text output: - Savio Lam, Corey Sweeney (Me) and Mark Rejhon
 
-Color & the IBM charactor set must be added to dosemu.  By using
-ncurses, not only will we pick up a terminal-independant way of
-displaying color, but we will also gain the potential to do screen
-updates in a effecient pattern.
+Right now, termcap is being used.  Color & the IBM charactor set 
+must be added to dosemu.  By using ncurses, not only will we pick 
+up a terminal-independant way of displaying color, but we will also 
+gain the potential to do screen updates in a more effecient way
 
 To add the IBM charactor set, we may have to expand the features in
 ncurses to handle them.  (I do not believe that they exist already)
-(example of IBM charactor: happy face (001))
+(example of IBM charactor: happy face (001))   An IBM font available for 
+Xterms, the use of DOSEMU on a remote IBM terminal, and the use of a 
+special code at the virtual console to enable one-to-one character
+mapping would be easy to handle, as long as only ASCII codes above 32 
+are used.
 
 
-Serial maintaince: - ronnie
+Serial maintaince: - Mark Rejhon (formerly Ronnie)
 
-        This is the code for modems & mice.  The tricky part will be
-getting the high speed modems to work.
-
-
-Serial performance increse & 16550 emulation - ???
-
-        He's pretty much done with this already.  It actually works at
-real baud rates now ( real < 4800).
+	This is the code for modems and mice.  It has a big performance
+increase over previous serial code.  Currently, serial performance 
+ranges from 9600bps to 38400bps in DOSEMU, with an excellent emulation
+of a 16550 UART, even on serial ports that does not have a 16550.
+Also, 4 simultaneous serial ports are now supported.  The biggest problem 
+is that many mouse drivers still do not work properly.  Hopefully upcoming 
+new timer code will help this problem, since mice drivers seem to be very
+timing sensitive.
 
 
 EMUsuccess.txt: - Michael E. Deisher
@@ -186,7 +190,7 @@ in the manual, to be updated every time james releases a new version.
 dosemu source distribution (this does not imply that there is a binary
 distribution).  
 
-        Note: The manual has fallen behind since rob stoped
+        Note: The manual has fallen behind since Rob stopped
 maintaining it, but should be up to speed soon.
 
 ****************************************************************
@@ -221,19 +225,21 @@ One part of DPMI is getting Windows 3.1 to run. Lutz could need any help with
 it since he hates undocumented functions :-).
 
 
-*Performance improvements:  Linus & Lutz - (tim played with this, but
+*Performance improvements:  Linus & Lutz - (Tim played with this, but
 had to do IPX) 
 
-Ok linus took 30 seconds to write a kernel patch to add one feature
-that dosemu needs to the kernel.  Lutz got it working, and is trying
-to debug it now.  This has helped speed considerably.
+After accepting preliminary code from Lutz, Linus took 30 seconds to
+write a kernel patch to add one feature that dosemu needs to the
+kernel.  Lutz got it working and then Linus graciously expanded on the
+code. Lutz is  in charge of debugging it now.  This has helped speed 
+considerably.
 
 --------------------
-eirlier method-
- From messages to the msdos mailing list i believe that this is already
-being worked on by someone.  And from the little i saw, it seemed like
-they were taking the right approach to doing it.  It goes something as
-follows:
+Earlier method-
+        From messages to the msdos mailing list i believe that this is 
+already being worked on by someone.  And from the little i saw, it seemed 
+like they were taking the right approach to doing it.  It goes something 
+as follows:
 
         The first step is to determine where in dosemu all the time is
 being spent.  To determine this a program/patch could be written to
@@ -311,7 +317,7 @@ be shrunk down.  I currently have no idea now to accomplish this one.
 (Would threads help this one?)
 
 
-terminal input:
+Terminal input:
 
 The extended keys (ex: F12, Shift-F5, Controll-Pageup, Alt-Shift) must
 be recognized by dosemu.  Some keys like the F11 & F12 must be added
@@ -335,7 +341,7 @@ terminfo, And for any keys that don't have entries, create new
 
 
 
-networking:
+Networking:
         I've seen some people say that they wanted novel networking to
 work under dosemu, and i just wanted to say that I believe that novel 
 networking belongs in the kernel, not in dosemu.  This would allow you
@@ -365,11 +371,11 @@ map to dynamically change drive mappings etc.
 {the DOSEMU 2-process IPC system.
 
 
-sound driver - link emulated soundblaster card to the sound device.
+Sound driver - link emulated soundblaster card to the sound device.
 
-devide overflow error - fix the "24" hour bug.
+Divide overflow error - fix the "24" hour bug.
 
-add .config file support (it checks the users home directory for a config
+Add .config file support (it checks the users home directory for a config
 file *then* looks for the default)
 
 
@@ -419,18 +425,24 @@ Debugging:
 dosemu historical information:
 
 dosemu .4 - ran dos shell & practically no programs.  had no features
-to run most programs & emulator was broken. Performance: unbearable
+to run most programs & emulator was broken. Performance: unbearable.
 
 dosemu .49 - ran dos shell & had features to run many programs.
-emulator was broken. Performance: miserable
+emulator was broken. Performance: miserable.
 
 dosemu .50 - should be able to run many programs and
 will actually work!  :)  Performance: still miserable.
 
-dosemu .52 - (when released) should be able to run many programs, actually
-work, and performace should go off the scale!
+dosemu .52 - should be able to run many programs, actually work, and 
+performace should go off the scale!  (Let's see... 'fair'...or just 
+maybe even 'good' is more like it)
 
-performance standards:
+dosemu .60 - (when released later in 1994) Current hopeful plans to make 
+it support Microsoft Windows 3.1 and real games like DOOM, SimCity 2000, 
+Xwing, and Flight Simulator at satisfactory speed!  We need your HELP
+to make them work well - if you know how VCPI works, please contact us!
+
+Performance standards:
 
 (best)  awful           
         horibble        
@@ -441,16 +453,16 @@ performance standards:
 
 
 ------------------------------------------------------------------------
-current dosemu information:
+Current dosemu information:
 
-latest release - dosemu .50pl1
+Latest release: 0.52
+Development version: 0.51pl28
 
-current development version - dosemu .50pl11
-
-Note:  don't look for the development version unless you are planning
+Note:  Don't look for the development version unless you are planning
 on doing development work, because often certain features can be
 totally screwed on a development version because they have not been
-tested.
+tested.  Bleeding-edge Linuxxers are welcome to try the development
+version out, as long as they claim responsibility for using it :-)
 
 -------------------
 
@@ -461,7 +473,8 @@ Lam Lai Yin, Savio      - lam836@cs.cuhk.hk
 Tim Bird                - tbird@novell.com
 Alistair MacDonald      - am20@unix.york.ac.uk
 Lawrence K Mao          - lkmao@quark.SFSU.EDU
-ronnie                  - ronnie@epact.se
+Ronnie                  - ronnie@epact.se
+Mark Rejhon             - ag115@freenet.carleton.ca
 Michael E. Deisher      - deisher@enws99.EAS.ASU.EDU
 James Maclean           - jmaclean@fox.nstn.ns.ca
 Larry Stephan           - jlarry@ssnet.com

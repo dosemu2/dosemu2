@@ -40,7 +40,7 @@
 ! (I probably broke something, but it seems to work)
 !
 ! $Date: 1994/06/12 23:17:24 $
-! $Source: /home/src/dosemu0.60/drivers/RCS/emufs.S,v $
+! $Source: /usr/src/dosemu0.52/drivers/RCS/emufs.S,v $
 ! $Revision: 2.1 $
 ! $State: Exp $
 !

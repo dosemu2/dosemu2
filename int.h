@@ -3,12 +3,15 @@
 #include "ipx.h"
 
 /* 
- * $Date: 1994/06/14 21:34:25 $
- * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 2.3 $
+ * $Date: 1994/06/17 00:13:32 $
+ * $Source: /usr/src/dosemu0.52/RCS/int.h,v $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.4  1994/06/17  00:13:32  root
+ * Let's wrap it up and call it DOSEMU0.52.
+ *
  * Revision 2.3  1994/06/14  21:34:25  root
  * Second series of termcap patches.
  *
@@ -98,7 +101,7 @@
 extern int pkt_int(void);
 extern void pkt_init(int);
 extern int pkt_check_receive(void);
-extern void restore_screen(void);
+extern int restore_screen(void);
 
 extern int fatalerr;
 

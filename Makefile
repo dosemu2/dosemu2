@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/06/14 23:09:44 $
-# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.7 $
+# $Date: 1994/06/17 00:13:32 $
+# $Source: /usr/src/dosemu0.52/RCS/Makefile,v $
+# $Revision: 2.8 $
 # $State: Exp $
 #
 
@@ -30,7 +30,7 @@ LNKOPTS=-s
 # dosemu version
 EMUVER  =   0.52
 VERNUM  =   0x52
-PATCHL  =   27
+PATCHL  =   0
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.

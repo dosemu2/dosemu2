@@ -1,109 +1,170 @@
-How to quickly get dosemu up and running:
+QuickStart: Instructions on how to quickly get DOSEMU up and running.
 
-If you use linux v1.1.x update to v1.1.12 or above.
-If you use linux v1.0.8+ and don't want to update to v1.1.12+
-patch the kernel with kernel.1.0.x.diff
+1) Document files and their locations:
+--------------------------------------
+	./DOSEMU-HOWTO
+		This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
+		but still very helpful.  (Read this file first, however.)
+        ./ChangeLog
+		This is a log file of progress that have been done on 
+		DOSEMU since previous versions.
+	./doc/DANG 
+		The Dosemu Alterning Novice's Guide, for interested hackers
+		and programmers alike, if they want to look at the internals
+		of DOSEMU and how it works.
+	./doc/DPR
+		The Dosemu Project Registry, which is a document keeping
+		track of who's doing what kind of programming for DOSEMU.
+	./doc/dos.1
+		This is the DOSEMU man page. It is now up to date with 0.52.
+		This normally goes into the /usr/man/man1 directory.
+	./doc/dosemu.texinfo
+		The full documentation for DOSEMU, in LaTeX format.  This
+		documentation is getting to be sorely outdated, however.
+	./doc/announce0.52
+		The announcement textfile for DOSEMU 0.52.
 
-This version of DOSEMU puts libdosemu from /etc/dosemu to /var/lib/dosemu.
-Also /etc/dosemu/config is now /etc/dosemu.conf.
+2) Kernel Patch for older Linux versions:
+-----------------------------------------
+     >>>> Skip this section if you already Linux 1.1.12 or later installed.
+	- Preferable course of action is to upgrade to v1.1.12 or above.
+	- If you use Linux v1.0.8+, you can patch the kernel with the 
+          included patch ./kernel/kernel.1.0.x.diff
+	- NOTE: At least GCC 2.5.8 and libc 4.5.21 are required to run DOSEMU.
 
-*** Note: This release redirects stderr, not stdout, therefore
-	attempts to redirect the debug output should be done on stderr.
-	This has been in preparation for a future release including
-	ncurses support. (ie dos 2>err not dos >err)
+3) Notes about file location changes from DOSEMU 0.50pl1 and before:
+--------------------------------------------------------------------
+     >>>> Ignore this section if you have never used DOSEMU before.
+	- The directory /etc/dosemu becomes /var/lib/dosemu
+	- The file /etc/dosemu/config now becomes /etc/dosemu.conf
+	  Its format has changed so you will need to reconfigure DOSEMU.
+	- The DOSEMU run time library is now /usr/lib/libdosemu
+	- The DOSEMU maintainence files are now in directory /usr/lib/dosemu
+	  (mkpartition, putrom, etc)
+	- The format of the mkpartition datafiles have changed, and are in
+          /var/lib/dosemu/partition.*  (These are needed if you run 
+          STACKER or DOUBLESPACE using 'partition' access)
+	- If you used 0.49pl4 or before, all the *.sys, *.com, *.exe files 
+          that came with DOSEMU, will need to be replaced. (ie emufs.sys, 
+	  lredir.exe, exitemu.com, etc)
+	- Debug information is redirected to stderr.  If not redirected to
+	  a file, it is then automatically redirected to /dev/null.
 
-*** Note: If no redirection is made of the stderr, it will be
-	automatically redirected to /dev/null.
+4) Make a DOS bootable disk:
+----------------------------
+     >>>> Do this if you don't already have a DOS boot disk.
+     >>>> Skip this only if you are very experienced in configuring DOSEMU.
+	- Boot DOS on a system. That's the real DOS, not DOSEMU.
+	- Format a diskette with 'FORMAT A: /S'
+	- Copy C:\DOS\FDISK.EXE to the diskette.
+	- Copy C:\DOS\SYS.COM to the diskette.
 
-*** Note: This release has changed the dos_helper() function's interrupt
-	and therefore if you have a version of dosemu <0.49pl4, you'll
-	need to replace all the dosemu utilities. (i.e. emufs.sys, ems.sys
-	lredir.exe, etc...)
+5) Compile DOSEMU:
+------------------
+	- Type 'make doeverything' at the prompt.
+	  If this fails with no rule to build a '.h' file, type
+	  'make install'.
+	- Copy ./examples/config.dist to /etc/dosemu.conf and then edit it.
+          There are lots of explanations and options in this config file.
+	  !!NOTE!! You will need to discard your old /etc/dosemu/config
+	  file after you edit and configure your /etc/dosemu.conf file.
+	- Copy ./commands/exitemu.com to the newly formatted diskette.
+	- Copy ./hdimage.dist as /var/lib/dosemu/hdimage.  The first disk 
+          statement in your /etc/dosemu.conf should point to this file.
 
-*** Note: If you've already successfully ran the dos emulator (version
-0.49 pl10 or later), and could sucessfully read from your linux
-partition, you may follow an abridged QuickStart procedure, detailed
-after the normal QuickStart.
+6) Prepare DOSEMU, If you're experienced with DOSEMU:
+-----------------------------------------------------
+     >>>> Go to section 7 below if you have never used DOSEMU before.
+        - Copy ./drivers/*.sys, ./commands/*.com, ./commands/*.exe
+          to a directory accessible to dosemu, such as /tmp.
+	- If you used the mkpartition command before DOSEMU 0.52, you
+	  will need to re-run the "mkpartition" command, due to a new
+	  partition table datafile format.
+        - Type "dos" to start up DOSEMU.
+        - Copy those *.sys *.com and *.exe files above, to your hard disk 
+          or diskimage file.  
+	- If this works, go all the way to section 9!  If not, continue on:
 
-1) Make a DOS bootable disk:
-	- Boot DOS on a system. That's standalone DOS, not DOSemu.
-	- Format a diskette with 'format a: /S'
-	- Copy c:\dos\fdisk.exe to the diskette
-	- Copy c:\dos\sys.com to the diskette
-2) Make dosemu:
-	- Modify the Makefile if you need special keyboard, etc
-	- Do 'make doeverything'
-	- Copy an edited examples/config.dist to /etc/dosemu.conf
-	  You'll see many options that can be set inside the config
-	- Copy exitemu.com from the ./commands subdirectory to the
-	  newly formatted diskette
-	- Copy ./hdimage.dist (located in dosemu0.52) to 
-	  /var/lib/dosemu/hdimage.
-	  The first disk statement in your /etc/dosemu.conf should
-	  point to this file.
-3) Prepare DOSEMU:
-	- From the dosemu0.50 directory, type dos -A
-	  After some delay, dosemu should boot and show the A:> prompt.
-	- From the a: drive do fdisk /mbr
-	  This will add a Master Boot Record to the current dosemu C:
-	  drive which is currently the hdimage file.
-	- From the a: drive do sys c:
-	  This will allow you to boot directly from the hdimage and not
-	  require a diskette
-	- type 'exitemu'
-4) Go for it:
-	- type dos -D-a
-	- Dosemu should again boot up your installed version of DOS, 
+7) Prepare DOSEMU:
+------------------
+     >>>> If you have used DOSEMU before, you may want to try the above
+	  section 6 first, with your existing hard disk configuration.
+	- From the dosemu0.52 directory, type dos -A (to boot off drive A:)
+	  After some delay, dosemu should boot and show the A> prompt.
+	- From the A: drive, try viewing the drive C: drive, to make sure
+	  you are using the disk image file.
+	- Type 'FDISK /MBR'.  This will add the Master Boot Record to the 
+          emulated C: drive which is currently the hdimage file.
+	- From the A: drive, type 'SYS C:'  This will allow you to boot 
+          directly from the hdimage and not require a diskette.
+	- Type 'EXITEMU' to return from DOSEMU.
+
+8) Go for it:
+-------------
+	- Type "dos" at the linux prompt.
+	- DOSEMU should again boot up your installed version of DOS, 
 	  this time from your hdimage.
+	- If hitting Alt-FunctionKey doesn't switch virtual consoles from 
+	  DOSEMU, try using Ctrl-Alt-FunctionKey to switch from the virtual
+	  console running DOSEMU.
+	- You can start setting up /etc/dosemu.conf more throughly.
+	- You can set up DOSEMU to boot directly off your DOS hard disk
+	  partition.
+	- If you want to use disk compression such as STACKER or DOUBLESPACE 
+          with DOSEMU, using partition access, you will probably need to use 
+          the /usr/lib/dosemu/mkpartition command to create partition table 
+          data files.  Read documentation for more information.
 	- From here you are on your own. Please read the documentation
-	  in the ./doc subdirectory, and most of all ENJOY!!!!!
-5) Something not right?:
-   First read the DOSEMU-HOWTO for Q&A's, then if no luck ...
-   Please run a session 'dos -D+a 2>debug' and send jmaclean@fox.nstn.ns.ca
-   me your debug (gzip|uuencoded if large), your /etc/dosemu.conf
-   file, and background on the system your running (video card, linux 
-   release, cpu size, memory).
+	  in the ./examples/config.dist file, the "DOSEMU-HOWTO" file, and
+	  the files in the ./doc subdirectory.
 
-6) Looking to understand DOSEMU? Read DANG, DOSEMU Altering Novice's
-   Guide.
+9) Something not right?
+-----------------------
+	- Read your /etc/dosemu.conf file carefully and make corrections.
+	- Read all documentation files carefully, and try to get some help
+	  from others who have used DOSEMU.
+	- Read the DOSEMU-HOWTO for Q&A's.
+	- If no luck, please send a debug report by typing 'dos -D+a 2>debug'
+	  and send the file 'debug' to jmaclean@fox.nstn.ns.ca
+	  Also, send your /etc/dosemu.conf file and a description of the 
+	  system you're running on.  (Video card, linux version, CPU, memory)
+	  Please gzip and uuencode these files if they are large.
 
-7) Wish to help out? Read DPR and see if there is anything you'd 
-   like to get involved with. Maybe there is something that's not
-   included in the DPR? Great, come aboard and do that :-).
+10) DOSEMU code browsers:
+-------------------------
+   >>>> Skip this section if you don't know how to program.
 
----------------------------------------------------------------------
-Abridged QuickStart
--------------------
+	The ./doc/DPR and ./doc/DANG documents are great places to start
+	looking if you are interested in looking inside DOSEMU code.
+	  
+	The Linux MS-DOS Emulator is one of the best _FREE_ DOS emulator 
+	programs available in the world.  The DOSEMU development team 
+	includes university students and young adults, so lack of time
+	can be a problem when it comes to DOSEMU when it comes to jobs
+	an exams!  AAAAUUGGH! :-)
 
-Follow the normal QuickStart procedure, except skip step 1) and change
-step 3) to:
+	However, don't let that stop getting into contact with us!
+	DOSEMU is not as complicated to work with, as you may think,
+	and we are happy to even receive a line or few, of code that
+	fixes or improves DOSEMU in one way or the other!  Come on
+	aboard with the DOSEMU development team!  All you need is
+	your Linux system, your programming skills, and access to 
+	Internet Email.  :-)
 
-3) Prepare DOSEMU
-        - Copy drivers/emufs.sys, drivers/ems.sys,
-          commands/bootoff.com, commands/booton.com,
-          commands/dumpconf.exe, commands/exitemu.com,
-          commands/lredir.exe, commands/vgaoff.com, and
-          commands/vgaon.com to a directory accessible to dosemu, such
-          as /tmp.
-          (their current directories are inaccessible since
-          dosemu0.50 is not a valid msdos directory).
-        - From the dosemu0.50 directory, type dos -D-a 2>/dev/null
-        - Copy the above files to c:/.
+	On the other hand, if you're really brilliant, we would also
+	love to hear from people who can help DOSEMU get to work with
+	video games like DOOM to run, and stuff like Microsoft Windoze 
+	3.1.  Competition for WABI and WINE! ;-) 
+	
+
+
+
+-----------------------------------------------------------------------
+Other Notes:
 -----------------------------------------------------------------------
 
-Where Is It? :
-
-- DOSEMU Project Registry is in ./doc
-  - All folks currently working on things in DOSEMU are listed here.
-
-- DANG is in ./doc
-  Trying to understand DOSEMU, try reading this one.
-
-- EMUsuccess.txt is in ./doc
-  - Should your program work? Look it up here.
-
-  Some notes from Tim Bird (Tim_R_Bird@Novell.COM) on lredir found
-in the commands subdir :
+Some notes from Tim Bird (Tim_R_Bird@Novell.COM) on lredir.exe included
+in the commands subdir:
 
 LREDIR allows you to redirect any drive, including one that is
 currently a physical drive, meaning that you can replace a drive with a
@@ -121,11 +182,13 @@ redirected drive and the physical drive (diskimage) be the same.
 Many thanks to all involved, including all those who submitted debug
 output for my viewing pleasure, keep it coming.
 
-jmaclean@fox.nstn.ns.ca
 James B. MacLean
+
 Department of Education
 Student Assistance Division
 2021 Brunswick Street
 Halifax, N.S., Canada
 B3M 4B2
-(902) 424-8438
+
+Email: jmaclean@fox.nstn.ns.ca
+Phone: (902) 424-8438

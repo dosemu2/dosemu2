@@ -22,7 +22,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * $Date: 1994/06/14 22:01:42 $
- * $Source: /home/src/dosemu0.60/video/RCS/video.c,v $
+ * $Source: /usr/src/dosemu0.52/video/RCS/video.c,v $
  * $Revision: 2.2 $
  * $State: Exp $
  *

@@ -1,12 +1,18 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/14 23:10:21 $
- * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.2 $
+ * $Date: 1994/06/17 00:14:37 $
+ * $Source: /usr/src/dosemu0.52/mouse/RCS/mouse.c,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.3  1994/06/17  00:14:37  root
+ * Let's wrap it up and call it DOSEMU0.52.
+ *
+ * Revision 2.2  1994/06/14  23:10:21  root
+ * Alan's latest mice patches
+ *
  * Revision 2.2  1994/06/14  23:10:21  root
  * Alan's latest mice patches
  *

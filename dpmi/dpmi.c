@@ -9,12 +9,18 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1994/06/12 23:18:03 $
- * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/17 00:14:41 $
+ * $Source: /usr/src/dosemu0.52/dpmi/RCS/dpmi.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 2.2  1994/06/17  00:14:41  root
+ * Let's wrap it up and call it DOSEMU0.52.
+ *
+ * Revision 2.1  1994/06/12  23:18:03  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 2.1  1994/06/12  23:18:03  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -106,7 +112,7 @@ INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 static char ldt_buffer[LDT_ENTRIES*LDT_ENTRY_SIZE];
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.1 1994/06/12 23:18:03 root Exp root $";
+static char RCSdpmi[] = "$Header: /usr/src/dosemu0.52/dpmi/RCS/dpmi.c,v 2.2 1994/06/17 00:14:41 root Exp root $";
 
 /* Set to 1 when running under DPMI */
 u_char in_dpmi = 0;

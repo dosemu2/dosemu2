@@ -2,7 +2,7 @@
 
 /* 
  * $Date: 1994/06/14 21:34:25 $
- * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
+ * $Source: /usr/src/dosemu0.52/RCS/ports.h,v $
  * $Revision: 2.3 $
  * $State: Exp $
  *

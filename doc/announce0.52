@@ -1,21 +1,21 @@
-Here comes the great, new, improved DOSEMU....Version 0.52!  
+Here comes the great, new, faster, improved DOSEMU....Version 0.52!  
 
     DOSEMU is a Linux specific application that allows Linux to run many
 DOS based programs. It requires a bootable DOS disk and Linux 1.1.12+
-(with SYSV IPC support compiled in).  It will work with older 1.0.x 
+(with SYSV IPC support compiled in).  It will work with older 1.0.8+ 
 kernels after recompiling your kernel with kernel patches included
 with the DOSEMU package.
 
     This release could not have gotten out the door without the work of
 the our relentless development team and friends, currently consisting
-of atleast:
+of at least:
 
 Corey Sweeney, Jason Gorden, Tim Bird, Rob Jenneson, Jon Tombs,
 Aaron, Alan Hourihane, Ronnie, Karl Kiniger, Michael Deisher, 
 Daniel R. Barrlow, Scott Buchholz, Christoph Niemann, Mark Rejhon,
 Theadore Tso, Lutz Molgedey, Larry Stephen, Derek Fawcus, Jochen Hein,
 Alistair MacDonald, Linus Torvalds, Alan Cox, Bob Amstadt, 
-alessandro rubini and possibly myself from time to time.
+Alessandro Rubini and possibly myself from time to time.
 
     Definitely still consider this ALPHA software, and as such please
 beware it is not yet fully functional, or always smooth sailing.
@@ -39,9 +39,12 @@ changes is /etc/dosemu now becomes /var/lib/dosemu.
 
 Updated in this release:
      -  Major speed improvement (2-5 times faster) compared to DOSEMU 0.50.
-	 Many thanks to Linus for the kernel enhancement, and always helpfull
+	 Many thanks to Linus for the kernel enhancement, and always helpful
 	 feedback.
      -  EMS 4.0 support is now near-complete.
+     -  Optional EMS speedup with a kernel patch to map memory in user
+	 space with /proc/self/mem. Thanks Scott for bringing Roberts
+	 code up to date and testing it.
      -  Support for Novell Netware and other things are now via a
 	built in packet driver at int 0x60. Rob Janssen has been busy.
      -  Improved foreign keyboard support.
@@ -61,6 +64,7 @@ Updated in this release:
      -  Easier Debug reports for you to send :-).
      -  More updates by Tim Bird to his internal IPX code.
      -  Major reorganization and cleanup. Way to go Jochen :-)
+     -  Termcap updates are much faster in Xterms now, thanks to Mark Rejhon.
 
     As always, many, thanks to all who have helped with this release, 
 either by sending in bug reports so we knew something was wrong, by 

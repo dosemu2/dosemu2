@@ -5,7 +5,7 @@
  * Robert Sanders, started 3/1/93
  *
  * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
+ * $Source: /usr/src/dosemu0.52/RCS/dosio.c,v $
  * $Revision: 2.1 $
  * $State: Exp $
  *

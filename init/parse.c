@@ -5,12 +5,18 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/06/12 23:18:22 $
- * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/17 00:14:45 $
+ * $Source: /usr/src/dosemu0.52/init/RCS/parse.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 2.2  1994/06/17  00:14:45  root
+ * Let's wrap it up and call it DOSEMU0.52.
+ *
+ * Revision 2.1  1994/06/12  23:18:22  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 2.1  1994/06/12  23:18:22  root
  * Wrapping up prior to release of DOSEMU0.52.
  *

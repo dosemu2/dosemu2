@@ -14,7 +14,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * $Date: 1994/06/14 22:00:18 $
- * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
+ * $Source: /usr/src/dosemu0.52/RCS/xms.c,v $
  * $Revision: 2.2 $
  * $State: Exp $
  *
@@ -125,7 +125,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.2 1994/06/14 22:00:18 root Exp root $";
+static char RCSxms[] = "$Header: /usr/src/dosemu0.52/RCS/xms.c,v 2.2 1994/06/14 22:00:18 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01

@@ -4,7 +4,7 @@
 /* Extensions by Robert Sanders, 1992-93
  *
  * $Date: 1994/06/14 21:34:25 $
- * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
+ * $Source: /usr/src/dosemu0.52/RCS/emu.h,v $
  * $Revision: 2.2 $
  * $State: Exp $
  *

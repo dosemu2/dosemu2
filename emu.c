@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/06/14 22:28:38 $
- * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.4 $
+ * $Date: 1994/06/17 00:13:32 $
+ * $Source: /usr/src/dosemu0.52/RCS/emu.c,v $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.5  1994/06/17  00:13:32  root
+ * Let's wrap it up and call it DOSEMU0.52.
+ *
  * Revision 2.4  1994/06/14  22:28:38  root
  * Prep for pre51_28.
  *
@@ -1045,6 +1048,7 @@ sigalrm(int sig, struct sigcontext_struct context)
   static inalrm = 0;
   static int partials = 0;
   static u_char timals = 0;
+  static int anychanges = 0;
 
   if (inalrm || in_sighandler) {
     error("ERROR: Reentering SIGALRM! alrm=%d, in_sig=%d\n", inalrm, in_sighandler);
@@ -1060,10 +1064,22 @@ sigalrm(int sig, struct sigcontext_struct context)
     dpmi_sigalrm(&context);
 #endif /* DPMI */
 
+  /* If it is running in termcap mode, then update the screen.
+   * First it sets a running flag, so as to avoid re-entrancy of 
+   * restore_screen while it is in use.  After restore_screen is done,
+   * it returns a nonzero value if there was any updates to the screen.
+   * If there were any updates to the screen, then set a countdown value
+   * in order to give DOSEMU more CPU time, between screen updates.
+   * This increases the DOSEMU-to-termcap update efficiency greatly.
+   * The countdown counter is currently at a value of 2.
+   */
   if (!config.console_video && !running) {
-    running = 1;
-    restore_screen();
-    running = 0;
+    running = -1;
+    anychanges = restore_screen();
+    running = anychanges ? 2 : 0;
+  }
+  else if (running > 0) {
+    running--;
   }
 
 #if 0
@@ -2002,7 +2018,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.4 1994/06/14 22:28:38 root Exp root $\n");
+  fprintf(stdout, "$Header: /usr/src/dosemu0.52/RCS/emu.c,v 2.5 1994/06/17 00:13:32 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2219,10 +2235,10 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/06/14 22:28:38 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/06/17 00:13:32 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
-      /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
+    /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
     p_dos_str("Bugs, Patches & New Code to James MacLean, jmaclean@fox.nstn.ns.ca\n\n");
 #ifdef DPMI
     if (config.dpmi_size)

@@ -3,7 +3,7 @@
   v0.52, 13 June 1994
 
   This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
-  dosemu, The most up-to-date version of the dosemu-HOWTO may be found
+  dosemu.  The most up-to-date version of the dosemu-HOWTO may be found
   in dspsun.eas.asu.edu:/pub/dosemu.
 
   1.  The preliminaries
@@ -118,6 +118,7 @@
 
 
   [Note:  edit parse/Makefile to incorporate this change]
+  [Note2: This shouldn't happen any more, because the parse-subdir is gone]
 
 
   3.  Hard disk setup
@@ -182,11 +183,13 @@
      disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
 
 
-  line in their dosemu config file.  A few others have had success using
+  line in their dosemu config file.  Others have had success using
 
      disk { partition "/dev/hda1" 1 }
 
 
+  and running the mkpartition utility (included in the dosemu distribu-
+  tion).
 
   Holger Schemel (q99492@pbhrzx.uni-paderborn.de) reported (2/10/94)
   that
@@ -194,8 +197,6 @@
   Works even fine under DOSEMU with MS-DOS 6.0. If you have problems,
   then you have to edit the file 'DBLSPACE.INI' manually and change the
   disk letter to the letter your drive gets under DOSEMU.
-
-
   Darren J Moffat (moffatd@dcs.gla.ac.uk) also reported (3/27/94)
 
   "...use 6.2 if you can get it!!  Just make sure you have a lilo boot
@@ -356,6 +357,11 @@
   person's home directory).
 
 
+  [Note: Users may also create a personal configuration file named
+  ~/.dosrc (same format as /etc/dosemu.conf) to run their own copy of
+  dos.]
+
+
   5.2.  How do I get Netware access from dosemu?
 
   James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (6/13/94) that
@@ -387,12 +393,13 @@
 
 
 
+
+
   6.  dosemu and X-windows
 
   6.1.  Can I run dosemu in console mode while running X?
 
   Ronald Schalk (R.Schalk@uci.kun.nl) reported (1/17/94) that
-
 
   Yes, no problem.  Just remember to use ctrl-alt-<Fn> to go to a
   Virtual Console (VC), and you can run any Linux application (dosemu is
@@ -454,11 +461,9 @@
 
   [The screen flickers violently, displays the video BIOS startup
   message, and hangs.]
-
   Andrew Tridgell (tridge@nimbus.anu.edu.au) reported (1/29/94) that
 
   I found with early versions it would work if I used:
-
 
      ports { 0x42 }
 
@@ -567,8 +572,8 @@
   lines).
 
 
-  9.3.  more than 24-hours?  Why does dosemu give "divide overflow"
-  errors after running for
+  9.3.  Why does dosemu give "divide overflow" errors after running for
+  more than 24-hours?
 
   (1/17/94)
 
@@ -590,7 +595,6 @@
 
   I think I've found a bug in dosemu0.50pl1; with a MDA card displayed
   characters > 128 automagically appeared as highlighted and blinking.
-
 
   This patch fixed the problem for me [but on the other hand, maybe I'm
   totally wrong ;-)]:
@@ -650,6 +654,21 @@
   Make sure you emacs window is 25x80, of course.
 
 
+  Pete Heist (heistp@rpi.edu) reported (5/13/94) that
+
+  If you compile it with the "-funroll-all-loops" option you will get
+  MUCH faster screen output.  Some other parts of the emulator will run
+  much faster as well.  Realize that the consequence of this is a larger
+  executable which eats a little more memory, even though it's demand
+  loaded.
+
+
+  Georg Wiegand (gw@gwcomp.e.open.de) reported (5/16/94) that
+
+  You also can use the keyword HogThreshold in /etc/dosemu.conf.  The
+  greater the following number the more calculating-time dosemu gets.
+  For example, I use "HogThreshold 60000" on my 386/87-20 laptop.
+
 
   9.8.  My CDROM drive has problems reading some files under dosemu.
 
@@ -700,6 +719,12 @@
   James B. MacLean (jmaclean@fox.nstn.ns.ca) is responsible for
   organizing the latest releases of dosemu.
 
+
+
+
+
+
+
                          History of dosemu
 
             Version    Date                Person
@@ -723,35 +748,11 @@
 
 
 
-
   10.2.  I want to help.  Who should I contact?
 
   The dosemu project is a team effort.  If you wish to contribute, see
   the DPR (DOSEMU Project Registry).  A current copy may be found in
   dspsun.eas.asu.edu:/pub/dosemu.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

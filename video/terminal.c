@@ -247,30 +247,33 @@ clear_screen(int s, int att)
 }
 
 /*
- * This version of restore_screen works in chunks across the screen,
- * instead of only with whole lines. This can be MUCH faster in some
- * cases, like when running across a 2400 baud modem :-)
- * Andrew Tridgell
+ * This is a much-improved restore_screen, programmed by Mark D. Rejhon.
+ * Based on Andrew Tridgell code.  Updated to do more optimization.
+ * It is now much faster than it was in pre0.51pl24 and earlier,
+ * and actually works more properly. It's also better looking over
+ * a 2400 baud modem.  However, there is no buffer overflow checking
+ * yet :-(
  */
-void
-restore_screen(void)
+int
+restore_screen()
 {
   us *sadr;	/* Pointer to start of screen memory of curr page */
   us *srow;	/* Pointer to start of screen row updated */
   us *schar;	/* Pointer to character being updated */
   int bufrow;	/* Pointer to start of buffer row corresp to screen row */
   u_char c, a;	/* Temporary character and attributes holding vars */
-  int oa;	/* Old attribute */
   int x, y;	/* X and Y position of character being updated */
   int scanx;	/* Index for comparing screen and buffer rows */
+  int endx;     /* Last character for line loop index */
   int xdiff;    /* Counter for scan checking used for optimization */
   int lines;    /* Number of lines to redraw */
-  int numdone;  /* counter for number of lines actually updated */
   int numscan;  /* counter for number of lines scanned */
-  static ucounter = 0; /* Infrequent update counter */
-  static yloop = -1;   /* Row index for loop */
-  static oldx = 0;     /* Previous x cursor position */
-  static oldy = 0;     /* Previous y cursor position */
+  int numdone;  /* counter for number of lines actually updated */
+  static int ucounter = 0;  /* Infrequent update counter */
+  static int yloop = -1;    /* Row index for loop */
+  static int oa = 7;        /* Old attribute */
+  static int oldx = 0;      /* Previous x cursor position */
+  static int oldy = 0;      /* Previous y cursor position */
 
   v_printf("RESTORE SCREEN: scrbuf at %p\n", scrbuf);
 
@@ -279,7 +282,6 @@ restore_screen(void)
   v_printf("SADR: %p\n", sadr);
   v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
   v_printf("SCREEN: %x\n", bios_current_screen_page);
-  oa = 7;
   
   /* The following determins how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
@@ -300,12 +302,12 @@ restore_screen(void)
   }
   else {
     ucounter = (ucounter + 1) % ((config.redraw_chunks / LI) + 1);
-    if (ucounter) return; 
+    if (ucounter) return 0; 
     lines = 1;
   }
-  
-  numdone = 0;         /* Number of lines that needed to be updated */
+
   numscan = 0;         /* Number of lines that have been scanned */
+  numdone = 0;         /* Number of lines that needed to be updated */
 
   /* The highest priority is given to the current screen row for the
    * first iteration of the loop, for maximum typing response.  
@@ -337,9 +339,19 @@ restore_screen(void)
      */
     bufrow = y * CO * 2;	/* Position of first char in row in sadr */
     srow = sadr + y * CO;	/* p is unsigned short ptr to char in sadr */
+   
+    /* If it is the last line of the screen, then only process up to 2nd   */
+    /* last character, because printing last character of last line can    */
+    /* scroll the screen of some terminals.  We don't want this to happen. */
+    /* You will see a blank gap in its place.  This should not be a big    */
+    /* problem for most users.   */
+    if (y == (LI - 1))
+      endx = CO - 1;
+    else
+      endx = CO;
     
     /* If the line matches, then no updated is needed, and skip the line. */
-    if (!memcmp(scrbuf + bufrow, srow, CO * 2)) continue;
+    if (!memcmp(scrbuf + bufrow, srow, endx * 2)) continue;
 
     /* Increment the number of successfully updated lines counter */
     if (numscan > 1) numdone++;
@@ -350,7 +362,7 @@ restore_screen(void)
      */
     schar = srow;         /* Pointer to start of row in screen memory */
     xdiff = 0;            /* scan check counter */
-    for (x = 0; x < CO; x++) {
+    for (x = 0; x < endx; x++) {
 
       /* The following checks if it needs to scan the line for the first
        * character to be updated.  xdiff is a scan check counter.  If it
@@ -361,12 +373,12 @@ restore_screen(void)
       if (xdiff == 0) {
 
         /* Scan for first character that needs to be updated */
-        for (scanx = x; scanx < CO; scanx++)
+        for (scanx = x; scanx < endx; scanx++)
           if (memcmp(scrbuf + bufrow + scanx * 2, sadr + y * CO + scanx, 2))
             break;
       
         /* Do Next row if there are no more chars needing to be updated */
-        if (scanx >= CO) break;
+        if (scanx >= endx) break;
 
         /* If the character to be updated is at least 7 cursor positions */
         /* to the right, then do a cursor reposition to save time.  Most */
@@ -425,10 +437,12 @@ restore_screen(void)
     oldy = bios_cursor_y_position(bios_current_screen_page);
     dostputs(me, 1, outcbuf);
     dostputs(tgoto(cm, oldx, oldy), 1, outcbuf);
+    oa = 7;
     CHFLUSH;
   }
   /* The updates look a bit cleaner when reset to top of the screen
    * if nothing had changed on the screen in this call to screen_restore
    */
   if (!numdone) yloop = -1;
+  return numdone;
 }

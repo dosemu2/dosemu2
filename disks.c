@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/17 00:13:32 $
+ * $Source: /usr/src/dosemu0.52/RCS/disks.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -609,7 +609,7 @@ int13(void)
 
   case 2:			/* read */
     FLUSHDISK(dp);
-    disk_open(dp); /* <--- here is the dir a: bug(console vga) */
+    disk_open(dp);
     head = HI(dx);
     sect = (REG(ecx) & 0x3f) - 1;
     track = (HI(cx)) |

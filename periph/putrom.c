@@ -1,11 +1,17 @@
 /* putrom.c; put VBIOS ROM image into /dev/mem (should fail except for weird caches!)
  *
- * $Date: 1994/06/12 23:17:32 $
- * $Source: /home/src/dosemu0.60/periph/RCS/putrom.c,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/17 00:14:24 $
+ * $Source: /usr/src/dosemu0.52/periph/RCS/putrom.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: putrom.c,v $
+ * Revision 2.2  1994/06/17  00:14:24  root
+ * Let's wrap it up and call it DOSEMU0.52.
+ *
+ * Revision 2.1  1994/06/12  23:17:32  root
+ * Wrapping up prior to release of DOSEMU0.52.
+ *
  * Revision 2.1  1994/06/12  23:17:32  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
