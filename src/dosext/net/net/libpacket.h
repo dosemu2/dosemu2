@@ -5,12 +5,9 @@
  */
 
 
-int OpenNetworkType(unsigned short);
-int OpenBroadcastNetworkType(void);
+int OpenNetworkLink(char *, unsigned short);
 void CloseNetworkLink(int);
-int WriteToNetwork(int, const char *, const char *, int);
-int ReadFromNetwork(int, char *, char *, int);
 int GetDeviceHardwareAddress(char *, char *);
 int GetDeviceMTU(char *);
-
-int tun_alloc(char *dev);
+int GetDosnetID(void);
+void GenerateDosnetID(void);

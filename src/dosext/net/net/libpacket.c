@@ -27,6 +27,8 @@
 #include <netinet/in.h>
 #include "Linux/if_tun.h"
 #include <netinet/if_ether.h>
+#include <netpacket/packet.h>
+#include <net/ethernet.h>
 
 #include "emu.h"
 #include "priv.h"
@@ -34,7 +36,7 @@
 #include "dosnet.h"
 #include "pktdrvr.h"
 
-static int GetDosnetID(void);
+static int tun_alloc(char *dev);
 
 static unsigned short int DosnetID = 0xffff;
 char local_eth_addr[6] = {0,0,0,0,0,0};
@@ -44,12 +46,15 @@ char local_eth_addr[6] = {0,0,0,0,0,0};
    hope for the best.
    */
 
-static int 
-GetDosnetID(void)
+int GetDosnetID(void)
+{  
+    return DosnetID;
+}
+
+void GenerateDosnetID(void)
 {  
     DosnetID = DOSNET_TYPE_BASE + (rand() & 0xff);
     pd_printf("Assigned DosnetID=%x\n", DosnetID);
-    return DosnetID;
 }
 
 /*
@@ -64,61 +69,40 @@ GetDosnetID(void)
  *	hell will break loose - unless you use virtual TCP/IP (dosnet).
  */
 
-int 
-OpenNetworkType(unsigned short netid)
+int OpenNetworkLink(char *name, unsigned short netid)
 {
 	PRIV_SAVE_AREA
 	int s, proto;
+	struct ifreq req;
+	struct sockaddr_ll addr;
 
-	if (config.vnet == VNET_TYPE_DSN || config.vnet == VNET_TYPE_TAP)
-		/* netid is ignored, and we use a special netid for the 
-		   dosnet session */
-		proto = htons(GetDosnetID());
-	else
-		proto = htons(netid);
+	if (config.vnet == VNET_TYPE_TAP)
+		return tun_alloc(name);
+
+	proto = htons(netid);
 
 	enter_priv_on();
-
-#ifdef AF_PACKET
-	if (running_kversion >= 2001000)
-		s = socket(AF_PACKET, SOCK_PACKET, proto);
-	else
-		s = socket(AF_INET, SOCK_PACKET, proto);
-#else
-	s = socket(AF_INET, SOCK_PACKET, proto);
-#endif
+	s = socket(PF_PACKET, SOCK_RAW, proto);
 	leave_priv_setting();
 	if (s < 0) {
 		if (errno == EPERM) error("Must be root for direct NIC access\n");
 		return -1;
 	}
 	fcntl(s, F_SETFL, O_NDELAY);
-	return s;
-}
-
-/* Return a socket opened in broadcast mode (only used for virtual net) */
-int
-OpenBroadcastNetworkType(void)
-{
-	PRIV_SAVE_AREA
-	int s;
-	enter_priv_on();
-#ifdef AF_PACKET
-	if (running_kversion >= 2001000)
-		s = socket(AF_PACKET, SOCK_PACKET, 
-			   htons(DOSNET_BROADCAST_TYPE)); 
-	else
-		s = socket(AF_INET, SOCK_PACKET, htons(DOSNET_BROADCAST_TYPE));
-#else
-	s = socket(AF_INET, SOCK_PACKET, htons(DOSNET_BROADCAST_TYPE));  
-#endif
-	leave_priv_setting();
-	if (s < 0) {
-		pd_printf("OpenBroadcast: could not open socket\n");
-		if (errno == EPERM) error("Must be root for virtual networking\n");
+	strcpy(req.ifr_name, name);
+	if (ioctl(s, SIOCGIFINDEX, &req) < 0) {
+		close(s);
 		return -1;
 	}
-	fcntl(s, F_SETFL, O_NDELAY);
+	addr.sll_family = AF_PACKET;
+	addr.sll_protocol = proto;
+	addr.sll_ifindex = req.ifr_ifindex;
+	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		pd_printf("OpenNetwork: could not bind socket: %s\n",
+			strerror(errno));
+		close(s);
+		return -1;
+	}
 	return s;
 }
 
@@ -130,75 +114,6 @@ void
 CloseNetworkLink(int sock)
 {
 	close(sock);
-}
-
-/*
- *	Write a packet to the network. You have to give a device to
- *	this function. This is a device name (eg 'eth0' for the first
- *	ethernet card).
- *
- *      For virtual TCP/IP, the device name is ignored and we write
- *      to the dosnet device instead (usually 'dsn0')
- *
- *	Return: -1 is an error
- *		otherwise bytes written.
- */
-
-int 
-WriteToNetwork(int sock, const char *device, const char *data, int len)
-{
-	struct sockaddr sa;
-
-	if (config.vnet == VNET_TYPE_TAP) {
-	  return write(sock, data, len);
-	}
-
-#ifdef AF_PACKET
-	if (running_kversion >= 2001000)
-		sa.sa_family = AF_PACKET;
-        else	
-		sa.sa_family = AF_INET;
-#else
-	sa.sa_family = AF_INET;
-#endif
-	if (config.vnet == VNET_TYPE_DSN)
-		strcpy(sa.sa_data, DOSNET_DEVICE);
-	else
-		strcpy(sa.sa_data, device);
-	
-	return sendto(sock, data, len, 0, &sa, sizeof(sa));
-}
-
-/*
- *	Read a packet from the network. The device parameter will
- *	be filled in by this routine (make it 32 bytes or more).
- *	If you wish to work with one interface only you must filter
- *	yourself. Remember to make your buffer big enough for your
- *	data. Oversized packets will be truncated.
- *
- *	Return:
- *	 	-1	   Error
- *		otherwise  Size of packet received.
- */
-
-int 
-ReadFromNetwork(int sock, char *device, char *data, int len)
-{
-	struct sockaddr sa;
-	int sz = sizeof(sa);
-	int error;
-
-	if (config.vnet == VNET_TYPE_TAP) {
-		return read(sock, data, len);
-	}
-
-	error = recvfrom(sock, data, len, 0, &sa, &sz);
-
-	if (error == -1)
-		return -1;
-
-	strcpy(device, sa.sa_data);
-	return error;		/* Actually size of received packet */
 }
 
 /*
@@ -282,7 +197,7 @@ GetDeviceMTU(char *device)
 }
 
 
-int tun_alloc(char *dev)
+static int tun_alloc(char *dev)
 {
       struct ifreq ifr;
       int fd, err;
@@ -306,8 +221,6 @@ int tun_alloc(char *dev)
          return err;
       }
       strcpy(dev, ifr.ifr_name);
-
-      DosnetID = GetDosnetID();
 
       return fd;
 }

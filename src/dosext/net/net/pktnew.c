@@ -30,6 +30,7 @@
  *
  */
 
+#include <unistd.h>
 #include "emu.h"
 #include "pktdrvr.h"
 #include "memory.h"
@@ -49,7 +50,7 @@
 
 #define min(a,b)	((a) < (b)? (a) : (b))
 
-static int Open_sockets(void);
+static int Open_sockets(char *name);
 static int Insert_Type(int, int, char *);
 static int Remove_Type(int);
 int Find_Handle(u_char *buf);
@@ -96,8 +97,6 @@ struct pkt_globs
     } handle[MAX_HANDLE];          
 } pg;
 
-static char devname[10];		/* linux device name */
-
 /* creates a pointer into the BIOS from the asm exported labels */
 #define MK_PTR(ofs) ( (void *)((long)(ofs)-(long)bios_f000+(BIOSSEG << 4)) )
 
@@ -117,21 +116,30 @@ struct pkt_statistics *p_stats;
 /* initialize the packet driver interface (called at startup) */
 void pkt_priv_init(void)
 {
+    int ret = 0;
     /* initialize the globals */
 
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
-    if (config.vnet == VNET_TYPE_ETH || config.vnet == VNET_TYPE_DSN) {
-        if (Open_sockets() < 0) {
-          error("Cannot open raw sockets: %s\n", strerror(errno));
-          pktdrvr_installed = -1;
-	}
+    switch (config.vnet) {
+      case VNET_TYPE_ETH:
+        ret = Open_sockets(config.netdev);
+	break;
+      case VNET_TYPE_DSN:
+        ret = Open_sockets(DOSNET_DEVICE);
+	break;
+    }
+
+    if (ret < 0) {
+      error("Cannot open raw sockets: %s\n", strerror(errno));
+      pktdrvr_installed = -1;
     }
 }
 
 void
 pkt_init(int vec)
 {
+    char devname[10];
     if (pktdrvr_installed == -1)
       goto fail;
     p_param = MK_PTR(PKTDRV_param);
@@ -141,13 +149,10 @@ pkt_init(int vec)
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
     switch (config.vnet) {
       case VNET_TYPE_ETH:
-        strncpy(devname, config.netdev, sizeof(devname) - 1);
-        devname[sizeof(devname) - 1] = 0;
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	break;
 
       case VNET_TYPE_DSN:
-	strcpy(devname, DOSNET_DEVICE);
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async);
 	break;
@@ -158,14 +163,12 @@ pkt_init(int vec)
           pd_printf("PKT: trying to bind to device %s\n", config.netdev);
           strcpy(devname, config.netdev);
         }
-        pkt_fd = tun_alloc(devname);
-        if (pkt_fd < 0) {
+        if (Open_sockets(devname) < 0) {
           error("Cannot allocate TAP device %s: %s\n",
 	    strcmp(devname, TAP_DEVICE) ? devname : "(dynamic)",
 	    strerror(errno));
           goto fail;
         }
-	max_pkt_fd = pkt_fd + 1;
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	break;
 
@@ -412,15 +415,14 @@ pkt_int (void)
 		    }
 		}
 
-		if (WriteToNetwork(pkt_fd, devname, 
-				   SEG_ADR((char *), ds, si),
+		if (write(pkt_fd, SEG_ADR((char *), ds, si),
 				   LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
 		    return 1;
 		} 
 		else {
-		    warn("WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
-			 pkt_fd, devname, LWORD(ecx), errno);
+		    warn("WriteToNetwork(%d,buffer,%u): error %d\n",
+			 pkt_fd, LWORD(ecx), errno);
 		    break;
 		}
 	    }
@@ -511,20 +513,23 @@ pkt_int (void)
 /* Open two sockets for the virtual network, one for normal packets
    and one for broadcasts. */
 static int
-Open_sockets(void)
+Open_sockets(char *name)
 {
+    GenerateDosnetID();
+
    /* This handle is inserted to receive packets of type "dosnet broadcast". 
       These are really speaking broadcast packets meant to be received by
       all dosemus. Their destination addresses are changed by dosemu, and
       are changed back to 'ffffff..' when these packets are received by dosemu.    */
     if (config.vnet == VNET_TYPE_DSN) {
-      pkt_broadcast_fd = OpenBroadcastNetworkType();
+      pkt_broadcast_fd = OpenNetworkLink(name, DOSNET_BROADCAST_TYPE);
       if (pkt_broadcast_fd < 0)
 	return pkt_broadcast_fd;
     }
 
     /* The socket for normal packets */
-    pkt_fd = OpenNetworkType(ETH_P_ALL);
+    pkt_fd = OpenNetworkLink(name,
+      config.vnet == VNET_TYPE_ETH ? ETH_P_ALL : GetDosnetID());
     if (pkt_fd < 0)
 	return pkt_fd;
 
@@ -623,7 +628,6 @@ static int pkt_receive(void)
     char *p;
     struct timeval tv;
     fd_set readset;
-    char device[32];
 
     if (!pktdrvr_installed) {
         pd_printf("Driver not initialized ...\n");
@@ -649,14 +653,9 @@ static int pkt_receive(void)
         fd = pkt_broadcast_fd;
     else return 0;
 
-    strcpy(device, devname);
-    size = ReadFromNetwork(fd, device, pkt_buf, PKT_BUF_SIZE);
+    size = read(fd, pkt_buf, PKT_BUF_SIZE);
     if (size < 0) {
         p_stats->errors_in++;		/* select() somehow lied */
-        return 0;
-    }
-    if (strcmp(device, devname)) {
-        pd_printf("strcmp(device != devname) ...\n");
         return 0;
     }
    
