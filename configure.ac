@@ -608,7 +608,7 @@ AC_CONFIG_COMMANDS([Makefile],
 dnl autoheader stuff
 AH_TOP([
 /* 
- * (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2004 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */

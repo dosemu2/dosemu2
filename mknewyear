@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-$newyear = "2003";
+$newyear = "2004";
 $filelistname = "";
 
 $i = 0;

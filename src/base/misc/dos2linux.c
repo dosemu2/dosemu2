@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2004 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -28,9 +28,12 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log$
- *	Revision 1.1  2003/06/23 00:02:07  bartoldeman
- *	Initial revision
+ *	Revision 1.2  2004/01/16 20:50:27  bartoldeman
+ *	Happy new year!
  *
+ *	Revision 1.1.1.1  2003/06/23 00:02:07  bartoldeman
+ *	Initial import (dosemu-1.1.5.2).
+ *	
  *
  * DANG_END_CHANGELOG
  *
