@@ -312,6 +312,51 @@ port_writeable(unsigned short port)
   return (find_port(port, IO_WRITE) != -1);
 }
 
+/* Support for controllable port i/o tracing 		G. Guenther 96.07.20
+
+   The "T" debug flag and LOG_IO macro below may be used to collect
+   port i/o protocol traces.  These are the latest version of the patches
+   that I used to collect the data required for deducing the parallel
+   port communication protocols used by the ZIP drive, the Shuttle EPAT
+   chip (in the EZ drives) and the backpack CDrom ...
+
+   Uwe's patches to allow_io above, control whether or not "T" debugging
+   will work:  If a port is listed in the ports section of the DOSemu
+   config file, and *NOT* given the "fast" attribute, then all accesses
+   to that port will trap through the following routines.  If the "T"
+   flag is enabled (with -D+T or dosdbg +T), a very short record will
+   be logged to the debug file for every access to a listed port.
+
+   If you enable "h" *and* "i" debugging you will get the same information 
+   logged in a much more verbose manner - along with a lot of other stuff.
+   This verbosity turns out to be a serious problem, as it can slow the \
+   emulator's response so much that external hardware gets confused.  
+
+   (Can anybody explain *why* byte accesses are logged with the 'h' flag
+   and word access are logged with the 'i' flag ? )
+
+   If you are trying to use a slow system to trace a fast protocol, you
+   may need to shorten the output further ...  (In one case, I had to 
+   add suppression for repeated identical writes, as the drive being
+   monitored read and wrote each byte 4 times ...)
+
+   The logged records look like this:
+
+	ppp f vvvv
+
+   ppp is the hex address of the port, f is a flag, one of:
+
+	>   byte read    inb
+	<   byte write   outb
+	}   word read    inw
+	{   word write   outw
+
+   vvvv is the value read or written.
+
+*/
+
+#define LOG_IO(p,r,f,m)	  if (d.io_trace) T_printf("%x %c %x\n",p&0xfff,f,r&m);
+
 unsigned char
 read_port(unsigned short port)
 {
@@ -343,6 +388,8 @@ read_port(unsigned short port)
   }
   else
     video_port_io = 0;
+
+  LOG_IO(port,r,'>',0xff);
 
   h_printf("read port 0x%x gave %02x at %04x:%04x\n",
 	   port, r, LWORD(cs), LWORD(eip));
@@ -400,6 +447,8 @@ read_port_w(unsigned short port)
   else
     video_port_io = 0;
 
+  LOG_IO(port,r,'}',0xffff);
+
   i_printf("read 16 bit port 0x%x gave %04x at %04x:%04x\n",
            port, r, LWORD(cs), LWORD(eip));
    return (r);
@@ -420,6 +469,8 @@ write_port(unsigned int value, unsigned short port)
 
   h_printf("write port 0x%x value %02x at %04x:%04x\n",
 	   port, (value & 0xff), LWORD(cs), LWORD(eip));
+
+  LOG_IO(port,value,'<',0xff);
 
   if (!video_port_io) priv_on();
   if (port <= 0x3ff)
@@ -468,6 +519,8 @@ write_port_w(unsigned int value,unsigned short port)
 
   i_printf("write 16 bit port 0x%x value %04x at %04x:%04x\n",
            port, (value & 0xffff), LWORD(cs), LWORD(eip));
+
+  LOG_IO(port,value,'{',0xffff);
 
   if (!video_port_io) priv_on();
   if (port <= 0x3fe) 

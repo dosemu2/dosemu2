@@ -56,6 +56,11 @@
  *    - Fixed vgaemu_get_changes_in_pages to work faster/better with
  *       SVGA modes
  *
+ * 28 Dec 1996
+ *  Erik Mouw (J.A.K.Mouw@et.tudelft.nl):
+ *   - Added sequencer emulation calls
+ *   - Added IO port register calls in vga_emu_init()
+ *
  * DANG_BEGIN_MODULE
  *
  * The VGA emulator for dosemu. Emulated are the video meory and the VGA
@@ -92,6 +97,7 @@
 
 #include "cpu.h"	/* root@sjoerd: for context structure */
 #include "emu.h"
+#include "port.h"
 #include "video.h"
 #include "vgaemu.h"
 #include "vgaemu_inside.h"
@@ -237,6 +243,14 @@ void VGA_emulate_outb(int port, unsigned char value)
 
   switch(port)
     {
+    case SEQUENCER_INDEX:
+      Seq_set_index(value);
+      break;
+
+    case SEQUENCER_DATA:
+      Seq_write_value(value);
+      break;
+
     case ATTRIBUTE_INDEX:
       Attr_write_value(value);
       break;
@@ -296,6 +310,14 @@ unsigned char VGA_emulate_inb(int port)
 
   switch(port)
     {
+    case SEQUENCER_INDEX:
+      return(Seq_get_index());
+      break;
+
+    case SEQUENCER_DATA:
+      return(Seq_read_value());
+      break;
+
     case ATTRIBUTE_INDEX:
       return(Attr_get_index());        /* undefined, in fact */
       break;
@@ -429,6 +451,8 @@ static inline caddr_t vga_mmap(caddr_t  addr,  size_t  len,
  */     
 unsigned char* vga_emu_init(void)
 {
+  emu_iodev_t io_device;
+
   vga_emu_memory=(unsigned char*)valloc(VGAEMU_BANK_SIZE*VGAEMU_BANKS);
   if(vga_emu_memory==NULL)
     v_printf("VGAemu: vga_emu_init: Allocated memory is NULL\n");
@@ -456,10 +480,38 @@ unsigned char* vga_emu_init(void)
   dirty_all_video_pages();
   current_bank=0;
 
-/* add here something like for text-mode */
+  /* add here something like for text-mode */
 
+  /* initialize other parts */
   DAC_init();
   Attr_init();
+  Seq_init();
+
+  /* register VGA ports */
+  io_device.read_portb = VGA_emulate_inb;
+  io_device.write_portb = VGA_emulate_outb;
+  io_device.read_portw = NULL;
+  io_device.write_portw = NULL;
+  io_device.irq = EMU_NO_IRQ;
+  
+  /* register attribute controller */
+  io_device.handler_name = "VGAemu Attribute controller";
+  io_device.start_addr = ATTRIBUTE_INDEX;
+  io_device.end_addr = INPUT_STATUS_0;
+  port_register_handler(io_device);
+
+  /* register sequencer */
+  io_device.handler_name = "VGAemu Sequencer";
+  io_device.start_addr = SEQUENCER_INDEX;
+  io_device.end_addr = SEQUENCER_DATA;
+  port_register_handler(io_device);
+
+  /* register DAC */
+  io_device.handler_name = "VGAemu DAC";
+  io_device.start_addr = DAC_BASE;
+  io_device.end_addr = DAC_DATA;
+  port_register_handler(io_device);
+
 #ifdef VESA
   vesa_init();
 #endif

@@ -103,6 +103,9 @@ HogThreshold 10
 #    in DOSEMU.  That means what is COM3 on IRQ 5 in real DOS, can become
 #    COM1 on IRQ 4 in DOSEMU!
 #
+#    NOTE: You must have /usr/spool/uucp for LCK-file generation !
+#          You may change this path in src/include/serial.h (PATH_LOCKD)
+#
 #    Also, as an example of defaults, these two lines are functionally equal:
 #    serial { com 1  mouse }
 #    serial { com 1  mouse  base 0x03F8  irq 4  device /dev/cua0 }

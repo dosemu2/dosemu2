@@ -35,33 +35,27 @@
 #include "vm86plus.h"
 
 #ifdef __linux__
-#if KERNEL_VERSION >= 1003100
-#  include <asm/vm86.h>
-#  include <sys/vm86.h>
-#else
-#  include <linux/vm86.h>
-#endif
 #include <linux/unistd.h>
 #include <linux/head.h>
-
-#if defined(REQUIRES_VM86PLUS) && defined(WANT_WINDOWS)
-  #include "ldt.h" /* NOTE we have a patched version in src/include */
+#if KERNEL_VERSION < 2001000
+  #include <linux/ldt.h>
 #else
-  #if KERNEL_VERSION < 2001000
-    #include <linux/ldt.h>
-  #else
-    #include <asm/ldt.h>
-  #endif
+  #include <asm/ldt.h>
 #endif
-
-#if KERNEL_VERSION < 1001067
-#include <linux/segment.h>
-#include <linux/page.h>
-#else
 #include <asm/segment.h>
 #include <asm/page.h>
 #endif
+
+#if 0
+  /* well, I would like to get TASK_SIZE  out of the header files,
+   * however, including them also defines stuff, that breaks compilation
+   */
+  #include <linux/sched.h>
+#else
+  #define TASK_SIZE     (0xC0000000UL)
 #endif
+
+
 #ifdef __NetBSD__
 #include <signal.h>
 #include <machine/segments.h>
@@ -189,6 +183,11 @@ static struct sigcontext_struct *emu_stack_frame=&_emu_stack_frame;
 
 #ifdef __linux__
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+#ifdef REQUIRES_VM86PLUS
+  #define LDT_WRITE 0x11
+#else
+  #define LDT_WRITE 1
+#endif
 #endif
 
 #ifdef __NetBSD__
@@ -245,7 +244,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   unsigned long *lp;
 #ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
-  unsigned long base2, limit2;
+  unsigned long first, last;
   int __retval;
   ldt_info.entry_number = entry;
   ldt_info.base_addr = base;
@@ -263,16 +262,47 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.seg_not_present = 0;
 #endif
 
-  limit2 = ldt_info.limit;
-  base2 = ldt_info.base_addr;
+  last = ldt_info.limit;
+  first = ldt_info.base_addr;
   if (ldt_info.limit_in_pages) {
-  	limit2 *= PAGE_SIZE;
-  	limit2 += PAGE_SIZE-1;
+  	last = last * PAGE_SIZE + PAGE_SIZE - 1;
   }
-
-  limit2 += base2;
-  if ((limit2 < base2 || limit2 >= 0xC0000000) && ldt_info.seg_not_present == 0) {
-    if (base2 >= 0xC0000000) {
+  if (contents == 1) {
+	first += last +1;
+	last = ldt_info.base_addr+65535;
+	if (ldt_info.seg_32bit)
+		last = first-1;
+  }
+  else last += first;
+  
+  if (contents == 1) {
+    if (ldt_info.seg_32bit) {
+      if (last < first) {
+        /* Well, we have last < first, the other cases we can't handle anyway,
+         * so we let modify_ldt() accept or reject.
+         * We ajust the limit, so the kernel accepts it, but we leave the
+         * LTD_ALIAS untouched.
+         * If the base is below TASK_SIZE, we force an expand-up.
+         * However, this isn't a complete fake, if the DPMI client accesses
+         * outside the _real_ limit, we get a segfault.
+         * However, most clients won't do, as we know from the days as
+         * expand-downs weren't handled by the kernel. (Hans 961220)
+         */
+        if (ldt_info.base_addr >= TASK_SIZE)
+		last = 1 - ldt_info.base_addr;
+	else {
+	  /* we force an expand-up */
+	  ldt_info.contents = 0;
+	  last = TASK_SIZE - base;
+	}
+        ldt_info.limit_in_pages = 1;
+        last = (last - (PAGE_SIZE - 1)) / PAGE_SIZE;
+        ldt_info.limit = last;
+      }
+    }
+  }
+  else if ((last < first || last >= TASK_SIZE) && ldt_info.seg_not_present == 0) {
+    if (first >= TASK_SIZE) {
       ldt_info.seg_not_present = 
 #ifdef WANT_WINDOWS
       seg_not_present = 
@@ -281,14 +311,14 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
       D_printf("DPMI: WARNING: set segment[0x%04x] to NOT PRESENT\n",entry);
     } else {
       if (ldt_info.limit_in_pages)
-        limit = ldt_info.limit = ((0xC0000000 - base2)>>12) - 1;
+        limit = ldt_info.limit = ((TASK_SIZE - first)>>12) - 1;
       else
-        limit = ldt_info.limit = 0xC0000000 - base2 - 1;
+        limit = ldt_info.limit = TASK_SIZE - first - 1;
       D_printf("DPMI: WARNING: reducing limit of segment[0x%04x]\n",entry);
     }
   }
 
-  if ((__retval=modify_ldt(1, &ldt_info, sizeof(ldt_info))))
+  if ((__retval=modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info))))
 	return __retval;
 #endif
 #ifdef __NetBSD__
@@ -296,7 +326,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   int seg_not_present = 0;
   int useable = 0;
 #endif
-  unsigned long base2, limit2;
+  unsigned long first, last;
   int __retval;
     struct segment_descriptor *sd;
 
@@ -315,23 +345,23 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 #endif
       );
 
-  limit2 = limit;
-  base2 = base;
+  last = limit;
+  first = base;
   if (limit_in_pages_flag) {
-  	limit2 *= PAGE_SIZE;
-  	limit2 += PAGE_SIZE-1;
+  	last *= PAGE_SIZE;
+  	last += PAGE_SIZE-1;
   }
 
-  limit2 += base2;
-  if ((limit2 < base2 || limit2 >= 0xC0000000) && seg_not_present == 0) {
-    if (base2 >= 0xC0000000) {
+  last += first;
+  if ((last < first || last >= TASK_SIZE) && seg_not_present == 0) {
+    if (first >= TASK_SIZE) {
       seg_not_present = 1;
       D_printf("DPMI: WARNING: set segment[0x%04x] to NOT PRESENT\n",entry);
     } else {
       if (limit_in_pages_flag)
-        limit = ((0xC0000000 - base2)>>12) - 1;
+        limit = ((TASK_SIZE - first)>>12) - 1;
       else
-        limit = 0xC0000000 - base2 - 1;
+        limit = TASK_SIZE - first - 1;
       D_printf("DPMI: WARNING: reducing limit of segment[0x%04x]\n",entry);
     }
   }
@@ -400,7 +430,6 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 
 static void print_ldt(void ) /* stolen from WINE */
 {
-	/* wow -- why static  */
   static char buffer[0x10000];
   unsigned long *lp, *lp2;
   unsigned long base_addr, limit;
@@ -793,11 +822,13 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
     return -1;
   if (!Segments[ldt_entry].used)
     return -1; /* invalid value 8021 */
+  if (!(type_byte & 0x10)) /* we refused system selector */
+    return -1; /* invalid value 8021 */
   /* Only allow conforming Codesegments if Segment is not present */
   if ( ((type_byte>>2)&3) == 3 && ((type_byte >> 7) & 1) == 1)
     return -2; /* invalid selector 8022 */
 
-  Segments[ldt_entry].type = (type_byte >> 2) & 7;
+  Segments[ldt_entry].type = (type_byte >> 2) & 3;
   Segments[ldt_entry].is_32 = (type_byte >> 14) & 1;
 
   /* This is a bug in some clients, hence we only allow
@@ -884,7 +915,7 @@ static int SetDescriptor(unsigned short selector, unsigned long *lp)
   limit |= (*lp & 0x000F0000);
 
   return SetSelector(selector, base_addr, limit, (*lp >> 22) & 1,
-			(*lp >> 10) & 7, ((*lp >> 9) & 1) ^1,
+			(*lp >> 10) & 3, ((*lp >> 9) & 1) ^1,
 			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
 }
 

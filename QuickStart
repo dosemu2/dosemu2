@@ -10,41 +10,14 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 - make install
 
 
-NOTE: If you run dosemu with emumodule (vm86plus) on a SMP-Kernel, you need
-      to also compile the modules for SMP !!! In this case you _must_ use
-      the configure-option --enable-SMPmodules such as
-
-         ./configure --enable-SMPmodules
-
-
 --------------------------------------------------------------------------
-1a. Load modules
+1a. Use 'low feature dosemu' without vm86plus
 --------------------------------------------------------------------------
 
-The default behaviour when compiling dosemu is to require vm86plus.
-To run dosemu,  emumodule must be loaded. This has to be redone once
-after every boot of Linux. (emumodule only works for 2.0.x kernels)
-
-- ./load_module.sh (as root) in the dosemu subdir
-
---------------------------------------------------------------------------
-1b. Use patched kernel instead of emumodule
---------------------------------------------------------------------------
-
-As an alternative to emumodule (or when using 2.1.x kernels) you
-may patch your kernel (see doc/README.kernel-patches).
-For this you need to configure dosemu with
-
-- ./configure --enable-kernelvm86plus
-
---------------------------------------------------------------------------
-1c. Use 'low feature dosemu' without vm86plus
---------------------------------------------------------------------------
-
-If you don't want to use vm86plus (emumodule) you need to configure dosemu
-with
+If you don't want to use vm86plus you need to configure dosemu with
 
 - ./configure --enable-novm86plus
+
 
 --------------------------------------------------------------------------
 2.  Configure

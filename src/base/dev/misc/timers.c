@@ -40,9 +40,8 @@
 #include "int.h"
 #include "pic.h"
 
-#define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
-
 pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
+extern long   pic_itime[33];
 
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
@@ -88,7 +87,7 @@ void initialize_timers(void)
   pit[2].write_state = 3;
 
   ticks_accum   = 0;
-  timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
+  timer_div     = (pit[0].cntr * 10000) / PIT_TICK_RATE;
 
   timer_tick();  /* a starting tick! */
 }
@@ -166,8 +165,8 @@ static void pit_latch(int latch)
     case 0x05:  /* mode 5   -- countdown, wait */
       if (pit[latch].cntr != -1) {
 	gettimeofday(&cur_time, NULL);
-	ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) * CLOCK_TICK_RATE +
-	        ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
+	ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) * PIT_TICK_RATE +
+	        PIT_MS2TICKS(cur_time.tv_usec - pit[latch].time.tv_usec);
 
 	if (ticks > pit[latch].cntr) {
 	  pit[latch].cntr = -1;
@@ -182,25 +181,41 @@ static void pit_latch(int latch)
 
     case 0x02:  /* mode 2,6 -- countdown, reload */
     case 0x06:
-#if 0
       gettimeofday(&cur_time, NULL);
-      /* fancy calculations to avoid overflow */
-      ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
-      ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
-	      ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
-#endif
-      ticks = pit[latch].cntr - (pic_dos_time % pit[latch].cntr);
-      pit[latch].read_latch = pit[latch].cntr - ticks % pit[latch].cntr;
+      pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
+	+ PIT_MS2TICKS(cur_time.tv_usec);
+      pic_sys_time += (pic_sys_time == -1);
+      if(latch == 0) {
+	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+	if(((int)ticks) < 0) {
+	  pic_request(PIC_IRQ0);
+	  run_irqs();
+	  ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+	}
+      } else {
+	ticks = pit[latch].cntr - (pic_sys_time % pit[latch].cntr);
+      }
+      pit[latch].read_latch = ticks;
       break;
 
     case 0x03:  /* mode 3,7 -- countdown by 2(?), interrupt, reload */
     case 0x07:
       gettimeofday(&cur_time, NULL);
-      /* fancy calculations to avoid overflow */
-      ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
-      ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
-	      ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
-      pit[latch].read_latch = pit[latch].cntr - (2*ticks) % pit[latch].cntr;
+      pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
+	+ PIT_MS2TICKS(cur_time.tv_usec);
+      pic_sys_time += (pic_sys_time == -1);
+      ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+      if(latch == 0) {
+	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+	if(((int)ticks) < 0) {
+	  pic_request(PIC_IRQ0);
+	  run_irqs();
+	  ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+	}
+      } else {
+	ticks = pit[latch].cntr - (pic_sys_time % pit[latch].cntr);
+      }
+      pit[latch].read_latch = (2*ticks) % pit[latch].cntr;
       break;
   }
 #if 0 /* for debugging */
@@ -290,12 +305,12 @@ void pit_outp(Bit32u port, Bit8u val)
 
     if (port == 0) {
       ticks_accum   = 0;
-      timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
+      timer_div     = (pit[0].cntr * 10000) / PIT_TICK_RATE;
       if (timer_div == 0)
 	timer_div = 1;
 #if 0
       i_printf("timer_interrupt_rate requested %.3g Hz, granted %.3g Hz\n",
-	       CLOCK_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
+	       PIT_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
 #endif
     }
     else if (port == 2 && config.speaker == SPKR_EMULATED) {

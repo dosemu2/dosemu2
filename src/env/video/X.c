@@ -78,7 +78,11 @@
 #define REMAP_TYPE_SLOWER 3  /* Slowest, does pretty good dithering */
 
 /* So, what sort of shared colourmap support would you like? */
+#if 0
 #define REMAP_TYPE      REMAP_TYPE_MEDIUM     /* Default: REMAP_TYPE_MEDIUM    --adm */
+#else
+#define REMAP_TYPE	REMAP_TYPE_FAST
+#endif
 
 /*#define OLD_X_TEXT*/		/* do you want to use the old X_textmode's */
 #define CONFIG_X_SELECTION 1
@@ -190,7 +194,7 @@ extern void X_process_key(XKeyEvent *);
 static XShmSegmentInfo shminfo;
 #endif
 
-static Display *display;
+Display *display;
 static int screen;
 static Window rootwindow,mainwindow;
 static XImage *ximage_p;		/*Used as a buffer for the X-server*/
@@ -202,8 +206,10 @@ unsigned char* image_data_p=NULL; 	/* the data in the XImage*/
 static Cursor X_standard_cursor;
 #if CONFIG_X_MOUSE
 static Cursor X_mouse_cursor;
+static Cursor X_mouse_nocursor;
 static time_t X_mouse_change_time;
 static int X_mouse_last_on;
+static int snap_X=0;
 #endif
 static GC gc;
 static Font vga_font;
@@ -468,6 +474,15 @@ static void load_text_font(void)
 }
 }
 
+static Cursor create_invisible_cursor() {
+  Pixmap mask;
+  Cursor cursor;
+  static char map[16] ={0};
+  mask = XCreatePixmapFromBitmapData(display,mainwindow, map,1,1,0,0,1);
+  cursor = XCreatePixmapCursor(display, mask, mask, (XColor *)map, (XColor *)map, 0, 0);
+  XFreePixmap(display,mask);
+  return cursor;
+}
 
 /* Load the mouse cursor shapes. */
 static void load_cursor_shapes(void)
@@ -509,6 +524,7 @@ static void load_cursor_shapes(void)
     X_mouse_cursor = XCreateGlyphCursor(display, decfont, decfont, 2, 3, &fg, &bg);
     XUnloadFont(display, decfont);  
   }
+  X_mouse_nocursor = create_invisible_cursor();
   X_mouse_change_time = 0;
   X_mouse_last_on = -1;
 #endif /* CONFIG_X_MOUSE */
@@ -646,7 +662,7 @@ static void X_close(void)
   
   if(vga256_cmap!=0)
     {
-      if(video_mode==0x13)
+      if (get_vgaemu_type() == GRAPH)
         XUninstallColormap(display, vga256_cmap);
 
       XFreeColormap(display, vga256_cmap);
@@ -914,7 +930,7 @@ static inline void set_gc_attr(Bit8u attr)
 /* Draw the cursor (normal if we have focus, rectangle otherwise). */
 static void draw_cursor(int x, int y)
 {  
-  if(video_mode==0x13)
+  if (get_vgaemu_type() == GRAPH)
     return;
 
   set_gc_attr(XATTR(screen_adr+y*co+x));
@@ -941,7 +957,7 @@ static inline void restore_cell(int x, int y)
    u_char c = XCHAR(sp);
 
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(video_mode==0x13)
+  if (get_vgaemu_type() == GRAPH)
     return;
 
   set_gc_attr(XATTR(sp));
@@ -955,7 +971,7 @@ static inline void restore_cell(int x, int y)
 static void redraw_cursor(void) 
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(video_mode==0x13)
+  if (get_vgaemu_type() == GRAPH)
     return;
 
   if (!is_mapped) 
@@ -978,7 +994,7 @@ static void redraw_cursor(void)
 static void X_update_cursor(void) 
    {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(video_mode==0x13)
+  if (get_vgaemu_type() == GRAPH)
     return;
    
   if ((cursor_row != prev_cursor_row) || (cursor_col != prev_cursor_col) ||
@@ -992,7 +1008,7 @@ static void X_update_cursor(void)
 void X_blink_cursor(void)
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(video_mode==0x13)
+  if (get_vgaemu_type() == GRAPH)
     return;
 
   if (!have_focus || --blink_count)
@@ -1427,9 +1443,9 @@ chk_cursor:
 	do
 	  {
 	    i=DAC_get_dirty_entry(&color);
-	    X_printf("X: X_redraw_screen(): DAC_get_dirty_entry()=%i\n", i);
 	    if(i!=-1)
 	      {
+		X_printf("X: X_redraw_screen(): DAC_get_dirty_entry()=%i\n", i);
 		if (have_shmap)
 		  {
 		    tmppix=
@@ -1671,6 +1687,15 @@ static void set_mouse_position(int x, int y)
     case 0x5d:
     case 0x5e:
     case 0x62:
+      if (snap_X) {
+        /* win31 cursor snap kludge, we temporary force the DOS cursor to the
+         * upper left corner (0,0). If we after that release snapping,
+         * normal X-events will move the cursor to the exact position. (Hans)
+         */
+        x=-127;
+        y=-127;
+        snap_X--;
+      }
       x*=8;  /* these scalings make DeluxePaintIIe operation perfect - */
       y*=8;  /*  I don't know about anything else... */
       dx = (x-mouse.x) >> 3;
@@ -1691,10 +1716,6 @@ static void set_mouse_position(int x, int y)
       mouse.y=y;
       mouse_move();
    }
-/*
-  X_printf("Mouse x = %03i, y = %03i\n",mouse.x,mouse.y);
-*/
-/*printf("Bios Video_mode= 0x%02x\n",READ_BYTE(BIOS_VIDEO_MODE));*/
 }   
 
 
@@ -1977,7 +1998,7 @@ void X_handle_events(void)
 
    if (busy)
      {
-       printf(" - busy.\n");
+       fprintf(stderr, " - busy.\n");
        return;
      }
      
@@ -1985,6 +2006,19 @@ void X_handle_events(void)
    
 
 #if CONFIG_X_MOUSE
+   {
+     static int lastingraphics = 0;
+     if (get_vgaemu_type() == GRAPH) {
+       lastingraphics = 1;
+       XDefineCursor(display, mainwindow, X_mouse_nocursor);
+     }
+     else {
+       if (lastingraphics) {
+         lastingraphics = 0;
+         XDefineCursor(display, mainwindow, X_standard_cursor);
+       }
+     }
+   }
    if(X_mouse_change_time != 0 &&
       time(NULL) > X_mouse_change_time) {
      X_mouse_change_time = 0;
@@ -1997,6 +2031,12 @@ void X_handle_events(void)
        X_mouse_last_on = mouse.cursor_on;
      }
    }
+#if 0 /* maybe we need to trigger mouse snapping for win31 more often,
+       * But on my machine, it seems not to be necessary.
+       * (Hans, 970118)
+       */
+   if (snap_X) set_mouse_position(0,0);
+#endif
 #endif
 
   while (XPending(display) > 0) 
@@ -2126,10 +2166,12 @@ void X_handle_events(void)
 #if CONFIG_X_MOUSE  
 	case ButtonPress:
 #if CONFIG_X_SELECTION
+	if (get_vgaemu_type() != GRAPH) {
 	  if (e.xbutton.button == Button1)
 	    start_selection(e.xbutton.x, e.xbutton.y);
 	  else if (e.xbutton.button == Button3)
 	    start_extend_selection(e.xbutton.x, e.xbutton.y);
+	}
 #endif /* CONFIG_X_SELECTION */
 	  set_mouse_position(e.xmotion.x,e.xmotion.y); /*root@sjoerd*/
 	  set_mouse_buttons(e.xbutton.state|(0x80<<e.xbutton.button));
@@ -2138,7 +2180,7 @@ void X_handle_events(void)
 	case ButtonRelease:
 	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
 #if CONFIG_X_SELECTION
-	  switch (e.xbutton.button)
+	  if (get_vgaemu_type() != GRAPH) switch (e.xbutton.button)
 	    {
 	    case Button1 :
 	    case Button3 : 
@@ -2164,6 +2206,11 @@ void X_handle_events(void)
 	  break;
 	  
 	case EnterNotify:
+	  /* Here we trigger the kludge to snap in the cursor
+	   * drawn by win31 and align it with the X-cursor.
+	   * (Hans)
+	   */
+	  snap_X=3;
 	  X_printf("X: Mouse entering window\n");
 	  set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	  set_mouse_buttons(e.xcrossing.state);

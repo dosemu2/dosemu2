@@ -7,6 +7,11 @@
 # ag115@freenet.carleton.ca
 
 # The following detects the existence of the VGA font.
+
+if [ "$X11ROOTDIR" = "" ]; then
+	X11ROOTDIR=/usr/X11
+fi
+
 if ! [ -r $X11ROOTDIR/lib/X11/fonts/misc/vga.pcf* ]; then
 	echo "Hey...I could not find the IBM VGA font for xwindows!"
 	echo "To install the VGA font, go into the DOSEMU source directory and type:"

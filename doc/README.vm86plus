@@ -1,59 +1,56 @@
-This is the readme for the kernelpatches. that are in the directory
 
-   src/arch/linux/kernel-patches
+VM86PLUS, new kernel's vm86 for a full feature dosemu
+=====================================================
+( available now in all kernels >= 2.0.28, >= 2.1.15 )
 
-The patches have been tested on kernels 2.0.25, 2.1.8 .. 2.1.10
 
-------------------------------------------------------------------------------
-
-VM86PLUS, kernel patches for a full feature dosemu
-==================================================
-
-The below gives some details on the kernel patches that are needed
-to have a so called 'full feature dosemu'. We had more of those kernel
+The below gives some details on the new kernel vm86 functionality that
+is used for a 'full feature dosemu'. We had more of those kernel
 changes in the older emumodule, but reduced the kernel support to an
-absolute minimum. The current set of patches _and_ emumodule all produce
-the same changes to the kernel, so (on linux 2.0.x) you may decide which form
-of implementation you want. For 2.1.x kernels there is no support for
-emumodule anymore.
-In the following we refer to 'vm86plus' for general, 'builtin vm86plus' for
-the patches and 'emumodule' for the modularised version of vm86plus.
+absolute minimum. As a result of this we now have this support in the
+mainstream kernels >= 2.0.28 as well as >= 2.1.15 and do not need emumodule
+any more (removed since dosemu 0.64.3). To distinguish between the old
+vm86 functionality and the new one, we call the later VM86PLUS.
 
 1.     Restrictions
        ------------
 
-1.1    Starting with dosemu-0.64.1 we will no longer support older
-       kernels ( < 2.0.0 ) for vm86plus. If you for any reasons can't
+1.1    Starting with dosemu-0.64.3 we will no longer support older
+       kernels ( < 2.0.28 ) for vm86plus. If you for any reasons can't
        upgrade the kernel, then either use an older dosemu or don't
        configure the vm86plus support.
 
-1.2    In 2.1.x kernels 'struct pt_regs' has changed so that a dosemu
-       binary compiled on 2.0.x can't run on 2.1.x and vice versa.
-       This is true for both, with or without vm86plus support.
+1.2    Please don't use any 2.1.x kernels < 2.1.15 and don't use the patch
+       that came with dosemu-0.64.1, we changed the syscall interface because
+       Linus wanted to be absolutely shure that no older (non-dosemu) binary
+       would break.
+       Also, don't use any dosemu binaries that were compiled under 2.1.x
+       but earlier then 2.1.15.
 
-1.3    To load emumodule you need the insmod (insmod-HACKER_TOOL) that
-       is supplied with dosemu, because some of the kernel symbols that
-       emumodule needs are not exported by the ksyms interface.
-       Insmod-HACKER_TOOL uses the /usr/src/System.map to resolve symbols.
-       Also, because of the version dependency of the module, you need to
-       recompile emumodule every time you change your kernel version.
- 
 
 2.     Parts in the kernel that get changed for vm86plus
        -------------------------------------------------
 
 2.1    Changes to arch/i386/kernel/vm86.c
 
-2.1.1  'generic' vm86() interface
+2.1.1  New vm86() syscall interface
 
-       The patched vm86() version of vm86plus contains a generic
-       interface, that detects whether the client is using standard vm86
-       or vm86plus. This is done by looking at the first parameter passed
-       to vm86(). If it is > 0xFFFFFF00 (which would be an address in
-       kernel space), then vm86plus is assumed. The client also can do
-       a save installation check by passing 0xFFFFFF00 to vm86().
-       On an unpatched vm86() this will return with -1 and errno set,
-       vm86plus will return with 0.
+       The vm86() syscall of vm86plus contains a generic interface: 
+       old style vm86 syscall is 113, the new one is 166.
+       At entry of vm86() the vm86_struct gets completely copied into
+       kernel space and now _remains_ on the kernel stack until control
+       return to user space. This has the advantage that performance
+       is increased as long as emulation loops between VM86 and kernel space
+       ( which happens quite often ). A second advantage is, that we now
+       better can translate between old vm86_struct, vm86plus_struct and
+       kernel 2.1.x changed internal pt_regs, hence old vm86 and new
+       vm86plus user space binaries run on both 2.0.x and 2.1.x kernel.
+       The entry routine of the old style vm86() translates to the new
+       expanded vm86plus_struct before calling the common new do_sys_vm86().
+
+       It is possible to detect the existence of vm86plus support in the
+       kernel by just calling vm86(0,(void *)0) on syscall 166 entry.
+       On success 0 is returned, an unpatched kernel will return with -1.
 
 2.1.2  Additional Data passed to vm86()
 
@@ -77,7 +74,7 @@ the patches and 'emumodule' for the modularised version of vm86plus.
 
 2.1.3  IRQ passing
 
-       Vm86Vm86plus also hosts the IRQ passing stuff now, that was a separate
+       Vm86plus also hosts the IRQ passing stuff now, that was a separate
        syscall in the older emumodule (no syscallmgr any more).
        As this IRQ passing is special to dosemu, we anyway  couldn't it use
        for other (unix) applications. So having it as part of vm86() should
@@ -105,7 +102,14 @@ the patches and 'emumodule' for the modularised version of vm86plus.
 
 2.2    Changes to arch/i386/kernel/ldt.c
        
-2.2.1  'useable' bit in LDT descriptor
+2.2.1  New functioncode for 'write' in modify_ldt syscall
+
+       In order to preserve backword compatibility with Wine and Wabi
+       the changes in the LDT stuff are only available when using
+       function code 0x11 for 'write' in the modify_ldt syscall.
+       Hence old binaries will be served with the old LDT behavior.
+
+2.2.2  'useable' bit in LDT descriptor
 
        The 'struct modify_ldt_ldt_s' got an additional bit: 'useable'.
        This is needed for DPMI clients that make use of the 'available'
@@ -117,7 +121,7 @@ the patches and 'emumodule' for the modularised version of vm86plus.
        DPMI-function SetDescriptorAccessRights (AX=0009) passes this
        in bit 4 of CH ((80386 extended access rights).
 
-2.2.2  'present' bit in LDT selector
+2.2.3  'present' bit in LDT selector
 
        The function 1 (write_ldt) of syscall modify_ldt() allows
        creation/modification of selectors containing a 'present' bit, that
@@ -143,7 +147,8 @@ the patches and 'emumodule' for the modularised version of vm86plus.
        But as we assure proper setting of _all_ LDT selector via 'write_ldt'
        of modify_ldt(), we safely may allow LDT selectors to be loaded. 
        If they are not proper, we then get an exception and have a chance
-       to emulate access.
+       to emulate access. And because old type binaries (Wabi) will not be able
+       create newer type selector (see 2.2.1), gain this wont hurt.
 
 2.4    Changes to arch/i386/kernel/traps.c
 
@@ -161,6 +166,8 @@ the patches and 'emumodule' for the modularised version of vm86plus.
        when the exception occurred), we do not send a signal, but return
        from the vm86() syscall with an appropriate return code.
 
+       If the above INTx happens from within old style vm86() call, the
+       exceptions also are handled 'the old way'. (backward comptibility)
 
 
 3.     Abandoned 'bells and whistles' from older emumodule
@@ -217,19 +224,7 @@ the patches and 'emumodule' for the modularised version of vm86plus.
 
 
 
-4.     Future
-       ------
 
-       We hope that vm86plus finds its way into the official kernel so that
-       we don't need emumodule any more. This 'cleanup effort' was triggered
-       at the Linux Congress'96 in Berlin, where I had a chance to discuss
-       our problems with Linus. We came to an agreement such that we would
-       abandon emumodule and Linus would give us dosemu support in the
-       kernel starting with Linux-2.1.x. Though we did not work out any
-       details in Berlin, I hope that the current vm86plus solution is
-       acceptable for Linus. If not, ... well, we are flexible, aren't we?
-
-
-                           November 16, 1996, Hans Lermen
+                           January 14, 1997, Hans Lermen
                                               <lermen@elserv.ffm.fgan.de>
 

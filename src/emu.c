@@ -277,11 +277,22 @@ SIG_close()
 }
 
 static inline void 
-emumodule_init(void)
+vm86plus_init(void)
 {
 #ifdef REQUIRES_VM86PLUS
+    static inline int vm86_old(struct vm86_struct* v86)
+    {
+        int __res;
+        __asm__ __volatile__("int $0x80\n"
+        :"=a" (__res):"a" ((int)113), "b" ((int)v86));
+        return __res;
+    }
     if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    fprintf(stderr, "vm86plus service not available in your kernel\n\r");
+    if (!vm86_old((void *)0xffffff01)) {
+      fprintf(stderr, "your kernel contains an older (interim) vm86plus version\n\r"
+      		      "please upgrade to an newer one\n\r");
+    }
+    else fprintf(stderr, "vm86plus service not available in your kernel\n\r");
     fflush(stdout);
     fflush(stderr);
     _exit(1);
@@ -292,7 +303,7 @@ static inline void
 module_init(void)
 {
     version_init();		/* Check the OS version */
-    emumodule_init();		/* emumodule support */
+    vm86plus_init();		/* emumodule support */
     SIG_init();			/* silly int generator support */
     memcheck_init();		/* lower 1M memory map support */
     tmpdir_init();		/* create our temporary dir */

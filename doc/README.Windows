@@ -28,11 +28,14 @@ What, you're still reading?
 Okay, it is possible to boot WINOS2 (the modified version of Windows 3.1
 that OS/2 uses) under DOSEMU.  Many kudos to Lutz & Dong!
 
+However, YOU NEED BOTH LICENSES, for WINDOWS-3.1 as well OS/2 !!!
+
 There are many known problems.  Windows is prone to crash, could take data
-with it, large programs will not load, the mouse may be painfully sluggish,
-etc. etc. etc.  In other words, it is NOT ready for daily use.  Many video
-cards are known to have problems (you may see a nice white screen.)  Your
-program groups are all likely to disappear.  Basically, it's a pain.
+with it, large programs will not load, etc. etc. etc.
+In other words, it is NOT ready for daily use.  Many video cards are known
+to have problems (you may see a nice white screen, however, look below
+for win31-in-xdos).  Your program groups are all likely to disappear.
+...  Basically, it's a pain.
 
 On the other hand, if you're dying to see the little Windows screen running
 under Linux and you have read this CAREFULLY and PROMISE NOT TO BOMBARD THE
@@ -44,9 +47,14 @@ DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES...
     sets REQUIRES_VM86PLUS = -DREQUIRES_VM86PLUS.
 4.  Compile DOSEMU typing 'make itall'.
 5.  Load the emumodule using the included load_module.sh script.
-6.  Get the WINOS2.ZIP distribution from tsx-11.mit.edu
-7.  Unpack the WINOS2 files into your WINDOWS\SYSTEM directory.
-    (Infact you only need WINDOWS/SYSTEM/os2k386.exe)
+6.  Get the OS2WIN31.ZIP distribution from .... ????
+    .... oh well, and now you have the first problem.
+    It _was_ on ibm.com sometime ago, but has vanished from that site, and
+    as long as it was there, we could mirror it. .... you see the problem?
+    However, use 'archie' to find it, it will be around somewhere on the net
+    ... for some time ;-)
+7.  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
+    (Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
 8.  Startup dosemu (make certain that DPMI is set to a value such as 4096)
 9.  Copy the file winemu.bat to your c: drive.
 11. Cross your fingers.
@@ -55,3 +63,54 @@ Good luck!
 
 REMEMBER:  THIS IS NOT AT ALL RECOMMENDED!!!  THIS IS NOT RECOMMENDED!!!
            WE DO NOT RECOMMEND YOU TRY THIS!!!
+
+---------
+
+Windows 3.x in xdos:
+
+As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course, this
+is not recommended at all, but if you really want to try, it is safer then
+starting windows-31 on the console, because _when_ it crashes, it doesn't
+block your keyboard or freeze your screen.
+
+Hints:
+
+1. Get Dosemu & Linux source.
+2. Unpack dosemu.
+3. Run "./configure" to configure Dosemu (it will enable vm86plus as a
+   default).
+4. Type "make" to compile.
+5. Get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
+   and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
+   /windows/drivers (any mirrors?).
+6. Unpack the Trident drivers.
+7. In Windows setup, install the Trident "800x600 256 color for 512K
+   boards" driver.
+8. Do the things described above to get and install OS2WIN31.
+10. Start xdos.
+11. In Dosemu, go to windows directory and start winemu.
+12. Cross your fingers.
+
+
+Notes for the mouse under win31-in-xdos:
+
+1. In order to let the mouse properly work you need the following in your
+   win.ini file:
+
+     [windows]
+     MouseThreshold1=0
+     MouseThreshold2=0
+     MouseSpeed=0
+
+2. The mouse cursor gets not painted by X, but by windows itself, so it depends
+   on the refresh rate how often it gets updated, though the mouse coordinates 
+   movement itself will not get delayed.
+   ( In fact you have 2 cursors, but the X-cursor is given an 'invisible'
+   cursor shape while within the DOS-Box. )
+
+3. Because the coordinates passed to windows are interpreted relatively, we
+   need to calibrate the cursor. This is done automatically whenever you
+   enter the DOS-Box window: The cursor gets forced to 0,0 and then back
+   to its right coordinates. Hence, if you want to re-calibrate the cursor,
+   just move the cursor outside and then inside the DOS-Box again.
+

@@ -64,6 +64,7 @@
 #include "termio.h"
 #include "memory.h"
 #include "bios.h"
+#include "config.h"
 
 #define AltMask Mod1Mask
 #define XK_X386_SysReq 0x1007FF00
@@ -217,13 +218,12 @@ static const struct
  * matching from keycode to scan code
  * codes are processed low-byte to high-byte
  */
-#ifdef NEW_KEYCODES
-static const int X_scan[] = {
+static const int X_scan0[] = {
    0x37E0,      /*  92  Print Screen */
-   0x5000,      /*  93  Down */
-   0x4B00,      /*  94  Left */
-   0x8500,      /*  95  F11 */
-   0x8600,      /*  96  F12 */
+   0x50E0,      /*  93  Down */
+   0x56,        /*  94  < > */
+   0x85,        /*  95  F11 */
+   0x86,        /*  96  F12 */
    0x0,         /*  97  */
    0x0,         /*  98  */
    0x0,         /*  99  */
@@ -245,29 +245,29 @@ static const int X_scan[] = {
    0x0,         /* 115  */
    0x0,         /* 116  */
    0x0,         /* 117  */
-   0x0,         /* 118  */
-   0x4900,      /* 119  Page Up */
+   0x4BE0,      /* 118  Left */
+   0x49E0,      /* 119  Page Up */
    0x0,         /* 120  */
    0x0,         /* 121  */
-   0x0,         /* 122  */
-   0x0,         /* 123  */
+   0x38E0,      /* 122  Alt-R */
+   0x1DE0,      /* 123  Ctrl-R */
    0x1C,        /* 124  KP enter */
    0x35,        /* 125  KP divide */
    0x0,         /* 126  */
    0x451DE1,    /* 127  Pause*/
-   0x4800,      /* 128  Up */
-   0x5300,      /* 129  Delete */
-   0x4F00,      /* 130  End */
-   0x5200,      /* 131  Insert */
+   0x48E0,      /* 128  Up */
+   0x53E0,      /* 129  Delete */
+   0x4FE0,      /* 130  End */
+   0x52E0,      /* 131  Insert */
    0x0,         /* 132  */
-   0x4D00,      /* 133  Right */
-   0x5100,      /* 134  Page Down */
-   0x4700,      /* 135  Home */
+   0x4DE0,      /* 133  Right */
+   0x51E0,      /* 134  Page Down */
+   0x47E0,      /* 135  Home */
    0x46E0,      /* 136  Break */
    0x0,         /* 137  */
 };
-#else
-static const int X_scan[] = {
+
+static const int X_scan1[] = {
    0x47e0,      /*  97  Home   */
    0x48e0,      /*  98  Up     */
    0x49e0,      /*  99  PgUp   */
@@ -330,6 +330,14 @@ static const int X_scan[] = {
    0x52,         /* 156 KP_Ins */
    0x53,         /* 157 KP_Del */
 };
+
+static int scan_test=0;
+#ifdef NEW_KEYCODES
+static const int * X_scan=X_scan0;
+static int direct_scan=92, scan_end=138;
+#else
+static const int * X_scan=X_scan1;
+static int direct_scan=97, scan_end=158;
 #endif /* NEW_KEYCODES */
 
 void X_process_char(u_char ch);
@@ -414,6 +422,7 @@ static ushort translate(KeySym key)
     return 0;   /* unknown key */
 }
 
+extern Display *display;
 
 #define MAXCHARS 3
 
@@ -426,6 +435,18 @@ void X_process_key(XKeyEvent *e)
     short ch;
     static XComposeStatus compose_status = {NULL, 0};
     int i;
+
+    if(!scan_test) {
+      if(XKeysymToKeycode(display, XK_Down) == 93) { /* New keyboard */
+	X_scan=X_scan0;
+	direct_scan=92; scan_end=138;
+      } else { /* XF86 keyboard */
+	X_scan=X_scan1;
+	direct_scan=97; scan_end=158;
+      }
+
+      scan_test = 1;
+    }
     
     if (config.X_keycode) {
        scan = e->keycode;
@@ -436,20 +457,11 @@ void X_process_key(XKeyEvent *e)
 	* for the keycode, for the keys new on the AT keyboard, we have to
 	* translate them via the keypad table
 	*/
-#ifdef NEW_KEYCODES       
-       if (scan < 92)
-#else
-       if (scan < 97)
-#endif
+       if (scan < direct_scan)
 	  scan -= 8;
        else
-#ifdef NEW_KEYCODES       
-          if (scan < 138)
-	  scan = X_scan[scan-92];
-#else
-          if (scan < 158)
-	  scan = X_scan[scan-97];
-#endif
+          if (scan < scan_end)
+	    scan = X_scan[scan-direct_scan];
 	  else /* don't allow access outside array ! */
 	    scan=0;
        X_printf("X_process_key: keycode=%d, scancode=%d, %s\n",

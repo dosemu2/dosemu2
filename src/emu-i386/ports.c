@@ -127,6 +127,7 @@ inb(unsigned int port)
 #if X_GRAPHICS
   if ( (config.X) &&
             ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
+              ((port>=0x3c4) && (port<=0x3c5)) || /* erik@zaphod sequencer */
               ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
               ((port>=0x3D0) && (port<=0x3DD)) ) )
     {
@@ -377,6 +378,7 @@ outb(unsigned int port, unsigned int byte)
 #if X_GRAPHICS
     if ( (config.X) &&
          ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
+           ((port>=0x3c4) && (port<=0x3c5)) || /* erik@zaphod sequencer */
            ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
            ((port>=0x3D0) && (port<=0x3DD)) ) )
       {

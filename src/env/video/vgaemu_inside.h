@@ -179,6 +179,13 @@ unsigned char Attr_read_value(void);
 inline unsigned char Attr_get_index(void);
 unsigned char Attr_get_input_status_1(void);
 
+/* **************** Sequencer emu functions **************** */
+void Seq_init(void);
+void Seq_set_index(unsigned char data);
+unsigned char Seq_get_index(void);
+void Seq_write_value(unsigned char data);
+unsigned char Seq_read_value(void);
+
 
 #endif /* !defined __ASM__ */
 

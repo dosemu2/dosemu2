@@ -43,13 +43,8 @@
 
 #ifdef MODULE
 #include <linux/module.h>
-#include "kversion.h"
-#if KERNEL_VERSION <= 1001073
-#include "/usr/src/linux/tools/version.h"
-#else
 #include "linux/version.h"
 #include "linux/if_arp.h"
-#endif
 #endif
 
 #include "dosnet.h"
@@ -270,13 +265,8 @@ dosnet_init(struct device *dev)
   dev->hard_header_len	= ETH_HLEN;		/* 14			*/
   dev->addr_len		= ETH_ALEN;		/* 6			*/
   dev->type		= ARPHRD_ETHER;		/* 0x0001		*/
-#if KERNEL_VERSION <= 1001073
-  _eth_type_trans	= dev->type_trans;
-  dev->type_trans	= dosnet_eth_type_trans;
-#else
   _eth_type_trans	= dev->type;
   dev->type		= dosnet_eth_type_trans;
-#endif
   /* dev->rebuild_header	= eth_rebuild_header; */
   dev->set_multicast_list = set_multicast_list ;
   dev->open		= dosnet_open;
@@ -302,9 +292,6 @@ dosnet_init(struct device *dev)
 
 
 #ifdef MODULE
-#if KERNEL_VERSION <= 1001073
-char kernel_version[] = UTS_RELEASE;
-#endif
 static char *devicename=DOSNET_DEVICE;
 static struct device *dev_dosnet = NULL;
 /*  {	"      " , 

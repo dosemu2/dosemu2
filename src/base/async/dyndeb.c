@@ -41,6 +41,7 @@ GetDebugFlagsHelper(char *debugStr)
 #endif
   debugStr[i++] = DebugFlag(d.keyb);     debugStr[i++] = 'k';
   debugStr[i++] = DebugFlag(d.io);       debugStr[i++] = 'i';
+  debugStr[i++] = DebugFlag(d.io_trace); debugStr[i++] = 'T';
   debugStr[i++] = DebugFlag(d.serial);   debugStr[i++] = 's';
   debugStr[i++] = DebugFlag(d.mouse);    debugStr[i++] = 'm';
   debugStr[i++] = DebugFlag(d.defint);   debugStr[i++] = '#';

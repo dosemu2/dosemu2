@@ -1,3 +1,51 @@
+97/01/19 ver. 0.64.3 released
+	From Hans
+	- removed emumodule (don't need it any more;-)
+	- cleaned up kernel dependencies
+	- adapted ./configure and Makefiles
+	- Made mouse functionable for win31-in-xdos (hiding X-cursor,
+          calibrating win31 cursor)
+	- little fix for xtermdos
+	- Updated the docs
+	From JES
+	- basic mouse functionality for win31-in-xdos
+	From Herbert Xu <herbert@greathan.apana.org.au>
+	- additions to man/dos.1, man/xtermdos.1
+96/12/30 ver. 0.64.2.2 released
+	From Erik Mouw
+	- sequencer emulator for VGAemu (compatible with Trident 8900)
+	  This lets WIN31 run in xdos :-), ... but without mouse :-(
+96/12/30 ver. 0.64.2.1 released
+	From Hans
+	- Finaly got expand-down-fake in DPMI work, so older DJGPP work again.
+	  ( and maybe some games too )
+	- Additional checks in ./configure for debian inconsistencies,
+	  Forcing to ELF, if no GCC specs file available.
+	- ... and this time did not forget to increase the version ;-)
+	From Erik Mow
+	- Additional checks in ./configure for bison installed
+	From Grant R. Guenther <grant@knot.torque.net>
+	( hey, Grant is the man who hacked the ZIP and other drives using
+          dosemu, so he then could write the Linux drivers ;-)
+	- "T" debug flag and LOG_IO macro
+	From Bernd Paysan <paysan@informatik.tu-muenchen.de>
+	- fixed the keycodes for AccelX
+	- fix for micro timing problems, timer now strictly monotonous
+	  ( Bernd's fix _really_ works great, Hans:-)
+96/12/07 ver. 0.64.2 released
+	From Hans:
+	- vm86plus (2nd version) now is in the kernels >= 2.1.15
+	  ( it took long, but we finaly succeeded, thanks Linus :-)
+	- small adaptation and cleanup (docs, configure)
+	- minor fixes for clean compile under various compile options
+	- key-board fix for french keyboards (from Alain Knaff)
+96/12/07 ver. 0.64.2-pre5 (privat release for JES only)
+        From Hans:
+	- vm86plus (emumodule), third round
+	  ( Linus requested to put our stuff into a separate syscall )
+	  kernel patches now for 2.0.27, 2.1.14
+	- small fix for -F bug.
+	- DPMI: tried to work around illegitime expand-down segments
 96/11/15 ver. 0.64.1
         From Hans:
         - vm86plus (emumodule), second round

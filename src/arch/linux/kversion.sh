@@ -96,10 +96,15 @@ ASCII_VERSION=`grep UTS_RELEASE ${VERSIONFILE} |cut '-d"' -f2`
 VERSION=`echo "${ASCII_VERSION}" |cut '-d.' -f1` 
 zeropad `echo "${ASCII_VERSION}" |cut '-d.' -f2` 
 zeropad `echo "${ASCII_VERSION}" |cut '-d.' -f3` 
-echo "#ifndef KERNEL_VERSION" > ${DOSEMUSRC}/include/kversion.h
-echo "#define KERNEL_VERSION ${VERSION}" >> ${DOSEMUSRC}/include/kversion.h
-echo "#endif " >> ${DOSEMUSRC}/include/kversion.h
 
-# know we create a version stamp for the parent Makefile
-BINPATH=`(cd ${DOSEMUSRC}/../bin; pwd)`/..
-grep UTS_RELEASE ${VERSIONFILE} > ${BINPATH}/kversion.stamp
+if [ "$3" = "-print" ]; then
+  echo "${VERSION}"
+else
+  echo "#ifndef KERNEL_VERSION" > ${DOSEMUSRC}/include/kversion.h
+  echo "#define KERNEL_VERSION ${VERSION}" >> ${DOSEMUSRC}/include/kversion.h
+  echo "#endif " >> ${DOSEMUSRC}/include/kversion.h
+
+  # know we create a version stamp for the parent Makefile
+  BINPATH=`(cd ${DOSEMUSRC}/../bin; pwd)`/..
+  grep UTS_RELEASE ${VERSIONFILE} > ${BINPATH}/kversion.stamp
+fi

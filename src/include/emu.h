@@ -168,6 +168,7 @@ struct debug_flags {
    X,			/* X support         "X" */
    keyb,		/* keyboard          "k" */
    io,			/* port I/O          "i" */
+   io_trace,		/* port I/O tracing  "T" */
    serial,		/* serial            "s" */
    mouse,		/* mouse             "m" */
    defint,		/* default ints      "#" */
@@ -224,6 +225,7 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 #define p_printf(f,a...) 	ifprintf(d.printer,f,##a)
 #define d_printf(f,a...) 	ifprintf(d.disk,f,##a)
 #define i_printf(f,a...) 	ifprintf(d.io,f,##a)
+#define T_printf(f,a...) 	ifprintf(d.io_trace,f,##a)
 #define R_printf(f,a...) 	ifprintf(d.read,f,##a)
 #define W_printf(f,a...) 	ifprintf(d.write,f,##a)
 #define C_printf(f,a...)        ifprintf(d.cdrom,f,##a)

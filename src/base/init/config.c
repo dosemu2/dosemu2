@@ -32,8 +32,8 @@ extern int errno;
 
 
 struct debug_flags d =
-{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-/* d  R  W  D  C  v  X  k  i  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
+{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+/* d  R  W  D  C  v  X  k  i  T  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
 
 static void     check_for_env_autoexec_or_config(void);
 int     parse_debugflags(const char *s, unsigned char flag);
@@ -251,6 +251,7 @@ config_init(int argc, char **argv)
 		  fprintf(stderr, "Sorry, no access to configuration file %s\n", optarg);
 		  exit(1);
 		}
+		close(f);
 	    }
 	    confname = optarg;	/* someone reassure me that this is *safe*? */
 	    break;
@@ -516,9 +517,9 @@ int parse_debugflags(const char *s, unsigned char flag)
     char            c;
 
 #ifdef X_SUPPORT
-    const char      allopts[] = "dRWDCvXkism#pgcwhIExMnPrS";
+    const char      allopts[] = "dRWDCvXkiTsm#pgcwhIExMnPrS";
 #else
-    const char      allopts[] = "dRWDCvkism#pgcwhIExMnPrS";
+    const char      allopts[] = "dRWDCvkiTsm#pgcwhIExMnPrS";
 #endif
 
     /*
@@ -566,6 +567,9 @@ int parse_debugflags(const char *s, unsigned char flag)
 	    break;
 	case 'i':		/* i/o instructions (in/out) */
 	    d.io = flag;
+	    break;
+	case 'T':		/* i/o port tracing */
+	    d.io_trace = flag;
 	    break;
 	case 's':		/* serial */
 	    d.serial = flag;

@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.64.1, the PC Emulator for
+The DOSEMU team is proud to announce DOSEMU 0.64.3, the PC Emulator for
 x86 based *nix. Please remember to consider this as ALPHA software.
 
 
@@ -14,9 +14,13 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
   - Color text and full keyboard emulation (via hotkeys) via terminal.
   - Built-in X-Windows support, includes IBM character set font!
   - Graphics capability at the console with most compatible video cards.
-  - Much-improved DPMI support.
+  - Graphics emulation in X for 256 color modes.
+  - Much-improved DPMI support
+  - able to run (handicapped) Windows-3.1 either on console or in X.
+    (you need the os2win31.zip package, and licenses for both,
+    Windows-3.1 and OS/2. see doc/README.Windows)
   - Runs Borland BCC.EXE/TCC.EXE version 3.x command line compilers!
-  - Runs Borlandc C++ 3.x IDE (with emumodule.o)
+  - Runs Borlandc C++ 3.x IDE
   - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
      at the Linux console.
   - NetBSD verison of DOSEMU appreciating a growing success,
@@ -29,9 +33,8 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
 
 REQUIREMENTS
 ~~~~~~~~~~~~
-  - Linux 2.0.0+ (with IPC support, IPX support optional)
-  - Linux >= 2.1.8 is also supported now (patch supplied for 'full feature')
-  - GCC 2.7.0+ and LIBC 5.2.18+ are recommended for best results.
+  - Linux >= 2.0.28 (with IPC support, IPX support optional)
+  - GCC 2.7.2+ and LIBC 5.2.18+ are recommended for best results.
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
      of total memory to compile, depending on configuration.
 
@@ -57,7 +60,8 @@ of at least:
   John Kohl 		Kevin P Lawton 		Rod May
   Wayne P Meissner 	Vinod G Kulkarni 	Andries
   David Etherton 	Alberto Vignani		Eric W. Biederman
-  Eric Mouw		Arjan Filius		Uwe Bonnes
+  Erik Mouw		Arjan Filius		Uwe Bonnes
+  Rainer Zimmermann
 
   and others too important to mention.
 

@@ -1,9 +1,46 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "Nov 16, 1996" "Version ALPHA 0.64" "MS-DOS Emulation"
+.TH DOS 1 "Jan 19, 1997" "Version ALPHA 0.64.3" "MS-DOS Emulation"
 .SH NAME
 dos, dosdebug, xdos \- run MS-DOS and MS-DOS programs under Linux and NetBSD
 .SH SYNOPSIS
 .B dos
+[
+.B \-ABCcdkVNXtsgKm234O 
+]
+[
+.B \-F
+.I file
+]
+[
+.B \-D
+.I flags
+]
+[ 
+.B \-M 
+.I size
+]
+[ 
+.B \-e 
+.I size
+]
+[ 
+.B \-x 
+.I size
+]
+[
+.B \-P 
+.I file
+]
+[
+.B \-o
+.I file
+]
+[
+2\>
+.I debugfile
+]
+.sp
+.B xtermdos
 [
 .B \-ABCcdkVNXtsgKm234O 
 ]
@@ -86,6 +123,24 @@ invokes the Linux dos emulator, also known as
 .I debugfile
 is an optional file into which all debugging output will be redirected.
 .PP
+.B xtermdos
+brings up
+.B DOSEMU
+in an
+.B xterm
+(or one of its cousins:
+.BR color_xterm ,
+.BR ansi_xterm ,
+or
+.BR rxvt ).
+It automatically detects the IBM VGA font, and the best
+.B xterm
+to run,
+and then runs the
+.B xterm
+with the proper parameters required to run
+.BR DOSEMU .
+.PP
 .B dosdebug
 is used to control or debug an already running 
 .BR DOSEMU .
@@ -122,20 +177,22 @@ for information on how to configure, compile, and boot
 .BR DOSEMU .
 
 .SH KERNEL REQUIREMENTS
-At present, you will need Linux 2.0.0 or above with the SYSV IPC option
+At present, you will need Linux 2.0.28 or above with the SYSV IPC option
 (System V InterProcess Communication facilities, see 
 .BR ipc (2))
 compiled. SYSV IPC is an option in the configuration setup during a Linux
 kernel compile.
 
-For a
+Starting with dosemu version 0.64.3
 .I full feature dosemu
-you also may either use emumodule or patch
-your kernel. For details see 
-.I doc/README.kernel-patches.
+is the default. For details see 
+.I doc/README.vm86plus.
+For a
+.I low feature dosemu
+you need to configure with --enable-novm86plus
 
 If you use 1.2.13, please upgrade to the latest stable kernel.
-At the time of writing, it was Linux 2.0.25, available with anonymous
+At the time of writing, it was Linux 2.0.28, available with anonymous
 ftp at ftp.funet.fi in the directory /pub/Linux/kernel/linux/v2.0/, or
 at various mirrors all over the world.
 
@@ -334,7 +391,7 @@ parses this string from left to right.
  w  warning		h  hardware		I  IPC
  E  EMS			x  XMS			M  DPMI
  n  IPX network	P  Pkt-driver		S  SOUND
- r  PIC
+ r  PIC			T  IO-tracing
 
 
 Any debugging classes following a 
@@ -471,6 +528,9 @@ developer team - even just good detailed debug reports are all you need!
 .TP
 .I /usr/bin/dos
 The invoker program.
+.TP
+.I /usr/bin/xtermdos
+The xterm wrapper.
 .TP
 .I /usr/bin/xdos
 The X version.

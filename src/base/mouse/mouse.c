@@ -731,7 +731,10 @@ mouse_reset_to_current_video_mode(void)
   }
 
   /* virtual resolution is always at least 640x200 */
-  mouse.maxx = 640;
+  mouse.maxx = current_video.width;
+  if (mouse.maxx < 640) {
+	mouse.maxx = 640;
+  }
   mouse.maxy = current_video.height;
   if (mouse.maxy < 200) {
   	mouse.maxy = 200;
@@ -757,6 +760,7 @@ mouse_reset_to_current_video_mode(void)
 
   mouse.maxx = mouse_roundx(mouse.maxx - 1);
   mouse.maxy = mouse_roundy(mouse.maxy - 1);
+  m_printf("maxx=%i, maxy=%i\n", mouse.maxx, mouse.maxy);
 }
 
 
@@ -1147,6 +1151,34 @@ mouse_round_coords()
 void 
 mouse_move(void)
 {
+
+  get_current_video_mode();
+  if (current_video.textgraph == 'T') {
+    mouse.gfx_cursor = FALSE;
+  } else {
+    mouse.gfx_cursor = TRUE;
+  }
+
+  /* virtual resolution is always at least 640x200 */
+  mouse.maxx = current_video.width;
+  if (mouse.maxx < 640) {
+        mouse.maxx = 640;
+  }
+  mouse.maxy = current_video.height;
+  if (mouse.maxy < 200) {
+        mouse.maxy = 200;
+  }
+  switch (current_video.width) {
+        case 40: mouse.xshift = 4; break;
+        case 80: mouse.xshift = 3; break;
+        case 320: mouse.xshift = 1; break;
+        default: mouse.xshift = 0; break;
+  }
+
+  mouse.maxx = mouse_roundx(mouse.maxx - 1);
+  mouse.maxy = mouse_roundy(mouse.maxy - 1);
+  m_printf("maxx=%i, maxy=%i\n", mouse.maxx, mouse.maxy);
+
   if (mouse.x <= mouse.minx) mouse.x = mouse.minx;
   if (mouse.y <= mouse.miny) mouse.y = mouse.miny;
   if (mouse.x >= mouse.maxx) mouse.x = mouse.maxx;
@@ -1164,7 +1196,7 @@ mouse_move(void)
 	mouse_cursor(-1);
   }
 
-  m_printf("MOUSE: move. x=%x,y=%x\n", mouse.x, mouse.y);
+  m_printf("MOUSE: move: x=%x,y=%x\n", mouse.x, mouse.y);
    
   mouse_delta(DELTA_CURSOR);
 }

@@ -33,7 +33,17 @@ extern void iodev_term(void);
  *******************************************************************/
 
 #define PIT_TICK_RATE   1193180      /* underlying clock rate in HZ */
-#define PIT_TICK_1000   1193         /* PIT tick rate / 1000        */
+#ifdef i386
+#   define PIT_MS2TICKS(n) ({ \
+			       int res; \
+			       __asm__ ("imull %%edx\n\tidivl %%ecx" \
+					: "=a" (res) \
+					: "a" (n), "d" (59659), "c" (50000)); \
+			       res; \
+			   })
+#else
+#   define PIT_MS2TICKS(n) ((int)(((long long)(n)*59659)/50000))
+#endif
 
 #define PIT_TIMERS      4            /* 4 timers (w/opt. at 0x44)   */
 

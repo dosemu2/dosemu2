@@ -10,12 +10,6 @@ LDFLAGS=@LDFLAGS@
 CC=@CC@
 @SET_MAKE@
 
-# If INCDIR exists, it was exported from the master Makefile.
-ifndef INCDIR
-  LINUX_KERNEL = $(shell sh @SRCPATH@/arch/@CONFIG_HOST@/kversion.sh -find -print)
-  LINUX_INCLUDE = $(LINUX_KERNEL)/include
-  INCDIR=-I/usr/include/ncurses -I../../../include -I.. -I$(LINUX_INCLUDE)
-endif
 
 CFILES = dosnet.c
 HFILES = dosnet.h

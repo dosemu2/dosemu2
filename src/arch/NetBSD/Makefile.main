@@ -609,7 +609,7 @@ local_clean:
 	  dosstatic dosconfig *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 
 local_realclean:
-	-rm -f include/config.h include/kversion.h $(BINPATH)/kversion.stamp tools/tools86 .depend
+	-rm -f include/config.h tools/tools86 .depend
 
 clean::	local_clean
 

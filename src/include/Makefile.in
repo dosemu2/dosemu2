@@ -30,7 +30,6 @@ checkout:
 
 clean:
 	rm -f *.o
-	rm -f kversion.h
 
 realclean: clean
 	rm -f .depend

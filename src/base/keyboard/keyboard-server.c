@@ -591,11 +591,15 @@ set_leds_area ()
   }
 }
 
+static char accent = 0;
+static short accent_sc = 0;
+static short very_next_scancode = 0;
+
 static void
 do_self (unsigned int sc)
 {
   unsigned char ch;
-  static char accent = 0;
+  int out_accent;
   int i;
 
   if (kbd_flag (KF_ALT))
@@ -637,6 +641,7 @@ do_self (unsigned int sc)
 	if (accent != ch) {
 	   k_printf("KBD: dead key accent %d\n", ch);
 	   accent=ch;
+	   accent_sc = sc;
 	   return;
 	}
      }
@@ -644,6 +649,10 @@ do_self (unsigned int sc)
 
 
   if (accent) {   /* translate dead keys */
+     out_accent = 0;
+     if(ch == ' ')
+       /* dead-key + space becomes lone accent */
+       ch = accent;
      for (i = 0; dos850_dead_map[i].d_key != 0; i++) {
 	if (accent == dos850_dead_map[i].d_key &&
 	    dos850_dead_map[i].in_key == ch) {
@@ -654,7 +663,18 @@ do_self (unsigned int sc)
 	    sc = 0; /* keyb.exe uses 0 for dead keys */
             break;
 	}
+	if (accent == dos850_dead_map[i].d_key &&
+	    dos850_dead_map[i].in_key == accent) {
+
+	    k_printf("KBD: map accent %d/key %d to %d\n", accent, ch,
+		     dos850_dead_map[i].out_key);
+	    out_accent = dos850_dead_map[i].out_key;
+	}
      }
+     /* For an unknown 'dead key' sequence, generate accent+following character
+      * as two characters, as real DOS does */
+     if(sc && out_accent)
+       very_next_scancode = (accent_sc << 8) | out_accent;
      accent = 0;
   }
   if (kbd_flag (KF_CTRL) || kbd_flag (KF_CAPSLOCK))
@@ -672,7 +692,10 @@ do_self (unsigned int sc)
 static void
 spacebar (unsigned int sc)
 {
-  put_queue (0x3920);
+  if(accent)
+    do_self(sc);
+  else
+    put_queue (0x3920);
 }
 
 /* 0x47-0x53, indexed by sc-0x47 , goes like:
@@ -1030,6 +1053,16 @@ insert_into_keybuffer (void)
     keepkey = 1;
   else
     keepkey = 0;
+
+  if (very_next_scancode && keepkey)
+    {
+      k_printf ("KBD: putting key in buffer\n");
+      if (InsKeyboard (very_next_scancode))
+	dump_kbuffer ();
+      else
+	error ("ERROR: InsKeyboard could not put key into buffer!\n");
+      very_next_scancode=0;
+    }
 
   if (next_scancode && keepkey)
     {

@@ -16,14 +16,6 @@ DEBUGGER=@DEBUGGER@
 X11LIBDIR=@x_libraries@
 USE_MHPDBG=@USE_MHPDBG@
 
-#Change the following line if the right kernel includes reside elsewhere
-#LINUX_KERNEL = /usr/src/linux
-#LINUX_KERNEL = $(shell sh @SRCPATH@/arch/@CONFIG_HOST@/kversion.sh -find -print)
-#LINUX_INCLUDE = $(LINUX_KERNEL)/include
-LINUX_KERNEL=@LINUX_KERNEL@
-LINUX_INCLUDE=@LINUX_INCLUDE@
-export LINUX_KERNEL
-export LINUX_INCLUDE  
 
 #Change the following line to point to your loadable modules directory
 BOOTDIR = /boot/modules
@@ -125,17 +117,6 @@ export INCDIR
  
 CFLAGS = @CFLAGS@
 
-# set for DPMI want windows
-ifdef REQUIRES_VM86PLUS
-  LDTPATCH=2
-else
-  LDTPATCH:= $(shell grep -c useable $(LINUX_KERNEL)/include/linux/ldt.h)
-endif
-ifeq ($(LDTPATCH),2)
-  WIN31=1
-else
-  WIN31=0
-endif
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment
@@ -197,23 +178,19 @@ warning2:
 	 echo "    - Location and format of DOSEMU files have changed since 0.50pl1!"; \
 	 echo ""; \
 	 echo "-> REQUIREMENTS for DOSEMU:"; \
-	 echo "    - gcc 2.5.8"; \
-	 echo "    - libc 4.5.21"; \
-	 echo "    - Linux > 1.1.76"; \
+	 echo "    - gcc 2.7.2"; \
+	 echo "    - libc 5.2.18"; \
+	 echo '    - Linux >= 2.0.28, 2.1.x >= 2.1.15'; \
 	 echo "    - 16 megabytes total memory+swap"; \
 	 echo ""; \
-	 if [ "1" = "$(WIN31)" ]; then \
-		if [ "" = "$(REQUIRES_VM86PLUS)" ]; then \
-	 	  echo "    - Your kernel contains support for experimental use of Windows 3.1."; \
-		else \
-	 	  echo "    - Your kernel needs emumodule to support experimental use of Windows 3.1."; \
-		fi; \
+	 if [ "" = "$(REQUIRES_VM86PLUS)" ]; then \
+	 	echo "    - Full feature dosemu, compiled with vm86plus"; \
 	 else \
-	 	echo "    - Kernel is not patched for experimental use of Windows 3.1."; \
+		echo "    - Low feature dosemu compiled, will use old vm86 interface"; \
 	 fi; \
 	 echo ""; \
 
-ifeq ($(WAIT),"yes")
+ifeq ($(WAIT),yes)
 pausekey:
 	@echo "====> Press Enter to continue, or hit Ctrl-C to abort <===="
 	@read
@@ -326,47 +303,15 @@ docsubdirs:	$(DOCS)
 $(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
 	@(cd @REALTOPDIR@/src/; $(MAKE) -C $@)
 
-version:	versetup include/kversion.h
+version:	versetup
 
 versetup:
 	@mkdir -p $(BINPATH)/bin
 	@mkdir -p $(BINPATH)/commands
-ifeq (${OS},linux)
-	@mkdir -p $(BINPATH)/modules
-endif
 	@cp -p commands/precompiled/* $(BINPATH)/commands
 	@rm -f ../bin ../commands ../modules
 	@ln -sf $(BINPATH)/bin ../bin
 	@ln -sf $(BINPATH)/commands ../commands
-ifeq (${OS},linux)
-	@ln -sf $(BINPATH)/modules ../modules
-	@if [ "$@" != "pristine" ]; then \
-          if [ -f $(BINPATH)/kversion.stamp ]; then \
-	    if [ "`grep UTS_RELEASE $(LINUX_KERNEL)/include/linux/version.h 2>/dev/null`" != "`cat $(BINPATH)/kversion.stamp`" ]; then \
-	      echo '**********************************************************'; \
-	      echo "Your kernel version has changed, please do 'make pristine'"; \
-	      echo 'NOTE: Not the running kernel is meant, but the one which'; \
-	      echo '      $(LINUX_KERNEL)/include belongs to.'; \
-	      echo '**********************************************************'; \
-	      echo $@ ; \
-	    fi \
-	  fi \
-        fi
-endif
-
-# define this if we know the version we're running
-# KERNEL_VERSION=1001088
-ifdef KERNEL_VERSION
-include/kversion.h:
-	echo '#ifndef KERNEL_VERSION' >@REALTOPDIR@/src/$@
-	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>@REALTOPDIR@/src/$@
-	echo '#endif' >>@REALTOPDIR@/src/$@
-else
-# The kernel makefile is always changed when we upgrade linux - Jon
-include/kversion.h: $(LINUX_KERNEL)/Makefile
-	 $(SHELL) @REALTOPDIR@/src/arch/@CONFIG_HOST@/kversion.sh $(LINUX_KERNEL) ./
-endif
-
 
 
 doslibnew: 
@@ -387,9 +332,6 @@ installnew: doslib
 install:
 	@install -d /var/lib/dosemu
 	@install -d /var/run
-	@if [ -f ../load_module.sh ]; then chmod 700 ../load_module.sh; fi
-	@if [ -f ../unload_module.sh ]; then chmod 700 ../unload_module.sh; fi
-	@if [ -f ../install-for-modprobe.sh ]; then chmod 700 ../install-for-modprobe.sh; fi
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	@install -c -o root -m 04755 $(BINPATH)/bin/dos /usr/bin
 ifdef  USE_MHPDBG
@@ -437,20 +379,15 @@ endif
 	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
 	 echo ""
 ifdef REQUIRES_VM86PLUS
-	@echo "  - You compiled with VM86PLUS support, you need either a patched kernel"; \
-	 echo "    or you must load EMUMODULE"; \
-	 echo "  - For the later, DO NOT FORGET TO LOAD EMUMODULE"; \
-	 echo "    use load_module.sh from this directory"; \
+	@echo "  - You compiled with VM86PLUS support, make sure you have booted"; \
+	 echo '    a kernel >= 2.0.28 or 2.1.x >= 2.1.15 before using dosemu'; \
 	 echo ""
 else
 	@echo "  - WARNING: You compiled without VM86PLUS support, however,"; \
-	 echo "    it is  recommended that the VM86PLUS support"; \
-	 echo "    be used instead of the standard kernel's vm86() call."; \
-	 echo "    To use the modules, do 'make pristine' and reconfigure with"; \
-	 echo "    './configure --disable-novm86plus', and re-make."; \
+	 echo "    it is  recommended that the VM86PLUS support be used."; \
+	 echo "    (some DOS applications, especially DPMI-based ones may not run )"; \
 	 echo ""
 endif
-	@sh ./arch/@CONFIG_HOST@/kversion.sh . -dotsOK
 
 
 converthd: hdimage
@@ -491,7 +428,7 @@ local_clean:
 	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 
 local_realclean:
-	-rm -f include/kversion.h $(BINPATH)/kversion.stamp tools/tools86 .depend
+	-rm -f tools/tools86 .depend
 
 clean::	local_clean
 
