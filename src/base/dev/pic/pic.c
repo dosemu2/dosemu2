@@ -390,6 +390,7 @@ void write_pic0(ioport_t port, Bit8u value)
  * if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR 
  */
 
+static char err_printed = 0;
 #if 0
 static char  icw_state,              /* !=0 => port 1 does icw 2,3,(4) */
 #endif
@@ -400,9 +401,11 @@ port -= 0x20;
 ilevel = 32;
 if (pic_isr)
   ilevel=find_bit(pic_isr);
-if(ilevel != pic_ilevel)
+if(ilevel != pic_ilevel && !err_printed) {
   error("PIC0: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
     ilevel, pic_ilevel, pic_isr);
+  err_printed = 1;
+}
 if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
   /* this is a fake IRQ, don't allow to reset its ISR bit */
   pic_print(1, "Protecting ISR bit for lvl ", ilevel, " from spurious EOI");
@@ -455,15 +458,18 @@ void write_pic1(ioport_t port, Bit8u value)
 /* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
 static char /* icw_state, */     /* !=0 => port 1 does icw 2,3,(4) */
                icw_max_state;    /* number of icws expected        */
+static char err_printed = 0;
 int ilevel;			  /* level to reset on outb 0x20  */
 
 port -= 0xa0;
 ilevel = 32;
 if (pic_isr)
   ilevel=find_bit(pic_isr);
-if(ilevel != pic_ilevel)
+if(ilevel != pic_ilevel && !err_printed) {
   error("PIC1: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
     ilevel, pic_ilevel, pic_isr);
+  err_printed = 1;
+}
 if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
   /* this is a fake IRQ, don't allow to reset its ISR bit */
   pic_print(1, "Protecting ISR bit for lvl ", ilevel, " from spurious EOI");
@@ -653,6 +659,7 @@ void pic_seti(unsigned int level, void (*func), unsigned int ivec,
 void run_irqs(void)
 /* find the highest priority unmasked requested irq and run it */
 {
+       static char err_printed = 0;
        int old_ilevel;
        int int_request;
 
@@ -698,8 +705,11 @@ void run_irqs(void)
  exit:
        /* whether we did or didn't :-( get one, we must still reset pic_ilevel */
        pic_ilevel=old_ilevel;
-       if ((pic_ilevel==32 && pic_isr!=0) || (pic_ilevel!=32 && pic_ilevel!=find_bit(pic_isr)))
+       if (((pic_ilevel==32 && pic_isr!=0) ||
+	    (pic_ilevel!=32 && pic_ilevel!=find_bit(pic_isr))) && !err_printed) {
          error("PIC: pic_ilevel=0x%x pic_isr=0x%x\n", pic_ilevel, pic_isr);
+	 err_printed = 1;
+       }
 }
 
    
