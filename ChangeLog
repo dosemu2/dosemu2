@@ -1,3 +1,10 @@
+98/02/29 ver. 0.97.5 released
+	From Hans
+	- upgraded to Slang-1.0.3, as we need _this_ version for demudialog
+	  I made 'slangforce on' the default.
+	From Alistair
+	- changes to make demudialog compile with Slang (slcurses)
+	  (colors are odd due to bugs in SLang, so BW is the default)
 98/03/20 ver. 0.97.4.5 unofficial pre-release
 	From Steffen
 	- fix to global.conf not setting mitshm

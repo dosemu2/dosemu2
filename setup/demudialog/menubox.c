@@ -327,6 +327,7 @@ dialog_menu (const char *title, const char *prompt, int height, int width,
 	case '?':
 	    button = 2;
 	case '\n':
+	case '\r':
 	    delwin (dialog);
 	    if (button == 2) 
             	fprintf(stderr, "%s \"%s\"\n", 

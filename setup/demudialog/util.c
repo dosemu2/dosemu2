@@ -23,7 +23,7 @@
 
 
 /* use colors by default? */
-bool use_colors = 1;
+bool use_colors = 0;
 
 const char *backtitle = NULL;
 

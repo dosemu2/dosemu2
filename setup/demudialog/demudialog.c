@@ -158,7 +158,7 @@ Usage (const char *name)
 \n  --textbox   <file> <height> <width>\
 \n  --inputbox  <text> <height> <width> [<init>]\
 \n  --yesno     <text> <height> <width>\
-", name, name);
+\n", name, name);
     exit (-1);
 }
 

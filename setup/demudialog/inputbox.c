@@ -217,6 +217,7 @@ dialog_inputbox (const char *title, const char *prompt, int height, int width,
 	    break;
 	case ' ':
 	case '\n':
+	case '\r':
 	    delwin (dialog);
 	    return (button == -1 ? 0 : button);
 	case 'X':

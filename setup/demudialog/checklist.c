@@ -297,6 +297,7 @@ dialog_checklist (const char *title, const char *prompt, int height, int width,
 	case 's':
 	case ' ':
 	case '\n':
+	case '\r':
 	    if (!button) {
 		if (flag == FLAG_CHECK) {
 		    status[scroll + choice] = !status[scroll + choice];

@@ -1,11 +1,23 @@
+USE_SLCURSES = 1
+#DBGFLAGS = -g
+
 CC = gcc
 CPP = gcc -E
 OPTIM = -O2 -Wall -fomit-frame-pointer
 
 CFLAGS = $(OPTIM) -DLOCALE 
+ifdef USE_SLCURSES
+#STATIC = -static
+LDFLAGS = $(DBGFLAGS)  $(STATIC) -s -L . -L../../src/lib
+LDLIBS = -larch_linux_slang-elf
+else
 LDFLAGS = $(STATIC) -s -L .
 LDLIBS = -lncurses
+endif
 
+ifdef USE_SLCURSES
+	CFLAGS += -I../../src/include/slang -DSLANG -DCURSES_LOC="<slcurses.h>"
+else
 ifeq (/usr/include/ncurses/ncurses.h, $(wildcard /usr/include/ncurses/ncurses.h))
         CFLAGS += -I/usr/include/ncurses -DCURSES_LOC="<ncurses.h>"
 else
@@ -19,7 +31,7 @@ else
 endif
 endif
 endif
-
+endif
 
 OBJS = checklist.o menubox.o textbox.o yesno.o inputbox.o \
        util.o demudialog.o msgbox.o
@@ -30,6 +42,12 @@ all: ncurses demudialog
 
 demudialog: $(OBJS)
 
+$(OBJS):	colors.h dialog.h
+
+ifdef USE_SLCURSES
+ncurses:
+	@echo "got it"
+else
 ncurses:
 	@x=`find /lib/ /usr/lib/ /usr/local/lib/ -maxdepth 1 -name 'libncurses.*'` ;\
 	if [ ! "$$x" ]; then \
@@ -41,6 +59,7 @@ ncurses:
 		echo ;\
 		exit 1 ;\
 	fi
+endif
 
 clean:
 	rm -f core *.o *~ demudialog tried-compile

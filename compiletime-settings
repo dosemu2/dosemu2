@@ -6,7 +6,7 @@ config {
   x on
   net on
   dodebug off
-  slangforce off
+  slangforce on
   tmonoton on
   runasroot off
   linkstatic off
