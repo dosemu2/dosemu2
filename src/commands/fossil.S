@@ -57,6 +57,9 @@ int14a:
 ! -------------------------------------------------------------------------
 
 init:
+
+#include "detect.h"
+
         push    cs
         pop     ds
 
@@ -65,6 +68,7 @@ init:
 	mov     ah,#0x09
 	int     0x21
 
+#if 0
         ! check that dosemu is installed.
 	mov     al,#DOSEMU_HELPER_DOSEMU_CHECK
         int     DOSEMU_HELPER_INT
@@ -73,6 +77,7 @@ init:
 no_dosemu:
         mov     dx,#no_dosemu_txt
 	jmp     complain_and_exit
+#endif
 	
         ! check if we are already installed.
 dosemu_found:

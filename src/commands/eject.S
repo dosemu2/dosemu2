@@ -12,7 +12,9 @@ use16
 .globl _main           ! for ld86
 _main:
 
-       .org     0
+       .org     0x100
+#include "detect.h"
+
         mov al, #0x40  ! unlock door
         mov ah, #0x0C
         int     #0xe6

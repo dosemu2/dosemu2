@@ -20,22 +20,25 @@ DOC=README
 
 all: $(COM) $(SYS)
 
-$(D)/%.sys: %.S
+%.s:	%.S detect.h
+	$(CC) -E -D__AS86__ --traditional -I../include $<  > $*.s
+
+$(D)/%.sys: %.s
 	$(SYS_AS86) -0 -o $*.o $< > $<.out
 	$(LD86) -T 0 -s -o $*.tmp $*.o
 	dd if=$*.tmp of=$@ bs=1 skip=32
 	rm $*.tmp $*.o
 
-$(D)/%.com: %.S
+$(D)/%.com: %.s
 	$(AS86) -0 -o $*.o $<
 	$(LD86) -T 0 -s -o $*.tmp $*.o
-	dd if=$*.tmp of=$@ bs=1 skip=32
+	dd if=$*.tmp of=$@ bs=1 skip=288
 	rm -f $*.tmp $*.o
 
 # The commands above require that you use ".org 0" which doesn't work at all
 # if you need absolute addresses. Just use ".org 0x100" and cut the extra
 # bytes using dd.
-$(D)/fossil.com: fossil.S
+$(D)/fossil.com: fossil.s
 	$(AS86) -0 -o $*.o $<
 	$(LD86) -T 0 -s -o $*.tmp $*.o
 	dd if=$*.tmp of=$@ bs=1 skip=288
@@ -48,7 +51,7 @@ checkout:
 	-co -M -l $(SRC) $(EXE)
 
 clean:
-	rm -f *.o *.tmp *.out
+	rm -f *.o *.tmp *.out *.s
 	rm -f $(COM) $(SYS)
 
 realclean: clean

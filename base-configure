@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 # Guess values for system-dependent variables and create Makefiles.
 # Generated automatically using autoconf version 2.10 
@@ -3279,6 +3279,7 @@ fi
 if test "$PATCHLEVEL_" = ""; then
   PATCHLEVEL_=0
 fi
+DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL * 256 ) + $PATCHLEVEL_ ))"`
 PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
@@ -3290,6 +3291,7 @@ EOF
 
 
 CONFIG_TIME=`date`
+
 
 
 
@@ -3309,6 +3311,10 @@ EOF
 
 cat >> confdefs.h <<EOF
 #define VERSION $VERSION
+EOF
+
+cat >> confdefs.h <<EOF
+#define DOSEMU_VERSION_CODE $DOSEMU_VERSION_CODE
 EOF
 
 cat >> confdefs.h <<EOF
@@ -3504,7 +3510,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lgus  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3508 "configure"
+#line 3514 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3516,7 +3522,7 @@ int t() {
 gus_close()
 ; return 0; }
 EOF
-if { (eval echo configure:3520: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3526: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3771,7 +3777,7 @@ DEFS=-DHAVE_CONFIG_H
 echo creating $CONFIG_STATUS
 rm -f $CONFIG_STATUS
 cat > $CONFIG_STATUS <<EOF
-#! /bin/sh
+#! /bin/bash
 # Generated automatically by configure.
 # Run this file to recreate the current configuration.
 # This directory was configured as follows,
@@ -3875,6 +3881,7 @@ s%@SUBLEVEL@%$SUBLEVEL%g
 s%@PATCHLEVEL@%$PATCHLEVEL%g
 s%@THISVERSION@%$THISVERSION%g
 s%@VERSION@%$VERSION%g
+s%@DOSEMU_VERSION_CODE@%$DOSEMU_VERSION_CODE%g
 s%@BINPATH@%$BINPATH%g
 s%@SRCPATH@%$SRCPATH%g
 s%@BUILTIN_VM86PLUS@%$BUILTIN_VM86PLUS%g

@@ -313,7 +313,6 @@ typedef struct vesamode_type_struct {
        boolean timers;
        boolean mouse_flag;
        boolean mapped_bios;	/* video BIOS */
-       boolean mapped_sbios;	/* system BIOS */
        char *vbios_file;	/* loaded VBIOS file */
        boolean vbios_copy;
        int vbios_seg;           /* VGA-BIOS-segment for mapping */

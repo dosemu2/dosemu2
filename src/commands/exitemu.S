@@ -11,7 +11,9 @@
 .globl _main              ! for ld86
 _main:
 
-      .org       0
+      .org       0x100
+#include "detect.h"
+
 	mov ax, #0xffff
 	int #0xe6         ! shouldn't return, but be sure with the HLT's
 	hlt

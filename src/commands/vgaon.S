@@ -13,7 +13,9 @@ use16
 .globl _main              ! for ld86
 _main:
 
-      .org       0
+      .org       0x100
+#include "detect.h"
+
 	mov al, #3     ! dos helper I/O perms
 	mov bx, #0x70  ! starting port
 	mov cx, #2     ! # of ports

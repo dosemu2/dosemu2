@@ -1,3 +1,15 @@
+97/11/22 ver. 0.67.16 released
+	From Eric
+	- found and fixed a diabolic memory overwriting bug
+	  ( src/base/dev/dma/dma.c, loop limit was 5 instead of 4)
+	From Hans
+	- new DOSEMU detection stuff (without even trying to INTE6)
+	  (all *.S -> *.com converted to that)
+	  ... to be continued
+	- to reduce confusion: ./configure becomes ./base-configure
+	- new script 'mkconfscript', which is used to build proper
+	  configure scripts (runs autoconf, autoheader and replaces
+	  /bin/sh with /bin/bash)
 97/11/20 ver. 0.67.15.1 unofficial pre-release
 	From Marcus Better <Marcus.Better@abc.se>
 	- INT13-Support for more than 1024 cylinders

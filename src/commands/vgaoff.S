@@ -13,7 +13,9 @@ use16
 .globl _main              ! for ld86
 _main:
 
-      .org       0
+      .org       0x100
+#include "detect.h"
+
 	mov al, #4     ! card switch
 	mov bl, #0     ! off
 	int #0xe6

@@ -347,6 +347,8 @@ static inline void map_custom_bios(void)
 
   ptr = (u_char *) (BIOSSEG << 4);
   memcpy(ptr, bios_f000, (u_long)bios_f000_end - (u_long)bios_f000);
+
+#if 0 /* this apparently is obsolete stuff, we have all in bios.S */
   if (!config.mapped_sbios) {
     memset((char *) 0xffff0, 0xF4, 16);
 
@@ -360,6 +362,7 @@ static inline void map_custom_bios(void)
   *ptr++ = 0xff;
   *ptr++ = 0xcd;                /* int DOS_HELPER_INT(0xe6) */
   *ptr++ = DOS_HELPER_INT;
+#endif
 
 #if 0 /* for debugging only */
   f = fopen("/tmp/bios","w");

@@ -1073,7 +1073,12 @@ CISH(INT09_dummy_end):
 	retf	#2
 
 	.globl  CISH(bios_f000_end)
-CISH(bios_f000_end):
+
+/* ----------------------------------------------------------------- */
+	.org	0xffe0
+	/* DOSEMU magic and version field */
+	.ascii	"$DOSEMU$"
+	.long	DOSEMU_VERSION_CODE
 
 /* ----------------------------------------------------------------- */
 	.org	0xfff0
@@ -1084,5 +1089,7 @@ CISH(bios_f000_end):
 	hlt
 	db	0xfc   /* model byte = IBM AT */
 	hlt
+
+CISH(bios_f000_end):
 
 /*--------------------------------------------------------------------------*/

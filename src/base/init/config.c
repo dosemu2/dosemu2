@@ -173,7 +173,6 @@ config_defaults(void)
                            via -F option */
     config.mouse_flag = 0;
     config.mapped_bios = 0;
-    config.mapped_sbios = 0;
     config.vbios_file = NULL;
     config.vbios_copy = 0;
     config.vbios_seg = 0xc000;

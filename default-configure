@@ -82,5 +82,5 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
-echo "./configure $STRING $SUFFIX"
-./configure $STRING $SUFFIX
+echo "./base-configure $STRING $SUFFIX"
+./base-configure $STRING $SUFFIX

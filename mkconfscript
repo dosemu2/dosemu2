@@ -1,0 +1,14 @@
+#! /bin/bash
+#
+# NOTE: Don not use this, its only a tool for developers
+#
+# Build the 'base-configure' script, which should not called directly
+# by users. Users should always call 'default-configure' or just
+# simply 'make'
+#
+
+autoconf
+autoheader
+sed -e 's|#! /bin/sh|#! /bin/bash|' configure >base-configure
+chmod 755 base-configure
+rm -f configure

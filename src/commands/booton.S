@@ -11,7 +11,9 @@
 .globl _main              ! for ld86
 _main:
 
-      .org       0
+      .org       0x100
+#include "detect.h"
+
 	mov al, #0x30
 	mov bx, #1
 	int #0xe6  ! enable bootdisk

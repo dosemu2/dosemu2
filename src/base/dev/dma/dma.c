@@ -1657,7 +1657,7 @@ void dma_init(void)
 #endif
 
   for (i = 0; i < 2; i++) {
-    for (j = 0; j < 5; j++) {
+    for (j = 0; j < 4; j++) {
       set_value (&dma[i].address[j], 0);
       set_value (&dma[i].length[j], 0);
       dma[i].ch_config[j] = 0;
