@@ -48,6 +48,7 @@
 
 #include <sys/types.h>
 #include <signal.h> 
+#include "config.h"
 #include "types.h"
 #include "extern.h"
 #include "machcompat.h"
@@ -146,6 +147,7 @@ int ext_fs(int, char *, char *, int);
 int outch(int c);
 #endif
 EXTERN void run_vm86(void);
+EXTERN void     vm86_GP_fault();
 
 #define NOWAIT  0
 #define WAIT    1

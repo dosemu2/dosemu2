@@ -2,13 +2,15 @@
 #define TIMERS_H
 
 #include "extern.h"
+#include "types.h"
+#include <sys/time.h>
 
 #define TIMER_DIVISOR   3
 
 extern void timer_tick(void);
 extern void set_ticks(unsigned long);
-extern int  pit_inp(int);
-extern void pit_outp(int, int);
+extern u_char pit_inp(u_int);
+extern void pit_outp(u_int, u_char);
 extern int  inport_43();
 extern void outport_43(int);
 
@@ -39,10 +41,18 @@ extern void outport_43(int);
 #define INT28_IDLE_USECS	0
 #endif
 
-extern int read_port61(void);
-extern void write_port61(int byte);
-extern int pit_control_inp(void);
-extern void pit_control_outp(int val);
+extern u_char pit_control_inp(u_int);
+extern void pit_control_outp(u_int port, u_char val);
 extern void initialize_timers(void);
+
+typedef struct {
+  short          read_state;
+  short          write_state;
+  int            mode;
+  int            read_latch;
+  int            write_latch;
+  long           cntr;
+  struct timeval time;
+} pit_latch_struct;
 
 #endif /* TIMERS_H */

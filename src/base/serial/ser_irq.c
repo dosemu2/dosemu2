@@ -484,8 +484,8 @@ pic_serial_run(void)
     /* No interrupt flagged?  Then the interrupt was cancelled sometime
      * after the interrupt was flagged, but before pic_serial_run executed.
      * But we must execute do_irq() anyway at this point, or serial will 
-     * crash.  DANG_FIXTHIS James Larry, how do you cancel a PIC interrupt, 
-     * when we have come this far?
+     * crash.  
+     * DANG_FIXTHIS how do we cancel a PIC interrupt, when we have come this far?
      */
   }
 

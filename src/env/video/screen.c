@@ -214,7 +214,7 @@ void scr_request_selection(Display *dpy,Window W,int time,int x,int y)
       send_string(selection_text,strlen(selection_text));
       return;
     }
-  X_printf("X: mouse display %d\n", (Bit32u)dpy);
+  X_printf("X: mouse display %ld\n", (Bit32u)dpy);
   
   if (XGetSelectionOwner(dpy,XA_PRIMARY) == None) 
     {
@@ -225,7 +225,7 @@ void scr_request_selection(Display *dpy,Window W,int time,int x,int y)
       return;
     }
   X_printf("X: mouse XGetSelectionOwner done\n");
-  X_printf("X: mouse Window %d\n", (Bit32u)W);
+  X_printf("X: mouse Window %ld\n", (Bit32u)W);
   sel_property = XInternAtom(dpy,"VT_SELECTION",False);
   XConvertSelection(dpy,XA_PRIMARY,XA_STRING,sel_property,W,time);
   X_printf("X: mouse request done\n");

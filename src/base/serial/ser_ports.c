@@ -186,7 +186,7 @@ void uart_fill(int num)
  */ 
 void uart_clear_fifo(int num, int fifo)
 {
-  /* DANG_FIXTHIS: Should clearing UART cause THRE int if it's enabled? */
+  /* DANG_FIXTHIS Should clearing UART cause THRE int if it's enabled? */
   
   /* Clear the receive FIFO */
   if (fifo & UART_FCR_CLEAR_RCVR) {
@@ -371,8 +371,9 @@ void ser_termios(int num)
    * This assumes 10 bits per characters, although math can easily
    * be done here to accomodate the parity and character size.
    * Remember: One bit takes exactly (rounddiv / 115200)ths of a second.
+   * DANG_FIXTHIS Fix the calculation assumption
    */
-  com[num].tx_char_time = rounddiv * 10;      /* DANG_FIXTHIS */
+  com[num].tx_char_time = rounddiv * 10;
   
   /* Save the newbaudrate value */
   com[num].newbaud = baud;
@@ -460,7 +461,7 @@ static int get_rx(int num)
       if (com[num].rx_buf_bytes < com[num].rx_fifo_trigger) {
         com[num].int_condition &= ~RX_INTR;	/* Clear receive condition */
 
-        /* DANG_FIXTHIS: Is this safe to put this here? */
+        /* DANG_FIXTHIS Is this safe to put this here? */
         serial_int_engine(num, 0);		/* Update interrupt status */
       }
       else {		
@@ -480,7 +481,7 @@ static int get_rx(int num)
   
   /* If receive interrupt is set, then update interrupt status */
   if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI) {
-    /* DANG_FIXTHIS: Is this safe to put this here? */
+    /* DANG_FIXTHIS Is this safe to put this here? */
     serial_int_engine(num, 0);			/* Update interrupt stuats */
   }
   

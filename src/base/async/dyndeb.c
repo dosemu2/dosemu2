@@ -1,5 +1,6 @@
 /* dynamic debug handlers - by Tim Bird */
 /* modified to support debug levels -- peak */
+#include "config.h"
 #include "emu.h"
 
 int

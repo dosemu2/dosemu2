@@ -130,6 +130,8 @@
  *
  */
 
+#include "config.h"
+
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
@@ -140,7 +142,9 @@
 #define XG
 #endif
 
+#ifndef lint
 static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
+#endif
 
 #include <stdio.h>
 #include <termios.h>

@@ -22,6 +22,7 @@
 #define new_utsname utsname
 #endif
 
+#include "config.h"
 #include "emu.h"
 #include "memory.h"
 #include "config.h"
@@ -33,6 +34,7 @@
 #include "video.h"
 #include "vc.h"
 #include "mouse.h"
+#include "port.h"
 #ifdef USING_NET
 #include "pktdrvr.h"
 #include "ipx.h"
@@ -440,7 +442,7 @@ void memory_init(void)
 #endif
 
   bios_mem_setup();            /* setup values in BIOS area */
-  cmos_init();
+  cmos_reset();
 
   /* 
    * The banner helper actually gets called *after* the VGA card
@@ -487,6 +489,7 @@ void memory_init(void)
  */
 void device_init(void)
 {
+  port_init();
   if (keyboard_init() != 0) {
     error("ERROR: can't open keyboard\n");
     leavedos(19);
@@ -497,7 +500,7 @@ void device_init(void)
  
   scr_state_init();
   video_config_init();
-  serial_init();
+  iodev_init();
   mouse_init();
   printer_init();
   disk_init();

@@ -147,10 +147,6 @@ static int map_MDA_for_dualmon()
 /*
  * DANG_BEGIN_FUNCTION MDA_init
  *
- * arguments: none
- * 
- * returns: nothing
- *
  * description:
  *  Initializes the monochrome card. First detects which monochrome
  *  card is used, because the Hercules RamFont and the Hercules InColor
@@ -158,6 +154,12 @@ static int map_MDA_for_dualmon()
  *  card at all, we just think there is one and poke an peek in the void.
  *  After the detection the card is initialized.
  *
+ * returns: 
+ *  nothing
+ *
+ * arguments: 
+ *  none
+ * 
  * DANG_END_FUNCTION
  */
 static void MDA_init()

@@ -1,0 +1,76 @@
+#ifndef CONFIG_H
+
+#define CONFIG_H 1
+
+#define    CONFIG_FILE     "/etc/dosemu.conf"
+#define    DOSEMU_USERS_FILE "/etc/dosemu.users"
+#define    DOSEMU_LOGLEVEL_FILE "/etc/dosemu.loglevel"
+
+/* Do not worry about these */
+#define    LIBSTART        0x20000000
+#undef    CONFIG_HOST
+#undef    CONFIG_TIME 
+#undef    VERSION
+#undef    SUBLEVEL
+#undef    PATCHLEVEL
+#undef    VERSTR
+#undef    EMUVER
+#define   lint	1
+
+/*
+  DEFINE REQUIRES_EMUMODULE, if you you need the emumodules special features
+  You also must load the modules as follows:
+    login in as root
+    cd /usr/src/dosemu
+    ./load_module.sh
+
+  This needs only to be done once, unless you reboot your machine,
+  or recompile DOSemu.
+  You can unload emumodule as follows:
+    login in as root
+    cd /usr/src/dosemu           
+    ./unload_module.sh     
+      ==
+*/ 
+#undef REQUIRES_EMUMODULE
+
+/* DEFINE this, if you want the extended vm86 support (vm86plus) */
+#undef USE_VM86PLUS
+
+/* DEFINE this, if you want stack verifying in sys_vm86 */
+#undef USE_VM86_STACKVERIFY
+
+/* DPMI test windows */
+#undef WANT_WINDOWS
+
+/* DEFINE this, if you want the dosdebugger (mhpdbg) */
+#undef USE_MHPDBG
+
+/* Define these for X support */
+#undef X_SUPPORT
+#undef X2_SUPPORT
+/* Add if you have X-Keycode problems */
+#undef NEW_KEYCODES
+
+/*
+# The next lines define the Lock file set up.  You must do a make clean
+# if change these lines
+# Uncomment the following if you still have your UUCP locks in /usr/spool/uucp
+*/
+#define PATH_LOCKD  "/usr/spool/uucp"
+/* Use the following instead if you your UUCP locks in /var/lock */
+/* #define PATH_LOCKD "/var/lock" */
+/* First part of Lock file names, prepended to 'tty5' etc.*/
+#define NAME_LOCKF "LCK.."
+
+#define CONFIG_FILE "/etc/dosemu.conf"
+#define DOSEMU_USERS_FILE "/etc/dosemu.users"
+
+/*
+   DEFINE this, if you have joystick support in the kernel
+   or have the joystick module loaded (needing <linux/joystick.h>)
+*/
+
+#undef USE_MRP_JOYSTICK
+
+#endif /* config.h */

@@ -6,60 +6,6 @@
  * $State: Exp $
  *
  * $Log: lpt.c,v $
- * Revision 2.8  1995/04/08  22:30:40  root
- * Release dosemu0.60.0
- *
- * Revision 2.8  1995/04/08  22:30:40  root
- * Release dosemu0.60.0
- *
- * Revision 2.7  1995/02/25  22:37:56  root
- * ..
- *
- * Revision 2.6  1995/01/14  15:29:17  root
- * New Year checkin.
- *
- * Revision 2.6  1995/01/14  15:29:17  root
- * New Year checkin.
- *
- * Revision 2.5  1994/09/26  23:10:13  root
- * Prep for pre53_22.
- *
- * Revision 2.4  1994/09/20  01:53:26  root
- * Prep for pre53_21.
- *
- * Revision 2.3  1994/09/11  01:01:23  root
- * Prep for pre53_19.
- *
- * Revision 2.2  1994/07/04  23:59:23  root
- * Prep for Markkk's NCURSES patches.
- *
- * Revision 2.1  1994/06/12  23:15:37  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.6  1994/03/13  01:07:31  root
- * Poor attempts to optimize.
- *
- * Revision 1.5  1994/03/10  02:49:27  root
- * Back to 1 process.
- *
- * Revision 1.4  1994/01/20  21:14:24  root
- * Indent.
- *
- * Revision 1.3  1993/11/30  21:26:44  root
- * Chips First set of patches, WOW!
- *
- * Revision 1.2  1993/11/12  12:43:18  root
- * Added patch from sdh.po.cwru.edu to stop mouse grabs.
- *
- * Revision 1.1  1993/11/12  12:32:17  root
- * Initial revision
- *
- * Revision 1.1  1993/07/07  00:49:06  root
- * Initial revision
- *
- * Revision 1.1  1993/05/04  05:29:22  root
- * Initial revision
- *
  *
  */
 #define LPT_C 1

@@ -648,12 +648,12 @@ static inline void set_gc_attr(Bit8u attr)
  *   
  * description:
  * This function seems to be called each screen_update :(
- * It is called in ../mouse/mouse.c:mouse_cursor(int) a lot for show and hide.
- * Erik do you have a solution?
- * I thougth something like a delayline, or something smarters.
- * 
- *  
+ * It is called in base/mouse/mouse.c:mouse_cursor(int) a lot for show and 
+ * hide.
  * DANG_END_FUNCTION
+ *
+ * DANG_FIXME Use a delayline, or something smarter in X_change_mouse_cursor
+ *  
  */  
 
 /**************************************************************************/
@@ -768,18 +768,23 @@ void X_blink_cursor(void)
 /* 
  * DANG_BEGIN_FUNCTION X_redraw_screen
  *
- * arguments: none
- *
- * returns: nothing
- *
  * description:
  *  Redraws the entire screen, also in graphics mode
  *  Used for expose events etc.
  *
- * Graphics in X has al lot to be improved
- * 
+ * returns: 
+ *  nothing
+ *
+ * arguments: 
+ *  none
+ *
  * DANG_END_FUNCTION
  */ 
+
+/*
+ * DANG_FIXME Graphics in X has to be improved a lot
+ */
+
 /**************************************************************************/
 /*                          SCREEN UPDATES                                */
 /**************************************************************************/
@@ -983,15 +988,18 @@ static void do_scroll(void)
 /* 
  * DANG_BEGIN_FUNCTION X_update_screen
  *
- * arguments: none
- *
- * returns: int ,0:nothing updated 2:partly updated 1:whole update
- *
  * description:
  *  Updates, also in graphics mode
+ *  Graphics in X has to be smarter and improved
  *  
- * Graphics in X has to be smarter and improved
- * 
+ * returns: 
+ *  0 - nothing updated 
+ *  2 - partly updated 
+ *  1 - whole update
+ *
+ * arguments: 
+ *  none
+ *
  * DANG_END_FUNCTION
  */ 
 
@@ -1244,15 +1252,16 @@ void X_change_mouse_cursor(void)
 /* 
  * DANG_BEGIN_FUNCTION set_mouse_position
  *
- * arguments: x,y
- *
- * returns: nothing
- *
  * description:
  *  places the mouse on the right position
- *  
  * Not tested in X with graphics
  * 
+ * returns: 
+ *  nothing
+ *
+ * arguments: 
+ * x,y - coordinates
+ *
  * DANG_END_FUNCTION
  */ 
 static void set_mouse_position(int x, int y)

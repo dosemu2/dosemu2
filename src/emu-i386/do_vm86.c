@@ -1,3 +1,5 @@
+#include "config.h"
+
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
@@ -85,13 +87,14 @@
 #include "sound.h"
 #include "dma.h"
 
+#ifdef bon
 extern void     vm86_GP_fault();
-
+#endif
 
 /*  */
 /* vm86_GP_fault @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/do_vm86.c  */
 /*
- * DANG_BEGIN_FUNCTION vm86_GP_fault();
+ * DANG_BEGIN_FUNCTION vm86_GP_fault
  *
  * description:
  * All from the kernel unhandled general protection faults from V86 mode
@@ -483,7 +486,8 @@ vm86_return(int sig, int code, struct sigcontext *scp)
 /*
  * DANG_BEGIN_FUNCTION run_vm86
  * 
- * description: Here is where DOSEMU runs VM86 mode with the vm86() call
+ * description: 
+ * Here is where DOSEMU runs VM86 mode with the vm86() call
  * which also has the registers that it will be called with. It will stop
  * vm86 mode for many reasons, like trying to execute an interrupt, doing
  * port I/O to ports not opened for I/O, etc ...

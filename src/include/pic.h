@@ -103,10 +103,10 @@ struct lvldef {
 /* function definitions - level refers to irq priority level defined above  */
 /* port = 0 or 1     value = 0 - 0xff   level = 0 - 31    ivec = 0 - 0xff   */
 
-void write_pic0(unsigned char port, unsigned char value); /* write to PIC 0 */
-void write_pic1(unsigned char port, unsigned char value); /* write to PIC 1 */
-unsigned char read_pic0(unsigned char port);             /* read from PIC 0 */
-unsigned char read_pic1(unsigned char port);             /* read from PIC 1 */
+void write_pic0(unsigned int port, unsigned char value); /* write to PIC 0 */
+void write_pic1(unsigned int port, unsigned char value); /* write to PIC 1 */
+unsigned char read_pic0(unsigned int port);             /* read from PIC 0 */
+unsigned char read_pic1(unsigned int port);             /* read from PIC 1 */
 void pic_unmaski(int level);                 /* clear dosemu's irq mask bit */
 void pic_maski(int level);                   /*  set  dosemu's irq mask bit */
 void pic_seti(unsigned int level, void (*func), unsigned int ivec); 
@@ -130,3 +130,6 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 
 /* Experimental TIMER-IRQ CHAIN code */
 extern void timer_int_engine(void);
+
+extern void pic_reset(void);
+extern void pic_init(void);

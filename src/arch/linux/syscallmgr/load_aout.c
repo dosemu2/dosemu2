@@ -120,12 +120,9 @@ load_aout(FILE *fp)
 		if (pos < 0 || pos >= len)
 			return "Bad nlist entry";
 		/* look up name and add sp to binary tree */
-#ifdef HACKER_TOOL
-			/* may be ASM label without underscore */
-		if (name[0] != '_') findsym(name, sp, strncmp); 
-		else
-#endif
-		findsym(name + 1, sp, strncmp); /* Ignore leading '_' */
+		if (*name == '_') /* Ignore leading '_' */
+			++name;
+		findsym(name, sp, strncmp);
 		if ((sp->u.n.n_type & N_EXT) && (sp->u.n.n_type != N_EXT))
 			sp->u.n.n_other = DEF_BY_MODULE; /* abuse: mark extdef */
 		else {

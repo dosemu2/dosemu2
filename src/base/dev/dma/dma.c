@@ -2,6 +2,16 @@
  * Copyright (C) 1995  Joel N. Weber II
  * See the file README.dma in this directory for more information
  *
+ * DANG_BEGIN_MODULE dma.c
+ * This is a DMA controller emulation. It is not complete, and only implements
+ * the lower half of the controller. (8-bit channels)
+ * It is not maintained by the author.
+ *
+ * maintainer:
+ * Alistair MacDonald <alistair@slitesys.demon.co.uk>
+ *
+ * DANG_END_MODULE
+ *
  * DANG_BEGIN_REMARK
  *
  * This source file will hopefully eventually be a complete emulation of
@@ -11,6 +21,15 @@
  * get it to work???
  *
  * Oh well.  I'll dream on.
+ *
+ * DANG_END_REMARK
+ * 
+ * DANG_BEGIN_REMARK
+ * ***** WARNING *****
+ *
+ * This code may be changing soon. I've got an alternative driver waiting in
+ * the wings. I just need some time to evaluate it. It has an alternative
+ * interface for developers.
  *
  * DANG_END_REMARK
  *
@@ -28,6 +47,7 @@
 #include <linux/soundcard.h>
 #endif
 #include "dma.h"
+#include "pic.h"
 #define DMA_0_3_BASE 0x00     /* The base address for the first dma controller */
 #define DMA_4_7_BASE 0xC0     /* The base address for the second */
 
@@ -231,7 +251,7 @@ unsigned char dma_read(unsigned int addr)
 void dma_trans()
 {
   unsigned char cur_ch;
-  unsigned int max_bytes, l;
+  unsigned int max_bytes, l=0;
 
   /*
      only the first dma-controller, as the higher channels need some
@@ -260,14 +280,15 @@ void dma_trans()
            if (dma_ch[cur_ch].mode & DMA_WRITE) {
              h_printf ("DMA: Write transfer\n");
              l = write(dma_ch[cur_ch].fd,
-	              (dma_ch[cur_ch].page << 16) | dma_ch[cur_ch].cur_addr,
+	              (char *)((dma_ch[cur_ch].page << 16) |\
+			       dma_ch[cur_ch].cur_addr),
                        max_bytes);
            }
            else if (dma_ch[cur_ch].mode & DMA_READ) {
 	     h_printf("DMA: Read transfer\n");
 	     l = read(dma_ch[cur_ch].fd,
-                          ((dma_ch[cur_ch].page * 0x010000)
-                            + dma_ch[cur_ch].cur_addr),
+                          (char *) (((dma_ch[cur_ch].page * 0x010000)
+                            + dma_ch[cur_ch].cur_addr)),
                           max_bytes);
 	   }
 	   if (l == -1) {

@@ -58,6 +58,17 @@ extern BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMa
 extern BOOL is_mangled(char *s);
 extern BOOL check_mangled_stack(char *s, char *MangledMap);
 
+/* prototypes, found in util.c */
+char *StrnCpy(char *dest,char *src,int n);
+void strupper(char *s);
+BOOL strhasupper(char *s);
+BOOL strhaslower(char *s);
+void array_promote(char *array,int elsize,int element);
+void strlower(char *s);
+BOOL strequal(char *s1,char *s2);
+
+
+
 #ifndef MANGLE
 #define MANGLE 1
 #endif

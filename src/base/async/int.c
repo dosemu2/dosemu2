@@ -308,7 +308,7 @@ static int dos_helper(void)
     break;
 #endif
     case 0x80:
-        LWORD(eax) = (char *)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(eax));
+        LWORD(eax) = (short)((int)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(eax)));
         break;
   case 0x81:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));

@@ -42,7 +42,8 @@ static void     usage(void);
 /*
  * DANG_BEGIN_FUNCTION config_defaults
  * 
- * description: Set all values in the `config` structure to their default
+ * description: 
+ * Set all values in the `config` structure to their default
  * value. These will be modified by the config parser.
  * 
  * DANG_END_FUNCTION
@@ -189,8 +190,11 @@ open_Xmouse_pipe(char *path)
 /*
  * DANG_BEGIN_FUNCTION config_init
  * 
- * description: This is called to parse the command-line arguments and config
- * files. DANG_END_FUNCTION
+ * description: 
+ * This is called to parse the command-line arguments and config
+ * files. 
+ *
+ * DANG_END_FUNCTION
  * 
  */
 void 
@@ -449,9 +453,11 @@ check_for_env_autoexec_or_config(void)
 /*
  * DANG_BEGIN_FUNCTION parse_debugflags
  * 
- * arguments: s - string of options.
+ * arguments: 
+ * s - string of options.
  * 
- * description: This part is fairly flexible...you specify the debugging
+ * description: 
+ * This part is fairly flexible...you specify the debugging
  * flags you wish with -D string.  The string consists of the following
  * characters: +   turns the following options on (initial state) -
  * turns the following options off a   turns all the options on/off,

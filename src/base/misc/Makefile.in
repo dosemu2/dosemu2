@@ -1,0 +1,22 @@
+REALTOPDIR=@REALTOPDIR@
+TOPDIR=@SRCPATH@
+CFLAGS=@CFLAGS@
+LDFAGS=@LDFLAGS@
+CC=@CC@
+
+CFILES=dosio.c ioctl.c shared.c disks.c utilities.c dos2linux.c dump.c
+
+SFILES=
+ALL=$(CFILES) $(SFILES)
+
+OBJS=$(CFILES:.c=.o)
+OOBJS=bios.o
+DEPENDS=$(CFILES:.c=.d)
+
+SUBDIR=misc
+
+include $(REALTOPDIR)/src/Makefile.common
+
+all: lib
+
+install: all

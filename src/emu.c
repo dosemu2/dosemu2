@@ -19,367 +19,23 @@
  * 
  * DANG_END_MODULE
  * 
- * DANG_BEGIN_CHANGELOG $Date: 1995/05/06 16:25:14 $ $Source:
- * /home/src/dosemu0.60/RCS/emu.c,v $ $Revision: 2.38 $ $State: Exp $
+ * DANG_BEGIN_CHANGELOG 
+ * $Date: 1995/05/06 16:25:14 $ $Source: /home/src/dosemu0.60/RCS/emu.c,v $ $Revision: 2.38 $ $State: Exp $
  * 
  * $Log: emu.c,v $
- * Revision 2.38  1995/05/06  16:25:14  root
- * Prep for 0.60.2.
- *
- * Revision 2.37  1995/04/08  22:29:37  root
- * Release dosemu0.60.0
- * Revision 2.36  1995/02/25  22:38:10  root *** empty log
- * message ***
- * 
- * Revision 2.35  1995/02/25  21:53:22  root *** empty log message ***
- * 
- * Revision 2.34  1995/02/05  16:51:10  root Prep for Scotts patches.
- * 
- * Revision 2.33  1995/01/19  02:20:11  root Testing for Marty.
- * 
- * Revision 2.32  1995/01/14  15:28:03  root New Year checkin.
- * 
- * Revision 2.32  1994/12/06  03:33:50  leisner *** empty log message ***
- * 
- * Revision 2.31  1994/11/13  00:40:45  root Prep for Hans's latest.
- * 
- * Revision 2.30  1994/11/06  02:35:24  root Testing co -M.
- * 
- * Revision 2.28  1994/10/14  17:58:38  root Prep for pre53_27.tgz
- * 
- * Revision 2.27  1994/10/03  00:24:25  root Checkin prior to pre53_25.tgz
- * 
- * Revision 2.26  1994/09/26  23:10:13  root Prep for pre53_22.
- * 
- * Revision 2.25  1994/09/23  01:29:36  root Prep for pre53_21.
- * 
- * Revision 2.24  1994/09/22  23:51:57  root Prep for pre53_21.
- * 
- * Revision 2.23  1994/09/20  01:53:26  root Prep for pre53_21.
- * 
- * Revision 2.22  1994/09/11  01:01:23  root Prep for pre53_19.
- * 
- * Revision 2.21  1994/08/25  00:49:34  root Lutz's STI patches and prep for
- * pre53_16.
- * 
- * Revision 2.20  1994/08/17  02:08:22  root Mods to Rain's patches to get
- * all modes back on the road.
- * 
- * Revision 2.19  1994/08/14  02:52:04  root Rain's latest CLEANUP and MOUSE
- * for X additions.
- * 
- * Revision 2.18  1994/08/09  01:49:57  root Prep for pre53_11.
- * 
- * Revision 2.17  1994/08/05  22:29:31  root Prep dir pre53_10.
- * 
- * Revision 2.16  1994/08/02  00:08:51  root Markk's latest.
- * 
- * Revision 2.15  1994/08/01  14:58:59  root Added detach (-d) option from
- * Karl Hakimian.
- * 
- * Revision 2.14  1994/08/01  14:26:23  root Prep for pre53_7  with Markks
- * latest, EMS patch, and Makefile changes.
- * 
- * Revision 2.13  1994/07/26  01:12:20  root prep for pre53_6.
- * 
- * Revision 2.12  1994/07/14  23:19:20  root Markkk's patches.
- * 
- * Revision 2.11  1994/07/09  14:29:43  root prep for pre53_3.
- * 
- * Revision 2.10  1994/07/05  21:59:13  root NCURSES IS HERE.
- * 
- * Revision 2.9  1994/07/04  23:59:23  root Prep for Markkk's NCURSES
- * patches.
- * 
- * Revision 2.8  1994/06/28  22:47:46  root Prep for Markk's latest.
- * 
- * Revision 2.7  1994/06/27  02:15:58  root Prep for pre53
- * 
- * Revision 2.6  1994/06/24  14:51:06  root Markks's patches plus.
- * 
- * Revision 2.5  1994/06/17  00:13:32  root Let's wrap it up and call it
- * DOSEMU0.52.
- * 
- * Revision 2.4  1994/06/14  22:28:38  root Prep for pre51_28.
- * 
- * Revision 2.3  1994/06/14  22:00:18  root Alistair's DANG inserted for the
- * first time :-).
- * 
- * Revision 2.2  1994/06/14  21:34:25  root Second series of termcap patches.
- * 
- * Revision 2.1  1994/06/12  23:15:37  root Wrapping up prior to release of
- * DOSEMU0.52.
- * 
- * Revision 1.89  1994/06/05  21:17:35  root Prep for pre51_24.
- * 
- * Revision 1.88  1994/06/03  00:58:55  root pre51_23 prep, Daniel's fix for
- * scrbuf malloc().
- * 
- * Revision 1.87  1994/05/30  00:08:20  root Prep for pre51_22 and temp
- * kludge fix for dir a: error.
- * 
- * Revision 1.86  1994/05/26  23:15:01  root Prep. for pre51_21.
- * 
- * Revision 1.85  1994/05/24  01:23:00  root Lutz's latest, int_queue_run()
- * update.
- * 
- * Revision 1.84  1994/05/21  23:39:19  root PRE51_19.TGZ with Lutz's latest
- * updates.
- * 
- * Revision 1.83  1994/05/18  00:15:51  root pre15_17.
- * 
- * Revision 1.82  1994/05/16  23:13:23  root Prep for pre51_16.
- * 
- * Revision 1.81  1994/05/13  23:20:15  root Pre51_15.
- * 
- * Revision 1.80  1994/05/13  17:21:00  root pre51_15.
- * 
- * Revision 1.79  1994/05/13  01:47:59  root Updates 1 for DV.
- * 
- * Revision 1.78  1994/05/10  23:14:44  root pre51_14.
- * 
- * Revision 1.77  1994/05/10  23:08:10  root pre51_14.
- * 
- * Revision 1.76  1994/05/09  23:35:11  root pre51_13.
- * 
- * Revision 1.75  1994/05/05  00:16:26  root Prep for pre51_12.
- * 
- * Revision 1.74  1994/05/04  22:16:00  root Patches by Alan to mouse
- * subsystem.
- * 
- * Revision 1.73  1994/05/04  21:56:55  root Prior to Alan's mouse patches.
- * 
- * Revision 1.72  1994/04/30  22:12:30  root Prep for pre51_11.
- * 
- * Revision 1.71  1994/04/30  01:05:16  root Lutz's latest 94/04/29
- * 
- * Revision 1.70  1994/04/29  23:52:06  root Prior to Lutz's latest 94/04/29.
- * 
- * Revision 1.69  1994/04/27  23:39:57  root Lutz's patches to get dosemu up
- * under 1.1.9.
- * 
- * Revision 1.68  1994/04/27  21:34:15  root Jochen's Latest.
- * 
- * Revision 1.67  1994/04/23  20:51:40  root Get new stack over/underflow
- * working in VM86 mode.
- * 
- * Revision 1.66  1994/04/23  20:10:38  root Updated again for SP over/under
- * flow.
- * 
- * Revision 1.65  1994/04/20  23:43:35  root pre51_8 out the door.
- * 
- * Revision 1.64  1994/04/20  21:05:01  root Prep for Rob's patches to
- * linpkt...
- * 
- * Revision 1.63  1994/04/18  22:52:19  root Ready pre51_7.
- * 
- * Revision 1.62  1994/04/18  20:57:34  root Checkin prior to Jochen's latest
- * patches.
- * 
- * Revision 1.61  1994/04/16  14:41:41  root Prep for pre51_6.
- * 
- * Revision 1.60  1994/04/16  01:28:47  root Prep for pre51_6.
- * 
- * Revision 1.59  1994/04/13  00:07:09  root Multiple patches from various
- * sources.
- * 
- * Revision 1.58  1994/04/09  18:41:52  root Prior to Lutz's kernel
- * enhancements.
- * 
- * Revision 1.57  1994/04/07  20:50:59  root More updates.
- * 
- * Revision 1.56  1994/04/04  22:51:55  root Patches for PS/2 mice.
- * 
- * Revision 1.55  1994/03/30  22:12:30  root Prep for 0.51 pre 2.
- * 
- * Revision 1.54  1994/03/23  23:24:51  root Prepare to split out do_int.
- * 
- * Revision 1.53  1994/03/18  23:17:51  root Prep for 0.50pl1
- * 
- * Revision 1.52  1994/03/15  02:08:20  root Testing
- * 
- * Revision 1.51  1994/03/15  01:38:20  root DPMI,serial, other changes.
- * 
- * Revision 1.50  1994/03/14  00:35:44  root Moved int_queue_run back into
- * static array.
- * 
- * Revision 1.49  1994/03/13  21:52:02  root More speed testing :-(
- * 
- * Revision 1.48  1994/03/13  01:07:31  root Poor attempts to optimize.
- * 
- * Revision 1.47  1994/03/10  23:52:52  root Lutz DPMI patches
- * 
- * Revision 1.46  1994/03/10  02:49:27  root Back to SINGLE Process.
- * 
- * Revision 1.45  1994/03/04  15:23:54  root Run through indent.
- * 
- * Revision 1.44  1994/03/04  14:46:13  root Jochen patches.
- * 
- * Revision 1.43  1994/03/04  00:01:58  root Readying for 0.50
- * 
- * Revision 1.42  1994/02/21  20:28:19  root DPMI update
- * 
- * Revision 1.41  1994/02/20  10:55:25  root Added set_leds to int08 :-(.
- * 
- * Revision 1.40  1994/02/20  10:00:16  root More keyboard work :-(.
- * 
- * Revision 1.39  1994/02/15  19:04:46  root Roonie's cleaning up of
- * inb/outb.
- * 
- * Revision 1.38  1994/02/10  20:41:14  root Last cleanup prior to release of
- * pl4.
- * 
- * Revision 1.37  1994/02/09  20:10:24  root Added dosbanner config option
- * for optionally displaying dosemu bannerinfo. Added allowvideportaccess
- * config option to deal with video ports.
- * 
- * Revision 1.36  1994/02/05  21:45:55  root Fixing Keyboard int15 4f to
- * return AH=0x86.
- * 
- * Revision 1.35  1994/02/02  21:12:56  root Bringing the pktdrvr up to
- * speed.
- * 
- * Revision 1.34  1994/02/01  20:57:31  root With unlimited thanks to
- * gorden@jegnixa.hsc.missouri.edu (Jason Gorden), here's a packet driver
- * to compliment Tim_R_Bird@Novell.COM's IPX work.
- * 
- * Revision 1.33  1994/02/01  19:25:49  root Fix to allow multiple graphics
- * DOS sessions with my Trident card.
- * 
- * Revision 1.32  1994/01/31  18:44:24  root Work on making mouse work
- * 
- * Revision 1.30  1994/01/30  14:29:51  root Changed FCB callout for
- * redirector, now inline and works with Create|O_TRUNC.
- * 
- * Revision 1.29  1994/01/30  12:30:23  root Changed dos_helper to int 0xe6.
- * 
- * Revision 1.28  1994/01/28  20:04:07  root Tim's IPX is ready to go.
- * Modified mmap strategy.
- * 
- * Revision 1.27  1994/01/28  18:52:58  root Fix int15 0xc0 call.
- * 
- * Revision 1.26  1994/01/27  22:09:20  root Allow USAGE to display before
- * default stderr redirection.
- * 
- * Revision 1.25  1994/01/27  21:47:09  root Introducing IPX from
- * Tim_R_Bird@Novell.COM.
- * 
- * Revision 1.24  1994/01/27  19:43:54  root Preparing for Tim's IPX. Added
- * dos auto-redirect to stderr. Started saytime() function
- * 
- * Revision 1.23  1994/01/25  20:02:44  root Modified hard_int routine again.
- * Exchange stderr <-> stdout. Made stderr redirect to /dev/null if user
- * does not redirect it.
- * 
- * Revision 1.22  1994/01/20  21:14:24  root Indent, more work serially
- * handling multiple interrupts.
- * 
- * Revision 1.21  1994/01/19  20:27:20  root Deleted comment about int16 to
- * inline.
- * 
- * Revision 1.20  1994/01/19  17:51:14  root Added dpmi/dpmi.h include for
- * interrupts. Added code to allow int09 (keyboard) to allow another
- * interrupt by using outb(20) called by dos programs. Added code to allow
- * FCB callbacks when mfs.c does an FCB open, kinda kludgy at this time.
- * Modified inline int09 to pass ALL keys to int15-4f function. Added a
- * far return for DPMI call to go protected. Removed old int16 function.
- * Changed dos_helper int e5 to not be revectored. Still no good for my
- * Direct Access, but I'll fix that next :-). Changed int08 inside of
- * do_int() to return after being called. Allowed dos_helper to pass
- * through if redirected, after being called.
- * 
- * Revision 1.19  1994/01/12  21:27:15  root Some more EMS fixups
- * 
- * Revision 1.18  1994/01/03  22:19:25  root Debugging
- * 
- * Revision 1.17  1994/01/01  17:06:19  root Hack to fix EMS not having ax on
- * top of stack. Needs to be debugged !
- * 
- * Revision 1.16  1993/12/31  09:29:01  root Added dos_helper hook to
- * Theadore T'so's booton bootoff patch. Now a user can boot from a
- * bootdisk a: type diskimage, and then return control of a: to /dev/fd0.
- * Alright :-).
- * 
- * Revision 1.15  1993/12/30  15:11:50  root Fixing multiple emufs.sys
- * problem.
- * 
- * Revision 1.14  1993/12/30  11:18:32  root Updates for Diamond Card.
- * 
- * Revision 1.13  1993/12/27  19:06:29  root Small fixes for EMS
- * 
- * Revision 1.12  1993/12/22  11:45:36  root Keyboard enhancements, and more
- * debug for EMS
- * 
- * Revision 1.11  1993/12/05  20:59:03  root Dimond card work.
- * 
- * Revision 1.10  1993/11/30  22:21:03  root Final Freeze for release pl3
- * 
- * Revision 1.9  1993/11/30  21:26:44  root Chips First set of patches, WOW!
- * 
- * Revision 1.8  1993/11/29  22:44:11  root Prepare for release of pl3
- * 
- * Revision 1.7  1993/11/29  00:05:32  root Overhauling keyboard and some
- * timing stuff.
- * 
- * Revision 1.6  1993/11/25  22:45:21  root About to destroy keybaord
- * routines.
- * 
- * Revision 1.5  1993/11/23  22:24:53  root *** empty log message ***
- * 
- * Revision 1.4  1993/11/17  22:29:33  root *** empty log message ***
- * 
- * Revision 1.3  1993/11/15  19:56:49  root Fixed sp -> ssp overflow, it is a
- * hack at this time, but it works.
- * 
- * Revision 1.2  1993/11/12  13:00:04  root Keybuffer updates. REAL_INT16
- * addition. Link List for Hard INTs.
- * 
- * Revision 1.7  1993/07/21  01:52:19  rsanders uses new ems.sys for EMS
- * emulation
- * 
- * Revision 1.6  1993/07/19  18:44:01  rsanders removed all "wait on ext.
- * event" messages
- * 
- * Revision 1.5  1993/07/14  04:34:06  rsanders changed printing of "wait on
- * external event" warnings.
- * 
- * Revision 1.4  1993/07/13  19:18:38  root changes for using the new
- * (0.99pl10) signal stacks
- * 
- * Revision 1.3  1993/07/07  21:42:04  root minor changes for -Wall
- * 
- * Revision 1.2  1993/07/07  01:33:10  root hook for parse_config(name);
- * 
- * Revision 1.1  1993/07/07  00:49:06  root Initial revision
- * 
- * Revision 1.27  1993/05/04  05:29:22  root added console switching, new
- * parse commands, and serial emulation
- * 
- * Revision 1.26  1993/04/07  21:04:26  root big move
- * 
- * Revision 1.25  1993/04/05  17:25:13  root big pre-49 checkin; EMS, new MFS
- * redirector, etc.
- * 
- * Revision 1.24  1993/03/04  22:35:12  root put in perfect shared memory,
- * HMA and everything.  added PROPER_STI.
- * 
- * Revision 1.23  1993/03/02  03:06:42  root somewhere between 0.48pl1 and
- * 0.49 (with IPC).  added virtual IOPL and AC support (for 386/486
- * tests), -3 and -4 flags for choosing. Split dosemu into 2 processes;
- * the child select()s on the keyboard, and signals the parent when a key
- * is received (also sends it on a UNIX domain socket...this might not
- * work well for non-console keyb).
  * 
  * DANG_END_CHANGELOG
  */
 
 
 /*
- * DANG_BEGIN_REMARK DOSEMU must not work within the 1 meg DOS limit, so
+ * DANG_BEGIN_REMARK 
+ * DOSEMU must not work within the 1 meg DOS limit, so
  * start of code is loaded at a higher address, at some time this could
  * conflict with other shared libs. If DOSEMU is compiled statically
  * (without shared libs), and org instruction is used to provide the jump
- * above 1 meg. DANG_END_REMARK
+ * above 1 meg. 
+ * DANG_END_REMARK
  */
 
 #ifdef __NetBSD__
@@ -473,12 +129,13 @@ extern void     tmpdir_init(void);
 extern void     low_mem_init(void);
 
 extern void     shared_memory_exit(void);
-extern void     restore_vt(unsigned short);
+extern void     restore_vt(u_short);
 extern void     disallocate_vt(void);
 extern void     keyboard_close(void);
 extern void     vm86_GP_fault();
 extern void     config_init(int argc, char **argv);
 extern void	timer_int_engine(void);
+extern void	disk_open(struct disk *dp);
 
 extern void io_select_init(void);
 
@@ -608,7 +265,8 @@ SIG_init()
 			add_to_io_select(fd, 1);
 		    }
 		    /*
-		     * DANG_BEGIN_REMARK At this time we have to use
+		     * DANG_BEGIN_REMARK 
+		     * At this time we have to use
 		     * SIGALRM in addition to SIGIO I don't (yet) know why
 		     * the SIGIO signal gets lost sometimes (once per
 		     * minute or longer). But if it happens, we can
@@ -697,7 +355,7 @@ module_init(void)
  * Switch all segment registers to use well-known GDT entries.
  * (The default process setup uses LDT entries for all segment registers)
  */
-static unsigned short csel = GSEL(GUCODE_SEL, SEL_UPL);
+static u_short csel = GSEL(GUCODE_SEL, SEL_UPL);
 asm(".text");
 asm(".align 4");
 asm(".globl changesegs_lret");
@@ -710,8 +368,8 @@ asm("lret");
 void
 changesegs()
 {
-    register unsigned short dsel = GSEL(GUDATA_SEL, SEL_UPL);
-    unsigned long retaddr;
+    register u_short dsel = GSEL(GUDATA_SEL, SEL_UPL);
+    u_long retaddr;
 
     asm("pushl %0; popl %%ds" : : "g" (dsel) );
     asm("pushl %0; popl %%es" : : "g" (dsel) );
@@ -726,9 +384,12 @@ changesegs()
 /*
  * DANG_BEGIN_FUNCTION emulate
  * 
- * arguments: argc - Argument count. argv - Arguments.
+ * arguments: 
+ * argc - Argument count. 
+ * argv - Arguments.
  * 
- * description: Emulate gets called from dos.c. It initializes DOSEMU to
+ * description: 
+ * Emulate gets called from dos.c. It initializes DOSEMU to
  * prepare it for running in vm86 mode. This involves catching signals,
  * preparing memory, calling all the initialization functions for the I/O
  * subsystems (video/serial/etc...), getting the boot sector instructions

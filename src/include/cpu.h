@@ -69,6 +69,50 @@
 #define	gs sc_gs
 #endif
 
+#define _AL      (*(__u8 *)&vm86s.regs.eax)
+#define _BL      (*(__u8 *)&vm86s.regs.ebx)
+#define _CL      (*(__u8 *)&vm86s.regs.ecx)
+#define _DL      (*(__u8 *)&vm86s.regs.edx)
+#define _AH      (*(((__u8 *)&vm86s.regs.eax)+1))
+#define _BH      (*(((__u8 *)&vm86s.regs.ebx)+1))
+#define _CH      (*(((__u8 *)&vm86s.regs.ecx)+1))
+#define _DH      (*(((__u8 *)&vm86s.regs.edx)+1))
+#define _AX      (*(__u16 *)&vm86s.regs.eax)
+#define _BX      (*(__u16 *)&vm86s.regs.ebx)
+#define _CX      (*(__u16 *)&vm86s.regs.ecx)
+#define _DX      (*(__u16 *)&vm86s.regs.edx)
+#define _SI      (*(__u16 *)&vm86s.regs.esi)
+#define _DI      (*(__u16 *)&vm86s.regs.edi)
+#define _BP      (*(__u16 *)&vm86s.regs.ebp)
+#define _SP      (*(__u16 *)&vm86s.regs.esp)
+#define _IP      (*(__u16 *)&vm86s.regs.eip)
+#define _EAX     ((__u32)(vm86s.regs.eax))
+#define _EBX     ((__u32)(vm86s.regs.ebx))
+#define _ECX     ((__u32)(vm86s.regs.ecx))
+#define _EDX     ((__u32)(vm86s.regs.edx))
+#define _ESI     ((__u32)(vm86s.regs.esi))
+#define _EDI     ((__u32)(vm86s.regs.edi))
+#define _EBP     ((__u32)(vm86s.regs.ebp))
+#define _ESP     ((__u32)(vm86s.regs.esp))
+#define _EIP     ((__u32)(vm86s.regs.eip))
+#define _CS      ((__u16)(vm86s.regs.cs))
+#define _DS      ((__u16)(vm86s.regs.ds))
+#define _SS      ((__u16)(vm86s.regs.ss))
+#define _ES      ((__u16)(vm86s.regs.es))
+#define _FS      ((__u16)(vm86s.regs.fs))
+#define _GS      ((__u16)(vm86s.regs.gs))
+#define _EFLAGS  ((__u32)(vm86s.regs.eflags))
+
+#define __sti__  (WRITE_FLAGS(READ_FLAGS() | IF))
+#define __cli__  (WRITE_FLAGS(READ_FLAGS() & ~IF))
+#define __stc__  (WRITE_FLAGS(READ_FLAGS() | CF))
+#define __clc__  (WRITE_FLAGS(READ_FLAGS() & ~CF))
+#define __std__  (WRITE_FLAGS(READ_FLAGS() | DF))
+#define __cld__  (WRITE_FLAGS(READ_FLAGS() & ~DF))
+#if 0
+#define CARRY    __stc__
+#define NOCARRY  __clc__
+#endif
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
 #define LO(reg)  (*(unsigned char *)&REG(e##reg))

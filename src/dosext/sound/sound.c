@@ -1,6 +1,17 @@
 /* Copyright 1995  Joel N. Weber II
    See the file README.sound in this directory for more information */
 
+/* 
+ * DANG_BEGIN_MODULE
+ *
+ * Soundblaster emulation. Very incomplete.
+ *
+ * maintainer:
+ * Alistair MacDonald <alistair@slitesys.demon.co.uk>
+ *
+ * DANG_END_MODULE
+ */
+
 /*
  * modified 11/05/95 by Michael Beck
  *  added some more (undocumented ?) SB commands, version detection
@@ -82,7 +93,7 @@ static unsigned char dsp_speaker_on = 1;
  * driver. At the moment only dsp_fd is used and mixer_fd is opened for
  * detection.
  */
-static int mixer_fd = -1, dsp_fd = -1, synth_fd = -1;
+static int mixer_fd = -1, dsp_fd = -1;
 
 static void dsp_clear_output(void);
 
@@ -414,7 +425,7 @@ int dsp_get_capability(void)
 #ifdef __linux__
   long int sound_frag = SOUND_FRAG;
   int tmp, version = 0;
-  char *s;
+  char *s=NULL;
 
   /* if we cannot open the mixer, it's not more than a SB 2.0 */
   mixer_fd = open(MIXER_PATH, O_RDWR);

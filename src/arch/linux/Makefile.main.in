@@ -1,0 +1,561 @@
+# Makefile for Linux DOSEMU
+#
+# $Date: 1995/05/06 16:24:53 $
+# $Source: /usr/src/dosemu0.60/RCS/Makefile,v $
+# $Revision: 2.41 $
+# $State: Exp $
+#
+# You should do a "make" to compile and a "make install" as root to
+# install DOSEMU.
+
+# This gets defined even if we chose via ./include/config.h NOT to 
+# use the debugger
+DEBUGGER=@DEBUGGER@
+@X_SUPPORT@
+X11LIBDIR=@x_libraries@
+
+#Change the following line if the right kernel includes reside elsewhere
+#LINUX_KERNEL = /usr/src/linux
+LINUX_KERNEL = $(shell sh @SRCPATH@/arch/@CONFIG_HOST@/kversion.sh -find -print)
+LINUX_INCLUDE = $(LINUX_KERNEL)/include
+export LINUX_KERNEL
+export LINUX_INCLUDE  
+
+#Change the following line to point to your loadable modules directory
+BOOTDIR = /boot/modules
+
+PICOBJS = libpic.a
+export PICOBJS
+
+# enable this target to make a different way
+# do_DEBUG=true
+ifdef ELF
+export CC         = gcc # -elf I use gcc-specific features (var-arg macros, fr'instance)
+else
+export CC         = gcc # I use gcc-specific features (var-arg macros, fr'instance)
+# export CC         = gcc -b i486-linuxaout # I use gcc-specific features (var-arg macros, fr'instance)
+endif
+
+export LD=$(CC)
+OBJS	= dos.o
+DEPENDS = dos.d emu.d
+
+
+# dosemu version
+LIBDOSEMU = $(BINPATH)/bin/libdosemu
+
+ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
+
+CFILES=emu.c dos.c @X2CFILES@ data.c dosstatic.c
+
+export USING_NET = -DUSING_NET
+ifdef USING_NET
+export NET=dosext/net/net
+endif
+
+# SYNC_ALOT
+#   uncomment this if the emulator is crashing your machine and some debug info 
+#   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 
+#SYNC_ALOT = -DSYNC_ALOT=1
+
+OPTIONALSUBDIRS = @OPTIONALSUBDIRS@
+
+LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
+	emu-i386 env\
+	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
+	base/init base/serial base/keyboard base/mouse\
+	base/dev/dma dosext/sound \
+	$(DEBUGGER) $(NET) $(IPX) dosext/drivers base/bios
+
+REQUIRED=@REQUIRED@
+
+# call all libraries the name of the directory
+LIBS=$(LIBSUBDIRS)
+
+LIBS_ := $(subst /,_,$(LIBS))
+
+DOCS= $(REALTOPDIR)/doc
+
+
+# Relavant to src
+OFILES= Makefile Makefile.common ../ChangeLog ../QuickStart \
+	../etc/BOGUS-Notes arch/linux/Makefile.main arch/netbsd/Makefile.main \
+	../etc/vga.pcf ../etc/vga.bdf ../etc/xtermdos.sh ../etc/xinstallvgafont.sh \
+	Configure ../load_module.sh ../unload_module.sh
+
+BFILES=
+
+F_DOC=dosemu.texinfo Makefile dos.1 wp50
+F_DRIVERS=emufs.S emufs.sys
+F_COMMANDS=exitemu.S exitemu.com vgaon.S vgaon.com vgaoff.S vgaoff.com \
+           lredir.com lredir.c makefile.mak dosdbg.com dosdbg.c
+F_EXAMPLES=config.dist
+F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
+
+
+###################################################################
+
+LIBPATH=lib
+
+
+OPTIONAL   = # -DDANGEROUS_CMOS=1
+CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
+DEBUG      = $(SYNC_ALOT)
+
+# does this work if you do make -C <some dir>
+TOPDIR := $(shell nolinks=1;pwd)
+export TOPDIR
+
+INCDIR = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE)
+INCDIR += -I$(TOPDIR)/base/dev/pic -I$(TOPDIR)/dosext/dpmi $(XINCLUDES)
+export INCDIR
+ 
+ifdef do_DEBUG
+COPTFLAGS	=  -g -Wall
+else
+COPTFLAGS	= -Wall
+endif
+
+# -m486 is usually in the specs for the compiler
+OPT=  -O3 -m486 -fomit-frame-pointer
+# OPT=-fno-inline
+PIPE=-pipe
+
+CFLAGS     = $(OPT) $(PIPE) $(USING_NET) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+
+# set for DPMI want windows
+ifdef REQUIRES_EMUMODULE
+  LDTPATCH=2
+else
+  LDTPATCH:= $(shell grep -c useable /usr/include/linux/ldt.h)
+endif
+ifeq ($(LDTPATCH),2)
+  WIN31=1
+else
+  WIN31=0
+endif
+# set to use a simpler fork for unix command
+# CFLAGS+=-DSIMPLE_FORK
+# set to debug fork with environment
+# CFLAGS+=-DFORK_DEBUG
+
+# We need to use the C_RUN_IRQS with -fno-inline (TBD why)
+# this is in pic/pic.c
+#CFLAGS+=-DC_RUN_IRQS
+
+# use fd3 for soft errors, stderr for hard error, don't ope
+# stderr to /dev/null
+# CFLAGS+=-DUSE_FD3_FOR_ERRORS
+
+export CFLAGS
+
+LDFLAGS    = $(LNKOPTS) # exclude symbol information
+AS86 = as86
+#LD86 = ld86 -s -0
+LD86 = ld86 -0
+
+DISTBASE=/tmp
+DISTNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+DISTPATH=$(DISTBASE)/$(DISTNAME)
+ifdef RELEASE
+DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
+else
+DISTFILE=$(DISTBASE)/pre$(VERSION).$(SUBLEVEL).$(PATCHLEVEL).tgz
+endif
+export DISTBASE DISTNAME DISTPATH DISTFILE
+
+
+ifdef do_DEBUG
+# first target for debugging build
+ifneq (include/config.h,$(wildcard include/config.h))
+firstsimple:	version dep simple
+endif
+
+ifdef ELF
+simple:	version dossubdirs $(BINPATH)/bin/dos
+else
+simple:	version dossubdirs dosstatic # libdosemu dos
+endif
+endif
+
+# The assumption is that most new users will only type 'make'
+# if they have not read the documentation, so therefore a 
+# keypress pause is a good idea and is included here.
+
+default: warning2 pausekey version doslibnew \
+	../etc/xtermdos ../etc/xinstallvgafont
+
+warning2: 
+	@echo ""; \
+	 echo "Starting DOSEMU "$(EMUVER)" compile..."; \
+	 echo ""; \
+	 echo "-> IMPORTANT!"; \
+	 echo "    - Please read 'QuickStart' file before compiling DOSEMU!"; \
+	 echo "    - Location and format of DOSEMU files have changed since 0.50pl1!"; \
+	 echo ""; \
+	 echo "-> REQUIREMENTS for DOSEMU:"; \
+	 echo "    - gcc 2.5.8"; \
+	 echo "    - libc 4.5.21"; \
+	 echo "    - Linux > 1.1.76"; \
+	 echo "    - 16 megabytes total memory+swap"; \
+	 echo ""; \
+	 if [ "1" = "$(WIN31)" ]; then \
+		if [ "" = "$(REQUIRES_EMUMODULE)" ]; then \
+	 	  echo "    - Your kernel contains support for experimental use of Windows 3.1."; \
+		else \
+	 	  echo "    - Your kernel needs emumodule to support experimental use of Windows 3.1."; \
+		fi; \
+	 else \
+	 	echo "    - Kernel is not patched for experimental use of Windows 3.1."; \
+	 fi; \
+	 echo ""; \
+
+ifdef WAIT
+pausekey:
+	@echo "====> Press Enter to continue, or hit Ctrl-C to abort <===="
+	@read
+else
+pausekey:
+	@echo "====> Compile begins <====="
+endif
+
+pausedelay:
+	@echo "====> HIT CTRL-C NOW to abort if you forgot something! <===="
+	@sleep 10
+
+warning3:
+	@echo ""; \
+	 echo "Be patient...Some of this code may take a while to complete."; \
+	 echo "Hopefully you have at least 16MB swap+RAM available during this compile."; \
+	 echo ""
+
+doeverything: warning2 pausedelay dep $(DOCS) @X2CEXE@ installnew
+
+most: warning2 pausedelay dep installnew
+
+itall: warning2 pausedelay dep optionalsubdirs $(DOCS) installnew
+
+all:	dosemu
+
+debug:
+	rm $(BINPATH)/bin/dos
+	$(MAKE) $(BINPATH)/bin/dos
+
+dos.o: include/config.h
+
+x2dos.o: include/config.h x2dos.c
+	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
+
+DOSSTATICFILES = dosstatic.c emu.o data.o base/bios/bios.o env/video/vesabios.o
+
+dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
+	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
+		$(addprefix -L,$(LIBPATH)) \
+		-L. $(addprefix -l, $(LIBS_)) \
+		@SLANGLIB@ @XLIBSW@
+
+x2dos: x2dos.o
+	@echo "Including x2dos.o "
+	$(CC) $(LDFLAGS) \
+	  -o $@ $< -L$(X11LIBDIR) -lXaw -lXt -lX11
+
+../etc/xtermdos:	../etc/xtermdos.sh
+	@echo "#!/bin/sh" > ../etc/xtermdos
+	@echo >> ../etc/xtermdos
+	@echo X11ROOTDIR=$(X11ROOTDIR) >> ../etc/xtermdos
+	@echo >> ../etc/xtermdos
+	@cat ../etc/xtermdos.sh >> ../etc/xtermdos
+
+../etc/xinstallvgafont:	../etc/xinstallvgafont.sh
+	@echo "#!/bin/sh" > ../etc/xinstallvgafont
+	@echo >> ../etc/xinstallvgafont
+	@echo X11ROOTDIR=$(X11ROOTDIR) >> ../etc/xinstallvgafont
+	@echo >> ../etc/xinstallvgafont
+	@cat ../etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
+
+# NOTE:                                                             
+# Due to heavy moving around the stuff, we will not get resolved/linked
+# all modules out of the *.a libs, if we do not put them twice on the
+# linker commandline. 
+# Therefor: $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_))
+#           is NOT a typo !!!
+# (Hans Lermen, at state of 0.63.0.1)
+
+ifdef ELF
+$(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
+	$(LD) $(LDFLAGS) -o $@ \
+	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
+	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
+            @XLIBSW@ @SLANGLIB@ -lc 
+	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > $(BINPATH)/bin/dosemu.map
+
+dosemu: $(BINPATH)/bin/dos
+else
+$(BINPATH)/bin/dos:	dos.o
+	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
+		@SLANGLIB@ @XLIBSW@
+
+$(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}} # dossubdirs
+	$(LD) $(LDFLAGS) $(MAGIC) -Wl,-Ttext -Wl,$(LIBSTART) -o $(LIBDOSEMU) \
+	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
+	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
+            @XLIBSW@ @SLANGLIB@ -lc 
+
+libdosemu:	dossubdirs $(LIBDOSEMU)
+	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > $(BINPATH)/bin/dosemu.map
+
+dosemu: $(BINPATH)/bin/dos libdosemu
+endif
+
+.PHONY:	dossubdirs optionalsubdirs docsubdirs
+.PHONY: $(LIBSUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) $(REQUIRED)
+
+# ?
+dossubdirs:	$(LIBSUBDIRS)
+	-rm -f $(LIBDOSEMU)
+
+optionalsubdirs:	$(OPTIONALSUBDIRS)
+
+docsubdirs:	$(DOCS)
+
+$(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
+	@(cd @REALTOPDIR@/src/; $(MAKE) -C $@)
+
+version:	versetup include/kversion.h
+
+versetup:
+	@mkdir -p $(BINPATH)/bin
+	@mkdir -p $(BINPATH)/commands
+ifeq (${OS},linux)
+	@mkdir -p $(BINPATH)/modules
+endif
+	@cp -p commands/precompiled/* $(BINPATH)/commands
+	@rm -f ../bin ../commands ../modules
+	@ln -sf $(BINPATH)/bin ../bin
+	@ln -sf $(BINPATH)/commands ../commands
+ifeq (${OS},linux)
+	@ln -sf $(BINPATH)/modules ../modules
+	@if [ "$@" != "pristine" ]; then \
+          if [ -f $(BINPATH)/kversion.stamp ]; then \
+	    if [ "`grep UTS_RELEASE /usr/include/linux/version.h 2>/dev/null`" != "`cat $(BINPATH)/kversion.stamp`" ]; then \
+	      echo '**********************************************************'; \
+	      echo "Your kernel version has changed, please do 'make pristine'"; \
+	      echo 'NOTE: Not the running kernel is meant, but the one which'; \
+	      echo '      /usr/src/linux/include belongs to.'; \
+	      echo '**********************************************************'; \
+	      echo $@ ; \
+	      exit 1; \
+	    fi \
+	  fi \
+        fi
+endif
+
+# define this if we know the version we're running
+# KERNEL_VERSION=1001088
+ifdef KERNEL_VERSION
+include/kversion.h:
+	echo '#ifndef KERNEL_VERSION' >@REALTOPDIR@/src/$@
+	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>@REALTOPDIR@/src/$@
+	echo '#endif' >>@REALTOPDIR@/src/$@
+else
+include/kversion.h:
+	 $(SHELL) @REALTOPDIR@/src/arch/@CONFIG_HOST@/kversion.sh $(LINUX_KERNEL) ./
+endif
+
+
+
+doslibnew: 
+	$(MAKE) doslib
+
+doslib: $(REQUIRED) all
+	@echo ""
+	@echo "---------------------------------DONE compiling-------------------------------"
+	@echo ""
+	@echo " Now you must install DOSEMU. Make sure you are root and:"
+	@echo " make install"
+	@echo ""
+	@echo ""
+
+installnew: doslib
+	$(MAKE) install
+
+install:
+	@install -d /var/lib/dosemu
+	@install -d /var/run
+	@if [ -f ../load_module.sh ]; then chmod 700 ../load_module.sh; fi
+	@if [ -f ../unload_module.sh ]; then chmod 700 ../unload_module.sh; fi
+	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
+	@install -c -o root -m 04755 $(BINPATH)/bin/dos /usr/bin
+ifdef  USE_MHPDBG
+	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug /usr/bin
+endif
+ifndef ELF
+	@install -m 0644 $(LIBDOSEMU) /usr/lib/libdosemu-$(THISVERSION)
+	@(cd /usr/lib; ln -sf libdosemu-$(THISVERSION) libdosemu)
+endif
+	@if [ -f /usr/bin/xdosemu ]; then \
+		install -m 0700 /usr/bin/xdosemu /tmp; \
+		rm -f /usr/bin/xdosemu; \
+	fi
+ifdef X_SUPPORT
+	@ln -sf dos $(BINPATH)/bin/xdos
+	@install -m 0755 ../etc/xtermdos /usr/bin
+	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
+	@echo ""
+	@if [ -w $(X11LIBDIR)/X11/fonts/misc ] && \
+	    [ -d $(X11LIBDIR)/X11/fonts/misc ] && \
+	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf ] && \
+	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf.Z ]; then \
+		echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."; \
+		install -m 0644 ../etc/vga.pcf $(X11LIBDIR)/X11/fonts/misc; \
+		cd $(X11LIBDIR)/X11/fonts/misc; \
+		mkfontdir; \
+	fi
+endif
+	@echo ""; \
+	 echo "---------------------------------DONE Installing-------------------------------"; \
+	 echo ""; \
+	 echo "  - You need to configure DOSEMU. Read 'etc/config.dist'."; \
+	 echo "  - Update your /etc/dosemu.conf by editing a copy of './etc/config.dist'"; \
+	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
+ifdef X_SUPPORT
+	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."; \
+	 echo "  - Type 'xset fp rehash' before running 'xdos' for the first time ever."; \
+	 echo "  - To make your backspace and delete key work properly in 'xdos', type:"; \
+	 echo "		xmodmap -e \"keycode 107 = 0xffff\""; \
+	 echo "		xmodmap -e \"keycode 22 = 0xff08\""; \
+	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
+	 echo ""
+endif
+	@echo "  - Try ./commands/emumouse.com -r if your INTERNAL mouse won't work"; \
+	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
+	 echo ""
+ifdef REQUIRES_EMUMODULE
+	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"; \
+	 echo "    use load_module.sh from this directory."; \
+	 echo ""
+else
+	@echo "  - It is _STRONGLY_ recommended that the modules"; \
+	echo "    be used instead of the kernel's vm86() call at this"; \
+	echo "    time due to possible register corruption of the"; \
+	echo "    running DOS programs. To use the modules, enable"; \
+	echo "    REQUIRES_EMUMODULE in this Makefile, and re-make."; \
+	echo ""
+endif
+	@sh ./arch/@CONFIG_HOST@/kversion.sh . -dotsOK
+
+
+converthd: hdimage
+	mv hdimage hdimage.preconvert
+	periph/mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
+	@echo "Your hdimage is now converted and ready to use with 0.52 and above!"
+
+newhd:  tools/periph/bootsect
+	tools/periph/mkhdimage -h 4 -s 17 -c 40 | cat - tools/periph/bootsect > newhd
+	@echo "You now have a hdimage file called 'newhd'"
+
+include @REALTOPDIR@/src/Makefile.common
+
+checkin::
+	-ci -l -M $(CFILES) $(HFILES) $(SFILES) $(OFILES)
+	@for i in $(LIBS) ; do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
+
+checkout::
+	-co -M -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
+	@for i in $(LIBS) ; do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
+
+dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
+	install -d $(DISTPATH)
+	install -d $(DISTPATH)/lib
+	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
+	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
+	cp -a hddummy $(DISTPATH)/hddummy
+	@for i in $(REQUIRED) $(LIBS) $(DOCS) ipxutils $(OPTIONALSUBDIRS); do \
+	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
+	done
+	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
+	rm -rf $(DISTPATH)
+	@echo "FINAL .tgz FILE:"
+	@ls -l $(DISTFILE)
+
+local_clean:
+	-rm -f $(OBJS) @X2CEXE@ x2dos.o $(BINPATH)/bin/dos $(BINPATH)/bin/xdos $(BINPATH)/bin/libdosemu *.s core \
+	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
+
+local_realclean:
+	-rm -f include/kversion.h $(BINPATH)/kversion.stamp tools/tools86 .depend
+
+clean::	local_clean
+
+realclean::   local_realclean local_clean
+
+DIRLIST=$(REQUIRED) $(DOCS) $(LIBS) $(OPTIONALSUBDIRS)
+CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
+REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
+
+clean:: $(CLEANDIRS)
+
+realclean:: $(REALCLEANDIRS)
+
+.PHONY: $(CLEANDIRS)
+$(CLEANDIRS):
+	-@$(MAKE) -C $(subst .clean,,$@) clean CLEANING=true
+
+.PHONY: $(REALCLEANDIRS)
+$(REALCLEANDIRS):
+	-@$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
+
+
+
+pristine:	realclean
+	-mv lib/libarch_*slang*.a .
+	-rm -f lib/*
+	-mv libarch_*slang*.a lib
+	-rm -rf $(BINPATH) ../bin ../commands ../modules
+
+# DEPENDS=dos.d emu.d 
+# this is to do make subdir.depend to make a dependency
+DEPENDDIRS=$(addsuffix .depend, $(LIBSUBDIRS) )
+
+depend_local:	$(DEPENDS)
+
+depend dep:  $(DEPENDDIRS) depend_local
+	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend
+
+.PHONY:       size
+size:
+	size ./dosstatic  >>size
+	ls -l dosstatic  >>size
+
+.PHONY: $(DEPENDDIRS)
+
+$(DEPENDDIRS):
+	$(MAKE) -C $(subst .depend,,$@) depend
+
+
+.PHONY: help
+help:
+	@echo "The following targets will do make depends:"; \
+	 echo "     $(DEPENDDIRS)"; \
+	 echo "Each .c file has a corresponding .d file (the dependencies)"; \
+	 echo ""; \
+	 echo ""; \
+	 echo "'make dossubdirs' will make the follow targets:"; \
+	 echo "     $(LIBSUBDIRS)"; \
+	 echo ""; \
+	 echo "To clean a directory, do make -C <dirname> clean|realclean"
+
+echo::
+	@echo LIBS_=$(LIBS_)
+	for i in $(LIBSUBDIRS); do \
+		$(MAKE) -C $$i $@  || exit 1; \
+	done
+
+#
+# include a dependency file if one exists
+#
+ifeq (.depend,$(wildcard .depend))
+include .depend
+endif

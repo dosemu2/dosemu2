@@ -254,4 +254,11 @@ void            DPMI_return_from_mouse_callback();
 void            DPMI_exception();
 void            DPMI_interrupt();
 
+/*
+ * HLT block
+ */
+
+#define BIOS_HLT_BLK       0xfc000
+#define BIOS_HLT_BLK_SIZE  0x01000
+
 #endif				/* BIOS_H */

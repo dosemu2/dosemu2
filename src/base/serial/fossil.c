@@ -109,7 +109,7 @@ void fossil_int14(int num)
     
   /* Write character (should be with wait) */
   case 0x01:
-    /* DANG_FIXTHIS: This really should be write-with-wait. */
+    /* DANG_FIXTHIS This really should be write-with-wait. */
     write_char(num, LO(ax));
     #if SER_DEBUG_FOSSIL_RW
       s_printf("SER%d: FOSSIL 0x01: Write char 0x%02x\n", num, LO(ax));

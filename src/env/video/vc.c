@@ -24,68 +24,6 @@
  * $Revision: 1.14 $
  * $State: Exp $
  *
- * Revision 1.3  1993/10/03  21:38:22  root
- * Checking the LegendClockSelect stuff ARGH !
- *
- * Revision 1.2  1993/09/30  21:45:24  root
- * Another extensive overhaul of ET4000 stuff
- *
- * Revision 1.1  1993/09/30  21:15:39  root
- * Initial revision
- *
- * Revision 1.5  1993/09/18  20:19:35  root
- * Added CRT 0x34, SEQ 0x06 and general alteration of ET4000 save/restore etc..
- *
- * Revision 1.4  1993/09/10  20:06:23  root
- * Increased Printing of ETX  Regs
- *
- * Revision 1.3  1993/09/06  22:24:35  root
- * Added et4000 regs to dump_video_regs
- *
- * Revision 1.2  1993/09/06  17:42:55  root
- * Added quick alpha switch via registers
- *
- * Revision 1.1  1993/09/06  17:20:38  root
- * Initial revision
- *
- * Revision 1.6  1993/09/05  15:32:13  root
- * *** empty log message ***
- *
- * Revision 1.5  1993/09/05  15:29:39  root
- * Added et4000 extended reg setting on bank read/write. Added some comments.
- *
- * Revision 1.4  1993/09/05  15:18:04  root
- * Banks are back in order, atleast for Trident :-), Why are they not
- * using page bit inverted as documented is beyond me....
- *
- * Revision 1.3  1993/09/05  12:30:54  root
- * Fixed protection violation (bad printf)
- *
- * Revision 1.2  1993/08/29  22:58:43  root
- * Bank modes are out of order
- *
- * Revision 1.1  1993/08/29  20:56:05  root
- * Initial revision
- *
- * Revision 1.2  1993/07/14  04:30:35  rsanders
- * changed some printf()s to v_printf()s.
- *
- * Revision 1.1  1993/07/07  00:49:06  root
- * Initial revision
- *
- * Revision 1.4  1993/05/20  05:19:48  root
- * added background text writing in mode 3
- *
- * Revision 1.3  1993/05/16  22:45:33  root
- * fixed int10h ah=9/ah=0xa problems.  also fixed screen page support.
- * still has some bugs with non-console video updating.
- *
- * Revision 1.2  1993/05/04  05:29:22  root
- * added console switching, new parse commands, and serial emulation
- *
- * Revision 1.1  1993/04/05  17:25:13  root
- * Initial revision
- *
  * DANG_END_CHANGELOG
  */
 
@@ -526,7 +464,7 @@ get_video_ram (int waitflag)
 
       if ((long) graph_mem < 0)
 	{
-	  error ("ERROR: mmap error in get_video_ram (text): %x, errno %d\n",
+	  error ("ERROR: mmap error in get_video_ram (text): %lx, errno %d\n",
 		 (Bit32u)graph_mem, errno);
 	  return;
 	}

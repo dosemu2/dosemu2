@@ -19,6 +19,10 @@
  *      marky@magmacom.com
  *      ag115@freenet.carleton.ca
  *
+ * maintainer:
+ * Mark Rejhon <markg@magmacom.com>
+ * Mark Rejhon <ag115@freenet.carleton.ca>
+ *
  * DANG_END_MODULE
  */
 
@@ -43,7 +47,9 @@ extern int errno;
 
 #include "config.h"
 #include "emu.h"
+#include "port.h"
 #include "mouse.h"
+#include "bios.h"
 #include "pic.h"
 #include "serial.h"
 #include "ser_defs.h"
@@ -266,6 +272,28 @@ static int ser_close(int num)
 #define XCASE 0
 #endif
 
+unsigned char 
+com_readb(unsigned int port) {
+  int tmp;
+  for (tmp = 0; tmp < config.num_ser; tmp++) {
+    if (((u_short)(port & ~7)) == com[tmp].base_port) {
+      return(do_serial_in(tmp, (int)port));
+    }
+  }
+  return 0;
+}
+
+void
+com_writeb(unsigned int port, unsigned char value) {
+  int tmp;
+  for (tmp = 0; tmp < config.num_ser; tmp++) {
+    if (((u_short)(port & ~7)) == com[tmp].base_port) {
+      do_serial_out(tmp, (int)port, (int)value);
+      return;
+    }
+  }
+}
+
 /* The following function is the main initialization routine that
  * initializes the UART for ONE serial port.  This includes setting up 
  * the environment, define default variables, the emulated UART's init
@@ -273,6 +301,7 @@ static int ser_close(int num)
  */
 static void do_ser_init(int num)
 {
+  emu_iodev_t io_device;
   int data = 0;
   int i;
   
@@ -325,8 +354,7 @@ static void do_ser_init(int num)
 
   /* Flag whether to emulate RTS/CTS for DOS or let Linux do the job
    * If this is nonzero, Linux will handle RTS/CTS flow control directly.
-   * DANG_FIXTHIS: This needs more work before it is implemented into
-   * /etc/dosemu.conf as an 'rtscts' option.
+   * DANG_FIXTHIS This needs more work before it is implemented into /etc/dosemu.conf as an 'rtscts' option.
    */
   com[num].system_rtscts = 0;
  
@@ -343,6 +371,36 @@ static void do_ser_init(int num)
 
   /*** The following is where the real initialization begins ***/
 
+  /* Tell the port manager that we exist and that we're alive */
+  io_device.read_portw  = NULL;
+  io_device.write_portw = NULL;
+  io_device.start_addr  = com[num].base_port;
+  io_device.end_addr    = com[num].base_port+7;
+  io_device.irq         = EMU_NO_IRQ;
+  switch (num) {
+    case 0 :
+      io_device.read_portb   = com_readb;
+      io_device.write_portb  = com_writeb;
+      io_device.handler_name = "COM1";
+      break;
+    case 1 :
+      io_device.read_portb   = com_readb;
+      io_device.write_portb  = com_writeb;
+      io_device.handler_name = "COM2";
+      break;
+    case 2 :
+      io_device.read_portb   = com_readb;
+      io_device.write_portb  = com_writeb;
+      io_device.handler_name = "COM3";
+      break;
+    case 3 :
+      io_device.read_portb   = com_readb;
+      io_device.write_portb  = com_writeb;
+      io_device.handler_name = "COM4";
+      break;
+    }
+  port_register_handler(io_device);
+
   /* Information about serial port added to debug file */
   s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n", 
         num, com[num].real_comport, com[num].interrupt, 
@@ -352,12 +410,16 @@ static void do_ser_init(int num)
    * This is for DOS and many programs to recognize ports automatically
    */
   if ((com[num].real_comport >= 1) && (com[num].real_comport <= 4)) {
+#if 1
     *((u_short *) (0x400) + (com[num].real_comport-1)) = com[num].base_port;
+#else
+    WRITE_WORD(0x400 + (com[num].real_comport-1)*2, com[num].base_port);
+#endif
 
-    /* Debugging to determine whether memory location was written properly */
+/* Debugging to determine whether memory location was written properly */
     s_printf("SER%d: BIOS memory location 0x%x has value of 0x%x\n", num,
-	(int)((u_short *) (0x400) + (com[num].real_comport-1)), 
-        *((u_short *) (0x400) + (com[num].real_comport-1)) );
+	(int)((u_short *) (0x400) + (com[num].real_comport-1)) 
+	,READ_WORD(0x400 + 2*(com[num].real_comport-1)));
   }
 
   /* first call to serial timer update func to initialize the timer */
@@ -459,10 +521,17 @@ void serial_init(void)
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */
+#if 1
   *(u_short *) 0x400 = 0;
   *(u_short *) 0x402 = 0;
   *(u_short *) 0x404 = 0;
   *(u_short *) 0x406 = 0;
+#else
+  WRITE_WORD(0x400, 0);
+  WRITE_WORD(0x402, 0);
+  WRITE_WORD(0x404, 0);
+  WRITE_WORD(0x406, 0);
+#endif
 
   /* Do UART init here - Need to set up registers and init the lines. */
   for (i = 0; i < config.num_ser; i++) {

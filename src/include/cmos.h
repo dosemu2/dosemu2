@@ -48,7 +48,7 @@
 #define CMOS_INFO	0x33
 #define CMOS_RESV4	0x34	/* 12 bytes reserved */
 
-void cmos_write(int, int), cmos_init(void);
+void cmos_write(int, int), cmos_init(void), cmos_reset(void);
 int cmos_read(int);
 int cmos_date(int);
 

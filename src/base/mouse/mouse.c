@@ -7,140 +7,6 @@
  * $State: Exp $
  *
  * $Log: mouse.c,v $
- * Revision 2.20  1995/05/06  16:27:42  root
- * Prep for 0.60.2.
- *
- * Revision 2.19  1995/04/08  22:34:58  root
- * Release dosemu0.60.0
- *
- * Revision 2.18  1995/02/25  21:54:24  root
- * *** empty log message ***
- *
- * Revision 2.18  1995/02/25  21:54:24  root
- * *** empty log message ***
- *
- * Revision 2.17  1995/02/05  16:54:02  root
- * Prep for Scotts patches.
- *
- * Revision 2.15  1994/11/13  00:43:00  root
- * Prep for Hans's latest.
- *
- * Revision 2.14  1994/10/14  18:02:19  root
- * Prep for pre53_27.tgz
- *
- * Revision 2.13  1994/09/22  23:53:01  root
- * Prep for pre53_21.
- *
- * Revision 2.12  1994/09/20  01:55:27  root
- * Prep for pre53_21.
- *
- * Revision 2.11  1994/09/11  01:03:30  root
- * Prep for pre53_19.
- *
- * Revision 2.10  1994/08/25  00:52:24  root
- * Prep for pre53_16.
- *
- * Revision 2.9  1994/08/14  02:54:28  root
- * Rain's CLEANUP and DOS in a X box MOUSE additions.
- *
- * Revision 2.8  1994/08/09  01:51:17  root
- * Prep for pre53_11.
- *
- * Revision 2.7  1994/08/01  14:27:57  root
- * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
- *
- * Revision 2.6  1994/07/09  14:30:38  root
- * prep for pre53_3.
- *
- * Revision 2.5  1994/07/05  00:01:31  root
- * Prep for Markkk's NCURSES patches.
- *
- * Revision 2.4  1994/06/27  02:16:59  root
- * Prep for pre53
- *
- * Revision 2.3  1994/06/17  00:14:37  root
- * Let's wrap it up and call it DOSEMU0.52.
- *
- * Revision 2.2  1994/06/14  23:10:21  root
- * Alan's latest mice patches
- *
- * Revision 2.2  1994/06/14  23:10:21  root
- * Alan's latest mice patches
- *
- * Revision 2.1  1994/06/12  23:17:50  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.4  1994/06/10  23:22:02  root
- * prep for pre51_25.
- *
- * Revision 1.3  1994/06/05  21:18:15  root
- * Prep for pre51_24.
- *
- * Revision 1.2  1994/05/24  01:24:18  root
- * Lutz's latest, int_queue_run() update.
- *
- * Revision 1.1  1994/05/04  22:17:27  root
- * Initial revision
- *
- * Revision 1.16  1994/04/30  01:05:16  root
- * Clean up.
- *
- * Revision 1.15  1994/04/27  23:39:57  root
- * Lutz's patches to get dosemu up under 1.1.9.
- *
- * Revision 1.14  1994/04/27  21:34:15  root
- * Jochen's Latest.
- *
- * Revision 1.13  1994/04/23  20:51:40  root
- * Get new stack over/underflow working in VM86 mode.
- *
- * Revision 1.12  1994/04/18  22:52:19  root
- * Ready pre51_7.
- *
- * Revision 1.11  1994/04/16  01:28:47  root
- * Prep for pre51_6.
- *
- * Revision 1.10  1994/04/07  20:50:59  root
- * More updates.
- *
- * Revision 2.9  1994/04/06  00:57:16  root
- * Made serial config more flexible, and up to 4 ports.
- *
- * Revision 1.8  1994/04/04  22:51:55  root
- * Patches for PS/2 mice.
- *
- * Revision 1.7  1994/03/23  23:24:51  root
- * Prepare to split out do_int.
- *
- * Revision 1.6  1994/03/04  15:23:54  root
- * Run through indent.
- *
- * Revision 1.5  1994/03/04  14:46:13  root
- * Jochen patches.
- *
- * Revision 1.4  1994/01/20  21:14:24  root
- * Indent.
- *
- * Revision 1.3  1993/11/30  22:21:03  root
- * Final Freeze for release pl3
- *
- * Revision 1.2  1993/11/30  21:26:44  root
- * Chips First set of patches, WOW!
- *
- * Revision 1.1  1993/11/12  12:32:17  root
- * Initial revision
- *
- * Revision 1.1  1993/07/07  00:49:06  root
- * Initial revision
- *
- * Revision 1.3  1993/05/04  05:29:22  root
- * added console switching, new parse commands, and serial emulation
- *
- * Revision 1.2  1993/04/05  17:25:13  root
- * big pre-49 checkit; EMS, new MFS redirector, etc.
- *
- * Revision 1.1  1993/02/24  11:33:24  root
- * Initial revision
  *
  */
 
@@ -155,8 +21,9 @@
 #include <errno.h>
 #include <sys/mman.h>
 
-#include "bios.h"
+#include "config.h"
 #include "emu.h"
+#include "bios.h"
 #include "memory.h"
 #include "video.h"		/* video base address */
 #include "mouse.h"
@@ -1427,7 +1294,9 @@ mouse_event()
 
     REG(ds) = *mouse.csp;	/* put DS in user routine */
 
-    if (in_dpmi && REG(cs) == DPMI_SEG && REG(eip) == DPMI_mouse_callback)
+    if (in_dpmi && 
+	(REG(cs) == DPMI_SEG) 
+	&& (REG(eip) == DPMI_mouse_callback))
 	run_pm_mouse();
     
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",

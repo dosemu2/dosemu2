@@ -36,7 +36,7 @@ far_t ESRPopRegistersIRet;
 
 static ipx_socket_t *ipx_socket_list = NULL;
 
-/* FIXTHIS - get a real value for my address in here !! */
+/* DANG_FIXTHIS - get a real value for my address !! */
 static unsigned char MyAddress[10] =
 {0x01, 0x01, 0x00, 0xe0,
  0x00, 0x00, 0x1b, 0x33, 0x2b, 0x13};
@@ -391,7 +391,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
   int len;
   struct sockaddr_ipx ipxs2;
 
-  /* FIXTHIS - do something with longevity flag */
+  /* DANG_FIXTHIS - do something with longevity flag */
   port = SwapInt(port);
   n_printf("IPX: open socket %x\n", port);
   if (port != 0 && ipx_find_socket(port) != NULL) {
@@ -399,7 +399,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
     /* someone already has this socket open */
     return (RCODE_SOCKET_ALREADY_OPEN);
   }
-  /* FIXTHIS - kludge to support broken linux IPX stack */
+  /* DANG_FIXTHIS - kludge to support broken linux IPX stack */
   /* need to convert dynamic socket open into a real socket number */
 /*  if (port == 0) {
     n_printf("IPX: using socket %x\n", nextDynamicSocket);
@@ -525,7 +525,7 @@ GatherFragmentData(char *buffer, ECB_t * ECB)
       memptr += 30;
     }
     if (nextFragLen) {
-      /* FIXTHIS - dumb use of hardcoded 1500 here */
+      /* DANG_FIXTHIS - dumb use of hardcoded 1500 here */
       if (totalDataCount + nextFragLen > 1500) {
 	return (-1);
       }
@@ -628,7 +628,7 @@ IPXSendPacket(far_t ECBPtr)
   /*	ipxs.sipx_port=htons(0x452); */
   mysock = ipx_find_socket(htons(ECB->ECBSocket));
   if (mysock == NULL) {
-    /* FIXTHIS - should do a bind, send, close here */
+    /* DANG_FIXTHIS - should do a bind, send, close here */
     /* DOS IPX allows sending on unopened sockets */
     n_printf("IPX: send to unopened socket %04x\n", htons( ECB->ECBSocket ));
     return;
@@ -867,7 +867,7 @@ ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
       IPXHeader = (IPXPacket_t *) memptr;
       IPXHeader->Checksum = 0xFFFF;
       IPXHeader->Length = size + 30;
-      /* FIXTHIS - use real values to fill out IPX header here */
+      /* DANG_FIXTHIS - use real values to fill out IPX header here */
       IPXHeader->TransportControl = 1;
       IPXHeader->PacketType = 0;
       memcpy((u_char *) & IPXHeader->Destination, MyAddress, 10);
@@ -875,7 +875,7 @@ ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
       memcpy(IPXHeader->Source.Network, (char *) &sipx->sipx_network, 4);
       memcpy(IPXHeader->Source.Node, sipx->sipx_node, 6);
       *((u_short *) &IPXHeader->Source.Socket) = sipx->sipx_port;
-      /* FIXTHIS - kludge for bug in linux IPX stack */
+      /* DANG_FIXTHIS - kludge for bug in linux IPX stack */
       /* IPX stack returns data count including IPX header */
       /*			dataLeftCount -= 30; */
       memptr += 30;
@@ -917,8 +917,7 @@ IPXReceivePacket(ipx_socket_t * s)
     /* if there was packet left over, then report a fragment error */
     if (sz) {
       ECB->CompletionCode = CC_FRAGMENT_ERROR;
-      /* FIXTHIS - should remove this override, linux IPX kernel */
-      /* stack returns bad sizes, but we ignore this here */
+      /* DANG_FIXTHIS - should remove this override, linux IPX stack returns bad sizes, but we ignore this here */
       ECB->CompletionCode = CC_SUCCESS;
     }
     else {
@@ -951,8 +950,7 @@ IPXCheckForAESReady(void)
       while ((ECBPtr.segment | ECBPtr.offset) && !ESRFired) {
 	ECB = (AESECB_t *) ((ECBPtr.segment << 4) + ECBPtr.offset);
 	if (ECB->TimeLeft == 0) {
-	  /* FIXTHIS - this architecture currently only supports */
-	  /* firing of one AES event per call */
+	  /* DANG_FIXTHIS - this architecture currently only supports firing of one AES event per call */
 	  n_printf("IPX: AES event ready on ECB at %x:%x\n",
 		   ECBPtr.segment, ECBPtr.offset);
 	  printECB((ECB_t *) ECB);
@@ -988,8 +986,7 @@ check_ipx_ready(fd_set * set)
 
   s = ipx_socket_list;
   while (s != NULL) {
-    /* FIXTHIS - for now, just pick up one listen per poll, because */
-    /* we can only set up one ESR callout per relinquish */
+    /* DANG_FIXTHIS - for now, just pick up one listen per poll, because we can only set up one ESR callout per relinquish */
     if (FD_ISSET(s->fd, set)) {
       break;
     }
@@ -1166,14 +1163,14 @@ IPXFarCallHandler(void)
   case IPX_GET_MAX_PACKET_SIZE:
     n_printf("IPX: get max packet size\n");
     /* return max data size in AX, and suggested retries in CL */
-    /* FIXTHIS - return a real max packet size here */
+    /* DANG_FIXTHIS - return a real max packet size here */
     LWORD(eax) = 1024;		/* must be a power of 2 */
     LO(cx) = 20;
     break;
   case IPX_GET_MEDIA_DATA_SIZE:
     n_printf("IPX: get max packet size\n");
     /* return max data size in AX, and suggested retries in CL */
-    /* FIXTHIS - return a real max media size here */
+    /* DANG_FIXTHIS - return a real max media size here */
     LWORD(eax) = 1480;
     LO(cx) = 20;
     break;

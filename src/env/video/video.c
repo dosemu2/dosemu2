@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
+#include "config.h"
 #include "emu.h"
 #include "bios.h"
 #include "port.h"

@@ -17,10 +17,7 @@
  * DANG_BEGIN_CHANGELOG
  * 
  * $Date: 1995/04/08 22:34:30 $ $Source: /usr/src/dosemu0.60/keyboard/RCS/keyboard-client.c,v $ $Revision: 1.1 $ $State: Exp $ $Log: keyboard-client.c,v $
- * Revision 1.1  1995/04/08  22:34:30  root
- * Initial revision
  *
- * Revision 1.1  1995/04/08  22:34:30  root
  * Initial revision
  * DANG_END_CHANGELOG
  */
@@ -43,6 +40,7 @@
 #endif
 #include <sys/stat.h>
 
+#include "config.h"
 #include "emu.h"
 #include "memory.h"
 #include "termio.h"
@@ -224,7 +222,8 @@ keyboard_X_init(void)
 /*
  * DANG_BEGIN_FUNCTION keyboard_init
  * 
- * description: Initialize the keyboard to DOSEMU deafaults plus those
+ * description: 
+ * Initialize the keyboard to DOSEMU deafaults plus those
  * requested in the configs if allowable.
  * 
  * DANG_END_FUNCTION

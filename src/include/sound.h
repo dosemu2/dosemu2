@@ -14,7 +14,7 @@
    adding config file support! */
 static unsigned char sound_dma_ch = 1;
 static unsigned char sound_irq = PIC_IRQ5;
-static unsigned int  sound_base = 0x220;
+#define SOUND_BASE 0x220
 
 #ifdef __linux__
 /* This param controls fragments.  Try the following values if dsp is

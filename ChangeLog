@@ -1,3 +1,37 @@
+96/03/04 20:56:24 From: Hans, adapt insmod-HACKER_TOOL to modules-1.3.69
+96/03/04 18:16:54 From : JES - Add config.h to emu.h to force its inclusion
+96/03/03 17:34:02 From : Uwe - Add debug to dpmi.c
+96/03/03 17:04:31 From : Alberto Vignani - LDFAGS -> LDFLAGS in Makefiles
+96/03/03 17:02:58 From : Alberto Vignani - Timers TYPO 40 -> 0x40
+96/03/03 16:31:25 From : Uwe - Remove more -Wall warnings
+96/03/03 14:16:52 From : JES - Get USE_MHPDBG back into emumodule.o
+	- Make emumodule.o only included USE_MHPDBG if make from emumod subdir.
+96/03/03 09:09:49 From : JES - Fix FNX calls in timers.c
+	- Due to the new ports calling convention, these had to be modified.
+96/03/03 08:40:51 From : JES - Get IPX working again (and pktdrvr?)
+	- USING_NET was NOT being carried through all Makes
+96/03/02 21:39:20 From : JES - Fix Makefile.main
+96/03/02 18:11:46 From : JES - Add X_SUPPORT to mouse subdir
+96/03/02 15:14:17 From : JES - Allow make in src subdirectory to _not_ wait for keypress
+96/03/02 14:26:47 From : JES - Begin adding Scott's port access methods
+96/03/02 12:02:46 From : Erik - Update dos.1 man page
+96/03/01 22:13:18 From Hans: adapt emumod to 1.3.70, fix for xdos
+96/02/29 18:52:50 From : JES - Bring back Xdos
+96/02/29 17:58:19 From : Uwe - Add emumodule loading to QuickStart
+96/02/28 20:23:42 from : JES - Fixes to inital ./configure with Uwe's help.
+96/02/25 14:07:34 From : JES - Remove async Makefile dup
+96/02/25 13:29:08 From : JES - Make MAKE work from each subdir using configure
+96/02/24 18:37:17 JES - Add ./configure to DOSEmu via autoconf
+96/02/21 13:37:32 From : JES - Correct typdef in cpu.c
+96/02/21 11:05:06 From : JES - Remove RCS logs, remove unused, clients, and ipxutils
+96/02/20 18:29:33 From Erik: securety fix & logging facilities
+96/02/11 12:48:28 From JES - Backout typedefs (thanks Hans) and remove changelog in emu.c
+96/02/08 21:52:43 From JES - Update the Release Patchlevel to 0.63.1.1
+96/02/08 21:45:43 From JES - Make Xdos and Windows run again :-(
+96/02/07 21:04:26 From JES : New typedefs for emu.c and dos.c
+96/02/07 20:43:27 From : JES - Adjust types.h and cpu.h to new layout
+96/02/05 21:37:47 From : JES - Documentation from Hans for VM86 flag usage
+96/02/04 20:03:25 From Alistair: DANG cleanups ...
 Thu Jan 25      1996
 - From Henrik Storner <storner@osiris.ping.dk>
   Fix for malloc/valloc-bug, happens together with libc-5.3.0

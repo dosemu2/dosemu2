@@ -9,6 +9,10 @@
  * Fixes for 1.2.8 from H.J.Lu <hjl@nynexst.com>
  * Many ELF and other fixes from:
  * 	James Bottomley <J.E.J.Bottomley@damtp.cambridge.ac.uk>
+ * mc68000 additions:
+ *	Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>
+ *
+ * More fixes (ELF SHN_UNDEF et al) by  Andreas Schwab in February 1996
  */
 #include "insmod.h"
 
@@ -25,6 +29,7 @@ static char *loaded;
 static void
 build_got(void)
 {
+#ifdef __i386__
 	Elf32_Ehdr *epnt = &header;
 	Elf32_Shdr *spnt;
 	Elf32_Rel *rpnt;
@@ -72,21 +77,28 @@ build_got(void)
 		sp = (struct symbol *)(*next_got);
 		sp->u.e.st_other &= ~GOTTEN;
 	}
+#endif
 }
 
 static void
-elf_relocate(unsigned int loadaddr, Elf32_Rel *rpnt, int n_rel)
+elf_relocate(unsigned int loadaddr, void *secpnt, int n_rel)
 {
 	struct symbol *sp = NULL;
 	unsigned int *reloc_addr;
 	unsigned int symbol_addr;
 	unsigned int real_reloc_addr;
-	int *gp;
 	int i;
-	int g;
 	int reloc_type;
 	int symtab_index;
+#ifdef __i386__
+	int *gp;
+	int g;
 	int got_addr = (int)got - (int)textseg + addr;
+	Elf32_Rel *rpnt = (Elf32_Rel *) secpnt;
+#endif
+#ifdef __mc68000__
+	Elf32_Rela *rpnt = (Elf32_Rela *) secpnt;
+#endif
 
 #ifdef DEBUG
 	insmod_debug ("loadaddr = 0x%08x", loadaddr);
@@ -117,7 +129,9 @@ elf_relocate(unsigned int loadaddr, Elf32_Rel *rpnt, int n_rel)
 			/* kludge done at loading:
 			 * st_value = offset from image start!
 			 */
-			if (sp->u.e.st_shndx && secref[sp->u.e.st_shndx]) {
+			if (sp->u.e.st_shndx &&
+			    sp->u.e.st_shndx < SHN_LORESERVE &&
+			    secref[sp->u.e.st_shndx]) {
 				symbol_addr = (unsigned int)sp->u.e.st_value +
 						addr;
 			}
@@ -139,6 +153,7 @@ elf_relocate(unsigned int loadaddr, Elf32_Rel *rpnt, int n_rel)
 			symbol_addr, reloc_type);
 #endif
 		switch(reloc_type) {
+#ifdef __i386__
 		case R_386_32:
 			*reloc_addr += symbol_addr;
 			break;
@@ -178,6 +193,39 @@ elf_relocate(unsigned int loadaddr, Elf32_Rel *rpnt, int n_rel)
 		case R_386_GOTOFF:
 			*reloc_addr += symbol_addr - got_addr;
 			break;
+#endif
+#ifdef __mc68000__
+		case R_68K_NONE:
+			break;
+
+		case R_68K_8:
+			*(char *) reloc_addr = symbol_addr + rpnt->r_addend;
+			break;
+		case R_68K_16:
+			*(short *) reloc_addr = symbol_addr + rpnt->r_addend;
+			break;
+		case R_68K_32:
+			*reloc_addr = symbol_addr + rpnt->r_addend;
+			break;
+
+		case R_68K_PC8:
+			*(char *) reloc_addr = (symbol_addr + rpnt->r_addend
+						- real_reloc_addr);
+			break;
+		case R_68K_PC16:
+			*(short *) reloc_addr = (symbol_addr + rpnt->r_addend
+						 - real_reloc_addr);
+			break;
+		case R_68K_PC32:
+			*reloc_addr = (symbol_addr + rpnt->r_addend
+				       - real_reloc_addr);
+			break;
+
+		case R_68K_RELATIVE:
+			*reloc_addr += ((int) loadaddr - (int) textseg + addr
+					+ rpnt->r_addend);
+			break;
+#endif
 
 		default:
 			insmod_error ("Unable to handle reloc type %d",
@@ -192,7 +240,6 @@ relocate_elf(FILE *fp, long offset)
 {
 	Elf32_Ehdr *epnt = &header;
 	Elf32_Shdr *spnt;
-	Elf32_Rel *rpnt;
 	int *next_got;
 	unsigned int loadaddr;
 	int i;
@@ -213,12 +260,20 @@ relocate_elf(FILE *fp, long offset)
 	memset(secref[bss_seg], bss_size, 0);
 
 	for (spnt = sections, i = 0; i < epnt->e_shnum; ++i, ++spnt) {
+#ifdef __i386__
 		if (spnt->sh_type == SHT_REL) {
 			loadaddr = (unsigned int)secref[spnt->sh_info];
-			rpnt = (Elf32_Rel *)secref[i];
 			n_rel= sections[i].sh_size / sections[i].sh_entsize;
-			elf_relocate(loadaddr, rpnt, n_rel);
+			elf_relocate(loadaddr, (void *) secref[i], n_rel);
 		}
+#endif
+#ifdef __mc68000__
+		if (spnt->sh_type == SHT_RELA) {
+			loadaddr = (unsigned int)secref[spnt->sh_info];
+			n_rel= sections[i].sh_size / sections[i].sh_entsize;
+			elf_relocate(loadaddr, (void *) secref[i], n_rel);
+		}
+#endif
 	}
 
 	/* fix up got */
@@ -227,7 +282,9 @@ relocate_elf(FILE *fp, long offset)
 		int symbol_addr;
 
 		sp = (struct symbol *)(*next_got);
-		if (sp->u.e.st_shndx && secref[sp->u.e.st_shndx]) {
+		if (sp->u.e.st_shndx &&
+		    sp->u.e.st_shndx < SHN_LORESERVE &&
+		    secref[sp->u.e.st_shndx]) {
 			symbol_addr = (unsigned int)sp->u.e.st_value + addr;
 			}
 		else {
@@ -238,10 +295,6 @@ relocate_elf(FILE *fp, long offset)
 		}
 		*next_got = symbol_addr;
 	}
-
-#ifdef DEBUG_DISASM
-	dis(textseg, codesize);
-#endif
 }
 
 char *
@@ -355,6 +408,7 @@ load_elf(FILE *fp)
 			break;
 
 		case SHT_REL:
+#ifdef __i386__
 			secref[i] = (char *)ckalloc(spnt->sh_size);
 
 			fseek(fp, spnt->sh_offset, SEEK_SET);
@@ -362,12 +416,27 @@ load_elf(FILE *fp)
 			if (feof(fp) || ferror(fp))
 				return "Error reading ELF REL section";
 			break;
+#else
+			return "can't handle section REL";
+#endif
 
-		case SHT_RELA: return "can't handle section RELA";
+		case SHT_RELA:
+#ifdef __mc68000__
+			secref[i] = (char *)ckalloc(spnt->sh_size);
+
+			fseek(fp, spnt->sh_offset, SEEK_SET);
+			fread(secref[i], spnt->sh_size, 1, fp);
+			if (feof(fp) || ferror(fp))
+				return "Error reading ELF RELA section";
+			break;
+#else
+			return "can't handle section RELA";
+#endif
+
 		case SHT_HASH: return "can't handle section HASH";
 		case SHT_DYNAMIC: return "can't handle section DYNAMIC";
 		case SHT_SHLIB: return "can't handle section SHLIB";
-		case SHT_DYNSYM: return "can't handle section DYMSYM";
+		case SHT_DYNSYM: return "can't handle section DYNSYM";
 		case SHT_NUM: return "can't handle section NUM";
 		default: return "can't handle section > 12";
 		}
@@ -393,10 +462,13 @@ load_elf(FILE *fp)
 	}
 
 	for (n = nsymbols, sp = symtab ; --n >= 0 ; sp++) {
-		/* look up name and add sp to binary tree */
+		/* Hmmm... */
+		if ((sp->u.e.st_info == 0) && (sp->u.e.st_shndx != SHN_UNDEF))
+			sp->u.e.st_info = STT_OBJECT; /* as good as any... */
+		/* look up name and add sp to splay tree */
 		findsym(stringtab + sp->u.e.st_name, sp, strncmp);
-		if ((ELF32_ST_BIND(sp->u.e.st_info) == STB_GLOBAL) &&
-			(ELF32_ST_TYPE(sp->u.e.st_info) != STT_NOTYPE))
+		if ((ELF32_ST_BIND(sp->u.e.st_info) != STB_LOCAL) &&
+		    (sp->u.e.st_shndx != SHN_UNDEF))
 			symother(sp) = DEF_BY_MODULE; /* abuse: mark extdef */
 		else {
 			symother(sp) = 0; /* abuse: mark extref */
@@ -406,8 +478,9 @@ load_elf(FILE *fp)
 		 * the start of the newly build image.
 		 * I rely on the secref mapping to be correct...
 		 */
-		if ( (sp->u.e.st_shndx < header.e_shnum) && /* always >= 0 ! */
-			secref[sp->u.e.st_shndx]) {
+		if ((sp->u.e.st_shndx != SHN_UNDEF) &&
+		    (sp->u.e.st_shndx < header.e_shnum) && /* always >= 0 ! */
+		    secref[sp->u.e.st_shndx]) {
 
 			(unsigned int)sp->u.e.st_value +=
 				(int)(secref[sp->u.e.st_shndx]) -
@@ -460,30 +533,3 @@ load_elf(FILE *fp)
 
 	return (char *)0;
 }
-
-
-#ifdef DEBUG_DISASM
-void print_address(unsigned int addr, FILE * outfile){
-	fprintf(outfile,"0x%8.8x", addr);
-}
-
-/* Needed by the i386 disassembler */
-void db_task_printsym(unsigned int addr){
-  print_address(addr, stderr);
-}
-
-void
-dis(int addr, int len)
-{
-	int lbytes;
-
-	  while(len > 0) {
-	    fprintf(stderr,"0x%8.8x  ", addr);
-	    lbytes =  db_disasm((unsigned int) addr, 0, 0) -
-	      ((unsigned int) addr);
-	    addr += lbytes;
-	    len -= lbytes;
-	    fprintf(stderr,"\n");
-	  }
-}
-#endif

@@ -53,7 +53,7 @@ dist:: $(ALL) Makefile
 depend dep: $(DEPENDS)	
 
 
-%.o:	 %.c
+%.o:	%.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 # Use -M for everything  or -MM for local

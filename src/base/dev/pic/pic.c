@@ -41,6 +41,9 @@
  */
 
 #include <stdio.h>
+#include "config.h"
+#include "port.h"
+#include "hlt.h"
 #ifndef C_RUN_IRQS
 #define C_RUN_IRQS
 #include "bitops.h"
@@ -76,6 +79,12 @@ static unsigned long pic_irq2_ivec = 0;
 static unsigned long pic1_mask;        /* bits set for pic1 levels */
 #endif
 static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
+/* 
+even asgcc -Wall says;
+pic.c: At top level:
+pic.c:81: warning: `pic1_mask' defined but not used
+it it used in the assembly part
+*/
 static unsigned long              pic_smm;          /* 32=>special mask mode, 0 otherwise */
 
 static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
@@ -216,7 +225,7 @@ if(d.request&code){
 }
 #endif
 
-/* DANG_BEGIN_MODULE pic_push,pic_pop
+/* DANG_BEGIN_REMARK pic_push,pic_pop
  *
  * Pic maintains two stacks of the current interrupt level. an internal one
  * is maintained by run_irqs, and is valid whenever the emulator code for
@@ -228,7 +237,7 @@ if(d.request&code){
  * the actions of the dos code to avoid any problems.  pic_push and pic_pop
  * maintain the external stack.
 
- * DANG_END_MODULE pic_print
+ * DANG_END_REMARK pic_print
  */
 void inline pic_push(int val)
 {
@@ -295,7 +304,8 @@ unsigned char int_num;
  * DANG_END_FUNCTION
  */
 void write_pic0(port,value)
-unsigned char port,value;
+unsigned int port;
+unsigned char value;
 {
 
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3
@@ -308,6 +318,7 @@ static char  icw_state,              /* !=0 => port 1 does icw 2,3,(4) */
 static char                icw_max_state;          /* number of icws expected        */
 int ilevel;			  /* level to reset on outb 0x20  */
 
+port -= 0x20;
 ilevel=pic_ilevel;
 if(pic_sp) {
    if(ilevel!=pic_stack[pic_sp-1]) {
@@ -360,7 +371,8 @@ else                              /* icw2, icw3, icw4, or mask register */
 
 
 void write_pic1(port,value)
-unsigned char port,value;
+unsigned int port;
+unsigned char value;
 {
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3 */
 /* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
@@ -368,6 +380,7 @@ static char /* icw_state, */     /* !=0 => port 1 does icw 2,3,(4) */
                icw_max_state;    /* number of icws expected        */
 int ilevel;			  /* level to reset on outb 0x20  */
 
+port -= 0xa0;
 ilevel=pic_ilevel;
 if(pic_sp) {
    if(ilevel!=pic_stack[pic_sp-1]) {
@@ -429,18 +442,20 @@ else                         /* icw2, icw3, icw4, or mask register */
  * DANG_END_FUNCTION
  */
 unsigned char read_pic0(port)
-unsigned char port;
+unsigned int port;
 {
-  if(port)               return((unsigned char)get_pic0_imr());
+  port -= 0x20;
+  if(port)		return((unsigned char)get_pic0_imr());
   if(pic0_isr_requested) return((unsigned char)get_pic0_isr());
                          return((unsigned char)get_pic0_irr());
 }
 
 
 unsigned char read_pic1(port)
-unsigned char port;
+unsigned int port;
 {
-  if(port)               return((unsigned char)get_pic1_imr());
+  port -= 0xa0;
+  if(port)		return((unsigned char)get_pic1_imr());
   if(pic1_isr_requested) return((unsigned char)get_pic1_isr());
                          return((unsigned char)get_pic1_irr());
 }
@@ -987,6 +1002,81 @@ int interval;
     pic_print(2,"pic_itime set to ",pic_itime[ilevel],"");
   }
 }
+
+void pic_init(void)
+{
+  /* do any one-time initialization of the PIC */
+  emu_iodev_t  io_device;
+  emu_hlt_t    hlt_hdlr;
+
+  /* 8259 PIC (Programmable Interrupt Controller) */
+  io_device.read_portb   = read_pic0;
+  io_device.write_portb  = write_pic0;
+  io_device.read_portw   = NULL;
+  io_device.write_portw  = NULL;
+  io_device.handler_name = "8259 PIC";
+  io_device.start_addr   = 0x0020;
+  io_device.end_addr     = 0x0021;
+  io_device.irq          = EMU_NO_IRQ;
+  port_register_handler(io_device);
+
+  io_device.start_addr = 0x00A0;
+  io_device.end_addr   = 0x00A1;
+  io_device.read_portb   = read_pic1;
+  io_device.write_portb  = write_pic1;
+  port_register_handler(io_device);
+
+  hlt_hdlr.name       = "PIC";
+  hlt_hdlr.start_addr = 0x0fff;
+  hlt_hdlr.end_addr   = 0x0fff;
+  hlt_hdlr.func       = (emu_hlt_func)pic_iret;
+  hlt_register_handler(hlt_hdlr);
+
+}
+
+void pic_reset(void)
+{
+#if 0
+  int i;
+
+  pic_ilevel     = 32;
+  pic_isr        = 0;
+  pic_irq2_ivec  = 0;
+  pic1_mask      = 0x07f8;
+  pic0_imr       = 0xf800;
+  pic1_imr       = 0x07f8;
+  pic_imr        = 0xfff8;
+  pice_imr       = 0xffffffff;
+  pic_sp         = 0;
+  pic_vm86_count = 0;
+  pic_dpmi_count = 0;
+  pic_sys_time   = NEVER;
+  for (i = 0; i < 33; i++) {
+    pic_ltime[i] = NEVER;
+    pic_itime[i] = NEVER;
+  }
+
+  /* PIC reset on reboot and at bootup */
+  pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
+  pic_unmaski(PIC_IRQ0);
+  pic_request(PIC_IRQ0);                    /* start timer */
+  pic_seti(PIC_IRQ1, do_irq1, 0);           /* do_irq1 in dosio.c   */
+  pic_unmaski(PIC_IRQ1);
+  if (mice->intdrv || mice->type == MOUSE_PS2) {
+    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0);
+    pic_unmaski(PIC_IMOUSE);
+  }
+#ifdef CONFIG_IPX
+#ifdef CONFIG_IPXPICPKT
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61);
+#else
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0);
+#endif
+  pic_unmaski(PIC_NET);
+#endif
+#endif
+}
+
 #undef set_pic0_imr(x)
 #undef set_pic1_imr(x)
 #undef get_pic0_imr()

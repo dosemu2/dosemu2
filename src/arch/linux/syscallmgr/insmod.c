@@ -32,6 +32,9 @@
  * Handle all combinations of ELF vs a.out kernels/modules: Bjorn
  * Added syslog error reporting with option "-s": Jacques Gelinas
  * Added MOD_AUTOCLEAN and option "-k" (for kerneld"): Bjorn and Jacques
+ * mc68000: Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>
+ *
+ * More fixes (ELF SHN_UNDEF et al) by  Andreas Schwab in February 1996
  *
  * ---------------------------
  * Support for (z)System.map resolving of unresolved symbols (HACKER_TOOL)
@@ -76,6 +79,10 @@
  *   resolved by a later loaded module.
  *   If we use option -i of insmmod-HACKER_TOOL, we will ignore missing
  *   underscore prefixes in ksyms, hence the modules can be loaded again.
+ *
+ * Mars 4, 1996 ( 1.3.69-HACKER_TOOL )
+ * - Adapted to modules-1.3.69.tar.gz from http://www.pi.se/blox/modules
+ *   ( fixes for binutils-2.6.0.* )
  *
  * ---------------------------
  *
@@ -125,25 +132,32 @@ static char *default_path[] = {
 	"/lib/modules/%s/fs",
 	"/lib/modules/%s/net",
 	"/lib/modules/%s/scsi",
+	"/lib/modules/%s/block",
+	"/lib/modules/%s/cdrom",
+	"/lib/modules/%s/ipv4",
 	"/lib/modules/%s/misc",
 	"/lib/modules/default/fs",
 	"/lib/modules/default/net",
 	"/lib/modules/default/scsi",
+	"/lib/modules/default/block",
+	"/lib/modules/default/cdrom",
+	"/lib/modules/default/ipv4",
 	"/lib/modules/default/misc",
 	"/lib/modules/fs",
 	"/lib/modules/net",
 	"/lib/modules/scsi",
+	"/lib/modules/block",
+	"/lib/modules/cdrom",
+	"/lib/modules/ipv4",
 	"/lib/modules/misc",
 	0
 };
 
-#define PATCH_STRINGS
-
 #include "insmod.h"
 #define is_global(sp) (aout_flag?(sp->u.n.n_type & N_EXT) : \
-				(ELF32_ST_BIND(sp->u.e.st_info) == STB_GLOBAL))
+				(ELF32_ST_BIND(sp->u.e.st_info) != STB_LOCAL))
 #define is_undef(sp) (aout_flag?((sp->u.n.n_type & ~N_EXT) == N_UNDF) : \
-			    (ELF32_ST_TYPE(sp->u.e.st_info) == STT_NOTYPE))
+			    (sp->u.e.st_shndx == SHN_UNDEF))
 
 /* hack: sizeof(struct elfhdr) > sizeof(struct exec) */
 Elf32_Ehdr header;
@@ -398,7 +412,7 @@ m_strncmp(const char *tabentry, const char *lookfor, size_t n)
 		(strlen(tabentry + len) == 10))
 		return 0;
 	else
-		return retval;
+		return strcmp(tabentry, lookfor);
 }
 
 /*
@@ -417,19 +431,18 @@ k_strncmp(const char *tabentry, const char *lookfor, size_t n)
 		(strlen(lookfor + len) == 10))
 		return 0;
 	else
-		return retval;
+		return strcmp(tabentry, lookfor);
 }
 
-#ifdef PATCH_STRINGS
 struct strpatch {
-	int *where;
+	int where; /* offset from start */
 	int what;
 };
 static struct strpatch *stringpatches;
 static int n_stringpatches;
 
 static void
-push_string(char *string, int *patchme)
+push_string(char *string, int patch_offset)
 {
 	int len;
 	unsigned int string_offset = progsize;
@@ -439,6 +452,19 @@ push_string(char *string, int *patchme)
 		len = p - string;
 	else
 		len = strlen(string);
+
+	/*
+	 * If we want to use any string (even one with only numbers):
+	 * enclose the string with quotes, i.e.  ' or "
+	 * (most probably escaped, if from a shell)
+	 *
+	 * Inspired by Giorgio Caset <gca@wag.ch>
+	 */
+	if (((string[0] == '\'') || (string[0] == '"')) &&
+	     (string[len - 1] == string[0])) {
+		++string; /* strip quote */
+		len -= 2; /* and quote at the end as well */
+	}
 
 	progsize += len + 1;
 	/* JEJB: don't like this, but if we're copying strings, better make
@@ -453,11 +479,10 @@ push_string(char *string, int *patchme)
 		stringpatches = (struct strpatch *)ckrealloc(stringpatches,
 			(n_stringpatches + 1) * sizeof(struct strpatch));
 
-	(*(stringpatches + n_stringpatches)).where = patchme;
+	(*(stringpatches + n_stringpatches)).where = patch_offset;
 	(*(stringpatches + n_stringpatches)).what = string_offset;
 	++n_stringpatches;
 }
-#endif
 
 int
 main(int argc, char **argv)
@@ -544,6 +569,9 @@ main(int argc, char **argv)
 				break;
 			case 's':
 				insmod_setsyslog("insmod");
+				break;
+			case 'V':
+				printf("Version 1.3.69-HACKER_TOOL\n");
 				break;
 #ifdef HACKER_TOOL
 			case 'Z': /* resolve over zSystem map */
@@ -736,7 +764,13 @@ main(int argc, char **argv)
 	else if ((header.e_ident[0] == 0x7f) &&
 		 (strncmp(&header.e_ident[1], "ELF",3) == 0) &&
 		 (header.e_type == ET_REL) &&
+#ifdef __i386__
 		 ((header.e_machine == 3) || (header.e_machine == 6))
+#endif
+#ifdef __mc68000__
+		 header.e_machine == EM_68K
+#endif
+/* Sorry SPARC */
 		) {
 			char *errstr;
 
@@ -804,7 +838,10 @@ main(int argc, char **argv)
 	case 3: /* versioned_kernel,   versioned_module */
 #ifdef HACKER_TOOL
 		if (use_zSystem) check_version(force_load);
+		else
 #endif
+		if (force_load)
+			check_version(force_load);
 		tabcomp = strncmp;
 		break;
 
@@ -919,6 +956,7 @@ main(int argc, char **argv)
 			}
 			else { /* I'm not sure I understand this... */
 				sp->u.e.st_info = (STB_GLOBAL << 4)| STT_OBJECT;
+				sp->u.e.st_shndx = SHN_ABS;
 				len = (sp->u.e.st_size)?(sp->u.e.st_size):4;
 			}
  			symvalue(sp) = bss_offset;
@@ -929,7 +967,7 @@ main(int argc, char **argv)
 				if (v && (strncmp(v, "_R", 2) == 0) &&
 					(strlen(v) == 10))
 					*v = '\0';
-				insmod_error ("%s: wrong version",
+				insmod_error ("%s: wrong version or undefined",
 					symname(sp));
 				if (v && !(*v))
 					*v = '_';
@@ -989,13 +1027,14 @@ main(int argc, char **argv)
 			do {
 				++val;
 				if (*val < '0' || '9' < *val) {
-#ifdef PATCH_STRINGS
+				      /*
+				       * Textseg may change during calls to 
+				       * push_string() so we store the offset
+				       *
+				       * Timo Kokkonen <timo@cs.ualberta.ca>
+				       */
 					if (*val != ',')
-						push_string(val, patchme);
-#else
-					insmod_error ("Symbol '%s' has an illegal value: %s", param, val);
-					exit(2);
-#endif
+				     		push_string(val, symvalue(change));
 				}
 				else { /* numerical */
 					if (val[0] == '0') {
@@ -1049,19 +1088,30 @@ main(int argc, char **argv)
 	else
 		relocate_elf(fp, textseg - otextseg);
 
-#ifdef PATCH_STRINGS
-	{
-		struct strpatch *p = stringpatches;
-
-		while (--n_stringpatches >= 0) {
-			*(p->where) = (int)addr + p->what;
-			++p;
-		}
-
-		free(stringpatches);
-		n_stringpatches = 0;
+	/*
+	 * Patch in any new strings from the command line
+	 */
+	while (n_stringpatches > 0) {
+		/*
+		 * Now we have to calculate the "absolute" address of the
+		 * string and update the "pointer" in the module image...
+		 *
+		 * Timo Kokkonen <timo@cs.ualberta.ca>
+		 */
+		*((int *)(textseg + stringpatches->where)) =
+			  addr + stringpatches->what; /* kernel address */
+		++stringpatches;
+		--n_stringpatches;
 	}
-#endif
+	if (stringpatches)
+		free(stringpatches);
+	stringpatches = (struct strpatch *)0;
+	n_stringpatches = 0;
+
+
+	/*
+	 * Handle module "administrativia"
+	 */
 	init_func += addr;
 	cleanup_func += addr;
 
@@ -1154,9 +1204,7 @@ main(int argc, char **argv)
 		delete_module(modname);
 		exit(1);
 	}
-#ifdef DEBUG_DISASM
-dis(textseg, codesize);
-#endif
+
 	/*
 	 * Print a loadmap so that kernel panics can be identified.
 	 * Load map option conceived by Derek Atkins <warlord@MIT.EDU>
@@ -1234,15 +1282,15 @@ defsym(int (*pfi) (const char *, const char *, size_t),
 		sp->u.n.n_type = type;
 	}
 	else { /* elf */
-		if ((ELF32_ST_BIND(sp->u.e.st_info) != STB_GLOBAL) ||
-		    (ELF32_ST_TYPE(sp->u.e.st_info) != STT_NOTYPE))
+		if ((ELF32_ST_BIND(sp->u.e.st_info) == STB_LOCAL) ||
+		    (sp->u.e.st_shndx != SHN_UNDEF))
 			return 0; /* symbol not used */
 		/* hack follows... */
 		if (type & N_ABS)
 			sp->u.e.st_info = (STB_GLOBAL << 4);
 		else
 			sp->u.e.st_info = (STB_LOCAL << 4);
-		sp->u.e.st_info |= STT_OBJECT; /* or whatever */
+		sp->u.e.st_shndx = SHN_ABS; /* or whatever */
 	}
 
 	symother(sp) |= source;

@@ -1,64 +1,45 @@
 QuickStart: Instructions on how to quickly get DOSEMU up and running.
 
-If you are upgrading from a previous version of DOSEMU, skip to section ???.
-If you are new to DOSEMU, please read all the sections.
-
 --------------------------------------------------------------------------
-1.  Kernel/GCC/libc  and DOS mounted drive requirements:
+1. Compile
 --------------------------------------------------------------------------
 
-Kernel:
-- Linux version 1.1.43 or better is now required for running DOSEMU,
-  version 1.2.2 is recommended.
-- If you are running 1.1.59, you should upgrade to version 1.2.2.  There 
-  are known disk access bugs through the mid 1.1.60's which are known to
-  cause file corruption.
-- The kernel _must_ be compiled with System V IPC enabled
-
-GCC:
-- At least GCC 2.5.8
-
-Libc:
-- At least 4.5.21
-
-DOS mounted drives:
-- After kernel 1.3.40, it is necessary to add the option dotsOK=no :
-	mount -t msdos -o dotsOK=no /dev/sda1 /C
-  otherwise the redirected drives will be incapable of dealing with
-  hidden files.
+- ./configure	in the dosemu subdir
+- make 		in the src subdir (not the dosemu subdir)
+		this will also install (i.e. must be root)
 
 --------------------------------------------------------------------------
-2.  Compiling DOSEMU
+1a. Load modules
 --------------------------------------------------------------------------
 
-To build the library files:
+The default behaviour when compiling dosemu is to require emumodule. 
+To run dosemu,  emumodule must be loaded. This has to be redone once
+after every boot of Linux.
 
-- Type 'make most' if you have do not have Tex.
-  Type 'make doeverything' if you do have Tex.
-
-- If you were not logged on as root, you will see errors at the end.
-  Log on as root and type 'make install'.
+- ./load_module.sh (as root) in the dosemu subdir
 
 --------------------------------------------------------------------------
-3.  Configuring DOSEMU
+2.  Configure
 --------------------------------------------------------------------------
 
-- While logged on as root, type 'Configure' to create the /etc/dosemu.conf
-  file or copy the file examples/config.dist to /etc and edit it following
-  the directions.
+- Copy etc/config.dist to /etc/dosemu.conf if you are installing for
+  the first time. Modify it by using the info in the file.
 
 - Create a file /etc/dosemu.users which contains a list of users who are
   privileged to use dosemu.  The user "all" will allow anyone to run
   dosemu.
 
-- Copy ./hdimage.dist as /var/lib/dosemu/hdimage.  The first disk 
+- Copy etc/hdimage.dist as /var/lib/dosemu/hdimage.  The first disk 
   statement in your /etc/dosemu.conf should point to this file.
 
 --------------------------------------------------------------------------
-4.  Booting DOSEMU the first time
+3.  Boot
 --------------------------------------------------------------------------
 
 If you are new to DOSEMU:
+
+- Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf IS
+  pointing to your hdimage!
 
 - Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
   diskette in your a: drive.  Run "sys a:" to transfer the system files
@@ -79,11 +60,13 @@ If you already have a HDIMAGE file:
   hdimage drive that you boot from.  Some of these files have changed.
 
 --------------------------------------------------------------------------
-5.  Now that you've set up your HDIMAGE file
+4.  Now that you've set up your HDIMAGE file
 --------------------------------------------------------------------------
 
 - After setting up your HDIMAGE file and exiting DOSEMU, run 'dos'.  This
   time DOSEMU should boot from your HDIMAGE.
+  . If not make certain that the /etc/dosemu.conf specs bootc after any
+    boota statements.
 
 - If hitting Alt-FunctionKey doesn't switch virtual consoles from DOSEMU,
   try using Ctrl-Alt-FunctionKey to switch from the virtual console running
@@ -143,13 +126,13 @@ If you already have a HDIMAGE file:
 ./doc/DPR
 	The Dosemu Project Registry, an outdated document keeping
 	track of who's doing what kind of programming for DOSEMU.
-./doc/dos.1
+./man/dos.1
 	This is the DOSEMU man page. It is now up to date with 0.53.
 	This normally goes into the /usr/man/man1 directory.
 ./doc/dosemu.texinfo
 	The full documentation for DOSEMU, in LaTeX format.  This
 	documentation is getting to be sorely outdated, however.
-./doc/announce0.60
+./doc/announce0.63
 	The announcement textfile for DOSEMU 0.60.
 ./doc/README.*
 	Readme files for various applications and settings.

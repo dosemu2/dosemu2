@@ -98,13 +98,21 @@ static int do_irq_job(int mode, int irqnumber)
     case EMUSYS_REQUEST_IRQ: {
       if (tasks[irqnumber]) return -1;
       irqbits &= ~(1 << irqnumber);
+#if KERNEL_VERSION < 1003070
       if (request_irq(irqnumber, &irq_handler, 0, ID_STRING )) return -1;
+#else
+      if (request_irq(irqnumber, &irq_handler, 0, ID_STRING, NULL )) return -1;
+#endif
       tasks[irqnumber] = current;
       return irqnumber;
     }
     case EMUSYS_FREE_IRQ: {
       if (!tasks[irqnumber]) return -1;
+#if KERNEL_VERSION < 1003070
       free_irq(irqnumber);
+#else
+      free_irq(irqnumber, NULL);
+#endif
       tasks[irqnumber] = 0;
       irqbits &= ~(1 << irqnumber);
       return irqnumber;
@@ -118,7 +126,11 @@ static void remove_all_irqs()
 {
   int i;
   for (i=3; i<16; i++) if (tasks[i]) {
+#if KERNEL_VERSION < 1003070
    free_irq(i);
+#else
+   free_irq(i, NULL);
+#endif
    tasks[i]=0;
   }
   irqbits = 0;

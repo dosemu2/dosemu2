@@ -1,0 +1,289 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(src/base/misc/dosio.c)
+
+AC_CONFIG_HEADER(src/include/config.h)
+
+AC_CANONICAL_SYSTEM
+
+dnl Checks for programs.
+AC_PROG_AWK
+AC_PROG_YACC
+AC_PROG_LEX
+
+AC_PROG_CC
+dnl All I know of so far is gcc
+CC=gcc
+AC_SUBST(CC)
+
+dnl AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+
+dnl Checks for libraries.
+
+dnl Checks for header files.
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(fcntl.h limits.h sys/file.h sys/ioctl.h sys/time.h syslog.h unistd.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_UID_T
+AC_C_INLINE
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_STRUCT_ST_RDEV
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+dnl Checks for library functions.
+AC_FUNC_ALLOCA
+AC_PROG_GCC_TRADITIONAL
+AC_HEADER_MAJOR
+AC_FUNC_MEMCMP
+AC_FUNC_MMAP
+AC_TYPE_SIGNAL
+AC_FUNC_UTIME_NULL
+AC_FUNC_VPRINTF
+AC_CHECK_FUNCS(getcwd gethostname gettimeofday mkdir mkfifo mktime rmdir select socket strdup strerror strstr strtol strtoul uname)
+AC_SUBST(SET_MAKE)
+
+dnl Here is where we do our stuff
+
+CONFIG_HOST=`uname -s`
+if test "$CONFIG_HOST" = "Linux"; then
+  CONFIG_HOST='linux'
+fi
+AC_SUBST(CONFIG_HOST)
+
+dnl Do ELF if possible
+
+ if grep __ELF__ `gcc -v 2>&1|head -n1|cut -d' ' -f4` 1>/dev/null 2>&1; then 
+  SLANGLIB="-larch_${CONFIG_HOST}_slang-elf -lm"
+  ELF="ELF=1"
+ else
+  SLANGLIB="-larch_${CONFIG_HOST}_slang"
+# DON'T CHANGE THIS: this makes libdosemu start high enough to be safe.
+# should be okay at...0x20000000 for .5 GB mark.
+  LIBSTART="LIBSTART = 0x20000000"
+ fi
+ AC_SUBST(SLANGLIB)
+ AC_SUBST(LIBSTART)
+ AC_SUBST(ELF)
+
+dnl check for X. This was reproduced from TKined
+
+AC_CHECK_PROG(x_ok, xmkmf, 1, 0)
+if test $x_ok = 1; then
+    AC_PATH_X
+fi
+if test "$XINCLUDE_DIR" != ""; then
+    x_includes="$XINCLUDE_DIR"
+fi
+if test "$x_includes" = /usr/include; then
+    XINCLUDES="# no special path needed"
+elif test "$x_includes" != ""; then
+    XINCLUDES=" -I$x_includes"
+else
+    AC_CHECKING(for X11 header files)
+    XINCLUDES="# no special path needed"
+    AC_TRY_CPP([#include <X11/Intrinsic.h>], , XINCLUDES="nope")
+    if test "$XINCLUDES" = nope; then
+        dirs="/usr/unsupported/include /usr/local/include /usr/X386/include /usr/include/X11R4 /usr/X11R5/include /usr/include/X11R5 /usr/openwin/include /usr/X11/include"
+        for i in $dirs ; do
+	    if test -r $i/X11/Intrinsic.h; then
+	        XINCLUDES=" -I$i"
+	    fi
+        done
+    fi
+fi
+if test "$XINCLUDES" = nope; then
+  AC_WARN(Couldn't find any X11 include files)
+  XINCLUDES="# no include files found"
+fi
+AC_SUBST(XINCLUDES)
+
+if test "$XLIBRARY_DIR" != ""; then
+    x_libraries="$XLIBRARY_DIR"
+fi
+if test "$x_libraries" = /usr/lib; then
+    XLIBSW=-lX11
+elif test "$x_libraries" != ""; then
+    XLIBSW="-L$x_libraries -lX11"
+else
+    AC_CHECKING(for X11 library archive)
+    AC_CHECK_LIB(X11, main, XLIBSW="-lX11", XLIBSW=nope)
+    if test "$XLIBSW" = nope; then
+	dirs="/usr/unsupported/lib /usr/local/lib /usr/X386/lib /usr/lib/X11R4 /usr/X11R5/lib /usr/lib/X11R5 /usr/openwin/lib /usr/X11/lib"
+	for i in $dirs ; do
+	    if test -r $i/libX11.a; then
+		XLIBSW="-L$i -lX11"
+	    fi
+	done
+    fi
+fi
+if test "$XLIBSW" = nope ; then
+    AC_CHECK_LIB(Xwindow, main, XLIBSW=-lXwindow)
+fi
+if test "$XLIBSW" = nope ; then
+    AC_WARN(Couldn't find the X11 library archive. Using -lX11.)
+    XLIBSW=-lX11
+else
+    AC_CHECKING(Compiling with X support)
+    X_SUPPORT="X_SUPPORT=1"
+    AC_DEFINE_UNQUOTED(X_SUPPORT) 
+    AC_SUBST(X_SUPPORT)
+
+dnl All the X2 specs
+    AC_DEFINE_UNQUOTED(X2_SUPPORT) 
+    X2CFILES="x2dos.c"
+    AC_SUBST(X2CFILES)
+    X2CEXE="x2dos ../etc/xtermdos ../etc/xinstallvgafont"
+    AC_SUBST(X2CEXE)
+
+dnl the -u forces the X11 shared library to be linked into ./dos
+
+    if test "$ELF" != "" ; then
+      XLIBSW="-Wl,-rpath,$x_libraries -L$x_libraries -lX11"
+    else
+      XLIBSW="-L$x_libraries -lX11 -u _XOpenDisplay"
+    fi
+fi
+AC_SUBST(XLIBSW)
+AC_SUBST(x_libraries)
+
+REALTOPDIR=`nolinks=1; pwd`
+VERSION="0"
+SUBLEVEL="63"
+PATCHLEVEL="1.1"
+THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
+EMUVER="VERSION.$SUBLEVEL"
+AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
+AC_SUBST(EMUVER)
+CONFIG_TIME=`date`
+AC_SUBST(REALTOPDIR)
+AC_SUBST(SUBLEVEL)
+AC_SUBST(PATCHLEVEL)
+AC_SUBST(THISVERSION)
+AC_SUBST(VERSION)
+BINPATH="$REALTOPDIR/$THISVERSION"
+AC_SUBST(BINPATH)
+SRCPATH="$REALTOPDIR/src"
+AC_SUBST(SRCPATH)
+AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
+AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
+AC_DEFINE_UNQUOTED(VERSION, $VERSION)
+AC_DEFINE_UNQUOTED(SUBLEVEL, $SUBLEVEL)
+AC_DEFINE_UNQUOTED(PATCHLEVEL, $PATCHLEVEL)
+AC_DEFINE_UNQUOTED(VERSTR, "$THISVERSION")
+
+OPTIONALSUBDIRS="dosext/net/v-net"
+REQUIRED="tools commands tools/periph"
+DEBUGGER="arch/$CONFIG_HOST/debugger"
+
+if test "$CONFIG_HOST" = "linux"; then
+ AC_CHECKING("Linux Specific Stuff")
+
+dnl BOCHS
+dnl   AC_DEFINE_UNQUOTED(X86_EMULATOR_FLAGS)
+
+dnl Do emumodule 
+ AC_ARG_ENABLE(emumod, Help me, emumod="no", emumod="yes")
+  if test "$emumod" = "yes"; then
+   AC_DEFINE_UNQUOTED(REQUIRES_EMUMODULE)
+   AC_DEFINE_UNQUOTED(USE_VM86PLUS)
+   AC_DEFINE_UNQUOTED(USE_MHPDBG)
+   USE_MHPDBG="-DUSE_MHPDBG"
+   AC_SUBST(USE_MHPDBG)
+
+dnl   AC_DEFINE_UNQUOTED(USE_VM86_STACKVERIFY)
+
+   REQUIRES_EMUMODULE="YES"
+   OPTIONALSUBDIRS="dosext/net/v-net"
+   REQUIRED="tools commands tools/periph arch/$CONFIG_HOST/syscallmgr arch/$CONFIG_HOST/emumod"
+  else
+   REQUIRED="tools commands tools/periph"
+   OPTIONALSUBDIRS="dosext/net/v-net arch/$CONFIG_HOST/syscallmgr arch/$CONFIG_HOST/emumod"
+  fi
+fi
+
+dnl DPMI requirements
+
+AC_DEFINE_UNQUOTED(WANT_WINDOWS)
+WANT_WINDOWS="WANT_WINDOWS=-DWANT_WINDOWS"
+AC_SUBST(WANT_WINDOWS)
+
+AC_SUBST(OPTIONALSUBDIRS)
+AC_SUBST(REQUIRED)
+AC_SUBST(DEBUGGER)
+AC_SUBST(REQUIRES_EMUMODULE)
+
+dnl Now CFLAGS and INCLUDES
+
+#Change the following line if the right kernel includes reside elsewhere
+# LINUX_KERNEL = /usr/src/linux
+LINUX_KERNEL=`sh $SRCPATH/arch/$CONFIG_HOST/kversion.sh -find -print`
+LINUX_INCLUDE="$LINUX_KERNEL/include"
+AC_SUBST(LINUX_KERNEL)
+AC_SUBST(LINUX_INCLUDE)
+
+# does this work if you do make -C <some dir>
+TOPDIR=`nolinks=1;pwd`
+AC_SUBST(TOPDIR)
+
+INCDIR="-I${SRCPATH}/include  -I${LINUX_INCLUDE} -I${SRCPATH}/base/dev/pic -I${SRCPATH}/dosext/dpmi ${XINCLUDES}"
+AC_SUBST(INCDIR)
+
+# ifdef do_DEBUG
+# COPTFLAGS=" -g -Wall"
+# else
+COPTFLAGS="-Wall"
+# endif
+
+# -m486 is usually in the specs for the compiler
+OPT="-O3 -m486 -fomit-frame-pointer"
+# OPT=-fno-inline
+PIPE=-pipe
+USING_NET="-DUSING_NET"
+
+CFLAGS="${OPT} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+
+# set for DPMI want windows
+# ifdef REQUIRES_EMUMODULE
+#  LDTPATCH=2
+#else
+#  LDTPATCH=`grep -c useable /usr/include/linux/ldt.h`
+#endif
+#ifeq ($(LDTPATCH),2)
+#  WIN31=1
+#else
+#  WIN31=0
+#endif
+
+# set to use a simpler fork for unix command
+# CFLAGS+=-DSIMPLE_FORK
+# set to debug fork with environment
+# CFLAGS+=-DFORK_DEBUG
+
+# We need to use the C_RUN_IRQS with -fno-inline (TBD why)
+# this is in pic/pic.c
+#CFLAGS+=-DC_RUN_IRQS
+
+# use fd3 for soft errors, stderr for hard error, don't ope
+# stderr to /dev/null
+# CFLAGS+=-DUSE_FD3_FOR_ERRORS
+
+AC_SUBST(CFLAGS)
+
+LDFLAGS="${LNKOPTS}" # exclude symbol information
+AS86="as86"
+#LD86="ld86 -s -0"
+LD86="ld86 -0"
+
+AC_SUBST(LDFLAGS)
+AC_SUBST(AS86)
+AC_SUBST(LD86)
+
+AC_OUTPUT(doc/Makefile src/emu-i386/Makefile src/base/init/Makefile src/dosext/drivers/Makefile src/dosext/net/v-net/Makefile src/tools/periph/Makefile src/arch/linux/async/Makefile src/base/serial/Makefile src/arch/linux/syscallmgr/Makefile src/env/video/Makefile src/dosext/sound/Makefile src/dosext/dpmi/Makefile src/arch/linux/debugger/Makefile src/commands/Makefile src/base/keyboard/Makefile doc/Makefile src/dosext/net/net/Makefile src/base/dev/misc/Makefile src/include/Makefile src/base/async/Makefile src/env/Makefile src/base/dev/dma/Makefile src/dosext/mfs/Makefile src/tools/Makefile src/dosext/misc/Makefile src/base/mouse/Makefile src/arch/linux/emumod/Makefile src/base/dev/pic/Makefile src/base/misc/Makefile src/base/bios/Makefile src/arch/linux/Makefile.main src/Makefile Makefile)

@@ -44,7 +44,11 @@
 #include <machine/pcvt_ioctl.h>
 #endif
 
+#include "config.h"
 #include "emu.h"
+#include "port.h"
+#include "keyboard.h"
+#include "timers.h"
 #include "memory.h"
 #include "termio.h"
 #include "shared.h"
@@ -52,6 +56,10 @@
 #include "mouse.h"
 #include "bios.h"
 #include "pic.h"
+
+int    port61 = 0x0e;
+extern pit_latch_struct pit[3];
+static u_short microsoft_port_check = 0;
 
 static unsigned int convscanKey (unsigned char);
 void dump_kbuffer (void);
@@ -1082,4 +1090,101 @@ read_next_scancode_from_queue (void)
   k_printf ("KBD: Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	    *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
   k_printf ("start=%d, end=%d, LASTSCAN=%x\n", *scan_queue_start, *scan_queue_end, READ_WORD (LASTSCAN_ADD));
+}
+
+u_char keyb_io_read(u_int port)
+{
+  int r=0;
+  switch (port) {
+  case 0x60:
+    if (keys_ready) microsoft_port_check = 0;
+    k_printf("direct 8042 0x60 read1: 0x%02x microsoft=%d\n",
+        *LASTSCAN_ADD, microsoft_port_check);
+    if (microsoft_port_check)
+      r = microsoft_port_check;
+    else
+      r = *LASTSCAN_ADD;
+      keys_ready = 0;
+    break;
+  case 0x61:
+    if (config.speaker == SPKR_NATIVE)
+      r = port61 = safe_port_in_byte(0x61);
+    break;
+  case 0x64:
+    /* low bit set = sc ready */
+    r = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);
+    k_printf("direct 8042 0x64 status check: keys_ready=%d, microsoft=%d\n",
+      keys_ready, microsoft_port_check);
+    break;
+  default: 
+    k_printf("KBD: Unsupported read from port 0x%x\n", port); 
+  }
+  k_printf("KBD: 0x%x inb = 0x%x\n", port, r);
+  return r;
+}
+
+void keyb_io_write(u_int port, u_char byte)
+{
+  k_printf("KBD: 0x%x outb = 0x%x\n", port, byte);
+  switch (port) {
+  case 0x60:
+    microsoft_port_check = 1;
+    if (byte < 0xf0) {
+      microsoft_port_check = 0xfe;
+    }
+    else {
+      microsoft_port_check = 0xfa;
+    }
+    break;
+  case 0x61:
+    port61 = byte & 0x0f;
+    switch (config.speaker) {
+      case SPKR_NATIVE:
+        safe_port_out_byte(0x61, byte & 0x03);
+        break;
+      case SPKR_EMULATED:
+        if (((byte & 3) == 3) && (pit[2].mode == 2 || pit[2].mode == 3)) {
+          i_printf("PORT: emulated beep!\n");
+          putchar('\007');
+        }
+        break;
+    }
+  case 0x64:
+    k_printf("KBD: No action for port 0x64\n");
+    break;
+  default: 
+    k_printf("KBD: Unsupported write from to port 0x%x of 0x%x\n",
+	port, byte); 
+  }
+}
+
+void keyb_init(void)
+{
+  emu_iodev_t  io_device;
+
+  /* 8042 keyboard controller */
+  io_device.read_portb   = keyb_io_read;
+  io_device.write_portb  = keyb_io_write;
+  io_device.read_portw   = NULL;
+  io_device.write_portw  = NULL;
+  io_device.handler_name = "8042 Keyboard controller";
+  io_device.start_addr   = 0x0060;
+  io_device.end_addr     = 0x0064;
+  io_device.irq          = 1;
+  port_register_handler(io_device);
+}
+
+void keyb_reset(void)
+{
+#if 0
+  microsoft_port_check = 0;
+  keyb_ctrl_port61     = 0x0e;
+  keyb_ctrl_port60     = -1;
+  keyb_ctrl_mode60     = 0;
+  keyb_ctrl_scanmap    = 1;
+  keyb_ctrl_typematic  = 0x23;
+  keyb_ctrl_enable     = 1;
+  keyb_ctrl_isdata     = 0;
+  keyb_ctrl_clearbuf();
+#endif
 }

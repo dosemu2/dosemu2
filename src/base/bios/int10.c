@@ -8,8 +8,11 @@
   changed int10() to make graphics work with X.
 */
 
+#include "config.h"
+
 /* Do we want graphics in X? (of course :-) */
 /* WARNING: This may not work in BSD! It's written for Linux! */
+
 #ifdef X_SUPPORT
 #define XG
 #endif

@@ -23,6 +23,7 @@
  */
 
 #include <stdio.h>
+#include <unistd.h> 
 #include <a.out.h>
 #include <locale.h>
 #include <errno.h>
@@ -31,6 +32,7 @@
 #include <fcntl.h>
 #endif
 #include "config.h"
+#include "types.h"
 
 #ifndef LIBDOSEMU
 #define LIBDOSEMU	"/usr/lib/libdosemu"
@@ -69,11 +71,11 @@ main(int argc, char **argv)
 	libpath = cp;
 #endif
 
-
+  buf[0] = ' ';
   f = fopen(libpath, "r");
   if (f == NULL)
   {
-    fprintf(stderr, "%s: cannot open shared library: %s\n", argv [0],
+    fprintf(stderr, "%s: cannot open shared library: %s-%s\n", argv [0],
 	libpath, strerror(errno));
     fprintf(stderr, "Check the LIBDOSEMU variable, default is %s\n",
 		LIBDOSEMU);
@@ -82,7 +84,7 @@ main(int argc, char **argv)
 
   if (fread(&header, sizeof(header), 1, f) != 1)
   {
-    fprintf (stderr, "%s: cannot read shared library: %s\n", argv [0],
+    fprintf (stderr, "%s: cannot read shared library: %s-%s\n", argv [0],
 	libpath, strerror(errno));
     exit(1);
   }
@@ -106,6 +108,7 @@ main(int argc, char **argv)
   dosemu = (void *) header.a_entry;
 
   (* dosemu)(argc, argv);
+  return(0); /* never reached, to keep gcc -Wall happy*/
 
 }
 

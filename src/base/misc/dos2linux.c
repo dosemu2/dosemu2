@@ -20,17 +20,6 @@
  * DANG_BEGIN_CHANGELOG
  *
  *	$Log: dos2linux.c,v $
- * Revision 1.1  1995/04/08  22:30:40  root
- * Initial revision
- *
- * Revision 1.1  1995/04/08  22:30:40  root
- * Initial revision
- *
- * Revision 1.2  1995/03/24  14:10:47  leisner
- * added exchange_ids around system call
- *
- * Revision 1.1  1995/03/24  03:32:21  leisner
- * Initial revision
  *
  * DANG_END_CHANGELOG
  *
@@ -151,13 +140,14 @@ static int fork_debug(void)
  *
  * DANG_BEGIN_FUNCTION run_unix_command
  *
- * arguments: string with command to execute
- *
- * returns: nothing
- *
  * description:
  *  Runs a command and prints the (stdout and stderr) output on the dosemu 
  *  screen.
+ *
+ * return: nothing
+ *
+ * arguments: 
+ *   buffer - string with command to execute
  *
  * DANG_END_FUNCTION
  *

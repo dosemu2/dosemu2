@@ -15,106 +15,12 @@
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
- * Revision 1.2  1995/05/06  16:25:48  root
- * Prep for 0.60.2.
- *
- * Revision 1.1  1995/04/08  22:31:40  root
- * Initial revision
- *
- * Revision 2.11  1995/02/25  21:54:02  root
- * *** empty log message ***
- *
- * Revision 2.11  1995/02/25  21:54:02  root
- * *** empty log message ***
- *
- * Revision 2.10  1995/02/05  16:54:12  root
- * *** empty log message ***
- *
- * Revision 2.9  1995/01/14  15:31:41  root
- * New Year checkin.
- *
- * Revision 2.8  1994/10/14  18:02:48  root
- * Prep for pre53_27.tgz
- *
- * Revision 2.7  1994/08/05  22:31:46  root
- * Prep dir pre53_10.
- *
- * Revision 2.6  1994/07/26  01:13:20  root
- * prep for pre53_6.
- *
- * Revision 2.5  1994/07/09  14:30:45  root
- * prep for pre53_3.
- *
- * Revision 2.4  1994/06/27  02:17:03  root
- * Prep for pre53
- *
- * Revision 2.3  1994/06/24  14:52:04  root
- * Lutz's patches against DPMI
- *
- * Revision 2.2  1994/06/17  00:14:41  root
- * Let's wrap it up and call it DOSEMU0.52.
- *
- * Revision 2.1  1994/06/12  23:18:03  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 2.1  1994/06/12  23:18:03  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.18  1994/05/26  23:17:03  root
- * Prep. for pre51_21.
- *
- * Revision 1.17  1994/05/24  01:24:25  root
- * Lutz's latest, int_queue_run() update.
- *
- * Revision 1.16  1994/05/21  23:40:51  root
- * PRE51_19.TGZ with Lutz's latest updates.
- *
- * Revision 1.15  1994/04/30  01:07:41  root
- * Lutz's Latest.
- *
- * Revision 1.14  1994/04/27  23:58:51  root
- * Lutz's patches.
- *
- * Revision 1.12  1994/04/16  01:33:52  root
- * Lutz's updates.
- *
- * Revision 1.11  1994/04/13  00:11:50  root
- * Lutz's patches
- *
- * Revision 1.10  1994/04/09  18:47:20  root
- * Lutz's latest.
- *
- * Revision 1.9  1994/04/07  00:19:50  root
- * Lutz's latest.
- *
- * Revision 1.8  1994/03/23  23:26:31  root
- * Diffs from Lutz
- *
- * Revision 1.7  1994/03/15  01:38:57  root
- * DPMI updates
- *
- * Revision 1.6  1994/03/10  23:53:36  root
- * Lutz patches for DPMI
- *
- * Revision 1.5  1994/03/04  00:03:08  root
- * Lutz does DPMI :-)
- *
- * Revision 1.4  1994/02/21  20:30:25  root
- * Dpmi updates.
- *
- * Revision 1.3  1994/01/25  20:10:27  root
- * Added set_ldt_entry() work.
- *
- * Revision 1.2  1994/01/20  21:18:50  root
- * Indent. More preliminaries on DPMI.
- *
- * Revision 1.1  1994/01/19  18:23:49  root
- * Initial revision
  *
  */
 
 #define DPMI_C
 
+#include "config.h"
 #if defined(REQUIRES_EMUMODULE)	/* Don't change this, it requires new */
 				/* kernel ldt-alias support */
 #define KERNEL_LDTALIAS
@@ -241,7 +147,9 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 extern dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 
+#ifndef lint
 static char RCSdpmi[] = "$Header: /usr/src/dosemu0.60/dpmi/RCS/dpmi.c,v 1.2 1995/05/06 16:25:48 root Exp root $";
+#endif
 
 static int DPMIclient_is_32 = 0;
 static unsigned short DPMI_private_data_segment;
@@ -1695,7 +1603,9 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     D_printf("DPMI: leaving DPMI with error code 0x%02x\n",_LO(ax));
     quit_dpmi(scp, _LO(ax));
   } else if (i == 0x31) {
-    D_printf("DPMI: int31, ax=%04x\n", _LWORD(eax));
+    D_printf("DPMI: int31, ax=%04x ,ebx=%08lx ,ecx=%08lx ,edx=%08lx\n",
+	     _LWORD(eax),_ebx,_ecx,_edx);
+    D_printf("             edi=%08lx ,esi=%08lx\n",_edi,_esi);
     return do_int31(scp, _LWORD(eax));
   } else {
     save_rm_regs();

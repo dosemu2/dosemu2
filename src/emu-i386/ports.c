@@ -1,3 +1,5 @@
+#include "config.h"
+
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
 #ifdef X_SUPPORT
@@ -24,6 +26,7 @@
 #include "mouse.h"
 #include "serial.h"
 #include "xms.h"
+#include "keyboard.h"
 #include "timers.h"
 #include "cmos.h"
 #include "memory.h"
@@ -66,13 +69,15 @@
 extern void set_leds(void);
 /* FIXME -- move to common header */
 extern int s3_8514_base;
-static u_short microsoft_port_check = 0;
 
 /*
- * DANG_BEGIN_FUNCTION inb(int port)
+ * DANG_BEGIN_FUNCTION inb
  *
  * description:
  *  INB is used to do controlled emulation of input from ports.
+ *
+ * arguments:
+ *  port - port to input from.
  *
  * DANG_END_FUNCTION
  */
@@ -81,7 +86,6 @@ inb(unsigned int port)
 {
 
   static unsigned int cga_r = 0;
-  static unsigned int tmp = 0;
   static unsigned int r;
 
   r = 0;
@@ -101,23 +105,11 @@ inb(unsigned int port)
     v_printf("HGC Portread: %d\n", (int) port);
     switch (port) {
     case 0x03b8:		/* mode-reg */
-#ifdef OLD_PORT
-      set_ioperm(port, 1, 1);
-      r = port_in(port);
-      set_ioperm(port, 1, 0);
-#else
 	r = safe_port_in_byte(port);
-#endif
       r = (r & 0x7f) | (hgc_Mode & 0x80);
       break;
     case 0x03ba:		/* status-reg */
-#ifdef OLD_PORT
-      set_ioperm(port, 1, 1);
-      r = port_in(port);
-      set_ioperm(port, 1, 0);
-#else
 	r = safe_port_in_byte(port);
-#endif
       break;
     case 0x03bf:		/* conf-reg */
       set_ioperm(port, 1, 1);
@@ -127,13 +119,7 @@ inb(unsigned int port)
       break;
     case 0x03b4:		/* adr-reg */
     case 0x03b5:		/* data-reg */
-#ifdef OLD_PORT
-      set_ioperm(port, 1, 1);
-      r = port_in(port);
-      set_ioperm(port, 1, 0);
-#else
 	r = safe_port_in_byte(port);
-#endif
       break;
     }
   }
@@ -150,43 +136,18 @@ inb(unsigned int port)
   else switch (port) {
   case 0x20:
   case 0x21:
-    r = read_pic0(port-0x20);
-    break;
   case 0xa0:
   case 0xa1:
-    r = read_pic1(port-0xa0);
-    break; 
   case 0x60:
-    if (keys_ready) microsoft_port_check = 0;
-    k_printf("direct 8042 0x60 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
-    if (microsoft_port_check)
-      r = microsoft_port_check;
-    else
-      r = *LASTSCAN_ADD;
-      keys_ready = 0;
-    break;
-
   case 0x61:
-    r = read_port61();
-    break;
-
   case 0x64:
-    r = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
-    k_printf("direct 8042 0x64 status check: 0x%02x keys_ready=%d, microsoft=%d\n", tmp, keys_ready, microsoft_port_check);
-    break;
-
   case 0x70:
   case 0x71:
-    r = cmos_read(port);
-    break;
-
   case 0x40:
   case 0x41:
   case 0x42:
-    r = pit_inp(port - 0x40);
-    break;
   case 0x43:
-    r = pit_control_inp();
+    r = port_inb((u_int)port);
     break;
 
   case 0x3ba:
@@ -204,17 +165,44 @@ inb(unsigned int port)
   case 0x3db:			/* light pen strobe reset, 0 by default */
     break;
     
+  case 0x2e8:
+  case 0x2e9:
+  case 0x2ea:
+  case 0x2eb:
+  case 0x2ec:
+  case 0x2ed:
+  case 0x2ee:
+  case 0x2ef:
+  case 0x3e8:
+  case 0x3e9:
+  case 0x3ea:
+  case 0x3eb:
+  case 0x3ec:
+  case 0x3ed:
+  case 0x3ee:
+  case 0x3ef:
+  case 0x2f8:
+  case 0x2f9:
+  case 0x2fa:
+  case 0x2fb:
+  case 0x2fc:
+  case 0x2fd:
+  case 0x2fe:
+  case 0x2ff:
+  case 0x3f8:
+  case 0x3f9:
+  case 0x3fa:
+  case 0x3fb:
+  case 0x3fc:
+  case 0x3fd:
+  case 0x3fe:
+  case 0x3ff:
+    r = port_inb((u_int)port);
+    break;
   default:
-    r=0x00;
-    /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
-    for (tmp = 0; tmp < config.num_ser; tmp++)
-      if ((port & ~7) == com[tmp].base_port) {
-	r = do_serial_in(tmp, port);
-	break;
-      }
 
     /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == sound_base) {r=sb_read(port & SOUND_IO_MASK2);};
+    if ((port & SOUND_IO_MASK) == SOUND_BASE) {r=sb_read(port & SOUND_IO_MASK2);};
     /* It seems that we might need 388, but this is write-only, at least in the
        older chip... */
 
@@ -271,7 +259,6 @@ void
 outb(unsigned int port, unsigned int byte)
 {
   static int lastport = 0;
-  static unsigned int tmp = 0;
 
   port &= 0xffff;
   byte &= 0xff;
@@ -418,54 +405,55 @@ outb(unsigned int port, unsigned int byte)
   switch (port) {
   case 0x20:
   case 0x21:
-    write_pic0(port-0x20,byte);
-    break;
   case 0x60:
-    k_printf("keyboard 0x60 outb = 0x%x\n", byte);
-    microsoft_port_check = 1;
-    if (byte < 0xf0) {
-      microsoft_port_check = 0xfe;
-    }
-    else {
-      microsoft_port_check = 0xfa;
-    }
-    break;
   case 0x64:
-    k_printf("keyboard 0x64 outb = 0x%x\n", byte);
-    break;
   case 0x61:
-    write_port61(byte);
-    break;
   case 0x70:
   case 0x71:
-    cmos_write(port, byte);
-    break;
   case 0xa0:
   case 0xa1:
-    write_pic1(port-0xa0,byte);
-    break;
   case 0x40:
   case 0x41:
   case 0x42:
-    pit_outp(port - 0x40, byte);
-    break;
   case 0x43:
-    pit_control_outp(byte);
+  case 0x2e8:
+  case 0x2e9:
+  case 0x2ea:
+  case 0x2eb:
+  case 0x2ec:
+  case 0x2ed:
+  case 0x2ee:
+  case 0x2ef:
+  case 0x3e8:
+  case 0x3e9:
+  case 0x3ea:
+  case 0x3eb:
+  case 0x3ec:
+  case 0x3ed:
+  case 0x3ee:
+  case 0x3ef:
+  case 0x2f8:
+  case 0x2f9:
+  case 0x2fa:
+  case 0x2fb:
+  case 0x2fc:
+  case 0x2fd:
+  case 0x2fe:
+  case 0x2ff:
+  case 0x3f8:
+  case 0x3f9:
+  case 0x3fa:
+  case 0x3fb:
+  case 0x3fc:
+  case 0x3fd:
+  case 0x3fe:
+  case 0x3ff:
+    port_outb((u_int)port, (u_char)byte);
+    lastport = port;
     break;
-
   default:
-    /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
-    /* The base serial port must be a multiple of 8. */
-    for (tmp = 0; tmp < config.num_ser; tmp++) {
-      if ((port & ~7) == com[tmp].base_port) {
-	do_serial_out(tmp, port, byte);
-	lastport = port;
-	return;
-      }
-    }
-
     /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == sound_base) {sb_write(port & SOUND_IO_MASK2, byte);};
+    if ((port & SOUND_IO_MASK) == SOUND_BASE) {sb_write(port & SOUND_IO_MASK2, byte);};
     if ((port & ~3) == 388) {fm_write(port & 3, byte);};
 
     /* DMA I/O */

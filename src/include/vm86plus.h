@@ -2,7 +2,7 @@
 #define _LINUX_VM86PLUS_H
 
 #ifdef __linux__
-#include <linux/vm86.h>
+#include <sys/vm86.h>
 
 #define VM86PLUS_MAGIC 0x4d564544 /* = "DEVM" */
 

@@ -24,6 +24,8 @@
 #include <unistd.h>                      /* prototype for stat() */
 #include <stdarg.h>
 #include <pwd.h>
+#include <syslog.h>
+#include <string.h>
 #ifdef __linux__
 #include <mntent.h>
 #endif
@@ -44,6 +46,7 @@
 #include "serial.h"
 #include "timers.h"
 #include "keymaps.h"
+#include "memory.h"
 
 static serial_t *sptr;
 static serial_t nullser;
@@ -108,6 +111,8 @@ static void start_floppy(void);
 static void stop_disk(int token);
 static FILE* open_file(char* filename);
 static void close_file(FILE* file);
+static void write_to_syslog(char *message);
+static void mail_to_root(char *subject, char *message);
 static void parse_dosemu_users(void);
 static int set_hardware_ram(int addr);
 static void set_irq_value(int bits, int i1);
@@ -1186,7 +1191,7 @@ static void stop_disk(int token)
 #ifdef __linux__
     mtab = NULL;
     if ((f = setmntent(MOUNTED, "r")) != NULL) {
-      while (mtab = getmntent(f))
+      while ((mtab = getmntent(f)))
         if (!strcmp(dptr->dev_name, mtab->mnt_fsname)) break;
       endmntent(f);
     }
@@ -1551,7 +1556,28 @@ static void close_file(FILE * file)
     }
 }
 
+/* write_to_syslog */
+static void write_to_syslog(char *message)
+{
+  openlog("dosemu", LOG_PID, LOG_USER | LOG_NOTICE);
+  syslog(LOG_PID | LOG_USER | LOG_NOTICE, message);
+  closelog();
+}
+
+/* mail_to_root */
+static void mail_to_root(char *subject, char *message)
+{
+  char buf[256];
+  sprintf(buf, "echo \"%s\" | mail -s \"%s\" root", message, subject);
+  system(buf);
+}
+
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
+/* Jan-17-1996: Erik Mouw (J.A.K.Mouw@et.tudelft.nl)
+ *  - fixed securety bug: the euid (effective user ID) has to be checked
+ *    against the /etc/dosemu.users file, not the uid! (uid=root!!!)
+ *  - added logging facilities
+ */
 static void
 parse_dosemu_users(void)
 {
@@ -1563,39 +1589,104 @@ parse_dosemu_users(void)
   char buf[PBUFLEN];
   int userok = 0;
   char ustr[PBUFLEN];
+  int log_mail=0;
+  int log_syslog=0;
 
+  /* Get the log level*/
+  if((fp = open_file(DOSEMU_LOGLEVEL_FILE)))
+     {
+       while (!feof(fp))
+	 {
+	   fgets(buf, PBUFLEN, fp);
+	   if(buf[0]!='#')
+	     {
+	       if(strstr(buf, "mail_error")!=NULL)
+		 log_mail=1;
+	       else if(strstr(buf, "mail_always")!=NULL)
+		 log_mail=2;
+	       else if(strstr(buf, "syslog_error")!=NULL)
+		 log_syslog=1;
+	       else if(strstr(buf, "syslog_always")!=NULL)
+		 log_syslog=2;
+	     }
+	 }
+       fclose(fp);
+     }
+
+  /* uid=root, euid=user. We want to test if the _user_ is allowed to run */
+  /* Dosemu, so check if the username connected to the euid is in the     */
+  /* DOSEMU_USERS_FILE file (usually /etc/dosemu.users).                  */
+   
   /* Sanity Check, Shouldn't be anyone logged in without a userid */
-  if ((pwd = getpwuid(getuid())) == (struct passwd *)0) {
-    fprintf(stderr, "Illegal User!!!\n");
-    exit(1);
-  }
+  if((pwd = getpwuid(geteuid())) == (struct passwd *)0) 
+     {
+       fprintf(stderr, "Illegal User!!!\n");
+       sprintf(buf, "Illegal DOSEMU user: uid=%i", geteuid());
+       mail_to_root("Illegal user", buf);
+       write_to_syslog(buf);
+       exit(1);
+     }
 
-  if (getuid() != 0) {
-        if ((fp = open_file(DOSEMU_USERS_FILE))) {
-                for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
-                   sscanf(buf,"%s",ustr);   /* cut off newline at end */
-		   if (strcmp(ustr, pwd->pw_name)== 0) userok = 1;
-		   else
-		     if (strcmp(ustr, ALL_USERS)== 0) userok = 1;
+  if (geteuid() != 0)
+     {
+       if ((fp = open_file(DOSEMU_USERS_FILE)))
+	 {
+	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) 
+	     {
+	       sscanf(buf,"%s",ustr);   /* cut off newline at end */
+	       if (strcmp(ustr, pwd->pw_name)== 0) 
+		 userok = 1;
+	       else if (strcmp(ustr, ALL_USERS)== 0)
+		 userok = 1;
+	     }
+	 } 
+       else 
+	 {
+	   fprintf(stderr,
+		   "Cannot open %s, Please check installation via System Admin.\n",
+		   DOSEMU_USERS_FILE);
+	   fprintf(stdout,
+		   "Cannot open %s, Please check installation via System Admin.\n",
+		   DOSEMU_USERS_FILE);
+	 }
+       fclose(fp);
+     }
+   else
+     userok=1;  /* This must be root, so always allow DOSEMU start */
 
-                }
-        } else {
-		fprintf(stderr,
-   "Cannot open %s, Please check installation via System Admin.\n",
-				DOSEMU_USERS_FILE);
-		fprintf(stdout,
-   "Cannot open %s, Please check installation via System Admin.\n",
-				DOSEMU_USERS_FILE);
-		exit(1);
-        }
-        fclose(fp);
-        if (!userok) {
-           	fprintf(stderr,
-   "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
-                                pwd->pw_name);
-		exit(1);
-        }
-   } 
+  if(userok==0) 
+     {
+       fprintf(stderr,
+	       "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
+	       pwd->pw_name);
+
+       sprintf(buf, "Illegal DOSEMU start attempt by %s (uid=%i)", 
+       pwd->pw_name, geteuid());
+            
+       if(log_syslog>=1)
+         {
+	   fprintf(stderr, "This event will be logged!\n");
+	   write_to_syslog(buf);
+	 }
+	 
+       if(log_mail>=1)
+         {
+	   fprintf(stderr, "This event will be reported to root!\n");
+	   mail_to_root("Illegal DOSEMU start", buf);
+	 }
+            
+       exit(1);
+     }
+  else
+     {
+       sprintf(buf, "DOSEMU start by %s (uid=%i)", pwd->pw_name, geteuid());
+            
+       if(log_syslog>=2)
+         write_to_syslog(buf);
+
+       if(log_mail>=2)
+	 mail_to_root("DOSEMU start", buf);
+     }
 }
 
 int

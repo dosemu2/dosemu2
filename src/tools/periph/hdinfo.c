@@ -21,37 +21,6 @@
  * $Revision: 2.3 $
  * $State: Exp $
  *
- * $Log: hdinfo.c,v $
- * Revision 2.3  1995/02/25  22:38:25  root
- * *** empty log message ***
- *
- * Revision 2.2  1994/06/17  00:14:24  root
- * Let's wrap it up and call it DOSEMU0.52.
- *
- * Revision 2.2  1994/06/17  00:14:24  root
- * Let's wrap it up and call it DOSEMU0.52.
- *
- * Revision 2.1  1994/06/12  23:17:32  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 2.1  1994/06/12  23:17:32  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.4  1994/03/13  21:53:19  root
- * -Wall fixes.
- *
- * Revision 1.3  1994/01/20  21:18:35  root
- * Indent.
- *
- * Revision 1.2  1993/11/30  21:27:27  root
- * Freeze before 0.49pl3
- *
- * Revision 1.1  1993/11/12  12:41:41  root
- * Initial revision
- *
- * Revision 1.1  1993/07/07  21:20:03  root
- * Initial revision
- *
  */
 
 #include <string.h>

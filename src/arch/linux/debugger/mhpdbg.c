@@ -24,8 +24,9 @@
 #endif
 #include <asm/bitops.h>
 
-#include "cpu.h"
+#include "config.h"
 #include "emu.h"
+#include "cpu.h"
 #include "shared.h"
 
 #define MHP_PRIVATE

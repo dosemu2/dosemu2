@@ -27,77 +27,13 @@
  * $State: Exp $
  *
  * $Log: timers.c,v $
- * Revision 2.6  1995/05/06  16:25:30  root
- * Prep for 0.60.2.
- *
- * Revision 2.5  1995/04/08  22:30:40  root
- * Release dosemu0.60.0
- *
- * Revision 2.4  1995/02/25  22:37:51  root
- * *** empty log message ***
- *
- * Revision 2.3  1995/01/14  15:29:17  root
- * New Year checkin.
- *
- * Revision 2.3  1995/01/14  15:29:17  root
- * New Year checkin.
- *
- * Revision 2.2  1994/09/22  23:51:57  root
- * Prep for pre53_21.
- *
- * Revision 2.1  1994/06/12  23:15:37  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.6  1994/03/13  01:07:31  root
- * Poor attempts to optimize.
- *
- * Revision 1.5  1994/03/04  15:23:54  root
- * Run through indent.
- *
- * Revision 1.4  1994/01/20  21:14:24  root
- * Indent.
- *
- * Revision 1.3  1993/11/29  00:05:32  root
- * *** empty log message ***
- *
- * Revision 1.2  1993/11/23  22:24:53  root
- * *** empty log message ***
- *
- * Revision 1.1  1993/11/12  12:32:17  root
- * Initial revision
- *
- * Revision 1.1  1993/07/07  00:49:06  root
- * Initial revision
- *
- * Revision 1.7  1993/05/04  05:29:22  root
- * added console switching, new parse commands, and serial emulation
- *
- * Revision 1.6  1993/04/05  17:25:13  root
- * big pre-49 checkit; EMS, new MFS redirector, etc.
- *
- * Revision 1.5  1993/03/02  03:06:42  root
- * somewhere between 0.48pl1 and 0.49 (with IPC).  added virtual IOPL
- * and AC support (for 386/486 tests), -3 and -4 flags for choosing.
- * Split dosemu into 2 processes; the child select()s on the keyboard,
- * and signals the parent when a key is received (also sends it on a
- * UNIX domain socket...this might not work well for non-console keyb).
- *
- * Revision 1.4  1993/02/24  11:33:24  root
- * some general cleanups, fixed the key-repeat bug.
- *
- * Revision 1.3  1993/02/18  19:35:58  root
- * just added newline so diff wouldn't barf
- *
- * Revision 1.2  1993/02/16  00:21:29  root
- * DOSEMU 0.48 DISTRIBUTION
- *
- * Revision 1.1  1993/02/13  23:37:20  root
- * Initial revision
  *
  */
 
 #include <sys/time.h>
+#include "config.h"
 #include "emu.h"
+#include "port.h"
 #include "timers.h"
 #include "port.h"
 #include "int.h"
@@ -105,27 +41,18 @@
 
 #define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
 
-typedef struct {
-  short          read_state;
-  short          write_state;
-  int            mode;
-  int            read_latch;
-  int            write_latch;
-  long           cntr;
-  struct timeval time;
-} pit_latch_struct;
-
-static pit_latch_struct pit[3];   /* values of 3 PIT counters */
+pit_latch_struct pit[3];   /* values of 3 PIT counters */
 
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
-static int    port61 = 0x0e;      /* Speaker control */
+extern int    port61;
 
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
  *
- * description:  ensure the 0x40 port timer is initially set correctly
+ * description:  
+ * ensure the 0x40 port timer is initially set correctly
  *
  * DANG_END_FUNCTION
  */
@@ -281,9 +208,10 @@ static void pit_latch(int latch)
 #endif
 }
 
-int pit_inp(int port)
+u_char pit_inp(u_int port)
 {
   int ret = 0;
+  port -= 0x40;
 
   if (port == 2 && config.speaker == SPKR_NATIVE) {
     return safe_port_in_byte(0x42);
@@ -320,9 +248,10 @@ int pit_inp(int port)
   return ret;
 }
 
-void pit_outp(int port, int val)
+void pit_outp(u_int port, u_char val)
 {
 
+  port -= 0x40;
   if (port == 1)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");
   else if (port == 2 && config.speaker == SPKR_NATIVE) {
@@ -377,17 +306,17 @@ void pit_outp(int port, int val)
   }
 }
 
-int pit_control_inp()
+u_char pit_control_inp(u_int port)
 {
   return 0;
 }
 
-void pit_control_outp(int val)
+void pit_control_outp(u_int port, u_char val)
 {
   int latch = (val >> 6) & 0x03;
 
 #if 0
-  i_printf("PORT: outp(43, 0x%x)\n",val);
+  i_printf("PORT: outp(0x43, 0x%x)\n",val);
 #endif
 
   switch (latch) {
@@ -421,32 +350,6 @@ void pit_control_outp(int val)
 	if (val & 0x02) pit[0].mode |= 0x80;
 	if (val & 0x04) pit[1].mode |= 0x80;
 	if (val & 0x08) pit[2].mode |= 0x80;
-      }
-      break;
-  }
-}
-
-int read_port61()
-{
-  if (config.speaker == SPKR_NATIVE)
-    port61 = safe_port_in_byte(0x61);
-
-  return port61;
-}
-
-void write_port61(int byte)
-{
-  port61 = byte & 0x0f;
-
-  switch (config.speaker) {
-    case SPKR_NATIVE:
-      safe_port_out_byte(0x61, byte & 0x03);
-      break;
-
-    case SPKR_EMULATED:
-      if (((byte & 3) == 3) && (pit[2].mode == 2 || pit[2].mode == 3)) {
-	i_printf("PORT: emulated beep!\n");
-	putchar('\007');
       }
       break;
   }
@@ -510,4 +413,72 @@ void timer_int_engine(void)
  do_irq();
 }
 
+void pit_init(void)
+{
+  emu_iodev_t  io_device;
+
+  /* 8254 PIT (Programmable Interval Timer) */
+  io_device.read_portb   = pit_inp;
+  io_device.write_portb  = pit_outp;
+  io_device.read_portw   = NULL;
+  io_device.write_portw  = NULL;
+  io_device.handler_name = "8254 PIT";
+  io_device.start_addr   = 0x0040;
+  io_device.end_addr     = 0x0042;
+  io_device.irq          = 0;
+  port_register_handler(io_device);
+  io_device.read_portb   = pit_control_inp;
+  io_device.write_portb  = pit_control_outp;
+  io_device.start_addr   = 0x0043;
+  io_device.end_addr     = 0x0043;
+  port_register_handler(io_device);
+#if 0
+  io_device.start_addr   = 0x0047;
+  io_device.end_addr     = 0x0047;
+  port_register_handler(io_device);
+#endif
+}
+
+void pit_reset(void)
+{
+  struct timeval cur_time;
+
+  gettimeofday(&cur_time, NULL);
+
+  pit[0].mode        = 3;
+  pit[0].cntr        = 0x10000;
+  pit[0].time        = cur_time;
+  pit[0].read_latch  = 0xffffffff;
+  pit[0].write_latch = 0;
+  pit[0].read_state  = 3;
+  pit[0].write_state = 3;
+
+  pit[1].mode        = 2;
+  pit[1].cntr        = 18;
+  pit[1].time        = cur_time;
+  pit[1].read_latch  = 0xffffffff;
+  pit[1].write_latch = 18;
+  pit[1].read_state  = 3;
+  pit[1].write_state = 3;
+
+  pit[2].mode        = 0;
+  pit[2].cntr        = 0x10000;
+  pit[2].time        = cur_time;
+  pit[2].read_latch  = 0xffffffff;
+  pit[2].write_latch = 0;
+  pit[2].read_state  = 3;
+  pit[2].write_state = 3;
+
+  pit[3].mode        = 0;
+  pit[3].cntr        = 0x10000;
+  pit[3].time        = cur_time;
+  pit[3].read_latch  = 0xffffffff;
+  pit[3].write_latch = 0;
+  pit[3].read_state  = 3;
+  pit[3].write_state = 3;
+
+#if 0
+  timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
+#endif
+}
 #endif

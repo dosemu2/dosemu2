@@ -222,8 +222,8 @@ io_select(fd_set fds)
 /*
  * DANG_BEGIN_FUNCTION io_select_init
  * 
- * description: Initialize fd_sets to NULL for both SIGIO and
- * NON-SIGIO.
+ * description: 
+ * Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
  * 
  * DANG_END_FUNCTION
  */
@@ -236,10 +236,12 @@ io_select_init(void) {
 /*
  * DANG_BEGIN_FUNCTION add_to_io_select
  * 
- * arguments: fd - File handle to add to select statment. want_sigio -
- * Specifiy whether you want SIGIO (1) if it's available, or not (0).
+ * arguments: 
+ * fd - File handle to add to select statment
+ * want_sigio - want SIGIO (1) if it's available, or not (0).
  * 
- * description: Add file handle to one of 2 select FDS_SET's depending on
+ * description: 
+ * Add file handle to one of 2 select FDS_SET's depending on
  * whether the kernel can handle SIGIO.
  * 
  * DANG_END_FUNCTION
@@ -264,10 +266,12 @@ add_to_io_select(int new_fd, u_char want_sigio)
 /*
  * DANG_BEGIN_FUNCTION remove_from_io_select
  * 
- * arguments: fd - File handle to remove from select statment. used_sigio -
- * Specifiy whether you used SIGIO (1) if it's available, or not (0).
+ * arguments: 
+ * fd - File handle to remove from select statment. 
+ * used_sigio - used SIGIO (1) if it's available, or not (0).
  * 
- * description: Remove a file handle from one of 2 select FDS_SET's depending
+ * description: 
+ * Remove a file handle from one of 2 select FDS_SET's depending
  * on whether the kernel can handle SIGIO.
  * 
  * DANG_END_FUNCTION

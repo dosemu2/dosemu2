@@ -164,7 +164,7 @@ typedef struct
 /* **************** General mode data **************** */
 
 /* Table with video mode definitions */
-const vga_mode_info vga_mode_table[]=
+vga_mode_info vga_mode_table[]=
 {
   /* The standard CGA/EGA/MCGA/VGA modes */
   {0x00,   TEXT,   360,  400,   9, 16,   40, 25,   16,  0xb8000,  0x8000,  TEXT},

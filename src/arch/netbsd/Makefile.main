@@ -167,10 +167,6 @@ ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
 CFILES=emu.c dos.c $(X2CFILES) data.c dosstatic.c
 
-# For testing the internal IPX code
-# IPX = dosext/net/ipxutils
-
-
 #export USING_NET = -DUSING_NET
 #ifdef USING_NET
 #export NET=dosext/net/net
@@ -183,20 +179,12 @@ CFILES=emu.c dos.c $(X2CFILES) data.c dosstatic.c
 
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\" 
 DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
-
-###################################################################
-#
-#  Section for Client areas (why not?)
-#
-###################################################################
-
-CLIENTSSUB=clients
+DOSEMU_LOGLEVEL_FILE = -DDOSEMU_LOGLEVEL_FILE=\"/etc/dosemu.loglevel\"
 
 ifndef REQUIRES_EMUMODULE
-OPTIONALSUBDIRS = dosext/net/v-net arch/$(ARCH)/syscallmgr arch/$(ARCH)/emumod\
-	dosext/net/ipxutils
+OPTIONALSUBDIRS = dosext/net/v-net arch/$(ARCH)/syscallmgr arch/$(ARCH)/emumod
 else
-OPTIONALSUBDIRS = dosext/net/v-net dosext/net/ipxutils
+OPTIONALSUBDIRS = dosext/net/v-net
 endif
 
 LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
@@ -205,9 +193,6 @@ LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	base/init base/serial base/keyboard base/mouse\
 	base/dev/dma dosext/sound \
 	$(DEBUGGER) $(NET) $(IPX) dosext/drivers base/bios
-
-SUBDIRS= include unused/boot \
-	$(CLIENTSSUB) unused/kernel
 
 ifndef REQUIRES_EMUMODULE
 REQUIRED=tools commands tools/periph
@@ -245,7 +230,7 @@ LIBPATH=lib
 
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
-CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
+CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE) $(DOSEMU_LOGLEVEL_FILE)
 DEBUG      = $(SYNC_ALOT)
 CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) -DLIBSTART=$(LIBSTART) \
 	     -DVERSION=$(VERSION) -DSUBLEVEL=$(SUBLEVEL) \
@@ -527,9 +512,6 @@ else
 		sort > $(BINPATH)/bin/dosemu.map
 endif
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
-	@for i in $(SUBDIRS); do \
-		(cd $$i && echo $$i && $(MAKE) install) || exit; \
-	done
 	@install -c -o root -m 04755 $(BINPATH)/bin/dos /usr/bin
 ifdef  USE_MHPDBG
 	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug /usr/bin
@@ -602,11 +584,11 @@ include Makefile.common
 
 checkin::
 	-ci -l -M $(CFILES) $(HFILES) $(SFILES) $(OFILES)
-	@for i in $(LIBS) $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
+	@for i in $(LIBS) ; do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
 
 checkout::
 	-co -M -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
-	@for i in $(LIBS) $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
+	@for i in $(LIBS) ; do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
 dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)
@@ -614,7 +596,7 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
 	cp -a hddummy $(DISTPATH)/hddummy
-	@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(DOCS) ipxutils $(OPTIONALSUBDIRS); do \
+	@for i in $(REQUIRED) $(LIBS) $(DOCS) $(OPTIONALSUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
@@ -633,7 +615,7 @@ clean::	local_clean
 
 realclean::   local_realclean local_clean
 
-DIRLIST=$(REQUIRED) $(DOCS) $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS)
+DIRLIST=$(REQUIRED) $(DOCS) $(LIBS) $(OPTIONALSUBDIRS)
 CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
 REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
 

@@ -44,6 +44,7 @@ void dpmi_fault(struct sigcontext *, int);
 #endif
 void dpmi_realmode_hlt(unsigned char *);
 void run_pm_int(int);
+void run_pm_mouse();
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \

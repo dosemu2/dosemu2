@@ -18,8 +18,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <asm/bitops.h>
-#include "cpu.h"
+#include "config.h"
 #include "emu.h"
+#include "cpu.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -296,9 +297,9 @@ static void mhp_rmapfile(int argc, char *argv[])
 }
 
 enum { 
-   _SS, _CS, _DS, _ES, _FS, _GS,
-   _AX, _BX, _CX, _DX, _SI, _DI, _BP, _SP, _IP, _FL,
-  _EAX,_EBX,_ECX,_EDX,_ESI,_EDI,_EBP,_ESP,_EIP
+   _SSr, _CSr, _DSr, _ESr, _FSr, _GSr,
+   _AXr, _BXr, _CXr, _DXr, _SIr, _DIr, _BPr, _SPr, _IPr, _FLr,
+  _EAXr,_EBXr,_ECXr,_EDXr,_ESIr,_EDIr,_EBPr,_ESPr,_EIPr
 };
 
 static int decode_symreg(char *regn)
@@ -317,31 +318,31 @@ static int decode_symreg(char *regn)
 static unsigned long mhp_getreg(unsigned char * regn)
 {
   switch (decode_symreg(regn)) {
-    case _SS: return LWORD(ss);
-    case _CS: return LWORD(cs);
-    case _DS: return LWORD(ds);
-    case _ES: return LWORD(es);
-    case _FS: return LWORD(fs);
-    case _GS: return LWORD(gs);
-    case _AX: return LWORD(eax);
-    case _BX: return LWORD(ebx);
-    case _CX: return LWORD(ecx);
-    case _DX: return LWORD(edx);
-    case _SI: return LWORD(esi);
-    case _DI: return LWORD(edi);
-    case _BP: return LWORD(ebp);
-    case _SP: return LWORD(esp);
-    case _IP: return LWORD(eip);
-    case _FL: return LWORD(eflags);
-    case _EAX: return REG(eax);
-    case _EBX: return REG(ebx);
-    case _ECX: return REG(ecx);
-    case _EDX: return REG(edx);
-    case _ESI: return REG(esi);
-    case _EDI: return REG(edi);
-    case _EBP: return REG(ebp);
-    case _ESP: return REG(esp);
-    case _EIP: return REG(eip);
+    case _SSr: return LWORD(ss);
+    case _CSr: return LWORD(cs);
+    case _DSr: return LWORD(ds);
+    case _ESr: return LWORD(es);
+    case _FSr: return LWORD(fs);
+    case _GSr: return LWORD(gs);
+    case _AXr: return LWORD(eax);
+    case _BXr: return LWORD(ebx);
+    case _CXr: return LWORD(ecx);
+    case _DXr: return LWORD(edx);
+    case _SIr: return LWORD(esi);
+    case _DIr: return LWORD(edi);
+    case _BPr: return LWORD(ebp);
+    case _SPr: return LWORD(esp);
+    case _IPr: return LWORD(eip);
+    case _FLr: return LWORD(eflags);
+    case _EAXr: return REG(eax);
+    case _EBXr: return REG(ebx);
+    case _ECXr: return REG(ecx);
+    case _EDXr: return REG(edx);
+    case _ESIr: return REG(esi);
+    case _EDIr: return REG(edi);
+    case _EBPr: return REG(ebp);
+    case _ESPr: return REG(esp);
+    case _EIPr: return REG(eip);
   }
   return -1;
 }
@@ -350,31 +351,31 @@ static unsigned long mhp_getreg(unsigned char * regn)
 static void mhp_setreg(unsigned char * regn, unsigned long val)
 {
   switch (decode_symreg(regn)) {
-    case _SS: LWORD(ss) = val; break;
-    case _CS: LWORD(cs) = val; break;
-    case _DS: LWORD(ds) = val; break;
-    case _ES: LWORD(es) = val; break;
-    case _FS: LWORD(fs) = val; break;
-    case _GS: LWORD(gs) = val; break;
-    case _AX: LWORD(eax) = val; break;
-    case _BX: LWORD(ebx) = val; break;
-    case _CX: LWORD(ecx) = val; break;
-    case _DX: LWORD(edx) = val; break;
-    case _SI: LWORD(esi) = val; break;
-    case _DI: LWORD(edi) = val; break;
-    case _BP: LWORD(ebp) = val; break;
-    case _SP: LWORD(esp) = val; break;
-    case _IP: LWORD(eip) = val; break;
-    case _FL: LWORD(eflags) = val; break;
-    case _EAX: REG(eax) = val; break;
-    case _EBX: REG(ebx) = val; break;
-    case _ECX: REG(ecx) = val; break;
-    case _EDX: REG(edx) = val; break;
-    case _ESI: REG(esi) = val; break;
-    case _EDI: REG(edi) = val; break;
-    case _EBP: REG(ebp) = val; break;
-    case _ESP: REG(esp) = val; break;
-    case _EIP: REG(eip) = val; break;
+    case _SSr: LWORD(ss) = val; break;
+    case _CSr: LWORD(cs) = val; break;
+    case _DSr: LWORD(ds) = val; break;
+    case _ESr: LWORD(es) = val; break;
+    case _FSr: LWORD(fs) = val; break;
+    case _GSr: LWORD(gs) = val; break;
+    case _AXr: LWORD(eax) = val; break;
+    case _BXr: LWORD(ebx) = val; break;
+    case _CXr: LWORD(ecx) = val; break;
+    case _DXr: LWORD(edx) = val; break;
+    case _SIr: LWORD(esi) = val; break;
+    case _DIr: LWORD(edi) = val; break;
+    case _BPr: LWORD(ebp) = val; break;
+    case _SPr: LWORD(esp) = val; break;
+    case _IPr: LWORD(eip) = val; break;
+    case _FLr: LWORD(eflags) = val; break;
+    case _EAXr: REG(eax) = val; break;
+    case _EBXr: REG(ebx) = val; break;
+    case _ECXr: REG(ecx) = val; break;
+    case _EDXr: REG(edx) = val; break;
+    case _ESIr: REG(esi) = val; break;
+    case _EDIr: REG(edi) = val; break;
+    case _EBPr: REG(ebp) = val; break;
+    case _ESPr: REG(esp) = val; break;
+    case _EIPr: REG(eip) = val; break;
   }
 }
 

@@ -1,0 +1,64 @@
+#
+# This is the Makefile for the v-net - subdirectory of the DOS-emulator
+# for Linux.
+#
+
+REALTOPDIR=@REALTOPDIR@
+TOPDIR=@SRCPATH@
+CFLAGS=@CFLAGS@
+LDFAGS=@LDFLAGS@
+CC=@CC@
+
+# If INCDIR exists, it was exported from the master Makefile.
+ifndef INCDIR
+  INCDIR=-I/usr/include/ncurses -I../include -I..
+endif
+
+CFILES = dosnet.c
+HFILES = dosnet.h
+
+# Insert all source- and header-files here.
+
+ALL = $(CFILES) $(HFILES) dosnet.README
+
+# All object-files are included here.
+
+OBJS = dosnet.o
+
+CFLAGS += $(KERNEL2)
+
+all: $(OBJS)
+
+dosnet.o:  dosnet.c
+	$(CC) $(INCDIR) -D__KERNEL__ -Wall -Wstrict-prototypes -O6 \
+	-fomit-frame-pointer  -m486 -c -o dosnet.o dosnet.c 
+
+checkin:
+	-ci -l $(ALL) Makefile
+
+checkout:
+	-co -M -l $(ALL) Makefile
+
+clean:
+	rm -f *.o 
+
+realclean: clean
+	rm -f .depend
+
+install:
+
+dist: $(ALL) Makefile
+	install -d $(DISTPATH)/v-net
+	install -m 0644 $(ALL) Makefile $(DISTPATH)/v-net
+
+depend dep: $(CFILES) $(HFILES)
+	$(CPP) -MM $(CFLAGS) $(CFILES) $(INCDIR) > .depend
+
+dummy:
+
+#
+# include a dependency file if one exists
+#
+ifeq (.depend,$(wildcard .depend))
+include .depend
+endif

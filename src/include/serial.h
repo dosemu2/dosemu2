@@ -41,8 +41,7 @@
  * The 16-byte limitation is emulated, though, for compatibility
  * purposes.  (Although this may be configurable eventually)
  *
- * DANG_FIXTHIS: Why does a RX_BUFFER_SIZE of 256 cause slower
- * performance than a size of 128?
+ * DANG_FIXTHIS Why does a RX_BUFFER_SIZE of 256 cause slower performance than a size of 128?
  */
 #define RX_BUFFER_SIZE            128
 #define TX_BUFFER_SIZE            64

@@ -629,6 +629,7 @@ BOOL do_fwd_mangled_map(char *s, char *MangledMap)
 }
 
 
+#ifndef DOSEMU
 static BOOL do_rev_mangled_map(char *s, char *MangledMap)
 {
   /* Does the reverse of do_fwd_mangled_map().  Look in there for
@@ -707,7 +708,6 @@ static BOOL do_rev_mangled_map(char *s, char *MangledMap)
 }
 
 
-#ifndef DOSEMU
 /****************************************************************************
 search for a name in a directory which when 83 mangled gives the specified
 string

@@ -8,32 +8,6 @@
  * $State: Exp $
  *
  * $Log: mkhdimage.c,v $
- * Revision 2.3  1995/02/25  22:38:27  root
- * *** empty log message ***
- *
- * Revision 2.2  1994/06/17  00:14:24  root
- * Let's wrap it up and call it DOSEMU0.52.
- *
- * Revision 2.2  1994/06/17  00:14:24  root
- * Let's wrap it up and call it DOSEMU0.52.
- *
- * Revision 2.1  1994/06/12  23:17:32  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 2.1  1994/06/12  23:17:32  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.3  1994/03/13  01:08:52  root
- * Poor attempt to optimize.
- *
- * Revision 1.2  1994/01/20  21:18:35  root
- * Indent.
- *
- * Revision 1.1  1993/11/12  12:41:41  root
- * Initial revision
- *
- * Revision 1.1  1993/07/07  21:20:03  root
- * Initial revision
  *
  */
 
