@@ -55,6 +55,7 @@
 #define UART_LCR_WLEN6  0x01	/* Wordlength: 6 bits */
 #define UART_LCR_WLEN7  0x02	/* Wordlength: 7 bits */
 #define UART_LCR_WLEN8  0x03	/* Wordlength: 8 bits */
+#define UART_LCR_PARA   0x1f    /* Parity, Stop bits and Wordlength */
 
 /*
  * These are the definitions for the Line Status Register
@@ -66,20 +67,21 @@
 #define UART_LSR_PE	0x04	/* Parity error indicator */
 #define UART_LSR_OE	0x02	/* Overrun error indicator */
 #define UART_LSR_DR	0x01	/* Receiver data ready */
+#define UART_LSR_ERR    0x1e    /* All the error indicators */
 
 /*
  * These are the definitions for the Interrupt Indentification Register
  */
 #define UART_IIR_NO_INT	0x01	/* No interrupts pending */
-#define UART_IIR_ID	0x0e	/* Mask for the interrupt ID */
 #define UART_IIR_MSI	0x00	/* Modem status interrupt */
 #define UART_IIR_THRI	0x02	/* Transmitter holding register empty */
 #define UART_IIR_RDI	0x04	/* Receiver data interrupt */
-#define UART_IIR_CTI     0x0c	/* Character timeout indication */
+#define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
+#define UART_IIR_CTI    0x0c	/* Character timeout indication */
+#define UART_IIR_ID	0x0e	/* Mask for the interrupt ID */
 #define UART_IIR_FIFO_ENABLE_1 0x40
 #define UART_IIR_FIFO_ENABLE_2 0x80
 #define UART_IIR_FIFO (UART_IIR_FIFO_ENABLE_1|UART_IIR_FIFO_ENABLE_2)
-#define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
 
 /*
  * These are the definitions for the Interrupt Enable Register
@@ -97,6 +99,7 @@
 #define UART_MCR_OUT1	0x04	/* Out1 complement */
 #define UART_MCR_RTS	0x02	/* RTS complement */
 #define UART_MCR_DTR	0x01	/* DTR complement */
+
 /*
  * These are the definitions for the Modem Status Register
  */
@@ -108,10 +111,29 @@
 #define UART_MSR_TERI	0x04	/* Trailing edge ring indicator */
 #define UART_MSR_DDSR	0x02	/* Delta DSR */
 #define UART_MSR_DCTS	0x01	/* Delta CTS */
-#define UART_MSR_ANY_DELTA 0x0F	/* Any of the delta bits! */
+#define UART_MSR_DELTA	0x0F	/* Any of the delta bits! */
+#define UART_MSR_STAT	0xF0	/* Any of the non-delta bits! */
 
 #include <termios.h>
-#include "mutex.h"
+
+/* These are baudrate divisors.  BaudRate = 1843200 / (DIVISOR * 16) */
+#define DIV_50      0x900
+#define	DIV_110     0x417
+#define	DIV_150     0x300
+#define	DIV_300     0x180
+#define	DIV_600     0x0C0
+#define	DIV_1200    0x060
+#define	DIV_1800    0x040
+#define	DIV_2000    0x03A
+#define	DIV_2400    0x030
+#define	DIV_3600    0x020
+#define	DIV_4800    0x018
+#define	DIV_7200    0x010
+#define	DIV_9600    0x00C
+#define	DIV_19200   0x006
+#define	DIV_38400   0x003
+#define	DIV_57600   0x002
+#define	DIV_115200  0x001
 
 /* different types of mice */
 #define MOUSE_MICROSOFT     0
@@ -128,8 +150,10 @@ typedef struct serial_struct {
   int fd;
 
   int dready;
-  u_char in_rxinterrupt;
-  u_char in_txinterrupt;
+  u_char in_rxinterrupt;	/* Receive interrupt flag */
+  u_char in_txinterrupt;	/* Transmit interrupt flag */
+  u_char in_msinterrupt;	/* Modem status interrupt flag */
+  u_char in_lsinterrupt;        /* Line status interrupt flag */
 
   boolean mouse;		/* set if mouse sharing activated */
   int mtype;			/* type of mouse */
@@ -142,7 +166,7 @@ typedef struct serial_struct {
   u_char IER;
   u_char IIR;
   u_char LCR;
-  u_char FCtrlR;
+  u_char FCReg;		/* "FCR" exists somewhere else, so I use "FCReg" */
   u_char MCR;
   u_char LSR;
   u_char MSR;
@@ -154,9 +178,11 @@ typedef struct serial_struct {
   u_char RX_FIFO_END;
   u_char RX_FIFO_TRIGGER_VAL;
   u_char RX_BYTES_IN_FIFO;
+  u_char TX_SHIFT;
   u_char TX_FIFO[16];
   u_char TX_FIFO_START;
   u_char TX_FIFO_END;
+  u_char TX_BYTES_IN_FIFO;
   u_char DLAB;
   struct termios newsettings;
   speed_t newbaud;
@@ -168,5 +194,22 @@ typedef struct serial_struct {
 extern serial_t com[MAX_SER];
 
 #define MAX_SER 2
+
+/* SER_QUEUE_LEN *MUST* be a power of 2 minus one. */
+#define SER_QUEUE_LEN   (1024)
+#define SER_QUEUE_LOOP  (SER_QUEUE_LEN - 1)       /* For speed's sake */
+ 
+struct ser_param {
+  volatile char queue[SER_QUEUE_LEN];
+  volatile int start, end;
+  volatile int num_ints;
+  volatile u_char dready;
+};
+
+typedef struct param_struct {
+  volatile struct ser_param ser[MAX_SER];
+} param_t;
+
+param_t serial_parm, *param;
 
 #endif /* SERIAL_H */

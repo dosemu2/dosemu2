@@ -17,7 +17,7 @@ struct pit {
 
 pit;
 
-unsigned long timer_tick(void), set_ticks(unsigned long);
+void timer_tick(void), set_ticks(unsigned long);
 inline int int28(void);
 
 #define BIOS_TICK_ADDR		(void *)0x46c

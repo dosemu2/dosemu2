@@ -1,12 +1,15 @@
 /* mutex.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.50/RCS/mutex.c,v $
- * $Revision: 1.2 $
+ * $Date: 1994/03/13 01:07:31 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/mutex.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: mutex.c,v $
+ * Revision 1.3  1994/03/13  01:07:31  root
+ * Poor attempt to optimize.
+ *
  * Revision 1.2  1994/01/20  21:14:24  root
  * Indent.
  *
@@ -44,7 +47,7 @@ mutex_init(void)
   return sem;
 }
 
-int
+void
 mutex_deinit(sem_t sem)
 {
   union semun arg;
@@ -52,7 +55,7 @@ mutex_deinit(sem_t sem)
   DOS_SYSCALL(semctl(sem, 0, IPC_RMID, arg));
 }
 
-int
+void
 mutex_get(sem_t sem)
 {
   struct sembuf semoa[1];
@@ -64,7 +67,7 @@ mutex_get(sem_t sem)
   DOS_SYSCALL(semop(sem, semoa, 1));
 }
 
-int
+void
 mutex_release(sem_t sem)
 {
   struct sembuf semoa[1];

@@ -1,11 +1,14 @@
 /* putrom.c; put VBIOS ROM image into /dev/mem (should fail except for weird caches!)
  *
- * $Date: 1994/01/20 21:18:35 $
- * $Source: /home/src/dosemu0.50/periph/RCS/putrom.c,v $
- * $Revision: 1.3 $
+ * $Date: 1994/03/13 01:08:52 $
+ * $Source: /home/src/dosemu0.50pl1/periph/RCS/putrom.c,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: putrom.c,v $
+ * Revision 1.4  1994/03/13  01:08:52  root
+ * Poor attempt to optimize.
+ *
  * Revision 1.3  1994/01/20  21:18:35  root
  * Indent.
  *
@@ -41,7 +44,7 @@
 #define scan(p,s) { int i; volatile u_char j,*jp=&j; for (i=0; i<ROM_SIZE/4096; i++) \
 		      *jp=*((volatile u_char *)p + i*4096); }
 
-int
+void
 main(int argc, char **argv)
 {
   int mem_fd, file_fd, rd;

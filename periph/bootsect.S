@@ -3,7 +3,7 @@
 !   for dosemu 0.49, 4/1/93
 !
 ! $Date: 1993/11/12 12:41:41 $
-! $Source: /home/src/dosemu0.50/periph/RCS/bootsect.S,v $
+! $Source: /home/src/dosemu0.50pl1/periph/RCS/bootsect.S,v $
 ! $Revision: 1.1 $
 ! $State: Exp $
 !

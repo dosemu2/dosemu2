@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/cpu.h,v $
- * $Revision: 1.8 $
+ * $Date: 1994/03/18 23:17:51 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/cpu.h,v $
+ * $Revision: 1.11 $
  * $State: Exp $
  */
 
@@ -30,9 +30,15 @@
 #define LO(reg)  (*(unsigned char *)&REG(e##reg))
 #define HI(reg)  (*((unsigned char *)&REG(e##reg) + 1))
 
+#define _LO(reg) (*(unsigned char *)&(scp->sc_e##reg))
+#define _HI(reg) (*((unsigned char *)&(scp->sc_e##reg) + 1))
+
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
-#define LWORD(reg)      (*((unsigned short *)&REG(reg)))
-#define HWORD(reg)      (*((unsigned short *)&REG(reg) + 1))
+#define LWORD(reg)	(*((unsigned short *)&REG(reg)))
+#define HWORD(reg)	(*((unsigned short *)&REG(reg) + 1))
+
+#define _LWORD(reg)	(*((unsigned short *)&(scp->sc_##reg)))
+#define _HWORD(reg)	(*((unsigned short *)&(scp->sc_##reg) + 1))
 
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
@@ -93,8 +99,8 @@ CPU_EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
-#define CARRY (REG(eflags) |= CF)
-#define NOCARRY (REG(eflags) &= ~CF)
+#define CARRY (LWORD(eflags) |= CF)
+#define NOCARRY (LWORD(eflags) &= ~CF)
 
 typedef struct {
   short eip;
@@ -148,6 +154,7 @@ struct sigcontext_struct {
 #define _eflags	scp->sc_efl
 #define _ss	scp->sc_ss
 
+#ifdef DPMI
 struct pm86 {
   unsigned short gs;
   unsigned short fs;
@@ -162,13 +169,34 @@ struct pm86 {
   unsigned long ecx;
   unsigned long eax;
   unsigned long eflags;
-  unsigned short cs;
-  unsigned short ip;
+  unsigned short cs, __csh;
+  unsigned long eip;
 };
 
-void sigtrap(int, struct sigcontext_struct);
+struct RealModeCallStructure {
+  unsigned long edi;
+  unsigned long esi;
+  unsigned long ebp;
+  unsigned long esp;
+  unsigned long ebx;
+  unsigned long edx;
+  unsigned long ecx;
+  unsigned long eax;
+  unsigned short flags;
+  unsigned short es;
+  unsigned short ds;
+  unsigned short fs;
+  unsigned short gs;
+  unsigned short ip;
+  unsigned short cs;
+  unsigned short sp;
+  unsigned short ss;
+};
+#endif	/* DPMI */
+
+void sigtrap(int);
 void sigill(int, struct sigcontext_struct);
-void sigfpe(int, struct sigcontext_struct);
+void sigfpe(int);
 void sigsegv(int, struct sigcontext_struct);
 
 void show_regs(void), show_ints(int, int);

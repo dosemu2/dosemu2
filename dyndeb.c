@@ -5,7 +5,7 @@ int
 SetDebugFlagsHelper(char *debugStr)
 {
   int i;
-  char value, class;
+  char value;
 
   for (i = 0; i < strlen(debugStr); i = i + 2) {
     value = (debugStr[i] == '-') ? 0 : 1;
@@ -84,7 +84,7 @@ GetDebugFlagsHelper(char *debugStr)
   int i;
 
   dbug_printf("GetDebugFlagsHelper\n");
-  dbug_printf("debugStr at %x\n", debugStr);
+  dbug_printf("debugStr at %x\n", (int)debugStr);
   i = 0;
   if (d.disk)
     debugStr[i++] = '+';

@@ -1,26 +1,28 @@
-bios_emm.o : bios_emm.c config.h emu.h cpu.h machcompat.h 
-cmos.o : cmos.c config.h emu.h cpu.h cmos.h disks.h 
-cpu.o : cpu.c config.h memory.h cpu.h termio.h emu.h video.h 
-disks.o : disks.c config.h emu.h cpu.h disks.h 
+bios_emm.o : bios_emm.c config.h emu.h machcompat.h cpu.h 
+cmos.o : cmos.c config.h emu.h machcompat.h cpu.h cmos.h disks.h 
+cpu.o : cpu.c config.h memory.h cpu.h termio.h emu.h machcompat.h video.h 
+disks.o : disks.c config.h emu.h machcompat.h cpu.h disks.h 
 dos.o : dos.c config.h 
 dosconfig.o : dosconfig.c 
-dosipc.o : dosipc.c config.h memory.h emu.h cpu.h termio.h dosipc.h mutex.h 
-dyndeb.o : dyndeb.c emu.h cpu.h 
-emu.o : emu.c config.h memory.h emu.h cpu.h bios.h termio.h video.h timers.h \
-  cmos.h mouse.h dosipc.h mutex.h disks.h xms.h ipx.h serial.h 
+dosio.o : dosio.c config.h memory.h emu.h machcompat.h cpu.h termio.h dosio.h 
+dyndeb.o : dyndeb.c emu.h machcompat.h cpu.h 
+emu.o : emu.c config.h memory.h emu.h machcompat.h cpu.h bios.h termio.h video.h \
+  timers.h cmos.h mouse.h dosio.h disks.h xms.h ipx.h serial.h 
 ipx.o : ipx.c 
 keymaps.o : keymaps.c config.h 
 libpacket.o : libpacket.c libpacket.h 
-lpt.o : lpt.c emu.h cpu.h dosipc.h mutex.h lpt.h 
-mfs.o : mfs.c mfs.h emu.h cpu.h config.h memory.h 
-mouse.o : mouse.c config.h emu.h cpu.h memory.h video.h mouse.h 
-mutex.o : mutex.c config.h emu.h cpu.h mutex.h 
-parse.o : parse.c config.h emu.h cpu.h disks.h lpt.h video.h serial.h mutex.h 
-pktdrvr.o : pktdrvr.c pktdrvr.h cpu.h emu.h dosipc.h mutex.h 
-serial.o : serial.c config.h cpu.h emu.h dosipc.h mutex.h serial.h 
-termio.o : termio.c config.h memory.h emu.h cpu.h termio.h video.h mouse.h dosipc.h \
-  mutex.h 
-timers.o : timers.c emu.h cpu.h timers.h 
-video.o : video.c config.h emu.h cpu.h memory.h termio.h video.h mouse.h dosipc.h \
-  mutex.h modes.h machcompat.h 
-xms.o : xms.c emu.h cpu.h config.h memory.h xms.h dosipc.h mutex.h machcompat.h 
+lpt.o : lpt.c emu.h machcompat.h cpu.h dosio.h lpt.h 
+mfs.o : mfs.c mfs.h emu.h machcompat.h cpu.h config.h memory.h 
+mouse.o : mouse.c config.h emu.h machcompat.h cpu.h memory.h video.h mouse.h 
+mutex.o : mutex.c config.h emu.h machcompat.h cpu.h mutex.h 
+parse.o : parse.c config.h emu.h machcompat.h cpu.h disks.h lpt.h video.h serial.h 
+pktdrvr.o : pktdrvr.c pktdrvr.h cpu.h emu.h machcompat.h dosio.h 
+prnt.o : prnt.c 
+s3.o : s3.c config.h emu.h machcompat.h cpu.h video.h 
+serial.o : serial.c config.h cpu.h emu.h machcompat.h dosio.h serial.h 
+termio.o : termio.c config.h memory.h emu.h machcompat.h cpu.h termio.h video.h \
+  mouse.h dosio.h 
+timers.o : timers.c emu.h machcompat.h cpu.h timers.h 
+video.o : video.c config.h emu.h machcompat.h cpu.h memory.h termio.h video.h \
+  mouse.h dosio.h modes.h 
+xms.o : xms.c emu.h machcompat.h cpu.h config.h memory.h xms.h dosio.h 

@@ -3,12 +3,21 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/emu.h,v $
- * $Revision: 1.16 $
+ * $Date: 1994/03/15 01:38:20 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/emu.h,v $
+ * $Revision: 1.19 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.19  1994/03/15  01:38:20  root
+ * DPMI,serial, other changes.
+ *
+ * Revision 1.18  1994/03/13  01:07:31  root
+ * Poor attempt to optimize.
+ *
+ * Revision 1.17  1994/03/10  02:49:27  root
+ * Back to 1 process.
+ *
  * Revision 1.16  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -107,6 +116,7 @@
  *
  */
 
+#include "machcompat.h"
 #include "cpu.h"
 #include <sys/types.h>
 
@@ -169,11 +179,8 @@ inline void run_vm86(void);
 #define TEST    2
 #define POLL    3
 
-int ReadKeyboard(unsigned int *, int);
-int CReadKeyboard(unsigned int *, int);
+void getKeys();
 int InsKeyboard(unsigned short scancode);
-int PollKeyboard(void);
-void ReadString(int, unsigned char *);
 
 inline static void
 port_out(char value, unsigned short port)
@@ -286,7 +293,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #ifndef EMU_C
      extern struct debug_flags d;
      extern int gfx_mode;	/* flag for in gxf mode or not */
-     extern int in_sighandler, in_ioctl;
+     extern u_char in_sighandler, in_ioctl;
      extern struct ioctlq iq, curi;
 
 #endif
@@ -418,5 +425,45 @@ config_t;
 #define IO_READ  1
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
+
+extern int port_readable(int);
+extern int port_writeable(int);
+extern int read_port(int);
+extern int write_port(int, int);
+extern inline void parent_nextscan(void);
+extern int do_serial_in(int, int);
+extern int do_serial_out(int, int, int);
+extern void serial_run(void);
+extern inline void disk_close(void);
+extern void show_cursor(void);
+extern void cpu_init(void);
+extern inline void run_int(int);
+extern int mfs_redirector(void);
+extern void int10(void);
+extern void int13(void);
+extern void int14(void);
+extern void int17(void);
+extern void io_select(void);
+extern int pd_receive_packet(void);
+extern int printer_tick(u_long);
+extern int printer_tick(u_long);
+extern void floppy_tick(void);
+extern void close_kmem(void);
+extern void CloseNetworkLink(int);
+extern int parse_config(char *);
+extern int exchange_uids(void);
+extern void disk_init(void);
+extern void serial_init(void);
+extern void close_all_printers(void);
+extern void serial_close(void);
+extern void disk_close_all(void);
+extern void init_all_printers(void);
+extern int mfs_inte6(void);
+extern void pkt_helper(void);
+extern short pop_word(struct vm86_regs *);
+extern boolean_t bios_emm_fn(state_t *);
+extern int GetDebugFlagsHelper(char *);
+extern int SetDebugFlagsHelper(char *);
+extern void leavedos(int);
 
 #endif /* EMU_H */

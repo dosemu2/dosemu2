@@ -24,24 +24,24 @@
 #define IPX_OFF		0x3100
 #define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
 
-#define INT16_SEG	BIOSSEG + 0x100
+#define INT16_SEG	(BIOSSEG + 0x100)
 #define INT16_OFF	0x3000
 #define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
 
-#define INT09_SEG	BIOSSEG + 0x100
+#define INT09_SEG	(BIOSSEG + 0x100)
 #define INT09_OFF	0x4000
 #define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
 
-#define INT10_SEG	BIOSSEG + 0x100
+#define INT10_SEG	(BIOSSEG + 0x100)
 #define INT10_OFF	0x4100
 #define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
 
 /* This inline interrupt is used for FCB open calls */
-#define INTE7_SEG	BIOSSEG + 0x100
+#define INTE7_SEG	(BIOSSEG + 0x100)
 #define INTE7_OFF	0x4500
 #define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
 
-#define DPMI_SEG	BIOSSEG + 0x100
+#define DPMI_SEG	(BIOSSEG + 0x100)
 #define DPMI_OFF	0x5000
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
@@ -72,7 +72,7 @@
 
 #define TEXT_SIZE	4096	/* text page size */
 #define PAGE_ADDR(pg)	(caddr_t)(virt_text_base + (pg*TEXT_SIZE))
-#define SCREEN_ADR(s)	((us *)(virt_text_base + (s*TEXT_SIZE)));
+#define SCREEN_ADR(s)	((us *)(virt_text_base + (s*TEXT_SIZE)))
 
 #define GRAPH_BASE 0xA0000
 #define GRAPH_SIZE 0x20000

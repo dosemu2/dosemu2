@@ -30,6 +30,9 @@
  *
  * HISTORY:
  * $Log: bios_emm.c,v $
+ * Revision 1.13  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
  * Revision 1.12  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -102,6 +105,8 @@
 
 #ifdef __linux__
 
+#include <unistd.h>
+#include <string.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
 #include <malloc.h>
@@ -114,6 +119,8 @@
 #include "machcompat.h"
 
 extern struct config_info config;
+
+boolean_t unmap_page(int);
 
 #else
 #include "base.h"
@@ -391,11 +398,11 @@ new_memory_object(size_t bytes)
 #if 0
   mach_port_t addr = (mach_port_t) valloc(bytes);
 
+  char *ptr;
 #else
   mach_port_t addr = (mach_port_t) malloc(bytes);
 
 #endif
-  char *ptr;
 
   E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *) addr);
 
@@ -501,6 +508,7 @@ v_munmap(caddr_t base, int size, caddr_t logical)
   }
 #else
   memmove((u_char *) logical, (u_char *) base, size);
+  return logical;
 #endif
 
 }
@@ -534,6 +542,7 @@ v_mmap(caddr_t base, int size, u_char access, u_char share, int fd, caddr_t logi
   }
 #else
   memmove((u_char *) base, (u_char *) logical, size);
+  return base;
 #endif
 
 }
@@ -713,6 +722,7 @@ save_handle_state(handle)
       handle_info[handle].saved_mappings_logical[i] =
 	NULL_PAGE;
   }
+  return 0;
 }
 
 int
@@ -734,6 +744,7 @@ restore_handle_state(handle)
     else
       E_printf("EMS: Not Restoring PHY=%d, LOG=%x, HANDLE=%x\n", i, saved_mapping, saved_mapping_handle);
   }
+  return 0;
 }
 
 void
@@ -818,6 +829,7 @@ partial_map_registers(state_t * state)
 {
   Kdebug0((dbg_fd, "partial_map_registers %d called\n",
 	   (int) LOW(state->eax)));
+  return 0;
 }
 
 void
@@ -895,7 +907,6 @@ void
 reallocate_pages(state_t * state)
 {
   u_char i;
-  int oldnumpages;
   int handle = WORD(state->edx);
   int newcount = WORD(state->ebx);
 
@@ -997,10 +1008,10 @@ handle_name(state_t * state)
       break;
     }
   case SET_NAME:{
-      int handle = WORD(state->edx);
+      int handle = (u_short)WORD(state->edx);
       u_char *array = (u_char *) Addr(state, es, esi);
 
-      E_printf("SET_NAME of %08.8s\n", array);
+      E_printf("SET_NAME of %8.8s\n", (u_char *)array);
 
       CHECK_HANDLE(handle);
       memmove(handle_info[handle].name, array, 8);
@@ -1087,12 +1098,14 @@ int
 alter_map_and_jump(state_t * state)
 {
   Kdebug0((dbg_fd, "alter_map_and_jump %d called\n", (int) LOW(state->eax)));
+  return 0;
 }
 
 int
 alter_map_and_call(state_t * state)
 {
   Kdebug0((dbg_fd, "alter_map_and_call %d called\n", (int) LOW(state->eax)));
+  return 0;
 }
 
 struct mem_move_struct {
@@ -1130,10 +1143,10 @@ void
 load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
 {
 
+#if 0
   int seg;
   int off;
 
-#if 0
   seg = *(u_short *) mem;
   mem += 2;
   off = *(u_short *) mem;
@@ -1163,7 +1176,7 @@ load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
 int
 move_memory_region(state_t * state)
 {
-  struct mem_move_struct *mem_move;
+  struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem;
   u_char i;
 
@@ -1218,7 +1231,7 @@ move_memory_region(state_t * state)
       return (0x93);
     }
   }
-  E_printf("EMS: Move Memory Region from 0x%x -> 0x%x\n", source, dest);
+  E_printf("EMS: Move Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
   memmove((u_char *) dest, (u_char *) source, mem_move->size);
 
   for (i = 0; i < 4; i++)
@@ -1242,7 +1255,7 @@ move_memory_region(state_t * state)
 int
 exchange_memory_region(state_t * state)
 {
-  struct mem_move_struct *mem_move;
+  struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem, tmp;
   u_char i;
 
@@ -1282,7 +1295,7 @@ exchange_memory_region(state_t * state)
   else if (dest + mem_move->size >= source)
     return (EMM_MOVE_OVLAPI);
 
-  E_printf("EMS: Exchange Memory Region from 0x%x -> 0x%x\n", source, dest);
+  E_printf("EMS: Exchange Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
   tmp = malloc(mem_move->size);
   memmove(tmp, source, mem_move->size);
   memmove(source, dest, mem_move->size);
@@ -1382,7 +1395,7 @@ allocate_std_pages(state_t * state)
   SETWORD(&(state->edx), handle);
 
   Kdebug1((dbg_fd, "bios_emm: handle = 0x%x\n", handle));
-
+  return 0;
 }
 
 /* end of EMS 4.0 functions */
@@ -1724,7 +1737,7 @@ bios_emm_fn(state)
     default:
       NOFUNC();
     }
-    E_printf("EMS: MOD returns %x\n", HIGH(state->eax));
+    E_printf("EMS: MOD returns %x\n", (u_short)HIGH(state->eax));
     break;
 
   case GET_MPA_ARRAY:		/* 0x58 */

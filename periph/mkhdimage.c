@@ -2,12 +2,15 @@
  *
  * cheesy program to create an hdimage header
  *
- * $Date: 1994/01/20 21:18:35 $
- * $Source: /home/src/dosemu0.50/periph/RCS/mkhdimage.c,v $
- * $Revision: 1.2 $
+ * $Date: 1994/03/13 01:08:52 $
+ * $Source: /home/src/dosemu0.50pl1/periph/RCS/mkhdimage.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: mkhdimage.c,v $
+ * Revision 1.3  1994/03/13  01:08:52  root
+ * Poor attempt to optimize.
+ *
  * Revision 1.2  1994/01/20  21:18:35  root
  * Indent.
  *
@@ -35,7 +38,7 @@ usage(void)
   fprintf(stderr, "mkhdimage [-h <heads>] [-s <sectors>] [-c|-t <cylinders>]\n");
 }
 
-int
+void
 main(int argc, char **argv)
 {
   int c;

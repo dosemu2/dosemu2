@@ -3,12 +3,36 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/emu.c,v $
- * $Revision: 1.45 $
+ * $Date: 1994/03/18 23:17:51 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/emu.c,v $
+ * $Revision: 1.53 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 1.53  1994/03/18  23:17:51  root
+ * Prep for 0.50pl1
+ *
+ * Revision 1.52  1994/03/15  02:08:20  root
+ * Testing
+ *
+ * Revision 1.51  1994/03/15  01:38:20  root
+ * DPMI,serial, other changes.
+ *
+ * Revision 1.50  1994/03/14  00:35:44  root
+ * Moved int_queue_run back into static array.
+ *
+ * Revision 1.49  1994/03/13  21:52:02  root
+ * More speed testing :-(
+ *
+ * Revision 1.48  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
+ * Revision 1.47  1994/03/10  23:52:52  root
+ * Lutz DPMI patches
+ *
+ * Revision 1.46  1994/03/10  02:49:27  root
+ * Back to SINGLE Process.
+ *
  * Revision 1.45  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -256,7 +280,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "timers.h"
 #include "cmos.h"
 #include "mouse.h"
-#include "dosipc.h"
+#include "dosio.h"
 #include "disks.h"
 #include "xms.h"
 #include "timers.h"
@@ -266,9 +290,21 @@ __asm__("___START___: jmp _emulate\n");
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"
 
-char *cstack[4096];
+extern inline void disk_open(struct disk *);
+void saytime(char *);
+
+char *segv_stack[4096];
+char *alrm_stack[4096];
+char *ill_stack[4096];
 
 int int_queue_running = 0;
+inline void int_queue_run();
+
+#define DBGTIME(x) {\
+                        struct timeval tv;\
+                        gettimeofday(&tv,NULL);\
+                        fprintf(stderr,"%c %06d:%06d\n",x,(int)tv.tv_sec,(int)tv.tv_usec);\
+                   }
 
 /*
    Allow checks via inport 0x64 for available scan codes
@@ -343,10 +379,6 @@ struct itimerval itv;
 */
 extern u_char scanned;
 
-/* Keep track of the current depth of hard interrupts */
-u_char int_count[8] =
-{0, 0, 0, 0, 0, 0, 0, 0};
-
 /*
    Queue to hold all pending hard-interrupts. When an interrupt is
    placed into this queue, it can include a function to be run
@@ -367,16 +399,15 @@ int_queue[IQUEUE_LEN];
 
 /*
    This is here to allow multiple hard_int's to be running concurrently.
-   I know this is wrong, why I don't know, but has to be here for any
-   programs that steal INT9 away from DOSEMU.
+   Needed for programs that steal INT9 away from DOSEMU.
 */
+#define NUM_INT_QUEUE 30
 struct int_queue_list_struct {
-  struct int_queue_list_struct *prev;
-  struct int_queue_list_struct *next;
-  struct int_queue_struct *int_queue_ptr;
+  struct int_queue_struct int_queue_ptr;
   int int_queue_return_addr;
+  u_char in_use;
   struct vm86_regs saved_regs;
-} *int_queue_head = NULL, *int_queue_tail = NULL, *int_queue_temp = NULL;
+} int_queue_head[NUM_INT_QUEUE]; 
 
 int scrtest_bitmap, update_screen;	/* Flags to test if screen to be updated */
 unsigned char *scrbuf;		/* the previously updated screen */
@@ -411,8 +442,8 @@ extern int pd_sock;
 
 void leavedos(int),		/* function to stop DOSEMU */
  usage(void),			/* Print parameters of DOSEMU */
- hardware_init(void),		/* Initialize info on hardware */
- do_int(int);			/* Called by sigsegv() in cpu.c to handle ints */
+ hardware_init(void);		/* Initialize info on hardware */
+inline void do_int(int);	/* Called by sigsegv() in cpu.c to handle ints */
 
 int dos_helper(void);		/* handle int's created especially for DOSEMU */
 void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
@@ -440,9 +471,9 @@ int special_nowait = 0;
 struct ioctlq iq =
 {0, 0, 0, 0};			/* one-entry queue :-( for ioctl's */
 char *tmpdir;
-int in_sighandler = 0;		/* so I know to not use non-reentrant
+u_char in_sighandler = 0;		/* so I know to not use non-reentrant
 				 * syscalls like ioctl() :-( */
-int in_ioctl = 0;
+u_char in_ioctl = 0;
 struct ioctlq curi =
 {0, 0, 0, 0};
 
@@ -453,17 +484,12 @@ struct debug_flags d =
 {0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0};
 
 int poll_io = 1;		/* polling io, default on */
-int ignore_segv = 0;		/* ignore sigsegv's */
-int in_sigsegv = 0;
+u_char ignore_segv = 0;		/* ignore sigsegv's */
+u_char in_sigsegv = 0;
 int terminal_pipe;
 int terminal_fd = -1;
 
-#define kbd_flags *KBDFLAG_ADDR
-#define key_flags *KEYFLAG_ADDR
-
 extern move_kbd_key_flags;
-
-int in_interrupt = 0;		/* for unimplemented interrupt code */
 
 /* for use by cli() and sti() */
 sigset_t oldset;
@@ -1052,6 +1078,9 @@ restore_screen(void)
   CHFLUSH;
 
   sadr = SCREEN_ADR(SCREEN);
+  v_printf("SADR: %p\n", sadr);
+  v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
+  v_printf("SCREEN: %x\n", SCREEN);
   oa = 7;
   p = sadr;
   for (y = 0; y < LI; y++)
@@ -1207,8 +1236,6 @@ inb(int port)
 
   switch (port) {
   case 0x60:
-    /* #define new8042 */
-#ifndef new8042
     k_printf("direct 8042 about to read1: 0x%02x\n", lastscan);
     parent_nextscan();
     if (keys_ready)
@@ -1220,28 +1247,6 @@ inb(int port)
       return microsoft_port_check;
     else
       return lastscan;
-#else
-    /* this code can't send non-ascii scancodes like alt/ctrl/scrollock,
-       nor keyups, etc. */
-    if (new_scanseq == BREAKCODE) {
-      k_printf("KBD: doing keyup for 0x%02x->0x%02x\n",
-	       new_lastscan, new_lastscan | 0x80);
-      new_scanseq = NEWCODE;
-      return new_lastscan | 0x80;
-    }
-
-    if (!CReadKeyboard(&tmpkeycode, NOWAIT)) {
-      k_printf("failed direct 8042 read\n");
-      return 0;
-    }
-    else {
-      new_lastscan = tmpkeycode >> 8;
-      new_scanseq = BREAKCODE;
-      k_printf("KBD: direct 8042 read: 0x%02x\n", new_lastscan);
-      return new_lastscan;
-    }
-    break;
-#endif
   case 0x64:{
       parent_nextscan();
       tmp = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
@@ -1283,7 +1288,7 @@ inb(int port)
     if (com[1].base_port == 0x2f8)
       return (do_serial_in(1, port));
     i_printf("Ser inb [0x%x] = 0x%02x\n",
-	     port, (int) (REG(eax) & 0xFF));
+	     port, (LWORD(eax) & 0xFF));
     return (0);
   case 0x3ba:
   case 0x3da:
@@ -1308,11 +1313,10 @@ inb(int port)
     if (com[1].base_port == 0x3f8)
       return (do_serial_in(1, port));
     i_printf("Ser inb [0x%x] = 0x%02x\n",
-	     port, (int) (REG(eax) & 0xFF));
+	     port, (LWORD(eax) & 0xFF));
     return (0);
 
   default:{
-      int num;
 
       /* The diamond bug */
       if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
@@ -1324,7 +1328,7 @@ inb(int port)
       }
 
       i_printf("default inb [0x%x] = 0x%02x\n",
-	       port, (int) (REG(eax) & 0xFF));
+	       port, (LWORD(eax) & 0xFF));
       return 0;
     }
   }
@@ -1336,7 +1340,6 @@ outb(int port, int byte)
 {
   static int timer_beep = 0;
   static int lastport = 0;
-  int num;
 
   port &= 0xffff;
   byte &= 0xff;
@@ -1428,7 +1431,7 @@ outb(int port, int byte)
       break;
     }
     i_printf("Ser outb [0x%x] = 0x%02x\n",
-	     port, (int) (REG(eax) & 0xFF));
+	     port, (LWORD(eax) & 0xFF));
     break;
   case 0x3f8:			/* serial port */
   case 0x3f9:
@@ -1447,7 +1450,7 @@ outb(int port, int byte)
       break;
     }
     i_printf("Ser outb [0x%x] = 0x%02x\n",
-	     port, (int) (REG(eax) & 0xFF));
+	     port, (LWORD(eax) & 0xFF));
     break;
   default:
     i_printf("outb [0x%x] 0x%02x\n", port, byte);
@@ -1510,11 +1513,11 @@ dosemu_banner(void)
 {
   u_short *ssp = SEG_ADR((u_short *), ss, sp);
 
-  *--ssp = REG(cs);
-  *--ssp = REG(eip);
-  REG(esp) -= 4;
-  REG(cs) = Banner_SEG;
-  REG(eip) = Banner_OFF;
+  *--ssp = LWORD(cs);
+  *--ssp = LWORD(eip);
+  LWORD(esp) -= 4;
+  LWORD(cs) = Banner_SEG;
+  LWORD(eip) = Banner_OFF;
 }
 
 #if 0
@@ -1541,7 +1544,7 @@ boot()
   char *buffer;
   unsigned int i;
   unsigned char *ptr;
-  struct disk *dp;
+  struct disk *dp=NULL;
 
   switch (config.hdiskboot) {
   case 0:
@@ -1936,15 +1939,22 @@ boot()
 
   /* A call from a DPMI program to go protected will go here, a HLT */
   ptr = (u_char *) DPMI_ADD;
-  *ptr++ = 0x50;		/* push ax */
-  *ptr++ = 0xb4;
-  *ptr++ = 0x51;
-  *ptr++ = 0xCD;
-  *ptr++ = 0x21;		/* Get PSP; BX = PSP */
-  *ptr++ = 0x58;		/* pop ax */
-  *ptr++ = 0xF4;		/* hlt */
-  *ptr++ = 0xF4;		/* hlt *//* for Return from DOS Interrupt */
-  *ptr = 0xcb;			/* FAR RET */
+  *ptr++ = 0x50;	/* 0*/	/* push ax */
+  *ptr++ = 0xb4;	/* 1*/
+  *ptr++ = 0x51;	/* 2*/
+  *ptr++ = 0xCD;	/* 3*/
+  *ptr++ = 0x21;	/* 4*/	/* Get PSP; BX = PSP */
+  *ptr++ = 0x58;	/* 5*/	/* pop ax */
+  *ptr++ = 0xF4;	/* 6*/	/* hlt */
+  *ptr++ = 0xcb;	/* 7*/	/* FAR RET */
+  *ptr++ = 0xF4;	/* 8*/	/* hlt *//* for Return from DOS Interrupt */
+  *ptr++ = 0xF4;	/* 9*/	/* hlt *//* for Return from Real Mode Procedure */
+  *ptr++ = 0xF4;	/*10*/	/* hlt *//* Raw Mode Switch Adress */
+  *ptr++ = 0xF4;	/*11*/	/* hlt *//* Save/Restore Adress */
+  *ptr++ = 0xcb;	/*12*/	/* FAR RET */
+  *ptr++ = 0xF4;	/*13*/	/* hlt *//* MS-DOS extension API entry point */
+  *ptr++ = 0xcb;	/*14*/	/* FAR RET */
+  *ptr++ = 0xF4;	/*15*/	/* hlt *//* Protected Mode Interrupt */
 
   /* set up BIOS exit routine (we have *just* enough room for this) */
   ptr = (u_char *) 0xffff0;
@@ -1981,7 +1991,7 @@ boot()
 
   *(us *) 0x463 = 0x3d4;	/* base port of CRTC - IMPORTANT! */
   *(char *) 0x465 = 9;		/* current 3x8 (x=b or d) value */
-  *(char *) 0x472 = 0x1234;
+  *(u_short *) 0x472 = 0x1234;
   *(char *) 0x487 = 0x61;
   *(char *) 0x488 = 0x81;	/* video display data */
 
@@ -2086,7 +2096,7 @@ int15(void)
     break;
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
-    k_printf("INT15 0x4f CARRY=%x AX=%x\n", REG(eflags) & CF, REG(eax));
+    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));
     CARRY;
     /*
     if (LO(ax) & 0x80 )
@@ -2099,13 +2109,13 @@ int15(void)
 */
     break;
   case 0x80:			/* default BIOS device open event */
-    REG(eax) &= 0x00FF;
+    LWORD(eax) &= 0x00FF;
     return;
   case 0x81:
-    REG(eax) &= 0x00FF;
+    LWORD(eax) &= 0x00FF;
     return;
   case 0x82:
-    REG(eax) &= 0x00FF;
+    LWORD(eax) &= 0x00FF;
     return;
   case 0x83:
     h_printf("int 15h event wait:\n");
@@ -2116,13 +2126,13 @@ int15(void)
     CARRY;
     return;			/* no joystick */
   case 0x85:
-    num = REG(eax) & 0xFF;	/* default bios handler for sysreq key */
+    num = LWORD(eax) & 0xFF;	/* default bios handler for sysreq key */
     if (num == 0 || num == 1) {
-      REG(eax) &= 0x00FF;
+      LWORD(eax) &= 0x00FF;
       return;
     }
-    REG(eax) &= 0xFF00;
-    REG(eax) |= 1;
+    LWORD(eax) &= 0xFF00;
+    LWORD(eax) |= 1;
     CARRY;
     return;
   case 0x86:
@@ -2139,8 +2149,8 @@ int15(void)
     if (config.xms_size)
       xms_int15();
     else {
-      REG(eax) &= 0xFF;
-      REG(eax) |= 0x0300;	/* say A20 gate failed - a lie but enough */
+      LWORD(eax) &= 0xFF;
+      LWORD(eax) |= 0x0300;	/* say A20 gate failed - a lie but enough */
       CARRY;
     }
     return;
@@ -2150,13 +2160,13 @@ int15(void)
       xms_int15();
     }
     else {
-      REG(eax) &= ~0xffff;	/* we don't have extended ram if it's not XMS */
+      LWORD(eax) &= ~0xffff;	/* we don't have extended ram if it's not XMS */
       NOCARRY;
     }
     return;
 
   case 0x89:			/* enter protected mode : kind of tricky! */
-    REG(eax) |= 0xFF00;		/* failed */
+    LWORD(eax) |= 0xFF00;		/* failed */
     CARRY;
     return;
   case 0x90:			/* no device post/wait stuff */
@@ -2166,7 +2176,7 @@ int15(void)
     CARRY;
     return;
   case 0xc0:
-    REG(es) = ROM_CONFIG_SEG;
+    LWORD(es) = ROM_CONFIG_SEG;
     LWORD(ebx) = ROM_CONFIG_OFF;
     LO(ax) = 0;
     return;
@@ -2174,8 +2184,8 @@ int15(void)
     CARRY;
     return;			/* no ebios area */
   case 0xc2:
-    REG(eax) &= 0x00FF;
-    REG(eax) |= 0x0300;		/* interface error if use a ps2 mouse */
+    LWORD(eax) &= 0x00FF;
+    LWORD(eax) |= 0x0300;		/* interface error if use a ps2 mouse */
     CARRY;
     return;
   case 0xc3:
@@ -2253,7 +2263,7 @@ int2f(void)
 
     if (in_dpmi)
       REG(eax) = 0;
-    D_printf("DPMI 1686 returns %x\n", REG(eax));
+    D_printf("DPMI 1686 returns %x\n", (int)REG(eax));
     return 1;
 
   }
@@ -2352,7 +2362,6 @@ int1a(void)
 int
 ms_dos(int nr)
 {				/* returns 1 if emulated, 0 if internal handling */
-  unsigned int c;
 
   /* int 21, ah=1,7,or 8:  return 0 for an extended keystroke, but the
    next call returns the scancode */
@@ -2365,28 +2374,8 @@ Restart:
 
   switch (nr) {
 
-    /* define NO_FIX_STDOUT if you want faster dos screen output, at the
- * expense of being able to redirect things.  I don't seriously consider
- * leaving this in for real, but I just don't feel like taking it out
- * yet...I'd forget it if I did.
- */
-#if DOS_FLUSH
-  case 7:			/* read char, do not check <ctrl> C */
-  case 1:			/* read and echo char */
-  case 8:			/* read char */
-    /* k_printf("KBD/DOS: int 21h ah=%d\n", nr); */
-    disk_close();		/* DISK */
-    return 0;			/* say not emulated */
-    break;
-
-  case 10:			/* read string */
-    disk_close();		/* DISK */
-    return 0;
-    break;
-#endif
-
   case 12:			/* clear key buffer, do int AL */
-    while (CReadKeyboard(&c, NOWAIT) == 1) ;
+    keybuf_clear();
     nr = LO(ax);
     if (nr == 0)
       break;			/* thanx to R Michael McMahon for the hint */
@@ -2490,44 +2479,47 @@ Restart:
   case 0x4c:
     if (in_dpmi) {
       D_printf("Leaving DPMI with err of 0x%02x\n", LO(ax));
-      in_dpmi_dos_int = 0;
+      /* in_dpmi_dos_int = 0; */
       in_dpmi = 0;
     }
     return 0;
 #endif
 
   default:
+#if 0
     /* taking this if/printf out will speed things up a bit...*/
     if (d.dos)
       dbug_printf(" dos interrupt 0x%02x, ax=0x%04x, bx=0x%04x\n",
 		  nr, LWORD(eax), LWORD(ebx));
+#endif
     return 0;
   }
   return 1;
 }
 
-inline int
+inline void
 run_int(int i)
 {
   us *ssp;
-  static struct timeval tp1;
-  static struct timeval tp2;
-  static int time_count = 0;
 
-  if (i == 0x16) {
-
+  if (i == 0x16 && KBD_Head == KBD_Start ) {
+    static struct timeval tp1;
+    static struct timeval tp2;
+    static int time_count = 0;
     if (time_count == 0)
       gettimeofday(&tp1, NULL);
     else {
       gettimeofday(&tp2, NULL);
       if ((tp2.tv_sec - tp1.tv_sec) * 1000000 +
-	  ((int) tp2.tv_usec - (int) tp1.tv_usec) < config.hogthreshold)
+	  ((int) tp2.tv_usec - (int) tp1.tv_usec) < config.hogthreshold){
 	usleep(100);
+        k_printf("Waiting on a friend!\n");
+      }
     }
     time_count = (time_count + 1) % 10;
   }
 
-#if 1
+#if 0
   /* XXX bootstrap cs is now 0 */
   if (!(REG(eip) && REG(cs))) {
     error("run_int: not running NULL interrupt 0x%04x handler\n", i);
@@ -2543,18 +2535,17 @@ run_int(int i)
     ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
   else
     ssp = SEG_ADR((us *), ss, sp);
-  *--ssp = REG(eflags);
-  *--ssp = REG(cs);
-  *--ssp = REG(eip);
-  REG(esp) -= 6;
-  REG(cs) = ((us *) 0)[(i << 1) + 1];
-  REG(eip) = ((us *) 0)[i << 1];
+  *--ssp = LWORD(eflags);
+  *--ssp = LWORD(cs);
+  *--ssp = LWORD(eip);
+  LWORD(esp) -= 6;
+  LWORD(cs) = ((us *) 0)[(i << 1) + 1];
+  LWORD(eip) = ((us *) 0)[i << 1];
 
   /* clear TF (trap flag, singlestep), IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    */
   REG(eflags) &= ~(TF | IF | NT);
-  return 0;
 }
 
 inline int
@@ -2569,31 +2560,26 @@ can_revector(int i)
  *
  */
 
+  if (i < 0x21 || i > 0xe6 ) return 1;
+
   switch (i) {
+
     /* some things, like 0x29, need to be unrevectored if the vectors
        * are the DOS vectors...but revectored otherwise
        */
-#if MOUSE
-  case 0x33:			/* mouse...we're testing */
-#endif
   case 0x21:			/* we want it first...then we'll pass it on */
   case 0x28:			/* same here */
-  case 0x2a:
 #undef FAST_BUT_WRONG29
 #ifdef FAST_BUT_WRONG29
   case 0x29:			/* DOS fast char output... */
 #endif
   case 0x2f:			/* needed for XMS, redirector, and idle interrupt */
-  case 0x67:			/* EMS */
+#if MOUSE
+  case 0x33:			/* mouse...we're testing */
+#endif
   case 0xe6:			/* for redirector and helper (was 0xfe) */
     return 0;
 
-#if !MOUSE
-  case 0x33:
-#endif
-#ifndef FAST_BUT_WRONG29
-  case 0x29:
-#endif
   case 0:
   case 1:
   case 2:
@@ -2610,6 +2596,14 @@ can_revector(int i)
   case 0x13:			/* BIOS disk */
   case 0x27:			/* TSR */
   case 0x20:			/* exit program */
+#ifndef FAST_BUT_WRONG29
+  case 0x29:
+#endif
+  case 0x2a:
+#if !MOUSE
+  case 0x33:
+#endif
+  case 0x67:			/* EMS */
   case 0xfe:			/* Turbo Debugger and others... */
     return 1;
   default:
@@ -2618,28 +2612,26 @@ can_revector(int i)
   }
 }
 
-void
+inline void
 do_int(int i)
 {
-  int highint = 0;
+  u_char highint = 0;
 
 #if 0
   saytime("do_int");
 #endif
 
 #if 0
-  dbug_printf("Do INT0x%02x, eax=0x%04x, ebx=0x%04x ss=0x%04x esp=0x%04x cs=0x%04x ip=0x%04x CF=%d \n", i, REG(eax), REG(ebx), REG(ss), REG(esp), REG(cs), REG(eip), REG(eflags) & CF);
+  v_printf("Do INT0x%02x, eax=0x%04x, ebx=0x%04x ss=0x%04x esp=0x%04x cs=0x%04x ip=0x%04x CF=%d \n", i, LWORD(eax), LWORD(ebx), LWORD(ss), LWORD(esp), LWORD(cs), LWORD(eip), (int)REG(eflags) & CF);
 #endif
 
-  in_interrupt++;
-
-  if ((REG(cs) & 0xffff) == BIOSSEG) {
+  if ((LWORD(cs)) == BIOSSEG)
     highint = 1;
-  }
-  else if (IS_REDIRECTED(i) && can_revector(i) /* && !IS_IRET(i) */ ) {
-    run_int(i);
-    return;
-  }
+  else
+    if (IS_REDIRECTED(i) && can_revector(i)){
+      run_int(i);
+      return;
+    }
 
   switch (i) {
   case 0x5:
@@ -2661,7 +2653,6 @@ do_int(int i)
   case 0x08:
     int08();
     return;
-    goto default_handling;
   case 0x10:			/* VIDEO */
     int10();
     return;
@@ -2780,21 +2771,18 @@ do_int(int i)
   default_handling:
 
     if (highint) {
-      in_interrupt--;
       return;
     }
 
     if (!IS_REDIRECTED(i)) {
       g_printf("DEFIVEC: int 0x%02x  SG: 0x%04x  OF: 0x%04x\n",
 	       i, ISEG(i), IOFF(i));
-      in_interrupt--;
       return;
     }
 
     if (IS_IRET(i)) {
       if ((i != 0x2a) && (i != 0x28))
 	g_printf("just an iret 0x%02x\n", i);
-      in_interrupt--;
       return;
     }
 
@@ -2809,18 +2797,49 @@ do_int(int i)
 }
 
 void
-sigalrm(int sig)
+sigalrm(int sig, struct sigcontext_struct context)
 {
   static int running = 0;
   static inalrm = 0;
   static int partials = 0;
+#ifdef DPMI
+  struct sigcontext_struct *scp = &context;
+  us *ssp;
 
+#ifdef DPMI
+  if (_cs != UCODESEL){
+    D_printf("DPMI: sigalarm\n");
+    if (!((_ss) & 0x0004)) {
+      /* GTD */
+      D_printf("ss in GTD: this should never happen\n");
+      ssp = (us *) _esp;
+    }
+    else {
+      /* LDT */
+      if (Segments[_ss>>3].is_32)
+        ssp = (us *) (GetSegmentBaseAddress(_ss) + _esp );
+      else
+        ssp = (us *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) );
+    }
+    *--ssp = (us) 0;
+    *--ssp = (us) _cs;
+    *--ssp = (us) _HWORD(eip);
+    *--ssp = (us) _LWORD(eip);
+    _esp -= 8;
+    _cs = UCODESEL;
+    _eip = (unsigned long) ReturnFrom_dpmi_control;
+  }
+#endif
+
+#if 0
   in_vm86 = 0;
+#endif
 
   if (inalrm) {
     error("ERROR: Reentering SIGALRM!\n");
     return;
   }
+#endif
 
   inalrm = 1;
   in_sighandler = 1;
@@ -2854,8 +2873,12 @@ sigalrm(int sig)
   /* this is severely broken */
   if (config.timers) {
     h_printf("starting timer int 8...\n");
+#if 1
     if (!do_hard_int(8))
       h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
+#else
+    run_int(8);
+#endif
   }
   else
     error("NOT CONFIG.TIMERS\n");
@@ -2869,44 +2892,11 @@ sigalrm(int sig)
       floppy_tick();
   }
 
+/* Call select to see if any I/O is ready on devices */
+  io_select();
+
   in_sighandler = 0;
   inalrm = 0;
-}
-
-void
-sigchld(int sig)
-{
-  pid_t pid;
-  int status;
-
-  in_vm86 = 0;
-
-  pid = wait(&status);
-
-  if (pid == ipc_pid) {
-    char *exitmethod;
-    int exitnum;
-
-    if (WIFEXITED(status)) {
-      exitmethod = "exited with return value";
-      exitnum = WEXITSTATUS(status);
-    }
-    else if (WIFSIGNALED(status)) {
-      exitmethod = "died from signal";
-      exitnum = WTERMSIG(status);
-    }
-    else if (WIFSTOPPED(status)) {
-      exitmethod = "was stopped by signal";
-      exitnum = WSTOPSIG(status);
-    }
-    else {
-      exitmethod = "unknown termination method";
-      exitnum = status;
-    }
-    error("ERROR: main IPC process pid %ld %s %d! dosemu terminating...\n",
-	  (long) pid, exitmethod, exitnum);
-    leavedos(1);
-  }
 }
 
 void
@@ -3116,7 +3106,7 @@ config_defaults(void)
   config.bootdisk = 0;
   config.exitearly = 0;
   config.redraw_chunks = 1;
-  config.hogthreshold = 20000;	/* in usecs */
+  config.hogthreshold = 5000;	/* in usecs */
   config.chipset = PLAINVGA;
   config.cardtype = CARD_VGA;
   config.fullrestore = 0;
@@ -3172,129 +3162,77 @@ queue_hard_int(int i, void (*callstart), void (*callend))
 /*int int_queue_running = 0;*/
 
 /* Called by vm86() loop to handle queueing of interrupts */
-void
+inline void
 int_queue_run()
 {
 
-  int i;
+  int current_interrupt;
+  static int int_count=0;
   us *ssp;
 
-  if (int_queue_running || int_queue_head) {
-    int endval;
-
+#if 0
+  v_printf(" num=%d int_queue_head[int_queue_running].int_queue_return_addr=%x\n",int_queue_running, int_queue_head[int_queue_running].int_queue_return_addr);
+#endif
+  if (int_queue_running) {
     /* check if current int is finished */
-    if ((int) (SEG_ADR((us *), cs, ip)) != int_queue_head->int_queue_return_addr) {
-
+    if ((int) (SEG_ADR((us *), cs, ip)) != int_queue_head[int_queue_running].int_queue_return_addr) {
       /* outb20 is our override so more than 1 int can stack here */
       if (!outb20) {
-#if 0
-	h_printf("Not finished! int_run = %d, int_q_hd=%x\n", int_queue_running, int_queue_head);
-#endif
 	return;
       }
+      else
+        int_count &= ~(1<<int_queue_head[int_queue_running].int_queue_ptr.interrupt);
     }
     else {
-
       /* if it's finished - clean up */
       /* call user cleanup function */
-      if (int_queue_head->int_queue_ptr->callend)
-	endval = int_queue_head->int_queue_ptr->callend(int_queue_head->int_queue_ptr->interrupt);
-      /*      else endval = IQUEUE_END_NORMAL; */
-
-      if (int_queue_head->int_queue_ptr->interrupt < 0x0f &&
-	  int_queue_head->int_queue_ptr->interrupt > 0x07) {
-
-	int_count[int_queue_head->int_queue_ptr->interrupt - 8]--;
-
-	/* Keep queue up to latest lastscan */
-	if (int_queue_head->int_queue_ptr->interrupt == 0x09) {
-	  k_printf("INT09 end\n");
-	  /* I more int09's to go, prepare for next scan code */
-	  if (int_count[1]) {
-	    k_printf("Set scanned to zero when int9 reset\n");
-	    scanned = 0;
-	  }
-	}
-
-	if (int_queue_head->int_queue_ptr->interrupt == 0xb ||
-	    int_queue_head->int_queue_ptr->interrupt == 0xc)
-	  serial_run();
-	/*	printf(" Down one on %02x = %d\n", int_queue_head->int_queue_ptr->interrupt, int_count[int_queue_head->int_queue_ptr->interrupt - 8]); */
-      }
+      if (int_queue_head[int_queue_running].int_queue_ptr.callend)
+	int_queue_head[int_queue_running].int_queue_ptr.callend(int_queue_head[int_queue_running].int_queue_ptr.interrupt);
 
       /* restore registers */
-      REGS = int_queue_head->saved_regs;
+      REGS = int_queue_head[int_queue_running].saved_regs;
 
-      int_queue_running--;
+      int_count &= ~(1<<int_queue_head[int_queue_running].int_queue_ptr.interrupt);
 
-      h_printf("int_queue: finished %x\n", int_queue_head->int_queue_return_addr);
-      int_queue_temp = int_queue_head->prev;
-      free(int_queue_head);
-      int_queue_head = int_queue_temp;
-      if (int_queue_head)
-	int_queue_head->next = NULL;
-
-      outb20 = 1;
-
-    }
-
+      h_printf("int_queue: finished %x\n", int_queue_head[int_queue_running].int_queue_return_addr);
+      --int_queue_running;
 #if 0
-    if (outb20 && int_queue_running) {
-      h_printf("outb20 decs int_queue_running from %d\n", int_queue_running);
-      int_queue_running--;
-      return;
-    }
+      while(--int_queue_running && int_queue_head[int_queue_running].in_use==0 );
 #endif
+
+    }
 
   }
-
-#if 0
-  fprintf(stderr, "Queue start %d, end %d, running %d\n", int_queue_start, int_queue_end, int_queue_running);
-#endif
 
   if (int_queue_start == int_queue_end || !(REG(eflags) & IF))
     return;
 
-  i = int_queue[int_queue_start].interrupt;
+  current_interrupt = int_queue[int_queue_start].interrupt;
+
+  if (int_count & (1<<current_interrupt)){
+    k_printf("outb20=%d, int_queue_running=%d, int_count=0x%x\n", outb20, int_queue_running, int_count);
+    return;
+  }
 
   /* call user startup function...don't run interrupt if returns -1 */
   if (int_queue[int_queue_start].callstart)
-    if (int_queue[int_queue_start].callstart(i) == -1) {
+    if (int_queue[int_queue_start].callstart(current_interrupt) == -1) {
       fprintf(stderr, "Callstart NOWORK\n");
       return;
     }
 
-  if (int_queue_head == NULL) {
-    int_queue_head = int_queue_tail = (struct int_queue_list_struct *) malloc(sizeof(struct int_queue_list_struct));
+  if (int_queue_running+1 == NUM_INT_QUEUE)
+    leavedos(55);
+  int_queue_head[++int_queue_running].int_queue_ptr = int_queue[int_queue_start];
+  int_queue_head[int_queue_running].in_use=1;
 
-    int_queue_head->prev = NULL;
-    int_queue_head->next = NULL;
-    int_queue_head->int_queue_ptr = &int_queue[int_queue_start];
-  }
-  else {
-    int_queue_temp = (struct int_queue_list_struct *) malloc(sizeof(struct int_queue_list_struct));
+  int_count |= (1<<int_queue[int_queue_start].interrupt);
 
-    int_queue_head->next = int_queue_temp;
-    int_queue_temp->prev = int_queue_head;
-    int_queue_head = int_queue_temp;
-    int_queue_head->next = NULL;
-    int_queue_head->int_queue_ptr = &int_queue[int_queue_start];
-  }
+  if (int_queue[int_queue_start].interrupt == 0x09) {
 
-  int_queue_running++;
-
-  if (int_queue_head->int_queue_ptr->interrupt < 0x0f &&
-      int_queue_head->int_queue_ptr->interrupt > 0x07) {
-    int_count[int_queue_head->int_queue_ptr->interrupt - 8]++;
-    /*	printf(" Up one on %02x = %d\n", int_queue_head->int_queue_ptr->interrupt, int_count[int_queue_head->int_queue_ptr->interrupt - 8]); */
-
-    if (int_queue_head->int_queue_ptr->interrupt == 0x09) {
-      k_printf("Set scanned to zero when int9 set\n");
-
-      /* If another program does a keybaord read on port 0x60, we'll know */
-      scanned = 0;
-    }
-
+    k_printf("Set scanned to zero when int9 set\n");
+    /* If another program does a keybaord read on port 0x60, we'll know */
+    scanned = 0;
   }
 
   /* We'll allow int's to end if an outb 0x20 happens */
@@ -3303,7 +3241,7 @@ int_queue_run()
   cli();
 
   /* save our regs */
-  int_queue_head->saved_regs = REGS;
+  int_queue_head[int_queue_running].saved_regs = REGS;
 
   if (!LWORD(esp))
     ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
@@ -3314,24 +3252,24 @@ int_queue_run()
   *--ssp = 0xffff;
 
   /* this is where we're going to return to */
-  int_queue_head->int_queue_return_addr = (int) ssp;
+  int_queue_head[int_queue_running].int_queue_return_addr = (int) ssp;
 
-  *--ssp = REG(eflags);
-  *--ssp = (int_queue_head->int_queue_return_addr >> 4);	/* the code segment of our illegal opcode */
-  *--ssp = (int_queue_head->int_queue_return_addr & 0xf);	/* and the instruction pointer */
-  REG(esp) -= 8;
-  REG(cs) = ((us *) 0)[(i << 1) + 1];
-  REG(eip) = ((us *) 0)[i << 1];
+  *--ssp = LWORD(eflags);
+  *--ssp = (int_queue_head[int_queue_running].int_queue_return_addr >> 4);	/* the code segment of our illegal opcode */
+  *--ssp = (int_queue_head[int_queue_running].int_queue_return_addr & 0xf);	/* and the instruction pointer */
+  LWORD(esp) -= 8;
+  LWORD(cs) = ((us *) 0)[(current_interrupt << 1) + 1];
+  LWORD(eip) = ((us *) 0)[current_interrupt << 1];
 
   /* clear TF (trap flag, singlestep), IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    */
   REG(eflags) &= ~(TF | IF | NT);
 
-  sti();
-
-  h_printf("int_queue: running int %x return_addr=%x\n", i, int_queue_head->int_queue_return_addr);
+  h_printf("int_queue: running int %x return_addr=%x\n", current_interrupt, int_queue_head[int_queue_running].int_queue_return_addr);
   int_queue_start = (int_queue_start + 1) % IQUEUE_LEN;
+
+  sti();
 
   return;
 }
@@ -3362,6 +3300,41 @@ load_file(char *name, int foffset, char *mstart, int msize)
   return 0;
 }
 
+/* Silly Interrupt Generator Initialization/Closedown */
+
+#ifdef SIG
+static int SillyG = 0;
+
+void SIG_init() {
+  /* Get in touch with my Silly Interupt Driver */
+  if ((SillyG = open("/dev/int/12", O_RDWR)) < 1) {
+    fprintf(stderr, "Not gonna touch INT you requested!\n");
+    SillyG = 0;
+  }
+  else {
+    /* Reset interupt incase it went off already */
+    write(SillyG, NULL, (int) NULL);
+    fprintf(stderr, "Gonna monitor the INT you requested, Return=0x%02x\n", Sill  }
+}
+
+void
+SIG_close() {
+    if (SillyG) {
+      close(SillyG);
+      fprintf(stderr, "Closing INT you opened!\n");
+    }
+}
+#endif
+
+void
+packet_close() {
+  /* Close the packet driver socket */
+  if (pd_sock) {
+    pd_printf("Closing the network pd_sock: %x\n", pd_sock);
+    CloseNetworkLink(pd_sock);
+  }
+}
+
 void
 emulate(int argc, char **argv)
 {
@@ -3372,9 +3345,6 @@ emulate(int argc, char **argv)
 
   config_defaults();
 
-  /* set queue head and tail to NULL */
-  int_queue_head = int_queue_tail = NULL;
-
   /* initialize cli() and sti() */
   signal_init();
 
@@ -3384,6 +3354,7 @@ emulate(int argc, char **argv)
 
   /* allocate screen buffer for non-console video compare speedup */
   scrbuf = malloc(CO * LI * 2);
+  v_printf("SCREEN saves at: %p\n", scrbuf);
 
   opterr = 0;
   confname = NULL;
@@ -3519,15 +3490,28 @@ emulate(int argc, char **argv)
     }
   }
 
+/* Set up hard interrupt array */
+{
+  u_short counter;
+  for (counter=0; counter< NUM_INT_QUEUE; counter++){
+    int_queue_head[counter].int_queue_return_addr=0;
+    int_queue_head[counter].in_use=0;
+  }
+}
+
   setbuf(stdout, NULL);
+#if 0
   setbuf(stderr, NULL);
+#endif
 
   /* create tmpdir */
   exchange_uids();
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
   exchange_uids();
+
   /* setup DOS memory, whether shared or not */
   memory_setup();
+  video_config_init();
 
 #if 0
   if (config.mapped_bios || config.console_video)
@@ -3570,12 +3554,18 @@ emulate(int argc, char **argv)
 #define SA_RESTART 0
 #endif
 
-#define SETSIG(sig, fun) \
+#define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
+				sa.sa_flags = SA_RESTART; \
+				sigemptyset(&sa.sa_mask); \
+				sigaddset(&sa.sa_mask, SIG_TIME); \
+				sigaction(sig, &sa, NULL);
+
+#define DPMISETSIG(sig, fun, stack) \
 		sa.sa_handler = (__sighandler_t) fun; \
 		/* Point to the top of the stack, minus 4 just in case, and make \
 		   just in case, and make it aligned  */ \
 		sa.sa_restorer = \
-		(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+		(void (*)()) (((unsigned int)(stack) + sizeof(stack) - 4) & ~3); \
 		sa.sa_flags = SA_RESTART; \
 		sigemptyset(&sa.sa_mask); \
 		sigaddset(&sa.sa_mask, SIG_TIME); \
@@ -3583,16 +3573,14 @@ emulate(int argc, char **argv)
 
   /* init signal handlers */
 
-  SETSIG(SIGILL, sigill);
-  SETSIG(SIG_TIME, sigalrm);
+  DPMISETSIG(SIGILL, sigill, ill_stack);
+  DPMISETSIG(SIG_TIME, sigalrm, alrm_stack);
   SETSIG(SIGFPE, sigfpe);
   SETSIG(SIGTRAP, sigtrap);
-  SETSIG(SIGIPC, sigipc);
 
   SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
   SETSIG(SIGTERM, leavedos);
   SETSIG(SIGKILL, leavedos);
-  SETSIG(SIGCHLD, sigchld);
   SETSIG(SIGQUIT, sigquit);
   SETSIG(SIGUNUSED, timint);
 
@@ -3613,9 +3601,8 @@ emulate(int argc, char **argv)
 
   disk_init();
   termioInit();
-  SETSIG(SIGSEGV, sigsegv);
+  DPMISETSIG(SIGSEGV, sigsegv, segv_stack);
   hardware_init();
-  video_config_init();
   if (config.vga)
     vga_initialize();
   clear_screen(SCREEN, 7);
@@ -3641,26 +3628,28 @@ emulate(int argc, char **argv)
   scrtest_bitmap = 1 << (24 + SCREEN);
   update_screen = 1;
 
-  /* start up the IPC process...stopped in leavedos() */
-  start_dosipc();
-  post_dosipc();
 #if 0
   dbug_dumpivec();
 #endif
   serial_init();
+#ifdef SIG
+  SIG_init();
+#endif
 
   for (; !fatalerr;) {
     run_vm86();
-    if (!int_count[0x3] && !int_count[0x4])
-      serial_run();
+#if 1
+    serial_run();
+#endif
     int_queue_run();
   }
+
   error("error exit: (%d,0x%04x) in_sigsegv: %d ignore_segv: %d\n",
 	fatalerr, fatalerr, in_sigsegv, ignore_segv);
 
   sync();
   fprintf(stderr, "ARG!!!!!\n");
-  leavedos(0);
+  leavedos(99);
 }
 
 void
@@ -3718,6 +3707,7 @@ video_config_init()
       break;
     }
   }
+  *(u_char *)0x462 = 0x0; /* Current Screen Page */
 }
 
 void
@@ -3759,12 +3749,20 @@ leavedos(int sig)
   SETSIG(SIGILL, ign_sigs);
   SETSIG(SIGFPE, ign_sigs);
   SETSIG(SIGTRAP, ign_sigs);
+#if 0
   p_dos_str("\n\rDOS killed!\n\r");
+#endif
   error("leavedos(%d) called - shutting down\n", sig);
 
   close_all_printers();
 
   serial_close();
+
+#ifdef SIG
+  SIG_close();
+#endif
+
+  packet_close();
 
   show_ints(0, 0x33);
   show_regs();
@@ -3773,11 +3771,6 @@ leavedos(int sig)
 
   termioClose();
   disk_close_all();
-
-  /* close down the IPC process & kill all shared mem */
-  SETSIG(SIGCHLD, SIG_DFL);
-
-  stop_dosipc();
 
   _exit(0);
 }
@@ -3826,7 +3819,7 @@ d_ready(int fd)
 void
 usage(void)
 {
-  fprintf(stdout, "$Header: /home/src/dosemu0.50/RCS/emu.c,v 1.45 1994/03/04 15:23:54 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.50pl1/RCS/emu.c,v 1.53 1994/03/18 23:17:51 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [-H|F #disks] [-f FLIPSTR] > doserr\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -3849,7 +3842,7 @@ usage(void)
   fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
   fprintf(stdout, "    -m enable mouse support (!#)\n");
   fprintf(stdout, "    -2,3,4 choose 286, 386 or 486 CPU\n");
-  fprintf(stdout, "    -K Do int9 within PollKeyboard (!#)\n");
+  fprintf(stdout, "    -K Do int9 (!#)\n");
   fprintf(stdout, "\n     (!) means BE CAREFUL! READ THE DOCS FIRST!\n");
   fprintf(stdout, "     (%%) marks those options which require dos be run as root (i.e. suid)\n");
   fprintf(stdout, "     (#) marks options which do not fully work yet\n");
@@ -3863,7 +3856,8 @@ saytime(char *m_str)
   long clktck = sysconf(_SC_CLK_TCK);
 
   m_clock = times(&l_time);
-  fprintf(stderr, "%s %7.4f\n", m_str, m_clock / (double) clktck);
+  fprintf(stderr, "%s %7.2f\n", 
+    m_str, m_clock * 1.00 / clktck );
 
 }
 
@@ -3886,6 +3880,17 @@ ifprintf(unsigned char flg, const char *fmt,...)
   if (terminal_pipe)
     fprintf(terminal, buf);
 #else
+#if 0
+  {
+  clock_t m_clock;
+  struct tms l_time;
+  long clktck = sysconf(_SC_CLK_TCK);
+
+  m_clock = times(&l_time);
+  fprintf(stderr, "%7.2f : ", 
+    m_clock * 1.00 / clktck );
+  }
+#endif
   write(STDERR_FILENO, buf, strlen(buf));
   if (terminal_pipe)
     write(terminal_fd, buf, strlen(buf));
@@ -3960,15 +3965,15 @@ init_vga_card(void)
 
 #else
   ssp = SEG_ADR((us *), ss, sp);
-  *--ssp = REG(cs);
-  *--ssp = REG(eip);
-  REG(esp) -= 4;
+  *--ssp = LWORD(cs);
+  *--ssp = LWORD(eip);
+  LWORD(esp) -= 4;
 #if 0
-  REG(cs) = 0xc000;
-  REG(eip) = 3;
+  LWORD(cs) = 0xc000;
+  LWORD(eip) = 3;
 #else
-  REG(cs) = INT10_SEG;
-  REG(eip) = INT10_OFF;
+  LWORD(cs) = INT10_SEG;
+  LWORD(eip) = INT10_OFF;
 #endif
 #endif
 }
@@ -4064,7 +4069,7 @@ dos_helper(void)
   case 3:			/* SET IOPERMS: bx=start, cx=range,
 		   carry set for get, clear for release */
     {
-      int cflag = REG(eflags) & CF ? 1 : 0;
+      int cflag = LWORD(eflags) & CF ? 1 : 0;
 
       i_printf("I/O perms: 0x%04x 0x%04x %d\n",
 	       LWORD(ebx), LWORD(ecx), cflag);
@@ -4102,23 +4107,26 @@ dos_helper(void)
       set_vc_screen_page(SCREEN);
       warn("WARNING: jumping to 0c000:0003\n");
       ssp = SEG_ADR((us *), ss, sp);
-      *--ssp = REG(cs);
-      *--ssp = REG(eip);
-      precard_eip = REG(eip);
-      precard_cs = REG(cs);
-      REG(esp) -= 4;
-      REG(cs) = 0xc000;
-      REG(eip) = 3;
+      *--ssp = LWORD(cs);
+      *--ssp = LWORD(eip);
+      precard_eip = LWORD(eip);
+      precard_cs = LWORD(cs);
+      LWORD(esp) -= 4;
+      LWORD(cs) = 0xc000;
+      LWORD(eip) = 3;
       show_regs();
       card_init = 1;
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/03/04 15:23:54 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/03/18 23:17:51 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
     p_dos_str("Bugs & Patches to James MacLean, jmaclean@fox.nstn.ns.ca\n\n");
+#ifdef DPMI
+    p_dos_str("DPMI Version 0.9 not fully inplemented, BE CARFULLY!\n\n");
+#endif
     break;
 
   case 6:			/* Do inline int09 insert_into_keybuffer() */
@@ -4217,7 +4225,9 @@ int
 set_ioperm(int start, int size, int flag)
 {
   int tmp, s_errno;
+#if DO_BE
   uid_t last_me;
+#endif
 
 #if DO_BE
   last_me = be_root();

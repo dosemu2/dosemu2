@@ -101,10 +101,15 @@ extern void close_vga_mem();
 extern unsigned char video_initialized;
 extern void vga_initialize();
 
+#define MAX_S_REGS	71
+#define MAX_X_REGS	30
+#define MAX_X_REGS16	10
+
 /* Struct to hold necessary elements during a save/restore */
 struct video_save_struct {
-  unsigned char regs[71];
-  unsigned char xregs[18];	/* These are 18 EXT regs */
+  unsigned char regs[MAX_S_REGS];	/* These are the standard VGA-regs */
+  unsigned char xregs[MAX_X_REGS];	/* These are EXT regs */
+  unsigned short xregs16[MAX_X_REGS16]; /* These are 16-bit EXT regs */
   unsigned char *mem;
   unsigned char pal[3 * 256];
   unsigned char save_mem_size[4];
@@ -218,6 +223,7 @@ extern int video_subsys;
 #define TRIDENT		1
 #define ET4000		2
 #define DIAMOND		3
+#define S3		4
 
 extern u_char video_port_in(int port);
 extern void video_port_out(u_char value, int port);

@@ -3,11 +3,20 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/termio.c,v $
- * $Revision: 1.19 $
+ * $Date: 1994/03/18 23:17:51 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/termio.c,v $
+ * $Revision: 1.22 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 1.22  1994/03/18  23:17:51  root
+ * Prep for 0.50pl1
+ *
+ * Revision 1.21  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
+ * Revision 1.20  1994/03/10  02:49:27  root
+ * Back to SINGLE Process.
+ *
  * Revision 1.19  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -21,6 +30,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -46,14 +56,24 @@
 #include "termio.h"
 #include "video.h"
 #include "mouse.h"
-#include "dosipc.h"
+#include "dosio.h"
 #include "cpu.h"
 
 /* int15 fn=4f will clear CF if scan code should not be used,
    I set keepkey to reflect CF */
 u_char keepkey = 1;
 
-unsigned int convascii(int *);
+void clear_raw_mode();
+extern void clear_console_video();
+extern void clear_process_control();
+void set_raw_mode();
+extern void set_console_video();
+extern void set_process_control();
+void get_leds();
+extern void DOS_setscan(u_short);
+void activate(int);
+
+void convascii(int *);
 
 /* Was a toggle key already port in'd */
 u_char ins_stat = 0, scroll_stat = 0, num_stat = 0, caps_stat = 0;
@@ -84,7 +104,7 @@ static void
 #else
 static void gettermcap(void),
 #endif
- CloseKeyboard(void), getKeys(void), sysreq(unsigned int), ctrl(unsigned int),
+ CloseKeyboard(void), sysreq(unsigned int), ctrl(unsigned int),
  alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int), lshift(unsigned int),
  unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
  caps(unsigned int), uncaps(unsigned int), Scroll(unsigned int), unscroll(unsigned int),
@@ -92,6 +112,7 @@ static void gettermcap(void),
  cursor(unsigned int), func(unsigned int), slash(unsigned int), star(unsigned int),
  enter(unsigned int), minus(unsigned int), plus(unsigned int), backspace(unsigned int),
  Tab(unsigned int), none(unsigned int), spacebar(unsigned int);
+void getKeys();
 
 void child_set_flags(int sc);
 
@@ -102,9 +123,6 @@ int kbd_flag(int), child_kbd_flag(int), key_flag(int);
 
 /* initialize these in OpenKeyboard! */
 unsigned int child_kbd_flags = 0;
-
-#define key_flags *(KEYFLAG_ADDR)
-#define kbd_flags *(KBDFLAG_ADDR)
 
 int altchar = 0;
 u_char move_kbd_key_flags = 0;
@@ -385,18 +403,20 @@ OpenKeyboard(void)
 {
   struct termio newtermio;	/* new terminal modes */
   struct stat chkbuf;
-  unsigned int i;
   int major, minor;
 
   kbd_fd = dup(STDIN_FILENO);
   ioc_fd = dup(STDIN_FILENO);
 
+  if (kbd_fd < 0)
+    {
+      error("ERROR: Couldn't duplicate STDIN !\n");
+      return -1;
+    }
+
   old_kbd_flags = fcntl(kbd_fd, F_GETFL);
   fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
   fcntl(ioc_fd, F_SETFL, O_WRONLY | O_NONBLOCK);
-
-  if (kbd_fd < 0)
-    return -1;
 
   scr_state.vt_allow = 0;
   scr_state.vt_requested = 0;
@@ -424,9 +444,10 @@ OpenKeyboard(void)
   }
 
   if (ioctl(kbd_fd, TCGETA, &oldtermio) < 0) {
-    close(kbd_fd);
+    error("ERROR: Couldn't ioctl(STDIN,TCGETA,...) !\n");
+/*    close(kbd_fd);
     kbd_fd = -1;
-    return -1;
+    return -1; */
   }
 
   newtermio = oldtermio;
@@ -437,9 +458,10 @@ OpenKeyboard(void)
   newtermio.c_cc[VTIME] = 0;
   erasekey = newtermio.c_cc[VERASE];
   if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
-    close(kbd_fd);
+    error("ERROR: Couldn't ioctl(STDIN,TCGETA,...) !\n");
+/*    close(kbd_fd);
     kbd_fd = -1;
-    return -1;
+    return -1;  */
   }
 
   if (config.console_keyb || config.console_video)
@@ -447,27 +469,29 @@ OpenKeyboard(void)
 
   if (config.console_keyb) {
     set_raw_mode();
-    kbd_flags = 0;
-    child_kbd_flags = 0;
-    key_flags = 0;
     get_leds();
-    *KEYFLAG_ADDR = 0;
     set_key_flag(KKF_KBD102);
   }
+
+  kbd_flags = 0;
+  child_kbd_flags = 0;
+  key_flags = 0;
 
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.50/RCS/termio.c,v 1.19 1994/03/04 15:23:54 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.50pl1/RCS/termio.c,v 1.22 1994/03/18 23:17:51 root Exp root $\n");
 
   return 0;
 }
 
+void
 clear_raw_mode()
 {
   do_ioctl(ioc_fd, KDSKBMODE, K_XLATE);
 }
 
+void
 set_raw_mode()
 {
   k_printf("Setting keyboard to RAW mode\n");
@@ -516,11 +540,10 @@ static us alt_nums[] =
   0x8100, 0x7800, 0x7900, 0x7a00, 0x7b00, 0x7c00,
   0x7d00, 0x7e00, 0x7f00, 0x8000};
 
-static void
+void
 getKeys(void)
 {
   int cc;
-  int tmp;
 
   if (config.console_keyb) {
     kbcount = 0;
@@ -544,7 +567,7 @@ getKeys(void)
 
     for (i = 0; i < cc; i++) {
       child_set_flags(kbp[kbcount + i]);
-      parent_setscan(kbp[kbcount + i]);
+      DOS_setscan(kbp[kbcount + i]);
     }
   }
   else {
@@ -626,7 +649,7 @@ child_set_flags(int sc)
       if (fnum > 10)
 	fnum -= 0x12;		/* adjust if f11 or f12 */
 
-      /* can't just do the ioctl() here, as PollKeyboard will probably have
+ /* can't just do the ioctl() here, as ReadKeyboard will probably have
  * been called from a signal handler, and ioctl() is not reentrant.
  * hence the delay until out of the signal handler...
  */
@@ -643,8 +666,6 @@ child_set_flags(int sc)
 	 !child_kbd_flag(1)
       ) {
       dbug_printf("ctrl-alt-pgdn\n");
-      ipc_wakeparent();
-      ipc_send2parent(DMSG_EXIT);
     }
     return;
   default:
@@ -653,7 +674,7 @@ child_set_flags(int sc)
   }
 }
 
-unsigned int
+void
 convascii(int *cc)
 {
 
@@ -690,7 +711,7 @@ convascii(int *cc)
       if (kbcount == 1) {
 	kbcount--;
 	(*cc)--;
-	parent_setscan((highscan[*kbp] << 8) +
+	DOS_setscan((highscan[*kbp] << 8) +
 		       (unsigned char) *kbp++);
 	return;
       }
@@ -704,14 +725,14 @@ convascii(int *cc)
       kbcount -= 2;
       *cc -= 2;
       kbp++;
-      parent_setscan(alt_keys[*kbp++ - 'a']);
+      DOS_setscan(alt_keys[*kbp++ - 'a']);
       return;
     }
     else if (isdigit((unsigned char) kbp[1])) {
       kbcount -= 2;
       *cc -= 2;
       kbp++;
-      parent_setscan(alt_nums[*kbp++ - '0']);
+      DOS_setscan(alt_nums[*kbp++ - '0']);
       return;
     }
 #endif
@@ -728,7 +749,7 @@ convascii(int *cc)
 	  kbcount -= i;
 	  *cc -= i;
 	  kbp += i;
-	  parent_setscan(fkp->code);
+	  DOS_setscan(fkp->code);
 	  return;
 	}
 	if (kbcount <= i) {
@@ -766,7 +787,7 @@ convascii(int *cc)
     kbcount--;
     (*cc)--;
     kbp++;
-    parent_setscan(((unsigned char) highscan[8] << 8) + (unsigned char) 8);
+    DOS_setscan(((unsigned char) highscan[8] << 8) + (unsigned char) 8);
     return;
 #ifdef METAKEY
     /* #ifndef LATIN1 */
@@ -775,14 +796,14 @@ convascii(int *cc)
 	   (unsigned char) *kbp <= ('z' | 0x80)) {
     kbcount--;
     (*cc)--;
-    parent_setscan((unsigned short int) alt_keys[*kbp++ - ('a' | 0x80)]);
+    DOS_setscan((unsigned short int) alt_keys[*kbp++ - ('a' | 0x80)]);
     return;
   }
   else if ((unsigned char) *kbp >= ('0' | 0x80) &&
 	   (unsigned char) *kbp <= ('9' | 0x80)) {
     kbcount--;
     (*cc)--;
-    parent_setscan(alt_nums[(unsigned char) *kbp++ - ('0' | 0x80)]);
+    DOS_setscan(alt_nums[(unsigned char) *kbp++ - ('0' | 0x80)]);
     return;
 #endif
   }
@@ -793,7 +814,7 @@ convascii(int *cc)
   if ((unsigned char) *kbp < 0x80)
     i |= (unsigned char) *kbp;
 
-  parent_setscan(i);
+  DOS_setscan(i);
 
   kbcount--;
   (*cc)--;
@@ -826,11 +847,6 @@ InsKeyboard(unsigned short scancode)
 /* static */ unsigned int
 convKey(int scancode)
 {
-  int i;
-  struct timeval scr_tv;
-  struct funkeystruct *fkp;
-  fd_set fds;
-  unsigned int kbd_mode;
 
   k_printf("convKey = 0x%04x\n", scancode);
 
@@ -846,6 +862,7 @@ convKey(int scancode)
 
     return tmpcode;
   }
+  return 0;
 }
 
 void
@@ -870,185 +887,6 @@ keybuf_clear(void)
 
   ignore_segv--;
   dump_kbuffer();
-}
-
-/* PollKeyboard
-   returns 1 if a character was found at poll
-   */
-int
-PollKeyboard(void)
-{
-  unsigned int key;
-  int count = 0;
-
-  if (in_readkeyboard) {
-    error("ERROR: Polling while in_readkeyboard!!!!!\n");
-    return 0;
-  }
-
-  if (CReadKeyboard(&key, POLL)) {
-    if (key == 0)
-      k_printf("Snatched scancode from me!\n");
-    else {
-      if (!InsKeyboard(key)) {
-	error("PollKeyboard could not insert key!\n");
-	outch('\007');		/* bell */
-      }
-      count++;			/* whether or not the key is put into the buffer,
-		   * throw it away :-( */
-    }
-  }
-  if (count)
-    return 1;
-  else
-    return 0;
-}
-
-int
-PollKeyboard2(void)
-{
-  unsigned int key;
-  int count = 0;
-
-  if (CReadKeyboard(&key, POLL)) {
-    if (key == 0)
-      k_printf("Snatched scancode from me!\n");
-    else {
-      if (!InsKeyboard(key)) {
-	error("PollKeyboard could not insert key!\n");
-	outch('\007');		/* bell */
-      }
-      count++;			/* whether or not the key is put into the buffer,
-		   * throw it away :-( */
-    }
-  }
-  if (count)
-    return 1;
-  else
-    return 0;
-}
-
-int
-CReadKeyboard(unsigned int *buf, int wait)
-{
-  struct ipcpkt pkt;
-  unsigned short nextpos;
-
-  in_readkeyboard = 1;
-
-  /* XXX - need semaphores here to keep child process
-	 * out of keyboard buffer...
-	 */
-
-  if (KBD_Head != KBD_Tail) {
-    *buf = *((unsigned short *) BIOS_DATA_PTR(KBD_Head));
-    if (wait != TEST) {
-      if ((nextpos = KBD_Head + 2) >= KBD_End)
-	nextpos = KBD_Start;
-      ignore_segv++;
-      KBD_Head = nextpos;
-      ignore_segv--;
-    }
-    in_readkeyboard = 0;
-    return 1;
-  }
-  else if (wait == TEST || wait == NOWAIT) {
-    in_readkeyboard = 0;
-    return 0;
-  }
-
-  error("IPC/KBD: (par) sending request message\n");
-  ipc_send2child(DMSG_READKEY);
-
-  /* got here if no key in keybuffer and not TEST */
-  error("IPC/KBD: (par) waiting for key\n");
-  {
-    extern u_short sent_key;
-
-    /* loop until the DMSG_READKEY request has been answered */
-    sent_key = 0;
-
-    while (sent_key == 0)
-      usleep(100);
-    *buf = sent_key;
-    sent_key = 0;
-    error("IPC/KBD: (par) got key (sent_key) 0x%04x\n", *buf);
-  }
-  in_readkeyboard = 0;
-  return 1;
-}
-
-/* ReadKeyboard
-   returns 1 if a character could be read in buf
-   */
-int
-ReadKeyboard(unsigned int *buf, int wait)
-{
-  fd_set fds;
-  int r;
-  static unsigned int aktkey;
-
-  /* this if for PollKeyboard...it works like NOWAIT, except
-         * that the KeyBuffer is not to be consulted first (will cause
-         * an infinite loop, as PollKeyboard stuffs things into the
-	 * buffer. This should be perhaps broken into 2 functions,
-         * one of which does the key-grabbing, and one of which calls
-         * the former and consults the buffer, too.
-         */
-
-  in_readkeyboard = 1;
-
-  k_printf("Doing get keys\n");
-  getKeys();
-  k_printf("Returning from ReadKeyboard\n");
-  in_readkeyboard = 0;
-  return 1;
-}
-
-/* ReadString
-   reads a string into a buffer
-   buf[0] ... length of string
-   buf +1 ... string
-   */
-void
-ReadString(int max, unsigned char *buf)
-{
-  unsigned char ch, *cp = buf + 1, *ce = buf + max;
-  unsigned int c;
-  int tmp;
-
-  for (;;) {
-    if (CReadKeyboard(&c, WAIT) != 1)
-      continue;
-    c &= 0xff;			/* mask out scan code -> makes ASCII */
-    /* I'm not entirely sure why Matthias did this */
-    /* if ((unsigned)c >= 128) continue; */
-    ch = (char) c;
-    if (ch >= ' ' && /* ch <= '~' && */ cp < ce) {
-      *cp++ = ch;
-      char_out(ch, SCREEN, ADVANCE);
-      continue;
-    }
-    if (ch == '\010' && cp > buf + 1) {	/* BS */
-      cp--;
-      char_out('\010', SCREEN, ADVANCE);
-      char_out(' ', SCREEN, ADVANCE);
-      char_out('\010', SCREEN, ADVANCE);
-      continue;
-    }
-    if (ch == 13) {
-      *cp = ch;
-      break;
-    }
-    if (ch == 3) {
-      k_printf("READSTRING ctrl-c\n");
-      *cp = ch;
-      *buf = (cp - buf) - 1;	/* length of string */
-      dos_ctrlc();
-      break;
-    }
-  }
-  *buf = (cp - buf) - 1;	/* length of string */
 }
 
 static int
@@ -1301,10 +1139,6 @@ Scroll(unsigned int sc)
     KBD_Head = KBD_Tail = KBD_Start;
     *((unsigned short *) (BIOS_DATA_PTR(KBD_Start))) = 0;
     ignore_segv--;
-
-    ipc_send2parent(DMSG_CTRLBRK);
-    ipc_wakeparent();
-
     return;
   }
   else if (kbd_flag(KKF_RCTRL))
@@ -1313,14 +1147,11 @@ Scroll(unsigned int sc)
     show_regs();
   else if (kbd_flag(KF_RSHIFT)) {
     warn("timer int 8 requested...\n");
-    ipc_wakeparent();
-    ipc_send2parent(DMSG_INT8);
+    do_hard_int(8);
   }
   else if (kbd_flag(KF_LSHIFT)) {
     warn("keyboard int 9 requested...\n");
     dump_kbuffer();
-    ipc_wakeparent();
-    ipc_send2parent(DMSG_INT9);
   }
   else {
     set_kbd_flag(EKF_SCRLOCK);
@@ -1350,12 +1181,16 @@ num(unsigned int sc)
     k_printf("PAUSE!\n");
     if (lastpause) {
       I_printf("IPC: waking parent up!\n");
+#if 0
       dos_unpause();
+#endif
       lastpause = 0;
     }
     else {
       I_printf("IPC: putting parent to sleep!\n");
+#if 0
       dos_pause();
+#endif
       lastpause = 1;
     }
   }
@@ -1404,9 +1239,11 @@ set_leds()
   else
     clr_key_flag(KKF_CAPSLOCK);
 
+  k_printf("SET_LEDS() called\n");
   do_ioctl(ioc_fd, KDSETLED, led_state);
 }
 
+void
 get_leds()
 {
   unsigned int led_state = 0;
@@ -1654,7 +1491,7 @@ func(unsigned int sc)
     put_queue(FCH(fnum, sc, (sc + 0x2e)) << 8);
 }
 
-int
+void
 activate(int con_num)
 {
   if (in_ioctl) {

@@ -14,7 +14,7 @@ ALL = dpmi.c ldtlib.c dpmi.h \
 all: dpmi.o ldtlib.o ldt.o call.o testdpmi.com
 
 dpmi.o:
-	$(CC) -I../ -N -O6 -c -o $@ $<
+	$(CC) -DDPMI -I../ -N -O6 -c -o $@ $<
 
 ldtlib.o:
 	$(CC) -I../ -N -O6 -c -o $@ $<
@@ -31,7 +31,7 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o *.com
+	rm -f *.o *.com .depend
 
 install:
 

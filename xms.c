@@ -1,12 +1,18 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/xms.c,v $
- * $Revision: 1.9 $
+ * $Date: 1994/03/13 01:07:31 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/xms.c,v $
+ * $Revision: 1.11 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.11  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
+ * Revision 1.10  1994/03/10  02:49:27  root
+ * Back to SINGLE Process.
+ *
  * Revision 1.9  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -76,14 +82,15 @@
 #include "config.h"
 #include "memory.h"
 #include "xms.h"
-#include "dosipc.h"
+#include "dosio.h"
 #include "machcompat.h"
 
+int umb_find_unused(void);
 /* 128*1024 is the amount of memory currently reserved in dos.c above
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.50/RCS/xms.c,v 1.9 1994/03/04 15:23:54 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.50pl1/RCS/xms.c,v 1.11 1994/03/13 01:07:31 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -255,6 +262,7 @@ umb_setup()
 #endif
     }
   }
+  return 0;
 }
 
 int
@@ -881,7 +889,7 @@ xms_int15(void)
     }
   }
   else {			/* AH = 0x87 */
-    x_printf("XMS int 15 block move failed AX=0x%04x\n", REG(eax));
+    x_printf("XMS int 15 block move failed AX=0x%04x\n", (u_short)REG(eax));
     LWORD(eax) &= 0xFF;
     HI(ax) = 3;			/* say A20 gate failed */
     CARRY;

@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.28  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
  * Revision 1.27  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -308,6 +311,7 @@ TODO:
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <ctype.h>
@@ -367,7 +371,7 @@ boolean_t mach_fs_enabled = FALSE;
 /*#define TURN_OFF_PRINTER   0x24 */
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
 #define PRINTER_MODE  0x25	/* Used in DOS 3.1+ */
-/*#define UNDOCUMENTED_FUNCTION_2 0x25 /* Used in DOS 4.0+ */
+/*#define UNDOCUMENTED_FUNCTION_2 0x25  Used in DOS 4.0+ */
 #define EXTENDED_ATTRIBUTES 0x2d/* Used in DOS 4.x */
 
 #define EOS		'\0'
@@ -376,6 +380,8 @@ boolean_t mach_fs_enabled = FALSE;
 
 /* Need to know how many drives are redirected */
 u_char redirected_drives = 0;
+
+int calculate_drive_pointers(int);
 
 /* dos_disk.c */
 struct dir_ent *get_dir();
@@ -1105,12 +1111,7 @@ _get_dir(char *name, char *mname, char *mext)
   struct dir_ent *dir_list;
   struct dir_ent *entry;
   struct stat sbuf;
-  int pos;
-  int dec_found;
-  boolean_t invalid;
-  int end_pos;
   int slen;
-  int flen;
   char buf[256];
   char *sptr;
   char fname[8];
@@ -1150,7 +1151,7 @@ _get_dir(char *name, char *mname, char *mext)
   }
   else
 #endif
-    while (cur_ent = dos_readdir(cur_dir)) {
+    while ((cur_ent = dos_readdir(cur_dir))) {
       if (cur_ent->d_ino == 0)
 	continue;
       if (cur_ent->d_namlen > 13)
@@ -1196,7 +1197,7 @@ _get_dir(char *name, char *mname, char *mext)
       strcpy(sptr, cur_ent->d_name);
 
       if (!find_file(buf, &sbuf)) {
-	Debug0((dbg_fd, "Can't findfile\n", buf));
+	Debug0((dbg_fd, "Can't findfile %s\n", buf));
 	entry->mode = S_IFREG;
 	entry->size = 0;
 	entry->time = 0;
@@ -1592,7 +1593,6 @@ boolean_t
 dos_fs_dev(state)
      state_t *state;
 {
-  static int init_count = 0;
   u_char drive_to_redirect;
   int dos_ver;
 
@@ -1835,7 +1835,7 @@ scan_dir(char *path, char *name)
   }
 
   /* now scan for matching names */
-  while (cur_ent = dos_readdir(cur_dir)) {
+  while ((cur_ent = dos_readdir(cur_dir))) {
     if (cur_ent->d_ino == 0)
       continue;
     if (cur_ent->d_name[0] == '.' &&
@@ -2095,11 +2095,6 @@ _match_filename_prune_list(list, name, ext)
      char *name;
      char *ext;
 {
-  int num_quest;
-  u_char nq[13];
-  int num_ast;
-  u_char na[2];
-  int i;
   struct dir_ent *last_ptr;
   struct dir_ent *tmp_ptr;
   struct dir_ent *first_ptr;
@@ -2459,12 +2454,12 @@ dos_fs_redirect(state)
   char *filename1;
   char *filename2;
   char *dta;
-  long s_pos;
+  long s_pos=0;
   u_char attr;
   u_char subfunc;
   int mode;
-  u_short FCBcall;
-  u_char create_file;
+  u_short FCBcall=0;
+  u_char create_file=0;
   int fd;
   int cnt;
   int ret = REDIRECT;
@@ -2483,8 +2478,10 @@ dos_fs_redirect(state)
   static char last_find_ext[3] = "";
   static u_char last_find_dir = 0;
   static u_char last_find_drive = 0;
+#if 0
   char *resourceName;
   char *deviceName;
+#endif
 
   if (!mach_fs_enabled)
     return (REDIRECT);
@@ -2527,7 +2524,7 @@ dos_fs_redirect(state)
 
     build_ufs_path(fpath, filename1);
     if (find_file(fpath, &st)) {
-      if (rmdir(fpath, 0755) != 0) {
+      if (rmdir(fpath) != 0) {
 	Debug0((dbg_fd, "failed to remove directory %s\n", fpath));
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
@@ -2675,7 +2672,7 @@ dos_fs_redirect(state)
    if the file's size is greater than the current file position. */
 
     if (!cnt && sft_size(sft) > sft_position(sft)) {
-      Debug0((dbg_fd, "Applying O_TRUNC at %x\n", s_pos));
+      Debug0((dbg_fd, "Applying O_TRUNC at %x\n", (int)s_pos));
       if (ftruncate(fd, (off_t) sft_position(sft))) {
 	Debug0((dbg_fd, "O_TRUNC failed\n"));
 	SETWORD(&(state->eax), ACCESS_DENIED);
@@ -2689,7 +2686,7 @@ dos_fs_redirect(state)
     }
     Debug0((dbg_fd, "Handle cnt %d\n",
 	    sft_handle_cnt(sft)));
-    Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %p, cnt = %x\n", sft_size(sft), sft_position(sft), (void *) dta, cnt));
+    Debug0((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %p, cnt = %x\n", (int)sft_size(sft), (int)sft_position(sft), (void *) dta, (int)cnt));
     if (us_debug_level > Debug_Level_0) {
       ret = dos_write(fd, dta, cnt);
       if ((ret + s_pos) > sft_size(sft)) {
@@ -3256,7 +3253,7 @@ dos_fs_redirect(state)
   case FIND_NEXT:		/* 0x1c */
     Debug0((dbg_fd, "Find next %8.8s.%3.3s, hlist=%d\n",
 	    (char *) sdb_template_name(sdb),
-	    (char *) sdb_template_ext(sdb), hlist));
+	    (char *) sdb_template_ext(sdb), (int)hlist));
     if (last_find_drive && ((strncmp(last_find_name, sdb_template_name(sdb), 8) != 0 ||
 		   strncmp(last_find_ext, sdb_template_ext(sdb), 3) != 0) ||
 			    (last_find_dir != sdb_dir_entry(sdb)) ||
@@ -3313,10 +3310,10 @@ dos_fs_redirect(state)
   case QUALIFY_FILENAME:	/* 0x23 */
     {
       char *fn = (char *) Addr(state, ds, esi);
+#if DOQUALIFY
       char *qfn = (char *) Addr(state, es, edi);
       char *cpath = cds_current_path(cds);
 
-#if DOQUALIFY
       if (fn[1] == ':') {
 	if (fn[2] == '\\')
 	  strcpy(qfn, fn);

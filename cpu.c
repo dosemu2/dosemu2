@@ -3,12 +3,30 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/cpu.c,v $
- * $Revision: 1.23 $
+ * $Date: 1994/03/18 23:17:51 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/cpu.c,v $
+ * $Revision: 1.29 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 1.29  1994/03/18  23:17:51  root
+ * Some DPMI, some prep for 0.50pl1.
+ *
+ * Revision 1.28  1994/03/15  01:38:20  root
+ * DPMI,serial, other changes.
+ *
+ * Revision 1.27  1994/03/14  00:35:44  root
+ * Unsucessful speed enhancements
+ *
+ * Revision 1.26  1994/03/13  21:52:02  root
+ * More speed testing :-(
+ *
+ * Revision 1.25  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
+ * Revision 1.24  1994/03/10  23:52:52  root
+ * Lutz DPMI patches
+ *
  * Revision 1.23  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -95,6 +113,7 @@
 #define CPU_C
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "config.h"
 #include "memory.h"
 #include "cpu.h"
@@ -107,8 +126,16 @@
 #include "dpmi/dpmi.h"
 #endif
 
+extern void queue_hard_int(int i, void (*), void (*));
+extern inline void do_int(int);
 extern int int_queue_running;
 extern void int_queue_run();
+extern int inb(int);
+extern void outb(int, u_char);
+extern void iopl(int);
+extern void xms_control(void);
+extern void dpmi_init(void);
+extern print_ldt();
 
 struct vm86_struct vm86s;
 struct CPU cpu;
@@ -116,10 +143,11 @@ struct CPU cpu;
 struct vec_t orig[256];		/* "original" interrupt vectors */
 struct vec_t snapshot[256];	/* vectors from last snapshot */
 
-extern int in_sigsegv, in_sighandler, ignore_segv, in_interrupt;
+extern u_char in_sigsegv, in_sighandler, ignore_segv;
 extern int fatalerr;
 
 int in_vm86 = 0;
+unsigned long RealModeContext;
 
 extern struct config_info config;
 
@@ -285,29 +313,89 @@ do_sti(void)
   REG(eflags) |= TF;
 }
 
+#ifdef DPMI
+#define DPMI_show_state \
+    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n" \
+	     "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n", \
+	     (long)_eip, (long)_esp, (long)_eflags, (long)_cs, (long)_ds, (long)_es, (long)_ss); \
+    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx  EFLAG: %08lx\n", \
+	     (long)_eax, (long)_ebx, (long)_ecx, (long)_edx, (long)_eflags); \
+    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n", \
+	     (long)_esi, (long)_edi, (long)_ebp); \
+    D_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n", \
+	     (long)_cs, (long)_ds, (long)_es, (long)_fs, (long)_gs); \
+    /* display the 10 bytes before and after CS:EIP.  the -> points \
+     * to the byte at address CS:EIP \
+     */ \
+    if (!((_cs) & 0x0004)) { \
+      /* GTD */ \
+      csp2 = (unsigned char *) _eip - 10; \
+    } \
+    else { \
+      /* LDT */ \
+      csp2 = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip) - 10; \
+    } \
+    D_printf("OPS  : "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *csp2++); \
+    D_printf("-> "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *csp2++); \
+    D_printf("\n"); \
+    if (!((_ss) & 0x0004)) { \
+      /* GTD */ \
+      ssp2 = (unsigned char *) _esp - 10; \
+    } \
+    else { \
+      /* LDT */ \
+      if (Segments[_ss>>3].is_32) \
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _esp ) - 10; \
+      else \
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + (_esp & 0x0000ffff) ) - 10; \
+    } \
+    D_printf("STACK: "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *ssp2++); \
+    D_printf("-> "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *ssp2++); \
+    D_printf("\n");
+#endif /*DPMI*/
+
 /* this is the brain, the privileged instruction handler.
  * see cpu.h for the SIGSTACK definition (new in Linux 0.99pl10)
  */
+
+struct sigcontext_struct *scp;
+
 void 
 sigsegv(int signal, struct sigcontext_struct context)
 {
-  struct sigcontext_struct *scp = &context;
   us *ssp;
-  unsigned char *csp, *csp2, *ssp2, *lina;
+  unsigned char *csp, *lina;
+#ifdef DPMI
+  unsigned char *csp2, *ssp2;
+#endif
   static int haltcount = 0;
   int op32 = 0, ad32 = 0, i;
 
+scp = &context;
+
 #define MAX_HALT_COUNT 1
 
-#ifdef 0
+#if 0
   csp = SEG_ADR((unsigned char *), cs, ip);
-  fprintf(stderr, "SIGSEGV *csp=0x%02x 0x%02x->0x%02x 0x%02x\n", csp[-1], csp[0], csp[1], csp[2]);
+  k_printf("SIGSEGV *csp=0x%02x 0x%02x->0x%02x 0x%02x\n", csp[-1], csp[0], csp[1], csp[2]);
+/*
   show_regs();
+*/
 #endif
+
   if (ignore_segv) {
     error("ERROR: sigsegv ignored!\n");
     return;
   }
+
 #ifdef DPMI
   if (!in_vm86 && !in_dpmi) {
 #else
@@ -318,11 +406,13 @@ sigsegv(int signal, struct sigcontext_struct context)
     /* This has been added temporarily as most illegal sigsegv's are attempt
    to call Linux int routines */
 
+#if 0
     if (!(csp[-2] == 0xcd && csp[-1] == 0x80 && csp[0] == 0x85)) {
+#endif
       error("ERROR: NON-VM86 sigsegv!\n"
 	    "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
 	    "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n",
-	    _eip, _esp, _eflags, _cs, _ds, _es, _ss);
+	    (long)_eip, (long)_esp, (long)_eflags, (long)_cs, (long)_ds, (long)_es, (long)_ss);
 
       dbug_printf("  VFLAGS(b): ");
       for (i = (1 << 17); i; i >>= 1)
@@ -335,7 +425,7 @@ sigsegv(int signal, struct sigcontext_struct context)
       dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
 		  _esi, _edi, _ebp);
       dbug_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n",
-		  _cs, _ds, _es, _fs, _gs);
+		  (long)_cs, (long)_ds, (long)_es, (long)_fs, (long)_gs);
 
       /* display vflags symbolically...the #f "stringizes" the macro name */
 #undef PFLAG
@@ -369,59 +459,16 @@ sigsegv(int signal, struct sigcontext_struct context)
 	dbug_printf("%02x ", *csp++);
       dbug_printf("\n");
 
+#if 0
     }
+#endif
   }
 
 #ifdef DPMI
   if (!in_vm86 && in_dpmi) {
 #if 1
-    D_printf("DPMI: Protected Mode Interrupt!\n"
-	     "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
-	     "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n",
-	     _eip, _esp, _eflags, _cs, _ds, _es, _ss);
-
-    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n",
-	     _eax, _ebx, _ecx, _edx, _eflags);
-    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
-	     _esi, _edi, _ebp);
-    D_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n",
-	     _cs, _ds, _es, _fs, _gs);
-    /* display the 10 bytes before and after CS:EIP.  the -> points
-     * to the byte at address CS:EIP
-     */
-    if (!((_cs) & 0x0004)) {
-      /* GTD */
-      csp2 = (unsigned char *) _eip - 10;
-    }
-    else {
-      /* LDT */
-      csp2 = (unsigned char *) (get_base_addr(_cs >> 3) + _eip) - 10;
-    }
-    D_printf("OPS  : ");
-    for (i = 0; i < 10; i++)
-      D_printf("%02x ", *csp2++);
-    D_printf("-> ");
-    for (i = 0; i < 10; i++)
-      D_printf("%02x ", *csp2++);
-    D_printf("\n");
-    if (!((_ss) & 0x0004)) {
-      /* GTD */
-      ssp2 = (unsigned char *) _esp - 10;
-    }
-    else {
-      /* LDT */
-      if (DPMIclient_is_32)
-	ssp2 = (unsigned char *) (get_base_addr(_ss >> 3) + _esp) - 10;
-      else
-	ssp2 = (unsigned char *) (get_base_addr(_ss >> 3) + (_esp & 0x0000ffff)) - 10;
-    }
-    D_printf("STACK: ");
-    for (i = 0; i < 10; i++)
-      D_printf("%02x ", *ssp2++);
-    D_printf("-> ");
-    for (i = 0; i < 10; i++)
-      D_printf("%02x ", *ssp2++);
-    D_printf("\n");
+    D_printf("DPMI: Protected Mode Interrupt!\n");
+    DPMI_show_state;
 #endif /* 1 */
     if (!((_cs) & 0x0004)) {
       /* GTD */
@@ -430,7 +477,7 @@ sigsegv(int signal, struct sigcontext_struct context)
     }
     else {
       /* LDT */
-      csp = (unsigned char *) (get_base_addr(_cs >> 3) + _eip);
+      csp = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip );
     }
 
     if (!((_ss) & 0x0004)) {
@@ -440,54 +487,117 @@ sigsegv(int signal, struct sigcontext_struct context)
     }
     else {
       /* LDT */
-      if (DPMIclient_is_32)
-	ssp = (us *) (get_base_addr(_ss >> 3) + _esp);
+      if (Segments[_ss>>3].is_32)
+	ssp = (us *) (GetSegmentBaseAddress(_ss) + _esp );
       else
-	ssp = (us *) (get_base_addr(_ss >> 3) + (_esp & 0x0000ffff));
+	ssp = (us *) (GetSegmentBaseAddress(_ss) + (_esp & 0x0000ffff) );
     }
 
     switch (*csp++) {
 
     case 0xcd:			/* int xx */
-      if (*csp == 0x31) {
-	D_printf("DPMI: int31, ax=%4x\n", _eax);
-	_eflags |= CF;
-	/* Bypass the int instruction */
-	_eip += 2;
-      }
+      /* Bypass the int instruction */
+      _eip += 2;
+      if ((*csp == 0x2f) && (_LWORD(eax) == 0x168a))
+	do_int31(0x0a00);
       else {
-	/* Bypass the int instruction */
-	_eip += 2;
-	REG(eflags) = _eflags;
-	REG(eax) = _eax;
-	REG(ebx) = _ebx;
-	REG(ecx) = _ecx;
-	REG(edx) = _edx;
-	REG(esi) = _esi;
-	REG(edi) = _edi;
-	REG(ds) = (long) get_base_addr(_ds >> 3) >> 4;
-	REG(es) = (long) get_base_addr(_es >> 3) >> 4;
-	REG(cs) = DPMI_SEG;
-	REG(eip) = DPMI_OFF + 7;
-	in_dpmi_dos_int = 1;
-	do_int(*csp);
-      }
+        if (*csp == 0x31) {
+	  D_printf("DPMI: int31, eax=%04x\n",(int)_eax);
+	  do_int31(_LWORD(eax));
+        } else {
+	  REG(eflags) = _eflags;
+	  REG(eax) = _eax;
+	  REG(ebx) = _ebx;
+	  REG(ecx) = _ecx;
+	  REG(edx) = _edx;
+	  REG(esi) = _esi;
+	  REG(edi) = _edi;
+	  REG(ds) = (long) GetSegmentBaseAddress(_ds) >> 4;
+	  REG(es) = (long) GetSegmentBaseAddress(_es) >> 4;
+	  REG(cs) = DPMI_SEG;
+	  REG(eip) = DPMI_OFF + 8;
+	  in_dpmi_dos_int = 1;
+	  do_int(*csp);
+        }
+      }  
       break;
 
     case 0xf4:			/* hlt */
       _eip += 1;
-      return;
+      if (_cs==DPMI_SEL)
+	if (_eip==DPMI_OFF+11) {
+	  D_printf("DPMI: switching from protected to real mode\n");
+	  REG(ds) = (long) _LWORD(eax);
+	  REG(es) = (long) _LWORD(ecx);
+	  REG(ss) = (long) _LWORD(edx);
+	  REG(esp) = (long) _LWORD(ebx);
+	  REG(cs) = (long) _LWORD(esi);
+	  REG(eip) = (long) _LWORD(edi);
+	  in_dpmi_dos_int = 1;
+        } else if (_eip==DPMI_OFF+12) {
+          D_printf("DPMI: protected mode Save/Restore\n");
+          /* _eip point to FAR RET */
+        } else if (_eip==DPMI_OFF+14) {
+          D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
+          if (_LWORD(eax) == 0x0100) {
+            _eax = LDT_ALIAS;  /* simulate direct ldt access */
+            *ssp += (us) 7; /* jump over writeaccess test of the LDT in krnl386.exe! */
+	  } else
+            _eflags |= CF;
+          }
+      else
+	return;
       break;
 
+      case 0xfa:                        /* cli */
+        _eip += 1;
+        break;
+ 
+      case 0xfb:                        /* sti */
+        _eip += 1;
+        break;
+
     default:
-      error("Unexpected Protected Mode segfault %x\n", *--csp);
+      csp--;
+      if ((*(csp-2)==0xcd) && (*(csp-1)==0x80)) {
+	error("DPMI: error in syscall (int 0x80) at %4x:%8lx\n", (us)_cs, (long)_eip - 2);
+        leavedos(fatalerr);	/* shouldn't return */
+        _exit(1000);
+      } 
+      /* Simulate direct LDT access for MS-Windows 3.1 */
+      if (win31ldt(csp))
+      return;
+
+      error("DPMI: Unexpected Protected Mode segfault %x\n", *csp);
+#if 1
+      p_dos_str("DPMI: Unexpected Protected Mode segfault %02lx at %04lx:%08lx\n",
+              (long)*csp, (long)_cs, (long)_eip);
+      p_dos_str("Terminating Client\n");
+      REG(eax) = 0x4cff;
+      REG(cs) = DPMI_SEG;
+      REG(eip) = DPMI_OFF + 8;
+      print_ldt();
+      in_dpmi_dos_int = 1;
+      do_int(0x21);
+#else
       leavedos(fatalerr);	/* shouldn't return */
       _exit(1000);
+#endif
     }				/* end of switch() */
 
+/*    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n",
+	     _eax, _ebx, _ecx, _edx, _eflags);
+    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
+	     _esi, _edi, _ebp);
+    D_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n",
+	     _cs, _ds, _es, _fs, _gs); */
+    if (!in_dpmi_dos_int)
+      return;
+    *--ssp = (us) 0;
     *--ssp = (us) _cs;
-    *--ssp = (us) _eip;
-    _esp -= 4;
+    *--ssp = (us) _HWORD(eip);
+    *--ssp = (us) _LWORD(eip);
+    _esp -= 8;
     _cs = UCODESEL;
     _eip = (unsigned long) ReturnFrom_dpmi_control;
     return;
@@ -512,53 +622,21 @@ sigsegv(int signal, struct sigcontext_struct context)
    */
   in_sighandler = 0;
 
-  lina = SEG_ADR((unsigned char *), cs, ip);
-
-  if (REG(eflags) & TF) {
+  if (LWORD(eflags) & TF) {
     g_printf("SIGSEGV %d received\n", signal);
     show_regs();
   }
 
 restart_segv:
-  csp = SEG_ADR((unsigned char *), cs, ip);
+  csp = lina = SEG_ADR((unsigned char *), cs, ip);
 
   /* fprintf(stderr, "CSP in cpu is 0x%04x\n", *csp); */
 
   switch (*csp) {
 
-  case 0x62:			/* bound */
-    error("ERROR: BOUND instruction");
-    show_regs();
-    REG(eip) += 2;		/* check this! */
-    do_int(5);
-    break;
-
-  case 0x66:			/* 32-bit operand prefix */
-    op32 = 1;
-    REG(eip)++;
-    goto restart_segv;
-    break;
-  case 0x67:			/* 32-bit address prefix */
-    ad32 = 1;
-    REG(eip)++;
-    goto restart_segv;
-    break;
-
-  case 0x6c:			/* insb */
-  case 0x6d:			/* insw */
-  case 0x6e:			/* outsb */
-  case 0x6f:			/* outsw */
-    error("ERROR: IN/OUT SB/SW: 0x%02x\n", *csp);
-    REG(eip)++;
-    break;
-
   case 0xcd:			/* int xx */
-    REG(eip) += 2;
+    LWORD(eip) += 2;
     do_int((int) *++csp);
-    break;
-  case 0xcc:			/* int 3 */
-    REG(eip) += 1;
-    do_int(3);
     break;
 
   case 0xcf:			/* iret */
@@ -566,100 +644,17 @@ restart_segv:
       ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
     else
       ssp = SEG_ADR((us *), ss, sp);
-    REG(eip) = *ssp++;
-    REG(cs) = *ssp++;
-    REG(eflags) = (REG(eflags) & 0xffff0000) | *ssp++;
-    REG(esp) += 6;
+    LWORD(eip) = *ssp++;
+    LWORD(cs) = *ssp++;
+    LWORD(eflags) = *ssp++;
+    LWORD(esp) += 6;
 
     /* make sure our "virtual flags" correspond to the
        * popped eflags
-       */
+    */
     update_cpu(REG(eflags));
-
-    /* decrease the interrupt depth count */
-    in_interrupt--;
     break;
 
-  case 0xe5:			/* inw xx */
-    REG(eax) &= ~0xff00;
-    REG(eax) |= inb((int) csp[1] + 1) << 8;
-  case 0xe4:			/* inb xx */
-    REG(eax) &= ~0xff;
-    REG(eax) |= inb((int) csp[1]);
-    REG(eip) += 2;
-    break;
-
-  case 0xed:			/* inw dx */
-    REG(eax) &= ~0xff00;
-    REG(eax) |= inb(REG(edx) + 1) << 8;
-  case 0xec:			/* inb dx */
-    REG(eax) &= ~0xff;
-    REG(eax) |= inb(REG(edx));
-    REG(eip) += 1;
-    break;
-
-  case 0xe7:			/* outw xx */
-    outb((int) csp[1], LO(ax));
-    outb((int) csp[1] + 1, HI(ax));
-    REG(eip) += 2;
-    break;
-  case 0xe6:			/* outb xx */
-    outb((int) csp[1], LO(ax));
-    REG(eip) += 2;
-    break;
-
-  case 0xef:			/* outw dx */
-    outb(REG(edx), LO(ax));
-    outb(REG(edx) + 1, HI(ax));
-    REG(eip) += 1;
-    break;
-  case 0xee:			/* outb dx */
-    outb(REG(edx), LO(ax));
-    REG(eip) += 1;
-    break;
-
-    /* Emulate REP F3 6F */
-  case 0xf3:
-    fprintf(stderr, "Checking for REP F3 6F\n");
-    if ((csp[1] & 0xff) == 0x6f) {
-      u_char *si = SEG_ADR((unsigned char *), ds, si);
-
-      fprintf(stderr, "Doing REP F3 6F\n");
-      show_regs();
-      if (config.chipset == DIAMOND && (REG(edx) >= 0x23c0) && (REG(edx) <= 0x23cf))
-	iopl(3);
-      while (REG(ecx)) {
-	fprintf(stderr, "1) REG(ecx)=0x%08x, *si=0x%04x, REG(edx)=0x%08x\n", REG(ecx), *si, REG(edx));
-	outb(*si, REG(edx));
-	si++;
-	fprintf(stderr, "2) REG(ecx)=0x%08x, *si=0x%04x, REG(edx)=0x%08x\n", REG(ecx), *si, REG(edx) + 1);
-	outb(*si, REG(edx) + 1);
-	REG(ecx)--;
-	si++;
-      }
-      if (config.chipset == DIAMOND && (REG(edx) >= 0x23c0) && (REG(edx) <= 0x23cf))
-	iopl(0);
-      fprintf(stderr, "Finished REP F3 6F\n");
-      REG(eip)++;
-      REG(eip)++;
-      _regs.eflags |= CF;
-      break;
-    }
-    else
-      fprintf(stderr, "Nope CSP[1] = 0x%04x\n", csp[1]);
-
-  case 0xfa:			/* cli */
-    cpu.iflag = 0;
-    REG(eip) += 1;
-    break;
-  case 0xfb:			/* sti */
-#ifdef PROPER_STI
-    do_sti();
-#else
-    cpu.iflag = 1;
-#endif
-    REG(eip) += 1;
-    break;
   case 0x9c:			/* pushf */
     /* fetch virtual CPU flags into eflags */
     update_flags(&REG(eflags));
@@ -672,20 +667,130 @@ restart_segv:
       else
 	lssp = SEG_ADR((unsigned long *), ss, sp);
       *--lssp = (unsigned long) REG(eflags);
-      REG(esp) -= 4;
-      REG(eip) += 1;
+      LWORD(esp) -= 4;
+      LWORD(eip) += 1;
     }
     else {
       if (!LWORD(esp))
 	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
       else
 	ssp = SEG_ADR((us *), ss, sp);
-      *--ssp = (us) REG(eflags);
-      REG(esp) -= 2;
-      REG(eip) += 1;
+      *--ssp = LWORD(eflags);
+      LWORD(esp) -= 2;
+      LWORD(eip) += 1;
     }
     break;
 
+  case 0x62:			/* bound */
+    error("ERROR: BOUND instruction");
+    show_regs();
+    LWORD(eip) += 2;		/* check this! */
+    do_int(5);
+    break;
+
+  case 0x66:			/* 32-bit operand prefix */
+    op32 = 1;
+    LWORD(eip)++;
+    goto restart_segv;
+    break;
+  case 0x67:			/* 32-bit address prefix */
+    ad32 = 1;
+    LWORD(eip)++;
+    goto restart_segv;
+    break;
+
+  case 0x6c:			/* insb */
+  case 0x6d:			/* insw */
+  case 0x6e:			/* outsb */
+  case 0x6f:			/* outsw */
+    error("ERROR: IN/OUT SB/SW: 0x%02x\n", *csp);
+    LWORD(eip)++;
+    break;
+
+  case 0xcc:			/* int 3 */
+    LWORD(eip) += 1;
+    do_int(3);
+    break;
+
+  case 0xe5:			/* inw xx */
+    LWORD(eax) &= ~0xff00;
+    LWORD(eax) |= inb((int) csp[1] + 1) << 8;
+  case 0xe4:			/* inb xx */
+    LWORD(eax) &= ~0xff;
+    LWORD(eax) |= inb((int) csp[1]);
+    LWORD(eip) += 2;
+    break;
+
+  case 0xed:			/* inw dx */
+    LWORD(eax) &= ~0xff00;
+    LWORD(eax) |= inb(REG(edx) + 1) << 8;
+  case 0xec:			/* inb dx */
+    LWORD(eax) &= ~0xff;
+    LWORD(eax) |= inb(LWORD(edx));
+    LWORD(eip) += 1;
+    break;
+
+  case 0xe7:			/* outw xx */
+    outb((int) csp[1], LO(ax));
+    outb((int) csp[1] + 1, HI(ax));
+    LWORD(eip) += 2;
+    break;
+  case 0xe6:			/* outb xx */
+    outb((int) csp[1], LO(ax));
+    LWORD(eip) += 2;
+    break;
+
+  case 0xef:			/* outw dx */
+    outb(REG(edx), LO(ax));
+    outb(REG(edx) + 1, HI(ax));
+    LWORD(eip) += 1;
+    break;
+  case 0xee:			/* outb dx */
+    outb(LWORD(edx), LO(ax));
+    LWORD(eip) += 1;
+    break;
+
+    /* Emulate REP F3 6F */
+  case 0xf3:
+    fprintf(stderr, "Checking for REP F3 6F\n");
+    if ((csp[1] & 0xff) == 0x6f) {
+      u_char *si = SEG_ADR((unsigned char *), ds, si);
+
+      fprintf(stderr, "Doing REP F3 6F\n");
+      show_regs();
+      if (config.chipset == DIAMOND && (LWORD(edx) >= 0x23c0) && (LWORD(edx) <= 0x23cf))
+	iopl(3);
+      while (LWORD(ecx)) {
+	fprintf(stderr, "1- LWORD(ecx)=0x%08x, *si=0x%04x, LWORD(edx)=0x%08x\n", LWORD(ecx), *si, LWORD(edx));
+	outb(LWORD(edx), *si);
+	si++;
+	fprintf(stderr, "2- LWORD(ecx)=0x%08x, *si=0x%04x, LWORD(edx)=0x%08x\n", LWORD(ecx), *si, LWORD(edx) + 1);
+	outb(LWORD(edx) + 1, *si);
+	si++;
+	LWORD(ecx)--;
+      }
+      if (config.chipset == DIAMOND && (LWORD(edx) >= 0x23c0) && (LWORD(edx) <= 0x23cf))
+	iopl(0);
+      fprintf(stderr, "Finished REP F3 6F\n");
+      LWORD(eip)+= 2;
+      LWORD(eflags) |= CF;
+      break;
+    }
+    else
+      fprintf(stderr, "Nope CSP[1] = 0x%04x\n", csp[1]);
+
+  case 0xfa:			/* cli */
+    cpu.iflag = 0;
+    LWORD(eip) += 1;
+    break;
+  case 0xfb:			/* sti */
+#ifdef PROPER_STI
+    do_sti();
+#else
+    cpu.iflag = 1;
+#endif
+    LWORD(eip) += 1;
+    break;
   case 0x9d:			/* popf */
     if (op32) {
       unsigned long *lssp;
@@ -696,18 +801,17 @@ restart_segv:
       else
 	lssp = SEG_ADR((unsigned long *), ss, sp);
       REG(eflags) = *lssp;
-      REG(esp) += 4;
+      LWORD(esp) += 4;
     }
     else {
       if (!LWORD(esp))
 	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
       else
 	ssp = SEG_ADR((us *), ss, sp);
-      REG(eflags) &= ~0xffff;
-      REG(eflags) |= (u_short) * ssp;
-      REG(esp) += 2;
+      LWORD(eflags) = *ssp;
+      LWORD(esp) += 2;
     }
-    REG(eip) += 1;
+    LWORD(eip) += 1;
     /* make sure our "virtual flags" correspond to the
        * popped eflags
        */
@@ -717,36 +821,35 @@ restart_segv:
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */
     if (lina == (unsigned char *) XMSTrap_ADD) {
-      REG(eip) += 2;		/* skip halt and info byte to point to FAR RET */
+      LWORD(eip) += 2;		/* skip halt and info byte to point to FAR RET */
       xms_control();
     }
 #if BIOSSEG != 0xf000
-    else if ((REG(cs) & 0xffff) == 0xf000) {
+    else if ((LWORD(cs) & 0xffff) == 0xf000) {
       /* if BIOSSEG = 0xf000, then jumps here will be legit */
       error("jump into BIOS %04x:%04x...simulating IRET\n",
-	    REG(cs), LWORD(eip));
+	    LWORD(cs), LWORD(eip));
       /* simulate IRET */
       if (!LWORD(esp))
 	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
       else
 	ssp = SEG_ADR((us *), ss, sp);
-      REG(eip) = *ssp++;
-      REG(cs) = *ssp++;
-      REG(eflags) = (REG(eflags) & 0xffff0000) | *ssp++;
-      (us) REG(esp) += 6;
+      LWORD(eip) = *ssp++;
+      LWORD(cs) = *ssp++;
+      LWORD(eflags) = *ssp++;
+      LWORD(esp) += 6;
     }
 #endif
 #ifdef DPMI
     /* The hlt instruction is 6 bytes in from DPMI_ADD */
     else if (lina == (unsigned char *) (DPMI_ADD + 6)) {
-      REG(eip) += 2;		/* skip halt to point to FAR RET */
+      LWORD(eip) += 1;		/* skip halt to point to FAR RET */
       CARRY;
       if (!in_dpmi)
 	dpmi_init();
     }
-    else if (lina == (unsigned char *) (DPMI_ADD + 7)) {
+    else if (lina == (unsigned char *) (DPMI_ADD + 8)) {
       D_printf("DPMI: Return from DOS Interrupt\n");
-
       if (!((DPMI_SavedDOS_ss) & 0x0004)) {
 	/* GTD */
 	D_printf("ss in GTD: this should never happen\n");
@@ -754,14 +857,13 @@ restart_segv:
       }
       else {
 	/* LDT */
-	if (DPMIclient_is_32)
-	  ssp = (us *) (get_base_addr(DPMI_SavedDOS_ss >> 3) + DPMI_SavedDOS_esp);
+	if (Segments[_ss>>3].is_32)
+	  ssp = (us *) (GetSegmentBaseAddress(DPMI_SavedDOS_ss) + DPMI_SavedDOS_esp);
 	else
-	  ssp = (us *) (get_base_addr(DPMI_SavedDOS_ss >> 3) + (DPMI_SavedDOS_esp & 0x0000ffff));
+	  ssp = (us *) (GetSegmentBaseAddress(DPMI_SavedDOS_ss) + (DPMI_SavedDOS_esp & 0xffff));
       }
       {
 	struct pm86 *dpmir = (struct pm86 *) ssp;
-
 	dpmir->eflags = REG(eflags);
 	dpmir->eax = REG(eax);
 	dpmir->ebx = REG(ebx);
@@ -772,6 +874,35 @@ restart_segv:
       }
       in_dpmi_dos_int = 0;
     }
+    else if (lina == (unsigned char *) (DPMI_ADD + 9)) {
+      struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *) RealModeContext;
+
+      D_printf("DPMI: Return from Real Mode Procedure\n");
+
+      rmreg->edi = REG(edi);
+      rmreg->edi = REG(esi);
+      rmreg->ebp = REG(ebp);
+      rmreg->ebx = REG(ebx);
+      rmreg->edx = REG(edx);
+      rmreg->ecx = REG(ecx);
+      rmreg->eax = REG(eax);
+      rmreg->flags = LWORD(eflags);
+      rmreg->es = REG(es);
+      rmreg->ds = REG(ds);
+      rmreg->fs = REG(fs);
+      rmreg->gs = REG(gs);
+
+      in_dpmi_dos_int = 0;
+    }
+    else if (lina == (unsigned char *) (DPMI_ADD + 10)) {
+      D_printf("DPMI: switching from real to protected mode\n");
+      in_dpmi_dos_int = 0;
+      CallToInit(REG(edi), LWORD(esi), REG(ebx), LWORD(edx), LWORD(eax), LWORD(ecx));
+    }
+    else if (lina == (unsigned char *) (DPMI_ADD + 11)) {
+      D_printf("DPMI: real mode Save/Restore\n");
+      REG(eip) += 1;            /* skip halt to point to FAR RET */
+    }
 #endif
     else {
       error("HLT requested: lina=%p!\n", lina);
@@ -779,7 +910,7 @@ restart_segv:
       haltcount++;
       if (haltcount > MAX_HALT_COUNT)
 	fatalerr = 0xf4;
-      REG(eip) += 1;
+      LWORD(eip) += 1;
     }
     break;
 
@@ -797,7 +928,7 @@ restart_segv:
   }				/* end of switch() */
 
 #ifndef PROPER_STI		/* do_sti() sets TF bit */
-  if (REG(eflags) & TF) {
+  if (LWORD(eflags) & TF) {
     g_printf("TF: trap done");
     show_regs();
   }
@@ -812,6 +943,15 @@ sigill(int sig, struct sigcontext_struct context)
 {
   unsigned char *csp;
   int i, dee;
+#ifdef DPMI
+  struct sigcontext_struct *scp = &context;
+  unsigned char *csp2, *ssp2;
+
+  if (_cs != UCODESEL){
+    D_printf("DPMI: sigill\n");
+    DPMI_show_state;
+  }
+#endif
 
   if (!in_vm86)			/* test VM bit */
     error("ERROR: NON-VM86 illegal insn!\n");
@@ -840,11 +980,11 @@ sigill(int sig, struct sigcontext_struct context)
 
   if (csp[0] == 0x2e) {
     csp++;
-    _regs.eip++;
+    LWORD(eip)++;
   }
   if (csp[0] == 0xf0) {
     dbug_printf("ERROR: LOCK prefix not permitted!\n");
-    REG(eip)++;
+    LWORD(eip)++;
     return;
   }
 
@@ -906,7 +1046,7 @@ sigill(int sig, struct sigcontext_struct context)
 }
 
 void
-sigfpe(int sig, struct sigcontext_struct context)
+sigfpe(int sig)
 {
   if (!in_vm86)
     error("ERROR: NON-VM86 SIGFPE insn!\n");
@@ -922,7 +1062,7 @@ sigfpe(int sig, struct sigcontext_struct context)
 }
 
 void
-sigtrap(int sig, struct sigcontext_struct context)
+sigtrap(int sig)
 {
   in_vm86 = 0;
 
@@ -930,13 +1070,13 @@ sigtrap(int sig, struct sigcontext_struct context)
   if (cpu.sti) {
     cpu.iflag = 1;
     cpu.sti = 0;
-    REG(eflags) &= ~(TF);
+    LWORD(eflags) &= ~(TF);
     return;
   }
 #endif
 
-  if (REG(eflags) & TF)		/* trap flag */
-    REG(eip)++;
+  if (LWORD(eflags) & TF)		/* trap flag */
+    LWORD(eip)++;
 
   do_int(3);
 }
@@ -1127,8 +1267,6 @@ write_port(int value, int port)
   return (1);
 }
 
-#define WORD(x)         ((unsigned short)(x))
-
 char
 pop_byte(struct vm86_regs *pregs)
 {
@@ -1192,6 +1330,7 @@ pop_isf(struct vm86_regs *pregs)
   isf.flags = pop_word(pregs);
   error("cs: 0x%x, eip: 0x%x, flags: 0x%x\n", isf.cs, isf.eip,
 	isf.flags);
+  return isf;
 }
 
 void

@@ -1,0 +1,48 @@
+
+Well, the jig is up. Everyone figured out quite quickly that dosemu0.50
+showed some major bugs, and the dosemu development team is very thankful
+for everyone bringing them to our attention. With your forgiveness we
+wish to submit this latest version 0.50pl1. Please use it in all instances
+where 0.50 was used before.
+
+  DOSEMU is a Linux specific application that allows Linux to run many
+DOS based programs. It requires a bootable DOS diskette and
+Linux 0.99pl14+ .
+
+  Definitely still consider this ALPHA software, and as such please
+beware it is not yet fully functional, or always smooth sailing.
+
+At this time, it should be locatable at:
+
+dspsun.eas.asu.edu:/pub/dosemu/dosemu0.50pl1.tgz
+Thanks to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher). Micheal
+may also have DOSEMU added to the Debian distribution down the road.
+
+and:
+tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.50pl1.tgz
+sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.50pl1.tgz
+
+Updated in this release:
+
+-	S3 video code started by niemann@swt.ruhr-uni-bochum.de 
+	(Christoph Niemann)
+-	More DPMI thanks to LUTZ.
+-	Serial INT14 updated thanks to Mark Rejhon.
+-	Modest changes in code to continue clean up. 
+-	Fixed (kludged) bugs in VC switching, Added -Wall
+	to start cleaning up code. Changed do_int to inline, no
+	benefit.
+-	DOSEMU becomes one again (one process)
+
+  As always, many, thanks to all who have helped with this release, 
+either by sending in bug reports so we knew something was wrong, by 
+sending in bug fixes (which may not have made it into this release), 
+or by just providing a sounding board for ideas that come up.
+  My apologies for not having answered every letter, and possibly 
+missing some of the important information. If you know something you
+think we should, try to contact me again, please.
+
+Later,
+JES
+jmaclean@fox.nstn.ns.ca
+--

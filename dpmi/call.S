@@ -29,27 +29,28 @@ _DPMI_SavedDOS_ss:
 	.word	0
 
 selector:
-	.word	0
+	.long	0
 offset:
 	.long	0
 
 	.text
 
 /**********************************************************************
- *	void CallToInit16(unsigned long csip, unsigned long sssp,
- *		     unsigned short ds)
+ *	void CallToInit(unsigned long eip, unsigned short cs, unsigned long esp,
+ *	     	unsigned short ss, unsigned short ds, unsigned short es)
  *
  *	Stack:	 	0	ebp
  *		 	4	eip
- *		 	8	target ip
- *			10	target cs
- *			12	target sp
- *			14	target ss
- *			16	target ds
+ *		 	8	target eip
+ *			12	target cs
+ *			16	target esp
+ *			20	target ss
+ *			24	target ds
+ *			28	target es
  */
 	.align	4
-	.globl _CallToInit16
-_CallToInit16:
+	.globl _CallToInit
+_CallToInit:
 	pushl	%ebp
 	movl	%esp,%ebp
 
@@ -61,10 +62,11 @@ _CallToInit16:
 	/*
 	 * Get target address.
 	 */
-	movw	8(%ebp),%ax
-	movw	%ax,offset
-	movw	10(%ebp),%ax
-	movw	%ax,selector
+	movl	8(%ebp),%eax
+	movl	%eax,offset
+	xorl	%eax,%eax
+	movw	12(%ebp),%ax
+	movl	%eax,selector
 
 	/*
 	 * Put stack registers where we can get them after stack switch.
@@ -78,23 +80,23 @@ _CallToInit16:
 	 */
 	movl	$0,%esi
 	xorl	%eax,%eax
-	movw	_PSPSelector,%ax
+	movw	28(%ebp),%ax
 	movw	%ax,%es
-	movw	16(%ebp),%ax
+	movw	24(%ebp),%ax
 	movw	%ax,%ds
 	movl	%eax,%edi
 	xorl	%eax,%eax
-	movw	12(%ebp),%ax
+	movw	16(%ebp),%ax
 	movl	%eax,%esp
-	movw	14(%ebp),%ax
+	movw	20(%ebp),%ax
 	movw	%ax,%ss
 	movl	%esp,%eax
 	movl	%eax,%ebp
 	/*
 	 * Call entry point
 	 */
-	pushw	%fs:selector
-	pushw	%fs:offset
+	pushl	%fs:selector
+	pushl	%fs:offset
 	xorw	%ax,%ax
 	movw	%ax,%fs
 	movw	%ax,%gs
@@ -161,5 +163,4 @@ _dpmi_control:
 	popal
 	popfl
 
-	.byte	0x66
 	lret		/* Jump to dos in protected mode */

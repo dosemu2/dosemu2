@@ -3,12 +3,18 @@
  *
  * rudimentary attempt at config file parsing for dosemu
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/parse.c,v $
- * $Revision: 1.11 $
+ * $Date: 1994/03/18 23:17:51 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/parse.c,v $
+ * $Revision: 1.13 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.13  1994/03/18  23:17:51  root
+ * Prep for 0.50pl1.
+ *
+ * Revision 1.12  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
  * Revision 1.11  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -76,8 +82,10 @@
 #include "video.h"
 #include "serial.h"
 
+extern int allow_io(int, int, int, int, int);
 extern struct config_info config;
 extern struct CPU cpu;
+extern void parse_debugflags(const char *);
 
 jmp_buf exitpar;
 
@@ -333,6 +341,7 @@ syn_t global_syns[] =
   {"80486", "4"},
   {"emulated", "2"},
   {"native", "1"},		/* for speaker */
+  {"s3", "4"},
   {"diamond", "3"},
   {"et4000", "2"},
   {"trident", "1"},
@@ -361,7 +370,7 @@ int
 read_until_rtn_previous(FILE * fd, int goal)
 {
   static int previous = 0;
-  int here, tmp;
+  int here;
 
   here = fgetc(fd);
 
@@ -395,6 +404,7 @@ porttok(word_t * word, arg_t a1, arg_t a2)
 
   num = strtol(word->name, &end, 0);
   allow_io(num, 1, ports_permission, ports_ormask, ports_andmask);
+  return 0;
 }
 
 int
@@ -558,7 +568,7 @@ get_arg(FILE * fd)
   char *str, *str2;
 
   str = get_name(fd);
-  if (str2 = synonym(global_syns, str)) {
+  if ((str2 = synonym(global_syns, str))) {
     free(str);
     str = strdup(str2);
   }
@@ -694,6 +704,7 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
   default:
     c_printf("non-value in do_val!\n");
   }
+ return 0;
 }
 
 void
@@ -1196,7 +1207,7 @@ parse_file(word_t * words, FILE * fd)
   gn = get_name(fd);
 
   while (gn && (funrtn != RBRACE)) {
-    if (mword = match_name(words, gn)) {
+    if ((mword = match_name(words, gn))) {
       if (mword->func) {
 	funrtn = (mword->func) (mword, 0, 0);
       }

@@ -2,7 +2,7 @@
 ! Robert Sanders, gt8134b@prism.gatech.edu
 !
 ! $Date: 1994/02/02 21:14:44 $
-! $Source: /home/src/dosemu0.50/commands/RCS/vgaon.S,v $
+! $Source: /home/src/dosemu0.50pl1/commands/RCS/vgaon.S,v $
 ! $Revision: 1.3 $
 ! $State: Exp $
 !

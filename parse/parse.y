@@ -1,7 +1,7 @@
 /*
- * $Date: 1993/11/29 00:08:20 $
- * $Source: /home/src/dosemu0.50/parse/RCS/parse.y,v $
- * $Revision: 1.2 $
+ * $Date: 1994/03/15 02:08:40 $
+ * $Source: /home/src/dosemu0.50pl1/parse/RCS/parse.y,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  */
 
@@ -42,15 +42,16 @@ section: sectname '{' internal '}'   { printf("heyhey: section %s\n", $1); }
 
 %%
 
-
 yyerror()
 {
 	printf("ERR: \n");
+	return;
 }
 
 main(int argc, char **argv)
 {
 	yyparse();
+	return;
 }
 
 

@@ -6,9 +6,9 @@
 @comment %**end of header
 
 @c $Author: root $
-@c $Date: 1993/11/12 12:41:35 $
-@c $Source: /home/src/dosemu0.50/doc/RCS/dosemu.texinfo,v $
-@c $Revision: 1.1 $
+@c $Date: 1994/03/10 23:53:16 $
+@c $Source: /home/src/dosemu0.50pl1/doc/RCS/dosemu.texinfo,v $
+@c $Revision: 1.2 $
 @c $State: Exp $
 
 
@@ -778,7 +778,7 @@ imcompatibilities with some areas of dosemu.
 
 @end itemize
 
-@node Compile-time Configuration, Run-Time Configuration, Requirements, Configuration
+@node Compile-time Configuration, Run-time Configuration, Requirements, Configuration
 @section Compile-time Configuration
 @cindex Compile-time Configuration
 

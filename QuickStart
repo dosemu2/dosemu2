@@ -28,7 +28,7 @@ after the normal QuickStart.
 	- Copy c:\dos\sys.com to the diskette
 2) Make dosemu:
 	- Modify the Makefile if you need special keyboard, etc
-	- Do 'make'
+	- Do 'make doeverything'
 	- Copy an edited examples/config.dist to /etc/dosemu/config
 	  You'll see many options that can be set inside the config
 	- Copy exitemu.com from the ./commands subdirectory to the

@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/disks.c,v $
- * $Revision: 1.6 $
+ * $Date: 1994/03/13 01:07:31 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/disks.c,v $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -446,7 +446,7 @@ disk_close_all(void)
 void
 disk_init(void)
 {
-  struct disk *dp;
+  struct disk *dp=NULL;
   struct stat stbuf;
 
 #ifdef SILLY_GET_GEOMETRY

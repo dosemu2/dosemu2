@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  */
 /*
- * File: $Source: /home/src/dosemu0.50/RCS/machcompat.h,v $
+ * File: $Source: /home/src/dosemu0.50pl1/RCS/machcompat.h,v $
  *
  * Purpose:
  *

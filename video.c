@@ -1,9 +1,9 @@
 /* video.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/video.c,v $
- * $Revision: 1.21 $
+ * $Date: 1994/03/18 23:17:51 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/video.c,v $
+ * $Revision: 1.27 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -75,6 +75,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -89,7 +90,6 @@
 #include <sys/stat.h>
 #include <linux/vt.h>
 #include <linux/kd.h>
-#include <syscall.h>
 
 #include "config.h"
 #include "emu.h"
@@ -97,11 +97,19 @@
 #include "termio.h"
 #include "video.h"
 #include "mouse.h"
-#include "dosipc.h"
+#include "dosio.h"
 #include "modes.h"
 #include "machcompat.h"
 
+extern void vga_init_s3(void);
+extern void child_close_mouse();
+extern void child_open_mouse();
 extern struct config_info config;
+extern void clear_screen(int, int);
+extern inline void poscur(int, int);
+extern void Scroll(int, int, int, int, int, int);
+void set_dos_video();
+void put_video_ram();
 
 void show_cursor();
 
@@ -154,26 +162,6 @@ int video_subsys = 0;
 				sa.sa_flags = 0; \
 				sa.sa_mask = 0; \
 				sigaction(sig, &sa, NULL);
-static int
-dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
-{
-  __asm__("int $0x80":"=a"(sig)
-	  :"0"(SYS_sigaction), "b"(sig), "c"(new), "d"(old));
-  if (sig >= 0)
-    return 0;
-  errno = -sig;
-  return -1;
-}
-
-#define MYSETSIG(sa, sig, fun) \
-			sa.sa_handler = (__sighandler_t) fun; \
-			/* Point to the top of the stack, minus 4 just in case, and make \
-			   just in case, and make it aligned  */ \
-			sa.sa_restorer = \
-				(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
-			sa.sa_flags = 0; \
-			sa.sa_mask = 0; \
-			dosemu_sigaction(sig, &sa, NULL);
 
 inline void
 forbid_switch()
@@ -206,14 +194,16 @@ parent_open_mouse(void)
 void
 acquire_vt(int sig)
 {
-  int kb_mode;
   struct sigaction siga;
   void *oldalrm;
 
   forbid_switch();
 
+#if 1
   oldalrm = signal(SIGALRM, SIG_IGN);
-  MYSETSIG(siga, SIG_ACQUIRE, acquire_vt);
+#endif
+
+  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
 
   if (ioctl(ioc_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf("VT_RELDISP failed (or was queued)!\n");
@@ -224,7 +214,9 @@ acquire_vt(int sig)
     /*      if (config.vga) dos_unpause(); */
   }
 
-  MYSETSIG(siga, SIGALRM, oldalrm);
+#if 1
+  SETSIG(siga, SIGALRM, oldalrm);
+#endif
   scr_state.current = 1;
 
   parent_open_mouse();
@@ -244,6 +236,7 @@ giveup_permissions()
   DOS_SYSCALL(set_ioperm(0x3b0, 0x3df - 0x3b0 + 1, 0));
 }
 
+void
 set_dos_video()
 {
   if (!config.vga)
@@ -289,13 +282,15 @@ release_vt(int sig)
 {
   struct sigaction siga;
 
-  MYSETSIG(siga, SIG_RELEASE, release_vt);
+  SETSIG(siga, SIG_RELEASE, release_vt);
 
   parent_close_mouse();
 
   if (!scr_state.vt_allow) {
     v_printf("disallowed vt switch!\n");
+#if 0
     scr_state.vt_requested = 1;
+#endif
     return;
   }
 
@@ -331,9 +326,7 @@ get_video_ram(int waitflag)
 {
   char *graph_mem;
   void (*oldhandler) ();
-  int tmp;
   struct sigaction siga;
-  char *unmappedbuf = NULL;
 
   char *sbase;
   size_t ssize;
@@ -351,17 +344,22 @@ get_video_ram(int waitflag)
   }
 
   if (waitflag == WAIT) {
+#if 0
     config.console_video = 0;
+#endif
     v_printf("VID: get_video_ram WAITING\n");
     /* XXX - wait until our console is current (mixed signal functions) */
     oldhandler = signal(SIG_ACQUIRE, SIG_IGN);
     do {
       if (!wait_vc_active())
 	break;
+      v_printf("Keeps waiting...And\n");
     }
     while (errno == EINTR);
-    MYSETSIG(siga, SIG_ACQUIRE, oldhandler);
+    SETSIG(siga, SIG_ACQUIRE, oldhandler);
+#if 0
     config.console_video = 1;
+#endif
   }
 
   if (config.vga) {
@@ -445,6 +443,7 @@ get_video_ram(int waitflag)
   scr_state.mapped = 1;
 }
 
+void
 put_video_ram(void)
 {
   char *putbuf = (char *) malloc(TEXT_SIZE);
@@ -475,6 +474,7 @@ put_video_ram(void)
 }
 
 /* this puts the VC under process control */
+void
 set_process_control()
 {
   struct vt_mode vt_mode;
@@ -489,13 +489,14 @@ set_process_control()
   scr_state.vt_requested = 0;	/* a switch has not been attempted yet */
   allow_switch();
 
-  MYSETSIG(siga, SIG_RELEASE, release_vt);
-  MYSETSIG(siga, SIG_ACQUIRE, acquire_vt);
+  SETSIG(siga, SIG_RELEASE, release_vt);
+  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
 
   if (do_ioctl(ioc_fd, VT_SETMODE, (int) &vt_mode))
     v_printf("initial VT_SETMODE failed!\n");
 }
 
+void
 clear_process_control()
 {
   struct vt_mode vt_mode;
@@ -503,8 +504,8 @@ clear_process_control()
 
   vt_mode.mode = VT_AUTO;
   ioctl(ioc_fd, VT_SETMODE, (int) &vt_mode);
-  MYSETSIG(siga, SIG_RELEASE, SIG_IGN);
-  MYSETSIG(siga, SIG_ACQUIRE, SIG_IGN);
+  SETSIG(siga, SIG_RELEASE, SIG_IGN);
+  SETSIG(siga, SIG_ACQUIRE, SIG_IGN);
 }
 
 u_char kmem_open_count = 0;
@@ -530,6 +531,7 @@ open_kmem()
   v_printf("Kmem opened successfully\n");
 }
 
+void
 close_kmem()
 {
 
@@ -546,8 +548,6 @@ close_kmem()
 void
 set_console_video()
 {
-  int i;
-
   /* clear Linux's (unmapped) screen */
   tputs(cl, 1, outch);
   scr_state.mapped = 0;
@@ -595,6 +595,7 @@ set_console_video()
   clear_screen(0, 7);
 }
 
+void
 clear_console_video()
 {
 
@@ -615,7 +616,7 @@ clear_console_video()
 void
 map_bios(void)
 {
-  char *video_bios_mem, *system_bios_mem;
+  char *video_bios_mem;
 
   /* assume VGA BIOS size of 32k here and in bios_emm.c */
   open_kmem();
@@ -686,6 +687,7 @@ set_vc_screen_page(int page)
   allow_switch();
 }
 
+void
 hide_cursor()
 {
 #ifdef USE_NCURSES
@@ -853,8 +855,8 @@ int10(void)
       u_char attr = LO(bx);
 
       s = HI(bx);
-      sadr = SCREEN_ADR(s) + YPOS(s) * CO + XPOS(s);
-      x = *(us *) & REG(ecx);
+      sadr = (u_short *) SCREEN_ADR(s) + YPOS(s) * CO + XPOS(s);
+      x = (us) REG(ecx);
       c = LO(ax);
 
       /* XXX - need to make sure this doesn't overrun video memory!
@@ -957,7 +959,7 @@ int10(void)
   case 0x4f:			/* vesa interrupt */
 
   default:
-    error("new unknown video int 0x%x\n", LWORD(eax));
+    v_printf("new unknown video int 0x%x\n", LWORD(eax));
     CARRY;
     break;
   }
@@ -1050,6 +1052,7 @@ vga_getpalvec(int start, int num, u_char * pal)
   /* Put Palette regs back */
   /* port_out(dosemu_regs.regs[PELIW], PEL_IW);
   port_out(dosemu_regs.regs[PELIR], PEL_IR); */
+  return 0;
 }
 
 /* get ioperms to allow havoc to occur */
@@ -1058,7 +1061,7 @@ get_perm()
 {
   permissions = permissions + 1;
   if (permissions > 1) {
-    return;
+    return 0;
   }
   /* get I/O permissions for VGA registers */
   if (ioperm(0x3b0, 0x3df - 0x3b0 + 1, 1)) {
@@ -1083,6 +1086,7 @@ get_perm()
     FCR_W = FCR_WM;
   }
   v_printf("Permission allowed\n");
+  return 0;
 }
 
 /* Stop io to card */
@@ -1092,7 +1096,7 @@ release_perm()
   if (permissions > 0) {
     permissions = permissions - 1;
     if (permissions > 0) {
-      return;
+      return 0;
     }
     /* release I/O permissions for VGA registers */
     if (ioperm(0x3b0, 0x3df - 0x3b0 + 1, 0)) {
@@ -1103,6 +1107,7 @@ release_perm()
   }
   else
     v_printf("Permissions already at 0\n");
+  return 0;
 
 }
 
@@ -1227,6 +1232,7 @@ store_vga_regs(char regs[])
   port_out(regs[GRAI], GRA_I);
   port_out(regs[SEQI], SEQ_I);
   v_printf("Store regs complete!\n");
+  return 0;
 }
 
 /* Store EGA/VGA display planes (4) */
@@ -1352,11 +1358,12 @@ restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 
 /* Restore EGA/VGA regs */
 int
-restore_vga_regs(char regs[], u_char xregs[])
+restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[])
 {
   set_regs(regs);
-  restore_ext_regs(xregs);
+  restore_ext_regs(xregs, xregs16);
   v_printf("Restore completed!\n");
+  return 0;
 }
 
 /* Save all necessary info to allow switching vt's */
@@ -1368,7 +1375,7 @@ save_vga_state(struct video_save_struct *save_regs)
   vga_screenoff();
   disable_vga_card();
   store_vga_regs(save_regs->regs);
-  save_ext_regs(save_regs->xregs);
+  save_ext_regs(save_regs->xregs, save_regs->xregs16);
   v_printf("ALPHA mode save being attempted\n");
   port_out(0x06, GRA_I);
   if (!(port_in(GRA_D) & 0x01)) {
@@ -1435,7 +1442,7 @@ save_vga_state(struct video_save_struct *save_regs)
 
   store_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
   vga_getpalvec(0, 256, save_regs->pal);
-  restore_vga_regs(save_regs->regs, save_regs->xregs);
+  restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
 
   v_printf("Store_vga_state complete\n");
@@ -1449,14 +1456,14 @@ restore_vga_state(struct video_save_struct *save_regs)
   v_printf("Restoring data for %s\n", save_regs->video_name);
   vga_screenoff();
   disable_vga_card();
-  restore_vga_regs(save_regs->regs, save_regs->xregs);
+  restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   restore_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
   if (save_regs->release_video) {
     free(save_regs->mem);
     save_regs->mem = NULL;
   }
   vga_setpalvec(0, 256, save_regs->pal);
-  restore_vga_regs(save_regs->regs, save_regs->xregs);
+  restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   v_printf("Permissions=%d\n", permissions);
   enable_vga_card();
   vga_screenon();
@@ -1598,7 +1605,7 @@ trident_set_bank_write(u_char bank)
 }
 
 void
-trident_save_ext_regs(u_char xregs[])
+trident_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
   port_out(0x0c, SEQ_I);
   xregs[0] = port_in(SEQ_D) & 0xff;
@@ -1624,7 +1631,7 @@ trident_save_ext_regs(u_char xregs[])
 }
 
 void
-trident_restore_ext_regs(u_char xregs[])
+trident_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
   trident_set_old_regs();
   port_out(0x0d, SEQ_I);
@@ -1655,6 +1662,7 @@ trident_restore_ext_regs(u_char xregs[])
 }
 
 /* These are trident Specific calls to get at banks */
+void
 vga_init_trident()
 {
   port_out(0x0b, SEQ_I);
@@ -1682,7 +1690,7 @@ vga_init_trident()
 
 /* THese are et4000 specific functions */
 void
-et4000_save_ext_regs(u_char xregs[])
+et4000_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
   xregs[12] = port_in(0x3bf) & 0xff;
   xregs[11] = port_in(0x3d8) & 0xff;
@@ -1725,7 +1733,7 @@ et4000_save_ext_regs(u_char xregs[])
 }
 
 void
-et4000_restore_ext_regs(u_char xregs[])
+et4000_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
   port_out(0x03, 0x3bf);
   port_out(0xa0, 0x3d8);
@@ -1802,6 +1810,7 @@ et4000_set_bank_write(u_char bank)
   port_out(dummy | (bank), 0x3cd);
 }
 
+void
 vga_init_et4000()
 {
   save_ext_regs = et4000_save_ext_regs;
@@ -1828,6 +1837,10 @@ vga_initialize(void)
   case ET4000:
     vga_init_et4000();
     v_printf("ET4000 CARD in use\n");
+    break;
+  case S3:
+    vga_init_s3();
+    v_printf("S3 CARD in use\n");
     break;
   default:
     save_ext_regs = save_ext_regs_dummy;
@@ -2370,7 +2383,7 @@ et4000_ext_video_port_out(u_char value, int port)
 void
 dump_video(void)
 {
-  char i;
+  u_short i;
 
   v_printf("/* BIOS mode 0x%02X */\n", dosemu_regs.video_mode);
   v_printf("static char regs[60] = {\n  ");
@@ -2395,17 +2408,20 @@ dump_video(void)
   v_printf("0x%02X", dosemu_regs.regs[MIS]);
   v_printf("\n};\n");
   v_printf("Extended Regs/if applicable:\n");
-  for (i = 0; i < 17; i++)
+  for (i = 0; i < MAX_X_REGS; i++)
     v_printf("0x%02X,", dosemu_regs.xregs[i]);
-  v_printf("0x%02X,", dosemu_regs.xregs[17]);
-  v_printf("\n");
+  v_printf("0x%02X\n", dosemu_regs.xregs[MAX_X_REGS]);
+  v_printf("Extended 16 bit Regs/if applicable:\n");
+  for (i = 0; i < MAX_X_REGS16; i++)
+    v_printf("0x%04X,", dosemu_regs.xregs16[i]);
+  v_printf("0x%04X\n", dosemu_regs.xregs16[MAX_X_REGS16]);
 }
 
 /* Dump what's in the linux_regs */
 void
 dump_video_linux(void)
 {
-  char i;
+  u_short i;
 
   v_printf("/* BIOS mode 0x%02X */\n", linux_regs.video_mode);
   v_printf("static char regs[60] = {\n  ");
@@ -2430,10 +2446,13 @@ dump_video_linux(void)
   v_printf("0x%02X", linux_regs.regs[MIS]);
   v_printf("\n};\n");
   v_printf("Extended Regs/if applicable:\n");
-  for (i = 0; i < 17; i++)
+  for (i = 0; i < MAX_X_REGS; i++)
     v_printf("0x%02X,", linux_regs.xregs[i]);
-  v_printf("0x%02X", linux_regs.xregs[17]);
-  v_printf("\n");
+  v_printf("0x%02X\n", linux_regs.xregs[MAX_X_REGS]);
+  v_printf("Extended 16 bit Regs/if applicable:\n");
+  for (i = 0; i < MAX_X_REGS16; i++)
+    v_printf("0x%04X,", linux_regs.xregs16[i]);
+  v_printf("0x%04X\n", linux_regs.xregs16[MAX_X_REGS16]);
 }
 
 /* Store current actuall EGA/VGA regs */

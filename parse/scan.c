@@ -169,7 +169,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 # line 2 "scan.l"
 /*
  * $Date: 1993/11/12 12:41:40 $
- * $Source: /home/src/dosemu0.50/parse/RCS/scan.l,v $
+ * $Source: /home/src/dosemu0.50pl1/parse/RCS/scan.l,v $
  * $Revision: 1.1 $
  * $State: Exp $
  */

@@ -16,12 +16,15 @@
  *   is said to start 1 sector earlier than it actually does (and therefore
  *   512 bytes earlier).
  *
- * $Date: 1994/01/20 21:18:35 $
- * $Source: /home/src/dosemu0.50/periph/RCS/hdinfo.c,v $
- * $Revision: 1.3 $
+ * $Date: 1994/03/13 21:53:19 $
+ * $Source: /home/src/dosemu0.50pl1/periph/RCS/hdinfo.c,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: hdinfo.c,v $
+ * Revision 1.4  1994/03/13  21:53:19  root
+ * -Wall fixes.
+ *
  * Revision 1.3  1994/01/20  21:18:35  root
  * Indent.
  *
@@ -36,6 +39,7 @@
  *
  */
 
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -86,13 +90,12 @@ print_part(struct partition *part, size_t offset, int sect_off, int ext)
   }
 }
 
-int
+void
 main(int argc, char **argv)
 {
   int i, hdimage_off = 0;
   char *filename;
   char mbr[1024];
-  struct partition *part;
 
   fmtstring = decfmt;
 

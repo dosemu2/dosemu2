@@ -9,7 +9,9 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #include <sys/vfs.h>
 #include "emu.h"
 
+#if 0
 typedef unsigned char boolean_t;
+#endif
 
 #define direct dirent
 #define d_namlen d_reclen
@@ -37,7 +39,9 @@ typedef unsigned char boolean_t;
 #define Debug0(args)		d_Stub args
 #define Debug1(args)		d_Stub args
 
+#if 0
 typedef struct vm86_regs state_t;
+#endif
 
 #define uesp esp
 
@@ -85,6 +89,9 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log: mfs.h,v $
+ * Revision 1.7  1994/03/13  01:07:31  root
+ * Poor attempt to optimize.
+ *
  * Revision 1.6  1994/01/25  20:02:44  root
  * Exchange stderr <-> stdout.
  *

@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/03/04 14:46:13 $
-# $Source: /home/src/dosemu0.50/RCS/Makefile,v $
-# $Revision: 1.26 $
+# $Date: 1994/03/18 23:17:51 $
+# $Source: /home/src/dosemu0.50pl1/RCS/Makefile,v $
+# $Revision: 1.32 $
 # $State: Exp $
 #
 # WARNING!  You'll have to do a 'make config' after changing the
@@ -26,7 +26,7 @@ LNKOPTS=-s
 #endif
 
 # dosemu version
-EMUVER  =   0.50
+EMUVER  =   0.50pl1
 VERNUM  =   0x50
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -82,13 +82,13 @@ endif
 
 SUBDIRS= boot commands doc drivers examples parse periph $(DPMISUB)
 
-CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c \
-	timers.c mouse.c dosipc.c cpu.c video.c mfs.c bios_emm.c lpt.c \
-        parse.c serial.c mutex.c ipx.c dyndeb.c libpacket.c pktdrvr.c
+CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
+	timers.c mouse.c dosio.c cpu.c video.c mfs.c bios_emm.c lpt.c \
+        parse.c serial.c ipx.c dyndeb.c libpacket.c pktdrvr.c s3.c
 
-HFILES=cmos.h video.h emu.h termio.h timers.h xms.h mouse.h dosipc.h \
+HFILES=cmos.h video.h emu.h termio.h timers.h xms.h mouse.h dosio.h \
         cpu.h bios.h mfs.h disks.h memory.h machcompat.h lpt.h \
-        serial.h mutex.h modes.h ipx.h libpacket.h pktdrvr.h 
+        serial.h modes.h ipx.h libpacket.h pktdrvr.h mutex.h
 OFILES= Makefile ChangeLog dosconfig.c QuickStart DANG EMUsuccess.txt \
 	dosemu-HOWTO DPR
 BFILES=
@@ -105,8 +105,8 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 ###################################################################
 
 OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o parse.o \
-     dosipc.o cpu.o video.o $(GFXOBJS) $(XMSOBJS) mfs.o bios_emm.o lpt.o \
-     serial.o mutex.o ipx.o dyndeb.o libpacket.o pktdrvr.o
+     dosio.o cpu.o video.o $(GFXOBJS) $(XMSOBJS) mfs.o bios_emm.o lpt.o \
+     serial.o ipx.o dyndeb.o libpacket.o pktdrvr.o s3.o
 
 DEFINES    = -Dlinux=1 
 OPTIONAL   = $(GFX)  # -DDANGEROUS_CMOS=1
@@ -118,7 +118,7 @@ CONFIGINFO = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 	     $(MEMORY)
 
 CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
-COPTFLAGS  = -N -O2 -m486 # -Wall
+COPTFLAGS  = -N -O2 -m486 # -Wall # -funroll-loops
 ifdef DPMIOBJS
 DPMI = -DDPMI
 else
@@ -134,9 +134,9 @@ DISTNAME=dosemu$(EMUVER)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 
-doeverything: clean config dep install
-
 all:	warnconf dos dossubdirs libdosemu
+
+doeverything: clean config dep install
 
 .EXPORT_ALL_VARIABLES:
 
@@ -180,7 +180,7 @@ config: dosconfig
 	@./dosconfig $(CONFIGINFO) > config.h
 
 install: all /usr/bin/dos
-	@if [ -f /lib/libemu ]; then rm -f /lib/libemu
+	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	install -m 0755 libdosemu /usr/lib
 	install -d /etc/dosemu
 	touch -a /etc/dosemu/hdimage /etc/dosemu/diskimage

@@ -1,27 +1,3 @@
-From popserver Fri Feb 10 17:31:35 GMT 1994
-Return-Path: <@leeman.york.ac.uk:am20@unix.york.ac.uk>
-Received: from sun2.mhs-relay.ac.uk by Fox.nstn.ns.ca (4.1/SMI-4.1)
-	id AA25490; Thu, 10 Feb 94 16:44:46 AST
-Via: uk.ac.york.leeman; Thu, 10 Feb 1994 20:44:21 +0000
-Received: from tower.york.ac.uk by leeman.york.ac.uk with SMTP (PP) 
-          id <14930-0@leeman.york.ac.uk>; Thu, 10 Feb 1994 20:43:14 +0000
-Received: by tower.york.ac.uk (920330.SGI/920502.SGI) 
-          for @leeman.york.ac.uk:jmaclean@fox.nstn.ns.ca id AA24620;
-          Thu, 10 Feb 94 20:46:08 GMT
-Date: Thu, 10 Feb 1994 20:45:02 +0000 (GMT)
-From: "A. MacDonald" <am20@unix.york.ac.uk>
-Subject: DANG ...
-To: James Maclean <jmaclean@fox.nstn.ns.ca>
-In-Reply-To: <m0pUENY-0000JkC@Ultimate.nstn.ns.ca>
-Message-Id: <Pine.3.87.9402102002.E24355-0100000@tower.york.ac.uk>
-Mime-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-
-
-
-I knew I'd forget something ... Here is the "latest" version of the DANG :
-
----------------------------------
 
 
 
@@ -32,8 +8,8 @@ I knew I'd forget something ... Here is the "latest" version of the DANG :
 
                  DOSEMU Altering Novice's Guide 
 
-                          Version .10
-                       31st January 1994
+                          Version .11
+                        18th March 1994
 
 
         This document is the preliminary draft of a manual to help
@@ -101,7 +77,7 @@ keymaps.c - the definitions of which keys are related to which
         mfs.c. DOS sends most file requests through emufs.sys, where the
         driver either handles the request, or lets DOS know that it
         did not handle the request.
-        FCB read/write is starting to work :-).
+        FCB read/write is not working.
 
 
 cmos.c - (emulation of or access to) the cmos settings?
@@ -134,9 +110,10 @@ cmos.c - (emulation of or access to) the cmos settings?
         Jump into the cs:ip by entering vm86 mode and hold onto your
         hat. From here on, every blessed thing that warrants signal
         attention throws dosemu out of real mode and into protected
-        mode, where it handles the exception. It is the parent process
-        at this time.
+        mode, where it handles the exception. 
 
+        >DOSEMU was at one point two processes, but is now all one again. As
+	>such, this file may have changed a lot.
 
 *cpu.c - Contains code to handle special cpu circumstances (ya, that's the
         ticket :-) ) like interrupts, I/O to ports that are not currently
@@ -153,24 +130,9 @@ cmos.c - (emulation of or access to) the cmos settings?
         one does not exist.
 
 
-*dosipc.c - The heart of IPC between parent and child. Here the parent is
-        readied for calls from the child about I/O from certain devices
-        like the keyboard, serial lines, etc. The child upon receiving
-        an I/O call will send a packet to the parent of a type which
-        reflects the type of I/O, and signal the parent.
-
-        Shared memory for IPC'ing is done here also, giving both
-        processes access to DOS memory. This can make programming
-        kinda fun as one has to remember what the parent/child
-        do/don't share in memory variables. The keyboard routines did
-        make good use of it until pl3 where theyv'e just about been
-        all hacked out :-(. 
-
-
 *Bios_emm.c -  contains all the EMS calls and currently uses the
         /proc file system to mmap its own memory for use in the EMS
-        window. This used to require a patch to the kernel, but not for
-        dosemu0.49pl4. This will make EMS slower, but easier for those
+        window. This will make EMS slower, but easier for those
         just starting with dosemu.
 
 
@@ -183,7 +145,7 @@ many of these files have usefull comments at the top. most do not.
 
 
 The best approach to learning how dosemu works probably starts with
-reading the texinfo document written by bob.  Once youve finished that
+reading the texinfo document written by bob.  Once you've finished that
 you will probably want to look through emu.c.  See what parts you can
 recognize.  Then try to find the section of the code that does what
 you want to change.
@@ -192,3 +154,5 @@ you want to change.
 Alistair
 
 am20@unix.york.ac.uk
+
+

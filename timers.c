@@ -3,12 +3,15 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/timers.c,v $
- * $Revision: 1.5 $
+ * $Date: 1994/03/13 01:07:31 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/timers.c,v $
+ * $Revision: 1.6 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 1.6  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
  * Revision 1.5  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -60,7 +63,7 @@
 extern config_t config;
 extern int ignore_segv;
 
-unsigned long
+void
 timer_tick(void)
 {
   unsigned long *ticks = BIOS_TICK_ADDR;
@@ -79,7 +82,7 @@ timer_tick(void)
   }
 }
 
-unsigned long
+void
 set_ticks(unsigned long new)
 {
   unsigned long *ticks = BIOS_TICK_ADDR;

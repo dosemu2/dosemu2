@@ -1,4 +1,4 @@
-static char RCSId[] = "$Id: ldt.c,v 1.4 1994/03/04 00:03:08 root Exp root $";
+static char RCSId[] = "$Id: ldt.c,v 1.6 1994/03/15 01:38:57 root Exp root $";
 static char Copyright[] = "Copyright  Robert J. Amstadt, 1993";
 
 #include <stdio.h>
@@ -14,7 +14,7 @@ static char Copyright[] = "Copyright  Robert J. Amstadt, 1993";
 void
 print_ldt()
 {
-  char buffer[0x10000];
+  static char buffer[0x10000];
   unsigned long *lp;
   unsigned long base_addr, limit;
   int type, dpl, i;
@@ -35,8 +35,8 @@ print_ldt()
     limit |= (*lp & 0x000F0000);
     type = (*lp >> 10) & 7;
     dpl = (*lp >> 13) & 3;
-    if (base_addr > 0)
-      if (*lp & 1000) {
+    if ((base_addr > 0) || (limit > 0 ))
+      if (*lp & 1000)  {
 	printf("Entry %2d: Base %08.8x, Limit %05.5x, DPL %d, Type %d\n",
 	       i, base_addr, limit, dpl, type);
 	printf("          ");

@@ -1,11 +1,17 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1994/01/20 21:14:24 $
- * $Source: /home/src/dosemu0.50/RCS/lpt.c,v $
- * $Revision: 1.4 $
+ * $Date: 1994/03/13 01:07:31 $
+ * $Source: /home/src/dosemu0.50pl1/RCS/lpt.c,v $
+ * $Revision: 1.6 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 1.6  1994/03/13  01:07:31  root
+ * Poor attempts to optimize.
+ *
+ * Revision 1.5  1994/03/10  02:49:27  root
+ * Back to 1 process.
+ *
  * Revision 1.4  1994/01/20  21:14:24  root
  * Indent.
  *
@@ -29,14 +35,16 @@
 #define LPT_C 1
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/wait.h>
 
 #include "emu.h"
-#include "dosipc.h"
+#include "dosio.h"
 #include "lpt.h"
 
 extern config_t config;
@@ -120,6 +128,7 @@ printer_open(int prnum)
 
   p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
 	   lpt[prnum].dev, (void *) lpt[prnum].file);
+  return 0;
 }
 
 int
@@ -137,6 +146,7 @@ printer_close(int prnum)
   }
 
   lpt[prnum].remaining = -1;
+  return 0;
 }
 
 int
@@ -168,6 +178,7 @@ printer_flush(int prnum)
 
   /* mark not accessed */
   lpt[prnum].remaining = -1;
+  return 0;
 }
 
 int
@@ -229,6 +240,7 @@ printer_tick(u_long secno)
       }
     }
   }
+  return 0;
 }
 
 #undef LPT_C

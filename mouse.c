@@ -2,7 +2,7 @@
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
  * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/mouse.c,v $
+ * $Source: /home/src/dosemu0.50pl1/RCS/mouse.c,v $
  * $Revision: 1.6 $
  * $State: Exp $
  *

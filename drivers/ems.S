@@ -45,7 +45,7 @@
 ! copied from emufs.S to make ems.S  -  7/19/93
 !
 ! $Date: 1994/01/30 12:35:05 $
-! $Source: /home/src/dosemu0.50/drivers/RCS/ems.S,v $
+! $Source: /home/src/dosemu0.50pl1/drivers/RCS/ems.S,v $
 ! $Revision: 1.3 $
 ! $State: Exp $
 !

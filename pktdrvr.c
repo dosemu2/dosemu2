@@ -10,9 +10,14 @@
 #include "pktdrvr.h"
 #include "cpu.h"
 #include "emu.h"
-#include "dosipc.h"
+#include "dosio.h"
 #include <sys/time.h>
 #include <linux/if_ether.h>
+
+extern int OpenNetworkType(u_short);
+extern int GetDeviceHardwareAddress(char *, char *);
+extern int WriteToNetwork(int, const char *, const char *, int);
+extern int ReadFromNetwork(int, char *, char *, int);
 
 int pd_sock = 0, pd_sock_inuse = 0, packlen;
 us pdipx_seg, *pd_size = (us *) 0xCFFFE;
@@ -22,9 +27,8 @@ pkt_helper(void)
 {
   unsigned char *buf;
   int i;
-  struct ipcpkt pkt;
 
-  pd_printf("Int 60 called! ax=%04X\n", REG(ebx));
+  pd_printf("Int 60 called! ax=%04X\n", (int)REG(ebx));
 
   switch (LO(dx)) {
   case F_ACCESS_TYPE:
@@ -67,8 +71,8 @@ pkt_helper(void)
 	      (us) REG(esi));
     pd_printf("CX: %d ES:DI: %04X:%04X\n", (us) REG(ecx), (us) REG(es),
 	      (us) REG(edi));
-    pd_printf("CX i.e. size I sent receiver: %d\n", REG(ecx));
-    pd_printf("SEG_ADR: %X\n", SEG_ADR((char *), es, di));
+    pd_printf("CX i.e. size I sent receiver: %d\n", (us)REG(ecx));
+    pd_printf("SEG_ADR: %X\n", (int)SEG_ADR((char *), es, di));
     pd_sock_inuse = 0;
     break;
   }
@@ -86,7 +90,7 @@ pd_receive_packet()
   buf = (char *) ((pdipx_seg << 4) + 0x3B75);
   size = ReadFromNetwork(pd_sock, device, buf, 1600);
 
-  if (size > 1 && buf[0] == 0) {/* If not error and not broadcast */
+  if (size > 1 && (buf[0] & 1) == 0) {/* If not error and not broadcast */
     /* This may be too late. But is should NEVER be */
     pd_sock_inuse = 1;
 
@@ -100,4 +104,5 @@ pd_receive_packet()
   }
   else
     return -1;
+  return 0;
 }

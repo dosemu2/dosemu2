@@ -1,3 +1,23 @@
+March 12, 1994	jmaclean@fox.nstn.ns.ca
+
+-	S3 video code started by niemann@swt.ruhr-uni-bochum.de 
+	(Christoph Niemann)
+-	More DPMI thanks to LUTZ.
+-	Serial INT14 updated thanks to Mark Rejhon.
+-	Modest changes in code to continue clean up. 
+
+March 12, 1994	jmaclean@fox.nstn.ns.ca
+
+-	More DPMI thanks to LUTZ.
+-	Serial INT14 updated thanks to Mark Rejhon.
+-	Fixed (kludged) bugs in VC switching, Added -Wall
+	to start cleaning up code. Changed do_int to inline, no
+	benefit.
+
+March 9, 1994	jmaclean@fox.nstn.ns.ca
+
+-	DOSEMU becomes one again (one process)
+
 March 4, 1994	jmaclean@fox.nstn.ns.ca
 
 -	VC switching in RAW mode now uses CTRL-ALT-x.

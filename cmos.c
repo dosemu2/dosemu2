@@ -2,7 +2,7 @@
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
  * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50/RCS/cmos.c,v $
+ * $Source: /home/src/dosemu0.50pl1/RCS/cmos.c,v $
  * $Revision: 1.4 $
  * $State: Exp $
  */
@@ -77,7 +77,7 @@ cmos_init(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
-  warn("CMOS initialized: \n$Header: /home/src/dosemu0.50/RCS/cmos.c,v 1.4 1994/03/04 15:23:54 root Exp root $\n");
+  warn("CMOS initialized: \n$Header: /home/src/dosemu0.50pl1/RCS/cmos.c,v 1.4 1994/03/04 15:23:54 root Exp root $\n");
 }
 
 int
