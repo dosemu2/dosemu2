@@ -153,6 +153,27 @@ void CRTC_write_value(unsigned char data)
   todo_ind = 0;
 
   switch(ind) {
+    case 0x00:
+    case 0x01:
+    case 0x02:
+    case 0x03:
+    case 0x04:
+    case 0x05:
+      if(NEWBITS(0xFF)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
+      break;
+
+    case 0x06:
+    case 0x07:
+    case 0x09:
+      if(NEWBITS(0xFF)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
+      break;
+
     case 0x0c:		/* Start Address High */
       vga.display_start = (vga.display_start & 0xff) | (u << 8);
       crtc_deb("CRTC_write_value: Start Address = 0x%04x\n", vga.display_start);
@@ -173,6 +194,15 @@ void CRTC_write_value(unsigned char data)
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 
+    case 0x10:
+    case 0x11:
+    case 0x12:
+      if(NEWBITS(0xFF)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
+      break;
+  
     case 0x13:          /* Number of bytes in a scanline */
       vga.scan_len = data << (vga.crtc.addr_mode + 1);
       vga.reconfig.re_init = 1;
@@ -183,6 +213,14 @@ void CRTC_write_value(unsigned char data)
       if(NEWBITS(0x40)) {
         todo[todo_ind++] = CFG_CRTC_ADDR_MODE;
       }
+      break;
+
+    case 0x15:
+    case 0x16:
+      if(NEWBITS(0xFF)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
 
     case 0x17:		/* Mode Control */

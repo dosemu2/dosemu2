@@ -51,6 +51,7 @@ EXTERN struct vm86plus_struct vm86s INIT ( {
    {0},0,0,0,{{0}},{{0}}, {0}
 } );
 
+EXTERN volatile sig_atomic_t signal_pending INIT(0);
 EXTERN fd_set fds_sigio, fds_no_sigio;
 EXTERN unsigned int use_sigio INIT(0);
 EXTERN unsigned int not_use_sigio INIT(0);

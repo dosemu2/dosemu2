@@ -2466,6 +2466,82 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       if(msg || u != u0) vga_msg("vgaemu_adj_cfg: crtc.addr_mode = %s\n", txt2[u]);
     break;
 
+    case CFG_CRTC_HEIGHT:
+    {
+      int vertical_total;
+      int vertical_retrace_start;
+      int vertical_retrace_end;
+      int vertical_display_end;
+      int vertical_multiplier;
+      int vertical_blanking_start;
+      int vertical_blanking_end;
+      int height;
+      vertical_total = 
+	      vga.crtc.data[0x6] + 
+	      ((vga.crtc.data[0x7] & 0x1) << (8 - 0)) +
+	      ((vga.crtc.data[0x7] & 0x20) << (9 - 5));
+      vertical_retrace_start = 
+	      vga.crtc.data[0x10] +
+	      ((vga.crtc.data[0x7] & 0x4) << (8 - 2)) +
+	      ((vga.crtc.data[0x7] & 0xF0) << (9 - 7));
+      vertical_retrace_end = vga.crtc.data[0x11]  & 0x0F;
+      vertical_display_end = 
+	      vga.crtc.data[0x12] +
+	      ((vga.crtc.data[0x7] & 0x2) << (8 - 1)) +
+	      ((vga.crtc.data[0x7] & 0x40) << (9 - 6));
+      vertical_blanking_start =
+	      vga.crtc.data[0x15] +
+	      ((vga.crtc.data[0x7] & 0x8) << (8 - 3)) +
+	      ((vga.crtc.data[0x9] & 0x20) << (9 - 5));
+      vertical_blanking_end =
+	      vga.crtc.data[0x16] & 0x7F;
+      vertical_multiplier = ((vga.crtc.data[0x9] & 0x1F) +1) <<
+	      ((vga.crtc.data[0x9] & 0x80) >> 7);
+      height = (vertical_display_end +1) / vertical_multiplier;
+      vga_msg("vgaemu_adj_cfg: vertical_total = %d\n", vertical_total);
+      vga_msg("vgaemu_adj_cfg: vertical_retrace_start = %d\n", vertical_retrace_start);
+      vga_msg("vgaemu_adj_cfg: vertical_retrace_end = %d\n", vertical_retrace_end);
+      vga_msg("vgaemu_adj_cfg: vertical_blanking_start = %d\n", vertical_blanking_start);
+      vga_msg("vgaemu_adj_cfg: vertical_blanking_end = %d\n",   vertical_blanking_end);
+      vga_msg("vgaemu_adj_cfg: vertical_display_end = %d\n", vertical_display_end);
+      vga_msg("vgaemu_adj_cfg: vertical_multiplier = %d\n", vertical_multiplier);
+      vga_msg("vgaemu_adj_cfg: height = %d\n", height);
+      vga.height = height;
+      vga.reconfig.re_init = 1;
+      break;
+    }
+    case CFG_CRTC_WIDTH:
+    {
+      int horizontal_total;
+      int horizontal_display_end;
+      int horizontal_retrace_start;
+      int horizontal_retrace_end;
+      int horizontal_blanking_start;
+      int horizontal_blanking_end;
+      int multiplier;
+      int width;
+      /* everything below is in characters */
+      horizontal_total = vga.crtc.data[0x0] +5;
+      horizontal_display_end = vga.crtc.data[0x1] + 1;
+      horizontal_blanking_start = vga.crtc.data[0x2];
+      horizontal_blanking_end = vga.crtc.data[0x3] & 0xF;
+      horizontal_retrace_start = vga.crtc.data[0x4];
+      horizontal_retrace_end = vga.crtc.data[0x5] & 0xF;
+      multiplier = 8; /* Can this be 9? */
+      /* Do I need to do something special for text modes? */
+      width = horizontal_display_end * multiplier;
+      vga_msg("vgaemu_adj_cfg: horizontal_total = %d\n", horizontal_total);
+      vga_msg("vgaemu_adj_cfg: horizontal_retrace_start = %d\n", horizontal_retrace_start);
+      vga_msg("vgaemu_adj_cfg: horizontal_retrace_end = %d\n", horizontal_retrace_end);
+      vga_msg("vgaemu_adj_cfg: horizontal_blanking_start = %d\n", horizontal_blanking_start);
+      vga_msg("vgaemu_adj_cfg: horizontal_blanking_end = %d\n", horizontal_blanking_end);
+      vga_msg("vgaemu_adj_cfg: horizontal_display_end = %d\n", horizontal_display_end);
+      vga_msg("vgaemu_adj_cfg: multiplier = %d\n", multiplier);
+      vga_msg("vgaemu_adj_cfg: width = %d\n", width);
+      vga.width = width;
+      vga.reconfig.re_init = 1;
+      break;
+    }
     default:
       vga_msg("vgaemu_adj_cfg: unknown item %u\n", what);
   }

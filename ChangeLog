@@ -1,3 +1,16 @@
+2000/05/27 ver. 1.0.0.7 unofficial pre-release
+	From Eric
+	- patch to limit PL4 emuluation via signals happening instead
+	  of MASTERCOUNT
+	- support for setting the vertical & horizontal display resolution
+	  for PL4 modes
+	From Bart
+	- further speed improvement for instremu.c
+	- fixed a few bugs: zero/parity/sign flag updates with shift,
+	  some string insruction bugs.
+	From Hans
+	- fixed Bart's 'less portable' asm inlines ;-)
+	  (wasn't compilable with < gcc-2.9x)
 2000/05/26 ver. 1.0.0.6 unofficial pre-release
 	From Eric
 	- patch to src/env/video/remap.c to make bpp24 work

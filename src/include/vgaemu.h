@@ -144,8 +144,10 @@
  *
  */
 
-#define CFG_SEQ_ADDR_MODE	1
-#define CFG_CRTC_ADDR_MODE	2
+#define CFG_SEQ_ADDR_MODE       1
+#define CFG_CRTC_ADDR_MODE      2
+#define CFG_CRTC_HEIGHT         3
+#define CFG_CRTC_WIDTH          4
 
 
 /*

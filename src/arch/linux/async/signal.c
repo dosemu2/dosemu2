@@ -40,7 +40,6 @@ extern void keyb_server_run(void);
 extern void irq_select(void);
 extern int type_in_pre_strokes();
 
-#define E_SIGNAL
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -247,6 +246,7 @@ sti(void)
  */
 void handle_signals(void) {
   if ( SIGNAL_head != SIGNAL_tail ) {
+    signal_pending = 0;
     signal_queue[SIGNAL_head].signal_handler();
     SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
 /* 
@@ -254,6 +254,7 @@ void handle_signals(void) {
  * by the kernel ASAP.
  */
       if (SIGNAL_head != SIGNAL_tail) {
+        signal_pending = 1;
 	if (in_dpmi)
 	  dpmi_eflags |= VIP;
         REG(eflags) |= VIP;
@@ -482,7 +483,7 @@ void SIGALRM_call(void)
 inline void SIGNAL_save( void (*signal_call)() ) {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
-  E_SIGNAL;
+  signal_pending = 1;
   if (in_dpmi)
     dpmi_eflags |= VIP;
   REG(eflags) |= VIP;
