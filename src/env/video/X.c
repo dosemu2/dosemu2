@@ -2515,16 +2515,16 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
 #ifdef HAVE_XVIDMODE
   if (xf86vm_ok) {
     static XF86VidModeModeLine vidmode_modeline;
-    static int viewport_x, viewport_y;
+    static int viewport_x, viewport_y, dotclock;
     int vx = 0, vy = 0;
-    int i, j;
-    int dotclock;
+    int i, j, restore_dotclock = 0;
 
     if (w == -1 && h == -1) { /* need to perform reset to windowed mode */
       w = vidmode_modeline.hdisplay;
       h = vidmode_modeline.vdisplay;
       vx = viewport_x;
       vy = viewport_y;
+      restore_dotclock = 1;
     } else if (mainwindow != fullscreenwindow) {
       XF86VidModeGetModeLine(display,screen,&dotclock,&vidmode_modeline);
       XF86VidModeGetViewPort(display,screen,&viewport_x,&viewport_y);
@@ -2535,7 +2535,8 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
       if ((vidmode_modes[i]->hdisplay >= w) && 
           (vidmode_modes[i]->vdisplay >= h) &&
           (vidmode_modes[i]->hdisplay <= nw) &&
-          (vidmode_modes[i]->vdisplay <= nh)) {
+          (vidmode_modes[i]->vdisplay <= nh) &&
+	  (!restore_dotclock || vidmode_modes[i]->dotclock == dotclock)) {
         nw = vidmode_modes[i]->hdisplay;
         nh = vidmode_modes[i]->vdisplay;
         j = i;
