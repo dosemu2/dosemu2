@@ -447,8 +447,6 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      lss    (%%esp),%%esp\n"		/* this is: pop ss; pop esp */
 "      ljmp   *%%cs:__dpmi_switch_jmp\n"
 
-      /* NOTE: we are putting the ljmp into .data (needing this kludge),
-                because we can't write to code space (Hans) */
 "      .data\n"
 "  __dpmi_switch_jmp:\n"
 "  __neweip:\n"
@@ -2792,7 +2790,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       /* why should we let dpmi continue after this point and crash
        * the system? */
       flush_log();
-      DPMI_show_state(scp);
+      D_printf(DPMI_show_state(scp));
       leavedos(0x5046);
   }
 
@@ -2801,7 +2799,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       || debug_level('e')
 #endif
      )
-    { DPMI_show_state(scp); }
+    { D_printf(DPMI_show_state(scp)); }
 #ifdef SHOWREGS
   print_ldt();
 #endif
@@ -3484,10 +3482,42 @@ if ((_ss & 4) == 4) {
 
     } /* switch */
   } /* _trapno==13 */
-  else
-#ifdef __linux__
-      do_cpu_exception(scp);
+  else {
+    if (_trapno == 0x0c) {
+      if (Segments[_cs >> 3].is_32 && !Segments[_ss >> 3].is_32 && _HWORD(esp)) {
+        error("Stack Fault due to a CPU bug!\n"
+	      "For more information read a chapter \"Specification Clarifications\"\n"
+	      "section 4 of the document \"Intel386 DX Processor Specification Update\"\n"
+	      "at http://www.intel.com/design/intarch/specupdt/27287402.PDF\n"
+	      "If your program uses a dos4gw DOS extender, try dos32a extender\n"
+	      "instead, which may solve the problem.\n");
+#if 0
+	_HWORD(ebp) = 0;
+	_HWORD(esp) = 0;
+	if (instr_emu(scp, 1, 1)) {
+	  error("Instruction emulated\n");
+	  return;
+	}
+	error("Instruction emulation failed!\n"
+	      "%s\n"
+	      "Now we will force a B bit for a stack segment in hope this will help.\n"
+	      "This is not reliable and your program may now crash.\n"
+	      "In that case try to convince Intel to fix that bug.\n"
+	      "Now patching the B bit, get your fingers crossed...\n",
+	      DPMI_show_state(scp));
+	SetSelector(_ss, Segments[_ss >> 3].base_addr, Segments[_ss >> 3].limit,
+	  1, Segments[_ss >> 3].type, Segments[_ss >> 3].readonly,
+	  Segments[_ss >> 3].is_big
+#ifdef WANT_WINDOWS
+	  , Segments[_ss >> 3].not_present, Segments[_ss >> 3].useable
 #endif
+	  );
+	return;
+#endif
+      }
+    }
+    do_cpu_exception(scp);
+  }
 
   if (dpmi_mhp_TF) {
       dpmi_mhp_TF=0;
