@@ -111,7 +111,9 @@ void get_screen_size (void)
    Rows = SLtt_Screen_Rows;
    Columns = SLtt_Screen_Cols;
    if (Rows < 25) Rows = 25;
+   vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
+   vga.text_height = Rows;
 }
 
 static void set_char_set (void)
@@ -202,6 +204,12 @@ static int term_change_config(unsigned item, void *buf)
    return 100;   
 }
 
+static void sigwinch(int sig)
+{
+  restore_eflags_fs_gs();
+  gettermcap(sig);
+}
+
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
@@ -210,6 +218,7 @@ static int terminal_initialize(void)
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color;
    int rotate[8];
+   struct sigaction sa;
 
    v_printf("VID: terminal_initialize() called \n");
    /* I do not know why this routine is called if our update is not
@@ -250,7 +259,13 @@ static int terminal_initialize(void)
         co = Columns;
      }
 #endif
-   
+
+   /* respond to resize events unless we're running on the Linux console
+      with raw keyboard: then SIGWINCH = SIG_RELEASE ! */
+   if (!config.console_keyb) {
+     SETSIG(SIGWINCH, sigwinch);
+   }
+
    /* initialize VGA emulator */
    use_bitmap_font = FALSE;
    config.X_updatelines = li;
@@ -258,7 +273,9 @@ static int terminal_initialize(void)
      error("X: X_init: VGAEmu init failed!\n");
      leavedos(99);
    }
+   vga.text_width = Columns;
    vga.scan_len = 2 * Columns;
+   vga.text_height = Rows;
    register_text_system(&Text_term);
    vga_emu_setmode(video_mode, Columns, Rows);
 
@@ -458,6 +475,9 @@ static int slang_update (void)
      }
 
    changed = 1;
+   vga.text_width = Columns;
+   vga.scan_len = 2 * Columns;
+   vga.text_height = Rows;
    if (imin != DOSemu_Terminal_Scroll_Min) {
       DOSemu_Terminal_Scroll_Min = imin;
       redraw_text_screen();

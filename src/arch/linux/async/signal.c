@@ -105,12 +105,6 @@ static void leavedos_signal(int sig)
   leavedos(sig);
 }
 
-static void sigwinch(int sig)
-{
-  restore_eflags_fs_gs();
-  gettermcap(sig);
-}
-
 /* Silly Interrupt Generator Initialization/Closedown */
 
 #ifdef SIG
@@ -260,11 +254,6 @@ signal_init(void)
   SETSIG(SIGQUIT, sigquit);
   SETSIG(SIGPIPE, SIG_IGN);
 
-  if(Video == &Video_term) {
-    SETSIG(SIGWINCH, sigwinch);
-  } else if(!config.console_video && !config.console_keyb) {
-    SETSIG(SIGWINCH, SIG_IGN); /* Adjust window sizes in DOS */
-  }
 #ifdef X86_EMULATOR
   SETSIG(SIGPROF, SIG_IGN);
 #endif
