@@ -21,10 +21,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
+#include <sys/param.h>
 #include <errno.h>
 #include "dpmi.h"
 #include "pic.h"
-#include "priv.h"
 #include "mapping.h"
 
 #ifndef PAGE_SHIFT
@@ -267,9 +267,9 @@ int DPMIfree(unsigned long handle)
     if ((block = lookup_pm_block(handle)) == NULL)
 	return -1;
     munmap_mapping(MAPPING_DPMI, block->base, block->size);
+    dpmi_free_memory += block -> size;
     free(block->attrs);
     free_pm_block(block);
-    dpmi_free_memory += block -> size;
     return 0;
 }
 
@@ -279,7 +279,7 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     dpmi_pm_block *block;
     void *ptr;
     u_short *tmp;
-    int npages, i;
+    int npages, new_npages, i;
 
     if (!newsize)	/* DPMI spec. says resize to 0 is an error */
 	return NULL;
@@ -303,6 +303,7 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     * it can be merged into a single VMA. Otherwise mremap() will fail!
     */
     npages = block->size >> PAGE_SHIFT;
+    new_npages = newsize >> PAGE_SHIFT;
     tmp = malloc(npages * sizeof(u_short));
     for (i = 0; i < npages; i++)
       tmp[i] = 9;
@@ -314,9 +315,9 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     if (ptr == MAP_FAILED)
 	return NULL;
 
-    block->attrs = realloc(block->attrs, (newsize >> PAGE_SHIFT) * sizeof(u_short));
+    block->attrs = realloc(block->attrs, new_npages * sizeof(u_short));
     if (newsize > block->size) {
-	for (i = npages; i < newsize >> PAGE_SHIFT; i++)
+	for (i = npages; i < new_npages; i++)
 	    block->attrs[i] = 9;
     }
     dpmi_free_memory += block -> size;
@@ -324,7 +325,8 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     block->base = ptr;
     block -> size = newsize;
     /* We have to restore attrs only for the old size - new ones are OK */
-    SetPageAttributes(block, 0, block->attrs, npages);
+    /* But of course not touching the freed pages! */
+    SetPageAttributes(block, 0, block->attrs, MIN(npages, new_npages));
     return block;
 }
 
