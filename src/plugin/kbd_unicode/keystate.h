@@ -26,11 +26,9 @@ struct character_translate_rules {
 struct translate_rule {
 	t_keysym rule_map[NUM_KEY_NUMS];
 	t_modifiers modifiers;
-	struct translate_rule *next;
 };
 
-struct scancode_translate_rules {
-	int keyboard;
+struct translate_rules_struct {
 	struct translate_rule plain;
 	struct translate_rule shift;
 	struct translate_rule ctrl;
@@ -38,6 +36,16 @@ struct scancode_translate_rules {
 	struct translate_rule altgr;
 	struct translate_rule shift_altgr;
 	struct translate_rule ctrl_alt;
+};
+#define NUM_RULES (sizeof(struct translate_rules_struct) / \
+    sizeof(struct translate_rule))
+
+struct scancode_translate_rules {
+	int keyboard;
+	union {
+		struct translate_rules_struct rule_structs;
+		struct translate_rule rule_arr[NUM_RULES];
+	} trans_rules;
 };
 
 struct raw_key_state {

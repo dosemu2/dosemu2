@@ -127,12 +127,6 @@
 #error NUM_KEYSYMS needs to be 0x10000
 #endif
 
-#define ITERATE_LIST(iter, start, action) \
-    iter = start; \
-    do { \
-	action; \
-    } while ((iter = iter->next))
-
 static void sync_shift_state(t_modifiers desired, struct keyboard_state *state);
 static t_shiftstate translate_shiftstate(t_shiftstate cur_shiftstate,
 	struct translate_rule *rule, t_keynum key, t_shiftstate *mask);
@@ -487,7 +481,6 @@ static void init_translate_rule(t_keysym *rule,
 static void dump_translate_rules(struct scancode_translate_rules *rules)
 {
 	int i;
-	struct translate_rule *rule;
 #define LOOP(type)  \
 	do { \
 		k_printf(#type ":\n"); \
@@ -501,8 +494,9 @@ static void dump_translate_rules(struct scancode_translate_rules *rules)
 		} \
 	} while(0)
 
-	ITERATE_LIST(rule, &rules->plain,
-		LOOP(rule->rule_map));
+	for(i = 0; i < NUM_RULES; i++) {
+		LOOP(rules->trans_rules.rule_arr[i].rule_map);
+	}
 }
 
 /* FIXME: I need external input for ctrl mappings!
@@ -516,8 +510,7 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 			      struct keytable_entry *key_table)
 {
 	struct scancode_translate_rules *rules=NULL;
-	int i;
-	struct translate_rule *rule;
+	int i, j;
 	
 	for(i = 0; i < MAPS_MAX; i++) {
 		if(maps[i].keyboard==KEYB_NO) {
@@ -533,84 +526,74 @@ init_scancode_translation_rules(struct scancode_translate_rules *maps,
 	rules->keyboard = key_table->keyboard;
 
 	/* Initialize everything to a known value */
-	rules->plain.modifiers = 0;
-	rules->plain.next = &rules->shift;
+	rules->trans_rules.rule_structs.plain.modifiers = 0;
+	rules->trans_rules.rule_structs.shift.modifiers = MODIFIER_SHIFT;
+	rules->trans_rules.rule_structs.ctrl.modifiers = MODIFIER_CTRL;
+	rules->trans_rules.rule_structs.alt.modifiers = MODIFIER_ALT;
+	rules->trans_rules.rule_structs.altgr.modifiers = MODIFIER_ALTGR;
+	rules->trans_rules.rule_structs.shift_altgr.modifiers = MODIFIER_SHIFT | MODIFIER_ALTGR;
+	rules->trans_rules.rule_structs.ctrl_alt.modifiers = MODIFIER_CTRL | MODIFIER_ALT;
 
-	rules->shift.modifiers = MODIFIER_SHIFT;
-	rules->shift.next = &rules->ctrl;
-
-	rules->ctrl.modifiers = MODIFIER_CTRL;
-	rules->ctrl.next = &rules->alt;
-
-	rules->alt.modifiers = MODIFIER_ALT;
-	rules->alt.next = &rules->altgr;
-
-	rules->altgr.modifiers = MODIFIER_ALTGR;
-	rules->altgr.next = &rules->shift_altgr;
-
-	rules->shift_altgr.modifiers = MODIFIER_SHIFT | MODIFIER_ALTGR;
-	rules->shift_altgr.next = &rules->ctrl_alt;
-
-	rules->ctrl_alt.modifiers = MODIFIER_CTRL | MODIFIER_ALT;
-	rules->ctrl_alt.next = NULL;
-
-	ITERATE_LIST(rule, &rules->plain,
+	for(j = 0; j < NUM_RULES; j++) {
 		for(i = 0; i < NUM_KEY_NUMS; i++)
-			rule->rule_map[i] = KEY_VOID);
+			rules->trans_rules.rule_arr[j].rule_map[i] = KEY_VOID;
+	}
 
 	/* plain keys */
-	init_translate_rule(rules->plain.rule_map,
+	init_translate_rule(rules->trans_rules.rule_structs.plain.rule_map,
 			    key_table->sizemap, key_table->key_map, 0);
-	init_misc_plain_map(rules->plain.rule_map);
+	init_misc_plain_map(rules->trans_rules.rule_structs.plain.rule_map);
 
 	/* shifted keys */
-	init_translate_rule(rules->shift.rule_map,
+	init_translate_rule(rules->trans_rules.rule_structs.shift.rule_map,
 			     key_table->sizemap, key_table->shift_map, 0);
-	init_misc_shifted_map(rules->shift.rule_map);
+	init_misc_shifted_map(rules->trans_rules.rule_structs.shift.rule_map);
 
 	/* ctrl keys */
 	if (key_table->ctrl_map) {
-		init_translate_rule(rules->ctrl.rule_map,
+		init_translate_rule(rules->trans_rules.rule_structs.ctrl.rule_map,
 				     key_table->sizemap, key_table->ctrl_map, 0);
 	} else {
 		/* FIXME!!! (unreliable heuristic used) */
-		init_heuristics_ctrl_map(rules->ctrl.rule_map, rules->plain.rule_map);
+		init_heuristics_ctrl_map(rules->trans_rules.rule_structs.ctrl.rule_map,
+				    rules->trans_rules.rule_structs.plain.rule_map);
 	}
-	init_misc_ctrl_map(rules->ctrl.rule_map);
+	init_misc_ctrl_map(rules->trans_rules.rule_structs.ctrl.rule_map);
 
 	/* alt keys */
-	init_heuristics_alt_map(rules->alt.rule_map, rules->plain.rule_map); /* FIXME (heuristic used) */
-	init_misc_alt_map(rules->alt.rule_map); 
+	init_heuristics_alt_map(rules->trans_rules.rule_structs.alt.rule_map,
+		rules->trans_rules.rule_structs.plain.rule_map); /* FIXME (heuristic used) */
+	init_misc_alt_map(rules->trans_rules.rule_structs.alt.rule_map); 
 
 	/* altgr keys */
 	if (key_table->alt_map) {
-		init_translate_rule(rules->altgr.rule_map,
+		init_translate_rule(rules->trans_rules.rule_structs.altgr.rule_map,
 				     key_table->sizemap, key_table->alt_map, 0);
 	} 
-	init_misc_altgr_map(rules->altgr.rule_map);
+	init_misc_altgr_map(rules->trans_rules.rule_structs.altgr.rule_map);
 
 	/* shift alt keys */
 	if (key_table->shift_alt_map) {
-		init_translate_rule(rules->shift_altgr.rule_map,
+		init_translate_rule(rules->trans_rules.rule_structs.shift_altgr.rule_map,
 				     key_table->sizemap, key_table->shift_alt_map, 0);
 	}
-	init_misc_shift_altgr_map(rules->shift_altgr.rule_map);
+	init_misc_shift_altgr_map(rules->trans_rules.rule_structs.shift_altgr.rule_map);
 
 	/* ctrl alt keys */
 	if (key_table->ctrl_alt_map) {
-		init_translate_rule(rules->ctrl_alt.rule_map,
+		init_translate_rule(rules->trans_rules.rule_structs.ctrl_alt.rule_map,
 				     key_table->sizemap, key_table->ctrl_alt_map, 0);
 	}
-	init_misc_ctrl_alt_map(rules->ctrl_alt.rule_map);
+	init_misc_ctrl_alt_map(rules->trans_rules.rule_structs.ctrl_alt.rule_map);
 
 	/* shift num_pad key is the same as num_lock num_pad key */
 	/* keypad */
-	init_translate_rule(rules->shift.rule_map,
+	init_translate_rule(rules->trans_rules.rule_structs.shift.rule_map,
 			     key_table->sizepad, key_table->num_table, 0x47);
-	init_misc_keypad_map(rules->shift.rule_map);
+	init_misc_keypad_map(rules->trans_rules.rule_structs.shift.rule_map);
 
-	ITERATE_LIST(rule, &rules->plain,
-		init_misc_all_maps(rule->rule_map));
+	for(i = 0; i < NUM_RULES; i++)
+		init_misc_all_maps(rules->trans_rules.rule_arr[i].rule_map);
 
 	dump_translate_rules(rules);
 }
@@ -624,13 +607,14 @@ static void init_charset_keymap(struct character_translate_rules *charset,
 				struct scancode_translate_rules *rules, int mapnum)
 {
 	t_keynum key;
-	int i;
+	int i, j, k;
 	t_keysym ch;
 	t_modifiers shiftstate;
 	t_shiftstate mask;
 	struct translate_rule *rule, *rule1;
 
-	ITERATE_LIST(rule, &rules->plain,
+	for(j = 0; j < NUM_RULES; j++) {
+	    rule = &rules->trans_rules.rule_arr[j];
 	    for (i = 0; i < NUM_KEY_NUMS; i++) {
 		ch = rule->rule_map[i];
 		shiftstate = rule->modifiers;
@@ -648,17 +632,19 @@ static void init_charset_keymap(struct character_translate_rules *charset,
 		charset->keys[ch].shiftstate = shiftstate;
 		charset->keys[ch].map = mapnum;
 		charset->keys[ch].shiftstate_mask = ~0;
-		ITERATE_LIST(rule1, &rules->plain,
+		for(k = 0; k < NUM_RULES; k++) {
+			rule1 = &rules->trans_rules.rule_arr[k];
 			if (rule1->rule_map[i] != ch) {
 				charset->keys[ch].shiftstate_mask &= ~rule1->modifiers;
 			}
 			if (~get_modifiers_r(translate_shiftstate(
-			    ~0, &rules->plain, key, &mask)) &
+			    ~0, &rules->trans_rules.rule_structs.plain, key, &mask)) &
 			    ~charset->keys[ch].shiftstate_mask) {
 				charset->keys[ch].shiftstate_mask &= ~get_modifiers_r(mask);
 			}
-		);
-	    });
+		}
+	    }
+	}
 }
 
 static void init_one_deadkey(void *p, t_keysym dead_sym, t_keysym in, t_keysym out)
@@ -1187,31 +1173,31 @@ static t_keysym translate_r(Boolean make, t_keynum key, Boolean *is_accent,
 	struct keyboard_state *state) 
 {
 	t_shiftstate shiftstate = translate_shiftstate(state->shiftstate,
-		&state->rules->maps[state->rules->activemap].plain, key, NULL);
+		&state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain, key, NULL);
 	t_keysym ch = KEY_VOID;
 
 	*is_accent=FALSE;
 
 	if ((shiftstate & ANY_ALT) && (shiftstate & ANY_CTRL)) {
-		ch = state->rules->maps[state->rules->activemap].ctrl_alt.rule_map[key];
+		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl_alt.rule_map[key];
 	}
 	else if ((shiftstate & R_ALT) && (shiftstate & ANY_SHIFT)) {
-		ch = state->rules->maps[state->rules->activemap].shift_altgr.rule_map[key];
+		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift_altgr.rule_map[key];
 	}
 	else if (shiftstate & R_ALT) {
-		ch = state->rules->maps[state->rules->activemap].altgr.rule_map[key];
+		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.altgr.rule_map[key];
 	}
 	else if (shiftstate & ANY_ALT) {
-		ch = state->rules->maps[state->rules->activemap].alt.rule_map[key];
+		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.alt.rule_map[key];
 	}
 	else if (shiftstate & ANY_CTRL) {
-		ch = state->rules->maps[state->rules->activemap].ctrl.rule_map[key];
+		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.ctrl.rule_map[key];
 	}
 	else if (shiftstate & ANY_SHIFT) {
-		ch = state->rules->maps[state->rules->activemap].shift.rule_map[key];
+		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.shift.rule_map[key];
 	}
 	else /* unshifted */ {
-		ch = state->rules->maps[state->rules->activemap].plain.rule_map[key];
+		ch = state->rules->maps[state->rules->activemap].trans_rules.rule_structs.plain.rule_map[key];
 	}
 	if (make && (state->accent != KEY_VOID)) {
 		t_keysym new_ch = keysym_dead_key_translation(state->accent, ch);
