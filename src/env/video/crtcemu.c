@@ -53,8 +53,6 @@
 #define crtc_deb2(x...)
 #endif
 
-#define NEWBITS(a) ((vga.crtc.data[ind] ^ data) & (a))
-
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "config.h"
@@ -142,7 +140,8 @@ unsigned char CRTC_get_index()
 
 void CRTC_write_value(unsigned char data)
 {
-  unsigned u = data, u1, ind = vga.crtc.index;
+#define NEWBITS(a) (delta & (a))
+  unsigned u = data, u1, delta, ind = vga.crtc.index;
 
   if(ind > CRTC_MAX_INDEX) {
     crtc_deb("CRTC_write_value: data (0x%02x) ignored\n", u);
@@ -159,7 +158,9 @@ void CRTC_write_value(unsigned char data)
       data = (vga.crtc.data[ind] & 0xef) | (data & 0x10);
   }
 
-  if(vga.crtc.data[ind] == data) return;
+  delta = vga.crtc.data[ind] ^ data;
+  if(!delta) return;
+  vga.crtc.data[ind] = data;
 
   switch(ind) {
     case 0x00:
@@ -293,8 +294,6 @@ void CRTC_write_value(unsigned char data)
     default:
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (ignored)\n", ind, u);
   }
-
-  vga.crtc.data[ind] = data;
 }
 
 

@@ -115,9 +115,6 @@
 #define seq_deb2(x...)
 #endif
 
-#define NEWBITS(a) ((vga.seq.data[ind] ^ data) & (a))
-
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "config.h"
 #include "emu.h"
@@ -225,7 +222,8 @@ unsigned char Seq_get_index()
 
 void Seq_write_value(unsigned char data)
 {
-  unsigned u, u1, ind = vga.seq.index;
+#define NEWBITS(a) (delta & (a))
+  unsigned u, u1, delta, ind = vga.seq.index;
   unsigned char uc1;
 
   if(ind > SEQ_MAX_INDEX) {
@@ -255,6 +253,9 @@ void Seq_write_value(unsigned char data)
   else {
     if(vga.seq.data[ind] == data) return;
   }
+
+  delta = vga.seq.data[ind] ^ data;
+  vga.seq.data[ind] = data;
 
   switch(ind) {
     case 0x00:		/* Reset */
@@ -344,8 +345,6 @@ void Seq_write_value(unsigned char data)
     case 0x0f:		/* Trident: Power Up Mode 2 */
       break;
   }
-
-  vga.seq.data[ind] = data;
 }
 
 
