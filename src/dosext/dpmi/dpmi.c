@@ -2153,7 +2153,7 @@ err:
     D_printf("DPMI: unimplemented int31 func %#x\n",_LWORD(eax));
     break;
 
-  case 0x0800: {
+  case 0x0800: {	/* create Physical Address Mapping */
       size_t addr, size, vbase;
 
       addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
@@ -2171,6 +2171,14 @@ err:
       D_printf("DPMI: getting physical memory area at 0x%x, size 0x%x, "
 		     "ret=%#x:%#x\n",
 	       addr, size, _LWORD(ebx), _LWORD(ecx));
+    }
+    break;
+  case 0x0801: {	/* free Physical Address Mapping */
+      size_t vbase;
+      vbase = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
+      D_printf("DPMI: Unmap Physical Memory, vbase=%#08x\n", vbase);
+      /* since we have all the necessary physical memory regions
+       * pre-mapped permanently, not much to do here. */
     }
     break;
 
