@@ -258,7 +258,7 @@ static int is_in_allowed_classes(int mask);
 
 %token FORCE_VT_SWITCH PCI
 	/* terminal */
-%token UPDATEFREQ UPDATELINES COLOR ESCCHAR
+%token UPDATEFREQ UPDATELINES COLOR ESCCHAR XTERM_TITLE
 /* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
@@ -599,6 +599,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		  '{' video_flags '}'
 		    { stop_video(); }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
+		| XTERM_TITLE string_expr { config.xterm_title = $2; }
 		| TERMINAL
                   '{' term_flags '}'
 		    { stop_terminal(); }

@@ -228,6 +228,7 @@ typedef struct vesamode_type_struct {
        u_short term_updatefreq;		/* Terminal update frequency */
        u_short term_charset;		/* Terminal Character set */
        u_short term_esc_char;	        /* ASCII value used to access slang help screen */
+       char    *xterm_title;	        /* xterm/putty window title */
        /* u_short term_corner; */       /* Update char at lower-right corner */
        u_short X_updatelines;           /* Amount to update at a time */
        u_short X_updatefreq;            /* X update frequency */

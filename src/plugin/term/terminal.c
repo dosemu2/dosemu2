@@ -181,7 +181,11 @@ static int term_change_config(unsigned item, void *buf)
    switch (item) {
    case CHG_TITLE_APPNAME:
       snprintf (title_appname, TITLE_APPNAME_MAXLEN, "%s", (char *) buf);
-      printf("\x1b]2;DOSEMU - %s\7", (char *)buf);
+      if (config.xterm_title && strlen(config.xterm_title)) {
+	printf("\x1b]2;");
+	printf(config.xterm_title, (char *)buf);
+	printf("\7");
+      }
       return 0;
    case GET_TITLE_APPNAME:
       snprintf (buf, TITLE_APPNAME_MAXLEN, "%s", title_appname);

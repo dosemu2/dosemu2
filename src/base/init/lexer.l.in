@@ -507,6 +507,7 @@ binary                 RETURN(BINARY);
 	/* terminal stuff */
 
 charset			RETURN(CHARSET);
+xterm_title		RETURN(XTERM_TITLE);
 updatefreq		RETURN(UPDATEFREQ);
 color			RETURN(COLOR);
 escchar			RETURN(ESCCHAR);

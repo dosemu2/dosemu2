@@ -178,6 +178,7 @@ void dump_config_status(void *printfunc)
     }
     (*print)("term_charset \"%s\"\nX_updatelines %d\nX_updatefreq %d\n",
         s, config.X_updatelines, config.X_updatefreq);
+    (*print)("xterm_title\n", config.xterm_title);
     (*print)("X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
         (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);
     (*print)("X_blinkrate %d\nX_sharecmap %d\nX_mitshm %d\n",
