@@ -24,13 +24,35 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
+#ifndef KERNEL_VERSION
+#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+#endif
+#define REQUIRED_KERNEL KERNEL_VERSION(2,0,30)
+/* REQUIRED_KERNEL to be moved to configure at some point */
 
+#if REQUIRED_KERNEL >= KERNEL_VERSION(2,3,40)
+/* if this is the case we can be sure to use MREMAP_FIXED without checking */
+#define HAVE_MREMAP_FIXED 1
+#endif
+
+struct mem_map_struct {
+  void *src;
+  void *base;
+  void *dst;
+  int len;
+  int mapped;
+};
+
+#define MAX_KMEM_MAPPINGS 4096
+static int kmem_mappings = 0;
+static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
+ 
 static int init_done = 0;
 static char *lowmem_base = NULL;
-/* this is a 256 table telling for every page if it's mapped to /dev/mem
-   or not. Necessary for the low mem hack... Hopefully a temporary
-   measure */
-static char kmem_map[256];
+#ifndef HAVE_MREMAP_FIXED
+static int have_mremap_fixed = 1;
+#endif
 
 static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_shm,
@@ -38,52 +60,121 @@ static struct mappingdrivers *mappingdrv[] = {
   0
 };
 
-static int kmem_check_memcpy(char *tmp)
+static int map_find_idx(struct mem_map_struct *map, int max,
+  unsigned char *addr)
 {
-  char *p;
   int i;
-  int kmem_first = 256;
-
-  for (i = 0; i < 256; i++)
-    if (kmem_map[i]) {
-      kmem_first = i;
-      break;
-    }
-  p = (char *)(kmem_first * PAGE_SIZE);
-  memcpy(tmp, 0, (size_t)p);
-  munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, 0, (size_t)p);
-  for (i = kmem_first; i < 256; i++, p += PAGE_SIZE)
-    if (!kmem_map[i]) {
-      memcpy(tmp + i * PAGE_SIZE, p, PAGE_SIZE);
-      munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, p, PAGE_SIZE);
-    }
-  if (kmem_first == 256)
-    kmem_first += 16; /* include HMA */
-  return kmem_first;
+  for (i = 0; i < max; i++) {
+    if (map[i].src == addr)
+      return i;
+  }
+  return -1;
 }
 
-static void kmem_check_memcpy_back(int kmem_first, char *p, char *tmp)
+static int map_find(struct mem_map_struct *map, int max,
+  unsigned char *addr, int size, int mapped)
 {
-  int i;
-  int j = kmem_first;
-  memcpy(0, tmp, kmem_first == (256 + 16) ? 0x100000 : (size_t)p);
-  for (i = kmem_first + 1; i < 257; i++, p += PAGE_SIZE)
-    if (i == 256 || kmem_map[i] != kmem_map[i-1]) {
-      if (kmem_map[i - 1]) {
-	j = i;
-      } else {
-	if (i == 256)
-	  i += 16; /* for HMA */
-	mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS,
-		     (char *)(j * PAGE_SIZE), (i - j) * PAGE_SIZE,
-		     PROT_READ | PROT_WRITE | PROT_EXEC,
-		     (char *)(j * PAGE_SIZE));
-	if (i == 256 + 16)
-	  i -= 16; /* for HMA (don't copy) */
-	memcpy((char *)(j * PAGE_SIZE), tmp + j * PAGE_SIZE,
-	       (i - j) * PAGE_SIZE);
+  int i, dst, dst1;
+  int min = -1, idx = -1;
+  int max_addr = (int)addr + size;
+  for (i = 0; i < max; i++) {
+    if (!map[i].dst || !map[i].len || map[i].mapped != mapped)
+      continue;
+    dst = (int)map[i].dst;
+    dst1 = dst + map[i].len;
+    if (dst >= (int)addr && dst < max_addr) {
+      if (min == -1 || dst < min) {
+        min = dst;
+        idx = i;
       }
     }
+    if (dst1 > (int)addr && dst < max_addr) {
+      if (min == -1 || dst1 < min) {
+        min = (int)addr;
+        idx = i;
+      }
+    }
+  }
+  return idx;
+}
+
+static void kmem_unmap_mapping(int cap, void *addr, int mapsize)
+{
+  int i;
+#ifndef HAVE_MREMAP_FIXED
+  if (!have_mremap_fixed)
+    return;
+#endif
+  if (addr == (void*)-1)
+    return;
+  while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 1)) != -1) {
+    kmem_map[i].base = mmap(0, kmem_map[i].len, PROT_NONE,
+               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    mremap_mapping(cap, kmem_map[i].dst, kmem_map[i].len,
+      kmem_map[i].len, MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[i].base);
+    kmem_map[i].mapped = 0;
+  }
+}
+
+static void kmem_map_mapping(int cap, void *addr, int mapsize)
+{
+  int i;
+#ifndef HAVE_MREMAP_FIXED
+  if (!have_mremap_fixed)
+    return;
+#endif
+  if (addr == (void*)-1)
+    return;
+  while ((i = map_find(kmem_map, kmem_mappings, addr, mapsize, 0)) != -1) {
+    mremap_mapping(cap, kmem_map[i].base, kmem_map[i].len, kmem_map[i].len,
+      MREMAP_MAYMOVE | MREMAP_FIXED, kmem_map[i].dst);
+    kmem_map[i].mapped = 1;
+  }
+}
+
+static size_t kmem_check_memcpy(char *tmp)
+{
+  size_t lowmem_base_size = LOWMEM_SIZE;
+  char *p;
+  int i;
+
+  for (i = 0; i < kmem_mappings; i++) {
+    if ((size_t)(kmem_map[i].dst) < lowmem_base_size)
+      lowmem_base_size = (size_t)(kmem_map[i].dst);
+  }
+  for (p = (char *)lowmem_base_size; p < (char *)LOWMEM_SIZE; p += PAGE_SIZE) {
+    if (map_find(kmem_map, kmem_mappings, p, PAGE_SIZE, 1) == -1) {
+      memcpy(tmp + (size_t)p, p, PAGE_SIZE);
+      munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, p, PAGE_SIZE);
+    }
+  }
+  return lowmem_base_size;
+}
+
+static void kmem_check_memcpy_back(size_t lowmem_base_size, char *tmp)
+{
+  size_t q = lowmem_base_size;
+  size_t p;
+  int i, j;
+
+  j = map_find(kmem_map, kmem_mappings, (char *)q, PAGE_SIZE, 1);
+  for (p = lowmem_base_size + PAGE_SIZE; p <= LOWMEM_SIZE; p += PAGE_SIZE) {
+    i = j;
+    j = map_find(kmem_map, kmem_mappings, (char *)p, PAGE_SIZE, 1);
+    if (p == LOWMEM_SIZE || j != i) {
+      if (i != -1) {
+	q = p;
+      } else {
+	if (p == LOWMEM_SIZE)
+	  p += HMASIZE; /* for HMA */
+	mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS, (char *)q, p - q,
+		     PROT_READ | PROT_WRITE | PROT_EXEC, (char *)q);
+	if (p == LOWMEM_SIZE + HMASIZE)
+	  p -= HMASIZE; /* for HMA (don't copy) */
+	memcpy((char *)q, tmp + q, p - q);
+      }
+    }
+  }
 }
 
 void *extended_mremap(void *addr, size_t old_len, size_t new_len,
@@ -99,19 +190,40 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%x, protect=%x, source=%p\n",
 	cap, target, mapsize, protect, source);
   if (cap & MAPPING_KMEM) {
-    open_kmem();
-    if (!fixed) target = 0;
-    addr = mmap(target, mapsize, protect, MAP_SHARED | fixed,
-				mem_fd, (off_t) source);
-    close_kmem();
-    if (addr != MAP_FAILED && fixed) {
-      int i;
-      for (i = 0; i < mapsize / PAGE_SIZE; i++)
-        kmem_map[i + (int)target / PAGE_SIZE] = 1;
+    int i;
+#ifndef HAVE_MREMAP_FIXED
+    if (!have_mremap_fixed) {
+      i = kmem_mappings++;
+      open_kmem();
+      if (!fixed) target = 0;
+      addr = mmap(target, mapsize, protect, MAP_SHARED | fixed,
+		  mem_fd, (off_t) source);
+      close_kmem();
+    } else
+#endif
+    {
+      i = map_find_idx(kmem_map, kmem_mappings, source);
+      if (i == -1) {
+	error("KMEM mapping for %p was not allocated!\n", source);
+	return MAP_FAILED;
+      }
+      if (kmem_map[i].len != mapsize) {
+	error("KMEM mapping for %p allocated for size %#x, but %#x requested\n",
+	      source, kmem_map[i].len, mapsize);
+	return MAP_FAILED;
+      }
+      addr = mremap_mapping(cap, kmem_map[i].base, kmem_map[i].len, mapsize,
+			    MREMAP_MAYMOVE | MREMAP_FIXED, target);
     }
+    kmem_map[i].dst = addr;
+    kmem_map[i].len = mapsize;
+    kmem_map[i].mapped = 1;
     mprotect_mapping(cap, addr, mapsize, protect);
     return addr;
   }
+
+  kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
+
   if (cap & MAPPING_SCRATCH) {
     if (!fixed) target = 0;
     return mmap(target, mapsize, protect,
@@ -121,21 +233,23 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
     return (*mappingdriver.mmap)(cap | MAPPING_ALIAS, target, mapsize, protect,
       lowmem_base + (off_t)source);
   }
-  return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
+
+  addr = (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
+
+  kmem_map_mapping(MAPPING_OTHER, target, mapsize);
+
+  return addr;
 }        
 
 void *mremap_mapping(int cap, void *source, int old_size, int new_size,
   unsigned long flags, void *target)
 {
-  void *ptr;
   Q__printf("MAPPING: remap, cap=%s, source=%p, old_size=%x, new_size=%x, target=%p\n",
 	cap, source, old_size, new_size, target);
-  if ((int)target != -1)	// Cant for now
-    return NULL;
-  ptr = mremap(source, old_size, new_size, flags);
-  if (ptr == MAP_FAILED)
-    return NULL;
-  return ptr;
+  if ((int)target != -1) {
+    return extended_mremap(source, old_size, new_size, flags, target);
+  }
+  return mremap(source, old_size, new_size, flags);
 }
 
 int mprotect_mapping(int cap, void *addr, int mapsize, int protect)
@@ -155,6 +269,28 @@ void mapping_init(void)
   int numdrivers = sizeof(mappingdrv) / sizeof(mappingdrv[0]);
 
   if (init_done) return;
+
+#ifndef HAVE_MREMAP_FIXED
+  {
+    void *ptr, *ptr1, *ptr2;
+
+    /* check for extended_mremap */
+    ptr= MAP_FAILED;
+    ptr1 = mmap(0, PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    ptr2 = mmap(0, PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr1 != MAP_FAILED && ptr2 != MAP_FAILED) {
+      ptr = extended_mremap(ptr1, PAGE_SIZE, PAGE_SIZE,
+			    MREMAP_MAYMOVE | MREMAP_FIXED, ptr2);
+      munmap(ptr1, PAGE_SIZE);
+      munmap(ptr2, PAGE_SIZE);
+    }
+    if (ptr != ptr2) {
+      Q_printf("MAPPING: not using mremap_fixed because it is not supported\n");
+      have_mremap_fixed = 0;
+    }
+  }
+#endif
+
   memset(&mappingdriver, 0, sizeof(struct mappingdrivers));
   if (config.mappingdriver && strcmp(config.mappingdriver, "auto")) {
     /* first try the mapping driver the user wants */
@@ -238,7 +374,34 @@ void *alloc_mapping(int cap, int mapsize, void *target)
   void *addr;
 
   if (cap & MAPPING_KMEM) {
-    return NULL;
+#ifndef HAVE_MREMAP_FIXED
+    if (!have_mremap_fixed)
+      return NULL;
+#endif
+    if (target == (void*)-1) {
+      error("KMEM mapping without target\n");
+      leavedos(64);
+    }
+    if (map_find_idx(kmem_map, kmem_mappings, target) != -1) {
+      error("KMEM mapping for %p allocated twice!\n", target);
+      return MAP_FAILED;
+    }
+    open_kmem();
+    addr = mmap(0, mapsize, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
+		(off_t)target);
+    close_kmem();
+    if (addr == MAP_FAILED)
+      return addr;
+    
+    kmem_map[kmem_mappings].src = target; /* target is actually source */
+    kmem_map[kmem_mappings].base = addr;
+    kmem_map[kmem_mappings].dst = NULL;
+    kmem_map[kmem_mappings].len = mapsize;
+    kmem_map[kmem_mappings].mapped = 0;
+    kmem_mappings++;
+    Q__printf("MAPPING: alloc, cap=%s, source=%p base=%p\n",
+	      cap, target, addr);
+    return addr;
   }
 
   addr = mappingdriver.alloc(cap, mapsize);
@@ -246,19 +409,24 @@ void *alloc_mapping(int cap, int mapsize, void *target)
 
   if (cap & MAPPING_INIT_LOWRAM) {
     char *tmp = NULL;
-    char *p;
-    int kmem_first = 272;
+    size_t lowmem_base_size = LOWMEM_SIZE;
 
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
     lowmem_base = addr;
     /* init hack: convert scratch memory into aliased memory
        after dropping privileges */
     tmp = malloc(0x100000);
-    kmem_first = kmem_check_memcpy(tmp);
-    p = (char *)(kmem_first * PAGE_SIZE);
-    addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target, (size_t)p,
-      PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
-    kmem_check_memcpy_back(kmem_first, p, tmp);
+    lowmem_base_size = kmem_check_memcpy(tmp);
+    memcpy(tmp, 0, lowmem_base_size);
+    munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, 0, lowmem_base_size);
+    if (lowmem_base_size == LOWMEM_SIZE)
+      lowmem_base_size += HMASIZE;
+    addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target,
+	    lowmem_base_size, PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
+    if (lowmem_base_size > LOWMEM_SIZE)
+      lowmem_base_size = LOWMEM_SIZE;
+    memcpy(0, tmp, lowmem_base_size);
+    kmem_check_memcpy_back(lowmem_base_size, tmp);
     free(tmp);
   }
   return addr;
@@ -266,6 +434,9 @@ void *alloc_mapping(int cap, int mapsize, void *target)
 
 void free_mapping(int cap, void *addr, int mapsize)
 {
+  if (cap & MAPPING_KMEM) {
+    return;
+  }
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
   mappingdriver.free(cap, addr, mapsize);
 }
@@ -277,5 +448,16 @@ void *realloc_mapping(int cap, void *addr, int oldsize, int newsize)
 
 int munmap_mapping(int cap, void *addr, int mapsize)
 {
+  /* First of all remap the kmem mappings */
+  kmem_unmap_mapping(MAPPING_OTHER, addr, mapsize);
+
+#ifndef MAPPING_KMEM
+  if (have_mremap_fixed)
+#endif
+    if (cap & MAPPING_KMEM) {
+      /* Already done */
+      return 0;
+    }
+
   return mappingdriver.munmap(cap, addr, mapsize);
 }
