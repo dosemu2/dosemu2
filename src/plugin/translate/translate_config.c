@@ -28,7 +28,7 @@ static void config_translate_scrub(void)
     case CHARSET_FULLIBM:
     case CHARSET_IBM:
 	error("WARNING: $_term_char_set is obsolete. "
-              "Use $_external_char_set and $_internal_char_set instead.");
+              "Use $_external_char_set and $_internal_char_set instead.\n");
     default:
 	if (!trconfig.video_mem_charset) 
 		trconfig.video_mem_charset = lookup_charset("cp437");
