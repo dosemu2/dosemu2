@@ -185,8 +185,8 @@ static int tty_lock(char *path, int mode)
 
     fd = fopen(saved_path,"w");
     if (fd == (FILE *)0) {
-      error("DOSEMU: tty_lock: can't reopen to delete: %s\n",
-             strerror(errno));
+      error("tty_lock: can't reopen %s to delete: %s\n",
+             saved_path, strerror(errno));
       return (-1);
     }
       
