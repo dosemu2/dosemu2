@@ -202,8 +202,8 @@ static u_short microsoft_port_check = 0;
  *
  * DANG_END_FUNCTION
  */
-int
-inb(int port)
+unsigned int
+inb(unsigned int port)
 {
 
   static unsigned int cga_r = 0;
@@ -385,7 +385,7 @@ ind(int port)
 }
 
 void
-outb(int port, int byte)
+outb(unsigned int port, unsigned int byte)
 {
   static int timer_beep = 0;
   static int lastport = 0;
@@ -586,7 +586,7 @@ outb(int port, int byte)
 }
 
 void
-outw(int port, int value)
+outw(unsigned int port, unsigned int value)
 {
   if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
     iopl(3);
@@ -603,7 +603,7 @@ outw(int port, int value)
 }
 
 void
-outd(int port, int value)
+outd(unsigned int port, unsigned int value)
 {
   outw(port,value & 0xffff);
   outw(port+2,(unsigned int)value >> 16);

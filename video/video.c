@@ -53,8 +53,16 @@ int video_init()
      Video=&Video_graphics;
   }
   else if (config.console_video) {
-     v_printf("VID: Video set to Video_console\n");
-     Video=&Video_console;
+     if (config.cardtype == CARD_MDA)
+       {
+	 v_printf("VID: Video set to Video_hgc\n");
+	 Video = &Video_hgc;
+       }
+     else
+       {
+	 v_printf("VID: Video set to Video_console\n");
+	 Video=&Video_console;
+       }
   }
 #ifdef X_SUPPORT
   else if (config.X) {

@@ -43,8 +43,25 @@ static char * phgcp0;
 static char * phgcp1;
 static char * syncadr;
 
+extern int dos_has_vt;
+
+static void hga_restore_cursor(void)
+{
+  get_perm();
+  port_out(10,0x03b4); port_out( 11,0x03b5);
+  port_out(11,0x03b4); port_out( 12,0x03b5);
+  release_perm();
+}
+
+
 void poshgacur(int x, int  y)
 {
+  if ( !dos_has_vt )
+    {
+      hga_restore_cursor();
+      return;
+    }
+
   get_perm();
 
   /* cursor address high */
@@ -52,6 +69,12 @@ void poshgacur(int x, int  y)
 
   /* cursor address low */
   port_out(15,0x03b4); port_out( ( y*80+x ) & 0x0FF ,0x03b5);
+
+  /* cursor start */
+  port_out(10,0x03b4); port_out( CURSOR_START(cursor_shape),0x03b5);
+
+  /* cursor end */
+  port_out(11,0x03b4); port_out( CURSOR_END(cursor_shape),0x03b5);
 
   release_perm();
 
@@ -95,6 +118,8 @@ void hgc_meminit(void)
 
 void mda_initialize(void)
 {
+  cursor_shape = 0x0b0c;
+
   get_perm();
 
   /* init 6845 Video-Controller */
@@ -131,10 +156,10 @@ void mda_initialize(void)
   port_out(9,0x03b4); port_out( 13,0x03b5);
 
   /* cursor start */
-  port_out(10,0x03b4); port_out( 12,0x03b5);
+  port_out(10,0x03b4); port_out( CURSOR_START(cursor_shape),0x03b5);
 
   /* cursor end */
-  port_out(11,0x03b4); port_out( 12,0x03b5);
+  port_out(11,0x03b4); port_out( CURSOR_END(cursor_shape),0x03b5);
 
   /* start address high */
   port_out(12,0x03b4); port_out( 00,0x03b5);
@@ -264,10 +289,10 @@ void mda_reinitialize(void)
   port_out(9,0x03b4); port_out( 13,0x03b5);
 
   /* cursor start */
-  port_out(10,0x03b4); port_out( 12,0x03b5);
+  port_out(10,0x03b4); port_out( CURSOR_START(cursor_shape),0x03b5);
 
   /* cursor end */
-  port_out(11,0x03b4); port_out( 12,0x03b5);
+  port_out(11,0x03b4); port_out( CURSOR_END(cursor_shape),0x03b5);
 
   /* start address high */
   port_out(12,0x03b4); port_out( 00,0x03b5);
@@ -448,6 +473,15 @@ int hgc_init(void)
 {
   hgc_meminit();
   mda_initialize();
+
+  {
+#include "memory.h"
+    int i;
+    unsigned short blank = ' ' | (7 << 8), *p = (unsigned short *)SCREEN_ADR(0);
+    for ( i = 0; i < 2000; i++ )
+      *p++ = blank;
+  }
+
   return 0;
 }
 
@@ -464,15 +498,28 @@ void do_hgc_update_cursor(void)
   return;
 }
 
+
+static void hga_close(void)
+{
+  /* Later modifications may make it necessary to put the
+     display in text mode here. */
+
+  hga_restore_cursor(); /* Put the cursor in its default Linux state. */
+
+  /* The display is in text mode, use the kernel to put the cursor
+     at the end of the screen, then scroll up. */
+  fputs("\033[25;80H\n", stdout);
+}
+
+
 struct video_system Video_hgc = {
    1,                /* is_mapped */
    hgc_init,
-   NULL,
+   hga_close,
    hgc_setmode,
    NULL,             /* update_screen */
    do_hgc_update_cursor
 };
-
 
 
 #undef HGC_C

@@ -1,4 +1,5 @@
 /* dynamic debug handlers - by Tim Bird */
+/* modified to support debug levels -- peak */
 #include "emu.h"
 
 int
@@ -8,7 +9,15 @@ SetDebugFlagsHelper(char *debugStr)
   char value;
 
   for (i = 0; i < strlen(debugStr); i = i + 2) {
-    value = (debugStr[i] == '-') ? 0 : 1;
+    if (debugStr[i] == '+')
+      value = 1;
+    else if (debugStr[i] == '-')
+      value = 0;
+    else if (debugStr[i] >= '0' && debugStr[i] <= '9')
+      value = debugStr[i] - '0';
+    else
+      return (1); /* invalid value */
+
     switch (debugStr[i + 1]) {
     case 'd':
       d.disk = value;
@@ -92,6 +101,17 @@ SetDebugFlagsHelper(char *debugStr)
   return (0);
 }
 
+static char
+DebugFlag(int f)
+{
+  if (f == 0)
+    return '-';
+  else if (f >= 2 && f <= 9)
+    return f + '0';
+  else
+    return '+';
+}
+
 int
 GetDebugFlagsHelper(char *debugStr)
 {
@@ -101,32 +121,32 @@ GetDebugFlagsHelper(char *debugStr)
   dbug_printf("debugStr at %x\n", (int)debugStr);
   i = 0;
 
-  debugStr[i++] = (d.disk)     ? '+' : '-'; debugStr[i++] = 'd';
-  debugStr[i++] = (d.read)     ? '+' : '-'; debugStr[i++] = 'R';
-  debugStr[i++] = (d.write)    ? '+' : '-'; debugStr[i++] = 'W';
-  debugStr[i++] = (d.dos)      ? '+' : '-'; debugStr[i++] = 'D';
-  debugStr[i++] = (d.cdrom)    ? '+' : '-'; debugStr[i++] = 'C';
-  debugStr[i++] = (d.video)    ? '+' : '-'; debugStr[i++] = 'v';
+  debugStr[i++] = DebugFlag(d.disk);     debugStr[i++] = 'd';
+  debugStr[i++] = DebugFlag(d.read);     debugStr[i++] = 'R';
+  debugStr[i++] = DebugFlag(d.write);    debugStr[i++] = 'W';
+  debugStr[i++] = DebugFlag(d.dos);      debugStr[i++] = 'D';
+  debugStr[i++] = DebugFlag(d.cdrom);    debugStr[i++] = 'C';
+  debugStr[i++] = DebugFlag(d.video);    debugStr[i++] = 'v';
 #ifdef X_SUPPORT
-  debugStr[i++] = (d.X)        ? '+' : '-'; debugStr[i++] = 'X';
+  debugStr[i++] = DebugFlag(d.X);        debugStr[i++] = 'X';
 #endif
-  debugStr[i++] = (d.keyb)     ? '+' : '-'; debugStr[i++] = 'k';
-  debugStr[i++] = (d.io)       ? '+' : '-'; debugStr[i++] = 'i';
-  debugStr[i++] = (d.serial)   ? '+' : '-'; debugStr[i++] = 's';
-  debugStr[i++] = (d.mouse)    ? '+' : '-'; debugStr[i++] = 'm';
-  debugStr[i++] = (d.defint)   ? '+' : '-'; debugStr[i++] = '#';
-  debugStr[i++] = (d.printer)  ? '+' : '-'; debugStr[i++] = 'p';
-  debugStr[i++] = (d.general)  ? '+' : '-'; debugStr[i++] = 'g';
-  debugStr[i++] = (d.config)   ? '+' : '-'; debugStr[i++] = 'c';
-  debugStr[i++] = (d.warning)  ? '+' : '-'; debugStr[i++] = 'w';
-  debugStr[i++] = (d.hardware) ? '+' : '-'; debugStr[i++] = 'h';
-  debugStr[i++] = (d.IPC)      ? '+' : '-'; debugStr[i++] = 'I';
-  debugStr[i++] = (d.EMS)      ? '+' : '-'; debugStr[i++] = 'E';
-  debugStr[i++] = (d.xms)      ? '+' : '-'; debugStr[i++] = 'x';
-  debugStr[i++] = (d.dpmi)     ? '+' : '-'; debugStr[i++] = 'M';
-  debugStr[i++] = (d.network)  ? '+' : '-'; debugStr[i++] = 'n';
-  debugStr[i++] = (d.pd)       ? '+' : '-'; debugStr[i++] = 'P';
-  debugStr[i++] = (d.request)  ? '+' : '-'; debugStr[i++] = 'r';
+  debugStr[i++] = DebugFlag(d.keyb);     debugStr[i++] = 'k';
+  debugStr[i++] = DebugFlag(d.io);       debugStr[i++] = 'i';
+  debugStr[i++] = DebugFlag(d.serial);   debugStr[i++] = 's';
+  debugStr[i++] = DebugFlag(d.mouse);    debugStr[i++] = 'm';
+  debugStr[i++] = DebugFlag(d.defint);   debugStr[i++] = '#';
+  debugStr[i++] = DebugFlag(d.printer);  debugStr[i++] = 'p';
+  debugStr[i++] = DebugFlag(d.general);  debugStr[i++] = 'g';
+  debugStr[i++] = DebugFlag(d.config);   debugStr[i++] = 'c';
+  debugStr[i++] = DebugFlag(d.warning);  debugStr[i++] = 'w';
+  debugStr[i++] = DebugFlag(d.hardware); debugStr[i++] = 'h';
+  debugStr[i++] = DebugFlag(d.IPC);      debugStr[i++] = 'I';
+  debugStr[i++] = DebugFlag(d.EMS);      debugStr[i++] = 'E';
+  debugStr[i++] = DebugFlag(d.xms);      debugStr[i++] = 'x';
+  debugStr[i++] = DebugFlag(d.dpmi);     debugStr[i++] = 'M';
+  debugStr[i++] = DebugFlag(d.network);  debugStr[i++] = 'n';
+  debugStr[i++] = DebugFlag(d.pd);       debugStr[i++] = 'P';
+  debugStr[i++] = DebugFlag(d.request);  debugStr[i++] = 'r';
 
   debugStr[i] = 0;
   dbug_printf("debugStr is %s\n", debugStr);

@@ -1865,6 +1865,10 @@ time_to_unix(u_short dos_date, u_short dos_time)
    
    /* tm_wday, tm_yday, tm_isdst are ignored by mktime() */
 
+   /* OOPS! it's not true for tm_isdst! (at least with libc 4.6.27) -- peak */
+   /* autodetect dst */
+   T.tm_isdst = -1;
+
    return mktime(&T);
 }
 
@@ -2268,32 +2272,67 @@ match_filename_prune_list(list, name, ext)
 #endif
 static int hlist_stack_indx = 0;
 static struct dir_ent *hlist = NULL;
+static int hlist_index = 0; 
 static struct dir_ent *hlist_stack[HLIST_STACK_SIZE];
+static unsigned hlist_psp_stack[HLIST_STACK_SIZE];
 
-static __inline__ boolean_t
-hlist_push(hlist)
+static __inline__ int
+hlist_push(hlist, psp)
      struct dir_ent *hlist;
+     unsigned psp;
 {
-  Debug0((dbg_fd, "hlist_push: %x\n", hlist_stack_indx));
+  Debug0((dbg_fd, "hlist_push: %d hlist=%p PSP=%d\n", hlist_stack_indx, hlist, psp));
   if (hlist_stack_indx >= HLIST_STACK_SIZE) {
     Debug0((dbg_fd, "hlist_push: past maximum stack"));
-    return (FALSE);
+    return -1;
   }
   else {
     hlist_stack[hlist_stack_indx] = hlist;
-    hlist_stack_indx++;
+    hlist_psp_stack[hlist_stack_indx] = psp;
+    return hlist_stack_indx++;
   }
-  return (TRUE);
 }
 
-static struct dir_ent *
-hlist_pop(void)
+static __inline__ void
+hlist_pop(indx, psp)
+     int indx;
+     unsigned psp;
 {
-  Debug0((dbg_fd, "hlist_pop: %x\n", hlist_stack_indx));
-  if (hlist_stack_indx <= 0)
-    return ((struct dir_ent *) NULL);
-  hlist_stack_indx--;
-  return (hlist_stack[hlist_stack_indx]);
+  struct dir_ent *hl;
+  int ind;
+  Debug0((dbg_fd, "hlist_pop: %d popping=%d PSP=%d\n", hlist_stack_indx, indx, psp));
+  if (hlist_stack_indx <= indx)
+    return;
+  if (hlist_psp_stack[indx] != psp) {
+    Debug0((dbg_fd, "hlist_pop: psp mismatch\n"));
+    return;
+  }
+  hl = hlist_stack[indx];
+  if (hl != NULL) {
+    Debug0((dbg_fd, "hlist_pop: popped list not empty?!\n"));
+    free_list(hl);
+  }
+  hlist_stack[indx] = NULL;
+  hlist_psp_stack[indx] = 0;
+  for (ind = hlist_stack_indx-1; ind >= 0 && hlist_stack[ind] == NULL; --ind) ;
+  hlist_stack_indx = ind + 1;
+}
+
+static __inline__ void
+hlist_pop_psp(psp)
+     unsigned psp;
+{
+  struct dir_ent *hl;
+  Debug0((dbg_fd, "hlist_pop_psp: PSP=%d\n", psp));
+  while (hlist_stack_indx > 0) {
+    if (hlist_psp_stack[--hlist_stack_indx] != psp) {
+      ++hlist_stack_indx;
+      return;
+    }
+    hl = hlist_stack[hlist_stack_indx];
+    Debug0((dbg_fd, "hlist_pop_psp: deleting hlist=%p\n", hl));
+    free_list(hl);
+  }
 }
 
 static void
@@ -3289,13 +3328,6 @@ dos_fs_redirect(state)
       attr = attr | DIRECTORY;
     }
 
-    if (find_in_progress) {
-      if (!hlist_push(hlist))
-	free_list(hlist);
-    }
-    else {
-      free_list(hlist);
-    }
     hlist = NULL;
 
     Debug0((dbg_fd, "attr = 0x%x\n", attr));
@@ -3313,17 +3345,17 @@ dos_fs_redirect(state)
     strncpy(sdb_template_ext(sdb), fext, 3);
     sdb_attribute(sdb) = attr;
     sdb_drive_letter(sdb) = 0x80 + current_drive;
-    sdb_dir_entry(sdb) = hlist_stack_indx;
+    sdb_dir_entry(sdb) = HLIST_STACK_SIZE*2;  /* correct value later */
 
     Debug0((dbg_fd, "Find first %8.8s.%3.3s\n",
 	    (char *) sdb_template_name(sdb),
 	    (char *) sdb_template_ext(sdb)));
-
+/*
     strncpy(last_find_name, sdb_template_name(sdb), 8);
     strncpy(last_find_ext, sdb_template_ext(sdb), 3);
     last_find_dir = sdb_dir_entry(sdb);
     last_find_drive = sdb_drive_letter(sdb);
-
+*/
 #ifndef NO_VOLUME_LABELS
     if (attr & VOLUME_LABEL &&
 	strncmp(sdb_template_name(sdb), "????????", 8) == 0 &&
@@ -3369,13 +3401,15 @@ dos_fs_redirect(state)
       strncpy(sdb_file_ext(sdb), fext, 3);
       sdb_file_attr(sdb) = VOLUME_LABEL;
       sdb_dir_entry(sdb) = 0x0;
-      if (attr != VOLUME_LABEL)
-	find_in_progress = TRUE;
+      /* if (attr != VOLUME_LABEL)
+	find_in_progress = TRUE; */
       auspr(fpath + bs_pos + 1, fname, fext);
       if (bs_pos == 0)
 	strcpy(fpath, "/");
       hlist = match_filename_prune_list(
 				  get_dir(fpath, fname, fext), fname, fext);
+      hlist_index = hlist_push(hlist, sda_cur_psp(sda));
+      sdb_dir_entry(sdb) = hlist_index;
       return (TRUE);
     }
 #else
@@ -3386,6 +3420,8 @@ dos_fs_redirect(state)
       strcpy(fpath, "/");
     hlist = match_filename_prune_list(
 				  get_dir(fpath, fname, fext), fname, fext);
+    hlist_index = hlist_push(hlist, sda_cur_psp(sda));
+    sdb_dir_entry(sdb) = hlist_index;
     firstfind = 1;
 
   find_again:
@@ -3394,15 +3430,17 @@ dos_fs_redirect(state)
     if (hlist == NULL) {
       /* no matches or empty directory */
       Debug0((dbg_fd, "No more matches\n"));
+#if 0 /* Hardly any directory is really empty (there are always some vol.labels,
+         `.', or `..'), and NO_MORE_FILES is more convenient for this case.
+         Moreover, Volkov Commander doesn't like FILE_NOT_FOUND to be returned
+         as a result of findfirst, and keeps annoying me due to it. */
       if (firstfind)
         SETWORD(&(state->eax), FILE_NOT_FOUND);
       else
+#endif
         SETWORD(&(state->eax), NO_MORE_FILES);
-      hlist = hlist_pop();
-      last_find_drive = 0;
-      if (hlist == NULL && !hlist_stack_indx)
-	find_in_progress = FALSE;
-      firstfind = 0;
+      hlist_stack[hlist_index] = hlist;
+      hlist_pop(hlist_index, sda_cur_psp(sda));
       return (FALSE);
     }
     else {
@@ -3430,26 +3468,30 @@ dos_fs_redirect(state)
 
       Debug0((dbg_fd, "'%.8s'.'%.3s' hlist=%d\n",
 	      sdb_file_name(sdb),
-	      sdb_file_ext(sdb), hlist_stack_indx));
+	      sdb_file_ext(sdb), hlist_index));
 
       tmp = hlist->next;
       free(hlist);
       hlist = tmp;
     }
     firstfind = 0;
-    find_in_progress = TRUE;
+    hlist_stack[hlist_index] = hlist;
     return (TRUE);
+
   case FIND_NEXT:		/* 0x1c */
+    hlist_index = sdb_dir_entry(sdb);
+    hlist = hlist_index < hlist_stack_indx ? hlist_stack[hlist_index] : NULL;
     Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%d\n",
 	    (char *) sdb_template_name(sdb),
 	    (char *) sdb_template_ext(sdb), (int)hlist));
+#if 0
     if (last_find_drive && ((strncmp(last_find_name, sdb_template_name(sdb), 8) != 0 ||
 		   strncmp(last_find_ext, sdb_template_ext(sdb), 3) != 0) ||
 /*			    (last_find_dir != sdb_dir_entry(sdb)) || */
 			    (last_find_drive != sdb_drive_letter(sdb)))) {
       Debug0((dbg_fd, "last_template!=this_template. popping. %.8s,%.3s\n", last_find_name, last_find_ext));
       Debug0((dbg_fd, "last_dir=%x,last_drive=%d sdb_dir=%d,sdb_drive=%d\n", last_find_dir, last_find_drive, sdb_dir_entry(sdb), sdb_drive_letter(sdb)));
-      hlist = hlist_pop();
+      hlist = hlist_pop(sda_cur_psp(sda));
 
       strncpy(last_find_name, sdb_template_name(sdb), 8);
       strncpy(last_find_ext, sdb_template_ext(sdb), 3);
@@ -3463,7 +3505,7 @@ dos_fs_redirect(state)
 	    }
 */
     }
-
+#endif
     attr = sdb_attribute(sdb);
     goto find_again;
   case CLOSE_ALL:		/* 0x1d */
@@ -3586,14 +3628,8 @@ dos_fs_redirect(state)
     Debug0((dbg_fd, "Unlock file region\n"));
     break;
   case PROCESS_TERMINATED:	/* 0x22*/
-    Debug0((dbg_fd, "Process terminated\n"));
-    if (find_in_progress) {
-      while ((int) hlist_stack_indx != (int) NULL) {
-	free_list(hlist);
-	hlist = hlist_pop();
-      }
-      find_in_progress = FALSE;
-    }
+    Debug0((dbg_fd, "Process terminated PSP=%d\n", state->ds));
+    hlist_pop_psp(state->ds);
     return (REDIRECT);
   case CONTROL_REDIRECT:	/* 0x1e */
     /* get low word of parameter, should be one of 2, 3, 4, 5 */

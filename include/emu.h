@@ -489,10 +489,10 @@ config_t;
 #undef sti
 extern void cli(void);
 extern void sti(void);
-extern int port_readable(int);
-extern int port_writeable(int);
-extern int read_port(int);
-extern int write_port(int, int);
+extern int port_readable(unsigned int);
+extern int port_writeable(unsigned int);
+extern unsigned int read_port(unsigned int);
+extern int write_port(unsigned int, unsigned int);
 extern __inline__ void parent_nextscan(void);
 extern __inline__ void disk_close(void);
 extern void cpu_setup(void);

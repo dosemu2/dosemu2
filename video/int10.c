@@ -62,7 +62,7 @@ inline void set_cursor_shape(ushort shape) {
 
    cs&=0x0F;
    ce&=0x0F;
-   if (ce>3 && ce<12) {
+   if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
       if (cs>ce-3) cs+=font_height-ce-1;
       else if (cs>3) cs=font_height/2;
       ce=font_height-1;
@@ -87,6 +87,11 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
   int x, y;
   us blank = ' ' | (att << 8);
   us tbuf[MAX_COLUMNS];
+
+  if ( (config.cardtype == CARD_MDA) && ((att & 7) != 0) && ((att & 7) != 7) )
+    {
+      blank = ' ' | ((att | 7) << 8);
+    }
 
   if (dx <= 0 || dy <= 0 || x0 < 0 || x1 >= co || y0 < 0 || y1 >= li)
     return;
@@ -346,6 +351,9 @@ do_text_mode:
     /* mode change clears screen unless bit7 of AL set */
     if (!(mode & 0x80))
        clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
+
+    if ( config.cardtype == CARD_MDA )
+      mode = 7;
        
     WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
     break;

@@ -1,6 +1,6 @@
 CFILES=tools86.c
 SFILES=
-ALL=$(CFILES) $(SFILES) as86ld86.doc kversion.sh
+ALL=$(CFILES) $(SFILES) as86ld86.doc kversion.sh kversion-netbsd.sh
 
 OBJS=$(CFILES:.c=.o)
 OOBJS=

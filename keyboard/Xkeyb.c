@@ -537,8 +537,15 @@ void X_process_key(XKeyEvent *e)
          }
       }
     /* do latin1 translation */
-    if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];
-    
+    if (ch>=0xa0)     
+      {
+        if (e->type!=KeyPress)
+          /* We won't find most latin characters on the dos keyboard
+             Lets emulate them with ALT-KEYPAD when the key is released
+             and don't bother if the key is pressed */
+          X_process_char(ch);
+        return;
+      }
     if (scan || ch)
        put_key((e->type==KeyPress) ? scan : scan|0x80, ch);
    }

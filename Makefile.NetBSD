@@ -20,7 +20,7 @@ export SHELL
 # NOTE: Do NOT start dosemu (compiled with REQUIRES_EMUMODULE),
 #       if you have not loaded emumodule.o !
 #
-# REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
+#REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
 
 ifdef REQUIRES_EMUMODULE
   export REQUIRES_EMUMODULE
@@ -32,6 +32,13 @@ ifdef REQUIRES_EMUMODULE
 #   USE_VM86_STACKVERIFY= -DUSE_VM86_STACKVERIFY
     ifdef USE_VM86_STACKVERIFY
       export USE_VM86_STACKVERIFY
+    endif
+# uncomment this, if you want the dosdebugger (mhpdbg)
+    USE_MHPDBG= -DUSE_MHPDBG
+    ifdef USE_MHPDBG
+      DEBUGGER= debugger
+      export DEBUGGER
+      export USE_MHPDBG
     endif
   endif
 endif
@@ -155,7 +162,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 4.2
+PATCHLEVEL = 4.3
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -201,7 +208,7 @@ OPTIONALSUBDIRS =examples v-net ipxutils
 endif
 
 LIBSUBDIRS=video dosemu pic dpmi mfs init serial keyboard mouse dma sound \
-	$(NET) $(IPX) drivers
+	$(DEBUGGER) $(NET) $(IPX) drivers
 
 SUBDIRS= include boot \
 	$(CLIENTSSUB) kernel
@@ -220,7 +227,7 @@ DOCS= doc dosemu.keys
 
 
 OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
-	BOGUS-Notes \
+	BOGUS-Notes Makefile.linux Makefile.NetBSD \
 	vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh \
 	Configure load_module.sh unload_module.sh
 
@@ -272,6 +279,9 @@ CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
 ifdef REQUIRES_EMUMODULE
    CFLAGS+=$(REQUIRES_EMUMODULE) $(USE_VM86PLUS) $(USE_VM86_STACKVERIFY)
+   ifdef USE_MHPDBG
+      CFLAGS+=$(USE_MHPDBG)
+   endif
 endif
 
 # set for DPMI want windows
@@ -509,6 +519,9 @@ endif
 		(cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done
 	@install -c -o root -m 04755 dos /usr/bin
+ifdef  USE_MHPDBG
+	@install -c -o root -m 0755 dosdebug /usr/bin
+endif
 ifndef ELF
 	@install -m 0644 $(LIBDOSEMU) /usr/lib
 	@(cd /usr/lib; ln -sf $(LIBDOSEMU) libdosemu)
@@ -601,7 +614,7 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 
 local_clean:
 	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos xdos libdosemu-* *.s core \
-	  dosstatic dosconfig *.tmp dosemu.map *.o
+	  dosstatic dosconfig *.tmp dosemu.map *.o dosdebug
 
 local_realclean:
 	-rm -f include/config.h include/kversion.h tools/tools86 .depend

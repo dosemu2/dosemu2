@@ -39,6 +39,12 @@ static unsigned long  precard_eip, precard_cs;
 
 static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 
+#ifdef USE_MRP_JOYSTICK
+#include <linux/joystick.h>
+#include <fcntl.h>
+#include <string.h>
+static void mrp_read_joystick(void);
+#endif
 
 /*
  * DANG_BEGIN_FUNCTION DEFAULT_INTERRUPT 
@@ -406,8 +412,14 @@ static void int15(u_char i)
     CARRY;
     return;			/* no event wait */
   case 0x84:
+#ifdef USE_MRP_JOYSTICK
+    mrp_read_joystick ();
+    h_printf ("int 15h joystick int: %d %d\n", (int)(LWORD(eax)), (int)(LWORD(ebx)));
+    return;
+#else
     CARRY;
     return;			/* no joystick */
+#endif
   case 0x85:
     num = LWORD(eax) & 0xFF;	/* default bios handler for sysreq key */
     if (num == 0 || num == 1) {
@@ -1466,3 +1478,39 @@ void int_vector_setup(void)
       set_revectored(i, vm86s.int21_byuser);
 #endif
 }
+
+#ifdef USE_MRP_JOYSTICK
+void mrp_read_joystick(void)
+{
+  /* This only reads the first joystick and doesn't handle the buttons. */
+  /* You will need to install the joystick module for this to work. */
+  static int fd =0;
+  static const char * const fname = "/dev/js0" ;
+  int status;
+  struct JS_DATA_TYPE js;
+
+  if (fd == 0) {
+    fd = open (fname, O_RDONLY);
+    if (fd < 0)
+      perror ("mrp_read_joystick (open)");
+  }
+  if (fd < 0) {
+    CARRY; /* fail */
+    return;
+  }
+
+  status = read (fd, &js, JS_RETURN);
+  if (status != JS_RETURN) {
+    perror ("mrp_read_joystick (read)");
+    fd = -1;
+    CARRY; /* fail */
+    return;
+  }
+  LWORD(eax) = js.x;
+  LWORD(ebx) = js.y;
+  LWORD(ecx) = 0;		/* second joystick x */
+  LWORD(edx) = 0;		/* second joystick y */
+  NOCARRY;
+  return;
+}
+#endif

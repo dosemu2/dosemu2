@@ -16,7 +16,7 @@
  * the License, or (at your option) any later version.
  *
  * This module is maintained by Mark Rejhon at these Email addresses:
- *      mdrejhon@magi.com
+ *      marky@magmacom.com
  *      ag115@freenet.carleton.ca
  *
  * DANG_END_MODULE

@@ -505,7 +505,7 @@ io_select(fd_set fds)
 	}
       }
 #endif
-      if (mice->intdrv || mice->type == MOUSE_PS2)
+      if ((mice->intdrv || mice->type == MOUSE_PS2) && mice->fd >= 0)
 	if (FD_ISSET(mice->fd, &fds)) {
 		m_printf("MOUSE: We have data\n");
 	  pic_request(PIC_IMOUSE);

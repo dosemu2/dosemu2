@@ -44,6 +44,7 @@ static char kernel_version[] = UTS_RELEASE;
 struct redirect_db {
   void *resident;
   void *transient; 
+  char is_pointer;
   char savearea[5];
 };
 
@@ -58,6 +59,10 @@ extern sys_vm86(), _TRANSIENT_sys_vm86();
 extern sys_sigreturn(), _TRANSIENT_sys_sigreturn();
 extern sys_modify_ldt(), _TRANSIENT_sys_modify_ldt();
 extern /*handle_vm86_fault(),*/  _TRANSIENT_handle_vm86_fault();
+
+#if (KERNEL_VERSION  >= 1003004) && defined(REPAIR_ODD_MSDOS_FS)
+extern void *msdos_dir_inode_operations[], *_TRANSIENT_msdos_dir_operations;
+#endif
 
 static struct redirect_db redirect_list[] = {
   { save_v86_state,
@@ -82,6 +87,10 @@ static struct redirect_db redirect_list[] = {
     _TRANSIENT_sys_sigreturn }
   , { sys_modify_ldt,
     _TRANSIENT_sys_modify_ldt }
+#if (KERNEL_VERSION  >= 1003004) && defined(REPAIR_ODD_MSDOS_FS)
+  , { msdos_dir_inode_operations,
+    &_TRANSIENT_msdos_dir_operations, 1 }
+#endif
 };
 
 
@@ -124,8 +133,13 @@ static void redirect_all() {
   int flags,i;
   
   save_flags(flags);
-  for (i=0, p=redirect_list; i<num; i++, p++) 
-      redirect_resident_routine(p->resident, p->transient, p->savearea);
+  for (i=0, p=redirect_list; i<num; i++, p++) {
+    if (p->is_pointer) {
+      *((long *)(p->savearea)) = *((long *)(p->resident));
+      *((long *)(p->resident)) = (long)p->transient;
+    }
+    else redirect_resident_routine(p->resident, p->transient, p->savearea);
+  }
   restore_flags(flags);
 }
 
@@ -135,8 +149,12 @@ static void restore_redirect_all() {
   int flags,i;
   
   save_flags(flags);
-  for (i=0, p=&redirect_list[num-1]; i<num; i++, p--) 
-      restore_redirect(p->resident, p->savearea);
+  for (i=0, p=&redirect_list[num-1]; i<num; i++, p--) {
+    if (p->is_pointer) {
+      *((long *)(p->resident)) = *((long *)(p->savearea));
+    }
+    else restore_redirect(p->resident, p->savearea);
+  }
   restore_flags(flags);
 }
 

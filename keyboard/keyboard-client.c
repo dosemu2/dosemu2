@@ -347,6 +347,7 @@ void
 clear_raw_mode(void)
 {
     do_ioctl(kbd_fd, KDSKBMODE, K_XLATE);
+    do_ioctl(kbd_fd, KDSETLED, 0xFF); /* peak, leds follow kernel flags again */
     if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) < 0) {
 	k_printf("KBD: Resetting Keyboard to K_XLATE mode failed.\n");
 	return;

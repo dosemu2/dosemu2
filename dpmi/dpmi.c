@@ -7,7 +7,7 @@
  *
  * DANG_END_MODULE
  *
- * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
+ * First Attempted by James B. MacLean macleajb@ednet.ns.ca
  *
  * $Date: 1995/05/06 16:25:48 $
  * $Source: /usr/src/dosemu0.60/dpmi/RCS/dpmi.c,v $

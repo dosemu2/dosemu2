@@ -1618,16 +1618,19 @@ parse_config(char *confname)
   /* If that doesn't exist we will default to CONFIG_FILE */
 
   { 
+    uid_t uid = getuid();
+
     char *home = getenv("HOME");
     char *name = malloc(strlen(home) + 20);
     sprintf(name, "%s/.dosrc", home);
 
-    if (getuid() != 0) {
+    if (uid != 0) {
       if (!priv_off()) die("Cannot turn off privs\n");
       if (!priv_on()) die("Cannot turn on privs\n");
     }
 
-    priv_lvl = 0;
+    /* privileged options allowed? */
+    priv_lvl = uid != 0 && strcmp(confname, CONFIG_FILE);
     if (!(fd = open_file(confname))) {
       fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
       exit(1);
@@ -1641,7 +1644,8 @@ parse_config(char *confname)
       yyerror("error in configuration file %s", confname);
     close_file(fd);
 
-    priv_lvl = 1;
+    /* privileged options allowed for user's config? */
+    priv_lvl = uid != 0;
     if ((fd = open_file(name)) != 0) {
       c_printf("Parsing %s file.\n", name);
       free(file_being_parsed);

@@ -277,10 +277,14 @@ static void mhp_rmapfile(int argc, char *argv[])
      if (!strlen(bytebuf))
 	continue;
      sscanf(&bytebuf[0], "%x", &a1);
+#ifdef __ELF__
+     if (a1 < 0x08000000) continue;
+#else
      if (a1 < 0x20000000)
 	continue;
      if (a1 > 0x28000000)
 	break;
+#endif
      symbol_table[last_symbol].addr = a1;
      symbol_table[last_symbol].type = bytebuf[9];
      sscanf(&bytebuf[11], "%s", &symbol_table[last_symbol].name);

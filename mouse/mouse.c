@@ -1617,6 +1617,11 @@ mouse_init(void)
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
       mice->add_to_io_select = 0;
+      if (mice->fd == -1) {
+	  mice->intdrv = FALSE;
+	  mice->type = MOUSE_NONE;
+	  return;
+      }
       add_to_io_select(mice->fd, mice->add_to_io_select); 
       memcpy(p,mouse_ver,sizeof(mouse_ver));
     }

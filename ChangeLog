@@ -1,3 +1,101 @@
+Sun Oct 22 22:32:45 1995  John Kohl  <jtk@pattern.arlington.ma.us>
+
+   * Update emm.c to avoid release string-induced problems on NetBSD.
+
+Sun Oct 22 22:32:45 1995  John Kohl  <jtk@pattern.arlington.ma.us>
+
+   * Update emm.c to avoid release string-induced problems on NetBSD.
+
+sat Oct 22	1995
+
+- From Hans, Upadates to go elf
+- From Purtill <purtill@taiu.edu>, joystick patches to use module.
+- Libelf-a added to dist.
+
+Wed Oct 04	1995
+
+- Worked a bit with Uwe's discovery of type conversion 
+	char <-> unsigned int
+- Added release-keycode to slang. This may cause problems?
+
+- From WE Metzenthen <billm@euler.maths.monash.edu.au>
+Hi,
+   Having some dos stuff which I wanted to run, I decided that it was
+time to update my dosemu.  Unfortunately, I still only run a mono HGA
+card so dosemu-0.60.3 was not a stunning success.  Anyway, I dug into
+the sources to the extent which was necessary to get it to work with
+my HGA card and the resulting patches are attached to the end of this
+message.  The patches also improve the functionality in that dosemu
+now does something more sensible with the cursor.
+
+   Not having followed the development of dosemu closely, I don't
+claim that these patches represent the correct way to solve the
+problems, only that they work for me under admittedly limited testing.
+
+   The patches also apply cleanly to dosemu-0.60.4.3 (apart from a
+trivial Makefile change) and seem to compile o.k., but I haven't
+checked the result because I don't want to bother with modules yet.
+
+--Bill
+
+Tue Oct 03	1995
+
+- From: "Pavel Kankovsky" <KAN@frode.dcit.cz>
+These my patches are against 0.60.3 (but they seem to still be
+usable in 0.61.00 from what I have seen at the first glance).
+Here is some description only (usable as ChangeLog entries, I hope),
+diffs themselves are enclosed as attached files (dosemu[0-3].diff).
+
+Patch 0 fixes 3 things in mfs.c:
+- Mktime() uses tm_isdst value (unlike stated in the original source code)
+  leaving it unset causes random mtime shifts by one hour and has funny
+  effects esp. when running make, value -1 (which meaning is "figure out
+  the proper value yourself" :> ) seems to be the best one for me.
+- Hlist stack management was quite 'kludge-o-matic' in the original code
+  and caused problems with Quattro Pro 5.0 installation program which 
+  starts a directory search, does NOT finish it and spawns unzip program 
+  that starts another directory search, and upon unzip's exit, both lists 
+  were popped, making the installation die eventually.
+  I rewrote findfirst/next and hlist_push/pop to allow this case and
+  do it all in a bit cleaner way.
+- Findfirst returns FILE_NOT_FOUND no more because original Dos returns 
+  this value only for EMPTY directories (even no ., .., volume label!),
+  so NO_MORE_FILES is more convenient in most cases (esp. for Volkov 
+  Commander -- Norton Cmdr. alike -- that used to complain "Can't read 
+  volume in drive X:" every time it got FILE_NOT_FOUND for findfirst)
+
+Patch 1 brings some improvement I made in dosdbg.c and its counterpart
+dyndeb.c to help myself when examining PIC working. The original code
+does not accept debug levels (as Dosemu command line options do). Now
+you can do something like "dosdbg 3r" when Dos boots and reduce the 
+debugging log by cca 300 kilobytes. :-)
+
+Patch 2 makes Dosemu safer as it does not allow ordinary users to do
+"dos -F ..." with dangerous (e.g. direct disk access) settings in their 
+configfiles.
+
+Patch 3 modifies keyboard driver finalization so as to let keyboard leds
+follow in-kernel num/caps/scroll-lock flags again. (I was trying to make
+it save led-function setting and restore it later but the kernel does not 
+seem to provide a straight-forward way of doing it. Bad luck.)
+
+I hope it will help make Dosemu better Dos than Dos! :-)
+
+
+    Yours Sincerely,               +-----------------------------------------
+                                   |  DCIT s.r.o., CDMS, J. Martiho 2/407
+    Pavel Kankovsky aka PeaK       |  160 41 Praha 6 - Veleslavin, Czech Rep.
+    <kan@dcit.cz>                  |  phone/fax: (42 2) 316 42 78
+                                   |  web: http://www.dcit.cz/
+
+Mon Oct 02	1995
+
+-	Patches to XMS for better himem compatibility
+
+Wed Oct 11 22:28:05 1995  John Kohl  <jtk@pattern.arlington.ma.us>
+
+	* Update for latest NetBSD stuff
+
 Wed Sep 27	1995
 
 -	Included many patches to get NetBSD back on track.
@@ -972,13 +1070,13 @@ Wed Oct 19 1994 JES
 -	From JL:
 
 From popserver Thu Oct 19 14:23:31 GMT 1994
-Received: from marlin.ssnet.com (ssnet.com [165.113.8.3]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id KAA03316 for <jmaclean@fox.nstn.ns.ca>; Wed, 19 Oct 1994 10:40:18 -0300
+Received: from marlin.ssnet.com (ssnet.com [165.113.8.3]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id KAA03316 for <macleajb@ednet.ns.ca>; Wed, 19 Oct 1994 10:40:18 -0300
 Received: by marlin.ssnet.com (4.1/SMI-4.1)
 	id AA21140; Wed, 19 Oct 94 09:39:00 EDT
 From: jlarry@marlin.ssnet.com (J. Lawrence Stephan)
 Message-Id: <9410191339.AA21140@marlin.ssnet.com>
 Subject: pic announcement
-To: jmaclean@fox.nstn.ns.ca (James MacLean)
+To: macleajb@ednet.ns.ca (James MacLean)
 Date: Wed, 19 Oct 1994 09:38:57 -0400 (EDT)
 X-Mailer: ELM [version 2.4 PL20]
 Content-Type: text
@@ -2025,7 +2123,7 @@ Thu Apr 14 1994, Jochen Hein (Hein@Student.TU-Clausthal.de
 	* [periph/mkpartition]
 	added error-checking and some help-messages.
 
-April 12, 1994	jmaclean@fox.nstn.ns.ca
+April 12, 1994	macleajb@ednet.ns.ca
 
 -	Lutz kernel patches to make ROCKET DOS :-)
 -	Mark's serial code almost better than the real thing.
@@ -2036,7 +2134,7 @@ April 12, 1994	jmaclean@fox.nstn.ns.ca
 	  using partition access.
 	Look in examples/config.dist
 
-April 07, 1994	jmaclean@fox.nstn.ns.ca
+April 07, 1994	macleajb@ednet.ns.ca
 
 -	Minor updates to bios_emm.c
 -	Modified HMA_MAP to use IPC so that proper mapping takes place
@@ -2045,7 +2143,7 @@ April 07, 1994	jmaclean@fox.nstn.ns.ca
 -	Modified CHOUT thanks to Vinod.
 -	Fixed 'stick-ctrl-key' after VC switches
 
-April 06, 1994	jmaclean@fox.nstn.ns.ca
+April 06, 1994	macleajb@ednet.ns.ca
 
 -	Added niemann@swt.ruhr-uni-bochum.de S3 code update and fix to
 	Errors beeping to stdout, not stderr.
@@ -2055,7 +2153,7 @@ April 06, 1994	jmaclean@fox.nstn.ns.ca
 -	Latest enhancements from Lutz.
 -	Added Spanish keyboard support by jon@gtex02.us.es (Jon Tombs)
 
-April 04, 1994	jmaclean@fox.nstn.ns.ca
+April 04, 1994	macleajb@ednet.ns.ca
 
 -	Added Bill's changes for better MDA support
 -	Added Alan Hourihane's patches for PS/2 mice, now for 
@@ -2066,13 +2164,13 @@ April 04, 1994	jmaclean@fox.nstn.ns.ca
 -	Added check for video mapped when emulating ports.
 -	Added more specific checks for allowvideoportaccess.
 
-March 26, 1994	jmaclean@fox.nstn.ns.ca
+March 26, 1994	macleajb@ednet.ns.ca
 
 -	Latest serial from Mark.
 -	Added Belgium Keyboard thanks to :
 	jvdbergh@wins.uia.ac.be (Jan.Vandenberghe)
 
-March 24, 1994	jmaclean@fox.nstn.ns.ca
+March 24, 1994	macleajb@ednet.ns.ca
 
 -	Concluded that E000 video bios'es are now working, many thanks
 	to danpop@cernapo.cern.ch (Dan Pop)
@@ -2080,7 +2178,7 @@ March 24, 1994	jmaclean@fox.nstn.ns.ca
 	do_int(), inb/outb(), et al inline now needs a 6meg swap on
 	my 4 meg system at work :-(
 
-March 23, 1994	jmaclean@fox.nstn.ns.ca
+March 23, 1994	macleajb@ednet.ns.ca
 
 -	Added #def's for E000 video bios testing.
 -	Added more DPMI from Lutz.
@@ -2089,7 +2187,7 @@ March 23, 1994	jmaclean@fox.nstn.ns.ca
 -	Seperated emu.c -> emu.c,ports.c,int.c and moved int.h & ports.h
 	into cpu.c in first attempt at bringing do_int and inb/outb inline.
 
-March 12, 1994	jmaclean@fox.nstn.ns.ca
+March 12, 1994	macleajb@ednet.ns.ca
 
 -	S3 video code started by niemann@swt.ruhr-uni-bochum.de 
 	(Christoph Niemann)
@@ -2097,7 +2195,7 @@ March 12, 1994	jmaclean@fox.nstn.ns.ca
 -	Serial INT14 updated thanks to Mark Rejhon.
 -	Modest changes in code to continue clean up. 
 
-March 12, 1994	jmaclean@fox.nstn.ns.ca
+March 12, 1994	macleajb@ednet.ns.ca
 
 -	More DPMI thanks to LUTZ.
 -	Serial INT14 updated thanks to Mark Rejhon.
@@ -2105,11 +2203,11 @@ March 12, 1994	jmaclean@fox.nstn.ns.ca
 	to start cleaning up code. Changed do_int to inline, no
 	benefit.
 
-March 9, 1994	jmaclean@fox.nstn.ns.ca
+March 9, 1994	macleajb@ednet.ns.ca
 
 -	DOSEMU becomes one again (one process)
 
-March 4, 1994	jmaclean@fox.nstn.ns.ca
+March 4, 1994	macleajb@ednet.ns.ca
 
 -	VC switching in RAW mode now uses CTRL-ALT-x.
 
@@ -2133,15 +2231,15 @@ March 4, 1994	jmaclean@fox.nstn.ns.ca
 	although not ready for household use, is included.
 	molgedey@theo-physik.uni-kiel.de.
 
-February 20, 1994	jmaclean@fox.nstn.ns.ca
+February 20, 1994	macleajb@ednet.ns.ca
 
 -	Wordperfect HOME key stopped working :-( why ?????
 
-February 17, 1994	jmaclean@fox.nstn.ns.ca
+February 17, 1994	macleajb@ednet.ns.ca
 
 -	Fixed function 0x23 in mfs.c redirector
 
-February 9, 1994	jmaclean@fox.nstn.ns.ca
+February 9, 1994	macleajb@ednet.ns.ca
 
 -	Added config option dosbanner to optionally stop DOSEMU
 	messages at startup.
@@ -2152,7 +2250,7 @@ February 9, 1994	jmaclean@fox.nstn.ns.ca
 -	Fixing Keyboard int15 4f to return AH=0x86. This fixes 
 	WordPerfect HOME key problem, and nothing else :-(.
 
-February 1, 1994	jmaclean@fox.nstn.ns.ca
+February 1, 1994	macleajb@ednet.ns.ca
 
 -	First layer of terminfo patches in from Corey 
 	(corey@amiganet.chi.il.us)

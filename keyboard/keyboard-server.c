@@ -869,9 +869,11 @@ enter (unsigned int sc)
   else if (kbd_flag (KF_ALT))
     put_queue (0xa600);
   else
+#if 0 /* Not sure why numeric keypad was thought to be e00d? */
     if (key_flag(KKF_E0))
       put_queue (0xe00d);
     else
+#endif
       put_queue (sc << 8 | 0x0d);
 }
 

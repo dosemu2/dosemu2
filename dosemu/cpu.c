@@ -420,10 +420,10 @@ static u_char video_port_io = 0;
 
 /* find a matching entry in the ports array */
 static int
-find_port(int port, int permission)
+find_port(unsigned int port, int permission)
 {
   static int last_found = 0;
-  int i;
+  unsigned int i;
 
   for (i = last_found; i < num_ports; i++)
     if (port >= ports[i].start &&
@@ -466,7 +466,7 @@ find_port(int port, int permission)
 
 /* control the io permissions for ports */
 int
-allow_io(int start, int size, int permission, int ormask, int andmask)
+allow_io(unsigned int start, int size, int permission, int ormask, int andmask)
 {
 
   /* first the simplest case...however, this simplest case does
@@ -521,21 +521,21 @@ allow_io(int start, int size, int permission, int ormask, int andmask)
 }
 
 int
-port_readable(int port)
+port_readable(unsigned int port)
 {
   return (find_port(port, IO_READ) != -1);
 }
 
 int
-port_writeable(int port)
+port_writeable(unsigned int port)
 {
   return (find_port(port, IO_WRITE) != -1);
 }
 
-int
-read_port(int port)
+unsigned int
+read_port(unsigned int port)
 {
-  int r;
+  unsigned int r;
   int i = find_port(port, IO_READ);
 
   if (i == -1)
@@ -565,10 +565,10 @@ read_port(int port)
   return (r);
 }
 
-int
-read_port_w(int port)
+unsigned int
+read_port_w(unsigned int port)
 {
-  int r;
+  unsigned int r;
   int i = find_port(port,IO_READ);
   int j = find_port(port+1,IO_READ);
 
@@ -611,7 +611,7 @@ read_port_w(int port)
 }
 
 int
-write_port(int value, int port)
+write_port(unsigned int value, unsigned int port)
 {
   int i = find_port(port, IO_WRITE);
 
@@ -644,7 +644,7 @@ write_port(int value, int port)
 }
 
 int
-write_port_w(int value,int port)
+write_port_w(unsigned int value,unsigned int port)
 {
   int i = find_port(port, IO_WRITE);
   int j = find_port(port + 1, IO_WRITE);
@@ -682,29 +682,43 @@ write_port_w(int value,int port)
   return (1);
 }
 
-void safe_port_out_byte(const short port, const char byte)
+void safe_port_out_byte(const unsigned short port, const unsigned char byte)
 {
         if(i_am_root)  {
                 int result;
 
+		priv_on();
                 result = ioperm(port, 1, 1);
+		priv_off();
+		if (result) error("failed to enable port %x\n", port);
                 port_out(byte, port);
+		priv_on();
                 result = ioperm(port, 1, 0);
+		priv_off();
+		if (result) error("failed to disable port %x\n", port);
+		priv_off();
+
         }       else i_printf("want to ");
         i_printf("out(%x, %x)\n", port, byte);
 }
 
 
-char safe_port_in_byte(const short port)
+char safe_port_in_byte(const unsigned short port)
 {
-        char value;
+        unsigned char value;
 
         if(i_am_root) {
                 int result;
 
+		priv_on();
                 result = ioperm(port, 1, 1);
+		priv_off();
+		if (result) error("failed to enable port %x\n", port);
                 value = port_in(port);
+		priv_on();
                 result = ioperm(port, 1, 0);
+		priv_off();
+		if (result) error("failed to disable port %x\n", port);
         }       else i_printf("want to ");
         i_printf("in(%x)");
         if(i_am_root)

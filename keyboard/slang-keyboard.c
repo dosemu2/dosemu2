@@ -529,6 +529,7 @@ static void slang_add_scancode (unsigned long lscan)
 
    if ((lscan & 0xFF) == 0xE0) add_scancode_to_queue (0xE0);
    add_scancode_to_queue ((lscan & 0xFF00) >> 8);
+   add_scancode_to_queue (((lscan | 0x8000) & 0xFF00) >> 8);
 
    if (flags & SHIFT_MASK) 
      {

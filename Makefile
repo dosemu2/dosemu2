@@ -9,6 +9,7 @@
 # install DOSEMU.
 #
 
+OS:= $(shell uname)
 ifeq (${OS},NetBSD)
 include Makefile.NetBSD
 else

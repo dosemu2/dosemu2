@@ -8,6 +8,8 @@
 # CC   = gcc
 # LD   = ld
 USRSRCDIR=/usr/src
+FSMSDOSDIR=$(USRSRCDIR)/linux/fs/msdos
+REPAIR_ODD_MSDOS_FS=-DREPAIR_ODD_MSDOS_FS
 
 # If INCDIR exists, it was exported from the master Makefile.
 ifndef INCDIR
@@ -38,10 +40,10 @@ endif
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c ldttest.c
+CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c ldttest.c dir.c
 SFILES = fastsys.S
 HFILES = emumod.h
-OFILES = vm86.o traps.o emumod.o emusys.o signal.o ldt.o
+OFILES = vm86.o traps.o emumod.o emusys.o signal.o ldt.o dir.o
 KVFILE = ../include/kversion.h
 
 # Insert all source- and header-files here.
@@ -50,7 +52,7 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 # All object-files are included here.
 
-OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o signal.o ldt.o
+OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o signal.o ldt.o dir.o
  
 all: $(OBJS) emumodule.o
 
@@ -70,7 +72,7 @@ ldt.o:  ldt.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c ldt.c -o ldt.o
 
 emumod.o:  emumod.c emumod.h ${KVFILE}
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_ $(REPAIR_ODD_MSDOS_FS) -c emumod.c -o emumod.o
 
 emusys.o:  emusys.c ${KVFILE}
 	$(CC)  ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
@@ -81,6 +83,8 @@ traps.o:  traps.c emumod.h ${KVFILE}
 fastsys.o: fastsys.S ${KVFILE}
 	$(CC) ${KCFLAGS} -c -D__ASSEMBLY__  fastsys.S -o fastsys.o
 
+dir.o:     dir.c ${KVFILE}
+	$(CC)  ${KCFLAGS} -I$(FSMSDOSDIR) $(REPAIR_ODD_MSDOS_FS)  -c dir.c -o dir.o
 
 ldttest: ldttest.c
 	$(CC) -O2 ldttest.c -o ldttest

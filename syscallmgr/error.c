@@ -19,6 +19,12 @@ void insmod_error (const char *ctl, ...)
 	va_list list;
 	va_start (list,ctl);
 	vsprintf (buf,ctl,list);
+#ifdef HACKER_TOOL
+	{
+	  extern int silent_poll_mode;
+	  if (silent_poll_mode) return;
+	}
+#endif
 	if (insmod_syslog){
 		syslog (LOG_ERR,"%s",buf);
 	}else{

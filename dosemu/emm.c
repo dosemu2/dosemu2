@@ -230,8 +230,8 @@ static inline boolean_t unmap_page(int);
 #include <sys/file.h>
 #include <sys/ioctl.h>
 
-#ifdef __NetBSD__
-#define __linux__			/* XXX */
+#if defined(__NetBSD__) || defined(__linux__)
+#define __freeunices__
 #endif
 
 /*****************************************************************************/
@@ -414,7 +414,7 @@ static u_short os_allow=1;
 #define PHYS_PAGE_ADDR(i) \
   (PHYS_PAGE_SEGADDR(i) << 4)
 
-#ifdef __linux__
+#ifdef __freeunices__
 #define E_Stub(arg1, s, a...)   E_printf("EMS: "s, ##a)
 #define Kdebug0(args)		E_Stub args
 #define Kdebug1(args)		E_Stub args
@@ -470,7 +470,7 @@ ems_init(void)
   int j;
   struct new_utsname unames;
 
-#ifdef __linux__
+#ifdef __freeunices__
 
   if (!config.ems_size)
     return;
@@ -478,19 +478,29 @@ ems_init(void)
 #endif
 
   /* we need release 1.1.43 or higher to use the mmap stuff */
+#ifdef __linux__
+#define MIN_RELEASE "1.1.43"
+#define MEMFILE "/proc/self/mem"
+#endif
+#ifdef __NetBSD__
+#undef MIN_RELEASE /* processes have no permissions to open their own mem? */
+#define MEMFILE "/proc/curproc/mem"
+#endif
   uname(&unames);
   E_printf("EMS: coming up on release %s\n", unames.release);
-  if (strcmp(unames.release, "1.1.43") >= 0) {
-    E_printf("EMS: using /proc/self/mem mmaping (yeah!!!)\n");
+#ifdef MIN_RELEASE
+  if (strcmp(unames.release, MIN_RELEASE) >= 0) {
+    E_printf("EMS: using " MEMFILE " mmaping (yeah!!!)\n");
     ems_mmap = 1;
   }
+#endif
 
   if (ems_mmap) {
-     E_printf("EMS: opening /proc/self/mem\n");
+     E_printf("EMS: opening " MEMFILE "\n");
 
-     selfmem_fd = open("/proc/self/mem", O_RDWR);
+     selfmem_fd = open(MEMFILE, O_RDWR);
      if (selfmem_fd < 0) {
-       error("EMS: cannot open /proc/self/mem: %s\n",strerror(errno));
+       error("EMS: cannot open " MEMFILE ": %s\n",strerror(errno));
        ems_mmap = 0;
      }
   }
@@ -530,7 +540,7 @@ ems_init(void)
   memcheck_reserve('E', EMM_BASE_ADDRESS, EMM_MAX_PHYS * EMM_PAGE_SIZE);
 }
 
-#ifdef __linux__
+#ifdef __freeunices__
 static mach_port_t
 new_memory_object(size_t bytes)
 {
@@ -561,7 +571,7 @@ destroy_memory_object(mach_port_t object)
   free(object);
 }
 
-#endif /* __linux__ */
+#endif /* __freeunices__ */
 
 static int
 allocate_handle(pages_needed)
@@ -649,7 +659,7 @@ __map_page(physical_page)
   if (handle == NULL_HANDLE)
     return (FALSE);
 
-#ifdef __linux__
+#ifdef __freeunices__
 
   E_printf("EMS: map()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
@@ -664,11 +674,11 @@ __map_page(physical_page)
     memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
   }
 
-#else /* __linux__ */
+#else /* __freeunices__ */
   MACH_CALL((vm_allocate(mach_task_self(),
 			 EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
 			   EMM_PAGE_SIZE)), "unmap");
-#endif /* __linux__ */
+#endif /* __freeunices__ */
 
   return (TRUE);
 }
@@ -686,7 +696,7 @@ __unmap_page(physical_page)
   if (handle == NULL_HANDLE)
     return (FALSE);
 
-#ifdef __linux__
+#ifdef __freeunices__
 
   E_printf("EMS: unmap()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
            physical_page,handle,emm_map[physical_page].logical_page);
@@ -706,11 +716,11 @@ __unmap_page(physical_page)
     memmove((u_char *) logical, (u_char *) base, EMM_PAGE_SIZE);
   }
 
-#else /* __linux__ */
+#else /* __freeunices__ */
   MACH_CALL((vm_deallocate(mach_task_self(),
 			 EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
 			   EMM_PAGE_SIZE)), "unmap");
-#endif /* __linux__ */
+#endif /* __freeunices__ */
 
   return (TRUE);
 }
@@ -766,7 +776,7 @@ map_page(handle, physical_page, logical_page)
 	}
 #endif
 
-#ifdef __linux__
+#ifdef __freeunices__
 
 #ifdef SYNC_ALOT
   sync();
@@ -797,14 +807,14 @@ map_page(handle, physical_page, logical_page)
     memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
   }
 
-#else /* __linux__ */
+#else /* __freeunices__ */
   memory_object_remap(
 		       handle_info[handle].object,
 		       logical_page * EMM_PAGE_SIZE,
 		       EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
 		       EMM_PAGE_SIZE
     );
-#endif /* __linux__ */  
+#endif /* __freeunices__ */  
 
   emm_map[physical_page].handle = handle;
   emm_map[physical_page].logical_page = logical_page;

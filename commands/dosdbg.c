@@ -19,6 +19,8 @@
  *  03/27/95 minor changes
  * Modified: 05/14/95
  *  sync'd debug flags with 0.60.2+
+ * Modified: 08/18/95 by PeaK
+ *  added support for debug levels (they're used by PIC emulation)
  ***********************************************/
 
 /* comment out if dosemu is compiled without X support */
@@ -241,11 +243,24 @@ printDebugClass(char class, char value)
     switch (value) {
 
          case '-':
-              printf(" OFF");
+              printf(" OFF    ");
               break;
 
          case '+':
-              printf(" ON");
+              printf(" ON     ");
+              break;
+
+         case '0':  /* why is GCC the only compiler allowing */
+         case '1':  /* intervals in switch statement? -sigh- */
+         case '2':
+         case '3':
+         case '4':
+         case '5':
+         case '6':
+         case '7':
+         case '8':
+	 case '9':
+              printf(" LVL=%c  ", value);
               break;
 
          default:
@@ -279,7 +294,7 @@ ShowDebugString(void)
               if (i % 6 == 4)
                 printf("\n");
               else
-                printf("            ");
+                printf("     "); /* shortened */
          }
     }
     else {
@@ -300,15 +315,13 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
 
     char debugStr[MAX_DEBUG_STRING_LENGTH];
 
-    int i, j;
+    int i, j, k;
     char class, value;
 
 #ifdef X_SUPPORT
-    const char debugOn[] =  "+d+R+W+D+C+v+X+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P+r";
-    const char debugOff[] = "-d-R-W-D-C-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
+    const char debugAll[] = "-d-R-W-D-C-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
 #else
-    const char debugOn[] =  "+d+R+W+D+C+v+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P+r";
-    const char debugOff[] = "-d-R-W-D-C-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
+    const char debugAll[] = "-d-R-W-D-C-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
 #endif
 
     //expand the user string to a canonical form
@@ -322,20 +335,16 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
          class = userDebugStr[i];
 
          /* change sense of value if required */
-         if (class == '+' || class == '-') {
+         if (class == '+' || class == '-' || (class >= '0' && class <= '9')) {
               value = class;
               continue;
          }
 
          if (class == 'a') {
-              if (value == '+') {
-                   strcpy(debugStr, debugOn);
-              }
-              else {
-                   strcpy(debugStr, debugOff);
-              }
-
-              j = strlen(debugOn);
+              strcpy(debugStr, debugAll);
+              j = strlen(debugStr);
+              for (k = 0; k < j; k += 2)
+	           debugStr[k] = value;
               continue;
          }
 

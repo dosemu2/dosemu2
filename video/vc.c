@@ -233,9 +233,13 @@ SIGACQUIRE_call (void)
   parent_open_mouse ();
 }
 
+int dos_has_vt = 1;
+
 static void
 acquire_vt (int sig, struct sigcontext_struct context)
 {
+  dos_has_vt = 1;
+
   v_printf ("VID: Acquiring VC\n");
   forbid_switch ();
 #ifdef __NetBSD__
@@ -383,6 +387,8 @@ wait_vc_active (void)
 static inline void
 release_vt (int sig, struct sigcontext_struct context)
 {
+  dos_has_vt = 0;
+
   SIGNAL_save (SIGRELEASE_call);
 }
 
@@ -754,7 +760,7 @@ get_perm (void)
 	  FCR_W = FCR_WM;
 	}
     }
-  else if (config.usesX)
+  else if (config.usesX || (config.console_video && (config.cardtype == CARD_MDA)))
     {
       if (ioperm (0x3b4, 1, 1) ||
 	  ioperm (0x3b5, 1, 1) ||
@@ -796,7 +802,7 @@ release_perm (void)
 	      leavedos (-1);
 	    }
 	}
-      else if (config.usesX)
+      else if (config.usesX || (config.console_video && (config.cardtype == CARD_MDA)))
 	{
 	  if (ioperm (0x3b4, 1, 0) ||
 	      ioperm (0x3b5, 1, 0) ||

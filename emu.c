@@ -1245,6 +1245,10 @@ add_to_io_select(int new_fd, u_char want_sigio)
 void 
 remove_from_io_select(int new_fd, u_char used_sigio)
 {
+    if (new_fd < 0) {
+	g_printf("GEN: removing bogus fd %d (ignoring)\n", new_fd);
+	return;
+    }
     if (use_sigio && used_sigio) {
 	int             flags;
 	flags = fcntl(new_fd, F_GETFL);
@@ -1379,14 +1383,15 @@ set_bitmap(unsigned long *bitmap, short base, short extent, int new_value)
 }
 
 #include <machine/sysarch.h>
+#include <machine/pcb.h>
 
 int
 ioperm(unsigned int startport, unsigned int howmany, int onoff)
 {
-    unsigned long bitmap[IONPORTS/32];
+    unsigned long bitmap[NIOPORTS/32];
     int err;
 
-    if (startport + howmany > IONPORTS)
+    if (startport + howmany > NIOPORTS)
 	return ERANGE;
 
     if (err = i386_get_ioperm(bitmap))

@@ -6,7 +6,7 @@ DANG_BEGIN_REMARK
 	This directory contains Mark Rejhon's 16550A UART emulation code.
 
 	Please send bug reports related to DOSEMU serial to either
-	<mdrejhon@magi.com> or <ag115@freenet.carleton.ca>
+	<marky@magmacom.com> or <ag115@freenet.carleton.ca>
 
 	The files in this subdirectory are:
 	   Makefile		- The Makefile for this subdir.
@@ -121,7 +121,7 @@ FOSSIL EMULATION
 COPYRIGHTS
 ~~~~~~~~~~
 	Most of the code in the DOSEMU 'serial' subdirectory is:
-	Copyright (C) 1995 by Mark D. Rejhon <mdrejhon@magi.com>
+	Copyright (C) 1995 by Mark D. Rejhon <marky@magmacom.com>
 	with the following exceptions:
 	
 	FOSSIL driver emulation is Copyright (C) 1995 by 

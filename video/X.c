@@ -100,7 +100,7 @@ extern void X_process_key(XKeyEvent *);
 
 #if CONFIG_X_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
-#define SEL_ATTR(attr) (((attr) >> 4) | (((attr) & 0x0f) << 4))
+#define SEL_ATTR(attr) (((attr) >> 4) ? (attr) :(((attr) & 0x0f) << 4))
 #define XATTR(w) (SEL_ACTIVE(w) ? SEL_ATTR(ATTR(w)) : ATTR(w))
 #else
 #define XATTR(w) (ATTR(w))

@@ -27,7 +27,7 @@ if [ "`lsmod|grep emumodule`" != "" ]; then
   ${DOSEMUPATH}/syscallmgr/rmmod emumodule
 fi
 if [ "`lsmod|grep syscallmgr`" = "" ]; then
-  ${DOSEMUPATH}/syscallmgr/insmod ${DOSEMUPATH}/syscallmgr/syscallmgr.o
+  ${DOSEMUPATH}/syscallmgr/insmod -z ${DOSEMUPATH}/syscallmgr/syscallmgr.o
 fi
  
 ${DOSEMUPATH}/syscallmgr/insmod -z ${DOSEMUPATH}/emumod/emumodule.o

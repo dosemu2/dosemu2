@@ -1,5 +1,5 @@
 # This is the Makefile for the serial-subdirectory of DOSEMU.
-# Please send comments and bug-reports to mdrejhon@magi.com
+# Please send comments and bug-reports to marky@magmacom.com
 # Please read the code in this directory for more information.
 
 SUBDIR=serial

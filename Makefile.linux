@@ -41,8 +41,23 @@ ifdef REQUIRES_EMUMODULE
   endif
 endif
 
+# uncomment this, if you have joystick support in the kernel
+# or have the joystick module loaded (needing <linux/joystick.h>)
+# USE_MRP_JOYSTICK= -DUSE_MRP_JOYSTICK
+ifdef USE_MRP_JOYSTICK
+  export USE_MRP_JOYSTICK
+endif
+
+
 # Want to make elf Binaries.
-# ELF=1
+ELF_=1
+
+ifdef ELF_
+ifeq (1,$(shell if grep __ELF__ `gcc -v 2>&1|head -n1|cut -d' ' -f4` 1>/dev/null 2>&1;then echo -n 1;fi))
+  ELF=1
+endif
+endif
+
 
 # Set do_DEBUG to skip these steps
 # Set STATIC to produce one static binary (instead of the binary/library
@@ -55,7 +70,7 @@ X86_EMULATOR_FLAGS =
 ifdef ELF
 # TCNTRL=-lslang-elf
 # or if you have the full slang library enabled..
-TCNTRL=-lslang -lm
+TCNTRL=-lslang-elf -lm
 else
 TCNTRL=-lslang
 endif
@@ -154,7 +169,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 4.3
+PATCHLEVEL = 4.4
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -451,6 +466,8 @@ dos: 	emu.o data.o dossubdirs
 	$(LD) $(LDFLAGS) -o dos \
 	   emu.o data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
+	@nm dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > dosemu.map
 
 else
 dos:	dos.o
@@ -463,6 +480,8 @@ $(LIBDOSEMU): 	emu.o data.o # dossubdirs
 	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
 
 libdosemu:	dossubdirs $(LIBDOSEMU)
+	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > dosemu.map
 endif
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
@@ -518,13 +537,6 @@ install:
 	@install -d /var/run
 	@if [ -f load_module.sh ]; then chmod 700 load_module.sh; fi
 	@if [ -f unload_module.sh ]; then chmod 700 unload_module.sh; fi
-ifdef ELF
-	@nm dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
-		sort > dosemu.map
-else
-	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
-		sort > dosemu.map
-endif
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	@for i in $(SUBDIRS); do \
 		(cd $$i && echo $$i && $(MAKE) install) || exit; \

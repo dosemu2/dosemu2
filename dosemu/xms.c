@@ -565,6 +565,7 @@ xms_control(void)
       LWORD(eax) = 0;
       LO(bx) = 0x91;
     }
+    LWORD(ebx) = 0xff00;
     break;
 
   case 2:			/* Release High Memory Area */
@@ -579,6 +580,7 @@ xms_control(void)
       LWORD(eax) = 1;
       freeHMA = 1;
     }
+    LWORD(ebx) = 0xff00;
     break;
 
   case 3:			/* Global Enable A20 */
@@ -796,7 +798,7 @@ xms_query_freemem(int api)
 	     REG(eax), REG(edx));
   }
 
-  LO(bx) = 0;			/* no error */
+  LWORD(ebx) = 0xff00;			/* no error */
 }
 
 static void
@@ -812,7 +814,7 @@ xms_allocate_EMB(int api)
   if (!(h = FindFreeHandle(FIRST_HANDLE))) {
     x_printf("XMS: out of handles\n");
     LWORD(eax) = 0;
-    LO(bx) = 0xa1;
+    LWORD(ebx) = 0xffa1;
   }
   else {
     handles[h].num = h;
@@ -846,6 +848,7 @@ xms_allocate_EMB(int api)
       REG(edx) = h;
 
     LWORD(eax) = 1;		/* success */
+    LWORD(ebx) = 0xa900;
   }
 }
 
@@ -871,6 +874,7 @@ xms_free_EMB(void)
 
     x_printf("XMS: free'd EMB %d\n", h);
     LWORD(eax) = 1;
+    LWORD(ebx) = 0xff00;
   }
 }
 
@@ -883,6 +887,7 @@ xms_move_EMB(void)
   x_printf("XMS move extended memory block\n");
   show_emm(e);
   LWORD(eax) = 1;		/* start with success */
+  LWORD(ebx) = 0xff00;		/* start with success */
 
   if (e.SourceHandle == 0) {
     src = (char *) (((e.SourceOffset >> 16) << 4) + \

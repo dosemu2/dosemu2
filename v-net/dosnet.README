@@ -175,8 +175,8 @@ Vinod G Kulkarni
 vinod@cse.iitb.ernet.in
 
 
-	From jmaclean@fox.nstn.ns.ca Mon Oct 10 06:16:35 1994
-	Return-Path: <jmaclean@fox.nstn.ns.ca>
+	From macleajb@ednet.ns.ca Mon Oct 10 06:16:35 1994
+	Return-Path: <macleajb@ednet.ns.ca>
 	
 	At any rate, I compiled dosnet.c with :
 	cc -o dosnet.o  -D__KERNEL__ -DLINUX -O6 dosnet.c -c

@@ -381,7 +381,7 @@ some.  I found a couple that seem to work fine.
 
 <sect1>Why doesn't the mouse driver work?
 
-<p>Mark Rejhon (<tt>mdrejhon@magi.com</tt>) reported (4/7/95) that
+<p>Mark Rejhon (<tt>marky@magmacom.com</tt>) reported (4/7/95) that
 
 If you start the mouse driver and it just hangs (it might actually
 take 30-60s), but if you are waiting longer than a minute for the
@@ -553,7 +553,7 @@ you can even make DOS executables act as lpr filters.
 
 <sect1>How do I get Netware access from dosemu?
   
-<p>James B. MacLean (<tt>jmaclean@fox.nstn.ns.ca</tt>) reported
+<p>James B. MacLean (<tt>macleajb@ednet.ns.ca</tt>) reported
 (11/28/94) that
   
 Dosemu now supports  pdipx  (an IPX over pktdrvr)  and  pdether  (uses 
@@ -581,7 +581,7 @@ DOSEMU to access a Novell Lite network in the  past  until  the packet
 driver existed.
   
 Any interested parties should E-mail me
-(<tt>jmaclean@fox.nstn.ns.ca</tt>) and I'll pass along some
+(<tt>macleajb@ednet.ns.ca</tt>) and I'll pass along some
 directions.
 
 Want multiple DOSEMU's access to Novell?
@@ -804,7 +804,7 @@ mapped as the program expects. If it somehow manages to start DMA
 based recording with SB, the recorded sound doesn't find it's way to
 the application. It just destroys some data in the memory.
 
-<p>James B. MacLean (<tt>jmaclean@fox.nstn.ns.ca</tt>) reported
+<p>James B. MacLean (<tt>macleajb@ednet.ns.ca</tt>) reported
 (6/19/94) that
 
 Sorry to disappoint, but at this time DOSEMU does not support directly the 
@@ -968,7 +968,7 @@ codes on a console (it wouldn't be a good idea to do it for tty lines).
 <p>(3/18/94)
 
 Dosemu is built upon the work of Matthias Lautner and Robert Sanders.
-James B. MacLean (<tt>jmaclean@fox.nstn.ns.ca</tt>) is responsible for
+James B. MacLean (<tt>macleajb@ednet.ns.ca</tt>) is responsible for
 organizing the latest releases of dosemu.
 <verb>
                        History of dosemu

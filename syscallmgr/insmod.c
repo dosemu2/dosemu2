@@ -39,11 +39,38 @@
  *
  * Changes:
  * 
- *   August 1995, 
- *   fixed 'magic' stuff for 1.3.x, added readonly (R) label types for ELF.
+ * August 1995,      (HACKER_TOOL-2)
+ * - fixed 'magic' stuff for 1.3.x, added readonly (R) label types for ELF.
  *   ( Thanks to Eddie C. Dost <ecd@dressler.de> )
  *
- * NOTE:
+ * October 22, 1995
+ * - Increased 'magic' check length to allow 'nm -n vmlinux' generated
+ *   System.maps be readable (we have this in Slackware 3.0)
+ *
+ * October 24, 1995  (pre HACKER_TOOL-3)
+ * - Reorganized checking for right System.map, needed because
+ *   in newer kernels some of the symbols are local (dynamically added
+ *   via register_symtab().
+ * - Will now silently load, except on errors or option -v.
+ * - Also, now only 90% of the matches and 100% of mismatches are valid
+ *   for the check (hint from John Michael Floyd <jmf@pwd.nsw.gov.au>).
+ * - If option -f is set, then the case 'unversioned_kernel, versioned_module'
+ *   can load, even if the versioned module has no symbol 'kernel_version'
+ *   (bug found by Uwe Bonnes <bon@elektron.ikp.physik.th-darmstadt.de>).
+ *   This bug bug also relates to the 'official' insmod.
+ *   A hint for module programmers: Even if you compile with MODVERSIONS,
+ *   please include the symbol kernel_version.
+ *   This way it will load in an unversioned kernel without -f option.
+ *
+ * October 26, 1995  (HACKER_TOOL-3)
+ * - Added option -p.
+ *   Forces insmod to just check if the module matches the kernel.
+ *   This option can be used to poll a couple of compiled modules
+ *   and/or System.maps in order to find the one that matches.
+ *
+ * ---------------------------
+ *
+ * NOTE for HACKER_TOOL:
  *
  * 1.    This feature was added to insmod by the DOSEMU-team
  *       and released as part of the dosemu-distribution 
@@ -209,10 +236,14 @@ struct zSystem_entry {
   struct zSystem_entry *next;
   int value;;
   char *name;
+#ifdef __TESTKSYMS__
+  char symtype;
+#endif
 };
 
-int use_zSystem=0, use_zSystem_local=0;
+int use_zSystem=0, use_zSystem_local=0, zsyms_valid=0;
 int warnings=0;
+int silent_poll_mode=0;
 
 char *zsystem_map_name="/usr/src/linux/zSystem.map";
 
@@ -224,49 +255,6 @@ static void check_system_map_name()
   if (stat(zsystem_map_name, &buf)) zsystem_map_name=system_map_name; 
 }
 #endif
-
-static struct zSystem_entry *build_zSystem_syms(char *name)
-{
-  FILE *f;
-  struct zSystem_entry *table=0;
-  char c;
-  int i;
-  char n[256];
-  static char magic[]="00100000 t startup_32\n";
-  
-  f=fopen(name, "r");
-  if (!f) {
-    insmod_error("error reading zSystem.map, errno=%d",errno);
-    return 0;
-  }
-  memset(n,' ',sizeof(n));
-  i=fread(n,1,sizeof(n),f);
-  n[sizeof(n)-1]=0;
-  if ((i < sizeof(magic)) || (!strstr(n,magic)) || (strncmp(n,magic,9)) ) {
-    insmod_error("wrong file format of %s",name);
-    return 0;
-  } 
-  fseek(f,0,SEEK_SET);
-  while (!feof(f) && n[0]) {
-    n[0]=0;
-    fscanf(f, "%08x %c %s\n", &i, &c, n);
-    switch (c) {
-      case 't': case 'd': case 'b': case 'r': 
-        if (!use_zSystem_local) break;
-        /* else fall through */
-      case 'T': case 'D': case 'B': case 'R':{
-        struct zSystem_entry *p=malloc(sizeof(struct zSystem_entry));
-        p->name=strdup(n);
-        p->value=i;
-        p->next=table;
-        table=p;
-      }
-    }
-  }
-  fclose(f);
-  if (!n[0]) insmod_error("warning: file %s may be corrupt or empty",name);
-  return table;
-}
 
 static int is_version_tail(const char *s)
 {
@@ -309,30 +297,25 @@ static struct kernel_sym *find_resident_sym(struct kernel_sym *ksym, int nksyms,
   return 0;
 }
 
-static int get_silly_multiple_defined_count(struct kernel_sym *ksym, int nksyms)
+static struct zSystem_entry *build_zSystem_syms(char *name, struct kernel_sym *ksymtab, int nksyms)
 {
-  int sillycount=0;
-  struct kernel_sym *p;
-  for (; nksyms >0 ; --nksyms, ksym++) {
-    p=find_resident_sym(ksym+1,nksyms-1,ksym->name);
-    if (p) {
-      sillycount++;
-      if (warnings) insmod_error(
-        "Warning: ksyms has symbol '%s' multiple defined.",
-        ksym->name
-      );
-    }
-  }
-  return sillycount;
-}
+  FILE *f;
+  struct zSystem_entry *table=0;
+  struct zSystem_entry *p;
+  char c;
+  int i;
+  char n[1024];
+  static char magic[] ="00100000 t startup_32\n";
+  static char magic2[]="00100000 T startup_32\n";
+  struct kernel_sym *ksym, *p_;
+  int matches,mismatches;
 
-static int check_for_right_zSystem_map(struct zSystem_entry *zsym, struct kernel_sym *ksymtab, int nksyms)
-{
-  struct kernel_sym *ksym, *p;
-  int i,matches,sillycount;
-  
-  if (!zsym) return 0;
-  
+  f=fopen(name, "r");
+  if (!f) {
+    insmod_error("error reading zSystem.map, errno=%d",errno);
+    return 0;
+  }
+
   for (ksym = ksymtab, i = 0 ; i < nksyms ; ++i, ksym++) {
     if (ksym->name[0] == '#') {
       if (!ksym->name[1]) break;
@@ -341,20 +324,49 @@ static int check_for_right_zSystem_map(struct zSystem_entry *zsym, struct kernel
   ksym++; 
   nksyms -= i+1;
   matches=0;
-  sillycount=get_silly_multiple_defined_count(ksym,nksyms);
-
-  while (zsym) {
-    p=find_resident_sym(ksym,nksyms,zsym->name);
-    if (p) {
-      if (p->value == zsym->value) matches++;
+  mismatches=0;
+  
+  memset(n,' ',sizeof(n));
+  i=fread(n,1,sizeof(n),f);
+  n[sizeof(n)-1]=0;
+  if ((i < sizeof(magic)) || (!strstr(n,magic)) ) {
+    if (!strstr(n,magic2)) {
+      insmod_error("wrong file format of %s",name);
+      return 0;
     }
-    zsym=zsym->next;
+  } 
+  fseek(f,0,SEEK_SET);
+  while (!feof(f) && n[0]) {
+    n[0]=0;
+    p=0;
+    fscanf(f, "%08x %c %s\n", &i, &c, n);
+    switch (c) {
+      case 't': case 'd': case 'b': case 'r': 
+        if (!use_zSystem_local) break;
+        /* else fall through */
+      case 'T': case 'D': case 'B': case 'R':{
+        p=malloc(sizeof(struct zSystem_entry));
+        p->name=strdup(n);
+        p->value=i;
+        p->next=table;
+#ifdef __TESTKSYMS__
+        p->symtype=c;
+#endif
+        table=p;
+        break;
+      }
+    }
+    p_=find_resident_sym(ksym,nksyms,n);
+    if (p_) {
+      if (p_->value == i) matches++;
+      else if (p) mismatches++;
+    }
   }
-  if (versioned_kernel) matches++; /* need this to compensate dummy 
-                                      '_Using_Versions' symbol in ksyms */
-  return (nksyms == (matches+sillycount));
+  fclose(f);
+  if (!n[0]) insmod_error("warning: file %s may be corrupt or empty",name);
+  zsyms_valid=(!mismatches && ((matches*10) >= (nksyms*9)));
+  return table;
 }
-
 
 #endif  /* HACKER_TOOL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 
@@ -537,6 +549,10 @@ main(int argc, char **argv)
 			case 'w': /* output warnings */
 				warnings = 1;
 				break;
+
+			case 'p': /* silent poll mode */
+				silent_poll_mode = 1;
+				break;
 #endif
 			}
 			++p;
@@ -564,6 +580,7 @@ main(int argc, char **argv)
 		      "  -Z mapfile As -z, but use mapfile\n"
 		      "  -l         Together with -z, -Z, also take local symbols from map\n"
 		      "             (But note, local symbols can be multiple defined, last one is taken)\n"
+		      "  -p         silent poll mode, just check if the module matches the kernel\n"
 		      , stderr);
 #else
 		fputs("Usage: insmod [-f] [-x] [-o name] [-m] [-s] [-v] module "
@@ -758,6 +775,9 @@ main(int argc, char **argv)
 		break;
 
 	case 1: /* unversioned_kernel, versioned_module */
+#ifdef HACKER_TOOL
+		if (!force_load)
+#endif
 		check_version(force_load);
 		tabcomp = m_strncmp;
 		break;
@@ -820,11 +840,11 @@ main(int argc, char **argv)
 #if KERNEL_VERSION >= 1001076
 	  check_system_map_name();
 #endif
-	  insmod_error("Now resolving from %s", zsystem_map_name);
-	  zsym=build_zSystem_syms(zsystem_map_name);
+	  if (verbose) insmod_error("Now resolving from %s", zsystem_map_name);
+	  zsym=build_zSystem_syms(zsystem_map_name, ksymtab,  nksyms);
 	  if (!zsym) exit(2);
 	  if (!force_load) {
-	    if (!check_for_right_zSystem_map(zsym, ksymtab,  nksyms)) {
+	    if (!zsyms_valid) {
 	      insmod_error("%s doesn\'t match actual kernel",zsystem_map_name);
               exit(2);
 	    }
@@ -837,7 +857,7 @@ main(int argc, char **argv)
               */
 	    if (!elf_kernel && (name[0] == '_')) name++;
 	    if (defsym(strncmp, name, zsym->value, N_ABS | N_EXT,  RESIDENT )) {
-	      insmod_error("resolved: %08x %s", zsym->value, zsym->name);
+	      if (verbose) insmod_error("resolved: %08x %s", zsym->value, zsym->name);
 	    }
 	    zsym=zsym->next;
 	  }
@@ -964,6 +984,14 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifdef HACKER_TOOL
+	if (silent_poll_mode) {
+		/* if we are here,
+		 * we assume that the module matches the kernel.
+		 */
+		exit(0);
+	}
+#endif
 	/* create the module */
 	errno = 0;
 	/* make sure we have enough memory malloc'd for copy which kernel
