@@ -1458,8 +1458,13 @@ int vga_emu_init(vgaemu_display_type *vedt)
    * if something is missing. -- sw
    */
   if(vga.config.mono_support) {
-    io_device.handler_name = "VGAEmu Mono/Hercules Card";
+    io_device.handler_name = "VGAEmu Mono/Hercules Card Range 0";
     io_device.start_addr = 0x3b0;
+    io_device.end_addr = 0x3bb;
+    port_register_handler(io_device, 0);
+
+    io_device.handler_name = "VGAEmu Mono/Hercules Card Range 1";
+    io_device.start_addr = 0x3bf;
     io_device.end_addr = 0x3bf;
     port_register_handler(io_device, 0);
   }
