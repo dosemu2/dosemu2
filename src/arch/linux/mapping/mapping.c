@@ -26,6 +26,10 @@
 
 static int init_done = 0;
 static char *lowmem_base = NULL;
+/* this is a 256 table telling for every page if it's mapped to /dev/mem
+   or not. Necessary for the low mem hack... Hopefully a temporary
+   measure */
+char kmem_map[256];
 
 static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_shm,
@@ -45,6 +49,11 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
     addr_ = mmap(target, mapsize, protect, MAP_SHARED | fixed,
 				mem_fd, (off_t) source);
     close_kmem();
+    if (addr_ != MAP_FAILED && fixed) {
+      int i;
+      for (i = 0; i < mapsize / PAGE_SIZE; i++)
+        kmem_map[i + (int)target / PAGE_SIZE] = 1;
+    }
     return addr_;
   }
   if (cap & MAPPING_SCRATCH) {
@@ -177,8 +186,10 @@ void *alloc_mapping(int cap, int mapsize, void *target)
   if (cap & MAPPING_INIT_LOWRAM) {
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
     lowmem_base = addr;
+#if 0 /* hack: temporarily do this in init.c */
     addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target, mapsize,
       PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
+#endif
   }
   return addr;
 }
