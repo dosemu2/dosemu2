@@ -47,14 +47,6 @@
 #include "sound.h"
 #include "linux_sound.h"
 
-/*#ifndef SOUND_FRAG
-#error SOUND_FRAG not defined!
-#endif*/
-
-/* define this to work around some buggy OSS drivers */
-#define STALLED_FRAGS 1
-#define BUGGY_DRIVER_NEEDS_POST 0
-
 /* SB static vars */
 static int mixer_fd = -1;
 static int dsp_fd = -1;
@@ -97,11 +89,11 @@ static void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
 
   num_sound_frag = blocksize / (1 << sound_frag_size);
   
-  if (num_sound_frag > MAX_NUM_FRAGMENTS) {
-    num_sound_frag = MAX_NUM_FRAGMENTS;
+  if (num_sound_frag > config.oss_max_frags) {
+    num_sound_frag = config.oss_max_frags;
   }
-  if (num_sound_frag < MIN_NUM_FRAGMENTS) {
-    num_sound_frag = MIN_NUM_FRAGMENTS;
+  if (num_sound_frag < config.oss_min_frags) {
+    num_sound_frag = config.oss_min_frags;
   }
 
   S_printf ("SB:[Linux] DMA blocksize set to %u (%u,%u)\n",
@@ -305,9 +297,8 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
     if (linux_sb_dma_get_free_space() < buffer_count)
       return;
     buffer_count -= write (dsp_fd, buffer, buffer_count);
-#if BUGGY_DRIVER_NEEDS_POST
-    ioctl (dsp_fd, SNDCTL_DSP_POST);
-#endif
+    if (config.oss_do_post)
+      ioctl (dsp_fd, SNDCTL_DSP_POST);
   }
 }
 
@@ -453,9 +444,8 @@ static int in_frag = 0;
     return 0;
   }
   if (linux_sb_dma_get_free_space() < size) {
-#if BUGGY_DRIVER_NEEDS_POST
-    ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
-#endif
+    if (config.oss_do_post)
+      ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
     in_frag = 0;
     return 0;
   }
@@ -468,10 +458,10 @@ static int in_frag = 0;
   S_printf("\n");
   in_frag += amount_done;
   if (in_frag >= (1 << sound_frag_size)) {
-#if BUGGY_DRIVER_NEEDS_POST
-    S_printf("SB [Linux]: ioctling POST\n");
-    ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
-#endif
+    if (config.oss_do_post) {
+      S_printf("SB [Linux]: ioctling POST\n");
+      ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
+    }
     in_frag = 0;
   }
   return amount_done;
@@ -531,10 +521,10 @@ int linux_sb_dma_complete_test(void)
      */
 
   extra_fragments = total_fragments / 5;
-  if (extra_fragments < 2)
-    extra_fragments = 2;
-  if (extra_fragments < STALLED_FRAGS)
-    extra_fragments = STALLED_FRAGS;
+  if (extra_fragments < config.oss_min_extra_frags)
+    extra_fragments = config.oss_min_extra_frags;
+  if (extra_fragments < config.oss_stalled_frags)
+    extra_fragments = config.oss_stalled_frags;
   if (result == DMA_HANDLER_OK &&
       free_fragments >= (total_fragments - extra_fragments)) {
     return DMA_HANDLER_OK;
@@ -550,7 +540,7 @@ int linux_sb_dma_is_empty(void)
 
   result = linux_sb_get_free_fragments(&total_fragments, &free_fragments, &bytes);
 
-  if (result == DMA_HANDLER_OK && free_fragments >= total_fragments - STALLED_FRAGS)
+  if (result == DMA_HANDLER_OK && free_fragments >= total_fragments - config.oss_stalled_frags)
     return DMA_HANDLER_OK;
 
   return DMA_HANDLER_NOT_OK;
@@ -658,6 +648,38 @@ int SB_driver_init () {
   /* Miscellaneous Functions */
   SB_driver.set_speed           = linux_sb_set_speed;
   SB_driver.play_buffer         = NULL;
+
+  /* Some sanity checks */
+  if (config.oss_min_frags < MIN_NUM_FRAGMENTS) {
+    error("SB: oss_min_frags is too small (%i, min %i)\n",
+	config.oss_min_frags, MIN_NUM_FRAGMENTS);
+    config.exitearly = 1;
+    return 0;
+  }
+  if (config.oss_min_frags > config.oss_max_frags) {
+    error("SB: oss_min_frags is larger than oss_max_frags (%i and %i)\n",
+	config.oss_min_frags, config.oss_max_frags);
+    config.exitearly = 1;
+    return 0;
+  }
+  if (config.oss_max_frags > MAX_NUM_FRAGMENTS) {
+    error("SB: oss_max_frags is too large (%i, max %i)\n",
+	config.oss_max_frags, MAX_NUM_FRAGMENTS);
+    config.exitearly = 1;
+    return 0;
+  }
+  if (config.oss_stalled_frags > MAX_NUM_FRAGMENTS) {
+    error("SB: oss_stalled_frags is too large (%i, max %i)\n",
+	config.oss_stalled_frags, MAX_NUM_FRAGMENTS);
+    config.exitearly = 1;
+    return 0;
+  }
+  if (config.oss_min_extra_frags > MAX_NUM_FRAGMENTS) {
+    error("SB: oss_min_extra_frags is too large (%i, max %i)\n",
+	config.oss_min_extra_frags, MAX_NUM_FRAGMENTS);
+    config.exitearly = 1;
+    return 0;
+  }
 
   /*
    * This determines a suitable value for the SB Version that we can 

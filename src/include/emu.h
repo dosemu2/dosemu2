@@ -349,6 +349,13 @@ typedef struct vesamode_type_struct {
        char *sb_dsp;
        char *sb_mixer;
        uint16_t mpu401_base;
+       char *sound_driver;
+       /* OSS-specific options */
+       int oss_min_frags;
+       int oss_max_frags;
+       int oss_stalled_frags;
+       int oss_do_post;
+       int oss_min_extra_frags;
 
        /* joystick */
        char *joy_device[2];

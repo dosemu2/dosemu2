@@ -376,6 +376,7 @@ emuini                  RETURN(EMUINI);
 full_file_locks		RETURN(FULL_FILE_LOCKS);
 ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
+oss_options             RETURN(L_SND_OSS);
 joystick_emu		RETURN(L_JOYSTICK);
 dosemumap               RETURN(DOSEMUMAP);
 logbufsize              RETURN(LOGBUFSIZE);
@@ -614,6 +615,14 @@ sb_hdma                 RETURN(SB_HDMA);
 sb_dsp                  RETURN(SB_DSP);
 sb_mixer                RETURN(SB_MIXER);
 mpu_base                RETURN(MPU_BASE);
+sound_driver		RETURN(SOUND_DRIVER);
+
+	/* OSS sound stuff */
+oss_min_frags		RETURN(OSS_MIN_FRAGS);
+oss_max_frags		RETURN(OSS_MAX_FRAGS);
+oss_stalled_frags	RETURN(OSS_STALLED_FRAGS);
+oss_do_post		RETURN(OSS_DO_POST);
+oss_min_extra_frags	RETURN(OSS_MIN_EXTRA_FRAGS);
 
         /* Joystick stuff */
 

@@ -99,6 +99,14 @@ static void dump_printf(char *fmt, ...)
     va_end(args);
 }
 
+static void log_dump_printf(char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    vlog_printf(-1, fmt, args);
+    va_end(args);
+}
+
 void dump_config_status(void *printfunc)
 {
     char *s;
@@ -292,8 +300,14 @@ void dump_config_status(void *printfunc)
 	}
     }
 
-    (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_hdma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
-        config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
+    (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_hdma %d\nsb_irq %d\n"
+	"mpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\nsound_driver \"%s\"\n",
+        config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq,
+	config.mpu401_base, config.sb_dsp, config.sb_mixer, config.sound_driver);
+    (*print)("\nSOUND_OSS:\noss_min_frags 0x%x\noss_max_frags 0x%x\n"
+	     "oss_stalled_frags 0x%x\noss_do_post %d\noss_min_extra_frags 0x%x\n",
+        config.oss_min_frags, config.oss_max_frags, config.oss_stalled_frags,
+	config.oss_do_post, config.oss_min_extra_frags);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
@@ -1001,6 +1015,9 @@ config_init(int argc, char **argv)
 	dump_config_status(0);
 	usage(basename);
 	exit(1);
+    } else {
+	if (debug_level('c') >= 8)
+	    dump_config_status(log_dump_printf);
     }
 }
 

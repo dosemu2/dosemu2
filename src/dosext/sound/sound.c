@@ -2479,7 +2479,7 @@ static void sb_detect(void)
 
   /* Must have an IRQ between 1 & 15 inclusive */
   if (config.sb_irq < 1 || config.sb_irq > 15 ) {
-    error ("SB: ERROR: Invalid IRQ (%d). Aborting DOSEMU.\n", config.sb_irq);
+    error ("SB: Invalid IRQ (%d). Aborting DOSEMU.\n", config.sb_irq);
     config.exitearly = 1;
     SB_info.version = SB_NONE;
     return;
@@ -2487,13 +2487,20 @@ static void sb_detect(void)
 
   /* Must have DMAs between 0 & 7, excluding 4 [unsigned, so don't test < 0]*/
   if (config.sb_dma >= 4) {
-    error ("SB: ERROR: Invalid 8-bit DMA channel (%d). Aborting DOSEMU.\n", config.sb_dma);
+    error ("SB: Invalid 8-bit DMA channel (%d). Aborting DOSEMU.\n", config.sb_dma);
     config.exitearly = 1;
     SB_info.version = SB_NONE;
     return;
   }
 
-  SB_info.version = SB_driver_init();
+  if (!strcmp(config.sound_driver, "oss")) {
+    SB_info.version = SB_driver_init();
+  } else {
+    error ("SB: Invalid driver (%s) specified, only OSS driver is supported.\n"
+	   "Aborting DOSEMU.\n", config.sound_driver);
+    config.exitearly = 1;
+    return;
+  }
 
   if (SB_info.version >= SB_16 && (config.sb_hdma < 5 || config.sb_hdma >= 8)) {
     error ("SB: ERROR: Invalid 16-bit DMA channel (%d). Aborting DOSEMU.\n", config.sb_hdma);

@@ -140,7 +140,7 @@ char *chrprintable(char c)
   return strprintable(buf);
 }
 
-static int vlog_printf(int flg, const char *fmt, va_list args)
+int vlog_printf(int flg, const char *fmt, va_list args)
 {
   int i;
   static int is_cr = 1;

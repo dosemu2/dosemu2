@@ -225,7 +225,7 @@ static int is_in_allowed_classes(int mask);
 %token NETDEV VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_JOYSTICK FULL_FILE_LOCKS
+%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_SND_OSS L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUINI L_X
@@ -276,7 +276,8 @@ static int is_in_allowed_classes(int mask);
 	/* hardware ram mapping */
 %token HARDWARE_RAM
         /* Sound Emulation */
-%token SB_BASE SB_IRQ SB_DMA SB_HDMA SB_MIXER SB_DSP MPU_BASE
+%token SB_BASE SB_IRQ SB_DMA SB_HDMA SB_MIXER SB_DSP MPU_BASE SOUND_DRIVER
+%token OSS_MIN_FRAGS OSS_MAX_FRAGS OSS_STALLED_FRAGS OSS_DO_POST OSS_MIN_EXTRA_FRAGS
 	/* CD-ROM */
 %token CDROM
 	/* ASPI driver */
@@ -680,6 +681,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| L_X '{' x_flags '}'
 		| L_SOUND bool	{ if (! $2) config.sound = $2; }
                 | L_SOUND { config.sound = 1; } '{' sound_flags '}'
+                | L_SND_OSS '{' snd_oss_flags '}'
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = ""; } }
                 | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
@@ -999,6 +1001,16 @@ sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
                 | SB_MIXER string_expr       { config.sb_mixer = $2; }
                 | SB_DSP string_expr         { config.sb_dsp = $2; }
 		| MPU_BASE expression	{ config.mpu401_base = $2; }
+		| SOUND_DRIVER string_expr	{ config.sound_driver = $2; }
+		;
+snd_oss_flags	: snd_oss_flag
+		| snd_oss_flags snd_oss_flag
+		;
+snd_oss_flag	: OSS_MIN_FRAGS expression	{ config.oss_min_frags = $2; }
+		| OSS_MAX_FRAGS expression	{ config.oss_max_frags = $2; }
+		| OSS_STALLED_FRAGS expression	{ config.oss_stalled_frags = $2; }
+		| OSS_DO_POST bool		{ config.oss_do_post = $2; }
+                | OSS_MIN_EXTRA_FRAGS expression { config.oss_min_extra_frags = $2; }
 		;
 
 	/* joystick emulation */

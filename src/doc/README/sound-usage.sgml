@@ -182,6 +182,42 @@ if you want DOSEMU to be able to change the volume on your sound card,
 but most people don't like that, so it is disabled by default.
 </para>
 
+<para>
+There are several driver-specific settings for each supported underlying
+driver (only OSS right now). In general you don't need to alter the default
+values, but many OSS drivers appears to have a very nasty quirks, so some
+tweaking might be necessary if you have some problems with your particular
+driver.
+
+<screen>
+$_oss_min_frags = (4)
+$_oss_max_frags = (0x20)
+$_oss_stalled_frags = (1)
+$_oss_do_post = (off)
+$_oss_min_extra_frags = (2)
+</screen>
+</para>
+
+<para>
+<literal remap="tt">$_oss_min_frags</literal> specifies the minimum number
+of fragments to divide the your card's DMA buffer to. If you suffer underruns,
+try increasing this value.
+<literal remap="tt">$_oss_max_frags</literal> specifies the maximum number
+of fragments to divide the your card's DMA buffer to.
+<literal remap="tt">$_oss_stalled_frags</literal> is a hack to work around
+the bug found in most the existing OSS drivers, including the SB one.
+Even when the playback is completed, these drivers are reporting that
+one fragment is still in use. If your driver doesn't have that problem,
+feel free to set this to 0.
+<literal remap="tt">$_oss_do_post</literal> is a hack that makes it possible
+to work with drivers that doesn't honour the SNDCTL_DSP_SETFRAGMENT ioctl
+command (unpatched Aureal Vortex binary driver is a known offender). This
+hack is incompatible with the standard OSS drivers and must be disables
+unless your driver doesn't work otherwise.
+<literal remap="tt">$_oss_min_extra_frags</literal> can be increased if
+you have underruns.
+</para>
+
 </sect3>
 
 <sect3>
