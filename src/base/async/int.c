@@ -1540,7 +1540,13 @@ static void redirect_devices()
  */
 static int redir_it()
 {
-  static struct vm86_regs save_regs;
+  /*
+   * Declaring the following struct volatile works around an EGCS bug
+   * (at least up to egcs-2.91.66). Otherwise the line below marked
+   * with '###' will modify the *old* (saved) struct too.
+   * -- sw
+   */
+  volatile static struct vm86_regs save_regs;
   static unsigned x0, x1, x2, x3, x4;
   unsigned u;
 
@@ -1551,10 +1557,20 @@ static int redir_it()
   switch(redir_state) {
     case 1:
       if(HI(ax) == 0x3d) {
+        /*
+         * FreeDOS will get confused by the following calling sequence (e.i. it
+         * is not reentrant 'enough'. So we will abort here - it cannot use a
+         * redirector anyway.
+         * -- sw
+         */
+        if (running_DosC) {
+          ds_printf("INT21: FreeDOS detected - no check for redirector\n");
+          return redir_state = 0;
+        }
         save_regs = REGS;
         redir_state = 2;
         LWORD(eip) -= 2;
-        LWORD(eax) = 0x5200;
+        LWORD(eax) = 0x5200;		/* ### , see above EGCS comment! */
         default_interrupt(0x21);
         ds_printf("INT21 +1 (%d) at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
           redir_state, LWORD(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));

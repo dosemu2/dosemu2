@@ -4,8 +4,27 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <linux/kd.h>
+#include <linux/keyboard.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+
 #include "config.h"
 #include "keymaps.h"
+#include "keyb_clients.h"
+
+static int is_a_console(int);
+static int open_a_console(char *);
+static int getfd(void);
+static char *dosemu_val(unsigned, unsigned *);
+static int read_kbd_table(struct keytable_entry *);
+
 
 /* DANG_BEGIN_MODULE
  * 
@@ -18,6 +37,15 @@
  *
  * /REMARK
  * DANG_END_MODULE
+ *
+ * DANG_BEGIN_CHANGELOG
+ *
+ * 1999/06/16: Added support for automatic keyboard configuration.
+ * Latin-1 keyboards should work. Latin-2 probably not.
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
+ *
+ * DANG_END_CHANGELOG
+ *
  */
 
 
@@ -1898,5 +1926,260 @@ struct keytable_entry keytable_list[] = {
     key_map_user, shift_map_user, alt_map_user,
     num_table_dot, dead_key_table,
     dos850_dead_map},
+  {0},
   {0}
 };
+
+
+/*
+ * Look for a console. This is based on code in getfd.c from the kbd-0.99 package
+ * (see loadkeys(1)).
+ */
+
+static int is_a_console(int fd)
+{
+  char arg = 0;
+
+  return ioctl(fd, KDGKBTYPE, &arg) == 0 && (arg == KB_101 || arg == KB_84);
+}
+
+static int open_a_console(char *fnam)
+{
+  int fd;
+
+  fd = open(fnam, O_RDONLY);
+  if(fd < 0 && errno == EACCES) fd = open(fnam, O_WRONLY);
+  if(fd < 0 || ! is_a_console(fd)) return -1;
+
+  return fd;
+}
+
+static int getfd()
+{
+  int fd, i;
+  char *t[] = { "", "", "", "/dev/tty", "/dev/tty0", "/dev/console" };
+  
+  for(i = 0; i < sizeof t / sizeof *t; i++) {
+    if(!*t[i] && is_a_console(i)) return i;
+    if(*t[i] && (fd = open_a_console(t[i])) >= 0) return fd;
+  }
+
+  return -1;
+}
+
+/*
+ * Try to translate a keycode to a DOSEMU keycode...
+ */
+
+static char *dosemu_val(unsigned k, unsigned *dv)
+{
+  static char b[100];
+  char *s = b;
+  unsigned t = KTYP(k), v = KVAL(k), d = 0;
+  static char *acc[13] = {
+    "DEAD_GRAVE", "DEAD_ACUTE", "DEAD_CIRCUMFLEX", "DEAD_TILDE", "DEAD_BREVE",
+    "DEAD_ABOVEDOT", "DEAD_DIAERESIS", "DEAD_ABOVERING", "DEAD_DOUBLEACUTE", "DEAD_CEDILLA",
+    "DEAD_IOTA", "DEAD_OGONEK", "DEAD_CARON"
+  };
+
+  d = 0;
+
+  switch(t) {
+    case KT_LATIN:
+    case KT_LETTER:
+      d = v;
+      if(v >= 0xa0 && v <= 0xff) d = latin1_to_dos[v - 0xa0];
+      break;
+
+    case KT_SPEC:
+      switch(k) {
+        case K_HOLE:  d = 0; break;
+        case K_ENTER: d = 0x0d; break;
+        default:      d = 0; /* K_CAPS, K_NUM, ... ??? */
+      }
+      break;
+
+    case KT_PAD:
+      switch(k) {
+        case K_PPLUS:  d = '+'; break;
+        case K_PMINUS: d = '-'; break;
+        case K_PSTAR:  d = '*'; break;
+        default:       d = 0;
+      }
+      break;
+
+    case KT_SHIFT:
+    case KT_META:
+      d = 0;
+      break;
+
+    case KT_DEAD:
+      switch(k) {
+        case K_DGRAVE: d = 1; break;
+        case K_DACUTE: d = 2; break;
+        case K_DCIRCM: d = 3; break;
+#if 0
+        /* make '~' a normal key */
+        case K_DTILDE: d = '~'; break;
+#else
+        case K_DTILDE: d = 4; break;
+#endif
+        case K_DDIERE: d = 7; break;
+        case K_DCEDIL: d = 11; break;
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  if(dv) *dv = d;
+
+  sprintf(b, "%04x", k);
+
+  if(d == 400) return b;
+
+  if(d < 0x20 || d == 0x7f || d >= 0x80) {
+    sprintf(b, "0x%02x", d);
+  }
+  else {
+    sprintf(b, "'%c' ", (char) d);
+  }
+
+  if(d >= 1 && d <= 15 && d != 9 && d != 13) {
+    if(d > 8) d--;
+    if(d > 12) d--;
+    s = acc[d - 1];
+  }
+
+  if(d == '\'') s = "'\\''";
+  if(d == 0) s = " -- ";
+
+  return s;
+}
+
+
+static int read_kbd_table(struct keytable_entry *kt)
+{
+  int fd, i, j = -1, k;
+  struct kbentry ke;
+  unsigned v, vs, va;
+
+  fd = getfd();
+  if(fd < 0) return fprintf(stderr, "no console\n"), 1;
+
+  for(i = 0; i < kt->sizemap - 1; i++) {
+    ke.kb_index = i;
+
+    ke.kb_table = 0;
+    if((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
+    v = ke.kb_value;
+
+    ke.kb_table = 1 << KG_SHIFT;
+    if((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
+    vs = ke.kb_value;
+
+    ke.kb_table = 1 << KG_ALTGR;
+    if((j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) break;
+    va = ke.kb_value;
+
+    if(va == v) va = 0;
+
+    dosemu_val(v, &k); kt->key_map[i] = k;
+    dosemu_val(vs, &k); kt->shift_map[i] = k;
+    dosemu_val(va, &k); kt->alt_map[i] = k;
+
+#if 0
+    printf("%3d: %04x %04x %04x   ", i, v, vs, va);
+
+    printf("%s ", dosemu_val(v, &k));
+    printf("%s ", dosemu_val(vs, &k));
+    printf("%s\n", dosemu_val(va, &k));
+#endif
+  }
+
+  /* look for numpad ',' or '.' */
+  ke.kb_index = 83;
+  ke.kb_table = 0;
+  if(!j && !(j = ioctl(fd, KDGKBENT, (unsigned long) &ke))) {
+    if(ke.kb_value == K_PDOT) kt->num_table[12] = '.';
+  }
+
+  if(fd > 2) close(fd);
+
+  return j;
+}
+
+
+/*
+ * Read the console keyboard description and try to build
+ * a DOSEMU compatible map from it.
+ *
+ * NOTE: If you use X you might get the *wrong* mapping
+ * (e.g. on remote machines)... :-)
+ */
+
+int setup_default_keytable()
+{
+  static char *dt_name = "auto";
+  static char map0[97], map1[97], map2[97], map3[14];
+  struct keytable_entry *kt;
+  int idx;
+
+  idx = sizeof keytable_list / sizeof *keytable_list - 2;
+
+  k_printf("KBD: setup_default_keytable: setting up table %d\n", idx);
+
+  kt = keytable_list + idx;
+
+  kt->name = dt_name;
+  kt->keyboard = KEYB_AUTO;
+  kt->flags = KT_USES_ALTMAP;
+  kt->sizemap = sizeof map0;
+  kt->sizepad = sizeof map3;
+  kt->key_map = map0;
+  kt->shift_map = map1;
+  kt->alt_map = map2;
+  kt->num_table = map3;
+  kt->dead_key_table = dead_key_table;
+  kt->dead_map = dos850_dead_map;
+
+  memcpy(map3, "789-456+1230,", sizeof map3);
+
+  if(read_kbd_table(kt)) {
+    k_printf("setup_default_keytable: failed\n");
+    return -1;
+  }
+
+#if 0
+  {
+    int i;
+
+    kt = keytable_list;
+    i = 0; while(kt->name) {
+      printf(
+        "%2d: name \"%s\", keyboard %d, flags 0x%x, sizemap %d, sizepad %d\n",
+        i, kt->name, kt->keyboard, kt->flags, kt->sizemap, kt->sizepad
+      );
+      i++, kt++;
+    }
+  }
+#endif
+
+#if 0
+  {
+    int i;
+
+    kt = keytable_list + KEYB_DE;
+    for(i = 0; i < kt->sizemap; i++) {
+      printf("%3d: %04x %04x %04x\n",
+        i, kt->key_map[i], kt->shift_map[i], kt->alt_map[i]
+      );
+    }
+  }
+#endif
+
+  return KEYB_AUTO;
+}
+
+

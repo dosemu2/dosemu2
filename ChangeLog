@@ -1,3 +1,47 @@
+99/07/03 ver. 0.99.12.2 unofficial pre-release
+	From Steffen
+	- workaround for egcs bug (at least up to egcs-2.91.66).
+	- bootdir stuff abandoning 'lredir', when running under DosC
+	  (can't redirect anyway)
+	- adapted bootdir for PC/DR/NOVELL-DOS
+	- allow wildcards (e.g. $_hdimage = "drives/*") in global.conf
+	  Look at src/doc/README/config for details.
+	- implemented autotetection of used keyboard layout
+	  This involves 2 parts:
+	    1. $_X_keycode = (auto)
+	    2. $_layout = "auto"  (independent from (1.)
+	  For details see src/doc/README/config.
+	- adapted setup-dosemu to support keyboard 'auto'
+	- fixed an 'access bug' in X.c. XOpenDisplay uses access(2) to
+	  check the rights of ~/.Xauthority and access(2) uses the
+	  _real_ uid, hence we need to do enter_priv_on(). Doing this
+	  is no security whole, because access(2) is suid-root aware
+	  and XOpenDisplay doesn't open any other files then ~/.Xauthority.
+	  ... and, if you want a secure DOSEMU you must not run it
+	  suid-root anyway.
+	From Steffen and Benjamin C. W. Sittler <bsittler@iname.com>
+	- work around Linux-2.2.x's NFS locking problems
+	  (in fact ignoring locks on NFS)
+	From Alberto
+	- cmos 'BCD' fix (involved files src/base/dev/misc/{cmos,rtc}.c)
+	From Hans
+	- fix for multiple IRQs not going through in global.conf
+	- docs for 'auto' and 'drives/*' as Steffen was too lazy ;-)
+	- ./first-test now is executing a bootdir, changes in
+	  arch/linux/Makefile.main, tools/periph/Makefile, etc/config.test
+	  No etc/hdimage.test generated anymore.
+	- fixed '$_vbootfloppy / bootoff' not working (errm, global.conf
+	  used the wrong parser command to set this).
+	  - the 'bootoff' fix leaded to fix an other longstanding bug:
+	    there now is no collision with defining vboot together with
+	    more then one floppy (of course), hence the check is moved
+	    out of the vboot part.
+	  - removed the restriction to define $_hdimage when $_vbootfloppy
+	    was given (was an older security restriction, which now is
+	    obsolete. Atleast this is what I think it was for;-).
+	  - additional note: when $_vbootfloppy is defined, bootA is
+	    default (can be overridden by -C commandline option) else
+	    bootC is default (can be overridden by -A and a real floppy).
 99/07/01 ver. 0.99.12.1 unofficial pre-release
 	From Hans
 	- first steps to DOSEMU<->DosC cooperation code

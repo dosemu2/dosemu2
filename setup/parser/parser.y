@@ -68,7 +68,7 @@ static char *joinstrings(char *frmt, ...);
 	} __attribute__((packed)) u;
 };
 
-%token <s_value> INTEGER L_OFF L_ON
+%token <s_value> INTEGER L_OFF L_ON L_AUTO
 %token <s_value> REAL
 %token <s_value> STRING STRING1 VARIABLE
 %type  <s_value> expression strarglist strarglist_item

@@ -11,7 +11,8 @@ video { vga }          # Use this line, if you are using VGA
 mathco on           # Math coprocessor valid values:  on  off
 cpu 80386           # CPU emulation valid values:  80[345]86
 #bootC               # Startup drive valid values:  bootA  bootC
-disk { image "./etc/hdimage.test" }
+#disk { image "./etc/hdimage.test" }
+disk { directory ./testboot readonly }
 #secure off              # "on" or "off"
 dpmi 4086               # DPMI size in K, or "off"
 xms 1024		# XMS size in K,  or "off"

@@ -2584,10 +2584,34 @@ share(int fd, boolean_t writing, sft_t sft)
 	    share_mode));
     break;
   }
-  if ( fcntl( fd, F_SETLK, &fl ) == 0 )
-    return (TRUE);
+  if ( fcntl( fd, F_SETLK, &fl ) == 0 ) return (TRUE);
 
-  Debug0((dbg_fd, "internal SHARE: access denied by locks fd=%x\n", fd));
+  Debug0((dbg_fd,
+    "internal SHARE: locking failed: drive %c:, fd %d, type %d whence %d pid %d\n",
+     current_drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid
+  ));
+
+  /* work around Linux's NFS locking problems (June 1999) -- sw */
+
+  {
+    static unsigned char u[26] = { 0, };
+
+    if ( fcntl( fd, F_GETLK, &fl ) ) {
+      if(current_drive < 26) {
+        if(!u[current_drive])
+          fprintf(stderr,
+            "SHAREing doesn't work on drive %c: (probably NFS volume?)\n",
+            current_drive + 'A'
+          );
+        u[current_drive] = 1;
+      }
+
+      return (TRUE);
+    }
+  }
+
+  /* end NFS fix */
+
   return (FALSE);
 }
 

@@ -33,24 +33,25 @@ long   last_ticks = 0;
 int cmos_date(int reg)
 {
   struct tm *tm;
-  int tmp;
+  unsigned char tmp;
   time_t this_time;
-
 
   switch (reg) {
   case CMOS_SEC:
   case CMOS_MIN:
+    /* Note - the inline function BCD() in cmos.h will check bit 2 of
+     * status reg B for proper output format */
     return BCD(GET_CMOS(reg));
 
   case CMOS_HOUR:		/* RTC hour...bit 1 of 0xb set=24 hour mode, clear 12 hour */
-    tmp = GET_CMOS(reg);	/* bin */
-    if (!(GET_CMOS(CMOS_STATUSB) & 2)) {
+    tmp = GET_CMOS(reg);	/* stored internally as bin, not BCD */
+    if (!(GET_CMOS(CMOS_STATUSB) & 2)) {	/* 12-hour mode */
       if (tmp == 0)
-	return 0x12;		/* BCD!!!! */
+	return BCD(12);
       else if (tmp > 12)
 	return BCD(tmp-12);
     }
-    return tmp;
+    return BCD(tmp);
   }
 
   /* get the time */

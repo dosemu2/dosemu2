@@ -99,7 +99,7 @@ menu "X Windows" {
   string "Display" x_display
   string "Window Title" X_title
   string "Icon Title" X_icon_name
-  boolean "Use Keycode" X_keycode
+  integer "Use Keycode (auto, on, off)" X_keycode
   integer "Cursor Blink Rate" X_blinkrate
   string "Font" X_font
   boolean "Share Colourmap" X_sharecmap
@@ -194,6 +194,7 @@ menu "Character set and code page" {
 menu "Keyboard Layout" {
   description "Select the keyboard layout to use:"
   list layout {
+    "Automatic" auto
     "Finnish" finnish
     "Finnish Latin1" finnish-latin1
     "German" de

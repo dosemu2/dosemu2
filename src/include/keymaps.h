@@ -49,7 +49,8 @@
 #define KEYB_HR_CP852	      30
 #define KEYB_HR_LATIN2	      31
 #define KEYB_CZ_QWERTY        32
-#define KEYB_CZ_QWERTZ        33		
+#define KEYB_CZ_QWERTZ        33
+#define KEYB_AUTO             34
 #define CONST
 
 
@@ -96,5 +97,7 @@ struct keytable_entry {
 };
 
 extern struct keytable_entry keytable_list[];
+
+int setup_default_keytable(void);
 
 #endif /* _EMU_KEYMAPS_H */

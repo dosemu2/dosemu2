@@ -220,7 +220,7 @@ extern void yyrestart(FILE *input_file);
 };
 
 
-%token <i_value> INTEGER L_OFF L_ON L_YES L_NO CHIPSET_TYPE
+%token <i_value> INTEGER L_OFF L_ON L_AUTO L_YES L_NO CHIPSET_TYPE
 %token <i_value> CHARSET_TYPE KEYB_LAYOUT
 %token <r_value> REAL
 %token <s_value> STRING VARIABLE
@@ -278,7 +278,7 @@ extern void yyrestart(FILE *input_file);
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
+%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_KEYCODE_AUTO X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
 %token X_GAMMA VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY
 	/* video */
@@ -813,6 +813,7 @@ expression:
 		| L_NO		{B_VAL($$) = 0; }
 		| L_ON		{B_VAL($$) = 1; }
 		| L_OFF		{B_VAL($$) = 0; }
+		| L_AUTO	{I_VAL($$) = -1; }
 		| INTCAST '(' expression ')' {I_VAL($$) = TOF($3);}
 		| REALCAST '(' expression ')' {R_VAL($$) = TOF($3);}
 		| STRTOL '(' string_expr ')' {
@@ -983,6 +984,7 @@ x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
 		| L_TITLE string_expr	{ config.X_title = $2; }
 		| ICON_NAME string_expr	{ config.X_icon_name = $2; }
 		| X_KEYCODE		{ config.X_keycode = 1; }
+		| X_KEYCODE_AUTO	{ config.X_keycode = 2; }
 		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
@@ -1246,6 +1248,7 @@ keyboard_flags	: keyboard_flag
 keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT KEYB_LAYOUT {keyb_layout($2);} '{' keyboard_mods '}'
 		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
+		| LAYOUT L_AUTO		{ keyb_layout(-1); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| KEYBINT bool		{ config.keybint = $2; }
 		| STRING
@@ -2089,8 +2092,10 @@ static void stop_disk(int token)
 void keyb_layout(int layout)
 {
   struct keytable_entry *kt = keytable_list;
-  if (layout == -1)
-    layout = KEYB_US;
+  if (layout == -1) {
+    layout = setup_default_keytable();
+    if(layout < 0) layout = KEYB_US;
+  }
   while (kt->name) {
     if (kt->keyboard == layout) {
       c_printf("CONF: Keyboard-layout %s\n", kt->name);

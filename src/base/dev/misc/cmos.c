@@ -135,12 +135,14 @@ cmos_write(ioport_t port, Bit8u byte)
 	 * b5=enable alarm int
 	 * b4=enable update int
 	 * b3=square wave out
-	 * b2=data mode, 1=BCD(default) 0=bin
-	 * b1=time mode, 1=24h(default) 0=12h
-	 * b0=DST
+	 * ========= source: Motorola data sheets for MC146818
+	 * b2=data mode, 0=BCD(default) 1=bin
+	 * b1=time mode, 0=12h 1=24h(default)
+	 * b0=DST,       0=disabled(default), 1=enabled
+	 *    NOTE: DST happens on last Sunday in April/October (obsolete)
 	 */
 	case CMOS_STATUSB:
-	  byte = byte&0xf6;
+	  byte = byte&0xf7; /* why someone should want to enable DST??? */
 	  break;
       }
       SET_CMOS(cmos.address, byte);
@@ -204,6 +206,7 @@ void cmos_reset(void)
 
   /* this is the CMOS status */
   SET_CMOS(CMOS_STATUSA, 0x26);
+  /* default id BCD,24h,no DST */
   SET_CMOS(CMOS_STATUSB, 2);
 
   /* 0xc and 0xd are read only */

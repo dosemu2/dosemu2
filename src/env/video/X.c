@@ -447,6 +447,8 @@ static void X_dga_done(void);
 static void X_remap_init(void);
 static void X_remap_done(void);
 
+static void X_keymap_init(void);
+
 /* error/event handler */
 static int NewXErrorHandler(Display *, XErrorEvent *);
 void X_handle_events(void);		/* used in arch/linux/async/signal.c */
@@ -577,7 +579,14 @@ int X_init()
 
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
-  display = XOpenDisplay(display_name);
+  {
+    PRIV_SAVE_AREA
+
+    enter_priv_on();
+    display = XOpenDisplay(display_name);
+    leave_priv_setting();
+  }
+
   if(display == NULL) {
     error("X: Can't open display \"%s\"\n", display_name ? display_name : "");
     leavedos(99);
@@ -595,6 +604,9 @@ int X_init()
 #ifdef HAVE_DGA
   X_dga_init();
 #endif
+
+  /* see if we find out something useful about our X server... -- sw */
+  X_keymap_init();
 
   text_cmap = DefaultColormap(display, screen);		/* always use the global palette */
   graphics_cmap_init();				/* graphics modes are more sophisticated */
@@ -1001,6 +1013,39 @@ void X_remap_init()
 void X_remap_done()
 {
   remap_done(&remap_obj);
+}
+
+
+/*
+ * Handle 'auto'-entries in dosemu.conf, namely
+ * $_X_keycode & $_layout
+ *
+ */
+static void X_keymap_init()
+{
+  char *s = ServerVendor(display);
+
+  if(s) X_printf("X: X_keymap_init: X server vendor is \"%s\"\n", s);
+  if(config.X_keycode == 2 && s) {	/* auto */
+    config.X_keycode = 0;
+
+    /*
+     * We could check some typical keycode/keysym translation; but
+     * for now we just check the server vendor. XFree & XiGraphics
+     * work. I don't know about Metro Link... -- sw
+     */
+    if(
+      strstr(s, "The XFree86 Project") ||
+      strstr(s, "Xi Graphics")
+    ) config.X_keycode = 1;
+  }
+  X_printf(
+    "X: X_keymap_init: %susing DOSEMU's internal keycode translation\n",
+    config.X_keycode ? "" : "we are not "
+  );
+  if(config.X_keycode == 0) {
+    X_printf("X: X_keymap_init: '$_layout'-entry will have no effect\n");
+  }
 }
 
 

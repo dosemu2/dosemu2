@@ -14,7 +14,8 @@ IDEST=/var/lib
 SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c
 OBJ=hdinfo bootsect mkhdimage putrom mkfatimage mkfatimage16 dexeconfig \
-    scsicheck dosctrl $(D)/hdimage.dist $(D)/hdimage.test
+    scsicheck dosctrl $(D)/hdimage.dist
+# $(D)/hdimage.test
 SCRIPT=getrom
 
 all: $(OBJ)

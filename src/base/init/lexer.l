@@ -265,6 +265,7 @@ STRQUOTELESS	({LETTER}|[/\.\~])({ALPHNUM}|[_\~@\-\+:\./])*
 	/* boolean values */
 on			RETURN(L_ON);
 off			RETURN(L_OFF);
+auto			RETURN(L_AUTO);
 yes			RETURN(L_YES);
 no			RETURN(L_NO);
 
@@ -573,6 +574,7 @@ display			RETURN(L_DISPLAY);
 title			RETURN(L_TITLE);
 icon_name		RETURN(ICON_NAME);
 keycode			RETURN(X_KEYCODE);
+keycode_auto		RETURN(X_KEYCODE_AUTO);
 blinkrate		RETURN(X_BLINKRATE);
 sharecmap		RETURN(X_SHARECMAP);
 mitshm                  RETURN(X_MITSHM);

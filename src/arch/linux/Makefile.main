@@ -10,8 +10,7 @@
 
 
 
-#Change the following line to point to your loadable modules directory
-BOOTDIR = /boot/modules
+DOSC = $(REALTOPDIR)/contrib/dosC/dist
 
 PICOBJS = libpic.a
 export PICOBJS
@@ -308,7 +307,14 @@ versetup:
 	@rm -f ../bin ../commands
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
-
+	@mkdir -p ../testboot
+	@rm -f core ../testboot/*
+	@(cd $(DOSC); for i in *; \
+	  do ln -sf $(DOSC)/$$i $(REALTOPDIR)/testboot/$$i; done)
+	@(cd ../testboot; \
+	  ln -sf ../commands dosemu; \
+	  ln -sf ../commands/exitemu.com exitemu.com; \
+	  ln -sf ../commands/autoexec.bat autoexec.bat)
 
 doslibnew: doslib
 
@@ -473,6 +479,7 @@ pristine:	realclean
 	-rm -f lib/*
 	-mv libarch_*slang*.a lib
 	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont
+	-rm -rf ../testboot
 
 # DEPENDS=dos.d emu.d 
 # this is to do make subdir.depend to make a dependency

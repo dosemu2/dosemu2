@@ -1081,10 +1081,16 @@ void build_boot_blk(fatfs_t *f)
       }
       break;
 
-#if 0
     case 0x0c:			/* PC-DOS */
+      /* for IBMBIO.COM, PC-, DR-, Open-, NOVELL-DOS  */
+      make_i1342_blk(d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0, 0x700);
+      d0[0x12] = 1;		/* 1 entry */
+
+      d0[0x02] = 0x70;	/* start seg */
+      d0[0x0a] = 0x80;	/* dl */
+
+      fatfs_msg("made boot block suitable for PC-, DR-, Open-, NOVELL-DOS\n");
       break;
-#endif
 
     case 0x10:			/* FreeDOS */
       make_i1342_blk(d1, d_o, (f->obj[1].size + 0x1ff) >> 9, 0x2000, 0x0);

@@ -91,6 +91,7 @@ STRQUOTELESS	({LETTER}|[/\.\~])({ALPHNUM}|[_\~@\-\+:\./])*
 
 on			{SERIAL; yylval->s_value = strdup(yytext); return(INTEGER); }
 off			{SERIAL; yylval->s_value = strdup(yytext); return(INTEGER); }
+auto			{SERIAL; yylval->s_value = strdup(yytext); return(INTEGER); }
 
 ${IDENT}		{SERIAL; yylval->s_value = strdup(&yytext[1]);
 			return(VARIABLE);}

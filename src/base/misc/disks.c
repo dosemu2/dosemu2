@@ -946,7 +946,7 @@ disk_init(void)
       d_printf("ISBLK ");
     if (S_ISCHR(stbuf.st_mode))
       d_printf("ISCHR ");
-    d_printf("dev %s: %#x\n", dp->dev_name, stbuf.st_rdev);
+    d_printf("dev %s: %#x\n", dp->dev_name, (unsigned) stbuf.st_rdev);
 #ifdef __NetBSD__
     if ((S_ISBLK(stbuf.st_mode) && major(stbuf.st_rdev) == 0x2) ||
 	(S_ISCHR(stbuf.st_mode) && major(stbuf.st_rdev) == 0x9)) {
@@ -1088,7 +1088,7 @@ int
 checkdp(struct disk *disk)
 {
   if (disk == NULL) {
-    error("DISK: null dp\n");
+    d_printf("DISK: null dp\n");
     return 1;
   }
   else if (disk->fdesc == -1) {
