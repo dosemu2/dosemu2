@@ -446,10 +446,7 @@ static int w_x_res, w_y_res;		/* actual window size */
 static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
-static int remap_features;
 static vga_emu_update_type veut;
-static int remap_src_modes = 0;
-static vgaemu_display_type X_screen;
 
 int grab_active = 0;
 #if CONFIG_X_MOUSE
@@ -484,8 +481,6 @@ static void X_dga_done(void);
 static void X_xf86vm_init(void);
 static void X_xf86vm_done(void);
 #endif
-static void X_remap_init(void);
-static void X_remap_done(void);
 
 static void X_keymap_init(void);
 
@@ -505,8 +500,6 @@ static ColorSpaceDesc MakeSharedColormap(void);
 static int try_cube(unsigned long *, c_cube *);
 
 /* palette/color update stuff */
-static void refresh_palette(void);
-static void refresh_truecolor(void);
 static void refresh_private_palette(void);
 static void get_approx_color(XColor *, Colormap, int);
 static void X_set_text_palette(DAC_entry col);
@@ -514,13 +507,11 @@ static void X_set_text_palette(DAC_entry col);
 /* ximage/drawing related stuff */
 static void create_ximage(void);
 static void destroy_ximage(void);
-static void put_ximage(int, int, int, int, unsigned, unsigned);
+static void put_ximage(int, int, unsigned, unsigned);
 static void resize_ximage(unsigned, unsigned);
 
 /* video mode set/modify stuff */
 static int X_set_videomode(int, int, int);
-static int X_setmode(int, int, int, int);
-static void X_modify_mode(void);
 static void X_resize_text_screen(void);
 static void toggle_fullscreen_mode(void);
 static void X_vidmode(int w, int h, int *new_width, int *new_height);
@@ -530,7 +521,6 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res);
 static void X_reset_redraw_text_screen(void);
 static void X_redraw_text_screen(void);
 static int X_update_screen(void);
-static int X_update_graphics_screen(void);
 static void set_gc_attr(Bit8u);
 static void X_draw_string(int, int, unsigned char *, int, Bit8u);
 static void X_draw_line(int x, int y, int len);
@@ -592,6 +582,12 @@ struct text_system Text_X =
    X_draw_text_cursor,
    X_set_text_palette,
    X_resize_text_screen
+};
+
+struct render_system Render_X =
+{
+   refresh_private_palette,
+   put_ximage,
 };
 
 void X_update(void)
@@ -656,7 +652,8 @@ int X_init()
   XSetWindowAttributes attr;
   char *display_name; 
   char *s;
-  int i;
+  int i, remap_src_modes;
+  vgaemu_display_type X_screen;
 
   X_printf("X: X_init\n");
 
@@ -700,7 +697,9 @@ int X_init()
   text_cmap = DefaultColormap(display, screen);		/* always use the global palette */
   graphics_cmap_init();				/* graphics modes are more sophisticated */
 
-  X_remap_init();		/* init graphics mode support */
+  /* init graphics mode support */
+  remap_src_modes = remapper_init(&ximage_mode, ximage_bits_per_pixel,
+				  have_true_color, have_shmap);
   if(!remap_src_modes) {
     error("X: No graphics modes supported on this type of screen!\n");
   }
@@ -834,6 +833,11 @@ int X_init()
   /* don't map window if set */
   if(getenv("DOSEMU_HIDE_WINDOW") == NULL) XMapWindow(display, mainwindow);
 
+  if(have_true_color || have_shmap)
+    Render_X.refresh_private_palette = NULL;
+  register_render_system(&Render_X);
+  register_text_system(&Text_X);
+
   /* initialize VGA emulator */
   X_screen.src_modes = remap_src_modes;
   X_screen.bits = X_csd.bits;
@@ -851,7 +855,6 @@ int X_init()
     error("X: X_init: VGAEmu init failed!\n");
     leavedos(99);
   }
-  register_text_system(&Text_X);
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
   if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
@@ -919,7 +922,7 @@ void X_close()
 
   if(X_csd.pixel_lut != NULL) { free(X_csd.pixel_lut); X_csd.pixel_lut = NULL; }
 
-  X_remap_done();
+  remapper_done();
 
 #ifdef HAVE_DGA
   X_dga_done();
@@ -1127,50 +1130,6 @@ static void X_xf86vm_done(void)
 }
 
 #endif 
-
-/*
- * Initialize the interface between the VGA emulator and X.
- * Check if X's color depth is supported.
- */
-void X_remap_init()
-{
-  set_remap_debug_msg(stderr);
-
-  if(have_true_color) {
-    switch(ximage_bits_per_pixel) {
-      case  1: ximage_mode = MODE_TRUE_1_MSB; break;
-      case 15: ximage_mode = MODE_TRUE_15; break;
-      case 16: ximage_mode = MODE_TRUE_16; break;
-      case 24: ximage_mode = MODE_TRUE_24; break;
-      case 32: ximage_mode = MODE_TRUE_32; break;
-      default: ximage_mode = MODE_UNSUP;
-    }
-  }
-  else {
-    switch(ximage_bits_per_pixel) {
-      case  8: ximage_mode = have_shmap ? MODE_TRUE_8 : MODE_PSEUDO_8; break;
-      default: ximage_mode = MODE_UNSUP;
-    }
-  }
-
-  remap_features = 0;
-  if(config.X_lin_filt) remap_features |= RFF_LIN_FILT;
-  if(config.X_bilin_filt) remap_features |= RFF_BILIN_FILT;
-
-  remap_obj = remap_init(0, ximage_mode, 0);
-  remap_src_modes = remap_obj.supported_src_modes;
-  remap_done(&remap_obj);
-}
-
-
-/*
- * Free resources associated with remap_obj.
- */
-void X_remap_done()
-{
-  remap_done(&remap_obj);
-}
-
 
 /*
  * Handle 'auto'-entries in dosemu.conf, namely
@@ -1664,7 +1623,6 @@ static void X_handle_events(void)
 	  else {	/* GRAPH */
 	    if(!resize_event) put_ximage(
 	      e.xexpose.x, e.xexpose.y,
-	      e.xexpose.x, e.xexpose.y,
 	      e.xexpose.width, e.xexpose.height
 	    );
 	  }
@@ -2090,18 +2048,6 @@ int try_cube(unsigned long *p, c_cube *c)
 
 
 /*
- * Update the active colormap to reflect the current DAC entries.
- */
-void refresh_palette()
-{
-  if(have_true_color || have_shmap)
-    refresh_truecolor();
-  else
-    refresh_private_palette();
-}
-
-
-/*
  * Update the active X colormap for text modes DAC entry col.
  */
 void X_set_text_palette(DAC_entry col)
@@ -2128,26 +2074,6 @@ void X_set_text_palette(DAC_entry col)
     X_printf("X: refresh_text_palette: %d (%d -> %d)\n", i, (int) text_colors[i], (int) xc.pixel);
   }
   text_colors[i] = xc.pixel;
-}
-
-
-/*
- * Update the displayed image to match the current DAC entries.
- * Will redraw the *entire* screen if at least one color has changed.
- */
-void refresh_truecolor()
-{
-  DAC_entry col[256];
-  Boolean colchanged = False;
-  int i, j;
-
-  j = changed_vga_colors(col);
-
-  for(i = 0; i < j; i++) {
-    colchanged |=
-    remap_obj.palette_update(&remap_obj, col[i].index, dac_bits, col[i].r, col[i].g, col[i].b);
-  }
-  if(colchanged) dirty_all_video_pages();
 }
 
 
@@ -2326,14 +2252,14 @@ void destroy_ximage()
 /*
  * Display part of an image.
  */
-void put_ximage(int src_x, int src_y, int dest_x, int dest_y, unsigned width, unsigned height)
+void put_ximage(int x, int y, unsigned width, unsigned height)
 {
 #ifdef HAVE_MITSHM
   if(shm_ok)
-    XShmPutImage(display, mainwindow, gc, ximage, src_x, src_y, dest_x, dest_y, width, height, True);
+    XShmPutImage(display, mainwindow, gc, ximage, x, y, x, y, width, height, True);
   else
 #endif /* HAVE_MITSHM */
-    XPutImage(display, mainwindow, gc, ximage, src_x, src_y, dest_x, dest_y, width, height);
+    XPutImage(display, mainwindow, gc, ximage, x, y, x, y, width, height);
 }
 
 
@@ -2455,34 +2381,23 @@ static void lock_window_size(unsigned wx_res, unsigned wy_res)
  *
  * NOTE: The actual mode is taken from the global variable "video_mode".
  *
- * DANG_END_FUNCTION
- */
-
-int X_set_videomode(int mode_class, int text_width, int text_height)
-{
-  return X_setmode(video_mode, text_width, text_height, 1);
-}
-
-
-/* 
- * DANG_BEGIN_FUNCTION X_setmode
- *
  * description:
  * Set the video mode.
- * If init_vga is zero, this will only reinitialize the current mode.
+ * If mode_class is -1, this will only reinitialize the current mode.
  * The other arguments are ignored in this case.
  *
  * DANG_END_FUNCTION
  */
-int X_setmode(int mode, int text_width, int text_height, int init_vga)
+int X_set_videomode(int mode_class, int text_width, int text_height)
 {
+  int mode = video_mode;
   XSizeHints sh; /* for graphics modes, text size locking is above */
   int X_mode_type;
 #ifdef X_USE_BACKING_STORE
   XSetWindowAttributes xwa;
 #endif
 
-  if(init_vga) {	/* tell vgaemu we're going to another mode */
+  if(mode_class != -1) {	/* tell vgaemu we're going to another mode */
     if(!vga_emu_setmode(mode, text_width, text_height)) {
       v_printf("vga_emu_setmode(%d, %d, %d) failed\n",
                mode, text_width, text_height);
@@ -2492,12 +2407,9 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
       font_height = vga.char_height;
     }
   }
-  else {
-    vga.reconfig.re_init = 0;
-  }
-                                
+                               
   X_printf("X: X_setmode: %svideo_mode 0x%x (%s), size %d x %d (%d x %d pixel)\n",
-    init_vga ? "" : "re-init ",
+    mode_class != -1 ? "" : "re-init ",
     (int) mode, vga.mode_class ? "GRAPH" : "TEXT",
     vga.text_width, vga.text_height, vga.width, vga.height
   );
@@ -2707,82 +2619,6 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
   return 1;
 }
 
-
-/*
- * Modify the current graphics mode.
- * Currently used to turn on/off chain4 addressing, change
- * the VGA screen size, change the DAC size.
- */
-static void X_modify_mode()
-{
-  RemapObject tmp_ro;
-
-  if(vga.reconfig.mem) {
-    if(remap_obj.src_mode == MODE_PSEUDO_8 || remap_obj.src_mode == MODE_VGA_X || remap_obj.src_mode == MODE_VGA_4) {
-	   if (remap_obj.src_mode == MODE_VGA_4)
-		 tmp_ro = remap_init(MODE_VGA_4, ximage_mode, remap_features);
-	   else
-		 tmp_ro = remap_init(vga.seq.addr_mode == 2 ? MODE_PSEUDO_8 : MODE_VGA_X, ximage_mode, remap_features); 
-      *tmp_ro.dst_color_space = X_csd;
-      tmp_ro.dst_image = ximage->data;
-      tmp_ro.src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);
-      tmp_ro.dst_resize(&tmp_ro, w_x_res, w_y_res, ximage->bytes_per_line);
-
-      if(!(tmp_ro.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
-        x_msg("X_modify_mode: no memory config change of current graphics mode supported\n");
-        remap_done(&tmp_ro);
-      }
-      else {
-        x_msg("X_modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
-        remap_done(&remap_obj);
-        remap_obj = tmp_ro;
-      }
-
-      dirty_all_video_pages();
-      /*
-       * The new remap object does not yet know about our colors.
-       * So we have to force an update. -- sw
-       */
-      dirty_all_vga_colors();
-
-      vga.reconfig.mem =
-      vga.reconfig.display =
-      vga.reconfig.dac = 0;
-    }
-  }
-
-  if(vga.reconfig.display) {
-    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
-
-    if (font == NULL) {
-      font_width = vga.char_width;
-      font_height = vga.char_height;
-    }
-    x_msg(
-      "X_modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
-      vga.width, vga.height, vga.scan_len
-    );
-    dirty_all_video_pages();
-    vga.reconfig.display = 0;
-  }
-
-  if(vga.reconfig.dac) {
-    vga.reconfig.dac = 0;
-    dac_bits = vga.dac.bits;
-    x_msg("X_modify_mode: DAC bits = %d\n", dac_bits);
-  }
-
-  veut.display_start = vga.display_start;
-  veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
-  if (vga.line_compare > vga.height)
-    veut.display_end = veut.display_start + vga.scan_len * vga.height;
-
-  if(vga.reconfig.mem || vga.reconfig.display) {
-    x_msg("X_modify_mode: failed to modify current graphics mode\n");
-  }
-}
-
-
 /*
  * Resize the X display to the appropriate size.
  */
@@ -2889,121 +2725,10 @@ void X_redraw_text_screen()
   redraw_text_screen();
 }
 
-
-/* 
- * DANG_BEGIN_FUNCTION X_update_screen
- *
- * description:
- * Update the part of the screen which has changed, in text mode
- * and in graphics mode. Usually called from the SIGALRM handler.
- *
- * X_update_screen returns 0 if nothing was updated, 1 if the whole
- * screen was updated, and 2 for a partial update.
- *
- * It is called in arch/linux/async/signal.c::SIGALRM_call() as part
- * of a struct video_system (see top of X.c) every 50 ms or
- * every 10 ms if 2 was returned, depending somewhat on various config
- * options as e.g. config.X_updatefreq and VIDEO_CHECK_DIRTY.
- * At least it is supposed to do that.
- *
- * DANG_END_FUNCTION
- *
- * Text and graphics updates are separate functions now; the code was
- * too messy. -- sw
- */
 int X_update_screen()
 {
-  if(vga.config.video_off) {
-    x_deb("X_update_screen: nothing done (video_off = 0x%x)\n", vga.config.video_off);
-    return 1;
-  }
-
-  if(vga.reconfig.re_init) X_setmode(0, 0, 0, 0);
-
-  if(!is_mapped) return 0;       /* no need to do anything... */
-  return vga.mode_class == TEXT ? update_text_screen() :
-    X_update_graphics_screen();
+  return update_screen(&veut, is_mapped);
 }
-
-
-/*
- * Update the graphics screen.
- */
-static int X_update_graphics_loop(int update_offset)
-{
-  RectArea ra;
-  int update_ret;
-#ifdef DEBUG_SHOW_UPDATE_AREA
-  static int dsua_fg_color = 0;
-#endif		
-
-  while((update_ret = vga_emu_update(&veut)) > 0) {
-    remap_obj.src_image = veut.base + veut.display_start - update_offset;
-    ra = remap_obj.remap_mem(&remap_obj, update_offset + veut.update_start -
-                             veut.display_start, veut.update_len);
-
-#ifdef DEBUG_SHOW_UPDATE_AREA
-    XSetForeground(display, gc, dsua_fg_color++);
-    XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
-    XSync(display, False);
-#endif
-
-    put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
-
-    x_deb("X_update_graphics_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
-      remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
-      veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
-    );
-  }
-  return update_ret;
-}
-
-int X_update_graphics_screen()
-{
-  int update_ret;
-
-  if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) X_modify_mode();
-
-  refresh_palette();
-
-  if(vga.display_start != veut.display_start) {
-    veut.display_start = vga.display_start;
-    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
-    if (vga.line_compare > vga.height)
-      veut.display_end = veut.display_start + vga.scan_len * vga.height;
-    dirty_all_video_pages();
-  }
-
-  /*
-   * You can now set the maximum update length, like this:
-   *
-   * veut.max_max_len = 20000;
-   *
-   * vga_emu_update() will return -1, if this limit is exceeded and there
-   * are still invalid pages; `max_max_len' is only a rough estimate, the
-   * actual upper limit will vary (might even be 25000 in the above
-   * example).
-   */
-
-  veut.max_len = veut.max_max_len;
-
-  update_ret = X_update_graphics_loop(0);
-
-  if (vga.line_compare < vga.height) {
-          
-    veut.display_start = 0;
-    veut.display_end = vga.scan_len * (vga.height - vga.line_compare);
-    veut.max_len = veut.max_max_len;
-
-    update_ret = X_update_graphics_loop(vga.scan_len * vga.line_compare);
-
-    veut.display_start = vga.display_start;
-    veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
-  }
-
-  return update_ret < 0 ? 2 : 1;
-}
-
 
 /* 
  * Change color values in our graphics context 'gc'.
@@ -3042,10 +2767,9 @@ static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u
 {
   RectArea ra = convert_bitmap_string(x, y, text, len, attr);
   /* put_ximage uses display, mainwindow, gc, ximage       */
-  X_printf("image at %d %d %d %d %d %d\n", shift_x+ra.x, shift_y+ra.y,
-	   ra.width - shift_x, ra.height, ra.x, ra.y);
+  X_printf("image at %d %d %d %d\n", ra.x, ra.y, ra.width, ra.height);
   if (ra.width)
-    put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
+    put_ximage(ra.x, ra.y, ra.width, ra.height);
 }
 
 /*
