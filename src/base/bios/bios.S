@@ -257,11 +257,16 @@ CISH(PKTDRV_stats):
         movw	%si, %dx
         jmp     do_int21
 do_6c:
-        testb   $0x10, %dl      /* created? */
-        jz      do_int21
-        movb    $1, %dl         /* then transform to open */
+        cmpb    $1, %al        /* ax=6c01 means created by lfn.c */
+        jnz     do_int21
+        movb    $0, %al        /* then transform to open (dl=1) */
+        movb    $1, %dl
+        int	$0x21
+        movw    $2, %cx        /* flag creation */
+        jmp     after_int21
 do_int21:
         int	$0x21
+after_int21:        
         popw	%si
         popw	%dx
         popw	%ds

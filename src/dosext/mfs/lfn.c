@@ -177,11 +177,6 @@ static int parse_name(const char **src, char **cp, char *dest)
 			p++;		
 		*cp = p;
 		return retval;
-	case ' ':
-		/* ignore leading spaces */
-		if (p != *cp)
-			addChar(c);
-		break;
 	case '*':
 		retval |= PNE_WILDCARD_STAR;
 		/* fall through */
@@ -667,11 +662,11 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 	return 1;
 }
 
-static void call_dos_helper(int ax)
+static void call_dos_helper(int ah)
 {
 	unsigned char *ssp = (unsigned char *)(_SS<<4);
 	unsigned long sp = (unsigned long) _SP;
-	_AX = ax;
+	_AH = ah;
 	pushw(ssp, sp, _CS);
 	pushw(ssp, sp, _IP);
 	_SP -= 4;
@@ -821,7 +816,7 @@ int mfs_lfn(void)
 			return lfn_error(PATH_NOT_FOUND);
 		make_unmake_dos_mangled_path(dest, fpath, drive, 1);
 		d_printf("LFN: New CWD will be %s\n", dest);
-		call_dos_helper(0x3b00);
+		call_dos_helper(0x3b);
 		break;
 	case 0x41: /* remove file */
 		drive = build_posix_path(fpath, src, _SI);
@@ -1063,10 +1058,13 @@ int mfs_lfn(void)
 				}
 				d_printf("LFN: open: created %s\n", fpath);
 				close(fd);
+				_AL = 1; /* flags creation to DOS helper */
+			} else {
+				_AL = 0;
 			}
 			make_unmake_dos_mangled_path(dest, fpath, drive, 1);
 		}
-		call_dos_helper(0x6c00);
+		call_dos_helper(0x6c);
 		break;
 	case 0xa0: /* get volume info */
 		drive = build_posix_path(fpath, src, 0);

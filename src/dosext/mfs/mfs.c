@@ -1706,8 +1706,8 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
     case EOS:  
     case SLASH:
     case '.':
-      /* remove trailing spaces */
-      while(ufs_offset > 0 && ufs[ufs_offset - 1] == ' ')
+      /* remove trailing spaces for SFNs */
+      if (lowercase) while(ufs_offset > 0 && ufs[ufs_offset - 1] == ' ')
         ufs_offset--;
       break;
     default:
