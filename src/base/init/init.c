@@ -10,17 +10,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/times.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <errno.h>
-#include <sys/utsname.h>
 
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
-#include "config.h"
 #include "bios.h"
 #include "int.h"
 #include "timers.h"
