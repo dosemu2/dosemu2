@@ -38,6 +38,7 @@ int update_text_screen(struct RemapObjectStruct *remap_obj);
 void redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);
+void set_textsize(int, int);
 
 #ifdef CONFIG_SELECTION
 /* for selections */

@@ -594,6 +594,16 @@ chk_cursor:
   return 0;
 }
 
+/*
+ * Set the text mode resolution.
+ */
+void set_textsize(int width, int height)
+{
+  v_printf("set_textsize: size = %d x %d\n", width, height);
+  vga_emu_set_textsize(width, height);
+  Text->Resize_text_screen();
+}
+
 void text_lose_focus()
 {
   have_focus = FALSE;

@@ -49,8 +49,6 @@
 
 int TryMemRef = 0;
 
-#if X_GRAPHICS
-
 /* ======================================================================= */
 
 unsigned e_VgaRead(unsigned addr, int mode)
@@ -386,8 +384,6 @@ badrw:
   leavedos(0x5643);
 }
 
-#endif /* X_GRAPHICS */
-
 /* ======================================================================= */
 /*
  * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext_struct);
@@ -428,7 +424,6 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
    *	TheCPU.err.
    */
 
-#if X_GRAPHICS
   if (config.X && (_trapno==0x0e)) {
       unsigned pf = (unsigned)_cr2 >> 12;
       if ((pf & 0xfffe0) == 0xa0) {
@@ -442,7 +437,6 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
       goto cont0e;
 #endif
   }
-#endif /* X_GRAPHICS */
 
 #ifndef HOST_ARCH_SIM
   if (_trapno==0x0d) {
@@ -457,9 +451,7 @@ static void e_emu_fault1(int signal, struct sigcontext_struct *scp)
          * bit 2 = 1	user mode
          * bit 3 = 0	no reserved bit err
          */
-#if X_GRAPHICS
 cont0e:
-#endif
 	if ((int)_cr2 < 0) {
 		error("Accessing reserved memory at %08lx\n"
 		      "\tMaybe a null segment register\n",_cr2);

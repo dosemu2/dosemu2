@@ -258,13 +258,9 @@ signal_init(void)
   SETSIG(SIGQUIT, sigquit);
   SETSIG(SIGPIPE, SIG_IGN);
 
-#ifdef X_SUPPORT
   if(config.X) {
     SETSIG(SIGWINCH, SIG_IGN);
-  }
-  else
-#endif
-  if(!config.console_video && !config.console_keyb) {
+  } else if(!config.console_video && !config.console_keyb) {
     SETSIG(SIGWINCH, sigwinch); /* Adjust window sizes in DOS */
   }
 #ifdef X86_EMULATOR
@@ -441,12 +437,8 @@ static void SIGALRM_call(void)
 #if 0
        v_printf("update_screen returned %d\n",retval);
 #endif
-#ifdef X_SUPPORT
        running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq) 
                         : 0;
-#else
-       running = retval ? config.term_updatefreq : 0;
-#endif
 #if VIDEO_CHECK_DIRTY
        update_pending=(retval==2);
        vm86s.screen_bitmap=0;

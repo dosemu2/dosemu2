@@ -23,9 +23,7 @@
 #include "emu.h"
 #include "int.h"
 
-#if X_GRAPHICS
 #include "vgaemu.h" /* root@zaphod */
-#endif /* X_GRAPHICS */
 
 #include "dpmi.h"
 
@@ -127,7 +125,6 @@ int signal, struct sigcontext_struct *scp
  		   return;
  		 }
 		 goto sgleave;
-#if X_GRAPHICS
       /* We want to protect the video memory and the VGA BIOS */
       case 0x0e:
                 if(config.X)
@@ -137,7 +134,6 @@ int signal, struct sigcontext_struct *scp
                   }
                 /* fall into default case if not X */
 
-#endif /* X_GRAPHICS */
 
       default:	
 sgleave:
@@ -175,7 +171,6 @@ sgleave:
   }
 #define VGA_ACCESS_HACK 1
 #if VGA_ACCESS_HACK
-#if X_GRAPHICS
   if(_trapno==0x0e && config.X && _cs==UCODESEL) {
 /* Well, there are currently some dosemu functions that touches video memory
  * without checking the permissions. This is a VERY BIG BUG.
@@ -191,7 +186,6 @@ sgleave:
     if(VGA_EMU_FAULT(scp,code,1)==True)
       return;
   }
-#endif
 #endif
 
   if (in_dpmi) {
@@ -232,7 +226,6 @@ sgleave:
        return;
      }
 
-#if X_GRAPHICS
       if(_trapno==0x0e && config.X) {
         if(VGA_EMU_FAULT(scp,code,1)==True) {
 	  if (dpmi_eflags & VIP) {
@@ -241,7 +234,6 @@ sgleave:
           return;
 	}
       }
-#endif /* X_GRAPHICS */
 
       /* dpmi_fault() will handle that */
       dpmi_fault(scp);

@@ -2783,21 +2783,6 @@ static void X_modify_mode()
 
 
 /*
- * Set the text mode resolution.
- */
-void X_set_textsize(int width, int height)
-{
-  X_printf("X: X_set_textsize: size = %d x %d\n", width, height);
-  if (font == NULL) {
-    font_width = vga.char_width;
-    font_height = vga.char_height;
-  }
-  vga_emu_set_textsize(width, height);
-  X_resize_text_screen();
-}
-
-
-/*
  * Resize the X display to the appropriate size.
  */
 void X_resize_text_screen() 
@@ -2806,6 +2791,8 @@ void X_resize_text_screen()
     w_x_res = x_res = vga.text_width * font_width;
     w_y_res = y_res = vga.text_height * font_height;
   } else {
+    font_width = vga.char_width;
+    font_height = vga.char_height;
     x_res = vga.width;
     w_x_res = (x_res <= 320) ? (2 * x_res) : x_res;
     y_res = vga.height;

@@ -64,15 +64,8 @@
 #include "vc.h"
 #include "speaker.h"
 
-#if X_GRAPHICS
-#undef True
-#undef False
-#include "X.h"
-#endif
-
-#if X_GRAPHICS
 #include "vgaemu.h"
-#endif
+#include "vgatext.h"
 
 /*
  * Activate some debug output.
@@ -118,10 +111,8 @@
 
 static void tty_char_out(unsigned char ch, int s, int attr);
 static void int10_old(void);
-#if X_GRAPHICS
 static void int10_new(void);
 static void vga_ROM_to_RAM(unsigned height, int bank);
-#endif
 
 static inline void set_cursor_shape(ushort shape) {
    int cs,ce;
@@ -250,13 +241,11 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
   #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
 #endif
 
-#if X_GRAPHICS
 static int using_text_mode(void)
 {
   unsigned char mode = READ_BYTE(BIOS_VIDEO_MODE);
   return mode <= 3 || mode == 7 || (mode >= 0x50 && mode <= 0x5a);
 }
-#endif
 
 /* Output a character to the screen. */ 
 void char_out(unsigned char ch, int page)
@@ -277,9 +266,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
-#if X_GRAPHICS
   if (config.X) virt_text_base = (int)vga.mem.base;
-#endif
 #endif
 
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
@@ -296,9 +283,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
   ypos = get_bios_cursor_y_position(s);
 
   /* check for gfx mode */
-#if X_GRAPHICS
   if(config.X && !using_text_mode()) gfx_mode = 1;
-#endif
 
   switch (ch) {
   case '\r':         /* Carriage return */
@@ -329,12 +314,10 @@ void tty_char_out(unsigned char ch, int s, int attr)
     return;
 
   default:          /* Printable character */
-#if X_GRAPHICS
     if(gfx_mode) {
       vgaemu_put_char(xpos, ypos, ch, attr);
     }
     else
-#endif
     {
       dst = (unsigned char *) (SCREEN_ADR(s) + ypos*co + xpos);
       WRITE_BYTE(dst, ch);
@@ -350,11 +333,9 @@ void tty_char_out(unsigned char ch, int s, int attr)
   }
   if (ypos == li) {
     ypos--;
-#if X_GRAPHICS
     if(gfx_mode)
       vgaemu_scroll(0, 0, co - 1, li - 1, 1, 0);
     else
-#endif
       bios_scroll(0,0,co-1,li-1,1,newline_att);
   }
   set_bios_cursor_x_position(s, xpos);
@@ -374,9 +355,7 @@ clear_screen(int s, int att)
   int lx, co, li;
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
-#if X_GRAPHICS
   if (config.X) virt_text_base = (int)vga.mem.base;
-#endif
 #endif
 
   if (config.cardtype == CARD_NONE)
@@ -399,8 +378,6 @@ clear_screen(int s, int att)
   cursor_row = cursor_col = 0;
 }
 
-
-#if X_GRAPHICS
 
 /*
  * set_video_mode() accepts both (S)VGA and VESA mode numbers
@@ -461,8 +438,8 @@ static boolean X_set_video_mode(int mode) {
       /* we must also load a FONT here                */
       /* but we can do this later where int 0x43      */
       /* is set (below, in -this- function).          */
-      /* (as long as X_set_textsize does not need it) */
-      X_set_textsize(vmi->text_width, li);
+      /* (as long as set_textsize does not need it) */
+      set_textsize(vmi->text_width, li);
     }
     return 1;
   }
@@ -577,8 +554,6 @@ static boolean X_set_video_mode(int mode) {
 
   return 1;
 }    
-#endif /* X_GRAPHICS */
-
 
 /* XXX- shouldn't this reset the current video page to 0 ? 
 */
@@ -587,9 +562,7 @@ boolean set_video_mode(int mode) {
   int type=0;
   int old_video_mode,oldco;
 
-#ifdef X_GRAPHICS
-  if (Video == &Video_X) return X_set_video_mode(mode);
-#endif  
+  if (config.X) return X_set_video_mode(mode);
   i10_msg("set_video_mode: mode 0x%02x\n",mode);
   
   oldco = co;
@@ -723,14 +696,11 @@ static void get_dcc(int *active_dcc, int *alternate_dcc)
 static void return_state(Bit8u *statebuf) {
 	int active_dcc, alternate_dcc;
 	
-#ifdef X_GRAPHICS
         if(!config.dualmon && config.X) {
 	   WRITE_WORD(statebuf, vgaemu_bios.functionality - 0xc0000);
 	   WRITE_WORD(statebuf + 2, 0xc000);
-        }
-#else
-	memset(statebuf, 0, 4); /* XXX pointer to static functionality table */
-#endif	
+        } else
+	  memset(statebuf, 0, 4); /* XXX pointer to static functionality table */
 	/* store bios 0:449-0:466 at ofs 0x04 */
 	memcpy(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
 	/* store bios 0:484-0:486 at ofs 0x22 */
@@ -754,7 +724,6 @@ static void return_state(Bit8u *statebuf) {
 /* helpers for font processing - eric@coli.uni-sb.de  11/2002 */
 /* only for TEXT mode: Otherwise, int 0x43 is used...         */
 
-#ifdef X_GRAPHICS
 static void vga_RAM_to_RAM(unsigned height, unsigned char chr, unsigned count,
                            unsigned seg, unsigned ofs, int bank)
 {
@@ -799,7 +768,6 @@ static void vga_ROM_to_RAM(unsigned height, int bank)
   }
   vga_RAM_to_RAM(height,0,256,seg,ofs,bank);
 }
-#endif /* X_GRAPHICS */
 
 /******************************************************************/
 
@@ -807,11 +775,9 @@ static void vga_ROM_to_RAM(unsigned height, int bank)
 
 int int10(void)
 {
-#if X_GRAPHICS
   if(!config.dualmon && config.X) {
     int10_new();
   } else
-#endif
     int10_old();
   return 1;
 }
@@ -921,9 +887,7 @@ void int10_old(void) /* with dualmon */
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
-#if X_GRAPHICS
       if (config.X) vga_emu_set_text_page(page, TEXT_SIZE);
-#endif
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
@@ -1076,7 +1040,6 @@ void int10_old(void) /* with dualmon */
     {
       unsigned m = video_mode & 0xff;
 
-#if X_GRAPHICS
       if(config.X) {
         if(vga.mode & ~0xff) {
           /*
@@ -1087,7 +1050,6 @@ void int10_old(void) /* with dualmon */
           if(vga.mode & 0x8000) m |= 0x80;
         }
       }
-#endif
       LO(ax) = m;
       HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
       v_printf(
@@ -1103,7 +1065,6 @@ void int10_old(void) /* with dualmon */
      */
     if(LO(ax) == 3) char_blink = LO(bx) & 1;
 
-#if X_GRAPHICS
     /* root@zaphod */
     /* Palette register stuff. Only for the VGA emulator used by X */
     if(config.X) {
@@ -1215,7 +1176,6 @@ void int10_old(void) /* with dualmon */
            break;
        }
     }
-#endif
     break;
 
 #if 0
@@ -1377,12 +1337,10 @@ void int10_old(void) /* with dualmon */
   case 0x1c:                    /* return save/restore */
 #endif
 
-#if X_GRAPHICS
   case 0x4f:                    /* vesa interrupt */
     if(config.X)
       do_vesa_int();
     break;
-#endif
 
   default:
     v_printf("new unknown video int 0x%x\n", LWORD(eax));
@@ -1390,7 +1348,6 @@ void int10_old(void) /* with dualmon */
   }
 }
 
-#if X_GRAPHICS
 void int10_new(void) /* with X but without dualmon */
 {
   /* some code here is copied from Alan Cox ***************/
@@ -2177,5 +2134,4 @@ void int10_new(void) /* with X but without dualmon */
       break;
   }
 }
-#endif	/* X_GRAPHICS */
 

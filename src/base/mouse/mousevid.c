@@ -52,7 +52,6 @@ struct mousevideoinfo mouse_current_video;
 int
 get_current_video_mode(void)
 {
-#if X_GRAPHICS
   if(config.X) {
     mouse_current_video.mode = vga.mode;
     mouse_current_video.textgraph = vga.mode_class == TEXT ? 'T' : 'G';
@@ -75,7 +74,6 @@ get_current_video_mode(void)
     mouse_current_video.offset = (vga.buffer_seg - 0xa000) << 4;
   }
   else 
-#endif /* X_GRAPHICS */
   {
 
     int i = READ_BYTE(BIOS_VIDEO_MODE);

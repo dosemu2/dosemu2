@@ -1961,7 +1961,6 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-#ifdef X_SUPPORT
 			if (config.X && (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
 			    // [01..456789....ef....45....a.....]
@@ -1984,7 +1983,6 @@ repag0:
 		  	  }
 	  		  PC++; break;
 			}
-#endif
 #ifdef TRAP_RETRACE
 			if (a==0x3da) {		// video retrace bits
 			    /* bit 0 = DE  bit 3 = VR
@@ -2081,12 +2079,10 @@ repag0:
 			PC++; } break;
 /*ed*/	case INvw: {
 			CODE_FLUSH();
-#ifdef X_SUPPORT
 			if (config.X && (rDX>=0x3c0) && (rDX<=0x3de)) {
 			    dbug_printf("X: INW,IND %x in VGA space\n",rDX);
 			    leavedos(0);
 			}
-#endif
 			if (mode&DATA16) rAX = port_inw(rDX);
 			else rEAX = port_ind(rDX);
 			} PC++; break;
@@ -2119,7 +2115,6 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-#ifdef X_SUPPORT
 			if (config.X && (a>=0x3c0) && (a<=0x3df)) {
 			  switch(a&0x1f) {
 			    // [0...456789....e.....45..........]
@@ -2141,7 +2136,6 @@ repag0:
 			  }
 	  		  PC++; break;
 			}
-#endif
 			if (test_ioperm(a)) {
 #ifdef CPUEMU_DIRECT_IO
 				Gen(O_OUTPDX, mode|MBYTE); NewNode=1;
@@ -2170,7 +2164,6 @@ repag0:
 			unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
-#ifdef X_SUPPORT
 			if (config.X && (a>=0x3c0) && (a<=0x3de)) {
 			  if (mode&DATA16) {
 			    switch(a&0x1f) {
@@ -2192,7 +2185,6 @@ repag0:
 			  }
 	  		  PC++; break;
 			}
-#endif
 			if (test_ioperm(a)) {
 #ifdef CPUEMU_DIRECT_IO
 			    Gen(O_OUTPDX, mode); NewNode=1;
