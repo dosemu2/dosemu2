@@ -2724,6 +2724,8 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
     veut.max_len = 0;
     veut.display_start = 0;
     veut.display_end = vga.scan_len * vga.line_compare;
+    if (vga.line_compare > vga.height)
+      veut.display_end = vga.scan_len * vga.height;
     veut.update_gran = 0;
     veut.update_pos = veut.display_start;
 
@@ -2808,6 +2810,8 @@ static void X_modify_mode()
 
   veut.display_start = vga.display_start;
   veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
+  if (vga.line_compare > vga.height)
+    veut.display_end = veut.display_start + vga.scan_len * vga.height;
 
   if(vga.reconfig.mem || vga.reconfig.display) {
     x_msg("X_modify_mode: failed to modify current graphics mode\n");
@@ -3272,6 +3276,8 @@ int X_update_graphics_screen()
   if(vga.display_start != veut.display_start) {
     veut.display_start = vga.display_start;
     veut.display_end = veut.display_start + vga.scan_len * vga.line_compare;
+    if (vga.line_compare > vga.height)
+      veut.display_end = veut.display_start + vga.scan_len * vga.height;
     dirty_all_video_pages();
   }
 

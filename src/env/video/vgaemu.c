@@ -2598,7 +2598,6 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
                 height, vertical_display_end+1, vga.char_height);
         vga.reconfig.display = 1;
       }
-      if (vga.line_compare == 0) vga.line_compare = vga.height;
       break;
     }
     case CFG_CRTC_WIDTH:
@@ -2653,7 +2652,6 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
         dirty_all_video_pages();
       }
-      if (vga.line_compare == 0) vga.line_compare = vga.height;
       break;
     }
     default:
