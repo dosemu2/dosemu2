@@ -143,7 +143,6 @@ struct DPMIclient_struct {
   unsigned short USER_DTA_SEL;
   unsigned long USER_DTA_OFF;
   unsigned short USER_PSP_SEL;
-  void *user_FCB;
   unsigned short CURRENT_PSP;
   unsigned short CURRENT_ENV_SEL;
   unsigned short PARENT_PSP;
