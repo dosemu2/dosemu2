@@ -1,9 +1,9 @@
 /* cmos.h, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/02/15 00:53:58 $ 
+ * $Date: 1993/02/18 19:35:58 $ 
  * $Source: /usr/src/dos/RCS/cmos.h,v $
- * $Revision: 1.1 $
+ * $Revision: 1.2 $
  * $State: Exp $
  */
 

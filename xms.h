@@ -2,12 +2,7 @@
 #ifndef XMS_H
 #define XMS_H
 
-#define XMSControl_SEG  0xe000
-#define XMSControl_OFF  0x1000
-#define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
-#define XMSTrap_ADD     ((XMSControl_SEG << 4)+XMSControl_OFF+5)
-
-#define XMS_MAGIC      		0x0043
+#define INT2F_XMS_MAGIC		0x0043  /* AH for all int 2f XMS calls */
 #define XMS_VERSION    		0x0300  /* version 3.00 */
 #define XMS_DRIVER_VERSION	0x0003  /* my driver version 0.03 */
 
@@ -15,6 +10,10 @@
 #define FIRST_HANDLE    1
 
 #define PARAGRAPH       16		/* bytes in a paragraph */
+
+/* the NEWXMS API duplicates some functions for > 64 MB range (32-bit) */
+#define OLDXMS          1		
+#define NEWXMS          2
 
 struct EMM {
   unsigned long  int  Length;

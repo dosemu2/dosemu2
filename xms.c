@@ -1,12 +1,30 @@
 /* xms.c for the DOS emulator 
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/02/18 18:53:41 $
+ * $Date: 1993/05/04 05:29:22 $
  * $Source: /usr/src/dos/RCS/xms.c,v $
- * $Revision: 1.4 $
+ * $Revision: 1.10 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.10  1993/05/04  05:29:22  root
+ * added console switching, new parse commands, and serial emulation
+ *
+ * Revision 1.9  1993/04/07  21:04:26  root
+ * big move
+ *
+ * Revision 1.8  1993/04/05  17:25:13  root
+ * big pre-49 checkit; EMS, new MFS redirector, etc.
+ *
+ * Revision 1.7  1993/03/04  22:35:12  root
+ * put in perfect shared memory, HMA and everything.  added PROPER_STI.
+ *
+ * Revision 1.6  1993/02/24  11:33:24  root
+ * some general cleanups, fixed the key-repeat bug.
+ *
+ * Revision 1.5  1993/02/18  19:35:58  root
+ * just added newline so diff wouldn't barf
+ *
  * Revision 1.4  1993/02/18  18:53:41  root
  * this is for 0.48patch1, mainly to fix the XMS bug (moved libemu up to
  * the 1 GB mark), and to try out the faster termcap buffer-compare code.
@@ -22,35 +40,50 @@
 
 #include <stdlib.h>
 #include <sys/types.h>
+#include <string.h>
+
 #include "emu.h"
+#include "config.h"
+#include "memory.h"
 #include "xms.h"
+#include "dosipc.h"
+#include "machcompat.h"
 
 /* 128*1024 is the amount of memory currently reserved in dos.c above
  * the 1 MEG mark.  ugly.  fix this.
  */
-#if (MAX_XMS*1024) >= (LIBSTART-1152*1024)
-#error "Your MAX_XMS is too large...it would overstep into libemu. \
-Try increasing LIBSTART in the Makefile, or better yet, decreasing MAX_XMS."
-#endif
 
-static char RCSxms[]="$Header: /usr/src/dos/RCS/xms.c,v 1.4 1993/02/18 18:53:41 root Exp $";
+static char RCSxms[]="$Header: /usr/src/dos/RCS/xms.c,v 1.10 1993/05/04 05:29:22 root Exp root $";
 
-extern int xms, vga, graphics, mapped_bios;
-extern int extmem_size;
+#define	 XMS_GET_VERSION		0x00
+#define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
+#define	 XMS_FREE_HIGH_MEMORY		0x02
+#define	 XMS_GLOBAL_ENABLE_A20		0x03
+#define	 XMS_GLOBAL_DISABLE_A20		0x04
+#define	 XMS_LOCAL_ENABLE_A20		0x05
+#define	 XMS_LOCAL_DISABLE_A20		0x06
+#define	 XMS_QUERY_A20			0x07
+#define	 XMS_QUERY_FREE_EXTENDED_MEMORY	0x08
+#define	 XMS_ALLOCATE_EXTENDED_MEMORY	0x09
+#define	 XMS_FREE_EXTENDED_MEMORY	0x0a
+#define	 XMS_MOVE_EXTENDED_MEMORY_BLOCK	0x0b
+#define	 XMS_LOCK_EXTENDED_MEMORY_BLOCK	0x0c
+#define	 XMS_UNLOCK_EXTENDED_MEMORY_BLOCK 0x0d
+#define	 XMS_GET_EMB_HANDLE_INFORMATION	0x0e
+#define	 XMS_RESIZE_EXTENDED_MEMORY_BLOCK 0x0f
+#define	 XMS_ALLOCATE_UMB		0x10
+#define	 XMS_DEALLOCATE_UMB		0x11
+
+#define	HIGH_MEMORY_IN_USE		0x92
+#define	HIGH_MEMORY_NOT_ALLOCATED	0x93
+#define XMS_OUT_OF_SPACE		0xa0
+#define XMS_INVALID_HANDLE		0xa2
+
+
+extern struct config_info config;
 
 int a20=0;
-int freeC=1,     /* is 0xc000 free? */ 
-    freeA=0,
-    freeD=1,
-    freeF=0,
-    freeHMA=1;   /* is HMA free? */
-
-struct UMB umbs[]={
-  { 0xa000 },
-  { 0xc000 },
-  { 0xd000 },
-  { 0xf000 }
-};
+int freeHMA=1;   /* is HMA free? */
 
 static struct Handle handles[NUM_HANDLES+1];
 static int    handle_count=0;
@@ -59,18 +92,225 @@ static int xms_grab_int15=0;  /* non-version XMS call been made yet? */
 
 struct EMM get_emm(unsigned int, unsigned int);
 void show_emm(struct EMM);
-void xms_query_freemem(void),
-     xms_allocate_EMB(void),
+void xms_query_freemem(int),
+     xms_allocate_EMB(int),
      xms_free_EMB(void),
      xms_move_EMB(void),
      xms_lock_EMB(int),
-     xms_EMB_info(void),
-     xms_realloc_EMB(void),
+     xms_EMB_info(int),
+     xms_realloc_EMB(int),
      xms_request_UMB(void),
      xms_release_UMB(void);
 
 int FindFreeHandle(int);
 
+
+/* beginning of quote from Mach */
+
+#define UMB_BASE (caddr_t)0xc0000
+#define UMB_SIZE 0x40000
+#define UMBS (UMB_SIZE/16)
+#define UMB_PAGE 4096
+#define UMB_NULL -1
+
+/* EMS page frame 0xd0000-0xdffff.  DOSEMU uses 0xe0000-0xeffff */
+#define IN_EMM_SPACE(addr) (config.ems_size && (int)addr >= 0xd0000 \
+			    && (int)addr <= 0xdffff)
+
+/* XXX - I have assumed 32k of BIOS... */
+#define IN_BIOS_SPACE(addr) ((int)addr >= VBIOS_START && \
+      (int)addr < (VBIOS_START + VBIOS_SIZE) && config.mapped_bios)
+
+#define IN_EMU_SPACE(addr) ((int)addr >= 0xe0000 && (int)addr <= 0xeffff \
+			    || IN_BIOS_SPACE(addr))
+
+struct umb_record {
+	vm_address_t	addr;
+	vm_size_t	size;
+	boolean_t	in_use;
+	boolean_t	free;
+} umbs[UMBS];
+
+
+#define x_Stub(arg1, s, a...)   x_printf("XMS: "s, ##a)
+#define Debug0(args)		x_Stub args
+#define Debug1(args)		x_Stub args
+#define Debug2(args)		x_Stub args
+#define dbg_fd stdout
+
+
+boolean_t
+umb_memory_empty(addr, size) 
+vm_address_t addr;
+int size;
+{
+	int i;
+	int * memory = (int *) addr;
+	for (i = 0; i < (size/4); i++) {
+		if ((memory[i] != 0xffffffff) && (memory[i] != 0)) {
+			return FALSE;
+		}
+	}
+	Debug0((dbg_fd,"Found free UMB region: %x\n",addr));
+	return (TRUE);
+}
+
+int
+umb_setup()
+{
+	int i;
+	int umb;
+	vm_address_t addr;
+
+	for (i = 0; i < UMBS; i++) {
+		umbs[i].in_use = FALSE;
+	}
+
+
+	if (config.ems_size)
+	  {
+	    /* set up EMS page frame */
+	    umb = umb_find_unused();
+	    
+	    umbs[umb].in_use = TRUE;
+	    umbs[umb].free = FALSE;
+	    umbs[umb].addr = (caddr_t)0xd0000;
+	    umbs[umb].size = 0x10000;
+	  }
+
+	/* set up DOSEMU trampolines */
+	umb = umb_find_unused();
+
+	umbs[umb].in_use = TRUE;
+	umbs[umb].free = FALSE;
+	umbs[umb].addr = (caddr_t)0xe0000;
+	umbs[umb].size = 0x10000;
+
+	/* set up 32K VGA BIOS mem if necessary */
+	if (config.mapped_bios) {
+	  umb = umb_find_unused();
+	  
+	  umbs[umb].in_use = TRUE;
+	  umbs[umb].free = FALSE;
+	  umbs[umb].addr = (caddr_t)0xc0000;
+	  umbs[umb].size = 0x8000;
+      }
+
+
+
+	for (addr = UMB_BASE; addr < (vm_address_t)(UMB_BASE+UMB_SIZE);
+	     addr += UMB_PAGE) {
+		if (IN_EMM_SPACE(addr) || IN_EMU_SPACE(addr)) continue;
+		if (umb_memory_empty(addr, UMB_PAGE)) {
+			if ((umbs[umb].addr + umbs[umb].size) == addr) {
+				umbs[umb].size += UMB_PAGE;
+			} else {
+				umb = umb_find_unused();
+				umbs[umb].in_use = TRUE;
+				umbs[umb].free = TRUE;
+				umbs[umb].addr = addr;
+				umbs[umb].size = UMB_PAGE;
+				Debug0((dbg_fd,"New UMB region: %x\n",addr));
+			}
+		}
+	}
+
+	for (i = 0; i < UMBS; i++) {
+		if (umbs[i].in_use && umbs[i].free) {
+			vm_address_t addr = umbs[i].addr;
+			vm_size_t size = umbs[i].size;
+#if 0
+			MACH_CALL((vm_deallocate(mach_task_self(), 		
+				  (vm_address_t)addr,
+			          (vm_size_t)size)), "vm_deallocate");
+			MACH_CALL((vm_allocate(mach_task_self(), &addr, 
+			          (vm_size_t)size, 
+				  FALSE)), 
+				  "vm_allocate of umb block.");
+#else
+  Debug0((dbg_fd, "umb_setup: addr 0x%08x size 0x%04x\n", addr, size));
+#endif
+		}
+	}
+}
+
+int 
+umb_find_unused()
+{
+	int i;
+	for (i = 0; i < UMBS; i++) {
+		if (!umbs[i].in_use) return (i);
+	}
+	return (UMB_NULL);
+}
+
+int 
+umb_find(segbase)
+vm_address_t segbase;
+{
+	int i;
+	vm_address_t addr = (vm_address_t)((int)segbase * 16);
+	for (i = 0; i < UMBS; i++) {
+		if (umbs[i].in_use &&
+		    ((addr >= umbs[i].addr) && 
+		     (addr <= (umbs[i].addr + umbs[i].size)))) {
+			return (i);
+		}
+	}
+	return (UMB_NULL);
+}
+
+vm_address_t
+umb_allocate(size)
+int size;
+{
+	int i;
+	for (i = 0; i < UMBS ; i++) {
+		if (umbs[i].in_use && umbs[i].free) {
+			if (umbs[i].size >= size) {
+				int new_umb = umb_find_unused();
+				if (new_umb != UMB_NULL) {
+					umbs[new_umb].in_use = TRUE;
+					umbs[new_umb].free   = TRUE;
+					umbs[new_umb].addr = 
+						umbs[i].addr + size;
+					umbs[new_umb].size = 
+						umbs[i].size - size;
+					umbs[i].size = size;
+					umbs[i].free = FALSE;
+					return (umbs[i].addr);
+				}
+			}
+		}
+	}
+	return ((vm_address_t)0);
+}
+
+int
+umb_free(segbase)
+int segbase;
+{
+	int umb = umb_find(segbase);
+	if (umb != UMB_NULL) 
+		umbs[umb].free = TRUE;
+	return (0);
+}
+
+int
+umb_query()
+{
+	int i;
+	int largest = 0;
+	for (i = 0; i < UMBS; i++) {
+		if (umbs[i].in_use && umbs[i].free) {
+			if (umbs[i].size > largest) largest = umbs[i].size;
+		}
+	}
+	Debug0((dbg_fd, "umb_query: largest UMB was %d bytes\n", largest));
+	return (largest);
+}
+
+/* end of stuff from Mach */
 
 void xms_init(void)
 {
@@ -80,8 +320,8 @@ void xms_init(void)
 	   RCSxms, NUM_HANDLES);
 
   freeHMA = 1;
-  freeA = graphics ? 0 : 1;  /* no A000 block if vga mode */
-  freeC = freeF = mapped_bios ? 0 : 1;
+
+  umb_setup();
   
   a20=0;
   xms_grab_int15=0;
@@ -105,26 +345,26 @@ void xms_control(void)
   switch(HI(ax))
     {
        case 0:   /* Get XMS Version Number */
-         _regs.eax=XMS_VERSION;
-	 _regs.ebx=XMS_DRIVER_VERSION;
-	 _regs.edx=1;  /* HMA exists */
+         LWORD(eax)=XMS_VERSION;
+	 LWORD(ebx)=XMS_DRIVER_VERSION;
+	 LWORD(edx)=1;  /* HMA exists */
          x_printf("XMS driver version. XMS Spec: %04x dosemu-XMS: %04x\n",
-		  _regs.eax, _regs.ebx);
+		  LWORD(eax), LWORD(ebx));
 	 x_printf(RCSxms);
 	 break;
 
        case 1:    /* Request High Memory Area */
-	 x_printf("XMS request HMA size 0x%04x\n", WORD(_regs.edx));
+	 x_printf("XMS request HMA size 0x%04x\n", LWORD(edx));
 	 if (freeHMA)
 	   {
-	     x_printf("XMS: allocating HMA size 0x%04x\n", WORD(_regs.edx));
+	     x_printf("XMS: allocating HMA size 0x%04x\n", LWORD(edx));
 	     freeHMA=0;
-	     _regs.eax=1;
+	     LWORD(eax)=1;
 	   }
 	 else
 	   {
 	     x_printf("XMS: HMA already allocated\n");
-	     _regs.eax=0;
+	     LWORD(eax)=0;
 	     LO(bx) = 0x91;
 	   }
 	 break;
@@ -134,54 +374,58 @@ void xms_control(void)
 	 if (freeHMA)
 	   {
 	     x_printf("XMS: HMA already free\n");
-	     _regs.eax=0;
+	     LWORD(eax)=0;
 	     LO(bx) = 0x93;
 	   }
 	 else
 	   {
 	     x_printf("XMS: freeing HMA\n");
-	     _regs.eax=1;
+	     LWORD(eax)=1;
 	     freeHMA=1;
 	   }
 	 break;
 
        case 3:    /* Global Enable A20 */
 	 x_printf("XMS global enable A20\n");
+	 if (! a20) set_a20(1);  /* map in HMA */
 	 a20=1;
-	 _regs.eax=1;
+	 LWORD(eax)=1;
 	 break;
 
        case 4:    /* Global Disable A20 */
 	 x_printf("XMS global disable A20\n");
+	 if (a20) set_a20(0);
 	 a20=0;
-	 _regs.eax=1;
+	 LWORD(eax)=1;
 	 break;
 
        case 5:    /* Local Enable A20 */
 	 a20++;
-	 _regs.eax=1;
+	 if (a20 == 1) set_a20(1);
+	 LWORD(eax)=1;
 	 break;
 
        case 6:    /* Local Disable A20 */
 	 x_printf("XMS LOCAL disable A20\n");
 	 if (a20) a20--;
-	 _regs.eax=1;
+	 if (a20 == 0) set_a20(0);
+	 LWORD(eax)=1;
 	 break;
 
 	 /* DOS, if loaded as "dos=high,umb" will continually poll
 	  * the A20 line.
           */
        case 7:    /* Query A20 */
-	 _regs.eax = a20 ? 1 : 0;
-	 _regs.ebx=0;  /* no error */
+	 LWORD(eax) = a20 ? 1 : 0;
+	 LWORD(ebx) = 0;  /* no error */
 	 break;
 
        case 8:    /* Query Free Extended Memory */
-	 xms_query_freemem();
+	 xms_query_freemem(OLDXMS);
 	 break;
 
        case 9:    /* Allocate Extended Memory Block */
-	 xms_allocate_EMB();
+	 xms_allocate_EMB(OLDXMS);
 	 break;
 
        case 0xa:   /* Free Extended Memory Block */
@@ -201,32 +445,75 @@ void xms_control(void)
 	 break;
 
        case 0xe:   /* Get EMB Handle Information */
-	 xms_EMB_info();
+	 xms_EMB_info(OLDXMS);
 	 return;
 
        case 0xf:   /* Realocate Extended Memory Block */
-	 xms_realloc_EMB();
+	 xms_realloc_EMB(OLDXMS);
 	 break;
 
-       case 0x10:  /* Request Upper memory Block */
-	 xms_request_UMB();
-	 break;
 
-       case 0x11:
-	 xms_release_UMB();
-	 break;
+#define state (&_regs)
+		case XMS_ALLOCATE_UMB:
+		{
+			int size = WORD(state->edx)*16;
+			vm_address_t addr = umb_allocate(size);
+		    	Debug0((dbg_fd, "Allocate UMB memory: %x\n",
+					     WORD(state->edx)));
+			if (addr == (vm_address_t)0) {
+				SETWORD(&(state->eax),0);
+				SETLOW(&(state->ebx),0xb0);
+				SETWORD(&(state->edx),umb_query()>>4);
+			} else {
+				SETWORD(&(state->eax),1);
+				SETWORD(&(state->ebx),(int)addr>>4);
+				SETWORD(&(state->edx),size>>4);
+			}
+		    	Debug0((dbg_fd, "umb_allocated: %x, %x\n",
+				     WORD(state->ebx), WORD(state->edx)));
+			/* retval = UNCHANGED; */
+			break;
+		}
+
+		case XMS_DEALLOCATE_UMB:
+		{
+			umb_free(WORD(state->edx));
+			SETWORD(&(state->eax),1);
+			Debug0((dbg_fd,"umb_freed: %x\n", WORD(state->edx)));
+			/* retval = UNCHANGED; */
+			break;
+		}
+
 
        case 0x12:
 	 x_printf("XMS realloc UMB segment 0x%04x size 0x%04x\n",
-		  WORD(_regs.edx), WORD(_regs.ebx));
-	 _regs.eax=0;    /* failure */
+		  LWORD(edx), LWORD(ebx));
+	 LWORD(eax)=0;    /* failure */
 	 LO(bx) = 0x80;  /* function unimplemented */
 	 break;
 
+	 /* the functions below are the newer, 32-bit XMS 3.0 interface */
+
+       case 0x88: /* Query Any Free Extended Memory */
+	 xms_query_freemem(NEWXMS);
+	 break;
+
+       case 0x89: /* Allocate Extended Memory */
+	 xms_allocate_EMB(NEWXMS);
+	 break;
+
+       case 0x8e: /* Get EMB Handle Information */
+	 xms_EMB_info(NEWXMS);
+	 break;
+
+       case 0x8f: /* Reallocate EMB */
+	 xms_realloc_EMB(NEWXMS);
+	 break;
+
        default:
-	 error("Unimplemented XMS function AX=0x%04x", WORD(_regs.eax));
+	 error("Unimplemented XMS function AX=0x%04x", LWORD(eax));
 	 show_regs();  /* if you delete this, put the \n on the line above */
-	 _regs.eax=0;  /* failure */
+	 LWORD(eax)=0;  /* failure */
 	 LO(bx)=0x80;  /* function not implemented */
 
     }
@@ -251,6 +538,7 @@ int FindFreeHandle(int start)
   return h;
 }
 
+
 int ValidHandle(unsigned short h)
 {
   if ((h <= NUM_HANDLES) && (handles[h].valid)) return 1;
@@ -258,10 +546,15 @@ int ValidHandle(unsigned short h)
 }
 
 
-void xms_query_freemem(void)
+void xms_query_freemem(int api)
 {
-  unsigned long totalBytes=0;
+  unsigned long totalBytes=0, subtotal;
   int h;
+
+  /* the new XMS api should actually work with the function as it
+   * stands...
+   */
+  if (api == NEWXMS) x_printf("XMS: new XMS API query_freemem()!\n");
 
   /* total XMS mem and largest block under DOSEMU will always be the
    * same, thanks to the wonderful operating environment
@@ -274,40 +567,76 @@ void xms_query_freemem(void)
 	totalBytes += handles[h].size;
     }
 
+  subtotal = config.xms_size - (totalBytes / 1024);
   /* total free is max allowable XMS - the number of K already allocated */
-  _regs.eax = _regs.edx = extmem_size - (totalBytes / 1024);
+
+  if (api == OLDXMS)
+    {
+      /* old XMS API uses only AX, while new API uses EAX. make
+       * sure the old API sees 64 MB if the count >= 64 MB (instead of seeing
+       * just the low 16 bits of some number > 65535 (KBytes) which is
+       * probably < 64 MB...this makes sure that old API functions at least
+       * know of 64MB of the > 64MB available memory.
+       */
+
+      if (subtotal > 65535) subtotal = 65535;
+      LWORD(eax) = LWORD(edx) = subtotal;
+      x_printf("XMS query free memory(old): %dK %dK\n", LWORD(eax),
+	       LWORD(edx));
+    }
+  else
+    {
+      _regs.eax = _regs.edx = subtotal;
+      x_printf("XMS query free memory(new): %dK %dK\n", _regs.eax, _regs.edx);
+    }
 
   LO(bx)=0;  /* no error */
-  x_printf("XMS query free memory: %dK %dK\n", _regs.eax, _regs.edx);
 }
 
-void xms_allocate_EMB(void)
-{
-  int h;
 
-  x_printf("XMS alloc EMB size 0x%04x\n", WORD(_regs.edx));
+void xms_allocate_EMB(int api)
+{
+  unsigned long h;
+
+  if (api == OLDXMS)
+    x_printf("XMS alloc EMB(old) size 0x%04x\n", LWORD(edx));
+  else
+    x_printf("XMS alloc EMB(new) size 0x%08x\n", _regs.edx);
+
   if (! (h=FindFreeHandle(FIRST_HANDLE)) )
     {
       x_printf("XMS: out of handles\n");
-      _regs.eax=0;
+      LWORD(eax)=0;
       LO(bx) = 0xa1;
     } else {
-
       handles[h].num=h;
       handles[h].valid=1;
-      handles[h].size=WORD(_regs.edx) * 1024;
+      if (api == OLDXMS)
+	handles[h].size=LWORD(edx) * 1024;
+      else
+	handles[h].size=_regs.edx * 1024;
+
+      /* I could just rely on the behavior of malloc(0) here, but
+       * I'd rather not.  I'm going to interpret the XMS 3.0 spec
+       * to mean that reserving a handle of size 0 gives it no address
+       */
       if (handles[h].size) handles[h].addr=malloc(handles[h].size);
       else {
 	x_printf("XMS WARNING: allocating 0 size EMB\n");
 	handles[h].addr=0;
       }
+
       handles[h].lockcount=0;
       handle_count++;
 
       x_printf("XMS: allocated EMB %d at %08x\n", h, handles[h].addr);
 
-      _regs.edx=h;  /* handle # */
-      _regs.eax=1;  /* success */
+      if (api == OLDXMS)
+	LWORD(edx)=h;  /* handle # */
+      else
+	_regs.edx=h;
+
+      LWORD(eax)=1;  /* success */
     }
 }
 
@@ -315,12 +644,12 @@ void xms_allocate_EMB(void)
 
 void xms_free_EMB(void)
 {
-  unsigned short int h=WORD(_regs.edx);
+  unsigned short int h=LWORD(edx);
 
   if (! ValidHandle(h))
     {
       x_printf("XMS: free EMB bad handle %d\n", h);
-      _regs.eax=0;
+      LWORD(eax)=0;
       LO(bx)=0xa2;
     } else {
       
@@ -331,7 +660,7 @@ void xms_free_EMB(void)
       handle_count--;
 
       x_printf("XMS: free'd EMB %d\n", h);
-      _regs.eax=1;
+      LWORD(eax)=1;
     }
 }
 
@@ -339,7 +668,7 @@ void xms_free_EMB(void)
 void xms_move_EMB(void)
 {
   char *src, *dest;
-  struct EMM e = get_emm(_regs.ds, _regs.esi);
+  struct EMM e = get_emm(_regs.ds, LWORD(esi));
 
   x_printf("XMS move extended memory block\n");
   show_emm(e);
@@ -368,7 +697,7 @@ void xms_move_EMB(void)
 	   src, dest, e.Length);
 
   memmove(dest, src, e.Length);
-  _regs.eax=1;  /* success */
+  LWORD(eax)=1;  /* success */
 
   x_printf("XMS: block move done\n");
 
@@ -378,7 +707,7 @@ void xms_move_EMB(void)
 
 void xms_lock_EMB(int flag)
 {
- int h=WORD(_regs.edx);
+ int h=LWORD(edx);
 
  if (flag) x_printf("XMS lock EMB %d\n", h);
  else x_printf("XMS unlock EMB %d\n", h);
@@ -390,56 +719,63 @@ void xms_lock_EMB(int flag)
       if (flag) handles[h].lockcount++;
       else handles[h].lockcount--;
 
-      _regs.ebx = (int)handles[h].addr >> 16;
-      _regs.edx = (int)handles[h].addr & 0xffff;
+      LWORD(ebx) = (int)handles[h].addr >> 16;
+      LWORD(edx) = (int)handles[h].addr & 0xffff;
 
-      _regs.eax=1;
+      LWORD(eax)=1;
     }
   else {
     x_printf("XMS: invalid handle %d, can't (un)lock\n", h);
-    _regs.eax=0;
+    LWORD(eax)=0;
     LO(bx)=0xa2;  /* invalid handle */
   }
 }
 
 
-void xms_EMB_info(void)
+void xms_EMB_info(int api)
 {
-  int h=WORD(_regs.edx);
+  int h=LWORD(edx);
 
-  LO(bx) = NUM_HANDLES - handle_count;
   if (ValidHandle(h))
     {
-      HI(bx) = handles[h].lockcount;
-      _regs.edx = handles[h].size / 1024;
-      _regs.eax=1;
-      x_printf("XMS Get EMB info %d\n", h); 
+      if (api == OLDXMS)
+	{
+	  HI(bx) = handles[h].lockcount;
+	  LO(bx) = NUM_HANDLES - handle_count;
+	  LWORD(edx) = handles[h].size / 1024;
+	  LWORD(eax)=1;
+	  x_printf("XMS Get EMB info(old) %d\n", h); 
+	}
+      else /* api == NEWXMS */
+	{
+	  HI(bx) = handles[h].lockcount;
+	  LWORD(ecx) = NUM_HANDLES - handle_count;
+	  _regs.edx = handles[h].size / 1024;
+	  LWORD(eax)=1;
+	  x_printf("XMS Get EMB info(new) %d\n", h); 
+	}
     }
   else {
-    /* x_printf("XMS: invalid handle %d, no info\n", h); */
-    _regs.eax=0;
-#if 0
+    LWORD(eax)=0;
     LO(bx)=0xa2;  /* invalid handle */
-#endif
   }
 }
 
-
-void xms_realloc_EMB(void)
+/* untested! if you test it, please tell me! */
+void xms_realloc_EMB(int api)
 {
   int h;
-  unsigned short oldsize;
+  unsigned long oldsize;
   unsigned char *oldaddr;
 
-  h=WORD(_regs.edx);
-  x_printf("XMS realloc EMB %d new size 0x%04x\n", h, WORD(_regs.ebx));
+  h=LWORD(edx);
 
   if (! ValidHandle(h))
     {
       x_printf("XMS: invalid handle %d, cannot realloc\n", h);
 
       LO(bx) = 0xa2;
-      _regs.eax = 0;
+      LWORD(eax) = 0;
       return;
     }
   else if (handles[h].lockcount)
@@ -448,27 +784,37 @@ void xms_realloc_EMB(void)
 	       h, handles[h].lockcount);
       
       LO(bx) = 0xab;
-      _regs.eax = 0;
+      LWORD(eax) = 0;
       return;
     }
-    
+
   oldsize=handles[h].size;
   oldaddr=handles[h].addr;
 
-  handles[h].size=WORD(_regs.ebx) * 1024;
+  /* BX is the 16-bit new size in KBytes for the old API, but the new
+   * XMS 3.0 32-bit API uses EBX
+   */
+  if (api == OLDXMS)
+      handles[h].size = LWORD(ebx) * 1024;
+  else
+      handles[h].size = _regs.ebx * 1024;
+
+  x_printf((api == OLDXMS) ? "XMS realloc EMB(old) %d to size 0x%04x\n" :
+	                     "XMS realloc EMB(new) %d to size 0x%08x\n",
+	                     h, handles[h].size);
+
   handles[h].addr=malloc(handles[h].size);
 
   /* memcpy() the old data into the new block, but only
    * min(new,old) bytes.
    */
-
   memcpy(handles[h].addr, oldaddr, 
 	 (oldsize <= handles[h].size) ? oldsize : handles[h].size);
 
-  /* free the old EMB */
+  /* free the EMB's old Linux memory */
   free(oldaddr);
 
-  _regs.eax=1;  /* success */
+  LWORD(eax)=1;  /* success */
 }
 
 
@@ -480,17 +826,17 @@ void xms_int15(void)
       if (xms_grab_int15)
 	{
 	  x_printf("XMS int 15 free mem returning 0 to protect HMA\n");
-	  _regs.eax &= ~0xffff;
+	  LWORD(eax) &= ~0xffff;
 	}
       else
 	{
-	  x_printf("XMS early int15 call...%dK free\n", extmem_size);
-	  _regs.eax=extmem_size;
+	  x_printf("XMS early int15 call...%dK free\n", config.xms_size);
+	  LWORD(eax)=config.xms_size;
 	}
     }
   else {   /* AH = 0x87 */
     x_printf("XMS int 15 block move failed\n");
-    _regs.eax&=0xFF;
+    LWORD(eax) &= 0xFF;
     HI(ax) = 3;	/* say A20 gate failed */
     CARRY;
   }
@@ -520,8 +866,6 @@ struct EMM get_emm(unsigned int seg, unsigned int off)
 
 void show_emm(struct EMM e)
 {
-  int i;
-
   x_printf("XMS show_emm:\n");
 
   x_printf("L: 0x%08x\nSH: 0x%04x  SO: 0x%08x\nDH: 0x%04x  DO: 0x%08x\n",
@@ -529,97 +873,6 @@ void show_emm(struct EMM e)
 	   e.DestHandle, e.DestOffset);
 }
 
-
-void xms_request_UMB(void)
-{
-  int size=WORD(_regs.edx);
-
-  x_printf("XMS request UMB size 0x%04x\n", size);
-  if ((size > 0xfff) && (freeA||freeC||freeD||freeF))
-    {
-      x_printf("XMS: request UMB too large, but one available.\n");
-
-      _regs.edx=0xfff;  /* 0xfff paragraphs is 0xfff0 bytes */
-      LO(bx) = 0xb0;
-      _regs.eax=0;
-      return;
-    }
-  else if (freeC)
-    {
-      x_printf("XMS: giving UMB at 0xc000 size 0x%04x bytes\n",
-	       WORD(_regs.edx) * PARAGRAPH);
-      _regs.ebx=0xc000;
-      /* DX stays the same... */
-      freeC=0;
-      _regs.eax=1;
-    }
-  else if (freeA)
-    {
-      x_printf("XMS: giving UMB at 0xA000 size 0x%04x bytes\n",
-	       WORD(_regs.edx) * PARAGRAPH);
-      _regs.ebx=0xA000;
-      /* DX stays the same... */
-      freeA=0;
-      _regs.eax=1;
-    }
-  else if (freeF)
-    {
-      x_printf("XMS: giving UMB at 0xF000 size 0x%04x bytes\n",
-	       WORD(_regs.edx) * PARAGRAPH);
-      _regs.ebx=0xF000;
-      /* DX stays the same... */
-      freeF=0;
-      _regs.eax=1;
-    }
-  else if (freeD)
-    {
-      x_printf("XMS: giving UMB at 0xD000 size 0x%04x bytes\n",
-	       WORD(_regs.edx) * PARAGRAPH);
-      _regs.ebx=0xD000;
-      /* DX stays the same... */
-      freeD=0;
-      _regs.eax=1;
-    }
-  else {
-    x_printf("XMS: no UMB's available\n");
-    _regs.eax=0;    /* failure */
-    LO(bx) = 0xb1;  /* no UMBs available */
-  }
-}
-
-void xms_release_UMB(void)
-{
-  x_printf("XMS release UMB segment 0x%04x\n", WORD(_regs.edx));
-  if (!freeC && (WORD(_regs.edx) == 0xc000))
-    {
-      x_printf("XMS: releasing 0xc000 UMB\n");
-      _regs.eax=1;
-      freeC=1;
-    }
-  else if (!freeA && (WORD(_regs.edx) == 0xa000))
-    {
-      x_printf("XMS: releasing 0xa000 UMB\n");
-      _regs.eax=1;
-      freeA=1;
-    }
-  else if (!freeF && (WORD(_regs.edx) == 0xf000))
-    {
-      x_printf("XMS: releasing 0xf000 UMB\n");
-      _regs.eax=1;
-      freeF=1;
-    }
-  else if (!freeD && (WORD(_regs.edx) == 0xD000))
-    {
-      x_printf("XMS: releasing 0xd000 UMB\n");
-      _regs.eax=1;
-      freeD=1;
-    }
-  else {
-    x_printf("XMS: release invalid UMB 0x%04x\n", WORD(_regs.edx));
-    _regs.eax=0;
-    LO(bx)=0xb2;
-  }
-}
 
 #undef XMS_C
 

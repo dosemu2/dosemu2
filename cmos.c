@@ -1,19 +1,25 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/02/16 19:49:06 $ 
+ * $Date: 1993/05/04 05:29:22 $ 
  * $Source: /usr/src/dos/RCS/cmos.c,v $
- * $Revision: 1.3 $
+ * $Revision: 1.6 $
  * $State: Exp $
  */
 
 #define CMOS_C
 #include <time.h>
 #include <sys/time.h>
+#include "config.h"
 #include "emu.h"
 #include "cmos.h"
+#include "disks.h"
 
-extern int mem_size, extmem_size, hdisks, fdisks;
+extern struct config_info config;
+#define EXTMEM_SIZE ((config.xms_size>config.ems_size)?config.xms_size : \
+		     config.ems_size)
+		     
+
 extern struct disk disktab[];
 
 int cmos_date(int);
@@ -27,21 +33,19 @@ void cmos_init(void)
     cmos.subst[i]=cmos.flag[i]=0;
 
   /* CMOS floppies...is this correct? */
-  cmos.subst[0x10]=(fdisks ?  (disktab[0].default_cmos << 4) : 0) | 
-    ((fdisks > 1) ? disktab[1].default_cmos&0xf : 0);
+  cmos.subst[0x10]=(config.fdisks ?  (disktab[0].default_cmos << 4) : 0) | 
+    ((config.fdisks > 1) ? disktab[1].default_cmos&0xf : 0);
   cmos.flag[0x10]=1;
 
   /* CMOS equipment byte..top 2 bits are 01 for 2 drives, 00 for 1 
    * bit 1 is 1 for math coprocessor installed
    * bit 0 is 1 for floppies installed, 0 for none */
-  cmos.subst[0x14]=((fdisks ? fdisks-1 : 0)<<5)+(fdisks ? 1 : 0);
-#if MATHCO
-  cmos.subst[0x14]|=2;
-#endif
+  cmos.subst[0x14]=((config.fdisks ? config.fdisks-1 : 0)<<5)+(config.fdisks ? 1 : 0);
+  if (config.mathco) cmos.subst[0x14]|=2;
   cmos.flag[0x14]=1;
 
   /* CMOS hard disks...type 47 for both. */
-  cmos.subst[0x12]=(hdisks ? 0xf0 : 0) + ((hdisks - 1) ? 0xf : 0);
+  cmos.subst[0x12]=(config.hdisks ? 0xf0 : 0) + ((config.hdisks - 1) ? 0xf : 0);
   cmos.subst[0x19]=47;
   cmos.subst[0x1a]=47;
   cmos.flag[0x12]=cmos.flag[0x19]=cmos.flag[0x1a]=1;
@@ -59,23 +63,23 @@ void cmos_init(void)
   cmos.flag[0xe]=1;
 
   /* memory counts */
-  cmos.subst[0x15]=mem_size & 0xff;   /* base mem LSB */
-  cmos.subst[0x16]=mem_size >> 8;
-  cmos.subst[0x17]=extmem_size & 0xff;    /* extended mem LSB */
-  cmos.subst[0x18]=extmem_size >> 8;
+  cmos.subst[0x15]=config.mem_size & 0xff;   /* base mem LSB */
+  cmos.subst[0x16]=config.mem_size >> 8;
+  cmos.subst[0x17]=EXTMEM_SIZE & 0xff;    /* extended mem LSB */
+  cmos.subst[0x18]=EXTMEM_SIZE >> 8;
   cmos.flag[0x15]=cmos.flag[0x16]=cmos.flag[0x17]=cmos.flag[0x18]=1;
 
   /* information flags...my CMOS returns this */
   cmos.subst[0x33] = 0xe1;
   cmos.flag[0x33] = 1;
 
-  warn("CMOS initialized: \n$Header: /usr/src/dos/RCS/cmos.c,v 1.3 1993/02/16 19:49:06 root Exp $\n");
+  warn("CMOS initialized: \n$Header: /usr/src/dos/RCS/cmos.c,v 1.6 1993/05/04 05:29:22 root Exp root $\n");
 }
 
 
 int cmos_read(int port)
 {
-  unsigned char holder;
+  unsigned char holder=0;
 
   h_printf("CMOS read. from add: 0x%02x\n", cmos.address);
 
@@ -106,15 +110,15 @@ int cmos_read(int port)
       h_printf("CMOS: substituting written value 0x%02x for read\n",holder);
     }
 #ifdef DANGEROUS_CMOS
-  else if (!ioperm(0x70,2,1))
+  else if (!set_ioperm(0x70,2,1))
     {
-      h_printf("CMOS: really reading!\n");
+      h_printf("CMOS: really reading 0x%x!\n", cmos.address);
       port_out((cmos.address & ~0xc0)|0x80, 0x70);
       holder=port_in(0x71);
-      ioperm(0x70,2,0);
+      set_ioperm(0x70,2,0);
     }
 #endif
-  else error("CMOS: Can't get permissions for true I/O to 0x70, 0x71\n");
+  else error("CMOS: unknown CMOS read 0x%x\n", cmos.address);
 
   h_printf("CMOS read. add: 0x%02x = 0x%02x\n", cmos.address, holder);
   return holder;

@@ -1,20 +1,39 @@
+# Makefile for Linux DOS emulator
+
+#
 # define LATIN1 if if you have defined KBD_XX_LATIN1 in your linux Makefile.
 # This assumes that <ALT>-X can be read as "\033x" instead of 'x'|0x80 
 #
 # DEFINES=-DLATIN1
 #
-# WARNING!  You'll have to "touch" the affected files after you change
-#           some configuration option in the Makefile.  Unless you
-#           know exactly which files it affects, I'd suggest you
-#           just do a make "clean."
+# WARNING!  You'll have to do a 'make config' after changing the
+#           configuration settings in the Makefile.  You should also
+#           do a make dep, make clean if you're doing the first compile. 
 #
-# The one exception to this is the floppy disk configuration.  You can
-# just do "make disks" then a "make all" (or "make install") to rebuild
-# the emulator after changing the FLOPPY_CONFIG variable.
+
+#ifdef DEBUG
+#STATIC=1
+#DOSOBJS=debugobj.o $(OBJS)
+#SHLIBOBJS=
+#DOSLNK=-ltermcap -lipc
+#LNKOPTS=-g
+#else
+STATIC=0
+DOSOBJS=
+SHLIBOBJS=$(OBJS)
+LNKOPTS=-s
+#endif
+
+# dosemu version
+EMUVER  =   0.49
+VERNUM  =   0x49
 
 # DON'T CHANGE THIS: this makes libemu start high enough to be safe. should be 
-# okay at...0x10000000 for 1 GB mark.  nobody should ever use 1 GB on a PC.
-LIBSTART = 0x10000000
+# okay at...0x20000000 for .5 GB mark.
+LIBSTART = 0x20000000
+
+ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
+
 
 # path to your compiler's shared libraries
 #
@@ -22,17 +41,8 @@ LIBSTART = 0x10000000
 # POINTS TO YOUR SHARED LIBRARY STUBS!
 #
 # one of these ought to work:
-# SHLIBS=
- SHLIBS=-L/usr/lib/gcc-lib/i386-linux/2.2.2d/shared -L/usr/lib/shlib/jump
-
-
-#
-# PHANTOMDIR
-#    set the Linux directory for the phantom
-#    LINUX.EXE drive
-#
-
-PHANTOMDIR = -DPHANTOMDIR=\"/usr/dos\"
+ SHLIBS=
+# SHLIBS=-L/usr/lib/gcc-lib/i386-linux/2.2.2d/shared -L/usr/lib/shlib/jump
 
 #
 # VIDEO_CARD
@@ -76,8 +86,6 @@ PHANTOMDIR = -DPHANTOMDIR=\"/usr/dos\"
 # DISKS
 #
 # these are the DEFault numbers of disks
-# note that LINUX.EXE will fail if there are more than two
-# floppy disks.
 #
 DEF_FDISKS = 2
 DEF_HDISKS = 2
@@ -85,69 +93,8 @@ DEF_HDISKS = 2
 # DON'T CHANGE THE FOLLOWING LINE
 NUM_DISKS = -DDEF_FDISKS=$(DEF_FDISKS) -DDEF_HDISKS=$(DEF_HDISKS)
 
-# 
-# this is the floppy configuration.  there are 3
-# configurable entries in the floppy disk table,
-# FLOPPY_A, FLOPPY_B, and EXTRA_FLOPPY.
-# to use EXTRA_FLOPPY, you must either change DEF_FDISKS
-# above to be 3, or specify "-F 3" upon invocation.
-#
-# Each can be assigned a number which has the
-# following meaning:
-#
-#   0:  "diskimage" file 5.25 inch 1.2 MB
-#   1:  "diskimage" file 3.5 inch 1.44 MB
-#   2:  "/dev/fd0" 5.25 inch 1.2 MB
-#   3:  "/dev/fd0" 3.5 inch 1.44 MB
-#   4:  "/dev/fd1" 5.25 inch 1.2 MB
-#   5:  "/dev/fd1" 3.5 inch 1.44 MB
-#
-# this is my configuration: a diskimage file
-# as floppy A:, /dev/fd1 3.5 inch as floppy B:,
-# and the EXTRA_FLOPPY is my /dev/fd0 5.25 inch.
-#
-
-FLOPPY_A=1
-FLOPPY_B=5
-EXTRA_FLOPPY=2
-
-# another popular configuration might be this:
-# the floppies A: and B: correspond to /dev/fd0 and
-# /dev/fd1 (5.25 and 3.5 inch, respectively), and
-# the EXTRA_FLOPPY is a diskimage file.
-#
-# set FLOPPY_A=2, FLOPPY_B=5, EXTRA_FLOPPY=0 if you want this config.
-#
-# DON'T CHANGE THE FOLLOWING LINE
-FLOPPY_CONFIG = -DFLOPPY_A=$(FLOPPY_A) -DFLOPPY_B=$(FLOPPY_B) \
-                -DEXTRA_FLOPPY=$(EXTRA_FLOPPY)
-
-#
-# MATHCO
-#  uncomment this if you have a real math coprocessor. Linux math
-#  emulation doesn't seem to work w/vm86 mode.
-MATHCO = -DMATHCO=1
-
-#
-# EXPERIMENTAL_GFX
-#  uncomment these if you want to freeze your machine with
-#  no hope of recovery...
-#  this is for my testing purposes only. really. don't play with it.
-# GFX    = -DEXPERIMENTAL_GFX=1
-# GFXOBS = dosvga.o
-
-# XMS  (eXtended Memory Specification)
-#  comment these if you don't want programs to use the
-#  semi-functional XMS support (UMB support is still weak)
-#  Although semi-functional, it seems bug-free. :-)
-# 
-# MAX_XMS is the maximum number of Kilobytes you will allow
-#   dosemu's XMS support to use. Unused XMS memory doesn't cost 
-#   you anything, and it can be swapped like any other Linux memory
-#
 XMS     = -DXMS=1
-XMSOBS  = xms.o
-MAX_XMS = 4096        # max 4 megs XMS
+XMSOBJS  = xms.o
 
 #
 # SYNC_ALOT
@@ -155,62 +102,165 @@ MAX_XMS = 4096        # max 4 megs XMS
 # isn't being sync'd to the debug file (stdout). shouldn't happen. :-)
 # SYNC_ALOT = -DSYNC_ALOT=1
 
+GFX = -DCHEAP_GFX=1
+
+CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu/config\"
 
 ###################################################################
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c dosvga.c keymaps.c \
-	timers.c linuxfs.c
-HFILES=cmos.h dosvga.h emu.h termio.h timers.h xms.h 
-OFILES=Makefile README.first README
+	timers.c mouse.c dosipc.c cpu.c video.c mfs.c bios_emm.c lpt.c \
+        parse.c serial.c mutex.c putrom.c
+HFILES=cmos.h dosvga.h emu.h termio.h timers.h xms.h mouse.h dosipc.h \
+        cpu.h bios.h mfs.h disks.h memory.h machcompat.h lpt.h \
+        serial.h mutex.h modes.h
+OFILES=Makefile README.first dosconfig.c bootsect.S mkhdimage.c \
+       mkpartition exitemu.S mkbkup emufs.S  \
+	vgaon.S vgaoff.S config.dist mmap.diff getrom 
+DOCFILES=dosemu.texinfo Makefile dos.1 wp50
+BFILES=emufs.sys hdimage.head exitemu.com vgaon.com vgaoff.com
 ###################################################################
 
-OBJS=emu.o linuxfs.o termio.o disks.o keymaps.o timers.o cmos.o \
-     $(GFXOBS) $(XMSOBS)
+OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o parse.o \
+     dosipc.o cpu.o video.o $(GFXOBJS) $(XMSOBJS) mfs.o bios_emm.o lpt.o \
+     serial.o mutex.o 
 
-OPTIONAL  = $(GFX) $(XMS) -DMAX_XMS=$(MAX_XMS) # -DDANGEROUS_CMOS=1
-CONFIGS   = $(KEYBOARD) $(PHANTOMDIR) $(VIDEO_CARD) $(MATHCO)
-DEBUG     = $(SYNC_ALOT)
-DISKS     = $(NUM_DISKS) $(FLOPPY_CONFIG)
-CFLAGS    = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) \
-	    -DLIBSTART=$(LIBSTART) # -O6 -Wall
+DEFINES    = -Dlinux=1 
+OPTIONAL   = $(GFX)  # -DDANGEROUS_CMOS=1
+MEMORY     = $(XMS) 
+CONFIGS    = $(KEYBOARD) $(VIDEO_CARD) $(CONFIG_FILE)
+DEBUG      = $(SYNC_ALOT)
+DISKS      = $(NUM_DISKS) $(FLOPPY_CONFIG)
+CONFIGINFO = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) $(MOUSE) \
+	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
+	     $(MEMORY)
 
-all:	dos libemu
+CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
+CFLAGS     = -m486 -DAJT=1 # -O6 # -Wall
+LDFLAGS    = $(LNKOPTS) # exclude symbol information
+AS86 = as86
+LD86 = ld86 -0 -s
 
-dos:	dos.c Makefile
-	$(CC) -N -DLIBSTART=$(LIBSTART) -o $@ $<
+all:	warnconf dos libemu mkhdimage bootsect exitemu.com emufs.sys vgaon.com vgaoff.com
 
-libemu:	$(OBJS)
-	ld -T $(LIBSTART) -o $@ $(OBJS) $(SHLIBS) -lc -ltermcap
+debug:
+	rm dos
+	make dos
+
+config.h: Makefile
+ifeq (config.h,$(wildcard config.h))
+	@echo "WARNING: Your Makefile has changed since config.h was generated."
+	@echo "         Consider doing a 'make config' to be safe."
+else
+	@echo "WARNING: You have no config.h file in the current directory."
+	@echo "         Generating config.h..."
+	make config
+endif
+warnconf: config.h
+
+dos:	dos.c $(DOSOBJS)
+	@echo "Including dos.o &" $(DOSOBJS)
+	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) $(DOSLNK)
+
+libemu:	$(SHLIBOBJS)
+	ld $(LDFLAGS) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(SHLIBS) -lc -ltermcap -lipc
 
 clean:
-	rm -f $(OBJS) $(GFXOBS) $(XMSOBS) dos libemu *.s core
+	rm -f $(OBJS) $(GFXOBJS) $(XMSOBJS) dos libemu *.s core config.h .depend dosconfig dosconfig.o bootsect bootsect.o exitemu.o exitemu.com mkhdimage *.tmp
 
-install: all
+config: dosconfig
+	@./dosconfig $(CONFIGINFO) > config.h
+
+install: all /usr/bin/dos
 	cp libemu /lib
-	cp dos /usr/bin
 	cp dos.1 /usr/man/man1
-	chmod 4755 /usr/bin/dos    # make it suid
+	mkdir -p /etc/dosemu
+	cp mkhdimage mkpartition getrom /etc/dosemu
+	chmod 755 /etc/dosemu/mkhdimage /etc/dosemu/mkpartition /etc/dosemu/getrom
 	touch hdimage diskimage
-	@echo "Type 'dos -\?' for help."
+	@echo "Remember to edit config.dist and copy it to /etc/dosemu/config!"
+
+/usr/bin/dos: dos
+	cp dos /usr/bin
+	chmod 4755 /usr/bin/dos
+
+mkhdimage: mkhdimage.c
+	$(CC) $(CFLAGS) -o mkhdimage -s -N mkhdimage.c
+
+# this should produce a 512 byte file that ends with 0x55 0xaa
+# this is a MS-DOS boot sector and partition table (empty).
+# (the dd is necessary to strip off the 32 byte Minix executable header)
+bootsect: bootsect.S
+	$(AS86) -a -0 -o bootsect.o bootsect.S # -l bootsect.lst
+	$(LD86) -s -o boot.tmp bootsect.o
+	dd if=boot.tmp of=bootsect bs=1 skip=32
+	rm boot.tmp
+
+emufs.sys: emufs.S
+	$(AS86) -0 -o emufs.o emufs.S -l emufs.lst
+	$(LD86) -s -o emufs.tmp emufs.o
+	dd if=emufs.tmp of=emufs.sys bs=1 skip=32
+	rm emufs.tmp
+
+comfiles = exitemu.com vgaon.com vgaoff.com
+
+%.com: %.S
+	$(AS86) -0 -o $*.o $<
+	$(LD86) -T 0 -s -o $*.tmp $*.o
+	dd if=$*.tmp of=$@ bs=1 skip=32
+	rm $*.tmp $*.o
+
+testlib: all /usr/bin/dos
+	cp libemu /lib
+
+converthd: hdimage
+	mv hdimage hdimage.preconvert
+	mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
+	@echo "Your hdimage is now converted and ready to use with 0.49!"
+
+newhd: bootsect diskutil
+	mkhdimage -h 4 -s 17 -c 40 | cat - bootsect > newhd
+	@echo "You now have a hdimage file called 'newhd'"
 
 checkin:
 	ci $(CFILES) $(HFILES) $(OFILES)
+	cd doc
+	ci $(DOCFILES)
 
-dist: $(CFILES) $(HFILES) $(OFILES) dos.1
-	mkdir -p /tmp/dosemu0.48
-	cp $(CFILES) $(HFILES) $(OFILES) announce.48 wp50 dos.1 /tmp/dosemu0.48
-	cp hds/hdimage.dist /tmp/dosemu0.48/hdimage
-	touch /tmp/dosemu0.48/diskimage
-	(cd /tmp; tar cf dosemu0.48.tar dosemu0.48; compress dosemu0.48.tar)
-	rm -rf /tmp/dosemu0.48
-	@echo "FINAL TAR.Z FILE:"
-	@ls -l /tmp/dosemu0.48.tar.Z
+checkout:
+	co -l $(CFILES) $(HFILES) $(OFILES)
+	cd doc
+	co $(DOCFILES)
 
-emu.o:		emu.h dosvga.h xms.h timers.h cmos.h Makefile
-linuxfs.o:	emu.h 
-termio.o:	emu.h termio.h dosvga.h
-disks.o:	emu.h Makefile
-keymaps.o:	Makefile
-dosvga.o:	emu.h dosvga.h
-xms.o:		emu.h xms.h Makefile
-timers.o:	emu.h timers.h
-cmos.o:		emu.h cmos.h Makefile
+bkup: 
+	@echo "Backing up tmpdir"
+	./mkbkup /tmp/dosemu /usr/src/dos/bkup $(CFILES) $(HFILES) $(OFILES) $(BFILES) 
+
+usrdos: 
+	@echo "Copying files to /usr/src/dos"
+	cp $(CFILES) $(HFILES) $(OFILES) $(BFILES) /usr/src/dos
+	cd doc
+	cp $(DOCFILES) /usr/src/dos/doc
+
+dist: $(CFILES) $(HFILES) $(OFILES) $(BFILES)
+	mkdir -p /tmp/dosemu$(EMUVER)
+	mkdir -p /tmp/dosemu$(EMUVER)/doc
+	cp $(CFILES) $(HFILES) $(OFILES) $(BFILES) announce$(EMUVER) \
+	       /tmp/dosemu$(EMUVER)
+	(cd doc; cp $(DOCFILES) /tmp/dosemu$(EMUVER)/doc)
+	cp hds/hdimage.dist /tmp/dosemu$(EMUVER)/hdimage
+	touch /tmp/dosemu$(EMUVER)/diskimage
+	(cd /tmp; tar cf - dosemu$(EMUVER) | gzip -9 > \
+	     dosemu$(EMUVER).tar.z)
+	rm -rf /tmp/dosemu$(EMUVER)
+	@echo "FINAL .tar.z FILE:"
+	@ls -l /tmp/dosemu$(EMUVER).tar.z
+
+depend dep: 
+	$(CPP) -MM $(CFLAGS) *.c > .depend
+
+#
+# include a dependency file if one exists
+#
+ifeq (.depend,$(wildcard .depend))
+include .depend
+endif

@@ -1,12 +1,21 @@
 /* dos emulator, Matthias Lautner */
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/18 18:53:41 $
+ * $Date: 1993/05/04 05:29:22 $
  * $Source: /usr/src/dos/RCS/dos.c,v $
- * $Revision: 1.6 $
+ * $Revision: 1.9 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 1.9  1993/05/04  05:29:22  root
+ * added console switching, new parse commands, and serial emulation
+ *
+ * Revision 1.8  1993/04/05  17:25:13  root
+ * big pre-49 checkit; EMS, new MFS redirector, etc.
+ *
+ * Revision 1.7  1993/02/18  19:35:58  root
+ * just added newline so diff wouldn't barf
+ *
  * Revision 1.6  1993/02/18  18:53:41  root
  * this is for 0.48patch1, mainly to fix the XMS bug (moved libemu up to
  * the 1 GB mark), and to try out the faster termcap buffer-compare code.
@@ -30,20 +39,32 @@
  */
 
 #include <stdio.h>
+#include "config.h"
 
 void (*dosemu)();
-char dummy[1088*1024 + 64*1024]; /* ensure that the lower 1MB+64K is unused */
+char dummy[1088*1024]; /* ensure that the lower 1MB+64K is unused */
 
 /* the "+ 64*1024" reserves 64k second video buffer...should be moved into
  * a simple malloc()ed global variable.  dunno why I did it this way */
 
+
 int main(int argc, char **argv)
 {
+#if STATIC
+  int emulate(int, char **);
+
+  fprintf(stderr,"running static!\n");
+  fflush(stderr);
+  printf("WARNING: running static!\n");
+  emulate(argc, argv);
+#else
   if (uselib("/lib/libemu") != 0) {
     printf("cannot load shared lib\n");
     exit(1);
   }
   dosemu = (void *) LIBSTART;
   dosemu(argc, argv);
+#endif
+
 }
 

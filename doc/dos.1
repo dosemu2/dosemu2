@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH DOS 1 "Feb 16, 1993" "Version ALPHA 0.48" "MS-DOS Emulation"
+.TH DOS 1 "Mar 22, 1993" "Version ALPHA 0.49" "MS-DOS Emulation"
 .SH NAME
 dos \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -43,7 +43,7 @@ allocation through the XMS specification.
 .PP
 Because 
 .B dosemu
-is not really an emulator, a copy of MS-DOS 3.3, 4.0, or 5.0 is required.
+is not really an emulator, a copy of MS-DOS 3.3-5.0 is required.
 (Future versions of MS-DOS may run, but have of course not been verified.
 DR-DOS 6.0 has also been reported to work.)
 .PP
@@ -55,6 +55,13 @@ and the
 contained in the source distribution
 for information on how to configure, compile, and boot 
 .B dosemu.
+.SH KERNEL PATCHES - WARNING!!
+At present, you will need the 0.99pl7 or newer Linux kernel with Krishna
+Balasubramanian's
+.B ipcdelta
+patches compiled in.  These patches add the System V InterProcess 
+Communication facilities to Linux.  Of these, dosemu currently only uses shared
+memory.
 .SH OPTIONS
 .TP
 .PD 0
@@ -94,6 +101,12 @@ set base memory to SIZE Kilobytes
 .TP
 .I -P
 copy debugging output to FILE
+.TP
+.I -2,3,4
+choose 286, 386, or 486 processor (BE CAREFUL! dosemu is not yet 32-bit clean,
+so if your program detects a 386 or 486 processor and uses 32-bit registers,
+it might be confused by BIOS functions.  If you think this is happening, use
+-2 to force dosemu into 286-mode.)
 .PD 1
 .SH HARD DISKS
 .B dosemu
@@ -195,10 +208,12 @@ string from left to right.
        +/- state.
 
 .I Message Classes:
-   d   disk            v   video          R   disk Reads
-   k   keyboard        i   port I/O       W   disk Writes
-   s   serial          p   printer        h   hardware
-   w   warnings        g   general        x   XMS
+ d   disk            v   video          R   disk Reads
+ k   keyboard        i   port I/O       W   disk Writes
+ s   serial          p   printer        h   hardware
+ w   warnings        g   general        x   XMS
+ I   IPC
+
 
 Any debugging classes following a 
 .I \+ 
@@ -272,15 +287,15 @@ together with a function key will change virtual consoles, as it normally
 does under Linux.
 .SH MEMORY
 The XMS memory support in dosemu conforms to Lotus/Intel/Microsoft/AST extended
-memory specification 3.0.  I have implemented all XMS functions except:
-function 0x12 (Reallocate Upper Memory Block) and the Super Extended
-Memory Support.  
+memory specification 3.0.  I have implemented all XMS functions except
+function 0x12 (Reallocate Upper Memory Block).
 .PP
 While I have implemented the UMB functions, they are extremely stupid and 
 will almost always act suboptimally.  The next release of dosemu should
 have saner UMB support.
 .PP
-EMS has not been implemented, and probably won't be for some time.
+dosemu 0.49 may or may not support EMS.  This line has been placed into
+the man page to encourage the author to get off his *ss and do it.
 .SH AUTHOR
 .B dosemu
 (comprised of the files

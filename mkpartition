@@ -1,0 +1,34 @@
+#!/bin/sh
+# mkpartition - for dosemu 0.49
+#    Robert Sanders, gt8134b@prism.gatech.edu
+#
+ME=`basename $0`
+DRIVE=$1
+PARTNUM=$2
+PART=${DRIVE}${PARTNUM}
+ETCD=/etc/dosemu
+PFILE=${ETCD}/partition
+
+echo "MKPARTITION for dosemu 0.49"
+echo
+echo "Setting up dosemu to use partition $PART from drive $DRIVE..."
+
+if [ $PARTNUM -gt 4 ]
+then
+	echo "$ME: $PARTNUM outside range; the highest partition is 4"
+	exit 1
+fi
+
+if [ ! -r "$DRIVE" -o ! -r "$PART" ]
+then
+	echo "$ME: drive <$DRIVE> or partition <$PART> non-readable or absent"
+	exit 1
+fi
+
+if [ -r "$PFILE" ]
+then
+	echo "Backing up $PFILE to $PFILE.old"
+	mv $PFILE ${PFILE}.old
+fi
+
+dd if=$DRIVE of=$PFILE bs=512 count=1

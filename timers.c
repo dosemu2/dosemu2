@@ -3,12 +3,31 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/02/16 00:21:29 $
+ * $Date: 1993/05/04 05:29:22 $
  * $Source: /usr/src/dos/RCS/timers.c,v $
- * $Revision: 1.2 $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 1.7  1993/05/04  05:29:22  root
+ * added console switching, new parse commands, and serial emulation
+ *
+ * Revision 1.6  1993/04/05  17:25:13  root
+ * big pre-49 checkit; EMS, new MFS redirector, etc.
+ *
+ * Revision 1.5  1993/03/02  03:06:42  root
+ * somewhere between 0.48pl1 and 0.49 (with IPC).  added virtual IOPL
+ * and AC support (for 386/486 tests), -3 and -4 flags for choosing.
+ * Split dosemu into 2 processes; the child select()s on the keyboard,
+ * and signals the parent when a key is received (also sends it on a
+ * UNIX domain socket...this might not work well for non-console keyb).
+ *
+ * Revision 1.4  1993/02/24  11:33:24  root
+ * some general cleanups, fixed the key-repeat bug.
+ *
+ * Revision 1.3  1993/02/18  19:35:58  root
+ * just added newline so diff wouldn't barf
+ *
  * Revision 1.2  1993/02/16  00:21:29  root
  * DOSEMU 0.48 DISTRIBUTION
  *
@@ -20,6 +39,9 @@
 #include "emu.h"
 #include "timers.h"
 
+extern config_t config;
+extern int ignore_segv;
+
 unsigned long timer_tick(void)
 {
   unsigned long *ticks=BIOS_TICK_ADDR;
@@ -30,12 +52,12 @@ unsigned long timer_tick(void)
    * I used 22 instead of 18 not only for the roundoff error, but
    * because of the latency problem with 1x10^6/UPDATE < 18
    */
-   
-  *ticks += (22 / (1000000 / UPDATE));
+  (*ticks)+= (22 / FREQ);
+ /*  warn("TIMER: updated count to %d\n", *ticks); */
   if (*ticks == 0)
     {
       h_printf("TIMER: 24 hours overflow!\n");
-      *overflow=1;
+      (*overflow)++;
     }
 }
 
@@ -44,10 +66,74 @@ unsigned long set_ticks(unsigned long new)
   unsigned long *ticks=BIOS_TICK_ADDR;
   unsigned char *overflow=TICK_OVERFLOW_ADDR;
 
+  ignore_segv++;
   warn("TIMER: setting ticks to: 0x%08x  from: 0x%08x\n", new, *ticks);
   *ticks=new;
   *overflow=0;
   warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE)));
+  ignore_segv--;
 }
+
+
+inline int int28(void)	 /* keyboard busy loop */
+{
+/* defining this reduces the CPU load, but slows Turbo Pascal and Turbo
+ * C's pageup/pagedown tremendously
+ */
+#ifdef BAD_SLOW_INT28
+  /* if this is an idle call :-), wait for a bit */
+  if (IS_IRET(0x28))
+    {
+      usleep(INT28_IDLE_USECS);
+      return 1;
+    }
+  else return 0;
+#else
+  return 0;
+#endif
+}
+
 #undef TIMERS_C
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

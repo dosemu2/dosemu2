@@ -1,3 +1,5 @@
+#include "config.h"
+
 #define CONST 
 
 #if defined KBD_FINNISH

@@ -1,76 +1,66 @@
-/* dos emulator, Matthias Lautner */
-#define DISKS_C 1
-/* Extensions by Robert Sanders, 1992-93 
+/* dos emulator, Matthias Lautner 
+ * Extensions by Robert Sanders, 1992-93 
  *
- * this file is way too ugly for my tastes, but I'll go ahead
- * and release it like this...I'll make it pretty when I have the
- * time.
+ * floppy disks, dos partitions or their images (files) (maximum 8 heads)
  */
-/* floppy disks, dos partitions or their images (files) (maximum 8 heads) */
 
+#define DISKS_C 1
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <malloc.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <linux/hdreg.h>
+#include <linux/fd.h>
+#include <sys/stat.h>
+
+#include "config.h"
 #include "emu.h"
+#include "disks.h"
 
-#define DI_5  {"diskimage", 0, 15, 2, 80, FIVE_INCH_FLOPPY}  /* type 0 */
-#define DI_3  {"diskimage", 0, 18, 2, 80, THREE_INCH_FLOPPY} /* type 1 */
-#define FD0_5 {"/dev/fd0", 0, 0, 0, 0, FIVE_INCH_FLOPPY}     /* type 2 */
-#define FD0_3 {"/dev/fd0", 0, 0, 0, 0, THREE_INCH_FLOPPY}    /* type 3 */
-#define FD1_5 {"/dev/fd1", 0, 0, 0, 0, FIVE_INCH_FLOPPY}     /* type 4 */
-#define FD1_3 {"/dev/fd1", 0, 0, 0, 0, THREE_INCH_FLOPPY}    /* type 5 */
+extern config_t config;
+extern int fatalerr;
+
+
+#define FDISKS config.fdisks
+#define HDISKS config.hdisks
+
+inline void disk_close(void);
+
+#if 1
+#define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) disk_close()
+#else
+#define FLUSHDISK(dp) if (dp->removeable && !config.fastfloppy) \
+  ioctl(dp->fdesc, FDFLUSH, 0)
+#endif
+
+struct disk_fptr disk_fptrs[NUM_DTYPES] =
+{
+  { image_auto, image_setup },
+  { hdisk_auto, hdisk_setup },
+  { floppy_auto, floppy_setup },
+  { partition_auto, partition_setup }
+};
+
+/* the argument RF should be one of two values:
+ *   DISK_RDWR     or    DISK_RDONLY
+ */
+
+#define IMG_5(RF) {"diskimage", RF, 15, 2, 80, FIVE_INCH_FLOPPY, FLOPPY, 0}
+#define IMG_3(RF) {"diskimage", RF, 18, 2, 80, THREE_INCH_FLOPPY, FLOPPY, 0}
+#define FD0_5(RF) {"/dev/fd0", RF, 0, 0, 0, FIVE_INCH_FLOPPY, FLOPPY, 0}
+#define FD0_3(RF) {"/dev/fd0", RF, 0, 0, 0, THREE_INCH_FLOPPY, FLOPPY, 0}
+#define FD1_5(RF) {"/dev/fd1", RF, 0, 0, 0, FIVE_INCH_FLOPPY, FLOPPY, 0}
+#define FD1_3(RF) {"/dev/fd1", RF, 0, 0, 0, THREE_INCH_FLOPPY, FLOPPY, 0}
 
 /* the emulator only uses 2 floppies by default (the first 2).  you may
  * enable the third by giving dos the parameter "-F 3", but having
  * more than 3 floppies has caused LINUX.EXE to fail for me 
  */
 
-struct disk disktab[DISKS] = {
-#if FLOPPY_A == 0
-DI_5,
-#elif FLOPPY_A == 1
-DI_3,
-#elif FLOPPY_A == 2
-FD0_5,
-#elif FLOPPY_A == 3
-FD0_3,
-#elif FLOPPY_A == 4
-FD1_5,
-#elif FLOPPY_A == 5
-FD1_3,
-#else
-#error "You chose a bad type for FLOPPY_A"
-#endif
-
-#if FLOPPY_B == 0
-DI_5,
-#elif FLOPPY_B == 1
-DI_3,
-#elif FLOPPY_B == 2
-FD0_5,
-#elif FLOPPY_B == 3
-FD0_3,
-#elif FLOPPY_B == 4
-FD1_5,
-#elif FLOPPY_B == 5
-FD1_3,
-#else
-#error "You chose a bad type for FLOPPY_B"
-#endif
-
-#if EXTRA_FLOPPY == 0
-DI_5
-#elif EXTRA_FLOPPY == 1
-DI_3
-#elif EXTRA_FLOPPY == 2
-FD0_5
-#elif EXTRA_FLOPPY == 3
-FD0_3
-#elif EXTRA_FLOPPY == 4
-FD1_5
-#elif EXTRA_FLOPPY == 5
-FD1_3
-#else
-#error "You chose a bad type for EXTRA_FLOPPY"
-#endif
-};
+struct disk disktab[4] /* = {  FLOPPY_A, FLOPPY_B, EXTRA_FLOPPY } */ ;
 
 /*  to get a 1.2MB, 5 1/4" diskimage, change it's entry line to this:
  *      {"diskimage",0,15,2,80,FIVE_INCH_FLOPPY},
@@ -92,18 +82,888 @@ FD1_3
  * for a trial run.
  */
 
-struct disk hdisktab[HDISKS] = {
-		{"hdimage", 0, 17, 4, 40},
-		{"/dev/hda", 0, 35, 12, 987},  
-	      };
-/***********************************************************************/
-/*****          format of the hard disk entry                      *****/
-/***********************************************************************/
-/*		{"/dev/hda", 1, 17, 9, 900},  */
-/*			     ^ readonly (1=readonly, 0=read/write)	*/
-/*				^ sectors 				*/
-/*				    ^ heads				*/
-/*					^ cylinders			*/
-/***********************************************************************/
+struct disk hdisktab[] = 
+{
+#define OLD_DISKS 1
+#ifdef OLD_DISKS
+  {"hdimage",  DISK_RDWR, 17,  4, 40, 0, IMAGE, HEADER_SIZE}, 
+  {"/dev/hda", DISK_RDWR, -1, -1, -1, 0, HDISK, 0},
+
+#else
+/* the partition code is not done yet... Robert, 4/16/93*/
+  {"hdimage",  DISK_RDWR, -1, -1, -1, 0, IMAGE, HEADER_SIZE}, 
+  {"/dev/hda1", DISK_RDWR, -1, -1, -1, 0, PARTITION, 0},
+
+#endif
+};
+
+/**********************************************************************
+*****          format of the hard disk entry                      *****
+***********************************************************************
+* to use the "auto-detection" code, merely set sectors, heads, and    *
+* cylinders to -1.  Thus, the auto-detected hard disk will look like
+* this:
+*               {"/dev/hda", 1, -1, -1, -1, 0, DISK, 0},
+*
+* The auto-detection may not work for your drive.  If it fails, 
+* explicitly specify the geometry as below.
+*
+* For hdimage, you should NOT use auto-geometry-detection.  Here is   *
+* the hard disk geometry format:
+*
+*		{"/dev/hda", 1, 17, 9, 900, 0, DISK, 0},                 * 
+*			     ^ readonly (1=readonly, 0=read/write)    *
+*				^ sectors 			      *
+*				    ^ heads			      *
+*					^ cylinders		      *
+*           				    ^ cmos type (0)	      *
+*						^ file type           *
+*						     ^ header offset  *
+*								      *
+* NOTE: both of these examples have their readonly flags set. To make *
+*       the disks read/write, change the readonly flag to 0.          *
+**********************************************************************/
+
+/* read_sectors
+ *
+ * okay, here's the purpose of this: to handle reads orthogonally across
+ * all disk types.  The tricky one is PARTITION, which looks like this:
+ *
+ *  |||..........,,,######################################
+ *
+ *   |   adds up to 1 sector (512 bytes) of Master Boot Record (MBR)
+ *       THIS IS KEPT IN MEMORY, and is the file /etc/dosemu/partition.
+ *
+ *   .   is any number of sectors before the desired partition start address.
+ *       THESE SECTORS ARE NOT EMULATED, BUT MERELY SKIPPED
+ *
+ *   ,   is some number of sectors "before" the partition.  These sectors
+ *       occur after the partition start address.
+ *       THESE SECTORS ARE NOT EMULATED, BUT MERELY SKIPPED
+ *       I might not need to skip these, but it seems to work...
+ *
+ * read_sectors should be able to handle a read which crosses any number
+ * of boundaries by memcpy()ing, skipping, and read()ing the appropriate
+ * combination.
+ */
+
+int 
+read_sectors(struct disk *dp, char *buffer, long head, long sector, 
+	     long track, long count)
+{
+  long pos;
+  long already=0;
+  long tmpread;
+
+  /* XXX - header hack. dp->header can be negative for type PARTITION */
+  pos = DISK_OFFSET(dp, head,sector,track) + dp->header;
+
+  /* reads beginning before that actual disk/file */
+  if (pos < 0)
+    {
+      int readsize = count * SECTOR_SIZE;
+      int mbroff = -dp->header + pos;
+      int mbrcount, mbrinc;
+
+      if (dp->type != PARTITION) {
+	error("ERROR: negative offset on non-partition disk type\n");
+	LWORD(eax) = 0x400; /* sector not found */
+	_regs.eflags |= CF;
+	return(-1);
+      }
+
+      if (readsize >= -pos) { mbrcount=-pos; mbrinc=-pos; }
+      else { mbrcount=readsize; mbrinc=readsize; }
+
+      /* this should take a third variable, mbr_begin, into account, but
+       * the MBR always begins at offset 0
+       * this will end up pretending to read the requested data, but will
+       * only read as much as can be read from the fake MBR in memory,
+       * simply skipping the rest.  Should I zero the "unread" parts of
+       * the dest. buffer?  No matter, I guess.
+       */
+      if ((mbroff + mbrcount) > dp->part_info.mbr_size) {
+	error("ERROR: %s writing in the forbidden fake partition zone!\n",
+	      dp->dev_name);
+	mbrcount = dp->part_info.mbr_size - mbroff;
+      }
+
+      d_printf("WARNING: %d (%x) read for %d below %s, h:%d s:%d t:%d\n", 
+	       pos, -pos, readsize, 
+	       dp->dev_name, head, sector, track);
+
+      memcpy(buffer, dp->part_info.mbr + mbroff, mbrcount);
+
+      /* even though we may not have actually read mbrinc bytes (i.e. the
+       * read spanned non-emulated empty space), we increment this much
+       * so that we can pretend that the whole read worked and get on with
+       * the rest.
+       */
+      buffer += mbrinc;
+      pos    += mbrinc;
+      already = mbrinc;
+
+      /* simulate a read() of count*SECTOR_SIZE bytes */
+      if (readsize == mbrinc) {
+	d_printf("   got entire read done from memory. off:%d, count:%d\n", 
+		 mbroff, mbrcount);
+
+	return readsize;
+      }
+    }
+  
+  if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
+    error("ERROR: Sector not found in read_sector!\n");
+    show_regs();
+    LWORD(eax) = 0x400; /* sector not found */
+    _regs.eflags |= CF;
+    return 0;
+  }
+
+  tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE));
+  if (tmpread != -1) return(tmpread + already);
+  else return -1;
+}
+
+
+int 
+write_sectors(struct disk *dp, char *buffer, long head, long sector, 
+	      long track, long count)
+{
+  off_t pos;
+  int tmpwrite;
+
+  if (dp->rdonly) {
+    d_printf("ERROR: write to readonly disk %s\n", dp->dev_name);
+    LO(ax) = 0;  /* no sectors written */
+    CARRY;       /* error */
+    HI(ax) = 0xcc; /* write fault */
+    return;
+  }
+
+  /* XXX - header hack */
+  pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
+  
+  /* if dp->type is PARTITION, we currently don't allow writing to an area 
+   * not within the actual partition (i.e. somewhere else on the faked
+   * disk). I could avoid this by somehow relocating the partition to
+   * the beginning of the disk, but I confess I'm not sure how I would
+   * do that.
+   *
+   * Also, I could allow writing to the fake MBR, but I'm not sure that's
+   * a good idea.
+   */
+  if (pos != lseek(dp->fdesc, pos, SEEK_SET)) {
+    error("ERROR: Sector not found in write_sector!\n");
+    show_regs();
+    LWORD(eax) = 0x400; /* sector not found */
+    _regs.eflags |= CF;
+    return;
+  }
+
+  tmpwrite = RPT_SYSCALL( write(dp->fdesc, buffer, count * SECTOR_SIZE) );
+
+  /* this should make floppies a little safer...I would as soon use the
+   * O_SYNC flag, but we don't have it.  fsync() should be in the kernel
+   * soon, I think, thanks to Stephen Tweedie.
+   *    Also look into detecting floppy change so we can close/reopen
+   *    it.  perhaps the FDFLUSH ioctl()?
+   */
+  /* if (dp->removeable) fsync(dp->fdesc); */
+
+  /* the FDFLUSH ioctl causes spurious "VFS: disk change detected"
+   * messages
+   */
+  /* if (dp->removeable) ioctl(dp->fdesc, FDFLUSH, 0); */
+
+  FLUSHDISK(dp);
+
+  return tmpwrite;
+}
+
+void 
+image_auto(struct disk *dp)
+{
+  char header[HEADER_SIZE];
+
+  d_printf("IMAGE auto-sensing\n");
+
+  if (dp->fdesc == -1) {
+    warn("WARNING: image filedesc not open\n");
+    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+  }
+
+  lseek(dp->fdesc, 0, SEEK_SET);
+  if (RPT_SYSCALL( read(dp->fdesc, header, HEADER_SIZE) ) != HEADER_SIZE)
+    {
+      error("ERROR: could not read full header in image_init\n");
+      leavedos(1);
+    }
+
+  if (strncmp(header, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)) {
+    error("ERROR: IMAGE %s header lacks magic string - cannot autosense!\n",
+	  dp->dev_name);
+    leavedos(1);
+  }
+
+  dp->heads = *(long *)&header[7];
+  dp->sectors = *(long *)&header[11];
+  dp->tracks = *(long *)&header[15];
+  dp->header = *(long *)&header[19];
+
+  d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%d\n",
+	   dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->header);
+}
+
+
+void
+hdisk_auto(struct disk *dp)
+{
+  struct hd_geometry geo;
+
+  if (ioctl(dp->fdesc, HDIO_GETGEO, &geo) < 0) 
+    {
+      error("ERROR: can't get GEO of %s: %s\n", dp->dev_name,
+	    strerror(errno));
+      leavedos(1);
+    } else {
+      dp->sectors = geo.sectors;
+      dp->heads = geo.heads;
+      dp->tracks = geo.cylinders;
+      d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d\n",
+	       dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+    }
+}
+
+
+/* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which
+ *       contains the MBR (first sector) of the drive (i.e. /dev/hda).
+ *       only works for /dev/hda1 right now, and only allows one
+ *       partition, which must begin at head 1, sec 1, cyl 0 (i.e. linear
+ *       sector 2, the second one).
+ *       Also, it eats memory proportional to the number of sectors before
+ *       the start of the partition.
+ */
+
+void
+partition_setup(struct disk *dp)
+{
+  int part_fd, i;
+  unsigned char tmp_mbr[SECTOR_SIZE];
+  struct partition *p;
+
+#define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
+			  (PART_INFO_LEN * (p-1)) + b)
+#define PART_INT(p,b)  *((unsigned int *)(tmp_mbr + PART_INFO_START + \
+			  (PART_INFO_LEN * (p-1)) + b))
+#define PNUM dp->part_info.number
+
+  /* PNUM is 1-based */
+
+  d_printf("PARTITION SETUP for %s\n", dp->dev_name);
+
+  if ((part_fd = DOS_SYSCALL(open(PARTITION_PATH, O_RDONLY))) == -1) {
+    error("ERROR: cannot open file %s for PARTITION %d\n", 
+	  PARTITION_PATH, dp->dev_name);
+    leavedos(1);
+  }
+
+  RPT_SYSCALL( read(part_fd, tmp_mbr, SECTOR_SIZE) );
+
+  dp->part_info.beg_head = PART_BYTE(PNUM,1);
+  dp->part_info.beg_sec = PART_BYTE(PNUM,2) & ~0xc0;
+  dp->part_info.beg_cyl =  PART_BYTE(PNUM,3) | ((PART_BYTE(PNUM,2)<<2)&~0xff);
+
+  dp->part_info.end_head = PART_BYTE(PNUM,5);
+  dp->part_info.end_sec = PART_BYTE(PNUM,6) & ~0xc0;
+  dp->part_info.end_cyl =  PART_BYTE(PNUM,7) | ((PART_BYTE(PNUM,6)<<2)&~0xff);
+
+  dp->part_info.pre_secs = PART_INT(PNUM, 8);
+  dp->part_info.num_secs = PART_INT(PNUM, 0xc);  
+
+  /* HelpPC is wrong about the location of num_secs; it says 0xb! */
+
+  /* head should be zero-based, but isn't in the partition table.
+   * sector should be zero-based, and is.
+   */
+#if 0
+  dp->header = - ( DISK_OFFSET(dp, dp->part_info.beg_head - 1, 
+			       dp->part_info.beg_sec, 
+			       dp->part_info.beg_cyl) +
+		  (SECTOR_SIZE * (dp->part_info.pre_secs - 1)) );
+#else
+  dp->header = - (SECTOR_SIZE * (dp->part_info.pre_secs));
+#endif
+
+  dp->part_info.mbr_size = SECTOR_SIZE;
+  dp->part_info.mbr = malloc( dp->part_info.mbr_size );
+  memcpy( dp->part_info.mbr, tmp_mbr, dp->part_info.mbr_size );
+
+  /* want this to be the first & only partition on the virtual disk */
+  if (PNUM != 1)
+    memcpy( dp->part_info.mbr + PART_INFO_START, 
+	    dp->part_info.mbr + PART_INFO_START + (PART_INFO_LEN*(PNUM-1)),
+	    PART_INFO_LEN );
+
+  d_printf("beg head %d, sec %d, cyl %d = end head %d, sec %d, cyl %d\n",
+	   dp->part_info.beg_head, dp->part_info.beg_sec, 
+	   dp->part_info.beg_cyl,
+	   dp->part_info.end_head, dp->part_info.end_sec, 
+	   dp->part_info.end_cyl);
+  d_printf("pre_secs %ld, num_secs %ld = %lx, -dp->header %d = %x\n", 
+	   dp->part_info.pre_secs, dp->part_info.num_secs,
+	   dp->part_info.num_secs, -dp->header, -dp->header);
+
+  /* XXX - make sure there is only 1 partition by zero'ing out others */
+  for (i=1; i<=3; i++) {
+    d_printf("DESTROYING any traces of partition %d\n", i+1);
+    memset(dp->part_info.mbr + PART_INFO_START + (i*PART_INFO_LEN), 
+	   0, PART_INFO_LEN);
+  }
+
+}
+
+void 
+d_nullf(struct disk *dp)
+{
+  d_printf("NULLF for %s\n", dp->dev_name);
+}
+
+
+
+inline void 
+disk_close(void) {
+	struct disk * dp;
+
+	for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+		if (dp->removeable && dp->fdesc >= 0) {
+		        d_printf("DISK: Closing a disk\n");
+			(void)close(dp->fdesc);
+			dp->fdesc = -1;
+		}
+	}
+}
+
+inline void 
+disk_open(struct disk *dp)
+{
+  struct floppy_struct fl;
+
+  if (dp == NULL || dp->fdesc >= 0) return;
+  dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+  if (dp->fdesc < 0) {
+    error("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
+    fatalerr = 5;
+    return;
+  }
+  if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {
+    if (errno == ENODEV) { /* no disk available */
+      dp->sectors = 0;
+      dp->heads = 0;
+      dp->tracks = 0;
+      return;
+    }
+    error("ERROR: can't get floppy parameter of %s (%s)\n", dp->dev_name, sys_errlist[errno]);
+    fatalerr = 5;
+    return;
+  }
+  d_printf("FLOPPY %s h=%d, s=%d, t=%d\n", dp->dev_name, fl.head, fl.sect, fl.track);
+  dp->sectors = fl.sect;
+  dp->heads = fl.head;
+  dp->tracks = fl.track;
+  DOS_SYSCALL( ioctl(dp->fdesc, FDMSGOFF, 0) );
+}
+
+void disk_close_all(void)
+{
+	struct disk * dp;
+
+	for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+		if (dp->fdesc >= 0) {
+			(void)close(dp->fdesc);
+			dp->fdesc = -1;
+		}
+	}
+	for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+		if (dp->fdesc >= 0) {
+			(void)close(dp->fdesc);
+			dp->fdesc = -1;
+		}
+	}
+}
+
+
+void disk_init(void)
+{
+  int s;
+  struct disk * dp;
+  struct stat stbuf;
+  char buf[512], label[12];
+  
+  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+    if (stat(dp->dev_name, &stbuf) < 0) {
+      error("ERROR: can't stat %s\n", dp->dev_name);
+      leavedos(1);
+    }
+    if (S_ISBLK(stbuf.st_mode)) d_printf("ISBLK\n");
+    d_printf ("dev : %x\n", stbuf.st_rdev);
+    if (S_ISBLK(stbuf.st_mode) && (stbuf.st_rdev & 0xff00) == 0x200) {
+      d_printf("DISK %s removeable\n", dp->dev_name);
+      dp->removeable = 1;
+      dp->fdesc = -1;
+      continue;
+    }
+    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    if (dp->fdesc < 0) {
+      error("ERROR: can't open %s\n", dp->dev_name);
+      leavedos(1);
+    }
+  }
+  for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->removeable = 0;
+    if (dp->fdesc < 0) {
+      error("ERROR: can't open %s\n", dp->dev_name);
+      leavedos(1);
+    }
+    
+    /* HACK: if unspecified geometry (-1) then try to get it from kernel.
+       May only work on WD compatible disks (MFM/RLL/ESDI/IDE). */
+    if (dp->sectors == -1)
+      disk_fptrs[dp->type].autosense(dp);
+
+    /* do all the necesary dirtiness to get this disk working
+     * (mostly for the partition type)
+     */
+    disk_fptrs[dp->type].setup(dp);
+    
+    /* this really doesn't make sense...where the disk geometry
+     * is in reality given for the actual disk (i.e. /dev/hda)
+     * NOT the partition (i.e. /dev/hda1), the code below returns 
+     * the values for the partition.
+     * 
+     * don't use this code...it's stupid.
+     */
+#ifdef SILLY_GET_GEOMETRY
+    if ( RPT_SYSCALL(read(dp->fdesc, buf, 512)) != 512) {
+      error("ERROR: can't read disk info of %s\n", dp->dev_name);
+      leavedos(1);
+    }
+    
+    dp->sectors = *(us *)&buf[0x18];  /* sectors per track */
+    dp->heads = *(us *)&buf[0x1a];    /* heads */
+    
+    /* for partitions <= 32MB, the number of sectors is at offset 19.
+     * since DOS 4.0, larger partitions have the # of sectors as a long
+     * at offset 32, and the number at 19 is set to 0
+     */
+    s = *(us *)&buf[19];
+    if (! s) 
+      {
+	s = *(unsigned long *)&buf[32];
+	d_printf("DISK: zero # secs, so DOS 4 # secs = %d\n", s);
+      }
+    s += *(us *)&buf[28];                    /* + hidden sectors */
+    
+    dp->tracks = s / (dp->sectors * dp->heads);
+    
+    d_printf("DISK read_info disk %s; h=%d, s=%d, t=%d, #=%d, hid=%d\n",
+	     dp->dev_name, dp->heads, dp->sectors, dp->tracks,
+	     s, *(us *)&buf[28]);
+    
+    /* print serial # and label (DOS 4+ only) */
+    memcpy(label, &buf[0x2b], 11);
+    label[11]=0;
+    g_printf("VOLUME serial #: 0x%08x, LABEL: %s\n", 
+	     *(unsigned long *)&buf[39], label);
+    
+    if (s % (dp->sectors * dp->heads) != 0) {
+      error("ERROR: incorrect track number of %s\n", dp->dev_name);
+      /* leavedos(1); */
+    }
+#endif
+  }
+}
+
+
+checkdp(struct disk *disk)
+{
+  if (disk == NULL) 
+    {
+      error("DISK: null dp\n");
+      return 1;
+    }
+  else if (disk->fdesc == -1) {
+    error("DISK: closed disk\n");
+    return 1;
+  }
+  else return 0;
+}
+
+void int13(void)
+{
+  unsigned int disk, head, sect, track, number, pos, res;
+  char *buffer;
+  struct disk *dp;
+  
+  disk = LO(dx);
+  if (disk < FDISKS) {
+    dp = &disktab[disk];
+  } else if (disk >= 0x80 && disk < 0x80 + HDISKS) 
+    dp = &hdisktab[disk - 0x80];
+  else dp = NULL;
+
+  /* this is a bad hack to ensure that the cached blocks aren't.
+   * Linux only checks disk change on open()
+   */
+
+  switch(HI(ax)) 
+    {
+    case 0: /* init */
+      d_printf("DISK init %d\n", disk);
+      LWORD(eax) &= ~0xff;
+      NOCARRY;
+      break;
+      
+    case 1: /* read error code */	
+      LWORD(eax) &= ~0xff;
+      NOCARRY;
+      d_printf("DISK error code\n");
+      break;
+      
+    case 2: /* read */
+      FLUSHDISK(dp);
+      disk_open(dp);
+      head = HI(dx);
+      sect = (_regs.ecx & 0x3f) -1;
+      track = (HI(cx)) |
+	((_regs.ecx & 0xc0) << 2);
+      buffer = SEG_ADR((char *), es, bx);
+      number = LO(ax);
+      /* d_printf("DISK %d read [h%d,s%d,t%d](%d)->0x%x\n", disk, head, sect, track, number, buffer); */
+      if (checkdp(dp) || head >= dp->heads || 
+	  sect >= dp->sectors || track >= dp->tracks) {
+	error("ERROR: Sector not found 1!\n");
+	show_regs();
+	LWORD(eax) = 0x400; /* sector not found */
+	_regs.eflags |= CF;
+	break;
+      }
+      
+      res = read_sectors(dp, buffer, head, sect, track, number);
+      
+      if (res & 0x1ff != 0) { /* must read multiple of 512 bytes  and res != -1 */
+	error("ERROR: sector_corrupt 1!\n");
+	show_regs();
+	LWORD(eax) = 0x200; /* sector corrrupt */
+	_regs.eflags |= CF;
+	break;
+      }
+      LWORD(eax) = res >> 9;
+      _regs.eflags &= ~CF;
+      R_printf("DISK read @%d (%d) OK.\n", pos, res >> 9); 
+      break;
+      
+    case 3: /* write */
+      FLUSHDISK(dp);
+      disk_open(dp);
+      head = HI(dx);
+      sect = (_regs.ecx & 0x3f) -1;
+      track = (HI(cx)) |
+	((_regs.ecx & 0xc0) << 2);
+      buffer = SEG_ADR((char *), es, bx);
+      number = LO(ax);
+      W_printf("DISK write [h%d,s%d,t%d](%d)->0x%x\n", head, sect, track, number, buffer); 
+      if (checkdp(dp) || head >= dp->heads || 
+	  sect >= dp->sectors || track >= dp->tracks) {
+	error("ERROR: Sector not found 3!\n");
+	show_regs();
+	LWORD(eax) = 0x400; /* sector not found */
+	_regs.eflags |= CF;
+	break;
+      }
+      if (dp->rdonly) {
+	error("ERROR: write protect!\n");
+	show_regs();
+	if (dp->removeable)
+	  LWORD(eax) = 0x300; /* write protect */
+	else
+	  LWORD(eax) = 0xcc00; /* write error */
+	_regs.eflags |= CF;
+	break;
+      }
+      if (dp->rdonly) error("CONTINUED!!!!!\n");
+      res = write_sectors(dp, buffer, head, sect, track, number);
+      
+      if (res & 0x1ff != 0) { /* must read multiple of 512 bytes  and res != -1 */
+	error("ERROR: Sector corrupt 2!\n");
+	show_regs();
+	LWORD(eax) = 0x200; /* sector corrrupt */
+	_regs.eflags |= CF;
+	break;
+      }
+      LWORD(eax) = res >> 9;
+      _regs.eflags &= ~CF;
+      W_printf("DISK write @%d (%d) OK.\n", pos, res >> 9); 
+      break;
+      
+    case 4: /* test */
+      FLUSHDISK(dp);
+      disk_open(dp);
+      head = HI(dx);
+      sect = (_regs.ecx & 0x3f) -1;
+      track = (HI(cx)) |
+	((_regs.ecx & 0xc0) << 2);
+      number = LO(ax);
+      d_printf("DISK %d test [h%d,s%d,t%d](%d)\n", disk, head, sect, track, number);
+      if (checkdp(dp) || head >= dp->heads || 
+	  sect >= dp->sectors || track >= dp->tracks) {
+	LWORD(eax) = 0x400; /* sector not found */
+	_regs.eflags |= CF;
+	error("ERROR: test: sector not found 5\n");
+	dbug_printf("hds: %d, sec: %d, tks: %d\n",
+		    dp->heads, dp->sectors, dp->tracks);
+	break;
+      }
+      pos = ((track * dp->heads + head) * dp->sectors + sect) << 9;
+      /* XXX - header hack */
+      pos += dp->header;
+      
+      if (pos != lseek(dp->fdesc, pos, 0)) {
+	LWORD(eax) = 0x400; /* sector not found */
+	_regs.eflags |= CF;
+	error("ERROR: test: sector not found 6\n");
+	break;
+      }
+#if 0
+      res = lseek(dp->fdesc, number << 9);
+      if (res & 0x1ff != 0) { /* must read multiple of 512 bytes  and res != -1 */
+	LWORD(eax) = 0x200; /* sector corrrupt */
+	_regs.eflags |= CF;
+	error("ERROR: test: sector corrupt 3\n");
+	break;
+      }
+#endif
+      LWORD(eax) = res >> 9;
+      _regs.eflags &= ~CF;
+      break;
+      
+    case 8: /* get disk drive parameters */
+      d_printf("disk get parameters %d\n", disk); 
+      
+      if (dp != NULL) {
+	/* get CMOS type */
+	/* LO(bx) = 3; */
+	switch(dp->tracks)
+	  {
+	  case 9:
+	    LO(bx)=3;
+	    break;
+	  case 15:
+	    LO(bx)=2;
+	    break;
+	  case 18:
+	    LO(bx)=4;
+	    break;
+	  case 0:
+	    LO(bx)=dp->default_cmos;
+	    dp->tracks=80;
+	    dp->heads=2;
+	    if (LO(bx) == 4)
+	      dp->sectors=18;
+	    else dp->sectors=15;
+	    d_printf("auto type defaulted to CMOS %d, sectors: %d\n", LO(bx), dp->sectors);
+	    break;
+	  default:
+	    LO(bx)=4;
+	    d_printf("type det. failed. num_tracks is: %d\n", dp->tracks);
+	    break;
+	  }
+	
+	/* these numbers are "zero based" */
+	HI(dx) = dp->heads - 1; 
+	HI(cx) = (dp->tracks - 1) & 0xff;
+	
+	LO(dx) = (disk < 0x80) ? FDISKS : HDISKS;
+	LO(cx) = dp->sectors | ((dp->tracks & 0x300) >> 2);
+	LO(ax) = 0;
+	/* show_regs(); */
+	_regs.eflags &= ~CF; /* no error */
+      } else {
+	LWORD(edx) = 0; /* no hard disks */
+	LWORD(ecx) = 0;
+	LO(bx) = 0;
+	LO(ax) = 1; /* bad command */
+	_regs.eflags |= CF; /* error */
+      }	
+      break;
+      
+      /* beginning of Alan's additions */
+    case 0x9:	/* initialise drive from bpb */
+      CARRY;
+      break;
+
+    case 0x0A:	/* We dont have access to ECC info */
+    case 0x0B:
+      CARRY;
+      _regs.eax&=0xFF;
+      _regs.eax|=0x0100;	/* unsupported opn. */
+      break;
+
+    case 0x0C:	/* explicit seek heads. - bit hard */
+      CARRY;
+      _regs.eax&=0xFF;
+      _regs.eax|=0x0100;
+      break;
+
+    case 0x0D:	/* Drive reset (hd only) */
+      NOCARRY;
+      _regs.eax&=0xFF;
+      break;
+
+    case 0x0E:	/* XT only funcs */
+    case 0x0F:
+      CARRY;
+      _regs.eax&=0xFF;
+      _regs.eax|=0x0100;
+      break;
+
+    case 0x10:	/* Test drive is ok */
+    case 0x11:	/* Recalibrate */
+      disk=LO(dx);
+      if(disk<0x80||disk>=0x80+HDISKS)
+	{
+	  _regs.eax&=0xFF;
+	  _regs.eax|=0x2000;	/* Controller didnt respond */
+	  CARRY;
+	  break;
+	}
+      _regs.eax&=0xFF;
+      NOCARRY;
+      break;
+
+    case 0x12:	/* XT diagnostics */
+    case 0x13:
+      _regs.eax&=0xFF;
+      CARRY;
+      break;
+
+    case 0x14:	/* AT diagnostics. Unix keeps the drive happy
+		   so report ok if it valid */
+      _regs.eax&=0xFF;
+      NOCARRY;
+      break;
+      /* end of Alan's additions */
+      
+      
+    case 0x15: /* Get type */
+      d_printf("disk gettype %d\n", disk); 
+      if (dp != NULL && disk >= 0x80) {
+	if (dp->removeable) {
+	  HI(ax) = 1; /* floppy disk, change detect (1=no, 2=yes) */
+	  d_printf("disk gettype: floppy\n");
+	  LWORD(edx) = 0; 
+	  LWORD(ecx) = 0; 
+	} else {
+	  d_printf("disk gettype: hard disk\n");
+	  HI(ax) = 3; /* fixed disk */
+	  number = dp->tracks * dp->sectors * dp->heads;
+	  LWORD(ecx) = number >> 16;
+	  LWORD(edx) = number & 0xffff;
+	}
+	_regs.eflags &= ~CF; /* no error */
+      } else {
+	if (dp != NULL)
+	  {
+	    d_printf("gettype on floppy %d\n", disk);
+	    HI(ax) = 1;  /* floppy, no change detect=1 */
+	    NOCARRY;
+	  }
+	else
+	  {
+	    error("ERROR: gettype: no disk %d\n", disk);
+	    HI(ax) = 0; /* disk not there */
+	    _regs.eflags |= CF; /* error */
+	  }
+      }
+      break;
+      
+    case 0x16: 
+      /* get disk change status - hard - by claiming
+	 our disks dont have a changed line we are kind of ok */
+      warn("int13: CHECK DISKCHANGE LINE\n");
+      disk=LO(dx);
+      if(disk<0 || disk>=FDISKS || disktab[disk].removeable)
+	{
+	  d_printf("int13: DISK CHANGED\n");
+	  CARRY;
+	  /* _regs.eax&=0xFF;
+	     _regs.eax|=0x200; */
+	  HI(ax)=1;  /* change occurred */
+	}
+      else {
+	NOCARRY;
+	HI(ax) = 00;  /* clear AH */
+	d_printf("int13: NO CHANGE\n");
+      }
+      break;
+
+    case 0x17:
+      /* set disk type: should do all the ioctls etc
+	 but I'm not feeling that brave yet */
+      /* al=type dl=drive */
+      CARRY;
+      break;
+      /* end of Alan's 2nd mods */
+      
+    case 0x18: /* Set media type for format */
+      track = HI(cx) + ((LO(cx) & 0xc0) << 2);
+      sect = LO(cx) & 0x3f;
+      d_printf("disk: set media type %x, %d sectors, %d tracks\n", disk, sect, track);
+      HI(ax) = 1; /* function not avilable */
+      break;
+ 
+   case 0x20: /* ??? */
+      d_printf("weird int13, ah=0x%x\n", LWORD(eax));
+      break;
+    case 0x28: /* DRDOS 6.0 call ??? */
+      d_printf("int 13h, ax=%04x...DRDOS call\n",LWORD(eax));
+      break;
+    case 0x5:  /* format */
+      NOCARRY;  /* successful */
+      HI(ax)=0; /* no error */
+      break;
+    case 0xdc:
+      d_printf("int 13h, ax=%04x...weird windows disk interrupt\n",
+	       LWORD(eax));
+      break;
+    default:
+      error("ERROR: disk IO error: int13, ax=0x%x\n",
+	    LWORD(eax));
+      show_regs();
+      fatalerr = 5;
+      return;
+    }
+}
+
+
+#define FLUSH_DELAY 5
+
+/* flush disks every FLUSH_DELAY seconds 
+ * XXX - make this configurable later
+ */
+void
+floppy_tick(void)
+{
+  static int secs=0;
+
+  if (++secs == FLUSH_DELAY) 
+    {
+      disk_close();
+      secs=0;
+    }
+}
+
 #undef DISKS_C
+
 

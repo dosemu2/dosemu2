@@ -3,12 +3,31 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/13 23:37:20 $
+ * $Date: 1993/05/04 05:29:22 $
  * $Source: /usr/src/dos/RCS/emu.h,v $
- * $Revision: 1.8 $
+ * $Revision: 1.13 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.13  1993/05/04  05:29:22  root
+ * added console switching, new parse commands, and serial emulation
+ *
+ * Revision 1.12  1993/04/05  17:25:13  root
+ * big pre-49 checkit; EMS, new MFS redirector, etc.
+ *
+ * Revision 1.11  1993/03/02  03:06:42  root
+ * somewhere between 0.48pl1 and 0.49 (with IPC).  added virtual IOPL
+ * and AC support (for 386/486 tests), -3 and -4 flags for choosing.
+ * Split dosemu into 2 processes; the child select()s on the keyboard,
+ * and signals the parent when a key is received (also sends it on a
+ * UNIX domain socket...this might not work well for non-console keyb).
+ *
+ * Revision 1.10  1993/02/24  11:33:24  root
+ * some general cleanups, fixed the key-repeat bug.
+ *
+ * Revision 1.9  1993/02/18  19:35:58  root
+ * just added newline so diff wouldn't barf
+ *
  * Revision 1.8  1993/02/13  23:37:20  root
  * latest version, no time to document!
  *
@@ -30,26 +49,16 @@
  *
  */
 
-#include <linux/vm86.h>
+#include "cpu.h"
+#include <sys/types.h>
 
-#define _regs	vm86s.regs
+#define BIT(x)  	(1<<x)
 
 #define us unsigned short
-#define SEG_ADR(type, seg, reg) type((int)(*(us *)&_regs.seg<<4)\
-				 + *(us *)&_regs.e##reg)
-#define LO(reg)		(int)(*(unsigned char *)&_regs.e##reg)
-#define HI(reg)		(int)(*((unsigned char *)&_regs.e##reg +1))
-#define CF 0x01
-#define ZF 0x40
-#define SF 0x80
-#define TF 0x100
-#define IF 0x200
-#define VM 0x20000
 
 extern struct vm86_struct vm86s;
-extern int error, screen;
+extern int screen, max_page, screen_mode, update_screen, scrtest_bitmap;
 
-#ifndef TERMIO_C
 extern char *cl,	/* clear screen */
 	    *le,	/* cursor left */
 	    *cm,	/* goto */
@@ -67,17 +76,29 @@ extern char *cl,	/* clear screen */
   	    *vi,	/* cursor invisible */
   	    *ve;	/* cursor normal */
 
-extern int kbd_fd, mem_fd;
+extern int kbd_fd, mem_fd, ioc_fd;
 extern int in_readkeyboard;
 
 extern int  li, co, li2, co2;	/* lines, columns */     
-extern int lastscan;
-#endif
+extern int lastscan, scanseq;
+
+/* #define CO	80
+   #define LI	25 */
+
+/* would use the info termio.c nicely got for us, but it works badly now */
+#define CO	co2
+#define LI	li2
+
+/* these are flags to char_out() and char_out_attr()...specify whether the
+ * cursor whould be addressed
+ */
+#define ADVANCE		1
+#define NO_ADVANCE	0
 
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
 void show_regs(void);
 int ext_fs(int, char *, char *, int);
-void char_out(unsigned char, int);
+void char_out_att(u_char, u_char, int, int);
 int outc(int c);
 void termioInit();
 void termioClose();
@@ -89,17 +110,18 @@ inline void run_vm86(void);
 #define POLL    3
 
 int ReadKeyboard(unsigned int *, int);
+int CReadKeyboard(unsigned int *, int);
 int InsKeyboard(unsigned short scancode);
 int PollKeyboard(void);
 void ReadString(int, unsigned char *);
 
-static void inline port_out(char value, unsigned short port)
+inline static void port_out(char value, unsigned short port)
 {
 __asm__ volatile ("outb %0,%1"
 		::"a" ((char) value),"d" ((unsigned short) port));
 }
 
-static char inline port_in(unsigned short port)
+inline static char port_in(unsigned short port)
 {
 	char _v;
 __asm__ volatile ("inb %1,%0"
@@ -125,7 +147,11 @@ struct debug_flags
     warning,
     all,	/* all non-classifiable messages */
     hardware,
-    xms;
+    xms,
+    mouse,
+    IPC,
+    EMS,
+    config;
 };
 
 int ifprintf(unsigned char,const char *, ...),
@@ -144,34 +170,14 @@ int ifprintf(unsigned char,const char *, ...),
 #define warn(f,a...)     	ifprintf(d.warning,f,##a)
 #define g_printf(f,a...)	ifprintf(d.general,f,##a)
 #define x_printf(f,a...)	ifprintf(d.xms,f,##a)
+#define m_printf(f,a...)	ifprintf(d.mouse,f,##a)
+#define I_printf(f,a...) 	ifprintf(d.IPC,f,##a)
+#define E_printf(f,a...) 	ifprintf(d.EMS,f,##a)
+#define c_printf(f,a...) 	ifprintf(d.config,f,##a)
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
 #define error(f,a...)	 	ifprintf(1,f,##a)
 
-#define IOFF(i) ivecs[i].offset
-#define ISEG(i) ivecs[i].segment
-#define IVEC(i) ((ISEG(i)<<4) + IOFF(i))
-
-#define WORD(i) (i&0xffff)
-
-#define CARRY	_regs.eflags|=CF;
-#define NOCARRY _regs.eflags&=~CF;
-
-#define char_out(c,s)   char_out_att(c,7,s)
-
-struct disk {
-	char *dev_name;			/* disk file */
-	int rdonly;			/* readonly flag */
-	int sectors, heads, tracks;	/* geometry */
-	int default_cmos;		/* default CMOS floppy type */
-       	int fdesc;			/* not user settable */
-	int removeable;			/* not user settable */
-	};
-
-/* CMOS types for the floppies */
-#define THREE_INCH_FLOPPY   4		/* 3.5 in, 1.44 MB floppy */
-#define FIVE_INCH_FLOPPY    2		/* 5.25 in, 1.2 MB floppy */
-#define DISKS 3         /* size of disktab[] structure */
-#define HDISKS 2	/* size of hdisktab[] structure */
+#define char_out(c,s,af)   char_out_att(c,7,s,af)
 
 struct ioctlq
 {
@@ -186,6 +192,8 @@ int queue_ioctl(int, int, int),
     do_ioctl(int, int, int);
 void keybuf_clear(void);
 
+int set_ioperm(int, int, int);
+
 #ifndef EMU_C
 extern struct debug_flags d;
 extern int gfx_mode;  /* flag for in gxf mode or not */
@@ -193,6 +201,131 @@ extern int in_sighandler, in_ioctl;
 extern struct ioctlq iq, curi;
 #endif
 
-static char RCSid[]="$Header: /usr/src/dos/RCS/emu.h,v 1.8 1993/02/13 23:37:20 root Exp $";
+/* int 11h config single bit tests
+ */
+#define CONF_FLOP	BIT(0)
+#define CONF_MATHCO	BIT(1)
+#define CONF_MOUSE	BIT(2)
+#define CONF_DMA	BIT(8)
+#define CONF_GAME	BIT(12)
+
+/* don't use CONF_NSER with num > 4, CONF_NLPT with num > 3, CONF_NFLOP
+ * with num > 4
+ */
+#define CONF_NSER(c,num)	{c&=~(BIT(9)|BIT(10)|BIT(11)); c|=(num<<9);}
+#define CONF_NLPT(c,num) 	{c&=~(BIT(14)|BIT(14)); c|=(num<<14);}
+#define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
+				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
+
+/* initial reported video mode */
+#ifdef MDA_VIDEO
+#define INIT_SCREEN_MODE	7  /* 80x25 MDA monochrome */ 
+#define CONF_SCRMODE		(3<<4)  /* for int 11h info */
+#define VID_COMBO		1
+#define VID_SUBSYS		1  /* 1=mono */
+#define BASE_CRTC		0x3b4
+#else
+#define INIT_SCREEN_MODE	3  /* 80x25 VGA color */
+#define CONF_SCRMODE		(2<<4)  /* (2<<4)=80x25 color CGA, 0=EGA/VGA */
+#define VID_COMBO		4  /* 4=EGA (ok), 8=VGA (not ok??) */
+#define VID_SUBSYS		0  /* 0=color */
+#define BASE_CRTC		0x3d4
+#endif
+
+/* this macro can be safely wrapped around a system call with no side
+ * effects; using a featuer of GCC, it returns the same value as the
+ * function call argument inside.
+ *
+ * this is best used in places where the errors can't be sanely handled,
+ * or are not expected...
+ */
+#define DOS_SYSCALL(sc) ({ int s_tmp = sc; \
+  if (s_tmp == -1) \
+    error("SYSCALL ERROR: %d, *%s* in file %s, line %d: expr=\n\t%s\n", \
+	  errno, strerror(errno), __FILE__, __LINE__, #sc); \
+  s_tmp; })
+
+#define RPT_SYSCALL(sc) ({ int s_tmp; \
+   do { \
+	  s_tmp = sc; \
+      } while ((s_tmp == -1) && (errno == EINTR)); \
+  s_tmp; })
+
+#define FALSE	0
+#define TRUE	1  
+
+
+typedef unsigned char bool;
+
+typedef struct config_info {
+
+  /* for video */
+  bool console_video;
+  bool graphics;
+  bool vga;
+  u_short cardtype;
+  u_short chipset;
+  u_short gfxmemsize; /* for SVGA card, in K */
+  u_short redraw_chunks;
+  bool fullrestore;
+
+  bool console_keyb;
+  bool exitearly;
+  bool mathco;
+  bool keybint;
+  bool timers;
+  bool mouse_flag;
+  bool mapped_bios;  /* video BIOS */
+  bool mapped_sbios; /* system BIOS */
+  char *vbios_file;   /* loaded VBIOS file */
+  bool vbios_copy;
+
+  bool fastfloppy;
+
+  u_short speaker;  /* 0 off, 1 native, 2 emulated */
+  u_short fdisks, hdisks;
+  u_short num_lpt;
+  u_short num_ser;
+
+  unsigned int update, freq;  /* temp timer magic */
+
+  unsigned int hogthreshold;
+
+  int mem_size, xms_size, ems_size;
+} config_t;
+
+#define SPKR_OFF	0
+#define SPKR_NATIVE	1
+#define SPKR_EMULATED	2
+
+#define XPOS(s)		(*(u_char *)(0x450 + 2*(s)))
+#define YPOS(s)		(*(u_char *)(0x451 + 2*(s)))
+#define VIDMODE		(*(u_char *)0x449)
+#define SCREEN		(*(u_char *)0x462)
+#define COLS		(*(u_short *)0x44a)
+#define PAGE_OFFSET	(*(u_short *)0x44e)
+#define CUR_START	(*(u_short *)0x461)
+#define CUR_END		(*(u_short *)0x461)
+#define ROWSM1		(*(u_char *)0x484)  /* rows on screen minus 1 */
+#define REGEN_SIZE	(*(u_short *)0x44c)
+
+#ifndef OLD_SCROLL
+#define scrollup(x0,y0,x1,y1,l,att) scroll(x0,y0,x1,y1,l,att)
+#define scrolldn(x0,y0,x1,y1,l,att) scroll(x0,y0,x1,y1,-(l),att)
+#endif
+
+
+#define SIG_SER		SIGTTIN
+
+#if 1
+#define SIG_TIME	SIGALRM
+#define TIMER_TIME	ITIMER_REAL
+#else
+#define SIG_TIME	SIGVTALRM
+#define TIMER_TIME	ITIMER_VIRTUAL
+#endif
+
+
+
 #endif /* EMU_H */
 

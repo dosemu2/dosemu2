@@ -9,6 +9,7 @@
 /* without even the implied warranty of merchantability or fitness */
 /* for a particular purpose.					   */
 
+#include "config.h"
 #include "dosvga.h"
 #include <stdio.h>
 /* #include <fcntl.h>

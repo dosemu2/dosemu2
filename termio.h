@@ -3,12 +3,24 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/13 23:37:20 $
+ * $Date: 1993/05/04 05:29:22 $
  * $Source: /usr/src/dos/RCS/termio.h,v $
- * $Revision: 1.10 $
+ * $Revision: 1.14 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.14  1993/05/04  05:29:22  root
+ * added console switching, new parse commands, and serial emulation
+ *
+ * Revision 1.13  1993/04/05  17:25:13  root
+ * big pre-49 checkit; EMS, new MFS redirector, etc.
+ *
+ * Revision 1.12  1993/02/24  11:33:24  root
+ * some general cleanups, fixed the key-repeat bug.
+ *
+ * Revision 1.11  1993/02/18  19:35:58  root
+ * just added newline so diff wouldn't barf
+ *
  * Revision 1.10  1993/02/13  23:37:20  root
  * latest version, no time to document!
  *
@@ -72,8 +84,11 @@
 #define EKF_SYSRQ	15	/* SysRq PRESSED */
 
 /* KEY FLAGS */
-#define KKF_E0	0
-#define KKF_E1	1
+#define KKF_E0		0
+#define KKF_E1		1
+#define KKF_RCTRL	2
+#define KKF_RALT	3
+#define KKF_KBD102	4  /* set if 102-key keyboard installed */	
 
 /* LED FLAGS (from Linux keyboard code) */
 #define LED_SCRLOCK	0
@@ -81,30 +96,38 @@
 #define LED_CAPSLOCK	2
 
 extern unsigned int kbd_flags, key_flags;
+void set_screen_origin(int),
+     set_vc_screen_page(int);
 
-
-/* Bios data area 16-key (32byte) keybuffer */
-#define KBDA_ADDR	(unsigned short *)0x41e
+int vc_active(void);
 
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE	SIGWINCH
 #define SIG_ACQUIRE	SIGUSR1
 
-/* raw console stuff */
-#ifdef MDA_VIDEO
-#define PHYS_TEXT_BASE  0xB0000
-#else
-#define PHYS_TEXT_BASE	0xB8000      /* this is NOT true for MDA! */
-#endif
+#define KBBUF_SIZE	80	     /* dosemu read buffer for keyboard */
 
-#define VIRT_TEXT_BASE	0xB8000      /* the emulator is always in "[V|E]GA" */
-#define TEXT_SIZE	0x2000       /* 8K text mode mem */
+struct screen_stat {
+  int console_no,	/* our console number */
+      vt_allow, 	/* whether to allow VC switches */
+      vt_requested;	/* whether one was requested in forbidden state */
 
-#define GRAPH_BASE 0xA0000
-#define GRAPH_SIZE 0x10000
+  int current;		/* boolean: is our VC current? */
 
-#define SCRN_BUF_ADDR	0x110000     /* buffer for storing screen @ 1MB+64K*/
-#define SCRN_BUF_SIZE	(0x10000)    /* buffer of 64K */
+  int curadd;		/* row*80 + col */
+  int dcurgeom;		/* msb: start, lsb: end */
+  int lcurgeom;		/* msb: start, lsb: end */
+
+  int mapped,  		/* whether currently mapped */
+      pageno;  		/* current mapped text page # */
+
+  int dorigin;		/* origin in DOS */
+  int lorigin;
+
+  caddr_t virt_address;	/* current map address in DOS memory */
+
+  int old_modecr, new_modecr;
+};
 
 #endif /* TERMIO_H */
 

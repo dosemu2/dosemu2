@@ -2,9 +2,9 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/02/18 18:53:41 $
+ * $Date: 1993/05/04 05:29:22 $
  * $Source: /usr/src/dos/RCS/termio.c,v $
- * $Revision: 1.19 $
+ * $Revision: 1.25 $
  * $State: Exp $
  */
 
@@ -26,9 +26,13 @@
 #include <linux/vt.h>
 #include <linux/kd.h>
 
+#include "config.h"
+#include "memory.h"
 #include "emu.h"
 #include "termio.h"
 #include "dosvga.h"
+#include "mouse.h"
+#include "dosipc.h"
 
 /* these are the structures in keymaps.c */
 extern unsigned char shift_map[97],
@@ -36,17 +40,12 @@ extern unsigned char shift_map[97],
   key_map[97],
   num_table[15]; 
 
-/* flags from dos.c */
-extern int console_video,
-           console_keyb,
-  	   vga;
+extern struct config_info config;
+
+extern struct screen_stat scr_state;   /* main screen status variables */
 
 extern int sizes;  /* this is DEBUGGING code */
 int in_readkeyboard=0;
-
-unsigned char old_modecr,
-         new_modecr;  /* VGA mode control register */
-unsigned short int vga_start;  /* start of video mem */
 
 extern int ignore_segv;
 struct sigaction sa;
@@ -59,15 +58,13 @@ struct sigaction sa;
 unsigned int convscanKey(unsigned char);
 unsigned int queue;
 
-#define KBUFLEN 16
+/* as this gives the length of the _BIOS_ keybuffer, you don't
+ * want to change this...you risk overwriting important BIOS data
+ */
+#define KBUFLEN 15
 
-#ifdef OLD_KEYBUFFER
-static unsigned short Kbuffer[KBUFLEN];
+/* unsigned short *Kbuffer=KBDA_ADDR; */
 static int Kbuff_next_free = 0, Kbuff_next_avail = 0;
-#else
-unsigned short *Kbuffer=KBDA_ADDR;
-static int Kbuff_next_free = 0, Kbuff_next_avail = 0;
-#endif
 
 int lastscan=0;
 
@@ -120,12 +117,8 @@ unsigned int kbd_flags = 0;
 unsigned int key_flags = 0;
 int altchar=0;
 
-int vt_allow,      /* allow VC switches now? */
-    vt_requested;  /* was one requested in a disallowed state? */
-
 /* the file descriptor for /dev/mem when mmap'ing the video mem */
 int mem_fd=-1; 
-int video_ram_mapped=0;   /* flag for whether the video ram is mapped */
 
 typedef void (*fptr)(unsigned int);
 
@@ -199,11 +192,15 @@ static fptr key_table[] = {
 #define us unsigned short
 
 int kbd_fd=-1,		/* the fd for the keyboard */
-    old_kbd_flags,      /* flags for STDIN before our fcntl */
-    console_no;		/* if console_keyb, the number of the console */
+    ioc_fd=-1,          /* the dup'd fd for ioctl()'s */
+    old_kbd_flags;      /* flags for STDIN before our fcntl */
+
+
+/* these are in DOSIPC.C */
+extern int ipc_fd[2];
 
 int kbcount;
-unsigned char kbbuf[50], *kbp, erasekey;
+unsigned char kbbuf[KBBUF_SIZE], *kbp, erasekey;
 static  struct termio   oldtermio;      /* original terminal modes */
 
 char tc[1024], termcap[1024],
@@ -222,7 +219,7 @@ char tc[1024], termcap[1024],
      *ks,	/* init keys */
      *ke,	/* ens keys */
      *vi,       /* hide cursor */
-     *ve,       /* return corsor to normal */
+     *ve,       /* return cursor to normal */
      *tp;
 int   li, co;   /* lines, columns */     
 
@@ -367,12 +364,12 @@ static void CloseKeyboard(void)
 {
   if (kbd_fd != -1)
     {
-      if (console_keyb)
+      if (config.console_keyb)
 	clear_raw_mode();
-      if (console_video)
+      if (config.console_video)
 	clear_console_video();
 
-      if (console_keyb || console_video)
+      if (config.console_keyb || config.console_video)
 	clear_process_control();
 
       fcntl(kbd_fd, F_SETFL, old_kbd_flags);
@@ -391,25 +388,38 @@ static int OpenKeyboard(void)
 	int major,minor;
 
 	kbd_fd = dup(STDIN_FILENO);
+	ioc_fd = dup(STDIN_FILENO);
+
 	old_kbd_flags = fcntl(kbd_fd, F_GETFL);
 	fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
+	fcntl(ioc_fd, F_SETFL, O_WRONLY | O_NONBLOCK);
 
 	if (kbd_fd < 0)
 		return -1;
+
+	scr_state.vt_allow=0;
+	scr_state.vt_requested=0;
+	scr_state.mapped=0;
+	scr_state.pageno=0;
+	scr_state.virt_address=PAGE_ADDR(0);
 	
 	fstat(kbd_fd, &chkbuf);
 	major=chkbuf.st_rdev >> 8;
 	minor=chkbuf.st_rdev & 0xff;
+
 	/* console major num is 4, minor 64 is the first serial line */
 	if ((major == 4) && (minor < 64))
-	    console_no=minor;  /* get minor number */
+	    scr_state.console_no=minor;  /* get minor number */
 	else
 	  {
-	    if (console_keyb || console_video) 
+	    if (config.console_keyb || config.console_video) 
 	      error("ERROR: STDIN not a console-can't do console modes!\n");
-	    console_no=0;
-	    console_keyb=0;
-	    console_video=0;
+	    scr_state.console_no=0;
+	    config.console_keyb=0;
+	    config.console_video=0;
+	    config.vga=0;
+	    config.graphics=0;
+	    if (config.speaker == SPKR_NATIVE) config.speaker=SPKR_EMULATED;
 	  }
 
 	if (ioctl(kbd_fd, TCGETA, &oldtermio) < 0) {
@@ -431,433 +441,38 @@ static int OpenKeyboard(void)
 		return -1;
 	}
 
-	if (console_keyb || console_video)
+	if (config.console_keyb || config.console_video)
 	  set_process_control();
 
-	if (console_keyb)
+	if (config.console_keyb)
 	  {
 	    set_raw_mode();
 	    kbd_flags=0;
-	    key_flags=0;
 	    get_leds(); 
+	    key_flags=0;
+	    *KEYFLAG_ADDR=0;
+	    set_key_flag(KKF_KBD102);
 	  }
 
-	if (console_video)
-	  {
-	    int other_no=(console_no == 1 ? 2 : 1);
-
-#ifdef MDA_VIDEO
-	    dbug_printf("video = MDA\n");
-#endif
-
+	if (config.console_video)
 	    set_console_video();
-	    ioctl(kbd_fd, VT_ACTIVATE, other_no);
-	    ioctl(kbd_fd, VT_ACTIVATE, console_no);
-	  }
-	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.19 1993/02/18 18:53:41 root Exp $\n");
+
+	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.25 1993/05/04 05:29:22 root Exp root $\n");
+
 	return 0;
-}
-
-forbid_switch()
-{
-  vt_allow=0;
-}
-
-allow_switch()
-{
-  /* v_printf("allow_switch called\n"); */
-  vt_allow=1;
-  if (vt_requested)
-    {
-      v_printf("clearing old vt request\n");
-      release_vt(0);
-    }
-  /* else v_printf("allow_switch finished\n"); */
-}
-      
-void acquire_vt(int sig)
-{
-  int kb_mode;
-
-  SETSIG(SIG_ACQUIRE, acquire_vt);
-
-  /* v_printf("acquire_vt() called!\n"); */
-  if (do_ioctl(kbd_fd, VT_RELDISP, VT_ACKACQ)) /* switch acknowledged */
-    v_printf("VT_RELDISP failed (or was queued)!\n");
-
-  if (console_video)
-    {
-      get_video_ram(WAIT /*NOWAIT*/);
-      if (vga) set_dos_video();
-    }
-}
-
-set_dos_video()
-{
-  /* turn blinking attr bit -> a background color bit */
-
-  v_printf("Setting DOS video: gfx_mode: %d modecr = 0x%x\n", gfx_mode,
-	   new_modecr);
-
-  if (ioperm(0x3da,1,1) || ioperm(0x3c0,1,1) || ioperm(0x3d4,2,1))
-    {
-      error("ERROR: Can't get I/O permissions!\n");
-      return (-1);
-    }
-
-  port_in(0x3da);
-  port_out(0x10+32, 0x3c0);
-  port_out(new_modecr, 0x3c0); 
-
-  ioperm(0x3da,1,0);
-  ioperm(0x3c0,1,0);
-  ioperm(0x3d4,2,0);
-
-#ifdef EXPERIMENTAL_GFX
-  if (gfx_mode != TEXT)
-    {
-      v_printf("VGA setmodeing gfx to %d\n", gfx_mode);      
-      vga_setmode(gfx_mode); 
-    }
-#endif
-}
-
-set_linux_video()
-{
-  /* return vga card to Linux normal setup */
-
-  /* v_printf("Setting Linux video: modecr = 0x%x\n", old_modecr); */
-
-  if (ioperm(0x3da,1,1) || ioperm(0x3c0,1,1) || ioperm(0x3d4,2,1))
-    {
-      error("ERROR: Can't get I/O permissions!\n");
-      return (-1);
-    }
-
-  port_in(0x3da);
-  port_out(0x10+32, 0x3c0);
-  port_out(old_modecr, 0x3c0); 
-
-  ioperm(0x3da,1,0);
-  ioperm(0x3c0,1,0);
-  ioperm(0x3d4,2,0);
-
-
-#ifdef EXPERIMENTAL_GFX
-  if (gfx_mode != TEXT)
-    {
-      v_printf("set_linux_video(): setmodeing back to TEXT\n");
-      vga_setmode(TEXT); 
-    }
-#endif
-}
-
-void release_vt(int sig)
-{
-  SETSIG(SIG_RELEASE, release_vt);
-  /* v_printf("release_vt() called!\n"); */
-
-  if (! vt_allow)
-    {
-      v_printf("disallowed vt switch!\n");
-      vt_requested=1;
-      return;
-    }
-
-  if (console_video)
-    {
-      if (vga) set_linux_video();
-      put_video_ram();
-    }
-
-  if (do_ioctl(kbd_fd, VT_RELDISP, 1))       /* switch ok by me */
-    v_printf("VT_RELDISP failed!\n");
-  else
-    v_printf("VT_RELDISP succeeded!\n");
-}
-
-get_video_ram(int waitflag)
-{
-  char *graph_mem;
-  void (*oldhandler)();
-  int tmp;
-
-#if 1
-  console_video=0;
-  if (waitflag == WAIT)
-    {
-      v_printf("get_video_ram WAITING\n");
-      /* wait until our console is current */
-      oldhandler=signal(SIG_ACQUIRE, SIG_IGN);
-      do
-	{
-	  if (tmp=do_ioctl(kbd_fd, VT_WAITACTIVE, console_no) < 0)
-	    printf("WAITACTIVE gave %d. errno: %d\n", tmp,errno);
-	  else break;
-	} while (errno == EINTR);
-  SETSIG(SIG_ACQUIRE, acquire_vt);
-    }
-  console_video=1;
-#endif
-
-  if (gfx_mode == TEXT)
-    {
-      if (video_ram_mapped)
-	memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)VIRT_TEXT_BASE, TEXT_SIZE);
-
-      v_printf("non-gfx mode get_video_mem\n");
-      graph_mem = (char *)mmap((caddr_t)VIRT_TEXT_BASE, 
-			       TEXT_SIZE,
-			       PROT_READ|PROT_WRITE,
-			       MAP_SHARED|MAP_FIXED,
-			       mem_fd, 
-			       PHYS_TEXT_BASE);
-  
-      if ((long)graph_mem < 0) {
-	error("ERROR: mmap error in get_video_ram (text)\n");
-	return (1);
-      }
-      else v_printf("CONSOLE VIDEO address: 0x%x 0x%x 0x%x\n", graph_mem,
-		    PHYS_TEXT_BASE, VIRT_TEXT_BASE);
-      if (video_ram_mapped)
-	memcpy((caddr_t)VIRT_TEXT_BASE, (caddr_t)SCRN_BUF_ADDR, TEXT_SIZE);
-      else video_ram_mapped=1;
-    }
-  else /* gfx_mode */ 
-    {
-#ifdef EXPERIMENTAL_GFX
-      v_printf("gfx mode get_video_ram\n");
-
-      /* memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)GRAPH_BASE, GRAPH_SIZE); */
-
-      v_printf("non-gfx mode get_video_mem\n");
-      graph_mem = (char *)mmap((caddr_t)GRAPH_BASE, 
-			       GRAPH_SIZE,
-			       PROT_READ|PROT_WRITE,
-			       MAP_SHARED|MAP_FIXED,
-			       mem_fd, 
-			       GRAPH_BASE);
-  
-      if ((long)graph_mem < 0) {
-	error("ERROR: mmap error in get_video_ram (gfx)\n");
-	return (1);
-      }
-      else v_printf("CONSOLE VGA address: 0x%x 0x%x\n", graph_mem,
-		    GRAPH_BASE);
-
-      /* memcpy((caddr_t)GRAPH_BASE, (caddr_t)SCRN_BUF_ADDR, GRAPH_SIZE); */
-      /* video_ram_mapped=1; */
-#else
-      error("graphics get_video_ram() without gfx support compiled in!\n");
-#endif
-    }
-}
-
-put_video_ram()
-{
-  if (gfx_mode == TEXT)
-    {
-      v_printf("put_video_ram (text mode) called\n"); 
-      memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)VIRT_TEXT_BASE, TEXT_SIZE);
-      munmap((caddr_t)VIRT_TEXT_BASE, TEXT_SIZE);
-      memcpy((caddr_t)VIRT_TEXT_BASE, (caddr_t)SCRN_BUF_ADDR, TEXT_SIZE);
-    }
-  else 
-    {
-#ifdef EXPERIMENTAL_GFX
-      v_printf("put_video_ram (gfx mode) called\n");
-      munmap((caddr_t)GRAPH_BASE, GRAPH_SIZE);
-      v_printf("put_video_ram (gfx mode) finished\n");
-#else
-      error("graphics put_video_ram() w/out gfx support compiled in!\n");
-#endif
-    }
-}
-
-/* this puts the VC under process control */
-set_process_control()
-{
-  struct vt_mode vt_mode;
-
-  vt_mode.mode = VT_PROCESS;
-  vt_mode.waitv=0;
-  vt_mode.relsig=SIG_RELEASE;
-  vt_mode.acqsig=SIG_ACQUIRE;
-  vt_mode.frsig=0;
-
-  vt_requested=0;    /* a switch has not been attempted yet */  
-  allow_switch();
-
-  SETSIG(SIG_RELEASE, release_vt);
-  SETSIG(SIG_ACQUIRE, acquire_vt);
-
-  if (do_ioctl(kbd_fd, VT_SETMODE, (int)&vt_mode))
-    v_printf("initial VT_SETMODE failed!\n");
-}
-
-clear_process_control()
-{
- struct vt_mode vt_mode;
-
- vt_mode.mode = VT_AUTO;
- do_ioctl(kbd_fd, VT_SETMODE, (int)&vt_mode);
- SETSIG(SIG_RELEASE, SIG_IGN);
- SETSIG(SIG_ACQUIRE, SIG_IGN);
-}
-
-open_kmem()
-{
-    /* as I understad it, /dev/kmem is the kernel's view of memory,
-     * and /dev/mem is the identity-mapped (i.e. physical addressed)
-     * memory. Currently under Linux, both are the same.
-     */
-    if ((mem_fd = open("/dev/mem", O_RDWR) ) < 0) {
-	error("ERROR: can't open /dev/mem \n");
-	return (-1);
-    }
-}
-
-set_console_video()
-{
-    int i;
-
-    /* clear Linux's (unmapped) screen */
-    tputs(cl, 1, outc);
-    v_printf("set_console_video called\n");
-   
-    forbid_switch();
-    get_video_ram(WAIT);
-
-    if (vga)
-      {
-	int permtest;
-
-	permtest = ioperm(0x3d4, 2, 1);  /* get 0x3d4 and 0x3d5 */
-	permtest |= ioperm(0x3da, 1, 1);
-	permtest |= ioperm(0x3c0, 2, 1);  /* get 0x3c0 and 0x3c1 */
-
-	if (permtest)
-	  {
-	    error("ERROR: can't get I/O permissions: vga disabled!\n");
-	    vga=0;  /* if i can't get permissions, forget -V mode */
-	  }
-	else
-	  {
-	    port_in(0x3da);
-	    port_out(0x10+32, 0x3c0);
-	    old_modecr=port_in(0x3c1); 
-	    new_modecr=old_modecr & ~(1 << 3);  /* turn off blink-enable bit */
-
-	    /* get vga memory start */
-	    port_in(0x3da);
-	    port_out(0xc, 0x3d4);
-	    vga_start=port_in(0x3d5) << 8;
-	    port_in(0x3da);
-	    port_out(0xd, 0x3d4);
-	    vga_start |= (unsigned char)port_in(0x3d5);
-	    
-	    v_printf("MODECR: old=0x%x...ORIG: 0x%x\n",
-			old_modecr,vga_start);
-	    
-	    ioperm(0x3da,1,0);
-	    ioperm(0x3c0,2,0);
-	    ioperm(0x3d4,2,0);
-	  }
-      }
-
-    clear_screen(0,0);
-
-/* the offset bug is caused, I think, by the kernel using screen offsets
-   on the EGA/VGA for faster scrolling (i.e. at times the beg of video
-   is NOT 0xb8000.  KDMAPDISP should somehow make the hardware offsets
-   go back to zero if the MAPPED console is the current one (it is
-   done automatically on VC-switches, otherwise).  The fuction
-   responsible for this is set_origin(cons#)  
- 
-   the temporary fix is to switch away, then back - but only after the
-   emulator has given you a C> prompt! I have to clean up this race
-   condition. */
-
-    allow_switch();
-}
-
-
-clear_console_video()
-{
-  v_printf("clear_console_video called\n");
-  if (vga)
-    {
-#if 0
-      int tmp=gfx_mode;
-      gfx_mode=TEXT;
-      set_linux_video();
-      gfx_mode=tmp;
-      if (gfx_mode != TEXT)
-	{
-	  v_printf("clear_console_video restoring screen...\n");
-	  vga_setmode(TEXT);
-	}
-#else
-      set_linux_video();
-#endif
-    }
-  put_video_ram();		/* unmap the screen */
-
-  show_cursor();		/* restore the cursor */
 }
 
 clear_raw_mode()
 {
- do_ioctl(kbd_fd, KDSKBMODE, K_XLATE);
+ do_ioctl(ioc_fd, KDSKBMODE, K_XLATE);
 }
 
 set_raw_mode()
 {
   k_printf("Setting keyboard to RAW mode\n");
-  if (!console_video) fprintf(stderr, "\nEntering RAW mode for DOS!\n");
-  do_ioctl(kbd_fd, KDSKBMODE, K_RAW);
+  if (!config.console_video) fprintf(stderr, "\nEntering RAW mode for DOS!\n");
+  do_ioctl(ioc_fd, KDSKBMODE, K_RAW);
 }
-
-
-void map_bios(void)
-{
-  char *video_bios_mem, *system_bios_mem;
-
-  g_printf("map_bios called\n");
-
-  video_bios_mem =
-    (char *)mmap(
-		 (caddr_t)0xc0000, 
-		 32*1024,
-		 PROT_READ,
-		 MAP_SHARED|MAP_FIXED,
-		 mem_fd, 
-		 0xc0000
-		 );
-  
-  if ((long)video_bios_mem < 0) {
-    error("ERROR: mmap error in map_bios\n");
-    return;
-  }
-  else g_printf("VIDEO BIOS address: 0x%x\n", video_bios_mem);
-
-  system_bios_mem =
-    (char *)mmap(
-		 (caddr_t)0xf0000, 
-		 64*1024,
-		 PROT_READ,
-		 MAP_SHARED|MAP_FIXED,
-		 mem_fd, 
-		 0xf0000
-		 );
-  
-  if ((long)system_bios_mem < 0) {
-    error("ERROR: mmap error in map_bios\n");
-    return;
-  }
-  else g_printf("SYSTEM BIOS address: 0x%x\n", system_bios_mem);
-}
-
 
 static struct termios   save_termios;
 
@@ -899,19 +514,33 @@ static us alt_nums[] = { /* <ALT>-0 ... <ALT>-9 */
 
 static void getKeys(void)
 {
-        int     cc;
-	int tmp;
+  int     cc;
+  int tmp;
 
-        if (kbcount == 0) {
-                kbp = kbbuf;
-        } else if (kbp > &kbbuf[30]) {
-                memmove(kbbuf, kbp, kbcount);
-                kbp = kbbuf;
-        }
-        cc = read(kbd_fd, &kbp[kbcount], &kbbuf[50] - kbp);
-        if (cc > 0) {
-                kbcount += cc;
-        }
+  if (kbcount == 0) {
+    kbp = kbbuf;
+  } else if (kbp > &kbbuf[(KBBUF_SIZE * 3) / 5]) {
+    memmove(kbbuf, kbp, kbcount);
+    kbp = kbbuf;
+  }
+
+  /* IPC change here!...was read(kbd_fd... */
+  cc = read(kbd_fd, &kbp[kbcount], &kbbuf[KBBUF_SIZE] - (kbp+kbcount));
+
+#if AJT
+  if (cc>0 && config.keybint && config.console_keyb)
+    {
+      int i;
+      for (i=0;i<cc;i++)
+	child_setscan(kbp[kbcount+i]);
+    }
+#endif
+  
+  if (cc > 0) {
+    if (kbp+kbcount+cc > &kbbuf[KBBUF_SIZE])
+      error("ERROR: getKeys() has overwritten the buffer!\n");
+    kbcount += cc;
+  }
 }
 
 
@@ -925,10 +554,10 @@ static void getKeys(void)
 
 	if (kbcount == 0) return 0;
 
-	if (console_keyb)
+	if (config.console_keyb)
 	  {
 #ifdef CHECK_RAW
-	    do_ioctl(kbd_fd, KDGKBMODE, &kbd_mode);   /* get kb mode */
+	    do_ioctl(ioc_fd, KDGKBMODE, &kbd_mode);   /* get kb mode */
 	    if (kbd_mode == K_RAW)
 	      {
 #endif
@@ -936,9 +565,13 @@ static void getKeys(void)
 		unsigned int tmpcode = 0;
 	
 		lastscan=scancode;
-		tmpcode = convscanKey(scancode);
 		kbp++;
-		kbcount--;
+		kbcount--; 
+		if (kbp > kbbuf+KBBUF_SIZE)
+		  k_printf("ERROR: in convKey...kbp: 0x%08x kbbuf 0x%08x\n",
+			   kbp,kbbuf);
+		tmpcode = convscanKey(scancode);
+
 		return tmpcode;
 #ifdef CHECK_RAW
 	      }
@@ -949,13 +582,18 @@ static void getKeys(void)
 	xlate:
 	/* get here only if in cooked mode (i.e. K_XLATE) */
 	if (*kbp == '\033') {
+	        in_readkeyboard=1;
 		if (kbcount == 1) {
 			scr_tv.tv_sec = 0;
 			scr_tv.tv_usec = 500000;
 			FD_ZERO(&fds);
+
+			/* IPC change here! */
 			FD_SET(kbd_fd, &fds);
-			select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
+			RPT_SYSCALL( select(kbd_fd+1, &fds, NULL, NULL,
+					   &scr_tv) );
 			getKeys();
+
 			if (kbcount == 1) {
 				kbcount--;
 				return ((highscan[*kbp] << 8 ) +
@@ -978,32 +616,31 @@ static void getKeys(void)
 		}
 #endif
 		fkp = funkey;
+
 		for (i=1;;) {
-			if (fkp->esc == NULL || 
-			    fkp->esc[i] < kbp[i]) {
-				if (++fkp >= &funkey[FUNKEYS])
-					break;
-			} else if (fkp->esc[i] == kbp[i]) {
-				if (fkp->esc[++i] == '\0') {
-					kbcount -= i;
-					kbp += i;
-					return fkp->code;
-				}
-				if (kbcount <= i) {
-					scr_tv.tv_sec = 0;
-					scr_tv.tv_usec = 800000;
-					FD_ZERO(&fds);
-					FD_SET(kbd_fd, &fds);
-					select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
-					getKeys();
-					if (kbcount <= i) {
-						break;
-					}
-				}
-			} else {
-				break;
-			}
+		  if (fkp->esc == NULL || 
+		      fkp->esc[i] < kbp[i]) {
+		    if (++fkp >= &funkey[FUNKEYS])
+		      break;
+		  } else if (fkp->esc[i] == kbp[i]) {
+		    if (fkp->esc[++i] == '\0') {
+		      kbcount -= i;
+		      kbp += i;
+		      return fkp->code;
+		    }
+		    if (kbcount <= i) {
+		      getKeys();
+
+		      if (kbcount <= i) {
+			break;
+		      }
+		    }
+		  } else {
+		    break;
+		  }
 		}
+		in_readkeyboard=0;
+	/* end of if (*kbp == '\033')... */
 	} else if (*kbp == erasekey) {
 		kbcount--;
 		kbp++;
@@ -1022,13 +659,13 @@ static void getKeys(void)
 #endif
 	}
 
-        kbcount--;
 	
 	i=highscan[*kbp] << 8;   /* get scancode */
 
 	/* extended scancodes return 0 for the ascii value */
 	if ((unsigned char)*kbp < 0x80) i |= (unsigned char)*kbp;
 
+        kbcount--;
 	kbp++;
 	return (i); 
 }
@@ -1039,6 +676,7 @@ static void getKeys(void)
 int InsKeyboard (unsigned short scancode)
 {
 	int n;
+	unsigned short *Kbuffer = KBDA_ADDR;
 
 	/* read the BDA pointers */
 	Kbuff_next_avail = *(unsigned short *)0x41a - 0x1e;
@@ -1050,17 +688,20 @@ int InsKeyboard (unsigned short scancode)
 	Kbuffer[Kbuff_next_free] = scancode;
 	Kbuff_next_free = n;
 
+	ignore_segv++;
 	/* these are the offsets from 0x400 to the head & tail */
 	*(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
 	*(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
+	ignore_segv--;
 
-	dump_kbuffer();
+	/* dump_kbuffer(); */
 	return 1;
 }
 
 dump_kbuffer()
 {
   int i;
+  unsigned short *Kbuffer = KBDA_ADDR;
   
   k_printf("KEYBUFFER DUMP: 0x%02x 0x%02x\n", 
 	   *(us *)0x41a-0x1e, *(us *)0x41c-0x1e);
@@ -1071,9 +712,13 @@ dump_kbuffer()
 
 void keybuf_clear(void)
 {
+  ignore_segv++;
+
   Kbuff_next_free = Kbuff_next_free = 0;
   *(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
   *(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
+
+  ignore_segv--;
   dump_kbuffer();
 }
 
@@ -1085,24 +730,103 @@ int PollKeyboard (void)
   unsigned int key;
   int count=0;
 
-  if (in_readkeyboard) error("ERROR: Polling while in_readkeyboard!!!!!\n");
+  if (in_readkeyboard) 
+    {
+      error("ERROR: Polling while in_readkeyboard!!!!!\n");
+      return;
+    }
 
-  if (ReadKeyboard(&key, POLL))
+  if (CReadKeyboard(&key, POLL))
   {
-    k_printf("found key in PollKeyboard: 0x%04x\n", key);
-    if (key == 0)
-      {
-	k_printf("Snatched scancode from me!\n");
-      }
+    if (key == 0) k_printf("Snatched scancode from me!\n");
     else
       {
-	if (! InsKeyboard(key)) error("PollKeyboard could not insert key!\n");
-	count++;
+	if (! InsKeyboard(key)) 
+	  {
+	    error("PollKeyboard could not insert key!\n");
+	    outc('\007');  /* bell */
+	  }
+	count++;  /* whether or not the key is put into the buffer,
+		   * throw it away :-( */
       }
   }
   if (count) return 1;
   else return 0;
 }
+
+
+int PollKeyboard2 (void)
+{
+  unsigned int key;
+  int count=0;
+
+  if (CReadKeyboard(&key, POLL))
+  {
+    if (key == 0) k_printf("Snatched scancode from me!\n");
+    else
+      {
+	if (! InsKeyboard(key)) 
+	  {
+	    error("PollKeyboard could not insert key!\n");
+	    outc('\007');  /* bell */
+	  }
+	count++;  /* whether or not the key is put into the buffer,
+		   * throw it away :-( */
+      }
+  }
+  if (count) return 1;
+  else return 0;
+}
+
+
+int CReadKeyboard(unsigned int *buf, int wait)
+{
+	struct ipcpkt  pkt;
+	unsigned short *Kbuffer=KBDA_ADDR;
+
+	in_readkeyboard=1;
+
+	/* XXX - need semaphores here to keep child process 
+	 * out of keyboard buffer...
+	 */
+
+	/* read the BDA pointers */
+	Kbuff_next_avail = *(unsigned short *)0x41a - 0x1e;
+	Kbuff_next_free = *(unsigned short *)0x41c - 0x1e;
+
+	if (Kbuff_next_free != Kbuff_next_avail)
+	{
+	  *buf = (int) (Kbuffer[Kbuff_next_avail]);
+	  if (wait != TEST) 
+	      Kbuff_next_avail = (Kbuff_next_avail + 1) % KBUFLEN;
+
+	  ignore_segv++;
+	  /* update the BDA pointers */
+	  *(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
+	  *(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
+	  ignore_segv--;
+
+	  in_readkeyboard=0;
+	  return 1;
+	}
+	else if (wait == TEST || wait == NOWAIT) return 0;
+
+	error("IPC/KBD: (par) sending request message\n");
+	ipc_send2child(DMSG_READKEY);
+
+	/* got here if no key in keybuffer and not TEST */
+	do {
+	  error("IPC/KBD: (par) waiting for key\n");
+	  ipc_recvpktfromchild(&pkt);
+	  error("IPC/KBD: (par) got key 0x%04x\n", pkt.u.key);
+	  *buf = pkt.u.key;
+	} while (*buf == 0);
+
+	ipc_send2child(DMSG_NOREADKEY);
+
+	return 1;
+}
+
 
 /* ReadKeyboard
    returns 1 if a character could be read in buf 
@@ -1123,30 +847,15 @@ int ReadKeyboard(unsigned int *buf, int wait)
 
 	in_readkeyboard=1;
 
-	/* read the BDA pointers */
-	Kbuff_next_avail = *(unsigned short *)0x41a - 0x1e;
-	Kbuff_next_free = *(unsigned short *)0x41c - 0x1e;
-
-	if ((wait != POLL) && (Kbuff_next_free != Kbuff_next_avail))
-	{
-	  *buf = (int) (Kbuffer[Kbuff_next_avail]);
-	  if (wait != TEST) 
-	      Kbuff_next_avail = (Kbuff_next_avail + 1) % KBUFLEN;
-
-	  /* update the BDA pointers */
-	  *(unsigned short *)0x41a = 0x1e + Kbuff_next_avail;
-	  *(unsigned short *)0x41c = 0x1e + Kbuff_next_free;
-
-	  in_readkeyboard=0;
-	  return 1;
-	}
-
 	while (!aktkey) {
 		if (kbcount == 0 && wait == WAIT) {
 		        in_readkeyboard=1;
+
+			/* IPC change */
 		        FD_ZERO(&fds);
 			FD_SET(kbd_fd, &fds);
-			r = select(kbd_fd+1, &fds, NULL, NULL, NULL);
+			r = RPT_SYSCALL( select(kbd_fd+1, &fds, NULL,
+						NULL, NULL) );
 		}
 		getKeys();
 		if (kbcount == 0 && wait != WAIT) 
@@ -1158,7 +867,7 @@ int ReadKeyboard(unsigned int *buf, int wait)
 		/* if console keyboard, lastscan is set in
 		 * convKey()
 		 */
-		if (!console_keyb) lastscan = aktkey >> 8;
+		if (!config.console_keyb) lastscan = aktkey >> 8;
 	}
 	*buf = aktkey;
 	if (wait != TEST) aktkey = 0;
@@ -1179,21 +888,21 @@ void ReadString(int max, unsigned char *buf)
 	int tmp;
 
 	for (;;) {
-		if (ReadKeyboard(&c, WAIT) != 1) continue;
+		if (CReadKeyboard(&c, WAIT) != 1) continue;
 		c &= 0xff;   /* mask out scan code -> makes ASCII */
 		/* I'm not entirely sure why Matthias did this */
 		/* if ((unsigned)c >= 128) continue; */
 		ch = (char)c;
 		if (ch >= ' ' && /* ch <= '~' && */ cp < ce) {
 			*cp++ = ch;
-			char_out(ch, screen);
+			char_out(ch, SCREEN, ADVANCE);
 			continue;
 		}
 		if (ch == '\010' && cp > buf +1) { /* BS */
 			cp--;
-			char_out('\010', screen);
-			char_out(' ', screen);
-			char_out('\010', screen);
+			char_out('\010', SCREEN, ADVANCE);
+			char_out(' ', SCREEN, ADVANCE);
+			char_out('\010', SCREEN, ADVANCE);
 			continue;
 		}
 		if (ch == 13) {
@@ -1270,10 +979,6 @@ unsigned int convscanKey(unsigned char scancode)
 	queue=0;
 	key_table[scancode](scancode); 
 
-#if 0
-	do_keyboard_interrupt(); 
-#endif
-
 	clr_key_flag(KKF_E0);
 	clr_key_flag(KKF_E1);
 
@@ -1283,26 +988,34 @@ unsigned int convscanKey(unsigned char scancode)
 
 static void ctrl(unsigned int sc)
 {
-	if (key_flag(KKF_E0))
-		set_kbd_flag(EKF_RCTRL);
-	else
-		set_kbd_flag(EKF_LCTRL);
-	set_kbd_flag(KF_CTRL);
+  if (key_flag(KKF_E0)) {
+    set_kbd_flag(EKF_RCTRL);
+    set_key_flag(KKF_RCTRL);
+  }
+  else
+    set_kbd_flag(EKF_LCTRL);
+  
+  set_kbd_flag(KF_CTRL);
 }
 
 static void alt(unsigned int sc)
 {
-	if (key_flag(KKF_E0))
-		set_kbd_flag(EKF_RALT);
-	else
-		set_kbd_flag(EKF_LALT);
-	set_kbd_flag(KF_ALT);
+  if (key_flag(KKF_E0)) {
+    set_kbd_flag(EKF_RALT);
+    set_key_flag(KKF_RALT);
+  }
+  else
+    set_kbd_flag(EKF_LALT);
+  
+  set_kbd_flag(KF_ALT);
 }
 
 static void unctrl(unsigned int sc)
 {
-	if (key_flag(KKF_E0))
+	if (key_flag(KKF_E0)) {
 		clr_kbd_flag(EKF_RCTRL);
+		clr_key_flag(KKF_RCTRL);
+	      }
 	else
 		clr_kbd_flag(EKF_LCTRL);
 
@@ -1312,8 +1025,10 @@ static void unctrl(unsigned int sc)
 
 static void unalt(unsigned int sc)
 {
-	if (key_flag(KKF_E0))
+	if (key_flag(KKF_E0)) {
 		clr_kbd_flag(EKF_RALT);
+		clr_key_flag(KKF_RALT);
+	      }
 	else 
 		clr_kbd_flag(EKF_LALT);
 
@@ -1355,6 +1070,13 @@ static void unrshift(unsigned int sc)
 
 static void caps(unsigned int sc)
 {
+  if (kbd_flag(EKF_RCTRL) && kbd_flag(EKF_LCTRL))
+    {
+      keyboard_mouse = keyboard_mouse ? 0 : 1;
+      m_printf("MOUSE: toggled keyboard mouse %s\n", 
+	       keyboard_mouse ? "on" : "off");
+      return;
+    }
   chg_kbd_flag(KF_CAPSLOCK);	/* toggle; this means SET/UNSET */
   set_leds();
 }
@@ -1374,28 +1096,35 @@ static void scroll(unsigned int sc)
   if (key_flag(KKF_E0))
     {
       k_printf("ctrl-break!\n");
+      ignore_segv++;
       *(unsigned char *)0x471 = 0x80;  /* ctrl-break flag */
       *(us *)0x41a = 0x1e;	/* key buf start ofs */
       *(us *)0x41c = 0x1e;	/* key buf end ofs */
       *(us *)0x41e = 0;		/* put 0 word in buffer */
-      Kbuff_next_free = Kbuff_next_avail;  /* clear our buffer */      
-      do_int(0x1b);
+      ignore_segv--;
+      Kbuff_next_free = Kbuff_next_avail;  /* clear our buffer */
+
+      ipc_send2parent(DMSG_CTRLBRK);
+      ipc_wakeparent();
+
       return;
     }
-  else if (kbd_flag(KF_CTRL))
-      show_ints(0x30);
-  else if (kbd_flag(KF_ALT))
+  else if (kbd_flag(EKF_RCTRL))
+    show_ints(0,0x33);
+  else if (kbd_flag(EKF_RALT))
     show_regs();
   else if (kbd_flag(KF_RSHIFT))
     {
       warn("timer int 8 requested...\n");
-      do_int(8);
+      ipc_wakeparent();
+      ipc_send2parent(DMSG_INT8);
     }
   else if (kbd_flag(KF_LSHIFT))
     {
       warn("keyboard int 9 requested...\n");
       dump_kbuffer();
-      do_int(9);
+      ipc_wakeparent();
+      ipc_send2parent(DMSG_INT9);
     }
   else {
     chg_kbd_flag(KF_SCRLOCK);
@@ -1405,8 +1134,26 @@ static void scroll(unsigned int sc)
 
 static void num(unsigned int sc)
 {
-  chg_kbd_flag(KF_NUMLOCK);
-  set_leds();
+  static int lastpause=0;
+
+  if (kbd_flag(EKF_LCTRL)) {
+    k_printf("PAUSE!\n");
+    if (lastpause) {
+      I_printf("IPC: waking parent up!\n");
+      dos_unpause();
+      lastpause=0;
+    }
+    else {
+      I_printf("IPC: putting parent to sleep!\n");
+      dos_pause();
+      lastpause=1;
+    }
+  }
+  else {
+    k_printf("NUMLOCK!\n");
+    chg_kbd_flag(KF_NUMLOCK);
+    set_leds();
+  }
 }
 
 
@@ -1418,14 +1165,14 @@ set_leds()
   if (kbd_flag(KF_NUMLOCK)) led_state |= (1 << LED_NUMLOCK);
   if (kbd_flag(KF_CAPSLOCK)) led_state |= (1 << LED_CAPSLOCK);
 
-  do_ioctl(kbd_fd, KDSETLED, led_state);
+  do_ioctl(ioc_fd, KDSETLED, led_state);
 }
 
 get_leds()
 {
   unsigned int led_state=0;
 
-  do_ioctl(kbd_fd, KDGETLED, (int)&led_state);
+  do_ioctl(ioc_fd, KDGETLED, (int)&led_state);
 
   if  (led_state & (1 << LED_SCRLOCK)) set_kbd_flag(KF_SCRLOCK);
        else clr_kbd_flag(KF_SCRLOCK);
@@ -1487,6 +1234,10 @@ unsigned short alt_cursor[] = {
   0xa100,0xa200,0xa300
   };
 
+unsigned short shift_cursor[] = {
+  0x4737,0x4838,0x4939,0x4a2d,0x4b34,0x0000,0x4d36,0x4e2b,0x4f31,
+  0x5032,0x5133,0x5230,0x532e
+  };
 
 static void cursor(unsigned int sc)
 {
@@ -1498,15 +1249,25 @@ static void cursor(unsigned int sc)
     return;
 
   /* do dos_ctrl_alt_del on C-A-Del and C-A-PGUP */
-  if (kbd_flag(KF_CTRL) && kbd_flag(KF_ALT)) {
+  if (kbd_flag(KF_CTRL) && kbd_flag(KF_ALT)) 
+  {
     if (sc == 0x53 /*del*/ || sc == 0x49 /*pgup*/)
       dos_ctrl_alt_del();
     if (sc == 0x51) /*pgdn*/
       {
 	dbug_printf("ctrl-alt-pgdn\n");
-	leavedos(1);
+	ipc_wakeparent();
+	ipc_send2parent(DMSG_EXIT);
       }
+    /* if the arrow keys, or home end, do keyboard mouse */
   }
+
+  if ((keyboard_mouse) && (sc == 0x50 || sc == 0x4b || sc == 0x48 || 
+			   sc == 0x4d || sc == 0x47 || sc == 0x4f))
+    {
+      mouse_keyboard(sc);
+      return;
+    }
 
   sc -= 0x47;
 
@@ -1610,11 +1371,10 @@ int activate(int con_num)
   if (in_ioctl)
     {
       k_printf("can't ioctl for activate, in a signal handler\n");
-      /* queue_ioctl(kbd_fd, VT_ACTIVATE, con_num); */
-      do_ioctl(kbd_fd, VT_ACTIVATE, con_num); 
+      do_ioctl(ioc_fd, VT_ACTIVATE, con_num); 
     }
   else 
-      do_ioctl(kbd_fd, VT_ACTIVATE, con_num); 
+      do_ioctl(ioc_fd, VT_ACTIVATE, con_num); 
 }
 
 int do_ioctl(int fd, int req, int param3)
@@ -1717,10 +1477,14 @@ static void none(unsigned int sc)
 /**************** key-related functions **************/
  void kbd_flags_to_bda()
 {
-  ignore_segv=1;
-   /* this will, of course, generate a SIGSEGV */
-   *(unsigned short int *)0x417 = kbd_flags; 
-  ignore_segv=0;
+   /* XXX - we ignore any changes a user program has made...this
+    *       isn't good.  however, we can't let users mess around
+    *       with our ALT flags, as we use those to change consoles.
+    *       should change later to allow DOS changes of anything but
+    *       RALT...
+    */
+
+   *(KBDFLAG_ADDR) = kbd_flags; 
 }
 
  void set_kbd_flag(int flag)
@@ -1750,17 +1514,20 @@ static void none(unsigned int sc)
 /* these are the KEY flags */
  void set_key_flag(int flag)
 {
-	key_flags |= 1 << flag;
+	key_flags |= (1 << flag);
+	*KEYFLAG_ADDR |= (1 << flag);
 }
 
  void clr_key_flag(int flag)
 {
 	key_flags &= ~(1 << flag);
+	*KEYFLAG_ADDR &= ~(1 << flag);
 }
 
  void chg_key_flag(int flag)
 {
 	key_flags ^= 1 << flag;
+	*KEYFLAG_ADDR ^= (1 << flag);
 }
 
  int key_flag(int flag)
@@ -1768,5 +1535,6 @@ static void none(unsigned int sc)
 	return ((key_flags >> flag) & 1);
 }
 /************* end of key-related functions *************/
+
 #undef TERMIO_C
 
