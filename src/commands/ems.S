@@ -54,6 +54,7 @@
 #
 
 #include "memory.h"
+#include "doshelpers.h"
 
 .code16
 .text
@@ -66,8 +67,11 @@ lf	=	0xa
 eom	=	'$'		# DOS end-of-string character (barf)
 LinuxEMS =	0xe6		# 0xe6 is Int for Linux EMS server
 EMSint	=	0x67
-vecoff   = 	(EMSint * 4)   # mem loc for the interrupt vector
-vecseg	=	(vecoff + 2)
+
+LEN	=	0
+UNITS	=	1
+CMD	=	2
+STAT	=	3
 
 Header:
 	.long	-1		# link to next device driver
@@ -81,12 +85,13 @@ Header:
 # know how to tell gas that as I would in Turbo Assembler, so I just
 # explicitly "lret" at the end of their execution.  Be careful!
 
-RHPtr:	.long	0		# ptr to request header
+RHPtr:		.long 0		# ptr to request header
 
-InitDone: .word 0		# 1 when initialisation is complete
+OldXMSCall:	.long 0
+OldInt2f:	.long 0
+NoEMS:		.byte 0
 
 Dispatch:
-
 	.word	Init		# initialize driver
 	.word	Dummy		# Media Check ,block only
 	.word	Dummy		# Build BPB, block only
@@ -111,82 +116,66 @@ Strat:
 	lret
 
 Intr:
-	pushw	%ax
-	pushw	%bx
-	pushw	%cx
-	pushw	%dx
+	pusha
 	pushw	%ds
 	pushw	%es
-	pushw	%di
-	pushw	%si
-	pushw	%bp
-	
+
 	pushw	%cs
 	popw	%ds
-
 	les	RHPtr,%di	# let es:di = request header
 
-	movb	%es:2(%di),%bl
-	xorb	%bh,%bh
+	movzbw	%es:CMD(%di), %si
+	movw	%si, %bx
 	cmpw	$MaxCmd, %bx 
-	jle	Intr1
-	call	Error
-	jmp	Intr2
+	jle	1f
+	mov	$0x8003, %ax	# error
+	jmp	2f
 
-Intr1:	shlw	%bx
-	
-	callw	*Dispatch(%bx)
-
+1:	shlw	%si
+	callw	*Dispatch(%si)
 	les	RHPtr,%di
 
-Intr2:	orw	$0x100,%ax		# Merge done bit with status
-	mov	%ax,%es:3(%di)
+2:	orw	$0x100,%ax	# Merge done bit with status
+	mov	%ax,%es:STAT(%di)
 
-	popw	%bp
-	popw	%si
-	popw	%di
 	popw	%es
 	popw	%ds
-	popw	%dx
-	popw	%cx
-	popw	%bx
-	popw	%ax
+	popa
 	lret
 
 Dummy:
-	call EMSini
-	les	RHPtr, %di
-	movb	%es:2(%di),%bl  # get request number
-	xorb	%bh,%bh
-
-	movb    $0x21, %al
+	movb    $DOS_HELPER_EMS_HELPER, %al
 	int	$LinuxEMS
-
-	xorw	%ax,%ax
 	ret
 
+Int2f:
+	cmpw	$0x4310, %ax
+	jne	1f
+	pushw	%cs
+	popw	%es
+	movw	$XMSHook, %bx
+	jmp	2f
+1:	pushfw
+	lcall	*%cs:OldInt2f
+2:	lret	$2
 
 Int67:
+	cmpb	$0, %cs:NoEMS
+	jne	10f
 	pushw	%ax
-	movw	$0x22, %ax
+	movw	$DOS_HELPER_EMS_BIOS, %ax
 	int	$LinuxEMS
-	iret
+10:	iret
 
-Read:
-	call EMSini
-	movw	$0x101, %bx
-	xorw	%ax,%ax
-	ret
+XMSHook:
+	jmp 1f
+	nop
+	nop
+	nop
+1:	lcall	*%cs:OldXMSCall
+	lret
 
-
-Write:
-	call EMSini
-	xorw	%ax,%ax
-	ret
-
-Error:
-	mov	$0x8003,%ax
-	ret
+InitCodeStart:		/* all the below code gets discarded after init */
 
 HimemHook_Start:
 	lcall	$XMSControl_SEG, $XMSControl_OFF
@@ -231,103 +220,80 @@ HookHimem:
 	movw	$HimemHook_Start, %si
 	movw	$(HimemHook_End - HimemHook_Start), %cx
 	rep	movsb
+	/* save old callback address */
+	movw	%bx, OldXMSCall
+	movw	%ax, OldXMSCall+2
+	/* install int2f hook */
+	movb	$0x35, %ah
+	movb	$0x2f, %al
+	int	$0x21
+	movw	%bx, OldInt2f
+	movw	%es, OldInt2f+2
+	movb	$0x25, %ah
+	movb	$0x2f, %al
+	movw	$Int2f, %dx
+	int	$0x21
 	/* all done, UMB should work */
 	movb	$9, %ah
 	movw	$HimemOKMsg, %dx
 	int	$0x21
+	xorb	%al, %al
+	jmp	10f
 9:
-	ret
-
-EMSini:
-	pushw %es
-	pushw %di
-
-	pushw %cs
-	popw %ds
-	movw InitDone,%ax
-	cmp $0,%ax
-	jne AlreadyDone
-
-	movw	$0x3000, %ax
-	int	$0x21
-	pushw	%ax
-
-	movb	$0x52, %ah
-	int	$0x21
-
-	movw	$0x5d06, %ax
-	int	$0x21
-
-	popw	%cx
-	pushw	%bx
-	popw	%dx
-
-	pushw	%di
-	pushw	%es
-	pushw	%ax
-	movw	$0, %ax
-	movw	%ax, %es
-	movw	$vecoff, %di
-	movw	$Int67, %es:(%di)
-	movw	%cs, %es:2(%di)
-	popw	%ax
-	popw	%es
-	popw	%di
-
-	pushw %cs
-	popw %ds
-
-	call	HookHimem
-
-	movw $1,InitDone
-
-AlreadyDone:
-	popw %di
-	popw %es
-	ret
+	movb	$1, %al		# report error
+10:	ret
 
 Init:
-	xorw	%bx,%bx
+	movb    $DOS_HELPER_EMS_HELPER, %al
+	int	$LinuxEMS
+	orb	%al, %al
+	jz	1f
+	movb	$1, NoEMS
+	movb	$9, %ah
+	movw	$NoEMSMsg, %dx
+	int	$0x21
+1:
+	pushw	%es
+	pushw	%di
+	pushw	%cs
+	popw	%es
+	call	HookHimem
+	popw	%di
+	popw	%es
 
-	cmpw	$0, %ax
-	jne	EMSin
+	/* if both EMS and HookHimem fail, disable driver */
+	andb	NoEMS, %al
+	jnz	Error
 
-EMSout:
-	pushw %cs
-	popw %ds
-	mov	$9, %ah
-	mov	$OutMess, %dx
+	movb	$0x25, %ah
+	movb	$EMSint, %al
+	movw	$Int67, %dx
 	int	$0x21
 
-	movb	$0,%es:13(%di)		# No units!!
-	movw	%cs,%es:20(%di)
-	movw	$0,%es:14(%di)	#Break addr = cs:0000
+	movb	$1,%es:13(%di)
+	movw	$InitCodeStart,%es:14(%di)
 	movw	%cs,%es:16(%di)
-
-	ret
-
-EMSin:
-	call	EMSini
-
-	movb	%es:22(%di), %al
-	addb	$0x41, %al
-
-	pushw	%cs
-	popw	%ds
 
 	movb	$9, %ah
 	movw	$Mesage, %dx
 	int	$0x21
+	xorw 	%ax, %ax
+	ret
 
-	movw	$Init, %es:14(%di)
-	movw	%cs, %es:16(%di)
+Error:
+	mov	$9, %ah
+	mov	$ErrMess, %dx
+	int	$0x21
 
-	xorw %ax,%ax
+	movb	$0,%es:13(%di)		# No units!!
+	movw	$0,%es:14(%di)		# Break addr = cs:0000
+	movw	%cs,%es:16(%di)
 
+	movw 	$2, %ax
 	ret
 
 
-Mesage:	.ascii	"dosemu EMS 4.0 driver installed"
+Mesage:	.ascii	"dosemu EMS 4.0 driver installed."
 	.byte	cr,lf,eom
 
 NoHimemMsg:
@@ -341,18 +307,18 @@ CantHookMsg:
 	.ascii  "your config.sys.\r\n"
 	.byte	eom
 HimemOKMsg:
-	.ascii	"UMB support enabled and "
-	.byte	eom
+	.ascii	"UMB support enabled."
+	.byte	cr,lf,eom
+NoEMSMsg:
+	.ascii	"Warning: EMS support not enabled."
+	.byte	cr,lf,eom
 InternDrvMsg:
-	.ascii	"dosemu internal XMS driver detected.\r\n"
+	.ascii	"Warning: dosemu internal XMS driver detected.\r\n"
 	.ascii	"This is deprecated, please consider using\r\n"
 	.ascii  "an external XMS driver, like himem.sys or fdxms.sys.\r\n"
 	.byte	eom
 
-OutMess:
-	.byte	cr,lf,lf
-	.ascii	"EMS Server not responding."
-	.byte	cr,lf
+ErrMess:
 	.ascii	"Installation aborted."
 	.byte	cr,lf,lf,eom
 

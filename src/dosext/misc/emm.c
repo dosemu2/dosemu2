@@ -244,10 +244,11 @@ static u_short os_allow=1;
 void
 ems_helper(void) {
   u_char *rhptr;		/* request header pointer */
-
   switch (LWORD(ebx)) {
   case 0:
     E_printf("EMS Init called!\n");
+    if (!config.ems_size)
+      return;
     break;
   case 3:
     E_printf("EMS IOCTL called!\n");
@@ -275,9 +276,11 @@ ems_helper(void) {
     break;
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
+    return;
   }
   rhptr = SEG_ADR((u_char *), es, di);
   E_printf("EMS RHDR: len %d, command %d\n", *rhptr, *(u_short *) (rhptr + 2));
+  LWORD(eax) = 0;	/* report success */
 }
 
 void
