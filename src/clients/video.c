@@ -27,31 +27,35 @@
 char *memory;
 
 int
-shared_memory_init (char *pid)
+shared_cmemory_init (char *pid)
 {
 
   static int ret_val;
+#if 0
+  FILE *tmpfile_fd;
+  u_char devname[30], in_string[81];
+#endif
 
   get_shared_memory_info (pid);
-
-  if (shm_qf_id)
+  if (shm_video_id)
     {
-      memory = malloc (SHARED_QUEUE_FLAGS_AREA);
 
-      if (((caddr_t) ret_val = (caddr_t) shmat (shm_qf_id, (u_char *) memory, SHM_REMAP | SHM_RND)) == (caddr_t) 0xffffffff)
+      memory = malloc (SHARED_VIDEO_AREA);
+
+      if (((caddr_t) ret_val = (caddr_t) shmat (shm_video_id, (u_char *) memory, SHM_REMAP | SHM_RND)) == (caddr_t) 0xffffffff)
 	{
 	  E_printf ("SHM: Mapping to 0 unsuccessful: %s\n", strerror (errno));
 	  leavedos (44);
 	}
-      if (shmctl (shm_qf_id, IPC_RMID, (struct shmid_ds *) 0) < 0)
+      if (shmctl (shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0)
 	{
 	  E_printf ("SHM: Shmctl SHM unsuccessful: %s\n", strerror (errno));
 	}
+
       return 0;
     }
   else
     return 1;
-
 
 }
 
@@ -65,29 +69,21 @@ main (int argc, char **argv)
       return;
     }
 
-  if (shared_memory_init (argv[1]))
+  if (shared_cmemory_init (argv[1]))
     {
-      fprintf (stderr, "Unable to access keyboard, check server\n");
+      fprintf (stderr, "Unable to access video, check server video mode.\n");
     }
   else
     {
-      E_printf ("keybuffer start = 0x%04x\n", (int) memory[1816]);
-      E_printf ("keybuffer end   = 0x%04x\n", (int) memory[1820]);
-      for (j = 0; j < 10; j++)
+
+      for (j = 0; j < 25; j++)
 	{
-	  for (i = 0; i < 10; i += 2)
-	    {
-	      E_printf ("0x%02x ", (u_char) memory[1824 + i + (j * 10)]);
-	      if ((u_char) memory[1824 + i + (j * 10)] >= 32 &&
-		  (u_char) memory[1824 + i + (j * 10)] <= 121)
-		E_printf ("%c ", (u_char) memory[1824 + i + (j * 10)]);
-	      else
-		E_printf ("  ");
-	      E_printf ("0x%02x  ", (u_char) memory[1824 + i + (j * 10) + 1]);
-	    }
 	  putchar ('\n');
+	  for (i = 0; i < 160; i += 2)
+	    {
+	      E_printf ("%c", (u_char) memory[0x18000 + i + (j * 160)]);
+	    }
 	}
-      putchar ('\n');
       getchar ();
     }
 }

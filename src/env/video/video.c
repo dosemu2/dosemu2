@@ -134,7 +134,7 @@ scr_state_init(void){
   scr_state.virt_address = PAGE_ADDR(0);
 }
 
-void video_close() {
+void video_close(void) {
   v_printf("VID: video_close() called\n");
   if (Video && Video->close) {
     Video->close();
@@ -267,7 +267,6 @@ set_video_bios_size(void){
 void
 gettermcap(int i)
 {
-  char *garb;
   struct winsize ws;		/* buffer for TIOCSWINSZ */
 
   li = LI;

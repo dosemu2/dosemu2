@@ -245,4 +245,11 @@ EXTERN int video_subsys;
 #define DIAMOND		3
 #define S3		4
 
+EXTERN void get_screen_size (void);
+EXTERN void set_video_bios_size(void);
+EXTERN void X_handle_events(void);
+EXTERN void X_blink_cursor(void);
+EXTERN void init_vga_card(void);
+EXTERN void scr_state_init(void);
+
 #endif

@@ -71,5 +71,16 @@ static inline char safe_port_in_byte(const short port)
 	i_printf("\n");
 	return value;
 }
+#else
+extern char safe_port_in_byte(const unsigned short port);
+extern void safe_port_out_byte(const unsigned short port, const unsigned char byte);
 #endif		
+
+extern unsigned int inb(unsigned int port);
+extern void outb(unsigned int port, unsigned int byte);
+extern int inw(int port);
+extern int ind(int port);
+extern void outw(unsigned int port, unsigned int value);
+extern void outd(unsigned int port, unsigned int value);
+
 #endif

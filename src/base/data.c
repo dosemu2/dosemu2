@@ -22,3 +22,5 @@ static char *id= "$Id: data.c,v 1.4 1995/04/08 22:29:37 root Exp $";
 #include "pic.h"
 #include "disks.h"
 #include "mhpdbg.h"
+#include "cmos.h"
+#include "priv.h"

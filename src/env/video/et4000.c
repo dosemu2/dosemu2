@@ -113,7 +113,7 @@ void et4000_restore_ext_regs(u_char xregs[], u_short xregs16[])
   port_out(xregs[0], 0x3cd);
   port_out(xregs[12], 0x3bf);
   port_out(xregs[11], 0x3d8);
-  port_out(0x0300, 0x3c4);
+  port_out(0x300, 0x3c4);
 }
 
 void et4000_set_bank_read(u_char bank)

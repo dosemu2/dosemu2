@@ -58,6 +58,8 @@
 #include "cpu.h"
 #include "emu.h"
 #include "../dpmi/dpmi.h"
+#include "serial.h"
+#include "int.h"
 #undef us
 #define us unsigned
 void timer_tick(void);
@@ -65,12 +67,15 @@ void pic_activate();
 extern void timer_int_engine(void);
 #define NEVER 0x80000000
 
+
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
-static unsigned long pic1_mask;        /* bits set for pic1 levels */
 static unsigned long pic_irq2_ivec = 0;
 
 
-static  unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
+#if 0
+static unsigned long pic1_mask;        /* bits set for pic1 levels */
+#endif
+static unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
 static unsigned long              pic_smm;          /* 32=>special mask mode, 0 otherwise */
 
 static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
@@ -202,10 +207,10 @@ if(d.request&code){
   if(header_count>15) header_count=0;
   
   if(s2)
-  ifprintf(d.request,"PIC: %c%2d %c%2d %08x %08x %08x %s%02d%s\n",
+  ifprintf(d.request,"PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s%02d%s\n",
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
   else
-  ifprintf(d.request,"PIC: %c%2d %c%2d %08x %08x %08x %s%\n",
+  ifprintf(d.request,"PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s\n",
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
   }
 }
@@ -642,7 +647,6 @@ if (!(REG(eflags) & VIF)) return;
 int do_irq()
 {
  int intr;
- long int_ptr;
  unsigned char * ssp;
  unsigned long sp;
 
@@ -654,7 +658,7 @@ int do_irq()
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
     {
 #if 1 /* BUG CATCHER (if 1) */
-g_printf("+%d",pic_ilevel);
+g_printf("+%d",(int)pic_ilevel);
 #endif
      if(pic_ilevel < 16) pic_push(pic_ilevel);
      if (in_dpmi) {
@@ -761,7 +765,7 @@ static char buf[81];
   }
   if (d.request&2) {
     /* avoid going through sprintf for non-debugging */
-    sprintf(buf,", k%d",pic_dpmi_count);
+    sprintf(buf,", k%d",(int)pic_dpmi_count);
     pic_print(2,"Zeroing vm86, DPMI from ",pic_vm86_count,buf);
   }
   pic_vm86_count=pic_dpmi_count=0;

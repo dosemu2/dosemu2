@@ -549,7 +549,7 @@ static char *mangled_match(char *s, /* This is null terminated */
 }
 
 
-static BOOL do_fwd_mangled_map(char *s, char *MangledMap)
+BOOL do_fwd_mangled_map(char *s, char *MangledMap)
 {
   /* MangledMap is a series of name pairs in () separated by spaces.
    * If s matches the first of the pair then the name given is the

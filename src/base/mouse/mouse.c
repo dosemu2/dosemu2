@@ -934,7 +934,14 @@ mouse_reset(int flag)
 
 void 
 mouse_cursor(int flag)	/* 1=show, -1=hide */
+/* bon@elektron.ikp.physik.th-darmstadt.de 951207
+   Under X, we can't really hide the mouse and we don't need to.
+   So let's skip this function, if nobody objects
+*/
 {
+
+  if (config.X) return; /* bon@elektron 951207 */
+
   /* Delete exclusion zone, if show cursor applied */
   if (flag == 1) {
     mouse.exc_lx = mouse.exc_ux = 0;

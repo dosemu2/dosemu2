@@ -155,9 +155,12 @@ static void SIGRELEASE_call (void);
 static void SIGACQUIRE_call (void);
 
 void dump_video_regs (void);
+
+#ifdef WANT_DUMP_VIDEO
 static void dump_video ();
+#endif
+
 void dump_video_linux ();
-static u_char video_type = PLAINVGA;
 
 
 static int  color_text;
@@ -212,7 +215,6 @@ parent_open_mouse (void)
 {
   if (mice->intdrv)
     {
-      static int old_mice_flags;
       mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
       if (mice->fd > 0)
 	add_to_io_select(mice->fd, mice->add_to_io_select);
@@ -279,7 +281,7 @@ set_dos_video (void)
     {
       v_printf ("Acquiring vt, restoring dosemu_regs\n");
       get_perm ();
-#if 0
+#ifdef WANT_DUMP_VIDEO
       dump_video ();
 #endif
       restore_vga_state (&dosemu_regs);
@@ -300,7 +302,7 @@ set_linux_video (void)
       v_printf ("Storing dosemu_regs, Releasing vt mode=%02x\n", *(u_char *) 0x449);
       dosemu_regs.video_mode = *(u_char *) 0x449;
       save_vga_state (&dosemu_regs);
-#if 0
+#ifdef WANT_DUMP_VIDEO
       dump_video ();
 #endif
       if (linux_regs.mem != (u_char) NULL)
@@ -335,9 +337,9 @@ SIGRELEASE_call (void)
 
       if (config.console_video)
 	{
-	  unsigned short pos;
 
 #if 0 /* 94/01/12 Why was this here :-( ? */
+	  unsigned short pos;
 
 	  /* Read the cursor position from the 6845 registers. */
 	  /* Must have bios_video_port initialized */
@@ -525,7 +527,7 @@ get_video_ram (int waitflag)
       if ((long) graph_mem < 0)
 	{
 	  error ("ERROR: mmap error in get_video_ram (text): %x, errno %d\n",
-		 graph_mem, errno);
+		 (Bit32u)graph_mem, errno);
 	  return;
 	}
       else
@@ -1082,6 +1084,7 @@ video_port_out (u_char value, int port)
 
 
 
+#ifdef WANT_DUMP_VIDEO
 /* Generally I will request a video mode change switch quickly, and have the
    actuall registers printed out,as well as the dump of what dump_video
    received and fix the differences */
@@ -1123,6 +1126,7 @@ dump_video (void)
     v_printf ("0x%04X,", dosemu_regs.xregs16[i]);
   v_printf ("0x%04X\n", dosemu_regs.xregs16[MAX_X_REGS16]);
 }
+#endif
 
 /* Dump what's in the linux_regs */
 void

@@ -277,9 +277,6 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include "dosio.h"
 #include "mouse.h"
 #include "int.h"
-#ifdef USE_MHPDBG
-  #include "mhpdbg.h"
-#endif
 
 #include "pic.h"
 #include "bitops.h"
@@ -291,15 +288,8 @@ extern void video_memory_setup(void);
 extern void dump_kbuffer(void);
 extern int_count[];
 extern int in_readkeyboard, keybint;
-#ifdef SIG
-extern SillyG_t *SillyG;
-#endif
 
 #define PAGE_SIZE	4096
-
-static u_long secno = 0;
-
-inline int process_interrupt(SillyG_t *sg);
 
 /* my test shared memory IDs */
 static struct {
@@ -318,7 +308,9 @@ sharedmem;
 static u_char *HMAkeepalive; /* Use this to keep shm_hma_alive */
 static int shm_hma_id;
 static int shm_wrap_id;
+#ifdef NCU
 static int shm_video_id;
+#endif
 static caddr_t ipc_return;
 
 void HMA_MAP(int HMA)
@@ -368,7 +360,7 @@ set_a20(int enableHMA)
 void HMA_init(void)
 {
   /* initially, no HMA */
-  HMAkeepalive = malloc(HMASIZE); /* This is used only so that shmdt stays going */
+  HMAkeepalive = valloc(HMASIZE); /* This is used only so that shmdt stays going */
   sharedmem.hmastate = 0;
 
   if ((shm_hma_id = shmget(IPC_PRIVATE, HMASIZE, 0755)) < 0) {
@@ -436,113 +428,10 @@ void HMA_init(void)
 #endif
 }
 
-#if defined(SIG) && defined(REQUIRES_EMUMODULE)
-int SillyG_pendind_irq_bits=0;
-int SillyG_do_irq(void)
-{
-  int irq=pic_level_list[pic_ilevel], ret;
-  ret = do_irq();
-  SillyG_pendind_irq_bits &= ~(1 << irq);
-  return ret;
-}
-#endif
 
 
-void
-io_select(fd_set fds)
-{
-  static int selrtn;
-  static struct timeval tvptr;
 
-  tvptr.tv_sec=0L;
-  tvptr.tv_usec=0L;
 
-#if defined(SIG) && defined(REQUIRES_EMUMODULE)
-  if (SillyG) {
-    int irq_bits =get_irq_bits() & ~SillyG_pendind_irq_bits;
-    if (irq_bits) {
-      SillyG_t *sg=SillyG;
-      while (sg->fd) {
-        if (irq_bits & (1 << sg->irq)) {
-          if (process_interrupt(sg)) {
-            get_and_reset_irq(sg->irq);
-            SillyG_pendind_irq_bits |= 1 << sg->irq;
-            h_printf("SIG: We have an interrupt\n");
-          }
-        }
-        sg++;
-      }
-    }
-  }
-#endif
-
-  while ( ((selrtn = select(25, &fds, NULL, NULL, &tvptr)) == -1)
-        && (errno == EINTR)) {
-    tvptr.tv_sec=0L;
-    tvptr.tv_usec=0L;
-    g_printf("WARNING: interrupted io_select: %s\n", strerror(errno));
-  }
-
-  switch (selrtn) {
-    case 0:			/* none ready, nothing to do :-) */
-      return;
-      break;
-
-    case -1:			/* error (not EINTR) */
-      error("ERROR: bad io_select: %s\n", strerror(errno));
-      break;
-
-    default:			/* has at least 1 descriptor ready */
-
-#if defined(SIG) && (!defined(REQUIRES_EMUMODULE))
-      if (SillyG) {
-        SillyG_t *sg=SillyG;
-        while (sg->fd) {
-	  if (FD_ISSET(sg->fd, &fds)) {
-	    h_printf("SIG: We have an interrupt\n");
-	    process_interrupt(sg);
-	  }
-	  sg++;
-	}
-      }
-#endif
-      if ((mice->intdrv || mice->type == MOUSE_PS2) && mice->fd >= 0)
-	if (FD_ISSET(mice->fd, &fds)) {
-		m_printf("MOUSE: We have data\n");
-	  pic_request(PIC_IMOUSE);
-	}
-      if (FD_ISSET(kbd_fd, &fds)) {
-	getKeys();
-      }
-#ifdef USE_MHPDBG
-      if (mhpdbg.fdin != -1) if (FD_ISSET(mhpdbg.fdin, &fds)) mhp_input();
-#endif
-      /* XXX */
-#if 0
-      fflush(stdout);
-#endif
-      break;
-    }
-#if 0
-#ifdef USING_NET
-    pic_request(16);
-#endif
-#endif
-
-}
-
-inline int
-process_interrupt(SillyG_t *sg)
-{
-  u_int chr;
-  int irq, ret=0;
-
-  if ((irq = sg->irq) != 0) {
-    h_printf("INTERRUPT: 0x%02x\n", irq);
-    ret=pic_request(pic_irq_list[irq]);
-  }
-  return ret;
-}
 
 void
 hma_exit(void)

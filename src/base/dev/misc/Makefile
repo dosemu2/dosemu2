@@ -2,7 +2,7 @@
 #  src/base/misc/lpt.c -> ../dev/misc/lpt.c
 #  src/base/misc/timers.c -> ../dev/misc/timers.c
 
-CFILES=cmos.c timers.c lpt.c
+CFILES=cmos.c timers.c lpt.c rtc.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

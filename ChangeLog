@@ -1,3 +1,28 @@
+Thu Jan 25      1996
+- From Henrik Storner <storner@osiris.ping.dk>
+  Fix for malloc/valloc-bug, happens together with libc-5.3.0
+
+- From Hans
+  Fix for syscallmgr, NR_xxx wrong together with newer shared libs
+  ( found this thanks to Ronald Wahl <rwa@informatik.tu-chemnitz.de>, who
+  posted it on de.comp.os.linux )
+
+Tue Jan 23      1996
+- Release of dosemu-0.63.0.1
+
+xxx Dec 30      1996
+- Release of dosemu-0.63.0
+
+Sat Nov 25      1995
+- From Michael Beck : Fix to debugger D command
+
+Tue Nov 21      1995
+- From whraven@njackn.com : Small fixes to Handle Novell programs
+- From Uwe : Updates to README.X
+
+Sat Nov 18      1995
+-  From JES : Close /dev/zero after mmap (DPMI), Fix compile without X
+
 Fri Nov 10      1995
 - From Hans Lermen (and Kevin Buhr): Fix for timerlock-bug
 

@@ -92,7 +92,9 @@ GetMyAddress( void )
 void
 InitIPXFarCallHelper(void)
 {
+#if 0
   u_char *ptr;
+#endif
   char value[40];
   int addressTemp[6];
   int numFields;
@@ -231,7 +233,7 @@ ipx_remove_socket(ipx_socket_t * sk)
   while (s && s->next) {
     if (s->next == sk) {
       s->next = sk->next;
-      free(s);
+      free(sk);
       return;
     }
     s = s->next;

@@ -22,6 +22,8 @@
 
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
 #ifdef __linux__
 #include <linux/soundcard.h>
 #endif
@@ -112,11 +114,11 @@ void dma_write(unsigned int addr, unsigned char value)
 
   case DMA_4_7_BASE + 16: break; /* Command register; should cause debuging
                                    output but I don't know how */
-  case DMA_4_7_BASE + 18: dma_ch[value & DMA_CH_SELECT + 4].request = value & DMA_SINGLE_BIT;
+  case DMA_4_7_BASE + 18: dma_ch[(value & DMA_CH_SELECT) + 4].request = value & DMA_SINGLE_BIT;
                           break; /* request register */
-  case DMA_4_7_BASE + 20: dma_ch[value & DMA_CH_SELECT + 4].mask = value & DMA_SINGLE_BIT;
+  case DMA_4_7_BASE + 20: dma_ch[(value & DMA_CH_SELECT) + 4].mask = value & DMA_SINGLE_BIT;
                           break; /* single mask */
-  case DMA_4_7_BASE + 22: dma_ch[value & DMA_CH_SELECT + 4].mode = value;
+  case DMA_4_7_BASE + 22: dma_ch[(value & DMA_CH_SELECT) + 4].mode = value;
                           break; /* mode */
   case DMA_4_7_BASE + 24: dma_ff0 = 0; break; /* clear flipflop */
   case DMA_4_7_BASE + 26: break; /* master clear; debug??? */
@@ -127,7 +129,7 @@ void dma_write(unsigned int addr, unsigned char value)
 
 inline unsigned char dma_read_addr(unsigned int /*addr*/ch)
 {
-  if (dma_ff0 = !dma_ff0)
+  if ((dma_ff0 = !dma_ff0))
     {return (dma_ch[ch].cur_addr & 0xFF00) >> 8;}
   else
     {return dma_ch[ch].cur_addr & 0xFF;};
@@ -135,7 +137,7 @@ inline unsigned char dma_read_addr(unsigned int /*addr*/ch)
 
 inline unsigned char dma_read_count(unsigned int /*addr*/ch)
 {
-  if (dma_ff0 = !dma_ff0)
+  if ((dma_ff0 = !dma_ff0))
     {return dma_ch[ch].cur_count & 0xFF00 >> 8;}
   else
     {return dma_ch[ch].cur_count & 0xFF;};
@@ -151,6 +153,7 @@ inline unsigned char DREQ(unsigned char ch)
                        else
                          return 0;
   }
+  return 1;
 }
 
 inline unsigned char dma_read_status_0_3()

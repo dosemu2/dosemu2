@@ -307,7 +307,7 @@ hdisk_auto(struct disk *dp)
     dp->heads = geo.heads;
     dp->tracks = geo.cylinders;
     dp->start = geo.start;
-    d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%d\n",
+    d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%ld\n",
 	     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
   }
 #endif
@@ -460,10 +460,10 @@ set_part_ent(struct disk *dp, char *tmp_mbr)
 
   d_printf("SET_PART_ENT: making part table entry for device %s,\n",
 	dp->dev_name);
-  d_printf("Calculated physical start: head=%4d sect=%4d cyl=%4d,\n",
+  d_printf("Calculated physical start: head=%4ld sect=%4ld cyl=%4ld,\n",
 	HEAD(dp->start), SECT(dp->start), CYL(dp->start));
   end = dp->start+length-1;
-  d_printf("Calculated physical end:   head=%4d sect=%4d cyl=%4d.\n",
+  d_printf("Calculated physical end:   head=%4ld sect=%4ld cyl=%4ld.\n",
 	HEAD(end), SECT(end), CYL(end));
 
   /* get address of where to put new part table entry */
@@ -502,7 +502,7 @@ disk_close(void)
 }
 
 #ifdef __NetBSD__
-inline void
+void
 disk_open(struct disk *dp)
 {
   struct fd_type fl;
@@ -557,7 +557,7 @@ disk_open(struct disk *dp)
 #endif
 
 #ifdef __linux__
-inline void
+void
 disk_open(struct disk *dp)
 {
   struct floppy_struct fl;

@@ -18,6 +18,9 @@ extern char hgc_Konv;
 extern int hgc_Page;
 extern int hgc_ctrl;
 
+extern void poshgacur(int x, int  y);
+extern void set_hgc_page(int page);
+extern void map_hgc_page( int fullmode );
 
 #endif
 /* End of video/hgc.h */

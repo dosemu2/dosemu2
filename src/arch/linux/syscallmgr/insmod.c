@@ -68,6 +68,15 @@
  *   This option can be used to poll a couple of compiled modules
  *   and/or System.maps in order to find the one that matches.
  *
+ * December 6, 1995  (HACKER_TOOL-4)
+ * - Added option -i
+ *   There is a problem when an ELF-module had been loaded into an AOUT-kernel
+ *   and this module had called register_symtab for his exported symbols.
+ *   These symbols then have no underscore prefix, so they could not be
+ *   resolved by a later loaded module.
+ *   If we use option -i of insmmod-HACKER_TOOL, we will ignore missing
+ *   underscore prefixes in ksyms, hence the modules can be loaded again.
+ *
  * ---------------------------
  *
  * NOTE for HACKER_TOOL:
@@ -244,6 +253,7 @@ struct zSystem_entry {
 int use_zSystem=0, use_zSystem_local=0, zsyms_valid=0;
 int warnings=0;
 int silent_poll_mode=0;
+int ign_underscore=0;
 
 char *zsystem_map_name="/usr/src/linux/zSystem.map";
 
@@ -553,6 +563,9 @@ main(int argc, char **argv)
 			case 'p': /* silent poll mode */
 				silent_poll_mode = 1;
 				break;
+			case 'i': /* ignore missing underscores in ksyms */
+				ign_underscore = 1;
+				break;
 #endif
 			}
 			++p;
@@ -564,7 +577,7 @@ main(int argc, char **argv)
 	if (argc < 2) {
 #ifdef HACKER_TOOL
 		fputs("Usage:\n"
-		      "insmod [-f] [-x] [-o name] [-msvwl] [-z | -Z mapfile] module [[sym=value]...]\n"
+		      "insmod [-f] [-x] [-o name] [-msvwipl] [-z | -Z mapfile] module [[sym=value]...]\n"
 		      "\n"
 		      "  module     Filename of a loadable kernel module (*.o)\n"
 		      "  -o name    Set internal modulname to name\n"
@@ -581,6 +594,7 @@ main(int argc, char **argv)
 		      "  -l         Together with -z, -Z, also take local symbols from map\n"
 		      "             (But note, local symbols can be multiple defined, last one is taken)\n"
 		      "  -p         silent poll mode, just check if the module matches the kernel\n"
+		      "  -i         ignore missing underscores in ksyms when resolving\n"
 		      , stderr);
 #else
 		fputs("Usage: insmod [-f] [-x] [-o name] [-m] [-s] [-v] module "
@@ -818,7 +832,22 @@ main(int argc, char **argv)
 			continue;
 		}
 
+#ifdef HACKER_TOOL
+		/* Here is the kludge to solve the problem when an ELF module
+		   had been loaded into an AOUT kernel and had called
+		   register_symtab for his exported symbols.
+		 */
+		if (defsym(tabcomp, ksym->name + 
+		  (elf_kernel ? 0
+			      : ( !ign_underscore ? 1
+						    : ((ksym->name[0]=='_') ? 1
+									    : 0
+						      ) 
+				)
+		  ), 
+#else
 		if (defsym(tabcomp, ksym->name + (elf_kernel?0:1),
+#endif
 			ksym->value, N_ABS | N_EXT,
 		/* this is safe since curr_module was initialized properly */
 			(curr_module->name[1]) ?  TRANSIENT : RESIDENT)) {

@@ -274,6 +274,7 @@ void fossil_int14(int num)
     com[num].fossil_info[15] = ofree >> 8;
     /* Copy data to user area. */
     memcpy(p, com[num].fossil_info, bufsize);
+    LWORD(eax)=bufsize;
     #if SER_DEBUG_FOSSIL_STATUS
       s_printf("SER%d: FOSSIL 0x1b: Driver info, i=%d/%d, o=%d/%d, AX=%d\n", num, ifree, RX_BUFFER_SIZE, ofree, TX_BUFFER_SIZE, bufsize);
     #endif    

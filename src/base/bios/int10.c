@@ -2,13 +2,31 @@
    Most functions here change only the video memory and status 
    variables; the actual screen is then rendered asynchronously 
    after these by Video->update_screen.
+
+  5/24/95, Erik Mouw (J.A.K.Mouw@et.tudelft.nl) and 
+  Arjan Filius (I.A.Filius@et.tudelft.nl)
+  changed int10() to make graphics work with X.
 */
+
+/* Do we want graphics in X? (of course :-) */
+/* WARNING: This may not work in BSD! It's written for Linux! */
+#ifdef X_SUPPORT
+#define XG
+#endif
 
 #include "emu.h"
 #include "video.h"
 #include "memory.h"
 #include "bios.h"
 #include "vc.h"
+
+#ifdef XG
+#include "X.h"
+#include "vgaemu.h"
+#ifdef VESA /* root@zaphod */
+#include "vesa.h"
+#endif
+#endif
 
 /* a bit brutal, but enough for now */
 #if VIDEO_CHECK_DIRTY
@@ -295,6 +313,9 @@ clear_screen(int s, int att)
 boolean set_video_mode(int mode) {
   static int gfx_flag = 0;
   int type=0;
+  v_printf("set_video_mode: mode = 0x%02x\n",mode);
+  
+  video_mode=mode&0x7f;
   
   switch (mode&0x7f) {
   case 0:
@@ -357,6 +378,23 @@ do_text_mode:
        
     WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
     break;
+
+case 0x13:	/*Not finished ! */
+case 0x5c:
+case 0x5d:
+case 0x5e:
+case 0x62:
+    if (Video->setmode) {
+      /* 0x01 == GRAPH for us, but now it's sure! */
+      Video->setmode(0x01,0,0);
+    }
+    else {
+       v_printf("video: no setmode handler!");
+       /* return 0; */
+    }
+
+  break;
+
 
   Default:
   default:
@@ -471,6 +509,9 @@ void int10()
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
+#ifdef XG
+      if (config.X) set_vgaemu_page(page);      /*root@sjoerd*/
+#endif
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
@@ -605,6 +646,40 @@ void int10()
     if (LO(ax) == 3) {      
       char_blink = LO(bx) & 1;
     }
+#ifdef XG
+    /* root@zaphod */
+    /* Palette register stuff. Only for the VGA emulator used by X */
+    if(config.X)
+      {
+        int i, count;
+        unsigned char* src;
+        unsigned char r, g, b, index;
+
+        switch(LO(ax))
+          {
+          case 0x10:
+            DAC_set_entry((unsigned char)HI(dx), (unsigned char)HI(cx),
+                          (unsigned char)LO(cx), (unsigned char)LO(bx));
+            break;
+
+          case 0x12:
+            index=(unsigned char)LO(bx);
+            count=LWORD(ecx);
+            src=SEG_ADR((unsigned char*),es,dx);
+            for(i=0; i<count; i++, index++)
+              {
+                r=src[i*3];
+                g=src[i*3+1];
+                b=src[i*3+2];
+                DAC_set_entry(r, g, b, index);
+              }
+            break;
+
+          default:
+            break;
+          }
+      }
+#endif
     break;
 
 #if 0
@@ -723,7 +798,14 @@ void int10()
   case 0xff:			/* update shadow buffer...do nothing */
     break;
 
-  case 0x4f:			/* vesa interrupt */
+#ifdef XG
+#ifdef VESA /* root@zaphod */
+  case 0x4f:                    /* vesa interrupt */
+    if(config.X)
+      do_vesa_int();
+    break;
+#endif
+#endif
 
   default:
     v_printf("new unknown video int 0x%x\n", LWORD(eax));

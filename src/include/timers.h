@@ -39,4 +39,10 @@ extern void outport_43(int);
 #define INT28_IDLE_USECS	0
 #endif
 
+extern int read_port61(void);
+extern void write_port61(int byte);
+extern int pit_control_inp(void);
+extern void pit_control_outp(int val);
+extern void initialize_timers(void);
+
 #endif /* TIMERS_H */

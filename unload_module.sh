@@ -1,18 +1,17 @@
 #!/bin/bash
-#DOSEMUPATH=/usr/src/dosemu
-DOSEMUPATH=./src/arch/linux
+BINDIR=./bin
 
-if [ ! -f ${DOSEMUPATH}/syscallmgr/rmmod ]; then
-  echo "${DOSEMUPATH}/syscallmgr/rmmod not existing"
+if [ ! -f ${BINDIR}/rmmod ]; then
+  echo "${BINDIR}/rmmod not existing"
   exit 1
 fi
 if [ "`lsmod|grep emumodule`" != "" ]; then
-  ${DOSEMUPATH}/syscallmgr/rmmod emumodule
+  ${BINDIR}/rmmod emumodule
 fi
 if [ "`lsmod|grep syscallmgr`" != "" ]; then
   echo "are you shure to unload syscallmgr ? (y)"
   read x
   if [ "$x" = "y" ]; then
-    ${DOSEMUPATH}/syscallmgr/rmmod syscallmgr
+    ${BINDIR}/rmmod syscallmgr
   fi
 fi

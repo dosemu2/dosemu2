@@ -122,10 +122,10 @@ The package mainly consists of
    This insmod can be used as a replacement for the ./insmod contained
    in the official modules-1.2.8.tar.gz from Bjorn Ekwall and Jacques Gelinas.
    It can replace the official one, because the special features are switched
-   on by command line options. Usage is:
+   on by command line options. Usage is (special features marked with *) :
 
 
-   insmod [-f] [-x] [-o name] [-msvwl] [-z | -Z mapfile] module [[sym=value]...]
+   insmod [-f] [-x] [-o name] [-msvwipl] [-z | -Z mapfile] module [[sym=value]...]
 
      module     Filename of a loadable kernel module (*.o)
      -o name    Set internal modulname to name
@@ -133,15 +133,16 @@ The package mainly consists of
      -m         generate loadmap (so crashes can be traced down)
      -v         verbose output
      -s         set insmod syslogging
-     -w         print warnings
+   * -w         print warnings
      -f         Force loading under wrong kernel version
                 (together with -z also disables mapfile check)
-     -z         At last use /usr/src/linux/zSystem.map to resolve
+   * -z         At last use /usr/src/linux/zSystem.map to resolve
                 (on Linux > 1.1.76:  System.map)
-     -Z mapfile As -z, but use mapfile
-     -l         Together with -z, -Z, also take local symbols from map
-                (But note, local symbols can be multiple defined, last one is
-                taken)
+   * -Z mapfile As -z, but use mapfile
+   * -l         Together with -z, -Z, also take local symbols from map
+                (But note, local symbols can be multiple defined, last one is taken)
+   * -p         silent poll mode, just check if the module matches the kernel
+   * -i         ignore missing underscores in ksyms when resolving
 
 
   NOTE:

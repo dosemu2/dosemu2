@@ -1,7 +1,8 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.60.3, the PC Emulator for Linux!
+The DOSEMU team is proud to announce DOSEMU 0.60.4, the PC Emulator for Linux.
+Please remember to consider this as ALPHA software.
 
 
 WHAT IS DOSEMU?
@@ -19,9 +20,11 @@ many DOS applications.  These are capabilities of DOSEMU worth noting:
   - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
      at the Linux console.  A partial list of successfully tested games
      includes DOOM2, Heretic, Descent, MK2, OMF2097, ROTT, and WarCraft!
-  - Games run *MUCH* faster in dosemu due to improved timer emulation
-  - NetBSD verison of DOSEMU under development, contact jtk@atria.com
+  - NetBSD verison of DOSEMU appreciating a growing success, 
+     contact jtk@atria.com
   - CDROM support
+  - NetWare and other network connectivity via builtin IPX and pktdrvr
+     support.
 
 
 
@@ -55,45 +58,32 @@ of at least:
   Wayne P Meissner 	Vinod G Kulkarni 	Andries
   David Etherton
 
+  and others too important to mention ;-).
+
 
 WHERE TO GET IT:
 ~~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded from the following FTP sites
-when version 0.60.3 arrives around June the 28th:
+when version 0.60.4:
 
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.3.tgz
-  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.60.3.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.3.tgz
-
-We expect to see DOSEMU being included as an extra with many Linux
-Distribution packages.
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.4.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.4.tgz
 
 
-
-IMPORTANT NOTES
-~~~~~~~~~~~~~~~
-If you haven't used DOSEMU in several months (Especially if the last 
-version you used was DOSEMU 0.52 or earlier), please go to great
-caution to read the "QuickStart" file included with DOSEMU since 
-the location and format of files (including the configuration file) has 
-changed since the DOSEMU 0.50pl1.  
-
-While DOSEMU may be more stable than many of the previous releases, it
-must be noted that it is still possible to crash the Linux video and 
-keyboard, if you don't follow instructions properly.  In this case, it
-becomes necessary to use a remote terminal or even the RESET button,
-to reboot the system.
-
-The main risks of DOSEMU are the 'graphics' capability and 'rawkeyboard'.
-These can be disabled in the DOSEMU configuration file, to make DOSEMU
-become bullet-proof, at the cost of some convenience.
-
+TO BE NOTED:
+~~~~~~~~~~~~
+This release will be considered as the stepping stone for the team
+to finally cut off using the old developement directory structure and
+begin working towards a new and hopefully improved layout. This will
+likely be noticed by us being away from civilization as work progresses
+to the new format. Please have patience for approximately the next
+month.
 
 
 HELPING US
 ~~~~~~~~~~
 Many thanks to all who have helped with this release, by sending bug
-reports, patches, comments and/or ideas for DOSEMU!  My apologies for
+reports, patches, comments and/or ideas for DOSEMU!  Our apologies for
 not having answered every letter, and possibly missing some important
 information.  If you know something you think we should know,
 contact us, PLEASE!  We can be reached at:

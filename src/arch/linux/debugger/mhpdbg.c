@@ -48,7 +48,7 @@ static char mhp_banner[] = {
   "\nDOSEMU Debugger V0.3 connected\n"
   "- type ? to get help on commands -\n"
 };
-struct mhpdbgc mhpdbgc;
+struct mhpdbgc mhpdbgc ={0};
 
 /********/
 /* CODE */
@@ -158,10 +158,6 @@ void mhp_input()
 
 static void mhp_poll(void)
 {
-   int clen;
-   int nbytes;
-   int rc;
-   int i;
 
    if (!mhpdbg.active) {
      mhpdbg.nbytes = 0;
@@ -288,11 +284,11 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 		    }
 		  }
 		  else {
-		    if (ok=mhp_bpchk( (unsigned char *) csip)) {
+		    if ((ok=mhp_bpchk( (unsigned char *) csip))) {
 			  LWORD(eip) --;
 		    }
 		    else {
-		      if (ok=test_bit(3, vm86s.vm86plus.mhpdbg_intxxtab)) {
+		      if ((ok=test_bit(3, vm86s.vm86plus.mhpdbg_intxxtab))) {
 		        /* software programmed INT3 */
 		        LWORD(eip) --;
 		        mhp_cmd("r");

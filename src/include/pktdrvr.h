@@ -43,7 +43,7 @@
 #define ETHER_CLASS	1
 #define IEEE_CLASS	11
 
-#define MAX_HANDLE	10
+#define MAX_HANDLE	50
 
 /* return structure for GET_PARAMS */
 
@@ -72,3 +72,7 @@ struct pkt_statistics {
     unsigned long   packets_lost;   /* No buffer from receiver(), card */
 				    /*  out of resources, etc. */
 };
+
+extern int pkt_check_receive(int timeout);
+extern void pkt_init (int vec);
+extern int GetDeviceMTU(char *device);

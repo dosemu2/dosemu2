@@ -1,3 +1,6 @@
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../include/slang.h"
 
 /* unsigned char DOSemu_Slang_Escape_Character = 30; */
@@ -301,7 +304,7 @@ unsigned long Ctrl_Char_Scan_Codes[32] =
    0x0C1F			       /* ^_ */
 };
 
-static define_key_from_keymap (unsigned char *map, unsigned long mask, int flag)
+static void define_key_from_keymap (unsigned char *map, unsigned long mask, int flag)
 {
    unsigned char buf[3], ch;
    int i, imax;

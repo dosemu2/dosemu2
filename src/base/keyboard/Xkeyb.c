@@ -332,6 +332,7 @@ static const int X_scan[] = {
 };
 #endif /* NEW_KEYCODES */
 
+void X_process_char(u_char ch);
 
 /* This is a very quick'n dirty put_key...  */
 static void put_key(ushort scan, short charcode) {

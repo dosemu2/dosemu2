@@ -1,0 +1,21 @@
+
+mkfatimage -- Make a FAT hdimage pre-loaded with files
+======================================================
+(1995-08-28)
+
+To put it brief, mkfatimage creates a hdimage file for dosemu that's
+pre-loaded with the files specified on the command line. It's purpose is to
+remove the need to include a hdimage.dist file in the dosemu distribution
+(and it saves about 100K in the .tar.gz size on the way).
+
+I haven't done any modifications to the makefiles since they're changing all
+the time anyway, but the idea is to run mkfatimage after compiling dosemu to
+create a hdimage of the programs in the commands directory. An additional
+benefit is that we always get the most recent versions (since they were just
+compiled).
+
+
+As always, comments, suggestions, etc. are welcome.
+
+Pasi Eronen
+(peronen@vipunen.hut.fi)

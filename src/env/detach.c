@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/param.h>
+#include <sys/ioctl.h>
 
 /* 
  * Update to do console disallocation on exit of dosemu
@@ -46,8 +47,6 @@ static const char vt_base[] = "/dev/tty";
 static int open_vt (int vt)  {
   char path[MAXPATHLEN];
 
-  int vt_fd = -1;
-  
   sprintf(path, "%s%d", vt_base, vt);
   return open (path, O_RDWR); 
 }

@@ -4,9 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#if 0
-#include <linux/string.h>
-#endif
+#include <string.h>
 
 #include "bios.h"
 #include "emu.h" 
@@ -252,7 +250,7 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 /*      memcpy((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]); */
       MEMCPY_2UNIX((caddr_t) (mem + position), (caddr_t) GRAPH_BASE, p[plane]);
       v_printf("READ Bank=%d, plane=0x%02x, *mem=0x%x, GRAPH_BASE=%08x, mem=0x%x\n",
-	 banks, plane, *(int *)(mem + position), *(int *) GRAPH_BASE, (caddr_t) (mem + position));
+	 banks, plane, *(int *)(mem + position), *(int *) GRAPH_BASE, (Bit32u) (mem + position));
       position = position + p[plane];
     }
   }

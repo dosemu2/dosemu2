@@ -3,6 +3,8 @@
 #endif
 
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -23,6 +25,8 @@
 #include "xms.h"
 #include "int.h"
 #include "dos2linux.h"
+#include "video.h"
+#include "vc.h"
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -304,7 +308,7 @@ static int dos_helper(void)
     break;
 #endif
     case 0x80:
-        LWORD(eax) = (u_short) getcwd(SEG_ADR((char *), es, dx), (u_short)LWORD(eax));
+        LWORD(eax) = (char *)getcwd(SEG_ADR((char *), es, dx), (size_t)LWORD(eax));
         break;
   case 0x81:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
@@ -584,12 +588,15 @@ static void int15(u_char i)
 
 static void int1a(u_char i)
 {
-  unsigned int test_date;
-  time_t akt_time; 
   time_t time_val;
-  struct timeval tp;
-  struct timezone tzp;
-  struct tm *tm, *tm2;
+  struct timeval;
+  struct timezone;
+  struct tm *tm;
+
+#ifdef USE_UNIX_TIME_FOR_INT1A_AH0
+  time_t akt_time;
+  unsigned int test_date;
+#endif
 
   switch (HI(ax)) {
 

@@ -208,13 +208,10 @@
 #include <malloc.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#ifdef __linux__
-#include <linux/utsname.h>
-#endif
-#ifdef __NetBSD__
 #include <sys/utsname.h>
+/*#ifdef __NetBSD__*/
 #define new_utsname utsname
-#endif
+/*#endif*/
 
 #include "emu.h"
 #include "memory.h"

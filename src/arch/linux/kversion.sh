@@ -28,9 +28,9 @@ function zeropad() {
 if [ "$2" = "-dotsOK" ]; then
   VV=`grep '#define KERNEL_VERSION' ${1}/include/kversion.h  |awk '{print $3}'`
 #  VV=`expr 0 + $VV`
-  if [ ! $VV -lt 1003040 ]; then
+  if [ "$VV" = "1003040" ]; then
     echo ""
-    echo '  - CAUTION, you compiled for Linux >= 1.3.40'
+    echo '  - CAUTION, you compiled for Linux-1.3.40'
     echo '    This requires to mount MSDOS-FS with option dotsOK=no like this:'
     echo '    mount -t msdos -o dotsOK=no /dev/... /mnt'
   fi
@@ -86,11 +86,9 @@ fi
 if [ -f ${KERNELSRC}/include/linux/version.h ]; then
   VERSIONFILE="${KERNELSRC}/include/linux/version.h"
 else
-  VERSIONFILE="${KERNELSRC}/tools/version.h"
-  if [ ! -f ${VERSIONFILE} ]; then
-    echo "missing ${VERSIONFILE}, giving up!"
-    exit 1
-  fi
+  echo "Sorry, you have an incomplete or uncompiled kernel source tree"
+  echo "Unable to find linux/version.h, giving up!"
+  exit 1
 fi
 
 
@@ -101,3 +99,7 @@ zeropad `echo "${ASCII_VERSION}" |cut '-d.' -f3`
 echo "#ifndef KERNEL_VERSION" > ${DOSEMUSRC}/include/kversion.h
 echo "#define KERNEL_VERSION ${VERSION}" >> ${DOSEMUSRC}/include/kversion.h
 echo "#endif " >> ${DOSEMUSRC}/include/kversion.h
+
+# know we create a version stamp for the parent Makefile
+BINPATH=`(cd ${DOSEMUSRC}/../bin; pwd)`/..
+grep UTS_RELEASE ${VERSIONFILE} > ${BINPATH}/kversion.stamp

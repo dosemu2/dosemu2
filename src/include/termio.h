@@ -221,8 +221,12 @@ extern void set_leds(void);
    I set keepkey to reflect CF */
 EXTERN u_char keepkey INIT(1);
 
-extern void insert_into_keybuffer(void);
-extern void set_keyboard_bios(void);
-extern void do_irq1(void);
+EXTERN void insert_into_keybuffer(void);
+EXTERN void set_keyboard_bios(void);
+EXTERN void do_irq1(void);
+EXTERN int keyboard_init(void);
+EXTERN void add_scancode_to_queue (u_short scan);
+EXTERN void child_set_flags(int sc);
+EXTERN int kbd_flag (int flag);
 
 #endif /* TERMIO_H */

@@ -96,14 +96,10 @@
  *
  */
 
-#ifdef __NetBSD__
 #include <sys/time.h>
-#endif
-#ifdef __linux__
-#include <linux/time.h>
-#endif
 #include "emu.h"
 #include "timers.h"
+#include "port.h"
 #include "int.h"
 #include "pic.h"
 
@@ -210,17 +206,6 @@ void timer_tick(void)
   pic_watch(&tp);
 }
 
-void set_ticks(unsigned long new)
-{
-  volatile unsigned long *ticks = BIOS_TICK_ADDR;
-  volatile unsigned char *overflow = TICK_OVERFLOW_ADDR;
-
-  ignore_segv++;
-  *ticks = new;
-  *overflow = 0;
-  ignore_segv--;
-  /* warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE))); */
-}
 
 static void pit_latch(int latch)
 {
@@ -337,7 +322,6 @@ int pit_inp(int port)
 
 void pit_outp(int port, int val)
 {
-  static int timer_beep;
 
   if (port == 1)
     i_printf("PORT: someone is writing the CMOS refresh time?!?");

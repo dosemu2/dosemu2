@@ -8,11 +8,11 @@
 #include "emu.h" /* For S_printf */
 
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #ifdef __linux__
 #include <linux/soundcard.h>
 #endif
 #ifdef __NetBSD__
-#include <sys/ioctl.h>
 #include <sys/audioio.h>
 #endif
 #include "pic.h"
@@ -201,7 +201,7 @@ void sb_write(unsigned char addr, unsigned char value)
                  case 0x40: dsp_rate = value;
                             dsp_last_write = 0;
                             break;
-                 case 0x14: if (dsp_write_size_mode = !dsp_write_size_mode)
+                 case 0x14: if ((dsp_write_size_mode = !dsp_write_size_mode))
                               tmp = value;
                             else {
 			      tmp |= value << 8;

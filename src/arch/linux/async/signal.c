@@ -17,6 +17,7 @@
 #include "../dpmi/dpmi.h"
 #include "pic.h"
 #include "ipx.h"
+#include "pktdrvr.h"
 
 #ifdef __NetBSD__
 extern int errno;
@@ -64,7 +65,6 @@ signal_init(void)
 {
   struct sigaction sa;
   sigset_t trashset;
-  u_short counter;
 #ifdef __NetBSD__
   struct sigaltstack salt;
 
@@ -187,7 +187,6 @@ void handle_signals(void) {
 void SIGALRM_call(void){
 
   static volatile int running = 0;
-  static volatile inalrm = 0;
   static int partials = 0;
 #if VIDEO_CHECK_DIRTY
   static int update_pending = 0;

@@ -13,6 +13,9 @@ AS86FLAGS=$(INCDIR)
 LD86=ld86
 AS86=as86
 
+CFLAGS += -I$(TOPDIR)/env/video
+export CFLAGS
+
 # NOTE: currently we compile the following modules at other places:
 #      int10.c in src/env/video
 #

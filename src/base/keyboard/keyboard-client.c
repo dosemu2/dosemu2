@@ -25,6 +25,10 @@
  * DANG_END_CHANGELOG
  */
 
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/times.h>
 #include <unistd.h>
 #include <termios.h>
 #include <fcntl.h>
@@ -43,6 +47,7 @@
 #include "memory.h"
 #include "termio.h"
 #include "shared.h"
+#include "slang.h"
 #include "vc.h"
 
 static int      tty_raw(int);
@@ -60,8 +65,6 @@ extern int      terminal_initialize();
 extern void     terminal_close();
 void            convascii(int *);
 
-static unsigned int queue;
-
 #define put_queue(psc) (queue = psc)
 
 void            getKeys();
@@ -75,8 +78,6 @@ extern int      kbd_flag(int);
 
 /* initialize these in keyboard_init()! */
 unsigned int    child_kbd_flags = 0;
-
-static int      altchar = 0;
 
 static int      old_kbd_flags = -1;	/* flags for STDIN before our
 					 * fcntl */

@@ -160,7 +160,7 @@ int
 terminal_initialize()
 {
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
-   int is_color = config.term_color, i;
+   int is_color = config.term_color;
    int rotate[8];
    
    v_printf("VID: terminal_initialize() called \n");
@@ -354,7 +354,8 @@ static int slang_update (void)
      }
    help_showing = 0;
    
-   if ((DOSemu_Terminal_Scroll == 0) && (cursor_row < SLtt_Screen_Rows)
+   if (((DOSemu_Terminal_Scroll == 0) && 
+	(cursor_row < SLtt_Screen_Rows))
        || (DOSemu_Terminal_Scroll == -1))
      {
 	imin = 0;

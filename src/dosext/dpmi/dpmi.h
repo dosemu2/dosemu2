@@ -28,11 +28,11 @@
 #define	UDATASEL GSEL(GUDATA_SEL, SEL_UPL)
 #endif
 
-extern int in_dpmi;
+EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 #define current_client (in_dpmi-1)
-extern int in_win31;
-extern int dpmi_eflags;
-extern int in_dpmi_dos_int;
+EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
+EXTERN int dpmi_eflags INIT(0);    /* used for virtuell interruptflag and pending interrupts */
+EXTERN int in_dpmi_dos_int INIT(0);
 
 void dpmi_get_entry_point();
 
@@ -177,5 +177,8 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
     for (i = 0; i < 10; i++) \
       D_printf("%02x ", *ssp2++); \
     D_printf("\n");
+
+extern void dpmi_sigio(struct sigcontext_struct *scp);
+extern void run_dpmi(void);
 
 #endif /* DPMI_H */

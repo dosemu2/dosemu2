@@ -2,26 +2,28 @@ SYS_AS86 = as86 -l
 AS86 = as86 -0 -a
 LD86 = ld86 -0
 
+D=$(BINPATH)/commands
+
 SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	bootoff.S booton.S dosdbg.c dosdbg.readme emumouse.c isemu.c \
 	emufs.S ems.S cdrom.S chdir.c   getcwd.c  system.c speed.S fossil.S
-COM=exitemu.com vgaoff.com vgaon.com eject.com bootoff.com booton.com \
-	speed.com fossil.com
+COM=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com $(D)/bootoff.com $(D)/booton.com \
+	$(D)/speed.com $(D)/fossil.com
 EXE=lredir.com dumpconf.exe dosdbg.com lancheck.exe isemu.com unix.com \
 	unix.c emumouse.com mgarrot.com mgarrot.a86 isemu.com \
 	chdir.exe   getcwd.exe  system.exe
-SYS=emufs.sys ems.sys cdrom.sys
+SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys
 DOC=README
 
 all: $(COM) $(SYS)
 
-%.sys: %.S
+$(D)/%.sys: %.S
 	$(SYS_AS86) -0 -o $*.o $< > $<.out
 	$(LD86) -T 0 -s -o $*.tmp $*.o
 	dd if=$*.tmp of=$@ bs=1 skip=32
 	rm $*.tmp $*.o
 
-%.com: %.S
+$(D)/%.com: %.S
 	$(AS86) -0 -o $*.o $<
 	$(LD86) -T 0 -s -o $*.tmp $*.o
 	dd if=$*.tmp of=$@ bs=1 skip=32
@@ -30,7 +32,7 @@ all: $(COM) $(SYS)
 # The commands above require that you use ".org 0" which doesn't work at all
 # if you need absolute addresses. Just use ".org 0x100" and cut the extra
 # bytes using dd.
-fossil.com: fossil.S
+$(D)/fossil.com: fossil.S
 	$(AS86) -0 -o $*.o $<
 	$(LD86) -T 0 -s -o $*.tmp $*.o
 	dd if=$*.tmp of=$@ bs=1 skip=288
@@ -43,7 +45,8 @@ checkout:
 	-co -M -l $(SRC) $(EXE)
 
 clean:
-	rm -f $(COM) $(SYS) *.o *.tmp *.out
+	rm -f *.o *.tmp *.out
+	rm -f $(COM) $(SYS)
 
 realclean: clean
 

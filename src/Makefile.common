@@ -20,7 +20,7 @@ DEPENDS=$(OBJS:.o=.d)
 endif
 
 
-LIB=$(REALTOPDIR)/lib/lib$(LIBNAME).a
+LIB=$(TOPDIR)/lib/lib$(LIBNAME).a
 
 AR=ar
 RANLIB=ranlib

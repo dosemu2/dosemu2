@@ -48,10 +48,15 @@
 
 #include <sys/types.h>
 #include <signal.h> 
+#include "types.h"
 #include "extern.h"
 #include "machcompat.h"
 #include "cpu.h"
 #include "vm86plus.h"
+
+/* Note: priv.h needs 'error' !!! */
+#define error(f,a...)	 	fprintf(stderr, f, ##a)
+#include "priv.h"
 
 #include "extern.h"
 
@@ -96,12 +101,12 @@ EXTERN char *cstack[16384];
 EXTERN int sizes INIT(0);
 
 EXTERN char *tmpdir;
-extern int screen, screen_mode;
+EXTERN int screen, screen_mode;
 
 /* number of highest vid page - 1 */
 EXTERN int max_page INIT(7);
 
-extern char *cl,		/* clear screen */
+EXTERN char *cl,		/* clear screen */
 *le,				/* cursor left */
 *cm,				/* goto */
 *ce,				/* clear to end */
@@ -122,7 +127,7 @@ extern char *cl,		/* clear screen */
 EXTERN int kbd_fd INIT(-1);
 /* the file descriptor for /dev/mem when mmap'ing the video mem */
 EXTERN int mem_fd INIT(-1);
-extern int in_readkeyboard;
+EXTERN int in_readkeyboard;
 
 /* X-pipes */
 EXTERN int keypipe;
@@ -130,17 +135,17 @@ EXTERN int mousepipe;
 
 EXTERN int in_vm86 INIT(0);
 
-extern int li, co;	/* lines, columns */
-extern int scanseq;
-extern int cursor_row;
-extern int cursor_col;
+EXTERN int li, co;	/* lines, columns */
+EXTERN int scanseq;
+EXTERN int cursor_row;
+EXTERN int cursor_col;
 
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
 int ext_fs(int, char *, char *, int);
 #if 0 /* Not used anymore */
 int outch(int c);
 #endif
-extern void run_vm86(void);
+EXTERN void run_vm86(void);
 
 #define NOWAIT  0
 #define WAIT    1
@@ -191,17 +196,19 @@ struct debug_flags {
 # define NORETURN
 #endif
 
-extern void saytime(char *m_str);
+EXTERN void saytime(char *m_str);
 
-int
-ifprintf(unsigned int, const char *,...) FORMAT(printf, 2, 3);
-     void p_dos_str(char *,...) FORMAT(printf, 1, 2);
+int ifprintf(unsigned int, const char *,...) FORMAT(printf, 2, 3);
+
+void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
 #if 0  /* set this to 0, if you want dosemu to honor the -D flags */
  #define NO_DEBUGPRINT_AT_ALL
 #endif
 
-#define error(f,a...)	 	fprintf(stderr, f, ##a)
+/* Note: moved it at top of emu.h, we need to define 'error' for priv.h 
+  #define error(f,a...)	 	fprintf(stderr, f, ##a) */
+
 #define hard_error(f, a...)	fprintf(stderr, f, ##a)
 #define dbug_printf(f,a...)	ifprintf(2,f,##a)
 
@@ -274,8 +281,8 @@ ifprintf(unsigned int, const char *,...) FORMAT(printf, 2, 3);
 
      int set_ioperm(int, int, int);
 
-     extern struct debug_flags d;
-     extern u_char in_sighandler, in_ioctl;
+     EXTERN struct debug_flags d;
+     EXTERN u_char in_sighandler, in_ioctl;
 /* one-entry queue ;-( for ioctl's */
 EXTERN struct ioctlq iq INIT({0, 0, 0, 0}); 
 EXTERN u_char in_ioctl INIT(0);
@@ -343,6 +350,13 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 #endif
 #ifndef TRUE
 #define TRUE	1
+#endif
+
+#ifndef True
+#define True  TRUE
+#endif
+#ifndef False
+#define False FALSE
 #endif
 
      typedef unsigned char boolean;
@@ -487,64 +501,53 @@ config_t;
 
 #undef cli
 #undef sti
-extern void cli(void);
-extern void sti(void);
-extern int port_readable(unsigned int);
-extern int port_writeable(unsigned int);
-extern unsigned int read_port(unsigned int);
-extern int write_port(unsigned int, unsigned int);
-extern __inline__ void parent_nextscan(void);
-extern __inline__ void disk_close(void);
-extern void cpu_setup(void);
-extern __inline__ void run_int(int);
-extern int mfs_redirector(void);
-extern void int10(void);
-extern void int13(u_char);
-extern void int14(u_char);
-extern void int17(u_char);
-extern void io_select(fd_set);
-extern int pd_receive_packet(void);
-extern int printer_tick(u_long);
-extern int printer_tick(u_long);
-extern void floppy_tick(void);
-extern void open_kmem(void);
-extern void close_kmem(void);
-extern void CloseNetworkLink(int);
-extern int parse_config(char *);
-#ifdef __NetBSD__
-extern int priv_on(void);
-extern int priv_off(void);
-#endif
+EXTERN void cli(void);
+EXTERN void sti(void);
+EXTERN int port_readable(unsigned int);
+EXTERN int port_writeable(unsigned int);
+EXTERN unsigned int read_port(unsigned int);
+EXTERN int write_port(unsigned int, unsigned int);
+EXTERN __inline__ void parent_nextscan(void);
+EXTERN __inline__ void disk_close(void);
+EXTERN void cpu_setup(void);
+EXTERN __inline__ void run_int(int);
+EXTERN int mfs_redirector(void);
+EXTERN void int10(void);
+EXTERN void int13(u_char);
+EXTERN void int14(u_char);
+EXTERN void int17(u_char);
+EXTERN void io_select(fd_set);
+EXTERN int pd_receive_packet(void);
+EXTERN int printer_tick(u_long);
+EXTERN int printer_tick(u_long);
+EXTERN void floppy_tick(void);
+EXTERN void open_kmem(void);
+EXTERN void close_kmem(void);
+EXTERN void CloseNetworkLink(int);
+EXTERN int parse_config(char *);
+EXTERN void disk_init(void);
+EXTERN void serial_init(void);
+EXTERN void close_all_printers(void);
+EXTERN void serial_close(void);
+EXTERN void disk_close_all(void);
+EXTERN void init_all_printers(void);
+EXTERN int mfs_inte6(void);
+EXTERN void pkt_helper(void);
+EXTERN short pop_word(struct vm86_regs *);
+EXTERN void ems_init(void);
+EXTERN int GetDebugFlagsHelper(char *);
+EXTERN int SetDebugFlagsHelper(char *);
+EXTERN void leavedos(int) NORETURN;
+EXTERN void add_to_io_select(int, unsigned char);
+EXTERN void remove_from_io_select(int, unsigned char);
+EXTERN void sigquit(int);
 #ifdef __linux__
-extern int exchange_uids(void);
-#if 0
-#define priv_on exchange_uids
-#define priv_off exchange_uids
-#endif
-#endif
-extern void disk_init(void);
-extern void serial_init(void);
-extern void close_all_printers(void);
-extern void serial_close(void);
-extern void disk_close_all(void);
-extern void init_all_printers(void);
-extern int mfs_inte6(void);
-extern void pkt_helper(void);
-extern short pop_word(struct vm86_regs *);
-extern void ems_init(void);
-extern int GetDebugFlagsHelper(char *);
-extern int SetDebugFlagsHelper(char *);
-extern void leavedos(int) NORETURN;
-extern void add_to_io_select(int, unsigned char);
-extern void remove_from_io_select(int, unsigned char);
-extern void sigquit(int);
-#ifdef __linux__
-extern void sigalrm(int, struct sigcontext_struct);
-extern void sigio(int, struct sigcontext_struct);
+EXTERN void sigalrm(int, struct sigcontext_struct);
+EXTERN void sigio(int, struct sigcontext_struct);
 #endif
 #ifdef __NetBSD__
-extern void sigalrm(int, int, struct sigcontext *);
-extern void sigio(int, int, struct sigcontext *);
+EXTERN void sigalrm(int, int, struct sigcontext *);
+EXTERN void sigio(int, int, struct sigcontext *);
 #endif
 
 /* signals for Linux's process control of consoles */
@@ -633,8 +636,8 @@ extern void sigio(int, int, struct sigcontext *);
 			dosemu_sigaction(sig, &sa, NULL);
 #endif
 
-extern inline void SIGNAL_save( void (*signal_call)(void) );
-extern inline void handle_signals(void);
+EXTERN inline void SIGNAL_save( void (*signal_call)(void) );
+EXTERN inline void handle_signals(void);
 
 
 #ifdef REQUIRES_EMUMODULE
@@ -659,7 +662,28 @@ EXTERN struct config_info config;
 EXTERN int fatalerr;
 
 #ifdef __NetBSD__
-#define iopl(value)			{ extern int errno; if (i386_iopl(value) == -1) { g_printf("iopl failed: %s\n", strerror(errno)); leavedos(4);}}
+#define iopl(value)			{ EXTERN int errno; if (i386_iopl(value) == -1) { g_printf("iopl failed: %s\n", strerror(errno)); leavedos(4);}}
 #endif
+
+EXTERN void signal_init(void);
+EXTERN void device_init(void);
+EXTERN void hardware_setup(void);
+EXTERN void memory_init(void);
+EXTERN void timer_interrupt_init(void);
+EXTERN void keyboard_flags_init(void);
+EXTERN void video_config_init(void);
+EXTERN void printer_init(void);
+EXTERN void video_close(void);
+EXTERN void hma_exit(void);
+EXTERN void ems_helper(void);
+EXTERN boolean_t ems_fn(struct vm86_regs *);
+EXTERN void serial_helper(void);
+EXTERN void mouse_helper(void);
+EXTERN void cdrom_helper(void);
+EXTERN void boot(void);
+EXTERN int pkt_int(void);
+EXTERN void read_next_scancode_from_queue (void);
+EXTERN unsigned short detach (void);
+EXTERN void HMA_init(void);
 
 #endif /* EMU_H */

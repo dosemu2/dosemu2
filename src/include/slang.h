@@ -953,5 +953,7 @@ unsigned char *SLsearch (unsigned char *, unsigned char *, SLsearch_Type *);
 }
 #endif
 
+extern int init_slang_keymaps (void);
+
 /* _davis_slang_h_ */
 #endif 

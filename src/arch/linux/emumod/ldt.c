@@ -138,7 +138,11 @@ static void unprotect_vmarea(unsigned long address, unsigned long size)
     addr = (addr + PGDIR_SIZE) & PGDIR_MASK;
     dir++;
   }
+#if KERNEL_VERSION < 1003047
   invalidate();
+#else
+  invalidate_all();
+#endif
 }
 #endif
 

@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <X11/Intrinsic.h> /* Include standard Toolkit Header file.
        We do no need "StringDefs.h" */
@@ -55,7 +58,7 @@ static unsigned char KeyTab[128] = {
 
 char *progname;
 
-main( int argc, char * argv[] )
+void main( int argc, char * argv[] )
 {
 
   char * args[6];

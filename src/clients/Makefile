@@ -1,23 +1,25 @@
 SUBDIR= clients
 
+D=$(BINPATH)/bin
+
 OBJS=keyboard.o video.o get_info.o 
 CFILES= keyboard.c video.c get_info.c 
 DEPENDS= keyboard.d video.d get_info.d
 HFILES= get_info.h
 ALL=$(CFILES) $(HFILES)
 
-all:	keyboard video
+all:	$(D)/keyboard $(D)/video get_info.o
 
-keyboard: keyboard.c get_info.o
+$(D)/keyboard: keyboard.c get_info.o
 	$(CC) $(CFLAGS) -o $@ $< get_info.o
 
-video: video.c get_info.o
+$(D)/video: video.c get_info.o
 	$(CC) $(CFLAGS) -o $@ $< get_info.o
 
 .PHONY:	clean realclean 
 
 realclean clean::
-	rm -f $(OBJS) keyboard video
+	rm -f $(OBJS) $(D)/keyboard $(D)/video
 
 realclean::
 	rm -f *.d .depend

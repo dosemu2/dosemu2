@@ -1,7 +1,7 @@
 Begin3
 Title:          DOSEMU PC Emulator
 
-Version:        0.60.3
+Version:        0.60.4
 
 Description:    This is a DOS emulation package with support for console, 
                 terminal and X-windows.  Includes DPMI emulation to run some 
@@ -15,13 +15,13 @@ Author:         linux-msdos@vger.rutgers.edu (The DOSEMU team)
 
 Maintained-by:  linux-msdos@vger.rutgers.edu (The DOSEMU team)
 
-Primary-site:   tsx-11.mit.edu /pub/linux/ALPHA/dosemu/dosemu-0.60.3.tgz
+Primary-site:   tsx-11.mit.edu /pub/linux/ALPHA/dosemu/dosemu-0.60.4.tgz
 
 Alternate-site: sunsite.unc.edu /pub/Linux/system/Emulators
-                dspsun.eas.asu.edu /pub/dosemu
 
-Platform:       Linux 1.1.31+  IPC required, IPX optional.
-                Included kernel patch required to run Borlandc C++ 3.x IDE
+Platform:       Linux 1.1.45+  IPC required, IPX optional.
+		ELF prefered.
+                Emumodule required to run Borlandc C++ 3.x IDE
 		in DOSEMU.
 
 Copying-policy: Freely distributable.  Some GPL and non-GPL copyrights.

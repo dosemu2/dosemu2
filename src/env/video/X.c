@@ -1,15 +1,44 @@
 /* 
  * DANG_BEGIN_MODULE
  *
- * This module contains a text-mode only video interface for the X Window 
- * System. It has either mouse or selection 'cut' support, but not yet
- * both.
+ * This module contains a text-mode video interface for the X Window 
+ * System. It has mouse and selection 'cut' support.
  *
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
  *
  * $Id: X.c,v 1.13 1995/05/06 16:25:24 root Exp root $
+ *
+ * 951205: bon@elektron.ikp.physik.th-darmstadt.de
+ *   Merged in again the selection stuff. Hope introduce hidden bugs 
+ *        are removed!  
+ *
+ *         TODO: highligting should be smarter and either discard area
+ *               or follow ir when scrolling (text-mode
+ *
+ * 5/24/95, Started to get the graphics modes to work
+ * Erik Mouw (J.A.K.Mouw@et.tudelft.nl) 
+ * and Arjan Filius (I.A.Filius@et.tudelft.nl)
+ *
+ * changed:
+ *  X_setmode()
+ *  X_redraw_screen()
+ *  X_update_screen()
+ *  set_mouse_position()
+ * in video/X.c
+ *
+ * and:
+ *  set_video_mode()
+ * in video/int10.c
+ * int10()
+ *
+ * added:
+ *  get_vga256_colors()
+ *
+ * Now dosemu can work in graphics mode with X, but at the moment only in mode
+ * 0x13 and very slow.
+ *
  *
  * 1995-08-30: Merged with code for pasting, removed some restrictions 
  * from Pasi's code: cut and paste and x_mouse, 
@@ -23,6 +52,7 @@
  * DANG_END_CHANGELOG
  */
 
+/*#define OLD_X_TEXT*/		/* do you want to use the old X_textmode's */
 #define CONFIG_X_SELECTION 1
 #define CONFIG_X_MOUSE 1
 #define DOSEMU060 1
@@ -30,13 +60,14 @@
 
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <termios.h>
+#include <stdlib.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
+#include <sys/mman.h>           /* root@sjoerd:for mprotect*/
 
 #if DOSEMU060
 #include "emu.h"
@@ -46,11 +77,14 @@
 #if CONFIG_X_MOUSE
 #include "mouse.h"
 #endif
-
+#if CONFIG_X_SELECTION
+#include "screen.h"
+#endif
 #define Bit8u byte
 #define Bit16u us
 #define Boolean boolean
 #endif
+
 #if DOSEMU061
 #include "dosemu.h"
 #include "base/bios.h"
@@ -60,6 +94,9 @@
 #include "env/setup.h"
 #include "X.h"
 #endif
+
+#include "vgaemu.h"
+#include "vgaemu_inside.h"
 
 static const u_char dos_to_latin[]={
    0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,  /* 80-87 */ 
@@ -87,16 +124,12 @@ static const u_char dos_to_latin[]={
 /* From Xkeyb.c */
 extern void X_process_key(XKeyEvent *);
 
-/* Sorry... */
-#if CONFIG_X_SELECTION && CONFIG_X_MOUSE
-/*#error You cannot define both CONFIG_X_SELECTION and CONFIG_X_MOUSE!*/
-#endif
-
 /* "Fine tuning" options for X_update_screen */
 #define MAX_UNCHANGED	3
 
 /* Kludge for incorrect ASCII 0 char in vga font. */
-#define XCHAR(w) ((byte)(CHAR(w)?CHAR(w):' '))
+#define XCHAR(w) ((byte)CHAR(w)?CHAR(w):' ')
+
 
 #if CONFIG_X_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
@@ -107,11 +140,15 @@ extern void X_process_key(XKeyEvent *);
 #endif
 #define XREAD_WORD(w) ((XATTR(w)<<8)|XCHAR(w))
 
-/**************************************************************************/
+/********************************************/
 
-static Display *dpy;
-static int scr;
-static Window root_win, win;
+static Display *display;
+static int screen;
+static Window rootwindow,mainwindow;
+static XImage *ximage_p;		/*Used as a buffer for the X-server*/
+
+unsigned char* image_data_p=NULL; 	/* the data in the XImage*/
+
 static Cursor X_standard_cursor;
 #if CONFIG_X_MOUSE
 static Cursor X_mouse_cursor;
@@ -137,11 +174,13 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 static Boolean have_focus = FALSE;
 static Boolean is_mapped = FALSE;
 
-/* Initialization is used just in case XAllocColor fails. */
 static unsigned long vga_colors[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
 
 static void set_sizehints(int xsize, int ysize);
+static Colormap text_cmap=0;
+static Colormap vga256_cmap=0;
 
+static int X_setmode(int type, int xsize, int ysize) ;
 
 /**************************************************************************/
 /*                         INITIALIZATION                                 */
@@ -154,25 +193,32 @@ static void get_vga_colors(void)
    * gamma correction for the dim colors to compensate for bright X
    * screens.
  */
-static struct {
+static struct
+  {
    unsigned char r,g,b;
-} crgb[16]={
+  } crgb[16]=
+    {
 {0x00,0x00,0x00},{0x18,0x18,0xB2},{0x18,0xB2,0x18},{0x18,0xB2,0xB2},
 {0xB2,0x18,0x18},{0xB2,0x18,0xB2},{0xB2,0x68,0x18},{0xB2,0xB2,0xB2},
 {0x68,0x68,0x68},{0x54,0x54,0xFF},{0x54,0xFF,0x54},{0x54,0xFF,0xFF},
     {0xFF,0x54,0x54},{0xFF,0x54,0xFF},{0xFF,0xFF,0x54},{0xFF,0xFF,0xFF}
   };
+
 	int i;
         XColor xcol;
-  Colormap cmap = DefaultColormap(dpy, scr);
+Colormap text_cmap = DefaultColormap(display, screen);
 
-  X_printf("X: Getting VGA colors\n");
-	for(i=0;i<16;i++) {
+X_printf("X: getting VGA colors\n");
+
+        
+for(i=0;i<16;i++) 
+  {
 	   xcol.red   = crgb[i].r<<8;
 	   xcol.green = crgb[i].g<<8;
 	   xcol.blue  = crgb[i].b<<8;
-	   if (!XAllocColor(dpy, cmap, &xcol)) {
-      error("X: Couldn't allocate all VGA colors!\n");
+    if (!XAllocColor(display, text_cmap, &xcol)) 
+      {
+	error("X: couldn't allocate all VGA colors!\n");
 	      return;
 	   }
 	   vga_colors[i] = xcol.pixel;
@@ -180,6 +226,54 @@ static struct {
 }
 
   
+/* DANG_BEGIN_FUNCTION get_vga256_colors
+ *
+ * Allocates a colormap for 256 color modes and initializes it.
+ *
+ * DANG_END_FUNCTION
+ */
+static void get_vga256_colors(void)
+{
+  int i;
+  XColor xcol;
+  Visual *visual;
+  DAC_entry color;
+
+  DAC_init();
+
+  if(vga256_cmap==0) /* only the first time! */
+    {
+      visual=DefaultVisual(display, screen);
+      vga256_cmap=XCreateColormap(display, rootwindow, visual, AllocAll);
+
+      for(i=0; i<256; i++)
+	{
+	  DAC_get_entry(&color, (unsigned char)i);
+	  xcol.pixel=i;
+	  xcol.red  =color.r<<10;
+	  xcol.green=color.g<<10;
+	  xcol.blue =color.b<<10;
+	  xcol.flags=DoRed | DoGreen | DoBlue;
+
+	  XStoreColor(display, vga256_cmap, &xcol);
+	}
+    }
+  else
+    {  /* should not be needed, root@sjoerd*/
+      for(i=0; i<256; i++)
+	{
+	  DAC_get_entry(&color, (unsigned char)i);
+	  xcol.pixel=i;
+	  xcol.red  =color.r<<10;
+	  xcol.green=color.g<<10;
+	  xcol.blue =color.b<<10;
+	  xcol.flags=DoRed | DoGreen | DoBlue;
+
+	  XStoreColor(display, vga256_cmap, &xcol);
+	}
+    }
+}
+
 /* Load the main text font. Try first the user specified font, then
  * vga, then 9x15 and finally fixed. If none of these exists and
  * is monospaced, give up (shouldn't happen).
@@ -190,12 +284,12 @@ static void load_text_font(void)
   XFontStruct *font;
   p = fonts;
   while (1) {
-    if ((font=XLoadQueryFont(dpy, *p)) == NULL) {
+    if ((font=XLoadQueryFont(display, *p)) == NULL) {
       error("X: Unable to open font \"%s\"", *p);
     }
     else if (font->min_bounds.width != font->max_bounds.width) {
       error("X: Font \"%s\" isn't monospaced", *p);
-      XFreeFont(dpy, font);
+      XFreeFont(display, font);
       font = NULL;
     }
     else {
@@ -230,37 +324,37 @@ static void load_cursor_shapes(void)
 #endif  
 
   /* Use a white on black cursor as the background is normally dark. */
-  cmap = DefaultColormap(dpy, scr);
-  XParseColor(dpy, cmap, "white", &fg);
-  XParseColor(dpy, cmap, "black", &bg);
+  cmap = DefaultColormap(display, screen);
+  XParseColor(display, cmap, "white", &fg);
+  XParseColor(display, cmap, "black", &bg);
 
-  cfont = XLoadFont(dpy, "cursor");
+  cfont = XLoadFont(display, "cursor");
   if (!cfont) {
     error("X: Unable to open font \"cursor\", aborting!\n");
     leavedos(99);
   }
 #if CONFIG_X_SELECTION
-/*  X_standard_cursor = XCreateGlyphCursor(dpy, cfont, cfont, 
+/*  X_standard_cursor = XCreateGlyphCursor(display, cfont, cfont, 
     XC_xterm, XC_xterm+1, &fg, &bg);
 */
 #endif
 #if CONFIG_X_MOUSE
-  X_standard_cursor = XCreateGlyphCursor(dpy, cfont, cfont, 
+  X_standard_cursor = XCreateGlyphCursor(display, cfont, cfont, 
     XC_top_left_arrow, XC_top_left_arrow+1, &fg, &bg);
   /* IMHO, the DEC cursor font looks nicer, but if it's not there, 
    * use the standard cursor font. 
    */
-  decfont = XLoadFont(dpy, "decw$cursor");
+  decfont = XLoadFont(display, "decw$cursor");
   if (!decfont) {
-    X_mouse_cursor = XCreateGlyphCursor(dpy, cfont, cfont, 
+    X_mouse_cursor = XCreateGlyphCursor(display, cfont, cfont, 
       XC_hand2, XC_hand2+1, &bg, &fg);
   } 
   else {
-    X_mouse_cursor = XCreateGlyphCursor(dpy, decfont, decfont, 2, 3, &fg, &bg);
-    XUnloadFont(dpy, decfont);  
+    X_mouse_cursor = XCreateGlyphCursor(display, decfont, decfont, 2, 3, &fg, &bg);
+    XUnloadFont(display, decfont);  
   }
 #endif /* CONFIG_X_MOUSE */
-  XUnloadFont(dpy, cfont);
+  XUnloadFont(display, cfont);
 }
 
 
@@ -278,83 +372,125 @@ static int X_init(void)
    co = 80;
    li = 25;
 #if DOSEMU060  
-  set_video_bios_size();		/* Make it stick */
+  set_video_bios_size();		/* make it stick */
 #endif  
   
   /* Open X connection. */
-   dpy=XOpenDisplay(config.X_display);
-   if (!dpy) {
+  display=XOpenDisplay(config.X_display);
+  if (!display) 
+    {
     const char *display_name; 
+	
 	display_name = config.X_display;
 	if(!display_name)
 		display_name = getenv("DISPLAY");
+
 	if(!display_name)
       error("X: DISPLAY variable isn't set!\n");
     else
       error("X: Can't open display \"%s\"\n", display_name);
       leavedos(99);
    }
-   scr=DefaultScreen(dpy);
-  root_win = RootWindow(dpy, scr);
    
+  screen=DefaultScreen(display);
+  rootwindow=RootWindow(display,screen);
   get_vga_colors();
+  get_vga256_colors();
   load_text_font();
 
-  win = XCreateSimpleWindow(dpy, root_win,
+  mainwindow = XCreateSimpleWindow(display, rootwindow,
     0, 0,                               /* Position */
     co*font_width, li*font_height,      /* Size */
     0, 0,                               /* Border */
     vga_colors[0]);                     /* Background */
    set_sizehints(co,li);
-
   load_cursor_shapes();
-
   gcv.font = vga_font;
-  gc = XCreateGC(dpy, win, GCFont, &gcv);
+  gc = XCreateGC(display, mainwindow, GCFont, &gcv);
   attr.event_mask=KeyPressMask|KeyReleaseMask|KeymapStateMask|
                    ButtonPressMask|ButtonReleaseMask|
                    EnterWindowMask|LeaveWindowMask|PointerMotionMask|
-                   ExposureMask|StructureNotifyMask|FocusChangeMask;
+	          ExposureMask|StructureNotifyMask|FocusChangeMask|
+	          ColormapChangeMask;
   attr.cursor = X_standard_cursor;
-  XChangeWindowAttributes(dpy, win, CWEventMask|CWCursor, &attr);
       
-  XStoreName(dpy, win, config.X_title);
-  XSetIconName(dpy, win, config.X_icon_name);
-  xch.res_name = (char *) "XDosEmu";
-  xch.res_class = (char *) "XDosEmu";
-  XSetClassHint(dpy, win, &xch);
+  XChangeWindowAttributes(display,mainwindow,CWEventMask|CWCursor,&attr);
+
+  XStoreName(display,mainwindow,config.X_title);
+  XSetIconName(display,mainwindow,config.X_icon_name);
+  xch.res_name  = "XDosEmu";
+  xch.res_class = "XDosEmu";
+  XSetClassHint(display,mainwindow,&xch);
 
 #if CONFIG_X_SELECTION
   /* Get atom for COMPOUND_TEXT type. */
-  compound_text_atom = XInternAtom(dpy, "COMPOUND_TEXT", False);
+  compound_text_atom = XInternAtom(display, "COMPOUND_TEXT", False);
 #endif
   /* Delete-Window-Message black magic copied from xloadimage. */
-   proto_atom  = XInternAtom(dpy,"WM_PROTOCOLS", False);
-   delete_atom = XInternAtom(dpy,"WM_DELETE_WINDOW", False);
+  proto_atom  = XInternAtom(display,"WM_PROTOCOLS", False);
+  delete_atom = XInternAtom(display,"WM_DELETE_WINDOW", False);
   if ((proto_atom != None) && (delete_atom != None)) {
-    XChangeProperty(dpy, win, proto_atom, XA_ATOM, 32,
+    XChangeProperty(display, mainwindow, proto_atom, XA_ATOM, 32,
                       PropModePrepend, (char*)&delete_atom, 1);
   }
                                     
-  XMapWindow(dpy, win);
+  XMapWindow(display,mainwindow);
+  X_printf("X: X_init done, screen=%d, root=0x%lx, mainwindow=0x%lx\n",
+    screen, (unsigned long) rootwindow, (unsigned long) mainwindow);
+        
+  /* allocate video memory */
+    if(vga_emu_init()==NULL)
+      {
+	error("X: couldn't allocate video memory!\n");
+	leavedos(99);
+      }
+  
+  /* HACK!!! Don't konw is video_mode is already set */
+  X_setmode(TEXT, 0, 0);
             
-  X_printf("X: X_init done, scr=%d, root=0x%lx, win=0x%lx\n",
-    scr, (unsigned long) root_win, (unsigned long) win);
   return(0);                        
 }
 
 
-/* Free resources and close X connection. */
+/*
+ * DANG_BEGIN_FUNCTION X_close
+ *
+ * description:
+ *  Destroys the window, unloads font, pixmap and colormap.
+ *
+ * DANG_END_FUNCTION
+ */
 static void X_close(void) 
 {
-  X_printf("X: X_close\n");
-  if (dpy == NULL) 
+  X_printf("X_close()\n");
+  if (display==NULL)
     return;
-   XUnloadFont(dpy,vga_font);
-  XDestroyWindow(dpy, win);
-   XFreeGC(dpy,gc);
-   XCloseDisplay(dpy);
+
+  XUnloadFont(display,vga_font);
+  XDestroyWindow(display,mainwindow);
+
+  if(ximage_p!=NULL)
+    XDestroyImage(ximage_p);	/* calls ximage_p->destroy_image() */
+  ximage_p=NULL;
+  
+  /*free(vga_video_mem);*/
+  /* Uninstall vgaemu!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+  
+  
+  
+  
+  if(vga256_cmap!=0)
+    {
+      if(video_mode==0x13)
+        XUninstallColormap(display, vga256_cmap);
+
+      XFreeColormap(display, vga256_cmap);
+    }
+
+  XFreeGC(display,gc);
+  XCloseDisplay(display);
 }
+
 
 
 /**************************************************************************/
@@ -372,55 +508,179 @@ static void set_sizehints(int xsize, int ysize)
   sh.width_inc = font_width;
   sh.height_inc = font_height;
   sh.flags = PMaxSize|PResizeInc;
-  XSetWMNormalHints(dpy, win, &sh);
+  XSetWMNormalHints(display, mainwindow, &sh);
 }
 
-
-/* Set video mode. Type 0 means text mode, which is all we support
- * for now. 
+/* 
+ * DANG_BEGIN_FUNCTION X_setmode
+ *
+ * description:
+ *  Resizes the window, also the graphical sizes/video modes.
+ *  remember the dos videomodi
+ *
+ * DANG_END_FUNCTION
  */
 static int X_setmode(int type, int xsize, int ysize) 
 {
-  X_printf("X: Setting mode, type=%d, size=%dx%d\n", type, xsize, ysize);
-  if (type == 0) { 
-    XResizeWindow(dpy, win, xsize*font_width, ysize*font_height);
-      set_sizehints(xsize,ysize);
+  static int previous_video_type=TEXT;
+  XSetWindowAttributes win_attr;
+  XSizeHints sh;
+  Window r;
+  int x, y;
+  unsigned int width, heigth, border_width, depth;
+  
+  /* tell vgaemu we're going to another mode */
+  set_vgaemu_mode(video_mode, xsize, ysize);
+                                
+  X_printf("X_setmode() type=%d, xsize=%d, ysize=%d info: x=%d y=%d\n",
+         type,xsize,ysize,get_vgaemu_width(),get_vgaemu_heigth());
+  
+  X_printf("X_setmode(), video_mode = 0x%02x\n",video_mode);
+  
+  switch(previous_video_type)
+    {
+    case GRAPH:
+      win_attr.colormap=text_cmap;
+      XChangeWindowAttributes(display, mainwindow, CWColormap, &win_attr);
+      if(vga256_cmap!=0)
+        XUninstallColormap(display, vga256_cmap);
+      
+      if(ximage_p!=NULL)  
+        XDestroyImage(ximage_p);	/* just make a new one all time */
+                                /* image_data_p is also >/dev/0 */	
+      ximage_p=NULL;
+      break;
+
+    case TEXT:
+      if(ximage_p!=NULL)
+      XDestroyImage(ximage_p);        /* just make a new one all time */
+                                      /* image_data_p is also >/dev/0 */
+      ximage_p=NULL;
+      break;
+                                                     
+    default:
+      break;
    }
-  return(0);
+
+  previous_video_type=type;
+
+  switch(type)
+    {
+    case TEXT:
+      XSetWindowColormap(display, mainwindow, text_cmap);
+          
+      X_printf("X: Going to textmode...\n");
+      XResizeWindow(display,mainwindow,
+	            get_vgaemu_tekens_x()*font_width,
+	            get_vgaemu_tekens_y()*font_height);
+
+      /*setsizehints()*/
+      /* We use the X font! Own font in future? */
+      sh.max_width=get_vgaemu_tekens_x()*font_width;
+      sh.max_height=get_vgaemu_tekens_y()*font_height;
+      sh.width_inc=1;		/* ??? */
+      sh.height_inc=1;
+      sh.flags = PMaxSize|PResizeInc;
+      XSetNormalHints(display, mainwindow, &sh);
+
+      XGetGeometry(display, mainwindow, &r, &x, &y, &width, &heigth,
+		   &border_width, &depth);
+
+      /* I don't think this is OK for monochrome X servers */
+      /* It should be OK for 256 color X servers (depth=8bits) */
+      ximage_p=XCreateImage(display,
+                            DefaultVisual(display, DefaultScreen(display)),
+                            depth, ZPixmap, 0, 
+                            (unsigned char*)malloc(get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height),
+                                get_vgaemu_tekens_x()*font_width,
+                                get_vgaemu_tekens_y()*font_height, 8, 0);
+      break;
+                  
+
+    case GRAPH:
+      XSetWindowColormap(display, mainwindow, vga256_cmap);
+
+      X_printf("X: Going to graphics mode with fingers crossed...\n");
+      XResizeWindow(display,mainwindow,
+	            get_vgaemu_width(), get_vgaemu_heigth());
+
+      /*setsizehints()*/
+      sh.max_width=get_vgaemu_width();
+      sh.max_height=get_vgaemu_heigth();
+      sh.width_inc=1;
+      sh.height_inc=1;
+      sh.flags = PMaxSize|PResizeInc;
+      XSetNormalHints(display,mainwindow,&sh);
+
+      XGetGeometry(display,mainwindow, &r, &x, &y, &width,& heigth,
+		   &border_width, &depth);
+      
+      ximage_p=XCreateImage(display,DefaultVisual(display,DefaultScreen(display)),
+                            depth,ZPixmap,0,(unsigned char*)malloc(get_vgaemu_width()*get_vgaemu_heigth()),
+                            get_vgaemu_width(),get_vgaemu_heigth(),8,0  );
+      /* set colormap */
+      /*get_vga256_colors();*/
+      break;
+  
+    default:
+      X_printf("X_setmode: No vadid mode type (TEXT or GRAPH)\n");
+      return 0;
+      break;
+    }
+
+  return 1;
 }
+
 
 
 /* Change color values in our graphics context 'gc'. */
 static inline void set_gc_attr(Bit8u attr)
+
 {
    XGCValues gcv;
    gcv.foreground=vga_colors[ATTR_FG(attr)];
    gcv.background=vga_colors[ATTR_BG(attr)];
-   XChangeGC(dpy,gc,GCForeground|GCBackground,&gcv);
+  XChangeGC(display,gc,GCForeground|GCBackground,&gcv);
 }
 
+/*
+ * DANG_BEGIN_FUNCTION X_change_mouse_cursor(void)
+ *   
+ * description:
+ * This function seems to be called each screen_update :(
+ * It is called in ../mouse/mouse.c:mouse_cursor(int) a lot for show and hide.
+ * Erik do you have a solution?
+ * I thougth something like a delayline, or something smarters.
+ * 
+ *  
+ * DANG_END_FUNCTION
+ */  
 
 /**************************************************************************/
 /*                              CURSOR                                    */
 /**************************************************************************/
-
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
 /* Draw the cursor (normal if we have focus, rectangle otherwise). */
 static void draw_cursor(int x, int y)
 {  
+  if(video_mode==0x13)
+    return;
+
   set_gc_attr(XATTR(screen_adr+y*co+x));
   if (!have_focus) {
-    XDrawRectangle(dpy, win, gc,
+    XDrawRectangle(display, mainwindow, gc,
       x*font_width, y*font_height,
       font_width-1, font_height-1);
   }
   else if (blink_state) {
     int cstart = CURSOR_START(cursor_shape) * font_height / 16,
       cend = CURSOR_END(cursor_shape) * font_height / 16;
-    XFillRectangle(dpy, win, gc,
+      XFillRectangle(display,mainwindow,gc,
                      x*font_width, y*font_height+cstart,
                      font_width, cend-cstart+1);
    }
 }
+
 
 
 /* Restore a character cell (i.e., remove the cursor). */
@@ -428,22 +688,34 @@ static inline void restore_cell(int x, int y)
 {
   Bit16u *sp = screen_adr+y*co+x, *oldsp = prev_screen+y*co+x;
    char c = XCHAR(sp);
+
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
+  if(video_mode==0x13)
+    return;
+
   set_gc_attr(XATTR(sp));
   *oldsp = XREAD_WORD(sp);
-  XDrawImageString(dpy, win, gc, x*font_width, y*font_height+font_shift, &c, 1);
+  XDrawImageString(display, mainwindow, gc, x*font_width, 
+		   y*font_height+font_shift, &c, 1);
 }
 
   
 /* Move cursor to a new position (and erase the old cursor). */
 static void redraw_cursor(void) 
 {
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
+  if(video_mode==0x13)
+    return;
+
   if (!is_mapped) 
     return;
+
   if (prev_cursor_shape!=NO_CURSOR)
     restore_cell(prev_cursor_col, prev_cursor_row);
    if (cursor_shape!=NO_CURSOR)
     draw_cursor(cursor_col, cursor_row);
-   XFlush(dpy);
+
+  XFlush(display);
 
    prev_cursor_row=cursor_row;
    prev_cursor_col=cursor_col;
@@ -454,6 +726,10 @@ static void redraw_cursor(void)
 /* Redraw the cursor if it's necessary. */
 static void X_update_cursor(void) 
    {
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
+  if(video_mode==0x13)
+    return;
+   
   if ((cursor_row != prev_cursor_row) || (cursor_col != prev_cursor_col) ||
     (cursor_shape != prev_cursor_shape))
   {
@@ -461,15 +737,20 @@ static void X_update_cursor(void)
    }
 }
 
-
 /* Blink the cursor. This is called from SIGALRM handler. */
 void X_blink_cursor(void)
 {
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
+  if(video_mode==0x13)
+    return;
+
   if (!have_focus || --blink_count)
       return;
+
    blink_count = config.X_blinkrate;
    blink_state = !blink_state;
-   if (cursor_shape!=NO_CURSOR) {
+  if (cursor_shape!=NO_CURSOR) 
+    {
     if ((cursor_row != prev_cursor_row) || (cursor_col != prev_cursor_col)) {
       restore_cell(prev_cursor_col, prev_cursor_row);
       prev_cursor_row = cursor_row;
@@ -484,55 +765,142 @@ void X_blink_cursor(void)
 }
 
  
+/* 
+ * DANG_BEGIN_FUNCTION X_redraw_screen
+ *
+ * arguments: none
+ *
+ * returns: nothing
+ *
+ * description:
+ *  Redraws the entire screen, also in graphics mode
+ *  Used for expose events etc.
+ *
+ * Graphics in X has al lot to be improved
+ * 
+ * DANG_END_FUNCTION
+ */ 
 /**************************************************************************/
 /*                          SCREEN UPDATES                                */
 /**************************************************************************/
 
 /* Redraw the entire screen. Used for expose events. */
-static void redraw_screen(void)
+static void X_redraw_screen(void)
 {
   Bit16u *sp, *oldsp;
-  char charbuf[MAX_COLUMNS], *bp;
+  char charbuff[MAX_COLUMNS], *bp;
   int x, y, start_x;
   Bit8u attr;
 
   if (!is_mapped)
     return;
-   
-  X_printf("X: redraw_screen, co=%d, li=%d, screen_adr=0x%x\n",
-            co,li,(int)screen_adr);
-
+  X_printf("X_redraw_screen entered; co=%d li=%d screen_adr=%x mode=%d \n",
+            co,li,(int)screen_adr,video_mode);
    sp=screen_adr;
   oldsp = prev_screen;
-  for(y = 0; (y < li); y++) {
-      x=0;
-      do {
-      /* Scan in a string of chars of the same attribute. */
-      bp = charbuf;
-         start_x=x;
-      attr = XATTR(sp);
-         do {
-        *oldsp++ = XREAD_WORD(sp);
-            *bp++=XCHAR(sp);
-        sp++; 
-	x++;
-      } while ((XATTR(sp)==attr) && (x < co));
 
-      /* Ok, we've got the string. Now send it to the X server. */
-      set_gc_attr(attr);
-      XDrawImageString(dpy, win, gc,
-                          font_width*start_x,font_height*y+font_shift,
-        charbuf, x-start_x);
-      } while(x<co);
+  switch(video_mode)
+    {
+    case 0x00:
+    case 0x01:
+    case 0x02:
+    case 0x03:
+      for(y = 0; (y < li); y++) 
+	{
+	  x=0;
+	  do 
+	    {
+	      /* scan in a string of chars of the same attribute. */
+	      
+	      bp=charbuff;
+	      start_x=x;
+	      attr=XATTR(sp);
+	      
+	      do 
+		{			/*Conversion of string to X*/
+		  *oldsp++ = XREAD_WORD(sp);
+		  *bp++=XCHAR(sp);
+		  sp++; 
+		  x++;
+		} 
+	      while((XATTR(sp)==attr) && (x<co));
+	      
+	      /* ok, we've got the string now send it to the X server */
+	      
+	      set_gc_attr(attr);
+	      XDrawImageString(display,mainwindow,gc,
+			       font_width*start_x,font_height*y+font_shift,
+			       charbuff,x-start_x);
+	      
+	    } 
+	  while(x<co);
+	}
+      break;
+
+#ifdef 0 /* wordt eigenlijk niet meer gebruikt */
+    case 0x13:	/* graphics 320x200 256*/
+      {
+        unsigned int counter;
+	DAC_entry color;
+	XColor xcol;
+	int i;
+        X_printf("In total redraw!\n");
+	/* first update the colormap */
+	do
+	  {
+	    i=DAC_get_dirty_entry(&color);
+	    X_printf("X: X_redraw_screen(): DAC_get_dirty_entry()=%i\n", i);
+	    if(i!=-1)
+	      {
+		xcol.pixel=i;
+		xcol.red  =color.r<<10;
+		xcol.green=color.g<<10;
+		xcol.blue =color.b<<10;
+		xcol.flags=DoRed | DoGreen | DoBlue;
+
+		XStoreColor(display, vga256_cmap, &xcol);
+	      }
+	  }
+	while(i!=-1);
+
+    	  {
+            int x, y, left=320, top=200, right=0, bottom=0;
+            unsigned int changed=0;
+            unsigned char *real_vid_mem_p;
+            unsigned char *image_data_p=NULL;
+            
+            for(y=0, counter=0; y<200; y++)
+              {
+              real_vid_mem_p=(unsigned char*)(0xA0000+(0+320*(y)));
+              image_data_p=(unsigned char*)(ximage_p->data+(0+320*(y)));
+              for(x=0; x<320; x++)
+                {
+		  XPutPixel(ximage_p,x,y,*real_vid_mem_p++);
+                }
    }
-  prev_cursor_shape = NO_CURSOR;        /* It was overwritten. */
+  	  XPutImage(display,mainwindow,gc,ximage_p,0,0,0,0,320,200);
+          }
+      }
+      break;
+#endif
+     
+    default:
+      X_printf("X_redraw_screen:No vadid video mode\n");
+      break;
+    }
+
+  prev_cursor_shape = NO_CURSOR;   /* was overwritten */
   redraw_cursor();
-   clear_scroll_queue();
+  clear_scroll_queue();
    
-  X_printf("X: redraw_screen done\n");
+  XFlush(display);
+
+  /* memcpy(prev_screen,screen_adr,co*li*2); */
+  MEMCPY_2UNIX(prev_screen,screen_adr,co*li*2); /* what?????????????????????*/
+  clear_scroll_queue();
+
+  X_printf("X_redraw_screen done\n");
 }
-
-
 
 #if USE_SCROLL_QUEUE
 
@@ -549,30 +917,36 @@ void X_scroll(int x,int y,int width,int height,int n,byte attr)
   height*=font_height;
   n*=font_height;
   
-  XSetForeground(dpy,gc,vga_colors[attr>>4]);
+  XSetForeground(display,gc,vga_colors[attr>>4]);
   
-  if (n > 0) {                          /* Scroll up */
-     if (n>=height) {
+  if (n > 0) 
+    {       /* scroll up */
+      if (n>=height) 
+	{
         n=height;
      }
-     else {
+      else 
+	{
         height-=n;
-      XCopyArea(dpy, win, win, gc, x, y+n, width, height, x, y);
+	  XCopyArea(display,mainwindow,mainwindow,gc,x,y+n,width,height,x,y);
      }
      /*
-    XFillRectangle(dpy,win,gc,x,y+height,width,n);
+      XFillRectangle(display,mainwindow,gc,x,y+height,width,n);
      */
   }
-  else if (n < 0) {                     /* Scroll down */
-     if (-n>=height) {
+  else if (n < 0) 
+    {  /* scroll down */
+      if (-n>=height) 
+	{
         n=-height;
      }
-     else {
+      else 
+	{
         height+=n;
-      XCopyArea(dpy, win, win, gc, x, y, width, height, x, y-n);
+	  XCopyArea(display,mainwindow,mainwindow,gc,x,y,width,height,x,y-n);
      }
      /*
-    XFillRectangle(dpy,win,gc,x,y,width,-n);
+      XFillRectangle(display,mainwindow,gc,x,y,width,-n);
      */
   }
 }
@@ -583,8 +957,11 @@ static void do_scroll(void)
 {
    struct scroll_entry *s;
 
-  while (s =get_scroll_queue()) {
-      if (s->n!=0) {
+   X_printf("X: do_scroll\n");
+  while(s=get_scroll_queue()) 
+    {
+      if (s->n!=0) 
+	{
          X_scroll(s->x0,s->y0,s->x1-s->x0+1,s->y1-s->y0+1,s->n,s->attr);
          Scroll(prev_screen,s->x0,s->y0,s->x1,s->y1,s->n,0xff);
       if ((prev_cursor_col >= s->x0) && (prev_cursor_col <= s->x1) &&
@@ -602,22 +979,44 @@ static void do_scroll(void)
 /* Update the part of the screen which has changed. Usually called 
  * from the SIGALRM handler. 
 */
+
+/* 
+ * DANG_BEGIN_FUNCTION X_update_screen
+ *
+ * arguments: none
+ *
+ * returns: int ,0:nothing updated 2:partly updated 1:whole update
+ *
+ * description:
+ *  Updates, also in graphics mode
+ *  
+ * Graphics in X has to be smarter and improved
+ * 
+ * DANG_END_FUNCTION
+ */ 
+
 static int X_update_screen(void)
+/*called from ../dosemu/signal.c:SIGALRM_call() */
 {
-  Bit16u *sp, *oldsp;
-  char charbuf[MAX_COLUMNS], *bp;
+  switch(get_vgaemu_type())
+    {
+    case TEXT:
+      /* Do it the OLD way! */
+      {
 
-  int x, y;	                        /* Position of character being updated. */
-  int start_x, len, unchanged;
-  Bit8u attr;
+	Bit16u *sp, *oldsp;
+	char charbuff[MAX_COLUMNS], *bp;
+	int x, y;	/* X and Y position of character being updated */
+	int start_x, len, unchanged;
+	Bit8u attr;
 
-  static int yloop = -1;
-  int lines;                            /* Number of lines to redraw. */
-  int numscan = 0;	                /* Number of lines scanned. */
-  int numdone = 0;                      /* Number of lines actually updated. */
+	static int yloop = -1;
+	int lines;               /* Number of lines to redraw. */
+	int numscan = 0;         /* Number of lines scanned. */
+	int numdone = 0;         /* Number of lines actually updated. */
 
-  if (!is_mapped) 
-    return(0);
+	if (!is_mapped) 
+	  return 0;       /* no need to do anything... */
 
 #if USE_SCROLL_QUEUE
   do_scroll();
@@ -629,130 +1028,198 @@ static int X_update_screen(void)
    * routine updates the entire screen.  So the variable "lines"
    * contains the maximum number of lines to update at once in one
    * call to this routine.  This is set by the "updatelines" keyword
-   * in /etc/dosemu.conf.
+   * in /etc/dosemu.conf 
    */
-  lines = config.X_updatelines;
-  if (lines < 2) 
-    lines = 2;
-  else if (lines > li)
-    lines = li;
+	lines = config.X_updatelines;
+	if (lines < 2) 
+	  lines = 2;
+	else if (lines > li)
+	  lines = li;
 
   /* The highest priority is given to the current screen row for the
    * first iteration of the loop, for maximum typing response.  
    * If y is out of bounds, then give it an invalid value so that it
    * can be given a different value during the loop.
    */
-  y = cursor_row;
-  if ((y < 0) || (y >= li)) 
-    y = -1;
+	y = cursor_row;
+	if ((y < 0) || (y >= li)) 
+	  y = -1;
 
-#if 0  
-  X_printf("X: X_update_screen, co=%d, li=%d, yloop=%d, y=%d, lines=%d\n",
-           co,li,yloop,y,lines);
-#endif
+/*  X_printf("X: X_update_screen, co=%d, li=%d, yloop=%d, y=%d, lines=%d\n",
+           co,li,yloop,y,lines);*/
 
   /* The following loop scans lines on the screen until the maximum number
    * of lines have been updated, or the entire screen has been scanned.
    */
-  while ((numdone < lines) && (numscan < li)) {
+	while ((numdone < lines) && (numscan < li)) 
+	  {
     /* The following sets the row to be scanned and updated, if it is not
      * the first iteration of the loop, or y has an invalid value from
      * loop pre-initialization.
      */
-    if ((numscan > 0) || (y < 0)) {
-      yloop = (yloop+1) % li;
-      if (yloop == cursor_row)
-        yloop = (yloop+1) % li;
-      y = yloop;
-    }
-    numscan++;
+	    if ((numscan > 0) || (y < 0)) 
+	      {
+		yloop = (yloop+1) % li;
+		if (yloop == cursor_row)
+		  yloop = (yloop+1) % li;
+		y = yloop;
+	      }
+	    numscan++;
+	    
+	    sp = screen_adr + y*co;
+	    oldsp = prev_screen + y*co;
 
-    sp = screen_adr + y*co;
-    oldsp = prev_screen + y*co;
-
-    x=0;
-    do {
+	    x=0;
+	    do 
+	      {
         /* find a non-matching character position */
-      start_x = x;
-      while (XREAD_WORD(sp)==*oldsp) {
-           sp++; oldsp++; x++;
-        if (x==co) {
-	  if (start_x == 0)
-	    goto chk_cursor;
-	  else
-	    goto line_done;
-	}
-        }
+		start_x = x;
+		while (XREAD_WORD(sp)==*oldsp) {
+		  sp++; oldsp++; x++;
+		  if (x==co) {
+		    if (start_x == 0)
+		      goto chk_cursor;
+		    else
+		      goto line_done;
+		  }
+		}
+/* now scan in a string of changed chars of the same attribute.
+   To keep the number of X calls (and thus the overhead) low,
+   we tolerate a few unchanged characters (up to MAX_UNCHANGED in 
+   a row) in the 'changed' string. 
+*/
+		bp = charbuff;
+		start_x=x;
+		attr=XATTR(sp);
+		unchanged=0;         /* counter for unchanged chars */
+		
+		while(1) 
+		  {
+		    *bp++=XCHAR(sp);
+		    *oldsp++ = XREAD_WORD(sp);
+		    sp++; 
+		    x++;
 
-      /* Now scan in a string of changed chars of the same attribute.
-       * To keep the number of X calls (and thus the overhead) low,
-       * we tolerate a few unchanged characters (up to MAX_UNCHANGED in 
-       * a row) in the 'changed' string. 
-        */
-      bp = charbuf;
-        start_x=x;
-      attr = XATTR(sp);
-      unchanged = 0;                    /* Counter for unchanged chars. */
+		    if ((XATTR(sp) != attr) || (x == co))
+		      break;
+		    if (XREAD_WORD(sp) == *oldsp) {
+		      if (unchanged > MAX_UNCHANGED) 
+			break;
+		      unchanged++;
+		    }
+		    else
+		      unchanged=0;
+		  } 
+		len=x-start_x-unchanged;
 
-        while(1) {
-           *bp++=XCHAR(sp);
-	*oldsp++ = XREAD_WORD(sp);
-        sp++; 
-	x++;
+/* ok, we've got the string now send it to the X server */
 
-        if ((XATTR(sp) != attr) || (x == co))
-	  break;
-        if (XREAD_WORD(sp) == *oldsp) {
-          if (unchanged > MAX_UNCHANGED) 
-	    break;
-              unchanged++;
-           }
-	else
-	  unchanged=0;
-        } 
-        len=x-start_x-unchanged;
+		set_gc_attr(attr);
+		XDrawImageString(display,mainwindow,gc,
+				 font_width*start_x,font_height*y+font_shift,
+				 charbuff,len);
 
-      /* Ok, we've got the string now. Send it to the X server. */
-      set_gc_attr(attr);
-      XDrawImageString(dpy, win, gc,
-                         font_width*start_x,font_height*y+font_shift,
-        charbuf, len);
-
-      if ((prev_cursor_row == y) && 
-        (prev_cursor_col >= start_x) && (prev_cursor_col < start_x+len))
-        {
-        prev_cursor_shape = NO_CURSOR;  /* Old cursor was overwritten. */
-        }
-    } while(x<co);
+		if ((prev_cursor_row == y) && 
+		    (prev_cursor_col >= start_x) && 
+		    (prev_cursor_col < start_x+len))
+		  {
+		    prev_cursor_shape=NO_CURSOR;  
+/* old cursor was overwritten */
+		  }
+	      } 
+	    while(x<co);
 line_done:
-    /* Increment the number of successfully updated lines counter */
-    numdone++;
+/* Increment the number of successfully updated lines counter */
+	    numdone++;
 
 chk_cursor:
-    /* Update the cursor. We do this here to avoid the cursor 'running 
-     * behind' when using a fast key-repeat.
-    */
-    if (y == cursor_row)
-      X_update_cursor();
-  }
-  XFlush(dpy);
-#if 0
-  X_printf("X: X_update_screen done, %d lines updated\n", numdone);
-#endif
-  if (numdone) {
-     if (numscan==li)
-      return(1);                        /* Changed, entire screen updated. */
-     else
-      return(2);                        /* Changed, part of screen updated. */
-  }
-  else {
-     /* The updates look a bit cleaner when reset to top of the screen
-     * if nothing had changed on the screen in this call to X_update_screen.
-      */
-     yloop = -1;
-    return(1);
-  }
+/* update the cursor. We do this here to avoid the cursor 'running behind'
+       when using a fast key-repeat.
+*/
+	    if (y == cursor_row)
+	      X_update_cursor();
+	  }
+	XFlush(display);
+
+/*	X_printf("X: X_update_screen: %d lines updated\n",numdone);*/
+	
+	if (numdone) 
+	  {
+	    if (numscan==li)
+	      return 1;     /* changed, entire screen updated */
+	    else
+	      return 2;     /* changed, part of screen updated */
+	  }
+	else 
+	  {
+/* The updates look a bit cleaner when reset to top of the screen
+ * if nothing had changed on the screen in this call to screen_restore
+ */
+	    yloop = -1;
+	    return(1);
+	  }
+      }
+      break;
+      
+    case GRAPH:
+      {
+	DAC_entry color;
+	XColor xcol;
+	int i;
+
+	if (!is_mapped) 
+	  return 0;       /* no need to do anything... */
+
+	/* first update the colormap */
+	do
+	  {
+	    i=DAC_get_dirty_entry(&color);
+	    X_printf("X: X_redraw_screen(): DAC_get_dirty_entry()=%i\n", i);
+	    if(i!=-1)
+	      {
+		xcol.pixel=i;
+		xcol.red  =color.r<<10;
+		xcol.green=color.g<<10;
+		xcol.blue =color.b<<10;
+		xcol.flags=DoRed | DoGreen | DoBlue;
+
+		XStoreColor(display, vga256_cmap, &xcol);
+	      }
+	  }
+	while(i!=-1);
+
+	
+    	 {
+            int xx=-1,yy=-1,ww=-1,hh=-1;
+            unsigned int changed=0;
+            
+            while(vgaemu_update((unsigned char *)ximage_p->data,
+                                VGAEMU_UPDATE_METHOD_GET_CHANGES,
+                                &xx,&yy,&ww,&hh)==True)
+            {
+            
+            changed=1;
+            XPutImage(display,mainwindow,gc,ximage_p,xx,yy,xx,yy,ww,hh);
+            X_printf("X_update_screen(): %i pixel changes, redraw "
+			 "window is (%i,%i),(%i,%i)\n", 
+			 changed, xx, yy, ww, hh);
+
+            return changed;
+            }
+         }   
+      }
+      
+      return 1;	
+      break;
+    
+    default:
+      return(0);
+      break;
+    }
+    
+/*  return(0);	*//* compiler catch all */
 }
+
 
 
 /**************************************************************************/
@@ -767,24 +1234,61 @@ void X_change_mouse_cursor(void)
    * mouse.cursor_on is zero if the cursor is on! 
    */
   if (mouse.cursor_on != 0)
-    XDefineCursor(dpy, win, X_standard_cursor);
+    XDefineCursor(display, mainwindow, X_standard_cursor);
   else
-    XDefineCursor(dpy, win, X_mouse_cursor);
+    XDefineCursor(display, mainwindow, X_mouse_cursor);
 #endif    
 }
 
 #if CONFIG_X_MOUSE
+/* 
+ * DANG_BEGIN_FUNCTION set_mouse_position
+ *
+ * arguments: x,y
+ *
+ * returns: nothing
+ *
+ * description:
+ *  places the mouse on the right position
+ *  
+ * Not tested in X with graphics
+ * 
+ * DANG_END_FUNCTION
+ */ 
 static void set_mouse_position(int x, int y)
 {
-  /* XXX - This works in text mode only */
-   x = x*8/font_width;
-   y = y*8/font_height;
-  if ((x != mouse.x) || (y != mouse.y)) {
+  switch(video_mode)	/* only a conversion when in text-mode*/
+    {
+    case 0x00:
+    case 0x01:
+    case 0x02:
+    case 0x03:
+      /* XXX - this works in text mode only */
+      x = x*8/font_width;
+      y = y*8/font_height;
+      break;
+    case 0x13:
+      x*=2;
+      /* Dos expects 640x200 mouse coordinates! only in this videomode */
+      /* Some games don't... */
+      break;
+
+    default:
+      X_printf("set_mouse_position: Invalid video mode 0x%02x\n",video_mode);
+    }
+
+  if ((x != mouse.x) || (y!=mouse.y)) 
+    {
       mouse.x=x; 
       mouse.y=y;
       mouse_move();
    }
+/*
+  X_printf("Mouse x = %03i, y = %03i\n",mouse.x,mouse.y);
+*/
+/*printf("Bios Video_mode= 0x%02x\n",READ_BYTE(BIOS_VIDEO_MODE));*/
 }   
+
 
 static void set_mouse_buttons(int state) 
 {
@@ -796,8 +1300,10 @@ static void set_mouse_buttons(int state)
    mouse.rbutton = ((state & Button3Mask) != 0);
   if (mouse.lbutton != mouse.oldlbutton) 
     mouse_lb();
-  if (mouse.threebuttons && (mouse.mbutton != mouse.oldmbutton)) 
+
+  if (mouse.threebuttons && mouse.mbutton!=mouse.oldmbutton) 
     mouse_mb();
+
   if (mouse.rbutton != mouse.oldrbutton) 
     mouse_rb();
 }
@@ -874,7 +1380,8 @@ static void clear_selection_data(void)
 */
 static void clear_if_in_selection()
 {
-  X_printf("X:start selection , cursor at %d %d\n",cursor_col,cursor_row);
+  X_printf("X:clear check selection , cursor at %d %d\n",
+	   cursor_col,cursor_row);
   if (((sel_start_row <= cursor_row)&&(cursor_row <= sel_end_row)&&
        (sel_start_col <= cursor_col)&&(cursor_col <= sel_end_col)) ||
       /* cursor either inside selectio */
@@ -965,13 +1472,13 @@ static void save_selection_data(void)
     return;
     
   /* Inform the X server. */
-  XSetSelectionOwner(dpy, XA_PRIMARY, win, CurrentTime);
-  if (XGetSelectionOwner(dpy, XA_PRIMARY) != win)
+  XSetSelectionOwner(display, XA_PRIMARY, mainwindow, CurrentTime);
+  if (XGetSelectionOwner(display, XA_PRIMARY) != mainwindow)
   {
     X_printf("X: Couldn't get primary selection!\n");
     return;
 }
-  XChangeProperty(dpy, root_win, XA_CUT_BUFFER0, XA_STRING,
+  XChangeProperty(display, rootwindow, XA_CUT_BUFFER0, XA_STRING,
     8, PropModeReplace, sel_text, strlen(sel_text));
 
   X_printf("X: Selection, %d,%d->%d,%d, size=%d\n", 
@@ -1021,7 +1528,7 @@ static void send_selection(Time time, Window requestor, Atom target, Atom proper
 	  sel_text[i]=dos_to_latin[ sel_text[i] - 0x80 ];
 	} 
     X_printf("X: selection (latin): %s\n",sel_text);  
-    XChangeProperty(dpy, requestor, property, target, 8, PropModeReplace, 
+    XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
       sel_text, strlen(sel_text));
     e.xselection.property = property;
     X_printf("X: Selection sent to window 0x%lx as %s\n", 
@@ -1033,7 +1540,7 @@ static void send_selection(Time time, Window requestor, Atom target, Atom proper
     X_printf("X: Window 0x%lx requested unknown selection format %ld\n",
       (unsigned long) requestor, (unsigned long) target);
   }
-  XSendEvent(dpy, requestor, False, 0, &e);
+  XSendEvent(display, requestor, False, 0, &e);
 }
 #endif /* CONFIG_X_SELECTION */
 
@@ -1048,161 +1555,184 @@ void X_handle_events(void)
    static int busy = 0;
    XEvent e;
 
-   if (busy) return;
+  if (busy) 
+    return;
+
    busy=1;
 
-   while (XPending(dpy) > 0) {
-      XNextEvent(dpy,&e);
+  while (XPending(display) > 0) 
+    {
+      XNextEvent(display,&e);
 
-      switch(e.type) {
+      switch(e.type) 
+	{
        case Expose:  
-      X_printf("X: Expose event\n");
-      if (e.xexpose.count == 0)         /* Avoid redundant redraws. */
-        redraw_screen();
-                     break;
+	  X_printf("X: expose event\n");
+/*	  if(video_mode==0x13)
+	    {
+              XPutImage(display,mainwindow,gc,ximage_p,
+                        e.xexpose.x, e.xexpose.y,e.xexpose.x, e.xexpose.y,
+                        e.xexpose.width, e.xexpose.height);
+	    }
+	  else
+	    {
+	      if(e.xexpose.count == 0)
+		X_redraw_screen();
+	    }*/
+	  switch(get_vgaemu_type())
+	    {
+	    case GRAPH:
+	      XPutImage(display,mainwindow,gc,ximage_p,
+	                e.xexpose.x, e.xexpose.y,e.xexpose.x, e.xexpose.y,
+	                e.xexpose.width, e.xexpose.height);
+	      break;
+	      
+	    default:    /* case TEXT: */
+	      {
+	        if(e.xexpose.count == 0)
+	          X_redraw_screen();
+	      }
+	      break;
+	    }
+	  break;
 
-    case MapNotify:
-      X_printf("X: Window mapped\n");
-      is_mapped = TRUE;
-                     break;
+	case UnmapNotify:
+	  X_printf("X: window unmapped\n");
+	  is_mapped = FALSE;
+	  break;
+	  
+	case MapNotify:
+	  X_printf("X: window mapped\n");
+	  is_mapped = TRUE;
+	  break;
+	  
+	case FocusIn:
+	  X_printf("X: focus in\n");
+	  have_focus = TRUE;
+	  redraw_cursor();
+	  break;
 
-    case UnmapNotify:
-      X_printf("X: Window unmapped\n");
-      is_mapped = FALSE;
-                     break;
+	case FocusOut:
+	  X_printf("X: focus out\n");
+	  have_focus = FALSE;
+	  blink_state = TRUE;
+	  blink_count = config.X_blinkrate;
+	  redraw_cursor();
+	  break;
 
-       case FocusIn:
-      X_printf("X: Focus in\n");
-      have_focus = TRUE;
-      redraw_cursor();
-                     break;
-
-       case FocusOut:
-      X_printf("X: Focus out\n");
-      have_focus = FALSE;
-      redraw_cursor();
-                     break;
-
-    case DestroyNotify:
-      error("X: Window got destroyed!\n");
-      leavedos(99);
-      break;
-
-    case ClientMessage:
-       /* If we get a client message which has the value of the delete
-        * atom, it means the window manager wants us to die.
-        */
-      if (e.xclient.data.l[0] == delete_atom) {
-        error("X: Got delete message!\n");
-	/* XXX - Is it ok to call this from a SIGALRM handler? */
-      	leavedos(0);    
-      }
-                     break;
+	case DestroyNotify:
+	  error("X: Window got destroyed!\n");
+	  leavedos(99);
+	  break;
+	  
+	case ClientMessage:
+	  /* If we get a client message which has the value of the delete
+	   * atom, it means the window manager wants us to die.
+	   */
+	  if (e.xclient.data.l[0] == delete_atom) {
+	    error("X: Got delete message!\n");
+	    /* XXX - Is it ok to call this from a SIGALRM handler? */
+	    leavedos(0);    
+	  }
+	  break;
 
     /* Selection-related events */
-
 #if CONFIG_X_SELECTION
     /* The user made a selection in another window, so our selection
      * data is no longer needed. 
 */
-    case SelectionClear:
-      clear_selection_data();
-                    break;
-                    
-    case SelectionNotify: 
-       scr_paste_primary(dpy,e.xselection.requestor,
-           e.xselection.property,True);
-       X_printf("X: SelectionNotify event\n");
-		    break;
-		    
-    /* Some other window wants to paste our data, so send it. */
-    case SelectionRequest:
-      send_selection(e.xselectionrequest.time,
-	e.xselectionrequest.requestor,
-        e.xselectionrequest.target,
-        e.xselectionrequest.property);
-		    break;
+	case SelectionClear:
+	  clear_selection_data();
+	  break;
+	case SelectionNotify: 
+	  scr_paste_primary(display,e.xselection.requestor,
+			    e.xselection.property,True);
+	  X_printf("X: SelectionNotify event\n");
+	  break;
+/* Some other window wants to paste our data, so send it. */
+	case SelectionRequest:
+	  send_selection(e.xselectionrequest.time,
+			 e.xselectionrequest.requestor,
+			 e.xselectionrequest.target,
+			 e.xselectionrequest.property);
+	  break;
 #endif /* CONFIG_X_SELECTION */
 		   
     /* Keyboard events */
 
-    case KeyPress:
-    case KeyRelease:
-#if 0    
-      /* Keyboard is disabled while selecting. */
-      if (doing_selection)              
-        break;
-#endif	  
+	case KeyPress:
+	case KeyRelease:
 /* 
       Clears the visible selection if the cursor is inside the selection
 */
-      if (visible_selection)
-	clear_if_in_selection();
-      X_process_key(&e.xkey);
-		    break;
-		    
+	  if (visible_selection)
+	    clear_if_in_selection();
+	  X_process_key(&e.xkey);
+	  break;
     /* A keyboard mapping has been changed (e.g., with xmodmap). */
-    case MappingNotify:  
-      X_printf("X: MappingNotify event\n");
-      XRefreshKeyboardMapping(&e.xmapping);
-		    break;
-		       
-    /* Mouse events */
-		     
-#if CONFIG_X_SELECTION
-    case ButtonPress:
-      if (e.xbutton.button == Button1)
-	start_selection(e.xbutton.x, e.xbutton.y);
-      else if (e.xbutton.button == Button3)
-	start_extend_selection(e.xbutton.x, e.xbutton.y);
-      set_mouse_buttons(e.xbutton.state|(0x80<<e.xbutton.button));
-                    break;
-                    
-    case ButtonRelease:
-      switch (e.xbutton.button)
-	{
-	case Button1 :
-	case Button3 : 
-	  end_selection();
+	case MappingNotify:  
+	  X_printf("X: MappingNotify event\n");
+	  XRefreshKeyboardMapping(&e.xmapping);
 	  break;
-	case Button2 :
-	  X_printf("X: mouse Button2Release\n");
-	  scr_request_selection(dpy,win,e.xbutton.time,
-				e.xbutton.x,
-				e.xbutton.y);
-	  break;
-                    }
-      set_mouse_buttons(e.xbutton.state&~(0x80<<e.xbutton.button));
-      break;
-      
-    case MotionNotify:
-      if (doing_selection)
-        extend_selection(e.xmotion.x, e.xmotion.y);
-      set_mouse_position(e.xmotion.x, e.xmotion.y);
-                    break;
 
-    case EnterNotify:
-      X_printf("X: Mouse entering window\n");
-      set_mouse_position(e.xcrossing.x, e.xcrossing.y);
-      set_mouse_buttons(e.xcrossing.state);
-      break;
-		                        
-    case LeaveNotify:                   /* Should this do anything? */
-      X_printf("X: Mouse leaving window\n");
-      break;
+/* Mouse events */
+#if CONFIG_X_SELECTION
+	case ButtonPress:
+	  if (e.xbutton.button == Button1)
+	    start_selection(e.xbutton.x, e.xbutton.y);
+	  else if (e.xbutton.button == Button3)
+	    start_extend_selection(e.xbutton.x, e.xbutton.y);
+	  set_mouse_position(e.xmotion.x,e.xmotion.y); /*root@sjoerd*/
+	  set_mouse_buttons(e.xbutton.state|(0x80<<e.xbutton.button));
+	  break;
+	  
+	case ButtonRelease:
+	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
+	  switch (e.xbutton.button)
+	    {
+	    case Button1 :
+	    case Button3 : 
+	      end_selection();
+	      break;
+	    case Button2 :
+	      X_printf("X: mouse Button2Release\n");
+	      scr_request_selection(display,mainwindow,e.xbutton.time,
+				    e.xbutton.x,
+				    e.xbutton.y);
+	      break;
+	    }
+	  set_mouse_buttons(e.xbutton.state&~(0x80<<e.xbutton.button));
+	  break;
+	  
+	case MotionNotify:
+	  if (doing_selection)
+	    extend_selection(e.xmotion.x, e.xmotion.y);
+	  set_mouse_position(e.xmotion.x, e.xmotion.y);
+	  break;
+	  
+	case EnterNotify:
+	  X_printf("X: Mouse entering window\n");
+	  set_mouse_position(e.xcrossing.x, e.xcrossing.y);
+	  set_mouse_buttons(e.xcrossing.state);
+	  break;
+	  
+	case LeaveNotify:                   /* Should this do anything? */
+	  X_printf("X: Mouse leaving window\n");
+	  break;
 #endif /* CONFIG_X_SELECTION */
-#if CONFIG_X_MOUSE
-#endif /* CONFIG_X_MOUSE */
-      }
-   }
+/* some weirder things... */
+		     
+	}
+    }
    busy=0;
 #if CONFIG_X_MOUSE  
    mouse_event();
 #endif  
-}
+ }
 
 
-struct video_system Video_X = {
+struct video_system Video_X = 
+{
    0,                /* is_mapped */
    X_init,         
    X_close,      

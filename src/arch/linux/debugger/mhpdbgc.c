@@ -84,7 +84,7 @@ static unsigned int addrmax;
 static struct symbl2_entry symbl2_table[MAXSYM];
 static unsigned int last_symbol2 = 0;
 static unsigned int symbl2_org = 0;
-static unsigned int symbl2_end = 0;
+/* static unsigned int symbl2_end = 0; */
 
 /* constants */
 static const struct cmd_db cmdtab[] = {
@@ -200,7 +200,6 @@ static void mhp_rusermap(int argc, char *argv[])
 {
   FILE * ifp;
   unsigned char bytebuf[IBUFS];
-  unsigned long a1;
   unsigned long org;
   unsigned int	seg;
   unsigned int	off;
@@ -212,7 +211,7 @@ static void mhp_rusermap(int argc, char *argv[])
      return;
   }
 
-  sscanf(argv[1], "%x", &org);
+  sscanf(argv[1], "%lx", &org);
   symbl2_org = org;
 
   ifp = fopen(argv[2], "r");
@@ -245,7 +244,7 @@ static void mhp_rusermap(int argc, char *argv[])
      symbl2_table[last_symbol2].seg  = seg + (symbl2_org >> 4);
      symbl2_table[last_symbol2].off  = off;
      symbl2_table[last_symbol2].type = ' ';
-     sscanf(&bytebuf[17], "%s", &symbl2_table[last_symbol2].name);
+     sscanf(&bytebuf[17], "%s", (char *)&symbl2_table[last_symbol2].name);
      last_symbol2++;
   }
   fclose(ifp);
@@ -276,7 +275,7 @@ static void mhp_rmapfile(int argc, char *argv[])
 	break;
      if (!strlen(bytebuf))
 	continue;
-     sscanf(&bytebuf[0], "%x", &a1);
+     sscanf(&bytebuf[0], "%lx", &a1);
 #ifdef __ELF__
      if (a1 < 0x08000000) continue;
 #else
@@ -287,7 +286,7 @@ static void mhp_rmapfile(int argc, char *argv[])
 #endif
      symbol_table[last_symbol].addr = a1;
      symbol_table[last_symbol].type = bytebuf[9];
-     sscanf(&bytebuf[11], "%s", &symbol_table[last_symbol].name);
+     sscanf(&bytebuf[11], "%s", (char *)&symbol_table[last_symbol].name);
      last_symbol++;
   }
   fclose(ifp);
@@ -430,7 +429,6 @@ static void mhp_trace_force(int argc, char * argv[])
 static void mhp_dis(int argc, char * argv[])
 {
    unsigned int nbytes;
-   unsigned long org;
    unsigned long seekval;
    int i,i2;
    unsigned char * buf = 0;
@@ -439,8 +437,11 @@ static void mhp_dis(int argc, char * argv[])
 
    if (argc > 1)
       seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off);
-   else
+   else {
       seekval = lastd;
+      seg = lastdseg;
+      off = lastdoff;
+   }
    buf = (unsigned char *) seekval;
 
    if (argc > 2)
@@ -477,6 +478,8 @@ static void mhp_dis(int argc, char * argv[])
       }
    }
    lastd = seekval + i;
+   lastdseg = seg;
+   lastdoff = off+i;
 }
 
 static void mhp_mode(int argc, char * argv[])
@@ -502,7 +505,7 @@ static void mhp_disasm(int argc, char * argv[])
    unsigned long seekval;
    int def_size;
    unsigned int bytesdone;
-   int i,i2;
+   int i;
    unsigned char * buf = 0;
    unsigned char bytebuf[IBUFS];
    unsigned char frmtbuf[IBUFS];
@@ -602,7 +605,7 @@ static void mhp_enter(int argc, char * argv[])
 	 break;
       workchrs[1] = *inputptr++;
       workchrs[2] = 0x00;
-      sscanf(workchrs, "%02x", &c);
+      sscanf(workchrs, "%02x", (unsigned int)&c);
       zapaddr[i1] = c;
       if (!workchrs[1])
 	 break;
@@ -625,10 +628,10 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1)
       *o1 = LWORD(esp);
       return (void*) makeaddr(LWORD(ss), LWORD(esp));
    }
-   if (ul1 = lookup(a1, s1, o1)) {
+   if ((ul1 = lookup(a1, s1, o1))) {
       return (void*)ul1;
    }
-   if (ul1 = getaddr(a1)) {
+   if ((ul1 = getaddr(a1))) {
       *s1 = 0;
       *o1 = 0;
       return (void*)ul1;
@@ -687,8 +690,6 @@ int mhp_clearbp(unsigned long seekval)
 static void mhp_bp(int argc, char * argv[])
 {
    unsigned long seekval;
-   unsigned long org;
-   int i1;
    unsigned int seg;
    unsigned int off;
 

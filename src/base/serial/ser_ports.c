@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "emu.h"
@@ -162,7 +164,7 @@ void uart_fill(int num)
       
       /* Has it gone above the recieve FIFO trigger level? */
       if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger) {
-        s3_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
+        if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
         com[num].LSRqueued |= UART_LSR_DR;	/* Update queued LSR */
         serial_int_engine(num, RX_INTR);	/* Update interrupt status */
       }
@@ -172,7 +174,7 @@ void uart_fill(int num)
 
     com[num].rx_timeout = 0;			/* Reset receive timeout */
     com[num].LSRqueued |= UART_LSR_DR;		/* Update queued LSR */
-    s3_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
+    if(s3_printf) s_printf("SER%d: Func uart_fill requesting RX_INTR\n",num);
     serial_int_engine(num, RX_INTR);		/* Update interrupt status */
   }
 }
@@ -233,7 +235,7 @@ void ser_termios(int num)
 
   /* Return if not a tty */
   if (tcgetattr(com[num].fd, &com[num].newset) == -1) {
-    s1_printf("SER%d: Line Control: NOT A TTY.\n",num);
+    if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY.\n",num);
     return;
   }
   s_printf("SER%d: LCR = 0x%x, ",num,com[num].LCR);
@@ -394,7 +396,7 @@ void ser_termios(int num)
    */
   if (com[num].mouse) {
     com[num].LSRqueued |= UART_LSR_FE; 		/* Set framing error */
-    s3_printf("SER%d: Func ser_termios requesting LS_INTR\n",num);
+    if(s3_printf) s_printf("SER%d: Func ser_termios requesting LS_INTR\n",num);
     serial_int_engine(num, LS_INTR);		/* Update interrupt status */
   }
 #endif
@@ -610,7 +612,7 @@ static void put_tx(int num, int val)
     
       /* Is the FIFO full? */
       if (com[num].rx_buf_bytes >= com[num].rx_fifo_size) {
-        s3_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
+        if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
         com[num].LSR |= UART_LSR_OE;		/* Indicate overrun error */
         com[num].LSRqueued |= UART_LSR_OE;	/* Update queued LSR bits */
         serial_int_engine(num, LS_INTR);	/* Update interrupt status */
@@ -630,7 +632,7 @@ static void put_tx(int num, int val)
         if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger) {
           com[num].rx_timeout = 0;
           com[num].LSRqueued |= UART_LSR_DR;	/* Flag Data Ready bit */
-          s3_printf("SER%d: Func put_tx loopback requesting RX_INTR\n",num);
+          if(s3_printf) s_printf("SER%d: Func put_tx loopback requesting RX_INTR\n",num);
           serial_int_engine(num, RX_INTR);	/* Update interrupt status */
         }
       }
@@ -641,14 +643,14 @@ static void put_tx(int num, int val)
       if (com[num].LSR & UART_LSR_DR) {		/* Was data waiting? */
         com[num].LSR |= UART_LSR_OE;		/* Indicate overrun error */
         com[num].LSRqueued |= UART_LSR_OE;	/* Update queued LSR bits */
-        s3_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
+        if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
         serial_int_engine(num, LS_INTR);	/* Update interrupt status */
       }
       else { 
         com[num].LSR |= UART_LSR_DR; 		/* Flag Data Ready bit */
         com[num].LSRqueued |= UART_LSR_DR; 	/* Flag Data Ready bit */
         com[num].rx_timeout = 0;
-        s3_printf("SER%d: Func put_tx loopback requesting RX_INTR\n",num);
+        if(s3_printf) s_printf("SER%d: Func put_tx loopback requesting RX_INTR\n",num);
         serial_int_engine(num, RX_INTR);	/* Update interrupt status */
       }
     }
@@ -717,7 +719,7 @@ put_fcr(int num, int val)
 
     /* Don't need to emulate RXRDY,TXRDY pins, used for bus-mastering. */
     if (val & UART_FCR_DMA_SELECT) {
-      s1_printf("SER%d: FCR: Attempt to change RXRDY & TXRDY pin modes\n",num);
+      if(s1_printf) s_printf("SER%d: FCR: Attempt to change RXRDY & TXRDY pin modes\n",num);
     }
 
     /* Assign special variable for trigger value for easy access. */
@@ -727,7 +729,7 @@ put_fcr(int num, int val)
     case UART_FCR_TRIGGER_8:   com[num].rx_fifo_trigger = 8;	break;
     case UART_FCR_TRIGGER_14:  com[num].rx_fifo_trigger = 14;	break;
     }
-    s2_printf("SER%d: FCR: Trigger Level is %d\n",num,com[num].rx_fifo_trigger);
+    if(s2_printf) s_printf("SER%d: FCR: Trigger Level is %d\n",num,com[num].rx_fifo_trigger);
   }
   else {				/* FIFO are disabled */
     /* If uart was set in 16550 mode, this will reset it back to 16450 mode.
@@ -773,7 +775,7 @@ put_mcr(int num, int val)
 {
   static int newmsr, delta;
   static int changed;
-  static int control, operation;
+  static int control;
   changed = com[num].MCR ^ val;			/* Bitmask of changed bits */
   com[num].MCR = val & UART_MCR_VALID;		/* Set valid bits for MCR */
 
@@ -802,7 +804,7 @@ put_mcr(int num, int val)
     com[num].MSRqueued = com[num].MSR;
 
     /* Set the MSI interrupt flag if loopback changed the modem status */
-    s3_printf("SER%d: Func put_mcr loopback requesting MS_INTR\n",num);
+    if(s3_printf) s_printf("SER%d: Func put_mcr loopback requesting MS_INTR\n",num);
     if (delta) serial_int_engine(num, MS_INTR);    /* Update interrupt status */
 
   }
@@ -818,7 +820,7 @@ put_mcr(int num, int val)
 
     /* Update DTR setting on serial device only if DTR state changed */
     if (changed & UART_MCR_DTR) {
-      s1_printf("SER%d: MCR: DTR -> %d\n",num,(val & UART_MCR_DTR));
+      if(s1_printf) s_printf("SER%d: MCR: DTR -> %d\n",num,(val & UART_MCR_DTR));
       control = TIOCM_DTR;
       if (val & UART_MCR_DTR) 
         ioctl(com[num].fd, TIOCMBIS, &control);
@@ -828,7 +830,7 @@ put_mcr(int num, int val)
 
     /* Update RTS setting on serial device only if RTS state changed */
     if ((changed & UART_MCR_RTS) && !com[num].system_rtscts) {
-      s1_printf("SER%d: MCR: RTS -> %d\n",num,(val & UART_MCR_RTS));
+      if(s1_printf) s_printf("SER%d: MCR: RTS -> %d\n",num,(val & UART_MCR_RTS));
       control = TIOCM_RTS;
       if (val & UART_MCR_RTS)
         ioctl(com[num].fd, TIOCMBIS, &control);
@@ -873,7 +875,7 @@ put_lsr(int num, int val)
   com[num].LSRqueued = com[num].LSR;
 
   /* Update interrupt status */
-  s3_printf("SER%d: Func put_lsr caused int_type = %d\n",num,int_type);
+  if(s3_printf) s_printf("SER%d: Func put_lsr caused int_type = %d\n",num,int_type);
   serial_int_engine(num, int_type);
 }
 
@@ -892,7 +894,7 @@ put_msr(int num, int val)
   
   /* Update interrupt status */
   if (com[num].MSRqueued & UART_MSR_DELTA) {
-    s3_printf("SER%d: Func put_msr requesting MS_INTR\n",num);
+    if(s3_printf) s_printf("SER%d: Func put_msr requesting MS_INTR\n",num);
     serial_int_engine(num, MS_INTR);
   }
   else {
@@ -922,11 +924,11 @@ do_serial_in(int num, int address)
 /*case UART_DLL:*/      /* or Read from Baudrate Divisor Latch LSB */
     if (com[num].DLAB) {	/* Is DLAB set? */
       val = com[num].dll;	/* Then read Divisor Latch LSB */
-      s1_printf("SER%d: Read Divisor LSB = 0x%x\n",num,val);
+      if(s1_printf) s_printf("SER%d: Read Divisor LSB = 0x%x\n",num,val);
     }
     else {
       val = get_rx(num);	/* Else, read Received Byte Register */
-      s2_printf("SER%d: Receive 0x%x\n",num,val);
+      if(s2_printf) s_printf("SER%d: Receive 0x%x\n",num,val);
     }
     break;
 
@@ -934,49 +936,49 @@ do_serial_in(int num, int address)
 /*case UART_DLM:*/      /* or Read from Baudrate Divisor Latch MSB */
     if (com[num].DLAB) {	/* Is DLAB set? */
       val = com[num].dlm;	/* Then read Divisor Latch MSB */
-      s1_printf("SER%d: Read Divisor MSB = 0x%x\n",num,val);
+      if(s1_printf) s_printf("SER%d: Read Divisor MSB = 0x%x\n",num,val);
     }
     else {
       val = com[num].IER;	/* Else, read Interrupt Enable Register */
-      s1_printf("SER%d: Read IER = 0x%x\n",num,val);
+      if(s1_printf) s_printf("SER%d: Read IER = 0x%x\n",num,val);
     }
     break;
 
   case UART_IIR:	/* Read from Interrupt Identification Register */
     val = com[num].IIR;
     if ((com[num].IIR & UART_IIR_ID) == UART_IIR_THRI) {
-      s2_printf("SER%d: Read IIR = 0x%x (THRI now cleared)\n",num,val);
+      if(s2_printf) s_printf("SER%d: Read IIR = 0x%x (THRI now cleared)\n",num,val);
       com[num].int_condition &= ~TX_INTR;	/* Unflag TX int condition */
       serial_int_engine(num, 0);		/* Update interrupt status */
     }
     else {
-      s2_printf("SER%d: Read IIR = 0x%x\n",num,val);
+      if(s2_printf) s_printf("SER%d: Read IIR = 0x%x\n",num,val);
     }
     break;
 
   case UART_LCR:	/* Read from Line Control Register */
     val = com[num].LCR;
-    s2_printf("SER%d: Read LCR = 0x%x\n",num,val);
+    if(s2_printf) s_printf("SER%d: Read LCR = 0x%x\n",num,val);
     break;
 
   case UART_MCR:	/* Read from Modem Control Register */
     val = com[num].MCR;
-    s2_printf("SER%d: Read MCR = 0x%x\n",num,val);
+    if(s2_printf) s_printf("SER%d: Read MCR = 0x%x\n",num,val);
     break;
 
   case UART_LSR:	/* Read from Line Status Register */
     val = get_lsr(num);
-    s2_printf("SER%d: Read LSR = 0x%x\n",num,val);
+    if(s2_printf) s_printf("SER%d: Read LSR = 0x%x\n",num,val);
     break;
 
   case UART_MSR:	/* Read from Modem Status Register */
     val = get_msr(num);
-    s2_printf("SER%d: Read MSR = 0x%x\n",num,val);
+    if(s2_printf) s_printf("SER%d: Read MSR = 0x%x\n",num,val);
     break;
 
   case UART_SCR:   	/* Read from Scratch Register */
     val = com[num].SCR;
-    s2_printf("SER%d: Read SCR = 0x%x\n",num,val);
+    if(s2_printf) s_printf("SER%d: Read SCR = 0x%x\n",num,val);
     break;
 
   default:		/* The following code should never execute. */
@@ -1004,15 +1006,15 @@ do_serial_out(int num, int address, int val)
 /*case UART_DLL:*/	/* or write to Baudrate Divisor Latch LSB */
     if (com[num].DLAB) {	/* If DLAB set, */
       com[num].dll = val;	/* then write to Divisor Latch LSB */
-      s2_printf("SER%d: Divisor LSB = 0x%02x\n", num, val);
+      if(s2_printf) s_printf("SER%d: Divisor LSB = 0x%02x\n", num, val);
     }
     else {
       put_tx(num, val);		/* else, Transmit character (write to THR) */
       #ifdef SER_DEBUG_HEAVY
         if (com[num].MCR & UART_MCR_LOOP)
-          s2_printf("SER%d: Transmit 0x%x Loopback\n",num,val);
+          if(s2_printf) s_printf("SER%d: Transmit 0x%x Loopback\n",num,val);
         else
-          s2_printf("SER%d: Transmit 0x%x\n",num,val);
+          if(s2_printf) s_printf("SER%d: Transmit 0x%x\n",num,val);
       #endif
     }
     break;
@@ -1021,7 +1023,7 @@ do_serial_out(int num, int address, int val)
 /*case UART_DLM:*/	/* or write to Baudrate Divisor Latch MSB */
     if (com[num].DLAB) {	/* If DLAB set, */
       com[num].dlm = val;	/* then write to Divisor Latch MSB */
-      s2_printf("SER%d: Divisor MSB = 0x%x\n", num, val);
+      if(s2_printf) s_printf("SER%d: Divisor MSB = 0x%x\n", num, val);
     }
     else {			/* Else, write to Interrupt Enable Register */
       if ( !(com[num].IER & 2) && (val & 2) ) {
@@ -1029,13 +1031,13 @@ do_serial_out(int num, int address, int val)
         com[num].tx_trigger = 1;
       }
       com[num].IER = (val & 0xF);	/* Write to IER */
-      s1_printf("SER%d: IER = 0x%x\n", num, val);
+      if(s1_printf) s_printf("SER%d: IER = 0x%x\n", num, val);
       serial_int_engine(num, 0);		/* Update interrupt status */
     }
     break;
 
   case UART_FCR:	/* Write to FIFO Control Register */
-    s1_printf("SER%d: FCR = 0x%x\n",num,val);
+    if(s1_printf) s_printf("SER%d: FCR = 0x%x\n",num,val);
     put_fcr(num, val);
     break;
 
@@ -1045,22 +1047,22 @@ do_serial_out(int num, int address, int val)
     break;
 
   case UART_MCR:	/* Write to Modem Control Register */
-    s1_printf("SER%d: MCR = 0x%x\n",num,val);
+    if(s1_printf) s_printf("SER%d: MCR = 0x%x\n",num,val);
     put_mcr(num, val);
     break;
 
   case UART_LSR:	/* Write to Line Status Register */
     put_lsr(num, val);		/* writeable only to lower 6 bits */
-    s1_printf("SER%d: LSR = 0x%x -> 0x%x\n",num,val,com[num].LSR);
+    if(s1_printf) s_printf("SER%d: LSR = 0x%x -> 0x%x\n",num,val,com[num].LSR);
     break;
 
   case UART_MSR:	/* Write to Modem Status Register */
     put_msr(num, val);		/* writeable only to lower 4 bits */
-    s1_printf("SER%d: MSR = 0x%x -> 0x%x\n",num,val,com[num].MSR);
+    if(s1_printf) s_printf("SER%d: MSR = 0x%x -> 0x%x\n",num,val,com[num].MSR);
     break;
 
   case UART_SCR:	/* Write to Scratch Register */
-    s1_printf("SER%d: SCR = 0x%x\n",num,val);
+    if(s1_printf) s_printf("SER%d: SCR = 0x%x\n",num,val);
     com[num].SCR = val;
     break;
 

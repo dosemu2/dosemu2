@@ -480,183 +480,9 @@ extern void     vm86_GP_fault();
 extern void     config_init(int argc, char **argv);
 extern void	timer_int_engine(void);
 
-void io_select_init(void);
+extern void io_select_init(void);
 
 static int      special_nowait = 0;
-
-
-
-static int      poll_io = 1;	/* polling io, default on */
-
-
-#ifdef __NetBSD__
-
-sigjmp_buf handlerbuf;
-
-int
-vm86(register struct vm86_struct *vm86p)
-{
-    int retval;
-
-    retval = sigsetjmp(handlerbuf, 1);
-    if (retval == 0) {
-	i386_vm86(vm86p);	/* never returns, except via signal */
-	I_printf("Return from i386_vm86()??\n");
-	vm86_GP_fault();
-	abort();			/* WTF? */
-    }
-    return retval & ~0x80000000;
-}
-
-void
-vm86_return(int sig, int code, struct sigcontext *scp)
-{
-    vm86s.substr.regs.vmsc = *scp;	/* copy vm86 registers first... */
-    siglongjmp(handlerbuf, code | 0x80000000); /* then simulate return */
-}
-#endif
-
-/*
- * DANG_BEGIN_FUNCTION run_vm86
- * 
- * description: Here is where DOSEMU runs VM86 mode with the vm86() call
- * which also has the registers that it will be called with. It will stop
- * vm86 mode for many reasons, like trying to execute an interrupt, doing
- * port I/O to ports not opened for I/O, etc ...
- * 
- * DANG_END_FUNCTION
- */
-void
-run_vm86(void)
-{
-    /* FIXME: why static *? */
-    static int      retval;
-    static u_short  next_signal = 0;
-    /*
-     * always invoke vm86() with this call.  all the messy stuff will be
-     * in here.
-     */
-
-    dma_trans();
-    /* FIXME: is this the optimal place for this??????? */
-
-    in_vm86 = 1;
-#if 1 /* <ESC> BUG FIXER (if 1) */
-    #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
-    #define OVERLOAD_THRESHOULD1  238608 /* good average value */
-    #define OVERLOAD_THRESHOULD0  100000 /* minum acceptable value */
-    if ((pic_icount||pic_dos_time<pic_sys_time)
-        && ((pic_sys_time - pic_dos_time) < OVERLOAD_THRESHOULD1) )
-       REG(eflags) |= (VIP);
-    else REG(eflags) &= ~(VIP);
-#else
-    if (pic_icount||pic_dos_time<pic_sys_time)
-	REG(eflags) |= (VIP);
-#endif
-    /* FIXME: this needs to be clarified and rewritten */
-
-#if 0
-#define PFLAG(f)  if (REG(eflags)&(f)) k_printf(#f" ")
-
-  k_printf("FLAGS BEFOR: ");
-  PFLAG(CF);
-  PFLAG(PF);
-  PFLAG(AF);
-  PFLAG(ZF);
-  PFLAG(SF);
-  PFLAG(TF);
-  PFLAG(IF);
-  PFLAG(DF);
-  PFLAG(OF);
-  PFLAG(NT);
-  PFLAG(RF);
-  PFLAG(VM);
-  PFLAG(AC);
-  PFLAG(VIF);
-  PFLAG(VIP);
-  k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
-#endif
-
-    retval = DO_VM86(&vm86s);
-
-#if 0
-  k_printf("FLAGS AFTER: ");
-  PFLAG(CF);
-  PFLAG(PF);
-  PFLAG(AF);
-  PFLAG(ZF);
-  PFLAG(SF);
-  PFLAG(TF);
-  PFLAG(IF);
-  PFLAG(DF);
-  PFLAG(OF);
-  PFLAG(NT);
-  PFLAG(RF);
-  PFLAG(VM);
-  PFLAG(AC);
-  PFLAG(VIF);
-  PFLAG(VIP);
-  k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
-#endif
-
-    in_vm86 = 0;
-    switch VM86_TYPE
-	(retval) {
-    case VM86_UNKNOWN:
-	vm86_GP_fault();
-	break;
-    case VM86_STI:
-	I_printf("Return from vm86() for timeout\n");
-	pic_iret();
-	break;
-    case VM86_INTx:
-#ifdef USE_MHPDBG
-	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
-#endif
-	do_int(VM86_ARG(retval));
-	break;
-#ifdef USE_MHPDBG
-    case VM86_TRAP:
-	if(!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
-	   do_int(VM86_ARG(retval));
-	break;
-#endif
-#ifdef USE_VM86PLUS
-    case VM86_PICRETURN:
-        I_printf("Return for FORCE_PIC\n");
-        break;
-#endif
-    case VM86_SIGNAL:
-	I_printf("Return for SIGNAL\n");
-	break;
-    default:
-	error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
-	fatalerr = 4;
-	}
-
-    handle_signals();
-#ifdef USE_MHPDBG  
-    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
-#endif
-    /*
-     * This is here because ioctl() is non-reentrant, and signal handlers
-     * may have to use ioctl().  This results in a possible (probable)
-     * time lag of indeterminate length (and a bad return value). Ah, life
-     * isn't perfect.
-     * 
-     * I really need to clean up the queue functions to use real queues.
-     */
-    if (iq.queued)
-	do_queued_ioctl();
-    /* update the pic to reflect IEF */
-    if (REG(eflags) & VIF_MASK) {
-	if (pic_iflag)
-	    pic_sti();
-    } else {
-	if (!pic_iflag)
-	    pic_cli();		/* pic_iflag=0 => enabled */
-    }
-}
 
 void 
 boot(void)
@@ -749,12 +575,16 @@ SIG_init()
 #ifdef SIG
     /* Get in touch with my Silly Interrupt Driver */
     if (config.sillyint) {
+#ifndef REQUIRES_EMUMODULE
 	char            devname[20];
+#endif
 	char            prio_table[] =
 	{9, 10, 11, 12, 14, 15, 3, 4, 5, 6, 7};
 	int             i,
-	                irq,
-	                fd;
+#ifndef REQUIRES_EMUMODULE
+	                fd,
+#endif
+	                irq;
 	SillyG_t       *sg = SillyG_;
 	for (i = 0; i < sizeof(prio_table); i++) {
 	    irq = prio_table[i];
@@ -796,7 +626,7 @@ SIG_init()
 		    sg->fd = fd;
 #endif				/* NOT REQUIRES_EMUMODULE */
 		    sg->irq = irq;
-		    g_printf("SIG: IRQ%d, enabling PIC-level %d\n", irq, pic_irq_list[irq]);
+		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
 #ifdef REQUIRES_EMUMODULE
 		    { extern int SillyG_do_irq(void);
 		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0);
@@ -1060,7 +890,7 @@ leavedos(int sig)
     extern int errno;
 
     static int recurse_check = 0;
-    if (recurse_check) return;
+    if (recurse_check);
     recurse_check = 1;
     priv_on();
 #if 1 /* BUG CATCHER */
@@ -1176,149 +1006,11 @@ be_root(void)
     } else
 	return 0;
 }
-/* return status of io_perm call */
-int
-set_ioperm(int start, int size, int flag)
-{
-    int             tmp;
 
-    if (!i_am_root)
-	return -1;		/* don't bother */
 
-    tmp = ioperm(start, size, flag);
-    return tmp;
-}
 
-/*
- * DANG_BEGIN_FUNCTION io_select_init
- * 
- * description: Initialize fd_sets to NULL for both SIGIO and
- * NON-SIGIO.
- * 
- * DANG_END_FUNCTION
- */
-void 
-io_select_init(void) {
-    FD_ZERO(&fds_sigio);	/* initialize both fd_sets to 0 */
-    FD_ZERO(&fds_no_sigio);
-}
 
-/*
- * DANG_BEGIN_FUNCTION add_to_io_select
- * 
- * arguments: fd - File handle to add to select statment. want_sigio -
- * Specifiy whether you want SIGIO (1) if it's available, or not (0).
- * 
- * description: Add file handle to one of 2 select FDS_SET's depending on
- * whether the kernel can handle SIGIO.
- * 
- * DANG_END_FUNCTION
- */
-void 
-add_to_io_select(int new_fd, u_char want_sigio)
-{
-    if (use_sigio && want_sigio) {
-	int             flags;
-	flags = fcntl(new_fd, F_GETFL);
-	fcntl(new_fd, F_SETOWN, getpid());
-	fcntl(new_fd, F_SETFL, flags | use_sigio);
-	FD_SET(new_fd, &fds_sigio);
-	g_printf("GEN: fd=%d gets SIGIO\n", new_fd);
-    } else {
-	FD_SET(new_fd, &fds_no_sigio);
-	g_printf("GEN: fd=%d does not get SIGIO\n", new_fd);
-	not_use_sigio++;
-    }
-}
 
-/*
- * DANG_BEGIN_FUNCTION remove_from_io_select
- * 
- * arguments: fd - File handle to remove from select statment. used_sigio -
- * Specifiy whether you used SIGIO (1) if it's available, or not (0).
- * 
- * description: Remove a file handle from one of 2 select FDS_SET's depending
- * on whether the kernel can handle SIGIO.
- * 
- * DANG_END_FUNCTION
- */
-void 
-remove_from_io_select(int new_fd, u_char used_sigio)
-{
-    if (new_fd < 0) {
-	g_printf("GEN: removing bogus fd %d (ignoring)\n", new_fd);
-	return;
-    }
-    if (use_sigio && used_sigio) {
-	int             flags;
-	flags = fcntl(new_fd, F_GETFL);
-	fcntl(new_fd, F_SETOWN, NULL);
-	fcntl(new_fd, F_SETFL, flags & ~(use_sigio));
-	FD_CLR(new_fd, &fds_sigio);
-	g_printf("GEN: fd=%d removed from select SIGIO\n", new_fd);
-    } else {
-	FD_CLR(new_fd, &fds_no_sigio);
-	g_printf("GEN: fd=%d removed from select\n", new_fd);
-	not_use_sigio++;
-    }
-}
-
-#if 1
-int
-do_ioctl(int fd, int req, int param3)
-{
-    int             tmp;
-
-    if (in_sighandler && in_ioctl) {
-	k_printf("KBD: do_ioctl(): in ioctl %d 0x%04x 0x%04x.\nqueuing: %d 0x%04x 0x%04x\n",
-		 curi.fd, curi.req, curi.param3, fd, req, param3);
-	queue_ioctl(fd, req, param3);
-	errno = EDEADLOCK;
-#ifdef SYNC_ALOT
-	fflush(stdout);
-	sync();			/* for safety */
-#endif
-	return -1;
-    } else {
-	in_ioctl = 1;
-	curi.fd = fd;
-	curi.req = req;
-	curi.param3 = param3;
-	if (iq.queued) {
-	    k_printf("KBD: detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
-		     iq.fd, iq.req, iq.param3);
-	}
-	k_printf("KBD: IOCTL fd=0x%x, req=0x%x, param3=0x%x\n", fd, req, param3);
-	tmp = ioctl(fd, req, param3);
-	in_ioctl = 0;
-	return tmp;
-    }
-}
-
-int
-queue_ioctl(int fd, int req, int param3)
-{
-    if (iq.queued) {
-	error("ioctl already queued: %d 0x%04x 0x%04x\n", iq.fd, iq.req,
-	      iq.param3);
-	return 1;
-    }
-    iq.fd = fd;
-    iq.req = req;
-    iq.param3 = param3;
-    iq.queued = 1;
-
-    return 0;			/* success */
-}
-
-void
-do_queued_ioctl(void)
-{
-    if (iq.queued) {
-	iq.queued = 0;
-	do_ioctl(iq.fd, iq.req, iq.param3);
-    }
-}
 
 void
 activate(int con_num)
@@ -1329,7 +1021,6 @@ activate(int con_num)
     } else
 	do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
 }
-#endif
 
 #ifdef __NetBSD__
 void
@@ -1345,62 +1036,6 @@ usleep(u_int microsecs)
     return;
 }
 
-/* lifted from linux kernel, ioport.c */
 
-/* Set EXTENT bits starting at BASE in BITMAP to value TURN_ON. */
-static void
-set_bitmap(unsigned long *bitmap, short base, short extent, int new_value)
-{
-	int mask;
-	unsigned long *bitmap_base = bitmap + (base >> 5);
-	unsigned short low_index = base & 0x1f;
-	int length = low_index + extent;
-
-	if (low_index != 0) {
-		mask = (~0 << low_index);
-		if (length < 32)
-				mask &= ~(~0 << length);
-		if (new_value)
-			*bitmap_base++ |= mask;
-		else
-			*bitmap_base++ &= ~mask;
-		length -= 32;
-	}
-
-	mask = (new_value ? ~0 : 0);
-	while (length >= 32) {
-		*bitmap_base++ = mask;
-		length -= 32;
-	}
-
-	if (length > 0) {
-		mask = ~(~0 << length);
-		if (new_value)
-			*bitmap_base++ |= mask;
-		else
-			*bitmap_base++ &= ~mask;
-	}
-}
-
-#include <machine/sysarch.h>
-#include <machine/pcb.h>
-
-int
-ioperm(unsigned int startport, unsigned int howmany, int onoff)
-{
-    unsigned long bitmap[NIOPORTS/32];
-    int err;
-
-    if (startport + howmany > NIOPORTS)
-	return ERANGE;
-
-    if (err = i386_get_ioperm(bitmap))
-	return err;
-    i_printf("%sabling %x->%x\n", onoff ? "en" : "dis", startport, startport+howmany);
-    /* now diddle the current bitmap with the request */
-    set_bitmap(bitmap, startport, howmany, !onoff);
-
-    return i386_set_ioperm(bitmap);
-}
 
 #endif

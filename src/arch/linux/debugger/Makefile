@@ -15,10 +15,10 @@ ALL = $(CFILES) $(HFILES) README.dosdebug README.recover Changelog
 # All object-files are included here.
 OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
 
-all: lib $(TOPDIR)/dosdebug
+all: lib $(BINPATH)/bin/dosdebug
 
-$(TOPDIR)/dosdebug: dosdebug.c
-	$(CC) -O2 -I$(TOPDIR)/include dosdebug.c -o $(TOPDIR)/dosdebug
+$(BINPATH)/bin/dosdebug: dosdebug.c
+	$(CC) -O2 -I$(TOPDIR)/include dosdebug.c -o $(BINPATH)/bin/dosdebug
 
 
 install:

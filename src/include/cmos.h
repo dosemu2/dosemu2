@@ -10,6 +10,8 @@
 #ifndef CMOS_H
 #define CMOS_H
 
+#include "extern.h"
+
 #define CMOS_SEC	0	/* RTC time: seconds */
 #define CMOS_SECALRM	1	/* Alarm time: seconds */
 #define CMOS_MIN	2	/* RTC time: minutes */
@@ -48,11 +50,14 @@
 
 void cmos_write(int, int), cmos_init(void);
 int cmos_read(int);
+int cmos_date(int);
 
 struct CMOS {
   unsigned char subst[64];
   unsigned char flag[64];
   int address;
 };
+
+EXTERN struct CMOS cmos;
 
 #endif

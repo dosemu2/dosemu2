@@ -55,10 +55,12 @@ static const char *farith[8] =
   "fadd", "fmul", "fcom", "fcomp", "fsub", "fsubr", "fdiv", "fdivr"
 };
 
+#if 0 /* Jan 96 JES */
 static const char *d9[8] =
 {
   "flds", "fxch", "fsts", "fstps", "ftst/fxam", "fldc", "fmisc1", "fmisc2"
 };
+#endif
 
 static const char *f00[8] =
 {
@@ -196,7 +198,7 @@ static INLINE const unsigned char *mod_rm(FILE *out, const unsigned char *code,
   if (addr32)
     {
       char index[5];
-      const char *scale;
+      const char *scale="";
       const char *base;
 
       if ((rm >> 6) == 3)
@@ -296,6 +298,10 @@ static INLINE const unsigned char *mod_rm(FILE *out, const unsigned char *code,
 	  return code;
 	}
     }
+/* What should return be here? JES */
+    d86_printf("No Answer in mod_rm");
+    return 0;
+
 }
 
 static const unsigned char *mod_reg_rm(FILE *out, const unsigned char *code,

@@ -1,5 +1,5 @@
 
-CFILES=dosio.c shared.c disks.c utilities.c dos2linux.c
+CFILES=dosio.c ioctl.c shared.c disks.c utilities.c dos2linux.c dump.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

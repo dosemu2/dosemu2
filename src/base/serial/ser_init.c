@@ -30,6 +30,8 @@
 #include <sys/time.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #ifdef __linux__
 #include <linux/fs.h>
 #endif
@@ -427,7 +429,7 @@ static void do_ser_init(int num)
   com[num].rx_fifo_size = 16;		/* Size of receive FIFO to emulate */
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);	/* Initialize FIFOs */
 
-  s2_printf("SER%d: do_ser_init: running ser_termios\n",num);
+  if(s2_printf) s_printf("SER%d: do_ser_init: running ser_termios\n",num);
   ser_termios(num);			/* Set line settings now */
   modstat_engine(num);
 

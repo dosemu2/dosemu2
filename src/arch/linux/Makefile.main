@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1995/11/27 03:51:20 $
-# $Source: /usr/src/local/packages/dosemu/dosemu-0.63.0/src/arch/linux/RCS/Makefile.main,v $
-# $Revision: 1.2 $
+# $Date: 1995/05/06 16:24:53 $
+# $Source: /usr/src/dosemu0.60/RCS/Makefile,v $
+# $Revision: 2.41 $
 # $State: Exp $
 #
 # You should do a "make" to compile and a "make install" as root to
@@ -159,6 +159,8 @@ export CC         = gcc # I use gcc-specific features (var-arg macros, fr'instan
 endif
 ifdef do_DEBUG
 COPTFLAGS	=  -g -Wall
+else
+COPTFLAGS	= -Wall
 endif
 
 export LD=$(CC)
@@ -167,7 +169,7 @@ DEPENDS = dos.d emu.d
 
 
 # dosemu version
-LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+LIBDOSEMU = $(BINPATH)/bin/libdosemu
 
 EMUVER = $(VERSION).$(SUBLEVEL)
 export EMUVER
@@ -203,7 +205,7 @@ DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 #
 ###################################################################
 
-CLIENTSSUB=../commands/unix/clients
+CLIENTSSUB=clients
 
 ifndef REQUIRES_EMUMODULE
 OPTIONALSUBDIRS = dosext/net/v-net arch/$(ARCH)/syscallmgr arch/$(ARCH)/emumod\
@@ -223,9 +225,9 @@ SUBDIRS= include unused/boot \
 	$(CLIENTSSUB) unused/kernel
 
 ifndef REQUIRES_EMUMODULE
-REQUIRED=tools ../commands/unix/periph ../commands/dos
+REQUIRED=tools commands tools/periph
 else
-REQUIRED=tools ../commands/unix/periph ../commands/dos\
+REQUIRED=tools commands tools/periph\
 	arch/$(ARCH)/syscallmgr arch/$(ARCH)/emumod
 endif
 
@@ -254,7 +256,7 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 ###################################################################
 
-LIBPATH=../lib
+LIBPATH=lib
 
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
@@ -351,7 +353,7 @@ firstsimple:	include/config.h version dep simple
 endif
 
 ifdef ELF
-simple:	dossubdirs dos
+simple:	dossubdirs $(BINPATH)/bin/dos
 else
 simple:	dossubdirs dosstatic # libdosemu dos
 endif
@@ -374,7 +376,7 @@ warning2:
 	 echo "-> REQUIREMENTS for DOSEMU:"; \
 	 echo "    - gcc 2.5.8"; \
 	 echo "    - libc 4.5.21"; \
-	 echo "    - Linux 1.1.45"; \
+	 echo "    - Linux > 1.1.76"; \
 	 echo "    - 16 megabytes total memory+swap"; \
 	 echo ""; \
 	 echo "-> AUTOMATIC DETECTION:"; \
@@ -416,15 +418,11 @@ most: warning2 pausedelay config dep installnew
 
 itall: warning2 pausedelay config dep optionalsubdirs $(DOCS) installnew
 
-ifdef ELF
-all:	warnconf warning3 dos $(X2CEXE)
-else
-all:	warnconf warning3 dos libdosemu $(X2CEXE)
-endif
+all:	warnconf warning3 dosemu $(X2CEXE)
 
 debug:
-	rm dos
-	$(MAKE) dos
+	rm $(BINPATH)/bin/dos
+	$(MAKE) $(BINPATH)/bin/dos
 
 include/config.h: Makefile 
 ifeq (include/config.h,$(wildcard include/config.h))
@@ -444,7 +442,7 @@ dos.o: include/config.h
 x2dos.o: include/config.h x2dos.c
 	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
-DOSSTATICFILES = dosstatic.c emu.o data.o base/bios/bios.o
+DOSSTATICFILES = dosstatic.c emu.o data.o base/bios/bios.o env/video/vesabios.o
 
 dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
@@ -461,7 +459,7 @@ x2dos: x2dos.o
 	@echo "#!/bin/sh" > ../etc/xtermdos
 	@echo >> ../etc/xtermdos
 	@echo X11ROOTDIR=$(X11ROOTDIR) >> ../etc/xtermdos
-	@echo >> xtermdos
+	@echo >> ../etc/xtermdos
 	@cat ../etc/xtermdos.sh >> ../etc/xtermdos
 
 ../etc/xinstallvgafont:	../etc/xinstallvgafont.sh
@@ -471,28 +469,40 @@ x2dos: x2dos.o
 	@echo >> ../etc/xinstallvgafont
 	@cat ../etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
+# NOTE:                                                             
+# Due to heavy moving around the stuff, we will not get resolved/linked
+# all modules out of the *.a libs, if we do not put them twice on the
+# linker commandline. 
+# Therefor: $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_))
+#           is NOT a typo !!!
+# (Hans Lermen, at state of 0.63.0.1)
 
 ifdef ELF
-dos: 	emu.o base/data.o dossubdirs
-	$(LD) $(LDFLAGS) -o dos \
+$(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
+	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
-	    $(addprefix -l, $(LIBS_)) base/bios/bios.o $(XLIBS) $(TCNTRL) -lc 
-	@nm dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
-		sort > dosemu.map
+	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
+            $(XLIBS) $(TCNTRL) -lc 
+	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+		sort > $(BINPATH)/bin/dosemu.map
 
+dosemu: $(BINPATH)/bin/dos
 else
-dos:	dos.o
+$(BINPATH)/bin/dos:	dos.o
 	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
 		$(TCNTRL) $(XLIBS)
 
-$(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix ../lib/lib,$(LIBS_)}} # dossubdirs
+$(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}} # dossubdirs
 	$(LD) $(LDFLAGS) $(MAGIC) -Wl,-Ttext -Wl,$(LIBSTART) -o $(LIBDOSEMU) \
 	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
-	    $(addprefix -l, $(LIBS_)) base/bios/bios.o $(XLIBS) $(TCNTRL) -lc 
+	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
+            $(XLIBS) $(TCNTRL) -lc 
 
 libdosemu:	dossubdirs $(LIBDOSEMU)
 	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
-		sort > dosemu.map
+		sort > $(BINPATH)/bin/dosemu.map
+
+dosemu: $(BINPATH)/bin/dos libdosemu
 endif
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
@@ -552,22 +562,20 @@ install:
 	@for i in $(SUBDIRS); do \
 		(cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done
-	@install -c -o root -m 04755 dos /usr/bin
+	@install -c -o root -m 04755 $(BINPATH)/bin/dos /usr/bin
 ifdef  USE_MHPDBG
-	@install -c -o root -m 0755 dosdebug /usr/bin
+	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug /usr/bin
 endif
 ifndef ELF
-	@install -m 0644 $(LIBDOSEMU) /usr/lib
-	@(cd /usr/lib; ln -sf $(LIBDOSEMU) libdosemu)
+	@install -m 0644 $(LIBDOSEMU) /usr/lib/libdosemu-$(THISVERSION)
+	@(cd /usr/lib; ln -sf libdosemu-$(THISVERSION) libdosemu)
 endif
 	@if [ -f /usr/bin/xdosemu ]; then \
 		install -m 0700 /usr/bin/xdosemu /tmp; \
 		rm -f /usr/bin/xdosemu; \
 	fi
-	@if [ -f $(BOOTDIR)/sillyint.o ]; then rm -f $(BOOTDIR)/sillyint.o ; fi
-	@install -m 0755 -d $(BOOTDIR)
 ifdef X_SUPPORT
-	@ln -sf dos xdos
+	@ln -sf dos $(BINPATH)/bin/xdos
 	@install -m 0755 ../etc/xtermdos /usr/bin
 	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
 	@echo ""
@@ -620,8 +628,8 @@ converthd: hdimage
 	periph/mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
 	@echo "Your hdimage is now converted and ready to use with 0.52 and above!"
 
-newhd:  ../commands/unix/periph/bootsect
-	../commands/unix/periph/mkhdimage -h 4 -s 17 -c 40 | cat - ../commands/unix/periph/bootsect > newhd
+newhd:  tools/periph/bootsect
+	tools/periph/mkhdimage -h 4 -s 17 -c 40 | cat - tools/periph/bootsect > newhd
 	@echo "You now have a hdimage file called 'newhd'"
 
 include Makefile.common
@@ -640,7 +648,7 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
 	cp -a hddummy $(DISTPATH)/hddummy
-	@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(DOCS) ipxutils $(OPTIONALSUBDIRS) ipxbridge; do \
+	@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(DOCS) ipxutils $(OPTIONALSUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
@@ -649,11 +657,11 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	@ls -l $(DISTFILE)
 
 local_clean:
-	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos xdos libdosemu-* *.s core \
-	  dosstatic dosconfig *.tmp dosemu.map *.o dosdebug base/data.o
+	-rm -f $(OBJS) $(X2CEXE) x2dos.o $(BINPATH)/bin/dos $(BINPATH)/bin/xdos $(BINPATH)/bin/libdosemu *.s core \
+	  dosstatic dosconfig *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 
 local_realclean:
-	-rm -f include/config.h include/kversion.h tools/tools86 .depend
+	-rm -f include/config.h include/kversion.h $(BINPATH)/kversion.stamp tools/tools86 .depend
 
 clean::	local_clean
 
@@ -678,7 +686,10 @@ $(REALCLEANDIRS):
 
 
 pristine:	realclean
+	-mv lib/libarch_*slang*.a .
 	-rm -f lib/*
+	-mv libarch_*slang*.a lib
+	-rm -rf $(BINPATH) ../bin ../commands ../modules
 
 # DEPENDS=dos.d emu.d 
 # this is to do make subdir.depend to make a dependency
@@ -688,7 +699,7 @@ depend_local:	$(DEPENDS)
 
 depend dep:  $(DEPENDDIRS) depend_local
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend
-	cd ../commands/unix/clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
+	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 
 .PHONY:       size
 size:

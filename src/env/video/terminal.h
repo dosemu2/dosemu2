@@ -34,6 +34,7 @@ static unsigned char charset_latin[256] =
   "=\261><()\367=\260\267\267%\140\262= "
 };
 
+#if 0 /* To be removed */
 /* The following is an almost-full IBM character set, with some control codes.
  * This only works at the console (in IBM printing mode), over a serial line
  * to a DOS-based ANSI terminal (such as Telix), or in a specially-compiled 
@@ -59,6 +60,7 @@ static unsigned char charset_fullibm[256] =
   224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254, 32
 };
+#endif
 
 /* The following is the IBM character set minus control codes, mainly 
  * for use in ordinary rxvt or xterm's being used with the VGA font
@@ -84,6 +86,7 @@ static unsigned char charset_ibm[256] =
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254, 32
 };
 
+#if 0
 /* This is the regular color attributes lookup table, for ANSI colors.
  * It is a one-to-one lookup table.
  */
@@ -172,5 +175,6 @@ static char *num_string[256] =
   "240","241","242","243","244","245","246","247","248","249",
   "250","251","252","253","254","255"
 };
+#endif
 
 #endif

@@ -1,6 +1,6 @@
 #  src/base/misc/cpu.c -> ../../emu-i386/cpu.c
 
-CFILES=cpu.c
+CFILES=cpu.c ports.c do_vm86.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

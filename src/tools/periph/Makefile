@@ -1,8 +1,10 @@
 AS86 = as86 -0 -a
 LD86 = ld86 -0
 
-SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c
-OBJ=hdinfo bootsect mkhdimage putrom
+D=$(REALTOPDIR)/etc
+
+SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c
+OBJ=hdinfo bootsect mkhdimage putrom mkfatimage $(D)/hdimage.dist
 SCRIPT=getrom
 
 all: $(OBJ)
@@ -18,6 +20,9 @@ bootsect: bootsect.S
 	$(LD86) -T 0 -s -o $*.tmp $*.o
 	dd if=$*.tmp of=$@ bs=1 skip=32
 	rm $*.tmp $*.o
+
+$(D)/hdimage.dist: mkfatimage
+	./mkfatimage -l DOSEMU $(REALTOPDIR)/commands/* >$(D)/hdimage.dist
 
 install:
 	install -d /usr/lib/dosemu

@@ -7,11 +7,8 @@
  * (nation@rocket.sanders.lockheed.com).
  */
 
-#include "emu.h"
 #include "screen.h"
-
-#include <X11/Xlib.h>
-#include <X11/Xatom.h>
+#include "emu.h"
 
 #define PROP_SIZE 1024  /* chunk size for retrieving the selection property */
 #define MARGIN 0 /*  perhaps needed 23.8.95 */
@@ -58,8 +55,10 @@ void scr_extend_selection(int x,int y)
  ***************************************************************************/
 void scr_make_selection(Display *dpy,int time)
 {
+#if 0 /* Not used below */
   int b,tx;
   int start_row, start_col, end_row, end_col;
+#endif
   
   X_printf("X: mouse make the selection\n");
 /*  if((selected == SELECTION_BEGIN)||
@@ -215,7 +214,7 @@ void scr_request_selection(Display *dpy,Window W,int time,int x,int y)
       send_string(selection_text,strlen(selection_text));
       return;
     }
-  X_printf("X: mouse display %d\n", dpy);
+  X_printf("X: mouse display %d\n", (Bit32u)dpy);
   
   if (XGetSelectionOwner(dpy,XA_PRIMARY) == None) 
     {
@@ -226,7 +225,7 @@ void scr_request_selection(Display *dpy,Window W,int time,int x,int y)
       return;
     }
   X_printf("X: mouse XGetSelectionOwner done\n");
-  X_printf("X: mouse Window %d\n", W);
+  X_printf("X: mouse Window %d\n", (Bit32u)W);
   sel_property = XInternAtom(dpy,"VT_SELECTION",False);
   XConvertSelection(dpy,XA_PRIMARY,XA_STRING,sel_property,W,time);
   X_printf("X: mouse request done\n");
@@ -281,7 +280,9 @@ void scr_paste_primary(Display *dpy,int window,int property,int Delete)
  ***************************************************************************/
 void scr_clear_selection(void)
 {
+#if 0 /* Unused below */
   int j,x,i;
+#endif
 
   selected = SELECTION_CLEAR;
   
@@ -307,7 +308,9 @@ void scr_clear_selection(void)
 
 void scr_delete_selection(void)
 {
+#if 0 /* Unused below */
   int j,x,i;
+#endif
 
   selected = SELECTION_CLEAR;
 

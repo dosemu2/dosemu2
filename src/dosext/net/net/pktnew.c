@@ -180,7 +180,7 @@ pkt_init (int vec)
 
 /* this is the handler for INT calls from DOS to the packet driver */
 int
-pkt_int ()
+pkt_int (void)
 
 {
     struct per_handle *hdlp;
@@ -496,8 +496,7 @@ pkt_check_receive_quick(void) {
 }
 
 int
-pkt_check_receive(timeout)
-int timeout;
+pkt_check_receive(int timeout)
 
 {
     int size,handle;

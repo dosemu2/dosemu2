@@ -1,33 +1,37 @@
 #!/bin/bash
-#DOSEMUPATH=/usr/src/dosemu
-DOSEMUPATH=./src/arch/linux
+MODULESDIR=./modules
+BINDIR=./bin
 
-if [ ! -d $DOSEMUPATH ]; then
-  echo "$DOSEMUPATH not existing"
+if [ ! -d $BINDIR ]; then
+  echo "$BINDIR not existing"
   exit 1
 fi
-if [ ! -x ${DOSEMUPATH}/syscallmgr/insmod ]; then
-  echo "${DOSEMUPATH}/syscallmgr/insmod not existing"
+if [ ! -d $MODULESDIR ]; then
+  echo "$MODULESDIR not existing"
   exit 1
 fi
-if [ ! -f ${DOSEMUPATH}/syscallmgr/rmmod ]; then
-  echo "${DOSEMUPATH}/syscallmgr/rmmod not existing"
+if [ ! -x ${BINDIR}/insmod ]; then
+  echo "${BINDIR}/insmod not existing"
   exit 1
 fi
-if [ ! -f ${DOSEMUPATH}/syscallmgr/syscallmgr.o ]; then
-  echo "${DOSEMUPATH}/syscallmgr/syscallmgr.o not existing"
+if [ ! -f ${BINDIR}/rmmod ]; then
+  echo "${BINDIR}/rmmod not existing"
+  exit 1
+fi
+if [ ! -f ${MODULESDIR}/syscallmgr.o ]; then
+  echo "${MODULESDIR}/syscallmgr.o not existing"
   exit 1
 fi      
-if [ ! -f ${DOSEMUPATH}/emumod/emumodule.o ]; then
-  echo "${DOSEMUPATH}/emumod/emumodule.o not existing"
+if [ ! -f ${MODULESDIR}/emumodule.o ]; then
+  echo "${MODULESDIR}/emumodule.o not existing"
   exit 1
 fi
 
 if [ "`lsmod|grep emumodule`" != "" ]; then
-  ${DOSEMUPATH}/syscallmgr/rmmod emumodule
+  ${BINDIR}/rmmod emumodule
 fi
 if [ "`lsmod|grep syscallmgr`" = "" ]; then
-  ${DOSEMUPATH}/syscallmgr/insmod -z ${DOSEMUPATH}/syscallmgr/syscallmgr.o
+  ${BINDIR}/insmod -z ${MODULESDIR}/syscallmgr.o
 fi
  
-${DOSEMUPATH}/syscallmgr/insmod -z ${DOSEMUPATH}/emumod/emumodule.o
+${BINDIR}/insmod -z ${MODULESDIR}/emumodule.o

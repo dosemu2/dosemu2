@@ -417,6 +417,7 @@ TODO:
 #include "config.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
+#include "mangle.h"
 #endif
 
 /* these universal globals defined here (externed in dos.h) */
@@ -491,7 +492,6 @@ static far_t cdsfarptr;
 static cds_t cds_base;
 static cds_t cds;
 static sda_t sda;
-static u_short com_psp = (u_short) NULL;
 
 static int dos_major;
 static int dos_minor;
@@ -567,77 +567,8 @@ int sda_ext_mode_off = 0x2e1;
 struct direct *dos_readdir(DIR *);
 
 #if DOSEMU
-/* FIXME -- move elsewhere (inline/) */
-#ifdef __NetBSD__
-static uid_t euid;
-static gid_t egid;
-static inited = 0;
+#include "priv.h"
 
-__inline__ int
-priv_on(void)
-{
-    if (seteuid(euid) || setegid(egid)) {
-	error("MFS: Cannot enable privs!\n");
-	return (0);
-    }
-    return (1);
-}
-__inline__ int
-priv_off(void)
-{
-    if (!inited) {
-	euid = geteuid();
-	egid = getegid();
-	inited = 1;
-    }
-    if (seteuid(getuid()) || setegid(getgid())) {
-	error("MFS: Cannot disable privs!\n");
-	return (0);
-    }
-    return (1);
-}
-#endif
-#ifdef __linux__
-static rootaccess = 1; /* Dosemu starts with root access */
-__inline__ int
-priv_on(void)
-{
-  if (!rootaccess) {
-  if (setreuid(geteuid(), getuid()) ||
-      setregid(getegid(), getgid())) {
-    error("MFS: Cannot exchange real/effective uid or gid!\n");
-    return (0);
-  }
-  rootaccess = 1;
-  return (1);
-  }
-  else return (1);
-}
-__inline__ int
-priv_off(void)
-{
-  if (rootaccess) {
-  if (setreuid(geteuid(), getuid()) ||
-      setregid(getegid(), getgid())) {
-    error("MFS: Cannot exchange real/effective uid or gid!\n");
-    return (0);
-  }
-  rootaccess = 0;
-  return (1);
-  }
-  else return (1);
-}
-__inline__ int
-exchange_uids(void)
-{
-  if (setreuid(geteuid(), getuid()) ||
-      setregid(getegid(), getgid())) {
-    error("MFS: Cannot exchange real/effective uid or gid!\n");
-    return (0);
-  }
-  return (1);
-}
-#endif
 
 #endif
 
@@ -757,7 +688,13 @@ select_drive(state)
     for (dd = 0; dd < num_drives && !found; dd++) {
       if (!dos_roots[dd])
 	continue;
-      if ((sft_device_info(sft) & 0x1f) == dd)
+        /* 11/20/95 by RGPP:
+          Some Novell applications seem to trash the sft_device_info
+          in such a way that it looks like an existing DOSEMU re-
+          directed drive.  This condition seems to be detectable as
+          a non-zero value in the second four bits of the entry.
+	*/
+	if ((sft_device_info(sft) & 0x0f1f) == dd)
 	found = 1;
     }
 
@@ -1678,7 +1615,6 @@ dos_write(fd, data, cnt)
      int cnt;
 {
   int ret;
-  sigset_t oldmask, newmask;
 
   if (cnt <= 0)
     return (0);
@@ -1862,8 +1798,9 @@ time_to_unix(u_short dos_date, u_short dos_time)
    T.tm_mday = dos_date & 0x1f;           dos_date >>= 5;
    T.tm_mon  = (dos_date & 0x0f) - 1;     dos_date >>= 4;
    T.tm_year = dos_date + 80;
-   
-   /* tm_wday, tm_yday, tm_isdst are ignored by mktime() */
+   T.tm_isdst = -1;
+
+   /* tm_wday, tm_yday are ignored by mktime() */
 
    /* OOPS! it's not true for tm_isdst! (at least with libc 4.6.27) -- peak */
    /* autodetect dst */
@@ -2335,6 +2272,7 @@ hlist_pop_psp(psp)
   }
 }
 
+#if 0
 static void
 debug_dump_sft(handle)
      char handle;
@@ -2397,6 +2335,7 @@ debug_dump_sft(handle)
     ptr = (u_short *) Addr_8086(ptr[1], ptr[0]);
   }
 }
+#endif
 
 /* convert forward slashes to back slashes for DOS */
 
@@ -2635,14 +2574,15 @@ dos_fs_redirect(state)
   char buf[1024];
   struct dir_ent *tmp;
   struct stat st;
+#if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
   static u_char last_find_dir = 0;
   static u_char last_find_drive = 0;
-#if 0
   char *resourceName;
   char *deviceName;
 #endif
+ dos_mode = 0;
 
   if (!mach_fs_enabled)
     return (REDIRECT);
@@ -2651,7 +2591,7 @@ dos_fs_redirect(state)
 
   sft = (u_char *) Addr(state, es, edi);
 
-  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",LOW(state->eax)));
+  Debug0((dbg_fd, "Entering dos_fs_redirect, FN=%02X\n",(int)LOW(state->eax)));
 
   if (!select_drive(state))
     return (REDIRECT);
@@ -3322,11 +3262,14 @@ dos_fs_redirect(state)
 
     Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
 
+    /* no more needed, this code didn't seem to work anyway */
+#if 0
     if (!strncmp(&filename1[strlen(filename1) - 3], "NUL", 3)) {
       Debug0((dng_fd, "Found a NUL, translating\n"));
       filename1[strlen(filename1) - 4] = 0;
       attr = attr | DIRECTORY;
     }
+#endif
 
     hlist = NULL;
 
@@ -3339,6 +3282,25 @@ dos_fs_redirect(state)
 	bs_pos = i;
     }
     fpath[bs_pos] = EOS;
+
+    /* check for NUL quasi-existence */
+    /* note: path_to_ufs turns the name into lowercase! */
+    if (strcmp(fpath + bs_pos + 1, "nul") == 0) {
+   struct stat st;
+   sdb_dir_entry(sdb) = HLIST_STACK_SIZE*2; /* no findnext */
+   /* check directory existence, bs_pos == 0 -> root, no check needed */
+   if (bs_pos > 0 && !find_file(fpath, &st)) {
+     SETWORD(&(state->eax), PATH_NOT_FOUND);
+     return (FALSE);
+   }
+   sdb_file_attr(sdb) = 0;
+   st.st_mtime = 0;
+   time_to_dos(&st.st_mtime, &sdb_file_date(sdb), &sdb_file_time(sdb));
+   sdb_file_size(sdb) = 0;
+   strncpy(sdb_file_name(sdb), "NUL     ", 8);
+   strncpy(sdb_file_ext(sdb), "   ", 3);
+   return (TRUE);
+    }
 
     auspr(fpath + bs_pos + 1, fname, fext);
     strncpy(sdb_template_name(sdb), fname, 8);

@@ -125,7 +125,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "vm86plus.h"
+
 #ifdef __linux__
+#include <linux/vm86.h>
 #include <linux/unistd.h>
 #include <linux/head.h>
 
@@ -185,6 +188,8 @@
 #include "pic.h"
 #include "meminfo.h"
 #include "int.h"
+#include "serial.h"
+#include "port.h"
 
 #ifdef __NetBSD__
 #define vm86_regs sigcontext
@@ -238,13 +243,8 @@ extern unsigned long pm_block_handle_used;       /* tracking handle */
 
 static char RCSdpmi[] = "$Header: /usr/src/dosemu0.60/dpmi/RCS/dpmi.c,v 1.2 1995/05/06 16:25:48 root Exp root $";
 
-int in_dpmi = 0;		/* Set to 1 when running under DPMI */
-int in_win31 = 0;		/* Set to 1 when running Windows 3.1 */
-
-int dpmi_eflags = 0;		/* used for virtuell interruptflag and pending interrupts */
 static int DPMIclient_is_32 = 0;
 static unsigned short DPMI_private_data_segment;
-int in_dpmi_dos_int = 0;
 unsigned short PMSTACK_SEL = 0;	/* protected mode stack selector */
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 unsigned short DPMI_SEL = 0;
@@ -316,7 +316,6 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 {
 #ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
-  unsigned long *lp;
   unsigned long base2, limit2;
   int __retval;
 
@@ -359,7 +358,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
     }
   }
 
-  if (__retval=modify_ldt(1, &ldt_info, sizeof(ldt_info)))
+  if ((__retval=modify_ldt(1, &ldt_info, sizeof(ldt_info))))
 	return __retval;
 #endif
 #ifdef __NetBSD__
@@ -497,7 +496,7 @@ static void print_ldt(void ) /* stolen from WINE */
     type = (*lp >> 10) & 7;
     if ((base_addr > 0) || (limit > 0 ) || Segments[i].used) {
       if (*lp & 1000)  {
-	D_printf("Entry 0x%04x: Base %08.8x, Limit %05.5x, Type %d\n",
+	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d\n",
 	       i, base_addr, limit, type);
 	D_printf("              ");
 	if (*lp & 0x100)
@@ -519,16 +518,16 @@ static void print_ldt(void ) /* stolen from WINE */
 	else
 	  D_printf("byte limit, ");
 	D_printf("\n");
-	D_printf("              %08.8x %08.8x\n", *(lp), *(lp-1));
+	D_printf("              %08lx %08lx\n", *(lp), *(lp-1));
       }
       else {
-	D_printf("Entry 0x%04x: Base %08.8x, Limit %05.5x, Type %d\n",
+	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d\n",
 	       i, base_addr, limit, type);
-	D_printf("              SYSTEM: %08.8x %08.8x\n", *lp, *(lp - 1));
+	D_printf("              SYSTEM: %08lx %08lx\n", *lp, *(lp - 1));
       }
       lp2 = (unsigned long *) &ldt_buffer[i*LDT_ENTRY_SIZE];
-      D_printf("       cache: %08.8x %08.8x\n", *(lp2+1), *(lp2)); 
-      D_printf("         seg: Base %08.8x, Limit %05.5x, Type %d, Big %d\n",
+      D_printf("       cache: %08lx %08lx\n", (unsigned long)*(lp2+1), (unsigned long)*(lp2)); 
+      D_printf("         seg: Base %08lx, Limit %05x, Type %d, Big %d\n",
 	     Segments[i].base_addr, Segments[i].limit, Segments[i].type, Segments[i].is_big); 
     }
   }
@@ -583,8 +582,6 @@ static void dpmi_control(void)
 
 void dpmi_get_entry_point(void)
 {
-    unsigned short old_es = REG(es);
-    
     D_printf("Request for DPMI entry\n");
 
     if (!config.dpmi)
@@ -662,12 +659,12 @@ static int SetLDTAliasSelector(unsigned short selector, unsigned char readonly)
   ldt_info.limit_in_pages = 0;
   ldt_info.seg_not_present = 0;
 
-  if (__retval=modify_ldt(MODIFY_LDT_CREATE_KERNEL_DESCRIPTOR,
-			  &ldt_info, sizeof(ldt_info)))
+  if ((__retval=modify_ldt(MODIFY_LDT_CREATE_KERNEL_DESCRIPTOR,
+			  &ldt_info, sizeof(ldt_info))))
 	return __retval;
 
   memcopy_from_huge((void *)lp, selector, (void *)(selector & ~7), 8);
-  Segments[ldt_entry].base_addr = (lp[0] >> 16)& 0x0000ffff |
+  Segments[ldt_entry].base_addr = ((lp[0] >> 16)& 0x0000ffff) |
                                   (lp[1] & 0xff000000) |
                                   ((lp[1] << 16) & 0x00ff0000);
   Segments[ldt_entry].limit = (lp[0] & 0x0000ffff) | (lp[1] & 0x000f0000);
@@ -810,7 +807,7 @@ static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
 static int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;
-  D_printf("DPMI: SetSegmentBaseAddress[0x%04lx;0x%04lx] 0x%08lx\n", ldt_entry, selector, baseaddr);
+  D_printf("DPMI: SetSegmentBaseAddress[0x%04x;0x%04x] 0x%08lx\n", ldt_entry, selector, baseaddr);
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
   if (!Segments[ldt_entry].used)
@@ -829,7 +826,7 @@ static int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr
 static int SetSegmentLimit(unsigned short selector, unsigned int limit)
 {
   unsigned short ldt_entry = selector >> 3;
-  D_printf("DPMI: SetSegmentLimit[0x%04lx;0x%04lx] 0x%08lx\n", ldt_entry, selector, limit);
+  D_printf("DPMI: SetSegmentLimit[0x%04x;0x%04x] 0x%08x\n", ldt_entry, selector, limit);
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
   if (!Segments[ldt_entry].used)
@@ -854,7 +851,7 @@ static int SetSegmentLimit(unsigned short selector, unsigned int limit)
 static int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
 {
   unsigned short ldt_entry = selector >> 3;
-  D_printf("DPMI: SetDescriptorAccessRights[0x%04lx;0x%04lx] 0x%04lx\n", ldt_entry, selector, type_byte);
+  D_printf("DPMI: SetDescriptorAccessRights[0x%04x;0x%04x] 0x%04x\n", ldt_entry, selector, type_byte);
 
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
@@ -910,13 +907,13 @@ static void GetDescriptor(us selector, unsigned long *lp)
 #endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
 #endif /* KERNEL_LDTALIAS */  
-  D_printf("DPMI: GetDescriptor[0x%04lx;0x%04lx]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
+  D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
 }
 
 static int SetDescriptor(unsigned short selector, unsigned long *lp)
 {
   unsigned long base_addr, limit;
-  D_printf("DPMI: SetDescriptor[0x%04lx;0x%04lx] 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
+  D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
   if (selector >= (MAX_SELECTORS << 3))
     return -1;
   if (!Segments[selector >> 3].used)
@@ -1197,7 +1194,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0204:	/* Get Protected Mode Interrupt vector */
     _LWORD(ecx) = Interrupt_Table[_LO(bx)].selector;
     _edx = Interrupt_Table[_LO(bx)].offset;
-    D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx), _LWORD(ecx), _edx);
+    D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx), _LWORD(ecx), _edx);
     break;
   case 0x0205:	/* Set Protected Mode Interrupt vector */
     Interrupt_Table[_LO(bx)].selector = _LWORD(ecx);
@@ -1224,7 +1221,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
         default:
       }
     }
-    D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%x\n", _LO(bx),
+    D_printf("DPMI: Put Prot. vec. bx=%x sel=%x, off=%lx\n", _LO(bx),
       _LWORD(ecx), Interrupt_Table[_LO(bx)].offset);
     break;
   case 0x0300:	/* Simulate Real Mode Interrupt */
@@ -1314,7 +1311,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	                         (DPMIclient_is_32 ? _edi : _LWORD(edi)));
        _LWORD(ecx) = DPMI_SEG;
        _LWORD(edx) = DPMI_OFF + HLT_OFF(DPMI_realmode_callback)+i;
-       D_printf("DPMI: Allocate realmode callback for 0x%0x4:0x%08x use #%i callback address\n",
+       D_printf("DPMI: Allocate realmode callback for 0x%0x4:0x%08lx use #%i callback address\n",
 		realModeCallBack[current_client][i].selector,
 		realModeCallBack[current_client][i].offset,i);
     }
@@ -1365,7 +1362,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
 	  *(buf+1) = DPMI_DRIVER_VERSION;
-	  sprintf(buf+2, "Linux DOSEMU Version %d.%d.%d\n", VERSION,
+	  sprintf(buf+2, "Linux DOSEMU Version %d.%d.%f\n", VERSION,
 		  SUBLEVEL, PATCHLEVEL);
       }
 	  
@@ -1383,8 +1380,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	_eflags |= CF;
 	break;
       }
-      D_printf("DPMI: malloc attempt for siz 0x%08lx\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
-      D_printf("      malloc returns address 0x%08lx\n", block->base);
+      D_printf("DPMI: malloc attempt for siz 0x%08x\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
+      D_printf("      malloc returns address 0x%p\n", block->base);
       D_printf("                using handle 0x%08lx\n",block->handle);
       _LWORD(edi) = (block -> handle)&0xffff;
       _LWORD(esi) = ((block -> handle) >> 16) & 0xffff;
@@ -1418,7 +1415,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    break;
 	}
 	D_printf("DPMI: realloc attempt for siz 0x%08lx\n", newsize);
-	D_printf("      realloc returns address 0x%08lx\n", block -> base);
+	D_printf("      realloc returns address 0x%p\n", block -> base);
 	_LWORD(ecx) = (unsigned long)(block->base) & 0xffff;
 	_LWORD(ebx) = ((unsigned long)(block->base) >> 16) & 0xffff;
     }
@@ -1454,7 +1451,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	  _esi = block -> handle;
 	  D_printf("DPMI: allocate linear mem attemp for siz 0x%08lx at 0x%08lx\n",
 		   _ecx, base_address);
-	  D_printf("      malloc returns address 0x%08lx\n", block->base);
+	  D_printf("      malloc returns address 0x%p\n", block->base);
 	  D_printf("                using handle 0x%08lx\n",block->handle);
 	  break;
       }
@@ -1465,6 +1462,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	unsigned short *sel_array;
 	unsigned long old_base, old_len;
 	
+/* JES Unsure of ASSUMING sel_array OK to be nit to NULL */
+	sel_array = NULL;
 	handle = _esi;
 	newsize = _ecx;
 
@@ -1474,7 +1473,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    break;
 	}
 
-	D_printf("DPMI: Resize linear mem to size %x\n", newsize);
+	D_printf("DPMI: Resize linear mem to size %lx\n", newsize);
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
 	block = lookup_pm_block(handle);
 	if(block == NULL || block -> handle != handle) {
@@ -1547,7 +1546,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    break;
 	}
 
-	D_printf("DPMI: Map convientional mem for handle %d, offset %x at low address %x\n", handle, offset, low_addr);
+	D_printf("DPMI: Map convientional mem for handle %ld, offset %lx at low address %lx\n", handle, offset, low_addr);
 	block = lookup_pm_block(handle);
 	if(block == NULL || block -> handle != handle) {
 	    _eflags |= CF;
@@ -1684,7 +1683,6 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 
 static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 {
-  us *ssp;
 
   if ((i == 0x2f) && (_LWORD(eax) == 0x168a))
     return do_int31(scp, 0x0a00);
@@ -2016,7 +2014,7 @@ void dpmi_init()
   cp = (unsigned char *) ((my_cs << 4) +  my_ip);
 
   D_printf("Going protected with fingers crossed\n"
-		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04x\n",
+		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04lx\n",
 		LO(ax), my_cs, LWORD(ss), LWORD(ds), psp, my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
@@ -2033,10 +2031,10 @@ void dpmi_init()
   D_printf("STACK: ");
   (*(unsigned short *)& sp) -= 10;
   for (i = 0; i < 10; i++)
-    D_printf("%02x ", popb(ssp, sp));
+    D_printf("%02lx ", popb(ssp, sp));
   D_printf("-> ");
   for (i = 0; i < 10; i++)
-    D_printf("%02x ", popb(ssp, sp));
+    D_printf("%02lx ", popb(ssp, sp));
   D_printf("\n");
 
   if (!(CS = AllocateDescriptors(1))) return;
@@ -2210,7 +2208,7 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
      so this log excptions even dpmi debug is off */
   unsigned char dd = d.dpmi;
   d.dpmi = 1;
-  D_printf("DPMI: do_cpu_exception(0x%02x) called\n",_trapno);
+  D_printf("DPMI: do_cpu_exception(0x%02lx) called\n",_trapno);
   DPMI_show_state;
   if ( _trapno == 0xe)
       D_printf("DPMI: page fault. in dosemu?\n");
@@ -2282,8 +2280,6 @@ void dpmi_fault(struct sigcontext *scp, int code)
 {
   us *ssp;
   unsigned char *csp;
-  unsigned char *csp2, *ssp2;
-  int i;
 
 #ifdef SHOWREGS
 #if 1
@@ -2897,7 +2893,6 @@ void run_pm_mouse()
 }
 void dpmi_realmode_hlt(unsigned char * lina)
 {
-  unsigned short *ssp;
 
   D_printf("DPMI: realmode hlt: %p\n", lina);
   if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {

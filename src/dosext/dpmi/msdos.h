@@ -758,7 +758,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     return 0;
 }
 
-static 
+static void
 msdos_post_exec()
 {
     /* restore parent\'s context */
@@ -780,7 +780,6 @@ msdos_post_exec()
 	*(unsigned short *)((char *)(PARENT_PSP<<4) + 0x2c) =
 	                     PARENT_ENV_SEL;
     CURRENT_PSP = PARENT_PSP;
-    return;
 }
 
 /*
@@ -941,7 +940,11 @@ msdos_post_extender(int intr)
 	case 0x51:		/* get PSP */
 	case 0x62:
 	    {/* convert environment pointer to a descriptor*/
-		unsigned short envp, psp;
+		unsigned short 
+#if 0
+		envp, 
+#endif
+		psp;
 		psp = LWORD(ebx);
 #if 0		
 		envp = *(unsigned short *)(((char *)(psp<<4))+0x2c);
@@ -1106,6 +1109,8 @@ decode_8e_index(struct sigcontext_struct *scp, unsigned char *prefix,
 	    return (unsigned char *)(GetSegmentBaseAddress(_ds)+
 				     _LWORD(ebx));
     }
+    D_printf("DPMI: decode_8e_index returns with NULL\n");
+    return(NULL);
 }
 
 static  unsigned char *
@@ -1115,6 +1120,7 @@ check_prefix (struct sigcontext_struct *scp)
 
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
 
+    prefix = NULL;
     use_prefix = 0;
     switch (*csp) {
     case 0x2e:
@@ -1141,6 +1147,8 @@ check_prefix (struct sigcontext_struct *scp)
 	prefix = (unsigned char *)GetSegmentBaseAddress(_gs);
 	use_prefix = 1;
 	break;
+    default:
+    	D_printf("DPMI: check_prefix not covered for *csp=%x, return=NULL\n", *csp);
     }
     return prefix;
 }
@@ -1238,7 +1246,7 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
 {
     unsigned char *prefix, *csp;
     unsigned char mod, rm, reg;
-    unsigned long *lp, base_addr;
+    unsigned long *lp=NULL;
     unsigned offset;
     int len = 0;
 
@@ -1420,6 +1428,7 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 }
 	
     
+#if 0 /* Not USED!  JES 96/01/2x */
 static  int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
 {
     unsigned char *csp;
@@ -1440,13 +1449,13 @@ static  int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
     }
     return 0;
 }
+#endif
 
 /* see if client wants to access control registers */
 static int check_control_register_access(struct sigcontext_struct *scp)
 {
     unsigned char *csp;
     unsigned char mod, rm, reg;
-    int len = 0;
 
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
 
@@ -1503,7 +1512,7 @@ static int msdos_fault(struct sigcontext_struct *scp)
 {
     unsigned char reg;
     unsigned short segment, desc;
-    unsigned long len, base_addr;
+    unsigned long len;
 
     if ((_err & 0xffff) == 0) {	/*  not a selector error */
 	char fixed = 0;

@@ -54,5 +54,7 @@ void do_int(int);
 void setup_interrupts(void);
 void version_init(void);
 void int_queue_run(void);
+extern void queue_hard_int(int i, void (*callstart), void (*callend));
+extern int can_revector(int i);
 
 #endif

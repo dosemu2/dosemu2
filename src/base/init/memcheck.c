@@ -20,7 +20,7 @@
 #define MEM_SIZE          (1024*1024)   /* Size of memory in KB        */
 #define MAX_PAGE (MEM_SIZE/PAGE_SIZE)   /* Number of 'pages' in memory */
 
-static char  mem_map[MAX_PAGE];          /* Map of memory contents      */
+static unsigned char mem_map[MAX_PAGE];          /* Map of memory contents      */
 static char *mem_names[256];             /* List of id. strings         */
 
 static void round_addr(int *addr)
@@ -29,7 +29,7 @@ static void round_addr(int *addr)
   *addr *= PAGE_SIZE;
 }
 
-int memcheck_addtype(char map_char, char *name)
+int memcheck_addtype(unsigned char map_char, char *name)
 {
   if (mem_names[map_char] != NULL) {
     if (strcmp(mem_names[map_char], name) != 0) {
@@ -44,9 +44,10 @@ int memcheck_addtype(char map_char, char *name)
   else {
     mem_names[map_char] = name;
   }
+  return(0);
 }
 
-void memcheck_reserve(char map_char, int addr_start, int size)
+void memcheck_reserve(unsigned char map_char, int addr_start, int size)
 {
   int cntr, addr_end;
 
@@ -156,6 +157,6 @@ void memcheck_dump(void)
     if (mem_names[cntr])
       c_printf("%c:  %s\n", cntr, mem_names[cntr]);
   }
-  c_printf(".:  (unused)\n", cntr, mem_names[cntr]);
+  c_printf(".:  (unused)\n");
   c_printf("CONF:  End dump\n");
 }

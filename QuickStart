@@ -100,11 +100,6 @@ If you already have a HDIMAGE file:
   ./examples/config.dist file, the "DOSEMU-HOWTO" file, and the files
   in the ./doc subdirectory.
 
-- After kernel 1.3.40, it is necessary to add the option dotsOK=no :
-	mount -t msdos -o dotsOK=no /dev/sda1 /C
-  if you are redirecting drives for DOSEmu. Otherwise the redirected 
-  drives will be incapable of dealing with hidden files.
-
 --------------------------------------------------------------------------
 6.  Something's not right!!!
 --------------------------------------------------------------------------

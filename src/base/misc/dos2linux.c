@@ -170,7 +170,7 @@ static int fork_debug(void)
  * system() is used to execute the command because this function uses a 
  * shell (/bin/sh -c command), so nice things like this work: 
  *
- * C:\>unix ls -CF /usr/src/dosemu/video/*.[ch]
+ * C:\>unix ls -CF /usr/src/dosemu/video / *.[ch]
  *
  * Even output redirection works, but you have to quote the command in 
  * dosemu:
@@ -323,5 +323,7 @@ int run_simple_system_command(const char *p)
 	result = system(p);
 	if(i_am_root)
 		priv_on();
+		
+	return(result);
 }
 

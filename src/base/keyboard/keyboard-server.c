@@ -558,8 +558,6 @@ keyboard_flags_init(void){
 void
 set_leds_area ()
 {
-  unsigned int led_state = 0;
-
   if (kbd_flag (KF_SCRLOCK))
     {
       set_key_flag (KKF_SCRLOCK);
@@ -1004,7 +1002,6 @@ do_irq1 (void)
 void
 set_keyboard_bios (void)
 {
-  int scan;
 
   if (config.keybint)
     {
@@ -1013,7 +1010,7 @@ set_keyboard_bios (void)
   else
     next_scancode = convscanKey(next_scancode);
   keys_ready = 0;		/* flag character as read	*/
-  k_printf ("set keybaord bios next_scancode = 0x%04\n", next_scancode);
+  k_printf ("set keybaord bios next_scancode = 0x%04x\n", next_scancode);
 }
 
 void

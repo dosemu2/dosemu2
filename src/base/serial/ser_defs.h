@@ -95,21 +95,21 @@ serial_t com[MAX_SER];
  * debugging output commands are not defined to anything in particular.
  */
 #if SER_DEBUG_MAIN 
-#define s1_printf s_printf
+#define s1_printf 1
 #else
-#define s1_printf
+#define s1_printf 0
 #endif
 
 #if SER_DEBUG_HEAVY
-#define s2_printf s_printf
+#define s2_printf 1
 #else
-#define s2_printf
+#define s2_printf 0
 #endif
 
 #if SER_DEBUG_INTERRUPT
-#define s3_printf s_printf
+#define s3_printf 1
 #else
-#define s3_printf
+#define s3_printf 0
 #endif
 
 /************************************************************
@@ -293,5 +293,8 @@ void uart_fill(int);
 void uart_clear_fifo(int, int);
 void pic_serial_run(void);
 void fossil_int14(int);
+void ser_termios(int num);
+void modstat_engine(int num);
+inline int msr_compute_delta_bits(int oldmsr, int newmsr);
 
 #endif /* SER_DEFS_H */

@@ -192,8 +192,7 @@ static int xms_grab_int15again = 0;
 struct EMM get_emm(unsigned int, unsigned int);
 void show_emm(struct EMM);
 static void xms_query_freemem(int), xms_allocate_EMB(int), xms_free_EMB(void),
- xms_move_EMB(void), xms_lock_EMB(int), xms_EMB_info(int), xms_realloc_EMB(int),
- xms_request_UMB(void), xms_release_UMB(void);
+ xms_move_EMB(void), xms_lock_EMB(int), xms_EMB_info(int), xms_realloc_EMB(int);
 
 static int FindFreeHandle(int);
 
@@ -824,7 +823,7 @@ xms_allocate_EMB(int api)
     else
       handles[h].size = (long)(REG(edx) * 1024);
 
-    x_printf("XMS: EMB size %l\n", (int) handles[h].size);
+    x_printf("XMS: EMB size %d\n", (int) handles[h].size);
 
     /* I could just rely on the behavior of malloc(0) here, but
        * I'd rather not.  I'm going to interpret the XMS 3.0 spec

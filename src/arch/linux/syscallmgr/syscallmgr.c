@@ -186,7 +186,7 @@ static int find_free_syscall_start()
 
   save_flags(flags);
   cli();
-  for (i=NR_syscalls-1; !sys_call_table[i]; i--);
+  for (i=NR_syscalls-1; (!sys_call_table[i]) && (i > (NR_syscalls-40)); i--);
   restore_flags(flags);
   return i+1; 
 

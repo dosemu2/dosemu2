@@ -186,7 +186,11 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 #endif
 		pte++;
  	}
+#if KERNEL_VERSION < 1003047
 	invalidate();
+#else
+	invalidate_all();
+#endif
   #endif
 #endif
 }

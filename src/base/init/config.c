@@ -36,7 +36,7 @@ struct debug_flags d =
 /* d  R  W  D  C  v  X  k  i  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
 
 static void     check_for_env_autoexec_or_config(void);
-static void     parse_debugflags(const char *s);
+int     parse_debugflags(const char *s);
 static void     usage(void);
 
 /*
@@ -466,8 +466,7 @@ check_for_env_autoexec_or_config(void)
  * 
  * DANG_END_FUNCTION
  */
-static void
-parse_debugflags(const char *s)
+int parse_debugflags(const char *s)
 {
     char            c;
     unsigned char   flag = 1;
@@ -589,7 +588,9 @@ parse_debugflags(const char *s)
 	default:
 	    fprintf(stderr, "Unknown debug-msg mask: %c\n\r", c);
 	    dbug_printf("Unknown debug-msg mask: %c\n", c);
+	    return 1;
 	}
+  return 0;
 }
 
 static void
@@ -600,27 +601,27 @@ usage(void)
     fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
     fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
     fprintf(stdout, "    -C boot from first defined hard disk (C)\n");
-    fprintf(stdout, "    -c use PC console video (!%)\n");
+    fprintf(stdout, "    -c use PC console video (!%%)\n");
     fprintf(stdout, "    -k use PC console keyboard (!)\n");
 #ifdef X_SUPPORT
     fprintf(stdout, "    -X run in X Window (#)\n");
 /* seems no longer valid bo 18.7.95
     fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
-/*
     fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
+*/
     fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvXkism#pgcwhIExMnPr01)\n");
 #else				/* X_SUPPORT */
     fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvkism#pgcwhIExMnPr01)\n");
 #endif				/* X_SUPPORT */
     fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
     fprintf(stdout, "    -P copy debugging output to FILE\n");
-    fprintf(stdout, "    -b map BIOS into emulator RAM (%)\n");
+    fprintf(stdout, "    -b map BIOS into emulator RAM (%%)\n");
     fprintf(stdout, "    -F use config-file File\n");
-    fprintf(stdout, "    -V use BIOS-VGA video modes (!#%)\n");
+    fprintf(stdout, "    -V use BIOS-VGA video modes (!#%%)\n");
     fprintf(stdout, "    -N No boot of DOS\n");
     fprintf(stdout, "    -t try new timer code (#)\n");
     fprintf(stdout, "    -s try new screen size code (#)\n");
-    fprintf(stdout, "    -g enable graphics modes (!%#)\n");
+    fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
     fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
     fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
     fprintf(stdout, "    -m enable mouse support (!#)\n");
@@ -629,6 +630,6 @@ usage(void)
     fprintf(stdout, "    -2,3,4 choose 286, 386 or 486 CPU\n");
     fprintf(stdout, "    -K Do int9 (!#)\n\n");
     fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");
-    fprintf(stdout, "    (%) require dos be run as root (i.e. suid)\n");
+    fprintf(stdout, "    (%%) require dos be run as root (i.e. suid)\n");
     fprintf(stdout, "    (#) options do not fully work yet\n");
 }

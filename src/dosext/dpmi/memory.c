@@ -81,13 +81,6 @@ DPMImalloc(unsigned long size)
 {
     dpmi_pm_block *block;
 
-    if ( fd_zero == -1) {
-	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
-	    error("DPMI: can't open /dev/zero\n");
-	    return NULL;
-	}
-    }
-    
    /* aligned size to PAGE size */
     size = (size & 0xfffff000) + ((size & 0xfff)
 				      ? DPMI_page_size : 0);
@@ -95,9 +88,19 @@ DPMImalloc(unsigned long size)
 	return NULL;
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
+
+    if ( fd_zero == -1) {
+	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
+	    error("DPMI: can't open /dev/zero\n");
+	    return NULL;
+	}
+    }
     block -> base = (void *) mmap((void *)0, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  MAP_PRIVATE|MAP_FILE, fd_zero, 0);
+    close(fd_zero);
+    fd_zero = -1;
+
     if ( block -> base == (void*)-1) {
 	free_pm_block(block);
 	return NULL;
@@ -124,13 +127,6 @@ DPMImallocFixed(unsigned long base, unsigned long size)
     if (base == 0)		/* we choose an address to allocate */
 	return DPMImalloc(size);
     
-    if ( fd_zero == -1) {
-	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
-	    error("DPMI: can't open /dev/zero\n");
-	    return NULL;
-	}
-    }
-    
    /* aligned size to PAGE size */
     size = (size & 0xfffff000) + ((size & 0xfff)
 				      ? DPMI_page_size : 0);
@@ -144,7 +140,7 @@ DPMImallocFixed(unsigned long base, unsigned long size)
     }
     
     while(fgets(line, 100, fp)) {
-	sscanf(line, "%x-%x", &beg, &end);
+	sscanf(line, "%lx-%lx", &beg, &end);
 	if ((base + size) < beg ||  base >= end)
 	    continue;
 	else
@@ -153,9 +149,19 @@ DPMImallocFixed(unsigned long base, unsigned long size)
 
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
+
+    if ( fd_zero == -1) {
+	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
+	    error("DPMI: can't open /dev/zero\n");
+	    return NULL;
+	}
+    }
     block -> base = (void *) mmap((void *)base, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  MAP_SHARED|MAP_FILE|MAP_FIXED, fd_zero, 0);
+    close(fd_zero);
+    fd_zero = -1;
+    
     if ( block -> base == (void*)-1) {
 	free_pm_block(block);
 	return NULL;
@@ -201,9 +207,18 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     if (newsize > block -> size)  { /* we must mmap another block */
 	void *ptr;
 	
+        if ( fd_zero == -1) {
+  	    if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
+	        error("DPMI: can't open /dev/zero\n");
+	        return NULL;
+	    }
+        }
 	ptr = (void *) mmap((void *)0, newsize,
 			                   PROT_READ | PROT_WRITE | PROT_EXEC,
 			                   MAP_PRIVATE|MAP_FILE, fd_zero, 0);
+	close(fd_zero);
+	fd_zero = -1;
+
 	if ( ptr == (void *)-1)
 	    return NULL;
 	/* copy memory content to new block */
@@ -257,7 +272,7 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
     dpmi_eflags &= ~IF;
     pic_cli();
     memmove((void *)mapped_base, (void *)low_addr, cnt*DPMI_page_size);
-    if (mmap((void *)low_addr, cnt*DPMI_page_size,
+    if ((int)mmap((void *)low_addr, cnt*DPMI_page_size,
 	     PROT_READ | PROT_WRITE | PROT_EXEC,
 	     MAP_SHARED|MAP_FILE|MAP_FIXED, fd_self_mem, (off_t)mapped_base) !=
 	     low_addr) {

@@ -35,13 +35,13 @@ ALL = $(CFILES) $(HFILES) $(OFILES) README.syscallmgr
 
 OBJS =
 
-all: syscallmgr.o insmod testsys.o testmain
+all: $(BINPATH)/modules/syscallmgr.o $(BINPATH)/bin/insmod testsys.o testmain
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
 
-syscallmgr.o:    syscallmgr.c ../../../include/syscallmgr.h 
-	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o syscallmgr.o
+$(BINPATH)/modules/syscallmgr.o:    syscallmgr.c ../../../include/syscallmgr.h 
+	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o $@
 
 testsys.o:    testsys.c 
 	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c testsys.c -o testsys.o
@@ -50,10 +50,10 @@ testmain:	testmain.c
 	$(CC) -m486 -Wall $(INCDIR) -O6 testmain.c -o testmain
 
 
-insmod: insmod.c load_aout.c load_elf.c insmod.h
+$(BINPATH)/bin/insmod: insmod.c load_aout.c load_elf.c insmod.h
 	$(CC) -m486 -O6 -pipe -fomit-frame-pointer -Wall -DHACKER_TOOL -DWITHIN_DOSEMU $(INCDIR) \
-	insmod.c load_aout.c load_elf.c error.c -o insmod
-	for i in rmmod ksyms; do ln -sf insmod $$i; done
+	insmod.c load_aout.c load_elf.c error.c -o $@
+	for i in rmmod ksyms; do ln -sf insmod $(BINPATH)/bin/$$i; done
 
 
 checkin:
@@ -63,7 +63,7 @@ checkout:
 	-co -M -l $(ALL) Makefile
 
 clean:
-	rm -f *.o insmod rmmod ksyms testmain *~
+	rm -f *.o $(BINPATH)/modules/insmod $(BINPATH)/modules/rmmod $(BINPATH)/modules/ksyms testmain *~
 
 realclean: clean
 	rm -f .depend

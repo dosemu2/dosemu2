@@ -15,6 +15,7 @@ March 1995
 #include <malloc.h>
 #include <string.h>
 #include <stddef.h>
+#include <ctype.h>
 
 
 /* no debugging - the code is perfect! */
@@ -36,8 +37,10 @@ March 1995
 #define lp_strip_dot() 0
 
 #define BOOL int
+#ifndef True
 #define True 1
 #define False 0
+#endif
 
 
 #define CASE_LOWER 0
@@ -50,8 +53,10 @@ typedef char pstring[1024];
 
 /* prototypes */
 void mangle_name_83(char *s, char *MangledMap);
-static BOOL do_fwd_mangled_map(char *s, char *MangledMap);
-
+extern BOOL do_fwd_mangled_map(char *s, char *MangledMap);
+extern BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap);
+extern BOOL is_mangled(char *s);
+extern BOOL check_mangled_stack(char *s, char *MangledMap);
 
 #ifndef MANGLE
 #define MANGLE 1

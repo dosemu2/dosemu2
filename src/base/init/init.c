@@ -2,6 +2,7 @@
  * $Id: init.c,v 1.4 1995/05/06 16:26:13 root Exp root $
  */
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,6 +11,7 @@
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 
 #ifdef __linux__
 #include <linux/config.h>
@@ -28,14 +30,19 @@
 #include "int.h"
 #include "timers.h"
 #include "termio.h"
+#include "video.h"
 #include "vc.h"
 #include "mouse.h"
 #ifdef USING_NET
+#include "pktdrvr.h"
 #include "ipx.h"
 #endif
 #include "bitops.h"
 #include "pic.h"
+#include "cmos.h"
 #include "dma.h"
+#include "xms.h"
+#include "shared.h"
 #include "sound.h"
 
 extern void pkt_check_receive_quick(void);
@@ -92,8 +99,6 @@ dosemu_banner(void)
  */
 void stdio_init(void)
 {
-  struct stat statout, staterr;
-
   if(dbg_fd) {
     warn("DBG_FD already set\n");
     return;
@@ -148,8 +153,7 @@ void tmpdir_init(void)
 void time_setting_init(void)
 {
   struct tm *tm;
-  unsigned long ticks;
-  
+
   time(&start_time);
   tm = localtime((time_t *) &start_time);
   g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon+1, tm->tm_year);
@@ -189,7 +193,6 @@ void timer_interrupt_init(void)
  */
 void hardware_setup(void)
 {
-  int i;
 
   /* PIC init */
   pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
@@ -302,7 +305,9 @@ static inline void map_hardware_ram(void)
 static inline void map_custom_bios(void)
 {
   extern void bios_f000(), bios_f000_end();
+#if 0
   FILE   *f;
+#endif
   u_char *ptr;
 
   ptr = (u_char *) (BIOSSEG << 4);

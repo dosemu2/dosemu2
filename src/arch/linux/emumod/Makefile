@@ -54,13 +54,13 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o signal.o ldt.o dir.o
  
-all: $(OBJS) emumodule.o
+all: $(OBJS) $(BINPATH)/modules/emumodule.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
 
-emumodule.o: ${OBJS}
-	ld -r -o emumodule.o $(OBJS)
+$(BINPATH)/modules/emumodule.o: ${OBJS}
+	ld -r -o $@ $(OBJS)
 
 vm86.o:  vm86.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_ $(USE_MHPDBG)  -c vm86.c -o vm86.o
@@ -97,7 +97,7 @@ checkout:
 	-co -M -l $(ALL) Makefile
 
 clean:
-	rm -f *.o ldttest
+	rm -f *.o ldttest $(BINPATH)/modules/emumodule.o
 
 realclean: clean
 	rm -f .depend
