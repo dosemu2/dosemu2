@@ -115,14 +115,10 @@ unsigned short ucodesel, udatasel;
  */
 int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 {
-  	if (in_dpmi && (scp==NULL)) return 0; /* for safety */
-	/* moved access to "csp" after safety check,
-	 *                          -- 980627 Andreas Kirschbaum
-	 */
 	g_printf("CPU: TRAP op 0F %02x %02x\n",csp[1],csp[2]);
 
 	if (csp[1] == 0x06) {
-		(in_dpmi? scp->eip:LWORD(eip)) += 2;  /* CLTS - ignore */
+		(scp ? scp->eip:LWORD(eip)) += 2;  /* CLTS - ignore */
 		return 1;
 	}
 	else if (csp[1] == 0x31) {
@@ -151,7 +147,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		  REG(eax)=t & 0xffffffff;
 		  REG(edx)=t >> 32;
 		}
-		(in_dpmi? scp->eip:LWORD(eip)) += 2;
+		(scp ? scp->eip:LWORD(eip)) += 2;
 		return 1;
 	}
 	else if ((((csp[1] & 0xfc)==0x20)||(csp[1]==0x24)||(csp[1]==0x26)) &&
@@ -175,17 +171,17 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		}
 
 		switch (csp[2]&7) {
-			case 0: srg = (in_dpmi? &(scp->eax):(unsigned long *)&(REGS.eax));
+			case 0: srg = (scp ? &(scp->eax):(unsigned long *)&(REGS.eax));
 				break;
-			case 1: srg = (in_dpmi? &(scp->ecx):(unsigned long *)&(REGS.ecx));
+			case 1: srg = (scp ? &(scp->ecx):(unsigned long *)&(REGS.ecx));
 				break;
-			case 2: srg = (in_dpmi? &(scp->edx):(unsigned long *)&(REGS.edx));
+			case 2: srg = (scp ? &(scp->edx):(unsigned long *)&(REGS.edx));
 				break;
-			case 3: srg = (in_dpmi? &(scp->ebx):(unsigned long *)&(REGS.ebx));
+			case 3: srg = (scp ? &(scp->ebx):(unsigned long *)&(REGS.ebx));
 				break;
-			case 6: srg = (in_dpmi? &(scp->esi):(unsigned long *)&(REGS.esi));
+			case 6: srg = (scp ? &(scp->esi):(unsigned long *)&(REGS.esi));
 				break;
-			case 7: srg = (in_dpmi? &(scp->edi):(unsigned long *)&(REGS.edi));
+			case 7: srg = (scp ? &(scp->edi):(unsigned long *)&(REGS.edi));
 				break;
 			default:	/* ESP(4),EBP(5) */
 				return 0;
@@ -203,7 +199,7 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
 		  }
 		  else cdt[idx] = *srg;
 		}
-		(in_dpmi? scp->eip:LWORD(eip)) += 3;
+		(scp ? scp->eip:LWORD(eip)) += 3;
 		return 1;
 	}
 	/* all other trapped combinations:
