@@ -26,10 +26,7 @@
 #include "disks.h"
 
 
-#define EXTMEM_SIZE ((config.xms_size>config.ems_size)?config.xms_size : \
-		     config.ems_size)
-#define PEXTMEM_SIZE (((config.xms_size>config.ems_size)?config.xms_size : \
-		      config.ems_size)/1024)
+#define PEXTMEM_SIZE (EXTMEM_SIZE + HMASIZE)
 
 
 static int
@@ -219,8 +216,8 @@ void cmos_reset(void)
   SET_CMOS(CMOS_BASEMEML, config.mem_size & 0xff);      /* base mem LSB */
   SET_CMOS(CMOS_BASEMEMM, config.mem_size >> 8);        /* base mem MSB */
 
-  SET_CMOS(CMOS_EXTMEML, EXTMEM_SIZE & 0xff);
-  SET_CMOS(CMOS_EXTMEMM, EXTMEM_SIZE >> 8);
+  SET_CMOS(CMOS_EXTMEML, (EXTMEM_SIZE + HMASIZE) & 0xff);
+  SET_CMOS(CMOS_EXTMEMM, (EXTMEM_SIZE + HMASIZE) >> 8);
 
   SET_CMOS(CMOS_PEXTMEML, PEXTMEM_SIZE & 0xff);
   SET_CMOS(CMOS_PEXTMEMM, PEXTMEM_SIZE >> 8);

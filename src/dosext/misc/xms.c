@@ -71,15 +71,12 @@ static char RCSxms[] = "$Header$";
 #define XMS_OUT_OF_SPACE		0xa0
 #define XMS_INVALID_HANDLE		0xa2
 
-
 static int a20_local = 0;
 static int a20_global = 0;
 static int freeHMA = 1;		/* is HMA free? */
 
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
-
-static int xms_grab_int15again = 0;
 
 struct EMM get_emm(unsigned int, unsigned int);
 void show_emm(struct EMM);
@@ -310,19 +307,14 @@ xms_init(void)
 {
   int i;
 
-  if (!config.xms_size) {
-    CARRY;
-    REG(eax) = 0x8600;
+  umb_setup();
+
+  if (!config.xms_size)
     return;
-  }
 
   x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
 
   freeHMA = 1;
-
-  umb_setup();
-
-  xms_grab_int15 = 0;
 
   handle_count = 0;
   for (i = 0; i < NUM_HANDLES + 1; i++)
@@ -332,21 +324,57 @@ xms_init(void)
 void
 xms_control(void)
 {
-  /* the int15 get memory size call (& block copy, unimplemented) are
-   * supposed to be unrevectored until the first non-version XMS call
-   * to "maintain compatibility with existing device drivers."
-   * hence this blemish.  if Microsoft could act, say, within 3 years of
-   * a problem's first appearance, maybe we wouldn't have these kinds
-   * of compatibility hacks.
-   */
-  unsigned char bl = 0;
-        
-  if (HI(ax) != 0) {
-    if (!xms_grab_int15again)
-      xms_grab_int15 = 1;
-    xms_grab_int15again = 1;
-  }
+#define XMS_RET(err) (LWORD(eax) = ((LO(bx) = (err)) ? 0 : 1))
+  int is_umb_fn = 0;
 
+ /* First do the UMB functions */
+ switch (HI(ax)) {
+  case XMS_ALLOCATE_UMB:
+    {
+      int size = LWORD(edx) << 4;
+      vm_address_t addr = umb_allocate(size);
+      is_umb_fn = 1;
+      Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
+      if (addr == (vm_address_t) 0) {
+        int avail=umb_query();
+
+	Debug0((dbg_fd, "Allocate UMB Failure\n"));
+	XMS_RET(avail ? 0xb0 : 0xb1);
+	LWORD(edx) = avail >> 4;
+      }
+      else {
+	Debug0((dbg_fd, "Allocate UMB Success\n"));
+	LWORD(eax) = 1;
+	LWORD(ebx) = (unsigned long)addr >> 4;
+	LWORD(edx) = size >> 4;
+      }
+      Debug0((dbg_fd, "umb_allocated: %#x0:%#x0\n",
+	      (unsigned) LWORD(ebx),
+	      (unsigned) LWORD(edx)));
+      /* retval = UNCHANGED; */
+      break;
+    }
+
+  case XMS_DEALLOCATE_UMB:
+    {
+      is_umb_fn = 1;
+      umb_free(LWORD(edx));
+      XMS_RET(0);			/* no error */
+      Debug0((dbg_fd, "umb_freed: 0x%04x\n",
+	      (unsigned) LWORD(edx)));
+      /* retval = UNCHANGED; */
+      break;
+    }
+
+  case 0x12:
+    is_umb_fn = 1;
+    x_printf("XMS realloc UMB segment 0x%04x size 0x%04x\n",
+	     LWORD(edx), LWORD(ebx));
+    XMS_RET(0x80);		        /* function unimplemented */
+    break;
+ }
+
+ if (config.xms_size && !is_umb_fn) {
   switch (HI(ax)) {
   case 0:			/* Get XMS Version Number */
     LWORD(eax) = XMS_VERSION;
@@ -361,11 +389,11 @@ xms_control(void)
     if (freeHMA) {
       x_printf("XMS: allocating HMA size 0x%04x\n", LWORD(edx));
       freeHMA = 0;
-      LWORD(eax) = 1;
+      XMS_RET(0);			/* no error */
     }
     else {
       x_printf("XMS: HMA already allocated\n");
-      bl = 0x91;
+      XMS_RET(0x91);
     }
     break;
 
@@ -373,12 +401,12 @@ xms_control(void)
     x_printf("XMS release HMA\n");
     if (freeHMA) {
       x_printf("XMS: HMA already free\n");
-      bl = 0x93;
+      XMS_RET(0x93);
     }
     else {
       x_printf("XMS: freeing HMA\n");
-      LWORD(eax) = 1;
       freeHMA = 1;
+      XMS_RET(0);			/* no error */
     }
     break;
 
@@ -387,7 +415,7 @@ xms_control(void)
     if (!a20_global)
       set_a20(1);		/* map in HMA */
     a20_global = 1;
-    LWORD(eax) = 1;
+    XMS_RET(0);			/* no error */
     break;
 
   case 4:			/* Global Disable A20 */
@@ -395,7 +423,7 @@ xms_control(void)
     if (a20_global)
       set_a20(0);
     a20_global = 0;
-    LWORD(eax) = 1;
+    XMS_RET(0);			/* no error */
     break;
 
   case 5:			/* Local Enable A20 */
@@ -403,7 +431,7 @@ xms_control(void)
     if (!a20_local)
       set_a20(1);
     a20_local++;
-    LWORD(eax) = 1;
+    XMS_RET(0);			/* no error */
     break;
 
   case 6:			/* Local Disable A20 */
@@ -412,7 +440,7 @@ xms_control(void)
       a20_local--;
     if (!a20_local)
       set_a20(0);
-    LWORD(eax) = 1;
+    XMS_RET(0);			/* no error */
     break;
 
     /* DOS, if loaded as "dos=high,umb" will continually poll
@@ -424,109 +452,69 @@ xms_control(void)
     break;
 
   case 8:			/* Query Free Extended Memory */
-    bl = xms_query_freemem(OLDXMS);
+    XMS_RET(xms_query_freemem(OLDXMS));
     break;
 
   case 9:			/* Allocate Extended Memory Block */
-    bl = xms_allocate_EMB(OLDXMS);
+    XMS_RET(xms_allocate_EMB(OLDXMS));
     break;
 
   case 0xa:			/* Free Extended Memory Block */
-    bl = xms_free_EMB();
+    XMS_RET(xms_free_EMB());
     break;
 
   case 0xb:			/* Move Extended Memory Block */
-    bl = xms_move_EMB();
+    XMS_RET(xms_move_EMB());
     break;
 
   case 0xc:			/* Lock Extended Memory Block */
-    bl = xms_lock_EMB(1);
+    XMS_RET(xms_lock_EMB(1));
     break;
 
   case 0xd:			/* Unlock Extended Memory Block */
-    bl = xms_lock_EMB(0);
+    XMS_RET(xms_lock_EMB(0));
     break;
 
   case 0xe:			/* Get EMB Handle Information */
-    bl = xms_EMB_info(OLDXMS);
+    XMS_RET(xms_EMB_info(OLDXMS));
     break;
 
   case 0xf:			/* Reallocate Extended Memory Block */
-    bl = xms_realloc_EMB(OLDXMS);
-    break;
-
-#define state (&_regs)
-  case XMS_ALLOCATE_UMB:
-    {
-      int size = WORD(state->edx) << 4;
-      vm_address_t addr = umb_allocate(size);
-
-      Debug0((dbg_fd, "Allocate UMB memory: %#x\n", size));
-      if (addr == (vm_address_t) 0) {
-        int avail=umb_query();
-
-	Debug0((dbg_fd, "Allocate UMB Failure\n"));
-	SETWORD(&(state->eax), 0);
-	if(avail) SETLOW(&(state->ebx), 0xb0);
-	else SETLOW(&(state->ebx), 0xb1);
-	SETWORD(&(state->edx), avail >> 4);
-      }
-      else {
-	Debug0((dbg_fd, "Allocate UMB Success\n"));
-	SETWORD(&(state->eax), 1);
-	SETWORD(&(state->ebx), (int) addr >> 4);
-	SETWORD(&(state->edx), size >> 4);
-      }
-      Debug0((dbg_fd, "umb_allocated: %#x0:%#x0\n",
-	      (unsigned) WORD(state->ebx),
-	      (unsigned) WORD(state->edx)));
-      /* retval = UNCHANGED; */
-      break;
-    }
-
-  case XMS_DEALLOCATE_UMB:
-    {
-      umb_free(WORD(state->edx));
-      SETWORD(&(state->eax), 1);
-      Debug0((dbg_fd, "umb_freed: 0x%04x\n",
-	      (unsigned) WORD(state->edx)));
-      /* retval = UNCHANGED; */
-      break;
-    }
-
-  case 0x12:
-    x_printf("XMS realloc UMB segment 0x%04x size 0x%04x\n",
-	     LWORD(edx), LWORD(ebx));
-    bl = 0x80;		        /* function unimplemented */
+    XMS_RET(xms_realloc_EMB(OLDXMS));
     break;
 
     /* the functions below are the newer, 32-bit XMS 3.0 interface */
 
   case 0x88:			/* Query Any Free Extended Memory */
-    bl = xms_query_freemem(NEWXMS);
+    XMS_RET(xms_query_freemem(NEWXMS));
     break;
 
   case 0x89:			/* Allocate Extended Memory */
-    bl = xms_allocate_EMB(NEWXMS);
+    XMS_RET(xms_allocate_EMB(NEWXMS));
     break;
 
   case 0x8e:			/* Get EMB Handle Information */
-    bl = xms_EMB_info(NEWXMS);
+    XMS_RET(xms_EMB_info(NEWXMS));
     break;
 
   case 0x8f:			/* Reallocate EMB */
-    bl = xms_realloc_EMB(NEWXMS);
+    XMS_RET(xms_realloc_EMB(NEWXMS));
     break;
 
   default:
     x_printf("XMS: Unimplemented XMS function AX=0x%04x", LWORD(eax));
     show_regs(__FILE__, __LINE__);		/* if you delete this, put the \n on the line above */
-    bl = 0x80;		/* function not implemented */
+    XMS_RET(0x80);		/* function not implemented */
   }
-  if (bl != 0) {
-    LWORD(eax) = 0;             /* failure */
-    LO(bx) = bl;
-  }
+ }
+ /* If this is the UMB request which came via the external himem.sys,
+  * dont pass it back. */
+ if (!config.xms_size) {
+   if (is_umb_fn)
+     LWORD(esp) += 4;
+   else
+     x_printf("XMS: skipping external request, ax=0x%04x\n", LWORD(eax));
+ }
 }
 
 static int
@@ -559,7 +547,7 @@ ValidHandle(unsigned short h)
 static unsigned char
 xms_query_freemem(int api)
 {
-  unsigned long totalBytes = 0, subtotal;
+  unsigned long totalBytes = 0, total, largest;
   int h;
 
   /* the new XMS api should actually work with the function as it
@@ -578,7 +566,8 @@ xms_query_freemem(int api)
       totalBytes += handles[h].size;
   }
 
-  subtotal = config.xms_size - (totalBytes / 1024);
+  largest = config.xms_size - (totalBytes / 1024);
+  total = config.xms_size;
   /* total free is max allowable XMS - the number of K already allocated */
 
   if (api == OLDXMS) {
@@ -589,18 +578,21 @@ xms_query_freemem(int api)
        * know of 64MB of the > 64MB available memory.
        */
 
-    if (subtotal > 65535)
-      subtotal = 65535;
-    LWORD(eax) = LWORD(edx) = subtotal;
+    if (total > 65535)
+      total = 65535;
+    if (largest > 65535)
+      largest = 65535;
+    LWORD(eax) = largest;
+    LWORD(edx) = total;
     x_printf("XMS query free memory(old): %dK %dK\n", LWORD(eax),
 	     LWORD(edx));
   }
   else {
-    REG(eax) = REG(edx) = subtotal;
+    REG(eax) = largest;
+    REG(edx) = total;
     x_printf("XMS query free memory(new): %ldK %ldK\n",
 	     REG(eax), REG(edx));
   }
-  _BL = 0;
   return 0;
 }
 
@@ -662,8 +654,6 @@ xms_allocate_EMB(int api)
       LWORD(edx) = h;		/* handle # */
     else
       REG(edx) = h;
-
-    LWORD(eax) = 1;		/* success */
     return 0;
   }
 }
@@ -688,7 +678,6 @@ xms_free_EMB(void)
     handle_count--;
 
     x_printf("XMS: free'd EMB %d\n", h);
-    LWORD(eax) = 1;
     return 0;
   }
 }
@@ -737,10 +726,7 @@ xms_move_EMB(void)
 
   x_printf("XMS: block move from %p to %p len 0x%lx\n",
 	   (void *) src, (void *) dest, e.Length);
-
   memmove(dest, src, e.Length);
-  LWORD(eax) = 1;
-
   x_printf("XMS: block move done\n");
 
   return 0;
@@ -771,8 +757,6 @@ xms_lock_EMB(int flag)
 
     LWORD(edx) = (int) handles[h].addr >> 16;
     LWORD(ebx) = (int) handles[h].addr & 0xffff;
-
-    LWORD(eax) = 1;
     return 0;
   }
   else {
@@ -798,7 +782,6 @@ xms_EMB_info(int api)
       x_printf("XMS Get EMB info(new) %d\n", h);
     }
     HI(bx) = handles[h].lockcount;
-    LWORD(eax) = 1;
     return 0;
   }
   else {
@@ -851,31 +834,7 @@ xms_realloc_EMB(int api)
 
   /* free the EMB's old Linux memory */
   free(oldaddr);
-
-  LWORD(eax) = 1;		/* success */
   return 0;
-}
-
-void
-xms_int15(void)
-{
-  if (HI(ax) == 0x88) {
-    NOCARRY;
-    if (xms_grab_int15) {
-      x_printf("XMS int 15 free mem returning 0 to protect HMA\n");
-      LWORD(eax) &= ~0xffff;
-    }
-    else {
-      x_printf("XMS early int15 call...%dK free\n", config.xms_size);
-      LWORD(eax) = config.xms_size;
-    }
-  }
-  else {			/* AH = 0x87 */
-    x_printf("XMS int 15 block move failed AX=0x%04x\n", (u_short)REG(eax));
-    LWORD(eax) &= 0xFF;
-    HI(ax) = 3;			/* say A20 gate failed */
-    CARRY;
-  }
 }
 
 struct EMM

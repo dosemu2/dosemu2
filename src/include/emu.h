@@ -276,7 +276,7 @@ typedef struct vesamode_type_struct {
 
        int hogthreshold;
 
-       int mem_size, xms_size, ems_size, dpmi, pm_dos_api, max_umb;
+       int mem_size, ext_mem, xms_size, ems_size, dpmi, pm_dos_api, max_umb;
        unsigned int ems_frame;
 
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator 

@@ -13,12 +13,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/param.h>
 #include "memory.h"
 #include "emu.h"
 #include "hma.h"
 #include "mapping.h"
+#include "bios.h"
 
 #define HMAAREA (u_char *)0x100000
+
+static unsigned char *ext_mem_base = NULL;
 
 void HMA_MAP(int HMA)
 {
@@ -66,10 +70,43 @@ void HMA_init(void)
   /* initially, no HMA */
   HMA_MAP(0);
   a20 = 0;
+  if (config.ext_mem) {
+    ext_mem_base = mmap_mapping(MAPPING_EXTMEM | MAPPING_SCRATCH, (void*)-1,
+      EXTMEM_SIZE, PROT_READ | PROT_WRITE, 0);
+    x_printf("Ext.Mem of size 0x%x at %p\n", EXTMEM_SIZE, ext_mem_base);
+  }
 }
 
 
 void
 hma_exit(void)
 {
+}
+
+void extmem_copy(char *dst, char *src, unsigned long len)
+{
+  unsigned long slen, dlen, clen, copied = 0;
+  unsigned char *s, *d, *edge = (unsigned char *)(LOWMEM_SIZE + HMASIZE);
+
+  while ((clen = len - copied) > 0) {
+    slen = clen;
+    s = src + copied;
+    if (s >= edge)
+      s += ext_mem_base - edge;
+    else if (s + slen > edge)
+      slen = edge - s;
+
+    dlen = clen;
+    d = dst + copied;
+    if (d >= edge)
+      d += ext_mem_base - edge;
+    else if (d + dlen > edge)
+      dlen = edge - d;
+
+    clen = MIN(slen, dlen);
+    x_printf("INT15: copy 0x%lx bytes from %p to %p%s\n",
+      clen, s, d, clen != len ? " (split)" : "");
+    MEMMOVE_DOS2DOS(d, s, clen);
+    copied += clen;
+  }
 }

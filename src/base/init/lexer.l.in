@@ -363,6 +363,7 @@ ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
 pm_dos_api		RETURN(PM_DOS_API);
 dosmem			RETURN(DOSMEM);
+ext_mem			RETURN(EXT_MEM);
 ports			RETURN(PORTS);
 trace			RETURN(TRACE);
 clear			RETURN(CLEAR);

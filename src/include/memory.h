@@ -223,8 +223,9 @@
    and forth and may cause us grief - a BUG */
 #define HMASIZE (64*1024)
 #define LOWMEM_SIZE 0x100000
+#define EXTMEM_SIZE (config.ext_mem << 10)
 
-#ifndef __ASM__
+#ifndef __ASSEMBLER__
 /* memcheck memory conflict finder definitions */
 int  memcheck_addtype(unsigned char map_char, char *name);
 void memcheck_reserve(unsigned char map_char, int addr_start, int size);

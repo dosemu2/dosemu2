@@ -23,9 +23,6 @@
 #define OLDXMS          1
 #define NEWXMS          2
 
-/* non-version XMS call been made yet? */
-EXTERN int xms_grab_int15 INIT(0);
-
 struct EMM {
    unsigned long Length;
    unsigned short SourceHandle;
@@ -47,6 +44,7 @@ struct UMB {
   int used;
 };
 
-void xms_control(void), xms_int15(void), xms_init(void);
+void xms_control(void);
+void xms_init(void);
 
 #endif /* XMS_H */

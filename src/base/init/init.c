@@ -433,7 +433,7 @@ void low_mem_init(void)
 
   if (result != NULL)
     {
-      perror ("anonymous mmap");
+      perror ("LOWRAM mmap");
       config.exitearly = 1;
     }
 }

@@ -32,6 +32,7 @@
 #include "pic.h"
 #include "lpt.h"
 #include "bitops.h"
+#include "hma.h"
 #include "xms.h"
 #include "int.h"
 #include "dos2linux.h"
@@ -664,24 +665,53 @@ static int int15(void)
     NOCARRY;
     break;
 
-  case 0x87:
-    if (config.xms_size)
-      xms_int15();
-    else {
-      LWORD(eax) &= 0xFF;
-      LWORD(eax) |= 0x0300;	/* say A20 gate failed - a lie but enough */
-      CARRY;
-    }
-    break;
+  case 0x87: {
+    unsigned long *lp;
+    unsigned long src_addr, dst_addr;
+    unsigned long src_limit, dst_limit;
+    unsigned int length;
+    lp = SEG_ADR((long*), es, si);
+    lp += 4;
+    src_addr = (*lp >> 16) & 0x0000FFFF;
+    src_limit = *lp & 0x0000FFFF;
+    lp++;
+    src_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
+    src_limit |= (*lp & 0x000F0000);
+    lp++;
+    dst_addr = (*lp >> 16) & 0x0000FFFF;
+    dst_limit = *lp & 0x0000FFFF;
+    lp++;
+    dst_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
+    dst_limit |= (*lp & 0x000F0000);
 
-  case 0x88:
-    if (config.xms_size) {
-      xms_int15();
-    }
-    else {
-      LWORD(eax) &= ~0xffff;	/* no extended ram if it's not XMS */
+    length = LWORD(ecx) << 1;
+
+    x_printf("int 15: block move: src=%#lx dst=%#lx len=%#x\n",
+      src_addr, dst_addr, length);
+
+    if (src_limit < length - 1 || dst_limit < length - 1 ||
+        src_addr + length > LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE ||
+        dst_addr + length > LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE) {
+      x_printf("block move failed\n");
+      LWORD(eax) = 0x0200;
+      CARRY;
+    } else {
+      unsigned int old_a20 = a20;
+      /* Have to enable a20 before moving */
+      if (!a20)
+        set_a20(1);
+      extmem_copy((void*)dst_addr, (void*)src_addr, length);
+      if (old_a20 != a20)
+        set_a20(old_a20);
+      LWORD(eax) = 0;
       NOCARRY;
     }
+    break;
+   }
+
+  case 0x88:
+    LWORD(eax) = (EXTMEM_SIZE + HMASIZE) >> 10;
+    NOCARRY;
     break;
 
   case 0x89:			/* enter protected mode : kind of tricky! */
@@ -761,8 +791,7 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 ---------------------------------------------
 #endif
     if (LO(ax) == 1) {
-	Bit32u mem = ((config.xms_size > config.ems_size) ?
-			 config.xms_size : config.ems_size);
+	Bit32u mem = (EXTMEM_SIZE + HMASIZE) >> 10;
 	LWORD(eax) = mem;
 	LWORD(ebx) = mem >>6;
 	NOCARRY;
@@ -1843,7 +1872,6 @@ static int int2f(void)
     switch (LO(ax)) {
     case 0:			/* check for XMS */
       x_printf("Check for XMS\n");
-      xms_grab_int15 = 0;
       LO(ax) = 0x80;
       break;
     case 0x10:

@@ -38,6 +38,7 @@
 #define MAPPING_SHARED		0x000080
 #define MAPPING_INIT_HWRAM	0x000100
 #define MAPPING_INIT_LOWRAM	0x000200
+#define MAPPING_EXTMEM		0x000400
 
 /* usage as: (kind of mapping required) */
 #define MAPPING_KMEM		0x010000

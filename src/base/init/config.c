@@ -150,8 +150,10 @@ void dump_config_status(void *printfunc)
     else
       (*print)("mappingdriver %s\n", config.mappingdriver ? config.mappingdriver : "auto");
     if (config_check_only) mapping_close();
-    (*print)("hdiskboot %d\nmem_size %d\n",
-        config.hdiskboot, config.mem_size);
+    (*print)("hdiskboot %d\n",
+        config.hdiskboot);
+    (*print)("mem_size %d\next_mem %d\n",
+	config.mem_size, config.ext_mem);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
     (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\npm_dos_api %i\n",
@@ -574,6 +576,12 @@ static void config_post_process(void)
     }
     if (!config.dpmi)
 	config.pm_dos_api = 0;
+
+    /* page-align memory sizes */
+    config.ext_mem &= ~3;
+    config.xms_size &= ~3;
+    config.ems_size &= ~3;
+    config.dpmi &= ~3;
 
     /* UID scrub */
     if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");

@@ -53,6 +53,8 @@
 # copied from emufs.S to make ems.S  -  7/19/93
 #
 
+#include "memory.h"
+
 .code16
 .text
 	.globl	_start16
@@ -152,7 +154,7 @@ Intr2:	orw	$0x100,%ax		# Merge done bit with status
 	lret
 
 Dummy:
-	call MFSini
+	call EMSini
 	les	RHPtr, %di
 	movb	%es:2(%di),%bl  # get request number
 	xorb	%bh,%bh
@@ -171,14 +173,14 @@ Int67:
 	iret
 
 Read:
-	call MFSini
+	call EMSini
 	movw	$0x101, %bx
 	xorw	%ax,%ax
 	ret
 
 
 Write:
-	call MFSini
+	call EMSini
 	xorw	%ax,%ax
 	ret
 
@@ -186,7 +188,57 @@ Error:
 	mov	$0x8003,%ax
 	ret
 
-MFSini:
+HimemHook_Start:
+	lcall	$XMSControl_SEG, $XMSControl_OFF
+HimemHook_End:
+
+HookHimem:
+	/* check for the XMS driver */
+	movw	$0x4300, %ax
+	int	$0x2f
+	cmpb	$0x80, %al
+	je	1f
+	/* no XMS driver - no XMS, no UMB */
+	movb	$9, %ah
+	movw	$NoHimemMsg, %dx
+	int	$0x21
+	jmp	9f
+1:
+	/* get entry point */
+	movw	$0x4310, %ax
+	int	$0x2f
+	/* see if it is sjmp (0xeb) */
+	cmpb	$0xeb, %es:(%bx)
+	je	2f
+	/* no sjmp :( */
+	movb	$9, %ah
+	movw	$CantHookMsg, %dx
+	int	$0x21
+	jmp	9f
+2:
+	/* see if it is our internal driver */
+	movw	%es, %ax
+	cmpw	$XMSControl_SEG, %ax
+	jne	3f
+	/* our driver */
+	movb	$9, %ah
+	movw	$InternDrvMsg, %dx
+	int	$0x21
+	jmp	9f
+3:
+	/* now install the hook for UMB */
+	movw	%bx, %di
+	movw	$HimemHook_Start, %si
+	movw	$(HimemHook_End - HimemHook_Start), %cx
+	rep	movsb
+	/* all done, UMB should work */
+	movb	$9, %ah
+	movw	$HimemOKMsg, %dx
+	int	$0x21
+9:
+	ret
+
+EMSini:
 	pushw %es
 	pushw %di
 
@@ -224,22 +276,23 @@ MFSini:
 
 	pushw %cs
 	popw %ds
-	movw $1,%ax
-	movw %ax,InitDone
+
+	call	HookHimem
+
+	movw $1,InitDone
 
 AlreadyDone:
 	popw %di
 	popw %es
 	ret
 
-
 Init:
 	xorw	%bx,%bx
 
 	cmpw	$0, %ax
-	jne	MFSin
+	jne	EMSin
 
-MFSout:
+EMSout:
 	pushw %cs
 	popw %ds
 	mov	$9, %ah
@@ -253,8 +306,8 @@ MFSout:
 
 	ret
 
-MFSin:
-	call	MFSini
+EMSin:
+	call	EMSini
 
 	movb	%es:22(%di), %al
 	addb	$0x41, %al
@@ -274,8 +327,27 @@ MFSin:
 	ret
 
 
-Mesage:	.ascii	"[dosemu EMS 4.0 driver installed]"
+Mesage:	.ascii	"dosemu EMS 4.0 driver installed"
 	.byte	cr,lf,eom
+
+NoHimemMsg:
+	.ascii	"WARNING: himem.sys was not loaded before ems.sys!\r\n"
+	.ascii  "XMS and UMB services will not be available.\r\n"
+	.ascii	"Please adjust your config.sys.\r\n"
+	.byte	eom
+CantHookMsg:
+	.ascii	"Unable to hook into himem.sys, UMB disabled.\r\n"
+	.ascii	"Make sure himem.sys is loaded right before ems.sys in "
+	.ascii  "your config.sys.\r\n"
+	.byte	eom
+HimemOKMsg:
+	.ascii	"UMB support enabled and "
+	.byte	eom
+InternDrvMsg:
+	.ascii	"dosemu internal XMS driver detected.\r\n"
+	.ascii	"This is deprecated, please consider using\r\n"
+	.ascii  "an external XMS driver, like himem.sys or fdxms.sys.\r\n"
+	.byte	eom
 
 OutMess:
 	.byte	cr,lf,lf

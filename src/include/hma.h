@@ -9,7 +9,8 @@
 
 #include "extern.h"
 
-void set_a20(int);
 EXTERN int a20;
+void set_a20(int);
+void extmem_copy(char *dst, char *src, unsigned long len);
 
 #endif
