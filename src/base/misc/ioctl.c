@@ -190,7 +190,7 @@ int i;
     /* block SIGIO/SIGALRM/SIG_ACQUIRE/SIG_RELEASE until they are set to
        functions later in signal_init() and device_init() */
     sigemptyset(&set);
-    ADDSET_SIGNALS_THAT_QUEUE(&set);
+    addset_signals_that_queue(&set);
     sigprocmask(SIG_BLOCK, &set, NULL);
 }
 

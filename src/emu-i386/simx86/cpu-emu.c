@@ -859,7 +859,6 @@ Descriptor *alloc_LDT = NULL;
 void enter_cpu_emu(void)
 {
 	struct itimerval itv;
-	struct sigaction sa;
 	unsigned int realdelta = config.update / TIMER_DIVISOR;
 
 	if (config.rdtsc==0) {
@@ -891,7 +890,7 @@ void enter_cpu_emu(void)
 #endif
 	e_printf("EMU86: delta alrm=%d speed=%d\n",realdelta,config.CPUSpeedInMhz);
 	e_sigpa_count = 0;
-	SETSIG(SIGALRM, e_gen_sigalrm);
+	setsig(SIGALRM, e_gen_sigalrm);
 
 	itv.it_interval.tv_sec = 0;
 	itv.it_interval.tv_usec = realdelta;
@@ -899,9 +898,9 @@ void enter_cpu_emu(void)
 	itv.it_value.tv_usec = realdelta;
 	e_printf("TIME: using %d usec for updating PROF timer\n", realdelta);
 	setitimer(ITIMER_PROF, &itv, NULL);
-	SETSIG(SIGPROF, e_gen_sigprof);
-	NEWSETSIG(SIGFPE, e_emu_fault);
-	NEWSETSIG(SIGSEGV, e_emu_fault);
+	setsig(SIGPROF, e_gen_sigprof);
+	newsetsig(SIGFPE, e_emu_fault);
+	newsetsig(SIGSEGV, e_emu_fault);
 
 #ifdef DEBUG_TREE
 	tLog = fopen(DEBUG_TREE_FILE,"w");
@@ -917,7 +916,6 @@ void enter_cpu_emu(void)
 void leave_cpu_emu(void)
 {
 	struct itimerval itv;
-	struct sigaction sa;
 
 	if (config.cpuemu > 1) {
 		config.cpuemu=1;
@@ -925,10 +923,10 @@ void leave_cpu_emu(void)
 		if (IOFF(0x10)==CPUEMU_WATCHER_OFF)
 			IOFF(0x10)=INT10_WATCHER_OFF;
 #endif
-		NEWSETSIG(SIGFPE, dosemu_fault);
-		NEWSETSIG(SIGSEGV, dosemu_fault);
+		newsetsig(SIGFPE, dosemu_fault);
+		newsetsig(SIGSEGV, dosemu_fault);
 		e_printf("EMU86: switching SIGALRMs\n");
-		NEWSETQSIG(SIGALRM, sigalrm);
+		newsetqsig(SIGALRM, sigalrm);
 
 		itv.it_interval.tv_sec = 0;
 		itv.it_interval.tv_usec = 0;
@@ -936,7 +934,7 @@ void leave_cpu_emu(void)
 		itv.it_value.tv_usec = 0;
 		e_printf("TIME: disabling PROF timer\n");
 		setitimer(ITIMER_PROF, &itv, NULL);
-		SETSIG(SIGPROF, SIG_IGN);
+		setsig(SIGPROF, SIG_IGN);
 
 		EndGen();
 #ifdef DEBUG_TREE

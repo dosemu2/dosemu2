@@ -234,7 +234,6 @@ static int terminal_initialize(void)
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color;
    int rotate[8];
-   struct sigaction sa;
 
    v_printf("VID: terminal_initialize() called \n");
    /* I do not know why this routine is called if our update is not
@@ -279,7 +278,7 @@ static int terminal_initialize(void)
    /* respond to resize events unless we're running on the Linux console
       with raw keyboard: then SIGWINCH = SIG_RELEASE ! */
    if (!config.console_keyb) {
-     SETSIG(SIGWINCH, sigwinch);
+     setsig(SIGWINCH, sigwinch);
    }
 
    /* initialize VGA emulator */

@@ -50,7 +50,8 @@ struct  SIGNAL_queue {
   void (* signal_handler)(void);
 };
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
-
+/* set if sigaltstack(2) is available */
+static int have_working_sigaltstack;
 
 #ifdef __linux__
 /*
@@ -84,6 +85,98 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   return(syscall(SYS_sigaction, sig, &my_sa, NULL));
 }
 #endif /* __linux__ */
+
+ /* DANG_BEGIN_REMARK
+  * We assume system call restarting... under linux 0.99pl8 and earlier,
+  * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
+  * request restarting (and thus does nothing).  However, if this ever
+  * changes, I want to be safe
+  * DANG_END_REMARK
+  */
+#ifndef SA_RESTART
+#define SA_RESTART 0
+#error SA_RESTART Not defined
+#endif
+
+/* DANG_BEGIN_FUNCTION NEWSETQSIG
+ *
+ * arguments:
+ * sig - the signal to have a handler installed to.
+ * fun - the signal handler function to install
+ *
+ * description:
+ *  All signals that wish to be handled properly in context with the
+ * execution of vm86() mode, and signals that wish to use non-reentrant
+ * functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE define
+ * and use SETQSIG(). To that end they will also need to be set up in an
+ * order such as SIGIO.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void addset_signals_that_queue(sigset_t *x)
+{
+       sigaddset(x, SIGIO);
+       sigaddset(x, SIGALRM);
+       sigaddset(x, SIG_RELEASE);
+       sigaddset(x, SIG_ACQUIRE);
+}
+
+#ifndef SA_ONSTACK
+#define SA_ONSTACK 0
+#undef HAVE_SIGALTSTACK
+#endif
+
+void newsetqsig(int sig, void *fun)
+{
+	struct sigaction sa;
+
+	sa.sa_handler = (__sighandler_t)fun;
+	sa.sa_flags = SA_RESTART;
+	sigemptyset(&sa.sa_mask);
+	addset_signals_that_queue(&sa.sa_mask);
+	if (have_working_sigaltstack) {
+		sa.sa_flags |= SA_ONSTACK;
+		sigaction(sig, &sa, NULL);
+	} else {
+		/* Point to the top of the stack, minus 4
+		   just in case, and make it aligned  */
+		sa.sa_restorer =
+		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
+		dosemu_sigaction(sig, &sa, NULL);
+	}
+}
+
+void setsig(int sig, void *fun)
+{
+	struct sigaction sa;
+
+	sa.sa_handler = (__sighandler_t)fun;
+	sa.sa_flags = SA_RESTART;
+	sigemptyset(&sa.sa_mask);
+	addset_signals_that_queue(&sa.sa_mask);
+	sigaction(sig, &sa, NULL);
+}
+
+void newsetsig(int sig, void *fun)
+{
+	struct sigaction sa;
+
+	sa.sa_handler = (__sighandler_t) fun;
+	sa.sa_flags = SA_RESTART | SA_NODEFER;
+	sigemptyset(&sa.sa_mask);
+	addset_signals_that_queue(&sa.sa_mask);
+	if (have_working_sigaltstack) {
+		sa.sa_flags |= SA_ONSTACK;
+		sigaction(sig, &sa, NULL);
+	} else {
+		/* Point to the top of the stack, minus 4
+		   just in case, and make it aligned  */
+		sa.sa_restorer =
+		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3);
+		dosemu_sigaction(sig, &sa, NULL);
+	}
+}
 
 /* this cleaning up is necessary to avoid the port server becoming
    a zombie process */
@@ -184,7 +277,6 @@ void SIG_close(void)
 void
 signal_init(void)
 {
-  struct sigaction sa;
   sigset_t set;
 
 #ifdef HAVE_SIGALTSTACK
@@ -233,38 +325,38 @@ signal_init(void)
    SIGPWR		30
    SIGUNUSED		31	na
   ------------------------------------------------ */
-  NEWSETSIG(SIGILL, dosemu_fault);
-  NEWSETQSIG(SIGALRM, sigalrm);
-  NEWSETSIG(SIGFPE, dosemu_fault);
-  NEWSETSIG(SIGTRAP, dosemu_fault);
+  newsetsig(SIGILL, dosemu_fault);
+  newsetqsig(SIGALRM, sigalrm);
+  newsetsig(SIGFPE, dosemu_fault);
+  newsetsig(SIGTRAP, dosemu_fault);
 
 #ifdef SIGBUS /* for newer kernels */
-  NEWSETSIG(SIGBUS, dosemu_fault);
+  newsetsig(SIGBUS, dosemu_fault);
 #endif
-  SETSIG(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
-  SETSIG(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
-  SETSIG(SIGTERM, leavedos_signal);
+  setsig(SIGINT, leavedos_signal);   /* for "graceful" shutdown for ^C too*/
+  setsig(SIGHUP, leavedos_signal);	/* for "graceful" shutdown */
+  setsig(SIGTERM, leavedos_signal);
 #if 0 /* Richard Stevens says it can't be caught. It's returning an
        * error anyway
        */
-  SETSIG(SIGKILL, leavedos_signal);
+  setsig(SIGKILL, leavedos_signal);
 #endif
-  SETSIG(SIGQUIT, sigquit);
-  SETSIG(SIGPIPE, SIG_IGN);
+  setsig(SIGQUIT, sigquit);
+  setsig(SIGPIPE, SIG_IGN);
 
 #ifdef X86_EMULATOR
-  SETSIG(SIGPROF, SIG_IGN);
+  setsig(SIGPROF, SIG_IGN);
 #endif
 /*
-  SETSIG(SIGUNUSED, timint);
+  setsig(SIGUNUSED, timint);
 */
-  NEWSETQSIG(SIGIO, sigio);
-  NEWSETSIG(SIGSEGV, dosemu_fault);
-  SETSIG(SIGCHLD, cleanup_child);
+  newsetqsig(SIGIO, sigio);
+  newsetsig(SIGSEGV, dosemu_fault);
+  setsig(SIGCHLD, cleanup_child);
 
   /* unblock SIGIO, SIGALRM, SIG_ACQUIRE, SIG_RELEASE */
   sigemptyset(&set);
-  ADDSET_SIGNALS_THAT_QUEUE(&set);
+  addset_signals_that_queue(&set);
   sigprocmask(SIG_UNBLOCK, &set, NULL);
 
   SIG_init();			/* silly int generator support */

@@ -436,9 +436,6 @@ EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);
 #endif
 
-/* set if sigaltstack(2) is available */
-EXTERN int have_working_sigaltstack;
-
 EXTERN unsigned long int stack_init_top INIT(0xffffffff);
 EXTERN unsigned long int stack_init_bot INIT(0xffffffff);
 
@@ -446,91 +443,13 @@ EXTERN unsigned long int stack_init_bot INIT(0xffffffff);
 #define SIG_RELEASE     SIGUSR1
 #define SIG_ACQUIRE     SIGUSR2
 
- /* DANG_BEGIN_REMARK
-  * We assume system call restarting... under linux 0.99pl8 and earlier,
-  * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
-  * request restarting (and thus does nothing).  However, if this ever
-  * changes, I want to be safe
-  * DANG_END_REMARK
-  */
-#ifndef SA_RESTART
-#define SA_RESTART 0
-#error SA_RESTART Not defined
-#endif
-
-/* DANG_BEGIN_FUNCTION NEWSETQSIG
- *
- * arguments:
- * sig - the signal to have a handler installed to.
- * fun - the signal handler function to install
- *
- * description:
- *  All signals that wish to be handled properly in context with the
- * execution of vm86() mode, and signals that wish to use non-reentrant
- * functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE define
- * and use SETQSIG(). To that end they will also need to be set up in an
- * order such as SIGIO.
- *
- * DANG_END_FUNCTION
- *
- */
-#define ADDSET_SIGNALS_THAT_QUEUE(x) \
-do { \
-       sigaddset(x, SIGIO); \
-       sigaddset(x, SIGALRM); \
-       sigaddset(x, SIG_RELEASE); \
-       sigaddset(x, SIG_ACQUIRE); \
-} while(0)
-
-#ifdef __linux__
-#ifndef SA_ONSTACK
-#define SA_ONSTACK 0
-#undef HAVE_SIGALTSTACK
-#endif
-#define SignalHandler __sighandler_t
-#define NEWSETQSIG(sig, fun) \
-	sa.sa_handler = (__sighandler_t)fun; \
-	sa.sa_flags = SA_RESTART; \
-	sigemptyset(&sa.sa_mask); \
-	ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
-	if (have_working_sigaltstack) { \
-		sa.sa_flags |= SA_ONSTACK; \
-		sigaction(sig, &sa, NULL); \
-	} else { \
-		/* Point to the top of the stack, minus 4 \
-		   just in case, and make it aligned  */ \
-		sa.sa_restorer = \
-		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3); \
-		dosemu_sigaction(sig, &sa, NULL); \
-	}
-
-#define SETSIG(sig, fun) \
-	sa.sa_handler = (SignalHandler)fun; \
-	sa.sa_flags = SA_RESTART; \
-	sigemptyset(&sa.sa_mask); \
-	ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
-	sigaction(sig, &sa, NULL);
-
-#define NEWSETSIG(sig, fun) \
-	sa.sa_handler = (__sighandler_t) fun; \
-	sa.sa_flags = SA_RESTART | SA_NODEFER; \
-	sigemptyset(&sa.sa_mask); \
-	ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
-	if (have_working_sigaltstack) { \
-		sa.sa_flags |= SA_ONSTACK; \
-		sigaction(sig, &sa, NULL); \
-	} else { \
-		/* Point to the top of the stack, minus 4 \
-		   just in case, and make it aligned  */ \
-		sa.sa_restorer = \
-		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3); \
-		dosemu_sigaction(sig, &sa, NULL); \
-	}
-#endif
-
 EXTERN inline void SIGNAL_save( void (*signal_call)(void) );
 EXTERN inline void handle_signals(void);
 
+extern void addset_signals_that_queue(sigset_t *x);
+extern void newsetqsig(int sig, void *handler);
+extern void setsig(int sig, void *handler);
+extern void newsetsig(int sig, void *handler);
 
 /* 
  * DANG_BEGIN_REMARK

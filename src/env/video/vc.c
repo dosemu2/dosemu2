@@ -447,7 +447,6 @@ void
 set_process_control (void)
 {
   struct vt_mode vt_mode;
-  struct sigaction sa;
 
   vt_mode.mode = VT_PROCESS;
   vt_mode.waitv = 0;
@@ -458,8 +457,8 @@ set_process_control (void)
   scr_state.vt_requested = 0;	/* a switch has not been attempted yet */
   allow_switch ();
 
-  NEWSETQSIG (SIG_RELEASE, release_vt);
-  NEWSETQSIG (SIG_ACQUIRE, acquire_vt);
+  newsetqsig (SIG_RELEASE, release_vt);
+  newsetqsig (SIG_ACQUIRE, acquire_vt);
 
   if (do_ioctl (console_fd, VT_SETMODE, (int) &vt_mode))
     v_printf ("initial VT_SETMODE failed!\n");
@@ -470,12 +469,11 @@ void
 clear_process_control (void)
 {
   struct vt_mode vt_mode;
-  struct sigaction sa;
 
   vt_mode.mode = VT_AUTO;
   ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
-  SETSIG (SIG_RELEASE, SIG_IGN);
-  SETSIG (SIG_ACQUIRE, SIG_IGN);
+  setsig (SIG_RELEASE, SIG_IGN);
+  setsig (SIG_ACQUIRE, SIG_IGN);
 }
 
 
