@@ -1,6 +1,6 @@
 #!/bin/bash
 #DOSEMUPATH=/usr/src/dosemu
-DOSEMUPATH=.
+DOSEMUPATH=./src/arch/linux
 
 if [ ! -f ${DOSEMUPATH}/syscallmgr/rmmod ]; then
   echo "${DOSEMUPATH}/syscallmgr/rmmod not existing"

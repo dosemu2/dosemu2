@@ -1,6 +1,6 @@
 #!/bin/bash
 #DOSEMUPATH=/usr/src/dosemu
-DOSEMUPATH=.
+DOSEMUPATH=./src/arch/linux
 
 if [ ! -d $DOSEMUPATH ]; then
   echo "$DOSEMUPATH not existing"

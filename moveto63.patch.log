@@ -1,0 +1,320 @@
+Hmm...  Looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/Makefile dosemu63/Makefile
+|--- dosemu-0.63.0-clean/Makefile	Thu Jan  1 01:00:00 1970
+|+++ dosemu63/Makefile	Sun Nov 26 23:04:48 1995
+--------------------------
+(Creating file dosemu63/Makefile...)
+Patching file dosemu63/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/load_module.sh dosemu63/load_module.sh
+|--- dosemu-0.63.0-clean/load_module.sh	Sat Nov  4 18:46:51 1995
+|+++ dosemu63/load_module.sh	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/load_module.sh using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/Makefile dosemu63/src/Makefile
+|--- dosemu-0.63.0-clean/src/Makefile	Sat Nov  4 18:46:38 1995
+|+++ dosemu63/src/Makefile	Sun Nov 26 20:03:39 1995
+--------------------------
+Patching file dosemu63/src/Makefile using Plan A...
+Hunk #1 succeeded at 11.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/Makefile.common dosemu63/src/Makefile.common
+|--- dosemu-0.63.0-clean/src/Makefile.common	Sat Nov  4 18:46:38 1995
+|+++ dosemu63/src/Makefile.common	Sun Nov 26 23:01:39 1995
+--------------------------
+Patching file dosemu63/src/Makefile.common using Plan A...
+Hunk #1 succeeded at 4.
+Hunk #2 succeeded at 20.
+Hunk #3 succeeded at 89.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/arch/linux/Makefile.main dosemu63/src/arch/linux/Makefile.main
+|--- dosemu-0.63.0-clean/src/arch/linux/Makefile.main	Sat Nov 11 23:59:43 1995
+|+++ dosemu63/src/arch/linux/Makefile.main	Mon Nov 27 01:30:27 1995
+--------------------------
+Patching file dosemu63/src/arch/linux/Makefile.main using Plan A...
+Hunk #1 succeeded at 34.
+Hunk #2 succeeded at 103.
+Hunk #3 succeeded at 129.
+Hunk #4 succeeded at 167.
+Hunk #5 succeeded at 181.
+Hunk #6 succeeded at 203.
+Hunk #7 succeeded at 254.
+Hunk #8 succeeded at 267.
+Hunk #9 succeeded at 444.
+Hunk #10 succeeded at 457.
+Hunk #11 succeeded at 485.
+Hunk #12 succeeded at 520.
+Hunk #13 succeeded at 546.
+Hunk #14 succeeded at 568.
+Hunk #15 succeeded at 576.
+Hunk #16 succeeded at 612.
+Hunk #17 succeeded at 620.
+Hunk #18 succeeded at 650.
+Hunk #19 succeeded at 688.
+Hunk #20 succeeded at 714.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/arch/linux/async/Makefile dosemu63/src/arch/linux/async/Makefile
+|--- dosemu-0.63.0-clean/src/arch/linux/async/Makefile	Thu Jan  1 01:00:00 1970
+|+++ dosemu63/src/arch/linux/async/Makefile	Sun Nov 26 21:19:49 1995
+--------------------------
+(Creating file dosemu63/src/arch/linux/async/Makefile...)
+Patching file dosemu63/src/arch/linux/async/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/arch/linux/debugger/Makefile dosemu63/src/arch/linux/debugger/Makefile
+|--- dosemu-0.63.0-clean/src/arch/linux/debugger/Makefile	Sat Nov  4 18:46:41 1995
+|+++ dosemu63/src/arch/linux/debugger/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/arch/linux/debugger/Makefile using Plan A...
+Hunk #1 succeeded at 15.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/arch/linux/emumod/Makefile dosemu63/src/arch/linux/emumod/Makefile
+|--- dosemu-0.63.0-clean/src/arch/linux/emumod/Makefile	Sat Nov  4 18:46:45 1995
+|+++ dosemu63/src/arch/linux/emumod/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/arch/linux/emumod/Makefile using Plan A...
+Hunk #1 succeeded at 13.
+Hunk #2 succeeded at 44.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/arch/linux/syscallmgr/Makefile dosemu63/src/arch/linux/syscallmgr/Makefile
+|--- dosemu-0.63.0-clean/src/arch/linux/syscallmgr/Makefile	Sat Nov  4 18:46:54 1995
+|+++ dosemu63/src/arch/linux/syscallmgr/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/arch/linux/syscallmgr/Makefile using Plan A...
+Hunk #1 succeeded at 11.
+Hunk #2 succeeded at 40.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/arch/netbsd/Makefile.main dosemu63/src/arch/netbsd/Makefile.main
+|--- dosemu-0.63.0-clean/src/arch/netbsd/Makefile.main	Sat Nov  4 18:46:38 1995
+|+++ dosemu63/src/arch/netbsd/Makefile.main	Mon Nov 27 01:31:03 1995
+--------------------------
+Patching file dosemu63/src/arch/netbsd/Makefile.main using Plan A...
+Hunk #1 succeeded at 36.
+Hunk #2 succeeded at 122.
+Hunk #3 succeeded at 160.
+Hunk #4 succeeded at 174.
+Hunk #5 succeeded at 196.
+Hunk #6 succeeded at 247.
+Hunk #7 succeeded at 260.
+Hunk #8 succeeded at 425.
+Hunk #9 succeeded at 438.
+Hunk #10 succeeded at 492.
+Hunk #11 succeeded at 516.
+Hunk #12 succeeded at 545.
+Hunk #13 succeeded at 553.
+Hunk #14 succeeded at 595.
+Hunk #15 succeeded at 625.
+Hunk #16 succeeded at 663.
+Hunk #17 succeeded at 689.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/async/Makefile dosemu63/src/base/async/Makefile
+|--- dosemu-0.63.0-clean/src/base/async/Makefile	Thu Jan  1 01:00:00 1970
+|+++ dosemu63/src/base/async/Makefile	Sun Nov 26 21:05:56 1995
+--------------------------
+(Creating file dosemu63/src/base/async/Makefile...)
+Patching file dosemu63/src/base/async/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/bios/Makefile dosemu63/src/base/bios/Makefile
+|--- dosemu-0.63.0-clean/src/base/bios/Makefile	Sat Nov  4 18:46:39 1995
+|+++ dosemu63/src/base/bios/Makefile	Mon Nov 27 00:28:08 1995
+--------------------------
+Patching file dosemu63/src/base/bios/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hunk #2 succeeded at 38.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/dev/dma/Makefile dosemu63/src/base/dev/dma/Makefile
+|--- dosemu-0.63.0-clean/src/base/dev/dma/Makefile	Sat Nov  4 18:46:41 1995
+|+++ dosemu63/src/base/dev/dma/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/base/dev/dma/Makefile using Plan A...
+Hunk #1 succeeded at 14.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/dev/misc/Makefile dosemu63/src/base/dev/misc/Makefile
+|--- dosemu-0.63.0-clean/src/base/dev/misc/Makefile	Thu Jan  1 01:00:00 1970
+|+++ dosemu63/src/base/dev/misc/Makefile	Sun Nov 26 20:24:56 1995
+--------------------------
+(Creating file dosemu63/src/base/dev/misc/Makefile...)
+Patching file dosemu63/src/base/dev/misc/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/dev/pic/Makefile dosemu63/src/base/dev/pic/Makefile
+|--- dosemu-0.63.0-clean/src/base/dev/pic/Makefile	Sat Nov  4 18:46:53 1995
+|+++ dosemu63/src/base/dev/pic/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/base/dev/pic/Makefile using Plan A...
+Hunk #1 succeeded at 14.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/init/Makefile dosemu63/src/base/init/Makefile
+|--- dosemu-0.63.0-clean/src/base/init/Makefile	Sat Nov  4 18:46:48 1995
+|+++ dosemu63/src/base/init/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/base/init/Makefile using Plan A...
+Hunk #1 succeeded at 41.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/keyboard/Makefile dosemu63/src/base/keyboard/Makefile
+|--- dosemu-0.63.0-clean/src/base/keyboard/Makefile	Sat Nov  4 18:46:50 1995
+|+++ dosemu63/src/base/keyboard/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/base/keyboard/Makefile using Plan A...
+Hunk #1 succeeded at 30.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/misc/Makefile dosemu63/src/base/misc/Makefile
+|--- dosemu-0.63.0-clean/src/base/misc/Makefile	Sat Nov  4 18:46:44 1995
+|+++ dosemu63/src/base/misc/Makefile	Sun Nov 26 21:29:15 1995
+--------------------------
+Patching file dosemu63/src/base/misc/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hunk #2 succeeded at 8.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/mouse/Makefile dosemu63/src/base/mouse/Makefile
+|--- dosemu-0.63.0-clean/src/base/mouse/Makefile	Sat Nov  4 18:46:52 1995
+|+++ dosemu63/src/base/mouse/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/base/mouse/Makefile using Plan A...
+Hunk #1 succeeded at 24.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/base/serial/Makefile dosemu63/src/base/serial/Makefile
+|--- dosemu-0.63.0-clean/src/base/serial/Makefile	Sat Nov  4 18:46:53 1995
+|+++ dosemu63/src/base/serial/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/base/serial/Makefile using Plan A...
+Hunk #1 succeeded at 19.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/dosext/dpmi/Makefile dosemu63/src/dosext/dpmi/Makefile
+|--- dosemu-0.63.0-clean/src/dosext/dpmi/Makefile	Sat Nov  4 18:46:45 1995
+|+++ dosemu63/src/dosext/dpmi/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/dosext/dpmi/Makefile using Plan A...
+Hunk #1 succeeded at 17.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/dosext/drivers/Makefile dosemu63/src/dosext/drivers/Makefile
+|--- dosemu-0.63.0-clean/src/dosext/drivers/Makefile	Sat Nov  4 18:46:45 1995
+|+++ dosemu63/src/dosext/drivers/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/dosext/drivers/Makefile using Plan A...
+Hunk #1 succeeded at 9.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/dosext/mfs/Makefile dosemu63/src/dosext/mfs/Makefile
+|--- dosemu-0.63.0-clean/src/dosext/mfs/Makefile	Sat Nov  4 18:46:51 1995
+|+++ dosemu63/src/dosext/mfs/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/dosext/mfs/Makefile using Plan A...
+Hunk #1 succeeded at 6.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/dosext/misc/Makefile dosemu63/src/dosext/misc/Makefile
+|--- dosemu-0.63.0-clean/src/dosext/misc/Makefile	Thu Jan  1 01:00:00 1970
+|+++ dosemu63/src/dosext/misc/Makefile	Sun Nov 26 20:33:08 1995
+--------------------------
+(Creating file dosemu63/src/dosext/misc/Makefile...)
+Patching file dosemu63/src/dosext/misc/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/dosext/net/net/Makefile dosemu63/src/dosext/net/net/Makefile
+|--- dosemu-0.63.0-clean/src/dosext/net/net/Makefile	Sat Nov  4 18:46:53 1995
+|+++ dosemu63/src/dosext/net/net/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/dosext/net/net/Makefile using Plan A...
+Hunk #1 succeeded at 23.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/dosext/sound/Makefile dosemu63/src/dosext/sound/Makefile
+|--- dosemu-0.63.0-clean/src/dosext/sound/Makefile	Sat Nov  4 18:46:53 1995
+|+++ dosemu63/src/dosext/sound/Makefile	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/src/dosext/sound/Makefile using Plan A...
+Hunk #1 succeeded at 14.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/emu-i386/Makefile dosemu63/src/emu-i386/Makefile
+|--- dosemu-0.63.0-clean/src/emu-i386/Makefile	Thu Jan  1 01:00:00 1970
+|+++ dosemu63/src/emu-i386/Makefile	Sun Nov 26 21:24:01 1995
+--------------------------
+(Creating file dosemu63/src/emu-i386/Makefile...)
+Patching file dosemu63/src/emu-i386/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/env/Makefile dosemu63/src/env/Makefile
+|--- dosemu-0.63.0-clean/src/env/Makefile	Thu Jan  1 01:00:00 1970
+|+++ dosemu63/src/env/Makefile	Sun Nov 26 21:27:33 1995
+--------------------------
+(Creating file dosemu63/src/env/Makefile...)
+Patching file dosemu63/src/env/Makefile using Plan A...
+Hunk #1 succeeded at 1.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/src/env/video/Makefile dosemu63/src/env/video/Makefile
+|--- dosemu-0.63.0-clean/src/env/video/Makefile	Sat Nov  4 18:46:55 1995
+|+++ dosemu63/src/env/video/Makefile	Mon Nov 27 00:03:30 1995
+--------------------------
+Patching file dosemu63/src/env/video/Makefile using Plan A...
+Hunk #1 succeeded at 12.
+Hunk #2 succeeded at 23.
+Hmm...  The next patch looks like a unified diff to me...
+The text leading up to this was:
+--------------------------
+|diff -urN dosemu-0.63.0-clean/unload_module.sh dosemu63/unload_module.sh
+|--- dosemu-0.63.0-clean/unload_module.sh	Sat Nov  4 18:46:54 1995
+|+++ dosemu63/unload_module.sh	Sun Nov 26 20:00:55 1995
+--------------------------
+Patching file dosemu63/unload_module.sh using Plan A...
+Hunk #1 succeeded at 1.
+done

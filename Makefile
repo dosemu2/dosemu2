@@ -1,17 +1,23 @@
 # Makefile for Linux DOSEMU
+
+VERSION = 0
+SUBLEVEL = 63
+PATCHLEVEL = 0.1
+
 #
-# $Date: 1995/05/06 16:24:53 $
-# $Source: /usr/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.41 $
-# $State: Exp $
+# $Date: 1995/11/25
 #
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 #
 
-OS:= $(shell uname)
-ifeq (${OS},NetBSD)
-include Makefile.NetBSD
-else
-include Makefile.linux
-endif
+REALTOPDIR  := $(shell nolinks=1; pwd)
+export REALTOPDIR
+export VERSION
+export SUBLEVEL
+export PATCHLEVEL
+
+# we simply cd to ./src and execute Makefile from from there
+
+%:
+	$(MAKE) -C src $@

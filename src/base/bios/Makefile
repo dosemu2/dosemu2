@@ -1,0 +1,49 @@
+CFILES=int10.c
+ALL=bios.S test.S $(CFILES)
+
+OBJS= $(CFILES:.c=.o)         # NOTE: bios.o must NOT go into lib !!!
+                              #       ( 'ELF ar' would die )
+SUBDIR=bios
+
+DEPENDS=$(CFILES:.c=.d)
+
+
+AS86FLAGS=$(INCDIR)
+
+LD86=ld86
+AS86=as86
+
+# NOTE: currently we compile the following modules at other places:
+#      int10.c in src/env/video
+#
+all: lib bios.o
+
+
+bios.o: bios.part.2
+	$(TOPDIR)/tools/tools86 $^
+	cp $< $@
+
+bios:	bios.s
+
+bios.s:	bios.i
+	$(TOPDIR)/tools/tools86 -E <$^ >$@
+
+bios.i:	bios.S
+	$(CC) -E --traditional $(AS86FLAGS) $^ >$@
+
+bios.part.1:	bios.s
+	$(AS86) -0 -w -g -o $@ $^
+
+bios.part.2:	bios.part.1
+	$(LD86) -0 -r -o $@ $^
+
+
+include $(REALTOPDIR)/src/Makefile.common
+
+clean::
+	rm -f *.o bios.s bios.i bios.part.1 bios.part.2 
+
+realclean:: clean
+
+
+install: all

@@ -1,0 +1,182 @@
+dosemu60/dosemu
+                       --->  dosemu63/src/base/misc
+dosemu63/src/base/misc/xms.c
+                ---moved-->  dosemu63/src/dosext/misc
+dosemu63/src/base/misc/emm.c
+                ---moved-->  dosemu63/src/dosext/misc
+dosemu63/src/base/misc/cmos.c
+                ---moved-->  dosemu63/src/base/dev/misc
+dosemu63/src/base/misc/timers.c
+                ---moved-->  dosemu63/src/base/dev/misc
+dosemu63/src/base/misc/lpt.c
+                ---moved-->  dosemu63/src/base/dev/misc
+dosemu63/src/base/misc/cpu.c
+                ---moved-->  dosemu63/src/emu-i386
+dosemu63/src/base/misc/dyndeb.c
+                ---moved-->  dosemu63/src/base/async
+dosemu63/src/base/misc/int.c
+                ---moved-->  dosemu63/src/base/async
+dosemu63/src/base/misc/sigsegv.c
+                ---moved-->  dosemu63/src/arch/linux/async
+dosemu63/src/base/misc/signal.c
+                ---moved-->  dosemu63/src/arch/linux/async
+dosemu63/src/base/misc/detach.c
+                ---moved-->  dosemu63/src/env
+dosemu60/init
+                       --->  dosemu63/src/base/
+dosemu60/mouse
+                       --->  dosemu63/src/base/
+dosemu60/bios
+                       --->  dosemu63/src/base/
+dosemu60/keyboard
+                       --->  dosemu63/src/base/
+dosemu60/serial
+                       --->  dosemu63/src/base/
+dosemu60/dma
+                       --->  dosemu63/src/base/dev/
+dosemu60/pic
+                       --->  dosemu63/src/base/dev/
+dosemu60/video
+                       --->  dosemu63/src/env/
+dosemu63/src/env/video/int10.c
+                ---moved-->  dosemu63/src/base/bios
+dosemu60/dpmi
+                       --->  dosemu63/src/dosext/
+dosemu60/drivers
+                       --->  dosemu63/src/dosext/
+dosemu60/mfs
+                       --->  dosemu63/src/dosext/
+dosemu60/sound
+                       --->  dosemu63/src/dosext/
+dosemu60/ipxbridge
+                       --->  dosemu63/src/dosext/net/
+dosemu60/ipxutils
+                       --->  dosemu63/src/dosext/net/
+dosemu60/net
+                       --->  dosemu63/src/dosext/net/
+dosemu60/v-net
+                       --->  dosemu63/src/dosext/net/
+dosemu60/syscallmgr
+                       --->  dosemu63/src/arch/linux/
+dosemu60/emumod
+                       --->  dosemu63/src/arch/linux/
+dosemu60/debugger
+                       --->  dosemu63/src/arch/linux/
+dosemu63/src/arch/netbsd/async
+               ---linked-->  ../linux/async
+dosemu63/src/arch/netbsd/syscallmgr
+               ---linked-->  ../linux/syscallmgr
+dosemu63/src/arch/netbsd/emumod
+               ---linked-->  ../linux/emumod
+dosemu63/src/arch/netbsd/debugger
+               ---linked-->  ../linux/debugger
+dosemu60/dosemu.keys
+                       --->  dosemu63/etc/keymap
+dosemu60/examples/config.dist
+                       --->  dosemu63/etc/config.dist
+dosemu60/include
+                       --->  dosemu63/src/
+dosemu60/commands
+                       --->  dosemu63/commands/dos
+dosemu60/clients
+                       --->  dosemu63/commands/unix/
+dosemu60/periph
+                       --->  dosemu63/commands/unix/
+dosemu60/tools
+                       --->  dosemu63/src/
+dosemu63/src/tools/kversion.sh
+                ---moved-->  dosemu63/src/arch/linux
+dosemu63/src/tools/kversion-netbsd.sh
+                ---moved-->  dosemu63/src/arch/netbsd
+dosemu60/doc
+                       --->  dosemu63/./
+dosemu63/doc/dos.1
+                ---moved-->  dosemu63/man
+dosemu60/boot
+                       --->  dosemu63/src/unused/
+dosemu60/kernel
+                       --->  dosemu63/src/unused/
+dosemu60/BOGUS-Notes
+                       --->  dosemu63/src/BOGUS-Notes
+dosemu60/ChangeLog
+                       --->  dosemu63/src/ChangeLog
+dosemu60/Configure
+                       --->  dosemu63/src/Configure
+dosemu60/Makefile
+                       --->  dosemu63/src/Makefile
+dosemu60/Makefile.NetBSD
+                       --->  dosemu63/src/Makefile.NetBSD
+dosemu60/Makefile.common
+                       --->  dosemu63/src/Makefile.common
+dosemu60/Makefile.linux
+                       --->  dosemu63/src/Makefile.linux
+dosemu60/QuickStart
+                       --->  dosemu63/src/QuickStart
+dosemu60/data.c
+                       --->  dosemu63/src/data.c
+dosemu60/dos.c
+                       --->  dosemu63/src/dos.c
+dosemu60/dosconfig.c
+                       --->  dosemu63/src/dosconfig.c
+dosemu60/dosemu.xpm
+                       --->  dosemu63/src/dosemu.xpm
+dosemu60/dosstatic.c
+                       --->  dosemu63/src/dosstatic.c
+dosemu60/emu.c
+                       --->  dosemu63/src/emu.c
+dosemu60/hddummy
+                       --->  dosemu63/src/hddummy
+dosemu60/hdimage.dist
+                       --->  dosemu63/src/hdimage.dist
+dosemu60/libslang-elf.a
+                       --->  dosemu63/src/libslang-elf.a
+dosemu60/libslang.a
+                       --->  dosemu63/src/libslang.a
+dosemu60/load_module.sh
+                       --->  dosemu63/src/load_module.sh
+dosemu60/unload_module.sh
+                       --->  dosemu63/src/unload_module.sh
+dosemu60/vga.bdf
+                       --->  dosemu63/src/vga.bdf
+dosemu60/vga.pcf
+                       --->  dosemu63/src/vga.pcf
+dosemu60/x2dos.c
+                       --->  dosemu63/src/x2dos.c
+dosemu60/xinstallvgafont.sh
+                       --->  dosemu63/src/xinstallvgafont.sh
+dosemu60/xtermdos.sh
+                       --->  dosemu63/src/xtermdos.sh
+dosemu63/src/data.c
+   ---moved_&_backlinked-->  base/data.c
+dosemu63/src/dosemu.xpm
+                ---moved-->  dosemu63/etc
+dosemu63/src/vga.bdf
+                ---moved-->  dosemu63/etc
+dosemu63/src/vga.pcf
+                ---moved-->  dosemu63/etc
+dosemu63/src/xinstallvgafont.sh
+                ---moved-->  dosemu63/etc
+dosemu63/src/xtermdos.sh
+                ---moved-->  dosemu63/etc
+dosemu63/src/libslang-elf.a
+                ---moved-->  dosemu63/lib
+dosemu63/src/libslang.a
+                ---moved-->  dosemu63/lib
+dosemu63/src/Makefile.linux
+                ---moved-->  dosemu63/src/arch/linux
+dosemu63/src/Makefile.NetBSD
+                ---moved-->  dosemu63/src/arch/netbsd
+dosemu63/src/hddummy
+                ---moved-->  dosemu63/etc
+dosemu63/src/hdimage.dist
+                ---moved-->  dosemu63/etc
+dosemu63/src/BOGUS-Notes
+                ---moved-->  dosemu63/etc
+dosemu63/src/load_module.sh
+                ---moved-->  dosemu63/.
+dosemu63/src/unload_module.sh
+                ---moved-->  dosemu63/.
+dosemu63/src/ChangeLog
+                ---moved-->  dosemu63/.
+dosemu63/src/QuickStart
+                ---moved-->  dosemu63/.

@@ -1,0 +1,6 @@
+get_info.o : get_info.c /u1/local/packages/dosemu/dosemu-0.63.0/src/include/../include/shared.h \
+  /u1/local/packages/dosemu/dosemu-0.63.0/src/include/../include/extern.h 
+keyboard.o : keyboard.c /u1/local/packages/dosemu/dosemu-0.63.0/src/include/../include/shared.h \
+  /u1/local/packages/dosemu/dosemu-0.63.0/src/include/../include/extern.h get_info.h 
+video.o : video.c /u1/local/packages/dosemu/dosemu-0.63.0/src/include/../include/shared.h \
+  /u1/local/packages/dosemu/dosemu-0.63.0/src/include/../include/extern.h get_info.h 
