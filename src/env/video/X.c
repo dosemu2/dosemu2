@@ -2411,73 +2411,10 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
     dac_bits = vga.dac.bits;
 
-    w_x_res = x_res = vga.width;
-    w_y_res = y_res = vga.height;
+    x_res = vga.width;
+    y_res = vga.height;
 
-    /* 320x200 modes */
-    if(vga.width == 320 && vga.height == 200) {
-      w_x_res *= config.X_mode13fact;
-      w_y_res *= config.X_mode13fact;
-    }
-
-    /* 640x200 modes */
-    if(vga.width == 640 && vga.height == 200) {
-      w_y_res *= 2;
-    }
-
-    if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
-      w_x_res = config.X_winsize_x;
-      w_y_res = config.X_winsize_y;
-    }
-
-    if(config.X_aspect_43) {
-      w_y_res = (w_x_res * 3) >> 2;
-    }
-
-    remap_done(&remap_obj);
-    switch(vga.mode_type) {
-      case CGA:
-        X_mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
-      case HERC:
-        X_mode_type = MODE_HERC; break;
-      case PL1:
-        X_mode_type = MODE_VGA_1; break;
-      case PL2:
-        X_mode_type = MODE_VGA_2; break;
-      case PL4:
-        X_mode_type = MODE_VGA_4; break;
-      case P8:
-        X_mode_type = MODE_PSEUDO_8; break;
-      case P15:
-        X_mode_type = MODE_TRUE_15; break;
-      case P16:
-        X_mode_type = MODE_TRUE_16; break;
-      case P24:
-        X_mode_type = MODE_TRUE_24; break;
-      case P32:
-        X_mode_type = MODE_TRUE_32; break;
-      default:
-        X_mode_type = 0;
-    }
-
-    x_msg("X_setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
-      X_mode_type, ximage_mode, remap_features);
-
-    remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
-    *remap_obj.dst_color_space = X_csd;
-    adjust_gamma(&remap_obj, config.X_gamma);
-
-    if(!(remap_obj.state & ROS_SCALE_ALL)) {
-      if((remap_obj.state & ROS_SCALE_2) && !(remap_obj.state & ROS_SCALE_1)) {
-        w_x_res = x_res << 1;
-        w_y_res = y_res << 1;
-      }
-      else {
-        w_x_res = x_res;
-        w_y_res = y_res;
-      }
-    }
-
+    get_mode_parameters(&w_x_res, &w_y_res, ximage_mode, &veut);
     if(mainwindow == fullscreenwindow) {
       saved_w_x_res = w_x_res;
       saved_w_y_res = w_y_res;
@@ -2487,12 +2424,8 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
     create_ximage();
 
     remap_obj.dst_image = ximage->data;
-    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+    *remap_obj.dst_color_space = X_csd;
     remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
-
-    if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
-      error("X: X_setmode: video mode 0x%02x not supported on this screen\n", mode);
-    }
 
     sh.width = w_x_res;
     sh.height = w_y_res;
@@ -2531,16 +2464,6 @@ int X_set_videomode(int mode_class, int text_width, int text_height)
 
     sh.flags = PResizeInc | PSize  | PMinSize | PMaxSize;
     if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
-
-    veut.base = vga.mem.base;
-    veut.max_max_len = 0;
-    veut.max_len = 0;
-    veut.display_start = 0;
-    veut.display_end = vga.scan_len * vga.line_compare;
-    if (vga.line_compare > vga.height)
-      veut.display_end = vga.scan_len * vga.height;
-    veut.update_gran = 0;
-    veut.update_pos = veut.display_start;
 
     XSetNormalHints(display, normalwindow, &sh);
     XResizeWindow(display, mainwindow, w_x_res, w_y_res);

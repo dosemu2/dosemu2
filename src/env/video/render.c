@@ -103,6 +103,97 @@ static void refresh_graphics_palette(void)
     refresh_truecolor();
 }
 
+void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
+			 vga_emu_update_type *veut)
+{
+  int x_res, y_res, w_x_res, w_y_res;
+  int mode_type;
+
+  w_x_res = x_res = vga.width;
+  w_y_res = y_res = vga.height;
+
+  /* 320x200 modes */
+  if(vga.width == 320 && vga.height == 200) {
+    w_x_res *= config.X_mode13fact;
+    w_y_res *= config.X_mode13fact;
+  }
+
+  /* 640x200 modes */
+  if(vga.width == 640 && vga.height == 200) {
+    w_y_res *= 2;
+  }
+
+  if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
+    w_x_res = config.X_winsize_x;
+    w_y_res = config.X_winsize_y;
+  }
+
+  if(config.X_aspect_43) {
+    w_y_res = (w_x_res * 3) >> 2;
+  }
+
+  remap_done(&remap_obj);
+  switch(vga.mode_type) {
+  case CGA:
+    mode_type = vga.pixel_size == 2 ? MODE_CGA_2 : MODE_CGA_1; break;
+  case HERC:
+    mode_type = MODE_HERC; break;
+  case PL1:
+    mode_type = MODE_VGA_1; break;
+  case PL2:
+    mode_type = MODE_VGA_2; break;
+  case PL4:
+    mode_type = MODE_VGA_4; break;
+  case P8:
+    mode_type = MODE_PSEUDO_8; break;
+  case P15:
+    mode_type = MODE_TRUE_15; break;
+  case P16:
+    mode_type = MODE_TRUE_16; break;
+  case P24:
+    mode_type = MODE_TRUE_24; break;
+  case P32:
+    mode_type = MODE_TRUE_32; break;
+  default:
+    mode_type = 0;
+  }
+
+  v_printf("setmode: remap_init(0x%04x, 0x%04x, 0x%04x)\n",
+	   mode_type, ximage_mode, remap_features);
+
+  remap_obj = remap_init(mode_type, ximage_mode, remap_features);
+  if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
+    error("setmode: video mode 0x%02x not supported on this screen\n", vga.mode);
+  }
+  adjust_gamma(&remap_obj, config.X_gamma);
+
+  if(!(remap_obj.state & ROS_SCALE_ALL)) {
+    if((remap_obj.state & ROS_SCALE_2) && !(remap_obj.state & ROS_SCALE_1)) {
+      w_x_res = x_res << 1;
+      w_y_res = y_res << 1;
+    }
+    else {
+      w_x_res = x_res;
+      w_y_res = y_res;
+    }
+  }
+
+  veut->base = vga.mem.base;
+  veut->max_max_len = 0;
+  veut->max_len = 0;
+  veut->display_start = 0;
+  veut->display_end = vga.scan_len * vga.line_compare;
+  if (vga.line_compare > vga.height)
+    veut->display_end = vga.scan_len * vga.height;
+  veut->update_gran = 0;
+  veut->update_pos = veut->display_start;
+
+  remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+
+  *wx_res = w_x_res;
+  *wy_res = w_y_res;
+}
+
 /*
  * Modify the current graphics mode.
  * Currently used to turn on/off chain4 addressing, change

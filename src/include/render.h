@@ -22,5 +22,6 @@ int register_render_system(struct render_system *render_system);
 int remapper_init(unsigned *image_mode, unsigned bits_per_pixel,
 		  int have_true_color, int have_shmap);
 void remapper_done(void);
-
+void get_mode_parameters(int *wx_res, int *wy_res, int ximage_mode,
+			 vga_emu_update_type *veut);
 int update_screen(vga_emu_update_type *veut, int is_mapped);
