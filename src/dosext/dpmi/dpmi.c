@@ -630,8 +630,8 @@ static int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
     D_printf("DPMI: set_ldt_entry() failed\n");
     return -1;
   }
-  D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x\n",
-    selector, base_addr, limit);
+  D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x big=%i\n",
+    selector, base_addr, limit, is_big);
   Segments[ldt_entry].base_addr = base_addr;
   Segments[ldt_entry].limit = limit;
   Segments[ldt_entry].type = type;
@@ -1403,7 +1403,7 @@ static void do_int31(struct sigcontext_struct *scp)
   case 0x0009:
     CHECK_SELECTOR(_LWORD(ebx));
     { int x;
-      if ((x=SetDescriptorAccessRights(_LWORD(ebx), _ecx & (DPMIclient_is_32 ? 0xffff : 0x00ff))) !=0) {
+      if ((x=SetDescriptorAccessRights(_LWORD(ebx), _LWORD(ecx))) !=0) {
         if (x == -1) _LWORD(eax) = 0x8021;
         else if (x == -2) _LWORD(eax) = 0x8022;
         else _LWORD(eax) = 0x8025;
