@@ -21,10 +21,10 @@ EXTERN void (*ext_video_port_out) (ioport_t port, unsigned char value);
 
 EXTERN u_char(*ext_video_port_in) (ioport_t port);
 
-int vga_screenoff(void);
-int vga_screenon(void);
-int vga_setpalvec(int start, int num, u_char * pal);
-int vga_getpalvec(int start, int num, u_char * pal);
+int dosemu_vga_screenoff(void);
+int dosemu_vga_screenon(void);
+int dosemu_vga_setpalvec(int start, int num, u_char * pal);
+int dosemu_vga_getpalvec(int start, int num, u_char * pal);
 __inline__ void disable_vga_card(void);
 __inline__ void enable_vga_card(void);
 int store_vga_regs(char regs[]);

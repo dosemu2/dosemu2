@@ -154,7 +154,6 @@ void X_keycode_process_key(XKeyEvent *e)
 	static const int * X_scan = 0;
 	static int direct_scan=0, scan_end=0;
 	unsigned int scan;
-	int i;
 
 	if(!scan_test) {
 		if(XKeysymToKeycode(display, XK_Down) == 93) { /* New keyboard */
@@ -191,7 +190,7 @@ void X_keycode_process_key(XKeyEvent *e)
 		/*
 		 * bring our lock flags in sync with the state of the server
 		 */
-		i = shiftstate & ((scan == 0x3a) ? CAPS_LOCK : NUM_LOCK);
+		int i = shiftstate & ((scan == 0x3a) ? CAPS_LOCK : NUM_LOCK);
 		if ((e->type==KeyPress && !i) || (e->type==KeyRelease && i)) {
 			put_keycode(scan, 0);
 			put_keycode(scan, 1);

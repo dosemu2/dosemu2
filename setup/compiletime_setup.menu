@@ -18,6 +18,7 @@ menu "Main Menu" {
   boolean "use the new INT code" newint
   boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
   boolean "compile with ASPI driver" aspi
+  boolean "compile with svgalib support" svgalib
 }
 
 menu "Configure Action" {

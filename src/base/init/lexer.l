@@ -570,6 +570,7 @@ matrox			MAY_BE { yylval->i_value = MATROX; return(CHIPSET_TYPE); }
 wdvga			MAY_BE { yylval->i_value = WDVGA; return(CHIPSET_TYPE); }
 paradise		MAY_BE { yylval->i_value = WDVGA; return(CHIPSET_TYPE); }
 sis                     MAY_BE { yylval->i_value = SIS; return(CHIPSET_TYPE); }
+svgalib			MAY_BE { yylval->i_value = SVGALIB; return(CHIPSET_TYPE); }
 
 	/* xwindows stuff */
 

@@ -1,3 +1,17 @@
+2000/10/14 ver. 1.1.0.4 unofficial pre-release
+	From Bart
+	- svgalib support, needs svgalib >= 1.2.4, for switching
+	  between VCs (saving/restoring of card status) when running
+	  console graphics.
+	From Hans
+	- made Bart's svgalib stuff configurable via compiletime-settings
+	- renamed vga_screenon(), vga_screenoff(), mouse_close(),
+	  mouse_init(), vga_setpalvec(), vga_getpalvec() to dosemu_xxxx().
+	  This was needed due to name clashes with svgalib. Though you
+	  get some (maybe) correct linkage with shared libs, linkage
+	  abandoned if linking static.
+	- fixed compiler warning from 1.1.0.1 in keyb_X_keycode.c
+	  (unused variable i)
 2000/10/13 ver. 1.1.0.3 unofficial pre-release
 	From Alberto
 	- cpuemu stuff: started moving some often used code generator

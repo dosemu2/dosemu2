@@ -491,7 +491,7 @@ dos_ctrl_alt_del(void)
     keyb_server_reset();
     video_config_init();
     serial_init();
-    mouse_init();
+    dosemu_mouse_init();
     printer_init();
     disk_close();
     disk_init();
@@ -664,7 +664,7 @@ leavedos(int sig)
     g_printf("calling serial_close\n");
     serial_close();
     g_printf("calling mouse_close\n");
-    mouse_close();
+    dosemu_mouse_close();
 
     flush_log();
 

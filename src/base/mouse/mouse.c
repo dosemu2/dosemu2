@@ -1691,7 +1691,7 @@ mouse_sethandler(void *f, us * cs, us * ip)
  * DANG_END_FUNCTION
  */
 void
-mouse_init(void)
+dosemu_mouse_init(void)
 {
   PRIV_SAVE_AREA
   serial_t *sptr=NULL;
@@ -1796,7 +1796,7 @@ mouse_init(void)
 }
 
 void
-mouse_close(void)
+dosemu_mouse_close(void)
 {
   int result;
 

@@ -131,3 +131,13 @@ aspi		"compile with ASPI support" aspi
 		you want give to dosemu and you also specify the device
 		type which the ASPI driver then check to avoid you accessing
 		a mounted disk.
+
+svgalib		"compile with svgalib support" svgalib
+
+		This enables support for using svgalib >= version 1.4.2
+		for switching between consoles when running graphics
+		on console _and_ if you configured 'svgalib' as 'graphic chip'
+		in /etc/dosemu.conf.
+		NOTE: this doesn't help for all svgalib supported graphic
+		cards and your console may freeze anyway. Currently reported
+		as 'working' are riva TNT 128 and sis.

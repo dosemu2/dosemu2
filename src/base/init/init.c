@@ -467,7 +467,7 @@ void device_init(void)
 		     console_speaker_on, console_speaker_off);
   }
   iodev_init();
-  mouse_init();
+  dosemu_mouse_init();
   printer_init();
   disk_init();
 }

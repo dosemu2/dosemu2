@@ -146,9 +146,9 @@ EXTERN mouse_t mice[MAX_MOUSE] ;
 
 EXTERN int keyboard_mouse;
 
-extern void mouse_init(void);
+extern void dosemu_mouse_init(void);
 extern void mouse_int(void);
-extern void mouse_close(void);
+extern void dosemu_mouse_close(void);
 extern void int74(void);
 
 extern void mouse_move(void);

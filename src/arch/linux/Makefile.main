@@ -203,7 +203,7 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
 		$(addprefix -L,$(LIBPATH)) \
 		-L. $(addprefix -l, $(LIBS_)) \
-		$(SLANGLIB) $(XLIBSW)
+		$(SVGALIB) $(SLANGLIB) $(XLIBSW)
 
 ../etc/xtermdos:	../etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos
@@ -237,7 +237,7 @@ $(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) \
 	    -Wl,-b,a.out-i386-linux base/bios/bios.o env/video/vesabios.o \
 	    -Wl,-b,elf32-i386 \
-	    $(XLIBSW) $(SLANGLIB) -lc 
+	    $(SVGALIB) $(XLIBSW) $(SLANGLIB) -lc 
 	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 	@ln -sf dos $(BINPATH)/bin/dosexec

@@ -94,6 +94,12 @@ ifdef ASPI_SUPPORT
   export ASPI_SUPPORT
 endif
 
+@USE_SVGALIB@
+ifdef USE_SVGALIB
+  export USE_SVGALIB
+  export SVGALIB=-lvga
+endif
+
 @X86_EMULATOR@
 ifdef X86_EMULATOR
   export X86_EMULATOR

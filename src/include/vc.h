@@ -121,7 +121,11 @@ extern void open_vga_mem(void);
 extern void close_vga_mem(void);
 
 #define MAX_S_REGS	71
-#define MAX_X_REGS	100
+#ifdef USE_SVGALIB
+  #define MAX_X_REGS	4096 /* some svgalib drivers require a lot */
+#else
+  #define MAX_X_REGS	100
+#endif
 #define MAX_X_REGS16	10
 
 /* Struct to hold necessary elements during a save/restore */
@@ -178,11 +182,11 @@ extern int vga_getcolors(void);
 
 extern int vga_setpalette(int index, int red, int green, int blue);
 extern int vga_getpalette(int index, int *red, int *green, int *blue);
-extern int vga_setpalvec(int start, int num, uchar * pal);
-extern int vga_getpalvec(int start, int num, uchar * pal);
+extern int dosemu_vga_setpalvec(int start, int num, uchar * pal);
+extern int dosemu_vga_getpalvec(int start, int num, uchar * pal);
 
-extern int vga_screenoff(void);
-extern int vga_screenon(void);
+extern int dosemu_vga_screenoff(void);
+extern int dosemu_vga_screenon(void);
 
 extern int vga_setcolor(int color);
 extern int vga_drawpixel(int x, int y);

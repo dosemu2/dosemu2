@@ -29,6 +29,9 @@
 #include "matrox.h"
 #include "wdvga.h"
 #include "sis.h"
+#ifdef USE_SVGALIB
+#include "svgalib.h"
+#endif
 #if 0
 #include "hgc.h"
 #endif
@@ -79,7 +82,7 @@ void dummy_ext_video_port_out(ioport_t port, u_char value)
   v_printf("Bad Write on port 0x%04x with value 0x%02x\n", port, value);
 }
 
-int vga_screenoff(void)
+int dosemu_vga_screenoff(void)
 {
   v_printf("vga_screenoff\n");
   /* synchronous reset on */
@@ -97,7 +100,7 @@ int vga_screenoff(void)
   return 0;
 }
 
-int vga_screenon(void)
+int dosemu_vga_screenon(void)
 {
   v_printf("vga_screenon\n");
 
@@ -116,7 +119,7 @@ int vga_screenon(void)
   return 0;
 }
 
-int vga_setpalvec(int start, int num, u_char * pal)
+int dosemu_vga_setpalvec(int start, int num, u_char * pal)
 {
   int i, j;
 
@@ -139,7 +142,7 @@ int vga_setpalvec(int start, int num, u_char * pal)
   return j;
 }
 
-int vga_getpalvec(int start, int num, u_char * pal)
+int dosemu_vga_getpalvec(int start, int num, u_char * pal)
 {
   int i, j;
 
@@ -343,7 +346,7 @@ void save_vga_state(struct video_save_struct *save_regs)
 {
 
   v_printf("Saving data for %s\n", save_regs->video_name);
-  vga_screenoff();
+  dosemu_vga_screenoff();
   disable_vga_card();
   store_vga_regs(save_regs->regs);
   save_ext_regs(save_regs->xregs, save_regs->xregs16);
@@ -379,7 +382,7 @@ void save_vga_state(struct video_save_struct *save_regs)
    }
 
   store_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
-  vga_getpalvec(0, 256, save_regs->pal);
+  dosemu_vga_getpalvec(0, 256, save_regs->pal);
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
 
@@ -391,7 +394,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
 {
 
   v_printf("Restoring data for %s\n", save_regs->video_name);
-  vga_screenoff();
+  dosemu_vga_screenoff();
   disable_vga_card();
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   restore_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
@@ -400,11 +403,11 @@ void restore_vga_state(struct video_save_struct *save_regs)
     free(save_regs->mem);
     save_regs->mem = NULL;
   }
-  vga_setpalvec(0, 256, save_regs->pal);
+  dosemu_vga_setpalvec(0, 256, save_regs->pal);
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   v_printf("Permissions=%d\n", permissions);
   enable_vga_card();
-  vga_screenon();
+  dosemu_vga_screenon();
 
   v_printf("Restore_vga_state complete\n");
 }
@@ -460,6 +463,12 @@ int vga_initialize(void)
     vga_init_sis();
     v_printf("SIS CARD in use\n");
     break;
+#ifdef USE_SVGALIB
+  case SVGALIB:
+    vga_init_svgalib();
+    v_printf("svgalib handles the graphics\n");
+    break;
+#endif
 
   default:
     v_printf("Unspecific VIDEO selected = 0x%04x\n", config.chipset);
@@ -496,7 +505,7 @@ int vga_initialize(void)
   save_vga_state(&dosemu_regs);
   restore_vga_state(&dosemu_regs);
 #endif
-  vga_screenon();
+  dosemu_vga_screenon();
   memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
   dump_video_linux();
   video_initialized = 1;

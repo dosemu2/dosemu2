@@ -441,6 +441,9 @@ void dump_config_status(void *printfunc)
       case MATROX: s = "matrox"; break;
       case WDVGA: s = "wdvga"; break;
       case SIS: s = "sis"; break;
+#ifdef USE_SVGALIB
+      case SVGALIB: s = "svgalib"; break;
+#endif
       default: s = "unknown"; break;
     }
     (*print)("config.X %d\nhogthreshold %d\nchipset \"%s\"\n",

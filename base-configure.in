@@ -120,6 +120,23 @@ dnl Do ELF if possible
  AC_SUBST(LIBSTART)
  AC_SUBST(ELF)
 
+dnl Do check wether we have svgalib and wether to use it
+
+AC_ARG_ENABLE(use-svgalib,
+	[ --enable-use-svgalib     use svgalib if available],
+	[use_svgalib="yes"],[use_svgalib="no"])
+if test "$use_svgalib" = "yes"; then
+  $use_svgalib="no"
+  AC_CHECK_LIB(vga, vga_simple_init, , use_svgalib="yes")
+fi
+if test "$use_svgalib" = "yes"; then
+  AC_CHECKING("compiling with svgalib support")
+  AC_DEFINE(USE_SVGALIB)
+  USE_SVGALIB="USE_SVGALIB=1"
+  AC_SUBST(USE_SVGALIB)
+else
+  AC_CHECKING("compiling without svgalib support")
+fi
 
 dnl Do check wether we we shall force use of supplied Slanglib.
  AC_ARG_ENABLE(force-slang,

@@ -19,6 +19,12 @@ XHDRS	= X.h screen.h remap.h
 XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o gfxemu.o hercemu.o instremu.o remap.o vgafonts.o
 endif
 
+ifdef USE_SVGALIB
+VCFILES = svgalib.c
+VHDRS = svgalib.h
+VOBJS = svgalib.o
+endif
+
 # This is to assemble the VESA compatible video BIOS. Shamelessly copied
 # from bios/Makefile.
 SFILES = vesabios.S
@@ -32,10 +38,10 @@ LD86=$(_LD86_)
 AS86=$(_AS86_)
 
 CFILES = miscemu.c video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
-	 matrox.c wdvga.c sis.c console.c $(XCFILES) hgc.c dualmon.c terminal.c $(ASOBJS)
-HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h terminal.h $(XHDRS)
+	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) hgc.c dualmon.c terminal.c $(ASOBJS)
+HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h $(VHDRS) terminal.h $(XHDRS)
 OFILES = miscemu.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
-	 matrox.o wdvga.o sis.o console.o $(XOBJS) hgc.o dualmon.o terminal.o
+	 matrox.o wdvga.o sis.o $(VOBJS) console.o $(XOBJS) hgc.o dualmon.o terminal.o
 #OBJS = $(OFILES)
 
 ALL = $(CFILES) $(HFILES) #$(SFILES)

@@ -262,7 +262,8 @@ EXTERN int v_8514_base INIT(0);
 #define MATROX		8
 #define WDVGA		9
 #define SIS		10
-#define MAX_CARDTYPE	SIS
+#define SVGALIB	11
+#define MAX_CARDTYPE	SVGALIB
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);

@@ -129,6 +129,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* DPMI test windows */
 #undef WANT_WINDOWS
 
+/* DEFINE this, if you want svgalib support */
+#undef USE_SVGALIB
+
 /* DEFINE this, if you want the dosdebugger (mhpdbg) */
 #undef USE_MHPDBG
 

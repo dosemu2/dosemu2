@@ -857,7 +857,7 @@ video chips and you tell DOSEMU to use it such as
 
 <screen>
   $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
-                          # avance, cirrus, matrox, wdvga, paradise, ati, 
+                          # avance, cirrus, matrox, wdvga, paradise, ati, sis,
 			  # svgalib
 </screen>
 

@@ -13,4 +13,5 @@ config {
   newint on
   cpuemu on
   aspi on
+  svgalib on
 }
