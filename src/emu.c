@@ -349,7 +349,6 @@ emulate(int argc, char **argv)
     module_init();
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
-    pcibios_init();
     pci_setup();
     device_init();		/* initialize keyboard, disk, video, etc. */
     extra_port_init();		/* setup ports dependent on config */
