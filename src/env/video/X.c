@@ -288,7 +288,7 @@
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /* Kludge for incorrect ASCII 0 char in vga font. */
-#define XCHAR(w) ((u_char)CHAR(w)?(u_char)CHAR(w):(u_char)' ')
+#define XCHAR(w) (((u_char)CHAR(w)||!font)?(u_char)CHAR(w):(u_char)' ')
 
 #if CONFIG_X_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
