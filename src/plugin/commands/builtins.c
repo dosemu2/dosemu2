@@ -220,7 +220,7 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	LWORD(eax) = 0x4b00;
 	
 	if (quit)
-		fake_call_to(BIOSSEG, EXIT_HELPER);
+		fake_call_to(BIOSSEG, 0xfff0);
 
 	real_run_int(0x21);
 
