@@ -2369,7 +2369,8 @@ static int read_kbd_table(struct keytable_entry *kt)
 	
 	fd = getfd();
 	if(fd < 0) {
-		fprintf(stderr, "no console\n");
+		error("Unable to open console to evaluate the keyboard map.\n"
+		      "Please specify your keyboard map explicitly via the $_layout option\n");
 		return 1;
 	}
 	

@@ -3407,10 +3407,10 @@ void load_text_font()
   if (strlen(p)) {
     font = XLoadQueryFont(display, p);
     if(font == NULL) {
-      error("X: Unable to open font \"%s\", using builtin", p);
+      error("X: Unable to open font \"%s\", using builtin\n", p);
     }
     else if(font->min_bounds.width != font->max_bounds.width) {
-      error("X: Font \"%s\" isn't monospaced, using builtin", p);
+      error("X: Font \"%s\" isn't monospaced, using builtin\n", p);
       XFreeFont(display, font);
       font = NULL;
     }
