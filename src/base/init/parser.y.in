@@ -1915,7 +1915,7 @@ static void start_vnet(char *mode) {
     return;
   }
   IFCLASS(CL_NET);
-  if (strlen(mode) == 0)
+  if (strlen(mode) == 0 || strcmp(mode, "direct") == 0)
     config.vnet = VNET_TYPE_ETH;
   else if (strcmp(mode, "dosnet") == 0)
     config.vnet = VNET_TYPE_DSN;

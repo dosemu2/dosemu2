@@ -89,7 +89,7 @@ OpenNetworkType(unsigned short netid)
 #endif
 	leave_priv_setting();
 	if (s < 0) {
-		if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");
+		if (errno == EPERM) error("Must be root for direct NIC access\n");
 		return -1;
 	}
 	fcntl(s, F_SETFL, O_NDELAY);
@@ -115,7 +115,7 @@ OpenBroadcastNetworkType(void)
 	leave_priv_setting();
 	if (s < 0) {
 		pd_printf("OpenBroadcast: could not open socket\n");
-		if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");
+		if (errno == EPERM) error("Must be root for virtual networking\n");
 		return -1;
 	}
 	fcntl(s, F_SETFL, O_NDELAY);
