@@ -1032,24 +1032,28 @@ static unsigned short CreateCSAlias(unsigned short selector)
 
 static int inline do_LAR(us selector)
 {
+  int ret;
 #ifdef X86_EMULATOR
   if (config.cpuemu>1)
     return emu_do_LAR(selector);
   else
 #endif
-  __asm__ volatile(" \
-    movzwl  %%ax,%%eax\n \
-    larw %%ax,%%ax\n \
-    jz   1f\n \
-    xorl %%eax,%%eax\n"
-   "1:   shrl $8,%%eax" \
-   :"=a" (selector)
-  );
-  return selector;
+    asm volatile(
+      "movzwl  %%ax,%%eax\n"
+      "larw %%ax,%%ax\n"
+      "jz 1f\n"
+      "xorl %%eax,%%eax\n"
+      "1: shrl $8,%%eax\n"
+      : "=a"(ret)
+      : "a"(selector)
+    );
+  return ret;
 }
 
 static int GetDescriptor(us selector, unsigned long *lp)
 {
+  int typebyte;
+  unsigned char *type_ptr;
   if (!ValidSelector(selector) || SystemSelector(selector))
     return -1; /* invalid value 8021 */
 #if 0    
@@ -1065,8 +1069,8 @@ static int GetDescriptor(us selector, unsigned long *lp)
    *                      (Hans Lermen, July 1996)
    * DANG_END_REMARK
    */
-  int typebyte=do_LAR(selector);
-  unsigned char *type_ptr = ((unsigned char *)(&ldt_buffer[selector & 0xfff8])) + 5;
+  typebyte = do_LAR(selector);
+  type_ptr = ((unsigned char *)(&ldt_buffer[selector & 0xfff8])) + 5;
   if (typebyte != *type_ptr) {
 	D_printf("DPMI: change type only in local selector\n");
         if (in_win31)
