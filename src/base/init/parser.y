@@ -312,6 +312,8 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    }
 		| L_SECURE bool
 		    {
+		    if (priv_lvl && config.secure && (! $2))
+			yyerror("secure option is illegal in user config file");
 		    config.secure = $2;
 		    if ($2 > 0) c_printf("CONF: security %s\n", ($2) ? "on" : "off");
 		    }
@@ -393,7 +395,10 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
                     { config.sillyint=0; }
                   '{' sillyint_flags '}'
 		| SILLYINT irq_bool
-                    { config.sillyint = 1 << $2; }
+                    {
+		      config.sillyint = 1 << $2;
+		      c_printf("CONF: IRQ %d for irqpassing\n", $2); 
+		    }
 		| HARDWARE_RAM
                     {
 		    if (priv_lvl)
@@ -1561,21 +1566,21 @@ static void set_irq_value(int bits, int i1)
 {
   if ((i1>2) && (i1<=15)) {
     config.sillyint |= (bits << i1);
-    c_printf("CONF: IRQ %d for sillyint", i1);
+    c_printf("CONF: IRQ %d for irqpassing", i1);
     if (bits & 0x10000)  c_printf(" uses SIGIO\n");
     else c_printf("\n");
   }
-  else yyerror("wrong IRQ for sillyint command: %d", i1);
+  else yyerror("wrong IRQ for irqpassing command: %d", i1);
 }
 
 static void set_irq_range(int bits, int i1, int i2) {
   int i;
   if ( (i1<3) || (i1>15) || (i2<3) || (i2>15) || (i1 > i2 ) ) {
-    yyerror("wrong IRQ range for sillyint command: %d .. %d", i1, i2);
+    yyerror("wrong IRQ range for irqpassing command: %d .. %d", i1, i2);
   }
   else {
     for (i=i1; i<=i2; i++) config.sillyint |= (bits << i);
-    c_printf("CONF: range of IRQs for sillyint %d .. %d", i1, i2);
+    c_printf("CONF: range of IRQs for irqpassing %d .. %d", i1, i2);
     if (bits & 0x10000)  c_printf(" uses SIGIO\n");
     else c_printf("\n");
   }
@@ -1798,6 +1803,9 @@ parse_dosemu_users(void)
      }
 }
 
+
+char *commandline_statements=0;
+
 int
 parse_config(char *confname)
 {
@@ -1863,6 +1871,26 @@ parse_config(char *confname)
       close_file(fd);
     }
     free(file_being_parsed);
+
+    /* Now we parse any commandline statements from option '-I'
+     * We do this under priv_lvl set above, so we have the same secure level
+     * as with .dosrc
+     */
+
+    if (commandline_statements) {
+      #define XX_NAME "commandline"
+      extern char *yy_vbuffer;
+      c_printf("Parsing " XX_NAME  " statements.\n");
+      file_being_parsed = malloc(strlen(XX_NAME) + 1);
+      strcpy(file_being_parsed, XX_NAME);
+      yyin=0;				 /* say: we have no input file */
+      yy_vbuffer=commandline_statements; /* this is the input to scan */
+      line_count = 1;
+      yyrestart(yyin);
+      if (yyparse())
+	yyerror("error in user's %s statement", XX_NAME);
+      free(file_being_parsed);
+    }
   }
 
 #ifdef TESTING

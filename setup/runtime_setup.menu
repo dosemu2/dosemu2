@@ -198,6 +198,8 @@ menu "Video Chipset" {
     "Diamond" diamond
     "ET4000" et4000
     "S3" s3
+    "Cirrus" cirrus
+    "Avance Logic" avance
     "Other" *
   }
 }

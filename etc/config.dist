@@ -1,4 +1,11 @@
-# Linux dosemu 0.63 configuration file.
+# Linux dosemu 0.66 configuration file.
+#
+# This is the example file for
+#      /etc/dosemu.conf  ( system wide configuration file )
+#      .dosrc            ( user configuration file )
+#      option -I         ( configuration via commandline, see man/dose.1 )
+#
+# Hans Lermen, lermen@fgan.de, 3/28/97
 # Updated to include QuickStart documentation 5/10/94 by Mark Rejhon
 # James MacLean, macleajb@ednet.ns.ca, 12/31/93
 # Robert Sanders, gt8134b@prism.gatech.edu, 5/16/93

@@ -51,7 +51,7 @@ or use setup-dosemu to toggle "disable VM86 enhancement"
 --------------------------------------------------------------------------
 
 If you are new to DOSEMU:
-
+           -------------
 - Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf IS
   pointing to your hdimage!
 
@@ -68,10 +68,26 @@ If you are new to DOSEMU:
   (<ctrl><alt><pgdn> will automatically exit dosemu.)
 
 If you already have a HDIMAGE file:
-
+       ----------------------
 - If you have a previous version of DOSEMU running, you should copy the
   .SYS, .COM, & .EXE files in the ./commands directory over to the
   hdimage drive that you boot from.  Some of these files have changed.
+
+If you don't know how to copy files from/to the hdimage:
+       ----------------------------
+- Have a look at the recent mtools package (version 3.4 at time of writeing).
+  If you have the following line in /etc/mtools.conf
+
+     drive g: file="/var/lib/dosemu/hdimage" partition=1 offset=128
+
+  then you can use all mtool commands to access it, such as
+                   ^^^^^^^^^^^^^^^^^^
+    # mcopy g:autoexec.bat -
+    Copying autoexec.bat
+    @echo off
+    echo "Welcome to dosemu 0.66!"
+
+  ... all clear ? ;-)
 
 --------------------------------------------------------------------------
 4.  Now that you've set up your HDIMAGE file
@@ -185,7 +201,7 @@ Internet Email.  :-)
 
 On the other hand, if you're really brilliant, we would also
 love to hear from people who can help DOSEMU get to work with
-any new video games, stibilizing stuff like Microsoft Windoze 3.1,
+any new video games, stabilizing stuff like Microsoft Windoze 3.1,
 and get FreeDOS bootable.
 
 --------------------------------------------------------------------------

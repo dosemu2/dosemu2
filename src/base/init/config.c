@@ -219,6 +219,7 @@ open_Xmouse_pipe(char *path)
 void 
 config_init(int argc, char **argv)
 {
+    extern char *commandline_statements;
     int             c;
     char           *confname = NULL;
 
@@ -243,7 +244,7 @@ config_init(int argc, char **argv)
 
     opterr = 0;
     confname = CONFIG_FILE;
-    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:O")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:O")) != EOF) {
 	switch (c) {
 	case 'F':
 	    if (getuid()) {
@@ -258,6 +259,9 @@ config_init(int argc, char **argv)
 		fclose(f);
 	    }
 	    confname = optarg;	/* someone reassure me that this is *safe*? */
+	    break;
+	case 'I':
+	    commandline_statements = optarg;
 	    break;
 	case 'd':
 	    if (config.detach)
@@ -304,9 +308,10 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km2345e:dXY:Z:E:o:O")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:Km2345e:dXY:Z:E:o:O")) != EOF) {
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
+	case 'I':
 	case 'd':
 	case 'o':
 	case 'O':

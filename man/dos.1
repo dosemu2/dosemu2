@@ -39,6 +39,10 @@ dos, dosdebug, xdos \- run MS-DOS and MS-DOS programs under Linux and NetBSD
 2\>
 .I debugfile
 ]
+[
+.B \-I
+.I config-options
+]
 .sp
 .B xtermdos
 [
@@ -75,6 +79,10 @@ dos, dosdebug, xdos \- run MS-DOS and MS-DOS programs under Linux and NetBSD
 [
 2\>
 .I debugfile
+]
+[
+.B \-I
+.I config-options
 ]
 .sp
 .B dosdebug
@@ -226,6 +234,32 @@ use RAW console Keyboard (must be at the console)
 .I -F
 Parse this config-file instead of /etc/dosemu.conf
 (you need to run as root for this)
+.TP
+.I -I
+Parse the string behind
+.I -I
+with the same syntax as /etc/dosemu.conf or .dosrc such as
+.TP
+		dos ... -I 'video { mda }'
+
+This is usefull if you just want to override a given
+configuration parameter temporary. You also may have a generic configuration
+by executing a script such as
+.TP
+		dos ... -I "`myconf.sh`"
+
+where
+.I myconf.sh
+is a script writing the configuration to stdout. If you have an alternate
+configuration file besides .dosrc,
+.TP
+		dos ... -I "`cat myother.conf`"
+
+will do the job. Note however, that you have to quote the parameter behind
+.I -I
+because it is expected to be
+.I one
+argument.
 .TP
 .I -D
 specify which Debugging messages to allow/suppress

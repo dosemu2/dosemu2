@@ -26,6 +26,38 @@
 int line_count;
 
 extern char* strdup(const char *); /* Not defined in string.h :-( */
+extern void yyerror(char* string, ...);
+
+char *yy_vbuffer=0;
+
+#define YY_INPUT(buf,result,max_size) \
+  if (!yyin) { \
+    if (yy_vbuffer && yy_vbuffer[0]) { \
+      buf[(max_size)-1]=0; \
+      strncpy(buf,yy_vbuffer,max_size); \
+      if (buf[(max_size)-1]) { \
+        yy_vbuffer+=max_size; \
+        result=max_size; \
+      } \
+      else { \
+        result=strlen(buf); \
+        yy_vbuffer=0; \
+      } \
+    } \
+    else result=0; \
+  } \
+  else { \
+    if ( yy_current_buffer->yy_is_interactive ) { \
+      int c = getc( yyin ); \
+      result = c == EOF ? 0 : 1; \
+      buf[0] = (char) c; \
+    } \
+    else { \
+      if ( ((result = fread( buf, 1, max_size, yyin )) == 0) && ferror( yyin ) ) \
+                  YY_FATAL_ERROR( "input in flex scanner failed" ); \
+    } \
+  }
+
 
 #undef YY_DECL
 #define YY_DECL int yylex YY_PROTO(( YYSTYPE* yylval ))

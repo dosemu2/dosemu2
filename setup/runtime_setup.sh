@@ -355,7 +355,7 @@ write_serial() {
   local count=1 serial_num=0
   
   get_final_value serial_num serial_num
-
+  if [ "@$serial_num" != "@" ]; then
   while [ $count -le $serial_num ]; do
     value=""
     string=""
@@ -379,6 +379,7 @@ write_serial() {
 
     count=$[$count + 1]
   done
+  fi
 }
 
 write_mouse() {
@@ -433,6 +434,7 @@ write_ports() {
   
   get_final_value ports_num ports_num
 
+  if [ "@$ports_num" != "@" ]; then
   while [ $count -le $ports_num ]; do
     value=""
     string=""
@@ -449,6 +451,7 @@ write_ports() {
 
     count=$[$count + 1]
   done
+  fi
 }
 
 write_hardware_ram() {
@@ -457,6 +460,7 @@ write_hardware_ram() {
   
   get_final_value hardware_ram_num hardware_ram_num
 
+  if [ "@$hardware_ram_num" != "@" ]; then
   while [ $count -le $hardware_ram_num ]; do
     value=""
     string=""
@@ -473,6 +477,7 @@ write_hardware_ram() {
 
     count=$[$count + 1]
   done
+  fi
 }
 
 write_sillyint() {
@@ -481,6 +486,7 @@ write_sillyint() {
   
   get_final_value sillyint_num sillyint_num
 
+  if [ "@$sillyint_num" != "@" ]; then
   while [ $count -le $sillyint_num ]; do
     value=""
     string=""
@@ -497,6 +503,7 @@ write_sillyint() {
 
     count=$[$count + 1]
   done
+  fi
 }
 
 write_disk() {
@@ -505,6 +512,7 @@ write_disk() {
   
   get_final_value disk_num disk_num
 
+  if [ "@$disk_num" != "@" ]; then
   while [ $count -le $disk_num ]; do
     value=""
     string=""
@@ -527,6 +535,7 @@ write_disk() {
 
     count=$[$count + 1]
   done
+  fi
 }
 
 write_floppy() {
@@ -535,6 +544,7 @@ write_floppy() {
   
   get_final_value floppy_num floppy_num
 
+  if [ "@$floppy_num" != "@" ]; then
   while [ $count -le $floppy_num ]; do
     value=""
     string=""
@@ -554,6 +564,7 @@ write_floppy() {
 
     count=$[$count + 1]
   done
+  fi
 }
 
 write_bootdisk() {
@@ -576,6 +587,7 @@ write_printer() {
   
   get_final_value printer_num printer_num
 
+  if [ "@$printer_num" != "@" ]; then
   while [ $count -le $printer_num ]; do
     value=""
     string=""
@@ -593,6 +605,7 @@ write_printer() {
 
     count=$[$count + 1]
   done
+  fi
 }
 
 write_out() {

@@ -1,3 +1,21 @@
+97/03/28 ver. 0.66.1 released
+	From Hans
+	- added a new commandline option: -I
+	  Wow, is that powerfull!! ;-) It makes a lot of people happy
+	  that complained about inflexible configuration (for a more
+	  detailed description read man/dos.1). It makes the following
+	  (and much more) possible:
+		dos ... -I 'video { mda }'
+		dos ... -I "`cat my_other_dosemu.conf`"
+		dos ... -I "`my_special_config_script.sh`"
+          hmm... waiting for people reporting it has security issues ;-)
+          (but you before report them: -I runs under the same secure level
+           as .dosrc)
+	- fixed a security hole: user could disable 'secure on' :-(
+	- updated the docs
+	From Alistair
+	- fixed gnats report misc/9 (rep. by mharris@blackwidow.saultc.on.ca)
+	  (error while running setup-dosemu)
 97/03/27 ver. 0.66.0.4 unofficial pre-release
 	From Alistair
 	- made sound a disable option in /etc/dosemu.conf ('sound_emu off')
