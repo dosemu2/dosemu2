@@ -49,10 +49,10 @@ extern void iodev_term(void);
 typedef struct {
   Bit16u         read_state;
   Bit16u         write_state;
-  Bit16u         mode;
+  Bit8u          mode, outpin;
   Bit32u         read_latch;
   Bit16u         write_latch;
-  Bit32u         cntr;
+  Bit32s         cntr;
   struct timeval time;
 } pit_latch_struct;
 

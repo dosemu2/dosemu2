@@ -1,3 +1,18 @@
+97/05/24 ver. 0.67.3.3 unofficial pre-release
+	From Alberto
+	- timers.c: reorganized pit_latch
+	  - simplified access to pit[latch] with a pointer
+	  - changed mode test from a switch{} to an if..else
+	  - merged code for modes 2 and 3
+	  - implemented output pin (status bit 7). A request for status
+	    calls pit_latch with mode flag 0x40; the output pin status is
+	    recalculated and the mode flag changed to 0x80. The following
+	    read will get the complete status byte, then the mode flag will
+	    be reset from inside pit_inp.
+	  - this patch also corrects a bug, ndiags now runs fine.
+	From Hans
+	- made 'linkstatic' and 'tmonoton' default
+	  (static binaries have better performance and less timer problems)
 97/05/23 ver. 0.67.3.2 unofficial pre-release
 	From Alberto
 	- timers.c, pit.c: use NEVER instead of -1 in monoton timing

@@ -76,6 +76,7 @@ void initialize_timers(void)
   gettimeofday(&cur_time, NULL);
 
   pit[0].mode        = 3;
+  pit[0].outpin      = 0;
   pit[0].cntr        = 0x10000;
   pit[0].time        = cur_time;
   pit[0].read_latch  = -1;
@@ -84,6 +85,7 @@ void initialize_timers(void)
   pit[0].write_state = 3;
 
   pit[1].mode        = 2;
+  pit[1].outpin      = 0;
   pit[1].cntr        = 18;
   pit[1].time        = cur_time;
   pit[1].read_latch  = -1;
@@ -92,6 +94,7 @@ void initialize_timers(void)
   pit[1].write_state = 3;
 
   pit[2].mode        = 0;
+  pit[2].outpin      = 0;
   pit[2].cntr        = -1;
   pit[2].time        = cur_time;
   pit[2].read_latch  = -1;
@@ -178,107 +181,135 @@ static void pit_latch(int latch)
 {
   struct timeval cur_time;
   u_long         ticks;
+  pit_latch_struct *p = &pit[latch];
 
   /* check for special 'read latch status' mode */
-  if (pit[latch].mode & 0x80) {
-    pit[latch].mode = pit[latch].mode & 0x07;
+  if (p->mode & 0x80) {
     /*
      * Latch status:
-     *   bit 7   = state of OUT pin (uncomputed here -- always 0)
+     *   bit 7   = state of OUT pin
      *   bit 6   = null count flag (1 == no cntr set, 0 == cntr available)
      *   bit 4-5 = read latch format
      *   bit 1-3 = read latch mode
      *   bit 0   = BCD flag (1 == BCD, 0 == 16-bit -- always 0)
      */
-    pit[latch].read_latch = (pit[latch].read_state << 4) |
-                            (pit[latch].mode << 1);
-    if (pit[latch].cntr == -1)
-      pit[latch].read_latch |= 0x40;
-    return;
+    p->read_latch = (p->read_state << 4) |
+                    ((p->mode & 7) << 1) |
+                     p->outpin;
+    if (p->cntr == -1)
+      p->read_latch |= 0x40;
+    return;	/* let bit 7 on */
   }
 
-  switch (pit[latch].mode) {
-    default:    /* just in case... */
-    case 0x00:  /* mode 0   -- countdown, interrupt, wait*/
-    case 0x01:  /* mode 1   -- countdown, wait */
-    case 0x04:  /* mode 4   -- countdown, wait */
-    case 0x05:  /* mode 5   -- countdown, wait */
-      if (pit[latch].cntr != -1) {
-	gettimeofday(&cur_time, NULL);
+  gettimeofday(&cur_time, NULL);
+
+  if ((p->mode & 2)==0) {
+    /* non-periodical modes 0,1,4,5 - used mainly by games
+     * count down to 0, then set output, wrap and continue counting (gate=1)
+     * only modes 0,4 allow reloading of the counter on the fly
+     * (thus modes 1,5 are not correctly implemented)
+     * we are just not interested in the gate/output pins...
+     */
+    /* mode 0   -- interrupt on terminal count, ctr reload=Y */
+    /* mode 4   -- software triggered pulse, ctr reload=Y */
+    /* mode 1   -- programmable monoflop, ctr reload=N */
+    /* mode 5   -- hardware triggered pulse, ctr reload=N */
+      /* should have been initialized to the value in write_latch */
+
+      if (p->cntr != -1) {
 #ifndef MONOTON_MICRO_TIMING
-	ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) * CLOCK_TICK_RATE +
-	        ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
+	ticks = (cur_time.tv_sec - p->time.tv_sec) * CLOCK_TICK_RATE +
+	        ((cur_time.tv_usec - p->time.tv_usec) * 1193) / 1000;
 #else /* MONOTON_MICRO_TIMING */
-	ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) * PIT_TICK_RATE +
-	        PIT_MS2TICKS(cur_time.tv_usec - pit[latch].time.tv_usec);
+	ticks = (cur_time.tv_sec - p->time.tv_sec) * PIT_TICK_RATE +
+	        PIT_MS2TICKS(cur_time.tv_usec - p->time.tv_usec);
 #endif /* MONOTON_MICRO_TIMING */
 
-	if (ticks > pit[latch].cntr) {
-	  pit[latch].cntr = -1;
-	  pit[latch].read_latch = pit[latch].write_latch;
+	if (ticks > p->cntr) {	/* time has elapsed */
+	  if ((p->mode&0x40)==0)
+	  	p->cntr = -1;
+	  p->outpin = (p->mode&4? 0x00: 0x80);
 	} else {
-	  pit[latch].read_latch = pit[latch].cntr - ticks;
+	  p->read_latch = p->cntr - ticks;
+	  p->outpin = (p->mode&4? 0x80: 0x00);
 	}
-      } else {
-	pit[latch].read_latch = pit[latch].write_latch;
       }
-      break;
-
-    case 0x02:  /* mode 2,6 -- countdown, reload */
-    case 0x06:
-#ifndef MONOTON_MICRO_TIMING
-      ticks = pit[latch].cntr - (pic_dos_time % pit[latch].cntr);
-      pit[latch].read_latch = pit[latch].cntr - ticks % pit[latch].cntr;
-#else /* MONOTON_MICRO_TIMING */
-      gettimeofday(&cur_time, NULL);
-      pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
-	+ PIT_MS2TICKS(cur_time.tv_usec);
-      pic_sys_time += (pic_sys_time == NEVER);
-      if(latch == 0) {
-	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
-	if(((int)ticks) < 0) {
-	  pic_request(PIC_IRQ0);
-	  run_irqs();
-	  ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
-	}
-      } else {
-	ticks = pit[latch].cntr - (pic_sys_time % pit[latch].cntr);
+      if (p->cntr == -1) {
+	p->read_latch = p->write_latch;
+	p->outpin = (p->mode&4? 0x00: 0x80);
       }
-      pit[latch].read_latch = ticks;
-#endif /* MONOTON_MICRO_TIMING */
-      break;
-
-    case 0x03:  /* mode 3,7 -- countdown by 2(?), interrupt, reload */
-    case 0x07:
-      gettimeofday(&cur_time, NULL);
-#ifndef MONOTON_MICRO_TIMING
-      /* fancy calculations to avoid overflow */
-      ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
-      ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
-	      ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
-      pit[latch].read_latch = pit[latch].cntr - (2*ticks) % pit[latch].cntr;
-#else /* MONOTON_MICRO_TIMING */
-      pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
-	+ PIT_MS2TICKS(cur_time.tv_usec);
-      pic_sys_time += (pic_sys_time == NEVER);
-
-      if(latch == 0) {
-	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
-	if(((int)ticks) < 0) {
-	  pic_request(PIC_IRQ0);
-	  run_irqs();
-	  ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
-	}
-      } else {
-	ticks = pit[latch].cntr - (pic_sys_time % pit[latch].cntr);
-      }
-      pit[latch].read_latch = (2*ticks) % pit[latch].cntr;
-#endif /* MONOTON_MICRO_TIMING */
-      break;
   }
+#ifndef MONOTON_MICRO_TIMING
+  /* mode 2 -- rate generator */
+  /* mode 6 -- ??? */
+  else if ((p->mode & 3)==2) {
+      ticks = p->cntr - (pic_dos_time % p->cntr);
+      p->read_latch = p->cntr - ticks % p->cntr;
+      p->outpin = (p->read_latch? 0x80: 0x00);
+  }
+  /* mode 3 -- square-wave generator */
+  /* mode 7 -- ??? */
+  else {
+      /* fancy calculations to avoid overflow */
+      ticks = (cur_time.tv_sec - p->time.tv_sec) % p->cntr;
+      ticks = ticks * (CLOCK_TICK_RATE % p->cntr) +
+	      ((cur_time.tv_usec - p->time.tv_usec) * 1193) / 1000;
+      /* ticks is now a value which increases from 0 to cntr, and
+         is greater than cntr/2 in the second half of the cycle */
+      ticks = 2 * (ticks % p->cntr);
+      p->outpin = (ticks >= p->cntr? 0x80: 0x00);
+      p->read_latch = p->cntr - ticks % p->cntr;
+  }
+#else /* MONOTON_MICRO_TIMING */
+  else {
+    /* mode 2 -- rate generator */
+    /* mode 6 -- ??? */
+    /* mode 3 -- square-wave generator, countdown by 2 */
+    /* mode 7 -- ??? */
+      pic_sys_time = cur_time.tv_sec*PIT_TICK_RATE 
+	+ PIT_MS2TICKS(cur_time.tv_usec);
+      pic_sys_time += (pic_sys_time == NEVER);
+
+      if (latch == 0) {
+	/* when current time is greater than irq time, call pic_request
+	   which will then point pic_itime to next interrupt */
+
+	if (((pic_itime[PIC_IRQ0]-pic_sys_time) < 0) && ((p->mode&0x40)==0)) {
+	  r_printf("PIT: pit_latch, pic_request IRQ0 mode 2/3\n");
+	  pic_request(PIC_IRQ0);
+#if 1	/* could be dangerous IMHO - AV */
+	  run_irqs();
+#endif
+	}
+	/* while current time is less than next irq time, ticks decrease;
+	   we need no modulo operation */
+	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+      } else {
+	ticks = p->cntr - (pic_sys_time % p->cntr);
+      }
+      if ((p->mode & 3)==3) {
+        /* ticks is now a value which decreases from cntr to 0, and
+           is greater than cntr/2 in the first half of the cycle */
+	ticks *= 2;
+	if (ticks >= p->cntr) {
+	  p->outpin = 0x00; p->read_latch = (ticks-p->cntr) & 0xfffe;
+	}
+	else {
+	  p->outpin = 0x80; p->read_latch = ticks;
+	}
+      }
+      else {
+        p->read_latch = ticks;
+        p->outpin = (p->read_latch? 0x80: 0x00);
+      }
+  }
+#endif /* MONOTON_MICRO_TIMING */
+  if (p->mode & 0x40)
+    p->mode = (p->mode & 7) | 0x80;
+
 #if 0 /* for debugging */
   i_printf("pit_latch:  latched value 0x%4.4x for timer %d\n",
-	   pit[latch].read_latch, latch);
+	   p->read_latch, latch);
 #endif
 }
 
@@ -305,7 +336,7 @@ Bit8u pit_inp(Bit32u port)
       break;
     case 3: /* read LSB followed by MSB */
       ret = (pit[port].read_latch & 0xff);
-      if (pit[port].mode & 0x80) pit[port].mode &= 7;
+      if (pit[port].mode & 0x80) pit[port].mode &= 7;	/* moved here */
         else
       pit[port].read_state = 0;
       break;
@@ -466,9 +497,9 @@ void pit_control_outp(Bit32u port, Bit8u val)
 	if (val & 0x08) pit_latch(2);
       }
       else if ((val & 0x10) == 0) {   /* latch status words? */
-	if (val & 0x02) pit[0].mode |= 0x80;
-	if (val & 0x04) pit[1].mode |= 0x80;
-	if (val & 0x08) pit[2].mode |= 0x80;
+	if (val & 0x02) { pit[0].mode |= 0x40; pit_latch(0); }
+	if (val & 0x04) { pit[1].mode |= 0x40; pit_latch(1); }
+	if (val & 0x08) { pit[2].mode |= 0x40; pit_latch(2); }
       }
       break;
   }
@@ -617,6 +648,7 @@ void pit_reset(void)
   gettimeofday(&cur_time, NULL);
 
   pit[0].mode        = 3;
+  pit[0].outpin      = 0;
   pit[0].cntr        = 0x10000;
   pit[0].time        = cur_time;
   pit[0].read_latch  = 0xffffffff;
@@ -625,6 +657,7 @@ void pit_reset(void)
   pit[0].write_state = 3;
 
   pit[1].mode        = 2;
+  pit[1].outpin      = 0;
   pit[1].cntr        = 18;
   pit[1].time        = cur_time;
   pit[1].read_latch  = 0xffffffff;
@@ -633,6 +666,7 @@ void pit_reset(void)
   pit[1].write_state = 3;
 
   pit[2].mode        = 0;
+  pit[2].outpin      = 0;
   pit[2].cntr        = 0x10000;
   pit[2].time        = cur_time;
   pit[2].read_latch  = 0xffffffff;
@@ -641,6 +675,7 @@ void pit_reset(void)
   pit[2].write_state = 3;
 
   pit[3].mode        = 0;
+  pit[3].outpin      = 0;
   pit[3].cntr        = 0x10000;
   pit[3].time        = cur_time;
   pit[3].read_latch  = 0xffffffff;

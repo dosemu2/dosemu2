@@ -86,9 +86,9 @@ if [ "$COMPILE" != "1" ]; then
 fi
 
 if [ "$DOMAKE" = "1" ]; then
-  if [ "$STATIC" = "1" ]; then
+  if [ "$STATIC" != "1" ]; then
     cat > ${TMP} <<EOF
-config {  sbemu on novm86plus off mitshm on x on dodebug off newkbd off slangforce off tmonoton off runasroot off linkstatic on}
+config {  sbemu on novm86plus off mitshm on x on dodebug off newkbd off slangforce off tmonoton on runasroot off linkstatic off newx on }
 EOF
 
   else
