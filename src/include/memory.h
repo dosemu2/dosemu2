@@ -67,10 +67,6 @@
 #define LFN_HELPER_OFF	0x4000
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
-#define UNIX_HELPER_SEG	BIOSSEG
-#define UNIX_HELPER_OFF	0x4200
-#define UNIX_HELPER_ADD	((UNIX_HELPER_SEG << 4) + UNIX_HELPER_OFF)
-
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG)
 #define Mouse_OFF       0x20f0

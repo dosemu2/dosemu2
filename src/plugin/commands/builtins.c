@@ -219,12 +219,10 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 	
 	LWORD(eax) = 0x4b00;
 	
-	if (quit) {
-		_CS = UNIX_HELPER_SEG;
-		_IP = UNIX_HELPER_OFF;
-	} else {
-		real_run_int(0x21);
-	}
+	if (quit)
+		fake_call_to(BIOSSEG, EXIT_HELPER);
+
+	real_run_int(0x21);
 
 	return 0;
 }
