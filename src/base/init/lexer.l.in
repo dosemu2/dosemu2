@@ -4,6 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+%option nounput
 %{
 
 #define YY_NO_UNPUT		1

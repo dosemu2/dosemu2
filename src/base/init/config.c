@@ -250,14 +250,14 @@ void dump_config_status(void *printfunc)
     (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
         config.dosbanner, config.vbios_post, config.detach);
     (*print)("debugout \"%s\"\n",
-        (config.debugout ? config.debugout : (unsigned char *)""));
+        (config.debugout ? config.debugout : ""));
     {
 	char buf[256];
 	GetDebugFlagsHelper(buf, 0);
 	(*print)("debug_flags \"%s\"\n", buf);
     }
     if (!printfunc) dump_keytable(stderr, config.keytable);
-    (*print)("pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : (unsigned char *)""));
+    (*print)("pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : ""));
     (*print)("irqpassing= ");
     if (config.sillyint) {
       int i;
@@ -395,7 +395,8 @@ void secure_option_preparse(int *argc, char **argv)
   char *opt;
   int runningsuid = can_do_root_stuff && !under_root_login;
 
-  static char * get_option(char *key, int with_arg)
+  auto char * get_option(char *key, int with_arg);
+  char * get_option(char *key, int with_arg)
   {
     char *p;
     char *basename;
