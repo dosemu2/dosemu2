@@ -1,0 +1,390 @@
+#
+# BASH specific functions
+#
+
+function write_start () {
+  print "start() { handle_" start_name " }"
+}
+
+function write_menu_function_header () {
+
+  if ( menu_class == "template" ) {
+    print "handle_" menu_name "_template () {"
+
+  } else {
+    print "handle_" menu_name " () {"
+
+  }
+
+  print "local FINISHED=0 CURRENT RESULT=0 DATA NUM_ITEMS HEIGHT"
+
+  if ( menu_class == "template" ) {
+    print "local TEMPLATE=$1"
+
+  }
+}
+
+function write_menu_boolean_init ( i ) {
+  print "local ITEM" i "=off"
+
+  print "get_value ITEM" i " " var_name( menu_var[i])
+
+  return i
+}
+
+function write_menu_input_init ( i ) {
+  print "local ITEM" i 
+
+  print "get_value ITEM" i " " var_name( menu_var[i])
+
+  return i
+}
+
+function write_menu_list_init ( i ) {
+  # This next step is probably a bit naughty, but it looks like the
+  # best solution ....
+
+  print "local TEMP_" menu_var[i] " LIST_" menu_var[i]
+
+  list_item = i
+  line = ""
+
+  print "get_value TEMP_" menu_var[i] " " var_name( menu_var[i])
+
+  list = menu_var[i]
+
+  while (menu_type[i] == "list" && list == menu_var[i]) {
+    print "local ITEM" i "=off"
+    line = line menu_data[i] ") ITEM" i "=on\n"
+
+    line = line " LIST_" menu_var[i] "=" i " ;;\n"
+
+    i++
+  }
+
+  # The while loop overshoots the mark.
+  i --
+
+  print "case $TEMP_" menu_var[i] " in "
+  print line "esac"
+
+  return i
+}
+
+function write_menu_submenu_init ( i ) {
+  return i
+}
+
+function write_menu_text_init ( i ) {
+  return i
+}
+
+function write_menu_menu_header () {
+  print "if [ \"@$DIALOG_SUPPORTS_CURRENT\" = \"@true\" ]; then"
+  print "CURRENT=0"
+  print "fi"
+
+  print "while [ $FINISHED -ne 1 ]"
+  print "do"
+  print "MENU_STRING=\"\""
+  print "NUM_ITEMS=0"
+}
+
+function write_menu_entry_submenu ( i ) {
+  print "MENU_STRING=\"$MENU_STRING " i " \'" escape_string(menu_text[i]) " ---> \'\""
+  print "NUM_ITEMS=$[$NUM_ITEMS + 1]"
+
+  return i  
+}
+
+function write_menu_entry_boolean ( i ) {
+  print "if [ $ITEM" i " = on ]"
+  print "then"
+  print "MENU_STRING=\"$MENU_STRING " i " \'[X] " escape_string(menu_text[i]) "\'\""
+  print "else"
+  print "MENU_STRING=\"$MENU_STRING " i " \'[ ] " escape_string(menu_text[i]) "\'\""
+  print "fi"
+  print "NUM_ITEMS=$[$NUM_ITEMS + 1]"
+
+  return i
+}
+
+function write_menu_entry_input ( i ) {
+  print "MENU_STRING=\"$MENU_STRING " i " \'" escape_string(menu_text[i]) " \($ITEM" i "\)\'\""
+  print "NUM_ITEMS=$[$NUM_ITEMS + 1]"
+
+  return i
+}
+
+function write_menu_entry_list ( i ) {
+  print "if [ $ITEM" i " = on ]"
+  print "then"
+  print "MENU_STRING=\"$MENU_STRING " i " \'(X) " escape_string(menu_text[i]) "\'\""
+  print "else"
+  print "MENU_STRING=\"$MENU_STRING " i " \'( ) " escape_string(menu_text[i]) "\'\""
+  print "fi"
+  print "NUM_ITEMS=$[$NUM_ITEMS + 1]"
+
+  return i
+}
+
+function write_menu_entry_text ( i ) {
+  print "MENU_STRING=\"$MENU_STRING " i " \'" escape_string(menu_text[i]) "\'\""
+  print "NUM_ITEMS=$[$NUM_ITEMS + 1]"
+
+  return i
+}
+
+function write_menu_menu () {
+  if ( menu_class == "template" ) {
+    print "MENU_STRING=\"$MENU_STRING -1 \'Remove " escape_string(template_text) "\'\""
+    print "NUM_ITEMS=$[NUM_ITEMS + 1]"
+  }
+
+  # Rule of thumb - Allow 8 lines for the decorations on the menu ... the
+  # screen size has already been reduced by the size detection code.
+  print "if [ $[$NUM_ITEMS + 8] -gt $ROWS ]"
+  print "then"
+  print "HEIGHT=$ROWS"
+  print "NUM_ITEMS=$[$HEIGHT - 8]"
+  print "else"
+  print "HEIGHT=$[$NUM_ITEMS + 8]"
+  print "fi"
+
+  print "eval $DIALOG --backtitle \'\"" main_title "\"\' --title \'\"" escape_string(menu_title) "\"\' --menu \'\"" escape_string(menu_description) "\"\' $HEIGHT 60 $NUM_ITEMS $CURRENT $MENU_STRING 2> $TEMP"
+}
+
+function write_menu_action () {
+  print "RESULT=$?"
+
+  print "if [ $RESULT -eq 0 -o $RESULT -eq 3 -o $RESULT -eq 6 ]; then "
+  print "RESULT=`cat $TEMP`"
+
+  print "if [ \"@$DIALOG_SUPPORTS_CURRENT\" = \"@true\" ]; then"
+  print "CURRENT=$RESULT"
+  print "fi"
+
+  print "case $RESULT in "
+  for (i = 0; i < menu_items; i++ ) {
+    print i ") "
+    if ( menu_type[i] == "submenu" ) {
+      print "handle_" menu_data[i] " || $DIALOG --backtitle \'Missing Menu Error\' --msgbox \'The menu for " menu_data[i] " appears to be missing.\' 8 60 "
+      print ";;"
+
+    } else if ( menu_type[i] == "boolean") {
+
+      print "if [ $ITEM" i " = on ]"
+      print "then"
+      print "set_value " var_name( menu_var[i]) " \"off\" "
+      print "ITEM" i "=off"
+      print "else"
+      print "set_value " var_name( menu_var[i]) " \"on\" "
+      print "ITEM" i "=on"
+      print "fi ;;"
+
+    } else if ( menu_type[i] == "input") {
+      print "if [ \"@$DIALOG_SUPPORTS_VALUE\" = \"@true\" ]; then"
+      print "eval $DIALOG --backtitle \\\'" main_title "\\\' --title \\\'" menu_title " - " menu_text[i] "\\\' --inputbox \\\'Please enter the value for " menu_text[i] "\\\' 9 60 \\\"$ITEM" i "\\\" 2> $TEMP "
+      print "else"
+      print "eval $DIALOG --backtitle \\\'" main_title "\\\' --title \\\'" menu_title " - " menu_text[i] "\\\' --inputbox \\\'Please enter the value for " menu_text[i] "\\\($ITEM" i "\\\)\\\' 9 60 2> $TEMP "
+      print "fi"
+      print "RESULT=$?"
+
+      print "if [ $RESULT -eq 0 -o $RESULT -eq 3 -o $RESULT -eq 6 ]; then "
+      print "RESULT=`cat $TEMP`"
+      print "set_value " var_name( menu_var[i]) " \"$RESULT\""
+      print "ITEM" i "=\"$RESULT\""
+print "else echo error $RESULT >> /tmp/als-out"
+      print "fi"
+      print ";;"
+
+    } else if ( menu_type[i] == "list") {
+      print "set_value " var_name( menu_var[i]) " \"" menu_data[i] "\" "
+      print "eval ITEM$LIST_" menu_var[i] "=off"
+      print "ITEM" i "=on"
+      print "LIST_" menu_var[i] "=" i
+      print ";;"
+
+    } else if ( menu_type[i] == "text") {
+      print ";;"
+
+    }
+  }
+  if (menu_class == "template") {
+    print "-1)"
+    print "set_value " var_name(template_deleted) " \"on\""
+    print "FINISHED=1"
+    print ";;"
+  }
+
+  print "esac" 
+
+  print "elif [ $RESULT -eq 2 ]"
+  print "then"
+  print "$DIALOG --backtitle \'Missing Help\' --msgbox \'The help system is not yet written. Please read etc/config.dist for full details of the options.\' 8 60 "
+#  print "CURRENT=`cat $TEMP`"
+  print "else"
+  print "FINISHED=1"
+  print "fi"
+}
+
+function write_menu_menu_footer () {
+  print "done"
+}
+
+function write_menu_exit () {
+  if (menu_class == "menu") {
+    if ( menu_exit != "" ) {
+      print menu_exit " || $DIALOG --backtitle \'Missing Exit Function Error\' --msgbox \'The exit function " menu_exit " appears to be missing.\' 8 60 "
+
+    }
+  }
+}
+
+
+function write_menu_function_footer () {
+  print "}"
+}
+
+function write_menu (  line_length, i, line, list, list_item) {
+  # Write out the header
+  write_menu_function_header()
+
+  # Initialise Values
+  for (i = 0; i < menu_items; i++) {
+    if ( menu_type[i] == "boolean") {
+      i = write_menu_boolean_init(i)
+
+    } else if ( menu_type[i] == "input") {
+      i = write_menu_input_init(i)
+
+    } else if ( menu_type[i] == "list") {
+      i = write_menu_list_init(i)
+
+    } else if ( menu_type[i] == "submenu") {
+      i = write_menu_submenu_init(i)
+
+    } else if ( menu_type[i] == "text") {
+      i = write_menu_text_init(i)
+
+    }
+  }
+
+  # Create Menu ...
+  write_menu_menu_header()
+
+  for (i = 0; i < menu_items; i++) {
+
+    if (menu_type[i] == "submenu") {
+      i = write_menu_entry_submenu(i)
+
+    } else if (menu_type[i] == "boolean") {
+      i = write_menu_entry_boolean(i)
+
+    } else if (menu_type[i] == "input") {
+      i = write_menu_entry_input(i)
+
+    } else if (menu_type[i] == "list") {
+      i = write_menu_entry_list(i)
+
+    } else if (menu_type[i] == "text") {
+      i = write_menu_entry_text(i)
+
+    }
+
+  }
+
+  # Do Menu ...
+  write_menu_menu()
+
+  # Handle Results ...
+  write_menu_action()
+
+  write_menu_menu_footer()
+
+  write_menu_exit()
+
+  write_menu_function_footer()
+}
+
+
+function var_name (  base) {
+  if (menu_class == "template" ) {
+    return base "_${TEMPLATE}"
+
+  } else {
+    return base
+
+  }
+}
+
+function write_template () {
+  print "handle_" menu_name " () {"
+  print "local FINISHED=0 CURRENT RESULT=0 DATA NUM_ITEMS HEIGHT COUNT"
+  print "local TEXT TEMPLATE_SIZE DELETED"
+
+  print "if [ \"@$DIALOG_SUPPORTS_CURRENT\" = \"@true\" ]; then"
+  print "CURRENT=0"
+  print "fi"
+
+  print "while [ $FINISHED -ne 1 ]"
+  print "do"
+  print "MENU_STRING=\"\""
+  print "NUM_ITEMS=0"
+
+  print "COUNT=0"
+  print "get_value TEMPLATE_SIZE " template_counter
+  print "while [ $COUNT -lt $TEMPLATE_SIZE ]"
+  print "do"
+  print "COUNT=$[$COUNT + 1]"
+  print "DELETED=\"\""
+  print "get_value DELETED " template_deleted "_${COUNT}"
+  print "if [ \"@$DELETED\" != \"@on\" ]; then"
+  print "TEXT=\"" template_text " $COUNT\""
+  print "MENU_STRING=\"$MENU_STRING $COUNT \'$TEXT\' \""
+  print "NUM_ITEMS=$[$NUM_ITEMS + 1]"
+  print "fi"
+  print "done"
+
+  # Always offer "Add ..."
+  print "MENU_STRING=\"$MENU_STRING $[$TEMPLATE_SIZE +1] \'Add " escape_string(template_text) "\' \""
+  print "NUM_ITEMS=$[$NUM_ITEMS + 1]"
+
+  # Rule of thumb - Allow 8 lines for the decorations on the menu ... the
+  # screen size has already been reduced by the size detection code.
+  print "if [ $[$NUM_ITEMS + 8] -gt $ROWS ]"
+  print "then"
+  print "HEIGHT=$ROWS"
+  print "NUM_ITEMS=$[$HEIGHT - 8]"
+  print "else"
+  print "HEIGHT=$[$NUM_ITEMS + 8]"
+  print "fi"
+
+  print "eval \"$DIALOG --backtitle \'\"" main_title "\"\' --title \'\"" escape_string(menu_title) "\"\' --menu \'\"" escape_string(template_description) "\"\' $HEIGHT 60 $NUM_ITEMS $CURRENT $MENU_STRING \" 2>$TEMP"
+
+  print "RESULT=$?"
+
+  print "if [ $RESULT -eq 0 -o $RESULT -eq 3 -o $RESULT -eq 6 ]; then "
+  print "RESULT=`cat $TEMP`"
+
+  print "if [ \"@$DIALOG_SUPPORTS_CURRENT\" = \"@true\" ]; then"
+  print "CURRENT=$RESULT"
+  print "fi"
+
+  print "if [ $RESULT -eq $[$TEMPLATE_SIZE + 1] ]; then "
+  print "TEMPLATE_SIZE=$[$TEMPLATE_SIZE + 1]"
+  print "set_value " template_counter " $TEMPLATE_SIZE"
+  print "fi"  
+
+  print "handle_" menu_name "_template $RESULT || $DIALOG --backtitle \'Missing Menu Error\' --msgbox \'The template for " menu_name " appears to be missing.\' 8 60 "
+
+  print "elif [ $RESULT -eq 2 ]"
+  print "then"
+  print "$DIALOG --backtitle \'Missing Help\' --msgbox \'The help system is not yet written. Please read etc/config.dist for full details of the options.\' 8 60 "
+  print "else"
+  print "FINISHED=1"
+  print "fi"
+
+  print "done"
+  print "}"
+}

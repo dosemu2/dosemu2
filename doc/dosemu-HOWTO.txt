@@ -1,0 +1,1463 @@
+  The dosemu HOWTO
+  by Mike Deisher. Updated by Uwe Bonnes, bboonn@@eelleekk--
+  ttrroonn..iikkpp..pphhyyssiikk..tthh--ddaarrmmssttaaddtt..ddee
+  PLEASE DON'T REDISTRIBUTE THIS TRANSITORY EDITION For
+  dosemu-0.64.4 (in progress), 15 February 1997
+
+  This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
+  dosemu.  The most up-to-date version of the dosemu-HOWTO may be found
+  in ffttpp..mmaatthheemmaattiikk..tthh--ddaarrmmssttaaddtt..ddee:://ppuubb//lliinnuuxx//bboonnnneess//.
+  ______________________________________________________________________
+
+  Table of Contents:
+
+  1.      The preliminaries
+
+  1.1.    What is dosemu, anyway?
+
+  1.2.    Names and numbers
+
+  1.3.    What version of Dosemu should I use?
+
+  1.4.    What's the newest version of dosemu and where can I get it?
+
+  1.5.    Where can I ask questions?
+
+  1.6.    Where can I report bugs and ask questions?
+
+  1.7.    Where can I follow the development?
+
+  1.8.    What documentation is available for dosemu?
+
+  1.9.    I have a program that fails, not listed in EMUfailure
+
+  1.10.   How do I submit changes or additions to the HOWTO?
+
+  1.11.   Message from Greg...
+
+  2.      Compiling and installing dosemu
+
+  2.1.    Where are the installation instructions?
+
+  2.2.    Top ten problems while compiling and installing dosemu.
+
+  2.3.    How can I use dosemu on an older version of the Linux Kernel.
+
+  2.4.    How do I make aout binaries?
+
+  2.5.    How do I compile dosemu on a machine with low memory?
+
+  2.6.    Compilation fails with some strange error regarding "slang"
+
+  2.7.    What configurabe options are available
+
+  2.8.    How can I speed up compilation?
+
+  2.9.    More compilation tips from Marty...
+
+  2.10.   Do I need to compile dosemu as root?
+
+  2.11.   How to I patch dosemu.
+
+  2.12.   What versions of DOS are known to run with dosemu.
+
+  3.      Hard disk setup
+
+  3.1.    How do I use my hard disk with dosemu?
+
+  3.2.    How can I access the hdimage from Linux?
+
+  3.3.    Can I use my stacked/double-spaced/super-stored disk?
+
+  4.      Parallel ports, serial ports and mice
+
+  4.1.    Port access worked with older version, but doesn't work now!
+
+  4.2.    Port access was faster with older versions!
+
+  4.3.    Where are the (microsoft compatible) mouse drivers?
+
+  4.4.    Why doesn't the mouse driver work?
+
+  4.5.    Why does dosemu clobber COM4?
+
+  4.6.    How do I use dosemu over the serial ports?
+
+  4.7.    How can I switch between dosemu and a shell over the serial
+  line?
+
+  4.8.    How can I get the parallel ports to work?
+
+  5.      Multiple users and Non-interactive sessions
+
+  5.1.    Can I use dosemu on a multi-user system?
+
+  5.2.    How can I run dos commands non-interactively?
+
+  6.      dosemu and Netware
+
+  6.1.    How do I get Netware access from dosemu?
+
+  7.      dosemu and X-windows(97/2/9).
+
+  7.1.    Can I run dosemu in console mode while running X?
+
+  7.2.    Is it possible to run dosemu in a window in X-windows?
+
+  7.3.    Xdos dosen't work on a remote X-display!
+
+  7.4.    Xdos dosen't find the VGA font
+
+  7.5.    The vga font is very smal on my high resolution  Display
+
+  7.6.    Dosemu compilation fails with some strange error regarding X!
+
+  7.7.    Does ansi emulation work properly?
+
+  8.      dosemu and MS-Windows 3.1
+
+  8.1.    Is it possible to run MS-Windows 3.1 under dosemu?
+
+  8.2.    Windows 3.x in xdos:
+
+  8.3.    Can I install windows from within dosemu?
+
+  8.4.    Notes for the mouse under win31-in-xdos:
+
+  8.5.    Why did my Icon dissapear from the Programmanager?
+
+  9.      Video and sound
+
+  9.1.    Can I run 32-bit video games under dosemu?
+
+  9.2.    Exiting from dosemu gives me a screen full of garbage.
+
+  9.3.    How do I get dosemu to work with my Trident/Actix/other video
+  card?
+
+  9.4.    Why doesn't my soundcard software work with dosemu?
+
+  10.     Games
+
+  10.1.   Duke3d dosen't work
+
+  11.     Other Hardware
+
+  11.1.   How do I get my xxxxx device working under dosemu?
+
+  12.     Problems and fixes
+
+  12.1.   Security issues
+
+  12.2.   Dosemu dies when booting. I have Win95 installed.
+
+  12.3.   Dosemu hangs! How can I kill it?
+
+  12.4.   Dosemu crashed and now I can't type anything.
+
+  12.5.   I've enabled EMS memory in dosemu.conf but it does not help.
+
+  12.6.   How do I get rid of all those annoying "disk change" messages?
+
+  12.7.   Why won't dosemu run a second time after exiting in console
+  mode?
+
+  12.8.   Why will dosemu run in a term but not in the console?
+
+  12.9.   How can I speed up dosemu?
+
+  12.10.  My CDROM drive has problems reading some files under dosemu.
+
+  12.11.  How do I see debugging output?
+
+  12.12.  Why are my keystrokes echoed ttwwiiccee??
+
+  13.     Contributing to the dosemu project
+
+  13.1.   Who is responsible for dosemu?
+
+  13.2.   I want to help.  Who should I contact?
+  ______________________________________________________________________
+
+  11..  TThhee pprreelliimmiinnaarriieess
+
+  11..11..  WWhhaatt iiss ddoosseemmuu,, aannyywwaayy??
+
+  To quote the manual, "dosemu" is a user-level program which uses
+  certain special features of the Linux kernel and the 80386 processor
+  to run MS-DOS in what we in the biz call a `DOS box.'  The DOS box, a
+  combination of hardware and software trickery, has these capabilities:
+
+  o the ability to virtualize all input/output and processor control
+  instructions
+
+  o the ability to support the word size and addressing modes of the
+  iAPX86 processor family's "real mode," while still running within the
+  full protected mode environment
+  o the ability to trap all DOS and BIOS system calls and emulate such
+  calls as are necessary for proper operation and good performance
+
+  o the ability to simulate a hardware environment over which DOS
+  programs are accustomed to having control.
+
+  o the ability to provide MS-DOS services through native Linux
+  services; for example, dosemu can provide a virtual hard disk drive
+  which is actually a Linux directory hierarchy."
+
+  11..22..  NNaammeess aanndd nnuummbbeerrss
+
+       (xx/yy/zz) means day zz in month yy in year xx(97/2/9).
+
+       winemu mean WinOS/2 running in dosemu(97/2/10).
+
+  11..33..  WWhhaatt vveerrssiioonn ooff DDoosseemmuu sshhoouulldd II uussee??
+
+  Dosemu uses the same numbering scheme as the kernel. Uneven second
+  numbers are for possible unstable developper releases, even second
+  numbers are for releases considered stable. At the time of writing,
+  00..6644..44 is the latest stable release, while 00..6655..00..66 ist the latest
+  developper's release. So if you want to use dosemu, get the latest
+  ssttaabbllee release (97/02/28).
+
+       (xx/yy/zz) means day zz in month yy in year xx(97/2/9).
+
+       winemu mean WinOS/2 running in dosemu(97/2/10).
+
+  11..44..  WWhhaatt''ss tthhee nneewweesstt vveerrssiioonn ooff ddoosseemmuu aanndd wwhheerree ccaann II ggeett iitt??
+
+  The newest version of dosemu as of (97/2/9) is ddoosseemmuu00..6644..44 and can be
+  ftp'ed from:
+
+       tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/
+
+       ftp.suse.com:/pub/dosemu/
+
+  However, pre-release versions are also available for developers and
+  ALPHA testers.  They can be retrieved from:
+
+       http://www.ednet.ns.ca/auto/rddc
+
+  Remember that this is ALPHA code, however: there may be serious bugs
+  and very little documentation for new features. At present, the devel-
+  opment version is known to have bugs. Please use it only if you like
+  to do active development. Don't report bugs in the development ver-
+  sion, fix them instead.
+
+  11..55..  WWhheerree ccaann II aasskk qquueessttiioonnss??
+
+  If you have problems regarding installing and running dosemu after
+  reading the documentation, first try to help yourself: Your question
+  has probably been asked and perhaps answered before. Try some search
+  engine on the internet to retrieve that information. E.g. you can ask
+
+       http://www.dejanews.com
+
+  to find all newsnet articles containing the keywords of your question.
+  Helping yourself will probably be faster than asking a well known
+  question. It too frees up the time of developpers from answering
+  trivial question and so helps the further development of
+  dosemu(97/2/9) .
+
+  11..66..  WWhheerree ccaann II rreeppoorrtt bbuuggss aanndd aasskk qquueessttiioonnss??
+
+  If you want to ask questions and report bugs regarding dosemu, you
+  should consider subscribing to the linux-msdos-digest mailing list.
+  To subscribe, send mail to MMaajjoorrddoommoo@@vvggeerr..rruuttggeerrss..eedduu with the
+  following command in the body of your email message:
+
+      subscribe linux-msdos-digest your_username@your.email.address
+
+  If you ever want to remove yourself from the mailing list, you can
+  send mail to MMaajjoorrddoommoo@@vvggeerr..rruuttggeerrss..eedduu with the following command in
+  the body of your email message:
+
+      unsubscribe linux-msdos-digest your_username@your.email.address
+
+  (95/8/11). When you are subscribed to linux-msdos, you can send your
+  report as mail to linux-msdos@vger.rutgers.edu. There is a gate that
+  send mails to linux-msdos@vger.rutgers.edu as postings to the news-
+  group named lliinnuuxx..ddeevv..mmssddooss. If your News provider doesn't carry that
+  group, ask her(him) to add that group(97/2/10).
+
+  11..77..  WWhheerree ccaann II ffoollllooww tthhee ddeevveellooppmmeenntt??
+
+  If you want to follow the development of dosemu, there is a mailing
+  list for developpers.  To subscribe, send mail to
+  MMaajjoorrddoommoo@@eeddnneett..nnss..ccaa with the following command in the body of your
+  email message:
+
+      subscribe msdos-devel your_username@your.email.address
+
+  If you ever want to remove yourself from the mailing list, you can
+  send mail to MMaajjoorrddoommoo@@eeddnneett..nnss..ccaa with the following command in the
+  body of your email message:
+
+      unsubscribe dosemu-devel your_username@your.email.address
+
+  PPlleeaassee, don't use this list for the things linux-dosemu-digest is
+  thought for. Contributions to msdos-devel should concern the further
+  development of dosemu. Normal installation problems shouldn't be
+  reported here, and are normally ignored by those reading that
+  list(97/2/9).
+
+  11..88..  WWhhaatt ddooccuummeennttaattiioonn iiss aavvaaiillaabbllee ffoorr ddoosseemmuu??
+
+  The dosemu manual (ddoosseemmuu..tteexxiinnffoo) written by Robert Sanders has not
+  been updated in some time but is still a good source of information.
+  It is distributed with dosemu.
+
+  The "dosemu Novice's Altering Guide" or DANG is a road map to the
+  inner workings of dosemu.  It is designed for the adventurous, those
+  who wish to modify the source code themselves.  The DANG is maintained
+  by Alistair MacDonald (aalliissttaaiirr@@sslliitteessyyss..ddeemmoonn..ccoo..uukk) and is found in
+  the doc-directory of the dosemu source tree.
+
+  The EMU failure list (EMUfailure.txt) is a list of all programs known
+  nnoott to work under dosemu.
+
+  And then, of course, there is the dosemu FAQ/HOWTO.  But you already
+  know about that, don't you.  It is also posted once in a while to the
+  mailing list and found in the doc-directory.  The most recent version
+  can be found in ffttpp..mmaatthheemmaattiikk..tthh--
+  ddaarrmmssttaaddtt..ddee:://ppuubb//lliinnuuxx//bboonnnneess//(97/2/9).
+
+  11..99..  II hhaavvee aa pprrooggrraamm tthhaatt ffaaiillss,, nnoott lliisstteedd iinn EEMMUUffaaiilluurree
+
+  First check, if the failure of your program is not caused by some of
+  the fundamental incapabilities of dosemu, listed in EMUfailure. If you
+  think you have something new, please report to linux-
+  msdos@vger.rutgers.edu.  Perhaps it can be made going with the help
+  others. Give detailed information about your setup, tell the version
+  of kernel, dosemu etc and name the observed errors. You can use xdos
+  to cut and paste the error message into your report. But keep your
+  report in a readable form. We know the content of ../etc/config.dist.
+  So only send the active lines from your dosemu.conf. And scan through
+  your debug output and at first only send those parts you think are
+  relevant. Few people are willing to decode some long attachment to a
+  mail, to do debugging for others. But keeps your logs at hand, if
+  others ask detailed(97/2/10).
+
+  11..1100..  HHooww ddoo II ssuubbmmiitt cchhaannggeess oorr aaddddiittiioonnss ttoo tthhee HHOOWWTTOO??
+
+  The preferred method is to edit the file ddoosseemmuu--HHOOWWTTOO--xxxx..xx..ssggmmll to
+  incorporate the changes, create a diff file by typing something like
+
+       diff -uw original-file new-file
+
+  and send it to bboonn@@eelleekkttrroonn..iikkpp..pphhyyssiikk..tthh--ddaarrmmssttaaddtt..ddee.  If you do not
+  know SGML, that's ok.  Changes or new information in any form will be
+  accepted.  Creating the diff file just makes it easier on the HOWTO
+  maintainer.  :-)(97/2/9)
+
+  11..1111..  MMeessssaaggee ffrroomm GGrreegg......
+
+  Unless otherwise stated, Linux HOWTO documents are copyrighted by
+  their respective authors. Linux HOWTO documents may be reproduced and
+  distributed in whole or in part, in any medium physical or electronic,
+  as long as this copyright notice is retained on all copies. Commercial
+  redistribution is allowed and encouraged; however, the author would
+  like to be notified of any such distributions.
+
+  All translations, derivative works, or aggregate works incorporating
+  any Linux HOWTO documents must be covered under this copyright notice.
+  That is, you may not produce a derivative work from a HOWTO and impose
+  additional restrictions on its distribution. Exceptions to these rules
+  may be granted under certain conditions; please contact the Linux
+  HOWTO coordinator at the address given below.
+
+  In short, we wish to promote dissemination of this information through
+  as many channels as possible. However, we do wish to retain copyright
+  on the HOWTO documents, and would like to be notified of any plans to
+  redistribute the HOWTOs.
+
+  If you have questions, please contact Greg Hankins, the Linux HOWTO
+  coordinator, at gregh@cc.gatech.edu(95/8/11).
+
+  22..  CCoommppiilliinngg aanndd iinnssttaalllliinngg ddoosseemmuu
+
+  22..11..  WWhheerree aarree tthhee iinnssttaallllaattiioonn iinnssttrruuccttiioonnss??
+
+  The installation instructions are in the file, "QuickStart", included
+  in the distribution.
+
+  22..22..  TToopp tteenn pprroobblleemmss wwhhiillee ccoommppiilliinngg aanndd iinnssttaalllliinngg ddoosseemmuu..
+
+  1. Forgetting to read the QQuuiicckkSSttaarrtt Guide.
+
+  2. Try to compile some old version of dosemu.
+
+  3. Try to compile with a kernel older than 2.0.28 or 2.1.15.
+
+  4. Having the wrong linux kernel source sitting in //uussrr//ssrrcc//lliinnuuxx or
+  missing //uussrr//ssrrcc//lliinnuuxx//iinncclluuddee//vveerrssiioonn..hh
+
+  5. Use dosemu with a kernel that does not have IIPPCC compiled in.
+
+  6. Compile with gcc older than 2.7.2 or libc older than x.x.x.
+
+  7. Forget to edit your //eettcc//ddoosseemmuu..ccoonnff file.
+
+  8. Forget to run "FFDDIISSKK //mmbbrr" on your hdimage.
+
+  9. Run DOSEMU with partition access while they are already mounted.
+
+  10. Don't install dosemu with sufficient privileges (i.e., root).
+  (97/2/11)
+
+  22..33..  HHooww ccaann II uussee ddoosseemmuu oonn aann oollddeerr vveerrssiioonn ooff tthhee LLiinnuuxx KKeerrnneell..
+
+  If you still use 1.2.13 and can't upgarde for some reasons, use
+  ddoosseemmuu--00..6600..44. If you use some version of dosemu below 2.0.28 and
+  2.1.15, Hans Lermen (lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee) reported (97/1/25 and
+  97/2/11)
+
+       > Is the dosemu-0.64.3.tgz version of dosemulator for the 2.xx.yy ver-
+       sions > of the linux kernel ??
+
+  Yes, but ...
+
+    if ( ((xx == 0) && (yy >= 28)) || ((xx >= 1) && (yy >= 15)) )
+      take_dosemu_0_64_4();
+    else {
+      if (xx == 1)  exit(1);
+      take_dosemu_0_64_2_x();
+    }
+
+  ;-)
+
+  22..44..  HHooww ddoo II mmaakkee aaoouutt bbiinnaarriieess??
+
+  Starting with version 0.64.4 there is no a.out support any more.  If
+  you absolutely need it, you must use version 0.64.3.1.  The configure
+  script then should take care for this, if you setup is a standard
+  setup(97/2/11).
+
+  22..55..  HHooww ddoo II ccoommppiillee ddoosseemmuu oonn aa mmaacchhiinnee wwiitthh llooww mmeemmoorryy??
+
+  Marty Leisner (lleeiissnneerr@@ssddsspp..mmcc..xxeerrooxx..ccoomm) reported (95/4/8) that
+
+  If you have problems with running out of swap space you may want to
+  add CFLAGS+=-fno-inline after CFLAGS is defined in ddppmmii//MMaakkeeffiillee.  Be
+  careful before you do this and check for the existence of swap space.
+  I found Linux crashes a times when it has no swap space.
+
+  22..66..  CCoommppiillaattiioonn ffaaiillss wwiitthh ssoommee ssttrraannggee eerrrroorr rreeggaarrddiinngg ""ssllaanngg""
+
+  You probably have installed your own version of the Slang library.
+  Hans Lermen <<lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee>> writes(97/2/11):
+
+         configure --enable-force-slang
+
+  22..77..  WWhhaatt ccoonnffiigguurraabbee ooppttiioonnss aarree aavvaaiillaabbllee
+
+  Try
+
+       configure --help
+
+  to get the list of configurable options listed (97/2/12)
+
+  22..88..  HHooww ccaann II ssppeeeedd uupp ccoommppiillaattiioonn??
+
+  Marty Leisner (lleeiissnneerr@@ssddsspp..mmcc..xxeerrooxx..ccoomm) reported (95/4/8) that
+
+  The default optimization is -O2.  You may want edit the makefile to
+  use -O (compiled somewhat faster/smaller).
+
+  22..99..  MMoorree ccoommppiillaattiioonn ttiippss ffrroomm MMaarrttyy......
+
+  Marty Leisner (lleeiissnneerr@@ssddsspp..mmcc..xxeerrooxx..ccoomm) reported (95/4/8) that
+
+  You need to have build the kernel on your system to get the current
+  version.  If not, you may want to hand modify KERNEL_VERSION in the
+  top level Makefile.  The number is of the form, "nmmmppp", where "n"
+  is the version, "mmm" is the minor version, and "ppp" is the
+  patchlevel.  For example, kernel 1.1.88 corresponds to "1001088" and
+  kernel 1.2.1 to "1002001".
+
+  Addition from (lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee):
+
+  For versions greater 0.64.3 this no longer is true. You need to have a
+  valid <linux/version.h>, which has to be part off your standard
+  /usr/include. If you don't have it, you either did a 'make clean' on
+  your kernel source or your distributor failed to support you with
+  this.
+
+  22..1100..  DDoo II nneeeedd ttoo ccoommppiillee ddoosseemmuu aass rroooott??
+
+  (95/4/8)
+
+  No.  You must install it as root, though.
+
+  Marty Leisner (lleeiissnneerr@@ssddsspp..mmcc..xxeerrooxx..ccoomm) adds
+
+  In order to access I/O ports (including the console) dosemu needs to
+  run as root.  Running dosemu on an xterm or in X windows and requiring
+  now direct hardware access allows you to run dosemu as a user.  The
+  security/setuid implications will be worked on in development
+  releases(95/8/11).
+
+  Have a look at ..;;//ddoocc//SSEECCUURRIITTYY..rreeaaddmmee too(97/2/9).
+
+  22..1111..  HHooww ttoo II ppaattcchh ddoosseemmuu..
+
+  If you do patch dosemu from one version to another, do "make
+  pristine;./configure; make". If you don't make pristine, at least the
+  version of the new executable will be wrong, if the whole thing
+  compiles at all(97/2/9).
+
+  22..1122..  WWhhaatt vveerrssiioonnss ooff DDOOSS aarree kknnoowwnn ttoo rruunn wwiitthh ddoosseemmuu..
+
+  Caldera's OpenDos (formerly known as DrDOS) is reported to work with
+  dosemu (NNiiccoollaass SStt--PPiieerrrree <<ddrraaggggyy@@kkoossmmiicc..oorrgg>>. As OpenDos can be used
+  free of charge for non-commercial use, it is preferred. However as of
+  now, redistribution is not allowed. You must get OpenDos youself from
+  Caldera's site http://www.caldera.com/dos Hopefully this will change
+  soon, so dosemu can distribute a bootable hdimage.  MsDos-6.22 is
+  known to work with dosemu too.  (97/2/10)
+
+  33..  HHaarrdd ddiisskk sseettuupp
+
+  33..11..  HHooww ddoo II uussee mmyy hhaarrdd ddiisskk wwiitthh ddoosseemmuu??
+
+  First, mount your dos hard disk partition as a Linux subdirectory.
+  For example, you could create a directory in Linux such as /dos (mkdir
+  -m 755 /dos) and add a line like
+
+     /dev/hda1       /dos     msdos   umask=022
+
+  to your /etc/fstab.  (In this example, the hard disk is mounted read-
+  only.  You may want to mount it read/write by replacing "022" with
+  "000" and using the -m 777 option with mkdir).  Now mmoouunntt //ddooss.  Now
+  you can add a line like
+
+    lredir d: linux\fs/dos
+
+  to the AUTOEXEC.BAT file in your hdimage (see the comments on LREDIR
+  below).  On a multi-user system you may want to use
+
+    lredir d: linux\fs\${home}
+
+  where "home" is the name of an environmental variable that contains
+  the location of the dos directory (/dos in this example)(95/8/11).
+
+  ---------------------
+
+  Tim Bird (Tim_R_Bird@Novell.COM) states that LREDIR users should be
+  careful when they use LREDIR in the autoexec, because COMMAND.COM will
+  continue parsing the autoexec.bat from the redirected drive as the
+  same file offset where it left off in the autoexec.bat on the physical
+  drive.  For this reason, it is safest to have the autoexec.bat on the
+  redirected drive and the physical drive (diskimage) be the
+  same(95/8/11).
+
+  ---------------------
+
+  Robert D. Warren (rrww1111225588@@xxxx..aaccss..aappppssttaattee..eedduu) reported (94/4/28) that
+
+  I boot off a small hdimage file (less than 1 MB - and twice as large
+  as needs be at that), and the next to last line in my config.sys file
+  on the hdimage boot image is:
+
+          install=c:\lredir.exe c: LINUX\FS\home/dos
+
+  This will execute lredir just before the command interpreter runs. And
+  I have successfully run it with both command.com and 4DOS.  This elim-
+  inates the offset problem using lredir in autoexec.bat.
+
+  Uwe Bonnes (bboonn@@eelleekkttrroonn..iikkpp..pphhyyssiikk..tthh--ddaarrmmssttaaddtt..ddee) adds (95/8/11)
+  that
+
+  It is usefull to do:
+
+  install=C:\subst.exe g: c:
+
+  before that, so you have still access to your hdimage as drive g:
+  Another useful tip in that circumstance is to configure dosemu to use
+  "aauuttooeexxeecc..eemmuu" to keep dos and dosemu apart.
+
+  33..22..  HHooww ccaann II aacccceessss tthhee hhddiimmaaggee ffrroomm LLiinnuuxx??
+
+  Use the recent mtools, version 3.0 at the time of writing. With a line
+  in //eettcc//mmttoooollss..ccoonnff like
+
+     drive g:  file="/var/lib/dosemu/hdimage" Offset=8832
+
+  you can use the mtools on the hdimage, like "mdir g:". "mcopy g:/con-
+  fig.emu /tmp" copies the config.emu file from the hdimage to /tmp/con-
+  fig.emu. You can edit it there and copy it back. Use a drive letter
+  you find sensible. "G:" is only an example(07/2/9).
+
+  33..33..  CCaann II uussee mmyy ssttaacckkeedd//ddoouubbllee--ssppaacceedd//ssuuppeerr--ssttoorreedd ddiisskk??
+
+  At this time, compressed drives cannot be accessed via the redirector
+  (lredir or emufs) on a standard kernel. There is a patch for the
+  kernel to mount compressed files under the name "dmsdosfs".  Find it
+  on sunsite.unc.edu and its mirrors
+
+       http://sunsite.unc.edu:/pub/Linux/system/Filesystems/dosfs/
+
+  A good idea is also to look in http://sun-
+  site.unc.edu:/pub/Linux/Incoming for a newer version.  However, many
+  people have had success by simply uncommenting the
+
+     disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
+
+  line in their dosemu config file.  Others have had success using
+
+     disk { partition "/dev/hda1" }
+
+  Do that on the risk to loose data on a dosemu crash(97/2/9)!
+
+  If your dos partition is already mounted with write access and you try
+  to run dosemu with partition or whole disk access, dosemu will print a
+  warning message and abort.  This prevents DOS and Linux from making
+  independent writes to your disk and trashing the data on your dos
+  partition(95/8/11).
+
+  ---------------------
+
+  If LILO is installed, the above will not work.  However...
+
+  Thomas Mockridge (tthhoommaass@@aazztteecc..ccoo..zzaa) reported (94/8/5) that
+
+  To boot dosemu with LILO and Stacker 4.0 I did a little work around...
+
+  1. dddd the MBR to a file. (or norton utility, etc., first 512 bytes)
+
+  2. Boot dos (from full boot not emu), do a fdisk /mbr, make your dos
+  partition active with (dos) fdisk.
+
+  3. Copy the new MBR to a file.
+
+  4. Replace the original MBR
+
+  5. Copy the second MBR to /var/lib/dosemu/partition.hda? (Whichever is
+  your dos partition)
+
+  6. Set dosemu.conf
+
+                 disk {partition "/dev/hda? ?"}
+
+  7. Start dosemu and and voila!  No LILO.
+
+  ---------------------
+
+  Holger Schemel (qq9999449922@@ppbbhhrrzzxx..uunnii--ppaaddeerrbboorrnn..ddee) reported (94/2/10)
+  that
+
+  Works even fine under dosemu with MS-DOS 6.0. If you have problems,
+  then you have to edit the file 'DBLSPACE.INI' manually and change the
+  disk letter to the letter your drive gets under dosemu.
+
+  ---------------------
+
+  Darren J Moffat (mmooffffaattdd@@ddccss..ggllaa..aacc..uukk) also reported (94/3/27)
+
+  "...use 6.2 if you can get it!!  Just make sure you have a LILO boot
+  disk on hand since dos 6{.2} will change the MBR of the boot HZ."
+
+  44..  PPaarraalllleell ppoorrttss,, sseerriiaall ppoorrttss aanndd mmiiccee
+
+  44..11..  PPoorrtt aacccceessss wwoorrkkeedd wwiitthh oollddeerr vveerrssiioonn,, bbuutt ddooeessnn''tt wwoorrkk nnooww!!
+
+  Read ..//ddoocc//RREEAADDMMEE..ppoorrtt--iioo  and the port-section in ..//eettcc//ccoonnffiigg..ddiisstt
+
+  44..22..  PPoorrtt aacccceessss wwaass ffaasstteerr wwiitthh oollddeerr vveerrssiioonnss!!
+
+  To have a chance to log port access, by default every port access
+  produces an exception out of vm86-mode. This takes some time. If you
+  don't want to log port access, use the keyword ""ffaasstt"" in the
+  appropriate port statement.
+
+  44..33..  WWhheerree aarree tthhee ((mmiiccrroossoofftt ccoommppaattiibbllee)) mmoouussee ddrriivveerrss??
+
+  Tom Kimball (ttkk@@ppssssppaarrcc22..oocc..ccoomm) reported (93/11/24) that
+
+  Several people said to use a different mouse driver and suggested
+  some.  I found a couple that seem to work fine.
+
+     oak.oakland.edu:/pub/msdos/mouse/mouse701.zip   (mscmouse)
+     oak.oakland.edu:/pub/msdos/mouse/gmous102.zip   (gmouse)
+
+  Normally you can use dosemu's internaldriver, so you don't need any
+  additional mousedriver in dosemu outside winemu(97/2/10).
+
+  44..44..  WWhhyy ddooeessnn''tt tthhee mmoouussee ddrriivveerr wwoorrkk??
+
+  Mark Rejhon (mmddrreejjhhoonn@@mmaaggii..ccoomm) reported (95/4/7) that
+
+  If you start the mouse driver and it just hangs (it might actually
+  take 30-60s), but if you are waiting longer than a minute for the
+  mouse driver to start, try specifying the COM port that the mouse is
+  on, at the mouse driver command line.
+
+  44..55..  WWhhyy ddooeess ddoosseemmuu cclloobbbbeerr CCOOMM44??
+
+  Rob Janssen (rroobb@@ppee11cchhll..aammpprr..oorrgg) reported (94/3/24) that
+
+  According to jjmmoorrrriissoo@@bbooggoommiippss..eeee..uubbcc..ccaa, "dosemu still clobbers COM4
+  (0x2e8, IRQ 5). 0x2e8 isn't in ports{} in config.  I have to run
+  setserial /dev/cua3 irq 5 on it after dosemu exits."
+
+  This is caused by your VGA BIOS.  I have found that by enabling the IO
+  port trace and seeing where it was clobbered.
+
+  Disable the "allowvideoportaccess on" line in config and it will work
+  fine.  When you then have problems with the video, try to enable more
+  selective ranges of IO addresses (e.g., 40-43).
+
+  44..66..  HHooww ddoo II uussee ddoosseemmuu oovveerr tthhee sseerriiaall ppoorrttss??
+
+  44..77..  HHooww ccaann II sswwiittcchh bbeettwweeeenn ddoosseemmuu aanndd aa sshheellll oovveerr tthhee sseerriiaall
+  lliinnee??
+
+  John Taylor (ttaayylloorr@@ppoolllluuxx..ccss..uuggaa..eedduu) reported (94/5/25) that
+
+  I am running Linux 1.1.13 and want to point out a great feature that
+  should be protected and not taken out (IMHO). With the 52 version, I
+  can run the program, "screen."  From screen, i can invoke dos -D-a.
+  What is really great (IMHO) is the screen commands (the CTRL-A cmds)
+  still work. This means I can do a CTRL-A C and add another unix shell,
+  and switch between the two (DOS / UNIX).  This allows me to use dosemu
+  over the serial line really well, because switching is made easy.
+
+  44..88..  HHooww ccaann II ggeett tthhee ppaarraalllleell ppoorrttss ttoo wwoorrkk??
+
+  The dosemu.conf has lines at the end to redirect printers to either
+  lpr or a file.  If you want direct access to the bare metal, comment
+  out these emulation lines, and add the line
+
+       ports { device /dev/lp0 fast range 0x3bc 0x3bf  } # lpt0
+
+  for the "monitor card" printer port (corresponds to /dev/lp0), or
+
+       ports { device /dev/lp1 fast range 0x378 0x37f } # lpt1
+
+       ports { device /dev/lp1 fast range 0x278 0x27f } # lpt2
+
+  for LPT1 (/dev/lp1) and LPT2 (/dev/lp2) respectively(97/2/9).
+
+  55..  MMuullttiippllee uusseerrss aanndd NNoonn--iinntteerraaccttiivvee sseessssiioonnss
+
+  55..11..  CCaann II uussee ddoosseemmuu oonn aa mmuullttii--uusseerr ssyysstteemm??
+
+  Corey Sweeney (ccoorreeyy@@aammiiggaanneett..xxnneett..ccoomm) reported (93/12/8) that
+
+  If you are running dosemu on a system in which more then one person
+  may want to run dosemu, then you may want to change the directory of
+  your hard drive image.  Currently in the //eettcc//ddoosseemmuu..ccoonnff file there
+  exists the line saying that the hard drive image is "hdimage".  If you
+  change this to //vvaarr//lliibb//ddoosseemmuu//hhddiimmaaggee then people do not have to
+  worry about what directory they are in when they run dosemu, and
+  hdimage does not have to be moved each time you upgrade to the next
+  patch level.
+
+  If you do do this for multi-user dosemu, then you will want to make
+  the hdimage in //vvaarr//lliibb//ddoosseemmuu read-only for everyone but the dosemu
+  administrator.
+
+  Note that you can use the new emufs.sys thing to mount a "public"
+  directory and/or a "private" directory (a sub-directory in each
+  person's home directory).
+
+  [Note: Users may also create a personal configuration file named
+   //..ddoossrrcc (same format as //eettcc//ddoosseemmuu..ccoonnff) to run their own copy of
+  dos.]
+
+  55..22..  HHooww ccaann II rruunn ddooss ccoommmmaannddss nnoonn--iinntteerraaccttiivveellyy??
+
+  I have been meaning to write an article on this for quite some time
+  but have not gotten around to it.  Here are some hints from others:
+
+  Dan Newcombe (nneewwccoommbbee@@aaaa..ccsscc..ppeeaacchhnneett..eedduu) reported (94/1/27) that
+
+  Here is an idea (untested) to be able to run a DOS command from the
+  command line (or menu choice, etc...) without modifying the actual
+  emulator.  [Your dos partition is assumed to be mounted under Linux,
+  already.]
+
+  Suppose you wanted to run wp60.exe with the parameter "wwpp6600
+  dd::\\ddoocc\\ppaappeerr..ttxxtt".  You would do something like "ddoossrruunn wwpp6600
+  dd::\\ddoocc\\ppaappeerr..ttxxtt".  "ddoossrruunn" would be a linux shell program that would
+  a) edit/modify/recreate the dos aauuttooeexxeecc..bbaatt from your dos partition
+  and b) simply run dosemu (e.g., "ddooss --CC >>//ddeevv//nnuullll".  Step a) would
+  somehow keep all the stuff you'd normally want in aauuttooeexxeecc..bbaatt (e.g.,
+  mouse.com) and the last line would be "wwpp6600 dd::\\ddoocc\\ppaappeerr..ttxxtt".
+
+  On the dosemu side, beforehand, you would have to modify the
+  ccoonnffiigg..ssyyss file (located in hdimage) so that it 1) uses emufs to
+  access the dos partition as DD::, 2) sets "CCOOMMPPSSEECC==DD::\\ (I think.  I
+  don't have a DOS manual around.), and 3) sets "sshheellll==cc::\\ccoommmmaanndd..ccoomm
+  //pp".
+
+  The idea is that for each time that you load the DOS emulator, you
+  will recreate an autoexec.bat that is specific to that session.  What
+  makes it specific is that the last line will execute the program you
+  want.  The modifications on the hdimage are to tell the emulator/DOS
+  that you want to use (and effectively) boot off of D:, which will be
+  the actual DOS partition.
+
+  If you do not use hdimage and access the DOS filesystem directly upon
+  boot-up of dosemu, then this will work, and you don't have to go
+  through the hdimage part of this all.
+
+  ---------------------
+
+  Daniel T. Schwager (ddaannnnyy@@ddrraaggoonn..ss..bbaawwuuee..ddee) reported (94/7/2) that
+
+  You can use different dosemu.conf files (and different hd-boot-images
+  with different autoexec.bat's) and call dosemu like
+
+  $ dos -F my_quicken_q_exe_dosemu.conf
+
+  ---------------------
+
+  Dietmar Braun (bbrraauunn@@mmaatthh2200..mmaatthheemmaattiikk..uunnii--bbiieelleeffeelldd..ddee) reported
+  (94/7/4) that
+
+  This is no problem at all when you use the redirector of dosemu.  It
+  is possible to redirect a drive letter to a linux path given by an
+  environment variable.
+
+  So I have a shell script named "DDOOSS" which does something like
+
+   mkdir /tmp/dos.$$
+   DOSTMP=/tmp/dos.$$; export DOSTMP
+
+  and then a little trick to get "eecchhoo $$** >> $$DDOOSSTTMMPP//ssttaarrttuupp..bbaatt" really
+  working (actually a small C Program which turns '/' in '\\' and termi-
+  nates lines correctly for messy dos with cr/lf pairs and adds ^^ZZ at
+  the end of the file), creates startup files, links and so on in this
+  directory, and then starts dosemu. Within "aauuttooeexxeecc..bbaatt" drive c: is
+  redirected from hdimage to this tmp-directory, which has links for
+  $$HHOOMMEE and $$PPWWDD.
+
+  So if I want to see my filenames shortened to 8.3 I can type "DDOOSS ddiirr"
+  and I get my current directory listing.  So I have full DOS multi user
+  (I don't have any DOS partition and redirecting to Linux preserves
+  user permissions) and multi tasking. (dosemu sessions are completely
+  independent).  I did this once to be able to use a dos driver for my
+  printer. My printcap df is actually a DOS program. So you can even
+  make DOS executables act as lpr filters.
+
+  66..  ddoosseemmuu aanndd NNeettwwaarree
+
+  66..11..  HHooww ddoo II ggeett NNeettwwaarree aacccceessss ffrroomm ddoosseemmuu??
+
+  As always, access through the Linux filesystem is preferred. Mount
+  your Netware drives with Caldera's Netware utilities or Volker
+  Lendecke's free ncpfs utility
+  (ffttpp::////ffttpp..ggwwddgg..ddee:://ppuubb//lliinnuuxx//mmiisscc//nnccppffss). If you need real IPX
+  access, e.g. to run Novell's "syscon", read ..//ddoocc//NNOOVVEELLLL--HHOOWWTTOO..ttxxtt.
+
+  77..  ddoosseemmuu aanndd XX--wwiinnddoowwss((9977//22//99))..
+
+  77..11..  CCaann II rruunn ddoosseemmuu iinn ccoonnssoollee mmooddee wwhhiillee rruunnnniinngg XX??
+
+  Ronald Schalk (RR..SScchhaallkk@@uuccii..kkuunn..nnll) reported (94/1/17) that
+
+  Yes, no problem.  Just remember to use ctrl-alt-<Fn> to go to a
+  Virtual Console (VC), and you can run any Linux application (dosemu is
+  a linux-application).  I've got almost always WP5.1 in a dos session.
+
+  [Note:  Use ctrl-alt-F7 to switch back to X from dosemu, if X runs on
+  VC7.]
+
+  77..22..  IIss iitt ppoossssiibbllee ttoo rruunn ddoosseemmuu iinn aa wwiinnddooww iinn XX--wwiinnddoowwss??
+
+  If you have X installed and you have successfully compiled dosemu and
+  run it successfully outside X-windows, you should be able to run
+  "xdos" or "dos -X" right away to bring up a dosemu window.  If this
+  does not work, make sure:
+
+    1. Dosemu has X support compiled in. This is default, however
+       if you you have configured dosemu with
+       "./configured --without-x", you don't have X support. So make
+       "make pristine; ./configure; make; make install" should build
+       you a dosemu-executable with X support, if you have the
+       X-libraries installed in /usr/X11R6.
+    2. Set up your X key-mappings.  In an xterm, type
+
+       xmodmap -e "keycode 22 = 0xff08"
+       xmodmap -e "keycode 107 = 0xffff"
+
+       These lines fixes the backspace and delete keys respectively.
+    3. Configured the X-related configuration options in your
+       /etc/dosemu.conf file.
+
+  Alternatively, you can run dosemu inside a color xterm, which is not
+  recommended because many color xterms have buggy support for the
+  complex text display capabilities of dosemu.  This does not require
+  X_SUPPORT to be compiled into dosemu.  However, if you really want to
+  do this, do the following steps:
+
+    1. Install ansi_xterm.  The recommended package is available as:
+       tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development/ansi-xterm-R6.tar.gz
+
+    2. Set up your X key-mappings.  In an xterm, type
+
+       xmodmap -e "keycode 22 = 0xff08"
+       xmodmap -e "keycode 107 = 0xffff"
+
+       These lines fixes the backspace and delete keys, respectively.
+
+    3. Configured the terminal-related (not X-related) settings in
+       /etc/dosemu.conf
+
+  (972/9).
+
+  Marty Leisner (lleeiissnneerr@@ssddsspp..mmcc..xxeerrooxx..ccoomm) reported (95/3/31) that
+
+  I have xrdb log the following resources
+
+       dosxterm*Font:  vga dosxterm*geometry:      80x25 dosxterm*saveLines:
+       25
+
+  or I alias "dosxterm" to "term -fn vga -title dosxterm -geometry 80x25
+  -sl 25"
+
+  If you use the xrdb method, all you have to do is run "xterm -name
+  dosxterm"
+
+  77..33..  XXddooss ddoosseenn''tt wwoorrkk oonn aa rreemmoottee XX--ddiissppllaayy!!
+
+  At present, dosemu is set up to use the MIT shared memory extensions.
+  This extension only works on a local display. If you want to run xdos
+  on a remote display, configure dosemu with ""..//ccoonnffiigguurree ----eennaabbllee--
+  nnoommiittsshhmm"" after a ""mmaakkee pprriissttiinnee"" or on the clean source tree(97/2/9).
+
+  77..44..  XXddooss ddoosseenn''tt ffiinndd tthhee VVGGAA ffoonntt
+
+  Check that the vga fonts you installed are listed in the font.dir of
+  the directory you installed the fonts in:
+
+       hertz:~> grep misc /usr/X11R6/lib/X11/XF86Config
+           FontPath    "/usr/X11R6/lib/X11/fonts/misc/"
+       hertz:~> grep vga /usr/X11R6/lib/X11/fonts/misc/fonts.dir
+       vga.pcf vga
+       vga11x19.pcf vga11x19
+       hertz:~> ls /usr/X11R6/lib/X11/fonts/misc/vga*
+       /usr/X11R6/lib/X11/fonts/misc/vga.pcf
+       /usr/X11R6/lib/X11/fonts/misc/vga11x19.bdf
+       /usr/X11R6/lib/X11/fonts/misc/vga11x19.pcf
+
+  If you installed some X-fonts, like you did when you installed dosemu
+  with X-Support for the first time,  "mkfontdir" and then "xset fp
+  rehash" needs to be run. The dosemu install should take care for
+  "mkfontdir" and tells you about "xset fp rehash". Tell us if it
+  dosen't work for you.  (97/2/13)
+
+  77..55..  TThhee vvggaa ffoonntt iiss vveerryy ssmmaall oonn mmyy hhiigghh rreessoolluuttiioonn  DDiissppllaayy
+
+  Look for the vga11x19 font.  (97/2/13)
+
+  77..66..  DDoosseemmuu ccoommppiillaattiioonn ffaaiillss wwiitthh ssoommee ssttrraannggee eerrrroorr rreeggaarrddiinngg XX!!
+
+  As stated above, dosemu uses the MIT shared memory extensions by
+  default. Under XFree86 they are only available with Version 3.1.2 and
+  above. If you have an older version, consider to upgrade, or configure
+  dosemu to not use this extension (see last section)(97/2/9).
+
+  77..77..  DDooeess aannssii eemmuullaattiioonn wwoorrkk pprrooppeerrllyy??
+
+  Marty Leisner (lleeiissnneerr@@ssddsspp..mmcc..xxeerrooxx..ccoomm) reported (95/3/31) that
+
+  Yes.  I use nnansi.com under X windows.  I find 25, 43 and 50 line
+  mode work properly, however 50 line mode is difficult to use on a
+  1024x768 screen (unless smaller fonts are used are you use a bigger
+  screen.  43 line mode will resize the xterm window to use 43 lines.
+
+  88..  ddoosseemmuu aanndd MMSS--WWiinnddoowwss 33..11
+
+  88..11..  IIss iitt ppoossssiibbllee ttoo rruunn MMSS--WWiinnddoowwss 33..11 uunnddeerr ddoosseemmuu??
+
+  The ..//ddoocc//RREEAADDMMEE..WWiinnddoowwss file says:
+
+  ***************************************************************
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  *                                                             *
+  *  Danger Will Robinson!!!  This is not yet fully supported   *
+  *  and there are many known bugs!  Large programs will almost *
+  *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
+  *  YOU TRY THIS!!!                                            *
+  *                                                             *
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  ***************************************************************
+
+  Okay, it is possible to boot WINOS2 (the modified version of Windows
+  3.1 that OS/2 uses) under DOSEMU.  Many kudos to Lutz & Dong!
+
+  However, YOU NEED BOTH LICENSES, for WINDOWS-3.1 as well OS/2 !!!
+
+  There are many known problems.  Windows is prone to crash, could take
+  data with it, large programs will not load, etc. etc. etc.  In other
+  words, it is NOT ready for daily use.  Many video cards are known to
+  have problems (you may see a nice white screen, however, look below
+  for win31-in-xdos).  Your program groups are all likely to disappear.
+  ...  Basically, it's a pain.
+
+  On the other hand, if you're dying to see the little Windows screen
+  running under Linux and you have read this CAREFULLY and PROMISE NOT
+  TO BOMBARD THE DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!"
+  MESSAGES...
+
+  1.  Get DOSEMU & the Linux source distributions.
+  2.  Unpack DOSEMU.
+  3.  Configure DOSEMU typing './configure' and do _not_ disable vm86plus.
+  4.  Compile DOSEMU typing 'make'.
+  5.  Get the OS2WIN31.ZIP distribution from \&.\&.\&. ????
+      \&.\&.\&. oh well, and now you have the first problem.
+      It _was_ on ibm.com sometime ago, but has vanished from that site, and
+      as long as it was there, we could mirror it. \&.\&.\&. you see the problem?
+      However, use 'archie' to find it, it will be around somewhere on the net
+      \&.\&.\&. for some time ;-)
+  5.  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
+      (Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
+  7.  Startup dosemu (make certain that DPMI is set to a value such as 4096)
+  8.  Copy the file winemu.bat to your c: drive.
+  9.  Cross your fingers.
+
+  Good luck!
+
+  REMEMBER:  THIS IS NOT AT ALL RECOMMENDED!!!  THIS IS NOT RECOMMENDED!!!
+             WE DO NOT RECOMMEND YOU TRY THIS!!!
+
+  ---------
+
+  88..22..  WWiinnddoowwss 33..xx iinn xxddooss::
+
+  As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course,
+  this is not recommended at all, but if you really want to try, it is
+  safer then starting windows-31 on the console, because _when_ it
+  crashes, it doesn't block your keyboard or freeze your screen.
+
+  Hints:
+
+  1. Get Dosemu & Linux source.
+  2. Unpack dosemu.
+  3. Run "./configure" to configure Dosemu (it will enable vm86plus as a
+     default).
+  4. Type "make" to compile.
+  5. Get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
+     and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
+     /windows/drivers (any mirrors?).
+  6. Unpack the Trident drivers.
+  7. In Windows setup, install the Trident "800x600 256 color for 512K
+     boards" driver.
+  8. Do the things described above to get and install OS2WIN31.
+  10. Start xdos.
+  11. In Dosemu, go to windows directory and start winemu.
+  12. Cross your fingers.
+
+  88..33..  CCaann II iinnssttaallll wwiinnddoowwss ffrroomm wwiitthhiinn ddoosseemmuu??
+
+  NNoo you cant't. Dos will tell you something like
+
+       The XMS driver you have on your system is not compatible with Win-
+       dows...
+
+  You need to install windows from Dos. You can copy the windows tree to
+  somewhere on your Linux Filesystem and use lredir to mount it on the
+  same place as it is in dos. Example:
+
+       You have windows in d:120 You have d: mounted as /dosc in Linux You
+       copy the windows tree to Linux, e.g. "cp -a /dosd/windows /usr/share
+       Inside dosemu you redirect the copied tree like lredir d: linuxosd
+
+  Now dosemu can't mess around in you windows directory, but changes in
+  the windows directory aren't seen by dosemu too. If you want to do the
+  same with windows on drive c:> look in this FAQ how to redirect c:.
+
+  But you can use "setup" from inside the windows directory to install
+  drivers and change some settings.  (97/2/1497)
+
+  88..44..  NNootteess ffoorr tthhee mmoouussee uunnddeerr wwiinn3311--iinn--xxddooss::
+
+  1. Use the mouse driver "mouse.drv" from WinOS2
+
+  2. In order to let the mouse properly work you need the following in
+  your win.ini file:
+
+       [windows]
+       MouseThreshold1=0
+       MouseThreshold2=0
+       MouseSpeed=0
+
+  3. The mouse cursor gets not painted by X, but by windows itself, so
+  it depends on the refresh rate how often it gets updated, though the
+  mouse coordinates movement itself will not get delayed.  ( In fact you
+  have 2 cursors, but the X-cursor is given an 'invisible' cursor shape
+  while within the DOS-Box. )
+
+  4. Because the coordinates passed to windows are interpreted
+  relatively, we need to calibrate the cursor. This is done
+  automatically whenever you enter the DOS-Box window: The cursor gets
+  forced to 0,0 and then back to its right coordinates. Hence, if you
+  want to re-calibrate the cursor, just move the cursor outside and then
+  inside the DOS-Box again.  (97/2/10)
+
+  88..55..  WWhhyy ddiidd mmyy IIccoonn ddiissssaappeeaarr ffrroomm tthhee PPrrooggrraammmmaannaaggeerr??
+
+  MS-Windows and WinOS2 handle the program manager group different.
+  While MS-Win store the setup in progman.ini, WinOS2 what's the conted
+  of progman.ini in system.ini. Her a tip from ((ffrriieesstt@@aaccmm..oorrgg ((TToodddd TT..
+  FFrriieess)))):
+
+       cat progman.ini >> system.ini
+
+  Be sure to use >> :-)
+
+  99..  VViiddeeoo aanndd ssoouunndd
+
+  99..11..  CCaann II rruunn 3322--bbiitt vviiddeeoo ggaammeess uunnddeerr ddoosseemmuu??
+
+  Mark Rejhon (mmddrreejjhhoonn@@mmaaggii..ccoomm) reported (95/4/8) that
+
+  With the recent DPMI improvements that has gone into 0.60, you can now
+  run some 32-bit video games in dosemu.   If the game is compatible in
+  an OS/2 DOS box, there are chances that it will work in dosemu.
+  (Example 32-bit games include Descent, Dark Forces, Mortal Kombat 2,
+  Rise of The Triad, which have all successfully been tested in recent
+  dosemu releases).
+
+  Before you attempt to run a video game, you must have the keyboard
+  configured in raw keyboard mode and enabled VGA graphics modes, in the
+  //eettcc//ddoosseemmuu..ccoonnff file.  If you have successfully run graphics programs
+  in dosemu, and are prepared to take the risk of a possible system
+  crash (this is because you are letting dosemu run with root access to
+  the video card, and leaves the possibility of putting the video card
+  in a bad state that is difficult to recover from) then you can go
+  ahead and try running the video game.
+
+  Note, however, you will have to turn off the sound in the game.
+  (Someone will have to program in sound board emulation before we can
+  avoid this).  Note that game timers can be a little bit slow, due to
+  Linux multitasking and lack of high-frequency timer support.  So the
+  games may run from anywhere from 5 to 100 percent speed.  Typically,
+  the speed is approximately 50 percent in recent dosemu releases and is
+  expected to improve eventually.
+
+  Who knows, it might even work. If you can't get it to work, check
+  EMUfailure if the program is listed there, or falls in a category of
+  programs that at present don't or probably never work with dosemu. If
+  you think, it should be listed in EMUfailure, report to lliinnuuxx--
+  mmssddooss@@vvggeerr..rruuttggeerrss..eedduu
+
+  Addition from (lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee(97/2/11)):
+
+  There is a security hole when having enabled DPMI and having dosemu
+  suid root (especially when using dos4gw-based games), the client is
+  able to access the whole user space, hence also can modify the dosemu
+  code itself. Use of the 'secure on' option in /etc/dosemu.conf
+  disables this, but then you can't run those games.
+
+  99..22..  EExxiittiinngg ffrroomm ddoosseemmuu ggiivveess mmee aa ssccrreeeenn ffuullll ooff ggaarrbbaaggee..
+
+  (95/4/8)
+
+  The problem is that the font information for the VGA text screen is
+  not being saved.  Get a copy of the svgalib package.  The current
+  source is in
+
+  sunsite.unc.edu:/pub/Linux/libs/graphics/svgalib125.tar.gz
+
+  It may also be available as a pre-compiled package in your favorite
+  Linux distribution (e.g., Slackware, etc.).  Use savetextmode to save
+  the current text mode and font to a file in //ttmmpp before running
+  dosemu.  Then run textmode upon exiting dosemu to restore it.
+
+  Addition from (lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee(97/2/11)):
+
+  Have a look also at src/arch/linux/debugger/README.recover and
+  README.dosdebug, dosdebug can aid you recovering.
+
+  99..33..  HHooww ddoo II ggeett ddoosseemmuu ttoo wwoorrkk wwiitthh mmyy TTrriiddeenntt//AAccttiixx//ootthheerr vviiddeeoo
+  ccaarrdd??
+
+  [The screen flickers violently, displays the video BIOS startup
+  message, and hangs.]
+
+  Andrew Tridgell (ttrriiddggee@@nniimmbbuuss..aannuu..eedduu..aauu) reported (94/1/29) that
+
+  I found with early versions it would work if I used:
+
+     ports { 0x42 }
+
+  but that sometimes my machine would crash when it was cycling the
+  video BIOS in dosemu. This is because you're allowing the VGA BIOS to
+  re-program your clock, which severely stuffs with Linux.
+
+  This prompted me to write the read-only and masking patches for
+  dosemu, which I believe are still in the latest version. I now use:
+
+     ports { readonly 0x42 }
+
+  and it boots dosemu more slowly, but more reliably.
+
+  ---------------------
+
+  Tim Shnaider (ttiimmss@@kkccbbbbss..ggeenn..nnzz) also reported (94/1/18) that
+
+  One way of fixing this is to use the GETROM program to dump your video
+  BIOS to a file and edit the config file in the //eettcc//ddoosseemmuu directory
+  There will be a few video lines.  Here is my video line
+
+     video { vga console graphics chipset trident memsize 1024 vbios_file
+     /etc/dosemu/vbios }
+
+  where vbios is the file generated by typing
+
+     getrom > vbios
+
+  ---------------------
+
+  Douglas Gleichman (pp8866888844@@ttccvviillllee..eeddssgg..hhaacc..ccoomm) reported (94/9/1) that
+  (with the ATI Graphics Ultra)
+
+  For dosemu 0.52 you need to add this line to your dosemu.conf file:
+
+   ports  { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
+
+  The board self test will list a failure but graphics programs will run
+  fine.
+
+  99..44..  WWhhyy ddooeessnn''tt mmyy ssoouunnddccaarrdd ssooffttwwaarree wwoorrkk wwiitthh ddoosseemmuu??
+
+  Hannu Savolainen (hhssaavvoollaaii@@ccss..HHeellssiinnkkii..FFII) reported (94/3/21) that
+
+  The dosemu and any DOS program with it run under control of a
+  protected mode operating system. This means that the memory is not
+  mapped as the program expects. If it somehow manages to start DMA
+  based recording with SB, the recorded sound doesn't find it's way to
+  the application. It just destroys some data in the memory.
+
+  James B. MacLean (mmaacclleeaajjbb@@eeddnneett..nnss..ccaa) reported (94/6/19) that
+
+  Sorry to disappoint, but at this time dosemu does not support directly
+  the necessary interception of interrupts or DMA generally required for
+  sound card access via dosemu :-(.
+
+  It's bound to happen at some future date though :-),
+
+  And CCoorreeyy SSwweeeenneeyy ((oorreeyy@@dd9944..nnnnbb..iinntteerraacccceessss..ccoomm)) reports (97/2/15)
+
+       Sound code is being currectly being worked on
+
+  1100..  GGaammeess
+
+  1100..11..  DDuukkee33dd ddoosseenn''tt wwoorrkk
+
+  Hans Lermen <<lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee>> said (97/2/16): duke3d must be
+  'configured' via a setup, within this setup you have to choose
+  'keyboard + mouse', else it won't work.
+
+  1111..  OOtthheerr HHaarrddwwaarree
+
+  1111..11..  HHooww ddoo II ggeett mmyy xxxxxxxxxx ddeevviiccee wwoorrkkiinngg uunnddeerr ddoosseemmuu??
+
+  Corey Sweeney (ccoorreeyy@@bbbbss..xxnneett..ccoomm) reported (94/5/30) that
+
+  Here is a log of my adventures trying to get devices working under
+  dosemu.  So far I've gotten my voice mail system working and my
+  scanner half working.  Here's how:
+
+  1. Look in your manual and find if your card uses any ports.  If your
+  manual gives you some, put them in your config file at the "ports"
+  line.  Remember that sometimes you need to have several ports in a
+  row, and the first one might be the only one documented.
+
+  2. Try it out. If it doesn't work, or you don't have a manual (or your
+  manual is as crappy as my AT&T manual:) then run dosemu with "ddooss --DD++TT
+  22>> //ttmmpp//iioo..ddeebbuugg".  Run your device software, then exit dosemu.  Look
+  through //ttmmpp//iioo..ddeebbuugg and find any port numbers it might give you.
+  Try adding those to the port lines and try running dosemu again. Ports
+  below 0x400 with the keyword fast don't get logged(97/2/9)!
+
+  3. If you still fail then you may need interrupts.
+
+  Find out what interrupt the card uses and verify, that the kernel
+  isn't using the IRQ in question (cat /proc/interrupts).  Hans Lermen
+  wrote (97/2/17):
+
+       1. Make sure Linux doesn't use this network card
+
+       2. Set 'sillyint { use_sigio 5 }' in /etc/dosemu.conf
+
+  (some addittions (97/2/11)) and that's about it...
+
+  Question: What if my card uses DMA?  Answer: Your screwed.
+
+  1122..  PPrroobblleemmss aanndd ffiixxeess
+
+  1122..11..  SSeeccuurriittyy iissssuueess
+
+  A full featured Dosemu needs to be suid root, e.g to access ports.
+  Dosemu runs as suid "root" only where it is needed, and releases this
+  right thereafter. But with DPMI, the Dos client programm can access
+  the whole user space, hence also can modify the dosemu code itself.
+  Use of the 'secure on' option in /etc/dosemu.conf disables this, but
+  then you can't run any more some applications like 32-bit video games
+  (lleerrmmeenn@@eellsseerrvv..ffffmm..ffggaann..ddee(97/2/11)). E.g. running a well known
+  compiler with full access might have smaller security implications
+  then some game, obtained by some obscure source.
+
+  1122..22..  DDoosseemmuu ddiieess wwhheenn bboooottiinngg.. II hhaavvee WWiinn9955 iinnssttaalllleedd..
+
+  Dosemu relies that the Dos-Version on the hdimage and the Drive you
+  map to contain command.com are the same. If not, dosemu will crash
+  sooner or later. With the dual boot option Win95 offers when pressing
+  the F4,F5 and F8 Keys with the "Starting Win95" text, versions on the
+  Win95 drive may swap. Take special care for command.com. Let your
+  shell variable in config.emu point to the correct static version of
+  command.com, e.g.: shell=c:912
+
+  Learn about ddoossddeebbuugg and use it to control a dosemu session(97/2/9)
+
+  1122..33..  DDoosseemmuu hhaannggss!! HHooww ccaann II kkiillll iitt??
+
+  Learn about ddoossddeebbuugg and use it to control a dosemu session(97/2/9)
+
+  1122..44..  DDoosseemmuu ccrraasshheedd aanndd nnooww II ccaann''tt ttyyppee aannyytthhiinngg..
+
+  Daniel Barlow(jjoo9955000044@@ssaabbllee..ooxx..aacc..uukk) reported (95/4/8) that
+
+  If you have no terminal or network access that you can use to log in,
+  you may have to press the reset button.  If you can still get a usable
+  shell somehow, run "kbd_mode -a" to switch the keyboard out of raw
+  mode, and/or "stty sane" on the console so that you can see what
+  you're typing.
+
+  A useful thing to do is to use a script to run dosemu, and run
+  "kbd_mode -a" automatically right after dosemu.  When dosemu crashes,
+  the script usually will resume running, and execute the "kbd_mode -a"
+  command.
+
+  1122..55..  II''vvee eennaabblleedd EEMMSS mmeemmoorryy iinn ddoosseemmuu..ccoonnff bbuutt iitt ddooeess nnoott hheellpp..
+
+  Rob Janssen (rroobb@@ppee11cchhll..aammpprr..oorrgg) reported (94/7/11)
+
+  Don't forget to load the provided ems.sys from the config.sys file.
+
+  1122..66..  HHooww ddoo II ggeett rriidd ooff aallll tthhoossee aannnnooyyiinngg ""ddiisskk cchhaannggee"" mmeessssaaggeess??
+
+  (94/8/11)
+
+  Grab and install klogd.  Try
+
+           sunsite.unc.edu:/pub/Linux/system/Daemons/sysklogd1.2.tgz
+
+  1122..77..  WWhhyy wwoonn''tt ddoosseemmuu rruunn aa sseeccoonndd ttiimmee aafftteerr eexxiittiinngg iinn ccoonnssoollee
+  mmooddee??
+
+  Aldy Hernandez (aallddyy@@ssaauurroonn..cccc..aannddrreewwss..eedduu) reported (94/7/8) that
+
+  You should disable your video and/or BIOS caching.
+
+  1122..88..  WWhhyy wwiillll ddoosseemmuu rruunn iinn aa tteerrmm bbuutt nnoott iinn tthhee ccoonnssoollee??
+
+  JyiJiin Luo (jjjjlluuoo@@ccaassbbaahh..aaccnnss..nnwwuu..eedduu) reported (94/4/19) that
+
+  I experienced exactly the same problem before. I figured out all the
+  video shadow in my AMI BIOS must be disabled. Now dosemu runs fine on
+  my system.
+
+  1122..99..  HHooww ccaann II ssppeeeedd uupp ddoosseemmuu??
+
+  In some cases it is useful to play with the value of the HogThreshold
+  variable in your dosemu.conf file.
+
+  Daniel Barlow(jjoo9955000044@@ssaabbllee..ooxx..aacc..uukk) reported (95/4/8) that
+
+  HogThreshold should now be set to approximately half of the BogoMips
+  value that the system reports on boot.
+
+  1122..1100..  MMyy CCDDRROOMM ddrriivvee hhaass pprroobblleemmss rreeaaddiinngg ssoommee ffiilleess uunnddeerr ddoosseemmuu..
+
+  Vinod G Kulkarni (vviinnoodd@@ccssee..iiiittbb..eerrnneett..iinn) reported (94/4/7) that
+
+  When a CDROM is mounted from linux and used from within dosemu (mapped
+  drive), there could be some problems. The CD-ROM driver (iso9660) in
+  the kernel tries to find out the type of the file (i.e. binary or
+  text).  If it can't find, it tries to guess the type of the file using
+  a heuristic. This heuristic fails under some circumstances when a
+  (almost) text file is to be treated as binary.  (I do not know if it
+  is a bug or feature.)
+
+  The result of this is that if you copy such a file from CD-ROM (from
+  linux itself, and not necessarily dosemu), the resulting file will be
+  usually bigger than original file. (Blanks get added before ^J,^M.)
+  So a program running in dosemu gives an error or hangs, which may be
+  mistaken as problem of dosemu.
+
+  Rob Janssen (ppee11cchhll@@rraabboo..nnll) reported (94/8/10) that
+
+  The way to solve this is to turn off conversion altogether.  Pass the
+  option "--oo ccoonnvv==bbiinnaarryy" to the mount command mounting the CD-ROM, or
+  use the following in //eettcc//ffssttaabb:
+
+  /dev/cdrom      /cdrom          iso9660 conv=binary,ro
+
+  No patches to the kernel are necessary.
+
+  1122..1111..  HHooww ddoo II sseeee ddeebbuuggggiinngg oouuttppuutt??
+
+  Daniel Barlow(jjoo9955000044@@ssaabbllee..ooxx..aacc..uukk) reported (95/4/8) that
+
+  As of dosemu 0.60, debugging output is redirected to a file specified
+  on the command line.  Use "ddooss --DD++aa --oo //ttmmpp//ddeebbuugg" to log all debug
+  output to //ttmmpp//ddeebbuugg.  There should no longer be any need to redirect
+  stderr.
+
+  1122..1122..  WWhhyy aarree mmyy kkeeyyssttrrookkeess eecchhooeedd ttttwwwwiiiicccceeee????
+
+  Nick Holloway (aallffiiee@@ddccss..wwaarrwwiicckk..aacc..uukk) reported (94/2/22) that
+
+  After running dos after playing with some stty settings, I was getting
+  doubled key presses.  I can now reveal what the reason is!
+
+  It only happens when dos is run on the console with 'istrip' set.
+  This is (I think) because the raw scancodes are mutilated by the
+  'istrip', so that key release events look like key press events.
+
+  So, the input processing needs to be turned off when using the scan
+  codes on a console (it wouldn't be a good idea to do it for tty
+  lines).
+
+  1133..  CCoonnttrriibbuuttiinngg ttoo tthhee ddoosseemmuu pprroojjeecctt
+
+  1133..11..  WWhhoo iiss rreessppoonnssiibbllee ffoorr ddoosseemmuu??
+
+  (97/2/9)
+
+  Dosemu is built upon the work of Matthias Lautner and Robert Sanders.
+  James B. MacLean (jjmmaacclleeaann@@eeddnneett..nnss..ccaa) is responsible for organizing
+  the latest releases of dosemu.
+
+                         History of dosemu
+
+            Version    Date                Person
+           -------------------------------------------------
+            0.1        September 3, 1992   Matthias Lautner
+            0.2        September 13, 1992  Matthias Lautner
+            0.3        ???                 Matthias Lautner
+            0.4        November 26, 1992   Matthias Lautner
+            0.47       January 27, 1993    Robert Sanders
+            0.47.7     February 5, 1993    Robert Sanders
+            0.48       February 16, 1993   Robert Sanders
+            0.48pl1    February 18, 1993   Robert Sanders
+            0.49       May 20, 1993        Robert Sanders
+            0.49pl2    November 18, 1993   James MacLean
+            0.49pl3    November 30, 1993   James MacLean
+            0.49pl3.3  December 3, 1993    James MacLean
+            0.50       March 4, 1994       James MacLean
+            0.50pl1    March 18, 1994      James MacLean
+            0.52       June 16, 1994       James MacLean
+            0.60       April 9, 1995       James MacLean
+            0.64.4     February 9,1997     Hans Lermen
+
+  1133..22..  II wwaanntt ttoo hheellpp..  WWhhoo sshhoouulldd II ccoonnttaacctt??
+
+  The dosemu project is a team effort.  If you wish to contribute, see
+  the DPR (dosemu Project Registry).  A current copy may be found in
+  ..//ddoocc//DDAANNGG (97/2/9).
+

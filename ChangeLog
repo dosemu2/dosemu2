@@ -1,3 +1,10 @@
+97/02/29 ver. 0.65.99.12 unofficial pre-release
+	From Alistair
+	- setup stuff from 0.65
+	- gnats stuff from 0.65
+	From Uwe
+	- New dosemu-HOWTO.*, EMUfailure.txt
+	  (deleted EMUsuccess.txt)
 97/02/29 ver. 0.65.99.11 unofficial pre-release
 	From Alberto
 	- Fixes for 'unix.com'

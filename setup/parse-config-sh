@@ -1,0 +1,11 @@
+#
+# [ba]sh specific support functions for configuration parsing
+#
+
+#
+# Write out an entry:
+#
+
+function write_entry ( item_name, item ) {
+  print PREFIX item_name "=\'" item "\'"
+}

@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# Front end to the runtime & compile time scripts.
+#
+
+TEMP=/tmp/$0.$$
+
+. setup/select-dialog
+
+FINISHED=0
+if [ "@$DIALOG_SUPPORTS_CURRENT" = "@true" ];
+then
+  CURRENT=1
+fi
+
+while [ $FINISHED -ne 1 ]
+do
+  $DIALOG --backtitle "DOSEmu Configuration" \
+    --title "Select Configuration to perform" \
+    --menu "Choose the Configuration to perform:" 9 60 3 $CURRENT \
+      1 "Compile time (runs ./configure)" \
+      2 "Runtime (both System Wide, and personal)" \
+      3 "Exit" 2> $TEMP
+  
+  RETVAL=$?
+  if [ $RETVAL -eq 0 ]
+  then
+    RESULT=`cat $TEMP`
+
+    if [ "@$DIALOG_SUPPORTS_CURRENT" = "@true" ];
+    then
+      CURRENT=$RESULT
+    fi
+    
+    case $RESULT in 
+      1)
+        (cd setup; ./compiletime_setup.sh)
+	;;
+      2)
+        (cd setup; ./runtime_setup.sh)
+        ;;
+      3)
+        FINISHED=1
+        ;;
+    esac
+  else
+    FINISHED=1
+  fi
+done
+
+rm $TEMP    

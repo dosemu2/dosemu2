@@ -1,0 +1,103 @@
+From alistair@slitesys.demon.co.uk Sat Mar  1 18:02:51 1997
+Date: Tue, 25 Feb 1997 01:07:02 +0000 (GMT)
+From: Alistair MacDonald <alistair@slitesys.demon.co.uk>
+To: Hans Lermen <lermen@elserv.ffm.fgan.de>
+Subject: Re: setup-dosemu (fwd)
+
+> Hi Alistair,
+>
+> Can you please advice me _how_ one easily can adapt to setup stuff
+> changes in ./configure and /etc/dosemu ? Because this dokumentation
+> seems to be missing. The setup stuff seems valuable, but if only _you_ can
+> adapt changes to ./configure and/or dosemu.conf, then its value goes to
+> zero :-(
+
+I was going to say that this was 'simple', but my "menu" programming
+language can't cope with really complicated things yet. (One day ...)
+This means that things still need to be done in 2 places.
+
+The menus are controlled from the '*.menu' files. Each menu entry will
+either produce just text in the menu, open a new menu, or manipulate a
+variable.
+
+The entries are:
+
+description "text"
+	- This is the text for the top of the menu.
+submenu "menu_name"
+	- Put a menu item at this point in the menu.
+boolean "prompt" variable
+	- Present 'variable' as a Boolean (check box) with the "prompt".
+input "prompt" variable
+	- Present 'variable' as a text string to be edited with "prompt".
+text "text"
+	- Put "text" on the menu at this point.
+list variable { "description" value ... }
+	- Present the 'descriptions' (radio list) and put the selected
+	  'value' into 'variable'
+exit exit_function
+	- Function to be called on exit (must be supplied in the calling
+	  application (shell script))
+
+main_title "title"
+	- Displayed above all the menus.
+start "menu name"
+	- First menu to be called.
+menu "menu name" { menu_item ... }
+	- A menu ....
+template "menu name" { template_item ... }
+	- A template menu. These are used where you have multiple items
+	  eg disks, ports etc. A top level menu is presented which allows
+	  you access to any number of other (identical) menus. eg the
+	  disk template presents a list of disks. The submenus contain
+	  the "normal" details given in the template.
+
+t_description "text"
+	- Text to be displayed on the first (top-level) template menu.
+t_deleted variable
+	- A variable which contains details about which elements have been
+	  deleted.
+t_text "text"
+	- Text to display on the first (top-level) template menu.
+t_counter variable
+	- A variable which cotains the current maximum number of elements
+
+
+That's the menu format. (Bored yet ? 8-)
+
+Now the 'compile-time' menu. The exit function for this menu is called
+'MainMenu_End' and in found in 'compiletime_setup.sh'. 
+To add a new option, create a new line in 'MainMenu_End()' in
+'compiletime_setup.menu' with a new variablename. Then duplicate all the
+parts between a 'value=""' and a 'fi'. Then just amend the variablename
+and modify the 2 strings accordingly. The first string is used when the
+variable was 'checked'. Also, add a new line in 'write_out()'. (They are
+always 'write_single').
+
+The more difficult one is 'runtime'. All the entries in the configuration
+are parsed according to the rules in 'parse-config'.  For well behaved
+multi-line entries (ie enclosed in {}'s) the duplicate something like
+'terminal'. The string in the 'handle_multiline()' call is a prefix for
+the variable names. The complete name is the prefix followed by the tag.
+eg: debug_DPMI, debug_config, etc. For single word entries follow
+'timint'. In this case the variable name is what ever is specified.
+'serial' is an example of a) a badly behaved multi-line and b) a group of
+variables which may in the file multiple times. Hopefully this is fairly
+self explanatory. 'serial_num' contains a record of how many serial
+statements there are and is the variable used in the template menu. Notice
+that this variable is encoded into the variable name as the last item.
+'getline()' just breaks up a line along whitespace/"" boundaries to form
+an array (fields).
+
+The only other problem area should be in 'write_out()' in
+'runtime_setup.sh'. This creates a new function which writes the relvant
+data back into the file. The first parameter to the write_pair() function
+is a prefix. For the badly behaved multi-line a special function is used. 
+The configuration data is written into an array (config) and this is used
+to do the writing out. If you need to fiddle with this part then I will
+try and write some more detailed instructions later.
+
+Alistair
+--------
+alistair@slitesys.demon.co.uk
+

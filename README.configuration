@@ -1,0 +1,19 @@
+This release includes the new configuration routines. Running './setup-dosemu'
+from this directory will allow you to configure both the compilation and
+the run-time aspects of DOSEmu. When changing the run-time settings of
+DOSEmu you can set both the system wide settings and your personal settings.
+Even better, the program will automatically tell you your current settings
+or suggest defaults where possible.
+
+
+The program uses 'dialog' which is supplied with all major distributions. If 
+you have a 2.x.y kernel then you will get a better interface if you build
+'lxdialog'. This is part of the Linux kernel and is built automatically when
+you configure the Linux kernel using 'make menuconfig'. If you haven't
+already done this and want to use the 'lxdialog' interface then the following
+command should build it for you: 
+	cd /usr/src/linux/scripts/lxdialog; make
+
+Comments, and bug reports to me, Alistair MacDonald 
+<alistair@slitesys.demon.co.uk>
+

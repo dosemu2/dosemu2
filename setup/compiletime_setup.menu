@@ -1,0 +1,14 @@
+maintitle "DOSEmu Run-Time Configuration"
+
+start "Main Menu"
+
+menu "Main Menu" {
+  description "Please select a setting:"
+  boolean "disable VM86 enhancement" novm86plus
+  boolean "compile for with debug info" dodebug
+  boolean "use the new keyboard code" new-kbd
+  boolean "Use X-Windows" x
+  boolean "Use MIT Shared Memory extensions under X" mitshm
+  boolean "SB Emulation" sbemu
+  exit MainMenu_End
+}
