@@ -44,9 +44,9 @@
 !
 ! copied from emufs.S to make ems.S  -  7/19/93
 !
-! $Date: 1993/11/12 12:41:37 $
-! $Source: /home/src/dosemu0.49pl3/drivers/RCS/ems.S,v $
-! $Revision: 1.1 $
+! $Date: 1994/01/30 12:35:05 $
+! $Source: /home/src/dosemu0.49pl4g/drivers/RCS/ems.S,v $
+! $Revision: 1.3 $
 ! $State: Exp $
 !
 
@@ -63,7 +63,7 @@ MaxCmd	=	15
 cr	=	0xd
 lf	=	0xa
 eom	=	'$'		! DOS end-of-string character (barf)
-LinuxEMS =	0xe5		! 0xe6 is Int for Linux EMS server
+LinuxEMS =	0xe6		! 0xe6 is Int for Linux EMS server
 EMSint	=	0x67
 vecoff   = 	(EMSint * 4)   ! mem loc for the interrupt vector
 vecseg	=	(vecoff + 2)
@@ -292,7 +292,7 @@ MFSin:
 	ret
 
 
-Mesage:	.ascii	"[dosemu 0.49pl1 EMS 4.0 driver installed]"
+Mesage:	.ascii	"[dosemu 0.49pl4 EMS 4.0 driver installed]"
 	.byte	cr,lf,eom
 
 OutMess:

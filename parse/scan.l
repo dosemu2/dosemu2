@@ -1,7 +1,7 @@
 %{
 /*
  * $Date: 1993/11/12 12:41:40 $
- * $Source: /home/src/dosemu0.49pl3/parse/RCS/scan.l,v $
+ * $Source: /home/src/dosemu0.49pl4g/parse/RCS/scan.l,v $
  * $Revision: 1.1 $
  * $State: Exp $
  */

@@ -27,10 +27,10 @@ struct partition {
   int number;
   int beg_head, beg_sec, beg_cyl;
   int end_head, end_sec, end_cyl;
-  long pre_secs;			/* sectors preceding partition */
-  long num_secs;			/* sectors in partition */
-  char *mbr;				/* fake Master Boot Record */
-  int mbr_size;				/* usu. 1 sector */
+  long pre_secs;		/* sectors preceding partition */
+  long num_secs;		/* sectors in partition */
+  char *mbr;			/* fake Master Boot Record */
+  int mbr_size;			/* usu. 1 sector */
 };
 
 struct disk {
@@ -38,9 +38,9 @@ struct disk {
   int rdonly;			/* readonly flag */
   int sectors, heads, tracks;	/* geometry */
   int default_cmos;		/* default CMOS floppy type */
-  disk_t type;			/* type of file: image, partition, 
+  disk_t type;			/* type of file: image, partition,
 				   disk */
-  off_t  header;		/* compensation for opt. pre-disk header */
+  off_t header;			/* compensation for opt. pre-disk header */
   int fdesc;			/* below are not user settable */
   int removeable;		/* not user settable */
   int timeout;			/* seconds between floppy timeouts */
@@ -53,25 +53,24 @@ struct disk {
  * simulated partition table offset...
  */
 
-
 struct disk_fptr {
   void (*autosense) (struct disk *);
   void (*setup) (struct disk *);
 };
 
 #ifndef DISKS_C
-extern 
+extern
 #endif
 struct disk_fptr disk_fptrs[];
 
 /* this header appears only in hdimage files
  */
 struct image_header {
-  char sig[7];		/* always set to "DOSEMU", null-terminated */
+  char sig[7];			/* always set to "DOSEMU", null-terminated */
   long heads;
   long sectors;
   long cylinders;
-  long header_end;	/* distance from beginning of disk to end of header
+  long header_end;		/* distance from beginning of disk to end of header
 			 * i.e. this is the starting byte of the real disk
 			 */
 };
@@ -81,13 +80,16 @@ struct image_header {
 #define HEADER_SIZE		128
 
 /* CMOS types for the floppies */
-#define THREE_INCH_FLOPPY   4		/* 3.5 in, 1.44 MB floppy */
-#define FIVE_INCH_FLOPPY    2		/* 5.25 in, 1.2 MB floppy */
-#if 0
-#define MAXDISKS 3         /* size of disktab[] structure */
-#define MAX_HDISKS 4	/* size of hdisktab[] structure */
-#endif
+#define THREE_INCH_FLOPPY   4	/* 3.5 in, 1.44 MB floppy */
+#define FIVE_INCH_FLOPPY    2	/* 5.25 in, 1.2 MB floppy */
+#define MAX_FDISKS 4
+#define MAX_HDISKS 4
 #define SECTOR_SIZE		512
+
+extern struct disk disktab[MAX_FDISKS];
+extern struct disk hdisktab[MAX_HDISKS];
+extern struct disk bootdisk;
+extern int use_bootdisk;
 
 #if 1
 #define DISK_OFFSET(dp,h,s,t) \
@@ -104,12 +106,14 @@ void d_nullf(struct disk *);
 
 void image_auto(struct disk *);
 void hdisk_auto(struct disk *);
+
 #define partition_auto	hdisk_auto
 #define floppy_auto	d_nullf
 
 #define image_setup	d_nullf
 #define hdisk_setup	d_nullf
 void partition_setup(struct disk *);
+
 #define floppy_setup	d_nullf
 
 /* int13 error returns */

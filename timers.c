@@ -3,12 +3,15 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/29 00:05:32 $
- * $Source: /home/src/dosemu0.49pl3/RCS/timers.c,v $
- * $Revision: 1.3 $
+ * $Date: 1994/01/20 21:14:24 $
+ * $Source: /home/src/dosemu0.49pl4g/RCS/timers.c,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 1.4  1994/01/20  21:14:24  root
+ * Indent.
+ *
  * Revision 1.3  1993/11/29  00:05:32  root
  * *** empty log message ***
  *
@@ -54,52 +57,53 @@
 extern config_t config;
 extern int ignore_segv;
 
-unsigned long timer_tick(void)
+unsigned long 
+timer_tick(void)
 {
-  unsigned long *ticks=BIOS_TICK_ADDR;
-  unsigned char *overflow=TICK_OVERFLOW_ADDR;
+  unsigned long *ticks = BIOS_TICK_ADDR;
+  unsigned char *overflow = TICK_OVERFLOW_ADDR;
 
   /* excuse the inaccuracies, I'll do this better later...this simulates
    * an (very) roughly 20 Hz timer increment rate...cheesy, but it's okay.
    * I used 22 instead of 18 not only for the roundoff error, but
    * because of the latency problem with 1x10^6/UPDATE < 18
    */
-  (*ticks)+= (22 / FREQ);
- /*  warn("TIMER: updated count to %d\n", *ticks); */
-  if (*ticks == 0)
-    {
-      h_printf("TIMER: 24 hours overflow!\n");
-      (*overflow)++;
-    }
+  (*ticks) += (22 / FREQ);
+  /*  warn("TIMER: updated count to %d\n", *ticks); */
+  if (*ticks == 0) {
+    h_printf("TIMER: 24 hours overflow!\n");
+    (*overflow)++;
+  }
 }
 
-unsigned long set_ticks(unsigned long new)
+unsigned long 
+set_ticks(unsigned long new)
 {
-  unsigned long *ticks=BIOS_TICK_ADDR;
-  unsigned char *overflow=TICK_OVERFLOW_ADDR;
+  unsigned long *ticks = BIOS_TICK_ADDR;
+  unsigned char *overflow = TICK_OVERFLOW_ADDR;
 
   ignore_segv++;
-  *ticks=new;
-  *overflow=0;
+  *ticks = new;
+  *overflow = 0;
   /* warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE))); */
   ignore_segv--;
 }
 
-
-inline int int28(void)	 /* keyboard busy loop */
-{
-/* defining this reduces the CPU load, but slows Turbo Pascal and Turbo
+inline int 
+int28(void)
+{				/* keyboard busy loop */
+  /* defining this reduces the CPU load, but slows Turbo Pascal and Turbo
  * C's pageup/pagedown tremendously
  */
 #ifdef BAD_SLOW_INT28
   /* if this is an idle call :-), wait for a bit */
-  if (IS_IRET(0x28))
-    {
-      k_printf("In int28 keyboard busy loop\n");
-      usleep(INT28_IDLE_USECS);
-      return 1;
-    }
-  else return 0;
+  if (IS_IRET(0x28)) {
+    k_printf("In int28 keyboard busy loop\n");
+    usleep(INT28_IDLE_USECS);
+    return 1;
+  }
+  else
+    return 0;
 #else
   return 0;
 #endif

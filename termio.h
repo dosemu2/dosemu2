@@ -3,12 +3,18 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/11/29 00:05:32 $
- * $Source: /home/src/dosemu0.49pl3/RCS/termio.h,v $
- * $Revision: 1.2 $
+ * $Date: 1994/01/20 21:14:24 $
+ * $Source: /home/src/dosemu0.49pl4g/RCS/termio.h,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.4  1994/01/20  21:14:24  root
+ * Indent.
+ *
+ * Revision 1.3  1994/01/19  17:51:14  root
+ * Cleaned up some keyboard memory offsets.
+ *
  * Revision 1.2  1993/11/29  00:05:32  root
  * Overhaul keyboard
  *
@@ -85,14 +91,6 @@
 #define KF_INSERT	7	/* Insert ACTIVE */
 #define EKF_LCTRL	8
 #define EKF_LALT	9
-/*
-#define EKF_RCTRL	10
-#define EKF_RALT	11
-#define EKF_SCRLOCK	12
-#define EKF_NUMLOCK	13
-#define EKF_CAPSLOCK	14
-#define EKF_SYSRQ	15
-*/
 #define EKF_SYSRQ	10
 #define EKF_PAUSE	11
 #define EKF_SCRLOCK	12	/* ScrLock PRESSED */
@@ -105,12 +103,12 @@
 #define KKF_E0		1
 #define KKF_RCTRL	2
 #define KKF_RALT	3
-#define KKF_KBD102	4  /* set if 102-key keyboard installed */	
-#define KKF_FORCENUM	5 
-#define KKF_FIRSTID	6 
-#define KKF_READID	7 
-#define KKF_SCRLOCK	8 
-#define KKF_NUMLOCK	9 
+#define KKF_KBD102	4	/* set if 102-key keyboard installed */
+#define KKF_FORCENUM	5
+#define KKF_FIRSTID	6
+#define KKF_READID	7
+#define KKF_SCRLOCK	8
+#define KKF_NUMLOCK	9
 #define KKF_CAPSLOCK	10
 
 /* LED FLAGS (from Linux keyboard code) */
@@ -119,8 +117,7 @@
 #define LED_CAPSLOCK	2
 
 extern unsigned int kbd_flags, key_flags;
-void set_screen_origin(int),
-     set_vc_screen_page(int);
+void set_screen_origin(int), set_vc_screen_page(int);
 
 int vc_active(void);
 
@@ -128,29 +125,28 @@ int vc_active(void);
 #define SIG_RELEASE	SIGWINCH
 #define SIG_ACQUIRE	SIGUSR1
 
-#define KBBUF_SIZE	80	     /* dosemu read buffer for keyboard */
+#define KBBUF_SIZE	80	/* dosemu read buffer for keyboard */
 
 struct screen_stat {
-  int console_no,	/* our console number */
-      vt_allow, 	/* whether to allow VC switches */
-      vt_requested;	/* whether one was requested in forbidden state */
+  int console_no,		/* our console number */
+   vt_allow,			/* whether to allow VC switches */
+   vt_requested;		/* whether one was requested in forbidden state */
 
-  int current;		/* boolean: is our VC current? */
+  int current;			/* boolean: is our VC current? */
 
-  int curadd;		/* row*80 + col */
-  int dcurgeom;		/* msb: start, lsb: end */
-  int lcurgeom;		/* msb: start, lsb: end */
+  int curadd;			/* row*80 + col */
+  int dcurgeom;			/* msb: start, lsb: end */
+  int lcurgeom;			/* msb: start, lsb: end */
 
-  int mapped,  		/* whether currently mapped */
-      pageno;  		/* current mapped text page # */
+  int mapped,			/* whether currently mapped */
+   pageno;			/* current mapped text page # */
 
-  int dorigin;		/* origin in DOS */
+  int dorigin;			/* origin in DOS */
   int lorigin;
 
-  caddr_t virt_address;	/* current map address in DOS memory */
+  caddr_t virt_address;		/* current map address in DOS memory */
 
   int old_modecr, new_modecr;
 };
 
 #endif /* TERMIO_H */
-

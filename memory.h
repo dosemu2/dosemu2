@@ -20,9 +20,35 @@
 #define Banner_OFF	0x3000
 #define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
 
-#define INT16_SEG	BIOSSEG
-#define INT16_OFF	0x4000
+#define IPX_SEG		BIOSSEG
+#define IPX_OFF		0x3100
+#define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
+
+#define INT16_SEG	BIOSSEG + 0x100
+#define INT16_OFF	0x3000
 #define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
+
+#define INT09_SEG	BIOSSEG + 0x100
+#define INT09_OFF	0x4000
+#define INT09_ADD	((INT09_SEG << 4) + INT09_OFF)
+
+#define INT10_SEG	BIOSSEG + 0x100
+#define INT10_OFF	0x4100
+#define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
+
+/* This inline interrupt is used for FCB open calls */
+#define INTE7_SEG	BIOSSEG + 0x100
+#define INTE7_OFF	0x4500
+#define INTE7_ADD	((INTE7_SEG << 4) + INTE7_OFF)
+
+#define DPMI_SEG	BIOSSEG + 0x100
+#define DPMI_OFF	0x5000
+#define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
+
+/* For int15 0xc0 */
+#define ROM_CONFIG_SEG  BIOSSEG
+#define ROM_CONFIG_OFF  0xe6f5
+#define ROM_CONFIG_ADD	((ROM_CONFIG_SEG << 4) + ROM_CONFIG_OFF)
 
 /* raw console stuff */
 #ifdef MDA_VIDEO
@@ -39,16 +65,23 @@
 #define GFX_CHARS	0xffa6e
 #define GFXCHAR_SIZE	1400
 
-#define TEXT_SIZE	4096         /* text page size */
+#define TEXT_SIZE	4096	/* text page size */
 #define PAGE_ADDR(pg)	(caddr_t)(VIRT_TEXT_BASE + (pg*TEXT_SIZE))
 #define SCREEN_ADR(s)	(us *)(VIRT_TEXT_BASE + (s*TEXT_SIZE))
 
 #define GRAPH_BASE 0xA0000
 #define GRAPH_SIZE 0x20000
 
-/* Bios data area 16-key (32byte) keybuffer */
-#define KBDA_ADDR	(unsigned short *)0x41e
-#define KBDFLAG_ADDR	(unsigned short *)0x417
-#define KEYFLAG_ADDR	(unsigned short *)0x496
+#define BIOS_DATA_SEG   (0x400)	/* for absolute adressing */
+#define BIOS_DATA_PTR(off) ((void *) (BIOS_DATA_SEG + off))
 
-#endif MEMORY_H
+/* Bios data area keybuffer */
+#define KBD_Start (*(unsigned short *)BIOS_DATA_PTR(0x80))
+#define KBD_End  (*(unsigned short *)BIOS_DATA_PTR(0x82))
+#define KBD_Head (*(unsigned short *)BIOS_DATA_PTR(0x1A))
+#define KBD_Tail (*(unsigned short *)BIOS_DATA_PTR(0x1C))
+
+#define KBDFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x17)
+#define KEYFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x96)
+
+#endif /* MEMORY_H */

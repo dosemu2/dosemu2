@@ -26,23 +26,23 @@
 /*
  * These are the definitions for the FIFO Control Register
  */
-#define UART_FCR_ENABLE_FIFO	0x01 /* Enable the FIFO */
-#define UART_FCR_CLEAR_RCVR	0x02 /* Clear the RCVR FIFO */
-#define UART_FCR_CLEAR_XMIT	0x04 /* Clear the XMIT FIFO */
-#define UART_FCR_DMA_SELECT	0x08 /* For DMA applications */
-#define UART_FCR_TRIGGER_MASK	0xC0 /* Mask for the FIFO trigger range */
-#define UART_FCR_TRIGGER_1	0x00 /* Mask for trigger set at 1 */
-#define UART_FCR_TRIGGER_4	0x40 /* Mask for trigger set at 4 */
-#define UART_FCR_TRIGGER_8	0x80 /* Mask for trigger set at 8 */
-#define UART_FCR_TRIGGER_14	0xC0 /* Mask for trigger set at 14 */
+#define UART_FCR_ENABLE_FIFO	0x01	/* Enable the FIFO */
+#define UART_FCR_CLEAR_RCVR	0x02	/* Clear the RCVR FIFO */
+#define UART_FCR_CLEAR_XMIT	0x04	/* Clear the XMIT FIFO */
+#define UART_FCR_DMA_SELECT	0x08	/* For DMA applications */
+#define UART_FCR_TRIGGER_MASK	0xC0	/* Mask for the FIFO trigger range */
+#define UART_FCR_TRIGGER_1	0x00	/* Mask for trigger set at 1 */
+#define UART_FCR_TRIGGER_4	0x40	/* Mask for trigger set at 4 */
+#define UART_FCR_TRIGGER_8	0x80	/* Mask for trigger set at 8 */
+#define UART_FCR_TRIGGER_14	0xC0	/* Mask for trigger set at 14 */
 
 #define UART_FCR_CLEAR_CMD	(UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT)
 #define UART_FCR_SETUP_CMD	(UART_FCR_ENABLE_FIFO | UART_FCR_TRIGGER_8)
-	
+
 /*
  * These are the definitions for the Line Control Register
- * 
- * Note: if the word length is 5 bits (UART_LCR_WLEN5), then setting 
+ *
+ * Note: if the word length is 5 bits (UART_LCR_WLEN5), then setting
  * UART_LCR_STOP will select 1.5 stop bits, not 2 stop bits.
  */
 #define UART_LCR_DLAB	0x80	/* Devisor latch access bit */
@@ -112,8 +112,7 @@
 
 #include "mutex.h"
 
-typedef struct serial_struct 
-{
+typedef struct serial_struct {
   char dev[255];
   int base_port;
   int interrupt;
@@ -124,9 +123,9 @@ typedef struct serial_struct
   int dready;
   u_char in_interrupt;
 
-  bool mouse;  /* set if mouse sharing activated */
+  boolean mouse;			/* set if mouse sharing activated */
 
-/* UART info */
+  /* UART info */
   int dll, dlm;
   u_char TX;
   u_char RX;
@@ -139,9 +138,16 @@ typedef struct serial_struct
   u_char SCR;
 
   struct termios oldsettings;
-  
+  speed_t oldbaud;
+  struct termios newsettings;
+  speed_t newbaud;
+
 } serial_t;
 
 #define DLAB(num) (com[num].LCR & UART_LCR_DLAB)
+
+extern serial_t com[MAX_SER];
+
+#define MAX_SER 2
 
 #endif /* SERIAL_H */

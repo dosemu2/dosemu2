@@ -1,0 +1,225 @@
+                                  EXE2COM 1.04
+                         By Chris Dunford/Cove Software
+
+        | indicates information changed/added in recent versions.
+
+        Purpose
+        -------
+        EXE2COM is a one-for-one replacement for the EXE2BIN program
+        that was formerly distributed with DOS.  Beginning with DOS 3.3,
+        EXE2BIN has been moved to the disk that comes with the DOS
+        Technical Reference and thus is not available without extra
+        cost.
+
+
+        Usage
+        -----
+        Usage is identical to DOS's EXE2BIN except that the output file
+        extension defaults to COM rather than BIN, and there is an
+        optional switch that displays EXE file information rather than
+        converting the file to COM.
+
+        Complete usage is:
+
+            EXE2COM [/I] [d:][path]file[ext] [d:][path][file][ext]
+
+        The drive and path of the first file default to the current
+        drive and path, if not specified.  The extension of the first
+        file defaults to EXE, if not specified.
+
+        If the second file is completely unspecified, it defaults to the
+        same drive, path, and filename as the first, except that the
+        extension will be COM.
+
+        If the second file is specified but without an extension, COM
+        will be assumed (this is different from EXE2BIN).
+
+      | If /I is specified, information about the EXE file is displayed
+      | and no conversion is performed.  The output file name, if
+      | specified, is ignored.
+
+        The simplest (and usual) usage is simply:
+
+            EXE2COM file
+
+        which will take the named EXE file in the current directory and
+        convert it to a COM file in the same directory.
+
+
+        Operation
+        ---------
+        EXE2COM runs the same way as EXE2BIN, with the following
+        exceptions:
+
+            1. The binary fixup option of EXE2BIN (IP=0, segment fixups
+            required) is not supported.
+
+            2. The EXE file checksum is not verified.
+
+            3. Error messages are more useful, and a warning is provided
+            if a COM file is created with an initial IP other than 100H.
+
+            4. The default output file extension is COM rather than BIN.
+
+
+      | Information display
+      | -------------------
+      | If you use the /I switch, EXE2COM just displays information
+      | about the EXE file and does not attempt to convert it to COM
+      | (therefore, the EXE file need not be a convertible file).  Here
+      | is a typical display, resulting from running EXE2COM on itself
+      | (version 1.04) with the /I switch:
+      |
+      |   exe2com.exe                   (hex)      (dec)
+      |     EXE file size                396B      14699
+      |     EXE header size (para)         20         32
+      |     Program image size (bytes)   376B      14187
+      |     Minimum load size (bytes)    8CDB      36059
+      |     Min allocation (para)         557       1367
+      |     Max allocation (para)        FFFF      65535
+      |   * Initial CS:IP           0000:072C
+      |   * Initial SS:SP           084D:0800       2048 (stack size)
+      |   * Relocation count                4          4
+      |     Relo table start             001E         30
+      |     EXE file checksum            411D      16669
+      |     Overlay number                  0          0
+      |   * = this item prevents conversion to BIN/COM
+      |
+      | The fields that may need some explanation:
+      |
+      | Program image size:  this is the size of the program itself
+      | (i.e., the size of the EXE file less the size of the header
+      | information).  This much memory is required to load a copy of
+      | the program's code and pre-allocated data.
+      |
+      | Minimum load size: at least this much free memory is required in
+      | order to run the program.
+      |
+      | Min/max allocation: the minimum/maximum number of 16-byte
+      | paragraphs that will be needed above the end of the program
+      | image when it is loaded.  Minimum load size is the sum of the
+      | program image size and the minimum allocation.
+      |
+      | If an item is starred (*), this prevents the EXE file from being
+      | converted to a COM file.
+
+
+        Error Messages
+        --------------
+        These are EXE2COM's error messages.  If one of these is seen,
+        the EXE file will not be converted and the errorlevel returned
+        by EXE2COM will be 1.
+
+        ERROR READING EXE HEADER
+            EXE2COM was unable to read the EXE file header from disk.
+
+        ERROR WRITING OUTPUT FILE
+            EXE2COM was unable to write the converted file to disk.
+
+        INVALID EXE FILE SIGNATURE
+            The first two bytes of an EXE file should be ASCII 'M' and
+            'Z'.  This was not the case, and it's probably not an EXE
+            file.
+
+        EXE HAS RELOCATABLE ITEMS
+            In order to be converted to a COM file, an EXE file cannot
+            have any direct references to segments.  For example, the
+            assembler instruction "mov ax,code" (where CODE is a segment
+            name) is a segment reference.  One or more segment
+            references were found in the EXE file.
+
+        EXE HAS STACK SEGMENT
+            In order to be converted to a COM file, an EXE file cannot
+            have a stack segment.
+
+        EXE HAS NONZERO CS
+            In order to be converted to a COM file, an EXE file must
+            have a code segment that begins at offset 0 of the code
+            image in the EXE file.
+
+        IP NOT 0 OR 100H
+            In order to be converted to a binary file, an EXE file must
+            have an entry point of 0 or 100H within the code segment.
+            For COM files, the entry point should be 100H.  For SYS
+            files (device drivers), the entry point should be 0.
+
+        PROGRAM EXCEEDS 64K
+            In order to be converted to a binary file, the total size of
+            the code to be loaded (including the PSP) must not exceed
+            64K bytes.
+
+        UNKNOWN ERROR
+            Internal error.  Notify the author.
+
+
+        Warning message
+        ---------------
+        EXE2COM has one warning message:
+
+            COM FILE, INITIAL IP NOT 100H
+
+        The entry point of all COM files should be 100H.  If you are
+        creating a COM file an the entry point is not 100H, EXE2COM will
+        do the job but let you know that there is a potential problem.
+
+
+        Source
+        ------
+        Source code should be included with this archive.  Users are
+        encouraged to modify, improve, and/or correct the source for
+        EXE2COM and submit the new program to the author for
+        distribution.  Please identify clearly any changes made and
+        stick with portable code (no inline assembler, PLEASE).
+
+        Source for EXE2COM was written for the Microsoft C compiler
+        (v.5.0) but will also compile correctly with Borland's Turbo C
+        (v.1.5).  It should be easily portable to most other compilers.
+
+
+        Public domain
+        -------------
+        EXE2COM is hereby donated by the author to the public domain.
+
+
+        History
+        -------
+        Version 1.00 04/17/87: Original version by
+            Christopher J. Dunford
+            The Cove Software Group
+            PO Box 1072
+            Columbia, MD 21044
+            (301) 992-9371
+            CompuServe 76703,2002
+
+        Version 1.01: port to Turbo C by
+            Roger Schlafly
+            Borland International
+            Scotts Valley, CA 95066
+            CompuServe 76067,511
+
+        Version 1.02 11/22/87: bug fix for even 512-byte file made to
+        Turbo C port by
+            Chris Blum ( Consultant )
+            509 West Main, Front
+            Ashland, Ohio 44805
+            CompuServe 76625,1041
+
+            Chris Dunford duplicated the fix in the C86 source.
+
+        Version 1.03 12/30/87: by Chris Dunford
+            Ported to Microsoft C 5.0.  This is now the "official"
+            version.
+
+            Increased size of I/O buffer to 4K for speed reasons.
+            EXE2COM 1.03 is twice as fast as 1.02 and slightly
+            faster than EXE2BIN.
+
+        Version 1.04 03/08/88: by Chris Dunford
+            Cleaned up some old code from the original quickie.
+
+            Source should now compile under either MSC or TC.
+
+            Added /I switch.
+
+            In earlier versions, we defined an error code for nonzero
+            CS, but didn't actually check; now we do.

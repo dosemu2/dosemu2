@@ -1,11 +1,14 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1993/11/30 21:26:44 $
- * $Source: /home/src/dosemu0.49pl3/RCS/lpt.c,v $
- * $Revision: 1.3 $
+ * $Date: 1994/01/20 21:14:24 $
+ * $Source: /home/src/dosemu0.49pl4g/RCS/lpt.c,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 1.4  1994/01/20  21:14:24  root
+ * Indent.
+ *
  * Revision 1.3  1993/11/30  21:26:44  root
  * Chips First set of patches, WOW!
  *
@@ -42,92 +45,89 @@ extern int fatalerr;
 int printer_open(int), stub_printer_write(int, int), printer_close(int);
 int printer_write(int, int), printer_flush(int);
 
-struct p_fops def_pfops = 
+struct p_fops def_pfops =
 {
-  printer_open, 
+  printer_open,
   stub_printer_write,
   printer_flush,
   printer_close,
   printer_write
 };
 
-
 struct printer lpt[NUM_PRINTERS] =
 {
-  { NULL   , "lpr", "%s", 5 },
-  { "lpt2" , "lpr", "%s", 5 },
-  { "lpt3" , NULL, NULL, 10 }
+  {NULL, "lpr", "%s", 5},
+  {"lpt2", "lpr", "%s", 5},
+  {"lpt3", NULL, NULL, 10}
 };
 
-
-void 
+void
 int17(void)
-  {
-	int num;
+{
+  int num;
 
-	if (LWORD(edx)+1 > config.num_lpt)
-	  {
-	    p_printf("LPT: print to non-defined printer LPT%d\n", 
-		     LWORD(edx)+1);
-	    HI(ax) = LPT_TIMEOUT; 
-	    CARRY;
-	    return;
-	  }
+  if (LWORD(edx) + 1 > config.num_lpt) {
+    p_printf("LPT: print to non-defined printer LPT%d\n",
+	     LWORD(edx) + 1);
+    HI(ax) = LPT_TIMEOUT;
+    CARRY;
+    return;
+  }
 
-	switch(HI(ax)) {
-	        case 0: /* write char */
-	                /* p_printf("print character on lpt%d : %c (%d)\n",
+  switch (HI(ax)) {
+  case 0:			/* write char */
+    /* p_printf("print character on lpt%d : %c (%d)\n",
 			       LO(dx), LO(ax), LO(ax)); */
-			HI(ax) = (lpt[LO(dx)].fops.write)(LO(dx), LO(ax));
-			break;
+    HI(ax) = (lpt[LO(dx)].fops.write) (LO(dx), LO(ax));
+    break;
 
-		case 1: /* init */
-			HI(ax) = LPT_NOTBUSY | LPT_ACK | LPT_ONLINE;
-			num = LWORD(edx);
-			p_printf("LPT: init printer %d\n", num);
-			break;
+  case 1:			/* init */
+    HI(ax) = LPT_NOTBUSY | LPT_ACK | LPT_ONLINE;
+    num = LWORD(edx);
+    p_printf("LPT: init printer %d\n", num);
+    break;
 
-		case 2: /* get status */
-			HI(ax) = LPT_NOTBUSY | LPT_ACK | LPT_ONLINE;
-			/* dbug_printf("printer 0x%x status: 0x%x\n", LO(dx), HI(ax)); */
-			break;
+  case 2:			/* get status */
+    HI(ax) = LPT_NOTBUSY | LPT_ACK | LPT_ONLINE;
+    /* dbug_printf("printer 0x%x status: 0x%x\n", LO(dx), HI(ax)); */
+    break;
 
-		default:
-			error("ERROR: printer int17 bad call ax=0x%x\n", LWORD(eax));
-			show_regs();
-			/* fatalerr = 8; */
-			return;
-	}
+  default:
+    error("ERROR: printer int17 bad call ax=0x%x\n", LWORD(eax));
+    show_regs();
+    /* fatalerr = 8; */
+    return;
+  }
 }
 
-
-int 
+int
 printer_open(int prnum)
 {
   int um;
-  
+
   um = umask(026);
   if (lpt[prnum].file == NULL) {
-    if ( !lpt[prnum].dev) {
-     lpt[prnum].dev = tmpnam(NULL);
+    if (!lpt[prnum].dev) {
+      lpt[prnum].dev = tmpnam(NULL);
 
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
       p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
     }
-    else lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+    else
+      lpt[prnum].file = fopen(lpt[prnum].dev, "a");
   }
   umask(um);
 
-  p_printf("LPT: opened printer %d to %s, file %p\n", prnum, 
-    lpt[prnum].dev, (void *)lpt[prnum].file);
+  p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
+	   lpt[prnum].dev, (void *) lpt[prnum].file);
 }
 
-
-int 
+int
 printer_close(int prnum)
 {
   p_printf("LPT: closing printer %d, %s\n", prnum, lpt[prnum].dev);
-  if (lpt[prnum].file != NULL) fclose(lpt[prnum].file);
+  if (lpt[prnum].file != NULL)
+    fclose(lpt[prnum].file);
   lpt[prnum].file = NULL;
 
   /* delete any temporary files */
@@ -139,8 +139,7 @@ printer_close(int prnum)
   lpt[prnum].remaining = -1;
 }
 
-
-int 
+int
 printer_flush(int prnum)
 {
   int returnstat;
@@ -150,11 +149,11 @@ printer_flush(int prnum)
   fflush(lpt[prnum].file);
 
   if (lpt[prnum].prtcmd) {
-    char cmdbuf[500];  /* XXX - nasty hard coded limit */
+    char cmdbuf[500];		/* XXX - nasty hard coded limit */
 
     strcpy(cmdbuf, lpt[prnum].prtcmd);
     strcat(cmdbuf, " ");
-    sprintf(&cmdbuf[strlen(cmdbuf)], lpt[prnum].prtopt, lpt[prnum].dev); 
+    sprintf(&cmdbuf[strlen(cmdbuf)], lpt[prnum].prtopt, lpt[prnum].dev);
     p_printf("LPT: doing printer command ..%s..\n",
 	     cmdbuf);
 
@@ -171,72 +170,65 @@ printer_flush(int prnum)
   lpt[prnum].remaining = -1;
 }
 
-
-int 
+int
 stub_printer_write(int prnum, int outchar)
 {
-  (lpt[prnum].fops.open)(prnum);
+  (lpt[prnum].fops.open) (prnum);
 
   /* from now on, use real write */
   lpt[prnum].fops.write = lpt[prnum].fops.realwrite;
 
-  return( (lpt[prnum].fops.write)(prnum, outchar) );
+  return ((lpt[prnum].fops.write) (prnum, outchar));
 }
 
-
-int 
+int
 printer_write(int prnum, int outchar)
 {
   lpt[prnum].remaining = lpt[prnum].delay;
 
   fputc(outchar, lpt[prnum].file);
-  return(LPT_NOTBUSY | LPT_ACK | LPT_ONLINE);
+  return (LPT_NOTBUSY | LPT_ACK | LPT_ONLINE);
 }
 
-
-void 
+void
 init_all_printers(void)
 {
   int i;
 
-  for (i = 0; i < 3; i++)
-    {
-      p_printf("LPT: initializing printer %s\n", lpt[i].dev);
-      lpt[i].file = NULL;
-      lpt[i].remaining = -1;  /* mark not accessed yet */
-      lpt[i].fops = def_pfops;
-    }
+  for (i = 0; i < 3; i++) {
+    p_printf("LPT: initializing printer %s\n", lpt[i].dev);
+    lpt[i].file = NULL;
+    lpt[i].remaining = -1;	/* mark not accessed yet */
+    lpt[i].fops = def_pfops;
+  }
 }
 
-
-void 
+void
 close_all_printers(void)
 {
   int loop;
 
-  for (loop=0; loop < NUM_PRINTERS; loop++)
-    {
-      p_printf("LPT: closing printer %d (%s)\n", loop, lpt[loop].dev);
-      (lpt[loop].fops.close)(loop);
-    }
+  for (loop = 0; loop < NUM_PRINTERS; loop++) {
+    p_printf("LPT: closing printer %d (%s)\n", loop, lpt[loop].dev);
+    (lpt[loop].fops.close) (loop);
+  }
 }
 
-
-int 
+int
 printer_tick(u_long secno)
 {
   int i;
 
-  for (i=0; i < NUM_PRINTERS; i++)
-    {
-      if (lpt[i].remaining >= 0) {
-	p_printf("LPT: doing real tick for %d\n",i);
-	if (lpt[i].remaining) {
-	  lpt[i].remaining--;
-	  if (! lpt[i].remaining) (lpt[i].fops.flush)(i);
-	}
+  for (i = 0; i < NUM_PRINTERS; i++) {
+    if (lpt[i].remaining >= 0) {
+      p_printf("LPT: doing real tick for %d\n", i);
+      if (lpt[i].remaining) {
+	lpt[i].remaining--;
+	if (!lpt[i].remaining)
+	  (lpt[i].fops.flush) (i);
       }
     }
+  }
 }
 
 #undef LPT_C

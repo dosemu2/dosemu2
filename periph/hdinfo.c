@@ -1,4 +1,4 @@
-/* hdinfo.c 
+/* hdinfo.c
  *
  * 6/2/93, gt8134b@prism.gatech.edu, Robert Sanders
  *
@@ -16,12 +16,15 @@
  *   is said to start 1 sector earlier than it actually does (and therefore
  *   512 bytes earlier).
  *
- * $Date: 1993/11/30 21:27:27 $
- * $Source: /home/src/dosemu0.49pl3/periph/RCS/hdinfo.c,v $
- * $Revision: 1.2 $
+ * $Date: 1994/01/20 21:18:35 $
+ * $Source: /home/src/dosemu0.49pl4g/periph/RCS/hdinfo.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: hdinfo.c,v $
+ * Revision 1.3  1994/01/20  21:18:35  root
+ * Indent.
+ *
  * Revision 1.2  1993/11/30  21:27:27  root
  * Freeze before 0.49pl3
  *
@@ -48,96 +51,86 @@ char *decfmt = "%sSector=%-6d   Offset=%-10d   Type=0x%02x%s\n";
 char *hexfmt = "%sSector=0x%-6x   Offset=0x%-8x   Type=0x%02x%s\n";
 char *fmtstring;
 
-
 void
 usage(void)
 {
   fprintf(stderr, "usage: hdinfo [-h] <image file or disk device>\n");
 }
 
-
 void
 print_part(struct partition *part, size_t offset, int sect_off, int ext)
 {
-  char *indent = ext ? "       ["  :  "";
-  char *exdent = ext ?        "]"  :  "";
+  char *indent = ext ? "       [" : "";
+  char *exdent = ext ? "]" : "";
   int i;
 
   if (part->sys_ind)
     printf(fmtstring, indent,
-	   part->start_sect + sect_off, 
+	   part->start_sect + sect_off,
 	   (part->start_sect + sect_off) * SECTOR_SIZE + offset,
 	   part->sys_ind, exdent);
 
-  if (part->sys_ind == EXT_MAGIC && !ext)
-    {
-      char extblock[512];
+  if (part->sys_ind == EXT_MAGIC && !ext) {
+    char extblock[512];
 
-      lseek(fd, part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
-      if (read(fd, extblock, 512) < 512)
-	{
-	  perror("hdinfo: Could not read sector");
-	  exit(1);
-	}
-
-      for (i=0; i<4; i++)
-	{
-   print_part((struct partition *) (extblock + 0x1be + i*16), offset, 
-		     part->start_sect, 1);
-	}
+    lseek(fd, part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
+    if (read(fd, extblock, 512) < 512) {
+      perror("hdinfo: Could not read sector");
+      exit(1);
     }
-}
 
+    for (i = 0; i < 4; i++) {
+      print_part((struct partition *) (extblock + 0x1be + i * 16), offset,
+		 part->start_sect, 1);
+    }
+  }
+}
 
 int
 main(int argc, char **argv)
 {
-  int i, hdimage_off=0;
+  int i, hdimage_off = 0;
   char *filename;
   char mbr[1024];
   struct partition *part;
 
   fmtstring = decfmt;
 
-  if (argc == 3)
-    {
-      if ( !strcmp(argv[1], "-h"))
-	fmtstring = hexfmt;
-      else
-	{
-	  usage();
-	  exit(1);
-	}
-      filename = argv[2];
-    }
-  else if (argc == 2)
-    filename = argv[1];
-  else
-    {
+  if (argc == 3) {
+    if (!strcmp(argv[1], "-h"))
+      fmtstring = hexfmt;
+    else {
       usage();
       exit(1);
     }
+    filename = argv[2];
+  }
+  else if (argc == 2)
+    filename = argv[1];
+  else {
+    usage();
+    exit(1);
+  }
 
-  if ( (fd = open(filename, O_RDONLY)) < 0)
-    {
-      perror("hdinfo: Cannot open file");
-      exit(1);
-    }
+  if ((fd = open(filename, O_RDONLY)) < 0) {
+    perror("hdinfo: Cannot open file");
+    exit(1);
+  }
 
-  if (read(fd, mbr, 1024) < 1024)
-    {
-      perror("hdinfo: Could not read MBR\n");
-      exit(1);
-    }
+  if (read(fd, mbr, 1024) < 1024) {
+    perror("hdinfo: Could not read MBR\n");
+    exit(1);
+  }
 
-  if (! strncmp(mbr, "DOSEMU", 6))
-      hdimage_off = *(u_long *)(mbr + 19);
-  else hdimage_off = 0;
+  if (!strncmp(mbr, "DOSEMU", 6))
+    hdimage_off = *(u_long *) (mbr + 19);
+  else
+    hdimage_off = 0;
 
-  printf("Partition info for %s %s\n=================================================\n", 
+  printf("Partition info for %s %s\n=================================================\n",
 	 filename, hdimage_off ? "(a DOSEMU 0.49 hdimage file)" : "");
 
-  for (i=0; i<4; i++)
-      print_part( (struct partition *) (mbr + 0x1be + hdimage_off + i*16), 
-		 hdimage_off, 0, 0 );
+  for (i = 0; i < 4; i++)
+    print_part((struct partition *) (mbr + 0x1be + hdimage_off + i * 16),
+	       hdimage_off, 0, 0);
 }

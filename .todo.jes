@@ -1,19 +1,24 @@
 Topics of concern for myself. (jmaclean@fox.nstn.ns.ca)
 
+Multiple Pipes
+	-	Don't work. Getting closer.
+CleanUP
+	-	Clean up the sorry state of the hacked up code .
+		Finally started.
+Timing
+	-	Get the timing code to work more like timing code :-).
 Serial
 	-	Should be enhanced to provide atleast 9600 baud.
 Network
 	-	Want to connect to network existing already in Linux.
 		Be able to support both TCP/IP and IPX/SPX protocols.
+		Almost there thanks to Jason & Tim.
 Keyboard
-	-	Clean it up. Fix Turbo C++ 2.0 highlighting text bug.
+	-	Clean it up. Get EDIT.COM(Qbasic.exe) to highlight
+		properly.
 EMS
-	-	Still a bit buggy. Needs more 4.0 support.
+	-	Still a bit buggy. Needs more 4.0 support. 
 DPMI
 	-	Although forgotten awhile back due to kernel limitations,
 		should be reconsidered because of WINE reworking the
 		memory allocation algorithm.
-RUNNING in REVERSE
-	-	Programs have been shown to run in reverse. No kidding.
-		tcc -A -mt -Ic:\tc\include -Lc:\tc\lib program.c
-		93/11/15 - Problem fixed ss,sp -> ssp underflow.

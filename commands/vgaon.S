@@ -1,9 +1,9 @@
 ! vgaon.S, for dosemu 0.49, 4/16/93
 ! Robert Sanders, gt8134b@prism.gatech.edu
 !
-! $Date: 1993/11/12 12:41:27 $
-! $Source: /home/src/dosemu0.49pl3/commands/RCS/vgaon.S,v $
-! $Revision: 1.1 $
+! $Date: 1994/02/02 21:14:44 $
+! $Source: /home/src/dosemu0.49pl4g/commands/RCS/vgaon.S,v $
+! $Revision: 1.3 $
 ! $State: Exp $
 !
 ! this is dangerous!
@@ -23,15 +23,15 @@ _main:
 	mov bx, #0x70  ! starting port
 	mov cx, #2     ! # of ports
 	stc            ! set means get I/Operms
-	int #0xe5
+	int #0xe6
 	mov al, #4
 	mov bl, #1
-	int #0xe5
+	int #0xe6
 	mov al, #3     ! dos helper I/O perms
 	mov bx, #0x70  ! starting port
 	mov cx, #2     ! # of ports
 	clc            ! clear means release I/Operms
-	int #0xe5
+	int #0xe6
 	int #0x20  ! exit
 
 ! note: the VGA permissions are left on. 

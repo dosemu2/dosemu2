@@ -1,0 +1,121 @@
+This file has been updated for dosemu0.49pl3.3.
+Send additions/corrections to deisher@dspsun.eas.asu.edu.
+
+Programs that work under the MSDOS Emulator:
+
+Name                   Function          Success Story Posted by
+====                   ========          =======================
+
+1st Wordplus           GEM word proc     jan@janhh.hanse.de
+4DOS                   command interp.   geek+@CMU.EDU
+ACU-COBOL              compiler          fjh@munta.cs.mu.OZ.AU
+ansi.sys               screen/kbd drvr   ag173@cleveland.Freenet.Edu
+ (display functions)
+Aseasy                 spreadsheet       jwest@jwest.ecen.okstate.edu
+ (on non-doublespaced disks)
+Axum                   sci. graphics     miguel@pinon.ccu.uniovi.es
+Blake Stone...         game              owaddell@cs.indiana.edu
+Castle Wolfenstein 3-D game              gt8134b@prism.gatech.EDU
+Checkit                diagnostics
+d86/a86
+Dbase 4                                  corey@amiganet.xnet.com
+Derive 1.2             math package      miguel@pinon.ccu.uniovi.es
+doskey
+dosnix 2.0             unix utils        miguel@pinon.ccu.uniovi.es
+Dosshell task swapper                    jmaclean@fox.nstn.ns.ca
+dtmm                   molecular models  miguel@pinon.ccu.uniovi.es
+dviscr                 EMTEX dvi preview ub9x@rz.uni-karlsruhe.de
+Easytrax               layout editor     maehler@wrcd1.urz.uni-wuppertal.de
+Elvis                  vi clone          miguel@pinon.ccu.uniovi.es
+ET3.1                  Chinese program   tyuan!root@mp.cs.niu.edu
+Eureka 1.0             math package      miguel@pinon.ccu.uniovi.es
+Foxpro 2.0             database
+Framework 4                              corey@amiganet.xnet.com
+Freelance Graphics 2.1 graph/drawing app jwest@jwest.ecen.okstate.edu
+GEM/3                  GUI               jan@janhh.hanse.de
+GEM Draw               GEM drawing app   jan@janhh.hanse.de
+GEM Paint              GEM painting app  jan@janhh.hanse.de
+GNUish/MKS UNIX utils
+gmouse                 mouse driver      tk@pssparc2.oc.com
+Gravity                simulation pkg    miguel@pinon.ccu.uniovi.es
+Gzip 1.1.2             file compression  miguel@pinon.ccu.uniovi.es
+Harvard Graphics 3.0   graph/drawing pkg miguel@pinon.ccu.uniovi.es
+HelpPC 2.1
+Hero's Quest I         game              lam836@cs.cuhk.hk
+HP48SX RPL assembler
+HP48SX RPL compiler
+Incredible Machine     game              sdh@po.cwru.edu
+ (slow)
+Intervue
+Key Spreadsheet Plus   spreadsheet       jwest@jwest.ecen.okstate.edu
+ (on non-doublespaced disks)
+Lemmings                                 sdh@po.cwru.edu
+less 1.7.7             more than more    miguel@pinon.ccu.uniovi.es
+LHA                    file compression
+Lotus Manuscript       word processor    miguel@pinon.ccu.uniovi.es
+MathCad 2.06           math package      miguel@pinon.ccu.uniovi.es
+Microemacs             editor            hjstein@MATH.HUJI.AC.IL
+MoneyCounts 7.0        accounting pkg    raeburn@cygnus.com
+mscmouse               mouse driver      tk@pssparc2.oc.com
+Netzplan               GEM project mgr   jan@janhh.hanse.de
+NJStar 2.1             Chinese word proc aab2@cornell.edu
+PAF                    geneology package geek+@CMU.EDU
+pcxlab 1.03            PCX viewer        miguel@pinon.ccu.uniovi.es
+Pinball Dreams         game              ronnie@lysator.liu.se
+PKzip/unzip            file compression
+Qbasic/edit            interpreter
+ (from DOS 5.0)
+Qedit                  editor
+QuickC                 compiler          martin@trcsun3.eas.asu.edu
+Quicken 6.0 for DOS    accounting pkg
+Quicken 7.0 for DOS    accounting pkg    juphoff@astro.phys.vt.edu
+Railroad Tycoon                          juphoff@astro.phys.vt.edu
+ramdrive.sys
+RM/COBOL               compiler          fjh@munta.cs.mu.OZ.AU
+scan109                antivirus         miguel@pinon.ccu.uniovi.es
+Scorch                 tank game         geek+@CMU.EDU
+Space Quest IV         game              lam836@cs.cuhk.hk
+Stacker 3.1            compressed fs     mdrejhon@undergrad.math.uwaterloo.ca
+StatPhys               simulation pkg    miguel@pinon.ccu.uniovi.es
+Stunts                 game?             gt8134b@prism.gatech.EDU
+TAG 2.02               Polish word proc  rzm@oso.chalmers.se
+Turbo Assembler/tlink  assembler
+Turbo C++ 2.0          compiler
+ (bug in highlighting) 
+Turbo Pascal 5.5       compiler
+Turbo Pascal 6.0       compiler          t2262dj@cd1.lrz-muenchen.de
+Turbo Pascal 7.0       compiler          mdrejhon@undergrad.math.uwaterloo.ca
+warlords II            game              buckel@cip.informatik.uni-wuerzburg.de
+WITWI Carmen Sandiego  game              tillemaj@cae.wisc.edu
+Windows 3.0            windows           cjw1@ukc.ac.uk
+ (real mode)
+Wolf3d                 game              owaddell@cs.indiana.edu
+WordPerfect 5.1        word processor    sdh@po.cwru.edu
+WordPerfect 6.0        word processor    lujian@texmd.minmet.mcgill.ca
+ (needs >1M ram)
+XWing                  game              ronnie@lysator.liu.se
+ (very slow)
+zoo                    file compression
+
+
+Programs that DO NOT work with the emulator (yet):
+
+Name                   Function             Posted by
+====                   ========             =========
+Borland C++ 3.1 IDE    compiler             juphoff@uppieland.async.vt.edu
+CIVILIZATION           game                 miguel@pinon.ccu.uniovi.es
+dxma0mod.sys           token-ring driver    adjihc4@cti.ecp.fr
+dxmc0mod.sys           token-ring driver    adjihc4@cti.ecp.fr
+ELDB                   Economics Database   hjstein@math.huji.ac.il
+FIPS 0.2.2             disk util
+(hdimage FAT problem)
+Howitzer               tank game            geek+@CMU.EDU
+Lahey Fortran          Fortran Compiler     hjstein@math.huji.ac.il
+nnansi.com
+Norton Utils 6.0       disk utils           miguel@pinon.ccu.uniovi.es
+(hdimage FAT problem)
+PCtools 4.20           disk utils           miguel@pinon.ccu.uniovi.es
+(hdimage FAT problem)
+Quattro Pro 4.0        spreadsheet          jwest@jwest.ecen.okstate.edu
+wildunix               wildcards            miguel@pinon.ccu.uniovi.es
+Windows 3.1                                 juphoff@uppieland.async.vt.edu

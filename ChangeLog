@@ -1,3 +1,183 @@
+February 9, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Added config option dosbanner to optionally stop DOSEMU
+	messages at startup.
+
+-	Added allowvideoportaccess config option to give video card
+	bios routines access to ports.
+
+-	Fixing Keyboard int15 4f to return AH=0x86. This fixes 
+	WordPerfect HOME key problem, and nothing else :-(.
+
+February 1, 1994	jmaclean@fox.nstn.ns.ca
+
+-	First layer of terminfo patches in from Corey 
+	(corey@amiganet.chi.il.us)
+
+-	Mouse now closes/opens on VC switches. I can now use X and a
+	mouse in DOSEMU. Serial is still buggy though.
+
+-	gorden@jegnixa.hsc.missouri.edu only came on stream less than
+	a month ago and has already added a pktdriver interface. Could
+	we have another Robert S. here?
+
+-	dos_helper() int 0xe5 changed to 0xe6 to allow my FCB program
+	Direct Access to work.
+
+-	FCB callouts added to redirector. Lahey Fortran now works,
+	as dos Direct Access.
+
+-	Tim_R_Bird@Novell.COM IPX has been added to dosemu. What's
+	Tim's next surprise?
+
+-	Tim fixed LREDIR.EXE so that emufs.sys no longer has to
+	be loaded once at boot.
+
+-	Tim fixed an error in SIGSTACK.
+
+-	Int15 0xc0 callout has been modified to deal with DOS programs
+	wishing to override scan codes going into the KBD buffer. Still
+	needs work.
+
+-	Allow USAGE to display before default stderr redirection.
+
+-	Made dos auto-redirect to stderr if no redirection given on
+	command line.
+
+-	Added simple saytime() function to display message and CLOCK
+	time.
+
+-	Modified hard_int routine many times to try and make int 9, as
+	well as other ints stay serial and yet nt have to wait for
+	program to return to return_address.
+
+-	Added Corey@amiganet.chi.il.us patches to exchange 
+	stderr <-> stdout. This is to prepare for terminfo.
+
+-	Indented all source code according to INDENT.PRO.
+
+-	Deleted int16 function.
+
+-	Added dpmi/dpmi.h include for interrupts.
+
+-	Added code to allow int09 (keyboard) to allow another interrupt by using
+ 	outb(20) called by dos programs.
+ 
+-	Modified inline int09 to pass ALL keys to int15-4f function.
+
+-	Added a far return for DPMI call to go protected.
+
+-	Removed old int16 function.
+
+-	Changed int08 inside of do_int() to return after being called.
+
+-	EMS is very close to full 4.0 specs. I've taken the need for
+	patching the kernel out at this time so that more folks will
+	test EMS. Unfortunately it is horribly slow. Many thanks to
+	mikebat@netcom.com (Mike Batchelor).
+
+-	(Theadore Ts'o's)tytso@ATHENA.MIT.EDU created the booton bootoff
+	patch. Now a user can boot from a bootdisk a:, type diskimage, 
+	and then return control of a: to /dev/fd0. Alright :-).
+
+-	Added routine to allow Diamond Card to go graphics.
+
+-	Much effort has been put into keyboard enhancements, 
+	which have not been that fruitful. Need to have numlock off
+	to cut & paste within MSDOS edit, and WordPerfect 5.1 's home
+	key does not work as expected.
+
+-	Keyboard kinda does a REAL int9.
+
+-	Fixed UMB size 0, and move XMS edx:ebx problem.
+
+-	Added more SS overflow checks.
+
+-	Added call in SIGILL to check if illegal op-code is just another
+	hard interrupt ending. It calls int_queue_run() and sees if such
+	was the case.
+
+-	Added WORD macro in push/pop functions.
+
+-	Added check for DPMI far call.
+
+-	Small ET4000 updates from info from Robert Saunders. Thanks.
+	Needs more testing.
+
+-	Redirector now truncates files properly (with fingers crossed)
+	Calls to create_truncate existant files is closer to correctly
+	being handled.
+
+-	Modified findfirst/findnext routine.
+
+-	Added 0x80 flag to tell DOS it's not lanman redirector.
+
+-	Poor excuse for an update to work with ../NUL device. Also 
+	added code to allow mfs.c properly deal the GetRedirection 
+	with Novell-Lite Printers.
+
+-	Added lredir using environment vars by 
+	coosman@asterix.uni-muenster.de
+
+Wed Dec 28 00:00:00 1993  jmaclean
+
+-	Problem with multiple instances of emufs.sys has been destroyed
+	I believe.
+
+-	tytso@ATHENA.MIT.EDU (Theodore Ts'o) has added the ability
+	to boot off a bootimage file as drive a:, then release drive
+	a: back to dosemu as the actual /dev/fd0 via booton/bootoff
+	in autoexec.bat. See ./examples/config.dist for parameters.
+
+-	As usual the keyboard routines have been dug up more.
+	Still MSDOS edit.com needs numlock off to cut&paste. ARG!
+	Someone could really make my day if they pointed out what
+	I'm doing wrong.
+
+-	Added video option chipset for diamond for some diamond
+	cards, specifically Diamond Speedstar 24x with a 
+	Paradise/Western Digital chipset. Many thanks to
+	patrickm@gas.uug.arizona for putting up with me.
+	This does no more than allow 'graphics' for
+	this card type.
+
+-	Overhauled EMS to allow it to work with programs that I
+	use. It nolonger requires the mmap.diff patch, so please
+	don't use it. I'm just carrying it along because the way Robert
+	did EMS mapping was better, and I hope to move back to that
+	after folks start beating this version around a bit.
+
+-	Debugged XMS a bit more to work with UMB's and passing the
+	correct XMS address for XMS moves.
+
+-	Some more messing with ET4000, thanks to Robert alias 
+	Nils Rennebarth for the ET4000 stuff. Unfortunately I am
+	in need of another tester to start relaying bugs. Any takers?
+
+-	Diffed in patch[1-3]_against_pl3.dif applied:
+	-	First patch fixed a timer problem mainly.
+	-	Second patch limited VC switching to left alt key.
+	-	Third patch almost finishes my changes in keyboard
+		routines.
+
+-	coosman@asterix.uni-muenster.de submitted patches to mfs.c
+          which allow lredir to access environment variables like are
+          now used in emufs.sys.
+
+-	coosman@asterix.uni-muenster.de fixed the 15 character limit
+ 	  on keybaords, some keyboard extenders should now work, 
+	  yes :-).
+
+-	coosman@asterix.uni-muenster.de also submitted dumpconf.asm
+          to try and fix the multiple emufs.sys instance problem.
+	  Still unsuccessful, any takers?
+
+-	Changed dosvga.h to video.h
+
+-	tytso@ATHENA.MIT.EDU (Theodore Ts'o) aided in getting mfs.c
+	to do the ftruncate thing more like DOS. Still not sure if
+	it's up to the full 100%.
+
 Mon Nov 29 00:00:00 1993  jmaclean
 
 * Another update of multiple bugfixes :-).

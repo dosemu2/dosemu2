@@ -1,12 +1,11 @@
 #ifndef LPT_H
 #define LPT_H 1
 
-
 struct p_fops {
-  int (*open) (int prtnum);  
-  int (*write) (int prtnum, int data);  
+  int (*open) (int prtnum);
+  int (*write) (int prtnum, int data);
   int (*flush) (int prnum);
-  int (*close) (int prtnum);  
+  int (*close) (int prtnum);
   int (*realwrite) (int prnum, int data);
 };
 
@@ -34,4 +33,4 @@ struct printer {
 
 #define NUM_PRINTERS 3
 
-#endif LPT_H
+#endif	/* LPT_H */

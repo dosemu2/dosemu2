@@ -13,10 +13,10 @@ checkin:
 	-ci emufs.S ems.S
 
 checkout:
-	-co emufs.S ems.S
+	-co -l emufs.S ems.S
 
 clean:
-	rm -f emufs.sys ems.sys *.o *.tmp
+	rm -f emufs.sys ems.sys *.o *.tmp *.out
 
 install:
 

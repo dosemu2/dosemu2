@@ -1,9 +1,9 @@
 /* cmos.h, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/12 12:32:17 $ 
- * $Source: /home/src/dosemu0.49pl3/RCS/cmos.h,v $
- * $Revision: 1.1 $
+ * $Date: 1994/01/20 21:14:24 $
+ * $Source: /home/src/dosemu0.49pl4g/RCS/cmos.h,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  */
 
@@ -46,7 +46,7 @@
 #define CMOS_INFO	0x33
 #define CMOS_RESV4	0x34	/* 12 bytes reserved */
 
-void cmos_write (int, int), cmos_init(void);
+void cmos_write(int, int), cmos_init(void);
 int cmos_read(int);
 
 struct CMOS {
@@ -56,4 +56,3 @@ struct CMOS {
 };
 
 #endif
-

@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1993/11/29 00:05:32 $
-# $Source: /home/src/dosemu0.49pl3/RCS/Makefile,v $
-# $Revision: 1.5 $
+# $Date: 1994/02/10 20:44:22 $
+# $Source: /home/src/dosemu0.49pl4g/RCS/Makefile,v $
+# $Revision: 1.22 $
 # $State: Exp $
 #
 # define LATIN1 if if you have defined KBD_XX_LATIN1 in your linux Makefile.
@@ -26,12 +26,12 @@
 STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
-CDEBUGOPTS=
+#CDEBUGOPTS=-DUSE_NCURSES
 LNKOPTS=-s
 #endif
 
 # dosemu version
-EMUVER  =   0.49pl3
+EMUVER  =   0.49pl4
 VERNUM  =   0x49
 
 # DON'T CHANGE THIS: this makes libemu start high enough to be safe. should be 
@@ -101,7 +101,8 @@ NUM_DISKS = -DDEF_FDISKS=$(DEF_FDISKS) -DDEF_HDISKS=$(DEF_HDISKS)
 
 XMS     = -DXMS=1
 XMSOBJS  = xms.o
-
+# DPMIOBJS = dpmi/dpmi.o dpmi/ldtlib.o \
+#	dpmi/call.o dpmi/ldt.o
 #
 # SYNC_ALOT
 #  uncomment this if the emulator is crashing your machine and some debug info
@@ -113,22 +114,29 @@ GFX = -DCHEAP_GFX=1
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu/config\"
 
 ###################################################################
-SUBDIRS= boot commands doc drivers examples parse periph 
+ifdef DPMIOBJS
+DPMISUB= dpmi
+else
+DPMISUB=
+endif
+
+SUBDIRS= boot commands doc drivers examples parse periph $(DPMISUB)
 
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c \
 	timers.c mouse.c dosipc.c cpu.c video.c mfs.c bios_emm.c lpt.c \
-        parse.c serial.c mutex.c 
+        parse.c serial.c mutex.c ipx.c dyndeb.c libpacket.c pktdrvr.c
 
-HFILES=cmos.h dosvga.h emu.h termio.h timers.h xms.h mouse.h dosipc.h \
+HFILES=cmos.h video.h emu.h termio.h timers.h xms.h mouse.h dosipc.h \
         cpu.h bios.h mfs.h disks.h memory.h machcompat.h lpt.h \
-        serial.h mutex.h modes.h
-OFILES= Makefile ChangeLog dosconfig.c QuickStart
+        serial.h mutex.h modes.h ipx.h libpacket.h pktdrvr.h 
+OFILES= Makefile ChangeLog dosconfig.c QuickStart DANG EMUsuccess.txt \
+	dosemu-HOWTO DPR
 BFILES=
 
 F_DOC=dosemu.texinfo Makefile dos.1 wp50
 F_DRIVERS=emufs.S emufs.sys
 F_COMMANDS=exitemu.S exitemu.com vgaon.S vgaon.com vgaoff.S vgaoff.com \
-            lredir.exe lredir.c makefile.mak
+            lredir.exe lredir.c makefile.mak dosdbg.exe dosdbg.c
 F_EXAMPLES=config.dist
 F_PARSE=parse.y scan.l parse.c scan.c parse.tab.h
 F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c 
@@ -138,7 +146,7 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o parse.o \
      dosipc.o cpu.o video.o $(GFXOBJS) $(XMSOBJS) mfs.o bios_emm.o lpt.o \
-     serial.o mutex.o 
+     serial.o mutex.o ipx.o dyndeb.o libpacket.o pktdrvr.o
 
 DEFINES    = -Dlinux=1 
 OPTIONAL   = $(GFX)  # -DDANGEROUS_CMOS=1
@@ -151,8 +159,13 @@ CONFIGINFO = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) $(DISKS) $(MOUSE) \
 	     $(MEMORY)
 
 CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
-COPTFLAGS  = # -O6 -m486
-CFLAGS     = -DAJT=1 $(CDEBUGOPTS) $(COPTFLAGS) # -Wall
+COPTFLAGS  = -N -O6 -m486
+ifdef DPMIOBJS
+DPMI = -DDPMI
+else
+DPMI = 
+endif
+CFLAGS     = $(DPMI) $(CDEBUGOPTS) $(COPTFLAGS) # -Wall
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
 LD86 = ld86 -0 -s
@@ -160,9 +173,11 @@ LD86 = ld86 -0 -s
 DISTBASE=/tmp
 DISTNAME=dosemu$(EMUVER)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
-DISTFILE=$(DISTBASE)/$(DISTNAME).tar.z
+DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 
-all:	warnconf dos libemu dossubdirs
+all:	warnconf dos dossubdirs libemu
+
+doeverything: clean config dep install
 
 .EXPORT_ALL_VARIABLES:
 
@@ -188,8 +203,9 @@ dos:	dos.c $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
 	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) $(DOSLNK)
 
-libemu:	$(SHLIBOBJS)
-	ld $(LDFLAGS) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(SHLIBS) -lc -ltermcap
+libemu:	$(SHLIBOBJS) $(DPMIOBJS)
+	ld $(LDFLAGS) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) -ltermcap -lc
+# -lncurses
 
 map:
 	(cd debug; make map)
@@ -245,16 +261,23 @@ dist: $(CFILES) $(HFILES) $(OFILES) $(BFILES)
 	mkdir -p $(DISTPATH)/debug
 	cp TODO $(DISTPATH)/.todo
 	cp TODO.JES $(DISTPATH)/.todo.jes
-	cp EMUsucc.txt $(DISTPATH)/
+	cp .indent.pro $(DISTPATH)/INDENT.PRO
 	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
+ifdef DPMIOBJS
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) dist) || exit; done
+else
+	@for i in $(SUBDIRS) dpmi; do (cd $$i && echo $$i && $(MAKE) dist) || exit; done
+endif
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 > \
 	     $(DISTFILE))
 	rm -rf $(DISTPATH)
-	@echo "FINAL .tar.z FILE:"
+	@echo "FINAL .tgz FILE:"
 	@ls -l $(DISTFILE) 
 
-depend dep: $(CFILES) $(HFILES)
+depend dep: 
+ifdef DPMIOBJS
+	cd dpmi;$(CPP) -MM -I../ $(CFLAGS) *.c > .depend
+endif
 	$(CPP) -MM $(CFLAGS) *.c > .depend
 
 dummy:

@@ -1,14 +1,55 @@
 /* CPU/V86 support for dosemu
  * much of this code originally written by Matthias Lautner
  * taken over by:
- *          Robert Sanders, gt8134b@prism.gatech.edu 
+ *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/30 22:21:03 $
- * $Source: /home/src/dosemu0.49pl3/RCS/cpu.c,v $
- * $Revision: 1.8 $
+ * $Date: 1994/02/09 20:10:24 $
+ * $Source: /home/src/dosemu0.49pl4g/RCS/cpu.c,v $
+ * $Revision: 1.20 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 1.20  1994/02/09  20:10:24  root
+ * Added dosbanner config option for optionally displaying dosemu bannerinfo.
+ * Added allowvideportaccess config option to deal with video ports.
+ *
+ * Revision 1.19  1994/02/05  21:45:55  root
+ * Changed all references within ssp's from !REG to !LWORD.
+ *
+ * Revision 1.18  1994/01/27  19:43:54  root
+ * Preparing for IPX of Tim's.
+ *
+ * Revision 1.17  1994/01/25  20:02:44  root
+ * Exchange stderr <-> stdout.
+ *
+ * Revision 1.16  1994/01/20  21:14:24  root
+ * Indent. Added SS overflow check to show_regs().
+ *
+ * Revision 1.15  1994/01/19  17:51:14  root
+ * Added call in SIGILL to check if illegal op-code is just another hard
+ * interrupt ending. It calls int_queue_run() and sees if such was the case.
+ * Added more checks for SS being improperly addressed.
+ * Added WORD macro in push/pop functions.
+ * Added check for DPMI far call.
+ *
+ * Revision 1.14  1994/01/03  22:19:25  root
+ * Fixed problem popping from stack not acking word ss.
+ *
+ * Revision 1.13  1994/01/01  17:06:19  root
+ * Attempt to fix EMS stacking ax problem.
+ *
+ * Revision 1.12  1993/12/30  11:18:32  root
+ * Diamond Fixes.
+ *
+ * Revision 1.11  1993/12/27  19:06:29  root
+ * Tracking down SIGFPE errors from mft.exe divide overflow.
+ *
+ * Revision 1.10  1993/12/22  11:45:36  root
+ * Added more debug
+ *
+ * Revision 1.9  1993/12/05  20:59:03  root
+ * Diamond Card testing
+ *
  * Revision 1.8  1993/11/30  22:21:03  root
  * Final Freeze for release pl3
  *
@@ -44,10 +85,18 @@
  */
 #define CPU_C
 
+#include <stdio.h>
 #include "config.h"
 #include "memory.h"
 #include "cpu.h"
+#include <linux/mm.h>
+#include "termio.h"
 #include "emu.h"
+/* Needed for DIAMOND define */
+#include "video.h"
+
+extern int int_queue_running;
+extern void int_queue_run();
 
 struct vm86_struct vm86s;
 struct CPU cpu;
@@ -58,26 +107,27 @@ struct vec_t snapshot[256];	/* vectors from last snapshot */
 extern int in_sigsegv, in_sighandler, ignore_segv, in_interrupt;
 extern int fatalerr;
 
-int in_vm86=0;
+int in_vm86 = 0;
 
-inline void 
+extern struct config_info config;
+
+inline void
 update_cpu(long flags)
 {
-  cpu.iflag = (flags&IF)  ? 1 : 0;
-  cpu.nt    = (flags&NT)  ? 1 : 0;
-  cpu.ac    = (flags&AC)  ? 1 : 0;
+  cpu.iflag = (flags & IF) ? 1 : 0;
+  cpu.nt = (flags & NT) ? 1 : 0;
+  cpu.ac = (flags & AC) ? 1 : 0;
 
-  cpu.iopl  = flags&IOPL_MASK;
+  cpu.iopl = flags & IOPL_MASK;
 }
 
-
-inline void 
+inline void
 update_flags(long *flags)
 {
 #define SETFLAG(bit)  (*flags |=  (bit))
 #define CLRFLAG(bit)  (*flags &= ~(bit))
 
-  cpu.iflag ? SETFLAG(IF)  : CLRFLAG(IF);
+  cpu.iflag ? SETFLAG(IF) : CLRFLAG(IF);
 
   /* on a 386, the AC (alignment check) bit doesn't exist */
   if (cpu.type == CPU_486 && cpu.ac)
@@ -90,198 +140,219 @@ update_flags(long *flags)
   /* the 80286 allowed one to set bit 15 of the flags register,
    * (so says HelpPC 2.1...but INFOPLUS uses the test below)
    * 80286 in real mode keeps the upper 4 bits of FLAGS zeroed.  this
-   * test works with the programs I've tried, while setting bit15 
+   * test works with the programs I've tried, while setting bit15
    * does NOT.
    */
- if (cpu.type == CPU_286) *flags &= ~0xfffff000;
- else {
-   *flags |= cpu.iopl;
-   cpu.nt ? SETFLAG(NT) : CLRFLAG(NT);
- }
+  if (cpu.type == CPU_286)
+    *flags &= ~0xfffff000;
+  else {
+    *flags |= cpu.iopl;
+    cpu.nt ? SETFLAG(NT) : CLRFLAG(NT);
+  }
 }
 
-
-void 
+void
 cpu_init(void)
 {
   /* cpu.type set in emulate() via getopt */
-  cpu.iflag=1;
-  cpu.nt=0;
-  cpu.iopl=0;
-  cpu.ac=0;
-  cpu.sti=1;
+  cpu.iflag = 1;
+  cpu.nt = 0;
+  cpu.iopl = 0;
+  cpu.ac = 0;
+  cpu.sti = 1;
 
   update_flags(&REG(eflags));
 
   /* make ivecs array point to low page (real mode IDT) */
-  ivecs=0;
+  ivecs = 0;
 }
 
-
-
-void 
+void
 show_regs(void)
 {
   int i;
+  unsigned char *sp;
   unsigned char *cp = SEG_ADR((unsigned char *), cs, ip);
-  unsigned long vflags=REG(eflags);
+  unsigned long vflags = REG(eflags);
+  if (!LWORD(esp))
+    sp = (SEG_ADR((u_char *), ss, sp)) + 0x8000;
+  else
+    sp = SEG_ADR((u_char *), ss, sp);
 
   /* adjust vflags with our virtual IF bit (iflag) */
   update_flags(&vflags);
-  
-  dbug_printf("\nEIP: %04x:%08lx",LWORD(cs),REG(eip));
-  dbug_printf(" ESP: %04x:%08lx",LWORD(ss),REG(esp));
+
+  dbug_printf("\nEIP: %04x:%08lx", LWORD(cs), REG(eip));
+  dbug_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
   dbug_printf("         VFLAGS(b): ");
-  for (i=(1 << 0x11); i > 0; i=(i >> 1))
-      dbug_printf( (vflags&i) ? "1" : "0");
+  for (i = (1 << 0x11); i > 0; i = (i >> 1))
+    dbug_printf((vflags & i) ? "1" : "0");
 
   dbug_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx VFLAGS(h): %08lx",
-	      REG(eax),REG(ebx),REG(ecx),REG(edx), vflags);
+	      REG(eax), REG(ebx), REG(ecx), REG(edx), vflags);
   dbug_printf("\nESI: %08lx EDI: %08lx EBP: %08lx",
 	      REG(esi), REG(edi), REG(ebp));
   dbug_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
-       LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
+	      LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
 
   /* display vflags symbolically...the #f "stringizes" the macro name */
 #define PFLAG(f)  if (vflags&(f)) dbug_printf(#f" ")
 
   dbug_printf("FLAGS: ");
-  PFLAG(CF);  PFLAG(PF);  PFLAG(AF);  PFLAG(ZF);  
-  PFLAG(SF);  PFLAG(TF);  PFLAG(IF);  PFLAG(DF);  
-  PFLAG(OF);  PFLAG(NT);  PFLAG(RF);  PFLAG(VM);
-  PFLAG(AC); 
-  dbug_printf(" IOPL: %u\n", (unsigned)((vflags&IOPL_MASK) >> 12));
+  PFLAG(CF);
+  PFLAG(PF);
+  PFLAG(AF);
+  PFLAG(ZF);
+  PFLAG(SF);
+  PFLAG(TF);
+  PFLAG(IF);
+  PFLAG(DF);
+  PFLAG(OF);
+  PFLAG(NT);
+  PFLAG(RF);
+  PFLAG(VM);
+  PFLAG(AC);
+  dbug_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
-  dbug_printf("OPS: ");
-  cp -= 10; 
-  for (i=0; i<10; i++)
+  dbug_printf("STACK: ");
+  sp -= 10;
+  for (i = 0; i < 10; i++)
+    dbug_printf("%02x ", *sp++);
+  dbug_printf("-> ");
+  for (i = 0; i < 10; i++)
+    dbug_printf("%02x ", *sp++);
+  dbug_printf("\n");
+  dbug_printf("OPS  : ");
+  cp -= 10;
+  for (i = 0; i < 10; i++)
     dbug_printf("%02x ", *cp++);
   dbug_printf("-> ");
-  for (i=0; i<10; i++)
+  for (i = 0; i < 10; i++)
     dbug_printf("%02x ", *cp++);
   dbug_printf("\n");
 }
 
-
-void 
+void
 show_ints(int min, int max)
 {
   int i, b;
 
-  max = (max-min)/3;
-  for (i=0, b=min; i<=max; i++, b+=3)
-    {
-      dbug_printf("%02x| %04x:%04x->%05x    ",b,ISEG(b), IOFF(b),
-		  IVEC(b));
-      dbug_printf("%02x| %04x:%04x->%05x    ",b+1,ISEG(b+1), IOFF(b+1),
-		  IVEC(b+1));
-      dbug_printf("%02x| %04x:%04x->%05x\n",b+2,ISEG(b+2),IOFF(b+2),
-		  IVEC(b+2));
-    }
+  max = (max - min) / 3;
+  for (i = 0, b = min; i <= max; i++, b += 3) {
+    dbug_printf("%02x| %04x:%04x->%05x    ", b, ISEG(b), IOFF(b),
+		IVEC(b));
+    dbug_printf("%02x| %04x:%04x->%05x    ", b + 1, ISEG(b + 1), IOFF(b + 1),
+		IVEC(b + 1));
+    dbug_printf("%02x| %04x:%04x->%05x\n", b + 2, ISEG(b + 2), IOFF(b + 2),
+		IVEC(b + 2));
+  }
 }
-
-
-inline int 
-do_hard_int(int intno) {
-#if AJT
-  queue_hard_int(intno,NULL,NULL);
-  return(1);
-#else
-  if (cpu.iflag) { do_int(intno); return 1; }
-  else return 0;
-#endif
-}
-
 
 inline int
-do_soft_int(int intno) 
+do_hard_int(int intno)
 {
-  do_int(intno); 
+  queue_hard_int(intno, NULL, NULL);
+  return (1);
+}
+
+inline int
+do_soft_int(int intno)
+{
+  do_int(intno);
   return 1;
 }
 
-
-inline void 
+inline void
 do_sti(void)
 {
-  cpu.sti=1;
-  REG(eflags)|=TF;
+  cpu.sti = 1;
+  REG(eflags) |= TF;
 }
-
-
-
 
 /* this is the brain, the privileged instruction handler.
  * see cpu.h for the SIGSTACK definition (new in Linux 0.99pl10)
  */
-void 
+void
 sigsegv(SIGSTACK)
 {
   us *ssp;
   unsigned char *csp, *lina;
-  static int haltcount=0;
-  int op32=0, ad32=0, i;
+  static int haltcount = 0;
+  int op32 = 0, ad32 = 0, i;
 
 #define MAX_HALT_COUNT 1
 
-  if (ignore_segv)
-    {
-      error("ERROR: sigsegv ignored!\n");
-      return;
-    }
+#if 0
+  csp = SEG_ADR((unsigned char *), cs, ip);
+  fprintf(stderr, "SIGSEGV *csp=0x%02x 0x%02x->0x%02x 0x%02x\n", csp[-1], csp[0], csp[1], csp[2]);
+  show_regs();
+#endif
 
-  if (! in_vm86) {
-  csp = (char *)eip;
+  if (ignore_segv) {
+    error("ERROR: sigsegv ignored!\n");
+    return;
+  }
 
-/* This has been added temporarily as most illegal sigsegv's are attempt
+  if (!in_vm86) {
+    csp = (char *) eip;
+
+    /* This has been added temporarily as most illegal sigsegv's are attempt
    to call Linux int routines */
 
-  if (!(csp[-2] == 0xcd && csp[-1] == 0x80 && csp[0] == 0x85))
-    {
+    if (!(csp[-2] == 0xcd && csp[-1] == 0x80 && csp[0] == 0x85)) {
       error("ERROR: NON-VM86 sigsegv!\n"
-     "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
-     "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n",
-     eip, esp, eflags, cs, ds, es, ss);
+	    "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
+	    "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n",
+	    eip, esp, eflags, cs, ds, es, ss);
 
       dbug_printf("  VFLAGS(b): ");
       for (i = (1 << 17); i; i >>= 1)
- dbug_printf((eflags&i) ? "1" : "0");
+	dbug_printf((eflags & i) ? "1" : "0");
       dbug_printf("\n");
-      
+
       dbug_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx"
-    "  VFLAGS(h): %08lx\n",
-    eax, ebx, ecx, edx, eflags);
+		  "  VFLAGS(h): %08lx\n",
+		  eax, ebx, ecx, edx, eflags);
       dbug_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n",
 		  esi, edi, ebp);
       dbug_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n",
-    cs, ds, es, fs, gs);
-      
+		  cs, ds, es, fs, gs);
+
       /* display vflags symbolically...the #f "stringizes" the macro name */
 #undef PFLAG
 #define PFLAG(f)  if (eflags&(f)) dbug_printf(" " #f)
-      
+
       dbug_printf("FLAGS:");
-      PFLAG(CF);  PFLAG(PF);  PFLAG(AF);  PFLAG(ZF);  
-      PFLAG(SF);  PFLAG(TF);  PFLAG(IF);  PFLAG(DF);  
-      PFLAG(OF);  PFLAG(NT);  PFLAG(RF);  PFLAG(VM);
-      PFLAG(AC); 
-      dbug_printf("  IOPL: %u\n", (unsigned)((eflags&IOPL_MASK) >> 12));
-      
+      PFLAG(CF);
+      PFLAG(PF);
+      PFLAG(AF);
+      PFLAG(ZF);
+      PFLAG(SF);
+      PFLAG(TF);
+      PFLAG(IF);
+      PFLAG(DF);
+      PFLAG(OF);
+      PFLAG(NT);
+      PFLAG(RF);
+      PFLAG(VM);
+      PFLAG(AC);
+      dbug_printf("  IOPL: %u\n", (unsigned) ((eflags & IOPL_MASK) >> 12));
+
       /* display the 10 bytes before and after CS:EIP.  the -> points
        * to the byte at address CS:EIP
        */
-      dbug_printf("OPS: ");
-      csp = (unsigned char *)eip - 10;
-      for (i=0; i<10; i++)
- dbug_printf("%02x ", *csp++);
+      dbug_printf("OPS  : ");
+      csp = (unsigned char *) eip - 10;
+      for (i = 0; i < 10; i++)
+	dbug_printf("%02x ", *csp++);
       dbug_printf("-> ");
-      for (i=0; i<10; i++)
- dbug_printf("%02x ", *csp++);
+      for (i = 0; i < 10; i++)
+	dbug_printf("%02x ", *csp++);
       dbug_printf("\n");
-      
+
     }
   }
 
@@ -290,7 +361,7 @@ sigsegv(SIGSTACK)
 
   in_vm86 = 0;
   in_sigsegv++;
-  
+
   /* In a properly functioning emulator :-), sigsegv's will never come
    * while in a non-reentrant system call (ioctl, select, etc).  Therefore,
    * there's really no reason to worry about them, so I say that I'm NOT
@@ -301,279 +372,322 @@ sigsegv(SIGSTACK)
    * system call, so I really shouldn't be in a non-reentrant system call
    * (except maybe vm86)
    */
-  in_sighandler=0;
+  in_sighandler = 0;
 
-  lina=SEG_ADR((unsigned char *), cs, ip);
+  lina = SEG_ADR((unsigned char *), cs, ip);
 
   if (REG(eflags) & TF) {
     g_printf("SIGSEGV %d received\n", sig);
-    show_regs(); 
+    show_regs();
   }
 
 restart_segv:
   csp = SEG_ADR((unsigned char *), cs, ip);
 
-/* printf("CSP in cpu is 0x%04x\n", *csp); */
+  /* fprintf(stderr, "CSP in cpu is 0x%04x\n", *csp); */
 
-  switch (*csp) 
-    {
+  switch (*csp) {
 
-    case 0x62: /* bound */
-      error("ERROR: BOUND instruction");
-      show_regs();
-      REG(eip) += 2;  /* check this! */
-      do_int(5); 
-      break;
-      
-    case 0x66: /* 32-bit operand prefix */
-      op32=1;
-      REG(eip)++;
-      goto restart_segv;
-      break;
-    case 0x67: /* 32-bit address prefix */
-      ad32=1;
-      REG(eip)++;
-      goto restart_segv;
-      break;
-      
-    case 0x6c: /* insb */
-    case 0x6d: /* insw */
-    case 0x6e: /* outsb */
-    case 0x6f: /* outsw */
-      error("ERROR: IN/OUT SB/SW: 0x%02x\n",*csp);
-      REG(eip)++;
-      break;
-      
-    case 0xcd: /* int xx */
-      REG(eip) += 2;
-      do_int((int)*++csp);
-      break;
-    case 0xcc: /* int 3 */
-      REG(eip) += 1;
-      do_int(3);
-      break;
-      
-    case 0xcf: /* iret */
+  case 0x62:			/* bound */
+    error("ERROR: BOUND instruction");
+    show_regs();
+    REG(eip) += 2;		/* check this! */
+    do_int(5);
+    break;
+
+  case 0x66:			/* 32-bit operand prefix */
+    op32 = 1;
+    REG(eip)++;
+    goto restart_segv;
+    break;
+  case 0x67:			/* 32-bit address prefix */
+    ad32 = 1;
+    REG(eip)++;
+    goto restart_segv;
+    break;
+
+  case 0x6c:			/* insb */
+  case 0x6d:			/* insw */
+  case 0x6e:			/* outsb */
+  case 0x6f:			/* outsw */
+    error("ERROR: IN/OUT SB/SW: 0x%02x\n", *csp);
+    REG(eip)++;
+    break;
+
+  case 0xcd:			/* int xx */
+    REG(eip) += 2;
+    do_int((int) *++csp);
+    break;
+  case 0xcc:			/* int 3 */
+    REG(eip) += 1;
+    do_int(3);
+    break;
+
+  case 0xcf:			/* iret */
+    if (!LWORD(esp))
+      ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
+    else
       ssp = SEG_ADR((us *), ss, sp);
+    REG(eip) = *ssp++;
+    REG(cs) = *ssp++;
+    REG(eflags) = (REG(eflags) & 0xffff0000) | *ssp++;
+    REG(esp) += 6;
+
+    /* make sure our "virtual flags" correspond to the
+       * popped eflags
+       */
+    update_cpu(REG(eflags));
+
+    /* decrease the interrupt depth count */
+    in_interrupt--;
+    break;
+
+  case 0xe5:			/* inw xx */
+    REG(eax) &= ~0xff00;
+    REG(eax) |= inb((int) csp[1] + 1) << 8;
+  case 0xe4:			/* inb xx */
+    REG(eax) &= ~0xff;
+    REG(eax) |= inb((int) csp[1]);
+    REG(eip) += 2;
+    break;
+
+  case 0xed:			/* inw dx */
+    REG(eax) &= ~0xff00;
+    REG(eax) |= inb(REG(edx) + 1) << 8;
+  case 0xec:			/* inb dx */
+    REG(eax) &= ~0xff;
+    REG(eax) |= inb(REG(edx));
+    REG(eip) += 1;
+    break;
+
+  case 0xe7:			/* outw xx */
+    outb((int) csp[1], LO(ax));
+    outb((int) csp[1] + 1, HI(ax));
+    REG(eip) += 2;
+    break;
+  case 0xe6:			/* outb xx */
+    outb((int) csp[1], LO(ax));
+    REG(eip) += 2;
+    break;
+
+  case 0xef:			/* outw dx */
+    outb(REG(edx), LO(ax));
+    outb(REG(edx) + 1, HI(ax));
+    REG(eip) += 1;
+    break;
+  case 0xee:			/* outb dx */
+    outb(REG(edx), LO(ax));
+    REG(eip) += 1;
+    break;
+
+    /* Emulate REP F3 6F */
+  case 0xf3:
+    fprintf(stderr, "Checking for REP F3 6F\n");
+    if ((csp[1] & 0xff) == 0x6f) {
+      u_char *si = SEG_ADR((unsigned char *), ds, si);
+
+      fprintf(stderr, "Doing REP F3 6F\n");
+      show_regs();
+      if (config.chipset == DIAMOND && (REG(edx) >= 0x23c0) && (REG(edx) <= 0x23cf))
+	iopl(3);
+      while (REG(ecx)) {
+	fprintf(stderr, "1) REG(ecx)=0x%08x, *si=0x%04x, REG(edx)=0x%08x\n", REG(ecx), *si, REG(edx));
+	outb(*si, REG(edx));
+	si++;
+	fprintf(stderr, "2) REG(ecx)=0x%08x, *si=0x%04x, REG(edx)=0x%08x\n", REG(ecx), *si, REG(edx) + 1);
+	outb(*si, REG(edx) + 1);
+	REG(ecx)--;
+	si++;
+      }
+      if (config.chipset == DIAMOND && (REG(edx) >= 0x23c0) && (REG(edx) <= 0x23cf))
+	iopl(0);
+      fprintf(stderr, "Finished REP F3 6F\n");
+      REG(eip)++;
+      REG(eip)++;
+      _regs.eflags |= CF;
+      break;
+    }
+    else
+      fprintf(stderr, "Nope CSP[1] = 0x%04x\n", csp[1]);
+
+  case 0xfa:			/* cli */
+    cpu.iflag = 0;
+    REG(eip) += 1;
+    break;
+  case 0xfb:			/* sti */
+#ifdef PROPER_STI
+    do_sti();
+#else
+    cpu.iflag = 1;
+#endif
+    REG(eip) += 1;
+    break;
+  case 0x9c:			/* pushf */
+    /* fetch virtual CPU flags into eflags */
+    update_flags(&REG(eflags));
+    if (op32) {
+      unsigned long *lssp;
+
+      op32 = 0;
+      if (!LWORD(esp))
+	lssp = (SEG_ADR((unsigned long *), ss, sp)) + 0x8000;
+      else
+	lssp = SEG_ADR((unsigned long *), ss, sp);
+      *--lssp = (unsigned long) REG(eflags);
+      REG(esp) -= 4;
+      REG(eip) += 1;
+    }
+    else {
+      if (!LWORD(esp))
+	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
+      else
+	ssp = SEG_ADR((us *), ss, sp);
+      *--ssp = (us) REG(eflags);
+      REG(esp) -= 2;
+      REG(eip) += 1;
+    }
+    break;
+
+  case 0x9d:			/* popf */
+    if (op32) {
+      unsigned long *lssp;
+
+      op32 = 0;
+      if (!LWORD(esp))
+	lssp = (SEG_ADR((unsigned long *), ss, sp)) + 0x8000;
+      else
+	lssp = SEG_ADR((unsigned long *), ss, sp);
+      REG(eflags) = *lssp;
+      REG(esp) += 4;
+    }
+    else {
+      if (!LWORD(esp))
+	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
+      else
+	ssp = SEG_ADR((us *), ss, sp);
+      REG(eflags) &= ~0xffff;
+      REG(eflags) |= (u_short) * ssp;
+      REG(esp) += 2;
+    }
+    REG(eip) += 1;
+    /* make sure our "virtual flags" correspond to the
+       * popped eflags
+       */
+    update_cpu(REG(eflags));
+    break;
+
+  case 0xf4:			/* hlt...I use it for various things,
+		  like trapping direct jumps into the XMS function */
+    if (lina == (unsigned char *) XMSTrap_ADD) {
+      REG(eip) += 2;		/* skip halt and info byte to point to FAR RET */
+      xms_control();
+    }
+#if BIOSSEG != 0xf000
+    else if ((REG(cs) & 0xffff) == 0xf000) {
+      /* if BIOSSEG = 0xf000, then jumps here will be legit */
+      error("jump into BIOS %04x:%04x...simulating IRET\n",
+	    REG(cs), LWORD(eip));
+      /* simulate IRET */
+      if (!LWORD(esp))
+	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
+      else
+	ssp = SEG_ADR((us *), ss, sp);
       REG(eip) = *ssp++;
       REG(cs) = *ssp++;
       REG(eflags) = (REG(eflags) & 0xffff0000) | *ssp++;
-      REG(esp) += 6;
-      
-      /* make sure our "virtual flags" correspond to the
-       * popped eflags
-       */
-      update_cpu(REG(eflags));
-
-#if AJT
-      int_end();
-#endif
-      /* decrease the interrupt depth count */
-      in_interrupt--;
-      break;
-      
-    case 0xe5: /* inw xx */
-      REG(eax) &= ~0xff00;
-      REG(eax) |= inb((int)csp[1] +1) << 8;
-    case 0xe4: /* inb xx */
-      REG(eax) &= ~0xff;
-      REG(eax) |= inb((int)csp[1]);
-      REG(eip) += 2;
-      break;
-      
-    case 0xed: /* inw dx */
-      REG(eax) &= ~0xff00;
-      REG(eax) |= inb(REG(edx) +1) << 8;
-    case 0xec: /* inb dx */
-      REG(eax) &= ~0xff;
-      REG(eax) |= inb(REG(edx));
-      REG(eip) += 1;
-      break;
-      
-    case 0xe7: /* outw xx */
-      outb((int)csp[1] +1, HI(ax));
-    case 0xe6: /* outb xx */
-      outb((int)csp[1], LO(ax));
-      REG(eip) += 2;
-      break;
-      
-    case 0xef: /* outw dx */
-      outb(REG(edx) +1, HI(ax));
-    case 0xee: /* outb dx */
-      outb(REG(edx), LO(ax));
-      REG(eip) += 1;
-      break;
-      
-/* Emulate REP F3 6F */
-  case 0xf3:
-    printf("Checking for REP F3 6F\n");
-    if ( (csp[1] & 0xff) == 0x6f){
-	u_char *si=SEG_ADR((unsigned char *), ds, si);
-	printf("Doing REP F3 6F\n");
-	show_regs();
-	while (_regs.ecx) {
-		printf("REG(ecx)=0x%08x, *si=0x%04x, REG(edx)=0x%08x\n", REG(ecx), *si, REG(edx));
-		if ((REG(edx) >= 0x23c0) && (REG(edx) <= 0x23cf)) iopl(3);
-		port_out(*si,REG(edx));
-		if ((REG(edx) >= 0x23c0) && (REG(edx) <= 0x23cf)) iopl(3);
-		REG(ecx)--;
-		si++;
-	}
-	printf("Finished REP F3 6F\n");
-	REG(eip)++;
-	REG(eip)++;
-	_regs.eflags |= CF;
-	break;
+      (us) REG(esp) += 6;
     }
-    else printf("Nope CSP[1] = 0x%04x\n", csp[1]);
-      
-    case 0xfa: /* cli */
-      cpu.iflag = 0;
-      REG(eip) += 1;
-      break;
-    case 0xfb: /* sti */
-#ifdef PROPER_STI
-      do_sti();
-#else
-      cpu.iflag = 1;
 #endif
-      REG(eip) += 1;
-      break;
-    case 0x9c: /* pushf */
-      /* fetch virtual CPU flags into eflags */
-      update_flags(&REG(eflags));
-      if (op32)
-	{
-	  unsigned long *lssp;
-	  op32=0;
-	  lssp = SEG_ADR((unsigned long *), ss, sp);
-	  *--lssp = (unsigned long)REG(eflags);
-	  REG(esp) -= 4;
-	  REG(eip) += 1;
-	} else {
-	  ssp = SEG_ADR((us *), ss, sp);
-	  *--ssp = (us)REG(eflags);
-	  REG(esp) -= 2;
-	  REG(eip) += 1;
-	}
-      break;
-      
-    case 0x9d: /* popf */
-      if (op32)
-	{
-	  unsigned long *lssp;
-	  op32=0;
-	  lssp = SEG_ADR((unsigned long *), ss, sp);
-	  REG(eflags) = *lssp;
-	  REG(esp) += 4;
-	} else {
-	  ssp = SEG_ADR((us *), ss, sp);
-	  REG(eflags) &= ~0xffff;
-	  REG(eflags) |= (u_short)*ssp;
-	  REG(esp) += 2;
-	}
-      REG(eip) += 1;
-      /* make sure our "virtual flags" correspond to the
-       * popped eflags
-       */
-      update_cpu(REG(eflags));
-      break;
-      
-    case 0xf4: /* hlt...I use it for various things, 
-		  like trapping direct jumps into the XMS function */
-      if (lina == (unsigned char *)XMSTrap_ADD) 
-	{
-	  REG(eip)+=2;  /* skip halt and info byte to point to FAR RET */
-	  xms_control();
-	} 
-#if BIOSSEG != 0xf000
-      else if ((REG(cs) & 0xffff) == 0xf000)
-	{
-	  /* if BIOSSEG = 0xf000, then jumps here will be legit */
-	  error("jump into BIOS %04x:%04x...simulating IRET\n",
-		REG(cs), LWORD(eip));
-	  /* simulate IRET */
-	  ssp = SEG_ADR((us *), ss, sp);
-	  REG(eip) = *ssp++;
-	  REG(cs) = *ssp++;
-	  REG(eflags) = (REG(eflags) & 0xffff0000) | *ssp++;
-	  (us)REG(esp) += 6;	
-	} 
+#ifdef DPMI
+/* The hlt instruction is 6 bytes in from DPMI_ADD */
+    else if (lina == (unsigned char *) (DPMI_ADD + 6) ) {
+      REG(eip) += 1;		/* skip halt to point to FAR RET */
+      dpmi_control();
+    }
 #endif
-      else
-	{
-   error("HLT requested: lina=%p!\n", lina);
-	  show_regs();
-	  haltcount++;
-	  if (haltcount > MAX_HALT_COUNT) fatalerr=0xf4;
-	  REG(eip) += 1;
-	}
-      break;
-      
-    case 0xf0: /* lock */
-    default:
-      /* er, why don't we advance eip here, and
-	 why does it work??  */
-      error("general protection %x\n", *csp);
+    else {
+      error("HLT requested: lina=%p!\n", lina);
       show_regs();
-      show_ints(0,0x33);
-      error("ERROR: SIGSEGV, protected insn...exiting!\n");
-      fatalerr = 4;
-      leavedos(fatalerr);  /* shouldn't return */
-      _exit(1000);
-    } /* end of switch() */	
-  
+      haltcount++;
+      if (haltcount > MAX_HALT_COUNT)
+	fatalerr = 0xf4;
+      REG(eip) += 1;
+    }
+    break;
 
-#ifndef PROPER_STI  /* do_sti() sets TF bit */
+  case 0xf0:			/* lock */
+  default:
+    /* er, why don't we advance eip here, and
+	 why does it work??  */
+    error("general protection %x\n", *csp);
+    show_regs();
+    show_ints(0, 0x33);
+    error("ERROR: SIGSEGV, protected insn...exiting!\n");
+    fatalerr = 4;
+    leavedos(fatalerr);		/* shouldn't return */
+    _exit(1000);
+  }				/* end of switch() */
+
+#ifndef PROPER_STI		/* do_sti() sets TF bit */
   if (REG(eflags) & TF) {
     g_printf("TF: trap done");
-    show_regs(); 
+    show_regs();
   }
 #endif
-  
+
   in_sigsegv--;
-  in_sighandler=0;
+  in_sighandler = 0;
 }
 
-
-
-void 
+void
 sigill(SIGSTACK)
 {
   unsigned char *csp;
   int i, dee;
 
-  if (! in_vm86) /* test VM bit */
-      error("ERROR: NON-VM86 illegal insn!\n");
+  if (!in_vm86)			/* test VM bit */
+    error("ERROR: NON-VM86 illegal insn!\n");
 
   in_vm86 = 0;
 
   error("SIGILL %d received\n", sig);
   show_regs();
   csp = SEG_ADR((unsigned char *), cs, ip);
-
-/* Some db commands start with 2e (use cs segment) and thus is accounted 
-   for here */
-
-  if (csp[0] == 0x2e){
-	csp++;
-	_regs.eip++;
-  }
-  if (csp[0] == 0xf0)
-    {
-      dbug_printf("ERROR: LOCK prefix not permitted!\n");
-      REG(eip)++;
+  /*
+   O.K., we seem to be getting here because to hard ints are stacked.
+   Therefore when the first is popped, the second points to instr. 0xff
+   So here we run int_queue_run() again to clean up :-).
+*/
+  if (*csp == 0xff && int_queue_running) {
+    int_queue_run();
+    if (csp != SEG_ADR((unsigned char *), cs, ip)) {
+      show_regs();
+      fprintf(stderr, "Returning from 0xff\n");
       return;
     }
+  }
 
-/* look at this with Checkit...the new code just sits in a loop */
-#define OLD_MATH_CODE 
+  /* Some db commands start with 2e (use cs segment) and thus is accounted
+   for here */
+
+  if (csp[0] == 0x2e) {
+    csp++;
+    _regs.eip++;
+  }
+  if (csp[0] == 0xf0) {
+    dbug_printf("ERROR: LOCK prefix not permitted!\n");
+    REG(eip)++;
+    return;
+  }
+
+  /* look at this with Checkit...the new code just sits in a loop */
+#define OLD_MATH_CODE
 #ifdef OLD_MATH_CODE
-  i = (csp[0] << 8) + csp[1]; /* swapped */
-  if ((i & 0xf800) != 0xd800) { /* not FPU insn */
+  i = (csp[0] << 8) + csp[1];	/* swapped */
+  if ((i & 0xf800) != 0xd800) {	/* not FPU insn */
     error("ERROR: not an FPU instruction, real illegal opcode!\n");
 #if 0
-    do_int(0x10);	/* Coprocessor error */
+    do_int(0x10);		/* Coprocessor error */
 #else
     fatalerr = 4;
 #endif
@@ -581,22 +695,23 @@ sigill(SIGSTACK)
   }
 
   /* I don't know what this code does. -Robert */
-  switch(i & 0xc0) {
+  switch (i & 0xc0) {
   case 0x00:
     if ((i & 0x7) == 0x6) {
-      dee = *(short *)(csp +2);
+      dee = *(short *) (csp + 2);
       REG(eip) += 4;
-    } else {
+    }
+    else {
       REG(eip) += 2;
       dee = 0;
     }
     break;
   case 0x40:
-    dee = (signed)csp[2];
+    dee = (signed) csp[2];
     REG(eip) += 3;
     break;
   case 0x80:
-    dee = *(short *)(csp +2);
+    dee = *(short *) (csp + 2);
     REG(eip) += 4;
     break;
   default:
@@ -606,263 +721,249 @@ sigill(SIGSTACK)
 
   warn("MATH: emulation %x d=%x\n", i, dee);
 
-#else  /* this is the new, stupid MATH-EMU code. it doesn't work. */
+#else /* this is the new, stupid MATH-EMU code. it doesn't work. */
 
-  if ((*csp >= 0xd8) && (*csp <= 0xdf))  /* the FPU insn prefix bytes */
-    {
-      error("MATH: math emulation for (first 2 bytes) %02x %02x...\n",
-	    *csp, *(csp+1));
+  if ((*csp >= 0xd8) && (*csp <= 0xdf)) {	/* the FPU insn prefix bytes */
+    error("MATH: math emulation for (first 2 bytes) %02x %02x...\n",
+	  *csp, *(csp + 1));
 
-      /* this is the coprocessor-not-available int. to use this, you
+    /* this is the coprocessor-not-available int. to use this, you
        * should compile your kernel with FPU-emu support in, and you
        * should install a DOS-based FPU emulator within dosemu.
        * this is untested, and I CAN'T test it, as I have a 486.
        */
-      do_int(7);  
-    }
+    do_int(7);
+  }
 #endif
 }
 
-
-void 
+void
 sigfpe(SIGSTACK)
 {
-  if (! in_vm86)
-      error("ERROR: NON-VM86 SIGFPE insn!\n");
+  if (!in_vm86)
+    error("ERROR: NON-VM86 SIGFPE insn!\n");
 
   in_vm86 = 0;
 
   error("SIGFPE %d received\n", sig);
   show_regs();
-  if (cpu.iflag) do_int(0); 
-  else error("ERROR: FPE happened but interrupts disabled\n");
+  if (cpu.iflag)
+    do_int(0);
+  else
+    error("ERROR: FPE happened but interrupts disabled\n");
 }
 
-
-
-void 
+void
 sigtrap(SIGSTACK)
 {
   in_vm86 = 0;
 
 #ifdef PROPER_STI
-  if (cpu.sti)
-    {
-      cpu.iflag=1;
-      cpu.sti=0;
-      REG(eflags) &= ~(TF);
-      return;
-    }
+  if (cpu.sti) {
+    cpu.iflag = 1;
+    cpu.sti = 0;
+    REG(eflags) &= ~(TF);
+    return;
+  }
 #endif
 
-  if (REG(eflags) & TF)  /* trap flag */
+  if (REG(eflags) & TF)		/* trap flag */
     REG(eip)++;
-  
+
   do_int(3);
 }
 
-#if AJT
-
-struct port_struct
-{
+struct port_struct {
   int start;
   int size;
   int permission;
-  int ormask,andmask;
-} *ports = NULL;
+  int ormask, andmask;
+}
+
+*ports = NULL;
 int num_ports = 0;
 
+extern struct screen_stat scr_state;
+u_char video_port_io=0;
+
 /* find a matching entry in the ports array */
-int 
-find_port(int port,int permission)
+int
+find_port(int port, int permission)
 {
   static int last_found = 0;
   int i;
-  for (i=last_found;i<num_ports;i++)
-    if (port >= ports[i].start &&
-	port < (ports[i].start + ports[i].size) &&
-	((ports[i].permission & permission) == permission))
-      {
-	last_found = i;
-	return(i);
-      }
 
-  for (i=0;i<last_found;i++)
+  for (i = last_found; i < num_ports; i++)
     if (port >= ports[i].start &&
 	port < (ports[i].start + ports[i].size) &&
-	((ports[i].permission & permission) == permission))
-      {
-	last_found = i;
-	return(i);
-      }
-  return(-1);
+	((ports[i].permission & permission) == permission)) {
+      last_found = i;
+      return (i);
+    }
+
+  for (i = 0; i < last_found; i++)
+    if (port >= ports[i].start &&
+	port < (ports[i].start + ports[i].size) &&
+	((ports[i].permission & permission) == permission)) {
+      last_found = i;
+      return (i);
+    }
+
+/*
+   for now, video_port_io flag allows special access for video regs
+*/
+  if ( ((LWORD(cs) & 0xf000) == 0xc000) && config.allowvideoportaccess && scr_state.current) {
+#if 0
+    v_printf("VID: checking port %x\n", port);
+#endif
+    if (port > 0x200 || port == 0x42) {
+        video_port_io=1;
+        return 1;
+    }
+  }
+
+  return (-1);
 }
 
 /* control the io permissions for ports */
-int 
-allow_io(int start,int size,int permission,int ormask,int andmask)
+int
+allow_io(int start, int size, int permission, int ormask, int andmask)
 {
 
   /* first the simplest case...however, this simplest case does
    * not apply to ports above 0x3ff--the maximum ioperm()able
    * port under Linux--so we must handle some of that ourselves.
    */
-  if (permission == IO_RDWR && (ormask == 0 && andmask == 0xFFFF)) 
-    {
-      if ((start + size - 1) <= 0x3ff)
-	{
-	  c_printf("giving hardware access to ports 0x%x -> 0x%x\n",
-		   start,start+size-1);
-	  set_ioperm(start,size,1);
-	  return(1);
-	}
-
-      /* allow direct I/O to all the ports that *are* below 0x3ff 
-       * and add the rest to our list
-       */
-      else if (start <= 0x3ff)
-	{
-	  warn("PORT: s-s: %d %d\n", start, size);
-	  set_ioperm(start, 0x400 - start, 1);
-	  size = start + size - 0x400;
-	  start = 0x400;
-	}
+  if (permission == IO_RDWR && (ormask == 0 && andmask == 0xFFFF)) {
+    if ((start + size - 1) <= 0x3ff) {
+      c_printf("giving hardware access to ports 0x%x -> 0x%x\n",
+	       start, start + size - 1);
+      set_ioperm(start, size, 1);
+      return (1);
     }
 
+    /* allow direct I/O to all the ports that *are* below 0x3ff
+       * and add the rest to our list
+       */
+    else if (start <= 0x3ff) {
+      warn("PORT: s-s: %d %d\n", start, size);
+      set_ioperm(start, 0x400 - start, 1);
+      size = start + size - 0x400;
+      start = 0x400;
+    }
+  }
 
   /* we'll need to add an entry */
   if (ports)
     ports = (struct port_struct *)
-      realloc(ports,sizeof(struct port_struct)*(num_ports+1));
+      realloc(ports, sizeof(struct port_struct) * (num_ports + 1));
+
   else
     ports = (struct port_struct *)
-      malloc(sizeof(struct port_struct)*(num_ports+1));
+      malloc(sizeof(struct port_struct) * (num_ports + 1));
+
   num_ports++;
-  if (!ports)
-    {
-      error("allocation error for ports!\n");
-      num_ports = 0;
-      return(0);
-    }
+  if (!ports) {
+    error("allocation error for ports!\n");
+    num_ports = 0;
+    return (0);
+  }
 
-  ports[num_ports-1].start = start;
-  ports[num_ports-1].size = size;
-  ports[num_ports-1].permission = permission;
-  ports[num_ports-1].ormask = ormask;
-  ports[num_ports-1].andmask = andmask;
-      
+  ports[num_ports - 1].start = start;
+  ports[num_ports - 1].size = size;
+  ports[num_ports - 1].permission = permission;
+  ports[num_ports - 1].ormask = ormask;
+  ports[num_ports - 1].andmask = andmask;
+
   c_printf("added port %x size=%d permission=%d ormask=%x andmask=%x\n",
-	   start,size,permission,ormask,andmask);      
+	   start, size, permission, ormask, andmask);
 
-  return(1);
+  return (1);
 }
 
-int 
+int
 port_readable(int port)
 {
-  return(find_port(port,IO_READ) != -1);
+  return (find_port(port, IO_READ) != -1);
 }
 
-
-int 
+int
 port_writeable(int port)
 {
-  return(find_port(port,IO_WRITE) != -1);
+  return (find_port(port, IO_WRITE) != -1);
 }
 
-
-int read_port(int port)
+int
+read_port(int port)
 {
   int r;
-  int i = find_port(port,IO_READ);
-  if (i == -1) return(0);
+  int i = find_port(port, IO_READ);
+
+  if (i == -1)
+    return (0);
 
   if (port <= 0x3ff)
-    set_ioperm(port,1,1);
+    set_ioperm(port, 1, 1);
   else
     iopl(3);
 
   r = port_in(port);
 
   if (port <= 0x3ff)
-    set_ioperm(port,1,0);
+    set_ioperm(port, 1, 0);
   else
     iopl(0);
 
-  r &= ports[i].andmask;
-  r |= ports[i].ormask;
+  if (!video_port_io) {
+    r &= ports[i].andmask;
+    r |= ports[i].ormask;
+  }
+  else video_port_io=0;
+
   h_printf("read port 0x%x gave %02x at %04x:%04x\n",
-    port, r, LWORD(cs), LWORD(eip));
-  return(r);
+	   port, r, LWORD(cs), LWORD(eip));
+  return (r);
 }
 
-int write_port(int value,int port)
+int
+write_port(int value, int port)
 {
-  int i = find_port(port,IO_WRITE);
-  if (i == -1) return(0);
+  int i = find_port(port, IO_WRITE);
 
-  value &= ports[i].andmask;
-  value |= ports[i].ormask;
+  if (i == -1)
+    return (0);
+
+  if (!video_port_io) {
+    value &= ports[i].andmask;
+    value |= ports[i].ormask;
+  }
+  else video_port_io=0;
 
   h_printf("write port 0x%x value %02x at %04x:%04x\n",
-    port, value, LWORD(cs), LWORD(eip));
+	   port, value, LWORD(cs), LWORD(eip));
 
   if (port <= 0x3ff)
-    set_ioperm(port,1,1);
+    set_ioperm(port, 1, 1);
   else
     iopl(3);
 
-  port_out(value,port);
-  
+  port_out(value, port);
+
   if (port <= 0x3ff)
-    set_ioperm(port,1,0);
+    set_ioperm(port, 1, 0);
   else
     iopl(0);
 
-  return(1);
+  return (1);
 }
 
-#endif
-
-
-#if AJT
-
-int monitor = 0;
-int mcs,mip;
-
-int_start(int i)
-{
-#if 0
-  int ah = (REG(eax)>>8)&0xFF;
-  int al = REG(eax)&0xFF;
-  if ((i == 0x2f && ah == 0x11 && (al == 0x17 || al == 0x18)) ||
-      (i == 0x21 && ah == 0x3c))
-    {
-      monitor = 1;
-      mcs = REG(cs);
-      mip = REG(eip);
-      d_printf("INTSTART(%x)\n",i);
-      show_regs();
-    }
-#endif
-}
-
-int_end()
-{
-  if (monitor && REG(cs) == mcs && REG(eip) == mip)
-    {
-      d_printf("INTEND\n");
-      show_regs();
-      d_printf("\n");
-      monitor = 0;
-    }
-}
-#endif
+#define WORD(x)         ((unsigned short)(x))
 
 char
 pop_byte(struct vm86_regs *pregs)
 {
-  char *stack_byte = (char *)((pregs->ss << 4) + pregs->esp);
+  char *stack_byte = (char *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp));
+
   pregs->esp += 1;
   return *stack_byte;
 }
@@ -870,7 +971,12 @@ pop_byte(struct vm86_regs *pregs)
 short
 pop_word(struct vm86_regs *pregs)
 {
-  short *stack_word = (short *)((pregs->ss << 4) + pregs->esp);
+  unsigned short *stack_word;
+
+  if (!pregs->esp)
+    stack_word = (unsigned short *) ((WORD(pregs->ss) << 4) + 0x8000);
+  else
+    stack_word = (unsigned short *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp));
   pregs->esp += 2;
   return *stack_word;
 }
@@ -878,33 +984,32 @@ pop_word(struct vm86_regs *pregs)
 long
 pop_long(struct vm86_regs *pregs)
 {
-  long *stack_long = (long *)((pregs->ss << 4) + pregs->esp);
+  long *stack_long = (long *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp));
+
   pregs->esp += 4;
   return *stack_long;
 }
-
 
 void
 push_byte(struct vm86_regs *pregs, char byte)
 {
   pregs->esp -= 1;
-  *(char *)((pregs->ss << 4) + pregs->esp) = byte;
+  *(char *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp)) = byte;
 }
 
 void
 push_word(struct vm86_regs *pregs, short word)
 {
   pregs->esp -= 2;
-  *(short *)((pregs->ss << 4) + pregs->esp) = word;
+  *(short *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp)) = word;
 }
 
 void
 push_long(struct vm86_regs *pregs, long longword)
 {
   pregs->esp -= 4;
-  *(long *)((pregs->ss << 4) + pregs->esp) = longword;
+  *(long *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp)) = longword;
 }
-
 
 interrupt_stack_frame
 pop_isf(struct vm86_regs *pregs)
@@ -916,9 +1021,8 @@ pop_isf(struct vm86_regs *pregs)
   isf.cs = pop_word(pregs);
   isf.flags = pop_word(pregs);
   error("cs: 0x%x, eip: 0x%x, flags: 0x%x\n", isf.cs, isf.eip,
-	 isf.flags);
+	isf.flags);
 }
-
 
 void
 push_isf(struct vm86_regs *pregs, interrupt_stack_frame isf)
@@ -929,4 +1033,3 @@ push_isf(struct vm86_regs *pregs, interrupt_stack_frame isf)
 }
 
 #undef CPU_C
-

@@ -1,0 +1,150 @@
+**** Announcing DOSEMU release dosemu0.49pl4. ****
+
+  With the immense efforts of our develop/debug/contrib crew:
+
+Jason Gorden	-	gorden@jegnixa.hsc.missouri.edu
+Tim Bird	-	Tim_Bird@Novell.COM
+Corey Sweeney	-	corey@amiganet.chi.il.us
+Ronnie 		-	ronnie@epact.se
+Michael Deisher	-	deisher@enws125.EAS.ASU.EDU
+Jochen Hein	-	hein@student.tu-clausthal.de
+Patrick		-	patrickm@gas.uug.arizona.edu
+Theodore Ts'o	-	tytso@ATHENA.MIT.EDU
+Patrick McGillan -	pmcgilla@magoo.uwsuper.edu
+K L Van Horn	-	vanhornk@tele9.colorado.edu
+D F? (sorry:)	-	df@eyrie.demon.co.uk
+Alistair MacDonald - 	am20@unix.york.ac.uk
+Lawrence K Mao  -	lkmao@quark.SFSU.EDU
+Lam Lai Yin Savio -	lam836@cs.cuhk.hk
+Mike Batchelor  -	mikebat@netcom.com
+Harvey J. Stein -	hjstein@MATH.HUJI.AC.IL
+
+and many, many others who have passed through my short term memory ...
+
+we are once again releasing into the publics' domain DOSEMU. This is
+dosemu0.49pl4, and includes many bug fixes, and new functionality thanks
+to the efforts of everyone who developed, sent in fixes, or talked with
+everyone else about the status of dosemu.
+
+  DOSEMU is a Linux specific application that allows Linux to run many
+DOS based programs. It requires a bootable DOS diskette.
+
+  Definitely still consider this ALPHA software, and as such please
+beware it is not yet fully functional, or always smooth sailing.
+
+At this time, it can be found at:
+
+dspsun.eas.asu.edu:/pub/dosemu/dosemu0.49pl4.tar.gz
+Thanks again to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher) for
+providing EMUsuccess.txt, dosemu-HOWTO, and of course the site :-).
+
+and:
+tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.49pl4.tar.gz
+
+And hopefuly soon at :
+sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.49pl4.tar.gz
+when I get to ftp there :-).
+
+Updated in this release:
+
+-	Requests from all over came for IPX access via dosemu. Thanks
+	to two of our developers, you can no access IPX two ways.
+	These are both new (exciting) and in need of more testing.
+
+	-	Tim_Bird@Novell.COM (Tim Bird) has brought the IPX
+		additions of the kernel into DOSEMU. With the kernel
+		modified to support IPX, and DOSEMU compiled with it
+		in, DOSEMU will support IPX directly. Just load netx
+		and do the Netware thing :-).
+
+	-	gorden@jegnixa.hsc.missouri.edu (Jason Gorden) joined
+		the team around a month ago and has already created a
+		packet driver for DOSEMU. Ifconfig your ethernet, load
+		.commands/linpkt/linpkt.com & ./commands/pdipx.com &
+		netx connect to your nearest Novell Server under 
+		DOSEMU while using the same ethernet card for other 
+		Linux duties.
+
+-	Tim has also modified his already excellent lredir.exe program
+	so that it is nolonger necessary to load emufs.sys once prior
+	to redirecting with lredir.exe.
+
+-	Added config option allowvideoportaccess to allow video cards
+	using the 'graphics' option permission to do port I/O 
+	when calls come from the 0xc000 segment area. See 
+	./examples/config.dist.
+
+-	Added config option dosbanner to turn off displaying of
+	DOSEMU bootup messsages.
+
+-	Added FCB support to redirector.
+
+-	Problem with multiple instances of emufs.sys has been destroyed
+	I believe.
+
+-	tytso@ATHENA.MIT.EDU (Theodore Ts'o) has added the ability
+	to boot off a bootimage file as drive a:, then release drive
+	a: back to dosemu as the actual /dev/fd0 via booton/bootoff
+	in autoexec.bat. See ./examples/config.dist for parameters.
+
+-	As usual the keyboard routines have been dug up more.
+	Still MSDOS edit.com needs numlock off to cut&paste. ARG!
+	Someone could really make my day if they pointed out what
+	I'm doing wrong.
+
+-	Added video option chipset for diamond for some diamond
+	cards, specifically Diamond Speedstar 24x with a 
+	Paradise/Western Digital chipset. Many thanks to
+	patrickm@gas.uug.arizona for putting up with me.
+	This does no more than allow 'graphics' for
+	this card type.
+
+-	Overhauled EMS to allow it to work with programs that I
+	use. It nolonger requires the mmap.diff patch, so please
+	don't use it. I'm just carrying it along because the way Robert
+	did EMS mapping was better, and I hope to move back to that
+	after folks start beating this version around a bit.
+
+-	Debugged XMS a bit more to work with UMB's and passing the
+	correct XMS address for XMS moves.
+
+-	Some more messing with ET4000, thanks to Robert alias 
+	Nils Rennebarth for the ET4000 stuff. Unfortunately I am
+	in need of more testing to find bugs. Any takers?
+
+-	Diffed in patch[1-3]_against_pl3.dif applied:
+	-	First patch fixed a timer problem mainly.
+	-	Second patch limited VC switching to left alt key.
+	-	Third patch deals with my changes in keyboard
+		routines.
+
+-	coosman@asterix.uni-muenster.de submitted patches to mfs.c
+          which allow lredir to access environment variables like are
+          now used in emufs.sys.
+
+-	coosman@asterix.uni-muenster.de fixed the 15 character limit
+ 	  on keybaords, some keyboard extenders should now work, 
+	  yes :-).
+
+-	coosman@asterix.uni-muenster.de also submitted dumpconf.asm
+          to try and fix the multiple emufs.sys instance problem.
+	  thank-you :-).
+
+-	Changed dosvga.h to video.h
+
+-	tytso@ATHENA.MIT.EDU (Theodore Ts'o) aided in getting mfs.c
+	to do the ftruncate thing more like DOS. 
+
+
+  Many, many thanks to all who have helped with this release, either
+by sending in bug reports so we knew something was wrong, by sending
+in bug fixes (which may not have made it into this release), or by just
+providing a sounding board for ideas that come up.
+  My apologies for not having answered every letter, and possibly 
+missing some of the important information. If you know something you
+think we should, try to contact me again, please.
+
+Go on, give it a try,
+JES
+jmaclean@fox.nstn.ns.ca
+--

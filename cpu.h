@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/30 22:21:03 $
- * $Source: /home/src/dosemu0.49pl3/RCS/cpu.h,v $
- * $Revision: 1.3 $
+ * $Date: 1994/01/27 21:47:09 $
+ * $Source: /home/src/dosemu0.49pl4g/RCS/cpu.h,v $
+ * $Revision: 1.5 $
  * $State: Exp $
  */
 
@@ -96,15 +96,15 @@ CPU_EXTERN struct vec_t *ivecs;
 #define CARRY (REG(eflags) |= CF)
 #define NOCARRY (REG(eflags) &= ~CF)
 
-typedef struct 
-{
+typedef struct {
   short eip;
   short cs;
   short flags;
-} interrupt_stack_frame;
+}
 
-inline void update_cpu(long),
-       update_flags(long *);
+interrupt_stack_frame;
+
+inline void update_cpu(long), update_flags(long *);
 
 /* this was taken from the 0.99pl10 + ALPHA-diff kernel sources...
  * I believe the parts previous to linux_eflags correspond to the
@@ -112,24 +112,24 @@ inline void update_cpu(long),
  */
 #define SIGSTACK int sig, long gs, long fs, long es, long ds, long edi, \
      long esi, long ebp, long esp, long ebx, long edx, long ecx, long eax, \
-     long trapno, long err, long eip, long cs, long eflags, long ss, \
-     long state387, long linux_eflags, long linux_eip
+     long trapno, long err, long eip, long cs, long eflags, long esp2, \
+     long ss, long state387, long linux_eflags, long linux_eip
 
-void sigtrap (SIGSTACK);
-void sigill  (SIGSTACK);
-void sigfpe  (SIGSTACK);
-void sigsegv (SIGSTACK);
+void sigtrap(SIGSTACK);
+void sigill(SIGSTACK);
+void sigfpe(SIGSTACK);
+void sigsegv(SIGSTACK);
 
 void show_regs(void), show_ints(int, int);
 inline int do_hard_int(int), do_soft_int(int);
 
-char  pop_byte  (struct vm86_regs *);
-short pop_short (struct vm86_regs *);
-long  pop_long  (struct vm86_regs *);
+char pop_byte(struct vm86_regs *);
+short pop_short(struct vm86_regs *);
+long pop_long(struct vm86_regs *);
 
-void push_long (struct vm86_regs *, long);
-void push_word (struct vm86_regs *, short);
-void push_byte (struct vm86_regs *, char);
+void push_long(struct vm86_regs *, long);
+void push_word(struct vm86_regs *, short);
+void push_byte(struct vm86_regs *, char);
 
 void push_isf(struct vm86_regs *, interrupt_stack_frame);
 interrupt_stack_frame pop_isf(struct vm86_regs *);

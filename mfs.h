@@ -1,15 +1,16 @@
-/* 
+/*
 adapted from dos.h in the mach dos emulator for the linux dosemu dos
-emulator.  
+emulator.
 Andrew.Tridgell@anu.edu.au 30th March 1993
 */
 
-#ifdef DOSEMU 
+#ifdef DOSEMU
 /* definitions to make mach emu code compatible with dosemu */
 #include <sys/vfs.h>
 #include "emu.h"
 
 typedef unsigned char boolean_t;
+
 #define direct dirent
 #define d_namlen d_reclen
 
@@ -30,13 +31,14 @@ typedef unsigned char boolean_t;
 
 #define us_debug_level 10
 #define Debug_Level_0 0
-#define dbg_fd stdout
+#define dbg_fd stderr
 
 #define d_Stub(arg1, s, a...)   d_printf("MFS: "s, ##a)
 #define Debug0(args)		d_Stub args
 #define Debug1(args)		d_Stub args
 
 typedef struct vm86_regs state_t;
+
 #define uesp esp
 
 #define Addr_8086(x,y)	(( ((x) & 0xffff) << 4) + ((y) & 0xffff))
@@ -55,7 +57,7 @@ typedef struct vm86_regs state_t;
 /*
  * Copyright (c) 1991 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
@@ -81,8 +83,20 @@ typedef struct vm86_regs state_t;
  * Purpose:
  *	V86 DOS disk emulation header file
  *
- * HISTORY: 
+ * HISTORY:
  * $Log: mfs.h,v $
+ * Revision 1.6  1994/01/25  20:02:44  root
+ * Exchange stderr <-> stdout.
+ *
+ * Revision 1.5  1994/01/20  21:14:24  root
+ * Indent.
+ *
+ * Revision 1.4  1994/01/19  17:51:14  root
+ * Added CDS_FLAG_NOTNET = 0x80 for mfs.c
+ *
+ * Revision 1.3  1993/12/22  11:45:36  root
+ * Fixes for ftruncate
+ *
  * Revision 1.2  1993/11/17  22:29:33  root
  * *** empty log message ***
  *
@@ -106,40 +120,40 @@ typedef struct vm86_regs state_t;
  * 	psp_parent_psp was used to find out what the psp of the parent of
  * 	the command.com program was.  It seems that it is undefined.
  * 	[91/12/06            grm]
- * 
+ *
  * Revision 2.2  91/12/05  16:42:08  grm
  * 	Added sft_rel and _abs_cluster macros.  Used to debug the
  * 	MS-Write network drive problem.
  * 	[91/12/04            grm]
  * 	Added constants for Dos 4+
  * 	[91/07/16  17:47:20  grm]
- * 
+ *
  * 	Changed to allow for usage with Dos v4.01 and 5.00.
  * 	[91/06/28  18:53:42  grm]
- * 
+ *
  * 	New Copyright
  * 	[91/05/28  15:12:28  grm]
- * 
+ *
  * 	Added structures for the dos_general routines.
  * 	[91/04/30  13:43:58  grm]
- * 
+ *
  * 	Structures and macros for the dos_fs.c
  * 	network redirector interface.
  * 	[91/04/30  13:36:42  grm]
- * 
+ *
  * 	Name changed from dos_general.h to dos.h.
  * 	Added external declarations for dos_foo.c files.
  * 	[91/03/01  14:40:55  grm]
- * 
+ *
  * 	Type works.  Interrim changes.
  * 	[91/02/11  18:22:47  grm]
- * 
+ *
  * 	Fancy dir.
  * 	[91/02/06  16:59:01  grm]
- * 
+ *
  * 	Created.
  * 	[91/02/06  14:29:39  grm]
- * 
+ *
  */
 
 #include <sys/types.h>
@@ -194,25 +208,23 @@ typedef struct vm86_regs state_t;
 
 #define DUPLICATE_REDIR		0x55
 
-
-
 struct dir_ent {
-	char	name[8];	/* dos name and ext */
-	char	ext[3];
-	u_short	mode;		/* unix st_mode value */
-	long	size;		/* size of file */
-	time_t	time;		/* st_mtime */
-	struct dir_ent * next;
+  char name[8];			/* dos name and ext */
+  char ext[3];
+  u_short mode;			/* unix st_mode value */
+  long size;			/* size of file */
+  time_t time;			/* st_mtime */
+  struct dir_ent *next;
 };
 
 struct dos_name {
-	char name[8];
-	char ext[3];
+  char name[8];
+  char ext[3];
 };
 
 typedef struct far_record {
-	u_short		offset;
-	u_short		segment;
+  u_short offset;
+  u_short segment;
 } far_t;
 
 #define DOSVER_31_33	1
@@ -220,7 +232,7 @@ typedef struct far_record {
 #define DOSVER_50	3
 #define DOSVER_60	4
 
-typedef	u_char * sdb_t;
+typedef u_char *sdb_t;
 
 #define sdb_drive_letter(sdb)	(*(u_char  *)&sdb[sdb_drive_letter_off])
 #define sdb_template_name(sdb)	((u_char   *)&sdb[sdb_template_name_off])
@@ -236,7 +248,8 @@ typedef	u_char * sdb_t;
 #define sdb_file_st_cluster(sdb)(*(u_short *)&sdb[sdb_file_st_cluster_off])
 #define sdb_file_size(sdb)	(*(u_long  *)&sdb[sdb_file_size_off])
 
-typedef u_char * sft_t;
+typedef u_char *sft_t;
+
 #define sft_handle_cnt(sft) 	(*(u_short *)&sft[sft_handle_cnt_off])
 #define sft_open_mode(sft)  	(*(u_short *)&sft[sft_open_mode_off])
 #define sft_attribute_byte(sft) (*(u_char  *)&sft[sft_attribute_byte_off])
@@ -255,8 +268,9 @@ typedef u_char * sft_t;
 #define	sft_ext(sft)		( (char    *)&sft[sft_ext_off])
 
 #define	sft_fd(sft)		(*(u_short *)&sft[sft_fd_off])
-	
-typedef u_char * cds_t;
+
+typedef u_char *cds_t;
+
 #define	cds_current_path(cds)	((char	   *)&cds[cds_current_path_off])
 #define	cds_flags(cds)		(*(u_short *)&cds[cds_flags_off])
 #define cds_DBP_pointer(cds)	(*(far_t *)&cds[cds_DBP_pointer_off])
@@ -266,19 +280,18 @@ typedef u_char * cds_t;
 
 #define CDS_FLAG_REMOTE		0x8000
 #define CDS_FLAG_READY		0x4000
+#define CDS_FLAG_NOTNET		0x0080
 #define CDS_FLAG_SUBST		0x1000
 #define CDS_DEFAULT_ROOT_LEN	2
-
-
 
 #define FAR(x) (Addr_8086(x.segment, x.offset))
 #define FARPTR(x) (Addr_8086((x)->segment, (x)->offset))
 
-typedef u_short * psp_t;
+typedef u_short *psp_t;
 
 #define PSPPTR(x) (Addr_8086(x, 0))
 
-typedef u_char * sda_t;
+typedef u_char *sda_t;
 
 #define	sda_current_dta(sda)	((char *)(FARPTR((far_t *)&sda[sda_current_dta_off])))
 #define sda_cur_psp(sda)		(*(u_short *)&sda[sda_cur_psp_off])
@@ -299,20 +312,21 @@ typedef u_char * sda_t;
 #define sda_ext_mode(sda)		(*(u_short *)&sda[sda_ext_mode_off])
 
 #define psp_parent_psp(psp)		(*(u_short *)&psp[0x16])
-#define psp_handles(psp)	((char *)(FARPTR((far_t *)&psp[0x34])))
+#define psp_handles(psp)		((char *)(FARPTR((far_t *)&psp[0x34])))
 
 #define lol_cdsfarptr(lol)		(*(far_t *)&lol[lol_cdsfarptr_off])
 #define lol_last_drive(lol)		(*(u_char *)&lol[lol_last_drive_off])
 
-typedef u_char * lol_t;
+typedef u_char *lol_t;
 
 #ifdef OLD_OBSOLETE
 typedef struct lol_record {
-	u_char	filler1[22];
-	far_t 	cdsfarptr;
-	u_char	filler2[6];
-	u_char	last_drive;	
-} * lol_t;
+  u_char filler1[22];
+  far_t cdsfarptr;
+  u_char filler2[6];
+  u_char last_drive;
+} *lol_t;
+
 #endif
 
 /* dos attribute byte flags */
@@ -347,5 +361,3 @@ typedef struct lol_record {
 #define REDIRECT_DEVICE 3
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
-
-

@@ -5,10 +5,8 @@
 #include <sys/shm.h>
 #include "mutex.h"
 
-void start_dosipc(void), 
-     stop_dosipc(void),
-     main_dosipc(void), 
-     ipc_send2child(int);
+void start_dosipc(void), stop_dosipc(void), main_dosipc(void), ipc_send2child(int);
+extern int child_close_mouse(), child_open_mouse();
 
 void memory_setup(void), set_a20(int);
 
@@ -43,21 +41,25 @@ extern int ipc_fd[2], key_fd[2];
 #define DMSG_UNPAUSE		11
 #define DMSG_INT8		12
 #define DMSG_INT9		13
-#if AJT
 #define DMSG_SETSCAN            14
-#endif
 #define DMSG_SER		15
 #define DMSG_MOPEN		16	/* open mouse */
 #define DMSG_MCLOSE		17	/* close mouse */
 #define DMSG_SENDINT		18	/* Interrupt */
+#define DMSG_PKTDRVR            19      /* virtual pkt drvr */
+
 
 struct ipcpkt {
   u_int cmd;
 
   union {
     unsigned short key;
-    struct { int param1, param2; } params;
-  } u;
+    struct {
+      int param1, param2;
+    }
+    params;
+  }
+  u;
 };
 
 #define MSGSIZE		sizeof(struct ipcpkt)
@@ -72,13 +74,10 @@ struct ipcpkt {
      error("ERROR: HMA attach: %s (%d)\n", strerror(errno), errno); \
    } while (0)
 
-
-
 /* these are for the shared parameter area */
 #define PARAM_SIZE	(64*1024)
 /* #define SER_QUEUE_LEN	400 */
 #define SER_QUEUE_LEN	(1000)
-
 
 struct ser_param {
   volatile char queue[SER_QUEUE_LEN];
@@ -88,12 +87,13 @@ struct ser_param {
 };
 
 typedef struct param_struct {
-  volatile struct ser_param ser[2];
+  volatile struct ser_param ser[MAX_SER];
   sem_t ser_locked;
 } param_t;
 
 extern param_t *param;
-#endif  /* DOSIPC_H */
 
+extern void set_keyboard_bios();
+extern void insert_into_keybuffer();
 
-
+#endif /* DOSIPC_H */

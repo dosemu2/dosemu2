@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 1991 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
@@ -24,12 +24,18 @@
  * the rights to redistribute these changes.
  */
 /*
- * File: $Source: /home/src/dosemu0.49pl3/RCS/machcompat.h,v $
+ * File: $Source: /home/src/dosemu0.49pl4g/RCS/machcompat.h,v $
  *
  * Purpose:
  *
- * HISTORY: 
+ * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 1.3  1994/01/25  20:02:44  root
+ * Exchange stderr <-> stdout.
+ *
+ * Revision 1.2  1994/01/20  21:14:24  root
+ * Indent.
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -48,58 +54,58 @@
  * Revision 2.5  92/02/14  17:44:27  grm
  * 	Changed the exit(1) in MACH_CALL to exit_dos().
  * 	[92/02/11            grm]
- * 
+ *
  * Revision 2.4  92/02/03  14:24:29  rvb
  * 	Clean Up
- * 
+ *
  * Revision 2.3  91/12/05  16:39:31  grm
  * 	New copyright notice.
  * 	[91/05/28  08:26:05  grm]
- * 
+ *
  * 	Changes <mach_3.h> to "mach_3.h".  Nitpick.
  * 	[91/05/02  13:28:50  grm]
- * 
+ *
  * 	Redirect constant added
  * 	[91/03/26  19:28:46  grm]
- * 
+ *
  * 	Added separate debugging macros.
  * 	[90/11/09  21:02:16  grm]
- * 
+ *
  * 	added UNCHANGED
  * 	[90/10/04  20:56:47  grm]
- * 
+ *
  * 	Fixed up the SETxxx's.
  * 	[90/04/30  15:41:56  grm]
- * 
+ *
  * 	Added onoff_t, MASK16 and WORD.
  * 	[90/04/05  21:25:12  grm]
- * 
+ *
  * 	Started using as grm.  Moved into v86 branch.
  * 	[90/03/28  18:33:32  grm]
- * 
+ *
  * Revision 2.1.1.6  90/03/22  21:40:57  dorr
  * 	no changes.
- * 
+ *
  * Revision 2.1.1.5  90/03/19  17:33:06  orr
  * 	Removed device structure and the devices array, put it
  *	in bios.h.
- * 
+ *
  * Revision 2.1.1.4  90/03/14  16:58:58  orr
  * 	add device stuff.
- * 
+ *
  * Revision 2.1.1.3  90/03/13  15:34:50  orr
  * 	Version that gives an A:> prompt and does a DIR.
  * 	Removed DEBUG.  Added the support for the DebugX's
  * 	run time debugging.
- * 
+ *
  * Revision 2.1.1.2  90/03/12  02:16:29  orr
  * 	try it without debug output.
- * 
+ *
  * Revision 2.1.1.1  90/03/12  01:17:39  orr
- * 
+ *
  * Revision 1.1  90/03/09  11:57:04  orr
  * Initial revision
- * 
+ *
  */
 
 #ifndef	_BASE_H
@@ -218,17 +224,17 @@ typedef int onoff_t;
 #define	private
 #else
 #define	private static
-#endif  _DEBUG_
+#endif	/* _DEBUG_ */
 
 extern char *malloc();
 
-#endif	_BASE_H
+#endif	/* _BASE_H */
 
 /* from bios.h */
 /*
  * Copyright (c) 1991 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
@@ -254,8 +260,14 @@ extern char *malloc();
  * Purpose:
  *	V86 BIOS emulation
  *
- * HISTORY: 
+ * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 1.3  1994/01/25  20:02:44  root
+ * Exchange stderr <-> stdout.
+ *
+ * Revision 1.2  1994/01/20  21:14:24  root
+ * Indent.
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -274,81 +286,81 @@ extern char *malloc();
  * Revision 2.7  92/07/01  14:24:25  grm
  * 	Ifdef out idle code.
  * 	[92/07/01  14:18:28  grm]
- * 
+ *
  * 	Added idle locking macros.
  * 	[92/06/30  13:40:06  grm]
- * 
+ *
  * 	Removed the EFL_ALLCC (jvt@kampi.hut.fi).
  * 	[92/06/03            grm]
- * 
+ *
  * Revision 2.6  92/03/02  15:47:04  grm
  * 	Removed the curses.h include, and added a sys/types.h include.
  * 	[92/02/20            grm]
- * 
+ *
  * Revision 2.5  92/02/03  14:24:31  rvb
  * 	Clean Up
- * 
+ *
  * Revision 2.4  91/12/06  15:27:51  grm
  * 	Added Segment, Offset, and Abs2Sogoff macros to convert absolute
  * 	addresses into seg:off addresses.
  * 	[91/12/06            grm]
- * 
+ *
  * Revision 2.3  91/12/05  16:39:37  grm
  * 	Modified for dbg's new kernel support.
  * 	[91/06/14  11:39:36  grm]
- * 
+ *
  * 	New Copyright
  * 	[91/05/28  08:30:06  grm]
- * 
+ *
  * 	Removed the trace support.
  * 	[91/05/02  13:30:05  grm]
- * 
+ *
  * 	Ch ch ch changes....
  * 	[91/03/26  19:29:20  grm]
- * 
+ *
  * 	Added media info.  lock_cs and unlock_cs added.
  * 	[90/11/28  19:07:45  grm]
- * 
+ *
  * 	Added start_sec to devices.  Changed the vga
  * 	structure's header info.
  * 	[90/11/09  21:03:31  grm]
- * 
+ *
  * 	Various additions.
  * 	[90/10/04  20:57:54  grm]
- * 
+ *
  * 	Fixed port_ok.  Added dd_fd and dd_stream, removed dosdevice.
  * 	[90/04/30  15:42:41  grm]
- * 
+ *
  * 	Added PORT_foo marcos and dbg_fd.
  * 	[90/04/17  22:44:08  grm]
- * 
+ *
  * 	Added trace and vga consts.  Put extern iopl_fd.
  * 	[90/04/05  21:26:06  grm]
- * 
+ *
  * 	Started editing as grm.  Using v86 branch.
  * 	[90/03/28  18:34:20  grm]
- * 
+ *
  * Revision 2.1.1.5  90/03/22  21:41:53  dorr
  * 	Added media information to the device structure.
  * 	Added vga externs and Fprintf
- * 
+ *
  * Revision 2.1.1.4  90/03/19  17:34:21  orr
  * 	Moved the device structure from base.h to this file.
  * 	Added d_state constants.
- * 
+ *
  * Revision 2.1.1.3  90/03/13  15:35:19  orr
  * 	Version that gives an A:> prompt and does a DIR.
  * 	No major changes.
- * 
- * 
+ *
+ *
  * Revision 2.1.1.2  90/03/12  02:17:06  orr
  * 	fix addr so that it masks off high word of segment.
  * 	turn off debug output.
- * 
- * 
+ *
+ *
  * Revision 1.1  90/03/09  12:00:42  orr
  * Initial revision
- * 
+ *
  */
 
 #ifndef	_bios_
@@ -357,11 +369,9 @@ extern char *malloc();
 #include <stdio.h>
 #include <sys/types.h>
 
-
 #define VGA_OFF			0
 #define VGA_ENABLED		1
 #define VGA_DISABLED		2
-
 
 #ifndef linux
 #include <mach/thread_status.h>
@@ -384,36 +394,38 @@ extern onoff_t curses_state;
 #define LEAVE_EIP_ALONE 4
 
 typedef struct device {
-	u_int d_state;
-	char * d_path;
-	int d_fd;
+  u_int d_state;
+  char *d_path;
+  int d_fd;
 
-	boolean_t d_absability;
+  boolean_t d_absability;
 
-	/* info from the boot block */
-	u_char media;		/* media type */
-	u_char bps[2];		/* blocks per sector */
-	u_char spa;		/* sectors per allocation */
-	u_short sectrk;		/* sectors per track */
-	u_short heads;		/* heads per track */
-	u_char drive;		/* drive number */
-	u_short sects;		/* total sectors */
-	u_long SECTS;		/* total number of secotrs */
+  /* info from the boot block */
+  u_char media;			/* media type */
+  u_char bps[2];		/* blocks per sector */
+  u_char spa;			/* sectors per allocation */
+  u_short sectrk;		/* sectors per track */
+  u_short heads;		/* heads per track */
+  u_char drive;			/* drive number */
+  u_short sects;		/* total sectors */
+  u_long SECTS;			/* total number of secotrs */
 
-	/* hard disk partition info */
-	u_char start_head;
-	u_short start_cylsec;	/* starting cylinder and sec */
-	u_char partition_type;
-	u_char end_head;
-	u_short end_cylsec;	/* ending cylinder and sec */
-	u_long start_sec_rel;	/* starting sec w/r to beginnng of disk */
-	u_long partition_len;	/* partition length */
-} * device_t;
+  /* hard disk partition info */
+  u_char start_head;
+  u_short start_cylsec;		/* starting cylinder and sec */
+  u_char partition_type;
+  u_char end_head;
+  u_short end_cylsec;		/* ending cylinder and sec */
+  u_long start_sec_rel;		/* starting sec w/r to beginnng of disk */
+  u_long partition_len;		/* partition length */
+}
 
-typedef	struct {
-	u_short	offset;
-	u_short	selector;
-} * idt_t;
+*device_t;
+
+typedef struct {
+  u_short offset;
+  u_short selector;
+} *idt_t;
 
 extern thread_t v86_thread;
 extern idt_t idt;
@@ -422,9 +434,9 @@ extern struct sgttyb old_tty_state;
 
 extern struct vga_state ega_vga_old_state;
 
-typedef struct i386_thread_state	state_t;
+typedef struct i386_thread_state state_t;
 
-#else  /* linux */
+#else /* linux */
 
 #include "cpu.h"
 typedef struct vm86_regs state_t;
@@ -432,7 +444,7 @@ typedef int boolean_t;
 typedef caddr_t vm_address_t;
 typedef size_t vm_size_t;
 
-#define dbg_fd stdout  /* for KdebugX */
+#define dbg_fd stderr		/* for KdebugX */
 
 /* this is used for memory objects (pointer to malloc()ed memory */
 #define mach_port_t caddr_t
@@ -445,7 +457,6 @@ typedef size_t vm_size_t;
 
 #endif /* linux */
 
-
 #define Addr_8086(x,y)	(( ((x) & 0xffff) << 4) + ((y) & 0xffff))
 #define Addr(s,x,y)	Addr_8086(((s)->x), ((s)->y))
 
@@ -455,22 +466,22 @@ typedef size_t vm_size_t;
 
 #define Fprintf(args)	reset_tty();fprintf args;set_tty()
 
-
 #ifndef linux
 
 #define MAX_IO_PORTS	128
 extern u_char io_ports[MAX_IO_PORTS];
+
 #define PORT_ENABLE(x)	io_ports[(x)/8] |= (u_char) (1 << ((x) % 8))
 #define PORT_DISABLE(x)	io_ports[(x)/8] &= (u_char)!(1 << ((x) % 8))
 #define PORT_OK(x)	(io_ports[(x)/8] & (1 << ((x) % 8)))
 
-extern FILE * dbg_fd;
+extern FILE *dbg_fd;
 extern int dd_fd;
-extern FILE * dd_stream;
+extern FILE *dd_stream;
 extern int iopl_fd;
 extern boolean_t interrupt_bit;
 
-extern	boolean_t cs_switch_needed;
+extern boolean_t cs_switch_needed;
 extern int cs_switch_turns;
 extern int cs_switch_count;
 extern int mon_space;
@@ -481,9 +492,11 @@ extern int mon_space;
  * Mutex objects.
  */
 typedef struct mutex {
-	int lock;
-	char *name;
-} *mutex_t;
+  int lock;
+  char *name;
+}
+
+*mutex_t;
 extern mutex_t cs_lock;
 
 #define	lock_cs() 					\
@@ -540,7 +553,7 @@ extern mutex_t cs_lock;
 			swtch_pri(255);			\
 		}					\
 	}
-#endif	/* IDLE_WORK_IN_PROGRESS */
+#endif /* IDLE_WORK_IN_PROGRESS */
 #endif /* linux */
 
-#endif	_bios_
+#endif	/* _bios_ */

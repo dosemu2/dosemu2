@@ -1,11 +1,14 @@
 /* putrom.c; put VBIOS ROM image into /dev/mem (should fail except for weird caches!)
  *
- * $Date: 1993/11/30 21:27:27 $
- * $Source: /home/src/dosemu0.49pl3/periph/RCS/putrom.c,v $
- * $Revision: 1.2 $
+ * $Date: 1994/01/20 21:18:35 $
+ * $Source: /home/src/dosemu0.49pl4g/periph/RCS/putrom.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: putrom.c,v $
+ * Revision 1.3  1994/01/20  21:18:35  root
+ * Indent.
+ *
  * Revision 1.2  1993/11/30  21:27:27  root
  * Freeze before 0.49pl3
  *
@@ -38,36 +41,37 @@
 #define scan(p,s) { int i; volatile u_char j,*jp=&j; for (i=0; i<ROM_SIZE/4096; i++) \
 		      *jp=*((volatile u_char *)p + i*4096); }
 
-
 int
 main(int argc, char **argv)
 {
   int mem_fd, file_fd, rd;
-  u_char *memptr=valloc(ROM_SIZE);
-  u_char *tmpptr=malloc(ROM_SIZE);
+  u_char *memptr = valloc(ROM_SIZE);
+  u_char *tmpptr = malloc(ROM_SIZE);
 
-  if (argc != 2) die("usage: putrom VBIOSFILE\n");
+  if (argc != 2)
+    die("usage: putrom VBIOSFILE\n");
 
-  if ( (mem_fd=open("/dev/mem",O_RDWR)) == -1)
+  if ((mem_fd = open("/dev/mem", O_RDWR)) == -1)
     die("opening /dev/mem");
 
-  if ( (file_fd=open(argv[1],O_RDONLY)) == -1)
+  if ((file_fd = open(argv[1], O_RDONLY)) == -1)
     diee("opening VBIOSFILE");
 
-  if (mmap(memptr, 
-       ROM_SIZE,
-       PROT_READ|PROT_WRITE|PROT_EXEC,
-       MAP_SHARED|MAP_FIXED,
-       mem_fd, 
-       ROM_ADDR
-       ) == (void *)-1)
+  if (mmap(memptr,
+	   ROM_SIZE,
+	   PROT_READ | PROT_WRITE | PROT_EXEC,
+	   MAP_SHARED | MAP_FIXED,
+	   mem_fd,
+	   ROM_ADDR
+      ) == (void *) -1)
     diee("mmaping");
 
-  scan(memptr,ROM_SIZE);
+  scan(memptr, ROM_SIZE);
 
-  if ( (rd=read(file_fd, tmpptr, ROM_SIZE)) == -1)
+  if ((rd = read(file_fd, tmpptr, ROM_SIZE)) == -1)
     diee("reading VBIOSFILE");
-  else fprintf(stderr, "read %d bytes\n", rd);
+  else
+    fprintf(stderr, "read %d bytes\n", rd);
 
   memcpy(memptr, tmpptr, ROM_SIZE);
 

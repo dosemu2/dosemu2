@@ -1,58 +1,106 @@
-# Linux dosemu 0.49 configuration file
+# Linux dosemu 0.49pl4 configuration file
+# James MacLean, jmaclean@fox.nstn.ns.ca, 12/31/93
 # Robert Sanders, gt8134b@prism.gatech.edu, 5/16/93
-#
+ 
+# Comments start with # or ; in column 1;
 
-# debug +Idv-kmx           # "debug -a" turns all messages off
-debug +gIvk-dmx    
-# debug -a
+#******************* DEBUG ************************************
 
-# These two are set to the defaults.  keybint is still unstable,
-# and timint is necessary for many programs.  These are mostly
-# useful as debugging aids.
+# Some flags:
+# v - video
+# d - disk activity
+# k - keyboard
+# Examples :
+# debug +Idv-kmx
+# debug +gIvk-dmx    
+# Having "debug -a" turns all debug messages off
+debug -a
+
+# Want startup DOSEMU banner messages ofcourse :-)
+dosbanner on
+
+# If you are using a video card in graphics mode, this will 
+# allow it access to any ports it needs while doing its routines.
+# In the other modes it doesn't affect anything.
+allowvideoportaccess on
+
+# These two are set to on.  keybint is slightly unstable,
+# and timint is necessary for many programs.
 
 keybint on
 timint on
 
+#******************* SERIAL ************************************
+
+# The first active serial statement will always go to COM1 and the 
+# second will map to COM2.
 #serial { mouse device /dev/cua0 }
 #serial { mouse device /dev/cua1 }
 
+#******************* VIDEO ************************************
+
+# Start with just this to get going, then experiment with others
+# below.
+video { vga console }
+
+# Trident with 1 meg on board
 #video { vga console graphics chipset trident memsize 1024 }
+
+# Diamond 
+#video { vga console graphics chipset diamond }
+
+# Any conforming VGA card not specifically supported may work with this
 #video { vga console graphics }
-#video { vga console graphics chipset et4000 memsize 1024 vbios_file /etc/dosemu/vbios }
 
-# If you have a Trident card, uncomment the next line, and comment 
-# the current video statement
-#video { vga console graphics chipset trident memsize 512 }
-video {  vga console graphics }
+# ET4000 card with a meg on board
+#video { vga console graphics chipset et4000 memsize 1024 }
 
-RawKeyboard         # don't include this if you don't want it
-mathco off           # on or off
-cpu 80286           # or 80286 or 80386
-bootc               # or bootA
-xms 1000            # XMS size in K, or off
-#ems 1000            # EMS size in K, or off
+# Rawkeyboard allows the closest keyboard emulation for DOS programs
+# and is useful only at the console
+RawKeyboard         # Allows for best DOS keybaord emulation
+
+mathco off          # on or off
+cpu 80386           # or 80286 or 80386
+bootc               # or bootA, Which do you want to boot from default
+xms 1024            # XMS size in K, or off
+ems 1024            # EMS size in K, or off
 
 # ports { 0x388 0x389 }  # for SimEarth
-# ports { 0x42 }  # for SimEarth
+
+# Various port statements with are used to gain access to I/O ports
+# in your DOS session.
 # ports { 0x2f8 0x2f9 0x2fa 0x2fb 0x2fc 0x2fd 0x2fe }
 # ports { 0x3f8 0x3f9 0x3fa 0x3fb 0x3fc 0x3fd 0x3fe }
-#speaker native         # also off or emulated
-
 # ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
+ 
+#******************* SPEAKER ************************************
+ 
+# Speaker modes
+speaker native         # also off or emulated
 
 #******************* HARD DISKS ******************************* 
+
 disk { image "hdimage" }
-#disk { partition "/dev/sda2" 1 readonly }        # 1st partition on 1st disk
 #disk { partition "/dev/hda1" 1 readonly }        # 1st partition on 1st disk
+#disk { partition "/dev/sda2" 1 readonly }        # 1st partition on 1st disk
 #disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
 
+#******************* BOOT DISK *****************************
+
+# Use the following option to boot from the specified file, and then
+#  once booted, have bootoff execute in autoexec.bat. Thanks Ted :-).
+# Notice it follows a typical floppy spec. To create this file use
+#  dd if=/dev/fd0 of=bdisk bs=16k
+#bootdisk { heads 2 sectors 18 tracks 80 threeinch file bdisk }
+
 #******************* FLOPPY DISKS *****************************
-#floppy { heads 2 sectors 18 tracks 80 threeinch file diskimage }  
+
 floppy { device /dev/fd0 threeinch }  
 floppy { device /dev/fd1 fiveinch }  
+#floppy { heads 2 sectors 18 tracks 80 threeinch file diskimage }  
 
 #printer { options "%s" command "lpr" timeout 20 }
 #printer { options "-p %s" command "lpr" timeout 10 }    # pr format it
-# printer { file "lpt3" }
+#printer { file "lpt3" }
 
 
