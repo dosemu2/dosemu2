@@ -1,3 +1,11 @@
+97/03/19 ver. 0.65.99.24 unofficial pre-release
+	From Alberto
+	- fix for 'partitions >500M' part 2 (wrong sector rounding)
+	- Fixes and correcter calculations for config.freq, which can
+	  be set in dosemu.conf to adjust what dosemu takes for a second.
+	  (units in DOS timer clocks, 18 make one second). TIMER_DIVISOR
+	  is the constant (6) to make one Unix-tick (at 100Hz) out of the
+	  DOS-ticker.
 97/03/17 ver. 0.65.99.23 unofficial pre-release
 	From Hans
 	- new targets in main Makfile: docs, docsinstall, docsclean

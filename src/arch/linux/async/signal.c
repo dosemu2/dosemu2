@@ -230,6 +230,27 @@ void handle_signals(void) {
   }
 }
 
+/* ==============================================================
+ *
+ * This is called by default at around 100Hz.
+ * (see timer_interrupt_init() in init.c)
+ *
+ * The actual formulas, starting with the configurable parameter
+ * config.freq, are:
+ *	config.freq				default=18
+ *	config.update = 1E6/config.freq		default=54945
+ *	timer tick(us) = config.update/6	default=9157.5us
+ *		       = 166667/config.freq
+ *	timer tick(Hz) = 6*config.freq		default=100Hz
+ *
+ * 6 is the magical TIMER_DIVISOR macro used to get 100Hz
+ *
+ * This call should NOT be used if you need timing accuracy - many
+ * signals can get lost e.g. when kernel accesses disk, and the whole
+ * idea of timing-by-counting is plain wrong. We'll need the Pentium
+ * counter here.
+ * ============================================================== */
+
 void SIGALRM_call(void){
 
   static volatile int running = 0;
@@ -363,9 +384,11 @@ void SIGALRM_call(void){
   if (not_use_sigio)
     io_select(fds_no_sigio);
 
-  /* this is for per-second activities */
+  /* this should be for per-second activities, it is actually at
+   * 180ms more or less */
   partials++;
-  if (partials == FREQ) {
+  /* if you want a REAL second here use: config.freq*TIMER_DIVISOR */
+  if (partials == config.freq) {
     partials = 0;
 #ifdef IPX
   if (config.ipxsup)

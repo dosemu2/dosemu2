@@ -112,7 +112,7 @@ void set_ticks(unsigned long new)
   *ticks = new;
   *overflow = 0;
   ignore_segv--;
-  /* warn("TIMER: update value of %d\n", (40 / (1000000 / UPDATE))); */
+  /* warn("TIMER: update value of %d\n", (40 / config.freq)); */
 }
 
 /* @@@ MOVE_END @@@ 49152 */

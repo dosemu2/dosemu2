@@ -610,8 +610,8 @@ get_disk_space(char *cwd, int *free, int *total)
   struct statfs fsbuf;
 
   if (statfs(cwd, &fsbuf) >= 0) {
-    *free = fsbuf.f_bsize * fsbuf.f_bavail / 512;
-    *total = fsbuf.f_bsize * fsbuf.f_blocks / 512;
+    *free = (fsbuf.f_bsize / 512) * fsbuf.f_bavail;
+    *total = (fsbuf.f_bsize / 512) * fsbuf.f_blocks;
     return (1);
   }
   else

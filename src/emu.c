@@ -484,7 +484,7 @@ ign_sigs(int sig)
     else
 	otherints++;
 
-#define LEAVEDOS_TIMEOUT (3 * FREQ)
+#define LEAVEDOS_TIMEOUT (3 * config.freq)
 #define LEAVEDOS_SIGOUT  5
     if ((timerints >= LEAVEDOS_TIMEOUT) || (otherints >= LEAVEDOS_SIGOUT)) {
 	error("ERROR: timed/signalled out in leavedos()\n");

@@ -101,12 +101,17 @@ config_defaults(void)
     config.dualmon = 0;
     config.force_vt_switch = 0;
     config.speaker = SPKR_EMULATED;
-#if 0				/* This is too slow, but why? */
-    config.update = 54945;
-#else
-    config.update = 27472;
-#endif
-    config.freq = 18;		/* rough frequency */
+
+    /* The frequency in usec of the SIGALRM call (in signal.c) is
+     * equal to this value / 6, and thus is currently 9158us = 100 Hz
+     * The 6 (TIMER DIVISOR) is a constant of unknown origin
+     * NOTE: if you set 'timer 18' in config.dist you can't get anything
+     * better that 55555 (108Hz) because of integer math.
+     * see timer_interrupt_init() in init.c
+     */
+    config.update = 54945;	/* should be = 1E6/config.freq */
+    config.freq = 18;		/* rough frequency (real PC = 18.2065) */
+
     config.timers = 1;		/* deliver timer ints */
     config.keybint = 1;		/* keyboard interrupts */
  

@@ -266,6 +266,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    {
 		    config.freq = $2;
 		    config.update = 1000000 / $2;
+		    c_printf("CONF: timer freq=%d, update=%d\n",config.freq,config.update);
 		    }
 		| LOGBUFSIZE INTEGER
 		    {

@@ -177,12 +177,13 @@ void time_setting_init(void)
 void timer_interrupt_init(void)
 {
   struct itimerval itv;
+  int delta = (config.update / TIMER_DIVISOR);
 
   itv.it_interval.tv_sec = 0;
-  itv.it_interval.tv_usec = UPDATE / TIMER_DIVISOR;
+  itv.it_interval.tv_usec = delta;
   itv.it_value.tv_sec = 0;
-  itv.it_value.tv_usec = UPDATE / TIMER_DIVISOR;
-  k_printf("Used %d for updating timers\n", UPDATE / TIMER_DIVISOR);
+  itv.it_value.tv_usec = delta;
+  k_printf("Used %d for updating timers\n", delta);
   setitimer(TIMER_TIME, &itv, NULL);
 }
 

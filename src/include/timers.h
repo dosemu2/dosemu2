@@ -5,7 +5,10 @@
 #include "types.h"
 #include <sys/time.h>
 
-#define TIMER_DIVISOR   3
+/* A 'magical' constant used to force the result we want, in this case
+ * getting 100Hz out of SIGALRM_call()
+ */
+#define TIMER_DIVISOR   6
 
 extern void timer_tick(void);
 extern void set_ticks(unsigned long);
@@ -17,12 +20,13 @@ extern void outport_43(int);
 #define BIOS_TICK_ADDR		(void *)0x46c
 #define TICK_OVERFLOW_ADDR	(void *)0x470
 
-/* these were 330000 and 250000 in dosemu0.4 */
-#define UPDATE  config.update	/* waiting time in usec...this is the main
+/* these were 330000 and 250000 in dosemu0.4
+   also, UPDATE and FREQ are now obsolete - 97/3/19 AV */
+/* #define UPDATE  config.update   waiting time in usec...this is the main
 				 * dosemu "system" clock . 54945*/
 #define DELAY	250000		/* sleeping time in usec */
 
-#define FREQ   config.freq	/* rough (low) estimate of how
+/* #define FREQ   config.freq	   rough (low) estimate of how
 				      * many times a second sigalrm()
 				      * is called */
 
