@@ -270,8 +270,8 @@ toggle windowed/fullscreen mode in X
 .I -P
 copy debugging output to FILE
 .TP
-.I -2,3,4
-choose 286, 386, or 486 processor to simulate.
+.I -2,3,4,5
+choose 286, 386, 486 or 586 processor to simulate.
 .TP
 .I -U
 define inpipe and outpipe for asynchronous control of
