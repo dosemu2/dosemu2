@@ -41,7 +41,7 @@ install:
 
 dosemu_c.c : ../../../etc/dosemu.conf
 	echo 'char dosemu_conf[] = \' > $@
-	sed -e 's/^#$$_/$$_/g' \
+	sed -e 's/^# $$_/$$_/g' \
 	    -e 's/\\/\\\\/g' -e "s/'/\\\'/g" -e 's/\"/\\\"/g' \
 	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
 	echo ';' >> $@
