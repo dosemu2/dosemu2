@@ -254,6 +254,8 @@ the current display character set.  For places where I need such a thing.
 /* more */
 #define KEY_LEFT_TAB		0xE159
 
+#define KEY_ALTGR_LOCK		0xE15A
+
 /* dead */
 #define KEY_DEAD_ALT		0xE200
 #define KEY_DEAD_CTRL		0xE201
