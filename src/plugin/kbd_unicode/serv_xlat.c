@@ -1739,7 +1739,8 @@ Bit16u translate_key(Boolean make, t_keynum key,
 	 * code is 0, i.e. bios_key == ((0 << 8)|ascii) == ascii
 	 * just like ALT-numpad sequences.
 	 */
-	bios_key = is_accent ? ascii : make_bios_code_r(make, key, ascii, keysym, state);
+	bios_key = state->accent != KEY_VOID ? 0 :
+	  is_accent ? ascii : make_bios_code_r(make, key, ascii, keysym, state);
 
 	if (bios_key == 0x23e0 || bios_key == 0x18e0)  /* Cyrillic_er work around */
 		bios_key &= 0x00FF;  /* ^^^^^^^^^^^^^^^^^^ Oacute */
