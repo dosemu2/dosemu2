@@ -92,7 +92,6 @@ EXTERN unsigned long pic_irqall INIT(0xfffe);       /* bits for all IRQs set. */
 EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
 EXTERN unsigned long pic1_imr INIT(0x0670);         /* interrupt mask register, pic1 */
 EXTERN unsigned long pic_imr INIT(0xfff8);          /* interrupt mask register */
-EXTERN unsigned long pice_imr INIT(-1);         /* interrupt mask register, dos emulator */  
 EXTERN unsigned int pic_stack[32];     /* list of active irqd */
 EXTERN unsigned int pic_sp INIT(0);	       /* pointer to pic_stack */ 
 EXTERN unsigned int pic_rflag;        /* flag to control pic_watch */
@@ -121,8 +120,6 @@ void write_pic0(ioport_t port, Bit8u value); /* write to PIC 0 */
 void write_pic1(ioport_t port, Bit8u value); /* write to PIC 1 */
 Bit8u read_pic0(ioport_t port);             /* read from PIC 0 */
 Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
-void pic_unmaski(int level);                 /* clear dosemu's irq mask bit */
-void pic_maski(int level);                   /*  set  dosemu's irq mask bit */
 void pic_seti(unsigned int, void (*)(int), unsigned int, void (*)(void)); 
                                        /* set function and interrupt vector */
 void run_irqs(void);                                  /* run requested irqs */
@@ -146,7 +143,7 @@ int pic_pending(int ilevel);			/* inform caller if interrupt is pending */
 void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 
-#define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pice_imr|pic_iflag)
+#define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pic_iflag)
 #define pic_sti() (pic_iflag=0,pic_set_mask, (void)0)          /*    emulate STI      */
 #define pic_cli() (pic_iflag=pic_irqall,pic_set_mask, (void)0) /*    emulate CLI      */
 

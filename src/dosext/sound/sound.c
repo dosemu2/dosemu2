@@ -2570,10 +2570,8 @@ static void sb_init(void)
 
   /* We let DOSEMU handle the interrupt */
   pic_seti(SB_info.irq.irq8, sb_irq_trigger, 0, NULL);
-  pic_unmaski(SB_info.irq.irq8);
   if (SB_info.irq.irq16 != SB_info.irq.irq8) {
     pic_seti(SB_info.irq.irq16, sb_irq_trigger, 0, NULL);
-    pic_unmaski(SB_info.irq.irq16);
   }
 
   /* Register DMA handlers */

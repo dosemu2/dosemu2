@@ -531,33 +531,6 @@ Bit8u read_pic1(ioport_t port)
                          return((unsigned char)get_pic1_irr());
 }
 
-
-/* DANG_BEGIN_FUNCTION pic_mask,pic_unmask
- *
- * The pic maintains an additional interrupt mask which is not visible
- * to the DOS process.  This is normally cleared (enabling an interrupt)
- * when an interrupt is initialized, but dosemu code may choose to
- * use this mask internally.  One possible use is to implement the interrupt
- * gate controlled by the OUT2 bit of the 16550A UART's Modem Control 
- * Register.  This mask is cleared by pic_unmaski() and set by pic_maski()
- *
- * DANG_END_FUNCTION
- */
-void pic_unmaski(int level)
-{
- pic_print(2,"Unmasking lvl= ",level,"");
- if(pic_iinfo[level].func != (void*)0) clear_bit(level,&pice_imr);
- pic_set_mask;
-}
-
-
-void pic_maski(int level)
-{
-  pic_print(2,"Masking lvl= ",level,"");
-  set_bit(level,&pice_imr);
-}
-
-
 /* DANG_BEGIN_FUNCTION pic_seti
  *
  * pic_seti is used to initialize an interrupt for dosemu.  It requires
@@ -601,7 +574,6 @@ void pic_seti(unsigned int level, void (*func)(int), unsigned int ivec,
     set_bit(level, &pic_irqall);
   }
   if(level>15) pic_iinfo[level].ivec = ivec;
-  if(func == (void*)0) pic_maski(level);
 }
 
 

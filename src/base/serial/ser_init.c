@@ -473,7 +473,6 @@ static void do_ser_init(int num)
     com[num].interrupt = pic_irq_list[com[num].interrupt];
     s_printf("SER%d: enabling interrupt %d\n", num, com[num].interrupt);
     pic_seti(com[num].interrupt, pic_serial_run, 0, NULL);
-    pic_unmaski(com[num].interrupt);
   }
   irq_source_num[com[num].interrupt] = num;	/* map interrupt to port */
 

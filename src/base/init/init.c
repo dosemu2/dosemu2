@@ -182,23 +182,16 @@ void hardware_setup(void)
 {
   /* PIC init */
   pic_seti(PIC_IRQ0, timer_int_engine, 0, NULL);  /* do_irq0 in pic.c */
-  pic_unmaski(PIC_IRQ0);
   pic_request(PIC_IRQ0);  /* start timer */
   pic_seti(PIC_IRQ1, do_irq1, 0, NULL); /* do_irq1 in dosio.c   */
-  pic_unmaski(PIC_IRQ1);
   pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
-  pic_unmaski(PIC_IRQ8);
   pic_seti(PIC_IRQ13, do_irq, 0, NULL);
-  pic_unmaski(PIC_IRQ13);
 #ifdef USING_NET
 #ifdef IPX
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
   pic_seti(PIC_IPX_AES, IPXCheckForAESReady, 0, ipx_aes_esr_call);
-  pic_unmaski(PIC_IPX);
-  pic_unmaski(PIC_IPX_AES);
 #endif
   pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
-  pic_unmaski(PIC_NET);
 #endif
   
   /* DMA Init */

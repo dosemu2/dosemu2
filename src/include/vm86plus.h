@@ -17,7 +17,7 @@
 int e_vm86(void);
 
 #define E_VM86(x) ( \
-    (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pice_imr)) != 0, \
+    (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pic_imr)) != 0, \
     e_vm86() )
 #endif
 
@@ -26,7 +26,7 @@ int e_vm86(void);
   #undef vm86
   #define vm86(x) vm86_plus(VM86_ENTER, (int) /* struct vm86_struct* */(x))
   #define _DO_VM86__(x) ( \
-    (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pice_imr)) != 0, \
+    (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pic_imr)) != 0, \
     vm86((struct vm86_struct *)(x)) )
  #ifdef X86_EMULATOR
   #define _DO_VM86_(x) ( \
