@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/04/27 23:39:57 $
+ * $Date: 1994/04/30 01:05:16 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.h,v $
- * $Revision: 1.17 $
+ * $Revision: 1.18 $
  * $State: Exp $
  */
 
@@ -63,10 +63,12 @@ __asm__ __volatile__( \
 	: "=r" (ptr) \
 	: "r" (base), "q" (val), "0" (ptr))
 
-#define popb(base, ptr) \
+#define popw(base, ptr) \
 ({ unsigned long __res; \
 __asm__ __volatile__( \
 	"movb (%1,%0),%b2\n\t" \
+	"incw %w0\n\t" \
+	"movb (%1,%0),%h2\n\t" \
 	"incw %w0" \
 	: "=r" (ptr), "=r" (base), "=r" (__res) \
 	: "0" (ptr), "1" (base), "2" (0)); \
@@ -78,23 +80,23 @@ __res; })
 #define AF  (1 <<  4)
 #define ZF  (1 <<  6)
 #define SF  (1 <<  7)
-#define TF  (1 <<  8)
-#define IF  (1 <<  9)
+#define TF  TF_MASK	/* (1 <<  8) */
+#define IF  IF_MASK	/* (1 <<  9) */
 #define DF  (1 << 10)
 #define OF  (1 << 11)
-#define NT  (1 << 14)
+#define NT  NT_MASK	/* (1 << 14) */
 #define RF  (1 << 16)
-#define VM  (1 << 17)
-#define AC  (1 << 18)
+#define VM  VM_MASK	/* (1 << 17) */
+#define AC  AC_MASK	/* (1 << 18) */
+#define VIF VIF_MASK
+#define VIP VIP_MASK
+#define ID  ID_MASK
 
 #ifndef IOPL_MASK
 #define IOPL_MASK  (3 << 12)
 #endif
 
-/* for cpu_type */
-#define CPU_286   2
-#define CPU_386	  3
-#define CPU_486	  4
+#define vflags ((REG(eflags) & VIF)? LWORD(eflags) | IF : LWORD(eflags) & ~IF)
 
 /* this is the array of interrupt vectors */
 struct vec_t {
@@ -127,14 +129,6 @@ CPU_EXTERN struct vec_t *ivecs;
 
 #define CARRY (LWORD(eflags) |= CF)
 #define NOCARRY (LWORD(eflags) &= ~CF)
-
-typedef struct {
-  short eip;
-  short cs;
-  short flags;
-}
-
-interrupt_stack_frame;
 
 struct sigcontext_struct {
   unsigned short sc_gs, __gsh;
@@ -226,16 +220,9 @@ void sigsegv(int, struct sigcontext_struct);
 void show_regs(void), show_ints(int, int);
 __inline__ int do_hard_int(int), do_soft_int(int);
 
-char pop_byte(struct vm86_regs *);
 short pop_short(struct vm86_regs *);
-long pop_long(struct vm86_regs *);
 
-void push_long(struct vm86_regs *, long);
 void push_word(struct vm86_regs *, short);
-void push_byte(struct vm86_regs *, char);
-
-void push_isf(struct vm86_regs *, interrupt_stack_frame);
-interrupt_stack_frame pop_isf(struct vm86_regs *);
 
 #ifdef DPMI
 #define DPMI_show_state \

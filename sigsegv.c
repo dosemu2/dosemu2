@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/04/27 23:39:57 $
+ * $Date: 1994/04/30 01:05:16 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 1.10 $
+ * $Revision: 1.11 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 1.11  1994/04/30  01:05:16  root
+ * Clean Up.
+ *
  * Revision 1.10  1994/04/27  23:39:57  root
  * Lutz's patches to get dosemu up under 1.1.9.
  *
@@ -265,7 +268,8 @@ inline void vm86_sigsegv()
       }
       {
 	struct pm86 *dpmir = (struct pm86 *) ssp;
-	dpmir->eflags = REG(eflags);
+	dpmir->eflags &= ~0xdd5;
+	dpmir->eflags |= REG(eflags) & 0xdd5;
 	dpmir->eax = REG(eax);
 	dpmir->ebx = REG(ebx);
 	dpmir->ecx = REG(ecx);
@@ -417,7 +421,7 @@ scp = &context;
       PFLAG(ZF);
       PFLAG(SF);
       PFLAG(TF);
-      PFLAG(IF);
+      PFLAG(VIF);
       PFLAG(DF);
       PFLAG(OF);
       PFLAG(NT);
@@ -581,12 +585,12 @@ scp = &context;
       break;
 
       case 0xfa:                        /* cli */
-	REG(eflags) &= ~IF;
+	REG(eflags) &= ~VIF;
         _eip += 1;
         break;
  
       case 0xfb:                        /* sti */
-	REG(eflags) |= IF;
+	REG(eflags) |= VIF;
         _eip += 1;
         break;
 

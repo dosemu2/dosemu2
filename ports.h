@@ -1,13 +1,15 @@
-
-#define PORTS_C 1
+#define PORTS_H 1
 
 /* 
- * $Date: 1994/04/27 23:39:57 $
+ * $Date: 1994/04/30 22:12:30 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 1.6 $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 1.7  1994/04/30  22:12:30  root
+ * Prep for pre51_11.
+ *
  * Revision 1.6  1994/04/27  23:39:57  root
  * Lutz's patches to get dosemu up under 1.1.9.
  *
@@ -225,6 +227,9 @@ outb(int port, int byte)
   switch (port) {
   case 0x20:
     k_printf("OUTB 0x20 to byte=%x\n", byte);
+#if 0 /* 94/04/30 */
+    REG(eflags) |= VIF;
+#endif
     break;
   case 0x60:
     k_printf("keyboard 0x60 outb = 0x%x\n", byte);
@@ -303,4 +308,4 @@ outw(int port, int value)
   outb(port + 1, value >> 8);
 }
 
-#undef PORTS_C
+#undef PORTS_H

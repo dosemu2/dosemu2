@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <termcap.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef USE_NCURSES
 #include <ncurses.h>

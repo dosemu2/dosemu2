@@ -1,12 +1,15 @@
 #define NCURSES_C 1
 
 /* 
- * $Date: 1994/04/27 21:37:08 $
+ * $Date: 1994/04/29 23:53:20 $
  * $Source: /home/src/dosemu0.60/clients/RCS/ncurses.c,v $
- * $Revision: 1.7 $
+ * $Revision: 1.8 $
  * $State: Exp $
  *
  * $Log: ncurses.c,v $
+ * Revision 1.8  1994/04/29  23:53:20  root
+ * Prior to Lutz's latest 94/04/29
+ *
  * Revision 1.7  1994/04/27  21:37:08  root
  * *** empty log message ***
  *
@@ -48,12 +51,13 @@ int client_exit(void){
 	return(endwin());
 }
 
-void main(u_char argc,u_char **argv) {
+void main(int argc,u_char **argv) {
    u_char c;
    u_char *ptr;
    int shm_video_id;
    caddr_t ipc_return;
 
+#if 0
 /* Here is an IPC shm area for looking at DOS's video area */
   if ((shm_video_id = shmget(IPC_PRIVATE, GRAPH_SIZE, 0755)) < 0) {
     fprintf(stderr, "VIDEO: Initial IPC GET mapping unsuccessful: %s\n", strerror(errno));
@@ -61,6 +65,9 @@ void main(u_char argc,u_char **argv) {
   }
   else
     fprintf(stderr, "VIDEO: SHM_VIDEO_ID = 0x%x\n", shm_video_id);
+#else
+  shm_video_id=0x2;
+#endif
 
   if ((ipc_return = (caddr_t) shmat(shm_video_id, (caddr_t)0x0, 0)) == (caddr_t) 0xffffffff) {
     fprintf(stderr, "VIDEO: Adding mapping to video memory unsuccessful: %s\n", strerror(errno));
@@ -71,6 +78,17 @@ void main(u_char argc,u_char **argv) {
   if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
     fprintf(stderr, "VIDEO: Shmctl VIDEO unsuccessful: %s\n", strerror(errno));
   }
+
+printf("%x\n", ipc_return);
+{
+ int x;
+ for(x=0;x<0x30000;x++) {
+   if (ipc_return[x] != 0)
+     printf("%c", ipc_return[x]);
+ }
+}
+printf("\n");
+return;
 
    fprintf(stderr, "%d\n", (WINDOW *)client_init());
    move(0,0);

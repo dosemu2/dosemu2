@@ -7,7 +7,7 @@
 /* commment out the next line to turn off IPX emulation */
 /* #define IPX 1 */
 
-#include "cpu.h"
+#include "../cpu.h"
 #include <sys/types.h>
 
 #define INT2F_DETECT_IPX		0x7A00

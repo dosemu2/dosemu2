@@ -4,7 +4,7 @@ LD86 = ld86 -0
 
 CFILES= ncurses.c
 HFILES= ncurses.h
-INCDIR= -I../include -I.. -I/usr/include/ncurses
+INCDIR= -I../include -I.. -I/usr/include/ncurses -I/usr/local/include
 LDFLAGS = -lncurses
 
 %.com: %.S
@@ -24,7 +24,7 @@ all:
 # this is what's in the Makefile of ncurses.
 
 ncurses.o:
-	$(CC) $(INCDIR) -O2 -o ncurses $< $(LDFLAGS)
+	$(CC) $(INCDIR) -O2 -o ncurses $(LDFLAGS) $< $(LDFLAGS)
 #	$(CC) $(INCDIR) -N -O6 -c -o $@ $<
 
 checkin:
@@ -34,6 +34,9 @@ checkout:
 
 clean:
 	rm -f *.o .depend
+
+client:
+	$(CC) $(INCDIR) -O2 -o ncurses ncurses.c $(LDFLAGS)
 
 install:
 

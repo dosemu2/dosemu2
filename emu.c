@@ -1,14 +1,21 @@
-/* dos emulator, Matthias Lautner */
-
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/04/27 23:39:57 $
+ * $Date: 1994/04/30 22:12:30 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 1.69 $
+ * $Revision: 1.72 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 1.72  1994/04/30  22:12:30  root
+ * Prep for pre51_11.
+ *
+ * Revision 1.71  1994/04/30  01:05:16  root
+ * Lutz's latest 94/04/29
+ *
+ * Revision 1.70  1994/04/29  23:52:06  root
+ * Prior to Lutz's latest 94/04/29.
+ *
  * Revision 1.69  1994/04/27  23:39:57  root
  * Lutz's patches to get dosemu up under 1.1.9.
  *
@@ -413,7 +420,6 @@ struct int_queue_struct {
   int (*callstart) ();
   int (*callend) ();
 }
-
 int_queue[IQUEUE_LEN];
 
 /*
@@ -582,8 +588,10 @@ run_vm86(void)
 		break;
 	case VM86_INTx:
 		do_int(VM86_ARG(retval));
+#if 0
 		if (VM86_ARG(retval) == 3)
-			REG(eflags) |= (TF | IF);
+			REG(eflags) |= (VIF | TF | IF);
+#endif
 		break;
 	case VM86_SIGNAL:
 		break;
@@ -1038,7 +1046,7 @@ sigalrm(int sig, struct sigcontext_struct context)
   pkt_check_receive();
 
     /* update the Bios Data Area timer dword if interrupts enabled */
-  if (REG(eflags) & IF)
+  if (REG(eflags) & VIF)
     timer_tick();
 
   if (config.timers) {
@@ -1340,50 +1348,25 @@ int_queue_run()
 {
 
   int current_interrupt;
-  static int int_count=0;
   unsigned char *ssp;
   unsigned long sp;
-
-  if (int_queue_running) {
-    /* check if current int is finished */
-    if ((int) (SEG_ADR((us *), cs, ip)) != int_queue_head[int_queue_running].int_queue_return_addr) {
-      return;
-    }
-    else {
-      /* if it's finished - clean up */
-      /* call user cleanup function */
-      if (int_queue_head[int_queue_running].int_queue_ptr.callend)
-	int_queue_head[int_queue_running].int_queue_ptr.callend(int_queue_head[int_queue_running].int_queue_ptr.interrupt);
-
-      /* restore registers */
-      REGS = int_queue_head[int_queue_running].saved_regs;
-
-      int_count &= ~(1<<int_queue_head[int_queue_running].int_queue_ptr.interrupt);
-
-      h_printf("int_queue: finished %x\n", int_queue_head[int_queue_running].int_queue_return_addr);
-      --int_queue_running;
-
-    }
-
-  }
 
   if (int_queue_start == int_queue_end)
     return;
 
-  if (!(REG(eflags) & IF)) {
-    REG(eflags) |= VIP_MASK;
+  if (!(REG(eflags) & VIF)) {
+    REG(eflags) |= VIP;
     I_printf("interrupts disabled while int_qeueu_run()\n");
     return;
   }
 
-  current_interrupt = int_queue[int_queue_start].interrupt;
-
-/*
-  if (int_count & (1<<current_interrupt)){
-    k_printf("Not piling int's: int_queue_running=%d, int_count=0x%x\n", int_queue_running, int_count);
+#if 1
+  if (int_queue_running) {
     return;
   }
-*/
+#endif
+
+  current_interrupt = int_queue[int_queue_start].interrupt;
 
   /* call user startup function...don't run interrupt if returns -1 */
   if (int_queue[int_queue_start].callstart)
@@ -1397,14 +1380,15 @@ int_queue_run()
   int_queue_head[++int_queue_running].int_queue_ptr = int_queue[int_queue_start];
   int_queue_head[int_queue_running].in_use=1;
 
-  int_count |= (1<<int_queue[int_queue_start].interrupt);
-
+#if 1
   if (int_queue[int_queue_start].interrupt == 0x09) {
 
     k_printf("Set scanned to zero when int9 set\n");
     /* If another program does a keybaord read on port 0x60, we'll know */
     scanned = 0;
   }
+#endif
+
   cli();
 
   /* save our regs */
@@ -1414,12 +1398,13 @@ int_queue_run()
   sp = (unsigned long) LWORD(esp);
 
   /* push an illegal instruction onto the stack */
-  pushw(ssp, sp, 0xffff);
+  /*  pushw(ssp, sp, 0xffff); */
+  pushw(ssp, sp, 0xe8cd);
 
   /* this is where we're going to return to */
   int_queue_head[int_queue_running].int_queue_return_addr = (unsigned long)ssp + sp;
 
-  pushw(ssp, sp, LWORD(eflags));
+  pushw(ssp, sp, vflags);
   /* the code segment of our illegal opcode */
   pushw(ssp, sp, int_queue_head[int_queue_running].int_queue_return_addr >> 4);
   /* and the instruction pointer */
@@ -1431,7 +1416,7 @@ int_queue_run()
   /* clear TF (trap flag, singlestep), IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    */
-  REG(eflags) &= ~(TF | IF | NT);
+  REG(eflags) &= ~(VIF | TF | IF | NT);
 
   h_printf("int_queue: running int %x return_addr=%x\n", current_interrupt, int_queue_head[int_queue_running].int_queue_return_addr);
   int_queue_start = (int_queue_start + 1) % IQUEUE_LEN;
@@ -1974,7 +1959,7 @@ d_ready(int fd)
 void
 usage(void)
 {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.69 1994/04/27 23:39:57 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.72 1994/04/30 22:12:30 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [-H|F #disks] [-f FLIPSTR] > doserr\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2197,7 +2182,7 @@ dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/04/27 23:39:57 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/04/30 22:12:30 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -2266,7 +2251,7 @@ dos_helper(void)
 	error("select error\n");
     }
 #endif
-    REG(eflags) |= IF;
+    REG(eflags) |= VIF | IF;
     break;
 
   case 0x30:			/* set/reset use bootdisk flag */

@@ -1,12 +1,18 @@
-#define INT_C 1
+#define INT_H 1
 
 /* 
- * $Date: 1994/04/27 23:52:28 $
+ * $Date: 1994/04/30 22:12:30 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 1.13 $
+ * $Revision: 1.15 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 1.15  1994/04/30  22:12:30  root
+ * Prep for pre51_11.
+ *
+ * Revision 1.14  1994/04/30  01:05:16  root
+ * Clean Up
+ *
  * Revision 1.13  1994/04/27  23:52:28  root
  * Drop locking.
  *
@@ -48,8 +54,29 @@
  *
  */
 
+struct int_queue_struct {
+  int interrupt;
+  int (*callstart) ();
+  int (*callend) ();
+};
+
+struct int_queue_list_struct {
+  struct int_queue_struct int_queue_ptr;
+  int int_queue_return_addr;
+  u_char in_use;
+  struct vm86_regs saved_regs;
+};
+/*
+   This is here to allow multiple hard_int's to be running concurrently.
+   Needed for programs that steal INT9 away from DOSEMU.
+*/
+#define NUM_INT_QUEUE 64
+extern struct int_queue_list_struct int_queue_head[NUM_INT_QUEUE]; 
+
 /* int port61 = 0xd0;           the pseudo-8255 device on AT's */
 int port61 = 0x0e;              /* the pseudo-8255 device on AT's */
+
+extern inline void int_queue_run(void);
 
 /*
    Allow checks via inport 0x64 for available scan codes
@@ -81,6 +108,7 @@ inline void
 int08(void)
 {
   do_hard_int(0x1c);
+  REG(eflags) |= VIF;
   /*	printf("Run 0x1c\n"); */
   return;
 }
@@ -590,7 +618,7 @@ run_int(int i)
   ssp = (unsigned char *)(REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
-  pushw(ssp, sp, LWORD(eflags));
+  pushw(ssp, sp, vflags);
   pushw(ssp, sp, LWORD(cs));
   pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 6;
@@ -600,7 +628,7 @@ run_int(int i)
   /* clear TF (trap flag, singlestep), IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    */
-  REG(eflags) &= ~(TF | IF | NT);
+  REG(eflags) &= ~(VIF | TF | IF | NT);
 }
 
 inline int
@@ -615,7 +643,7 @@ can_revector(int i)
  *
  */
 
-  if (i < 0x21 || i > 0xe7 ) return 1;
+  if (i < 0x21 || i > 0xe8 ) return 1;
 
   switch (i) {
 
@@ -628,7 +656,8 @@ if (mice->type == MOUSE_PS2) {
   case 0x74:			/* needed for PS/2 Mouse */
 }
   case 0xe6:			/* for redirector and helper (was 0xfe) */
-  case 0xe7:			/* for redirector and helper (was 0xfe) */
+  case 0xe7:			/* for mfs FCB helper */
+  case 0xe8:			/* for int_queue_run return */
     return 0;
 
   case 0x28:
@@ -828,9 +857,36 @@ else
     goto default_handling;
     return;
 
-  case 0xe7:			/* dos helper and mfs startup (was 0xfe) */
+  case 0xe7:			/* mfs FCB call */
     SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
     run_int(0xe7);
+    return;
+
+  case 0xe8:
+    {
+      static unsigned char *ssp;
+      static unsigned short *csp;
+      static unsigned long sp;
+      static int x;
+      csp = SEG_ADR((us *), cs, ip) - 1;
+      for (x=1; x<=int_queue_running; x++) {
+        /* check if any int is finished */
+        if ((int)csp == int_queue_head[x].int_queue_return_addr) {
+          /* if it's finished - clean up */
+          /* call user cleanup function */
+          if (int_queue_head[x].int_queue_ptr.callend)
+    	    int_queue_head[x].int_queue_ptr.callend(int_queue_head[x].int_queue_ptr.interrupt);
+
+          /* restore registers */
+          REGS = int_queue_head[x].saved_regs;
+          REG(eflags) |= VIF;
+
+          h_printf("e8 int_queue: finished %x\n", int_queue_head[x].int_queue_return_addr);
+          int_queue_running = x - 1;
+
+        }
+      }
+    }
     return;
 
   default:
@@ -866,4 +922,4 @@ else
   return;
 }
 
-#undef INT_C
+#undef INT_H

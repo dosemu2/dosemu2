@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/04/27 21:34:15 $
+ * $Date: 1994/04/30 22:12:30 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 1.16 $
+ * $Revision: 1.17 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 1.17  1994/04/30  22:12:30  root
+ * Prep for pre51_11.
+ *
  * Revision 1.16  1994/04/27  21:34:15  root
  * Jochen's Latest.
  *
@@ -446,12 +449,6 @@ set_keyboard_bios(void)
   }
   else
     inschr = lastchr;
-#if 0
-  if ((inschr & 0xff) == 0x3 && kbd_flag(KF_CTRL)) {
-    _regs.regs.eflags &= ~0x40;
-    do_int(0x1b);
-  }
-#endif
   k_printf("parent nextscan found inschr=0x%02x, lastchr = 0x%02x, lastscan = 0x%04x scaned=%d\n", inschr, lastchr, lastscan, scanned);
   k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));

@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.35  1994/04/30  01:05:16  root
+ * Clean Up.
+ *
  * Revision 1.34  1994/04/27  23:39:57  root
  * Lutz's patches to get dosemu up under 1.1.9.
  *
@@ -2991,7 +2994,7 @@ dos_fs_redirect(state)
       sp = (unsigned long) LWORD(esp);
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      pushw(ssp, sp, LWORD(eflags));
+      pushw(ssp, sp, vflags);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
       REG(esp) -= 6;
@@ -3001,7 +3004,7 @@ dos_fs_redirect(state)
       /* clear TF (trap flag, singlestep), IF (interrupt flag), and
        * NT (nested task) bits of EFLAGS
        */
-      REG(eflags) &= ~(TF | IF | NT);
+      REG(eflags) &= ~(VIF | TF | IF | NT);
 
     }
 
@@ -3096,7 +3099,7 @@ dos_fs_redirect(state)
       sp = (unsigned long) LWORD(esp);
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      pushw(ssp, sp, LWORD(eflags));
+      pushw(ssp, sp, vflags);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
       REG(esp) -= 6;
@@ -3106,7 +3109,7 @@ dos_fs_redirect(state)
       /* clear TF (trap flag, singlestep), IF (interrupt flag), and
        * NT (nested task) bits of EFLAGS
        */
-      REG(eflags) &= ~(TF | IF | NT);
+      REG(eflags) &= ~(VIF | TF | IF | NT);
 
     }
     return (TRUE);

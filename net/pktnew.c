@@ -27,6 +27,9 @@
 #include <sys/time.h>
 #include <linux/if_ether.h>
 
+extern int GetDeviceMTU(char *);
+int pkt_check_receive(void);
+
 #define min(a,b)	((a) < (b)? (a) : (b))
 
 extern int OpenNetworkType(u_short);
@@ -208,7 +211,7 @@ pkt_int ()
 	    REG(edx) = E_NO_CLASS << 8;
 	    break;
 	}
-	if (LWORD(ebx) != 0xffff && LWORD(ebx) != pg->type) { /* check if_type */
+	if (LWORD(ebx) != 0xffff && LWORD(ebx) != (u_short) pg->type) { /* check if_type */
 	    REG(edx) = E_NO_TYPE << 8;
 	    break;
 	}
@@ -236,10 +239,10 @@ pkt_int ()
 		hdlp = &pg->handle[handle];
 
 		if (hdlp->in_use) {
-		    if (hdlp->class == LO(ax) && /* same class? */
+		    if ((u_char)hdlp->class == LO(ax) && /* same class? */
 			!memcmp(hdlp->packet_type, /* same type? (prefix) */
 				SEG_ADR((char *),ds,si),
-				min(LWORD(ecx),hdlp->packet_type_len)))
+				min(LWORD(ecx),(u_short)hdlp->packet_type_len)))
 		    {
 			REG(edx) = E_TYPE_INUSE << 8;
 			REG(eflags) |= CF;
@@ -443,7 +446,7 @@ pkt_check_receive()
 
 	    if (size > 1) {
 		/* check if the packet's type matches the specified type */
-		/* in the ACCESS_TYPE call.  the position depends on the
+		/* in the ACCESS_TYPE call.  the position depends on the */
 		/* driver class! */
 
 		if (hdlp->class == ETHER_CLASS)

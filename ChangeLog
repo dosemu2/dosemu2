@@ -1,3 +1,12 @@
+April 29, 1994  JES
+
+-	Lutz's Latest kernel diff's. Now just 1 small one against 
+	1.1.10 and 1 for the 1.0.x kernels. This has fixed the 
+	EmuBat/Sys boot option problem.
+
+-	First attempt to move net stuff into net subdir and create
+	1 ../net.o object for linking.
+
 April 27, 1994  JES
 
 -	If your kernel is of the 1.0.x nature, patch with 

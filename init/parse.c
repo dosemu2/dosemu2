@@ -3,12 +3,15 @@
  *
  * rudimentary attempt at config file parsing for dosemu
  *
- * $Date: 1994/04/25 21:06:39 $
+ * $Date: 1994/04/29 23:53:26 $
  * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 1.1 $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.2  1994/04/29  23:53:26  root
+ * Prior to Lutz's latest 94/04/29
+ *
  * Revision 1.1  1994/04/25  21:06:39  root
  * Initial revision
  *
@@ -753,9 +756,11 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
     switch (word->token) {
     case VAL_EMUBAT:
       config.emubat = strdup(arg);
+      c_printf("PAR: config.emubat %s\n", config.emubat);
       break;
     case VAL_EMUSYS:
       config.emusys = strdup(arg);
+      c_printf("PAR: config.emusys %s\n", config.emusys);
       break;
     case VAL_FASTFLOPPY:
       config.fastfloppy = atoi(arg);

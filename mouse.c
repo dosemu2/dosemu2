@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/04/27 23:39:57 $
+ * $Date: 1994/04/30 01:05:16 $
  * $Source: /home/src/dosemu0.60/RCS/mouse.c,v $
- * $Revision: 1.15 $
+ * $Revision: 1.16 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 1.16  1994/04/30  01:05:16  root
+ * Clean up.
+ *
  * Revision 1.15  1994/04/27  23:39:57  root
  * Lutz's patches to get dosemu up under 1.1.9.
  *
@@ -543,7 +546,7 @@ fake_int(void)
   ssp = (unsigned char *)(REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
-  pushw(ssp, sp, LWORD(eflags));
+  pushw(ssp, sp, vflags);
   pushw(ssp, sp, LWORD(cs));
   pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 6;

@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/04/28 00:09:34 $
+# $Date: 1994/04/30 01:05:16 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 1.49 $
+# $Revision: 1.50 $
 # $State: Exp $
 #
 
@@ -63,23 +63,20 @@ CLIENTSSUB=clients
 # NCURSES_OBJS=$(CLIENTSSUB)/ncurses.o
 
 SUBDIRS= boot commands doc drivers examples periph video include $(DPMISUB) \
-	$(CLIENTSSUB) timer init
+	$(CLIENTSSUB) timer init net
 
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
 	timers.c mouse.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
-        serial.c ipx.c dyndeb.c libpacket.c pktdrvr.c \
-	sigsegv.c pktnew.c
+        serial.c dyndeb.c sigsegv.c
 
 HFILES=cmos.h emu.h termio.h timers.h xms.h mouse.h dosio.h \
         cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
-        serial.h ipx.h libpacket.h pktdrvr.h mutex.h \
-	int.h ports.h
+        serial.h mutex.h int.h ports.h
 
 SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
-	dosemu-HOWTO kernel.1.0.x.diff kernel.1.1.9.diff \
-	kernel.post.1.1.9.diff
+	dosemu-HOWTO kernel.diff kernel.1.1.10.diff
 BFILES=
 
 F_DOC=dosemu.texinfo Makefile dos.1 wp50
@@ -94,8 +91,7 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o \
      dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o \
-     serial.o ipx.o dyndeb.o libpacket.o pktdrvr.o sigsegv.o \
-     video.o bios.o pktnew.o init.o
+     serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE)
@@ -225,6 +221,7 @@ endif
 	cd video; make depend
 	cd timer; make depend
 	cd init; make depend
+	cd net; make depend
 	$(CPP) -MM $(CFLAGS) $(INCDIR) *.c > .depend;echo "bios.o : bios.S" >>.depend
 
 dummy:

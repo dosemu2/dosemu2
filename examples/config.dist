@@ -30,7 +30,7 @@ debug { config off	disk    off	warning off	hardware off
         port   off	read    off	general off	IPC      off
         video  off	write   off	xms     off	ems      off
         serial off	keyb    off	dpmi    off
-        config off	printer off	mouse   off
+       	printer off	mouse   off
       }
 
 
@@ -86,6 +86,10 @@ keyboard {  layout us  keybint on  rawkeyboard on  }
 #
 HogThreshold 0
 
+# specify extensions for the CONFIG.XXX and AUTOEXEC.XXX files
+# (this feature may affect file naming even after boot time)
+# EmuSys EMU
+# EmuBat EMU
  
 #**************************** SERIAL ************************************
 #
@@ -126,8 +130,6 @@ HogThreshold 0
 #    What type is your mouse?  Uncomment one of the following.
 #mouse { microsoft }
 #mouse { logitech }
-#mouse { mousesystems3 }
-#mouse { mousesystems5 }
 #mouse { mmseries }
 #mouse { ps2  device /dev/mouse }
 

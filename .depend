@@ -10,17 +10,13 @@ dosio.o : dosio.c memory.h emu.h machcompat.h cpu.h termio.h dosio.h mouse.h \
 dyndeb.o : dyndeb.c emu.h machcompat.h cpu.h 
 emu.o : emu.c config.h memory.h emu.h machcompat.h cpu.h ./include/bios.h termio.h \
   ./include/video.h timers.h cmos.h mouse.h dosio.h disks.h xms.h dpmi/dpmi.h \
-  ipx.h serial.h ./include/keymaps.h 
-ipx.o : ipx.c 
+  ./include/ipx.h ./include/../cpu.h serial.h ./include/keymaps.h 
 keymaps.o : keymaps.c config.h 
-libpacket.o : libpacket.c libpacket.h 
 lpt.o : lpt.c emu.h machcompat.h cpu.h dosio.h lpt.h 
 mfs.o : mfs.c mfs.h emu.h machcompat.h cpu.h config.h memory.h 
 mouse.o : mouse.c ./include/bios.h emu.h machcompat.h cpu.h memory.h ./include/video.h \
   mouse.h serial.h 
 mutex.o : mutex.c config.h emu.h machcompat.h cpu.h mutex.h 
-pktdrvr.o : pktdrvr.c pktdrvr.h cpu.h emu.h machcompat.h dosio.h 
-pktnew.o : pktnew.c pktdrvr.h cpu.h emu.h machcompat.h dosio.h memory.h 
 prnt.o : prnt.c 
 serial.o : serial.c config.h cpu.h emu.h machcompat.h dosio.h serial.h mouse.h 
 sigsegv.o : sigsegv.c emu.h machcompat.h cpu.h ./include/bios.h mouse.h serial.h \

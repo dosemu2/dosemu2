@@ -1,10 +1,8 @@
 
 How to quickly get dosemu up and running:
 
-Patch the kernel FIRST!!!
-kernel.1.0.x.diff for 1.0.x kernels
-kernel.1.1.9.diff for 1.1.x kernels prior to 1.1.9
-kernel.post.1.1.9.diff for 1.1.9 kernels 
+Use linux v1.1.10+ and patch with kernel.1.1.10.diff 
+kernel.diff for 1.0.x kernels
 
 *** Note: This release redirects stderr, not stdout as before, therefore
 	attempts to redirect the debug output should be done on stderr.

@@ -5,12 +5,15 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1994/04/27 23:58:51 $
+ * $Date: 1994/04/30 01:07:41 $
  * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 1.14 $
+ * $Revision: 1.15 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 1.15  1994/04/30  01:07:41  root
+ * Lutz's Latest.
+ *
  * Revision 1.14  1994/04/27  23:58:51  root
  * Lutz's patches.
  *
@@ -85,7 +88,7 @@ INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 static char ldt_buffer[LDT_ENTRIES*LDT_ENTRY_SIZE];
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 1.14 1994/04/27 23:58:51 root Exp root $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 1.15 1994/04/30 01:07:41 root Exp root $";
 
 #define MODIFY_LDT_CONTENTS_DATA        0
 #define MODIFY_LDT_CONTENTS_STACK       1
@@ -588,15 +591,15 @@ void do_int31(int inumber)
     _LWORD(ecx) = 0x1000; /* 4 KByte */
     break;
   case 0x0900:	/* Get and Disable Virtual Interrupt State */
-    _LO(ax) = (REG(eflags) & IF) ? 1 : 0;
-    REG(eflags) &= ~IF;
+    _LO(ax) = (REG(eflags) & VIF) ? 1 : 0;
+    REG(eflags) &= ~VIF;
     break;
   case 0x0901:	/* Get and Enable Virtual Interrupt State */
-    _LO(ax) = (REG(eflags) & IF) ? 1 : 0;
-    REG(eflags) |= IF;
+    _LO(ax) = (REG(eflags) & VIF) ? 1 : 0;
+    REG(eflags) |= VIF;
     break;
   case 0x0902:	/* Get Virtual Interrupt State */
-    _LO(ax) = (REG(eflags) & IF) ? 1 : 0;
+    _LO(ax) = (REG(eflags) & VIF) ? 1 : 0;
     break;
   case 0x0a00:	/* Get Vendor Specific API Entry Point */
     {

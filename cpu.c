@@ -3,12 +3,21 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/04/27 23:42:52 $
+ * $Date: 1994/04/30 22:12:30 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 1.39 $
+ * $Revision: 1.42 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 1.42  1994/04/30  22:12:30  root
+ * Prep for pre51_11.
+ *
+ * Revision 1.41  1994/04/30  01:05:16  root
+ * Lutz's Latest
+ *
+ * Revision 1.40  1994/04/29  23:52:06  root
+ * Prior to Lutz's latest 94/04/29.
+ *
  * Revision 1.39  1994/04/27  23:42:52  root
  * Lutz's patches to get dosemu up under 1.1.9. and Jochen's Cleanups
  *
@@ -191,7 +200,7 @@ cpu_init(void)
 {
   int i;
   /* cpu_type set in emulate() via getopt */
-  REG(eflags) = IF;
+  REG(eflags) = VIF | IF;
 
   /* make ivecs array point to low page (real mode IDT) */
   ivecs = 0;
@@ -202,16 +211,18 @@ cpu_init(void)
     if (!can_revector(i) && i!=0x21)
       set_revectored(i, &vm86s.int_revectored);
   set_revectored(0x0c, &vm86s.int21_revectored);
+
 #ifdef INTERNAL_EMS
-  set_revectored(0x3d, &vm86s.int21_revectored);
   set_revectored(0x3e, &vm86s.int21_revectored);
   set_revectored(0x44, &vm86s.int21_revectored);
 #endif
-  if (config.emusys || config.emubat)
+  if(config.emusys || config.emubat)
     set_revectored(0x3d, &vm86s.int21_revectored);
+#if 0
 #ifdef DPMI
   if (config.dpmi_size)
     set_revectored(0x4c, &vm86s.int21_revectored);
+#endif
 #endif
 }
 
@@ -221,7 +232,6 @@ show_regs(void)
   int i;
   unsigned char *sp;
   unsigned char *cp = SEG_ADR((unsigned char *), cs, ip);
-  unsigned long vflags = REG(eflags);
 
   if (!LWORD(esp))
     sp = (SEG_ADR((u_char *), ss, sp)) + 0x8000;
@@ -242,7 +252,7 @@ show_regs(void)
 	      LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
 
   /* display vflags symbolically...the #f "stringizes" the macro name */
-#define PFLAG(f)  if (vflags&(f)) dbug_printf(#f" ")
+#define PFLAG(f)  if (REG(eflags)&(f)) dbug_printf(#f" ")
 
   dbug_printf("FLAGS: ");
   PFLAG(CF);
@@ -251,7 +261,7 @@ show_regs(void)
   PFLAG(ZF);
   PFLAG(SF);
   PFLAG(TF);
-  PFLAG(IF);
+  PFLAG(VIF);
   PFLAG(DF);
   PFLAG(OF);
   PFLAG(NT);
@@ -327,21 +337,6 @@ sigill(int sig, struct sigcontext_struct context)
 #endif
 
   csp = SEG_ADR((unsigned char *), cs, ip);
-/*
-   O.K., we seem to be getting here because to hard ints are stacked.
-   Therefore when the first is popped, the second points to instr. 0xff
-   So here we run int_queue_run() again to clean up :-).
-*/
-  if (*(u_short *)csp == 0xffff && int_queue_running) {
-    int_queue_run();
-    if (csp != SEG_ADR((unsigned char *), cs, ip)) {
-#if 0
-      show_regs();
-      fprintf(stderr, "Returning from 0xff\n");
-#endif
-      return;
-    }
-  }
 
   if (!in_vm86)			/* test VM bit */
     error("ERROR: NON-VM86 illegal insn!\n");
@@ -431,7 +426,7 @@ sigfpe(int sig)
 
   error("SIGFPE %d received\n", sig);
   show_regs();
-  if (REG(eflags) & IF) {
+  if (REG(eflags) & VIF) {
     LWORD(eip) -= 1;
     do_int(0);
   }
@@ -637,78 +632,31 @@ write_port(int value, int port)
   return (1);
 }
 
-char
-pop_byte(struct vm86_regs *pregs)
-{
-  char *stack_byte = (char *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp));
-
-  pregs->esp += 1;
-  return *stack_byte;
-}
-
 short
 pop_word(struct vm86_regs *pregs)
 {
-  unsigned short *stack_word;
+  unsigned char *ssp;
+  unsigned long sp;
 
-  if (!pregs->esp)
-    stack_word = (unsigned short *) ((WORD(pregs->ss) << 4) + 0x8000);
-  else
-    stack_word = (unsigned short *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp));
+  ssp = (unsigned char *)(WORD(pregs->ss) << 4);
+  sp = (unsigned long) WORD(pregs->esp);
+
   pregs->esp += 2;
-  return *stack_word;
-}
-
-long
-pop_long(struct vm86_regs *pregs)
-{
-  long *stack_long = (long *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp));
-
-  pregs->esp += 4;
-  return *stack_long;
-}
-
-void
-push_byte(struct vm86_regs *pregs, char byte)
-{
-  pregs->esp -= 1;
-  *(char *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp)) = byte;
+  return WORD(popw(ssp, sp));
 }
 
 void
 push_word(struct vm86_regs *pregs, short word)
 {
+  unsigned char *ssp;
+  unsigned long sp;
+
+  ssp = (unsigned char *)(WORD(pregs->ss) << 4);
+  sp = (unsigned long) WORD(pregs->esp);
+
   pregs->esp -= 2;
-  *(short *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp)) = word;
-}
 
-void
-push_long(struct vm86_regs *pregs, long longword)
-{
-  pregs->esp -= 4;
-  *(long *) ((WORD(pregs->ss) << 4) + WORD(pregs->esp)) = longword;
-}
-
-interrupt_stack_frame
-pop_isf(struct vm86_regs *pregs)
-{
-  interrupt_stack_frame isf;
-
-  show_regs();
-  isf.eip = pop_word(pregs);
-  isf.cs = pop_word(pregs);
-  isf.flags = pop_word(pregs);
-  error("cs: 0x%x, eip: 0x%x, flags: 0x%x\n", isf.cs, isf.eip,
-	isf.flags);
-  return isf;
-}
-
-void
-push_isf(struct vm86_regs *pregs, interrupt_stack_frame isf)
-{
-  push_word(pregs, isf.flags);
-  push_word(pregs, isf.cs);
-  push_word(pregs, isf.eip);
+  pushw(ssp, sp, word);
 }
 
 #undef CPU_C

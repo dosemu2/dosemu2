@@ -9,11 +9,14 @@
  *	mdrejhon@cantor.math.uwaterloo.ca
  *	ag115@freenet.carleton.ca
  *
- * $Date: 1994/04/16 01:28:47 $
+ * $Date: 1994/04/29 23:52:06 $
  * $Source: /home/src/dosemu0.60/RCS/serial.c,v $
- * $Revision: 1.30 $
+ * $Revision: 1.31 $
  * $State: Exp $
  * $Log: serial.c,v $
+ * Revision 1.31  1994/04/29  23:52:06  root
+ * Prior to Lutz's latest 94/04/29.
+ *
  * Revision 1.30  1994/04/16  01:28:47  root
  * Prep for pre51_6.
  *
@@ -168,8 +171,8 @@ serial_t com[MAX_SER];
 /* The following are constants that adjust the soonness of the next */
 /* receive or transmit interrupt in FIFO mode.  These are a little  */
 /* bit sensitive, and may dissappear when better timer code arrives */
-#define TIMEOUT_TX         3
-#define TIMEOUT_RX         8
+#define TIMEOUT_TX         1
+#define TIMEOUT_RX         2
 
 /* Some very useful defines, mainly for Modem Status register operation.
 ** CONVERT_BIT returns 'outbit' only if 'inbit' in 'testbyte' is set.
@@ -590,7 +593,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 1.30 1994/04/16 01:28:47 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 1.31 1994/04/29 23:52:06 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   *(u_short *) 0x400 = 0;
