@@ -118,6 +118,8 @@ void pkt_priv_init(void)
 {
     int ret = 0;
     /* initialize the globals */
+    if (!config.pktdrv)
+      return;
 
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
@@ -140,6 +142,8 @@ void
 pkt_init(int vec)
 {
     char devname[10];
+    if (!config.pktdrv)
+      return;
     if (pktdrvr_installed == -1)
       goto fail;
     p_param = MK_PTR(PKTDRV_param);
