@@ -877,9 +877,6 @@ static void port_server(void)
         close(port_fd_in[0]);
         close(port_fd_out[1]);
         g_printf("server started\n");
-        /* free low memory: the server doesn't need it and it saves
-           a bit of memory (~128K out of the 328K fork overhead) */
-        munmap(0, 0x100000);
 	SETSIG(SIG_RELEASE, SIG_IGN);
 	SETSIG(SIG_ACQUIRE, SIG_IGN);
         for (;;) {
