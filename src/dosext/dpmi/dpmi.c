@@ -173,11 +173,7 @@ static inline int get_ldt(void *buffer)
 
 static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
-	      int limit_in_pages_flag
-#ifdef WANT_WINDOWS
-, int seg_not_present, int useable
-#endif
-)
+	      int limit_in_pages_flag, int seg_not_present, int useable)
 {
   unsigned long *lp;
 /* --------------------- linux --------------------- */
@@ -191,12 +187,8 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.contents = contents;
   ldt_info.read_exec_only = read_only_flag;
   ldt_info.limit_in_pages = limit_in_pages_flag;
-#ifdef WANT_WINDOWS
   ldt_info.seg_not_present = seg_not_present;
   ldt_info.useable = useable;
-#else
-  ldt_info.seg_not_present = 0;
-#endif
 
 #ifdef X86_EMULATOR
   if (config.cpuemu>1)
@@ -224,11 +216,8 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 
   if (base == 0 && limit == 0 &&
       contents == 0 && read_only_flag == 1 &&
-      seg_32bit_flag == 0 && limit_in_pages_flag == 0
-#ifdef WANT_WINDOWS
-      && seg_not_present == 1 && useable == 0
-#endif
-      ) {
+      seg_32bit_flag == 0 && limit_in_pages_flag == 0 &&
+      seg_not_present == 1 && useable == 0) {
 	*lp = 0;
 	*(lp+1) = 0;
 	return 0;
@@ -244,9 +233,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.seg_32bit << 22) |
             (ldt_info.limit_in_pages << 23) |
             ((ldt_info.seg_not_present ^1) << 15) |
-#if defined(WANT_WINDOWS)
             (ldt_info.useable << 20) |
-#endif
             0x7000;
 #endif
   return 0;
@@ -598,11 +585,8 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
   int ldt_entry = selector >> 3;
-  if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big
-#ifdef WANT_WINDOWS
-  , seg_not_present, useable
-#endif
-  )) {
+  if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
+      seg_not_present, useable)) {
     D_printf("DPMI: set_ldt_entry() failed\n");
     return -1;
   }
@@ -704,11 +688,7 @@ int FreeDescriptor(unsigned short selector)
   Segments[ldt_entry].useable = 0;
 #if 1
   /* We should be in sync with the real LDT  --Alberto 981209 */
-  return set_ldt_entry(ldt_entry, 0, 0, 0, 0, 1, 0
-  #ifdef WANT_WINDOWS
-    , 1, 0
-  #endif
-  );
+  return set_ldt_entry(ldt_entry, 0, 0, 0, 0, 1, 0, 1, 0);
 #else
   return 0;
 #endif
@@ -920,11 +900,8 @@ int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
-	Segments[ldt_entry].is_big
-#ifdef WANT_WINDOWS
-	, Segments[ldt_entry].not_present, Segments[ldt_entry].useable
-#endif
-);
+	Segments[ldt_entry].is_big,
+	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
 }
 
 int SetSegmentLimit(unsigned short selector, unsigned int limit)
@@ -945,11 +922,8 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
 	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
-	Segments[ldt_entry].is_big
-#ifdef WANT_WINDOWS
-	, Segments[ldt_entry].not_present, Segments[ldt_entry].useable
-#endif
-);
+	Segments[ldt_entry].is_big,
+	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
 }
 
 static int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
@@ -980,12 +954,9 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
   Segments[ldt_entry].not_present = ((type_byte >> 7) & 1) ? 0 : 1;
   Segments[ldt_entry].useable = (type_byte >> 12) & 1;
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr, Segments[ldt_entry].limit,
-			Segments[ldt_entry].is_32, Segments[ldt_entry].type,
-			Segments[ldt_entry].readonly, Segments[ldt_entry].is_big
-#ifdef WANT_WINDOWS
-			, Segments[ldt_entry].not_present, Segments[ldt_entry].useable
-#endif
-);
+	Segments[ldt_entry].is_32, Segments[ldt_entry].type,
+	Segments[ldt_entry].readonly, Segments[ldt_entry].is_big,
+	Segments[ldt_entry].not_present, Segments[ldt_entry].useable);
 }
 
 static unsigned short CreateCSAlias(unsigned short selector)
@@ -1280,7 +1251,6 @@ static void get_ext_API(struct sigcontext_struct *scp)
 {
       char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMI_CLIENT.is_32 ? _esi : _LWORD(esi)));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
-#ifdef WANT_WINDOWS
       if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
         if (config.pm_dos_api) {
 	  _LO(ax) = 0;
@@ -1288,7 +1258,6 @@ static void get_ext_API(struct sigcontext_struct *scp)
 	  _edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
 	}
       } else
-#endif
       if (!strcmp("VIRTUAL SUPPORT", ptr)) {
 	_LO(ax) = 0;
       } else
@@ -3701,10 +3670,8 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	      DPMI_show_state(scp));
 	SetSelector(_ss, Segments[_ss >> 3].base_addr, Segments[_ss >> 3].limit,
 	  1, Segments[_ss >> 3].type, Segments[_ss >> 3].readonly,
-	  Segments[_ss >> 3].is_big
-#ifdef WANT_WINDOWS
-	  , Segments[_ss >> 3].not_present, Segments[_ss >> 3].useable
-#endif
+	  Segments[_ss >> 3].is_big,
+	  Segments[_ss >> 3].not_present, Segments[_ss >> 3].useable
 	  );
 	return;
 #endif

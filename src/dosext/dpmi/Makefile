@@ -11,7 +11,7 @@ include $(top_builddir)/Makefile.conf
 # CC   = gcc
 # INCDIR is exported from ..
 #INCDIR = -I../ -I../include/
-CFLAGS+= $(KERNEL) # -DWANT_WINDOWS
+CFLAGS+= $(KERNEL)
 
 ALL = dpmi.c dpmi.h meminfo.c meminfo.h memory.c msdos.c vxd.c winemu.bat
 

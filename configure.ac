@@ -436,8 +436,6 @@ dnl Do SB emulation
 
 dnl DPMI requirements
 
-AC_DEFINE(WANT_WINDOWS)
-
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
 AC_SUBST(PLUGINSUBDIRS)
@@ -740,9 +738,6 @@ Most compilers have this one, but just to be sure...])
 AH_TEMPLATE([__LINE__],
 [ Define if the compiler doesn't have __LINE__ macro.
 Most compilers have this one, but just to be sure...])
-
-AH_TEMPLATE([WANT_WINDOWS],
-[ DPMI test windows ])
 
 AH_TEMPLATE([USE_SVGALIB],
 [ DEFINE this, if you want svgalib support ])
