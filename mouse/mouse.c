@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/05 21:18:15 $
+ * $Date: 1994/06/10 23:22:02 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 1.3 $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 1.4  1994/06/10  23:22:02  root
+ * prep for pre51_25.
+ *
  * Revision 1.3  1994/06/05  21:18:15  root
  * Prep for pre51_24.
  *
@@ -95,6 +98,9 @@
 #include "video.h"		/* video base address */
 #include "mouse.h"
 #include "serial.h"
+#include "port.h"
+
+extern void open_kmem(void), close_kmem(void);
 
 void DOSEMUSetupMouse(void);
 
@@ -106,7 +112,7 @@ void mouse_reset(void), mouse_cursor(int), mouse_pos(void), mouse_curpos(void),
  mouse_mickeys(void), mouse_version(void);
 
 /* mouse movement functions */
-void mouse_updown(void), mouse_leftright(void),
+void mouse_move(void),
  mouse_lb(void), mouse_rb(void), mouse_do_cur(void);
 
 /* called when mouse changes */
@@ -249,6 +255,7 @@ mouse_int(void)
 
   case 0x21:			
     m_printf("MOUSE: software reset on mouse\n");
+    mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
     LWORD(eax) = 0xffff;
     LWORD(ebx) = 2;
     break;
@@ -283,6 +290,7 @@ mouse_int(void)
 
   default:
     error("MOUSE: function 0x%04x not implemented\n", LWORD(eax));
+    LWORD(eax) = 0xFFFF;	/* probably wrong, but let's try. */
     break;
   }
 }
@@ -302,6 +310,7 @@ mouse_reset(void)
   mouse.cursor_on = 0;
   mouse.cursor_type = 0;
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
+  mouse.oldlbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
@@ -463,19 +472,19 @@ mouse_keyboard(int sc)
   switch (sc) {
   case 0x50:
     mouse.rbutton = mouse.lbutton = 0;
-    mouse_updown();
+    mouse_move();
     break;
   case 0x4b:
     mouse.rbutton = mouse.lbutton = 0;
-    mouse_leftright();
+    mouse_move();
     break;
   case 0x4d:
     mouse.rbutton = mouse.lbutton = 0;
-    mouse_leftright();
+    mouse_move();
     break;
   case 0x48:
     mouse.rbutton = mouse.lbutton = 0;
-    mouse_updown();
+    mouse_move();
     break;
   case 0x47:
     mouse_lb();
@@ -489,27 +498,17 @@ mouse_keyboard(int sc)
 }
 
 void 
-mouse_updown(void)
+mouse_move(void)
 {
-  m_printf("MOUSE: mouse moved updown from %d to %d\n", mouse.y, mouse.y - 1);
   if (mouse.y < 0)
     mouse.y = 0;
   if (mouse.y > mouse.maxy)
     mouse.y = mouse.maxy;
-  mouse.cy = mouse.y / 8;
   mouse.mickeyy -= MICKEY;
-  mouse_delta(DELTA_CURSOR);
-}
-
-void 
-mouse_leftright(void)
-{
-  m_printf("MOUSE: mouse moved leftright from %d to %d\n", mouse.x, mouse.x - 1);
   if (mouse.x < 0)
     mouse.x = 0;
   if (mouse.x > mouse.maxx)
     mouse.x = mouse.maxx;
-  mouse.cx = mouse.x / 8;
   mouse.mickeyx -= MICKEY;
   mouse_delta(DELTA_CURSOR);
 }
@@ -517,19 +516,17 @@ mouse_leftright(void)
 void 
 mouse_lb(void)
 {
-  m_printf("MOUSE: left button %s\n", mouse.lbutton ? "released" : "pressed");
+  m_printf("MOUSE: left button %s\n", mouse.lbutton ? "pressed" : "released");
   if (!mouse.lbutton) {
-    mouse.lbutton = 0;
-    mouse.lpcount++;
-    mouse.lpx = mouse.x;
-    mouse.lpy = mouse.y;
-    mouse_delta(DELTA_LEFTBUP);
-  }
-  else {
-    mouse.lbutton = 1;
     mouse.lrcount++;
     mouse.lrx = mouse.x;
     mouse.lry = mouse.y;
+    mouse_delta(DELTA_LEFTBUP);
+  }
+  else {
+    mouse.lpcount++;
+    mouse.lpx = mouse.x;
+    mouse.lpy = mouse.y;
     mouse_delta(DELTA_LEFTBDOWN);
   }
 }
@@ -537,19 +534,17 @@ mouse_lb(void)
 void 
 mouse_rb(void)
 {
-  m_printf("MOUSE: right button %s\n", mouse.rbutton ? "released" : "pressed");
+  m_printf("MOUSE: right button %s\n", mouse.rbutton ? "pressed" : "released");
   if (!mouse.rbutton) {
-    mouse.rbutton = 0;
-    mouse.rpcount++;
-    mouse.rpx = mouse.x;
-    mouse.rpy = mouse.y;
-    mouse_delta(DELTA_RIGHTBUP);
-  }
-  else {
-    mouse.rbutton = 1;
     mouse.rrcount++;
     mouse.rrx = mouse.x;
     mouse.rry = mouse.y;
+    mouse_delta(DELTA_RIGHTBUP);
+  }
+  else {
+    mouse.rpcount++;
+    mouse.rpx = mouse.x;
+    mouse.rpy = mouse.y;
     mouse_delta(DELTA_RIGHTBDOWN);
   }
 }
@@ -613,8 +608,8 @@ mouse_delta(int event)
     fake_pusha();
 
     LWORD(eax) = event;
-    LWORD(ecx) = mouse.cx * 8;
-    LWORD(edx) = mouse.cy * 8;
+    LWORD(ecx) = mouse.x;
+    LWORD(edx) = mouse.y;
     LWORD(edi) = mouse.mickeyx;
     LWORD(esi) = mouse.mickeyy;
     LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
@@ -655,9 +650,11 @@ mouse_do_cur(void)
 				mem_fd,
 				GRAPH_BASE);
     close_kmem();
+ 
+    for (i = 0; i < HEIGHT; i++) {
+      graph_mem[mouse.x / 8 +((mouse.y + i) * 80)] = mousecursormask[i];
+    }
 
-    for (i = 0; i < HEIGHT; i++) 
-      graph_mem[(mouse.x / 8) + ((mouse.y + i - 8)*80)] = mousecursormask[i];
   } else {
     unsigned short *p = SCREEN_ADR(bios_current_screen_page);
 

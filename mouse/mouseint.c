@@ -37,7 +37,7 @@
 #include "emu.h"
 #include "mouse.h"
 
-void mouse_updown(void), mouse_leftright(void), mouse_lb(void), mouse_rb(void);
+void mouse_move(void), mouse_lb(void), mouse_rb(void);
 void DOSEMUSetMouseSpeed();
 
 /*
@@ -239,15 +239,20 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 
     mouse.x = mouse.x + dx;
     mouse.y = mouse.y + dy;
-    if (dx) mouse_leftright();
-    if (dy) mouse_updown();
+    mouse.cx = mouse.x / 8;
+    mouse.cy = mouse.y / 8;
+    if (dx || dy) mouse_move();
+    mouse.oldlbutton = mouse.lbutton;
+    mouse.oldrbutton = mouse.rbutton;
     mouse.lbutton = buttons & 0x04;
     mouse.mbutton = buttons & 0x02;
     mouse.rbutton = buttons & 0x01;
+    if (mouse.oldlbutton != mouse.lbutton)
     mouse_lb();
 /*
  *  mouse_mb();         When we have 3 button support
  */
+    if (mouse.oldrbutton != mouse.rbutton)
     mouse_rb();   
 
     pBufP = 0;

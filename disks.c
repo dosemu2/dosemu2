@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/05/30 00:08:20 $
+ * $Date: 1994/06/10 23:21:21 $
  * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 1.15 $
+ * $Revision: 1.16 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -939,6 +939,7 @@ int13(void)
     error("ERROR: disk error, unknown command: int13, ax=0x%x\n",
 	  LWORD(eax));
     show_regs();
+    CARRY;
     return;
   }
 }

@@ -1,12 +1,15 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/05 21:42:42 $
+ * $Date: 1994/06/10 23:21:21 $
  * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
- * $Revision: 1.15 $
+ * $Revision: 1.16 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.16  1994/06/10  23:21:21  root
+ * prep for pre51_25.
+ *
  * Revision 1.15  1994/06/05  21:42:42  root
  * prePrep for pre51_24.
  *
@@ -102,7 +105,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.15 1994/06/05 21:42:42 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.16 1994/06/10 23:21:21 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -324,7 +327,7 @@ umb_allocate(size)
 
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use && umbs[i].free) {
-      if (umbs[i].size >= size) {
+      if (umbs[i].size > size) {
 	int new_umb = umb_find_unused();
 
 	if (new_umb != UMB_NULL) {
@@ -339,9 +342,43 @@ umb_allocate(size)
 	  return (umbs[i].addr);
 	}
       }
+      else
+	if (umbs[i].size == size) {
+	  umbs[i].free = FALSE;
+	  return (umbs[i].addr);
+	}
     }
   }
   return ((vm_address_t) 0);
+}
+
+umb_cleanup(umb)
+     int umb;
+{
+  vm_address_t umb_top = umbs[umb].addr + umbs[umb].size;
+  int i, updated;
+
+  do {
+    updated = 0;
+    for (i = 0; i < UMBS; i++) {
+      if (umbs[i].in_use && umbs[i].free) {
+	if (umbs[i].addr == umb_top) {
+          umbs[umb].size += umbs[i].size;
+          umb_top         = umbs[umb].addr + umbs[umb].size;
+          umbs[i].in_use  = 0;
+	  updated         = 1;
+	  continue;
+	}
+	if (umbs[i].addr + umbs[i].size == umbs[umb].addr) {
+	  umbs[umb].addr  = umbs[i].addr;
+	  umbs[umb].size += umbs[i].size;
+	  umb_top         = umbs[umb].addr + umbs[umb].size;
+	  umbs[i].in_use  = 0;
+	  updated         = 1;
+	}
+      }
+    }
+  } while (updated);
 }
 
 int
@@ -350,8 +387,10 @@ umb_free(segbase)
 {
   int umb = umb_find(segbase);
 
-  if (umb != UMB_NULL)
+  if (umb != UMB_NULL) {
     umbs[umb].free = TRUE;
+    umb_cleanup(umb);
+  }
   return (0);
 }
 

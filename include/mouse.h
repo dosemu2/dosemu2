@@ -51,6 +51,7 @@ typedef struct mouse_structure {
 
 struct mouse_struct {
   unsigned char lbutton, mbutton, rbutton;
+  unsigned char oldlbutton, oldrbutton;
 
   int lpcount, lrcount, mpcount, mrcount, rpcount, rrcount;
 

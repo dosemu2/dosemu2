@@ -1,9 +1,9 @@
 /* video.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/05/24 01:24:12 $
+ * $Date: 1994/06/10 23:21:58 $
  * $Source: /home/src/dosemu0.60/video/RCS/video.c,v $
- * $Revision: 1.10 $
+ * $Revision: 1.11 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -177,13 +177,19 @@ allow_switch()
 void
 parent_close_mouse(void)
 {
-  child_close_mouse();
+  if (mice->intdrv)
+    DOS_SYSCALL(close(mice->fd));
+  else
+    child_close_mouse();
 }
 
 void
 parent_open_mouse(void)
 {
-  child_open_mouse();
+  if (mice->intdrv)
+    mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+  else
+    child_open_mouse();
 }
 
 void
