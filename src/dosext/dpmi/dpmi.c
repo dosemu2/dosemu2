@@ -153,7 +153,11 @@ static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 }
 
 #ifdef __linux__
-_syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+#define modify_ldt dosemu_modify_ldt
+static inline int modify_ldt(int func, void *ptr, unsigned long bytecount)
+{
+  return syscall(SYS_modify_ldt, func, ptr, bytecount);
+}
 #endif
 
 static inline int get_ldt(void *buffer)
