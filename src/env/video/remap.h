@@ -116,6 +116,7 @@ typedef struct RemapObjectStruct {
   unsigned gamma;		/* 4 byte !! */
   unsigned char *gamma_lut;
   unsigned char *src_image, *dst_image;
+  unsigned char *src_tmp_line;
   unsigned src_width, src_height, src_scan_len;
   unsigned dst_width, dst_height, dst_scan_len;
   int src_x0, src_y0, src_x1, src_y1;
@@ -123,6 +124,7 @@ typedef struct RemapObjectStruct {
   int src_offset, dst_offset;
   int *bre_x, *bre_y;
   unsigned *true_color_lut;
+  unsigned *bit_lut;
   int supported_src_modes;
   void (*remap_func)(struct RemapObjectStruct *);
   unsigned remap_func_flags;
@@ -179,6 +181,7 @@ void code_append_ins(CodeObj *, int, void *);
 		RO_Struct ro_gamma_lut
 		RO_Struct ro_src_image
 		RO_Struct ro_dst_image
+		RO_Struct ro_src_tmp_line
 		RO_Struct ro_src_width
 		RO_Struct ro_src_height
 		RO_Struct ro_src_scan_len
@@ -198,7 +201,8 @@ void code_append_ins(CodeObj *, int, void *);
 		RO_Struct ro_bre_x
 		RO_Struct ro_bre_y
 		RO_Struct ro_true_color_lut
-		RO_Struct ro_supported_src_modes;
+		RO_Struct ro_bit_lut
+		RO_Struct ro_supported_src_modes
 		RO_Struct ro_remap_func
 		RO_Struct ro_remap_func_flags
 		RO_Struct remap_func_name

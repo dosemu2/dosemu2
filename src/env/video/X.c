@@ -1368,6 +1368,13 @@ void X_handle_events()
 /* Mouse events */
 #if CONFIG_X_MOUSE  
 	case ButtonPress:
+#if 0 /* *** special debug code *** --sw */
+        if(e.xbutton.button == Button1) {
+          static unsigned flup = 0;
+          v_printf("------: %u\n", ++flup);
+        }
+#endif /* *** end sdc *** */
+
 #if CONFIG_X_SELECTION
 	if (vga.mode_class == TEXT) {
 	  if (e.xbutton.button == Button1)
@@ -1413,7 +1420,13 @@ void X_handle_events()
 	   * drawn by win31 and align it with the X-cursor.
 	   * (Hans)
 	   */
-	  if(!grab_active) snap_X=3;
+	   
+	  /* MODIFICATION TO SUPPORT VGA MODE 12h UNDER X */
+	  /*
+	   * Do not trigger the win31 kludge in VGA mode 12h under X. 
+	   */
+	    
+	  if(!grab_active && vga.mode!=0x12) snap_X=3;
 	  X_printf("X: Mouse entering window\n");
 	  set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	  set_mouse_buttons(e.xcrossing.state);

@@ -186,6 +186,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
 {
   RemapObject ro;
   int color_lut_size = 256;
+  unsigned u, u0, u1;
 
   ro.palette_update = do_nearly_nothing;
   ro.src_resize = src_resize_update;
@@ -196,7 +197,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   ro.src_mode = src_mode;
   ro.dst_mode = dst_mode;
   ro.src_color_space = ro.dst_color_space = NULL;
-  ro.src_image = ro.dst_image = NULL;
+  ro.src_image = ro.dst_image = ro.src_tmp_line = NULL;
   ro.src_width = ro.src_height = ro.src_scan_len =
   ro.dst_width = ro.dst_height = ro.dst_scan_len =
   ro.src_x0 = ro.src_y0 = ro.src_x1 = ro.src_y1 =
@@ -204,6 +205,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   ro.src_offset = ro.dst_offset = 0;
   ro.bre_x = ro.bre_y = NULL;
   ro.true_color_lut = NULL;
+  ro.bit_lut = NULL;
   ro.gamma_lut = NULL;
   adjust_gamma(&ro, 100);
   ro.remap_func = ro.remap_func_init = NULL;
@@ -275,6 +277,31 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
       if(ro.true_color_lut == NULL) ro.state |= ROS_MALLOC_FAIL;
       ro.palette_update = true_col_palette_update;
     }
+    ro.bit_lut = calloc(8*4*256, 1);
+    if(ro.bit_lut == NULL) {
+      ro.state |= ROS_MALLOC_FAIL;
+    }
+    else {
+      for(u = 0; u < 0x100; u++) {
+        u0 = u1 = 0; 
+        if((u & 0x80)) u0 |= 1 <<  0;
+        if((u & 0x40)) u0 |= 1 <<  8;
+        if((u & 0x20)) u0 |= 1 << 16;
+        if((u & 0x10)) u0 |= 1 << 24;
+        if((u & 0x08)) u1 |= 1 <<  0;
+        if((u & 0x04)) u1 |= 1 <<  8;
+        if((u & 0x02)) u1 |= 1 << 16;
+        if((u & 0x01)) u1 |= 1 << 24;
+        ro.bit_lut[2 * u            ] = u0;
+        ro.bit_lut[2 * u + 1        ] = u1;
+        ro.bit_lut[2 * u     + 0x200] = u0 << 1;
+        ro.bit_lut[2 * u + 1 + 0x200] = u1 << 1;
+        ro.bit_lut[2 * u     + 0x400] = u0 << 2;
+        ro.bit_lut[2 * u + 1 + 0x400] = u1 << 2;
+        ro.bit_lut[2 * u     + 0x600] = u0 << 3;
+        ro.bit_lut[2 * u + 1 + 0x600] = u1 << 3;
+      }
+    }
   }
 
   if(
@@ -312,6 +339,8 @@ void remap_done(RemapObject *ro)
   FreeIt(ro->bre_x)
   FreeIt(ro->bre_y)
   FreeIt(ro->true_color_lut)
+  FreeIt(ro->bit_lut);
+  FreeIt(ro->src_tmp_line);
   if(ro->co != NULL) {
     code_done(ro->co);
     free(ro->co);
@@ -692,6 +721,8 @@ static void src_resize_update(RemapObject *ro, int width, int height, int scan_l
   ro->src_width = width;
   ro->src_height = height;
   ro->src_scan_len = scan_len;
+  ro->src_tmp_line = realloc(ro->src_tmp_line, width);
+  // check return value?
   resize_update(ro);
 }
 
@@ -3452,6 +3483,7 @@ void gen_4to8_all(RemapObject *ro)
 }
 
 
+#if 0
 /*
  * 4 bit pseudo color --> 15/16 bit true color
  * supports arbitrary scaling
@@ -3490,6 +3522,53 @@ void gen_4to16_all(RemapObject *ro)
   }
 }
 
+#else
+
+/*
+ * 4 bit pseudo color --> 15/16 bit true color
+ * supports arbitrary scaling
+ *
+ */
+void gen_4to16_all(RemapObject *ro)
+{
+  int d_x_len, s_x_len;
+  int s_x, d_x, d_y;
+  int d_scan_len = ro->dst_scan_len >> 1;
+  int *bre_x;
+  int *bre_y = ro->bre_y;
+
+  unsigned *dst1;
+  unsigned char *src, *src0, *src1;
+  unsigned short *dst;
+  unsigned *lut;
+
+  src0 = ro->src_image;
+  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
+  d_x_len = ro->dst_width;
+  s_x_len = ro->src_width >> 3;
+  src1 = ro->src_tmp_line;
+  dst1 = (unsigned *) src1;
+  lut = ro->bit_lut;
+
+  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
+    src = src0 + bre_y[d_y++];
+    for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+      dst1[d_x    ]  = lut[2 * src[s_x          ]            ];
+      dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ];
+      dst1[d_x    ] |= lut[2 * src[s_x + 0x10000]     + 0x200];
+      dst1[d_x + 1] |= lut[2 * src[s_x + 0x10000] + 1 + 0x200];
+      dst1[d_x    ] |= lut[2 * src[s_x + 0x20000]     + 0x400];
+      dst1[d_x + 1] |= lut[2 * src[s_x + 0x20000] + 1 + 0x400];
+      dst1[d_x    ] |= lut[2 * src[s_x + 0x30000]     + 0x600];
+      dst1[d_x + 1] |= lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+    }
+    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+      dst[d_x++] = ro->true_color_lut[src1[s_x]];
+      s_x += *(bre_x++);
+    }
+  }
+}
+#endif
 
 /*
  * 4 bit pseudo color --> 32 bit true color

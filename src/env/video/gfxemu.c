@@ -18,6 +18,10 @@
  * (as far as possible).
  * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
+ * 2000/05/10: Apparently gfx.color_dont_care should be initialized
+ * with 0x0f, not 0x00.
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  *
  */
@@ -109,6 +113,7 @@ void GFX_init()
   for(i = 0; i <= GFX_MAX_INDEX; i++) vga.gfx.data[i] = 0;
   vga.gfx.data[5] = gfx_ival[j][0];
   vga.gfx.data[6] = gfx_ival[j][1];
+  vga.gfx.data[7] = 0x0f;
   vga.gfx.data[8] = 0xff;
 
   /* initialize non-standard modes */
@@ -120,6 +125,17 @@ void GFX_init()
   }
 
   vga.gfx.index = 0;
+
+  vga.gfx.set_reset        = vga.gfx.data[0] & 0x0f;
+  vga.gfx.enable_set_reset = vga.gfx.data[1] & 0x0f;
+  vga.gfx.color_compare    = vga.gfx.data[2] & 0x0f;
+  vga.gfx.data_rotate      = vga.gfx.data[3] & 0x07;
+  vga.gfx.raster_op        = vga.gfx.data[3] >> 3;
+  vga.gfx.read_map_select  = vga.gfx.data[4] & 0x03;
+  vga.gfx.write_mode       = vga.gfx.data[5] & 0x03;
+  vga.gfx.read_mode        = (vga.gfx.data[5] >> 3) & 0x01;
+  vga.gfx.color_dont_care  = vga.gfx.data[7] & 0x0f;
+  vga.gfx.bitmask          = vga.gfx.data[8];
 
   gfx_msg("GFX_init done\n");
 }
@@ -150,32 +166,66 @@ void GFX_write_value(unsigned char data)
 #if 0
   unsigned u = data;
 #endif
-  unsigned u1, ind = vga.gfx.index;
+  unsigned ind = vga.gfx.index;
 
   if(ind > GFX_MAX_INDEX) {
-    gfx_deb("GFX_write_value: data (0x%02x) ignored\n", u);
+    gfx_deb("GFX_write_value: data (0x%02x) ignored\n", data);
     return;
   }
 
-  gfx_deb2("GFX_write_value: gfx[0x%02x] = 0x%02x\n", ind, u);
+  gfx_deb2("GFX_write_value: gfx[0x%02x] = 0x%02x\n", ind, data);
 
   if(vga.gfx.data[ind] == data) return;
 
   switch(ind) {
+    case 0x00:		/* Set/Reset */
+      vga.gfx.set_reset = data & 0x0f;
+      if(NEWBITS(0x0f)) {
+        gfx_deb("GFX_write_value: set_reset = 0x%x\n", vga.gfx.set_reset);
+      }
+      break;
+
+    case 0x01:		/* Enable Set/Reset */
+      vga.gfx.enable_set_reset = data & 0x0f;
+      if(NEWBITS(0x0f)) {
+        gfx_deb("GFX_write_value: enable_set_reset = 0x%x\n", vga.gfx.enable_set_reset);
+      }
+      break;
+
+    case 0x02:		/* Color Compare */
+      vga.gfx.color_compare = data & 0x0f;
+      if(NEWBITS(0x0f)) {
+        gfx_deb("GFX_write_value: color_compare = 0x%x\n", vga.gfx.color_compare);
+      }
+      break;
+
+    case 0x03:		/* Data Rotate */
+      vga.gfx.data_rotate = data & 7;
+      vga.gfx.raster_op = data >> 3;
+      if(NEWBITS(0x07)) {
+        gfx_deb("GFX_write_value: data_rotate = %u\n", vga.gfx.data_rotate);
+      }
+      if(NEWBITS(0x0c)) {
+        gfx_deb("GFX_write_value: raster_op = %u\n", vga.gfx.raster_op);
+      }
+      break;
+
     case 0x04:		/* Read Map Select */
+      vga.gfx.read_map_select = data & 3;
       if(NEWBITS(0x03)) {
-        u1 = data & 3;
-        gfx_deb("GFX_write_value: read plane = %u\n", u1);
-        vgaemu_switch_plane(u1);
+        gfx_deb("GFX_write_value: read_map_select = %u\n", vga.gfx.read_map_select);
+        vgaemu_switch_plane(vga.gfx.read_map_select);
       }
       break;
 
     case 0x05:		/* Mode */
+      vga.gfx.write_mode = data & 3;
+      vga.gfx.read_mode = (data >> 3) & 1;
       if(NEWBITS(0x03)) {
-        gfx_deb("GFX_write_value: write mode = %u (ignored)\n", data & 3);
+        gfx_deb("GFX_write_value: write mode = %u\n", vga.gfx.write_mode);
       }
       if(NEWBITS(0x08)) {
-        gfx_deb("GFX_write_value: read mode = %u (ignored)\n", (data >> 3) & 1);
+        gfx_deb("GFX_write_value: read mode = %u\n", vga.gfx.read_mode);
       }
       if(NEWBITS(0x10)) {
         gfx_deb("GFX_write_value: odd/even = %s (ignored)\n", (data & 0x10) ? "on" : "off");
@@ -224,6 +274,20 @@ void GFX_write_value(unsigned char data)
           vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12
         );
         vgaemu_map_bank();
+      }
+      break;
+
+    case 0x07:		/* Color Don't Care */
+      vga.gfx.color_dont_care = data & 0x0f;
+      if(NEWBITS(0x0f)) {
+        gfx_deb("GFX_write_value: color_dont_care = 0x%x\n", vga.gfx.color_dont_care);
+      }
+      break;
+
+    case 0x08:		/* Bit Mask */
+      vga.gfx.bitmask = data;
+      if(NEWBITS(0xff)) {
+        gfx_deb("GFX_write_value: bitmask = 0x%02x\n", vga.gfx.bitmask);
       }
       break;
 

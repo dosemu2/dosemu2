@@ -2216,6 +2216,10 @@ void setup_interrupts(void) {
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
     interrupt_function[i] = default_interrupt;
+
+    /* don't overwrite; these have been set during video init */
+    if(i == 0x1f || i == 0x43) continue;
+
     if ((i & 0xf8) == 0x60) { /* user interrupts */
 	/* show also EMS (int0x67) as disabled */
 	SETIVEC(i, 0, 0);

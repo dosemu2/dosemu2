@@ -38,6 +38,9 @@
  * 1999/01/11: Removed vesa_emu_fault(), the last remaining old code piece.
  * -- sw
  *
+ * 2000/05/18: Copy VGA fonts into BIOS ROM area.
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  *
  */
@@ -197,6 +200,25 @@ void vbe_init(vgaemu_display_type *vedt)
   unsigned char *dos_vga_bios = (unsigned char *) 0xc0000;
   int bios_ptr = (char *) vgaemu_bios_end - (char *) vgaemu_bios_start;
 
+  static struct {
+    char modes[3]; 
+    char reserved1[4];
+    char scanlines; 
+    char character_blocks;
+    char max_active_blocks;
+    short support_flags;
+    short reserved2;
+    char save_function_flags;
+    char reserved3;
+  } vgaemu_bios_functionality_table = 
+  { modes:		 {0xff,0xe0,0x0f}, /* Modes 0-7, 0dh-0fh, 10h-13h supported */
+    scanlines:		 7,		   /* scanlines 200,350,400 supported */	
+    character_blocks:	 2,		   /* This all corresponds to a real BIOS */		
+    max_active_blocks:	 8,		   /* See Ralf Brown's interrupt list */
+    support_flags:	 0xeff,		   /* INT 10h, AH=1b for documentation */
+    save_function_flags:0x3f 
+  };
+
   vbe_screen = *vedt;
 
   memset(dos_vga_bios, 0, VBE_BIOS_MAXPAGES << 12);	/* one page */
@@ -232,6 +254,34 @@ void vbe_init(vgaemu_display_type *vedt)
 
   *((short *) (dos_vga_bios + bios_ptr)) = -1;
   bios_ptr += 2;
+
+  /* add fonts */
+  vgaemu_bios.font_8 = bios_ptr;
+  memcpy(dos_vga_bios + bios_ptr, vga_rom_08, sizeof vga_rom_08);
+  bios_ptr += sizeof vga_rom_08;
+
+  vgaemu_bios.font_14 = bios_ptr;
+  memcpy(dos_vga_bios + bios_ptr, vga_rom_14, sizeof vga_rom_14);
+  bios_ptr += sizeof vga_rom_14;
+
+  vgaemu_bios.font_16 = bios_ptr;
+  memcpy(dos_vga_bios + bios_ptr, vga_rom_16, sizeof vga_rom_16);
+  bios_ptr += sizeof vga_rom_16;
+
+  vgaemu_bios.font_14_alt = bios_ptr;
+  memcpy(dos_vga_bios + bios_ptr, vga_rom_14_alt, sizeof vga_rom_14_alt);
+  bios_ptr += sizeof vga_rom_14_alt;
+
+  vgaemu_bios.font_16_alt = bios_ptr;
+  memcpy(dos_vga_bios + bios_ptr, vga_rom_16_alt, sizeof vga_rom_16_alt);
+  bios_ptr += sizeof vga_rom_16_alt;
+  
+  vgaemu_bios.functionality = bios_ptr;
+  memcpy(dos_vga_bios + bios_ptr, &vgaemu_bios_functionality_table,
+      sizeof vgaemu_bios_functionality_table);
+  bios_ptr += sizeof vgaemu_bios_functionality_table;
+
+  vgaemu_bios.size = bios_ptr;
 
   dos_vga_bios[2] = (bios_ptr + ((1 << 9) - 1)) >> 9;
   vgaemu_bios.pages = (bios_ptr + ((1 << 12) - 1)) >> 12;
@@ -474,12 +524,16 @@ static int vbe_mode_info(unsigned mode, unsigned char *vbemi)
 
     if(mode_size > vga.mem.size) u &= ~(1 << 0);	/* mode not supported */
 
+#if 0
     if(vmi->mode_class == TEXT) u |= 0 << 2;		/* TTY support */
+#else
+    u |= 1 << 2;				/* TTY support */
+#endif
     if(vmi->type != TEXT_MONO && vmi->type != HERC)
       u |= 1 << 3;				/* color mode */
     if(vmi->mode_class == GRAPH) u |= 1 << 4;	/* graphics mode */
     if(! vmi->buffer_start) u |= 1 << 6;	/* window support */
-    if(vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page) u |= 1 << 7;		/* LFB support */
+    if(vmi->color_bits >= 8 && vga.mem.lfb_base_page) u |= 1 << 7;	/* LFB support */
     VBE_vmModeAttrib = u;
 
     VBE_vmWinAAttrib = 7;
@@ -592,8 +646,8 @@ static int vbe_mode_info(unsigned mode, unsigned char *vbemi)
     }
 
     VBE_vmDirectColor = 0;
-    if(vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page)
-      VBE_vmPhysBasePtr = vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page << 12;	/* LFB support */
+    if(vmi->color_bits >= 8 && vga.mem.lfb_base_page)
+      VBE_vmPhysBasePtr = vga.mem.lfb_base_page << 12;	/* LFB support */
 
     VBE_vmOffScreenOfs = 0;
     VBE_vmOffScreenMem = 0;

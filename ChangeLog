@@ -1,3 +1,13 @@
+2000/05/19 ver. 1.0.0.3 unofficial pre-release
+	From David Pinson <dpinson@materials.unsw.EDU.AU>
+	From David Hindman <dhindman@io.com>
+	From Bart Oldeman's <Bart.Oldeman@bristol.ac.uk>
+	From Steffen
+	- joint effort to make vga PL4/Pl2/Pl1 mode work under X
+	  (This stuff really works, good job guys ;-)
+	  Though this changlog entry is small, the patch is big
+	  and there need not any special usage description, just
+	  run Borlands bgidemo under X.
 2000/05/19 ver. 1.0.0.2 unofficial pre-release
 	From Julia A. Case <julie@MageNet.com>
 	- virtual modem support (socalled vmodem or "doors" patch)

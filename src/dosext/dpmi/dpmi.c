@@ -1729,11 +1729,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0800: {
       unsigned addr, size, lfb;
 
-      lfb = vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page << 12;
+      lfb = vga.mem.lfb_base_page << 12;
       addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
       size = (_LWORD(esi)) << 16 | (_LWORD(edi));
 
-      if(lfb && lfb == addr) {
+      if((lfb && lfb == addr) || (addr == 0xa0000 && size == 0x10000)) {
         D_printf("DPMI: getting linear frame buffer at 0x%x, size 0x%x\n", addr, size);
         break;		/* physical == linear address in this case */
       }

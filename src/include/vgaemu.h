@@ -199,6 +199,7 @@ typedef struct {
  */
 
 typedef struct {
+  unsigned size;			/* bios size, starting at 0xc0000 */
   unsigned pages;			/* size of BIOS in pages */
   unsigned prod_name;			/* points to text string in BIOS */
   unsigned vbe_mode_list;		/* mode list offset */
@@ -207,6 +208,12 @@ typedef struct {
   vga_mode_info *vga_mode_table;	/* table of all supported video modes */
   unsigned vbe_pm_interface_len;	/* size of pm interface table */
   unsigned vbe_pm_interface;		/* offset of pm interface table in BIOS */
+  unsigned font_8;			/* offset 8x8 font */
+  unsigned font_14;			/* offset 8x14 font */
+  unsigned font_16;			/* offset 8x16 font */
+  unsigned font_14_alt;			/* offset 9x14 chars */
+  unsigned font_16_alt;			/* offset 9x16 chars */
+  unsigned functionality;		/* offset functionality table */
 } vgaemu_bios_type;
 
 
@@ -255,11 +262,13 @@ typedef struct {
   unsigned size;			/* size of memory in bytes */
   unsigned pages;			/* dto in pages */
   int fd;				/* file descriptor for "/proc/self/mem" */
+  unsigned lfb_base_page;		/* lfb base page, 0 -> no lfb support */
   unsigned scratch_page;		/* for unmapped areas */
   vga_mapping_type map[VGAEMU_MAX_MAPPINGS];	/* all the mappings */
   unsigned bank_pages;			/* size of a bank in pages */
   unsigned bank;			/* selected bank */
   unsigned char *dirty_map;		/* 1 == dirty */
+  unsigned char *prot_map0, *prot_map1;	/* prot flags per page */
   int planes;				/* 4 for PL4 and ModeX, 1 otherwise */
   int plane_pages;			/* pages per plane  */
   int write_plane;			/* 1st (of up to 4) planes */
@@ -335,6 +344,10 @@ typedef struct {
 #define GFX_MAX_INDEX 0x08		/* 9 registers */
 
 typedef struct {
+  unsigned char
+    set_reset, enable_set_reset, color_compare,
+    data_rotate, raster_op, read_map_select,
+    write_mode, read_mode, color_dont_care, bitmask;
   unsigned char index;
   unsigned char data[GFX_MAX_INDEX + 1];
 } vga_gfx_type;
@@ -397,6 +410,8 @@ typedef struct {
   int display_start;			/* offset for the 1st pixel */
   int power_state;			/* display power state (cf. VBE functions) */
   int color_modified;			/* set if some palette/dac data have been changed */
+  int inst_emu;				/* set if we emulate vga accesses, see vgaemu.c */
+  unsigned char latch[4];		/* 4 latch regs for PL4 emulation */
   vga_mem_type mem;
   vga_dac_type dac;
   vga_attr_type attr;
@@ -445,7 +460,7 @@ extern vgaemu_bios_type vgaemu_bios;
  * Functions defined in env/video/vgaemu.c.
  */
 
-void VGA_emulate_outb(ioport_t, Bit8u);
+int VGA_emulate_outb(ioport_t, Bit8u);
 unsigned char VGA_emulate_inb(ioport_t);
 #ifdef __linux__
 int vga_emu_fault(struct sigcontext_struct *);
@@ -465,6 +480,10 @@ int vga_emu_set_text_page(unsigned, unsigned);
 void dirty_all_vga_colors(void);
 int changed_vga_colors(DAC_entry *);
 void vgaemu_adj_cfg(unsigned, unsigned);
+void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
+void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr);
+unsigned char Logical_VGA_read(unsigned offset);
+void Logical_VGA_write(unsigned offset, unsigned char value);
 
 /*
  * Functions defined in env/video/vesa.c.
@@ -571,6 +590,16 @@ unsigned char Herc_get_mode_ctrl(void);
  */
 
 unsigned instr_len(unsigned char *);
+void instr_emu(struct sigcontext_struct *scp);
 
+/*
+ * VGA bitmap fonts from env/video/vgafonts.c
+ */
+
+extern unsigned char vga_rom_08[256 * 8];
+extern unsigned char vga_rom_14[256 * 14];
+extern unsigned char vga_rom_16[256 * 16];
+extern unsigned char vga_rom_14_alt[1];
+extern unsigned char vga_rom_16_alt[1];
 
 #endif	/* !defined __VGAEMU_H */

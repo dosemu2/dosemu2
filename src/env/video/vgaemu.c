@@ -3,6 +3,21 @@
  *
  * for details see file COPYING in the DOSEMU distribution
  */
+ 
+/*
+ * Containing modifications of first step  VGA mode 12h support which is
+ * (C) Copyright 2000 by David Hindman.
+ *
+ * Final enhanced implementation of PL4/PL2/PL1 vga modes (one of it mode 12h)
+ * emulation was done by and is
+ * (C) Copyright 2000 Bart Oldeman <Bart.Oldeman@bristol.ac.uk>
+ * (C) Copyright 2000 Steffen Winterfeldt <wfeldt@suse.de>
+ *
+ * These modifications are distributed under the terms of the
+ * GNU General Public License.  The copyright to the modifications
+ * is hereby assigned to the "DOSEMU-Development-Team" 
+ *
+ */
 
 /*
  * DANG_BEGIN_MODULE
@@ -103,9 +118,64 @@
  * due to the improved VGA register compatibility.
  * -- sw
  *
+ * 2000/05/07: First step VGA 0x12 mode emulation added by
+ * David Pinson <dpinson@materials.unsw.EDU.AU> & David Hindman <dhindman@io.com>
+ *
+ * 2000/05/09: Reworked the mode 0x12 code to work in all PL4 modes and
+ * integrated it better into VGAEMU. It works now in (16-bit-)DPMI mode.
+ * Fixed quite a few bugs in the code.
+ * -- sw
+ *
+ * 2000/05/10: Added Bart Oldeman's <Bart.Oldeman@bristol.ac.uk> patch
+ * for better instruction emulation.
+ * -- sw
+ *
+ * 2000/05/11: Reworked the mapping/page protection stuff. It now remembers
+ * each page protection and makes only the necessary *_mapping() calls.
+ * Also, there is no longer a framebuffer available for modes with
+ * color depth < 8. The PL2 mode (0x0f) now uses the code emulation code, too.
+ * And, the 'mapself' mapping works again. Search for 'evil' to see the changes.
+ * Included Bart's 3rd patch.
+ * --sw
+ *
+ * 2000/05/18: Added functions to display fonts in graphics modes.
+ * --sw
+ *
+ * 2000/05/18: Moved instr_sim and friends to instremu.c.
+ * --beo
+ *
  * DANG_END_CHANGELOG
  *
  */
+
+
+/*
+  Notes on VGA read/write emulation (as used for PL4 modes like 0x12)
+
+  The memory layout always reflects the setting of the GFX Read Map Select
+  register. So in principle we can safely allow reads to the VGA memory. This
+  works of course only in read mode 0.
+
+  But even in read mode 0 there is a problem with correct updates of the latch
+  registers. This is currently worked around by *always* doing a read before
+  any write into the VGA memory. There are of course situations where this will
+  lead to wrong results, but they are really weird.
+
+  Instead, we could block read accesses as well, loose some speed but have a
+  more correct emulation. For this, just define EMU_VGA_READS below. Note that
+  even in this case the VGA memory is always mapped according to
+  GFX Read Map Select.
+
+  Switching from one emulation mode to the other is currently not implemented;
+  you have to decide on it during mode initialisation. It might be a good idea,
+  though, to go to a more complete emulation the moment read mode 1 is set.
+
+  Anyway, both modi work and I have not seen any difference between them.
+  Read emulation is still far less complete than write emulation in instr_sim(),
+  however.
+
+  2000/05/09, sw
+*/
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -117,12 +187,19 @@
  * A useful debug level is 1; level 2 can easily lead to insanely
  * large log files.
  */
-#define	DEBUG_IO	0	/* port emulation */
-#define	DEBUG_MAP	0	/* VGA memory mapping */
-#define	DEBUG_UPDATE	0	/* screen update process */
-#define	DEBUG_BANK	0	/* bank switching */
-#define	DEBUG_COL	0	/* color interpretation changes */
+#define	DEBUG_IO	0	/* (<= 2) port emulation */
+#define	DEBUG_MAP	0	/* (<= 4) VGA memory mapping */
+#define	DEBUG_UPDATE	0	/* (<= 1) screen update process */
+#define	DEBUG_BANK	0	/* (<= 2) bank switching */
+#define	DEBUG_COL	0	/* (<= 1) color interpretation changes */
 
+/*
+ * whether we emulate only writes to VGA memory or read & write
+ * (0 -> no instruction emulation, the 'normal' case)
+ * cf. vga.inst_emu
+ */
+#define EMU_WRITE_INST	1
+#define EMU_ALL_INST	2
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #if !defined True
@@ -130,15 +207,17 @@
 #define True 1
 #endif
 
-#define RW 1
-#define RO 0
+#define RW	2
+#define RO	1
+#define NONE	0
 
 /*
  * We add PROT_EXEC just because pages should be executable. Of course
  * Intel's x86 processors do not support non-executable pages, but anyway...
  */
-#define VGA_EMU_RW_PROT (PROT_READ | PROT_WRITE | PROT_EXEC)
-#define VGA_EMU_RO_PROT (PROT_READ | PROT_EXEC)
+#define VGA_EMU_RW_PROT		(PROT_READ | PROT_WRITE | PROT_EXEC)
+#define VGA_EMU_RO_PROT		(PROT_READ | PROT_EXEC)
+#define VGA_EMU_NONE_PROT	0
 
 #define vga_msg(x...) v_printf("VGAEmu: " x)
 
@@ -190,7 +269,6 @@
 #define vga_deb_col(x...)
 #endif
 
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include <features.h>
 #if GLIBC_VERSION_CODE == 2000
@@ -202,12 +280,15 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
+#include <errno.h>
 
 #include "cpu.h"		/* root@sjoerd: for context structure */
 #include "emu.h"
 #include "dpmi.h"
 #include "port.h"
 #include "video.h"
+#include "bios.h"
+#include "memory.h"
 #include "remap.h"
 #include "vgaemu.h"
 #include "priv.h"
@@ -216,6 +297,11 @@
 /* table with video mode definitions */
 #include "vgaemu_modelist.h"
 
+/* from dosext/dpmi/dpmi.c */
+unsigned long dpmi_GetSegmentBaseAddress(unsigned short);
+
+/* env/video/video.c */
+int load_file(char *name, int foffset, char *mstart, int msize);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*
@@ -232,9 +318,16 @@ static int vgaemu_unmap(unsigned);
 #if DEBUG_UPDATE >= 1
 static void print_dirty_map(void);
 #endif
+#if DEBUG_MAP >= 3
+static void print_prot_map(void);
+#endif
 static int vga_emu_setup_mode(vga_mode_info *, int, unsigned, unsigned, unsigned);
 static void vga_emu_setup_mode_table(void);
 
+static void vgaemu_reset_mapping(void);
+static unsigned vgaemu_xy2ofs(unsigned x, unsigned y);
+static void vgaemu_move_vga_mem(unsigned dst, unsigned src, unsigned len);
+static void vgaemu_clear_vga_mem(unsigned dst, unsigned len, unsigned char attr);
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*
@@ -248,8 +341,23 @@ vga_type vga;
  */
 vgaemu_bios_type vgaemu_bios;
 
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#if DEBUG_MAP >= 4
+/* check if the VGA page *really* is RO */
+volatile static int my_fault = 0;
+
+static void chk_ro()
+{
+  volatile char *p = (char *) 0xa0077;
+  my_fault = 1;
+  *p = 0x99;
+  if(my_fault) {
+    vga_deb_map("vga_emu_fault: IS WRITABLE\n");
+  }
+  my_fault = 0;
+}
+#endif
 
 /*
  * DANG_BEGIN_FUNCTION VGA_emulate_outb
@@ -266,7 +374,7 @@ vgaemu_bios_type vgaemu_bios;
  *
  */
 
-void VGA_emulate_outb(ioport_t port, Bit8u value)
+int VGA_emulate_outb(ioport_t port, Bit8u value)
 {
   vga_deb2_io("VGA_emulate_outb: port[0x%03x] = 0x%02x\n", (unsigned) port, (unsigned) value);
 
@@ -352,8 +460,12 @@ void VGA_emulate_outb(ioport_t port, Bit8u value)
         "VGA_emulate_outb: write access not emulated (port[0x%03x] = 0x%02x)\n",
         (unsigned) port, (unsigned) value
       );
-      break;
+      return 0;
   }
+  return 1;
+#if DEBUG_MAP >= 3
+  print_prot_map();
+#endif
 }
 
 
@@ -470,6 +582,303 @@ Bit8u VGA_emulate_inb(ioport_t port)
 }
 
 
+/* 
+ * This routine emulates a logical VGA read (CPU read  within the
+ * VGA memory range a0000-bffff).  This usually doesn't just read the
+ * byte from memory.  Instead, the VGA controller mediates the
+ * read in a very complex fashion that depends on the settings of the
+ * VGA control registers.  So we will call this a Logical VGA read.
+ *
+ * Much of the code in this routine is adapted from bochs. 
+ * Bochs is Copyright (C) 2000 MandrakeSoft S.A. and distributed under LGPL.
+ * Bochs was originally authored by Kevin Lawton.
+ */
+#define SetReset	vga.gfx.set_reset
+#define EnableSetReset	vga.gfx.enable_set_reset
+#define ColorCompare	vga.gfx.color_compare
+#define DataRotate	vga.gfx.data_rotate
+#define RasterOp	vga.gfx.raster_op
+#define ReadMapSelect	vga.gfx.read_map_select
+#define WriteMode	vga.gfx.write_mode
+#define ReadMode	vga.gfx.read_mode
+#define ColorDontCare	vga.gfx.color_dont_care
+#define BitMask		vga.gfx.bitmask
+#define MapMask		vga.seq.map_mask
+
+#define VGALatch	vga.latch
+
+unsigned char Logical_VGA_read(unsigned offset)
+{
+  unsigned b;
+  
+  switch (ReadMode) {
+    case 0: /* read mode 0 */
+      VGALatch[0] = vga.mem.base[          offset];
+      VGALatch[1] = vga.mem.base[1*65536 + offset];
+      VGALatch[2] = vga.mem.base[2*65536 + offset];
+      VGALatch[3] = vga.mem.base[3*65536 + offset];
+      return(VGALatch[ReadMapSelect]);
+      break;
+
+    case 1: /* read mode 1 */
+      {
+      Bit8u color_compare, color_dont_care;
+      Bit8u latch0, latch1, latch2, latch3, retval, pixel_val;
+
+      color_compare   = ColorCompare & 0x0f;
+      color_dont_care = ColorDontCare & 0x0f;
+      latch0 = VGALatch[0] = vga.mem.base[          offset];
+      latch1 = VGALatch[1] = vga.mem.base[1*65536 + offset];
+      latch2 = VGALatch[2] = vga.mem.base[2*65536 + offset];
+      latch3 = VGALatch[3] = vga.mem.base[3*65536 + offset];
+      retval = 0;
+      for (b=0; b<8; b++) {
+        pixel_val =
+          ((latch0 << 0) & 0x01) |
+          ((latch1 << 1) & 0x02) |
+          ((latch2 << 2) & 0x04) |
+          ((latch3 << 3) & 0x08);
+        latch0 >>= 1;
+        latch1 >>= 1;
+        latch2 >>= 1;
+        latch3 >>= 1;
+        if ( (pixel_val & color_dont_care) ==
+             (color_compare & color_dont_care) )
+          retval |= (1 << b);
+        }
+#if 0
+      vga_msg(
+        "read mode 1: col_cmp 0x%x, col_dont 0x%x, latches = %02x %02x %02x %02x, read = 0x%02x\n",
+        color_compare, color_dont_care, VGALatch[0], VGALatch[1],
+        VGALatch[2], VGALatch[3], retval
+      );
+#endif
+      return(retval);
+      }
+      break;
+
+    default:
+      return(0);
+    }
+}
+
+/* 
+ * This routine emulates a logical VGA write (CPU write to within the
+ * VGA memory range a0000-bffff).  This usually doesn't just place the
+ * byte into memory.  Instead, the VGA controller mediates the
+ * write in a very complex fashion that depends on the settings of the
+ * VGA control registers.  So we will call this a Logical VGA write,
+ * and the lower level thing which places bytes in video RAM we will
+ * call a Physical VGA write. 
+ *
+ * Much of the code in this routine is adapted from bochs. 
+ * Bochs is Copyright (C) 2000 MandrakeSoft S.A. and distributed under LGPL.
+ * Bochs was originally authored by Kevin Lawton.
+ */
+ 
+void Logical_VGA_write(unsigned offset, unsigned char value)
+{
+  unsigned vga_page;
+  unsigned char new_bit, new_val[4], cpu_data_b[4];
+  unsigned char *p;
+  
+  /* addr between 0xA0000 and 0xAFFFF */
+  switch (WriteMode) {
+    Bit8u and_mask, bitmask;
+    Bit8u set_reset_b[4];
+    unsigned i, b;
+
+    case 0: /* write mode 0 */
+      /* perform rotate on CPU data in case its needed */
+      value = (value >> DataRotate) |
+              (value << (8 - DataRotate));
+      bitmask = BitMask;
+      for (i=0; i<4; i++ ) {
+        new_val[i] = 0;
+        }
+      set_reset_b[0] = (SetReset >> 0) & 0x01;
+      set_reset_b[1] = (SetReset >> 1) & 0x01;
+      set_reset_b[2] = (SetReset >> 2) & 0x01;
+      set_reset_b[3] = (SetReset >> 3) & 0x01;
+      and_mask = 1;
+      for (b=0; b<8; b++) {
+        if (bitmask & 0x01) { /* bit-mask bit set, perform op */
+          for (i=0; i<4; i++) {
+            /* derive bit from set/reset register */
+            if ( (EnableSetReset >> i) & 0x01 ) {
+              new_bit = (set_reset_b[i] << b);
+              }
+            /* derive bit from rotated CPU data */
+            else {
+              new_bit = (value & and_mask);
+              }
+            switch (RasterOp) {
+              case 0: /* replace */
+                new_val[i] |= new_bit;
+                break;
+              case 1: /* AND with latch data */
+                new_val[i] |=
+                  (new_bit & (VGALatch[i] & and_mask));
+                break;
+              case 2: /* OR with latch data */
+                new_val[i] |=
+                  (new_bit | (VGALatch[i] & and_mask));
+                break;
+              case 3: /* XOR with latch data */
+                new_val[i] |=
+                  (new_bit ^ (VGALatch[i] & and_mask));
+                break;
+              default:
+                break;
+              }
+            }
+          }
+        else { /* bit-mask bit clear, pass data thru from latch */
+          new_val[0] |= (VGALatch[0] & and_mask);
+          new_val[1] |= (VGALatch[1] & and_mask);
+          new_val[2] |= (VGALatch[2] & and_mask);
+          new_val[3] |= (VGALatch[3] & and_mask);
+          }
+        bitmask >>= 1;
+        and_mask <<= 1;
+        }
+      break;
+
+    case 1: /* write mode 1 */
+      for (i=0; i<4; i++ ) {
+        new_val[i] = VGALatch[i];
+        }
+      break;
+
+    case 2: /* write mode 2 */
+      bitmask = BitMask;
+      for (i=0; i<4; i++ ) {
+        new_val[i] = 0;
+        }
+      cpu_data_b[0] = (value >> 0) & 0x01;
+      cpu_data_b[1] = (value >> 1) & 0x01;
+      cpu_data_b[2] = (value >> 2) & 0x01;
+      cpu_data_b[3] = (value >> 3) & 0x01;
+      and_mask = 1;
+      for (b=0; b<8; b++) {
+        if (bitmask & 0x01) { /* bit-mask bit set, perform op */
+          switch (RasterOp) {
+            case 0: /* replace: write cpu data unmodified */
+              new_val[0] |= cpu_data_b[0] << b;
+              new_val[1] |= cpu_data_b[1] << b;
+              new_val[2] |= cpu_data_b[2] << b;
+              new_val[3] |= cpu_data_b[3] << b;
+              break;
+            case 1: /* AND */
+            case 2: /* OR */
+            case 3: /* XOR */
+            default:
+              break;
+            }
+          }
+        else { /* bit-mask bit clear, pass data thru from latch */
+          new_val[0] |= (VGALatch[0] & and_mask);
+          new_val[1] |= (VGALatch[1] & and_mask);
+          new_val[2] |= (VGALatch[2] & and_mask);
+          new_val[3] |= (VGALatch[3] & and_mask);
+          }
+        bitmask >>= 1;
+        and_mask <<= 1;
+        }
+      break;
+
+    case 3: /* write mode 3 */
+      /* perform rotate on CPU data */
+      value = (value >> DataRotate) |
+              (value << (8 - DataRotate));
+      bitmask = (value & BitMask);
+      for (i=0; i<4; i++ ) {
+        new_val[i] = 0;
+        }
+      set_reset_b[0] = (SetReset >> 0) & 0x01;
+      set_reset_b[1] = (SetReset >> 1) & 0x01;
+      set_reset_b[2] = (SetReset >> 2) & 0x01;
+      set_reset_b[3] = (SetReset >> 3) & 0x01;
+      and_mask = 1;
+      for (b=0; b<8; b++) {
+        if (bitmask & 0x01) { /* bit-mask bit set, perform op */
+          for (i=0; i<4; i++) {
+            /* derive bit from set/reset register */
+            /* (mch) I can't find any justification for this... */
+	    if ( /* (mch) */ 1 || ((EnableSetReset >> i) & 0x01 )) {
+	      // (mch) My guess is that the function select logic should go here
+              switch (RasterOp) {
+                case 0: // write
+                        new_val[i] |= (set_reset_b[i] << b);
+                        break;
+                case 1: // AND
+                        new_val[i] |= (set_reset_b[i] << b) &
+                                      (VGALatch[i] & (1 << b));
+                        break;
+                case 2: // OR
+                        new_val[i] |= (set_reset_b[i] << b) | 
+                                      (VGALatch[i] & (1 << b));
+                        break;
+                case 3: // XOR
+                        new_val[i] |= (set_reset_b[i] << b) ^
+                                      (VGALatch[i] & (1 << b));
+                        break;
+                }
+              }
+            /* derive bit from rotated CPU data */
+            else {
+              new_val[i] |= (value & and_mask);
+              }
+            }
+          }
+        else { /* bit-mask bit clear, pass data thru from latch */
+          new_val[0] |= (VGALatch[0] & and_mask);
+          new_val[1] |= (VGALatch[1] & and_mask);
+          new_val[2] |= (VGALatch[2] & and_mask);
+          new_val[3] |= (VGALatch[3] & and_mask);
+          }
+        bitmask >>= 1;
+        and_mask <<= 1;
+        }
+      break;
+
+    default:
+      break;
+    }
+  
+  vga_page = offset >> 12;
+
+  if(MapMask & 0x01) {
+  p = vga.mem.base + offset;
+  *p = new_val[0];
+  }
+  
+  if(MapMask & 0x02) {
+  p = vga.mem.base + offset + 0x10000;
+  *p = new_val[1];
+  }
+  
+  if(MapMask & 0x04) {
+  p = vga.mem.base + offset + 0x20000;
+  *p = new_val[2];
+  }
+  
+  if(MapMask & 0x08) {
+  p = vga.mem.base + offset + 0x30000;
+  *p = new_val[3];
+  }
+
+  if(MapMask) {
+    // not optimal, but works better with update function -- sw
+    vga.mem.dirty_map[vga_page] = 1;
+    vga.mem.dirty_map[vga_page + 0x10] = 1;
+    vga.mem.dirty_map[vga_page + 0x20] = 1;
+    vga.mem.dirty_map[vga_page + 0x30] = 1;
+  }
+  
+}
+
+
 /*
  * DANG_BEGIN_FUNCTION vga_emu_fault
  *
@@ -483,6 +892,11 @@ Bit8u VGA_emulate_inb(ioport_t port)
  * It is easy to get the place where the exception happens (scp->cr2),
  * but what are those changes?
  * An other problem is, it could eat a lot of time, but it does now also.
+ *
+ * MODIFICATION: VGA mode 12h under X is supported in exactly the
+ * way that was suggested above.  Not every instruction needs to be
+ * simulated in order to make this feature useful, just the ones used to
+ * access video RAM by key applications (Borland BGI, Protel, etc.).
  *
  * arguments:
  * scp - A pointer to a struct sigcontext_struct holding some relevant data.
@@ -501,7 +915,16 @@ int vga_emu_fault(struct sigcontext_struct *scp)
 #endif
 
   page_fault = (lin_addr = (unsigned) scp->cr2) >> 12;
-  access_type = (scp->err >> 1) & 1; 
+  access_type = (scp->err >> 1) & 1;
+
+#if DEBUG_MAP >= 4
+  if(my_fault && lin_addr == 0xa0077) {
+    vga_deb_map("vga_emu_fault: IS READ ONLY\n");
+    my_fault = 0;
+    scp->eip += 7;
+    return True;
+  }
+#endif
 
   for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
     j = page_fault - vga.mem.map[i].base_page;
@@ -512,7 +935,7 @@ int vga_emu_fault(struct sigcontext_struct *scp)
   }
 
   vga_deb_map("vga_emu_fault: %s%s access to %s region, address 0x%05x, page 0x%x, vga page 0x%x\n",
-    in_dpmi ? "dpmi " : "", access_type ? "write" : "read",
+    in_dpmi ? "dpmi " : "", access_type? "write" : "read",
     txt1[i], lin_addr, page_fault, vga_page
   );
 
@@ -522,12 +945,25 @@ int vga_emu_fault(struct sigcontext_struct *scp)
     (unsigned) REG(cs), (unsigned) REG(eip)
   );
 
-  vga_deb_map(
-    "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-    (unsigned) REG(cs), (unsigned) REG(eip),
-    cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
-    cs_ip[ 8], cs_ip[ 9], cs_ip[10], cs_ip[11], cs_ip[12], cs_ip[13], cs_ip[14], cs_ip[15]
-  );
+  if(in_dpmi) {
+#if DEBUG_MAP >= 1
+    cs_ip = (unsigned char *) (dpmi_GetSegmentBaseAddress(_cs) + _eip);
+#endif
+    vga_deb_map(
+      "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+      (unsigned) _cs, (unsigned) _eip,
+      cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
+      cs_ip[ 8], cs_ip[ 9], cs_ip[10], cs_ip[11], cs_ip[12], cs_ip[13], cs_ip[14], cs_ip[15]
+    );
+  }
+  else {
+    vga_deb_map(
+      "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+      (unsigned) REG(cs), (unsigned) REG(eip),
+      cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
+      cs_ip[ 8], cs_ip[ 9], cs_ip[10], cs_ip[11], cs_ip[12], cs_ip[13], cs_ip[14], cs_ip[15]
+    );
+  }
 
   if(i == VGAEMU_MAX_MAPPINGS) {
     if(page_fault >= 0xa0 && page_fault < 0xc0) {	/* unmapped VGA area */
@@ -562,13 +998,52 @@ int vga_emu_fault(struct sigcontext_struct *scp)
       return False;
     }
   }
-
+ 
   if(vga_page < vga.mem.pages) {
     vga.mem.dirty_map[vga_page] = 1;
-    vga_emu_adjust_protection(vga_page, page_fault);
+    if(!vga.inst_emu) {
+      /* Normal: make the display page writeable after marking it dirty */
+      vga_emu_adjust_protection(vga_page, page_fault);
+    }  
+    else  
+      /* A VGA mode PL4/PL2 video memory access has been trapped 
+       * while we are using X.  Leave the display page read/write-protected
+       * so that each instruction that accesses it can be trapped and
+       * simulated. */
+            instr_emu(scp);
+  }
+  return True;
+}
+
+static void vgaemu_update_prot_cache(unsigned page, int prot)
+{
+  if(page >= 0xa0 && page < 0xc0) {
+    vga.mem.prot_map0[page - 0xa0] = prot;
   }
 
-  return True;
+  if(
+    vga.mem.lfb_base_page &&
+    page >= vga.mem.lfb_base_page &&
+    page < vga.mem.lfb_base_page + vga.mem.pages) {
+    vga.mem.prot_map1[page - vga.mem.lfb_base_page] = prot;
+  }
+}
+
+
+static int vgaemu_prot_ok(unsigned page, int prot)
+{
+  if(page >= 0xa0 && page < 0xc0) {
+    return vga.mem.prot_map0[page - 0xa0] == prot ? 1 : 0;
+  }
+
+  if(
+    vga.mem.lfb_base_page &&
+    page >= vga.mem.lfb_base_page &&
+    page < vga.mem.lfb_base_page + vga.mem.pages) {
+    return vga.mem.prot_map1[page - vga.mem.lfb_base_page] == prot ? 1 : 0;
+  }
+
+  return 0;
 }
 
 
@@ -584,9 +1059,39 @@ int vga_emu_fault(struct sigcontext_struct *scp)
 
 static int vga_emu_protect_page(unsigned page, int prot)
 {
-  vga_deb2_map("vga_emu_protect_page: 0x%02x = %s\n", page, prot ? "RW" : "RO");
+  int i;
+  int sys_prot;
 
-  return mprotect_mapping(MAPPING_VGAEMU, (void *) (page << 12), 1 << 12, prot ? VGA_EMU_RW_PROT : VGA_EMU_RO_PROT);
+  sys_prot = prot == RW ? VGA_EMU_RW_PROT : prot == RO ? VGA_EMU_RO_PROT : VGA_EMU_NONE_PROT;
+
+  if(vgaemu_prot_ok(page, sys_prot)) {
+    vga_deb2_map(
+      "vga_emu_protect_page: 0x%02x = %s (unchanged)\n",
+      page, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
+    );
+
+    return 0;
+  }
+
+  vga_deb2_map(
+    "vga_emu_protect_page: 0x%02x = %s\n",
+    page, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
+  );
+
+  i = mprotect_mapping(MAPPING_VGAEMU, (void *) (page << 12), 1 << 12, sys_prot);
+
+  if(i == -1) {
+    sys_prot = 0xfe;
+    switch(errno) {
+      case EINVAL: sys_prot = 0xfd; break;
+      case EFAULT: sys_prot = 0xfc; break;
+      case EACCES: sys_prot = 0xfb; break;
+    }
+  }
+
+  vgaemu_update_prot_cache(page, sys_prot);
+
+  return i;
 } 
 
 
@@ -594,7 +1099,7 @@ static int vga_emu_protect_page(unsigned page, int prot)
  * Change protection of a VGA memory page
  *
  * The protection of `page' is set to `prot' in all places where `page' is
- * currently mapped to. `prot' may be either 0 (RO) or 1 (RW).
+ * currently mapped to. `prot' may be either NONE, RO or RW.
  * This functions returns 3 if `mapped_page' is not 0 and not one of the
  * locations `page' is mapped to (cf. vga_emu_adjust_protection()).
  * `page' is relative to the VGA memory.
@@ -626,7 +1131,7 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
         if(!err_1) err_1 = err;
         vga_deb2_map(
           "vga_emu_protect: error = %d, region = %d, page = 0x%x --> map_addr = 0x%x, prot = %s\n",
-          err, i, page, vga.mem.map[i].base_page + j, prot & PROT_WRITE ? "RW" : "RO"
+          err, i, page, vga.mem.map[i].base_page + j, prot == RW ? "RW" : prot == RO ? "RO" : "NONE"
         );
       }
     }
@@ -662,7 +1167,7 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
 
 static int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
 {
-  int prot = 0;
+  int prot;
   int i, err, j, k;
 
   if(page > vga.mem.pages) {
@@ -670,7 +1175,11 @@ static int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
     return 1;
   }
 
-  if(vga.mem.dirty_map[page]) prot = 1;
+  prot = vga.inst_emu == EMU_ALL_INST ? NONE : RO;
+
+  if(!vga.inst_emu) {
+    if(vga.mem.dirty_map[page]) prot = RW;
+  }
 
   i = vga_emu_protect(page, mapped_page, prot);
 
@@ -773,6 +1282,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   int i;
   unsigned u;
   vga_mapping_type *vmt;
+  int prot;
 
   if(mapping >= VGAEMU_MAX_MAPPINGS) return 1;
 
@@ -781,9 +1291,34 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
   if(vmt->pages + first_page > vga.mem.pages) return 2;
 
+  /* default protection for dirty pages */
+  switch(vga.inst_emu) {
+    case EMU_WRITE_INST:
+      prot = VGA_EMU_RO_PROT;
+      break;
+    case EMU_ALL_INST:
+      prot = VGA_EMU_NONE_PROT;
+      break;
+    default:
+      prot = VGA_EMU_RW_PROT;
+  }
+
   i = (int) mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
     (caddr_t) (vmt->base_page << 12), vmt->pages << 12,
-    VGA_EMU_RW_PROT, vga.mem.base + (first_page << 12));
+    prot, vga.mem.base + (first_page << 12));
+
+  if(i == -1) {
+    prot = 0xfe;
+    switch(errno) {
+      case EINVAL: prot = 0xfd; break;
+      case EFAULT: prot = 0xfc; break;
+      case EACCES: prot = 0xfb; break;
+    }
+  }
+
+  for(u = 0; u < vmt->pages; u++) {
+    vgaemu_update_prot_cache(vmt->base_page + u, prot);
+  }
 
   if(i == -1) return 3;
 
@@ -826,6 +1361,37 @@ static int vgaemu_unmap(unsigned page)
 }
 #endif
 
+/*
+ * Put the vga memory mapping into a defined state.
+ */
+void vgaemu_reset_mapping()
+{
+  int i, prot, page;
+
+  memset((void *) (vga.mem.scratch_page << 12), 0xff, 1 << 12);
+
+  prot = VGA_EMU_RW_PROT;
+  for(page = 0xa0; page < 0xc0; page++) {
+    i = (int) mmap_mapping(MAPPING_VGAEMU | MAPPING_ALIAS,
+      (void *) (page << 12), 1 << 12,
+      prot, (void *) (vga.mem.scratch_page << 12)
+    );
+  }
+
+  if(i == -1) {
+    prot = 0xfe;
+    switch(errno) {
+      case EINVAL: prot = 0xfd; break;
+      case EFAULT: prot = 0xfc; break;
+      case EACCES: prot = 0xfb; break;
+    }
+  }
+
+  for(page = 0xa0; page < 0xc0; page++) {
+    vgaemu_update_prot_cache(page, prot);
+  }
+}
+
 
 /*
  * DANG_BEGIN_FUNCTION vga_emu_init
@@ -857,6 +1423,9 @@ int vga_emu_init(vgaemu_display_type *vedt)
   static unsigned char *lfb_base = NULL;
 
   open_mapping(MAPPING_VGAEMU);
+
+  /* clean it up - just in case */
+  memset(&vga, 0, sizeof vga);
 
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
 
@@ -897,8 +1466,17 @@ int vga_emu_init(vgaemu_display_type *vedt)
     vga_msg("vga_emu_init: not enough memory for dirty map\n");
     return 1;
   }
-
   dirty_all_video_pages();		/* all need an update */
+
+  if(
+    (vga.mem.prot_map0 = (unsigned char *) malloc(0xc0 - 0xa0)) == NULL ||
+    (vga.mem.prot_map1 = (unsigned char *) malloc(vga.mem.pages)) == NULL
+  ) {
+    vga_msg("vga_emu_init: not enough memory for protection map\n");
+    return 1;
+  }
+  memset(vga.mem.prot_map0, 0xff, 0x20);
+  memset(vga.mem.prot_map1, 0xff, vga.mem.pages);
 
   /*
    * vga.mem.map _must_ contain only valid mappings - otherwise _bad_ things will happen!
@@ -911,7 +1489,7 @@ int vga_emu_init(vgaemu_display_type *vedt)
   vga.mem.bank = vga.mem.bank_pages = 0;
 
   if(lfb_base != NULL) {
-    vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = (unsigned) lfb_base >> 12;
+    vga.mem.lfb_base_page = (unsigned) lfb_base >> 12;
   }
 
   vga_emu_setup_mode_table();
@@ -926,14 +1504,9 @@ int vga_emu_init(vgaemu_display_type *vedt)
   vga_msg("vga_emu_init: protecting ROM area 0xc0000 - 0x%05x\n", (0xc0 + vgaemu_bios.pages) << 12);
   for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
 
-  /*
-   * Set some mode; this initializes the DAC, CRTC, etc. as well.
-   */
-  vga_emu_setmode(3, 80, 25);		/* initialize some mode */
-
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb;
-  io_device.write_portb = VGA_emulate_outb;
+  io_device.write_portb = (void (*)(ioport_t, Bit8u)) VGA_emulate_outb;
   io_device.read_portw = NULL;
   io_device.write_portw = NULL;
   io_device.read_portd = NULL;
@@ -970,12 +1543,54 @@ int vga_emu_init(vgaemu_display_type *vedt)
     port_register_handler(io_device, 0);
   }
 
+  /*
+   * init the ROM-BIOS font (the VGA fonts are added in vbe_init())
+   */
+  memcpy((void *) GFX_CHARS, vga_rom_08, 128 * 8);
+
+#if 0
+  /*
+   * get the ROM-BIOS font
+   *
+   * Note that reading it from /dev/mem fails if we don't have
+   * root permissions!
+   */
+  {
+    int fd, ok = 0;
+
+    PRIV_SAVE_AREA
+    enter_priv_on();				  
+
+    if((fd = open("/dev/mem", O_RDONLY)) >= 0) {
+      if(
+        lseek(fd, GFX_CHARS, SEEK_SET) != -1 &&
+        read(fd, (void *) GFX_CHARS, GFXCHAR_SIZE) != -1
+      ) {
+        ok = 1;
+      }
+      close(fd);
+    }
+    
+    leave_priv_setting();
+
+    if(!ok) {
+      /* fallback font */
+      for(i = 0; i < 1024; i++) *(unsigned char *)(GFX_CHARS + i) = font1[i];
+    }
+  }
+#endif
+
   vga_msg(
     "vga_emu_init: memory: %u kbyte at 0x%x (lfb at 0x%x); %ssupport for mono modes\n",
     vga.mem.size >> 10, (unsigned) vga.mem.base,
-    vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page << 12,
+    vga.mem.lfb_base_page << 12,
     vga.config.mono_support ? "" : "no "
   );
+
+  /*
+   * Set some mode; this initializes the DAC, CRTC, etc. as well.
+   */
+  set_video_mode(3);		/* initialize some mode */
 
   return 0;
 }
@@ -992,7 +1607,7 @@ static void print_dirty_map()
 {
   int i, j;
 
-  vga_msg("dirty_map[0 - 1024k] (0 = RO, 1 = RW = dirty)\n");
+  vga_msg("dirty_map[0 - 1024k] (0 = RO/NONE, 1 = RW = dirty)\n");
   for(j = 0; j < 256; j += 64) {
     v_printf("  ");
     for(i = 0; i < 64; i++) {
@@ -1004,6 +1619,54 @@ static void print_dirty_map()
     }
     v_printf("\n");
   }
+}
+#endif
+
+
+#if DEBUG_MAP >= 3
+static char prot2char(unsigned char prot)
+{
+  if(prot < 0x9) return prot + '0';
+  switch(prot) {
+    case 0xff: return '-';
+    case 0xfe: return 'e';
+    case 0xfd: return 'i';
+    case 0xfc: return 'f';
+    case 0xfb: return 'a';
+  }
+
+  return '?';
+}
+
+static void print_prot_map()
+{
+  int i, j;
+
+  vga_msg("prot_map: 0xa0000-0xc0000 & lfb\n");
+  v_printf("  ");
+  for(i = 0; i < 0x20; i++) {
+    if(!(i & 15))
+      v_printf(" ");
+    else if(!(i & 3))
+      v_printf(".");
+    v_printf("%c", prot2char(vga.mem.prot_map0[i]));
+  }
+  v_printf("\n");
+  for(j = 0; j < 256; j += 64){
+    v_printf("  ");
+    for(i = 0; i < 64; i++) {
+      if(!(i & 15))
+        v_printf(" ");
+      else if(!(i & 3))
+        v_printf(".");
+      v_printf("%c", prot2char(vga.mem.prot_map1[j + i]));
+    }
+    v_printf("\n");
+  }
+
+#if DEBUG_MAP >= 4
+  chk_ro();
+#endif
 }
 #endif
 
@@ -1062,6 +1725,11 @@ int vga_emu_update(vga_emu_update_type *veut)
     veut->max_len,
     veut->max_max_len
   );
+
+#if DEBUG_MAP >= 3
+  // just testing
+  print_prot_map();
+#endif
 
 #if DEBUG_UPDATE >= 1
   print_dirty_map();
@@ -1498,6 +2166,7 @@ int vga_emu_setmode(int mode, int width, int height)
     vga.pixel_size = (vga.pixel_size + 7) & ~7;		/* assume byte alignment for these modes */
     vga.scan_len *= vga.pixel_size >> 3;
   }
+  vga.inst_emu = vga.mode_type == PL4 || vga.mode_type == PL2 ? EMU_ALL_INST : 0;
 
   vga_msg("vga_emu_setmode: scan_len = %d\n", vga.scan_len);
   i = vga.scan_len;
@@ -1519,6 +2188,8 @@ int vga_emu_setmode(int mode, int width, int height)
   vga.mem.write_plane = vga.mem.read_plane = 0;
 
   if(vga.mode_class == TEXT) vga.scan_len = vga.text_width << 1;
+
+  vga.latch[0] = vga.latch[1] = vga.latch[2] = vga.latch[3] = 0;
 
   vga.display_start = 0;
 
@@ -1543,6 +2214,10 @@ int vga_emu_setmode(int mode, int width, int height)
   }
 
   dirty_all_video_pages();
+  /* Put the mapping for the range 0xa0000 - 0xc0000 into some intial state:
+   * the scratch page is mapped RW all over the place.
+   */
+  vgaemu_reset_mapping();
 
   vga.mem.bank = 0;
   vga.mem.bank_pages = vmi->buffer_len >> 2;
@@ -1569,11 +2244,17 @@ int vga_emu_setmode(int mode, int width, int height)
   vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = vmi->buffer_start >> 8;
   vgaemu_map_bank();
 
-  if(vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page) {
+  if(vga.color_bits >= 8 && vga.mem.lfb_base_page) {
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
     vga.mem.map[VGAEMU_MAP_LFB_MODE].first_page = 0;
     vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;
-    /* vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page is set in vga_emu_init() */
     vga_emu_map(VGAEMU_MAP_LFB_MODE, 0);	/* map the VGA memory to LFB */
+  }
+  else {
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = 0;
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].first_page = 0;
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = 0;
+    // unmap ???
   }
 
   vga_msg("vga_emu_setmode: setting up components...\n");
@@ -1585,7 +2266,7 @@ int vga_emu_setmode(int mode, int width, int height)
   GFX_init();
   Misc_init();
   Herc_init();
-
+  
   vga_msg("vga_emu_setmode: mode initialized\n");
 
   return True;
@@ -1700,9 +2381,7 @@ int vga_emu_set_textsize(int width, int height)
 
 void dirty_all_video_pages()
 {
-  int i;
-
-  for(i = 0; i < vga.mem.pages; i++) vga.mem.dirty_map[i] = 1;
+  memset(vga.mem.dirty_map, 1, vga.mem.pages);
 }
 
 
@@ -1912,6 +2591,316 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 
     default:
       vga_msg("vgaemu_adj_cfg: unknown item %u\n", what);
+  }
+}
+
+
+unsigned vgaemu_xy2ofs(unsigned x, unsigned y)
+{
+  unsigned ofs;
+
+  switch(vga.mode_type) {
+    case TEXT:
+    case P15:
+    case P16:
+      ofs = vga.scan_len * y + 2 * x;
+      break;
+
+    case PL1:
+    case PL2:
+    case PL4:
+      ofs = vga.scan_len * y + (x >> 3);
+      break;
+
+    case P8:
+      ofs = vga.scan_len * y + x;
+      break;
+
+    case P24:
+      ofs = vga.scan_len * y + 3 * x;
+      break;
+
+    case P32:
+      ofs = vga.scan_len * y + 4 * x;
+      break;
+
+    case CGA:
+      if(vga.color_bits == 1) {
+        ofs = vga.scan_len * (y >> 1) + (x >> 3) + (y & 1) * 0x2000;
+      }
+      else {	/* vga.color_bits == 2 */
+        ofs = vga.scan_len * (y >> 1) + (x >> 2) + (y & 1) * 0x2000;
+      }
+      break;
+
+    default:
+      ofs = 0;
+  }
+
+  if(ofs >= vga.mem.size) ofs = 0;
+
+//  vga_msg("vgaemu_xy2ofs: %u.%u -> 0x%x\n", x, y, ofs);
+
+  return ofs;
+}
+
+void vgaemu_move_vga_mem(unsigned dst, unsigned src, unsigned len)
+{
+  void *dp, *sp;
+
+  if(len == 0) return;
+
+  dp = vga.mem.base + dst;
+  sp = vga.mem.base + src;
+
+  memcpy(dp, sp, len);
+  switch(vga.mode_type) {
+    case PL4:
+      memcpy(dp + 0x20000, sp + 0x20000, len);
+      memcpy(dp + 0x30000, sp + 0x30000, len);
+    case PL2:
+      memcpy(dp + 0x10000, sp + 0x10000, len);
+      break;
+  }
+}
+
+void vgaemu_clear_vga_mem(unsigned dst, unsigned len, unsigned char attr)
+{
+  if(len == 0) return;
+
+  switch(vga.mode_type) {
+    case PL4:
+      memset(vga.mem.base + dst + 0x20000, attr & 4 ? 0xff : 0, len);
+      memset(vga.mem.base + dst + 0x30000, attr & 8 ? 0xff : 0, len);
+    case PL2:
+      memset(vga.mem.base + dst + 0x10000, attr & 2 ? 0xff : 0, len);
+    case PL1:
+      memset(vga.mem.base + dst, attr & 1 ? 0xff : 0, len);
+      break;
+    case CGA:
+      if(vga.color_bits == 1)
+        attr = attr & 1 ? 0xff : 0;
+      else {  /* vga.color_bits == 2 */
+        attr &= 3;
+        attr |= (attr<<2);
+        attr |= (attr<<4);
+      }
+    default: /* this does not make sense for P16 and P24, but
+                attr is a char anyway */
+      memset(vga.mem.base + dst, attr, len);
+  }
+}
+
+void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr)
+{
+  int dx, dy;
+  unsigned height;
+
+  vga_msg(
+    "vgaemu_scroll: %d lines, area %d.%d-%d.%d, attr 0x%02x\n",
+    n, x0, y0, x1, y1, attr
+  );
+
+  if(x1 >= vga.text_width || y1 >= vga.text_height) {
+    if(x1 >= vga.text_width) x1 = vga.text_width - 1;
+    if(y1 >= vga.text_height) y1 = vga.text_height - 1;
+  }
+  dx = x1 - x0 + 1;
+  dy = y1 - y0 + 1;
+  if(n >= dy || n <= -dy) n = 0;
+  if(
+    dx <= 0 || dy <= 0 || x0 < 0 ||
+    x1 >= vga.text_width || y0 < 0 || y1 >= vga.text_height
+  ) { 
+    vga_msg("vgaemu_scroll: scroll parameters impossibly out of bounds\n");
+    return;
+  } 
+
+  height = READ_WORD(BIOS_FONT_HEIGHT);
+  x0 = x0 * 8;
+  dx = vgaemu_xy2ofs((x1 + 1) * 8, 0) - vgaemu_xy2ofs(x0, 0);
+
+  y0 *= height;
+  if(n == 0) {
+    y1 = (y1 + 1) * height - 1;
+  }
+  else if(n > 0) {
+    y1 = (y1 + 1 - n) * height - 1;
+    for(; y0 <= y1; y0++) {
+      vgaemu_move_vga_mem(vgaemu_xy2ofs(x0, y0), vgaemu_xy2ofs(x0, y0 + height * n), dx);
+    }
+    y1 += n * height;
+  }
+  else {	/* n < 0 */
+    y0 -= n * height;
+    y1 = (y1 + 1) * height - 1;
+    for(; y0 <= y1; y1--) {
+      vgaemu_move_vga_mem(vgaemu_xy2ofs(x0, y1), vgaemu_xy2ofs(x0, y1 + height * n), dx);
+    }
+    y0 += n * height;
+  }
+  for(; y0 <= y1; y0++) {
+    vgaemu_clear_vga_mem(vgaemu_xy2ofs(x0, y0), dx, attr);
+  }
+
+  dirty_all_video_pages();
+}
+
+void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)
+{
+  unsigned src, ofs, height, u, page0, page1, start_x, start_y, m, mc, v;
+  unsigned col = attr;
+  unsigned char *font;
+
+  vga_msg(
+    "vgaemu_put_char: x.y %d.%d, char 0x%02x, attr 0x%02x\n",
+    x, y, c, attr
+  );
+
+  height = READ_WORD(BIOS_FONT_HEIGHT);
+
+  start_x = x * 8;
+  start_y = y * height;
+
+  if(
+    vga.mode_type == P15 || vga.mode_type == P16 ||
+    vga.mode_type == P24 || vga.mode_type == P32
+  ) {
+    // Maybe use default DAC table to look up color values?
+    col = 0xffffffff;
+  }
+
+  if(vga.mode_type == CGA && c >= 0x80) {
+    /* use special 8x8 gfx chars in modes 4, 5, 6 */
+    src = (READ_WORD(0x1f * 4 + 2) << 4) + READ_WORD(0x1f * 4);
+    src -= 0x80 * 8;
+  }
+  else {
+    src = (READ_WORD(0x43 * 4 + 2) << 4) + READ_WORD(0x43 * 4);
+  }
+  src += height * c;
+  font = (unsigned char *) src;
+
+  ofs = vgaemu_xy2ofs(start_x, start_y);
+  vga_msg("vgaemu_put_char: src 0x%x, ofs 0x%x, height %u\n", src, ofs, height);
+
+  if(
+    ofs >= vga.mem.size ||
+    ofs + height * vga.scan_len >= vga.mem.size ||
+    height == 0 || height > 32
+  ) {
+    vga_msg("vgaemu_put_char: values out of range\n");
+    return;
+  }
+
+  page0 = page1 = ofs >> 12;
+  for(u = 0; u < height; u++) {
+    ofs = vgaemu_xy2ofs(start_x, start_y + u);
+    if((ofs >> 12) > page1) page1 = ofs >> 12;
+    switch(vga.mode_type) {
+      case CGA:
+        if(vga.color_bits == 1) {
+          if((attr & 0x80)) {
+            vga.mem.base[ofs] ^= (attr & 1) ? font[u] : 0;
+          }
+          else {
+            vga.mem.base[ofs] = (attr & 1) ? font[u] : 0;
+          }
+        }
+        else {	/* vga.color_bits == 2 */
+          mc = (attr & 3) << 14;
+          for(v = 0, m = 0x80; m; m >>= 1, mc >>= 2) {
+            v |= (font[u] & m) ? mc : 0;
+          }
+          if((attr & 0x80)) {
+            vga.mem.base[ofs] ^= v >> 8;
+            vga.mem.base[ofs + 1] ^= v;
+          }
+          else {
+            vga.mem.base[ofs] = v >> 8;
+            vga.mem.base[ofs + 1] = v;
+          }
+        }
+        break;
+
+      case PL4:
+        if((attr & 0x80)) {
+          vga.mem.base[ofs + 0x20000] ^= (attr & 4) ? font[u] : 0;
+          vga.mem.base[ofs + 0x30000] ^= (attr & 8) ? font[u] : 0;
+        }
+        else {
+          vga.mem.base[ofs + 0x20000] = (attr & 4) ? font[u] : 0;
+          vga.mem.base[ofs + 0x30000] = (attr & 8) ? font[u] : 0;
+        }
+      case PL2:
+        if((attr & 0x80)) {
+          vga.mem.base[ofs + 0x10000] ^= (attr & 2) ? font[u] : 0;
+        }
+        else {
+          vga.mem.base[ofs + 0x10000] = (attr & 2) ? font[u] : 0;
+        }
+      case PL1:
+        if((attr & 0x80)) {
+          vga.mem.base[ofs] ^= (attr & 1) ? font[u] : 0;
+        }
+        else {
+          vga.mem.base[ofs] = (attr & 1) ? font[u] : 0;
+        }
+        break;
+
+      case P8:
+        for(m = 0x80; m; m >>= 1)
+          vga.mem.base[ofs++] = (font[u] & m) ? attr : 0;
+        ofs -= 8;
+        break;
+
+      case P15:
+      case P16:
+        for(m = 0x80; m; m >>= 1) {
+          if((font[u] & m)) {
+            vga.mem.base[ofs++] = col;
+            vga.mem.base[ofs++] = col >> 8;
+          }
+          else {
+            vga.mem.base[ofs++] = 0;
+            vga.mem.base[ofs++] = 0;
+          }
+        }
+        ofs -= 16;
+        break;
+
+      case P24:
+        for(m = 0x80; m; m >>= 1) {
+          if((font[u] & m)) {
+            vga.mem.base[ofs++] = col;
+            vga.mem.base[ofs++] = col >> 8;
+            vga.mem.base[ofs++] = col >> 16;
+          }
+          else {
+            vga.mem.base[ofs++] = 0;
+            vga.mem.base[ofs++] = 0;
+            vga.mem.base[ofs++] = 0;
+          }
+        }
+        ofs -= 24;
+        break;
+    }
+  }
+
+  for(u = page0; u <= page1; u++) {
+    vga.mem.dirty_map[u] = 1;
+  }
+  switch(vga.mode_type) {
+    case PL1:
+    case PL2:
+    case PL4:
+      vga.mem.dirty_map[page0 + 0x10] = 1;
+      vga.mem.dirty_map[page0 + 0x20] = 1;
+      vga.mem.dirty_map[page0 + 0x30] = 1;
+      vga.mem.dirty_map[page1 + 0x10] = 1;
+      vga.mem.dirty_map[page1 + 0x20] = 1;
+      vga.mem.dirty_map[page1 + 0x30] = 1;
+      break;
   }
 }
 

@@ -19,10 +19,9 @@
  *
  * It doesn't have much functionality, just stores the VESA mode table
  * and the protected mode interface necessary for VESA BIOS Extension (VBE)
- * support.
+ * support and the VGA fonts.
  *
- * Note that some parts of the video BIOS are added by vbe_init()
- * in env/video/vesa.c.
+ * Note that the video BIOS is extended by vbe_init() in env/video/vesa.c.
  *
  * /REMARK
  * DANG_END_MODULE

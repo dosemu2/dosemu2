@@ -265,7 +265,11 @@ void Seq_write_value(unsigned char data)
       seq_deb("Seq_write_value: map mask = 0x%x, write plane = %u\n",
         (unsigned) vga.seq.map_mask, u1
       );
-      vgaemu_switch_plane(u1);
+      // ##### FIXME: drop this altogether and always use
+      // the gfx.read_map_select reg? -- sw
+      if(!vga.inst_emu) {
+        vgaemu_switch_plane(u1);
+      }
       break;
 
     case 0x03:		/* Character Map Select */
