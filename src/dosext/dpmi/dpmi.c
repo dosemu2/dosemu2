@@ -386,8 +386,6 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
   register int ret;
 
-  CheckSelectors(dpmi_context);
-
   __asm__ volatile (
 "      subl   $12,%%esp\n"		/* dummy, cr2,oldmask,fpstate */
 "      push   %%ss\n"
@@ -530,6 +528,9 @@ static int dpmi_control(void)
 #ifdef TRACE_DPMI
   if (debug_level('t')) _eflags |= TF;
 #endif
+  if (CheckSelectors(scp, 1) == 0) {
+    leavedos(36);
+  }
   if (dpmi_mhp_TF) _eflags |= TF;
   if (!(_eflags & TF)) {
 	if (debug_level('M')>6) {
@@ -793,7 +794,7 @@ int ValidAndUsedSelector(unsigned short selector)
   return 0;
 }
 
-void CheckSelectors(struct sigcontext_struct *scp)
+int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
 {
 /* NONCONFORMING-CODE-SEGMENT:
    RPL of destination selector must be <= CPL ELSE #GP(selector);
@@ -803,9 +804,10 @@ void CheckSelectors(struct sigcontext_struct *scp)
 */
   if (!ValidAndUsedSelector(_cs) || Segments[_cs >> 3].not_present ||
     Segments[_cs >> 3].type != MODIFY_LDT_CONTENTS_CODE) {
-    error("CS selector invalid: 0x%04X, type=%x np=%i\n",
+    if (in_dosemu)
+      error("CS selector invalid: 0x%04X, type=%x np=%i\n",
       _cs, Segments[_cs >> 3].type, Segments[_cs >> 3].not_present);
-    leavedos(36);
+    return 0;
   }
 
 /*
@@ -827,9 +829,10 @@ FI;
      Segments[_ss >> 3].readonly || Segments[_ss >> 3].not_present ||
      (Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
       Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_DATA)) {
-    error("SS selector invalid: 0x%04X, type=%x np=%i\n",
+    if (in_dosemu)
+      error("SS selector invalid: 0x%04X, type=%x np=%i\n",
       _ss, Segments[_ss >> 3].type, Segments[_ss >> 3].not_present);
-    leavedos(36);
+    return 0;
   }
 
 /*
@@ -855,25 +858,30 @@ THEN
 FI;
 */
   if (_ds && (!ValidAndUsedSelector(_ds) || Segments[_ds >> 3].not_present)) {
-    error("DS selector invalid: 0x%04X, type=%x np=%i\n",
+    if (in_dosemu)
+      error("DS selector invalid: 0x%04X, type=%x np=%i\n",
       _ds, Segments[_ds >> 3].type, Segments[_ds >> 3].not_present);
-    leavedos(36);
+    return 0;
   }
   if (_es && (!ValidAndUsedSelector(_es) || Segments[_es >> 3].not_present)) {
-    error("ES selector invalid: 0x%04X, type=%x np=%i\n",
+    if (in_dosemu)
+      error("ES selector invalid: 0x%04X, type=%x np=%i\n",
       _es, Segments[_es >> 3].type, Segments[_es >> 3].not_present);
-    leavedos(36);
+    return 0;
   }
   if (_fs && (!ValidAndUsedSelector(_fs) || Segments[_fs >> 3].not_present)) {
-    error("FS selector invalid: 0x%04X, type=%x np=%i\n",
+    if (in_dosemu)
+      error("FS selector invalid: 0x%04X, type=%x np=%i\n",
       _fs, Segments[_fs >> 3].type, Segments[_fs >> 3].not_present);
-    leavedos(36);
+    return 0;
   }
   if (_gs && (!ValidAndUsedSelector(_gs) || Segments[_gs >> 3].not_present)) {
-    error("GS selector invalid: 0x%04X, type=%x np=%i\n",
+    if (in_dosemu)
+      error("GS selector invalid: 0x%04X, type=%x np=%i\n",
       _gs, Segments[_gs >> 3].type, Segments[_gs >> 3].not_present);
-    leavedos(36);
+    return 0;
   }
+  return 1;
 }
 
 unsigned long GetSegmentBaseAddress(unsigned short selector)
@@ -1159,7 +1167,6 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 void indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
     copy_context(emu_stack_frame, scp);
-    CheckSelectors(&DPMI_CLIENT.stack_frame);
     copy_context(scp, &DPMI_CLIENT.stack_frame);
 }
 

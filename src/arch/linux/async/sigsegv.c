@@ -250,7 +250,8 @@ sgleave:
         return;
       }
 
-      CheckSelectors(scp);
+      if (CheckSelectors(scp, 0) == 0)
+        dpmi_sigio(scp);	/* someone to rename this to dpmi_return()? */
       /* now we are safe */
       return;
     }

@@ -217,7 +217,7 @@ int DPMIGetPageAttributes(unsigned long handle, int offs, us attrs[], int count)
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
 unsigned long GetSegmentLimit(unsigned short);
-void CheckSelectors(struct sigcontext_struct *scp);
+int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu);
 int ValidSelector(unsigned short selector);
 int ValidAndUsedSelector(unsigned short selector);
 
