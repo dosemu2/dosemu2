@@ -1,3 +1,19 @@
+98/10/30 ver. 0.99.2.2 unofficial pre-release
+	( syncing changes from 0.98 to 0.99 )
+	From Hans
+	- (problem reported by Wojtek Pilorz)
+	  Though protected by '$_secure="ngd"', the system.com command
+	  was a permanent security risc when people switched 'secure off'
+	  for some other reasons. Now I made system.com secure, even when
+	  'secure' is switched off. This may change the expected behave for
+	  some braindammaged usage, but I won't reverse it any more ;-)
+	- fix for $_X_font in global.conf (was not proper working)
+	- replaced annoying error() with W_printf() in src/base/misc/disks.c
+	  on writeprotect.
+	- small doc fixes Quickstart
+	- added RPM spec file
+	- changed setup-hdimage to set group 'dosemu' if possible
+	- disabled parsing of old .dosrc
 98/10/25 ver. 0.99.2.1 unofficial pre-release
 	( ... well, this is the ASPI release ;-)
 	From Karl Kiniger <ki@kretz.co.at>

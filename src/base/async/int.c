@@ -453,16 +453,9 @@ static int dos_helper(void)
     break;   
 
   case DOS_HELPER_0x53:
-    if (config.secure) {
-      CARRY;
-      LWORD(eax) = 0;
-      break;
-    }
     {
-	PRIV_SAVE_AREA
-	enter_priv_off();
-	LWORD(eax) = system(SEG_ADR((char *), es, dx));
-	leave_priv_setting();
+        extern int run_system_command(char *);
+        LWORD(eax) = run_system_command(SEG_ADR((char *), es, dx));
 	break;
     }
 

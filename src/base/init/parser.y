@@ -2806,12 +2806,15 @@ int parse_config(char *confname, char *dosrcname)
     /* privileged options allowed for user's config? */
     priv_lvl = uid != 0;
     if (priv_lvl) define_config_variable("c_user");
+
+#if 0 /* we abandon the old .dosrc completely, -- Hans 981010 */
     define_config_variable("c_dosrc");
     if (!skip_dosrc && !get_config_variable("skip_dosrc")
                     && ((fd = open_file(name)) != 0)) {
       do_parse(fd, name, "error in user's configuration file %s");
     }
     undefine_config_variable("c_dosrc");
+#endif
 
     /* Now we parse any commandline statements from option '-I'
      * We do this under priv_lvl set above, so we have the same secure level

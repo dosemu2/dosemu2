@@ -148,5 +148,10 @@ echo "Starting ..."
 
 (cd ${DDIR}/dexe; ./mkdexe $HDIMAGE -b $DEVICE -i $IOSYS -m $MSDOSSYS -o noapp $PROMPTMODE -C $COMCOM)
 
+if [ $UID = "0" ] && grep '^dosemu:' /etc/group >/dev/null 2>&1; then
+  chmod 775 $HDIMAGE
+  chown root.dosemu $HDIMAGE
+fi
+
 echo " ... done"
 

@@ -1057,7 +1057,7 @@ int13(u_char i)
     }
 
     if (dp->rdonly) {
-      error("write protect!\n");
+      W_printf("write protect!\n");
       show_regs(__FILE__, __LINE__);
       if (dp->removeable)
 	HI(ax) = DERR_WP;
@@ -1068,7 +1068,7 @@ int13(u_char i)
     }
 
     if (dp->rdonly)
-      error("CONTINUED!!!!!\n");
+      W_printf("CONTINUED!!!!!\n");
     res = write_sectors(dp, buffer, head, sect, track, number);
 
     if (res < 0) {

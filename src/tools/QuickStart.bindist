@@ -1,17 +1,13 @@
 QuickStart: Instructions on how to quickly get DOSEMU up and running.
 ==========
 
-Well, you are impatient? Ok, maybe you succeed with this SHORT description.
-However, if you are reasonable just execute ViewDocs to read the docs.
-                                            ========
-
 WARNING for old dosemu users:
             ^^^^^^^^^^^^^^^^
         The format of dosemu.conf and dosemu.users has changed !!!
         Please take over the new config files as follows
 
         # mv /etc/dosemu.config /etc/dosemu.conf.v2
-        # cd /where/I/have/dosemu
+        # cd /var/lib/dosemu
         # cp ./etc/dosemu.config /etc
 
         and edit /etc/dosemu.config using DOCDIR/README.txt chapter 2
@@ -23,7 +19,13 @@ WARNING for old dosemu users:
 
 
 --------------------------------------------------------------------------
-1.  Unpacking and installation
+1.  Unpacking and installation (.rpm file)
+--------------------------------------------------------------------------
+If you got a *.rpm type package, then 'rpm -i' should have done all you
+need and you can skip to section 3.
+
+--------------------------------------------------------------------------
+2.  Unpacking and installation (.tgz file)
 --------------------------------------------------------------------------
 To install the binary package of DOSEMU do the following (in this order)
 
@@ -80,8 +82,8 @@ floppy any more:
   in the dosemu directory. It will prompt for needed information and
   generate a bootable /var/lib/dosemu/hdimage.first
 
-- Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf is
-  pointing to /var/lib/dosemu/hdimage.first!
+- Make _CERTAIN_ that your first entry in $_hdimage of /etc/dosemu.conf is
+  pointing to hdimage.first!
 
 - Run 'dos -C', ... and dosemu should boot your DOS...
   ... If not make certain that the /etc/dosemu.conf is setup correctly.
