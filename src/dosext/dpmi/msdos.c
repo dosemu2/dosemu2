@@ -703,9 +703,18 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x0c:		/* set call back */
 	case 0x14:		/* swap call back */
 	    if ( _es && D_16_32(_edx) ) {
+	        struct pmaddr_s new_callback;
 		D_printf("DPMI: set mouse callback\n");
-		DPMI_CLIENT.mouseCallBack.selector = _es;
-		DPMI_CLIENT.mouseCallBack.offset = D_16_32(_edx); 
+		new_callback.selector = _es;
+		new_callback.offset = D_16_32(_edx);
+		if (_LWORD(eax) == 0x14) {
+		    _es = DPMI_CLIENT.mouseCallBack.selector;
+		    if (DPMI_CLIENT.is_32)
+			_edx = DPMI_CLIENT.mouseCallBack.offset;
+		    else
+			_LWORD(edx) = DPMI_CLIENT.mouseCallBack.offset;
+		}
+		DPMI_CLIENT.mouseCallBack = new_callback;
 		REG(es) = DPMI_SEG;
 		REG(edx) = DPMI_OFF + HLT_OFF(DPMI_mouse_callback);
 	    } else {
@@ -1178,10 +1187,8 @@ int msdos_post_extender(int intr)
     case 0x33:			/* mouse */
 	switch (S_LWORD(eax)) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
-	    PRESERVE1(edx);
-	    break;
 	case 0x14:		/* swap call back */
-	    SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+	    PRESERVE1(edx);
 	    break;
 	case 0x19:		/* Get User Alternate Interrupt Address */
 	    SET_REG(ebx, ConvertSegmentToDescriptor(LWORD(ebx)));
