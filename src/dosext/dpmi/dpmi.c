@@ -132,7 +132,6 @@ static unsigned long dpmi_total_memory; /* total memory  of this session */
 
 struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
-unsigned short DPMI_private_data_segment;
 unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 
 struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
@@ -587,10 +586,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    if (in_dpmi)
-      LWORD(esi) = 0;
-    else
-      LWORD(esi) = DPMI_private_paragraphs + 0x8;
+    LWORD(esi) = DPMI_private_paragraphs + 0x8;
 
     D_printf("DPMI entry returned\n");
 }
@@ -1216,8 +1212,15 @@ static void save_rm_regs(void)
     leavedos(25);
   }
   DPMI_rm_stack[DPMI_rm_procedure_running++] = REGS;
-  REG(ss) = DPMI_private_data_segment;
-  REG(esp) = DPMI_rm_stack_size * DPMI_rm_procedure_running;
+  if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
+    D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
+      DPMI_CLIENT.in_dpmi_rm_stack);
+    REG(ss) = DPMI_CLIENT.private_data_segment;
+    REG(esp) = DPMI_rm_stack_size * DPMI_CLIENT.in_dpmi_rm_stack;
+  } else {
+    error("DPMI: too many nested realmode invocations, in_dpmi_rm_stack=%i\n",
+      DPMI_CLIENT.in_dpmi_rm_stack);
+  }
 }
 
 static void restore_rm_regs(void)
@@ -1228,6 +1231,7 @@ static void restore_rm_regs(void)
     leavedos(25);
   }
   REGS = DPMI_rm_stack[--DPMI_rm_procedure_running];
+  DPMI_CLIENT.in_dpmi_rm_stack--;
 }
 
 void save_pm_regs(struct sigcontext_struct *scp)
@@ -2512,8 +2516,6 @@ static void dpmi_init(void)
     
     DPMI_rm_procedure_running = 0;
 
-    DPMI_private_data_segment = REG(es);
-
     ldt_buffer = malloc(LDT_ENTRIES*LDT_ENTRY_SIZE);
     if (ldt_buffer == NULL) {
       error("DPMI: can't allocate memory for ldt_buffer\n");
@@ -2552,6 +2554,8 @@ static void dpmi_init(void)
 
     pm_block_handle_used = 1;
   }
+
+  DPMI_CLIENT.private_data_segment = REG(es);
 
   DPMI_CLIENT.USER_DTA_SEL = 0;		/* from msdos.h */
   DPMI_CLIENT.USER_PSP_SEL = 0;		/* from msdos.h */
@@ -2714,6 +2718,7 @@ static void dpmi_init(void)
   }
   DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
   DPMI_CLIENT.ems_frame_mapped = 0;
+  DPMI_CLIENT.in_dpmi_rm_stack = 0;
   memset((void *)(&DPMI_CLIENT.realModeCallBack[0]), 0,
 	 sizeof(RealModeCallBack)*0x10);
   DPMI_CLIENT.stack_frame.eip	= my_ip;

@@ -21,10 +21,11 @@
 					/* hardware interrupts, software interrups 0x1c, */
 					/* 0x23, 0x24 and real mode callbacks */
 
-#define DPMI_max_rec_rm_func	16	/* max number of recursive real mode functions */
+#define DPMI_rm_stacks		6	/* RM stacks per DPMI client */
+#define DPMI_max_rec_rm_func	(DPMI_MAX_CLIENTS * DPMI_rm_stacks)	/* max number of recursive real mode functions */
 #define DPMI_rm_stack_size	0x0200	/* real mode stack size */
 
-#define DPMI_private_paragraphs	((DPMI_max_rec_rm_func * DPMI_rm_stack_size)>>4)
+#define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
 #define current_client (in_dpmi-1)
 #define DPMI_CLIENT (DPMIclient[current_client])
@@ -140,6 +141,8 @@ struct DPMIclient_struct {
   struct sigcontext_struct stack_frame;
   int is_32;
   dpmi_pm_block_root *pm_block_root;
+  unsigned short private_data_segment;
+  int in_dpmi_rm_stack;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
   INTDESC Interrupt_Table[0x100];
@@ -165,7 +168,6 @@ EXTERN volatile int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 EXTERN volatile int is_cli INIT(0);
 
-extern unsigned short DPMI_private_data_segment;
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */

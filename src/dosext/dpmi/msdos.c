@@ -52,7 +52,7 @@ static struct sigcontext INT15_SAVED_REGS;
 #define DTA_Para_ADD 0
 
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
-#define DTA_under_1MB (void*)((DPMI_private_data_segment + \
+#define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + \
     DPMI_private_paragraphs + DTA_Para_ADD) << 4)
 #define READ_DS_COPIED (REG(ds) == TRANS_BUFFER_SEG)
 
@@ -378,7 +378,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    if ( !is_dos_selector(_ds)) {
 		DPMI_CLIENT.USER_DTA_SEL = _ds;
 		DPMI_CLIENT.USER_DTA_OFF = DPMI_CLIENT.is_32 ? _edx : _LWORD(edx);
-		REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs+
+		REG(ds) = DPMI_CLIENT.private_data_segment+DPMI_private_paragraphs+
 		                  DTA_Para_ADD;
 		REG(edx)=0;
                 memmove(DTA_under_1MB, DTA_over_1MB, 0x80);
