@@ -1,7 +1,8 @@
 CC   = gcc
 AS86 = as86 -0 -a
 LD86 = ld86 -0
-INCDIR = -I../ -I../include/
+# INCDIR is exported from ..
+#INCDIR = -I../ -I../include/
 
 %.com: %.S
 	$(AS86) -0 -j -o $*.o $<

@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/05/30 00:08:20 $
+ * $Date: 1994/06/05 21:17:35 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 1.14 $
+ * $Revision: 1.15 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 1.15  1994/06/05  21:17:35  root
+ * Prep for pre51_24.
+ *
  * Revision 1.14  1994/05/30  00:08:20  root
  * Prep for pre51_22 and temp kludge fix for dir a: error.
  *
@@ -122,21 +125,21 @@ inb(int port)
 
   case 0x40:
 #if 1 /* 05/17/94 Added to sigalrm */
-    pit.CNTR0 -= 0xff;
+    pit.CNTR0 += 0x2221;
 #endif
     i_printf("inb [0x40] = 0x%02x  1st timer inb\n",
 	     pit.CNTR0);
     return pit.CNTR0;
   case 0x41:
 #if 1 /* 05/17/94 Added to sigalrm */
-    pit.CNTR1 -= 0xff;
+    pit.CNTR1 += 0x2221;
 #endif
     i_printf("inb [0x41] = 0x%02x  2nd timer inb\n",
 	     pit.CNTR1);
     return pit.CNTR1;
   case 0x42:
 #if 1 /* 05/17/94 Added to sigalrm */
-    pit.CNTR2 -= 0xff;
+    pit.CNTR2 += 0x2221;
 #endif
     i_printf("inb [0x42] = 0x%02x  3rd timer inb\n",
 	     pit.CNTR2);
@@ -167,7 +170,7 @@ inb(int port)
       return (tmp);
     }
     i_printf("default inb [0x%x] = 0x%02x\n", port, (LWORD(eax) & 0xFF));
-    return 0;
+    return 0xff;
   }
   return 0;
 }

@@ -8,7 +8,8 @@
 CC   = gcc
 LD   = ld
 
-INCDIR= -I../include -I..
+# INCDIR is exported from ..
+#INCDIR= -I../include -I..
 SUBDIR=mouse
 
 # let gcc do extended checking

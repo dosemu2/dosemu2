@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/05/24 01:24:18 $
+ * $Date: 1994/06/05 21:18:15 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 1.2 $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 1.3  1994/06/05  21:18:15  root
+ * Prep for pre51_24.
+ *
  * Revision 1.2  1994/05/24  01:24:18  root
  * Lutz's latest, int_queue_run() update.
  *
@@ -84,6 +87,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <linux/mman.h>
 
 #include "bios.h"
 #include "emu.h"
@@ -107,6 +111,8 @@ void mouse_updown(void), mouse_leftright(void),
 
 /* called when mouse changes */
 void mouse_delta(int);
+
+boolean gfx_cursor;
 
 mouse_t mice[MAX_MOUSE];
 
@@ -288,21 +294,21 @@ mouse_reset(void)
     LWORD(eax) = 0xffff;
     LWORD(ebx)=2; 
 
-  /* default is top left of the screen */
-  mouse.x = 320;
-  mouse.y = 100;
-  mouse.cx = 40;
-  mouse.cy = 12;
-
   mouse.minx = mouse.miny = 0;
-  mouse.maxx = 640;
-  mouse.maxy = 200;
+  mouse.maxx = bios_rows_on_screen_minus_1;
+  mouse.maxy = bios_screen_columns;
+  mouse.points = (*(unsigned short *)0x485);
   mouse.ratio = 1;
   mouse.cursor_on = 0;
   mouse.cursor_type = 0;
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
+
+  mouse.x = 0;
+  mouse.y = 0;
+  mouse.cx = 0;
+  mouse.cy = 0;
 
   mouse.ip = mouse.cs = 0;
   mouse.mask = 0;		/* no interrupts */
@@ -406,10 +412,7 @@ mouse_set_gcur(void)
 {
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
-  LWORD(ebx) = 0;
-  LWORD(ecx) = 0;
-  LWORD(es) = *mousescreenmask;
-  LWORD(edx) = *mousecursormask;
+  gfx_cursor = TRUE;
 }
 
 void 
@@ -417,6 +420,7 @@ mouse_set_tcur(void)
 {
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
+  gfx_cursor = FALSE;
 }
 
 void 
@@ -490,8 +494,8 @@ mouse_updown(void)
   m_printf("MOUSE: mouse moved updown from %d to %d\n", mouse.y, mouse.y - 1);
   if (mouse.y < 0)
     mouse.y = 0;
-  if (mouse.y > 199)
-    mouse.y = 199;
+  if (mouse.y > mouse.maxy)
+    mouse.y = mouse.maxy;
   mouse.cy = mouse.y / 8;
   mouse.mickeyy -= MICKEY;
   mouse_delta(DELTA_CURSOR);
@@ -503,8 +507,8 @@ mouse_leftright(void)
   m_printf("MOUSE: mouse moved leftright from %d to %d\n", mouse.x, mouse.x - 1);
   if (mouse.x < 0)
     mouse.x = 0;
-  if (mouse.x > 639)
-    mouse.x = 639;
+  if (mouse.x > mouse.maxx)
+    mouse.x = mouse.maxx;
   mouse.cx = mouse.x / 8;
   mouse.mickeyx -= MICKEY;
   mouse_delta(DELTA_CURSOR);
@@ -638,16 +642,34 @@ mouse_delta(int event)
 void
 mouse_do_cur(void)
 {
-  unsigned short *p = SCREEN_ADR(bios_current_screen_page);
+  char *graph_mem;
+  int i;
 
-  p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
+  if (gfx_cursor)
+  {
+    open_kmem();		/* Open KMEM for graphics screen access */
+    graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
+				(size_t) (GRAPH_SIZE),
+				PROT_READ | PROT_WRITE,
+				MAP_SHARED | MAP_FIXED,
+				mem_fd,
+				GRAPH_BASE);
+    close_kmem();
 
-  /* save old char/attr pair */
-  mouse.hidx = mouse.cx;
-  mouse.hidy = mouse.cy;
-  mouse.hidchar = p[mouse.cx + mouse.cy * 80];
+    for (i = 0; i < HEIGHT; i++) 
+      graph_mem[(mouse.x / 8) + ((mouse.y + i - 8)*80)] = mousecursormask[i];
+  } else {
+    unsigned short *p = SCREEN_ADR(bios_current_screen_page);
 
-  p[mouse.cx + mouse.cy * 80] = 0x0b5c;
+    p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
+
+    /* save old char/attr pair */
+    mouse.hidx = mouse.cx;
+    mouse.hidy = mouse.cy;
+    mouse.hidchar = p[mouse.cx + mouse.cy * 80];
+
+    p[mouse.cx + mouse.cy * 80] = 0x0b00;
+  }
 }
 
 void

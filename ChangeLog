@@ -1,3 +1,15 @@
+Sun Jun 05 1994 JES
+
+-	Alan's latest patches for busmice with a start for graphics
+	support.
+-	Alessandro Rubini (rubini@ipvvis.UNIPV.IT) patches to make 
+	Makefiles inherit important common include directory paths.
+-	By suggestion from Jon Tombs, make default inb return 0xff
+	and the creation of tempdir be strdup'ed incase it's freed
+	by a config request.
+-	Changed CNTR timers to count UP by 0x2221 instead of down.
+-	Changed a compare in xms.c according to Scott Buchholz.
+
 Thu Jun 02 1994 JES
 
 -	Patches from Rob including updates to s3 code.

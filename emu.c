@@ -1,12 +1,15 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/03 00:58:55 $
+ * $Date: 1994/06/05 21:17:35 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 1.88 $
+ * $Revision: 1.89 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 1.89  1994/06/05  21:17:35  root
+ * Prep for pre51_24.
+ *
  * Revision 1.88  1994/06/03  00:58:55  root
  * pre51_23 prep, Daniel's fix for scrbuf malloc().
  *
@@ -1301,7 +1304,7 @@ config_defaults(void)
 
   config.emusys = (char *) NULL;
   config.emubat = (char *) NULL;
-  tmpdir = tempnam("/tmp", "dosemu");
+  tmpdir = strdup(tempnam("/tmp", "dosemu"));
   config.dosbanner = 1;
   config.allowvideoportaccess = 0;
 
@@ -1981,7 +1984,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.88 1994/06/03 00:58:55 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.89 1994/06/05 21:17:35 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2199,7 +2202,7 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/06/03 00:58:55 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/06/05 21:17:35 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

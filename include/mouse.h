@@ -60,6 +60,7 @@ struct mouse_struct {
 
   /* these are for MOUSE position */
   int x, y;
+  int points;
   int minx, maxx, miny, maxy;
 
   /* these are for CURSOR position */

@@ -4,7 +4,8 @@
 CC   = gcc                         
 LD   = ld
 
-INCDIR= -I../include -I../
+# INCDIR is exported from ..
+#INCDIR= -I../include -I../
 
 CFLAGS=-O2 -Wall -Wmissing-prototypes \
 	-Wstrict-prototypes  # -ansi -pedantic

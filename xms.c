@@ -1,12 +1,15 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/05/04 21:56:55 $
+ * $Date: 1994/06/05 21:42:42 $
  * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
- * $Revision: 1.14 $
+ * $Revision: 1.15 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.15  1994/06/05  21:42:42  root
+ * prePrep for pre51_24.
+ *
  * Revision 1.14  1994/05/04  21:56:55  root
  * Prior to Alan's mouse patches.
  *
@@ -99,7 +102,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.14 1994/05/04 21:56:55 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.15 1994/06/05 21:42:42 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -306,7 +309,7 @@ umb_find(segbase)
   for (i = 0; i < UMBS; i++) {
     if (umbs[i].in_use &&
 	((addr >= umbs[i].addr) &&
-	 (addr <= (umbs[i].addr + umbs[i].size)))) {
+	 (addr < (umbs[i].addr + umbs[i].size)))) {
       return (i);
     }
   }

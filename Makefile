@@ -1,14 +1,16 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/05/30 00:08:20 $
+# $Date: 1994/06/05 21:17:35 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 1.60 $
+# $Revision: 1.61 $
 # $State: Exp $
 #
 
 # You should do a make config, make dep, make clean if you're doing
 # the first compile. 
 
+#Change the following line if the right kernel includes reside elsewhere
+LINUX_INCLUDE = /usr/src/linux/include
 #ifdef DEBUG
 #STATIC=1
 #DOSOBJS=$(OBJS)
@@ -112,7 +114,9 @@ else
 DPMI = 
 endif
 
-INCDIR     = -I./include -I.
+TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
+INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE)
+export INCDIR
 CFLAGS     = $(DPMI) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
