@@ -25,10 +25,6 @@ endif
 ifdef X_GRAPHICS
   export X_GRAPHICS
 endif
-@NEW_X_CODE@
-ifdef NEW_X_CODE
-  export NEW_X_CODE
-endif
 
 @NEW_PORT_CODE@
 ifdef NEW_PORT_CODE

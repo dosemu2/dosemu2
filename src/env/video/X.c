@@ -2,10 +2,10 @@
  * DANG_BEGIN_MODULE
  *
  * REMARK
- * This module contains a text-mode video interface for the X Window 
+ * This module contains the video interface for the X Window 
  * System. It has mouse and selection 'cut' support.
- * /REMARK
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
@@ -36,7 +36,7 @@
  * int10()
  *
  * added:
- *  get_vga256_colors()
+ *  vga256_cmap_init()
  *
  * Now dosemu can work in graphics mode with X, but at the moment only in mode
  * 0x13 and very slow.
@@ -80,42 +80,93 @@
  *
  * 1997/03/03: Added code to turn off MIT-SHM for network connections.
  * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
- *              
+ *
+ * 1997/04/21: Changed the interface to vgaemu - basically we do
+ * all image conversions in remap.c now. Added & enhanced support
+ * for 8/15/16/24/32 bit displays (you can resize the graphics
+ * window now).
+ * Palette updates in text-modes work; the code is not
+ * perfect yet (no screen update is done), so the change will
+ * take effect only after some time...
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ *
  * 1997/06/06: Fixed the code that was supposed to turn off MIT-SHM for
  * network connections. Thanks to Leonid V. Kalmankin <leonid@cs.msu.su>
  * for finding the bug and testing the fix.
  * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *              
+ * 1997/06/15: Added gamma correction for graphics modes.
+ * -- sw
+ *
+ * 1998/02/22: Rework of mouse support in graphics modes; put in some
+ * code to enable mouse grabbing. Can be activated via Ctrl+Alt+<some configurable key>;
+ * default is "Home". (the code needs to be enabled via NEW_X_MOUSE)
+ * -- sw
+ *
+ * 1998/03/08: Further work at mouse support in graphics modes.
+ * Added config capabilities via DOS tool (X_change_config).
+ * -- sw
+ *
+ * 1998/03/15: Another try to get rid of RESIZE_KLUGE. Fixed continuous
+ * X-cursor redefinition in graphics modes. Worked on color allocation.
+ * -- sw
+ *
+ * 1998/04/05: We are using backing store now in text modes.
+ * -- sw
+ *
+ *
  * DANG_END_CHANGELOG
  */
 
-/* define this if you want faster color mapping together with shmap.
- * NOTE: this has _no_ effect for normal (non-shmap).
- *       Un-defining it makes only sense for 8 bpp, but not for true color.
- * -- Hans */
-#define SHM_REMAP_TYPE_FAST
 
-/*#define OLD_X_TEXT*/		/* do you want to use the old X_textmode's */
+#define X_USE_BACKING_STORE		/* use backing store in text modes */
+
 #define CONFIG_X_SELECTION 1
 #define CONFIG_X_MOUSE 1
-#define CONFIG_X_SPEAKER 1		/* do you want speaker support in X? */
+#define CONFIG_X_SPEAKER 1  		/* do you want speaker support in X? */
 
-/* Comment out if you wish to have a visual indication of the area
-   being updated */
-/* #define DEBUG_SHOW_UPDATE_AREA yeah */
+/* undef no longer works -- 1998/03/15 sw */
+#define TEXT_DAC_UPDATES		/* updates palettes even in text modes */
+
+#undef DEBUG_MOUSE_POS			/* show X mouse in graphics modes */
+
+#ifndef NEW_X_MOUSE
+  #undef ENABLE_POINTER_GRAB		/* when defined, F12 toggles grabbing of all key & mouse events */
+  #ifdef ENABLE_POINTER_GRAB
+  #define MOUSE_SCALE_X 2			/* scale mouse movements reported to dosemu; */
+  #define MOUSE_SCALE_Y 2			/* undefine MOUSE_SCALE_X to restore old behavior */
+  #endif
+#else /* NEW_X_MOUSE */
+  #undef ENABLE_KEYBOARD_GRAB		/* when grabbing all mouse events, grab keyboard too */
+#endif /* NEW_X_MOUSE */
+
+/* define if you wish to have a visual indication of the area being updated */
+#undef DEBUG_SHOW_UPDATE_AREA
 
 #include <config.h>
 #include <stdio.h>
 #include <termios.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
+#include <sys/time.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
+#ifdef NEW_X_MOUSE
+#include <X11/keysym.h>
+#endif /* NEW_X_MOUSE */
 #include <sys/mman.h>           /* root@sjoerd:for mprotect*/
 
+#include "emu.h"
+#include "bios.h"
+#include "video.h"
+#include "memory.h"
+#include "remap.h"
+#include "vgaemu.h"
+#include "X.h"
 
 #ifdef HAVE_MITSHM
 #include <sys/ipc.h>
@@ -123,18 +174,10 @@
 #include <X11/extensions/XShm.h>
 #endif
 
-
-#include <sys/time.h>
-#include <unistd.h>
-
-
-#include "emu.h"
-#include "bios.h"
-#include "video.h"
-#include "memory.h"
-#include "utilities.h"
-
-#include "XModeRemap.h"   /* true color stuff */
+#undef HAVE_DGA		/* not yet -- sw */
+#ifdef HAVE_DGA
+#include <X11/extensions/xf86dga.h>
+#endif
 
 #if CONFIG_X_MOUSE
 #include "mouse.h"
@@ -153,8 +196,6 @@
 #define Bit16u us
 #define Boolean boolean
 
-
-#include "vgaemu.h"
 
 static const u_char dos_to_latin[]={
    0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,  /* 80-87 */ 
@@ -186,7 +227,6 @@ extern void X_process_key(XKeyEvent *);
 /* Kludge for incorrect ASCII 0 char in vga font. */
 #define XCHAR(w) ((u_char)CHAR(w)?(u_char)CHAR(w):(u_char)' ')
 
-
 #if CONFIG_X_SELECTION
 #define SEL_ACTIVE(w) (visible_selection && ((w) >= sel_start) && ((w) <= sel_end))
 #define SEL_ATTR(attr) (((attr) >> 4) ? (attr) :(((attr) & 0x0f) << 4))
@@ -194,45 +234,56 @@ extern void X_process_key(XKeyEvent *);
 #else
 #define XATTR(w) (ATTR(w))
 #endif
+
 #define XREAD_WORD(w) ((XATTR(w)<<8)|XCHAR(w))
 
 /********************************************/
 
-#ifdef HAVE_MITSHM
-/* keep this global -- sw */
-int (*OldXErrorHandler)(Display *, XErrorEvent *) = NULL;
-int shm_error_base = 0;
-int shm_failed = 0;
-#endif
+static int (*OldXErrorHandler)(Display *, XErrorEvent *) = NULL;
 
 #ifdef HAVE_MITSHM
+static int shm_ok = 0;
+static int shm_error_base = 0;
 static XShmSegmentInfo shminfo;
+#endif
+
+#ifdef HAVE_DGA
+static int dga_ok = 0;
+static int dga_active = 1;
+static unsigned char *dga_addr = NULL;
+static unsigned dga_scan_len = 0;
+static unsigned dga_width = 0;
+static unsigned dga_height = 0;
+static unsigned dga_bank = 0;
+static unsigned dga_mem = 0;
+static unsigned _dga_width = 0;
+static unsigned _dga_height = 0;
+static Window dga_window;
 #endif
 
 Display *display;
 static int screen;
-static Window rootwindow,mainwindow;
-static XImage *ximage_p;		/*Used as a buffer for the X-server*/
-
+static Window rootwindow, mainwindow;
+static XImage *ximage;		/*Used as a buffer for the X-server*/
 static XColor xcol;
 
-unsigned char* image_data_p=NULL; 	/* the data in the XImage*/
-
 static Cursor X_standard_cursor;
+
 #if CONFIG_X_MOUSE
 static Cursor X_mouse_cursor;
 static Cursor X_mouse_nocursor;
 static time_t X_mouse_change_time;
 static int X_mouse_last_on;
-static int snap_X=0;
+static int snap_X = 0;
 #endif
+
 static GC gc;
 static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
-
+static XFontStruct *font = NULL;
 static int font_width, font_height, font_shift;
-static int prev_cursor_row=-1, prev_cursor_col=-1;
-static ushort prev_cursor_shape=NO_CURSOR;
+static int prev_cursor_row = -1, prev_cursor_col = -1;
+static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
 static int blink_count = 8;
 
@@ -247,322 +298,323 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 static Boolean have_focus = FALSE;
 static Boolean is_mapped = FALSE;
 
+static Colormap text_cmap = 0;
+static unsigned long text_colors[16];
+static int text_col_stats[16] = {0};
+
+static Colormap vga256_cmap = 0;
 static Boolean have_shmap = FALSE;
 
-static unsigned long vga_colors[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+static RemapObject remap_obj;
+static ColorSpaceDesc X_csd;
+static int have_true_color;
+static unsigned dac_bits;		/* the bits visible to the dosemu app, not the real number */
+static int x_res, y_res;		/* emulated window size in pixels */
+static int w_x_res, w_y_res;		/* actual window size */
+static unsigned ximage_bits_per_pixel;
+static unsigned ximage_mode;
+static int remap_features;
+static vga_emu_update_type veut;
+static int remap_src_modes = 0;
+static vgaemu_display_type X_screen;
 
-static void set_sizehints(int xsize, int ysize);
-static Colormap text_cmap=0;
-static Colormap vga256_cmap=0;
+#ifndef NEW_X_MOUSE
+#ifdef ENABLE_POINTER_GRAB
+static int grab_active = 0;
+#endif
+#else /* NEW_X_MOUSE */
+static int grab_active = 0;
+static char *grab_keystring = "Home";
+static int grab_keysym = NoSymbol;
+static int mouse_x = 0, mouse_y = 0;
+#endif /* NEW_X_MOUSE */
 
-static int X_setmode(int type, int xsize, int ysize) ;
+static int X_map_mode = -1;
+static int X_unmap_mode = -1;
 
-static unsigned char lut[256]; /* lookup table for remapping colours */
-static unsigned char lut2[256]; /* another one... I like them. */
-static unsigned long pixelval[256]; /* ...and another one.  Trust me. --adm */
-unsigned char redshades,blueshades,greenshades;
+typedef struct { unsigned char r, g, b; } c_cube;
 
-static int colormap_size;
-static XColor colormap[256];
+/*
+ * all function prototypes...
+ */
+#if 0
+static void text_cmap_init(void);
+#endif
+static int try_cube(unsigned long *, c_cube *);
+static ColorSpaceDesc MakeSharedColormap(void);
+static int MakePrivateColormap(void);
+static void vga256_cmap_init(void);
+static void load_text_font(void);
+static void load_cursor_shapes(void);
+static void InitDACTable(void);
+static void refresh_private_palette(void);
+static void refresh_truecolor(void);
+static void refresh_palette(void);
+#ifdef TEXT_DAC_UPDATES
+static void refresh_text_palette(void);
+#endif
+static void put_ximage(int, int, int, int, unsigned, unsigned);
+static int NewXErrorHandler(Display *, XErrorEvent *);
+static void create_ximage(void);
+static void destroy_ximage(void);
+static void resize_ximage(unsigned, unsigned);
+#ifdef HAVE_MITSHM
+static void X_shm_init(void);
+static void X_shm_done(void);
+#endif
+#ifdef HAVE_DGA
+static void X_dga_init(void);
+static void X_dga_done(void);
+#endif
+static void X_remap_init(void);
+static void X_remap_done(void);
+int X_init(void);
+void X_close(void);
+static int X_setmode(int, int, int);
+static void X_modify_mode(void);
+static inline void set_gc_attr(Bit8u);
+static void draw_cursor(int, int);
+static inline void restore_cell(int, int);
+static void redraw_cursor(void);
+static void X_update_cursor(void);
+extern void X_blink_cursor(void);
+void X_redraw_screen(void);
+#if USE_SCROLL_QUEUE
+static void X_scroll(int, int, int, int, int, byte);
+static void do_scroll(void);
+#endif
+int X_update_screen(void);
+extern void X_change_mouse_cursor(void);
+#if CONFIG_X_MOUSE
+static void set_mouse_position(int, int);
+static void set_mouse_buttons(int);
+#endif
+#if CONFIG_X_SELECTION
+static int x_to_col(int);
+static int y_to_row(int);
+static void calculate_selection(void);
+static void clear_visible_selection(void);
+static void clear_selection_data(void);
+static void clear_if_in_selection(void);
+static void start_selection(int, int);
+static void extend_selection(int, int);
+static void start_extend_selection(int, int);
+static void save_selection_data(void);
+static void end_selection(void);
+static void send_selection(Time, Window, Atom, Atom);
+#endif
+extern void X_handle_events(void);
 
-/* true color stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 
-#define TEST_SCALE 1		/* for easier testing ... sw */
-#undef REMAP_DEBUG_SHOW		/* produces loads of text... -- sw */
-
-typedef struct X_vars {
-
-  int x_res, y_res;             /* size in pixels */
-
-  /* the following is needed redundant info, backwards compat to .63.98 */
-  Boolean have_shmap;
-
-  /* the following are needed to adapt to various X displays -- sw */
-  XModeInfoType XModeInfo;
-  XModeRemapRecord *XModeRemapList;	/* chained list of remap functions */
-  unsigned XRemapMode;
-  unsigned VGAScreenDepthBits;
-  unsigned VGAScreenDepthChars;
-  unsigned XDefaultDepth;		/* eg 24 */
-  unsigned XScreenDepthBits;		/* eg 32 */
-  unsigned XScreenDepthChars;
-  Boolean HaveTrueColor;
-  unsigned RedMask, GreenMask, BlueMask;
-  unsigned RedShift, GreenShift, BlueShift;
-  unsigned RedBits, GreenBits, BlueBits;
-  unsigned DACBits;	/* the bits visible to the dosemu app, not the real number */
-  unsigned Color8Lut[256];
-}X_vars;
-
-static X_vars X_state = {0};
-
-static Boolean X_InstallRemapFunc(unsigned, X_vars *);
-static void InitDACTable(X_vars *);
-static int UpdateDACTable(unsigned, unsigned char, unsigned char, unsigned char, X_vars *);
-static void RemapXImage(unsigned mode, int *xx, int *yy, int *ww, int *hh,
-                        unsigned char *base, int offset, int len, int modewidth);
-static void EXPutImageUnscaled(Display *display, Drawable d, GC gc, XImage *image, 
-		       int src_x,  int src_y, int dest_x, int dest_y,
-		       unsigned  width, unsigned height);
-static void EXPutImage(Display *display, Drawable d, GC gc, XImage *image, 
-		       int src_x,  int src_y, int dest_x, int dest_y,
-		       unsigned  width, unsigned height);
-static void refresh_truecolor_from_DAC(X_vars *state);
-static void X_partial_redraw_screen(void);
-
-/* true color stuff <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 
 /**************************************************************************/
 /*                         INITIALIZATION                                 */
 /**************************************************************************/
 
-static void read_colormap(void)
+#if 0
+/*
+ * Allocate normal VGA colors, and store color indices to text_colors[].
+ */
+static void text_cmap_init()
 {
   int i;
-  colormap_size = DisplayCells(display, screen);
-  if (colormap_size > 256)
-    colormap_size = 256;
-  for (i = 0; (i < colormap_size); i++)
-    colormap[i].pixel = i;
-  XQueryColors(display, DefaultColormap(display, screen),
-	       colormap, colormap_size);
-}
+  XColor xcol2;
 
-/* Euclidian distance in RGB color space, scaled to 0-1000 --Pasi
- *                                         (in fact 0-987) --Hans */
-static int color_distance(XColor *c1, XColor *c2)
-{
-  int dr, dg, db;
-  dr = (c1->red - c2->red)/256;
-  dg = (c1->green - c2->green)/256;
-  db = (c1->blue - c2->blue)/256;
-  return integer_sqrt((dr*dr + dg*dg + db*db)*5);
-}
-
-/* Find best color in current colormap, and return distance */
-static int find_best_color(XColor *color)
-{
-  int i, d;
-  int best = 0, bestd = 1000;
-  for (i = 0; (i < colormap_size); i++)
-  {
-    d = color_distance(color, &colormap[i]);
-    if (d < bestd)
-    {
-      best = i;
-      bestd = d;
-    }
-  }
-  color->pixel = best;
-#if 0
-  printf("X: Replaced %d/%d/%d with %d/%d/%d (distance %d)\n",
-	 color->red/257, color->green/257, color->blue/257,
-	 colormap[best].red/257, colormap[best].green/257,
-	 colormap[best].blue/257, bestd);
-#endif  
-  color->red = colormap[best].red;
-  color->green = colormap[best].green;
-  color->blue = colormap[best].blue;
-  return bestd;
-}
-
-/* Allocate normal VGA colors, and store color indices to vga_colors[]. */
-static void get_vga_colors(void)
-{
   /* The following are almost IBM standard color codes, with some slight
    * gamma correction for the dim colors to compensate for bright X
    * screens.
-   */
-  static struct
-  {
-    unsigned char r,g,b;
-  } crgb[16]=
-  {
-    {0x00,0x00,0x00},{0x18,0x18,0xB2},{0x18,0xB2,0x18},{0x18,0xB2,0xB2},
-    {0xB2,0x18,0x18},{0xB2,0x18,0xB2},{0xB2,0x68,0x18},{0xB2,0xB2,0xB2},
-    {0x68,0x68,0x68},{0x54,0x54,0xFF},{0x54,0xFF,0x54},{0x54,0xFF,0xFF},
-    {0xFF,0x54,0x54},{0xFF,0x54,0xFF},{0xFF,0xFF,0x54},{0xFF,0xFF,0xFF}
+  */
+  c_cube crgb[16] = {
+    {0x00,0x00,0x00}, {0x18,0x18,0xB2}, {0x18,0xB2,0x18}, {0x18,0xB2,0xB2},
+    {0xB2,0x18,0x18}, {0xB2,0x18,0xB2}, {0xB2,0x68,0x18}, {0xB2,0xB2,0xB2},
+    {0x68,0x68,0x68}, {0x54,0x54,0xFF}, {0x54,0xFF,0x54}, {0x54,0xFF,0xFF},
+    {0xFF,0x54,0x54}, {0xFF,0x54,0xFF}, {0xFF,0xFF,0x54}, {0xFF,0xFF,0xFF}
   };
 
-  int i, warned;
-  XColor xcol2, xcol3;
-  Colormap text_cmap = DefaultColormap(display, screen);
+  text_cmap = DefaultColormap(display, screen);
 
-  X_printf("X: getting VGA colors\n");
-  if (X_state.HaveTrueColor == False)
-    read_colormap();
+  X_printf("X: text_cmap_init: getting VGA colors\n");
 
-  warned = 0;
-  xcol.flags=DoRed | DoGreen | DoBlue;
-  for (i = 0; (i < 16); i++) 
-  {
-    xcol2.red = (crgb[i].r*65535)/255;
-    xcol2.green = (crgb[i].g*65535)/255;
-    xcol2.blue = (crgb[i].b*65535)/255;
+  /* Since we're here, we may as well set this up since it never changes... */
+  xcol.flags = DoRed | DoGreen | DoBlue;
 
-    memcpy(&xcol3, &xcol2, sizeof(XColor));
-    if ((X_state.HaveTrueColor == False) && (find_best_color(&xcol3) < 33))
-    {
-      memcpy(&xcol2, &xcol3, sizeof(XColor));
+  for(i = 0; i < 16; i++) {
+    xcol2.red   = crgb[i].r * 0x101;
+    xcol2.green = crgb[i].g * 0x101;
+    xcol2.blue  = crgb[i].b * 0x101;
+    text_col_stats[i] = XAllocColor(display, text_cmap, &xcol2);
+    text_colors[i] = xcol2.pixel;
+
+    if(! text_col_stats[i]) {
+      X_printf("X: text_cmap_init: couldn't allocate color %d\n", i);
     }
-    if (!XAllocColor(display, text_cmap, &xcol2))
-    {
-      if (!warned)
-      {
-	error("X: couldn't allocate all VGA colors!\n");
-	warned = 1;
-      }
-      if (X_state.HaveTrueColor == False)
-      {
-	memcpy(&xcol2, &xcol3, sizeof(XColor));
-	XAllocColor(display, text_cmap, &xcol2);
-      }
-    }
-    vga_colors[i] = xcol2.pixel;
+    X_printf("X: text_cmap_init: color[%d] = %d\n", i, (int) text_colors[i]);
   }
 }
+#endif
 
+c_cube c_cubes[] = {
+  { 6, 8, 5 },
+  { 6, 7, 5 },
+  { 6, 6, 5 },
+  { 5, 7, 5 },
+  { 5, 6, 5 },
+  { 4, 8, 4 },
+  { 5, 6, 4 },
+  { 5, 5, 4 },
+  { 4, 5, 4 },
+  { 4, 5, 3 },
+  { 4, 4, 3 },
+  { 3, 4, 3 }
+};
 
-static int try_cube(unsigned char redsh,
-		     unsigned char greensh,
-		     unsigned char bluesh)
+int try_cube(unsigned long *p, c_cube *c)
 {
-  int ir,ig,ib,ii;
-  int got_okay[256];
+  unsigned r, g, b;
+  int i = 0;
+  XColor xc;
 
-  for (ii=0;ii<256;ii++)
-    {
-      got_okay[ii]=0;
+  xc.flags = DoRed | DoGreen | DoBlue;
+
+  for(b = 0; b < c->b; b++) for(g = 0; g < c->g; g++) for(r = 0; r < c->r; r++) {
+    xc.red = (0xffff * r) / c->r;
+    xc.green = (0xffff * g) / c->g;
+    xc.blue = (0xffff * b) / c->b;
+    if(XAllocColor(display, vga256_cmap, &xc)) {
+      p[i++] = xc.pixel;
     }
-
-  for (ir=0;ir<redsh;ir++)
-    {
-      for (ig=0;ig<greensh;ig++)
-	{
-	  for (ib=0;ib<bluesh;ib++)
-	    {
-	      xcol.red=(ir*65535)/(redsh-1);
-	      xcol.green=(ig*65535)/(greensh-1);
-	      xcol.blue=(ib*65535)/(bluesh-1);
-	      if (XAllocColor(display, vga256_cmap, &xcol))
-		{
-		  got_okay[ii=(
-			       (ir) +
-			       (ig)*redsh +
-			       (ib)*redsh*greensh
-			       )]=1;
-		  pixelval[ii] = xcol.pixel;
-		}
-	      else
-		{
-		  for (ii=0;ii<256;ii++)
-		    {
-		      if (got_okay[ii])
-			XFreeColors(display, vga256_cmap, &pixelval[ii], 1, 0);
-		    }
-		  return(0);
-		}
-	    }
-	}
+    else {
+      while(--i >= 0) XFreeColors(display, vga256_cmap, p + i, 1, 0);
+      return 0;
     }
-
-  redshades=redsh;
-  greenshades=greensh;
-  blueshades=bluesh;
-
-  return(1); /* got cube successfully */
+  }
+  return i;
 }
 
-  
-static Visual *visual;
+ColorSpaceDesc MakeSharedColormap()
+{
+  ColorSpaceDesc csd;
+  XColor xc;
+  int i, j;
+  static unsigned long pix[256];
 
-/* DANG_BEGIN_FUNCTION get_vga256_colors
+  xc.flags = DoRed | DoGreen | DoBlue;
+
+  csd.bytes = 1;
+  csd.pixel_lut = NULL;
+  csd.r_mask = csd.g_mask = csd.b_mask = 0;
+
+  for(i = j = 0; i < sizeof(c_cubes) / sizeof(*c_cubes); i++) {
+    if((j = try_cube(pix, c_cubes + i))) break;
+  }
+
+  if(!j) {
+    X_printf("X: MakeSharedColormap: failed to allocate shared color map\n");
+    csd.r_bits = 1;
+    csd.g_bits = 1;
+    csd.b_bits = 1;
+  }
+  else {
+    csd.r_bits = c_cubes[i].r;
+    csd.g_bits = c_cubes[i].g;
+    csd.b_bits = c_cubes[i].b;
+  }
+
+  csd.r_shift = 1;
+  csd.g_shift = csd.r_bits * csd.r_shift;
+  csd.b_shift = csd.g_bits * csd.g_shift;
+
+  csd.bits = csd.r_bits * csd.g_bits * csd.b_bits;
+
+  if(csd.bits > 1) {
+    csd.pixel_lut = malloc(csd.bits * sizeof(*csd.pixel_lut));
+    for(i = 0; i < csd.bits; i++) csd.pixel_lut[i] = pix[i];
+  }
+
+  X_printf("X: MakeSharedColormap: RGBCube %d - %d - %d (%d colors)\n", csd.r_bits, csd.g_bits, csd.b_bits, csd.bits);
+
+  return csd;
+}
+
+int MakePrivateColormap()
+{
+  int i;
+  DAC_entry color;
+  unsigned long pixels[256];
+
+  vga256_cmap = XCreateColormap(display, rootwindow, DefaultVisual(display, screen), AllocNone);
+
+  i = XAllocColorCells(display, vga256_cmap, True, NULL, 0, pixels, 256);
+  if(!i) {
+    X_printf("X: MakePrivateColormap: failed to allocate private color map\n");
+    return 0;
+  }
+
+  for(i = 0; i < 256; i++) {
+    DAC_get_entry(&color, (unsigned char) i);
+    xcol.pixel = i;
+    xcol.red   = (color.r * 65535) / 63;
+    xcol.green = (color.g * 65535) / 63;
+    xcol.blue  = (color.b * 65535) / 63;
+    XStoreColor(display, vga256_cmap, &xcol);
+  }
+
+  return 1;
+}
+
+
+/* DANG_BEGIN_FUNCTION vga256_cmap_init
  *
  * Allocates a colormap for 256 color modes and initializes it.
  *
  * DANG_END_FUNCTION
  */
-static void get_vga256_colors(void)
+static void vga256_cmap_init(void)
 {
-  int i;
-  DAC_entry color;
-
-  DAC_init();
-
   /* Note: should really deallocate and reallocate our colours every time
    we switch graphic modes... --adm */
 
-  if(vga256_cmap==0) /* only the first time! */
-    {
-      visual=DefaultVisual(display, screen);
+  DAC_init();
 
-      v_printf(config.X_sharecmap==0?"Private Colourmap.\n":"Shared Colourmap.\n");
-      
-      have_shmap=FALSE;
-      if (config.X_sharecmap)
-	{
-	  vga256_cmap=DefaultColormap(display,screen);
-	  
-	  if (!try_cube(6,8,5))
-	    if (!try_cube(6,7,5))
-	      if (!try_cube(6,6,5))
-		if (!try_cube(5,7,5))
-		  if (!try_cube(5,6,5))
-		    /* XV-3's normal colour-cube: */
-		    if (!try_cube(4,8,4))
-		      if (!try_cube(5,6,4))
-			if (!try_cube(5,5,4))
-			  if (!try_cube(4,5,4))
-			    {
-			      printf("VGAEMU: Warning: Couldn't get many free colours.  May look bad.\n");
-			      if (!try_cube(4,5,3))
-				if (!try_cube(4,4,3))
-				  if (!try_cube(3,4,3))
-				    {
-				      printf("VGAEMU: Warning: Couldn't get a semi-decent number of free colours\n         - using private colourmap.\n");
-				      have_shmap=FALSE;
-				      greenshades=blueshades=redshades=0;
-				    }
-			    }
-	  if (blueshades>0)
-	    {
-	      have_shmap=TRUE;
-	      v_printf("VGAEMU: Using %dx%dx%d colour-cube.\n",redshades,greenshades,blueshades);
-	    }
-	}
-      if (!have_shmap)
-	{
-	  if(visual->class&1)
-	    vga256_cmap=XCreateColormap(display, rootwindow, visual, AllocAll);
-	  else
-	    vga256_cmap=XCreateColormap(display, rootwindow, visual, AllocNone);
-	  for(i=0; i<256; i++)
-	    {
-	      DAC_get_entry(&color, (unsigned char)i);
-	      xcol.pixel=i;
-	      xcol.red  =(color.r*65535)/63;
-	      xcol.green=(color.g*65535)/63;
-	      xcol.blue =(color.b*65535)/63;
-	      
-	      if(visual->class&1) XStoreColor(display, vga256_cmap, &xcol);
-	    }
-	}
-    }
-  else
-    {  /* should not be needed, root@sjoerd*/
-      /* seems to be called on a ctrl-alt-del  :(  --adm */
-      printf("VGAEMU: Palette change should not be needed!!\n");
-      for(i=0; i<256; i++)
-	{
-	  DAC_get_entry(&color, (unsigned char)i);
-	  xcol.pixel=i;
-	  xcol.red  =color.r<<10;
-	  xcol.green=color.g<<10;
-	  xcol.blue =color.b<<10;
+  if(have_true_color) return;
 
-	  if(visual->class&1) XStoreColor(display, vga256_cmap, &xcol);
-	}
+  if(vga256_cmap == 0) {	/* only the first time! */
+    have_shmap = FALSE;
+
+    if(config.X_sharecmap) {
+      vga256_cmap = DefaultColormap(display, screen);
+      X_csd = MakeSharedColormap();
+
+      if(X_csd.bits == 1) {
+        X_printf("X: vga256_cmap_init: couldn't get enough free colors; trying private colormap\n");
+        /* this is certainly not an error, hence no  error() call -- sw */
+        fprintf(stderr, "X: Couldn't get enough free colors - using private colormap.\n");
+        have_shmap = FALSE;
+      }
+      else {
+        if(X_csd.bits < 4 * 5 * 4) {
+          X_printf("X: vga256_cmap_init: couldn't get many free colors (%d). May look bad.\n", X_csd.bits);
+        }
+      }
+
+      if(X_csd.bits != 1) have_shmap = TRUE;
     }
+
+    if(!have_shmap) {
+      if(MakePrivateColormap()) {
+        X_printf("X: vga256_cmap_init: using private colormap.\n");
+      }
+      else {
+        error("X: Warning: we don't have any kind of colormap!\n");
+      }
+    }
+    else {
+      X_printf("X: vga256_cmap_init: using shared colormap.\n");
+    }
+  }
+  else {
+    X_printf("X: vga256_cmap_init: unexpectedly called\n");
+  }
 }
 
 /* Load the main text font. Try first the user specified font, then
@@ -572,7 +624,6 @@ static void get_vga256_colors(void)
 static void load_text_font(void)
 {
   const char *fonts[] = {config.X_font, "vga", "9x15", "fixed", NULL}, **p;
-  XFontStruct *font;
   p = fonts;
   while (1) {
     if ((font=XLoadQueryFont(display, *p)) == NULL) {
@@ -662,324 +713,280 @@ static void load_cursor_shapes(void)
 
 /* true color stuff >>>>>>>>>>>>>>>>>>>> */
 
-#ifdef REMAP_DEBUG_SHOW
-void RemapDebug(XModeInfoType *xmi)
-{
-#ifdef REMAP_FUNC_SHOW
-  X_printf("[%s]\n", xmi->RemapFuncName);
-#else
-  X_printf("[RemapFunc]\n");
-#endif
-
-  X_printf("  VGAOffset %d\n  VGAX0 %d, VGAY0 %d, VGAX1 %d, VGAY1 %d, VGAScanlen %d\n",
-    xmi->VGAOffset, xmi->VGAX0, xmi->VGAY0, xmi->VGAX1, xmi->VGAY1, xmi->VGAScanLen
-  );
-  X_printf("  XX0 %d, XY0 %d, XX1 %d, XY1 %d, XScanLen %d\n",
-    xmi->XX0, xmi->XY0, xmi->XX1, xmi->XY1, xmi->XScanLen
-  );
-}
-#define REMAP_DEBUG(xmi) RemapDebug(xmi)
-#else
-#define REMAP_DEBUG(xmi)
-#endif /* REMAP_DEBUG_SHOW */
-
-
 /*
- * the next 2 functions update state->Color8Lut[], a table that maps DAC entries
- * to TrueColor pixel values
- * -- sw
+ * keep color map up to date
  */
-void InitDACTable(X_vars *state)
+
+void InitDACTable()
 {
   DAC_entry dac;
   int i;
 
   for(i = 0; i < 256; i++) {
     DAC_get_entry(&dac, (unsigned char) i);
-    UpdateDACTable(i, dac.r, dac.g, dac.b, state);
+    remap_obj.palette_update(&remap_obj, i, dac_bits, dac.r, dac.g, dac.b);
   }
 }
 
-int UpdateDACTable(unsigned ind, unsigned char r, unsigned char g, unsigned char b, X_vars *state)
+
+static void refresh_private_palette()
 {
-  unsigned ui = 0, oui;
-  unsigned nr = r, ng = g, nb = b;
+  DAC_entry color;
+  RGBColor c;
+  XColor xcolor[256];
+  int i, n;
+  unsigned bits, bit_mask;
 
-  nr = state->RedBits >= state->DACBits ? nr << (state->RedBits - state->DACBits) : nr >> (state->DACBits - state->RedBits);
-  nr <<= state->RedShift;
-  ng = state->GreenBits >= state->DACBits ? ng << (state->GreenBits - state->DACBits) : ng >> (state->DACBits - state->GreenBits);
-  ng <<= state->GreenShift;
-  nb = state->BlueBits >= state->DACBits ? nb << (state->BlueBits - state->DACBits) : nb >> (state->DACBits - state->BlueBits);
-  nb <<= state->BlueShift;
-
-  ui = nr | ng | nb;
-
-  if(state->XScreenDepthChars == 1) ui |= ui << 8;
-  if(state->XScreenDepthChars <= 2) ui |= ui << 16;
-
-/*
-  X_printf("X::UpdateDACTable: DAC[%u] = (0x%x, 0x%x, 0x%x) = 0x%08x\n", ind, (unsigned) r, (unsigned) g, (unsigned) b, ui);
-*/
-
-  if(ind < 256) {
-    oui = state->Color8Lut[ind];
-    state->Color8Lut[ind] = ui;
-    return oui == ui ? 0 : 1;
+  for (n = 0; ((i = DAC_get_dirty_entry(&color)) != -1) && n < 256; n++) {
+    c.r = color.r; c.g = color.g; c.b = color.b;
+    bits = dac_bits;
+    gamma_correct(&remap_obj, &c, &bits);
+    bit_mask = (1 << bits) - 1;
+    xcolor[n].flags = DoRed | DoGreen | DoBlue;
+    xcolor[n].pixel = i;
+    xcolor[n].red   = (c.r * 65535) / bit_mask;
+    xcolor[n].green = (c.g * 65535) / bit_mask;
+    xcolor[n].blue  = (c.b * 65535) / bit_mask;
   }
-  
-  return 0;
+  /* Hopefully this is faster */
+  XStoreColors(display, vga256_cmap, xcolor, n);
 }
 
-static void refresh_truecolor_from_DAC(X_vars *state)
+static void refresh_truecolor()
 {
   DAC_entry color;
   Boolean colchanged = False;
   int i;
 
   while((i = DAC_get_dirty_entry(&color)) != -1) {
-    colchanged |= UpdateDACTable(i, color.r, color.g, color.b, state);
+    colchanged |= remap_obj.palette_update(&remap_obj, i, dac_bits, color.r, color.g, color.b);
   }
   if(colchanged) dirty_all_video_pages();
 }
 
-static Boolean X_InstallRemapFunc(unsigned vga_mode, X_vars *state)
+
+static void refresh_palette()
 {
-  XModeRemapRecord *xmrr = state->XModeRemapList;
-
-  while(xmrr != NULL) {
-    if(xmrr->ScaleX == state->XModeInfo.ScaleX &&
-       xmrr->ScaleY == state->XModeInfo.ScaleY &&
-       (xmrr->VGAMode & vga_mode) &&
-       (xmrr->XMode & state->XRemapMode)
-      ) break;
-    xmrr = xmrr->Next;
-  }
-  if(xmrr == NULL) {
-    X_printf("X_InstallRemapFunc: no support for mode 0x%03x on 0x%03x, scaled %dx%d\n",
-              vga_mode, state->XRemapMode,
-              state->XModeInfo.ScaleX, state->XModeInfo.ScaleY
-            );
-    return False;
-  }
-
-  state->XModeInfo.RemapFunc = xmrr->RemapFunc;
-  #ifdef REMAP_FUNC_SHOW
-    X_printf("X_InstallRemapFunc: using %s for remapping\n", xmrr->RemapFuncName);
-    state->XModeInfo.RemapFuncName = xmrr->RemapFuncName;
-  #endif
-  return True;
+  if(have_true_color || have_shmap)
+    refresh_truecolor();
+  else
+    refresh_private_palette();
 }
 
-static void X_init_ModeRemap(void)
+#ifdef TEXT_DAC_UPDATES
+static void refresh_text_palette()
 {
-  static X_vars *state = &X_state;
-  XModeRemapRecord *xmrr, *xmrr0;
-  /*
-   * XModeRemapList holds a chained list of remap function
-   * descriptions; when a remap function is requested during
-   * X_set_mode, the first suitable is taken.
-   *
-   * So always put the fastest first into the list.
-   * -- sw
-   */
+  DAC_entry color;
+  XColor xc;
+  int i, n, dac_mask = (1 << dac_bits) - 1;
 
-  state->XModeRemapList = XModeRemapGeneric();
+  for (n = 0; ((i = DAC_get_dirty_entry(&color)) != -1) && n < 16 && i < 16; n++) {
+    xc.flags = DoRed | DoGreen | DoBlue;
+    xc.pixel = text_colors[i];
+    xc.red   = (color.r * 65535) / dac_mask;
+    xc.green = (color.g * 65535) / dac_mask;
+    xc.blue  = (color.b * 65535) / dac_mask;
 
-  xmrr0 = xmrr =
-#if 1
-		XModeRemap_i386();
-#else
-		NULL;
-#endif
-  if(xmrr != NULL) {
-    while(xmrr->Next != NULL) xmrr = xmrr->Next;
-    xmrr->Next = state->XModeRemapList;
-    state->XModeRemapList = xmrr0;
-  }
-  /* add other lists here... */
+    if(text_col_stats[i]) XFreeColors(display, text_cmap, &(xc.pixel), 1, 0);
 
-  state->XModeInfo.RemapFunc = NULL;
-
-  if(state->HaveTrueColor == True) {
-    switch(state->XScreenDepthBits) {
-      case  1: state->XRemapMode = X_TRUE_1; break;
-      case 15: state->XRemapMode = X_TRUE_15; break;
-      case 16: state->XRemapMode = X_TRUE_16; break;
-      case 32: state->XRemapMode = X_TRUE_32; break;
-      default: state->XRemapMode = X_UNSUP;
+    if(!(text_col_stats[i] = XAllocColor(display, text_cmap, &xc))) {
+      printf("X: refresh_text_palette: failed to allocate new text color: %d\n", i);
     }
+    X_printf("X: refresh_text_palette: %d --> %d\n", (int) text_colors[i], (int) xc.pixel);
+    text_colors[i] = xc.pixel;
+  }
+}
+#endif
+
+static void X_get_screen_info()
+{
+  XImage *xi;
+  Visual *xdv;
+
+  xdv = DefaultVisual(display, DefaultScreen(display));
+  have_true_color = xdv->class == TrueColor || xdv->class == DirectColor ? 1 : 0;
+
+  xi = XCreateImage(
+    display,
+    DefaultVisual(display, DefaultScreen(display)),
+    DefaultDepth(display, DefaultScreen(display)),
+    ZPixmap, 0, NULL, 6 * 8, 2, 32, 0
+  );
+
+  if(xi != NULL) {
+    if(xi->bytes_per_line % 6 == 0 && (xi->bytes_per_line / 6) == xi->bits_per_pixel) {
+      ximage_bits_per_pixel = xi->bits_per_pixel;
+      X_printf("X: pixel size is %d bits/pixel\n", ximage_bits_per_pixel);
+    }
+    else {
+      ximage_bits_per_pixel = xi->bits_per_pixel;
+      X_printf("X: could not determine pixel size, assuming %d bits/pixel\n", ximage_bits_per_pixel);
+    }
+
+    XDestroyImage(xi);
   }
   else {
-    switch(state->XScreenDepthBits) {
-      case  8: state->XRemapMode = state->have_shmap ? X_PSEUDO_8S : X_PSEUDO_8P; break;
-      default: state->XRemapMode = X_UNSUP;
-    }
+    ximage_bits_per_pixel = DefaultDepth(display, DefaultScreen(display));
+    X_printf("X: could not determine pixel size, assuming %d bits/pixel\n", ximage_bits_per_pixel);
+  }
+
+  X_csd.bits = ximage_bits_per_pixel;
+  X_csd.bytes = (ximage_bits_per_pixel + 7) >>3;
+  X_csd.r_mask = xdv->red_mask;
+  X_csd.g_mask = xdv->green_mask;
+  X_csd.b_mask = xdv->blue_mask;
+  color_space_complete(&X_csd);
+  if(X_csd.bits == 16 && (X_csd.r_bits + X_csd.g_bits + X_csd.b_bits) == 15) {
+    X_csd.bits = ximage_bits_per_pixel = 15;
   }
 }
 
-static void X_init_X_info(void) {
-  static X_vars *state = &X_state;
-  Visual *XDefaultVisual;
-  unsigned ui;
 
-  state->have_shmap = have_shmap;  /* redundant, but neede */
-  /*
-   * The following info should probably better derived via XGetWindowAttributes()
-   * from the window actually created. -- sw
-   */
-  state->XScreenDepthBits = state->XDefaultDepth = DefaultDepth(display, screen);
-
-  /* I don't know the canonical way to do it... -- sw */
-  if(state->XScreenDepthBits == 24) state->XScreenDepthBits = 32;
-
-  state->XScreenDepthChars = (state->XScreenDepthBits + 7) >> 3;
-
-  XDefaultVisual = DefaultVisual(display, screen);
-
-  state->HaveTrueColor = XDefaultVisual->class == TrueColor || XDefaultVisual->class == DirectColor ? True : False;
-
-  state->RedMask = XDefaultVisual->red_mask;
-  state->GreenMask = XDefaultVisual->green_mask;
-  state->BlueMask = XDefaultVisual->blue_mask;
-
-  state->RedBits = state->GreenBits = state->BlueBits = 
-  state->RedShift = state->GreenShift = state->BlueShift = 0;
-
-  if ((ui = state->RedMask)) for(; !(ui & 1); ui >>= 1, state->RedShift++);
-  if (ui) for(; ui; ui >>= 1, state->RedBits++);
-  if ((ui = state->GreenMask)) for(; !(ui & 1); ui >>= 1, state->GreenShift++);
-  if (ui) for(; ui; ui >>= 1, state->GreenBits++);
-  if ((ui = state->BlueMask)) for(; !(ui & 1); ui >>= 1, state->BlueShift++);
-  if (ui) for(; ui; ui >>= 1, state->BlueBits++);
-  
-}
-
-static void RemapXImage(unsigned mode, int *xx, int *yy, int *ww, int *hh,
-                        unsigned char *base, int offset, int len, int modewidth)
-{
-  static X_vars *state = &X_state;
-  int i1, i2, j1, j2;
-  XModeInfoType *xmi = &(state->XModeInfo);
-
-  /*
-   * -- sw
-   */
-
-  *xx = *yy = *ww = *hh = 0;
-  if(state->XModeInfo.RemapFunc == NULL) {
-    X_printf("X::RemapXImage: no support for mode %d\n", mode);
-    return;
-  }
-
-  switch(mode) {
-    case VGA_PSEUDO_8: {
-      xmi->VGAScreen = base;
-      *ww = xmi->VGAScanLen = modewidth;	/* should already be set, but anyway... -- sw */
-
-      i1 = offset / modewidth;
-      i2 = offset % modewidth;
-      j1 = (offset + len) / modewidth;
-      j2 = (offset + len) % modewidth;
-
-      /* make sure it's all visible */
-      if(i1 >= xmi->XHeight) return;
-      if(j1 >= xmi->XHeight) {
-        j1 = xmi->XHeight;
-        j2 = 0;
-      }
-
-      *yy = i1; *hh = j1 - i1;
-
-      if(i2) {
-        xmi->VGAOffset = offset;
-        offset += modewidth - i2;
-        xmi->VGAX0 = xmi->XX0 = i2;
-        xmi->VGAY0 = xmi->XY0 = i1;
-        xmi->VGAY1 = xmi->VGAY0 + 1;
-        xmi->XY1 = xmi->XY0 + 1;
-        xmi->VGAX1 = xmi->XX1 = xmi->VGAWidth;
-        REMAP_DEBUG(xmi);
-        xmi->RemapFunc(xmi);
-        i2 = 0;
-        i1++;
-      }
-      if(i1 < j1) {
-        xmi->VGAOffset = offset;
-        offset += modewidth * (j1 - i1);
-        xmi->VGAX0 = xmi->XX0 = 0;
-        xmi->VGAX1 = xmi->XX1 = xmi->VGAWidth;
-        xmi->VGAY0 = xmi->XY0 = i1;
-        xmi->VGAY1 = xmi->XY1 = j1;
-        REMAP_DEBUG(xmi);
-        xmi->RemapFunc(xmi);
-      }
-      if(j2) {
-        xmi->VGAOffset = offset;
-        xmi->VGAX0 = xmi->XX0 = 0;
-        xmi->VGAY0 = xmi->XY0 = j1;
-        xmi->VGAY1 = xmi->VGAY0 + 1;
-        xmi->XY1 = xmi->XY0 + 1;
-        xmi->VGAX1 = xmi->XX1 = j2;
-        REMAP_DEBUG(xmi);
-        xmi->RemapFunc(xmi);
-      }
-
-    } break;
-    default:
-      X_printf("X::RemapXImage: mode %d not implemented\n", mode);
-  }
-}
-
-static void EXPutImageUnscaled(Display *display, Drawable d, GC gc, XImage *image, 
-		       int src_x,  int src_y, int dest_x, int dest_y,
-		       unsigned  width, unsigned height)
+/*
+ * Display part of a XImage
+ */
+void put_ximage(int src_x, int src_y, int dest_x, int dest_y, unsigned width, unsigned height)
 {
 #ifdef HAVE_MITSHM
-  if (!shm_failed /* have_shmap ??? */)
-    {
-      XShmPutImage(display, d, gc, image, src_x, src_y, dest_x, dest_y, width, height, True);
-    }
+  if(shm_ok)
+    XShmPutImage(display, mainwindow, gc, ximage, src_x, src_y, dest_x, dest_y, width, height, True);
   else
 #endif /* HAVE_MITSHM */
-    {
-         XPutImage(display, d, gc, image, src_x, src_y, dest_x, dest_y, width, height);
-    }
+    XPutImage(display, mainwindow, gc, ximage, src_x, src_y, dest_x, dest_y, width, height);
 }
-
-static void EXPutImage(Display *display, Drawable d, GC gc, XImage *image, 
-		       int src_x,  int src_y, int dest_x, int dest_y,
-		       unsigned  width, unsigned height)
-{
-  static X_vars *state = &X_state;
-  EXPutImageUnscaled(display, d, gc, image,
-    src_x * state->XModeInfo.ScaleX, src_y * state->XModeInfo.ScaleY,
-    dest_x * state->XModeInfo.ScaleX, dest_y * state->XModeInfo.ScaleY,
-    width * state->XModeInfo.ScaleX, height * state->XModeInfo.ScaleY
-  );
-}
-
 
 /* true color stuff <<<<<<<<<<<<<<<<<<<< */
 
-#ifdef HAVE_MITSHM
 int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 {
-        if(xev->request_code == shm_error_base + 1) {
-        X_printf("X::NewXErrorHandler: error using shared memory\n");
-                shm_failed++;
-        }
-        else {
-                return OldXErrorHandler(dsp, xev);
-        }
-        return 0;
+#ifdef HAVE_MITSHM
+  if(xev->request_code == shm_error_base || xev->request_code == shm_error_base + 1) {
+    X_printf("X::NewXErrorHandler: error using shared memory\n");
+    shm_ok = 0;
+  }
+  else
+#endif
+  {
+    return OldXErrorHandler(dsp, xev);
+  }
+#ifdef HAVE_MITSHM
+  return 0;
+#endif
 }
 
+
+/*
+ * create a XImage
+ */
+void create_ximage()
+{
+#ifdef HAVE_MITSHM
+  if(shm_ok) {
+    ximage = XShmCreateImage(
+      display,
+      DefaultVisual(display,DefaultScreen(display)),
+      DefaultDepth(display,DefaultScreen(display)),
+      ZPixmap, NULL,
+      &shminfo,
+      w_x_res, w_y_res
+    );
+
+    if(ximage == NULL) {
+      X_printf("X: XShmCreateImage() failed\n");
+      shm_ok = 0;
+    }
+    else {
+      shminfo.shmid = shmget(IPC_PRIVATE, ximage->bytes_per_line * w_y_res, IPC_CREAT | 0777);
+      if(shminfo.shmid < 0) {
+        X_printf("X: shmget() failed\n");
+        XDestroyImage(ximage);
+        ximage = NULL;
+        shm_ok = 0;
+      }
+      else {
+        shminfo.shmaddr = (char *) shmat(shminfo.shmid, 0, 0);
+        if(shminfo.shmaddr == ((char *) -1)) {
+          X_printf("X: shmat() failed\n");
+          XDestroyImage(ximage);
+          ximage = NULL;
+          shm_ok = 0;
+        }
+        else {
+          shminfo.readOnly = False;
+          XShmAttach(display, &shminfo);
+          shmctl(shminfo.shmid, IPC_RMID, 0 );
+          ximage->data = shminfo.shmaddr;
+          XSync(display, False);	/* MIT-SHM will typically fail here... */
+        }
+      }
+    }
+  }
+  if(!shm_ok)
+#endif
+  {
+    ximage = XCreateImage(
+      display,
+      DefaultVisual(display,DefaultScreen(display)),
+      DefaultDepth(display,DefaultScreen(display)),
+      ZPixmap, 0, NULL,
+      w_x_res, w_y_res,
+      32, 0
+    );
+    if(ximage != NULL) {
+      ximage->data = malloc(ximage->bytes_per_line * w_y_res);
+      if(ximage->data == NULL) {
+        X_printf("X: failed to allocate memory for XImage of size %d x %d\n", w_x_res, w_y_res);
+      }
+    }
+    else {
+      X_printf("X: failed to create XImage of size %d x %d\n", w_x_res, w_y_res);
+    }
+  }
+  XSync(display, False);
+}
+
+/*
+ * Destroy a XImage
+ */
+void destroy_ximage()
+{
+  if(ximage == NULL) return;
+
+#ifdef HAVE_MITSHM
+  if(shm_ok) XShmDetach(display, &shminfo);
+#endif
+
+  XDestroyImage(ximage);
+
+#ifdef HAVE_MITSHM
+  if(shm_ok) shmdt(shminfo.shmaddr);
+#endif
+
+  ximage = NULL;
+}
+
+/*
+ * Resize a XImage
+ */
+void resize_ximage(unsigned width, unsigned height)
+{
+  X_printf("X: resize_ximage %d x %d --> %d x %d\n", w_x_res, w_y_res, width, height);
+  destroy_ximage();
+  w_x_res = width;
+  w_y_res = height;
+  create_ximage();
+  remap_obj.dst_resize(&remap_obj, width, height, ximage->bytes_per_line);
+  remap_obj.dst_image = ximage->data;
+}
+
+
+#ifdef HAVE_MITSHM
 void X_shm_init()
 {
   int major_opcode, event_base, major_version, minor_version;
   Bool shared_pixmaps;
 
-  shm_failed = 1;
+  shm_ok = 0;
 
   if(!config.X_mitshm) return;
 
@@ -997,116 +1004,232 @@ void X_shm_init()
 
   X_printf("X: using MIT-SHM\n");
 
-  shm_failed = 0;
+  shm_ok = 1;
+}
+
+void X_shm_done()
+{
+  shm_ok = 0;
 }
 #endif
 
 
-/* Initialize everything X-related. */
-static int X_init(void)
+#ifdef HAVE_DGA
+void X_dga_init()
 {
-   XGCValues gcv;
-   XClassHint xch;
-   XSetWindowAttributes attr;
-   
-  X_printf("X: X_init\n");
+  int event_base, error_base, major_version, minor_version;
 
-#ifdef HAVE_MITSHM
-        OldXErrorHandler = XSetErrorHandler(NewXErrorHandler);
+  dga_ok = 0;
+
+  if(!XF86DGAQueryExtension(display, &event_base, &error_base)) {
+    X_printf("X: server does not support XFree86-DGA\n");
+    return;
+  }
+
+  X_printf("X: XFree86-DGA ErrorBase: %d\n", error_base);
+
+  if(!XF86DGAQueryVersion(display, &major_version, &minor_version)) {
+    X_printf("X: XF86DGAQueryVersion() failed\n");
+    return;
+  }
+
+  X_printf("X: using XFree86-DGA\n");
+
+  dga_ok = 1;
+}
+
+void X_dga_done()
+{
+  dga_ok = 0;
+}
 #endif
 
-   co = 80;
-   li = 25;
-  set_video_bios_size();		/* make it stick */
-  
-  /* Open X connection. */
-  display=XOpenDisplay(config.X_display);
-  if (!display) 
-    {
-    const char *display_name; 
-	
-	display_name = config.X_display;
-	if(!display_name)
-		display_name = getenv("DISPLAY");
 
-	if(!display_name)
-      error("X: DISPLAY variable isn't set!\n");
-    else
-      error("X: Can't open display \"%s\"\n", display_name);
-      leavedos(99);
-   }
-   
-  screen=DefaultScreen(display);
-  rootwindow=RootWindow(display,screen);
+void X_remap_init()
+{
+  set_remap_debug_msg(stderr);
+
+  if(have_true_color) {
+    switch(ximage_bits_per_pixel) {
+      case  1: ximage_mode = MODE_TRUE_1_MSB; break;
+      case 15: ximage_mode = MODE_TRUE_15; break;
+      case 16: ximage_mode = MODE_TRUE_16; break;
+      case 24: ximage_mode = MODE_TRUE_24; break;
+      case 32: ximage_mode = MODE_TRUE_32; break;
+      default: ximage_mode = MODE_UNSUP;
+    }
+  }
+  else {
+    switch(ximage_bits_per_pixel) {
+      case  8: ximage_mode = have_shmap ? MODE_TRUE_8 : MODE_PSEUDO_8; break;
+      default: ximage_mode = MODE_UNSUP;
+    }
+  }
+
+  remap_features = 0;
+  if(config.X_lin_filt) remap_features |= RFF_LIN_FILT;
+  if(config.X_bilin_filt) remap_features |= RFF_BILIN_FILT;
+
+  remap_obj = remap_init(0, ximage_mode, 0);
+  remap_src_modes = remap_obj.supported_src_modes;
+  remap_done(&remap_obj);
+}
+
+void X_remap_done()
+{
+  remap_done(&remap_obj);
+}
+
+/*
+ * Initialize everything X-related.
+ */
+int X_init(void)
+{
+  XGCValues gcv;
+  XClassHint xch;
+  XSetWindowAttributes attr;
+  char *display_name; 
+
+  X_printf("X: X_init\n");
+
+  co = 80; li = 25;
+
+  set_video_bios_size();		/* make it stick */
+
+  /* Open X connection. */
+  display_name = config.X_display ? config.X_display : getenv("DISPLAY");
+  display = XOpenDisplay(display_name);
+  if(display == NULL) {
+    error("X: Can't open display \"%s\"\n", display_name ? display_name : "");
+    leavedos(99);
+  }
+
+  screen = DefaultScreen(display);
+  rootwindow = RootWindow(display,screen);
+  text_cmap = DefaultColormap(display, screen);
+
+  OldXErrorHandler = XSetErrorHandler(NewXErrorHandler);
 
 #ifdef HAVE_MITSHM
   X_shm_init();
 #endif
 
-  X_init_X_info();       /* true color support */
+#ifdef HAVE_DGA
+  X_dga_init();
+#endif
 
-  get_vga_colors();
-  get_vga256_colors();
+  X_get_screen_info();		/* do it _before_ vga256_cmap_init() */
 
+#if 0
+  /* what for ? -- sw */
+  text_cmap_init();		/* text mode colors */
+#endif
+
+  vga256_cmap_init();		/* 8 bit mode colors */
+
+  X_remap_init();		/* init graphics mode support */
+
+  if(!remap_src_modes) {
+    error("X: Warning: no graphics modes supported on this type of screen!\n");
+  }
 
   load_text_font();
 
+  w_x_res = x_res = co * font_width;
+  w_y_res = y_res = li * font_height;
+
   mainwindow = XCreateSimpleWindow(display, rootwindow,
-    0, 0,                               /* Position */
-    co*font_width, li*font_height,      /* Size */
-    0, 0,                               /* Border */
-    vga_colors[0]);                     /* Background */
-   set_sizehints(co,li);
+    0, 0,			/* Position */
+    w_x_res, w_y_res,		/* Size */
+    0, 0,			/* Border */
+    text_colors[0]		/* Background */
+  );
+
   load_cursor_shapes();
+
   gcv.font = vga_font;
   gc = XCreateGC(display, mainwindow, GCFont, &gcv);
-  attr.event_mask=KeyPressMask|KeyReleaseMask|KeymapStateMask|
-                   ButtonPressMask|ButtonReleaseMask|
-                   EnterWindowMask|LeaveWindowMask|PointerMotionMask|
-	          ExposureMask|StructureNotifyMask|FocusChangeMask|
-	          ColormapChangeMask;
-  attr.cursor = X_standard_cursor;
-      
-  XChangeWindowAttributes(display,mainwindow,CWEventMask|CWCursor,&attr);
 
-  XStoreName(display,mainwindow,config.X_title);
-  XSetIconName(display,mainwindow,config.X_icon_name);
+  attr.event_mask =
+    KeyPressMask | KeyReleaseMask | KeymapStateMask |
+    ButtonPressMask | ButtonReleaseMask |
+    EnterWindowMask | LeaveWindowMask | PointerMotionMask |
+    ExposureMask | StructureNotifyMask | FocusChangeMask |
+    ColormapChangeMask;
+
+  attr.cursor = X_standard_cursor;
+
+  XChangeWindowAttributes(display, mainwindow, CWEventMask | CWCursor, &attr);
+
+  XStoreName(display, mainwindow, config.X_title);
+  XSetIconName(display, mainwindow, config.X_icon_name);
   xch.res_name  = "XDosEmu";
   xch.res_class = "XDosEmu";
-  XSetClassHint(display,mainwindow,&xch);
-
-  X_init_ModeRemap();     /* true color support */
+  XSetClassHint(display, mainwindow, &xch);
 
 #if CONFIG_X_SELECTION
   /* Get atom for COMPOUND_TEXT type. */
   compound_text_atom = XInternAtom(display, "COMPOUND_TEXT", False);
 #endif
   /* Delete-Window-Message black magic copied from xloadimage. */
-  proto_atom  = XInternAtom(display,"WM_PROTOCOLS", False);
-  delete_atom = XInternAtom(display,"WM_DELETE_WINDOW", False);
+  proto_atom  = XInternAtom(display, "WM_PROTOCOLS", False);
+  delete_atom = XInternAtom(display, "WM_DELETE_WINDOW", False);
   if ((proto_atom != None) && (delete_atom != None)) {
-    XChangeProperty(display, mainwindow, proto_atom, XA_ATOM, 32,
-                      PropModePrepend, (char*)&delete_atom, 1);
+    XChangeProperty(display, mainwindow,
+      proto_atom, XA_ATOM, 32,
+      PropModePrepend, (char *) &delete_atom, 1
+    );
   }
-                                    
-  XMapWindow(display,mainwindow);
-  X_printf("X: X_init done, screen=%d, root=0x%lx, mainwindow=0x%lx\n",
-    screen, (unsigned long) rootwindow, (unsigned long) mainwindow);
-        
-  /* allocate video memory */
-    if(vga_emu_init()==NULL)
-      {
-	error("X: couldn't allocate video memory!\n");
-	leavedos(99);
-      }
-  
+
+
+  {
+    /* just for testing purposes; this still lacks some proper configuration strategy
+     * -- 1998/03/08 sw
+     */
+    if(getenv("DOSEMU_HIDE_WINDOW") == NULL) XMapWindow(display, mainwindow);
+  }
+
+
+  X_printf("X: X_init done, screen = %d, root = 0x%lx, mainwindow = 0x%lx\n",
+    screen, (unsigned long) rootwindow, (unsigned long) mainwindow
+  );
+
+  /* initialize VGA emulator */
+  X_screen.src_modes = remap_src_modes;
+  X_screen.bits = X_csd.bits;
+  X_screen.bytes = X_csd.bytes;
+  X_screen.r_mask = X_csd.r_mask;
+  X_screen.g_mask = X_csd.g_mask;
+  X_screen.b_mask = X_csd.b_mask;
+  X_screen.r_shift = X_csd.r_shift;
+  X_screen.g_shift = X_csd.g_shift;
+  X_screen.b_shift = X_csd.b_shift;
+  X_screen.r_bits = X_csd.r_bits;
+  X_screen.g_bits = X_csd.g_bits;
+  X_screen.b_bits = X_csd.b_bits;
+  if(vga_emu_init(&X_screen)) {
+    error("X: X_init: VGAEmu init failed!\n");
+    leavedos(99);
+  }
+
+#ifdef NEW_X_MOUSE
+  if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
+  if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
+  if(grab_keysym != NoSymbol) {
+    X_printf("X: X_init: mouse grabbing enabled, use Ctrl+Mod1+%s to activate\n", grab_keystring);
+  }
+  else {
+    X_printf("X: X_init: mouse grabbing disabled\n");
+  }
+#endif /* NEW_X_MOUSE */
+
   /* HACK!!! Don't konw is video_mode is already set */
   X_setmode(TEXT, co, li);
 
-#ifdef CONFIG_X_SPEAKER
+#if CONFIG_X_SPEAKER
   register_speaker(display, X_speaker_on, X_speaker_off);
 #endif
-            
+
   return(0);                        
 }
 
@@ -1119,11 +1242,11 @@ static int X_init(void)
  *
  * DANG_END_FUNCTION
  */
-static void X_close(void) 
+void X_close(void) 
 {
   X_printf("X_close()\n");
-  if (display==NULL)
-    return;
+
+  if(display == NULL) return;
 
 #ifdef CONFIG_X_SPEAKER
   /* turn off the sound, and */
@@ -1132,38 +1255,39 @@ static void X_close(void)
   register_speaker(NULL, NULL, NULL);
 #endif
 
-  XUnloadFont(display,vga_font);
-  XDestroyWindow(display,mainwindow);
+  XUnloadFont(display, vga_font);
+  XDestroyWindow(display, mainwindow);
 
-  if(ximage_p!=NULL)
-    {
-#ifdef HAVE_MITSHM
-      if(!shm_failed)
-      XShmDetach(display, &shminfo);
-      else
-#endif
-      XDestroyImage(ximage_p);	/* calls ximage_p->destroy_image() */
-      ximage_p=NULL;
-#ifdef HAVE_MITSHM
-      if(!shm_failed)
-      shmdt(shminfo.shmaddr);
-#endif
-    }
-  /*free(vga_video_mem);*/
-  /* Uninstall vgaemu!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+  destroy_ximage();
+
+  vga_emu_done();
   
-  
-  
-  
-  if(vga256_cmap!=0)
-    {
-      if (get_vgaemu_type() == GRAPH)
+  if(vga256_cmap != 0) {
+      if (vga.mode_class == GRAPH)
         XUninstallColormap(display, vga256_cmap);
 
       XFreeColormap(display, vga256_cmap);
     }
 
-  XFreeGC(display,gc);
+  XFreeGC(display, gc);
+
+  if(X_csd.pixel_lut != NULL) { free(X_csd.pixel_lut); X_csd.pixel_lut = NULL; }
+
+  X_remap_done();
+
+#ifdef HAVE_DGA
+  X_dga_done();
+#endif
+
+#ifdef HAVE_MITSHM
+  X_shm_done();
+#endif
+
+  if(OldXErrorHandler != NULL) {
+    XSetErrorHandler(OldXErrorHandler);
+    OldXErrorHandler = NULL;
+  }
+
   XCloseDisplay(display);
 }
 
@@ -1173,18 +1297,18 @@ static void X_close(void)
 /*                            MISC FUNCTIONS                              */
 /**************************************************************************/
 
-/* Set window manager size hints. */
-static void set_sizehints(int xsize, int ysize)
+static void X_partial_redraw_screen(void)
 {
-  XSizeHints sh;
-  X_printf("X: Setting size hints, max=%dx%d, inc=%dx%d\n", xsize, ysize, 
-    font_width, font_height);
-  sh.max_width = xsize*font_width;
-  sh.max_height = ysize*font_height;
-  sh.width_inc = font_width;
-  sh.height_inc = font_height;
-  sh.flags = PMaxSize|PResizeInc;
-  XSetWMNormalHints(display, mainwindow, &sh);
+  if (!is_mapped)
+    return;
+  prev_cursor_shape = NO_CURSOR;   /* was overwritten */
+  redraw_cursor();
+  clear_scroll_queue();
+   
+  XFlush(display);
+
+  MEMCPY_2UNIX(prev_screen,screen_adr,co*li*2);
+  clear_scroll_queue();
 }
 
 /* 
@@ -1196,264 +1320,286 @@ static void set_sizehints(int xsize, int ysize)
  *
  * DANG_END_FUNCTION
  */
-static int X_setmode(int type, int xsize, int ysize) 
+static int X_setmode(int mode_class, int text_width, int text_height) 
 {
-  static X_vars *state = &X_state;
-  static int previous_video_type=TEXT;
-  XSetWindowAttributes win_attr;
   XSizeHints sh;
-  Window r;
-  int x, y;
-  unsigned int width, heigth, border_width, depth;
-  
+  int X_mode_type;
+
   /* tell vgaemu we're going to another mode */
-  if(!set_vgaemu_mode(video_mode, xsize, ysize))
-    return 0;  /* if it can't fail! */
+  if(! vga_emu_setmode(video_mode, text_width, text_height)) return 0;	/* if it can't fail! */
                                 
+  X_printf("X: X_setmode: video_mode = 0x%x (%s), size = %d x %d (%d x %d pixel)\n",
+    (int) video_mode, vga.mode_class ? "GRAPH" : "TEXT",
+    vga.text_width, vga.text_height, vga.width, vga.height
+  );
 
-  X_printf("X_setmode() type=%d, xsize=%d, ysize=%d info: x=%d y=%d\n",
-         type,xsize,ysize,get_vgaemu_width(),get_vgaemu_heigth());
-  
-  X_printf("X_setmode(), video_mode = 0x%02x\n",video_mode);
+  if(X_unmap_mode != -1 && (X_unmap_mode == vga.mode || X_unmap_mode == vga.VESA_mode)) {
+    XUnmapWindow(display, mainwindow);
+    X_unmap_mode = -1;
+  }
 
-  state->XModeInfo.RemapFunc = NULL;
+  destroy_ximage();
 
-  switch(previous_video_type)
-    {
-    case GRAPH:
-      win_attr.colormap=text_cmap;
-      XChangeWindowAttributes(display, mainwindow, CWColormap, &win_attr);
-      if(vga256_cmap!=0)
-        XUninstallColormap(display, vga256_cmap);
-      
-      if(ximage_p!=NULL)
-	{
-	  if(state->HaveTrueColor == True) {
-            if (previous_video_type == type) {
-              /* this is the code from Steffen, however, it doesn't not work
-                 under all conditions, especially when a scaled 320x200 leaves
-                 graphics mode. -- Hans
-               */
-  	      memset(ximage_p->data, 0, ximage_p->width * ximage_p->height * state->XScreenDepthChars);
-              EXPutImage(display, mainwindow, gc,
-              	ximage_p, 0, 0, 0, 0,
-              	state->x_res, state->y_res);
-            }
-            else X_partial_redraw_screen();
-	  }
-#ifdef HAVE_MITSHM
-          if(!shm_failed)
-	  XShmDetach(display, &shminfo);
-          else
-#endif
-	  XDestroyImage(ximage_p);	/* just make a new one all time */
-	  /* image_data_p is also >/dev/0 */	
-	  ximage_p=NULL;
-#ifdef HAVE_MITSHM
-          if(!shm_failed)
-	  shmdt(shminfo.shmaddr);
-#endif
-	}
-      break;
+#ifdef NEW_X_MOUSE
+  mouse_x = mouse_y = 0;
+#endif /* NEW_X_MOUSE */
+
+  switch(vga.mode_class) {
 
     case TEXT:
-      if(ximage_p!=NULL)
-	{
-#ifdef HAVE_MITSHM
-          if(!shm_failed)
-	  XShmDetach(display, &shminfo);
-          else
-#endif
-	  XDestroyImage(ximage_p);        /* just make a new one all time */
-	  /* image_data_p is also >/dev/0 */
-	  ximage_p=NULL;
-#ifdef HAVE_MITSHM
-          if(!shm_failed)
-	  shmdt(shminfo.shmaddr);
-#endif
-	}
-      break;
-                                                     
-    default:
-      break;
-   }
 
-  previous_video_type=type;
+#ifdef X_USE_BACKING_STORE
+      {
+        XSetWindowAttributes xwa;
 
-  switch(type)
-    {
-    case TEXT:
+        xwa.backing_store = Always;
+        xwa.backing_planes = -1;
+        xwa.save_under = True;
+        XChangeWindowAttributes(display, mainwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
+      }
+#endif
+
       XSetWindowColormap(display, mainwindow, text_cmap);
 
-      X_printf("X: Going to textmode...\n");
-      XResizeWindow(display,mainwindow,
-	            get_vgaemu_tekens_x()*font_width,
-	            get_vgaemu_tekens_y()*font_height);
+      /* This is sometimes needed, when we return from graph to a saved
+       * text mode, else the screen would remain garbaged until we do manually
+       * do a resize/refresh.  --Hans
+       *
+       * Maybe, but then we should better do it always. -- Steffen
+       *
+       */
+      X_partial_redraw_screen();
 
-      /*setsizehints()*/
+      dac_bits = vga.dac.bits;
+
+      w_x_res = x_res = vga.text_width * font_width;
+      w_y_res = y_res = vga.text_height * font_height;
+
       /* We use the X font! Own font in future? */
-      sh.max_width=get_vgaemu_tekens_x()*font_width;
-      sh.max_height=get_vgaemu_tekens_y()*font_height;
-      sh.width_inc=1;		/* ??? */
-      sh.height_inc=1;
-      sh.flags = PMaxSize|PResizeInc;
+
+      sh.width = sh.min_width = sh.max_width = w_x_res;
+      sh.height = sh.min_height = sh.max_height = w_y_res;
+
+      sh.flags = PSize | PMinSize | PMaxSize;
       XSetNormalHints(display, mainwindow, &sh);
-
-      XGetGeometry(display, mainwindow, &r, &x, &y, &width, &heigth,
-		   &border_width, &depth);
-
-      /* I don't think this is OK for monochrome X servers */
-      /* It should be OK for 256 color X servers (depth=8bits) */
-
-#ifdef HAVE_MITSHM
-      if(!shm_failed) {
-      ximage_p=XShmCreateImage(display,
-			       DefaultVisual(display, DefaultScreen(display)),
-			       depth, ZPixmap, NULL, 
-			       &shminfo,
-			       get_vgaemu_tekens_x()*font_width,
-			       get_vgaemu_tekens_y()*font_height);
-      if (ximage_p==NULL)
-	{
-	  fprintf(stderr, "Warning: XShmCreateImage() failed\n");
-	}
-      shminfo.shmid = shmget(IPC_PRIVATE, 
-			     get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height,
-			     IPC_CREAT | 0777);
-      if (shminfo.shmid<0)
-	{
-	  perror("shmget");
-	  XDestroyImage(ximage_p);
-	  fprintf(stderr, "Warning: shmget() failed\n");
-	}
-      shminfo.shmaddr = (char *) shmat(shminfo.shmid, 0, 0);
-      if (shminfo.shmaddr==((char *) -1))
-	{
-	  XDestroyImage(ximage_p);
-	  fprintf(stderr, "Warning: shmat() failed\n");
-	}
-      shminfo.readOnly = False;
-      XShmAttach(display, &shminfo);
-      shmctl(shminfo.shmid, IPC_RMID, 0 );
-      ximage_p->data = shminfo.shmaddr;
       XSync(display, False);
-      }
-      if(shm_failed)
-#endif
-      ximage_p=XCreateImage(display,
-                            DefaultVisual(display, DefaultScreen(display)),
-                            depth, ZPixmap, 0, 
-                            (unsigned char*)malloc(get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height),
-                                get_vgaemu_tekens_x()*font_width,
-                                get_vgaemu_tekens_y()*font_height, 8, 0);
-       /*     memset((void *)ximage_p->data, 0, get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height);*/
+
+      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+
+      XSetForeground(display, gc, text_colors[0]);
+      XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
+
       break;
-                  
 
     case GRAPH:
-    {
-      int ScaleX=1, ScaleY=1, chars_ppixel=1;
-      XSetWindowColormap(display, mainwindow, vga256_cmap);
-      
-      X_printf("X: Going to graphics mode with fingers crossed...\n");
 
+#ifdef X_USE_BACKING_STORE
+      {
+        /*
+         * We use it only in text modes; in graphics modes we are fast enough and
+         * it would likely only slow down the whole thing. -- sw
+         */
+        XSetWindowAttributes xwa;
 
-      if (state->HaveTrueColor) {
-        state->x_res  = get_vgaemu_width();
-        state->y_res = get_vgaemu_heigth();
-        ScaleY = ScaleX = 1;
-        if (state->x_res == 320) ScaleY = ScaleX = 2;
-        state->XModeInfo.ScaleX = ScaleX;
-        state->XModeInfo.ScaleY = ScaleY;
-	chars_ppixel = state->XScreenDepthChars;
+        xwa.backing_store = NotUseful;
+        xwa.backing_planes = 0;
+        xwa.save_under = False;
+        XChangeWindowAttributes(display, mainwindow, CWBackingStore | CWBackingPlanes | CWSaveUnder, &xwa);
       }
-      XResizeWindow(display,mainwindow,
-	            get_vgaemu_width() * ScaleX, get_vgaemu_heigth() * ScaleY);
-
-      /*setsizehints()*/
-      sh.max_width=get_vgaemu_width()*ScaleX;
-      sh.max_height=get_vgaemu_heigth()*ScaleY;
-      sh.width_inc=1;
-      sh.height_inc=1;
-      sh.flags = PMaxSize|PResizeInc;
-      XSetNormalHints(display,mainwindow,&sh);
-
-      XGetGeometry(display,mainwindow, &r, &x, &y, &width,& heigth,
-		   &border_width, &depth);
-      
-#ifdef HAVE_MITSHM
-      if(!shm_failed) {
-      ximage_p=XShmCreateImage(display,
-			       DefaultVisual(display,DefaultScreen(display)),
-			       depth,ZPixmap,NULL,
-			       &shminfo,
-			       get_vgaemu_width() * ScaleX,
-			       get_vgaemu_heigth() * ScaleY);
-      if (ximage_p==NULL)
-	{
-	  fprintf(stderr, "Warning: XShmCreateImage() failed\n");
-	}
-      shminfo.shmid = shmget(IPC_PRIVATE, 
-			     get_vgaemu_width()*ScaleX *get_vgaemu_heigth()*ScaleY *chars_ppixel,
-			     IPC_CREAT | 0777);
-      if (shminfo.shmid<0)
-	{
-	  perror("shmget");
-	  XDestroyImage(ximage_p);
-	  fprintf(stderr, "Warning: shmget() failed\n");
-	}
-      shminfo.shmaddr = (char *) shmat(shminfo.shmid, 0, 0);
-      if (shminfo.shmaddr==((char *) -1))
-	{
-	  XDestroyImage(ximage_p);
-	  fprintf(stderr, "Warning: shmat() failed\n");
-	}
-      shminfo.readOnly = False;
-      XShmAttach(display, &shminfo);
-      shmctl(shminfo.shmid, IPC_RMID, 0 );
-      ximage_p->data = shminfo.shmaddr;
-      XSync(display, False);
-      }
-      if(shm_failed)
 #endif
-      ximage_p=XCreateImage(display,DefaultVisual(display,DefaultScreen(display)),
-                            depth,ZPixmap,0,
-                            (unsigned char*)malloc(get_vgaemu_width()*ScaleX *get_vgaemu_heigth()*ScaleX *chars_ppixel),
-                            get_vgaemu_width() * ScaleX,
-                            get_vgaemu_heigth() * ScaleY,8,0  );
-      /*      memset((void *)ximage_p->data, 0, get_vgaemu_width()*get_vgaemu_heigth());*/
-      /* set colormap */
-      /*get_vga256_colors();*/
-      if (state->HaveTrueColor) {
-	if(!X_InstallRemapFunc(VGA_PSEUDO_8, state)) {
-          X_printf("X_setmode: mode type P8 not supported\n");
-	}
-	state->DACBits = 6;	/* true on most cards -- sw */
-	InitDACTable(state);
-	/* fill out most of XModeInfo, so we don't have to do it later -- sw */
-	state->XModeInfo.VGAWidth = state->x_res;
-	state->XModeInfo.VGAHeight = state->y_res;
-	state->XModeInfo.VGAScanLen = state->x_res;	/* set it again later in RemapXImage ? -- sw */
-	state->XModeInfo.XWidth = state->x_res;
-	state->XModeInfo.XHeight = state->y_res;
-	state->XModeInfo.XScanLen = state->x_res;	/* put the unscaled values here -- sw */
-        state->XModeInfo.XScreen = ximage_p->data;
-        state->XModeInfo.lut = lut;
-        state->XModeInfo.lut2 = lut2;
-        state->XModeInfo.Color8Lut = state->Color8Lut;
+
+      if(!have_true_color) {
+        XSetWindowColormap(display, mainwindow, vga256_cmap);
       }
-    }
+
+      dac_bits = vga.dac.bits;
+
+      w_x_res = x_res = vga.width;
+      w_y_res = y_res = vga.height;
+
+      if (video_mode == 0x13) {
+        w_x_res *= config.X_mode13fact;
+        w_y_res *= config.X_mode13fact;
+      }
+
+      if(config.X_winsize_x > 0 && config.X_winsize_y > 0) {
+        w_x_res = config.X_winsize_x;
+        w_y_res = config.X_winsize_y;
+      }
+
+      if(config.X_aspect_43) {
+        w_y_res = (w_x_res * 3) >> 2;
+      }
+
+      remap_done(&remap_obj);
+      switch(vga.mode_type) {
+        case PL4:
+          X_mode_type = MODE_VGA_4; break;
+        case P8:
+          X_mode_type = MODE_PSEUDO_8; break;
+        case P15:
+          X_mode_type = MODE_TRUE_15; break;
+        case P16:
+          X_mode_type = MODE_TRUE_16; break;
+        case P24:
+          X_mode_type = MODE_TRUE_24; break;
+        case P32:
+          X_mode_type = MODE_TRUE_32; break;
+        default:
+          X_mode_type = 0;
+      }
+      remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
+      *remap_obj.dst_color_space = X_csd;
+      adjust_gamma(&remap_obj, config.X_gamma);
+
+      if(!(remap_obj.state & ROS_SCALE_ALL)) {
+        if((remap_obj.state & ROS_SCALE_2) && !(remap_obj.state & ROS_SCALE_1)) {
+          w_x_res = x_res << 1;
+          w_y_res = y_res << 1;
+        }
+        else {
+          w_x_res = x_res;
+          w_y_res = y_res;
+        }
+      }
+
+      create_ximage();
+
+      remap_obj.dst_image = ximage->data;
+      remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+      remap_obj.dst_resize(&remap_obj, w_x_res, w_y_res, ximage->bytes_per_line);
+
+      if(!(remap_obj.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
+        error("X: X_setmode: video_mode 0x%02x not supported on this screen\n", video_mode);
+      }
+
+      InitDACTable();
+
+      sh.width = w_x_res;
+      sh.height = w_y_res;
+      if(!(remap_obj.state & ROS_SCALE_ALL)) {
+        sh.width_inc = x_res;
+        sh.height_inc = y_res;
+      }
+      else {
+        sh.width_inc = 1;
+        sh.height_inc = 1;
+      }
+      sh.min_aspect.x = w_x_res;
+      sh.min_aspect.y = w_y_res;
+      sh.max_aspect = sh.min_aspect;
+
+      if(remap_obj.state & ROS_SCALE_ALL) {
+        sh.min_width = 0;
+        sh.min_height = 0;
+      }
+      else {
+        sh.min_width = w_x_res;
+        sh.min_height = w_y_res;
+      }
+      if(remap_obj.state & ROS_SCALE_ALL) {
+        sh.max_width = 32767;
+        sh.max_height = 32767;
+      }
+      else if(remap_obj.state & ROS_SCALE_2) {
+        sh.max_width = x_res << 1;
+        sh.max_height = y_res << 1;
+      }
+      else {
+        sh.max_width = w_x_res;
+        sh.max_height = w_y_res;
+      }
+
+      sh.flags = PResizeInc | PSize  | PMinSize | PMaxSize;
+      if(config.X_fixed_aspect || config.X_aspect_43) sh.flags |= PAspect;
+
+      veut.base = vga.mem.base;
+      veut.max_max_len = 0;
+      veut.max_len = 0;
+      veut.display_start = 0;
+      veut.display_end = vga.scan_len * vga.height;
+      veut.update_gran = 0;
+      veut.update_pos = veut.display_start;
+
+      XSetNormalHints(display, mainwindow, &sh);
+      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+
       break;
   
     default:
-      X_printf("X_setmode: No valid mode type (TEXT or GRAPH)\n");
+
+      X_printf("X: X_setmode: Invalid mode class %d (neither TEXT nor GRAPH)\n", vga.mode_class);
       return 0;
-      break;
-    }
+
+  }
+
+  if(X_map_mode != -1 && (X_map_mode == vga.mode || X_map_mode == vga.VESA_mode)) {
+    XMapWindow(display, mainwindow);
+    X_map_mode = -1;
+  }
 
   return 1;
 }
 
+/*
+ * Modify current graphics mode.
+ * Currently used to turn on/off chain4 addressing.
+ *
+ */
+static void X_modify_mode()
+{
+  RemapObject tmp_ro;
+
+  if(vga.reconfig.mem) {
+    if(remap_obj.src_mode == MODE_PSEUDO_8 || remap_obj.src_mode == MODE_VGA_X) {
+
+      tmp_ro = remap_init(vga.mem.planes == 1 ? MODE_PSEUDO_8 : MODE_VGA_X, ximage_mode, remap_features);
+      *tmp_ro.dst_color_space = X_csd;
+      tmp_ro.dst_image = ximage->data;
+      tmp_ro.src_resize(&tmp_ro, vga.width, vga.height, vga.scan_len);
+      tmp_ro.dst_resize(&tmp_ro, w_x_res, w_y_res, ximage->bytes_per_line);
+
+      if(!(tmp_ro.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
+        X_printf("X: X_modify_mode: no memory config change of current graphics mode supported\n");
+        remap_done(&tmp_ro);
+      }
+      else {
+        X_printf("X: X_modify_mode: chain4 addressing turned %s\n", vga.mem.planes == 1 ? "on" : "off");
+        remap_done(&remap_obj);
+        remap_obj = tmp_ro;
+        InitDACTable();
+      }
+
+      dirty_all_video_pages();
+      vga.reconfig.mem =
+      vga.reconfig.display =
+      vga.reconfig.dac = 0;
+    }
+  }
+
+  if(vga.reconfig.display) {
+    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+    X_printf(
+      "X: X_modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
+      vga.width, vga.height, vga.scan_len
+    );
+    dirty_all_video_pages();
+    vga.reconfig.display = 0;
+  }
+
+  if(vga.reconfig.dac) {
+    vga.reconfig.dac = 0;
+    dac_bits = vga.dac.bits;
+    X_printf("X: X_modify_mode: DAC bits = %d\n", dac_bits);
+  }
+
+  veut.display_start = vga.display_start;
+  veut.display_end = veut.display_start + vga.scan_len * vga.height;
+
+  if(vga.reconfig.mem || vga.reconfig.display) {
+    X_printf("X: X_modify_mode: failed to modify current graphics mode\n");
+  }
+}
 
 
 /* Change color values in our graphics context 'gc'. */
@@ -1461,8 +1607,8 @@ static inline void set_gc_attr(Bit8u attr)
 
 {
    XGCValues gcv;
-   gcv.foreground=vga_colors[ATTR_FG(attr)];
-   gcv.background=vga_colors[ATTR_BG(attr)];
+   gcv.foreground=text_colors[ATTR_FG(attr)];
+   gcv.background=text_colors[ATTR_BG(attr)];
   XChangeGC(display,gc,GCForeground|GCBackground,&gcv);
 }
 
@@ -1486,7 +1632,7 @@ static inline void set_gc_attr(Bit8u attr)
 /* Draw the cursor (normal if we have focus, rectangle otherwise). */
 static void draw_cursor(int x, int y)
 {  
-  if (get_vgaemu_type() == GRAPH)
+  if (vga.mode_class == GRAPH)
     return;
 
   set_gc_attr(XATTR(screen_adr+y*co+x));
@@ -1513,7 +1659,7 @@ static inline void restore_cell(int x, int y)
    u_char c = XCHAR(sp);
 
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if (get_vgaemu_type() == GRAPH)
+  if (vga.mode_class == GRAPH)
     return;
 
   set_gc_attr(XATTR(sp));
@@ -1527,7 +1673,7 @@ static inline void restore_cell(int x, int y)
 static void redraw_cursor(void) 
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if (get_vgaemu_type() == GRAPH)
+  if (vga.mode_class == GRAPH)
     return;
 
   if (!is_mapped) 
@@ -1550,7 +1696,7 @@ static void redraw_cursor(void)
 static void X_update_cursor(void) 
    {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if (get_vgaemu_type() == GRAPH)
+  if (vga.mode_class == GRAPH)
     return;
    
   if ((cursor_row != prev_cursor_row) || (cursor_col != prev_cursor_col) ||
@@ -1564,7 +1710,7 @@ static void X_update_cursor(void)
 void X_blink_cursor(void)
 {
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if (get_vgaemu_type() == GRAPH)
+  if (vga.mode_class == GRAPH)
     return;
 
   if (!have_focus || --blink_count)
@@ -1585,20 +1731,6 @@ void X_blink_cursor(void)
       else
       restore_cell(cursor_col, cursor_row);
    }
-}
-
-static void X_partial_redraw_screen(void)
-{
-  if (!is_mapped)
-    return;
-  prev_cursor_shape = NO_CURSOR;   /* was overwritten */
-  redraw_cursor();
-  clear_scroll_queue();
-   
-  XFlush(display);
-
-  MEMCPY_2UNIX(prev_screen,screen_adr,co*li*2);
-  clear_scroll_queue();
 }
 
 /* 
@@ -1626,7 +1758,7 @@ static void X_partial_redraw_screen(void)
 /**************************************************************************/
 
 /* Redraw the entire screen. Used for expose events. */
-static void X_redraw_screen(void)
+void X_redraw_screen(void)
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
@@ -1639,6 +1771,10 @@ static void X_redraw_screen(void)
             co,li,(int)screen_adr,video_mode);
    sp=screen_adr;
   oldsp = prev_screen;
+
+#ifdef TEXT_DAC_UPDATES
+  refresh_text_palette();
+#endif
 
   switch(video_mode)
     {
@@ -1712,7 +1848,7 @@ void X_scroll(int x,int y,int width,int height,int n,byte attr)
   height*=font_height;
   n*=font_height;
   
-  XSetForeground(display,gc,vga_colors[attr>>4]);
+  XSetForeground(display,gc,text_colors[attr>>4]);
   
   if (n > 0) 
     {       /* scroll up */
@@ -1779,30 +1915,29 @@ static void do_scroll(void)
  * DANG_BEGIN_FUNCTION X_update_screen
  *
  * description:
- *  Updates, also in graphics mode
- *  Graphics in X has to be smarter and improved
+ * Updates the X screen, in text mode and in graphics mode.
+ * Both text and graphics in X have to be smarter and improved.
  *  
- * returns: 
- *  0 - nothing updated 
- *  2 - partly updated 
- *  1 - whole update
+ * X_update_screen returns 0 if nothing was updated, 1 if the whole
+ * screen was updated, and 2 for a partial update.
  *
+ * It is called in arch/linux/async/signal.c::SIGALRM_call() as part
+ * of a struct video_system (see end of X.c) every 50 ms or
+ * every 10 ms if 2 was returned, depending somewhat on various config
+ * options as e.g. config.X_updatefreq and VIDEO_CHECK_DIRTY.
+ * At least it is supposed to do that.
+ * 
  * arguments: 
- *  none
+ * none
  *
  * DANG_END_FUNCTION
  */ 
 
-static int X_update_screen(void)
-/*called from ../dosemu/signal.c:SIGALRM_call() */
+int X_update_screen()
 {
-  static X_vars *state = &X_state;
-  
-  switch(get_vgaemu_type())
-    {
-    case TEXT:
-      /* Do it the OLD way! */
-      {
+  switch(vga.mode_class) {
+
+    case TEXT: {	/* Do it the OLD way! */
 
 	Bit16u *sp, *oldsp;
 	u_char charbuff[MAX_COLUMNS], *bp;
@@ -1817,6 +1952,10 @@ static int X_update_screen(void)
 
 	if (!is_mapped) 
 	  return 0;       /* no need to do anything... */
+
+#ifdef TEXT_DAC_UPDATES
+        refresh_text_palette();
+#endif
 
 #if USE_SCROLL_QUEUE
   do_scroll();
@@ -1958,170 +2097,65 @@ chk_cursor:
 	    yloop = -1;
 	    return(1);
 	  }
-      }
-      break;
-      
-    case GRAPH:
-      {
-	DAC_entry color;
-	int i,colchanged=0,rerr,gerr,berr,tmppix;
-
-	if (!is_mapped) 
-	  return 0;       /* no need to do anything... */
-
-	/* first update the colormap */
-	if (state->HaveTrueColor) {
-	  refresh_truecolor_from_DAC(state);
-	}
-	else {
-	  do {
-	    i=DAC_get_dirty_entry(&color);
-	    if(i!=-1)
-	      {
-		X_printf("X: X_redraw_screen(): DAC_get_dirty_entry()=%i\n", i);
-		if (have_shmap)
-		  {
-		    tmppix=
-		      pixelval[
-			       (rerr=((color.r*redshades) >>6)) +
-			       (gerr=((color.g*greenshades) >>6))*redshades +
-			       (berr=((color.b*blueshades) >>6))*redshades*greenshades
-		      ];
-		    /* The virtual-colourmap may have changed, but that
-		       doesn't necessarily mean that the colourmap entry
-		       corresponds to a different physical pixel value. */
-		    if (tmppix!=lut[i])
-		      {
-			lut[i]=tmppix;
-			colchanged=1;
-		      }
-#ifndef SHM_REMAP_TYPE_FAST
-		    /* Use the error from the first lookup table to help
-		       calculate a better value for the second lookup
-		       table, for dithering */
-		    rerr=(((color.r + (color.r - ((rerr<<6) /redshades)))*redshades)>>6);
-		    gerr=(((color.g + (color.g - ((gerr<<6) /greenshades)))*greenshades)>>6);
-		    berr=(((color.b + (color.b - ((berr<<6) /blueshades)))*blueshades)>>6);
-		    if (rerr>=redshades) rerr=redshades-1;
-		    if (gerr>=greenshades) gerr=greenshades-1;
-		    if (berr>=blueshades) berr=blueshades-1;
-		    tmppix=
-		      pixelval[
-			       rerr +
-			       gerr*redshades +
-			       berr*redshades*greenshades
-		      ];
-		    if (tmppix!=lut2[i])
-		      {
-			lut2[i]=tmppix;
-			colchanged=1;
-		      }
-#endif /* not SHM_REMAP_TYPE_FAST */
-		  }
-		else
-		  {
-		    xcol.pixel=i;
-		    xcol.red  =(color.r*65535)/63;
-		    xcol.green=(color.g*65535)/63;
-		    xcol.blue =(color.b*65535)/63;
-		    if(visual->class&1) XStoreColor(display, vga256_cmap, &xcol);
-		  }
-	      }
-	  }
-	while(i!=-1);
-
-	if (have_shmap)
-	  {
-	    if (colchanged==1) /* should remap ALL VGA pages */
-	      dirty_all_video_pages();
-	  }
-
-        } /* not true color */
-
-	/* ! */
-    	 {
-#ifdef DEBUG_SHOW_UPDATE_AREA
-	   static  unsigned char xxxx;
-#endif		
-	   unsigned char *base;
-	   unsigned long int offset, len;
-	   unsigned int loop,xx,yy,ww,hh, modewidth;
-	   unsigned int changed=0;
-	   unsigned char *baseplusoffset;
-	   unsigned char *dataplusoffset;
-	   
-	   while(vgaemu_update(&base, &offset, &len,
-			       VGAEMU_UPDATE_METHOD_GET_CHANGES,
-			       &modewidth)==True)
-	     {
-	       if (state->HaveTrueColor) {
-	         RemapXImage(VGA_PSEUDO_8, &xx, &yy, &ww, &hh, base, offset, len, modewidth);
-  	         changed++;
-
-  	         EXPutImage(display, mainwindow, gc,
-  			  ximage_p, xx, yy, xx, yy, ww, hh);
-
-                 X_printf("X_update_screen: %i: ofs %u, len %u, win (%i,%i),(%i,%i)\n",
-                   changed, (unsigned) offset, (unsigned) len, xx, yy, ww, hh
-                 );
-	         continue;
-	       }
-	       /*	       printf("Dirty: %7ld %7ld\t",offset,len);*/
-
-	       if (have_shmap)
-		 {
-		   /* Quick remap & copy of all changed pixels */
-		   dataplusoffset = &ximage_p->data[offset];
-		   baseplusoffset = &base[offset];
-		   loop=len;
-		   /* Simple remap, no dither */
-		   while (loop--)
-		     {
-		       dataplusoffset[loop]=lut[baseplusoffset[loop]];
-		     }
-		 }
-	       else
-		 {
-		   memcpy(&ximage_p->data[offset],&base[offset],len);
-		 }
-
-	       xx = 0;
-	       ww = modewidth;
-	       yy = offset / modewidth;
-	       hh = 1+((offset+len)/modewidth) - yy;
-
-	       if (hh+yy > ximage_p->height) hh--; /* (bleh..) */
-
-	       changed=1;
-#ifdef DEBUG_SHOW_UPDATE_AREA
-	       XSetForeground(display,gc,xxxx++);
-	       XFillRectangle(display, mainwindow, gc, xx, yy, ww, hh);
-	       XSync(display, False);
-#endif /* DEBUG_SHOW_UPDATE_AREA */
-#ifdef HAVE_MITSHM
-               if(!shm_failed)
-	       XShmPutImage(display,mainwindow,gc,ximage_p,xx,yy,xx,yy,ww,hh, True);
-	       else
-#endif
-	       XPutImage(display,mainwindow,gc,ximage_p,xx,yy,xx,yy,ww,hh);
-	       X_printf("X_update_screen(): %i pixel changes, redraw "
-			"window is (%i,%i),(%i,%i)\n", 
-			changed, xx, yy, ww, hh);
-	       
-	       return changed;
-	     }
-         }   
-      }
-      
-      return 1;	
-      break;
-    
-    default:
-      return(0);
-      break;
     }
-    
-/*  return(0);	*//* compiler catch all */
+    break;
+      
+    case GRAPH: {
+
+#ifdef DEBUG_SHOW_UPDATE_AREA
+      static int dsua_fg_color = 0;
+#endif		
+      RectArea ra;
+      int update_ret;
+
+      if(!is_mapped) return 0;		/* no need to do anything... */
+
+      if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) X_modify_mode();
+
+      refresh_palette();
+
+      if(vga.display_start != veut.display_start) {
+        veut.display_start = vga.display_start;
+        veut.display_end = veut.display_start + vga.scan_len * vga.height;
+        dirty_all_video_pages();
+      }
+
+      /*
+       * You can now set the maximum update length, like this:
+       *
+       * veut.max_max_len = 20000;
+       *
+       * vga_emu_update() will return -1, if this limit is exceeded and there
+       * are still invalid pages; `max_max_len' is only a rough estimate, the
+       * actual upper limit will vary (might even be 25000 in the above
+       * example).
+       */
+
+      veut.max_len = veut.max_max_len;
+
+      while((update_ret = vga_emu_update(&veut)) > 0) {
+        remap_obj.src_image = veut.base + veut.display_start;
+        ra = remap_obj.remap_mem(&remap_obj, veut.update_start - veut.display_start, veut.update_len);
+
+#ifdef DEBUG_SHOW_UPDATE_AREA
+        XSetForeground(display, gc, dsua_fg_color++);
+        XFillRectangle(display, mainwindow, gc, ra.x, ra.y, ra.width, ra.height);
+        XSync(display, False);
+#endif
+
+        put_ximage(ra.x, ra.y, ra.x, ra.y, ra.width, ra.height);
+
+        X_printf("X_update_screen: func = %s, display_start = 0x%04x, write_plane = %d, start %d, len %u, win (%d,%d),(%d,%d)\n",
+          remap_obj.remap_func_name, vga.display_start, vga.mem.write_plane,
+          veut.update_start, veut.update_len, ra.x, ra.y, ra.width, ra.height
+        );
+      }
+
+      return update_ret < 0 ? 2 : 1;
+    }
+  }
+
+  return 0;
 }
 
 
@@ -2166,6 +2200,7 @@ void X_change_mouse_cursor(void)
  */ 
 static void set_mouse_position(int x, int y)
 {
+#ifndef NEW_X_MOUSE
   int dx = x - mouse.x;
   int dy = y - mouse.y;
   
@@ -2181,6 +2216,10 @@ static void set_mouse_position(int x, int y)
       dx = ((x-mouse.x)*font_width)>>3;
       dy = ((y-mouse.y)*font_height)>>3;
       break;
+    case 0x0d:
+    case 0x0e:
+    case 0x10:
+    case 0x12:
     case 0x13:
     case 0x5c: /* 8bpp SVGA graphics modes */
     case 0x5d:
@@ -2195,12 +2234,19 @@ static void set_mouse_position(int x, int y)
         y=-127;
         snap_X--;
       }
-      x*=8;  /* these scalings make DeluxePaintIIe operation perfect - */
-      y*=8;  /*  I don't know about anything else... */
-      dx = (x-mouse.x) >> 3;
-      dy = (y-mouse.y) >> 3;
+#ifndef MOUSE_SCALE_X
+      x *= 8;  /* these scalings make DeluxePaintIIe operation perfect - */
+      y *= 8;  /*  I don't know about anything else... */
+      dx = (x - mouse.x) >> 3;
+      dy = (y - mouse.y) >> 3;
+#else
       /* Dos expects 640x200 mouse coordinates! only in this videomode */
       /* Some games don't... */
+      x = (MOUSE_SCALE_X * x * x_res) / w_x_res;
+      y = (MOUSE_SCALE_Y * y * y_res) / w_y_res;
+      dx = x - mouse.x;
+      dy = y - mouse.y;
+#endif
       break;
 
     default:
@@ -2215,8 +2261,75 @@ static void set_mouse_position(int x, int y)
       mouse.y=y;
       mouse_move();
    }
-}   
 
+#else /* NEW_X_MOUSE */
+
+  int dx = 0, dy = 0, x0 = x, y0 = y;
+  int center_x = w_x_res >> 1, center_y = w_y_res >> 1;
+  int move_it = 0;
+
+  if(grab_active && vga.mode_class == GRAPH) {
+    if(x == center_x && y == center_y) return;	/* assume pointer warp event */
+    x = x - center_x + mouse_x;
+    y = y - center_y + mouse_y;
+    x0 = x; y0 = y;
+    XWarpPointer(display, None, mainwindow, 0, 0, 0, 0, center_x, center_y);
+  }
+
+  if(vga.mode_class == TEXT) {
+    dx = ((x - mouse_x) * font_width) >> 3;
+    dy = ((y - mouse_y) * font_height) >> 3;
+    x = x * 8 / font_width;
+    y = y * 8 / font_height;
+    if(mouse.x != x || mouse.y != y || dx || dy) move_it = 1;
+    mouse.x = x;
+    mouse.y = y;
+    mouse.mickeyx += dx;
+    mouse.mickeyy += dy;
+  }
+  
+  if(vga.mode_class == GRAPH) {
+
+    if(grab_active) {
+      dx = x - mouse_x;
+      dy = y - mouse_y;
+      mouse.x += dx; mouse.y += dy;
+    }
+    else {
+      if(snap_X) {
+        /*
+         * win31 cursor snap kludge, we temporary force the DOS cursor to the
+         * upper left corner (0,0). If we after that release snapping,
+         * normal X-events will move the cursor to the exact position. (Hans)
+         */
+        mouse.x = mouse.y = 0;
+        x0 = y0 = 0;
+        dx = -3 * x_res; dy = -3 * y_res;		// enough ??? -- sw
+        snap_X--;
+      }
+      else {
+        x = (x * x_res) / w_x_res;
+        y = (y * y_res) / w_y_res;
+        dx = x - (mouse_x * x_res) / w_x_res;
+        dy = y - (mouse_y * y_res) / w_y_res;
+        if(x_res == 320) x <<= 1;		/* 320 -> 640 cf. mouse.c -- 1998/02/22 sw */
+        if(mouse.x != x || mouse.y != y) move_it = 1;
+        mouse.x = x; mouse.y = y;
+      }
+    }
+
+    mouse.mickeyx += dx;
+    mouse.mickeyy += dy;
+    if(dx || dy) move_it = 1;
+    /* fprintf(stderr, "X: mouse.x = %d(X %d), mouse.y = %d(X %d), dx = %d, dy = %d\n", mouse.x, x, mouse.y, y, dx, dy); */
+  }
+
+  if(move_it) mouse_move();
+
+  mouse_x = x0;
+  mouse_y = y0;
+#endif /* NEW_X_MOUSE */
+}
 
 static void set_mouse_buttons(int state) 
 {
@@ -2427,6 +2540,7 @@ static void end_selection(void)
 static void send_selection(Time time, Window requestor, Atom target, Atom property)
 {
   int i;
+  u_char *sel_text_latin;
   XEvent e;
   e.xselection.type = SelectionNotify;
   e.xselection.selection = XA_PRIMARY;
@@ -2440,27 +2554,30 @@ static void send_selection(Time time, Window requestor, Atom target, Atom proper
   else if ((target == XA_STRING) || (target == compound_text_atom)) {
     X_printf("X: selection (dos): %s\n",sel_text);   
     e.xselection.target = target;
-    for (i=0; i<strlen(sel_text);i++)
-      switch (sel_text[i]) 
+    sel_text_latin = malloc(strlen(sel_text) + 1);
+    strcpy(sel_text_latin, sel_text);
+    for (i=0; i<strlen(sel_text_latin);i++)
+      switch (sel_text_latin[i]) 
 	{
 	case 21 : /* § */
-	  sel_text[i] = 0xa7;
+	  sel_text_latin[i] = 0xa7;
 	  break;
 	case 20 : /* ¶ */
-	  sel_text[i] = 0xb6;
+	  sel_text_latin[i] = 0xb6;
 	  break;
 	case 124 : /* ¦ */
-	  sel_text[i] = 0xa6;
+	  sel_text_latin[i] = 0xa6;
 	  break;
 	case 0x80 ... 0xff: 
-	  sel_text[i]=dos_to_latin[ sel_text[i] - 0x80 ];
+	  sel_text_latin[i]=dos_to_latin[sel_text_latin[i] - 0x80];
 	} 
-    X_printf("X: selection (latin): %s\n",sel_text);  
+    X_printf("X: selection (latin): %s\n",sel_text_latin);  
     XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
-      sel_text, strlen(sel_text));
+      sel_text_latin, strlen(sel_text_latin));
     e.xselection.property = property;
     X_printf("X: Selection sent to window 0x%lx as %s\n", 
       (unsigned long) requestor, (target==XA_STRING)?"string":"compound_text");
+    free(sel_text_latin);
   }
   else
   {
@@ -2482,6 +2599,7 @@ void X_handle_events(void)
 {
    static int busy = 0;
    XEvent e;
+   unsigned resize_width = 0, resize_height = 0, resize_event = 0;
 
    /*  struct timeval currenttime;
   struct timezone tz;*/
@@ -2491,9 +2609,11 @@ void X_handle_events(void)
      and, more importantly, reset the interval from the start
      when we leave? */
 
-   /*   gettimeofday(&currenttime, &tz);
+#if 0
+   gettimeofday(&currenttime, &tz);
    printf("ENTER: %10d %10d - ",currenttime.tv_sec,currenttime.tv_usec);
-   printf(XPending(display)?"Event.":"ALARM!");*/
+   printf(XPending(display)?"Event.":"ALARM!");
+#endif
 
    if (busy)
      {
@@ -2507,12 +2627,18 @@ void X_handle_events(void)
 #if CONFIG_X_MOUSE
    {
      static int lastingraphics = 0;
-     if (get_vgaemu_type() == GRAPH) {
-       lastingraphics = 1;
-       XDefineCursor(display, mainwindow, X_mouse_nocursor);
+     if(vga.mode_class == GRAPH) {
+       if(! lastingraphics) {
+         lastingraphics = 1;
+#ifndef DEBUG_MOUSE_POS
+         XDefineCursor(display, mainwindow, X_mouse_nocursor);
+#else
+         XDefineCursor(display, mainwindow, X_standard_cursor);
+#endif
+       }
      }
      else {
-       if (lastingraphics) {
+       if(lastingraphics) {
          lastingraphics = 0;
          XDefineCursor(display, mainwindow, X_standard_cursor);
        }
@@ -2546,39 +2672,19 @@ void X_handle_events(void)
 	{
        case Expose:  
 	  X_printf("X: expose event\n");
-/*	  if(video_mode==0x13)
-	    {
-              XPutImage(display,mainwindow,gc,ximage_p,
-                        e.xexpose.x, e.xexpose.y,e.xexpose.x, e.xexpose.y,
-                        e.xexpose.width, e.xexpose.height);
-	    }
-	  else
-	    {
-	      if(e.xexpose.count == 0)
-		X_redraw_screen();
-	    }*/
-	  switch(get_vgaemu_type())
-	    {
+	  switch(vga.mode_class) {
 	    case GRAPH:
-#ifdef HAVE_MITSHM
-              if(!shm_failed)
-	      XShmPutImage(display,mainwindow,gc,ximage_p,
-	                e.xexpose.x, e.xexpose.y,e.xexpose.x, e.xexpose.y,
-	                e.xexpose.width, e.xexpose.height, True);
-              else
-#endif
-	      XPutImage(display,mainwindow,gc,ximage_p,
-	                e.xexpose.x, e.xexpose.y,e.xexpose.x, e.xexpose.y,
-	                e.xexpose.width, e.xexpose.height);
+	      if(!resize_event) put_ximage(
+	        e.xexpose.x, e.xexpose.y,
+	        e.xexpose.x, e.xexpose.y,
+	        e.xexpose.width, e.xexpose.height
+	      );
 	      break;
 	      
 	    default:    /* case TEXT: */
-	      {
-	        if(e.xexpose.count == 0)
-	          X_redraw_screen();
-	      }
-	      break;
-	    }
+	      if(e.xexpose.count == 0) X_redraw_screen();
+              break;
+	  }
 	  break;
 
 	case UnmapNotify:
@@ -2646,6 +2752,45 @@ void X_handle_events(void)
     /* Keyboard events */
 
 	case KeyPress:
+#ifndef NEW_X_MOUSE
+#ifdef ENABLE_POINTER_GRAB
+          if(e.xkey.keycode == 96) { /* terrible hack, is F12 -- sw */
+            if(grab_active ^= 1) {
+              X_printf("X: grab activated\n");
+              XGrabKeyboard(display, mainwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+              XGrabPointer(display, mainwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+                GrabModeAsync, GrabModeAsync, None,  None, CurrentTime);
+            }
+            else {
+              X_printf("X: grab released\n");
+              XUngrabPointer(display, CurrentTime);
+              XUngrabKeyboard(display, CurrentTime);
+            }
+            break;
+          }
+#endif
+#else /* NEW_X_MOUSE */
+          if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask) && grab_keysym != NoSymbol)
+            if(XKeycodeToKeysym(display, e.xkey.keycode, 0) == grab_keysym) {
+              if(grab_active ^= 1) {
+                X_printf("X: mouse grab activated\n");
+#ifdef ENABLE_KEYBOARD_GRAB
+                XGrabKeyboard(display, mainwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+#endif
+                XGrabPointer(display, mainwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+                  GrabModeAsync, GrabModeAsync, mainwindow,  None, CurrentTime);
+              }
+              else {
+                X_printf("X: mouse grab released\n");
+                XUngrabPointer(display, CurrentTime);
+#ifdef ENABLE_KEYBOARD_GRAB
+                XUngrabKeyboard(display, CurrentTime);
+#endif
+              }
+              break;
+            }
+#endif /* NEW_X_MOUSE */
+
 	case KeyRelease:
 /* 
       Clears the visible selection if the cursor is inside the selection
@@ -2666,7 +2811,7 @@ void X_handle_events(void)
 #if CONFIG_X_MOUSE  
 	case ButtonPress:
 #if CONFIG_X_SELECTION
-	if (get_vgaemu_type() != GRAPH) {
+	if (vga.mode_class == TEXT) {
 	  if (e.xbutton.button == Button1)
 	    start_selection(e.xbutton.x, e.xbutton.y);
 	  else if (e.xbutton.button == Button3)
@@ -2680,7 +2825,7 @@ void X_handle_events(void)
 	case ButtonRelease:
 	  set_mouse_position(e.xmotion.x,e.xmotion.y);  /*root@sjoerd*/
 #if CONFIG_X_SELECTION
-	  if (get_vgaemu_type() != GRAPH) switch (e.xbutton.button)
+	  if (vga.mode_class == TEXT) switch (e.xbutton.button)
 	    {
 	    case Button1 :
 	    case Button3 : 
@@ -2710,7 +2855,14 @@ void X_handle_events(void)
 	   * drawn by win31 and align it with the X-cursor.
 	   * (Hans)
 	   */
-	  snap_X=3;
+#ifndef NEW_X_MOUSE
+#ifdef ENABLE_POINTER_GRAB
+	  if(!grab_active)
+#endif
+	    snap_X=3;
+#else /* NEW_X_MOUSE */
+	  if(!grab_active) snap_X=3;
+#endif /* NEW_X_MOUSE */
 	  X_printf("X: Mouse entering window\n");
 	  set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	  set_mouse_buttons(e.xcrossing.state);
@@ -2719,11 +2871,29 @@ void X_handle_events(void)
 	case LeaveNotify:                   /* Should this do anything? */
 	  X_printf("X: Mouse leaving window\n");
 	  break;
+
+        case ConfigureNotify:
+          /* printf("X: configure event: width = %d, height = %d\n", e.xconfigure.width, e.xconfigure.height); */
+          resize_event = 1;
+          resize_width = e.xconfigure.width;
+          resize_height = e.xconfigure.height;
+          break;
+
 #endif /* CONFIG_X_SELECTION */
 /* some weirder things... */
-		     
 	}
     }
+
+    if(ximage != NULL && resize_event) {
+      if(ximage->width == resize_width && ximage->height == resize_height) resize_event = 0;
+    }
+
+    if(resize_event) {
+      resize_ximage(resize_width, resize_height);
+      dirty_all_video_pages();
+      X_update_screen();
+    }
+
    busy=0;
 #if CONFIG_X_MOUSE  
    mouse_event();
@@ -2732,7 +2902,77 @@ void X_handle_events(void)
    /*   gettimeofday(&currenttime, &tz);
    printf("\nLEAVE: %10d %10d\n",currenttime.tv_sec,currenttime.tv_usec);*/
 
- }
+}
+
+int X_change_config(unsigned item, void *buf)
+{
+  int err = 0;
+  XFontStruct *xfont;
+  XGCValues gcv;
+
+  X_printf("X: X_change_config: item = %d, buffer = 0x%x\n", item, (unsigned) buf);
+
+  switch(item) {
+
+    case X_CHG_TITLE:
+      X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
+      XStoreName(display, mainwindow, buf);
+      break;
+
+    case X_CHG_FONT:
+      xfont = XLoadQueryFont(display, (char *) buf);
+      if(xfont == NULL) {
+        X_printf("X: X_change_config: font \"%s\" not found\n", (char *) buf);
+      }
+      else {
+        if(xfont->min_bounds.width != xfont->max_bounds.width) {
+          X_printf("X: X_change_config: font \"%s\" is not monospaced\n", (char *) buf);
+          XFreeFont(display, xfont);
+        }
+        else {
+          if(font != NULL) XFreeFont(display, font);
+          font = xfont;
+          font_width  = font->max_bounds.width;
+          font_height = font->max_bounds.ascent + font->max_bounds.descent;
+          font_shift  = font->max_bounds.ascent;
+          vga_font    = font->fid;
+          gcv.font = vga_font;
+          XChangeGC(display, gc, GCFont, &gcv);
+
+          X_printf("X: X_change_config: using font \"%s\", size = %d x %d\n", (char *) buf, font_width, font_height);
+
+          if(vga.mode_class == TEXT) {
+            X_setmode(vga.mode_class, vga.text_width, vga.text_height);
+          }
+
+        }
+      }
+      break;
+
+    case X_CHG_MAP:
+      X_map_mode = *((int *) buf);
+      X_printf("X: X_change_config: map window at mode 0x%02x\n", X_map_mode);
+      if(X_map_mode == -1) { XMapWindow(display, mainwindow); }
+      break;
+
+    case X_CHG_UNMAP:
+      X_unmap_mode = *((int *) buf);
+      X_printf("X: X_change_config: unmap window at mode 0x%02x\n", X_unmap_mode);
+      if(X_unmap_mode == -1) { XUnmapWindow(display, mainwindow); }
+      break;
+
+    case X_CHG_WINSIZE:
+      config.X_winsize_x = *((int *) buf);
+      config.X_winsize_y = ((int *) buf)[1];
+      X_printf("X: X_change_config: set initial graphics window size to %d x %d\n", config.X_winsize_x, config.X_winsize_y);
+      break;
+
+    default:
+      err = 100;
+  }
+
+  return err;
+}
 
 
 struct video_system Video_X = 

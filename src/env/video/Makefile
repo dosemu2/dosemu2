@@ -9,27 +9,17 @@
 # vgaemu_inside.h, vesabios.S and vesabios.o
 # you should also delete the #define XG in int10.c and sigsegv.c
 ifdef X_SUPPORT
- ifdef NEW_X_CODE
-XCFILES	= n_X.c n_vgaemu.c n_vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c remap.c
+XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c remap.c
 XHDRS	= X.h screen.h remap.h
-XOBJS	= n_X.o n_vgaemu.o n_vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o remap.o
- else
-XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c \
-	  XModeRemapGeneric.c XModeRemap_i386.c
-XHDRS	= X.h screen.h XModeRemap.h
-XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o \
-	  XModeRemapGeneric.o XModeRemap_i386.o
- endif
+XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o remap.o
 endif
 
 # This is to assemble the VESA compatible video BIOS. Shamelessly copied
 # from bios/Makefile.
 SFILES = vesabios.S
 
-ifdef NEW_X_CODE
 ASFILES = remap_asm.S vesabios_pm.S
 ASOBJS  = remap_asm.o vesabios_pm.o
-endif
 
 AS86FLAGS=$(INCDIR)
 

@@ -193,8 +193,6 @@ extern u_char att_d_index;
 EXTERN u_char permissions;
 EXTERN struct screen_stat scr_state;
 
-EXTERN int gfx_mode INIT(TEXT);
-
 EXTERN int user_vc_switch INIT(0);
 
 #endif 

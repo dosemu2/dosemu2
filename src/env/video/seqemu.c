@@ -152,9 +152,7 @@ unsigned char Seq_get_index(void)
 
 void Seq_write_value(unsigned char data)
 {
-#ifdef NEW_X_CODE
   unsigned u;
-#endif
 #ifdef DEBUG_SEQ
   v_printf("VGAemu: Seq_write_value(%i) in %i\n", data, Seq_index);
 #endif
@@ -162,7 +160,6 @@ void Seq_write_value(unsigned char data)
   switch(Seq_index)
     {
 
-#ifdef NEW_X_CODE
     case 0x02: /* map mask */
       Seq_data[Seq_index].write = Seq_data[Seq_index].read = data;
       u = vga.seq.map_mask = data & 0xf;
@@ -187,7 +184,6 @@ void Seq_write_value(unsigned char data)
       }
       v_printf("VGAemu: Seq_write_value: chain4 = %u\n", (unsigned) vga.seq.chain4);
       break;
-#endif
 
     case 0x0b:  /* chip version */
       Seq_data[Seq_index].write = data;
@@ -215,11 +211,7 @@ void Seq_write_value(unsigned char data)
 	  Seq_data[Seq_index].read = (data & 0xf0) | (unsigned char)newpage;
 
 	  /* switch videopage */
-#ifdef NEW_X_CODE          
 	  vga_emu_switch_bank(newpage);
-#else
-	  vgaemu_switch_page(newpage);
-#endif
 	}
       else /* Seq_mode == OLD_MODE */
 	{

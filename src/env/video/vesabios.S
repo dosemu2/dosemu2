@@ -74,29 +74,12 @@
 #include "memory.h"
 #include "macros86.h"
 #include "config.h"
-#ifndef NEW_X_CODE
-#include "vgaemu.h"
-#endif /* NEW_X_CODE */
 #ifdef __linux__
 #include <linux/linkage.h>
 #endif
 
 
 		.text
-#ifndef NEW_X_CODE
-.globl CISH(vgaemu_VESA_BIOS_label_start)
-#endif /* NEW_X_CODE */
-
-#ifndef NEW_X_CODE
-CISH(vgaemu_VESA_BIOS_label_start):
-
-		.org VGAEMU_BIOS_START
-		.byte	0x55, 0xaa	/* BIOS signature, required for */
-					/* BIOS extentions */
-		.byte	0x01		/* BIOS extention length in 
-					 * units of 512 bytes 
-					 */
-#else /* NEW_X_CODE */
 		.globl CISH(vgaemu_bios_start)
 		.globl CISH(vgaemu_bios_prod_name)
 		.globl CISH(vgaemu_bios_win_func)
@@ -107,41 +90,21 @@ CISH(vgaemu_VESA_BIOS_label_start):
 CISH(vgaemu_bios_start):
 		.byte	0x55, 0xaa	/* BIOS signature, required for BIOS extensions */
 		.byte	0x00		/* BIOS extension length in units of 512 bytes */
-#endif /* NEW_X_CODE */
 		retf			/* BIOS init function */
 		nop
 		
-#ifndef NEW_X_CODE
-		.org VGAEMU_BIOS_VERSIONSTRING
-#else /* NEW_X_CODE */
 CISH(vgaemu_bios_prod_name):
 		.ascii	"DOSEmu VGA/VBE 2.0 Emulator"
 		.byte	0x00
 
-#endif /* NEW_X_CODE */
 		.ascii	"DOSEMU VGAemu. (C) 1995 1996, "
 		.ascii	"I.A. Filius and J.A.K. Mouw"
 		.byte	0x00
-#ifndef NEW_X_CODE
-		
-		.org VGAEMU_BIOS_VESASTRING
-		.ascii	"DOSEMU VGAemu"
-#else /* NEW_X_CODE */
 
 		.ascii	"VESA BIOS Extensions V2.0 for DOSEmu."
 		.byte	0x0d, 0x0a
 		.ascii	"Copyright (c) 1997 Steffen Winterfeldt"
-#endif /* NEW_X_CODE */
 		.byte	0x00
-#ifndef NEW_X_CODE
-		
-		.org VGAEMU_BIOS_WINDOWFUNCTION
-		mov	ax,#0x4f05	/* This function is the same as
-					 * int 0x10, ax=0x4f05, so we just
-					 * call it.
-					 */
-		int	#0x10
-#else /* NEW_X_CODE */
 
 CISH(vgaemu_bios_win_func):
 		push	bx
@@ -152,29 +115,7 @@ CISH(vgaemu_bios_win_func):
 		mov	ax,#0x4f05
 		int 	#0x10
 		pop	bx
-#endif /* NEW_X_CODE */
 		retf
-#ifndef NEW_X_CODE
-		nop
-#endif /* not NEW_X_CODE */
 
-#ifndef NEW_X_CODE
-		.org VGAEMU_BIOS_VESA_MODELIST
-		.word 0x0100	/*  640x400x256 */
-		.word 0x0101	/*  640x480x256 */
-		.word 0x0103	/*  800x600x256 */
-		.word 0x0105	/* 1024x768x256 */
-		.word 0x0108	/*        80x60 */
-		.word 0x0109	/*       132x25 */
-		.word 0x010a	/*       132x43 */
-		.word 0x010c	/*       132x60 */
-		.word 0xffff	/*  end of list */
-
-		.org 0x1ff
-.globl CISH(vgaemu_VESA_BIOS_label_end)
-CISH(vgaemu_VESA_BIOS_label_end):
-		.byte	0x00
-#else /* NEW_X_CODE */
 CISH(vgaemu_bios_end):
 
-#endif /* NEW_X_CODE */

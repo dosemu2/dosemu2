@@ -23,22 +23,11 @@
 #include "emu.h"
 #include "vgaemu.h"
 
-#ifndef NEW_X_CODE          
-
-#define CRTC_MAX_INDEX	24
-
-static indexed_register CRTC_data[CRTC_MAX_INDEX + 1];
-static unsigned CRTC_index = 0;
-
-unsigned CRTC_start_addr = 0;
-
-#else  /* NEW_X_CODE */
 
   #define CRTC_data	vga.crtc.data
   #define CRTC_index	vga.crtc.index
   #define CRTC_start_addr vga.display_start
 
-#endif /* NEW_X_CODE */
 
 void CRTC_init()
 {
@@ -102,7 +91,6 @@ void CRTC_write_value(unsigned char data)
 #endif
       break;
 
-#ifdef NEW_X_CODE
 #if 0		/* cf. vesabios_pm.S */
     case 0xf3:		/* set display start */
       CRTC_data[CRTC_index].write = CRTC_data[CRTC_index].read = data;
@@ -127,7 +115,6 @@ void CRTC_write_value(unsigned char data)
 #endif
       break;
 #endif
-#endif	/* NEW_X_CODE */
 
     default:
       if(CRTC_index <= CRTC_MAX_INDEX)

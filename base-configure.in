@@ -432,19 +432,6 @@ dnl Use new CMOS/RTC/int1a code
    AC_CHECKING("Compiling with old CMOS/RTC code");
   fi
  
-dnl Use new X code
- AC_ARG_ENABLE(new-X,
-               [  --enable-new-X          use the new X code],
-	       [newXcode="yes"],[newXcode="no"])
-  if test "$newXcode" = "yes"; then
-   AC_CHECKING("Compiling with new X code");
-   NEW_X_CODE="NEW_X_CODE=1"
-   AC_DEFINE_UNQUOTED(NEW_X_CODE)
-   AC_SUBST(NEW_X_CODE)
-  else
-   AC_CHECKING("Compiling with old X code");
-  fi
- 
 dnl Use threading code
  AC_ARG_ENABLE(threads,
                [  --enable-threads        EXPERIMENTAL, use threading code],

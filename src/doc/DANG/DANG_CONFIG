@@ -21,8 +21,8 @@ GROUP:		Init doc/DANG/summary_Init base/init/init.c
 GROUP:		DPMI doc/DANG/summary_DPMI dosext/dpmi/dpmi.c
 		dosext/dpmi/msdos.h
 GROUP:		Video doc/DANG/summary_Video env/video/vc.c
-			env/video/video.c env/video/n_X.c env/video/n_vgaemu.c
-			env/video/n_vesa.c
+			env/video/video.c env/video/X.c env/video/vgaemu.c
+			env/video/vesa.c
 			env/video/vesabios.S
 			env/video/vesabios_pm.S
 			env/video/attremu.c env/video/dacemu.c

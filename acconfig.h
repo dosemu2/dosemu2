@@ -127,9 +127,6 @@
  */
 #undef RUN_AS_ROOT
 
-/* Define this to use the new X code */
-#undef NEW_X_CODE
-
 /* Define this to use the new X mouse code */
 #undef NEW_X_MOUSE
 

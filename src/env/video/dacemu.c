@@ -176,12 +176,7 @@ static unsigned char DAC_read_index=0;
 static unsigned char DAC_write_index=0;
 static int DAC_pel_index='r';
 
-#ifndef NEW_X_CODE
-static unsigned char vga_dac_bits = 6;
-#define VGA_DAC_BITS vga_dac_bits
-#else
 #define VGA_DAC_BITS vga.dac.bits
-#endif
 
 
 /* **************** DAC emulation functions **************** */
@@ -557,7 +552,6 @@ unsigned char DAC_get_state(void)
   return(DAC_state);
 }
 
-#ifdef NEW_X_CODE
 void DAC_set_width(unsigned bits)
 {
   int i;
@@ -570,4 +564,3 @@ void DAC_set_width(unsigned bits)
     for(i = 0; i < 256; i++) DAC_dirty[i] = True;
   }
 }
-#endif

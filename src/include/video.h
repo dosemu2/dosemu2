@@ -170,6 +170,7 @@ extern int vga_initialize(void);
 extern void mda_initialize(void);
 extern void install_int_10_handler(void);
 extern void clear_screen(int s,int att);
+extern boolean set_video_mode(int);
 
 extern void Scroll(us *sadr,int x0,int y0,int x1,int y1,int n,int attr);
 #define scrollup(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,l,att)

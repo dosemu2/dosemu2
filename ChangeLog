@@ -1,3 +1,10 @@
+98/04/25 ver. 0.97.5 released
+	From Steffen
+	- rework of set_video_mode (int10.c)
+	- using backing store now in text modes (n_X.c, X_USE_BACKING_STORE)
+	From Hans
+	- removed old X stuff (no NEW_X_CODE defines any more)
+	- docs recompile (including DANG)
 98/04/24 ver. 0.97.5.1 unofficial pre-release
 	From Toshio Sengoku <sengoku@intsys.co.jp>
 	- fixes to INT10 AH=13 (write string).

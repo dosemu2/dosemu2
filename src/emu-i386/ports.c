@@ -172,9 +172,7 @@ inb(unsigned int port)
             ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
               ((port>=0x3c4) && (port<=0x3c5)) || /* erik@zaphod sequencer */
               ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
-#ifdef NEW_X_CODE
               ((port>=0x3d4) && (port<=0x3d5)) || /* sw: crt controller */
-#endif
               ((port>=0x3D0) && (port<=0x3DD)) ) )
     {
         r=VGA_emulate_inb((u_int)port);
@@ -468,23 +466,15 @@ outb(unsigned int port, unsigned int byte)
       port_out(byte, port);
       set_ioperm(port, 1, 0);
     }
-#ifndef NEW_X_CODE
-    return;
-  }
-  else {
-#else
   }
   /* the above stuff should someday be moved to crtcemu.c -- sw */
   {
-#endif
 #if X_GRAPHICS
     if ( (config.X) &&
          ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
            ((port>=0x3c4) && (port<=0x3c5)) || /* erik@zaphod sequencer */
            ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
-#ifdef NEW_X_CODE
            ((port>=0x3d4) && (port<=0x3d5)) || /* sw: crt controller */
-#endif
            ((port>=0x3D0) && (port<=0x3DD)) ) )
       {
         VGA_emulate_outb(port, (unsigned char)byte);

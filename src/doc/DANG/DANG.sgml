@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.97.1.2
+<date> version dosemu-0.97.6
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -166,8 +166,8 @@ These are the functions defined in include/emu.h.
 </itemize>
   All signals that wish to be handled properly in context with the
  execution of vm86() mode, and signals that wish to use non-reentrant
- functions should add themselves to the SIGNALS_THAT_QUEUE define and
- use SETQSIG(). To that end they will also need to be set up in an
+ functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE define
+ and use SETQSIG(). To that end they will also need to be set up in an
  order such as SIGIO.
 
  
@@ -720,16 +720,16 @@ These are the functions defined in env/video/video.c.
  setups, you can contribute by putting in the correct graphics page
  address values.
  
-<sect1>env/video/n_X.c Information
+<sect1>env/video/X.c Information
 
 <p>
  This module contains the video interface for the X Window 
  System. It has mouse and selection 'cut' support.
  
-<sect1>Functions in env/video/n_X.c
+<sect1>Functions in env/video/X.c
 
 <p>
-These are the functions defined in env/video/n_X.c.
+These are the functions defined in env/video/X.c.
 
 <sect2>vga256_cmap_init
 
@@ -830,7 +830,7 @@ These are the functions defined in env/video/n_X.c.
 </itemize>
 
 
-<sect1>env/video/n_vgaemu.c Information
+<sect1>env/video/vgaemu.c Information
 
 <p>
  The VGA emulator for DOSEmu.
@@ -844,10 +844,10 @@ These are the functions defined in env/video/n_X.c.
  For an excellent reference to programming SVGA cards see Finn Thøgersen's
  VGADOC4, available at http://www.datashopper.dk/~finth
 
-<sect1>Functions in env/video/n_vgaemu.c
+<sect1>Functions in env/video/vgaemu.c
 
 <p>
-These are the functions defined in env/video/n_vgaemu.c.
+These are the functions defined in env/video/vgaemu.c.
 
 <sect2>VGA_emulate_outb
 
@@ -1038,7 +1038,7 @@ These are the functions defined in env/video/n_vgaemu.c.
 </itemize>
 
 
-<sect1>env/video/n_vesa.c Information
+<sect1>env/video/vesa.c Information
 
 <p>
  VESA BIOS Extensions for VGAEmu.
@@ -1046,10 +1046,10 @@ These are the functions defined in env/video/n_vgaemu.c.
  Supported are VBE version 2.0, including a linear frame buffer
  and display power management support.
 
-<sect1>Functions in env/video/n_vesa.c
+<sect1>Functions in env/video/vesa.c
 
 <p>
-These are the functions defined in env/video/n_vesa.c.
+These are the functions defined in env/video/vesa.c.
 
 <sect2>vbe_init
 
@@ -1426,6 +1426,13 @@ These are the functions defined in env/video/dualmon.c.
 <sect1>base/bios/int10.c Information
 
 <p>
+ Video BIOS implementation.
+ 
+ This module handles the int10 video functions.
+ Most functions here change only the video memory and status 
+ variables; the actual screen is then rendered asynchronously 
+ after these by Video-&gt;update_screen.
+
 <sect1>env/video/s3.c Information
 
 <p>
@@ -1441,8 +1448,17 @@ These are the functions defined in env/video/dualmon.c.
 <sect1>env/video/vgaemu.c Information
 
 <p>
- The VGA emulator for dosemu. Emulated are the video meory and the VGA
- register set (CRTC, DAC, etc.).
+ The VGA emulator for DOSEmu.
+ 
+ Emulated are the video memory and the VGA register set (CRTC, DAC, etc.).
+ Parts of the hardware emulation is done in separate files (attremu.c,
+ crtcemu.c, dacemu.c and seqemu.c).
+
+ VGAEmu uses the video BIOS code in base/bios/int10.c and env/video/vesa.c.
+
+ For an excellent reference to programming SVGA cards see Finn Thøgersen's
+ VGADOC4, available at http://www.datashopper.dk/~finth
+
 <sect1>Functions in env/video/vgaemu.c
 
 <p>
@@ -1456,7 +1472,11 @@ These are the functions defined in env/video/vgaemu.c.
  Emulates writes to VGA ports.
  This is a hardware emulation function.
 
- 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  port  - The port being written to.
+<ITEM>  value - The value written,
+</itemize>
 
 
 <sect2>VGA_emulate_inb
@@ -1467,96 +1487,170 @@ These are the functions defined in env/video/vgaemu.c.
  Emulates reads from VGA ports.
  This is a hardware emulation function.
 
- 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  port  - The port being read from.
+</itemize>
 
 
-<sect2>vga_emu_fault(struct sigcontext_struct *scp)        
-
-
-<p>
- 
-  vga_emu_fault() is used to catch video access, and handle it.
-  This function is called from dosemu/sigsegv.c:dosemu_fault()
-  The sigcontext_struct is defined in include/cpu.h
-  Now it catches only changes in a 4K page, but maybe it is useful to
-  catch each video access. The problem when you do that is, you have to 
-  simulate each instruction which could write to the video-memory.
-  it is easy to get the place where the exception happens (scp-&gt;cr2),
-  but what are those changes?
-  An other problem is, it could eat a lot of time, but it does now also.
-  
- 
-
-
-<sect2>vga_emu_init(void)        
+<sect2>vga_emu_fault
 
 
 <p>
  
-  vga_emu_init() is used to emulate video.
-  This function is only called from video/X.c at the moment.
-  This function has to set a global variable to detect it in other functions
-  it has to map the right video-bank to the 0xA0000 adress.
+ vga_emu_fault() is used to catch video access, and handle it.
+ This function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
+ The sigcontext_struct is defined in include/cpu.h.
+ Now it catches only changes in a 4K page, but maybe it is useful to
+ catch each video access. The problem when you do that is, you have to 
+ simulate each instruction which could write to the video memory.
+ It is easy to get the place where the exception happens (scp-&gt;cr2),
+ but what are those changes?
+ An other problem is, it could eat a lot of time, but it does now also.
 
- 
-
-
-<sect2>int vgaemu_get_changes_in_pages
-
-
-<p>
- 
-  vgaemu_get_changes_in_pages() is used to get the changed 4K pages.
-  This function is only called from video/vgaemu.c .
-  It has to be called several times to make sure we grab all the changed
-  pages.
-
- should be updated for other video modes than 0x13
-
- 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  scp - A pointer to a struct sigcontext_struct holding some relevant data.
+</itemize>
 
 
-<sect2>vgaemu_get_changes_and_update_XImage_0x13
+<sect2>vga_emu_init
 
 
 <p>
  
-  vgaemu_get_changes() is used to get the changed area and update the image.
-  This function is only called from video/X.c at the moment.
-  It has to called several times to make sure grabbing all the changed
-  areas.
+ vga_emu_init() must be called before using the VGAEmu functions.
+ It is only called from env/video/X.c::X_init() at the moment.
+ This function basically initializes the global variable `vga' and
+ allocates the VGA memory.
 
- This is only for mode 0x13: 256 colors
+ It does in particular *not* map any memory into the range
+ 0xa0000 - 0xc0000, this is done as part of a VGA mode switch.
 
- 
+ There should be an accompanying vga_emu_done().
 
-
-<sect2>vga_emu_switch_page(unsigned int pagenumber)        
-
-
-<p>
- 
-  vga_emu_switch_page() is used to emulate video-bankswitching.
-  This function isn't called anywhere, but has to be used, with
-  other videomodes.
-  This function just remaps his 'own' memory into the 0xA000-0xB0000
-  area and returns True on success and False on error.
-
-  At the moment just a stupid function, but it is a start.
-  Jou must be sure, you've got all changes before you switch a bank!
-
- 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  vedt - Pointer to struct describing the type of display we are actually
+<ITEM>         attached to.
+</itemize>
 
 
-<sect2>get_vga_mode_info
+<sect2>vga_emu_update
 
 
 <p>
  
- Returns a pointer to the vga_mode_info structure for the
- requested mode or NULL if an invalid mode was given.
+ vga_emu_update() scans the VGA memory for dirty (= written to since last
+ update) pages and returns the changed area in *veut. See the definition
+ of vga_emu_update_type in env/video/vgaemu_inside.h for details.
+
+ You will need to call this function repeatedly until it returns 0 to
+ grab all changes. You can specify an upper limit for the size of the
+ area that will be returned using `veut-&gt;max_max_len' and `veut-&gt;max_len'.
+ See the example in env/video/X.c how this works.
+ 
+ If the return value of vga_emu_update() is &gt;= 0, it is the number of changed
+ pages, -1 means there are still changed pages but the maximum update chunk size
+ (`veut-&gt;max_max_len') was exceeded.
+
+ This function does in its current form not work for Hercules modes; it
+ does, however work for text modes, although this feature is currently
+ not used.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  veut - A pointer to a vga_emu_update_type object holding all relevant info.
+</itemize>
+
+
+<sect2>vga_emu_switch_bank
+
+
+<p>
+ 
+ vga_emu_switch_bank() is used to emulate video-bankswitching.
+
+ This function returns True on success and False on error, usually
+ indicating an invalid bank number.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  bank - The bank to switch to.
+</itemize>
+
+
+<sect2>vga_emu_find_mode
+
+
+<p>
+ 
+ Searches a video mode with the requested mode number.
+
+ The search starts with the mode *after* the mode `vmi' points to.
+ If `vmi' == NULL, starts at the beginning of the internal mode table.
+ `mode' may be a standard VGA mode number (0 ... 0x7f) or a
+ VESA mode number (&gt;= 0x100). The mode number may have its don't-clear-bit
+ (bit 7 or bit 15) or its use-lfb-bit (bit 14) set.
+ The special mode number -1 will match any mode and may be used to
+ scan through the whole table.
+
+ Returns NULL if no mode was found and a pointer into the mode table
+ otherwise. The returned pointer is a suitable argument for subsequent
+ calls to this function.
+
+ You should (and can) access the mode table only through this function.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  mode   - video mode.
+<ITEM>  vmi    - pointer into internal mode list
+</itemize>
+
+
+<sect2>vga_emu_setmode
+
+
+<p>
+ 
+ Set a video mode.
+
+ Switches to `mode' with text sizes `width' and `height' or (if no such
+ mode was found) at least `width' and `height'.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  mode   - The new video mode.
+<ITEM>  width  - Number of text columns.
+<ITEM>  height - Number of text rows.
+</itemize>
+
+
+<sect2>dirty_all_video_pages
+
+
+<p>
+ 
+ Marks the whole VGA memory as modified.
 
  
+
+
+<sect2>vga_emu_set_text_page
+
+
+<p>
+ 
+ Set visible text page.
+
+ `vga.display_start' is set to `page' * `page_size'.
+ This function works only in text modes.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  page      - Number of the text page.
+<ITEM>  page_size - Size of one text page.
+</itemize>
 
 
 <sect1>include/vgaemu.h Information
@@ -3625,7 +3719,7 @@ a set of interface functions and the device independant structures.
 Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">&nl;
 David Brauman  <htmlurl url="mailto:crisk@netvision.net.il" name="&lt;crisk@netvision.net.il&gt;">&nl;
 Rutger Nijlunsing  <htmlurl url="mailto:rutger@null.net" name="&lt;rutger@null.net&gt;">&nl;
-Michael Karcher  <htmlurl url="mailto:karcher@dpk.berlin.fidi.de" name="&lt;karcher@dpk.berlin.fidi.de&gt;">&nl;
+Michael Karcher  <htmlurl url="mailto:Michael.Karcher@writeme.com" name="&lt;Michael.Karcher@writeme.com&gt;">&nl;
 <sect1>Functions in dosext/sound/sound.c
 
 <p>
@@ -3751,15 +3845,7 @@ These are the functions defined in dosext/sound/sound.c.
 
 -----
 
- Write Silence is not implemented.
-
------
-
- Adlib register writes are unimplemented */
-
------
-
- Adlib data writes are unimplemented */
+ Adlib Waveform tests are unimplemented */
 
 -----
 
@@ -3800,7 +3886,7 @@ These are the functions defined in dosext/sound/sound.c.
 <p>
 Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">&nl;
 David Brauman  <htmlurl url="mailto:crisk@netvision.net.il" name="&lt;crisk@netvision.net.il&gt;">&nl;
-Michael Karcher  <htmlurl url="mailto:karcher@dpk.berlin.fido.de" name="&lt;karcher@dpk.berlin.fido.de&gt;">&nl;
+Michael Karcher  <htmlurl url="mailto:Michael.Karcher@writeme.com" name="&lt;Michael.Karcher@writeme.com&gt;">&nl;
 <sect1>base/dev/dma/dma.c Information
 
 <p>

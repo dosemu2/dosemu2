@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.97.1.2
+  version dosemu-0.97.6
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -132,9 +132,9 @@
 
   5.4.    Remarks in env/video/video.c
 
-  5.5.    env/video/n_X.c Information
+  5.5.    env/video/X.c Information
 
-  5.6.    Functions in env/video/n_X.c
+  5.6.    Functions in env/video/X.c
 
   5.6.1.  vga256_cmap_init
 
@@ -150,9 +150,9 @@
 
   5.6.7.  set_mouse_position
 
-  5.7.    env/video/n_vgaemu.c Information
+  5.7.    env/video/vgaemu.c Information
 
-  5.8.    Functions in env/video/n_vgaemu.c
+  5.8.    Functions in env/video/vgaemu.c
 
   5.8.1.  VGA_emulate_outb
 
@@ -174,9 +174,9 @@
 
   5.8.10. vga_emu_set_text_page
 
-  5.9.    env/video/n_vesa.c Information
+  5.9.    env/video/vesa.c Information
 
-  5.10.   Functions in env/video/n_vesa.c
+  5.10.   Functions in env/video/vesa.c
 
   5.10.1. vbe_init
 
@@ -270,17 +270,21 @@
 
   5.33.2. VGA_emulate_inb
 
-  5.33.3. vga_emu_fault(struct sigcontext_struct *scp)
+  5.33.3. vga_emu_fault
 
-  5.33.4. vga_emu_init(void)
+  5.33.4. vga_emu_init
 
-  5.33.5. int vgaemu_get_changes_in_pages
+  5.33.5. vga_emu_update
 
-  5.33.6. vgaemu_get_changes_and_update_XImage_0x13
+  5.33.6. vga_emu_switch_bank
 
-  5.33.7. vga_emu_switch_page(unsigned int pagenumber)
+  5.33.7. vga_emu_find_mode
 
-  5.33.8. get_vga_mode_info
+  5.33.8. vga_emu_setmode
+
+  5.33.9. dirty_all_video_pages
+
+  5.33.10.        vga_emu_set_text_page
 
   5.34.   include/vgaemu.h Information
 
@@ -831,9 +835,9 @@
 
      All signals that wish to be handled properly in context with the
      execution of vm86() mode, and signals that wish to use non-
-     reentrant functions should add themselves to the SIGNALS_THAT_QUEUE
-     define and use SETQSIG(). To that end they will also need to be set
-     up in an order such as SIGIO.
+     reentrant functions should add themselves to the
+     ADDSET_SIGNALS_THAT_QUEUE define and use SETQSIG(). To that end
+     they will also need to be set up in an order such as SIGIO.
 
   22..88..  RReemmaarrkkss iinn iinncclluuddee//eemmuu..hh
 
@@ -1025,6 +1029,7 @@
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
   terminating the client (and may be dosemu too :-)).
+
   44..22..44..  ddoo__ccppuu__eexxcceeppttiioonn
 
   This routine switches to the locked protected mode stack, disables
@@ -1128,7 +1133,6 @@
   mode segment register. And if client's data buffer is above 1MB,
   necessary buffer copying is performed. This function returns 1 if it
   does not need to go to real mode, otherwise returns 0.
-
   44..77..22..  mmssddooss__ppoosstt__eexxtteennddeerr
 
   This function is called after return from real mode DOS service All
@@ -1181,7 +1185,6 @@
   the page.  (this could happen 32000000 per second, if the CPU were
   fast enough) It would be better to get the DIRTY-bit directly from the
   page table, isn't it?  A special syscall in emumodule could do this.
-
   -----
 
   reserve_video_memory()
@@ -1191,14 +1194,14 @@
   setups, you can contribute by putting in the correct graphics page
   address values.
 
-  55..55..  eennvv//vviiddeeoo//nn__XX..cc IInnffoorrmmaattiioonn
+  55..55..  eennvv//vviiddeeoo//XX..cc IInnffoorrmmaattiioonn
 
   This module contains the video interface for the X Window System. It
   has mouse and selection 'cut' support.
 
-  55..66..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//nn__XX..cc
+  55..66..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//XX..cc
 
-  These are the functions defined in env/video/n_X.c.
+  These are the functions defined in env/video/X.c.
 
   55..66..11..  vvggaa225566__ccmmaapp__iinniitt
 
@@ -1257,7 +1260,7 @@
 
   +o  x,y - coordinates
 
-  55..77..  eennvv//vviiddeeoo//nn__vvggaaeemmuu..cc IInnffoorrmmaattiioonn
+  55..77..  eennvv//vviiddeeoo//vvggaaeemmuu..cc IInnffoorrmmaattiioonn
 
   The VGA emulator for DOSEmu.
 
@@ -1271,9 +1274,9 @@
   For an excellent reference to programming SVGA cards see Finn
   Thgersen's VGADOC4, available at http://www.datashopper.dk/ finth
 
-  55..88..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//nn__vvggaaeemmuu..cc
+  55..88..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vvggaaeemmuu..cc
 
-  These are the functions defined in env/video/n_vgaemu.c.
+  These are the functions defined in env/video/vgaemu.c.
 
   55..88..11..  VVGGAA__eemmuullaattee__oouuttbb
 
@@ -1421,16 +1424,16 @@
 
   +o  page_size - Size of one text page.
 
-  55..99..  eennvv//vviiddeeoo//nn__vveessaa..cc IInnffoorrmmaattiioonn
+  55..99..  eennvv//vviiddeeoo//vveessaa..cc IInnffoorrmmaattiioonn
 
   VESA BIOS Extensions for VGAEmu.
 
   Supported are VBE version 2.0, including a linear frame buffer and
   display power management support.
 
-  55..1100..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//nn__vveessaa..cc
+  55..1100..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vveessaa..cc
 
-  These are the functions defined in env/video/n_vesa.c.
+  These are the functions defined in env/video/vesa.c.
 
   55..1100..11..  vvbbee__iinniitt
 
@@ -1662,6 +1665,12 @@
 
   55..2277..  bbaassee//bbiiooss//iinntt1100..cc IInnffoorrmmaattiioonn
 
+  Video BIOS implementation.
+
+  This module handles the int10 video functions.  Most functions here
+  change only the video memory and status variables; the actual screen
+  is then rendered asynchronously after these by Video->update_screen.
+
   55..2288..  eennvv//vviiddeeoo//ss33..cc IInnffoorrmmaattiioonn
 
   55..2299..  eennvv//vviiddeeoo//tteerrmmiinnaall..cc IInnffoorrmmaattiioonn
@@ -1672,8 +1681,17 @@
 
   55..3322..  eennvv//vviiddeeoo//vvggaaeemmuu..cc IInnffoorrmmaattiioonn
 
-  The VGA emulator for dosemu. Emulated are the video meory and the VGA
-  register set (CRTC, DAC, etc.).
+  The VGA emulator for DOSEmu.
+
+  Emulated are the video memory and the VGA register set (CRTC, DAC,
+  etc.).  Parts of the hardware emulation is done in separate files
+  (attremu.c, crtcemu.c, dacemu.c and seqemu.c).
+
+  VGAEmu uses the video BIOS code in base/bios/int10.c and
+  env/video/vesa.c.
+
+  For an excellent reference to programming SVGA cards see Finn
+  Thgersen's VGADOC4, available at http://www.datashopper.dk/ finth
 
   55..3333..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vvggaaeemmuu..cc
 
@@ -1683,60 +1701,147 @@
 
   Emulates writes to VGA ports.  This is a hardware emulation function.
 
+  Arguments are:
+
+  +o  port  - The port being written to.
+
+  +o  value - The value written,
+
   55..3333..22..  VVGGAA__eemmuullaattee__iinnbb
 
   Emulates reads from VGA ports.  This is a hardware emulation function.
 
-  55..3333..33..  vvggaa__eemmuu__ffaauulltt((ssttrruucctt ssiiggccoonntteexxtt__ssttrruucctt **ssccpp))
+  Arguments are:
+
+  +o  port  - The port being read from.
+
+  55..3333..33..  vvggaa__eemmuu__ffaauulltt
 
   vga_emu_fault() is used to catch video access, and handle it.  This
-  function is called from dosemu/sigsegv.c:dosemu_fault() The
-  sigcontext_struct is defined in include/cpu.h Now it catches only
-  changes in a 4K page, but maybe it is useful to catch each video
+  function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
+  The sigcontext_struct is defined in include/cpu.h.  Now it catches
+  only changes in a 4K page, but maybe it is useful to catch each video
   access. The problem when you do that is, you have to simulate each
-  instruction which could write to the video-memory.  it is easy to get
+  instruction which could write to the video memory.  It is easy to get
   the place where the exception happens (scp->cr2), but what are those
   changes?  An other problem is, it could eat a lot of time, but it does
   now also.
 
-  55..3333..44..  vvggaa__eemmuu__iinniitt((vvooiidd))
+  Arguments are:
 
-  vga_emu_init() is used to emulate video.  This function is only called
-  from video/X.c at the moment.  This function has to set a global
-  variable to detect it in other functions it has to map the right
-  video-bank to the 0xA0000 adress.
+  +o  scp - A pointer to a struct sigcontext_struct holding some relevant
+     data.
 
-  55..3333..55..  iinntt vvggaaeemmuu__ggeett__cchhaannggeess__iinn__ppaaggeess
+  55..3333..44..  vvggaa__eemmuu__iinniitt
 
-  vgaemu_get_changes_in_pages() is used to get the changed 4K pages.
-  This function is only called from video/vgaemu.c .  It has to be
-  called several times to make sure we grab all the changed pages.
+  vga_emu_init() must be called before using the VGAEmu functions.  It
+  is only called from env/video/X.c::X_init() at the moment.  This
+  function basically initializes the global variable `vga' and allocates
+  the VGA memory.
 
-  should be updated for other video modes than 0x13
+  It does in particular *not* map any memory into the range 0xa0000 -
+  0xc0000, this is done as part of a VGA mode switch.
 
-  55..3333..66..  vvggaaeemmuu__ggeett__cchhaannggeess__aanndd__uuppddaattee__XXIImmaaggee__00xx1133
+  There should be an accompanying vga_emu_done().
 
-  vgaemu_get_changes() is used to get the changed area and update the
-  image.  This function is only called from video/X.c at the moment.  It
-  has to called several times to make sure grabbing all the changed
-  areas.
+  Arguments are:
 
-  This is only for mode 0x13: 256 colors
+  +o  vedt - Pointer to struct describing the type of display we are
+     actually
 
-  55..3333..77..  vvggaa__eemmuu__sswwiittcchh__ppaaggee((uunnssiiggnneedd iinntt ppaaggeennuummbbeerr))
+  +o  attached to.
 
-  vga_emu_switch_page() is used to emulate video-bankswitching.  This
-  function isn't called anywhere, but has to be used, with other
-  videomodes.  This function just remaps his 'own' memory into the
-  0xA000-0xB0000 area and returns True on success and False on error.
+  55..3333..55..  vvggaa__eemmuu__uuppddaattee
 
-  At the moment just a stupid function, but it is a start.  Jou must be
-  sure, you've got all changes before you switch a bank!
+  vga_emu_update() scans the VGA memory for dirty (= written to since
+  last update) pages and returns the changed area in *veut. See the
+  definition of vga_emu_update_type in env/video/vgaemu_inside.h for
+  details.
 
-  55..3333..88..  ggeett__vvggaa__mmooddee__iinnffoo
+  You will need to call this function repeatedly until it returns 0 to
+  grab all changes. You can specify an upper limit for the size of the
+  area that will be returned using `veut->max_max_len' and
+  `veut->max_len'.  See the example in env/video/X.c how this works.
 
-  Returns a pointer to the vga_mode_info structure for the requested
-  mode or NULL if an invalid mode was given.
+  If the return value of vga_emu_update() is >= 0, it is the number of
+  changed pages, -1 means there are still changed pages but the maximum
+  update chunk size (`veut->max_max_len') was exceeded.
+
+  This function does in its current form not work for Hercules modes; it
+  does, however work for text modes, although this feature is currently
+  not used.
+
+  Arguments are:
+
+  +o  veut - A pointer to a vga_emu_update_type object holding all
+     relevant info.
+
+  55..3333..66..  vvggaa__eemmuu__sswwiittcchh__bbaannkk
+
+  vga_emu_switch_bank() is used to emulate video-bankswitching.
+
+  This function returns True on success and False on error, usually
+  indicating an invalid bank number.
+
+  Arguments are:
+
+  +o  bank - The bank to switch to.
+
+  55..3333..77..  vvggaa__eemmuu__ffiinndd__mmooddee
+
+  Searches a video mode with the requested mode number.
+
+  The search starts with the mode *after* the mode `vmi' points to.  If
+  `vmi' == NULL, starts at the beginning of the internal mode table.
+  `mode' may be a standard VGA mode number (0 ... 0x7f) or a VESA mode
+  number (>= 0x100). The mode number may have its don't-clear-bit (bit 7
+  or bit 15) or its use-lfb-bit (bit 14) set.  The special mode number
+  -1 will match any mode and may be used to scan through the whole
+  table.
+
+  Returns NULL if no mode was found and a pointer into the mode table
+  otherwise. The returned pointer is a suitable argument for subsequent
+  calls to this function.
+
+  You should (and can) access the mode table only through this function.
+
+  Arguments are:
+
+  +o  mode   - video mode.
+
+  +o  vmi    - pointer into internal mode list
+
+  55..3333..88..  vvggaa__eemmuu__sseettmmooddee
+
+  Set a video mode.
+
+  Switches to `mode' with text sizes `width' and `height' or (if no such
+  mode was found) at least `width' and `height'.
+
+  Arguments are:
+
+  +o  mode   - The new video mode.
+
+  +o  width  - Number of text columns.
+
+  +o  height - Number of text rows.
+
+  55..3333..99..  ddiirrttyy__aallll__vviiddeeoo__ppaaggeess
+
+  Marks the whole VGA memory as modified.
+
+  55..3333..1100..  vvggaa__eemmuu__sseett__tteexxtt__ppaaggee
+
+  Set visible text page.
+
+  `vga.display_start' is set to `page' * `page_size'.  This function
+  works only in text modes.
+
+  Arguments are:
+
+  +o  page      - Number of the text page.
+
+  +o  page_size - Size of one text page.
 
   55..3344..  iinncclluuddee//vvggaaeemmuu..hh IInnffoorrmmaattiioonn
 
@@ -1811,7 +1916,6 @@
 
   This function is used if we are at the console and
   config.rawkeyboard=on.
-
   66..44..22..  ppuuttkkeeyy
 
   This does all the work of sending a key event to DOS.  scan  - the
@@ -1839,6 +1943,7 @@
   the appropriate shift key make/break codes that normally come along
   with such changes. This function is mostly intended for start-up
   shiftstate synchronisation.
+
   Note also that you can't simply write to the shiftstate variable
   instead of using this function.
 
@@ -1912,7 +2017,6 @@
   The amount of xms memory returned to DOS programs via the XMS
   requests, or int15 fnc88 is set in "/etc/dosemu.conf" via the XMS
   paramter.
-
   77..33..  bbaassee//aassyynncc//iinntt..cc IInnffoorrmmaattiioonn
 
   77..44..  FFuunnccttiioonnss iinn bbaassee//aassyynncc//iinntt..cc
@@ -2177,6 +2281,7 @@
   This code has been replaced by interrupt scheduling code in pic.  The
   result is that we simply call pic_sched and run the dos interrupt.  If
   the new code causes no problems, I'll revise this section permanently.
+
   77..1199..  bbaassee//ssppeeaakkeerr//ssppeeaakkeerr..cc IInnffoorrmmaattiioonn
 
   The pc-speaker emulator for Dosemu.
@@ -2298,7 +2403,6 @@
 
      Add file handle to one of 2 select FDS_SET's depending on whether
      the kernel can handle SIGIO.
-
   77..2266..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
 
   Arguments are:
@@ -2668,7 +2772,6 @@
   SER_DEBUG_HEAVY   (0 or 1) - super-heavy extra debug output, including
   all ports reads and writes, and every character received and
   transmitted!
-
   SER_DEBUG_INTERRUPT   (0 or 1) - additional debug output related to
   serial interrupt code, including flagging serial interrupts, or PIC-
   driven code.
@@ -3142,7 +3245,6 @@
   will remain queued.  Also, some programs fake an iret, so that it is
   possible for pic_iret to fail.  See pic_watch for the watchdog timer
   that catches and fixes this event.
-
   1122..22..1100..  ppiicc__wwaattcchh
 
   pic_watch is a watchdog timer for pending interrupts.  If pic_iret
@@ -3197,7 +3299,6 @@
   To assure proper repeat scheduling, pic_sched should be called from
   within the interrupt handler for the same interrupt.  The maximum
   interval is 15 minutes (0x3fffffff).
-
   1122..33..  RReemmaarrkkss iinn bbaassee//ddeevv//ppiicc//ppiicc..cc
 
   pic_push,pic_pop
@@ -3230,7 +3331,7 @@
   Alistair MacDonald  <alistair@slitesys.demon.co.uk>
   David Brauman  <crisk@netvision.net.il>
   Rutger Nijlunsing  <rutger@null.net>
-  Michael Karcher  <karcher@dpk.berlin.fidi.de>
+  Michael Karcher  <Michael.Karcher@writeme.com>
 
   1133..22..  FFuunnccttiioonnss iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
 
@@ -3328,15 +3429,7 @@
 
   -----
 
-  Write Silence is not implemented.
-
-  -----
-
-  Adlib register writes are unimplemented */
-
-  -----
-
-  Adlib data writes are unimplemented */
+  Adlib Waveform tests are unimplemented */
 
   -----
 
@@ -3376,7 +3469,7 @@
 
   Alistair MacDonald  <alistair@slitesys.demon.co.uk>
   David Brauman  <crisk@netvision.net.il>
-  Michael Karcher  <karcher@dpk.berlin.fido.de>
+  Michael Karcher  <Michael.Karcher@writeme.com>
 
   1133..66..  bbaassee//ddeevv//ddmmaa//ddmmaa..cc IInnffoorrmmaattiioonn
 
@@ -3576,7 +3669,6 @@
   valloc().  However, you can't free that memory later. For this purpose
   you may use the below functions, which are put on top of
   malloc()/free().
-
   void *page_malloc(size_t size)
 
   void page_free(void *ptr)

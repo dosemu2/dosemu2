@@ -69,9 +69,6 @@ while [ "$1" != "" ]; do
     linkstatic)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
       ;;
-    newx)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-X"; fi
-      ;;
     newxmouse)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-X-mouse"; fi
       ;;

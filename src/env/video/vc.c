@@ -258,8 +258,6 @@ set_dos_video (void)
   if (!config.vga)
     return;
 
-  v_printf ("Setting DOS video: gfx_mode: %d\n", gfx_mode);
-
   /* jesx */
   /* After all that fun up there, get permissions and save/restore states */
   if (video_initialized)

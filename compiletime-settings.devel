@@ -10,7 +10,6 @@ config {
   tmonoton on
   runasroot off
   linkstatic on
-  newx on
   newxmouse on
   newport on
   newcmos on

@@ -108,9 +108,7 @@
 #include "port.h"
 #include "dma.h"
 
-#ifdef NEW_X_CODE
 #include "vgaemu.h"
-#endif
 
 #ifdef __NetBSD__
 #define vm86_regs sigcontext
@@ -1804,7 +1802,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     D_printf("DPMI: unimplemented int31 func %#x\n",inumber);
     break;
 
-#if defined(NEW_X_CODE) && X_GRAPHICS
+#if X_GRAPHICS
   case 0x0800: {
       unsigned addr, size, lfb;
 

@@ -1,13 +1,33 @@
-/* this handles the int10 video functions.
-   Most functions here change only the video memory and status 
-   variables; the actual screen is then rendered asynchronously 
-   after these by Video->update_screen.
+/* 
+ * DANG_BEGIN_MODULE
+ *
+ * REMARK
+ * Video BIOS implementation.
+ *
+ * This module handles the int10 video functions.
+ * Most functions here change only the video memory and status 
+ * variables; the actual screen is then rendered asynchronously 
+ * after these by Video->update_screen.
+ *
+ * /REMARK
+ * DANG_END_MODULE
+ *
+ * DANG_BEGIN_CHANGELOG
+ *
+ * 5/24/95, Erik Mouw (J.A.K.Mouw@et.tudelft.nl) and 
+ * Arjan Filius (I.A.Filius@et.tudelft.nl)
+ * changed int10() to make graphics work with X.
+ *
+ * 1998/04/05: Put some work into set_video_mode() (made it
+ * more VGA comaptible) and removed new_set_video_mode().
+ * Removed (useless) global variable "gfx_mode".
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ *
+ * DANG_END_CHANGELOG
+ */
 
-  5/24/95, Erik Mouw (J.A.K.Mouw@et.tudelft.nl) and 
-  Arjan Filius (I.A.Filius@et.tudelft.nl)
-  changed int10() to make graphics work with X.
-*/
 
+#include <string.h>
 #include "config.h"
 
 #include "emu.h"
@@ -315,151 +335,49 @@ clear_screen(int s, int att)
 }
 
 
-/* XXX- shouldn't this reset the current video page to 0 ? 
-*/
-
-boolean set_video_mode(int mode) {
-  int type=0;
-  int old_video_mode,oldco;
-
-  v_printf("set_video_mode: mode = 0x%02x\n",mode);
-  
-  oldco = co;
-  old_video_mode = video_mode;
-  video_mode=mode&0x7f;
-
-  if (Video->setmode == 0)
-    { 
-      v_printf("video: no setmode handler!\n");
-      goto error;
-    }
-
-
-  switch (mode&0x7f) {
-  case 0x50:
-  case 0x51:
-  case 0x52:
-    co=80;
-    goto do_text_mode;
-  case 0x53:
-  case 0x54:
-  case 0x55:
-  case 0x56:
-  case 0x57:
-  case 0x58:
-  case 0x59:
-  case 0x5a:
-    co=132;
-    goto do_text_mode;
-  
-  case 0:
-  case 1:
-    /* 40 column modes... */
-    co=40;
-    goto do_text_mode;
-    
-  case 7:
-    /*
-     * This to be sure in case of older DOS programs probing HGC.
-     * There was no secure way to detect a HGC before VGA was invented.
-     * ( Now we can do INT 10, AX=1A00 ).
-     * Some older DOS programs do it by modifying EQUIP-flags
-     * and then let the BIOS say, if it can ?!?!)
-     * If we have config.dualmon, this happens legaly.
-     */
-#if USE_DUALMON
-    if (config.dualmon) {
-      type=7;
-      text_scanlines = 400;
-      vga_font_height=text_scanlines/25;
-    }
-#endif
-    /* fall through */
-     
-  case 2:
-  case 3:
-    /* set 80 column text mode */
-#if USE_DUALMON
-    WRITE_WORD(BIOS_SCREEN_COLUMNS, co = CO); /*80*/
-#else
-    co=80;
-#endif
-    
-do_text_mode:
-    gfx_mode = TEXT;	        /* we're in a text mode now */
-    clear_scroll_queue();
-
-    li=text_scanlines/vga_font_height;
-    if (li>MAX_LINES) li=MAX_LINES;
-    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
-    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
-    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-    Video->setmode(type,co,li);
-    /* mode change clears screen unless bit7 of AL set */
-    if (!(mode & 0x80))
-       clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
-
-    if ( config.cardtype == CARD_MDA )
-      mode = 7;
-       
-    break;
-
-#ifdef NEW_X_CODE
-case 0x0d:
-case 0x0e:
-case 0x10:
-case 0x12:
-#endif
-case 0x13:	/*Not finished ! */
-case 0x5c:
-case 0x5d:
-case 0x5e:
-case 0x62:
-  /* 0x01 == GRAPH for us, but now it's sure! */
-  if (Video->setmode != NULL)
-  Video->setmode(0x01,0,0);
-  break;
-
-  default:
-    /* handle graphics modes here */
-    v_printf("undefined video mode 0x%x\n", mode);
-  goto error;
-  }
-
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
-
-  if (oldco != co)
-    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
-  return 1;
-
-error:
-  /* don't change any state on failure */
-  video_mode = old_video_mode;
-  return 0;
-}    
-
-#if defined(NEW_X_CODE) && X_GRAPHICS
 /*
- * new_set_video_mode() is called to set a VESA mode as set_video_mode()
- * really has problems getting its job done.
+ * set_video_mode() accepts both (S)VGA and VESA mode numbers
+ * It should be fully compatible with the old set_video_mode()
+ * function.
+ * Note: bit 16 in "mode" is used internally to indicate that
+ * nothing should be done except adjusting the font size.
+ * -- 1998/04/04 sw
  */
 
-boolean new_set_video_mode(int mode) {
+boolean set_video_mode(int mode) {
   vga_mode_info *vmi;
   int clear_mem = 1;
+  int adjust_font_size = 0;
+
+  if(mode & (1 << 16)) {
+    adjust_font_size = 1;
+    mode &= ~(1 << 16);
+  }
 
   mode &= 0xffff;
 
-  v_printf("new_set_video_mode: mode = 0x%02x\n", mode);
+  if(mode != video_mode) adjust_font_size = 0;
+
+  v_printf("set_video_mode: mode = 0x%02x%s\n", mode, adjust_font_size ? " (adjust font size)" : "");
 
   if((vmi = vga_emu_find_mode(mode, NULL)) == NULL) {
-    v_printf("new_set_video_mode: undefined video mode\n");
+    v_printf("set_video_mode: undefined video mode\n");
     return 0;
   }
 
   if(Video->setmode == NULL) {
-    v_printf("new_set_video_mode: no setmode handler!\n");
+    v_printf("set_video_mode: no setmode handler!\n");
     return 0;
+  }
+
+  if(adjust_font_size) {
+    text_scanlines = vmi->height;
+    li = text_scanlines / vga_font_height;
+    if(li > MAX_LINES) li = MAX_LINES;
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    Video->setmode(vmi->mode_class, co, li);
+    return 1;
   }
 
   video_mode = mode;
@@ -475,27 +393,77 @@ boolean new_set_video_mode(int mode) {
 
   if(config.cardtype == CARD_MDA) video_mode = 7;
 
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+  /*
+   * We store the SVGA mode number (if possible) even when setting a VESA mode. -- sw
+   */
+  WRITE_BYTE(BIOS_VIDEO_MODE, vmi->mode & 0x7f);
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
 
   if(vmi->mode_class == TEXT) {
-    gfx_mode = TEXT;
     clear_scroll_queue();
-    if(clear_mem) clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
   }
 
   li = vmi->text_height;
   co = vmi->text_width;
   if(li > MAX_LINES) li = MAX_LINES;
+  vga_font_height = vmi->char_height;
+  text_scanlines = vmi->height;
+
   WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
   WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
-  WRITE_WORD(BIOS_FONT_HEIGHT, vmi->char_height);
+  WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+
+#if USE_DUALMON
+  /*
+   * The following code (& comment) is taken literally
+   * from the old set_video_mode(). Don't know what it's
+   * for (or if it works). -- 1998/04/04 sw 
+   */
+
+  /*
+   * This to be sure in case of older DOS programs probing HGC.
+   * There was no secure way to detect a HGC before VGA was invented.
+   * ( Now we can do INT 10, AX=1A00 ).
+   * Some older DOS programs do it by modifying EQUIP-flags
+   * and then let the BIOS say, if it can ?!?!)
+   * If we have config.dualmon, this happens legaly.
+   */
+  if(config.dualmon)
+    Video->setmode(7, co, li);
+  else
+#endif
+
+  /* setmode needs video_mode to _still have_ the memory-clear bit -- sw */
   Video->setmode(vmi->mode_class, co, li);
 
-  if(clear_mem && vmi->mode_class == TEXT) clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
+  /*
+   * video_mode is expected to be the mode number _without_ the
+   * memory-clear bit
+   * -- sw
+   */
+  video_mode = mode;
+
+  if(clear_mem && vmi->mode_class == TEXT) clear_screen(0, 7);
+
+  WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
+  memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
+
+  video_page = 0;
+  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
+  screen_adr = SCREEN_ADR(0);
+  screen_mask = 0;
+  cursor_col = get_bios_cursor_x_position(0);
+  cursor_row = get_bios_cursor_y_position(0);
+
+  /*
+   * There are still some BIOS variables that need to be updated.
+   * (cursor shape, CRTC address...)
+   * -- sw
+   */
 
   return 1;
 }    
-#endif
+
 
 /******************************************************************/
 
@@ -603,11 +571,7 @@ void int10()
       }
       if (config.console_video) set_vc_screen_page(page);
 #if X_GRAPHICS
-#ifdef NEW_X_CODE
       if (config.X) vga_emu_set_text_page(page, TEXT_SIZE);
-#else
-      if (config.X) set_vgaemu_page(page);      /*root@sjoerd*/
-#endif
 #endif
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
@@ -904,7 +868,7 @@ void int10()
 	
       more_lines:
 	{
-	  if (!set_video_mode(video_mode | 0x80)) 
+	  if(!set_video_mode(video_mode | (1 << 16))) 
 	    {
 	      li = old_li; /* not that it changed */
 	      vga_font_height = old_font_height;
