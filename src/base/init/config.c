@@ -109,6 +109,8 @@ config_defaults(void)
     config.hogthreshold = 10;	/* bad estimate of a good garrot value */
     config.chipset = PLAINVGA;
     config.cardtype = CARD_VGA;
+    config.pci = 0;
+    config.pci_video = 0;
     config.fullrestore = 0;
     config.graphics = 0;
     config.gfxmemsize = 256;

@@ -36,6 +36,8 @@ static struct {
   void       (*write_portb)(Bit32u port_addr, Bit8u byte);
   Bit16u     (*read_portw)(Bit32u port_addr);
   void       (*write_portw)(Bit32u port_addr, Bit16u word);
+  Bit32u     (*read_portd)(Bit32u port_addr);
+  void       (*write_portd)(Bit32u port_addr, Bit32u word);
   const char  *handler_name;
   int          irq;
 } port_handler[EMU_MAX_IO_DEVICES];
@@ -282,6 +284,16 @@ void port_init(void)
 {
   int i;
 
+  /* set all elements to default values */
+  for (i=0; i < MAX_IO_DEVICES; i++) {
+    port_handler[i].read_portb   = NULL;
+    port_handler[i].write_portb  = NULL;
+    port_handler[i].read_portw   = NULL;
+    port_handler[i].write_portw  = NULL;
+    port_handler[i].read_portd   = NULL;
+    port_handler[i].write_portd  = NULL;
+  }
+
   /* handle 0 maps to the unmapped IO device handler.  Basically any
      ports which don't map to any other device get mapped to this
      handler which does absolutely nothing.
@@ -315,14 +327,6 @@ void port_init(void)
   port_handler[3].irq            = EMU_NO_IRQ;
 
   port_handles = 4;
-
-  /* set unused elements to appropriate values */
-  for (i=port_handles; i < MAX_IO_DEVICES; i++) {
-    port_handler[i].read_portb   = NULL;
-    port_handler[i].write_portb  = NULL;
-    port_handler[i].read_portw   = NULL;
-    port_handler[i].write_portw  = NULL;
-  }
 
   for (i=0; i < 0x10000; i++)
     port_handler_id[i] = 0;  /* unmapped IO handle */
@@ -366,6 +370,8 @@ void port_register_handler(emu_iodev_t device)
     port_handler[handle].write_portb    = device.write_portb;
     port_handler[handle].read_portw     = device.read_portw;
     port_handler[handle].write_portw    = device.write_portw;
+    port_handler[handle].read_portd     = device.read_portd;
+    port_handler[handle].write_portd    = device.write_portd;
     port_handler[handle].handler_name   = device.handler_name;
     port_handler[handle].irq            = device.irq;
   }

@@ -1,3 +1,19 @@
+97/09/16 ver. 0.67.10.1 unofficial pre-release
+	From Uwe
+	- fixing ./configure VERSION problem with textutils < 1.19
+	- 'nicer' warning in Top-Makefile ;-)
+	From Eric, Larry, Alberto  (all agree with this ;-)
+	- disable 'could be dangerous' run_irqs() in base/dev/misc/timers.c
+	From Alberto
+	- Makefile.main: 'base/' missing before a 'data.o
+	- speed up compilation of debugger/dis8086.c by uninlining a function
+	- fix internaldriver for MouseSystems mouse.
+	- parser.y: if user says '/dev/mouse', trust him and set the mouse flag
+	- added pci driver, keyword PCI in /etc/dosemu.conf
+	- changes to  32-bit port access.
+	- Matrox driver updates
+	- WDvga(Paradise) support
+	- updates to vc.c for Matrox and WDvga
 97/09/12 ver. 0.67.10 released
 	From ramon@juguete.quim.ucm.es
 	- gnats report misc/58, fixing:

@@ -189,7 +189,7 @@ static INLINE unsigned int   resolva (unsigned int addr)
    return(addr);
 }
 
-static INLINE const unsigned char *mod_rm(FILE *out, const unsigned char *code,
+static const unsigned char *mod_rm(FILE *out, const unsigned char *code,
 					  const char *seg, const char **regs,
 					  int addr32)
 {

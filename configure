@@ -3264,6 +3264,10 @@ VERSION="`cut -d. -f1 VERSION`"
 SUBLEVEL="`cut -d. -f2 VERSION`"
 PATCHLEVEL="`cut -d. -f3 VERSION`"
 PATCHLEVEL_="`cut -d. -f4 VERSION`"
+if test "VERSION" = "PATCHLEVEL_"; then
+  echo "you should upgrade your textutils to atleast version 1.19"
+  PATCHLEVEL_=""
+fi
 if test "$PATCHLEVEL_" = ""; then
   PATCHLEVEL_=0
 fi
@@ -3459,7 +3463,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lgus  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3463 "configure"
+#line 3467 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3471,7 +3475,7 @@ int t() {
 gus_close()
 ; return 0; }
 EOF
-if { (eval echo configure:3475: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3479: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else

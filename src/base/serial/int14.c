@@ -99,8 +99,11 @@ void int14(u_char ii)
    */
   if ((com[num].mouse) && mice->intdrv) {
     if ((com[num].mouse < 2) && (HI(ax)==0)) {
-	LO(ax)=0x82;	/* 1200 7N1 */
-	com[num].mouse++;
+	if ((mice->flags & CS8) == CS8)	/* linux/include/asm/termbits.h */
+	  LO(ax)=0x83;		/* 1200 8N1 */
+	else
+	  LO(ax)=0x82;		/* Microsoft: 1200 7N1 */
+	com[num].mouse++;	/* flag as already done */
     }
     else return;
   }

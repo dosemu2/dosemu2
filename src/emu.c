@@ -121,6 +121,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "pic.h"
 #include "dpmi.h"
 #include "priv.h"   /* for priv_init */
+#include "pci.h"
 #ifdef __NetBSD__
 #include <setjmp.h>
 #endif
@@ -406,6 +407,7 @@ emulate(int argc, char **argv)
     signal_init();		/* initialize sig's & sig handlers */
     device_init();		/* initialize keyboard, disk, video, etc. */
     cpu_setup();		/* setup the CPU */
+    pci_setup();
     hardware_setup();		/* setup any hardware */
     memory_init();		/* initialize the memory contents */
     boot();			/* read the boot sector & get moving */

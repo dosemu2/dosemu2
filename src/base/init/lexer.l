@@ -309,15 +309,18 @@ vbios_seg		RETURN(VBIOS_SEG);
 vbios_size		RETURN(VBIOS_SIZE_TOK);
 dualmon			RETURN(DUALMON);
 forcevtswitch		RETURN(FORCE_VT_SWITCH);
-plainvga		MAY_BE { yylval->i_value = 0; return(CHIPSET_TYPE); }
-trident			MAY_BE { yylval->i_value = 1; return(CHIPSET_TYPE); }
-et4000			MAY_BE { yylval->i_value = 2; return(CHIPSET_TYPE); }
-diamond			MAY_BE { yylval->i_value = 3; return(CHIPSET_TYPE); }
-s3			MAY_BE { yylval->i_value = 4; return(CHIPSET_TYPE); }
-avance			MAY_BE { yylval->i_value = 5; return(CHIPSET_TYPE); }
-ati			MAY_BE { yylval->i_value = 6; return(CHIPSET_TYPE); }
-cirrus			MAY_BE { yylval->i_value = 7; return(CHIPSET_TYPE); }
-matrox			MAY_BE { yylval->i_value = 8; return(CHIPSET_TYPE); }
+pci			RETURN(PCI);
+plainvga		MAY_BE { yylval->i_value = PLAINVGA; return(CHIPSET_TYPE); }
+trident			MAY_BE { yylval->i_value = TRIDENT; return(CHIPSET_TYPE); }
+et4000			MAY_BE { yylval->i_value = ET4000; return(CHIPSET_TYPE); }
+diamond			MAY_BE { yylval->i_value = DIAMOND; return(CHIPSET_TYPE); }
+s3			MAY_BE { yylval->i_value = S3; return(CHIPSET_TYPE); }
+avance			MAY_BE { yylval->i_value = AVANCE; return(CHIPSET_TYPE); }
+ati			MAY_BE { yylval->i_value = ATI; return(CHIPSET_TYPE); }
+cirrus			MAY_BE { yylval->i_value = CIRRUS; return(CHIPSET_TYPE); }
+matrox			MAY_BE { yylval->i_value = MATROX; return(CHIPSET_TYPE); }
+wdvga			MAY_BE { yylval->i_value = WDVGA; return(CHIPSET_TYPE); }
+paradise		MAY_BE { yylval->i_value = WDVGA; return(CHIPSET_TYPE); }
 
 	/* xwindows stuff */
 

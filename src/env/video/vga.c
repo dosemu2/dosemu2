@@ -21,6 +21,7 @@
 #include "avance.h"
 #include "cirrus.h"
 #include "matrox.h"
+#include "wdvga.h"
 #if 0
 #include "hgc.h"
 #endif
@@ -467,6 +468,14 @@ int vga_initialize(void)
   dosemu_regs.mem = NULL;
   get_perm();
 
+  /* defaults to override */
+  save_ext_regs = save_ext_regs_dummy;
+  restore_ext_regs = restore_ext_regs_dummy;
+  set_bank_read = set_bank_read_dummy;
+  set_bank_write = set_bank_write_dummy;
+  ext_video_port_in = dummy_ext_video_port_in;
+  ext_video_port_out = dummy_ext_video_port_out;
+
   switch (config.chipset) {
   case TRIDENT:
     vga_init_trident();
@@ -495,15 +504,13 @@ int vga_initialize(void)
   case MATROX:
     vga_init_matrox();
     v_printf("Matrox CARD in use\n");
-    /* no break */
+    break;
+  case WDVGA:
+    vga_init_wd();
+    v_printf("Paradise CARD in use\n");
+    break;
 
   default:
-    save_ext_regs = save_ext_regs_dummy;
-    restore_ext_regs = restore_ext_regs_dummy;
-    set_bank_read = set_bank_read_dummy;
-    set_bank_write = set_bank_write_dummy;
-    ext_video_port_in = dummy_ext_video_port_in;
-    ext_video_port_out = dummy_ext_video_port_out;
     v_printf("Unspecific VIDEO selected = 0x%04x\n", config.chipset);
   }
 

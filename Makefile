@@ -30,7 +30,7 @@ ifeq "$(shell if test -f Makefile.conf; then echo 1; else echo 0;fi)" "0"
 # we do it ourselves and then invoke make with the proper target
 #
 default .DEFAULT:
-	@echo "You forgot to run ./default-configure, doing it now"
+	@echo "You choose not to run ./default-configure, doing it now"
 	./default-configure
 	@echo "Now resuming make"
 	@$(MAKE) $@

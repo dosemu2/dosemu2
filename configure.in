@@ -314,6 +314,11 @@ VERSION="`cut -d. -f1 VERSION`"
 SUBLEVEL="`cut -d. -f2 VERSION`"
 PATCHLEVEL="`cut -d. -f3 VERSION`"
 PATCHLEVEL_="`cut -d. -f4 VERSION`"
+if test "VERSION" = "PATCHLEVEL_"; then
+dnl need to workaround old buggy textutils
+  echo "you should upgrade your textutils to atleast version 1.19"
+  PATCHLEVEL_=""
+fi
 if test "$PATCHLEVEL_" = ""; then
   PATCHLEVEL_=0
 fi

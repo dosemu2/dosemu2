@@ -374,6 +374,8 @@ typedef struct vesamode_type_struct {
        boolean X;
        u_short cardtype;
        u_short chipset;
+       boolean pci;
+       boolean pci_video;
        u_short gfxmemsize;		/* for SVGA card, in K */
        /* u_short term_method; */	/* Terminal method: ANSI or NCURSES */
        u_short term_color;		/* Terminal color support on or off */

@@ -3,7 +3,7 @@
 #  src/base/misc/timers.c -> ../dev/misc/timers.c
 
 
-CFILES=cmos.c timers.c lpt.c rtc.c
+CFILES=cmos.c timers.c lpt.c rtc.c pci.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

@@ -34,6 +34,8 @@ typedef struct {
   void          (* write_portb)(Bit32u port, Bit8u byte);
   Bit16u        (* read_portw)(Bit32u port);
   void          (* write_portw)(Bit32u port, Bit16u word);
+  Bit32u        (* read_portd)(Bit32u port);
+  void          (* write_portd)(Bit32u port, Bit32u word);
   const char    *handler_name;
   Bit32u        start_addr;
   Bit32u        end_addr;
@@ -67,6 +69,19 @@ static __inline__ Bit16u port_real_inw(Bit16u port)
   return _v;
 }
 
+static __inline__ void port_real_outd(Bit16u port, Bit32u value)
+{
+  __asm__ __volatile__ ("outl %0,%1" : : "a" (value),
+		"d" (port));
+}
+
+static __inline__ Bit32u port_real_ind(Bit16u port)
+{
+  unsigned int _v;
+  __asm__ __volatile__ ("inl %1,%0":"=a" (_v) : "d" (port));
+  return _v;
+}
+
 
 static __inline__ void port_out(Bit8u value, Bit32u port)
 {
@@ -92,19 +107,6 @@ static __inline__ Bit16u port_in_w(Bit32u port)
 {
   Bit16u _v;
   __asm__("inw %1,%0":"=a" (_v) : "d" ((Bit16u) port));
-  return _v;
-}
-
-static __inline__ void port_out_d(Bit32u value, Bit32u port)
-{
-  __asm__("outl %0,%1" :: "a" ((Bit32u) value),
-		"d" ((Bit16u) port));
-}
-
-static __inline__ Bit32u port_in_d(Bit32u port)
-{
-  Bit32u _v;
-  __asm__("inl %1,%0":"=a" (_v) : "d" ((Bit16u) port));
   return _v;
 }
 

@@ -379,10 +379,10 @@ unsigned int
 ind(int port)
 {
   int v;
-  if ((config.chipset == MATROX) && (port & 0xfc00)) {
+  if (config.pci && (port >= 0xcf8) && (port < 0xd00)) {
     enter_priv_on();
     iopl(3);
-    v=port_in_d(port);
+    v=port_real_ind(port);
     iopl(0);
     leave_priv_setting();
     return v;
@@ -689,10 +689,10 @@ void
 outd(unsigned int port, unsigned int value)
 {
   port &= 0xffff;
-  if ((config.chipset == MATROX) && (port & 0xfc00)) {
+  if (config.pci && (port >= 0xcf8) && (port < 0xd00)) {
     enter_priv_on();
     iopl(3);
-    port_out_d(value, port);
+    port_real_outd(port, value);
     iopl(0);
     leave_priv_setting();
     return;

@@ -284,7 +284,7 @@ static void pit_latch(int latch)
 	if (((pic_itime[PIC_IRQ0]-pic_sys_time) < 0) && ((p->mode&0x40)==0)) {
 	  r_printf("PIT: pit_latch, pic_request IRQ0 mode 2/3\n");
 	  pic_request(PIC_IRQ0);
-#if 1	/* could be dangerous IMHO - AV */
+#if 0	/* could be dangerous IMHO - AV */
 	  run_irqs();
 #endif
 	}

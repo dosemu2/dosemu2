@@ -201,7 +201,7 @@ dos.o: include/config.h
 x2dos.o: include/config.h x2dos.c
 	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
-DOSSTATICFILES = dosstatic.c emu.o data.o base/bios/bios.o env/video/vesabios.o
+DOSSTATICFILES = dosstatic.c emu.o base/data.o base/bios/bios.o env/video/vesabios.o
 
 dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \

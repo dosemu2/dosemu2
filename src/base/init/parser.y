@@ -202,7 +202,7 @@ extern void yyrestart(FILE *input_file);
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
-%token FORCE_VT_SWITCH
+%token FORCE_VT_SWITCH PCI
 	/* terminal */
 %token UPDATEFREQ UPDATELINES COLOR ESCCHAR
 /* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
@@ -286,6 +286,10 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
 			}}
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
+		| PCI bool
+		    {
+		    config.pci = ($2!=0);
+		    }
 		| BOOTA
                     { IFCLASS(CL_BOOT){
 		      if (priv_lvl)
@@ -337,7 +341,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| ALLOWVIDEOPORT bool
 		    { IFCLASS(CL_VPORT){
 		    if ($2 && !config.allowvideoportaccess && priv_lvl)
-		      yyerror("Can not enable video port access in use config file");
+		      yyerror("Can not enable video port access in user config file");
 		    config.allowvideoportaccess = $2;
 		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
 		    }}
@@ -564,6 +568,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		    {
 		    config.chipset = $2;
                     c_printf("CHIPSET: %d\n", $2);
+		    if ($2==MATROX) config.pci=config.pci_video=1;
 		    }
 		| MEMSIZE INTEGER	{ config.gfxmemsize = $2; }
 		| GRAPHICS		{ config.vga = 1; }
@@ -601,6 +606,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		   }
 		| DUALMON		{ config.dualmon = 1; }
 		| FORCE_VT_SWITCH	{ config.force_vt_switch = 1; }
+		| PCI			{ config.pci_video = 1; }
 		| STRING
 		    { yyerror("unrecognized video option '%s'", $1);
 		      free($1); }
@@ -696,7 +702,8 @@ mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); free($2); }
 		| MOUSESYSTEMS
 		  {
 		  mptr->type = MOUSE_MOUSESYSTEMS;
-		  mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL;
+		  mptr->flags = CS8 | CREAD | CLOCAL | HUPCL;
+/* is cstopb needed?  mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL; */
 		  }
 		| MMSERIES
 		  {
@@ -766,7 +773,9 @@ ttylocks_flag	: DIRECTORY STRING	{ config.tty_lockdir = $2; }
 serial_flags	: serial_flag
 		| serial_flags serial_flag
 		;
-serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2); free($2); }
+serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2);
+					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1;
+					  free($2); }
 		| COM INTEGER		{ sptr->real_comport = $2;
 					  com_port_used[$2] = 1; }
 		| BASE INTEGER		{ sptr->base_port = $2; }
