@@ -271,7 +271,7 @@ static int is_in_allowed_classes(int mask);
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH ATAPI READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
 	/* ports/io */
-%token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST
+%token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST SLOW
 	/* Silly interrupts */
 %token SILLYINT USE_SIGIO
 	/* hardware ram mapping */
@@ -1415,32 +1415,32 @@ port_flags	: port_flag
 port_flag	: INTEGER
 	           {
 	           allow_io($1, 1, ports_permission, ports_ormask,
-	                    ports_andmask,portspeed?1:0, (char*)dev_name);
-		   if (portspeed) portspeed++;
+	                    ports_andmask, portspeed, (char*)dev_name);
+		   if (abs(portspeed)) portspeed += ((portspeed>0) ? 1 : -1);
 	           }
 		| '(' expression ')'
 	           {
 	           allow_io($2, 1, ports_permission, ports_ormask,
-	                    ports_andmask,portspeed?1:0, (char*)dev_name);
-		   if (portspeed) portspeed++;
+	                    ports_andmask, portspeed, (char*)dev_name);
+		   if (abs(portspeed)) portspeed += ((portspeed>0) ? 1 : -1);
 	           }
 		| RANGE INTEGER INTEGER
 		   {
-		   if (portspeed > 1) portspeed=0;
+		   if (abs(portspeed) > 1) portspeed = 0;
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$3);
 		   allow_io($2, $3 - $2 + 1, ports_permission, ports_ormask,
-			    ports_andmask, portspeed?1:0, (char*)dev_name);
+			    ports_andmask, portspeed, (char*)dev_name);
 		   portspeed=0;
 		   strcpy(dev_name,"");
 		   }
 		| RANGE expression ',' expression
 		   {
-		   if (portspeed > 1) portspeed=0;
+		   if (abs(portspeed) > 1) portspeed = 0;
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$4);
 		   allow_io($2, $4 - $2 + 1, ports_permission, ports_ormask,
-			    ports_andmask, portspeed?1:0, (char*)dev_name);
+			    ports_andmask, portspeed, (char*)dev_name);
 		   portspeed=0;
 		   strcpy(dev_name,"");
 		   }
@@ -1450,6 +1450,7 @@ port_flag	: INTEGER
 		| ORMASK expression	{ ports_ormask = $2; }
 		| ANDMASK expression	{ ports_andmask = $2; }
                 | FAST	                { portspeed = 1; }
+                | SLOW	                { portspeed = -1; }
                 | DEVICE string_expr         { strcpy(dev_name,$2); free($2); } 
 		| STRING
 		    { yyerror("unrecognized port command '%s'", $1);

@@ -58,6 +58,7 @@ _port_handler port_handler[EMU_MAX_IO_DEVICES];
 unsigned char port_handle_table[0x10000];
 unsigned char port_andmask[0x10000];
 unsigned char port_ormask[0x10000];
+unsigned char portfast_map[0x10000/8];
 pid_t portserver_pid = 0;
 
 static unsigned char port_handles;	/* number of io_handler's */
@@ -130,7 +131,6 @@ void init_port_traceing(void)
 {
   if (portlog_map) return;
   clear_port_traceing();
-  register_port_traceing(0x0, 0xffff);
 }
 
 #define TT_printf(p,f,v,m) ({ \
@@ -996,6 +996,17 @@ int extra_port_init(void)
 	  }
 	}
 
+	/* switch off ioperm for $_ports that are traced and not forced fast */
+	for (i = 0; i < sizeof(port_handle_table); i++) {
+		if (test_bit(i, portfast_map)) clear_bit(i, portlog_map);
+		if (test_bit(i, portlog_map) &&
+		    port_handle_table[i] >= HANDLE_STD_IO &&
+		    port_handle_table[i] <= HANDLE_STD_WR) {
+			set_ioperm(i, 1, 0);
+			i_printf ("PORT: switched off ioperm for traced port 0x%x\n", i);
+		}
+	}
+
         if (can_do_root_stuff) {
                 for (i = 0; i < sizeof(port_handle_table); i++) {
                         if (config.pci || config.speaker == SPKR_NATIVE || (
@@ -1119,6 +1130,8 @@ int port_register_handler(emu_iodev_t device, int flags)
 		return 4;
 	}
 	port_handle_table[i] = handle;
+	if (flags & PORT_FORCE_FAST) /* force fast, no tracing allowed */
+		set_bit(i, portfast_map);
     }
 
     i_printf("PORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x] fd=%d\n",
@@ -1144,7 +1157,7 @@ int port_register_handler(emu_iodev_t device, int flags)
  * SIDOC_END_FUNCTION
  */
 Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
-	Bit8u andmask, unsigned int flags, char *device)
+	Bit8u andmask, int portspeed, char *device)
 {
 	static emu_iodev_t io_device;
 	FILE *fp;
@@ -1153,6 +1166,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	unsigned char mapped;
 	char *devrname;
 	int fd, usemasks = 0;
+	unsigned int flags = 0;
 
         if (!can_do_root_stuff)
                 return FALSE;
@@ -1275,6 +1289,11 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	if (usemasks) {
 		port_andmask[start] = andmask;
 		port_ormask[start] = ormask;
+	}
+	if (portspeed >= 0) {
+		flags |= PORT_FAST;
+		if (portspeed > 0)
+			flags |= PORT_FORCE_FAST;
 	}
 	port_register_handler(io_device, flags);
 	return TRUE;

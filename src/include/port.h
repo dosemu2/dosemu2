@@ -183,12 +183,12 @@ extern pid_t portserver_pid;
 #define PORT_FAST	1
 #define PORT_DEV_RD	2
 #define PORT_DEV_WR	4
+#define PORT_FORCE_FAST	8
 
 
 extern int     port_init(void);
 extern int     port_register_handler(emu_iodev_t info, int);
-extern Boolean port_allow_io(ioport_t, Bit16u, int, Bit8u, Bit8u, unsigned int,
-	char *);
+extern Boolean port_allow_io(ioport_t, Bit16u, int, Bit8u, Bit8u, int, char *);
 extern int     set_ioperm(int start, int size, int flag);
 
 extern void init_port_traceing(void);
