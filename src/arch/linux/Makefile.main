@@ -70,8 +70,6 @@ default: version include/confpath.h doslib \
 	@echo >> ../etc/xinstallvgafont
 	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
-${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}: $(LIBSUBDIRS)
-
 emu.o: emu.c
 
 $(BINPATH)/bin/$(DOSBIN): emu.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
@@ -92,12 +90,16 @@ $(BINPATH)/bin/dosemu: $(REALTOPDIR)/dist/dosemu
 	              $(REALTOPDIR)/dist/dosemu > $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
 
-dosemu: $(LIBSUBDIRS) $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
+bin: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 
-dosemu_script: $(BINPATH)/bin/dosemu
+# This recursive call seems to be necessary to deal with parallel makes.
+# Otherwise the rule for $(DOSBIN) would depend on a phony target, and
+# this does not seem to be supported by GNU Make.
+dosemu: $(LIBSUBDIRS)
+	@$(MAKE) bin
 
 DIRLIST=$(REQUIRED) $(DOCS) $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
-.PHONY:	dossubdirs optionalsubdirs docsubdirs
+.PHONY:	dossubdirs optionalsubdirs docsubdirs dosemu bin
 .PHONY: $(DIRLIST)
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
