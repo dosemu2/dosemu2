@@ -2122,7 +2122,7 @@ void dpmi_realmode_callback(int rmcb_client, int num)
     if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
       PMSTACK_ESP = client_esp(0);
     else
-      PMSTACK_ESP = DPMI_pm_stack_size;
+      PMSTACK_ESP = D_16_32(DPMI_pm_stack_size);
 
     if (PMSTACK_ESP < 100) {
       error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
@@ -2140,19 +2140,19 @@ void dpmi_realmode_callback(int rmcb_client, int num)
 	*--ssp = (us) 0;
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
-	PMSTACK_ESP -= 12;
+	ADD_16_32(PMSTACK_ESP, -12);
     } else {
 	*--ssp = (unsigned short) DPMI_CLIENT.stack_frame.eflags;
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
-	PMSTACK_ESP -= 6;
+	ADD_16_32(PMSTACK_ESP, -6);
     }
     DPMI_CLIENT.stack_frame.cs =
 	DPMIclient[rmcb_client].realModeCallBack[num].selector;
     DPMI_CLIENT.stack_frame.eip =
 	DPMIclient[rmcb_client].realModeCallBack[num].offset;
     DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
-    DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
+    DPMI_CLIENT.stack_frame.esp = D_16_32(PMSTACK_ESP);
     in_dpmi_pm_stack++;
     SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
 		(REG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
@@ -2336,7 +2336,7 @@ void run_pm_int(int i)
   if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
     PMSTACK_ESP = client_esp(0);
   else
-    PMSTACK_ESP = DPMI_pm_stack_size;
+    PMSTACK_ESP = D_16_32(DPMI_pm_stack_size);
 
   if (PMSTACK_ESP < 100) {
       error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
@@ -2370,7 +2370,7 @@ void run_pm_int(int i)
     *--ssp = (us) 0;
     *--ssp = DPMI_CLIENT.DPMI_SEL;
     ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    PMSTACK_ESP -= 36;
+    ADD_16_32(PMSTACK_ESP, -36);
   } else {
     *--ssp = (unsigned short) in_dpmi_dos_int;
     *--ssp = DPMI_CLIENT.stack_frame.ss;
@@ -2381,12 +2381,12 @@ void run_pm_int(int i)
     *--ssp = (unsigned short) DPMI_CLIENT.stack_frame.eflags;
     *--ssp = DPMI_CLIENT.DPMI_SEL; 
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_pm);
-    PMSTACK_ESP -= 18;
+    ADD_16_32(PMSTACK_ESP, -18);
   }
   DPMI_CLIENT.stack_frame.cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
-  DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
+  DPMI_CLIENT.stack_frame.esp = D_16_32(PMSTACK_ESP);
   DPMI_CLIENT.stack_frame.eflags &= ~(TF | NT | AC);
   in_dpmi_pm_stack++;
   in_dpmi_dos_int = 0;
@@ -2816,7 +2816,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   if (_ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
     PMSTACK_ESP = client_esp(scp);
   else
-    PMSTACK_ESP = DPMI_pm_stack_size;
+    PMSTACK_ESP = D_16_32(DPMI_pm_stack_size);
 
   if (PMSTACK_ESP < 100) {
       error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
@@ -2881,13 +2881,13 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     *--ssp = DPMI_CLIENT.DPMI_SEL; 
     *--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_exception);
   }
-  PMSTACK_ESP -= 0x58;
+  ADD_16_32(PMSTACK_ESP, -0x58);
 
   _cs = DPMI_CLIENT.Exception_Table[_trapno].selector;
   _eip = DPMI_CLIENT.Exception_Table[_trapno].offset;
   D_printf("DPMI: Exception Table jump to %04x:%08lx\n",_cs,_eip);
   _ss = CLIENT_PMSTACK_SEL;
-  _esp = PMSTACK_ESP;
+  _esp = D_16_32(PMSTACK_ESP);
   in_dpmi_pm_stack++;
   dpmi_cli();
   _eflags &= ~(TF | NT | AC);
@@ -3837,7 +3837,7 @@ done:
     if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
       PMSTACK_ESP = client_esp(0);
     else
-      PMSTACK_ESP = DPMI_pm_stack_size;
+      PMSTACK_ESP = D_16_32(DPMI_pm_stack_size);
 
     if (PMSTACK_ESP < 100) {
       error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
@@ -3851,15 +3851,15 @@ done:
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	ssp -= 2, *((unsigned long *) ssp) =
 	     DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	PMSTACK_ESP -= 8;
+	ADD_16_32(PMSTACK_ESP, -8);
     } else {
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
-	PMSTACK_ESP -= 4;
+	ADD_16_32(PMSTACK_ESP, -4);
     }
     DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
     DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
-    DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
+    DPMI_CLIENT.stack_frame.esp = D_16_32(PMSTACK_ESP);
     in_dpmi_pm_stack++;
     dpmi_cli();
     in_dpmi_dos_int = 0;

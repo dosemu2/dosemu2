@@ -17,7 +17,7 @@
 
 #define DPMI_page_size		4096	/* 4096 bytes per page */
 
-#define DPMI_pm_stack_size	0x1000	/* locked protected mode stack for exceptions, */
+#define DPMI_pm_stack_size	0xf000	/* locked protected mode stack for exceptions, */
 					/* hardware interrupts, software interrups 0x1c, */
 					/* 0x23, 0x24 and real mode callbacks */
 
@@ -36,6 +36,7 @@
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
 
 #define D_16_32(reg)		(DPMI_CLIENT.is_32 ? reg : reg & 0xffff)
+#define ADD_16_32(acc, val)	{ if (DPMI_CLIENT.is_32) acc+=val; else LO_WORD(acc)+=val; }
 
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 /* to align the pointer to the (next) page boundary */
