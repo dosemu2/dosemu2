@@ -3004,24 +3004,24 @@ void dpmi_fault(struct sigcontext_struct *scp)
   us *ssp;
   unsigned char *csp, *lina;
 
-#if 0
-/* 
- * If we have a 16-Bit stack segment the high word of esp is not always
- * zero as expected, esp. in winos2
- */
-if ((_ss & 4) == 4) {
-  /* stack segment from ldt */
-  if (Segments[_ss>>3].used) {
-    if (Segments[_ss>>3].is_32==0)
-      _HWORD(esp)=0;
-  } else
-    D_printf("DPMI: why in the hell the stack segment 0x%04x is marked as not used?\n",_ss);
-}
+#if 1
+  /* Because of a CPU bug (see EMUFailures.txt:1.7.2), ESP can run to a
+   * kernel space, i.e. >= stack_init_top. Here we try to avoid that (also
+   * not letting it to go into dosemu stack, so comparing against
+   * stack_init_bot).
+   * This seem to help the ancient MS linker to work and avoids dosemu
+   * trying to access the kernel space (and crash).
+   */
+  if (_esp > stack_init_bot) {
+    if (debug_level('M') >= 5)
+      D_printf("DPMI: ESP bug, esp=%#lx stack_bot=%#lx, cs32=%i ss32=%i\n",
+	_esp, stack_init_bot, Segments[_cs >> 3].is_32, Segments[_ss >> 3].is_32);
+    _HWORD(esp) = 0;
+  }
 #endif
 
   csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
-  /* should we use _sp instead for 16-bit stack segments? */
-  ssp = (us *) SEL_ADR(_ss, _esp);
+  ssp = (us *) (GetSegmentBaseAddress(_ss) + client_esp(scp));
   
 #ifdef USE_MHPDBG
   if (mhpdbg.active) {

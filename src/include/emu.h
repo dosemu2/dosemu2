@@ -448,6 +448,9 @@ EXTERN void SIG_close(void);
 /* set if sigaltstack(2) is available */
 EXTERN int have_working_sigaltstack;
 
+EXTERN unsigned long int stack_init_top INIT(0xffffffff);
+EXTERN unsigned long int stack_init_bot INIT(0xffffffff);
+
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGWINCH
 #define SIG_ACQUIRE     SIGUSR2

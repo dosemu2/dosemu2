@@ -224,6 +224,10 @@ int cpu_trap_0f (unsigned char *csp, struct sigcontext_struct *scp)
  */
 void cpu_setup(void)
 {
+  unsigned long int stk_ptr, stk_beg, stk_end;
+  FILE *fp;
+  char line[100];
+
   int_vector_setup();
 
   /* ax,bx,cx,dx,si,di,bp,fs,gs can probably can be anything */
@@ -252,7 +256,22 @@ void cpu_setup(void)
   __asm__ volatile (
   " movw %%cs, %0\n"
   " movw %%ds, %1\n"
-  :"=m"(ucodesel),"=m"(udatasel):);
+  " movl %%esp, %2\n"
+  :"=m"(ucodesel),"=m"(udatasel),"=m"(stk_ptr):);
+
+  if ((fp = fopen("/proc/self/maps", "r"))) {
+    while(fgets(line, 100, fp)) {
+      sscanf(line, "%lx-%lx", &stk_beg, &stk_end);
+      if (stk_ptr >= stk_beg && stk_ptr < stk_end) {
+        stack_init_top = stk_end;
+        stack_init_bot = stk_beg;
+        c_printf("CPU: Stack bottom %#lx, top %#lx, esp=%#lx\n",
+	  stack_init_bot, stack_init_top, stk_ptr);
+	break;
+      }
+    }
+    fclose(fp);
+  }
 
 #ifdef X86_EMULATOR
   if (config.cpuemu) {
