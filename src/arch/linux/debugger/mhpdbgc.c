@@ -68,7 +68,7 @@ extern int a20;
 
 #if 0
 /* NOTE: the below is already defined with #include "emu.h"
- *       Must NOT redefine it, else USE_VM86PLUS won't work !!!
+ *       Must NOT redefine it, else REQUIRES_VM86PLUS won't work !!!
  */
 extern struct vm86_struct vm86s;
 #endif
@@ -487,7 +487,7 @@ static void mhp_go(int argc, char * argv[])
    } else {
       dpmi_mhp_setTF(0);
       WRITE_FLAGS(READ_FLAGS() & ~TF);
-      vm86s.vm86plus.mhpdbg_TFpendig=0;
+      vm86s.vm86plus.vm86dbg_TFpendig=0;
       mhpdbgc.stopped = 0;
    }
 }
@@ -544,7 +544,7 @@ static void mhp_trace_force(int argc, char * argv[])
         if (!dpmi_mhp_setTF(1)) return;
       }
       else WRITE_FLAGS(READ_FLAGS() | TF);
-      vm86s.vm86plus.mhpdbg_TFpendig=1;
+      vm86s.vm86plus.vm86dbg_TFpendig=1;
       mhpdbgc.trapcmd = 1;
    }
 }
@@ -942,7 +942,7 @@ static void mhp_bl(int argc, char * argv[])
    }
    mhp_printf( "Interrupts: ");
    for (i1=0; i1 < 256; i1++) {
-      if (test_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab)) {
+      if (test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
          mhp_printf( "%02x ", i1);
       }
    }
@@ -992,11 +992,11 @@ static void mhp_bpint(int argc, char * argv[])
 
    if (argc <2) return;
    sscanf(argv[1], "%x", &i1);
-   if (test_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab)) {
+   if (test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
          mhp_printf( "Duplicate BPINT %02x, nothing done\n", i1);
          return;
    }
-   set_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab);
+   set_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab);
    if (i1 == 0x21) mhpdbgc.int21_count++;
    return;
 }
@@ -1007,11 +1007,11 @@ static void mhp_bcint(int argc, char * argv[])
 
    if (argc <2) return;
    sscanf(argv[1], "%x", &i1);
-   if (!test_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab)) {
+   if (!test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
          mhp_printf( "No BPINT %02x, nothing done\n", i1);
          return;
    }
-   clear_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab);
+   clear_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab);
    if (i1 == 0x21) mhpdbgc.int21_count--;
    return;
 }
@@ -1076,7 +1076,7 @@ static void mhp_bpload(int argc, char * argv[])
    mhpdbgc.bpload=1;
    {
      volatile register int i=0x21; /* beware, set_bit-macro has wrong constraints */
-     set_bit(i, vm86s.vm86plus.mhpdbg_intxxtab);
+     set_bit(i, vm86s.vm86plus.vm86dbg_intxxtab);
    }
    mhpdbgc.int21_count++;
    return;

@@ -346,6 +346,8 @@ select_drive(state)
      state_t *state;
 {
   int dd;
+  int bs_pos, i;
+  char fpath[1024];
   boolean_t found = 0;
   boolean_t check_cds = FALSE;
   boolean_t check_dpb = FALSE;
@@ -506,7 +508,27 @@ select_drive(state)
       Debug0((dbg_fd, "name changed to %s\n", name));
     }
 
+    build_ufs_path(fpath, name);
+    bs_pos=0;
+    for (i = 0, bs_pos = 0; fpath[i] != EOS; i++) {
+      if (fpath[i] == SLASH)
+	bs_pos = i;
+    }
     free(nametmp);
+
+/*
+ * DANG_BEGIN_REMARK
+ * 	This code is to handle special files that should be reflected as
+ *	devices. At this time, only PRN has been tested. Others like LPT[0-x]
+ *	etc... should be added.
+ * DANG_END_FUNCTION
+ */
+    if (strcmp(fpath + bs_pos + 1, "prn") == 0) {
+	Debug0((dbg_fd, "Special File, so name changed to '%s'\n", fpath + bs_pos + 1));
+        strcpy(name, fpath + bs_pos + 1);
+	return(0);
+    }
+
   }
 
   /* for find next we will check the drive letter in the
@@ -783,7 +805,7 @@ mfs_redirector(void)
 
   finds_in_progress[current_drive] = find_in_progress;
 
-  priv_on();
+  priv_default();
 
   switch (ret) {
   case FALSE:
@@ -811,7 +833,7 @@ mfs_inte6(void)
     return 0;
 
   result = dos_fs_dev(&REGS);
-  priv_on();
+  priv_default();
   return (result);
 }
 
@@ -2942,6 +2964,7 @@ dos_fs_redirect(state)
       return (FALSE);
     }
     build_ufs_path(fpath, filename1);
+
     if (find_file(fpath, &st)) {
       Debug0((dbg_fd, "st.st_mode = 0x%02x, handles=%d\n", st.st_mode, sft_handle_cnt(sft)));
       if ( /* !(st.st_mode & S_IFREG) || */ create_file) {
@@ -2951,6 +2974,7 @@ dos_fs_redirect(state)
       }
     }
 
+    bs_pos=0;
     for (i = 0, bs_pos = 0; fpath[i] != EOS; i++) {
       if (fpath[i] == SLASH)
 	bs_pos = i;
@@ -3288,6 +3312,7 @@ dos_fs_redirect(state)
   case QUALIFY_FILENAME:	/* 0x23 */
     {
       char *fn = (char *) Addr(state, ds, esi);
+
 #if DOQUALIFY
       char *qfn = (char *) Addr(state, es, edi);
       char *cpath = cds_current_path(cds);
@@ -3471,6 +3496,7 @@ dos_fs_redirect(state)
       return (FALSE);
     }
   case PRINTER_MODE:{
+      Debug0((dbg_fd, "Printer Mode: %02x\n",(int) LOW(state->eax)));
       SETLOW(&(state->edx), 1);
       return (TRUE);
     }

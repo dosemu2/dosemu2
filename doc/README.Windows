@@ -41,7 +41,7 @@ DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES...
 1.  Get DOSEMU & the Linux source distributions.
 2.  Unpack DOSEMU.
 3.  Uncomment the toplevel Makefile around line 21 so that it
-    sets REQUIRES_EMUMODULE = -DREQUIRE_EMUMODLE.
+    sets REQUIRES_VM86PLUS = -DREQUIRES_VM86PLUS.
 4.  Compile DOSEMU typing 'make itall'.
 5.  Load the emumodule using the included load_module.sh script.
 6.  Get the WINOS2.ZIP distribution from tsx-11.mit.edu

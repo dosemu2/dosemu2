@@ -33,8 +33,8 @@
 #define KERNEL_VERSION 1003028 /* last verified kernel version */
 #endif
 
-#if KERNEL_VERSION < 1001085
-#error "Sorry, but this patch runs only on Linux >= 1.1.85"
+#if KERNEL_VERSION < 1003091
+#error "Sorry, but this patch runs only on Linux >= 1.3.91"
 #endif
 
 #include "emumod.h"
@@ -51,19 +51,15 @@ asmlinkage int sys_sigreturn(unsigned long __unused)
 {
 #define COPY(x) regs->x = context.x
 #define COPY_SEG(x) \
-if (   (context.x & 0xfffc)     /* we allow NULL selectors */ \
-    && (context.x & 0x4) != 0x4 /* we allow any LDT selector */ \
-    && (context.x & 3) != 3     /* we allow only RPL3 GDT selectors */ \
+if (   (context.x & 0xfffc)     /* not a NULL selectors */ \
+    && (context.x & 0x4) != 0x4 /* not a LDT selector */ \
+    && (context.x & 3) != 3     /* not a RPL3 GDT selector */ \
    ) goto badframe; COPY(x);
 #define COPY_SEG_STRICT(x) \
 if (!(context.x & 0xfffc) || (context.x & 3) != 3) goto badframe; COPY(x);
 	struct sigcontext_struct context;
 	struct pt_regs * regs;
 
-#if defined(_VM86_STATISTICS_)
-        extern int signalret_count;
-        signalret_count++;
-#endif
 	regs = (struct pt_regs *) &__unused;
 	if (verify_area(VERIFY_READ, (void *) regs->esp, sizeof(context)))
 		goto badframe;
@@ -83,7 +79,6 @@ if (!(context.x & 0xfffc) || (context.x & 3) != 3) goto badframe; COPY(x);
 	regs->eflags &= ~0x40DD5;
 	regs->eflags |= context.eflags & 0x40DD5;
 	regs->orig_eax = -1;		/* disable syscall checks */
-#if KERNEL_VERSION >= 1003091
 	if (context.fpstate) {
 		extern void restore_i387(struct _fpstate *buf);
 		struct _fpstate * buf = context.fpstate;
@@ -91,7 +86,6 @@ if (!(context.x & 0xfffc) || (context.x & 3) != 3) goto badframe; COPY(x);
 			goto badframe;
 		restore_i387(buf);
 	}
-#endif
 	return context.eax;
 badframe:
 	do_exit(SIGSEGV);

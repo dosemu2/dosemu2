@@ -1,3 +1,33 @@
+96/11/15 ver. 0.64.1
+        From Hans:
+        - vm86plus (emumodule), second round
+          kernel patches 2.0.25, 2.1.8 (fits also in 2.1.10)
+	  see doc/README.kernel
+        - REQUIRES_EMUMODULE has become REQUIRES_VM86PLUS and now is
+          independed from emumodule (can also be supported by kernel patch)
+	- new ./configure options:
+            --enable-kernelvm86plus, --enable-novm86plus
+          deleted ./configure options:
+	    --enable-noemumod
+	- insmod-2.1.8-HACKER_TOOL
+        - 'dos -F myconfig' checked under priv_off() (closing security hole)
+        From JES:
+        - kill_time (select replacement) for int15
+96/11/09 ver. 0.64.0.4 
+	- EMM fix (Hans)
+	- first round vm86plus (emumodule) (Hans)
+96/10/20 ver. 0.64.0.3 
+	- Priv off/on patches
+	- mfs.c patch to allow PRN called from mfs drives
+	- mouse.c modifed calls that reflect mouse visibility and
+	  changed vectoring mouse interrupts to the actual interrupt
+	  (thanks to Josef Pavlik)
+	- X.c added back mouse mickeys - WP5.1 mouse works now using
+	  internal driver, but not WPs ROF. Also forced mouse reset
+	  on DOSEmu boot if internal mouse being used.
+	  (thanks to Bernd Paysan <paysan@informatik.tu-muenchen.de>)
+	- Alberto's patches to configure scripts for SBEMU.
+	- Hans' patches for running on Linux 2.1.5+
 96/09/24 ver. 0.64.0.2 - From Hans, SMP, emumodule, insmod and some minor DPMI-stuff
 96/09/23 ver. 0.64.0.1 - JES took over some valuable patches from 0.63
 96/09/18 23:06:34 From : JES - Allow compiling without X support --without-x

@@ -22,14 +22,14 @@ Some special notes:
 
         ./configure --enable-SMPmodules
 
-2.  To load the emumodule you need the insmod from the syscall directory
+2.  To load the emumodule you need the insmod from the emumod directory
     and the /usr/src/linux/(z)System.map (which must fit the loaded kernel).
     If there is any map-mismatch, don't worry, you will be told.
     Use the scripts ./load_module.sh and ./unload_module.sh respectively
     to (un)load the modules.
 
 3.  You may concider to replace the official /sbin/insmod with
-    ./dosemu/src/arch/linuxsyscallmgr/insmod. This has the advantage that
+    ./dosemu/src/arch/linux/emumod/insmod. This has the advantage that
     you can use the normal process of loading modules.
     'Kerned' usage, however, together with emumodule isn't possible,
     because you have no stub in the kernel that would trigger the user
@@ -38,7 +38,7 @@ Some special notes:
 
     To get it work do:
 
-    a. Move syscallmgr.o and emumodule.o into /lib/modules/<uname -r>/misc
+    a. Move emumodule.o into /lib/modules/<uname -r>/misc
 
     b. run 'depmod -a' and ignore the error message concernig emumodule.
 

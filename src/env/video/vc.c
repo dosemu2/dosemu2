@@ -598,6 +598,7 @@ open_kmem (void)
     return;
   priv_on();
   mem_fd = open("/dev/mem", O_RDWR);
+  priv_default();
   if (mem_fd < 0)
     {
       error ("ERROR: can't open /dev/mem: errno=%d, %s \n",
@@ -673,12 +674,12 @@ get_perm (void)
   if (config.vga)
     {				/* hope this will not lead to problems with ega/cga */
       /* get I/O permissions for VGA registers */
-      if (ioperm (0x3b0, 0x3df - 0x3b0 + 1, 1))
+      if (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 1))
 	{
 	  v_printf ("VGA: can't get I/O permissions \n");
 	  exit (-1);
 	}
-      if (config.chipset == S3 && (ioperm (0x102, 1, 1) || ioperm (0x2ea, 4, 1)))
+      if (config.chipset == S3 && (set_ioperm (0x102, 1, 1) || set_ioperm (0x2ea, 4, 1)))
 	{
 	  v_printf ("S3: can't get I/O permissions \n");
 	  exit (-1);
@@ -704,11 +705,11 @@ get_perm (void)
     }
   else if (config.usesX || (config.console_video && (config.cardtype == CARD_MDA)))
     {
-      if (ioperm (0x3b4, 1, 1) ||
-	  ioperm (0x3b5, 1, 1) ||
-	  ioperm (0x3b8, 1, 1) ||
-	  ioperm (0x3ba, 1, 1) ||
-	  ioperm (0x3bf, 1, 1))
+      if (set_ioperm (0x3b4, 1, 1) ||
+	  set_ioperm (0x3b5, 1, 1) ||
+	  set_ioperm (0x3b8, 1, 1) ||
+	  set_ioperm (0x3ba, 1, 1) ||
+	  set_ioperm (0x3bf, 1, 1))
 	{
 	  v_printf ("HGC: can't get I/O permissions \n");
 	  exit (-1);
@@ -733,12 +734,12 @@ release_perm (void)
 	{			/* hope this will not lead to problems with ega/cga */
 	  /* get I/O permissions for VGA registers */
 	  /* release I/O permissions for VGA registers */
-	  if (ioperm (0x3b0, 0x3df - 0x3b0 + 1, 0))
+	  if (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 0))
 	    {
 	      v_printf ("VGA: can't release I/O permissions \n");
 	      leavedos (-1);
 	    }
-	  if (config.chipset == S3 && (ioperm (0x102, 1, 0) || ioperm (0x2ea, 4, 0)))
+	  if (config.chipset == S3 && (set_ioperm (0x102, 1, 0) || set_ioperm (0x2ea, 4, 0)))
 	    {
 	      v_printf ("S3: can't release I/O permissions\n");
 	      leavedos (-1);
@@ -746,11 +747,11 @@ release_perm (void)
 	}
       else if (config.usesX || (config.console_video && (config.cardtype == CARD_MDA)))
 	{
-	  if (ioperm (0x3b4, 1, 0) ||
-	      ioperm (0x3b5, 1, 0) ||
-	      ioperm (0x3b8, 1, 0) ||
-	      ioperm (0x3ba, 1, 0) ||
-	      ioperm (0x3bf, 1, 0))
+	  if (set_ioperm (0x3b4, 1, 0) ||
+	      set_ioperm (0x3b5, 1, 0) ||
+	      set_ioperm (0x3b8, 1, 0) ||
+	      set_ioperm (0x3ba, 1, 0) ||
+	      set_ioperm (0x3bf, 1, 0))
 	    {
 	      v_printf ("HGC: can't release I/O permissions \n");
 	      exit (-1);

@@ -25,16 +25,20 @@
 #include <asm/segment.h>
 #include <asm/system.h>
 
-#if defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS)
-#include "ldt.h" /* NOTE we have a patched version in dosemu/include */
-#else
-#include <linux/ldt.h>
-#endif
-
 #ifdef _LOADABLE_VM86_
 #include "kversion.h"
 #if 0
-#define KERNEL_VERSION 1003028 /* last verified kernel version */
+#define KERNEL_VERSION 20000023 /* last verified kernel version */
+#endif
+
+#if defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS)
+#include "ldt.h" /* NOTE we have a patched version in src/include */
+#else
+  #if  KERNEL_VERSION < 2001000
+    #include <linux/ldt.h>
+  #else
+    #include <asm/ldt.h>
+  #endif
 #endif
 
 #if KERNEL_VERSION < 1001090
@@ -90,7 +94,7 @@ static inline int limits_ok(struct modify_ldt_ldt_s *ldt_info)
 		if (ldt_info->seg_32bit)
 			last = base-1;
 	}
-#if defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS)
+#if 0 /* defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS) */
 	if (last < first) return 0;
 	if (last >= TASK_SIZE) return suser();
 	return 1;
@@ -167,11 +171,6 @@ static int write_ldt(void * ptr, unsigned long bytecount)
 		  (ldt_info.useable << 20) |
 #endif
 		  0x7000;
-#if defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS)
-  #if 0
-        printk("LDT: addr = %08x, entry= %08x, val =%08x %08x\n",current->ldt, lp,  *lp, *(lp+1));
-  #endif
-#endif
 	return 0;
 }
 

@@ -99,7 +99,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "mhpdbg.h"
 #endif
 
-#ifdef REQUIRES_EMUMODULE
+#ifdef REQUIRES_VM86PLUS
   /* Please folks, don't remove this, it's required for emusys.h (within emu.h) */
   #define __EMUSYS_parent
 #endif
@@ -220,9 +220,6 @@ static SillyG_t SillyG_[16 + 1];
  * DANG_BEGIN_FUNCTION SIG_int
  * 
  * description: Allow DOSEMU to be made aware when a hard interrupt occurs
- * Requires the sig/sillyint.o driver loaded (using NEW modules package),
- * or a kernel patch (implementing sig/int.c driver).
- * 
  * The IRQ numbers to monitor are taken from config.sillyint, each bit
  * corresponding to one IRQ. The higher 16 bit are defining the use of
  * SIGIO
@@ -232,69 +229,26 @@ static SillyG_t SillyG_[16 + 1];
 static inline void 
 SIG_init()
 {
-#ifdef SIG
-    /* Get in touch with my Silly Interrupt Driver */
+#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+    /* Get in touch with Silly Interrupt Handling */
     if (config.sillyint) {
-#ifndef REQUIRES_EMUMODULE
-	char            devname[20];
-#endif
 	char            prio_table[] =
-	{9, 10, 11, 12, 14, 15, 3, 4, 5, 6, 7};
+	{8, 9, 10, 11, 12, 14, 15, 3, 4, 5, 6, 7};
 	int             i,
-#ifndef REQUIRES_EMUMODULE
-	                fd,
-#endif
 	                irq;
 	SillyG_t       *sg = SillyG_;
 	for (i = 0; i < sizeof(prio_table); i++) {
 	    irq = prio_table[i];
 	    if (config.sillyint & (1 << irq)) {
-#ifdef REQUIRES_EMUMODULE
-		if (emusyscall(EMUSYS_REQUEST_IRQ, irq) < 0) {
-		    g_printf("Not gonna touch IRQ %d you requested!\n", irq);
+		if (vm86_plus(VM86_REQUEST_IRQ, (SIGIO << 8) | irq) < 0) {
 		} else {
 		    g_printf("Gonna monitor the IRQ %d you requested\n", irq);
 		    sg->fd = -1;
-#else
-		sprintf(devname, "/dev/int/%d", irq);
-		if ((fd = open(devname, O_RDWR)) < 1) {
-		    g_printf("Not gonna touch IRQ %d you requested!\n", irq);
-		} else {
-		    /* Reset interupt incase it went off already */
-		    RPT_SYSCALL(write(fd, NULL, (int) NULL));
-		    g_printf("Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq, fd);
-		    if (config.sillyint & (0x10000 << irq)) {
-			/* Use SIGIO, this should be faster */
-			add_to_io_select(fd, 1);
-		    }
-		    /*
-		     * DANG_BEGIN_REMARK 
-		     * At this time we have to use
-		     * SIGALRM in addition to SIGIO I don't (yet) know why
-		     * the SIGIO signal gets lost sometimes (once per
-		     * minute or longer). But if it happens, we can
-		     * retrigger this way over SIGALRM. Normally SIGIO
-		     * happens before SIGALARM, so nothing hurts. (Hans)
-		     * DANG_END_REMARK
-		     */
-#if 0
-		    else
-#endif
-		    {
-			/* use SIGALRM  */
-			add_to_io_select(fd, 0);
-		    }
-		    sg->fd = fd;
-#endif				/* NOT REQUIRES_EMUMODULE */
 		    sg->irq = irq;
 		    g_printf("SIG: IRQ%d, enabling PIC-level %ld\n", irq, pic_irq_list[irq]);
-#ifdef REQUIRES_EMUMODULE
 		    { extern int SillyG_do_irq(void);
 		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0);
 		    }
-#else
-		    pic_seti(pic_irq_list[irq], do_irq, 0);
-#endif
 		    pic_unmaski(pic_irq_list[irq]);
 		    sg++;
 		}
@@ -310,18 +264,13 @@ SIG_init()
 static inline void 
 SIG_close()
 {
-#ifdef SIG
+#if defined(SIG) && defined(REQUIRES_VM86PLUS)
     if (SillyG) {
 	SillyG_t       *sg = SillyG;
-#ifdef REQUIRES_EMUMODULE
 	while (sg->fd) {
-	    emusyscall(EMUSYS_FREE_IRQ, sg->irq);
+	    vm86_plus(VM86_FREE_IRQ, sg->irq);
 	    sg++;
 	}
-#else
-	while (sg->fd)
-	    close((sg++)->fd);
-#endif
 	g_printf("Closing all IRQ you opened!\n");
     }
 #endif
@@ -330,12 +279,9 @@ SIG_close()
 static inline void 
 emumodule_init(void)
 {
-#ifdef REQUIRES_EMUMODULE
-    resolve_emusyscall();
-    if (EMUSYS_AVAILABLE) {
-	if (emusyscall(EMUSYS_GETVERSION, 0) >= EMUSYSVERSION) return;
-    }
-    fprintf(stderr, "emumodule not loaded or wrong version\n\r");
+#ifdef REQUIRES_VM86PLUS
+    if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
+    fprintf(stderr, "vm86plus service not available in your kernel\n\r");
     fflush(stdout);
     fflush(stderr);
     _exit(1);
@@ -422,13 +368,7 @@ emulate(int argc, char **argv)
 	}
     }
 
-#ifdef RUN_AS_USER
-    /* start running as real, not effective user.  This is moved from */
-    /* stdio_init, as that and config_init have now changed places and */
-    /* allowing reading arbitrary files while being root is not smart */
-
-    priv_off();	
-#endif
+    priv_default();
 
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */

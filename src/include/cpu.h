@@ -278,7 +278,9 @@ EXTERN struct vec_t *ivecs;
 #define NOCARRY ( WRITE_FLAGS(READ_FLAGS() & ~CF) )
 #endif
 
-#if 0
+
+#ifdef __linux__
+#if KERNEL_VERSION < 1003012
 struct sigcontext_struct {
   unsigned short gs, __gsh;
   unsigned short fs, __fsh;
@@ -304,7 +306,11 @@ struct sigcontext_struct {
   unsigned long cr2;
 };
 #else
-#include <asm/sigcontext.h>
+  #include <asm/sigcontext.h>
+  #if KERNEL_VERSION >= 2001000
+  #define sigcontext_struct sigcontext
+  #endif
+#endif
 #endif
 
 #ifdef __NetBSD__

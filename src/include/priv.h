@@ -80,5 +80,6 @@ static __inline__ int exchange_uids(void)
 /* @@@ MOVE_END @@@ 32768 */
 
 
+#define priv_default() priv_on()
 
 #endif /* __PRIV_H__ */

@@ -11,23 +11,23 @@
 SHELL=/usr/local/bin/bash
 export SHELL
 
-# Uncomment REQUIRES_EMUMODULE, if you you need the emumodules special features
+# Uncomment REQUIRES_VM86PLUS, if you you need the emumodules special features
 # You also must load the modules as follows:
 #   login in as root
 #   cd /usr/src/dosemu/syscallmgr
 #   ./insmod syscallmgr.o
 #   ./insmod -m ../emumod/emumodule.o
-# NOTE: Do NOT start dosemu (compiled with REQUIRES_EMUMODULE),
+# NOTE: Do NOT start dosemu (compiled with REQUIRES_VM86PLUS),
 #       if you have not loaded emumodule.o !
 #
-#REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
+#REQUIRES_VM86PLUS= -DREQUIRES_VM86PLUS
 
-ifdef REQUIRES_EMUMODULE
-  export REQUIRES_EMUMODULE
+ifdef REQUIRES_VM86PLUS
+  export REQUIRES_VM86PLUS
 # uncomment this, if you want the extended vm86 support (vm86plus)
-  USE_VM86PLUS= -DUSE_VM86PLUS
-  ifdef USE_VM86PLUS
-    export USE_VM86PLUS
+  REQUIRES_VM86PLUS= -DREQUIRES_VM86PLUS
+  ifdef REQUIRES_VM86PLUS
+    export REQUIRES_VM86PLUS
 # uncomment this, if you want stack verifying in sys_vm86
 #   USE_VM86_STACKVERIFY= -DUSE_VM86_STACKVERIFY
     ifdef USE_VM86_STACKVERIFY
@@ -181,7 +181,7 @@ CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\"
 DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 DOSEMU_LOGLEVEL_FILE = -DDOSEMU_LOGLEVEL_FILE=\"/etc/dosemu.loglevel\"
 
-ifndef REQUIRES_EMUMODULE
+ifndef REQUIRES_VM86PLUS
 OPTIONALSUBDIRS = dosext/net/v-net arch/$(ARCH)/syscallmgr arch/$(ARCH)/emumod
 else
 OPTIONALSUBDIRS = dosext/net/v-net
@@ -194,7 +194,7 @@ LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	base/dev/dma dosext/sound \
 	$(DEBUGGER) $(NET) $(IPX) dosext/drivers base/bios
 
-ifndef REQUIRES_EMUMODULE
+ifndef REQUIRES_VM86PLUS
 REQUIRED=tools commands tools/periph
 else
 REQUIRED=tools commands tools/periph\
@@ -267,8 +267,8 @@ export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
 CFLAGS+=$(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
-ifdef REQUIRES_EMUMODULE
-   CFLAGS+=$(REQUIRES_EMUMODULE) $(USE_VM86PLUS) $(USE_VM86_STACKVERIFY)
+ifdef REQUIRES_VM86PLUS
+   CFLAGS+=$(REQUIRES_VM86PLUS) $(REQUIRES_VM86PLUS) $(USE_VM86_STACKVERIFY)
    ifdef USE_MHPDBG
       CFLAGS+=$(USE_MHPDBG)
    endif
@@ -558,7 +558,7 @@ endif
 	@echo "  - Try ./commands/emumouse.com -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
 	 echo ""
-ifdef REQUIRES_EMUMODULE
+ifdef REQUIRES_VM86PLUS
 	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"; \
 	 echo "    use load_module.sh from this directory."; \
 	 echo ""
@@ -567,7 +567,7 @@ else
 	echo "    be used instead of the kernel's vm86() call at this"; \
 	echo "    time due to possible register corruption of the"; \
 	echo "    running DOS programs. To use the modules, enable"; \
-	echo "    REQUIRES_EMUMODULE in this Makefile, and re-make."; \
+	echo "    REQUIRES_VM86PLUS in this Makefile, and re-make."; \
 	echo ""
 endif
 

@@ -2,35 +2,20 @@
  *  linux/kernel/vm86.c
  *
  *  Copyright (C) 1994  Linus Torvalds
- *
- *  changes for the dosemu team  by Lutz Molgedey <lutz@summa.physik.hu-berlin.de>
- *                                  Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
-#ifdef _LOADABLE_VM86_
-  #include "kversion.h"
-  #include "config.h"
-#else
-  #define KERNEL_VERSION 1003028 /* last verified kernel version */
-#endif
+#include "config.h"
+
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#if KERNEL_VERSION >= 1001085
 #include <linux/mm.h>
-#endif
 
 #include <asm/segment.h>
-#if KERNEL_VERSION >= 1001088
 #include <asm/pgtable.h>
-#endif
 #include <asm/io.h>
-
-#if defined(_LOADABLE_VM86_) && defined(USE_MHPDBG)
-#include "mhpdbg.h"
-#endif
 
 /*
  * Known problems:
@@ -47,15 +32,8 @@
  * Hopefully these problems do not actually matter for anything.
  */
 
-#ifdef _LOADABLE_VM86_
-  #include "emumod.h"
-  #ifdef USE_VM86PLUS
-    #if KERNEL_VERSION < 1001075
-      #error "can't compile with USE_VM86PLUS for kernels < 1.1.75"
-    #endif
-    #include "vm86plus.h"
-  #endif
-#endif
+#include "emumod.h"
+#include "vm86plus.h"
 
 /*
  * 8- and 16-bit register defines..
@@ -68,14 +46,8 @@
 /*
  * virtual flags (16 and 32-bit versions)
  */
-
-#if KERNEL_VERSION >= 1001075
 #define VFLAGS	(*(unsigned short *)&(current->tss.v86flags))
 #define VEFLAGS	(current->tss.v86flags)
-#else
-#define VFLAGS	(*(unsigned short *)&(current->v86flags))
-#define VEFLAGS	(current->v86flags)
-#endif
 
 #define set_flags(X,new,mask) \
 ((X) = ((X) & ~(mask)) | ((new) & (mask)))
@@ -87,23 +59,13 @@ asmlinkage struct pt_regs * save_v86_state(struct vm86_regs * regs)
 {
 	unsigned long tmp;
 
-#if KERNEL_VERSION >= 1001075
 	if (!current->tss.vm86_info) {
-#else
-	if (!current->vm86_info) {
-#endif
 		printk("no vm86_info: BAD\n");
 		do_exit(SIGSEGV);
 	}
-#if KERNEL_VERSION >= 1001075
 	set_flags(regs->eflags, VEFLAGS, VIF_MASK | current->tss.v86mask);
 	memcpy_tofs(&current->tss.vm86_info->regs,regs,sizeof(*regs));
 	put_fs_long(current->tss.screen_bitmap,&current->tss.vm86_info->screen_bitmap);
-#else
-	set_flags(regs->eflags, VEFLAGS, VIF_MASK | current->v86mask);
-	memcpy_tofs(&current->vm86_info->regs,regs,sizeof(*regs));
-	put_fs_long(current->screen_bitmap,&current->vm86_info->screen_bitmap);
-#endif
 	tmp = current->tss.esp0;
 	current->tss.esp0 = current->saved_kernel_stack;
 	current->saved_kernel_stack = 0;
@@ -112,56 +74,12 @@ asmlinkage struct pt_regs * save_v86_state(struct vm86_regs * regs)
 
 static void mark_screen_rdonly(struct task_struct * tsk)
 {
-#if KERNEL_VERSION < 1001084
-	unsigned long tmp;
-	unsigned long *pg_table;
-
-	if ((tmp = tsk->tss.cr3) != 0) {
-		tmp = *(unsigned long *) tmp;
-		if (tmp & PAGE_PRESENT) {
-			tmp &= PAGE_MASK;
-			pg_table = (0xA0000 >> PAGE_SHIFT) + (unsigned long *) tmp;
-			tmp = 32;
-			while (tmp--) {
-				if (PAGE_PRESENT & *pg_table)
-					*pg_table &= ~PAGE_RW;
-				pg_table++;
-			}
-		}
-	}
-#else
-  #if KERNEL_VERSION < 1002002
-	pgd_t *pg_dir;
-
-	pg_dir = PAGE_DIR_OFFSET(tsk, 0);
-	if (!pgd_none(*pg_dir)) {
-		pte_t *pg_table;
-		int i;
-
-		if (pgd_bad(*pg_dir)) {
-			printk("vm86: bad page table directory entry %08lx\n", pgd_val(*pg_dir));
-			pgd_clear(pg_dir);
-			return;
-		}
-		pg_table = (pte_t *) pgd_page(*pg_dir);
-		pg_table += 0xA0000 >> PAGE_SHIFT;
-		for (i = 0 ; i < 32 ; i++) {
-			if (pte_present(*pg_table))
-				*pg_table = pte_wrprotect(*pg_table);
-			pg_table++;
- 		}
- 	}
-  #else
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
 	int i;
 
-#if KERNEL_VERSION < 1003024
-	pgd = pgd_offset(tsk, 0xA0000);
-#else
 	pgd = pgd_offset(tsk->mm, 0xA0000);
-#endif
 	if (pgd_none(*pgd))
 		return;
 	if (pgd_bad(*pgd)) {
@@ -180,43 +98,54 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 	pte = pte_offset(pmd, 0xA0000);
 	for (i = 0; i < 32; i++) {
 		if (pte_present(*pte))
-#if KERNEL_VERSION < 1003022
-			*pte = pte_wrprotect(*pte);
-#else
 			set_pte(pte, pte_wrprotect(*pte));
-#endif
 		pte++;
- 	}
-#if KERNEL_VERSION < 1003047
-	invalidate();
-#else
-  #if KERNEL_VERSION < 1003083
-	invalidate_all();
-  #else
+	}
 	flush_tlb();
-  #endif
-#endif
-  #endif
-#endif
 }
 
-asmlinkage int sys_vm86(struct vm86_struct * v86)
+static do_vm86_irq_handling(int subfunction, int irqnumber);
+
+asmlinkage int sys_vm86(unsigned long subfunction, struct vm86_struct * v86_)
 {
-	struct vm86_struct info;
-	struct pt_regs * pt_regs = (struct pt_regs *) &v86;
+	struct vm86_struct info, *v86;
+	struct pt_regs * pt_regs;
 	int error;
 
+	switch (subfunction) {
+		case VM86_ENTER:
+		case VM86_ENTER_NO_BYPASS: {
+			v86 = v86_;
+			/* v86 must be readable (now) and writable (for save_v86_state) */
+			error = verify_area(VERIFY_WRITE,v86,sizeof(struct vm86plus_struct));
+			if (error) return error;
+			break;
+		}
+		case VM86_REQUEST_IRQ:
+		case VM86_FREE_IRQ:
+		case VM86_GET_IRQ_BITS:
+		case VM86_GET_AND_RESET_IRQ:
+			return do_vm86_irq_handling(subfunction,(int)v86_);
+		case VM86_PLUS_INSTALL_CHECK:
+			/* NOTE: on old vm86 stuff this will return the error
+			   from verify_area(), because the subfunction is
+			   interpreted as (invalid) address to vm86_struct.
+			   So the installation check works.
+			 */
+			return 0;
+		default: {
+			/* old style of vm86 call */
+			v86 = (struct vm86_struct *)subfunction;
+			error = verify_area(VERIFY_WRITE,v86,sizeof(struct vm86_struct));
+			if (error) return error;
+		}	
+	}
+
+	/* we come here only for functions VM86_ENTER, VM86_ENTER_NO_BYPASS */
 	if (current->saved_kernel_stack)
 		return -EPERM;
-	/* v86 must be readable (now) and writable (for save_v86_state) */
-#if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS)
-	error = verify_area(VERIFY_WRITE,v86,sizeof(struct vm86plus_struct));
-#else
-	error = verify_area(VERIFY_WRITE,v86,sizeof(*v86));
-#endif
-	if (error)
-		return error;
 	memcpy_fromfs(&info,v86,sizeof(info));
+	pt_regs = (struct pt_regs *) &subfunction;
 /*
  * make sure the vm86() system call doesn't try to do anything silly
  */
@@ -235,7 +164,6 @@ asmlinkage int sys_vm86(struct vm86_struct * v86)
 	info.regs.eflags |= VM_MASK;
 
 	switch (info.cpu_type) {
-#if KERNEL_VERSION >= 1001075
 		case CPU_286:
 			current->tss.v86mask = 0;
 			break;
@@ -248,20 +176,6 @@ asmlinkage int sys_vm86(struct vm86_struct * v86)
 		default:
 			current->tss.v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK;
 			break;
-#else
-		case CPU_286:
-			current->v86mask = 0;
-			break;
-		case CPU_386:
-			current->v86mask = NT_MASK | IOPL_MASK;
-			break;
-		case CPU_486:
-			current->v86mask = AC_MASK | NT_MASK | IOPL_MASK;
-			break;
-		default:
-			current->v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK;
-			break;
-#endif
 	}
 
 /*
@@ -270,15 +184,9 @@ asmlinkage int sys_vm86(struct vm86_struct * v86)
 	pt_regs->eax = 0;
 	current->saved_kernel_stack = current->tss.esp0;
 	current->tss.esp0 = (unsigned long) pt_regs;
-#if KERNEL_VERSION >= 1001075
 	current->tss.vm86_info = v86;
 
 	current->tss.screen_bitmap = info.screen_bitmap;
-#else
-	current->vm86_info = v86;
-
-	current->screen_bitmap = info.screen_bitmap;
-#endif
 	if (info.flags & VM86_SCREEN_BITMAP)
 		mark_screen_rdonly(current);
 	__asm__ __volatile__("movl %0,%%esp\n\t"
@@ -318,27 +226,15 @@ static inline void clear_TF(struct vm86_regs * regs)
 
 static inline void set_vflags_long(unsigned long eflags, struct vm86_regs * regs)
 {
-#if KERNEL_VERSION >= 1001075
 	set_flags(VEFLAGS, eflags, current->tss.v86mask);
-#else
-	set_flags(VEFLAGS, eflags, current->v86mask);
-#endif
 	set_flags(regs->eflags, eflags, SAFE_MASK);
-#if 1
 	if (eflags & IF_MASK)
-#else
-	if (VEFLAGS & IF_MASK)
-#endif
 		set_IF(regs);
 }
 
 static inline void set_vflags_short(unsigned short flags, struct vm86_regs * regs)
 {
-#if KERNEL_VERSION >= 1001075
 	set_flags(VFLAGS, flags, current->tss.v86mask);
-#else
-	set_flags(VFLAGS, flags, current->v86mask);
-#endif
 	set_flags(regs->eflags, flags, SAFE_MASK);
 	if (flags & IF_MASK)
 		set_IF(regs);
@@ -350,19 +246,13 @@ static inline unsigned long get_vflags(struct vm86_regs * regs)
 
 	if (VEFLAGS & VIF_MASK)
 		flags |= IF_MASK;
-#if KERNEL_VERSION >= 1001075
 	return flags | (VEFLAGS & current->tss.v86mask);
-#else
-	return flags | (VEFLAGS & current->v86mask);
-#endif
 }
 
 static inline int is_revectored(int nr, struct revectored_struct * bitmap)
 {
-#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */
 	if (verify_area(VERIFY_READ, bitmap, 256/8) < 0)
 		return 1;
-#endif
 	__asm__ __volatile__("btl %2,%%fs:%1\n\tsbbl %0,%0"
 		:"=r" (nr)
 		:"m" (*bitmap),"r" (nr));
@@ -442,141 +332,86 @@ __asm__ __volatile__( \
 	: "0" (ptr), "1" (base)); \
 __res; })
 
-#if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS) && defined(USE_VM86_STACKVERIFY)
-  /* NOTE: You may think that verifying CS:IP also may be needed,
-   *       but we rely on the fact that the faulting instruction
-   *       has been completely prefetched by the CPU, so it is
-   *       save to access it.
-   */
-  #define STACKVERIFY(x) {\
-     unsigned long off1=sp, off2=(sp+(x)) & 0xffff; \
-     if (off1 > off2) { off1=off2; off2=sp; } \
-     if ((off1 ^ off2) & 0x8000) {  /* wrap case */ \
-       if (off1 && off2) { \
-         if (verify_area(VERIFY_WRITE,ssp,off1)) return_to_32bit(regs, VM86_STACKVERIFY); \
-         off1=off2; \
-       } \
-       else if (!off1) off1=off2; \
-       off2=0x10000; \
-     } \
-     if (verify_area(VERIFY_WRITE,ssp+off1,off2-off1)) return_to_32bit(regs, VM86_STACKVERIFY); \
-   }
-#else
-  #define STACKVERIFY(x)
-#endif
-
-static inline void do_int(struct vm86_regs *regs, int i, unsigned char * ssp, unsigned long sp)
+static void do_int(struct vm86_regs *regs, int i, unsigned char * ssp, unsigned long sp)
 {
-#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
 	unsigned short *intr_ptr, seg;
-#else
-	unsigned short seg = get_fs_word((void *) ((i<<2)+2));
-#endif
 
-#if KERNEL_VERSION >= 1001075
-  #if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
 	if (regs->cs == BIOSSEG)
 		goto cannot_handle;
 	if (is_revectored(i, &current->tss.vm86_info->int_revectored))
 		goto cannot_handle;
 	if (i==0x21 && is_revectored(AH(regs),&current->tss.vm86_info->int21_revectored))
 		goto cannot_handle;
-  #else
-	if (seg == BIOSSEG || regs->cs == BIOSSEG ||
-	    is_revectored(i, &current->tss.vm86_info->int_revectored))
-		return_to_32bit(regs, VM86_INTx + (i << 8));
-	if (i==0x21 && is_revectored(AH(regs),&current->tss.vm86_info->int21_revectored))
-		return_to_32bit(regs, VM86_INTx + (i << 8));
-  #endif
-#else
-  #if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
-	if (regs->cs == BIOSSEG)
-		goto cannot_handle;
-	if (is_revectored(i, &current->vm86_info->int_revectored))
-		goto cannot_handle;
-	if (i==0x21 && is_revectored(AH(regs),&current->vm86_info->int21_revectored))
-		goto cannot_handle;
-  #else
-	if (seg == BIOSSEG || regs->cs == BIOSSEG ||
-	    is_revectored(i, &current->vm86_info->int_revectored))
-		return_to_32bit(regs, VM86_INTx + (i << 8));
-	if (i==0x21 && is_revectored(AH(regs),&current->vm86_info->int21_revectored))
-		return_to_32bit(regs, VM86_INTx + (i << 8));
-  #endif
-#endif
-#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
 	intr_ptr = (unsigned short *) (i << 2);
 	if (verify_area(VERIFY_READ, intr_ptr, 4) < 0)
 		goto cannot_handle;
 	seg = get_fs_word(intr_ptr+1);
 	if (seg == BIOSSEG)
 		goto cannot_handle;
-#endif
-	STACKVERIFY(-6)
 	pushw(ssp, sp, get_vflags(regs));
 	pushw(ssp, sp, regs->cs);
 	pushw(ssp, sp, IP(regs));
 	regs->cs = seg;
 	SP(regs) -= 6;
-#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
 	IP(regs) = get_fs_word(intr_ptr+0);
-#else
-	IP(regs) = get_fs_word((void *) (i<<2));
-#endif
 	clear_TF(regs);
 	clear_IF(regs);
 	return;
 
-#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
 cannot_handle:
 	return_to_32bit(regs, VM86_INTx + (i << 8));
-#endif
 }
 
+
+#define CHECK_IF_IN_TRAP \
+	if (vmpi.vm86dbg_active && vmpi.vm86dbg_TFpendig) \
+		pushw(ssp,sp,popw(ssp,sp) | TF_MASK);
+
+#define OLD_PT_REGS(x) /* we saved the pt_regs of vm86() call to tss.esp0 */ \
+	(((struct pt_regs *)current->tss.esp0)->x)
+
+#define IS_VM86PLUS \
+	( ((unsigned long) OLD_PT_REGS(ebx)) == VM86_ENTER)
+
+int handle_vm86_trap(struct vm86_regs * regs, long error_code, int trapno)
+{
+	if (IS_VM86PLUS) {
+		if ( (trapno==3) || (trapno==1) )
+			return_to_32bit(regs, VM86_TRAP + (trapno << 8));
+		do_int(regs, trapno, (unsigned char *) (regs->ss << 4), SP(regs));
+		return 1;
+	}
+	if (trapno !=1)
+		return 0; /* we let this handle by the calling routine */
+	if (current->flags & PF_PTRACED)
+		current->blocked &= ~(1 << (SIGTRAP-1));
+	send_sig(SIGTRAP, current, 1);
+	current->tss.trap_no = trapno;
+	current->tss.error_code = error_code;
+	return 0;
+}
+
+#define VM86_FAULT_RETURN \
+	if (is_vm86plus) { \
+		if (vmpi.force_return_for_pic  && (VEFLAGS & IF_MASK)) \
+			return_to_32bit(regs, VM86_PICRETURN); \
+	} \
+	return;
+	                                   
 void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 {
 	unsigned char *csp, *ssp;
 	unsigned long ip, sp;
+	struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
+	int is_vm86plus=IS_VM86PLUS;
+	struct vm86plus_info_struct vmpi;
 
-#if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS)
-  #if KERNEL_VERSION >= 1001075
-    struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
-  #else
-    struct vm86plus_struct *vmp=(void *)(current->vm86_info);
-  #endif
-  int is_vm86plus=( get_fs_long(&vmp->vm86plus.vm86plus_magic) == VM86PLUS_MAGIC );
-  struct vm86plus_info_struct vmpi;
-  #define VM86_FAULT_RETURN   if (is_vm86plus) break; else return
-  #ifdef USE_MHPDBG
-    #define CHECK_IF_IN_TRAP    if (vmpi.mhpdbg_active && vmpi.mhpdbg_TFpendig) pushw(ssp,sp,popw(ssp,sp) | TF_MASK);
-  #else
-    #define CHECK_IF_IN_TRAP
-  #endif
-#else
-  #define VM86_FAULT_RETURN   return
-  #define CHECK_IF_IN_TRAP
-#endif
-
-#if defined(_LOADABLE_VM86_) && defined(_VM86_STATISTICS_)
-	extern int vm86_fault_count;
-	extern int vm86_count_cli,vm86_count_sti;
-	vm86_fault_count++;
-#endif
-
-
-#if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS)
 	if (is_vm86plus) {
-  #if 0
-	  /* We will copy the whole tail later,
-	     if more stuff is put into vm86plus */
-	  memcpy_fromfs(&vmpi.dosemuver, &vmp->vm86plus.dosemuver, sizeof(struct vm86plus_info_struct)-sizeof(long));
-  #else
-	  /* For now it's enough to get just the flag bit fields */
-	  *(((long *)&vmpi.dosemuver)+1) = get_fs_long(((long *)&vmp->vm86plus.dosemuver)+1);
-  #endif
+		/* For now it's enough to get just the flag bit fields */
+		*((long *)&vmpi) = get_fs_long((long *)&vmp->vm86plus);
 	}
-	else *(((long *)&vmpi.dosemuver)+1) = 0;
-#endif
+	else *((long *)&vmpi) = 0;
+
 	csp = (unsigned char *) (regs->cs << 4);
 	ssp = (unsigned char *) (regs->ss << 4);
 	sp = SP(regs);
@@ -590,7 +425,6 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 		/* pushfd */
 		case 0x9c:
-			STACKVERIFY(-4)
 			SP(regs) -= 4;
 			IP(regs) += 2;
 			pushl(ssp, sp, get_vflags(regs));
@@ -598,37 +432,27 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 		/* popfd */
 		case 0x9d:
-			STACKVERIFY(+4)
 			SP(regs) += 4;
 			IP(regs) += 2;
 			CHECK_IF_IN_TRAP
 			set_vflags_long(popl(ssp, sp), regs);
 			VM86_FAULT_RETURN;
 
-/* #if KERNEL_VERSION >= 1002008  
-   The below is a bugfix (Dong Liu), we want it even for older kernels */
 		/* iretd */
 		case 0xcf:
-			STACKVERIFY(+12)
 			SP(regs) += 12;
 			IP(regs) = (unsigned short)popl(ssp, sp);
 			regs->cs = (unsigned short)popl(ssp, sp);
 			CHECK_IF_IN_TRAP
 			set_vflags_long(popl(ssp, sp), regs);
 			VM86_FAULT_RETURN;
-/* #endif */
-#if 1 /* need this to avoid a fallthrough */
+		/* need this to avoid a fallthrough */
 		default:
 			return_to_32bit(regs, VM86_UNKNOWN);
 		}
-		break;
-#else
-		}
-#endif
 
 	/* pushf */
 	case 0x9c:
-		STACKVERIFY(-2)
 		SP(regs) -= 2;
 		IP(regs)++;
 		pushw(ssp, sp, get_vflags(regs));
@@ -636,40 +460,26 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 	/* popf */
 	case 0x9d:
-		STACKVERIFY(+2)
 		SP(regs) += 2;
 		IP(regs)++;
 		CHECK_IF_IN_TRAP
 		set_vflags_short(popw(ssp, sp), regs);
 		VM86_FAULT_RETURN;
 
-#if KERNEL_VERSION < 1001089
-#if 0
-	/* int 3 */
-	case 0xcc:
-		IP(regs)++;
-		do_int(regs, 3, ssp, sp);
-		VM86_FAULT_RETURN;
-#endif
-#endif
 	/* int xx */
 	case 0xcd: {
 	        int intno=popb(csp, ip);
 		IP(regs) += 2;
-#if defined(_LOADABLE_VM86_) && defined(USE_MHPDBG)
-		if (is_vm86plus) {
-		  if (vmpi.mhpdbg_active) {
-		    if ( (1 << (intno &7)) & get_fs_byte((char *)&vmp->vm86plus.mhpdbg_intxxtab[intno >> 3]) )
-		         return_to_32bit(regs, VM86_INTx + (intno << 8));
-		  }
+		if (is_vm86plus && vmpi.vm86dbg_active) {
+			if ( (1 << (intno &7)) & get_fs_byte((char *)&vmp->vm86plus.vm86dbg_intxxtab[intno >> 3]) )
+				return_to_32bit(regs, VM86_INTx + (intno << 8));
 		}
-#endif
 		do_int(regs, intno, ssp, sp);
 		return;
 	}
+
 	/* iret */
 	case 0xcf:
-		STACKVERIFY(+6)
 		SP(regs) += 6;
 		IP(regs) = popw(ssp, sp);
 		regs->cs = popw(ssp, sp);
@@ -679,9 +489,6 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 	/* cli */
 	case 0xfa:
-#ifdef _VM86_STATISTICS_
-		vm86_count_cli++;
-#endif
 		IP(regs)++;
 		clear_IF(regs);
 		VM86_FAULT_RETURN;
@@ -694,9 +501,6 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	 * Probably needs some horsing around with the TF flag. Aiee..
 	 */
 	case 0xfb:
-#ifdef _VM86_STATISTICS_
-		vm86_count_sti++;
-#endif          
 		IP(regs)++;
 		set_IF(regs);
 		VM86_FAULT_RETURN;
@@ -704,36 +508,130 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	default:
 		return_to_32bit(regs, VM86_UNKNOWN);
 	}
-
-#if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS)
-	if (is_vm86plus) {
-	  if (vmpi.force_return_for_pic  && (VEFLAGS & IF_MASK))
-                         return_to_32bit(regs, VM86_PICRETURN);
- 	}
-#endif
 }
 
-void handle_vm86_trap(struct vm86_regs * regs, long error_code, int trapno)
-{
-#if 0
-	if (trapno == 3) {
-		if (current->flags & PF_PTRACED)
-			current->blocked &= ~(1 << (SIGTRAP-1));
-		send_sig(SIGTRAP, current, 1);
-		current->tss.trap_no = 1;
-		current->tss.error_code = error_code;
+/* ---------------- vm86 special IRQ passing stuff ----------------- */
+
+#define VM86_IRQNAME		"vm86irq"
+
+static struct vm86_irqs {
+	struct task_struct *tsk;
+	int sig;
+} vm86_irqs[16] = {{0},}; 
+static int irqbits=0;
+
+#define ALLOWED_SIGS ( 1 /* 0 = don't send a signal */ \
+	| (1 << SIGUSR1) | (1 << SIGUSR2) | (1 << SIGIO)  | (1 << SIGURG) \
+	| (1 << SIGUNUSED) )
+	
+static void irq_handler(int intno, void *dev_id, struct pt_regs * regs) {
+	int irq_bit;
+	unsigned long flags;
+	
+	save_flags(flags);
+	cli();
+	irq_bit = 1 << intno;
+	if ((irqbits & irq_bit) || ! vm86_irqs[intno].tsk) {
+		restore_flags(flags);
 		return;
 	}
-#endif
-#if defined(_LOADABLE_VM86_) && defined(_VM86_STATISTICS_)
-        {
-          extern int vm86_trap_count[8];
-          vm86_trap_count[trapno & 7]++;
-        }
-#endif
-#if defined(_LOADABLE_VM86_) && defined(USE_MHPDBG)
-	if ( (trapno==3) || (trapno==1) ) return_to_32bit(regs, VM86_TRAP + (trapno << 8));
-#endif
-	do_int(regs, trapno, (unsigned char *) (regs->ss << 4), SP(regs));
-	return;
+	irqbits |= irq_bit;
+	if (vm86_irqs[intno].sig)
+		send_sig(vm86_irqs[intno].sig, vm86_irqs[intno].tsk, 1);
+	/* else user will poll for IRQs */
+	restore_flags(flags);
 }
+
+static inline void free_vm86_irq(int irqnumber)
+{
+	free_irq(irqnumber,0);
+	vm86_irqs[irqnumber].tsk = 0;
+	irqbits &= ~(1 << irqnumber);
+}
+
+static inline int task_valid(struct task_struct *tsk)
+{
+	struct task_struct *p;
+
+	for_each_task(p) {
+		if ((p == tsk) && (p->sig)) return 1;
+	}
+	return 0;
+}
+
+static inline void handle_irq_zombies(void)
+{
+	int i;
+	for (i=3; i<16; i++) {
+		if (vm86_irqs[i].tsk) {
+			if (task_valid(vm86_irqs[i].tsk)) continue;
+			free_vm86_irq(i);
+		}
+	}
+}
+
+static inline int get_and_reset_irq(int irqnumber)
+{
+	int bit;
+	unsigned long flags;
+	
+	if ( (irqnumber<3) || (irqnumber>15) ) return 0;
+	if (vm86_irqs[irqnumber].tsk != current) return 0;
+	save_flags(flags);
+	cli();
+	bit = irqbits & (1 << irqnumber);
+	irqbits &= ~bit;
+	restore_flags(flags);
+	return bit;
+}
+
+
+static int do_vm86_irq_handling(int subfunction, int irqnumber)
+{
+	int ret;
+	switch (subfunction) {
+		case VM86_GET_AND_RESET_IRQ: {
+			return get_and_reset_irq(irqnumber);
+		}
+		case VM86_GET_IRQ_BITS: {
+			return irqbits;
+		}
+		case VM86_REQUEST_IRQ: {
+			int sig = irqnumber >> 8;
+			int irq = irqnumber & 255;
+			handle_irq_zombies();
+			if (!suser()) return -EPERM;
+			if (!((1 << sig) & ALLOWED_SIGS)) return -EPERM;
+			if ( (irq<3) || (irq>15) ) return -EPERM;
+			if (vm86_irqs[irq].tsk) return -EPERM;
+			ret = request_irq(irq, &irq_handler, 0, VM86_IRQNAME, 0);
+			if (ret) return ret;
+			vm86_irqs[irq].sig = sig;
+			vm86_irqs[irq].tsk = current;
+			return irq;
+		}
+		case  VM86_FREE_IRQ: {
+			handle_irq_zombies();
+			if ( (irqnumber<3) || (irqnumber>15) ) return -EPERM;
+			if (!vm86_irqs[irqnumber].tsk) return 0;
+			if (vm86_irqs[irqnumber].tsk != current) return -EPERM;
+			free_vm86_irq(irqnumber);
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+#ifdef _LOADABLE_VM86_
+void force_free_all_vm86irq(void)
+{
+	int i;
+	for (i=3; i<16; i++) {
+		if (vm86_irqs[i].tsk) {
+			free_vm86_irq(i);
+		}
+	}
+	irqbits=0;
+}
+#endif
+

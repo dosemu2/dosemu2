@@ -104,7 +104,7 @@ printer_open(int prnum)
 
   p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
 	   lpt[prnum].dev, (void *) lpt[prnum].file);
-  priv_on();
+  priv_default();
   return 0;
 }
 

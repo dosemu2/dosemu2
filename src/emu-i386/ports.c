@@ -565,7 +565,10 @@ set_ioperm(int start, int size, int flag)
     if (!i_am_root)
 	return -1;		/* don't bother */
 
+    priv_on();
     tmp = ioperm(start, size, flag);
+    priv_default();
+
     return tmp;
 }
 /* @@@ MOVE_END @@@ 40960 */

@@ -98,11 +98,9 @@ inline int process_interrupt(SillyG_t *sg);
 
 
 void io_select_init(void);
-
-/*  */
-/* SillyG_do_irq @@@  16384 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/base/misc/dosio.c --> src/base/misc/ioctl.c  */
-#if defined(SIG) && defined(REQUIRES_EMUMODULE)
+#if defined(SIG) && defined(REQUIRES_VM86PLUS)
 int SillyG_pendind_irq_bits=0;
+
 int SillyG_do_irq(void)
 {
   int irq=pic_level_list[pic_ilevel], ret;
@@ -111,14 +109,8 @@ int SillyG_do_irq(void)
   return ret;
 }
 #endif
-/* @@@ MOVE_END @@@ 16384 */
 
-
-
-/*  */
-/* process_interrupt @@@  20480 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/base/misc/dosio.c --> src/base/misc/ioctl.c  */
-inline int
-process_interrupt(SillyG_t *sg)
+inline int process_interrupt(SillyG_t *sg)
 {
   int irq, ret=0;
 
@@ -128,10 +120,29 @@ process_interrupt(SillyG_t *sg)
   }
   return ret;
 }
-/* @@@ MOVE_END @@@ 20480 */
 
 
-
+#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+inline void irq_select()
+{
+  if (SillyG) {
+    int irq_bits =vm86_plus(VM86_GET_IRQ_BITS,0) & ~SillyG_pendind_irq_bits;
+    if (irq_bits) {
+      SillyG_t *sg=SillyG;
+      while (sg->fd) {
+        if (irq_bits & (1 << sg->irq)) {
+          if (process_interrupt(sg)) {
+            vm86_plus(VM86_GET_AND_RESET_IRQ,sg->irq);
+            SillyG_pendind_irq_bits |= 1 << sg->irq;
+            h_printf("SIG: We have an interrupt\n");
+          }
+        }
+        sg++;
+      }
+    }
+  }
+}
+#endif
 
 /*  */
 /* io_select @@@  24576 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/base/misc/dosio.c --> src/base/misc/ioctl.c  */
@@ -145,23 +156,8 @@ io_select(fd_set fds)
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
 
-#if defined(SIG) && defined(REQUIRES_EMUMODULE)
-  if (SillyG) {
-    int irq_bits =get_irq_bits() & ~SillyG_pendind_irq_bits;
-    if (irq_bits) {
-      SillyG_t *sg=SillyG;
-      while (sg->fd) {
-        if (irq_bits & (1 << sg->irq)) {
-          if (process_interrupt(sg)) {
-            get_and_reset_irq(sg->irq);
-            SillyG_pendind_irq_bits |= 1 << sg->irq;
-            h_printf("SIG: We have an interrupt\n");
-          }
-        }
-        sg++;
-      }
-    }
-  }
+#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+  irq_select();
 #endif
 
   while ( ((selrtn = select(25, &fds, NULL, NULL, &tvptr)) == -1)
@@ -182,18 +178,6 @@ io_select(fd_set fds)
 
     default:			/* has at least 1 descriptor ready */
 
-#if defined(SIG) && (!defined(REQUIRES_EMUMODULE))
-      if (SillyG) {
-        SillyG_t *sg=SillyG;
-        while (sg->fd) {
-	  if (FD_ISSET(sg->fd, &fds)) {
-	    h_printf("SIG: We have an interrupt\n");
-	    process_interrupt(sg);
-	  }
-	  sg++;
-	}
-      }
-#endif
       if ((mice->intdrv || mice->type == MOUSE_PS2) && mice->fd >= 0)
 	if (FD_ISSET(mice->fd, &fds)) {
 		m_printf("MOUSE: We have data\n");

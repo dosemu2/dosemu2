@@ -270,8 +270,8 @@ static int dualmon_init(void)
 {
 v_printf("VID: dualmon_init called\n");
    /* We never need to intercept, if we get the ports now. */ 
-   if ( ioperm(0x3b4, 1, 1) || ioperm(0x3b5, 1, 1) || ioperm(0x3b8, 1, 1) 
-                            || ioperm(0x3ba, 1, 1) || ioperm(0x3bf, 1, 1) ) {
+   if ( set_ioperm(0x3b4, 1, 1) || set_ioperm(0x3b5, 1, 1) || set_ioperm(0x3b8, 1, 1) 
+                            || set_ioperm(0x3ba, 1, 1) || set_ioperm(0x3bf, 1, 1) ) {
               v_printf("VID: dualmon, can't get I/O permissions \n");
                     exit(-1);
    }

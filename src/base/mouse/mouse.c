@@ -50,6 +50,10 @@ extern void X_change_mouse_cursor(void);
 
 void DOSEMUSetupMouse(void);
 
+#define Mouse_INT	(0x33 * 16)
+/* I have not properly tested this INT74 - JES 96/10/20 */
+#define Mouse_INT74	(0x74 * 16)
+
 static
 void mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_setxminmax(void), mouse_setyminmax(void), mouse_set_tcur(void),
@@ -147,8 +151,8 @@ mouse_helper(void)
   switch (LO(bx)) {
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
-    SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+    SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+    SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -566,8 +570,8 @@ mouse_software_reset(void)
   mouse.cursor_on = -1;      
   mouse.cs=0;
   mouse.ip=0;
-  SETIVEC(0x33, Mouse_SEG, Mouse_OFF + 4);
-  SETIVEC(0x74, Mouse_SEG, Mouse_OFF + 4);
+  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+  SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
 
 #ifdef X_SUPPORT
 #ifndef X_SLOW_CHANGE_CURSOR
@@ -609,8 +613,13 @@ mouse_setsensitivity(void)
 static void
 mouse_restorestate(void)
 {
+  int current_state;
+  current_state = mouse.cursor_on;
   /* turn cursor off before restore */
-  mouse_cursor(-1);
+  if (current_state >= 0) {
+	mouse.cursor_on = 0;
+  	mouse_cursor(-1);
+  }
 
   memcpy(&mouse, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
 
@@ -620,7 +629,10 @@ mouse_restorestate(void)
 
   /* we turned off the mouse cursor prior to saving, so turn it
   	back on again at the restore. */
-  mouse_cursor(1);
+  if (mouse.cursor_on >= 0) {
+	mouse.cursor_on = -1;
+  	mouse_cursor(1);
+  }
 
   m_printf("MOUSE: Restore mouse state\n");
 }
@@ -629,14 +641,23 @@ mouse_restorestate(void)
 static void
 mouse_storestate(void)
 {
+  int current_state;
+  current_state = mouse.cursor_on;
   /* always turn off mouse cursor prior to saving, that way we don't
   	have to remember the erase information */
-  mouse_cursor(-1);
+  if (current_state >= 0) {
+	mouse.cursor_on = 0;
+  	mouse_cursor(-1);
+  }
 
   memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), &mouse, sizeof(mouse));
 
   /* now turn it back on */
-  mouse_cursor(1);
+  if (mouse.cursor_on >= 0) {
+	mouse.cursor_on = -1;
+  	mouse_cursor(1);
+  }
+  mouse.cursor_on = current_state;
   m_printf("MOUSE: Save mouse state\n");
 }
 
@@ -743,9 +764,8 @@ void
 mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
-
-  SETIVEC(0x33, Mouse_SEG, Mouse_OFF + 4);
-  SETIVEC(0x74, Mouse_SEG, Mouse_OFF + 4);
+  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+  SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
 
   /* Return 0xffff on mouse installed, 0x0000 - no mouse driver installed */
   /* Return number of mouse buttons */
@@ -760,8 +780,10 @@ mouse_reset(int flag)
   mouse_reset_to_current_video_mode();
 
   /* turn cursor off if reset requested by software and it was on. */
-  if (flag == 0 && mouse.cursor_on == 0)
+  if (flag == 0 && mouse.cursor_on >= 0) {
+  	mouse.cursor_on = 0;
   	mouse_cursor(-1);
+  }
 
   mouse.cursor_on = -1;
 #ifdef X_SUPPORT
@@ -1068,8 +1090,8 @@ mouse_enable_internaldriver()
 {
   mice->intdrv = TRUE;
   
-  SETIVEC(0x33, Mouse_SEG, Mouse_OFF + 4);
-  SETIVEC(0x74, Mouse_SEG, Mouse_OFF + 4);
+  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+  SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
 
   m_printf("MOUSE: Enable InternalDriver\n");
 }

@@ -137,13 +137,9 @@ void stdio_init(void)
 void tmpdir_init(void)
 {
   /* create tmpdir */
-#ifndef RUN_AS_USER
   priv_off();
-#endif
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
-#ifndef RUN_AS_USER
-  priv_on();
-#endif
+  priv_default();
 }
 
 /*

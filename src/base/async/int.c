@@ -54,6 +54,26 @@ static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 static void mrp_read_joystick(void);
 #endif
 
+void kill_time(long usecs) {
+   struct timeval scr_tv, t_start, t_end;
+   long t_dif;
+   scr_tv.tv_sec = 0L;
+   scr_tv.tv_usec = usecs;
+
+   gettimeofday(&t_start, NULL);
+   while ((int) select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv) < (int) 1)
+     {
+        gettimeofday(&t_end, NULL);
+        t_dif = ((t_end.tv_sec * 1000000 + t_end.tv_usec) -
+                 (t_start.tv_sec * 1000000 + t_start.tv_usec));
+
+        if ((t_dif >= usecs) || (errno != EINTR))
+          return ;
+        scr_tv.tv_sec = 0L;
+        scr_tv.tv_usec = usecs - t_dif;
+     }
+}
+
 /*
  * DANG_BEGIN_FUNCTION DEFAULT_INTERRUPT 
  *
@@ -375,7 +395,6 @@ static void int08(u_char i)
 
 static void int15(u_char i)
 {
-  struct timeval wait_time;
   int num;
 
   if (HI(ax) != 0x4f)
@@ -452,10 +471,7 @@ static void int15(u_char i)
     /* wait...cx:dx=time in usecs */
     g_printf("doing int15 wait...ah=0x86\n");
     show_regs(__FILE__, __LINE__);
-    wait_time.tv_sec = 0;
-    wait_time.tv_usec = (LWORD(ecx) << 16) | LWORD(edx);
-    while (select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv) == -1
-         && errno == EINTR);
+    kill_time((long)((LWORD(ecx) << 16) | LWORD(edx)));
     NOCARRY;
     return;
 
@@ -1000,11 +1016,20 @@ static void int21(u_char i) {
 /* KEYBOARD BUSY LOOP */
 static void int28(u_char i) {
   static int first = 1;
-  if (first && !config.keybint && config.console_keyb) {
+  if (first) {
     first = 0;
-    /* revector int9, so dos doesn't play with the keybuffer */
-    k_printf("revectoring int9 away from dos\n");
-    SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);	/* point to IRET */
+    if (!config.keybint && config.console_keyb) {
+      /* revector int9, so dos doesn't play with the keybuffer */
+      k_printf("revectoring int9 away from dos\n");
+      SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);	/* point to IRET */
+    }
+    if (mice->intdrv) {
+      /* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
+      #define Mouse_INT       (0x33 * 16)
+      #define Mouse_INT74     (0x74 * 16)
+      SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+      SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
+    }
   }
 
   if (config.hogthreshold) {

@@ -187,7 +187,7 @@ unsigned int portspeed, char *device)
 	       portname,beg,end);
       priv_on();
       opendevice = open( device,O_RDWR );
-      priv_off();
+      priv_default();
       if (opendevice == -1)
 	switch (errno) {
 	case EBUSY : 
@@ -230,9 +230,7 @@ unsigned int portspeed, char *device)
     if ((start + size - 1) <= 0x3ff) {
       c_printf("giving fast hardware access to ports 0x%x -> 0x%x\n",
 	       start, start + size - 1);
-      priv_on();
       set_ioperm(start, size, 1);
-      priv_off();
       /* Don't return, but enter it in the list to keep track of the file 
        * descriptor
        * return (1);
@@ -246,9 +244,7 @@ unsigned int portspeed, char *device)
       warn("PORT: s-s: %d %d\n", start, size);
       c_printf("giving fast hardware access only to ports 0x%x -> 0x3ff\n",
 	       start);
-      priv_on();
       set_ioperm(start, 0x400 - start, 1);
-      priv_off();
       size = start + size - 0x400;
       start = 0x400;
     }
@@ -330,7 +326,7 @@ read_port(unsigned short port)
     set_ioperm(port, 1, 1);
   else
     iopl(3);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
 
   r = port_in(port);
 
@@ -339,7 +335,7 @@ read_port(unsigned short port)
     set_ioperm(port, 1, 0);
   else
     iopl(0);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
 
   if (!video_port_io) {
     r &= ports[i].andmask;
@@ -381,7 +377,7 @@ read_port_w(unsigned short port)
   }
   else
      iopl(3);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
 
   r = port_in_w(port);
   if (!video_port_io) priv_on();
@@ -389,7 +385,7 @@ read_port_w(unsigned short port)
      set_ioperm(port,2,0);
   else
     iopl(0);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
 
   if (
 #ifdef GUSPNP
@@ -430,7 +426,7 @@ write_port(unsigned int value, unsigned short port)
     set_ioperm(port, 1, 1);
   else
     iopl(3);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
 
   port_out(value, port);
 
@@ -439,7 +435,7 @@ write_port(unsigned int value, unsigned short port)
     set_ioperm(port, 1, 0);
   else
     iopl(0);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
   video_port_io = 0;
 
   return (1);
@@ -478,7 +474,7 @@ write_port_w(unsigned int value,unsigned short port)
     set_ioperm(port  ,2,1);
   else
     iopl(3);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
 
   port_out_w(value, port);
 
@@ -487,7 +483,7 @@ write_port_w(unsigned int value,unsigned short port)
     set_ioperm(port, 2, 0);
   else
     iopl(0);
-  if (!video_port_io) priv_off();
+  if (!video_port_io) priv_default();
   video_port_io = 0;
 
   return (1);
@@ -498,16 +494,11 @@ void safe_port_out_byte(const unsigned short port, const unsigned char byte)
         if(i_am_root)  {
                 int result;
 
-		priv_on();
-                result = ioperm(port, 1, 1);
-		priv_off();
+                result = set_ioperm(port, 1, 1);
 		if (result) error("failed to enable port %x\n", port);
                 port_out(byte, port);
-		priv_on();
-                result = ioperm(port, 1, 0);
-		priv_off();
+                result = set_ioperm(port, 1, 0);
 		if (result) error("failed to disable port %x\n", port);
-		priv_off();
 
         }       else i_printf("want to ");
         i_printf("out(%x, 0x%x)\n", port, byte);
@@ -521,14 +512,10 @@ char safe_port_in_byte(const unsigned short port)
         if(i_am_root) {
                 int result;
 
-		priv_on();
-                result = ioperm(port, 1, 1);
-		priv_off();
+                result = set_ioperm(port, 1, 1);
 		if (result) error("failed to enable port %x\n", port);
                 value = port_in(port);
-		priv_on();
-                result = ioperm(port, 1, 0);
-		priv_off();
+                result = set_ioperm(port, 1, 0);
 		if (result) error("failed to disable port %x\n", port);
         }       else i_printf("want to ");
         i_printf("in(%x)", port);

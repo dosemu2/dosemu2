@@ -33,10 +33,11 @@ extern int errno;
 #define MAX_SIG_QUEUE_SIZE 50
 static u_short SIGNAL_head=0; u_short SIGNAL_tail=0;
 struct  SIGNAL_queue {
-  struct sigcontext_struct context;
+/*  struct sigcontext_struct context; */
   void (* signal_handler)(void);
 };
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
+
 
 /* for use by cli() and sti() */
 static sigset_t oldset;
@@ -199,6 +200,10 @@ void SIGALRM_call(void){
 #endif
   int retval;
   
+#if defined(SIG) && defined(REQUIRES_VM86PLUS)
+  irq_select();  /* we need this in order to catch lost IRQ-SIGIOs */
+#endif
+
 #ifdef X_SUPPORT
   if (config.X) 
      X_handle_events();
@@ -339,6 +344,7 @@ inline void SIGNAL_save( void (*signal_call)() ) {
     dpmi_eflags |= VIP;
   REG(eflags) |= VIP;
 }
+
 
 /*
  * DANG_BEGIN_FUNCTION SIGIO_call

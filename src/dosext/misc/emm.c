@@ -83,6 +83,44 @@ static inline boolean_t unmap_page(int);
 #define __freeunices__
 #endif
 
+#ifdef __linux__  /* we try to avoid syscalls over lib */
+
+/* NOTE: Do not optimize higher then  -O2, else GCC will optimize away what we
+         expect to be on the stack */
+caddr_t libless_mmap(caddr_t addr, size_t len,
+		int prot, int flags, int fd, off_t off) {
+	int __res;
+	__asm__ __volatile__("int $0x80\n"
+	:"=a" (__res):"a" ((int)90), "b" ((int)&addr));
+	if (((unsigned)__res) > ((unsigned)-4096)) {
+		errno = -__res;
+		__res=-1;
+	}
+	else errno = 0;
+	return (caddr_t)__res;
+}
+#undef mmap
+#define mmap libless_mmap
+
+static int libless_munmap(caddr_t addr, size_t len)
+{
+	int __res;
+	__asm__ __volatile__("int $0x80\n"
+	:"=a" (__res):"a" ((int)91), "b" ((int)addr), "c" ((int)len));
+	if (__res < 0) {
+		errno = -__res;
+		__res=-1;
+	}
+	else errno =0;
+	return __res;
+}
+#undef munmap
+#define munmap libless_munmap
+
+#endif
+
+
+
 /*****************************************************************************/
 
 #define	GET_MANAGER_STATUS	0x40	/* V3.0 */
@@ -486,6 +524,39 @@ deallocate_handle(handle)
   return (TRUE);
 }
 
+#define TOUCH_EMM_PAGE(address) ({ \
+	int i; \
+	volatile char *p= (volatile char *)address; \
+	for (i=EMM_PAGE_SIZE-4096; i>=0 ; i-=4096) *(p+i) /* |= *(p+i) */; \
+})
+
+
+static void _do_map_page(caddr_t base, caddr_t logical)
+{
+  if (ems_mmap) {
+    /* Touch all pages before mmap()-ing,
+     * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
+     */
+    TOUCH_EMM_PAGE(logical);
+    E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
+    
+    if ((caddr_t)base != mmap(base,
+			      EMM_PAGE_SIZE,
+			      PROT_READ | PROT_WRITE | PROT_EXEC,
+			      MAP_SHARED | MAP_FIXED,
+			      selfmem_fd,
+			      (off_t) logical))
+    {
+        E_printf("EMS: mmap() failed: %s\n",strerror(errno));
+        leavedos(2);
+    }
+  } else {
+    E_printf("EMS: COPY-MAP l=0x%x, bs=0x%x, d=0x%02x, s=0x%02x\n", 
+	     (int)logical, (int)base, *(u_short *)base, *(u_short *) logical);
+    memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
+  }
+}
+
 static boolean_t
 __map_page(physical_page)
      int physical_page;
@@ -505,14 +576,9 @@ __map_page(physical_page)
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
-  if (!ems_mmap) {
-    logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
-
-    E_printf("EMS: COPY-MAP   l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
-	     (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
-    memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
-  }
+  _do_map_page(base, logical);
 
 #else /* __freeunices__ */
   MACH_CALL((vm_allocate(mach_task_self(),
@@ -542,6 +608,7 @@ __unmap_page(physical_page)
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+  logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
   if (ems_mmap) {
     /* XXX - add error checking here */
@@ -549,7 +616,6 @@ __unmap_page(physical_page)
     mmap(base, EMM_PAGE_SIZE, PROT_EXEC | PROT_READ | PROT_WRITE,
 	 MAP_PRIVATE | MAP_FIXED | MAP_ANON, -1, 0);
   } else {
-    logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
     E_printf("EMS: COPY-UNMAP l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
 	     (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
@@ -628,30 +694,7 @@ map_page(handle, physical_page, logical_page)
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
   logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
    
-  if (ems_mmap) {
-    int i;
-    /* Touch all pages before mmap()-ing,
-     * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
-     */
-    for (i=EMM_PAGE_SIZE-4096; i>=0 ; i-=4096) *((volatile char *)(logical+i));
-
-    E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
-    
-    if ((caddr_t)base != mmap(base,
-			      EMM_PAGE_SIZE,
-			      PROT_READ | PROT_WRITE | PROT_EXEC,
-			      MAP_SHARED | MAP_FIXED,
-			      selfmem_fd,
-			      (off_t) logical))
-    {
-        E_printf("EMS: mmap() failed: %s\n",strerror(errno));
-        leavedos(2);
-    }
-  } else {
-    E_printf("EMS: COPY-MAP l=0x%x, bs=0x%x, d=0x%02x, s=0x%02x\n", 
-	     (int)logical, (int)base, *(u_short *)base, *(u_short *) logical);
-    memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
-  }
+  _do_map_page(base, logical);
 
 #else /* __freeunices__ */
   memory_object_remap(

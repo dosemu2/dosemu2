@@ -79,9 +79,9 @@ typedef struct { int fd; int irq; } SillyG_t;
  * DANG_END_REMARK
 */ 
 
-#ifdef USE_VM86PLUS
+#ifdef REQUIRES_VM86PLUS
   EXTERN struct vm86plus_struct vm86s INIT ( {
-   {0},0,0,0,{{0}},{{0}}, {VM86PLUS_MAGIC}
+   {0},0,0,0,{{0}},{{0}}, {0}
   } );
 #else
   EXTERN struct vm86_struct vm86s;
@@ -654,7 +654,7 @@ EXTERN inline void SIGNAL_save( void (*signal_call)(void) );
 EXTERN inline void handle_signals(void);
 
 
-#ifdef REQUIRES_EMUMODULE
+#ifdef REQUIRES_VM86PLUS
   #include "emusys.h"
 #endif
 

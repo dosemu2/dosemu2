@@ -27,21 +27,18 @@ ifndef INCDIR
   ifndef WANT_WINDOWS
     WANT_WINDOWS=-DWANT_WINDOWS
   endif
-  ifndef USE_VM86PLUS
-    USE_VM86PLUS=-DUSE_VM86PLUS
+  ifndef REQUIRES_VM86PLUS
+    REQUIRES_VM86PLUS=-DREQUIRES_VM86PLUS
     ifndef USE_MHPDBG
      USE_MHPDBG=-DUSE_MHPDBG
     endif
-  endif
-  ifndef USE_VM86_STACKVERIFY
-#    USE_VM86_STACKVERIFY=-DUSE_VM86_STACKVERIFY
   endif
 endif
 
 # let gcc do extended checking
 
 KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer \
- -D__KERNEL__ $(SMP) -DLINUX $(WANT_WINDOWS) $(USE_VM86PLUS) $(USE_VM86_STACKVERIFY)
+ -D__KERNEL__ $(SMP) -DLINUX $(WANT_WINDOWS) $(REQUIRES_VM86PLUS)
  
 ifeq (/usr/include/linux/segment.h,$(wildcard /usr/include/linux/segment.h))
 EXTRA_HEADERS=-DEXTRA_HEADERS
@@ -50,10 +47,10 @@ endif
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c
-SFILES = fastsys.S
-HFILES = emumod.h
-OFILES = vm86.o traps.o emumod.o emusys.o signal.o ldt.o
+CFILES = vm86.c traps.c emumod.c signal.c ldt.c \
+	 insmod.c load_aout.c load_elf.c error.c
+HFILES = emumod.h insmod.h
+OFILES = vm86.o traps.o emumod.o signal.o ldt.o
 KVFILE = ../../../include/kversion.h
 
 # Insert all source- and header-files here.
@@ -62,9 +59,9 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 # All object-files are included here.
 
-OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o signal.o ldt.o
+OBJS= vm86.o traps.o emumod.o signal.o ldt.o
  
-all: $(OBJS) $(BINPATH)/modules/emumodule.o
+all: $(OBJS) $(BINPATH)/modules/emumodule.o $(BINPATH)/bin/insmod
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
@@ -84,14 +81,13 @@ ldt.o:  ldt.c emumod.h ${KVFILE}
 emumod.o:  emumod.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_ $(REPAIR_ODD_MSDOS_FS) -c emumod.c -o emumod.o
 
-emusys.o:  emusys.c ${KVFILE}
-	$(CC)  ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
-
 traps.o:  traps.c emumod.h ${KVFILE}
 	$(CC)  ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
 
-fastsys.o: fastsys.S ${KVFILE}
-	$(CC) ${KCFLAGS} -c -D__ASSEMBLY__  fastsys.S -o fastsys.o
+$(BINPATH)/bin/insmod: insmod.c load_aout.c load_elf.c insmod.h
+	$(CC) -m486 -O6 -pipe -fomit-frame-pointer -Wall -DHACKER_TOOL -DWITHIN_DOSEMU $(INCDIR) \
+	insmod.c load_aout.c load_elf.c error.c -o $@
+	for i in rmmod ksyms; do ln -sf insmod $(BINPATH)/bin/$$i; done
 
 checkin:
 	-ci -l $(ALL) Makefile

@@ -772,7 +772,7 @@ disk_init(void)
     dp->removeable = 0;
 
     if(dp->type == IMAGE)
-	priv_on();
+	priv_default();
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
        May only work on WD compatible disks (MFM/RLL/ESDI/IDE). */
@@ -794,7 +794,6 @@ disk_init(void)
 #ifdef SILLY_GET_GEOMETRY
     if (RPT_SYSCALL(read(dp->fdesc, buf, 512)) != 512) {
       error("ERROR: can't read disk info of %s\n", dp->dev_name);
-      priv_on();
       leavedos(27);
     }
 
@@ -826,7 +825,6 @@ disk_init(void)
 
     if (s % (dp->sectors * dp->heads) != 0) {
       error("ERROR: incorrect track number of %s\n", dp->dev_name);
-      priv_on();
       /* leavedos(28); */
     }
 #endif

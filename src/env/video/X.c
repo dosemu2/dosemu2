@@ -1651,6 +1651,9 @@ void X_change_mouse_cursor(void)
  */ 
 static void set_mouse_position(int x, int y)
 {
+  int dx = x - mouse.x;
+  int dy = y - mouse.y;
+  
   switch(video_mode)	/* only a conversion when in text-mode*/
     {
     case 0x00:
@@ -1660,6 +1663,8 @@ static void set_mouse_position(int x, int y)
       /* XXX - this works in text mode only */
       x = x*8/font_width;
       y = y*8/font_height;
+      dx = ((x-mouse.x)*font_width)>>3;
+      dy = ((y-mouse.y)*font_height)>>3;
       break;
     case 0x13:
     case 0x5c: /* 8bpp SVGA graphics modes */
@@ -1668,6 +1673,8 @@ static void set_mouse_position(int x, int y)
     case 0x62:
       x*=8;  /* these scalings make DeluxePaintIIe operation perfect - */
       y*=8;  /*  I don't know about anything else... */
+      dx = (x-mouse.x) >> 3;
+      dy = (y-mouse.y) >> 3;
       /* Dos expects 640x200 mouse coordinates! only in this videomode */
       /* Some games don't... */
       break;
@@ -1676,8 +1683,10 @@ static void set_mouse_position(int x, int y)
       X_printf("set_mouse_position: Invalid video mode 0x%02x\n",video_mode);
     }
 
-  if ((x != mouse.x) || (y!=mouse.y)) 
+  if (dx || dy)
     {
+      mouse.mickeyx += dx;
+      mouse.mickeyy += dy;
       mouse.x=x; 
       mouse.y=y;
       mouse_move();

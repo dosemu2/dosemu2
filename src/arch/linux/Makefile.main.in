@@ -18,8 +18,10 @@ USE_MHPDBG=@USE_MHPDBG@
 
 #Change the following line if the right kernel includes reside elsewhere
 #LINUX_KERNEL = /usr/src/linux
-LINUX_KERNEL = $(shell sh @SRCPATH@/arch/@CONFIG_HOST@/kversion.sh -find -print)
-LINUX_INCLUDE = $(LINUX_KERNEL)/include
+#LINUX_KERNEL = $(shell sh @SRCPATH@/arch/@CONFIG_HOST@/kversion.sh -find -print)
+#LINUX_INCLUDE = $(LINUX_KERNEL)/include
+LINUX_KERNEL=@LINUX_KERNEL@
+LINUX_INCLUDE=@LINUX_INCLUDE@
 export LINUX_KERNEL
 export LINUX_INCLUDE  
 
@@ -115,29 +117,16 @@ OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
 DEBUG      = $(SYNC_ALOT)
 
-# does this work if you do make -C <some dir>
-TOPDIR := $(shell nolinks=1;pwd)
+TOPDIR=@TOPDIR@
 export TOPDIR
 
-INCDIR = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE)
-INCDIR += -I$(TOPDIR)/base/dev/pic -I$(TOPDIR)/dosext/dpmi $(XINCLUDES)
+INCDIR=@INCDIR@
 export INCDIR
  
-ifdef do_DEBUG
-COPTFLAGS	=  -g -Wall
-else
-COPTFLAGS	= -Wall
-endif
-
-# -m486 is usually in the specs for the compiler
-OPT=  -O3 -m486 -fomit-frame-pointer
-# OPT=-fno-inline
-PIPE=-pipe
-
-CFLAGS     = $(OPT) $(PIPE) $(USING_NET) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+CFLAGS = @CFLAGS@
 
 # set for DPMI want windows
-ifdef REQUIRES_EMUMODULE
+ifdef REQUIRES_VM86PLUS
   LDTPATCH=2
 else
   LDTPATCH:= $(shell grep -c useable $(LINUX_KERNEL)/include/linux/ldt.h)
@@ -162,7 +151,8 @@ endif
 
 export CFLAGS
 
-LDFLAGS    = $(LNKOPTS) # exclude symbol information
+#LDFLAGS    = $(LNKOPTS) # exclude symbol information
+LDFLAGS=@LDFLAGS@
 AS86 = @AS86@
 #LD86 = ld86 -s -0
 LD86 = @LD86@ -0
@@ -213,7 +203,7 @@ warning2:
 	 echo "    - 16 megabytes total memory+swap"; \
 	 echo ""; \
 	 if [ "1" = "$(WIN31)" ]; then \
-		if [ "" = "$(REQUIRES_EMUMODULE)" ]; then \
+		if [ "" = "$(REQUIRES_VM86PLUS)" ]; then \
 	 	  echo "    - Your kernel contains support for experimental use of Windows 3.1."; \
 		else \
 	 	  echo "    - Your kernel needs emumodule to support experimental use of Windows 3.1."; \
@@ -446,17 +436,19 @@ endif
 	@echo "  - Try ./commands/emumouse.com -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
 	 echo ""
-ifdef REQUIRES_EMUMODULE
-	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"; \
+ifdef REQUIRES_VM86PLUS
+	@echo "  - You compiled with VM86PLUS support, you need either a patched kernel"; \
+	 echo "    or you must load EMUMODULE"; \
+	 echo "  - For the later, DO NOT FORGET TO LOAD EMUMODULE"; \
 	 echo "    use load_module.sh from this directory"; \
 	 echo ""
 else
-	@echo "  - It is _STRONGLY_ recommended that the modules"; \
-	echo "    be used instead of the kernel's vm86() call at this"; \
-	echo "    time due to possible register corruption of the"; \
-	echo "    running DOS programs. To use the modules, enable"; \
-	echo "    REQUIRES_EMUMODULE in this Makefile, and re-make."; \
-	echo ""
+	@echo "  - WARNING: You compiled without VM86PLUS support, however,"; \
+	 echo "    it is  recommended that the VM86PLUS support"; \
+	 echo "    be used instead of the standard kernel's vm86() call."; \
+	 echo "    To use the modules, do 'make pristine' and reconfigure with"; \
+	 echo "    './configure --disable-novm86plus', and re-make."; \
+	 echo ""
 endif
 	@sh ./arch/@CONFIG_HOST@/kversion.sh . -dotsOK
 

@@ -29,7 +29,7 @@
 
 #if 0
 /* NOTE: the below is already defined with #include "emu.h"
- *       Must NOT redefine it, else USE_VM86PLUS won't work !!!
+ *       Must NOT redefine it, else REQUIRES_VM86PLUS won't work !!!
  */
 extern struct vm86_struct vm86s;
 #endif

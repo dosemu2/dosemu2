@@ -117,7 +117,7 @@ void HMA_MAP(int HMA)
     }
     E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
   }
-  priv_off();
+  priv_default();
 }
 
 void

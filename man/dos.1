@@ -1,11 +1,11 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "Feb 27, 1996" "Version ALPHA 0.63" "MS-DOS Emulation"
+.TH DOS 1 "Nov 16, 1996" "Version ALPHA 0.64" "MS-DOS Emulation"
 .SH NAME
 dos, dosdebug, xdos \- run MS-DOS and MS-DOS programs under Linux and NetBSD
 .SH SYNOPSIS
 .B dos
 [
-.B \-ABCbcdkVNXtsgKm234O 
+.B \-ABCcdkVNXtsgKm234O 
 ]
 [
 .B \-F
@@ -107,14 +107,14 @@ memory allocation through the XMS 3.0 specification, EMS 4.0 and DPMI 0.9.
 .PP
 Because 
 .B DOSEMU
-is not really a DOS emulator, a copy of MS-DOS 3.3-6.22 is required.
+is not really a DOS emulator, a copy of MS-DOS 3.3-7.00 is required.
 (Future versions of MS-DOS may run, but have of course not been verified.
 DR-DOS 6.0 has also been reported to work.)
 .PP
 See the files 
 .I QuickStart,
 .I ChangeLog, 
-.I doc/announce-0.60, 
+.I doc/announce-0.64, 
 and the
 .B Makefile
 contained in the source distribution
@@ -122,19 +122,21 @@ for information on how to configure, compile, and boot
 .BR DOSEMU .
 
 .SH KERNEL REQUIREMENTS
-At present, you will need Linux 1.1.12 or above with the SYSV IPC option
+At present, you will need Linux 2.0.0 or above with the SYSV IPC option
 (System V InterProcess Communication facilities, see 
 .BR ipc (2))
 compiled. SYSV IPC is an option in the configuration setup during a Linux
 kernel compile.
 
-For kernels older than 1.1.12 a patch is required, which is no longer
-in the 
-.B DOSEMU
-source tree, so please upgrade to (at least) the latest stable kernel
-release. If you use 1.0.x, please upgrade to the latest stable kernel.
-At the time of writing, it was Linux 1.2.13, available with anonymous
-ftp at ftp.funet.fi in the directory /pub/Linux/kernel/linux/v1.2/, or
+For a
+.I full feature dosemu
+you also may either use emumodule or patch
+your kernel. For details see 
+.I doc/README.kernel-patches.
+
+If you use 1.2.13, please upgrade to the latest stable kernel.
+At the time of writing, it was Linux 2.0.25, available with anonymous
+ftp at ftp.funet.fi in the directory /pub/Linux/kernel/linux/v2.0/, or
 at various mirrors all over the world.
 
 .SH OPTIONS
@@ -166,9 +168,16 @@ use RAW console Keyboard (must be at the console)
 .TP
 .I -F
 Parse this config-file instead of /etc/dosemu.conf
+(you need to run as root for this)
 .TP
 .I -D
 specify which Debugging messages to allow/suppress
+.TP
+.I -O
+use stderr for output of Debugging messages
+.TP
+.I -o
+use this file for output of Debugging messages
 .TP
 .I -M
 set base memory to SIZE Kilobytes
@@ -316,11 +325,16 @@ parses this string from left to right.
        +/- state.
 
 .I Message Classes:
- d  disk		v  video		R  disk Reads
- k  keyboard	i  port I/O	W  disk Writes
- s  serial	p  printer	h  hardware
- w  warnings	g  general	x  XMS
- I  IPC		X  X11
+
+ d  disk			R  disk read		W  disk write
+ D  int 21h		C  cdrom			v  video
+ X  X support		k  keyboard		i  port I/O
+ s  serial		m  mouse			#  default ints
+ p  printer		g  general		c  configuration
+ w  warning		h  hardware		I  IPC
+ E  EMS			x  XMS			M  DPMI
+ n  IPX network	P  Pkt-driver		S  SOUND
+ r  PIC
 
 
 Any debugging classes following a 
@@ -408,7 +422,7 @@ should
 have saner UMB support.
 .PP
 .B DOSEMU
-0.63 also supports EMS 4.0 and effort has started to implement DPMI 0.9.
+0.64 also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).
 
 .SH LOGGING 
 .B DOSEMU
@@ -465,6 +479,12 @@ The X version.
 The actual emulator code as a shared library (when
 .B DOSEMU
 is compiled as a.out).
+.TP
+.I /var/run/dosemu.*
+Various files used by
+.B DOSEMU
+including debugger pipes.
+.TP
 .TP
 .I /var/lib/dosemu/*
 Various files used by

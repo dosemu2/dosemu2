@@ -3,6 +3,7 @@
 # Always use src as the top-level
 
 export WAIT=yes
+export do_DEBUG=no
 
 @SET_MAKE@
 

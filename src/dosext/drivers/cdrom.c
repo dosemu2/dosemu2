@@ -142,7 +142,7 @@ void cdrom_reset()
 #ifdef __NetBSD__
    if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-   priv_on();
+   priv_default();
 }
 
 #define MSCD_AUDCHAN_VOLUME0       2
@@ -187,7 +187,7 @@ void cdrom_helper(void)
 #ifdef __NetBSD__
         if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-        priv_on();
+        priv_default();
 
         if (cdrom_fd < 0) {
           LO(bx) = 1; /* media changed (for media changed request) */
@@ -225,7 +225,7 @@ void cdrom_helper(void)
 #ifdef __NetBSD__
                 if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-                priv_on();
+                priv_default();
 
                 if (cdrom_fd < 0) {
 		  C_printf("cdrom open (" _PATH_CDROM ") failed: %s\n",

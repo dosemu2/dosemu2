@@ -242,6 +242,16 @@ config_init(int argc, char **argv)
     while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:O")) != EOF) {
 	switch (c) {
 	case 'F':
+	    if (getuid()) {
+		FILE *f;
+		priv_off();
+		f=fopen(optarg, "r");
+		priv_default();
+		if (!f) {
+		  fprintf(stderr, "Sorry, no access to configuration file %s\n", optarg);
+		  exit(1);
+		}
+	    }
 	    confname = optarg;	/* someone reassure me that this is *safe*? */
 	    break;
 	case 'd':
@@ -264,7 +274,7 @@ config_init(int argc, char **argv)
 		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
 		exit(1);
 	    }
-	    priv_on();
+	    priv_default();
 	    break;
 	}
     }
@@ -280,7 +290,7 @@ config_init(int argc, char **argv)
 
     parse_config(confname);
 
-    priv_on();
+    priv_default();
 
     if (config.exitearly)
 	leavedos(0);
@@ -359,7 +369,7 @@ config_init(int argc, char **argv)
 	    if (terminal_fd == -1) {
 		priv_off();
 		open_terminal_pipe(optarg);
-		priv_on();
+		priv_default();
 	    } else
 		error("ERROR: terminal pipe already open\n");
 	    break;

@@ -1,0 +1,81 @@
+
+ANNOUNCEMENT
+~~~~~~~~~~~~
+The DOSEMU team is proud to announce DOSEMU 0.64.1, the PC Emulator for
+x86 based *nix. Please remember to consider this as ALPHA software.
+
+
+WHAT IS DOSEMU?
+~~~~~~~~~~~~~~~
+DOSEMU is a PC Emulator application that allows Linux to run a DOS
+operating system in a virtual x86 machine. This allows you to run
+many DOS applications. These are capabilities of DOSEMU worth noting:
+
+  - Color text and full keyboard emulation (via hotkeys) via terminal.
+  - Built-in X-Windows support, includes IBM character set font!
+  - Graphics capability at the console with most compatible video cards.
+  - Much-improved DPMI support.
+  - Runs Borland BCC.EXE/TCC.EXE version 3.x command line compilers!
+  - Runs Borlandc C++ 3.x IDE (with emumodule.o)
+  - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
+     at the Linux console.
+  - NetBSD verison of DOSEMU appreciating a growing success,
+     contact jtk@atria.com.
+  - CDROM support.
+  - NetWare and other network connectivity via builtin IPX and pktdrvr
+     support.
+
+
+
+REQUIREMENTS
+~~~~~~~~~~~~
+  - Linux 2.0.0+ (with IPC support, IPX support optional)
+  - Linux >= 2.1.8 is also supported now (patch supplied for 'full feature')
+  - GCC 2.7.0+ and LIBC 5.2.18+ are recommended for best results.
+  - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
+     of total memory to compile, depending on configuration.
+
+
+
+CREDITS
+~~~~~~~
+This release could not have gotten out the door without the work of
+the our relentless development team and friends, currently consisting
+of at least:
+
+  Jon Tombs            	Aaron			Karl Kiniger
+  Daniel R. Barrlow	Christoph Niemann	Theodore T'so
+  Derek Fawcus		Linus Torvalds		Alan Cox
+  Alessandro Rubini	Corey Sweeney		James Maclean
+  Hans Lermen		Andrew.Tridgell		Jochen Hein
+  Jason E Gorden	Lam Lai Yin, Savio	Alistair MacDonald
+  Lawrence K Mao	Ronnie			Mark Rejhon
+  Michael E. Deisher	Larry Stephan		Lutz Molgedey
+  Amit Margalt 		Marty Leisner 		Dong Liu
+  Scott Buchholz 	Tim Van der Linden 	John Davis
+  Kang-Jin Lee 		Matthew Grant 		David Hansen
+  John Kohl 		Kevin P Lawton 		Rod May
+  Wayne P Meissner 	Vinod G Kulkarni 	Andries
+  David Etherton 	Alberto Vignani		Eric W. Biederman
+  Eric Mouw		Arjan Filius		Uwe Bonnes
+
+  and others too important to mention.
+
+
+WHERE TO GET IT:
+~~~~~~~~~~~~~~~~
+The DOSEMU PC Emulator can be downloaded from the following FTP sites:
+
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.64.1.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.64.1.tgz
+
+
+HELPING US
+~~~~~~~~~~
+Many thanks to all who have helped with this release, by sending bug
+reports, patches, comments and/or ideas for DOSEMU! Our apologies for
+not having answered every letter, and possibly missing some important
+information. If you know something you think we should know, contact
+us, PLEASE! We can be reached at:
+
+linux-msdos@vger.rutgers.edu (The DOSEMU team)

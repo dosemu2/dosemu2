@@ -4,9 +4,10 @@
  * (C) 1994 under GPL, Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
   
+
 #include "kversion.h"
-#if 0
-#define KERNEL_VERSION 1003038 /* last verified kernel version */
+#if KERNEL_VERSION < 2000000
+  #error "sorry, but we cleaned up history and do nolonger support kernels < 2.0.0"
 #endif
 
 #include <linux/errno.h>
@@ -15,42 +16,21 @@
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#if KERNEL_VERSION >= 1001085
 #include <linux/mm.h>
-#endif
 
 #include <asm/segment.h>
-#if KERNEL_VERSION >= 1001088
 #include <asm/pgtable.h>
-#endif
 #include <asm/io.h>
 
 #define  _EMUMOD_itself
 #include "emumod.h"
 
 
-#if KERNEL_VERSION >= 1003038
-  /* need this to force  kernel_version[]=UTS_RELEASE,
-   * starting with 1.3.38 defines are moved into <linux/module.h> */
-  #undef __NO_VERSION__ 
-  #define MODULE
-#endif
+/* need this to force  kernel_version[]=UTS_RELEASE,
+ * starting with 1.3.38 defines are moved into <linux/module.h> */
+#undef __NO_VERSION__ 
+#define MODULE
 #include <linux/module.h>
-
-
-#if KERNEL_VERSION < 1003038
-/*
- * NOTE:
- *   To install the module, we must include the kernel identification string.
- *   (so, don't panic if you get a GCC warning "_kernel_version not used" )
- */
-#if KERNEL_VERSION < 1001072
-#include "../../linux/tools/version.h"
-#else
-#include "linux/version.h"
-#endif
-static char kernel_version[] = UTS_RELEASE;
-#endif
 
 struct redirect_db {
   void *resident;
@@ -161,38 +141,21 @@ static void restore_redirect_all() {
   restore_flags(flags);
 }
 
-extern int init_emusyscalls( void);
-extern void remove_emusyscalls( void);
-
-
 int init_module( void) {
   kernel_version[0] = kernel_version[0];
   printk(ID_STRING ", init_module called \n");
   redirect_all();
-  if (init_emusyscalls()) {
-    restore_redirect_all();
-    return -1;
-  }
-#if KERNEL_VERSION >= 1003057
   mod_use_count_ &= ~MOD_AUTOCLEAN;
-#endif
   return 0;
 }
 
 void cleanup_module( void) {
   int i;
+  extern void force_free_all_vm86irq(void);
   printk(ID_STRING ": cleanup modul called\n");
-  remove_emusyscalls();
+  force_free_all_vm86irq();
   restore_redirect_all();
   
-#ifdef _VM86_STATISTICS_
-  printk(ID_STRING ": statistics vm86_traps= ");
-  for (i=0; i<8 ; i++) printk(" %d",vm86_trap_count[i]);
-  printk("\n" ID_STRING ": statistics vm86_faults= %d\n",vm86_fault_count);
-  printk( ID_STRING ": statistics vm86_count_cli= %d vm86_count_sti= %d\n",  vm86_count_cli, vm86_count_sti);
-  printk( ID_STRING ": statistics signalret_count= %d\n",  signalret_count);
-#endif
-
   /* wait arround to be sure no process is still in the module */
   for (i = 0; i < 100; i++) schedule();
   /* now the memory can be freed */

@@ -65,28 +65,13 @@
  */
 #undef __LINE__
 
-/*
- * DEFINE REQUIRES_EMUMODULE, if you you need the emumodules special features
- * You also must load the modules as follows:
- *   login in as root
- *   cd /usr/src/dosemu
- *   ./load_module.sh
- *
- * This needs only to be done once, unless you reboot your machine,
- * or recompile DOSemu.
- * You can unload emumodule as follows:
- *   login in as root
- *   cd /usr/src/dosemu           
- *   ./unload_module.sh     
- *     ==
- */ 
-#undef REQUIRES_EMUMODULE
+/* DEFINE this, if you want the extended vm86 support (vm86plus)
+ * You then either have to patch your kernel or load emumodule
+ */
+#undef REQUIRES_VM86PLUS
 
-/* DEFINE this, if you want the extended vm86 support (vm86plus) */
-#undef USE_VM86PLUS
-
-/* DEFINE this, if you want stack verifying in sys_vm86 */
-#undef USE_VM86_STACKVERIFY
+/* DEFINE this, if you have vm86plus built into the kernel */
+#undef BUILTIN_VMP86PLUS
 
 /* DPMI test windows */
 #undef WANT_WINDOWS

@@ -44,10 +44,14 @@
 #include <linux/unistd.h>
 #include <linux/head.h>
 
-#if defined(REQUIRES_EMUMODULE) && defined(WANT_WINDOWS)
-  #include "ldt.h" /* NOTE we have a patched version in dosemu/include */
+#if defined(REQUIRES_VM86PLUS) && defined(WANT_WINDOWS)
+  #include "ldt.h" /* NOTE we have a patched version in src/include */
 #else
-  #include <linux/ldt.h>
+  #if KERNEL_VERSION < 2001000
+    #include <linux/ldt.h>
+  #else
+    #include <asm/ldt.h>
+  #endif
 #endif
 
 #if KERNEL_VERSION < 1001067
@@ -252,7 +256,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.limit_in_pages = limit_in_pages_flag;
 #ifdef WANT_WINDOWS
   ldt_info.seg_not_present = seg_not_present;
-#if defined(REQUIRES_EMUMODULE)
+#if defined(REQUIRES_VM86PLUS)
   ldt_info.useable = useable;
 #endif
 #else
@@ -382,7 +386,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.seg_32bit << 22) |
             (ldt_info.limit_in_pages << 23) |
             ((ldt_info.seg_not_present ^1) << 15) |
-#if defined(REQUIRES_EMUMODULE) && defined(WANT_WINDOWS)
+#if defined(REQUIRES_VM86PLUS) && defined(WANT_WINDOWS)
             (ldt_info.useable << 20) |
 #endif
             0x7000;
@@ -1935,7 +1939,7 @@ void run_dpmi(void)
 	   do_int(VM86_ARG(retval));
 	break;
 #endif
-#ifdef USE_VM86PLUS
+#ifdef REQUIRES_VM86PLUS
 	case VM86_PICRETURN:
 #endif
 	case VM86_SIGNAL:

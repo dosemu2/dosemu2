@@ -39,7 +39,7 @@ extern void handle_signals(void);
 
 #if 0
 /* NOTE: the below is already defined with #include "emu.h"
- *       Must NOT redefine it, else USE_VM86PLUS won't work !!!
+ *       Must NOT redefine it, else REQUIRES_VM86PLUS won't work !!!
  */
 extern struct vm86_struct vm86s;
 #endif
@@ -115,7 +115,7 @@ void mhp_close(void)
    unlink(pipename_out);   
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
-   vm86s.vm86plus.mhpdbg_active = 0;
+   vm86s.vm86plus.vm86dbg_active = 0;
 }
 
 static void mhp_init(void)
@@ -124,9 +124,9 @@ static void mhp_init(void)
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
   
-  vm86s.vm86plus.mhpdbg_active = 0;
-  vm86s.vm86plus.mhpdbg_TFpendig = 0;
-  memset(&vm86s.vm86plus.mhpdbg_intxxtab, 0, sizeof(vm86s.vm86plus.mhpdbg_intxxtab));
+  vm86s.vm86plus.vm86dbg_active = 0;
+  vm86s.vm86plus.vm86dbg_TFpendig = 0;
+  memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
 
   sprintf(pipename_in, "%sdbgin.%d", TMPFILE, getpid());
   if (!mkfifo(pipename_in, S_IFIFO | 0600)) {
@@ -176,7 +176,7 @@ static void mhp_poll(void)
    if (mhpdbg.active == 1) {
       /* new session has started */
       mhpdbg.active++;
-      vm86s.vm86plus.mhpdbg_active = 1;
+      vm86s.vm86plus.vm86dbg_active = 1;
       
       mhp_printf ("%s", mhp_banner);
       mhp_cmd("rmapfile");
@@ -210,7 +210,7 @@ static void mhp_poll(void)
       }
       if ((mhpdbg.recvbuf[0] == 'q') && (mhpdbg.recvbuf[1] <= ' ')) {
 	 mhpdbg.active = 0;
-	 vm86s.vm86plus.mhpdbg_active = 0;
+	 vm86s.vm86plus.vm86dbg_active = 0;
 	 mhpdbg.sendptr = 0;
          mhpdbg.nbytes = 0;
          return;
@@ -239,7 +239,7 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
   case DBG_INTx:
 	  if (!mhpdbg.active)
 	     break;
-	  if (test_bit(DBG_ARG(mhpdbgc.currcode), vm86s.vm86plus.mhpdbg_intxxtab)) {
+	  if (test_bit(DBG_ARG(mhpdbgc.currcode), vm86s.vm86plus.vm86dbg_intxxtab)) {
 	    if ((mhpdbgc.bpload==1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && (LWORD(eax) == 0x4b00) ) {
 	      mhpdbgc.bpload_bp=((long)LWORD(cs) << 4) +LWORD(eip);
 	      if (mhp_setbp(mhpdbgc.bpload_bp)) {
@@ -258,7 +258,7 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	      }
 	      if (!--mhpdbgc.int21_count) {
 	        volatile register int i=0x21; /* beware, set_bit-macro has wrong constraints */
-	        clear_bit(i, vm86s.vm86plus.mhpdbg_intxxtab);
+	        clear_bit(i, vm86s.vm86plus.vm86dbg_intxxtab);
 	      }
 	    }
 	    else {
@@ -312,7 +312,7 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 			  mhp_modify_eip(-1);
 		    }
 		    else {
-		      if ((ok=test_bit(3, vm86s.vm86plus.mhpdbg_intxxtab))) {
+		      if ((ok=test_bit(3, vm86s.vm86plus.vm86dbg_intxxtab))) {
 		        /* software programmed INT3 */
 		        mhp_modify_eip(-1);
 		        mhp_cmd("r");

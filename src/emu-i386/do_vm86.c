@@ -591,7 +591,7 @@ run_vm86(void)
 	   do_int(VM86_ARG(retval));
 	break;
 #endif
-#ifdef USE_VM86PLUS
+#ifdef REQUIRES_VM86PLUS
     case VM86_PICRETURN:
         I_printf("Return for FORCE_PIC\n");
         break;

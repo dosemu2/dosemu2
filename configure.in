@@ -246,7 +246,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="64"
-PATCHLEVEL="0.2"
+PATCHLEVEL="1.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
@@ -277,27 +277,47 @@ if test "$CONFIG_HOST" = "linux"; then
 dnl BOCHS
 dnl   AC_DEFINE_UNQUOTED(X86_EMULATOR_FLAGS)
 
-dnl Do emumodule 
- AC_ARG_ENABLE(noemumod,
-               [  --enable-noemumod       do NOT use emumodule for VM86 enhancement],
-               [emumod="no"],[emumod="yes"])
-  if test "$emumod" = "yes"; then
-   AC_DEFINE_UNQUOTED(REQUIRES_EMUMODULE)
-   AC_DEFINE_UNQUOTED(USE_VM86PLUS)
+dnl Do Kernel builtin vm86plus
+ AC_ARG_ENABLE(kernelvm86plus,
+               [  --enable-kernelvm86plus do compile for kernel builtin vm86plus support],
+               [kernelvm86plus="yes"],[kernelvm86plus="no"])
+  if test "$kernelvm86plus" = "yes"; then
+   AC_CHECKING("Compiling for kernel builtin vm86plus support");
+   AC_DEFINE_UNQUOTED(BUILTIN_VMP86PLUS)
+   BUILTIN_VMP86PLUS="-DBUILTIN_VMP86PLUS"
+   AC_SUBST(BUILTIN_VMP86PLUS)
+  else
+   AC_CHECKING("Compiling for normal vm86 kernels");
+  fi
+
+dnl Do vm86plus 
+ AC_ARG_ENABLE(novm86plus,
+               [  --enable-novm86plus     do NOT use VM86 enhancement],
+               [vm86plus="no"],[vm86plus="yes"])
+  if test "$kernelvm86plus" = "yes"; then
+    vm86plus="yes"
+  fi
+  if test "$vm86plus" = "yes"; then
+   AC_CHECKING("Compiling for vm86plus support");
+   AC_DEFINE_UNQUOTED(REQUIRES_VM86PLUS)
    AC_DEFINE_UNQUOTED(USE_MHPDBG)
    USE_MHPDBG="-DUSE_MHPDBG"
    AC_SUBST(USE_MHPDBG)
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-
-dnl   AC_DEFINE_UNQUOTED(USE_VM86_STACKVERIFY)
-
-   REQUIRES_EMUMODULE="YES"
-   OPTIONALSUBDIRS="dosext/net/v-net"
-   REQUIRED="tools commands tools/periph arch/$CONFIG_HOST/syscallmgr arch/$CONFIG_HOST/emumod"
+   REQUIRES_VM86PLUS="YES"
+   if test "$kernelvm86plus" = "yes"; then
+     OPTIONALSUBDIRS="dosext/net/v-net arch/$CONFIG_HOST/emumod"
+     REQUIRED="tools commands tools/periph"
+   else
+     AC_CHECKING("Compiling emumodule");
+     OPTIONALSUBDIRS="dosext/net/v-net"
+     REQUIRED="tools commands tools/periph arch/$CONFIG_HOST/emumod"
+     emumodule="yes"
+   fi
   else
+   AC_CHECKING("Compiling without vm86plus support");
    DEBUGGER=""
    REQUIRED="tools commands tools/periph"
-   OPTIONALSUBDIRS="dosext/net/v-net arch/$CONFIG_HOST/syscallmgr arch/$CONFIG_HOST/emumod"
   fi
 fi
 AC_SUBST(DEBUGGER)
@@ -306,30 +326,38 @@ dnl Do SMP compilation for modules
  AC_ARG_ENABLE(SMPmodules,
                [  --enable-SMPmodules     do compile emumodule for SMP kernels],
                [SMPmodules="yes"],[SMPmodules="no"])
-  if test "$SMPmodules" = "yes"; then
-   AC_CHECKING("Compiling modules for SMP kernels");
-   SMP="-D__SMP__"
-   AC_SUBST(SMP)
+  if test "$emumodule" = "yes"; then
+    if test "$SMPmodules" = "yes"; then
+     AC_CHECKING("Compiling modules for SMP kernels");
+     SMP="-D__SMP__"
+     AC_SUBST(SMP)
+    else
+     AC_CHECKING("Compiling modules for uniprocessor kernels");
+    fi
+  fi
+
+dnl Do compilation for GDB
+ AC_ARG_ENABLE(dodebug,
+               [  --enable-dodebug        do compile for with debug info],
+               [dodebug="yes"],[dodebug="no"])
+  if test "$dodebug" = "yes"; then
+   AC_CHECKING("Compiling with debug info");
   else
-   AC_CHECKING("Compiling modules for uniprocessor kernels");
+   AC_CHECKING("Compiling without debug info");
   fi
 
 dnl Do SB emulation
  AC_ARG_ENABLE(nosbemu,
                [  --enable-nosbemu        do NOT use SoundBlaster emulator],
-               [sbemu="no"],[sbemu="yes"])
-  if test "$sbemu" = "yes"; then
-   AC_CHECKING("Compiling with SB Emulation");
-   USE_SBEMU="-DUSE_SBEMU=1"
-   AC_DEFINE_UNQUOTED(USE_SBEMU)
-   AC_SUBST(USE_SBEMU)
-  else
-   AC_CHECKING("Compiling without SB Emulation");
-  fi
+               [AC_CHECKING("Compiling without SB Emulation")],
+               [AC_CHECKING("Compiling with SB Emulation")
+                AC_DEFINE(USE_SBEMU)
+                USE_SBEMU="USE_SBEMU=1"
+                AC_SUBST(USE_SBEMU)])
 
 dnl DPMI requirements
 
-  if test "$emumod" = "yes"; then
+  if test "$vm86plus" = "yes"; then
 AC_DEFINE_UNQUOTED(WANT_WINDOWS)
 WANT_WINDOWS="WANT_WINDOWS=-DWANT_WINDOWS"
   else
@@ -339,7 +367,7 @@ AC_SUBST(WANT_WINDOWS)
 
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
-AC_SUBST(REQUIRES_EMUMODULE)
+AC_SUBST(REQUIRES_VM86PLUS)
 
 dnl Now CFLAGS and INCLUDES
 
@@ -357,20 +385,17 @@ AC_SUBST(TOPDIR)
 INCDIR="-I${SRCPATH}/include  -I${LINUX_INCLUDE} -I${SRCPATH}/base/dev/pic -I${SRCPATH}/dosext/dpmi ${XINCLUDES}"
 AC_SUBST(INCDIR)
 
-# ifdef do_DEBUG
-# COPTFLAGS=" -g -Wall"
-# else
-COPTFLAGS="-Wall"
-# endif
+if test "$dodebug" = "yes"; then
+  COPTFLAGS=" -g -Wall"
+else
+  COPTFLAGS=" -Wall"
+fi
 
 # -m486 is usually in the specs for the compiler
-OPT="-O3"
+OPT="-O2"
 case "$host_cpu" in
-  i[[56]]86)
+  i[[456]]86)
     OPT="$OPT -m486 -malign-loops=2 -malign-jumps=2 -malign-functions=2"
-    ;;
-  i486)
-    OPT="$OPT -m486"
     ;;
   i386)
     OPT="$OPT -m386"
@@ -390,7 +415,7 @@ fi
 CFLAGS="${OPT} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
 
 # set for DPMI want windows
-# ifdef REQUIRES_EMUMODULE
+# ifdef REQUIRES_VM86PLUS
 #  LDTPATCH=2
 #else
 #  LDTPATCH=`grep -c useable /usr/include/linux/ldt.h`
@@ -428,7 +453,6 @@ src/arch/linux/async/Makefile
 src/arch/linux/debugger/Makefile
 src/arch/linux/dosext/sound/Makefile
 src/arch/linux/emumod/Makefile
-src/arch/linux/syscallmgr/Makefile
 src/base/async/Makefile
 src/base/bios/Makefile
 src/base/dev/dma/Makefile
