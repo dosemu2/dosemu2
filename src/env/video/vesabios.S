@@ -3,7 +3,7 @@
  *
  * This is vgaemu's VESA BIOS (C000:0 .. C800:0)
  *
- * Copyright (C) 1995, Erik Mouw and Arjan Filius
+ * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -78,12 +78,12 @@ CISH(vgaemu_VESA_BIOS_label_start):
 		nop
 		
 		.org VGAEMU_BIOS_VERSIONSTRING
-		.ascii	"DOSEMU vgaemu. (C) 1995, "
+		.ascii	"DOSEMU VGAemu. (C) 1995 1996, "
 		.ascii	"I.A. Filius and J.A.K. Mouw"
 		.byte	0x00
 		
 		.org VGAEMU_BIOS_VESASTRING
-		.ascii	"DOSEMU vgaemu"
+		.ascii	"DOSEMU VGAemu"
 		.byte	0x00
 		
 		.org VGAEMU_BIOS_WINDOWFUNCTION

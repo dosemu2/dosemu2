@@ -3,7 +3,7 @@
  *
  * VESA BIOS enhancements for the Linux dosemu VGA emulator (vgaemu)
  *
- * Copyright (C) 1995, Erik Mouw and Arjan Filius
+ * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -47,9 +47,9 @@ int set_video_mode(int mode);  /* root@sjoerd from int10.c,dangerous*/
  * DEBUG_SUBFUNCTION   -- VESA subfunctions
  * DEBUG_TRAP          -- Exceptions on video BIOS
  */
-#define DEBUG
+/* #define DEBUG */
 #define DEBUG_SUBFUNCTION
-#define DEBUG_TRAP
+/* #define DEBUG_TRAP */
 
 #if !defined False
 #define False 0
@@ -74,79 +74,19 @@ int set_video_mode(int mode);  /* root@sjoerd from int10.c,dangerous*/
 */
 /* **************** Data **************** */
 
-#if 0
-/* This should be done in assembly, I'm working on it (root@zaphod) */
-unsigned char vgaemu_VESA_BIOS[]=
-{
-  /* offset 0 and 1: boot signature, required for BIOS extentions */
-  0x55, 0xaa,
-  
-  /* offset 2: BIOS extention length in units of 512 bytes */
-  0x08,
-  
-  /* offset 3: entry to init routine. take 2 bytes so we can put a
-   * near jmp to some setup code in the future */
-  0xcb, /* retf */
-  0x90,	/* nop */
-  
-  /* offset 5: VGA BIOS copyright string */
-  /* "Linux DOSEMU vgaemu. (C) 1995, I.A. Filius and J.A.K. Mouw", */
-  'L',   'i',   'n',   'u',   'x',   ' ',   'D',   'O',
-  'S',   'E',   'M',   'U',   ' ',   'v',   'g',   'a',
-  'e',   'm',   'u',   '.',   ' ',   '(',   'C',   ')',
-  ' ',   '1',   '9',   '9',   '5',   ',',   ' ',   'I',
-  '.',   'A',   '.',   ' ',   'F',   'i',   'l',   'i',
-  'u',   's',   ' ',   'a',   'n',   'd',   ' ',   'J',
-  '.',   'A',   '.',   'K',   '.',   ' ',   'M',   'o',
-  'u',   'w',   0x00,
-  
-  
-  /* offset 64: VESA BIOS copyright string */
-  /* "Linux DOSEMU vgaemu", */
-  'L',   'i',   'n',   'u',   'x',   ' ',   'D',   'O',
-  'S',   'E',   'M',   'U',   ' ',   'v',   'g',   'a',
-  'e',   'm',   'u',   0x00,  0x00,  0x00,  0x00,  0x00,
-  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,
-  
-  /* offset 96: VESA window positioning function */
-  /* Nice function eh? ;-) Still working on it */
-  0xcb,		/* retf */
-  0x90,		/* nop  */
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  
-  /* offset 104: VESA mode list */
-  0x00, 0x01,   /* 0x100:  640x400x256 */
-  0x01, 0x01,   /* 0x101:  640x480x256 */
-  0x03, 0x01,   /* 0x103:  800x600x256 */
-  0x05, 0x01,   /* 0x105: 1024x768x256 */
-  0x08, 0x01,   /* 0x108:        80x60 */
-  0x09, 0x01,   /* 0x109:       132x25 */
-  0x0a, 0x01,   /* 0x10a:       132x43 */
-  0x0c, 0x01,   /* 0x10c:       132x60 */
-  0xff, 0xff,   /* end of the list */
-  
-  /* offset 124: some 0's to be sure */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-#else
-
-/* VESA BIOS is in vesabios.S */
-/* These two functions are no real functions, they're pointers to the DOS
- * part of the VESA BIOS
+/* VESA compatible BIOS is in vesabios.S */
+/* WARNING: The following two functions are no real functions, they're
+ * pointers to the DOS part of the VESA BIOS!
  */
 extern void vgaemu_VESA_BIOS_label_start();
 extern void vgaemu_VESA_BIOS_label_end();
 
 unsigned char *vgaemu_VESA_BIOS=(unsigned char *)vgaemu_VESA_BIOS_label_start;
 
-#endif
 
 
 
-/* Table to translate VESA modes to (own) OEM modes */
+/* Structure to translate VESA modes to (own) OEM modes */
 typedef struct
 {
   int vesamode;
@@ -820,7 +760,7 @@ int vesa_set_SVGA_mode(void)
     }
   else
     return(False);
-#endif
+#endif /* 0 */
 
   return(False);
 }
@@ -845,6 +785,7 @@ int vesa_SVGA_memory_control(void)
       if(vgaemu_switch_page(LWORD(edx))==True)
         {
 	  window_addressA=LWORD(edx);
+	  vgaemu_switch_page(LWORD(edx));
 	  return(True);
 	}
       break;

@@ -1,53 +1,211 @@
 /*
- * the different SoundBlaster versions returned by
- * the identify command
- * currently only the SB_OLD (aka 1.5) is supported
+ ***************************************************************************
+ *                                   Sound.h                               *
+ *                                   -------                               *
+ * The Sound Definitions are split into 3 sections, because the driver has *
+ * been separated into 3 parts. This separates the MIDI, Digital and FM    *
+ * drivers so that they can be supported on a piecemeal basis on different *
+ * architectures.                                                          *
+ *                                                             - Alistair  *
+ ***************************************************************************
  */
 
+#include "types.h"
+
+/*
+ ***************************************************************************
+ * SB Support                                                              *
+ ***************************************************************************
+ */
+
+/*
+ * The different SoundBlaster versions returned by the init function.
+ */
+
+#define SB_NONE 0x000
 #define SB_OLD	0x105
 #define SB_20	0x201
 #define SB_PRO	0x300
-#define SB_16	0x40D
+#define SB_16	0x405 /* Was 40D, but that is AWE32+ - AM */
 
-/* These defaults are the defaults for an SB Pro as far as I can tell, and
-   they are what I have on my system... (Yes, I guess this means I can escape
-   adding config file support! */
-static unsigned char sound_dma_ch = 1;
-static unsigned char sound_irq = PIC_IRQ5;
-#define SOUND_BASE 0x220
+/*
+ * Various Status values
+ */
 
-#ifdef __linux__
-/* This param controls fragments.  Try the following values if dsp is
-performing poorly:
-0x00020008  The value Hannu notes in his explanation
-0x00FF0008  Try more fragments
-See /usr/src/linux/drivers/sound/experimental.txt for full details */
-#define SOUND_FRAG 0x0008000B
+#define SB_DATA_AVAIL    0x80
+#define SB_DATA_UNAVAIL  0x00
 
-/* These are the files.  Someone should probably change these to variables
-when we make configuration possible... */
-#define MIXER_PATH "/dev/mixer"
-#define DSP_PATH "/dev/dsp"
-#endif
+#define SB_WRITE_AVAIL   0x00
+#define SB_WRITE_UNAVAIL 0x80
 
-#ifdef __NetBSD__
-#define MIXER_PATH "/dev/mixer"
-#define DSP_PATH "/dev/sound"
-#endif
+/*
+ * Mixer Definitions
+ */
 
-/************************************************************************
-ATTENTION DOSEMU CONFIGURATION CODERS: ALL OF THE ABOVE PARAMS SHOULD BECOME
-CONFIGURABLE.  THE #defines ARE USED IN ../sound/sound.c  PLEASE MAKE
-EVERYTHING ABOVE THIS CONFIGURABLE BUT KEEP THESE AS DEFAULTS.  DON'T TOUCH
-ANYTHING BELOW THIS UNLESS YOU'RE MAKING EXTENSIVE CHANGES TO MY CODE
-*************************************************************************/
+#define SB_MIXER_VOLUME  1
+#define SB_MIXER_PCM     2
+#define SB_MIXER_SYNTH   3
+#define SB_MIXER_CD      4
+#define SB_MIXER_LINE    5
+#define SB_MIXER_MIC     6
 
-/* This is anded with the address to see if it's valid */
+/* 
+ * SB information / states
+ */
+
+EXTERN struct sb_information_t {
+  __u8  mixer_index;           /* Which Mixer channel to work on */
+  __u16 irq;                   /* Internal IRQ (PIC) */
+  __u8  speaker;               /* Speaker Status */
+  __u16 version;               /* Version of the SB being emulated */
+} SB_info;
+
+/* 
+ * DSP information / states 
+ */
+
+EXTERN struct DSP_information_t {
+  __u8  channels;              /* Number of Channels on the DSP */
+  __u8  time_constant;         /* The current Time constant for writes */
+  __u8  test;                  /* Storage for the test value */
+  __u8  stereo;                /* Is the device Stereo */
+  __u8  ready;                 /* Is DSP Ready ? */
+  __u8  data;                  /* Data is available */
+  __u8  write_size_mode;       /* Are we writing the upper or lower byte */
+  __u8  last_write;            /* First part of a multi-byte instruction */
+  __u16 length;                /* Length of the DMA transfer */
+} SB_dsp;
+
+
+/*
+ * SB Driver - Architecture Specific Interface
+ */
+
+EXTERN struct SB_driver_t {
+
+  /*
+   * Mixer Functions
+   */
+  void  (* write_mixer)(int channel, __u8 value);
+  __u8  (* read_mixer)(int channel);
+
+  /*
+   * Speaker Control
+   */
+  void  (* speaker_on)(void);
+  void  (* speaker_off)(void);
+
+  /*
+   * Direct DAC access
+   */
+  void  (* DAC_write)(int bits, __u8 value);
+
+  /*
+   * DMA functions
+   */
+  void  (* DMA_start_init)(__u32);
+  void  (* DMA_start_complete)(void);
+  void  (* DMA_pause)(void);
+  void  (* DMA_resume)(void);
+  void  (* DMA_stop)(void);
+  void  (* DMA_complete)(void);
+
+  /*
+   * Miscellaneous Functions
+   */
+  void  (* set_speed)(__u16 speed, __u8 stereo);
+
+} SB_driver; 
+
+
+
+/*
+ ***************************************************************************
+ * FM Support                                                              *
+ ***************************************************************************
+ */
+
+#define ADLIB_REGISTER        0
+#define ADLIB_STATUS          ADLIB_REGISTER
+#define ADLIB_DATA            1
+#define ADV_ADLIB_REGISTER    2
+#define ADV_ADLIB_STATUS      ADV_ADLIB_REGISTER
+#define ADV_ADLIB_DATA        3
+
+#define FM_LEFT_REGISTER      ADLIB_REGISTER
+#define FM_LEFT_STATUS        ADLIB_STATUS
+#define FM_LEFT_DATA          ADLIB_DATA
+#define FM_RIGHT_REGISTER     ADV_ADLIB_REGISTER
+#define FM_RIGHT_STATUS       ADV_ADLIB_STATUS
+#define FM_RIGHT_DATA         ADV_ADLIB_DATA
+
+/* This is a Kludge! */
+#define ADLIB_NORMAL   1
+#define ADLIB_ADV      2
+#define ADLIB_NONE     0
+
+/*
+ ***************************************************************************
+ * MPU-401 Support                                                         *
+ ***************************************************************************
+ */
+
+/* This is a Kludge! */
+#define MPU_NORMAL     1
+#define MPU_NONE       0
+
+/*
+ ***************************************************************************
+ * Private Code                                                            *
+ ***************************************************************************
+ */
+
+/* 
+ * This is anded with the address to see if it's valid 
+ */
+
 #define SOUND_IO_MASK 0xFFF0
 #define SOUND_IO_MASK2 0x0F
 
-extern void sb_write(unsigned char addr, unsigned char value);
-extern void fm_write(unsigned char addr, unsigned char value);
-extern unsigned char sb_read(unsigned char addr);
-extern void sound_init(void);
+/* 
+ * Output Queue information 
+ */
+
+/* 
+ * How big the output buffer should be. This _MUST_ be a multiple of 2.
+ * The queue is big, so that it can accomodate the copyright string.
+ */
+
+#define DSP_QUEUE_SIZE  64
+
+EXTERN struct SB_queue_t {
+  __u8  output[DSP_QUEUE_SIZE];  /* Output Queue */
+  int   holds;                   /* Items in the Queue */
+  int   start;                   /* Current Queue Start */
+  int   end;                     /* Current Queue End */
+} SB_queue;
+
+/*
+ * The definitions needed for setting up the device structures.
+ */
+
+extern void adlib_io_write  (__u32 addr, __u8 value); /* Stray */
+extern void sb_dma_handler (int status); /* Stray */
+
+extern void sb_io_write     (__u32 addr, __u8 value);
+extern void fm_io_write     (__u32 addr, __u8 value);
+extern void mpu401_io_write (__u32 addr, __u8 value);
+extern __u8 sb_io_read      (__u32 addr);
+extern __u8 fm_io_read      (__u32 addr);
+extern __u8 mpu401_io_read  (__u32 addr);
+extern void sound_init      (void);
+extern void sound_reset     (void);
+
+extern void SB_driver_reset (void);
+extern void FM_driver_reset (void);
+extern void MPU_driver_reset (void);
+
+extern int SB_driver_init (void);
+extern int FM_driver_init (void);
+extern int MPU_driver_init (void);
 

@@ -53,17 +53,19 @@
 /* Needed for DIAMOND define */
 #include "vc.h"
 
+#ifdef USE_SBEMU
 #include "sound.h"
+#endif
 
 #include "dma.h"
 
 /*  */
 /* inb,inw,ind,outb,outw,outd @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/arch/linux/async/sigsegv.c --> src/emu-i386/ports.c  */
 /* PORT_DEBUG is to specify whether to record port writes to debug output.
- * 0 means disabled.
- * 1 means record all port accesses to 0x00 to 0xFF
- * 2 means record ANY port accesses!  (big fat debugfile!)
- */ 
+* 0 means disabled.
+* 1 means record all port accesses to 0x00 to 0xFF
+* 2 means record ANY port accesses!  (big fat debugfile!)
+*/ 
 #define PORT_DEBUG 0
 
 extern void set_leds(void);
@@ -188,15 +190,17 @@ inb(unsigned int port)
         break;
       }
 
+#ifdef USE_SBEMU
     /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == SOUND_BASE) {r=sb_read(port & SOUND_IO_MASK2);};
+    if ((port & SOUND_IO_MASK) == config.sb_base) {r=sb_io_read(port);};
     /* It seems that we might need 388, but this is write-only, at least in the
        older chip... */
+#endif /* USE_SBEMU */
 
     /* DMA I/O */
-    if ((port & ~15) == 0) {r=dma_read(port);};
-    if ((port & ~15) == 0x80) {r=dma_read(port);};
-    if ((port & ~31) == 0xC0) {r=dma_read(port);};
+    if ((port & ~15) == 0) {r=dma_io_read(port);};
+    if ((port & ~15) == 0x80) {r=dma_io_read(port);};
+    if ((port & ~31) == 0xC0) {r=dma_io_read(port);};
 
     /* The diamond bug */
     if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
@@ -207,6 +211,9 @@ inb(unsigned int port)
       break;
     }
     i_printf("default inb [0x%x] = 0x%02x\n", port, r);
+    h_printf("read port 0x%x dummy return 0xff at %04x:%04x",
+	     port, LWORD(cs), LWORD(eip));
+    h_printf(" because not in access list\n");
   }
 
 /* Now record the port and the read value to debugfile if needed */
@@ -426,16 +433,21 @@ outb(unsigned int port, unsigned int byte)
       return;
       }
     }
+#ifdef USE_SBEMU
     /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == SOUND_BASE) {sb_write(port & SOUND_IO_MASK2, byte);};
-    if ((port & ~3) == 388) {fm_write(port & 3, byte);};
+    if ((port & SOUND_IO_MASK) == config.sb_base) {sb_io_write(port, byte);};
+    if ((port & ~3) == 388) {adlib_io_write(port, byte);};
+#endif /* USE_SBEMU */
 
     /* DMA I/O */
-    if ((port & ~15) == 0) {dma_write(port, byte);};
-    if ((port & ~15) == 0x80) {dma_write(port, byte);};
-    if ((port & ~31) == 0xC0) {dma_write(port, byte);};
+    if ((port & ~15) == 0) {dma_io_write(port, byte);};
+    if ((port & ~15) == 0x80) {dma_io_write(port, byte);};
+    if ((port & ~31) == 0xC0) {dma_io_write(port, byte);};
 
-    i_printf("outb [0x%x] 0x%02x\n", port, byte);
+    i_printf("default outb [0x%x] 0x%02x\n", port, byte);
+    h_printf("write port 0x%x denied value %02x at %04x:%04x",
+	     port, (byte & 0xff), LWORD(cs), LWORD(eip));
+    h_printf(" because not in access list\n");
   }
   lastport = port;
 }

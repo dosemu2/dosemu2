@@ -191,7 +191,7 @@ static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
 /* Needed for DIAMOND define */
 #include "vc.h"
 
-#include "sound.h"
+/* #include "sound.h" */
 
 #include "dma.h"
 

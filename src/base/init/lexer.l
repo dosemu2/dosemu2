@@ -74,6 +74,7 @@ emusys                  return(EMUSYS);
 emubat                  return(EMUBAT);
 emuini                  return(EMUINI);
 ttylocks		return(TTYLOCKS);
+sound_emu               return(L_SOUND);
 
 	/* sillyint values */
 use_sigio		return(USE_SIGIO);
@@ -205,6 +206,7 @@ vbios_mmap		return(VBIOS_MMAP);
 vbios_seg		return(VBIOS_SEG);
 vbios_size		return(VBIOS_SIZE_TOK);
 dualmon			return(DUALMON);
+forcevtswitch		return(FORCE_VT_SWITCH);
 plainvga		{ yylval->i_value = 0; return(CHIPSET_TYPE); }
 trident			{ yylval->i_value = 1; return(CHIPSET_TYPE); }
 et4000			{ yylval->i_value = 2; return(CHIPSET_TYPE); }
@@ -218,7 +220,17 @@ title			return(L_TITLE);
 icon_name		return(ICON_NAME);
 keycode			return(X_KEYCODE);
 blinkrate		return(X_BLINKRATE);
+sharecmap		return(X_SHARECMAP);
 font			return(X_FONT);
+
+        /* Sound stuff */
+
+sb_base                 return(SB_BASE);
+sb_irq                  return(SB_IRQ);
+sb_dma                  return(SB_DMA);
+sb_dsp                  return(SB_DSP);
+sb_mixer                return(SB_MIXER);
+mpu_base                return(MPU_BASE);
 
 	/* packet driver */
 
@@ -254,6 +266,7 @@ rdonly			return(RDONLY);
 wronly			return(WRONLY);
 rdwr			return(RDWR);
 range			return(RANGE);
+fast			return(FAST);
 
 	/* boolean values */
 

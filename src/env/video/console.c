@@ -107,6 +107,21 @@ void set_console_video(void)
     }
   }
 
+  /*
+     Switch to dosemu VT if config.forcevtswitch is set.
+     The idea of this action is that in case of config.console_video
+     dosemu need to work at active VT (at least at start) for accessing
+     video memory. So to be able to run dosemu for instance
+     through cron we need config option like forcevtswitch.
+     The action seems sensible only if config.console_video.
+                                                   saw@shade.msu.ru
+  */
+  
+  if (config.console_video && config.force_vt_switch && !vc_active()) {
+    if (ioctl(kbd_fd, VT_ACTIVATE, scr_state.console_no)<0)
+      v_printf("VID: error VT switching %s\n", strerror(errno));
+  }
+
   /* XXX - get this working correctly! */
 #define OLD_SET_CONSOLE 1
 #ifdef OLD_SET_CONSOLE

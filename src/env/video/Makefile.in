@@ -9,15 +9,16 @@ TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 CC=@CC@
+@SET_MAKE@
 @X_SUPPORT@
 
 # if you want to disable graphics in X, delete vgaemu.[co], vesa.[cho],
 # vgaemu_inside.h, vesabios.S and vesabios.o
 # you should also delete the #define XG in int10.c and sigsegv.c
 ifdef X_SUPPORT
-XCFILES	= X.c vgaemu.c vesa.c screen.c
+XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c
 XHDRS	= X.h vgaemu_inside.h vesa.h screen.h
-XOBJS	= X.o vgaemu.o vesa.o screen.o
+XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o
 endif
 
 # This is to assemble the VESA compatible video BIOS. Shamelessly copied
@@ -26,8 +27,8 @@ SFILES = vesabios.S
 
 AS86FLAGS=$(INCDIR)
 
-LD86=ld86
-AS86=as86
+LD86=@LD86@
+AS86=@AS86@
 
 TOPDIR=@SRCPATH@
 

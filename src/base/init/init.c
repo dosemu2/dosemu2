@@ -45,7 +45,6 @@
 #include "dma.h"
 #include "xms.h"
 #include "shared.h"
-#include "sound.h"
 
 extern void pkt_check_receive_quick(void);
 /* flag to activate use of pic by packet driver */
@@ -159,7 +158,7 @@ void time_setting_init(void)
   time(&start_time);
   tm = localtime((time_t *) &start_time);
   g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon+1, tm->tm_year);
-  last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
+  last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 19663/1080 /*18.206*/;
   check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
   set_ticks(last_ticks);
   initialize_timers();
@@ -216,7 +215,7 @@ void hardware_setup(void)
 #endif
   
   /* DMA Init */
-  dma_init();
+  /* dma_init(); - Currently in dev_list */
 
   g_printf("Hardware initialized\n");
 }
@@ -504,7 +503,6 @@ void device_init(void)
   mouse_init();
   printer_init();
   disk_init();
-  sound_init();
 }
 
 /* 

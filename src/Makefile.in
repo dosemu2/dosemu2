@@ -13,6 +13,7 @@ OS = @CONFIG_HOST@
 @LIBSTART@
 @ELF@
 CC=@CC@
+@SET_MAKE@
 
 #
 # $Date: 1995/11/25

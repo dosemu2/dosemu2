@@ -321,13 +321,15 @@ static struct kernel_sym *find_resident_sym(struct kernel_sym *ksym, int nksyms,
   return 0;
 }
 
+static struct zSystem_entry *lzsym = 0;
+
 static struct zSystem_entry *build_zSystem_syms(char *name, struct kernel_sym *ksymtab, int nksyms)
 {
   FILE *f;
   struct zSystem_entry *table=0;
   struct zSystem_entry *p;
   char c;
-  int i;
+  int i,local;
   char n[1024];
   static char magic[] ="00100000 t startup_32\n";
   static char magic2[]="00100000 T startup_32\n";
@@ -363,27 +365,37 @@ static struct zSystem_entry *build_zSystem_syms(char *name, struct kernel_sym *k
   while (!feof(f) && n[0]) {
     n[0]=0;
     p=0;
+    local=0;
     fscanf(f, "%x %c %s\n", &i, &c, n);
     switch (c) {
       case 't': case 'd': case 'b': case 'r': 
         if (!use_zSystem_local) break;
+        local=1;
         /* else fall through */
       case 'T': case 'D': case 'B': case 'R':{
         p=malloc(sizeof(struct zSystem_entry));
         p->name=strdup(n);
         p->value=i;
-        p->next=table;
 #ifdef __TESTKSYMS__
         p->symtype=c;
 #endif
-        table=p;
+        if (local) {
+          p->next=lzsym;
+          lzsym=p;
+        }
+        else {
+          p->next=table;
+          table=p;
+        }
         break;
       }
     }
-    p_=find_resident_sym(ksym,nksyms,n);
-    if (p_) {
-      if (p_->value == i) matches++;
-      else if (p) mismatches++;
+    if (!local) {
+      p_=find_resident_sym(ksym,nksyms,n);
+      if (p_) {
+        if (p_->value == i) matches++;
+        else if (p) mismatches++;
+      }
     }
   }
   fclose(f);
@@ -927,6 +939,16 @@ main(int argc, char **argv)
 	    }
 	    zsym=zsym->next;
 	  }
+          if (use_zSystem_local) {
+	    while (lzsym) {
+	      name = lzsym->name;
+	      if (!elf_kernel && (name[0] == '_')) name++;
+	      if (defsym(strncmp, name, lzsym->value, N_ABS | N_EXT,  RESIDENT )) {
+	        if (verbose) insmod_error("resolved: %08x %s", lzsym->value, lzsym->name);
+	      }
+	      lzsym=lzsym->next;
+	    }
+          }
 	}
 #endif
 

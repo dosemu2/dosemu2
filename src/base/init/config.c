@@ -88,6 +88,7 @@ config_defaults(void)
     config.X_title = "dosemu";
     config.X_icon_name = "dosemu";
     config.X_blinkrate = 8;
+    config.X_sharecmap = 0;     /* Don't share colourmap in graphics modes */
     config.X_keycode = 0;
     config.X_font = "vga";
     config.usesX = 0;
@@ -100,6 +101,7 @@ config_defaults(void)
     config.gfxmemsize = 256;
     config.vga = 0;		/* this flags BIOS graphics */
     config.dualmon = 0;
+    config.force_vt_switch = 0;
     config.speaker = SPKR_EMULATED;
 #if 0				/* This is too slow, but why? */
     config.update = 54945;
@@ -149,6 +151,18 @@ config_defaults(void)
     mice->sampleRate = 0;
     mice->lastButtons = 0;
     mice->chordMiddle = 0;
+
+    config.sb_base = 0x220;
+    config.sb_dma = 1;
+    config.sb_irq = 5;
+#ifdef __NetBSD__
+    config.sb_dsp = "/dev/sound";
+    config.sb_mixer = "/dev/mixer";
+#else
+    config.sb_dsp = "/dev/dsp";
+    config.sb_mixer = "/dev/mixer";
+#endif /* !__NetBSD__ */
+    config.mpu401_base = 0x330;
 }
 
 static void 
@@ -624,9 +638,9 @@ usage(void)
     fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
     fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
 */
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvXkism#pgcwhIExMnPr01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvXkism#pgcwhIExMnPrS01)\n");
 #else				/* X_SUPPORT */
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvkism#pgcwhIExMnPr01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvkism#pgcwhIExMnPrS01)\n");
 #endif				/* X_SUPPORT */
     fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
     fprintf(stdout, "    -P copy debugging output to FILE\n");

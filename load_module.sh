@@ -34,4 +34,4 @@ if [ "`lsmod|grep syscallmgr`" = "" ]; then
   ${BINDIR}/insmod -z ${MODULESDIR}/syscallmgr.o
 fi
  
-${BINDIR}/insmod -z ${MODULESDIR}/emumodule.o
+${BINDIR}/insmod -lz ${MODULESDIR}/emumodule.o

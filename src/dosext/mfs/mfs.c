@@ -1853,7 +1853,6 @@ compare(fname, fext, mname, mext)
   /* match name first */
   for (i = 0; i < 8; i++) {
     if (mname[i] == '?') {
-      i++;
       continue;
     }
     if (mname[i] == ' ') {
@@ -1884,7 +1883,6 @@ compare(fname, fext, mname, mext)
   /* match ext next */
   for (i = 0; i < 3; i++) {
     if (mext[i] == '?') {
-      i++;
       continue;
     }
     if (mext[i] == ' ') {

@@ -21,6 +21,7 @@
 #define DPMI_C
 
 #include "config.h"
+#include "kversion.h"
 #if defined(REQUIRES_EMUMODULE)	/* Don't change this, it requires new */
 				/* kernel ldt-alias support */
 #define KERNEL_LDTALIAS
@@ -34,7 +35,12 @@
 #include "vm86plus.h"
 
 #ifdef __linux__
-#include <linux/vm86.h>
+#if KERNEL_VERSION >= 1003100
+#  include <asm/vm86.h>
+#  include <sys/vm86.h>
+#else
+#  include <linux/vm86.h>
+#endif
 #include <linux/unistd.h>
 #include <linux/head.h>
 
@@ -44,7 +50,6 @@
   #include <linux/ldt.h>
 #endif
 
-#include "kversion.h"
 #if KERNEL_VERSION < 1001067
 #include <linux/segment.h>
 #include <linux/page.h>
@@ -236,6 +241,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   struct modify_ldt_ldt_s ldt_info;
   unsigned long base2, limit2;
   int __retval;
+  unsigned long *lp;
 
   ldt_info.entry_number = entry;
   ldt_info.base_addr = base;
@@ -246,7 +252,9 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.limit_in_pages = limit_in_pages_flag;
 #ifdef WANT_WINDOWS
   ldt_info.seg_not_present = seg_not_present;
+#if defined(REQUIRES_EMUMODULE)
   ldt_info.useable = useable;
+#endif
 #else
   ldt_info.seg_not_present = 0;
 #endif
@@ -284,7 +292,6 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   int seg_not_present = 0;
   int useable = 0;
 #endif
-  unsigned long *lp;
   unsigned long base2, limit2;
   int __retval;
     struct segment_descriptor *sd;
@@ -376,7 +383,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.seg_32bit << 22) |
             (ldt_info.limit_in_pages << 23) |
             ((ldt_info.seg_not_present ^1) << 15) |
-#ifdef WANT_WINDOWS
+#if defined(REQUIRES_EMUMODULE) && defined(WANT_WINDOWS)
             (ldt_info.useable << 20) |
 #endif
             0x7000;
@@ -941,6 +948,14 @@ static inline void restore_pm_regs()
   if (DPMI_pm_procedure_running-- > DPMI_max_rec_pm_func)
     return;
   dpmi_stack_frame[current_client] = DPMI_pm_stack[DPMI_pm_procedure_running];
+}
+
+void fake_pm_int(void)
+{
+  save_rm_regs();
+  REG(cs) = DPMI_SEG;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
+  in_dpmi_dos_int = 1;
 }
 
 /* DANG_BEGIN_REMARK

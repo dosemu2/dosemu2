@@ -1015,7 +1015,12 @@ IPXRelinquishControl(void)
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
   n_printf("IPX: starting repeated select\n");
-  selrtn = RPT_SYSCALL(select(255, &fds, NULL, NULL, &timeout));
+
+
+  do {
+      selrtn = select(255, &fds, NULL, NULL, &timeout);
+  } while (selrtn == -1 && errno == EINTR);
+
   switch (selrtn) {
   case 0:			/* none ready */
     /*			n_printf("IPX: no receives ready\n"); */

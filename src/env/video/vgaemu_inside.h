@@ -10,7 +10,7 @@
  * this file!
  *
  *
- * Copyright (C) 1995, Erik Mouw and Arjan Filius
+ * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -71,6 +71,51 @@
 #define VGAEMU_BIOS_VESA_MODELIST	0x0080
 
 
+/* **************** Definition of the port addresses **************** */
+
+#define CRTC_BASE           0x3d4
+#define CRTC_INDEX          CRTC_BASE
+#define CRTC_DATA           CRTC_BASE+0x01
+
+#define INPUT_STATUS_1      0x3da
+#define FEATURE_CONTROL_1   INPUT_STATUS_1
+
+
+#define VGA_BASE            0x3c0
+
+#define ATTRIBUTE_BASE      VGA_BASE
+#define ATTRIBUTE_INDEX     ATTRIBUTE_BASE
+#define ATTRIBUTE_DATA      ATTRIBUTE_BASE+0x01
+
+#define INPUT_STATUS_0      VGA_BASE+0x02
+#define MISC_OUTPUT_0       VGA_BASE+0x02
+#define SUBSYSTEM_ENABLE    VGA_BASE+0x03
+
+#define SEQUENCER_BASE      VGA_BASE+0x04
+#define SEQUENCER_INDEX     SEQUENCER_BASE
+#define SEQUENCER_DATA      SEQUENCER_BASE+0x01
+
+#define GFX_CTRL_BASE       VGA_BASE+0x0e
+
+#define DAC_BASE            VGA_BASE+0x06
+#define DAC_PEL_MASK        DAC_BASE
+#define DAC_STATE           DAC_BASE+0x01
+#define DAC_READ_INDEX      DAC_BASE+0x01
+#define DAC_WRITE_INDEX     DAC_BASE+0x02
+#define DAC_DATA            DAC_BASE+0x03
+
+#define FEATURE_CONTROL_0   VGA_BASE+0x0a
+#define GRAPHICS_2_POSITION FEATURE_CONTROL
+#define MISC_OUTPUT_1       VGA_BASE+0x0c
+#define GRAPHICS_1_POSITION MISC_OUTPUT_1
+
+#define GRAPHICS_BASE       VGA_BASE+0x0e
+#define GRAPHICS_INDEX      GRAPHICS_BASE
+#define GRAPHICS_DATA       GRAPHICS_BASE+0x01
+
+
+
+
 #if !defined __ASM__
 
 /*
@@ -91,7 +136,49 @@ typedef struct
 } vga_mode_info;
 
 
+
+/*
+ * Type of indexed registers
+ */
+enum register_type
+{
+  reg_read_write,         /* value read == value written */
+  reg_read_only,          /* write to this type of register is undefined */
+  reg_write_only,         /* read from this type of register returns 0 */
+  reg_double_function     /* value read != value written */
+};
+
+
+/*
+ * Indexed register data structure
+ */
+typedef struct
+{
+  unsigned char read;     /* value read */
+  unsigned char write;    /* value written */
+  int type;               /* register type, choose one of enum register_type */
+  int dirty;              /* register changed? */
+} indexed_register;
+
+
 vga_mode_info* get_vgaemu_mode_info(int mode);
+
+
+/* **************** DACemu functions **************** */
+inline void DAC_set_read_index(unsigned char index);
+inline void DAC_set_write_index(unsigned char index);
+unsigned char DAC_read_value(void);
+void DAC_write_value(unsigned char value);
+inline void DAC_set_pel_mask(unsigned char mask);
+
+
+/* **************** ATTRemu functions **************** */
+void Attr_init(void);
+void Attr_write_value(unsigned char data);
+unsigned char Attr_read_value(void);
+inline unsigned char Attr_get_index(void);
+unsigned char Attr_get_input_status_1(void);
+
 
 #endif /* !defined __ASM__ */
 

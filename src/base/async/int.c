@@ -444,7 +444,8 @@ static void int15(u_char i)
     show_regs(__FILE__, __LINE__);
     wait_time.tv_sec = 0;
     wait_time.tv_usec = (LWORD(ecx) << 16) | LWORD(edx);
-    RPT_SYSCALL(select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv));
+    while (select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv) == -1
+         && errno == EINTR);
     NOCARRY;
     return;
 

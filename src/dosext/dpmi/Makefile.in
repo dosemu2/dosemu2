@@ -3,6 +3,7 @@ TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 CC=@CC@
+@SET_MAKE@
 
 # CC   = gcc
 # INCDIR is exported from ..

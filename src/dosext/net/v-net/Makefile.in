@@ -8,6 +8,7 @@ TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 CC=@CC@
+@SET_MAKE@
 
 # If INCDIR exists, it was exported from the master Makefile.
 ifndef INCDIR

@@ -3,7 +3,7 @@
  *
  * Header file for VESA BIOS enhancements for the Linux dosemu VGA emulator
  *
- * Copyright (C) 1995, Erik Mouw and Arjan Filius
+ * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  *
  *
  * This program is free software; you can redistribute it and/or modify

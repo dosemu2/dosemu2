@@ -580,6 +580,9 @@ leavedos(int sig)
     g_printf("calling close_all_printers\n");
     close_all_printers();
 
+    g_printf("releasing ports and blocked devices\n");
+    release_ports();
+
     g_printf("calling serial_close\n");
     serial_close();
     g_printf("calling mouse_close\n");
@@ -620,6 +623,7 @@ leavedos(int sig)
 int
 d_ready(int fd)
 {
+    int selrtn;
     struct timeval  w_time;
     fd_set          checkset;
 
@@ -629,7 +633,11 @@ d_ready(int fd)
     FD_ZERO(&checkset);
     FD_SET(fd, &checkset);
 
-    if (RPT_SYSCALL(select(fd + 1, &checkset, NULL, NULL, &w_time)) == 1) {
+    do {
+        selrtn = select(fd + 1, &checkset, NULL, NULL, &w_time);
+    } while(selrtn == -1 && errno == EINTR);
+
+    if (selrtn == 1) {
 	if (FD_ISSET(fd, &checkset))
 	    return (1);
 	else

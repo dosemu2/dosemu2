@@ -5,7 +5,7 @@
  * This file is describes the interface to the VGA emulator.
  *
  *
- * Copyright (C) 1995, Erik Mouw and Arjan Filius
+ * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,10 +33,6 @@
 #if !defined __VGAEMU_H
 #define __VGAEMU_H
 
-/* I don't like this! We shouldn't depend on X! */
-/*#include <X11/X.h> */
-/*#include <X11/Xlib.h> */	/* needed for XImage */
-
 
 
 
@@ -53,7 +49,7 @@
  * 1 = Get each time the first(next) dirty pages
  * 2 = Find first and last dirty page in one time
  */
-#define VGAEMU_UPDATE_METHOD_G_C_IN_PAGES       2	/*vgaemu_get_changes_in_pages() */
+#define VGAEMU_UPDATE_METHOD_G_C_IN_PAGES       0	/*vgaemu_get_changes_in_pages() */
 
 
 /* total vgaemu_video_size=VGA_EMU_BANK_SIZE*VGA_EMU_BANKS */
@@ -61,6 +57,7 @@
 #define VGAEMU_BANKS           16        /* at least 4 = 256 KB */
 #define VGAEMU_GRANULARITY     0x10000   /* granularity-size */
 #define VGAEMU_ROM_SIZE        0x1000
+#define VGAEMU_MEM_SIZE        (VGAEMU_BANKS*VGAEMU_BANK_SIZE/1024)
 
 #define VESA	/* switch on the vesa emulation */
 
@@ -94,17 +91,20 @@ int vgaemu_switch_page(unsigned int pagenumber);
 
 /* **** interface functions **** */
 
+void dirty_all_video_pages(void);
 void DAC_init(void);
 void DAC_get_entry(DAC_entry *entry, unsigned char index);
 int DAC_get_dirty_entry(DAC_entry *entry);
 void DAC_set_entry(unsigned char r, unsigned char g, unsigned char b, 
                    unsigned char index);
 unsigned char DAC_get_pel_mask(void);
+unsigned char DAC_get_state(void);
 
 unsigned char* vga_emu_init(void);
 int vgaemu_get_changes(int method, int *x, int *y, int *width, int *heigth);
 
-int vgaemu_get_changes_and_update_XImage_0x13(unsigned char * data, int method, int *x, int *y, int *width, int *heigth);
+/*int vgaemu_get_changes_and_update_XImage_0x13(unsigned char * data, int method, int *x, int *y, int *width, int *heigth);*/
+int vgaemu_get_changes_and_update_XImage_0x13(unsigned char **base, unsigned long int *offset, unsigned long int *len, int method, int *modewidth);
 
 int set_vgaemu_mode(int mode, int width, int height);
 int set_vgaemu_page(unsigned int page);
@@ -115,6 +115,8 @@ void print_vgaemu_mode(int mode);
 int get_vgaemu_tekens_x(void);
 int get_vgaemu_tekens_y(void);
 int get_vgaemu_type(void);
-int vgaemu_update(unsigned char *data, int method, int *x, int *y, int *width, int *heigth);
+
+/*int vgaemu_update(unsigned char *data, int method, int *x, int *y, int *width, int *heigth);*/
+int vgaemu_update(unsigned char **base, unsigned long int *offset, unsigned long int *len, int method, int *modewidth);
 
 #endif

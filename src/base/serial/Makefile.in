@@ -7,7 +7,7 @@ TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 CC=@CC@
-
+@SET_MAKE@
 SUBDIR=serial
 
 #The C files, include files and dependancies here.

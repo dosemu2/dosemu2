@@ -3,7 +3,7 @@
  *
  * VGA emulator for dosemu
  *
- * Copyright (C) 1995, Erik Mouw and Arjan Filius
+ * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,6 +33,29 @@
  * tsx-11.mit.edu.
  *
  *
+ * 1996/05/06:
+ *   Adam Moss (aspirin@tigerden.com):
+ *    - Fixed method 2 of vgaemu_get_changes_in_pages()
+ *    - Very simplified vgaemu_get_changes_and_update_XImage_0x13()
+ *  Erik Mouw: 
+ *    - Split VGAemu in three files
+ *    - Some minor bug fixes
+ *
+ *
+ * 1996/05/09:
+ *   Adam Moss:
+ *    - Changed the way that vgaemu_get_changes() and
+ *        vgaemu_get_changes_and_update_XImage_0x13() return an area.
+ *    - Minor bug fixes
+ *
+ * 1996/05/20:
+ *   Erik:
+ *    - Made VESA modes start to work properly!
+ *   Adam:
+ *    - Fixed method 0 of vgaemu_get_changes_in_pages()
+ *    - Fixed vgaemu_get_changes_in_pages to work faster/better with
+ *       SVGA modes
+ *
  * DANG_BEGIN_MODULE
  *
  * The VGA emulator for dosemu. Emulated are the video meory and the VGA
@@ -49,18 +72,12 @@
 /*
  * Defines to enable debug information for:
  * DEBUG_IO        -- inb/outb emulation
- * DEBUG_DAC       -- DAC (Digital to Analog Converter)
- * DEBUG_ATTR      -- attribute controller
+ * DEBUG_IMAGE     --
+ * DEBUG_UPDATE    -- what's updated
  */
 #define DEBUG_IO
-#define DEBUG_ATTR
-
-/*
-#define DEBUG_DISASM
-
-#define DEBUG_IMAGE
-#define DEBUG_UPDATE
-*/
+/* #define DEBUG_IMAGE */
+/* #define DEBUG_UPDATE */
 
 
 
@@ -71,92 +88,24 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "cpu.h"	/* root@sjoerd: for context structure */
 #include "emu.h"
 #include "video.h"
 #include "vgaemu.h"
 #include "vgaemu_inside.h"
-#ifdef VESA /* root@zaphod */
+#ifdef VESA
 #include "vesa.h"
 #endif
 
 
-/* **************** Definition of the port addresses **************** */
-
-#define CRTC_BASE           0x3d4
-#define CRTC_INDEX          CRTC_BASE
-#define CRTC_DATA           CRTC_BASE+0x01
-
-#define INPUT_STATUS_1      0x3da
-#define FEATURE_CONTROL_1   INPUT_STATUS_1
-
-
-#define VGA_BASE            0x3c0
-
-#define ATTRIBUTE_BASE      VGA_BASE
-#define ATTRIBUTE_INDEX     ATTRIBUTE_BASE
-#define ATTRIBUTE_DATA      ATTRIBUTE_BASE+0x01
-
-#define INPUT_STATUS_0      VGA_BASE+0x02
-#define MISC_OUTPUT_0       VGA_BASE+0x02
-#define SUBSYSTEM_ENABLE    VGA_BASE+0x03
-
-#define SEQUENCER_BASE      VGA_BASE+0x04
-#define SEQUENCER_INDEX     SEQUENCER_BASE
-#define SEQUENCER_DATA      SEQUENCER_BASE+0x01
-
-#define GFX_CTRL_BASE       VGA_BASE+0x0e
-
-#define DAC_BASE            VGA_BASE+0x06
-#define DAC_PEL_MASK        DAC_BASE
-#define DAC_STATE           DAC_BASE+0x01
-#define DAC_READ_INDEX      DAC_BASE+0x01
-#define DAC_WRITE_INDEX     DAC_BASE+0x02
-#define DAC_DATA            DAC_BASE+0x03
-
-#define FEATURE_CONTROL_0   VGA_BASE+0x0a
-#define GRAPHICS_2_POSITION FEATURE_CONTROL
-#define MISC_OUTPUT_1       VGA_BASE+0x0c
-#define GRAPHICS_1_POSITION MISC_OUTPUT_1
-
-#define GRAPHICS_BASE       VGA_BASE+0x0e
-#define GRAPHICS_INDEX      GRAPHICS_BASE
-#define GRAPHICS_DATA       GRAPHICS_BASE+0x01
 
 
 #if !defined True
 #define False 0
 #define True 1
 #endif
-
-
-
-
-/* **************** Structures **************** */
-
-/*
- * Type of indexed registers
- */
-enum register_type
-{
-  reg_read_write,         /* value read == value written */
-  reg_read_only,          /* write to this type of register is undefined */
-  reg_write_only,         /* read from this type of register returns 0 */
-  reg_double_function     /* value read != value written */
-};
-
-
-/*
- * Indexed register data structure
- */
-typedef struct
-{
-  unsigned char read;     /* value read */
-  unsigned char write;    /* value written */
-  int type;               /* register type, choose one of enum register_type */
-  int dirty;              /* register changed? */
-} indexed_register;
 
 
 
@@ -233,177 +182,16 @@ static vga_mode_info *current_mode_info=NULL;
 
 
 
-/* **************** DAC emulator data **************** */
-
-/*
- * The following values are the Trident standard color codes for 256
- * color modes. I think Trident copied them from IBM... ;-)
- * No gamma correction or whatsoever. Gamma correction has to be done
- * in vgaemu clients, not in vgaemu.
- *
- */
-const DAC_entry DAC_default_values[256]=
-{
-  /* 16 standard colors */
-  { 0,  0,  0}, { 0,  0, 42}, { 0, 42,  0}, { 0, 42, 42},
-  {42,  0,  0}, {42,  0, 42}, {42, 21,  0}, {42, 42, 42},
-  {21, 21, 21}, {21, 21, 63}, {21, 63, 21}, {21, 63, 63},
-  {63, 21, 21}, {63, 21, 63}, {63, 63, 21}, {63, 63, 63},
-  
-  /* 16 grey values */
-  { 0,  0,  0}, { 5,  5,  5}, { 8,  8,  8}, {11, 11, 11},
-  {14, 14, 14}, {17, 17, 17}, {20, 20, 20}, {24, 24, 24},
-  {28, 28, 28}, {32, 32, 32}, {36, 36, 36}, {40, 40, 40},
-  {45, 45, 45}, {50, 50, 50}, {56, 56, 56}, {63, 63, 63},
-  
-  /* other colors */
-  { 0,  0, 63}, {16,  0, 63}, {31,  0, 63}, {47,  0, 63},
-  {63,  0, 63}, {63,  0, 47}, {63,  0, 31}, {63,  0, 16},
-  {63,  0,  0}, {63, 16,  0}, {63, 31,  0}, {63, 47,  0},
-  {63, 63,  0}, {47, 63,  0}, {31, 63,  0}, {16, 63,  0},
-  
-  { 0, 63,  0},	{ 0, 63, 16}, { 0, 63, 31}, { 0, 63, 47},
-  { 0, 63, 63}, { 0, 47, 63}, { 0, 31, 63}, { 0, 16, 63},
-  {31, 31, 63},	{39, 31, 63}, {47, 31, 63}, {55, 31, 63},
-  {63, 31, 63}, {63, 31, 55}, {63, 31, 47}, {63, 31, 39},
-  
-  {63, 31, 31}, {63, 39, 31}, {63, 47, 31}, {63, 55, 31},
-  {63, 63, 31}, {55, 63, 31}, {47, 63, 31}, {39, 63, 31},
-  {31, 63, 31}, {31, 63, 39}, {31, 63, 47}, {31, 63, 55},
-  {31, 63, 63}, {31, 55, 63}, {31, 47, 63}, {31, 39, 63},
-  
-  {45, 45, 63}, {49, 45, 63}, {54, 45, 63}, {58, 45, 63},
-  {63, 45, 63}, {63, 45, 58}, {63, 45, 54}, {63, 45, 49},
-  {63, 45, 45}, {63, 49, 45}, {63, 54, 45}, {63, 58, 45},
-  {63, 63, 45}, {58, 63, 45}, {54, 63, 45}, {49, 63, 45},
-  
-  {45, 63, 45}, {45, 63, 49}, {45, 63, 54}, {45, 63, 58},
-  {45, 63, 58}, {45, 58, 58}, {45, 54, 58}, {45, 49, 58},
-  { 0,  0, 28}, { 7,  0, 28}, {14,  0, 28}, {21,  0, 28},
-  {28,  0, 28}, {28,  0, 21}, {28,  0, 14}, {28,  0,  7},
-  
-  {28,  0,  0}, {28,  7,  0}, {28, 14,  0}, {28, 21,  0},
-  {28, 28,  0}, {21, 28,  0}, {14, 28,  0}, { 7, 28,  0},
-  { 0, 28,  0}, { 0, 28,  7}, { 0, 28, 14}, { 0, 28, 21},
-  { 0, 28, 28}, { 0, 21, 28}, { 0, 14, 28}, { 0,  7, 28},
-  
-  {14, 14, 28}, {17, 14, 28}, {21, 14, 28}, {24, 14, 28},
-  {28, 14, 28}, {28, 14, 24}, {28, 14, 21}, {28, 14, 17},
-  {28, 14, 14}, {28, 17, 14}, {28, 21, 14}, {28, 24, 14},
-  {28, 28, 14}, {24, 28, 14}, {21, 28, 14}, {17, 28, 14},
-  
-  {14, 28, 14}, {14, 28, 17}, {14, 28, 21}, {14, 28, 24},
-  {14, 28, 28}, {14, 24, 28}, {14, 21, 28}, {14, 17, 28},
-  {20, 20, 28}, {22, 20, 28}, {24, 20, 28}, {26, 20, 28},
-  {28, 20, 28}, {28, 20, 26}, {28, 20, 24}, {28, 20, 22},
-  
-  {28, 20, 20}, {28, 22, 20}, {28, 24, 20}, {28, 26, 20},
-  {28, 28, 20}, {26, 28, 20}, {24, 28, 20}, {22, 28, 20},
-  {20, 28, 20}, {20, 28, 22}, {20, 28, 24}, {20, 28, 26},
-  {20, 28, 28}, {20, 26, 28}, {20, 24, 28}, {20, 22, 28},
-  
-  { 0,  0, 16}, { 4,  0, 16}, { 8,  0, 16}, {12,  0, 16},
-  {16,  0, 16}, {16,  0, 12}, {16,  0,  8}, {16,  0,  4},
-  {16,  0,  0}, {16,  4,  0}, {16,  8,  0}, {16, 12,  0},
-  {16, 16,  0}, {12, 16,  0}, { 8, 16,  0}, { 4, 16,  0},
-  
-  { 0, 16,  0}, { 0, 16,  4}, { 0, 16,  8}, { 0, 16, 12},
-  { 0, 16, 16}, { 0, 12, 16}, { 0,  8, 16}, { 0,  4, 16},
-  { 8,  8, 16}, {10,  8, 16}, {12,  8, 16}, {14,  8, 16},
-  {16,  8, 16}, {16,  8, 14}, {16,  8, 12}, {16,  8, 10},
-  
-  {16,  8,  8}, {16, 10,  8}, {16, 12,  8}, {16, 14,  8},
-  {16, 16,  8}, {14, 16,  8}, {12, 16,  8}, {10, 16,  8},
-  { 8, 16,  8}, { 8, 16, 10}, { 8, 16, 12}, { 8, 16, 14},
-  { 8, 16, 16}, { 8, 14, 16}, { 8, 12, 16}, { 8, 10, 16},
-  
-  {11, 11, 16}, {12, 11, 16}, {13, 11, 16}, {15, 11, 16},
-  {16, 11, 16}, {16, 11, 15}, {16, 11, 13}, {16, 11, 12},
-  {16, 11, 11}, {16, 12, 11}, {16, 13, 11}, {16, 15, 11},
-  {16, 16, 11}, {15, 16, 11}, {13, 16, 11}, {12, 16, 11},
-  
-  {11, 16, 11}, {11, 16, 12}, {11, 16, 13}, {11, 16, 15},
-  {11, 16, 16}, {11, 15, 16}, {11, 13, 16}, {11, 12, 16},
-  { 0,  0,  0}, { 0,  0,  0}, { 0,  0,  0}, { 0,  0,  0},
-  { 0,  0,  0}, { 0,  0,  0}, { 0,  0,  0}, { 0,  0,  0}
-};
-
-
-#define DAC_READ_MODE 0
-#define DAC_WRITE_MODE 3
-
-static DAC_entry DAC[256];
-static int DAC_dirty[256];
-
-/*
- * The pelmask is a bit difficult to implement. It has to be stored 
- * here, but the implementation should be in the part that really draws 
- * the screen (a vgaemu client, for example X.c)
- */
-static unsigned char DAC_pel_mask=0xff;
-static unsigned char DAC_state=DAC_READ_MODE;
-static unsigned char DAC_read_index=0;
-static unsigned char DAC_write_index=0;
-static int DAC_pel_index='r';
-
-
-
-
-/* **************** Attribute Controller data **************** */
-
-/*
- * vgadoc3 says about the attribute controller:
- *  Port 3C0h is special in that it is both address and data-write register.
- *  Data reads happen from port 3C1h. An internal flip-flop remembers whether 
- *  it is currently acting as an address or data register.
- *  Reading port 3dAh will reset the flip-flop to address mode.
- */
-
-#define ATTR_INDEX_FLIPFLOP 0
-#define ATTR_DATA_FLIPFLOP 1
-#define ATTR_MAX_INDEX 0x14
-
-static unsigned char Attr_index=0;
-static int Attr_flipflop=ATTR_INDEX_FLIPFLOP;
-static indexed_register Attr_data[0x16]=
-{
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x00 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x01 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x02 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x03 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x04 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x05 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x06 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x07 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x08 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x09 */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0a */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0b */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0c */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0d */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0e */
-  {0x00, 0x00, reg_read_write, False},        /* Palette 0x0f */
-  {0x00, 0x00, reg_read_write, False},        /* Mode ctrl */
-  {0x00, 0x00, reg_read_write, False},        /* Overscan color */
-  {0x00, 0x00, reg_read_write, False},        /* Colorplane enable */
-  {0x00, 0x00, reg_read_write, False},        /* Horizontal PEL panning */
-  {0x00, 0x00, reg_read_write, False},        /* Color select */
-  {0x00, 0x00, reg_read_write, False}         /* Dummy register for wrong
-                                               * indices
-                                               */
-};
-
-
-
 
 /* **************** Video_page dirty registers ************* */
-static int vgaemu_graphic_dirty_page[16]=
-{
-  True, True, True,True,
-  True, True, True,True,
-  True, True, True,True,
-  True, True, True,True
-};
+static int vgaemu_graphic_dirty_page[256];
+/* { */
+/*  True, True, True,True, */
+/*  True, True, True,True, */
+/*  True, True, True,True, */
+/*  True, True, True,True */
+/* }; */
+
 
 static int vgaemu_text_dirty_page[8]=
 {
@@ -415,445 +203,17 @@ static int vgaemu_text_dirty_page[8]=
 
 /* *************** The emulated videomemory and some scratch memory *** */
 
-unsigned char* vga_emu_memory=NULL;
-unsigned char* vga_emu_memory_scratch=NULL;
+static unsigned char* vga_emu_memory=NULL;
+static unsigned char* vga_emu_memory_scratch=NULL;
+static int current_bank=0;
 
 
 
 
 /* ****** Own memory to map allocated vga_emu_memory *********/
 
-int selfmem_fd;
+static int selfmem_fd;
 
-
-
-
-/* **************** DAC emulation functions **************** */
-
-/*
- * DANG_BEGIN_FUNCTION DAC_init
- *
- * Initializes the DAC.
- *
- * DANG_END_FUNCTION
- */
-void DAC_init(void)
-{
-  int i;
-
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_init()\n");
-#endif
-
-  for(i=0; i<256; i++)
-    {
-      DAC[i].r=DAC_default_values[i].r;
-      DAC[i].g=DAC_default_values[i].g;
-      DAC[i].b=DAC_default_values[i].b;
-      DAC_dirty[i]=True;
-    }
-
-  DAC_pel_mask=0xff;
-  DAC_state=DAC_READ_MODE;
-  DAC_read_index=0;
-  DAC_write_index=0;
-  DAC_pel_index='r';
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_set_read_index
- *
- * Specifies which palette entry is read.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- *
- */
-/* root@zaphod */
-inline void DAC_set_read_index(unsigned char index)
-{
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_set_read_index(%i)\n", index);
-#endif
-
-  DAC_read_index=index;
-  DAC_pel_index='r';
-  DAC_state=DAC_READ_MODE;
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_set_write_index
- *
- * Specifies which palette entry is written.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- *
- */
-/* root@zaphod */
-inline void DAC_set_write_index(unsigned char index)
-{
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_set_write_index(%i)\n", index);
-#endif
-
-  DAC_write_index=index;
-  DAC_pel_index='r';
-  DAC_state=DAC_WRITE_MODE;
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_read_value
- *
- * Read a value from the DAC. Each read will cycle through the registers for
- * red, green and blue. After a ``blue read'' the read index will be 
- * incremented. Read vgadoc3 if you want to know more about the DAC.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- *
- */
-unsigned char DAC_read_value(void)
-{
-  unsigned char rv;
-
-  DAC_state=DAC_READ_MODE;
-  
-  switch(DAC_pel_index)
-    {
-    case 'r':
-      rv=DAC[DAC_read_index].r;
-      DAC_pel_index='g';
-      break;
-
-    case 'g':
-      rv=DAC[DAC_read_index].g;
-      DAC_pel_index='b';
-      break;
-
-    case 'b':
-      rv=DAC[DAC_read_index].b;
-      DAC_pel_index='r';
-      DAC_read_index++;
-      break;
-
-    default:
-      error("vgaemu: DAC_read_value(): DAC_pel_index out of range\n");
-      rv=0;
-      DAC_pel_index='r';
-      break;
-    }
-
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_read_value() returns %i\n", rv);
-#endif
-  return(rv);
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_write_value
- *
- * Write a value to the DAC. Each write will cycle through the registers for
- * red, green and blue. After a ``blue write'' the write index will be 
- * incremented.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- *
- */
-void DAC_write_value(unsigned char value)
-{
-  DAC_state=DAC_WRITE_MODE;
-
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_write_value(%i)\n", value);
-#endif
-
-  DAC_dirty[DAC_write_index]=True;
-
-  switch(DAC_pel_index)
-    {
-    case 'r':
-      DAC[DAC_write_index].r=value&0x3f;
-      DAC_pel_index='g';
-      break;
-
-    case 'g':
-      DAC[DAC_write_index].g=value&0x3f;
-      DAC_pel_index='b';
-      break;
-
-    case 'b':
-      DAC[DAC_write_index].b=value&0x3f;
-      DAC_pel_index='r';
-      DAC_write_index++;
-      break;
-
-    default:
-      error("vgaemu: DAC_write_value(): DAC_pel_index out of range\n");
-      DAC_pel_index='r';
-      break;
-    }
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_set_pel_mask
- *
- * Sets the pel mask and marks all DAC entries as dirty.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- *
- */
-/* root@zaphod */
-inline void DAC_set_pel_mask(unsigned char mask)
-{
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_set_pel_mask(%i)\n", mask);
-#endif
-
-  DAC_pel_mask=mask;
-}
-
-
-
-
-/* **************** DAC Interface functions **************** */
-
-/*
- * DANG_BEGIN_FUNCTION DAC_get_entry
- *
- * Returns a complete DAC entry (r,g,b). Color values are AND-ed with the
- * pel mask.
- * This is an interface function.
- *
- * DANG_END_FUNCTION
- *
- */
-void DAC_get_entry(DAC_entry *entry, unsigned char index)
-{
-  entry->r=DAC[index].r&DAC_pel_mask;
-  entry->g=DAC[index].g&DAC_pel_mask;
-  entry->b=DAC[index].b&DAC_pel_mask;
-  DAC_dirty[index]=False;
-
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_get_entry(0x%02x): (0x%02x, 0x%02x, "
-           "0x%02x)\n", index, entry->r, entry->g, entry->b);
-#endif
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_get_dirty_entry
- *
- * Searches the DAC_dirty list for the first dirty entry. Returns the 
- * changed entrynumber and fills in the entry if a dirty entry is found or
- * returns -1 otherwise.
- * This is an interface function.
- *
- * DANG_END_FUNCTION
- */
-int DAC_get_dirty_entry(DAC_entry *entry)
-{
-  int i;
-
-  for(i=0; i<256; i++)
-    {
-      if(DAC_dirty[i]==True)
-	{
-	  DAC_get_entry(entry, (unsigned char)i);
-#ifdef DEBUG_DAC
-	  v_printf("vgaemu: DAC_get_dirty_entry() returns dirty entry "
-	           "0x%02x\n", i);
-#endif
-
-	  return(i);
-	}
-    }
-
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_get_dirty_entry() returns -1\n");
-#endif
-
-  return(-1);
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_set_entry
- *
- * Sets a complete DAC entry (r,g,b).
- * This is an interface function for the int 10 handler.
- *
- * DANG_END_FUNCTION
- *
- */
-void DAC_set_entry(unsigned char r, unsigned char g, unsigned char b, 
-                   unsigned char index)
-{
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_set_entry(r=0x%02x, g=0x%02x, b=0x%02x, "
-           "index=0x%02x)\n", r, g, b, index);
-#endif
-
-  DAC[index].r=r&0x3f;
-  DAC[index].g=g&0x3f;
-  DAC[index].b=b&0x3f;
-  DAC_dirty[index]=True;
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION DAC_get_pel_mask
- *
- * Returns the current pel mask. Drawing functions should get the pel
- * mask and AND it with the pixel values to get the correct pixel value.
- * This is *very* slow to implement and fortunately this register is used
- * very rare. Maybe the implementation should be in vgaemu, maybe in the
- * vgaemu client...
- * This is an interface function. 
- *
- * DANG_END_FUNCTION
- *
- */
-unsigned char DAC_get_pel_mask(void)
-{
-#ifdef DEBUG_DAC
-  v_printf("vgaemu: DAC_get_pel_mask() returns 0x%02x\n", DAC_pel_mask);
-#endif
-
-  return(DAC_pel_mask);
-}
-
-
-
-
-/* root@zaphod */
-/* *************** Attribute controller emulation functions *************** */
-
-/*
- * DANG_BEGIN_FUNCTION Attr_init
- *
- * Initializes the attribute controller.
- *
- * DANG_END_FUNCTION
- */
-void Attr_init(void)
-{
-#ifdef DEBUG_ATTR
-  v_printf("vgaemu: Attr_init()\n");
-#endif
-
-  Attr_index=0;
-  Attr_flipflop=ATTR_INDEX_FLIPFLOP;  
-}
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION Attr_write_value
- *
- * Emulates writes to attribute controller combined index and data
- * register. Read vgadoc3 for details.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- */
-void Attr_write_value(unsigned char data)
-{
-  if(Attr_flipflop==ATTR_INDEX_FLIPFLOP)
-    {
-      Attr_flipflop=ATTR_DATA_FLIPFLOP;
-      
-      if(data>ATTR_MAX_INDEX)
-        {
-          Attr_index=ATTR_MAX_INDEX+1;
-
-#ifdef DEBUG_ATTR
-          v_printf("vgaemu: Attr_write_value(0x%02x): ERROR index too big. "
-                   "Attr_index set to 0x%02x\n", data, ATTR_MAX_INDEX+1);
-#endif
-        }
-      else
-        {
-          Attr_index=data;
-
-#ifdef DEBUG_ATTR
-          v_printf("vgaemu: Attr_write_value(0x%02x): Attr_index set\n", data);
-#endif
-        }
-    }
-  else /* Attr_flipflop==ATTR_DATA_FLIPFLOP */
-    {
-      Attr_flipflop=ATTR_INDEX_FLIPFLOP;
-      
-#ifdef DEBUG_ATTR
-      v_printf("vgaemu: Attr_write_value(0x%02x): data written in port "
-               "0x%02x\n", data, Attr_index);
-#endif
-      Attr_data[Attr_index].write=data;
-      Attr_data[Attr_index].read=data;
-      Attr_data[Attr_index].dirty=True;
-    }
-}
-
-
-
-
-
-/*
- * DANG_BEGIN_FUNCTION Attr_read_value
- *
- * Emulates reads from the attribute controller.
- * This is a hardware emulation function.
- *
- * DANG_END_FUNCTION
- */
-unsigned char Attr_read_value(void)
-{
-#ifdef DEBUG_ATTR
-  v_printf("vgaemu: Attr_read_value() returns 0x%02x\n", 
-           Attr_data[Attr_index].read);
-#endif
-
-/*
- * I don't know if the next line is OK. It seems reasonable that the
- * flipflop for port 0x3c0 is set to index if you read the data from
- * 0x3c1, but vgadoc3 says nothing about it and I don't have any other
- * documentation here at the moment :-( -- EM
- */
-  Attr_flipflop=ATTR_INDEX_FLIPFLOP;
-  
-  return(Attr_data[Attr_index].read);
-}
-
-
-/*
- * Attribute controller interface function should come here.
- */
 
 
 
@@ -872,18 +232,22 @@ unsigned char Attr_read_value(void)
 void VGA_emulate_outb(int port, unsigned char value)
 {
 #ifdef DEBUG_IO
-  v_printf("vgaemu: VGA_emulate_outb(): outb(0x%03x, 0x%02x)\n", port, value);
+  v_printf("VGAemu: VGA_emulate_outb(): outb(0x%03x, 0x%02x)\n", port, value);
 #endif
 
   switch(port)
     {
-    case ATTRIBUTE_INDEX:       /* root@zaphod */
+    case ATTRIBUTE_INDEX:
       Attr_write_value(value);
       break;
     
-    case ATTRIBUTE_DATA:        /* root@zaphod */
+    case ATTRIBUTE_DATA:
+      /* The attribute controller data port is a read-only register,
+       * so don't do anything at all.
+       */
 #ifdef DEBUG_IO
-      v_printf("vgaemu: ERROR: illegal write to port 0x%03x\n", port);
+      v_printf("VGAemu: ERROR: illegal write to the attribute controller "
+               "data port!\n");
 #endif
       break;
     
@@ -905,7 +269,7 @@ void VGA_emulate_outb(int port, unsigned char value)
 
     default:
 #ifdef DEBUG_IO
-      v_printf("vgaemu: not (yet) smart enough to emulate write of 0x%02x to"
+      v_printf("VGAemu: not (yet) smart enough to emulate write of 0x%02x to"
 	       " port 0x%04x\n", value, port);
 #endif
       break;
@@ -927,25 +291,25 @@ void VGA_emulate_outb(int port, unsigned char value)
 unsigned char VGA_emulate_inb(int port)
 {
 #ifdef DEBUG_IO
-  v_printf("vgaemu: VGA_emulate_inb(): inb(0x%03x)\n", port);
+  v_printf("VGAemu: VGA_emulate_inb(): inb(0x%03x)\n", port);
 #endif
 
   switch(port)
     {
-    case ATTRIBUTE_INDEX:        /* root@zaphod */
-      return(Attr_index);        /* undefined, in fact */
+    case ATTRIBUTE_INDEX:
+      return(Attr_get_index());        /* undefined, in fact */
       break;
     
-    case ATTRIBUTE_DATA:         /* root@zaphod */
+    case ATTRIBUTE_DATA:
       return(Attr_read_value());
       break;
     
     case DAC_PEL_MASK:
-      return(DAC_pel_mask);
+      return(DAC_get_pel_mask());
       break;
 
     case DAC_STATE:
-      return(DAC_state);
+      return(DAC_get_state());
       break;
 
     case DAC_WRITE_INDEX: /* this is undefined, but we have to do something */
@@ -956,21 +320,13 @@ unsigned char VGA_emulate_inb(int port)
       return(DAC_read_value());
       break;
 
-    case INPUT_STATUS_1: /* root@zaphod */
-      {
-	/* graphic status - many programs will use this port to sync with
-	 * the vert & horz retrace so as not to cause CGA snow */
-	static unsigned int cga_r=0;
-	
-        Attr_flipflop=ATTR_INDEX_FLIPFLOP; /* root@zaphod */
-        
-	return((cga_r ^= 1) ? 0xcf : 0xc6);
-	break;
-      }
+    case INPUT_STATUS_1:
+      return(Attr_get_input_status_1());
+      break;
 
     default:
 #ifdef DEBUG_IO
-      v_printf("vgaemu: not (yet) smart enough to emulate read from"
+      v_printf("VGAemu: not (yet) smart enough to emulate read from"
 	       " port 0x%04x\n", port);
 #endif
       return(0); /* do something */
@@ -1001,20 +357,28 @@ unsigned char VGA_emulate_inb(int port)
 int vga_emu_fault(struct sigcontext_struct *scp)
 {
   int page_fault_number=0;
+  int dirty_page_number=0;
 
 /*printf("exeption adr: 0x%0lx\n",scp->cr2);  
 */
   page_fault_number=(scp->cr2-0xA0000)/(4*1024);
+  dirty_page_number=page_fault_number + current_bank*16;
+
+#ifdef DEBUG_UPDATE
+  v_printf("VGAemu: vga_emu_fault(): address=0x%0lx, page=%i, dirty=%i\n",
+	   scp->cr2, page_fault_number, dirty_page_number);
+#endif
 
   if( (page_fault_number >=0) && (page_fault_number <16) )
     {
-      vgaemu_graphic_dirty_page[page_fault_number]=True;
+      vgaemu_graphic_dirty_page[dirty_page_number]=True;
+      /*      printf("(%d)\t",dirty_page_number);*/
       mprotect((void *)(0xA0000+page_fault_number*0x1000),0x1000,
 	       PROT_READ|PROT_WRITE);
 
       return True;
     } 
-  else /* Exeption was not caused in the vga_emu_ram, maybe in the vga_emu_rom*/
+  else /* Exeption not in the vga_emu_ram, maybe in the text mode ram */
     {
       page_fault_number=(scp->cr2-0xB8000)/(4*1024);
       if( (page_fault_number >=0) && (page_fault_number <8) )
@@ -1024,13 +388,14 @@ int vga_emu_fault(struct sigcontext_struct *scp)
 		   PROT_READ|PROT_WRITE);
 	  
 	  return True;
-	} 
-      else /* Exeption was not caused in the vga_emu_ram, maybe in the vga_emu_rom*/
+	}
+      else /* Exeption not in the vga_emu_ram, maybe in the vga_emu_rom*/
 	if(vesa_emu_fault(scp)==True)
 	  return True;
 	else 
-	  v_printf("vga_emu_fault: Not in 0xB8000-0xC0000range\n page= 0x%02x"
-		 " adress: 0x%lx \n",page_fault_number,scp->cr2); 
+	  v_printf("VGAemu: vga_emu_fault: Not in 0xB8000-0xC0000range\n"
+	           "page: 0x%02x  adress: 0x%lx \n",
+	           page_fault_number,scp->cr2); 
     }
   return False;
 }
@@ -1045,8 +410,8 @@ static inline caddr_t vga_mmap(caddr_t  addr,  size_t  len,
   for (i=0; i < len; i+=4096) *((volatile char *)(offset+i));
   return mmap(addr, len, prot, flags, fd, offset);
 }
- 
- 
+
+
 /*
  * DANG_BEGIN_FUNCTION vga_emu_init(void)        
  *
@@ -1064,31 +429,34 @@ static inline caddr_t vga_mmap(caddr_t  addr,  size_t  len,
  */     
 unsigned char* vga_emu_init(void)
 {
-  vga_emu_memory=(unsigned char*)malloc(VGAEMU_BANK_SIZE*VGAEMU_BANKS);
+  vga_emu_memory=(unsigned char*)valloc(VGAEMU_BANK_SIZE*VGAEMU_BANKS);
   if(vga_emu_memory==NULL)
-    v_printf("vga_emu_init:Alocated memory is NULL\n");
+    v_printf("VGAemu: vga_emu_init: Allocated memory is NULL\n");
 
-  vga_emu_memory_scratch=(unsigned char*)valloc(VGAEMU_BANK_SIZE);
+  vga_emu_memory_scratch=(unsigned char*)valloc(VGAEMU_BANK_SIZE*VGAEMU_BANKS);
   if(vga_emu_memory_scratch==NULL)
-    v_printf("vga_emu_init:Alocated memory is NULL\n");
+    v_printf("VGAemu: vga_emu_init: Allocated memory is NULL\n");
 
-  /* mapping the one bank of the allocated memmory */
+  /* mapping the bank of the allocated memory */
   selfmem_fd = open("/proc/self/mem", O_RDWR);
   if (selfmem_fd < 0)
-    v_printf("vga_emu_init: cannot open /proc/self/mem:\n");
+    v_printf("VGAemu: vga_emu_init: cannot open /proc/self/mem:\n");
 
-  *vga_emu_memory=0;	/* touch it */
-  *vga_emu_memory_scratch=0; /* */
+  *vga_emu_memory=0;	/* touch it, or it can't be mapped */
+  *vga_emu_memory_scratch=0; /* idem dito */
  
 
   if(vga_mmap((caddr_t)0xA0000, VGAEMU_BANK_SIZE, PROT_READ|PROT_WRITE,
           MAP_SHARED | MAP_FIXED,selfmem_fd,(off_t)vga_emu_memory )<0)
-    v_printf("Mapping failed\n");
+    v_printf("VGAemu: vga_emu_init: Mapping failed\n");
 
   mprotect((void *)0xA0000,0xFFFF,PROT_READ);
 
-/* add here something like for text-mode */
+  /* initialize the dirty page flags */
+  dirty_all_video_pages();
+  current_bank=0;
 
+/* add here something like for text-mode */
 
   DAC_init();
   Attr_init();
@@ -1098,9 +466,12 @@ unsigned char* vga_emu_init(void)
 
   return vga_emu_memory;
 }
+
+
+
  
 /*
- * DANG_BEGIN_FUNCTION int vgaemu_get_changes_in_pages(method,*first_dirty_page,*last_dirty_page)        
+ * DANG_BEGIN_FUNCTION int vgaemu_get_changes_in_pages
  *
  * description:
  *  vgaemu_get_changes_in_pages() is vgaemu_get_changes() is used 
@@ -1114,23 +485,32 @@ unsigned char* vga_emu_init(void)
  * DANG_END_FUNCTION                        
  */     
 
-int vgaemu_get_changes_in_pages( int method,int *first_dirty_page,int *last_dirty_page)
+int vgaemu_get_changes_in_pages(int method,int *first_dirty_page,int *last_dirty_page)
 {
-  int low,high,i;
+  int low, high, i, highest;
 
   switch(current_mode_info->type)
     { 
     case GRAPH:
 
-      low=16;
-      high=16;
+      /* FIXME: This will need to be revised for non-8bpp or weird modes */
+      highest = (current_mode_info->x_res * current_mode_info->y_res)/0x1000;
+
+      /*      printf("[H:%d]\t",highest);*/
+      
+      low=high=highest+1;
+
+      /*      for (i=0;i<256;i++) printf("%d:%d\t",i,vgaemu_graphic_dirty_page[i]);
+      printf("\n-----------------------------\n");*/
 
       /* Find the first dirty one */
-      for(i=0;i<16;i++) /* now split in more areas */
+      for(i=0;i<(highest+1);i++) /* now split in more areas */
 	{
 	  if(vgaemu_graphic_dirty_page[i]==True)
 	    {
-	      mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+	      if(i<16)
+		mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+	      
 	      vgaemu_graphic_dirty_page[i]=False;
 	      low=i;
 	      break;
@@ -1138,7 +518,7 @@ int vgaemu_get_changes_in_pages( int method,int *first_dirty_page,int *last_dirt
 	}
       
       /* No dirty pages */
-      if(low==16) 
+      if(low==(highest+1)) 
 	{ 
 	  /*mprotect((void *)0xA0000,0xFFFF,PROT_READ);*/	/* protect whole area */
 	  return False;
@@ -1146,17 +526,19 @@ int vgaemu_get_changes_in_pages( int method,int *first_dirty_page,int *last_dirt
       
       switch(method)
 	{
-	case 0:			/* find all dirty pages, which are connected */
-	  for(++i;i<16;i++)
+	case 0:			/* find all dirty pages which are connected */
+	  for(i=high=low+1;i<(highest+1);i++)
 	    {
 	      if(vgaemu_graphic_dirty_page[i]==True)
 		{
-		  mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+		  if(i<16)
+		    mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+		  
 		  vgaemu_graphic_dirty_page[i]=False;
+		  high=i+1;
 		}   
 	      else
 		{
-		  high=i--;
 		  break;
 		}
 	    }
@@ -1167,24 +549,30 @@ int vgaemu_get_changes_in_pages( int method,int *first_dirty_page,int *last_dirt
 	  break;
 	  
 	case 2:		/* Get first and last page */
-	  for(i=15;i>0;i--)
-	    {
+          high=low+1;
+          for(i=highest;i>=low;i--)
+            {
 	      if(vgaemu_graphic_dirty_page[i]==True)
 		{
-		  mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+		  if(i<16)
+		    mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+		  
 		  vgaemu_graphic_dirty_page[i]=False;
+		  high=i+1;
 		  break;
 		}
 	    }
 	  for(;i>low;i--)	/* clear dirty flags and protect it */
 	    {
-	      mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+	      if(i<16)
+		mprotect((void *)(0xA0000+0x1000*i),0x1000,PROT_READ);
+	      
 	      vgaemu_graphic_dirty_page[i]=False;
 	    }    
 	  break;
 	  
 	default:
-	  v_printf("vgaemu_get_changes_in_pages: No such method\n");
+	  v_printf("VGAemu: vgaemu_get_changes_in_pages: No such method\n");
 	  break;
 	}
  
@@ -1257,7 +645,7 @@ int vgaemu_get_changes_in_pages( int method,int *first_dirty_page,int *last_dirt
 	  break;
 	  
 	default:
-	  v_printf("vgaemu_get_changes_in_pages: No such method\n");
+	  v_printf("VGAemu: vgaemu_get_changes_in_pages: No such method\n");
 	  break;
 	}
       
@@ -1265,13 +653,11 @@ int vgaemu_get_changes_in_pages( int method,int *first_dirty_page,int *last_dirt
       *last_dirty_page=high;  
       
       return True;	/* False= nothing has changed */
-      
-      
-      
       break;
-    default:break;
+
+    default:
+      break;
     }
-  
   
   return True;	/* False= nothing has changed */
 }
@@ -1291,87 +677,63 @@ int vgaemu_get_changes_in_pages( int method,int *first_dirty_page,int *last_dirt
  * This is only for mode 0x13: 256 colors
  *
  * DANG_END_FUNCTION                        
- */     
-
-int vgaemu_get_changes_and_update_XImage_0x13(unsigned char * data,int method, int *xx, int *yy, int *ww, int *hh)
+ */
+int vgaemu_get_changes_and_update_XImage_0x13(unsigned char **base, unsigned long int *offset, unsigned long int *len, int method, int *modewidth)
 {
   int first_dirty_page,last_dirty_page;
 
 #ifdef DEBUG_IMAGE
-  v_printf("vgaemu_get_changes_and_update_XImage: Ximage is:\n"
+  v_printf("VGAemu: vgaemu_get_changes_and_update_XImage: Ximage is:\n"
 	 "width = %d, height = %d\n"
 	 "depth = %d, b/l = %d, b/p = %d\n"
 	 "bitmap_pad = %d\n"
 	 "*data= %p\n",
 	 image->width,image->height,image->depth,
 	 image->bytes_per_line,image->bits_per_pixel,image->bitmap_pad,image->data);       
-  
 #endif
   
   if(vgaemu_get_changes_in_pages(VGAEMU_UPDATE_METHOD_G_C_IN_PAGES,
 				 &first_dirty_page,&last_dirty_page)==True)
     {
-      int x, y, left=current_mode_info->x_res, top=current_mode_info->y_res, right=0, bottom=0;
-      unsigned char* vid_p;
-      unsigned char* scr_p;
-      unsigned char color;
-      
-      *xx=0;
+      /*      *xx=0;
       *ww=current_mode_info->x_res;
       *yy=(first_dirty_page*0x1000)/current_mode_info->x_res;
       *hh=((last_dirty_page-first_dirty_page)*0x1000+current_mode_info->x_res-1)/current_mode_info->x_res;
       
       if((*yy+*hh)>current_mode_info->y_res )
-	*hh=current_mode_info->y_res-*yy; /* 0- */
+	*hh=current_mode_info->y_res-*yy; */
       
-      for(y=*yy; y<(*yy+*hh); y++)
-	{	 
-	  vid_p=(unsigned char*)(current_mode_info->bufferstart+(*xx+current_mode_info->x_res*(y)) );
-	  scr_p=(unsigned char*)(vga_emu_memory_scratch+(*xx+current_mode_info->x_res*y) );
-	  
-	  for(x=(*xx); x<(*xx+*ww); x++)
-	    {
-	      
-	      color=*vid_p;
-	      
-	      if(color!=*scr_p)
-		{
-		  
-		  *scr_p=color;	/* update scratch space*/
-#ifdef DEBUG_UPDATE
-		  v_printf("PutPixel: x= %d, y= %d\n",x,y);
+      /* Do a really quick couldn't-care-less-which-pixels-changed copy of
+	 the dirty pages into the (Shm)XImage */
+      /*      memcpy(
+	     (unsigned char*)&data[(*yy)*(current_mode_info->x_res)],
+	     (unsigned char*)(current_mode_info->bufferstart+(current_mode_info->x_res*(*yy))),
+	     (*hh)*(current_mode_info->x_res)
+	     );*/
+
+#ifdef DEBUG_IMAGE
+      v_printf("VGAemu: dirty pages from %i to %i\n",
+	       first_dirty_page, last_dirty_page);
 #endif
-		  
-/*		  XPutPixel(image,x,y,(long int)color);*/
-		  data[y*current_mode_info->x_res + x]=(unsigned char)color;
-		  
-		  if(x<left)
-		    left=x;
-		  
-		  if((x)>right)
-		    right=x;
-		  
-		  if(y<top)
-		    top=y;
-		  
-		  if(y>bottom)
-		    bottom=y;
-		}
-	      vid_p++;
-	      scr_p++;
-	    }
-	}  
-      
-      *xx=left;
-      *yy=top;
-      *ww=right-left+1;
-      *hh=bottom-top+1;
-      
-      if((*ww<0)||(*hh<0))
+
+      *modewidth = current_mode_info->x_res;
+      *base = (unsigned char*) vga_emu_memory;
+      *offset = first_dirty_page*0x1000;
+      *len = (unsigned long int)((last_dirty_page-first_dirty_page) * 0x1000);
+
+      if(*offset + *len > current_mode_info->x_res*current_mode_info->y_res)
+	*len=current_mode_info->x_res*current_mode_info->y_res - *offset;
+
+/*
+      if (
+	  (*offset + *len > current_mode_info->bufferlen) ||
+	  (*offset + *len > current_mode_info->x_res*current_mode_info->y_res)
+	  )
 	{
-	  /*printf("Error: Could not find any changed pixel(could be the same color\n");*/
-	  *ww=0;*hh=0;*xx=0;*yy=0;
-	}
+	  if (current_mode_info->bufferlen < current_mode_info->x_res*current_mode_info->y_res) *len = current_mode_info->bufferlen - *offset;
+	  else *len = current_mode_info->x_res*current_mode_info->y_res - *offset;
+	}*/
+
       return True;    
     }
   else
@@ -1379,27 +741,6 @@ int vgaemu_get_changes_and_update_XImage_0x13(unsigned char * data,int method, i
   
   return False;	/* False= nothing has changed */
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1418,25 +759,27 @@ int vgaemu_get_changes_and_update_XImage_0x13(unsigned char * data,int method, i
  *
  * DANG_END_FUNCTION                        
  */     
-
 int vgaemu_switch_page(unsigned int pagenumber)
 {
   /* remapping the one bank of the allocated memmory */
- 
+
  /* Is this < or <= ? -- Erik */
-  if(pagenumber<=VGAEMU_BANKS)
+  if((pagenumber<=VGAEMU_BANKS) && (pagenumber>=0))
     {
+      current_bank=pagenumber;
+
       if(vga_mmap((caddr_t)0xA0000, VGAEMU_BANK_SIZE, PROT_READ|PROT_WRITE,
 	      MAP_SHARED | MAP_FIXED,selfmem_fd,
-	      (off_t)(vga_emu_memory+pagenumber*VGAEMU_BANK_SIZE) )<0)
+	      (off_t)(vga_emu_memory+current_bank*VGAEMU_BANK_SIZE) )<0)
 	{
-	  v_printf("vga_emu_switch_page: Remapping failed\n");
+	  v_printf("VGAemu: vga_emu_switch_page: Remapping failed\n");
 	  return False;
 	}
     }
   else
     {
-      v_printf("vga_emu_switch_page: Invalid page number\n");
+      v_printf("VGAemu: vga_emu_switch_page(): Invalid page number %i\n",
+               pagenumber);
     }
   
   mprotect((void *)0xA0000,0xFFFF,PROT_READ); /* should not be needed, but... */
@@ -1482,7 +825,7 @@ int set_vgaemu_mode(int mode, int width, int height)
     }
 
   if(found==True)
-    v_printf("set_vgaemu_mode(): mode found in first run!\n");
+    v_printf("VGAemu: set_vgaemu_mode(): mode found in first run!\n");
     
   /* Play it again, Sam!
    * This is when we can't find the textmode with the appropriate sizes.
@@ -1500,11 +843,11 @@ int set_vgaemu_mode(int mode, int width, int height)
         }
         
       if(found==True)
-        v_printf("set_vgaemu_mode(): mode found in second run!\n");
+        v_printf("VGAemu: set_vgaemu_mode(): mode found in second run!\n");
     }
     
     
-  v_printf("set_vgaemu_mode(): mode=0x%02x, (%ix%i, %ix%i, %ix%i)\n",
+  v_printf("VGAemu: set_vgaemu_mode(): mode=0x%02x, (%ix%i, %ix%i, %ix%i)\n",
          vga_mode_table[index].mode,
          vga_mode_table[index].x_res,
          vga_mode_table[index].y_res,
@@ -1517,6 +860,27 @@ int set_vgaemu_mode(int mode, int width, int height)
     {
       current_mode_info=&vga_mode_table[index];
   
+      /* Some applications expect memory to be initialised to
+       all-zero after a BIOS mode-set... Erik says it only applies
+       to modes below 0x80. --adm */
+
+      /* Does the BIOS clear all of video memory, or just enough
+       for the viewport?  This clears all of it... */
+
+      if (vga_mode_table[index].mode < 0x80)
+	memset((void*)vga_emu_memory, 0, 
+	       (size_t)VGAEMU_BANK_SIZE*VGAEMU_BANKS);
+
+      current_bank=0;
+
+      /* map first page */
+      vga_mmap((caddr_t)current_mode_info->bufferstart, 
+	       current_mode_info->bufferlen,
+	       PROT_READ|PROT_WRITE,
+	       MAP_SHARED|MAP_FIXED,
+	       selfmem_fd,
+	       (off_t)vga_emu_memory);
+
       /*protect the vgaemu memory, so it is possible to trap everything */
       /* PROT_READ defined in /usr/include/asm/mman.h  root@sjoerd*/
       mprotect((void*)current_mode_info->bufferstart,current_mode_info->bufferlen,PROT_READ);
@@ -1551,7 +915,7 @@ void print_vgaemu_mode(int mode)
 {
   /* int mode;*/
   for(mode=0;(vga_mode_table[mode]).mode!=-1;mode++)
-    v_printf("mode = 0x%02x  mode = 0x%02x type = %d w = %d h = %d\n",mode,
+    v_printf("VGAemu: mode = 0x%02x  mode = 0x%02x type = %d w = %d h = %d\n",mode,
 	   (vga_mode_table[mode]).mode,
 	   (vga_mode_table[mode]).type,
 	   
@@ -1604,7 +968,7 @@ int get_vgaemu_type(void)
   return current_mode_info->type;
 }
 
-int vgaemu_update(unsigned char *data, int method, int *x, int *y, int *width, int *heigth)
+int vgaemu_update(unsigned char **base, unsigned long int *offset, unsigned long int *len, int method, int *modewidth)
 {
 
 /*  if(vgaemu_info->update!=NULL)
@@ -1614,22 +978,28 @@ int vgaemu_update(unsigned char *data, int method, int *x, int *y, int *width, i
   switch(current_mode_info->memorymodel)
     {
     case P8:
-      return(vgaemu_get_changes_and_update_XImage_0x13(data, method, x, y, 
-        width, heigth));
+      return(vgaemu_get_changes_and_update_XImage_0x13(base, offset, len, method, modewidth));
       break;
     
     default:
-      v_printf("vgaemu_update(): No update function for memory model 0x%02x\n", 
+      v_printf("VGAemu: vgaemu_update(): No update function for memory model 0x%02x\n", 
              current_mode_info->memorymodel);
       return False;
       break;
     }
 }
      
+
+void dirty_all_video_pages(void)
+{
+  int i;
+  for (i=0;i<256;i++) vgaemu_graphic_dirty_page[i]=True;
+}
+
      
 int set_vgaemu_page(unsigned int page)
 {
-  v_printf("set_vgaemu_page %d\n",page);
+  v_printf("VGAemu: set_vgaemu_page %d\n",page);
 /*  if(page<=current_mode_info->pages)
     {
       vgaemu_info->active_page=page;

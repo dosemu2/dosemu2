@@ -173,7 +173,13 @@ static inline int limits_ok(struct modify_ldt_ldt_s *ldt_info)
 		if (ldt_info->seg_32bit)
 			last = base-1;
 	}
+#if defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS)
+	if (last < first) return 0;
+	if (last >= TASK_SIZE) return suser();
+	return 1;
+#else
 	return (last >= first && last < TASK_SIZE);
+#endif
 }
 
 static int write_ldt(void * ptr, unsigned long bytecount)

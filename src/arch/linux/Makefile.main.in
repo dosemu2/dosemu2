@@ -31,10 +31,12 @@ export PICOBJS
 # enable this target to make a different way
 # do_DEBUG=true
 ifdef ELF
-export CC         = gcc # -elf I use gcc-specific features (var-arg macros, fr'instance)
+#export CC         = gcc # -elf I use gcc-specific features (var-arg macros, fr'instance)
+export CC = @CC@ #-elf
 else
-export CC         = gcc # I use gcc-specific features (var-arg macros, fr'instance)
+#export CC         = gcc # I use gcc-specific features (var-arg macros, fr'instance)
 # export CC         = gcc -b i486-linuxaout # I use gcc-specific features (var-arg macros, fr'instance)
+export CC = @CC@ #-b i486-linuxaout
 endif
 
 export LD=$(CC)
@@ -54,6 +56,15 @@ ifdef USING_NET
 export NET=dosext/net/net
 endif
 
+#
+# This is defined when the SB Emulation is required. You should re-configure,
+# rather than just change this.
+#
+export USE_SBEMU = @USE_SBEMU@
+ifdef USE_SBEMU
+export SBEMU=arch/linux/dosext/sound dosext/sound
+endif
+
 # SYNC_ALOT
 #   uncomment this if the emulator is crashing your machine and some debug info 
 #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 
@@ -65,8 +76,8 @@ LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	emu-i386 env\
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/keyboard base/mouse\
-	base/dev/dma dosext/sound \
-	$(DEBUGGER) $(NET) $(IPX) dosext/drivers base/bios
+	base/dev/dma \
+	$(DEBUGGER) $(NET) $(IPX) $(SBEMU) dosext/drivers base/bios
 
 REQUIRED=@REQUIRED@
 
@@ -128,7 +139,7 @@ CFLAGS     = $(OPT) $(PIPE) $(USING_NET) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 ifdef REQUIRES_EMUMODULE
   LDTPATCH=2
 else
-  LDTPATCH:= $(shell grep -c useable /usr/include/linux/ldt.h)
+  LDTPATCH:= $(shell grep -c useable $(LINUX_KERNEL)/include/linux/ldt.h)
 endif
 ifeq ($(LDTPATCH),2)
   WIN31=1
@@ -151,9 +162,9 @@ endif
 export CFLAGS
 
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
-AS86 = as86
+AS86 = @AS86@
 #LD86 = ld86 -s -0
-LD86 = ld86 -0
+LD86 = @LD86@ -0
 
 DISTBASE=/tmp
 DISTNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
@@ -340,14 +351,13 @@ ifeq (${OS},linux)
 	@ln -sf $(BINPATH)/modules ../modules
 	@if [ "$@" != "pristine" ]; then \
           if [ -f $(BINPATH)/kversion.stamp ]; then \
-	    if [ "`grep UTS_RELEASE /usr/include/linux/version.h 2>/dev/null`" != "`cat $(BINPATH)/kversion.stamp`" ]; then \
+	    if [ "`grep UTS_RELEASE $(LINUX_KERNEL)/include/linux/version.h 2>/dev/null`" != "`cat $(BINPATH)/kversion.stamp`" ]; then \
 	      echo '**********************************************************'; \
 	      echo "Your kernel version has changed, please do 'make pristine'"; \
 	      echo 'NOTE: Not the running kernel is meant, but the one which'; \
-	      echo '      /usr/src/linux/include belongs to.'; \
+	      echo '      $(LINUX_KERNEL)/include belongs to.'; \
 	      echo '**********************************************************'; \
 	      echo $@ ; \
-	      exit 1; \
 	    fi \
 	  fi \
         fi
@@ -361,7 +371,8 @@ include/kversion.h:
 	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>@REALTOPDIR@/src/$@
 	echo '#endif' >>@REALTOPDIR@/src/$@
 else
-include/kversion.h:
+# The kernel makefile is always changed when we upgrade linux - Jon
+include/kversion.h: $(LINUX_KERNEL)/Makefile
 	 $(SHELL) @REALTOPDIR@/src/arch/@CONFIG_HOST@/kversion.sh $(LINUX_KERNEL) ./
 endif
 

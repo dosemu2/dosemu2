@@ -8,6 +8,7 @@ TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@ @USE_MHPDBG@
 LDFLAGS=@LDFLAGS@
 CC=@CC@
+@SET_MAKE@
 
 # The following variables may go into the Makfile in the parent-directory
 

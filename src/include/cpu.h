@@ -17,7 +17,13 @@
 #include "netbsd_vm86.h"
 #endif
 #ifdef __linux__
-#include <linux/vm86.h>
+#include "kversion.h"
+#  if KERNEL_VERSION >= 1003100
+#    include <asm/vm86.h>
+#    include <sys/vm86.h>
+#  else
+#    include <linux/vm86.h>
+#  endif
 #endif
 #ifndef BIOSSEG
 #define BIOSSEG 0xf000

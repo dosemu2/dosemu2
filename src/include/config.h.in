@@ -1,44 +1,168 @@
-#ifndef CONFIG_H
-
-#define CONFIG_H 1
-
-#define    CONFIG_FILE     "/etc/dosemu.conf"
-#define    DOSEMU_USERS_FILE "/etc/dosemu.users"
-#define    DOSEMU_LOGLEVEL_FILE "/etc/dosemu.loglevel"
-
-/* Do not worry about these */
-#define    LIBSTART        0x20000000
-#undef    CONFIG_HOST
-#undef    CONFIG_TIME 
-#undef    VERSION
-#undef    SUBLEVEL
-#undef    PATCHLEVEL
-#undef    VERSTR
-#undef    EMUVER
-#define   lint	1
+/* src/include/config.h.in.  Generated automatically from configure.in by autoheader.  */
 
 /*
-  DEFINE REQUIRES_EMUMODULE, if you you need the emumodules special features
-  You also must load the modules as follows:
-    login in as root
-    cd /usr/src/dosemu
-    ./load_module.sh
+ * BIG FAT WARNING:
+ *
+ * This file (this is acconfig.h, _NOT_ config.h.in) is the only place 
+ * where you can add #defines. If you edit config.h.in, your efforts
+ * will become useless the next time you run autoheader.
+ *
+ * All lines before the TOP macro or after the BOTTOM macro are copied
+ * unchanged into config.h.in. Read the GNU autoconf documentation
+ * to learn more about configure & friends.
+ *
+ */
 
-  This needs only to be done once, unless you reboot your machine,
-  or recompile DOSemu.
-  You can unload emumodule as follows:
-    login in as root
-    cd /usr/src/dosemu           
-    ./unload_module.sh     
-      ==
-*/ 
+#ifndef CONFIG_H
+#define CONFIG_H 1
+
+#define    CONFIG_FILE           "/etc/dosemu.conf"
+#define    DOSEMU_USERS_FILE     "/etc/dosemu.users"
+#define    DOSEMU_LOGLEVEL_FILE  "/etc/dosemu.loglevel"
+
+/* Do not worry about these */
+#define    LIBSTART  0x20000000
+#define    lint      1
+
+
+/* Define if using alloca.c.  */
+#undef C_ALLOCA
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP systems.
+   This function is required for alloca.c support on those systems.  */
+#undef CRAY_STACKSEG_END
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef gid_t
+
+/* Define if you have alloca, as a function or macro.  */
+#undef HAVE_ALLOCA
+
+/* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
+#undef HAVE_ALLOCA_H
+
+/* Define if you don't have vprintf but do have _doprnt.  */
+#undef HAVE_DOPRNT
+
+/* Define if you have a working `mmap' system call.  */
+#undef HAVE_MMAP
+
+/* Define if your struct stat has st_rdev.  */
+#undef HAVE_ST_RDEV
+
+/* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if utime(file, NULL) sets file's timestamp to the present.  */
+#undef HAVE_UTIME_NULL
+
+/* Define if you have the vprintf function.  */
+#undef HAVE_VPRINTF
+
+/* Define as __inline if that's what the C compiler calls it.  */
+#undef inline
+
+/* Define if major, minor, and makedev are declared in <mkdev.h>.  */
+#undef MAJOR_IN_MKDEV
+
+/* Define if major, minor, and makedev are declared in <sysmacros.h>.  */
+#undef MAJOR_IN_SYSMACROS
+
+/* Define to `long' if <sys/types.h> doesn't define.  */
+#undef off_t
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef pid_t
+
+/* Define as the return type of signal handlers (int or void).  */
+#undef RETSIGTYPE
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+#undef size_t
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at run-time.
+	STACK_DIRECTION > 0 => grows toward higher addresses
+	STACK_DIRECTION < 0 => grows toward lower addresses
+	STACK_DIRECTION = 0 => direction of growth unknown
+ */
+#undef STACK_DIRECTION
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if your <sys/time.h> declares struct tm.  */
+#undef TM_IN_SYS_TIME
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef uid_t
+
+/* Define the host for which Dosemu is configured */
+#undef CONFIG_HOST
+
+/* Define the configure time */
+#undef CONFIG_TIME
+
+/* Define the Dosemu version */
+#undef VERSION
+
+/* Define the Dosemu sublevel */
+#undef SUBLEVEL
+
+/* Define the Dosemu patchlevel */
+#undef PATCHLEVEL
+
+/* Define the version string */
+#undef VERSTR
+
+/* Define the EMU version */
+#undef EMUVER
+
+/* 
+ * Define if the compiler doesn't have __FUNCTION__ macro
+ * This is very gcc specific (and very useful!). It is defined
+ * as "" if the compiler doesn't have it.
+ */
+#undef __FUNCTION__
+
+/* 
+ * Define if the compiler doesn't have __FILE__ macro
+ * Most compilers have this one, but just to be sure...
+ */
+#undef __FILE__
+
+/* 
+ * Define if the compiler doesn't have __LINE__ macro
+ * Most compilers have this one, but just to be sure...
+ */
+#undef __LINE__
+
+/*
+ * DEFINE REQUIRES_EMUMODULE, if you you need the emumodules special features
+ * You also must load the modules as follows:
+ *   login in as root
+ *   cd /usr/src/dosemu
+ *   ./load_module.sh
+ *
+ * This needs only to be done once, unless you reboot your machine,
+ * or recompile DOSemu.
+ * You can unload emumodule as follows:
+ *   login in as root
+ *   cd /usr/src/dosemu           
+ *   ./unload_module.sh     
+ *     ==
+ */ 
 #undef REQUIRES_EMUMODULE
 
 /* DEFINE this, if you want the extended vm86 support (vm86plus) */
 #undef USE_VM86PLUS
-
-/* DEFINE this, if you want stack verifying in sys_vm86 */
-#undef USE_VM86_STACKVERIFY
 
 /* DPMI test windows */
 #undef WANT_WINDOWS
@@ -54,24 +178,96 @@
 #undef NEW_KEYCODES
 
 /*
-# The next lines define the Lock file set up.  You must do a make clean
-# if change these lines
-# Uncomment the following if you still have your UUCP locks in /usr/spool/uucp
-*/
-#define PATH_LOCKD  "/usr/spool/uucp"
-/* Use the following instead if you your UUCP locks in /var/lock */
-/* #define PATH_LOCKD "/var/lock" */
-/* First part of Lock file names, prepended to 'tty5' etc.*/
-#define NAME_LOCKF "LCK.."
+ * This is DEFINED when SB emulation is required. Just changing this is not
+ * enough - you must reconfigure.
+ */
+#undef USE_SBEMU
 
-#define CONFIG_FILE "/etc/dosemu.conf"
-#define DOSEMU_USERS_FILE "/etc/dosemu.users"
+/* Define this if you want to use MITSHM */
+#undef HAVE_MITSHM
 
-/*
-   DEFINE this, if you have joystick support in the kernel
-   or have the joystick module loaded (needing <linux/joystick.h>)
-*/
+/* Define if you have the getcwd function.  */
+#undef HAVE_GETCWD
 
-#undef USE_MRP_JOYSTICK
+/* Define if you have the gethostname function.  */
+#undef HAVE_GETHOSTNAME
 
-#endif /* config.h */
+/* Define if you have the getpagesize function.  */
+#undef HAVE_GETPAGESIZE
+
+/* Define if you have the gettimeofday function.  */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define if you have the mkdir function.  */
+#undef HAVE_MKDIR
+
+/* Define if you have the mkfifo function.  */
+#undef HAVE_MKFIFO
+
+/* Define if you have the mktime function.  */
+#undef HAVE_MKTIME
+
+/* Define if you have the rmdir function.  */
+#undef HAVE_RMDIR
+
+/* Define if you have the select function.  */
+#undef HAVE_SELECT
+
+/* Define if you have the socket function.  */
+#undef HAVE_SOCKET
+
+/* Define if you have the strdup function.  */
+#undef HAVE_STRDUP
+
+/* Define if you have the strerror function.  */
+#undef HAVE_STRERROR
+
+/* Define if you have the strstr function.  */
+#undef HAVE_STRSTR
+
+/* Define if you have the strtol function.  */
+#undef HAVE_STRTOL
+
+/* Define if you have the strtoul function.  */
+#undef HAVE_STRTOUL
+
+/* Define if you have the uname function.  */
+#undef HAVE_UNAME
+
+/* Define if you have the valloc function.  */
+#undef HAVE_VALLOC
+
+/* Define if you have the <dirent.h> header file.  */
+#undef HAVE_DIRENT_H
+
+/* Define if you have the <fcntl.h> header file.  */
+#undef HAVE_FCNTL_H
+
+/* Define if you have the <limits.h> header file.  */
+#undef HAVE_LIMITS_H
+
+/* Define if you have the <ndir.h> header file.  */
+#undef HAVE_NDIR_H
+
+/* Define if you have the <sys/dir.h> header file.  */
+#undef HAVE_SYS_DIR_H
+
+/* Define if you have the <sys/file.h> header file.  */
+#undef HAVE_SYS_FILE_H
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define if you have the <sys/ndir.h> header file.  */
+#undef HAVE_SYS_NDIR_H
+
+/* Define if you have the <sys/time.h> header file.  */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the <syslog.h> header file.  */
+#undef HAVE_SYSLOG_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
+
+#endif /* CONFIG_H */

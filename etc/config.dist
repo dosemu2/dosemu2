@@ -29,7 +29,7 @@ debug { config  off	disk    off	warning off	hardware off
         port    off	read    off	general off	IPC      off
         video   off	write   off	xms     off	ems      off
         serial  off	keyb    off	dpmi    off
-       	printer off	mouse   off
+       	printer off	mouse   off	sound	off
       }
 
 
@@ -213,6 +213,10 @@ terminal { charset latin  updatefreq 4  color on }
 #    "font" value					(default vga)
 #	Used to pick a font other than vga. Must be monospaced.
 #
+#    "sharecmap"					(default 0)
+#	Used to share the colormap with other applications in graphics mode.
+#	If not set, a private colormap is used.
+#
 X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
 
 
@@ -262,7 +266,17 @@ video { vga }          # Use this line, if you are using VGA
 #           ( you will get funny garbage on your MDA display. ) 
 #           Also, you must NOT have the dualmon-patches for kernel applied
 #           ( having the MDA as Linux console ) 
-#        
+#   - If you want to run dosemu in situations when human doesn't sit at console
+#     (for instance to run it by cron) and want console option be enabled
+#     you should use option forcevtswitch.
+#            { vga console forcevtswitch }
+#     Without the option dosemu waits for becoming virtual terminal
+#     on which dosemu is run active (i.e. user must press Alt-F?).
+#     With this option dosemu perform the switch itself.
+#     Be careful with this option because with it user sat at console
+#     may face with unexpected switch.
+#    
+#    
 #   It may be necessary to set this to "on" if DOSEMU can't boot up properly
 #   on your system when it's set "off" and when graphics are enabled.
 #   Note: May interfere with serial ports when using certain video boards.
@@ -359,6 +373,20 @@ sillyint off    # this disables IRQ monitoring
 
 #********************** PORT ACCESS **************************************
 #
+# These keywords are allowable on a "ports" line (* denotes default):
+# 	range addr1 addr2	allow access in this range of ports
+#	ormask (*=0)
+#	andmask (*=0xffff)
+#	rdonly|wronly|rdwr(*)	specify what access to allow
+#	fast (*=not fast)	put port(s) in the ioperm bitmap (only
+#				valid for ports below 0x400)
+#				An access doesn't trap and isn't logged, but
+#				as vm86() isn't interrupted, it's much faster. 
+#	device <name>		if ports are registered, open device to block
+#				access. Open must be successfull or access to
+#				ports will be denied. If you know what you are
+#				doing, use /dev/null to fake a device to block
+#				
 # !!WARNING!!: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND
 # SOME PORTS ARE DANGEROUS TO USE.  PLEASE SKIP THIS SECTION, AND 
 # DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.
@@ -500,3 +528,21 @@ floppy { device /dev/fd0 threeinch }
 #    that continue to use the standard bios calls.  These applications will
 #    continue to send the output piped to the file or unix command.
 #
+
+
+#******************* SOUND ***********************************************
+#
+# This is likely to be very broken at the moment. 8-(
+#
+# sb_base 	- base address of the SB (HEX)
+# sb_irq	- IRQ for the SB
+# sb_dma	- DMA channel for the SB
+# sb_dsp	- Path the sound device
+# sb_mixer	- path to the mixer control
+# mpu_base	- base address for the MPU-401 chip (HEX) (Not Implemented)
+#
+
+# Linux defaults
+#sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp sb_mixer /dev/mixer mpu_base 0x330 }
+# NetBSD defaults
+#sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound sb_mixer /dev/mixer mpu_base 0x330 }

@@ -394,7 +394,9 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        char    *X_icon_name;
        char    *X_font;
        int     X_blinkrate;
+       int     X_sharecmap;
        boolean fullrestore;
+       boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
 
        u_short usesX;  /* !=0 if dosemu owns an X window */
@@ -458,6 +460,13 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */
 
+       /* Sound emulation */
+       __u16 sb_base;
+       __u8 sb_dma;
+       __u8 sb_irq;
+       char *sb_dsp;
+       char *sb_mixer;
+       __u16 mpu401_base;
      }
 
 config_t;
@@ -530,6 +539,7 @@ EXTERN int parse_config(char *);
 EXTERN void disk_init(void);
 EXTERN void serial_init(void);
 EXTERN void close_all_printers(void);
+EXTERN void release_ports(void);
 EXTERN void serial_close(void);
 EXTERN void disk_close_all(void);
 EXTERN void init_all_printers(void);

@@ -181,6 +181,9 @@ int init_module( void) {
     restore_redirect_all();
     return -1;
   }
+#if KERNEL_VERSION >= 1003057
+  mod_use_count_ &= ~MOD_AUTOCLEAN;
+#endif
   return 0;
 }
 

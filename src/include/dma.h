@@ -1,49 +1,96 @@
-/* DANG_BEGIN_MODULE
- *
- * include/dma.h defines the dma_struct, the type which holds all the
- * information needed by the dma controller.
- *
- * DANG_END_MODULE
- */
+void dma_init(void);
+void dma_reset(void);
+
+EXTERN __u8 is_dma;     /* Active DMA channels mask */
+
+void dma_controller(void);
+
+Bit8u dma_io_read(Bit32u port);
+void dma_io_write(Bit32u port, Bit8u value);
+
+/* This is the correct way to run the dma controller */
+
+#define dma_run()  if (is_dma) dma_controller()
 
 
-
-typedef struct {
-  unsigned char page;               /* The high byte to use always for this ch */
-  unsigned int cur_addr;            /* This is the low word of the current address. */
-  unsigned int cur_count;           /* The number of bytes - 1 to transfer */
-  unsigned int base_addr;           /* The address  and count to load when the */
-  unsigned int base_count;          /* transfer is finished */
-  unsigned char mode;               /* The mode for the channel */
-  unsigned char request;            /* = 4 when dma requested by software */
-  unsigned char mask;               /* = 4 to disable ch */
-  unsigned char tc;                 /* = 4 when terminal count is reached */
-  /* the preceding three will always be either 0 or 4 */
-
-  /* The following aren't registers in the real thing but we need them in our
-     psuedo-dma controller.  If you are writing code for a dma device, you
-     need to fill in all these fields yourself. */
-  int fd;                           /* The file descriptor to use for this ch */
-  int tc_irq, dreq_irq;             /* The irq level to call when the transfer
-                                       is over and the dreq_count becomes 0.
-                                       This must be an interrupt level defined
-                                       in ../include/pic.h.  Or use -1 to
-                                       disable */
-  int dreq;                         /* One of the following: */
-#define DREQ_OFF 0
-#define DREQ_ON  1
-#define DREQ_COUNTED 2
-  unsigned long int dreq_count;     /* max bytes to transfer when dreq = 2 */
-  } dma_ch_struct;
+int dma_test_DACK(int channel);
+int dma_test_DREQ(int channel);
+int dma_test_eop(int channel);
+void dma_drop_eop(int channel);
+void dma_assert_eop(int channel);
+void dma_drop_DREQ(int channel);
+void dma_drop_DACK(int channel);
+void dma_assert_DREQ(int channel);
+void dma_assert_DACK(int channel);
 
 
+#define DMA_HANDLER_READ   1
+#define DMA_HANDLER_WRITE  2
 
-extern dma_ch_struct dma_ch[7];     /* This is the same as dma_ch : array[0..7]
-                                       of dma_ch_struct in Pascal, right??? */
+#define DMA_HANDLER_DONE   100
+
+#define DMA_HANDLER_ERROR  -1
+
+void dma_install_handler (int ch, int wfd, int rfd, void (* handler) (int),
+			  int size);
 
 
-/* Constants follow representing the values for various registers */
+/* From <asm/dma.h> */
 
+/* 8237 DMA controllers */
+#define IO_DMA1_BASE	0x00	/* 8 bit slave DMA, channels 0..3 */
+#define IO_DMA2_BASE	0xC0	/* 16 bit master DMA, ch 4(=slave input)..7 */
+
+/* DMA controller registers */
+#define DMA1_CMD_REG		0x08	/* command register (w) */
+#define DMA1_STAT_REG		0x08	/* status register (r) */
+#define DMA1_REQ_REG            0x09    /* request register (w) */
+#define DMA1_MASK_REG		0x0A	/* single-channel mask (w) */
+#define DMA1_MODE_REG		0x0B	/* mode register (w) */
+#define DMA1_CLEAR_FF_REG	0x0C	/* clear pointer flip-flop (w) */
+#define DMA1_TEMP_REG           0x0D    /* Temporary Register (r) */
+#define DMA1_RESET_REG		0x0D	/* Master Clear (w) */
+#define DMA1_CLR_MASK_REG       0x0E    /* Clear Mask */
+#define DMA1_MASK_ALL_REG       0x0F    /* all-channels mask (w) */
+
+#define DMA2_CMD_REG		0xD0	/* command register (w) */
+#define DMA2_STAT_REG		0xD0	/* status register (r) */
+#define DMA2_REQ_REG            0xD2    /* request register (w) */
+#define DMA2_MASK_REG		0xD4	/* single-channel mask (w) */
+#define DMA2_MODE_REG		0xD6	/* mode register (w) */
+#define DMA2_CLEAR_FF_REG	0xD8	/* clear pointer flip-flop (w) */
+#define DMA2_TEMP_REG           0xDA    /* Temporary Register (r) */
+#define DMA2_RESET_REG		0xDA	/* Master Clear (w) */
+#define DMA2_CLR_MASK_REG       0xDC    /* Clear Mask */
+#define DMA2_MASK_ALL_REG       0xDE    /* all-channels mask (w) */
+
+#define DMA_ADDR_0              0x00    /* DMA address registers */
+#define DMA_ADDR_1              0x02
+#define DMA_ADDR_2              0x04
+#define DMA_ADDR_3              0x06
+#define DMA_ADDR_4              0xC0
+#define DMA_ADDR_5              0xC4
+#define DMA_ADDR_6              0xC8
+#define DMA_ADDR_7              0xCC
+
+#define DMA_CNT_0               0x01    /* DMA count registers */
+#define DMA_CNT_1               0x03
+#define DMA_CNT_2               0x05
+#define DMA_CNT_3               0x07
+#define DMA_CNT_4               0xC2
+#define DMA_CNT_5               0xC6
+#define DMA_CNT_6               0xCA
+#define DMA_CNT_7               0xCE
+
+#define DMA_PAGE_0              0x87    /* DMA page registers */
+#define DMA_PAGE_1              0x83
+#define DMA_PAGE_2              0x81
+#define DMA_PAGE_3              0x82
+#define DMA_PAGE_5              0x8B
+#define DMA_PAGE_6              0x89
+#define DMA_PAGE_7              0x8A
+
+/* These from Joels dma.h */
 /* Values for command register */
 #define DMA_MEM_TO_MEM_ENABLE 0x01  /* Not supported */
 #define DMA_CH0_ADDR_HOLD     0x02  /* Not supported */
@@ -64,8 +111,6 @@ extern dma_ch_struct dma_ch[7];     /* This is the same as dma_ch : array[0..7]
 I guess a more concise summary would be that this register is system wide
 and probably is unimportant since dosemu uses its own bios, not the pc's */
 
-/* I've decided there's no need to support this, but I left it anyway to
-   document what's going on. */
 
 /* Mode register (1 per ch) */
 /* We'll start with the low bits and move toward the high ones */
@@ -74,10 +119,12 @@ and probably is unimportant since dosemu uses its own bios, not the pc's */
 #define DMA_CH_SELECT         0x03   
 
 /* After that comes the direction of the transfer */
-#define DMA_READ              0x04  /* This is the read mode */
-#define DMA_WRITE             0x08  /* This is the write mode */
+#define DMA_WRITE             0x04  /* This is the write mode */
+#define DMA_READ              0x08  /* This is the read mode */
 #define DMA_VERIFY            0x00  /* Verify mode, not supported */
 #define DMA_INVALID           0x0C  /* Invalid on the real thing */
+
+#define DMA_DIR_MASK          0x0C
 
 /* The next bit causes it to automatically go on to a different address
 when it's finished */
@@ -86,19 +133,15 @@ when it's finished */
 /* The next bit is set to decrement the address, otherwise it's incremented */
 #define DMA_ADDR_DEC          0x20
 
-/* The mode ie how much to transfer.  Note that this is ignored. */
+/* The mode ie how much to transfer. */
 #define DMA_DEMAND_MODE       0x00
 #define DMA_SINGLE_MODE       0x40
 #define DMA_BLOCK_MODE        0x80
 #define DMA_CASCADE_MODE      0xC0
 
+#define DMA_MODE_MASK         0xC0
 
 /* There are several other write registers.  Generally they seem to reuse
 DMA_CH_SELECT, and the following: */
-#define DMA_SINGLE_BIT        0x04
-
-void dma_write(unsigned int addr, unsigned char value);
-unsigned char dma_read(unsigned int addr);
-void dma_trans();
-void dma_init(void);
+#define DMA_SELECT_BIT        0x04
 

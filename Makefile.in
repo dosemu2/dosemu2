@@ -3,15 +3,20 @@
 # Always use src as the top-level
 
 export WAIT=yes
-MAKE=make
+
+@SET_MAKE@
 
 default:
 	@$(MAKE) -C src $@
+
 all:
 	@$(MAKE) -C src default
+
 install:
 	@$(MAKE) -C src $@
+
 clean:
 	@$(MAKE) -C src $@
+
 pristine:
 	@$(MAKE) -C src $@

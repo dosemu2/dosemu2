@@ -3,6 +3,7 @@ TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 CC=@CC@
+@SET_MAKE@
 
 CFILES=int10.c hlt.c
 ALL=bios.S test.S $(CFILES)
@@ -16,8 +17,8 @@ DEPENDS=$(CFILES:.c=.d)
 
 AS86FLAGS=$(INCDIR)
 
-LD86=ld86
-AS86=as86
+LD86=@LD86@
+AS86=@AS86@
 
 CFLAGS += -I$(TOPDIR)/env/video
 export CFLAGS

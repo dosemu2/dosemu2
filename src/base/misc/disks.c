@@ -25,6 +25,7 @@
 #include "netbsd_disk.h"
 #endif
 #include <sys/stat.h>
+#include <sys/time.h>
 
 #include "emu.h"
 #include "disks.h"
@@ -556,6 +557,18 @@ disk_open(struct disk *dp)
 }
 #endif
 
+static void sigalarm_onoff(int on)
+{
+  static struct itimerval itv_old;
+  static struct itimerval itv;
+  if (on) setitimer(TIMER_TIME, &itv_old, NULL);
+  else {
+    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
+    itv.it_value = itv.it_interval;
+    setitimer(TIMER_TIME, &itv, &itv_old);
+  }
+}
+
 #ifdef __linux__
 void
 disk_open(struct disk *dp)
@@ -588,7 +601,23 @@ disk_open(struct disk *dp)
     }
   else dp->rdonly = dp->wantrdonly;
 
+{
+#if 1 
+  /* NOTE: Starting with linux 1.3.100 the floppy driver has changed
+   * so that it no longer returns from the following ioctl without
+   * getting interrupted by SIGALARM (-EINTR). Also a retry does not help,
+   * because this one gets interrupt again (and again).
+   * To overcome this problem we temporary switch off the timer
+   * during the ioctl. (well, not what we really like)
+   * ( 19 May 1996, Hans Lermen ) */
+  int res;
+  sigalarm_onoff(0);
+  res = ioctl(dp->fdesc, FDGETPRM, &fl);
+  sigalarm_onoff(1);
+  if (res == -1) {
+#else
   if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {
+#endif
     if (errno == ENODEV) {	/* no disk available */
       dp->sectors = 0;
       dp->heads = 0;
@@ -599,6 +628,7 @@ disk_open(struct disk *dp)
     fatalerr = 5;
     return;
   }
+}
   d_printf("FLOPPY %s h=%d, s=%d, t=%d\n", dp->dev_name, fl.head, fl.sect, fl.track);
   dp->sectors = fl.sect;
   dp->heads = fl.head;

@@ -3,9 +3,10 @@ TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
 CC=@CC@
+@SET_MAKE@
 
-BISON = bison
-LEX   = flex
+YACC = @YACC@
+LEX   = @LEX@
 
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
@@ -36,7 +37,7 @@ all:  lib
 install:
 
 parser.c : parser.y
-	$(BISON) -do $@  $<
+	$(YACC) -do $@  $<
 
 lex.yy.c : lexer.l parser.y
 	$(LEX) -i $< 

@@ -48,7 +48,7 @@ static int irqbits=0;
 #if KERNEL_VERSION < 1001089
 static void irq_handler(int intno) {
 #else
-# if KERNEL_VERSION < 1002070
+# if KERNEL_VERSION < 1003070
 static void irq_handler(int intno, struct pt_regs * unused) {
 # else
 static void irq_handler(int intno, void *dev_id, struct pt_regs * unused) {

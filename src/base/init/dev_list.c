@@ -21,6 +21,8 @@
  * $Log: $
  */
 
+#include "config.h"
+
 #include "emu.h"
 #include "iodev.h"
 #include "int.h"
@@ -30,8 +32,9 @@
 #include "lpt.h"
 #include "serial.h"
 #include "disks.h"
-#if 0
-#include "sb.h"
+
+#ifdef USE_SBEMU
+#include "sound.h"
 #endif
 
 struct io_dev_struct {
@@ -51,11 +54,15 @@ static struct io_dev_struct io_devices[] = {
   { "rtc",     NULL,         rtc_reset,     NULL },
   { "pos",     pos_init,     pos_reset,     NULL },
   { "lpt",     lpt_init,     lpt_reset,     lpt_term },
+#endif
   { "dma",     dma_init,     dma_reset,     NULL },   
+#if 0
   { "floppy",  floppy_init,  floppy_reset,  NULL },
   { "hdisk",   hdisk_init,   hdisk_reset,   NULL },
   { "disks",   disk_init,    disk_reset,    disk_term },
-  { "sb",      sb_init,      sb_reset,      NULL }, 
+#endif
+#ifdef USE_SBEMU
+  { "sound",   sound_init,   sound_reset,   NULL }, 
 #endif
   { NULL,      NULL,         NULL,          NULL }
 };

@@ -68,6 +68,8 @@ static int c_printers = 0;
 static int ports_permission = IO_RDWR;
 static unsigned int ports_ormask = 0;
 static unsigned int ports_andmask = 0xFFFF;
+static unsigned int portspeed = 0;
+static char dev_name[255]= "";
 
 static int errors = 0;
 static int warnings = 0;
@@ -78,7 +80,7 @@ static char *file_being_parsed;
 
 	/* external procedures */
 
-extern int allow_io(int, int, int, int, int);
+extern int allow_io(int, int, int, int, int, int, char *);
 extern int exchange_uids(void);
 extern char* strdup(const char *); /* Not defined in string.h :-( */
 extern int yylex(); /* exact argument types depend on the way you call bison */
@@ -139,7 +141,7 @@ extern void yyrestart(FILE *input_file);
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS
+%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
 	/* speaker */
 %token EMULATED NATIVE
@@ -155,10 +157,11 @@ extern void yyrestart(FILE *input_file);
 %token MICROSOFT LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_FONT
+%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_FONT
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
+%token FORCE_VT_SWITCH
 	/* terminal */
 %token UPDATEFREQ UPDATELINES COLOR ESCCHAR
 /* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
@@ -171,11 +174,13 @@ extern void yyrestart(FILE *input_file);
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE
 	/* ports/io */
-%token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE
+%token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST DEV_NAME
 	/* Silly interrupts */
 %token SILLYINT USE_SIGIO
 	/* hardware ram mapping */
 %token HARDWARE_RAM
+        /* Sound Emulation */
+%token SB_BASE SB_IRQ SB_DMA SB_MIXER SB_DSP MPU_BASE
 
 /* %type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool */
 %type <i_value> mem_bool irq_bool bool speaker color_val floppy_bool
@@ -297,8 +302,8 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    if ($2 == SPKR_NATIVE) {
                       c_printf("CONF: allowing speaker port access!");
 #if 0  /* this is now handled in timers.c */
-		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
-		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
+		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF, 1, NULL);
+		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF, 1, NULL);
 #endif
 		      }
 		    else
@@ -351,6 +356,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
 		| L_X '{' x_flags '}'
+                | L_SOUND '{' sound_flags '}'
 		| SILLYINT
                     { config.sillyint=0; }
                   '{' sillyint_flags '}'
@@ -379,7 +385,21 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
 		| ICON_NAME STRING	{ config.X_icon_name = $2; }
 		| X_KEYCODE		{ config.X_keycode = 1; }
 		| X_BLINKRATE INTEGER	{ config.X_blinkrate = $2; }
+		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_FONT STRING		{ config.X_font = $2; }
+		;
+
+	/* sb emulation */
+ 
+sound_flags	: sound_flag
+		| sound_flags sound_flag
+		;
+sound_flag	: SB_BASE INTEGER	{ config.sb_base = $2; }
+		| SB_DMA INTEGER	{ config.sb_dma = $2; }
+		| SB_IRQ INTEGER	{ config.sb_irq = $2; }
+                | SB_MIXER STRING       { config.sb_mixer = $2; }
+                | SB_DSP STRING         { config.sb_dsp = $2; }
+		| MPU_BASE INTEGER	{ config.mpu401_base = $2; }
 		;
 
 	/* video */
@@ -431,6 +451,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		      }
 		   }
 		| DUALMON		{ config.dualmon = 1; }
+		| FORCE_VT_SWITCH	{ config.force_vt_switch = 1; }
 		| STRING
 		    { yyerror("unrecognized video option '%s'", $1);
 		      free($1); }
@@ -703,20 +724,24 @@ port_flags	: port_flag
 port_flag	: INTEGER
 	           {
 	           allow_io($1, 1, ports_permission, ports_ormask,
-	                    ports_andmask);
+	                    ports_andmask,portspeed, (char*)dev_name);
 	           }
 		| RANGE INTEGER INTEGER
 		   {
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$3);
 		   allow_io($2, $3 - $2 + 1, ports_permission, ports_ormask,
-			    ports_andmask);
+			    ports_andmask, portspeed, (char*)dev_name);
+		   portspeed=0;
+		   strcpy(dev_name,"");
 		   }
 		| RDONLY		{ ports_permission = IO_READ; }
 		| WRONLY		{ ports_permission = IO_WRITE; }
 		| RDWR			{ ports_permission = IO_RDWR; }
 		| ORMASK INTEGER	{ ports_ormask = $2; }
 		| ANDMASK INTEGER	{ ports_andmask = $2; }
+                | FAST	                { portspeed = 1; }
+                | DEVICE STRING         { strcpy(dev_name,$2); free($2); } 
 		| STRING
 		    { yyerror("unrecognized port command '%s'", $1);
 		      free($1); }
@@ -914,6 +939,7 @@ static void start_debug(void)
   d.IPC = flag;
   d.EMS = flag;
   d.network = flag;
+  d.sound = flag;
 }
 
 	/* video */
@@ -933,6 +959,7 @@ static void start_video(void)
   config.gfxmemsize = 256;
   config.fullrestore = 0;
   config.dualmon = 0;
+  config.force_vt_switch = 0;
 }
 
 static void stop_video(void)

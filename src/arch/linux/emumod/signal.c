@@ -51,7 +51,10 @@ asmlinkage int sys_sigreturn(unsigned long __unused)
 {
 #define COPY(x) regs->x = context.x
 #define COPY_SEG(x) \
-if ((context.x & 0xfffc) && (context.x & 0x4) != 0x4 && (context.x & 3) != 3) goto badframe; COPY(x);
+if (   (context.x & 0xfffc)     /* we allow NULL selectors */ \
+    && (context.x & 0x4) != 0x4 /* we allow any LDT selector */ \
+    && (context.x & 3) != 3     /* we allow only RPL3 GDT selectors */ \
+   ) goto badframe; COPY(x);
 #define COPY_SEG_STRICT(x) \
 if (!(context.x & 0xfffc) || (context.x & 3) != 3) goto badframe; COPY(x);
 	struct sigcontext_struct context;
@@ -80,6 +83,15 @@ if (!(context.x & 0xfffc) || (context.x & 3) != 3) goto badframe; COPY(x);
 	regs->eflags &= ~0x40DD5;
 	regs->eflags |= context.eflags & 0x40DD5;
 	regs->orig_eax = -1;		/* disable syscall checks */
+#if KERNEL_VERSION >= 1003091
+	if (context.fpstate) {
+		extern void restore_i387(struct _fpstate *buf);
+		struct _fpstate * buf = context.fpstate;
+		if (verify_area(VERIFY_READ, buf, sizeof(*buf)))
+			goto badframe;
+		restore_i387(buf);
+	}
+#endif
 	return context.eax;
 badframe:
 	do_exit(SIGSEGV);

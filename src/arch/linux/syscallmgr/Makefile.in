@@ -7,12 +7,13 @@ REALTOPDIR=@REALTOPDIR@
 TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
 LDFLAGS=@LDFLAGS@
-C=@CC@
+CC=@CC@
+@SET_MAKE@
 
 # The following variables may go into the Makfile in the parent-directory
 
-CC   = gcc
-LD   = ld
+#CC   = gcc
+LD   = @CC@
 USRSRCDIR=/usr/src
 BINPATH=@BINPATH@
 
@@ -32,6 +33,7 @@ CFILES = syscallmgr.c insmod.c load_aout.c load_elf.c testsys.c \
 	 testmain.c error.c
 HFILES = insmod.h
 OFILES = 
+KVFILE = ../../../include/kversion.h
 
 # Insert all source- and header-files here.
 
@@ -47,7 +49,7 @@ all: $(BINPATH)/modules/syscallmgr.o $(BINPATH)/bin/insmod testsys.o testmain
 .c.o:
 	$(CC) $(CFLAGS) @XLIBSW@ $(INCDIR) -c $<
 
-$(BINPATH)/modules/syscallmgr.o:    syscallmgr.c ../../../include/syscallmgr.h 
+$(BINPATH)/modules/syscallmgr.o:    syscallmgr.c ../../../include/syscallmgr.h $(KVFILE)
 	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o $@
 
 testsys.o:    testsys.c 

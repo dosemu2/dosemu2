@@ -1070,6 +1070,7 @@ handle_dir(state_t * state)
       SETHIGH(&(state->eax), EMM_NO_ERR);
       SETLOW(&(state->eax), count);
       return;
+    }
 
   case SEARCH_NAMED:{
 	int handle;
@@ -1104,7 +1105,6 @@ handle_dir(state_t * state)
 	       (int) LOW(state->eax)));
       SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
       return;
-    }
   }
 }
 

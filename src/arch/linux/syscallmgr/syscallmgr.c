@@ -296,6 +296,9 @@ int init_module( void) {
   if (NR_resolve_syscall>0) {
     printk(ID_STRING ", init_module called, NR_resolve_syscall=%d\n",
         NR_resolve_syscall);
+#if KERNEL_VERSION >= 1003057
+    mod_use_count_ &= ~MOD_AUTOCLEAN;
+#endif
     return 0;
   }
   else {

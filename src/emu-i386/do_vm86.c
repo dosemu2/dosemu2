@@ -81,7 +81,6 @@
 /* Needed for DIAMOND define */
 #include "vc.h"
 
-#include "sound.h"
 #include "dma.h"
 
 #ifdef bon
@@ -501,7 +500,9 @@ run_vm86(void)
      * in here.
      */
 
-    dma_trans();
+/*    dma_trans(); */
+    dma_run ();
+
     /* FIXME: is this the optimal place for this??????? */
 
     in_vm86 = 1;

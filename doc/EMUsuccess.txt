@@ -1,28 +1,22 @@
-From popserver Wed Apr 18 23:40:14 GMT 1995
-Received: from asuvax.eas.asu.edu (asuvax.EAS.ASU.EDU [129.219.30.5]) by Fox.NSTN.Ca (8.6.10/8.6.10) with SMTP id SAA07883 for <macleajb@ednet.ns.ca>; Tue, 18 Apr 1995 18:22:36 -0300
-Received: from dspsun (enws261.EAS.ASU.EDU) by asuvax.eas.asu.edu with SMTP id AA00376
-  (5.65c/IDA-1.4.4 for macleajb@ednet.ns.ca); Tue, 18 Apr 1995 14:21:47 -0700
-Received: by dspsun.eas.asu.edu (4.1/SMI-4.1)
-	id AA06480; Tue, 18 Apr 95 14:24:39 MST
-Date: Tue, 18 Apr 95 14:24:39 MST
-From: deisher@enws261.EAS.ASU.EDU (Michael E. Deisher)
-Message-Id: <9504182124.AA06480@dspsun.eas.asu.edu>
-To: macleajb@ednet.ns.ca
-Subject: EMUsuccess.txt
-
+=======================================================================
 
 File:            EMUsuccess.txt
-Last modified:   April 10, 1995
-Dosemu version:  0.60 (and possibly earlier versions)
+Last modified:   May 14, 1996
+Dosemu version:  0.63.1.16 (and possibly earlier versions)
 
-The most up-to-date version of this file is may be found on
+The most up-to-date version of this file may be found on:
 
-            dspsun.eas.asu.edu:/pub/dosemu
+http://morra.et.tudelft.nl/~dosemu/EMUsuccess.html
 
-Send additions/corrections to deisher@dspsun.eas.asu.edu.
+
+Additions can be submitted using the form on:
+
+http://morra.et.tudelft.nl/~dosemu
+
 =======================================================================
 
 Programs that work under the MSDOS Emulator:
+
 
 Name                   Function          Success Story Posted by
 ====                   ========          =======================
@@ -59,6 +53,7 @@ bnu 1.70               Fossil (Fido)     stub@linux.rz.tu-clausthal.de
 Boppin (sw ver 1.0)    game              kjahds@kjahds.com
 Borland C++ 2.0        86/286 C/C++ IDE  rideau@clipper.ens.fr
 Borland C++ 3.0        86/286 C/C++ IDE  marky@magmacom.com
+Borland C/C++ 3.1      C/C++ compiler    J.A.K.Mouw@et.tudelft.nl
 Boston Business EDT+                     keegstra@csdr2.fsfc.nasa.gov
 Brett Hull Hockey      game              fbingha@ultrix5.cs.csubak.edu
 Brief 3.1              editor            jyanowit@orixa.mtholyoke.edu
@@ -71,6 +66,9 @@ ChiWriter 3.02         editor            lodewijk@reddwarf.xs4all.nl
 CIM v2.1.1             CServe Info Mgr   eko@isar.muc.de
 clipper 5.1            dbase compiler    jvdbergh@wins.uia.ac.be
 COMIT                  Communication     Peter@skel.demon.co.uk
+Communique 2.10        Communication     basrijn@hacom.nl
+ Runs with dosemu version: 0.60.4
+     Working perfect, altough the downloads are slow
 COMPRESS               FAT FS defrag'er  rideau@clipper.ens.fr
 Contex 4.0             word processor    100542.3163@compuserve.com
 Correct Grammar 2.0    grammar checker   ian@ilm.mech.unsw.edu.au
@@ -85,6 +83,11 @@ dBASE III Plus v1.1    database          rpao@paonet.org
 Dbase IV v4.0          database          corey@bbs.xnet.com
 Dbase IV v4.1          database          corey@bbs.xnet.com
  (reindexing bug)
+Deluxe Paint II/IIe    Art package       aspirin@tigerden.com
+ Runs with dosemu version: 0.60.4.?
+     Runs well, mouse is pretty smooth now, no obvious 
+     problems - works in an X window too, but the mouse
+      acceleration is way off.
 Derive 1.2             math package      miguel@pinon.ccu.uniovi.es
 Derive 2.01            math package      lodewijk@reddwarf.xs4all.nl
 DESCENT                game              xpour@sun.felk.cvut.cz
@@ -99,6 +102,12 @@ dosnix 2.0             unix utils        miguel@pinon.ccu.uniovi.es
 Dosshell task swapper                    macleajb@ednet.ns.ca
 druid                  game              paul@blake.wadham.ox.ac.uk
 dtmm                   molecular models  miguel@pinon.ccu.uniovi.es
+Duke Nuke'em 3D        Game              jc12370@swt.edu
+ Runs with dosemu version: 0.60.4.?
+Duke Nuk'em 3d         Game              aspirin@tigerden.com
+ Runs with dosemu version: 0.60.4.?
+     Now runs in an X window... and runs pretty darn 
+     well!!
 Dune 2                 game              COLIN@fs1.in.umist.ac.uk
 dviscr                 EMTEX dvi preview ub9x@rz.uni-karlsruhe.de
 Easytrax               layout editor     maehler@wrcd1.urz.uni-wuppertal.de
@@ -122,6 +131,9 @@ FastLST 1.03           FidoNdlstcompiler stub@linux.rz.tu-clausthal.de
 Fishtro                game?             tiensivu@cps.msu.edu
 MS Flight Simulator 5  game              newcombe@aa.csc.peachnet.edu
  (runs SLOW!!!)
+FoxPro2.0              Database (X-Base) macleajb@SAS.EDnet.NS.CA
+ Runs OK. Needed work to the NUL file handling 
+ under mfs.c
 Foxpro 2.5             database          wtho@HK.Super.NET
 FormGen II                               root@bobspc.canisius.edu
 Fractint 17.1          graphics toy      ralf@ark.franken.de
@@ -131,6 +143,9 @@ Freelance Graphics 2.1 graph/drawing app jwest@jwest.ecen.okstate.edu
 freemacs 1.6d          editor            ph99jh42@uwrf.edu
 Fritz2,Fritz3          chess             hahndel@informatik.tu-muenchen.de
 Frontdoor 2.20c.mL     fido mailer       lodewijk@reddwarf.xs4all.nl
+Frontdoor 2.12 SW      Fido Mailer       basrijn@hacom.nl
+ Runs with dosemu version: 0.60.4
+     Slow transfers
 Frontier (Elite II)    game              COLIN@fs1.in.umist.ac.uk
 FW3                                      Sebastian.Bunka@vu-wien.ac.at
 GEM/3                  GUI               jan@janhh.hanse.de
@@ -174,6 +189,8 @@ LORA                   Dos BBS           Peter@skel.demon.co.uk
 Lotus 123 ver. 2.01    spreadsheet       lars@larski.dseg.ti.com
 Lotus 1-2-3 ver 2.2    spreadsheet       p86884@tcville.ES.HAC.COM
 Lotus Manuscript       word processor    miguel@pinon.ccu.uniovi.es
+Lure of the Tempress   game              M.Nijweide@et.tudelft.nl
+ Slow, Works also under X.
 Major Stryker          game              100542.3163@compuserve.com
 Managing Your Money    financial         newcombe@aa.csc.peachnet.edu
 Manifest v3.0          diagnostics       rpao@paonet.org
@@ -204,6 +221,10 @@ mscmouse               mouse driver      tk@pssparc2.oc.com
 Musician I             music package     cirigara@nova.umd.edu
 nce.com                Norton Editor     chris@lynx.astri.uni.torun.pl
 NDMAKE 4.51            make utility      jc@sis.ucm.es
+neopaint               paint program     hindu@ns.oon.or.jp
+ Runs with dosemu version: 0.60.4
+     runs ok, but occasionally has segmentation errors 
+     at random intervals
 nethack 3.13 pc        game              paul@blake.wadham.ox.ac.uk
 Netzplan               GEM project mgr   jan@janhh.hanse.de
 NHL Hockey             game              krismon@quack.kfu.com
@@ -231,6 +252,10 @@ OrCAD ESP/SDT v4.20    schematic editor  a.vignani@crf.it
 PAF                    geneology package geek+@CMU.EDU
 PagasusMail 3.1	       mail(for Netware) Sebastian.Bunka@vu-wien.ac.at
 Panic                  game?             tiensivu@cps.msu.edu
+PANIC                  Demo              aspirin@tigerden.com
+ Runs with dosemu version: 0.60.4.?
+     Runs right through, works fine under DOSEMU and 
+     pieces of it even work well in an X-window.
 Plasmatic              graphics demo     tiensivu@cps.msu.edu
 Paradox                database          hp@vmars.tuwien.ac.at
 pcAnywhere 4.5 Remote  comm package      Bill Cattell
@@ -275,6 +300,10 @@ SC5.1a                 Speadsheet        Peter@skel.demon.co.uk
 scan109                antivirus         miguel@pinon.ccu.uniovi.es
 scan112                antivirus         piola@di.unito.it
 Scorch                 tank game         geek+@CMU.EDU
+Second Reality         Demo              aspirin@tigerden.com
+ Runs with dosemu version: 0.60.4.?
+     Bits of it work, albeit somewhat very jerkily, 
+     under DOSEMU.  None of it works under X, yet. :(
 Shez94                 Arcer-Shell       stub@linux.rz.tu-clausthal.de
 sled                   editor            piola@di.unito.it
 Space Quest IV         game              lam836@cs.cuhk.hk
@@ -304,6 +333,11 @@ Tie Fighter            game              tiensivu@cps.msu.edu
 TimED/beta             Fido MSGeditor    stub@linux.rz.tu-clausthal.de
 TLINK 4.0              LINKER	         rideau@clipper.ens.fr
 Topspeed Modula-2      compiler          mayersn@hermes.informatik.uni-stuttgart.de
+TSTHost                Packet            porfiri@fatme.ericsson.se
+ Runs with dosemu version: 0.60.4
+     It did work since 0.60.1, using TSTH 1.38 up to 
+     TSTH 1.42b, but only using a WA8DED TNC (TF26) and
+      MBBIOS or GKJBIOS driver
 Turbo Debugger 2.51    realmode debugger rideau@clipper.ens.fr
 Turbo Pascal 5.5       compiler
 Turbo Pascal 6.0       compiler          marc.eberhard@physik.tu-muenchen.de
@@ -352,7 +386,6 @@ Name                   Function             Posted by
 Aladdin                offline mail reader  hirsch@emba.uvm.edu
 Blinker 3.0            linker/dos extender  liam@epo.gov.on.ca
  (actually, programs LINKED with blinker won't run)
-Borland C++ 3.1 IDE    compiler             juphoff@uppieland.async.vt.edu
 Chuck Yeager Aircombat flight simulator     jvdbergh@wins.uia.ac.be
 CIVILIZATION           game                 miguel@pinon.ccu.uniovi.es
 Dbase IV v4.2          database             marc.eberhard@physik.tu-muenchen.de

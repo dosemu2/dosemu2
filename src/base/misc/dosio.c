@@ -74,7 +74,10 @@ static struct {
 }
 sharedmem;
 
-#define HMASIZE (64*1024 - 16)
+/* Correct HMA size is 64*1024 - 16, but IPC seems not to like this
+   hence I would consider that those 16 missed bytes get swapped back
+   and forth and may cause us grief - a BUG */
+#define HMASIZE (64*1024)
 #define HMAAREA (u_char *)0x100000
 #ifdef __NetBSD__
 #define SHM_REMAP 0			/* XXX? */
