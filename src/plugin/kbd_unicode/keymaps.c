@@ -181,7 +181,7 @@ CONST t_keysym key_map_us[] =
   U_VOID, ' ', U_VOID, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
   KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, U_VOID, U_VOID, U_VOID,
   U_VOID, U_VOID, '-', U_VOID, U_VOID, U_VOID, '+', U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, '<', KEY_F11,
+  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, KEY_F11,
   KEY_F12, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID
 };
@@ -1497,58 +1497,6 @@ CONST t_keysym alt_map_jp106[] =
 
 
 /* Polish keyboard */
-/*
-CONST t_keysym key_map_pl[] =
-{
-  U_VOID, 27, '1', '2', '3', '4', '5', '6',
-  '7', '8', '9', '0', '+', '\'', 127, 9,
-  'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
-  'o', 'p', 0xefbe, 0xef98, 13, U_VOID, 'a', 's',
-  'd', 'f', 'g', 'h', 'j', 'k', 'l', 0xef88,
-  0xefa5, KEY_DEAD_ABOVEDOT, U_VOID, 0xefa2, 'y', 'x', 'c', 'v',
-  'b', 'n', 'm', ',', '.', '-', U_VOID, '*',
-  U_VOID, ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, '-', U_VOID, U_VOID, U_VOID, '+', U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, '<', U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID
-};
-
-CONST t_keysym shift_map_pl[] =
-{
-  U_VOID, 27, '!', '"', '#', '$', '%', '&',
-  '/', '(', ')', '=', '?', '*', 127, 9,
-  'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
-  'O', 'P', 0xefe4, 0xef86, 13, U_VOID, 'A', 'S',
-  'D', 'F', 'G', 'H', 'J', 'K', 'L', 0xef9d,
-  0xefa9, KEY_DEAD_OGONEK, '0', 0xefab, 'Y', 'X', 'C', 'V',
-  'B', 'N', 'M', ';', ':', '_', U_VOID, '*',
-  U_VOID, ' ', U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, '-', U_VOID, U_VOID, U_VOID, '+', U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, '>', U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID
-};
-
-CONST t_keysym alt_map_pl[] =
-{
-  U_VOID, U_VOID, '~', KEY_DEAD_CARON, KEY_DEAD_CIRCUMFLEX, KEY_DEAD_BREVE, 0xeff8, KEY_DEAD_OGONEK,
-  KEY_DEAD_GRAVE, KEY_DEAD_ABOVEDOT, KEY_DEAD_ACUTE, KEY_DEAD_DOUBLEACUTE, KEY_DEAD_DIAERESIS, KEY_DEAD_CEDILLA, U_VOID, U_VOID,
-  '\\', '|', 0xefa9, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  0xefa2, U_VOID, 0xeff6, 0xef9e, U_VOID, U_VOID, 0xefa5, 0xefd0,
-  0xefd1, '[', ']', U_VOID, U_VOID, U_VOID, 0xef88, '$',
-  0xefe1, U_VOID, U_VOID, KEY_DEAD_CARON, 0xefbe, 0xefab, 0xef86, '@',
-  '{', '}', 21, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, '|', U_VOID,
-  U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
-  U_VOID
-};
-*/
 CONST t_keysym key_map_pl[] =
 {
      U_VOID,27,'1','2','3','4','5','6',
