@@ -44,9 +44,7 @@
 #include "emu-ldt.h"
 #endif
 
-#ifdef USE_SBEMU
-#include "sound.h"
-#endif
+#include "keyb_server.h"
 
 #include <string.h>
 #include <errno.h>
@@ -73,9 +71,7 @@
 #include "bitops.h"
 #include "pic.h"
 #include "int.h"
-#include "serial.h"
 #include "port.h"
-#include "dma.h"
 #include "timers.h"
 #include "userhook.h"
 #include "mapping.h"
@@ -3992,6 +3988,9 @@ void dpmi_fault(struct sigcontext_struct *scp)
       Return_to_dosemu_code(scp,1);
       return;
   }
+
+  /* it improves the keyboard respone time - is this safe to do here? */
+  keyb_server_run();
 
   if (in_dpmi_dos_int || (_eflags & VIP) ||
       (pic_irr & ~(pic_isr | pic_imr)) || return_requested) {
