@@ -1,0 +1,337 @@
+<sect1>
+<title>The DANG system</title>
+
+<sect2>
+<title>Description</title>
+
+<para>
+The DANG compiler is a perl script which produces a linuxdoc-sgml document 
+from special comments embedded in the DOSEMU source code. This document is
+intended to give an overview of the DOSEMU code for the benefit of hackers.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Changes from last compiler release</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+	Recognizes 'maintainer:' information.
+</para>
+</listitem>
+<listitem>
+
+<para>
+	'-i' (irritating) flag.
+</para>
+</listitem>
+<listitem>
+
+<para>
+	Corrections to sgml special character protection.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>Using DANG in your code</title>
+
+<para>
+<emphasis remap="bf">THE FOLLOWING MAY NOT SOUND VERY NICE, BUT IS INTENDED TO KEEP DANG AS IT
+WAS DESIGNED TO BE - A <emphasis>GUIDE</emphasis> FOR <emphasis>NOVICES</emphasis>.</emphasis>
+</para>
+
+<para>
+DANG is not intended to be a vehicle for copyrights, gratuitous plugs, or
+anything similar. It is intended to guide hackers through the maze of DOSEMU
+source code. The comments should be short and informative. I will mercilessly 
+hack out comments which do not conform to this. If this damages anything, or
+annoys anyone, so be it.
+</para>
+
+<para>
+I spent hours correcting the DOSEMU 0.63.1 source code because some
+developers didn't follow the rules. They are very simple, and I'll remind you
+of the below. (I am here to co-ordinate this, not do the work. The comments
+are the responsibility of all of us.)
+</para>
+
+</sect2>
+
+<sect2>
+<title>DANG Markers</title>
+
+<para>
+Some initial comments:
+
+<itemizedlist>
+<listitem>
+
+<para>
+	All the text is passed through a text formatting system. This means
+that text may not be formatted how you want it to be. If you insist on
+having something formatted in a particular way, then it probably 
+shouldn't be in DANG. Try a README instead. Embedding sgml tags in
+the comment will probably not work.
+</para>
+</listitem>
+<listitem>
+
+<para>
+	Copyrights and long detailed discussions should not be in DANG. If 
+there is a good reason for including a copyright notice, then it should
+be included <emphasis>ONCE</emphasis>, prefereably in the group summary file (see 
+'./src/doc/DANG/DANG_CONFIG' for the locations)
+</para>
+</listitem>
+<listitem>
+
+<para>
+	If I say something <emphasis>must</emphasis> be done in a particular way, then it 
+<emphasis>MUST</emphasis>. There is no point in doing it differently because the script
+will not work correctly (and changing the script won't help anyone
+else.) In most cases the reason for a particular style is to help users
+who are actually reading the SOURCE file.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<sect3>
+<title> DANG_BEGIN_MODULE / DANG_END_MODULE</title>
+
+<para>
+These should enclose a piece of summary text at the start of a file. It should
+explain the purpose of the file. Anything on the same line as DANG_BEGIN_MODULE
+is ignored. A future version may use the rest of this line to provide a
+user selected name for the module.  There may be any number of lines of text. 
+To include information on the maintainer(s) of a module, put 'maintainer:' on
+a blank line. The following lines should contain the maintainers details in
+form:
+</para>
+
+<para>
+
+<screen>
+name ..... &#60;user@address&#62;
+</screen>
+
+</para>
+
+<para>
+There should only be one maintainer on a line. There can be no other lines
+of description before DANG_END_MODULE. 
+</para>
+
+<para>
+Example:
+
+<screen>
+/*
+ * DANG_BEGIN_MODULE
+ * 
+ * This is the goobledygook module. It provides BAR services. Currently there
+ * are no facilities for mixing a 'FOO' cocktail. The stubs are in 'mix_foo()'.
+ *
+ * Maintainer:
+ * 	Alistair MacDonald	&#60;alistair@slitesys.demon.co.uk&#62;
+ *	Foo Bar			&#60;foobar@inter.net.junk&#62;
+ *
+ * DANG_END_MODULE
+ */
+</screen>
+
+</para>
+
+</sect3>
+
+<sect3>
+<title> DANG_BEGIN_FUNCTION / DANG_END_FUNCTION</title>
+
+<para>
+This is used to describe functions. Ideally this should only be complicated
+or important functions as this avoids cluttering DANG with lots of
+descriptions for trivial functions. Any text on the same line as 
+'DANG_BEGIN_FUNCTION' is taken as the name of the function.
+</para>
+
+<para>
+There are two optional sub-markers: 'description:' &#38; 'arguments:' These can
+be included at any point, and the default marker is a description. The
+difference is that arguments are converted into a bulleted list. For this
+reason, there should be only one argument (&#38; it's description) per line.
+I suggest that arguments should be in the form 'name - description of name'.
+</para>
+
+<para>
+Example:
+
+<screen>
+/*
+ * DANG_BEGIN_FUNCTION mix_foo
+ *
+ * This function provides the foo mixing for the module. The 'foo' cocktail
+ * is used to wet the throat of busy hackers.
+ *
+ * arguments:
+ *  soft_drink - the type of soft drink to use.
+ *  ice_cream - the flavour of ice-cream required
+ *
+ * description:
+ * A number of hackers would prefer something a little stronger.
+ *
+ * DANG_END_FUNCTION
+ */
+</screen>
+
+</para>
+
+</sect3>
+
+<sect3>
+<title> DANG_BEGIN_REMARK / DANG_END_REMARK</title>
+
+<para>
+This is used to provide in-context comments within the code. They can be used
+to describe some particularly interesting or complex code. It should be
+borne in mind that this will be out of context in DANG, and that DANG is
+intended for Novice DOSEMU hackers too ...
+</para>
+
+<para>
+Example:
+
+<screen>
+/*
+ * DANG_BEGIN_REMARK
+ *
+ * We select the method of preparation of the cocktail, according to the type
+ * of cocktail being prepared. To do this we divide the cocktails up into :
+ * VERY_ALCHOHOLIC, MILDLY_ALCHOHOLIC &#38; ALCOHOL_FREE
+ *
+ * DANG_END_REMARK
+ */
+</screen>
+
+</para>
+
+</sect3>
+
+<sect3>
+<title> DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA</title>
+
+<para>
+This is used to make a note of a new idea which we would like to have
+implemented, or an alternative way of coding something. This can be used
+as a scratch pad until the idea is in a state where someone can actually
+begin coding.
+</para>
+
+<para>
+Example:
+
+<screen>
+/*
+ * DANG_BEGIN_NEWIDEA
+ *
+ * Rather than hard coding the names of the mixer functions we could try
+ * using an array constructed at compile time - Alistair
+ *
+ * How to we get the list of functions ? - Foo
+ *
+ * DANG_END_NEWIDEA
+ */
+</screen>
+
+</para>
+
+</sect3>
+
+<sect3>
+<title> DANG_FIXTHIS</title>
+
+<para>
+This is for single line comments on an area which needs fixing. This should
+say where the fix is required. This may become a multi-line comment in the 
+future.
+</para>
+
+<para>
+Example:
+
+<screen>
+/* DANG_FIXTHIS The mix_foo() function should be written to replace the stub */
+</screen>
+
+</para>
+
+</sect3>
+
+<sect3>
+<title> DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG</title>
+
+<para>
+This is not currently used. It should be placed around the CHANGES section in
+the code. It was intended to be used along with the DPR.
+</para>
+
+<para>
+* No Example *
+</para>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title> Usage</title>
+
+<para>
+The current version of the configuration file resides in './src/doc/DANG'. The program
+needs to be told where to find this using '-c &lt;file&gt;'. On my system I run it
+in the './src/doc/DANG' directory using './DANG_c.pl -c DANG_CONFIG', but 
+its really up to you.
+</para>
+
+<para>
+The other options are '-v' for verbose mode and '-i'. 
+-v isn't really useful, but it does tell you what it is doing at all times.
+-i is 'irritating mode' and makes comments in the DANG file about missing
+items, such as no MODULE information, no FUNCTION information, etc.
+</para>
+
+<para>
+If the program is executed with a list of files as parameters then the files
+will be processed, but no sgml output produced. This can be used for basic
+debugging, as it warns you when there are missing BEGIN/END markers, etc.
+</para>
+
+</sect2>
+
+<sect2>
+<title> Future</title>
+
+<para>
+I have vaguelly started writing the successor of this program. This will be a
+more general program with a more flexible configuration system. Don't hold
+your breath for an imminent release though. The new version will make it 
+easier to change the markers &#38; document structure, as well as providing 
+feedback on errors.
+</para>
+
+</sect2>
+
+</sect1>
+

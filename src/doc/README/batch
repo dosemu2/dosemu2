@@ -1,0 +1,189 @@
+<sect1>
+<title>Running a DOS-application directly from Unix shell</title>
+
+<para>
+This part of the document was written by Hans
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+>.
+</para>
+
+<sect2>
+<title>Using the keystroke and commandline options.</title>
+
+<para>
+Make use of the keystroke configure option and the -I commandline option
+of DOSEMU (&#62;=dosemu-0.66.2) such as
+</para>
+
+<para>
+
+<screen>
+dosemu.bin -D-a -I 'keystroke "dir &#62; C:\\garbage\rexitemu\r"'
+</screen>
+
+</para>
+
+<para>
+The "..." will be 'typed in' by dosemu exactly as if you had them
+typed at the keyboard. The advantage of this technique is, that all
+DOS applications will accept them, even interactive ones. A '\' is
+interpreted as in C and leads in ESC-codes. Here a list of of the
+current implemented ones:
+</para>
+
+<para>
+
+<screen>
+\r     Carriage return == &#60;ENTER&#62;
+\n     LF
+\t     tab
+\b     backspace
+\f     formfeed
+\a     bell
+\v     vertical tab
+
+
+\^x    &#60;Ctrl&#62;x, where X is one of the usual C,M,L,[ ...
+       (e.g.: \^[ == &#60;Ctrl&#62;[ == ESC )
+
+\Ax    &#60;Alt&#62;x, hence  \Ad means &#60;Alt&#62;d
+
+\Fn;   Function key Fn. Note that the trailing ';' is needed.
+       (e.g.:  \F10;  == F10 )
+
+\Pn;   Set the virtual typematic rate, thats the speed for
+       autotyping in. It is given in unix timer ticks to wait
+       between two strokes. A value of 7 for example leads to
+       a rate of 100/7=14 cps.
+
+\pn;   Before typing the next stroke wait n unix ticks.
+       This is useful, when the DOS-application flushes the
+       keyboard buffer on startup. Your strokes would be discarded,
+       if you don't wait.
+
+</screen>
+
+</para>
+
+<para>
+When using X, the keystroke feature can be used to directly fire up a
+DOS application with one click, if you have the right entry in your .fvwmrc
+</para>
+
+</sect2>
+
+<sect2>
+<title>Using an input file</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+ Make a file "FILE" containing all keystrokes you need to boot dosemu
+and to start your dos-application, ... and don't forget to have CRLF
+for 'ENTER'. FILE may look like this (as on my machine):
+</para>
+
+<para>
+
+<screen>
+     2^M                    &#60;== this chooses point 2 of the boot menu
+     dir &#62; C:\garbage^M     &#60;== this executes 'dir', result to 'garbage'
+     exitemu^M              &#60;== this terminates dosemu
+</screen>
+
+</para>
+
+<para>
+(the ^M stands for CR)
+</para>
+</listitem>
+<listitem>
+<para>
+ execute dosemu on a spare (not used) console, maybe /dev/tty20
+such like this:
+</para>
+
+<para>
+
+<screen>
+   # dosemu.bin -D-a 2&#62;/dev/null &#60;FILE &#62;/dev/tty20
+</screen>
+
+</para>
+
+<para>
+This will _not_ switch to /dev/tty20, but silently execute dosemu
+and you will get the '#' prompt back, when dosemu returns.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+I tested this with dosemu-0.64.4/Linux-2.0.28 and it works fine.
+</para>
+
+<para>
+When your dos-app does only normal printout (text), then you may
+even do this
+</para>
+
+<para>
+
+<screen>
+   # dosemu.bin -D-a 2&#62;/dev/null &#60;FILE &#62;FILE.out
+</screen>
+
+</para>
+
+<para>
+FILE.out then contains the output from the dos-app, but merged with
+ESC-sequences from Slang.
+</para>
+
+<para>
+You may elaborate this technique by writing a script, which gets the
+dos-command to execute from the commandline and generate 'FILE' for you.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Running DOSEMU within a cron job</title>
+
+<para>
+When you try to use one of the above to start dosemu out of a crontab,
+then you have to asure, that the process has a proper environement set up
+( especially the TERM and/or TERMCAP variable ).
+</para>
+
+<para>
+Normally cron would setup TERM=dumb, this is fine because DOSEMU recognizes
+it and internally sets it's own TERMCAP entry and TERM to `dosemu-none'.
+You may also configure your video to
+
+<screen>
+   # dosemu.bin ... -I 'video { none }'
+</screen>
+
+or have a TERM=none to force the same setting. If you use the wrapper
+script, there is save way to do the same:
+
+<screen>
+   # dosemu -dumb
+</screen>
+
+In all other crontab run cases you may get nasty error messages either
+from DOSEMU or from Slang.
+</para>
+
+</sect2>
+
+</sect1>
+

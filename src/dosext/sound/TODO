@@ -1,0 +1,43 @@
+Alistair's TODO List:
+
+o	Finish the re-organisation of the code. This is mainly just renaming
+	the functions. (The names got a little out of hand)
+
+o	Break the code up into seperate files (FM, DSP, MIDI ?)
+
+o	Add MIDI and FM support for the SB Emulation. (ie Merge the SB MIDI
+	and the MPU-401 MIDI code (?) )
+
+o	Add the remaining functionality (See /* FIXME: ....  */'s)
+
+
+*******************************************************************************
+JOEL's Original TODO List:
+
+There's a lot of work left to be done with sound code.  The readme
+enumerates a number of flaws; some of these may need to be fixed.  Also, here's
+a bunch of things that I'll save for people who know DOSEMU in and out:
+
+o  Finish debuging, and preferably send me a patch so I can see what I did
+   wrong.  Note too that if you send to icc1 the server might go bye-bye before
+   I read it so save it and resend it in september when I tell you my permanant
+   address
+
+o  Add timer code.  The old FM chip has two timers.
+
+o  Add debuging suport for sound and DMA.  Preferably print out all access to
+these as well as details of DMA data transfer attempts in dma_trans().
+
+o  Add configurablity.  Look at ../include/sound.h
+
+o  Test it (thoughroughly, of course :-) with all your favorite games.  (After
+   all, you tell the people around you, it might have intermittent problems
+   and you have to make sure it works right all the time)
+
+o  Support my Cirrus video hardware (you knew there would be a political
+   announcement in here somewhere, didn't you?)
+
+o  Write something similar to the SIG for dma.  It probably just has to
+allocate some DMA buffers at boot time (study Hannu's driver), then when
+you write to the device, it copies the data to the buffer and starts the DMA
+controller.

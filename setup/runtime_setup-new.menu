@@ -1,0 +1,374 @@
+maintitle "DOSEMU Run-Time Configuration"
+
+start "Main Menu"
+
+menu "Main Menu" {
+  description "Please select an Area to Configure"
+  submenu "Debugging Information"
+  submenu "Keyboard"
+  submenu "Serial Ports & Mice"
+  submenu "Printing"
+  submenu "Novell Networking"
+  submenu "Display Settings"
+  submenu "Memory"
+  submenu "Speaker and Sound"
+  submenu "Disks"
+  submenu "Miscellaneous Items"
+  exit MainMenu_End
+}
+
+menu "Debugging Information" {
+  description "Select the areas that you want Debug messages for:"
+  integer "All" debug_a
+  integer "Configuration" debug_c
+  integer "Disk" debug_d
+  integer "Warnings" debug_w
+  integer "Hardware Interaction" debug_h
+  integer "Reads" debug_R
+  integer "Writes" debug_W
+  integer "General" debug_g
+  integer "IPC" debug_I
+  integer "Video" debug_v
+  integer "XMS" debug_x
+  integer "EMS" debug_E
+  integer "Serial Ports" debug_s
+  integer "Keyboard" debug_k
+  integer "DPMI" debug_M
+  integer "Printing" debug_p
+  integer "Mouse" debug_m
+  integer "Sound" debug_S
+  integer "DOS int 21h" debug_D
+  integer "CDROM" debug_C
+  integer "X-Windows" debug_X
+  integer "IO instructions" debug_i
+  integer "IO tracing" debug_T
+  integer "Default int" debug_hash
+  integer "IPX network" debug_n
+  integer "Packet Driver" debug_P
+  integer "PIC" debug_r
+  integer "CPU Emulation" debug_e
+}
+
+
+menu "Memory" {
+  description "Select the memory area to configure:"
+  integer "Amount of XMS - Kb" xms
+  integer "Amount of memory available under DPMI - Kb" dpmi
+  integer "Amount of Memory for DOS - Kb" dosmem
+  integer "Amount of EMS - Kb" ems_size
+  integer "EMS Frame Location" ems_frame  
+  string "Hardware RAM segment values/ranges" hardware_ram
+}
+
+menu "Speaker and Sound" {
+  description "Select an area to configure:"
+  submenu "Speaker"
+  submenu "Sound Card Emulation"
+}
+
+menu "Sound Card Emulation" {
+  description "Select the Sound Card emulation parameter to change:"
+  boolean "Turn on SB support" sound
+  input "SB base port" sb_base
+  input "SB IRQ" sb_irq
+  input "SB 8-bit DMA" sb_dma
+  input "SB 16-bit DMA" sb_hdma
+  input "SB DSP" sb_dsp
+  input "SB Mixer" sb_mixer
+  input "MPU-401 base port" mpu_base
+}
+
+menu "Speaker" {
+  description "Select the Speaker mode:"
+  list speaker {
+    "Direct/Native Access" native
+    "Emulated" emulated
+    "Disabled" off
+  }
+}
+
+menu "Display Settings" {
+  description "Select the Display area to configure:"
+  submenu "X Windows"
+  submenu "Terminal"
+  submenu "General Video"
+}
+
+menu "X Windows" {
+  description "Select the X-Windows parameter to update:"
+  integer "Update Frequency - 20 is 1 second" X_updfreq
+  string "Display" x_display
+  string "Window Title" X_title
+  string "Icon Title" X_icon_name
+  integer "Use Keycode (auto, on, off)" X_keycode
+  integer "Cursor Blink Rate" X_blinkrate
+  string "Font" X_font
+  boolean "Share Colourmap" X_sharecmap
+  boolean "Fix window aspect when resizing" X_fixed_aspect
+  boolean "Fix Aspect at 4:3" X_aspect_43
+  boolean "Used Shared memory extensions" X_mitshm
+  boolean "Use Linear Filtering for true colour" X_lin_filt 
+  boolean "Use B-Linear Filtering for true colour" X_bilin_filt
+  integer "Initial scaling factor for mode 0x13 - 320x200" X_mode13fact
+  string "Initial window size" X_winsize
+  float "Gamma Correction" X_gamma
+  integer "Amount memory on emulated video card - Kb" X_vgaemu_memsize
+  boolean "Use Linear framebuffer for VESA modes" X_lfb
+  boolean "Use Protected mode interface to VESA modes" X_pm_interface
+  string "KeySym used to activate mouse grab" X_mgrab_key
+  string "Vesa modes to add - list of x,y pairs" X_vesamode
+}
+
+menu "Terminal" {
+  description "Select the Terminal video parameter to update:"
+  integer "Escape Character - 30 is Ctrl-^" escchar
+  integer"Update Frequecy  - 20 is 1 second" term_updfreq
+  boolean "Use Colour" term_color
+}
+
+menu "General Video" {
+  description "Select the video parameters to update:"
+  submenu "Video Type"
+  submenu "Video Chipset"
+  boolean "Enable Console support" console
+  boolean "Enable Graphics" graphics
+  boolean "Enable access to special graphics ports" videoportaccess
+  boolean "Enable Dual Monitor" dualmon
+  submenu "Video Bios Details"
+}
+
+menu "Video Bios Details" {
+  description "Set the Video Bios details:"
+  integer "Video Bios Segment" vbios_seg
+  integer "Video Bios Size" vbios_size
+  integer "Video Mem Size" vmemsize
+}
+
+menu "Video Chipset" {
+  description "Select the chipset in your video card:"
+  list chipset {
+    "PlainVGA" plainvga
+    "Trident" trident
+    "Diamond" diamond
+    "ET4000" et4000
+    "S3" s3
+    "Cirrus" cirrus
+    "Avance Logic" avance
+    "Western Digital" wdvga
+    "Paradise" paradise
+    "Matrox" matrox
+    "Ati" ati
+    "Other" *
+  }
+}
+
+menu "Video Type" {
+  description "Select a Video Type to emulate:"
+  list video {
+    "Plain VGA" plainvga
+    "VGA" vga
+    "EGA" ega
+    "CGA" cga
+    "MDA" mda
+  }
+}
+
+menu "Keyboard" {
+  description "Select the keyboard area to configure:"
+  submenu "Character set and code page"
+  submenu "Keyboard Layout"
+  boolean "Keyboard Interrupts" keybint
+  boolean "Bypass normal keyboard input - might be dangerous" rawkeyboard
+}
+
+menu "Character set and code page" {
+  description "Select a character set:"
+  list term_char_set {
+    "Automatic" *
+    "Latin,  cp437 -> iso-8859-1" latin
+    "Latin1, cp850 -> iso-8859-1" latin1
+    "Latin2, cp852 -> iso-8859-2" latin2
+    "IBM,    no special code page translation" ibm
+  }
+}
+
+menu "Keyboard Layout" {
+  description "Select the keyboard layout to use:"
+  list layout {
+    "Automatic" auto
+    "Finnish" finnish
+    "Finnish Latin1" finnish-latin1
+    "German" de
+    "German Latin1" de-latin1
+    "Belgian" be
+    "Italian" it
+    "US" us
+    "British" uk
+    "Danish" dk
+    "Danish Latin1" dk-latin1
+    "Norwegian" no
+    "se ?" se
+    "Dvorak" dvorak
+    "sg ?" sg
+    "sg Latin1" sg-latin1
+    "French" fr
+    "French Latin1" fr-latin1
+    "sf ?" sf
+    "sf Latin1" sf-latin1
+    "Spanish" es
+    "Spanish Latin1" es-latin1
+    "Portuguese" portuguese
+    "Hungarian" hu
+    "Hungarian cwi" hu-cwi
+    "Hungarian latin2" hu-latin2
+    "Japanese jp106" jp106
+    "Polish pl" pl
+    "Croatian cp852" hr-cp852
+    "Croatian latin2" hr-latin2
+  }
+}
+
+menu "Disks" {
+  description "Configure the Disks:"
+
+  string "Virtual Boot Floppy" vbootfloppy
+  submenu "Floppy Drives"
+  string "Hard Drives. Prefix name with :ro for read-only" hdimage
+  string "Hard Drives in restricted mode" hdimage_r
+}
+
+menu "Floppy Drives" {
+  description "Configure the Floppies:"
+
+  text "Floppy Drive A:"
+  list floppy_a {
+    "None" *
+    "3-1/2 Inch" threeinch
+    "5-1/4 Inch" fiveinch
+  }
+
+  text "Floppy Drive B:"
+  list floppy_b {
+    "None" *
+    "3-1/2 Inch" threeinch
+    "5-1/4 Inch" fiveinch
+  }
+}
+
+menu "Serial Ports & Mice" {
+  description "Select the item to configure:"
+  submenu "Serial"
+  submenu "Mouse"
+}
+
+menu "Serial" {
+  description "Set up the Serial Ports:"
+  string "Device for COM1:" com1
+  string "Device for COM2:" com2
+  string "Device for COM3:" com3
+  string "Device for COM4:" com4
+  string "Lock directory:"  ttylocks
+}
+
+menu "Mouse" {
+  description "Set up the Mouse Configuration:"
+  text "Select the Mouse type:"
+  list mouse {
+    "Microsoft" microsoft
+    "Logitech" logitech
+    "MMSeries" mmseries
+    "MouseMan" mouseman
+    "Hitachi" hitachi
+    "Mouse Systems" mousesystems
+    "Bus Mouse" busmouse
+    "PS/2 Mouse" ps2
+  }
+  string "Device - com1, com2, com3, com4 or device name" mouse_dev
+  string "Optional Flags - emulate3buttons and/or cleardtr" mouse_flags
+  integer "Baud Rate - 0 is dont set" mouse_baud
+}
+
+menu "Printing" {
+  description "Set the printer settings:"
+  string "List of printers from /etc/printcap" printer
+  integer "Idle time in seconds before spooling occurs" printer_timeout
+}
+
+menu "Novell Networking" {
+  description "Select the Novell Networking option to configure:"
+  boolean "IPX Support - needs kernel IPX" ipxsupport  
+  boolean "Novell 8137 to raw 802.3 translation" novell_hack 
+  boolean "VNET support" vnet
+}
+
+menu "Miscellaneous Items" {
+  description "Select the item to configure:"
+
+  submenu "File Extensions"
+  submenu "CPU Details"
+  submenu "ASPI driver"
+  submenu "Mapping driver"
+  boolean "Force use of PCI instructions" pci
+  boolean "Emulate INT08 Timer Interrupts" timint
+  boolean "Use Pentium Cycle counter if possible" rdtsc
+  integer "DOSEMU niceness. Lower numbers mean more CPU to DOSEMU" hogthreshold
+
+  string "List of IRQs to pass to DOS" irqpassing
+  string "List of ports to handle directly" ports
+  string "Temporary feature hacks, see ChangeLog file for details" features
+}
+
+menu "File Extensions" {
+description "Select the file extension to modify"
+string "Replacement extension for SYS files" emusys
+string "Replacement extension for INI files" emuini
+}
+
+menu "CPU Details" {
+description "Select the CPU details to modify"
+  boolean "Claim to have Maths Co-processor" mathco
+  text "Identify CPU as:"
+  list cpu {
+    "80286" 80286
+    "80386" 80386
+    "80486" 80486
+  }
+  integer "Speed of CPU - calculated if set to 0" cpuspeed
+}
+
+menu "ASPI driver" {
+description "Configure the ASPI driver"
+  string "List of sg devices (/dev/sgX) to map to DOS" aspi
+}
+
+menu "Mapping driver" {
+description "Select the prefered mapping driver"
+  list mapping {
+    "automatic detection" auto
+    "use a temporary map file" mapfile
+    "use IPCshm/mremap (kernels > 2.3.37)" mapshm
+    "use /proc/self/mem mapping (kernels <= 2.2.x)" mapself
+  }
+}
+
+menu "Security settings" {
+boolean "Allow normal users" secure_normal
+boolean "Allow guest users" secure_guest
+boolean "Allow DEXEs" secure_dexe
+string "Don't allow DOSEMU to be run from these hosts" odd_hosts
+string "Don't allow DOSEMU to run on these hosts" diskless_hosts
+}
+
+menu "Output File" {
+  description "Select the Output File:"
+  list output {
+    "Replace Existing file" replace
+    "Write to New file" new
+    "Abort" abort
+  }
+}
+
+menu "New File" {
+  description "Enter the file to write:"
+  input "File" output_file
+}

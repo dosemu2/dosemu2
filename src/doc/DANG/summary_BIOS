@@ -1,0 +1,5 @@
+  All of the Bios code is in the "bios" subdirectory.
+
+  DOSEMU requires certain code to be coded in assembler and also code to
+  be located in the F000 segment. This is where all such code should be
+  put.

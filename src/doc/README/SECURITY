@@ -1,0 +1,70 @@
+<sect1>
+<title>Security</title>
+
+<para>
+This part of the document by Hans Lermen, 
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+> 
+on Apr 6, 1997.
+</para>
+
+<para>
+These are the hints we give you, when running dosemu on a machine that is
+(even temporary) connected to the internet or other machines, or that
+otherwise allows 'foreign' people login to your machine.
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
+lowfeature mode without the -s bit set. If you want fullfeatures
+for some of your users, just use the keyword `nosuidroot' in
+/etc/dosemu.users to forbid some (or all) users execution of
+a suid root running dosemu (they may use a non-suid root copy of
+the binary though) or let them use DOSEMU though "sudo".
+DOSEMU now drops it root privileges before booting; however
+there may still be security problems in the initialization code,
+and by making DOSEMU suid-root you can give users direct access to
+resources they don't normally have access too, such as selected I/O
+ports, hardware IRQs and hardware RAM.
+</para>
+
+<para>
+If DOSEMU is invoked via "sudo" then it will automatically switch to
+the user who invoked "sudo". An example /etc/sudoers entry is this:
+<screen>
+joeuser  hostname=(root) NOPASSWD: /usr/local/bin/dosemu.bin
+</screen>
+If you use PASSWD instead of NOPASSWD then users need to type their
+own passwords when sudo asks for it. The "dosemu" script can be
+invoked using the "-s" option to automatically use sudo.
+</para>
+</listitem>
+
+<listitem>
+<para>
+ Use proper file permissions to restrict access to a
+suid root DOSEMU binary in addition to /etc/dosemu.users `nosuidroot'.
+( double security is better ).
+</para>
+</listitem>
+<listitem>
+
+<para>
+ <emphasis>NEVER</emphasis> let foreign users execute dosemu under root login !!!
+(Starting with dosemu-0.66.1.4 this isn't necessary any more,
+all functionality should also be available when running as user)
+</para>
+</listitem>
+</itemizedlist>
+
+</para>
+
+</sect1>
+

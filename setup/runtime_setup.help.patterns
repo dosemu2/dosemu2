@@ -1,0 +1,31 @@
+set hlp(Main_Menu) {^2\. Runtime}
+set hlp(Debugging_Information) {^2\.1\.1\.}
+set hlp(Memory) {Defining the memory layout}
+set hlp(Speaker_and_Sound) {^2\.1\.12}
+set hlp(Sound_Card_Emulation) {_sound}
+set hlp(Speaker) {_speaker}
+set hlp(Display_Settings) {^2\.1\.6}
+set hlp(X_Windows) {^2\.1\.6}
+set hlp(Character_set_and_code_page) {^2\.1\.3\.}
+set hlp(Terminal) {^2\.1\.4\.}
+set hlp(General_Video) {^2\.1\.7}
+set hlp(Video_Bios_Details) {_vbios_seg}
+set hlp(Video_Chipset) {_chipset}
+set hlp(Video_Type) {_video}
+set hlp(Keyboard) {^2\.1\.5\.}
+set hlp(Keyboard_Layout) {^2\.1\.5\.}
+set hlp(Disks) {^2\.1\.8\.}
+set hlp(Floppy_Drives) {_floppy_a}
+set hlp(Serial_Ports_and_Mice) {^2\.1\.9\.}
+set hlp(Serial) {_com1 =}
+set hlp(Mouse) {_mouse =}
+set hlp(Printing) {^2\.1\.10\.}
+set hlp(Novell_Networking) {Networking under DOSEMU}
+set hlp(Miscellaneous_Items) {^2\.1\.2\.}
+set hlp(File_Extensions) {If you want mixed operation}
+set hlp(CPU_Details) {Wether a numeric processor}
+set hlp(Security_settings) {There are some features in DOSEMU}
+set hlp(ASPI_driver) {^2\.1\.13}
+set hlp(Mapping_driver) {handle the mapping}
+#set hlp(Output_File) {}
+#set hlp(New_File) {}

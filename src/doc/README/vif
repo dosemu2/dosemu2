@@ -1,0 +1,207 @@
+<sect1>
+<title>The Virtual Flags</title>
+
+<para>
+Info written by Hans 
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+>
+to describe the virtual flags used by DOSEMU
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+ DOS sees only IF, but IF will never <emphasis>really</emphasis> set in the CPU flagregister,
+because this would block Linux. So Linus maintains a virtual IF (VIF),
+which he sets and resets accordingly to CLI, STI, POPFx, IRETx.
+Because the DOS programm cannot look directly into the flagregister
+(exception the low 8 bits, but the IF is in bit 9), it does not
+realize, that the IF isn't set. To see it, it has to perform
+PUSHF and look at the stack.
+</para>
+
+<para>
+Well, but PUSHF or INTxx is intercepted by vm86 and then Linus looks
+at his virtual IF to set the IF <emphasis>on</emphasis> the stack.
+Also, if IRETx or POPFx happen, Linus is getting the IF <emphasis>from</emphasis> the
+stack, sets VIF accordingly, but leaves the <emphasis>real</emphasis> IF untouched.
+</para>
+</listitem>
+<listitem>
+<para>
+ Now, how is this realized? This is a bit more complicated.
+We have 3 places were the eflag register is stored in memory:
+</para>
+
+<para>
+<variablelist>
+
+<varlistentry>
+<term>vm86s.regs.eflags</term>
+<listitem>
+<para>
+                     in user space, seen by dosemu
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>current-&#62;tss.v86flags</term>
+<listitem>
+<para>
+                virtual flags, macro VEFLAGS
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>current-&#62;tss.vm86_info-&#62;regs.eflags</term>
+<listitem>
+<para>
+  the <emphasis>real</emphasis> flags, CPU reg. VM86
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+The last one is a kernel space copy of vm86_struct.regs.eflags.
+</para>
+
+<para>
+Also there are some masks to define, which bits of the flag
+should be passed to DOS and which should be taken from DOS:
+</para>
+
+<para>
+<variablelist>
+
+<varlistentry>
+<term>current-&#62;tss.v86mask</term>
+<listitem>
+<para>
+         CPU model dependent bits
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>SAFE_MASK       (0xDD5)</term>
+<listitem>
+<para>
+      used the way <emphasis>to</emphasis> DOS
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>RETURN_MASK     (0xDFF)</term>
+<listitem>
+<para>
+      used the way <emphasis>from</emphasis> DOS
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+When sys_vm86 is entered, it first makes a copy of the whole
+vm86_struct vm86s (containing regs.eflags) and saves a pointer to it
+to current-&#62;tss.vm86_info. It merges the flags from 32-bit user
+space (NOTE: IF is always set) over SAFE_MASK and current-&#62;tss.v86mask
+into current-&#62;tss.v86mask. From this point on, all changes to
+VIF, VIP (virtual interrupt pending) are only done in VEFLAGS.
+To handle the flag setting there are macros within vm86.c,
+which do the following:
+</para>
+
+<para>
+<variablelist>
+
+<varlistentry>
+<term>set_IF, clear_IF</term>
+<listitem>
+<para>
+  only modifies VEFLAGS;
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>clear_TF</term>
+<listitem>
+<para>
+          sets a bit in the <emphasis>real</emphasis> flags;
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>set_vflags(x)</term>
+<listitem>
+<para>
+     set flags x over SAFE_MASK  to <emphasis>real</emphasis> flags
+(IF is not touched)
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>x=get_vflags</term>
+<listitem>
+<para>
+      returns <emphasis>real</emphasis> flags over RETURN_MASK and translates 
+VIF of VEFLAGS to IF in x;
+</para>
+</listitem>
+</varlistentry>
+</variablelist> 
+</para>
+
+<para>
+When it's time to return from vm86() to user space, the <emphasis>real</emphasis> flags
+are merged together with VIF and VIP from VEFLAGS and put into
+the userspace vm86s.regs.eflags. This is done by save_v86_state()
+and this does <emphasis>not</emphasis> translate the VIF to IF, it should be as it
+was on entry of sys_vm86: set to 1.
+</para>
+</listitem>
+<listitem>
+<para>
+ Now what are we doing with eflags in dosemu ?
+Well, this I don't really know. I saw IF used (told it Larry), I saw
+VIF tested an set, I saw TF cleared, and NT flag e.t.c.
+</para>
+
+<para>
+But I know what Linus thinks that we should do:
+Always interpret and set VIF, and let IF untouched, it will nevertheless
+set to 1 at entry of sys_vm86.
+</para>
+
+<para>
+How I think we should proceed? Well this I did describe in my last mail.
+</para>
+
+<para>
+,,,, and this from a follow-up mail:
+</para>
+
+<para>
+<emphasis>NOTE</emphasis> VIF and VIP in DOS-CPU-flagsregister are inherited from 32-bit,
+so actually they are both ZERO.
+</para>
+
+<para>
+On return to 32-bit, <emphasis>only</emphasis> VIF will appear in vm86s.regs.eflags !
+<emphasis>VIP will be ZERO</emphasis>, again: <emphasis>VIP</emphasis> will be used <emphasis>only once</emphasis> !!!!
+</para>
+
+<para>
+[ ,,, ]
+</para>
+
+<para>
+I have to add, that VIP will be cleared, because it is not in any
+of the masks of vm86.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect1>
+

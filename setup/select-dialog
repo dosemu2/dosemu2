@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# Sets up/selects a dialog program.
+#
+
+
+# Taken from 'menuconfig' in the Linux source tree.
+set_geometry () {
+	# Some distributions export these with incorrect values
+	# which can really screw up some ncurses programs.
+	LINES=  COLUMNS=
+
+	ROWS=${1:-24}  COLS=${2:-80} 
+
+	# Just in case the nasty rlogin bug returns.
+	#
+	[ $ROWS = 0 ] && ROWS=24
+	[ $COLS = 0 ] && COLS=80
+
+	if [ $ROWS -lt 19 -o $COLS -lt 80 ]
+	then
+		echo -e "\n\007Your display is too small to run $0!"
+		echo "It must be at least 19 lines by 80 columns."
+		exit 0
+	fi 
+
+	ROWS=$((ROWS-4))  COLS=$((COLS-5))
+}
+
+# Preference is 'lxdialog';'dialog 0.6';'dialog 0.4'
+select_dialog() {
+	if [ "$USING_BIN_DIST" = "1" ]; then
+		DIALOG=`pwd`/demudialog/demudialog
+		DIALOG_SUPPORTS_CURRENT=true
+		DIALOG_SUPPORTS_VALUE=true
+		return
+	fi
+	if [ ! -x ${TOPDIR}/setup/demudialog/demudialog ]; then
+	  if [ ! -f ${TOPDIR}/setup/demudialog/tried-compile ]; then
+		(cd ${TOPDIR}/setup/demudialog; make)
+		touch ${TOPDIR}/setup/demudialog/tried-compile
+	  fi
+	fi
+	if [ -x ${TOPDIR}/setup/demudialog/demudialog ]
+	then
+#		DIALOG=support/lxdialog-wrap
+		DIALOG=${TOPDIR}/setup/demudialog/demudialog
+		DIALOG_SUPPORTS_CURRENT=true
+		DIALOG_SUPPORTS_VALUE=true
+	elif (grep "version 0\.4" `which dialog` > /dev/null)
+	then
+#		DIALOG=support/dialog0.4-wrap
+		DIALOG_SUPPORTS_CURRENT=false
+		DIALOG_SUPPORTS_VALUE=false
+		DIALOG=dialog
+	else
+		DIALOG=dialog
+		DIALOG_SUPPORTS_CURRENT=false
+		DIALOG_SUPPORTS_VALUE=false
+	fi
+}
+
+set_geometry
+select_dialog

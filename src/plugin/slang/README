@@ -1,0 +1,10 @@
+This is a stripped down version of the S-Lang library 1.4.8,
+just containing everything needed for DOSEMU and nothing else.
+The full version can be obtained at
+http://www.s-lang.org
+
+Two reasons to include this:
+* you don't need to install slang-devel if you compile DOSEMU
+* some mainstream distributions distribute S-Lang libraries
+  with (unofficial) UTF8 support. This, while nice in theory,
+  breaks SLsmg_Display_Eight_Bit.

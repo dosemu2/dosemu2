@@ -1,0 +1,62 @@
+DOSDBG - A DOSEMU tool for dynamic control of debug information
+
+This tool is intended as an aid for developers of DOSEMU.  From within the
+DOS session, you may query the current state of the debug output flags.  Also
+the flags may be modified so that different debug information is output
+to the debug file for DOSEMU.  The main reason to use this program would
+be to restrict the debug file from growing too big, and getting filled with
+impertinent (and possibly distracting) debug output.
+
+For example, if you are debugging port I/O, you can start DOSEMU with the
+debug flag for port I/O turned off.  Then, inside the DOSEMU session, right
+before you run some test which you are interested in, you can run
+
+	DOSDBG +i
+	
+to turn on port I/O debug messages on.  After your test is complete, run
+
+	DOSDBG -i
+	
+to turn on port I/O debug messages off.  If you subsequently look at the
+debug output file, it will only have port I/O debug messages for the brief
+period when you had the flag turned on.
+
+To see help for DOSDBG, just type "DOSDBG help" at the DOS prompt.  You will
+get the following screen of help information.
+
+============================================================================
+
+Usage: DOSDBG [string|HELP]
+If no string is specified, then DOSDBG will show the current debug settings.
+  If HELP is specified, then this screen is displayed.  Otherwise <string>
+  is parsed and used to change the current debug settings.
+
+<string> can contain letters, and the '+' and '-' characters.
+  Letters denote message classes from the following list:
+
+d  disk         R  disk Reads   W  disk Writes  D  dos
+v  video        X  X support    k  keyboard     i  port I/O
+s  serial       m  mouse        #  interrupt    p  printer
+g  general      c  config       w  warnings     h  hardware
+I  IPC          E  EMS          x  XMS          M  DPMI
+n  network      P  pktdrv
+a  all (shorthand for all of the above)
+
+Any classes following a '+', up until the end of string or a '-',
+  will be turned on.  Likewise, any classes following a '-', to the
+  end of string or a '+' will be turned off.
+
+The character 'a' acts like a string of all possible debugging classes,
+  so "-a" turns all message off, and "+a-RW" would turn all messages
+  on except for disk Read and Write messages.
+
+============================================================================
+
+I hope someone finds this useful.  Comments are encouraged.
+
+Tim Bird
+(tbird@novell.com)
+
+04/03/95 Kang-Jin Lee (lee@tengu.in-berlin.de)
+I tried to sync Dosemu and dosdbg. All debugflags that can be set
+in "dos -D..." is now the same as in dosdbg.

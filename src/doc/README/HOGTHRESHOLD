@@ -1,0 +1,150 @@
+<sect1>
+<title>Setting HogThreshold</title>
+
+<para>
+Greetings DOSEMU fans,
+</para>
+
+<para>
+Hogthreshold is a value that you may modify in your DOSEMU.CONF file.  It
+is a measure of the "niceness" of Dosemu.  That is to say, it attempts to
+return to Linux while DOS is 'idling' so that DOSEMU does not hog all the
+CPU cycles while waiting at the DOS prompt.
+</para>
+
+<para>
+Determining the optimal Hogthreshold value involves a little bit of magic
+(but not so much really.)  One way is to try different values and look at
+the 'top' reading in another console.  Setting the value too low may
+mildly slow Dosemu performance.  Setting the value too high will keep the
+idling code from working.
+</para>
+
+<para>
+That said, a good basic value to try is "half of your Bogo-Mips value".
+(The Bogo-Mips value is displayed when the kernel is booting, it's an
+imaginary value somewhat related to CPU performance.)
+</para>
+
+<para>
+Setting the value to 0 will disable idling entirely.  The default value is
+10.
+</para>
+
+<para>
+This files is some kind of FAQ on how to use the 'HogThreshold' value in the
+dosemu config file.
+</para>
+
+<para>
+In case you have more questions feel free to ask me (
+<ulink
+url="mailto:andi@andiunx.m.isar.de"
+>&#60;andi@andiunx.m.isar.de&#62;</ulink
+>).
+</para>
+
+<para>
+Those of you who simply want to have DOSEMU running at highest possible speed
+simply leave the value to zero, but if you are concerned about
+DOSEMU eating too much CPU time it's worth playing with the HogThreshold value.
+<variablelist>
+
+<varlistentry>
+<term>Why do I need to set the HogThreshold value, why can't DOSEMU
+just stop if it is waiting for a keystroke ?</term>
+<listitem>
+<para>
+The reason is the way how DOS and a lot of applications have implemented
+`waiting for a keystroke'.
+</para>
+
+<para>
+It's most often done by something similar to the following code fragment :
+</para>
+
+<para>
+
+<screen>
+wait_for_key:
+	; do something
+	mov ah,1
+	int 0x16 ; check key status
+	jz	wait_for_key ; jump if no key
+	; found a key
+        mov ah,0
+        int 0x16 ; get key
+</screen>
+
+</para>
+
+<para>
+This means that the application is busy waiting for the keystroke.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>What is a good value for HogThreshold to start with ?</term>
+<listitem>
+<para>
+On a 40 MHZ 486 start with a value of 10.
+Increase this value if you to have your DOS application run faster,
+decrease it if you think too much CPU time is used.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>It does not work on my machine.</term>
+<listitem>
+<para>
+You need to have at least dosemu0.53pl40 in order to have the
+anti-hog code in effect.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>Why not simply use a very low value of "HogThreshold" ?
+Do I really have to try an individual value of HogThreshold ?</term>
+<listitem>
+<para>
+This would slow down your DOS application. But why not, DOS is slow
+anyway :-).
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>How do I found out about CPU usage of DOSEMU ?</term>
+<listitem>
+<para>
+Simply use `top'. It displays cpu and memory usage.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+P.S.  If you want to change the HogThreshold value during execution,
+simply call
+
+<screen>
+ mov al,12h
+ mov bx,the_new_value
+ int e6h
+</screen>
+
+This is what speed.com does. If you are interested, please take a look
+at speed.c.
+</para>
+
+<para>
+Notes:  If your application is unkind enough to do waits using an int16h
+fcn 1h loop without calling the keyboard idle interrupt (int 28h), this
+code is not going to help much.  If someone runs into a program like this,
+let me (
+<ulink
+url="mailto:scottb@eecs.nwu.edu"
+>&#60;scottb@eecs.nwu.edu&#62;</ulink
+>
+) know and I'll rewrite something into the
+int16 bios.
+</para>
+
+</sect1>
+

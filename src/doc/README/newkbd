@@ -1,0 +1,782 @@
+<sect1>
+<title>Old Keyboard Code</title>
+
+<para>
+This file describes the old keyboard code which was written in late '95 for
+scottb's dosemu-0.61, and adapted to the mainstream 0.63 in mid-'96.
+</para>
+
+<para>
+It was last updated by R.Zimmermann 
+<ulink
+url="mailto:zimmerm@mathematik.uni-marburg.de"
+>&#60;zimmerm@mathematik.uni-marburg.de&#62;</ulink
+> 
+on 18 Sep 96 and updated by Hans
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+> 
+on 17 Jan 97. ( correction notes marked *HH  -- Hans )
+</para>
+
+<sect2>
+<title>Whats New</title>
+
+<para>
+What's new in the new keyboard code? A lot.
+</para>
+
+<para>
+To the user:
+
+<itemizedlist>
+<listitem>
+
+<para>
+ Most of the keyboard-related bugs should have gone away. Hope I didn't
+introduce too many new ones (-:
+Keyboard emulation should be more accurate now; some keys are supported
+that weren't before, e.g. Pause.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The X { keycode } option is now obsolete. This was basically a bad hack
+to make things work, and was incompatible to X servers other than XFree86.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+To the dosemu hacker:
+
+<itemizedlist>
+<listitem>
+<para>
+ While the old code already claimed to be "client-server" (and was, to
+some extent), the new code introduces a clean, well-defined interface
+between the `server', which is the interface to DOS (int9, bios etc.),
+and the `clients', which are the interfaces to the user frontends supported
+by dosemu. Currently, clients are `raw', `slang' (i.e. terminal), and `X'.
+</para>
+
+<para>
+   
+Clients send keystrokes to the server through the interface mentioned
+above (which is defined in "keyboard.h"), the most important functions being
+`putkey()' and `putrawkey()'.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The keyboard server was rewritten from scratch, the clients were heavily
+modified.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ There is now general and efficient support for pasting large text objects.
+Simply call paste_text().
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The keyboard-related code is now largely confined to base/keyboard,
+rather than scattered around in various files.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+There is a compile-time option NEW_KBD_CODE (on by default) to activate the
+new keyboard code. The old stuff is still in there, but I haven't recently checked
+whether it still works, or even compiles. Once the new code is reasonably well tested
+I'll remove it.
+( *HH: the old code <emphasis>is</emphasis> made workeable and remains ON per default, it will
+stay maintained for a while, so we can easily check where the bugs come
+from )
+</para>
+
+</sect2>
+
+<sect2>
+<title>Status</title>
+
+<para>
+Almost everything seems to work well now.
+</para>
+
+<para>
+The keyboard server should now quite accurately emulate all key combinations
+described the `MAKE CODES' &#38; `SCAN CODES' tables of HelpPC 2.1, which I
+used as a reference.
+</para>
+
+<para>
+See below for a list of known bugs.
+</para>
+
+<para>
+What I need now is YOUR beta-testing... please go ahead and try if all your
+application's wierd key combinations work, and let me know if they don't.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Keyboard server interface</title>
+
+<para>
+This is all you should need to know if you just want to send keystrokes
+to DOS.
+</para>
+
+<para>
+Use the functions
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+     putrawkey(t_rawkeycode code);
+</para>
+</listitem>
+<listitem>
+
+<para>
+     putkey(Boolean make, t_keysym key)
+</para>
+</listitem>
+<listitem>
+
+<para>
+     putkey_shift(Boolean make, t_keysym key, t_shiftstate shiftstate)
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+You may also read (but not write!) the variable 'shiftstate' if necessary.
+</para>
+
+<para>
+ehm... see the DANG comments in base/newkbd-server.c for more information...
+</para>
+
+<para>
+<emphasis>NOTE:</emphasis> the server's queue is limited to a relatively small number of keyboard
+events (currently 15). IMO, it is not a good idea to let the queue be
+arbitrarily long, as this would render the behaviour more incontrollable
+if the user typed a lot of mad things while a dos program wasn't polling the
+keyboard.
+</para>
+
+<para>
+For pasting, there is special support in base/keyboard/keyb_clients.c which
+runs on top of the server.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Keyboard server structure     </title>
+
+<para>
+[<emphasis>NOTE:</emphasis> you won't need to read this unless you actually want to modify
+the keyboard server code. In that case, however, you MUST read it!]
+</para>
+
+<para>
+[<emphasis>Note:</emphasis> I'll have to update this. The queue backend works somewhat different
+now.]
+</para>
+
+<para>
+The central data structure of the keyboard server is the dosemu keyboard
+queue (to be distinguished from the bios keyboard buffer, which is run
+by int09 and int16).
+</para>
+
+<para>
+The keyboard server code can be largely divided into the `queue frontend'
+(serv_xlat.c, serv_maps.c), which does keycode translation, and the
+`queue backend' (serv_backend.c, serv_8042.c), which does the interfacing
+to DOS. The two sides communicate only through the queue.
+</para>
+
+<para>
+Each queue entry holds a data structure corresponding to (mostly)
+one keypress or release event. [The exception are the braindead
+0xe02a / 0xe0aa shift key emulation codes the keyboard processor
+`decorates' some kinds of keyboard events with, which for convenience
+are treated as seperate events.]
+</para>
+
+<para>
+Each queue entry holds a up to 4 bytes of raw keycodes for the
+port 60h emulation, along with a 2-byte translated int16h keycode
+and the shift state after this event was processed.
+Note that the bios_key field can be empty (=0), e.g. for shift keys,
+while the raw field should always contain something.
+</para>
+
+<sect3>
+<title>queue handling functions</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+static inline Boolean queue_empty(void);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static inline void clear_queue(void);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static inline void write_queue(Bit16u bios_key,t_shiftstate shift,Bit32u raw);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static void read_queue(Bit16u *bios_key, t_shiftstate *shift, t_rawkeycode *raw);
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+Accordingly, the keyboard code is largely divided into two parts,
+
+<itemizedlist>
+<listitem>
+
+<para>
+ the 'front end' of the queue, responsible for translating keyboard
+events into the 'queue entry' format.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ the 'back end' of the queue, which reads the queue and sends keycodes
+to DOS
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect3>
+
+<sect3>
+<title>The Front End</title>
+
+<para>
+
+<screen>
+
+ putrawkey() --------&#62;----+
+      \   \               |
+       \   v              |
+        \  translate()    |
+         \     |          |
+          \    v          \    (t_rawkeycode[4])      /---QUEUE----\
+     /-&#62;---\---|-----------*------------------------&#62; [ raw        ]
+    /       \  \  (t_keysym+char)                     [            ]
+ putkey() -&#62;-\--*--------------&#62; make_bios_code() --&#62; [ bios_key   ]
+    \         \                                       [            ]
+     \         v                           /--------&#62; [ shiftstate ]
+      \---&#62; do_shift_keys()               /           \------------/
+                |                        /
+                v        (t_shiftstate) /
+            [shiftstate]---------------/
+
+
+---------&#62;  data flow (&amp;calls, sometimes)
+,,,,,,,,,&#62;  calls
+
+</screen>
+
+</para>
+
+<sect4>
+<title>Functions in serv_xlat.c</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+static Boolean do_shift_keys(Boolean make, t_keysym key);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static uchar translate(t_keysym key);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static Boolean handle_dosemu_keys(t_keysym key);
+</para>
+</listitem>
+<listitem>
+
+<para>
+void putrawkey(t_rawkeycode code);
+</para>
+</listitem>
+<listitem>
+
+<para>
+void putkey(Boolean make, t_keysym key, uchar ascii);
+</para>
+</listitem>
+<listitem>
+
+<para>
+void putkey_shift(Boolean make, t_keysym key, uchar ascii, t_shiftstate s);
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+Any keyboard client or other part of dosemu wishing to send keyboard
+events to DOS will do so by calling one of the functions putrawkey,
+putkey, and putkey_shift.
+</para>
+
+<sect5>
+<title>putrawkey</title>
+
+<para>
+is called with a single raw scancode byte. Scancodes from subsequent
+calls are assembled into complete keyboard events, translated and
+placed into the queue.
+</para>
+
+</sect5>
+
+<sect5>
+<title>putkey &#38; others</title>
+
+<para>
+,,,to be documented.
+</para>
+
+</sect5>
+
+</sect4>
+
+</sect3>
+
+<sect3>
+<title>The Back End</title>
+
+<sect4>
+<title>Queue Back End</title>
+
+<para>
+
+<screen>
+
+                   EMULATOR SIDE        |    x86 SIDE
+		                        |
+                      ....[through PIC].|....................
+                      :                 |           :        v
+QUEUE      .....&#62; out_b_8042() --&#62; [ port 60h ] ----:---&#62; other_int9_handler
+|         :                             |        \  `.......    (:) (|)
+|         :                             |         \         v   (v) (|)
++-&#62;int_chk_q()-&#62; bios_buffer----&#62; [ get_bios_key ]-----&#62; default_int9_handler
+      ^  \                           :  |                   |       (|)
+      :   \----&#62; shiftstate_buffer   :  |                   v       (v)
+      :               |         .....:  |               bios keyb buffer
+      :               v        v        |
+      :          copy_shift_state() ----+-------------&#62; bios shiftstate
+      :                                 |
+      :                                 |
+      :                                 |
+    backend_run()                       |
+
+Abbreviations:
+int_chk_q() = int_check_queue()
+out_b_8042() = output_byte_8042()
+</screen>
+
+</para>
+
+</sect4>
+
+<sect4>
+<title>Functions in newkbd-server.c</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+void do_irq1();
+</para>
+</listitem>
+<listitem>
+
+<para>
+void clear_keybuf();
+</para>
+</listitem>
+<listitem>
+
+<para>
+static inline Boolean keybuf_full(void);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static inline void put_keybuf(Bit16u scancode);
+</para>
+</listitem>
+<listitem>
+
+<para>
+void copy_shift_state(t_shiftstate shift);
+</para>
+</listitem>
+<listitem>
+
+<para>
+static void kbd_process(void);
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+Transfer of the keyboard events from the dosemu queue to DOS is done as
+follows:
+</para>
+
+<para>
+As soon as a key is stored into the empty queue, kbd_process() triggers
+IRQ1 through the PIC emulation, which some time later will call do_irq1().
+</para>
+
+<para>
+do_irq1() will prepare for the interrupt execution by reading from
+the queue and storing the values in the variables raw_buffer,
+shiftstate_buffer, and bios_buffer, and then call run_irq() to
+run the actual DOS interrupt handler.
+</para>
+
+<para>
+There are two cases:
+
+<itemizedlist>
+<listitem>
+<para>
+ the default int09 handler in the dosemu bios (base/bios_emu.S)
+will call the helper function get_bios_key(), which returns
+the translated bios keycode from bios_buffer and copies the
+shiftstate from shiftstate_buffer. The raw keycodes are not used.
+get_bios_key() may also return 0 if no translated keycode is
+ready.
+</para>
+
+<para>
+The int9 handler will also call the `keyboard hook' int15h, ax=????.
+</para>
+</listitem>
+<listitem>
+<para>
+ if a dos application or TSR has redirected the keyboard interrupt,
+its handler might read from port 60h to get raw scancodes.
+Port 60h is of course virtualized, and the read returns the value
+from raw_buffer.
+</para>
+
+<para>
+Note that a mix between the two cases is also possible, e.g. a
+TSR's int9 handler first reads port 60h to check if a particular
+key was pressed, then gives over to the default int9 handler.
+Even these cases should be (and are, I think) handled properly.
+</para>
+
+<para>
+Note also that in any case, int9 is called once for each raw scancode
+byte. Eg.,suppose the user pressed the PgDn key, whose raw
+scancode is E0 51:
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+ first call to int9:
+             read port 60h        = 0xe0
+             read port 60h        = 0xe0   (**)
+             call get_bios_key()  = 0
+             iret
+do_irq1() reschedules IRQ1 because further scancodes are in the queue
+</para>
+</listitem>
+<listitem>
+<para>
+ second call to int9
+             read port 60h        = 0x51
+             call get_bios_key()  = 0x5100    (bios scancode of PgDn)
+             iret
+</para>
+</listitem>
+
+</itemizedlist>
+
+(** multiple port 60h reads during the same interrupt yield the
+same result.)
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+This is not a complete documentation. If you actually want to hack the 
+keyboard server, you can't avoid reading the code, I'm afraid ;-)
+</para>
+
+</sect4>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title>Known bugs &#38; incompatibilites</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ behaviour wrt. cli/sti is inaccurate, because the PIC code currently
+doesn't allow un-requesting if IRQ's.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ emulation of special 8042 and keyboard commands is incomplete and
+probably still somewhat faulty.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ the 'internal' keyboard flags in seg 0x40, like E0 prefix received etc.
+are never set. This shouldn't hurt, for all but the most braindead
+TSRs.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ CAPS LOCK uppercase translation may be incorrect for some (non-german)
+national characters.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ typematic codes in X and non-raw modes are Make+Break, not just Make.
+This shouldn't hurt, though.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ in X mode, shift+Gray cursor keys deliver numbers if NumLock is off.
+This is an X problem, and AFIK nothing can be done about it.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ in X, something may be wrong with F11+F12 handling (and again, possibly
+necessarily wrong).
+</para>
+</listitem>
+<listitem>
+
+<para>
+ the Pause key works in terms of raw scancodes, however it's function
+is not implemented (i.e. it doesn't actually halt DOS execution.)
+</para>
+</listitem>
+<listitem>
+
+<para>
+ in terminal (i.e. slang) mode, several things might be wrong or at least
+improveable.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ there is no difference between the int16h functions 0,1 and the extended
+functions 0x10,0x11 - i.e. 0,1 don't filter out extended keycodes.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ keyb.exe still doesn't work (hangs) - most probably due to the above.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>Changes from 0.61.10</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ adapted to 0.63.55
+</para>
+</listitem>
+<listitem>
+
+<para>
+ adapted to 0.63.33
+</para>
+</listitem>
+<listitem>
+
+<para>
+ renamed various files
+</para>
+</listitem>
+<listitem>
+
+<para>
+ various minor cleanups
+</para>
+</listitem>
+<listitem>
+
+<para>
+ removed putkey_shift, added set_shiftstate
+</para>
+</listitem>
+<listitem>
+
+<para>
+ in RAW mode, read current shiftstate at startup
+</para>
+</listitem>
+<listitem>
+
+<para>
+ created base/keyboard/keyb_client.c for general client initialisation and
+paste support.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>TODO</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+find what's wrong with TC++ 1.0
+</para>
+</listitem>
+<listitem>
+
+<para>
+implement pause key
+</para>
+</listitem>
+<listitem>
+
+<para>
+adapt x2dos (implement interface to send keystrokes from outside dosemu)
+</para>
+</listitem>
+<listitem>
+
+<para>
+once everything is proved to work, remove the old keyboard code
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+</sect1>
+

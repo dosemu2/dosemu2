@@ -1,0 +1,19 @@
+This document is the preliminary draft of a manual to help
+people understand the inner workings of dosemu.  It is the goal of
+this document to create new dosemu hackers.  This concept was inspired
+by the linux kernel hackers guide.
+
+This Guide was concieved and originally written by "Corey Sweeney"
+<corey@interaccess.com>. It has been completely revised. It is now
+generated automatically directly from the source code. Special thanks to
+"James B. MacLean" <macleajb@ednet.ns.ca> for supplying the original
+information. (It was mostly ripped out of a mail message.) "Jochen Hein"
+has made many useful comments & suggestions.
+
+At the end if this document is a section detailing how this guide is put 
+together. This may help you when trying to locate the relevant pieces of
+code. If you add new code, it would be useful if the relevant markers 
+are added where appropriate.
+
+This file is a collective effort. If you don't like one of the
+explanations, or want to add anything, please send me something!

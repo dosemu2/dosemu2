@@ -1,0 +1,43 @@
+maintitle "DOSEMU Run-Time Configuration"
+
+start "Main Menu"
+
+menu "Main Menu" {
+  description "Please select a setting:"
+  boolean "enable experimental stuff" experimental
+  boolean "SB Emulation" sbemu
+  boolean "Use MIT Shared Memory extensions under X" mitshm
+  boolean "Use X-Windows" x
+  boolean "enable Linux net code" net
+  boolean "compile with debug info" dodebug
+  boolean "make static binaries" linkstatic
+  boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
+  boolean "compile with ASPI driver" aspi
+  boolean "compile with svgalib support" svgalib
+  boolean "Use old keyboard code" plugin_keyboard
+  boolean "Use new keyboard code" plugin_kbd_unicode
+  boolean "Use extra character sets" plugin_extra_charsets
+  boolean "Use new terminal plugin" plugin_term
+  boolean "Use unicode translation plugin" plugin_translate
+  boolean "Use demo plugin" plugin_demo
+  input "Target cpu" target_cpu
+  input "Prefix for DOSEMU system-wide directory structure" prefix
+  input "Directory for DOSEMU binaries" bindir
+  input "Directory for system-wide configuration files" sysconfdir
+  input "Directory for DOSEMU data" datadir
+  input "Directory for DOSEMU man pages" mandir
+  input "Directory for DOSEMU documentation" docdir
+  input "Default directory for images and boot directories" syshdimagedir
+  input "Directory for X fonts" x11fontdir
+  input "S-Lang directory (use default for system supplied S-Lang)" slangdir
+  input "Name of the FreeDOS tarball" fdtarball
+}
+
+menu "Configure Action" {
+  description "Do What with the Configuration ?"
+  list configure {
+    "Save and configure / make" configure
+    "Save without running configure" save
+    "Abort" abort
+  }
+}

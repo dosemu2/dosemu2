@@ -1,0 +1,6 @@
+The sound code provides emulation of the SB. The actual emulation provided
+depends upon the support available from the kernel sound driver. Because
+this is very OS dependant the driver code itself is kept in architecture
+specifc files under src/arch/osname/dosext/sound/. Communication is via
+a set of interface functions and the device independant structures.
+

@@ -1,0 +1,65 @@
+----------------------------------------------------------------------------
+Nov 25 1995
+
+- From Michael Beck : Fix to debugger D command
+
+Sep 27 1995
+
+* Released DOSEMU Debugger V0.3 (by Hans Lermen <lermen@elserv.ffm.fgan.de>)
+
+- Enhanced dosdebug:
+
+  Now 'kill' runs through 3 steps, first tries to terminate via
+  'leavedos()', then (after 2 second) tries 'kill SIGTERM', then kills
+  the hard way by 'kill SIGKILL'. So, please wait what dosdebug is doing
+  before you 'kill' manually.
+  After doing SIGKILL, it offers the user to switch to another console.
+  In conjunction with 'savetextmode' and 'textmode' out of SVGA-package and
+  'kbd_mode -a' we can recover from a total hang (however, you need to
+  remote login).
+  See README.recover for more info.
+
+  New command: 'console n', where n is the console you want to switch to.
+  This command can be given independend to 'kill'.
+
+- New commands: 
+
+  'bpload', this sets a one-time break point to the entry point of
+  the next program that will be loaded by DOS. So now you can debug
+  a DOS-program from the very beginning.
+
+  'tf', this forces a single step over IRET and popf. I know this is a
+  work around, but I did not succeed to fix the clearing of TF.
+
+- Changes to 'r' command, realized modifying of 32-bit register.
+  e.g: 'r EAX 0x12345678' now works.
+ 
+- Fixed wrong low memory handling, know a20 is checked and then assumes
+  0x10fff0 as a valid real mode address.
+
+- several fixes on the disassembler output, mainly for SEG16 mode.
+
+- Changes to dpmi.c, so know the debugger reacts even if in DPMI,
+  however, you will see only HLT if single stepping.
+  But you may examine the data.
+
+----------------------------------------------------------------------------
+Sep 16 1995
+
+* Released DOSEMU Debugger V0.2 (by Hans Lermen <lermen@elserv.ffm.fgan.de>)
+
+- Integration into pre-0.60.4.2
+- Replaced telnet type login by secure 'dosdebug' terminal.
+  Added 'last command once more' when typing ENTER.
+  Can handle debugging of more then one dosemu process.
+- Changes to emumod to better support the debug.
+- Avoided performance lost, general code optimization.
+  Now debugger *realy* sleeps when not active.
+- New commands: kill, help.
+
+----------------------------------------------------------------------------
+Aug  2 1995
+
+* Released DOSEMU Debugger V0.1 (by Max Parke <mhp@light.lightlink.com>)
+
+- based on dosemu-0.60.1

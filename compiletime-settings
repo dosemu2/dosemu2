@@ -1,0 +1,32 @@
+config {
+  experimental off
+  sbemu on
+  mitshm on
+  vidmode on
+  x on
+  net on
+  dodebug off
+  linkstatic off
+  cpuemu off
+  aspi on
+  svgalib off
+  plugin_keyboard off
+  plugin_kbd_unicode on
+  plugin_extra_charsets on
+  plugin_term on
+  plugin_slang off
+  plugin_translate on
+  plugin_coopthreads on
+  plugin_commands on
+  plugin_demo off
+  target_cpu auto
+  prefix /usr/local
+  bindir ${prefix}/bin
+  sysconfdir /etc/dosemu
+  datadir ${prefix}/share
+  mandir ${prefix}/man
+  docdir ${datadir}/doc/dosemu
+  syshdimagedir /var/lib/dosemu
+  x11fontdir ${datadir}/dosemu/Xfonts
+  fdtarball dosemu-freedos-bin.tgz
+}

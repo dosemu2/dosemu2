@@ -1,0 +1,66 @@
+The Following items are used to delimit the text used to create this file.
+Whilst it is not necessary to know this, they are included because they may
+be useful for searching, as they are (at least at the moment) reasonably 
+unique.
+
+DANG_BEGIN_MODULE / DANG_END_MODULE
+	This will bracket a description of the file (normally at the
+	start). Within this you may have the keyword 'Maintainer:' followed
+	by a list (one line each) of maintainers for this packet. These
+	will be turned into URLs.
+
+DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+	This brackets a description of functions (good this, isn't it!)
+	Not every function needs to be described in this way - just the
+	major ones. Within this you may have the keywords: `arguments:',
+	`return:' and `description:', which will sort out the information
+	following it to build proper lists.
+
+DANG_BEGIN_STRUCT / DANG_END_STRUCT
+	This brackets a description of structures and data definitions
+	Not every structure needs to be described in this way - just the
+	major ones. Within this you may have the keywords: `elements:',
+	and `description:', which will sort out the information
+	following it to build proper lists. Also, you may bracket the
+	structur definition of real C-code, given you have one element
+	per line. In this case comments (/*...*/) behind the element will
+	be inserted properly into the formatted list while the C-code
+	itself is still compilable.
+
+DANG_BEGIN_REMARK / DANG_END_REMARK
+	This brackets descriptions of obscure items, like data structures
+	and architecture.
+
+DANG_FIXTHIS
+	This is a one line item, indicating a an area requiring a fix, or
+	redesign.
+
+DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+	New Ideas Start Here! As Ideas are proposed, that get added with 
+	their description, so that future generations can laugh at or
+	code the ideas ..... These bracket the idea description.
+
+DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+	Changelogs - very useful for bug fixing, and avvailable for use
+	with DPR (or that's the theory)
+
+In addition there are some keywords, that are recognized within a bracket.
+
+VERB ... /VERB
+	This formats the enclosed text verbatim. This is valid within
+	*_MODULE, *_REMARK, *_STRUCT, *_FUNCTION
+
+REMARK ... /REMARK
+	This is only valid within *_MODULE and also can contain VERB
+	brackets. Its useful to when you want to have a global modul
+        description
+
+PROTO ... /PROTO
+	This is only valid within *_FUNCTION and
+	takes a C-function prototype as `verbatim' until either
+	a `{' or a /PROTO is seen. After this all input is `skipped'
+	until the next PROTO or a /SKIP.
+
+SKIP ... /SKIP
+	This is only valid within *_FUNCTION and skips formatting until
+	either PROTO or /SKIP is seen.

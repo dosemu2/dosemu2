@@ -1,0 +1,54 @@
+<!DOCTYPE article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+
+<article>
+
+<artheader>
+
+<title>DOSEMU Technical Guide</title>
+
+<authorgroup>
+<corpauthor>
+The DOSEMU team
+</corpauthor>
+
+<editor>
+<firstname>Alistair MacDonald</firstname>
+<authorblurb>
+<para>
+<email>alistair@slitesys.demon.co.uk</email>
+</para>
+</authorblurb>
+</editor>
+
+</authorgroup>
+
+<pubdate>For DOSEMU v1.0 pl2.0</pubdate>
+
+<abstract>
+
+<para>
+This document is the amalgamation of a series of technical README files which were created to deal with the lack of DOSEMU documentation.
+</para>
+
+</abstract>
+
+</artheader>
+
+<sect1>
+<title>Introduction</title>
+
+<para>
+This documentation is derived from a number of smaller documents. This makes it
+easier for individuals to maintain the documentation relevant to their area of
+expertise. Previous attempts at documenting DOSEMU failed because the
+documentation on a large project like this quickly becomes too much for one
+person to handle.
+</para>
+
+<para>
+These are the technical READMEs. Many of these have traditionally been
+scattered around the source directories.
+</para>
+
+</sect1>
+

@@ -1,0 +1,184 @@
+<sect1 id="lredir">
+<title>Using Lredir</title>
+
+<para>
+This section of the document by Hans, 
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+>. Last
+updated on October, 23 2002.
+</para>
+
+<para>
+What is it? Well, its simply a small DOS program that tells the
+MFS (Mach File System) code what 'network' drives to redirect.
+With this you can 'mount' any Linux directory as a virtual drive
+into DOS. In addition to this, Linux as well as multiple dosemu sessions
+may simultaneously access the same drives, what you can't when using
+partition access.
+</para>
+
+<sect2>
+<title>how do you use it?</title>
+
+<para>
+Mount your dos hard disk partition as a Linux subdirectory.
+For example, you could create a directory in Linux such as /dos (mkdir
+-m 755 /dos) and add a line like
+</para>
+
+<para>
+
+<screen>
+   /dev/hda1       /dos     msdos   umask=022
+</screen>
+
+</para>
+
+<para>
+to your /etc/fstab.  (In this example, the hard disk is mounted read-
+only.  You may want to mount it read/write by replacing "022" with
+"000" and using the -m 777 option with mkdir).  Now mount /dos.  Now
+you can add a line like
+</para>
+
+<para>
+
+<screen>
+  lredir d: linux\fs/dos
+</screen>
+
+</para>
+
+<para>
+to the AUTOEXEC.BAT file in your hdimage (but see the comments 
+below).  On a multi-user system you may want to use
+</para>
+
+<para>
+
+<screen>
+  lredir d: linux\fs\${home}
+</screen>
+
+</para>
+
+<para>
+where "home" is the name of an environmental variable that contains
+the location of the dos directory (/dos in this example)
+</para>
+
+<para>
+You may even redirect to a NFS mounted volume on a remote machine with
+a /etc/fstab entry like this
+
+<screen>
+   otherhost:      /dos     nfs     nolock
+</screen>
+
+Note that the <emphasis>nolock</emphasis>&#62; option might be
+<emphasis>needed</emphasis> for 2.2.x kernels, because
+apparently the locks do not propagate fast enough and DOSEMU's (MFS code)
+share emulation will fail (seeing a lock on its own files).
+</para>
+
+<para>
+In addition, you may want to have your native DOS partion as C: under dosemu.
+To reach this aim you also can use Lredir to turn off the 'virtual'
+hdimage and switch on the <emphasis>real</emphasis> drive C: such as this:
+</para>
+
+<para>
+Assuming you have a c:\dosemu directory on both drives (the virtual
+and the real one) <emphasis>and</emphasis> have mounted your DOS partition as /dosc,
+you then should have the following files on the virtual drive:
+</para>
+
+<para>
+autoexec.bat:
+</para>
+
+<para>
+
+<screen>
+  lredir z: linux\fs\dosc
+  copy c:\dosemu\auto2.bat z:\dosemu\auto2.bat
+  lredir del z:
+  c:\dosemu\auto2.bat
+</screen>
+
+</para>
+
+<para>
+dosemu\auto2.bat:
+</para>
+
+<para>
+
+<screen>
+  lredir c: linux\fs\dosc
+  rem further autoexec stuff
+</screen>
+
+</para>
+
+<para>
+To make the reason clear <emphasis>why</emphasis> the batch file (not necessaryly autoexec.bat)
+<emphasis>must</emphasis> be identical:
+</para>
+
+<para>
+Command.com, which interpretes the batchfile keeps a position pointer
+(byte offset) to find the next line within this file. It opens/closes the
+batchfile for <emphasis>every</emphasis> new batchline it reads from it.
+If the batchfile in which the 'lredir c: ...' happens is on c:, then
+command.com suddenly reads the next line from the batchfile of that
+newly 'redired' drive.  ... you see what is meant?
+</para>
+
+</sect2>
+
+<sect2>
+<title>Other alternatives using Lredir</title>
+
+<para>
+To have a redirected drive available at time of config.sys you may
+either use emufs.sys such as
+</para>
+
+<para>
+
+<screen>
+   device=c:\emufs.sys /dosc
+</screen>
+
+</para>
+
+<para>
+or make use of the install instruction of config.sys (but not both) such as
+</para>
+
+<para>
+
+<screen>
+   install=c:\lredir.exe c: linux\fs\dosc
+</screen>
+
+</para>
+
+<para>
+The later has the advantage, that you are on your native C: from the
+beginning, <emphasis>but</emphasis>, as with autoexec.bat, both config.sys must be identical.
+</para>
+
+<para>
+ 
+For information on using 'lredired' drives as a 'user' (ie having the right
+permissions), please look at the section on Running dosemu as a normal user.
+</para>
+
+</sect2>
+
+</sect1>
+

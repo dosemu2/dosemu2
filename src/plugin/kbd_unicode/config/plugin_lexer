@@ -1,0 +1,11 @@
+	/* numbers */
+\\u{HEXDIGIT}{4}	MAY_BE{yylval->i_value = strtoul(yytext+2, 0, 16);
+				return(UNICODE); }
+
+	/* keyboard */
+ctrl			RETURN(CTRL_MAP);
+shift_alt		RETURN(SHIFT_ALT_MAP);
+ctrl_alt		RETURN(CTRL_ALT_MAP);
+
+tr                      MAY_BE { yylval->i_value = KEYB_TR;
+                                return(KEYB_LAYOUT); }

@@ -1,0 +1,108 @@
+====================================================
+The DOSEMU/FreeDos ready-to-use binary distribution.
+====================================================
+
+
+INSTALL
+-------
+
+The easiest way to get DOSEMU working on your machine is to use
+the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
+
+  - ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
+
+      A tarball containing a collection of suitable FreeDos binaries,
+      eventually patched to fit DOSEMU needs, together with some GNU
+      tools you may find useful.
+
+  - ftp://ftp.dosemu.org/dosemu/dosemu-<version>-bin.tgz
+
+      A tarball containing the recent DOSEMU binaries together with a
+      user local configuration setup.
+
+This installation fits into any user HOME directory and can be used
+and installed without root permissions.
+You have to unpack _both_ tarballs (as a normal user, NOT as root) into
+the same directory (regardless what ever) within your HOME, such as:
+
+  $ mkdir mydos
+  $ cd mydos
+  $ tar -zxf dosemu-freedos-bin.tgz
+  $ tar -zxf dosemu-1.0.2-bin.tgz
+  $ cd dosemu
+
+now look where you are and what was installed:
+
+  $ pwd
+  /home/joeuser/mydos/dosemu
+  $ ls
+  README.bindist  bin             dosemu          xdosemu
+  Xfonts          conf            freedos
+
+
+
+RUN
+---
+
+After you get the install right, you can execute DOSEMU with
+
+  $ cd ~mydos/dosemu             # (your CWD _must_ be here)
+  $ ./xdosemu
+
+which will use X or execute
+
+  $ ./dosemu
+
+which will just start within the current terminal or console.
+
+If you have never used DOSEMU before, you will get prompted (once) that you
+have read the liability disclaimer and after you agree, DOSEMU will boot
+FreeDos and give you a command prompt.
+
+If for some reason it does not start, look at boot.log for details.
+
+Remember, that you can't use <Ctrl>-C _within_ DOS to exit _from_ DOS.
+For this you need to execute 'exitemu' or, when using xdosemu,
+<Ctrl><Alt><PgDn>.
+
+If you want to have your Linux $HOME available as DOS drive D: type
+
+  $ ./dosemu -home
+or
+  $ ./xdosemu -home
+
+For DOS applications which only read/write from/to STDIN/STDOUT,
+you may prefer to invoke DOSEMU such as
+
+  $ ./dosemu -dumb
+
+this has the advantage that (A) the output of the DOS application stacks
+up in your xterm scroll buffer and (B) you can redirect it to a file such as
+
+  $ ./dosemu -dumb -E dir > listing
+
+Note that DOSEMU command.com's commandline editor/history will also work
+here, however, editing is restricted to BACKSPACE'ing.
+
+SOURCES
+-------
+
+The sources of the here included GPL'ed binaries can be found at
+
+  http://www.dosemu.org/
+  http://www.freedos.org/
+  http://freedos.sourceforge.net/download/
+  http://www.gnu.org/
+
+Some applications are public domain with no sources published.
+
+POLICIES
+--------
+
+  All software herein can be distributed and used freely,
+  most is GPL, other not GPL licenses can be found in the
+  doc/* directories.
+
+
+                                  -- Hans <lermen@fgan.de>
+				     2001/06/10

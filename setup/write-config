@@ -1,0 +1,65 @@
+BEGIN {
+  SEPARATORS="[ \t]*"
+
+  setup_config()
+}
+
+END {
+  for (i in config) {
+    print config[i]
+  }
+}
+
+function handle_swap (item,  string, in_comment) {
+  get_line()
+
+  string = config[item]
+  delete config[item]
+
+  in_comment = 0
+  for (i = 2; i < num_fields ; i++) {
+    if (fields[i] ~ /^[ \t]*#/) {
+      in_comment = 1
+
+    }
+
+    if (in_comment) {
+      string = string " " fields[i]
+
+    }
+  }
+  print string
+}
+
+{
+  test = tolower($1)
+
+  if (length($0) < 1) {
+    # Blank
+    print $0
+    next
+
+  } else if ($0 ~ /^[ \t]*#/) {
+    # Comment
+    print $0
+    next
+
+  } else if (test in config) {
+    # item to swap
+    handle_swap(test)
+    next
+
+  } else {
+    # Final attempt - look for a counter variant
+    if (! test in counter) {
+      counter[test] = 1
+    }
+    try = test "_" counter[test]
+    if (try in config) {
+      handle_swap(try)
+    }
+    counter[test]++
+    next
+
+  }
+}

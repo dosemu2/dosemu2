@@ -1,0 +1,64 @@
+#! /usr/bin/perl
+
+$newyear = "2003";
+$filelistname = "";
+
+$i = 0;
+
+while ($ARGV[$i] ne "") {
+  if ($ARGV[$i] eq "-y") {
+    $i++;
+    if ($ARGV[$i] ne "") {
+      $newyear = $ARGV[$i];
+      $i++;
+    }
+  }
+  if ($ARGV[$i] eq "-f") {
+    $i++;
+    if ($ARGV[$i] ne "") {
+      $filelistname = $ARGV[$i];
+      $i++;
+    }
+  }
+}
+
+print "building file list ...\n";
+if ($filelistname eq "") {
+  @files = `grep -l '(C) Copyright 1992,' \`find -type f\``;
+}
+else {
+  @files = `grep -l '(C) Copyright 1992,' \`cat $filelistname\``;
+}
+print "...Ok, now processing\n";
+
+$total = 0;
+
+#foreach $i (@files) {print "$i";} exit;
+
+foreach $i (@files) {
+  chop $i;
+  $total++;
+  print "processing $i\n";
+  open(FIN, "<$i") || die "Can't open $i";
+  open(FOUT, ">$i.new") || die "Can't open $i.new";
+  $changed_it = 0;
+  LINE: while (<FIN>) {
+     $line = $_;
+     if (/\(C\) Copyright 1992,[^0-9]+([0-9]+)\s+the\s+\"DOSEMU/) {
+       $line =~ s/$1/$newyear/;
+       $changed_it = 1;
+     }
+     print FOUT "$line";
+  }
+  close(FOUT);
+  close(FIN);
+  if ($changed_it) {
+    `mv $i.new $i`;
+  }
+  else {
+    `rm -f $i.new`;
+     $total--;
+  }
+}
+
+print "$total files converted\n";

@@ -1,0 +1,295 @@
+<sect1 id="priv">
+<title>Privileges and Running as User</title>
+
+<para>
+This section written by Hans Lermen 
+<ulink
+url="mailto:lermen@fgan.de"
+>&#60;lermen@fgan.de&#62;</ulink
+>
+, Apr 6, 1997.
+And updated by Eric Biederman
+<ulink
+url="mailto:ebiederm+eric@npwt.net"
+>&#60;ebiederm+eric@npwt.net&#62;</ulink
+>
+30 Nov 1997.
+</para>
+
+<sect2>
+<title>What we were suffering from</title>
+
+<para>
+Well, I got sick with the complaints about 'have problems running as user'
+and did much effort to 'learn' about what we were doing with priv-settings.
+To make it short: It was a real mess, there was the whole dosemu history
+of different strategies to reach the same aim. Well, this didn't make
+it clearer. I appreciate all the efforts that were done by a lot of people
+in the team to make that damn stuff working, and atleast finding all those
+places <emphasis>where</emphasis> we need to handle privs was a great work and is yet worth.
+... but sorry, <emphasis>how</emphasis> it was handled didn't work.
+</para>
+
+<para>
+The main odds happened because sometimes functions, that were called
+within a priv_on/off()...priv_default() brackets were calling
+priv_on/off()...priv_default() themselves. And with introduction of this
+priv_default() macro, which handled the 'default' case (run as user or
+run as root) the confusion was complete. Conclusion: recursive settings
+were not handled, and you always had to manually keep track of wether
+privs were on or off. ... terrible and not maintainable.
+</para>
+
+<para>
+   
+Therefore I decided to do it 'the right way (tm)' and overworked it
+completely. The only thing that now remains to do, is to check for more
+places where we have to temporary allow/disallow root priviledges. I also
+decided to be a good boy and make 'RUN_AS_ROOT' a compile time option
+and 'run as user' the <emphasis>default</emphasis> one.
+</para>
+
+<para>
+(promise: I'll also will run dosemu as user before releasing,
+so that I can see, if something goes wrong with it ;-)
+</para>
+
+<para>
+Enter Eric: 
+</para>
+
+<para>
+What we have been suffering from lately is that threads were added to
+dosemu, and the stacks Hans added when he did it 'the right way (tm)'
+were all of a sudden large static variables that could not be kept
+consistent.  That and hans added caching of the curent uids for
+efficiency in dosemu, again more static variables.  
+</para>
+
+<para>
+When I went through the first time and added all of the strange
+unmaintainable things Hans complains of above, and found where
+priveleges where actually needed I hand't thought it was as bad as Hans
+perceived it, so I had taken the lazy way out.  That and my main concern
+was to make the privelege setting consistent enough to not give
+mysterous erros in dosemu.  But I had comtemplated doing it 'the right
+way (tm)' and my scheme for doing it was a bit different from the way
+Hans did it. 
+</para>
+
+<para>
+With Hans the stack was explicit but hidden behind the scenes.  With my
+latest incarnation the stack is even more explicit.  The elements of the
+privelege stack are now local variables in subroutines.  And these local
+variables need to be declared explicitly in a given subroutine.  This
+method isn't quite a fool proof as Han's method, but a fool could mess up
+Hans's method up as well.  And any competent person should be able to
+handle a local variable, safely.
+</para>
+
+<para>
+For the case of the static cached uid I have simply placed them in the
+thread control block.  The real challenge in integrating the with the
+thread code is the thread code was using root priveleges and changing
+it's priveleges with the priv code during it's initialization.   For the
+time being I have disabled all of the thread code's mucking with root
+priveleges, and placed it's initialization before the privelege code's
+initialization.  We can see later if I can make Han's thread code work
+`the right way (tm)' as he did for my privelege code.
+</para>
+
+<para>
+ReEnter Hans:  ;-) 
+</para>
+
+<para>
+In order to have more checking wether we (not an anonymous fool) are
+forgetting something on the road, I modified Erics method such that
+the local variable is declared by a macro and preset with a magic,
+that is checked in priv.c. The below explanations reflect this change.
+</para>
+
+<para>
+ReReEnter Hans (2000/02/28):  ;-) 
+</para>
+
+<para>
+The treads code has definitively gone (no one made serious use of it),
+so the above thread related arguments too.
+</para>
+
+</sect2>
+
+<sect2>
+<title>The new 'priv stuff'</title>
+
+<para>
+This works as follows
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+ All settings have to be done in 'pairs' such as
+
+<screen>
+        enter_priv_on();   /* need to have root access for 'do_something' */
+        do_something();
+        leave_priv_setting();
+</screen>
+
+or
+
+<screen>
+        enter_priv_off();  /* need pure user access for 'do_something' */
+        do_something();
+        leave_priv_setting();
+</screen>
+
+</para>
+</listitem>
+<listitem>
+
+<para>
+ On enter_priv_XXX() the current state will be saved (pushed) on a
+local variable on the stack and later restored from that on
+leave_priv_setting(). This variable is has to be defined at
+entry of each function (or block), that uses a enter/leave_priv bracket.
+To avoid errors it has to be defined via the macro PRIV_SAVE_AREA.
+The 'stack depth' is just _one_ and is checked to not overflow.
+The enter/leave_priv_* in fact are macros, that pass a pointer to
+the local privs save area to the appropriate 'real_' functions.
+( this way, we can't forget to include priv.h and PRIV_SAVE_AREA )
+Hence, you never again have to worry about previous priv settings,
+and whenever you feel you need to switch off or on privs, you can do it
+without coming into trouble.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ We now have the system calls (getuid, setreuid, etc.) <emphasis>only</emphasis> in
+src/base/misc/priv.c. We cash the setting and don't do unnecessary
+systemcalls. Hence NEVER call 'getuid', 'setreuid' etc. yourself,
+instead use the above supplied functions. The only places where I
+broke this 'holy law' myself was when printing the log, showing both
+values (the <emphasis>real</emphasis> and the cached one).
+</para>
+</listitem>
+<listitem>
+
+<para>
+ In case of dosemu was started out of a root login, we skip 
+<emphasis>all</emphasis> priv-settings. There is a new variable 'under_root_login'
+which is only set when dosemu is started from a root login.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ On all places were iopl() is called outside a enter_priv...leave_priv
+bracket, the new priv_iopl() function is to be used in order to
+force privileges.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+This is much cleaner and 'automagically' also solves the problem
+with the old 'priv_off/default' sheme. Because, 'running as user' just
+needs to do _one_ priv_off at start of dosemu, if we don't do it we are
+'running as root' ;-)
+</para>
+
+<para>
+A last remark: Though it may be desirable to have a non suid root dosemu,
+this is not possible. Even if we get GGI in the official kernel, we can't
+solve the problems with port access (which we need for a lot of DOS apps)
+... and ioperm() / iopl() need root privileges.
+This leads to the fact that 'i_am_root' will be always '1', makeing
+it a macro gives GCC a changes optimize away the checks for it.
+We will leave 'i_am_root' in, maybe there is some day in the future
+that gives us a kernel allowing a ports stuff without root privilege,
+... never say never ;-)
+</para>
+
+<para>
+Enter Eric: 
+</para>
+
+<para>
+The current goal is to have a non suid-root dosemu atleast in X,
+lacking some features. But the reason I disabled it when I first introduced
+the infamous in this file priv_on/priv_default mechanism is that it hasn't
+been tested yet, still stands.  What remains to do is an audit of what
+code _needs_ root permissions, what code could benefit with a sgid dosemu,
+and what code just uses root permissions because when we are suid root some
+operations can only been done as root.
+</para>
+
+<para>
+When the audit is done (which has started with my most recent patch (I
+now know what code to look at)).  It should be possible to disable
+options that are only possible when we are suid root, at dosemu
+configuration time.  Then will be the task of finding ways to do things
+without root permissions.
+</para>
+
+<para>
+Enter Hans (960626): 
+</para>
+
+<para>
+Last <emphasis>act</emphasis> of this story: DOSEMU now can run <emphasis>non-</emphasis>suid root and
+though it looses a lot of features because of not beeing able to run on
+console in this mode or not able to do any ports stuff e.t.c., its quite
+useable under X (I was even able to run win31, hence  DPMI is secure now
+with the s-bit off).
+</para>
+
+<para>
+The names of some variables where changed, such that it conforms more
+to what they now do: i_am_root became can_do_root_stuff, and
+under_root_login was splitted into the static skip_priv_setting,
+while the global valiable under_root_login keeps its meaning.
+</para>
+
+<para>
+skip_priv_setting is set for both: running as root <emphasis>and</emphasis> running as
+user non-suid root. can_do_root_stuff is global and used in the same
+places were i_am_root was used before.
+</para>
+
+<para>
+On start of DOSEMU, we now call parse_dosemu_users() directly
+after priv_init(), and this is top of main(). This way we catch any
+hacker attack quite early and should be <emphasis>much</emphasis> securer as ever before.
+</para>
+
+<para>
+Additionally, parse_dosemu_users now checks for the keyword `nosuidroot'
+in /etc/dosemu.users and if this is found for a user, this user is not
+allowed to execute DOSEMU on a suid root binary (though he can use
+a non-suid root copy of it) and dosemu will exit in this case.
+Dropping all priviledges on a suid root binary and continue (as if
+the -s bit wasn't set) is not possible, because /proc/self/mem has
+the ownership of the suid binary (hence root) and dosemu would crash
+later, when trying to open it. Do a chown on /proc/self/mem doesn't
+work either.
+</para>
+
+<para>
+The last action to make the non-suid root stuff working, was moving
+the files from /var/run/* to some user accessable location. This
+now is ~/.dosemu/* and dosdebug was adapted to support that.
+</para>
+
+</sect2>
+
+</sect1>
+

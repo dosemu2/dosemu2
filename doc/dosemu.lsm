@@ -1,0 +1,27 @@
+Begin3
+Title:          DOSEMU PC Emulator
+
+Version:        1.1.2
+
+Description:    This is a DOS emulation package with support for console,
+                terminal and X-windows.  Includes DPMI emulation to run some
+                32-bit applications and games.  Please read the included
+                'QuickStart' file carefully for important information.
+
+Keywords:       dosemu windows games dos emulator
+
+Author:         linux-msdos@vger.kernel.org (The DOSEMU team)
+                (Original authors were Matthias Lautner and Robert Sanders)
+
+Maintained-by:  linux-msdos@vger.kernel.org (The DOSEMU team)
+                bart@dosemu.org (Bart Oldeman)
+
+Primary-site:   ftp.dosemu.org /pub/dosemu/Development/dosemu-1.1.2.tgz
+
+Alternate-site: ibiblio.unc.edu /pub/Linux/system/emulators/dosemu/*
+
+Platform:       Linux 2.0.28+  IPC required, IPX optional.
+		ELF.
+
+Copying-policy: Freely distributable.  Mostly GPL Version 2, some non-GPL copyrights.
+End

@@ -1,0 +1,363 @@
+
+                     DOSEMU plug-ins
+                     ===============
+
+The term 'plug-in' may be wrong here, because in fact the software in the
+tree dosemu/src/plugin can't be plugged in at runtime but must be configured
+in at compiletime. The reason to have such mechanisme is to ease inclusion
+of code, that normally will not be part of the official DOSEMU; maybe
+because of copyright problems (GNU is very tricky in some cases) or
+because those parts are distributed separately for pratical reasons.
+
+Nevertheless, we now have it and here is how it works:
+-----------------------------------------------------
+
+ - all plug-ins within src/plugin can be removed or added without
+   modification to the main DOSEMU source. You just have to make sure
+   you do a
+
+     make pristine
+
+   before adding/deleting a plug-in and a
+
+     ./default-configure
+
+   or
+
+     make
+
+   after changes to the contents of src/plugin. The ./default-configure
+   script will take care of all what is needed to insert/remove your plug-in.
+
+ - you should always add/delete _complete_ plugin trees, that is,
+   each directory (and its subdirectories) belongs to exactly one
+   plug-in.
+
+
+ - Configuration of each discrete plug-in is done with files under
+   src/plugin/<myplugin>/config, which may be
+
+     plugin_enable
+     plugin_override
+     plugin_dirs
+     plugin_incdirs
+     plugin_parser
+     plugin_lexer
+     plugin_config.h
+     plugin_init.h
+     plugin_close.h
+     plugin_inte6.h
+     plugin_poll.h
+
+   (I'll describe their meaning below). If some (or all) doesn't exist
+   there are defaults taken. Of course, a missing plugin_enable will default
+   to 'disable' and the plug-in is not compiled in ;-)
+
+ - The *.h header files in  src/plugin/*/config are accumulated into
+   files of the same name under src/include. These are then included
+   directly at the proper places in the dosemu code. If no plug-in
+   exists at all, then all src/include/plugin_*.h will be empty and in a
+   pristine DOSEMU distribution tree they won't exist at all.
+
+ - The script ./mkpluginhooks in the DOSEMU root directory is responsible
+   for actually do plug-in insertion. It is used by ./default-configure
+   and should not be called explicitely. When called with 'clean' as the
+   only argument, it will remove the hooks it established in a run
+   without arguments. Within this script also is defined, which header
+   files from the src/plugin/*/config directories are accumulated into their
+   counterparts in src/include. To add new ones, look here.
+
+The plugin_enable file
+----------------------
+
+  This file is just for convenience, if it contains 'yes' the plug-in will
+  be compiled in, if not or not existing, the whole plug-in and its
+  subdirectories are ignored. So, you may have the tree installed even if
+  you don't want to compile it currently. If plugin_enable contains 'yes'
+  _and_ it is overridden (see plugin_override below), then it will be
+  temporary set to 'replaced' (which means disabling it) and reset to 'yes'
+  on cleanup ('mkpluginhooks clean').
+
+The plugin_override file
+------------------------
+
+  If this file exists _and_ the plugin is enabled (see plugin_enable), it
+  should contain a blank separated list of base names of other plugins,
+  that this plugin is intended to replace. This feature is used to have
+  multiple plugins in the tree wich are mutual exclusive to each other.
+  Example:
+
+  Given you wrote a new keyboard code src/plugin/my_keyboard, which completely
+  should replace the default one in src/plugin/keyboard, than you simply
+  need to have a src/plugin/my_keyboard/config/plugin_override with one line
+  containing 'keyboard'.
+  As a result the file src/plugin/keyboard/config/plugin_enable will be set
+  to 'no' before the keyboard plugin has a chance to be included.
+
+
+The plugin_dirs file
+--------------------
+
+  In order to compile correctly within DOSEMU, Makefile.main needs to know
+  which trees do contain a valid DOSEMU-type Makefile to produce the
+  needed lib*.a and in order to link the stuff finaly. An example of such
+  a Makfile can be found in src/plugin/demo/Makefile. The plugin_dirs file
+  now defines _which_ directories under src/plugin/<myplugin>/ are considered
+  to have such a Makefile (note: a plug-in may contain as much as
+  subdirectories it wants), such as
+
+    tools
+    otherstuff
+    ./
+
+  The './' means the root directory of the plug-in, and omitting it is
+  allowed in which case all compiles will happen in the subdirectories only.
+  All entries in plugin_dirs will produce subdir entries for Makefile.main
+  such as
+
+    plugin/myplugin/tools plugin/myplugin/otherstuff plugin/myplugin
+
+  and will create libraries under src/lib such as
+
+    libplugin_myplugin_tools.a
+    libplugin_myplugin_otherstuff.a
+    libplugin_myplugin.a
+
+  If plugin_dirs is empty or doesn't exist, the content './' is assumed,
+  which in most cases will be sufficient.
+
+
+The plugin_incdirs file
+-----------------------
+
+  If you have a plugin, which exports include files to the rest of DOSEMU
+  (such as src/base/keyboard does), you need to list the include directory
+  here (same format as in plugin_dirs file). The files in these directories
+  are then symbolically linked from src/plugin/include.
+
+
+The plugin_parser and plugin_lexer files
+----------------------------------------
+
+  It may be necessary to have some runtime configuration for your
+  plugin, which you want to integrate in DOSEMU's configuration parser.
+  For this you can use the merge files plugin_parser and plugin_lexer
+  for merging into src/base/init/parser.y and lexer.l respectively.
+
+  The format of plugin_parser is:
+
+  |---------- colum 1 of plugin_parser -------------------------
+  /* Any comment going top of parser.y
+   */ 
+
+  %{
+     /* C DECLARATIONS, such as */
+  #include "mystuff.h"
+  static void mystuff(int);
+
+  %}
+
+     /* BISON DECLARATIONS, such as */
+  %token MYTOKEN
+
+  %%
+
+  new_rule:       existing_rule
+                  | new_rule existing_rule
+                  ;
+
+  existing_rule:  MYTOKEN bool { mystuff($2); }
+                  | MYTOKEN '(' bool ')' { mystuff($2); }
+                  ;
+
+  %%
+     /* ADDITIONAL C CODE, such as */
+  static void mystuff(int foo)
+  {
+     whatever();
+  }
+  --------------------------end of plugin_parser -------------
+
+  The above 'new_rule' will be inserted behind all existing rules
+  in parser.y while 'existing_rule' will be merged into an existing
+  rule. If one of the parts (between %%, %{ or %}) is empty, it needs
+  to have one empty line at least.
+
+  To check wether you did it right your stuff you may do
+
+    $ cd where_I_have_dosemu_source
+    $ ./mkpluginhooks
+    $ diff -u src/base/init/parser.y.in src/base/init/parser.y
+    $ ./mkpluginhooks clean
+
+  The format of plugin_parser is:
+
+  |---------- colum 1 of plugin_lexer -------------------------
+
+  <TAB>/* new comment */
+  newtoken           RETURN(MYTOKEN);
+
+  <TAB>/* existing comment */
+  somenewtoken       RETURN(...);
+  ------------ end of plugin_lexer
+
+  Merging into lexer.l is done by searching for the comment lines
+  in front of the lexer regular expressions. The comment lines are
+  expected to have exactly one <TAB> (\t) at colum 1 before the /* ... */.
+  This is DOSEMU special and won't work on other lexer files (while it
+  will for parser.y;-). If a comment already exists in lexer.l, the
+  lines behind the comment in plugin_lexer until the next fitting
+  comment line will be merged with the existing ones, else they are
+  inserted (including the comment line) in front of the comment line
+  /* strings */ of lexer.l. Again you can check this the same way
+  you checked plugin_parser with mkpluginhooks.
+
+
+The plugin_*.h files
+--------------------
+
+  In order to hook into the DOSEMU code we include the contents of the
+  plugin_*.h file directly at those place in DOSEMU were we want the hook.
+  The advantage is, that it doesn't neither generate any unused code if not
+  needed nor do we have tons of #ifdef to cope with. The script ./mkpluginhooks
+  collects all plugin_*.h at configuration time and puts #include references
+  into _one_ includefile with the appropriate name under src/include.
+  e.g. the files
+
+     plugin/myplugin/config/plugin_init.h
+     plugin/yourplugin/config/plugin_init.h
+
+  will be included from the file
+
+     src/plugin/include/plugin_init.h
+
+  which always is included in src/emu.c at startup of DOSEMU. In case no
+  plug-in is configured, the file src/include/plugin_init.h will be empty,
+  hence does not produce any code.
+
+  The contents of
+  any plugin_*.h file (except plugin_config.h, see below) should look like
+
+    my_plugin_init();
+
+  Currently there are the following hooks for plug-ins implemented, those are:
+
+    - plugin_init.h, which hooks before DOS gets booted.
+
+    - plugin_close.h, which hooks at time of leavedos(). If you decided
+      within plugin_init.h to disable the service of your plug-in,
+      you should check that in plugin_close, DOSEMU won't do.
+
+    - plugin_inte6.h, which hooks within the DOSEMU_HELPER. This hook
+      should look such as
+
+        case (DOS_HELPER_PLUGIN + XXX): {
+           extern int my_plugin_inte6(void);
+           if ( ! my_plugin_inte6() ) return 0;
+           break;
+        }
+
+      (where XXX is a offset unique to your plug-in (value 0..15).
+      It hooks before the 'default' case of dos_helper() of async/int.c
+      such as
+
+        switch (LO(ax)) {
+           case .... 
+              break;
+
+           #include "plugin_inte6.h"
+
+           default:
+              error("bad dos ....\n");
+              return 0;
+        }
+        return 1;
+
+      so you see how to do it right;-) The AL values reserved for plug-ins
+      and the DOSEMU_HELPER interrupt are 0x60..0x6f and are defined
+      in src/include/doshelpers.h as
+
+        #define DOS_HELPER_PLUGIN        0x60
+        #define DOS_HELPER_PLUGIN_LAST   0x6f
+
+      You are responsible for assigments within this scope yourself, there
+      is no mechanisme for allocation of unused AL values. The AH can be
+      used for subfunctioning, so you don't need more then _one_ AL value.
+
+    - plugin_poll.h, which hooks within run_vm86() of do_vm86.c
+      and run_dpmi() of dpmi.c. This hook should look such as
+
+        if (my_plugin_need_poll) my_plugin_poll(VM86_RETURN_VALUE);
+
+      The my_plugin_poll() functions is then called on each return from
+      vm86() after handle_signals() and uhook_poll(), but before
+      mhp_debug(DBG_POLL...). VM86_RETURN_VALUE is the full value returned
+      by the last call to vm86(), use the macro VM86_ARG() and VM86_TYPE()
+      to extract the info you need. Main purpose of this hook is to handle
+      background stuff that otherwise can't be monitored (such as time
+      consuming output to files, that would block dosemu otherwise)
+      or to do additional hacking for application special events.
+
+      Keep in mind that handle_signals() may lead to calling your
+      my_plugin_ioselect() (see above), hence you may get a call to
+      my_plugin_poll() directly after (without having returned to vm86 mode).
+
+    - plugin_config.h. Its purpose is to declare the prototypes and extern
+      declarations of all the functions and variables explained above, and
+      to include configuration switches, which are exported to DOSEMU 
+      via src/include/config.h.
+      Each plugin_config.h will be included at the _buttom_ of config.h,
+      such that you may redefine/interprete already set global
+      configuration variables.
+
+      This also is a way to let other plugins and/or DOSEMU code know
+      that a given plugin is available/activated or to check for
+      consistency, such as in plugin_config.h:
+
+      #define HAVE_MY_PLUGIN 2
+      #if (IS_DEVEL_RELEASE && (DOSEMU_VERSION_CODE < VERSION_OF(1,1,2,0))) \
+        || (!IS_DEVEL_RELEASE && (DOSEMU_VERSION_CODE < VERSION_OF(1,0,3,0)))
+        #error "Sorry, wrong DOSEMU version for my_plugin, please upgrade"
+      #endif
+
+      and then in the other plugin and/or DOSEMU code:
+
+      #include "config.h"
+      #if HAVE_MY_PLUGIN
+        #if HAVE_MY_PLUGIN < 2
+          #error "Sorry, wrong my_plugin version for this DOSEMU version"
+        #endif
+        /* plugin special code */
+      #endif
+
+For what can plug-ins be used?
+------------------------------
+
+The main reason I implemented 'plugin' was the need to write a DOS driver for
+some (very) special selfmade Hardware, which nobody else would profit from
+except my employer ... and because I was too lazy to patch in the changes to
+every new released dosemu version;-) This way DOSEMU atleast profits from the
+interface.
+
+Having it now, I see some more usage such as
+
+  - DOS drivers using 32-bit written by contributors
+    and distributed separately.
+
+  - special debugging code to reverse engineer (DOS) drivers for special
+    hardware, if the manufacturer does not cooperate in writing
+    a Linux driver. Also with this, distributing separately can avoid
+    copyright conflicts.
+
+  - Replacements for DOS system commands, which (via inte6) then run
+    faster in 32-bit or can do things which aren't possible otherwise.
+
+  - Drivers for video chips we currently do not support.
+
+We even may consider to move more of our current code into plugin
+(as we just did with the keyboard code), this would make it possible to
+distribute them separately. It may be necessary to add some more hooks
+(plugin_*.h), but for this we wait what happens;-)
+
+
+                             Hans Lermen <lermen@dosemu.org>,  Nov 30 2000

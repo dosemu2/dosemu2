@@ -1,0 +1,116 @@
+#! /bin/bash
+
+if [ -n "$DOSEMU_DEFAULT_CONFIGURE" ] ; then
+  exit 0
+fi
+
+CONF_FILE=`dirname $0`/compiletime-settings
+
+if [ "$1" != "" ]; then
+  if [ "${1#--}" = "$1" ]; then
+    CONF_FILE=$1
+    if [ "$CONF_FILE" = "-d" ]; then
+      CONF_FILE=`dirname $0`/compiletime-settings.devel
+    fi
+    shift
+  fi
+fi
+
+if [ ! -f $CONF_FILE ]; then
+  echo "$CONF_FILE cannot be opened"
+  exit 1
+fi
+
+SUFFIX=""
+while [ "$1" != "" ]; do
+  SUFFIX="$SUFFIX \"$1\""
+  shift
+done
+
+CONF=`cat $CONF_FILE`
+CONF=`echo -n "$CONF"| sed '/^config {/d' | sed '/^}/d' | tr '\n' ' ' `
+
+set $CONF
+
+#echo "$*"
+
+STRING=""
+PLUGIN=""
+
+while [ "$1" != "" ]; do
+#  echo "$1 $2"
+
+  case "$1" in
+    experimental)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-experimental"; fi
+      ;;
+    dodebug)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-dodebug"; fi
+      ;;
+    net)
+      if [ "$2" = "off" ]; then STRING="$STRING --enable-nonet"; fi
+      ;;
+    x)
+      if [ "$2" = "off" ]; then STRING="$STRING --without-x"; fi
+      ;;
+    mitshm)
+      if [ "$2" = "off" ]; then STRING="$STRING --enable-nomitshm"; fi
+      ;;
+    vidmode)
+      if [ "$2" = "off" ]; then STRING="$STRING --enable-novidmode"; fi
+      ;;
+    sbemu)
+      if [ "$2" = "off" ]; then STRING="$STRING --enable-nosbemu"; fi
+      ;;
+    linkstatic)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
+      ;;
+    cpuemu)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
+      ;;
+    aspi)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-aspi"; fi
+      ;;
+    svgalib)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-use-svgalib"; fi
+      ;;
+    docdir|x11fontdir|syshdimagedir|fdtarball)
+      STRING="$STRING --with-$1=$2"
+      ;;
+    mandir|datadir|sysconfdir|bindir|prefix)
+      STRING="$STRING --$1=`echo $2`"
+      ;;
+    target_cpu)
+      if [ "$2" != "auto" ]; then STRING="$STRING --target_cpu=$2"; fi
+      ;;
+    plugin_slang)
+      if [ "$2" = "on" ]; then 
+        PLUGIN="$PLUGIN slang yes";
+      else
+        PLUGIN="$PLUGIN slang no";
+        if [ "$2" = "off" ]; then 
+          STRING="$STRING --with-slangdir=default"
+        else 
+	  STRING="$STRING --with-slangdir=$2"
+	fi  
+      fi
+      ;;
+    plugin_*)
+      plugin=`expr substr $1 8 100`
+      if [ "$2" = "on" ]; then PLUGIN="$PLUGIN $plugin yes"; fi
+      if [ "$2" = "off" ]; then PLUGIN="$PLUGIN $plugin no"; fi
+      ;;
+    *)
+      ;;
+  esac
+
+  shift; shift;
+done
+
+echo `dirname $0`/mkpluginhooks enable $PLUGIN
+`dirname $0`/mkpluginhooks enable $PLUGIN
+
+eval "set -- $SUFFIX"
+export DOSEMU_DEFAULT_CONFIGURE=1
+echo exec `dirname $0`/configure $STRING "$@"
+exec `dirname $0`/configure $STRING "$@"

@@ -1,0 +1,70 @@
+#
+# (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+
+SUBDIR := $(subst $(abs_top_builddir)/src/,,$(shell pwd -P))
+LIBNAME := $(shell echo $(SUBDIR) |tr / _)
+
+ifndef OBJS
+ifdef CFILES
+OBJS=$(CFILES:.c=.o)
+else
+OBJS=$($(notdir $(wildcard $(srcdir)/*.c)):.c=.o)
+endif
+endif
+
+ifndef DEPENDS
+DEPENDS=$(OBJS:.o=.d)
+endif
+
+
+LIB=$(top_builddir)/src/lib/lib$(LIBNAME).a
+
+AR=ar
+
+lib:	$(LIB)
+
+$(LIB):	$(OBJS)
+	rm -f $@
+	$(AR) cr $@ $^
+	$(RANLIB) $@
+
+.PHONY:	clean realclean 
+
+clean::
+	-rm -f $(OBJS) $(LIB) *~
+
+realclean::	clean
+	rm -f *.d
+
+dist:: $(ALL) Makefile
+	install -d $(DISTPATH)/$(SUBDIR)
+	cp -a $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
+
+%.o:	%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+
+%.d:	%.c
+	$(CPP) -c $(CPPFLAGS) $< > /dev/null
+
+ifndef CLEANING
+ifneq "$(wildcard *.d)" ""
+-include $(DEPENDS)
+endif
+endif
+
+# this is mainly for debugging the makefile
+echo::
+	@echo REALTOPDIR=$(REALTOPDIR)
+	@echo TOPDIR=$(TOPDIR)
+	@echo $(SHELL)
+	@echo $(shell pwd -P)
+	@echo LIB=$(LIB)
+	@echo DEPENDS=$(DEPENDS)
+	@echo OBJS=$(OBJS)
+	@echo CFILES = $(wildcard *.c)
+	@echo DEPENDS FOUND= $(wildcard *.d)
+	@echo MAKEFLAGS=$(MAKEFLAGS)
+

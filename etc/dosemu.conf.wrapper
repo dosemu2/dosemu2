@@ -1,0 +1,19 @@
+#
+# You will need this file if (and only if) you want to keep the older
+# dosemu versions ( < 0.97.0.1) _and_ the newer ones simultaneous
+# running on your system.
+#
+# In case you upgrade to the newer dosemu (>= 0.97.0.1) and have an older
+# dosemu installed, become root and excute the following commands:
+#
+#      (cd /etc; mv dosemu.conf dosemu.conf.v2)
+#      cd /where/is/dosemu
+#      cp etc/dosemu.conf /etc/dosemu.conf.v3
+#      cp etc/dosemu.conf.wrapper /etc/dosemu.conf
+#
+
+ifdef parser_version_3
+  include "dosemu.conf.v3"
+else
+  include "dosemu.conf.v2"
+endif

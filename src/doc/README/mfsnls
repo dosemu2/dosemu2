@@ -1,0 +1,249 @@
+<sect1 id="mfsnls">
+<title>MFS and National Language Support</title>
+
+<para>
+This section written by Oleg V. Zhirov
+<ulink
+url="mailto:O.V.Zhirov@inp.nsk.su"
+>&#60;O.V.Zhirov@inp.nsk.su&#62;</ulink
+>
+, Aug  3, 1998
+</para>
+
+<sect2>
+<title>MFS and National Language Support</title>
+
+<para>
+Main problem is that *nix and DOS uses codesets, which can differ. So,
+in Russia the most popular codeset for *nix is koi8-r, while DOS
+standard used so called `alternative' codeset cp866.
+</para>
+
+<para>
+While DOSEMU access DOS partitions directly, through original DOS (V)FAT
+drivers, it doesn't matter, that linux locales are set to koi8-r, and
+all works correctly. However, in this way you cannot start more than one
+copy of DOSEMU at the same time.
+</para>
+
+<para>
+A more elegant solution (which in fact heavily supported by recent
+development
+of DOSEMU) is to mount all DOS partitions into linux filesystem and access
+them through the `internal network' system MFS (Mach File System). It allows
+use the security of real *nix (linux) filesystem, and one can have
+simultaneously so many DOSEMU sessions, as he wants  ;-).
+</para>
+
+<para>
+However, <emphasis>new problems occur</emphasis>:
+</para>
+
+<para>
+
+<orderedlist>
+<listitem>
+
+<para>
+ Mount DOS partitions into Linux. Currently, linux kernel
+linux-2.0.34 support mounting both MSDOS and VFAT partitions. No problem is,
+if your DOS partition has true MSDOS format. More ambigious case is if your
+have VFAT partition. You can mount it as VFAT and get access to 'long names',
+which looks as very attractive option. But in this case you *have lost*
+any access to _short_filenames_ - DOS aliases of long filenames. To access
+<emphasis>short_filenames</emphasis> you need mount VFAT partition as MSDOS (!) (I am not
+even sure, that this is completely safe (!)).
+</para>
+</listitem>
+<listitem>
+
+<para>
+ IMPORTANT: mounting DOS partition, you optionally make filenames
+convertion from DOS codeset to Linux one, if you want to see filenames
+correctly (in Russia cp866 -&#62; koi8-r). Otherwise I need to support both
+codesets in my Linux. (Currently I do no conversion and have on my console
+both codesets).
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Bug in MFS: transfer directory/file names from Linux to DOS via MFS
+includes also some name conversion from *nix standard to DOS one. In
+original (current in dosemu-0.97.10) release of MFS a lot of corresponding
+locale-dependent (!!!) char/string operations on _DOS_names_ were performed
+with _Linux_ locale setting (in my case koi8-r). As a result, one get a
+garbage instead of original filenames.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ If you mount VFAT partition in LINUX as VFAT, some of filenames are
+long. I fact, curent dosemu MFS system can `mangle' them, converting into
+short aliases. There is NO vay to reconstruct the <emphasis>true</emphasis> DOS alias from
+<emphasis>long_name_</emphasis>, since in DOS created SFNAME~<emphasis>index</emphasis>  index value depends
+exceptionaly on the _history_ of file creation. As a result, `mangled'
+names differs from true DOS shortnames.
+</para>
+</listitem>
+
+</orderedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>Patching of MFS</title>
+
+<para>
+Presented patch of MFS cures problem (3) only. Summary of modification:
+
+<itemizedlist>
+<listitem>
+<para>
+ all locale-dependent code is removed from mfs.c and mangle.c
+and is located in file util.c only. Here I add a set of routins:
+
+<screen>
+          islowerDOS(...)(+), tolowerDOS(...)(+),
+          isupperDOS(...)(+), toupperDOS()(+),
+          isalphaDOS(...)(+), isalnumDOS(...)(+),
+          is_valid_DOS_char(...)(+), chrcmpDOS(...)(+),
+
+          strlowerDOS(...), strhaslowerDOS(...),
+          strupperDOS(...), strhasupperDOS(...),
+          chrcmpDOS(...)(+), strncmpDOS(...), strcmpDOS(...),
+          strncasecmpDOS(...), strcasecmpDOS(...).
+</screen>
+
+Upper part (marked by (+)) has all the information on the codesets,
+while lower part is derived from the upper one. Currently codepage 866
+implementation is completely sufficient for Russia (e.g for Ukrainian
+some definitions should be added). As for Western Europe latin codepages,
+some sort of support existed before is conserved. In any case, further
+addition of other codepages is quite easy.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ file mangle.c was revised, and some dead code was excluded. To my
+opinion, this file need to be more critically revized: some stuff,
+(e.g. verification of 8.3 format) is duplicated in mfs.c, and other
+stuf looks too overcomplicated (am I right?). I have a suspection,
+that most of codes overlaps in functionality with those of mfs.c.
+Unfortunately, I have no time to examine the file mfs.c more carefully.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ At last, I replace all locale-dependent operation in mangle.c and
+mfs.c by their DOS partners:  func() -&gt; funcDOS(), defined in util.c.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+To patch MFS put patch.mfs into directory dosemu-0.97.10/src/dosext/mfs/
+and issue a command
+
+<screen>
+patch -p1 &#60;patch.mfs
+</screen>
+
+and then compile dosemu as usual.
+</para>
+
+<para>
+To mount dos VFAT partition in Linux filesystem I do like as
+</para>
+
+<para>
+
+<screen>
+mount -t vfat -o noexec,umask=022,gid=107,codepage=866,iocharset=cp866 /dev/hda1 /dos_C
+</screen>
+
+</para>
+
+<para>
+(or corresponding line in /etc/fstab). In this vay I have dos names in the
+`alternative' codepage 866. To operate them in Linux I turn console in
+`altenative' charset mode (see, e.g. CYRILLIC-HOWTO).
+</para>
+
+<para>
+NOTE: VFAT module in linux-2.0.34 seems to be buggy: Creating via Linux
+filename with <emphasis>lowercase</emphasis> russian letters, you obtain file not accessible
+by DOS (or even Win95) - probably, people, who makes VFAT support have
+forgotten creating shortname DOS alias from long names or short names
+turn to upper case chars with ASCII codes &gt; 127 ? (To my first look,
+they use tolower() and toupper() functions which works for ascii&lt;=127).
+Fortunately, DOS creates filenames properly, even with cyrillic letters,
+and creating files with russian names is completely safe.
+</para>
+
+<para>
+In DOSEMU I load DOS (DOS-7) from hdimage.
+To access dos partition in DOSEMU I have in config.sys two lines
+</para>
+
+<para>
+
+<screen>
+     install=c:\subst.exe L: C:\
+     install=c:\lredir.exe C: linux\fs/dos_C
+</screen>
+
+</para>
+
+<para>
+Obvious disadvantage of my approach: long filenames have short aliases
+slightly different than in direct partition access. In practice, this
+doesn't result in problem, since DOS stuff usually does not exploit long
+filenames, and files with long filenames are irrelevant.
+</para>
+
+</sect2>
+
+<sect2>
+<title> TODO:</title>
+
+<para>
+
+<orderedlist>
+<listitem>
+
+<para>
+ In Linux kernel: Cure in VFAT module upper/lowercase bugs for
+ascii&gt;127.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ In Linux kernel: VFAT module should provide access to short DOS aliases
+of long names, even if VFAT partition is mounted in longname support mode (with -t vfat).
+</para>
+</listitem>
+<listitem>
+
+<para>
+ In dosemu MFS:
+MFS should use short DOS aliases, actually existing for VFAT longnames.
+</para>
+</listitem>
+
+</orderedlist>
+
+</para>
+
+</sect2>
+
+</sect1>

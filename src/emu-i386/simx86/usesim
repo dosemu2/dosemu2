@@ -1,0 +1,5 @@
+#!/bin/sh
+rm -f *.d *.o
+ln -sf codegen-sim.c codegen-arch.c
+ln -sf codegen-sim.h codegen-arch.h
+ln -sf fp87-sim.c fp87-arch.c

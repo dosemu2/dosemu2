@@ -1,0 +1,144 @@
+This file describes the compiletime tunable settings for DOSEMU
+
+You have either to edit the ./compiletime-settings file or use the
+the setup-dosemu tool. If you edit manually, you _must_ not remove any
+of the lines, instead just change 'off' to 'on' and vice versa.
+
+The options have the following meaning:
+
+experimental	"enable experimental stuff"
+
+		Global switch to prevent experimental stuff from compile.
+		There are experimental parts in the source, that may do harm to
+		your system if you use them without care / knowledge.
+		In order to protect you, those are normally disabled
+		in ./configure. Even if you enable discrete switches
+		in ./compiletime-settings, those will not have effect
+		without the global switch also set.
+
+sbemu		"SB Emulation"
+
+		Code to support sound via DOSEMU. The sound code emulates
+		a simple SoundBlaster on any sound card supported by the
+		Linux Kernel. Hence, your DOS-Box sees a SoundBlaster
+		even if you don't have it. Keep that in mind
+		when you setup your DOSish software.
+
+mitshm		"Use MIT Shared Memory extensions under X"
+
+		You normal would like to have this activated, though you
+		will not profit from it, when doing remote X.
+		If you encounter problems with your X-server, try to switch
+		this off.
+
+vidmode		"Use video mode extensions under X"
+
+		You normal would like to have this activated, if you want
+		X to change resolution in fullscreen-mode (Ctrl-Alt-F),
+		where applicable.
+
+x		"Use X-Windows"
+
+		With this set on, you enable the X-windows support of DOSEMU.
+		Though, the compiled binary will run without X too.
+		If you don't have The X development packages install or
+		if you won't use it and want a smaller DOSEMU binary,
+		then turn this option off.
+
+net		"enable Linux net code"
+
+		There is network related code in DOSEMU such as IPX support,
+		a builtin packet driver, e.t.c. This will be compiled in
+		if you set this switch. You may compile with this option
+		and later disable it in the runtime configuration.
+		Normally you will let it enabled.
+
+
+dodebug		"compile with debug info"
+
+		This uses the '-g' switch for GCC, hence you can use GDB
+		to debug DOSEMU.
+
+linkstatic	"make static binaries"
+
+		With this switch on, a statically linked binary is generated
+		The size isn't that big (about 30% bigger then a dynamically
+		linked one) and DOSEMU will run faster and is more portable
+		between systems (it then depends only on the kernel
+		version, no (g)libc incompatibilities). The official DOSEMU
+		binary distribution always is statically linked.
+
+cpuemu		"EXPERIMENTAL, enable CPU emulator" cpuemu
+
+		This is in _no_ case ready for production, this switch is
+		here just for the developers ;-)
+
+aspi		"compile with ASPI support" aspi
+
+		This enables the dosemu builtin ASPI driver, which also
+		need the DOS driver ./commands/aspi.sys in config.sys.
+		You then may be able to use DOS software that accesses
+		SCSI devices such as CD-burners, Scanners e.t.c.
+		However, not all SCSI devices available in Linux are
+		offered to the driver, because this is inherently dangerous.
+		Instead you define in /etc/dosemu.conf which 'sg' device
+		you want give to dosemu and you also specify the device
+		type which the ASPI driver then check to avoid you accessing
+		a mounted disk.
+
+svgalib		"compile with svgalib support" svgalib
+
+		This enables support for using svgalib >= version 1.4.2
+		for switching between consoles when running graphics
+		on console _and_ if you configured 'svgalib' as 'graphic chip'
+		in /etc/dosemu.conf.
+		NOTE: this doesn't help for all svgalib supported graphic
+		cards and your console may freeze anyway. Currently reported
+		as 'working' are riva TNT 128 and sis.
+
+plugin_keyboard	"Use old keyboard code" plugin_keyboard
+
+plugin_kbd_unicode "Use new keyboard code" plugin_kbd_unicode
+
+plugin_extra_charsets "Use extra character sets" plugin_extra_charsets
+
+plugin_term     "Use new terminal plugin"
+
+plugin_translate "Use Unicode translation plugin" plugin_translate
+
+plugin_demo 	"Use demo plugin" plugin_demo
+
+plugin_slang	"Use S-Lang plugin"
+
+		If leave this switch to "off", then DOSEMU tries to tries to
+		compile with your system supplied S-Lang library.  Note however
+		that some distributions ship UTF8-enabled S-Lang libraries that
+		break DOSEMU; DOSEMU will refuse to use those. In that case, or
+		if you don't have a slang-devel package installed, or if you set
+		the switch to "on", then DOSEMU uses the S-Lang plugin, which is
+		a subset of the official S-Lang library.
+		Instead of "on" or "off" you may also specify a directory
+		pointing directly to your S-Lang library.
+
+target_cpu	"Target cpu" target_cpu
+
+prefix		"Prefix for DOSEMU system-wide directory structure" prefix
+
+bindir		"Directory for DOSEMU binaries" bindir
+
+sysconfdir 	"Directory for system-wide configuration files" sysconfdir
+
+datadir		"Directory for DOSEMU data" datadir
+
+mandir		"Directory for DOSEMU man pages" mandir
+
+docdir		"Directory for DOSEMU documentation" docdir
+
+syshdimagedir	"Default directory for images and boot directories" syshdimagedir
+
+x11fontdir	"Directory for X fonts" x11fontdir
+
+fdtarball	"Name of the FreeDOS tarball" fdtarball
+		This is normally named dosemu-freedos-bin.tgz, to be obtained from www.dosemu.org
+		Use "none" if you don't want to use FreeDOS.
+

@@ -1,0 +1,183 @@
+<sect1>
+<title>DMA Code</title>
+
+<sect2>
+<title>Current DOSEMU DMA code</title>
+
+<para>
+Unfortunately I haven't documented this yet. However, the current code has been
+completely rewritten from this.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Original DOSEMU DMA code</title>
+
+<para>
+
+<screen>
+    DOSEMU DMA code
+    Copyright (C) 1995  Joel N. Weber II
+
+    This dma code is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+</screen>
+
+</para>
+
+<para>
+This is intended to be a reasonably complete implementation of dma.  However,
+the following has been omitted:
+
+<itemizedlist>
+<listitem>
+
+<para>
+ There is no command register.  Half the bits control hardware details,
+two bits are related to memory to memory transfer, and two bits have
+misc. functions that might be useful execpt that they are global, so
+probably only the bios messes with them.  And dosemu's psuedo-bios
+certainly doesn't need them.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ 16 bit DMA isn't supported, because I'm not quite sure how it's supposed
+to work.  DMA channels 4-7 are treated the same way as 0-3 execpt that
+they have different address.  Also, my currnet goal is a sb pro emulator,
+and the sb pro doesn't use 16 bit DMA.  So it's really a combination of
+lack of information and lack of need.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Verify is not supported.  It doesn't actually move any data, so how
+can it possibly be simulated?
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The mode selection that determines whether to transfer one byte at a
+time or several is ignored because we want to feed the data to the kernel
+efficiently and let it control the speed.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Cascade mode really isn't supported; however all the channels are
+available so I don't consider it nessisary.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Autoinitialization may be broken.  From the docs I have, the current and
+reload registers might be written at the same time???  I can't tell.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The docs I have refer to a "temporary register".  I can't figure out
+what it is, so guess what: It ain't implemented.  (It's only a read 
+register).
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+The following is known to be broken.  It should be fixed.  Any volunteers? :-)
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+     dma_ff1 is not used yet
+</para>
+</listitem>
+<listitem>
+
+<para>
+     Address decrement is not supported.  As far as I know, there's no
+simple, effecient flag to pass to the kernel.
+</para>
+</listitem>
+<listitem>
+
+<para>
+     I should have used much more bitwise logic and conditional
+expressions.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+This is my second real C program, and I had a lot of experience in Pascal
+before that.
+</para>
+
+<sect3>
+<title>Adding DMA devices to DOSEMU</title>
+
+<para>
+Read include/dma.h.  In the dma_ch[] struct, you'll find some fields that
+don't exist on the real DMA controller itself.  Those are for you to fill in.
+I trust that they are self-explainatory.
+</para>
+
+<para>
+One trick that you should know: if you know you're writing to a device which
+will fill up and you want the transfer to occur in the background, open the
+file with O_NONBLOCK.
+</para>
+
+</sect3>
+
+<sect3>
+<title>References</title>
+
+<para>
+PC Game Programers Encyclopedia
+<ulink
+url="ftp://teeri.oulu.fi/pub/msdos/programming/gpe/"
+>ftp://teeri.oulu.fi/pub/msdos/programming/gpe/</ulink
+>
+</para>
+
+<para>
+The Intel Microprocessors: 8086/8088, 80186, 80286, 80386, 80486,
+Barry B. Brey,ISBN 0-02-314250-2,1994,Macmillan
+</para>
+
+<para>
+(The only reason I use this book so extensively is it's the only one like it
+that I can find in the Hawaii State Library System :-)
+</para>
+
+</sect3>
+
+</sect2>
+
+</sect1>
+

@@ -1,0 +1,171 @@
+<sect1 id="recover">
+<title>Recovering the console after a crash</title>
+
+<para>
+The below is a mail from Kevin Buhr 
+<ulink
+url="mailto:buhr@stat.wisc.edu"
+>&#60;buhr@stat.wisc.edu&#62;</ulink
+>
+, that was posted
+on linux-msdos some time ago. Because it describes a way to recover
+from a totally locked console, the technique described below was partially
+intergrated in dosdebug. So, the below 'switchcon.c' is now part of
+dosdebug and you may use it via:
+</para>
+
+<para>
+
+<screen>
+  dosdebug
+  console n
+</screen>
+
+</para>
+
+<para>
+where n is the console you want to switch to.
+</para>
+
+<para>
+But keep in mind, that dosdebug tries to kill your dosemu process the
+safest way it can, so first use dosdebug's kill command:
+</para>
+
+<para>
+
+<screen>
+  dosdebug
+  kill
+</screen>
+
+</para>
+
+<para>
+In the worst case you will get the following output on your remote terminal:
+</para>
+
+<para>
+
+<screen>
+   ...oh dear, have to do kill SIGKILL
+   dosemu process (pid 1234) is killed
+   If you want to switch to an other console,
+   then enter a number between 1..8, else just type enter:
+   2      &#60;========= this is what you enter
+   dosdebug terminated
+   NOTE: If you had a totally locked console,
+         you may have to blindly type in 'kbd -a; texmode
+         on the console you switched to.
+</screen>
+
+</para>
+
+<sect2>
+<title>The mail message</title>
+
+<para>
+
+<screen>
+Date: Fri, 21 Apr 95 14:16 CDT
+To: tegla@katalin.csoma.elte.hu
+Cc: linux-msdos@vger.rutgers.edu
+In-Reply-To: &lt;Pine.LNX.3.91.950421163705.1348B-100000@katalin.csoma.elte.hu&gt; (message from Nagy Peter on Fri, 21 Apr 1995 16:51:27 +0200 (MET DST))
+Subject: Restoring text mode (was Re: talk)
+From: buhr@stat.wisc.edu (Kevin Buhr)
+Sender: owner-linux-msdos@vger.rutgers.edu
+Precedence: bulk
+Status: RO
+X-Status: 
+
+| But when dosemu dies in graphics mode ( this happens every 30 minutes 
+| or so), it leaves the screen in graphics mode. You can do anything 
+| blindly (even start dosemu again) but the console screen is always left 
+| in graphics mode.
+
+I know what you mean... this is a real pain in the ass.  
+
+Here's my solution.  A few useful scripts and programs are supplied
+with the SVGA binaries.  "savetextmode" is a script that will write
+register and font information to "/tmp/textregs" and "/tmp/fontdata".
+Run this from the console as root while you're in text mode.  If
+you've got a cron job that clears out your "/tmp" directory, you'll
+probably want to copy these someplace safe.
+
+The next time "dosemu" or something similar takes out your video, use
+the "textmode" script (which reads the register and font from those
+temporary files and also restores the palette), and everything should
+be back to normal.  Of course, this assumes you're able to get enough
+control of your computer to enter the "textmode" command as root at
+the console ("restoretextmode" complains if executed from a terminal
+other than the console).  One solution is to modify the source for
+"restoretextmode" to operate correctly from off-console.
+
+I'm lazy, so I use a little program called "switchcon" (source
+attached) that takes a single integer argument and switches to that
+virtual console.
+
+So, if "dosemu" dies hard (so that "ctrl-alt-pagedown" doesn't work)
+or exits without restoring text mode, I do this:
+
+	(1)  Log in from another terminal
+	(2)  Kill "dosemu", if necessary.  Killing with SIGTERM will
+	     usually restore text mode automatically, but if I have
+	     to SIGKILL it, I continue...
+	(3)  Run "switchcon" as root to switch to another VC
+	(4)  Sometimes I have to run "kbd_mode -a", too, if I'm stuck
+	     in raw mode
+
+If Linux fails to automatically restore text mode, I log in (blindly)
+as root on the console and run "textmode".  With the canned register
+and font files in place, this inevitably brings me back to text mode
+bliss.
+
+Kevin &lt;buhr@stat.wisc.edu&gt;
+
+			*	*	*
+
+switchcon.c:
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;linux/vt.h&gt;
+#include &lt;sys/ioctl.h&gt;
+
+main( int argc, char **argv ) {
+   int newvt;
+   int vt;
+
+   if(argc != 2 || !(newvt = atoi(argv[1]))) {
+      fprintf(stderr, "syntax: switchcon number\n");
+      exit(2);
+   }
+
+   vt = open( "/dev/tty1", O_RDONLY );
+   if( vt == -1 ) {
+      perror("open(/dev/tty1)");
+      exit(1);
+   }
+   if( ioctl( vt, VT_ACTIVATE, newvt ) ) {
+      perror("ioctl(VT_ACTIVATE)");
+      exit(1);
+   }
+   if( ioctl( vt, VT_WAITACTIVE, newvt ) ) {
+      perror("ioctl(VT_WAITACTIVE)");
+      exit(1);
+   }
+
+   close(vt);
+
+   return(0);
+}
+
+</screen>
+
+</para>
+
+</sect2>
+
+</sect1>
+

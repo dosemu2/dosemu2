@@ -1,0 +1,102 @@
+<sect1>
+<title>Sound</title>
+
+<para>
+The SB code is currently in a state of flux. Some changes to the code have been
+made which mean that I can separate the DSP handling from the rest of the SB
+code, making the main case statements simpler. In the meantime, Rutger
+Nijlunsing has provided a method for redirecting access to the MPU-401 chip
+into the main OS. 
+</para>
+
+<sect2>
+<title>Using the MPU-401 "Emulation"</title>
+
+<para>
+The Sound driver opens "/var/run/dosemu-midi" and
+writes the Raw MIDI data to this. A daemon is provided which can be can be used
+to seletc the instruments required for use on some soundcards. It is also
+possible to get various instruments by redirecting '/var/run/dosemu-midi' to
+the relevant part of the sound driver eg:
+</para>
+
+<para>
+
+<screen>
+% ln -s /dev/midi /var/run/dosemu-midi
+</screen>
+
+</para>
+
+<para>
+This will send all output straight to the default midi device and use whatever
+instruments happen to be loaded.
+</para>
+
+</sect2>
+
+<sect2>
+<title>The MIDI daemon</title>
+
+<para>
+
+<screen>
+  make midid
+</screen>
+
+</para>
+
+<para>
+This compiles and installs the midi daemon. The daemon currently has support
+for the 'ultra' driver and partial support for the 'OSS' driver (as supplied
+with the kernel) and for no midi system. Support for the 'ultra' driver will
+be compiled in automatically if available on your system.
+</para>
+
+<para>
+Copy the executable './bin/midid' so that it is on your path, or somewhere you
+can run it easily.
+</para>
+
+<para>
+Before you run DOSEMU for the first time, do the following:
+
+<screen>
+  mkdir -p ~/.dosemu/run           # if it doesen't exist
+  rm -f ~/.dosemu/run/dosemu-midi
+  mknod ~/.dosemu/run/dosemu-midi p
+</screen>
+
+</para>
+
+<para>
+Then you can use the midi daemon like this:
+
+<screen>
+  ./midid &#60; ~/.dosemu/run/dosemu-midi &#38;; dosemu
+</screen>
+
+</para>
+
+<para>
+(Assuming that you put the midid executeable in the directory you run DOSEMU
+from.) 
+</para>
+
+</sect2>
+
+<sect2>
+<title>Disabling the Emulation at Runtime</title>
+
+<para>
+You can disable the SB emulation by changing the 'sound' variable in
+/etc/dosemu.conf to 'off'. There is currently no way to specify at runtime
+which SB model DOSEMU should emulate; the best you can do is set the T value
+of the BLASTER environment variable (see sound-usage.txt), but not all
+programs will take note of this.
+</para>
+
+</sect2>
+
+</sect1>
+

@@ -1,0 +1,89 @@
+DOSEMU is a user-level program which uses certain special features
+of the Linux kernel and the 80386 processor to run MS-DOS/FreeDOS/
+DR-DOS in what we in the biz call a `DOS box.'
+
+You may freely use, modify and redistribute it under the terms
+of the GNU General Public License, version 2; for details see
+the file "COPYING".
+
+How to set up DOSEMU:
+* Installation from source:
+  please refer to the file INSTALL
+* Installation of the ready to use binary distribution (stable versions only):
+  please refer to the file README.bindist
+
+Something's not right!!!
+--------------------------------------------------------------------------
+
+- Read your dosemu.conf file carefully and make corrections.
+
+- Try disabling certain features.  On the linux console, the video options 
+  and some of the rawkeyboard options sometimes cause problems.
+
+- Read all documentation files carefully, and try to get some help from
+  others who have used DOSEMU.
+
+- Read the dosemu-HOWTO for Q&A's.
+
+- If no luck, please send us a debug report by typing 'dosemu -D+a -o debug'
+  and send the file debug together with your config files and a
+  description of your problem to the SF bug tracking system that you can
+  reach from
+
+    http://www.dosemu.org
+
+  Don't forget to mention the versions of DOSEMU, GCC, LIBC, Binutils etc.
+  For problems with the packaging of DOSEMU by Linux distributors,
+  please bother them directly - we won't hunt after those bugs.
+
+  For general discussion on dosemu use the mailing list
+  linux-msdos@vger.kernel.org
+
+- Please be patient with us.  We get flooded with bug reports and do our
+  best to respond in a timely fashion.
+
+Available documentation -- mostly somewhat outdated :(
+--------------------------------------------------------------------------
+
+You can just execute ./ViewDocs to read the docs.
+                     ==========
+
+./README.bindist
+	Describes the ready-to-use DOSEMU binary distribution, which
+	frees you from all bothering about compilation, installation
+	and configuration ... just _use_ it.
+./doc/dosemu-HOWTO.txt
+	This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
+	but still very helpful.  (Read this file first, however.)
+./ChangeLog
+	This is a log file of progress that have been done on
+	DOSEMU since previous versions.
+./doc/DANG.txt
+	The Dosemu Alterer Novice's Guide, for interested hackers
+	and programmers alike, if they want to look at the internals
+	of DOSEMU and how it works.
+./man/dosemu.bin.1
+	This is the 'lowlevel' DOSEMU man page. It is now up to date with 1.0.2.
+./man/dosemu.1
+	This is the DOSEMU man page of the wrapper script.
+./man/mkfatimage16.1
+	This describes how to create (empty) hdimages of various sizes.
+./doc/announce
+	The announcement textfile for DOSEMU.
+./doc/README.txt
+	Readme file for various applications and general purpose settings.
+./doc/README-tech.txt
+	Readme file for various technical details and settings.
+./doc/configuration.txt
+	How to use the menu driven configuration tools
+
+
+----------
+
+Many thanks to all involved, including all those who submitted debug
+output for our viewing pleasure, keep it coming.
+
+
+       Bart Oldeman
+
+Email: bart@dosemu.org

@@ -1,0 +1,267 @@
+<sect1>
+<title>Using Windows and Winsock</title>
+
+<para>
+This is the Windows Net Howto by Frisoni Gloriano 
+<ulink
+url="mailto:gfrisoni@hi-net.it"
+>&#60;gfrisoni@hi-net.it&#62;</ulink
+> 
+on 15 may 1997
+</para>
+
+<para>
+This document tries to describe how to run the Windows trumpet winsock over
+the dosemu built-in packet driver, and then run all TCP/IP winsock-based 
+application (netscape, eudora, mirc, free agent .....) in windows environment.
+</para>
+
+<para>
+This is a very long step-by-step list of operation, but you can make 
+little scripts to do all very quickly ;-)
+</para>
+
+<para>
+In this example, I use the dosnet based packet driver. It is very powerful
+because you can run a "Virtual net"  between your dos-windows session and the 
+linux, and run tcp/application application without a real (hardware) net.
+</para>
+
+<sect2>
+<title>LIST OF REQUIRED SOFTWARE</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ The WINPKT.COM virtual packet driver, version 11.2
+I have found this little tsr in the Crynwr packet driver distribution 
+file PKTD11.ZIP 
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The Trumpet Winsock 2.0 revision B winsock driver for windows.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>STEP BY STEP OPERATION (LINUX SIDE)</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+ Enable "dosnet" based dosemu packet driver: 
+</para>
+
+<para>
+
+<screen>
+      cd ./src/dosext/net/net
+      select_packet	 (Ask  single or multi -&#62;  m)
+</screen>
+ 
+</para>
+</listitem>
+<listitem>
+<para>
+ Make the dosnet linux module:
+</para>
+
+<para>
+
+<screen>
+      cd ./src/dosext/net/v-net
+      make
+</screen>
+
+</para>
+</listitem>
+<listitem>
+<para>
+ Make the new dosemu, with right packet driver support built-in:
+</para>
+
+<para>
+
+<screen>
+      make 
+      make install 
+</screen>
+
+</para>
+</listitem>
+<listitem>
+<para>
+ Now you must load the dosnet module:
+</para>
+
+<para>
+
+<screen>
+      insmod ./src/dosext/net/v-net/dosnet.o
+</screen>
+
+</para>
+</listitem>
+<listitem>
+<para>
+ Some linux-side network setup (activate device, routing). This stuff depends
+from your environment, so I write an example setup.
+</para>
+
+<para>
+Here you configure a network interface dsn0 (the dosnet interface) with
+the ip address 144.16.112.1 and add a route to this interface.
+</para>
+
+<para>
+This is a good example to make a "virtul network" from your dos/windows
+environment and the linux environment.
+</para>
+
+<para>
+
+<screen>
+      ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
+      route add -net 144.16.112.0 dsn0
+</screen>
+
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>STEP BY STEP OPERATION (DOS SIDE)</title>
+
+<para>
+I suppose you know how to run windows in dosemu. You can read the <xref linkend="Windows">
+document if you need more information. Windows is not very stable, but works.
+</para>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ start dosemu.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ copy the winpkt.com driver and the trumpet winsock driver in some 
+dos directory.
+</para>
+</listitem>
+<listitem>
+<para>
+ start the winpkt TSR. (dosemu assign the 0x60 interrupt vector to the 
+built-in packet driver)
+</para>
+
+<para>
+
+<screen>
+	winpkt 0x60
+</screen>
+
+</para>
+</listitem>
+<listitem>
+<para>
+ edit the trumpet winsock setup file trumpwsk.ini. Here is an example of 
+how to setup this file:
+(I think you can use less parameters, if you have the time to play with 
+this file. You can also setup this stuff from the winsock setup dialog-box).
+</para>
+
+<para>
+
+<screen>
+	[Trumpet Winsock]
+	netmask=255.255.255.0  &lt;-- class C netmask.
+	gateway=144.16.112.1   &lt;-- address in the default gateway.
+	dns=www.xxx.yyy.zzz    &lt;-- You must use right value for the dns.
+	domain=hi-net.it
+	ip=144.16.112.10       &lt;-- Windows address in the dosnet.
+	vector=60              &lt;-- packet driver interrupt vector.
+	mtu=1500
+	rwin=4096
+	mss=1460
+	rtomax=60
+	ip-buffers=32
+	slip-enabled=0         &lt;--- disable slip
+	slip-port=2
+	slip-baudrate=57600
+	slip-handshake=1
+	slip-compressed=0
+	dial-option=1
+	online-check=0
+	inactivity-timeout=5
+	slip-timeout=0
+	slip-redial=0
+	dial-parity=0
+	font=Courier,9
+	registration-name=""
+	registration-password=""
+	use-socks=0
+	socks-host=0.0.0.0
+	socks-port=1080
+	socks-id=
+	socks-local1=0.0.0.0 0.0.0.0
+	socks-local2=0.0.0.0 0.0.0.0
+	socks-local3=0.0.0.0 0.0.0.0
+	socks-local4=0.0.0.0 0.0.0.0
+	ppp-enabled=0            &lt;-------- disable ppp
+	ppp-usepap=0
+	ppp-username=""
+	ppp-password=""
+	win-posn=42 220 867 686 -1 -1 -4 -4 1
+	trace-options=16392
+	
+	[default vars]
+</screen>
+
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Now you can run windows, startup trumpet winsock and .....  
+enjoy with your windoze tcp/ip :-) 
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+Gloriano Frisoni. 
+<ulink
+url="mailto:gfrisoni@hi-net.it"
+>&#60;gfrisoni@hi-net.it&#62;</ulink
+> 
+</para>
+
+</sect2>
+
+</sect1>

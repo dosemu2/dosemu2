@@ -1,0 +1,106 @@
+#
+# DANG configuration Data - For v0.3
+#
+
+TITLE:		The DOSEMU Alterer Novices Guide
+AUTHOR:		Alistair MacDonald, &lt;alistair@slitesys.demon.co.uk&gt;
+ABSTRACT:	This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
+
+# BASEDIR sets a path fragment which is prepended to _all_ paths.
+BASEDIR: 	../../
+
+# GROUPs are formed from :
+# <group_name> <summary_file> <file1> ... <fileN>
+# These may be split over multiple lines, and use and whitespace characters
+# as separators (assuming the Perl lives up to it's claims ! 8-)  )
+GROUP:		Main doc/DANG/summary_Main dos.c emu.c include/emu.h
+GROUP:		Init doc/DANG/summary_Init base/init/init.c
+			base/init/config.c
+			base/init/dev_list.c
+#GROUP:		Clients doc/DANG/summary_Clients clients/ncurses.c
+GROUP:		DPMI doc/DANG/summary_DPMI dosext/dpmi/dpmi.c
+		dosext/dpmi/msdos.h
+GROUP:		Video doc/DANG/summary_Video env/video/vc.c
+			env/video/video.c env/video/X.c env/video/vgaemu.c
+			env/video/vesa.c
+			env/video/vesabios.S
+			env/video/vesabios_pm.S
+			env/video/attremu.c env/video/dacemu.c
+			env/video/seqemu.c env/video/crtcemu.c
+			env/video/remap.c env/video/remap_asm.S
+			env/video/console.c
+			env/video/dualmon.c env/video/et4000.c env/video/hgc.c
+			base/bios/int10.c env/video/s3.c env/video/terminal.c
+			env/video/trident.c env/video/vga.c 
+			env/video/vgaemu.c include/vgaemu.h
+			env/video/instremu.c
+GROUP:		New_Keyboard doc/DANG/summary_New_Keyboard
+			plugin/kbd_unicode/keyboard.c
+			plugin/kbd_unicode/keymaps.c
+			plugin/kbd_unicode/serv_xlat.c
+			plugin/kbd_unicode/serv_backend.c
+			plugin/kbd_unicode/serv_8042.c
+                        plugin/kbd_unicode/keyb_clients.c
+                        plugin/kbd_unicode/keyb_none.c
+			plugin/kbd_unicode/keyb_raw.c
+			plugin/term/keyb_slang.c
+			plugin/term/term_core.c
+GROUP:          Old_Keyboard doc/DANG/summary_Old_Keyboard
+                        plugin/keyboard/keymaps.c
+                        plugin/keyboard/serv_xlat.c
+                        plugin/keyboard/serv_backend.c
+                        plugin/keyboard/serv_8042.c
+                        plugin/keyboard/keyb_raw.c
+                        plugin/keyboard/keyb_slang.c
+GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c 
+			dosext/misc/xms.c 
+			base/async/int.c include/int.h
+			arch/linux/async/sigsegv.c
+			arch/linux/async/signal.c
+			include/ports.h base/misc/dosio.c base/misc/disks.c 
+			dev/misc/lpt.c 
+			base/dev/misc/timers.c
+			base/speaker/speaker.c
+			base/misc/shared.c
+			base/misc/dos2linux.c
+			base/misc/ioctl.c
+			base/dev/misc/cmos.c
+			base/dev/misc/lpt.c
+			base/dev/misc/pci.c
+			base/dev/misc/joystick.c
+			include/doshelpers.h
+			dosext/drivers/aspi.c
+GROUP:		CPU_Intel doc/DANG/summary_CPU_Intel
+			emu-i386/cpu.c
+			emu-i386/ports.c
+			emu-i386/do_vm86.c
+			emu-i386/fake_cpu.c
+			emu-i386/n_ports.c
+			emu-i386/cputime.c
+			emu-i386/simx86/sigsegv.c
+GROUP:		Serial doc/DANG/summary_Serial 
+			base/serial/ser_defs.h base/serial/ser_init.c
+			base/serial/ser_ports.c base/serial/ser_irq.c
+			base/serial/int14.c base/serial/fossil.c
+			include/serial.h
+#base/serial/README.serial
+GROUP:		Mouse doc/DANG/summary_Mouse base/mouse/mouse.c 
+GROUP:		Bios doc/DANG/summary_BIOS base/bios/bios.S
+			base/bios/hlt.c
+GROUP:		PIC doc/DANG/summary_PIC base/dev/pic/pic.c include/pic.h
+GROUP:		Sound doc/DANG/summary_Sound dosext/sound/sound.c
+		arch/linux/dosext/sound/linux_sound.c
+		base/dev/dma/dma.c
+GROUP:		FileAccess doc/DANG/summary_FileAccess
+			dosext/mfs/mfs.c
+#GROUP:		Net doc/DANG/summary_Net dosext/net/net/ipx.c
+#GROUP:		Shared doc/DANG/summary_SHARED dosemu/shared.c
+
+# INTRODUCTION is the location of Introduction. There may be
+# more than one of these.
+INTRODUCTION:	doc/DANG/DANG_intro
+
+# FINALLY is the location of a section to place at the end. There may be
+# more than one of these.
+FINALLY:	doc/DANG/DANG_outro
+

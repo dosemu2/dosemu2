@@ -1,0 +1,98 @@
+#
+# (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+# Makefile.conf.in for DOSEMU
+#
+# This file is included by all Makefiles
+
+SHELL = /bin/bash
+
+DOSBIN = dosemu.bin
+
+prefix=@prefix@
+bindir=@bindir@
+sysconfdir=@sysconfdir@
+datadir=@datadir@
+mandir=@mandir@
+docdir=@docdir@
+syshdimagedir=@syshdimagedir@
+x11fontdir=@x11fontdir@
+fdtarball=@fdtarball@
+abs_top_srcdir=@abs_top_srcdir@
+abs_top_builddir:=$(shell cd $(top_builddir) && pwd -P)
+PACKAGE_VERSION=@PACKAGE_VERSION@
+
+@SET_MAKE@
+
+INCDIR=@INCDIR@
+ifeq ("$(wildcard $(top_builddir)/*.ac)","$(top_builddir)/configure.ac")
+  top_srcdir=$(top_builddir)
+  srcdir=.
+else
+  top_srcdir=$(abs_top_srcdir)
+  srcdir:=$(abs_top_srcdir)$(subst $(abs_top_builddir),,$(shell pwd -P))
+  INCDIR += -I${top_srcdir}/src/include 
+endif
+
+CFLAGS=@CFLAGS@
+CPPFLAGS=@CPPFLAGS@
+LDFLAGS=@LDFLAGS@
+LIBS=@LIBS@
+CC=@CC@
+CPP=@CPP@
+
+ifneq "@ASM_PEDANTIC@" ""
+ASM_PEDANTIC=@ASM_PEDANTIC@
+endif
+
+YACC=@YACC@
+# NOTE: we really need bison, yacc won't work any more
+#YACC=bison -y
+LEX=@LEX@
+
+@X_SUPPORT@
+@X_GRAPHICS@
+
+# This gets defined even if we chose via ./include/config.h NOT to
+# use the debugger
+DEBUGGER=@DEBUGGER@
+
+@USE_MHPDBG@
+@USE_SBEMU@
+OPTIONALSUBDIRS = @OPTIONALSUBDIRS@
+PLUGINSUBDIRS = @PLUGINSUBDIRS@
+REQUIRED=@REQUIRED@
+@USE_ULTRA@
+
+OS=@CONFIG_HOST@
+RANLIB=@RANLIB@
+
+@ASPI_SUPPORT@
+@USE_SVGALIB@
+@USE_PTHREADS@
+@X86_EMULATOR@
+
+INSTALL=install -c
+VPATH=$(srcdir)
+REALTOPDIR=$(top_srcdir)
+SRCPATH=$(top_srcdir)/src
+BINPATH=$(top_builddir)/$(THISVERSION)
+VERSION=$(shell echo $(PACKAGE_VERSION) | cut -d. -f1)
+SUBLEVEL=$(shell echo $(PACKAGE_VERSION) | cut -d. -f2)
+PATCHLEVEL1=$(shell echo $(PACKAGE_VERSION) | cut -d. -f3)
+PATCHLEVEL2=$(shell echo $(PACKAGE_VERSION) | cut -d. -f4)
+ifeq "$(PATCHLEVEL2)" ""
+  PATCHLEVEL2=0
+  PATCHLEVEL=$(PATCHLEVEL1).0
+  PACKETNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL1)
+else
+  PATCHLEVEL=$(PATCHLEVEL1).$(PATCHLEVEL2)
+  PACKETNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+endif
+THISVERSION=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+EMUVER=$(VERSION).$(SUBLEVEL)
+
+CFLAGS += $(XXXCFLAGS)
+

@@ -1,0 +1,9 @@
+#!/bin/sh
+# getrom: get VBIOS ROM image from /dev/mem
+#
+# $Date$
+# $Source$
+# $Revision$
+# $State$
+#
+dd if=/dev/mem bs=32k skip=24 count=2

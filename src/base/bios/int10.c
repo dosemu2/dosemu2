@@ -1,0 +1,2084 @@
+/* 
+ * (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/* 
+ * DANG_BEGIN_MODULE
+ *
+ * REMARK
+ * Video BIOS implementation.
+ *
+ * This module handles the int10 video functions.
+ * Most functions here change only the video memory and status 
+ * variables; the actual screen is then rendered asynchronously 
+ * after these by Video->update_screen.
+ *
+ * /REMARK
+ * DANG_END_MODULE
+ *
+ * DANG_BEGIN_CHANGELOG
+ *
+ * 5/24/95, Erik Mouw (J.A.K.Mouw@et.tudelft.nl) and 
+ * Arjan Filius (I.A.Filius@et.tudelft.nl)
+ * changed int10() to make graphics work with X.
+ *
+ * 1998/04/05: Put some work into set_video_mode() (made it
+ * more VGA comaptible) and removed new_set_video_mode().
+ * Removed (useless) global variable "gfx_mode".
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
+ * 
+ * Readded new_set_video_mode, its needed for non-X compiles.
+ * -- EB 3 June 1998
+ *
+ * Renamed new_set_video_mode to X_set_video_mode to avoid confusion
+ * in the future
+ * -- Hans 980614
+ *
+ * 1998/12/12: Fixed some bugs and integrated Josef Pavlik's <jet@spintec.com>
+ * patches; improved font/palette changes, get screen mode (ah = 0x0f) fixed,
+ * cursor shape is now initialized during mode set.
+ * -- sw
+ *
+ * 2000/05/18: Splitted int10() into a X and non-X part. Reworked to X part so
+ * that it supports fonts in gfx modes.
+ * -- sw
+ *
+ * DANG_END_CHANGELOG
+ */
+
+
+#include "config.h"
+
+#include <string.h>
+#include <unistd.h>
+
+#if X_GRAPHICS
+#include "X.h"
+#endif
+
+#include "emu.h"
+#include "video.h"
+#include "memory.h"
+#include "bios.h"
+#include "vc.h"
+#include "speaker.h"
+
+#if X_GRAPHICS
+#include "vgaemu.h"
+#endif
+
+/*
+ * Activate some debug output.
+ */
+#define DEBUG_INT10	0
+
+/* a bit brutal, but enough for now */
+#if VIDEO_CHECK_DIRTY
+#define set_dirty(page) vm86s.screen_bitmap = 0xffffffff
+#else
+#define set_dirty(page)
+#endif
+
+#if USE_DUALMON
+  #if USE_SCROLL_QUEUE
+    #error "dualmon: You can't have defined USE_SCROLL_QUEUE together with USE_DUALMON"
+  #endif
+  #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
+  #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
+  /* This is the text screen base, the DOS program actually has to use.
+   * Programs that support simultaneous dual monitor support rely on
+   * the fact, that the BIOS takes B0000 for EQUIP-flags 4..5 = 3
+   * else B8000 as regenbuffer address. Each compatible PC-BIOS behaves so.
+   * This is ugly, but there is no screen buffer address in the BIOS-DATA
+   * at 0x400. (Hans)
+   */
+  #define BIOS_SCREEN_BASE (IS_SCREENMODE_MDA ? MDA_PHYS_TEXT_BASE : VGA_PHYS_TEXT_BASE)
+#endif
+
+/* this maps the cursor shape given by int10, fn1 to the actually
+   displayed cursor start&end values in cursor_shape. This seems 
+   to be typical IBM Black Compatiblity Magic.
+   I modeled it approximately from the behaviour of my own 
+   VGA's BIOS.
+   I'm not sure if it is correct for start=end and for font_heights
+   other than 16.
+*/
+
+#define i10_msg(x...) v_printf("INT10: " x)
+
+#if DEBUG_INT10 >= 1
+#define i10_deb(x...) v_printf("INT10: " x)
+#else
+#define i10_deb(x...)
+#endif
+
+static void tty_char_out(unsigned char ch, int s, int attr);
+static void int10_old(void);
+#if X_GRAPHICS
+static void int10_new(void);
+#endif
+
+static inline void set_cursor_shape(ushort shape) {
+   int cs,ce;
+
+   if (config.cardtype == CARD_NONE)
+     return;
+
+   cs=CURSOR_START(shape) & 0x1F;
+   ce=CURSOR_END(shape) & 0x1F;
+
+   if (shape & 0x6000 || cs>ce) {
+      i10_deb("no cursor\n");
+      cursor_shape=NO_CURSOR;
+      cursor_blink=0;
+      return;
+   }
+   
+   /* is this correct (my own VGA just turns off the cursor if
+      this bit is set)
+   */
+   cursor_blink = 1;
+
+   cs&=0x0F;
+   ce&=0x0F;
+   if (ce>3 && ce<12 && (config.cardtype != CARD_MDA)) {
+      if (cs>ce-3) cs+=font_height-ce-1;
+      else if (cs>3) cs=font_height/2;
+      ce=font_height-1;
+   }
+   i10_msg("mapped cursor: start %d, end %d\n", cs, ce);
+   CURSOR_START(cursor_shape)=cs;
+   CURSOR_END(cursor_shape)=ce;
+}
+
+/* This is a better scroll routine, mostly for aesthetic reasons. It was
+ * just too horrible to contemplate a scroll that worked 1 character at a
+ * time :-)
+ * 
+ * It may give some performance improvement on some systems (it does
+ * on mine) (Andrew Tridgell)
+ */
+void
+Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
+{
+  int dx = x1 - x0 + 1;
+  int dy = y1 - y0 + 1;
+  int x, y;
+  us blank = ' ' | (att << 8);
+  us tbuf[MAX_COLUMNS];
+
+  if (config.cardtype == CARD_NONE)
+     return;
+
+  if ( (config.cardtype == CARD_MDA) && ((att & 7) != 0) && ((att & 7) != 7) )
+    {
+      blank = ' ' | ((att | 7) << 8);
+    }
+
+
+  if (x1 >= co || y1 >= li)
+    {
+      v_printf("VID: Scroll parameters out of bounds, in Scroll!\n");
+      v_printf("VID: Attempting to fix with clipping!\n");
+    /* kludge for ansi.sys' clear screen - we'd better do real clipping */
+    /* Also a cludge to fix list, but in the other dimension */
+      if (x1 >= co) x1 = co -1;
+      if (y1 >= li) y1 = li -1;
+      dx = x1 - x0 +1;
+      dy = y1 - x0 +1;
+    }
+  if (dx <= 0 || dy <= 0 || x0 < 0 || x1 >= co || y0 < 0 || y1 >= li)
+    {
+      v_printf("VID: Scroll parameters impossibly out of bounds, giving up!\n");
+    return;
+    }
+
+  /* make a blank line */
+  for (x = 0; x < dx; x++)
+    tbuf[x] = blank;
+
+  if (l >= dy || l <= -dy)
+    l = 0;
+
+  set_dirty(video_page);
+  
+  if (l == 0) {			/* Wipe mode */
+    for (y = y0; y <= y1; y++)
+      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
+      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+    return;
+  }
+
+  if (l > 0) {
+    if (dx == co)
+      /*memcpy(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));*/
+      MEMCPY_DOS2DOS(&sadr[y0 * co], &sadr[(y0 + l) * co], (dy - l) * dx * sizeof(us));
+    else
+      for (y = y0; y <= (y1 - l); y++)
+	/*memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));*/
+	MEMCPY_DOS2DOS(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
+
+    for (y = y1 - l + 1; y <= y1; y++)
+      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
+      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+  }
+  else {
+    for (y = y1; y >= (y0 - l); y--)
+      /*memcpy(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));*/
+      MEMCPY_DOS2DOS(&sadr[y * co + x0], &sadr[(y + l) * co + x0], dx * sizeof(us));
+
+    for (y = y0 - l - 1; y >= y0; y--)
+      /*memcpy(&sadr[y * co + x0], tbuf, dx * sizeof(us));*/
+      MEMCPY_2DOS(&sadr[y * co + x0], tbuf, dx * sizeof(us));
+  }
+}
+
+/**************************************************************/
+/* scroll queue */
+
+#if USE_SCROLL_QUEUE
+
+int sq_head=0, sq_tail=0;
+
+#define SQ_INC(i) ((i+1)%(SQ_MAXLENGTH+1))
+
+struct scroll_entry *get_scroll_queue() {
+   if (sq_head==sq_tail) return NULL;
+   sq_tail=SQ_INC(sq_tail);
+   return &scroll_queue[sq_tail];
+}
+
+void clear_scroll_queue() {
+   while(get_scroll_queue());
+}
+
+volatile int video_update_lock = 0;
+
+void bios_scroll(int x0,int y0,int x1,int y1,int n,byte attr) {
+   struct scroll_entry *s;
+   int sqh2;
+
+   if (config.cardtype == CARD_NONE)
+     return;
+
+   VIDEO_UPDATE_LOCK();
+   sqh2=SQ_INC(sq_head);
+   if (n!=0 && !Video->is_mapped && sqh2!=sq_tail) {
+      s=&scroll_queue[sq_head];
+      if (sq_head!=sq_tail && 
+	 s->x0==x0 && s->y0==y0 && 
+	 s->x1==x1 && s->y1==y1 &&
+	 s->attr==attr)
+      {
+         s->n+=n;
+      }
+      else {
+	 s=&scroll_queue[sqh2];
+         s->x0=x0; s->y0=y0;
+         s->x1=x1; s->y1=y1;
+         s->n=n;   s->attr=attr;
+         sq_head=sqh2;
+      }
+   }
+   Scroll(screen_adr,x0,y0,x1,y1,n,attr);
+   VIDEO_UPDATE_UNLOCK();
+}
+#else
+  #if USE_DUALMON
+    #define bios_scroll(x0,y0,x1,y1,n,attr) ({\
+     if (IS_SCREENMODE_MDA) Scroll((void *)MDA_PHYS_TEXT_BASE,x0,y0,x1,y1,n,attr); \
+     else Scroll(screen_adr,x0,y0,x1,y1,n,attr);\
+    })
+  #else
+    #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
+  #endif
+#endif
+
+/* Output a character to the screen. */ 
+void char_out(unsigned char ch, int page)
+{
+  tty_char_out(ch, page, -1);
+}
+
+/*
+ * Output a character to the screen.
+ * If attr != -1, set the attribute byte, too.
+ */ 
+void tty_char_out(unsigned char ch, int s, int attr)
+{
+  int newline_att = 7;
+  int xpos, ypos;
+  int gfx_mode = 0;
+  unsigned char *dst;
+
+#if USE_DUALMON
+  int virt_text_base = BIOS_SCREEN_BASE;
+#endif
+
+/* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
+
+  if (config.cardtype == CARD_NONE) {
+#if 1
+     /* FIXME
+      *
+      * For some unknown reasons (FILE *)stdout gets clobbered
+      * when we open a debug file (dbg_fd, -o/-O options on commandline)
+      * and even fputc(ch, stdout) then does not write anything.
+      * I could not find out _where_ this happens.
+      *
+      * However, writing directly to fd 1 still works. Therefore, because
+      * we do setbuf(stdout, NULL) anyway (src/base/init/init.c), we work
+      * around here this way.
+      *                         --Hans, 2001/04/27
+      */
+     write(1, &ch, 1);
+#else
+     putchar (ch);
+#endif
+     return;
+  }
+
+  xpos = get_bios_cursor_x_position(s);
+  ypos = get_bios_cursor_y_position(s);
+
+  /* check for gfx mode */
+#if X_GRAPHICS
+  if(config.X && vga.mode_class != TEXT) gfx_mode = 1;
+#endif
+
+  switch (ch) {
+  case '\r':         /* Carriage return */
+    xpos = 0;
+    break;
+
+  case '\n':         /* Newline */
+    /* Color newline */
+    newline_att = gfx_mode ? 0 : ATTR(SCREEN_ADR(s) + ypos*co + xpos);
+    ypos++;
+    xpos = 0;                  /* EDLIN needs this behavior */
+    break;
+
+  case 8:           /* Backspace */
+    if (xpos > 0) xpos--;
+    break;
+  
+  case '\t':        /* Tab */
+    i10_deb("char_out: tab\n");
+    do {
+	char_out(' ', s); 
+  	xpos = get_bios_cursor_x_position(s);
+    } while (xpos % 8 != 0);
+    break;
+
+  case 7:           /* Bell */
+    speaker_on(125, 0x637);
+    return;
+
+  default:          /* Printable character */
+#if X_GRAPHICS
+    if(gfx_mode) {
+      vgaemu_put_char(xpos, ypos, ch, attr);
+    }
+    else
+#endif
+    {
+      dst = (unsigned char *) (SCREEN_ADR(s) + ypos*co + xpos);
+      WRITE_BYTE(dst, ch);
+      if(attr != -1) WRITE_BYTE(dst + 1, attr);
+      set_dirty(s);
+    }
+    xpos++;
+  }
+
+  if (xpos == co) {
+    xpos = 0;
+    ypos++;
+  }
+  if (ypos == li) {
+    ypos--;
+#if X_GRAPHICS
+    if(gfx_mode)
+      vgaemu_scroll(0, 0, co - 1, li - 1, 1, 0);
+    else
+#endif
+      bios_scroll(0,0,co-1,li-1,1,newline_att);
+  }
+  set_bios_cursor_x_position(s, xpos);
+  set_bios_cursor_y_position(s, ypos);
+  cursor_col = xpos;
+  cursor_row = ypos;
+}
+
+/* The following clears the screen buffer. It does it only to the screen 
+ * buffer.  If in termcap mode, the screen will be cleared the next time
+ * restore_screen() is called.
+ */
+void
+clear_screen(int s, int att)
+{
+  u_short *schar, blank = ' ' | (att << 8);
+  int lx;
+#if USE_DUALMON
+  int virt_text_base = BIOS_SCREEN_BASE;
+#endif
+
+  if (config.cardtype == CARD_NONE)
+     return;
+
+  v_printf("INT10: cleared screen: page %d, attr 0x%02x, screen_adr %p\n", s, att, SCREEN_ADR(s));
+  if (s > max_page) return;
+  
+  for (schar = SCREEN_ADR(s), 
+       lx = 0; lx < (co * li); 
+/*       *(schar++) = blank, lx++); */
+       WRITE_WORD(schar++, blank), lx++);
+
+  set_dirty(s);
+  set_bios_cursor_x_position(s, 0);
+  set_bios_cursor_y_position(s, 0);
+  cursor_row = cursor_col = 0;
+  clear_scroll_queue();
+}
+
+
+#if X_GRAPHICS
+
+/*
+ * set_video_mode() accepts both (S)VGA and VESA mode numbers
+ * It should be fully compatible with the old set_video_mode()
+ * function.
+ * Note: bit 16 in "mode" is used internally to indicate that
+ * nothing should be done except adjusting the font size.
+ * -- 1998/04/04 sw
+ */
+
+static boolean X_set_video_mode(int mode) {
+  vga_mode_info *vmi;
+  int clear_mem = 1;
+  int adjust_font_size = 0;
+  unsigned u;
+
+  if (config.cardtype == CARD_NONE) {
+    i10_msg("set_video_mode: no video!\n");
+    return 0;
+  }
+
+
+  if(mode & (1 << 16)) {
+    adjust_font_size = 1;
+    mode &= ~(1 << 16);
+  }
+
+  mode &= 0xffff;
+
+  if(mode != video_mode) adjust_font_size = 0;
+
+  i10_msg("set_video_mode: mode 0x%02x%s\n", mode, adjust_font_size ? " (adjust font size)" : "");
+
+  if((vmi = vga_emu_find_mode(mode, NULL)) == NULL) {
+    i10_msg("set_video_mode: undefined video mode\n");
+    return 0;
+  }
+
+  if(Video->setmode == NULL) {
+    i10_msg("set_video_mode: no setmode handler!\n");
+    return 0;
+  }
+
+  if(adjust_font_size) {
+    text_scanlines = vmi->height;
+    li = text_scanlines / vga_font_height;
+    if(li > MAX_LINES) li = MAX_LINES;
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    if(vmi->mode_class == TEXT) X_set_textsize(co, li);
+    return 1;
+  }
+
+  video_mode = mode;
+
+  if(mode >= 0x80 && mode < 0x100) {
+    mode &= 0x7f;
+    clear_mem = 0;
+  }
+  if(mode & 0x8000) {
+    mode &= ~0x8000;
+    clear_mem = 0;
+  }
+
+  if(config.cardtype == CARD_MDA) video_mode = 7;
+
+  /*
+   * We store the SVGA mode number (if possible) even when setting
+   * a VESA mode.
+   * Note that this gives mode 0x7f if no VGA mode number
+   * had been assigned. -- sw
+   */
+  WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+
+  if(vmi->mode_class == TEXT) {
+    clear_scroll_queue();
+  }
+
+  li = vmi->text_height;
+  co = vmi->text_width;
+  if(li > MAX_LINES) li = MAX_LINES;
+  vga_font_height = vmi->char_height;
+  text_scanlines = vmi->height;
+
+  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
+  WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+
+#if USE_DUALMON
+  /*
+   * The following code (& comment) is taken literally
+   * from the old set_video_mode(). Don't know what it's
+   * for (or if it works). -- 1998/04/04 sw 
+   */
+
+  /*
+   * This to be sure in case of older DOS programs probing HGC.
+   * There was no secure way to detect a HGC before VGA was invented.
+   * ( Now we can do INT 10, AX=1A00 ).
+   * Some older DOS programs do it by modifying EQUIP-flags
+   * and then let the BIOS say, if it can ?!?!)
+   * If we have config.dualmon, this happens legally.
+   */
+  if(config.dualmon)
+    Video->setmode(7, co, li);
+  else
+#endif
+
+  /* setmode needs video_mode to _still have_ the memory-clear bit -- sw */
+  Video->setmode(vmi->mode_class, co, li);
+
+  /*
+   * video_mode is expected to be the mode number _without_ the
+   * memory-clear bit
+   * -- sw
+   */
+  video_mode = mode;
+
+  if(clear_mem && vmi->mode_class == TEXT) clear_screen(0, 7);
+
+  WRITE_BYTE(BIOS_VIDEO_INFO_0, clear_mem ? 0x60 : 0xe0);
+  memset((void *) 0x450, 0, 0x10);	/* equiv. to set_bios_cursor_(x/y)_position(0..7, 0) */
+
+  video_page = 0;
+  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);
+  screen_adr = (void *) (vga.buffer_seg << 4);
+  screen_mask = 0;
+  cursor_col = get_bios_cursor_x_position(0);
+  cursor_row = get_bios_cursor_y_position(0);
+
+  set_cursor_shape(0x0607);
+  WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
+
+  WRITE_WORD(BIOS_VIDEO_PORT, vga.config.mono_port ? 0x3b4 : 0x3d4);
+
+  switch(vga.char_height) {
+    case 14:
+      u = vgaemu_bios.font_14;
+      break;
+    case 16:
+      u = vgaemu_bios.font_16;
+      break;
+    default:
+      u = vgaemu_bios.font_8;
+  }
+
+  SETIVEC(0x43, 0xc000, u);
+
+  return 1;
+}    
+#endif /* X_GRAPHICS */
+
+
+/* XXX- shouldn't this reset the current video page to 0 ? 
+*/
+
+boolean set_video_mode(int mode) {
+  int type=0;
+  int old_video_mode,oldco;
+
+#ifdef X_GRAPHICS
+  if (Video == &Video_X) return X_set_video_mode(mode);
+#endif  
+  i10_msg("set_video_mode: mode 0x%02x\n",mode);
+  
+  oldco = co;
+  old_video_mode = video_mode;
+  video_mode=mode&0x7f;
+
+  if (Video->setmode == 0)
+    { 
+      v_printf("video: no setmode handler!\n");
+      goto error;
+    }
+
+
+  switch (mode&0x7f) {
+  case 0x50:
+  case 0x51:
+  case 0x52:
+    co=80;
+    goto do_text_mode;
+  case 0x53:
+  case 0x54:
+  case 0x55:
+  case 0x56:
+  case 0x57:
+  case 0x58:
+  case 0x59:
+  case 0x5a:
+    co=132;
+    goto do_text_mode;
+  
+  case 0:
+  case 1:
+    /* 40 column modes... */
+    co=40;
+    goto do_text_mode;
+    
+  case 7:
+    /*
+     * This to be sure in case of older DOS programs probing HGC.
+     * There was no secure way to detect a HGC before VGA was invented.
+     * ( Now we can do INT 10, AX=1A00 ).
+     * Some older DOS programs do it by modifying EQUIP-flags
+     * and then let the BIOS say, if it can ?!?!)
+     * If we have config.dualmon, this happens legaly.
+     */
+#if USE_DUALMON
+    if (config.dualmon) {
+      type=7;
+      text_scanlines = 400;
+      vga_font_height=text_scanlines/25;
+    }
+#endif
+    /* fall through */
+     
+  case 2:
+  case 3:
+    /* set 80 column text mode */
+#if USE_DUALMON
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co = CO); /*80*/
+#else
+    co=80;
+#endif
+    
+do_text_mode:
+    clear_scroll_queue();
+
+    li=text_scanlines/vga_font_height;
+    if (li>MAX_LINES) li=MAX_LINES;
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+    Video->setmode(type,co,li);
+    /* mode change clears screen unless bit7 of AL set */
+    if (!(mode & 0x80))
+       clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
+
+    if ( config.cardtype == CARD_MDA )
+      mode = 7;
+       
+    break;
+
+
+case 0x13:	/*Not finished ! */
+case 0x5c:
+case 0x5d:
+case 0x5e:
+case 0x62:
+  /* 0x01 == GRAPH for us, but now it's sure! */
+  if (Video->setmode != NULL)
+  Video->setmode(0x01,0,0);
+  break;
+
+  default:
+    /* handle graphics modes here */
+    v_printf("undefined video mode 0x%x\n", mode);
+  goto error;
+  }
+
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
+
+  if (oldco != co)
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
+  return 1;
+
+error:
+  /* don't change any state on failure */
+  video_mode = old_video_mode;
+  return 0;
+}    
+
+/* get the active and alternate display combination code */
+static void get_dcc(int *active_dcc, int *alternate_dcc)
+{
+#if USE_DUALMON
+  if (config.dualmon) {
+    if (IS_SCREENMODE_MDA) {
+      *active_dcc = MDA_VIDEO_COMBO;  /* active display */
+      *alternate_dcc = video_combo;
+    }
+    else {
+      *active_dcc = video_combo;     /* active display */
+      *alternate_dcc = MDA_VIDEO_COMBO;
+    }
+    return;
+  }
+#endif
+  *active_dcc = video_combo;	/* active display */
+  *alternate_dcc = 0;		/* no inactive display */
+}
+
+/* INT 10 AH=1B - FUNCTIONALITY/STATE INFORMATION (PS,VGA/MCGA) */
+static void return_state(Bit8u *statebuf) {
+	int active_dcc, alternate_dcc;
+	
+#ifdef X_GRAPHICS
+        if(!config.dualmon && config.X) {
+	   WRITE_WORD(statebuf, vgaemu_bios.functionality - 0xc0000);
+	   WRITE_WORD(statebuf + 2, 0xc000);
+        }
+#else
+	memset(statebuf, 0, 4); /* XXX pointer to static functionality table */
+#endif	
+	/* store bios 0:449-0:466 at ofs 0x04 */
+	memcpy(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
+	/* store bios 0:484-0:486 at ofs 0x22 */
+	memcpy(statebuf + 0x22, (char *)0x484, 0x486 - 0x484 + 1);
+	/* correct number of rows-1 to number of rows at offset 0x22 */
+	statebuf[0x22]++;
+	get_dcc(&active_dcc, &alternate_dcc);
+	statebuf[0x25] = active_dcc;
+	statebuf[0x26] = alternate_dcc;
+	statebuf[0x27] = 16;/* XXX number of colors, low byte */
+	statebuf[0x28] = 0; /* XXX number of colors, high byte */
+	statebuf[0x29] = 8; /* XXX number of pages supported */
+	statebuf[0x2a] = 2; /* XXX number of scanlines 0-3=200,350,400,480 */
+	statebuf[0x2b] = 0; /* XXX primary character block */
+	statebuf[0x2c] = 0; /* XXX secondary character block */
+	statebuf[0x31] = 3; /* video memory: 3 = 256K */
+	statebuf[0x32] = 0; /* XXX save pointer state flags */
+	memset(statebuf + 0x33, 0, 13);
+}
+
+
+/******************************************************************/
+
+/* the actual int10 handler */
+
+int int10(void)
+{
+#if X_GRAPHICS
+  if(!config.dualmon && config.X) {
+    int10_new();
+  } else
+#endif
+    int10_old();
+  return 1;
+}
+
+void int10_old()
+{
+  /* some code here is copied from Alan Cox ***************/
+  int x, y;
+  unsigned int page;
+  u_char c;
+  us *sm;
+
+#if USE_DUALMON
+  int virt_text_base = BIOS_SCREEN_BASE;
+  static int last_equip=-1;
+
+  if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
+    v_printf("VID: int10 entry, equip-flags=0x%04x\n",READ_WORD(BIOS_CONFIGURATION));
+    last_equip = BIOS_CONFIG_SCREEN_MODE;
+    if (IS_SCREENMODE_MDA) Video->is_mapped = 1;
+    else Video->is_mapped = Video_default->is_mapped;
+    li= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) + 1;
+    co= READ_WORD(BIOS_SCREEN_COLUMNS);
+  }
+#endif
+
+  if (debug_level('v') >= 3)
+    {
+      if (debug_level('v') >= 4)
+/*	dbug_printf("int10 near %04x:%08lx\n", LWORD(cs), REG(eip));*/
+	dbug_printf("int10 near %04x:%08lx\n", READ_SEG_REG(cs), REG(eip));
+      if ( (LO(ax) >= ' ') && (LO(ax) < 0x7f) )
+	dbug_printf("int10 AH=%02x AL=%02x '%c'\n",
+		    HI(ax), LO(ax), LO(ax));
+      else
+	dbug_printf("int10 AH=%02x AL=%02x\n", HI(ax), LO(ax));
+    }
+
+#if 0
+  v_printf("VID: int10, ax=%04x bx=%04x\n",LWORD(eax),LWORD(ebx));
+#endif
+  NOCARRY;
+
+  switch (HI(ax)) {
+  case 0x0:			/* define mode */
+    v_printf("define mode: 0x%x\n", LO(ax));
+    /* set appropriate font height for 25 lines */
+    vga_font_height=text_scanlines/25;
+    if (!set_video_mode(LO(ax))) {
+       v_printf("int10,0: set_video_mode failed\n");
+       CARRY;
+    }
+    break;
+
+  case 0x1:			/* define cursor shape */
+    v_printf("define cursor: 0x%04x\n", LWORD(ecx));
+    set_cursor_shape(LWORD(ecx));
+    WRITE_WORD(BIOS_CURSOR_SHAPE, LWORD(ecx));
+    break;
+    
+  case 0x2:			/* set cursor pos */
+    page = HI(bx);
+    x = LO(dx);
+    y = HI(dx);
+    v_printf("set cursor: pg:%d x:%d y:%d\n", page, x, y);
+    if (page > 7) {
+      v_printf("ERROR: video error (setcur/page>7: %d)\n", page);
+      CARRY;
+      return;
+    }
+    if (x >= co || y >= li) {
+      /* some apps use this to hide the cursor,
+       * we move it 1 char behind the visible part
+       */
+      x = co;
+      y = li -1;
+    }
+
+    set_bios_cursor_x_position(page, x);
+    set_bios_cursor_y_position(page, y);
+    cursor_col = x;
+    cursor_row = y;
+    break;
+
+  case 0x3:			/* get cursor pos/shape */
+    page = HI(bx);
+    if (page > 7) {
+      v_printf("ERROR: video error(0x3 page>7: %d)\n", page);
+      CARRY;
+      return;
+    }
+    REG(edx) = (get_bios_cursor_y_position(page) << 8) 
+              | get_bios_cursor_x_position(page);
+    REG(ecx) = READ_WORD(BIOS_CURSOR_SHAPE);
+    break;
+
+  case 0x5:
+    {				/* change page */
+#if USE_DUALMON
+      if (config.dualmon && IS_SCREENMODE_MDA) break;
+#endif
+      page = LO(ax);
+      v_printf("VID: change page from %d to %d!\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
+      if (page > max_page) {
+	v_printf("ERROR: video error: set bad page %d\n", page);
+	CARRY;
+	break;
+      }
+      if (config.console_video) set_vc_screen_page(page);
+#if X_GRAPHICS
+      if (config.X) vga_emu_set_text_page(page, TEXT_SIZE);
+#endif
+
+      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
+      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
+      screen_adr = SCREEN_ADR(page);
+      screen_mask = 1 << page;
+      set_dirty(page);
+      cursor_col = get_bios_cursor_x_position(page);
+      cursor_row = get_bios_cursor_y_position(page);
+      break;
+    }
+
+  case 0x6:			/* scroll up */
+    v_printf("scroll up %d %d, %d %d, %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
+    bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
+    break;
+
+  case 0x7:			/* scroll down */
+    v_printf("scroll dn %d %d, %d %d, %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax),HI(bx));
+    bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
+    break;
+
+  case 0x8:			/* read character at x,y + attr */
+    page = HI(bx);
+    if (page > max_page) {
+      v_printf("ERROR: read char from bad page %d\n", page);
+      CARRY;
+      break;
+    }
+    sm = SCREEN_ADR(page);
+    REG(eax) = sm[co * get_bios_cursor_y_position(page) 
+		     + get_bios_cursor_x_position(page)];
+    break;
+
+    /* these two put literal character codes into memory, and do
+       * not scroll or move the cursor...
+       * the difference is that 0xA ignores color for text modes
+       */
+  case 0x9:
+  case 0xA:
+    {
+      u_short *sadr;
+      u_short c_attr;
+      int n;
+
+      page = HI(bx);
+      sadr = (u_short *) SCREEN_ADR(page) 
+	     + get_bios_cursor_y_position(page) * co
+	     + get_bios_cursor_x_position(page);
+      n = LWORD(ecx);
+      c = LO(ax);
+
+      /* XXX - need to make sure this doesn't overrun video memory!
+       * we don't really know how large video memory is yet (I haven't
+       * abstracted things yet) so we'll just leave it for the
+       * Great Video Housecleaning foretold in the TODO file of the
+       * ancients
+       */
+      if (HI(ax) == 9) {                /* use attribute from BL */
+	 c_attr = c | LO(bx)<<8;
+	 while(n--)
+	    /* *(sadr++) = c_attr; */
+	    WRITE_WORD(sadr++, c_attr);
+      }
+      else {                            /* leave attribute as it is */
+	 while(n--)
+	    /* *(char*)(sadr++) = c; */
+	    WRITE_BYTE(sadr++, c);
+      }
+      set_dirty(page);
+      break;
+    }
+
+  case 0x13:                    /* write string */
+    {
+      u_short *sadr;
+      u_short attr;
+      char *src;
+      int n,x,y;
+
+      page = HI(bx);
+      x = LO(dx);
+      y = HI(dx);
+      sadr = (u_short *) SCREEN_ADR(page) + y*co + x;
+      n = LWORD(ecx);
+      src = SEG_ADR((char*),es,bp);
+      
+      if (LO(ax) < 2) {                  /* use attribute in BL */
+        attr=LO(bx)<<8;
+#if 1					/* 1998/03/13 sengoku@intsys.co.jp */
+        x += n;
+	while(n--) {
+	  /* *(sadr++) = *src++ | attr; */
+          if (*src <= 0x1a) {
+            switch(*src) {
+              case 0x0d :
+                sadr = (u_short *) SCREEN_ADR(page) + y*co, x = n;
+                src++;
+                break;
+              case 0x0a :
+                sadr += co, x--, y++;
+                src++;
+                break;
+              case 0x07 : /* beep */
+                speaker_on(125, 0x637);
+                x--;
+                src++;
+                break;
+              case 0x08 : /* backspace */
+                sadr--, x--;
+                src++;
+                break;
+              default:
+                WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
+                break;
+            }
+          } else {
+            WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
+          }
+        }
+#else
+	while(n--)
+	  /* *(sadr++) = *src++ | attr; */
+            WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
+#endif
+      }
+      else {                             /* use attributes in buffer */
+	/*memcpy(sadr,src,n*2);*/
+	MEMCPY_DOS2DOS(sadr,src,n*2);
+      }
+
+      if (LO(ax)&1) {                    /* update cursor position */
+         n = x+co*y;
+	 set_bios_cursor_x_position(page, n%co);
+	 set_bios_cursor_y_position(page, n/co);
+      }
+      set_dirty(page);
+    }
+    break;
+
+  case 0xe:			/* print char */
+    char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
+    break;
+
+  case 0x0f:			/* get video mode */
+    HI(ax) = co & 0xff;
+#if USE_DUALMON
+    if(IS_SCREENMODE_MDA)
+      LO(ax) = READ_BYTE(BIOS_VIDEO_MODE);
+    else 
+#endif
+    {
+      unsigned m = video_mode & 0xff;
+
+#if X_GRAPHICS
+      if(config.X) {
+        if(vga.mode & ~0xff) {
+          /*
+           * For VESA modes we look for an equivalent VGA mode number
+           * and, if we don't have one, use 0x7f.
+           */
+          m = vga.VGA_mode == -1 ? 0x7f : vga.VGA_mode;
+          if(vga.mode & 0x8000) m |= 0x80;
+        }
+      }
+#endif
+      LO(ax) = m;
+      HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
+      v_printf(
+        "INT10: get screen mode: mode = 0x%02x (%u colums, page %u)\n",
+        (unsigned) LO(ax), (unsigned) HI(ax), (unsigned) HI(bx)
+      );
+    }
+    break;
+
+  case 0x10:			/* ega palette */
+    /* Sets blinking or bold background mode.  This is important for 
+     * PCTools type programs that uses bright background colors.
+     */
+    if(LO(ax) == 3) char_blink = LO(bx) & 1;
+
+#if X_GRAPHICS
+    /* root@zaphod */
+    /* Palette register stuff. Only for the VGA emulator used by X */
+    if(config.X) {
+       int i, count;
+       unsigned char *src;
+       unsigned char index, m;
+       DAC_entry rgb;
+
+       switch(LO(ax)) {
+         case 0x00:	/* Set Palette Register */
+           Attr_set_entry(LO(bx), HI(bx));
+           break;
+
+         case 0x01:	/* Set Overscan Color */
+           Attr_set_entry(0x11, HI(bx));
+           break;
+
+         case 0x02:	/* Set Palette & Overscan Color */
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < 0x10; i++) Attr_set_entry(i, src[i]);
+           Attr_set_entry(0x11, src[i]);
+           break;
+
+         case 0x03:	/* Toggle Intensity/Blinking Bit */
+           m = Attr_get_entry(0x10) & ~(1 << 3);
+           m |= (LO(bx) & 1) << 3;
+           Attr_set_entry(0x10, m);
+           break;
+
+         case 0x07:	/* Read Palette Register */
+           HI(bx) = Attr_get_entry(LO(bx));
+           break;
+
+         case 0x08:	/* Read Overscan Color */
+           HI(bx) = Attr_get_entry(0x11);
+           break;
+
+         case 0x09:	/* Read Palette & Overscan Color */
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < 0x10; i++) src[i] = Attr_get_entry(i);
+           src[i] = Attr_get_entry(0x11);
+           break;
+
+         case 0x10:	/* Set Individual DAC Register */
+           DAC_set_entry(LO(bx), HI(dx), HI(cx), LO(cx));
+           break;
+
+         case 0x12:	/* Set Block of DAC Registers */
+           index = LO(bx);
+           count = LWORD(ecx);
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < count; i++, index++)
+             DAC_set_entry(index, src[3*i], src[3*i + 1], src[3*i + 2]);
+           break;
+
+         case 0x13:	/* Select Video DAC Color Page */
+           m = Attr_get_entry(0x10);
+           switch(LO(bx)) {
+             case 0:	/* Select Page Mode */
+               m &= ~(1 << 7);
+               m |= (HI(bx) & 1) << 7;
+               Attr_set_entry(0x10, m);
+               break;
+             case 1:	/* Select Page */
+               if(m & (1 << 7))
+                 Attr_set_entry(0x14, HI(bx) & 0xf);
+               else
+                 Attr_set_entry(0x14, (HI(bx) & 0x3) << 2);
+               break;
+           }
+           break;
+
+         case 0x15:	/* Read Individual DAC Register */
+           rgb.index = LO(bx);
+           DAC_get_entry(&rgb);
+           HI(dx) = rgb.r; HI(cx) = rgb.g; LO(cx) = rgb.b;
+           break;
+
+         case 0x17:	/* Read Block of DAC Registers */
+           index = LO(bx);
+           count = LWORD(ecx);
+           src = SEG_ADR((unsigned char *), es, dx);
+           for(i = 0; i < count; i++, index++) {
+             rgb.index = index;
+             DAC_get_entry(&rgb);
+             src[3*i] = rgb.r; src[3*i + 1] = rgb.g; src[3*i + 2] = rgb.b;
+           }
+           break;
+
+         case 0x18:	/* Set PEL Mask */
+           DAC_set_pel_mask(LO(bx));
+           break;
+
+         case 0x19:	/* Read PEL Mask */
+           LO(bx) = DAC_get_pel_mask();
+           break;
+
+         case 0x1a:	/* Get Video DAC Color Page */
+           LO(bx) = m = (Attr_get_entry(0x10) >> 7) & 1;
+           HI(bx) = (Attr_get_entry(0x14) & 0xf) >> (m ? 0 : 2);
+           break;
+
+         case 0x1b:	/* Convert to Gray */
+           for(index = LO(bx), count = LWORD(ecx); count--; index++)
+             DAC_rgb2gray(index);
+           break;
+
+         default:
+           break;
+       }
+    }
+#endif
+    break;
+
+#if 0
+  case 0xb:			/* palette */
+  case 0xc:			/* set dot */
+  case 0xd:			/* get dot */
+    break;
+#endif
+
+  case 0x4:			/* get light pen */
+    v_printf("ERROR: video error(no light pen)\n");
+#if 0
+    CARRY;
+#else
+    HI(ax) = 0;   /* "light pen switch not pressed" */
+                  /* This is how my VGA BIOS behaves [rz] */
+#endif    
+    return;
+
+  case 0x1a:			/* get display combo */
+    if (LO(ax) == 0) {
+      int active_dcc, alternate_dcc;
+      v_printf("get display combo!\n");
+      LO(ax) = 0x1a;		/* valid function=0x1a */
+      get_dcc(&active_dcc, &alternate_dcc);
+      LO(bx) = active_dcc;
+      HI(bx) = alternate_dcc;
+    }
+    else {
+      v_printf("set display combo not supported\n");
+    }
+    break;
+
+  case 0x11:                    /* character generator functions */
+    {
+      int old_li = li;           /* preserve the state in case of error */
+      int old_font_height = vga_font_height;
+
+      v_printf("video character generator functions ax=0x%04x bx=0x%04x\n",
+	       LWORD(eax), LWORD(ebx));
+      switch (LO(ax)) {
+      case 0x01:                  /* load 8x14 charset */
+      case 0x11:
+	vga_font_height = 14;
+	goto more_lines;
+	
+      case 0x02:
+      case 0x12:
+	vga_font_height = 8;
+	goto more_lines;
+	
+      case 0x04:
+      case 0x14:
+	vga_font_height = 16;
+	goto more_lines;
+	
+	/* load a custom font */
+	/* for now just ust it's size to set things */
+      case 0x00:
+      case 0x10:
+	vga_font_height = HI(bx);
+	v_printf("loaded font completely ignored except size!\n");
+	/* the rest is ignored for now */
+	goto more_lines;
+	
+      more_lines:
+	{
+	  if(!set_video_mode(video_mode | (1 << 16))) 
+	    {
+	      li = old_li; /* not that it changed */
+	      vga_font_height = old_font_height;
+	      CARRY;
+	    }
+#if 0
+	  else if (old_li < li) 
+	    {
+	      /* The attribute is just like my Bios, weird! */
+	      bios_scroll(0,old_li,co-1,li-1,0,07);
+	    }
+#endif
+	  break;
+	}
+	
+      case 0x30:     /* get current character generator info */
+	LWORD(ecx)=vga_font_height;
+	LO(dx)= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+	/* LWORD(es)=LWORD(ebp)=0;*/  /* return NULL pointer */
+	WRITE_SEG_REG(es, 0);   /* return NULL pointer */
+	LWORD(ebp)= 0;        /* return NULL pointer */
+      }
+      break;
+    }
+      
+  case 0x12:			/* video subsystem config */
+    v_printf("video subsystem config ax=0x%04x bx=0x%04x\n",
+	     LWORD(eax), LWORD(ebx));
+    switch (LO(bx)) {
+    case 0x10:
+      HI(bx) = video_subsys;
+      LO(bx)=3;
+      v_printf("video subsystem 0x10 BX=0x%04x\n", LWORD(ebx));
+      HI(cx)=0xf;  /* feature bits (no feature controller) */
+      LO(cx)=READ_BYTE(BIOS_VIDEO_INFO_1) & 0xf;
+      break;
+    case 0x20:
+      v_printf("select alternate printscreen\n");
+      break;
+    case 0x30:
+      {  static int scanlines[3] = {200, 350, 400};
+	 if ((unsigned)LO(ax)<3) {
+	    text_scanlines = scanlines[LO(ax)];
+            v_printf("select textmode scanlines: %d", text_scanlines);
+	    LO(ax) = 0x12;  
+	 }
+      }
+      break;
+    case 0x32:          /* enable/disable cpu access to video ram */
+      if (LO(ax) == 0)
+	v_printf("disable cpu access to video!\n");
+      else
+	v_printf("enable cpu access to video!\n");
+      break;
+#if 0
+    case 0x34:
+      /* enable/disable cursor emulation */
+      cursor_emulation = LO(ax);
+      LO(ax)=0x12;
+      break;
+#endif
+    case 0x36:          /* video screen ON/OFF */
+      if (LO(ax) == 0)
+	v_printf("turn video screen off!\n");
+      else
+	v_printf("turn video screen on!\n");
+#if 0
+      LO(ax)=0x12;  
+#endif
+      break;
+      
+    default:
+      v_printf("ERROR: unrecognized video subsys config!!\n");
+      show_regs(__FILE__, __LINE__);
+    }
+    break;
+    
+  case 0xcc:			/* called from NC 5.0 */
+    _CX = 0; _AL = 0xff;
+    break;
+
+  case 0xfe:			/* get shadow buffer..return unchanged */
+  case 0xff:			/* update shadow buffer...do nothing */
+    break;
+
+  case 0x1b:                    /* functionality/state information */
+    if (LWORD(ebx) == 0) {
+      v_printf("return functionality/state information");
+      return_state(SEG_ADR((Bit8u *), es, di));
+      LO(ax) = 0x1b;
+    } else
+      v_printf("unknown functionality/state request: %d", LWORD(ebx));
+    break;
+#if 0
+  case 0x1c:                    /* return save/restore */
+#endif
+
+#if X_GRAPHICS
+  case 0x4f:                    /* vesa interrupt */
+    if(config.X)
+      do_vesa_int();
+    break;
+#endif
+
+  default:
+    v_printf("new unknown video int 0x%x\n", LWORD(eax));
+    CARRY;
+    break;
+  }
+}
+
+#if X_GRAPHICS
+void int10_new()
+{
+  /* some code here is copied from Alan Cox ***************/
+  int x, y;
+  unsigned m, page;
+  u_char c;
+  us *sm;
+
+  if(HI(ax) > 0x0f)	// EVIL hack! Remove it later!!!
+  if (debug_level('v') >= 3)
+    {
+      if (debug_level('v') >= 4)
+	i10_msg("near %04x:%08lx\n", READ_SEG_REG(cs), REG(eip));
+      if ( (LO(ax) >= ' ') && (LO(ax) < 0x7f) )
+	i10_msg("AH=%02x AL=%02x '%c'\n",
+		    HI(ax), LO(ax), LO(ax));
+      else
+	i10_msg("AH=%02x AL=%02x\n", HI(ax), LO(ax));
+    }
+
+#if 0
+  i10_msg("ax %04x, bx %04x\n",LWORD(eax), LWORD(ebx));
+#endif
+  NOCARRY;
+
+  switch(HI(ax)) {
+    case 0x00:		/* set video mode */
+      i10_msg("set video mode: 0x%x\n", LO(ax));
+      /* set appropriate font height for 25 lines */
+      vga_font_height = text_scanlines / 25;	// ??? -> into set_video_mode()!
+      if(!set_video_mode(LO(ax))) {
+        i10_msg("set_video_mode() failed\n");
+        CARRY;
+      }
+      break;
+
+
+    case 0x01:		/* set text cursor shape */
+      i10_deb("set text cursor shape: %u-%u\n", HI(cx), LO(cx));
+      set_cursor_shape(LWORD(ecx));
+      WRITE_WORD(BIOS_CURSOR_SHAPE, LWORD(ecx));
+      break;
+
+
+    case 0x02:		/* set cursor pos */
+      page = HI(bx);
+      x = LO(dx);
+      y = HI(dx);
+      i10_deb("set cursor pos: page %d, x.y %d.%d\n", page, x, y);
+      if(page > 7) {
+        i10_msg("set cursor pos: page > 7: %d\n", page);
+        CARRY;
+        return;
+      }
+      if (x >= co || y >= li) {
+        /* some apps use this to hide the cursor,
+         * we move it 1 char behind the visible part
+         */
+        x = co;
+        y = li -1;
+      }
+
+      set_bios_cursor_x_position(page, x);
+      set_bios_cursor_y_position(page, y);
+      cursor_col = x;
+      cursor_row = y;
+      break;
+
+
+    case 0x03:		/* get cursor pos/shape */
+      page = HI(bx);
+      if (page > 7) {
+        i10_msg("get cursor pos: page > 7: %d\n", page);
+        CARRY;
+        return;
+      }
+      LO(dx) = get_bios_cursor_x_position(page);
+      HI(dx) = get_bios_cursor_y_position(page);
+      LWORD(ecx) = READ_WORD(BIOS_CURSOR_SHAPE);
+      i10_deb(
+        "get cursor pos: page %u, x.y %u.%u, shape %u-%u\n",
+        page, LO(dx), HI(dx), HI(cx), LO(cx)
+      );
+      break;
+
+
+    case 0x04:		/* read light pen pos */
+      i10_msg("read light pen pos: NOT IMPLEMENTED\n");
+      HI(ax) = 0;	/* "light pen switch not pressed" */
+      			/* This is how my VGA BIOS behaves [rz] */
+      break;
+
+
+    case 0x05:		/* set active display page */
+      page = LO(ax);
+      i10_deb("set display page: from %d to %d\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
+      if(page > max_page) {
+	i10_msg("set display page: bad page %d\n", page);
+	CARRY;
+	break;
+      }
+      if (config.console_video) set_vc_screen_page(page);
+      if (config.X) vga_emu_set_text_page(page, TEXT_SIZE);
+
+      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
+      WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
+      screen_adr = SCREEN_ADR(page);
+      screen_mask = 1 << page;
+      set_dirty(page);		// ??? evil stuff: what about xdos?
+      cursor_col = get_bios_cursor_x_position(page);
+      cursor_row = get_bios_cursor_y_position(page);
+      break;
+
+
+    case 0x06:		/* scroll up */
+      i10_deb(
+        "scroll up: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
+        LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
+      );
+      if(vga.mode_class == TEXT) {
+        bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
+      }
+      else {
+        vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
+      }
+      break;
+
+
+    case 0x07:		/* scroll down */
+      i10_deb(
+        "scroll dn: %u lines, area %u.%u-%u.%u, attr 0x%02x\n",
+        LO(ax), LO(cx), HI(cx), LO(dx), HI(dx), HI(bx)
+      );
+      if(vga.mode_class == TEXT) {
+        bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
+      }
+      else {
+        vgaemu_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
+      }
+      break;
+
+
+    case 0x08:		/* read character & attr at x,y */
+      page = HI(bx);
+      if (page > max_page) {
+        i10_msg("read char: invalid page %d\n", page);
+        CARRY;
+        break;
+      }
+      if(vga.mode_class == TEXT) {
+        sm = SCREEN_ADR(page);
+        LWORD(eax) = sm[co * get_bios_cursor_y_position(page)
+                   + get_bios_cursor_x_position(page)];
+      }
+      else {
+        LWORD(eax) = 0;
+      }
+      i10_deb(
+        "read char: char(%d.%d) = 0x%02x, attr 0x%02x\n",
+        get_bios_cursor_x_position(page), get_bios_cursor_y_position(page),
+        LO(ax), HI(ax)
+      );
+      break;
+
+
+    case 0x09:		/* write char & attr */
+    case 0x0a:		/* write char */
+      if(HI(ax) == 0x0a && vga.mode_class == TEXT) {
+        i10_deb(
+          "write char: page %u, char 0x%02x '%c'\n",
+          HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
+        );
+      }
+      else {
+        i10_deb(
+          "write char: page %u, char 0x%02x '%c', attr 0x%02x\n",
+          HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
+        );
+      }
+      if(vga.mode_class == TEXT) {
+        u_short *sadr;
+        u_short c_attr;
+        int n;
+
+        page = HI(bx);
+        sadr = (u_short *) SCREEN_ADR(page) 
+  	     + get_bios_cursor_y_position(page) * co
+  	     + get_bios_cursor_x_position(page);
+        n = LWORD(ecx);
+        c = LO(ax);
+
+        /* XXX - need to make sure this doesn't overrun video memory!
+         * we don't really know how large video memory is yet (I haven't
+         * abstracted things yet) so we'll just leave it for the
+         * Great Video Housecleaning foretold in the TODO file of the
+         * ancients
+         */
+        if(HI(ax) == 9) {		/* use attribute from BL */
+  	 c_attr = c | (LO(bx) << 8);
+  	 while(n--) WRITE_WORD(sadr++, c_attr);
+        }
+        else {				/* leave attribute as it is */
+  	 while(n--) WRITE_BYTE(sadr++, c);
+        }
+        set_dirty(page);
+        break;
+      }
+      else {
+        unsigned
+          x = get_bios_cursor_x_position(0),
+          y = get_bios_cursor_y_position(0),
+          n = LWORD(ecx);
+
+        while(x < vga.text_width && n--)
+          vgaemu_put_char(x++, y, LO(ax), LO(bx));
+      }
+      break;
+
+
+    case 0x0b:		/* set bg/border color */
+      i10_msg("set bg/border color: NOT IMPLEMENTED\n");
+      break;
+
+
+    case 0x0c:		/* write pixel */
+      if(vga.mode_class != TEXT)
+        vgaemu_put_pixel(LWORD(ecx), LWORD(edx), HI(bx), LO(ax));
+      break;
+
+
+    case 0x0d:		/* read pixel */
+      LO(ax) = 0;
+      if(vga.mode_class != TEXT) {
+        LO(ax) = vgaemu_get_pixel(LWORD(ecx), LWORD(edx), HI(bx));
+        i10_msg("read pixel: 0x%02x\n", LO(ax));
+      }
+      break;
+
+    case 0x0e:		/* print char */
+      if(vga.mode_class == TEXT) {
+        i10_deb(
+          "tty put char: page %u, char 0x%02x '%c'\n",
+          HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
+        );
+        char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
+      }
+      else {
+        i10_deb(
+          "tty put char: page %u, char 0x%02x '%c', attr 0x%02x\n",
+          HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
+        );
+        tty_char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), LO(bx)); 
+      }
+      break;
+
+
+    case 0x0f:		/* get video mode */
+      m = video_mode & 0xff;
+      if(vga.mode & ~0xff) {
+        /*
+         * For VESA modes we look for an equivalent VGA mode number
+         * and, if we don't have one, use 0x7f.
+         */
+        m = vga.VGA_mode == -1 ? 0x7f : vga.VGA_mode;
+        if(vga.mode & 0x8000) m |= 0x80;
+      }
+
+      HI(ax) = co & 0xff;
+      LO(ax) = m;
+      HI(bx) = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
+      i10_deb(
+        "get video mode: mode 0x%02x, page %u, %u colums\n",
+        LO(ax), HI(bx), HI(ax)
+      );
+      break;
+
+
+    case 0x10:		/* ega/vga palette functions */
+      i10_deb("ega/vga palette: sub function 0x%02x\n", LO(ax));
+
+      /* Sets blinking or bold background mode.  This is important for 
+       * PCTools type programs that uses bright background colors.
+       */
+      if(LO(ax) == 3) char_blink = LO(bx) & 1;
+
+#if X_GRAPHICS
+      /* root@zaphod */
+      /* Palette register stuff. Only for the VGA emulator used by X */
+      if(config.X) {
+         int i, count;
+         unsigned char *src;
+         unsigned char index, m;
+         DAC_entry rgb;
+
+         switch(LO(ax)) {
+           case 0x00:	/* Set Palette Register */
+             Attr_set_entry(LO(bx), HI(bx));
+             break;
+
+           case 0x01:	/* Set Overscan Color */
+             Attr_set_entry(0x11, HI(bx));
+             break;
+
+           case 0x02:	/* Set Palette & Overscan Color */
+             src = SEG_ADR((unsigned char *), es, dx);
+             for(i = 0; i < 0x10; i++) Attr_set_entry(i, src[i]);
+             Attr_set_entry(0x11, src[i]);
+             break;
+
+           case 0x03:	/* Toggle Intensity/Blinking Bit */
+             m = Attr_get_entry(0x10) & ~(1 << 3);
+             m |= (LO(bx) & 1) << 3;
+             Attr_set_entry(0x10, m);
+             break;
+
+           case 0x07:	/* Read Palette Register */
+             HI(bx) = Attr_get_entry(LO(bx));
+             break;
+
+           case 0x08:	/* Read Overscan Color */
+             HI(bx) = Attr_get_entry(0x11);
+             break;
+
+           case 0x09:	/* Read Palette & Overscan Color */
+             src = SEG_ADR((unsigned char *), es, dx);
+             for(i = 0; i < 0x10; i++) src[i] = Attr_get_entry(i);
+             src[i] = Attr_get_entry(0x11);
+             break;
+
+           case 0x10:	/* Set Individual DAC Register */
+             DAC_set_entry(LO(bx), HI(dx), HI(cx), LO(cx));
+             break;
+
+           case 0x12:	/* Set Block of DAC Registers */
+             index = LO(bx);
+             count = LWORD(ecx);
+             src = SEG_ADR((unsigned char *), es, dx);
+             for(i = 0; i < count; i++, index++)
+               DAC_set_entry(index, src[3*i], src[3*i + 1], src[3*i + 2]);
+             break;
+
+           case 0x13:	/* Select Video DAC Color Page */
+             m = Attr_get_entry(0x10);
+             switch(LO(bx)) {
+               case 0:	/* Select Page Mode */
+                 m &= ~(1 << 7);
+                 m |= (HI(bx) & 1) << 7;
+                 Attr_set_entry(0x10, m);
+                 break;
+               case 1:	/* Select Page */
+                 if(m & (1 << 7))
+                   Attr_set_entry(0x14, HI(bx) & 0xf);
+                 else
+                   Attr_set_entry(0x14, (HI(bx) & 0x3) << 2);
+                 break;
+             }
+             break;
+
+           case 0x15:	/* Read Individual DAC Register */
+             rgb.index = LO(bx);
+             DAC_get_entry(&rgb);
+             HI(dx) = rgb.r; HI(cx) = rgb.g; LO(cx) = rgb.b;
+             break;
+
+           case 0x17:	/* Read Block of DAC Registers */
+             index = LO(bx);
+             count = LWORD(ecx);
+             src = SEG_ADR((unsigned char *), es, dx);
+             for(i = 0; i < count; i++, index++) {
+               rgb.index = index;
+               DAC_get_entry(&rgb);
+               src[3*i] = rgb.r; src[3*i + 1] = rgb.g; src[3*i + 2] = rgb.b;
+             }
+             break;
+
+           case 0x18:	/* Set PEL Mask */
+             DAC_set_pel_mask(LO(bx));
+             break;
+
+           case 0x19:	/* Read PEL Mask */
+             LO(bx) = DAC_get_pel_mask();
+             break;
+
+           case 0x1a:	/* Get Video DAC Color Page */
+             LO(bx) = m = (Attr_get_entry(0x10) >> 7) & 1;
+             HI(bx) = (Attr_get_entry(0x14) & 0xf) >> (m ? 0 : 2);
+             break;
+
+           case 0x1b:	/* Convert to Gray */
+             for(index = LO(bx), count = LWORD(ecx); count--; index++)
+               DAC_rgb2gray(index);
+             break;
+
+           default:
+             i10_msg("ega/vga palette: invalid sub function 0x%02x\n", LO(ax));
+             break;
+         }
+      }
+#endif
+      break;
+
+
+    case 0x11:		/* character generator functions */
+      {
+        int old_li = li;	/* preserve the state in case of error */
+        int old_font_height = vga_font_height;
+        unsigned ofs, seg;
+        unsigned rows, char_height;
+
+        i10_deb("char gen: func 0x%02x, bx 0x%04x\n", LO(ax), LWORD(ebx));
+
+        switch(LO(ax)) {
+          case 0x01:		/* load 8x14 charset */
+          case 0x11:
+            vga_font_height = 14;
+            goto more_lines;
+
+          case 0x02:		/* load 8x8 charset */
+          case 0x12:
+            vga_font_height = 8;
+            goto more_lines;
+
+          case 0x04:		/* load 8x16 charset */
+          case 0x14:
+            vga_font_height = 16;
+            goto more_lines;
+
+          /* load a custom font */
+          /* for now just ust it's size to set things */
+          case 0x00:
+          case 0x10:
+            vga_font_height = HI(bx);
+            i10_deb("loaded font completely ignored except size!\n");
+            /* the rest is ignored for now */
+            goto more_lines;
+
+          more_lines:
+            if(!set_video_mode(video_mode | (1 << 16))) {
+              li = old_li;	/* not that it changed */
+              vga_font_height = old_font_height;
+              CARRY;
+            }
+            break;
+
+          case 0x20:		/* set 8x8 gfx chars */
+            SETIVEC(0x1f, REG(es), LWORD(ebp));
+            i10_deb("set 8x8 gfx chars: addr 0x%04x:0x%04x\n", ISEG(0x1f), IOFF(0x1f));
+            break;
+
+          case 0x21:		/* load user gfx chars */
+          case 0x22:		/* load 14x8 gfx chars */
+          case 0x23:		/* load 8x8 gfx chars */
+          case 0x24:		/* load 16x8 gfx chars */
+            seg = 0xc000;
+            switch(LO(ax)) {
+              case 0x21:
+                ofs = LWORD(ebp);
+                seg = REG(es);
+                char_height = LWORD(ecx);
+                break;
+              case 0x22:
+                ofs = vgaemu_bios.font_14;
+                char_height = 14;
+                break;
+              case 0x23:
+                ofs = vgaemu_bios.font_8;
+                char_height = 8;
+                break;
+              default:		/* case 0x24 */
+                ofs = vgaemu_bios.font_16;
+                char_height = 16;
+                break;
+            }
+            rows = LO(dx);
+            switch(LO(bx)) {
+              case 1:
+                rows = 14;
+                break;
+              case 2:
+                rows = 25;
+                break;
+              case 3:
+                rows = 43;
+                break;
+            }
+            SETIVEC(0x43, seg, ofs);
+            WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, rows - 1);
+            WRITE_WORD(BIOS_FONT_HEIGHT, char_height);
+            i10_deb(
+              "load gfx font: height %u, rows %u, addr 0x%04x:0x%04x\n",
+              char_height, rows, seg, ofs
+            );
+            break;
+
+          case 0x30:		/* get current character generator info */
+            LWORD(ecx) = vga_font_height;
+            LO(dx) = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+            seg = 0xc000;
+            switch((HI(bx))) {
+              case 0:
+                ofs = IOFF(0x1f);
+                seg = ISEG(0x1f);
+                break;
+              case 1:
+                ofs = IOFF(0x43);
+                seg = ISEG(0x43);
+                break;
+              case 2:
+                ofs = vgaemu_bios.font_14;
+                break;
+              case 3:
+                ofs = vgaemu_bios.font_8;
+                break;
+              case 4:
+                ofs = vgaemu_bios.font_8 + 128 * 8;
+                break;
+              case 5:
+                ofs = vgaemu_bios.font_14_alt;
+                break;
+              case 6:
+                ofs = vgaemu_bios.font_16;
+                break;
+              case 7:
+                ofs = vgaemu_bios.font_16_alt;
+                break;
+              default:
+                seg = ofs = 0;
+            }
+            LWORD(ebp) = ofs;
+            REG(es) = seg;
+            i10_deb(
+              "font info: char height: %u, rows %u, font 0x%x, addr 0x%04x:0x%04x\n",
+              LWORD(ecx), LO(dx) + 1, HI(bx), REG(es), LWORD(ebp)
+            );
+            break;
+
+          default:
+            i10_msg("char gen: func 0x%02x NOT IMPLEMENTED\n", LO(ax));
+        }
+      }
+      break;
+
+
+    case 0x12:		/* alternate function select */
+      switch(LO(bx)) {
+        case 0x10:	/* get ega info */
+          HI(bx) = video_subsys;
+          LO(bx) = 3;
+          HI(cx)=0xf;	/* feature bits (no feature controller) */
+          LO(cx)=READ_BYTE(BIOS_VIDEO_INFO_1) & 0xf;
+          i10_deb("get ega info: bx 0x%04x, cx 0x%04x\n", LWORD(ebx), LWORD(ecx));
+          break;
+
+        case 0x20:	/* select alternate print screen */
+          i10_deb("select alternate prtsc: NOT IMPLEMENTED\n");
+          break;
+
+        case 0x30:	/* select vertical resolution */
+          {
+            static int scanlines[3] = {200, 350, 400};
+
+            if((unsigned) LO(ax) < 3) {
+              text_scanlines = scanlines[LO(ax)];
+              LO(ax) = 0x12;  
+              i10_deb("select vert res: %d lines", text_scanlines);
+            }
+            else {
+              i10_deb("select vert res: invalid arg 0x%02x", LO(ax));
+            }
+          }
+          break;
+
+        case 0x32:	/* enable/disable cpu access to video ram */
+          if(LO(ax) == 0)
+            i10_deb("disable cpu access to video (ignored)\n");
+          else
+            i10_deb("enable cpu access to video (ignored)\n");
+          break;
+
+#if 0
+        case 0x34:	/* enable/disable cursor emulation */
+          cursor_emulation = LO(ax);
+          LO(ax) = 0x12;
+          i10_deb("cursor emulation: %s\n", cursor_emulation & 1 ? "disabled" : "enabled");
+          break;
+#endif
+
+        case 0x36:	/* video screen on/off */
+          if(LO(ax) == 0)
+            i10_deb("turn video screen on (ignored)\n");
+          else
+            i10_deb("turn video screen off (ignored)\n");
+#if 0
+          LO(ax) = 0x12;  
+#endif
+          break;
+
+        default:
+          i10_msg("video subsys config: function 0x%02x NOT IMPLEMENTED\n", LO(bx));
+      }
+      break;
+
+
+    case 0x13:		/* write string */
+      {
+        int with_attr = (LO(ax) & 2) >> 1;
+        unsigned page = HI(bx);
+        unsigned char attr = LO(bx);
+        unsigned len = LWORD(ecx);
+        unsigned char *str = SEG_ADR((unsigned char *), es, bp);
+        unsigned old_x, old_y;
+        int old_cursor_col, old_cursor_row;
+
+        old_x = get_bios_cursor_x_position(page);
+        old_y = get_bios_cursor_y_position(page);
+        old_cursor_col = cursor_col;
+        old_cursor_row = cursor_row;
+
+        set_bios_cursor_x_position(page, cursor_col = LO(dx));
+        set_bios_cursor_y_position(page, cursor_row = HI(dx));
+
+        i10_deb(
+          "write string: page %u, x.y %d.%d, attr 0x%02x, len %u, addr 0x%04x:0x%04x\n",
+          page, cursor_col, cursor_row, attr, len, REG(es), LWORD(ebp)
+        );
+#if DEBUG_INT10
+        i10_deb("write string: str \"");
+        {
+          unsigned u;
+
+          for(u = 0; u < len; u++)
+            v_printf("%c", str[u] >= ' ' && str[u] < 0x7f ? str[u] : ' ');
+          v_printf("\"\n");
+        }
+#endif
+
+        if(with_attr) {
+          while(len--) {
+            tty_char_out(str[0], page, str[1]);
+            str += 2;
+          }
+        }
+        else {
+          while(len--) tty_char_out(*str++, page, attr);
+        }
+
+        if(!(LO(ax) & 1)) {	/* no cursor update */
+          set_bios_cursor_x_position(page, old_x);
+          set_bios_cursor_y_position(page, old_y);
+          cursor_col = old_cursor_col;
+          cursor_row = old_cursor_row;
+        }
+      }
+      break;
+
+    case 0x1a:		/* get/set display combo */
+      if(LO(ax) == 0) {
+        int active_dcc, alternate_dcc;
+
+        LO(ax) = 0x1a;		/* valid function=0x1a */
+        get_dcc(&active_dcc, &alternate_dcc);
+        LO(bx) = active_dcc;
+        HI(bx) = alternate_dcc;
+        i10_deb("get display combo: active 0x%02x, alternate 0x%2x\n", LO(bx), HI(bx));
+      }
+      else {
+        i10_msg("set display combo: NOT IMPLEMENTED\n");
+      }
+      break;
+
+
+    case 0x1b:		/* functionality/state information */
+      if(LWORD(ebx) == 0) {
+        i10_deb("get functionality/state info\n");
+        return_state(SEG_ADR((Bit8u *), es, di));
+        LO(ax) = 0x1b;
+      } else {
+        i10_msg("unknown functionality/state request: 0x%04x", LWORD(ebx));
+      }
+      break;
+
+
+    case 0x1c:		/* save/restore video state */
+      i10_msg("save/restore: NOT IMPLEMETED\n");
+      CARRY;
+      break;
+
+
+#if X_GRAPHICS
+    case 0x4f:		/* vesa interrupt */
+      if(config.X) do_vesa_int();
+      break;
+#endif
+
+
+    case 0xcc:		/* called from NC 5.0 */
+      _CX = 0; _AL = 0xff;
+      i10_deb("obscure function 0x%02x\n", HI(ax));
+      break;
+
+
+    case 0xfe:		/* get shadow buffer..return unchanged */
+    case 0xff:		/* update shadow buffer...do nothing */
+      i10_deb("obscure function 0x%02x\n", HI(ax));
+      break;
+
+
+    default:
+      i10_msg("unknown video int 0x%04x\n", LWORD(eax));
+      CARRY;
+      break;
+  }
+}
+#endif	/* X_GRAPHICS */
+

@@ -1,0 +1,165 @@
+.\" -*- nroff -*-  (This is for Emacs)
+.TH DOSEMU 1 "June, 2003" "Version 1.1.5" "DOS Emulation"
+.SH NAME
+dosemu, xdosemu \- run DOS and DOS programs under Linux
+.SH SYNOPSIS
+.B dosemu
+[
+.B \-dumb
+]
+[
+.B \-quiet
+]
+[
+.B \-input
+.I keystroke-string
+]
+[
+.B \-s
+]
+[
+.B \-install
+.I bootdir
+]
+[
+.B args
+]
+.PP
+.B xdosemu
+[
+.B \-dumb
+]
+[
+.B \-quiet
+]
+[
+.B \-input
+.I keystroke-string
+]
+[
+.B \-s
+]
+[
+.B \-install
+.I [ bootdir ]
+]
+[
+.B args
+]
+.SH DESCRIPTION
+.B dosemu
+is the wrapper script for
+.B dosemu.bin
+(1)
+which invokes the Linux dos emulator, also known as
+.BR DOSEMU .
+The wrapper also takes care of (eventually) installing the private instance of
+.BR DOSEMU
+in the user's $HOME, if this doesn't exist.
+.br
+
+.SH OPTIONS
+.TP
+.I args
+any number of options described in
+.BR dosemu.bin
+(1), please refer to this man page for further details.
+However, take care to quote and escape correctly so bash doesn't
+mess up arguments containing blanks and backslashes.
+.TP
+.I -dumb
+use `dumb' terminal mode. This will only work for DOS applications, which do
+plain text output to stdout, but has the advantage that (A) the output of
+the DOS application stacks up in your xterm scroll buffer and (B) you can
+redirect it to a file such as
+.TP
+		$ ./dosemu -dumb dir > listing
+
+Note that DOSEMU command.com's commandline editor/history will also work
+here, however, editing is restricted to BACKSPACE'ing.
+.TP
+.I -quiet
+do not print startup comment and do not stop for prompting
+.TP
+.I -input
+Do simulated keystrokes as given by
+.I keystroke-string
+just after DOS has booted. This can be used to autolaunch applications,
+bypass any needed boot menus or something similar. For details on the format
+of the string look at README.txt. Note, however, that the FreeDos kernel
+eats one keystroke at bootup in order to let you time to type in F8. So in
+this case you always should add a '\\r' at the beginning of this
+keystroke-string. As a side effect it will bypass the 'F8' delay and
+FreeDos will boot faster. Without "-input", a '\\r' is automatically
+passed.
+.TP
+.I -s
+Invoke dosemu via sudo. This is necessary to get access to certain I/O ports
+and to get graphics on the Linux console. Please refer to the documentation
+(INSTALL and README.txt) to see which files need to be adjusted before
+attempting this. 
+.TP
+.I -install [ bootdir ]
+launched as part of a systemwide installation, this option (re-)installs
+a DOS that is used in DOSEMU (this can be the DOSEMU distributed
+FreeDOS  or any proprietary DOS, which is bootable via fatfs).
+.I bootdir
+is the base name of a directory. The symbolic link ~/.dosemu/drives/c
+will be changed to point to this directory.
+Re-installing is only rarely necessary, since in practise the symbolic
+link(s) will automatically point to updated files.
+
+.SH AUTHOR
+.B DOSEMU
+(comprised of the files
+.B dosemu.bin
+and 
+.B dosemu
+) is based on version 0.4 of the original program written by Matthias Lautner
+(no current address that I know of).
+.PP
+Robert Sanders <gt8134b@prism.gatech.edu> was maintaining and enhancing 
+the incarnation of 
+.B DOSEMU 
+with which this man page was originally distributed. During about 4 years
+James B. MacLean <macleajb@ednet.ns.ca> was the restless leader of the
+dosemu team, implementation of DPMI (which made Windows-3.1, dos4gw, djgpp,
+e.t.c running) happened during his 'governement' and brought the project
+near to Beta-state. Hans Lermen <lermen@fgan.de> took over and released the
+first 1.0 version. Now Bart Oldeman <bart@dosemu.org> is maintaining this
+funny software.
+
+.SH FILES
+.PD 0
+.TP
+.I $HOME/.dosemurc
+per-user configuration file
+.TP
+.I /etc/dosemu/dosemu.conf
+or
+.TP
+.I /etc/dosemu.conf
+systemwide configuration file
+.TP
+.I $HOME/.dosemu/boot.log
+default file for debug and log messages
+.TP
+.I $HOME/dosemu/bin/
+.TP
+.I $HOME/dosemu/freedos/
+.TP
+.I $HOME/dosemu/Xfonts/
+default directories of the local per user DOSEMU instance
+.TP   
+.I /usr/local/bin/
+.TP   
+.I /usr/local/share/dosemu/
+.TP   
+.I /usr/local/share/dosemu/dosemu-bin.tgz
+.TP   
+.I /usr/local/share/dosemu/dosemu-freedos-bin.tgz
+default systemwide installation, containing binaries and templates
+(The paths can be changed during creation of the systemwide installation).
+
+.SH "SEE ALSO"
+.BR dosemu.bin "(1)

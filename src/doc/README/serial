@@ -1,0 +1,343 @@
+<sect1>
+<title>MARK REJHON'S 16550 UART EMULATOR</title>
+
+<para>
+The <literal remap="tt">./src/base/serial</literal> directory contains Mark Rejhon's 16550A
+UART emulation code.
+</para>
+
+<para>
+Please send bug reports related to DOSEMU serial to either
+<ulink
+url="mailto:marky@magmacom.com"
+>&#60;marky@magmacom.com&#62;</ulink
+> or 
+<ulink
+url="mailto:ag115@freenet.carleton.ca"
+>&#60;ag115@freenet.carleton.ca&#62;</ulink
+>
+</para>
+
+<para>
+The files in this subdirectory are:
+<variablelist>
+
+<varlistentry>
+<term>Makefile</term>
+<listitem>
+<para>
+ The Makefile for this subdir.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ser_init.c</term>
+<listitem>
+<para>
+ Serial initialization code.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ser_ports.c</term>
+<listitem>
+<para>
+ Serial Port I/O emulation code.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ser_irq.c</term>
+<listitem>
+<para>
+ Serial Interrupts emulation code.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>int14.c</term>
+<listitem>
+<para>
+ BIOS int14 emulation code.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>fossil.c</term>
+<listitem>
+<para>
+ FOSSIL driver emulation code.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>../commands/fossil.S</term>
+<listitem>
+<para>
+ DOS part of FOSSIL emulation.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ser_defs.h</term>
+<listitem>
+<para>
+ Include file for above files only.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>../include/serial.h</term>
+<listitem>
+<para>
+ General include file for all DOSEMU code.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+Redistribution of these files is permitted under the terms of the 
+GNU Public License (GPL).  See end of this file for more information.
+</para>
+
+<sect2>
+<title>PROGRAMMING INFORMATION</title>
+
+<para>
+Information on a 16550 is based on information from 
+HELPPC.EXE 2.1 and results from National Semiconductor's
+COMTEST.EXE diagnostics program.  This code aims to emulate 
+a 16550A as accurately as possible, using just reasonably 
+POSIX.2 compliant code.  In some cases, this code does a 
+better job than OS/2 serial emulation (in non-direct mode) 
+done by its COM.SYS driver!  There may be about 100 kilobytes
+of source code, but nearly 50% of this size are comments!
+</para>
+
+<para>
+This 16550A emulator never even touches the real serial ports,
+it merely traps port writes, and does the I/O via file functions
+on a device in /dev.  Interrupts are also simulated as necessary.
+</para>
+
+<para>
+One of the most important things to know before programming
+this serial code, is to understand how the com[] array works.  
+</para>
+
+<para>
+Most of the serial variables are stored in the com[] array.
+The com[] array is a structure in itself.   Take a look at the
+'serial_t' struct declaration in the ../include/serial.h module 
+for more info about this.  Only the most commonly referenced 
+global variables are listed here:
+</para>
+
+<para>
+<variablelist>
+
+<varlistentry>
+<term>config.num_ser</term>
+<listitem>
+<para>
+         Number of serial ports active.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>com[x].base_port</term>
+<listitem>
+<para>
+       The base port address of emulated serial port.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>com[x].real_comport</term>
+<listitem>
+<para>
+    The COM port number.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>com[x].interrupt</term>
+<listitem>
+<para>
+       The PIC interrupt level (based on IRQ number)
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>com[x].mouse</term>
+<listitem>
+<para>
+           Flag  mouse (to enable extended features)
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>com[x].fd</term>
+<listitem>
+<para>
+              File descriptor for port device 
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>com[x].dev[]</term>
+<listitem>
+<para>
+           Filename of port port device
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>com[x].dev_locked</term>
+<listitem>
+<para>
+      Flag whether device has been locked
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+The arbritary example variable 'x' in com[x] can have a minimum 
+value of 0 and a maximum value of (config.numser - 1).  There 
+can be no gaps for the value 'x', even though gaps between actual 
+COM ports are permitted.  It is strongly noted that the 'x' does 
+not equal the COM port number.  This example code illustrates 
+the fact, and how the com[x] array works:
+
+<screen>
+	  for (i = 0; i &#60; config.numser; i++)
+	    s_printf("COM port number %d has a base address of %x", 
+	             com[i].real_comport, com[i].base_port);
+</screen>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>DEBUGGING HELP</title>
+
+<para>
+If you require heavy debugging output for serial operations,
+please take a look in ./ser_defs.h for the following defines:
+<variablelist>
+
+<varlistentry>
+<term>SER_DEBUG_MAIN   (0 or 1)</term>
+<listitem>
+<para>
+extra debug output on the most critical information.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>SER_DEBUG_HEAVY   (0 or 1)</term>
+<listitem>
+<para>
+super-heavy extra debug output, including all ports reads 
+and writes, and every character received and transmitted!
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>SER_DEBUG_INTERRUPT   (0 or 1)</term>
+<listitem>
+<para>
+additional debug output related to serial interrupt code,
+including flagging serial interrupts, or PIC-driven code.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>SER_DEBUG_FOSSIL_RW   (0 or 1)</term>
+<listitem>
+<para>
+heavy FOSSIL debug output, including all reads and writes.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>SER_DEBUG_FOSSIL_STATUS   (0 or 1)</term>
+<listitem>
+<para>
+super-heavy FOSSIL debug output, including all status checks.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+</sect2>
+
+<sect2>
+<title>FOSSIL EMULATION</title>
+
+<para>
+The FOSSIL emulation requires a memory-resident DOS module,
+FOSSIL.COM. If you don't load it, the code in fossil.c does nothing,
+permitting you to use another FOSSIL driver such as X00 or BNU.
+</para>
+
+<para>
+The emulation isn't as complete as it could be. Some calls aren't
+implemented at all. However, the programs I've tried don't seem to
+use these calls. Check fossil.c if you're interested in details.
+</para>
+
+<para>
+I've done only minimal testing on this code, but at least the
+performance seems to be quite good. Depending on system load, I got
+Zmodem speeds ranging from 1500 to nearly 3800 cps over a 38400 bps
+null-modem cable when sending data to another PC. Zmodem receive,
+however, was only about 2200 cps, since Linux tried to slow down the
+sender with flow control (I'm not sure why).
+</para>
+
+</sect2>
+
+<sect2>
+<title>COPYRIGHTS</title>
+
+<para>
+Most of the code in the DOSEMU 'serial' subdirectory is:
+Copyright (C) 1995 by Mark D. Rejhon 
+<ulink
+url="mailto:marky@magmacom.com"
+>&#60;marky@magmacom.com&#62;</ulink
+>
+with the following exceptions:
+</para>
+
+<para>
+	
+FOSSIL driver emulation is Copyright (C) 1995 by 
+Pasi Eronen 
+<ulink
+url="mailto:pasi@forum.nullnet.fi"
+>&#60;pasi@forum.nullnet.fi&#62;</ulink
+>.
+</para>
+
+<para>
+Lock-file functions were derived from Taylor UUCP:
+Copyright (C) 1991, 1992 Ian Lance Taylor
+Uri Blumenthal 
+<ulink
+url="mailto:uri@watson.ibm.com"
+>&#60;uri@watson.ibm.com&#62;</ulink
+> 
+(C) 1994
+Paul Cadach, 
+<ulink
+url="mailto:paul@paul.east.alma-ata.su"
+>&#60;paul@paul.east.alma-ata.su&#62;</ulink
+>
+(C) 1994
+</para>
+
+<para>
+UART definitions were derived from /linux/include/linux/serial.h
+Copyright (C) 1992 by Theodore Ts'o.
+</para>
+
+<para>
+All of this serial code is free software; you can redistribute it
+and/or modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2 of 
+the License, or (at your option) any later version.
+</para>
+
+</sect2>
+
+</sect1>
+

@@ -1,0 +1,5 @@
+All of the Video handling code is in the "video" subdirectory.
+
+There is one file for each video card or chipset and the master file. To
+Add a new card, it needs a set of save & restore routines putting in a file
+here.

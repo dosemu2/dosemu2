@@ -1,0 +1,22 @@
+#
+# BASH specific functions
+#
+
+function write_start () {
+  print "Start Menu: " start_name
+}
+
+function write_menu () {
+  print "Menu: " menu_name
+  print " - General Title: " main_title
+  print " - Specific Title: " menu_title
+  print " - Description: " menu_description
+
+  for (i=0; i < menu_items; i++) {
+    print " o Item " i
+    print "  * Type: " menu_type[i]
+    print "  * Text: " menu_text[i]
+    print "  * Data: " menu_data[i]
+    print "  * Var : " menu_var[i]
+  }
+}

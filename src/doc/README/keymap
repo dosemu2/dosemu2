@@ -1,0 +1,98 @@
+<sect1>
+<title>Keymaps</title>
+
+<para>
+This keymap is for using dosemu over telnet, and
+having *all* your keys work.  This keymap is not complete.  But
+hopefully with everyones help it will be someday :)
+</para>
+
+<para>
+There are a couple of things that are intentionally
+broken with this keymap, most noteably F11 and F12.  This is because
+they are not working though slang correctly at the current instant.
+I have them mapped to "greyplus" and "greyminus".  Also the scroll
+lock is mapped to shift-f3.  This is because the scroll lock dosn't
+work right at all.  Please feel free to send keymap patches in that
+fix anything but these.
+</para>
+
+<para>
+If you want to patch <emphasis>dosemu</emphasis> to fix either of those problems, i'd be
+<emphasis>glad</emphasis> to accept those :)
+</para>
+
+<para>
+to figure out how to edit this, read the keystroke-howto.
+</para>
+
+<para>
+as of 3/30/95, control/shift/alternate
+home/insert/delete/end/pageup/pagedown should work.  
+</para>
+
+<para>
+Major issues will be:
+</para>
+
+<para>
+Do we move "alt-&lt;fkey&gt;" to "control-&lt;fkey&gt;" to switch virtual
+consoles?
+</para>
+
+<para>
+who is going to fix the linux keyboard device to be able to handle
+multiple keymaps at the same time?
+</para>
+
+<para>
+--------------------------------------------------------
+</para>
+
+<para>
+to use it:
+</para>
+
+<para>
+as root type
+
+<screen>
+	loadkeys dosemu.new.keymap
+</screen>
+
+</para>
+
+<para>
+(then run dosemu via telnet, or something in slang mode)
+</para>
+
+<para>
+when your done, find your old keymap, and load it back, cause
+control-home won't work in emacs anymore (or any other special key in
+any applicaion that uses xlate)
+</para>
+
+<para>
+if you find a key missing, please add it and send me the patch.  (test
+it first! :)
+</para>
+
+<para>
+if you find a key missing, and don't feel like coding it, <emphasis>don't tell
+me</emphasis>!  I already know that there are a lot of keys missing.
+</para>
+
+<para>
+corey sweeney
+<ulink
+url="mailto:corey@interaccess.com"
+>&#60;corey@interaccess.com &#62;</ulink
+>
+</para>
+
+<para>
+Sytron Computers
+</para>
+
+</sect1>
+

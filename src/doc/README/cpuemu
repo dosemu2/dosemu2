@@ -1,0 +1,175 @@
+<sect1 id="cpuemu">
+<title>Software X386 emulation</title>
+
+<para>
+This section written in a hurry by Alberto Vignani
+<ulink
+url="mailto:vignani@mbox.vol.it"
+>&#60;vignani@mbox.vol.it&#62;</ulink
+>
+, Oct 20, 1997
+</para>
+
+<sect2>
+<title>The CPU emulator</title>
+
+<para>
+The CPU emulator has been derived from 
+<ulink
+url="http://www.willows.com"
+>&#60;the Twin Willows libraries&#62;</ulink
+>.
+Only the relevant parts of the library, namely the /intp32 subdirectory and
+the needed include files, have been extracted from the Twin sources into
+the src/twin directory. The Twin reference version is 3.1.1.
+In the Twin code, changes needed for the dosemu interface have been marked with
+
+<screen>
+    #ifdef DOSEMU
+</screen>
+
+</para>
+
+<para>
+Here is a summary of the changes I made in the Twin libraries:
+
+<itemizedlist>
+<listitem>
+
+<para>
+ I added vm86 mode, and related exception handling.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ I made a first attempt to entry-point symmetry; the final goal is
+to have an 'invoke_code32' in interp_32_32.c, which can reach the
+16-bit code using 0x66,0x67 prefixes, the same way the 16-bit code
+is currently doing the other way. The variables 'code32' and 'data32'
+are used for prefix control.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ some optimizations to memory access and multiplication code for
+little-endian machines and GNU compiler.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ dosemu-style debug output; this is the biggest part of the patch
+</para>
+</listitem>
+<listitem>
+
+<para>
+ bugfixes. These are NOT marked with #ifdef DOSEMU!
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+The second part of the cpuemu patch is the interface to dosemu, which is
+controlled by the X86_EMULATOR macro. This macro was probably part of a
+very old attempt to interface dosemu with Bochs, I deleted the old code
+and replaced it with the Twin interface.
+</para>
+
+<para>
+The X86_EMULATOR macro enables the compilation of the two files (cpu-emu.c
+and emu-utils.c) in the src/emu-i386/intp32 directory, which contain the
+vm86 emulator call (taken from the kernel sources) and some utility/debug
+functions. These files are kept separate from the Twin directory but need
+it to compile.
+</para>
+
+<para>
+For controlling the emulator behaviour, the file include/cpu-emu.h provides
+three macros:
+<variablelist>
+
+<varlistentry>
+<term>DONT_START_EMU</term>
+<listitem>
+<para>
+ if undefined, the emulator starts immediately;
+otherwise, a call to int 0xe6 al=0x90 is required to switch from
+the standard vm86 to it. To switch in and out from the emulator,
+the small utilities 'ecpuon.com' and 'ecpuoff.com' are provided.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>TRACE_HIGH</term>
+<listitem>
+<para>
+ controls the memory areas you want to include into the
+debug trace. The default value excludes the video BIOS and the HMA,
+but feel free to change it following your needs.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>VT_EMU_ONLY</term>
+<listitem>
+<para>
+ if defined, use of the emulator forces VT console mode, by
+ignoring the 'console' and 'graphics' statements in the video
+config line.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+To enable the CPU emulator add
+
+<screen>
+    cpuemu on
+</screen>
+
+to compiletime-settings, or pass
+
+<screen>
+    --enable-cpuemu
+</screen>
+
+to configure.
+</para>
+
+<para>
+To use the emulator, put
+
+<screen>
+    cpu emulated
+</screen>
+
+into /etc/dosemu.conf. Or start dosemu with -I 'cpu emulated'.
+</para>
+
+<para>
+The 'e' flag was added to the debug control string, it has currently a
+value range from 1 to 4 and controls the level of detail the emulator
+writes into the dosemu debug log. WARNING - logs greater than 100Mbytes
+are the rule with cpu-emu!!!. As a safety measure, 'e' is not automatically
+added to the debug flags when you use 'a'; the 'e' parameter must be
+explicitly added. In addition, there is a new configuration parameter for
+/etc/dosemu.conf:
+
+<screen>
+    logfilesize value
+</screen>
+
+This will limit the file size of the logfile. Once the limit is reached,
+it truncates the file to zero and continues writing to it.
+</para>
+
+</sect2>
+
+</sect1>
+

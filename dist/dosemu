@@ -1,0 +1,380 @@
+#! /bin/sh
+#
+# (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+
+# the below line gets patched, when a systemwide install is done
+SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE
+SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE
+SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE
+test "$SYSTEM_INSTALL_PATH" != "NOT_SYSTEM_WIDE" && IS_SYSTEM_WIDE=1
+
+usage () {
+  echo "
+USAGE:
+
+ [x]dosemu [-dumb] [-home] [-quiet] [-input] [-s] [-install [nameofbootdir]] [args...]
+"
+  exit 1
+}
+
+install_from_template () {
+# $BOOT_DIR_PATH = path to install to
+  if [ -z "$PROPRIETARY" ]; then
+    (cd $BOOT_DIR_PATH
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
+    )
+    BOOTDIR="$BOOT_DIR_PATH/dosemu/freedos"
+  else
+    BOOTDIR="$PROPRIETARY"
+  fi
+  echo "
+  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
+"
+  mkdir -p $HOME/.dosemu/drives
+  rm -f $HOME/.dosemu/drives/c
+  ln -sf $BOOTDIR $HOME/.dosemu/drives/c
+  if [ -z "$PROPRIETARY" ]; then
+    (cd $BOOT_DIR_PATH
+      tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
+    )
+  else
+    echo "
+  The DOSEMU part of the proprietary installation has been done.
+
+  Please make sure that you have a bootable DOS in '$PROPRIETARY'.
+  Read the documentation for details on what it must contain. 
+  You should also install a symbolic link to or make a copy of the files in
+  $SYSTEM_INSTALL_PATH/commands 
+  in order to make the DOSEMU support commands available within $PROPRIETARY.
+
+  Type ENTER to confirm or Ctrl-C to abort
+"
+    read x
+  fi
+}
+
+THISDIR=$PWD
+ARG0="$0"
+
+unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO INSTALL INPUT
+
+SUFFIX=""
+while [ $# -gt 0 ] ; do
+  case $1 in
+    -dumb)
+      DUMBTERM=1
+      OPT_I=-I
+      STRING_I=" video{none}"
+      shift
+      ;;
+    -home)
+      #doing -home) by default now; leave it here for compatibility
+      shift
+      ;;
+    -install)
+      INSTALL=1
+      if [ -n "$2" -a "${2:0:1}" != "-" ]; then
+        PROPRIETARY=$2
+        shift
+      fi
+      shift
+      ;;
+    -quiet)
+      QUIET=1
+      shift
+      ;;
+    -input)
+      INPUT=1
+      if [ -n "$2" -a "${2:0:1}" != "-" ]; then
+        STRING_I="$STRING_I keystroke "'"'"$2"'"'
+        shift
+      fi
+      shift
+      ;;   
+    -I)
+      if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
+      STRING_I="$STRING_I $2"
+      shift
+      shift
+      ;;   
+    -s)
+      USE_SUDO=1
+      shift
+      ;;   
+    *)
+      # this should avoid avoid resulting substitution odds
+      SUFFIX="$SUFFIX \"$1\""
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$INPUT" ]; then
+  STRING_I="$STRING_I keystroke "'"'"\r"'"'
+fi
+
+#echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
+
+w4l_check () {
+  if grep mki_install_hook /proc/ksyms >/dev/null 2>/dev/null; then
+    echo "
+   Note: your kernel is patched for Win4Lin, this will most likely
+   crash DPMI applications within DOSEMU. ... be warned!
+"
+  fi
+}
+
+mkdir -p ~/.dosemu
+BPATH_FILE=~/.dosemu/bindist_path
+
+BOOT_DIR_PATH=$THISDIR
+# check whether this user has already got his private installation
+if [ -f $BPATH_FILE ]; then
+  BOOT_DIR_PATH=`cat $BPATH_FILE`
+      echo "
+  Upgrading an existing dosemu configuration: your local configuration can now
+  be stored in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
+  and the boot.log file is in $HOME/.dosemu.
+      "
+  BOOTDIR=$BOOT_DIR_PATH/freedos
+fi
+
+if [ -n "$INSTALL" -o \
+     -f $BPATH_FILE -o \
+    ! -e $HOME/.dosemu/drives/c -a -z "$IS_SYSTEM_WIDE" -o \
+    ! -f $HOME/.dosemu/disclaimer ]; then
+
+  # This either is the first time this user calls 'dosemu'
+  # or the user cd'ed here and we forced a 'take over'
+
+  rm -f $BPATH_FILE
+  if [ -z "$IS_SYSTEM_WIDE" ]; then
+    # we assume this is a fresh unpacked dosemu-freedos distribution
+    # In this case this script has to be called _from_ this directory.
+
+    if [ ! -x $BOOT_DIR_PATH/bin/dosemu.bin ]; then
+      echo "
+  You are starting this script from the wrong directory.
+  e.g. if you unpacked dosemu-freedos-bin.tgz within
+  $HOME/mydos, you have to 'cd' into
+  $HOME/mydos/dosemu before running this script.
+  Once you have successfully booted, this directory will be remembered
+  via the symbolic link ~/.dosemu/drives/c and you can call dosemu from 
+  everywhere.
+"
+      exit 1
+    fi
+    echo "
+  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
+"
+    mkdir -p $HOME/.dosemu/drives
+    rm -f $HOME/.dosemu/drives/c
+    ln -sf $BOOT_DIR_PATH/freedos $HOME/.dosemu/drives/c
+
+  else
+
+    # This script was called from a systemwide installation
+
+    if [ ! -d $SYSTEM_INSTALL_PATH ]; then
+      echo "
+  There is something wrong with your systemwide DOSEMU installation:
+  $SYSTEM_INSTALL_PATH is not existing, but was configured to contain
+  the DOSEMU distribution templates.
+"
+      exit 1;
+    fi
+
+    if [ -z "$PROPRIETARY" ]; then
+      echo "
+  Please enter the name of a directory which contains a bootable
+  DOS [ENTER = the default $SYSTEM_INSTALL_PATH/freedos]
+         "
+      read PROPRIETARY
+    fi
+
+    if [ "$PROPRIETARY" = "" -o "$PROPRIETARY" = "$SYSTEM_INSTALL_PATH/freedos" ]; then
+
+      # We copy the binaries from the directory SYSTEM_INSTALL_PATH
+      # to the users $HOME.
+      echo "
+  Going to install your private DOSEMU-freedos files into the directory
+  $HOME/dosemu
+  Enter an empty string to confirm, a new path (the files will then
+  be installed in a subdirectory named \"dosemu\" under that new path),
+  or \"none\" (without the quotes) if you don't want a writable
+  C-drive.
+"
+      read BOOT_DIR_PATH
+      if [ "$BOOT_DIR_PATH" != "none" ]; then
+        if [ "$BOOT_DIR_PATH" != "" ]; then
+          if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
+            echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
+            read x
+          fi
+          echo "
+  Ok, will install into $BOOT_DIR_PATH
+  type ENTER to confirm or Ctrl-C to abort"
+          read x
+          if ! mkdir -p $BOOT_DIR_PATH 2>/dev/null; then
+            echo "  unable to create $BOOT_DIR_PATH, giving up"
+            exit 1
+          fi
+        else
+          BOOT_DIR_PATH=$HOME
+        fi
+        install_from_template
+      fi
+    else
+      install_from_template
+    fi
+  fi
+fi
+
+unset XFLAG
+if [ "`basename $ARG0`" = "xdosemu" ]; then
+  if [ -n "$DUMBTERM" ]; then
+    echo "
+  You requested a dumb terminal together with X!
+  ... falling back to non-X
+"
+  else
+    XFLAG=1
+  fi
+fi
+
+if [ -z "$IS_SYSTEM_WIDE" ]; then
+  BOOT_DIR_PATH=`readlink $HOME/.dosemu/drives/c`/..
+fi
+
+if [ -n "$XFLAG" ]; then
+  XFLAG=-X
+  if [ -z "$DISPLAY" ]; then
+    echo "
+  You do not have the DISPLAY variable set, but want to run DOSEMU
+  in its own X-window. Set the DISPLAY variable such as
+
+      DISPLAY=:0.0; export DISPLAY
+
+  if running X locally or
+
+      DISPLAY=host:0.0; export DISPLAY
+
+  when running remotely ('host' being the machine where you are typing at)
+
+  After this run xdosemu again.
+"
+    exit 1
+  fi
+  
+  if [ -f $HOME/.dosemurc ]; then
+    FONT=`grep '$_X_font' $HOME/.dosemurc | \
+         sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
+  fi
+
+  if [ "$FONT" = "" -a -f $SYSTEM_CONF_PATH/dosemu.conf ]; then
+     FONT=`grep '$_X_font' $SYSTEM_CONF_PATH/dosemu.conf | \
+        sed -e 's|[#[:space:]]*\$_X_font[[:space:]]*=[[:space:]]*\"\(.*\)\".*|\1|'`
+  fi
+
+  if [ "$FONT" = "" ]; then
+     FONT="vga"
+  fi
+
+  if [ -z "$IS_SYSTEM_WIDE" ]; then
+     if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
+        if [ ! -f $BOOT_DIR_PATH/Xfonts/fonts.dir ]; then
+           (cd $BOOT_DIR_PATH/Xfonts; mkfontdir)
+        fi
+        xset +fp $BOOT_DIR_PATH/Xfonts 2>/dev/null
+     fi
+  else
+     if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
+        xset +fp $SYSTEM_XFONTS_PATH 2>/dev/null
+     fi
+  fi
+  if [ "`xlsfonts -fn $FONT 2>/dev/null`" = "" ]; then
+     echo "
+   You do not have the DOSEMU $FONT font installed and are running
+   remote X. You need to install the $FONT font on your _local_ Xserver.
+   Look at the readme for details. For now we start with an fixed font,
+   which does not display all national characters correctly.
+   ... be warned
+"
+  fi
+  w4l_check
+  if [ -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-xdosemu ]; then
+    echo "
+   DOSEMU will run in its own X window.
+   To terminate it you have three choices:
+   - type <Ctrl>-C _here_ (not in the dosemu window)
+   - type <Ctrl><Alt><PgDn> in the dosemu window
+   - execute 'exitemu' at the DOS prompt"
+    touch ~/.dosemu/stamp-xdosemu
+  fi
+else
+  if [ -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
+    echo "
+   DOSEMU will run on _this_ terminal.
+   To exit you need to execute 'exitemu' from within DOS,
+   because <Ctrl>-C and 'exit' won't work!"
+  fi
+  if test -z "$LINES" -o -z "$COLUMNS" ; then
+    eval `stty size 2>/dev/null | (read L C; \
+          echo LINES=${L:-24} COLUMNS=${C:-80})`
+  fi
+  test $LINES   -eq 0 && LINES=24
+  test $COLUMNS -eq 0 && COLUMNS=80
+  if [ $LINES -lt 25 ]; then
+      echo "
+   Note that DOS needs 25 lines. You might want to enlarge your
+   window before continuing.
+"
+  fi
+  w4l_check
+  if [ $LINES -lt 25 -o -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
+    echo
+    echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel"
+    read dummy
+    touch ~/.dosemu/stamp-dosemu
+  fi
+fi
+
+DOSDRIVE_D="$HOME"
+export DOSDRIVE_D
+
+if [ $UID = 0 -a -f $HOME/.dosemurc ]; then
+  # User is logged in as root. Need to check whether the config files
+  # are safe and not world writeable
+
+  if /bin/ls -l $HOME/.dosemurc 2> /dev/null | /bin/grep ^........w > /dev/null; then
+    echo "
+  You are logged in as user root. The local configuration within
+  this DOSEMU installation is world writeable and may compromise your system.
+  Either use a normal unprivileged user installation or protect the following
+  directories/files against everybody except root:
+	$HOME/.dosemurc
+"
+    exit 1
+  fi
+fi
+
+if [ -n "$IS_SYSTEM_WIDE" ] ; then
+  BINARY=dosemu.bin
+else
+  BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
+fi
+
+SUDO=""
+if [ -n "$USE_SUDO" ] ; then
+  SUDO=sudo
+fi
+
+eval "set -- $SUFFIX"
+if [ -n "$STRING_I" ] ; then
+  exec $SUDO $BINARY $XFLAG "-I $STRING_I" "$@"
+else
+  exec $SUDO $BINARY $XFLAG "$@"
+fi

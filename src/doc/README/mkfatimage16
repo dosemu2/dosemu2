@@ -1,0 +1,14 @@
+<sect1>
+<title>mkfatimage16 -- Make a large FAT hdimage pre-loaded with files</title>
+
+<para>
+I have also attached (gzipped in MIME format) mkfatimage16.c, a modified
+version of mkfatimage which takes an additional switch [-t
+number_of_tracks] and automatically switches to the 16-bit FAT format if
+the specified size is &gt; 16MB.  I have deleted the "real" DOS partition from
+my disk, and so I am now running an entirely "virtual" DOS system within a
+big hdimage! 
+</para>
+
+</sect1>
+

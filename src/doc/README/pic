@@ -1,0 +1,433 @@
+<sect1>
+<title>DOSEMU Programmable Interrupt Controller</title>
+
+<para>
+This emulation, in files picu.c and picu.h, emulates all of the useful
+features of the two 8259 programmable interrupt controllers.  Support
+includes these i/o commands:
+</para>
+
+<para>
+<variablelist>
+
+<varlistentry>
+<term>ICW1    bits 0 and 1</term>
+<listitem>
+<para>
+     number of ICWs to expect
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ICW2    bits 3 - 7</term>
+<listitem>
+<para>
+       base address of IRQs
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ICW3    no bits</term>
+<listitem>
+<para>
+          accepted but ignored
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>ICW4    no bits</term>
+<listitem>
+<para>
+          accepted but ignored
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>OCW1    all bits</term>
+<listitem>
+<para>
+         sets interrupt mask
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>OCW2    bits 7,5-0</term>
+<listitem>
+<para>
+       EOI commands only
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>OCW3    bits 0,1,5,6</term>
+<listitem>
+<para>
+     select read register, 
+select special mask mode
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+<para>
+Reads of both PICs ports are supported completely.
+</para>
+
+<sect2>
+<title>  Other features</title>
+
+<para>
+  
+
+<itemizedlist>
+<listitem>
+
+<para>
+     Support for 16 additional lower priority interrupts.  Interrupts
+are run in a fully nested fashion.  All interrupts call dosemu functions,
+which may then determine if the vm mode interrupt should be executed.  The
+vm mode interrupt is executed via a function call.
+</para>
+</listitem>
+<listitem>
+
+<para>
+     Limited support for the non-maskable interrupt.  This is handled the
+same way as the extra low priority interrupts, but has the highest
+priority of all.
+</para>
+</listitem>
+<listitem>
+
+<para>
+       Masking is handled correctly: masking bit 2 of PIC0 also masks all
+IRQs on PIC1.
+</para>
+</listitem>
+<listitem>
+
+<para>
+     An additional mask register is added for use by dosemu itself.  This
+register initially has all interrupts masked, and checks that a dosemu
+function has been registered for the interrupt before unmasking it.
+</para>
+</listitem>
+<listitem>
+
+<para>
+     Dos IRQ handlers are deemed complete when they notify the PIC via 
+OCW2 writes.  The additional lower priority interrupts are deemed 
+complete as soon as they are successfully started.
+</para>
+</listitem>
+<listitem>
+
+<para>
+     Interrupts are triggered when the PIC emulator, called in the vm86
+loop, detects a bit set in the interrupt request register.  This
+register is a global variable, so that any dosemu code can easily trigger
+an interrupt.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>  Caveats</title>
+
+<para>
+OCW2 support is not exactly correct for IRQs 8 - 15.  The correct
+sequence is that an OCW2 to PIC0 enables IRQs 0, 1, 3, 4, 5, 6, and 7;
+and an OCW2 to PIC1 enables IRQs 8-15 (IRQ2 is really IRQ9).  This
+emulation simply enables everything after two OCW2s, regardless of
+which PIC they are sent to.
+</para>
+
+<para>
+     
+OCW2s reset the currently executing interrupt, not the highest
+priority one, although the two should always be the same, unless some
+dos programmer tries special mask mode.  This emulation works correctly
+in special mask mode:  all types of EOIs (specific and non-specific) are 
+treated as specific EOIs to the currently executing interrupt.  The
+interrupt specification in a specific EOI is ignored.
+</para>
+
+<para>
+Modes not supported:
+
+<itemizedlist>
+<listitem>
+
+<para>
+     Auto-EOI (see below)
+</para>
+</listitem>
+<listitem>
+
+<para>
+     8080-8085
+</para>
+</listitem>
+<listitem>
+
+<para>
+     Polling
+</para>
+</listitem>
+<listitem>
+
+<para>
+     Rotating Priority
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+None of these modes is useable in a PC, anyway.  The 16 additional
+interrupts are run in Auto-EOI mode, since any dos code for them
+shouldn't include OCW2s.  The level 0 (NMI) interrupt is also handled
+this way.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Notes on theory of operation:</title>
+
+<para>
+The documentation refers to levels.  These are priority levels,
+the lowest (0) having highest priority.  Priority zero is reserved
+for use by NMI.  The levels correspond with IRQ numbers as follows:
+</para>
+
+<para>
+
+<screen>
+  IRQ0=1  IRQ1=2   IRQ8=3  IRQ9=4  IRQ10=5 IRQ11=6 IRQ12=7 IRQ13=8
+  IRQ14=9 IRQ15=10 IRQ3=11 IRQ4=12 IRQ5=13 IRQ6=14 IRQ7=15
+</screen>
+
+</para>
+
+<para>
+There is no IRQ2; it's really IRQ9.
+</para>
+
+<para>
+  
+There are 16 more levels (16 - 31) available for use by dosemu functions.
+</para>
+
+<para>
+  
+If all levels were activated, from 31 down to 1 at the right rate, the
+two functions run_irqs() and do_irq() could recurse up to 15 times.  No
+other functions would recurse; however a top level interrupt handler
+that served more than one level could get re-entered, but only while the
+first level started was in a call to do_irq().  If all levels were
+activated at once, there would be no recursion.  There would also be no
+recursion if the dos irq code didn't enable interrupts early, which is
+quite common.
+</para>
+
+<sect3>
+<title>Functions supported from DOSEMU side</title>
+
+<sect4>
+<title>Functions that Interface with DOS:</title>
+
+<para>
+<variablelist>
+
+<varlistentry>
+<term>unsigned char read_picu0(port),
+unsigned char read_picu1(port)</term>
+<listitem>
+<para>
+should be called by the i/o handler whenever a read of the PIC i/o ports
+is requested.  The "port" parameter is either a 0 or a 1; for PIC0 these
+correspond to i/o addresses 0x20 and 0x21.  For PIC1 they correspond with
+i/o addresses 0xa0 and 0xa1.  The returned value is the byte that was
+read.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>void write_picu0(port,unsigned char value),
+void write_picu1(port,unsigned char value)</term>
+<listitem>
+<para>
+should be called by the i/o handler whenever a write to a PIC port is
+requested.  Port mapping is the same as for read_picu, above.  The value
+to be written is passed in parameter "value".
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>int do_irq()</term>
+<listitem>
+<para>
+is the function that actually executes a dos interrupt.  do_irq() looks
+up the correct interrupt, and if it points to the dosemu "bios", does
+nothing and returns a 1.  It is assumed that the calling function will
+test this value and run the dosemu emulation code directly if needed.
+If the interrupt is revectored to dos or application code, run_int() is
+called, followed by a while loop executing the standard run_vm86() and
+other calls.  The in-service register is checked by the while statement,
+and when the necessary OCW2s have been received, the loop exits and
+a 0 is returned to the caller.  Note that the 16 interrupts that are not
+part of the standard AT PIC system will not be writing OCW2s; for these
+interrupts the vm86 loop is executed once, and control is returned before
+the corresponding dos code has completed.  If run_int() is called, the
+flags, cs, and ip are pushed onto the stack, and cs:ip is pointed to
+PIC_SEG:PIC_OFF in the bios, where there is a hlt instruction.  This is
+handled by pic_iret.
+</para>
+
+<para>
+Since the while loop above checks for interrupts, this function can be
+re-entered.  In the worst case, a total of about 1k of process stack space
+could be needed.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>pic_sti(),
+pic_cli()</term>
+<listitem>
+<para>
+These are really macros that should be called when an sti or cli
+instruction is encountered.  Alternately, these could be called as part of
+run_irqs() before anything else is done, based on the condition of the
+vm86 v_iflag.  Note that pic_cli() sets the pic_iflag to a non-zero value,
+and pic_sti() sets pic_iflag to zero.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>pic_iret()</term>
+<listitem>
+<para>
+should be called whenever it is reasonably certain that an iret has
+occurred.  This call need not be done at exactly the right time, its
+only function is to activate any pending interrupts.  A pending interrupt
+is one which was self-scheduled.  For example, if the IRQ4 code calls
+pic_request(PIC_IRQ4), the request won't have any effect until after
+pic_iret() is called.  It is held off until this call in an effort 
+to avoid filling up the stack.  If pic_iret() is called too soon,
+it may aggravate stack overflow problems.  If it is called too late,
+a self-scheduled interrupt won't occur quite as soon.  To guarantee
+that pic_iret will be called, do_irq saves the real return address on the
+stack, then pushes the address of a hlt, which generates a SIGSEGV.
+Because the SIGSEGV comes before the hlt, pic_iret can be called by the
+signal handler, as well as from the vm86 loop.  In either case, pic_iret
+looks for this situation, and pops the real flags, cs, and ip.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+</sect4>
+
+</sect3>
+
+<sect3>
+<title>Other Functions</title>
+
+<para>
+  
+<variablelist>
+
+<varlistentry>
+<term>void run_irqs()</term>
+<listitem>
+<para>
+causes the PIC code to run all requested interrupts, in priority order.
+The execution of this function is described below.
+</para>
+
+<para>
+First we save the old interrupt level.  Then *or* the interrupt mask
+and the in-service register, and use the complement of that to mask off
+any interrupt requests that are inhibited.  Then we enter a loop, looking
+for any bits still set.  When one is found, it's interrupt level is
+compared with the old level, to make sure it is a higher priority.  If
+special mask mode is set, the old level is biased so that this test can't
+fail.  Once we know we want to run this interrupt, the request bit is
+atomicly cleared and double checked (in case something else came along and 
+cleared it somehow).  Finally, if the bit was actually cleared by this
+code, the appropriate bit is set in the in-service register.  The second
+pic register (for PIC1) is also set if needed.  Then the user code
+registered for this interrupt is called.  Finally, when the user code
+returns, the in-service register(s) are reset, the old interrupt level is
+restored, and control is returned to the caller.  The assembly language
+version of this funcction takes up to about 16 486 clocks if no request 
+bits are set, plus 100-150 clocks for each bit that is set in the request
+register.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>void picu_seti(unsigned int level,void (*func), unsigned int ivec)</term>
+<listitem>
+<para>
+sets the interrupt vector and emulator function to be called then the
+bit of the interrupt request register corresponding to level is set.
+The interrupt vector is ignored if level&#60;16, since those vectors are
+under the control of dos.  If the function is specified as NULL, the
+mask bit for that level is set.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>void picu_maski(int level)</term>
+<listitem>
+<para>
+sets the emulator mask bit for that level, inhibiting its execution.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>void picu_unmask(int ilevel)</term>
+<listitem>
+<para>
+checks if an emulator function is assigned to the given level.  If so,
+the mask bit for the level is reset.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>void pic_watch()</term>
+<listitem>
+<para>
+runs periodically and checks for 'stuck' interrupt requests.  These
+can happen if an irq causes a stack switch and enables interrupts
+before returning.  If an interrupt is stuck this way for 2 successive
+calls to pic_watch, that interrupt is activated.
+</para>
+</listitem>
+</varlistentry>
+</variablelist>
+</para>
+
+</sect3>
+
+</sect2>
+
+<sect2>
+<title>A (very) little technical information for the curious</title>
+
+<para>
+There are two big differences when using pic.  First, interrupts are not
+queued beyond a depth of 1 for each interrupt.  It is up to the interrupt
+code to detect that further interrupts are required and reschedule itself.
+Second, interrupt handlers are designated at dosemu initialization time.
+Triggering them involves merely specifying the appropriate irq.
+</para>
+
+<para>
+Since timer interrupts are always spaced apart, the lack of queueing has no
+effect on them.  The keyboard interrupts are re-scheduled if there is
+anything in the scan_queue.  
+</para>
+
+</sect2>
+
+</sect1>
+

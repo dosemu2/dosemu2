@@ -1,0 +1,257 @@
+#
+# Parse a menu file and produce a set of shell functions
+#
+
+BEGIN {
+  SEPARATORS="[ \t]*"
+}
+
+function escape_menu_entry (menu_entry) {
+  gsub (/ /, "_", menu_entry)
+  gsub (/&/, "and", menu_entry)
+  gsub (/\$/, "dollar", menu_entry)
+
+  return menu_entry
+}
+
+function handle_description () {
+  menu_description = fields[current_field++]
+}
+
+function handle_exit () {
+  menu_exit = fields[current_field++]
+}
+
+function handle_boolean (  menu_entry, var_name) {
+  menu_entry = fields[current_field++]
+  var_name = fields[current_field++]
+  
+  menu_text[menu_items] = menu_entry
+  menu_type[menu_items] = "boolean"
+  menu_var[menu_items] = var_name
+
+  menu_items ++
+}
+  
+function handle_input (  menu_entry, var_name) {
+  menu_entry = fields[current_field++]
+  var_name = fields[current_field++]
+  
+  menu_text[menu_items] = menu_entry
+  menu_type[menu_items] = "input"
+  menu_var[menu_items] = var_name
+
+  menu_items ++
+}
+  
+function handle_submenu (  menu_entry, submenu_name) {
+  menu_entry = fields[current_field++]
+  submenu_name = escape_menu_entry(menu_entry)
+
+  menu_text[menu_items] = menu_entry
+  menu_type[menu_items] = "submenu"
+  menu_data[menu_items] = submenu_name
+
+  menu_items ++
+}
+
+function handle_text (  menu_entry) {
+  menu_entry = fields[current_field++]
+
+  menu_text[menu_items] = menu_entry
+  menu_type[menu_items] = "text"
+
+  menu_items ++
+}
+
+function handle_list(  variable) {
+  variable = fields[current_field++]
+
+  # Skip the {
+  current_field ++
+
+  while (fields[current_field] != "}") {
+    menu_text[menu_items] = fields[current_field++]
+    menu_type[menu_items] = "list"
+    menu_data[menu_items] = fields[current_field++]
+    menu_var[menu_items] = variable
+
+    menu_items ++    
+  }
+
+  # skip the }
+  current_field ++
+}
+
+function handle_menu () {
+  get_line()
+  
+  menu_items = 0
+
+  current_field = 1
+
+  menu_class = "menu"
+  menu_title = fields[current_field++]
+  menu_name = escape_menu_entry(menu_title)
+
+  menu_exit = ""
+
+  for (; current_field < num_fields && fields[current_field] != "}";) {
+    test = tolower(fields[current_field++])
+
+    if (test == "description") {
+      handle_description()
+    } else if (test == "submenu") {
+      handle_submenu()
+    } else if (test == "boolean") {
+      handle_boolean()
+    } else if (test == "input") {
+      handle_input()
+    } else if (test == "string") {
+      handle_input()
+    } else if (test == "integer") {
+      handle_input()
+    } else if (test == "float") {
+      handle_input()
+    } else if (test == "list") {
+      handle_list()
+    } else if (test == "text") {
+      handle_text()
+    } else if (test == "exit") {
+      handle_exit()
+    }
+  }
+
+  write_menu()
+}
+
+function handle_template_text () {
+  template_text = fields[current_field++]
+}
+
+function handle_template_description () {
+  template_description = fields[current_field++]
+}
+
+function handle_template_counter () {
+  template_counter = fields[current_field++]
+}
+
+function handle_template_deleted () {
+  template_deleted = fields[current_field++]
+}
+
+
+function handle_template () {
+  get_line()
+  
+  menu_items = 0
+
+  current_field = 1
+
+  menu_class = "template"
+  menu_title = fields[current_field++]
+  menu_name = escape_menu_entry(menu_title)
+
+  for (; current_field < num_fields && fields[current_field] != "}";) {
+    test = tolower(fields[current_field++])
+
+    if (test == "description") {
+      handle_description()
+    } else if (test == "submenu") {
+      handle_submenu()
+    } else if (test == "boolean") {
+      handle_boolean()
+    } else if (test == "input") {
+      handle_input()
+    } else if (test == "list") {
+      handle_list()
+    } else if (test == "text") {
+      handle_text()
+    } else if (test == "exit") {
+      handle_exit()
+
+    } else if (test == "t_description") {
+      handle_template_description()
+    } else if (test == "t_deleted") {
+      handle_template_deleted()
+    } else if (test == "t_text") {
+      handle_template_text() 
+    } else if (test == "t_counter") {
+      handle_template_counter() 
+
+    }
+  }
+
+  write_menu()
+  write_template()
+}
+
+function handle_maintitle () {
+  get_line()
+
+  current_field = 1
+
+  main_title = fields[current_field++]
+}
+
+function handle_start (  text) {
+  get_line()
+
+  current_field = 1
+
+  text = fields[current_field++]
+  start_name = escape_menu_entry(text)
+
+  write_start()
+}
+
+/^#/ {
+  next
+}
+
+tolower($1) == "menu" {
+  handle_menu()
+  next
+}
+
+tolower($1) == "template" {
+  handle_template()
+  next
+}
+
+tolower($1) == "start" {
+  handle_start()
+  next
+}
+
+tolower($1) == "maintitle" {
+  handle_maintitle()
+  next
+}
+
+# Interface:
+#
+# write_start - creates the function "start" which calls the first menu. Also
+#               responsible for writing any other necessary code.
+#   o 'start_name'       contains the escaped menu name
+#
+# write_menu - creates the menu control function.
+#   o 'menu_name'        contains the escaped menu name
+#   o 'menu_class'	 contains either 'menu' or 'template'
+#   o 'menu_exit'        contains the name of a function to call on exit
+#   o 'menu_type[]'      contains the type for each menu entry
+#   o 'menu_text[]'      contains the text for each menu entry
+#   o 'menu_data[]'      contains entry specific data for the entry (if any)
+#   o 'menu_var[]'       contains the name of the associated variable (if any)
+#   o 'menu_items'       contains a count of the number of menu items
+#   o 'menu_title'       contains the menu's specific title
+#   o 'menu_description' contains the menu's specific description
+#   o 'main_title'       contains the general title
+#
+# write_template - creates a template control function.
+#   o 'template_deleted' contains the deleted entry variable's prefix
+#   o 'template_description' contains the template's description
+#   o 'template_text'    contains the base for the menu text
+#   o 'template_counter' contains the name of the counter variable
+#

@@ -1,0 +1,163 @@
+#
+# Miscellaneous functions needed for parsing
+#
+
+
+# get_line
+# ========
+#
+# reads a line into the fields array. This can be split over multiple lines,
+# as the '{' and '}' characters force the system to continue looking.
+#
+
+function get_line (  nest_count, start_line, finished, i, tmp_fields, \
+			  num_items, in_string) {
+  nest_count = 0
+  start_line = NR
+  finished = 0
+  in_string = 0
+
+  num_fields = 0
+
+  do {
+    # Split up the current line ....
+    num_items = split ($0, tmp_fields, SEPARATORS)
+
+    # Go through the current text items
+    for (i = 1; i <= num_items; i++) {
+      if ( length (tmp_fields[i]) == 0 ) {
+        continue
+      }
+      num_quotes = split (tmp_fields[i], parts, "[\"\']")
+      for (j = 1; j <= num_quotes ; j++) {
+
+        if (j != 1 ) {
+          if (substr (parts[j-1], length (parts[j-1])) == "\\") {
+            # It was a quoted quote ... Put a " in ...
+            string = string_append("\"" parts[j], in_string)
+
+          } else {
+            # Just a normal quote
+            string = string_append(parts[j], in_string)
+            if (in_string) {
+              in_string = 0 
+
+            } else {
+              in_string = 1
+
+            }
+
+          }
+
+        } else {
+         string = string_append(parts[j], in_string)
+
+        }
+
+        if (! in_string) {
+          if (substr (string, 1, 1) == "{") {
+            nest_count ++
+            fields[num_fields++] = "{"
+            string = substr (string, 2)
+          }
+
+          if (substr (string, length(string), 1) == "}") {
+            nest_count --
+            string = substr (string, 1, length(string) - 1)
+            if (length (string) > 0) {
+              fields[num_fields++] = string
+
+            }
+            fields[num_fields++] = "}"
+            continue
+
+          }
+
+#          if (substr (string, 1, 1) == "#" ) {
+#            finished = 1
+#            i = num_items +1
+#            break
+#
+#          }
+
+          if (length (string) > 0 ) {
+            fields[num_fields++] = string
+
+          }
+
+          string = ""
+
+        }
+
+      } 
+
+    }
+
+    if (! in_string && (nest_count == 0) ) {
+      finished = 1
+
+    }
+
+    # Get the next line if there is more to come ...
+    if (! finished) {
+      getline
+
+    }
+
+  } while (! finished)
+
+}
+
+function string_append ( text, in_string) {
+
+  if (length(text) > 0 ) {
+     # There is text to put in the string ...
+     if (in_string) {
+       if (length(string) > 0) {
+         # And a string to add it too ...
+         return string " " text
+
+       } else {
+         # No string to add it too ...
+         return text
+
+       }
+     } else {
+       return text
+     }
+
+  } else {
+    if (in_string) {
+      return string
+
+    } else {
+      return text
+
+    }
+
+  }
+}
+
+function escape_string ( string,  response) {
+  # order is critical ...
+  
+  # replace \ with \\
+  gsub(/\\/, "\\\\", string);
+
+  # replace & with \&
+  gsub(/\&/, "\\\&", string);
+
+  # replace " with \"
+  gsub(/\"/, "\\\"", string);
+
+  # replace ' with \'
+#  gsub(/\'/, "\\\'", string);
+
+  # replace ` with \`
+#  gsub(/\`/, "\\\`", string);
+
+  # replace $ with \$
+  gsub(/\$/, "\\\$", string);
+
+  return string;
+}

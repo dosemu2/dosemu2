@@ -1,0 +1,375 @@
+/* src/include/config.h.in.  Generated from configure.ac by autoheader.  */
+
+
+/* 
+ * (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/*
+ * BIG FAT WARNING:
+ *
+ * These #defines come from configure.ac.
+ * If you edit config.h.in, your efforts will become useless the next 
+ * time you run autoheader or autoreconf.
+ *
+ * All lines within AH_TOP and AH_BOTTOM are copied unchanged into 
+ * config.h.in. Read the GNU autoconf documentation to learn more 
+ * xabout configure & friends.
+ *
+ */
+
+#ifndef CONFIG_H
+#define CONFIG_H 1
+
+#define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+#define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
+
+#ifdef __ASM__
+/* trick to comment out prototypes */
+#define extern #
+#else
+#include "extern.h"
+
+#include "confpath.h"
+/* not overridable file constants */
+#define  DOSEMU_RC          ".dosemurc"       /* per user config file */
+#define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
+#define  LOCALDIR_BASE_NAME ".dosemu"         /* base directory in $HOME */
+#define  DOSEMU_CONF        "dosemu.conf"     /* standard configuration file */
+#define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
+#define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
+#define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
+#define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
+
+EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
+EXTERN char *config_script_path INIT(0);
+EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
+EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
+EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
+EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
+
+EXTERN char dosemulib_default[] INIT(DOSEMULIB_DEFAULT);
+EXTERN char *dosemu_lib_dir_path INIT(dosemulib_default);
+EXTERN char dosemuhdimage_default[] INIT(DOSEMUHDIMAGE_DEFAULT);
+EXTERN char *dosemu_hdimage_dir_path INIT(dosemuhdimage_default);
+EXTERN char keymaploadbase_default[] INIT(DOSEMULIB_DEFAULT "/");
+EXTERN char *keymap_load_base_path INIT(keymaploadbase_default);
+EXTERN char *keymap_dir_path INIT("keymap/");
+EXTERN char *owner_tty_locks INIT("uucp");
+EXTERN char *tty_locks_dir_path INIT("/var/lock");
+EXTERN char *tty_locks_name_path INIT("LCK..");
+EXTERN char *dexe_load_path INIT(dosemuhdimage_default);
+EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
+EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
+
+#define    DOSEMU_USERS_FILE     dosemu_users_file_path
+#define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
+#define    RUNDIR                dosemu_rundir_path
+#define    LOCALDIR              dosemu_localdir_path
+#define    KEYMAP_LOAD_BASE_PATH keymap_load_base_path
+#define    KEYMAP_DIR            keymap_dir_path
+#define    OWNER_LOCKS           owner_tty_locks
+#define    PATH_LOCKD            tty_locks_dir_path
+#define    NAME_LOCKF            tty_locks_name_path
+#define    IPX_DOS_INI_PATH      ipx_dos_ini_path
+#define    DOSEMU_MAP_PATH       dosemu_map_file_name
+#define    DOSEMU_MIDI_PATH      dosemu_midi_path
+
+#endif /* not __ASM__ */
+
+
+/* Set if pedantic ASM is needed */
+#undef ASM_PEDANTIC
+
+/* Define this for ASPI (generic SCSI) support */
+#undef ASPI_SUPPORT
+
+/* Define the host for which Dosemu is configured */
+#undef CONFIG_HOST
+
+/* Define the configure time */
+#undef CONFIG_TIME
+
+/* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
+   systems. This function is required for `alloca.c' support on those systems.
+   */
+#undef CRAY_STACKSEG_END
+
+/* Define to 1 if using `alloca.c'. */
+#undef C_ALLOCA
+
+/* Define the Dosemu version code */
+#undef DOSEMU_VERSION_CODE
+
+/* Define the EMU version */
+#undef EMUVER
+
+/* Define the stepping of gas code16 functionality */
+#undef GASCODE16
+
+/* Set to GCC version code */
+#undef GCC_VERSION_CODE
+
+/* Define to 1 if you have `alloca', as a function or macro. */
+#undef HAVE_ALLOCA
+
+/* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
+   */
+#undef HAVE_ALLOCA_H
+
+/* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
+   */
+#undef HAVE_DIRENT_H
+
+/* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
+#undef HAVE_DOPRNT
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the `getpagesize' function. */
+#undef HAVE_GETPAGESIZE
+
+/* Define to 1 if you have the `gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the `pthread' library (-lpthread). */
+#undef HAVE_LIBPTHREAD
+
+/* Define to 1 if you have the `vga' library (-lvga). */
+#undef HAVE_LIBVGA
+
+/* Define to 1 if you have the `X11' library (-lX11). */
+#undef HAVE_LIBX11
+
+/* Define to 1 if you have the `Xwindow' library (-lXwindow). */
+#undef HAVE_LIBXWINDOW
+
+/* Define to 1 if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define this if you want to use MITSHM */
+#undef HAVE_MITSHM
+
+/* Define to 1 if you have a working `mmap' system call. */
+#undef HAVE_MMAP
+
+/* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
+#undef HAVE_NDIR_H
+
+/* Define to 1 if you have the `sigaltstack' function. */
+#undef HAVE_SIGALTSTACK
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if `st_rdev' is member of `struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_RDEV
+
+/* Define to 1 if you have the <syslog.h> header file. */
+#undef HAVE_SYSLOG_H
+
+/* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
+   */
+#undef HAVE_SYS_DIR_H
+
+/* Define to 1 if you have the <sys/file.h> header file. */
+#undef HAVE_SYS_FILE_H
+
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
+   */
+#undef HAVE_SYS_NDIR_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
+#undef HAVE_SYS_WAIT_H
+
+/* Define to 1 if you have the <termios.h> header file. */
+#undef HAVE_TERMIOS_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 if `utime(file, NULL)' sets file's timestamp to the present. */
+#undef HAVE_UTIME_NULL
+
+/* Define to 1 if you have the `vprintf' function. */
+#undef HAVE_VPRINTF
+
+/* Define this if you want to use the XF86 video mode extension */
+#undef HAVE_XVIDMODE
+
+/* Define to 1 if `major', `minor', and `makedev' are declared in <mkdev.h>.
+   */
+#undef MAJOR_IN_MKDEV
+
+/* Define to 1 if `major', `minor', and `makedev' are declared in
+   <sysmacros.h>. */
+#undef MAJOR_IN_SYSMACROS
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define the Dosemu patchlevel */
+#undef PATCHLEVEL
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at run-time.
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
+#undef STACK_DIRECTION
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define the Dosemu sublevel */
+#undef SUBLEVEL
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Define to 1 if your <sys/time.h> declares `struct tm'. */
+#undef TM_IN_SYS_TIME
+
+/* DEFINE this, if you want the dosdebugger (mhpdbg) */
+#undef USE_MHPDBG
+
+/* DEFINE this, if you want pthreads support */
+#undef USE_PTHREADS
+
+/* This is DEFINED when SB emulation is required. Just changing this is not
+   enough - you must reconfigure. */
+#undef USE_SBEMU
+
+/* DEFINE this, if you want svgalib support */
+#undef USE_SVGALIB
+
+/* This is DEFINED when the Ultra libraries are available */
+#undef USE_ULTRA
+
+/* Define if compiling with network support */
+#undef USING_NET
+
+/* Define the Dosemu version release date */
+#undef VERDATE
+
+/* Define the Dosemu version */
+#undef VERSION
+
+/* Define the version string */
+#undef VERSTR
+
+/* DPMI test windows */
+#undef WANT_WINDOWS
+
+/* Define this to use the X86 CPU emulator */
+#undef X86_EMULATOR
+
+/* Define to 1 if the X Window System is missing or not being used. */
+#undef X_DISPLAY_MISSING
+
+/* Define these for X support */
+#undef X_GRAPHICS
+
+/* */
+#undef X_SUPPORT
+
+/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
+   `char[]'. */
+#undef YYTEXT_POINTER
+
+/* Define this for DEBUG info */
+#undef _DEBUG
+
+/* Define this if the GNU_SOURCE macro is necessary */
+#undef _GNU_SOURCE
+
+/* Define if the compiler doesn't have __FILE__ macro. Most compilers have
+   this one, but just to be sure... */
+#undef __FILE__
+
+/* Define if the compiler doesn't have __FUNCTION__ macro This is very gcc
+   specific (and very useful!). It is defined as "" if the compiler doesn't
+   have it. */
+#undef __FUNCTION__
+
+/* Define if the compiler doesn't have __LINE__ macro. Most compilers have
+   this one, but just to be sure... */
+#undef __LINE__
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* Define as `__inline' if that's what the C compiler calls it, or to nothing
+   if it is not supported. */
+#undef inline
+
+/* Define to `long' if <sys/types.h> does not define. */
+#undef off_t
+
+/* Define to `int' if <sys/types.h> does not define. */
+#undef pid_t
+
+/* Define to `unsigned' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef uid_t
+
+
+#ifndef __ASM__
+EXTERN char *dosemu_map_file_name INIT(0);
+#endif
+
+#include "plugin_config.h"
+
+#endif /* CONFIG_H */
+

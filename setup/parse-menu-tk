@@ -1,0 +1,283 @@
+#
+# Tcl/Tk specific functions
+#
+
+function write_start () {
+  print "proc start {} { handle_" start_name " } "
+}
+
+function write_menu_function_header () {
+
+  if ( menu_class == "template") {
+    print "proc handle_" menu_name "_template { template_id } {"
+  
+  } else {
+    print "proc handle_" menu_name " {} {"
+  
+  }
+
+  print "global var_array"
+}
+
+function write_menu_boolean_init ( i ) {
+#  print "global " menu_var[i]
+  print "set var_array(" var_name(menu_var[i]) ") [ get_value " var_name(menu_var[i]) " ]"
+  print "if  { [ string length $var_array(" var_name(menu_var[i]) ")] == 0 } { set var_array(" var_name(menu_var[i]) ") off }"
+
+  return i
+}
+
+function write_menu_input_init ( i ) {
+#  print "global " menu_var[i]
+  print "set var_array(" var_name(menu_var[i]) ") [ get_value " var_name(menu_var[i]) " ]"
+
+  return i
+}
+
+function write_menu_list_init ( i ) {
+#  print "global " menu_var[i]
+  print "set var_array(" var_name(menu_var[i]) ") [ get_value " var_name(menu_var[i]) " ]" 
+
+  # Special case - '*' means catch all, which in this version equates to ""
+  print "if { $var_array(" var_name(menu_var[i]) ") == \"\" } { set var_array(" var_name(menu_var[i]) ") \"*\" }"
+
+  list = menu_var[i]
+  while (menu_type[i] == "list" && list == menu_var[i]) {
+    i++
+  }
+  
+  # This overshoots ..
+  i --
+
+  return i
+}
+
+function write_menu_submenu_init ( i ) {
+  # DUMMY
+  return i
+}
+
+function write_menu_text_init ( i ) {
+  # DUMMY
+  return i
+}
+
+function write_menu_menu_header ( i ) {
+  print "toplevel .frame_" frame_name(menu_name) " -class Dialog"
+  print "positionSubWindow .frame_" frame_name(menu_name)
+  print "wm title .frame_" frame_name(menu_name) " \"" menu_title "\""
+
+  print "label .frame_" frame_name(menu_name) ".description -text \"" menu_description "\""
+  print "pack .frame_" frame_name(menu_name) ".description"
+}
+
+function write_menu_entry_submenu ( i ) {
+#  print "button .frame_" frame_name(menu_name) ".item" i " -text \"" menu_text[i] "\" -command { if {[string length [ info commands handle_" menu_data[i] " ]] > 0} { handle_" menu_data[i] " } else { message .error -text \"The menu for \'" menu_data[i] "\' appears to be missing.\" } }"
+  
+  print "button .frame_" frame_name(menu_name) ".item" i " -text \"" menu_text[i] "\" -command { if {[string length [ info commands handle_" menu_data[i] " ]] > 0} { handle_" menu_data[i] " } else { toplevel .error -class Dialog; positionSubWindow .error; wm title .error "Error"; message .error.message -text \"The menu for " menu_data[i] " appears to be missing.\"; button .error.exit -text \"OK\" -command { destroy .error }; pack .error.message .error.exit } } "
+  print "pack .frame_" frame_name(menu_name) ".item" i " -fill x"
+
+  return i
+}
+
+function write_menu_entry_boolean ( i ) {
+  print "if { [string compare \$var_array(" var_name(menu_var[i]) ") off]  && [string compare \$var_array(" var_name(menu_var[i]) ") on] } { if { [string compare \$var_array(" var_name(menu_var[i]) ") 0] } {set var_array(" var_name(menu_var[i]) ") on} else {set var_array(" var_name(menu_var[i]) ") off} }"
+  print "checkbutton .frame_" frame_name(menu_name) ".item" i " -text \"" menu_text[i] "\" -indicatoron true -offvalue \"off\" -onvalue \"on\" -variable var_array(" var_name(menu_var[i]) ")"
+  print "pack .frame_" frame_name(menu_name) ".item" i " -anchor w -padx 10"
+
+  return i
+}
+
+function write_menu_entry_input ( i ) {
+  print "frame .frame_" frame_name(menu_name) ".item" i
+  print "pack .frame_" frame_name(menu_name) ".item" i " -fill x"
+  print "label .frame_" frame_name(menu_name) ".item" i ".label -text \"" menu_text[i] "\""
+  print "entry .frame_" frame_name(menu_name) ".item" i ".entry -textvariable var_array(" var_name(menu_var[i]) ")"
+#  print ".frame_" frame_name(menu_name) ".item" i ".entry insert 0 \$" menu_var[i] 
+#  print "pack .frame_" frame_name(menu_name) ".item" i ".label .frame_" frame_name(menu_name) ".item" i ".entry -fill x -side left"
+  print "pack .frame_" frame_name(menu_name) ".item" i ".label -side left -anchor w -fill x"
+  print "pack .frame_" frame_name(menu_name) ".item" i ".entry -side right -anchor e -fill x"
+#  print "bind .frame_" frame_name(menu_name) ".item" i ".entry <FocusOut> { global " menu_var[i] "; set " menu_var[i] " [ .frame_" frame_name(menu_name) ".item" i ".entry get ] }"
+
+  return i
+}
+
+function write_menu_entry_list ( i ) {
+  print "radiobutton .frame_" frame_name(menu_name) ".item" i " -text \"" menu_text[i] "\" -value \"" menu_data[i] "\" -variable var_array(" var_name(menu_var[i]) ") -anchor w"
+  print "pack .frame_" frame_name(menu_name) ".item" i " -padx 10 -fill x"
+
+  return i
+}
+
+function write_menu_entry_text ( i ) {
+  print "label .frame_" frame_name(menu_name) ".item" i " -text \"" menu_text[i] "\""
+  print "pack .frame_" frame_name(menu_name) ".item" i
+
+  return i
+}
+
+function write_menu_menu () {
+  # DUMMY
+}
+
+function write_menu_action ( ) {
+  # DUMMY
+}
+
+function write_menu_menu_footer () {
+  if ( menu_class == "template" ) {
+#    print "global " var_name(template_deleted)
+    print "global " frame_name(menu_name) "_deleted"
+    print "set " frame_name(menu_name)"_deleted var_array(" var_name(template_deleted) ")"
+#    print "button .frame_" frame_name(menu_name)".del -text \"Remove " template_text "\" -command { set $" frame_name(menu_name) "_deleted \"on\" ; destroy .frame_" frame_name(menu_name)"; destroy .frame_" menu_name "; handle_" menu_name" } "
+    print "button .frame_" frame_name(menu_name)".del -text \"Remove " template_text "\" -command { set var_array(" var_name(template_deleted) ") \"on\" ; destroy .frame_" frame_name(menu_name)"; destroy .frame_" menu_name "; handle_" menu_name" } "
+    print "pack .frame_" frame_name(menu_name) ".del"
+  }
+
+  print "frame .frame_" frame_name(menu_name) ".footer"
+  print "pack .frame_" frame_name(menu_name) ".footer"
+
+  if ( menu_class == "template" ) {
+    print "button .frame_" frame_name(menu_name) ".footer.exit -text \"Ok\" -command { destroy .frame_" frame_name(menu_name)"; destroy .frame_" menu_name "; handle_" menu_name" } "
+#    print "button .frame_" frame_name(menu_name) ".footer.exit -text \"Ok\" -command { destroy .frame_" frame_name(menu_name) "; if {[string length [ info commands " menu_name"_exit ]] > 0 } { " menu_name "_exit } }"
+    
+  } else if ( menu_class == "menu" && menu_exit != "" ) {
+    print "button .frame_" frame_name(menu_name) ".footer.exit -text \"Ok\" -command { destroy .frame_" frame_name(menu_name) "; if {[string length [ info commands " menu_name"_exit ]] > 0 } { " menu_name "_exit }; if {[string length [ info commands " menu_exit " ]] > 0} { " menu_exit " } else {show_error { \"The exit function " menu_exit " appears to be missing\" } } }"
+  
+  } else {
+    print "button .frame_" frame_name(menu_name) ".footer.exit -text \"Ok\" -command { destroy .frame_" frame_name(menu_name) "; if {[string length [ info commands " menu_name"_exit ]] > 0 } { " menu_name "_exit } }"
+  }
+
+  print "button .frame_" frame_name(menu_name) ".footer.help -text \"Help\" -command { handle_help {" menu_name"} }"
+
+  print "pack configure .frame_" frame_name(menu_name) ".footer.exit .frame_" frame_name(menu_name) ".footer.help -fill x -side left -padx 5"
+}
+
+function write_menu_function_footer () {
+  print "}"
+}
+
+function write_menu (  line_length, i, line, list, list_item) {
+  # Write out the header
+  write_menu_function_header()
+
+  # Initialise Values
+  for (i = 0; i < menu_items; i++) {
+    if ( menu_type[i] == "boolean") {
+      i = write_menu_boolean_init(i)
+
+    } else if ( menu_type[i] == "input") {
+      i = write_menu_input_init(i)
+
+    } else if ( menu_type[i] == "list") {
+      i = write_menu_list_init(i)
+
+    } else if ( menu_type[i] == "submenu") {
+      i = write_menu_submenu_init(i)
+
+    } else if ( menu_type[i] == "text") {
+      i = write_menu_text_init(i)
+
+    }
+  }
+
+  # Create Menu ...
+  write_menu_menu_header()
+
+  for (i = 0; i < menu_items; i++) {
+
+    if (menu_type[i] == "submenu") {
+      i = write_menu_entry_submenu(i)
+
+    } else if (menu_type[i] == "boolean") {
+      i = write_menu_entry_boolean(i)
+
+    } else if (menu_type[i] == "input") {
+      i = write_menu_entry_input(i)
+
+    } else if (menu_type[i] == "list") {
+      i = write_menu_entry_list(i)
+
+    } else if (menu_type[i] == "text") {
+      i = write_menu_entry_text(i)
+
+    }
+
+  }
+
+  # Do Menu ...
+  write_menu_menu()
+
+  # Handle Results ...
+  write_menu_action()
+
+  write_menu_menu_footer()
+
+  write_menu_function_footer()
+}
+
+function write_template () {
+  print "proc handle_" menu_name " {} {"
+
+  print "toplevel .frame_" menu_name " -class Dialog"
+  print "positionSubWindow .frame_" menu_name
+  print "wm title .frame_" menu_name " \"" menu_title "\""
+
+  print "label .frame_" menu_name ".description -text \"" template_description "\""
+  print "pack .frame_" menu_name ".description"
+
+  print "set template_size [ get_value " template_counter " ] "
+  print "for { set count 1 } { $count <= $template_size } { incr count } {"
+  
+  # Will this work ?
+  print "set temp \"var_array(" template_deleted "_$count)\""
+  print "set deleted [ get_value $temp ] "
+
+  print "if  { $deleted != \"on\" } {"
+  print "set command_str \"if {[string length [ info commands handle_" menu_name "_template ]] > 0} { handle_" menu_name "_template $count } else { show_error { \\\"The template for " menu_name " appears to be missing\\\" } }\""
+  print "button \".frame_" menu_name ".item$count\" -text \"" template_text " $count\" -command $command_str"
+  print "pack \".frame_" menu_name ".item$count\" -fill x"
+
+  print "}"
+  print "}"
+
+  print "set command_str \"if {[string length [ info commands handle_" menu_name "_template ]] > 0} { set var_array(" template_counter ") $count; handle_" menu_name "_template $count } else { show_error { \\\"The template for " menu_name " appears to be missing\\\" } }\""
+  print "button .frame_" menu_name ".add -text \"Add " template_text "\" -command $command_str"
+  print "pack .frame_" menu_name ".add -fill x"
+
+  print "frame .frame_" menu_name ".footer"
+  print "pack .frame_" menu_name ".footer"
+
+  if ( menu_exit != "" ) {
+    print "button .frame_" menu_name ".footer.exit -text \"Ok\" -command { destroy .frame_" menu_name "; if {[string length [ info commands " menu_exit " ]] > 0} { " menu_exit " } else {  show_error { \"The exit function " menu_exit " appears to be missing\" } } }"
+  
+  } else {
+    print "button .frame_" menu_name ".footer.exit -text \"Ok\" -command { destroy .frame_" menu_name " }"
+  }
+
+  print "button .frame_" menu_name ".footer.help -text \"Help\" -command { handle_help menu_name }"
+
+  print "pack configure .frame_" menu_name ".footer.exit .frame_" menu_name ".footer.help -fill x -side left -padx 5"
+
+  print "}"
+}
+
+function var_name ( base ) {
+  if (menu_class == "template" ) {
+    return base "_" "$template_id"
+
+  } else {
+   return base
+
+  }
+}
+
+function frame_name ( base ) {
+  if (menu_class == "template" ) {
+    return base "_template"
+
+  } else {
+   return base
+
+  }
+}

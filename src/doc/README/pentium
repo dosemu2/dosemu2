@@ -1,0 +1,151 @@
+<sect1 id="pentium">
+<title>Pentium-specific issues in dosemu</title>
+
+<para>
+This section written by Alberto Vignani
+<ulink
+url="mailto:vignani@mbox.vol.it"
+>&#60;vignani@mbox.vol.it&#62;</ulink
+>
+, Aug 10, 1997
+</para>
+
+<sect2>
+<title>The pentium cycle counter</title>
+
+<para>
+On 586 and higher CPUs the 'rdtsc' instruction allows access to an internal
+64-bit TimeStamp Counter (TSC) which increments at the CPU clock rate.
+Access to this register is controlled by bit 2 in the config register cr4;
+hopefully under Linux this bit is always off, thus allowing access to the
+counter also from user programs at CPL 3.
+</para>
+
+<para>
+The TSC is part of a more general group of performance evaluation
+registers, but no other feature of these registers is of any use for dosemu.
+Too bad the TSC can't raise an interrupt!
+</para>
+
+<para>
+Advantages of the TSC: it is extremely cheap to access
+(11 clock cycles, no system call).
+</para>
+
+<para>
+Drawbacks of using the TSC: you must know your CPU speed to get the absolute
+time value, and the result is machine-class specific, i.e. you can't run a
+binary compiled for pentium on a 486 or lower CPU (this is not the case for
+dosemu, as it can dynamically switch back to 486-style code).
+</para>
+
+</sect2>
+
+<sect2>
+<title>How to compile for pentium</title>
+
+<para>
+There are no special options required to compile for pentium, the CPU
+selection is done at runtime by parsing /proc/cpuinfo. You can't override
+the CPU selection of the real CPU, only the emulated one.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Runtime calibration</title>
+
+<para>
+At the very start of dosemu the bogospeed() function in base/init/config.c
+is called. This function first looks for the CPUID instruction (missing on
+386s and early 486s), then looks for the CPUSPEED environment variable,
+and at the end tries to determine the speed itself.
+</para>
+
+<para>
+The environment variable CPUSPEED takes an integer value, which is the speed
+of your processor, e.g.:
+</para>
+
+<para>
+
+<screen>
+    export CPUSPEED=200
+</screen>
+
+</para>
+
+<para>
+The last method used is the autocalibration, which compares the values of
+gettimeofday() and TSC over an interval of several hundred milliseconds, and
+is quite accurate AFAIK.
+</para>
+
+<para>
+You can further override the speed determination by using the statement
+</para>
+
+<para>
+
+<screen>
+    cpuspeed div mul
+</screen>
+
+in your configuration file. The integer ratio (mul/div) allows to specify
+almost any possible speed (e.g. 133.33... will become '400 3'). You can even
+slow down dosemu for debugging purposes (only if using TSC, however).
+</para>
+
+<para>
+The speed value is internally converted into two pairs of integers of the
+form {multiplier,divider}, to avoid float calculations. The first pair is
+used for the 1-usec clock, the second one for the tick(838ns) clock.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Timer precision</title>
+
+<para>
+I found no info about this issue. It is reasonable to assume that if your
+CPU is specified to run at 100MHz, it should run at that exact speed (within
+the tolerances of quartz crystals, which are normally around 10ppm). But I
+suspect that the exact speed depends on your motherboard.
+If you are worried, there are many small test programs you can run under
+plain DOS to get the exact speed.
+Anyway, this should be not a very important point, since all the file
+timings are done by calling the library/kernel time routines, and do not
+depend on the TSC.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Additional points</title>
+
+<para>
+The experimental 'time stretching' algorithm is only enabled when using the
+pentium (with or without TSC). I found that it is a bit 'heavy' for 486
+machines and disallowed it.
+</para>
+
+<para>
+If your dosemu was compiled with pentium features, you can switch
+back to the 'standard' (gettimeofday()) timing at runtime by adding the
+statement
+</para>
+
+<para>
+
+<screen>
+    rdtsc off
+</screen>
+
+in your configuration file.
+</para>
+
+</sect2>
+
+</sect1>
+

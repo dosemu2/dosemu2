@@ -1,0 +1,207 @@
+<sect1 id="timing">
+<title>Timing issues in dosemu</title>
+
+<para>
+This section written by Alberto Vignani
+<ulink
+url="mailto:vignani@mbox.vol.it"
+>&#60;vignani@mbox.vol.it&#62;</ulink
+>
+, Aug 10, 1997
+</para>
+
+<sect2>
+<title>The 64-bit timers</title>
+
+<para>
+The idea for the 64-bit timers came, of course, from using the pentium cycle
+counter, and has been extended in dosemu to the whole timing system.
+</para>
+
+<para>
+All timer variables are now defined of the type <emphasis remap="bf">hitimer_t</emphasis> (an
+unsigned long long, see include/types.h).
+</para>
+
+<para>
+Timers in dosemu can have one of the following resolutions:
+</para>
+
+<para>
+
+<screen>
+    MICROSECOND, for general-purpose timing
+    TICK (838ns), for PIT/PIC emulation
+</screen>
+
+</para>
+
+<para>
+You can get the current time with the two functions
+</para>
+
+<para>
+
+<screen>
+    GETusTIME    for 1-usec resolution
+    GETtickTIME  for 838ns resolution
+</screen>
+
+</para>
+
+<para>
+The actual timer used (kernel or pentium TSC) is configured at runtime
+(it defaults to on for 586 and higher CPUs, but can be overridden both
+by the -[2345] command-line switch or by the "rdtsc on|off" statement
+in the config file).
+</para>
+
+<para>
+The DOS time is now kept in the global variable <emphasis remap="bf">pic_sys_time</emphasis>.
+See the DANG notes about emu-i386/cputime.c for details.
+</para>
+
+</sect2>
+
+<sect2>
+<title>DOS 'view of time' and time stretching</title>
+
+<para>
+The time stretcher implements DOS 'view of time', as opposed to the
+system time.
+It would be very easy to just give DOS its time, by incrementing it
+only when the dosemu process is active. To do that, it is enough to
+get SIGPROF from the kernel and (with some adjustments for sleeps)
+calculate the CPU% used by dosemu.
+The real tricky part comes when we try to get this stuff back in
+sync with real time. We must 'stretch' the time, slowing it down
+and speeding it up, so that the DOS time is always trying to catch
+the real one.
+</para>
+
+<para>
+To enable the time stretcher start dosemu with the command-line option
+<emphasis>-t</emphasis>. If your CPU is not a 586 or higher, dosemu will exit with
+an error message.
+Not that this algorithm doesn't run on a 486 - it was tested and
+was quite successful - but the use of gettimeofday() makes it a bit
+too heavy for such machines. Hence, it has been restricted to the
+pentium-class CPUs only, which can use the CPU timer to reduce use
+of kernel resources.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Non-periodic timer modes in PIT</title>
+
+<para>
+Normally, PIT timer 0 runs in a periodic mode (mode 2 or 3), it counts down
+to 0 then it issues an int8 and reinitializes itself. But many demos and
+games use it in one of the non-periodic (NP) modes (0 or 1): the timer counts
+down to 0, issues the interrupt and then stops. In NP modes,
+software intervention is required to keep the timer running.
+The NP modes were not implemented by dosemu-0.66, and this is the reason why
+some programs failed to run or required strange hacks in the dosemu code.
+To be fair, most of these games ran also in dosemu-0.66 without any specific
+hack, but looking at the debug log always made me call for some type of
+divine intervention :-)
+</para>
+
+<para>
+The most common situation is: the DOS program first calibrates itself by
+calculating the time between two vertical screen retraces, then programs the
+timer 0 in a NP mode with a time slightly less than this interval; the int8
+routine looks at the screen retrace to sync itself and then restarts the
+timer. You can understand how this kind of setup is very tricky to emulate
+in a multitasking environment, and sometimes requires using the
+<emphasis remap="bf">emuretrace</emphasis> feature. But, at the end, many demos that do not
+run under Win95 actually run under dosemu.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Fast timing</title>
+
+<para>
+By "fast timing", I define a timer 0 period less than half of the Linux
+"jiffie" time (10ms). This is empirically determined - programs that use a
+timer period greater than 5ms usually run well with the 'standard' timing of
+dosemu-0.66.
+</para>
+
+<para>
+There will always be a speed limit (the PIT can be programmed up to 500kHz),
+but this is surely higher now. As an example, if you run M$ Flight
+Simulator 0.5 with PC speaker enabled, as soon as a sound starts the PIT is
+set for an interrupt rate of 15kHz (and the int8 routine is really nasty, in
+that it _keeps_count_ of the events); dosemu-0.66 just crashes, while now
+the sound is not perfect but reasonabily near to the real thing (but do not
+try to activate the debug log, or it will take forever!)
+</para>
+
+<para>
+Fast timing was not easy to achieve, it needs many tricks esp. to avoid
+interrupt bursts in PIC; it is still NOT completely working on slow machines
+(386,486) - but it will maybe never work for all cases.
+</para>
+
+</sect2>
+
+<sect2>
+<title>PIC/PIT synchronization and interrupt delay</title>
+
+<para>
+Another tricky issue... There are actually two timing systems for int8, the
+one connected to the interrupt in PIC, the other to port 0x43 access in PIT.
+Things are not yet perfectly clean, but at least now the two timings are
+kept in sync and can help one another.
+</para>
+
+<para>
+One of the new features in PIC is the correct emulation of interrupt delay
+when for any reason the interrupt gets masked for some time; as the time for
+int8 is delayed, it loses its sync, so the PIT value will be useful for
+recalculating the correct int8 time. (This case was the source for many int
+bursts and stack overflows in dosemu-0.66).
+</para>
+
+<para>
+The contrary happens when the PIT is in a NP mode; any time the timer is
+restarted, the PIT must be reset too. And so on.
+</para>
+
+</sect2>
+
+<sect2>
+<title>The RTC emulation</title>
+
+<para>
+There is a totally new emulation of the CMOS Real Time Clock, complete
+with alarm interrupt. A process ticks at exactly 1sec, always in
+real (=system) time; it is normally implemented with a thread, but can be
+run from inside the SIGALRM call when threads are not used.
+</para>
+
+<para>
+Also, int0x1a has been mostly rewritten to keep in sync with the new CMOS
+and time-stretching features.
+</para>
+
+</sect2>
+
+<sect2>
+<title>General warnings</title>
+
+<para>
+Do not try to use games or programs with hi-freq timers while running heavy
+tasks in the background. I tried to make dosemu quite robust in such
+respects, so it will probably NOT crash, but, apart being unplayable,
+the game could behave in unpredictable ways.
+</para>
+
+</sect2>
+
+</sect1>
+

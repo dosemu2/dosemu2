@@ -1,0 +1,111 @@
+<sect1>
+<title>Net code</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+<para>
+ Added support for multiple type handling. 
+So it does type demultiplexing within dosemu.
+</para>
+
+<para>
+So we are able to run telbin and pdipx/netx  simultaneously ;-)
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Changed the code for F_DRIVER_INFO. If the handle is '0', it need not
+be valid handle (when input to this function).  At least CUTCP simply
+set this value to zero when it requests for info for the first
+time. The current code wrongly treated it as valid handle, and
+returned the class of first registered type.
+</para>
+</listitem>
+<listitem>
+<para>
+ Some things still to be done ...
+
+<itemizedlist>
+<listitem>
+
+<para>
+ Novell Hack is currently disabled. 
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Compare class along with type when a new packet arrives.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Lots of clean ups required. (I have put in lots of pd_printf's.)
+Need to be removed even if debug is not used because function
+call within packet handler is very costly ...
+</para>
+</listitem>
+<listitem>
+
+<para>
+ change all 'dsn0' / 'dosnet' to vnet (i.e. virtual net.) or so. 
+</para>
+</listitem>
+
+</itemizedlist>
+
+and 
+
+<itemizedlist>
+<listitem>
+
+<para>
+ Use of SIGIO ...
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Special protocol stack to do demultiplexing of types??
+</para>
+</listitem>
+<listitem>
+
+<para>
+ Use of devices instead of the current mechanism of implementing
+v-net?
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+<emphasis>NOTE:</emphasis> THERE ARE STILL BUGS.  The dosemu session just hangs. -- 
+Usually when in CUTCP. (And specially when I open two sessions.)
+What is strange is, it seems to work fine for some time even when two
+sessions are opened. 
+I strongly feel  it is due to new PIC code because it is used
+heavily by the network code ... (especially in interactive telnet
+sessions.)
+</para>
+
+<para>
+Vinod 
+<ulink
+url="mailto:vinod@cse.iitb.ernet.in"
+>&#60;vinod@cse.iitb.ernet.in&#62;</ulink
+>
+</para>
+
+</sect1>

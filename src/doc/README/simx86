@@ -1,0 +1,53 @@
+This short description from
+
+  Alberto Vignani <a.vignani@crf.it> Sat Jul  8 23:27:58 2000
+
+only in order to not loose valuable information.
+
+I _really_ expect some more worked out documentation  --Hans, 2000/07/09
+
+What's new:
+
+1) ZeroBaseTime is now in cycles instead of us. This simplifies things in
+   the cpuemu even if his required moving some #include <timer.h>.
+2) SIGTIME has been un-macroed to its standard value of SIGALRM, and another
+   time signal (currently SIGPROF) has been introduced for future use in the
+   cpuemu.
+3) TRACE_DPMI is currently enabled only if cpuemu is compiled in; use the
+   -D{n}t option to enable it, where if n>1 registers and disassembly are
+   written to the logfile. It traces the "regular", not the emulated, DPMI,
+   and doesn't trace vm86 code, only PM.
+4) FP coprocessor error full decoding.
+5) Support for BOUND (int5) exception.
+6) Moved some structs and defines from port.c to port.h, for use by the
+   cpuemu.
+7) The cpuemu itself. It is now called SIM86X.
+   The user interface has not changed from previous version; you always
+   have to use ecpuon/ecpuoff to enable/disable it,
+   and -D{n}e for debug logging.
+   The makefile has some optimization options:
+	OPTIMIZE_BACK_JUMPS
+	  tries to resolve short branches without breaking a compiled
+	  sequence. Quite safe.
+	OPTIMIZE_COMMON_SEQ
+	  tries to compact push..push, pop..pop, movs etc. to generate
+	  shorter code
+	OPTIMIZE_FW_JUMPS
+	  tries to resolve short forward branches without breaking a
+	  compiled sequence,
+	  but it's a bit dangerous with self-modifying code and it's
+	  enabled only for DPMI (PM) code.
+	USE_BOUND
+	  someone proposed to use it for emulating PM features,
+	  I implemented it for CS: accesses, just for fun.
+	SINGLESTEP
+	  as the name says.
+8) I used a lot of double-slash C++ style comments.
+
+What works under cpuemu: DOS (at least IBM DOS 7.0), Norton Commander,
+ndiags, djgpp (at least the latest version 2.0.3), some CPU test programs,
+tasm, text-mode demos, sourcer.
+What doesn't yet work: doom and many graphic demos.
+Not yet tested: Turbo C, Win3.1.
+
+Alberto

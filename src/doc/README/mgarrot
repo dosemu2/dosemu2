@@ -1,0 +1,51 @@
+<sect1>
+<title>Mouse Garrot</title>
+
+<para>
+This section, and Mouse Garrot were written by Ed Sirett 
+<ulink
+url="mailto:ed@cityscape.co.uk"
+>&#60;ed@cityscape.co.uk&#62;</ulink
+>
+on 30 Jan 1995.
+</para>
+
+<para>
+Mouse Garrot is an extension to the Linux Dos Emulator that tries to 
+help the emulator give up CPU time to the rest of the Linux system.
+</para>
+
+<para>
+It tries to detect the fact the the mouse is not doing anything and
+thus to release up CPU time, as is often the case when a mouse-aware
+program is standing idle, such programs are often executing a loop
+which is continually checking the mouse buttons &#38; position. 
+</para>
+
+<para>
+Mouse Garrot is built directly into dosemu <emphasis>if and only if</emphasis> you are 
+using the internal mouse driver of dosemu. All you have to do is make 
+sure that the HOGTHRESHOLD value in the config file is non-zero.
+</para>
+
+<para>
+If you are loading a (DOS based) mouse driver when you boot 
+then you will also need to load MGARROT.COM 
+It is essential that you load MGARROT.COM <emphasis>after</emphasis> you load the
+mouse driver. MGARROT will tell you if you are (a) running real DOS 
+not dosemu, or (b) have requested a zero value for the HOGTHRESHOLD 
+in the config file. In either case MGARROT fails to install and no
+memory will be lost. When MGARROT is installed it costs about 0.4k.
+MGARROT may loaded `high' if UMBs are available.
+</para>
+
+<para>
+Mouse Garrot will work with many (maybe most) mouse-aware programs 
+including Works, Dosshell and the Norton Commander.  Unfortunately, 
+there are some programs which get the mouse driver to call the 
+program whenever the mouse moves or a button is pressed. Programs 
+that work in this way are immune to the efforts of Mouse Garrot.
+</para>
+
+</sect1>
+
