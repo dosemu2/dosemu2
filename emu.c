@@ -481,7 +481,6 @@ void
 run_vm86(void)
 {
     /* FIXME: why static *? */
-    static int      xxx=0;
     static int      retval;
     static u_short  next_signal = 0;
     /*
@@ -489,31 +488,64 @@ run_vm86(void)
      * in here.
      */
     in_vm86 = 1;
+#if 1 /* <ESC> BUG FIXER (if 1) */
+    #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
+    #define OVERLOAD_THRESHOULD1  238608 /* good average value */
+    #define OVERLOAD_THRESHOULD0  100000 /* minum acceptable value */
+    if ((pic_icount||pic_dos_time<pic_sys_time)
+        && ((pic_sys_time - pic_dos_time) < OVERLOAD_THRESHOULD1) )
+       REG(eflags) |= (VIP);
+    else REG(eflags) &= ~(VIP);
+#else
     if (pic_icount||pic_dos_time<pic_sys_time)
 	REG(eflags) |= (VIP);
+#endif
     /* FIXME: this needs to be clarified and rewritten */
 
-#if 1
-  g_printf("Before: EIP: %04x:%08lx", LWORD(cs), REG(eip));
-  g_printf(" ESP: %04x:%08lx\n", LWORD(ss), REG(esp));
-if(0 && (REG(eip) == 0x746 || REG(eip) == 0x7cb)) xxx=1;
-if (xxx)
-  show_regs(__FILE__,__LINE__);
 #if 0
-if (*(u_short *)((LWORD(cs) << 4) + LWORD(eip))==0x66)
-  show_regs(__FILE__,__LINE__);
-#endif
+#define PFLAG(f)  if (REG(eflags)&(f)) k_printf(#f" ")
+
+  k_printf("FLAGS BEFOR: ");
+  PFLAG(CF);
+  PFLAG(PF);
+  PFLAG(AF);
+  PFLAG(ZF);
+  PFLAG(SF);
+  PFLAG(TF);
+  PFLAG(IF);
+  PFLAG(DF);
+  PFLAG(OF);
+  PFLAG(NT);
+  PFLAG(RF);
+  PFLAG(VM);
+  PFLAG(AC);
+  PFLAG(VIF);
+  PFLAG(VIP);
+  k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 #endif
 
     retval = DO_VM86(&vm86s);
 
-#if 1
-  g_printf("After : ");
-  g_printf("EIP: %04x:%08lx", LWORD(cs), REG(eip));
-  g_printf(" ESP: %04x:%08lx\n", LWORD(ss), REG(esp));
-if (xxx)
-  show_regs(__FILE__,__LINE__);
+#if 0
+  k_printf("FLAGS AFTER: ");
+  PFLAG(CF);
+  PFLAG(PF);
+  PFLAG(AF);
+  PFLAG(ZF);
+  PFLAG(SF);
+  PFLAG(TF);
+  PFLAG(IF);
+  PFLAG(DF);
+  PFLAG(OF);
+  PFLAG(NT);
+  PFLAG(RF);
+  PFLAG(VM);
+  PFLAG(AC);
+  PFLAG(VIF);
+  PFLAG(VIP);
+  k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 #endif
+
     in_vm86 = 0;
     switch VM86_TYPE
 	(retval) {
@@ -553,7 +585,7 @@ if (xxx)
     if (iq.queued)
 	do_queued_ioctl();
     /* update the pic to reflect IEF */
-    if (REG(eflags) & IF_MASK) {
+    if (REG(eflags) & VIF_MASK) {
 	if (pic_iflag)
 	    pic_sti();
     } else {
@@ -921,6 +953,10 @@ void
 leavedos(int sig)
 {
     struct sigaction sa;
+
+    static int recurse_check = 0;
+    if (recurse_check) return;
+    recurse_check = 1;
 
 #if 1 /* BUG CATCHER */
     if (in_vm86) {

@@ -115,7 +115,7 @@
 
 #define DPMI_C
 
-#if 0				/* Don't change this, it requires new */
+#if defined(REQUIRES_EMUMODULE)	/* Don't change this, it requires new */
 				/* kernel ldt-alias support */
 #define KERNEL_LDTALIAS
 #endif
@@ -1619,8 +1619,18 @@ void run_dpmi(void)
    */
 
   if (int_queue_running || in_dpmi_dos_int) {
-    if(pic_icount)
-      REG(eflags) |= VIP;
+#if 1 /* <ESC> BUG FIXER (if 1) */
+    #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
+    #define OVERLOAD_THRESHOULD1  238608 /* good average value */
+    #define OVERLOAD_THRESHOULD0  100000 /* minum acceptable value */
+    if ((pic_icount||pic_dos_time<pic_sys_time)
+        && ((pic_sys_time - pic_dos_time) < OVERLOAD_THRESHOULD1) )
+       REG(eflags) |= (VIP);
+    else REG(eflags) &= ~(VIP);
+#else
+    if (pic_icount)
+        REG(eflags) |= (VIP);
+#endif
 
     in_vm86 = 1;
     retval=DO_VM86(&vm86s);

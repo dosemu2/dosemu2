@@ -1,3 +1,54 @@
+Wed Jun 28	1995
+
+-	Release DOSEMU-0.60.3.tgz
+
+From Hans :
+This is a summary of my changes since dosemu0.60.2:
+
+-       Upgraded syscallmgr/insmod to modutils-1.2.8
+        (full insmod-tree is in insmod-1.2.8-HACKER_TOOL.tar.gz)
+        Now can (mix) load  a.out- or ELF- modules  into  
+        a.out- or ELF- kernels.
+-       New LDT support for emumodule, now can access the *real* LDT
+        from dosemu user space. How it works can be seen in ldttest.c
+-       Made emumod ELF compilable
+        ( patch from Rick Sladkey <jrs@world.std.com> )
+-       Took over some changes to vm86() from Linux 1.2.11 and 1.3.3
+        into emumodule. Also now doing full verify_area on all accessed
+        user space in emumodules' vm86() (USE_VM86_STACKVERIFY).
+        This fixes some odd DOS register messups.
+-       Fixed wrong flag handling in bios.S for INT10 .. INT1B
+        (some of them should IRET).
+-       Improved return to DOS-space from dosemu redirected INTs
+        int dosemu/int.c function do_int().
+        (did respawn to dosemu immediately, so leaving the DOSapp
+         no chance to react).
+-       Fixed interruption of DOS space when interrupts were disabled.
+        ( check for VIF at entry of pic's run_irqs() ).
+        This fixes the main trouble together with sillyint (exception 6 bug).
+        JES did the rest by finding this damned WRITE_FLAGS bug and
+        fixing various VIF/IF handling.
+-       Now dosemu will do register dump if -g debugflag is set and
+        if killed via SIGHUP. So we can see were the DOSapp is hanging.
+-       Varous fixing for sillyint (SIG), so it now complies with the
+        new pic-handling.
+-       Fix startup recognition of loaded emumodule. Now it will exit
+        with error if no module is loaded and REQUIRES_EMUMODULE is set.
+-       Made dosemu/sigsegv.c real-mode-386-compatible and fixed wrong
+        prefix handling (ES,DS,GS,FS,REP).
+        Moved some remaining 'fprintf(stderr)' to 'i_printf()'
+-       Fixed overload condition resulting in DOS internal stack overflow.
+        (<ESC> bug while using SLANG terminal). This is done by monitoring
+        the difference between pic_sys_time and pic_dos_time and avoiding
+        vm86() respawning to fast when OVERLOAD_THRESHOULD is reached.
+        This way DOS has a better chance to catch up some additional
+        CPU time in order to be in schedule with pic_sys_time.
+-       Fixed dualmon messup (didn't work a lot of last releases).
+
+So long,
+Hans
+<lermen@elserv.ffm.fgan.de>
+
 Fri Jun 22	1995
 
 -	Patches to emumod/vm86.c by Hans to fix some real

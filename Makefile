@@ -27,7 +27,7 @@ ifdef REQUIRES_EMUMODULE
   ifdef USE_VM86PLUS
     export USE_VM86PLUS
 # uncomment this, if you want stack verifying in sys_vm86
-    USE_VM86_STACKVERIFY= -DUSE_VM86_STACKVERIFY
+#   USE_VM86_STACKVERIFY= -DUSE_VM86_STACKVERIFY
     ifdef USE_VM86_STACKVERIFY
       export USE_VM86_STACKVERIFY
     endif
@@ -567,11 +567,11 @@ ifdef REQUIRES_EMUMODULE
 	 echo ""
 else
 	@echo "  - It is _STRONGLY_ recommended that the modules"; \
-	@echo "    be used instead of the kernel's vm86() call at this"; \
-	@echo "    time due to possible register corruption of the"; \
-	@echo "    running DOS programs. To use the modules, enable"; \
-	@echo "    REQUIRES_EMUMODULE in this Makefile, and re-make."; \
-	 echo ""
+	echo "    be used instead of the kernel's vm86() call at this"; \
+	echo "    time due to possible register corruption of the"; \
+	echo "    running DOS programs. To use the modules, enable"; \
+	echo "    REQUIRES_EMUMODULE in this Makefile, and re-make."; \
+	echo ""
 endif
 
 converthd: hdimage

@@ -1,8 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.60.2, the PC Emulator for Linux!
-
+The DOSEMU team is proud to announce DOSEMU 0.60.3, the PC Emulator for Linux!
 
 
 WHAT IS DOSEMU?
@@ -60,11 +59,11 @@ of at least:
 WHERE TO GET IT:
 ~~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded from the following FTP sites
-when version 0.60.2 arrives on May the 13th:
+when version 0.60.3 arrives around June the 28th:
 
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.2.tgz
-  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.60.2.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.2.tgz
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.3.tgz
+  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.60.3.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.3.tgz
 
 We expect to see DOSEMU being included as an extra with many Linux
 Distribution packages.

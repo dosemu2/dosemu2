@@ -516,7 +516,7 @@ CISH(bios_IPX_PopRegistersIRet):
 CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
 
 #if 0
-	int	0x1c			/* call int 0x1c, per bios spec	*/
+	int	0x1c	
 #endif
 /* NOTE: The above int 0x1c is a compatibility fault, because
  *       the original IBM Bios calls the user *after* the timer is

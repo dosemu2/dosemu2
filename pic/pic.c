@@ -77,7 +77,12 @@ unsigned long   pic_sp = 0;         /* pointer to stack */
 unsigned long   pic_vm86_count=0;   /* counter for trips around vm86 loop */
 unsigned long   pic_dpmi_count=0;   /* counter for trips around dpmi loop */
          long   pic_sys_time=NEVER; /* system time for scheduling interrupts */
-         long   pic_ltime[33];      /* timeof last pic request honored */
+         long   pic_ltime[33] =     /* timeof last pic request honored */
+                {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
+                 NEVER};
          long   pic_itime[33] =     /* time to trigger next interrupt */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -165,6 +170,9 @@ static unsigned char pic_db_icount; /* flag for debug messages:+,-, or blank */
  * To avoid line wrap, the first seven values are printed without labels.
  * Instead, a header line is printed every 15 messages.
  */
+#ifdef NO_DEBUGPRINT_AT_ALL
+#define pic_print(code,s1,v1,s2)
+#else
 void pic_print( char code, char* s1, int v1, char* s2)
 {
 static int oldi=0, oldc=0, header_count=0;
@@ -191,6 +199,7 @@ if(d.request&code){
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
   }
 }
+#endif
 
 /* DANG_BEGIN_MODULE pic_push,pic_pop
  *
@@ -525,7 +534,9 @@ void run_irqs()
 
 #if 1 /* BUG FIXER (if 1), lets WIN31 run */
 if ((!(REG(eflags) & VIF)) && (!in_dpmi) ) {
+#if 0
   g_printf("*");
+#endif
   return;
 }
 #else
@@ -890,7 +901,8 @@ if(pic_irr&~pic_imr) return;
       if( pic_itime[timer] < pic_sys_time && pic_itime[timer] != NEVER) {
          if( pic_itime[timer] != pic_ltime[timer]) {
            /* if( pic_itime[timer] > pic_itime[32]) {*/
-               if(pic_itime[timer] < earliest) earliest = pic_itime[timer];
+               if(pic_itime[timer] < earliest || earliest == NEVER) 
+                    earliest = pic_itime[timer];
                pic_request(timer);
                ++count;
           /*  }*/
@@ -932,8 +944,11 @@ int interval;
   char mesg[35];
   if(interval > 0 && interval < 0x3fffffff)  
      pic_itime[ilevel] = pic_ltime[ilevel] + interval;
-  sprintf(mesg,", delay= %d.",interval);
-  pic_print(2,"Scheduling lvl= ",ilevel,mesg);
+  if (d.request&2) {
+    /* avoid going through sprintf for non-debugging */
+    sprintf(mesg,", delay= %d.",interval);
+    pic_print(2,"Scheduling lvl= ",ilevel,mesg);
+  }
 }
 #undef set_pic0_imr(x)
 #undef set_pic1_imr(x)

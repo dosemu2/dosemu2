@@ -195,9 +195,16 @@ int
 ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
      void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
-#if 1
+#if 0  /* set this to 0, if you want dosemu to honor the -D flags */
+ #define NO_DEBUGPRINT_AT_ALL
+#endif
 
+#define error(f,a...)	 	fprintf(stderr, f, ##a)
+#define hard_error(f, a...)	fprintf(stderr, f, ##a)
 #define dbug_printf(f,a...)	ifprintf(2,f,##a)
+
+#ifndef NO_DEBUGPRINT_AT_ALL
+
 #define k_printf(f,a...) 	(d.keyb?ifprintf(d.keyb,f,##a):0)
 #define h_printf(f,a...) 	ifprintf(d.hardware,f,##a)
 #define v_printf(f,a...) 	ifprintf(d.video,f,##a)
@@ -221,21 +228,20 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	   /* pktdrvr */
 #define r_printf(f,a...)        ifprintf(d.request,f,##a)
 #define warn(f,a...)     	ifprintf(d.warning,f,##a)
-#define error(f,a...)	 	fprintf(stderr, f, ##a)
-#define hard_error(f, a...)	fprintf(stderr, f, ##a)
 
 #else
-#define dbug_printf(f,a...)	ifprintf(2,f,##a)
+
 #define k_printf(f,a...)
 #define h_printf(f,a...)
 #define v_printf(f,a...)
+#define X_printf(f,a...)
 #define s_printf(f,a...)
 #define p_printf(f,a...)
 #define d_printf(f,a...)
 #define i_printf(f,a...)
 #define R_printf(f,a...)
 #define W_printf(f,a...)
-#define warn(f,a...)
+#define C_printf(f,a...)
 #define g_printf(f,a...)
 #define x_printf(f,a...)
 #define D_printf(f,a...)
@@ -246,7 +252,8 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define e_printf(f,a...)
 #define n_printf(f,a...)
 #define pd_printf(f,a...)
-#define error(f,a...)
+#define r_printf(f,a...)
+#define warn(f,a...)
 
 #endif
 

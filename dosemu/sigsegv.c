@@ -313,7 +313,7 @@ inb(int port)
     break;
     
   default:
-    r=0xff;
+    r=0x00;
     /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++)
       if ((port & ~7) == com[tmp].base_port) {
@@ -356,6 +356,13 @@ inw(int port)
     return value;
   }
   return( read_port_w(port) );
+}
+
+int
+ind(int port)
+{
+  int v=read_port_w(port) & 0xffff;
+  return (read_port_w(port+2)<< 16) | v;
 }
 
 void
@@ -566,6 +573,13 @@ outw(int port, int value)
 
 }
 
+void
+outd(int port, int value)
+{
+  outw(port,value & 0xffff);
+  outw(port+2,(unsigned int)value >> 16);
+}
+
 /*
  * DANG_BEGIN_FUNCTION vm86_GP_fault();
  *
@@ -579,7 +593,9 @@ outw(int port, int value)
 void vm86_GP_fault(void)
 {
 
-  unsigned char *csp, *lina;
+  unsigned char *csp, *lina, org_eip;
+  int pref_seg;
+  int done,is_rep,is_32bit;
 
 #if 0
   u_short *ssp = SEG_ADR((us *), ss, sp);
@@ -631,48 +647,183 @@ void vm86_GP_fault(void)
 
   /* fprintf(stderr, "CSP in cpu is 0x%04x\n", *csp); */
 
+
+  /* DANG_BEGIN_REMARK
+   * Here we handle all prefixes prior switching to the appropriate routines
+   * The exception CS:EIP will point to the first prefix that effects the
+   * the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
+   * So we collect all prefixes and remember them.
+   * - Hans Lermen
+   * DANG_END_REMARK
+   */
+
+  #define __SEG_ADR(type, seg, reg)  type((seg << 4) + LWORD(e##reg))
+  done=0;
+  is_rep=0;
+  is_32bit=0;
+  pref_seg=-1;
+
+  do {
+    switch (*(csp++)) {
+       case 0x66:      /* operant prefix */  is_32bit=1; break;
+       case 0x2e:      /* CS */              pref_seg=REG(cs); break;
+       case 0x3e:      /* DS */              pref_seg=REG(ds); break;
+       case 0x26:      /* ES */              pref_seg=REG(es); break;
+       case 0x36:      /* SS */              pref_seg=REG(ss); break;
+       case 0x65:      /* GS */              pref_seg=REG(gs); break;
+       case 0x64:      /* FS */              pref_seg=REG(fs); break;
+       case 0xf3:      /* rep */             is_rep=1; break;
+#if 0
+       case 0xf2:      /* repnz */
+#endif
+       default: done=1;
+    }
+  } while (!done);
+  csp--;   
+  org_eip = REG(eip);
+  LWORD(eip) += (csp-lina);
+
   switch (*csp) {
 
   case 0x6c:                    /* insb */
-    *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
-    i_printf("insb(0x%04x) value %02x\n",
-            LWORD(edx),*(SEG_ADR((unsigned char *),es,di)));   
-    if(LWORD(eflags) & DF) LWORD(edi)--;
-    else LWORD(edi)++;
+    /* NOTE: ES can't be overwritten */
+    if (is_rep) {
+      int delta = 1;
+      if(LWORD(eflags) &DF ) delta = -1;
+      i_printf("Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
+              LWORD(ecx),delta);
+      while (LWORD(ecx))  {
+        *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
+        LWORD(edi) += delta;
+        LWORD(ecx)--;
+      }
+    }
+    else {
+      *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
+      i_printf("insb(0x%04x) value %02x\n",
+              LWORD(edx),*(SEG_ADR((unsigned char *),es,di)));   
+      if(LWORD(eflags) & DF) LWORD(edi)--;
+      else LWORD(edi)++;
+    }
     LWORD(eip)++;
     break;
 
-  case 0x6d:			/* insw */
-    *(SEG_ADR((unsigned short *),es,di)) =inw((int) LWORD(edx));
-    i_printf("insw(0x%04x) value %04x \n",
-            LWORD(edx),*(SEG_ADR((unsigned short *),es,di)));
-    if(LWORD(eflags) & DF) LWORD(edi) -= 2;
-    else LWORD(edi) +=2;
+  case 0x6d:			/* (rep) insw / insd */
+    /* NOTE: ES can't be overwritten */
+    if (is_rep) {
+      #define ___LOCALAUX(typ,iotyp,incr,x) \
+        int delta =incr; \
+        if(LWORD(eflags) & DF) delta = -incr; \
+        i_printf("rep ins%c %04x words, DELTA %d\n", x, \
+                LWORD(ecx),delta); \
+        while(LWORD(ecx)) { \
+          *(SEG_ADR(typ,es,di))=iotyp(LWORD(edx)); \
+          LWORD(edi) += delta; \
+          LWORD(ecx)--; \
+        }
+
+      if (is_32bit) {
+                                /* rep insd */
+        ___LOCALAUX((unsigned long *),ind,4,'d')
+      }
+      else {
+                                /* rep insw */
+        ___LOCALAUX((unsigned short *),inw,2,'w')
+      }
+      #undef  ___LOCALAUX
+    }
+    else {
+      #define ___LOCALAUX(typ,iotyp,incr,x) \
+        *(SEG_ADR(typ,es,di)) =iotyp((int) LWORD(edx)); \
+        i_printf("ins%c(0x%04x) value %04x \n", x, \
+                LWORD(edx),*(SEG_ADR((unsigned short *),es,di))); \
+        if(LWORD(eflags) & DF) LWORD(edi) -= incr; \
+        else LWORD(edi) +=incr;
+      
+      if (is_32bit) {
+                                /* insd */
+        ___LOCALAUX((unsigned long *),ind,4,'d')
+      }
+      else {
+                                /* insw */
+        ___LOCALAUX((unsigned short *),inw,2,'w')
+      }
+      #undef  ___LOCALAUX
+    }
     LWORD(eip)++;
     break;
       
 
-  case 0x6e:			/* outsb */
-    fprintf(stderr,"untested: outsb port 0x%04x value %02x\n",
-            LWORD(edx),*(SEG_ADR((unsigned char *),ds,si)));
-    outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
-    if(LWORD(eflags) & DF) LWORD(esi)--;
-    else LWORD(esi)++;
+  case 0x6e:			/* (rep) outsb */
+    if (pref_seg < 0) pref_seg = LWORD(ds);
+    if (is_rep) {
+      int delta = 1;
+      i_printf("untested: rep outsb\n");
+      if(LWORD(eflags) & DF) delta = -1;
+      while(LWORD(ecx)) {
+        outb(LWORD(edx), *(__SEG_ADR((unsigned char *),pref_seg,si)));
+        LWORD(esi) += delta;
+        LWORD(ecx)--;
+      }
+    }
+    else {
+      i_printf("untested: outsb port 0x%04x value %02x\n",
+              LWORD(edx),*(__SEG_ADR((unsigned char *),pref_seg,si)));
+      outb(LWORD(edx), *(__SEG_ADR((unsigned char *),pref_seg,si)));
+      if(LWORD(eflags) & DF) LWORD(esi)--;
+      else LWORD(esi)++;
+    }
     LWORD(eip)++;
     break;
 
 
-  case 0x6f:			/* outsw */
-    fprintf(stderr,"untested: outsw port 0x%04x value %04x\n",
-            LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
-    outw(LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
-    if(LWORD(eflags) & DF ) LWORD(esi) -= 2;
-    else LWORD(esi) +=2; 
+  case 0x6f:			/* (rep) outsw / outsd */
+    if (pref_seg < 0) pref_seg = LWORD(ds);
+    if (is_rep) {
+      #define ___LOCALAUX(typ,iotyp,incr,x) \
+        int delta = incr; \
+        i_printf("untested: rep outs%c\n", x); \
+        if(LWORD(eflags) & DF) delta = -incr; \
+        while(LWORD(ecx)) { \
+          iotyp(LWORD(edx), *(__SEG_ADR(typ,pref_seg,si))); \
+          LWORD(esi) += delta; \
+          LWORD(ecx)--; \
+        }
+      
+      if (is_32bit) {
+                                /* rep outsd */
+        ___LOCALAUX((unsigned long *),outd,4,'d')
+      }
+      else {
+                                /* rep outsw */
+        ___LOCALAUX((unsigned short *),outw,2,'w')
+      }
+      #undef  ___LOCALAUX
+    }
+    else {
+      #define ___LOCALAUX(typ,iotyp,incr,x) \
+        i_printf("untested: outs%c port 0x%04x value %04x\n", x, \
+                LWORD(edx), *(__SEG_ADR(typ,pref_seg,si))); \
+        iotyp(LWORD(edx), *(__SEG_ADR(typ,pref_seg,si))); \
+        if(LWORD(eflags) & DF ) LWORD(esi) -= incr; \
+        else LWORD(esi) +=incr;
+      
+      if (is_32bit) {
+                                /* outsd */
+        ___LOCALAUX((unsigned long *),outd,4,'d')
+      }
+      else {
+                                /* outsw */
+        ___LOCALAUX((unsigned short *),outw,2,'w')
+      }
+      #undef  ___LOCALAUX
+    } 
     LWORD(eip)++;
     break;
 
-  case 0xe5:			/* inw xx */
-    LWORD(eax) = inw((int) csp[1]);
+  case 0xe5:			/* inw xx, ind xx */
+    if (is_32bit) REG(eax) = ind((int) csp[1]);
+    else LWORD(eax) = inw((int) csp[1]);
     LWORD(eip) += 2;
     break;
   case 0xe4:			/* inb xx */
@@ -681,8 +832,9 @@ void vm86_GP_fault(void)
     LWORD(eip) += 2;
     break;
 
-  case 0xed:			/* inw dx */
-    LWORD(eax) = inw(LWORD(edx));
+  case 0xed:			/* inw dx, ind dx */
+    if (is_32bit) REG(eax) = ind(LWORD(edx));
+    else LWORD(eax) = inw(LWORD(edx));
     LWORD(eip) += 1;
     break;
   case 0xec:			/* inb dx */
@@ -692,8 +844,8 @@ void vm86_GP_fault(void)
     break;
 
   case 0xe7:			/* outw xx */
-    outb((int) csp[1] + 1, HI(ax));
-    outb((int) csp[1], LO(ax));
+    if (is_32bit) outd((int)csp[1], REG(eax));
+    else outw((int)csp[1], LWORD(eax));
     LWORD(eip) += 2;
     break;
   case 0xe6:			/* outb xx */
@@ -702,8 +854,8 @@ void vm86_GP_fault(void)
     break;
 
   case 0xef:			/* outw dx */
-    outb(REG(edx) + 1, HI(ax));
-    outb(REG(edx), LO(ax));
+    if (is_32bit) outd(REG(edx), REG(eax));
+    else outw(REG(edx), REG(eax));
     LWORD(eip) += 1;
     break;
   case 0xee:			/* outb dx */
@@ -711,62 +863,6 @@ void vm86_GP_fault(void)
     LWORD(eip) += 1;
     break;
 
-  case 0xf3:                    /* rep */
-    switch(csp[1] & 0xff) {                
-      case 0x6c: {             /* rep insb */
-        int delta = 1;
-        if(LWORD(eflags) &DF ) delta = -1;
-        i_printf("Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
-                LWORD(ecx),delta);
-        while (LWORD(ecx))  {
-          *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
-          LWORD(edi) += delta;
-          LWORD(ecx)--;
-        }
-        LWORD(eip)+=2;
-        break;
-      }
-      case  0x6d: {           /* rep insw */
-        int delta =2;
-        if(LWORD(eflags) & DF) delta = -2;
-        i_printf("REP F3 6D (rep insw) %04x words, DELTA %d\n",
-                LWORD(ecx),delta);
-        while(LWORD(ecx)) {
-          *(SEG_ADR((unsigned short *),es,di))=inw(LWORD(edx));
-          LWORD(edi) += delta;
-          LWORD(ecx)--;
-         }
-         LWORD(eip) +=2;
-         break;
-      }
-      case 0x6e: {           /* rep outsb */
-        int delta = 1;
-        fprintf(stderr,"untested: rep outsb\n");
-        if(LWORD(eflags) & DF) delta = -1;
-        while(LWORD(ecx)) {
-          outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
-          LWORD(esi) += delta;
-          LWORD(ecx)--;
-        }
-        LWORD(eip)+=2;
-        break;
-      }
-      case 0x6f: { 
-        int delta = 2;
-        fprintf(stderr,"untested: rep outsw\n");
-        if(LWORD(eflags) & DF) delta = -2;
-        while(LWORD(ecx)) {
-          outw(LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
-          LWORD(esi) += delta;
-          LWORD(ecx)--;
-        }
-        LWORD(eip)+=2;
-        break;
-      }
-      default:
-      fprintf(stderr, "Nope REP F3,CSP[1] = 0x%04x\n", csp[1]);
-    }
-    break;        
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */
     if (lina == (unsigned char *) XMSTrap_ADD) {
@@ -800,9 +896,11 @@ void vm86_GP_fault(void)
 
   case 0xf0:			/* lock */
   default:
+    if (is_rep) fprintf(stderr, "Nope REP F3,CSP = 0x%04x\n", csp[0]);
     /* er, why don't we advance eip here, and
 	 why does it work??  */
-    error("general protection at %p: %x\n", csp,*csp);
+    error("general protection at %p: %x\n", lina,*lina);
+    REG(eip) = org_eip;
     show_regs(__FILE__, __LINE__);
     show_ints(0, 0x33);
     error("ERROR: SIGSEGV, protected insn...exiting!\n");

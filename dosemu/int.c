@@ -1151,6 +1151,31 @@ do_int(int i)
 
   caller_function = interrupt_function[i];
   caller_function(i);
+#if 1 
+  /* This is a kludge to avoid immediate respaning of dosemu
+   * if we have cs:ip pointing to the BIOS stubs' IRET
+   * We do the IRET ourselves, so we directly let the DOSapp
+   * control.
+   * This perhaps avoids chained timer ints to accumulate
+   * without giving the DOSapp a chance to do something.
+   * (not sure if it works)
+   * - Hans Lermen
+   */ 
+  if (LWORD(cs) == BIOSSEG) {
+    unsigned char *csp;
+    csp = SEG_ADR((unsigned char *),cs,ip);
+    if ((*csp == 0xcf)) {
+      unsigned char *ssp = (unsigned char *)(LWORD(ss)<<4);
+      unsigned long sp = (unsigned long) LWORD(esp);
+      LWORD(esp) +=6;
+      LWORD(eip) = popw(ssp, sp);
+      REG(cs) = popw(ssp, sp);
+      WRITE_FLAGS(popw(ssp, sp));
+      if (READ_FLAGS() & IF) WRITE_FLAGSE(READ_FLAGSE() | VIF);
+      else  WRITE_FLAGSE((READ_FLAGSE() | IF) & ~VIF);
+    }
+  }
+#endif
 }
 
 /*
@@ -1382,13 +1407,10 @@ void setup_interrupts(void) {
   /* End of int 0xe7 for FCB opens */
 
   /* set up relocated video handler (interrupt 0x42) */
-#if USE_DUALMON
   if (config.dualmon == 2) {
     interrupt_function[0x42] = int10;
   }
-  else
-#endif 
-    *(u_char *) 0xff065 = 0xcf;	/* IRET */
+  else *(u_char *) 0xff065 = 0xcf;	/* IRET */
 }
 
 /*

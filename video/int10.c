@@ -375,9 +375,6 @@ void int10()
   int virt_text_base = BIOS_SCREEN_BASE;
   static int last_equip=-1;
 
-k_printf("VID BEFOR: IF=%x:", REG(eflags) & IF);
-k_printf(" VIF=%x\n", REG(eflags) & VIF);
-  
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
     extern struct video_system *Video_default;
     v_printf("VID: int10 entry, equip-flags=0x%04x\n",READ_WORD(BIOS_CONFIGURATION));
@@ -459,7 +456,7 @@ k_printf(" VIF=%x\n", REG(eflags) & VIF);
       if (config.dualmon && IS_SCREENMODE_MDA) break;
 #endif
       page = LO(ax);
-      error("VID: change page from %d to %d!\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
+      v_printf("VID: change page from %d to %d!\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
       if (page > max_page) {
 	error("ERROR: video error: set bad page %d\n", page);
 	CARRY;
@@ -725,7 +722,5 @@ k_printf(" VIF=%x\n", REG(eflags) & VIF);
     CARRY;
     break;
   }
-k_printf("VID AFTER: IF=%x:", REG(eflags) & IF);
-k_printf(" VIF=%x\n", REG(eflags) & VIF);
 }
 
