@@ -39,13 +39,6 @@
  * at every Simtel mirror in vga/vgadoc3.zip, and in the dosemu directory at 
  * tsx-11.mit.edu.
  *
- * 
- * 1996/05/06:
- *  - Changed Attr_get_input_status_1() to get it _slower_.
- *    Idea from Adam D. Moss (aspirin@tigerden.com).
- * 1996/05/09:
- *  - Added horizontal retrace too (--adm)
- *
  * DANG_BEGIN_MODULE
  *
  * REMARK
@@ -54,6 +47,18 @@
  *
  * DANG_END_MODULE
  *
+ * DANG_BEGIN_CHANGELOG
+ *
+ * 1996/05/06:
+ *  - Changed Attr_get_input_status_1() to get it _slower_.
+ *    Idea from Adam D. Moss (aspirin@tigerden.com).
+ * 1996/05/09:
+ *  - Added horizontal retrace too (--adm)
+ *
+ * 1998/09/20: Added proper init values for all graphics modes.
+ * -- sw
+ *
+ * DANG_END_CHANGELOG
  */
 
 /* Define to debug the Attribute controller */
@@ -88,9 +93,31 @@
 #define ATTR_DATA_FLIPFLOP 1
 #define ATTR_MAX_INDEX 0x14
 
-static unsigned char Attr_index=0;
-static int Attr_flipflop=ATTR_INDEX_FLIPFLOP;
-static indexed_register Attr_data[0x16]=
+unsigned char attr_ival[9][ATTR_MAX_INDEX + 2] = {
+  /* 0  TEXT, 4 bits */
+  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,  0x0c, 0x00, 0x0f, 0x08, 0x00,  0x00},
+  /* 1  CGA, 2 bits */
+  {0x00, 0x13, 0x15, 0x17, 0x02, 0x04, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  0x01, 0x00, 0x03, 0x00, 0x00,  0x00},
+  /* 2  CGA: PL1, 1 bit (mode 0x06) */
+  {0x00, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17, 0x17,  0x01, 0x00, 0x01, 0x00, 0x00,  0x00},
+  /* 3  TEXT, 1 bit */
+  {0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x10, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,  0x0e, 0x00, 0x0f, 0x08, 0x00,  0x00},
+  /* 4  EGA: PL4, 4 bits (modes 0x0d, 0x0e) */
+  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,  0x01, 0x00, 0x0f, 0x00, 0x00,  0x00},
+  /* 5  EGA: PL1, 1 bit (mode 0x0f) */
+  {0x00, 0x08, 0x00, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x18, 0x00, 0x00,  0x0b, 0x00, 0x05, 0x00, 0x00,  0x00},
+  /* 6  VGA: PL4, 4 bit */
+  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,  0x01, 0x00, 0x0f, 0x00, 0x00,  0x00},
+  /* 7  VGA: PL1, 1 bit */
+  {0x00, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,  0x01, 0x00, 0x01, 0x00, 0x00,  0x00},
+  /* 8  P8, 8 bit */
+  {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,  0x41, 0x00, 0x0f, 0x00, 0x00,  0x00}
+};
+
+
+static unsigned char Attr_index = 0;
+static int Attr_flipflop = ATTR_INDEX_FLIPFLOP;
+static indexed_register Attr_data[ATTR_MAX_INDEX + 2] =
 {
   {0x00, 0x00, reg_read_write, False},        /* Palette 0x00 */
   {0x00, 0x00, reg_read_write, False},        /* Palette 0x01 */
@@ -113,12 +140,8 @@ static indexed_register Attr_data[0x16]=
   {0x00, 0x00, reg_read_write, False},        /* Colorplane enable */
   {0x00, 0x00, reg_read_write, False},        /* Horizontal PEL panning */
   {0x00, 0x00, reg_read_write, False},        /* Color select */
-  {0x00, 0x00, reg_read_write, False}         /* Dummy register for wrong
-                                               * indices
-                                               */
+  {0x00, 0x00, reg_read_write, False}         /* Dummy register for wrong indices */
 };
-
-
 
 
 /* *************** Attribute controller emulation functions *************** */
@@ -132,12 +155,45 @@ static indexed_register Attr_data[0x16]=
  */
 void Attr_init(void)
 {
-#ifdef DEBUG_ATTR
-  v_printf("VGAemu: Attr_init()\n");
-#endif
+  int i = 0, j;
+  vga_mode_info *vmi = vga.mode_info;
 
-  Attr_index=0;
-  Attr_flipflop=ATTR_INDEX_FLIPFLOP;  
+  if(vmi == NULL) {
+#ifdef DEBUG_ATTR
+    v_printf("VGAEmu: Attr_init failed\n");
+#endif
+  }
+  else {
+    switch(vmi->mode) {
+      case 0x06: i = 2; break;
+      case 0x0d:
+      case 0x0e: i = 4; break;
+      case 0x0f: i = 5; break;
+      default:
+        switch(vmi->color_bits) {
+          case  1: if(vmi->type == TEXT) i = 3;
+                   if(vmi->type == PL1)  i = 7; break;
+          case  2: if(vmi->type == CGA)  i = 1; break;
+          case  4: if(vmi->type == TEXT) i = 0;
+                   if(vmi->type == PL4)  i = 6; break;
+          case  8:
+          case 15:
+          case 16:
+          case 24:
+          case 32: i = 8;
+        }
+    }
+  }
+
+  for(j = 0; j < ATTR_MAX_INDEX + 2; j++) {
+    Attr_data[j].read = Attr_data[j].write = attr_ival[i][j];
+    Attr_data[j].dirty = True;
+  }
+
+  Attr_index = 0;
+  Attr_flipflop = ATTR_INDEX_FLIPFLOP;
+
+  v_printf("VGAEmu: Attr_init done\n");
 }
 
 
@@ -333,7 +389,51 @@ unsigned char Attr_get_input_status_1(void)
  */
 
 
+unsigned char Attr_get_entry(unsigned char index)
+{
+  unsigned char u;
 
+  u = index < ATTR_MAX_INDEX + 2 ? Attr_data[index].read : 0xff;
 
+#ifdef DEBUG_ATTR
+  v_printf("VGAEmu: Attr_get_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) u);
+#endif
+
+  return u;
+}
+
+void Attr_set_entry(unsigned char index, unsigned char value)
+{
+#ifdef DEBUG_ATTR
+  v_printf("VGAEmu: Attr_set_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) value);
+#endif
+
+  if(index >= ATTR_MAX_INDEX + 2) return;
+
+  if(Attr_data[index].read != value || Attr_data[index].write != value) {
+    Attr_data[index].read = value;
+    Attr_data[index].write = value;
+    Attr_data[index].dirty = True;
+  }
+}
+
+int Attr_is_dirty(unsigned char index)
+{
+  int u;
+
+  if(index < ATTR_MAX_INDEX + 2) {
+    u = Attr_data[index].dirty;
+    Attr_data[index].dirty = False;
+  }
+  else {
+    u = False;
+  }
+
+#ifdef DEBUG_ATTR
+  v_printf("VGAEmu: Attr_is_dirty: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) u);
+#endif
+
+  return u;
+}
 
 

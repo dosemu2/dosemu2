@@ -53,7 +53,7 @@
 
 /*
  * Defines to debug the sequencer */
-/*#define DEBUG_SEQ*/
+#undef DEBUG_SEQ
 
 #include "config.h"
 #include "emu.h"
@@ -174,9 +174,11 @@ void Seq_write_value(unsigned char data)
       if(u) {
         while(!(u & 1)) u >>= 1, vga.mem.write_plane++;
       }
+#ifdef DEBUG_SEQ
       v_printf("VGAemu: Seq_write_value: map mask = 0x%x, write plane = %u\n",
         (unsigned) vga.seq.map_mask, vga.mem.write_plane
       );
+#endif
       vga_emu_switch_bank(vga.mem.write_plane);
       break;
 
@@ -189,7 +191,9 @@ void Seq_write_value(unsigned char data)
         vga.mem.planes = u;
         vga.reconfig.mem = 1;
       }
+#ifdef DEBUG_SEQ
       v_printf("VGAemu: Seq_write_value: chain4 = %u\n", (unsigned) vga.seq.chain4);
+#endif
       break;
 
     case 0x0b:  /* chip version */

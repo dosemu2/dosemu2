@@ -13,10 +13,6 @@
 int X_change_config(unsigned, void *);		/* modify X config data from DOS */
 
 void           get_vga_colors (void);
-int            X_init         (void);
-void           X_close        (void);
-void           X_redraw_screen (void);
-int            X_update_screen (void);
 void           X_handler      (void);
 void X_draw_cursor(int x,int y);
 void X_restore_cell(int x,int y);

@@ -3,13 +3,16 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+SHELL=/bin/bash
+
 ifndef SUBDIR
 thisshouldnothappen:
 	echo This rule should never execute
 	false
 endif
 
-SUBDIR := $(subst $(addsuffix /,$(TOPDIR)),,$(shell nolinks=1; pwd))
+SUBDIR := $(subst $(addsuffix /,$(TOPDIR)),,$(shell pwd -P))
 LIBNAME := $(shell echo $(SUBDIR) |tr / _)
 
 ifndef OBJS
@@ -77,6 +80,9 @@ endif
 # this is mainly for debugging the makefile
 echo::
 	@echo REALTOPDIR=$(REALTOPDIR)
+	@echo TOPDIR=$(TOPDIR)
+	@echo $(SHELL)
+	@echo $(shell pwd -P)
 	@echo LIB=$(LIB)
 	@echo DEPENDS=$(DEPENDS)
 	@echo OBJS=$(OBJS)

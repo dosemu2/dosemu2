@@ -1,3 +1,19 @@
+98/09/25 ver. 0.99.1.1 unofficial pre-release
+	From Alberto
+	- fix for >=linux-2.1.121 not having inux/head.h
+	From Han Holl <jeholl@euronet.nl>
+	- 'nolinks' isn't supported by bash-2 anymore, replaced all
+	  instances in the Makefiles with 'pwd -P'
+	From Steffen
+	- Continued work on color allocation.
+	- source cleanup of X.c & friends
+	- support for 16 color X servers (e.g. XF86_VGA16)
+	- textmode on all X servers, including 16 color & mono servers.
+	- implemented int10 - palette functions.
+	- (mostly) correct processing of palette registers
+	- Removed quite a lot of DAC/color init code.
+	From Hans
+	- forced make to use SHELL=/bin/bash, else 'pwd -P' won't work.
 98/09/12 ver. 0.99.1 released
 	From Hans
 	- fixed the severe security hole introduced in 0.97.9.2

@@ -614,6 +614,9 @@ int vga_emu_init(vgaemu_display_type *vedt)
   emu_iodev_t io_device;
   static unsigned char *lfb_base = NULL;
 
+  vga.mode = vga.VESA_mode = 0;
+  vga.mode_info = NULL;
+
   if(config.vgaemu_memsize)
     vga.mem.size = config.vgaemu_memsize << 10;
   else
@@ -673,12 +676,6 @@ int vga_emu_init(vgaemu_display_type *vedt)
 
   vga_emu_setup_mode_table();
 
-  /* initialize other parts */
-  DAC_init();
-  Attr_init();
-  Seq_init();
-  CRTC_init();
-
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb;
   io_device.write_portb = VGA_emulate_outb;
@@ -714,6 +711,11 @@ int vga_emu_init(vgaemu_display_type *vedt)
   port_register_handler(io_device, 0);
 
   vbe_init(vedt);
+
+  /*
+   * Set some mode; this initializes the DAC, CRTC, etc. as well.
+   */
+  vga_emu_setmode(3, 80, 25);		/* initialize some mode */
 
   v_printf(
     "VGAEmu: vga_emu_init: memory = %u kbyte at 0x%x, lfb = 0x%x\n",
@@ -1238,8 +1240,13 @@ int vga_emu_setmode(int mode, int width, int height)
   }
 
   vga.dac.bits = 6;
-  DAC_init();		/* Re-initialize the DAC */
 
+  DAC_init();		/* Re-initialize the DAC */
+  Attr_init();
+  Seq_init();
+  CRTC_init();
+
+  /* Should be moved to Seq_init()? -- sw */
   vga.seq.chain4 = 1;	/* ??? */
   vga.seq.map_mask = 1;
 

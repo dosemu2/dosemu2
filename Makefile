@@ -6,6 +6,8 @@
 # Makefile for DOSEMU
 #
 
+SHELL=/bin/bash
+
 # defining some (development wise) temporary variables
 # XXXCFLAGS = -DTEMP_DISABLED
 
@@ -26,7 +28,7 @@ endif
 export THISVERSION=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 export EMUVER=VERSION.$(SUBLEVEL)
 
-export REALTOPDIR=$(shell nolinks=1; pwd)
+export REALTOPDIR=$(shell pwd -P)
 export SRCPATH=$(REALTOPDIR)/src
 export TOPDIR=$(SRCPATH)
 export BINPATH=$(REALTOPDIR)/$(THISVERSION)

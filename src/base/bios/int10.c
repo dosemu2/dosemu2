@@ -912,12 +912,40 @@ void int10()
     if(config.X)
       {
         int i, count;
-        unsigned char* src;
+        unsigned char *src;
         unsigned char r, g, b, index;
 	DAC_entry rgb;
 
         switch(LO(ax))
           {
+          case 0x00:
+            Attr_set_entry(LO(bx), HI(bx));
+            break;
+
+          case 0x01:
+            Attr_set_entry(0x11, HI(bx));
+            break;
+
+          case 0x02:
+            src = SEG_ADR((unsigned char *), es, dx);
+            for(i = 0; i < 0x10; i++) Attr_set_entry(i, src[i]);
+            Attr_set_entry(0x11, src[i]);
+            break;
+
+          case 0x07:
+            HI(bx) = Attr_get_entry(LO(bx));
+            break;
+
+          case 0x08:
+            HI(bx) = Attr_get_entry(0x11);
+            break;
+
+          case 0x09:
+            src = SEG_ADR((unsigned char *), es, dx);
+            for(i = 0; i < 0x10; i++) src[i] = Attr_get_entry(i);
+            src[i] = Attr_get_entry(0x11);
+            break;
+
           case 0x10:
             DAC_set_entry((unsigned char)HI(dx), (unsigned char)HI(cx),
                           (unsigned char)LO(cx), (unsigned char)LO(bx));

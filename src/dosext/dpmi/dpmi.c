@@ -42,7 +42,9 @@
 #ifdef __linux__
 #ifndef __GLIBC__
 #include <linux/unistd.h>
-#include <linux/head.h>
+#if LX_KERNEL_VERSION < 2001121
+  #include <linux/head.h>
+#endif
 #else
 #include <errno.h>
 #endif

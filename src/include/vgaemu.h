@@ -402,10 +402,10 @@ int vesa_emu_fault(struct sigcontext_struct *scp);
  */
 
 void DAC_init(void);
-void DAC_dirty_all(void);
+/* void DAC_dirty_all(void); */			/* no longer needed  -- sw */
 void DAC_get_entry(DAC_entry *, unsigned char);
 void DAC_read_entry(DAC_entry *, unsigned char);
-int DAC_get_dirty_entry(DAC_entry *);
+/* int DAC_get_dirty_entry(DAC_entry *); */	/* no longer needed -- sw */
 void DAC_set_entry(unsigned char, unsigned char, unsigned char, unsigned char);
 unsigned char DAC_get_pel_mask(void);
 unsigned char DAC_get_state(void);
@@ -418,6 +418,9 @@ inline void DAC_set_pel_mask(unsigned char);
 void DAC_set_width(unsigned);
 
 
+void pixel2RGB(unsigned char, DAC_entry *);
+
+
 /*
  * Functions defined in env/video/attremu.c.
  */
@@ -427,6 +430,10 @@ void Attr_write_value(unsigned char);
 unsigned char Attr_read_value(void);
 inline unsigned char Attr_get_index(void);
 unsigned char Attr_get_input_status_1(void);
+
+unsigned char Attr_get_entry(unsigned char);
+void Attr_set_entry(unsigned char, unsigned char);
+int Attr_is_dirty(unsigned char);
 
 
 /*

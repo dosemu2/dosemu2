@@ -4,6 +4,8 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+SHELL=/bin/bash
+
 AS86 = $(_AS86_) -l
 LD86 = $(_LD86_) -0
 
@@ -37,7 +39,7 @@ SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys
 #
 #CALLDOS=dos -D-a 2>/dev/null
 CALLDOS=../../bin/dos -D-a 2>/dev/null
-COMMANDDIR=$(shell nolinks=1;pwd)
+COMMANDDIR=$(shell pwd -P)
 BOOTUP=\P2;2\rn
 GOTARGET=lredir k: linux\\fs$(COMMANDDIR)\rk:\r
 DOSINVOKE='keystroke "$(BOOTUP)$(GOTARGET)COMMAND\rexitemu\r"'

@@ -101,14 +101,14 @@ CISH(vgaemu_bios_start):
 		nop
 		
 CISH(vgaemu_bios_prod_name):
-		.ascii	"DOSEmu VGA/VBE 2.0 Emulator"
+		.ascii	"DOSEMU VGA/VBE 2.0 Emulator"
 		.byte	0x00
 
 		.ascii	"DOSEMU VGAemu. (C) 1995 1996, "
 		.ascii	"I.A. Filius and J.A.K. Mouw"
 		.byte	0x00
 
-		.ascii	"VESA BIOS Extensions V2.0 for DOSEmu."
+		.ascii	"VESA BIOS Extensions V2.0 for DOSEMU."
 		.byte	0x0d, 0x0a
 		.ascii	"Copyright (c) 1997 Steffen Winterfeldt"
 		.byte	0x00

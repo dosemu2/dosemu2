@@ -75,10 +75,10 @@
 #define VBE_BIOS_MAXPAGES	2	/* max. 8k BIOS size, more than enough */
 
 /* identity of our VBE implementation */
-#define VBE_OEMVendorName	"The DOSEmu Team"
+#define VBE_OEMVendorName	"DOSEMU-Development-Team"
 #define VBE_OEMProdName		"VBE2Emu"
-#define VBE_OEMSoftRev		0x009		/* 0.9 */
-#define VBE_OEMProductRev	"0.9 beta"
+#define VBE_OEMSoftRev		0x100		/* 1.0 */
+#define VBE_OEMProductRev	"1.0"
 
 /* VBE error codes */
 #define VBE_ERROR_UNSUP			-1		/* unsupported VBE function */
