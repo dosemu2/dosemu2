@@ -167,7 +167,7 @@ static void kmem_check_memcpy_back(size_t lowmem_base_size, char *tmp)
       } else {
 	if (p == LOWMEM_SIZE)
 	  p += HMASIZE; /* for HMA */
-	mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS, (char *)q, p - q,
+	mmap_mapping(MAPPING_LOWMEM, (char *)q, p - q,
 		     PROT_READ | PROT_WRITE | PROT_EXEC, (char *)q);
 	if (p == LOWMEM_SIZE + HMASIZE)
 	  p -= HMASIZE; /* for HMA (don't copy) */
