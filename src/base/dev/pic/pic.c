@@ -282,6 +282,7 @@ static unsigned char pic1_cmd;
 static void p_pic_print(char *s1, int v1, char *s2)
 {
 static int oldi=0, oldc=0, header_count=0;
+int pic_ilevel=find_bit(pic_isr);
 char ci,cc;
 
   if (pic_icount > oldc) cc='+';
@@ -390,7 +391,6 @@ void write_pic0(ioport_t port, Bit8u value)
  * if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR 
  */
 
-static char err_printed = 0;
 #if 0
 static char  icw_state,              /* !=0 => port 1 does icw 2,3,(4) */
 #endif
@@ -401,11 +401,6 @@ port -= 0x20;
 ilevel = 32;
 if (pic_isr)
   ilevel=find_bit(pic_isr);
-if(ilevel != pic_ilevel && !err_printed) {
-  error("PIC0: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
-    ilevel, pic_ilevel, pic_isr);
-  err_printed = 1;
-}
 if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
   /* this is a fake IRQ, don't allow to reset its ISR bit */
   pic_print(1, "Protecting ISR bit for lvl ", ilevel, " from spurious EOI");
@@ -458,18 +453,12 @@ void write_pic1(ioport_t port, Bit8u value)
 /* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
 static char /* icw_state, */     /* !=0 => port 1 does icw 2,3,(4) */
                icw_max_state;    /* number of icws expected        */
-static char err_printed = 0;
 int ilevel;			  /* level to reset on outb 0x20  */
 
 port -= 0xa0;
 ilevel = 32;
 if (pic_isr)
   ilevel=find_bit(pic_isr);
-if(ilevel != pic_ilevel && !err_printed) {
-  error("PIC1: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
-    ilevel, pic_ilevel, pic_isr);
-  err_printed = 1;
-}
 if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
   /* this is a fake IRQ, don't allow to reset its ISR bit */
   pic_print(1, "Protecting ISR bit for lvl ", ilevel, " from spurious EOI");
@@ -588,8 +577,8 @@ void pic_maski(int level)
  *
  * DANG_END_FUNCTION
  */
-void pic_seti(unsigned int level, void (*func), unsigned int ivec,
-  void (*callback))
+void pic_seti(unsigned int level, void (*func)(int), unsigned int ivec,
+  void (*callback)(void))
 {
   if(level>=32) return;
   if(!func) {
@@ -659,8 +648,6 @@ void pic_seti(unsigned int level, void (*func), unsigned int ivec,
 void run_irqs(void)
 /* find the highest priority unmasked requested irq and run it */
 {
-       static char err_printed = 0;
-       int old_ilevel;
        int int_request;
 
        /* don't allow HW interrupts in force trace mode */
@@ -673,37 +660,26 @@ void run_irqs(void)
         * irq code actually runs, will reset the bits.  We also reset them here,
         * since dos code won't necessarily run.
         */
-
-       old_ilevel=pic_ilevel;                          /* save old pic_ilevl   */
-
        while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
-               int local_pic_ilevel;
+               int local_pic_ilevel, old_ilevel;
 
 	       if (!isset_IF() && !in_dpmi)
-	    	       goto exit;                      /* exit if ints are disabled */
+	    	       return;                      /* exit if ints are disabled */
 
                local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
+	       old_ilevel = find_bit(pic_isr);
                /* In case int_request has no bits set */
                if (local_pic_ilevel == -1)
-                       goto exit;
+                       return;
                if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
-                       goto exit;
+                       return;
 
                if (pic_irqs_active && local_pic_ilevel >= find_bit(pic_irqs_active))
-                       goto exit;
+                       return;
 
                clear_bit(local_pic_ilevel, &pic_irr);
-               pic_ilevel = local_pic_ilevel;
-               pic_iinfo[local_pic_ilevel].func();      /* run the function */
-	       pic_ilevel=old_ilevel;
-       }
- exit:
-       /* whether we did or didn't :-( get one, we must still reset pic_ilevel */
-       pic_ilevel=old_ilevel;
-       if (((pic_ilevel==32 && pic_isr!=0) ||
-	    (pic_ilevel!=32 && pic_ilevel!=find_bit(pic_isr))) && !err_printed) {
-         error("PIC: pic_ilevel=0x%x pic_isr=0x%x\n", pic_ilevel, pic_isr);
-	 err_printed = 1;
+	       /* pic_isr bit is set in do_irq() */
+               pic_iinfo[local_pic_ilevel].func(local_pic_ilevel);      /* run the function */
        }
 }
 
@@ -735,19 +711,15 @@ void run_irqs(void)
  *
  * DANG_END_FUNCTION
  */
-int do_irq(void)
+void do_irq(int ilevel)
 {
  int intr;
- unsigned long ilevel;
  unsigned char * ssp;
  unsigned long sp;
 #ifdef X86_EMULATOR
  unsigned char *tmp_ssp;
  int tmp;
 #endif
-
-    if(pic_ilevel==32) return 0;
-    ilevel=pic_ilevel;
 
     set_bit(ilevel, &pic_isr);     /* set in-service bit */
     set_bit(ilevel, &pic1_isr);    /* pic1 too */
@@ -812,10 +784,10 @@ int do_irq(void)
         pic_run();
       }
       pic_sti();
-      return(0);
+      return;
 
     }   /* else */ 
-    return(1);
+    return;
 }
 
 /* DANG_BEGIN_FUNCTION pic_resched

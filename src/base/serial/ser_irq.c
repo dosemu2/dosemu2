@@ -477,14 +477,14 @@ void serial_int_engine(int num, int int_requested)
  * DANG_END_FUNCTION
  */
 void
-pic_serial_run(void)
+pic_serial_run(int ilevel)
 {
 /*  static u_char*/ int tmp;
 /*  static u_char*/ int num;
 
   into_irq = 1;
 
-  num = irq_source_num[pic_ilevel];
+  num = irq_source_num[ilevel];
 
   /* Update the queued Modem Status and Line Status values. */
   check_and_update_uart_status(num);
@@ -540,7 +540,7 @@ pic_serial_run(void)
   }
 
   if (com[num].int_request)
-    do_irq();
+    do_irq(ilevel);
   else {				/* What?  We can't be this far! */
     s_printf("SER%d: Interrupt Error: cancelled serial interrupt!\n",num);  
     /* No interrupt flagged?  Then the interrupt was cancelled sometime

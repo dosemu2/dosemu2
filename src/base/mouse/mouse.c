@@ -1674,10 +1674,10 @@ do_mouse_irq()
 	     LWORD(cs), LWORD(eip));
 }
 
-static void mouse_event(void)
+static void mouse_event(int ilevel)
 {
   if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
-    do_irq();
+    do_irq(ilevel);
   else
     m_printf("MOUSE: Skipping irq, mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
       mouse.mask, mouse_events, mouse.cs, mouse.ip);
@@ -1978,10 +1978,10 @@ struct mouse_client Mouse_none =  {
   NULL
 };
 
-void DOSEMUMouseEvents(void)
+void DOSEMUMouseEvents(int ilevel)
 {
   if (Mouse->run) Mouse->run();
-  mouse_event();
+  mouse_event(ilevel);
 }
 
 /* TO DO LIST: (in no particular order)

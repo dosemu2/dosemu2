@@ -537,10 +537,10 @@ void pit_control_outp(ioport_t port, Bit8u val)
  *
  * DANG_END_FUNCTION
  */
-void timer_int_engine(void)
+void timer_int_engine(int ilevel)
 {
  pic_sched(PIC_IRQ0,pit[0].cntr);
- do_irq();
+ do_irq(ilevel);
 }
 
 /* reads/writes to the speaker control port (0x61)

@@ -86,7 +86,6 @@ EXTERN unsigned long pic_isr;          /* interrupt in-service register */
 EXTERN unsigned int pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
 EXTERN unsigned int pic_icount;       /* iret counter (to avoid filling stack) */
 EXTERN unsigned long pic_irqall INIT(0xfffe);       /* bits for all IRQs set. */
-EXTERN unsigned int pic_ilevel INIT(32);    /* current interrupt level */
 
 EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
 EXTERN unsigned long pic1_imr INIT(0x07f8);         /* interrupt mask register, pic1 */
@@ -108,10 +107,10 @@ extern hitimer_t pic_itime[33];
    changed by the ICW2 command from dos. (Some dos extenders do this.) */
    
 struct lvldef {
-       void (*func)(void);
+       void (*func)(int);
        void (*callback)(void);
        int    ivec;
-       };
+};
 
 /* function definitions - level refers to irq priority level defined above  */
 /* port = 0 or 1     value = 0 - 0xff   level = 0 - 31    ivec = 0 - 0xff   */
@@ -122,11 +121,11 @@ Bit8u read_pic0(ioport_t port);             /* read from PIC 0 */
 Bit8u read_pic1(ioport_t port);             /* read from PIC 1 */
 void pic_unmaski(int level);                 /* clear dosemu's irq mask bit */
 void pic_maski(int level);                   /*  set  dosemu's irq mask bit */
-void pic_seti(unsigned int, void (*), unsigned int, void (*)); 
+void pic_seti(unsigned int, void (*)(int), unsigned int, void (*)(void)); 
                                        /* set function and interrupt vector */
 void run_irqs(void);                                  /* run requested irqs */
 #define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
-int do_irq(void);                            /* run dos portion of irq code */
+void do_irq(int);                            /* run dos portion of irq code */
 
 #define PIC_REQ_NOP	0
 #define PIC_REQ_OK	1
@@ -153,7 +152,7 @@ void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
     (pic_sys_time > pic_dos_time)))
 
 /* Experimental TIMER-IRQ CHAIN code */
-extern void timer_int_engine(void);
+extern void timer_int_engine(int);
 
 extern void pic_reset(void);
 extern void pic_init(void);

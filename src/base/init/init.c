@@ -192,7 +192,7 @@ void hardware_setup(void)
   pic_seti(PIC_IPX, do_irq, 0, IPXCallRel);
   pic_unmaski(PIC_IPX);
 #endif
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0, NULL);
+  pic_seti(PIC_NET, pkt_check_receive, 0, pkt_receiver_callback);
   pic_unmaski(PIC_NET);
 #endif
   

@@ -127,7 +127,7 @@ static void start_dsp_dma(void);
 static void restart_dsp_dma(void);
 static void pause_dsp_dma(void);
 
-void sb_irq_trigger (void);
+void sb_irq_trigger(int);
 
 static void sb_enable_speaker (void);
 static void sb_disable_speaker(void);
@@ -2405,7 +2405,7 @@ char fill[2];
   return amount_done ;
 }
 
-void sb_irq_trigger (void)
+void sb_irq_trigger(int ilevel)
 {
   S_printf ("SB: Interrupt activated.\n");
 
@@ -2426,7 +2426,7 @@ void sb_irq_trigger (void)
   SB_info.irq.pending = 0;
 
   into_irq = 1;
-  do_irq();
+  do_irq(ilevel);
   into_irq = 0;
 }
 

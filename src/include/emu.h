@@ -40,7 +40,7 @@
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
-extern int SillyG_do_irq(void);
+extern void SillyG_do_irq(int);
 extern inline void irq_select(void);
 #endif
 

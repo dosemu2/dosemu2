@@ -620,6 +620,7 @@ void pkt_receiver_callback(void)
 
     if(in_dpmi && !in_dpmi_dos_int)
 	fake_pm_int();
+    fake_int_to(BIOSSEG, EOI_OFF);
 
     saved_regs = REGS;
 
@@ -646,14 +647,7 @@ void pkt_receive_async(void)
   pic_request(PIC_NET);
 }
 
-void
-pkt_check_receive_quick(void)
-{
-    pkt_check_receive(0);
-}
-
-int
-pkt_check_receive(int timeout)
+void pkt_check_receive(int ilevel)
 {
     int size,handle, fd;
     struct per_handle *hdlp;
@@ -664,11 +658,11 @@ pkt_check_receive(int timeout)
 
     if (!pktdrvr_installed) {
         pd_printf("Driver not initialized ...\n");
-	return -1;
+	return;
     }
 
     tv.tv_sec = 0;				/* set a (small) timeout */
-    tv.tv_usec = timeout;
+    tv.tv_usec = 0;
 
     /* anything ready? */
     if (config.vnet) {
@@ -679,29 +673,29 @@ pkt_check_receive(int timeout)
 	}
 	/* anything ready? */
 	if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
-	    return 0;
+	    return;
 
 	if(FD_ISSET(pkt_fd, &readset)) 
 	    fd = pkt_fd;
 	else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset)) 
 	    fd = pkt_broadcast_fd;
-	else return 0;
+	else return;
 
 	strcpy(device, devname);
 	size = ReadFromNetwork(fd, device, pkt_buf, PKT_BUF_SIZE);
 	if (size < 0) {
 	    p_stats->errors_in++;		/* select() somehow lied */
-	    return 0;
+	    return;
 	}
 	if (strcmp(device, devname)) {
 	    pd_printf("strcmp(device != devname) ...\n");
-	    return 0;
+	    return;
 	}
    
 	pd_printf("========Processing New packet======\n");
 	handle = Find_Handle(pkt_buf);
 	if (handle == -1) 
-	    return -1;
+	    return;
 	pd_printf("Found handle %d\n", handle);
 
 	hdlp = &pg.handle[handle];
@@ -714,7 +708,7 @@ pkt_check_receive(int timeout)
 		if(memcmp(pkt_buf + ETH_ALEN, pg.hw_address, ETH_ALEN) == 0) {
 		    /* Ignore our own ethernet broadcast. */
 		    pd_printf("It was my own packet, ignored\n"); 
-		    return 0;
+		    return;
 		}
 		memcpy(pkt_buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
 		printbuf("Translated:", (struct ethhdr *)pkt_buf); 
@@ -750,20 +744,20 @@ pkt_check_receive(int timeout)
 	    p_helper_receiver = hdlp->receiver;
 	    p_helper_handle = handle;
 
-	    pkt_receiver_callback();
+	    do_irq(ilevel);
 
 	    pd_printf("Called the helpvector ... \n");
-	    return 1;
+	    return;
 	} else {
 	    p_stats->packets_lost++;	/* not really lost... */
 	    pd_printf("Handle not in use, ignored this packet\n");
-	    return 0;
+	    return;
 	}
     }
     else { /* !config.vnet */
 	readset = pg.sockset;
 	if (select(pg.nfds, &readset, NULL, NULL, &tv) <= 0)
-	    return 0;
+	    return;
 
 	for (handle = 0; handle < MAX_HANDLE; handle++) {
 	    hdlp = &pg.handle[handle];
@@ -812,17 +806,16 @@ pkt_check_receive(int timeout)
 			p_helper_receiver = hdlp->receiver;
 			p_helper_handle = handle;
 
-			pkt_receiver_callback();
+			do_irq(ilevel);
 
-			return 1;
+			return;
 		    } else
 			p_stats->packets_lost++; /* not really lost... */
 		} else
 		    p_stats->errors_in++; /* select() somehow lied */
 	    }
 	}
-	
-	return 0;
+	return;
     }
 }
 

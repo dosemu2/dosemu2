@@ -78,12 +78,11 @@ void (*io_callback_func[MAX_FD])(void);
 #if defined(SIG)
 int SillyG_pendind_irq_bits=0;
 
-int SillyG_do_irq(void)
+void SillyG_do_irq(int ilevel)
 {
-  int irq=pic_level_list[pic_ilevel], ret;
-  ret = do_irq();
+  int irq=pic_level_list[ilevel];
+  do_irq(ilevel);
   SillyG_pendind_irq_bits &= ~(1 << irq);
-  return ret;
 }
 #endif
 

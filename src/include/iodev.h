@@ -71,8 +71,8 @@ extern void  pit_reset(void);
 
 extern void  rtc_init(void);
 extern void  rtc_reset(void);
-extern void  rtc_update (void);
-extern void  rtc_int8 (void);	/* int70 */
+extern void  rtc_update(void);
+extern void  rtc_int8(int);	/* int70 */
 
 /*******************************************************************
  * CMOS support                                                    *
