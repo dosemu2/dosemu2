@@ -90,7 +90,7 @@ extern int yylex(); /* exact argument types depend on the way you call bison */
 static void yyerror(char *, ...);
 static void yywarn(char *, ...);
 static void die(char *reason) NORETURN;
-static void keyb_layout(int value);
+void keyb_layout(int value);
 static void start_ports(void);
 static void start_mouse(void);
 static void stop_mouse(void);
@@ -1067,14 +1067,9 @@ static void stop_serial(void)
 
 static void start_keyboard(void)
 {
-  keyb_layout(0);
+  keyb_layout(-1);
   config.console_keyb = 0;
   config.keybint = 0;
-  config.keyboard = KEYB_US;	/* What's the current keyboard  */
-  config.key_map = key_map_us;	/* pointer to the keyboard-maps */
-  config.shift_map = shift_map_us;	/* Here the Shilt-map           */
-  config.alt_map = alt_map_us;	/* And the Alt-map              */
-  config.num_table = num_table_dot;	/* Numeric keypad has a dot     */
 }
 
 	/* terminal */
@@ -1335,8 +1330,10 @@ static void stop_disk(int token)
 
 	/* keyboard */
 
-static void keyb_layout(int layout)
+void keyb_layout(int layout)
 {
+  if (layout == -1)
+    layout = KEYB_US;
   switch (layout) {
   case KEYB_FINNISH:
     c_printf("CONF: Keyboard-layout finnish\n");

@@ -760,8 +760,7 @@
 
   77..22..11..  MMaaiinnttaaiinneerrss
 
-  Mark Rejhon  <markg@magmacom.com>
-  Mark Rejhon  <ag115@freenet.carleton.ca>
+  Mark Rejhon  <marky@ottawa.com>
 
   77..22..22..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__iinniitt..cc
 

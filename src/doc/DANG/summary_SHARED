@@ -662,8 +662,7 @@ if we are to convince DOS that we have a very fast serial port.
 <p>
 <sect2>Maintainers
 <p>
-Mark Rejhon  <htmlurl url="mailto:markg@magmacom.com" name="&lt;markg@magmacom.com&gt;">&nl;
-Mark Rejhon  <htmlurl url="mailto:ag115@freenet.carleton.ca" name="&lt;ag115@freenet.carleton.ca&gt;">&nl;
+Mark Rejhon  <htmlurl url="mailto:marky@ottawa.com" name="&lt;marky@ottawa.com&gt;">&nl;
 <sect2>Functions in base/serial/ser_init.c
 
 <p>

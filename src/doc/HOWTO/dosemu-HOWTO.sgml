@@ -601,7 +601,7 @@ additional mousedriver in dosemu outside winemu(97/2/10).
 
 <sect1>Why doesn't the mouse driver work?
 
-<p>Mark Rejhon (<bf>mdrejhon@magi.com</bf>) reported (95/4/7) that
+<p>Mark Rejhon (<bf>marky@ottawa.com</bf>) reported (95/4/7) that
 
 If you start the mouse driver and it just hangs (it might actually
 take 30-60s), but if you are waiting longer than a minute for the
@@ -1064,7 +1064,7 @@ Be sure to use >> :-)
 
 <sect1>Can I run 32-bit video games under dosemu?
 
-<p>Mark Rejhon (<bf>mdrejhon@magi.com</bf>) reported (95/4/8) that
+<p>Mark Rejhon (<bf>marky@ottawa.com</bf>) reported (95/4/8) that
 
 With the recent DPMI improvements that has gone into 0.60, you can now
 run some 32-bit video games in dosemu.   If the game is compatible in

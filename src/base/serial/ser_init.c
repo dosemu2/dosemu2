@@ -20,8 +20,7 @@
  *      ag115@freenet.carleton.ca
  *
  * maintainer:
- * Mark Rejhon <markg@magmacom.com>
- * Mark Rejhon <ag115@freenet.carleton.ca>
+ * Mark Rejhon <marky@ottawa.com>
  *
  * DANG_END_MODULE
  */

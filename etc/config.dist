@@ -246,6 +246,18 @@ terminal { charset latin  updatefreq 4  color on }
 #    "keycode"						(default 0)
 #	Used to give Xdos access to keycode part of XFree86.
 #
+#	NOTE:
+#	  1. You should _not_ use this when using X remotely
+#	     (the remote site may have other raw keyboard settings).
+#	  2. _If_ you use "keycode", you also _must_ define an appropriate
+#	     keyboard layout (see above).
+#	  3. If you _not_ use "keycode" then under X a neutral keyboard
+#	     layout is forced ( keyboard {layout us} ) regardless of what
+#	     you have set above.
+#
+#	Anyway, a cleaner way than using "keycode" is to let the X-server
+#	fiddle with keyboard translation and customize it via .xmodmaps.
+#
 #    "blinkrate" value					(default 8)
 #	Used to add blinking to cursor.
 #

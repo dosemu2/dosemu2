@@ -1,3 +1,9 @@
+97/04/04 ver. 0.66.1.2 unofficial pre-release
+	From Uwe
+	- cleaned up keyb_layout presetting in src/base/init/parser.y
+	- defaulting to KEYB_US now, when under X and _no_ X_keycode
+	From Marky (hi;-)
+	- changed his non-working mail addresses
 97/04/04 ver. 0.66.1.1 unofficial pre-release
         From Hans
 	- added a DOSEMU-special MBR to hdimage.
