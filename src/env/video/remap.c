@@ -1165,7 +1165,7 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
     ro->dst_x1 = ra.x + ra.width;
     ro->dst_y0 = ra.y;
     ro->dst_y1 = ra.y + ra.height;
-    ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0;
+    ro->dst_offset = ro->dst_y0 * ro->dst_scan_len + ro->dst_x0 * pixel_size;
     REMAP_AREA_DEBUG_FUNC(ro);
     ro->remap_func(ro);
   }

@@ -3060,7 +3060,10 @@ int X_update_text_screen()
   
   refresh_palette();
 
-  if(vga.reconfig.mem) X_redraw_text_screen();
+  if(vga.reconfig.mem) {
+    X_redraw_text_screen();
+    vga.reconfig.mem = 0;
+  }
 
   /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
@@ -3401,8 +3404,8 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
       src++;  /* globally shift to the next font row!!! */
     }
     
-    ra = remap_obj.remap_rect(&remap_obj, 0, height * y,
-                              remap_obj.src_width, height);
+    ra = remap_obj.remap_rect(&remap_obj, font_width * x, height * y,
+                              font_width * len, height);
     
     /* put_ximage uses display, mainwindow, gc, ximage       */
     X_printf("image at %d %d %d %d %d %d\n", shift_x+ra.x, shift_y+ra.y,
