@@ -102,18 +102,6 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   return(syscall(SYS_sigaction, sig, &my_sa, NULL));
 }
 
-/* This function is a hack to make sure gs is restored in signal
-   handlers for LinuxThreads (non-NPTL) libraries that use gs */
-static void (*pthreads_sighandler)(int);
-void dosemu_gs_sighandler(int);
-void dosemu_gs_sighandler_fn(void);
-void dosemu_gs_sighandler_fn(void)
-{
-  asm volatile ("dosemu_gs_sighandler:\n");
-  restore_eflags_fs_gs();
-  asm volatile ("jmp *pthreads_sighandler\n");
-}
-
 static void
 dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 {
@@ -138,18 +126,20 @@ dosemu_sigaction_wrapper(int sig, void *fun, int flags)
 
   sigaction(sig, &sa, NULL);
 
-  /* what follows is the hack to get the pthread signal wrapper to
-     obtain the correct gs value (if gs is used at all) */
-  if (_emu_stack_frame.gs == 0)
-    return;
-  /* using a pthread library that uses gs */
   syscall(SYS_sigaction, sig, NULL, &kernel_sa);
   /* no wrapper: no problem */
   if (kernel_sa.kernel_sa_handler == sa.sa_handler)
     return;
 
-  pthreads_sighandler = kernel_sa.kernel_sa_handler;
-  kernel_sa.kernel_sa_handler = dosemu_gs_sighandler;
+  /* if glibc installs a wrapper it's incompatible with dosemu:
+     1. some old versions don't copy back the sigcontext_struct
+        on sigreturn
+     2. it may assume %gs points to something valid which it
+        does not if we return from DPMI or kernel 2.4.x vm86().
+     and it doesn't seem that the actions done by the wrapper
+        would affect dosemu: if only seems to affect sigwait()
+	and sem_post(), and we (most probably) don't use these */
+  kernel_sa.kernel_sa_handler = sa.sa_handler;
   syscall(SYS_sigaction, sig, &kernel_sa, NULL);
 }
 
