@@ -13,8 +13,6 @@ DEPENDS=$(CFILES:.c=.d)
 
 ALL = $(CFILES) $(HFILES) README.sound TODO
 
-SUBDIR=sound
-
 OBJS = linux_sound.o
 
 include $(REALTOPDIR)/src/Makefile.common

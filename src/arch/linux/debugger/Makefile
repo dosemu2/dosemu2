@@ -12,8 +12,6 @@ include $(top_builddir)/Makefile.conf
 # Please read the code in this directory for more information.
 
 
-SUBDIR=debugger
-
 #The C files, include files and dependancies here.
 CFILES = mhpdbg.c mhpdbgc.c dis8086.c dosdebug.c
 DEPENDS =  mhpdbg.d mhpdbgc.d dis8086.d dosdebug.d

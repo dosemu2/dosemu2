@@ -14,8 +14,6 @@ DEPENDS= pic.d
 
 ALL = $(CFILES) $(HFILES) README.pic
 
-SUBDIR=pic
-
 OBJS = pic.o
 
 

@@ -11,8 +11,6 @@ include $(top_builddir)/Makefile.conf
 # Please send comments and bug-reports to Hans Lermen <lermen@fgan.de>
 
 
-SUBDIR=mapping
-
 #The C files, include files and dependancies here.
 CFILES = mapping.c mapself.c pagemalloc.c mapshm.c mapfile.c
 DEPENDS = $(CFILES:.c=.d)

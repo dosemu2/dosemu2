@@ -14,8 +14,6 @@ DEPENDS= sound.d
 
 ALL = $(CFILES) $(HFILES) README.sound TODO
 
-SUBDIR=sound
-
 OBJS = sound.o
 
 

@@ -16,8 +16,6 @@ ALL=$(CFILES) $(SFILES)
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
 
-SUBDIR=coopthreads         # just to make Makefile.common happy
-
 ifdef REALTOPDIR
 include $(REALTOPDIR)/src/Makefile.common
 endif

@@ -12,9 +12,6 @@ include $(top_builddir)/Makefile.conf
 # for Linux.
 #
 
-SUBDIR=translate
-
-
 # make_attributes.c is a little utility to convert the attributes
 # as supplied by (the unicode organization) to a format usable
 # by dosemu.

@@ -13,8 +13,6 @@ include $(top_builddir)/Makefile.conf
 #
 
 
-SUBDIR=keyboard
-
 ifdef X_SUPPORT
 X_CFILES:=keyb_X.c keyb_X_keycode.c
 endif

@@ -17,8 +17,6 @@ ALL=$(CFILES) $(SFILES)
 OBJS=$(CFILES:.c=.o)
 DEPENDS=$(CFILES:.c=.d)
 
-SUBDIR=commands_plugin         # just to make Makefile.common happy
-
 D:=$(BINPATH)/commands
 
 COM = $(D)/generic.com

@@ -45,8 +45,6 @@ OFILES = miscemu.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cir
 
 ALL = $(CFILES) $(HFILES) #$(SFILES)
 
-SUBDIR=video
-
 all: lib
 
 

@@ -8,8 +8,6 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 
-SUBDIR=mfs
-
 CFILES=mfs.c mangle.c util.c dosc.c lfn.c
 HFILES=mfs.h mangle.h
 ALL=$(CFILES) $(HFILES)

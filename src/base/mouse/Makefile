@@ -15,9 +15,6 @@ include $(top_builddir)/Makefile.conf
 
 # The following variables may go into the Makfile in the parent-directory
 
-SUBDIR=mouse
-
-
 DEFINES=-DCLEARDTR_SUPPORT
 CFLAGS+=$(DEFINES)
 

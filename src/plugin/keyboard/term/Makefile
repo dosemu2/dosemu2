@@ -8,8 +8,6 @@ top_builddir=../../..
 include $(top_builddir)/Makefile.conf
 
 
-SUBDIR=term
-
 CFILES=terminal.c
 
 SFILES=

@@ -11,8 +11,6 @@ include $(top_builddir)/Makefile.conf
 # Please send comments and bug-reports to marky@magmacom.com
 # Please read the code in this directory for more information.
 
-SUBDIR=serial
-
 #The C files, include files and dependancies here.
 CFILES = ser_init.c ser_irq.c ser_ports.c int14.c fossil.c
 DEPENDS= ser_init.d ser_irq.d ser_ports.d int14.d fossil.d

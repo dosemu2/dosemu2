@@ -32,9 +32,6 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 OBJS=parser.o lex.yy.o $(CFILES:.c=.o)
 
-SUBDIR=init
-
-
 all:  lib
 
 install:

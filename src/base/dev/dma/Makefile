@@ -13,8 +13,6 @@ DEPENDS= dma.d
 
 ALL = $(CFILES) $(HFILES) README.dma
 
-SUBDIR=dma
-
 OBJS = dma.o
 
 

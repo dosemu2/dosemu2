@@ -16,8 +16,6 @@ OBJS=$(CFILES:.c=.o)
 OOBJS=
 DEPENDS=$(CFILES:.c=.d)
 
-SUBDIR=tools
-
 all: tools86
 
 include $(REALTOPDIR)/src/Makefile.common

@@ -15,8 +15,6 @@ include $(top_builddir)/Makefile.conf
 
 # The following variables may go into the Makfile in the parent-directory
 
-SUBDIR=net
-
 # let gcc do extended checking
 
 
