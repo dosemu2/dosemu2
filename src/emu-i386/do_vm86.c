@@ -112,6 +112,7 @@ void vm86_GP_fault(void)
 #endif
 
 #define LWECX	    (prefix66 ^ prefix67 ? REG(ecx) : LWORD(ecx))
+#define setLWECX(x) {if (prefix66 ^ prefix67) REG(ecx)=(x); else LWORD(ecx) = (x);}
 #define MAX_HALT_COUNT 3
 
 #if 0
@@ -193,7 +194,7 @@ void vm86_GP_fault(void)
     /* WARNING: no test for DI wrapping! */
     LWORD(edi) += port_rep_inb(LWORD(edx), SEG_ADR((Bit8u *),es,di),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
-    if (is_rep) LWECX = 0;
+    if (is_rep) setLWECX(0);
     LWORD(eip)++;
     break;
 
@@ -208,7 +209,7 @@ void vm86_GP_fault(void)
       LWORD(edi) += port_rep_inw(LWORD(edx), SEG_ADR((Bit16u *),es,di),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     }
-    if (is_rep) LWECX = 0;
+    if (is_rep) setLWECX(0);
     LWORD(eip)++;
     break;
       
@@ -218,7 +219,7 @@ void vm86_GP_fault(void)
     /* WARNING: no test for _SI wrapping! */
     LWORD(esi) += port_rep_outb(LWORD(edx), __SEG_ADR((Bit8u *),pref_seg,si),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
-    if (is_rep) LWECX = 0;
+    if (is_rep) setLWECX(0);
     LWORD(eip)++;
     break;
 
@@ -234,7 +235,7 @@ void vm86_GP_fault(void)
       LWORD(esi) += port_rep_outw(LWORD(edx), __SEG_ADR((Bit16u *),pref_seg,si),
 	LWORD(eflags)&DF, (is_rep? LWECX:1));
     } 
-    if (is_rep) LWECX = 0;
+    if (is_rep) setLWECX(0);
     LWORD(eip)++;
     break;
 
