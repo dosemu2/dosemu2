@@ -38,7 +38,7 @@
 #include "dpmi.h"
 #include "pic.h"
 #include "mapping.h"
-#include "pagemalloc.h"
+#include "smalloc.h"
 
 #ifndef PAGE_SHIFT
 #define PAGE_SHIFT		12
@@ -48,7 +48,7 @@ unsigned long dpmi_total_memory; /* total memory  of this session */
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
 unsigned long pm_block_handle_used;       /* tracking handle */
 
-static struct pgm_pool mem_pool;
+static smpool mem_pool;
 #define IN_POOL(addr) (addr >= mem_pool.mpool && \
   addr < mem_pool.mpool + (mem_pool.maxpages << PAGE_SHIFT))
 
@@ -138,10 +138,7 @@ void dpmi_memory_init(void)
       leavedos(2);
     }
     D_printf("DPMI: mem init, mpool is %d bytes at %p\n", memsize, mpool);
-    if (pgmalloc_init(&mem_pool, mpool_numpages, mpool_numpages/4, mpool)) {
-      error("DPMI: cannot get table mem for pgmalloc_init\n");
-      leavedos(2);
-    }
+    sminit(&mem_pool, mpool, memsize);
     dpmi_total_memory = num_pages << PAGE_SHIFT;
 }
 
@@ -251,7 +248,7 @@ dpmi_pm_block * DPMImalloc(unsigned long size)
     if ((block = alloc_pm_block(size)) == NULL)
 	return NULL;
 
-    if (!(block->base = pgmalloc(&mem_pool, size))) {
+    if (!(block->base = smalloc(&mem_pool, size))) {
 	free_pm_block(block);
 	return NULL;
     }
@@ -330,7 +327,7 @@ int DPMIfree(unsigned long handle)
     } else {
 	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
 	    PROT_READ | PROT_WRITE | PROT_EXEC);
-	pgfree(&mem_pool, block->base);
+	smfree(&mem_pool, block->base);
     }
     for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
 	if ((block->attrs[i] & 7) == 1)    // if committed page, account it
@@ -390,7 +387,7 @@ dpmi_pm_block * DPMIrealloc(unsigned long handle, unsigned long newsize)
       mprotect_mapping(MAPPING_DPMI, block->base + newsize,
         block->size - newsize, PROT_READ | PROT_WRITE | PROT_EXEC);
     }
-    if (!(ptr = pgrealloc(&mem_pool, block->base, newsize)))
+    if (!(ptr = smrealloc(&mem_pool, block->base, newsize)))
 	return NULL;
 
     finish_realloc(block, newsize, 1);
