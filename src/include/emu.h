@@ -234,6 +234,7 @@ typedef struct vesamode_type_struct {
        u_short X_updatefreq;            /* X update frequency */
        char    *X_display;              /* X server to use (":0") */
        char    *X_title;                /* X window title */
+       int X_title_show_appname;        /* show name of running app in caption */
        char    *X_icon_name;
        char    *X_font;
        char    *X_mgrab_key;		/* KeySym name to activate mouse grab */

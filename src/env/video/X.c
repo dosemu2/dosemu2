@@ -525,8 +525,7 @@ static int NewXErrorHandler(Display *, XErrorEvent *);
 
 /* interface to xmode.exe */
 static char X_title_emuname [X_TITLE_EMUNAME_MAXLEN] = {0};
-char X_title_appname [X_TITLE_APPNAME_MAXLEN] = {0};		/* used in plugin/commands/comcom.c */
-static int X_title_show_appname = 1;
+static char X_title_appname [X_TITLE_APPNAME_MAXLEN] = {0};
 static int X_change_config(unsigned, void *);	/* modify X config data from DOS */
 
 /* colormap related stuff */
@@ -1273,7 +1272,7 @@ static int X_change_config(unsigned item, void *buf)
          
          /* app - DOS in a BOX */
          /* name of running application (if any) */
-         if (X_title_show_appname && strlen (X_title_appname))
+         if (config.X_title_show_appname && strlen (X_title_appname))
            strcpy (title, X_title_appname);
          
          /* append name of emulator */
@@ -1319,7 +1318,7 @@ static int X_change_config(unsigned item, void *buf)
 
     case X_CHG_TITLE_SHOW_APPNAME:
       X_printf("X: X_change_config: show_appname %i\n", *((int *) buf));
-      X_title_show_appname = *((int *) buf);
+      config.X_title_show_appname = *((int *) buf);
       X_change_config (X_CHG_TITLE, NULL);
       break;
 

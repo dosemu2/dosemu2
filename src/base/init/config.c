@@ -181,6 +181,8 @@ void dump_config_status(void *printfunc)
     (*print)("xterm_title\n", config.xterm_title);
     (*print)("X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
         (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);
+    (*print)("X_title_show_appname %d\n",
+	config.X_title_show_appname);
     (*print)("X_blinkrate %d\nX_sharecmap %d\nX_mitshm %d\n",
         config.X_blinkrate, config.X_sharecmap, config.X_mitshm);
     (*print)("X_fixed_aspect %d\nX_aspect_43 %d\nX_lin_filt %d\n",
