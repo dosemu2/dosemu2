@@ -30,13 +30,61 @@ static char *lowmem_base = NULL;
 /* this is a 256 table telling for every page if it's mapped to /dev/mem
    or not. Necessary for the low mem hack... Hopefully a temporary
    measure */
-char kmem_map[256];
+static char kmem_map[256];
 
 static struct mappingdrivers *mappingdrv[] = {
   &mappingdriver_shm,
   &mappingdriver_file,
   0
 };
+
+static int kmem_check_memcpy(char *tmp)
+{
+  char *p;
+  int i;
+  int kmem_first = 256;
+
+  for (i = 0; i < 256; i++)
+    if (kmem_map[i]) {
+      kmem_first = i;
+      break;
+    }
+  p = (char *)(kmem_first * PAGE_SIZE);
+  memcpy(tmp, 0, (size_t)p);
+  munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, 0, (size_t)p);
+  for (i = kmem_first; i < 256; i++, p += PAGE_SIZE)
+    if (!kmem_map[i]) {
+      memcpy(tmp + i * PAGE_SIZE, p, PAGE_SIZE);
+      munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, p, PAGE_SIZE);
+    }
+  if (kmem_first == 256)
+    kmem_first += 16; /* include HMA */
+  return kmem_first;
+}
+
+static void kmem_check_memcpy_back(int kmem_first, char *p, char *tmp)
+{
+  int i;
+  int j = kmem_first;
+  memcpy(0, tmp, kmem_first == (256 + 16) ? 0x100000 : (size_t)p);
+  for (i = kmem_first + 1; i < 257; i++, p += PAGE_SIZE)
+    if (i == 256 || kmem_map[i] != kmem_map[i-1]) {
+      if (kmem_map[i - 1]) {
+	j = i;
+      } else {
+	if (i == 256)
+	  i += 16; /* for HMA */
+	mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS,
+		     (char *)(j * PAGE_SIZE), (i - j) * PAGE_SIZE,
+		     PROT_READ | PROT_WRITE | PROT_EXEC,
+		     (char *)(j * PAGE_SIZE));
+	if (i == 256 + 16)
+	  i -= 16; /* for HMA (don't copy) */
+	memcpy((char *)(j * PAGE_SIZE), tmp + j * PAGE_SIZE,
+	       (i - j) * PAGE_SIZE);
+      }
+    }
+}
 
 void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 	int flags, void * new_addr)
@@ -46,22 +94,23 @@ void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 
 void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source)
 {
+  void *addr;
   int fixed = (int)target == -1 ? 0 : MAP_FIXED;
   Q__printf("MAPPING: map, cap=%s, target=%p, size=%x, protect=%x, source=%p\n",
 	cap, target, mapsize, protect, source);
   if (cap & MAPPING_KMEM) {
-    void *addr_;
     open_kmem();
     if (!fixed) target = 0;
-    addr_ = mmap(target, mapsize, protect, MAP_SHARED | fixed,
+    addr = mmap(target, mapsize, protect, MAP_SHARED | fixed,
 				mem_fd, (off_t) source);
     close_kmem();
-    if (addr_ != MAP_FAILED && fixed) {
+    if (addr != MAP_FAILED && fixed) {
       int i;
       for (i = 0; i < mapsize / PAGE_SIZE; i++)
         kmem_map[i + (int)target / PAGE_SIZE] = 1;
     }
-    return addr_;
+    mprotect_mapping(cap, addr, mapsize, protect);
+    return addr;
   }
   if (cap & MAPPING_SCRATCH) {
     if (!fixed) target = 0;
@@ -196,12 +245,21 @@ void *alloc_mapping(int cap, int mapsize, void *target)
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
+    char *tmp = NULL;
+    char *p;
+    int kmem_first = 272;
+
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
     lowmem_base = addr;
-#if 0 /* hack: temporarily do this in init.c */
-    addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target, mapsize,
+    /* init hack: convert scratch memory into aliased memory
+       after dropping privileges */
+    tmp = malloc(0x100000);
+    kmem_first = kmem_check_memcpy(tmp);
+    p = (char *)(kmem_first * PAGE_SIZE);
+    addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target, (size_t)p,
       PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
-#endif
+    kmem_check_memcpy_back(kmem_first, p, tmp);
+    free(tmp);
   }
   return addr;
 }

@@ -471,68 +471,16 @@ void device_init(void)
  */
 void low_mem_init(int hack)
 {
-  static int lowmem_hacked = 0;
   char *result = NULL;
-  char *tmp = NULL;
-  char *p;
-  int i;
-  int kmem_first = 256;
 
   if (hack) {
     g_printf ("DOS memory area being hacked in\n");
     result = mmap_mapping(/*MAPPING_HACK | */MAPPING_SCRATCH, 0,
 		0x100000, PROT_EXEC | PROT_READ | PROT_WRITE, 0);
-    lowmem_hacked = 1;
   } else {
-    if (lowmem_hacked) {
-      tmp = malloc(0x100000);
-      for (i = 0; i < 256; i++)
-        if (kmem_map[i]) {
-          kmem_first = i;
-          break;
-        }
-      p = (char *)(kmem_first * PAGE_SIZE);
-      memcpy(tmp, 0, (size_t)p);
-      munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, 0, (size_t)p);
-      for (i = kmem_first; i < 256; i++, p += PAGE_SIZE)
-        if (!kmem_map[i]) {
-          memcpy(tmp + i * PAGE_SIZE, p, PAGE_SIZE);
-          munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, p, PAGE_SIZE);
-        }
-    }
-    if (kmem_first == 256)
-      kmem_first += 16; /* include HMA */
     open_mapping(MAPPING_INIT_LOWRAM);
     g_printf ("DOS+HMA memory area being mapped in\n");
-    alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
-    p = (char *)(kmem_first * PAGE_SIZE);
-#if 1 /* the hack from mapping.c */
-    result = mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS,
-                          0, (size_t)p,
-                          PROT_READ | PROT_WRITE | PROT_EXEC, 0);
-#endif
-    if (lowmem_hacked) {
-      int j = kmem_first;
-      memcpy(0, tmp, kmem_first == (256 + 16) ? 0x100000 : (size_t)p);
-      for (i = kmem_first + 1; i < 257; i++, p += PAGE_SIZE)
-        if (i == 256 || kmem_map[i] != kmem_map[i-1]) {
-          if (kmem_map[i - 1]) {
-            j = i;
-          } else {
-            if (i == 256)
-              i += 16; /* for HMA */
-            mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS,
-                         (char *)(j * PAGE_SIZE), (i - j) * PAGE_SIZE,
-                         PROT_READ | PROT_WRITE | PROT_EXEC,
-                         (char *)(j * PAGE_SIZE));
-            if (i == 256 + 16)
-              i -= 16; /* for HMA (don't copy) */
-            memcpy((char *)(j * PAGE_SIZE), tmp + j * PAGE_SIZE,
-                   (i - j) * PAGE_SIZE);
-          }
-        }
-      free(tmp);
-    }
+    result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
   }
   if (result != NULL)
     {

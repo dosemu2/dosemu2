@@ -97,6 +97,4 @@ extern struct mappingdrivers mappingdriver_shm;
 void mapping_init(void);
 void mapping_close(void);
 
-extern char kmem_map[];
-
 #endif /* _MAPPING_H_ */
