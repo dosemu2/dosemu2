@@ -550,6 +550,10 @@ static boolean X_set_video_mode(int mode) {
   WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
 
   WRITE_WORD(BIOS_VIDEO_PORT, vga.config.mono_port ? 0x3b4 : 0x3d4);
+  if (mode == 0x6)
+    WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x3f);
+  else
+    WRITE_BYTE(BIOS_VDU_COLOR_REGISTER, 0x30);
 
   switch(vga.char_height) {
     case 14:
@@ -1607,13 +1611,13 @@ void int10_new(void) /* with X but without dualmon */
       break;
 
 
-    case 0x0b:		/* set bg/border color */
+    case 0x0b:		/* set palette/bg/border color */
       {
 	unsigned char currentpalette = READ_BYTE(BIOS_VDU_COLOR_REGISTER);
+	i10_msg("set palette or bg/border, bx=%x\n",LWORD(ebx));
 	if (HI(bx) == 0) {
-	  i10_msg("set bg/border color to %x\n",LO(bx));
-	  currentpalette &= ~0xf;
-	  currentpalette |= LO(bx) & 0xf;
+	  currentpalette &= ~0x1f;
+	  currentpalette |= LO(bx) & 0x1f;
 	} else if (HI(bx) == 1) {
 	  if (LO(bx))
 	    currentpalette |= 0x20;
