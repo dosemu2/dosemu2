@@ -1586,7 +1586,7 @@ err:
       REG(ds) = rmreg->ds;
       REG(fs) = rmreg->fs;
       REG(gs) = rmreg->gs;
-      if (!(rmreg->sp==0)) {
+      if (!(rmreg->ss==0 && rmreg->sp==0)) {
 	REG(ss) = rmreg->ss;
 	REG(esp) = (long) rmreg->sp;
       }
