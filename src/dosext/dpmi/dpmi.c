@@ -2907,13 +2907,15 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 	        REG(cs) = DPMI_SEG;
 	        REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
 	        in_dpmi_dos_int = 1;
-	        return (void) do_int(trapno);
+	        do_int(trapno);
+		break;
         default:
 		p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 		  "It is likely that dosemu is unstable now and should be rebooted\n",
 		  trapno);
 		quit_dpmi(scp, 0xff);
       }
+      return;
     }
     if (DPMI_CLIENT.is_32) {
       ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
