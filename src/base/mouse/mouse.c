@@ -998,6 +998,9 @@ mouse_reset_to_current_video_mode(void)
 static void mouse_reset(int flag)
 {
   m_printf("MOUSE: reset mouse/installed!\n");
+
+  mouse.ps2.cs = mouse.ps2.ip = 0;
+
   if (flag == 0) mouse_enable_internaldriver();
 
   /* Return 0xffff on mouse installed, 0x0000 - no mouse driver installed */
