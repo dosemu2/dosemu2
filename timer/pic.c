@@ -431,9 +431,8 @@ int do_irq()
 
      pic_cli();
 #ifdef DPMI
-     if (in_dpmi) {
+     if (in_dpmi)
       run_pm_int(intr);
-     } 
      else
 #endif
        run_int(intr);
@@ -441,13 +440,11 @@ int do_irq()
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
 #ifdef DPMI
-	if (in_dpmi ) {
+	if (in_dpmi )
 	  run_dpmi();
-	}
-	else {
+	else
 #endif
           run_vm86();
-	}
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
         run_irqs();
         serial_run();           /*  delete when moved to timer stuff */

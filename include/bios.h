@@ -237,7 +237,7 @@ void DPMI_raw_mode_switch();
 void DPMI_save_restore();
 void DPMI_API_extension();
 void DPMI_return_from_pm();
-void DPMI_return_from_pm_eh();
+void DPMI_return_from_exception();
 void DPMI_exception();
 void DPMI_interrupt();
 

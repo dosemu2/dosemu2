@@ -1051,6 +1051,7 @@ void
   struct sigaction sa;
   struct stat statout, staterr;
 
+#if 0
   /* start running as real, not effecitve user */
   exchange_uids();	
 
@@ -1066,7 +1067,7 @@ void
 	fprintf(stderr, "can't open fd3\n");
 	exit(1);
    }
-#if 0
+#else
  /* DANG_BEGIN_REMARK
   * If DOSEMU starts up with stderr == stdout, then stderr gets 
   * redirected to '/dev/null'.
@@ -1117,7 +1118,9 @@ void
   setbuf(stdout, NULL);
 
   /* create tmpdir */
+  exchange_uids();
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
+  exchange_uids();
 
   /* do time stuff - necessary for initial time setting */
   {

@@ -178,5 +178,6 @@ EXTERN u_char keepkey INIT(1);
 
 extern void insert_into_keybuffer(void);
 extern void set_keyboard_bios(void);
+extern void do_irq1(void);
 
 #endif /* TERMIO_H */

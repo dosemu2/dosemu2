@@ -92,7 +92,7 @@ void shared_memory_init(void) {
  *
  */
 
- if(!config.vga && !config.console_video) {
+ if(!config.X && !config.vga && !config.console_video) {
 
   if ((shm_video_id = shmget(IPC_PRIVATE, SHARED_VIDEO_AREA, 0755)) < 0) {
     E_printf("SHM: Initial Video IPC mapping unsuccessful: %s\n", strerror(errno));
@@ -102,7 +102,7 @@ void shared_memory_init(void) {
   else
     E_printf("SHM: shm_video_id=%x\n", shm_video_id);
 
-  if (((caddr_t)ret_val = (caddr_t) shmat(shm_video_id, (u_char *)0xA0000, SHM_REMAP|SHM_RND)) == (caddr_t) 0xffffffff) {
+  if (((caddr_t)ret_val = (caddr_t) shmat(shm_video_id, (u_char *)0xA0000, SHM_REMAP /* |SHM_RND */)) == (caddr_t) 0xffffffff) {
     E_printf("SHM: Mapping to Video 0 unsuccessful: %s\n", strerror(errno));
     leavedos(44);
   }
@@ -111,6 +111,11 @@ void shared_memory_init(void) {
   }
  }
 
+/* 
+ * DANG_BEGIN_REMARK
+ *	Output info required for client activity
+ * DANG_END_REMARK
+ */
   pid = getpid();
   sprintf(devname, "%s%d", TMPFILE, pid);
   

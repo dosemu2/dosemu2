@@ -105,7 +105,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   41
+PATCHL  =   42
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -172,7 +172,8 @@ OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
 	NOVELL-HOWTO.txt BOGUS-Notes \
 	README.ncurses vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh README.X \
-	README.CDROM README.video Configure DANG_CONFIG README.HOGTHRESHOLD
+	README.CDROM README.video Configure DANG_CONFIG README.HOGTHRESHOLD \
+	README.mgarrot
 
 BFILES=
 
@@ -374,6 +375,7 @@ installnew:
 
 install: $(REQUIRED) all
 	@install -d /var/lib/dosemu
+	@install -d /var/run
 	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > dosemu.map
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
@@ -425,7 +427,6 @@ ifdef X_SUPPORT
 endif
 	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
 	@echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"
-	@echo "  - Try the ./garrot02/garrot02.com for better CPU use under Linux"
 	@echo ""
 
 converthd: hdimage

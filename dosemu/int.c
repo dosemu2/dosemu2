@@ -210,6 +210,15 @@ dos_helper(void)
     use_bootdisk = LO(bx) ? 1 : 0;
     break;
 
+   case 0x28:                    /* Mouse garrot helper */
+    if (!LWORD(ebx))   /* Wait sub-function requested */
+      usleep(INT2F_IDLE_USECS);
+     else  {           /* Get Hogthreshold value sub-function*/
+      LWORD(ebx)= config.hogthreshold;
+      LWORD(eax)= config.hogthreshold;
+     }
+    break;
+
   case 0x33:			/* set mouse vector */
     mouse_helper();
     break;
@@ -817,9 +826,7 @@ can_revector(int i)
  * then don't let it be revectored.
  *
  */
-
   if (i < 0x21 || i > 0xe8 ) return 1;
-
   switch (i) {
 
     /* some things, like 0x29, need to be unrevectored if the vectors
@@ -839,8 +846,8 @@ can_revector(int i)
   case 0x28:                    /* keyboard idle interrupt */
     return 0;
 
-  case 0x33:			/* mouse...we're testing */
-    if (mice->intdrv)
+  case 0x33:			/* Mouse. Call the wrapper for mouse-garrot as well*/
+    if (mice->intdrv || config.hogthreshold)       
       return 0;
     else
       return 1;
@@ -972,14 +979,53 @@ static void int2fcaller(u_char i) {
 
 /* mouse */
 static void int33(u_char i) {
-  if (mice->intdrv) {
+/* New code introduced by Ed Sirett (ed@cityscape.co.uk)  26/1/95 to give 
+ * garrot control when the dos app is polling the mouse and the mouse is 
+ * taking a break. */
+  
+  static unsigned short int oldx=0, oldy=0, trigger=0;
+   
+/* Firstly do the actual mouse function. */   
+/* N.B. This code only works with the intdrv since default_interrupt() does not
+ * actually call the real mode mouse driver now. (It simply sets up the registers so
+ * that when the signal that we are currently handling has completed and the kernel
+ * reschedules dosemu it will then start executing the real mode mouse handler). :-( 
+ * Do we need/have we got post_interrupt (IRET) handlers? 
+ */
+  if (mice->intdrv) 
     mouse_int();
-    return;
-  }
-  else {
-    k_printf("Why is this being called?\n");
+  else 
     default_interrupt(i);
-  }
+/* It seems that the only mouse sub-function that could be plausibly used to 
+ * poll the mouse is AX=3 - get mouse buttons and position. 
+ * The mouse driver should have left AX=3 unaltered during its call.
+ * The correct responce should have the buttons in the low 3 bits in BX and 
+ * x,y in CX,DX. 
+ * Some programs seem to interleave calls to read mouse with various other 
+ * sub-functions (Esp. 0x0b  0x05 and 0x06)
+ * As a result we do not reset the  trigger value in these cases. 
+ * Sadly, some programs use the user-specified mouse-event handler function (0x0c)
+ * after which they then wait for mouse events presumably in a tight loop, I think
+ * that we won't be able to stop these programs from burning CPU cycles.
+ */
+   if (LWORD(eax) ==0x0003)  {
+     if (LWORD(ebx) == 0 && oldx == LWORD(ecx) && oldy == LWORD(edx) ) 
+        trigger++;
+      else  { 
+        trigger=0;
+        oldx = LWORD(ecx);
+        oldy = LWORD(edx);
+      } 
+   }
+m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
+/* Ok now we test to see if the mouse has been taking a break and we can let the 
+ * system get on with some real work. :-) */
+   if (trigger >= config.hogthreshold)  {
+     m_printf("Ignoring the quiet mouse.\n");
+     usleep(INT2F_IDLE_USECS);
+     trigger=0;
+   }
+   
 }
 
 #ifdef USING_NET

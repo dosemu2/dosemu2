@@ -7,7 +7,7 @@ SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	emufs.S ems.S cdrom.S
 COM=exitemu.com vgaoff.com vgaon.com eject.com bootoff.com booton.com
 EXE=lredir.exe dumpconf.exe dosdbg.exe lancheck.exe isemu.com unix.exe \
-	unix.c pdipx.com mouse.exe
+	unix.c pdipx.com mouse.exe mgarrot.com mgarrot.a86
 SYS=emufs.sys ems.sys cdrom.sys
 
 all: $(COM) $(SYS)

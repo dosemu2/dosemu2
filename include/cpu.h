@@ -205,6 +205,7 @@ struct sigcontext_struct {
 #define _edx    (scp->edx)
 #define _ecx    (scp->ecx)
 #define _eax    (scp->eax)
+#define _err	(scp->err)
 #define _trapno (scp->trapno)
 #define _eip    (scp->eip)
 #define _cs     (scp->cs)

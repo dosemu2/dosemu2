@@ -19,7 +19,6 @@
 
 extern int in_dpmi;
 extern int in_dpmi_dos_int;
-extern int in_dpmi_dos_call;
 
 void dpmi_get_entry_point();
 
@@ -133,16 +132,5 @@ struct RealModeCallStructure {
     for (i = 0; i < 10; i++) \
       D_printf("%02x ", *ssp2++); \
     D_printf("\n");
-
-#define DPMI_show_stack \
-	D_printf("DPMI: Stack:\n"); \
-	D_printf("DPMI: +07 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 32)); \
-	D_printf("DPMI: +06 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 28)); \
-	D_printf("DPMI: +05 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 24)); \
-	D_printf("DPMI: +04 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 16)); \
-	D_printf("DPMI: +03 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 12)); \
-	D_printf("DPMI: +02 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 8)); \
-	D_printf("DPMI: +01 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 4)); \
-	D_printf("DPMI:  00 = 0x%08x\n", *(unsigned long *) (GetSegmentBaseAddress(_ss) + _esp + 0));
 
 #endif /* DPMI_H */

@@ -494,13 +494,15 @@ _bios_f000_int10ptr:
 
 	.globl	_DPMI_dummy_start
 _DPMI_dummy_start:
+	push	bx
 	push	ax
-	mov	ah,#0x51
+	mov	ah,#0x62
 	int	0x21			/* Get PSP */
 	pop	ax
 	.globl	_DPMI_dpmi_init
 _DPMI_dpmi_init:
 	hlt
+	pop	bx
 	retf
 	.globl	_DPMI_return_from_dosint
 _DPMI_return_from_dosint:
@@ -521,6 +523,9 @@ _DPMI_API_extension:
 	retf
 	.globl	_DPMI_return_from_pm
 _DPMI_return_from_pm:
+	hlt
+	.globl	_DPMI_return_from_exception
+_DPMI_return_from_exception:
 	hlt
 	.globl	_DPMI_return_from_pm_eh
 _DPMI_return_from_pm_eh:

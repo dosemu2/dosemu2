@@ -24,41 +24,62 @@
 
 char *memory;
 
-void shared_memory_init(char *pid) {
+int
+shared_memory_init (char *pid)
+{
 
   FILE *tmpfile_fd;
   static int ret_val;
   u_char devname[30], in_string[81];
 
-  get_shared_memory_info(pid);
+  get_shared_memory_info (pid);
+  if (shm_video_id)
+    {
 
-  memory=malloc(SHARED_VIDEO_AREA);
+      memory = malloc (SHARED_VIDEO_AREA);
 
-  if (((caddr_t)ret_val = (caddr_t) shmat(shm_video_id, (u_char *)memory, SHM_REMAP|SHM_RND)) == (caddr_t) 0xffffffff) {
-    E_printf("SHM: Mapping to 0 unsuccessful: %s\n", strerror(errno));
-    leavedos(44);
-  }
-  if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("SHM: Shmctl SHM unsuccessful: %s\n", strerror(errno));
-  }
+      if (((caddr_t) ret_val = (caddr_t) shmat (shm_video_id, (u_char *) memory, SHM_REMAP | SHM_RND)) == (caddr_t) 0xffffffff)
+	{
+	  E_printf ("SHM: Mapping to 0 unsuccessful: %s\n", strerror (errno));
+	  leavedos (44);
+	}
+      if (shmctl (shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0)
+	{
+	  E_printf ("SHM: Shmctl SHM unsuccessful: %s\n", strerror (errno));
+	}
 
+      return 0;
+    }
+  else
+    return 1;
 
 }
 
-void main(int argc, char **argv) {
+void
+main (int argc, char **argv)
+{
   int i, j;
-  if(argc < 2) {
-    fprintf(stderr, "Please give me a pid\n");
-    return;
-  }
-  
-  shared_memory_init(argv[1]);
-
-  for(j=0;j<25;j++){
-    putchar('\n');
-    for(i=0;i<160;i+=2){
-      E_printf("%c", (u_char)memory[0x18000+i+(j*160)]);
+  if (argc < 2)
+    {
+      fprintf (stderr, "Please give me a pid\n");
+      return;
     }
-  }
-  getchar();
+
+  if (shared_memory_init (argv[1]))
+    {
+      fprintf (stderr, "Unable to access video, check server video mode.\n");
+    }
+  else
+    {
+
+      for (j = 0; j < 25; j++)
+	{
+	  putchar ('\n');
+	  for (i = 0; i < 160; i += 2)
+	    {
+	      E_printf ("%c", (u_char) memory[0x18000 + i + (j * 160)]);
+	    }
+	}
+      getchar ();
+    }
 }

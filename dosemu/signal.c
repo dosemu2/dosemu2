@@ -308,10 +308,8 @@ void
 sigio(int sig, struct sigcontext_struct context)
 {
 #ifdef DPMI
-#if 1 /* should be remove some day */
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
-#endif /* 1 */
 #endif /* DPMI */
   SIGNAL_save(SIGIO_call);
 }
@@ -320,10 +318,8 @@ void
 sigalrm(int sig, struct sigcontext_struct context)
 {
 #ifdef DPMI
-#if 1 /* should be remove some day */
   if (in_dpmi && !in_vm86)
     dpmi_sigio(&context);
-#endif /* 1 */
 #endif /* DPMI */
   SIGNAL_save(SIGALRM_call);
 }

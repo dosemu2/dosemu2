@@ -1,3 +1,16 @@
+Mon Jan	 30	1995
+
+-	Backed out Marty's exchange_uids() as they were slightly
+	incomplete and causing video switching (etc) problems.
+-	#if 0'ed Marty's dbg_fd changes until this is complete.
+	This has caused some problems for folks trying to boot
+	DOSEMU.
+-	Added 2 sets of Lutz's DPMI patches.
+-	Added Ed's mouse garrot enhancements (inc mgarrot.com) to
+	reduce DOSEMU CPU time even more during mouse activity.
+-	Dissallowed video segment IPC attachment when Xdos is
+	used.
+
 Fri Jan	 27	1995
 
 -	Another week, and quite a few goodies. IPX updates

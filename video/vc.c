@@ -634,9 +634,7 @@ open_kmem (void)
 
   if (mem_fd != -1)
     return;
-  exchange_uids();
   mem_fd = open("/dev/kmem", O_RDWR);
-  exchange_uids();
   if (mem_fd < 0)
     {
       error ("ERROR: can't open /dev/kmem: errno=%d, %s \n",
