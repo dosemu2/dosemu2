@@ -1645,7 +1645,8 @@ int msdos_fault(struct sigcontext_struct *scp)
     D_printf("DPMI: msdos_fault, err=%#lx\n",_err);
     if ((_err & 0xffff) == 0) {	/*  not a selector error */
     /* Why should we "fix" the NULL dereferences? */
-#if 0
+#if 1
+    /* Because the unmodified Win3.1 kernel (not WinOS2) needs this */
 	char fixed = 0;
 	unsigned char * csp;
 
