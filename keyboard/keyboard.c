@@ -1,5 +1,5 @@
-/* dosmemulator, Matthias Lautner */
-/*
+/* dosmemulator, Matthias Lautner 
+ * 
  * DANG_BEGIN_MODULE
  *
  * This handles the keyboard.
@@ -11,17 +11,22 @@
  * keymap is stored here.
  *
  * DANG_END_MODULE
- */
-
-/*
+ *
+ *
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/02/05 16:53:37 $
+ * $Date: 1995/02/25 22:38:32 $
  * $Source: /home/src/dosemu0.60/keyboard/RCS/keyboard.c,v $
- * $Revision: 1.1 $
+ * $Revision: 1.3 $
  * $State: Exp $
  * $Log: keyboard.c,v $
+ * Revision 1.3  1995/02/25  22:38:32  root
+ * *** empty log message ***
+ *
+ * Revision 1.2  1995/02/25  21:54:17  root
+ * *** empty log message ***
+ *
  * Revision 1.1  1995/02/05  16:53:37  root
  * Initial revision
  *
@@ -191,7 +196,8 @@
 #ifdef NEW_PIC
 #include "../timer/pic.h"
 #endif
-#include "../include/shared.h"
+#include "shared.h"
+#include "vc.h"
 
 
 inline void child_set_flags(int);
@@ -205,21 +211,21 @@ void set_raw_mode();
 void get_leds();
 extern void DOS_setscan(u_short);
 void activate(int);
-extern int colors[8][8];
 extern void terminal_initialize();
 extern void terminal_close();
 
 void convascii(int *);
 
 /* Was a toggle key already port in'd */
-u_char ins_stat = 0, scroll_stat = 0, num_stat = 0, caps_stat = 0;
+static u_char ins_stat = 0;
+static u_char  scroll_stat = 0;
+static u_char num_stat = 0;
+static u_char caps_stat = 0;
 
-extern struct screen_stat scr_state;	/* main screen status variables */
 
-extern int sizes;		/* this is DEBUGGING code */
 
 unsigned int convscanKey(unsigned char);
-unsigned int queue;
+static unsigned int queue;
 
 #define put_queue(psc) (queue = psc)
 
@@ -243,14 +249,12 @@ int kbd_flag(int), child_kbd_flag(int), key_flag(int);
 /* initialize these in keyboard_init()! */
 unsigned int child_kbd_flags = 0;
 
-int altchar = 0;
+static int altchar = 0;
 
-/* the file descriptor for /dev/mem when mmap'ing the video mem */
-int mem_fd = -1;
 
 typedef void (*fptr) (unsigned int);
 
-static fptr key_table[] =
+static const fptr key_table[] =
 {
   none, do_self, do_self, do_self,	/* 00-03 s0 esc 1 2 */
   do_self, do_self, do_self, do_self,	/* 04-07 3 4 5 6 */
@@ -320,15 +324,12 @@ static fptr key_table[] =
 
 #define us unsigned short
 
-int kbd_fd = -1,		/* the fd for the keyboard */
- old_kbd_flags = -1;		/* flags for STDIN before our fcntl */
+static int  old_kbd_flags = -1;		/* flags for STDIN before our fcntl */
 
-/* these are in DOSIPC.C */
-extern int ipc_fd[2];
 
 int kbcount = 0;
 unsigned char kbbuf[KBBUF_SIZE], *kbp, erasekey;
-struct termios oldtermios;	/* original terminal modes */
+static struct termios oldtermios;	/* original terminal modes */
 
 #ifndef USE_SLANG_KEYS
 char tc[1024], termcap[1024];
@@ -344,7 +345,7 @@ struct funkeystruct {
 /* This is a translation table for esc-prefixed terminal keyboard codes
  * to PC computer keyboard codes.
  */
-static struct funkeystruct funkey[] =
+static const struct funkeystruct funkey[] =
 {
   {NULL, "kich1", 0x5200},	/* kI     Ins */
   {NULL, "kdch1", 0x5300},	/* kD     Del   0x007F */
@@ -478,7 +479,7 @@ static struct funkeystruct funkey[] =
 /* This is a translation table for single character high ASCII characters
  * used by ALT keypresses in Xterms, into PC computer keyboard codes.
  */
-static struct funkeystruct xfunkey[] =
+static const struct funkeystruct xfunkey[] =
 {
   {"\341", NULL, 0x1e00},	/* Alt A */
   {"\342", NULL, 0x3000},	/* Alt B */
@@ -634,9 +635,9 @@ keyboard_close(void)
   }
 }
 
-struct termios save_termios;
+static struct termios save_termios;
 
-void
+static void
 print_termios(struct termios term)
 {
   k_printf("KBD: TERMIOS Structure:\n");
@@ -759,13 +760,13 @@ keyboard_init(void)
 
   keyboard_handling_init();
 
-  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/RCS/keyboard.c,v 1.1 1995/02/05 16:53:37 root Exp root $\n");
+  dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/RCS/keyboard.c,v 1.3 1995/02/25 22:38:32 root Exp root $\n");
 
   return 0;
 }
 
-void
-clear_raw_mode()
+static void
+clear_raw_mode(void)
 {
 #ifdef X_SUPPORT
    if (config.X)
@@ -778,8 +779,8 @@ clear_raw_mode()
   }
 }
 
-void
-set_raw_mode()
+static void
+set_raw_mode(void)
 {
 #ifdef X_SUPPORT
    if (config.X)
@@ -792,7 +793,7 @@ set_raw_mode()
   tty_raw(kbd_fd);
 }
 
-int
+static int
 tty_raw(int fd)
 {
   struct termios buf;
@@ -897,7 +898,7 @@ getKeys(void)
   }
 }
 
-inline void
+void
 child_set_flags(int sc)
 {
   switch (sc) {
@@ -1003,7 +1004,7 @@ child_set_flags(int sc)
  * DANG_END_FUNCTION
  *
  */
-void
+static void
 convascii(int *cc)
 {
   /* get here only if in cooked mode (i.e. K_XLATE) */
@@ -1108,7 +1109,7 @@ convascii(int *cc)
 /* InsKeyboard
  *  returns 1 if a character could be inserted into Kbuffer
  */
-int
+static int
 InsKeyboard(unsigned short scancode)
 {
   unsigned short nextpos;
@@ -1130,7 +1131,7 @@ InsKeyboard(unsigned short scancode)
 }
 
 /* Translate a scan code to a scancode|character combo */
-/* static */ unsigned int
+static  unsigned int
 convKey(int scancode)
 {
 
@@ -1230,7 +1231,7 @@ keyboard_handling_init(void)
 static unsigned char resetid = 0;
 static unsigned char firstid = 0;
 
-unsigned int
+static unsigned int
 convscanKey(unsigned char scancode)
 {
   static unsigned char rep = 0xff;
@@ -1987,11 +1988,9 @@ key_flag(int flag)
 /************* end of key-related functions *************/
 
 #define SCANQ_LEN 100
-extern u_char *shared_qf_memory;
 static u_short *scan_queue;
 static int *scan_queue_start;
 static int *scan_queue_end;
-extern int InsKeyboard();
 
 void shared_keyboard_init(void) {
   (u_char *)scan_queue = shared_qf_memory+SHARED_KEYBOARD_OFFSET + 8;
@@ -2006,13 +2005,21 @@ void shared_keyboard_init(void) {
 void
 do_irq1(void) {
    parent_nextscan();
+  /* reschedule if queue not empty */
+  if (*scan_queue_start!=*scan_queue_end) { 
+    k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
+      *scan_queue_start, *scan_queue_end);
+    pic_request(PIC_IRQ1); 
+  /*  *LASTSCAN_ADD=1; */
+    keys_ready = 0;
+  }
    do_irq(); /* do dos interrupt */
    keys_ready = 0;	/* flag *LASTSCAN_ADDR empty	*/
 }
 #endif
 
-inline void
-scan_to_buffer() {
+void
+scan_to_buffer(void) {
   k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", *LASTSCAN_ADD);
   set_keyboard_bios();
   insert_into_keybuffer();
@@ -2053,7 +2060,7 @@ DOS_setscan(u_short scan)
 }
 
 static int lastchr;
-int inschr;
+static int inschr;
 
 void
 set_keyboard_bios(void)
@@ -2106,16 +2113,6 @@ set_keyboard_bios(void)
       inschr = 0;
     }
   }
-#ifdef NEW_PIC
-  /* reschedule if queue not empty */
-  if (*scan_queue_start!=*scan_queue_end) { 
-    k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
-      *scan_queue_start, *scan_queue_end);
-    pic_request(PIC_IRQ1); 
-  /*  *LASTSCAN_ADD=1; */
-    keys_ready = 0;
-  }
-#endif
   k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
   k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));
@@ -2141,8 +2138,8 @@ insert_into_keybuffer(void)
   }
 }
 
-inline void
-parent_nextscan()
+void
+parent_nextscan(void)
 {
 #ifndef NEW_PIC
   keys_ready = 0;

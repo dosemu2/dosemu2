@@ -16,12 +16,18 @@
  *   is said to start 1 sector earlier than it actually does (and therefore
  *   512 bytes earlier).
  *
- * $Date: 1994/06/17 00:14:24 $
+ * $Date: 1995/02/25 22:38:25 $
  * $Source: /home/src/dosemu0.60/periph/RCS/hdinfo.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: hdinfo.c,v $
+ * Revision 2.3  1995/02/25  22:38:25  root
+ * *** empty log message ***
+ *
+ * Revision 2.2  1994/06/17  00:14:24  root
+ * Let's wrap it up and call it DOSEMU0.52.
+ *
  * Revision 2.2  1994/06/17  00:14:24  root
  * Let's wrap it up and call it DOSEMU0.52.
  *

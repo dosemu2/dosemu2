@@ -1,5 +1,11 @@
 /*
  * $Log: serial.h,v $
+ * Revision 2.3  1995/02/25  22:38:47  root
+ * *** empty log message ***
+ *
+ * Revision 2.2  1994/11/03  11:43:26  root
+ * Checkin Prior to Jochen's Latest.
+ *
  * Revision 2.2  1994/11/03  11:43:26  root
  * Checkin Prior to Jochen's Latest.
  *

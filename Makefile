@@ -110,7 +110,7 @@ export CC         = gcc  # I use gcc-specific features (var-arg macros, fr'insta
 export LD         = gcc
 endif
 ifdef do_DEBUG
-COPTFLAGS	=  -g
+COPTFLAGS	=  -g -Wall
 endif
 
 OBJS	= dos.o 
@@ -121,7 +121,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   45
+PATCHL  =   46
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -135,9 +135,11 @@ CFILES=emu.c dos.c $(X2CFILES) data.c dosstatic.c
 # For testing the internal IPX code
 # IPX = ipxutils
 
-# Change USING_NET to 0 and set NET to nothing to remove all net code.
+
 export USING_NET = -DUSING_NET
+ifdef USING_NET
 export NET = net
+endif
 
 # SYNC_ALOT
 #   uncomment this if the emulator is crashing your machine and some debug info #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) #SYNC_ALOT = -DSYNC_ALOT=1 
@@ -231,11 +233,25 @@ export INCDIR
 # if NEWPIC is there, use it
 # if DPMI is there, use it
 # -m486 is usually in the specs for the compiler
-OPT= -O2 -funroll-loops # -fno-inline
+OPT=  -O -funroll-loops # -fno-inline
+# OPT=-fno-inline
 PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
 CFLAGS+=$(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 CFLAGS+=$(USE_SLANG)
+# set to use a simpler fork for unix command
+# CFLAGS+=-DSIMPLE_FORK
+# set to debug fork with environment
+# CFLAGS+=-DFORK_DEBUG
+
+# We need to use the C_RUN_IRQS with -fno-inline (TBD why)
+# this is in timer/pic.c
+#CFLAGS+=-DC_RUN_IRQS
+
+# use fd3 for soft errors, stderr for hard error, don't ope
+# stderr to /dev/null
+# CFLAGS+=-DUSE_FD3_FOR_ERRORS
+
 export ASFLAGS    = $(NEW_PIC)
 
 
@@ -264,7 +280,7 @@ endif
 ifdef ELF
 simple:	dossubdirs dosstatic dos
 else
-simple:	dossubdirs dosstatic libdosemu dos
+simple:	dossubdirs dosstatic # libdosemu dos
 endif
 endif
 
@@ -337,7 +353,7 @@ dos.o: include/config.h
 x2dos.o: include/config.h x2dos.c
 	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
-dosstatic:	dosstatic.o emu.o data.o bios/bios.o
+dosstatic:	dosstatic.c emu.o data.o bios/bios.o
 	$(LD) $(LDFLAGS) -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
 		$(addprefix -l, $(LIBS))  $(TCNTRL) $(XLIBS)
 
@@ -458,7 +474,7 @@ ifdef X_SUPPORT
 	@echo "  - To make your backspace and delete key work properly in 'xdos', type:"
 	@echo "		xmodmap -e \"keycode 107 = 0xffff\""
 	@echo "		xmodmap -e \"keycode 22 = 0xff08\""
-	@echo "		xmodmap -e \"key 108 = Return\"  [Return = 0xff0d]"	
+	@echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"	
 	@echo ""
 endif
 	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
@@ -477,7 +493,7 @@ newhd: periph/bootsect
 include Makefile.common
 
 checkin::
-	-ci $(CFILES) $(HFILES) $(SFILES) $(OFILES)
+	-ci -l -M $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(LIBS) $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
 
 checkout::
@@ -543,8 +559,8 @@ depend dep:  $(DEPENDDIRS) depend_local
 
 .PHONY:       size
 size:
-	size ./dos >>size
-	ls -l dos >>size
+	size ./dosstatic  >>size
+	ls -l dosstatic  >>size
 
 .PHONY: $(DEPENDDIRS)
 

@@ -11,7 +11,7 @@
  * Update to do console disallocation on exit of dosemu
  * (C) 1994 under GPL: Wayne Meissner
  * 
- * $Id: detach.c,v 1.4 1995/01/14 15:29:17 root Exp root $
+ * $Id: detach.c,v 1.4 1995/01/14 15:29:17 root Exp $
  */
 
 /* the new VT for dosemu - only needed by detach() and disallocate_vt() */

@@ -1,11 +1,17 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1995/01/14 15:29:17 $
+ * $Date: 1995/02/25 22:37:56 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/lpt.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.7 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 2.7  1995/02/25  22:37:56  root
+ * ..
+ *
+ * Revision 2.6  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.6  1995/01/14  15:29:17  root
  * New Year checkin.
  *

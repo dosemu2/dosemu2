@@ -1,10 +1,19 @@
 /* 
- * $Date: 1995/02/05 16:52:03 $
+ * $Date: 1995/02/26 00:54:47 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/sigsegv.c,v $
- * $Revision: 2.16 $
+ * $Revision: 2.19 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.19  1995/02/26  00:54:47  root
+ * *** empty log message ***
+ *
+ * Revision 2.18  1995/02/25  22:37:52  root
+ * *** empty log message ***
+ *
+ * Revision 2.17  1995/02/25  21:52:39  root
+ * *** empty log message ***
+ *
  * Revision 2.16  1995/02/05  16:52:03  root
  * Prep for Scotts patches.
  *
@@ -116,6 +125,8 @@
  */
 
 
+static char rcsid[]="$Id: sigsegv.c,v 2.19 1995/02/26 00:54:47 root Exp root $";
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -145,6 +156,8 @@
 #include "hgc.h"
 #include "dosio.h"
 
+#include "video.h"
+
 #ifdef NEW_PIC
 #include "../timer/pic.h"
 #endif
@@ -153,8 +166,9 @@
 #include "../dpmi/dpmi.h"
 #endif
 
-/* Needed for IPX support */
+#ifdef USING_NET
 #include "ipx.h"
+#endif
 
 /* Needed for DIAMOND define */
 #include "vc.h"
@@ -169,15 +183,10 @@
 
 /* int port61 = 0xd0;           the pseudo-8255 device on AT's */
 static int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
-#if 0
-extern int fatalerr;
-#endif
 extern void set_leds(void);
+/* FIXME -- move to common header */
 extern int s3_8514_base;
-extern int cursor_row;
-extern int cursor_col;
-extern int char_blink;
-u_short microsoft_port_check = 0;
+static u_short microsoft_port_check = 0;
 
 /* 
  * Copied adverbatim from Mach code, please be aware of their 
@@ -193,9 +202,11 @@ static int timer0_latched_value = 0;
 static int timer0_new_value = 0;
 static boolean_t latched_counter_msb = FALSE;
 
-extern void update_timers(void);
+void update_timers(void);
+/* ??? */
 static u_long milliseconds_since_boot;
 
+#if 1
 static int do_40(in_out, val)
 	boolean_t in_out;
 	int val;
@@ -279,6 +290,9 @@ static int do_40(in_out, val)
 	return(ret);
 }
 
+#endif
+#if 0
+/* return value of port -- what happens when output?  Stack trash? */
 static int do_42(in_out, val)
 	boolean_t in_out;
 	int val;
@@ -298,6 +312,8 @@ static int do_42(in_out, val)
 	return(ret);
 }
 
+#endif
+
 static int do_43(boolean_t in_out, int val)
 {
 	int ret;
@@ -315,9 +331,13 @@ static int do_43(boolean_t in_out, int val)
 				}
 				break;
 			case 2:
+#if 0
 				ioperm(0x43,1,1);
 				port_out(val, 0x43);
 				ioperm(0x43,1,0);
+#else
+				safe_port_out_byte(0x43, val);
+#endif
 				i_printf( "PORT: Really do_43\n");
 				break;
 		}
@@ -349,15 +369,23 @@ inb(int port)
     v_printf("HGC Portread: %d\n", (int) port);
     switch (port) {
     case 0x03b8:		/* mode-reg */
+#ifdef OLD_PORT
       set_ioperm(port, 1, 1);
       r = port_in(port);
       set_ioperm(port, 1, 0);
+#else
+	r = safe_port_in_byte(port);
+#endif
       r = (r & 0x7f) | (hgc_Mode & 0x80);
       break;
     case 0x03ba:		/* status-reg */
+#ifdef OLD_PORT
       set_ioperm(port, 1, 1);
       r = port_in(port);
       set_ioperm(port, 1, 0);
+#else
+	r = safe_port_in_byte(port);
+#endif
       break;
     case 0x03bf:		/* conf-reg */
       set_ioperm(port, 1, 1);
@@ -366,14 +394,14 @@ inb(int port)
       r = (r & 0xfd) | (hgc_Konv & 0x02);
       break;
     case 0x03b4:		/* adr-reg */
-      set_ioperm(port, 1, 1);
-      r = port_in(port);
-      set_ioperm(port, 1, 0);
-      break;
     case 0x03b5:		/* data-reg */
+#ifdef OLD_PORT
       set_ioperm(port, 1, 1);
       r = port_in(port);
       set_ioperm(port, 1, 0);
+#else
+	r = safe_port_in_byte(port);
+#endif
       break;
     }
   }
@@ -454,7 +482,7 @@ inb(int port)
     break;
 #endif
   case 0x43:
-    r = do_43(1, 0);
+    r = safe_port_in_byte(0x43);
     break;
 
   case 0x3ba:
@@ -503,7 +531,7 @@ inb(int port)
   return r;    /* Return with port read value */
 }
 
-inline int
+int
 inw(int port)
 {
   if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
@@ -710,6 +738,7 @@ outb(int port, int byte)
   case 0xa0:
   case 0xa1:
     write_pic1(port-0xa0,byte);
+    break;
 #endif
   case 0x40:
 	do_40(0, byte);
@@ -717,8 +746,16 @@ outb(int port, int byte)
   case 0x41:
 	do_40(0, byte);
 	break;
+  case 0x43:
+#if 1
+        do_43(0, byte);
+        break;
+#else
+        safe_port_out_byte(port,  byte);
+	break;
+#endif
   case 0x42:
-	do_42(0, byte);
+	safe_port_out_byte(port, byte);
     if ((port == 0x42) && (lastport == 0x42)) {
       if ((timer_beep == 1) &&
 	  (config.speaker == SPKR_EMULATED)) {
@@ -730,12 +767,6 @@ outb(int port, int byte)
       }
     }
     break;
-  case 0x43:
-#if 0
-    i_printf("timer outb 0x%02x\n", byte);
-#endif
-	do_43(0, byte);
-	break;
 
   default:
     /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
@@ -752,7 +783,7 @@ outb(int port, int byte)
   lastport = port;
 }
 
-inline void
+void
 outw(int port, int value)
 {
   if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
@@ -769,21 +800,31 @@ outw(int port, int value)
 
 }
 
-void update_timers(void) {
-  static long initial_sec=0L;
-  static long initial_usec;
-  static struct timeval tp;
+
+
+/* time of boot */
+static struct timeval initial_time;
+
+void initialize_timers(void)
+{
+
+	gettimeofday(&initial_time, NULL);
+}
+
+	
+/* not sure what adder does -- get time in relation to inital time and
+ * convert to milliseocnds
+ */
+static void update_timers(void) {
   static unsigned long adder=0;
+  struct timeval tp;
 
   gettimeofday(&tp, NULL);
 
-  if (initial_sec == 0L) {
-    initial_sec = tp.tv_sec;
-    initial_usec = tp.tv_usec;
-  }
+  milliseconds_since_boot = (tp.tv_sec - initial_time.tv_sec)*1000;
+  milliseconds_since_boot += (tp.tv_usec - initial_time.tv_usec)/1000;
+  milliseconds_since_boot += adder;
 
-  milliseconds_since_boot = ((tp.tv_sec - initial_sec)*1000) +
-                            ((tp.tv_usec - initial_usec)/1000) + adder;
   adder = (adder + 1) % 20;
   i_printf("Timers updated: %x\n", milliseconds_since_boot);
 

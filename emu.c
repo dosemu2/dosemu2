@@ -19,12 +19,18 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1995/02/05 16:51:10 $
+ * $Date: 1995/02/25 22:38:10 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.34 $
+ * $Revision: 2.36 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.36  1995/02/25  22:38:10  root
+ * *** empty log message ***
+ *
+ * Revision 2.35  1995/02/25  21:53:22  root
+ * *** empty log message ***
+ *
  * Revision 2.34  1995/02/05  16:51:10  root
  * Prep for Scotts patches.
  *
@@ -451,9 +457,6 @@
  * DANG_END_CHANGELOG
  */
 
-#ifndef EMU_C
-#define EMU_C
-#endif
 
 /*
  * DANG_BEGIN_REMARK
@@ -512,7 +515,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "disks.h"
 #include "xms.h"
 #include "hgc.h"
-#include "timers.h"
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"
 #include "keymaps.h"
@@ -863,6 +865,16 @@ void emulate(int argc, char **argv)
   FD_ZERO(&fds_no_sigio);
   vm86s.flags = 0;
 
+  if(0 == geteuid()) {
+	fprintf(stderr, "I am root\n");
+	i_am_root = 1;
+  } else {
+	if(getuid() != geteuid()) {
+		fprintf(stderr, "Can't setuid to anyone else but root\n");
+		exit(1);
+	}
+  }
+
   stdio_init();                /* initialize stdio & stderr */
   config_init(argc, argv);     /* parse the commands & config file(s) */
   module_init();
@@ -947,12 +959,9 @@ ign_sigs(int sig) {
 
 #define LEAVEDOS_TIMEOUT (3 * FREQ)
 #define LEAVEDOS_SIGOUT  5
-  /* XXX - why do I need this? */
   if ((timerints >= LEAVEDOS_TIMEOUT) || (otherints >= LEAVEDOS_SIGOUT)) {
     error("ERROR: timed/signalled out in leavedos()\n");
-    fclose(stderr);
-    fclose(stdout);
-    _exit(1);
+    	exit(1);
   }
 }
 
@@ -972,7 +981,7 @@ void
   SETSIG(SIGILL, ign_sigs);
   SETSIG(SIGFPE, ign_sigs);
   SETSIG(SIGTRAP, ign_sigs);
-  error("leavedos(%d) called - shutting down\n", sig );
+  hard_error("leavedos(%d) called - shutting down\n", sig );
 
   g_printf("calling close_all_printers\n");
   close_all_printers();
@@ -1003,9 +1012,10 @@ void
      restore_vt(config.detach);
      disallocate_vt ();
    }
-  exit(sig);
+  _exit(sig);
 }
 
+#if 0
 /* check the fd for data ready for reading */
 int
  d_ready(int fd) {
@@ -1027,70 +1037,7 @@ int
   else
     return (0);
 }
-
-int
- ifprintf(unsigned char flg, const char *fmt,...) {
-  va_list args;
-  char buf[1025];
-  int i;
-
-#ifdef SHOW_TIME
-  static int first_time = 1;
-  static int show_time =  0;
 #endif
-
-  if (!flg)
-    return 0;
-
-#ifdef SHOW_TIME
-  if(first_time)  {
-	if(getenv("SHOWTIME"))
-		show_time = 1;
-	first_time = 0;
-  }
-#endif
-	
-  va_start(args, fmt);
-  i = vsprintf(buf, fmt, args);
-  va_end(args);
-
-#ifdef SHOW_TIME
-  if(show_time) {
-	struct timeval tv;
-	int result;
-	char tmpbuf[1024];
-	result = gettimeofday(&tv, NULL);
-	assert(0 == result);
-	sprintf(tmpbuf, "%d.%d: %s", tv.tv_sec, tv.tv_usec, buf);
-#else
-	sprintf(buf, "%s", buf);
-#endif
-	
-#ifdef SHOW_TIME
-	strcpy(buf, tmpbuf);
-  }
-#endif
-
-  write(STDERR_FILENO, buf, strlen(buf));
-  if (terminal_pipe) {
-    write(terminal_fd, buf, strlen(buf));
-  }
-  return i;
-}
-
-void
-p_dos_str(char *fmt,...) {
-  va_list args;
-  char buf[1025], *s;
-  int i;
-
-  va_start(args, fmt);
-  i = vsprintf(buf, fmt, args);
-  va_end(args);
-
-  s = buf;
-  while (*s) char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
-}
 
 static inline uid_t
  be(uid_t who) {
@@ -1119,28 +1066,15 @@ static inline uid_t
   else
     return 0;
 }
-
+/* return status of io_perm call */
 int
  set_ioperm(int start, int size, int flag) {
-  int tmp, s_errno;
+  int tmp;
 
-#if DO_BE
-  uid_t last_me;
+  if(!i_am_root) 
+	return -1;	/* don't bother */
 
-#endif
-
-#if DO_BE
-  last_me = be_root();
-  warn("IOP: was %d, now %d\n", last_me, 0);
-#endif
   tmp = ioperm(start, size, flag);
-  s_errno = errno;
-#if DO_BE
-  be(last_me);
-  warn("IOP: was %d, now %d\n", 0, last_me);
-#endif
-
-  errno = s_errno;
   return tmp;
 }
 

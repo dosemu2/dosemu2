@@ -1,11 +1,16 @@
 /* 
  *
- * $Date: 1995/02/05 16:54:16 $
+ * $Date: 1995/02/25 22:38:51 $
  * $Source: /home/src/dosemu0.60/include/RCS/shared.h,v $
- * $Revision: 1.1 $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  */
+
+#ifndef _SHARED_H
+#define _SHARED_H
+
+#include "extern.h"
 
 /*
    Size of area to share memory
@@ -17,3 +22,8 @@
 #define TMPFILE "/var/run/dosemu."
 
 #define SHARED_KEYBOARD_OFFSET 1816
+
+
+EXTERN u_char *shared_qf_memory;
+#endif
+

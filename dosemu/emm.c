@@ -47,6 +47,12 @@
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: emm.c,v $
+ * Revision 1.2  1995/02/25  21:53:12  root
+ * *** empty log message ***
+ *
+ * Revision 1.2  1995/02/25  21:53:12  root
+ * *** empty log message ***
+ *
  * Revision 1.1  1995/02/05  16:52:03  root
  * Initial revision
  *

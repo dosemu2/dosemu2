@@ -1,5 +1,5 @@
 /*
- * $Id: config.c,v 1.2 1995/02/05 16:53:16 root Exp root $ 
+ * $Id: config.c,v 1.4 1995/02/25 22:37:46 root Exp root $ 
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -230,7 +230,7 @@ void config_init(int argc, char **argv)
 
   optind = 0;
   opterr = 0;
-  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtT:sgx:Km234e:dXY:Z:")) != EOF) {
+  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
     case 'd':
@@ -298,12 +298,17 @@ void config_init(int argc, char **argv)
 	error("ERROR: terminal pipe already open\n");
       break;
     case 'V':
-      g_printf("Assuming VGA video card & mapped ROM\n");
+      g_printf("Configuring as VGA video card & mapped ROM\n");
       config.vga = 1;
       config.mapped_bios = 1;
       if (config.mem_size > 640)
 	config.mem_size = 640;
       break;
+    case 'v':
+      config.cardtype = atoi(optarg);
+      if(config.cardtype > 4)
+	config.cardtype = 1;
+      g_printf("Configuring cardtype as %d\n", config.cardtype);
     case 'N':
       warn("DOS will not be started\n");
       config.exitearly = 1;
@@ -500,7 +505,7 @@ parse_debugflags(const char *s)
 
 static void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/init/RCS/config.c,v 1.2 1995/02/05 16:53:16 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/init/RCS/config.c,v 1.4 1995/02/25 22:37:46 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");

@@ -1,10 +1,16 @@
 /* bugy-bcc.c	-- Dong Liu <dliu@ricenjit.edu> Sat Feb 11 1995
  * 
- * $Log$
+ * $Log: bcc.h,v $
+ * Revision 1.1  1995/02/25  21:54:01  root
+ * Initial revision
+ *
+ * Revision 1.1  1995/02/25  21:54:01  root
+ * Initial revision
+ *
  */
 
 #ifndef lint
-static char *rcsid = "$Header$";
+static char *rcsid = "$Header: /home/src/dosemu0.60/dpmi/RCS/bcc.h,v 1.1 1995/02/25 21:54:01 root Exp $";
 #endif
 
 int in_bcc = 0;       /* Set to 1 when running DPMILOAD */

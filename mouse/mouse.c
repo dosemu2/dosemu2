@@ -1,12 +1,18 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/02/05 16:54:02 $
+ * $Date: 1995/02/25 21:54:24 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.17 $
+ * $Revision: 2.18 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.18  1995/02/25  21:54:24  root
+ * *** empty log message ***
+ *
+ * Revision 2.18  1995/02/25  21:54:24  root
+ * *** empty log message ***
+ *
  * Revision 2.17  1995/02/05  16:54:02  root
  * Prep for Scotts patches.
  *
@@ -796,10 +802,14 @@ mouse_reset(int flag)
   if (current_video.textgraph == 'T') {
     mouse.maxx = ((current_video.pixelx * 8) / current_video.fontx) - 1;
     mouse.maxy = ((current_video.pixely * 8) / current_video.fonty) - 1;
+    mouse.x = (mouse.minx + mouse.maxx) / 2;
+    mouse.y = (mouse.miny + mouse.maxy) / 2;
     mouse.gfx_cursor = FALSE;
   } else {
     mouse.maxx = current_video.pixelx - 1;
     mouse.maxy = current_video.pixely - 1;
+    mouse.x = (mouse.minx + mouse.maxx) / 2;
+    mouse.y = (mouse.miny + mouse.maxy) / 2;
     mouse.gfx_cursor = TRUE;
   }
 
@@ -813,8 +823,9 @@ mouse_reset(int flag)
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
-  mouse.x = mouse.y = delta_x = delta_y = 0;
-  mouse.cx = mouse.cy = 0;
+  delta_x = delta_y = 0;
+  mouse.cx = mouse.x / 8;
+  mouse.cy = mouse.y / 8;
  
   mouse.ginit = FALSE;
 

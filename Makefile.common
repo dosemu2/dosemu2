@@ -31,11 +31,11 @@ $(LIB):	$(OBJS)
 
 .PHONY:	clean realclean 
 
-realclean clean::
+clean::
 	-rm $(OBJS)
 	-rm $(LIB)
 
-realclean::
+realclean::	clean
 	-rm *.d
 
 checkin::

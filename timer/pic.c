@@ -31,10 +31,8 @@
  * DANG_END_MODULE
  */
 
-#define  IN_PIC
 #include "bitops.h"
 #include "pic.h"
-#undef IN_PIC
 #include "memory.h"
 #include <linux/linkage.h>
 /* #include <sys/vm86.h> */
@@ -46,11 +44,34 @@
 #undef us
 #define us unsigned
 
-extern int fatalerr;
 
-/*  This code provides routines for several functions:
 
-run_irqs()        checks for and runs any interrupts requested in pic_irr
+static unsigned long pic1_isr;         /* second isr for pic1 irqs */
+static unsigned long pic1_mask;        /* bits set for pic1 levels */
+static unsigned long pic_irq2_ivec = 0;
+
+
+static  unsigned long pic1_mask = 0x07f8; /* bits set for pic1 levels */
+static unsigned long              pic_smm;          /* 32=>special mask mode, 0 otherwise */
+
+static unsigned long   pic_pirr;         /* pending requests: ->irr when icount==0 */
+static unsigned long   pic_wirr;             /* watchdog timer for pic_pirr */
+static unsigned long   pic_imr = 0xfff8;   /* interrupt mask register, enable irqs 0,1 */
+static unsigned long   pice_imr = -1;      /* interrupt mask register, dos emulator */ 
+
+#define PNULL	(void *) 0
+static struct lvldef pic_iinfo[32] =
+                     {{PNULL,0x02}, {PNULL,0x08}, {PNULL,0x09}, {PNULL,0x70},
+                      {PNULL,0x71}, {PNULL,0x72}, {PNULL,0x73}, {PNULL,0x74},
+                      {PNULL,0x75}, {PNULL,0x76}, {PNULL,0x77}, {PNULL,0x0b},
+                      {PNULL,0x0c}, {PNULL,0x0d}, {PNULL,0x0e}, {PNULL,0x0f},
+                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
+                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
+                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
+                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}};   
+/*
+
+run_irq)        checks for and runs any interrupts requested in pic_irr
 do_irq()          runs the dos interrupt for the current irq
 set_pic0_imr()  sets pic0 interrupt mask register       \\
 set_pic1_imr()  sets pic1 interrupt mask register       ||
@@ -76,7 +97,15 @@ read_pic1()     processes read from pic1 i/o
 #define get_pic1_isr()  (pic_isr>>3)
 #define get_pic0_irr()  emu_to_pic0(pic_irr)
 #define get_pic1_irr()  (pic_irr>>3)
+/*  State flags.  picX_cmd is only read by debug output */
 
+static unsigned char pic0_isr_requested; /* 0/1 =>next port 0 read=  irr/isr */
+static unsigned char pic1_isr_requested;
+static unsigned char pic0_icw_state; /* 0-3=>next port 1 write= mask,ICW2,3,4 */
+static unsigned char pic1_icw_state;
+static unsigned char pic0_cmd; /* 0-3=>last port 0 write was none,ICW1,OCW2,3*/
+static unsigned char pic1_cmd;
+                    
 void set_pic0_base(int_num)
 unsigned char int_num;
 {
@@ -125,8 +154,10 @@ unsigned char port,value;
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3 */
 /* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
 
-static char /* icw_state,              /* !=0 => port 1 does icw 2,3,(4) */
-               icw_max_state;          /* number of icws expected        */
+#if 0
+static char  icw_state,              /* !=0 => port 1 does icw 2,3,(4) */
+#endif
+static char                icw_max_state;          /* number of icws expected        */
 
 if(!port){                          /* icw1, ocw2, ocw3 */
   if(value&0x10){                   /* icw1 */
@@ -294,13 +325,14 @@ void (*func);
  * DANG_END_FUNCTION
  */
 
-#if 0
+#ifdef C_RUN_IRQS
 /* see assembly language version below */
 void run_irqs()
 /* find the highest priority unmasked requested irq and run it */
 {
  int old_ilevel;
  int int_request;
+#warning using C run_irqs
 
 /* check for and find any requested irqs.  Having found one, we atomic-ly
    clear it and verify it was there when we cleared it.  If it wasn't, we
@@ -351,6 +383,7 @@ void run_irqs()
 void run_irqs()
 {
 
+#warning using assembly run_irqs
   __asm__ __volatile__
   ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t"      /* get old ilevel                  */
    "pushl %%ecx\n\t"                 /* save old ilevel                 */ 

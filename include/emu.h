@@ -1,12 +1,18 @@
 /* dos emulator, Matthias Lautner 
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/02/05 16:54:16 $
+ * $Date: 1995/02/25 22:38:41 $
  * $Source: /home/src/dosemu0.60/include/RCS/emu.h,v $
- * $Revision: 2.23 $
+ * $Revision: 2.25 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.25  1995/02/25  22:38:41  root
+ * *** empty log message ***
+ *
+ * Revision 2.24  1995/02/25  21:54:46  root
+ * *** empty log message ***
+ *
  * Revision 2.23  1995/02/05  16:54:16  root
  * Prep for Scotts patches.
  *
@@ -79,6 +85,9 @@ EXTERN unsigned int not_use_sigio INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
 
+/* set to one if runing setuid as root */
+EXTERN int i_am_root INIT(0);
+
 EXTERN char *cstack[16384];
 
 /* this is DEBUGGING code! */
@@ -108,7 +117,10 @@ extern char *cl,		/* clear screen */
 *vi,				/* cursor invisible */
 *ve;				/* cursor normal */
 
-extern int kbd_fd, mem_fd;
+/* the fd for the keyboard */ 
+EXTERN int kbd_fd INIT(-1);
+/* the file descriptor for /dev/mem when mmap'ing the video mem */
+EXTERN mem_fd INIT(-1);
 extern int in_readkeyboard;
 
 /* X-pipes */
@@ -135,7 +147,6 @@ extern void run_vm86(void);
 #define POLL    3
 
 void getKeys(void);
-int InsKeyboard(unsigned short scancode);
 
 
 
@@ -199,6 +210,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define n_printf(f,a...)        ifprintf(d.network,f,##a)	/* TRB */
 #define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	/* pktdrvr  */
 #define error(f,a...)	 	ifprintf(1,f,##a)
+#define hard_error(f, a...)	fprintf(stderr, f, ##a) 
 
 #else
 #define dbug_printf(f,a...)	ifprintf(2,f,##a)

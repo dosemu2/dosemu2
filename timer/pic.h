@@ -1,20 +1,18 @@
-#ifndef PIC
-#define PIC
 /* Priority Interrupt Controller Emulation 
-   Copyright (C) 1994, J. Lawrence Stephan  jlarry@ssnet.com */
+   Copyright (C) 1994, J. Lawrence Stephan  jlarry@ssnet.com 
 
-/* This software is distributed under the terms of the GNU General Public 
+   This software is distributed under the terms of the GNU General Public 
    License, there are NO WARRANTIES, expressed or implied.  Use at your own 
    risk.  Use of this software as a part of any product is permitted only 
    if that  product is also distributed under the terms of the GNU General 
-   Public  License.  */
+   Public  License.  
    
 
 
-/* Definitions for 8259A programmable Interrupt Controller Emulation */
+ Definitions for 8259A programmable Interrupt Controller Emulation 
   
 
-/* IRQ priority levels.  These are in order of priority, lowest number has
+  IRQ priority levels.  These are in order of priority, lowest number has
    highest priority.  Levels 16 - 30 are available for use, but currently
    have no fixed assignment.  They are extras for the convenience of dosemu.
    31 is tentatively reserved for a watchdog timer  (stall alarm).  
@@ -22,8 +20,15 @@
    IRQ2 does not exist.  A PCs IRQ2 line is actually connected to IRQ9.  The
    bios for IRQ9 does an int1a, then sends an EOI to the second PIC. ( This
    is simulated in the PIC code if IRQ9 points to the bios segment.)  For
-   this reason there is no PIC_IRQ2. */
+   this reason there is no PIC_IRQ2.
+  
+   $Id: pic.h,v 2.4 1995/02/25 22:38:09 root Exp root $
+*/
    
+
+#ifndef PIC
+#define PIC
+#include "extern.h"
 #define PIC_NMI   0        /*  non-maskable interrupt 0x02 */
 #define PIC_IRQ0  1        /*  timer -    usually int 0x08 */
 #define PIC_IRQ1  2        /*  keyboard - usually int 0x09 */
@@ -42,52 +47,26 @@
 #define PIC_IRQ7  15       /*  LPT 1      usually int 0x0f */
 
 #define PIC_IRQALL 0xfffe  /*  bits for all IRQs set. This never changes  */
-#ifdef IN_PIC
 /* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
    by pic routines; it is simply made available for configuration ease */
-unsigned long pic_irq_list[]= {PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
+EXTERN unsigned long pic_irq_list[] INIT({PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_IRQ3,
                                PIC_IRQ4,  PIC_IRQ5,  PIC_IRQ6,  PIC_IRQ7,
                                PIC_IRQ8,  PIC_IRQ9,  PIC_IRQ10, PIC_IRQ11,
-                               PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15};
-#else
-unsigned long pic_irq_list[16];
-#endif
+                               PIC_IRQ12, PIC_IRQ13, PIC_IRQ14, PIC_IRQ15});
 /* Some dos extenders modify interrupt vectors, particularly for IRQs 0-7 */
 
 /* PIC "registers", plus a few more */
 
-unsigned long pic_irr,          /* interrupt request register */
-              pic_isr,          /* interrupt in-service register */
-              pic1_isr,         /* second isr for pic1 irqs */
-              pic_iflag,        /* interrupt enable flag: en-/dis- =0/0xfffe */
-              pic0_imr,         /* interrupt mask register, pic0 */
-              pic1_imr,         /* interrupt mask register, pic1 */
-              pic_smm,          /* 32=>special mask mode, 0 otherwise */
-              pic_icount,       /* iret counter (to avoid filling stack) */
-              pic_pirr,         /* pending requests: ->irr when icount==0 */
-              pic_wirr,		/* watchdog timer for pic_pirr */
-#ifdef IN_PIC
-              pic_imr=0xfff8,   /* interrupt mask register, enable irqs 0,1 */
-              pice_imr=-1,      /* interrupt mask register, dos emulator */
-              pic_ilevel=32,    /* current interrupt level */
-              pic1_mask=0x07f8, /* bits set for pic1 levels */
-              pic_irq2_ivec = 0;
-#else
-              pic_imr,          /* interrupt mask register */
-              pice_imr,         /* interrupt mask register, dos emulator */
-              pic_ilevel,       /* current interrupt level */
-              pic1_mask,        /* bits set for pic1 levels */
-              pic_irq2_ivec;
-#endif
-/*  State flags.  picX_cmd is only read by debug output */
+EXTERN unsigned long pic_irr;          /* interrupt request register */
+EXTERN unsigned long pic_isr;          /* interrupt in-service register */
+EXTERN unsigned long pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
+EXTERN unsigned long              pic_icount;       /* iret counter (to avoid filling stack) */
+EXTERN unsigned long              pic_ilevel INIT(32);    /* current interrupt level */
 
-static unsigned char pic0_isr_requested; /* 0/1 =>next port 0 read=  irr/isr */
-static unsigned char pic1_isr_requested;                     
-static unsigned char pic0_icw_state; /* 0-3=>next port 1 write= mask,ICW2,3,4 */
-static unsigned char pic1_icw_state;
-static unsigned char pic0_cmd; /* 0-3=>last port 0 write was none,ICW1,OCW2,3*/
-static unsigned char pic1_cmd;
-
+EXTERN unsigned long pic0_imr;         /* interrupt mask register, pic0 */
+EXTERN unsigned long pic1_imr;         /* interrupt mask register, pic1 */
+EXTERN unsigned long pic_imr;          /* interrupt mask register */
+EXTERN unsigned long pice_imr;         /* interrupt mask register, dos emulator */  
 /* IRQ definitions.  Each entry specifies the emulator routine to call, and
    the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
    as are the interrupt vectors for all but [1] through [15], which  may be
@@ -97,18 +76,6 @@ struct lvldef {
        void (*func)();
        int    ivec;
        };
-#define PNULL (void*)0
-static struct lvldef pic_iinfo[32] = 
-                     {{PNULL,0x02}, {PNULL,0x08}, {PNULL,0x09}, {PNULL,0x70},
-                      {PNULL,0x71}, {PNULL,0x72}, {PNULL,0x73}, {PNULL,0x74},
-                      {PNULL,0x75}, {PNULL,0x76}, {PNULL,0x77}, {PNULL,0x0b},
-                      {PNULL,0x0c}, {PNULL,0x0d}, {PNULL,0x0e}, {PNULL,0x0f},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00},
-                      {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}, {PNULL,0x00}};
-#undef PNULL
-
 
 /* function definitions - level refers to irq priority level defined above  */
 /* port = 0 or 1     value = 0 - 0xff   level = 0 - 31    ivec = 0 - 0xff   */

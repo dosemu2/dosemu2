@@ -3,12 +3,18 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/01/14 15:29:17 $
+ * $Date: 1995/02/25 22:37:51 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/timers.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 2.4  1995/02/25  22:37:51  root
+ * *** empty log message ***
+ *
+ * Revision 2.3  1995/01/14  15:29:17  root
+ * New Year checkin.
+ *
  * Revision 2.3  1995/01/14  15:29:17  root
  * New Year checkin.
  *

@@ -1,3 +1,6 @@
+/* 
+ * $Id: init.c,v 1.2 1995/02/25 22:37:44 root Exp root $
+ */
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -19,7 +22,9 @@
 #include "timers.h"
 #include "termio.h"
 #include "mouse.h"
-#include "../include/ipx.h"
+#ifdef USING_NET
+#include "ipx.h"
+#endif
 #ifdef NEW_PIC
 #include "../timer/bitops.h"
 #include "../timer/pic.h"
@@ -50,7 +55,7 @@ static inline void dbug_dumpivec(void)
  * 
  * DANG_END_FUNCTION
  */
-static inline void
+static void
 dosemu_banner(void)
 {
   unsigned char *ssp;
@@ -78,10 +83,12 @@ void stdio_init(void)
 {
   struct stat statout, staterr;
 
-#if 0
+#ifdef RUN_AS_USER
   /* start running as real, not effecitve user */
   exchange_uids();	
+#endif
 
+#if USE_FD3_FOR_ERRORS
   /* try to go to fd-3 -- if its there, do an fdopen to it, 
    * otherwise use /dev/null for fd3 
    */
@@ -109,6 +116,7 @@ void stdio_init(void)
     }
   }
 #endif
+
   sync();  /* for safety */
   setbuf(stdout, NULL);
 }
@@ -124,9 +132,13 @@ void stdio_init(void)
 void tmpdir_init(void)
 {
   /* create tmpdir */
+#ifndef RUN_AS_USER
   exchange_uids();
+#endif
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
+#ifndef RUN_AS_USER
   exchange_uids();
+#endif
 }
 
 /*
@@ -144,11 +156,11 @@ void time_setting_init(void)
   
   time(&start_time);
   tm = localtime((time_t *) &start_time);
-  g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
+  g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon+1, tm->tm_year);
   last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
   check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
   set_ticks(last_ticks);
-  update_timers();
+  initialize_timers();
 }
 
 /*

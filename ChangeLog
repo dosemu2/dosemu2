@@ -1,3 +1,13 @@
+Sat Feb 25	1995
+
+-	Released pl46.
+-	Added -v[1-4] option for John to configure cardtype at
+	DOSEMU boot time. (1=VGA, 2=EGA, 3=CGA, 4=MDA)
+-	Added in JL's latest keyboard PIC fixes.
+-	Added in Marty's humungous set of patches. Inncludes 
+	changes to PIC layout.
+-	Subset of mouse patches sent in and filtered via Alan.
+
 Thr Feb  16	1995
 
 -	Release pl45

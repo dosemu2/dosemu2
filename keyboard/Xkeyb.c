@@ -79,7 +79,7 @@ static byte ascii_scan[] =
 };
 #endif
 
-static u_char latin1_to_dos[] = {
+static const u_char latin1_to_dos[] = {
     0,    0xad, 0x9b, 0x9c, 0,    0x9d, 0x7c, 0x15,  /* A0-A7 */
     0x22, 0,    0xa6, 0xae, 0xaa, 0x2d, 0,    0,     /* A8-AF */
     0xf8, 0xf1, 0xfd, 0xfc, 0x27, 0xe6, 0x14, 0xf9,  /* B0-B7 */
@@ -94,7 +94,7 @@ static u_char latin1_to_dos[] = {
     0xed, 0x97, 0xa3, 0x96, 0x81, 0,    0,    0x98   /* F8-FF */
 };
 
-static byte cursor_scan[] = 
+static const byte cursor_scan[] = 
 {
     0x47, /* Home */
     0x4b, /* Left */
@@ -106,7 +106,7 @@ static byte cursor_scan[] =
     0x4f  /* End */
 };
 
-static byte keypad_scan[] = 
+static const byte keypad_scan[] = 
 {
     0x37,     /* Multiply */
     0x4e,     /* Add      */
@@ -118,7 +118,7 @@ static byte keypad_scan[] =
     0x4c, 0x4d, 0x47, 0x48, 0x49  /* 0..9 */
 };
 
-static struct _key_scan
+static const struct 
 {
     KeySym key;
     ushort scan_code;
@@ -141,13 +141,14 @@ static struct _key_scan
 
     { XK_Scroll_Lock,   0x46 },
 };
+
 #define NUM_OTHER (sizeof(other_scan)/sizeof(other_scan[0]))
 
 /*
  * matching from keycode to scan code
  * codes are processed low-byte to high-byte
  */
-static int X_scan[] = {
+static const int X_scan[] = {
    0x47e0,      /*  97  Home   */
    0x48e0,      /*  98  Up     */
    0x49e0,      /*  99  PgUp   */
@@ -170,7 +171,7 @@ static int X_scan[] = {
 
 
 /* This is a very quick'n dirty put_key...  */
-void put_key(ushort scan, short charcode) {
+static void put_key(ushort scan, short charcode) {
    X_printf("put_key(0x%X,'%c'=%d)\n",scan,charcode>=0x20?charcode:'?',charcode);
    
    if (charcode!=-1) {
@@ -204,7 +205,7 @@ static void put_keycode(int scan, int released)
    }
 }
 
-inline ushort translate(KeySym key)
+static ushort translate(KeySym key)
 {
     int i;
 

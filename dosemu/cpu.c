@@ -11,12 +11,18 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/01/14 15:29:17 $
+ * $Date: 1995/02/25 22:37:53 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/cpu.c,v $
- * $Revision: 2.11 $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.13  1995/02/25  22:37:53  root
+ * *** empty log message ***
+ *
+ * Revision 2.12  1995/02/25  21:53:04  root
+ * *** empty log message ***
+ *
  * Revision 2.11  1995/01/14  15:29:17  root
  * New Year checkin.
  *
@@ -225,12 +231,16 @@
 #include "port.h"
 #include "int.h"
 
+#include "vc.h"
+
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
 #endif
 
 extern void xms_control(void);
 
+#if 0
+/* don't use this anymore */
 static struct vec_t orig[256];		/* "original" interrupt vectors */
 static struct vec_t snapshot[256];	/* vectors from last snapshot */
 
@@ -242,6 +252,8 @@ struct vec_t {
  
 static struct vec_t *ivecs;    
 
+
+#endif
 
 
 /* 
@@ -390,7 +402,6 @@ static struct port_struct {
 
 static int num_ports = 0;
 
-extern struct screen_stat scr_state;
 static u_char video_port_io = 0;
 
 /* find a matching entry in the ports array */
@@ -655,6 +666,37 @@ write_port_w(int value,int port)
     iopl(0);
 
   return (1);
+}
+
+void safe_port_out_byte(const short port, const char byte)
+{
+        if(i_am_root)  {
+                int result;
+
+                result = ioperm(port, 1, 1);
+                port_out(byte, port);
+                result = ioperm(port, 1, 0);
+        }       else i_printf("want to ");
+        i_printf("out(%x, %x)\n", port, byte);
+}
+
+
+char safe_port_in_byte(const short port)
+{
+        char value;
+
+        if(i_am_root) {
+                int result;
+
+                result = ioperm(port, 1, 1);
+                value = port_in(port);
+                result = ioperm(port, 1, 0);
+        }       else i_printf("want to ");
+        i_printf("in(%x)");
+        if(i_am_root)
+                i_printf(" = %x", value);
+        i_printf("\n");
+        return value;
 }
 
 

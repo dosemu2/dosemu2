@@ -9,12 +9,18 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1995/02/05 16:54:12 $
+ * $Date: 1995/02/25 21:54:02 $
  * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 2.10 $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 2.11  1995/02/25  21:54:02  root
+ * *** empty log message ***
+ *
+ * Revision 2.11  1995/02/25  21:54:02  root
+ * *** empty log message ***
+ *
  * Revision 2.10  1995/02/05  16:54:12  root
  * *** empty log message ***
  *
@@ -164,7 +170,7 @@ static char *pm_stack; /* locked protected mode stack */
 static dpmi_pm_block *pm_block_root;
 static unsigned long pm_block_handle_used; /* tracking handle */
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.10 1995/02/05 16:54:12 root Exp root $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.11 1995/02/25 21:54:02 root Exp $";
 
 int in_dpmi = 0;		/* Set to 1 when running under DPMI */
 int dpmi_eflags = 0;		/* used for virtuell interruptflag and pending interrupts */

@@ -15,7 +15,7 @@ all: bios.o
 
 bios.o: bios.part.2
 	$(TOPDIR)/tools/tools86 $^
-	mv $< $@
+	cp $< $@
 
 bios:	bios.s
 

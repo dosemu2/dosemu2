@@ -1,5 +1,7 @@
 /*
  * include/port.h - contains INLINE-Functions for port access
+ * 
+ * $Id: port.h,v 2.2 1995/02/25 22:38:46 root Exp root $
  */
 
 #ifndef PORT_H
@@ -35,5 +37,39 @@ static __inline__ short port_in_w(unsigned short port)
   return _v;
 }
 
+#if 0
+/* write to port if we are root, optionally printing a 
+ * diagnostic message
+ */
+static void inline safe_port_out_byte(const short port, const char byte)
+{
+	if(i_am_root)  {
+		int result;
+
+		result = ioperm(port, 1, 1);
+		port_out(byte, port);
+		result = ioperm(port, 1, 0);
+	}	else i_printf("want to ");
+	i_printf("out(%x, %x)\n", port, byte);
+}
+
+
+static inline char safe_port_in_byte(const short port)
+{
+	char value;
+
+	if(i_am_root) {
+		int result;
+	
+		result = ioperm(port, 1, 1);
+		value = port_in(port);
+		result = ioperm(port, 1, 0);
+	}	else i_printf("want to ");
+	i_printf("in(%x)");
+	if(i_am_root)
+		i_printf(" = %x", value);
+	i_printf("\n");
+	return value;
+}
+#endif		
 #endif
-/* End of include/port.h */

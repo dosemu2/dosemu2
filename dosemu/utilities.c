@@ -1,0 +1,85 @@
+/* 
+ * Various sundry utilites for dos emulator.
+ *
+ * $Id: utilities.c,v 1.1 1995/02/25 22:38:05 root Exp root $
+ */
+#include <stdio.h>
+#include <stdarg.h>
+#include <unistd.h>
+#include "emu.h"
+#include "machcompat.h"
+#include "bios.h"
+
+
+int
+ ifprintf(unsigned char flg, const char *fmt,...) {
+  va_list args;
+  char buf[1025];
+  int i;
+  int error_fd;
+#ifdef SHOW_TIME
+  static int first_time = 1;
+  static int show_time =  0;
+#endif
+
+  if (!flg)
+    return 0;
+
+#ifdef USE_FD3_FOR_ERRORS
+  error_fd = fileno(dbg_fd);
+#else
+  error_fd = STDERR_FILENO;
+#endif
+
+#ifdef SHOW_TIME
+  if(first_time)  {
+	if(getenv("SHOWTIME"))
+		show_time = 1;
+	first_time = 0;
+  }
+#endif
+	
+  va_start(args, fmt);
+  i = vsprintf(buf, fmt, args);
+  va_end(args);
+
+#ifdef SHOW_TIME
+  if(show_time) {
+	struct timeval tv;
+	int result;
+	char tmpbuf[1024];
+	result = gettimeofday(&tv, NULL);
+	assert(0 == result);
+	sprintf(tmpbuf, "%d.%d: %s", tv.tv_sec, tv.tv_usec, buf);
+#else
+	sprintf(buf, "%s", buf);
+#endif
+	
+#ifdef SHOW_TIME
+	strcpy(buf, tmpbuf);
+  }
+#endif
+
+  write(error_fd, buf, strlen(buf));
+  if (terminal_pipe) {
+    write(terminal_fd, buf, strlen(buf));
+  }
+  return i;
+}
+
+/* write string to dos? */
+void
+p_dos_str(char *fmt,...) {
+  va_list args;
+  char buf[1025], *s;
+  int i;
+
+  va_start(args, fmt);
+  i = vsprintf(buf, fmt, args);
+  va_end(args);
+
+  s = buf;
+  while (*s) 
+	char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+}
+        

@@ -8,9 +8,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1995/02/05 16:52:03 $
+ * $Date: 1995/02/25 22:38:03 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/shared.c,v $
- * $Revision: 1.1 $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * DANG_END_CHANGELOG
@@ -33,11 +33,10 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "../include/config.h"
-#include "../include/emu.h"
-#include "../include/shared.h"
+#include "config.h"
+#include "emu.h"
+#include "shared.h"
 
-u_char *shared_qf_memory;
 static char devname[30];
 
 /*

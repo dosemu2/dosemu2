@@ -74,7 +74,7 @@ cmos_init(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
-  g_printf("CMOS initialized: \n$Header: /home/src/dosemu0.60/dosemu/RCS/cmos.c,v 2.5 1995/01/14 15:29:17 root Exp root $\n");
+  g_printf("CMOS initialized: \n$Header: /home/src/dosemu0.60/dosemu/RCS/cmos.c,v 2.5 1995/01/14 15:29:17 root Exp $\n");
 }
 
 static int

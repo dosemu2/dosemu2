@@ -5,6 +5,8 @@
    convenience.  If I can figure out how to use Linus' bitops.h directly, I'll 
    reduce this file to an #include and just my added function.
    For now, this works. -JLS
+   $Id: bitops.h,v 2.3 1995/02/25 22:38:08 root Exp root $
+
    */
 
 /*
@@ -17,22 +19,20 @@
 
 /* function definitions */
 
-extern int find_bit(void * addr);
-extern long atomic_inc(long * addr);
-extern long atomic_dec(long * addr);
-extern int set_bit(int nr, void * addr);
-extern int clear_bit(int nr, void * addr);
-extern int test_bit(int nr, void * addr);
-extern int pic0_to_emu(char flags);
+ int find_bit(void * addr);
+ long atomic_inc(long * addr);
+ long atomic_dec(long * addr);
+ int set_bit(int nr, void * addr);
+ int clear_bit(int nr, void * addr);
+ int test_bit(int nr, void * addr);
+ int pic0_to_emu(char flags);
 
-#if (defined(INCLUDE_INLINE_FUNCS) || !defined(NO_INLINE_FUNCS))
-#ifdef INCLUDE_INLINE_FUNCS
-#define _INLINE_ extern
-#else
+#ifndef  C_RUN_IRQS
 #define _INLINE_ extern __inline__
+#else
+#define _INLINE_ static __inline__ 
 #endif
 
-#ifdef i386
 /*
  * These have to be done with inline assembly: that way the bit-setting
  * is guaranteed to be atomic. All bit operations return 0 if the bit
@@ -141,90 +141,4 @@ _INLINE_ int test_bit(int nr, void * addr)
 	return oldbit;
 }
 
-#else
-/*
- * For the benefit of those who are trying to port Linux to another
- * architecture, here are some C-language equivalents.  You should
- * recode these in the native assmebly language, if at all possible.
- * To guarantee atomicity, these routines call cli() and sti() to
- * disable interrupts while they operate.  (You have to provide inline
- * routines to cli() and sti().)
- *
- * Also note, these routines assume that you have 32 bit integers.
- * You will have to change this if you are trying to port Linux to the
- * Alpha architecture or to a Cray.  :-)
- *
- * find_bit, atomic_inc, and atomic_dec  equivalents by 
- * J. L. Stephan 3/6/94, other 
- * C language equivalents written by Theodore Ts'o, 9/26/92
- */
- 
-_INLINE_ int emu_to_pic0(long flags)
-{
-       return ( ( (flags>>1) & 0x07) | ( (flags>>8) & 0xf8) );
-}
-_INLINE_ int pic0_to_emu(char flags)
-{
-       return ( ( (flags&0x07) << 1 ) | ( (flags&0xf8) << 8) );       
-  
-_INLINE_ find_bit(unsigned long * addr)
-{
-       int bitno;
-       unsigned long bitmask;
-       bitno = 0;
-       bitmask = 1;
-       while( (bitmask & *addr)==0 && bitno < 32)
-   {   bitmask += bitmask;
-       ++bitno;
-    }
-/* in i386 asm routine, if no bits are set, result is undefined */
-       return bitno;
-}   
-
-_INLINE_ atomic_inc(long * addr)
-{
- ++(*addr);
-}
-
-_INLINE_ atomic_dec(long * addr)
-{
- --(*addr);
-}
-_INLINE_ int set_bit(int nr,int * addr)
-{
-	int	mask, retval;
-
-	addr += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	cli();
-	retval = (mask & *addr) != 0;
-	*addr |= mask;
-	sti();
-	return retval;
-}
-
-_INLINE_ int clear_bit(int nr, int * addr)
-{
-	int	mask, retval;
-
-	addr += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	cli();
-	retval = (mask & *addr) == 0;
-	*addr &= ~mask;
-	sti();
-	return retval;
-}
-
-_INLINE_ int test_bit(int nr, int * addr)
-{
-	int	mask;
-
-	addr += nr >> 5;
-	mask = 1 << (nr & 0x1f);
-	return ((mask & *addr) != 0);
-}
-#endif	/* i386 */
-#undef _INLINE_
-#endif /* ??_INLINE_FUNCS */
 #endif /* _ASM_BITOPS_H */

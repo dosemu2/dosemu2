@@ -30,6 +30,12 @@
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.3  1995/02/25  22:38:43  root
+ * *** empty log message ***
+ *
+ * Revision 2.2  1995/02/05  16:54:16  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.2  1995/02/05  16:54:16  root
  * Prep for Scotts patches.
  *
@@ -280,6 +286,12 @@ typedef int onoff_t;
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 2.3  1995/02/25  22:38:43  root
+ * *** empty log message ***
+ *
+ * Revision 2.2  1995/02/05  16:54:16  root
+ * Prep for Scotts patches.
+ *
  * Revision 2.2  1995/02/05  16:54:16  root
  * Prep for Scotts patches.
  *

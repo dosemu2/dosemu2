@@ -64,8 +64,8 @@ extern int yylex(); /* exact argument types depend on the way you call bison */
 
 	/* local procedures */
 
-void yyerror(char *, ...);
-void yywarn(char *, ...);
+static void yyerror(char *, ...);
+static void yywarn(char *, ...);
 static void die(char *reason) NORETURN;
 static void keyb_layout(int value);
 static void start_ports(void);
@@ -1414,12 +1414,14 @@ parse_config(char *confname)
     }
     yyin = fd;
     line_count = 1;
+    c_printf("Parsing %s file.\n", confname);
     if (yyparse())
       yyerror("error in configuration file %s", confname);
     close_file(fd);
 
     priv_lvl = 1;
     if ((fd = open_file(name)) != 0) {
+      c_printf("Parsing %s file.\n", name);
       yyin = fd;
       line_count = 1;
       yyrestart(fd);

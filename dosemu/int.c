@@ -18,7 +18,9 @@
 #include "bios.h"
 #include "xms.h"
 #include "int.h"
-#include "../include/ipx.h"
+#ifdef USING_NET
+#include "ipx.h"
+#endif
 
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
@@ -64,6 +66,30 @@ static void default_interrupt(u_char i) {
     run_int(i);
 }
 
+#ifdef FORK_DEBUG
+#warning USING FORK DEBUG
+/* system to debug through forks...
+ * If used, setenv FORKDEBUG to stop child on fork call
+ */
+static int fork_debug(void)
+{
+	int retval;
+
+	retval = fork();
+
+	if(retval == 0) {
+		/* child -- maybe stop */
+		if(getenv("FORKDEBUG")) {
+			printf("stopping %d\n", getpid());
+			raise(SIGSTOP);
+		}
+	}
+	return retval;
+}
+#define fork	fork_debug
+#endif
+
+
 /*
  * 2/9/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
  *
@@ -103,6 +129,11 @@ static void default_interrupt(u_char i) {
  */
 static void run_unix_command(const char *buffer)
 {
+#ifdef SIMPLE_FORK
+	/* unix command is in a null terminate buffer pointed to by ES:DX. */
+      system(buffer);
+
+#else
     int p[2];
     int pid, status, retval;
     char buf;
@@ -158,6 +189,7 @@ static void run_unix_command(const char *buffer)
         g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(&status));
     }
+#endif
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
@@ -234,7 +266,7 @@ static int dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1995/02/05 16:52:03 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1995/02/25 22:37:48 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
