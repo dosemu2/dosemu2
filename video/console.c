@@ -1,4 +1,6 @@
-#include <ncurses.h>       /*termcap.h*/
+/* #include <ncurses.h>       termcap.h*/
+#include <stdio.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/kd.h>
@@ -12,14 +14,22 @@ extern int wait_vc_active(void);
 
 void console_poscur(int xpos, int ypos)
 {
-  mvcur(-1,-1,ypos,xpos);
+  /* Position cursor on Linux's screen.  The linux console recognizes 
+   * the ANSI code "\033[y;xH" where y is the cursor row, and x is the 
+   * cursor position.  For example "\033[15;8H" printed to stdout will 
+   * move the cursor to row 15, column 8. 
+   */
+  fprintf(stdout,"\033[%d;%dH",ypos+1,xpos+1);
 }
 
 void set_console_video(void)
 {
-  /* clear Linux's (unmapped) screen */
-  clear(); 
-  refresh();
+  /* Clear the Linux console screen. The console recognizes these codes: 
+   * \033[0m = reset color.  
+   * \033[H = Move cursor to upper-left corner of screen.  
+   * \033[2J = Clear screen.  
+   */
+  fprintf(stdout,"\033[0m\033[H\033[2J");
 
   scr_state.mapped = 0;
   allow_switch();

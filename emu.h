@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/07/05 21:59:13 $
+ * $Date: 1994/07/14 23:19:20 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.6  1994/07/14  23:19:20  root
+ * Markkk's patches.
+ *
  * Revision 2.5  1994/07/05  21:59:13  root
  * NCURSES IS HERE.
  *
@@ -395,11 +398,12 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        boolean vga;
        u_short cardtype;
        u_short chipset;
-       u_short gfxmemsize;	/* for SVGA card, in K */
-       u_short term_color;
-       u_short term_updatelines;
-       u_short term_updatefreq;
-       u_short term_charset;
+       u_short gfxmemsize;		/* for SVGA card, in K */
+       u_short term_method;		/* Terminal method: ANSI or NCURSES */
+       u_short term_color;		/* Terminal color support on or off */
+       u_short term_updatelines;	/* Amount to update at a time */
+       u_short term_updatefreq;		/* Terminal update frequency */
+       u_short term_charset;		/* Terminal Character set */
        boolean fullrestore;
 
        boolean console_keyb;

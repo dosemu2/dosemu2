@@ -200,7 +200,7 @@ extern int vga_dumpregs(void);
 
 #define CGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define CGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define CGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok??) */
+#define CGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
 #define CGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
@@ -208,7 +208,7 @@ extern int vga_dumpregs(void);
 
 #define EGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define EGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define EGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok??) */
+#define EGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
 #define EGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
@@ -216,7 +216,7 @@ extern int vga_dumpregs(void);
 
 #define VGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
 #define VGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define VGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok??) */
+#define VGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
 #define VGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 
@@ -246,9 +246,15 @@ extern int cursor_row;
 extern int cursor_col;
 
 /* The following defines are for terminal (curses) mode */
+
+/* Character set defines */
 #define CHARSET_LATIN	1
 #define CHARSET_IBM	2
 #define CHARSET_FULLIBM	3
+
+/* Terminal update defines. For using direct ANSI sequences, or NCURSES */
+#define METHOD_FAST	1
+#define METHOD_NCURSES	2
 
 #endif 
 /* End of include/video.h */

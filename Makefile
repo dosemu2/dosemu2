@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/07/09 14:35:24 $
+# $Date: 1994/07/14 23:19:20 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.13 $
+# $Revision: 2.14 $
 # $State: Exp $
 #
 

@@ -5,12 +5,15 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/07/05 22:00:34 $
+ * $Date: 1994/07/14 23:21:28 $
  * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 2.6  1994/07/14  23:21:28  root
+ * Markkk's patches.
+ *
  * Revision 2.5  1994/07/05  22:00:34  root
  * NCURSES IS HERE.
  *
@@ -204,7 +207,7 @@ typedef enum {
   
   SEC_KEYBOARD, KEYB_RAWKEYBOARD, KEYB_LAYOUT, KEYB_KEYBINT,
 
-  SEC_TERMINAL, T_UPDATELINES, T_UPDATEFREQ, T_CHARSET, T_COLOR,
+  SEC_TERMINAL, T_METHOD, T_UPDATELINES, T_UPDATEFREQ, T_CHARSET, T_COLOR,
   
   SEC_VIDEO, V_CHIPSET, V_MDA, V_VGA, V_CGA, V_EGA, V_VBIOSF,
              V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
@@ -334,6 +337,7 @@ word_t terminal_words[] =
   NULL_WORD,
   {"{", LBRACE, ODELIM, do_terminal},
   {"}", RBRACE, CDELIM, do_terminal},
+  {"method", T_METHOD, VALUE, do_terminal},
   {"updatelines", T_UPDATELINES, VALUE, do_terminal},
   {"updatefreq", T_UPDATEFREQ, VALUE, do_terminal},
   {"charset", T_CHARSET, VALUE, do_terminal},
@@ -567,6 +571,9 @@ syn_t global_syns[] =
   {"latin",         "1" },   /* Ugly, must match CHARSET_* defines in video.h */
   {"ibm",           "2" },   
   {"fullibm",       "3" },
+  
+  {"fast",          "1" },   /* Ugly, must match METHOD_* defines in video.h */
+  {"ncurses",       "2" },
 
   NULL_SYN
 };
@@ -1116,6 +1123,9 @@ do_terminal(word_t * word, arg_t farg1, arg_t farg2)
   switch (word->token) {
   case RBRACE:
   case LBRACE:
+    break;
+  case T_METHOD:
+    config.term_method = atoi(arg);
     break;
   case T_UPDATELINES:
     config.term_updatelines = atoi(arg);

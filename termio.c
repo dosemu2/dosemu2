@@ -21,11 +21,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/07/11 21:04:57 $
+ * $Date: 1994/07/14 23:19:20 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.6  1994/07/14  23:19:20  root
+ * Markkk's patches.
+ *
  * Revision 2.5  1994/07/11  21:04:57  root
  * Latest keycode/terminfo updates by Markkk.
  *
@@ -280,23 +283,7 @@ int kbcount = 0;
 unsigned char kbbuf[KBBUF_SIZE], *kbp, erasekey;
 static struct termio oldtermio;	/* original terminal modes */
 
-char tc[1024], termcap[1024], *cl,	/* clear screen */
-*le,				/* cursor left */
-*cm,				/* goto */
-*ce,				/* clear to end */
-*sr,				/* scroll reverse */
-*so,				/* stand out start */
-*se,				/* stand out end */
-*md,				/* hilighted */
-*mr,				/* reverse */
-*me,				/* normal */
-*ti,				/* terminal init */
-*te,				/* terminal exit */
-*ks,				/* init keys */
-*ke,				/* ens keys */
-*vi,				/* hide cursor */
-*ve,				/* return cursor to normal */
-*tp;
+char tc[1024], termcap[1024];
 int li, co;			/* lines, columns */
 
 struct funkeystruct {
@@ -305,7 +292,7 @@ struct funkeystruct {
   us code;
 };
 
-#define FUNKEYS 77
+#define FUNKEYS 111
 static struct funkeystruct funkey[FUNKEYS] =
 {
   {NULL, "kich1", 0x5200},	/* kI     Ins */
@@ -372,19 +359,61 @@ static struct funkeystruct funkey[FUNKEYS] =
   {"\033Ox", NULL, 0x4800},	/* Keypad 8 */
   {"\033Oy", NULL, 0x4900},	/* Keypad 9 */
   {"\033OM", NULL, 0x1C0D},	/* Keypad Enter */
+  {"\033a", NULL, 0x1e00},	/* Alt A */
+  {"\033b", NULL, 0x3000},	/* Alt B */
+  {"\033c", NULL, 0x2e00},	/* Alt C */
+  {"\033d", NULL, 0x2000},	/* Alt D */
+  {"\033e", NULL, 0x1200},	/* Alt E */
+  {"\033f", NULL, 0x2100},	/* Alt F */
+  {"\033g", NULL, 0x2200},	/* Alt G */
+  {"\033h", NULL, 0x2300},	/* Alt H */
+  {"\033i", NULL, 0x1700},	/* Alt I */
+  {"\033j", NULL, 0x2400},	/* Alt J */
+  {"\033k", NULL, 0x2500},	/* Alt K */
+  {"\033l", NULL, 0x2600},	/* Alt L */
+  {"\033m", NULL, 0x3200},	/* Alt M */
+  {"\033n", NULL, 0x3100},	/* Alt N */
+  {"\033o", NULL, 0x1800},	/* Alt O */
+  {"\033p", NULL, 0x1900},	/* Alt P */
+  {"\033q", NULL, 0x1000},	/* Alt Q */
+  {"\033r", NULL, 0x1300},	/* Alt R */
+  {"\033s", NULL, 0x1f00},	/* Alt S */
+  {"\033t", NULL, 0x1400},	/* Alt T */
+  {"\033u", NULL, 0x1600},	/* Alt U */
+  {"\033v", NULL, 0x2f00},	/* Alt V */
+  {"\033w", NULL, 0x1100},	/* Alt W */
+  {"\033x", NULL, 0x2d00},	/* Alt X */
+  {"\033y", NULL, 0x1500},	/* Alt Y */
+  {"\033z", NULL, 0x2c00},      /* Alt Z */
+  {"\0330", NULL, 0x8100},	/* Alt 0 */
+  {"\0331", NULL, 0x7800},	/* Alt 1 */
+  {"\0332", NULL, 0x7900},	/* Alt 2 */
+  {"\0333", NULL, 0x7a00},	/* Alt 3 */
+  {"\0334", NULL, 0x7b00},	/* Alt 4 */
+  {"\0335", NULL, 0x7c00},	/* Alt 5 */
+  {"\0336", NULL, 0x7d00},	/* Alt 6 */
+  {"\0337", NULL, 0x7e00},	/* Alt 7 */
+  {"\0338", NULL, 0x7f00},	/* Alt 8 */
+  {"\0339", NULL, 0x8000},	/* Alt 9 */
   {"\033`", NULL, 0x2900},	/* Alt ` */
-  {"\033\011", NULL, 0xA500},	/* Alt Tab */
   {"\033-", NULL, 0x8200},	/* Alt - */
   {"\033=", NULL, 0x8300},	/* Alt = */
   {"\033\\", NULL, 0x2B00},	/* Alt \ */
-  {"\033[", NULL, 0x1A00},	/* Alt [ */
-  {"\033]", NULL, 0x1B00},	/* Alt ] */
-  {"\033\015", NULL, 0x1C00},	/* Alt Enter */
   {"\033;", NULL, 0x2700},	/* Alt ; */
   {"\033'", NULL, 0x2800},	/* Alt ' */
   {"\033,", NULL, 0x3300},	/* Alt , */
   {"\033.", NULL, 0x3400},	/* Alt . */
   {"\033/", NULL, 0x3500},	/* Alt / */
+  {"\033\011", NULL, 0xA500},	/* Alt Tab */
+  {"\033\015", NULL, 0x1C00}	/* Alt Enter */
+#if 0
+  /* The following key combinations block out keyboard sequences that starts
+   * with Esc[ and Esc] so this is commented out for now until better terminfo
+   * keyboard handling arrives.
+   */
+  {"\033[", NULL, 0x1A00},      /* Alt [ */
+  {"\033]", NULL, 0x1B00}	/* Alt ] */
+#endif
 };
 
 /* this table is used by convKey() to give the int16 functions the
@@ -461,35 +490,6 @@ gettermcap(void)
       /*if (!fkp->esc) error("ERROR: can't get terminfo %s\n", fkp->tce);*/
     }
   }
-
-#if 0
-  /* This is old termcap stuff */
-  cl = tgetstr("cl", &tp);	/* clear entire screen */
-  le = tgetstr("le", &tp);	/* move cursor left one column */
-  cm = tgetstr("cm", &tp);	/* cursor motion */
-  ce = tgetstr("ce", &tp);	/* clear cursor to EOL */
-  sr = tgetstr("sr", &tp);	/* scroll screen one line down */
-  so = tgetstr("so", &tp);	/* enter standout mode */
-  se = tgetstr("se", &tp);	/* leave standout mode */
-  ti = tgetstr("ti", &tp);	/* return term. to sequential output */
-  te = tgetstr("te", &tp);	/* init. term. for random cursor motion */
-  ks = tgetstr("ks", &tp);	/* make fkeys transmit */
-  ke = tgetstr("ke", &tp);	/* make fkeys work locally */
-  mr = tgetstr("mr", &tp);	/* enter reverse video mode */
-  md = tgetstr("md", &tp);	/* enter double bright mode */
-  me = tgetstr("me", &tp);	/* turn off all appearance modes */
-  vi = tgetstr("vi", &tp);	/* hide cursor */
-  ve = tgetstr("ve", &tp);	/* return cursor to normal */
-
-  if (se == NULL)
-    so = NULL;
-  if (md == NULL || mr == NULL)
-    me = NULL;
-  if (li == 0 || co == 0) {
-    error("ERROR: unknown window sizes \n");
-    leavedos(18);
-  }
-#endif
 }
 
 static void
@@ -581,23 +581,19 @@ OpenKeyboard(void)
 
   if (ioctl(kbd_fd, TCGETA, &oldtermio) < 0) {
     error("ERROR: Couldn't ioctl(STDIN,TCGETA,...) !\n");
-/*    close(kbd_fd);
-    kbd_fd = -1;
-    return -1; */
+    /* close(kbd_fd); kbd_fd = -1; return -1; <------ XXXXXXX Remove this */
   }
 
   newtermio = oldtermio;
-  newtermio.c_iflag &= (ISTRIP | IGNBRK);	/* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
+  newtermio.c_iflag &= (ISTRIP | IGNBRK);  /* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
   /* newtermio.c_oflag &= ~OPOST; */
-  newtermio.c_lflag &= /* ISIG */ 0;
+  newtermio.c_lflag &= 0;                  /* ISIG */
   newtermio.c_cc[VMIN] = 1;
   newtermio.c_cc[VTIME] = 0;
   erasekey = newtermio.c_cc[VERASE];
   if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
     error("ERROR: Couldn't ioctl(STDIN,TCSETAF,...) !\n");
-/*    close(kbd_fd);
-    kbd_fd = -1;
-    return -1;  */
+    /* close(kbd_fd); kbd_fd = -1; return -1;  <---- XXXXXXXX remove this */
   }
 
   if (config.console_keyb || config.console_video)
@@ -616,7 +612,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.5 1994/07/11 21:04:57 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.6 1994/07/14 23:19:20 root Exp root $\n");
 
   return 0;
 }
@@ -663,64 +659,54 @@ tty_raw(int fd)
 #endif
   return (0);
 }
-static us alt_keys[] =
-{				/* <ALT>-A ... <ALT>-Z */
-  0x1e00, 0x3000, 0x2e00, 0x2000, 0x1200, 0x2100,
-  0x2200, 0x2300, 0x1700, 0x2400, 0x2500, 0x2600,
-  0x3200, 0x3100, 0x1800, 0x1900, 0x1000, 0x1300,
-  0x1f00, 0x1400, 0x1600, 0x2f00, 0x1100, 0x2d00,
-  0x1500, 0x2c00};
-
-static us alt_nums[] =
-{				/* <ALT>-0 ... <ALT>-9 */
-  0x8100, 0x7800, 0x7900, 0x7a00, 0x7b00, 0x7c00,
-  0x7d00, 0x7e00, 0x7f00, 0x8000};
 
 void
 getKeys(void)
 {
   int cc;
 
-  if (config.console_keyb) {
+  if (config.console_keyb) { /* Keyboard at the console */
     kbcount = 0;
-  }
-
-  if (kbcount == 0) {
     kbp = kbbuf;
-  }
-  else if (kbp > &kbbuf[(KBBUF_SIZE * 3) / 5]) {
-    memmove(kbbuf, kbp, kbcount);
-    kbp = kbbuf;
-  }
 
-  /* IPC change here!...was read(kbd_fd... */
-  cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE);
-  k_printf("KEY: cc found %d characters\n", cc);
+    /* IPC change here!...was read(kbd_fd... */
+    cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - 1);
+    k_printf("KEY: cc found %d characters\n", cc);
+    if (cc == -1) return;
 
-  if (cc == -1) {
-    return;
-  }
-
-  if (cc > 0 && config.console_keyb) {
-    int i;
-    for (i = 0; i < cc; i++) {
-      child_set_flags(kbp[kbcount + i]);
-      DOS_setscan(kbp[kbcount + i]);
-      k_printf("KEY: cc pushing %d'th character\n", i);
+    if (cc > 0) {
+      int i;
+      for (i = 0; i < cc; i++) {
+        child_set_flags(kbp[kbcount + i]);
+        DOS_setscan(kbp[kbcount + i]);
+        k_printf("KEY: cc pushing %d'th character\n", i);
+      }
     }
   }
-  else {
+  else { /* Not keyboard at the console (not config.console_keyb) */
+
+    if (kbcount == 0)
+      kbp = kbbuf;
+    else if (kbp > &kbbuf[(KBBUF_SIZE * 3) / 5]) {
+      memmove(kbbuf, kbp, kbcount);
+      kbp = kbbuf;
+    }
+
+    /* IPC change here!...was read(kbd_fd... */
+    cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1);
+    k_printf("KEY: cc found %d characters\n", cc);
+    if (cc == -1) return;
+
     if (cc > 0) {
       if (kbp + kbcount + cc > &kbbuf[KBBUF_SIZE])
 	error("ERROR: getKeys() has overwritten the buffer!\n");
       kbcount += cc;
-    }
-    while (cc) {
-      k_printf("Converting cc=%d\n", cc);
-      convascii(&cc);
+      while (cc) {
+        k_printf("Converting cc=%d\n", cc);
+        convascii(&cc);
+      }
     }
   }
-
 }
 
 inline void
@@ -781,11 +767,7 @@ child_set_flags(int sc)
   case 0x57:
   case 0x58:
     child_clr_kbd_flag(4);
-    if (
-	 child_kbd_flag(3) &&
-	 child_kbd_flag(2) &&
-	 !child_kbd_flag(1)
-      ) {
+    if ( child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1) ) {
       int fnum = sc - 0x3a;
 
       k_printf("Doing VC switch\n");
@@ -803,11 +785,7 @@ child_set_flags(int sc)
     }
     return;
   case 0x51:
-    if (
-	 child_kbd_flag(2) &&
-	 child_kbd_flag(3) &&
-	 !child_kbd_flag(1)
-      ) {
+    if ( child_kbd_flag(2) && child_kbd_flag(3) && !child_kbd_flag(1) ) {
       dbug_printf("ctrl-alt-pgdn\n");
       leavedos(42);
     }
@@ -833,58 +811,32 @@ convascii(int *cc)
 
     in_readkeyboard = 1;
     if (kbcount == 1) {
-      char contin;
-
       do {
-	contin = kbcount;
 	scr_tv.tv_sec = 0;
-	scr_tv.tv_usec = 100000;
-	FD_ZERO(&fds);
-
-	/* IPC change here! */
+	scr_tv.tv_usec = 200000;
+	FD_ZERO(&fds);                      /* IPC change here! */
 	FD_SET(kbd_fd, &fds);
-	RPT_SYSCALL(select(kbd_fd + 1, &fds, NULL, NULL,
-			   &scr_tv));
-	ccc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE - kbcount);
+	RPT_SYSCALL(select(kbd_fd + 1, &fds, NULL, NULL, &scr_tv));
+	ccc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE - kbcount - 1);
 	if (ccc > 0) {
 	  kbcount += ccc;
 	  *cc += ccc;
 	}
-      } while (contin != kbcount);
+      } while (ccc > 0);
 
       if (kbcount == 1) {
 	kbcount--;
 	(*cc)--;
-	DOS_setscan((highscan[*kbp] << 8) +
-		       (unsigned char) *kbp++);
+	DOS_setscan((highscan[*kbp] << 8) + (unsigned char) *kbp++);
 	return;
       }
 
     }
-#define LATIN1 1
-#define METAKEY 1
-#ifdef LATIN1
-    k_printf("latin1 extended keysensing\n");
-    if (islower((unsigned char) kbp[1])) {
-      kbcount -= 2;
-      *cc -= 2;
-      kbp++;
-      DOS_setscan(alt_keys[*kbp++ - 'a']);
-      return;
-    }
-    else if (isdigit((unsigned char) kbp[1])) {
-      kbcount -= 2;
-      *cc -= 2;
-      kbp++;
-      DOS_setscan(alt_nums[*kbp++ - '0']);
-      return;
-    }
-#endif
     fkp = funkey;
 
-    for (i = 1;;) {
-      if (fkp->esc == NULL ||
-	  (unsigned char) fkp->esc[i] < kbp[i]) {
+    i = 1;
+    while (1) {
+      if (fkp->esc == NULL || (unsigned char) fkp->esc[i] < kbp[i]) {
 	if (++fkp >= &funkey[FUNKEYS])
 	  break;
       }
@@ -900,21 +852,17 @@ convascii(int *cc)
 	  char contin;
 
 	  do {
-	    contin = kbcount;
 	    scr_tv.tv_sec = 0;
-	    scr_tv.tv_usec = 100000;
-	    FD_ZERO(&fds);
-
-	    /* IPC change here! */
+	    scr_tv.tv_usec = 200000;
+	    FD_ZERO(&fds);              /* IPC change here! */
 	    FD_SET(kbd_fd, &fds);
-	    RPT_SYSCALL(select(kbd_fd + 1, &fds, NULL, NULL,
-			       &scr_tv));
-	    ccc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE - kbcount);
+	    RPT_SYSCALL(select(kbd_fd + 1, &fds, NULL, NULL, &scr_tv));
+	    ccc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE - kbcount - 1);
 	    if (ccc > 0) {
 	      kbcount += ccc;
 	      *cc += ccc;
 	    }
-	  } while (contin != kbcount);
+	  } while (ccc > 0);
 	  if (kbcount <= i) {
 	    break;
 	  }
@@ -925,31 +873,13 @@ convascii(int *cc)
       }
     }
     in_readkeyboard = 0;
-    /* end of if (*kbp == '\033')... */
-  }
+  } /* end of if (*kbp == '\033')... */
   else if (*kbp == erasekey) {
     kbcount--;
     (*cc)--;
     kbp++;
     DOS_setscan(((unsigned char) highscan[8] << 8) + (unsigned char) 8);
     return;
-#ifdef METAKEY
-    /* #ifndef LATIN1 */
-  }
-  else if ((unsigned char) *kbp >= ('a' | 0x80) &&
-	   (unsigned char) *kbp <= ('z' | 0x80)) {
-    kbcount--;
-    (*cc)--;
-    DOS_setscan((unsigned short int) alt_keys[*kbp++ - ('a' | 0x80)]);
-    return;
-  }
-  else if ((unsigned char) *kbp >= ('0' | 0x80) &&
-	   (unsigned char) *kbp <= ('9' | 0x80)) {
-    kbcount--;
-    (*cc)--;
-    DOS_setscan(alt_nums[(unsigned char) *kbp++ - ('0' | 0x80)]);
-    return;
-#endif
   }
 
   i = highscan[*kbp] << 8;	/* get scancode */
@@ -959,7 +889,6 @@ convascii(int *cc)
     i |= (unsigned char) *kbp;
 
   DOS_setscan(i);
-
   kbcount--;
   (*cc)--;
   kbp++;
@@ -1025,9 +954,7 @@ void
 keybuf_clear(void)
 {
   ignore_segv++;
-
   KBD_Head = KBD_Tail = KBD_Start;
-
   ignore_segv--;
   dump_kbuffer();
 }
@@ -1049,7 +976,6 @@ termioInit()
   terminal_initialize(); 
   setupterm(NULL, 1, (int *)0);
   gettermcap();
-  
   li = 25;
   co = 80;
   qsort(funkey, FUNKEYS, sizeof(struct funkeystruct), &fkcmp);

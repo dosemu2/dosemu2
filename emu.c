@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/07/09 14:29:43 $
+ * $Date: 1994/07/14 23:19:20 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.11 $
+ * $Revision: 2.12 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.12  1994/07/14  23:19:20  root
+ * Markkk's patches.
+ *
  * Revision 2.11  1994/07/09  14:29:43  root
  * prep for pre53_3.
  *
@@ -1362,6 +1365,7 @@ config_defaults(void)
   config.hdisks = 0;
   config.bootdisk = 0;
   config.exitearly = 0;
+  config.term_method = METHOD_FAST;
   config.term_color = 1;
   config.term_updatelines = 25;
   config.term_updatefreq = 2;
@@ -2077,7 +2081,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.11 1994/07/09 14:29:43 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.12 1994/07/14 23:19:20 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2295,7 +2299,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/07/09 14:29:43 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/07/14 23:19:20 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

@@ -1,10 +1,12 @@
 /* 
  * video/terminal.c - contains the video-functions
- *                    for terminals (TERMCAP/CURSES)
+ *                    for terminals (NCURSES and ANSI)
  */
 
-#include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
 #include <ncurses.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,28 +18,20 @@
 
 /* The default character set is to use the latin character set */
 unsigned char *trans = charset_latin;
-
-/* In normal keybaord mode (XLATE), some concerns are delt with to
- * efficiently write characters to the STDOUT output. These macros
- * attempt to speed up this screen updating.
- *
- * Thanks to Andrew Haylett (ajh@gec-mrc.co.uk) for catching character loss
- * in CHOUT 
- */
-#define OUTBUFSIZE	8192
-#define CHOUT(c)   *(outp++) = (c); \
-		   if (outp == &outbuf[OUTBUFSIZE-2]) { CHFLUSH }
-
-#define CHFLUSH    if (outp - outbuf) { *(outp) = 0; \
-					waddchnstr(win,&outbuf[0],outp-outbuf); \
-					outp = outbuf; }
-
-chtype outbuf[OUTBUFSIZE];
-chtype *outp = outbuf;
-int cursor_row;
-int cursor_col;
 int colormap[8][8];
+int attrlookup[256];
 WINDOW *win;
+
+#define NBUFSIZE  256
+chtype noutbuf[NBUFSIZE + 5];
+chtype *noutp = noutbuf;
+
+#define CHBUFSIZE 1024
+unsigned char outbuf[CHBUFSIZE + 5];
+unsigned char *outp = outbuf;
+
+int cursor_row, cursor_col;
+int ibm_codes;
 
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
@@ -45,19 +39,46 @@ WINDOW *win;
 void
 terminal_initialize()
 {
-  int i,j,fore,back,pairnum;
-  switch (config.term_charset) {
-  case CHARSET_LATIN:   trans = charset_latin;   break; 
-  case CHARSET_IBM:     trans = charset_ibm;     break;
-  case CHARSET_FULLIBM: trans = charset_fullibm; break;
+  int i,j,fore,back,attr,pairnum;
+
+  if (config.term_charset == CHARSET_FULLIBM) {
+     error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
+     config.term_charset = CHARSET_IBM;
   }
+
+  switch (config.term_charset) {
+  case CHARSET_LATIN:   trans = charset_latin;   ibm_codes = 0;  break; 
+  case CHARSET_IBM:     trans = charset_ibm;     ibm_codes = 1;  break;
+  case CHARSET_FULLIBM: trans = charset_fullibm; ibm_codes = 1;  break;
+  }
+
+  raw();
+  if (config.console_video) {
+    config.term_method = METHOD_FAST;
+    config.term_color = 0;
+    return;
+  }
+  if (config.term_method != METHOD_NCURSES) {
+    fprintf(stdout,"\033[H\033[2J");
+  }
+
+  if (ibm_codes) {
+    /* The following turns on the IBM character set mode of virtual console
+     * The same code is echoed twice, then just in case the escape code
+     * not recognized and was printed, erase it with spaces.
+     */
+    fprintf(stdout,"\033(U\033(U\r        \r");
+  }
+  
+  if (config.term_method != METHOD_NCURSES) return;  
+
   initscr();
   if (!has_colors()) config.term_color = 0;
   if (config.term_color) start_color();
   win = newwin(0,0,0,0);
   keypad(win,TRUE);
-  /*nodelay(win,TRUE);*/
-  raw();
+  wclear(win);
+  wrefresh(win);
 
   if (config.term_color) {
     fore = 0;
@@ -85,36 +106,51 @@ terminal_initialize()
         case 6: fore = COLOR_YELLOW;  break;
         case 7: fore = COLOR_WHITE;   break;
         }
-        if (i || j) {
+        if ((i != 0) || (j != 7)) {
           init_pair(pairnum,fore,back);
           colormap[j][i] = pairnum;
           pairnum++;
         }
       }
     } 
-    colormap[0][0] = colormap[7][0];
+    colormap[7][0] = 0;         /*colormap[7][0];*/
+
+    /* Initialize attribute lookup tables */
+    for (i = 0; i < 256; i++) {
+      if ((i & 0x77) == 0x07)
+        attr = A_NORMAL | A_DIM;
+      else
+      	attr = COLOR_PAIR(colormap[i & 7][(i >> 4) & 7]);
+      if (i & 0x80) attr |= A_BLINK;
+      if (i & 0x08) attr |= A_BOLD;
+      attrlookup[i] = attr;
+    }
   }
-  if ((config.term_charset == CHARSET_IBM) || 
-      (config.term_charset == CHARSET_FULLIBM)) 
-  {
-    /* The following turns on the IBM character set mode of virtual console
-     * The same code is echoed twice, then just in case the escape code
-     * not recognized and was printed, erase it with spaces.
-     */
-    printf("%s","\033(U\033(U\r        \r");
-  }
+  else {
+    for (i = 0; i < 256; i++) {
+      attr = 0;
+      if (!(i & 0xF8)) attr |= A_NORMAL;
+      if (!(i & 0x07)) attr |= A_INVIS;
+      if (i & 0x70) attr |= A_REVERSE;
+      if (i & 0x08) attr |= A_BOLD;
+      if (i & 0x80) attr |= A_BLINK;
+      attrlookup[i] = attr;
+    }
+  }  
 }
 
 void 
 terminal_close()
 {
-  cursor_col = 0;
-  move(li,cursor_col);
-  endwin();
-  printf("%s","\n");
-  if ((config.term_charset == CHARSET_IBM) || 
-      (config.term_charset == CHARSET_FULLIBM)) 
-  {
+  if (config.term_method != METHOD_NCURSES) {
+    fprintf(stdout,"\033[%dH",li);
+  }
+  else {
+    mvcur(-1,-1,li,0);
+    endwin();
+  }
+  fprintf(stdout,"\n");
+  if (ibm_codes) {
     /* The following turns off the IBM character set mode of virtual console
      * The same code is echoed twice, then just in case the escape code
      * not recognized and was printed, erase it with spaces.
@@ -130,24 +166,6 @@ v_write(int fd, unsigned char *ch, int len)
     DOS_SYSCALL(write(fd, ch, len));
   else
     error("ERROR: (video) v_write deferred for console_video\n");
-}
-
-/* Put a character on the output fd of this DOSEMU */
-int
-outcbuf(int c)
-{
-  CHOUT(c);
-  return 1;
-}
-
-/* position the cursor on the output fd */
-inline void
-poscur(int x, int y)
-{
-  /* were "co" and "li" */
-  if ((unsigned) x >= co || (unsigned) y >= li) return;
-  CHFLUSH;
-  wmove(win, y, x);
 }
 
 /* This is a better scroll routine, mostly for aesthetic reasons. It was
@@ -290,17 +308,37 @@ clear_screen(int s, int att)
   cursor_row = cursor_col = 0;
 }
 
-/*
- * This is a much-improved restore_screen, programmed by Mark D. Rejhon.
- * Based on Andrew Tridgell code.  Updated to do more optimization.
- * It is now much faster than it was in pre0.51pl24 and earlier,
- * and actually works more properly. It's also better looking over
- * a 2400 baud modem.  However, there is no buffer overflow checking
- * yet :-(
+/* This is the screen updating routine that uses NCURSES as the display
+ * engine.  Because of NCURSES' overheads, this routine is much slower than 
+ * the ANSI engine which writes data directly to the display.
  */
 int
-restore_screen()
+ncurses_update()
 {
+
+  /* In NCURSES display mode, there are speed concerns as to efficiently pass 
+   * characters to NCURSES.  NOUT outputs a character and attribute into  
+   * the buffer, and NFLUSH sends them to NCURSESS.  The NCURSES function
+   * "waddchnstr" is a fast unformatted 16-bit character write routine 
+   * where each character is 16 bits instead of the usual 8 bits, because 
+   * both the character and color are contained in the same code.
+   */
+  #define NOUT(c)   *(noutp++) = (c); \
+                    if (noutp == &noutbuf[NBUFSIZE]) { NFLUSH }
+  #define NFLUSH    *(noutp) = 0; \
+                    waddchnstr(win, &noutbuf[0], noutp - noutbuf); \
+                    noutp = noutbuf;
+
+  /* position the cursor on the output fd */
+  void
+  poscur(int x, int y)
+  {
+    /* were "co" and "li" */
+    if ((unsigned) x >= co || (unsigned) y >= li) return;
+    NFLUSH;
+    wmove(win, y, x);
+  }
+
   us *sadr;	/* Pointer to start of screen memory of curr page */
   us *srow;	/* Pointer to start of screen row updated */
   us *schar;	/* Pointer to character being updated */
@@ -313,20 +351,22 @@ restore_screen()
   int numscan;  /* counter for number of lines scanned */
   int numdone;  /* counter for number of lines actually updated */
   static int newattr = 0;
-  static int oldattr;
   static int a, c;
   static int oa = 256;
   static int yloop = -1;    /* Row index for loop */
   static int oldx = 0;      /* Previous x cursor position */
   static int oldy = 0;      /* Previous y cursor position */
 
-  v_printf("RESTORE SCREEN: scrbuf at %p\n", scrbuf);
-
-  CHFLUSH;
   sadr = SCREEN_ADR(bios_current_screen_page);
+
+#if 0
+  v_printf("RESTORE SCREEN: scrbuf at %p\n", scrbuf);
   v_printf("SADR: %p\n", sadr);
   v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
   v_printf("SCREEN: %x\n", bios_current_screen_page);
+#endif  
+
+  NFLUSH;
   
   /* The following determins how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
@@ -337,8 +377,8 @@ restore_screen()
    * in /etc/dosemu.conf 
    */
   lines = config.term_updatelines;
-  if (lines <= 0) 
-    lines = 1;
+  if (lines < 2) 
+    lines = 2;
   else if (lines > li)
     lines = li;
 
@@ -370,12 +410,6 @@ restore_screen()
     }
     numscan++;
 
-    /* Only update if the line has changed.  Note that sadr is an unsigned
-     * short ptr, so co is not multiplied by 2...I'll clean this up later.
-     */
-    bufrow = y * co * 2;	/* Position of first char in row in sadr */
-    srow = sadr + y * co;	/* p is unsigned short ptr to char in sadr */
-   
     /* If it is the last line of the screen, then only process up to 2nd   */
     /* last character, because printing last character of last line can    */
     /* scroll the screen of some terminals.  We don't want this to happen. */
@@ -385,12 +419,18 @@ restore_screen()
       endx = co - 1;
     else
       endx = co;
+
+    /* Only update if the line has changed.  Note that sadr is an unsigned
+     * short ptr, so co is not multiplied by 2...I'll clean this up later.
+     */
+    bufrow = y * co * 2;	/* Position of first char in row in sadr */
+    srow = sadr + y * co;	/* p is unsigned short ptr to char in sadr */   
     
     /* If the line matches, then no updated is needed, and skip the line. */
     if (!memcmp(scrbuf + bufrow, srow, endx * 2)) continue;
 
     /* Increment the number of successfully updated lines counter */
-    if (numscan > 1) numdone++;
+    numdone++;
 
     /* The following does the screen line optimally, one character at a 
      * time.  It does a little bit optimization now, thanks to Mark D. Rejhon,
@@ -424,7 +464,7 @@ restore_screen()
           x += xdiff;
           schar += xdiff;
           xdiff = 0;
-          CHFLUSH;
+          NFLUSH;
           poscur(x,y);
         }
       }
@@ -433,31 +473,16 @@ restore_screen()
       /* character onscreen. */
       c = *(unsigned char *) schar;
       a = ((unsigned char *) schar)[1];
-      if (1) {     /*(a != oa) {*/
-        if (config.term_color) {
-          newattr = COLOR_PAIR(colormap[a & 7][(a >> 4) & 7]);
-          /* The following lines gets around a bug with NCURSES */
-          if (((oa & 0x77) == (a & 0x77)) && (a & 0x70))
-            if ((oldattr & A_BOLD) && (!(a & 0x8))) 
-              newattr |= A_BOLD;
-          if (a & 0x80) newattr |= A_BLINK;
-          if (a & 0x08) newattr |= A_BOLD;
-	}
-	else {
-	  newattr = 0;
-	  if (!(a & 0xF8))
-	    newattr |= A_NORMAL;
-	  else {
-            if (a & 0x70) newattr |= A_REVERSE;
-            if (a & 0x08) newattr |= A_BOLD;
-            if (a & 0x80) newattr |= A_BLINK;
-          }
-        }
+      if (a != oa) {     /*(a != oa) {*/
+        newattr = attrlookup[a];
+        /* This is a workaround for some of NCURSES bugs messing up screen */
+        if (config.term_color)
+          if (((oa & 0x77) == (a & 0x77)) && (a & 0x70) && (oa & 0x8))
+            newattr |= A_BOLD;
         oa = a;			/* save old attr as current */
-        oldattr = newattr;
       }
       /* Output character to buffer */
-      CHOUT(trans[c] | newattr);              /* Output the actual char */
+      NOUT(trans[c] | newattr);              /* Output the actual char */
       schar++;                              /* Increment screen pointer */
       if (xdiff) xdiff--;                   /* Decrement scan check counter */
     }
@@ -469,6 +494,7 @@ restore_screen()
   if (numdone || (cursor_col != oldx) || (cursor_row != oldy)) {
     oldx = cursor_col;
     oldy = cursor_row;
+    NFLUSH;
     poscur(oldx, oldy);
     wrefresh(win);
   }
@@ -477,4 +503,265 @@ restore_screen()
    */
   if (!numdone) yloop = -1;
   return numdone;
+}
+
+int
+ansi_update()
+{
+  /* In FAST display mode, speed concerns are very important to efficiently
+   * display data.  Displaying characters one at a time is a bad idea, it is
+   * much faster to print many characters and terminal codes at once, in the
+   * same string.  The following macros addresses these concerns.
+   */
+  #define CHOUT(c)  if ((outp - outbuf) >= CHBUFSIZE) { CHFLUSH } \
+                    *(outp++) = (c);
+  #define STROUT(s) if ((outp - outbuf + strlen(s)) >= CHBUFSIZE) { CHFLUSH } \
+                    memcpy(outp, s, strlen(s)); \
+                    outp += strlen(s);
+  #define CHFLUSH   fast_buffer_flush();
+
+  void
+  fast_buffer_flush(void) 
+  {
+    if (outp - outbuf <= 0) return;
+    while ( ! fwrite(outbuf, outp - outbuf, 1, stdout) )
+      ; /* empty loop */
+    outp = outbuf;
+  }
+
+  void 
+  fast_buffer_poscur(int oldx, int oldy, int x, int y)
+  {
+    static char cursor[20];
+    if ((oldx == x) && (oldy == y)) return;
+    strcpy(cursor,"\033[");
+    strcat(cursor,num_string[y+1]);
+    strcat(cursor,";");
+    strcat(cursor,num_string[x+1]);
+    strcat(cursor,"H");
+    STROUT(cursor);
+  }
+
+  void
+  fast_buffer_setcolor(int oldatt, int newatt)
+  {
+    static obold, oblink, nbold, nblink;
+    static char color[20];
+    
+    if (config.term_color) {
+      if (oldatt == newatt) return;
+      obold = oldatt & 0x08;
+      nbold = newatt & 0x08;
+      oblink = oldatt & 0x80;
+      nblink = newatt & 0x80;
+      if ((obold > nbold) || (oblink > nblink)) {
+        strcpy(color,"\033[0;");
+        if (nbold)  strcat(color,"1;"); 
+        if (nblink) strcat(color,"5;");
+        if (newatt & 0x70) {
+          strcat(color,bg_color_string[(newatt & 0x70) >> 4]);
+          strcat(color,";");
+        }
+        strcat(color,fg_color_string[newatt & 0x7]);
+        strcat(color,"m");
+      }
+      else {
+        strcpy(color,"\033[");
+        if (obold  < nbold)  strcat(color,"1;");
+        if (oblink < nblink) strcat(color,"5;");
+        if ((newatt & 0x70) != (oldatt & 0x70)) {
+          strcat(color,bg_color_string[(newatt & 0x70) >> 4]);
+          strcat(color,";");
+        }
+        if ((newatt & 0x07) != (oldatt & 0x07)) { 
+          strcat(color,fg_color_string[newatt & 0x7]);
+          strcat(color,";");
+        }
+        color[strlen(color)-1] = 'm';
+      }    
+    }
+    else {
+      if ((oldatt & 0xF8) == (newatt & 0xF8)) return;
+      strcpy(color,"\033[0;");
+      if (newatt & 0x08) strcat(color,"1;"); 
+      if (newatt & 0x80) strcat(color,"5;");
+      if (newatt & 0x70) strcat(color,"7;");
+      color[strlen(color)-1] = 'm';
+    }
+    STROUT(color);
+  }
+
+  us *sadr;	/* Pointer to start of screen memory of curr page */
+  us *srow;	/* Pointer to start of screen row updated */
+  us *schar;	/* Pointer to character being updated */
+  int bufrow;	/* Pointer to start of buffer row corresp to screen row */
+  int x, y;	/* X and Y position of character being updated */
+  int scanx;	/* Index for comparing screen and buffer rows */
+  int endx;     /* Last character for line loop index */
+  int xdiff;    /* Counter for scan checking used for optimization */
+  int lines;    /* Number of lines to redraw */
+  int numscan;  /* counter for number of lines scanned */
+  int numdone;  /* counter for number of lines actually updated */
+  static int a, c;
+  static int yloop = -1;    /* Row index for loop */
+  static int oldattr = 0;
+  static int oldx = 1;      /* Previous x cursor position */
+  static int oldy = 1;      /* Previous y cursor position */
+
+  sadr = SCREEN_ADR(bios_current_screen_page);
+
+#if 0
+  v_printf("RESTORE SCREEN: scrbuf at %p\n", scrbuf);
+  v_printf("SADR: %p\n", sadr);
+  v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
+  v_printf("SCREEN: %x\n", bios_current_screen_page);
+#endif  
+
+  /* The following determins how many lines it should scan at once,
+   * since this routine is being called by sig_alrm.  If the entire
+   * screen changes, it often incurs considerable delay when this
+   * routine updates the entire screen.  So the variable "lines"
+   * contains the maximum number of lines to update at once in one
+   * call to this routine.  This is set by the "updatelines" keyword
+   * in /etc/dosemu.conf 
+   */
+  lines = config.term_updatelines;
+  if (lines < 2) 
+    lines = 2;
+  else if (lines > li)
+    lines = li;
+
+  numscan = 0;         /* Number of lines that have been scanned */
+  numdone = 0;         /* Number of lines that needed to be updated */
+
+  /* The highest priority is given to the current screen row for the
+   * first iteration of the loop, for maximum typing response.  
+   * If y is out of bounds, then give it an invalid value so that it
+   * can be given a different value during the loop.
+   */
+  y = bios_cursor_y_position(bios_current_screen_page);
+  if ((y < 0) || (y > li)) y = -1; 
+  
+  /* The following loop scans lines on the screen until the maximum number
+   * of lines have been updated, or the entire screen has been scanned.
+   */
+  while ((numdone < lines) && (numscan < li)) {
+
+    /* The following sets the row to be scanned and updated, if it is not
+     * the first iteration of the loop, or y has an invalid value from
+     * loop pre-initialization.
+     */
+    if ((numscan > 0) || (y < 0)) {
+      yloop = (yloop + 1) % li;
+      if (yloop == bios_cursor_y_position(bios_current_screen_page))
+        yloop = (yloop + 1) % li;
+      y = yloop;
+    }
+    numscan++;
+
+    /* If it is the last line of the screen, then only process up to 2nd   */
+    /* last character, because printing last character of last line can    */
+    /* scroll the screen of some terminals.  We don't want this to happen. */
+    /* You will see a blank gap in its place.  This should not be a big    */
+    /* problem for most users.   */
+    if (y == (li - 1))
+      endx = co - 1;
+    else
+      endx = co;
+
+    /* Only update if the line has changed.  Note that sadr is an unsigned
+     * short ptr, so co is not multiplied by 2...I'll clean this up later.
+     */
+    bufrow = y * co * 2;	/* Position of first char in row in sadr */
+    srow = sadr + y * co;	/* p is unsigned short ptr to char in sadr */   
+    
+    /* If the line matches, then no updated is needed, and skip the line. */
+    if (!memcmp(scrbuf + bufrow, srow, endx * 2)) continue;
+
+    /* Increment the number of successfully updated lines counter */
+    numdone++;
+
+    /* The following does the screen line optimally, one character at a 
+     * time.  It does a little bit optimization now, thanks to Mark D. Rejhon,
+     * to avoid redundant updates.
+     */
+    schar = srow;         /* Pointer to start of row in screen memory */
+    xdiff = 0;            /* scan check counter */
+    for (x = 0; x < endx; x++) {
+
+      /* The following checks if it needs to scan the line for the first
+       * character to be updated.  xdiff is a scan check counter.  If it
+       * is nonzero, it means the number of characters until a nonmatching 
+       * character between the screen and buffer, and needs to be rescanned
+       * right after that character.
+       */
+      if (xdiff == 0) {
+
+        /* Scan for first character that needs to be updated */
+        for (scanx = x; scanx < endx; scanx++)
+          if (memcmp(scrbuf + bufrow + scanx * 2, sadr + y * co + scanx, 2))
+            break;
+      
+        /* Do next row if there are no more chars needing to be updated */
+        if (scanx >= endx) break;
+
+        /* If the character to be updated is at least 7 cursor positions */
+        /* to the right, then do a cursor reposition to save time.  Most */
+        /* cursor positioning codes are less than 7 characters. */
+        xdiff = scanx - x; 
+        if ((xdiff >= 7) || (x == 0)) {
+          x += xdiff;
+          schar += xdiff;
+          xdiff = 0;
+          fast_buffer_poscur(oldx,oldy,x,y);
+          oldx = x; oldy = y;
+        }
+      }
+
+      /* The following outputs attributes if necessary, then outputs the */
+      /* character onscreen. */
+      c = *(unsigned char *) schar;
+      a = ((unsigned char *) schar)[1];
+      if (oldattr != a) {
+        fast_buffer_setcolor(oldattr, a);
+        oldattr = a;
+      }
+
+      /* Output character to buffer */
+      CHOUT(trans[c]);                      /* Output the actual char */
+      oldx++;
+      schar++;                              /* Increment screen pointer */
+      if (xdiff) xdiff--;                   /* Decrement scan check counter */
+    }
+    memcpy(scrbuf + bufrow, srow, co * 2);  /* Copy screen mem line to buffer */
+  }
+
+  fast_buffer_poscur(oldx,oldy,cursor_col,cursor_row);
+  oldx = cursor_col; oldy = cursor_row;
+  CHFLUSH;
+  if (!numdone) {
+    /* The updates look a bit cleaner when reset to top of the screen
+     * if nothing had changed on the screen in this call to screen_restore
+     */
+    yloop = -1;
+  }
+
+  return numdone;
+}
+
+/*
+ * This is a much-improved restore_screen, programmed by Mark D. Rejhon.
+ * Based on Andrew Tridgell code.  Updated to do more optimization.
+ * It is now much faster than it was in pre0.51pl24 and earlier,
+ * and actually works more properly. It's also better looking over
+ * a 2400 baud modem.  However, there is no buffer overflow checking
+ * yet :-(
+ */
+int
+restore_screen()
+{
+  if (config.term_method == METHOD_NCURSES)
+    return ncurses_update();
+  else
+    return ansi_update(); 
 }
