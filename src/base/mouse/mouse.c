@@ -1623,6 +1623,7 @@ void
 mouse_delta(int event)
 {
 	mouse_events |= event;
+	pic_request(PIC_IMOUSE);
 }
 
 /*
@@ -1739,18 +1740,6 @@ do_mouse_irq()
   /* function called for xterm, X and SDL. Others do it directly */
   if (mouse_events)
     pic_request(PIC_IMOUSE);
-}
-
-static void mouse_event(int ilevel)
-{
-  /* we must always acknowledge EOI now, with int74 */
-  do_irq(ilevel);
-  if (mouse.old_mickeyx != mouse.mickeyx ||
-      mouse.old_mickeyy != mouse.mickeyy)
-    /* keep requesting until the mouse driver caught up */
-    pic_request(PIC_IMOUSE);
-  else
-    mouse_events = 0;
 }
 
 /* unconditional mouse cursor update */
@@ -2033,7 +2022,8 @@ struct mouse_client Mouse_none =  {
 void DOSEMUMouseEvents(int ilevel)
 {
   if (Mouse->run) Mouse->run();
-  mouse_event(ilevel);
+  /* we must always acknowledge EOI now, with int74 */
+  do_irq(ilevel);
 }
 
 /* TO DO LIST: (in no particular order)
