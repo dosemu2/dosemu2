@@ -13,10 +13,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <asm/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <linux/sockios.h>
-#include <linux/if.h>
+#if __GLIBC__ > 1
+  #include <asm/sockios.h>
+  #include <net/if.h>
+#else
+  #include <linux/sockios.h>
+  #include <linux/if.h>
+#endif
 #include <netinet/in.h>
 
 #include "libpacket.h"

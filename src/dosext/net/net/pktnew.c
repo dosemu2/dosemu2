@@ -14,6 +14,10 @@
  *     than Novell 802.3 are now supported.  Don't try to run TCP/IP
  *     over this packet driver, unless you understand what you are
  *     doing, though...
+ *
+ *     21/05/97 Gloriano Frisoni (gfrisoni@hi-net.it)
+ *              Now we can run tcp/ip stuff (netscape eudora etc) in
+ *              "dosemu windoze".  See README.winnet.
  */
 
 #include <errno.h>
@@ -513,8 +517,23 @@ pkt_check_receive(int timeout)
     if (pg->nfds == 0)				/* no active sockets? */
 	return 0;
 
+    /*
+    ** sometimes, dosemu enter in this routine with the previus packet 
+    ** not sended by helper, and the packet driver hang. 
+    ** This patch tryes to resend the packet, and make dosemu happy :)
+    **
+    ** Gloriano 
+    */
     if (pg->size != 0)				/* transfer area busy? */
-	return 1;
+    {
+#ifdef PICPKT
+     do_irq();
+#else
+     run_int(pg->helpvec);
+#endif
+      pd_printf("Called the helpvector ... (after failure)\n");
+      return 1;
+    }
 
     tv.tv_sec = 0;				/* set a (small) timeout */
     tv.tv_usec = timeout;

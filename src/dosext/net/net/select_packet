@@ -1,0 +1,27 @@
+#!/bin/sh 
+
+#
+# This ask what packet driver you need
+#
+# Gloriano 21 May 1997
+#
+
+echo "Single or Multi packet driver ? (type s or m)"
+read what 
+
+case $what in
+
+[s,S]*)
+cp libpacket.c.single libpacket.c
+cp pktnew.c.single pktnew.c
+;;
+
+[m,M]*)
+cp libpacket.c.multi libpacket.c
+cp pktnew.c.multi pktnew.c
+;;
+
+*)
+echo "please, type s or m" 
+
+esac

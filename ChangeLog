@@ -1,3 +1,8 @@
+97/05/23 ver. 0.67.3.1 unofficial pre-release
+	From Gloriano Frisoni <gfrisoni@hi-net.it>
+	- patch to make winsocket stuff work under win31
+	  Using trumpet winsock, netscape, eudora, mirc, free agent e.t.c
+	  now run under dosemu. For more read doc/README.Winnet
 97/05/19 ver. 0.67.3 released
 	From Alberto
 	- some more comments on DIRECT_DPMI_CONTEXT_SWITCH
