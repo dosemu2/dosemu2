@@ -124,7 +124,7 @@ void mhp_close(void)
    vm86s.vm86plus.vm86dbg_active = 0;
 }
 
-static int wait_for_debug_terminal = 1;
+static int wait_for_debug_terminal = 0;
 
 int vmhp_log_intercept(int flg, const char *fmt, va_list args)
 {
@@ -277,6 +277,47 @@ static void mhp_poll(void)
    }
 }
 
+void mhp_exit_intercept(int errcode)
+{
+
+   if (!errcode || !mhpdbg.active || (mhpdbg.fdin == -1) ) return;
+
+   mhp_printf("\n****\nleavedos(%d) called, at termination point of DOSEMU\n****\n\n", errcode);
+   mhp_send();
+   mhpdbgc.stopped = 1;
+   mhpdbgc.want_to_stop = 0;
+   mhp_cmd("r0");
+   mhp_send();
+   dosdebug_flags |= DBGF_IN_LEAVEDOS;
+   for (;;) {
+      mhp_input();
+      if (mhpdbg.nbytes <= 0) {
+         if (traceloop && mhpdbgc.stopped) {
+           strcpy(mhpdbg.recvbuf,loopbuf);
+           mhpdbg.nbytes=strlen(loopbuf);
+         }
+         else {
+          if (mhpdbgc.stopped) continue;
+          else break;
+        }
+      }
+      else {
+        if (traceloop) { traceloop=loopbuf[0]=0; }
+      }
+      if ((mhpdbg.recvbuf[0] == 'q') && (mhpdbg.recvbuf[1] <= ' ')) {
+	 mhpdbg.active = 0;
+	 vm86s.vm86plus.vm86dbg_active = 0;
+	 mhpdbg.sendptr = 0;
+         mhpdbg.nbytes = 0;
+         return;
+      }
+      mhpdbg.recvbuf[mhpdbg.nbytes] = 0x00;
+      mhp_cmd(mhpdbg.recvbuf);
+      mhp_send();
+      mhpdbg.nbytes = 0;
+      if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) return;
+   }
+}
 
 unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2)
 {

@@ -1,3 +1,23 @@
+98/02/15 ver. 0.97.3.1 unofficial pre-release
+	From Eric
+	- fix for kernels < 2.0.32 not having ENOMEDIUM in errno.h (cdrom.c)
+	From Kenneth
+	- enhancement to INT8-serializer-hack of DPMI (in_dpmi_pm_int==8)
+	  involved files: dpmi.[ch], dev/misc/timers.c
+	- fixed bug in init/config.c: missplaced brackets for if-clause
+	From Klaus Reimann <klausr@itap.physik.uni-stuttgart.de>
+	- fix for global.conf (missing bracket)
+	From Hans
+	- made dosdebug to capture _any_ leavedos(!=0), normally exceptions
+	  were captured before anyway.
+	- fixed a small buglet in the recent debugger enhancements
+	- fixed -D+D debugflag, such that it now _realy_ prints int21 events
+	  (needs setting int21 redirection for that)
+	- fixed mixed misuse of d.dos (ds_printf) in other places:
+	  'd.dos' for DOS-ints and 'd.defint' (di_printf) for 'all other' ints.
+	  ... obviously
+	- put in Pat's recent kernel 1933+, now can handle more then one
+	  drives (which means the '+' above ;-)
 98/02/08 ver. 0.97.3 released
 	From Alberto
 	- fix for cdrom errors on startup (only kernels 2.1.x)

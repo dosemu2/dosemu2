@@ -30,6 +30,10 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#ifndef ENOMEDIUM
+  /* kernels < 2.0.32 don't have this defined */
+  #define ENOMEDIUM       123     /* No medium found */
+#endif
 #ifdef __linux__
 #include <linux/cdrom.h>
 #endif

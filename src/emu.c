@@ -155,8 +155,6 @@ extern void io_select_init(void);
 extern void treads_init(void);
 #endif
 
-static int      special_nowait = 0;
-
 
 
 void 
@@ -471,6 +469,7 @@ emulate(int argc, char **argv)
 
 #if 0    /* disable C-A-D until someone will fix it (if really needed) */
 extern void HMA_MAP(int);
+static int      special_nowait = 0;
 
 void
 dos_ctrl_alt_del(void)
@@ -548,6 +547,12 @@ leavedos(int sig)
     }
 #endif
     in_vm86 = 0;
+
+    /* try to notify dosdebug */
+    {
+      extern void mhp_exit_intercept(int errcode);
+      mhp_exit_intercept(sig);
+    }
 
     /* remove tmpdir */
     rmdir(tmpdir);

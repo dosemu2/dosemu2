@@ -566,9 +566,14 @@ void timer_int_engine(void)
 /* Try to terminate previous int8 routine before scheduling
  * another one. Without this one dope crashes (DPMI_rm_procedure_
  * running increases up to a stack fault)
+ *
+ * This is a gross disgusting cludge, that I am going to make even grosser
+ * and more disgusting in an attempt to get it to work properly.  Someday
+ * I am going to find and fix the root problems that are making this 
+ * necessary.  -KenC
  */
  if (in_dpmi) {
-   while (in_dpmi_pm_int==8) run_dpmi();
+   while (in_dpmi_timer_int) run_dpmi();
  }
  pic_sched(PIC_IRQ0,pit[0].cntr);
  do_irq();

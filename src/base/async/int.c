@@ -90,8 +90,7 @@ void kill_time(long usecs) {
  */
 
 static void default_interrupt(u_char i) {
-  if (d.defint)
-    dbug_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+  di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
   if (!IS_REDIRECTED(i) ||
 #ifndef USE_NEW_INT
@@ -1425,6 +1424,9 @@ static void int19(u_char i) {
 
 /* MS-DOS */
 static void int21(u_char i) {
+  ds_printf("INT21 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+       LWORD(cs), LWORD(eip),
+       LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx), LWORD(ds), LWORD(es));
   if (!ms_dos(HI(ax)))
     default_interrupt(i);
 }
@@ -1762,8 +1764,8 @@ void do_int(int i)
 #else /* USE_NEW_INT */
  	unsigned long magic_address;
 	
- 	if ((d.dos > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
- 		ds_printf("Do INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%08x esp=0x%08x\n"
+ 	if ((d.defint > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
+ 		di_printf("Do INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%08x esp=0x%08x\n"
  			  "           ecx=0x%08x edx=0x%08x ds=0x%08x  cs=0x%08x ip=0x%08x\n"
  			  "           esi=0x%08x edi=0x%08x es=0x%08x flg=0x%08x\n",
  			  i, _EAX, _EBX, _SS, _ESP,
@@ -2079,6 +2081,21 @@ void setup_interrupts(void) {
 #endif /* not USE_NEW_INT */
 }
 
+static struct revectored_struct saved_int21_revectored = {{0,0,0,0,0,0,0,0}};
+
+void set_int21_revectored(int all)
+{
+  static int last_all = 0;
+  if (all < 0)
+    all = last_all;
+  if (all > 0)
+    memset(&vm86s.int21_revectored, 0xff, sizeof(vm86s.int21_revectored));
+  else
+    vm86s.int21_revectored = saved_int21_revectored;
+  last_all = all;
+}
+
+
 /*
  * DANG_BEGIN_FUNCTION int_vector_setup
  *
@@ -2105,7 +2122,10 @@ void int_vector_setup(void)
   for (i=0; i<0x100; i++)
     if (can_revector_int21(i)==REVECT)
       set_revectored(i, &vm86s.int21_revectored);
+  saved_int21_revectored = vm86s.int21_revectored;
+  set_int21_revectored(-1);
 #endif
+
 #ifdef __NetBSD__
   memset(&vm86s.int_byuser[0], 0x00, sizeof(vm86s.int_byuser));
   memset(&vm86s.int21_byuser[0], 0x00, sizeof(vm86s.int21_byuser));

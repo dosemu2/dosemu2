@@ -30,7 +30,7 @@ EXTERN unsigned long dosdebug_flags INIT(0);
 #define DBGF_DISABLE_LOG_TO_FILE	0x004
 #define DBGF_LOG_TO_DOSDEBUG		0x100
 #define DBGF_LOG_TO_BREAK		0x200
-
+#define DBGF_IN_LEAVEDOS	   0x40000000
 
 
 unsigned int mhp_debug(unsigned int, unsigned int, unsigned int);

@@ -2065,7 +2065,7 @@ void run_pm_int(int i)
   dpmi_stack_frame[current_client].eip = Interrupt_Table[i].offset;
   dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
-  in_dpmi_pm_int = i;
+  if (i == 0x08 || in_dpmi_timer_int) in_dpmi_timer_int++;
   in_dpmi_dos_int = 0;
 #ifdef USE_NEW_INT
   dpmi_cli();
@@ -2891,7 +2891,7 @@ if ((_ss & 7) == 7) {
 	    in_dpmi_dos_int = (int) *ssp++;
 	  }
 	  pic_iret();
-	  in_dpmi_pm_int = 0;
+	  if (in_dpmi_timer_int) in_dpmi_timer_int--;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_exception)) {
           D_printf("DPMI: Return from client exception hander\n");

@@ -566,8 +566,7 @@ config_init(int argc, char **argv)
      * by a symbolic link called `xdos` which DOSEMU will use to switch
      * into X-mode. DANG_END_REMARK
      */
-    {
-	if (strcmp(basename, "xdos") == 0)
+    if (strcmp(basename, "xdos") == 0) {
 	    config.X = 1;	/* activate X mode if dosemu was */
 	    usedoptions['X'] = 'X';
 	/* called as 'xdos'              */
@@ -977,6 +976,9 @@ int parse_debugflags(const char *s, unsigned char flag)
 	    break;
 	case 'D':		/* DOS int 21h */
 	    d.dos = flag;
+	    { extern void set_int21_revectored(int);
+	      set_int21_revectored(d.dos != 0);
+	    }
 	    break;
         case 'C':               /* CDROM */
 	    d.cdrom = flag;

@@ -1379,7 +1379,8 @@ static void mhp_kill(int argc, char * argv[])
   mhp_send();
 #endif
   mhp_close();
-  leavedos(1);
+  if (dosdebug_flags & DBGF_IN_LEAVEDOS) dosdebug_flags &= ~DBGF_IN_LEAVEDOS;
+  else leavedos(1);
 }
 
 static void mhp_help(int argc, char * argv[])
