@@ -9,6 +9,7 @@
  *	Hans Lermen, lermen@fgan.de
  */
 
+#include "config.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -35,7 +36,7 @@ static struct pgm_pool pgmpool;
 static int mpool_numpages = (32 * 1024) / 4;
 static char *mpool = 0;
 
-static int tmpfile_fd = -1;
+static int tmpfile_fd = -2;
 
 static void *alias_map(void *target, int mapsize, int protect, void *source)
 {
@@ -68,7 +69,7 @@ static int open_mapping_file(int cap)
   if (cap) Q_printf("MAPPING: open, cap=%s\n",
 	  decode_mapping_cap(cap));
 
-  if (tmpfile_fd == -1) {
+  if (tmpfile_fd < 0) {
     int mapsize, estsize, padsize = 4*1024;
 
     /* first estimate the needed size of the mapfile */
@@ -83,7 +84,20 @@ static int open_mapping_file(int cap)
     mpool_numpages = mapsize / 4;
     mapsize = mpool_numpages * PAGE_SIZE; /* make sure we are page aligned */
 
-    tmpfile_fd = fileno(tmpfile());
+#ifdef HAVE_SHM_OPEN
+    if (tmpfile_fd == -2) {
+      char *name;
+      asprintf(&name, "%s%d", "DOSEMU:", getpid());
+      tmpfile_fd = shm_open(name, O_RDWR|O_CREAT|O_TRUNC, 700);
+      if (tmpfile_fd == -1)
+	return 0;
+      shm_unlink(name);
+      free(name);
+    } else
+#endif
+    {
+      tmpfile_fd = fileno(tmpfile());
+    }
     ftruncate(tmpfile_fd, 0);
     if (ftruncate(tmpfile_fd, mapsize) == -1) {
       error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));

@@ -95,6 +95,8 @@ dnl ___AC_CHECK_FUNCS(getcwd gethostname gettimeofday mkdir mkfifo mktime rmdir 
 dnl ... except
 AC_CHECK_FUNCS(gettimeofday)
 AC_CHECK_FUNCS(sigaltstack)
+AC_CHECK_LIB(rt, shm_open)
+AC_CHECK_FUNCS(shm_open)
 
 dnl Here is where we do our stuff
 
