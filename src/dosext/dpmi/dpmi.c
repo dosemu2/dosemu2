@@ -3201,6 +3201,22 @@ if ((_ss & 4) == 4) {
 	  if (_eflags & IF)
 	    dpmi_sti();
 
+#ifdef WANT_WINDOWS
+	  if (!_ss) {
+	    D_printf("DPMI: ERROR: SS is zero, esp=0x%08lx, switching to a locked stack\n", _esp);
+	    _ss = PMSTACK_SEL;
+	    if (in_dpmi_pm_stack == 1) {
+	      _esp = DPMI_pm_stack_size - (DPMIclient_is_32 ? 24 : 12);
+	      _cs = DPMI_SEL;
+	      _eip = DPMI_OFF + HLT_OFF(DPMI_return_from_exception);
+	    } else {
+	      if (in_dpmi_pm_stack > 1)
+		error("SS is 0 while in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+	      _esp = DPMI_pm_stack_size;
+	    }
+	  }
+#endif
+
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_rm_callback)) {
 	  
 	  struct RealModeCallStructure *rmreg;
