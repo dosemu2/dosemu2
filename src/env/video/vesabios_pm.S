@@ -57,7 +57,7 @@ vgaemu_bios_pm_interface:
 
 vbpi_win_func:
 		pushl %ebx
-		movb $0x4000,%ebx
+		movl $0x4000,%ebx
 		movl $0x4f05,%eax
 		int $0x10
 		popl %ebx
@@ -79,7 +79,7 @@ vbpi_set_palette:
 		movl $0x4f09,%eax
 		movl %edi,%esi
 		shrl $0x10,%esi
-		movl %es,%bp
+		movw %es,%bp
 		int $0x10
 		popl %ebx
 		popl %esi

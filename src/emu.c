@@ -605,7 +605,6 @@ leavedos(int sig)
     SETSIG(SIGILL, ign_sigs);
     SETSIG(SIGFPE, ign_sigs);
     SETSIG(SIGTRAP, ign_sigs);
-    warn("leavedos(%d) called - shutting down\n", sig);
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"

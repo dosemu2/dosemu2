@@ -245,7 +245,8 @@ override: ;    /* single semicolon needed to attach label to */
 
 /*0f*/	case TwoByteESC: {
 	    register DWORD temp;
-	    switch (*(PC+1)) {
+	    BYTE op;
+	    switch ((op=*(PC+1))) {
 		case 0x00: /* GRP6 - Extended Opcode 20 */
 		    switch ((*(PC+2)>>3)&7) {
 			case 0: /* SLDT */ {
@@ -698,31 +699,35 @@ override: ;    /* single semicolon needed to attach label to */
                         }
                     }
                     } goto next_switch;
-		case 0xa4: /* SHLDimm */ {
-		    /* Double Precision Shift Left */
-		    DWORD count, res; WORD carry;
-		    PC++; PC += hsw_modrm_32_quad(MODARGS);
-		    count = *PC & 0x1f; PC++;
-		    mem_ref = MEM_REF;
-		    res = mFETCH_QUAD(mem_ref);
-		    carry = (res >> (32 - count)) & 1;
-		    res = (res << count) | (*EREG1 >> (32 - count));
-		    mPUT_QUAD(mem_ref,res);
-		    /* flags: set S,Z,P - OF,AF undefined */
-		    PACK32_16(res,RES_16); CARRY = carry;
-		    } goto next_switch;
+		case 0xa4: /* SHLDimm */
+		    /* Double Precision Shift Left by IMMED */
 		case 0xa5: /* SHLDcl */ {
 		    /* Double Precision Shift Left by CL */
-		    DWORD count, res; WORD carry;
+		    unsigned int count;
 		    PC++; PC += hsw_modrm_32_quad(MODARGS);
+		    if (op==0xa4)
+			{ count = *PC & 0x1f; PC++; }
+		    else
 		    count = CL & 0x1f;
+		    if (count) {
+			register DWORD res,temp; WORD carry;
 		    mem_ref = MEM_REF;
+			/* CF <- [dest(MEM_REF)][ src(REG1) ]
+			 * if C==0 no flag change
+			 * if C==1 change only OF
+			 * if C>1  OF undef,change CF
+			 * C modulo 32 */
 		    res = mFETCH_QUAD(mem_ref);
-		    carry = (res >> (32 - count)) & 1;
+			if (count==1) {
+			    temp=res; PACK32_16(temp,SRC1_16);
+			    SRC2_16=SRC1_16;
+			}
+			carry = (res >> (32-count)) & 1;
 		    res = (res << count) | (*EREG1 >> (32 - count));
-		    mPUT_QUAD(mem_ref,res);
-		    /* flags: set S,Z,P - OF,AF undefined */
-		    PACK32_16(res,RES_16); CARRY = carry;
+			mPUT_QUAD(mem_ref, res);
+			PACK32_16(res,RES_16);
+			CARRY=carry;
+		    }
 		    } goto next_switch;
 		case 0xa6: /* CMPXCHGb */	/* NOT IMPLEMENTED !!!!!! */
 		case 0xa7: /* CMPXCHGw */	/* NOT IMPLEMENTED !!!!!! */
@@ -772,31 +777,35 @@ override: ;    /* single semicolon needed to attach label to */
                         }     
                     }
                     } goto next_switch;
-		case 0xac: /* SHRDimm */ {
-		    /* Double Precision Shift Right by immediate */
-		    DWORD count, res; WORD carry;
-		    PC++; PC += hsw_modrm_32_quad(MODARGS);
-		    count = *PC & 0x1f; PC++;
-		    mem_ref = MEM_REF;
-		    res = mFETCH_QUAD(mem_ref);
-		    carry = (res >> (count - 1)) & 1;
-		    res = (res >> count) | (*EREG1 << (32 - count));
-		    mPUT_QUAD(mem_ref,res);
-		    /* flags: set S,Z,P - OF,AF undefined */
-		    PACK32_16(res,RES_16); CARRY = carry;
-		    } goto next_switch;
+		case 0xac: /* SHRDimm */
+		    /* Double Precision Shift Left by IMMED */
 		case 0xad: /* SHRDcl */ {
-		    /* Double Precision Shift Right by CL */
-		    DWORD count, res; WORD carry;
+		    /* Double Precision Shift Left by CL */
+		    unsigned int count;
 		    PC++; PC += hsw_modrm_32_quad(MODARGS);
+		    if (op==0xac)
+			{ count = *PC & 0x1f; PC++; }
+		    else
 		    count = CL & 0x1f;
+		    if (count) {
+			register DWORD res,temp; WORD carry;
 		    mem_ref = MEM_REF;
+			/* CF <- [dest(MEM_REF)][ src(REG1) ]
+			 * if C==0 no flag change
+			 * if C==1 change only OF
+			 * if C>1  OF undef,change CF
+			 * C modulo 32 */
 		    res = mFETCH_QUAD(mem_ref);
-		    carry = (res >> (count - 1)) & 1;
+			if (count==1) {
+			    temp=res; PACK32_16(temp,SRC1_16);
+			    SRC2_16=SRC1_16;
+			}
+			carry = (res >> (count-1)) & 1;
 		    res = (res >> count) | (*EREG1 << (32 - count));
-		    mPUT_QUAD(mem_ref,res);
-		    /* flags: set S,Z,P - OF,AF undefined */
-		    PACK32_16(res,RES_16); CARRY = carry;
+			mPUT_QUAD(mem_ref, res);
+			PACK32_16(res,RES_16);
+			CARRY=carry;
+		    }
 		    } goto next_switch;
 /* case 0xae:	Code Extension 24(MMX) */
                 case 0xaf: /* IMULregrm */ {
@@ -2194,6 +2203,7 @@ override: ;    /* single semicolon needed to attach label to */
 	    if (VM86F) goto not_permitted;
 	    ef2 = env->flags & (VM_FLAG|RF_FLAG);
 	    POPQUAD(temp);
+	    temp = (temp & 0xffff7fd5) | 2;
 	    BYTE_FLAG=0;
 	    trans_flags_to_interp(env, ((temp & ~(VM_FLAG|RF_FLAG)) | ef2));
 	    } PC += 1; goto next_switch;
@@ -2670,6 +2680,8 @@ override: ;    /* single semicolon needed to attach label to */
 		PUSHQUAD(ip); env->error_addr=cs&0xfffc; return P0; }
 	    POPQUAD(cs); cs &= 0xffff;
 	    POPQUAD(flags);
+	    /* skip reserved bits, in case of PUSH XX..POPF */
+	    flags = (flags & 0xffff7fd5) | 2;
 	    trans_flags_to_interp(env, flags);
 	    SHORT_CS_16 = (WORD)cs;
 	    PC = ip + LONG_CS;
@@ -3374,15 +3386,9 @@ segrep:
             	    longd = 2;
             	    PC+=1; goto segrep;
 		case ADDRoverride:	/* 0x67 */
-		    PC=P0-1;
+		    PC=P0;		/* re-parse all */
 		    code32 = 0;
-		    if (longd==2) {	/* 0x66 0x67 */
-			data32 = 0;
-			PC = hsw_interp_16_16 (env, P0, PC+1, err, 1);
-			data32 = 1;
-		    }
-		    else		/* 0x67 (0x66) */
-			PC = hsw_interp_32_16 (env, P0, PC+1, err);
+		    PC = hsw_interp_32_16 (env, P0, PC, err);
 		    code32 = 1;
 		    if (*err) return (*err==EXCP_GOBACK? PC:P0);
 		    goto next_switch;

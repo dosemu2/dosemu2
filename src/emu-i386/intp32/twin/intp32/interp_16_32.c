@@ -167,7 +167,8 @@ override:
 	    PUSHWORD(temp);
 	    } PC += 1; return (PC);
 /*0f*/	case TwoByteESC: {
-	    switch (*(PC+1)) {
+	    BYTE op;
+	    switch ((op=*(PC+1))) {
 		case 0x00: /* GRP6 */
 		    switch ((*(PC+2)>>3)&7) {
 			case 0: /* SLDT */ {
@@ -511,31 +512,34 @@ override:
                         }
                     }          
                     } return(PC);
-		case 0xa4: /* SHLDimm */ {
-		    /* Double Precision Shift Left */
-		    register DWORD temp; int count;
-		    PC++; PC += hsw_modrm_32_word(MODARGS);
-		    mem_ref = MEM_REF;
-		    count = *PC & 0xf; PC++;
-		    temp = *XREG1 | (mFETCH_WORD(mem_ref)<<16);
-		    temp >>= (16-count);
-		    mPUT_WORD(mem_ref, temp);
-		    /* flags: set S,Z,P - OF,AF undefined */
-		    RES_16 = temp;
-		    CARRY = (temp>>16) & 1;
-		    } return (PC);
+		case 0xa4: /* SHLDimm */
+		    /* Double Precision Shift Left by IMMED */
 		case 0xa5: /* SHLDcl */ {
 		    /* Double Precision Shift Left by CL */
-		    register DWORD temp; int count;
+		    unsigned int count;
 		    PC++; PC += hsw_modrm_32_word(MODARGS);
+		    if (op==0xa4)
+			{ count = *PC & 0x1f; PC++; }
+		    else
+			count = CL & 0x1f;
+		    if (count) {
+			register DWORD temp; WORD carry;
 		    mem_ref = MEM_REF;
-		    count = CL & 0xf;
-		    temp = *XREG1 | (mFETCH_WORD(mem_ref)<<16);
-		    temp >>= (16-count);
+			/* CF <- [dest(MEM_REF)][ src(REG1) ]
+			 * if C==0 no flag change
+			 * if C==1 change only OF
+			 * if C>1  OF undef,change CF
+			 * C modulo 32 */
+			/* combine into 32-bit int, low word=src high=dest */
+			temp = mFETCH_WORD(mem_ref);
+			if (count==1) SRC1_16=SRC2_16=temp;
+			temp = (temp<<16) | *XREG1;
+			carry = (temp >> (32-count)) & 1;
+			temp = (temp << count) >> 16;
 		    mPUT_WORD(mem_ref, temp);
-		    /* flags: set S,Z,P - OF,AF undefined */
 		    RES_16 = temp;
-		    CARRY = (temp>>16) & 1;
+			CARRY=carry;
+		    }
 		    } return (PC);
 		case 0xa6: /* CMPXCHGb */	/* NOT IMPLEMENTED !!!!!! */
 		case 0xa7: /* CMPXCHGw */	/* NOT IMPLEMENTED !!!!!! */
@@ -585,31 +589,34 @@ override:
                         }
                     }
                     } return(PC);
-		case 0xac: /* SHRDimm */ {
-		    /* Double Precision Shift Right by immediate */
-		    register DWORD temp; int count;
-		    PC++; PC += hsw_modrm_32_word(MODARGS);
-		    mem_ref = MEM_REF;
-		    count = *PC & 0xf; PC++;
-		    temp = (*XREG1<<16) | mFETCH_WORD(mem_ref);
-			    CARRY = (temp >> (count - 1)) & 1;
-		    temp >>= count;
-		    mPUT_WORD(mem_ref, temp);
-		    /* flags: set S,Z,P - OF,AF undefined */
-                        RES_16 = temp;
-		    } return (PC);
+		case 0xac: /* SHRDimm */
+		    /* Double Precision Shift Left by IMMED */
 		case 0xad: /* SHRDcl */ {
-		    /* Double Precision Shift Right by CL */
-		    register DWORD temp; int count;
+		    /* Double Precision Shift Left by CL */
+		    unsigned int count;
 		    PC++; PC += hsw_modrm_32_word(MODARGS);
-		    mem_ref = MEM_REF;
-		    count = CL & 0xf;
-		    temp = (*XREG1<<16) | mFETCH_WORD(mem_ref);
-			    CARRY = (temp >> (count - 1)) & 1;
-		    temp >>= count;
+		    if (op==0xac)
+			{ count = *PC & 0x1f; PC++; }
+		    else
+			count = CL & 0x1f;
+		    if (count>0 && count<32) {
+			register DWORD temp; WORD carry;
+			mem_ref = MEM_REF;
+			/* [ src(REG1) ][dest(MEM_REF)] -> CF
+			 * if C==0 no flag change
+			 * if C==1 change only OF
+			 * if C>1  OF undef,change CF
+			 * C modulo 32 */
+			/* combine into 32-bit int, low word=dest high=src */
+			temp = mFETCH_WORD(mem_ref);
+			if (count==1) SRC1_16=SRC2_16=temp;
+			temp |= (*XREG1 << 16);
+			carry = (temp >> (count-1)) & 1;
+			temp = (temp >> count);
 		    mPUT_WORD(mem_ref, temp);
-		    /* flags: set S,Z,P - OF,AF undefined */
                         RES_16 = temp;
+			CARRY=carry;
+		    }
 		    } return (PC);
                 case 0xaf: { /* IMULregrm */
                         int res, src1, src2;
@@ -1697,7 +1704,7 @@ override:
 	    DWORD temp=0;
 	    if (VM86F) goto not_permitted;
 	    POPWORD(temp);
-	    temp |= (env->flags & 0xffff0000);
+	    temp = (temp & 0x7fd5) | (env->flags & 0xffff0000) | 2;
 	    BYTE_FLAG=0;
 	    trans_flags_to_interp(env, temp);
 	    } PC += 1; return (PC);
@@ -2871,49 +2878,6 @@ segrep:
 			}
 			return (PC);
 		    }
-#ifndef DOSEMU
-		    if ((transfer_magic == TRANSFER_CALLBACK) ||
-				(transfer_magic == TRANSFER_BINARY))  {
-			LONGPROC conv,targ;
-			SEGIMAGE *lpSegImage = &((SEGIMAGE *)
-				(*(long *)(SELECTOR_PADDRESS(jcs))))[jip>>3];
-			/* should we transfer flags here? */
-			/* trans_interp_flags(env); */
-			targ = (LONGPROC)lpSegImage->targ;
-			conv = (LONGPROC)lpSegImage->conv;
-			/* EBP = EBP + (long)LONG_SS;
-			   ESP = ESP + (long)LONG_SS; why not? */
-			if (transfer_magic == TRANSFER_CALLBACK) {
-#ifndef	NO_TRACE_MSGS
-			    e_printf("do_ext: %s\n",GetProcName(jcs,jip>>3));
-#endif
-			}
-#ifndef	NO_TRACE_MSGS
-			else    /* TRANSFER_BINARY */
-			    e_printf("do_ext: calling binary thunk %x:%x\n",
-			    	(int)jcs, (int)jip);
-#endif
-			(conv)(env,targ);
-			SET_SEGREG(LONG_CS,BIG_CS,MK_CS,SHORT_CS_16);
-			SET_SEGREG(LONG_DS,BIG_DS,MK_DS,SHORT_DS_16);
-			SET_SEGREG(LONG_ES,BIG_ES,MK_ES,SHORT_ES_16);
-			SET_SEGREG(LONG_SS,BIG_SS,MK_SS,SHORT_SS_16);
-			/* trans_flags_to_interp(env, env->flags); */
-			/* EBP = EBP - (long)LONG_SS;
-			   ESP = ESP - (long)LONG_SS; why not? */
-			/* PC = LONG_CS + jip; */
-			PC += 5; return (PC);
-		    }
-		    if (transfer_magic == TRANSFER_RETURN) {
-			SHORT_CS_16 = jcs;
-			env->return_addr = (jcs << 16) | jip;
-			trans_interp_flags(env);    
-			EBP = EBP + (long)LONG_SS;
-			ESP = ESP + (long)LONG_SS;
-			*err = EXCP_GOBACK;  /* to exit interp_main loop */
-			return (PC);
-		    }
-#endif
 		    else
 			invoke_data(env);   
 		}
@@ -2948,14 +2912,14 @@ bad_override:
 #endif
 	FatalAppExit(0, "SIZE");
 	exit(1);
-
+/*
 bad_data:
 	d_emu=9;
 	e_printf(" 16/16 bad code/data at %4x:%4x long PC %x\n",
 		SHORT_CS_16,P0-LONG_CS,(int)P0);
 	FatalAppExit(0, "OOPS");
 	exit(1);
-
+*/
 not_permitted:
 #ifdef DOSEMU
 	*err = EXCP0D_GPF; return P0;

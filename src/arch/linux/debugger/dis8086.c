@@ -749,7 +749,7 @@ int  dis_8086(unsigned int org,
 
 	    case 0xa5:
 	      d86_printf("shld    ");
-	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      code = mod_reg_rm_r(code, seg, wreg, wreg, addr32);
 	      d86_printf(",cl");
 	      break;
 
@@ -769,7 +769,7 @@ int  dis_8086(unsigned int org,
 
 	    case 0xad:
 	      d86_printf("shrd    ");
-	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      code = mod_reg_rm_r(code, seg, wreg, wreg, addr32);
 	      d86_printf(",cl");
 	      break;
 	
@@ -1538,7 +1538,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xd7:
-	  d86_printf("xlatb");
+	  d86_printf("xlatb %s", seg);
 	  break;
 	
         case 0xd8:

@@ -104,7 +104,7 @@ pic0_to_emu(char flags)
     long            result;
     __asm__         __volatile__("movzbl %1,%0\n\t
 				 shll $13, %0\n\t
-				 sarw $7, %0\n\t
+				 sarw $7, %w0\n\t
 				 shrl $5, %0 " 
 				 :"=r"           (result):"r"(flags));
     return result;
@@ -122,7 +122,7 @@ emu_to_pic0(long flags)
     /* where 76543210 are final 8 bits and x = don't care            */
 
     __asm__         __volatile__("shll $6,%0\n\t
-				 shlw $7, %0\n\t
+				 shlw $7, %w0\n\t
 				 shrl $14, %0 " 
 				 :"=r"           (flags):"0"(flags));
     return flags;

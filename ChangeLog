@@ -1,3 +1,12 @@
+99/07/07 ver. 0.99.12.3 unofficial pre-release
+	From Alberto
+	- dosdebug.c: Add segment to XLAT. Correct order of src/dest for
+	  SHLD/SHRD.
+	- several assembler fixes (warnings from newest as in binutils 2.9.4).
+	  The first one in vesabios_pm.S was probably a bug too.
+	- cpuemu bugfixes: SLHD,SHRD were wrong in 16-bit modes. Also jumps
+	  in REP from/to 16_16/32_32 could cause an infinite loop. Adjust
+	  reserved bits in flag word in the case of PUSH.
 99/07/03 ver. 0.99.12.2 unofficial pre-release
 	From Steffen
 	- workaround for egcs bug (at least up to egcs-2.91.66).
