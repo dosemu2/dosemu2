@@ -1734,6 +1734,10 @@ static void X_handle_events(void)
 	  break;
 
 	case KeyRelease:
+	  if (keyrel_pending) {
+	    X_printf("X: duplicate KeyRelease event???\n");
+	    X_process_key(&rel_evt.xkey);
+	  }
 	  rel_evt = e;
 	  keyrel_pending = 1;
 	  break;
