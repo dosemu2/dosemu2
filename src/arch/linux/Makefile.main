@@ -55,10 +55,8 @@ DOCS= $(REALTOPDIR)/man
 
 LIBPATH=lib
 
-default: version include/confpath.h doslibnew \
+default: version include/confpath.h doslib \
 	../etc/xtermdos ../etc/xinstallvgafont
-
-all:	dosemu
 
 debug:
 	rm $(BINPATH)/bin/$(DOSBIN)
@@ -129,10 +127,7 @@ include/confpath.h: ../Makefile.conf
 	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
 	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 
-doslibnew: doslib
-
-
-doslib: $(REQUIRED) all
+doslib: $(REQUIRED) dosemu
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""

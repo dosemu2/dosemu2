@@ -9,6 +9,8 @@
 # install DOSEMU.
 #
 
+all: default
+
 CFILES  = emu.c dos.c dosstatic.c
 OBJS    = emu.o
 

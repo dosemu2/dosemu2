@@ -53,8 +53,14 @@ global_c.c : ../../../etc/global.conf
 	    -e 's/^/"/g' -e 's/$$/\\n\"\\/g' $< >> $@
 	echo ';' >> $@
 
+ifeq ($(srcdir),.)
+    mkpluginhooksdir=.
+else
+    mkpluginhooksdir=$(REALTOPDIR)
+endif
+
 parser.y: parser.y.in
-	cd ../../..; $(REALTOPDIR)/mkpluginhooks parser
+	cd ../../..; $(mkpluginhooksdir)/mkpluginhooks parser
 
 parser.h: parser.c
 
@@ -62,7 +68,7 @@ parser.c : parser.y
 	$(YACC) -v -do $@  $<
 
 lexer.l: lexer.l.in
-	cd ../../..; $(REALTOPDIR)/mkpluginhooks lexer
+	cd ../../..; $(mkpluginhooksdir)/mkpluginhooks lexer
 
 lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 

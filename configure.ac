@@ -351,11 +351,11 @@ if test -x $srcdir/mkpluginhooks; then
       cd src
       for i in `cat ../plugin_incdirs`; do
         if test -f ../configure.ac; then
-          for j in $i/*; do
+          for j in $i/*.h; do
             ln -sf ../../$j plugin/include/`basename $j`
           done
         else
-          for j in $srcdir/src/$i/*; do
+          for j in $srcdir/src/$i/*.h; do
             ln -sf $j plugin/include/`basename $j`
           done 
         fi
