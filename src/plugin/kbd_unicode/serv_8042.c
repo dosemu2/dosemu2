@@ -31,7 +31,7 @@
 #include "keyb_server.h"
 #include "keyb_clients.h"
 #include "speaker.h"
-#include "dosio.h"
+#include "hma.h"
 
 
 /* accurate emulation of special 8042 and keyboard commands - currently untested...

@@ -52,7 +52,6 @@
 #include "memory.h"
 #include "termio.h"
 #include "mouse.h"
-#include "dosio.h"
 #include "machcompat.h"
 #include "bios.h"
 #include "port.h"

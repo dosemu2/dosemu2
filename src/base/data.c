@@ -16,7 +16,7 @@
 #include "disks.h"
 #include "timers.h"
 #include "int.h"
-#include "dosio.h"
+#include "hma.h"
 #include "termio.h"
 #include "machcompat.h"
 #include "vc.h"

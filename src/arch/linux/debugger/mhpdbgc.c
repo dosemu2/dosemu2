@@ -63,7 +63,7 @@
 #include "dpmi.h"
 #include "utilities.h"
 #include "dosemu_config.h"
-#include "xms.h"
+#include "hma.h"
 #include "dis8086.h"
 
 #define MHP_PRIVATE

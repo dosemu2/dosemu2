@@ -53,7 +53,6 @@
 #include "port.h"
 #include "int.h"
 #include "hgc.h"
-#include "dosio.h"
 #include "disks.h"
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "keymaps.h"

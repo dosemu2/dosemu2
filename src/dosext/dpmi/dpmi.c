@@ -55,7 +55,6 @@
 #ifdef USE_MHPDBG
 #include "mhpdbg.h"
 #endif
-#include "dosio.h"
 
 #if 0
 #define SHOWREGS

@@ -32,7 +32,6 @@
 
 #include "emu.h"
 #include "pktdrvr.h"
-#include "dosio.h"
 #include "memory.h"
 #include "int.h"
 #include "bios.h"

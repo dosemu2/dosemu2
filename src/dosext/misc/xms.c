@@ -33,7 +33,7 @@
 #include "config.h"
 #include "memory.h"
 #include "xms.h"
-#include "dosio.h"
+#include "hma.h"
 #include "machcompat.h"
 
 #undef  DEBUG_XMS
@@ -72,8 +72,9 @@ static char RCSxms[] = "$Header$";
 #define XMS_INVALID_HANDLE		0xa2
 
 
-int a20 = 0;
-int freeHMA = 1;		/* is HMA free? */
+static int a20_local = 0;
+static int a20_global = 0;
+static int freeHMA = 1;		/* is HMA free? */
 
 static struct Handle handles[NUM_HANDLES + 1];
 static int handle_count = 0;
@@ -407,7 +408,6 @@ xms_init(void)
 
   umb_setup();
 
-  a20 = 0;
   xms_grab_int15 = 0;
 
   handle_count = 0;
@@ -470,33 +470,33 @@ xms_control(void)
 
   case 3:			/* Global Enable A20 */
     x_printf("XMS global enable A20\n");
-    if (!a20)
+    if (!a20_global)
       set_a20(1);		/* map in HMA */
-    a20 = 1;
+    a20_global = 1;
     LWORD(eax) = 1;
     break;
 
   case 4:			/* Global Disable A20 */
     x_printf("XMS global disable A20\n");
-    if (a20)
+    if (a20_global)
       set_a20(0);
-    a20 = 0;
+    a20_global = 0;
     LWORD(eax) = 1;
     break;
 
   case 5:			/* Local Enable A20 */
     x_printf("XMS LOCAL enable A20\n");
-    a20++;
-    if (a20 == 1)
+    if (!a20_local)
       set_a20(1);
+    a20_local++;
     LWORD(eax) = 1;
     break;
 
   case 6:			/* Local Disable A20 */
     x_printf("XMS LOCAL disable A20\n");
-    if (a20)
-      a20--;
-    if (a20 == 0)
+    if (a20_local)
+      a20_local--;
+    if (!a20_local)
       set_a20(0);
     LWORD(eax) = 1;
     break;

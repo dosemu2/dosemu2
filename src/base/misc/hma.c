@@ -15,15 +15,8 @@
 #include <errno.h>
 #include "memory.h"
 #include "emu.h"
-#include "dosio.h"
+#include "hma.h"
 #include "mapping.h"
-
-/* my test shared memory IDs */
-static struct {
-  int 			/* normal mem if idt not attached at 0x100000 */
-  hmastate;		/* 1 if HMA mapped in, 0 if idt mapped in */
-}
-sharedmem;
 
 #define HMAAREA (u_char *)0x100000
 
@@ -32,28 +25,28 @@ void HMA_MAP(int HMA)
   caddr_t ipc_return;
   /* Note: MAPPING_HMA is magic, dont be confused by src==dst==HMAAREA here */
   u_char *src = HMA ? HMAAREA : 0;
-  E_printf("Entering HMA_MAP with HMA=%d\n", HMA);
+  x_printf("Entering HMA_MAP with HMA=%d\n", HMA);
 
   if (munmap_mapping(MAPPING_HMA, HMAAREA, HMASIZE) < 0) {
-    E_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
+    x_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
     leavedos(48);
   }
-  E_printf("HMA: detached at %p\n", HMAAREA);
+  x_printf("HMA: detached at %p\n", HMAAREA);
 
   ipc_return = mmap_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
     PROT_READ | PROT_WRITE | PROT_EXEC, src);
   if ((int)ipc_return == -1) {
-    E_printf("HMA: Mapping HMA to HMAAREA %p unsuccessful: %s\n",
+    x_printf("HMA: Mapping HMA to HMAAREA %p unsuccessful: %s\n",
 	       HMAAREA, strerror(errno));
     leavedos(47);
   }
-  E_printf("HMA: mapped to %p\n", ipc_return);
+  x_printf("HMA: mapped to %p\n", ipc_return);
 }
 
 void
 set_a20(int enableHMA)
 {
-  if (sharedmem.hmastate == enableHMA) {
+  if (a20 == enableHMA) {
     g_printf("WARNING: redundant %s of A20!\n", enableHMA ? "enabling" :
 	  "disabling");
     return;
@@ -65,14 +58,14 @@ set_a20(int enableHMA)
    */
   HMA_MAP(enableHMA);
 
-  sharedmem.hmastate = enableHMA;
+  a20 = enableHMA;
 }
 
 void HMA_init(void)
 {
   /* initially, no HMA */
   HMA_MAP(0);
-  sharedmem.hmastate = 0;
+  a20 = 0;
 }
 
 

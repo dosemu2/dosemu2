@@ -104,7 +104,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "timers.h"
 #include "cmos.h"
 #include "mouse.h"
-#include "dosio.h"
 #include "disks.h"
 #include "xms.h"
 #include "hgc.h"

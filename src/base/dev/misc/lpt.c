@@ -20,7 +20,6 @@
 #include <sys/wait.h>
 
 #include "emu.h"
-#include "dosio.h"
 #include "lpt.h"
 #include "utilities.h"
 #include "dos2linux.h"
