@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <fcntl.h>
 #include <termios.h>
 #include <string.h>
 #include <errno.h>
@@ -16,6 +17,7 @@ static int kbcount = 0;
 static Bit8u kbbuf[KBBUF_SIZE];
 static Bit8u *kbp;
 
+static int save_kbd_flags = -1;	/* saved flags for STDIN before our fcntl */
 static struct termios save_termios;
 static Bit8u erasekey;
 
@@ -629,17 +631,6 @@ void do_slang_getkeys(void)
     Keystr_Len = 0;
     KeyNot_Ready = 0;
     key = SLang_do_key(The_Normal_KeyMap, getkey_callback);
-#if 0 /* LERMEN
-       * NOTE: The 'must-type-ESC-twice-thing' seems to happen here,
-       *       After pressing the first ESC, SLang_do_key() doesn't return
-       *       until the second key is pressed.
-       *       This obviously has to do with the 'dead keys for accents'
-       *       in the new keyboard code.
-       *       ( don't know Slang enough to further trace this down )
-       *       -- Hans 970217
-       */
-    k_printf("KBD: back from SLang_do_key %d\n", KeyNot_Ready);
-#endif
     SLang_Error = 0;
 
     if (KeyNot_Ready) {
@@ -824,6 +815,8 @@ int slang_keyb_init(void) {
    
   /* XXX - x2dos doesn't make sense with SLANG, does it? */
   kbd_fd = STDIN_FILENO;
+  save_kbd_flags = fcntl(kbd_fd, F_GETFL);
+  fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
    
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     error("ERROR: slang_keyb_init(): Couldn't tcgetattr(kbd_fd,...) !\n");
@@ -868,6 +861,9 @@ int slang_keyb_init(void) {
 void slang_keyb_close(void)  {
    if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) == -1) {
       error("ERROR: slang_keyb_close(): failed to restore keyboard termios settings!\n");
+   }
+   if (save_kbd_flags != -1) {
+      fcntl(kbd_fd, F_SETFL, save_kbd_flags);
    }
 }
 

@@ -60,7 +60,10 @@ int set_video_mode(int mode);  /* root@sjoerd from int10.c,dangerous*/
 
 
 /* **************** Include files **************** */
-
+#include <features.h>
+#if __GLIBC__ > 1
+#include <sigcontext.h>
+#endif
 #include <sys/mman.h>
 #include "cpu.h"        /* root@sjoerd: for context structure */
 

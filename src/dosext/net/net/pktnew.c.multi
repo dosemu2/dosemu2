@@ -19,7 +19,7 @@
  *              Now we can run tcp/ip stuff (netscape eudora etc) in
  *              "dosemu windoze".  See README.winnet.
  */
-
+#include <features.h>
 #include "emu.h"
 #include "pktdrvr.h"
 #include "emu.h"
@@ -29,7 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#if __GLIBC__ > 1
+#include <netinet/if_ether.h>
+#else
 #include <linux/if_ether.h>
+#endif
 /* flag to activate use of pic by packet driver */
 #if 0
 #define PICPKT 1

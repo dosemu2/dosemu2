@@ -1153,7 +1153,7 @@ int13(u_char i)
       HI(cx) = (dp->tracks - 1) & 0xff;
 
       LO(dx) = (disk < 0x80) ? FDISKS : HDISKS;
-      LO(cx) = dp->sectors | ((dp->tracks & 0x300) >> 2);
+      LO(cx) = dp->sectors | (((dp->tracks -1) & 0x300) >> 2);
       LO(ax) = 0;
       HI(ax) = DERR_NOERR;
       REG(eflags) &= ~CF;	/* no error */

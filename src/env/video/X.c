@@ -79,6 +79,11 @@
  * 1997/03/03: Added code to turn off MIT-SHM for network connections.
  * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *              
+ * 1997/06/06: Fixed the code that was supposed to turn off MIT-SHM for
+ * network connections. Thanks to Leonid V. Kalmankin <leonid@cs.msu.su>
+ * for finding the bug and testing the fix.
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ *              
  * DANG_END_CHANGELOG
  */
 
@@ -189,6 +194,7 @@ extern void X_process_key(XKeyEvent *);
 #ifdef HAVE_MITSHM
 /* keep this global -- sw */
 int (*OldXErrorHandler)(Display *, XErrorEvent *) = NULL;
+int shm_error_base = 0;
 int shm_failed = 0;
 #endif
 
@@ -884,7 +890,7 @@ static void EXPutImage(Display *display, Drawable d, GC gc, XImage *image,
 #ifdef HAVE_MITSHM
 int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 {
-        if(xev->request_code == 129) {
+        if(xev->request_code == shm_error_base + 1) {
         X_printf("X::NewXErrorHandler: error using shared memory\n");
                 shm_failed++;
         }
@@ -892,6 +898,32 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
                 return OldXErrorHandler(dsp, xev);
         }
         return 0;
+}
+
+void X_shm_init()
+{
+  int major_opcode, event_base, major_version, minor_version;
+  Bool shared_pixmaps;
+
+  shm_failed = 1;
+
+  if(!config.X_mitshm) return;
+
+  if(!XQueryExtension(display, "MIT-SHM", &major_opcode, &event_base, &shm_error_base)) {
+    X_printf("X: server does not support MIT-SHM\n");
+    return;
+  }
+
+  X_printf("X: MIT-SHM ErrorBase: %d\n", shm_error_base);
+
+  if(!XShmQueryVersion(display, &major_version, &minor_version, &shared_pixmaps)) {
+    X_printf("X: XShmQueryVersion() failed\n");
+    return;
+  }
+
+  X_printf("X: using MIT-SHM\n");
+
+  shm_failed = 0;
 }
 #endif
 
@@ -932,6 +964,11 @@ static int X_init(void)
    
   screen=DefaultScreen(display);
   rootwindow=RootWindow(display,screen);
+
+#ifdef HAVE_MITSHM
+  X_shm_init();
+#endif
+
   get_vga_colors();
   get_vga256_colors();
 

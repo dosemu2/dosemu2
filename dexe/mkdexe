@@ -119,6 +119,8 @@ if [ -z $1 ]; then
   usage
 fi
 
+THISDIR=`pwd -P`
+
          # ISBINRELEASE will be changed to 1 (via sed) for bin releases
 if [ "ISBINRELEASE" = "1" ]; then
   DDIR=/var/lib/dosemu
@@ -239,6 +241,9 @@ fi
 #
 mkdir -p ${TMP}/app
 if [ "$NOAPP" = "0" ]; then
+  if [ "${DOSAPP#/}" = "$DOSAPP" ]; then
+    DOSAPP="${THISDIR}/${DOSAPP}"
+  fi
   if [ "$APPTYPE" = "zip" ]; then
     (cd ${TMP}/app; if ! unzip $DOSAPP; then exit 1; fi)
   else
@@ -274,19 +279,14 @@ if [ "$(( $MINSIZE < $PARTSIZE ))" = "1" ]; then
   MINSIZE="$PARTSIZE"
 fi
 
-MINTRACKS=`echo "$(( ($MINSIZE + ( CYLINDERSIZE - 1 ) ) / $CYLINDERSIZE ))"`
-#echo "$MINTRACKS $CYLINDERSIZE $MINSIZE = $(( $MINTRACKS * $CYLINDERSIZE)) Kbytes"
+# padding with zero, because mtools currently  can't expand the disk
+PADDING_OPT="-p"
 
 # we create the bootable hdimage
 _COMCOM=$COMCOM
 if [ "$_COMCOM" != "" ]; then _COMCOM=${DOSPART}/${COMCOM};fi
-$MKFAT -b ${DOSPART}/$BOOTSEC -t $MINTRACKS\
-   ${DOSPART}/${IOSYS} ${DOSPART}/${MSDOS} ${_COMCOM} \
-   $EXITEMU > $APP_HDIMAGE
-
-# padding with zero, because mtools currently  can't expand the disk
-PADDINGSIZE="$(( ($MINTRACKS * $CYLINDERSIZE ) - `fsize $APP_HDIMAGE` ))"
-dd if=/dev/zero bs=1024 count=$PADDINGSIZE 2>/dev/null |cat >> $APP_HDIMAGE
+$MKFAT -b ${DOSPART}/$BOOTSEC -k $MINSIZE $PADDING_OPT -f $APP_HDIMAGE \
+   ${DOSPART}/${IOSYS} ${DOSPART}/${MSDOS} ${_COMCOM} $EXITEMU
 
 # now we copy the whole application tree onto it,
 # we use a modified version of mtools 'xcopy' script for that

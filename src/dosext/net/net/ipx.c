@@ -456,7 +456,17 @@ IPXOpenSocket(u_short port, u_short * newPort)
   }
   /* allow setting the type field in the IPX header */
   opt = 1;
+#if 0 /* this seems to be wrong: IPX_TYPE can only be set on level SOL_IPX */
   if (setsockopt(sock, SOL_SOCKET, IPX_TYPE, &opt, sizeof(opt)) == -1) {
+#else
+  /* the socket _is_ an IPX socket, hence it first passes ipx_setsockopt()
+   * in file linux/net/ipx/af_ipx.c. This one handles SOL_IPX itself and
+   * passes SOL_SOCKET-levels down to sock_setsockopt().
+   * Hence I guess the below is correct (can somebody please verify this?)
+   * -- Hans, June 14 1997
+   */
+  if (setsockopt(sock, SOL_IPX, IPX_TYPE, &opt, sizeof(opt)) == -1) {
+#endif
     leave_priv_setting();
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for type.\n");

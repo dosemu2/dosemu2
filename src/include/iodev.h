@@ -1,6 +1,7 @@
 #ifndef _EMU_IODEV_H
 #define _EMU_IODEV_H
 
+#include <features.h>
 #if __GLIBC__ > 1 
 #include <sys/time.h>
 #else

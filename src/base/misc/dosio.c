@@ -11,7 +11,7 @@
                         gettimeofday(&tv,NULL);\
                         fprintf(stderr,"%c %06d:%06d\n",x,(int)tv.tv_sec,(int)tv.tv_usec);\
                    }
-
+#include <features.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -20,7 +20,11 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #ifndef __NetBSD__
+#if __GLIBC__ > 1
+#include <netinet/if_ether.h>
+#else
 #include <linux/if_ether.h>
+#endif
 #endif
 #include <signal.h>
 #include <stdlib.h>
@@ -32,6 +36,10 @@
 #include <string.h>
 #include <termios.h>			/* for mouse.h */
 #ifdef __NetBSD__
+#include <features.h>
+#endif
+#if __GLIBC__ > 1
+#include <features.h>
 #include <sys/mman.h>
 #else
 #define MAP_ANON MAP_ANONYMOUS

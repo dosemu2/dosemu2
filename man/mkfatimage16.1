@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH MKFATIMAGE16 1 "May 17, 1997" "Version ALPHA 0.66.5" "Make HDIMAGE for DOSEMU"
+.TH MKFATIMAGE16 1 "June 14, 1997" "Version ALPHA 0.66.6" "Make HDIMAGE for DOSEMU"
 .SH NAME
 mkfatimage16 \- generate a virtual drive image suitable for DOSEMU
 .SH SYNOPSIS
@@ -7,30 +7,51 @@ mkfatimage16 \- generate a virtual drive image suitable for DOSEMU
 [
 .B \-b bsectfile
 ]
-[
+[{
 .B \-t tracks
-]
+|
+.B \-k Kbytes
+}]
 [
 .B \-l volume-label
+]
+[
+.B \-f outfile
+]
+[
+.B \-p
 ]
 [
 .B file...
 ]
 .SH DESCRIPTION
-.B mkfatimage
+.B mkfatimage16
 creates a hdimage file for
 .BR DOSEMU
 that is pre-loaded with the files specified on the command line.
-The output is written to
+The output is either written to
 .I stdout
-, hence do not forget to append " > hdimagefile", else you will see garbage
-on the screen.
-This file then can be used as a virtual drive, when defined in
+( hence do not forget to append " > hdimagefile", else you will see garbage
+on the screen ) or to the file specified by the
+.B \-f
+option. For the later you may also use option
+.B \-p
+in order to force padding up to the given size. This padding will result
+in socalled holes on an ext2-FS, hence the actual diskusage will not be
+greater.
+The file created by mkfatimage16 then can be used as a virtual drive, when defined in
 .I /etc/dosemu.conf.
-The number of heads is always 4 and you have 17 sectors per head.
-To vary the size, you may use the
+As long as
+.B \-k
+is not given, the number of heads is always 4 and you have 17 sectors per head
+else it is adjusted accordingly.
+To vary the size, you may either use the
 .B \-t
-option. All files given behind the options will be copied onto the
+option or specify the total amount of Kbytes via
+.B \-k
+option.
+
+All files given behind the options will be copied onto the
 hdimage. In addition a
 .BR DOSEMU
 suitable masterboot record (MBR) is established and via option
@@ -58,12 +79,37 @@ into the bootsector of the partition.
 .I \-t num
 Make the virtual disk have
 .I num
-tracks. This is the only way to define the size of the disk.
+tracks. This is the one way to define the size of the disk.
+.TP
+.I \-k Kbytes
+Make the virtual disk be
+.I Kbytes
+in size. Using
+.I \-t
+and
+.I \-k
+are mutual exclusive.
 .TP
 .I \-l label
 insert
 .I label
 as volume label for the disk.
+.TP
+.I \-f outfile
+The hdimage is written to
+.I outfile
+instead of
+.I stdout
+.TP
+.I \-p
+Pad the hdimage with zero up to the total size given by
+.I \-t
+or
+.I \-k
+( only in conjunction with
+.I \-f
+).
+
 
 
 .SH AUTHOR

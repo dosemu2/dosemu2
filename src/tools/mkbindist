@@ -146,9 +146,9 @@ pushd ${DIR}/var/lib/dosemu >/dev/null
 cat > doinstall.sh <<EOF
 #! /bin/bash
 ( cd /usr/X11R6/lib/X11/fonts/misc; mkfontdir . )
-( cd /var/lib/dosemu; mkfatimage16 -b dosC/boot.bin -l DOSEMU \
-	dosC/ipl.sys dosC/kernel.exe dosC/command.com \
-	commands/* >hdimage.test )
+( cd /var/lib/dosemu; mkfatimage16 -b dosC/boot.bin -p -f hdimage.test \
+	-l DOSEMU dosC/ipl.sys dosC/kernel.exe dosC/command.com \
+	commands/* )
 EOF
 popd >/dev/null
 

@@ -1,6 +1,18 @@
 #ifndef __MACROS86_H_
 #define __MACROS86_H_
 
+#define SIM_INT(n,rtnlabel) \
+	push ds !!!\
+	push #0 !!!\
+	pop ds !!!\
+	pushf !!!\
+	push cs !!!\
+	push #rtnlabel !!!\
+	push word ptr [(4*n)+2] !!!\
+	push word ptr [(4*n)] !!!\
+	retf !!!\
+	rtnlabel: pop ds
+
 #define FILL_BYTE(x,v) .REPT x db v!!!.ENDR
 #define FILL_DWORD(x,v) .REPT x dd v!!!.ENDR
 #define FILL_WORD(x,v) .REPT x dw v!!!.ENDR

@@ -88,7 +88,12 @@
  * take effect only after some time...
  * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *
+ * 1997/06/06: Fixed the code that was supposed to turn off MIT-SHM for
+ * network connections. Thanks to Leonid V. Kalmankin <leonid@cs.msu.su>
+ * for finding the bug and testing the fix.
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *              
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -199,6 +204,7 @@ static int (*OldXErrorHandler)(Display *, XErrorEvent *) = NULL;
 
 #ifdef HAVE_MITSHM
 static int shm_ok = 0;
+static int shm_error_base = 0;
 static XShmSegmentInfo shminfo;
 #endif
 
@@ -792,7 +798,7 @@ void put_ximage(int src_x, int src_y, int dest_x, int dest_y, unsigned width, un
 
 int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 {
-  if(xev->request_code == 129) {
+  if(xev->request_code == shm_error_base + 1) {
 #ifdef HAVE_MITSHM
     X_printf("X::NewXErrorHandler: error using shared memory\n");
     shm_ok = 0;
@@ -913,19 +919,19 @@ void resize_ximage(unsigned width, unsigned height)
 #ifdef HAVE_MITSHM
 void X_shm_init()
 {
-  int major_opcode, event_base, error_base, major_version, minor_version;
+  int major_opcode, event_base, major_version, minor_version;
   Bool shared_pixmaps;
 
   shm_ok = 0;
 
   if(!config.X_mitshm) return;
 
-  if(!XQueryExtension(display, "MIT-SHM", &major_opcode, &event_base, &error_base)) {
+  if(!XQueryExtension(display, "MIT-SHM", &major_opcode, &event_base, &shm_error_base)) {
     X_printf("X: server does not support MIT-SHM\n");
     return;
   }
 
-  X_printf("X: MIT-SHM ErrorBase: %d\n", error_base);
+  X_printf("X: MIT-SHM ErrorBase: %d\n", shm_error_base);
 
   if(!XShmQueryVersion(display, &major_version, &minor_version, &shared_pixmaps)) {
     X_printf("X: XShmQueryVersion() failed\n");

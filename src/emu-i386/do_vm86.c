@@ -6,7 +6,7 @@
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
-
+#include <features.h>
 #include <stdio.h>
 #include <termios.h>
 #include <stdlib.h>
@@ -37,7 +37,11 @@
 #include "netbsd_vm86.h"
 #endif
 #ifdef __linux__
+#if __GLIBC__ > 1
+#include <sys/vt.h>
+#else
 #include <linux/vt.h>
+#endif
 #include <linux/fd.h>
 #include <linux/hdreg.h>
 #include <sys/vm86.h>

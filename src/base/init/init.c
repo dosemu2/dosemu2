@@ -1,3 +1,4 @@
+#include <features.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -12,9 +13,15 @@
 #include <errno.h>
 
 #ifdef __linux__
+#if __GLIBC__ > 1
+#include <sys/utsname.h>
+#define new_utsname utsname
+#else
 #include <linux/config.h>
 #include <linux/utsname.h>
-#endif
+#endif /* __GLIBC__ */
+#endif /* __linux__ */
+
 #ifdef __NetBSD__
 #include <sys/utsname.h>
 #define new_utsname utsname

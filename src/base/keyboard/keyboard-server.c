@@ -14,18 +14,22 @@
  *
  *
  */
-
+#include <features.h>
 #include <unistd.h>
 #include <termios.h>
 #include <fcntl.h>
 #include <errno.h>
-#ifdef __linux__
+#ifdef __linux__  
+#if __GLIBC__ > 1
+#include <sys/vt.h>
+#include <sys/kd.h>
+#else            
 #include <linux/vt.h>
 #include <linux/kd.h>
-#if ! (__GLIBC__ > 1)
 #include <linux/time.h>
 #endif
 #endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef __NetBSD__

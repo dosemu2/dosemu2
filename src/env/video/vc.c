@@ -19,7 +19,7 @@
  *
  */
 
-
+#include <features.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -34,17 +34,26 @@
 #include <sys/mman.h>
 #endif
 #ifdef __linux__
+#ifndef __GLIBC__
 #define MAP_ANON MAP_ANONYMOUS
 extern caddr_t mmap __P ((caddr_t __addr, size_t __len,
 			  int __prot, int __flags, int __fd, off_t __off));
 extern int munmap __P ((caddr_t __addr, size_t __len));
 #include <linux/mman.h>
+#else
+#include <sys/mman.h>
+#endif
 #endif
 #include <signal.h>
 #include <sys/stat.h>
 #ifdef __linux__
+#if __GLIBC__ > 1
+#include <sys/vt.h>
+#include <sys/kd.h>
+#else
 #include <linux/vt.h>
 #include <linux/kd.h>
+#endif
 #endif
 #ifdef __NetBSD__
 #include <machine/pcvt_ioctl.h>

@@ -19,24 +19,30 @@
  * - There's no real boot sector code, just "dosemu exit" call.
  * 
  */
-
+#include <features.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-
+#if __GLIBC__ > 1
+#include <errno.h>
+#endif
 
 /* These can be changed -- at least in theory. In practise, it doesn't
  * seem to work very well (I don't know why). 
  */
 #define SECTORS_PER_TRACK 17
 #define HEADS 4
+long sectors_per_track = SECTORS_PER_TRACK;
+long heads = HEADS;
 long tracks = 36;
 long clusters;
 long sectors_per_fat;
+long total_file_size = 0;
 long p_starting_head = 1;
 long p_starting_track = 0;
 long p_starting_sector = 1;
@@ -44,6 +50,7 @@ long p_starting_absolute_sector = SECTORS_PER_TRACK;
 long p_ending_head = HEADS-1;
 long p_ending_track;
 long p_ending_sector = SECTORS_PER_TRACK;
+
 /* Track 0, head 0 is reserved. */
 /* Minus 1 for head 0, track 0 (partition table plus empty space). */
 long p_sectors;
@@ -61,11 +68,13 @@ long bytes_per_cluster;
 #define P_TYPE_12BIT 0x01
 /* File system: 16-bit FAT */
 #define P_TYPE_16BIT 0x04
+/* File system: 16-bit FAT and sectors > 65535 */
+#define P_TYPE_32MB  0x06
 #define BYTES_PER_SECTOR 512
 #define MEDIA_DESCRIPTOR 0xf8
 #define FAT_COPIES 2
 #define RESERVED_SECTORS 1
-#define HIDDEN_SECTORS SECTORS_PER_TRACK
+#define HIDDEN_SECTORS sectors_per_track
 #define SECTORS_PER_ROOT_DIRECTORY ((ROOT_DIRECTORY_ENTRIES*32)/BYTES_PER_SECTOR)
 
 
@@ -79,6 +88,7 @@ struct input_file
   int size_in_clusters;
 };
 
+static FILE *outfile = stdout;
 static char *bootsect_file=0;
 static struct input_file input_files[ROOT_DIRECTORY_ENTRIES];
 static int input_file_count = 0;
@@ -109,7 +119,23 @@ static void clear_buffer(void)
 /* Write the sector buffer to disc. */
 static void write_buffer(void)
 {
-  fwrite(buffer, 1, BYTES_PER_SECTOR, stdout);
+  fwrite(buffer, 1, BYTES_PER_SECTOR, outfile);
+}
+
+static void close_exit(int errcode)
+{
+  if (outfile != stdout) {
+    if (total_file_size) {
+      /* we need padding,
+       * but doing it this way it will make holes on an ext2-fs,
+       * hence the _actual_ disk usage will not be greater.
+       */
+      fseek(outfile, total_file_size-1, SEEK_SET);
+      fwrite("",1,1,outfile);
+    }
+    fclose(outfile);
+  }
+  exit(errcode);
 }
 
 /* Set a FAT entry 'n' to value 'data'. */
@@ -126,12 +152,12 @@ static void put_fat(int n, int value)
 	fat[(n/2)*3] = value & 0xff;
 	fat[(n/2)*3+1] = (fat[n/2*3+1] & ~0x0f) | ((value >> 8) & 0x0f);
       }
-  } else if (p_type == P_TYPE_16BIT) {
+  } else if ((p_type == P_TYPE_16BIT) || (p_type == P_TYPE_32MB)) {
     fat[2*n] = value & 0xff;
     fat[2*n+1] = value >> 8;
   } else {
     fprintf(stderr, "Error: FAT type %ld unknown\n", p_type);
-    exit(1);
+    close_exit(1);
   }
 }
 
@@ -221,21 +247,25 @@ static void add_input_file(char *filename)
 
 static void usage(void)
 {
-  fprintf(stderr, "Usage: mkfatimage [-b bsectfile] [-t tracks] [-l volume-label] [file...]\n");
+  fprintf(stderr,
+    "Usage:\n"
+    "  mkfatimage [-b bsectfile] [{-t tracks | -k Kbytes}]\n"
+    "             [-l volume-label] [-f outfile] [-p ] [file...]\n");
+  close_exit(1);
 }
 
 
 int main(int argc, char *argv[])
 {
   int n, m;
+  int kbytes = -1;
   
   /* Parse command line. */
   if ((argc <= 1) && isatty(STDOUT_FILENO))
   {
     usage();
-    exit(1);
   }
-  while ((n = getopt(argc, argv, "b:l:t:")) != EOF)
+  while ((n = getopt(argc, argv, "b:l:t:k:f:p")) != EOF)
   {
     switch (n)
     {
@@ -250,21 +280,75 @@ int main(int argc, char *argv[])
         volume_label[11] = '\0';
       break;
     case 't':
+      if (kbytes >= 0) usage();
+      kbytes =0;
       tracks = atoi(optarg);
       if (tracks <= 0) {
 	fprintf(stderr, "Error: %ld tracks specified - must be positive \n", tracks);
-	exit(1);
+	close_exit(1);
+      }
+      if (tracks > 1024) {
+	fprintf(stderr, "Error: %ld tracks specified - must <= 1024 \n", tracks);
+	close_exit(1);
       }
       break;
-      
+    case 'k':
+      if (kbytes != -1) usage();
+      kbytes = strtol(optarg, 0,0) *2;  /* needed total number of sectors */
+      if (kbytes < (SECTORS_PER_TRACK * HEADS *2)) {
+        fprintf(stderr, "Error: %d Kbyte specified, must be a reasonable size\n", kbytes);
+        close_exit(1);
+      }
+      tracks = (kbytes + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
+      if (tracks > 1024) {
+        heads *= 2;
+        tracks /= 2;
+        if (tracks > 1024) {
+          sectors_per_track = 63;
+          heads = 15;
+          tracks = (kbytes + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
+          if (tracks > 1024) {
+            fprintf(stderr, "Error: %d Kbyte specified, to big\n", kbytes);
+            close_exit(1);
+          }
+        }
+      }
+      p_ending_head = heads-1;
+      p_starting_absolute_sector = sectors_per_track;
+      p_ending_sector = sectors_per_track;
+      break;
+    case 'f':
+      if ((outfile=fopen(optarg, "w")) == 0) {
+        fprintf(stderr, "Error: cannot open file %s: %s\n", optarg, sys_errlist[errno]);
+        exit(1);
+      }
+      break;
+    case 'p':
+      total_file_size = 1;  /* padding to exact file size */
+      break;
     default:
       usage();
-      exit(1);
+      close_exit(1);
     }
   }
-  p_sectors = ((HEADS*tracks-1)*SECTORS_PER_TRACK);
-  p_type = ((p_sectors <= 8*0xff7) ? P_TYPE_12BIT : P_TYPE_16BIT);
-  sectors_per_cluster = (p_type == P_TYPE_12BIT) ? 8 : 4;
+  if (total_file_size) total_file_size = heads*tracks*sectors_per_track*512;
+  p_sectors = ((heads*tracks-1)*sectors_per_track);
+/*  p_type = ((p_sectors <= 8*0xff7) ? P_TYPE_12BIT : P_TYPE_16BIT); */
+  if (p_sectors <= 8 * 0xff7) {
+    sectors_per_cluster = 8;
+    p_type = P_TYPE_12BIT;
+  } else if (p_sectors <= 65535) {
+    sectors_per_cluster = 4;
+    p_type = P_TYPE_16BIT;
+  } else {
+    /* sectors_per_cluster must be a power of 2 */
+    p_type = P_TYPE_32MB;
+    sectors_per_cluster = 1;
+    while ((p_sectors / (1 << sectors_per_cluster)) > 65535) 
+      sectors_per_cluster++;
+    sectors_per_cluster = 1 << sectors_per_cluster;
+  }
+/*  sectors_per_cluster = (p_type == P_TYPE_12BIT) ? 8 : 4; */
   clusters = p_sectors/sectors_per_cluster;
   sectors_per_fat = ((p_type==P_TYPE_12BIT) ?
 		     ((3*clusters+1023)/1024) :
@@ -274,7 +358,7 @@ int main(int argc, char *argv[])
   if (!(fat = malloc(sectors_per_fat*BYTES_PER_SECTOR))) {
     fprintf(stderr, "Memory error: Cannot allocate fat of %ld sectors\n",
 	    sectors_per_fat);
-    exit(1);
+    close_exit(1);
   }
 
   while (optind < argc)
@@ -283,11 +367,11 @@ int main(int argc, char *argv[])
   /* Write dosemu image header. */
   clear_buffer();
   memmove(&buffer[0], "DOSEMU", 7);
-  put_dword(&buffer[7], HEADS);
-  put_dword(&buffer[11], SECTORS_PER_TRACK);
+  put_dword(&buffer[7], heads);
+  put_dword(&buffer[11], sectors_per_track);
   put_dword(&buffer[15], tracks);
   put_dword(&buffer[19], 128);
-  fwrite(buffer, 1, 128, stdout);
+  fwrite(buffer, 1, 128, outfile);
 
   /* Write our master boot record */
   clear_buffer();
@@ -353,8 +437,8 @@ int main(int argc, char *argv[])
   else put_word(&buffer[19], 0);
   buffer[21] = MEDIA_DESCRIPTOR;
   put_word(&buffer[22], sectors_per_fat);
-  put_word(&buffer[24], SECTORS_PER_TRACK);
-  put_word(&buffer[26], HEADS);
+  put_word(&buffer[24], sectors_per_track);
+  put_word(&buffer[26], heads);
   put_word(&buffer[28], HIDDEN_SECTORS);
   if (p_sectors < 65536L)
     put_dword(&buffer[32], 0); 
@@ -367,8 +451,9 @@ int main(int argc, char *argv[])
   memmove(&buffer[43], volume_label, strlen(volume_label));
   switch(p_type) {
   case P_TYPE_12BIT: memmove(&buffer[54], "FAT12   ", 8); break;
+  case P_TYPE_32MB :
   case P_TYPE_16BIT: memmove(&buffer[54], "FAT16   ", 8); break;
-  default: fprintf(stderr, "Unknown FAT type %ld\n",p_type); exit(1);
+  default: fprintf(stderr, "Unknown FAT type %ld\n",p_type); close_exit(1);
   }
   put_word(&buffer[510], 0xaa55);
   write_buffer();
@@ -384,7 +469,7 @@ int main(int argc, char *argv[])
     put_fat(m, 0xffff);
   }
   for (n = 1; (n <= FAT_COPIES); n++)
-    fwrite(fat, 1, sectors_per_fat*BYTES_PER_SECTOR, stdout);
+    fwrite(fat, 1, sectors_per_fat*BYTES_PER_SECTOR, outfile);
   free(fat);
   
   /* Write root directory. */
@@ -403,7 +488,7 @@ int main(int argc, char *argv[])
     put_root_directory(m, &input_files[n]);
     m++;
   }
-  fwrite(root_directory, 1, SECTORS_PER_ROOT_DIRECTORY*BYTES_PER_SECTOR, stdout);
+  fwrite(root_directory, 1, SECTORS_PER_ROOT_DIRECTORY*BYTES_PER_SECTOR, outfile);
   
   /* Write data area. */
   for (n = 0; (n < input_file_count); n++) 
@@ -422,5 +507,6 @@ int main(int argc, char *argv[])
     }
     fclose(f);
   }
+  close_exit(0);
   return(0);
 }

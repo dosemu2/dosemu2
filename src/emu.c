@@ -52,6 +52,7 @@
 __asm__("___START___: jmp _emulate\n");
 #endif
 
+#include <features.h>
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -79,10 +80,15 @@ __asm__("___START___: jmp _emulate\n");
 #include "netbsd_vm86.h"
 #endif
 #ifdef __linux__
+#if __GLIBC__ > 1
+#include <sys/vt.h>
+#include <sys/kd.h>
+#else
 #include <linux/vt.h>
+#include <linux/kd.h>
+#endif
 #include <linux/fd.h>
 #include <linux/hdreg.h>
-#include <linux/kd.h>
 #include <sys/vm86.h>
 #include <syscall.h>
 #endif

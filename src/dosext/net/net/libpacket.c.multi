@@ -8,7 +8,7 @@
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
 #include <stdio.h>
-
+#include <features.h>
 #include "kversion.h"
 #include <unistd.h>
 #include <string.h>
@@ -26,7 +26,12 @@
   #include <linux/if.h>
 #endif
 #include <netinet/in.h>
-#include <linux/if_ether.h>
+#if __GLIBC__ > 1
+  #include <netinet/if.h>
+  #include <netinet/if_ether.h>
+#else
+  #include <linux/if_ether.h>
+#endif
 
 #include "emu.h"
 #include "libpacket.h"

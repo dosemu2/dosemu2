@@ -5,4 +5,8 @@
  *           will be existing _and_ have ZERO size !
  *           In this case DELETE <linux/vm86.h>.
  */
+#include <features.h>
+#if __GLIBC__ > 1
+#include <sys/vm86.h>
+#else
 #include <asm/vm86.h>

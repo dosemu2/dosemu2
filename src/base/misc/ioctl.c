@@ -2,7 +2,7 @@
 #define EDEADLOCK EDEADLK
 #endif
 
-
+#include <features.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -28,7 +28,12 @@
 #include "netbsd_vm86.h"
 #endif
 #ifdef __linux__
+#include <signal.h>
+#if __GLIBC__ > 1
+#include <sys/vt.h>
+#else
 #include <linux/vt.h>
+#endif
 #include <linux/fd.h>
 #include <linux/hdreg.h>
 #include <sys/vm86.h>

@@ -24,7 +24,7 @@
  *
  * DANG_END_MODULE
  */
-
+#include <features.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +37,11 @@
 #include <sys/stat.h>
 #include <errno.h>
 #ifdef __linux__
+#ifndef __GLIBC__
 #include <linux/fs.h>
+#else
+#include <limits.h>
+#endif
 #endif
 #include <pwd.h>
 #ifdef __NetBSD__

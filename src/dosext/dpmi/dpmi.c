@@ -20,6 +20,7 @@
 #endif
 #endif
 
+#include <features.h>
 #include "config.h"
 #include "kversion.h"
 #include <stdio.h>
@@ -31,8 +32,12 @@
 #include "vm86plus.h"
 
 #ifdef __linux__
+#ifndef __GLIBC__
 #include <linux/unistd.h>
 #include <linux/head.h>
+#else
+#include <errno.h>
+#endif
 #if KERNEL_VERSION < 2001000
   #include <linux/ldt.h>
 #else

@@ -20,6 +20,7 @@
  *              "dosemu windoze".  See README.winnet.
  */
 
+#include <features.h>
 #include <errno.h>
 #include "pktdrvr.h"
 #include "emu.h"
@@ -29,7 +30,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#ifndef __GLIBC__
 #include <linux/if_ether.h>
+#else
+#include <netinet/if_ether.h>
+#endif
 /* flag to activate use of pic by packet driver */
 #if 0
 #define PICPKT 1

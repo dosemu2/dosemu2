@@ -8,7 +8,7 @@
 
 #include "ipx.h"
 #ifdef IPX
-
+#include <features.h>
 #include <stdio.h>
 #include <stdlib.h> 
 #include <unistd.h>

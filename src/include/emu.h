@@ -6,8 +6,12 @@
 #ifndef EMU_H
 #define EMU_H
 
+#include <features.h>
 #include <sys/types.h>
 #include <signal.h> 
+#if __GLIBC__ > 1
+#include <sigcontext.h>
+#endif
 #include "config.h"
 #include "types.h"
 #include "extern.h"

@@ -87,6 +87,10 @@
 
 
 /* **************** include files **************** */
+#include <features.h>
+#if __GLIBC__ > 1
+#include <sigcontext.h>
+#endif
 #include <sys/mman.h>           /* root@sjoerd*/
 #include <sys/types.h>
 #include <unistd.h>

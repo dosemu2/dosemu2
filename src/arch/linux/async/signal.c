@@ -5,7 +5,7 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
-
+#include <features.h>
 #ifdef __linux__
 #include <syscall.h>
 #endif

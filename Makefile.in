@@ -6,6 +6,8 @@ export WAIT=yes
 export do_DEBUG=no
 
 @SET_MAKE@
+PACKETNAME=@PACKETNAME@
+REALTOPDIR=@REALTOPDIR@
 
 default install clean realclean echo help depend:
 	@$(MAKE) -C src $@
@@ -28,6 +30,11 @@ midid:
 mididclean:
 	@$(MAKE) -C src/arch/linux/dosext/sound/midid cleanall
 
+bindist:
+	rm -rf /tmp/$(PACKETNAME)-bin
+	./src/tools/mkbindist -m -s -t /tmp/$(PACKETNAME)-bin -d usr/doc/dosemu -- --host=i386-unknown-linux
+	(cd /tmp/$(PACKETNAME)-bin; tar -cf- . | gzip -9 > /tmp/$(PACKETNAME)-bin.tgz)
+
 pristine:  docsclean mididclean
 	@$(MAKE) -C src $@
 	rm -f config.cache config.status config.log src/include/config.h
@@ -41,4 +48,5 @@ pristine:  docsclean mididclean
 	rm -f core `find . -name '*[\.]rej'`
 	rm -f core gen*.log `find . -size 0`
 	(cd setup/demudialog; make clean)
+	rm -rf ./bindist
 	rm -f Makefile

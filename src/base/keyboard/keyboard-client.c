@@ -15,7 +15,7 @@
  * 
  * 
  */
-
+#include <features.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -28,9 +28,12 @@
   #define EDEADLOCK EDEADLK
 #endif
 #ifdef __linux__
+#if __GLIBC__ > 1
+#include <sys/vt.h>
+#include <sys/kd.h>
+#else
 #include <linux/vt.h>
 #include <linux/kd.h>
-#ifndef __GLIBC__
 #include <linux/time.h>
 #endif
 #endif

@@ -1,8 +1,44 @@
+97/06/15 ver. 0.67.4.1 unofficial pre-release
+	From Steffen
+	- fix for mitshm autodetect (src/env/video/X.c, .../n_X.c)
+	From Michael Guennewig  <guenne00@marvin.informatik.uni-dortmund.de>
+	- fixing invalid disk-geometry-information for drives tracks > 256
+	- fixing invalid hdimage's for images with more than 65535 sectors or
+	  (>=32MB) in mkfatimage16.c
+	From Michael Harnois <mharnois@sbt.net>
+	- some more work to make DOSEMU compile under glibc
+	From Eric
+	- fix for the (infamous) have-to-type-ESC-twice bug in the new kbd,
+	  as it turned out, we forgot switch stdin into O_NONBLOCK mode.
+	  (many kudos to Eric;-)
+	From Hans
+	- make target 'bindist', so I'll never forget the right params for
+	  mkbindist (especially /usr/doc/dosemu ;-)
+	- further enhancements to mkfatimage16.c (in addition to Michael's)
+	  It turned out, that the hdimage was too inflexible for bigger
+	  sizes and made a lot of trouble.
+	  - new option -k: give size of hdimage in Kbytes. This adapts
+	    the geometrie automatically to what is needed for the size.
+	    ( heads, sectors_per_track are adjusted )
+	  - new option -f: give the filename of the hdimage instead of
+	    writing all to stdout.
+	  - new option -p: when option -f also is given, pad the hdimage
+	    with zero up to the exact filesize. This is required for
+	    mtools-3.6 and when mounting the hdimage via /dev/lo.
+	    The actual disk usage will be lower, because padding is realized
+	    by makeing a big hole at the end.
+	  - updated the man page
+	- fix for IPX (gnats bug report files/46 from kees@schoen.nl)
+	  setsockopt(sock, SOL_SOCKET, IPX_TYPE, ...) wrongly using
+          SOL_SOCKET instead of SOL_IPX in src/dosext/net/net/ipx.c
+	- fixed mkdexe so it can cope with DOSAPP not beeing an absolute path
+	- fixed INT15-AH=4F not spawning a hooked TSR (src/base/bios/bios.S,
+	  src/include/macros86.h), and backing out the incomplete fix of 0.67.4.
 97/05/31 ver. 0.67.4 released
 	From Alberto
 	- disable ctrl-alt-del. (as its broken, better disable it)
 	- deleted (unused) dos_ctrlc()
-	From ??? <uweigand@easynet.de>
+	From Ulrich Weigand <uweigand@easynet.de>
 	- Several bugfixes to new keyboard code
 	  - Raw client: ALT+Letter - Translation on non-US keyboards
 	  - X client: didn't set AltGr flag in BIOS shiftstate (non-US)
