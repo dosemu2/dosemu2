@@ -1,0 +1,98 @@
+#! /bin/bash
+#
+# (C) 1997 under GPL, Hans Lermen <lermen@fgan.de>
+#
+# Make a direct executable (bootable) hdimage getting the DOS from
+# your _existing_ native boot partition.
+
+DDIR=`pwd -P`
+
+
+echo "checking you partitions, wait..."
+PARTS=`fdisk -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1 " " $2}'|tr '* ' 'B:'| grep ':B'`
+echo "...done"
+
+if [ "$PARTS" = "" ]; then
+  echo '
+** There seem not to be any bootable DOS partitions
+   Do you want to continue any way using a bootable floppy as input?
+   If yes then enter the device (e.g. /dev/fd0) else type ENTER
+'
+  ISFLOPPY="1"
+else
+  echo "I've seen the following bootable DOS partitions:"
+  echo ""
+  for i in $PARTS; do
+    echo "     `echo $i |cut -d: -f1`"
+  done
+  echo ""
+  echo "Which one do you want to use as input?"
+  echo "Type in the full device name or ENTER to cancel"
+  echo ""
+fi
+
+read DEVICE
+echo $DEVICE
+
+#DEVICE=/dev/hda1
+
+if [ "$DEVICE" = "" ]; then exit; fi
+
+if [ "$ISFLOPPY" = "1" ]; then
+  echo "Please insert a bootable DOS floppy for $DEVICE and type ENTER"
+  read
+fi
+
+# we check if we have the usual sysfile names
+NUMSYS=`${DDIR}/dexe/do_mtools $DEVICE mdir -a w:/*.sys - 2>/dev/null | \
+    awk '/io       sys/ || /msdos    sys/{print $2}'|grep -c sys 2>/dev/null`
+
+if [ "$NUMSYS" != "2" ]; then
+
+  echo "
+
+$DEVICE has the following *.sys files:
+
+"
+  ${DDIR}/dexe/do_mtools $DEVICE mdir -a w:/*.sys 2>/dev//null |grep sys
+
+  echo '
+A normal MSDOS system has io.sys and msdos.sys, these are the files that
+are needed to boot your system. These apparently are different for your system,
+but I need to know there names.
+
+What is the name of the file that corresponds IO.SYS?
+'
+  read IOSYS
+
+  echo '
+What is the name of the file that corresponds MSDOS.SYS?
+'
+  read MSDOSSYS
+fi
+
+echo '
+We now try to generate a bootable hdimage into /var/lib/dosemu/hdimage.first
+and are calling ./dexe/mkdexe for this. You will be prompted to edit the
+configuration files (config.sys, autoexec.bat e.t.c).
+
+Enter the name of your favorite editor, if you type just ENTER, the
+editor given via the EDITOR enviroment variable will be used.
+'
+
+read MYEDIT
+if [ "$MYEDIT" != "" ]; then
+  if hash $MYEDIT >/dev/null 2>&1; then
+    EDITOR=$MYEDIT
+    export EDITOR
+  else
+    echo "Sorry, but $MYEDIT seems not to be accessable, using default"
+  fi
+fi
+
+echo "Starting ..."
+
+(cd ${DDIR}/dexe; ./mkdexe hdimage.first -b $DEVICE -o noapp -o confirm )
+
+echo " ... done"
+

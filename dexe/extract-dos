@@ -1,0 +1,100 @@
+#! /bin/bash
+#
+# (C) 1997 under GPL, Hans Lermen <lermen@fgan.de>
+#
+# Extract the system files and the bootsector out of a bootable
+# DOS partition and store them into a directory
+# NOTE: You need mtools >= 3.6 for this to work.
+#
+
+function usage {
+  echo "USAGE:"
+  echo "  extract-dos device targetdir [-i IOname] [-m MSname]"
+  echo ""
+  echo "where is:"
+  echo "  device    = DOS-partition such as '/dev/hda1'"
+  echo "              or a DOSEMU hdimage"
+  echo "  targetdir = will be created, get the system files"
+  echo "  -i nnn    = name of 'io.sys' if different"
+  echo "  -m nnn    = name of 'msdos.sys' if different"
+  exit 1
+}
+
+if [ "$(( `mtools -V|awk '{print $3}'|tr ',a-z' ' '|tr '.' '0'` < 306 ))" \
+      = "1" ]; then
+  echo "wrong mtools version installed, please upgrade to >= 3.6"
+  exit 1
+fi
+
+function is_hdimage {
+  if [ "DOSEMU" = "`dd if=$1 bs=6 count=1 2>/dev/null`" ]; then
+    return 0
+  fi
+  return 1
+}
+
+function do_mtool {
+# $1  = device or hdimage
+# $2  = mtools command
+# $.. = rest of command line
+# use 'W:' to access the dos drive
+  device=$1
+  mcommand=$2
+  shift; shift
+  params="$*"
+  tmprc="/tmp/mtoolrc.$$"
+  partition=""
+  offset=""
+  if is_hdimage $device; then
+    partition="partition=1"
+    offset="offset=128"
+  fi
+cat > $tmprc <<EOF
+drive w: file="$device" MTOOLS_SKIP_CHECK=1 MTOOLS_LOWER_CASE=1 mtools_no_vfat=1 $partition $offset
+EOF
+  MTOOLSRC="$tmprc"
+  export MTOOLSRC
+  $mcommand $params
+  rm -f $tmprc
+}
+
+
+function get_bootsect {
+# $1  =  device or hdimage
+# $2  =  target file name
+  if is_hdimage $1; then
+    dd if=$1 of=$2 bs=128 count=4 skip=69
+  else
+    dd if=$1 of=$2 bs=512 count=1
+  fi
+}
+
+
+if [ -z $2 ]; then
+  usage
+fi
+
+
+DEVICE="$1"
+TARGDIR="$2"
+shift; shift
+
+IOSYS="io.sys"
+MSDOS="msdos.sys"
+COMCOM="command.com"
+
+badcase=0
+while getopts "i:m:" OPT; do
+  case $OPT in
+    i) IOSYS=$OPTARG;;
+    m) MSDOS=$OPTARG;;
+    ?) badcase=1
+  esac
+done
+
+if [ $badcase -eq 1 ]; then usage; fi
+
+mkdir -p $TARGDIR
+get_bootsect $DEVICE ${TARGDIR}/boot.bin
+do_mtool $DEVICE mcopy w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
+

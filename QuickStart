@@ -65,7 +65,7 @@ or
   statement in your /etc/dosemu.conf should point to this file.
 
 --------------------------------------------------------------------------
-4.  Boot
+4a.  Boot ( 'traditional' method ;-)
 --------------------------------------------------------------------------
 
 If you are new to DOSEMU:
@@ -93,7 +93,7 @@ If you already have a HDIMAGE file:
 
 If you don't know how to copy files from/to the hdimage:
        ----------------------------
-- Have a look at the recent mtools package (version 3.5a at time of writeing).
+- Have a look at the recent mtools package (version 3.6 at time of writeing).
   If you have the following line in /etc/mtools.conf
 
      drive g: file="/var/lib/dosemu/hdimage" partition=1 offset=128
@@ -106,6 +106,30 @@ If you don't know how to copy files from/to the hdimage:
     echo "Welcome to dosemu 0.66!"
 
   ... all clear ? ;-)
+
+--------------------------------------------------------------------------
+4b.  Boot ( 'comfortable' method ;-)
+--------------------------------------------------------------------------
+
+There is a new tool to help you generating a bootable hdimage, it doesn't
+require to boot native DOS, nor do you need to fiddle with a floppy any
+more:
+
+- You need to have mtools-3.6 for this to work
+
+- You need an already installed (native) bootable DOS in one of your
+  partitions. If this is the case, you just need to type
+
+  ./setup-hdimage
+
+  in the dosemu directory. It will prompt for needed information and
+  generate a bootable /var/lib/dosemu/hdimage.first
+
+  Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf IS
+  pointing to /var/lib/dosemu/hdimage.first!
+
+- Run 'dos -C', ... and dosemu should boot your DOS.
+
 
 --------------------------------------------------------------------------
 5.  Now that you've set up your HDIMAGE file
@@ -196,6 +220,7 @@ If you don't know how to copy files from/to the hdimage:
 ./README.bugreports
 ./README.configuration
 ./contrib/dosC/readme.dosemu
+./dexe  tools to make directly bootable DOS-apps and hdimages
 
 --------------------------------------------------------------------------
 8.  DOSEMU code browsers

@@ -1,0 +1,68 @@
+#!/bin/sh
+
+if [ $# != 2 ] ; then
+  echo "Usage: $0 sourcedirectory targetdirectory" >&2
+  exit 1
+fi
+
+
+from=$1/
+to=$2
+
+rm -f /tmp/xcopy.$$
+
+case $from in
+  [a-zA-Z]:*)
+	      Source=Dos
+	      mdir -X $from | grep '/$' >/tmp/xcopy.$$
+	      from=`head -1 /tmp/xcopy.$$`
+	      ;;
+  *)
+     Source=Unix
+     from=`echo $from | sed -e 's#$#/#' -e 's#//*#/#g'`
+     find $from -type d -print | sed -e 's#$#/#' -e 's#//*#/#g' >/tmp/xcopy.$$
+     ;;
+esac
+
+case $to in
+  [a-zA-Z]:)
+	     :
+	     ;;
+  *)
+     to=$to/
+     ;;
+esac
+
+case $to in
+  [a-zA-Z]:*)
+	      Target=Dos
+	      sed -e "s#^$from#$to#" -e "s#//#/#g" -e 's#\([^:]\)/$#\1#g' /tmp/xcopy.$$ | xargs mmd -sX
+	      ;;
+  *)
+     Target=Unix
+     sed -e "s#^$from#$to#" -e "s#//#/#g" /tmp/xcopy.$$ | xargs mkdir -p
+     ;;
+esac
+
+echo XX
+
+exitcode=0;
+case $Source in
+  Dos)
+       for name in  `cat /tmp/xcopy.$$` ; do
+	 target=`echo $name | sed -e "s#^$from#$to#" `
+	 mcopy "$name*" "$target"
+	 if [ $? != 0 ]; then exitcode=1;fi
+       done
+       ;;
+  Unix)
+       for name in `cat /tmp/xcopy.$$` ; do
+	 target=`echo $name | sed -e "s#^$from#$to#" `
+	 mcopy $name/* "$target"
+	 if [ $? != 0 ]; then exitcode=1;fi
+       done
+       ;;
+esac
+
+rm -f /tmp/xcopy.$$
+exit $exitcode

@@ -12,3 +12,5 @@ chmod 755 first-test
 chmod 755 src/arch/linux/kversion.sh src/arch/NetBSD/kversion.sh
 chmod 755 src/tools/periph/getrom
 chmod 755 src/doc/DANG/DANG_c.pl src/doc/DANG/make_DANG
+chmod 755 dexe/do_mtools dexe/mkdexe dexe/extract-dos dexe/dosexec
+chmod 755 dexe/myxcopy setup-hdimage

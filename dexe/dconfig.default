@@ -1,0 +1,26 @@
+debug { config  off	disk    off	warning off	hardware off
+        port    off	read    off	general off	IPC      off
+        video   off	write   off	xms     off	ems      off
+        serial  off	keyb    off	dpmi    off
+       	printer off	mouse   off	sound	off
+      }
+dosbanner off
+timint on
+keyboard {  layout us  keybint on  rawkeyboard off  }
+HogThreshold 1
+ipxsupport off
+terminal { charset latin  updatefreq 4  color on }
+X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+video { vga }          # Use this line, if you are using VGA
+mathco on           # Math coprocessor valid values:  on  off
+cpu 80386           # CPU emulation valid values:  80[345]86
+#bootC               # Startup drive valid values:  bootA  bootC
+#disk { image "./etc/hdimage.test" }
+#secure off              # "on" or "off"
+dpmi 4086               # DPMI size in K, or "off"
+xms 1024		# XMS size in K,  or "off"
+ems 1024		# EMS size in K,  or "off"
+irqpassing off    # this disables IRQ monitoring
+speaker off         # or "off" or "emulated"
+#floppy { device /dev/fd0 threeinch }
+sound_emu off

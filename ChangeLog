@@ -1,3 +1,22 @@
+97/04/20 ver. 0.66.3 released
+	From Hans
+	- new hdimage generation stuff, need mtools-3.6:
+	  ./setup-hdimage makes a bootable hdimage from the DOS the user
+		has already installed under native DOS
+		I tried this with the following OSes:
+		FreeDos, MSDOS-6.2, WINDOWS'95.
+		Other DOSes should also work, when the names of the
+		system files are given on prompt.
+		(Next step will be to automatically transform the
+		 config.sys and autoexec.bat ;-)
+	  ./dexe/mkdexe generates a direct executable DOS-app (hdimage
+		containing just one app). The extension is *.dexe
+	  ./dexe/dosexec executes a *.dexe
+	  ./dexe/do_mtools symplifies the access to a hdimage
+	  ./dexe/extract-dos takes the bootsector and the system files
+		out of a dos partition or a hdimage
+	  All this stuff is described in ./doc/README.dexe and the
+	  Quickstart.
 97/04/17 ver. 0.66.2.2 unofficial pre-release
 	From Alberto
 	- fix for INT8 rescheduled to fast in DPMI
