@@ -1794,14 +1794,14 @@ err:
   case 0x0401:			/* Get DPMI Capabilities 1.0 */
       {
 	  char *buf = (char *)SEL_ADR(_es, _edi);
-	  /* Our capabilities include:
-	   * device mapping (can map LFB),
+	  /*
+	   * Our capabilities include:
 	   * conventional memory mapping,
 	   * demand zero fill,
 	   * write-protect client,
 	   * write-protect host.
 	   */
-	  _LWORD(eax) = 0x7c;
+	  _LWORD(eax) = 0x78;
 	  _LWORD(ecx) = 0;
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
@@ -2116,7 +2116,11 @@ err:
       _eflags |= CF;
     break;
 
-  case 0x0508:			/* ??? */
+  case 0x0508:	/* Map Device */
+    D_printf("DPMI: ERROR: device mapping not supported\n");
+    _LWORD(eax) = 0x8001;
+    _eflags |= CF;
+    break;
 
   case 0x0700:	/* Reserved,MARK PAGES AS PAGING CANDIDATES, see intr. lst */
   case 0x0702:	/* Mark Page as Demand Paging Candidate */
