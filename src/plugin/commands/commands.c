@@ -34,7 +34,6 @@
 #include "unix.h"
 #include "dosdbg.h"
 #include "cmdline.h"
-#include "comcom.h"
 
 /* ============= old .com ported ================= */
 
