@@ -663,7 +663,7 @@ keyboard_init(void)
   struct stat chkbuf;
   int major, minor;
 
-  if (!config.X && !config.usesX) {
+  if (!config.X) {
      if (config.usesX) {
 	kbd_fd = dup(keypipe);
      }
@@ -679,9 +679,13 @@ keyboard_init(void)
      old_kbd_flags = fcntl(kbd_fd, F_GETFL);
      fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
      
-     if (use_sigio)
-	k_printf("KBD: Using SIGIO\n");
-     add_to_io_select(kbd_fd, 1);
+     if (use_sigio && !config.kbd_tty) {
+       k_printf("KBD: Using SIGIO\n");
+       add_to_io_select(kbd_fd, 1);
+     } else {
+       k_printf("KBD: Not using SIGIO\n");
+       add_to_io_select(kbd_fd, 0);
+     }
 
      fstat(kbd_fd, &chkbuf);
      major = chkbuf.st_rdev >> 8;

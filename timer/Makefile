@@ -5,15 +5,15 @@
 
 # The following variables may go into the Makfile in the parent-directory
 
-CC   = gcc
-LD   = ld
+# CC   = gcc
+# LD   = ld
 
 # INCDIR is exported from ..
-#INCDIR= -I../include -I..
+INCDIR= -I../include -I..
 
 # let gcc do extended checking
 
-CFLAGS=-O2 # -Wall # -Wmissing-prototypes \
+# CFLAGS=-O2 # -Wall # -Wmissing-prototypes \
 #       -Wstrict-prototypes # -ansi -pedantic 
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
@@ -27,15 +27,21 @@ ALL = $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = pic.o
-
 .c.o:
 	$(CC) $(CFLAGS) $(INCDIR) -c $<
- 
-all: ../timer.o
 
-../timer.o: $(OBJS)
-	ld -r -o ../timer.o $(OBJS)
+SUBDIR=timer
+
+OBJS = pic.o
+
+LIB=../lib$(SUBDIR).a
+
+all:  $(LIB)
+
+$(LIB): $(OBJS)
+	-rm $@
+	$(AR) cr $@ $^
+	ranlib $@
 
 checkin:
 	-ci $(ALL) Makefile README.pic
@@ -44,7 +50,7 @@ checkout:
 	-co -l $(ALL) Makefile README.pic
 
 clean:
-	rm -f *.o ../timer.o
+	rm -f *.o ../lib$(SUBDIR).o
 
 realclean: clean
 	rm -f .depend
@@ -52,8 +58,8 @@ realclean: clean
 install:
 
 dist: $(ALL) Makefile
-	install -d $(DISTPATH)/timer
-	install -m 0644 $(ALL) Makefile README.pic $(DISTPATH)/timer
+	install -d $(DISTPATH)/$(SUBDIR)
+	install -m 0644 $(ALL) Makefile README.pic $(DISTPATH)/$(SUBDIR)
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend

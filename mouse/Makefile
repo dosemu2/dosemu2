@@ -14,7 +14,7 @@ SUBDIR=mouse
 
 # let gcc do extended checking
 
-CFLAGS=-O2 -Wall # -Wmissing-prototypes \
+# CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 #       -Wstrict-prototypes -ansi -pedantic 
 
 # The following define enables the ClearDTR-Support at mouse-initialisation.
@@ -38,11 +38,17 @@ OBJS = mouse.o mouseint.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
- 
-all: ../$(SUBDIR).o
 
-../$(SUBDIR).o: $(OBJS)
-	$(LD) -r -o ../$(SUBDIR).o $(OBJS)
+SUBDIR=mouse
+ 
+LIB=../lib$(SUBDIR).a
+
+all:  $(LIB)
+
+$(LIB): $(OBJS)
+	-rm $@
+	$(AR) cr $@ $^
+	ranlib $@
 
 checkin:
 	-ci $(ALL) Makefile

@@ -42,9 +42,9 @@ L2:	cli
 
 	pushl	%eax
 	movb    $0x16,%al
+	sti
 	int     $0xe6				/* sti with return to dosemu code */
 	popl	%eax
-
 	jmp     L2
 L3:	.byte   0x8b, 0x07			/* movw   [%bx],%ax */
 	incl    %ebx

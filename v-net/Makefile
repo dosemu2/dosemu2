@@ -9,7 +9,7 @@ ifndef INCDIR
 endif
 
 CFILES = dosnet.c
-HFILES = 
+HFILES = dosnet.h
 
 # Insert all source- and header-files here.
 
@@ -19,14 +19,12 @@ ALL = $(CFILES) $(HFILES) dosnet.README
 
 OBJS = dosnet.o
 
-all: $(OBJS) ipxbridge
+all: $(OBJS)
 
-.c.o:
-	$(CC) $(INCDIR) -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer -c -o dosnet.o $<
+dosnet.o:  dosnet.c
+	$(CC) $(INCDIR) -D__KERNEL__ -Wall -Wstrict-prototypes -O6 \
+	-fomit-frame-pointer  -m486 -c -o dosnet.o dosnet.c 
 
-ipxbridge:
-	(cd ipxbridge0.1; $(CC) -o ../ipxbridge ipxbridge.c)
- 
 checkin:
 	-ci $(ALL) Makefile
 
@@ -34,9 +32,9 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o ipxbridge
+	rm -f *.o 
 
-realclean:
+realclean: clean
 	rm -f .depend
 
 install:
@@ -44,12 +42,6 @@ install:
 dist: $(ALL) Makefile
 	install -d $(DISTPATH)/v-net
 	install -m 0644 $(ALL) Makefile $(DISTPATH)/v-net
-	(cd ipxbridge0.1; \
-	install -d $(DISTPATH)/v-net/ipxbridge0.1; \
-	install -m 0644 ipxbridge.c a.h $(DISTPATH)/v-net/ipxbridge0.1)
-	(cd ipxbridge0.2 ; \
-	install -d $(DISTPATH)/v-net/ipxbridge0.2 ; \
-	install -m 0644 ipxbridge.c $(DISTPATH)/v-net/ipxbridge0.2)
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) $(CFILES) $(INCDIR) > .depend

@@ -5,8 +5,8 @@
 
 # The following variables may go into the Makfile in the parent-directory
 
-CC   = gcc
-LD   = ld
+# CC   = gcc
+# LD   = ld
 USRSRCDIR=/usr/src
 
 # If INCDIR exists, it was exported from the master Makefile.
@@ -17,7 +17,8 @@ endif
 # let gcc do extended checking
 
 
-CFLAGS=-Wall -I$(USRSRCDIR) -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX
+
+# CFLAGS=-Wall -I$(USRSRCDIR) -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX
  
 
 
@@ -29,7 +30,7 @@ OFILES = vm86.o traps.o emumod.o
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) $(OFILES)
+ALL = $(CFILES) $(HFILES) 
 
 # All object-files are included here.
 
@@ -45,13 +46,13 @@ emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
 vm86.o:  vm86.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${CFLAGS} -D_LOADABLE_VM86_ -c vm86.c -o vm86.o
+	$(CC) ${CFLAGS} -D_LOADABLE_VM86_ -D__KERNEL__ -c vm86.c -o vm86.o
 
 emumod.o:  emumod.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${CFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
+	$(CC) ${CFLAGS} -D_LOADABLE_VM86_ -D__KERNEL__ -c emumod.c -o emumod.o
 
 traps.o:  traps.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${CFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
+	$(CC) ${CFLAGS} -D_LOADABLE_VM86_ -D__KERNEL__ -c traps.c -o traps.o
 
 checkin:
 	-ci $(ALL) Makefile

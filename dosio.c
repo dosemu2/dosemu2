@@ -486,8 +486,6 @@ void
 do_irq1(void) {
    parent_nextscan();
    do_irq(); /* do dos interrupt */
-             /* reschedule if queue not empty */
-   if (scan_queue_start!=scan_queue_end) pic_request(PIC_IRQ1); 
 }
 #endif
 
@@ -568,7 +566,16 @@ set_keyboard_bios(void)
       inschr = 0;
     }
   }
-  k_printf("parent nextscan found inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
+#ifdef NEW_PIC
+  /* reschedule if queue not empty */
+  if (scan_queue_start!=scan_queue_end) { 
+    k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
+      scan_queue_start, scan_queue_end);
+    pic_request(PIC_IRQ1); 
+    *LASTSCAN_ADD=1;
+  }
+#endif
+  k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
   k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));
 }
@@ -581,6 +588,8 @@ insert_into_keybuffer(void)
     keepkey = 1;
   else
     keepkey = 0;
+
+  k_printf("KBD: Finishing up call\n");
 
   if (inschr && keepkey) {
     k_printf("IPC/KBD: (child) putting key in buffer\n");
@@ -597,7 +606,7 @@ parent_nextscan()
 
   keys_ready = 0;
 #ifdef NEW_PIC
-  if(*LASTSCAN_ADD==1)   /* make sure last character has been read */
+  if(*LASTSCAN_ADD==1) {  /* make sure last character has been read */
 #endif
   if (scan_queue_start != scan_queue_end) {
     keys_ready = 1;
@@ -611,6 +620,9 @@ parent_nextscan()
        *LASTSCAN_ADD = lastchr;
     }
   }
+  }
+  else
+    k_printf("Parent Nextscan Key not Read!\n");
   k_printf("Parent Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
   k_printf("start=%d, end=%d, LASTSCAN=%x\n", scan_queue_start, scan_queue_end, *LASTSCAN_ADD);

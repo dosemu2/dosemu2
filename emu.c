@@ -520,6 +520,10 @@ __asm__("___START___: jmp _emulate\n");
 #include "int.h"
 #endif
 
+extern void restore_vt (unsigned short);
+extern void disallocate_vt (void);
+extern unsigned short detach (void);
+
 extern void getKeys(void);
 
 extern void setup_low_mem(void);
@@ -779,6 +783,7 @@ cli(void)
 {
   sigset_t blockset;
 
+  return; /* Should be OK now */
   sigfillset(&blockset);
   DOS_SYSCALL(sigprocmask(SIG_SETMASK, &blockset, &oldset));
 }
@@ -796,6 +801,7 @@ sti(void)
 {
   sigset_t blockset;
 
+  return; /* Should be OK now */
   DOS_SYSCALL(sigprocmask(SIG_SETMASK, &oldset, &blockset));
 }
 
@@ -850,7 +856,8 @@ run_vm86(void)
    */
     in_vm86 = 1;
 #ifdef NEW_PIC
-    if(pic_icount) REG(eflags) |= (VIP);
+    if(pic_icount) 
+      REG(eflags) |= (VIP);
 #endif
     switch VM86_TYPE({retval=vm86(&vm86s); in_vm86=0; retval;}) {
 	case VM86_UNKNOWN:
@@ -1092,12 +1099,12 @@ void memory_init(void) {
 
   /* inline int09 routine */
   ptr = (u_char *) INT09_ADD;
-  memcpy(ptr, INT09_dummy_start, (unsigned long) INT09_dummy_end - (unsigned long) INT09_dummy_start);
+  memcpy(ptr, INT09_dummy_start, (unsigned long) INT09_dummy_end - (unsigned long) INT09_dummy_start + 1);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
 
   /* int08 */
   ptr = (u_char *) INT08_ADD;
-  memcpy(ptr, INT08_dummy_start, (unsigned long) INT08_dummy_end - (unsigned long) INT08_dummy_start);
+  memcpy(ptr, INT08_dummy_start, (unsigned long) INT08_dummy_end - (unsigned long) INT08_dummy_start + 1);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
 
   install_int_10_handler();	/* Install the handler for video-interrupt */
@@ -1196,8 +1203,9 @@ void memory_init(void) {
 
   /* Set OUTB_ADD to 1 */
   *OUTB_ADD = 1;
-  *LASTSCAN_ADD = 0;
+  *LASTSCAN_ADD = 1;
   REG(eflags) |= (IF | VIF | VIP);
+
   /* 
    * The banner helper actually gets called *after* the VGA card
    * is initialized (if it is) because we set up a return chain:
@@ -1681,6 +1689,7 @@ config_defaults(void)
   config.vbios_seg = 0xc000;
   config.vbios_size = 0x10000;
   config.console_keyb = 0;
+  config.kbd_tty = 0;
   config.console_video = 0;
   config.fdisks = 0;
   config.hdisks = 0;
@@ -1711,7 +1720,7 @@ config_defaults(void)
 
   config.speaker = SPKR_EMULATED;
 
-#if 0 /* This is too slow, but why? */
+#if 1 /* This is too slow, but why? */
   config.update = 54945;
 #else
   config.update = 27472;
@@ -2490,9 +2499,10 @@ void
   fflush(stderr);
   fflush(stdout);
 
-  if (config.detach)
-	restore_vt(config.detach);
-	
+   if (config.detach) {
+     restore_vt(config.detach);
+     disallocate_vt ();
+   }
   _exit(0);
 }
 
@@ -3431,6 +3441,14 @@ void version_init(void) {
          unames.release[2] > 1 ) {
       use_sigio=FASYNC;
     }
+  }
+  /* Next Check input */
+  if (isatty(STDIN_FILENO)) {
+    k_printf("STDIN is tty\n");
+    config.kbd_tty = 0;
+  } else {
+    k_printf("STDIN not a tty\n");
+    config.kbd_tty = 1;
   }
 }
 

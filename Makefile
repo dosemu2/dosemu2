@@ -21,7 +21,7 @@ X2_SUPPORT = 1
 # fi
 
 #Change the following line if the right kernel includes reside elsewhere
-LINUX_INCLUDE = /usr/src/linux/include
+LINUX_INCLUDE = /usr/src/linux/include # why not
 export LINUX_INCLUDE  
 
 #Change the following line if the your X is elsewhere.
@@ -61,34 +61,41 @@ export XDEFS
 # Uncomment the next line to try new pic code on keyboard, timer, and serial.
 # NOTE:  The serial pic code is known to have bugs.
 NEW_PIC = -DNEW_PIC=2
-#ifdef NEW_PIC
-PICOBJS = timer.o
+ifdef NEW_PIC
+PICOBJS = libtimer.a
 export NEW_PIC
 export PICOBJS
-#endif
+endif
 
-
-#ifdef DEBUG
-#STATIC=1
-#DOSOBJS=$(OBJS)
-#SHLIBOBJS=
+# do_DEBUG=true
+ifdef do_DEBUG
+CC         = gcc -g # I use gcc-specific features (var-arg macros, fr'instance)
+LD         = gcc
+COPTFLAGS	= -O
+STATIC=1
+DOSOBJS=$(OBJS) $(DPMIOBJS)
+SHLIBOBJS=
 #DOSLNK=-lncurses -lipc
-#CDEBUGOPTS=-g -DSTATIC=1
-#LNKOPTS=
-#else
-#STATIC=0
+CDEBUGOPTS=-g -DSTATIC=1
+LNKOPTS=
+else
+CC         = gcc 
+LD         = gcc
+COPTFLAGS  = -N -s -O2 -funroll-loops
+# -Wall -fomit-frame-pointer # -ansi -pedantic -Wmissing-prototypes -Wstrict-prototypes
+STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
 DOSLNK=
 #LNKOPTS=-s
 # LNKOPTS=-Ttext
 #MAGIC=-zmagic
-#endif
+endif
 
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   28
+PATCHL  =   29
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -97,7 +104,7 @@ LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-DPMIOBJS = dpmi/dpmi.o
+DPMIOBJS = libdpmi.a
 
 # For testing the internal IPX code
 #IPX = ipxutils
@@ -126,7 +133,7 @@ endif
 
 CLIENTSSUB=clients
 
-OPTIONALSUBDIRS = examples sig v-net syscallmgr emumod
+OPTIONALSUBDIRS =examples sig v-net syscallmgr emumod
 
 SUBDIRS= periph video mouse include boot commands drivers \
 	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
@@ -160,9 +167,10 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 ###################################################################
 
-OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o \
+OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o libmouse.a \
      dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o $(PICOBJS)\
-     serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o detach.o $(XOBJS)
+     serial.o dyndeb.o sigsegv.o libvideo.a bios.o libinit.a libnet.a \
+     detach.o $(XOBJS)
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
@@ -171,11 +179,6 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
 	     -DPATCHSTR=\"$(PATCHL)\"
 
-CC         = gcc # I use gcc-specific features (var-arg macros, fr'instance)
-LD         = ld
-COPTFLAGS  = -N -s -O2 -funroll-loops
-
-# -Wall -fomit-frame-pointer # -ansi -pedantic -Wmissing-prototypes -Wstrict-prototypes
  
 ifdef DPMIOBJS
 DPMI = -DDPMI
@@ -206,6 +209,18 @@ DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 else
 DISTFILE=$(DISTBASE)/pre$(EMUVER)_$(PATCHL).tgz
 endif
+
+
+ifdef do_DEBUG
+# first target for debugging build
+ifneq (config.h,$(wildcard config.h))
+firstsimple:	config dep simple
+endif
+
+simple:	dossubdirs dos
+
+endif
+
 
 warning: warning2
 	@echo "To compile DOSEMU, type 'make doeverything'"
@@ -264,10 +279,9 @@ dos.o: config.h dos.c
 x2dos.o: config.h x2dos.c
 	$(CC) -I/usr/openwin/include -c x2dos.c
 
-dos:	dos.c $(DOSOBJS)
+dos:	dos.o $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
-	$(CC) $(DOSLNK) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) \
-              $(XLIBS)
+	$(LD) $(LDFLAGS) -o $@ $^ -lncurses
 
 x2dos: x2dos.c
 	@echo "Including x2dos.o "
@@ -282,7 +296,7 @@ xtermdos:	xtermdos.sh
 	@cat xtermdos.sh >> xtermdos
 
 xinstallvgafont:	xinstallvgafont.sh
-	@echo "#!/bin/sh" > xintallvgafont
+	@echo "#!/bin/sh" > xinstallvgafont
 	@echo >> xinstallvgafont
 	@echo X11ROOTDIR=$(X11ROOTDIR) >> xinstallvgafont
 	@echo >> xinstallvgafont
@@ -290,19 +304,21 @@ xinstallvgafont:	xinstallvgafont.sh
 
 $(LIBDOSEMU):	$(SHLIBOBJS) $(DPMIOBJS)
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
-	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
+	   -nostdlib $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 
-dossubdirs: dummy
+.PHONY:	dossubdirs optionalsubdirs docsubdirs
+
+dossubdirs:
 	@for i in $(SUBDIRS); do \
-	    (cd $$i && echo $$i && $(MAKE)) || exit; \
+	    $(MAKE) -C  $$i || exit; \
 	done
 
 optionalsubdirs:
 	@for i in $(OPTIONALSUBDIRS); do \
-	    (cd $$i && echo $$i && $(MAKE)) || exit; \
+	    $(MAKE) -C $$i || exit; \
 	done
 
-docsubdirs: dummy
+docsubdirs: 
 	@for i in $(DOCS); do \
 	    (cd $$i && echo $$i && $(MAKE)) || exit; \
 	done
@@ -310,7 +326,7 @@ docsubdirs: dummy
 config: dosconfig
 	@./dosconfig $(CONFIGINFO) > config.h
 
-installnew: dummy
+installnew: 
 	$(MAKE) install
 
 install: all
@@ -389,7 +405,7 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	cp TODO.JES $(DISTPATH)/.todo.jes
 	cp .indent.pro $(DISTPATH)/.indent.pro
 	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
-	@for i in $(SUBDIRS) $(DOCS) dpmi ipxutils $(OPTIONALSUBDIRS); do \
+	@for i in $(SUBDIRS) $(DOCS) dpmi ipxutils $(OPTIONALSUBDIRS) ipxbridge; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
@@ -404,6 +420,7 @@ clean:
 	  $(MAKE) -C $$i clean; \
 	done
 
+# isn't this redudenant? No, I don't think so, it does realclean not clean.
 realclean:      clean
 	-rm -f config.h .depend
 	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS); do \
@@ -425,7 +442,6 @@ ifdef DPMIOBJS
 	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 endif
 
-dummy:
 #
 # include a dependency file if one exists
 #

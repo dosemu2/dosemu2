@@ -13,7 +13,18 @@ LD86 = ld86 -0
 ALL = dpmi.c dpmi.h \
 	testdpmi.S
 
-all: dpmi.o testdpmi.com
+SUBDIR=dpmi
+
+OBJS = $(SUBDIR).o
+
+LIB=../lib$(SUBDIR).a
+
+all:  $(LIB) testdpmi.com
+
+$(LIB): $(OBJS)
+	-rm $@
+	$(AR) cr $@ $^
+	ranlib $@
 
 dpmi.o:
 	$(CC) -DDPMI $(INCDIR) -N -O6 -c dpmi.c
@@ -24,7 +35,7 @@ checkout:
 	-co -l $(ALL) Makefile TODO
 
 clean:
-	rm -f *.o *.com
+	rm -f *.o *.com ../lib$(SUBDIR).a
 
 realclean:
 	rm -f .depend
@@ -32,8 +43,8 @@ realclean:
 install:
 
 dist: $(ALL) Makefile
-	install -d $(DISTPATH)/dpmi
-	install -m 0644 $(ALL) Makefile TODO $(DISTPATH)/dpmi
+	install -d $(DISTPATH)/$(SUBDIR)
+	install -m 0644 $(ALL) Makefile TODO $(DISTPATH)/$(SUBDIR)
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend

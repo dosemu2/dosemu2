@@ -72,6 +72,7 @@ void start_printer(void);
 void stop_printer(void);
 void stop_terminal(void);
 void start_disk(void);
+void do_part(char *);
 void start_bootdisk(void);
 void start_floppy(void);
 void stop_disk(int token);
@@ -566,16 +567,13 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_PARTITION STRING INTEGER
 		  {
-		  if (dptr->dev_name != NULL)
-		    yyerror("Two names for a partition given.");
-		  dptr->type = PARTITION;
-		  dptr->part_info.number = $3;
-		  dptr->dev_name = $2;
-
-		  dptr->part_info.file = malloc(strlen(PARTITION_PATH ".")+10); 
-		  dptr->part_info.file = strcpy(dptr->part_info.file,PARTITION_PATH "."); 
-		  dptr->part_info.file = strcat(dptr->part_info.file,dptr->dev_name+5);
+                  yywarn("CONF: { partition \"%s\" %d } the"
+			 " token '%d' is ignored and can be removed.",
+			 $2,$3,$3);
+		  do_part($2);
 		  }
+		| L_PARTITION STRING 
+		  { do_part($2); }
 		| STRING
 		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
 		| error
@@ -936,6 +934,18 @@ void start_disk(void)
   dptr->header = 0;
 }
 
+void do_part(char *dev)
+{
+  if (dptr->dev_name != NULL)
+    yyerror("Two names for a partition given.");
+  dptr->type = PARTITION;
+  dptr->dev_name = dev;
+  dptr->part_info.number = atoi(dptr->dev_name+8);
+  if (dptr->part_info.number == 0) 
+    yyerror("ERROR: %s must be a PARTITION, can't find number suffix!\n",
+   	    dptr->dev_name);
+}
+
 void stop_disk(int token)
 {
   if (dptr == &nulldisk)              /* is there any disk? */
@@ -959,12 +969,7 @@ void stop_disk(int token)
 
   if (dptr->type == PARTITION)
     {
-      struct stat file_status;        /* date for checking that file */
-
       c_printf("partition# %d ", dptr->part_info.number);
-      
-      if (stat(dptr->part_info.file,&file_status) != 0) /* check part_info */
-	  yyerror("Partition-Info %s doesn't exist.",dptr->part_info.file);
     }
 
   if (dptr->header)

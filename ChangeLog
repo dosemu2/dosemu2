@@ -1,3 +1,48 @@
+Tue Nov 01 1994 JES
+
+-	Tested that Helppc ran.
+-	Added STI to keyboard int16 of bios.S. One fix for PIC, for 
+	now :-).
+-	Changed && -> & in pic_request() if pic_iret().
+
+Wed Oct 25 1994 JES
+
+- 	Latest v-net app from Vinod + ipxbridges.
+
+From: Rod May <stoke@melbourne.DIALix.oz.au>
+Hi there,
+	here's a patch (to pl28) which makes the use of "mkpartition" 
+unnecessary for direct partition access. Also the partition number is no
+longer required. i.e. instead of specifying:
+	disk { partition "/dev/hda3" 3 }  and running "mkpartition",
+you only have to specify:
+	disk { partition "/dev/hda3" }
+The MBR is read from the appropriate hard drive during start-up.
+Not only does this simplyfy things but stops potential mistakes
+including: out of date MBRs, specifying hda instead of hda3 etc. 
+These were not flagged before and could lead to "interesting" results. 
+Using the old format will get you a config warning but otherwise
+the partition number will just be ignored,
+	Ciao,
+		Rod May,
+		stoke@melbourne.dialix.oz.au
+
+
+Hope this patch is useful, next effort might be read_sectors() which
+needs a bit of work!
+		bye for now,
+				Rod.
+
+
+Sat Oct 22 1994 JES
+
+-	More xinstallvgafont.sh fixups with thanks to :
+	> Kang-Jin Lee
+	> lee@tengu.in-berlin.de
+-	Makefile enhancements from Marty.
+-	Detach updates by n1046128@student.fit.qut.edu.au (WAYNE P MEISSNER)
+-	Modified ports.h by Markky
+
 Wed Oct 19 1994 JES
 
 -	Release pre53_28.tgz

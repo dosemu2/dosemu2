@@ -1534,21 +1534,8 @@ dos_readdir(dir)
      DIR *dir;
 {
   struct direct *ret;
-  sigset_t newmask, oldmask;
 
-#if DOSEMU
-  sigfillset(&newmask);
-
-  /* temporarily block our alarms so NFS reads don't choke */
-  sigprocmask(SIG_SETMASK, &newmask, &oldmask);
-#endif
-
-  ret = readdir(dir);
-
-#if DOSEMU
-  /* restore the blocked alarm */
-  sigprocmask(SIG_SETMASK, &oldmask, NULL);
-#endif
+  ret = (struct direct *)RPT_SYSCALL(readdir(dir));
 
   return (ret);
 }
@@ -1560,24 +1547,13 @@ dos_read(fd, data, cnt)
      int cnt;
 {
   int ret;
-  sigset_t newmask, oldmask;
 
   if (cnt <= 0)
     return (0);
 
-#if DOSEMU
-  sigfillset(&newmask);
-
-  /* temporarily block our alarms so NFS reads don't choke */
-  sigprocmask(SIG_SETMASK, &newmask, &oldmask);
-#endif
-
-  ret = read(fd, data, cnt);
-
-#if DOSEMU
-  /* restore the blocked alarm */
-  sigprocmask(SIG_SETMASK, &oldmask, NULL);
-#endif
+  Debug0((dbg_fd, "About to do it!\n"));
+  ret = RPT_SYSCALL(read(fd, data, cnt));
+  Debug0((dbg_fd, "After doing it!\n"));
 
   return (ret);
 }
@@ -1594,21 +1570,9 @@ dos_write(fd, data, cnt)
   if (cnt <= 0)
     return (0);
 
-#if DOSEMU
-  sigfillset(&newmask);
-
-  /* temporarily block our alarms so NFS reads don't choke */
-  sigprocmask(SIG_SETMASK, &newmask, &oldmask);
-#endif
-
-  ret = write(fd, data, cnt);
+  ret = RPT_SYSCALL(write(fd, data, cnt));
 
   Debug0((dbg_fd, "Wrote %10.10s\n", data));
-
-#if DOSEMU
-  /* restore the blocked alarm */
-  sigprocmask(SIG_SETMASK, &oldmask, NULL);
-#endif
 
   return (ret);
 }
@@ -2736,6 +2700,7 @@ dos_fs_redirect(state)
       Debug0((dbg_fd, "Actual pos %d\n",
 	      itisnow));
       ret = dos_read(fd, dta, cnt);
+
       Debug0((dbg_fd, "Read returned : %d\n",
 	      ret));
       if (ret < 0) {
@@ -3013,6 +2978,9 @@ dos_fs_redirect(state)
     else if (mode == READ_WRITE_ACC) {
       mode = O_RDWR;
     }
+    else if (mode == 0x40) {
+      mode = O_RDWR;
+    }
     else {
       Debug0((dbg_fd, "Illegal access_mode 0x%x\n", mode));
       mode = O_RDONLY;
@@ -3030,7 +2998,7 @@ dos_fs_redirect(state)
 	return (FALSE);
       }
     }
-    else if ((fd = open(fpath, mode)) < 0) {
+    else if ((fd = open(fpath, mode )) < 0) {
       Debug0((dbg_fd, "access denied:'%s'\n", fpath));
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);

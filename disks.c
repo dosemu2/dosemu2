@@ -315,6 +315,7 @@ partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
+  char *hd_name;
   void set_part_ent(struct disk *, char *);
 
 #define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
@@ -327,22 +328,24 @@ partition_setup(struct disk *dp)
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
-  c_printf("CONFIG: Using partion file %s\n", dp->part_info.file);
+  hd_name = strdup(dp->dev_name);
+  hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
 
-  if ((part_fd = DOS_SYSCALL(open(dp->part_info.file, O_RDONLY))) == -1) {
-    error("ERROR: cannot open file %s for PARTITION %s\n",
-	  dp->part_info.file, dp->dev_name);
+  if ((part_fd = DOS_SYSCALL(open(hd_name, O_RDONLY))) == -1) {
+    error("ERROR: opening device %s to read MBR for PARTITION %s\n",
+	  hd_name, dp->dev_name);
     leavedos(22);
   }
-
   RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
-
   close(part_fd);
+  d_printf("Using MBR from %s for PARTITION %s (part#=%d).\n",
+           hd_name, dp->dev_name, PNUM);
+  free(hd_name);
 
   /* check for logical partition, if so simulate as primary part#1 */
-  if (dp->part_info.number > 4 ) {
+  if (PNUM > 4 ) {
     d_printf("LOGICAL PARTITION - will be simulated as physical partition 1\n");
-    dp->part_info.number = 1;
+    PNUM = 1;
     set_part_ent(dp, tmp_mbr);
   }
   dp->part_info.beg_head = PART_BYTE(PNUM, 1);
@@ -400,7 +403,7 @@ partition_setup(struct disk *dp)
 }
 
 /* XXX - this function constructs a primary partition table entry for the device
- *       dp->dev_name which can be primary, extended or logical. This is done by
+ *       dp->dev_name which should be a logical DOS partition. This is done by
  *       knowing the preceding sectors & length in sectors, and the geometry
  *       of the drive. The physical h/s/c start and end are calculated and
  *       put in the dp->part_info.number'th entry in the part table.
@@ -427,7 +430,7 @@ set_part_ent(struct disk *dp, char *tmp_mbr)
   d_printf("Calculated physical start: head=%4d sect=%4d cyl=%4d,\n",
 	HEAD(dp->start), SECT(dp->start), CYL(dp->start));
   end = dp->start+length-1;
-  d_printf("Calculated physical end:   head=%4d sect=%4d cyl=%4d.\n\n",
+  d_printf("Calculated physical end:   head=%4d sect=%4d cyl=%4d.\n",
 	HEAD(end), SECT(end), CYL(end));
 
   /* get address of where to put new part table entry */

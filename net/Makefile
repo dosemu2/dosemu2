@@ -19,25 +19,29 @@ CFLAGS=-O2 # -Wall # -Wmissing-prototypes \
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = ipx.c ipxglt.c libpacket.c pktnew.c
+CFILES = ipx.c ipxglt.c libpacket.c pktnew.c inifile.c
 HFILES =       libpacket.h pktdrvr.h
 
 # Insert all source- and header-files here.
 
 ALL = $(CFILES) $(HFILES) libpacket.c.multi libpacket.c.single \
-	pktnew.c.multi pktnew.c.single
+	pktnew.c.multi pktnew.c.single README
 
 # All object-files are included here.
 
-OBJS = ipx.o ipxglt.o libpacket.o pktnew.o
+OBJS = ipx.o ipxglt.o libpacket.o pktnew.o inifile.o
 
 .c.o:
 	$(CC) $(CFLAGS) $(INCDIR) -c $<
- 
-all: ../$(SUBDIR).o
 
-../$(SUBDIR).o: $(OBJS)
-	$(LD) -r -o ../$(SUBDIR).o $(OBJS)
+LIB=../lib$(SUBDIR).a
+
+all:  $(LIB)
+
+$(LIB): $(OBJS)
+	-rm $@
+	$(AR) cr $@ $^
+	ranlib $@
 
 checkin:
 	echo $(ALL)
@@ -47,7 +51,7 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o ../$(SUBDIR).o
+	rm -f *.o ../lib$(SUBDIR).a
 
 realclean: clean
 	rm -f .depend

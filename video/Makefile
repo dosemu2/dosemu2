@@ -21,7 +21,7 @@ endif
 
 # let gcc do extended checking
 
-CFLAGS=-O2 -Wall # -Wmissing-prototypes \
+# CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 #       -Wstrict-prototypes -ansi -pedantic 
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
@@ -39,13 +39,19 @@ ALL = $(CFILES) $(HFILES)
 OBJS = video.o vc.o vga.o et4000.o s3.o trident.o console.o \
        terminal.o int10.o $(XOBJS) hgc.o
 
+SUBDIR=video
+
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
-all: ../video.o
+LIB=../lib$(SUBDIR).a
 
-../video.o: $(OBJS)
-	$(LD) -r -o ../video.o $(OBJS)
+all:  $(LIB)
+
+$(LIB): $(OBJS)
+	-rm $@
+	$(AR) cr $@ $^
+	ranlib $@
 
 checkin:
 	-ci $(ALL) Makefile
@@ -54,7 +60,7 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o
+	rm -f *.o ../lib$(SUBDIR).a
 
 realclean:
 	rm -f .depend
@@ -62,8 +68,8 @@ realclean:
 install:
 
 dist: $(ALL) Makefile
-	install -d $(DISTPATH)/video
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/video
+	install -d $(DISTPATH)/$(SUBDIR)
+	install -m 0644 $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) $(CFILES) $(INCDIR) > .depend

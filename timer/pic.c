@@ -1,6 +1,6 @@
 /*  DANG_BEGIN_MODULE
  *
- *  pic.c is a fairly complete emulation of both 8259 Priority Interrupt 
+ *  pic.c is a fairly co,plete emulation of both 8259 Priority Interrupt 
  *  Controllers.  It also includes provision for 16 lower level interrupts.
  *  This implementation supports the following i/o commands:
  *
@@ -450,7 +450,7 @@ pic_request(inum)
 int inum;
 {
  if (pic_iinfo[inum].func == (void *)0) return; 
- if(pic_isr&&(1<<inum) || inum==pic_ilevel)  pic_pirr|=(1<<inum);
+ if(pic_isr&(1<<inum) || inum==pic_ilevel)  pic_pirr|=(1<<inum);
  else pic_irr|=(1<<inum);
  return;
 }

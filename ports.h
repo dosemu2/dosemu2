@@ -105,8 +105,8 @@ extern u_char keys_ready;
  * 0 means disabled.
  * 1 means record all port accesses to 0x00 to 0xFF
  * 2 means record ANY port accesses!  (big fat debugfile!)
-#define PORT_DEBUG 0
  */ 
+#define PORT_DEBUG 0
 
 /* int port61 = 0xd0;           the pseudo-8255 device on AT's */
 int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
@@ -281,20 +281,13 @@ inb(int port)
 
   static unsigned int cga_r = 0;
   static unsigned int tmp = 0;
-  static unsigned int r = 0;
+  static unsigned int r;
 
-#ifdef PORT_DEBUG
-#if PORT_DEBUG == 1
-  if (port < 0x100)
-#endif
-    fprintf(stderr,"PORT: Rd 0x%04x\n",port);
-#endif
-
+  r = 0;
   port &= 0xffff;
   if (port_readable(port))
-    return (read_port(port) & 0xFF);
- 
-  if (config.usesX) {
+    r = (read_port(port) & 0xFF);
+  else if (config.usesX) {
     v_printf("HGC Portread: %d\n", (int) port);
     switch (port) {
     case 0x03b8:		/* mode-reg */
@@ -325,109 +318,130 @@ inb(int port)
       set_ioperm(port, 1, 0);
       break;
     }
-    return r;
   }
-
 #if 1
-  if (config.chipset && port > 0x3b3 && port < 0x3df && config.mapped_bios)
-    return (video_port_in(port));
-  if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
-    int _v;
-
+  else if (config.chipset && port > 0x3b3 && port < 0x3df && config.mapped_bios)
+    r = (video_port_in(port));
+  else if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
     iopl(3);
-    _v = port_in(port) & 0xff;
+    r = port_in(port) & 0xff;
     iopl(0);
-    v_printf("S3 inb [0x%04x] = 0x%02x\n", port, _v);
-    return _v;
+    v_printf("S3 inb [0x%04x] = 0x%02x\n", port, r);
   }
 #endif
-
-  switch (port) {
+  else switch (port) {
 #ifdef NEW_PIC
   case 0x20:
   case 0x21:
-     return read_pic0(port-0x20);
+    r = read_pic0(port-0x20);
+    break;
   case 0xa0:
   case 0xa1:
-     return read_pic1(port-0xa0);
+    r = read_pic1(port-0xa0);
+    break; 
 #endif
   case 0x60:
-    if (keys_ready)
-      microsoft_port_check = 0;
+    if (keys_ready) microsoft_port_check = 0;
     k_printf("direct 8042 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
     if (microsoft_port_check)
-      return microsoft_port_check;
+      r = microsoft_port_check;
     else
-      return *LASTSCAN_ADD;
+      r = *LASTSCAN_ADD;
+    break;
 
   case 0x61:
-    k_printf("inb [0x61] =  0x%02x (8255 chip)\n", port61);
-    return port61;
+    k_printf("inb [0x61] = 0x%02x (8255 chip)\n", port61);
+    r = port61;
+    break;
 
   case 0x64:
-    tmp = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
+    r = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
     k_printf("direct 8042 0x64 status check: 0x%02x keys_ready=%d, microsoft=%d\n", tmp, keys_ready, microsoft_port_check);
-    return tmp;
+    break;
 
   case 0x70:
   case 0x71:
-    return cmos_read(port);
+    r = cmos_read(port);
+    break;
 
 #define COUNTER 2
+#if 1 /*Oct-21-94*/
   case 0x40:
-	return(do_40(1, 0));
-    pit.CNTR0 -= COUNTER;
-    i_printf("inb [0x40] = 0x%02x  1st timer inb\n",
-	     pit.CNTR0);
-    return pit.CNTR0;
+    r = do_40(1, 0);
+    break;
   case 0x41:
-	return(do_40(1, 0));
+    r = do_40(1, 0);
+    break;
+#else
+  case 0x40:
+    pit.CNTR0 -= COUNTER;
+    i_printf("inb [0x40] = 0x%02x  1st timer inb\n", pit.CNTR0);
+    r = pit.CNTR0;
+    break;
+  case 0x41:
     pit.CNTR1 -= COUNTER;
-    i_printf("inb [0x41] = 0x%02x  2nd timer inb\n",
-	     pit.CNTR1);
-    return pit.CNTR1;
+    i_printf("inb [0x41] = 0x%02x  2nd timer inb\n", pit.CNTR1);
+    r = pit.CNTR1;
+    break;
+#endif
   case 0x42:
 #if 0
-	return(do_42(1, 0));
+    r = do_42(1, 0);
+    break;
 #else
     pit.CNTR2 -= COUNTER;
-    i_printf("inb [0x42] = 0x%02x  3rd timer inb\n",
-	     pit.CNTR2);
-    return pit.CNTR2;
+    i_printf("inb [0x42] = 0x%02x  3rd timer inb\n", pit.CNTR2);
+    r = pit.CNTR2;
+    break;
 #endif
   case 0x43:
-	return(do_43(1, 0));
+    r = do_43(1, 0);
+    break;
 
   case 0x3ba:
   case 0x3da:
     /* graphic status - many programs will use this port to sync with
      * the vert & horz retrace so as not to cause CGA snow */
     i_printf("3ba/3da port inb\n");
-    return (cga_r ^= 1) ? 0xcf : 0xc6;
-  case 0x3bc:
-    i_printf("printer port inb [0x3bc] = 0\n");
-    return 0;
-  case 0x3db:			/* light pen strobe reset */
-    return 0;
+    r = (cga_r ^= 1) ? 0xcf : 0xc6;
+    break;
 
+  case 0x3bc:
+    i_printf("printer port inb [0x3bc] = 0\n");    /* 0 by default */
+    break;
+
+  case 0x3db:			/* light pen strobe reset, 0 by default */
+    break;
+    
   default:
     /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++)
-      if ((port & ~7) == com[tmp].base_port)
-	return (do_serial_in(tmp, port));
+      if ((port & ~7) == com[tmp].base_port) {
+	r = do_serial_in(tmp, port);
+	break;
+      }
 
     /* The diamond bug */
     if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
       iopl(3);
-      tmp = port_in(port);
+      r = port_in(port);
       iopl(0);
-      i_printf(" Diamond inb [0x%x] = 0x%x\n", port, tmp);
-      return (tmp);
+      i_printf(" Diamond inb [0x%x] = 0x%x\n", port, r);
+      break;
     }
-    i_printf("default inb [0x%x] = 0x%02x\n", port,0x00);
-    return 0x00;
+    r = 0;
+    i_printf("default inb [0x%x] = 0x%02x\n", port, r);
   }
-  return 0;
+
+/* Now record the port and the read value to debugfile if needed */
+#if PORT_DEBUG > 0
+#if PORT_DEBUG == 1
+  if (port < 0x100)
+#endif
+    fprintf(stderr,"PORT: Rd 0x%04x -> 0x%02x\n",port,r);
+#endif
+
+  return r;    /* Return with port read value */
 }
 
 inline int
@@ -455,7 +469,7 @@ outb(int port, int byte)
   port &= 0xffff;
   byte &= 0xff;
 
-#ifdef PORT_DEBUG
+#if PORT_DEBUG > 0
 #if PORT_DEBUG == 1
   if (port < 0x100)
 #endif
@@ -596,9 +610,9 @@ outb(int port, int byte)
 #if 1				/* 94/05/11 */
     *OUTB_ADD = 1;
 #endif
-#endif  /* NEW_PIC */
     if (port == 0x20 && byte != 0x20)
       set_leds();
+#endif  /* NEW_PIC */
     break;
   case 0x60:
     k_printf("keyboard 0x60 outb = 0x%x\n", byte);

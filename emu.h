@@ -268,7 +268,7 @@ void show_regs(void);
 int ext_fs(int, char *, char *, int);
 int outch(int c);
 void termioInit(void);
-__inline__ void run_vm86(void);
+extern __inline__ void run_vm86(void);
 
 #define NOWAIT  0
 #define WAIT    1
@@ -417,15 +417,29 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 	  errno, strerror(errno), __FILE__, __LINE__, #sc); \
   s_tmp; })
 
-#define RPT_SYSCALL(sc) ({ int s_tmp; \
+#define RPT_SYSCALL(sc) ({ int s_tmp, s_err; \
    do { \
+	  errno = s_err = 0; \
 	  s_tmp = sc; \
-      } while ((s_tmp == -1) && (errno == EINTR)); \
+	  if (errno == EINTR) {\
+	    s_err = errno; \
+	    g_printf("Recursive run_irqs() RPT_SYSCALL()\n"); \
+	    handle_signals(); \
+	/*    run_irqs(); */ \
+	  } \
+      } while ((s_tmp == -1) && (s_err == EINTR)); \
   s_tmp; })
 
 #define RPT_SYSCALL2(sc) ({ int s_tmp; \
    do { \
+	  errno = s_err = 0; \
 	  s_tmp = sc; \
+	  if (errno == EINTR) {\
+	    s_err = errno; \
+	    g_printf("Recursive run_irqs() RPT_SYSCALL2()\n"); \
+	    handle_signals(); \
+	/*    run_irqs(); */ \
+	  } \
       } while ((s_tmp == -1) ); \
   s_tmp; })
 
@@ -471,6 +485,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        u_short usesX;  /* !=0 if dosemu owns an X window */
 
        boolean console_keyb;
+       boolean kbd_tty;
        boolean X_keycode;	/* use keycode field of event structure */
        boolean exitearly;
        boolean mathco;
@@ -644,7 +659,7 @@ extern void add_to_io_select(int, unsigned char);
 			   just in case, and make it aligned  */ \
 			sa.sa_restorer = \
 			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
-					sa.sa_flags = SA_RESTART; \
+					sa.sa_flags = 0 /* SA_RESTART  */; \
 					sigemptyset(&sa.sa_mask); \
 					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
 					dosemu_sigaction(sig, &sa, NULL);

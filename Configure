@@ -1,12 +1,14 @@
 #!/bin/sh
 #
-# Configure 0.2
+# Configure 0.3
 # configuration program for dosemu
-# WARNIG : This program is pre-alpha !
+# WARNIG : This program is alpha !
 #
 # If you have any problems or bugs with this program, 
 # please let me know.
 #
+# This script needs dialog 0.4
+# 
 # (c) 1994 Jan 'TWP' VANDENBERGHE
 #          jvdbergh@wins.uia.ac.be
 #
@@ -28,9 +30,7 @@ then
    cp $CONFIG_BACK $CONFIG
    exit
 fi
-
 }
-
 
 # deleteds part of config. file
 delete_part() {
@@ -124,7 +124,6 @@ do
    esac
 done
 
-# radiolist
 dialog  --title "MISCALLENOUS" --radiolist "select cpu-type to emulate" 10 40 3\
    1 80286 off\
    2 80386 off \
@@ -139,7 +138,6 @@ case $choice in
    3) echo "cpu 80486" >> $CONFIG;;
 esac
 
-# radiolist
 dialog  --title "MISCALLENOUS" --checklist "mathcoprocessor on durin DOSEMU\
 ? : " 8 50 1 \
    1 "mathcoprocessor on" on 2> $TEMP
@@ -152,7 +150,6 @@ case $choice in
    "") echo "mathco off" >> $CONFIG;;
 esac
 
-# radiolist
 dialog  --title "MISCALLENOUS" --radiolist "boot from" 9 30 2\
    1 "boot from A" off\
    2 "boot from C" on 2> $TEMP
@@ -174,7 +171,6 @@ select_keyboard() {
 delete_part "## KEYBOARD ##"
 echo "## KEYBOARD ##" >> $CONFIG
 
-# radiolist
 dialog --title "KEYBOARD" --radiolist "select a keyboard layout" 24 60 17 \
   1 us off \
   2 uk off \
@@ -259,15 +255,6 @@ echo "" >> $CONFIG
 }
 
 
-select_miscallenous2() {
-
-echo "## MISCALLENOUS ##" >> $CONFIG
-
-
-echo "" >> $CONFIG  
-}
-
-
 select_memory() {
 
 delete_part "## MEMORY ##"
@@ -301,7 +288,6 @@ select_speaker() {
 delete_part "## SPEAKER ##"
 echo "## SPEAKER ##" >> $CONFIG
 
-# radiolist
 dialog  --title "SPEAKER" --radiolist "select an option :\n\
   native      Enable DOSEMU direct access to the speaker ports.\n\
   emulated    Enable simple beeps at the terminal.\n\
@@ -325,7 +311,6 @@ echo "" >> $CONFIG
 
 select_mouse() {
 
-# radiolist
 dialog  --title "MOUSE" --radiolist "select mouseport" 11 30 4 \
    1 "com 1" on\
    2 "com 2" off \
@@ -346,7 +331,6 @@ esac
 
 echo  "device /dev/mouse }" >> $CONFIG
 
-# radiolist
 dialog  --title "MOUSE" --radiolist "select mousetype" 15 30 8 \
    1 "microsoft" on\
    2 "logitech" off \
@@ -381,7 +365,6 @@ echo " }" >> $CONFIG
 
 select_modem() {
 
-# radiolist
 dialog  --title "MODEM" --radiolist "select modemport" 11 30 4 \
    1 "com 1" on\
    2 "com 2" off \
@@ -468,7 +451,6 @@ select_video() {
 delete_part "## VIDEO ##"
 echo "## VIDEO ##" >> $CONFIG
 
-# radiolist
 dialog  --title "VIDEO" --radiolist "select videomode" 11 30 4\
    1 "vga" on\
    2 "ega" off \
@@ -490,7 +472,6 @@ esac
 
 echo -n "console  "  >> $CONFIG
 
-# radiolist
 dialog  --title "VIDEO" --checklist "graphics ?" 8 30 1\
    1 "graphics on" on 2> $TEMP
 
@@ -501,7 +482,6 @@ case $choice in
    \"1\") echo -n "graphics " >> $CONFIG;;
 esac
 
-# radiolist
 dialog  --title "VIDEO" --radiolist "select chipset" 12 30 5\
    1 "standard" on\
    2 "trident" off \
@@ -558,7 +538,6 @@ select_floppy() {
 delete_part "## FLOPPY DISKS ##"
 echo "## FLOPPY DISKS ##" >> $CONFIG
 
-# radiolist
 dialog  --title "FLOPPY DISKS" --radiolist "                 floppy drive A:\n\
 FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE\n\
 STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!" 12 70 3\
@@ -578,7 +557,6 @@ then
    esac
 fi
 
-# radiolist
 dialog  --title "FLOPPY DISKS" --radiolist "                 floppy drive B:\n\
 FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE\n\
 STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!" 12 70 3\
@@ -654,6 +632,7 @@ then
    - Format a diskette with 'FORMAT A: /S'
    - Copy C:\DOS\FDISK.EXE to the diskette.
    - Copy C:\DOS\SYS.COM to the diskette." 10 50
+   clear
    exit
 else
    dialog --title "HARD DISKS" --msgbox "Please insert the DOS disk in drive
@@ -684,7 +663,6 @@ echo "## HARD DISK ##" >> $CONFIG
 
 dialog --title "HARD DISKS" --yesno "Do you want to use a DISKIMAGE file ?"\
  5 50 
-
 
 if [ "$?" = "0" ]
 then
@@ -778,8 +756,8 @@ or VT100 sequences.  In this case, use "ncurses"." 13 60 2\
  check_status
  choice=`cat $TEMP`
  case $choice in
-   1) echo -n "methode fast  " >> $CONFIG;;
-   2) echo -n "methode ncurses  " >> $CONFIG;;
+   1) echo -n "method fast  " >> $CONFIG;;
+   2) echo -n "method ncurses  " >> $CONFIG;;
  esac
 
  dialog --title "TERMINAL" --radiolist "Enable/disable printing of the\
@@ -802,15 +780,21 @@ echo "" >> $CONFIG
 }
 
 
-
-
-
 select_printers() {
 
 delete_part "## PRINTERS ##"
 echo "## PRINTERS ##" >> $CONFIG
 
+echo -n "printer { " >> $CONFIG
 
+dialog --title "PRINTERS" --yesno "Do you want DOSEMU to 'lpr' ?" 5 50
+
+if [ "$?" = "0" ]
+then
+   echo  "options \"-p %s\"  command \"lpr\"  timeout 10 }" >> $CONFIG
+else   
+   echo "file \"lpt3\" }" >> $CONFIG
+fi
 
 echo "" >> $CONFIG
 
@@ -940,7 +924,7 @@ if test -f $CONFIG
 then echo "" 
 else 
     cp -b $CONFIG $CONFIG_BACK
-    echo  "## configuration file for DOSEMU created by dosconfig 0.2 ##" > $CONFIG
+    echo  "## configuration file for DOSEMU created by dosconfig 0.3 ##" > $CONFIG
     echo -e "##                 please do not edit                     ##\n" >> $CONFIG
 fi
 

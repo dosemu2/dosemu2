@@ -23,7 +23,7 @@ DEFINES=-DYYPURE
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 
-CFILES = inifile.c parse.c
+CFILES = 
 LFILES = lexer.l
 YFILES = parser.y
 HFILES = 
@@ -34,16 +34,21 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = parser.o lex.yy.o inifile.o # parse.o 
+OBJS = parser.o lex.yy.o # parse.o 
 
 .c.o:
 	$(CC) $(CFLAGS) $(DEFINES) $(INCDIR) -c $<
 
-all: ../init.o
+SUBDIR=init
 
-../init.o: $(OBJS)
-	$(LD) -r -o ../init.o $(OBJS)
-#	$(LD) -r -o ../init.o parse.o
+LIB=../lib$(SUBDIR).a
+
+all:  $(LIB)
+
+$(LIB): $(OBJS)
+	-rm $@
+	$(AR) cr $@ $^
+	ranlib $@
 
 parser.c : parser.y
 	$(BISON) -do parser.c parser.y
@@ -58,7 +63,7 @@ checkout:
 	-co -l $(ALL) Makefile 
 
 clean:
-	rm -f *.o parser.[ch] lex.yy.c
+	rm -f *.o parser.[ch] lex.yy.c ../lib$(SUBDIR).a
 
 realclean: clean
 	rm -f .depend
@@ -66,11 +71,10 @@ realclean: clean
 install:
 
 dist: $(ALL) Makefile
-	install -d $(DISTPATH)/init
-	install -m 0644 $(ALL) Makefile $(DISTPATH)/init
+	install -d $(DISTPATH)/$(SUBDIR)
+	install -m 0644 $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
 
-depend dep: $(CFILES)
-	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
+depend dep:
 
 dummy:
 

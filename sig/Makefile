@@ -43,7 +43,7 @@ OBJS =
  
 all: sillyint.o
 
-sillyint.o:    int.c  $(LINUX_INCLUDE)/../tools/version.h
+sillyint.o:    int.c  # $(LINUX_INCLUDE)/../tools/version.h
 	$(CC) -Wall -I$(LINUX_INCLUDE) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o sillyint.o
 
 checkin:

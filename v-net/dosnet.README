@@ -63,6 +63,10 @@ Implementation:
             (both versions are alpha codes.)
             Actually IPX routing code is there in kernel.  Has anyone been 
             successful in using this?
+	    Yet another alternative is to use IPTunnelling of IPX
+	    packets (rfc 1234). Novell has NLMs for this on the netware
+	    side. On linux, we should run a daemon implementing this
+	    rfc.
 
   Virtual device 'dsn0': 
        Compile the module dosnet and insmod it, and give it an IP
@@ -70,8 +74,14 @@ Implementation:
        proper routing tables on all machines you want to connect to. 
        So linux side interface is easy to set up.
 
-       This device should be assigned a virtual ethernet address.
-       I have used a random one, please change it if required.
+       Note: Some 3 kernel symbols are used by the module, which are not
+       exported by kernel/ksyms.c in the kernel code. You could either
+       add these symbols there, or use Hans' improved 'insmod'  (part of 
+       syscall Manager package). (In that case, it will resolve the
+       symbols from the zSystem.map file.
+
+       This device is assigned a virtual ethernet address, defined in
+       dosnet.h.  
 
        This device is usual loadable module. (Someone please check if
        it can be made more efficient.) However, what is interesting is
@@ -127,15 +137,21 @@ Implementation:
                 asks for same type. )
 
  Packet driver code:
-               Right now, only one protocol will run per dosemu session. 
-               ( i.e. you can access EITHER novell netware OR NCSA
-               telnet ... not both at once.)
-               Because I couldn't accomplish type switching from within
-                dosemu. When a packet arrives,  it arrives on single
-                SOCK_PACKET handle ; so we need to find out which 
-                of the registered protocols  should be handled this
-                code. If there is only one, this problem is not
-                there ;-)
+               I have add the code for handling multiple protocols.
+
+               When a packet arrives,  it arrives on  one of the two 
+	       SOCK_PACKET handle we need to find out which of the 
+	       registered protocols  should be handled this code. 
+               (Earlier code opened multiple sockets, one for each IPX type.
+		However it is not useful now because we use *any*
+		type.) When a new type is registered, it is added to a
+		Type list. When a new packet arrives, first we find out
+		the frame type(and hence the position of type field in the 
+		packet, and then try matching it with registered types.
+		[ ----  I missed comparing class; I will add it later.]
+		Then call the helper corresponding to the handle of that
+		type.
+
    Rob, you should help in the following:
       1. Packet driver code ... 
                 We should now open only two sockets: one specific to dosemu and

@@ -2,82 +2,202 @@
 #include <fcntl.h>
 #include <sys/vt.h>
 #include <sys/kd.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <sys/param.h>
 
-unsigned short
-detach()
-{
-	struct vt_stat vts;
-	int pid;
-	int vt;
-	int fd;
-	char dev[16];
+/* 
+ * Update to do console disallocation on exit of dosemu
+ * (C) 1994 under GPL: Wayne Meissner
+ * 
+ */
 
-	if ((fd = open("/dev/tty0", O_RDONLY)) < 0) {
-		fprintf(stderr, "Could not open current VT.\n");
-		return(0);
-	}
+/* the new VT for dosemu - only needed by detach() and disallocate_vt() */
+static int dosemu_vt = 0;
 
-	if (ioctl(fd, VT_GETSTATE, &vts) < 0) {
-		perror("VT_GETSTATE");
-		return(0);
-	}
+static struct stat orig_stat; /* original info of the VT */
 
-	if (ioctl(fd, VT_OPENQRY, &vt) < 0) {
-		perror("VT_OPENWRY");
-		return(0);
-	}
+/* One of these has to work */
+const char * CONSOLE[] =   { 
+  "/dev/console",
+  "/dev/tty0",
+  "/dev/vt00",
+  "/dev/systty",
+  0 
+};
 
-	if (vt < 1) {
-		fprintf(stderr, "No free vts to open\n");
-		return(0);
-	}
+const char vt_base[] = "/dev/tty";
 
-	sprintf(dev, "/dev/tty%d", vt);
+/* open a specific VT */
 
-	if (ioctl(fd, VT_ACTIVATE, vt) < 0) {
-		perror("VT_ACTIVATE");
-		return(0);
-	}
+static int open_vt (int vt)  {
+  char path[MAXPATHLEN];
 
-	if (ioctl(fd, VT_WAITACTIVE, vt) < 0) {
-		perror("VT_WAITACTIVE");
-		return(0);
-	}
-
-	if ((pid = fork()) < 0) {
-		perror("fork");
-		return(0);
-	}
-
-	if (pid) {
-		exit(0);
-	}
-
-	close(fd);
-	close(2);
-	close(1);
-	close(0);
-
-	(void)open(dev, O_RDWR);
-	(void)open(dev, O_RDWR);
-	(void)open(dev, O_RDWR);
-
-	(void)setsid();
-	return(vts.v_active); /* return old VT. */
+  int vt_fd = -1;
+  
+  sprintf(path, "%s%d", vt_base, vt);
+  return open (path, O_RDWR); 
 }
 
-restore_vt(vt)
-unsigned short vt;
-{
+/* open the main console */
+static int open_console (void)  {
+  int console = -1;
+  int pos;
+  for (pos = 0; CONSOLE[pos]; pos++)  {
+    errno = 0;
+    if ((console = open (CONSOLE[pos], O_WRONLY)) >= 0)  {
+      return console;
+    }
+  }
+  return -1;
+}
 
-	if (ioctl(0, VT_ACTIVATE, vt) < 0) {
-		perror("VT_ACTIVATE");
-		return;
-	}
+unsigned short detach (void) {
+  
+  struct vt_stat vts;
+  int pid;
+  int fd;
+    struct stat statout, staterr;
+  
+  if ((fd = open_console()) < 0) {
+    fprintf(stderr, "Could not open current VT.\n");
+    return(0);
+  }
+  
+  if (ioctl(fd, VT_GETSTATE, &vts) < 0) {
+    perror("VT_GETSTATE");
+    return(0);
+  }
+  
+  if (ioctl(fd, VT_OPENQRY, &dosemu_vt) < 0) {
+    perror("VT_OPENQRY");
+    return(0);
+  }
+  
+  if (dosemu_vt < 1) {
+    fprintf(stderr, "No free vts to open\n");
+    return(0);
+  }
+    
+  if (ioctl(fd, VT_ACTIVATE, dosemu_vt) < 0) {
+    perror("VT_ACTIVATE");
+    return(0);
+  }
+  
+  if (ioctl(fd, VT_WAITACTIVE, dosemu_vt) < 0) {
+    perror("VT_WAITACTIVE");
+    return(0);
+  }
+  
+  if ((pid = fork()) < 0) {
+    perror("fork");
+    return(0);
+  }
+  
+  if (pid) {
+    exit(0);
+  }
+  
+  close(fd);
+  
+  /* only reassign stderr to the new VT if it isn't already redirected */
+  fstat(2, &statout);
+  fstat(1, &staterr);
+  if (staterr.st_ino == statout.st_ino) {
+    close (2);
+    open_vt (dosemu_vt);
+  }
 
-	if (ioctl(0, VT_WAITACTIVE, vt) < 0) {
-		perror("VT_WAITACTIVE");
-		return;
-	}
 
+  close(1);
+  close(0);
+  
+  open_vt (dosemu_vt);
+  open_vt (dosemu_vt);
+    
+  /* save the uid, gid, mode of the VT */
+  fstat (0, &orig_stat);
+
+  /* now set the console as owned by this user */
+  if (geteuid() == 0)
+    fchown (0, getuid(), getgid());
+  
+  /* set the permissions to stop other people accessing the vt */
+  fchmod (0, S_IRUSR | S_IWUSR);
+
+  setsid();
+  return(vts.v_active); /* return old VT. */
+}
+
+
+void restore_vt (unsigned short vt) {
+  
+  int console = 0;  /* stdin by default */
+  errno = 0;
+  
+  if (ioctl(console, VT_ACTIVATE, vt) < 0) {
+    
+    /* open the console manually and try again */
+    console = open_console();
+    if (ioctl(console, VT_ACTIVATE, vt) < 0) {
+      perror("VT_ACTIVATE");
+      close (console);
+      return;
+    }
+  }
+  
+  if (ioctl(console, VT_WAITACTIVE, vt) < 0) {
+    perror("VT_WAITACTIVE");
+    if (console > 0) 
+      close(console);
+    return;
+  }
+  if (console > 0) 
+    close (console);
+
+}
+
+/* its not really critical if this succeeds */
+void disallocate_vt (void) {
+#ifdef VT_DISALLOCATE /* only use for >1.1.54 */
+  int console;
+  int vt_fd;
+  struct stat statout, staterr;
+
+    
+  /* Restore the uid, gid, mode of the VC */
+  if ((vt_fd = open_vt (dosemu_vt)) >= 0) {
+    fchown (vt_fd, orig_stat.st_uid, orig_stat.st_gid);
+    fchmod (vt_fd, orig_stat.st_mode);
+    close (vt_fd);
+  }
+
+  
+  /* We have to close all fd attached to the console.
+   * I think this should really be taken care of by the caller (leavedos()?)
+   */
+  fstat(2, &statout);
+  fstat(1, &staterr);
+  if (staterr.st_ino == statout.st_ino) {
+    close (2);
+  }
+  close (1);
+  close (0);
+
+  console = open_console();
+  
+  if (console < 0) {
+    return;
+  }
+  
+  
+  if (ioctl (console, VT_DISALLOCATE, dosemu_vt) < 0) {
+    perror ("VT_DISALLOCATE");
+    close (console);
+    return;
+  }
+
+  close (console);
+#endif /* VT_DISALLOCATE */
 }

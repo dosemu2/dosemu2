@@ -24,7 +24,7 @@
  *   (so, don't panic if you get a GCC warning "_kernel_version not used" )
  */
 #include <linux/module.h>
-#include "linux/tools/version.h"
+#include "../../linux/tools/version.h"
 static char kernel_version[] = UTS_RELEASE;
 
 struct redirect_db {

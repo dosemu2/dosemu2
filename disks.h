@@ -11,8 +11,6 @@
 #define PART_NOBOOT	0
 #define PART_BOOT	0x80
 
-#define PARTITION_PATH	"/var/lib/dosemu/partition"
-
 /* disk file types */
 typedef enum {
   NODISK = -1,
@@ -31,7 +29,6 @@ struct partition {
   long num_secs;		/* sectors in partition */
   char *mbr;			/* fake Master Boot Record */
   int mbr_size;			/* usu. 1 sector */
-  char *file;                   /* file with original partition table */
 };
 
 struct disk {

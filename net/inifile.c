@@ -5,17 +5,23 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#if 0
 #define __USE_GNU
 #define __USE_SVID
+#endif
 #include <string.h>
 #include <ctype.h>
 
 #define FALSE  0
 #define TRUE   1
 
-void GetValueFromIniFile (char *, char *, char *, char *);
-void GetValueFromIniFilePath (char *, char *, char *, char *);
-void SetValueInIniFile (char *, char *, char *, char *);
+#if 0
+extern void GetValueFromIniFile (char *, char *, char *, char *);
+extern void GetValueFromIniFilePath (char *, char *, char *, char *);
+extern void SetValueInIniFile (char *, char *, char *, char *);
+#else
+#include "inifile.h"
+#endif
 
 /****************************************
  * An ini file should have the extension .INI, and is formatted
