@@ -702,3 +702,26 @@ char * strlower(char *s)
 	}
 	return s;
 }
+
+int check_memory_range(unsigned long base, unsigned long size)
+{
+    FILE *fp;
+    char line[100];
+    unsigned long beg, end;
+    /* find out whether the address request is available */
+    if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
+	error("can't open /proc/self/maps\n");
+	return 0;
+    }
+    while(fgets(line, 100, fp)) {
+	sscanf(line, "%lx-%lx", &beg, &end);
+	if ((base + size) < beg ||  base >= end) {
+	    continue;
+	} else {
+	    fclose(fp);
+	    return 0;	/* overlap */
+	}
+    }
+    fclose(fp);
+    return 1;
+}

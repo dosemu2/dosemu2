@@ -156,8 +156,8 @@ void dump_config_status(void *printfunc)
 	config.mem_size, config.ext_mem);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
-    (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\npm_dos_api %i\n",
-        config.xms_size, config.max_umb, config.dpmi, config.pm_dos_api);
+    (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\ndpmi_base 0x%x\npm_dos_api %i\n",
+        config.xms_size, config.max_umb, config.dpmi, config.dpmi_base, config.pm_dos_api);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",

@@ -277,6 +277,7 @@ typedef struct vesamode_type_struct {
 
        int mem_size, ext_mem, xms_size, ems_size, dpmi, pm_dos_api, max_umb;
        unsigned int ems_frame;
+       unsigned long dpmi_base;
 
        int sillyint;            /* IRQ numbers for Silly Interrupt Generator 
        				   (bitmask, bit3..15 ==> IRQ3 .. IRQ15) */

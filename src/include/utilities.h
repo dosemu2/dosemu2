@@ -43,6 +43,7 @@ char *get_dosemu_local_home(void);
 char *readlink_malloc (const char *filename);
 char * strupr(char *s);
 char * strlower(char *s);
+int check_memory_range(unsigned long base, unsigned long size);
 
 /* returns y = sqrt(x), for y*y beeing a power of 2 below x
  */

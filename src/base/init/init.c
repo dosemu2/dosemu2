@@ -379,7 +379,7 @@ void memory_init(void)
   if (first_call) {
     ems_init();                /* initialize ems */
     xms_init();                /* initialize xms */
-    dpmi_memory_init();
+    dpmi_setup();
   }
   first_call = 0;
 }

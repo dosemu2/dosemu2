@@ -2390,6 +2390,7 @@ static void dpmi_cleanup(struct sigcontext_struct *scp)
     in_win31 = 0;
     mprotect_mapping(MAPPING_DPMI, ldt_buffer,
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+    dpmi_free_pool();
   }
   FreeAllDescriptors();
   free(DPMI_CLIENT.pm_stack);
@@ -2733,6 +2734,7 @@ void dpmi_init(void)
   DPMI_CLIENT.is_32 = LWORD(eax) ? 1 : 0;
 
   if (in_dpmi == 1) {
+    dpmi_alloc_pool();
     dpmi_free_memory = dpmi_total_memory;
     DPMI_rm_procedure_running = 0;
     pm_block_handle_used = 1;
@@ -2924,8 +2926,8 @@ void dpmi_init(void)
   return; /* return immediately to the main loop */
 
 err:
-  FreeAllDescriptors();
-  in_dpmi--;
+  error("DPMI initialization failed!\n");
+  dpmi_cleanup(&DPMI_CLIENT.stack_frame);
 }
 
 void dpmi_sigio(struct sigcontext_struct *scp)
