@@ -718,6 +718,7 @@ static int wildcard_delete(char *fpath, int drive)
 	strupperDOS(pattern);
 
 	d_printf("LFN: wildcard delete %s %s %x\n", pattern, fpath, dirattr);
+	errcode = FILE_NOT_FOUND;
 	while ((de = dos_readdir(dir))) {
 		char name_8_3[PATH_MAX];
 		char name_lfn[PATH_MAX];
@@ -755,6 +756,8 @@ static int wildcard_delete(char *fpath, int drive)
 	}
 	free(pattern);
 	dos_closedir(dir);
+	if (errcode)
+		return lfn_error(errcode);	
 	return 1;
 }
 
