@@ -4,8 +4,7 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-SUBDIR := $(subst $(abs_top_builddir)/src/,,$(shell pwd -P))
-LIBNAME := $(shell echo $(SUBDIR) |tr / _)
+LIBNAME := $(subst /,_,$(SUBDIR))
 
 ifndef OBJS
 ifdef CFILES

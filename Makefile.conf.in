@@ -21,7 +21,11 @@ syshdimagedir:=@syshdimagedir@
 x11fontdir:=@x11fontdir@
 fdtarball:=@fdtarball@
 abs_top_srcdir:=@abs_top_srcdir@
-abs_top_builddir:=$(shell cd $(top_builddir) && pwd -P)
+ifeq (0,${MAKELEVEL})
+    export abs_top_builddir:=$(shell cd $(top_builddir) && pwd -P)
+    SUBDIR := $(subst $(abs_top_builddir)/src/,,$(shell pwd -P))
+else
+endif
 PACKAGE_VERSION:=@PACKAGE_VERSION@
 
 @SET_MAKE@

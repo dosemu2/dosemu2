@@ -106,7 +106,7 @@ optionalsubdirs:	$(OPTIONALSUBDIRS)
 docsubdirs:	$(DOCS)
 
 $(DIRLIST):
-	@($(MAKE) -C $@)
+	@($(MAKE) SUBDIR:=$@ -C $@)
 
 version:	versetup
 
