@@ -15,18 +15,17 @@
 #include <assert.h>
 #include "smalloc.h"
 
-static void alloc_and_link(struct memnode *pmn, size_t size)
+static void mntruncate(struct memnode *pmn, size_t size)
 {
   int delta = pmn->size - size;
 
   if (delta == 0)
     return;
-  assert(pmn->used);
   /* delta can be < 0 */
   if (pmn->next && !pmn->next->used) {
     struct memnode *nmn = pmn->next;
 
-    assert(nmn->size + delta >= 0);
+    assert(size > 0 && nmn->size + delta >= 0);
 
     nmn->size += delta;
     nmn->mem_area -= delta;
@@ -36,7 +35,6 @@ static void alloc_and_link(struct memnode *pmn, size_t size)
       free(nmn);
       assert(!pmn->next || pmn->next->used);
     }
-    /* the pmn->size==0 case caller will handle itself */
   } else {
     struct memnode *new_mn;
 
@@ -68,11 +66,11 @@ void *smalloc(struct memnode *mp, size_t size)
     mn->used = 1;
     if (mn == mp) {
       /* first allocation, lock the pool */
-      alloc_and_link(mn, 0);
+      mntruncate(mn, 0);
       mn = mn->next;
       mn->used = 1;
     }
-    alloc_and_link(mn, size);
+    mntruncate(mn, size);
     assert(mn->size == size);
     memset(mn->mem_area, 0, size);
   }
@@ -81,40 +79,34 @@ void *smalloc(struct memnode *mp, size_t size)
 
 void smfree(struct memnode *mp, void *ptr)
 {
-  struct memnode *mn, *pmn, *ppmn;
+  struct memnode *mn, *pmn;
   /* Find the region */
-  for (ppmn = NULL, pmn = mp, mn = mp->next; mn;
-      ppmn = pmn, pmn = mn, mn = mn->next) {
+  for (pmn = mp, mn = mp->next; mn; pmn = mn, mn = mn->next) {
     if (mn->mem_area == ptr)
       break;
   }
   if (!mn || !mn->used)
     return;	/* bad pointer */
+  assert(mn->size > 0);
   mn->used = 0;
-  if (pmn && !pmn->used) {
-    /* merge with prev */
-    assert(pmn->mem_area <= mn->mem_area);
-    pmn->next = mn->next;
-    pmn->size += mn->size;
-    free(mn);
-    mn = pmn;
-    pmn = ppmn;
-  }
   if (mn->next && !mn->next->used) {
     /* merge with next */
-    struct memnode *nmn = mn->next;
-    assert(nmn->mem_area >= mn->mem_area);
-    mn->next = nmn->next;
-    mn->size += nmn->size;
-    free(nmn);
+    assert(mn->next->mem_area >= mn->mem_area);
+    mntruncate(mn, mn->size + mn->next->size);
+  }
+  if (!pmn->used) {
+    /* merge with prev */
+    assert(pmn->mem_area <= mn->mem_area);
+    mntruncate(pmn, pmn->size + mn->size);
+    mn = pmn;
   }
   assert(mn != mp);
-  if (pmn == mp && !mn->next) {
+  if (mn == mp->next && !mn->next) {
     /* Last allocation freed, unlock the pool */
     assert(mp->mem_area == mn->mem_area);
-    *mp = *mn;
-    free(mn);
-    mn = mp;
+    mntruncate(mp, mn->size);
+    assert(!mp->next);
+    mp->used = 0;
   }
 }
 
@@ -134,21 +126,34 @@ void *smrealloc(struct memnode *mp, void *ptr, size_t size)
   }
   if (size <= mn->size) {
     /* shrink */
-    alloc_and_link(mn, size);
+    mntruncate(mn, size);
   } else {
     /* grow */
     struct memnode *nmn = mn->next;
     if (nmn && !nmn->used && mn->size + nmn->size >= size) {
+      /* expand */
       memset(nmn->mem_area, 0, size - mn->size);
-      alloc_and_link(mn, size);
+      mntruncate(mn, size);
     } else {
-      /* move */
-      void *new_ptr = smalloc(mp, size);
-      if (!new_ptr)
-        return NULL;
-      memcpy(new_ptr, mn->mem_area, mn->size);
-      smfree(mp, mn->mem_area);
-      return new_ptr;
+      if (!pmn->used && pmn->size + mn->size + (nmn->used ? 0 : nmn->size) >= size) {
+        /* move */
+        pmn->used = 1;
+        memmove(pmn->mem_area, mn->mem_area, mn->size);
+        memset(pmn->mem_area + mn->size, 0, size - mn->size);
+        mn->used = 0;
+        if (!nmn->used)
+          mntruncate(mn, mn->size + nmn->size);
+        mntruncate(pmn, size);
+        return pmn->mem_area;
+      } else {
+        /* relocate */
+        void *new_ptr = smalloc(mp, size);
+        if (!new_ptr)
+          return NULL;
+        memcpy(new_ptr, mn->mem_area, mn->size);
+        smfree(mp, mn->mem_area);
+        return new_ptr;
+      }
     }
   }
   assert(mn->size == size);
