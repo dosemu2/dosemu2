@@ -441,6 +441,7 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        unsigned char *num_table;
        unsigned short detach;
        unsigned char *debugout;
+       unsigned char *pre_stroke;  /* pointer to keyboard pre strokes */
 
        /* Lock File business */
        char *tty_lockdir;	/* The Lock directory  */

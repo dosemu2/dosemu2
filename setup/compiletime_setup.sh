@@ -27,7 +27,7 @@ clean_up() {
 }
 
 get_defaults() {
-  awk -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' $CONF_FILE > $TEMP 2> /dev/null
+  $AWK -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' $CONF_FILE > $TEMP 2> /dev/null
   . $TEMP 2> /dev/null
 }
 
@@ -146,7 +146,7 @@ write_out() {
 
   cp -f $CONF_FILE ${CONF_FILE}~ 2> /dev/null
   touch $CONF_FILE
-  awk -f 'parse-misc' -f 'write-config' -f $TEMP $CONF_FILE > $CONF_FILE.tmp
+  $AWK -f 'parse-misc' -f 'write-config' -f $TEMP $CONF_FILE > $CONF_FILE.tmp
   mv $CONF_FILE.tmp $CONF_FILE  
 
  fi
@@ -157,7 +157,7 @@ load_menus() {
     --infobox "Building Menus ..." 3 50 2> /dev/null
 
   # Create the menus
-  awk -f 'parse-menu-sh' -f 'parse-menu' -f 'parse-misc' compiletime_setup.menu > $TEMP
+  $AWK -f 'parse-menu-sh' -f 'parse-menu' -f 'parse-misc' compiletime_setup.menu > $TEMP
   # Load them up ...
   . $TEMP
 

@@ -85,7 +85,7 @@ get_defaults() {
   $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
     --infobox "Reading System Wide Configuration ..." 3 50 2> /dev/null
 
-  awk -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' -v PREFIX=SYSTEM_ $SYSTEM_FILE > $TEMP
+  $AWK -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' -v PREFIX=SYSTEM_ $SYSTEM_FILE > $TEMP
   . $TEMP
   
   if [ $TYPE = local -a -e $CONF_FILE ]
@@ -93,7 +93,7 @@ get_defaults() {
     $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
       --infobox "Reading Local Configuration ..." 3 50 2> /dev/null
 
-    awk -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' -v PREFIX=LOCAL_ $CONF_FILE > $TEMP
+    $AWK -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' -v PREFIX=LOCAL_ $CONF_FILE > $TEMP
     . $TEMP
   fi
 }
@@ -680,7 +680,7 @@ write_out() {
     --infobox "Writing Configuration ..." 3 50 2> /dev/null
 
   cp $CONF_FILE ${CONF_FILE}.old
-  awk -f 'parse-misc' -f 'write-config' -f $TEMP $CONF_FILE > $CONF_FILE.tmp
+  $AWK -f 'parse-misc' -f 'write-config' -f $TEMP $CONF_FILE > $CONF_FILE.tmp
   mv $CONF_FILE.tmp $CONF_FILE  
 }
 
@@ -693,7 +693,7 @@ load_menus() {
     --infobox "Building Menus ..." 3 50 2> /dev/null
 
   # Create the menus
-  awk -f 'parse-menu-sh' -f 'parse-menu' -f 'parse-misc' runtime_setup.menu > $TEMP
+  $AWK -f 'parse-menu-sh' -f 'parse-menu' -f 'parse-misc' runtime_setup.menu > $TEMP
   # Load them up ...
   . $TEMP
 

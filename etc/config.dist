@@ -86,6 +86,7 @@ timint on
 keyboard {  layout us  keybint on  rawkeyboard off  }
 # keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
 #
+
 #    The HogThreshold value determines how nice Dosemu will be about
 #    giving other Linux processes a chance to run.  Setting the HogThreshold
 #    value to approximately half of you BogoMips value will slightly
@@ -94,6 +95,26 @@ keyboard {  layout us  keybint on  rawkeyboard off  }
 #
 HogThreshold 0
 
+#    If you want DOSEMU feed with keystrokes, that are typed in
+#    automagically, the you may define them such as
+#
+#      keystroke "cd c:\\mysource\r"
+#
+#    You may have any number of 'keystroke' statements, they all will be
+#    concatenated.
+#
+#    This feature however doesn't make much sense _here_ in the
+#    configuration file, instead together with the commandine option -I
+#    you can start dosemu and execute ane arbitrary dos command such as
+#
+#      # dos -D-a -I 'keystroke "c:\rcd \\windows\rwinemu\r"'
+#
+#    For more details please look at ./doc/
+#
+#    Ah, but _one_ sensefull useage _here_ is to 'pre-strike' that damned F8
+#    that is needed for DOS-7.0, when you don't want to edit the msdos.sys:
+#
+# keystroke "\F8;"
 
 #**************************** SERIAL ************************************
 #

@@ -1,6 +1,56 @@
 
-Running a DOS-application directly from Unix shell:
---------------------------------------------------
+Running a DOS-application directly from Unix shell
+==================================================
+
+Method A:
+---------
+
+Make use of the keystroke configure option and the -I commandline option
+of DOSEMU (>=dosemu-0.66.2) such as
+
+   dos -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
+
+The "..." will be 'typed in' by dosemu exactly as if you had them
+typed at the keyboard. The advantage of this technique is, that all
+DOS applications will except them, even interactive ones. A '\' is
+interpreted as in C and leads in ESC-codes. Here a list of of the
+current implemented ones:
+
+  \r     Carriage return == <ENTER>
+  \n     LF
+  \t     tab
+  \b     backspace
+  \f     formfeed
+  \a     bell
+  \v     vertical tab
+
+
+  \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
+         (e.g.: \^[ == <Ctrl>[ == ESC )
+
+  \Ax    <Alt>x, hence  \Ad means <Alt>d
+
+  \Fn;   Function key Fn. Note that the trailing ';' is needed.
+         (e.g.:  \F10;  == F10 )
+
+  \Pn;   Set the virtual typematic rate, thats the speed for autotyping in.
+         It is given in unix timer ticks to wait between two strokes.
+         A value of 7 for example leads to a rate of 100/7=14 cps.
+
+  \pn;   Before typing the next stroke wait n unix ticks.
+         This is usefull, when the DOS-application fushes the keybord buffer
+         on startup. Your strokes would be discared, if you don't wait.
+
+When using X, the keystroke feature can be used to directly fire up a
+DOS application with one click, if you have the right entry in your .fvwmrc
+
+
+
+
+
+Method B:
+--------
+
 
 1. Make a file "FILE" containing all keystrokes you need to boot dosemu
    and to start your dos-application, ... and don't forget to have CRLF

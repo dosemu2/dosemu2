@@ -7,6 +7,9 @@ TOPDIR=`pwd -P`
 export TOPDIR
 TEMP=/tmp/$0.$$
 
+AWK=gawk
+export AWK
+
 . setup/select-dialog
 
 FINISHED=0

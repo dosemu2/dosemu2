@@ -1,3 +1,13 @@
+97/04/09 ver. 0.66.1.5 unofficial pre-release
+	From Hans
+	- added 'keystroke' feature, you may now feed DOSEMU with key
+	  strokes, that are automagically typed in as if from the keyboard.
+            dos -D-a -I 'keystroke "\F8;\p200;6"
+          Will press F8, then wait 2 seconds, then type 6.
+	  For more details see etc/config.dist and doc//README.batch
+	From Marty
+	- use gawk instead of awk in setup stuff, else 'next' isn't supported.
+	  ( gnats report misc/13 )
 97/04/04 ver. 0.66.1.4 unofficial pre-release
 	From Hans
 	- complete rework of the privs stuff, now we _really_ can

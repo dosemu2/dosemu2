@@ -140,6 +140,9 @@ config_defaults(void)
     config.detach = 0;		/* Don't detach from current tty and open
 				 * new VT. */
     config.debugout = NULL;	/* default to no debug output file */
+
+    config.pre_stroke =NULL;	/* defualt no keyboard pre-strokes */
+
     config.sillyint = 0;
     config.must_spare_hardware_ram = 0;
     memset(config.hardware_pages, 0, sizeof(config.hardware_pages));

@@ -28,6 +28,7 @@
 
 extern void keyb_server_run(void);
 extern void irq_select(void);
+extern int type_in_pre_strokes();
 
 #ifdef __NetBSD__
 extern int errno;
@@ -397,6 +398,17 @@ void SIGALRM_call(void){
     printer_tick((u_long) 0);
     if (config.fastfloppy)
       floppy_tick();
+  }
+
+  /* Here we 'type in' prestrokes from commandline, as long as there are any
+   * Were won't overkill dosemu, hence we type at a speed of 14cps
+   */
+  if (config.pre_stroke) {
+    static count=-1;
+    if (--count < 0) {
+      count = type_in_pre_strokes();
+      if (count <0) count =7; /* with HZ=100 we have a stroke rate of 14cps */
+    }
   }
 
 }

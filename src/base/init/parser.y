@@ -119,6 +119,7 @@ static void parse_dosemu_users(void);
 static int set_hardware_ram(int addr);
 static void set_irq_value(int bits, int i1);
 static void set_irq_range(int bits, int i1, int i2);
+extern void append_pre_strokes(unsigned char *s);
 
 	/* variables in lexer.l */
 
@@ -149,6 +150,7 @@ extern void yyrestart(FILE *input_file);
 %token EMULATED NATIVE
 	/* keyboard */
 %token KEYBINT RAWKEYBOARD
+%token PRESTROKE
 	/* ipx */
 %token NETWORK PKTDRIVER
         /* lock files */
@@ -369,6 +371,12 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| KEYBOARD
 		    { start_keyboard(); }
 	          '{' keyboard_flags '}'
+ 		| PRESTROKE STRING
+		    {
+		    append_pre_strokes($2);
+		    free($2);
+		    c_printf("CONF: appending pre-strokes '%s'\n", $2);
+		    }
 		| PORTS
 		    { start_ports(); }
 		  '{' port_flags '}'

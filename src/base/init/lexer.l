@@ -83,6 +83,7 @@ debug			return(DEBUG);
 mouse			return(MOUSE);
 serial			return(SERIAL);
 keyboard		return(KEYBOARD);
+keystroke		return(PRESTROKE);
 terminal		return(TERMINAL);
 video			return(VIDEO);
 allowvideoportaccess	return(ALLOWVIDEOPORT);

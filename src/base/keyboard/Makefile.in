@@ -21,7 +21,7 @@ X_CFILES = n_keyb_X.c
 endif
 
 CFILES = n_serv_xlat.c n_serv_backend.c n_serv_8042.c keymaps.c n_keyb_raw.c n_keyb_slang.c \
-         n_keyb_clients.c $(X_CFILES)
+         n_keyb_clients.c prestroke.c $(X_CFILES)
 
 else
 #old keyboard code source files
@@ -30,7 +30,7 @@ ifdef X_SUPPORT
 X_CFILES = Xkeyb.c
 endif
 
-CFILES = keyboard-server.c keyboard-client.c keymaps.c  $(X_CFILES)
+CFILES = keyboard-server.c keyboard-client.c keymaps.c prestroke.c $(X_CFILES)
 
 endif
 
