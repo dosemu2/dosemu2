@@ -738,7 +738,7 @@ static void FreeAllDescriptors(void)
 static int ConvertSegmentToDescriptor32(unsigned short segment, int limit_is_32)
 {
   unsigned long baseaddr = segment << 4;
-  unsigned long limit = limit_is_32 ? 0xffffffff : 0xffff;
+  unsigned long limit = limit_is_32 ? 0xfffff : 0xffff;
   unsigned short selector;
   int i;
   D_printf("DPMI: convert seg %#x to desc\n", segment);
@@ -749,7 +749,7 @@ static int ConvertSegmentToDescriptor32(unsigned short segment, int limit_is_32)
   D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, limit, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
+                  MODIFY_LDT_CONTENTS_DATA, 0, limit_is_32, 0, 0)) return 0;
   return selector;
 }
 
@@ -889,9 +889,13 @@ unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector)
 
 unsigned long GetSegmentLimit(unsigned short selector)
 {
+  int limit;
   if (!ValidAndUsedSelector(selector))
     return 0;
-  return Segments[selector >> 3].limit;
+  limit = Segments[selector >> 3].limit;
+  if (Segments[selector >> 3].is_big)
+    limit = (limit << 12) | 0xfff;
+  return limit;
 }
 
 int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
