@@ -284,6 +284,10 @@ void mouse_ps2bios(void)
     LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
     NOCARRY;
     break;
+  case 0x0002:
+    HI(ax) = 0;
+    NOCARRY;
+    break;
   case 0x0003:
     if (HI(bx) > 3) {
       CARRY;
