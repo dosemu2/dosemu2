@@ -84,6 +84,14 @@ extern unsigned long last_ticks;		/* for int1a */
 extern long  sys_base_ticks;		/* signed, could go negative */
 extern long  usr_delta_ticks;
 
+/*******************************************************************
+ * For centralised DOS/CMOS time from gettimeofday()               *
+ *******************************************************************/
+
+/* For int.c int1a(void) configuring. */
+#define TM_BIOS     0   /* INT-1A AH=0 returns BIOS count of ticks (INT-8), DOS & RTC can be set. */
+#define TM_PIT      1   /* INT-1A AH=0 returns PIC timer based 'ticks', can't set RTC */
+#define TM_LINUX    2   /* INT-1A AH=0 returns LINUX time always, cant set DOS/RTC time */
 
 /*******************************************************************
  * Dummy hardware support stubs                                    *

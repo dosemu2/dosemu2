@@ -807,23 +807,39 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
   return 1;
 }
 
-void set_ticks(unsigned long new)
+/* Set the DOS ticks value in BIOS area, then clear midnight flag */
+void set_ticks(unsigned long new_ticks)
 {
   volatile unsigned long *ticks = BIOS_TICK_ADDR;
   volatile unsigned char *overflow = TICK_OVERFLOW_ADDR;
 
-  *ticks = new;
-  /* A timer read should reset the overflow flag */
+  *ticks = new_ticks;
+  /* A timer read/write should reset the overflow flag */
   *overflow = 0;
-  h_printf("TICKS: update ticks to %ld\n", new);
+  h_printf("TICKS: update ticks to %ld\n", new_ticks);
 }
+
+/*
+ * DANG_BEGIN_FUNCTION int1a
+ *
+ * int 0x1A call
+ *
+ * This has (among other things) the calls that DOS makes to get/set its sense
+ * of time. On booting, DOS gets the RTC time and date with AH=2 and AH=4,
+ * after that it should use AH=0 calls to read the 'tick' counter from BIOS
+ * memory. Each time this crosses midnight, a flag is set that DOS uses to
+ * increment its date.
+ *
+ * Here we can now change the 'view' of time so the calls either return BIOS
+ * tick (most DOS like), read the PIT counter (avoids INT-8 changes) or gets
+ * LINUX time (most accurate for long term NTP-adjusted time keeping).
+ *
+ * DANG_END_FUNCTION
+ */
 
 static int int1a(void)
 {
-  time_t time_val;
-  struct timeval;
-  struct timezone;
-  struct tm *tm;
+  int time_view = config.timemode; /* Time mode, choice is TM_BIOS, TM_PIT, TM_LINUX */
 
 #ifdef X86_EMULATOR
   int tmp = E_MUNPROT_STACK(0);		/* no faults in BIOS area! */
@@ -847,36 +863,44 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 ->	  midnight flag and will fail to advance the date
 */
   case 0:			/* read time counter */
-
-#define BIOSTIMER_ONLY_VIEW
-#ifdef BIOSTIMER_ONLY_VIEW
-
-    /* We rely on the INT8 routine doing the right thing,
+   {
+   int day_rollover = 0;
+#if 0
+   if(time_view == TM_LINUX)
+   {
+     /* Set BIOS area flags to LINUX time computed values always */
+     last_ticks = get_linux_ticks(0, &day_rollover);
+   }
+   else
+#endif
+   if(time_view == TM_BIOS)
+   {
+    /* BIOSTIMER_ONLY_VIEW
+     *
+     * We rely on the INT8 routine doing the right thing,
      * DOS apps too rely on the relationship between INT1A and 0x46c timer.
      * We already do all appropriate things to trigger the simulated INT8
      * correctly (well, sometimes faking it), so the 0x46c timer incremented
      * by the (realmode) INT8 handler should be always in sync.
      * Therefore, we keep INT1A,AH0 simple instead of trying to be too clever;-)
      */
-    {
       static int first = 1;
-      if (first) {
+      if (first)
+      {
         /* take over the correct value _once_ only */
-        *((unsigned long *)(BIOS_TICK_ADDR)) =
-               (unsigned long)(pic_sys_time >> 16)
+        last_ticks = (unsigned long)(pic_sys_time >> 16)
              + (sys_base_ticks + usr_delta_ticks);
+        set_ticks(last_ticks);
         first = 0;
       }
+
+      last_ticks = (*((unsigned long *)(BIOS_TICK_ADDR)));
+      day_rollover = (int)(*((u_char *)(TICK_OVERFLOW_ADDR)));
     }
-    last_ticks = *((unsigned long *)(BIOS_TICK_ADDR));
-    LO(ax) = *((u_char *)(TICK_OVERFLOW_ADDR));
-    LWORD(ecx) = (last_ticks >> 16) & 0xffff;
-    LWORD(edx) = last_ticks & 0xffff;
-    *((u_char *)(TICK_OVERFLOW_ADDR)) = 0; /* clear the midnight flag */
-
-#else /* not BIOSTIMER_ONLY_VIEW */
-
-    /* pic_sys_time is a zero-based tick(1.19MHz) counter. As such, if we
+    else /* (time_view == TM_PIT) assumed */
+    {
+    /* not BIOSTIMER_ONLY_VIEW
+     * pic_sys_time is a zero-based tick (1.19MHz) counter. As such, if we
      * shift it right by 16 we get the number of PIT0 overflows, that is,
      * the number of 18.2ms timer ticks elapsed since starting dosemu. This
      * is independent of any int8 speedup a program can set, since the PIT0
@@ -891,19 +915,23 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
     last_ticks += (sys_base_ticks + usr_delta_ticks);
 
     /* has the midnight passed? */
-    if (last_ticks > TICKS_IN_A_DAY) {
-      *((u_char *)(TICK_OVERFLOW_ADDR)) |= 0x1;
+    if (last_ticks > TICKS_IN_A_DAY)
+      {
+      day_rollover = 1;
       last_ticks -= TICKS_IN_A_DAY;
-      /* since pic_sys_time continues to increase, avoid further midnight
-       * overflows */
+      /* since pic_sys_time continues to increase, avoid further midnight overflows */
       sys_base_ticks -= TICKS_IN_A_DAY;
     }
-    LO(ax) = *((u_char *)(TICK_OVERFLOW_ADDR));
+    }
+
+    LWORD(eax) = day_rollover;
     LWORD(ecx) = (last_ticks >> 16) & 0xffff;
     LWORD(edx) = last_ticks & 0xffff;
 
 #ifdef DEBUG_INT1A
-    if (debug_level('g')) {
+    if (debug_level('g'))
+    {
+      time_t time_val;
       long k = last_ticks/18.2065;	/* sorry */
       time(&time_val);
       g_printf("INT1A: read timer = %ld (%ld:%ld:%ld) %s\n", last_ticks,
@@ -912,9 +940,8 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 #else
     g_printf("INT1A: read timer=%ld, midnight=%d\n", last_ticks, LO(ax));
 #endif
-
-    set_ticks(last_ticks);	/* set_ticks is in rtc.c */
-#endif /* not BIOSTIMER_ONLY_VIEW */
+    set_ticks(last_ticks);	/* Write to BIOS_TICK_ADDR & clear TICK_OVERFLOW_ADDR */
+    }
     break;
 
 /*
@@ -929,9 +956,13 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 SeeAlso: AH=00h,AH=03h,INT 21/AH=2Dh
 */
   case 1:			/* write time counter */
+    if(time_view == TM_LINUX)
     {
-      /* get current system time and check it (previous usr_delta could
-       * be != 0) */
+      g_printf("INT1A: can't set DOS timer\n");	/* Allow time set except in 'LINUX view' case. */
+    }
+    else
+    {
+      /* get current system time and check it (previous usr_delta could be != 0) */
       long t;
       do {
         t = (pic_sys_time >> 16) + sys_base_ticks;
@@ -942,15 +973,17 @@ SeeAlso: AH=00h,AH=03h,INT 21/AH=2Dh
       last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
 
       usr_delta_ticks = last_ticks - t;
-      *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
+
 #ifdef DEBUG_INT1A
       g_printf("TIMER: sys_base_ticks=%ld usr_delta_ticks=%ld pic_sys_time=%#Lx\n",
     	sys_base_ticks, usr_delta_ticks, pic_sys_time);
 #endif
-      set_ticks(last_ticks);
       g_printf("INT1A: set timer to %ld\n", last_ticks);
-      break;
+
+      set_ticks(last_ticks);	/* Write to BIOS_TICK_ADDR & clear TICK_OVERFLOW_ADDR */
     }
+    break;
+
 /*
 --------B-1A02-------------------------------
 INT 1A - TIME - GET REAL-TIME CLOCK TIME (AT,XT286,PS)
@@ -972,6 +1005,7 @@ SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
     LO(cx) = BCD(GET_CMOS(CMOS_MIN));
     HI(dx) = BCD(GET_CMOS(CMOS_SEC));
     UNLOCK_CMOS;
+    LO(dx) = 0;      /* No daylight saving - yuch */
     g_printf("INT1A: RTC time %02x:%02x:%02x\n",HI(cx),LO(cx),HI(dx));
     NOCARRY;
     break;
@@ -990,7 +1024,6 @@ Note:	this function is also supported by the Sperry PC, which predates the
 	  Sperry, and the value of DL is ignored
 */
   case 3:			/* set time */
-	  
     LOCK_CMOS;
     SET_CMOS(CMOS_HOUR, BIN(HI(cx)));
     SET_CMOS(CMOS_MIN,  BIN(LO(cx)));
@@ -1013,6 +1046,9 @@ Return: CF clear if successful
 SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
 */
   case 4:			/* get date */
+   if(time_view != TM_BIOS) {
+    time_t time_val;
+    struct tm *tm;
     time(&time_val);
     tm = localtime((time_t *) &time_val);
     tm->tm_year += 1900;
@@ -1030,7 +1066,14 @@ SeeAlso: AH=02h,AH=04h"Sperry",AH=05h,INT 21/AH=2Ah,INT 4B/AH=02h"TI"
     HI(dx) = tm->tm_mon % 10;
     tm->tm_mon /= 10;
     HI(dx) |= tm->tm_mon << 4;
-    /* REG(eflags) &= ~CF; */
+   } else {
+    LOCK_CMOS;
+    HI(cx) = BCD(GET_CMOS(CMOS_CENTURY));
+    LO(cx) = BCD(GET_CMOS(CMOS_YEAR));
+    HI(dx) = BCD(GET_CMOS(CMOS_MONTH));
+    LO(dx) = BCD(GET_CMOS(CMOS_DOM));
+    UNLOCK_CMOS;
+   }
     g_printf("INT1A: RTC date %04x%02x%02x (DOS format)\n", _CX, _DH, _DL);
     NOCARRY;
     break;
@@ -1046,7 +1089,21 @@ INT 1A - TIME - SET REAL-TIME CLOCK DATE (AT,XT286,PS)
 Return: nothing
 */
   case 5:			/* set date */
-    g_printf("INT1A: RTC: can't set date\n");
+    if(time_view != TM_BIOS)
+    {
+      g_printf("INT1A: RTC: can't set date\n");
+    }
+    else
+    {
+      LOCK_CMOS;
+      SET_CMOS(CMOS_CENTURY, BIN(HI(cx)));
+      SET_CMOS(CMOS_YEAR,    BIN(LO(cx)));
+      SET_CMOS(CMOS_MONTH,   BIN(HI(dx)));
+      SET_CMOS(CMOS_DOM,     BIN(LO(dx)));
+      UNLOCK_CMOS;
+      g_printf("INT1A: RTC set date %04x/%02x/%02x\n", LWORD(ecx), HI(dx), LO(dx));
+    }
+    NOCARRY;
     break;
 
   /* Notes: the alarm occurs every 24 hours until turned off, invoking INT 4A
@@ -1103,7 +1160,7 @@ Return: nothing
   default:
     g_printf("WARNING: unsupported INT0x1a call 0x%02x\n", HI(ax));
     CARRY;
-  }
+  } /* End switch(HI(ax)) */
 
 #ifdef X86_EMULATOR
   if (tmp) E_MPROT_STACK(0);

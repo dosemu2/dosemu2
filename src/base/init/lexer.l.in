@@ -693,6 +693,7 @@ target			RETURN(TARGET);
 	/* hacks */
 cli_timeout		RETURN(CLI_TIMEOUT);
 pic_watchdog		RETURN(PIC_WATCHDOG);
+timemode		RETURN(TIMEMODE);
 
 	/* strings */
 

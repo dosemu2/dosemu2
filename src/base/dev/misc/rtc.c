@@ -25,7 +25,6 @@
 #include "int.h"
 #include "iodev.h"
 
-struct timezone tz;
 long   sys_base_ticks = 0;
 long   usr_delta_ticks = 0;
 unsigned long   last_ticks = 0;
@@ -33,13 +32,16 @@ unsigned long   last_ticks = 0;
 
 int cmos_date(int reg)
 {
-  struct tm *tm;
   unsigned char tmp;
-  time_t this_time;
 
   switch (reg) {
   case CMOS_SEC:
   case CMOS_MIN:
+  case CMOS_DOW:
+  case CMOS_DOM:
+  case CMOS_MONTH:
+  case CMOS_YEAR:
+  case CMOS_CENTURY:
     /* Note - the inline function BCD() in cmos.h will check bit 2 of
      * status reg B for proper output format */
     return BCD(GET_CMOS(reg));
@@ -53,47 +55,11 @@ int cmos_date(int reg)
 	return BCD(tmp-12);
     }
     return BCD(tmp);
-  }
-
-  /* get the time */
-  time(&this_time);
-  tm = localtime((time_t *) &this_time);
-
-  switch (reg) {
-  case CMOS_DOW:
-    return BCD(tm->tm_wday);
-
-  case CMOS_DOM:
-    return BCD(tm->tm_mday);
-
-  case CMOS_MONTH:
-    if (cmos.flag[CMOS_MONTH])
-      return GET_CMOS(CMOS_MONTH);
-    else
-      return BCD(1 + tm->tm_mon);
-
-  case CMOS_YEAR:
-    if (cmos.flag[CMOS_YEAR])
-      return GET_CMOS(CMOS_YEAR);
-    else
-      return BCD(tm->tm_year%100);
-
-  case CMOS_CENTURY:
-    return BCD(tm->tm_year/100 + 19);
 
   default:
     h_printf("CMOS: cmos_time() register 0x%02x defaulted to 0\n", reg);
     return 0;
   }
-
-  /* XXX - the reason for month and year I return the substituted values is this:
-   * Norton Sysinfo checks the CMOS operation by reading the year, writing
-   * a new year, reading THAT year, and then rewriting the old year,
-   * apparently assuming that the CMOS year can be written to, and only
-   * changes if the year changes, which is not likely between the 2 writes.
-   * Since I personally know that dosemu won't stay uncrashed for 2 hours,
-   * much less a year, I let it work that way.
-   */
 
 }
 /* @@@ MOVE_END @@@ 32768 */
@@ -145,19 +111,52 @@ do_alrm:
 
 void rtc_update (void)	/* called every 1s from SIGALRM */
 {
-  u_char h0,m0,s0;
+  u_char h0,m0,s0,D0,M0,Y0,C0,days;
+  static const u_char dpm[13] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
   LOCK_CMOS;
   SET_CMOS(CMOS_STATUSA, GET_CMOS(CMOS_STATUSA)|0x80);
   s0=GET_CMOS(CMOS_SEC);
   m0=GET_CMOS(CMOS_MIN);
   h0=GET_CMOS(CMOS_HOUR);
+  D0=GET_CMOS(CMOS_DOM);
+  M0=GET_CMOS(CMOS_MONTH);
+  Y0=GET_CMOS(CMOS_YEAR);
+  C0=GET_CMOS(CMOS_CENTURY);
 
   if ((++s0)>59) {
     s0=0;
     if ((++m0)>59) {
       m0=0;
-      if ((++h0)>23) h0=0;
+      if ((++h0)>23) {
+       h0=0;
+
+       /* Compute days in current month. */
+       if (M0>12 || M0<1) M0=1;    /* Error! */
+       days = dpm[M0];
+       if ((Y0&3) == 0 && M0 == 2) days++; /* Leap year & Feb */
+
+       if (++D0>days) {
+        D0=1;
+        if (++M0>12) {
+         M0=1;
+         if (++Y0>99) {
+          Y0=0;
+          ++C0;   /* Only 19->20 transition realistic. */
+          SET_CMOS(CMOS_CENTURY, D0);
+         }
+         SET_CMOS(CMOS_YEAR, D0);
+        }
+        SET_CMOS(CMOS_MONTH, D0);
+       }
+       SET_CMOS(CMOS_DOM, D0);
+
+       /* As well as day-of-month, do day-of-week */
+       days=GET_CMOS(CMOS_DOW);
+       days++;
+       if(days > 7 || days < 1) days=1;
+       SET_CMOS(CMOS_DOW, days);
+      }
       SET_CMOS(CMOS_HOUR, h0);
     }
     SET_CMOS(CMOS_MIN, m0);

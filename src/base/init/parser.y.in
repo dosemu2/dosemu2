@@ -71,6 +71,7 @@
 #include "utilities.h"
 #include "aspi.h"
 #include "pktdrvr.h"
+#include "iodev.h" /* for TM_BIOS / TM_PIT / TM_LINUX */
 
 #include "parsglob.h"
 
@@ -155,6 +156,7 @@ static void enter_user_scope(int incstackptr);
 static void leave_user_scope(int incstackptr);
 static void handle_features(int which, int value);
 static void set_joy_device(char *devstring);
+static int parse_timemode(const char *);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -291,6 +293,7 @@ static int is_in_allowed_classes(int mask);
 %token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
 	/* Hacks */
 %token CLI_TIMEOUT PIC_WATCHDOG
+%token TIMEMODE
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -723,6 +726,11 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    { config.cli_timeout = $2; }
 		| PIC_WATCHDOG int_bool
 		    { config.pic_watchdog = $2; }
+		| TIMEMODE string_expr
+		    {
+		    config.timemode = parse_timemode($2);
+		    c_printf("CONF: time mode = '%s'\n", $2);
+		    }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -2224,6 +2232,22 @@ static void lax_user_checking(void)
   setenv("DOSEMU_USER", p, 1);
   setenv("DOSEMU_REAL_USER", p, 1);
   setup_home_directories();
+}
+
+/* Parse TimeMode, Paul Crawford and Andrew Brooks 2004-08-01 */
+/* Accepts "bios", "pit", "linux", default is "bios". Use with TIMEMODE token */
+int parse_timemode(const char *timemodestr)
+{
+   if (timemodestr == NULL || timemodestr[0] == '\0')
+     return(TM_BIOS); /* default */
+   if (strcmp(timemodestr, "linux")==0)
+     return(TM_LINUX);
+   if (strcmp(timemodestr, "pit")==0)
+     return(TM_PIT);
+   if (strcmp(timemodestr, "bios")==0)
+     return(TM_BIOS);
+   yyerror("Unrecognised time mode (not bios, pit or linux)");
+   return(TM_BIOS);
 }
 
 /* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */

@@ -318,6 +318,9 @@ typedef struct vesamode_type_struct {
         */
        int features[1];
 
+       /* Time mode is TM_BIOS / TM_PIT / TM_LINUX, see iodev.h */
+       int timemode;
+
        /* Sound emulation */
        int sound;
        uint16_t sb_base;
