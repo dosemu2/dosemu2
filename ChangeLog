@@ -1,3 +1,19 @@
+Tue Oct 04 1994 JES
+
+-	Added in some timer code from MACH for Scott to play with.
+	NOTE ****** This is scary stuff so beware of this release
+	as the code WILL get direct access of certain ports :-(.
+	You may wish to hold off until pre53_27.
+-	Latest Configure script from Jan. Keeps getting better, and
+	funner too :-).
+-	Added Hans latest SIG enhancements.
+
+Mon Oct 03 1994 Lutz
+
+-	Placed back DPMI sigio/sigalrm signal calls to the old one ;-(
+-	Removed dpmi/call.S - now using a task switch via hlt-instruction
+-	Fixed some small DPMI bugs
+
 Sun Oct 02 1994 Jmaclean
 
 -	Released pre53_25.

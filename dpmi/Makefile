@@ -1,4 +1,4 @@
-# CC   = gcc
+CC   = gcc
 AS86 = as86 -0 -a
 LD86 = ld86 -0
 # INCDIR is exported from ..
@@ -11,15 +11,12 @@ LD86 = ld86 -0
 	rm -f $*.tmp $*.o
 
 ALL = dpmi.c dpmi.h \
-	call.S testdpmi.S
+	testdpmi.S
 
-all: dpmi.o call.o testdpmi.com
+all: dpmi.o testdpmi.com
 
 dpmi.o:
 	$(CC) -DDPMI $(INCDIR) -N -O6 -c dpmi.c
-
-call.o:
-	$(CC) -N -O6 -c -o $@ call.S
 
 checkin:
 	-ci $(ALL) Makefile TODO
@@ -37,7 +34,6 @@ dist: $(ALL) Makefile
 
 depend dep: $(CFILES) $(HFILES)
 	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
-	echo "call.o : call.S" >>.depend
 
 dummy:
 

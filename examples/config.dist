@@ -224,6 +224,12 @@ ipxsupport off
 #    "icon_name" string                                (default "dosemu")
 #       Used when the dosemu window is iconified.
 #
+#    "keycode"						(default 0)
+#	Used to give Xdos access to keycode part of XFree86.
+#
+#    "blinkrate" value					(default 8)
+#	Used to add blinking to cursor.
+#
 X { updatefreq 8 updatelines 25 title "DOS in a BOX" icon_name "xdos" }
 
 
@@ -443,8 +449,9 @@ floppy { device /dev/fd1 fiveinch }
 #    If floppy disk speed is very important, uncomment the following
 #    line.  However, this makes the floppy drive a bit unstable.  This 
 #    is best used if the floppies are write-protected.
+#    Use an interger value to set the time bewteen floppy updates.
 #
-#FastFloppy on
+#FastFloppy 8
 
 
 #******************* PRINTERS ********************************************

@@ -72,7 +72,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   24
+PATCHL  =   26
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -81,7 +81,7 @@ LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-DPMIOBJS = dpmi/dpmi.o dpmi/call.o
+DPMIOBJS = dpmi/dpmi.o
 
 # For testing the internal IPX code
 #IPX = ipxutils
@@ -319,6 +319,8 @@ ifdef X_SUPPORT
 	@echo "  - To make your backspace and delete key work properly in 'xdos', type:"
 	@echo "		xmodmap -e \"keycode 107 = 0xffff\""
 	@echo "		xmodmap -e \"keycode 22 = 0xff08\""
+	@echo ""
+	@echo " ********** BEWARE This release has new TIMER CODE :-( "
 endif
 	@echo ""
 
@@ -373,7 +375,7 @@ ifdef IPX
 	cd ipxutils; make depend
 endif
 ifdef DPMIOBJS
-	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
+	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 endif
 
 dummy:

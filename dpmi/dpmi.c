@@ -140,7 +140,8 @@ us DPMI_SEL = 0;
 us LDT_ALIAS = 0;
 extern int fatalerr;
 
-struct sigcontext_struct dpmi_stack_frame;
+static struct sigcontext_struct dpmi_stack_frame; /* used to store the dpmi client registers */
+static struct sigcontext_struct emu_stack_frame;  /* used to store emulator registers */
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 
@@ -255,6 +256,36 @@ void print_ldt() /* stolen from WINE */
 	D_printf("          SYSTEM: %08.8x %08.8x\n", *lp, *(lp - 1));
       }
   }
+}
+
+/*
+ * DANG_BEGIN_FUNCTION dpmi_control
+ *
+ * This function is similar to the vm86() syscall in the kernel and
+ * switches to dpmi code.
+ *
+ * DANG_END_FUNCTION
+ */
+
+static void dpmi_control()
+{
+/*
+ * DANG_BEGIN_REMARK
+ * 
+ * DPMI is designed such that the stack change needs a task switch.
+ * We are doing it via an SIGSEGV - instead of one task switch we have
+ * now four :-(.
+ * Arrgh this is the point where I should start to include DPMI stuff
+ * in the kernel, but then we could include the rest of dosemu too.
+ * Would Linus love this? I don't :-((((.
+ * Anyway I would love to see first a working DPMI port, maybe we
+ * will later (with version 0.9 or similar :-)) start with it to
+ * get a really fast dos emulator...............
+ *
+ * DANG_END_REMARK
+ */
+
+  asm("hlt");
 }
 
 inline void dpmi_get_entry_point()
@@ -444,9 +475,15 @@ u_char AllocateSpecificDescriptor(us selector)
 void GetFreeMemoryInformation(unsigned long *lp)
 {
   int i;
-  *lp = (unsigned long) config.dpmi_size;
-  for (i=0;i<11;i++)
-    *++lp = 0xffffffff;
+  *lp = (unsigned long) 4096 * config.dpmi_size;
+  *++lp = (unsigned long) config.dpmi_size;
+  *++lp = (unsigned long) config.dpmi_size;
+  *++lp = (unsigned long) config.dpmi_size;
+  *++lp = 0xffffffff;
+  *++lp = 0xffffffff;
+  *++lp = 0xffffffff;
+  *++lp = 0xffffffff;
+  *++lp = 0xffffffff;
 }
 
 /* #define WIN31 */
@@ -653,7 +690,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       pushw(rm_ssp, rm_sp, DPMI_OFF + HLT_OFF(DPMI_return_from_realmode));
       in_dpmi_dos_int = 1;
     }
-#if 0
+#if 1
     show_regs();
 #endif
     break;
@@ -840,8 +877,10 @@ inline void run_dpmi(void)
     }
   }
   else {
-    dpmi_control(& dpmi_stack_frame);
+    dpmi_control();
   }
+
+  handle_signals();
 
   if (iq.queued)
     do_queued_ioctl();
@@ -851,17 +890,22 @@ void dpmi_init()
 {
   /* Holding spots for REGS and Return Code */
   us CS, DS, ES, SS;
-  us *ssp = SEG_ADR((us *), ss, sp);
+  unsigned char *ssp;
+  unsigned long sp;
   int my_ip, my_cs, my_sp, i;
-  unsigned char *cp, *ssp2;
+  unsigned char *cp;
 
   CARRY;
 
   DPMIclient_is_32 = LWORD(eax) ? 1 : 0;
   DPMI_private_data_segment = REG(es);
 
-  my_ip = *ssp++;
-  my_cs = *ssp++;
+  ssp = (unsigned char *) (REG(ss) << 4);
+  sp = (unsigned long) LWORD(esp);
+
+  my_ip = popw(ssp, sp);
+  my_cs = popw(ssp, sp);
+
   cp = (unsigned char *) ((my_cs << 4) +  my_ip);
 
   D_printf("Going protected with fingers crossed\n"
@@ -880,12 +924,12 @@ void dpmi_init()
   D_printf("\n");
 
   D_printf("STACK: ");
-  ssp2 = (unsigned char *)ssp - 10;
+  (*(unsigned short *)& sp) -= 10;
   for (i = 0; i < 10; i++)
-    D_printf("%02x ", *ssp2++);
+    D_printf("%02x ", popb(ssp, sp));
   D_printf("-> ");
   for (i = 0; i < 10; i++)
-    D_printf("%02x ", *ssp2++);
+    D_printf("%02x ", popb(ssp, sp));
   D_printf("\n");
 
   if (!config.dpmi_size)
@@ -921,7 +965,7 @@ void dpmi_init()
  */
 
   if (!(LDT_ALIAS = AllocateDescriptors(1))) return;
-  if (SetSelector(LDT_ALIAS, (unsigned long) ldt_buffer, 0xffff, DPMIclient_is_32,
+  if (SetSelector(LDT_ALIAS, (unsigned long) ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE-1, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 1, 0)) return;
 
   if (!(PMSTACK_SEL = AllocateDescriptors(1))) return;
@@ -1003,8 +1047,7 @@ void dpmi_init()
 inline void Return_to_dosemu_code(struct sigcontext_struct *scp)
 {
   memcpy(&dpmi_stack_frame, scp, sizeof(struct sigcontext_struct));
-  _cs = UCODESEL;
-  _eip = (unsigned long) ReturnFrom_dpmi_control;
+  memcpy(scp, &emu_stack_frame, sizeof(struct sigcontext_struct));
 }
 
 inline void dpmi_sigalrm(struct sigcontext_struct *scp)
@@ -1101,8 +1144,13 @@ void dpmi_fault(struct sigcontext_struct *scp)
   int i;
 
 #if 1
-  D_printf("DPMI: CPU Exception!\n");
-  DPMI_show_state;
+#if 1
+  if (!(_cs==UCODESEL))
+#endif
+  {
+    D_printf("DPMI: CPU Exception!\n");
+    DPMI_show_state;
+  }
 #endif /* 1 */
   
   if (_trapno == 13) {
@@ -1137,6 +1185,17 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
     case 0xf4:			/* hlt */
       _eip += 1;
+
+      if (_cs==UCODESEL) {
+	/* HLT in dosemu code - must in dpmi_control() */
+	memcpy(&emu_stack_frame, scp, sizeof(struct sigcontext_struct)); /* backup the registers */
+	memcpy(scp, &dpmi_stack_frame, sizeof(struct sigcontext_struct)); /* switch the stack */
+#if 1
+	D_printf("DPMI: now jumping to dpmi client code\n");
+	DPMI_show_state;
+#endif
+	return;
+      }
       if (_cs==DPMI_SEL)
 	if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_raw_mode_switch)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
@@ -1226,7 +1285,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
     Return_to_dosemu_code(scp);
 }
 
-inline void dpmi_realmode_hlt(unsigned char * lina)
+void dpmi_realmode_hlt(unsigned char * lina)
 {
   unsigned short *ssp;
 
@@ -1254,8 +1313,9 @@ inline void dpmi_realmode_hlt(unsigned char * lina)
     struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *) RealModeContext;
 
     D_printf("DPMI: Return from Real Mode Procedure\n");
+    show_regs();
     rmreg->edi = REG(edi);
-    rmreg->edi = REG(esi);
+    rmreg->esi = REG(esi);
     rmreg->ebp = REG(ebp);
     rmreg->ebx = REG(ebx);
     rmreg->edx = REG(edx);

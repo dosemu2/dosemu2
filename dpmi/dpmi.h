@@ -13,13 +13,11 @@
 
 extern u_char in_dpmi;
 extern u_char in_dpmi_dos_int;
-extern void ReturnFrom_dpmi_control();
 
 void dpmi_get_entry_point();
-extern void dpmi_control(struct sigcontext_struct *);
 
 void dpmi_fault(struct sigcontext_struct *);
-inline void dpmi_realmode_hlt(unsigned char *);
+void dpmi_realmode_hlt(unsigned char *);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \
@@ -55,7 +53,7 @@ typedef struct segment_descriptor_s
     unsigned char	used;		/* Segment in use */
 } SEGDESC;
 
-#define MAX_SELECTORS	0x1800
+#define MAX_SELECTORS	0x0100
 #define MODIFY_LDT_CONTENTS_DATA        0
 #define MODIFY_LDT_CONTENTS_STACK       1
 #define MODIFY_LDT_CONTENTS_CODE        2

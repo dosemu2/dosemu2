@@ -46,6 +46,7 @@ OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 #include "emu.h"
+#include "termio.h"
 
 #define AltMask Mod1Mask
 #define XK_X386_SysReq 0x1007FF00
@@ -123,17 +124,12 @@ static struct _key_scan
     ushort scan_code;
 } other_scan[] =
 {
-    { XK_Tab,           0x0f },
     { XK_Return,        0x1c },
     { XK_Escape,        0x01 },
     { XK_Insert,        0xe052 },
 
     { XK_KP_Enter,      0xe01c },
-};
-#define NUM_OTHER (sizeof(other_scan)/sizeof(other_scan[0]))
 
-static struct _key_scan shift_scan[] =
-{
     { XK_Shift_L,       0x2a },
     { XK_Shift_R,       0x36 },
     { XK_Control_L,     0x1d },
@@ -145,22 +141,40 @@ static struct _key_scan shift_scan[] =
 
     { XK_Scroll_Lock,   0x46 },
 };
-#define NUM_SHIFT (sizeof(shift_scan)/sizeof(shift_scan[0]))
+#define NUM_OTHER (sizeof(other_scan)/sizeof(other_scan[0]))
+
+/*
+ * matching from keycode to scan code
+ * codes are processed low-byte to high-byte
+ */
+static int X_scan[] = {
+   0x47e0,      /*  97  Home   */
+   0x48e0,      /*  98  Up     */
+   0x49e0,      /*  99  PgUp   */
+   0x4be0,      /* 100  Left   */
+   0x4c,        /* 101  KP-5   */
+   0x4de0,      /* 102  Right  */
+   0x4fe0,      /* 103  End    */
+   0x50e0,      /* 104  Down   */
+   0x51e0,      /* 105  PgDn   */
+   0x52e0,      /* 106  Ins    */
+   0x53e0,      /* 107  Del    */
+   0x1ce0,      /* 108  Enter  */
+   0x1de0,      /* 109  Ctrl-R */
+   0x451de1,    /* 110  Pause  */
+   0x37e0,      /* 111  Print  */
+   0x35e0,      /* 112  Divide */
+   0x38e0,      /* 113  Alt-R  */
+   0x46e0,      /* 114  Break  */   
+};
+
 
 /* This is a very quick'n dirty put_key...  */
 void put_key(ushort scan, short charcode) {
-#if 0
-   printf("put_key(0x%X,'%c'=%d)\n",scan,charcode>=0x20?charcode:'?',charcode);
-#else
    X_printf("put_key(0x%X,'%c'=%d)\n",scan,charcode>=0x20?charcode:'?',charcode);
-#endif
    
    if (charcode!=-1) {
-#if 0
-     if (scan&0x80) DOS_setscan(((scan & 0x7f)<<8) | charcode);
-#else
-     DOS_setscan((charcode<<8) | scan);
-#endif
+      DOS_setscan((charcode<<8) | scan);
    }
    else {
       if (scan & 0xFF00) {
@@ -172,31 +186,43 @@ void put_key(ushort scan, short charcode) {
    }
 }
 
+static void put_keycode(int scan, int released)
+{
+   int code;
+
+   X_printf("X_put_key: scan=0x%04x, released=%d\n",scan,released);
+   /*
+    * scan can hold up to three scancodes.
+    * Send each scancode to the emulator code setting bit 7 if the
+    * key was released.
+    */
+   while (scan) {
+      code = released ? (scan & 0xff) | 0x80 : (scan & 0xff);
+      child_set_flags(code);
+      DOS_setscan(code);
+      scan >>= 8;	 
+   }
+}
+
 inline ushort translate(KeySym key)
 {
     int i;
 
     /* ascii keys */
-    if (key <= 0x7e) {
-#if 0
-      return (ascii_scan[key - 0x20]);
-#else
+    if (key <= 0x7e)
       return highscan[key];
-#endif
-    }
-    /* function keys:
-       note that shift-F1..F12 actually give shift-F11..F22, so
-       we have to do a little translation here.
-       It's not perfect for shift-F1,F2...
-    */
-    
-    if (key >= XK_F1 && key <= XK_F22) {
-       if (key >= XK_F13) key-=10;
 
+    /* function keys:
+       note that shift-F1..F8 actually give shift-F13..F20
+       (at least on my system), so we have to do a little translation here.
+    */
+    if (key >= XK_F1 && key <= XK_F24) {
+       if (key > XK_F12)
+	  key -= 12;
        if (key > XK_F10)
-          return key-XK_F10+0x57;     /* F11, F12 */
+	  return key-XK_F11+0x57;    /* F11,F12 */
        else
-          return key-XK_F1+0x3b;      /* F1..F10  */
+	  return key-XK_F1+0x3b;     /* F1..F10  */
     }
 
     /* cursor keys */
@@ -227,7 +253,7 @@ inline ushort translate(KeySym key)
 
 void X_process_key(XKeyEvent *e)
 {
-    ushort scan;
+    int    scan;
     KeySym key;
     u_char chars[MAXCHARS];
     int count;
@@ -235,13 +261,36 @@ void X_process_key(XKeyEvent *e)
     static XComposeStatus compose_status = {NULL, 0};
     int i;
     
-#if 0
-    key = XLookupKeysym(e,0);
-    ch = -1;
-#else
+    if (config.X_keycode) {
+       scan = e->keycode;
+       if (scan<9)
+	  return;
+       /*
+	* for the the "XT-keys", the XFree86 server sends us the scancode+8
+	* for the keycode, for the keys new on the AT keyboard, we have to
+	* translate them via the keypad table
+	*/
+       if (scan < 97)
+	  scan -= 8;
+       else
+	  scan = X_scan[scan-97];
+       X_printf("X_process_key: keycode=%d, scancode=%d, %s\n",
+		e->keycode,scan,(e->type==KeyRelease)?"released":"pressed");
+       if (scan == 0x3a || scan == 0x45) {
+	  /*
+	   * bring our lock flags in sync with the state of the server
+	   */
+	  i = kbd_flag((scan==0x3a) ? KF_CAPSLOCK : KF_NUMLOCK);
+	  if ((e->type==KeyPress && !i) || (e->type==KeyRelease && i)) {
+	     put_keycode(scan, 0);
+	     put_keycode(scan, 1);
+	  }
+       } else
+	  put_keycode(scan, (e->type==KeyRelease));
+       return;
+    }
     count = XLookupString(e, chars, MAXCHARS, &key, &compose_status);
     ch = count? chars[0]:-1;
-#endif
     X_printf("key %x %s, state=%08x, char='%c'\n",
              (int)key,(e->type==KeyPress)?"pressed":"released",
              e->state,ch);
@@ -288,23 +337,19 @@ void X_process_key(XKeyEvent *e)
     else if (key == XK_BackSpace) {
        scan = 0x0e;
        ch = 8;
-    }
-    else if (key == XK_Delete) {
+    } else if (key == XK_Delete) {
        scan = 0x53;
        ch = 0;
-    }
-    else {
+    } else if (key == XK_Tab) {
+       scan = 0x0f;
+       if ((e->state & (ShiftMask | ControlMask | AltMask)))
+	  ch = 0;
+    } else {
        scan = translate(key);
-       if ((e->state & AltMask) && ch) {
+       if ((e->state & AltMask)) {
 	  ch=0;
        }
     }
-    if (scan==0) 
-       for (i = 0; i < NUM_SHIFT; i++)
-	  if (shift_scan[i].key == key) {
-	     scan=shift_scan[i].scan_code;
-	     ch=-1;
-	  }
 
     /* do latin1 translation */
     if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];
@@ -312,3 +357,4 @@ void X_process_key(XKeyEvent *e)
     if (scan || ch)
        put_key((e->type==KeyPress) ? scan : scan|0x80, ch);
 }
+

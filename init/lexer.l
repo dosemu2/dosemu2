@@ -203,6 +203,8 @@ s3			{ yylval->i_value = 4; return(CHIPSET_TYPE); }
 display			return(L_DISPLAY);
 title			return(L_TITLE);
 icon_name		return(ICON_NAME);
+keycode			return(X_KEYCODE);
+blinkrate		return(X_BLINKRATE);
 
 	/* packet driver */
 

@@ -162,11 +162,14 @@ void mouse_move(void),
  mouse_lb(void), mouse_rb(void), mouse_do_cur(void);
 
 /* called when mouse changes */
-void mouse_delta(int);
+static void mouse_delta(int);
+
+static int mouse_events = 0;
 
 boolean gfx_cursor;
 
 mouse_t mice[MAX_MOUSE] ;
+struct mouse_struct mouse;
 
 static long mousecursormask[HEIGHT] =  {
   0x00000000L,  /*0000000000000000*/
@@ -209,7 +212,7 @@ static long mousescreenmask[HEIGHT] =  {
 #endif
 
 static ushort mousetextscreen = 0xffff;
-static ushort mousetextcursor = 0xff00;
+static ushort mousetextcursor = 0x7f00;
 
 void
 mouse_int(void)
@@ -270,6 +273,16 @@ mouse_int(void)
     mouse_setsub();
     break;
 
+  case 0xf:
+     m_printf("MOUSE: function 0f: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
+     mouse.speed_x = LWORD(ecx);
+     if (mouse.speed_x <= 0)
+        mouse.speed_x = 1;
+     mouse.speed_y = LWORD(edx);
+     if (mouse.speed_y <= 0)
+        mouse.speed_y = 1;
+     break;
+
   case 0x11: 
     LWORD(eax) = 0xffff;	/* Genius mouse driver, return 2 buttons */
     LWORD(ebx) = 2;
@@ -308,11 +321,11 @@ mouse_int(void)
     m_printf("MOUSE: software reset on mouse\n");
     mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
 #ifdef X_SUPPORT
-	 if (config.X)
-		 X_change_mouse_cursor(0);
+    if (config.X)
+       X_change_mouse_cursor(0);
 #endif
     LWORD(eax) = 0xffff;
-    LWORD(ebx) = 2;
+    LWORD(ebx) = 3;
     break;
 
   case 0x22:			/* Set language for messages */
@@ -362,7 +375,7 @@ mouse_reset(void)
 {
     m_printf("MOUSE: reset mouse/installed!\n");
     LWORD(eax) = 0xffff;
-    LWORD(ebx)=2; 
+    LWORD(ebx)=3; 
 
   mouse.minx = mouse.miny = 0;
 
@@ -380,19 +393,19 @@ mouse_reset(void)
   mouse.ratio = 1;
   mouse.cursor_on = 0;
 #ifdef X_SUPPORT
-	 if (config.X)
-		 X_change_mouse_cursor(0);
+  if (config.X)
+     X_change_mouse_cursor(0);
 #endif
   mouse.cursor_type = 0;
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
-  mouse.oldlbutton = mouse.oldrbutton = 1;
+  mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
-  mouse.x = 0;
-  mouse.y = 0;
-  mouse.cx = 0;
-  mouse.cy = 0;
+  mouse.x = mouse.y = 0;
+  mouse.cx = mouse.cy = 0;
+  mouse.speed_x = 16;
+  mouse.speed_y = 8;
 
   mouse.ip = mouse.cs = 0;
   mouse.mask = 0;		/* no interrupts */
@@ -406,6 +419,9 @@ mouse_reset(void)
   mouse.rpx = mouse.rpy = mouse.rrx = mouse.rry = 0;
 
   mouse.mickeyx = mouse.mickeyy = 0;
+
+  mousetextscreen = 0xffff;
+  mousetextcursor = 0x7f00;
 }
 
 void 
@@ -422,11 +438,12 @@ mouse_cursor(int flag)
 void 
 mouse_pos(void)
 {
-  m_printf("MOUSE: get mouse position x:%d, y:%d, b(l%d r%d)\n", mouse.x,
-	   mouse.y, mouse.lbutton, mouse.rbutton);
+  m_printf("MOUSE: get mouse position x:%d, y:%d, b(l%d m%d r%d)\n", mouse.x,
+	   mouse.y, mouse.lbutton, mouse.mbutton, mouse.rbutton);
   LWORD(ecx) = mouse.x;
   LWORD(edx) = mouse.y;
-  LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 
+     (mouse.mbutton ? 4 : 0);
 }
 
 /* Set mouse position */
@@ -454,7 +471,8 @@ mouse_bpressinfo(void)
     LWORD(ecx) = mouse.rpx;
     LWORD(edx) = mouse.rpy;
   }
-  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) |
+     (mouse.mbutton ? 4 : 0);
 }
 
 void 
@@ -473,7 +491,8 @@ mouse_brelinfo(void)
     LWORD(ecx) = mouse.rrx;
     LWORD(edx) = mouse.rry;
   }
-  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+  LWORD(eax) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) |
+     (mouse.mbutton ? 4 : 0);
 }
 
 void 
@@ -502,6 +521,13 @@ mouse_set_gcur(void)
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
   gfx_cursor = TRUE;
+  if (LWORD(ebx)==0) {
+	  mousetextscreen = LWORD(ecx);
+	  mousetextcursor = LWORD(edx);
+  } else {
+	  mousetextscreen = 0x7fff;
+	  mousetextcursor = 0xff00;
+  }
 }
 
 void 
@@ -514,7 +540,7 @@ mouse_set_tcur(void)
 	  mousetextscreen = LWORD(ecx);
 	  mousetextcursor = LWORD(edx);
   } else {
-	  mousetextscreen = 0xffff;
+	  mousetextscreen = 0x7fff;
 	  mousetextcursor = 0xff00;
   }
 }
@@ -558,19 +584,19 @@ mouse_keyboard(int sc)
 {
   switch (sc) {
   case 0x50:
-    mouse.rbutton = mouse.lbutton = 0;
+    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
     mouse_move();
     break;
   case 0x4b:
-    mouse.rbutton = mouse.lbutton = 0;
+    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
     mouse_move();
     break;
   case 0x4d:
-    mouse.rbutton = mouse.lbutton = 0;
+    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
     mouse_move();
     break;
   case 0x48:
-    mouse.rbutton = mouse.lbutton = 0;
+    mouse.rbutton = mouse.lbutton = mouse.mbutton = 0;
     mouse_move();
     break;
   case 0x47:
@@ -619,7 +645,6 @@ mouse_lb(void)
 void 
 mouse_mb(void)
 {
-#if 0
   m_printf("MOUSE: middle button %s\n", mouse.mbutton ? "pressed" : "released");
   if (!mouse.mbutton) {
     mouse.mrcount++;
@@ -633,7 +658,6 @@ mouse_mb(void)
     mouse.mpy = mouse.y;
     mouse_delta(DELTA_MIDDLEBDOWN);
   }
-#endif
 }
 
 void 
@@ -660,7 +684,8 @@ fake_int(void)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(REG(ss)<<4);
+  m_printf("MOUSE: fake_int: CS:IP %04x:%04x\n",LWORD(cs),LWORD(eip));
+  ssp = (unsigned char *)(LWORD(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
   pushw(ssp, sp, vflags);
@@ -678,8 +703,8 @@ fake_call(int cs, int ip)
   ssp = (unsigned char *)(LWORD(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
-  m_printf("MOUSE: fake_call() shows S: %04x:%04x\n",
-	   LWORD(ss), LWORD(esp));
+  m_printf("MOUSE: fake_call() shows S: %04x:%04x, CS:IP %04x:%04x\n",
+	   LWORD(ss), LWORD(esp), cs, ip);
   pushw(ssp, sp, cs);
   pushw(ssp, sp, ip);
   LWORD(esp) -= 4;
@@ -691,7 +716,7 @@ fake_pusha(void)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(REG(ss)<<4);
+  ssp = (unsigned char *)(LWORD(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
   pushw(ssp, sp, LWORD(eax));
@@ -703,21 +728,37 @@ fake_pusha(void)
   pushw(ssp, sp, LWORD(esi));
   pushw(ssp, sp, LWORD(edi));
   LWORD(esp) -= 16;
+  pushw(ssp, sp, REG(ds));
+  pushw(ssp, sp, REG(es));
+  LWORD(esp) -= 4;
 }
 
+/*
+ * add the event to the current event mask
+ */
 void
 mouse_delta(int event)
 {
-  if (mouse.mask & event) {
+	mouse_events |= event;
+}
+
+/*
+ * call user event handler
+ */
+void
+mouse_event()
+{
+  if (mouse.mask & mouse_events) {
     fake_int();
     fake_pusha();
 
-    LWORD(eax) = event;
+    LWORD(eax) = mouse_events;
     LWORD(ecx) = mouse.x;
     LWORD(edx) = mouse.y;
-    LWORD(edi) = mouse.mickeyx;
-    LWORD(esi) = mouse.mickeyy;
-    LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
+    LWORD(esi) = mouse.maxx;
+    LWORD(edi) = mouse.maxy;
+    LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) |
+		 (mouse.mbutton ? 4 : 0);
 
     fake_call(Mouse_SEG, Mouse_OFF + 4);	/* skip to popa */
 
@@ -726,17 +767,15 @@ mouse_delta(int event)
 
     /* REG(ds) = *mouse.csp;  	put DS in user routine */
 
-    m_printf("MOUSE: event type %d, "
+    m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
+	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
+    m_printf("MOUSE: "
 	     "should call %04x:%04x (actually %04x:%04x)\n"
-	     ".........jmping to %04x:%04x\n",
-	     event, mouse.cs, mouse.ip, *mouse.csp, *mouse.ipp,
-	     LWORD(cs), LWORD(eip));
-	
-/*
-	REG(eflags) &= 0xfffffcff;
-*/
-    return;
+	     ".........jumping to %04x:%04x\n",
+	     mouse.cs, mouse.ip, *mouse.csp, *mouse.ipp,
+	     LWORD(cs), LWORD(eip));	
   }
+  mouse_events = 0;
 }
 
 void
@@ -762,37 +801,25 @@ mouse_do_cur(void)
   } else {
     unsigned short *p = SCREEN_ADR(bios_current_screen_page);
 
-#if 1 /* Replaced 94/08/31  put back 94/09/11 */
-    p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
-#else
-   if ( ( p[mouse.hidx + mouse.hidy * 80] ) ==
-	( mouse.hidchar & 0x00ff ) | /* char-code */
-	( ( ~( ( mouse.hidchar & 0xff00 ) & 0x7000 ) ) & 0x7000 ) )
-	/* restore only if char isn't modified
-	   by something other! */
-      p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
-#endif
-
-
+    i=mouse.hidx + mouse.hidy * 80;
+    if (p[i] == ((mouse.hidchar & mousetextscreen) ^ mousetextcursor))
+       p[i] = mouse.hidchar;
     /* save old char/attr pair */
     mouse.hidx = mouse.cx;
     mouse.hidy = mouse.cy;
     i=mouse.cx + mouse.cy * 80;
     mouse.hidchar = p[i];
-
-    p[i] &= mousetextscreen;
-	 p[i] ^= mousetextcursor;
+    p[i] = (p[i] & mousetextscreen) ^ mousetextcursor;
   }
 }
 
 void
 mouse_curtick(void)
 {
-  if (!mouse.cursor_on)
+  if (!mouse.cursor_on || config.X)
     return;
 
   m_printf("MOUSE: curtick x: %d  y:%d\n", mouse.cx, mouse.cy);
-  if (!config.X)
   mouse_do_cur();
 }
 
@@ -823,6 +850,8 @@ mouse_init(void)
   int old_mice_flags = -1;
 #endif
 
+  mouse.speed_x = 8;
+  mouse.speed_y = 16;
 #ifdef X_SUPPORT
   if (config.X) {
     mice->intdrv = TRUE;

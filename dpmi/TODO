@@ -9,7 +9,6 @@
 - implement DPMI function 0x100-0x102, 0x303, 0x304, 0x600-0x603, 0x702, 0x703,
   0x800, 0xb00-0xb03, 0xe00, 0xe01, 0x401
 - fix (implement) save/restore function
-- disable interrupts while stack switching (in call.S)
 - only use memory below 16MByte for 16-Bit Clients
 - implement free memory information using proc file system
 - many many bugfixes

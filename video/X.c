@@ -37,7 +37,9 @@ Atom proto_atom = None, delete_atom = None;
 
 static int font_width=8, font_height=16, font_shift=12;
 int prev_cursor_row=-1, prev_cursor_col=-1;
-ushort prev_cursor_shape=-1;
+ushort prev_cursor_shape=NO_CURSOR;
+int blink_state = 1;
+int blink_count = 8;
 
 boolean have_focus=0, is_mapped=0;
 
@@ -81,15 +83,16 @@ inline void get_vga_colors()
 }
 
   
- void set_sizehints(int xsize,int ysize) {
+void set_sizehints(int xsize,int ysize) {
     XSizeHints sh;
+	 X_printf("set_sizehints(): xsize=%d, ysize=%d\n",xsize,ysize);
     sh.max_width=(xsize+1)*font_width;  /* why +1 ??? */
     sh.max_height=(ysize+1)*font_height;
     sh.width_inc=font_width;
     sh.height_inc=font_height;
     sh.flags = PMaxSize|PResizeInc;
     XSetNormalHints(dpy,W,&sh);
- }
+}
 
 int X_init() {
    XGCValues gcv;
@@ -136,7 +139,7 @@ int X_init() {
       X_mouse_cursor = XCreateGlyphCursor(dpy,cfont,cfont,XC_hand2,
                                           XC_hand2+1,&bg,&fg);
    } else {
-      X_mouse_cursor = XCreateGlyphCursor(dpy,decfont,cfont,2,3,&fg,&bg);
+      X_mouse_cursor = XCreateGlyphCursor(dpy,decfont,decfont,2,3,&fg,&bg);
    }
    XUnloadFont(dpy,cfont);
    XUnloadFont(dpy,decfont);
@@ -153,7 +156,7 @@ int X_init() {
    XStoreName(dpy,W,config.X_title);
    XSetIconName(dpy,W,config.X_icon_name);
 
-/* Delete-Window-Message black magic copied from xloadimage */
+   /* Delete-Window-Message black magic copied from xloadimage */
    proto_atom  = XInternAtom(dpy,"WM_PROTOCOLS", False);
    delete_atom = XInternAtom(dpy,"WM_DELETE_WINDOW", False);
    if ((proto_atom != None) && (delete_atom != None))
@@ -162,10 +165,6 @@ int X_init() {
                                     
    XMapWindow(dpy,W);
 
-/*
-   gcv.foreground=white;
-   gcv.background=black;
-*/
    gcv.font=vga_font=XLoadFont(dpy,"vga");
    if (!gcv.font) {
       printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
@@ -174,11 +173,6 @@ int X_init() {
    }
 
    gc=XCreateGC(dpy,W,/*GCForeground|GCBackground|*/GCFont,&gcv);
-
-/*
-   prev_cursor_row=prev_cursor_col=-1;
-   prev_cursor_shape=NO_CURSOR;
-*/
 
    X_printf("X_init() ok, dpy=%x scr=%d root=%d W=%d gc=%x\n",
             (int)dpy,(int)scr,(int)root,(int)W,(int)gc);
@@ -196,6 +190,7 @@ void X_close() {
 }
 
 int X_setmode(int type, int xsize, int ysize) {
+	X_printf("X_setmode() type=%d, xsize=%d, ysize=%d\n",type,xsize,ysize);
    if (type==0) { /* text mode */
       XResizeWindow(dpy,W,xsize*font_width,ysize*font_height);
       set_sizehints(xsize,ysize);
@@ -211,14 +206,12 @@ inline void X_setattr(byte attr) {
 }
 
 void X_change_mouse_cursor(int flag) {
-	if (flag)
-		XDefineCursor(dpy, W, X_mouse_cursor);
-	else
-		XDefineCursor(dpy, W, X_stnd_cursor);
+   XDefineCursor(dpy, W, flag ? X_mouse_cursor : X_stnd_cursor);
 }
 
 inline void X_draw_cursor(int x,int y) {
-
+   if (!blink_state)
+      return;
    X_setattr(ATTR(screen_adr+y*co+x));
    if (have_focus) {
       XFillRectangle(dpy,W,gc,
@@ -263,7 +256,25 @@ void X_update_cursor() {
    if (cursor_row!=prev_cursor_row || cursor_col!=prev_cursor_col ||
        cursor_shape!=prev_cursor_shape)
    {
+      blink_state = 1;
+      blink_count = config.X_blinkrate;
       X_redraw_cursor();
+   }
+}
+
+void X_blink_cursor()
+{
+   if (!have_focus)
+      return;
+   if (--blink_count)
+      return;
+   blink_count = config.X_blinkrate;
+   blink_state = !blink_state;
+   if (cursor_shape!=NO_CURSOR) {
+      if (blink_state)
+	 X_draw_cursor(cursor_col,cursor_row);
+      else
+	 X_restore_cell(cursor_col, cursor_row);
    }
 }
 
@@ -552,6 +563,7 @@ void m_setpos(int x,int y) {
       mouse.x=x; 
       mouse.y=y;
       mouse_move();
+		mouse_event();
    }
 }   
 
@@ -564,7 +576,8 @@ void m_setbuttons(int state) {
    mouse.rbutton = ((state & Button3Mask) != 0);
    if (mouse.lbutton!=mouse.oldlbutton) mouse_lb();
    if (mouse.mbutton!=mouse.oldmbutton) mouse_mb();
-   if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
+	if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
+	mouse_event();
 }
 
 void X_handle_events()
@@ -604,6 +617,8 @@ void X_handle_events()
        case FocusOut:
                      X_printf("X: focus out\n");
                      have_focus = 0;
+		     blink_state = 1;
+		     blink_count = config.X_blinkrate;
                      X_redraw_cursor();
                      break;
 
@@ -621,25 +636,14 @@ void X_handle_events()
    which I don't expect to happen.
 */
        case ButtonPress:
-#if 0
-                    X_printf("X: mouse button %d pressed, state=%04x\n",
-                             e.xbutton.button, e.xbutton.state);
-#endif
                     m_setbuttons(e.xbutton.state|(0x80<<e.xbutton.button));
                     break;
                     
        case ButtonRelease:
-#if 0
-                    X_printf("X: mouse button %d released, state=%04x\n",
-                             e.xbutton.button, e.xbutton.state);
-#endif
                     m_setbuttons(e.xbutton.state&~(0x80<<e.xbutton.button));
 		    break;
 		    
        case MotionNotify:
-#if 0
-                    X_printf("X pointer motion\n");
-#endif
 	            m_setpos(e.xmotion.x,e.xmotion.y);
 		    break;
 		   

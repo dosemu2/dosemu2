@@ -212,6 +212,7 @@
 
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #define SIG 1
+typedef struct { int fd; int irq; } SillyG_t;
 #endif
 
 #define inline __inline__
@@ -460,11 +461,13 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        char    *X_display;              /* X server to use (":0") */
        char    *X_title;                /* X window title */
        char    *X_icon_name;
+       int     X_blinkrate;
        boolean fullrestore;
 
        u_short usesX;  /* !=0 if dosemu owns an X window */
 
        boolean console_keyb;
+       boolean X_keycode;	/* use keycode field of event structure */
        boolean exitearly;
        boolean mathco;
        boolean ipxsup;
@@ -482,7 +485,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        						     32K for vbios_seg=0xc000) */
 
        boolean bootdisk;	/* Special bootdisk defined */
-       boolean fastfloppy;
+       int  fastfloppy;
        char *emusys;		/* map CONFIG.SYS to CONFIG.EMU */
        char *emubat;		/* map AUTOEXEC.BAT to AUTOEXEC.EMU */
 

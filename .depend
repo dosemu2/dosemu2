@@ -26,6 +26,6 @@ sigsegv.o : sigsegv.c emu.h machcompat.h cpu.h /home/src/dosemu0.60/include/bios
   /home/src/dosemu0.60/include/../cpu.h video/vc.h /home/src/dosemu0.60/emu.h \
   dpmi/dpmi.h /home/src/dosemu0.60/include/hgc.h ports.h 
 detach.o : detach.c 
-Xkeyb.o : Xkeyb.c emu.h machcompat.h cpu.h 
+Xkeyb.o : Xkeyb.c emu.h machcompat.h cpu.h termio.h 
 x2dos.o : x2dos.c 
 bios.o : bios.S

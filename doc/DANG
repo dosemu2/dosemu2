@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, am20@unix.york.ac.uk
-  For DOSEMU v0.53 pl22
+  For DOSEMU v0.53 pl24
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -296,6 +296,13 @@
 
   -----
 
+  At this time we have to use SIGALRM in addition to SIGIO I don't (yet)
+  know why the SIGIO signal gets lost sometimes (once per minute or
+  longer).  But if it happens, we can retrigger this way over SIGALRM.
+  Normally SIGIO happens before SIGALARM, so nothing hurts.  (Hans)
+
+  -----
+
   If DOSEMU starts up with stderr == stdout, then stderr gets redirected
   to '/dev/null'.
 
@@ -320,12 +327,10 @@
   There appears to be no MODULE information for this file.
 
 
+
   2.3.1.  Functions in emu.h
 
   These are the functions defined in emu.h.
-
-
-
 
 
   2.3.1.1.  NEWSETQSIG
@@ -388,11 +393,14 @@
 
   o  argc - Number of Command Line arguments.
 
+
   o  argv - Command Line arguments - as an array of char*'s
 
      This function does all of the work associated with this client. It
      grabs the shared memory used to hold the current Video data and
      makes some comments about its current screen.
+
+
 
   3.1.2.  Remarks in clients/ncurses.c
 
@@ -444,7 +452,15 @@
   These are the functions defined in dpmi/dpmi.c.
 
 
-  4.1.1.1.  do_default_cpu_exception
+  4.1.1.1.  dpmi_control
+
+  This function is similar to the vm86() syscall in the kernel and
+  switches to dpmi code.
+
+
+
+
+  4.1.1.2.  do_default_cpu_exception
 
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
@@ -452,15 +468,14 @@
 
 
 
-  4.1.1.2.  do_cpu_exception
+  4.1.1.3.  do_cpu_exception
 
   This calls the DPMI client exception handler. If none is installed
   do_default_cpu_exception() is called.
 
 
 
-
-  4.1.1.3.  dpmi_fault
+  4.1.1.4.  dpmi_fault
 
   This is the brain of DPMI. All CPU exceptions are first reflected
   (from the signal handlers) to this code.  Exception from nonpriveleged
@@ -476,6 +491,18 @@
   would love to have an readonly ldt-alias (located in the first 16MByte
   for use with 16-Bit descriptors (WIN-LDT)). This is on my wish list
   for the kernel hackers (Linus mainly) :-))))))).
+
+
+  -----
+
+  DPMI is designed such that the stack change needs a task switch.  We
+  are doing it via an SIGSEGV - instead of one task switch we have now
+  four :-(.  Arrgh this is the point where I should start to include
+  DPMI stuff in the kernel, but then we could include the rest of dosemu
+  too.	Would Linus love this? I don't :-((((.	Anyway I would love to
+  see first a working DPMI port, maybe we will later (with version 0.9
+  or similar :-)) start with it to get a really fast dos
+  emulator...............
 
 
 
@@ -499,7 +526,6 @@
   so if krnl386.exe/krnl286.exe try to write to this table, we will bomb
   into sigsegv() and and emulate direct ldt access
 
-
   5.  The Video group of Modules
 
   All of the Video handling code is in the "video" subdirectory.
@@ -522,7 +548,6 @@
   make the emulator try to execute the card's initialization routine
   which is normally located at address c000:0003. This can now be
   changed as an option.
-
 
 
 
@@ -567,8 +592,6 @@
 
   Apparently, no-one has anything interesting to say about
   video/video.c.
-
-
   5.2.3.  Items for Fixing in video/video.c
 
   Apparently, nothing needs fixing in video/video.c.
@@ -591,7 +614,6 @@
 
 
 
-
   5.3.1.  Functions in termio.c
 
   These are the functions defined in termio.c.
@@ -601,6 +623,18 @@
 
   Initialize the keyboard to DOSEMU deafaults plus those requested in
   the configs if allowable.
+
+
+
+  5.3.1.2.  convascii
+
+
+  o  cc - count of characters on queue
+
+     For dealing with translating esc character sequences received in
+     XLATE mode. Every effort is made to give the characters a time
+     slice of approx. 3/4 of a second to arrive at DOSEMU.  Also handles
+     alt-keys and other character translations.
 
 
 
@@ -619,6 +653,9 @@
   5.3.4.  New Ideas for termio.c
 
   Apparently, there are no new ideas for termio.c.
+
+
+
 
 
   6.  The Misc group of Modules
@@ -685,6 +722,8 @@
   Apparently, no-one has anything interesting to say about xms.c.
 
 
+
+
   6.2.3.  Items for Fixing in xms.c
 
   Apparently, nothing needs fixing in xms.c.
@@ -724,6 +763,7 @@
 
   Apparently, there are no new ideas for keymaps.c.
 
+
   6.4.	sigsegv.c Information
 
   There appears to be no MODULE information for this file.
@@ -748,9 +788,18 @@
 
 
 
+
+
   6.4.2.  Remarks in sigsegv.c
 
-  Apparently, no-one has anything interesting to say about sigsegv.c.
+  In a properly functioning emulator :-), sigsegv's will never come
+  while in a non-reentrant system call (ioctl, select, etc).  Therefore,
+  there's really no reason to worry about them, so I say that I'm NOT in
+  a signal handler (I might make this a little clearer later, to show
+  that the purpose of in_sighandler is to stop non-reentrant system
+  calls from being reentered.  I reiterate: sigsegv's should only happen
+  when I'm running the vm86 system call, so I really shouldn't be in a
+  non-reentrant system call (except maybe vm86) - Robert Sanders
 
 
   6.4.3.  Items for Fixing in sigsegv.c
@@ -789,7 +838,6 @@
 
 
 
-
   6.5.1.3.  SETUP_INTERRUPTS
 
   SETUP_INTERRUPTS is used to initialize those interrupt calls that we
@@ -805,6 +853,7 @@
   6.5.3.  Items for Fixing in int.h
 
   Apparently, nothing needs fixing in int.h.
+
 
 
   6.5.4.  New Ideas for int.h
@@ -853,9 +902,6 @@
   These are the functions defined in dosio.c.
 
 
-
-
-
   6.7.1.1.  memory_setup
 
   Setup HMA area via IPC. Call EMS and XMS initialization routines.
@@ -875,7 +921,6 @@
   6.7.4.  New Ideas for dosio.c
 
   Apparently, there are no new ideas for dosio.c.
-
 
   6.8.	mouse/mouse.c Information
 
@@ -919,9 +964,6 @@
   These are the functions defined in serial.c.
 
 
-
-
-
   6.9.1.1.  serial_init
 
   The following is the master serial initialization function called
@@ -943,6 +985,7 @@
   6.9.4.  New Ideas for serial.c
 
   Apparently, there are no new ideas for serial.c.
+
 
 
   6.10.	disks.c Information
@@ -987,7 +1030,6 @@
   These are the functions defined in cpu.c.
 
 
-
   6.11.1.1.  cpu_init
 
   Setup initial interrupts which can be revectored so that the kernel
@@ -1008,6 +1050,8 @@
   6.11.4.  New Ideas for cpu.c
 
   Apparently, there are no new ideas for cpu.c.
+
+
 
 
   6.12.	lpt.c Information
@@ -1053,7 +1097,6 @@
   sillyint.o or insmod sillyint.o SIG_MAJOR=mm if you want to use MAJOR
   mm intstead of the default 19.
 
-
   To make the devices go into your /dev directory and create a
   subdirectory called int. Change into this directory and add a node for
   the IRQ you wish to use. Bare in mind that in the future if you use
@@ -1076,7 +1119,6 @@
   6.13.2.  Remarks in sig/int.c
 
   Apparently, no-one has anything interesting to say about sig/int.c.
-
 
   6.13.3.  Items for Fixing in sig/int.c
 
@@ -1115,48 +1157,6 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

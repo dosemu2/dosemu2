@@ -972,7 +972,7 @@ floppy_tick(void)
 {
   static int secs = 0;
 
-  if (++secs == FLUSH_DELAY) {
+  if (++secs == config.fastfloppy) {
     disk_close();
     secs = 0;
   }

@@ -252,14 +252,14 @@ extern struct config_info config;
 extern int in_readkeyboard, keybint;
 extern int ignore_segv;
 #ifdef SIG
-extern int *SillyG;
+extern SillyG_t *SillyG;
 #endif
 
 #define PAGE_SIZE	4096
 
 u_long secno = 0;
 
-inline void process_interrupt(int);
+inline void process_interrupt(SillyG_t *sg);
 
 /* my test shared memory IDs */
 struct {
@@ -436,11 +436,11 @@ io_select(fd_set fds)
 
 #ifdef SIG
       if (SillyG) {
-        int *sg=SillyG;
-        while (*sg) {
-	  if (FD_ISSET(*sg, &fds)) {
-	    k_printf("SIG: We have an interrupt\n");
-	    process_interrupt(*sg);
+        SillyG_t *sg=SillyG;
+        while (sg->fd) {
+	  if (FD_ISSET(sg->fd, &fds)) {
+	    h_printf("SIG: We have an interrupt\n");
+	    process_interrupt(sg);
 	  }
 	  sg++;
 	}
@@ -497,6 +497,7 @@ int inschr;
 inline void
 set_keyboard_bios(void)
 {
+  int scan;
 
   if (config.console_keyb) {
     if (config.keybint) {
@@ -508,14 +509,18 @@ set_keyboard_bios(void)
   } else if (config.X) {
 	  if (config.keybint) {
 		  keepkey = 1;
-		  /* check, if we have to store the key in the keyboard buffer */
-		  if (convKey(HI(ax)) || ((lastchr>>8) && !(lastchr&0x80)) )
-			  /* xdos gives us the char-code, so use it.
-				  We'd get into trouble, if we would try to convert the
-				  scan code into a char while using a non-US keyboard! */
-			  inschr = (lastchr>>8) | (HI(ax)<<8);
-		  else
-			  inschr = 0;
+		  if (config.X_keycode)
+			  inschr = convKey(HI(ax));
+		  else {
+			  /* check, if we have to store the key in the keyboard buffer */
+			  if ((scan=convKey(HI(ax))) || ((lastchr>>8) && !(lastchr&0x80)) )
+				  /* xdos gives us the char-code, so use it.
+					  We'd get into trouble, if we would try to convert the
+					  scan code into a char while using a non-US keyboard! */
+				  inschr = (lastchr>>8) | (scan&0xff00);
+			  else
+				  inschr = 0;
+		  }
 	  } else
 		  inschr = convKey(*LASTSCAN_ADD);
   } else {
@@ -558,10 +563,10 @@ parent_nextscan()
     if (scan_queue_start != scan_queue_end)
       scan_queue_start = (scan_queue_start + 1) % SCANQ_LEN;
     if (!config.console_keyb && !config.X) {
-      *LASTSCAN_ADD = lastchr >> 8;
+       *LASTSCAN_ADD = lastchr >> 8;
     }
     else {
-      *LASTSCAN_ADD = lastchr;
+       *LASTSCAN_ADD = lastchr;
     }
   }
   k_printf("Parent Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
@@ -577,18 +582,21 @@ scan_to_buffer() {
 }
 
 inline void
-process_interrupt(int fd)
+process_interrupt(SillyG_t *sg)
 {
-  int rrtn;
   u_int chr;
+  int irq;
 
-  if ((rrtn = read(fd, " ", 1))) {
-
-    h_printf("INTERRUPT: 0x%02x, fd=%x\n", rrtn, fd);
-    if (rrtn < 8)
-      chr = rrtn + 8;
+#if 0
+  if ((irq = read(sg->fd, " ", 1))) {
+#else
+  if (irq = sg->irq) {
+#endif
+    h_printf("INTERRUPT: 0x%02x\n", irq);
+    if (irq < 8)
+      chr = irq + 8;
     else
-      chr = rrtn + 0x68;
+      chr = irq + 0x68;
     do_hard_int(chr);
   }
 }

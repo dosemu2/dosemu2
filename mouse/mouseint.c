@@ -33,11 +33,12 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <errno.h>
+#include <time.h>
 
 #include "emu.h"
 #include "mouse.h"
 
-void mouse_move(void), mouse_lb(void), mouse_rb(void);
+void mouse_move(void), mouse_lb(void), mouse_rb(void), mouse_mb(void);
 void DOSEMUSetMouseSpeed();
 
 /*
@@ -141,151 +142,197 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 
   static unsigned char proto[8][5] = {
     /*  hd_mask hd_id   dp_mask dp_id   nobytes */
-    { 	0x40,	0x40,	0x40,	0x00,	3 	},  /* MicroSoft */
+    {	0x40,	0x40,	0x40,	0x00,	3 	},  /* MicroSoft */
     {	0xf8,	0x80,	0x00,	0x00,	5	},  /* MouseSystems */
     {	0xe0,	0x80,	0x80,	0x00,	3	},  /* MMSeries */
     {	0xe0,	0x80,	0x80,	0x00,	3	},  /* Logitech */
     {	0xf8,	0x80,	0x00,	0x00,	5	},  /* BusMouse */
-    { 	0x40,	0x40,	0x40,	0x00,	3 	},  /* MouseMan
+    {	0x40,	0x40,	0x40,	0x00,	3 	},  /* MouseMan
                                                        [CHRIS-211092] */
     {	0xc0,	0x00,	0x00,	0x00,	3	},  /* PS/2 mouse */
     {	0xe0,	0x80,	0x80,	0x00,	3	},  /* MM_HitTablet */
   };
   
-  if ( ! config.usesX  ){
-  for ( i=0; i < nBytes; i++) {
-    if (pBufP != 0 && mice->type != MOUSE_PS2 &&
-	((rBuf[i] & proto[mice->type][2]) != proto[mice->type][3]
-	 || rBuf[i] == 0x80))
-      {
-	pBufP = 0;          /* skip package */
-      }
+  if (!config.usesX) {
+     for ( i=0; i < nBytes; i++) {
+	/*
+	 * check, if we have a usable data byte
+	 */
+	if (pBufP != 0 && mice->type != MOUSE_PS2 &&
+	    ((rBuf[i] & proto[mice->type][2]) != proto[mice->type][3]
+	     || rBuf[i] == 0x80)) {
+	   m_printf("MOUSEINT: Skipping package, pBufP = %d\n",pBufP);
+	   pBufP = 0;          /* skip package */
+	}
 
-    if (pBufP == 0 &&
-	(rBuf[i] & proto[mice->type][0]) != proto[mice->type][1])
-      {
-	if ((mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MOUSEMAN)
-          && (char)(rBuf[i] & ~0x23) == 0)
-	  {
-	    buttons = ((int)(rBuf[i] & 0x20) >> 4)
-	      | (mice->lastButtons & 0x05);
-/*
-	    DOSEMUPostMseEvent(buttons, 0, 0);
-*/
-	  }
-
-	continue;            /* skip package */
-      }
-
-
-    pBuf[pBufP++] = rBuf[i];
-    if (pBufP != proto[mice->type][4]) continue;
-
-    /*
-     * assembly full package
-     */
-    switch(mice->type) {
+	/*
+	 * check, if the current byte is the start of a new package
+	 * if not, skip it
+	 */
+	if (pBufP == 0 &&
+	    (rBuf[i] & proto[mice->type][0]) != proto[mice->type][1]) {
+	   m_printf("MOUSEINT: Skipping byte %02x\n",rBuf[i]);
+	   continue;
+	}
+	
+	pBuf[pBufP++] = rBuf[i];
+	if (pBufP != proto[mice->type][4]) continue;
+	/*
+	 * assembly full package
+	 */
+	switch(mice->type) {
+	   
+	case MOUSE_MOUSEMAN:	    /* MouseMan / TrackMan   [CHRIS-211092] */
+	case MOUSE_MICROSOFT:       /* Microsoft */
+	   if (mice->chordMiddle)
+	      buttons = ((pBuf[0] & 0x30) == 0x30) ? 2 : 
+	      (((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4));
+	   else {
+	      buttons = ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
+	      m_printf("MOUSEINT: buttons=%02x\n",buttons);
+	      /*
+	       * if the middle button was pressed or released
+	       * we get a fourth byte. Check if it is in the buffer
+	       */
+	      if (i+1 < nBytes) {
+		 if ((rBuf[i+1] & ~0x23)==0) {
+		    buttons |= (rBuf[++i] & 0x20) >> 4;
+		    m_printf("MOUSEINT: middle button from buffer: %02x\n",
+			     buttons);
+		 }
+	      } else {
+		 /*
+		  * no data there, try to read it
+		  * select seems not to work here ( it returns -1 with
+		  * errno==EINTR ), so we poll for a few clock ticks
+		  * I really don't like this. So, if anybody has a better
+		  * idea...
+		  */
+		 clock_t c;
+		 int     n;
+		 /*
+		  * Wait .02s for the data to arrive
+		  */
+		 c = clock() + 3;
+		 n=0;
+		 do {
+		    n = read(mice->fd, rBuf+i, 1);
+		 } while (n < 1 && clock() < c);
+		 if (n==1) {
+		    /*
+		     * There is data!
+		     * Check if it is the status of the middle button,
+		     * if not, decrement i so that the byte is used
+		     * during the next loop
+		     */
+		    if ((rBuf[i] & ~0x23)==0) {
+		       buttons |= (rBuf[i] & 0x20) >> 4;
+		       m_printf("MOUSEINT: middle button read: %02x\n",
+				buttons);
+		    } else
+		       i--;
+		 }
+	      }
+	   }
+	   dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
+	   dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
+	   break;
       
-    case MOUSE_MOUSEMAN:	    /* MouseMan / TrackMan   [CHRIS-211092] */
-    case MOUSE_MICROSOFT:              /* Microsoft */
-      if (mice->chordMiddle)
-	buttons = (((int) pBuf[0] & 0x30) == 0x30) ? 2 :
-		  ((int)(pBuf[0] & 0x20) >> 3)
-		  | ((int)(pBuf[0] & 0x10) >> 4);
-      else
-	buttons = (mice->lastButtons & 2)
-		  | ((int)(pBuf[0] & 0x20) >> 3)
-		  | ((int)(pBuf[0] & 0x10) >> 4);
-      dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
-      dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
-      break;
+	case MOUSE_MOUSESYSTEMS:             /* Mouse Systems Corp */
+	   buttons = (~pBuf[0]) & 0x07;
+	   dx =    (char)(pBuf[1]) + (char)(pBuf[3]);
+	   dy = - ((char)(pBuf[2]) + (char)(pBuf[4]));
+	   break;
       
-    case MOUSE_MOUSESYSTEMS:             /* Mouse Systems Corp */
-      buttons = (~pBuf[0]) & 0x07;
-      dx =    (char)(pBuf[1]) + (char)(pBuf[3]);
-      dy = - ((char)(pBuf[2]) + (char)(pBuf[4]));
-      break;
+	case MOUSE_HITACHI:           /* MM_HitTablet */
+	   buttons = pBuf[0] & 0x07;
+	   if (buttons != 0)
+	      buttons = 1 << (buttons - 1);
+	   dx = (pBuf[0] & 0x10) ?   pBuf[1] : - pBuf[1];
+	   dy = (pBuf[0] & 0x08) ? - pBuf[2] :   pBuf[2];
+	   break;
+
+	case MOUSE_MMSERIES:              /* MM Series */
+	case MOUSE_LOGITECH:            /* Logitech Mice */
+	   buttons = pBuf[0] & 0x07;
+	   dx = (pBuf[0] & 0x10) ?   pBuf[1] : - pBuf[1];
+	   dy = (pBuf[0] & 0x08) ? - pBuf[2] :   pBuf[2];
+	   break;
       
-    case MOUSE_HITACHI:           /* MM_HitTablet */
-      buttons = pBuf[0] & 0x07;
-      if (buttons != 0)
-        buttons = 1 << (buttons - 1);
-      dx = (pBuf[0] & 0x10) ?   pBuf[1] : - pBuf[1];
-      dy = (pBuf[0] & 0x08) ? - pBuf[2] :   pBuf[2];
-      break;
+	case MOUSE_BUSMOUSE:              /* BusMouse */
+	   buttons = (~pBuf[0]) & 0x07;
+	   dx =   (char)pBuf[1];
+	   dy = - (char)pBuf[2];
+	   break;
 
-    case MOUSE_MMSERIES:              /* MM Series */
-    case MOUSE_LOGITECH:            /* Logitech Mice */
-      buttons = pBuf[0] & 0x07;
-      dx = (pBuf[0] & 0x10) ?   pBuf[1] : - pBuf[1];
-      dy = (pBuf[0] & 0x08) ? - pBuf[2] :   pBuf[2];
-      break;
-      
-    case MOUSE_BUSMOUSE:              /* BusMouse */
-      buttons = (~pBuf[0]) & 0x07;
-      dx =   (char)pBuf[1];
-      dy = - (char)pBuf[2];
-      break;
+	case MOUSE_PS2:		    /* PS/2 mouse */
+	   buttons = (pBuf[0] & 0x04) >> 1 |       /* Middle */
+	      (pBuf[0] & 0x02) >> 1 |       /* Right */
+	      (pBuf[0] & 0x01) << 2;        /* Left */
+	   dx = (pBuf[0] & 0x10) ?    pBuf[1]-256  :  pBuf[1];
+	   dy = (pBuf[0] & 0x20) ?  -(pBuf[2]-256) : -pBuf[2];
+	   break;
+	}
 
-    case MOUSE_PS2:		    /* PS/2 mouse */
-      buttons = (pBuf[0] & 0x04) >> 1 |       /* Middle */
-	        (pBuf[0] & 0x02) >> 1 |       /* Right */
-		(pBuf[0] & 0x01) << 2;        /* Left */
-      dx = (pBuf[0] & 0x10) ?    pBuf[1]-256  :  pBuf[1];
-      dy = (pBuf[0] & 0x20) ?  -(pBuf[2]-256) : -pBuf[2];
-      break;
-    }
-
-/*
- *  Here for 3 button emulation, if needed ? 
-    DOSEMUPostMseEvent(buttons, dx, dy);
-*/
-
-    mouse.x = mouse.x + dx;
-    mouse.y = mouse.y + dy;
-    mouse.cx = mouse.x / 8;
-    mouse.cy = mouse.y / 8;
-    if (dx || dy) mouse_move();
-    mouse.oldlbutton = mouse.lbutton;
-    mouse.oldrbutton = mouse.rbutton;
-    mouse.lbutton = buttons & 0x04;
-    mouse.mbutton = buttons & 0x02;
-    mouse.rbutton = buttons & 0x01;
-    if (mouse.oldlbutton != mouse.lbutton)
-    mouse_lb();
-/*
- *  mouse_mb();         When we have 3 button support
- */
-    if (mouse.oldrbutton != mouse.rbutton)
-    mouse_rb();   
-
-    pBufP = 0;
+        /*
+	*  Here for 3 button emulation, if needed ? 
+	DOSEMUPostMseEvent(buttons, dx, dy);
+	*/
+	
+	/*
+	 * calculate the new values for buttons, dx and dy
+	 */
+	mouse.x = mouse.x + dx * 8 / mouse.speed_x;
+	mouse.y = mouse.y + dy * 8 / mouse.speed_y;
+	mouse.cx = mouse.x / 8;
+	mouse.cy = mouse.y / 8;
+	mouse.oldlbutton = mouse.lbutton;
+	mouse.oldmbutton = mouse.mbutton;
+	mouse.oldrbutton = mouse.rbutton;
+	mouse.lbutton = buttons & 0x04;
+	mouse.mbutton = buttons & 0x02;
+	mouse.rbutton = buttons & 0x01;
+	/*
+	 * update the event mask
+	 */
+	if (dx || dy)
+	   mouse_move();
+	if (mouse.oldlbutton != mouse.lbutton)
+	   mouse_lb();
+	if (mouse.oldmbutton != mouse.mbutton)
+	   mouse_mb();
+	if (mouse.oldrbutton != mouse.rbutton)
+	   mouse_rb();
+	/*
+	 * check if user events need to be processed
+	 */
+	mouse_event();
+	pBufP = 0;
+     }
   }
-}
   else {
-    dx = ((int *) rBuf)[0] - mouse.x;
-    dy = ((int *) rBuf)[1] - mouse.y;
-    buttons = ((int *) rBuf)[2];
-    mouse.x = mouse.x + dx;
-    mouse.y = mouse.y + dy;
-    mouse.cx = mouse.x / 8;
-    mouse.cy = mouse.y / 8;
-    if (dx || dy) mouse_move();
-    mouse.oldlbutton = mouse.lbutton;
-    mouse.oldrbutton = mouse.rbutton;
-    mouse.lbutton = buttons & 0x04;
-    mouse.mbutton = buttons & 0x02;
-    mouse.rbutton = buttons & 0x01;
-    if (mouse.oldlbutton != mouse.lbutton)
-      mouse_lb();
-    /*
-    if (mouse.oldmbutton != mouse.mbutton)
-      mouse_mb();
-     *  mouse_mb();         When we have 3 button support
-     */
-    if (mouse.oldrbutton != mouse.rbutton)
-      mouse_rb();
-
+     dx = ((int *) rBuf)[0] - mouse.x;
+     dy = ((int *) rBuf)[1] - mouse.y;
+     buttons = ((int *) rBuf)[2];
+     mouse.x = mouse.x + dx;
+     mouse.y = mouse.y + dy;
+     mouse.cx = mouse.x / 8;
+     mouse.cy = mouse.y / 8;
+     if (dx || dy)
+	mouse_move();
+     mouse.oldlbutton = mouse.lbutton;
+     mouse.oldmbutton = mouse.mbutton;
+     mouse.oldrbutton = mouse.rbutton;
+     mouse.lbutton = buttons & 0x04;
+     mouse.mbutton = buttons & 0x02;
+     mouse.rbutton = buttons & 0x01;
+     if (mouse.oldlbutton != mouse.lbutton)
+	mouse_lb();
+     if (mouse.oldmbutton != mouse.mbutton)
+	mouse_mb();
+     if (mouse.oldrbutton != mouse.rbutton)
+	mouse_rb();
+     mouse_event();
   }
 }
 

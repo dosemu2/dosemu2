@@ -657,24 +657,31 @@ keyboard_init(void)
   struct stat chkbuf;
   int major, minor;
 
-  if ((config.usesX) /* && ( config.usesX != 2) */ ) {
-    kbd_fd = dup(keypipe);
-  }
-  else {
-    kbd_fd = STDIN_FILENO;
-  }
+  if (!config.X && !config.usesX) {
+     if (config.usesX) {
+	kbd_fd = dup(keypipe);
+     }
+     else {
+	kbd_fd = STDIN_FILENO;
+     }
 
-  if (kbd_fd < 0) {
-    error("ERROR: Couldn't duplicate STDIN !\n");
-    return -1;
-  }
+     if (kbd_fd < 0) {
+	error("ERROR: Couldn't duplicate STDIN !\n");
+	return -1;
+     }
+     
+     old_kbd_flags = fcntl(kbd_fd, F_GETFL);
+     fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
+     
+     if (use_sigio)
+	k_printf("KBD: Using SIGIO\n");
+     add_to_io_select(kbd_fd);
 
-  old_kbd_flags = fcntl(kbd_fd, F_GETFL);
-  fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
-
-  if (use_sigio)
-    k_printf("KBD: Using SIGIO\n");
-  add_to_io_select(kbd_fd);
+     fstat(kbd_fd, &chkbuf);
+     major = chkbuf.st_rdev >> 8;
+     minor = chkbuf.st_rdev & 0xff;
+  } else
+     major = minor = 0;
 
   scr_state.vt_allow = 0;
   scr_state.vt_requested = 0;
@@ -682,11 +689,7 @@ keyboard_init(void)
   scr_state.pageno = 0;
   scr_state.virt_address = PAGE_ADDR(0);
 
-  fstat(kbd_fd, &chkbuf);
-  major = chkbuf.st_rdev >> 8;
-  minor = chkbuf.st_rdev & 0xff;
-
-  if (!(config.usesX)) {
+  if (!config.usesX) {
     /* console major num is 4, minor 64 is the first serial line */
     if ((major == 4) && (minor < 64))
       scr_state.console_no = minor;	/* get minor number */
@@ -700,19 +703,19 @@ keyboard_init(void)
       config.vga = 0;
       config.graphics = 0;
       if (config.speaker == SPKR_NATIVE)
-	config.speaker = SPKR_EMULATED;
+        config.speaker = SPKR_EMULATED;
     }
   }
   else {
     scr_state.console_no = 0;
   }
 
-  if (tcgetattr(kbd_fd, &oldtermios) < 0) {
+  if (!config.X && tcgetattr(kbd_fd, &oldtermios) < 0) {
     error("ERROR: Couldn't tcgetattr(STDIN,...) !\n");
     /* close(kbd_fd); kbd_fd = -1; return -1; <------ XXXXXXX Remove this */
   }
 
-  /*
+/*
  * DANG_BEGIN_REMARK
  *
  *  Code is called at start up to set up the terminal line for non-raw
@@ -720,20 +723,22 @@ keyboard_init(void)
  *
  * DANG_END_REMARK
  */
-  newtermio = oldtermios;
-  newtermio.c_iflag &= (ISTRIP | IGNBRK);	/* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
-  /* newtermio.c_oflag &= ~OPOST;
-  newtermio.c_cflag &= ~(HUPCL); */
-  newtermio.c_cflag &= ~(CLOCAL | CSIZE | PARENB);
-  newtermio.c_cflag |= CS8;
-  newtermio.c_lflag &= 0;	/* ISIG */
-  newtermio.c_cc[VMIN] = 1;
-  newtermio.c_cc[VTIME] = 0;
-  erasekey = newtermio.c_cc[VERASE];
-  cfgetispeed(&newtermio);
-  cfgetospeed(&newtermio);
-  if (tcsetattr(kbd_fd, TCSANOW, &newtermio) < 0) {
-    error("ERROR: Couldn't tcsetattr(STDIN,TCSETAF,...) !\n");
+  if (!config.X) {
+     newtermio = oldtermios;
+     newtermio.c_iflag &= (ISTRIP | IGNBRK);	/* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
+     /* newtermio.c_oflag &= ~OPOST;
+     newtermio.c_cflag &= ~(HUPCL); */
+     newtermio.c_cflag &= ~(CLOCAL | CSIZE | PARENB);
+     newtermio.c_cflag |= CS8;
+     newtermio.c_lflag &= 0;                  /* ISIG */
+     newtermio.c_cc[VMIN] = 1;
+     newtermio.c_cc[VTIME] = 0;
+     erasekey = newtermio.c_cc[VERASE];
+     cfgetispeed(&newtermio);
+     cfgetospeed(&newtermio);
+     if (tcsetattr(kbd_fd, TCSANOW, &newtermio) < 0) {
+	error("ERROR: Couldn't tcsetattr(STDIN,TCSANOW,...) !\n");
+     }
   }
 
   kbd_flags = 0;
@@ -748,6 +753,10 @@ keyboard_init(void)
 void
 clear_raw_mode()
 {
+#ifdef X_SUPPORT
+   if (config.X)
+      return;
+#endif
   do_ioctl(kbd_fd, KDSKBMODE, K_XLATE);
   if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) < 0) {
     k_printf("KBD: Resetting Keyboard to K_XLATE mode failed.\n");
@@ -758,6 +767,10 @@ clear_raw_mode()
 void
 set_raw_mode()
 {
+#ifdef X_SUPPORT
+   if (config.X)
+      return;
+#endif
   k_printf("KBD: Setting keyboard to RAW mode\n");
   if (!config.console_video)
     fprintf(stderr, "\nEntering RAW mode for DOS!\n");
@@ -770,6 +783,10 @@ tty_raw(int fd)
 {
   struct termios buf;
 
+#ifdef X_SUPPORT
+   if (config.X)
+      return 0;
+#endif
   if (tcgetattr(fd, &save_termios) < 0)
     return (-1);
 
@@ -908,8 +925,8 @@ child_set_flags(int sc)
   case 0x57:
   case 0x58:
     child_clr_kbd_flag(4);
-    if (!config.X &&
-	(child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1))) {
+    if ( !config.X && 
+	 (child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1)) ) {
       int fnum = sc - 0x3a;
 
       k_printf("KDB: Doing VC switch\n");
@@ -927,8 +944,8 @@ child_set_flags(int sc)
     }
     return;
   case 0x51:
-    if (!config.X &&
-	(child_kbd_flag(2) && child_kbd_flag(3) && !child_kbd_flag(1))) {
+    if ( !config.X &&
+	 (child_kbd_flag(2) && child_kbd_flag(3) && !child_kbd_flag(1)) ) {
       dbug_printf("ctrl-alt-pgdn\n");
       leavedos(42);
     }
@@ -1141,13 +1158,15 @@ termioInit()
     set_key_flag(KKF_KBD102);
   }
 
+  if (config.X)
+     return;
   setupterm(NULL, 1, (int *) 0);
   gettermcap();
   li = 25;
   co = 80;
 
   numkeys = 0;
-  for (fkp = funkey; fkp->code; fkp++)
+  for (fkp = funkey; fkp->code; fkp++) 
     numkeys++;
   qsort(funkey, numkeys, sizeof(struct funkeystruct), &fkcmp);
 }

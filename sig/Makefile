@@ -23,7 +23,7 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 
 CFILES = 
 HFILES = 
-OFILES = Makefile.kernel HowTo int.c mem.c fcntl.c exit.c
+OFILES = Makefile.kernel HowTo int.c mem.c
 
 # Insert all source- and header-files here.
 
@@ -36,19 +36,11 @@ OBJS = exit.o fcntl.o
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
-all: sillyint.o exit.o fcntl.o
+all: sillyint.o
 
-sillyint.o: int.o $(OBJS)
-	ld -r -o sillyint.o int.o $(OBJS)
 
-exit.o:		exit.c
-	$(CC) -m486 -Wall exit.c -c -O6 -D__KERNEL__ -DLINUX -o exit.o
-
-fcntl.o:	fcntl.c
-	$(CC) -m486 -Wall fcntl.c -c -O6 -D__KERNEL__ -DLINUX -o fcntl.o
-
-int.o:    int.c  $(USRSRCDIR)/linux/tools/version.h
-	$(CC) -m486 -Wall -I$(USRSRCDIR) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o int.o
+sillyint.o:    int.c  $(USRSRCDIR)/linux/tools/version.h
+	$(CC) -m486 -Wall -I$(USRSRCDIR) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o sillyint.o
 
 checkin:
 	-ci $(ALL) Makefile

@@ -331,7 +331,7 @@ inline void vm86_GP_fault()
   default:
     /* er, why don't we advance eip here, and
 	 why does it work??  */
-    error("general protection %x\n", *csp);
+    error("general protection at %p: %x\n", csp,*csp);
     show_regs();
     show_ints(0, 0x33);
     error("ERROR: SIGSEGV, protected insn...exiting!\n");

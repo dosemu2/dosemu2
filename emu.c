@@ -572,6 +572,7 @@ struct itimerval itv;
 time_t start_time;		/* Keep track of times for DOS calls */
 unsigned long last_ticks;
 unsigned int check_date;
+extern void update_timers(void);
 
 extern void video_config_init(void);
 extern int keyboard_init(void);
@@ -1027,8 +1028,9 @@ void memory_init(void) {
  */
     *ptr++ = 0xff;
     *ptr++ = 0x1e;
-    *(((us *) ptr)++) = Mouse_OFF + 7;	/* uses ptr[3] as well */
-
+    *(((us *) ptr)++) = Mouse_OFF + 8;	/* uses ptr[3] as well */
+    *ptr++ = 0x07;		/* pop es */
+    *ptr++ = 0x1f;		/* pop ds */
     *ptr++ = 0x61;		/* popa */
     *ptr++ = 0xcf;		/* iret */
 
@@ -1276,6 +1278,9 @@ void SIGALRM_call(void){
     * note that update_screen also updates the cursor.
     */
 
+  if (config.X && config.X_blinkrate) {
+     X_blink_cursor();
+  }
   if (!running && !video_update_lock) {
     if (Video->update_screen 
 #if VIDEO_CHECK_DIRTY
@@ -1386,7 +1391,7 @@ sigalrm(int sig, struct sigcontext_struct context)
 {
 #ifdef DPMI
   if (in_dpmi && !in_vm86)
-    dpmi_sigalrm(&signal_queue[SIGNAL_head].context);
+    dpmi_sigalrm(&context);
 #endif /* DPMI */
   SIGNAL_save(SIGALRM_call);
 }
@@ -1413,7 +1418,7 @@ sigio(int sig, struct sigcontext_struct context)
 {
 #ifdef DPMI
   if (in_dpmi && !in_vm86)
-    dpmi_sigio(&signal_queue[SIGNAL_head].context);
+    dpmi_sigio(&context);
 #endif /* DPMI */
   SIGNAL_save(SIGIO_call);
 }
@@ -1655,6 +1660,8 @@ config_defaults(void)
   config.X_display     = NULL;     /* NULL means use DISPLAY variable */
   config.X_title       = "dosemu";
   config.X_icon_name   = "dosemu";
+  config.X_blinkrate   = 8;
+  config.X_keycode     = 0;
   config.usesX   = 0;
   config.X   = 0;
   config.hogthreshold = 5000;	/* in usecs */
@@ -1853,8 +1860,8 @@ int_queue_run()
 /* Silly Interrupt Generator Initialization/Closedown */
 
 #ifdef SIG
-int *SillyG = 0;
-static int SillyG_[16+1];
+SillyG_t *SillyG = 0;
+static SillyG_t SillyG_[16+1];
 
 /* 
  * DANG_BEGIN_FUNCTION SIG_int
@@ -1877,7 +1884,7 @@ SIG_init()
     char devname[20];
     char prio_table[]={9,10,11,12,14,15,3,4,5,6,7};
     int i,irq,fd;
-    int *sg=SillyG_;
+    SillyG_t *sg=SillyG_;
     for (i=0; i<sizeof(prio_table); i++) {
       irq=prio_table[i];
       if (config.sillyint & (1 << irq)) {
@@ -1890,22 +1897,32 @@ SIG_init()
           write(fd, NULL, (int) NULL);
           fprintf(stderr, "Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq ,fd);
           if (config.sillyint & (0x10000 << irq)) {
-            /* Try to use SIGIO,
-               this should be faster, if SIGIO is used, 
-               but it doesn't always work (as I tested with my hardware) */
+            /* Use SIGIO, this should be faster */ 
             add_to_io_select(fd);
           }
-          else {
-            /* Don't use SIGIO,
-               this is slow, but it always works */
+          /* DANG_BEGIN_REMARK
+           * At this time we have to use SIGALRM in addition to SIGIO
+           * I don't (yet) know why the SIGIO signal gets lost sometimes
+           * (once per minute or longer). 
+           * But if it happens, we can retrigger this way over SIGALRM.
+           * Normally SIGIO happens before SIGALARM, so nothing hurts.
+           * (Hans)
+           * DANG_END_REMARK
+           */  
+#if 0
+          else 
+#endif
+          {
+            /* use SIGALRM  */
             FD_SET(fd, &fds_no_sigio);
             not_use_sigio++;
           }
-          *sg++=fd;
+          sg->fd=fd;
+          (sg++)->irq=irq;
         }
       }
     }
-    *sg=0;
+    sg->fd=0;
     if (sg != SillyG_) SillyG=SillyG_;
   }
 }
@@ -1913,8 +1930,8 @@ SIG_init()
 void
  SIG_close() {
   if (SillyG) {
-    int *sg=SillyG;
-    while (*sg) close(*sg++);
+    SillyG_t *sg=SillyG;
+    while (sg->fd) close((sg++)->fd);
     fprintf(stderr, "Closing all IRQ you opened!\n");
   }
 }
@@ -2026,19 +2043,19 @@ void
   opterr = 0;
   confname = NULL;
   while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:dXY:Z:")) != EOF) {
-    switch (c) {
-    case 'F':
-      confname = optarg;
-      break;
-    case 'd':
-      if (config.detach)
-        break;
-      config.detach = (unsigned short)detach();
-      break;
-    case 'D':
-      parse_debugflags(optarg);
-      break;
-    }
+	  switch (c) {
+	  case 'F':
+		  confname = optarg;
+		  break;
+	  case 'd':
+		  if (config.detach)
+			  break;
+		  config.detach = (unsigned short)detach();
+		  break;
+	  case 'D':
+	     parse_debugflags(optarg);
+	     break;
+	  }
   }
 
   parse_config(confname);
@@ -2187,7 +2204,6 @@ void
       _exit(1);
     }
   }
-
   if (config.X) {
     config.console_video = config.vga = config.graphics = 0;
   }
@@ -2230,6 +2246,9 @@ void
     last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
     check_date = tm->tm_year * 10000 + tm->tm_mon * 100 + tm->tm_mday;
     set_ticks(last_ticks);
+
+    update_timers();
+
   };
 
   /* initialize cli() and sti() */
@@ -3016,37 +3035,37 @@ void
 
   switch (LWORD(ebx)) {
   case 0:
-    error("EMS Init called!\n");
+    E_printf("EMS Init called!\n");
     break;
   case 3:
-    error("EMS IOCTL called!\n");
+    E_printf("EMS IOCTL called!\n");
     break;
   case 4:
-    error("EMS READ called!\n");
+    E_printf("EMS READ called!\n");
     break;
   case 8:
-    error("EMS WRITE called!\n");
+    E_printf("EMS WRITE called!\n");
     break;
   case 10:
-    error("EMS Output Status called!\n");
+    E_printf("EMS Output Status called!\n");
     break;
   case 12:
-    error("EMS IOCTL-WRITE called!\n");
+    E_printf("EMS IOCTL-WRITE called!\n");
     break;
   case 13:
-    error("EMS OPENDEV called!\n");
+    E_printf("EMS OPENDEV called!\n");
     break;
   case 14:
-    error("EMS CLOSEDEV called!\n");
+    E_printf("EMS CLOSEDEV called!\n");
     break;
   case 0x20:
-    error("EMS INT 0x67 called!\n");
+    E_printf("EMS INT 0x67 called!\n");
     break;
   default:
     error("UNKNOWN EMS HELPER FUNCTION %d\n", LWORD(ebx));
   }
   rhptr = SEG_ADR((u_char *), es, di);
-  error("EMS RHDR: len %d, command %d\n", *rhptr, *(u_short *) (rhptr + 2));
+  E_printf("EMS RHDR: len %d, command %d\n", *rhptr, *(u_short *) (rhptr + 2));
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */

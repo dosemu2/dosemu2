@@ -307,7 +307,7 @@ show_regs(void)
 	      LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
 
   /* display vflags symbolically...the #f "stringizes" the macro name */
-#define PFLAG(f)  if (REG(eflags)&(f)) dbug_printf(#f" ")
+#define PFLAG(f)  if (REG(eflags)&(f)) g_printf(#f" ")
 
   g_printf("FLAGS: ");
   PFLAG(CF);

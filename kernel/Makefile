@@ -25,7 +25,6 @@ HFILES =
 # Insert all source- and header-files here.
 
 ALL = $(CFILES) $(HFILES) kernel.1.0.x.diff \
-	kernel.diff \
 	sti.pat
 
 

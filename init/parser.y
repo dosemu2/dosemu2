@@ -116,7 +116,7 @@ extern void yyrestart(FILE *input_file);
 %token MICROSOFT LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
 %token INTERNALDRIVER CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE ICON_NAME
+%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP
@@ -166,7 +166,16 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    config.emubat = $3;
 		    c_printf("CONF: config.emubat = '%s'\n", $3);
 		    }
-		| FASTFLOPPY bool	{ config.fastfloppy = $2; }
+		| FASTFLOPPY INTEGER
+			{ 
+			config.fastfloppy = $2;
+			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
+			}
+		| FASTFLOPPY bool
+			{
+			config.fastfloppy = ($2) ? 2 : 0;
+			c_printf("CONF: fastfloppy = %d", config.fastfloppy);
+			}
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
 		| BOOTA			{ config.hdiskboot = 0; }
 		| BOOTC			{ config.hdiskboot = 1; }
@@ -285,6 +294,8 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
 		| L_DISPLAY STRING	{ config.X_display = $2; }
 		| L_TITLE STRING	{ config.X_title = $2; }
 		| ICON_NAME STRING	{ config.X_icon_name = $2; }
+		| X_KEYCODE		{ config.X_keycode = 1; }
+		| X_BLINKRATE INTEGER	{ config.X_blinkrate = $2; }
 		;
 
 	/* video */

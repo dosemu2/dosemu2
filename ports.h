@@ -109,6 +109,150 @@ extern int cursor_col;
 extern int char_blink;
 u_short microsoft_port_check = 0;
 
+int timer_interrupt_rate = 55;
+int min_timer_milli_pause = 16;
+int timer_milli_pause = 55;
+
+int timer0_read_latch_value = 0;
+int timer0_read_latch_value_orig = 0;
+int timer0_latched_value = 0;
+int timer0_new_value = 0;
+boolean_t latched_counter_msb = FALSE;
+
+extern void update_timers(void);
+u_long milliseconds_since_boot;
+
+int do_40(in_out, val)
+	boolean_t in_out;
+	int val;
+{
+	int ret;
+
+	if (in_out) {  /* true => in, false => out */
+
+		update_timers();
+		if (timer0_latched_value == 0) {
+			timer0_latched_value = timer_interrupt_rate*850;
+		}
+		switch (timer0_read_latch_value) {
+			case 0x30:
+				ret = timer0_latched_value&0xf;
+				timer0_read_latch_value = 0x20;
+				break;
+			case 0x10:
+				ret = timer0_latched_value&0xf;
+				timer0_read_latch_value = 0x0;
+				break;
+			case 0x20:
+				ret = (timer0_latched_value&0xf0)>>8;
+				timer0_read_latch_value = 0x0;
+				timer0_latched_value = 0;
+				break;
+			case 0x0:
+				if (latched_counter_msb) {
+					ret = 
+					(milliseconds_since_boot >> 8) & 0xff;
+				} else {
+					ret = milliseconds_since_boot & 0xff;
+				}
+				latched_counter_msb = !latched_counter_msb;
+				break;
+
+		}
+		i_printf("PORT: do_40, in = 0x%x\n",ret);
+	} else {
+		switch (timer0_read_latch_value) {
+			case 0x0:
+			case 0x30:
+				timer0_new_value = val;
+				timer0_read_latch_value = 0x20;
+				break;
+			case 0x10:
+				timer0_new_value = val;
+				timer0_read_latch_value = 0x0;
+				break;
+			case 0x20:
+				timer0_new_value |= (val<<8);
+				timer0_read_latch_value = 0x0;
+				break;
+		}
+		i_printf("PORT: do_40, out = 0x%x\n",val);
+		if (timer0_read_latch_value == 0) {
+			timer0_read_latch_value=timer0_read_latch_value_orig;
+			if (timer0_new_value == 0) timer0_new_value = 64*1024;
+			timer_interrupt_rate = ((timer0_new_value)/1193);
+			if (timer_interrupt_rate < min_timer_milli_pause) {
+				int i;
+				if (timer_interrupt_rate == 0) 
+					timer_interrupt_rate = 1;
+				for (i = 1; i<=min_timer_milli_pause;i++) {
+				    if (i*timer_interrupt_rate >= 
+						min_timer_milli_pause){
+				    	timer_milli_pause = i*
+						timer_interrupt_rate;
+					break;
+				    }
+				}
+			} else {
+				timer_milli_pause = timer_interrupt_rate;
+			}
+			i_printf("timer_interrupt_rate = %d\n",
+					  timer_interrupt_rate);
+			i_printf("timer_milli_pause = %d\n",
+					  timer_milli_pause);
+		}
+	}
+	return(ret);
+}
+
+int do_42(in_out, val)
+	boolean_t in_out;
+	int val;
+{
+	int ret;
+	if (in_out) {  /* true => in, false => out */
+		ioperm(0x42,1,1);
+		ret = port_in(0x42);
+		ioperm(0x42,1,0);
+		i_printf( "PORT: do_42, in = 0x%x\n",ret);
+	} else {
+		ioperm(0x42,1,1);
+		port_out(val, 0x42);
+		ioperm(0x42,1,0);
+		i_printf( "PORT: do_42, out = 0x%x\n",val);
+	}
+	return(ret);
+}
+
+int do_43(in_out, val)
+	boolean_t in_out;
+	int val;
+{
+	int ret;
+	
+	if (in_out) {  /* true => in, false => out */
+		i_printf( "PORT: do_43, in = 0x%x\n",ret);
+	} else {
+		i_printf( "PORT: do_43, out = 0x%x\n",val);
+		switch(val>>6) {
+			case 0:
+				timer0_read_latch_value = (val&0x30);
+				timer0_read_latch_value_orig = (val&0x30);
+				if (timer0_read_latch_value == 0) {
+					latched_counter_msb = FALSE;
+				}
+				break;
+			case 2:
+				ioperm(0x43,1,1);
+				port_out(val, 0x43);
+				ioperm(0x43,1,0);
+				i_printf( "PORT: Really do_43\n");
+				break;
+		}
+	}
+	return(ret);
+}
+
 /*
  * DANG_BEGIN_FUNCTION inb(int port)
  *
@@ -202,20 +346,25 @@ inb(int port)
 
 #define COUNTER 2
   case 0x40:
+	return(do_40(1, 0));
     pit.CNTR0 -= COUNTER;
     i_printf("inb [0x40] = 0x%02x  1st timer inb\n",
 	     pit.CNTR0);
     return pit.CNTR0;
   case 0x41:
+	return(do_40(1, 0));
     pit.CNTR1 -= COUNTER;
     i_printf("inb [0x41] = 0x%02x  2nd timer inb\n",
 	     pit.CNTR1);
     return pit.CNTR1;
   case 0x42:
+	return(do_42(1, 0));
     pit.CNTR2 -= COUNTER;
     i_printf("inb [0x42] = 0x%02x  3rd timer inb\n",
 	     pit.CNTR2);
     return pit.CNTR2;
+  case 0x43:
+	return(do_43(1, 0));
 
   case 0x3ba:
   case 0x3da:
@@ -243,7 +392,7 @@ inb(int port)
       i_printf(" Diamond inb [0x%x] = 0x%x\n", port, tmp);
       return (tmp);
     }
-    i_printf("default inb [0x%x] = 0x%02x\n", port, (LWORD(eax) & 0xFF));
+    i_printf("default inb [0x%x] = 0x%02x\n", port,0x00);
     return 0x00;
   }
   return 0;
@@ -439,12 +588,13 @@ outb(int port, int byte)
     cmos_write(port, byte);
     break;
   case 0x40:
+	do_40(0, byte);
+	break;
   case 0x41:
+	do_40(0, byte);
+	break;
   case 0x42:
-  case 0x43:
-#if 0
-    i_printf("timer outb 0x%02x\n", byte);
-#endif
+	do_42(0, byte);
     if ((port == 0x42) && (lastport == 0x42)) {
       if ((timer_beep == 1) &&
 	  (config.speaker == SPKR_EMULATED)) {
@@ -456,6 +606,12 @@ outb(int port, int byte)
       }
     }
     break;
+  case 0x43:
+#if 0
+    i_printf("timer outb 0x%02x\n", byte);
+#endif
+	do_43(0, byte);
+	break;
 
   default:
     /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
@@ -486,4 +642,22 @@ outw(int port, int value)
   outb(port + 1, value >> 8);
 }
 
+void update_timers(void) {
+  static long initial_sec=0L;
+  static long initial_usec;
+  static struct timeval tp;
+
+  gettimeofday(&tp, NULL);
+
+  if (initial_sec == 0L) {
+    initial_sec = tp.tv_sec;
+    initial_usec = tp.tv_usec;
+  }
+
+  milliseconds_since_boot = ((tp.tv_sec - initial_sec)*1000) +
+                            ((tp.tv_usec - initial_usec)/1000);
+  i_printf("Timers updated: %x\n", milliseconds_since_boot);
+
+}
+ 
 #undef PORTS_H

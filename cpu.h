@@ -74,6 +74,15 @@ __asm__ __volatile__( \
 	: "0" (ptr), "1" (base), "2" (0)); \
 __res; })
 
+#define popb(base, ptr) \
+({ unsigned long __res; \
+__asm__ __volatile__( \
+	"movb (%1,%0),%b2\n\t" \
+	"incw %w0\n\t" \
+	: "=r" (ptr), "=r" (base), "=q" (__res) \
+	: "0" (ptr), "1" (base), "2" (0)); \
+__res; })
+
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
 {
 	__asm__ __volatile__("btsl %1,%0"

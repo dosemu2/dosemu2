@@ -26,6 +26,8 @@
 #define DELTA_LEFTBUP		4	/* released */
 #define DELTA_RIGHTBDOWN	8
 #define DELTA_RIGHTBUP		16
+#define DELTA_MIDDLEBDOWN  32
+#define DELTA_MIDDLEBUP    64
 
 #define MICKEY			9	/* mickeys per move */
 #define M_DELTA			8
@@ -51,20 +53,21 @@ typedef struct mouse_structure {
   int chordMiddle;
 } mouse_t;
 
-struct mouse_struct {
+extern struct mouse_struct {
   unsigned char lbutton, mbutton, rbutton;
   unsigned char oldlbutton, oldmbutton, oldrbutton;
 
   int lpcount, lrcount, mpcount, mrcount, rpcount, rrcount;
 
   /* positions for last press/release for each button */
-  int lpx, lpy, rpx, rpy;
-  int lrx, lry, rrx, rry;
+  int lpx, lpy, mpx, mpy, rpx, rpy;
+  int lrx, lry, mrx, mry, rrx, rry;
 
   /* these are for MOUSE position */
   int x, y;
   int points;
   int minx, maxx, miny, maxy;
+  int speed_x, speed_y;
 
   /* these are for CURSOR position */
   int cx, cy;
@@ -108,5 +111,7 @@ extern void mouse_move(void);
 extern void mouse_lb(void);
 extern void mouse_mb(void);
 extern void mouse_rb(void);
+
+extern void mouse_event(void);
 
 #endif /* MOUSE_H */
