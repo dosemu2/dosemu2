@@ -278,11 +278,11 @@ typedef struct vesamode_type_struct {
 
        int pktflags;		/* global flags for packet driver */
 
-       unsigned int update, freq;	/* temp timer magic */
+       int update, freq;	/* temp timer magic */
        unsigned long cpu_spd;		/* (1/speed)<<32 */
        unsigned long cpu_tick_spd;	/* (1.19318/speed)<<32 */
 
-       unsigned int hogthreshold;
+       int hogthreshold;
 
        int mem_size, xms_size, ems_size, dpmi, pm_dos_api, max_umb;
        unsigned int ems_frame;
