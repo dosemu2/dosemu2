@@ -35,7 +35,7 @@ void linux_sb_enable_speaker (void);
 
 int linux_sb_set_speed (uint16_t speed, uint8_t stereo_mode, uint8_t is_16bit, uint8_t is_signed);
 
-int linux_sb_dma_start_init(void);
+int linux_sb_dma_start_init(int read);
 
 size_t linux_sb_do_read(void *ptr, size_t size);
 size_t linux_sb_do_write(void *ptr, size_t size);

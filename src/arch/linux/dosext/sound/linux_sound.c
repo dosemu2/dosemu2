@@ -51,6 +51,7 @@
 static int mixer_fd = -1;
 static int dsp_fd = -1;
 static int dsp_fd_read = -1;
+static int dsp_fd_write = -1;
 
 /* Old variables - Obselete - AM */
 static long int block_size = 0;
@@ -216,16 +217,17 @@ static uint8_t linux_sb_read_mixer(int ch)
 
 void linux_sb_disable_speaker(void)
 {
-  if (dsp_fd > -1)
+  if (dsp_fd_write != -1)
   {
     S_printf ("SB:[Linux] Syncing DSP\n");
     /* don't use blocking ioctl's like DSP_SYNC!!! */
-    ioctl(dsp_fd, SNDCTL_DSP_SYNC);
-    close (dsp_fd);
-    dsp_fd = -1;
+    ioctl(dsp_fd_write, SNDCTL_DSP_SYNC);
+    close (dsp_fd_write);
+    dsp_fd_write = -1;
   } else {
     S_printf ("SB:[Linux] DSP already closed\n");
   }
+  dsp_fd = dsp_fd_write;
 }
 
 void linux_sb_enable_speaker (void)
@@ -238,10 +240,11 @@ void linux_sb_enable_speaker (void)
     close(dsp_fd_read);
     dsp_fd_read = -1;
   }
-  if (dsp_fd == -1)
-    if ((dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_WRONLY | O_NONBLOCK))) < 0)
+  if (dsp_fd_write == -1)
+    if ((dsp_fd_write = RPT_SYSCALL(open(config.sb_dsp, O_WRONLY | O_NONBLOCK))) < 0)
       S_printf ("SB:[Linux] Failed to initiate connection to %s (%s)\n",
         config.sb_dsp, strerror(errno));
+  dsp_fd = dsp_fd_write;
 }
 
 static int linux_set_OSS_fragsize (int frag_value)
@@ -285,7 +288,7 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
       S_printf ("SB:[Linux] Initialising Direct DAC write (%u bits)\n", bits);
       if (linux_sb_dma_is_empty() == DMA_HANDLER_OK) {
         result = 0;
-        if (ioctl (dsp_fd, SNDCTL_DSP_SAMPLESIZE, &bits)<0) {
+        if (ioctl (dsp_fd_write, SNDCTL_DSP_SAMPLESIZE, &bits)<0) {
            S_printf ("SB:[Linux] Warning: ioctl() (SAMPLESIZE) failed: %s\n", strerror(errno));
            result = -1;
         }
@@ -311,9 +314,9 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
 
     if (linux_sb_dma_get_free_space() < buffer_count)
       return;
-    buffer_count -= write (dsp_fd, buffer, buffer_count);
+    buffer_count -= write (dsp_fd_write, buffer, buffer_count);
     if (config.oss_do_post)
-      ioctl (dsp_fd, SNDCTL_DSP_POST);
+      ioctl (dsp_fd_write, SNDCTL_DSP_POST);
   } else {
     overflow_flag = 0;
   }
@@ -344,13 +347,13 @@ int linux_sb_get_version(void)
     dsp_fd_read = -1;
   }
 
-  if (dsp_fd == -1)
-    dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_WRONLY | O_NONBLOCK));
+  if (dsp_fd_write == -1)
+    dsp_fd_write = RPT_SYSCALL(open(config.sb_dsp, O_WRONLY | O_NONBLOCK));
   
-  if (dsp_fd > 0) {
+  if (dsp_fd_write > 0) {
     /* Ok, let's try to set stereo for output */
     tmp = 1;
-    if (ioctl(dsp_fd, SNDCTL_DSP_STEREO, &tmp) < 0) {
+    if (ioctl(dsp_fd_write, SNDCTL_DSP_STEREO, &tmp) < 0) {
       /*
        * we cannot set stereo, so it can be only SB 1.5 or 2.0,
        * the only difference as far as I know is that SB 1.5 cannot
@@ -369,7 +372,7 @@ int linux_sb_get_version(void)
        */
 
        tmp=44100;
-       if (ioctl(dsp_fd, SNDCTL_DSP_SPEED,&tmp)<0)
+       if (ioctl(dsp_fd_write, SNDCTL_DSP_SPEED,&tmp)<0)
 	  S_printf ("SB:[Linux] Warning: ioctl() (SPEED) failed: %s\n", strerror(errno));
        if(tmp < 44100)
 	 version = SB_OLD;
@@ -382,7 +385,7 @@ int linux_sb_get_version(void)
        * this is possible, say it's a SB16 otherwise a SBPro
        */
       tmp = AFMT_S16_LE;
-      if (ioctl(dsp_fd, SNDCTL_DSP_SAMPLESIZE, &tmp) < 0 || tmp != AFMT_S16_LE)
+      if (ioctl(dsp_fd_write, SNDCTL_DSP_SAMPLESIZE, &tmp) < 0 || tmp != AFMT_S16_LE)
 	version = SB_PRO;
       else 
         version = SB_16;
@@ -408,20 +411,30 @@ int linux_sb_get_version(void)
    * when we want to. - Alistair
    */
 
-  if (dsp_fd > -1) {
-    close (dsp_fd);
-    dsp_fd = -1;
+  if (dsp_fd_write != -1) {
+    close (dsp_fd_write);
+    dsp_fd_write = -1;
   }
 
   return version;
 }
 
-int linux_sb_dma_start_init(void)
+int linux_sb_dma_start_init(int read)
 {
   long int fragments = (num_sound_frag << 16) | sound_frag_size;
   long int new_block_size = num_sound_frag * sound_frag_size;
   long int frag_size;
   int result=0;
+
+  if (read) {
+    if (dsp_fd_read == -1)
+      if ((dsp_fd_read = RPT_SYSCALL(open(config.sb_dsp, O_RDONLY))) < 0) {
+        S_printf ("SB:[Linux] Failed to open %s for read (%s)\n",
+          config.sb_dsp, strerror(errno));
+	return 0;
+      }
+    dsp_fd = dsp_fd_read;
+  }
 
   if (oss_block_size != new_block_size) {
     if (linux_sb_dma_is_empty() == DMA_HANDLER_OK) {
@@ -447,14 +460,9 @@ int linux_sb_dma_start_init(void)
 size_t linux_sb_do_read(void *ptr, size_t size)
 {
 int amount_done;
-  if (dsp_fd != -1) {
+  if (dsp_fd_read == -1) {
     S_printf("SB [Linux]: ERROR: Speaker not disabled\n");
     return 0;
-  }
-  if (dsp_fd_read == -1) {
-    if ((dsp_fd_read = RPT_SYSCALL(open(config.sb_dsp, O_RDONLY))) < 0)
-      S_printf ("SB:[Linux] Failed to open %s for read (%s)\n",
-        config.sb_dsp, strerror(errno));
   }
   amount_done = read(dsp_fd_read, ptr, size);
   S_printf("SB [Linux]: read() returned %d", amount_done);
@@ -468,17 +476,17 @@ size_t linux_sb_do_write(void *ptr, size_t size)
 {
 int amount_done;
 static int in_frag = 0;
-  if (dsp_fd == -1) {
+  if (dsp_fd_write == -1) {
     S_printf("SB [Linux]: ERROR: Device is not opened for write!\n");
     return 0;
   }
   if (linux_sb_dma_get_free_space() < size) {
     if (config.oss_do_post)
-      ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
+      ioctl (dsp_fd_write, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
     in_frag = 0;
     return 0;
   }
-  amount_done = write(dsp_fd, ptr, size);
+  amount_done = write(dsp_fd_write, ptr, size);
   S_printf("SB [Linux]: write() returned %d", amount_done);
   if (amount_done < 0) {
     S_printf(": %s", strerror(errno));
@@ -489,7 +497,7 @@ static int in_frag = 0;
   if (in_frag >= (1 << sound_frag_size)) {
     if (config.oss_do_post) {
       S_printf("SB [Linux]: ioctling POST\n");
-      ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
+      ioctl (dsp_fd_write, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
     }
     in_frag = 0;
   }
@@ -591,7 +599,7 @@ int linux_sb_set_speed (uint16_t speed, uint8_t stereo_mode, uint8_t is_16bit, u
   /* stereo_mode is actually 2 is stereo is requested - Karcher */
   channels = stereo_mode ? 2 : 1;
 
-  if (dsp_fd > -1)
+  if (dsp_fd != -1)
   {
     if (sample_rate != rate || num_channels != channels) {
       if (linux_sb_dma_is_empty() == DMA_HANDLER_OK) {
@@ -790,8 +798,12 @@ void SB_driver_reset() {
   sample_rate = 0;
   num_channels = 0;
   oss_block_size = 0;
-  if (dsp_fd > -1)
+  if (dsp_fd_write != -1)
     ioctl(dsp_fd, SNDCTL_DSP_RESET);
+  if (dsp_fd_read != -1) {
+    close(dsp_fd_read);
+    dsp_fd = dsp_fd_read = -1;
+  }
 }
 
 void FM_driver_reset() {

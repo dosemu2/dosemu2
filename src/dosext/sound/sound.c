@@ -2013,10 +2013,10 @@ void start_dsp_dma(void)
  /* drop DRQ for now - DMA startup can fail */
   dma_drop_DREQ(CURRENT_DMA_CHANNEL);
 
- if (SB_info.speaker) {
+ if (SB_info.speaker ^ (SB_dsp.dma_mode & SB_DMA_INPUT)) {
   int sample_rate = SB_dsp.dma_mode & SB_DMA_INPUT ? SB_dsp.input_sample_rate : SB_dsp.output_sample_rate;
   if (SB_dsp.dma_mode & SB_DMA_INPUT) {
-    /* we want only one irq when speaker not enabled */
+    /* we want only one irq when speaker enabled */
     SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
   }
   if (!sample_rate && !SB_dsp.time_constant) {
@@ -2064,9 +2064,9 @@ void start_dsp_dma(void)
     S_printf ("SB: Required function 'DMA_start_init' not provided.\n");
   }
   else
-    result = (*SB_driver.DMA_start_init)();
+    result = SB_driver.DMA_start_init(SB_dsp.dma_mode & SB_DMA_INPUT);
   if (result == 0)
-    result = (*SB_driver.set_speed) (real_sampling_rate, SB_IN_STEREO_MODE,
+    result = SB_driver.set_speed(real_sampling_rate, SB_IN_STEREO_MODE,
       SB_dsp.is_16bit, SB_dsp.is_signed);
   if (result<0) {
     SB_dsp.empty_state |= START_DMA_AT_EMPTY;

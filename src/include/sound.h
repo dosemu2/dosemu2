@@ -150,7 +150,7 @@ EXTERN struct SB_driver_t {
   /*
    * DMA functions
    */
-  int  (* DMA_start_init)(void);
+  int  (* DMA_start_init)(int read);
   size_t  (* DMA_do_read)(void*, size_t);
   size_t  (* DMA_do_write)(void*, size_t);
   void  (* DMA_pause)(void);
