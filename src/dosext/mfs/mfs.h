@@ -383,7 +383,7 @@ typedef struct lol_record {
 #define DENY_ALL	0x01
 #define DENY_WRITE	0x02
 #define DENY_READ	0x03
-#define DENY_ANY	0x40
+#define DENY_ANY	0x04
 
 #define CHILD_INHERIT	0x00
 #define NO_INHERIT	0x01

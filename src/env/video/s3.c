@@ -44,6 +44,8 @@ static int s3_Ramdac = 0;
 static int s3_8514_base = BASE_8514_1;
 static unsigned short s3BtLowBits[] = { 0x3C8, 0x3C9, 0x3C6, 0x3C7 };
 
+#define IS_TRIO (s3_series==S3_928 && (s3_chip&0xC0F0)==0x00E0)
+
 static void out_crt(const int index, const int value)
 {
 	port_out(index, CRT_I);
@@ -54,6 +56,17 @@ static int in_crt(const int index)
 {
 	port_out(index, CRT_I);
 	return (port_in(CRT_D) & 0xff);
+}
+
+static void out_seq(const int index,int value)
+{
+	value=(value<<8)+index;
+	port_out_w(value, 0x3c4);
+}
+static int in_seq(const int index)
+{
+	port_out(index, 0x3c4);
+	return (port_in(0x3c5) & 0xff);
 }
 
 /*
@@ -203,6 +216,23 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 
 		for (i = 0; i < 6; i++)
 			xregs[40 + i] = in_crt(0x60 + i);
+
+		/* s3 trio extended registers */
+		/* get S3 ext. SR registers */
+                if (IS_TRIO) {
+		    xregs[50] = in_seq(0x08);
+		    out_seq(0x08, 0x06);	/* unlock extended seq regs */
+		    xregs[51] = in_seq(0x09);
+		    xregs[52] = in_seq(0x0A);
+		    xregs[53] = in_seq(0x0D);
+		    xregs[54] = in_seq(0x10);
+		    xregs[55] = in_seq(0x11);
+		    xregs[56] = in_seq(0x12);
+		    xregs[57] = in_seq(0x13);
+		    xregs[58] = in_seq(0x15);
+		    xregs[59] = in_seq(0x18);
+		    out_seq(0x08, xregs[50]); /* restore lock */
+		}
 	}
 	if (s3_Ramdac == S3_NORMAL_DAC)
 	{
@@ -276,10 +306,26 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 
 		out_crt(0x5d, xregs[37]);
 		out_crt(0x5e, xregs[38]);
-		out_crt(0x53,xregs[39]);
+		out_crt(0x53, xregs[39]);
 
 		for (i = 0; i < 6; i++)
 			out_crt(0x60 + i, xregs[40 + i]);
+
+		/* s3 trio extended registers */
+                /* set S3 ext. SR registers */
+                if (IS_TRIO) {
+		     out_seq(0x08, 0x06);    /* unlock extended seq regs */
+		     out_seq(0x09, xregs[51]);         
+		     out_seq(0x0A, xregs[52]);         
+		     out_seq(0x0D, xregs[53]);         
+		     out_seq(0x10, xregs[54]);         
+		     out_seq(0x11, xregs[55]);         
+		     out_seq(0x12, xregs[56]);         
+		     out_seq(0x13, xregs[57]);         
+		     out_seq(0x15, xregs[58]);         
+		     out_seq(0x18, xregs[59]);         
+		     out_seq(0x08, xregs[50]); /* restore lock */
+		}
 	}
 
 	if (s3_Ramdac == S3_NORMAL_DAC)

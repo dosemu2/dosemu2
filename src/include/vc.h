@@ -114,7 +114,7 @@ extern void open_vga_mem(void);
 extern void close_vga_mem(void);
 
 #define MAX_S_REGS	71
-#define MAX_X_REGS	50
+#define MAX_X_REGS	60
 #define MAX_X_REGS16	10
 
 /* Struct to hold necessary elements during a save/restore */

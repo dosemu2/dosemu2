@@ -2846,7 +2846,8 @@ dos_fs_redirect(state)
 	sft_open_mode(sft) |= 0x00f0;
     }
     else {
-	sft_open_mode(sft) = dos_mode & 0xF;
+       /* Keeping sharing modes in sft also, --Maxim Ruchko */
+	sft_open_mode(sft) = dos_mode & 0xFF;
     }
     dos_mode &= 0xF;
 	
@@ -2906,10 +2907,64 @@ dos_fs_redirect(state)
 	return (FALSE);
       }
     }
-    else if ((fd = open(fpath, unix_mode )) < 0) {
-      Debug0((dbg_fd, "access denied:'%s'\n", fpath));
-      SETWORD(&(state->eax), ACCESS_DENIED);
-      return (FALSE);
+    else {
+      if ((fd = open(fpath, unix_mode )) < 0) {
+        Debug0((dbg_fd, "access denied:'%s'\n", fpath));
+        SETWORD(&(state->eax), ACCESS_DENIED);
+        return (FALSE);
+      }
+      {
+        /* IMHO, to handle sharing modes at this moment,
+         * it's impossible to know wether an other process already
+         * has been opened this file in shared mode.
+         * But DOS programs (FoxPro 2.6 for example) need ACCESS_DENIED
+         * as return code _at_ _this_ _point_, if they are opening
+         * the file exclusively and the file has been opened elsewhere.
+         * I place a lock in a predefined place at max possible lock length
+         * in order to emulate the exclusive lock feature of DOS.
+         * This lock is 'invisible' to DOS programs because the code
+         * (extracted from the Samba project) in mfs lock requires that the
+         * handler wrapps the locks below or equal 0x3fffffff (mask=0xC0000000)
+         * So, 0x3fffffff + 0x3fffffff = 0x7ffffffe 
+         * and 0x7fffffff is my start position.  --Maxim Ruchko
+         */
+        struct flock fl;
+        int share_mode = ( sft_open_mode( sft ) >> 4 ) & 0x7;
+        fl.l_whence = SEEK_SET;
+        fl.l_start  = 0x7fffffff;
+        fl.l_len = 1;
+        fl.l_pid = 0;
+        switch ( share_mode ) {
+          case DENY_WRITE:
+            Debug0((dbg_fd, "internal SHARE: DENY_WRITE openmode used fd=%x\n", fd));
+            /* Handling of DENY_READ and DENY_WRITE differs from SHARE.EXE */
+            /* fall through */
+          case COMPAT_MODE:
+            fl.l_type = ( unix_mode == O_RDONLY ) ? F_RDLCK : F_WRLCK;
+            break;
+          case DENY_READ:
+            Debug0((dbg_fd, "internal SHARE: DENY_READ openmode used fd=%x\n", fd)); 
+            /* fall through */
+          case DENY_ALL:
+            fl.l_type = F_WRLCK;
+            break;
+          case DENY_ANY: {
+            fl.l_type = F_RDLCK;
+            break;
+          }
+          default:
+            fl.l_type = F_WRLCK;
+            Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x opening %s\n",
+                   share_mode, fpath));
+            break;
+        }
+        if ( fcntl( fd, F_SETLK, &fl ) ) {
+         close( fd );
+         Debug0((dbg_fd, "internal SHARE: access denied by locks fd=%x\n", fd));
+         SETWORD(&(state->eax), ACCESS_DENIED);
+         return (FALSE);
+        }
+      }
     }
 
     for (i = 0, bs_pos = 0; fpath[i] != EOS; i++) {
@@ -3382,10 +3437,15 @@ dos_fs_redirect(state)
 		struct flock larg;
 		unsigned long mask = 0xC0000000;
 
-#if 1	/* fix for foxpro problems with lredired drives from
+
+#if 1   /* The kernel can't place F_WRLCK on files opened read-only and
+         * FoxPro fails. IMHO the right solution is:         --Maxim Ruchko */
+		larg.l_type = is_lock ? (
+			    ( sft_open_mode( sft ) & 0x7 ) ? F_WRLCK : F_RDLCK
+			) : F_UNLCK;
+#elif 0 /* fix for foxpro problems with lredired drives from
          * Sergey Suleimanov <solt@atibank.astrakhan.su>.
-         * Needs more testing --Hans 98/01/30
-	 */
+         * Needs more testing --Hans 98/01/30 */
 		larg.l_type = is_lock ? F_RDLCK : F_UNLCK;
 #else
 		larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
@@ -3419,6 +3479,8 @@ dos_fs_redirect(state)
 			larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
 
 		ret = fcntl (fd,F_SETLK,&larg);
+		Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%lx, len=%lx\n",
+			fd, ret, larg.l_type, larg.l_whence, larg.l_start,larg.l_len));
 		return ret != -1 ? TRUE : FALSE;
 	}
     break;

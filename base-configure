@@ -3532,7 +3532,7 @@ VERSION="`cut -d. -f1 VERSION`"
 SUBLEVEL="`cut -d. -f2 VERSION`"
 PATCHLEVEL="`cut -d. -f3 VERSION`"
 PATCHLEVEL_="`cut -d. -f4 VERSION`"
-if test "$VERSION" = "$PATCHLEVEL_"; then
+if test "$VERSION" = "$PATCHLEVEL_" -o "`cat VERSION`" = "$PATCHLEVEL_"; then
   echo "you should upgrade your textutils to atleast version 1.19"
   PATCHLEVEL_=""
 fi

@@ -1,5 +1,14 @@
+98/08/23 ver. 0.97.10.3 unofficial pre-release
+	From Alexander V. Lukyanov <lav@long.yar.ru>
+	- fix for S3-Trio not saving/restoring all extra regs.
+	From Klaus Reimann <klausr@itap.physik.uni-stuttgart.de>
+	- better 'odd textutils' detection (gnats misc-120)
+	From Maxim Ruchko *McSim* <mcsim@lvivholod.lviv.ua>
+	- Patches to the mfs code:
+	  - FoxPro now should work better
+	  - increase dosemu SHARE compatibility.
 98/08/22 ver. 0.97.10.2 unofficial pre-release
-	From Josef Pavlik <jetset@ibm.net> (gnats misc-123)
+	From Josef Pavlik <jetset@ibm.net> (gnats misc-122,123)
 	- fix for possible too small malloc (src/env/video/video.c)
 	- fix for Text-refresh on non standard TEXT modes (src/env/video/X.c)
 	From Hans
