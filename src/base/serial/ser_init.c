@@ -245,6 +245,14 @@ int ser_open(int num)
   }
   
   com[num].fd = RPT_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
+  if (com[num].fd < 0) {
+    error("SERIAL: Unable to open device %s: %s\n",
+      com[num].dev, strerror(errno));
+    if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
+      com[num].dev_locked = FALSE;
+    com[num].fd = -2; // disable permanently
+    return -1;
+  }
   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
   return (com[num].fd);
 }
