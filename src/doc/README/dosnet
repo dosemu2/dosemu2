@@ -92,7 +92,7 @@ the DOSEMU virtual PC and the real Linux box. This is why, in the
 above example, 192.168.74.1 should *not* be a real IP address of the
 Linux box, and the 192.168.74 network should not exist as a real
 network. To enable DOS programs to talk to the outside world you have
-to set up IP Forwarding or bridging.
+to set up bridging, routing, or forwarding.
 </para>
 
 <para>
@@ -111,10 +111,57 @@ going to use DOSEMU is 500, then you can do (as root):
      host# ifconfig tap0 0.0.0.0 promisc up
      host# brctl addif br0 tap0
 </screen>
-Now the DOSEMU's IP can be (for example) 192.168.1.11. If you still
-like to use IP forwarding instead (where the DOSEMU box' IP appears 
-to the outside world as the Linux box' IP), then check out the IP
-forwarding HOWTO.
+Now the DOSEMU's IP can be (for example) 192.168.1.11.
+</para>
+
+<para>
+If you like to use IP routing instead, note that the DOSEMU box resides in a
+separate subnet, which consists only of DOSEMU and the TAP device.
+You have to choose an IP address for that subnet. If your LAN has the address
+192.168.1.0 and the netmask is 255.255.255.0, the dosemu subnet can
+have the address 192.168.74.0 and tap0 can have the address 192.168.74.1:
+<screen>
+
+     host# ifconfig tap0 192.168.74.1 netmask 255.255.255.0 up
+</screen>
+Choose a valid IP address from that subnet for DOSEMU box. It can be
+192.168.74.2. Configure your DOS client to use that IP. Configure your
+DOS client to use a gateway, which is the TAP device with IP 192.168.74.1.
+Then you have to add the proper entry to the routing table on your Linux
+box:
+<screen>
+
+     host# route add -net 192.168.74.0 netmask 255.255.255.0 dev tap0
+</screen>
+The resulting entry in the routing table will look like this:
+<screen>
+
+Destination   Gateway  Genmask         Flags Metric Ref    Use Iface
+192.168.74.0  *        255.255.255.0   U     0      0        0 tap0
+</screen>
+
+Then, unless the Linux box on which DOSEMU is running is a default
+gateway for the rest of you LAN, you will have to also add an entry
+to the routing table on each node of your LAN:
+<screen>
+
+host# route add -net 192.168.74.0 netmask 255.255.255.0 gw 192.168.1.10
+</screen>
+(192.168.1.10 is the IP of the box DOSEMU is running on).
+Also you have to check whether IP forwarding is enabled, and if not -
+enable it:
+<screen>
+
+host# echo 1 > /proc/sys/net/ipv4/ip_forward
+</screen>
+Now DOSEMU will be accessable from any node of your LAN and vice versa.
+</para>
+
+<para>
+Yet another approach is to use IP forwarding using iptables or ipchains
+(where the DOSEMU box' IP appears to the outside world, including
+the LAN, as the Linux box' IP). Please check out the IP Forwarding
+HOWTO for details.
 </para>
 </sect2>
 
