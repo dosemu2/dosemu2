@@ -120,7 +120,7 @@ extern struct video_system *Video;
 #if USE_DUALMON
 extern struct video_system *Video_default;
 #endif
-extern struct video_system Video_graphics,  Video_X, Video_console, Video_hgc, Video_term;
+extern struct video_system Video_graphics,  Video_X, Video_console, Video_hgc, Video_term, Video_SDL;
 
 EXTERN ushort *screen_adr;   /* pointer to video memory of current page */
 /* currently displayed page (was scrbuf) */

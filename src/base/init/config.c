@@ -751,6 +751,7 @@ config_init(int argc, char **argv)
      */
     if (strcmp(basename, "xdos") == 0) {
 	    config.X = 1;	/* activate X mode if dosemu was */
+	    Video = &Video_X;
 	    usedoptions['X'] = 'X';
 	/* called as 'xdos'              */
     }
@@ -759,7 +760,7 @@ config_init(int argc, char **argv)
     opterr = 0;
     if (strcmp(config_script_name, DEFAULT_CONFIG_SCRIPT))
       confname = config_script_path;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:mn23456e:E:dwXY:Z:o:Ou:U:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCScF:f:I:kM:D:P:VNtsgh:H:x:KL:mn23456e:E:dwXY:Z:o:Ou:U:")) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 'h':
@@ -898,7 +899,7 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dwXY:Z:E:o:Ou:U:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCScF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dwXY:Z:E:o:Ou:U:")) != EOF) {
 	/* currently _NOT_ used option characters: abGjJlpqQrRSTWyz */
 
 	/* Note: /etc/dosemu.conf may have disallowed some options
@@ -940,12 +941,20 @@ config_init(int argc, char **argv)
 	case 'X':
 #ifdef X_SUPPORT
 	    config.X = 1;
+	    Video = &Video_X;
 #else
 	    error("X support not compiled in\n");
 #endif
 	    break;
+	case 'S':
+#ifdef SDL_SUPPORT
+	    config.X = 1;
+	    Video = &Video_SDL;
+#else
+	    error("SDL support not compiled in\n");
+#endif
+	    break;
 	case 'w':
-	  printf("full %d\n", config.X_fullscreen);
             config.X_fullscreen = !config.X_fullscreen;
 	    break;
 	case 'K':

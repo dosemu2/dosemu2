@@ -99,4 +99,4 @@ BINPATH:=$(top_builddir)/$(THISVERSION)
 EMUVER:=$(VERSION).$(SUBLEVEL)
 
 CFLAGS += $(XXXCFLAGS)
-
+-include $(top_builddir)/src/plugin/*/Makefile.conf

@@ -157,6 +157,9 @@ static short default_graphscreenmask[HEIGHT] =  {
 
 static struct mouse_client *mouse_clients[] =
 {
+#ifdef SDL_SUPPORT
+  &Mouse_SDL,
+#endif
 #ifdef X_SUPPORT
   &Mouse_X,
 #endif

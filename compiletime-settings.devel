@@ -15,6 +15,7 @@ config {
   plugin_extra_charsets on
   plugin_term on
   plugin_slang off
+  plugin_sdl on
   plugin_translate on
   plugin_commands on
   plugin_demo off

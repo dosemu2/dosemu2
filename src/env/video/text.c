@@ -167,6 +167,43 @@ static void redraw_cursor(void)
   prev_cursor_shape = cursor_shape;
 }
 
+RectArea draw_bitmap_cursor(int x, int y, Bit8u attr, int start, int end, Boolean focus)
+{
+  int cstart, cend; 
+  int i,j;
+  int fg = ATTR_FG(attr);
+  int len = co * vga.char_width;
+  unsigned char *  deb;
+
+  deb = remap_obj.src_image + vga.char_width * x + len *(vga.char_height*  y);
+  if (focus) {
+    cstart = start * vga.char_height / 16;
+    cend = end * vga.char_height / 16;
+    deb += len * cstart;
+    for (i = 0; i < cend - cstart + 1; i++) {
+      for (j = 0; j < vga.char_width; j++) {
+	*deb++ = fg;
+      }
+      deb += len - vga.char_width;
+    }
+  } else {
+    /* Draw only a rectangle */
+    for (j = 0; j < vga.char_width; j ++)
+      *deb++ = fg;
+    deb += len - vga.char_width;
+    for (i = 0; i < vga.char_height - 2; i ++) { 
+      *deb++ = fg;
+      deb += vga.char_width - 2;
+      *deb++ = fg;
+      deb += len - vga.char_width;
+    }
+    for (j = 0; j < vga.char_width; j ++)
+      *deb++ = fg;
+  }
+  return remap_obj.remap_rect(&remap_obj, vga.char_width * x, vga.char_height * y,
+			      vga.char_width, vga.char_height);
+}
+
 void reset_redraw_text_screen(void)
 {
   prev_cursor_shape = NO_CURSOR; redraw_cursor();

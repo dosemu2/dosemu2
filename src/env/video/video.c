@@ -66,7 +66,10 @@ static int video_init(void)
 {
   /* figure out which video front end we are to use */
   
-  if (config.vga) {
+  if (Video) {
+     /* already initialized */
+  }
+  else if (config.vga) {
      v_printf("VID: Video set to Video_graphics\n");
      Video=&Video_graphics;
   }
@@ -82,12 +85,6 @@ static int video_init(void)
 	 Video=&Video_console;
        }
   }
-#ifdef X_SUPPORT
-  else if (config.X) {
-     v_printf("VID: Video set to Video_X\n");
-     Video=&Video_X;
-  }
-#endif
   else if (config.cardtype == CARD_NONE) {
      v_printf("VID: Video set to Video_none");
      Video=&Video_none;

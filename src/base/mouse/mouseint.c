@@ -483,7 +483,8 @@ void parent_close_mouse (void)
 {
   mouse_t *mice = &config.mouse;
   if (mice->intdrv && (mice->type == MOUSE_GPM ||
-      mice->type == MOUSE_XTERM || mice->type == MOUSE_X))
+      mice->type == MOUSE_XTERM || mice->type == MOUSE_X ||
+      mice->type == MOUSE_SDL))
     return;
   if (mice->intdrv)
      {
@@ -500,7 +501,8 @@ int parent_open_mouse (void)
 {
   mouse_t *mice = &config.mouse;
   if (mice->intdrv && (mice->type == MOUSE_GPM ||
-      mice->type == MOUSE_XTERM || mice->type == MOUSE_X))
+      mice->type == MOUSE_XTERM || mice->type == MOUSE_X ||
+      mice->type == MOUSE_SDL))
     return 1;
   if (mice->intdrv)
     {

@@ -32,6 +32,7 @@
 #define MOUSE_IMPS2 10
 #define MOUSE_XTERM 11
 #define MOUSE_GPM 12
+#define MOUSE_SDL 13
 
 /* types of mouse events */
 #define DELTA_CURSOR		1
@@ -154,6 +155,7 @@ struct mouse_client {
 extern struct mouse_client *Mouse;
 extern struct mouse_client Mouse_serial;
 extern struct mouse_client Mouse_raw;
+extern struct mouse_client Mouse_SDL;
 extern struct mouse_client Mouse_X;
 extern struct mouse_client Mouse_xterm;
 extern struct mouse_client Mouse_gpm;
