@@ -483,7 +483,7 @@ void parent_close_mouse (void)
   if (mice->intdrv)
      {
 	if (mice->fd > 0) {
-   	   remove_from_io_select(mice->fd, mice->async_io);
+   	   remove_from_io_select(mice->fd, 1);
            DOS_SYSCALL(close (mice->fd));
 	}
     }
@@ -516,11 +516,9 @@ int parent_open_mouse (void)
       if (mice->fd == -1) {
  	mice->intdrv = FALSE;
  	mice->type = MOUSE_NONE;
- 	mice->async_io = 0;
  	return 0;
       }
-      /* want_sigio causes problems with internal mouse driver */
-      add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
+      add_to_io_select(mice->fd, 1, mouse_io_callback);
     }
   else
     child_open_mouse ();

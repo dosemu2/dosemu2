@@ -67,7 +67,7 @@ static int gpm_init(void)
 	mice->intdrv = TRUE;
 	mice->use_absolute = 1;
 	fcntl(mice->fd, F_SETFL, fcntl(mice->fd, F_GETFL) | O_NONBLOCK);
-	add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
+	add_to_io_select(mice->fd, 1, mouse_io_callback);
 	m_printf("GPM MOUSE: Using GPM Mouse\n");
 	return TRUE;
 }
