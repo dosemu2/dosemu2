@@ -561,9 +561,6 @@ leavedos(int sig)
     g_printf("calling close_all_printers\n");
     close_all_printers();
 
-    g_printf("calling mouse_close\n");
-    dosemu_mouse_close();
-
     flush_log();
 
     _exit(sig);
