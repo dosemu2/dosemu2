@@ -1,0 +1,102 @@
+<sect>Using Lredir<label id="lredir">
+<p>
+
+This section of the document by Hans, 
+<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
+updated on June 16, 1997.
+
+<p>
+
+What is it? Well, its simply a small DOS program that tells the
+MFS (Mach File System) code what 'network' drives to redirect.
+With this you can 'mount' any Linux directory as a virtual drive
+into DOS. In addition to this, Linux as well as multiple dosemu sessions
+may simultaneously access the same drives, what you can't when using
+partition access.
+
+<sect1>how do you use it?
+<P>
+
+First, mount your dos hard disk partition as a Linux subdirectory.
+For example, you could create a directory in Linux such as /dos (mkdir
+-m 755 /dos) and add a line like
+
+<tscreen><verb>
+   /dev/hda1       /dos     msdos   umask=022
+</verb></tscreen>
+
+to your /etc/fstab.  (In this example, the hard disk is mounted read-
+only.  You may want to mount it read/write by replacing "022" with
+"000" and using the -m 777 option with mkdir).  Now mount /dos.  Now
+you can add a line like
+
+<tscreen><verb>
+  lredir d: linux\fs/dos
+</verb></tscreen>
+
+to the AUTOEXEC.BAT file in your hdimage (but see the comments 
+below).  On a multi-user system you may want to use
+
+<tscreen><verb>
+  lredir d: linux\fs\${home}
+</verb></tscreen>
+
+where "home" is the name of an environmental variable that contains
+the location of the dos directory (/dos in this example)
+
+However, you may want to have your native DOS partion as C: under dosemu.
+To reach this aim you also can use Lredir to turn off the 'virtual'
+hdimage and switch on the <em/real/ drive C: such as this:
+
+Assuming you have a c:\dosemu directory on both drives (the virtual
+and the real one) <em/and/ have mounted your DOS partition as /dosc,
+you then should have the following files on the virtual drive:
+
+autoexec.bat:
+
+<tscreen><verb>
+  lredir z: linux\fs\dosc
+  copy c:\dosemu\auto2.bat z:\dosemu\auto2.bat
+  lredir del z:
+  c:\dosemu\auto2.bat
+</verb></tscreen>
+
+dosemu\auto2.bat:
+
+<tscreen><verb>
+  lredir c: linux\fs\dosc
+  rem further autoexec stuff
+</verb></tscreen>
+
+To make the reason clear <em/why/ the batch file (not necessaryly autoexec.bat)
+<em/must/ be identical:
+
+  Command.com, which interpretes the batchfile keeps a position pointer
+  (byte offset) to find the next line within this file. It opens/closes the
+  batchfile for <em/every/ new batchline it reads from it.
+  If the batchfile in which the 'lredir c: ...' happens is on c:, then
+  command.com suddenly reads the next line from the batchfile of that
+  newly 'redired' drive.  ... you see what is meant?
+
+
+<sect1>Other alternatives using Lredir
+<p>
+
+To have a redirected drive available at time of config.sys you may
+either use emufs.sys such as
+
+<tscreen><verb>
+   device=c:\emufs.sys /dosc
+</verb></tscreen>
+
+or make use of the install instruction of config.sys (but not both) such as
+
+<tscreen><verb>
+   install=c:\lredir.exe c: linux\fs\dosc
+</verb></tscreen>
+
+The later has the advantage, that you are on your native C: from the
+beginning, <em/but/, as with autoexec.bat, both config.sys must be identical.
+ 
+For information on using 'lredired' drives as a 'user' (ie having the right
+permissions), please look at ./doc/README.runasuser.

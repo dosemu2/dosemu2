@@ -1,0 +1,147 @@
+<sect>Documenting DOSEmu<label id="doc">
+<p>
+This is all about the new style DOSEmu documentation. When I was discussing
+this with Hans he was concerned (as I am) about the fact that we are all
+programmers - and generally programmers are poor at documentation. Of course,
+I'd love you all to prove me (us ?) wrong!
+<p>
+However, <em/every/ programmer can handle the few basic linuxdoc-sgml commands
+that are need to make some really good documents! Much of linuxdoc-sgml is like
+HTML, which is hardly surprising as they are both SGMLs. The source to this
+document may make useful reading (This is the file './src/doc/README/doc')
+
+<sect1>Sections
+<p>
+There are 5 section levels you can use. They are all automatically
+numbered. Your choices are:
+
+<descrip>
+<tag>&lt;sect&gt;</tag> A top level section. This is indexed.
+<tag>&lt;sect1&gt;</tag> A 1st level section. This is indexed.
+<tag>&lt;sect2&gt;</tag> A 2nd level section. This is <em/not/ indexed.
+<tag>&lt;sect3&gt;</tag> A 3rd level section. This is <em/not/ indexed.
+<tag>&lt;sect4&gt;</tag> A 4th level section. This is <em/not/ indexed.
+</descrip>
+
+<itemize>
+<item>You <em/cannot/ skip section levels on the way down (ie you must go
+&lt;sect&gt;,&lt;sect1&gt;,&lt;sect2&gt; and not &lt;sect&gt;,&lt;sect2&gt;).
+On the way back it doesn't matter! 
+<item>Any text on the same line as the tag will be used to identify the section
+<item>You must have a &lt;p&gt; before you start the section text
+</itemize>
+
+<sect1>Emphasising text
+<p>
+I think there are lots of ways of doing this, but I've only been using 2:
+
+<descrip>
+<tag>&lt;em&gt;...&lt;/em&gt;</tag> Emphasises text like <em/this/.
+<tag>&lt;bf&gt;...&lt;/bf&gt;</tag> Emboldens text like <bf/this/.
+</descrip>
+
+There is a useful shorthand here. These (and many other tags) can be written
+either as:
+
+<itemize>
+<item>&lt;em&gt;...&lt;/em&gt;
+<item>&lt;em/.../
+</itemize>
+
+This second form can be very useful.
+
+<sect1>Lists
+<p>
+Here we have 3 useful types:
+
+<descrip>
+<tag/itemize/ A standard bulletted list
+<tag/enum/ A numbered list
+<tag/descrip/ A description list (like this)
+</descrip>
+
+For the ``itemize'' and ``enum'' lists the items are marked with
+&lt;item&gt;. eg:
+<tscreen><verb>
+&lt;itemize&gt;
+&lt;item&gt; item 1
+&lt;item&gt; item 2
+&lt;/itemize&gt;
+</verb></tscreen>
+
+For the ``descrip'' lists the items are marked with either
+&lt;tag&gt;...&lt;/tag&gt; or it's short form (&lt;tag/.../). eg:
+<tscreen><verb>
+&lt;descrip&gt;
+&lt;tag&gt;item 1&lt;/tag&gt; is here
+&lt;tag/item 2/ is here!
+&lt;/descrip&gt;
+</verb></tscreen>
+
+<sect1>Quoting stuff
+<p>
+If you want to quote a small amount use &lt;tt&gt;. eg:
+<p>
+This is <tt>./src/doc/README/doc</tt>
+<p>
+To quote a large section, such as part of a file or an example use
+&lt;tscreen&gt; and &lt;verb&gt;. eg:
+<tscreen><verb>
+&lt;tscreen&gt;&lt;verb&gt;
+&lt;descrip&gt;
+...
+&lt;/descrip&gt;
+&lt;/verb&gt;&lt;/tscreen&gt;
+</verb></tscreen>
+
+Note that the order of closing the tags is the reverse of opening! You also
+still need to ``quote'' any &lt; or &gt; characters although most other
+characters should be OK.
+
+<sect1>Special Characters
+<p>
+Obviously some characters are going to need to be quoted. In general these are
+the same ones as HTML (eg &lt; is written as <tt/&amp;lt;/) There are 2
+additional exceptions (which had me in trouble until I realised) which are
+&lsqb; and &rsqb;. These <em/must/ be written as <tt/&amp;lsqb;/ and
+<tt/&amp;rsqb;/.
+
+<sect1>Cross-References & URLs
+<p>
+One of the extra feature that this lets us do is include URLs and
+cross-references.
+
+<sect2>Cross-References
+<p>
+These have 2 parts: a label, and a reference.
+<p>
+The label is <tt>&lt;label id="..."&gt;</tt>
+<p>
+The reference is <tt>&lt;ref id="..." name="..."&gt;</tt>. The <tt/id/ 
+should refer to a lable somewhere else in the document (not necessarily the
+same file as the REAMDE's consist of multiple files) The content of <tt/name/
+will be used as the link text.
+
+<sect2>URLs
+<p>
+This looks slightly horrible, but is very flexible. It looks quite similar to
+the reference above. It is <tt>&lt;htmlurl url="..."
+name="..."&gt;</tt>. The <tt/url/ will be active <em/only/ for HTML. The
+text in <em/name/ will be used at all times. This means that it is possible to
+make things like email addresses look good! eg:
+<p>
+<tscreen><verb>
+&lt;htmlurl url="mailto:someone@no.where.com" name="&amp;lt;someone@no.where.com&amp;gt;"&gt;
+</verb></tscreen>
+Which will appear as <htmlurl url="mailto:someone@no.where.com" name="&lt;someone@no.where.com&gt;">
+
+<sect1>Gotchas
+<p>
+<itemize>
+<item>You <em/must/ do the sect*'s in sequence on the way up
+<item>You <em/must/ have a &lt;p&gt; after each sect*
+<item>You <em/must/ close your lists
+<item>You <em/must/ reverse the order of the tags when closing tscreen/verb
+structures
+<item>You <em/must/ replace &lt;, &gt;, &lsqb; and &rsqb;
+</itemize>

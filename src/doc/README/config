@@ -1,0 +1,1252 @@
+<sect>Runtime Configuration Options<label id="config">
+<p>
+
+This section of the document by Hans, 
+<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
+updated on June 16, 1997.
+
+<p>
+Most of DOSEMU configuration is done during runtime and per default it
+expects the system wide configuration file /etc/dosemu.conf, optionally
+folowed by the users ~/.dosrc and additional configurations statements
+on the commandline (-I option). The builtin configuration file of a DEXE
+file is passed using the -I technique, hence the rules of -I apply.
+
+<p>
+However, the first file expected (and interpreted before) is /etc/dosemu.users.
+Within /etc/dosemu.users the general permissions are set:
+
+<itemize>
+  <item> which users are allowed to use DOSEMU.
+  <item> what kind of access class the user belongs to.
+  <item> wether the user is allowed to define a private dosemu.conf
+    that replaces /etc/dosemu.conf (option -F).
+  <item> what special configuration stuff the users needs
+</itemize>
+
+<p>
+This is done via setting configuration variables.
+
+<p>
+After /etc/dosemu.users /etc/dosemu.conf is interpreted, and only if its
+<em/really/ this file (not a -F one) access to all configuration options is
+allowed.
+<p>
+The /etc/dosemu.conf may check for the configuration variables, that are
+set in /etc/dosemu.users and optionaly include further configuration
+files. But once /etc/dosemu.conf has finished interpretation, the access
+to secure relevant configurations is (class-wise) restricted while the
+following interpretation of .dosrc and -I statements.
+
+<p>
+For an example of a 'sophisticated' configuration look at the end of
+this readme. For an example of a general configuration  look at
+./etc/config.dist. The later behaves insecure, when /etc/dosemu.users
+is a copy of ./etc/dosemu.users.easy and behave 'secure', when
+/etc/dosemu.users is a copy of ./etc/dosemu.users.secure.
+
+<sect1>Format of /etc/dosemu.users
+
+<p>
+Each line corresponds to exactly _one_ valid user count:
+
+<tscreen><verb>
+  loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
+</verb></tscreen>
+
+<p>where the elements are:
+
+<descrip>
+  <tag/loginname/ valid login name (root also is one) or 'all'. The later means
+             any user not mentioned in previous lines.
+  <tag/c_strict/ Do not allow -F option (/etc/dosemu.conf can't be replaced)
+
+  <tag/c_dexeonly/ Only allow execution of DEXE files, forbid any other use.
+
+  <tag/classes/ One or more of the following:
+  <descrip>
+             <tag/c_all/ no restriction
+             <tag/c_normal/ normal restrictions, all but the following classes:
+                       c_var, c_boot, c_vport, c_secure, c_irq, c_hardram.
+             <tag/c_var/     allow (un)setting of variables
+             <tag/c_nice/    allow 'HogThreshold' setting
+             <tag/c_floppy/  allow floppy access
+             <tag/c_boot/    allow definition of boot file/device
+             <tag/c_secure/  allow setting of 'secure off'
+             <tag/c_vport/   allow setting of 'allowvideoportaccess'
+             <tag/c_dpmi/    allow DPMI setting
+             <tag/c_video/   allow 'video' setting
+             <tag/c_port/    allow 'port' setting
+             <tag/c_disk/    allow 'disk'  settings
+             <tag/c_x/       allow X support settings
+             <tag/c_sound/   allow sound settings
+             <tag/c_irq/     allow 'irqpassing' statement
+             <tag/c_dexe/    allow 'dexe' settings
+             <tag/c_printer/ allow printer settings
+             <tag/c_hardram/ allow 'hardware_ram' settings
+  </descrip>
+  <tag/other/      Here you may define any variable, that you want to test
+             in /etc/dosemu.conf (or .dosrc, -I), see 'ifdef', 'ifndef'
+             When this variable is intended to be unset in lower privilege
+             configuration files (.dosrc, -I), then the variable name
+             has to be prefixed with 'u_'.
+</descrip>
+<p>
+A line with '#' at colum 1 is treated as comment line. When only the login
+name is given (no further parameters, old format) the following setting is
+assumed:
+
+<tscreen><verb>
+  if 'root'  c_all
+  else       c_normal
+</verb></tscreen>
+
+<p>
+Other than with previous DOSEMU versions, the /etc/dosemu.users now is
+mandatory. Also note, that you may restrict 'root' doing something silly ;-)
+
+<sect1>Format of /etc/dosemu.conf (.dosrc, -I option)
+
+<p>
+The configuration files are not line oriented, whitespaces are removed
+and all behind a '#' up to the end of the line is treated as comment.
+
+<sect2>Conditional statements
+
+<p>
+You may control execution of configuration statements via the following
+conditional statement:
+
+<tscreen><verb>
+  ifdef <variable>
+</verb></tscreen>
+or
+<tscreen><verb>
+  ifndef <variable>
+    ...
+  else
+    ...
+  endif
+</verb></tscreen>
+
+<p>
+The 'else' clause may be ommitted and 'ifndef' is the opposite to 'ifdef'.
+The &lt;variable&gt; can't be tested for its contents, only if it is set or not.
+Clauses also may contain further if*def..endif clause up to a depth of 15.
+All stuff in /etc/dosemu.users behind the 'loginname' in fact are variables
+that are set. Hence, what you set there, can be tested here in the config
+file. Further more you may set/unset variables in the config files itself:
+
+<tscreen><verb>
+  define <variable>
+  undef  <variable>
+</verb></tscreen>
+
+<p>
+However, use of define/undef is restricted to scope of /etc/dosemu.conf,
+as long as you don't 'define c_var' _within_ /etc/dosemu.conf.
+If you are under scope of a 'user config file' (e.g. outside
+/etc/dosemu.conf) you have to prefix the variable name with 'u_', else it
+will not be allowed to be set/unset (hence 'c_' type variables can't be
+unset out of scope of /etc/dosemu.conf).
+
+<p>
+There are some variables (besides the ones described above for dosemu.users)
+implicitely predefined by DOSEMU itself:
+
+<descrip>
+  <tag/c_system/     set while being in /etc/dosemu.conf
+  <tag/c_user/       set while parsing a user configuration file
+  <tag/c_dosrc/      set while parsing .dosrc
+  <tag/c_comline/    set while parsing -I option statements
+  <tag/c_dexerun/    set if a DEXE will be executed
+
+  <tag/h_&lt;ownhost&gt;/  defined on startup as 'h_&lt;host&gt;.&lt;domain&gt;' of the host
+               DOSEMU is running on. If &lt;domain&gt; can't be resolved,
+               the pure hostname is taken. This makes sense only if a file
+               system containing DOSEMU is mounted on diskless machines and you
+               want restrict access. Note however, h_&lt;ownhost&gt; is set using
+               gethostname/getdomainname. Hence, if the user on the
+               diskless machine has root access, this is _not_ secure,
+               because he could fake a valid address.
+</descrip>
+
+<p>
+Also, you may define any 'u_' type variable at start of DOSEMU via the new
+option -u such as
+
+<tscreen><verb>
+# dos -u myspecialfun
+</verb></tscreen>
+
+<p>
+this will then define the config variable 'u_myspecialfun' _before_ parsing
+any configuration file. You then may check this in your ./dosrc or
+/etc/dosemu.conf to do the needed special configuration.
+
+<p>
+If you for some reason want to bundle some major settings in a separate file
+you can include it via
+
+<tscreen><verb>
+  include "somefile"
+</verb></tscreen>
+
+<p>
+If 'somefile' doesn't have a leading '/', it is assumed to be relative to /etc.
+Also includeing may be nested up to a max depth of 10 files.
+Note however, that the privilege is inherited from the main file from which
+is included, hence all what is included by /etc/dosemu.conf has its
+privilege.
+
+<sect2>Debug statement
+<p>
+This section is of interest mainly to programmers.  This is useful if
+you are having problems with DOSEMU and you want to enclose debug info
+when you make bug reports to a member of the DOSEMU development team.
+Simply set desired flags to "on" or "off", then redirect stderr of
+DOSEMU to a file using "dos -o debug" to record the debug information
+if desired.  Skip this section if you're only starting to set up.
+
+<tscreen><verb>
+  debug { config  off	disk    off	warning off	hardware off
+        port    off	read    off	general off	IPC      off
+        video   off	write   off	xms     off	ems      off
+        serial  off	keyb    off	dpmi    off
+       	printer off	mouse   off	sound	off
+  }
+</verb></tscreen>
+
+or simply (to turn off all debugging)
+
+<tscreen><verb>
+  debug { off }
+</verb></tscreen>
+
+<sect2>Miscellaneous
+<p>
+The HogThreshold value determines how nice Dosemu will be about
+giving other Linux processes a chance to run.  Setting the HogThreshold
+value to approximately half of you BogoMips value will slightly
+degrade Dosemu performance, but significantly increase overall
+system idle time.  A zero value runs Dosemu at full tilt.
+
+<tscreen><verb>
+  HogThreshold 0
+</verb></tscreen>
+
+Want startup DOSEMU banner messages?  Of course :-)
+
+<tscreen><verb>
+  dosbanner on
+</verb></tscreen>
+
+Timint is necessary for many programs to work.
+
+<tscreen><verb>
+  timint on
+</verb></tscreen>
+
+For "mathco", set this to "on" to enable the coprocessor during DOSEMU.
+This really only has an effect on kernels prior to 1.0.3.
+
+<tscreen><verb>
+  mathco on
+</verb></tscreen>
+
+For "cpu", set this to the CPU you want recognized during DOSEMU.
+
+<tscreen><verb>
+  cpu 80386
+</verb></tscreen>
+
+For "bootA"/"bootC", set this to the bootup drive you want to use.
+It is strongly recommended you start with "bootA" to get DOSEMU
+going, and during configuration of DOSEMU to recognize hard disks.
+
+<tscreen><verb>
+  bootA
+</verb></tscreen>
+
+
+During compile there will be a symbol map generated, this usually
+then is ./bin/dosemu.map. You may wnt to save it to an other places
+and let 'dosdebug' know where to find it:
+
+<tscreen><verb>
+  dosemumap /var/lib/dosemu/dosemu.map
+</verb></tscreen>
+
+Normally all debug logging is done _imediately_ (unbuffered). However,
+when dumping big amounts of logdata, the dynamic behave of DOSEMU may
+change, hence hiding the real problem (or causing a new one)
+Using the below switches buffering on and sets the buffer size.
+
+<tscreen><verb>
+  logbufsize 0x20000
+</verb></tscreen>
+
+When you want to abort DOSEMU from within a configuration file (because
+you detected something weird) then do
+
+<tscreen><verb>
+  abort
+</verb></tscreen>
+or
+<tscreen><verb>
+  abort "message text"
+</verb></tscreen>
+
+When you wnat just to warn the user use the following (the message will
+get printed to the log file via the debug-flag '+c')
+
+<tscreen><verb>
+  warn "message text"
+</verb></tscreen>
+
+
+<sect2>Keyboard settings
+<p>
+With the "layout" keyword, you can specify your country's keyboard
+layout.  The following layouts are implemented:
+
+<tscreen><verb>
+    finnish           us           dvorak       sf
+    finnish-latin1    uk           sg           sf-latin1
+    de                dk           sg-latin1    es
+    de-latin1         dk-latin1    fr           es-latin1
+    be                no           fr-latin1    portuguese
+    it                sw
+    hu                hu-cwi       hu-latin2
+</verb></tscreen>
+
+The us-layout is selected by default if the "layout" keyword is omitted.
+
+The keyword "keybint" allows more accurate of keyboard interrupts,
+It is a bit unstable, but makes keyboard work better when set to "on".
+
+The keyword "rawkeyboard" allows for accurate keyboard emulation for
+DOS programs, and is only activated when DOSEMU starts up at the
+console.  It only becomes a problem when DOSEMU prematurely exits
+with a "Segmentation Fault" fatal error, because the keyboard would
+have not been reset properly.  In that case, you would have to run
+kbd_mode -a remotely, or use the RESET button.  In reality,
+this should never happen.  But if it does, please do report to the
+dosemu development team, of the problem and detailed circumstances,
+we're trying our best!  If you don't need near complete keyboard
+emulation (needed by major software package), set it to "off"
+
+recommended:
+
+<tscreen><verb>
+  keyboard {  layout us  keybint on  rawkeyboard off  }
+</verb></tscreen>
+or
+<tscreen><verb>
+  keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
+</verb></tscreen>
+
+
+If you want DOSEMU feed with keystrokes, that are typed in
+automagically, then you may define them such as
+
+<tscreen><verb>
+  keystroke "cd c:\\mysource\r"
+</verb></tscreen>
+
+You may have any number of 'keystroke' statements, they all will be
+concatenated.
+
+This feature however doesn't make much sense _here_ in the
+configuration file, instead together with the commandine option -I
+you can start dosemu and execute any arbitrary dos command such as
+
+<tscreen><verb>
+  # dos -D-a -I 'keystroke "c:\rcd \\windows\rwinemu\r"'
+</verb></tscreen>
+
+For more details please look at ./doc/README.batch
+
+Ah, but _one_ sensible useage _here_ is to 'pre-strike' that damned F8
+that is needed for DOS-7.0, when you don't want to edit the msdos.sys:
+
+<tscreen><verb>
+ keystroke "\F8;"
+</verb></tscreen>
+
+
+<sect2>Serial stuff
+<p>
+You can specify up to 4 simultaneous serial ports here.
+If more than one ports have the same IRQ, only one of those ports
+can be used at the same time.  Also, you can specify the com port,
+base address, irq, and device path!  The defaults are:
+
+<itemize>
+<item>    COM1 default is base 0x03F8, irq 4, and device /dev/cua0
+<item>    COM2 default is base 0x02F8, irq 3, and device /dev/cua1
+<item>    COM3 default is base 0x03E8, irq 4, and device /dev/cua2
+<item>    COM4 default is base 0x02E8, irq 3, and device /dev/cua3
+</itemize>
+
+If the "com" keyword is omitted, the next unused COM port is assigned.
+Also, remember, these are only how you want the ports to be emulated
+in DOSEMU.  That means what is COM3 on IRQ 5 in real DOS, can become
+COM1 on IRQ 4 in DOSEMU!
+
+<em/NOTE:/ You must have /usr/spool/uucp for LCK-file generation !
+      You may change this path and the lockfile name via the
+      below 'ttylocks' statement.
+
+Also, as an example of defaults, these two lines are functionally equal:
+
+<tscreen><verb>
+  serial { com 1  mouse }
+  serial { com 1  mouse  base 0x03F8  irq 4  device /dev/cua0 }
+</verb></tscreen>
+
+If you want to use a serial mouse with DOSEMU, the "mouse" keyword
+should be specified in only one of the serial lines.  (For PS/2
+mice, it is not necessary, and device path is in mouse line instead)
+
+Use/modify any of the following if you want to support a modem:
+(or any other serial device.)
+
+<tscreen><verb>
+  serial { com 1  device /dev/modem }
+  serial { com 2  device /dev/modem }
+  serial { com 3  device /dev/modem }
+  serial { com 4  device /dev/modem }
+  serial { com 3  base 0x03E8  irq 5  device /dev/cua2 }
+</verb></tscreen>
+
+If you are going to load a msdos mouse driver for mouse support
+use/modify one of the following
+
+<tscreen><verb>
+  serial { mouse  com 1  device /dev/mouse }
+  serial { mouse  com 2  device /dev/mouse }
+</verb></tscreen>
+
+What type is your mouse?  Use one of the following.
+Use the 'internaldriver' option to try Dosemu internaldriver.
+Use the 'emulate3buttons' for 3button mice.
+
+<tscreen><verb>
+  mouse { microsoft }
+  mouse { logitech }
+  mouse { mmseries }
+  mouse { mouseman }
+  mouse { hitachi }
+  mouse { mousesystems }
+  mouse { busmouse }
+  mouse { ps2  device /dev/mouse internaldriver emulate3buttons }
+  mouse { mousesystems device /dev/mouse internaldriver cleardtr }
+</verb></tscreen>
+
+For tty locking capabilities:
+
+The serial lines are locked by dosemu via usual lock file technique,
+which is compatible with most other unix apps (such as mgetty, dip,
+e.t.c). However, you carefully need to check _where_ those other apps
+expect the lock files. The most common used (old) place is
+/usr/spool/uucp, but newer distributions following the FSSTND will have
+it in /var/lock. The dosemu default one is /usr/spool/uucp.
+The below defines /var/lock
+
+<tscreen><verb>
+  ttylocks { directory /var/lock }
+</verb></tscreen>
+
+<em/Note:/ you are responsible for ensuring that the directory exists !
+If you want to define the lock prefix stub also, use this one
+
+<tscreen><verb>
+  ttylocks { directory /var/lock namestub LCK.. }
+</verb></tscreen>
+
+If the lockfile should contain the PID in binary form (instead of ASCII},
+you may use the following
+
+<tscreen><verb>
+  ttylocks { directory /var/lock namestub LCK.. binary }
+</verb></tscreen>
+
+
+<sect2>Networking Support
+<p>
+Turn the following option 'on' if you require IPX/SPX emulation.
+Therefore, there is no need to load IPX.COM within the DOS session.
+The following option does not emulate LSL.COM, IPXODI.COM, etc.
+<em>NOTE: YOU MUST HAVE IPX PROTOCOL ENABLED IN KERNEL !!</em>
+
+<tscreen><verb>
+  ipxsupport off
+</verb></tscreen>
+
+Enable Novell 8137-&gt;raw 802.3 translation hack in new packet driver.
+
+<tscreen><verb>
+  pktdriver novell_hack
+</verb></tscreen>
+
+
+<sect2>Terminals
+<p>
+This section applies whenever you run DOSEMU remotely or in an xterm.
+Color terminal support is now built into DOSEMU.  Skip this section for
+now to use terminal defaults, until you get DOSEMU to work.
+
+There are a number of keywords for the terminal { } configuration line.
+
+<descrip>
+  <tag/charset/ 
+     Select the character set to use with DOSEMU. One of ``latin'' (default) 
+     or ``ibm''.
+  <tag/color/ 
+     Enable or disable color terminal support. One of ``on'' (default) or 
+     ``off''.
+  <tag/updatefreq/
+     A number indicating the frequency of terminal updates of the screen.
+     The smaller the number, the more frequent.  A value of 20 gives a
+     frequency of about one per second, which is very slow.  However, more
+     CPU time is given to DOS applications when updates are less frequent.
+     A value of 4 (default) is recommended in most cases, but if you have a 
+     fast system or link, you can decrease this to 0.
+  <tag/escchar/
+     A number that specifies the control character used as a prefix
+     character for sending alt, shift, ctrl, and function keycodes.  The
+     default value is 30 which is Ctrl-^.  So, for example, F1 is
+     'Ctrl-^ 1', Alt-F7 is 'Ctrl-^ 7'.  For online help, press
+     'Ctrl-^ h'.
+</descrip>
+
+Use the following to enable the IBM character set.
+
+<tscreen><verb>
+  terminal { charset ibm  color on }
+</verb></tscreen>
+
+Use this for color xterms or rxvt's with no IBM font, with only 8 colors.
+
+<tscreen><verb>
+  terminal { charset latin  color on }
+</verb></tscreen>
+
+Use this for color xterms or rxvt's with IBM font, with only 8 colors.
+
+<tscreen><verb>
+  terminal { charset ibm  color on }
+</verb></tscreen>
+
+More detailed line for user configuration:
+
+<tscreen><verb>
+  terminal { charset latin  updatefreq 4  color on }
+</verb></tscreen>
+
+
+<sect2>X Support settings
+<p>
+
+If DOSEMU is running in its own X-window (not xterm), you may need
+to tailor it to your needs. Valid keywords for the X { } config line:
+
+<descrip>
+  <tag/updatefreq/
+     A number indicating the frequency of X updates of the screen.
+     The smaller the number, the more frequent.  A value of 20 gives a
+     frequency of about one per second, which is very slow.  However, more
+     CPU time is given to DOS applications when updates are less frequent.
+     The default is 8.
+
+  <tag/display/
+     The X server to use. If this is not specified, dosemu will use
+     the DISPLAY environment variable. (This is the normal case) The default
+     is ":0".
+
+  <tag/title/
+     What you want dosemu to display in the title bar of its window.
+     The default is "dosemu".
+
+  <tag/icon_name/
+     Used when the dosemu window is iconified. The default is "dosemu".
+
+  <tag/keycode/
+     Used to give Xdos access to keycode part of XFree86. The default is off.
+
+     <em/NOTE:/
+     <itemize>
+       <item> You should _not_ use this when using X remotely
+          (the remote site may have other raw keyboard settings).
+       <item> <em/If/ you use "keycode", you also <em/must/ define an 
+          appropriate keyboard layout (see above).
+       <item> If you do <em/not/ use "keycode" then under X a neutral keyboard
+          layout is forced ( <tt/keyboard {layout us}/ ) regardless of
+	  what you have set above.
+      </itemize>
+
+       Anyway, a cleaner way than using "keycode" is to let the X-server
+       fiddle with keyboard translation and customize it via .xmodmaps.
+
+  <tag/blinkrate/
+     A number which sets the blink rate for the cursor. The default is 8.
+
+  <tag/font/
+     Used to pick a font other than vga (default). Must be monospaced.
+
+  <tag/sharecmap/
+     Used to share the colormap with other applications in graphics mode.
+     If not set, a private colormap is used. The default is off.
+
+  <tag/fixed_aspect/
+     Set fixed aspect for resize the graphics window. One of ``on'' (default)
+     or ``off''.
+
+  <tag/aspect_43/
+     Always use an aspect ratio of 4:3 for graphics. The default is 
+     ``floating''.
+
+  <tag/lin_filt/
+     Use linear filtering for &gt;15 bpp interpolation. The default is off.
+
+  <tag/bilin_filt/
+     Use bi-linear filtering for &gt;15 bpp interpolation. The default is off.
+
+  <tag/mode13fact/
+     A number which sets the initial size factor for video mode 0x13 (320x200).
+     The default is 2.
+
+  <tag/winsize/
+     A pair of numbers which set the initial size of the window to a fixed 
+     value. They are the X and Y values in that order. The default is to float.
+
+  <tag/gamma/
+    Set value for gamma correction, a value of 100 means gamma 1.0. The default
+	is 100.
+
+  <tag/vgaemu_memsize/
+     Set the size (in Kbytes) of the regenbuffer for emulated vga under X. The
+	default is 1024.
+</descrip>
+
+Recommended X statement:
+
+<tscreen><verb>
+  X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+</verb></tscreen>
+
+<sect2>Video settings ( console only )
+<p>
+
+<em>!!WARNING!!: A LOT OF THIS VIDEO CODE IS ALPHA!  IF YOU ENABLE GRAPHICS
+ON AN INCOMPATIBLE ADAPTOR, YOU COULD GET A BLANK SCREEN OR MESSY SCREEN
+EVEN AFTER EXITING DOSEMU.  JUST REBOOT (BLINDLY) AND THEN MODIFY CONFIG.
+</em>
+
+Start with only text video using the following line, to get started.
+then when DOSEMU is running, you can set up a better video configuration.
+
+<tscreen><verb>
+  video { vga }                    Use this line, if you are using VGA
+  video { cga  console }           Use this line, if you are using CGA
+  video { ega  console }           Use this line, if you are using EGA
+  video { mda  console }           Use this line, if you are using MDA
+</verb></tscreen>
+
+Notes for Graphics:
+<itemize>
+  <item> If your VGA-Bios resides at E000-EFFF, turn off video BIOS shadow
+    for this address range and add the statement vbios_seg 0xe000
+    to the correct vios-statement, see the example below
+  <item> If your VBios size is only 32K you set it with  vbios_size 0x8000,
+    you then gain some space for UMB or hardware ram locations.
+  <item> Set "allowvideoportaccess on" earlier in this configuration file
+    if DOSEMU won't boot properly, such as hanging with a blank screen,
+    beeping, leaving Linux video in a bad state, or the video card
+    bootup message seems to stick.
+  <item> Video BIOS shadowing (in your CMOS setup) at C000-CFFF must be disabled.
+
+    <em/CAUTION:/ TURN OFF VIDEO BIOS SHADOWING BEFORE ENABLING GRAPHICS!
+                   This is not always necessary, but a word to the wise
+                   shall be sufficient.
+
+  <item> If you have a dual-monitor configuration (e.g. MDA as second display),
+    you then may run CAD programs on 2 displays or let play your debugger
+    on the MDA while debugging a graphics program on the VGA (e.g TD -do ).
+    You also may switch to the MDA display by using the DOS command
+    mode mono (mode co80 returns to your normal display).
+    This feature can be enabled by the switch "dualmon" like this:
+<tscreen><verb>
+      video { vga  console  graphics dualmon }
+</verb></tscreen>
+    and can be used on a xterm and the console, but of course not, if you
+    have the MDA as your primary display.
+    You also must set USE_DUALMON 1 in include/video.h.
+    <em/NOTE:/ Make sure no more then one process is using this feature !
+          ( you will get funny garbage on your MDA display. )
+          Also, you must NOT have the dualmon-patches for kernel applied
+          ( having the MDA as Linux console )
+  <item> If you want to run dosemu in situations when human doesn't sit at console
+    (for instance to run it by cron) and want console option be enabled
+    you should use option forcevtswitch.
+<tscreen><verb>
+           { vga console forcevtswitch }
+</verb></tscreen>
+    Without the option dosemu waits for becoming virtual terminal
+    on which dosemu is run active (i.e. user must press Alt-F?).
+    With this option dosemu perform the switch itself.
+    Be careful with this option because with it user sat at console
+    may face with unexpected switch.
+</itemize>
+
+It may be necessary to set this to "on" if DOSEMU can't boot up properly
+on your system when it's set "off" and when graphics are enabled.
+<em/Note:/ May interfere with serial ports when using certain video boards.
+
+<tscreen><verb>
+  allowvideoportaccess on
+</verb></tscreen>
+
+Any 100% compatible standard VGA card <em/MAY/ work with this:
+
+<tscreen><verb>
+  video { vga  console  graphics }
+</verb></tscreen>
+
+If your VGA-BIOS is at segment E000, this may work for you:
+
+<tscreen><verb>
+  video { vga  console  graphics  vbios_seg 0xe000 }
+</verb></tscreen>
+
+Trident SVGA with 1 megabyte on board
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset trident  memsize 1024 }
+</verb></tscreen>
+
+Diamond SVGA (not S3 chip)
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset diamond }
+</verb></tscreen>
+
+Cirrus SVGA
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset cirrus }
+</verb></tscreen>
+
+ET4000 SVGA card with 1 megabyte on board:
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset et4000  memsize 1024 }
+</verb></tscreen>
+or
+<tscreen><verb>
+  video { vga  console  graphics  chipset et4000  memsize 1024 vbios_size 0x8000 }
+</verb></tscreen>
+
+S3-based SVGA video card with 1 megabyte on board:
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset s3  memsize 1024 }
+</verb></tscreen>
+
+Avance Logic (ALI) 230x SVGA
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset avance }
+</verb></tscreen>
+
+For ATI graphic mode
+
+<tscreen><verb>
+  ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
+</verb></tscreen>
+
+
+<sect2>Memory settings
+<p>
+
+These are memory parameters, stated in number of kilobytes.
+If you get lots of disk swapping while DOSEMU runs, you should
+reduce these values.
+
+umb_max is a new parameter which tells DOSEMU to be more aggressive
+about finding upper memory blocks.  The default is 'off'.
+
+
+To be more aggressive about finding XMS UMB blocks use this:
+
+<tscreen><verb>
+  umb_max on
+</verb></tscreen>
+
+To be more secure use 'secure on'. If "on", then it disables DPMI access
+to dosemu code and also disables execution of dosemu supplied 'system'
+commands, which may execute arbitrary Linux-commands otherwise.
+The background is, that DPMI clients are allowed to create selectors
+that span the whole user space, hence may hack into the dosemu code,
+and (when dosemu runs root or is suid root) can be a security hole.
+"secure on" closes this hole, though this would very likely also disable
+some dos4gw games :(.
+Therfore <em/NOTE:/ You may not be able to run some DPMI programs, hence,
+before reporting such a program as 'not running', first try to set 'secure off'.
+
+<tscreen><verb>
+  secure on                # "on" or "off"
+</verb></tscreen>
+
+
+The below enables/disables DPMI and sets the size of DPMI memory.
+
+<tscreen><verb>
+  dpmi 4086                # DPMI size in K, or "off"
+</verb></tscreen>
+
+
+XMS is enabled by the following statement
+
+<tscreen><verb>
+  xms 1024		   # XMS size in K,  or "off"
+</verb></tscreen>
+
+For ems, you now can set the frame to any 16K between 0xc800..0xe000
+
+<tscreen><verb>
+  ems 1024		   # EMS size in K,  or "off"
+</verb></tscreen>
+or
+<tscreen><verb>
+  ems { ems_size 1024 ems_frame 0xe000 }
+</verb></tscreen>
+or
+<tscreen><verb>
+  ems { ems_size 2048 ems_frame 0xd000 }
+</verb></tscreen>
+
+If you have adapters, which have memory mapped IO, you may map those regions
+with <tt/hardware_ram { .. }/. You can only map in entities of 4k, you give the
+address, not the segment.
+The below maps 0xc8000..0xc8fff and 0xcc000..0xcffff:
+
+<tscreen><verb>
+  hardware_ram { 0xc8000 range 0xcc000 0xcffff }
+</verb></tscreen>
+
+With the below you define the maximum conventional RAM to show apps:
+
+<tscreen><verb>
+  dosmem 640
+</verb></tscreen>
+
+
+<sect2>IRQ passing
+<p>
+
+The irqpassing statement accepts IRQ values between 3..15,
+if using the { .. } syntax each value or range can be prefixed
+by the keyword use_sigio to monitor the IRQ via SIGIO.
+If this is missing the IRQ is monitored by SIGALRM.
+
+Use/modify one of the below statements
+
+<tscreen><verb>
+  irqpassing off    # this disables IRQ monitoring
+  irqpassing 15
+  irqpassing { 15 }
+  irqpassing { use_sigio 15 }
+  irqpassing { 10  use_sigio range 3 5 }
+</verb></tscreen>
+
+
+<sect2>Port Access
+<p>
+
+<bf>WARNING: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND
+SOME PORTS ARE DANGEROUS TO USE.  PLEASE SKIP THIS SECTION, AND
+DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.</bf>
+
+<p>
+These keywords are allowable on a "ports" line.
+
+<descrip>
+  <tag>range <tt/addr1 addr2/ </tag>
+	This allow access to this range of ports
+  <tag>ormask <tt/value/ </tag>
+	The default is 0
+  <tag>andmask <tt/value/</tag>
+	The default is 0xffff
+  <tag/rdonly|wronly|rdwr/
+	This specifies what kind of access to allow to the ports. The default
+	is "rdwr"
+  <tag/fast/
+    Put port(s) in the ioperm bitmap (only valid for ports below 0x400)
+    An access doesn't trap and isn't logged, but as vm86() isn't interrupted, 
+    it's much faster. The default is not fast.
+  <tag>device <tt/name/ </tag>         
+    If the ports are registered, open this device to block access. The open()
+    must be successfull or access to the ports will be denied. If you know 
+    what you are doing, use <tt>/dev/null</tt> to fake a device to block
+</descrip>
+
+<tscreen><verb>
+  ports { 0x388 0x389 }   # for SimEarth
+  ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
+</verb></tscreen>
+
+
+<sect2>Speaker
+<p>
+
+These keywords are allowable on the "speaker" line:
+
+<descrip>
+   <tag/native/      Enable DOSEMU direct access to the speaker ports.
+   <tag/emulated/    Enable simple beeps at the terminal.
+   <tag/off/         Disable speaker emulation.
+</descrip>
+
+Recommended:
+
+<tscreen><verb>
+  speaker off
+</verb></tscreen>
+
+
+<sect2>Hard disks
+<p>
+
+<bf>WARNING: DAMAGE MIGHT RESULT TO YOUR HARD DISK (LINUX AND/OR DOS)
+IF YOU FIDDLE WITH THIS SECTION WITHOUT KNOWING WHAT YOU'RE DOING!</bf>
+
+<p>
+The best way to get started is to start with a hdimage, and set "<tt/bootC/"
+and "<tt/disk {image "/var/lib/dosemu/hdimage.first" }/" in /etc/dosemu.conf.
+To generate this first working and bootable hdimage, you should use
+"<tt/setup-hdimage/" in the dosemu root directory. This script extracts your 
+DOS from any native bootable DOS-partition and builts a bootable hdimage.
+(for experience dosemu users: you need not to fiddle with floppies any more)
+Keep using the hdimage while you are setting this hard disk configuration up
+for DOSEMU, and testing by using <tt/DIR C:/ or something like that.
+Whenever possible, use hdimage, mount your DOS partition under Linux
+and "<tt/lredir/" it into dosemu. Look at <ref id="lredir" name="Using
+Lredir">, <ref id="runasuser" name="Running as a user">,
+QuickStart etc. on how to use "lredir".
+
+As a last resort, if you want DOSEMU to be able to access a DOS partition, the
+safer type of access is "partition" access, because "wholedisk"
+access gives DOSEMU write access to a whole physical disk,
+including any vulnerable Linux partitions on that drive!
+
+<em/IMPORTANT/
+
+You must not have LILO installed on the partition for dosemu to boot off.
+As of 04/26/94, doublespace and stacker 3.1 will work with wholedisk
+or partition only access.  Stacker 4.0 has been reported to work with
+wholedisk access.
+
+Please read the documentation in the "doc" subdirectory for info
+on how to set up access to real hard disk.
+
+These are meanings of the keywords:
+
+<descrip>
+  <tag/image/ specifies a hard disk image file.
+  <tag/partition/ specifies partition access, with device and partition number.
+  <tag/wholedisk/ specifies full access to entire hard drive.
+  <tag/readonly/ for read only access.  A good idea to set up with.
+  <tag/bootfile/ to specify an image of a boot sector to boot from.
+</descrip>
+
+Use/modify one (or more) of the folling statements:
+
+<tscreen><verb>
+  disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
+  disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
+  disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
+                                                # 1st partition on 1st IDE
+                                                # booting from the specified
+                                                # file.
+  disk { partition "/dev/hda6" readonly }       # 6th logical partition.
+  disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
+  disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
+</verb></tscreen>
+
+Recommended:
+
+<tscreen><verb>
+  disk { image "/var/lib/dosemu/hdimage" }
+</verb></tscreen>
+
+
+<sect2>DOSEMU boot
+<p>
+
+Use the following option to boot from the specified file, and then
+once booted, have bootoff execute in autoexec.bat. Thanks Ted :-).
+Notice it follows a typical floppy spec. To create this file use:
+
+<tscreen><verb>
+dd if=/dev/fd0 of=/var/lib/dosemu/bdisk bs=16k
+</verb></tscreen>
+
+<tscreen><verb>
+  bootdisk { heads 2 sectors 18 tracks 80 threeinch file /var/lib/dosemu/bdisk }
+</verb></tscreen>
+
+Specify extensions for the CONFIG and AUTOEXEC files.  If the below
+are uncommented, the extensions become CONFIG.EMU and AUTOEXEC.EMU.
+NOTE: this feature may affect file naming even after boot time.
+If you use MSDOS 6+, you may want to use a CONFIG.SYS menu instead.
+
+<tscreen><verb>
+  EmuSys EMU
+  EmuBat EMU
+</verb></tscreen>
+
+
+
+<sect2>Floppy disks
+<p>
+
+This part is fairly easy.  Make sure that the first (/dev/fd0) and
+second (/dev/fd1) floppy drives are of the correct size, "threeinch"
+and/or "fiveinch".  A floppy disk image can be used instead, however.
+
+<bf>FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE
+STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!</bf>
+
+Use/modify one of the below:
+
+<tscreen><verb>
+  floppy { device /dev/fd0 threeinch }
+  floppy { device /dev/fd1 fiveinch }
+  floppy { heads 2  sectors 18  tracks 80
+           threeinch  file /var/lib/dosemu/diskimage }
+</verb></tscreen>
+
+If floppy disk speed is very important, uncomment the following
+line.  However, this makes the floppy drive a bit unstable.  This
+is best used if the floppies are write-protected.
+Use an integer value to set the time between floppy updates.
+
+<tscreen><verb>
+  FastFloppy 8
+</verb></tscreen>
+
+
+<sect2>Printers
+<p>
+
+Printer is emulated by piping printer data to a file or via a unix
+command such as "lpr".  Don't bother fiddling with this configuration
+until you've got DOSEMU up and running already.
+
+NOTE: Printers are assigned to LPT1:, LPT2:, and LPT3: on a one for
+one basis with each line below.  The first printer line is assigned
+to LPT1:, second to LPT2:, and third to LPT3:.  If you do not specify
+a base port, the emulator will setup the bios to report 0x378, 0x278,
+and 0x3bc for LPT1:, LPT2:, and LPT3: respectively.
+
+To use standard unix lpr command for printing use this line:
+
+<tscreen><verb>
+  printer { options "%s"  command "lpr"  timeout 20 }
+</verb></tscreen>
+
+And for any special options like using pr to format files,
+add it to the options parameter:
+
+<tscreen><verb>
+  printer { options "-p %s"  command "lpr"  timeout 10 }     pr format it
+</verb></tscreen>
+
+To just have your printer output end up in a file, use the following line:
+
+<tscreen><verb>
+  printer { file "lpt3" }
+</verb></tscreen>
+
+If you have a DOS application that is looking to access the printer
+port directly, and uses the bios LPT: setting to find out the port to use,
+you can modify the base port the bios will report with the following:
+
+<tscreen><verb>
+  printer { options "%s"  command "lpr"  base 0x3bc }
+</verb></tscreen>
+
+Be sure to also add a port line to allow the application access to
+the port:
+
+<tscreen><verb>
+  ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
+</verb></tscreen>
+
+NOTE: applications that require this will not interfere with applications
+that continue to use the standard bios calls.  These applications will
+continue to send the output piped to the file or unix command.
+
+<sect2>Sound
+<p>
+
+The sound driver is more or less likely to be broken at the moment.
+
+<descrip>
+  <tag/sb_base/  base address of the SB (HEX)
+  <tag/sb_irq/ IRQ for the SB
+  <tag/sb_dma/ DMA channel for the SB
+  <tag/sb_dsp/ Path the sound device
+  <tag/sb_mixer/ path to the mixer control
+  <tag/mpu_base/ base address for the MPU-401 chip (HEX) (Not Implemented)
+</descrip>
+
+Use this to disable sound support even if it is configured in
+
+<tscreen><verb>
+  sound_emu off
+</verb></tscreen>
+
+Linux defaults
+
+<tscreen><verb>
+  sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
+               sb_mixer /dev/mixer mpu_base 0x330 }
+</verb></tscreen>
+
+NetBSD defaults
+
+<tscreen><verb>
+  sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound
+              sb_mixer /dev/mixer mpu_base 0x330 }
+</verb></tscreen>
+
+
+<sect2>DEXE support
+<p>
+
+These are the setting for DEXE type DOS application, which are executed
+by DOSEMU via the -L option.
+( for what DEXE is look at ./doc/README.dexe
+
+set the below to force 'secure on', when -L option is used _and_ the user
+isn't root.
+
+<tscreen><verb>
+  dexe { secure }
+</verb></tscreen>
+
+set the below, if you want that a dexe may be allowed to have additional
+disks. Normally the hdimage containing the DOS app (the .dexe itself) is
+the only available disk, all other 'disk {}' statement are ignored.
+
+<tscreen><verb>
+  dexe { allowdisk }
+</verb></tscreen>
+
+set the below, if you want a DEXE to be forced to 'xdos', when X
+available. This mainly is intended for beeing included into the
+configuration of a DEXE file (see mkdexe). e.g. when the application
+needs graphic it should not run on slang-terminal.
+
+<tscreen><verb>
+  dexe { forcexdos }
+</verb></tscreen>
+
+set the below, if you want a DEXE _only_ running on X (because it otherwise
+would not run)
+
+<tscreen><verb>
+  dexe { xdosonly }
+</verb></tscreen>
+
+<sect1>Example Configuration
+<p>
+A simple example for a privately used machine can be found in
+./etc/config.dist. However a more sophisticated configuration is
+described here.
+
+  <sect2>/etc/dosemu.users
+<p>
+<tscreen><verb>
+  root c_all
+  hans c_normal c_var
+  alistair want_sound
+  jim want_sound c_all
+  all guest
+</verb></tscreen>
+
+  <sect2>/etc/dosemu.conf
+<p>
+<tscreen><verb>
+  ifdef want_sound
+    define c_normal
+    define c_sound
+    include "dosemu.normal.conf"
+    irqpassing off speaker off
+    sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
+                sb_mixer /dev/mixer mpu_base 0x330 }
+  else
+    ifdef guest
+      include "dosemu.guest.conf"
+    else
+      include "dosemu.norm.conf"
+    endif
+  endif
+</verb></tscreen>
+
+  <sect2>/etc/dosemu.normal.conf
+<p>
+<tscreen><verb>
+  debug { off }
+  dosbanner on  timint on  HogThreshold 0
+  ifdef c_sound
+    disk { image "/var/lib/dosemu/hdimage.sound" }
+  else
+    disk { image "/var/lib/dosemu/hdimage" }
+  endif
+  bootC
+  floppy { device /dev/fd0 threeinch }  
+  keyboard {  layout us  keybint on  rawkeyboard on  }
+  serial { com 2  device /dev/cua1 }
+  mouse { mousesystems device /dev/mouse internaldriver }
+  ipxsupport off
+  terminal { charset latin  updatefreq 4  color on }
+  X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+  allowvideoportaccess on
+  video { vga  console  graphics  chipset s3  memsize 2048 vbios_size 0x8000}
+  ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
+  mathco on  cpu 80386
+  dpmi 0x4000  xms 1024
+  ems { ems_size 1024 ems_frame 0xe000 }
+  hardware_ram { range 0xcc000 0xcffff }
+  sillyint { use_sigio 10 use_sigio 8 } # wd8013
+  ports { range 0x280 0x29f } # for WD8013
+  ports { range 0x70 0x71 }   #RTC
+  speaker emulated
+</verb></tscreen>
+
+  <sect2>/etc/dosemu.guest.conf
+<p>
+<tscreen><verb>
+  define c_dexeonly
+  debug { off } dosbanner on
+  sound_emu off
+  timint on HogThreshold 1
+  keyboard {  layout us  keybint on  rawkeyboard off  }
+  ipxsupport off
+  terminal { charset latin  updatefreq 4  color on }
+  X { updatefreq 12 title "guest DOS in a BOX" icon_name "xdos" }
+  video { vga }
+  mathco on cpu 80386
+  dpmi off xms 1024 ems 1024
+  irqpassing off speaker off
+  dexe { secure }
+  # we don't allow anything weird anymore
+  undef c_all
+  define c_x
+  define c_nice
+</verb></tscreen>
+

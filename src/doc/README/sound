@@ -1,0 +1,45 @@
+<sect>Sound
+
+<p>
+The SB code is currently in a state of flux. Some changes to the code have been
+made which mean that I can separate the DSP handling from the rest of the SB
+code, making the main case statements simpler. In the meantime, Rutger
+Nijlunsing has provided a method for redirecting access to the MPU-401 chip
+into the main OS. 
+
+<sect1>Using the MPU-401 "Emulation".
+<p>
+The Sound driver opens "/var/run/dosemu-midi" in the current directory and
+writes the Raw MIDI data to this. A daemon is provided which can be can be used
+to seletc the instruments required for use on some soundcards. It is also
+possible to get various instruments by redirecting '/var/run/dosemu-midi' to
+the relevant part of the sound driver eg:
+
+<tscreen><verb>
+% ln -s /dev/sequencer /var/run/dosemu-midi
+</verb></tscreen>
+
+This will send all output straight to the midi sequencer and use whatever
+instruments happen to be loaded.
+
+<sect1>The MIDI daemon
+<p>
+  make midid
+This compiles and installs the GUS midid.
+Copy the executeable './bin/midid' so that it is on your path, or somewhere you can
+run it easily.
+
+Before you run DOSEmu for the first time, do the following:
+  rm -f /var/run/dosemu-midi
+  mknod /var/run/dosemu-midi p
+
+Then you can use the midi daemon like this:
+  ./midid < /var/run/dosemu-midi &; dos
+(Assuming that you put the midid executeable in the directory you run DOSEmu
+from.) 
+
+<sect1>Disabling the Emulation at Runtime
+<p>
+You can now disable the code after it is compiled in by setting the IRQ or DMA
+channels to invalid values (ie IRQ = 0 or > 15, or DMA = 4 or > 7)
+The simplest way, however, is to say 'sound_emu off' in /etc/dosemu.conf

@@ -1,0 +1,225 @@
+<sect>VM86PLUS, new kernel's vm86 for a full feature dosemu
+<p>
+( available now in all kernels &gt;= 2.0.28, &gt;= 2.1.15 )
+<p>
+The below gives some details on the new kernel vm86 functionality that
+is used for a 'full feature dosemu'. We had more of those kernel
+changes in the older emumodule, but reduced the kernel support to an
+absolute minimum. As a result of this we now have this support in the
+mainstream kernels &gt;= 2.0.28 as well as &gt;= 2.1.15 and do not need emumodule
+any more (removed since dosemu 0.64.3). To distinguish between the old
+vm86 functionality and the new one, we call the later VM86PLUS.
+
+Written on January 14, 1997 by Hans Lermen
+<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">.
+
+<sect1>    Restrictions
+<p>
+<itemize>
+<item>    Starting with dosemu-0.64.3 we will no longer support older
+       kernels ( &lt; 2.0.28 ) for vm86plus. If you for any reasons can't
+       upgrade the kernel, then either use an older dosemu or don't
+       configure the vm86plus support.
+
+<item>    Please don't use any 2.1.x kernels ^lt; 2.1.15 and don't use the patch
+       that came with dosemu-0.64.1, we changed the syscall interface because
+       Linus wanted to be absolutely shure that no older (non-dosemu) binary
+       would break.
+<p>
+       Also, don't use any dosemu binaries that were compiled under 2.1.x
+       but earlier then 2.1.15.
+</itemize>
+
+<sect1>     Parts in the kernel that get changed for vm86plus
+<p>
+<sect2>    Changes to arch/i386/kernel/vm86.c
+<p>
+<sect3>  New vm86() syscall interface
+<p>
+       The vm86() syscall of vm86plus contains a generic interface: 
+       old style vm86 syscall is 113, the new one is 166.
+       At entry of vm86() the vm86_struct gets completely copied into
+       kernel space and now <em/remains/ on the kernel stack until control
+       return to user space. This has the advantage that performance
+       is increased as long as emulation loops between VM86 and kernel space
+       ( which happens quite often ). A second advantage is, that we now
+       better can translate between old vm86_struct, vm86plus_struct and
+       kernel 2.1.x changed internal pt_regs, hence old vm86 and new
+       vm86plus user space binaries run on both 2.0.x and 2.1.x kernel.
+       The entry routine of the old style vm86() translates to the new
+       expanded vm86plus_struct before calling the common new do_sys_vm86().
+<p>
+       It is possible to detect the existence of vm86plus support in the
+       kernel by just calling vm86(0,(void *)0) on syscall 166 entry.
+       On success 0 is returned, an unpatched kernel will return with -1.
+
+<sect3>  Additional Data passed to vm86()
+<p>
+       When in vm86plus mode vm86() uses the new 'struct vm86plus_struct'
+       instead of 'struct vm86_struct'. This contains some additional
+       flags that are used to control whether vm86() should return earlier
+       than usual to give the timer emulation in dosemu a chance to be
+       in sync. Without this, updating the emulated timer chip happens
+       too seldom and may even result in 'jumping back', because the
+       granulation is too big and rounding happens. As we don't know
+       what granulation the DOS application is relying on, we can't emulate
+       the expected behave, hence the application locks or crashes.
+       This especially happens when the application is doing micro timing.
+<p>
+       As a downside of 'returning more often', we get DOS-space stack
+       overflows, when we suck too much CPU. This we compensate by detecting
+       this possibility and decreasing the 'return rate', hence giving
+       more CPU back to DOS-space.
+<p>
+       So we can realize a self adapting control loop with this feature.
+
+<sect3>  IRQ passing
+<p>
+       Vm86plus also hosts the IRQ passing stuff now, that was a separate
+       syscall in the older emumodule (no syscallmgr any more).
+       As this IRQ passing is special to dosemu, we anyway  couldn't it use
+       for other (unix) applications. So having it as part of vm86() should
+       be the right place.
+
+<sect3>  Debugger support
+<p>
+       GDB is a great tool, however, we can't debug DOS and/or DPMI code
+       with it. Dosemu has its own builtin debugger (dosdebug) which allows
+       especially the dosemu developers to track down problems with dosemu
+       and DOS applications for which (as usual) we have no source.
+       ( ... and debugging DOS applications always has been the 'heart' of
+       dosemu development ).
+<p>
+       Dosdebug uses some special flags and data in 'vm86plus_struct', which
+       are passed to vm86(), and vm86() reacts on it and returns back to
+       dosemu with the dosdebug special return codes.
+<p>
+       As with dosemu-0.64.1 you now can run both debuggers simultaneously,
+       dosdebug as well as GDB. Dosdebug will be triggered only for VM86
+       traps and with GDB you may debug dosemu itself. However, GDB
+       can't be used when DPMI is in use, because it will break on each
+       trap that is used to simulate DPMI, you won't like that.
+
+<sect2>    Changes to arch/i386/kernel/ldt.c
+<p>       
+<sect3>  New functioncode for 'write' in modify_ldt syscall
+<p>
+       In order to preserve backword compatibility with Wine and Wabi
+       the changes in the LDT stuff are only available when using
+       function code 0x11 for 'write' in the modify_ldt syscall.
+       Hence old binaries will be served with the old LDT behavior.
+
+<sect3>  'useable' bit in LDT descriptor
+<p>
+       The 'struct modify_ldt_ldt_s' got an additional bit: 'useable'.
+       This is needed for DPMI clients that make use of the 'available'
+       bits in the descriptor (bit 52).  'available' means, the hardware
+       isn't using it, but software can put information into.
+<p>
+       Because the kernel does not use this bit, its save and harmless.
+       Windows 3.1 is such a client, but also some 32-bit DPMI clients
+       are reported to need it. This bit only is used for 32-bit clients.
+       DPMI-function SetDescriptorAccessRights (AX=0009) passes this
+       in bit 4 of CH ((80386 extended access rights).
+
+<sect3>  'present' bit in LDT selector
+<p>
+       The function 1 (write_ldt) of syscall modify_ldt() allows
+       creation/modification of selectors containing a 'present' bit, that
+       get updated correctly later on. These selectors are setup so, that
+       they <em/either/ can't be used for access (null-selector) <em/or/ the
+       'present' info goes into bit 47 (bit 7 of type byte) of a
+       call gate descriptor (segment present). This call gate of course
+       is checked to not give any kernel access rights.
+       Hence, security will not be hurt by this.
+
+
+<sect2>    Changes to arch/i386/kernel/signal.c
+<p>
+       Because DPMI code switches via signal return, some type of selectors
+       that the kernel normally would not allow to be loaded into a segment
+       registers have been made loadable. The involved register are DS, ES
+       FS and GS. Loading of CS or SS is not changed.
+<p>
+       The original kernel code would forbid any non-null selector that
+       hasn't privilege level 3, and this also could be one of the LDT
+       selectors. However, sys_sigreturn doesn't check the descriptors that
+       belong to the selector, hence would not see that they are save.
+       But as we assure proper setting of <em/all/ LDT selector via 'write_ldt'
+       of modify_ldt(), we safely may allow LDT selectors to be loaded. 
+       If they are not proper, we then get an exception and have a chance
+       to emulate access. And because old type binaries (Wabi) will not be able
+       create newer type selector (see 2.2.1), gain this wont hurt.
+
+<sect2>    Changes to arch/i386/kernel/traps.c
+<p>
+       The low-level exception entry points for INTx (x= 0, 1..5, 6)
+       in the kernel normally send a signal to the process, that then
+       may handle the exception. For INT1 (debug), the kernel does special
+       treatment and checks whether it gets interrupted from VM86.
+<p>
+       Due to limitation in how we can handle signals in dosemu without
+       becoming to far behind 'real time' and because we need to
+       handle those things on the current vm86() return stack,
+       we need to handle the above INTx in a similar manor then INT1.
+<p>
+       When INTx happens out of VM86 (i.e. the CPU was in virtual 8086 mode
+       when the exception occurred), we do not send a signal, but return
+       from the vm86() syscall with an appropriate return code.
+<p>
+       If the above INTx happens from within old style vm86() call, the
+       exceptions also are handled 'the old way'. (backward comptibility)
+
+
+<sect1>     Abandoned 'bells and whistles' from older emumodule
+<p>
+       ( If you have an application that needs it, well then it won't work,
+       and please don't ask us to re-implement the old behaviour.
+       We have good reasons for our decision. )
+
+
+<sect2>    Kernel space LDT.
+<p>
+       Some DPMI clients have really odd programming techniques
+       that don't use the LAR instruction to get info from a descriptor
+       but access the LDT directly to get it. Well, this is not problem
+       with our user space LDT copy (LDT_ALIAS) as long as the DPMI client
+       doesn't need a reliable information about the 'accessed bit'.
+<p>
+       In the older emumodule we had a so called KERNEL_LDT, which (readonly)
+       accessed the LDT directly in kernel space. This now has been
+       abandoned and we use some workarounds which may (or may not) work
+       for the above mentioned DPMI clients.
+
+<sect2>    LDT Selectors accessing the 'whole space'
+<p>
+       DPMI clients may very well try to create selectors with a type
+       and size that would overlap with kernel space, though the client
+       normally only would access user space with such selectors
+       (e.g. expand down segments).
+<p>
+       This was a security hole in the older Linux kernel, that was fixed in
+       the early 1.3.x kernel series. Due to complaints on linux-msdos
+       emumodule did allow those selectors if dosemu was run as root.
+       Because only very few DOS applications are needing this (e.g. some
+       odd programmed games), we now favourite security and don't allow
+       this any more.
+
+<sect2>    Fast syscalls
+<p>
+       In order to gain speed and to be more atomic on some operations
+       we had so called fast syscalls, that uses INT 0xe6 to quickly enter
+       kernel space get/set the dosemu used IRQ-flags and return without
+       letting the kernel a chance to reschedule. 
+<p>
+       Today the machines perform much better, so there is no need for
+       for those ugly tricks any more. In dosemu-0.64.1 fast syscalls
+       are no longer used.
+
+<sect2>    Separate syscall interface (syscall manager)
+<p>
+       The old emumodule uses the syscallmgr interface to establish a new
+       (temporary) system call, that was used to interface with emumodule.
+       We now have integrated all needed stuff into the vm86 system call,
+       hence we do not need this technique any more.
+

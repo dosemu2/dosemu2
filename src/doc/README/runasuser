@@ -1,0 +1,85 @@
+<sect>Running dosemu as a normal user<label id="runasuser">
+<p>
+
+This section of the document by Hans, 
+<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
+updated on June 16, 1997.
+
+<p>
+
+<enum>
+<item> You have to make 'dos' suid root, this normally is done when you
+   run 'make install'.
+
+<item> Have the users that are allow to execute dosemu in /etc/dosemu.user.
+   The format is:
+
+<tscreen><verb>
+     loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
+</verb></tscreen>
+
+   For details see <ref id="config" name="Configuring DOSEmu">. For a first 
+	time <em/easy/ installation you may set it as follows (but don't 
+	forget to enhance it later !!!):
+
+<tscreen><verb>
+     root c_all
+     all c_all
+</verb></tscreen>
+
+<item> The msdos partitions, that you want to be accessable through 
+	<ref id="lredir" name="lredir"> should
+   be mounted with proper permissions. I recommend doing this via 'group's,
+   not via user ownership. Given you have a group 'dosemu' for this and want
+   to give the user 'lermen' access, then the following should be
+
+<itemize>
+   <item> in /etc/passwd:
+<tscreen><verb>
+     lermen:x:500:100:Hans Lermen:/home/lermen:/bin/bash
+                  ^^^-- note: this is NOT the group id of 'dosemu'
+</verb></tscreen>
+
+   <item> in /etc/group:
+<tscreen><verb>
+     users:x:100:
+     dosemu:x:200:dosemu,lermen
+              ^^^
+</verb></tscreen>
+
+   <item> in /etc/fstab:
+<tscreen><verb>
+     /dev/hda1 /dosc msdos defaults,gid=200,umask=002 0 0
+                                        ^^^
+</verb></tscreen>
+</itemize>
+
+   <em/Note:/ the changes to /etc/passwd and /etc/group only take place the
+     <em/next/ time you login, so don't forget to re-login.
+
+   The fstab entry will mount /dosc such that is has the proper permissions
+<tscreen><verb>
+   ( drwxrwxr-x  22 root     dosemu      16384 Jan  1  1970 /dosc )
+</verb></tscreen>
+
+   You can do the same with an explicit mount command:
+<tscreen><verb>
+      mount -t msdos -o gid=200,umask=002 /dev/hda1 /dosc 
+</verb></tscreen>
+
+   Of course normal lredir'ed unix directories should have the same 
+	permissions.
+
+<item> Make sure you have read/write permissions of the devices you
+   configured (in /etc/dosemu.conf) for serial and mouse.
+</enum>
+
+Starting with dosemu-0.66.1.4 there should be no reason against running
+dosemu as a normal user. The privilege stuff has been extensively reworked,
+and there was no program that I tested under root, that didn't also run
+as user. However, if you suspect problems resulting from the fact that
+you run as user, you should first try configuring dosemu with the
+'runasroot' option (see setup-dosemu tool). This lets dosemu permanently run
+as (suid) root and only use user privileges when accessing secure relevant
+resources. Normally dosemu will permanently run as user and only temporarily
+use root privilege when needed.

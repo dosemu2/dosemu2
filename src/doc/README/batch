@@ -1,0 +1,96 @@
+<sect>Running a DOS-application directly from Unix shell
+<p>
+
+This part of the document was written by Hans
+<htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">.
+
+<sect1>Using the keystroke and commandline options.
+<p>
+
+Make use of the keystroke configure option and the -I commandline option
+of DOSEMU (>=dosemu-0.66.2) such as
+
+<tscreen><verb>
+   dos -D-a -I 'keystroke "dir > C:\\garbage\rexitemu\r"'
+</verb></tscreen>
+
+The "..." will be 'typed in' by dosemu exactly as if you had them
+typed at the keyboard. The advantage of this technique is, that all
+DOS applications will accept them, even interactive ones. A '\' is
+interpreted as in C and leads in ESC-codes. Here a list of of the
+current implemented ones:
+
+<descrip>
+  <tag/\r/     Carriage return == &lt;ENTER&gt;
+  <tag/\n/     LF
+  <tag/\t/     tab
+  <tag/\b/     backspace
+  <tag/\f/     formfeed
+  <tag/\a/     bell
+  <tag/\v/     vertical tab
+
+
+  <tag/\^x/    &lt;Ctrl&gt;x, where X is one of the usual C,M,L,&lsqb; ...
+         (e.g.: \^&lsqb; == &lt;Ctrl&gt;&lsqb; == ESC )
+
+  <tag/\Ax/    &lt;Alt&gt;x, hence  \Ad means &lt;Alt&gt;d
+
+  <tag>\Fn;</tag>   Function key Fn. Note that the trailing ';' is needed.
+         (e.g.:  \F10;  == F10 )
+  <tag>\Pn;</tag>   Set the virtual typematic rate, thats the speed for autotyping in.
+         It is given in unix timer ticks to wait between two strokes.
+         A value of 7 for example leads to a rate of 100/7=14 cps.
+
+  <tag>\pn;</tag>   Before typing the next stroke wait 'n' unix ticks.
+         This is useful, when the DOS-application flushes the keybord buffer
+         on startup. Your strokes would be discared if you don't wait.
+</descrip>
+
+When using X, the keystroke feature can be used to directly fire up a
+DOS application with one click, if you have the right entry in your .fvwmrc
+
+
+<sect1>Using an input file
+<p>
+<itemize>
+<item> Make a file "FILE" containing all keystrokes you need to boot dosemu
+   and to start your dos-application, ... and don't forget to have CRLF
+   for 'ENTER'. FILE may look like this (as on my machine):
+
+<tscreen><verb>
+     2^M                    <== this chooses point 2 of the boot menu
+     dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
+     exitemu^M              <== this terminates dosemu
+</verb></tscreen>
+
+   (the ^M stands for CR)
+
+<item> execute dosemu on a spare (not used) console, maybe /dev/tty20
+   such like this:
+
+<tscreen><verb>
+   # dos -D-a 2>/dev/null <FILE >/dev/tty20
+</verb></tscreen>
+
+   This will _not_ switch to /dev/tty20, but silently execute dosemu
+   and you will get the '#' prompt back, when dosemu returns.
+</itemize>
+
+I tested this with dosemu-0.64.4/Linux-2.0.28 and it works fine.
+
+When your dos-app does only normal printout (text), then you may
+even do this
+
+<tscreen><verb>
+   # dos -D-a 2>/dev/null <FILE >FILE.out
+</verb></tscreen>
+
+FILE.out then contains the output from the dos-app, but merged with
+ESC-sequences from Slang.
+
+You may elaborate this technique by writing a script, which gets the
+dos-command to execute from the commandline and generate 'FILE' for you.
+
+When you try to use one of the above to start dosemu out of a crontab,
+then you have to asure, that the process has a proper environement set up
+( especially the TERM and/or TERMCAP variable ).

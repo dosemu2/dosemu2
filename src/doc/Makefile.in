@@ -1,6 +1,6 @@
 @SET_MAKE@
 
-SUBDIRS = DANG HOWTO info
+SUBDIRS = DANG HOWTO README
 
 
 all clean install:

@@ -1,0 +1,193 @@
+<sect>DOSEMU debugger v0.4
+<p>
+This section written on 7/10/96.
+Send comments to Max Parke 
+<htmlurl url="mailto:mhp@light.lightlink.com"
+name="&lt;mhp@light.lightlink.com&gt;"> and to Hans Lermen 
+<htmlurl url="mailto:lermen@elserv.ffm.fgan.de" name="&lt;lermen@fgan.de&gt;">
+
+<sect1>Introduction
+<p>
+This is release v0.4 of the DOSEMU debugger, with the
+following features:
+<itemize>
+<item> interactive
+<item> DPMI-support
+<item> display/disassembly/modify of registers and memory (DOS and DPMI)
+<item> display/disassembly memory (dosemu code and data)
+<itemize>
+<item>   read-only access to DOSEMU kernel via memory dump and disassembly
+<item>   uses /usr/src/dosemu/dosemu.map for above
+</itemize>
+<item> breakpoints (int3-style, breakpoint on INT xx and DPMI-INT xx)
+<itemize>
+<item>   DPMI-INT breakpoints can have an AX value for matching.
+   (e.g. 'bpintd 31 0203' will stop _before_ DPMI function 0x203)
+</itemize>
+<item> symbolic debugging via microsoft linker .MAP file support
+<item> access is via the 'dosdebug' client from another virtual console.
+  So, you have a "debug window" and the DOS window/keyboard, etc. are
+  undisturbed.	VM86 execution can be started, stopped, etc.
+<item> If dosemu 'hangs' you can use the 'kill' command from dosbugger to
+  recover.
+<item> code base is on dosemu-0.63.1.50
+</itemize>
+
+<sect1>Files
+<p>
+All changes are #ifdef'ed with USE_MHPDBG
+<p>
+<sect2>modules
+<p>
+<itemize>
+<item>./scr/arch/linux/debugger/mhpdbg.c
+<item>./scr/arch/linux/debugger/mhpdbgc.c
+<item>./scr/arch/linux/debugger/dis8086.c
+<item>./src/arch/linux/debugger/dosdebug.c
+<item>./src/include/mhpdbg.h
+</itemize>
+
+<Sect2>executable
+<p>
+<itemize>
+<item>./bin/dosdebug
+</itemize>
+
+<sect1>Installation
+<p>
+In order to use DOSEMU debugger you must also use EMUMODULE.
+<p>
+During ./configure be sure you have <em/NOT/ set --enable-noemumod
+
+<sect1>Usage
+<p>
+To run, start up DOSEMU.  Then switch to another virtual console
+(or remote login) and do:
+<tscreen><verb>
+  dosdebug
+</verb></tscreen>
+If there are more then one dosemu process running, you will need
+to pass the pid to dosdebug, e.g:
+
+<tscreen><verb>
+  dosdebug 2134
+</verb></tscreen>
+  
+<em/NOTE:/ You must be the owner of the running dosemu to 'debug-login'.
+<p>
+You should get connected and a banner message.
+If you type 'q', only the terminal client will terminate,
+if you type 'kill', both dosemu and the terminal client will be
+terminated.
+
+<sect1>Commands
+<p>
+See mhpdbgc.c for code and cmd table.
+<p>
+(all numeric args in hex)
+<descrip>
+<tag/?/                 Print a help page
+<tag/q/		  Quit the debug session
+<tag/kill/              Kill the dosemu process
+                  (this may take a while, so be patient)
+		  See also <ref id="recover" name="Recovering the display">
+<tag/console n/	  Switch to console n
+<tag/r/		  list regs
+<tag/r reg val/         change contents of 'reg' to 'val'
+                  (e.g: r AX 1234)
+<tag/e ADDR HEXSTR/     modify memory (0-1Mb)
+<tag/d ADDR SIZE/	  dump memory (no limit)
+<tag/u ADDR SIZE/	  unassemble memory (no limit)
+<tag/g/		  go (if stopped)
+<tag/stop/		  stop (if running)
+<tag/mode 0|1|+d|-d/	  set mode (0=SEG16, 1=LIN32) for u and d commands
+                  +d enables DPMI mode (default on startup),
+                  -d disables DPMI mode.
+<tag/t/		  single step (not fully debugged!!!)
+<tag/tf/                single step, force over IRET and POPF
+                  <em/NOTE:/ the scope of 't' 'tf' or a 'come back for break'
+                        is either 'in DPMI' or realmode, depending on
+                        wether a DPMI-client is active (in_dpmi).
+<tag/r32/		  dump regs in 32 bit format
+<tag/bp addr/ 	  set int3 style breakpoint
+                  <em/NOTE:/ the scope is defined wether a DPMI-client is active
+                        (in_dpmi). The resulting 'come back' will force
+                        the mode that was when you defined the breakpoint.
+<tag/bc breakp.No./     Clear a breakpoint.
+<tag/bpint xx/	  set breakpoint on INT xx
+<tag/bcint xx/	  clr breakpoint on INT xx
+<tag/bpintd xx [ax]/    set breakpoint on DPMI INT xx optionaly matching ax.
+<tag/bcintd xx [ax]/    clear  breakpoint on DPMI INT xx.
+<tag/bpload/            set one shot breakpoint at entry point
+                  of the next loaded DOS-program.
+<tag/bl/		  list active breakpoints
+<tag/ldt sel [lines]/   dump ldt starting at selector 'sel' for 'lines'
+                  'sel' may be a symbolic register name.
+<tag/(rmapfile)/	  (internal command to read /usr/src/dosemu/dosemu.map
+		  at startup time)
+<tag/rusermap org fn/   read microsoft linker format .MAP file "fn"
+		  code origin = "org".
+		  for example if your code is at 1234:0, org would
+		  be 12340.
+</descrip>
+
+Addresses may be specified as:
+<enum>
+<item> a linear address.  Allows 'd' and 'u' commands to look at both
+   DOSEMU kernel and DOS box memory (0-1Mb).
+<item> a seg:off address (0-1Mb)
+   seg as well as off can be a symbolic registers name (e.g cs:eip)
+   'seg' under DPMI is resolved via LDT, if so a numeric 'seg' value
+   is prefixed by # (e.g. #00af:0000.
+   You may force a seg to treaten as LDT selector by prefixing the '#'.
+   Accordingly to the default address mode 'off' under DPMI is 16 or
+   32 bit.
+   When in DPMI mode, and you want to address/display realmode
+   stuff, then you must switch off DPMI mode ('mode -d')
+<item> a symbolic address.	usermap is searched first, then dosemu map.
+   ( not for DPMI programms )
+<item> an asterisk(*): CS:IP    (cs:eip)
+<item> a dollar sign($): SS:SP  (ss:esp)
+</enum>
+
+<sect1>Performance
+<p>
+If you have dosemu compiled with the debugger support, but the
+debugger is not active and/or the process is not stopped, you
+will not see any great performance penalty.
+
+<sect1>Wish List
+<p>
+Main wish is to add support for hardware debug registers (if someone
+would point me in the direction, what syscalls to use, etc.)
+Then you could breakpoint on memory reads/writes, etc!
+
+<sect1>BUGS
+<p>
+There must be some.
+
+<Sect2>Known bugs
+<p>
+<itemize>
+<item> Though you may set breakpoints and do singlestep in Windows31,
+   this is a 'one shot': It will bomb <em/after/ you type 'g' again.
+   ( I suspect this is a timer problem, we <em/really/ should freeze
+   the timer and all hardware/mouse IRQs while the program is in 'stop').
+   Debugging and singlestepping through DJGPP code doesn't have any
+   problems.
+<item> INT3 type breakpoints in DPMI code are <em/very/ tricky, because you
+   never know when the client has remapped/freed the piece of code
+   that is patched with 0xCC ( the one byte INT3 instruction ).
+   Use that with caution !!
+<item> Single stepping doesn't work correctly on call's. May be the
+   trap-flag is lost.
+   However, when in DPMI the problems are minor.
+<item> popf sometime clears the trap-flag, so single stepping
+   results in a 'go' command.
+   'tf' works around, but we should do it better.
+<item> When stopped for a long period, the BIOS-timer will be updated to
+   fast and may result in stack overflow. We need to also stop the timer
+   for dosemu.
+<item> When not stopped, setting break points doesn't work properly.
+   So, as a work around: Only set breakpoints while in stop.
+</itemize>

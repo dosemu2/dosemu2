@@ -1,3 +1,11 @@
+97/07/03 ver. 0.67.6.1 unofficial pre-release
+	From Alistair
+	- big docs rebuild. Nearly all README.s are now 'sgml' and the
+	  source is in ./src/dos/README. In the ./doc directory there
+	  these appear (compiled) as README.txt and README-tech.txt.
+	From Hans
+	- udapted the remaining docs, Makfiles and ./configure
+	  to reflecting Alistairs changes.
 97/06/29 ver. 0.67.6 released
 	From Hans
 	- fixes to EMM code (these bugs were long time in :-( )

@@ -1,0 +1,77 @@
+<sect>Video Code
+<p>
+I have largely reorganized the video code. Be aware that a lot of code
+is now in a different place, and some files were moved or renamed.
+
+<sect1>C files
+<p>
+<descrip>
+<tag>video/video.c</tag>    global variables, init/cleanup code
+                  video_init(), video_close(), load_file(),
+                  video_config_init()
+
+<tag>video/int10.c</tag>    int10 emulation (formerly int10.h), Scroll, 
+                  clear_screen, char_out, set_video_mode
+
+<tag>video/vc.c</tag>       console switching code (formerly video.c)
+<tag>video/console.c</tag>  console mode routines
+
+<tag>video/et4000.c,
+video/s3.c,
+video/trident.c</tag>  card-dependent console/graphics switching routines
+
+<tag>video/vga.c</tag>      console mode? graphics?
+
+<tag>video/terminal.c</tag> terminal mode video update routines (ansi/ncurses)
+
+<tag>video/X.c</tag>        Xwindow stuff
+</descrip>
+
+<sect1>Header files
+<p>
+<descrip>
+<tag>video/vc.h</tag>       def's relating to console switching 
+                  (formerly include/video.h)
+
+<tag>include/video.h</tag>  def's for general video status variables and functions
+</descrip>
+
+<sect1>Notes
+<p>
+<itemize>
+<item> we now have 'virtual' video support. Every video front-end defines a
+  static, initialized structure 'Video_xxx' (e.g. Video_console)
+  which contains (mostly) pointers to the appropriate routines
+  for certain tasks. 
+<p>  Please use this when implementing new video front ends!
+  (See video/video.h for more info)
+<item> most of the video code & defs is removed from emu.c and emu.h
+  (now mostly in video/video.c)
+<item> int10.h no longer exists (now in video/int10.c)
+<item> sigalrm now again checks the dirty bit(s) in vm86s.screen_bitmap
+  before calling update_screen.
+<p>
+  At the moment, it doesn't seem to achieve much, but it might help
+  when we use mark's scroll detector, and will be absolutely necessary
+  for a good X graphics support.
+<p>
+  Note that for all video memory modifications done outside of vm86
+  mode we must now use set_dirty()  (defined in int10.c).
+  <em>this is currently disabled. To enable it, set VIDEO_CHECK_DIRTY
+  to 1 in include/video.c.</em>
+</itemize>
+
+<sect1>Todo
+<p>
+<itemize>
+<item> cleanup terminal/console mode initialization
+  (currently called from video_init() in video.c)
+  termioInit(), termioClose() should probably be split 
+  up somehow (i.e. general/terminal/console)
+<item> fix bug: screen is not restored properly when killing dosemu
+  in graphics mode
+<item> properly implement set_video_mode()   (int10.c)
+<item> cursor in console mode ok?
+<item> put int10.c into video.c?
+<item> put vc.c into console.c?
+</itemize>

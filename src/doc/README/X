@@ -1,0 +1,268 @@
+<sect>Using X
+<p>
+Please read all of this for a more complete X information ;-)
+<p>
+
+<sect1>Latest Info
+<p>
+From Uwe Bonnes 
+<htmlurl url="mailto:bon@elektron.ikp.physik.th-darmstadt.de" name="&lt;bon@elektron.ikp.physik.th-darmstadt.de&gt;">:
+<p>
+xdos from dosemu version pre-0.60.4.2 with the patch from my last messages
+should now be more capable.
+In particular it should now understand the keys from the keypad-area (the
+keys the most right on a MF-Keyboard) and numlock and keyevents in the range
+of the latin characters, even when you run xdos from a remote X-terminal. 
+<p>
+
+If it dosen't work for you as expected, please check out the following:
+
+<itemize>
+<item> Don't specify "keycode" for X-support.
+The keycode-option is something specific for a special X-server, here
+XFree86, and so isn't portable and I disencourage its use.
+<item>Check out whether your key sends a sensible ksym, with e.g."xev". If it sends
+something sensible which you think should be mapped by xdos, please let me
+know details.
+<item> If you are running xdos on XFree86, version 3.1.1 and newer and the keys
+of the keypad-area don't work, you have two options:
+
+<itemize>
+<item> Comment out the line "    ServerNumLock " in /usr/X11R6/lib/X11/XFConfig
+<item> Feed the following file to xmodmap. From what I understand from the docs,
+XFree-3.1.1 should do that intrinsicly, but for me it didn't. This is a part
+of the file /usr/X11R6/lib/X11/etc/xmodmap.std 
+
+<tscreen><verb>
+! When using ServerNumLock in your XF86Config, the following codes/symbols
+! are available in place of 79-81, 83-85, 87-91
+keycode  136 = KP_7
+keycode  137 = KP_8
+keycode  138 = KP_9
+keycode  139 = KP_4
+keycode  140 = KP_5
+keycode  141 = KP_6
+keycode  142 = KP_1
+keycode  143 = KP_2
+keycode  144 = KP_3
+keycode  145 = KP_0
+keycode  146 = KP_Decimal
+keycode  147 = Home
+keycode  148 = Up
+keycode  149 = Prior
+keycode  150 = Left
+keycode  151 = Begin
+keycode  152 = Right
+keycode  153 = End
+keycode  154 = Down
+keycode  155 = Next
+keycode  156 = Insert
+keycode  157 = Delete
+</verb></tscreen>
+
+</itemize>
+
+</itemize>
+
+<sect1>Slightly older information
+<p>
+From Rainer Zimmermann
+<htmlurl url="mailto:zimmerm@mathematik.uni-marburg.de" name="&lt;zimmerm@mathematik.uni-marburg.de&gt;">
+
+<p>
+
+Some basic information about dosemu's X support.
+Sometimes it's even sort of useable now.
+<p>
+
+What you should take care of:
+
+<itemize>
+<item> Do a 'xmodmap -e "keycode 22 = 0xff08"' to get use of your backspace key.
+<item> Do a 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete key.
+
+<item> Make sure dosemu has X support compiled in. 
+   (X_SUPPORT = 1 in the Makefile)
+
+<item> you should have the vga font installed. See README.ncurses.
+
+<item> start dosemu with 'dos -X' from an X terminal window. 
+   Or make a link to 'dos' named 'xdos' - when called by that name,
+   dosemu will automatically assume -X. 
+   There is also a new debug flag 'X' for X-related messages.
+   To exit xdos, use 'exitemu' or select 'Close' aka 'Delete' 
+   (better not 'Destroy') from the 'Window' menu.
+
+<item> there are some X-related configuration options for dosemu.conf.
+   See examples/config.dist for details.
+
+<item> starting xdos in the background (like from a window manager menu)
+   appears not to work for some reason.
+
+<item> Keyboard support in the dosemu window isn't perfect yet. It probably
+   could be faster, some key combos still don't work (e.g. Ctrl-Fn), etc.
+   However, input through the terminal window (i.e. the window you started
+   dosemu from) is still supported. If you have problems, you *might* be
+   better off putting your focus in there.
+
+<item> Keyboard support of course depends on your X keyboard mappings (xmodmap).
+   If certain keys don't work (like Pause, Backspace,...), it *might* be 
+   because you haven't defined them in your xmodmap, or defined to something
+   other than dosemu expects.
+
+<item> using the provided icon (dosemu.xpm):
+
+<itemize>
+<item> you need the xpm (pixmaps) package. If you're not sure, look for
+     a file like /lib/libXpm.so.*
+<item> you also need a window manager which supports pixmaps. Fvwm is fine,
+     but I can't tell you about others. Twm probaby won't do.
+<item> copy dosemu.xpm to where you usually keep your pixmap (not bitmap!) 
+     files (perhaps /usr/include/X11/pixmaps)
+<item> tell your window manager to use it. For fvwm, add the following
+     line to your fvwmrc file:
+
+<tscreen><verb>     
+     Icon "xdos"   dosemu.xpm
+</verb></tscreen>
+
+     This assumes you have defined a PixmapPath. Otherwise, specify the
+     entire pathname.
+<item> note that if you set a different icon name than "xdos" in your
+     dosemu.conf, you will also have to change the fvwmrc entry.
+<item> restart the window manager. There's usually an option in the
+     root menu to do so.
+</itemize>
+   
+   Now you should see the icon whenever you iconify xdos.
+<p>
+   Note that the xdos program itself does not include the icon - that's
+   why you have to tell the window manager. I chose to do it this way
+   to avoid xdos <em/requiring/ the Xpm library.
+
+<item> If anything else does not work as expected, don't panic :-)
+   Remember the thing is still under construction.
+   However, if you think it's a real bug, please tell me.
+</itemize>
+
+<p>
+important changes to previous version (pre53_17):
+
+<itemize>
+<item> fixed focus handling at startup
+<item> support for 21/28/43/50 line modes!
+  (43+50 look a bit funny, though... I use the 8x16 font for all modes)
+<item> .xpm icon
+<item> fixed startup error handling (won't hang now if display not found)
+<item> limited window size
+</itemize>
+
+<sect1>Status of X support (Sept 5, 1994)
+<p>
+
+<sect2>Done
+<p>
+
+<itemize>
+<item>X_update_screen    (video output)
+<item>implement cursor
+<item>fix cursor/scrolling bugs
+<item>fix Scroll (video/terminal.c) (?)
+<item>fix banner message (initialization) (works after video cleanup, dunno why :)
+<item>check video memory dirty bit
+<item>X event handling   (close, expose, focus etc.)
+<item>fixed cursor initialization
+<item>cleaned up cursor handling
+<item>added 'xdos' calling method
+<item>disable 'mouse' serial ports in X mode
+<item>write direct scroll routine (not used yet, though)
+<item>care about int10 calls  -ok?
+<item>Handle close ("delete") window event - (copied from xloadimage)
+<item>X keyboard support (pcemu code, heavily modified)
+<item>Mouse support
+<item>X configuration (display, updatefreq, updatelines,... what else?)
+<item>int10 video mode switches (resize window)
+<item>Window SizeHints  (fixed size or max size?)
+<item>create icon :-)
+</itemize>
+
+<sect2>ToDo (in no special order)
+<p>
+
+<itemize>
+<item>xor cursor? blinking cursor?
+<item>use mark's scroll detector
+<item>jump scroll?
+<item>fine-tune X_update_screen
+<item>graphics support?
+<item>allow non-standard font heights via bios
+<item>cut &amp; paste
+</itemize>
+
+<sect1>The appearance of Graphics modes (November 13, 1995)
+<p>
+Erik Mouw 
+<htmlurl url="mailto:J.A.K.Mouw@et.tudelft.nl" name="&lt;J.A.K.Mouw@et.tudelft.nl&gt;"> 
+&amp;
+Arjan Filius
+<htmlurl url="mailto:I.A.Filius@et.tudelft.nl" name="&lt;I.A.Filius@et.tudelft.nl&gt;"> 
+<p>
+We've made some major changes in X.c that enables X to run graphics modes. 
+Unfortunately, this disables the cut-and-paste support, but we think the
+graphics stuff is much more fun (after things have established, we'll put
+the cut-and-paste stuff back). The graphics is done through vgaemu, the VGA
+emulator. Status of the work:
+
+<sect2>vgaemu
+<p>
+<itemize>
+<item> Video memory. 1 Mb is allocated. It is mapped with mmap() in the VGA 
+  memory region of dosemu (0xa00000-0xbfffff) to support bank switching.
+  This is very i386-Linux specific, don't be surprised if it doesn't work
+  under NetBSD or another Linux flavour (Alpha/Sparc/MIPS/etc).
+<item> The DAC (Digital to Analog Converter). The DAC is completely emulated,
+  except for the pelmask. This is not difficult to implement, but it is
+  terribly slow because a change in the pelmask requires a complete redraw
+  of the screen. Fortunately, the pelmask changes aren't used often so
+  nobody will notice ;-)
+<item> The attribute controller is partially emulated. (Actually, only reads and
+  writes to the ports are emulated)
+<item> The working modes are 0x13 (320x200x256) and some other 256 color modes.
+<item> To do (in no particular order): font support in graphics modes (8x8, 8x16,
+  9x16, etc), text mode support, 16, 4 and 2 color support, better bank
+  switching, write the X code out of vgaemu to get it more generic.
+</itemize>
+
+<sect2>vesa
+<p>
+
+<itemize>
+<item> VESA set/get mode, get information and bankswitch functions work.
+<item> All VESA 256 color (640x480, 800x600, 1024x768) modes work, but due to bad
+  bank switch code in vgaemu they won't display right.
+<item> A VESA compatible video BIOS is mapped at 0xc00000. It's very small, but
+  in future it's a good place to store the BIOS fonts (8x8, 8x16) in.
+<item> To do: implement the other VESA functions.
+</itemize>
+
+<sect2>X
+<p>
+
+<itemize>
+<item> Added own colormap support for the 256 color modes.
+<item> Support for vgaemu.
+<item> Some cleanups.
+<item> To do: remove text support and let vgaemu do the text modes, put back the 
+  cut-and-paste stuff, more cleanups.
+<item> <em/NOTE:/ we've developed on X servers with 8 bit pixel depths (XF86_SVGA) so 
+  we don't know how our code behaves on other pixel depths. We don't even
+  know if it works.
+</itemize>
+
+As stated before, this code was written for Linux (tested with 1.2.13 and
+1.3.39) and we don't know if it works under NetBSD. The mmap() of
+/proc/self/mem and mprotect() magic in vgaemu are very (i386) Linux
+specific.
+
+
+Erik

@@ -3,7 +3,8 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 WARNING for old dosemu users:
             ^^^^^^^^^^^^^^^^
         The format of dosemu.conf and dosemu.users has changed !!!
-        Please take over the new config files and read ./doc/README.conf
+        Please take over the new config files and read
+        ./doc/README.txt chapter 2
 
 
 --------------------------------------------------------------------------
@@ -26,7 +27,7 @@ To install the binary package of DOSEMU do the following (in this order)
 
 - Copy ./etc/config.dist to /etc/dosemu.conf if you are installing for
   the first time.
-  Modify it by using the info in the file DOCDIR/README.config
+  Modify it by using the info in the file DOCDIR/README.txt chapter 2
 
 - Copy ./etc/dosemu.users.easy to /etc/dosemu.users which contains a list of
   users who are privileged to use dosemu.  The user "all" will allow anyone
@@ -38,18 +39,19 @@ To install the binary package of DOSEMU do the following (in this order)
   Note that the above example is _insecure_, because it allows all to any
   user. If you want security, then copy ./etc/dosemu.users.secure to
   /etc/dosemu.users and have a look at an other example in
-  DOCDIR/README.config.
+  DOCDIR/README.txt chapter 2.
 
   For a more detailed decription on 'running as user' have a look
-  at DOCDIR/README.runasuser.
+  at DOCDIR/README.txt chapter 7.
 
 --------------------------------------------------------------------------
 4  Boot ( 'comfortable' method ;-)
 --------------------------------------------------------------------------
 
 There is a new tool to help you generating a bootable hdimage (the old
-method is described in DOCDIR/README.oldboot). It doesn't require to boot
-native DOS, nor do you need to fiddle with a floppy any more:
+method is described in DOCDIR/README-tech.txt, chapter 6).
+It doesn't require to boot native DOS, nor do you need to fiddle with a
+floppy any more:
 
 - cd to /var/lib/dosemu
 
@@ -108,7 +110,7 @@ If you don't know how to copy files from/to the hdimage:
   DOSEMU, you will have to configure /etc/dosemu.conf for partition access.
 
 - From here you are on your own. Please read the documentation in the
-  DOCDIR/README.config file, the "DOSEMU-HOWTO" file, and the other files
+  DOCDIR/README.txt (chapter 2), the "DOSEMU-HOWTO" file, and the other files
   in the DOCDIR subdirectory.
 
 --------------------------------------------------------------------------
@@ -159,24 +161,12 @@ DOCDIR/DPR
 /usr/man/man1/dos.1
 	This is the DOSEMU man page. It is now up to date with 0.64.
 	This normally goes into the /usr/man/man1 directory.
-DOCDIR/dosemu.texinfo
-	The full documentation for DOSEMU, in LaTeX format.  This
-	documentation is getting to be sorely outdated, however.
 DOCDIR/announce0.66
 	The announcement textfile for DOSEMU 0.64.
-DOCDIR/README.*
-	Readme files for various applications and settings.
-DOCDIR/README.runasuser
-	Special hints on how to setup for running dosemu as normal user.
-DOCDIR/README.vm86plus
-	Specials of vm86plus (kernel patches and emumodule)
-DOCDIR/README.config
-	Detailed description of the DOSEMU configuration files.
-DOCDIR/README.lredir
-	Description how to use LREDIR (redirect Linux directories to DOS)
-DOCDIR/README.oldboot
-	Description of the (obsolete) traditional way to generate a bootable
-	dosemu hdimage.
+DOCDIR/README.txt
+	Readme file for various applications and general purpose settings.
+DOCDIR/README-tech.txt
+	Readme file for various technical details and settings.
 /var/lib/dosemu/dosC/readme.dosemu
 	Usage of FreeDos kernel within DOSEMU
 /var/lib/dosemu/dexe/*

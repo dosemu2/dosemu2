@@ -3,7 +3,8 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 WARNING for old dosemu users:
             ^^^^^^^^^^^^^^^^
         The format of dosemu.conf and dosemu.users has changed !!!
-        Please take over the new config files and read ./doc/README.conf
+        Please take over the new config files and read
+        ./doc/README.txt chapter 2
 
 
 --------------------------------------------------------------------------
@@ -62,7 +63,7 @@ or
 
 - Copy ./etc/config.dist to /etc/dosemu.conf if you are installing for
   the first time.
-  Modify it by using the info in the file ./doc/README.config
+  Modify it by using the info in the file ./doc/README.txt chapter 2
 
 - Copy ./etc/dosemu.users.easy to /etc/dosemu.users which contains a list of
   users who are privileged to use dosemu.  The user "all" will allow anyone
@@ -74,18 +75,19 @@ or
   Note that the above example is _insecure_, because it allows all to any
   user. If you want security, then copy ./etc/dosemu.users.secure to
   /etc/dosemu.users and have a look at an other example in
-  ./doc/README.config.
+  ./doc/README.txt chapter 2.
 
   For a more detailed decription on 'running as user' have a look
-  at ./doc/README.runasuser.
+  at ./doc/README.txt 'Running dosemu as a normal user' (chapter 7).
 
 --------------------------------------------------------------------------
 4  Boot ( 'comfortable' method ;-)
 --------------------------------------------------------------------------
 
 There is a new tool to help you generating a bootable hdimage (the old
-method is described in ./doc/README.oldboot). It doesn't require to boot
-native DOS, nor do you need to fiddle with a floppy any more:
+method is described in ./doc/README-tech.txt, chapter 6).
+It doesn't require to boot native DOS, nor do you need to fiddle with
+a floppy any more:
 
 - You need to have mtools-3.6 for this to work
 
@@ -141,8 +143,8 @@ If you don't know how to copy files from/to the hdimage:
 - If you want to use disk compression such as STACKER or DOUBLESPACE with
   DOSEMU, you will have to configure /etc/dosemu.conf for partition access.
 
-- From here you are on your own. Please read the documentation in the
-  ./doc/README.config file, the "DOSEMU-HOWTO" file, and the other files
+- From here you are on your own. Please read the documentation in
+  ./doc/README.txt (chapter 2), the "DOSEMU-HOWTO" file, and the other files
   in the ./doc subdirectory.
 
 --------------------------------------------------------------------------
@@ -170,7 +172,7 @@ If you don't know how to copy files from/to the hdimage:
     ./submit-bug-report
 
   The tool will either send directly or save the mail to a file.
-  For more on this please read the file README.bugreports
+  For more on this please read the file ./doc/bugreports.txt
 
   For general discussion on dosemu use the mailing list
   linux-msdos@vger.rutgers.edu
@@ -198,27 +200,15 @@ If you don't know how to copy files from/to the hdimage:
 ./man/dos.1
 	This is the DOSEMU man page. It is now up to date with 0.64.
 	This normally goes into the /usr/man/man1 directory.
-./doc/dosemu.texinfo
-	The full documentation for DOSEMU, in LaTeX format.  This
-	documentation is getting to be sorely outdated, however.
-./doc/announce0.64
-	The announcement textfile for DOSEMU 0.64.
-./doc/README.*
-	Readme files for various applications and settings.
-./doc/README.runasuser
-	Special hints on how to setup for running dosemu as normal user.
-./doc/README.vm86plus
-	Specials of vm86plus (kernel patches and emumodule)
-./doc/README.config
-	Detailed description of the DOSEMU configuration files.
-./doc/README.lredir
-	Description how to use LREDIR (redirect Linux directories to DOS)
-./doc/README.oldboot
-	Description of the (obsolete) traditional way to generate a bootable
-	dosemu hdimage.
-./README.bugreports
+./doc/announce0.66
+	The announcement textfile for DOSEMU 0.66.
+./doc/README.txt
+	Readme file for various applications and general purpose settings.
+./doc/README-tech.txt
+	Readme file for various technical details and settings.
+./doc/bugreports.txt
 	How to report bug via gnats
-./README.configuration
+./doc/configuration.txt
 	How to use the menu driven configuration tools
 ./contrib/dosC/readme.dosemu
 	Usage of FreeDos kernel within DOSEMU

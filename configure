@@ -3262,7 +3262,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="6.0"
+PATCHLEVEL="6.1"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -3709,7 +3709,7 @@ src/include/Makefile
 src/doc/Makefile
 src/doc/DANG/Makefile
 src/doc/HOWTO/Makefile
-src/doc/info/Makefile
+src/doc/README/Makefile
 src/tools/Makefile
 src/tools/periph/Makefile  src/include/config.h" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
 EOF
@@ -3844,7 +3844,7 @@ src/include/Makefile
 src/doc/Makefile
 src/doc/DANG/Makefile
 src/doc/HOWTO/Makefile
-src/doc/info/Makefile
+src/doc/README/Makefile
 src/tools/Makefile
 src/tools/periph/Makefile "}
 EOF

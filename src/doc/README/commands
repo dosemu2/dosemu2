@@ -1,0 +1,91 @@
+<sect>Commands & Utilities
+<p>
+These are some utitlies to assist you in using Dosemu.
+
+<sect1>Programs
+<p>
+
+<descrip>
+<tag/bootoff.com/ switch off the bootfile to access disk
+               see examples/config.dist at bootdisk option
+
+<tag/booton.com/ switch on the bootfile to access bootfile
+               see examples/config.dist at bootdisk option
+
+<tag/chdir.com/ change the Unix directory for Dosemu (use chdir(2))
+
+<tag/dosdbg.com/ change the debug setting from within Dosemu
+<itemize>
+<item>               dosdbg -- show current state
+<item>               dosdbg &lt;string&gt;
+<item>               dosdbg help -- show usage information
+</itemize>
+
+<tag/dumpconf.exe/ ???
+
+<tag/eject.com/ eject CD-ROM from drive
+
+<tag/emumouse.com/ fine tune internal mousedriver of Dosemu
+<itemize>
+<item>               emumouse h -- display help screen
+</itemize>
+
+<tag/exitemu.com/ terminate Dosemu
+
+<tag/getcwd.com/ get the Unix directory for Dosemu (use getcwd(2))
+
+<tag/isemu.com/ detects Dosemu version and returns greater 0 if running under
+               Dosemu
+
+<tag/lancheck.exe/ ???
+
+<tag/lredir.com/ redirect Linux directory to Dosemu
+<itemize>
+<item>               lredir -- show current redirections
+<item>               lredir D: LINUX\FS\tmp -- redirects /tmp to drive D:
+<item>               lredir help -- display help screen
+</itemize>
+
+<tag/mgarrot.com/ give up cpu time when Dosemu is idle
+
+<tag/speed.com/ set cpu usage (HogThreshold) from inside Dosemu
+
+<tag/system.com/ interface to system(2)...
+
+<tag/unix.com/ execute Unix commands from Dosemu
+<itemize>
+<item>               unix -- display help screen
+<item>               unix ls -al -- list current Linux directory
+<item>               caution! try "unix" and read the help screen
+</itemize>
+
+<tag/cmdline.exe/ Read /proc/self/cmdline and put strings such as "var=xxx"
+               found on the commandline into the DOS enviroment.
+               Example having this as the dos commandine:
+<tscreen><verb>
+                 dos "autoexec=echo This is a test..."
+</verb></tscreen>
+               then doing
+<tscreen><verb> 
+                 C:\cmdline &lt; D:\proc\self\cmdline
+                 %autoexec%
+</verb></tscreen>
+               would display "This is a test..." on the DOS-Terminal
+
+<tag/vgaoff.com/ disable vga option
+
+<tag/vgaon.com/ enable vga option
+</descrip>
+
+<sect1>Drivers
+<p>
+
+These are useful drivers for Dosemu
+
+<descrip>
+<tag/cdrom.sys/ allow direct access to CD-ROM drives from Dosemu
+
+<tag/ems.sys/ enable EMM in Dosemu
+
+<tag/emufs.sys/ redirect Unix directory to Dosemu
+</descrip>

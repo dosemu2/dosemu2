@@ -1,0 +1,62 @@
+<sect>The old way of generating a bootable DOSEmu
+<p>
+Since dosemu-0.66.4 you will not need the complicated method of generating
+a bootable dosemu suite (see Quickstart). However, who knows, maybe you
+need the old information too ...
+
+<sect1> Boot ( 'traditional' method )
+<p>
+
+<sect2>If you are <em/new to DOSEMU/
+<p>
+
+<itemize>
+<item> Make <em/CERTAIN/ that your first disk statement in /etc/dosemu.conf <em/IS/
+  pointing to your hdimage!
+
+<item> Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
+  diskette in your a: drive.  Run "sys a:" to transfer the system files
+  to the diskette.  Copy SYS.COM from your DOS directory
+  (usually C:\DOS) to the diskette.
+
+<item> Reboot Linux.  Run 'dos -A'.  After a short pause, the system should
+  come up.  Try "dir c:" which should list the files on the harddrive
+  distribution image.  If that works, run: "sys c:".
+  Exit dos by running "c:\exitemu".  If you have problems, hold down the
+  &lt;ctrl&gt; and &lt;alt&gt; buttons simultaneously while pressing &lt;pgdn&gt;.
+  (&lt;ctrl&gt;&lt;alt&gt;&lt;pgdn&gt; will automatically exit dosemu.)
+</itemize>
+
+<sect2>If you already have a HDIMAGE file
+<p>
+
+<itemize>
+<item> If you have a previous version of DOSEMU running, you should copy the
+  .SYS, .COM, & .EXE files in the ./commands directory over to the
+  hdimage drive that you boot from.  Some of these files have changed.
+</itemize>
+
+<sect2>If you don't know how to copy files from/to the hdimage
+<p>
+
+<itemize>
+<item> Have a look at the recent mtools package (version 3.6 at time of writeing).
+  If you have the following line in /etc/mtools.conf
+
+<tscreen><verb>
+     drive g: file="/var/lib/dosemu/hdimage" partition=1 offset=128
+</verb></tscreen>
+
+  then you can use <em/all the mtool commands/ to access it, such as
+
+<tscreen><verb>
+    # mcopy g:autoexec.bat -
+    Copying autoexec.bat
+    @echo off
+    echo "Welcome to dosemu 0.66!"
+</verb></tscreen>
+
+</itemize>
+
+  ... all clear ? ;-)
+

@@ -158,11 +158,6 @@ fi
 install -d $DOCDIR
 cp -fp ./doc/* $DOCDIR
 rm -f ${DOCDIR}/Makefile.*
-for i in src/base src/dosext src/arch; do
-  cp -fp `find -name 'README.*'` $DOCDIR
-done
-cp -fp src/dosext/net/net/README ${DOCDIR}/README.net
-cp -fp src/commands/README ${DOCDIR}/README.doscommands
 cp -fp ChangeLog ${DOCDIR}
 
 _DOCDIR=""

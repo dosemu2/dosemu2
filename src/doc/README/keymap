@@ -1,0 +1,64 @@
+<sect>Keymaps
+<p>
+		This keymap is for using dosemu over telnet, and
+having *all* your keys work.  This keymap is not complete.  But
+hopefully with everyones help it will be someday :)
+<p>
+
+		There are a couple of things that are intentionally
+broken with this keymap, most noteably F11 and F12.  This is because
+they are not working though slang correctly at the current instant.
+I have them mapped to "greyplus" and "greyminus".  Also the scroll
+lock is mapped to shift-f3.  This is because the scroll lock dosn't
+work right at all.  Please feel free to send keymap patches in that
+fix anything but these.
+<p>
+If you want to patch <em/dosemu/ to fix either of those problems, i'd be
+<em/glad/ to accept those :)
+<p>
+to figure out how to edit this, read the keystroke-howto.
+<p>
+as of 3/30/95, control/shift/alternate
+home/insert/delete/end/pageup/pagedown should work.  
+<p>
+Major issues will be:
+<p>
+Do we move "alt-&lt;fkey&gt;" to "control-&lt;fkey&gt;" to switch virtual
+consoles?
+<p>
+who is going to fix the linux keyboard device to be able to handle
+multiple keymaps at the same time?
+<p>
+--------------------------------------------------------
+<p>
+to use it:
+<p>
+as root type
+<tscreen><verb>
+	loadkeys dosemu.new.keymap
+</verb></tscreen>
+
+(then run dosemu via telnet, or something in slang mode)
+<p>
+
+when your done, find your old keymap, and load it back, cause
+control-home won't work in emacs anymore (or any other special key in
+any applicaion that uses xlate)
+<p>
+
+
+if you find a key missing, please add it and send me the patch.  (test
+it first! :)
+<p>
+if you find a key missing, and don't feel like coding it, <em>don't tell
+me</em>!  I already know that there are a lot of keys missing.
+
+<p>
+corey sweeney
+<htmlurl url="mailto:corey@interaccess.com" name="&lt;corey@interaccess.com
+&gt;">
+<p>
+Sytron Computers
+
+
+
