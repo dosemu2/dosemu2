@@ -407,12 +407,27 @@ run_vm86(void)
     retval = DO_VM86(&vm86s);
     in_vm86 = 0;
 
+  if (in_dpmi) {
+    /* This is completely wrong, but that's how it was in dpmi.c,
+     * so leave for now */
+    if (REG(eflags)&IF) {
+      if (!(dpmi_eflags&IF))
+        dpmi_sti();
+    } else {
+#ifdef X86_EMULATOR
+      if (config.cpuemu<2) D_printf("DPMI: strange...IF clear, why?\n");
+#endif
+      if (dpmi_eflags&IF)
+        dpmi_cli();
+    }
+  } else {
   /* sync the pic interrupt state with the flags && sync VIF & IF */
     if (_EFLAGS & VIF) {
       set_IF();
     } else {
       clear_IF();
     }
+  }
 
 #if 0
     /* This will protect us from Mr.Norton's bugs */
@@ -486,21 +501,6 @@ run_vm86(void)
     default:
 	error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
 	fatalerr = 4;
-    }
-  }
-
-  if (in_dpmi) {
-    /* This is completely wrong, but that's how it was in dpmi.c,
-     * so leave for now */
-    if (REG(eflags)&IF) {
-      if (!(dpmi_eflags&IF))
-        dpmi_sti();
-    } else {
-#ifdef X86_EMULATOR
-      if (config.cpuemu<2) D_printf("DPMI: strange...IF clear, why?\n");
-#endif
-      if (dpmi_eflags&IF)
-        dpmi_cli();
     }
   }
 
