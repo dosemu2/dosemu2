@@ -162,10 +162,12 @@ static void mhp_init(void)
   if (!retval) {
     sprintf(pipename_out, "%sdbgout.%d", TMPFILE, getpid());
     enter_priv_on();
+    chown(pipename_in, get_orig_uid(), get_orig_gid());
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
     leave_priv_setting();
     if (!retval) {
       enter_priv_on();
+      chown(pipename_out, get_orig_uid(), get_orig_gid());
       mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
       leave_priv_setting();
       if (mhpdbg.fdin != -1) {

@@ -2874,9 +2874,14 @@ void X_handle_events(void)
 
         case ConfigureNotify:
           /* printf("X: configure event: width = %d, height = %d\n", e.xconfigure.width, e.xconfigure.height); */
-          resize_event = 1;
-          resize_width = e.xconfigure.width;
-          resize_height = e.xconfigure.height;
+          resize_width = w_x_res;
+          resize_height = w_y_res;
+          if ((e.xconfigure.width != resize_width)
+                       || (e.xconfigure.height != resize_height)) {
+            resize_event = 1;
+            resize_width = e.xconfigure.width;
+            resize_height = e.xconfigure.height;
+          }
           break;
 
 #endif /* CONFIG_X_SELECTION */

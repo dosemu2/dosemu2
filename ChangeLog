@@ -1,3 +1,13 @@
+98/05/28 ver. 0.97.7.1 unofficial pre-release
+	From Eric
+	- Fixed Ctrl-Alt-Fn for 'video {vga}' and raw keyboard.
+	  (wrong initialization order )
+	- Fix for strange EMS bug under X, changed 'xresize' made the
+          bug disappear, but even the gurus don't know why :-(
+	From Hans
+	- fixed bug in mhpdbg.c not setting ownership of debugger pipes
+	  ( running as user wasn't able to use dosdebug )
+	- added a script 'ViewDocs' for users, that don't know 'less' ;-)
 98/05/03 ver. 0.97.7 released
 	From Micheal (via Alistair;-)
 	- newest sound patches

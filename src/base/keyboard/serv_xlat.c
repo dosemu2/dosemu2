@@ -574,7 +574,7 @@ static Boolean handle_dosemu_keys(t_keysym key) {
        case KEY_F1 ... KEY_F10:
        case KEY_F11:
        case KEY_F12:
-             if (config.console) {
+             if (config.console_keyb) {
                 vc_num = (key>KEY_F10) ? (key-KEY_F11+11) : (key-KEY_F1+1);
                 k_printf("KBD: switching to console #%d\n",vc_num);
                 shiftstate &= ~(L_CTRL|R_CTRL|L_ALT|R_ALT);

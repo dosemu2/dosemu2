@@ -387,8 +387,8 @@ $_X_lfb = (on)  # use linear frame buffer in VESA modes
 $_X_pm_interface = (on) # use protected mode interface for VESA modes
 $_X_mgrab_key = ""      # KeySym name to activate mouse grab, empty == off
 $_X_vesamode = ""       # "xres,yres ... xres,yres"
-                        # List of vesamodes to add. The list has to
-                        # comma separated "xres,yres" pairs
+                        # List of vesamodes to add. The list has to contain
+                        # SPACE separated "xres,yres" pairs
 </verb></tscreen>
 
 

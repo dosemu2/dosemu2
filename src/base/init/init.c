@@ -517,6 +517,7 @@ void device_init(void)
   /* check whether we are running on the console */
   check_console();
 
+  scr_state_init();
   if (!keyb_server_init()) {
     error("can't init keyboard server\n");
     leavedos(19);
@@ -529,7 +530,6 @@ void device_init(void)
   if (!config.vga)
     config.allowvideoportaccess = 0;
  
-  scr_state_init();
   video_config_init();
   if (config.console && (config.speaker == SPKR_EMULATED)) {
     register_speaker((void *)console_fd,
