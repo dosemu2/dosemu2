@@ -108,18 +108,6 @@
     PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE)
 #define LDT_INIT_LIMIT 0xfff
 
-unsigned long RealModeContext;
-/*
- * With this stack nested PM programs like DJ200's make/compiler work fine
- * (maybe Borkland's protected mode make/compiler too).
- * For do_int31
- * 	0x0300:	Simulate Real Mode Interrupt
- * 	0x0301:	Call Real Mode Procedure With Far Return Frame
- * 	0x0302:	Call Real Mode Procedure With Iret Frame
- */
-unsigned long RealModeContext_Stack[DPMI_max_rec_rm_func];
-unsigned long RealModeContext_Running = 0;
-
 SEGDESC Segments[MAX_SELECTORS];
 
 #define CLI_BLACKLIST_LEN 128
@@ -1314,26 +1302,6 @@ static void rm_to_pm_regs(struct sigcontext_struct *scp, unsigned int mask)
     DPMI_CLIENT.stack_frame.ebp = REG(ebp);
 }
 
-static void save_rm_context(void)
-{
-  if (RealModeContext_Running >= DPMI_max_rec_rm_func) {
-    error("DPMI: RealModeContext_Running = 0x%lx\n",RealModeContext_Running);
-    leavedos(25);
-  }
-  RealModeContext_Stack[RealModeContext_Running++] = RealModeContext;
-}
-
-static void restore_rm_context(void)
-{
-  if (RealModeContext_Running > DPMI_max_rec_rm_func ||
-    RealModeContext_Running < 1) {
-    error("DPMI: RealModeContext_Running = 0x%lx\n",RealModeContext_Running);
-    leavedos(25);
-  }
-  RealModeContext = RealModeContext_Stack[--RealModeContext_Running];
-}
-
-
 static void save_rm_regs(void)
 {
   if (DPMI_rm_procedure_running >= DPMI_max_rec_rm_func) {
@@ -1742,10 +1710,9 @@ err:
   case 0x0301:	/* Call Real Mode Procedure With Far Return Frame */
   case 0x0302:	/* Call Real Mode Procedure With Iret Frame */
     save_rm_regs();
-    save_rm_context();
-    RealModeContext = GetSegmentBaseAddress(_es) + API_16_32(_edi);
     {
-      struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *) RealModeContext;
+      struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
+        (GetSegmentBaseAddress(_es) + API_16_32(_edi));
       us *ssp;
       unsigned char *rm_ssp;
       unsigned long rm_sp;
@@ -1755,7 +1722,7 @@ err:
       unsigned char *tmp_ssp;
 #endif
 
-      D_printf("DPMI: RealModeCallStructure at %#x\n",(int)RealModeContext);
+      D_printf("DPMI: RealModeCallStructure at %p\n", rmreg);
       ssp = (us *) SEL_ADR(_ss, _esp);
       REG(edi) = rmreg->edi;
       REG(esi) = rmreg->esi;
@@ -4103,12 +4070,12 @@ void dpmi_realmode_hlt(unsigned char * lina)
     in_dpmi_dos_int = 0;
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode))) {
-    struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *) RealModeContext;
+    struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *)
+      (GetSegmentBaseAddress(DPMI_CLIENT.stack_frame.es) +
+      APIx_16_32(&DPMI_CLIENT.stack_frame, edi));
 #ifdef X86_EMULATOR
     int tmp;
 #endif
-    restore_rm_context();
-
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
@@ -4139,7 +4106,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
     unsigned long length, base;
     unsigned short begin_selector, num_descs;
     int i;
-    
+
     D_printf("DPMI: Return from DOS memory service, CARRY=%d, AX=0x%04X, BX=0x%04x, DX=0x%04x\n",
 	     LWORD(eflags) & CF, LWORD(eax), LWORD(ebx), LWORD(edx));
 
