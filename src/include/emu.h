@@ -247,6 +247,7 @@ typedef struct vesamode_type_struct {
        int     realcpu;
        boolean mathco, smp, cpummx;
        boolean ipxsup;
+       long    ipx_net;
        int     vnet;
        char   *netdev;
        boolean pktdrv;

@@ -341,6 +341,7 @@ timer			RETURN(TIMER);
 hogthreshold		RETURN(HOGTHRESH);
 speaker			RETURN(SPEAKER);
 ipxsupport		RETURN(IPXSUPPORT);
+ipx_network		RETURN(IPXNETWORK);
 pktdriver		RETURN(PKTDRIVER);
 debug			RETURN(DEBUG);
 mouse			RETURN(MOUSE);

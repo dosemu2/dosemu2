@@ -672,7 +672,6 @@ EXTERN char *owner_tty_locks INIT("uucp");
 EXTERN char *tty_locks_dir_path INIT("/var/lock");
 EXTERN char *tty_locks_name_path INIT("LCK..");
 EXTERN char *dexe_load_path INIT(dosemuhdimage_default);
-EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI_IN);
 
@@ -685,7 +684,6 @@ EXTERN char *dosemu_midi_in_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MID
 #define    OWNER_LOCKS           owner_tty_locks
 #define    PATH_LOCKD            tty_locks_dir_path
 #define    NAME_LOCKF            tty_locks_name_path
-#define    IPX_DOS_INI_PATH      ipx_dos_ini_path
 #define    DOSEMU_MAP_PATH       dosemu_map_file_name
 #define    DOSEMU_MIDI_PATH      dosemu_midi_path
 #define    DOSEMU_MIDI_IN_PATH   dosemu_midi_in_path

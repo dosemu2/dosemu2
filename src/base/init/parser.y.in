@@ -221,7 +221,7 @@ static int is_in_allowed_classes(int mask);
 %token CHECKUSERVAR
 
 	/* main options */
-%token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
+%token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT IPXNETWORK NOVELLHACK
 %token NETDEV VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PM_DOS_API PORTS DISK DOSMEM PRINTER
@@ -574,6 +574,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    config.ipxsup = ($2!=0);
 		    c_printf("CONF: IPX support %s\n", ($2) ? "on" : "off");
 		    }
+		| IPXNETWORK int_bool	{ config.ipx_net = $2; }
 		| PKTDRIVER bool
 		    {
 		      if (config.vnet == VNET_TYPE_TAP || $2 == 0 || is_in_allowed_classes(CL_NET)) {

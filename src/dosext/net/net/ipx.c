@@ -73,15 +73,21 @@ static int GetMyAddress( void )
     n_printf("IPX: could not open socket in GetMyAddress: %s\n", strerror(errno));
     return(-1);
   }
-
-  /* bind this socket to network 0 */  
+#define DYNAMIC_PORT 1
+#if DYNAMIC_PORT
+  #define DEF_PORT 0
+#else
+  #define DEF_PORT 0x5000
+#endif
   ipxs.sipx_family=AF_IPX;
-  ipxs.sipx_network=0;
-  ipxs.sipx_port=0;
+  ipxs.sipx_network=htonl(config.ipx_net);
+  ipxs.sipx_port=htons(DEF_PORT);
   
+  /* bind this socket to network */  
   if(bind(sock,(struct sockaddr *)&ipxs,sizeof(ipxs))==-1)
   {
-    n_printf("IPX: could not bind to network 0 in GetMyAddress: %s\n", strerror(errno));
+    n_printf("IPX: could not bind to network %#lx in GetMyAddress: %s\n",
+      config.ipx_net, strerror(errno));
     close( sock );
     return(-1);
   }
@@ -102,110 +108,21 @@ static int GetMyAddress( void )
   n_printf("IPX: using node address of %02X%02X%02X%02X%02X%02X\n",
     MyAddress[4], MyAddress[5], MyAddress[6], MyAddress[7],
     MyAddress[8], MyAddress[9] );
+#if DYNAMIC_PORT
   close( sock );
+#endif
   return(0);
 }
   
 void
 InitIPXFarCallHelper(void)
 {
-#if 0
-  u_char *ptr;
-#endif
-  char value[40];
-  int addressTemp[6];
-  int numFields;
   int ccode;
 
   ccode = GetMyAddress();
   if( ccode ) {
-    n_printf("IPX: cannot initialize MyAddress\n");
-    n_printf("IPX: trying to read network and node address from DOS.INI\n");
-    
-    /* take some time here to read my address from the DOS.INI file */
-    GetValueFromIniFile(IPX_DOS_INI_PATH, "ipx", "network", value );
-    if( strlen( value )==0 ) {
-      n_printf("IPX: cannot read IPX network address from dos.ini file\n");
-      n_printf("IPX: please create an [IPX] section in your dos.ini file\n");
-      n_printf("IPX: and add the line NETWORK=xxxxxxxx, where xxxxxxxx\n");
-      n_printf("IPX: is your IPX network number.\n");
-    } else {
-      numFields = sscanf( value, "%2x%2x%2x%2x",
-        &addressTemp[0], &addressTemp[1], &addressTemp[2], &addressTemp[3] );
-      if( numFields != 4 ) {
-        n_printf("IPX: invalid IPX network address read from dos.ini\n");
-        n_printf("IPX: please create an [IPX] section in your dos.ini file\n");
-        n_printf("IPX: and add the line NODE=xxxxxxxxxxxx, where xxxxxxxxxxxx\n");
-        n_printf("IPX: is your IPX node number.\n");
-      } else {
-        MyAddress[0] = addressTemp[0];
-        MyAddress[1] = addressTemp[1];
-        MyAddress[2] = addressTemp[2];
-        MyAddress[3] = addressTemp[3];
-      }
-    }
-    
-    GetValueFromIniFile(IPX_DOS_INI_PATH, "ipx", "node", value );
-    if( strlen( value )==0 ) {
-      n_printf("IPX: cannot read IPX node address from dos.ini file\n");
-    } else {
-      numFields = sscanf( value, "%2x%2x%2x%2x%2x%2x",
-        &addressTemp[0], &addressTemp[1], &addressTemp[2], &addressTemp[3], 
-        &addressTemp[4], &addressTemp[5] );
-      if( numFields != 6 ) {
-        n_printf("IPX: invalid IPX node address read from dos.ini\n");
-      } else {
-        MyAddress[4] = addressTemp[0];
-        MyAddress[5] = addressTemp[1];
-        MyAddress[6] = addressTemp[2];
-        MyAddress[7] = addressTemp[3];
-        MyAddress[8] = addressTemp[4];
-        MyAddress[9] = addressTemp[5];
-      }
-    }
-  
-    n_printf("IPX: using network address %02X%02X%02X%02X\n",
-      MyAddress[0], MyAddress[1], MyAddress[2], MyAddress[3] );
-    n_printf("IPX: using node address of %02X%02X%02X%02X%02X%02X\n",
-      MyAddress[4], MyAddress[5], MyAddress[6], MyAddress[7],
-      MyAddress[8], MyAddress[9] );
+    error("IPX: cannot get IPX node address for network %#lX\n", config.ipx_net);
   }
-   
-#if 0
-  ptr = (u_char *) IPX_ADD;
-  *ptr++ = 0x50;		/* push ax - FarCallHandler removes this before returning */
-  *ptr++ = 0xb0;		/* mov al, 7a */
-  *ptr++ = 0x7a;
-  *ptr++ = 0xcd;		/* int DOS_HELPER_INT (0xe6) */
-  *ptr++ = DOS_HELPER_INT;
-  *ptr++ = 0xcb;		/* far ret */
-
-  ESRPopRegistersReturn.segment = ((int) ptr) >> 4;
-  ESRPopRegistersReturn.offset = ((int) ptr) & 0xf;
-  *ptr++ = 0x07;		/* pop es, ds, bp, di, si, dx, cx, bx, ax */
-  *ptr++ = 0x1f;
-  *ptr++ = 0x5d;
-  *ptr++ = 0x5f;
-  *ptr++ = 0x5e;
-  *ptr++ = 0x5a;
-  *ptr++ = 0x59;
-  *ptr++ = 0x5b;
-  *ptr++ = 0x58;
-  *ptr++ = 0xcb;		/* far return */
-
-  ESRPopRegistersIRet.segment = ((int) ptr) >> 4;
-  ESRPopRegistersIRet.offset = ((int) ptr) & 0xf;
-  *ptr++ = 0x07;		/* pop es, ds, bp, di, si, dx, cx, bx, ax */
-  *ptr++ = 0x1f;
-  *ptr++ = 0x5d;
-  *ptr++ = 0x5f;
-  *ptr++ = 0x5e;
-  *ptr++ = 0x5a;
-  *ptr++ = 0x59;
-  *ptr++ = 0x5b;
-  *ptr++ = 0x58;
-  *ptr++ = 0xcf;		/* iret */
-#else
   {
     long i = (long)bios_IPX_PopRegistersReturn - (long)bios_f000;
     i += BIOSSEG << 4;
@@ -220,7 +137,6 @@ InitIPXFarCallHelper(void)
     ESRFarCall.segment = i >> 4;
     ESRFarCall.offset = i & 0xf;
   }
-#endif
 }
 
 /*************************
