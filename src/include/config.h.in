@@ -43,14 +43,10 @@
 #define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 
-EXTERN char *config_file_path INIT("/etc/" DOSEMU_CONF);
 EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
 EXTERN char *config_script_path INIT(0);
 EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
 EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
-EXTERN char *dosemu_tmpfile_path INIT("~/" LOCALDIR_BASE_NAME "/run/dosemu.");
-EXTERN char *dosemu_tmpdir_path INIT("~/" LOCALDIR_BASE_NAME "/tmp");
-EXTERN char *dosemu_tmpdir_process_path INIT("~/" LOCALDIR_BASE_NAME "/tmp/<pid>");
 EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
 EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
 
@@ -65,12 +61,8 @@ EXTERN char *dexe_load_path INIT(DOSEMUHDIMAGE_DEFAULT);
 EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
-#define    CONFIG_FILE           config_file_path
 #define    DOSEMU_USERS_FILE     dosemu_users_file_path
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
-#define    TMPFILE               dosemu_tmpfile_path
-#define    TMPDIR                dosemu_tmpdir_path
-#define    TMPDIR_PROCESS        dosemu_tmpdir_process_path
 #define    RUNDIR                dosemu_rundir_path
 #define    LOCALDIR              dosemu_localdir_path
 #define    DOSEMU_LIB_DIR        dosemu_lib_dir_path
@@ -149,9 +141,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
 
-/* Define to 1 if you have the `slang' library (-lslang). */
-#undef HAVE_LIBSLANG
-
 /* Define to 1 if you have the `vga' library (-lvga). */
 #undef HAVE_LIBVGA
 
@@ -219,6 +208,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
+
+/* Define to 1 if you have the <termios.h> header file. */
+#undef HAVE_TERMIOS_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H

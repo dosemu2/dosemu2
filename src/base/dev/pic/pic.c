@@ -733,7 +733,6 @@ int do_irq(void)
      if (test_bit(ilevel, &pic_irqall)) {
        pic_push(ilevel);
        set_bit(ilevel, &pic_irqs_active);
-       pic_wcount = 0;
      }
 
      if (!in_dpmi || in_dpmi_dos_int) {
@@ -838,7 +837,8 @@ unsigned long pic_newirr, pic_last_ilevel;
         pic_wirr&=~pic_newirr;        /* clear watchdog timer */
 	pic_activate();
     }
-    pic_wcount = 0;
+    if (!pic_icount)
+      pic_wcount = 0;
 }
 
 /* DANG_BEGIN_FUNCTION pic_request
@@ -1031,9 +1031,8 @@ unsigned long pic_newirr;
       if(++pic_wcount >= config.pic_watchdog) {
         error("PIC: force reschedule\n");
         pic_resched();
+        pic_wcount = 0;
       }
-    } else {
-      pic_wcount = 0;
     }
   }
 }      

@@ -75,7 +75,7 @@ static inline void tx_buffer_dump(int num)
 /* This function updates the flow control status depending on buffer condition */
 static inline void flow_control_update(int num)
 {
-  static int control;
+  int control;
   if (com[num].rx_buf_bytes == 0) {			/* buffer empty? */
     control = TIOCM_RTS;
     ioctl(com[num].fd, TIOCMBIS, &control);		/* Raise RTS */
@@ -95,7 +95,7 @@ static inline void flow_control_update(int num)
  */
 static inline void rx_buffer_slide(int num)
 {
-  static int i;
+  int i;
   
   /* Move existing chars in receive buffer to the start of buffer */
   for(i = 0; i < com[num].rx_buf_bytes; i++)
@@ -117,7 +117,7 @@ static inline void rx_buffer_slide(int num)
  */
 void uart_fill(int num)
 {
-  static int size;
+  int size;
   
   /* Return if in loopback mode */
   if (com[num].MCR & UART_MCR_LOOP) return;
@@ -423,7 +423,7 @@ void ser_termios(int num)
  */
 static int get_rx(int num)
 {
-  static int val;
+  int val;
   com[num].rx_timeout = TIMEOUT_RX;		/* Reset timeout counter */
 
   /* If the Received-Data-Ready bit is clear then return a 0
@@ -564,7 +564,7 @@ get_msr(int num)
 static int
 get_lsr(int num)
 {
-  static int val;
+  int val;
 
   val = com[num].LSR;			/* Save old LSR value */
   com[num].int_condition &= ~LS_INTR;	/* RLSI int condition satisfied */
@@ -590,7 +590,7 @@ get_lsr(int num)
  */
 static void put_tx(int num, int val)
 {
-  static int rtrn;
+  int rtrn;
   
   /* Update the transmit timer */
   com[num].tx_timer += com[num].tx_char_time;
@@ -762,7 +762,10 @@ put_fcr(int num, int val)
 static void
 put_lcr(int num, int val)
 {
-  com[num].LCR = val;			/* Set new LCR value */
+  int changed = com[num].LCR ^ val;    /* bitmask of changed bits */
+  
+  com[num].LCR = val;                  /* Set new LCR value */
+  
   if (val & UART_LCR_DLAB) {		/* Is Baudrate Divisor Latch set? */
     s_printf("SER%d: LCR = 0x%x, DLAB high.\n", num, val);
     com[num].DLAB = 1;			/* Baudrate Divisor Latch flag */
@@ -778,6 +781,15 @@ put_lcr(int num, int val)
     com[num].DLAB = 0;			/* Baudrate Divisor Latch flag */
     ser_termios(num);			/* Sets new line settings */
   }
+
+  if (changed & UART_LCR_SBC) {
+    /* there is change of break state */
+    if (val & UART_LCR_SBC) {
+      tcdrain(com[num].fd);
+      ioctl(com[num].fd, TIOCSBRK, 0);
+    }
+    else ioctl(com[num].fd, TIOCCBRK, 0);
+  }
 }
 
 
@@ -787,9 +799,9 @@ put_lcr(int num, int val)
 static void
 put_mcr(int num, int val)
 {
-  static int newmsr, delta;
-  static int changed;
-  static int control;
+  int newmsr, delta;
+  int changed;
+  int control;
   changed = com[num].MCR ^ val;			/* Bitmask of changed bits */
   com[num].MCR = val & UART_MCR_VALID;		/* Set valid bits for MCR */
 
@@ -932,7 +944,7 @@ put_msr(int num, int val)
 int
 do_serial_in(int num, ioport_t address)
 {
-  static int val;
+  int val;
   switch (address - com[num].base_port) {
   case UART_RX:		/* Read from Received Byte Register */	
 /*case UART_DLL:*/      /* or Read from Baudrate Divisor Latch LSB */

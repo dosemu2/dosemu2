@@ -228,8 +228,8 @@ void dump_config_status(void *printfunc)
         config.timers);
     (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
-    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\n",
-        config.num_ser, config.num_lpt, config.fastfloppy);
+    (*print)("num_ser %d\nnum_lpt %d\nfastfloppy %d\nfull_file_locks %d\n",
+        config.num_ser, config.num_lpt, config.fastfloppy, config.full_file_locks);
     (*print)("emusys \"%s\"\nemuini \"%s\"\n",
         (config.emusys ? config.emusys : ""), (config.emuini ? config.emuini : ""));
     (*print)("dosbanner %d\nvbios_post %d\ndetach %d\n",
@@ -329,6 +329,9 @@ static void our_envs_init(char *usedoptions)
         }
         buf[j] = 0;
         setenv("DOSEMU_OPTIONS", buf, 1);
+        strcpy(buf, "0");
+        if (!usedoptions['X'] && is_console(0)) strcpy(buf, "1");
+        setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
         return;
     }
     uname(&unames);
@@ -343,9 +346,6 @@ static void our_envs_init(char *usedoptions)
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());
     setenv("DOSEMU_UID", buf, 1);
-    strcpy(buf, "0");
-    if (is_console(0)) strcpy(buf, "1");
-    setenv("DOSEMU_STDIN_IS_CONSOLE", buf, 1);
 }
 
 
@@ -492,14 +492,14 @@ static void config_pre_process(void)
 		/* speed division factor to get 838ns from CPU clock */
 		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
 
-		fprintf (stderr,"Linux kernel %d.%d.%d; CPU speed is %Ld Hz\n",
+		warn ("Linux kernel %d.%d.%d; CPU speed is %Ld Hz\n",
 		   kernel_version_code >> 16, (kernel_version_code >> 8) & 255,
 		   kernel_version_code & 255,chz);
 /*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
 			config.cpu_spd, config.cpu_tick_spd); */
 		config.CPUSpeedInMhz = di + (df>500000);
 #ifdef X86_EMULATOR
-		fprintf (stderr,"CPU-EMU speed is %d MHz\n",config.CPUSpeedInMhz);
+		warn ("CPU-EMU speed is %d MHz\n",config.CPUSpeedInMhz);
 #endif
 		break;
 	    }
@@ -532,8 +532,8 @@ static void config_pre_process(void)
       config.smp = 1;		/* for checking overrides, later */
     }
     close_proc_scan();
-    fprintf(stderr,"Dosemu-" VERSTR " Running on CPU=%d86, FPU=%d\n",
-            config.realcpu, config.mathco);
+    warn("Dosemu-" VERSTR " Running on CPU=%d86, FPU=%d\n",
+         config.realcpu, config.mathco);
 }
 
 static void config_post_process(void)
@@ -969,7 +969,7 @@ config_init(int argc, char **argv)
 
 	case 'E':
 	    g_printf("DOS command given on command line\n");
-	    misc_e6_store_command(optarg);
+	    misc_e6_store_command(optarg,0);
 	    break;
 
 	case '?':
@@ -980,6 +980,10 @@ config_init(int argc, char **argv)
 	    fflush(stderr);
 	    _exit(1);
 	}
+    }
+    if (optind < argc) {
+	g_printf("DOS command given on command line\n");
+	misc_e6_store_command(argv[optind],1);
     }
     config_post_process();
     config_scrub();
@@ -1061,7 +1065,6 @@ usage(char *basename)
 	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
 	"    (%%) require DOSEMU be run as root (i.e. suid)\n"
 	"    (#) options do not fully work yet\n\n"
-	"xdos [options]           == %s [options] -X\n"
-	"dosexec [options] <file> == %s [options] -L <file>\n"
-    ,basename, basename);
+	"xdosemu [options]        == %s [options] -X\n"
+    ,basename);
 }

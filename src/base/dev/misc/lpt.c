@@ -38,8 +38,8 @@ struct p_fops def_pfops =
 
 static struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, "lpr", "%s", 5, 0x378},
-  {NULL, "lpr", "%s", 5, 0x278},
+  {NULL, "lpr", "", 5, 0x378},
+  {NULL, "lpr", "", 5, 0x278},
   {NULL, NULL, NULL, 10, 0x3bc}
 };
 
@@ -89,10 +89,8 @@ printer_open(int prnum)
   um = umask(026);
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
-      lpt[prnum].dev = assemble_path(TMPDIR, "lptXXXXXX", 0);
-      lpt[prnum].file = fdopen(mkstemp(lpt[prnum].dev),"a+");
-      chmod(lpt[prnum].dev, 0600);
-      p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
+      lpt[prnum].file = tmpfile();
+      p_printf("LPT: opened tmpfile\n");
     }
     else {
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
@@ -101,7 +99,8 @@ printer_open(int prnum)
   umask(um);
 
   p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
-	   lpt[prnum].dev, (void *) lpt[prnum].file);
+	   lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>",
+           (void *) lpt[prnum].file);
   return 0;
 }
 
@@ -128,19 +127,17 @@ printer_close(int prnum)
 int
 printer_flush(int prnum)
 {
-  int returnstat;
-
-  p_printf("LPT: flushing printer %d, %s\n", prnum, lpt[prnum].dev);
+  p_printf("LPT: flushing printer %d\n", prnum);
 
   fflush(lpt[prnum].file);
 
   if (lpt[prnum].prtcmd) {
-    size_t cmdbuflen;
-    char *cmdbuf;
+    size_t cmdbuflen, bufsize;
+    FILE *pipe;
+    char *buf, *cmdbuf;
     
     cmdbuflen = strlen(lpt[prnum].prtcmd) + 1 +
-		strlen(lpt[prnum].prtopt) + 
-		strlen(lpt[prnum].dev) + 1;
+                strlen(lpt[prnum].prtopt) + 1;
 
     cmdbuf = malloc(cmdbuflen);
     if (!cmdbuf) {
@@ -150,18 +147,27 @@ printer_flush(int prnum)
 
     strcpy(cmdbuf, lpt[prnum].prtcmd);
     strcat(cmdbuf, " ");
-    sprintf(&cmdbuf[strlen(cmdbuf)], lpt[prnum].prtopt, lpt[prnum].dev);
+    strcat(cmdbuf, lpt[prnum].prtopt);
     p_printf("LPT: doing printer command ..%s..\n",
 	     cmdbuf);
 
-    returnstat = run_system_command(cmdbuf);
-    free(cmdbuf);
-
-    if ((returnstat == -1) || (WIFEXITED(returnstat) == 127))
+    pipe = popen(cmdbuf, "w");
+    if (pipe == NULL)
       error("system(\"%s\") in lpt.c failed, cannot print!\
   Command returned error %s\n", cmdbuf, strerror(errno));
 
-    truncate(lpt[prnum].dev, 0);
+    bufsize = ftell(lpt[prnum].file);
+    buf = malloc(bufsize);
+    if (!buf) {
+      fprintf(stderr, "out of memory, giving up\n");
+      longjmp(NotJEnv, 0x4d);
+    }
+    fseek(lpt[prnum].file, 0, SEEK_SET);
+    fread(buf, 1, bufsize, lpt[prnum].file);
+    fwrite(buf, 1, bufsize, pipe);
+    pclose(pipe);
+    free(buf);
+    fseek(lpt[prnum].file, 0, SEEK_SET);
   }
 
   /* mark not accessed */
@@ -202,7 +208,7 @@ printer_init(void)
   int i;
 
   for (i = 0; i < 3; i++) {
-    p_printf("LPT: initializing printer %s\n", lpt[i].dev);
+    p_printf("LPT: initializing printer %s\n", lpt[i].dev ? lpt[i].dev : "<<NODEV>>");
     lpt[i].file = NULL;
     lpt[i].remaining = -1;	/* mark not accessed yet */
     lpt[i].fops = def_pfops;

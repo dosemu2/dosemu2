@@ -271,6 +271,12 @@ install:
 	  $(INSTALL) $(DESTDIR)$(dosemudir)/freedos/config.sys freedos; \
 	  $(INSTALL) $(DESTDIR)$(dosemudir)/freedos/autoexec.bat freedos; \
 	  cd .. ; tar -cf- dosemu |gzip -9 >$(DESTDIR)$(dosemudir)/dosemu-freedos-bin.tgz; \
+	  if [ ! -d $(DESTDIR)$(syshdimagedir)/drives ]; then \
+	    $(INSTALL) -d $(DESTDIR)$(syshdimagedir)/drives; \
+	    ln -s $(DESTDIR)$(dosemudir)/freedos $(DESTDIR)$(syshdimagedir)/drives/c; \
+	  fi; \
+	  rmdir $(DESTDIR)$(syshdimagedir)/freedos/tmp; \
+	  ln -sf /tmp $(DESTDIR)$(syshdimagedir)/freedos/tmp; \
 	fi
 	if [ ! -d $(DESTDIR)$(sysconfdir) ]; then \
 	  $(INSTALL) -d $(DESTDIR)$(sysconfdir); \
@@ -323,8 +329,7 @@ ifdef X_SUPPORT
 	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.Z ] && \
 	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.gz ]; then \
 		echo "-> Main DOSEMU files installation done. Installing the X PC fonts..."; \
-		$(INSTALL) -m 0644 ../etc/vga.pcf $(DESTDIR)$(x11fontdir); \
-		gzip -9 $(DESTDIR)$(x11fontdir)/vga.pcf; \
+		bdftopcf ../etc/vga.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga.pcf.gz; \
 		bdftopcf ../etc/vga11x19.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz; \
 		bdftopcf ../etc/vga-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz; \
 		bdftopcf ../etc/vga10x20-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \

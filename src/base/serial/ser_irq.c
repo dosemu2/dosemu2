@@ -137,8 +137,8 @@ static void receive_engine(int num)	/* Internal 16550 Receive emulation */
  */
 static void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
-  static int rtrn;
-  static int control;
+  int rtrn;
+  int control;
 
   #if 0
     /* This is for transmit timer debugging in case it screws up
@@ -213,7 +213,7 @@ static void transmit_engine(int num) /* Internal 16550 Transmission emulation */
  */
 void modstat_engine(int num)		/* Internal Modem Status processing */ 
 {
-  static int control;
+  int control;
   int newmsr, delta;
 
   /* Return if in loopback mode */
@@ -387,7 +387,7 @@ static inline int check_and_update_uart_status(int num)
  */
 void serial_int_engine(int num, int int_requested)
 {
-  static u_char tmp;
+  u_char tmp;
   
   /* Safety code to avoid receive and transmit while DLAB is set high */
   if (com[num].DLAB) int_requested &= ~(RX_INTR | TX_INTR);
@@ -604,7 +604,7 @@ pic_serial_run(void)
 void
 serial_run(void)	
 {
-  static int i;
+  int i;
   static int flip = 0;
 
   /* I don't know why, but putting the following code here speeds up serial

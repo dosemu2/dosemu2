@@ -90,8 +90,9 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 static void cleanup_child(void)
 {
   int status;
-  wait(&status);
-  if (WIFSIGNALED(status))
+  if (portserver_pid &&
+      waitpid(portserver_pid, &status, WNOHANG) > 0 &&
+      WIFSIGNALED(status))
     leavedos(1);
 }
 

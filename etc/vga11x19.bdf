@@ -2,7 +2,7 @@ STARTFONT 2.1
 COMMENT This is vga11x19 font, adapted from -B&H-LucidaTypewriter-
 COMMENT Medium-R-Normal-Sans-18-180-75-75-M-110-ISO8859-1 and dosemu vga 
 COMMENT fonts by Pasi Eronen.
-FONT vga11x19
+FONT -dosemu-VGA-Medium-R-Normal--19-190-75-75-C-100-IBM-CP437
 SIZE 18 75 75
 FONTBOUNDINGBOX 11 19 0 -3
 STARTPROPERTIES 4

@@ -600,17 +600,6 @@ leavedos(int sig)
 
     flush_log();
 
-    /* remove per process tmpdir and its contents */
-    priv_drop(); /* drop any priviledges before running system() !! */
-    /* first try rmdir; if the directory is not empty, try system */
-    if (rmdir(TMPDIR_PROCESS) != 0) {
-       char *command = strcatdup("/bin/rm -rf >/dev/null 2>&1 ", TMPDIR_PROCESS);
-       if (command == NULL || system(command) != 0) {
-          g_printf("Failed to remove %s, you'll have to clean it up yourself.\n", 
-         TMPDIR_PROCESS);
-       }
-    }
-
     _exit(sig);
 }
 

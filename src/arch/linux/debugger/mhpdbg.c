@@ -17,6 +17,7 @@
  *   08Jan98 Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
+#include "config.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -28,7 +29,6 @@
 #include <fcntl.h>
 
 #include "bitops.h"
-#include "config.h"
 #include "emu.h"
 #include "cpu.h"
 #include "bios.h"
@@ -100,7 +100,7 @@ void mhp_send(void)
    }
 }
 
-static  char pipename_in[128], pipename_out[128];
+static  char *pipename_in, *pipename_out;
 
 void mhp_close(void)
 {
@@ -110,7 +110,9 @@ void mhp_close(void)
      mhp_send();
    }
    unlink(pipename_in);
+   free(pipename_in);
    unlink(pipename_out);   
+   free(pipename_out);
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
    vm86s.vm86plus.vm86dbg_active = 0;
@@ -145,10 +147,10 @@ static void mhp_init(void)
   vm86s.vm86plus.vm86dbg_TFpendig = 0;
   memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
 
-  sprintf(pipename_in, "%sdbgin.%d", TMPFILE, getpid());
+  asprintf(&pipename_in, "%s/dosemu.dbgin.%d", RUNDIR, getpid());
   retval = mkfifo(pipename_in, S_IFIFO | 0600);
   if (!retval) {
-    sprintf(pipename_out, "%sdbgout.%d", TMPFILE, getpid());
+    asprintf(&pipename_out, "%s/dosemu.dbgout.%d", RUNDIR, getpid());
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
     if (!retval) {
       mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
@@ -170,7 +172,9 @@ static void mhp_init(void)
   }
   if (mhpdbg.fdin == -1) {
     unlink(pipename_in);
+    free(pipename_in);
     unlink(pipename_out);
+    free(pipename_out);
   }
   else {
     if (dosdebug_flags) {

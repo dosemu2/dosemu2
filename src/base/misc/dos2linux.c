@@ -65,7 +65,7 @@
 
 #define MAX_DOS_COMMAND_LEN  256
 
-char misc_dos_command[MAX_DOS_COMMAND_LEN + 1];
+static char *misc_dos_command = NULL;
 
 int misc_e6_envvar (char *str)
 {
@@ -107,8 +107,10 @@ int misc_e6_commandline (char *str)
 
     return 1;
   } else {
-    strcpy (str, misc_dos_command);
+    size_t len = strlen(misc_dos_command);      
 
+    /* also store info about whether or not to terminate */
+    memcpy (str, misc_dos_command, len + 2);
     g_printf ("%s\n", str);
 
     return 0;
@@ -118,9 +120,17 @@ int misc_e6_commandline (char *str)
 }
 
 
-void misc_e6_store_command (char *str)
+void misc_e6_store_command (char *str, int terminate)
 {
-  strcpy (misc_dos_command, str);
+  size_t len = strlen(str) + 2;
+  if (len > MAX_DOS_COMMAND_LEN) {
+    error("DOS command line too long, exiting");
+    leavedos(1);
+  }
+  misc_dos_command = malloc(len);
+  strcpy(misc_dos_command, str);
+  /* store info about whether or not to terminate */
+  misc_dos_command[len-1] = terminate ? '\0' : '\1';
 
   g_printf ("Storing Command : %s\n", misc_dos_command);
 }

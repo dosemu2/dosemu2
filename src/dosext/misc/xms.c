@@ -534,7 +534,7 @@ xms_control(void)
 
   case 0xe:			/* Get EMB Handle Information */
     bl = xms_EMB_info(OLDXMS);
-    return;
+    break;
 
   case 0xf:			/* Reallocate Extended Memory Block */
     bl = xms_realloc_EMB(OLDXMS);

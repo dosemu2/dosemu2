@@ -153,6 +153,7 @@ TODO:
 
 /* Modified by O.V.Zhirov at July 1998    */
 
+#include "config.h"
 
 #if defined(__linux__)
 #define DOSEMU 1		/* this is a port to dosemu */
@@ -197,7 +198,6 @@ TODO:
 #include <signal.h>
 #include <string.h>
 #include "mfs.h"
-#include "config.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
 #include "redirect.h"
@@ -678,7 +678,10 @@ get_unix_path(char *new_path, char *path)
 	str[i++] = '\\';
 	break;
       case 'T':		/* the name of the temporary directory */
-	strncpy(&str[i], TMPDIR_PROCESS, MAXPATHLEN - 2 - i);
+	tmp_str = getenv("TMPDIR");
+	if (!tmp_str) tmp_str = getenv("TMP");
+	if (!tmp_str) tmp_str = "/tmp";
+	strncpy(&str[i], tmp_str, MAXPATHLEN - 2 - i);
 	str[MAXPATHLEN - 2] = 0;
 	i = strlen(str);
 	break;
@@ -2570,6 +2573,38 @@ CancelRedirection(state_t * state)
   return (TRUE);
 }
 
+static int lock_file_region(int fd, int cmd, struct flock *fl, long long start, unsigned long len)
+{
+  fl->l_whence = SEEK_SET;
+  fl->l_pid = 0;
+  /* first handle magic file lock value */
+  if (start == 0x100000000LL && config.full_file_locks) {
+    start = len = 0;
+  }
+#ifdef F_GETLK64
+  if (cmd == F_SETLK64 || cmd == F_GETLK64) {
+    struct flock64 fl64;
+    int result;
+    Debug0((dbg_fd, "Large file locking start=%llx, len=%lx\n", start, len));
+    fl64.l_type = fl->l_type;
+    fl64.l_whence = fl->l_whence;
+    fl64.l_pid = fl->l_pid;
+    fl64.l_start = start;
+    fl64.l_len = len;
+    result = fcntl( fd, cmd, &fl64 );
+    fl->l_type = fl64.l_type;
+    fl->l_start = (long) fl64.l_start;
+    fl->l_len = (long) fl64.l_len;
+    return result;
+  }
+#endif
+  if (start == 0x100000000LL)
+    start = 0x7fffffff;
+  fl->l_start = start;
+  fl->l_len = len;
+  return fcntl( fd, cmd, fl );
+}
+
 static boolean_t
 share(int fd, int mode, sft_t sft)
 {
@@ -2595,15 +2630,17 @@ share(int fd, int mode, sft_t sft)
    * and 0x7fffffff is my start position.  --Maxim Ruchko
    */
   struct flock fl;
+  int ret;
   int share_mode = ( sft_open_mode( sft ) >> 4 ) & 0x7;
-  fl.l_whence = SEEK_SET;
-  fl.l_start  = 0x7fffffff;
-  fl.l_len = 1;
-  fl.l_pid = 0;
   fl.l_type = F_WRLCK;
   /* see whatever locks are possible */
-  
-  if ( fcntl( fd, F_GETLK, &fl ) ) {
+
+#ifdef F_GETLK64
+  ret = lock_file_region( fd, F_GETLK64, &fl, 0x100000000LL, 1 );
+  if ( ret == -1 && errno == EINVAL )
+#endif
+    ret = lock_file_region( fd, F_GETLK, &fl, 0x100000000LL, 1 );
+  if ( ret == -1 ) {
   /* work around Linux's NFS locking problems (June 1999) -- sw */
     static unsigned char u[26] = { 0, };
     if(current_drive < 26) {
@@ -2713,12 +2750,11 @@ Values of DOS 2-6.22 file sharing behavior:
     return FALSE;
     break;
   }
-  fl.l_whence = SEEK_SET;
-  fl.l_start  = 0x7fffffff;
-  fl.l_len = 1;
-  fl.l_pid = 0;
-  fcntl( fd, F_SETLK, &fl );
-
+#ifdef F_SETLK64
+  ret = lock_file_region( fd, F_SETLK64, &fl, 0x100000000LL, 1 );
+  if ( ret == -1 && errno == EINVAL )
+#endif
+    lock_file_region( fd, F_SETLK, &fl, 0x100000000LL, 1 );
   Debug0((dbg_fd,
     "internal SHARE: locking: drive %c:, fd %d, type %d whence %d pid %d\n",
      current_drive + 'A', fd, fl.l_type, fl.l_whence, fl.l_pid
@@ -3852,7 +3888,7 @@ dos_fs_redirect(state_t *state)
 		int fd = open_files[sft_fd(sft)].fd;
 		int ret;
 		struct LOCKREC{
-			long offset,size;
+			unsigned long offset,size;
 		} *pt = (struct LOCKREC*) Addr (state,ds,edx);
 		struct flock larg;
 		unsigned long mask = 0xC0000000;
@@ -3861,6 +3897,14 @@ dos_fs_redirect(state_t *state)
                   SETWORD(&(state->eax), ACCESS_DENIED);
                   return (FALSE);
                 }
+
+		Debug0((dbg_fd, "lock requested, fd=%d, is_lock=%d, start=%lx, len=%lx\n",
+			fd, is_lock, pt->offset, pt->size));
+
+		if (pt->offset + pt->size < pt->offset) {
+			SETWORD(&(state->eax), ACCESS_DENIED);
+			return FALSE;
+		}
 
 #if 1   /* The kernel can't place F_WRLCK on files opened read-only and
          * FoxPro fails. IMHO the right solution is:         --Maxim Ruchko */
@@ -3874,10 +3918,8 @@ dos_fs_redirect(state_t *state)
 #else
 		larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
 #endif
-		larg.l_whence = SEEK_SET;
 		larg.l_start = pt->offset;
 		larg.l_len = pt->size;
-		larg.l_pid = 0;
 
 		/*
 			This is a superdooper patch extract from the Samba project
@@ -3902,7 +3944,11 @@ dos_fs_redirect(state_t *state)
 		if ((larg.l_start & mask) != 0)
 			larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
 
-		ret = fcntl (fd,F_SETLK,&larg);
+#ifdef F_SETLK64
+		ret = lock_file_region (fd,F_SETLK64,&larg,pt->offset,pt->size);
+		if (ret == -1 && errno == EINVAL)
+#endif
+			ret = lock_file_region (fd,F_SETLK,&larg,larg.l_start,larg.l_len);
 		Debug0((dbg_fd, "lock fd=%x rc=%x type=%x whence=%x start=%lx, len=%lx\n",
 			fd, ret, larg.l_type, larg.l_whence, larg.l_start,larg.l_len));
 		if (ret != -1) return TRUE; /* no error */

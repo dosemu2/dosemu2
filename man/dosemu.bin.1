@@ -75,6 +75,10 @@ dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .B \-U
 .I inpipe[:outpipe]
 ]
+[
+.B [\-E]
+.I dos-command
+]
 .sp
 .B dosdebug
 .SH DESCRIPTION
@@ -136,6 +140,11 @@ is suid root)
 .I -d
 detach from current virtual console or tty and attach to the first free
 virtual console
+.TP
+.I [-E] dos-command
+Run DOS command when starting DOSEMU, and, if '-E' is not given, exit
+DOSEMU after running the command. Note: this only works if your 
+autoexec.bat contains a "unix -e" command.
 .TP
 .I -V
 use VGA specific video optimizations

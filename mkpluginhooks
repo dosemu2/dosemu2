@@ -28,8 +28,10 @@ function gendummy {
 function restore_enable {
   if [ "$PDIRS" != " " ]; then
     for d in $PDIRS; do
-      if [ -f $DIR/$d/$CONF/${PREF}enable -a "`cat $DIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
-        echo "yes" >$DIR/$d/$CONF/${PREF}enable
+      if [ -f $DIR/$d/$CONF/${PREF}enable ]; then
+        if [ "`cat $DIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
+          echo "yes" >$DIR/$d/$CONF/${PREF}enable
+        fi
       fi
     done
   fi
@@ -57,6 +59,7 @@ if [ "$1" = "" -o "$1" = "clean" ]; then
 fi
 
 if [ "$1" = "clean" ]; then
+  rm -f src/plugin/*/config/plugin_enable
   exit 0
 fi
 
@@ -76,16 +79,20 @@ if [ "$PDIRS" != " " ]; then
   # Check for plugins which override default ones.
   # Overriding plugins will disable the clashing plugin
   if [ "$1" = "" ]; then for d in $PDIRS; do
-    if [ -f $DIR/$d/$CONF/${PREF}enable -a "`cat $DIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
+    if [ -f $DIR/$d/$CONF/${PREF}enable ]; then
+     if [ "`cat $DIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
       if [ -f $DIR/$d/$CONF/${PREF}override ]; then
         for oplugin in `cat $DIR/$d/$CONF/${PREF}override`; do
           if [ "$oplugin" != "" -a -d $DIR/$oplugin ]; then
-            if [ -f $DIR/$oplugin/$CONF/${PREF}enable -a "`cat $DIR/$oplugin/$CONF/${PREF}enable`" = "yes" ]; then
-              echo "replaced" >$DIR/$oplugin/$CONF/${PREF}enable
+            if [ -f $DIR/$oplugin/$CONF/${PREF}enable ]; then
+              if [ "`cat $DIR/$oplugin/$CONF/${PREF}enable`" = "yes" ]; then
+                echo "replaced" >$DIR/$oplugin/$CONF/${PREF}enable
+              fi
             fi
           fi
         done
       fi
+     fi
     fi
   done fi
 

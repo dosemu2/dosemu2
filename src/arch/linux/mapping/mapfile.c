@@ -11,6 +11,7 @@
 
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -26,6 +27,7 @@
 #include "emu.h"
 #include "mapping.h"
 #include "pagemalloc.h"
+#include "utilities.h"
 
 #undef mmap
 #define mmap libless_mmap
@@ -36,7 +38,6 @@
 
 static int mpool_numpages = (32 * 1024) / 4;
 static char *mpool = 0;
-static char tmp_mapfile_name[256];
 
 static int tmpfile_fd = -1;
 
@@ -64,7 +65,6 @@ static void discardtempfile(void)
 {
   close(tmpfile_fd);
   tmpfile_fd = -1;
-  unlink(tmp_mapfile_name);
 }
 
 static int open_mapping_file(int cap)
@@ -74,6 +74,7 @@ static int open_mapping_file(int cap)
 
   if (tmpfile_fd == -1) {
     int mapsize, estsize, padsize = 4*1024;
+    char *tmp_mapfile_name;
 
     /* first estimate the needed size of the mapfile */
     mapsize  = 2*16;		/* HMA */
@@ -87,30 +88,7 @@ static int open_mapping_file(int cap)
     mpool_numpages = mapsize / 4;
     mapsize = mpool_numpages * PAGE_SIZE; /* make sure we are page aligned */
 
-    snprintf(tmp_mapfile_name, 256, "%smapfile.%d", TMPFILE, getpid());
-    tmpfile_fd = open(tmp_mapfile_name, O_RDWR | O_CREAT, S_IRWXU);
-    if (tmpfile_fd == -1) {
-      error("MAPPING: cannot open mapfile %s\n", tmp_mapfile_name);
-      if (!cap)return 0;
-      leavedos(2);
-    }
-    if (under_root_login) {
-      /* We need to check wether we really created a file under root
-       * ownership, else we have a security hole.
-       * If $HOME is NFS mounted without root_squash, we can't put
-       * the mapfile here under this conditions.
-       */
-       struct stat s;
-       int ret;
-       ret = fchown(tmpfile_fd, 0, 0);	/* force root.root ownership */
-       if (!ret) ret = fstat(tmpfile_fd, &s);
-       if (ret || s.st_uid || s.st_gid) {
-         error("MAPPING: cannot open mapfile %s with root rights\n", tmp_mapfile_name);
-         discardtempfile();
-         if (!cap)return 0;
-         leavedos(2);
-       }
-    }
+    tmpfile_fd = fileno(tmpfile());
     ftruncate(tmpfile_fd, 0);
     if (ftruncate(tmpfile_fd, mapsize) == -1) {
       error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));

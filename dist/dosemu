@@ -20,14 +20,6 @@ USAGE:
   exit 1
 }
 
-create_dosemurc() {
-    echo "
-#This is .dosemurc, the user-specific DOSEMU configuration file.
-#See $SYSTEM_CONF_PATH/dosemu.conf for examples of other options.
-\$_hdimage = \"$BOOTDIR\"  
-" > $HOME/.dosemurc
-}
-
 install_from_template () {
 # $1 = path to install to
   (cd $1
@@ -38,20 +30,11 @@ install_from_template () {
   else
     BOOTDIR="$PROPRIETARY"
   fi
-  if [ -f $HOME/.dosemurc ]; then
-    echo "
-  Adjusting local configuration in $HOME/.dosemurc ...
+  echo "
+  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
 "
-    cat $HOME/.dosemurc | \
-      sed -e "s#[[:space:]\#]*\(\$_hdimage[[:space:]]*=[[:space:]]*\"\).*\([[:space:]\#]\)#\1$BOOTDIR\"\2#" \
-	  > $HOME/.dosemu/.dosemurc
-    mv $HOME/.dosemu/.dosemurc $HOME/.dosemurc
-  else
-    echo "
-  Storing local configuration into $HOME/.dosemurc ...
-"
-    create_dosemurc
-  fi
+  mkdir -p $HOME/.dosemu/drives
+  ln -s $BOOTDIR $HOME/.dosemu/drives/c
   if [ -z "$PROPRIETARY" ]; then
     (cd $1
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
@@ -83,7 +66,7 @@ install_from_template () {
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO INSTALL
+unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO INSTALL INPUT
 
 SUFFIX=""
 while [ $# -gt 0 ] ; do
@@ -95,7 +78,7 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -home)
-      LREDIRHOME=1
+      #doing -home) by default now; leave it here for compatibility
       shift
       ;;
     -install)
@@ -111,9 +94,11 @@ while [ $# -gt 0 ] ; do
       shift
       ;;
     -input)
-      if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
-      STRING_I="$STRING_I keystroke "'"'"$2"'"'
-      shift
+      INPUT=1
+      if [ -n "$2" -a "${2:0:1}" != "-" ]; then
+        STRING_I="$STRING_I keystroke "'"'"$2"'"'
+        shift
+      fi
       shift
       ;;   
     -I)
@@ -134,6 +119,9 @@ while [ $# -gt 0 ] ; do
   esac
 done
 
+if [ -z "$INPUT" ]; then
+  STRING_I="$STRING_I keystroke "'"'"\r"'"'
+fi
 
 #echo "$PROPRIETARY $LREDIRHOME $DUMBTERM $*"; exit
 
@@ -149,7 +137,9 @@ w4l_check () {
 BPATH_FILE=~/.dosemu/bindist_path
 
 # check whether this user has already got his private installation
-if [ -n "$INSTALL" -o ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dosemu/disclaimer ]; then
+if [ -n "$INSTALL" -o \
+    ! -e $HOME/.dosemu/drives/c -a \( -f $BPATH_FILE -o -f $HOME/.dosemurc \) -o \
+    ! -f $HOME/.dosemu/disclaimer ]; then
 
   # This either is the first time this user calls 'dosemu'
   # or the user cd'ed here and we forced a 'take over'
@@ -172,18 +162,11 @@ if [ -n "$INSTALL" -o ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dose
     fi
     BOOT_DIR_PATH=$THISDIR
     echo "
-  Storing local configuration into ~/.dosemurc ...
+  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
 "
-    if [ -f $HOME/.dosemurc ]; then
-      SUBSTFILE=$HOME/.dosemurc
-    else
-      SUBSTFILE=$BOOT_DIR_PATH/conf/dosemurc.example
-    fi
-    cat $SUBSTFILE | \
-       sed -e "s#[[:space:]\#]*\(\$_hdimage[[:space:]]*=[[:space:]]*\"\).*\([[:space:]\#]\)#\1$BOOT_DIR_PATH/freedos\"\2#" \
-	  > $HOME/.dosemu/.dosemurc
-    mv $HOME/.dosemu/.dosemurc $HOME/.dosemurc
-    echo $BOOT_DIR_PATH > $BPATH_FILE
+    rm -f $BPATH_FILE
+    mkdir -p $HOME/.dosemu/drives
+    ln -s $BOOT_DIR_PATH/freedos $HOME/.dosemu/drives/c
 
   else
 
@@ -201,13 +184,15 @@ if [ -n "$INSTALL" -o ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dose
     if [ -f $BPATH_FILE ]; then
       BOOT_DIR_PATH=`cat $BPATH_FILE`
       echo "
-  Upgrading an existing dosemu configuration: your local configuration is now
-  in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
+  Upgrading an existing dosemu configuration: your local configuration can now
+  be stored in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
   and the boot.log file is in $HOME/.dosemu.
-  Please adapt ~/.dosemurc to your situation; the old settings are not kept.
+  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c.
       "
       BOOTDIR=$BOOT_DIR_PATH/freedos
-      create_dosemurc
+      mkdir -p $HOME/.dosemu/drives
+      ln -s $BOOTDIR $HOME/.dosemu/drives/c
+      rm -f $BPATH_FILE
     else
       # We copy the binaries from the directory SYSTEM_INSTALL_PATH
       # to the users $HOME.
@@ -261,7 +246,7 @@ if [ "`basename $ARG0`" = "xdosemu" ]; then
 fi
 
 if [ -z "$IS_SYSTEM_WIDE" ]; then
-  BOOT_DIR_PATH=`cat $BPATH_FILE`
+  BOOT_DIR_PATH=`readlink $HOME/.dosemu/drives/c`/..
 fi
 
 if [ -n "$XFLAG" ]; then
@@ -320,51 +305,45 @@ if [ -n "$XFLAG" ]; then
 "
   fi
   w4l_check
-  if [ -z "$QUIET" ]; then
+  if [ -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-xdosemu ]; then
     echo "
    DOSEMU will run in its own X window.
    To terminate it you have three choices:
    - type <Ctrl>-C _here_ (not in the dosemu window)
    - type <Ctrl><Alt><PgDn> in the dosemu window
    - execute 'exitemu' at the DOS prompt"
-    if [ -n "$LREDIRHOME" ]; then
-      echo "   Redirecting \$HOME to DOS drive D:"
-    else
-      echo
-      echo "   Hint: if you want \$HOME as DOS drive D:, then use the '-home' option"
-    fi
+    touch ~/.dosemu/stamp-xdosemu
   fi
 else
-  if [ -z "$QUIET" ]; then
+  if [ -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
     echo "
    DOSEMU will run on _this_ terminal.
    To exit you need to execute 'exitemu' from within DOS,
    because <Ctrl>-C and 'exit' won't work!"
-    if [ "$TERM" = "xterm" ]; then
+  fi
+  if test -z "$LINES" -o -z "$COLUMNS" ; then
+    eval `stty size 2>/dev/null | (read L C; \
+          echo LINES=${L:-24} COLUMNS=${C:-80})`
+  fi
+  test $LINES   -eq 0 && LINES=24
+  test $COLUMNS -eq 0 && COLUMNS=80
+  if [ $LINES -lt 25 ]; then
       echo "
-   Note, that DOS needs 25 lines and xterm per default has only 24,
-   so you might want to enlarge it before continuing.
+   Note that DOS needs 25 lines. You might want to enlarge your
+   window before continuing.
 "
-    fi
   fi
   w4l_check
-  if [ -z "$QUIET" ]; then
-    if [ -n "$LREDIRHOME" ]; then
-      echo "   Redirecting \$HOME to DOS drive D:"
-    else
-      echo
-      echo "   Hint: if you want \$HOME as DOS drive D:, use '-home' option"
-    fi
+  if [ $LINES -lt 25 -o -z "$QUIET" -a ! -f $HOME/.dosemu/stamp-dosemu ]; then
     echo
     echo "   Now type ENTER to start DOSEMU or <Ctrl>C to cancel\n"
     read dummy
+    touch ~/.dosemu/stamp-dosemu
   fi
 fi
 
-if [ -n "$LREDIRHOME" ]; then
-  DOSDRIVE_D="$HOME"
-  export DOSDRIVE_D
-fi
+DOSDRIVE_D="$HOME"
+export DOSDRIVE_D
 
 if [ $UID = 0 -a -f $HOME/.dosemurc ]; then
   # User is logged in as root. Need to check whether the config files

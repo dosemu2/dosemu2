@@ -6,7 +6,6 @@
  * You may distribute under the terms of either the GNU General Public
  * License or the Perl Artistic License.
  */
-#define _GNU_SOURCE
 #include "slinclud.h"
 
 #include <ctype.h>

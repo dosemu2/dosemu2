@@ -44,7 +44,7 @@ AC_HEADER_MAJOR
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
-AC_CHECK_HEADERS(fcntl.h limits.h syslog.h sys/file.h sys/ioctl.h sys/time.h unistd.h)
+AC_CHECK_HEADERS(fcntl.h limits.h syslog.h sys/file.h sys/ioctl.h sys/time.h unistd.h termios.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -157,7 +157,6 @@ dnl Do ELF if possible
 dnl Check for static and then also use it for tests
 
 LDFLAGS="-Wl,-warn-common"
-LIBS=-lm
 
 AC_ARG_ENABLE(linkstatic,
               [  --enable-linkstatic     make statically linked binaries],
@@ -231,9 +230,14 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
   fi
   dnl --- now that we've found it, check the link
   AC_MSG_RESULT($SLANGINC $SLANGLIB)
-  AC_CHECK_LIB(slang, SLtt_get_terminfo, ,
-                [AC_MSG_ERROR(unable to compile.  install slang-devel or check config.log)])
-  LDFLAGS="$LDFLAGS $SLANGLIB"
+  AC_CHECK_LIB(slang, SLsmg_write_nwchars, 
+    [AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang.])]
+    ./mkpluginhooks enable slang yes,
+   AC_CHECK_LIB(slang, SLtt_get_terminfo, 
+                LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB",
+                [AC_MSG_WARN([No S-Lang library found. Using supplied S-Lang.])]
+		./mkpluginhooks enable slang yes,
+   -lm -ldl), -lm -ldl)
 )
 
 AC_PATH_XTRA
@@ -418,7 +422,7 @@ AC_SUBST(INCDIR)
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs -Wpointer-arith"
 if test "$dodebug" = "yes"; then
-  CFLAGS="$CFLAGS -g"
+  CFLAGS="$CFLAGS -gstabs+"
   AC_DEFINE(_DEBUG)
   OPT="-O"
 else
@@ -612,14 +616,10 @@ AH_TOP([
 #define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 
-EXTERN char *config_file_path INIT("/etc/" DOSEMU_CONF);
 EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
 EXTERN char *config_script_path INIT(0);
 EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
 EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
-EXTERN char *dosemu_tmpfile_path INIT("~/" LOCALDIR_BASE_NAME "/run/dosemu.");
-EXTERN char *dosemu_tmpdir_path INIT("~/" LOCALDIR_BASE_NAME "/tmp");
-EXTERN char *dosemu_tmpdir_process_path INIT("~/" LOCALDIR_BASE_NAME "/tmp/<pid>");
 EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
 EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
 
@@ -634,12 +634,8 @@ EXTERN char *dexe_load_path INIT(DOSEMUHDIMAGE_DEFAULT);
 EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
-#define    CONFIG_FILE           config_file_path
 #define    DOSEMU_USERS_FILE     dosemu_users_file_path
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
-#define    TMPFILE               dosemu_tmpfile_path
-#define    TMPDIR                dosemu_tmpdir_path
-#define    TMPDIR_PROCESS        dosemu_tmpdir_process_path
 #define    RUNDIR                dosemu_rundir_path
 #define    LOCALDIR              dosemu_localdir_path
 #define    DOSEMU_LIB_DIR        dosemu_lib_dir_path

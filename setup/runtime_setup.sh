@@ -54,7 +54,7 @@ select_configuration_file() {
   $DIALOG --backtitle "DOSEMU Run-Time Configuration" \
     --title "Select Configuration File" \
     --menu "Choose the Configuration File to read" 8 60 2 $CURRENT \
-      1 "System Wide (/etc/dosemu.conf)" \
+      1 "System Wide (/etc/dosemu/dosemu.conf)" \
       2 "Personal (~/.dosrc)" 2> $TEMP
   
   RETVAL=$?
@@ -63,7 +63,7 @@ select_configuration_file() {
     RESULT=`cat $TEMP`
     if [ $RESULT -eq 1 ]
     then
-      CONF_FILE=/etc/dosemu.conf
+      CONF_FILE=/etc/dosemu/dosemu.conf
       TYPE=system
     else
       CONF_FILE=~/.dosrc
@@ -75,11 +75,11 @@ select_configuration_file() {
 }
 
 get_defaults() {
-  if [ ! -e /etc/dosemu.conf ]
+  if [ ! -e /etc/dosemu/dosemu.conf ]
   then
     SYSTEM_FILE=../etc/config.dist
   else
-    SYSTEM_FILE=/etc/dosemu.conf
+    SYSTEM_FILE=/etc/dosemu/dosemu.conf
   fi
 
   $DIALOG --backtitle "DOSEMU Run-Time Configuration" \
@@ -629,8 +629,8 @@ write_out() {
   fi
 
   if [ ! -e $CONF_FILE ]; then
-    if [ "$CONF_FILE" = "/etc/dosemu.conf" ]; then
-      cp ../etc/config.dist /etc/dosemu.conf
+    if [ "$CONF_FILE" = "/etc/dosemu/dosemu.conf" ]; then
+      cp ../etc/config.dist /etc/dosemu/dosemu.conf
     else
       echo > $CONF_FILE
     fi

@@ -316,6 +316,7 @@ typedef struct vesamode_type_struct {
        unsigned char *pre_stroke_mem;
 
        /* Lock File business */
+       boolean full_file_locks;
        char *tty_lockdir;	/* The Lock directory  */
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */

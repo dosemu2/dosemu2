@@ -361,6 +361,7 @@ bootfile		RETURN(BOOTFILE);
 printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
 emuini                  RETURN(EMUINI);
+full_file_locks		RETURN(FULL_FILE_LOCKS);
 ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
 joystick_emu		RETURN(L_JOYSTICK);

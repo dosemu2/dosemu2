@@ -13,8 +13,10 @@ config {
   plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on
-  plugin_slang on
+  plugin_slang off
   plugin_translate on
+  plugin_coopthreads on
+  plugin_commands on
   plugin_demo off
   target_cpu auto
   prefix /usr/local

@@ -78,7 +78,8 @@ static int usage (void)
   printf ("Usage: UNIX [FLAG COMMAND]\n");
   printf ("Run Linux commands from DOSEMU\n\n");
   printf ("UNIX -e [ENVVAR]\n");
-  printf ("  Execute the command given in the Linux environment variable \"ENVVAR\".\n");
+  printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\"\n");
+  printf ("  and then exit DOSEMU.\n");
   printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
   printf ("UNIX -s ENVVAR\n");
   printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
@@ -139,13 +140,7 @@ static int do_execute_dos (int argc, char **argv)
   intr(DOS_HELPER_INT, &preg);
 
   if (! preg.r_ax) {
-    /* SUCCESFUL */
-
-    if (!data[0])
-    	/* empty string, assume we had to exec -E and this wasn't given
-    	 * ( may have 'unix -e' in your atoexec.bat )
-    	 */
-    	return(1);
+    /* SUCCESSFUL */
 
     printf ("About to Execute : %s\n", data);
 
@@ -155,15 +150,21 @@ static int do_execute_dos (int argc, char **argv)
 		fprintf (stderr, "SYSTEM failed ....(%d)\n", errno);
 		return (1);
 	}
-
+	/* bye bye! */
+        if (data[strlen(data)+1] == '\0') {
+	  preg.r_ax = 0xffff;
+	  intr(0xe6, &preg);
+        }
+ 
 	return (0);
-  } else {
-    /* UNSUCESSFUL */
-    puts ("FAILED to get DATA from DOSEMU.\n");
-
+  }
+  else {
+    /* UNSUCCESSFUL */
+    /* empty string, assume we had to exec -E and this wasn't given
+     * ( may have 'unix -e' in your autoexec.bat )
+     */
     return (1);
   }
-
 }
 
 

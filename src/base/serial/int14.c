@@ -88,8 +88,8 @@ static void set_speed(int num, int speed)
  */
 void int14(u_char ii)
 {
-  static int num;
-  static int temp;
+  int num;
+  int temp;
   
   /* Translate the requested COM port number in the DL register, into
    * the necessary arbritary port number system used throughout this module.

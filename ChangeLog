@@ -1,8 +1,62 @@
+2003/02/09 ver 1.1.4.12 unofficial pre-release
+	From Stas
+	- $_pic_watchdog related PIC code adjustments.
+	From Fran Sabolich <fsabolich@yahoo.com>
+	- implement break handling in ser_ports.c (cleaned up by Stas)
+	From Bart
+	- Enable/disable all plugins via compiletime-settings.
+	- By default, only use the supplied S-Lang library if the system
+	  supplied S-Lang library does not have the UTF-8 hack.
+	- Simplify S-Lang configuration by using DOSEMU's config.h
+	- Add 64-bit file locking support.
+	- Add $_full_file_locks option to lock whole files instead of just 
+	  one (for DOS invisible) byte.
+	- Set $_pic_watchdog default to 50 (suggested by Stas).
+	- Set $_hdimage default to "drives/*".
+	- Use ~/.dosemu for the $_hdimage basedir, falling back to 
+	  /var/lib/dosemu if necessary.
+	- Use proper long X names for the VGA fonts.
+	- Add ability to use a DOS command as a DOSEMU option (without
+	  -E). In that case "exitemu" happens automatically when the DOS
+	  command terminates.
+	- (With help from Reinhard) only apply cleanup_child to the port 
+	  server and not to any other children.
+	- clean up dosdebug; use dynamic memory allocation, and remove the
+	  need for the ~/.dosemu/run/dosemu.<pid> files.
+	- temp file cleanup: the "mapfile" mapping driver and printer now
+	  use tmpfile(3) to create the temporary file. That way the file
+	  is automatically deleted even if DOSEMU crashes, and noone else
+	  can open the file. Because of this, the printer code now uses a 
+	  pipe to communicate with lpr.
+	- DOSEMU is now quiet by default. It now doesn't say it's running
+	  in low feature mode, but instead tells you if it's running with
+	  root privileges.
+	- (suggested by Stas) Use normal local variables instead of
+	  statics where possible for the serial code.
+	- Fix bug "xms_EMB_info" in XMS code.
+	- Set video_ints for vgaemu code, otherwise it will forget about
+	  the fonts later.
+	- Applied some Debian tweaks from Herbert Xu 
+	  * to have DOSEMU working out of the box even if the user doesn't
+	    have a private installation.
+	  * $_hdimage drives adjust according to the setting of DOSDRIVE_D.
+	  * change /etc/dosemu.conf to /etc/dosemu/dosemu.conf to match the
+	    default (we still support /etc/dosemu.conf however).
+	- Script changes:
+	  * adjust to use ~/.dosemu/drives/* by default; ~/.dosemurc is no
+	    longer compulsary even for private installations.
+	  * do -home by default
+	  * only display "what DOSEMU does" once, be quiet afterwards.
+	  * apply the '\r' keystroke by default to boot DOS quicker. Just
+	    use -input without arguments if you want to use F5 or F8.
+	  * use -install without arguments to force a FreeDOS
+	    re-installation.
 2003/02/04 ver 1.1.4.11 unofficial pre-release
 	From Stas
 	- prevent IRQ conflicts and fix double registrations of the
 	  keyboard IRQ in init.c and serv_8042.c.
 	From Bart
+	- (and Stas) fix comcom problem when environment segment == 0
 	- small Makefile cleanups; include only necessary dependency files
 	- remove all traces of $_secure, $_odd_hosts and $_diskless_hosts
 	  since by default any remote hosts will get root privileges

@@ -57,6 +57,7 @@ _port_handler port_handler[EMU_MAX_IO_DEVICES];
 unsigned char port_handle_table[0x10000];
 unsigned char port_andmask[0x400];
 unsigned char port_ormask[0x400];
+pid_t portserver_pid;
 
 static unsigned char port_handles;	/* number of io_handler's */
 
@@ -970,7 +971,8 @@ int extra_port_init(void)
                                 g_printf("starting port server\n");
                                 pipe(port_fd_out);
                                 pipe(port_fd_in);
-                                if (fork() == 0) {
+                                portserver_pid = fork();
+                                if (portserver_pid == 0) {
                                         port_server();
                                 }
                                 close(port_fd_in[1]);

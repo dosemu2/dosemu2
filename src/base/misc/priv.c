@@ -247,7 +247,6 @@ void priv_init(void)
     {
       skip_priv_setting = 1;
       can_do_root_stuff = 0;
-      fprintf(stderr,"\nRunning unpriviledged in low feature mode\n");
     }
   else if (euid != 0)
     {
@@ -262,5 +261,7 @@ void priv_init(void)
   getgroups(num_groups,groups);
 
   if (!skip_priv_setting) _priv_off();
+  if (can_do_root_stuff && !under_root_login)
+    fprintf(stderr,"\nRunning privileged (sudo/suid) in full feature mode\n");      
 }
 

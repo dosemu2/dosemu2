@@ -7,7 +7,7 @@
 # This is a stripped down Makefile for the S-Lang library
 
 CFILES = slsmg.c sldisply.c slkeymap.c slerr.c sltermin.c slsignal.c slstring.c slmisc.c
-CFLAGS:=$(CFLAGS) -fno-strength-reduce -Dunix -DSLANG
+CFLAGS:=$(CFLAGS) -fno-strength-reduce -DSLANG
 
 all: lib
 

@@ -33,11 +33,8 @@
 #include <sys/vt.h>
 #include <sys/ioctl.h>
 
-#undef     TMPFILE
-#define    TMPFILE_		"/var/run/dosemu."
+#define    TMPFILE_VAR		"/var/run/dosemu."
 #define    TMPFILE_HOME		".dosemu/run/dosemu."
-#define    TMPFILE               dosemu_tmpfile_pat 
-static char dosemu_tmpfile_pat[256];
 
 #define MHP_BUFFERSIZE 8192
 
@@ -48,7 +45,7 @@ fd_set readfds;
 struct timeval timeout;
 int kill_timeout=FOREVER;
 
-static  char pipename_in[128], pipename_out[128], shared_info_file[128];
+static  char *pipename_in, *pipename_out;
 int fdout, fdin;
 
 
@@ -56,14 +53,13 @@ int find_dosemu_pid(char *tmpfile, int local)
 {
   DIR *dir;
   struct dirent *p;
-  char dn[128];
-  char *id;
+  char *dn, *id;
   int i,j,pid;
   static int once =1;
 
-  strcpy(dn, tmpfile);
+  dn = strdup(tmpfile);
   j=i=strlen(dn);
-  while (dn[i--] != '/');  /* remove 'dosemu.' */
+  while (dn[i--] != '/');  /* remove 'dosemu.dbgin' */
   i++;
   dn[i++]=0;
   id=dn+i;
@@ -71,12 +67,14 @@ int find_dosemu_pid(char *tmpfile, int local)
   
   dir = opendir(dn);
   if (!dir) {
+    free(dn);
     if (local) return -1;
     fprintf(stderr, "can't open directory %s\n",dn);
     exit(1);
   }
   i = 0;
   while(p = readdir(dir)) {
+          
     if(!strncmp(id,p->d_name,j) && p->d_name[j] >= '0' && p->d_name[j] <= '9') {
       pid = strtol(p->d_name + j, 0, 0);
       if(check_pid(pid)) {
@@ -92,6 +90,7 @@ int find_dosemu_pid(char *tmpfile, int local)
       if (i > 1) fprintf(stderr, " %d", pid);
     }
   }
+  free(dn);
   closedir(dir);
   if (i > 1) {
     fprintf(stderr, "\n");
@@ -198,20 +197,22 @@ void handle_dbg_input(void)
 int main (int argc, char **argv)
 {
   int numfds,n,flags,dospid;
-  char *home_p=0;
+  char *home_p;
   
   FD_ZERO(&readfds);
 
+  home_p = getenv("HOME");
+  
   if (!argv[1]) {
-    char *s = getenv("HOME");
     dospid = -1;
-    if (s) {
-      sprintf(TMPFILE, "%s/%s", s, TMPFILE_HOME);
-      dospid=find_dosemu_pid(TMPFILE, 1);
+    if (home_p) {
+      char *dosemu_tmpfile_pat;
+      asprintf(&dosemu_tmpfile_pat, "%s/" TMPFILE_HOME "dbgin.", home_p);
+      dospid=find_dosemu_pid(dosemu_tmpfile_pat, 1);
+      free(dosemu_tmpfile_pat);
     }
     if (dospid == -1) {
-      strcpy(TMPFILE, TMPFILE_);
-      dospid=find_dosemu_pid(TMPFILE, 0);
+      dospid=find_dosemu_pid(TMPFILE_VAR "dbgin.", 0);
     }
   }  
   else dospid=strtol(argv[1], 0, 0);
@@ -220,30 +221,28 @@ int main (int argc, char **argv)
     fprintf(stderr, "no dosemu running on pid %d\n", dospid);
     exit(1);
   }
-  home_p = getenv("HOME");
-  if (home_p)
-    sprintf(TMPFILE, "%s/%s", home_p, TMPFILE_HOME);
-  else
-    strcpy(TMPFILE, TMPFILE_);
-  sprintf(shared_info_file, "%s.%d", TMPFILE, dospid);
-  sprintf(pipename_in, "%sdbgin.%d", TMPFILE, dospid);
-  sprintf(pipename_out, "%sdbgout.%d", TMPFILE, dospid);
-
+  
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
-  if ((fdout = open(pipename_in, O_RDWR | O_NONBLOCK)) == -1) {
-    if (home_p) {
-      /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
-         try with /var/run/dosemu directory */
-      strcpy(TMPFILE, TMPFILE_);
-      sprintf(shared_info_file, "%s.%d", TMPFILE, dospid);
-      sprintf(pipename_in, "%sdbgin.%d", TMPFILE, dospid);
-      sprintf(pipename_out, "%sdbgout.%d", TMPFILE, dospid);
-      fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
-    }
+  fdout = -1;
+  if (home_p) {
+    asprintf(&pipename_in, "%s/%sdbgin.%d", home_p, TMPFILE_HOME, dospid);
+    asprintf(&pipename_out, "%s/%sdbgout.%d", home_p, TMPFILE_HOME, dospid);
+    fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
     if (fdout == -1) {
-      perror("can't open output fifo");
-      exit(1);
+      free(pipename_in);
+      free(pipename_out);
     }
+  }
+  if (fdout == -1) {
+    /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
+       try with /var/run/dosemu directory */
+    asprintf(&pipename_in, TMPFILE_VAR "dbgin.%d", dospid);
+    asprintf(&pipename_out, TMPFILE_VAR "dbgout.%d", dospid);
+    fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
+  }
+  if (fdout == -1) {
+    perror("can't open output fifo");
+    exit(1);
   }
   if ((fdin = open(pipename_out, O_RDONLY | O_NONBLOCK)) == -1) {
     close(fdout);
@@ -270,7 +269,7 @@ int main (int argc, char **argv)
         if (kill_timeout > KILL_TIMEOUT) {
           struct stat st;
           int key;
-          if (stat(shared_info_file,&st) != -1) {
+          if (stat(pipename_in,&st) != -1) {
             fprintf(stderr, "...oh dear, have to do kill SIGKILL\n");
             kill(dospid, SIGKILL);
             fprintf(stderr, "dosemu process (pid %d) is killed\n",dospid);

@@ -8,9 +8,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B \-dumb
 ]
 [
-.B \-home
-]
-[
 .B \-quiet
 ]
 [
@@ -31,9 +28,6 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .B xdosemu
 [
 .B \-dumb
-]
-[
-.B \-home
 ]
 [
 .B \-quiet
@@ -79,14 +73,10 @@ plain text output to stdout, but has the advantage that (A) the output of
 the DOS application stacks up in your xterm scroll buffer and (B) you can
 redirect it to a file such as
 .TP
-		$ ./dosemu -dumb -E dir > listing
+		$ ./dosemu -dumb dir > listing
 
 Note that DOSEMU command.com's commandline editor/history will also work
 here, however, editing is restricted to BACKSPACE'ing.
-.TP
-.I -home
-in addition to drive C:, make the users $HOME available as drive D:.
-Note, however, that most of the Unix file names will get mangled.
 .TP
 .I -quiet
 do not print startup comment and do not stop for prompting
@@ -100,7 +90,8 @@ of the string look at README.txt. Note, however, that the FreeDos kernel
 eats one keystroke at bootup in order to let you time to type in F8. So in
 this case you always should add a '\\r' at the beginning of this
 keystroke-string. As a side effect it will bypass the 'F8' delay and
-FreeDos will boot faster ;-)
+FreeDos will boot faster. Without "-input", a '\\r' is automatically
+passed.
 .TP
 .I -s
 Invoke dosemu via sudo. This is necessary to get access to certain I/O ports

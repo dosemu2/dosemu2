@@ -224,7 +224,7 @@ static int is_in_allowed_classes(int mask);
 %token NETDEV VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_JOYSTICK
+%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND L_JOYSTICK FULL_FILE_LOCKS
 %token DEXE ALLOWDISK FORCEXDOS XDOSONLY
 %token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUINI L_X
@@ -412,6 +412,10 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
                     {
                     config.emuini = $3;
                     c_printf("CONF: config.emuini = '%s'\n", $3);
+		    }
+		| FULL_FILE_LOCKS bool
+		    {
+		    config.full_file_locks = ($2!=0);
 		    }
 		| FASTFLOPPY floppy_bool
 			{
@@ -2201,10 +2205,7 @@ static void setup_home_directories(void)
   }
   setenv("DOSEMU_HDIMAGE_DIR", DOSEMU_HDIMAGE_DIR, 1);
   LOCALDIR = get_dosemu_local_home();
-  TMPDIR = mkdir_under(LOCALDIR, "tmp", 0);
-  TMPDIR_PROCESS = mkdir_under(TMPDIR, "temp.", 1);
   RUNDIR = mkdir_under(LOCALDIR, "run", 0);
-  TMPFILE = assemble_path(RUNDIR, "dosemu.", 0);
   DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
 }
 
@@ -2628,9 +2629,9 @@ int parse_config(char *confname, char *dosrcname)
          * ( or a too simple one )
 	 * giving up
 	 */
-	yyerror("\nYour %s script or %s configuration file is obviously\n"
+	yyerror("\nYour %s script or configuration file is obviously\n"
 		"an old style or a too simple one\n"
-		"Please read README.txt on how to upgrade\n", confname, CONFIG_FILE);
+		"Please read README.txt on how to upgrade\n", confname);
 	exit(1);
     }
 

@@ -332,7 +332,7 @@ static void ser_set_params(int num)
  */
 static int ser_close(int num)
 {
-  static int i;
+  int i;
   s_printf("SER%d: Running ser_close\n",num);
   uart_clear_fifo(num,UART_FCR_CLEAR_CMD);
   
@@ -578,7 +578,7 @@ void serial_init(void)
  */
 void serial_close(void)
 {
-  static int i;
+  int i;
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].fd < 0)
@@ -599,7 +599,7 @@ void serial_close(void)
  */
 void child_close_mouse(void)
 {
-  static u_char i, rtrn;
+  u_char i, rtrn;
   if (config.console) {
     s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
     for (i = 0; i < config.num_ser; i++) {
@@ -625,7 +625,7 @@ void child_close_mouse(void)
  */
 void child_open_mouse(void)
 {
-  static u_char i;
+  u_char i;
   if (config.console) {
     s_printf("MOUSE: OPEN function starting.\n");
     for (i = 0; i < config.num_ser; i++) {

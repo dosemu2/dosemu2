@@ -37,8 +37,6 @@
 
 
 
-static char devname_[30];
-
 /*
  * DANG_BEGIN_FUNCTION shared_qf_memory_init
  *
@@ -48,10 +46,6 @@ static char devname_[30];
  */
 void shared_memory_init(void)
 {
-  int        pid;
-  char info[81];
-  int tmpfile_fd;
-
   open_mapping(MAPPING_SHARED);
 /*
  *
@@ -76,32 +70,9 @@ void shared_memory_init(void)
     leavedos(44);
   }
  }
-
-
-/* 
- * DANG_BEGIN_REMARK
- *	Output info required for client activity
- *	(NOTE: 'client activity' as of 2000/02/02 totally disabled,
- *	but left file structure compatible, --Hans)
- *
- * DANG_END_REMARK
- */
-  pid = getpid();
-  sprintf(devname_, "%s%d", TMPFILE, pid);
-
-  tmpfile_fd = open(devname_, O_WRONLY|O_CREAT, 0600);
-  if (tmpfile_fd < 1) {
-    E_printf("SHM: Unable to open %s%d for sending client data: %s\n",TMPFILE, pid, strerror(errno));
-  }
-  sprintf(info, "dosemu-%s\n", VERSTR);
-  write(tmpfile_fd, info, strlen(info));
-
-  sprintf(info, "SQF=-1\nSVA=-1\n");
-  write(tmpfile_fd, info, strlen(info));
 }
 
 void shared_memory_exit(void)
 {
-  unlink(devname_);
   close_mapping(MAPPING_SHARED);
 }
