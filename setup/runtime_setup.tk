@@ -40,7 +40,7 @@ set conf_infile ""
 set dosemuconf "/etc/dosemu.conf"
 set dosemurc ".dosemurc"
 set dosemutemplate "../etc/dosemu.conf"
-set temp "/tmp/runtime_setup."
+set temp "$env(HOME)/.dosemu/tmp/runtime_setup."
 append temp [ pid ]
 
 if {[info exists env(AWK)]} {

@@ -23,7 +23,10 @@ EXTERN char *config_script_path INIT("/var/lib/dosemu/global.conf");
 EXTERN char *dosemu_users_file_path INIT("/etc/dosemu.users");
 EXTERN char *dosemu_loglevel_file_path INIT("/etc/dosemu.loglevel");
 EXTERN char *dosemu_tmpfile_path INIT("/var/run/dosemu.");
-EXTERN char *dosemu_tmpdir_path INIT(".dosemu");
+EXTERN char *dosemu_tmpdir_path INIT("~/.dosemu/tmp");
+EXTERN char *dosemu_tmpdir_process_path INIT("~/.dosemu/tmp/<pid>");
+EXTERN char *dosemu_rundir_path INIT("~/.dosemu/run");
+EXTERN char *dosemu_localdir_path INIT("~/.dosemu");
 
 #define    CONFIG_FILE           config_file_path
 #define    CONFIG_SCRIPT         config_script_path
@@ -31,6 +34,9 @@ EXTERN char *dosemu_tmpdir_path INIT(".dosemu");
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
 #define    TMPFILE               dosemu_tmpfile_path
 #define    TMPDIR                dosemu_tmpdir_path
+#define    TMPDIR_PROCESS        dosemu_tmpdir_process_path
+#define    RUNDIR                dosemu_rundir_path
+#define    LOCALDIR              dosemu_localdir_path
 #endif /* not __ASM__ */
 
 /* Do not worry about these */

@@ -48,7 +48,8 @@ function do_mtool {
   mcommand=$2
   shift; shift
   params="$*"
-  tmprc="/tmp/mtoolrc.$$"
+  mkdir -p ~/.dosemu/tmp
+  tmprc="~/.dosemu/tmp/mtoolrc.$$"
   partition=""
   offset=""
   if is_hdimage $device; then

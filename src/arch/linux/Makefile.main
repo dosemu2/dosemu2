@@ -207,9 +207,6 @@ debug:
 
 dos.o: include/config.h
 
-x2dos.o: include/config.h x2dos.c
-	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
-
 DOSSTATICFILES = dosstatic.c emu.o base/data.o base/bios/bios.o env/video/vesabios.o
 
 dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
@@ -217,11 +214,6 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 		$(addprefix -L,$(LIBPATH)) \
 		-L. $(addprefix -l, $(LIBS_)) \
 		$(SLANGLIB) $(XLIBSW)
-
-x2dos: x2dos.o
-	@echo "Including x2dos.o "
-	$(CC) $(LDFLAGS) \
-	  -o $@ $< -L$(X11LIBDIR) -lXt -lX11
 
 ../etc/xtermdos:	../etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos
@@ -442,7 +434,7 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	@ls -l $(DISTFILE)
 
 local_clean:
-	-rm -f $(OBJS) $(X2CEXE) x2dos.o $(BINPATH)/bin/dos $(BINPATH)/bin/xdos \
+	-rm -f $(OBJS) $(X2CEXE) $(BINPATH)/bin/dos $(BINPATH)/bin/xdos \
 	  $(BINPATH)/bin/dosexec $(BINPATH)/bin/libdosemu *.s core \
 	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 

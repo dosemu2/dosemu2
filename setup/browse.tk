@@ -57,7 +57,8 @@ proc show_readme_text {text textlines header pattern} {
 
 proc readin_readme {filename filevar filecount startpattern stoppattern} {
     upvar $filevar fvar $filecount count
-    set tmp "/tmp/readin_browse"
+    global env
+    set tmp "$env(HOME)/.dosemu/tmp/readin_browse"
     append tmp [ pid ]
 
     set startpattern "/$startpattern/"

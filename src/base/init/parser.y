@@ -2435,29 +2435,24 @@ parse_dosemu_users(void)
      userok=1;  /* This must be root, so always allow DOSEMU start */
   }
 
+  /* now we setup up our local DOSEMU home directory, where we
+   * have (among other things) all temporary stuff in
+   * (since 0.97.10.2)
+   */
+  LOCALDIR = get_dosemu_local_home();
+  TMPDIR = mkdir_under(LOCALDIR, "tmp", 0);
+  TMPDIR_PROCESS = mkdir_under(TMPDIR, "temp.", 1);
+  RUNDIR = mkdir_under(LOCALDIR, "run", 0);
+  TMPFILE = assemble_path(RUNDIR, "dosemu.", 0);
+  
   /* check wether we are we are running non-suid root
    * If so eventually rearange some file locations.
    */
+#if 0 /* we currently need not, but will need later for an enhanced non-suid */
   if (!can_do_root_stuff) {
-    char *home = getenv("HOME");
-    char *s;
-    if (!home) {
-      fprintf(stderr, "odd environment, you don't have $HOME, giving up\n");
-      exit(1);
-    }
-    s = malloc(strlen(home) + 128);
-    sprintf(s, "%s/%s", home, TMPDIR);
-    if (!exists_dir(s)) {
-      if (mkdir(s, S_IRWXU)) {
-        fprintf(stderr, "can't create local %s directory, giving up\n", s);
-        exit(1);
-      }
-    }
-    TMPDIR = strdup(s);
-    sprintf(s, "%s/dosemu.", TMPDIR);
-    TMPFILE = strdup(s);
-    free(s);
+	/* maybe ~/.dosemu/etc, ~/.dosemu/lib, e.t.c. */
   }
+#endif
 
   if(userok==0) {
        fprintf(stderr,

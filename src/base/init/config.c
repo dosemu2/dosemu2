@@ -242,7 +242,6 @@ config_defaults(void)
     config.emusys = (char *) NULL;
     config.emubat = (char *) NULL;
     config.emuini = (char *) NULL;
-    tmpdir = strdup(tempnam("/tmp", "dosemu"));
     config.dosbanner = 1;
     config.allowvideoportaccess = 0;
 
@@ -730,7 +729,7 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtT:sgh:H:x:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtsgh:H:x:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
 	/* Note: /etc/dosemu.conf may have disallowed some options
 	 *	 ( by removing them from $DOSEMU_OPTIONS ).
 	 *	 We skip them by re-checking 'usedoptions'.
@@ -833,11 +832,6 @@ config_init(int argc, char **argv)
 	case 'N':
 	    warn("DOS will not be started\n");
 	    config.exitearly = 1;
-	    break;
-	case 'T':
-	    g_printf("Using tmpdir=%s\n", optarg);
-	    free(tmpdir);
-	    tmpdir = strdup(optarg);
 	    break;
 	case 't':
 	    g_printf("doing timer emulation\n");
@@ -1157,7 +1151,6 @@ usage(void)
 	"    -O write debugmessages to stderr\n"
 	"    -o FILE put debugmessages in file\n"
 	"    -P copy debugging output to FILE\n"
-	"    -T DIR set tmpdir\n"
 	"    -t try new timer code (#)\n"
 	"    -u set user configuration variable 'confvar' prefixed by 'u_'.\n"
 	"    -V use BIOS-VGA video modes (!#%%)\n"

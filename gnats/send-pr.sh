@@ -14,9 +14,14 @@
 #
 
 # A Few settings
-TEMP="/tmp/$0.$$"
+
+TMPDIR="$HOME/.dosemu/tmp"
+export TMPDIR  # Note: gnats/send-pr will use TMPDIR, if it's defined
+mkdir -p $TMPDIR
+
+TEMP="$TMPDIR/$0.$$"
 EXEC_PREFIX="../setup/"
-REPORT_FILE="/tmp/dosemu-bug-report.$$"
+REPORT_FILE="$TMPDIR/dosemu-bug-report.$$"
 
 . ${EXEC_PREFIX}/select-dialog
 

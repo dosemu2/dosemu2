@@ -76,8 +76,8 @@ midid:
 mididclean:
 	@$(MAKE) -C src/arch/linux/dosext/sound/midid cleanall
 
-pristine:  docsclean mididclean
-	@$(MAKE) -C src $@
+pristine distclean mrproper:  docsclean mididclean
+	@$(MAKE) -C src pristine
 	rm -f config.cache config.status config.log src/include/config.h
 	rm -f core `find . -name '*~'`
 	rm -f core `find . -name '*[\.]o'`

@@ -10,7 +10,8 @@
 # Look for & set hostname from sendmails 'DM'
 # Use LoginID@hostname
 #
-TEMP=/tmp/$0.$$
+mkdir -p $HOME/.dosemu/tmp
+TEMP=$HOME/.dosemu/tmp/$0.$$
 
 clean-up() {
     rm -f $TEMP

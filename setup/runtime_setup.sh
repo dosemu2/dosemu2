@@ -31,7 +31,7 @@
 #
 
 # A Few settings
-TEMP="/tmp/runtime_setup.$$"
+TEMP="$HOME/.dosemu/tmp/runtime_setup.$$"
 
 . select-dialog
 

@@ -3,6 +3,7 @@
  *
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <malloc.h>
 #include <sys/time.h>
@@ -368,3 +369,59 @@ int exists_file(char *name)
 	return (S_ISREG(st.st_mode));
 }
 
+char *strcatdup(char *s1, char *s2)
+{
+	char *s;
+	if (!s1 || !s2) return 0;
+	s = malloc(strlen(s1)+strlen(s2)+1);
+	if (!s) return 0;
+	strcpy(s,s1);
+	return strcat(s,s2);
+}
+
+char *assemble_path(char *dir, char *file, int append_pid)
+{
+	char *s;
+	char pid[32] = "";
+	if (append_pid) sprintf(pid, "%d", getpid());
+	s = malloc(strlen(dir)+1+strlen(file)+strlen(pid)+1);
+	if (!s) {
+		fprintf(stderr, "out of memory, giving up\n");
+		exit(1);
+	}
+	sprintf(s, "%s/%s%s", dir, file, pid);
+	return s;
+}
+
+char *mkdir_under(char *basedir, char *dir, int append_pid)
+{
+	char *s = basedir;
+
+	if (dir) s = assemble_path(basedir, dir, append_pid);
+	if (!exists_dir(s)) {
+		if (mkdir(s, S_IRWXU)) {
+			fprintf(stderr, "can't create local %s directory, giving up\n", s);
+			exit(1);
+		}
+	}
+	return s;
+}
+
+char *get_path_in_HOME(char *path)
+{
+	char *home = getenv("HOME");
+
+	if (!home) {
+		fprintf(stderr, "odd environment, you don't have $HOME, giving up\n");
+		exit(1);
+	}
+	if (!path) {
+		return strdup(home);
+	}
+	return assemble_path(home, path, 0);
+}
+
+char *get_dosemu_local_home(void)
+{
+	return mkdir_under(get_path_in_HOME(".dosemu"), 0, 0);
+}

@@ -26,7 +26,7 @@
 #include <sys/ioctl.h>
 
 #define    TMPFILE_		"/var/run/dosemu."
-#define    TMPFILE_HOME		".dosemu/dosemu."
+#define    TMPFILE_HOME		".dosemu/run/dosemu."
 #define    TMPFILE               dosemu_tmpfile_path 
 static char dosemu_tmpfile_path[256];
 

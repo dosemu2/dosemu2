@@ -668,7 +668,7 @@ get_unix_path(char *new_path, char *path)
 	str[i++] = '\\';
 	break;
       case 'T':		/* the name of the temporary directory */
-	strncpy(&str[i], tmpdir, MAXPATHLEN - 2 - i);
+	strncpy(&str[i], TMPDIR_PROCESS, MAXPATHLEN - 2 - i);
 	str[MAXPATHLEN - 2] = 0;
 	i = strlen(str);
 	break;
@@ -3419,17 +3419,6 @@ dos_fs_redirect(state)
 			larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
 
 		ret = fcntl (fd,F_SETLK,&larg);
-		{
-			#if 0
-			FILE *fout = fopen ("/tmp/lock.log","a");
-			if (fout != NULL){
-				fprintf (fout,"lock(%d) %d %d %d %d %d\n",ret
-					,larg.l_type,larg.l_whence
-					,larg.l_start,larg.l_len);
-				fclose (fout);
-			}
-			#endif
-		}
 		return ret != -1 ? TRUE : FALSE;
 	}
     break;

@@ -137,23 +137,6 @@ void stdio_init(void)
 }
 
 /*
- * DANG_BEGIN_FUNCTION tmpdir_init
- *
- * description:
- *  Initialize the temporary directory
- * 
- * DANG_END_FUNCTION
- */
-void tmpdir_init(void)
-{
-  /* create tmpdir */
-  PRIV_SAVE_AREA
-  enter_priv_off();
-  mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
-  leave_priv_setting();
-}
-
-/*
  * DANG_BEGIN_FUNCTION time_setting_init
  *
  * description:
@@ -352,37 +335,10 @@ static inline void map_hardware_ram(void)
 static inline void map_custom_bios(void)
 {
   extern void bios_f000(), bios_f000_end();
-#if 0
-  FILE   *f;
-#endif
   u_char *ptr;
 
   ptr = (u_char *) (BIOSSEG << 4);
   memcpy(ptr, bios_f000, (u_long)bios_f000_end - (u_long)bios_f000);
-
-#if 0 /* this apparently is obsolete stuff, we have all in bios.S */
-  if (!config.mapped_sbios) {
-    memset((char *) 0xffff0, 0xF4, 16);
-
-    strncpy((char *) 0xffff5, "02/25/93", 8);   /* set our BIOS date */
-    *(char *) 0xffffe = 0xfc;   /* model byte = IBM AT */
-  }
-  /* set up BIOS exit routine (we have *just* enough room for this) */
-  ptr = (u_char *) 0xffff0;
-  *ptr++ = 0xb8;                /* mov ax, 0xffff */
-  *ptr++ = 0xff;
-  *ptr++ = 0xff;
-  *ptr++ = 0xcd;                /* int DOS_HELPER_INT(0xe6) */
-  *ptr++ = DOS_HELPER_INT;
-#endif
-
-#if 0 /* for debugging only */
-  f = fopen("/tmp/bios","w");
-  fprintf(stderr,"opened /tmp/bios f=%p\n",f);
-  fwrite(ptr,0x8000,2,f);
-  fflush(f);
-  fclose(f);
-#endif
 }
 
 /* 

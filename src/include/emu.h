@@ -60,7 +60,6 @@ EXTERN char *cstack[16384];
 /* this is DEBUGGING code! */
 EXTERN int sizes INIT(0);
 
-EXTERN char *tmpdir;
 EXTERN int screen, screen_mode;
 
 /* number of highest vid page - 1 */

@@ -1792,12 +1792,7 @@ void X_redraw_screen(void)
 
   refresh_palette();
 
-  switch(video_mode)
-    {
-    case 0x00:
-    case 0x01:
-    case 0x02:
-    case 0x03:
+  if (vga.mode_class==TEXT) {
       for(y = 0; (y < li); y++) 
 	{
 	  x=0;
@@ -1828,13 +1823,10 @@ void X_redraw_screen(void)
 	    } 
 	  while(x<co);
 	}
-      break;
-
-     
-    default:
-      X_printf("X_redraw_screen:No valid video mode\n");
-      break;
-    }
+  }
+  else {
+      X_printf("X_redraw_screen: Should not be here, Text refresh in graphics video mode\n");
+  }
 
   prev_cursor_shape = NO_CURSOR;   /* was overwritten */
   redraw_cursor();

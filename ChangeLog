@@ -1,3 +1,26 @@
+98/08/22 ver. 0.97.10.2 unofficial pre-release
+	From Josef Pavlik <jetset@ibm.net> (gnats misc-123)
+	- fix for possible too small malloc (src/env/video/video.c)
+	- fix for Text-refresh on non standard TEXT modes (src/env/video/X.c)
+	From Hans
+	- removed x2dos, nobody is using it anymore (functionality was longtime
+	  ago replaced by dualmon)
+	- fixed (possible) /tmp-exploits (in scripts as well as in C-code),
+	  now DOSEMU uses _always_ $HOME/.dosemu/tmp, when needing tempfiles.
+	  All those local ~/.dosemu directories will be created silently,
+	  when not existing.
+	- Moved /var/run/* usage to $HOME/.dosemu/run/*, regardless wether
+	  running suid-root or not.
+	- Removed old tempdir stuff and the -T commandline option,
+	  which related to that, because we force our own temps below
+	  $HOME/.dosemu/* (see above).
+	- Made base/misc/shared.c to create its tempfile 0600 and switched
+	  to priv_off, as we now don't use /var/run/* anymore.
+	- removed some obsolete '#if 0' stuff
+	- made 'distclean' and 'mrproper' an alias for 'make pristine'
+	  (some people not reading docs seem to expect it ;-)
+	- use of autoconf version 2.12 instead of 2.10 leaded to a slightly
+	  different base-configure and include/config.h.in
 98/08/05 ver. 0.97.10.1 unofficial pre-release
 	From Eric
 	- some X-mouse changes from 0.97.8.x4, which seem to solve

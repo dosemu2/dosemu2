@@ -5,11 +5,11 @@
 # NOTE: you normally do not need this, its just a tool for the developers:
 # Compile and install a binary distribution of DOSEMU under
 #
-#   /tmp/dosemu-<version>/*
+#   ~/.dosemu/tmp/dosemu-<version>/*
 #
 # To pack this into a tar file do something like
 #
-#   tar -cf- -C /tmp/dosemu-<version> . | gzip -9 >/tmp/dosemu-<version>-bin.tgz
+#   tar -cf- -C ~/.dosemu/tmp/dosemu-<version> . | gzip -9 > dosemu-<version>-bin.tgz
 #
 
 function usage {
@@ -20,7 +20,7 @@ function usage {
   -c          do just a clean compile, but no generation
   -s          produce static binaries
   -f csfile   take csfile as compiletime-settings
-  -t targdir  use 'targdir' instead of /tmp/dosemu-<version>/*
+  -t targdir  use 'targdir' instead of ~/.dosemu/tmp/dosemu-<version>/*
   -d docdir   include documentation in 'docdir'
   configopts  all valid options for ./configure, don't forget to
               put an empty '--' in front of the first option
@@ -38,9 +38,11 @@ fi
 
 TAKESETUP="1"
 
+TMPDIR="~/.dosemu/tmp"
+mkdir -p $TMPDIR
 VER=`basename $PWD`
-DIR=/tmp/${VER}
-TMP="/tmp/settings.$$"
+DIR="$TMPDIR/${VER}"
+TMP="$TMPDIR/settings.$$"
 SETTINGS="./compiletime-settings"
 
 SHIFT=""

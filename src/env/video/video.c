@@ -111,7 +111,9 @@ int video_init()
 
   if (!Video->is_mapped) {
      /* allocate screen buffer for non-console video compare speedup */
-     prev_screen = (ushort *)malloc(co * MAX_LINES * 2);
+     int co_ = co;
+     if (co_ < MAX_COLUMNS) co_ = MAX_COLUMNS; /* sanity check */
+     prev_screen = (ushort *)malloc(co_ * MAX_LINES * 2);
      if (prev_screen==NULL) {
         error("could not malloc prev_screen\n");
         leavedos(99);

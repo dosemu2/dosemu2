@@ -116,8 +116,8 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
   pid = getpid();
   sprintf(devname_, "%s%d", TMPFILE, pid);
 
-  enter_priv_on();
-  tmpfile_fd = open(devname_, O_WRONLY|O_CREAT, 0666);
+  enter_priv_off();
+  tmpfile_fd = open(devname_, O_WRONLY|O_CREAT, 0600);
   leave_priv_setting();
   if (tmpfile_fd < 1) {
     E_printf("SHM: Unable to open %s%d for sending client data: %s\n",TMPFILE, pid, strerror(errno));

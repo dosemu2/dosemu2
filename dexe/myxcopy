@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ $# != 2 ] ; then
   echo "Usage: $0 sourcedirectory targetdirectory" >&2
@@ -9,18 +9,20 @@ fi
 from=$1/
 to=$2
 
-rm -f /tmp/xcopy.$$
+mkdir -p ~/.dosemu/tmp
+TMP="~/.dosemu/tmp/xcopy.$$"
+rm -f $TMP
 
 case $from in
   [a-zA-Z]:*)
 	      Source=Dos
-	      mdir -X $from | grep '/$' >/tmp/xcopy.$$
-	      from=`head -1 /tmp/xcopy.$$`
+	      mdir -X $from | grep '/$' >$TMP
+	      from=`head -1 $TMP`
 	      ;;
   *)
      Source=Unix
      from=`echo $from | sed -e 's#$#/#' -e 's#//*#/#g'`
-     find $from -type d -print | sed -e 's#$#/#' -e 's#//*#/#g' >/tmp/xcopy.$$
+     find $from -type d -print | sed -e 's#$#/#' -e 's#//*#/#g' >$TMP
      ;;
 esac
 
@@ -36,25 +38,25 @@ esac
 case $to in
   [a-zA-Z]:*)
 	      Target=Dos
-	      sed -e "s#^$from#$to#" -e "s#//#/#g" -e 's#\([^:]\)/$#\1#g' /tmp/xcopy.$$ | xargs mmd -sX
+	      sed -e "s#^$from#$to#" -e "s#//#/#g" -e 's#\([^:]\)/$#\1#g' $TMP | xargs mmd -sX
 	      ;;
   *)
      Target=Unix
-     sed -e "s#^$from#$to#" -e "s#//#/#g" /tmp/xcopy.$$ | xargs mkdir -p
+     sed -e "s#^$from#$to#" -e "s#//#/#g" $TMP | xargs mkdir -p
      ;;
 esac
 
 exitcode=0;
 case $Source in
   Dos)
-       for name in  `cat /tmp/xcopy.$$` ; do
+       for name in  `cat $TMP` ; do
 	 target=`echo $name | sed -e "s#^$from#$to#" `
 	 mcopy "$name*" "$target"
 	 if [ $? != 0 ]; then exitcode=1;fi
        done
        ;;
   Unix)
-       for name in `cat /tmp/xcopy.$$` ; do
+       for name in `cat $TMP` ; do
 	 target=`echo $name | sed -e "s#^$from#$to#" `
 	 mcopy $name/* "$target"
 	 if [ $? != 0 ]; then exitcode=1;fi
@@ -62,5 +64,5 @@ case $Source in
        ;;
 esac
 
-rm -f /tmp/xcopy.$$
+rm -f $TMP
 exit $exitcode

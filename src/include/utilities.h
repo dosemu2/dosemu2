@@ -12,6 +12,11 @@ int get_proc_intvalue_by_key(char *key);
 int integer_sqrt(int x);
 int exists_dir(char *name);
 int exists_file(char *name);
+char *strcatdup(char *s1, char *s2);
+char *assemble_path(char *dir, char *file, int append_pid);
+char *mkdir_under(char *basedir, char *dir, int append_pid);
+char *get_path_in_HOME(char *path);
+char *get_dosemu_local_home(void);
 
 /* returns y = sqrt(x), for y*y beeing a power of 2 below x
  */

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Front end to the runtime & compile time scripts.
 #
@@ -9,6 +9,7 @@ if hash wish >/dev/null 2>&1; then
 *** NOTE: setup-dosemu currently is only able to handle setup
 ***       via TclTk. Fortunately you have that installed ;-)
 "
+    mkdir -p ~/.dosemu/tmp
     cd setup
     exec ./setup.tk
   fi
@@ -29,7 +30,8 @@ exit 1
 
 TOPDIR=`pwd -P`
 export TOPDIR
-TEMP=/tmp/$0.$$
+mkdir -p ~/.dosemu/tmp
+TEMP=~/.dosemu/tmp/$0.$$
 
 AWK=gawk
 export AWK

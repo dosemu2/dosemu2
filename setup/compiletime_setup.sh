@@ -14,7 +14,8 @@
 #
 
 # A Few settings
-TEMP="/tmp/$0.$$"
+mkdir -p $HOME/.dosemu/tmp
+TEMP="$HOME/.dosemu/tmp/$0.$$"
 CONF_FILE="../compiletime-settings"
 
 . select-dialog

@@ -129,6 +129,8 @@ __asm__("___START___: jmp _emulate\n");
 #include <setjmp.h>
 #endif
 #include "speaker.h"
+#include "utilities.h"
+#include "dos2linux.h"
 
 #include "keyb_clients.h"
 
@@ -138,7 +140,6 @@ __asm__("___START___: jmp _emulate\n");
 
 extern void     stdio_init(void);
 extern void     time_setting_init(void);
-extern void     tmpdir_init(void);
 extern void     low_mem_init(void);
 
 extern void     shared_memory_exit(void);
@@ -323,7 +324,6 @@ module_init(void)
     vm86plus_init();		/* emumodule support */
     SIG_init();			/* silly int generator support */
     memcheck_init();		/* lower 1M memory map support */
-    tmpdir_init();		/* create our temporary dir */
 }
 
 #ifdef __NetBSD__
@@ -383,6 +383,7 @@ void
 emulate(int argc, char **argv)
 #endif
 {
+    extern void parse_dosemu_users(void);
 #ifdef __NetBSD__
     changesegs();
 #endif
@@ -565,9 +566,6 @@ leavedos(int sig)
       mhp_exit_intercept(sig);
     }
 
-    /* remove tmpdir */
-    rmdir(tmpdir);
-
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
     if (setitimer(TIMER_TIME, &itv, NULL) == -1) {
@@ -642,6 +640,13 @@ leavedos(int sig)
 	disallocate_vt();
     }
     flush_log();
+
+    /* remove per process tmpdir and its contents */
+    {
+       char *command = strcatdup("rm -rf >/dev/null 2>&1 ", TMPDIR_PROCESS);
+       if (command) run_unix_command(command); /* beware of system() !! */
+    }
+
 #ifdef USE_THREADS
     {
 	extern void Exit(int status);

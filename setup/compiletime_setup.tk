@@ -21,7 +21,7 @@ exec wish "$0" "$@"
 source browse.tk
 
 #A Few settings
-set temp "/tmp/compiletime_setup."
+set temp "$env(HOME)/.dosemu/tmp/compiletime_setup."
 append temp [ pid ]
 
 if {[info exists env(TOPDIR)]} {
@@ -175,7 +175,7 @@ proc init_help {} {
 
 proc Configure_Action_exit {} {
     write_out
-
+    clean_up
     exit
 }
 
