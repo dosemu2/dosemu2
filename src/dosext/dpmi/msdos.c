@@ -49,33 +49,23 @@ static struct vm86_regs INT15_SAVED_REGS;
 
 #define DTA_Para_ADD 0x1000
 
-#define DTA_over_1MB (void*)(GetSegmentBaseAddress(USER_DTA_SEL) + USER_DTA_OFF)
+#define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
 #define DTA_under_1MB (void*)((DPMI_private_data_segment + \
     DPMI_private_paragraphs + DTA_Para_ADD) << 4)
 #define READ_DS_COPIED (REG(ds) == DPMI_private_data_segment+DPMI_private_paragraphs)
 
 #define MAX_DOS_PATH 128
 
-/* used when passing a DTA higher than 1MB */
-unsigned short USER_DTA_SEL;
-static unsigned long USER_DTA_OFF;
-unsigned short USER_PSP_SEL;
-static void *user_FCB;
-
 /* We use static varialbes because DOS in non-reentrant, but maybe a */
 /* better way? */
 static unsigned short DS_MAPPED;
 static unsigned short ES_MAPPED;
-unsigned short CURRENT_PSP;
-unsigned short CURRENT_ENV_SEL;
-static unsigned short PARENT_PSP;
-static unsigned short PARENT_ENV_SEL;
 static int in_dos_21 = 0;
 static int last_dos_21 = 0;
 
 static int old_dos_terminate(struct sigcontext_struct *scp)
 {
-    REG(cs)  = CURRENT_PSP;
+    REG(cs)  = DPMI_CLIENT.CURRENT_PSP;
     REG(eip) = 0x100;
     if (in_win31) {
 	int i;
@@ -88,17 +78,17 @@ static int old_dos_terminate(struct sigcontext_struct *scp)
 
 	/* restore terminate address address */
 	((unsigned long *)0)[0x22] =
-	             *(unsigned long *)((char *)(CURRENT_PSP<<4) + 0xa);
+	             *(unsigned long *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa);
 	/* restore Ctrl-Break address */
 	((unsigned long *)0)[0x23] =
-	             *(unsigned long *)((char *)(CURRENT_PSP<<4) + 0xe);
+	             *(unsigned long *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xe);
 	/* restore critical error  address */
 	((unsigned long *)0)[0x24] =
-	             *(unsigned long *)((char *)(CURRENT_PSP<<4) + 0x12);
+	             *(unsigned long *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x12);
 #endif
 	/*DTA_over_1MB = 0;*/
-	parent_off = *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa);
-	parent_seg = *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa+2);
+	parent_off = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa);
+	parent_seg = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2);
 #if 0
 	return 1;
 #else	
@@ -120,13 +110,13 @@ static int old_dos_terminate(struct sigcontext_struct *scp)
 #endif	
 	/* set parent\'s PSP to itself, so dos won\'t free memory */
 	/* I believe winkernel puts the selector of parent psp there */
-	PARENT_PSP = *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0x16);
-	*(unsigned short *)((char *)(CURRENT_PSP<<4) + 0x16) = CURRENT_PSP;
+	DPMI_CLIENT.PARENT_PSP = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16);
+	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16) = DPMI_CLIENT.CURRENT_PSP;
 	
 	/* put our return address there */
-	*(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa) =
+	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa) =
 	     DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + 0x21;
-	*(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa+2) = DPMI_SEG;
+	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2) = DPMI_SEG;
 	return 0;
 #endif	
     }
@@ -186,7 +176,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	return 0;
     }
 
-    if (USER_DTA_SEL && intr == 0x21 ) {
+    if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21 ) {
 	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
@@ -370,15 +360,15 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    break;
 	case 0x1a:		/* set DTA */
 	    if ( !is_dos_selector(_ds)) {
-		USER_DTA_SEL = _ds;
-		USER_DTA_OFF = DPMI_CLIENT.is_32 ? _edx : _LWORD(edx);
+		DPMI_CLIENT.USER_DTA_SEL = _ds;
+		DPMI_CLIENT.USER_DTA_OFF = DPMI_CLIENT.is_32 ? _edx : _LWORD(edx);
 		REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs+
 		                  DTA_Para_ADD;
 		REG(edx)=0;
                 memmove(DTA_under_1MB, DTA_over_1MB, 0x80);
 	    } else {
                 REG(ds) = GetSegmentBaseAddress(_ds) >> 4;
-                USER_DTA_SEL = 0;
+                DPMI_CLIENT.USER_DTA_SEL = 0;
             }
             in_dos_21++;
 	    return 0;
@@ -394,9 +384,9 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x13:		/* Delete using FCB */
 	case 0x16:		/* Create usring FCB */
 	case 0x17:		/* rename using FCB */
-	    user_FCB = (void *)SEL_ADR(_ds, _edx);
+	    DPMI_CLIENT.user_FCB = (void *)SEL_ADR(_ds, _edx);
 	    REG(ds) =	DPMI_private_data_segment+DPMI_private_paragraphs;
-	    memmove(SEG_ADR((void *), ds, dx), user_FCB, 0x50);
+	    memmove(SEG_ADR((void *), ds, dx), DPMI_CLIENT.user_FCB, 0x50);
 	    in_dos_21++;
 	    return 0;
 	case 0x29:		/* Parse a file name for FCB */
@@ -513,11 +503,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		*(unsigned long *)((REG(es)<<4)+LWORD(ebx)+0xA) = 0;
 	    }
 	    /* then the enviroment seg */
-	    if (CURRENT_ENV_SEL)
- 		*(unsigned short *)((char *)(CURRENT_PSP<<4) + 0x2c) =
- 		    GetSegmentBaseAddress(CURRENT_ENV_SEL) >> 4;
-	    PARENT_ENV_SEL = CURRENT_ENV_SEL;
-	    PARENT_PSP = CURRENT_PSP;
+	    if (DPMI_CLIENT.CURRENT_ENV_SEL)
+ 		*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x2c) =
+ 		    GetSegmentBaseAddress(DPMI_CLIENT.CURRENT_ENV_SEL) >> 4;
+	    DPMI_CLIENT.PARENT_ENV_SEL = DPMI_CLIENT.CURRENT_ENV_SEL;
+	    DPMI_CLIENT.PARENT_PSP = DPMI_CLIENT.CURRENT_PSP;
 	    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_exec);
 	    /* save context for child exits */
 	    save_pm_regs(scp);
@@ -527,8 +517,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    unsigned short envp;
 	    if ( !is_dos_selector(_LWORD(ebx))) {
 
-		USER_PSP_SEL = _LWORD(ebx);
-		LWORD(ebx) = CURRENT_PSP;
+		DPMI_CLIENT.USER_PSP_SEL = _LWORD(ebx);
+		LWORD(ebx) = DPMI_CLIENT.CURRENT_PSP;
 		memmove((void *)(LWORD(ebx) << 4), 
 		    (char *)GetSegmentBaseAddress(_LWORD(ebx)), 0x100);
 		D_printf("DPMI: PSP moved from %p to %p\n",
@@ -536,16 +526,16 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    (void *)(LWORD(ebx) << 4));
 	    } else {
 		REG(ebx) = GetSegmentBaseAddress(_LWORD(ebx)) >> 4;
-		USER_PSP_SEL = 0;
+		DPMI_CLIENT.USER_PSP_SEL = 0;
 	    }
-	    CURRENT_PSP = LWORD(ebx);
+	    DPMI_CLIENT.CURRENT_PSP = LWORD(ebx);
 	    envp = *(unsigned short *)(((char *)(LWORD(ebx)<<4)) + 0x2c);
 	    if ( !is_dos_selector(envp)) {
 		/* DANG_FIXTHIS: Please implement the ENV translation! */
 		error("FIXME: ENV translation is not implemented\n");
-		CURRENT_ENV_SEL = 0;
+		DPMI_CLIENT.CURRENT_ENV_SEL = 0;
 	    } else {
-		CURRENT_ENV_SEL = envp;
+		DPMI_CLIENT.CURRENT_ENV_SEL = envp;
 	    }
 	  }
 
@@ -843,11 +833,11 @@ void msdos_post_exec(void)
 	DPMI_CLIENT.stack_frame.edx = S_REG(edx);
 	DPMI_CLIENT.stack_frame.ebx = S_REG(ebx);
     }
-    if (PARENT_ENV_SEL)
-	*(unsigned short *)((char *)(PARENT_PSP<<4) + 0x2c) =
-	                     PARENT_ENV_SEL;
-    CURRENT_PSP = PARENT_PSP;
-    CURRENT_ENV_SEL = PARENT_ENV_SEL;
+    if (DPMI_CLIENT.PARENT_ENV_SEL)
+	*(unsigned short *)((char *)(DPMI_CLIENT.PARENT_PSP<<4) + 0x2c) =
+	                     DPMI_CLIENT.PARENT_ENV_SEL;
+    DPMI_CLIENT.CURRENT_PSP = DPMI_CLIENT.PARENT_PSP;
+    DPMI_CLIENT.CURRENT_ENV_SEL = DPMI_CLIENT.PARENT_ENV_SEL;
 }
 
 /*
@@ -893,7 +883,7 @@ void msdos_post_extender(int intr)
 	return;
     }
 
-    if (USER_DTA_SEL && intr == 0x21 ) {
+    if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21 ) {
 	switch (S_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x4e: case 0x4f:	/* find first/next */
@@ -939,19 +929,19 @@ void msdos_post_extender(int intr)
 	case 0x00:
 	    in_dos_21++;
 	    /* restore terminate address */
-	    *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa) =
+	    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa) =
 		 DPMI_CLIENT.stack_frame.eip & 0xffff;
-	    *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa+2) =
+	    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2) =
 		 GetSegmentBaseAddress(DPMI_CLIENT.stack_frame.cs)>>4;
 	    /* restore parent PSP */
-	    *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0x16) = PARENT_PSP;
+	    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16) = DPMI_CLIENT.PARENT_PSP;
 	    break;
 	case 0x09:		/* print String */
 	case 0x1a:		/* set DTA */
 	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
 	    break;
 	case 0x11: case 0x12:	/* findfirst/next using FCB */
-	    memmove(user_FCB, SEG_ADR((void *), ds, dx), 0x50);
+	    memmove(DPMI_CLIENT.user_FCB, SEG_ADR((void *), ds, dx), 0x50);
 	    break ;
 	case 0x29:		/* Parse a file name for FCB */
 	    {
@@ -977,10 +967,10 @@ void msdos_post_extender(int intr)
 
 	case 0x2f:		/* GET DTA */
 	    if (SEG_ADR((void*), es, bx) == DTA_under_1MB) {
-		if (!USER_DTA_SEL)
+		if (!DPMI_CLIENT.USER_DTA_SEL)
 		    error("Selector is not set for the translated DTA\n");
-		DPMI_CLIENT.stack_frame.es = USER_DTA_SEL;
-		DPMI_CLIENT.stack_frame.ebx = USER_DTA_OFF;
+		DPMI_CLIENT.stack_frame.es = DPMI_CLIENT.USER_DTA_SEL;
+		DPMI_CLIENT.stack_frame.ebx = DPMI_CLIENT.USER_DTA_OFF;
 	    } else {
 		DPMI_CLIENT.stack_frame.es = ConvertSegmentToDescriptor(REG(es));
 	    }
@@ -1042,7 +1032,7 @@ void msdos_post_extender(int intr)
 	case 0x4f:		/* find next */
 	    if (LWORD(eflags) & CF)
 		break;
-	    if (USER_DTA_SEL)
+	    if (DPMI_CLIENT.USER_DTA_SEL)
 		memmove(DTA_over_1MB, DTA_under_1MB, 43);
 	    break;
 #endif	    
@@ -1060,8 +1050,8 @@ void msdos_post_extender(int intr)
 		envp = ConvertSegmentToDescriptor(envp);
 		*(unsigned short *)(((char *)(psp<<4))+0x2c) = envp;
 #endif
-		if (psp == CURRENT_PSP && USER_PSP_SEL) {
-		    DPMI_CLIENT.stack_frame.ebx = USER_PSP_SEL;
+		if (psp == DPMI_CLIENT.CURRENT_PSP && DPMI_CLIENT.USER_PSP_SEL) {
+		    DPMI_CLIENT.stack_frame.ebx = DPMI_CLIENT.USER_PSP_SEL;
 		} else {
 		    DPMI_CLIENT.stack_frame.ebx = ConvertSegmentToDescriptor(psp);
 		}

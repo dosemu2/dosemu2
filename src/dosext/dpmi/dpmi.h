@@ -136,6 +136,18 @@ struct DPMIclient_struct {
   RealModeCallBack realModeCallBack[0x10];
   INTDESC Interrupt_Table[0x100];
   INTDESC Exception_Table[0x20];
+  unsigned short LDT_ALIAS;
+  unsigned short PMSTACK_SEL;	/* protected mode stack selector */
+  unsigned short DPMI_SEL;
+  /* used when passing a DTA higher than 1MB */
+  unsigned short USER_DTA_SEL;
+  unsigned long USER_DTA_OFF;
+  unsigned short USER_PSP_SEL;
+  void *user_FCB;
+  unsigned short CURRENT_PSP;
+  unsigned short CURRENT_ENV_SEL;
+  unsigned short PARENT_PSP;
+  unsigned short PARENT_ENV_SEL;
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 

@@ -19,12 +19,6 @@
  *
  */
 
-/* used when passing a DTA higher than 1MB */
-extern unsigned short USER_DTA_SEL;
-extern unsigned short USER_PSP_SEL;
-extern unsigned short CURRENT_PSP;
-extern unsigned short CURRENT_ENV_SEL;
-
 extern int msdos_pre_extender(struct sigcontext_struct *scp, int intr);
 extern void msdos_post_extender(int intr);
 extern int msdos_fault(struct sigcontext_struct *scp);
