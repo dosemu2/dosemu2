@@ -93,6 +93,8 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
         D_printf("UnCom");
         if ((old_attr & 7) == 1) {
           D_printf("[!]");
+          mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, ptr, DPMI_page_size,
+            PROT_NONE, 0);
           dpmi_free_memory += DPMI_page_size;
         }
         D_printf(" ");
@@ -102,7 +104,7 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
         if ((old_attr & 7) == 0) {
           D_printf("[!]");
           if (dpmi_free_memory < DPMI_page_size) {
-            D_printf("\nERROR: Memory limit exhausted, cannot commit page\n");
+            D_printf("\nERROR: Memory limit reached, cannot commit page\n");
             return 0;
           }
           dpmi_free_memory -= DPMI_page_size;
