@@ -143,8 +143,7 @@ void receive_engine(int num)	/* Internal 16550 Receive emulation */
  */
 void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
-  int rtrn;
-  int control;
+  int rtrn, control, queued;
 #if 0
   /* Give system time to transmit */
   /* Disabled timer stuff, not needed any more  -- stsp */
@@ -157,9 +156,15 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
     ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
     if (!(control & TIOCM_CTS)) return;		/* Return if CTS is low */
   }
+
+  /* find out how many bytes are queued by tty */
+  rtrn = ioctl(com[num].fd, TIOCOUTQ, &queued);
+  if (rtrn == -1)
+    queued = 0;
+  if (debug_level('s') > 5)
+    s_printf("SER%d: ret=%i queue=%i\n", num, rtrn, queued);
   
   if (com[num].fifo_enable) {  /* Is FIFO enabled? */
-
     if (com[num].tx_overflow){
       if(RPT_SYSCALL(write(com[num].fd,
         &com[num].tx_buf[com[num].tx_buf_start], 1))!=1) {
@@ -179,14 +184,16 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
       }
     }
     /* Clear as much of the transmit FIFO as possible! */
-    rtrn = RPT_SYSCALL(write(com[num].fd,
-      &com[num].tx_buf[com[num].tx_buf_start], TX_BUF_BYTES(num)));
-    if (rtrn <= 0) return;				/* Exit Loop if fail */
-    com[num].tx_buf_start += rtrn;
-    tx_buffer_slide(num);
-     
+    if (TX_BUF_BYTES(num)) {
+      rtrn = RPT_SYSCALL(write(com[num].fd,
+        &com[num].tx_buf[com[num].tx_buf_start], TX_BUF_BYTES(num)));
+      if (rtrn <= 0) return;				/* Exit Loop if fail */
+      com[num].tx_buf_start += rtrn;
+      tx_buffer_slide(num);
+      return;		/* return and give the system time to transfer */
+    }
     /* Is FIFO empty, and is it time to trigger an xmit int? */
-    if (!TX_BUF_BYTES(num) && com[num].tx_trigger) {
+    if (!TX_BUF_BYTES(num) && !queued && com[num].tx_trigger) {
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
@@ -198,8 +205,9 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
       rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX, 1));  /* Write port */
       if (rtrn == 1)                               /* Did it succeed? */
         com[num].tx_overflow = 0;                  /* Exit overflow state */
+      return;
     }
-    if (com[num].tx_trigger) { 			/* Is it time to trigger int */
+    if (com[num].tx_trigger && !queued) {	   /* Is it time to trigger int */
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
