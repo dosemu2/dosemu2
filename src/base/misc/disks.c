@@ -31,6 +31,7 @@
 #include <sys/time.h>
 
 #include "emu.h"
+#include "bios.h"
 #include "disks.h"
 #include "timers.h"
 #include "utilities.h"
@@ -654,6 +655,19 @@ disk_close(void)
   }
 }
 
+static void disk_sync(void)
+{
+  struct disk *dp;
+
+  if (!disks_initiated) return;  /* just to be safe */
+  for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+    if (dp->removeable && dp->fdesc >= 0) {
+      d_printf("DISK: Syncing disk %s\n",dp->dev_name);
+      (void) fsync(dp->fdesc);
+    }
+  }
+}
+
 
 #ifdef __linux__
 void
@@ -983,12 +997,11 @@ int int13(void)
   else if (disk < FDISKS) {
       dp = &disktab[disk];
     switch (HI(ax)) {
-      #define DISKETTE_MOTOR_TIMEOUT (*((unsigned char *)0x440))
-      /* NOTE: we don't need this counter, but older games seem to rely
-       * on it. We count it down in INT08 (bios.S) --SW, --Hans
+      /* NOTE: we use this counter for closing. Also older games seem to rely
+       * on it. We count it down in INT08 (bios.S) --SW, --Hans, --Bart
        */
-      case 0: case 2: case 3: case 5: case 10: case 11:
-        DISKETTE_MOTOR_TIMEOUT = 3*18;  /* set timout to 3 seconds */
+      case 0: case 2: case 3: case 5: case 10: case 11: case 0x42: case 0x43:
+        WRITE_BYTE(BIOS_MOTOR_TIMEOUT, 37);  /* set timout to 2 seconds */
         break;
     }
   }
@@ -1565,9 +1578,11 @@ floppy_tick(void)
   static int ticks = 0;
 
   if (++ticks >= config.fastfloppy) {
-    disk_close();
+    disk_sync();
     if (debug_level('d') > 2)
       d_printf("FLOPPY: flushing after %d ticks\n", ticks);
     ticks = 0;
   }
+  if (READ_BYTE(BIOS_MOTOR_TIMEOUT) == 0)
+    disk_close();
 }
