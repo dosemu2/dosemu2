@@ -183,7 +183,7 @@ install:
 	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/global.conf $(DESTDIR)$(sysconfdir)/global.conf.example; \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/keymap
-	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/keymap/* $(DESTDIR)$(dosemudir)/keymap
+	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/keymap/[a-z]* $(DESTDIR)$(dosemudir)/keymap
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
