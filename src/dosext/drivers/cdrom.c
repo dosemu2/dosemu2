@@ -159,7 +159,7 @@ char *Path_cdrom[]={"/dev/cdrom","/dev/cdrom2","/dev/cdrom3","/dev/cdrom4"};
 #define path_cdrom Path_cdrom[IndexCd]
 
 #ifdef CDROM_DEBUG
-int logging_ioctl(int fd, unsigned int cmd, void *arg)
+static int logging_ioctl(int fd, unsigned int cmd, void *arg)
 {
     int rval;
     int err;
@@ -175,7 +175,7 @@ int logging_ioctl(int fd, unsigned int cmd, void *arg)
     return rval;
 }
 
-void dump_cd_sect (char *tb)
+static void dump_cd_sect (char *tb)
 {
     unsigned char buf[128];
     int i,j;
@@ -316,7 +316,7 @@ void cdrom_helper(void)
                      }
                 break;
      case 0x02: /* read long */
-                if (eject_allowed && ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                if (eject_allowed && ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl) && errno != ENOTTY) {
                   audio_status.media_changed = 1;
                   if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
                     /* no disc in drive */
