@@ -86,8 +86,8 @@ inline void get_vga_colors()
 void set_sizehints(int xsize,int ysize) {
     XSizeHints sh;
 	 X_printf("set_sizehints(): xsize=%d, ysize=%d\n",xsize,ysize);
-    sh.max_width=(xsize+1)*font_width;  /* why +1 ??? */
-    sh.max_height=(ysize+1)*font_height;
+    sh.max_width=xsize*font_width;
+    sh.max_height=ysize*font_height;
     sh.width_inc=font_width;
     sh.height_inc=font_height;
     sh.flags = PMaxSize|PResizeInc;
@@ -97,8 +97,9 @@ void set_sizehints(int xsize,int ysize) {
 int X_init(void) {
    XGCValues gcv;
    XSetWindowAttributes attr;
-   XColor fg,bg;
-   Font cfont,decfont;
+   XColor fg, bg;
+   Font cfont, decfont;
+   XFontStruct *font;
    int cmap;
    
    X_printf("X_init()\n");
@@ -111,6 +112,27 @@ int X_init(void) {
    scr=DefaultScreen(dpy);
    root=RootWindow(dpy,scr);
    get_vga_colors();
+      
+   if ((font=XLoadQueryFont(dpy, config.X_font))==NULL 
+       || font->min_bounds.width != font->max_bounds.width) {
+      printf("ERROR: \"%s\" is not a monospaced font! Falling back to \"vga\".\n");
+      if ((font=XLoadQueryFont(dpy, "vga"))==NULL
+	  || font->min_bounds.width!=font->max_bounds.width ) {
+	   printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
+		"Please read QuickStart and DOSEMU-HOWTO.* for more information.\n"
+		"Will attempt to load 9x16\n");
+        if ((font=XLoadQueryFont(dpy, "9x16"))==NULL
+	  || font->min_bounds.width!=font->max_bounds.width ) {
+	   printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
+		"Please read QuickStart and DOSEMU-HOWTO.* for more information.\n");
+	   leavedos(99);
+        }
+      }
+   }
+   font_width = font->max_bounds.width;
+   font_height = font->max_bounds.ascent + font->max_bounds.descent;
+   font_shift = font->max_bounds.ascent;
+   vga_font = font->fid;
    
    W = XCreateSimpleWindow(dpy,root,
                            0,0,                            /* position */
@@ -119,6 +141,9 @@ int X_init(void) {
                            vga_colors[0]                   /* background */
                            );
    
+   gcv.font=vga_font;
+   gc=XCreateGC(dpy,W,GCFont,&gcv);
+
    set_sizehints(co,li);
 
    /* Create the mouse cursor shapes */
@@ -165,15 +190,6 @@ int X_init(void) {
                                     
    XMapWindow(dpy,W);
 
-   gcv.font=vga_font=XLoadFont(dpy,"vga");
-   if (!gcv.font) {
-      printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
-	     "Please read QuickStart and DOSEMU-HOWTO.* for more information.\n");
-      leavedos(99);
-   }
-
-   gc=XCreateGC(dpy,W,/*GCForeground|GCBackground|*/GCFont,&gcv);
-
    X_printf("X_init() ok, dpy=%x scr=%d root=%d W=%d gc=%x\n",
             (int)dpy,(int)scr,(int)root,(int)W,(int)gc);
             
@@ -209,21 +225,24 @@ void X_change_mouse_cursor(int flag) {
    XDefineCursor(dpy, W, flag ? X_mouse_cursor : X_stnd_cursor);
 }
 
-inline void X_draw_cursor(int x,int y) {
+inline void X_draw_cursor(int x,int y)
+{
+   int cstart, cend;
+
    if (!blink_state)
       return;
    X_setattr(ATTR(screen_adr+y*co+x));
    if (have_focus) {
+      cstart = CURSOR_START(cursor_shape) * font_height / 16;
+      cend = CURSOR_END(cursor_shape) * font_height / 16;
       XFillRectangle(dpy,W,gc,
-                     x*font_width, 
-                     y*font_height+CURSOR_START(cursor_shape),
-                     font_width, 
-                     CURSOR_END(cursor_shape)-CURSOR_START(cursor_shape)+1);
+                     x*font_width, y*font_height+cstart,
+                     font_width, cend-cstart+1);
    }
    else {
       XDrawRectangle(dpy,W,gc,
-                     x*font_width, y*font_height+1,
-                     font_width-1, font_height-2);
+                     x*font_width, y*font_height,
+                     font_width-1, font_height-1);
    }
 }
 

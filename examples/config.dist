@@ -230,6 +230,9 @@ ipxsupport off
 #    "blinkrate" value					(default 8)
 #	Used to add blinking to cursor.
 #
+#    "font" value					(default vga)
+#	Used to pick a font other than vga. Must be monospaced.
+#
 X { updatefreq 8 updatelines 25 title "DOS in a BOX" icon_name "xdos" }
 
 
@@ -349,6 +352,8 @@ ems 1024            # EMS size in K,  or "off"
   
 dpmi off            # DPMI size in K, or "off"  Be careful with DPMI!
 
+# Maximum conventional RAM to show apps
+# dosmem 640
 
 #*********************** IRQ ******************************************
 #

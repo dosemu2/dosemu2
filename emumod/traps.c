@@ -19,7 +19,9 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#ifdef EXTRA_HEADERS
 #include <linux/segment.h>
+#endif
 #include <linux/ptrace.h>
 
 #include <asm/system.h>

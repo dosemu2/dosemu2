@@ -3,6 +3,7 @@ AS86 = as86 -0 -a
 LD86 = ld86 -0
 # INCDIR is exported from ..
 #INCDIR = -I../ -I../include/
+CFLAGS+= $(KERNEL)
 
 %.com: %.S
 	$(AS86) -0 -j -o $*.o $<

@@ -206,6 +206,7 @@ title			return(L_TITLE);
 icon_name		return(ICON_NAME);
 keycode			return(X_KEYCODE);
 blinkrate		return(X_BLINKRATE);
+font			return(X_FONT);
 
 	/* packet driver */
 

@@ -1,0 +1,107 @@
+.TH GARROT 1 "07 Dec 1994" "Linux" "DOSEMU User's Manual"
+.SH NAME
+garrot \- release DOSEMU idle-time back to system
+.SH SYNOPSIS
+.B garrot
+[ -h | -DDD | -n DDD | -v | -q | -t ]
+.nf
+ \-h      help screen
+ \-DDD    set garrot constant to DDD (an integer number)
+ \-n DDD  alternate syntax for setting the garrot constant
+ \-v      display version
+ \-q      query current settings
+ \-t      show terms of license
+.fi
+.SH DESCRIPTION
+This manual page
+documents 
+.BR garrot, 
+a support program for the Linux DOSEMU subsystem. NOTE: garrot
+runs inside of the DOSEMU subsystem, 
+.B not
+from the Linux
+command line.  Garrot improves Linux performance by coercing the
+operating system running inside of DOSEMU to release the CPU back to
+the main system during idle periods.  CPU usage as reported by 'top'
+decreases dramatically, dropping down from 98% to 1% or less. The
+current version of Garrot is 0.2, and it should be considered
+pre-alpha software.
+
+.PP
+Garrot runs inside of the emulator session. You must move the program
+garrot.com into the emulator. You may then run it from the "DOS" command
+prompt, usually giving it a numeric argument dubbed "the garrot
+constant", for example:
+.nf
+
+                    C:> garrot -12
+
+.fi
+Garrot installs itself as a daemon and returns you to the DOSEMU
+command prompt.  You may re-run garrot at any time if you wish to
+change the original argument.  
+.PP
+The garrot constant is the numeric argument which provides the optimal
+balance between DOSEMU performance and idle-time cpu usage.  It appears
+that this optimal value is approximately equal to one-half of your Linux
+BogoMips value. For example, if your system reports a BogoMips value of
+20, then choosing a garrot constant value of 10 will be a good first
+approximation. Garrot uses this number as a counter threshold for
+pre-empting DOSEMU after detecting a certain period of idleness. Lower
+values imply less tolerance for idle time CPU use. 
+.PP
+You may determine this empirically by running 'top' in one virtual
+console and running DOSEMU in another.  CPU usage as reported by 'top'
+will drop to 2% or less at the critical value. It is a non-linear
+function, and the change is abrupt. Choose successively lower values
+for the garrot constant until you see the drop. Allow a couple moments
+for 'top' to stabilize and update after changing the garrot value.
+The garrot value which caused the sudden drop in CPU usage, or the value
+one below it, is probably your optimal setting---the "garrot constant"
+for your system. If in doubt, chose the value one below the drop point. 
+.PP
+Note that if you run Garrot without any command arguments, it will try
+to guess an initial value for you. This value should be taken with a
+grain of salt. Unfortunately the 
+timers available inside of the DOSEMU sessions are not adequate to 
+accurately calculate the garrot constant. Using one-half of your
+BogoMips value is somewhat more accurate than the guess that garrot
+can make. After you have determined the proper value, you may want
+to add the garrot command to one of your "DOS" initialization files
+(e.g. autoexec.bat) so that garrot will be invoked every time you
+start a DOSEMU session. 
+.PP
+.SH BUGS
+Some DOS programs that bypass certain parts of both the BIOS
+and DOS system may cause CPU usage to rise because Garrot can not
+figure out what it going on. Of course there may be blind spots in
+garrot that need fixing. Please report any quirks to me, or
+suggestions for improvement. Garrot has not been widely tested. It is
+known to work with MS-DOS 5.0, DOSEMU 0.53pl28, Linux kernel 1.1.64.
+Please forward your reports.
+.PP
+Garrot is offered "as-is"
+without warranty of any kind (see the GPL). Even so, garrot does not
+touch any risky part of the system. It doesn't involve disks or file
+systems. 
+.PP
+.SH AUTHOR 
+.PP
+.nf
+Thomas McWilliams:
+  tgm@netcom.com
+  thomas.mcwilliams@f615.n109.z1.fidonet.org
+.fi
+.SH COPYING
+Distribution permitted under the terms of the GNU General Public
+License, version 2 (or later versions at your preference). Copies
+of this agreement are available from:
+.nf
+
+\	Free Software Foundation, Inc., 
+\	675 Mass Ave, 
+\	Cambridge, MA 02139, USA.
+
+.fi
+.SH "SEE ALSO"
+.BR top "(1), " ps (1)

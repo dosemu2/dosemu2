@@ -18,7 +18,7 @@ LIB=../lib/lib$(SUBDIR).a
 AR=ar
 RANLIB=ranlib
 
-lib:	$(LIB)	
+lib:	$(LIB)
 
 $(LIB):	$(OBJS)
 	-rm $@
@@ -60,7 +60,7 @@ TYPE_DEPEND=-MM
 
 ifdef DEPENDS
 ifneq "$(wildcard *.d)" ""
-	include $(wildcard  *.d)
+include $(wildcard  *.d)
 endif
 endif
 
@@ -70,3 +70,4 @@ echo:
 	@echo DEPENDS=$(DEPENDS)
 	@echo OBJS=$(OBJS)
 	@echo CFILES = $(wildcard *.c)
+	@echo DEPENDS FOUND= $(wildcard *.d)

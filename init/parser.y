@@ -118,7 +118,7 @@ extern void yyrestart(FILE *input_file);
 %token MICROSOFT LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
 %token INTERNALDRIVER CLEARDTR
 	/* x-windows */
-%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE
+%token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_FONT
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
@@ -229,7 +229,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| SPEAKER speaker
 		    {
 		    if ($2 == SPKR_NATIVE) {
-                      yywarn("CONF: allowing access to the speaker ports!");
+                      yywarn("allowing access to the speaker ports!");
 		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
 		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
 		      }
@@ -298,6 +298,7 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
 		| ICON_NAME STRING	{ config.X_icon_name = $2; }
 		| X_KEYCODE		{ config.X_keycode = 1; }
 		| X_BLINKRATE INTEGER	{ config.X_blinkrate = $2; }
+		| X_FONT STRING		{ config.X_font = $2; }
 		;
 
 	/* video */
@@ -568,7 +569,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_PARTITION STRING INTEGER
 		  {
-                  yywarn("CONF: { partition \"%s\" %d } the"
+                  yywarn("{ partition \"%s\" %d } the"
 			 " token '%d' is ignored and can be removed.",
 			 $2,$3,$3);
 		  do_part($2);
@@ -640,11 +641,11 @@ ems_flag	: INTEGER
 		   }
 		| EMS_FRAME INTEGER
 		   {
-		     if ( (($2 & 0xfc00)>0xc800) && (($2 & 0xfc00)<=0xe000) ) {
+		     if ( (($2 & 0xfc00)>=0xc800) && (($2 & 0xfc00)<=0xe000) ) {
 		       config.ems_frame = $2 & 0xfc00;
 		       c_printf("CONF: EMS-frame = 0x%04x\n", config.ems_frame);
 		     }
-		     else yyerror("wrong EMS-frame: 0x%04x\n", $2);
+		     else yyerror("wrong EMS-frame: 0x%04x", $2);
 		   }
 		| STRING
 		    { yyerror("unrecognized ems command '%s'", $1);
@@ -838,7 +839,7 @@ void stop_serial(void)
 void stop_terminal(void)
 {
   if (config.term_updatefreq > 100) {
-    yywarn("CONF: terminal updatefreq too large (too slow)!");
+    yywarn("terminal updatefreq too large (too slow)!");
     config.term_updatefreq = 100;
   } 
 }
@@ -943,7 +944,7 @@ void do_part(char *dev)
   dptr->dev_name = dev;
   dptr->part_info.number = atoi(dptr->dev_name+8);
   if (dptr->part_info.number == 0) 
-    yyerror("ERROR: %s must be a PARTITION, can't find number suffix!\n",
+    yyerror("%s must be a PARTITION, can't find number suffix!\n",
    	    dptr->dev_name);
 }
 
@@ -1211,6 +1212,7 @@ void yywarn(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);
+  fprintf(stderr, "Warning: ");
   vfprintf(stderr, string, vars);
   fprintf(stderr, "\n");
   va_end(vars);
@@ -1221,7 +1223,7 @@ void yyerror(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);
-  fprintf(stderr, "PAR: (line %.3d) ", line_count);
+  fprintf(stderr, "Error: (line %.3d) ", line_count);
   vfprintf(stderr, string, vars);
   fprintf(stderr, "\n");
   va_end(vars);
@@ -1257,10 +1259,12 @@ void close_file(FILE * file)
 {
   fclose(file);                  /* Close the config-file */
 
-  fprintf(stderr, "%d error(s) detected while parsing the configuration-file\n",
-	 errors);
-  fprintf(stderr, "%d warning(s) detected while parsing the configuration-file\n",
-	 warnings);
+  if(errors)
+    fprintf(stderr, "%d error(s) detected while parsing the configuration-file\n",
+	    errors);
+  if(warnings)
+    fprintf(stderr, "%d warning(s) detected while parsing the configuration-file\n",
+	    warnings);
 
   if (errors != 0)               /* Exit dosemu on errors */
     {
@@ -1353,7 +1357,7 @@ parse_config(char *confname)
     } else {
 
       if (!(fd = open_file(name))) {
-        fprintf(stderr, "Cannot open user config file %s, Trying default.\n",name);
+/*        fprintf(stderr, "Cannot open user config file %s, Trying default.\n",name); */
         if (!(fd = open_file(CONFIG_FILE))) {
           fprintf(stderr, "Cannot open default config file %s, Aborting DOSEMU.\n",CONFIG_FILE);
           exit(1);

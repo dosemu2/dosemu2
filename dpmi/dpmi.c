@@ -106,7 +106,11 @@
 #include <linux/unistd.h>
 #include <linux/head.h>
 #include <linux/ldt.h>
+#ifdef OLD_KERNEL
 #include <linux/segment.h>
+#else
+#include <asm/segment.h>
+#endif
 #include <string.h>
 #include <errno.h>
 #include "emu.h"

@@ -1,6 +1,6 @@
   The dosemu HOWTO
   edited by Mike Deisher, deisher@dspsun.eas.asu.edu
-  v0.52.2, 5 Aug 1994
+  v0.52.6, 2 Dec 1994
 
   This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
   dosemu.  The most up-to-date version of the dosemu-HOWTO may be found
@@ -43,6 +43,19 @@
 
 
 
+  However, pre-release versions are also available for developers and
+  ALPHA testers.  They may be found in
+
+       dspsun.eas.asu.edu:/pub/dosemu/Development/
+       tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development
+
+
+  and have names of the form pre0.53_??.  The pre-release code has the
+  distinct advantage that it is compatible with the most recent Linux
+  kernels.  Also, it includes new features (most notably X support).
+  Remember that this is ALPHA code, however:  there may be serious bugs
+  and very little documentation for new features.
+
 
   1.3.  Where can I follow the development?
 
@@ -58,8 +71,6 @@
   Your mail HEADER or FIRST LINE must contain the line:
 
                           X-Mn-Key: MSDOS
-
-
 
 
 
@@ -119,15 +130,12 @@
   the source to be located in /usr/src/dosemu????.  Either install the
   source under /usr/src or try make clean ; make config ; make dep ;
   make all.
-
   Of course, this is not the only possible reason (see below).
 
 
   2.3.  How can I be a bone-head when installing dosemu?
 
   a.k.a. Top Ten Stupid Mistakes installing dosemu (7/9/94)
-
-
 
 
   1. Don't read the QuickStart Guide.
@@ -187,6 +195,7 @@
   autoexec.bat on the redirected drive and the physical drive
   (diskimage) be the same.
 
+
   ---------------------
 
 
@@ -195,6 +204,7 @@
   I boot off a small hdimage file (less than 1 MB - and twice as large
   as needs be at that), and the next to last line in my config.sys file
   on the hdimage boot image is:
+
 
           install=c:\lredir.exe LINUX\FS\home/dos
 
@@ -262,6 +272,7 @@
   Works even fine under DOSEMU with MS-DOS 6.0. If you have problems,
   then you have to edit the file 'DBLSPACE.INI' manually and change the
   disk letter to the letter your drive gets under DOSEMU.
+
   ---------------------
 
   Darren J Moffat (moffatd@dcs.gla.ac.uk) also reported (3/27/94)
@@ -279,6 +290,18 @@
   something like "error in line 6 of config.sys".  The problem will go
   away if you add several carriage returns at the end of your
   config.sys.
+
+
+  3.4.  Is it safe to use dosemu with DOUBLE?
+
+  Joep Mathijssen (joep@tm.tno.nl) reported (7/9/94) that
+
+  Last night I installed DOSEMU-0.52 on a DouBle'd disk (compressed file
+  system for Linux). But when I tried to put a system on my hdimage, I
+  got an "ERROR ON DRIVE C:" message.  After putting the hdimage on a
+  normal filesystem, it worked fine.  Afterwards, I found the my
+  compressed filesystem was ruined.  Ah well, DouBle is an Alpha
+  version, so problems like these can be expected.
 
 
   4.  Serial ports and mice
@@ -370,10 +393,11 @@
      {NULL, "ka", 0x8500} /* F11 */
 
 
+
   Then to actually get it to read the line you just put in, add one to
   the FUNKEYS number.
 
-     #define FUNKEYS = 21
+     #define FUNKEYS 21
 
 
   Then add a "ka" entry to your termcap.  After that, every time you hit
@@ -400,7 +424,7 @@
   over the serial line really well, because switching is made easy.
 
 
-  5.  Dosemu with multiple users
+  5.  Multiple users and Non-interactive sessions
 
   5.1.  Can I use dosemu on a multi-user system?
 
@@ -429,21 +453,110 @@
   dos.]
 
 
-  5.2.  How do I get Netware access from dosemu?
+  5.2.  How can I run dos commands non-interactively?
 
-  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (6/13/94) that
+  I have been meaning to write an article on this for quite some time
+  but have not gotten around to it.  Here are some hints from others:
+
+
+
+  Dan Newcombe (newcombe@aa.csc.peachnet.edu) reported (1/27/94) that
+
+  Here is an idea (untested) to be able to run a DOS command from the
+  command line (or menu choice, etc...) without modifying the acutal
+  emulator.  [Your dos partition is assumed to be mounted under Linux,
+  already.]
+
+  Suppose you wanted to run wp60.exe with the parameter "wp60
+  d:\doc\paper.txt".  You would do something like "dosrun wp60
+  d:\doc\paper.txt".  "dosrun" would be a linux shell program that would
+  a) edit/modify/recreate the dos autoexec.bat from your dos partition
+  and b) simply run dosemu (e.g., "dos -C >/dev/null".  Step a) would
+  somehow keep all the stuff you'd normally want in autoexec.bat (e.g.,
+  mouse.com) and the last line would be "wp60 d:\doc\paper.txt".
+
+  On the dosemu side, beforehand, you would have to modify the
+  config.sys file (located in hdimage) so that it 1) uses emufs to
+  access the dos partition as D:, 2) sets "COMPSEC=D:\ (I think.  I
+  don't have a DOS manual around.), and 3) sets "shell=c:\command.com
+  /p".
+
+  The idea is that for each time that you load the DOS emulator, you
+  will recreate an autoexec.bat that is specific to that session.  What
+  makes it specific is that the last line will execute the program you
+  want.  The modifications on the hdimage are to tell the emulator/DOS
+  that you want to use (and effectivly) boot off of D:, which will be
+  the actual DOS partition.
+
+  If you do not use hdimage and access the DOS filesystem directly upon
+  boot-up of DOSEMU, then this will work, and you don't have to go
+  through the hdimage part of this all.
+
+  ---------------------
+
+
+  Daniel T. Schwager (danny@dragon.s.bawue.de) reported (7/2/94) that
+
+  You can use different dosemuf.conf files (and different hd-boot-images
+  with different autoexec.bat's) and call dosemu like
+
+  $ dos -F my_quicken_q_exe_dosemu.conf
+
+
+
+  ---------------------
+
+
+  Dietmar Braun (braun@math20.mathematik.uni-bielefeld.de) reported
+  (7/4/94) that
+
+  This is no problem at all when you use the redirector of dosemu.  It
+  is possible to redirect a drive letter to a linux path given by an
+  environment variable.
+
+  So I have a shell script named "DOS" which does something like
+
+   mkdir /tmp/dos.\*(dR\*(dR
+   DOSTMP=/tmp/dos.\*(dR\*(dR; export DOSTMP
+
+
+  and then a little trick to get "echo $* > $DOSTMP/startup.bat" really
+  working (actually a small C Program which turns '/' in '\' and termi-
+  nates lines correctly for messy dos with cr/lf pairs and adds ^Z at
+  the end of the file), creates startup files, links and so on in this
+  directory, and then starts dosemu. Within "autoexec.bat" drive c: is
+  redirected from hdimage to this tmp-directory, which has links for
+  $HOME and $PWD.
+
+  So if I want to see my filenames shortened to 8.3 I can type "DOS dir"
+  and I get my current directory listing.  So I have full DOS multi user
+  (I don't have any DOS partition and redirecting to Linux preserves
+  user permissions) and multi tasking. (dosemu sessions are completely
+  independent).  I did this once to be able to use a dos driver for my
+  printer. My printcap df is actually a DOS program. So you can even
+  make DOS executables act as lpr filters.
+
+
+  6.  dosemu and Netware
+
+  6.1.  How do I get Netware access from dosemu?
+
+  James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (11/28/94) that
 
   Dosemu now supports  pdipx  (an IPX over pktdrvr)  and  pdether  (uses
   Novell's  MLID spec)  to  access  Novell LAN's via the built in packet
   driver.   The  packet  driver sits at interrupt 0x60, and abids by the
   normal paket driver rules.  That said, beware of trying any DOS TCP/IP
-  just yet. To use Netware, simply:
+  just yet.  Single access can be made by:
 
-
-     1) Compile support for your NIC into the kernel.
-     2) Boot dosemu.
-     3) Run ./commands/pdipx.
-     4) Run netx or whatever you use.
+  1) cd ./net
+  2) cp libpacket.c.single libpacket.c
+  3) cp pktnew.c.single pktnew.c
+  4) recompile DOSEMU
+  5) run dosemu
+  6) load pdether as described by its docs (pdipx is another method)
+  7) load netx
+  8) enjoy netware access :-)
 
 
   If you  need  special  access  to  your  NIC,  read  on.   By  default
@@ -458,11 +571,205 @@
   Any interested parties should E-mail me (jmaclean@fox.nstn.ns.ca) and
   I'll pass along some directions.
 
+  Want multiple DOSEMU's access to Novell?
+
+  1) compile current [pre-release] DOSEMU
+  2) follow directions in ./v-net/dosnet.README
+  3) carry on from 5) above.
 
 
-  6.  dosemu and X-windows
 
-  6.1.  Can I run dosemu in console mode while running X?
+
+  6.2.  The Netware-HOWTO
+
+  Lauri Tischler (ltischler@fipower.pp.fi) has authored this section of
+  the HOWTO (Thanks Lauri!!!).  This is Rev. 0.1, 26 Nov 1994.
+
+  IMPORTANT NOTE:  This information applies to the pre-release versions
+  of dosemu (pre0.53_??) only!
+
+  This is my first attempt to write some kind of advice on how to
+  connect to a Netware server from your Linux box.
+
+
+  Due to the first attempt and the scope of this note, it is not a real
+  HOWTO, not even a 'mini-HOWTO'.  You might call it a 'nano-HOWTO' if
+  you like.
+
+  As in most sites the Netware is really just an extension to PC's
+  running DOS and DOS applications (Windows is JUST another DOS-
+  application), the Netware providing fileserver and printing support, I
+  will concentrate on getting the connection via DOSEMU only.
+
+  It is possible to access Netware server via NFS from Linux directly,
+  but that requires the Novell NFS nlm-module for the server.  Unless
+  you have $x000 of extra dough around you better forget it.  Besides
+  all the applications are DOS programs anyway, so you can't run them in
+  Linux native mode.  Also, if there is filenamelength limitations in
+  Novell NFS it is quite useless in *nix environment. (I really don't
+  know NFS, never seen the beast).
+
+  So, how to get the connection to the Netware server, that is the
+  question.
+
+  We have a Netware network with 3 servers and appr. 110 PC's connected
+  to it.  It is TOTALLY Dos/Windows environment, running 'Novell
+  standard' Ethernet_802.3 frames, really very ordinary commercial REAL
+  LIFE setup.
+
+  I use in my PC (in addition to DOS) Linux 1.1.65 and Dosemu pre0.53_35
+  and it works in my machine with my hardware and our network.  The
+  following may or may not work on Your pile of iron.
+
+  1)  Linux kernel requirements  (NONE).  There is a config parameter
+  'IPX-SUPPORT'.  It makes no difference to use it or not to use it.  It
+  is provided for future hooks to kernel.  There are no working hooks
+  which use it,  not at least in dosemu,  not in various configurations
+  I have tested.
+
+  2)  dosemu requirements  (FEW) Here is a fragment of dosemu.conf file.
+  Comment out ipxsupport on and pktdriver novell_hack
+
+  #************************* NETWORKING SUPPORT *****************************
+  #
+  #    Turn the following option 'on' if you require IPX/SPX emulation.
+  #    Therefore, there is no need to load IPX.COM within the DOS session.
+  #    The following option does not emulate LSL.COM, IPXODI.COM, etc.
+  #    NOTE: MUST HAVE IPX PROTOCOL ENABLED IN KERNEL !!
+  #ipxsupport on
+  #
+  #    Enable Novell 8137->raw 802.3 translation hack in new packet driver.
+  #pktdriver novell_hack
+
+
+  The ipx support does not work yet in dosemu and the novell_hack has
+  been disabled in the latest dosemu (pl35).  There is a gallant effort
+  for better support, look at directory v-net for info, but we are not
+  there yet.
+
+  In stock dosemu release (at least in pre0.53_35) in directory net the
+  two files pktnew.c and libpacket.c are the experimental multi-version.
+  They do not work yet.  You need to copy the single-versions over the
+  original multi-versions.
+
+      cp pktnew.c.single pktnew.c
+      cp libpacket.c.single libpacket.c
+
+
+  Remake your dosemu, normally 'make most' and we are almost there.
+
+  Test your newly made dosemu and when you are convinced that everything
+  is on order,  continue..
+
+
+  3)  The shell.
+
+  To connect to Netware server you need the driver (ipx) and the shell
+  (netx or vlm).
+
+  As a driver you can use either PDIPX, which is really an ipx-to-packet
+  driver shim, or PDETHER which is also ipx-to-packet driver shim, but
+  masquerading as an ODI compliant driver.  Which one to use depends
+  really on what frametypes is your Netware server using.
+
+      a) If the Netware runs on Ethernet_802.3  use PDIPX
+      b) If the Netware runs on Ethernet_II     use PDETHER
+
+
+
+  If you use PDIPX, you just load
+
+      PDIPX
+      NETX
+
+
+  and voila there You are, connected...
+
+  You can use PDIPX on Ethernet_II frame but then you need to run
+  program called econfig against PDIPX,  see Novell docs for info.
+
+  If you use PDETHER, because PDETHER is an ODI driver, you load..
+
+      LSL
+      PDETHER
+      IPXODI
+      NETX
+
+
+  and again You should be connected...  Because PDETHER is an ODI
+  driver, there must be corresponding section in Your net.cfg file.
+  Read the PDETHER.DOC for info.
+
+  There is NO WAY to use PDETHER on Ethernet_802.3 frames.  If your
+  Netware runs on 802.3 and you MUST use ODI drivers then you need to
+  run both frametypes on Netware server.  You need to load the NIC-
+  driver second time in your server. This time specifying Ethernet_II
+  frame, like I do..
+
+
+      load SMCE32 port=6810 Name=Nv Frame=Ethernet_802.3    ; 'novell' frame
+      load SMCE32 port=6810 Name=Nl Frame=Ethernet_II       ; 'normal' frame
+      bind ipx to Nv Net=E1
+      bind ipx to Nl Net=E2
+
+
+
+  Both nets E1 and E2 are really the same net.  If I use original PDIPX
+  I connect to E1 with PDETHER I connect to E2.
+
+  Some people might want to use VLM drivers, because in DOS environment
+  they are much faster.  Don't bother,  for reasons unknown, in DOSEMU
+  the VLM drivers are dogs.
+
+  With above mentioned setup it IS POSSIBLE to connect to Netware server
+  and even do some usefull work,  but slowly.
+
+  Here is some benchmarking I did using NETX and VLM shells, with and
+  without packetburst.  The testprogram was TESTNET.EXE, available
+  somewhere in NetWire.  It tests the network transfer speed.  I can
+  saturate my ethernet with two stations running at full tilt.  Maximum
+  aggregate speed is appr. 900 kilobytes/sec.  I'm using SMC Elite 32
+  EISA board in Server and SMC Elite Ultra in workstation.
+
+                         NETX          VLM(0)          VLM(3)
+  Dos6.2                 620           560             760
+  DosEmu                 107           111              60
+
+
+
+  The figures denote transferspeed in kilobytes/second.  VLM(0) means
+  packetburst disabled, VLM(3) packetburst enabled.  You can see that
+  the connection with dosemu is not very fast, barely usable.
+
+  Few months ago I had a NE2000 clone in my box, with DOS6.2/NETX it
+  would run to appr. 460 kbs.  I could live with that.  There is still
+  work to be done.
+
+  I am well aware that I'm missing a lot of things in here, like
+
+  - multiuser dos-session, I don't think it works yet,  anyway the speed
+  would be comparable to dead snail.
+
+  - tcp-connections from dosemu, I havn't the faintest idea, the only
+  *nix machine in our net is my Linuxbox.
+
+  Also I may have totally mixed the working and not working things.  As
+  the Dosemu as well as the Kernel are evolving, living things it is
+  sometimes difficult to keep up with the beasts.  I do apologize for
+  any mistakes and will gratefully accept and include any corrections
+  and additions to this note.
+
+  We all know that the DOSEMU is still ALPHA but it is not really far
+  from BETA.  There is some interesting work going on by Vinod G
+  Kulkarni and others, read the relevant pieces in dosemu release
+  (READMEs and such).
+
+  Regards, Lauri Tischler            ltischler@fipower.pp.fi
+
+
+  7.  dosemu and X-windows
+
+  7.1.  Can I run dosemu in console mode while running X?
 
   Ronald Schalk (R.Schalk@uci.kun.nl) reported (1/17/94) that
 
@@ -476,7 +783,7 @@
   before X]
 
 
-  6.2.  Is it possible to run dosemu in an xterm?
+  7.2.  Is it possible to run dosemu in an xterm?
 
   Evmorfopoulos Dimitris (devmorfo@mtu.edu) reported (12/10/93) that
 
@@ -491,9 +798,9 @@
   (for letters like \305, \304, \326 for example.
 
 
-  7.  Video and sound
+  8.  Video and sound
 
-  7.1.  Exiting from dosemu gives me a screen full of garbage.
+  8.1.  Exiting from dosemu gives me a screen full of garbage.
 
   Keith A Grider (kgrider@magnus.acs.ohio-state.edu) reported (12/5/93)
   that
@@ -521,11 +828,12 @@
   bit of a kluge.
 
 
-  7.2.  How do I get dosemu to work with my Trident/Actix/other video
+  8.2.  How do I get dosemu to work with my Trident/Actix/other video
   card?
 
   [The screen flickers violently, displays the video BIOS startup
   message, and hangs.]
+
   Andrew Tridgell (tridge@nimbus.anu.edu.au) reported (1/29/94) that
 
   I found with early versions it would work if I used:
@@ -545,6 +853,9 @@
 
   and it boots dosemu more slowly, but more reliably.
 
+  ---------------------
+
+
   Tim Shnaider (tims@kcbbs.gen.nz) also reported (1/18/94) that
 
   One way of fixing this is to use the GETROM program to dump your video
@@ -561,8 +872,22 @@
 
 
 
+  ---------------------
 
-  7.3.  Why doesn't my soundcard software work with dosemu?
+
+  Douglas Gleichman (p86884@tcville.edsg.hac.com) reported (9/1/94) that
+  (with the ATI Graphics Ultra)
+
+  For DOSEMU 0.52 you need to add this line to your dosemu.conf file:
+
+   ports  { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
+
+
+  The board self test will list a failure but graphics programs will run
+  fine.
+
+
+  8.3.  Why doesn't my soundcard software work with dosemu?
 
   Hannu Savolainen (hsavolai@cs.Helsinki.FI) reported (3/21/94) that
 
@@ -582,9 +907,9 @@
   It's bound to happen at some future date though :-),
 
 
-  8.  Other Hardware
+  9.  Other Hardware
 
-  8.1.  How do I get my xxxxx device working under dosemu?
+  9.1.  How do I get my xxxxx device working under dosemu?
 
   Corey Sweeney (corey@bbs.xnet.com) reported (5/30/94) that
 
@@ -613,9 +938,35 @@
   Question: What if my card uses DMA?  Answer: Your screwed.
 
 
-  9.  Problems and fixes
+  10.  Problems and fixes
 
-  9.1.  Why is the cursor position wrong?
+  10.1.  Why does dosemu 0.52 fail under kernels newer than 1.1.30?
+
+  (8/5/94)
+
+  Dosemu 0.52 is not compatible with kernels newer than 1.1.30.  This
+  problem will be fixed in dosemu 0.53.
+
+
+  10.2.  I've enabled EMS memory in dosemu.conf but it does not help.
+
+  Rob Janssen (rob@pe1chl.ampr.org) reported (7/11/94)
+
+  Don't forget to load the provided ems.sys from the config.sys file.
+
+
+  10.3.  How do I get rid of all those annoying "disk change" messages?
+
+  (8/11/94)
+
+  Grab and install klogd.  Try
+
+           sunsite.unc.edu:/pub/Linux/system/Daemons/sysklogd1.2.tgz
+
+
+
+
+  10.4.  Why is the cursor position wrong?
 
   (7/9/94)
 
@@ -623,7 +974,7 @@
 
 
 
-  9.2.  Why does my busmouse act funny under dosemu 0.52?
+  10.5.  Why does my busmouse act funny under dosemu 0.52?
 
   James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (7/8/94) that
 
@@ -632,7 +983,7 @@
   in the upcoming releases.
 
 
-  9.3.  Why won't dosemu run a second time after exiting in console
+  10.6.  Why won't dosemu run a second time after exiting in console
   mode?
 
   Aldy Hernandez (aldy@sauron.cc.andrews.edu) reported (7/8/94) that
@@ -640,7 +991,8 @@
   You should disable your video and/or bios caching.
 
 
-  9.4.  Some dos applications still do not detect DPMI under dosemu0.52.
+  10.7.  Some dos applications still do not detect DPMI under
+  dosemu0.52.
 
   James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (6/19/94) that
 
@@ -650,7 +1002,7 @@
   Please be patient :-), as it's bound to come in time.
 
 
-  9.5.  Why does dosemu give "divide overflow" errors after running for
+  10.8.  Why does dosemu give "divide overflow" errors after running for
   more than 24-hours?
 
   (1/17/94)
@@ -658,7 +1010,8 @@
   This is a known bug.  It will (hopefully) be fixed in an upcoming
   release.  For now, you can simply exit dosemu and start it again.
 
-  9.6.  Why will dosemu run in a term but not in the console?
+
+  10.9.  Why will dosemu run in a term but not in the console?
 
   JyiJiin Luo (jjluo@casbah.acns.nwu.edu) reported (4/19/94) that
 
@@ -667,7 +1020,7 @@
   my system.
 
 
-  9.7.  How can I speed up dosemu?
+  10.10.  How can I speed up dosemu?
 
   Mark Rejhon (mdrejhon@undergrad.math.uwaterloo.ca) reported (4/7/94)
   that
@@ -701,7 +1054,6 @@
 
   ---------------------
 
-
   Pete Heist (heistp@rpi.edu) reported (5/13/94) that
 
   If you compile it with the "-funroll-all-loops" option you will get
@@ -720,7 +1072,7 @@
   For example, I use "HogThreshold 60000" on my 386/87-20 laptop.
 
 
-  9.8.  My CDROM drive has problems reading some files under dosemu.
+  10.11.  My CDROM drive has problems reading some files under dosemu.
 
   Vinod G Kulkarni (vinod@cse.iitb.ernet.in) reported (4/7/94) that
 
@@ -735,38 +1087,30 @@
   The result of this is that if you copy such a file from cdrom (from
   linux itself, and not necessarily dosemu), the resulting file will be
   usually bigger than original file. (Blanks get added before ^J,^M.)
-  So a program running in dosemu gives error or hangs, which you may
+  So a program running in dosemu gives an error or hangs, which may be
   mistaken as problem of dosemu.
 
-  I could verify that this kind of heuristic is not used when the cdrom
-  is used from DEC ALPHA system. (I nfs mounted the exported cdrom drive
-  and used under dosemu as a drive.)
 
-  To correct the behavior, you can force the iso9660 file system not to
-  use heuristic at all.  Make the following change and then recompile
-  your kernel.
+  Rob Janssen (pe1chl@rabo.nl) reported (8/10/94) that
 
+  The way to solve this is to turn off conversion altogether.  Pass the
+  option "-o conv=binary" to the mount command mounting the CDROM, or
+  use the following in /etc/fstab:
 
-  File: /usr/src/linux/fs/isofs/file.c
-  In Function: static int isofs_file_read ()
-    ...
-             if (inode->u.isofs_i.i_file_format == ISOFS_FILE_UNKNOWN) {
-                  inode->u.isofs_i.i_file_format = ISOFS_FILE_BINARY ;
-                  /* ORIGINAL: isofs_determine_filetype(inode);  */
-             }
-    ...
+  /dev/cdrom      /cdrom          iso9660 conv=binary,ro
 
 
+  No patches to the kernel are necessary.
 
 
-  9.9.  Where did the debugging output go?
+  10.12.  Where did the debugging output go?
 
   As of dosemu0.49pl4, stderr is automatically redirected to /dev/null.
   Try "dos -D+a 2>debug" to turn on debugging information and redirect
   it to the file "debug".
 
 
-  9.10.  Why does dosemu lock up after one keystroke?
+  10.13.  Why does dosemu lock up after one keystroke?
 
   (12/17/93)
 
@@ -776,12 +1120,10 @@
 
      keybint on
 
-
-
   Shouldn't be a problem in dosemu0.52.
 
 
-  9.11.  Why are my keystrokes echoed ttwwiiccee??
+  10.14.  Why are my keystrokes echoed ttwwiiccee??
 
   Nick Holloway (alfie@dcs.warwick.ac.uk) reported (2/22/94) that
 
@@ -797,7 +1139,7 @@
   lines).
 
 
-  9.12.  Why are characters < 128 highlighted and blinking?
+  10.15.  Why are characters < 128 highlighted and blinking?
 
   Chris Kuehnke (Christian.Kuehnke@Informatik.Uni-Oldenburg.DE) reported
   (3/21/94) that
@@ -823,15 +1165,26 @@
 
 
 
-  10.  Contributing to the dosemu project
+  11.  Contributing to the dosemu project
 
-  10.1.  Who is responsible for dosemu?
+  11.1.  Who is responsible for dosemu?
 
   (3/18/94)
 
   Dosemu is built upon the work of Matthias Lautner and Robert Sanders.
   James B. MacLean (jmaclean@fox.nstn.ns.ca) is responsible for
   organizing the latest releases of dosemu.
+
+
+
+
+
+
+
+
+
+
+
 
                          History of dosemu
 
@@ -856,34 +1209,11 @@
 
 
 
-  10.2.  I want to help.  Who should I contact?
+  11.2.  I want to help.  Who should I contact?
 
   The dosemu project is a team effort.  If you wish to contribute, see
   the DPR (DOSEMU Project Registry).  A current copy may be found in
   dspsun.eas.asu.edu:/pub/dosemu.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

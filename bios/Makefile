@@ -23,3 +23,5 @@ include ../Makefile.common
 
 clean::
 	rm -f bios.o bios.s
+
+realclean:: clean

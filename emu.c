@@ -544,8 +544,8 @@ extern int cursor_row, cursor_col, cursor_blink;
 #define MAX_SIG_QUEUE_SIZE 50
 u_short SIGNAL_head=0; u_short SIGNAL_tail=0;
 struct SIGNAL_queue {
-  struct sigcontext_struct context;
-  void (* signal_handler)(void);
+   struct sigcontext_struct context;
+   void (* signal_handler)(void);
 };
 struct SIGNAL_queue	signal_queue[MAX_SIG_QUEUE_SIZE];
 
@@ -643,9 +643,9 @@ int int_queue_end = 0;
 #if 0
 #define IQUEUE_LEN 1000
 struct int_queue_struct {
-  int interrupt;
-  int (*callstart) ();
-  int (*callend) ();
+   int interrupt;
+   int (*callstart) ();
+   int (*callend) ();
 }
 int_queue[IQUEUE_LEN];
 #endif
@@ -657,10 +657,10 @@ int_queue[IQUEUE_LEN];
 #if 0
 #define NUM_INT_QUEUE 64
 struct int_queue_list_struct {
-  struct int_queue_struct int_queue_ptr;
-  int int_queue_return_addr;
-  u_char in_use;
-  struct vm86_regs saved_regs;
+   struct int_queue_struct int_queue_ptr;
+   int int_queue_return_addr;
+   u_char in_use;
+   struct vm86_regs saved_regs;
 } int_queue_head[NUM_INT_QUEUE];
 #endif
 
@@ -686,8 +686,8 @@ void boot(void);
 extern void map_bios(void);	/* map in VIDEO bios */
 extern int open_kmem();		/* Get access to physical memory */
 
- void usage(void),		/* Print parameters of DOSEMU */
- hardware_init(void);		/* Initialize info on hardware */
+void usage(void),		/* Print parameters of DOSEMU */
+hardware_init(void);		/* Initialize info on hardware */
 
 int dos_helper(void);		/* handle int's created especially for DOSEMU */
 void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
@@ -695,12 +695,12 @@ void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation *
 #ifndef NEW_PIC
 /* Programmable Interrupt Controller, 8259 */
 struct pic {
-  int stage;			/* where in init. , 0=ICW1 */
+   int stage;			/* where in init. , 0=ICW1 */
   /* the seq. is ICW1 to 0x20, ICW2 to 0x21
          * if ICW1:D1=0, ICW3 to 0x20h,
 	 * ICW4 to 0x21, OCWs any order
 	 */
-  unsigned char
+   unsigned char
    ICW1,			/* Input Control Words */
    ICW2, ICW3, ICW4, OCW1,	/* Output Control Words */
    OCW2, OCW3;
@@ -711,19 +711,19 @@ pics[2];
 int special_nowait = 0;
 
 struct ioctlq iq =
-{0, 0, 0, 0};			/* one-entry queue :-( for ioctl's */
+{  0, 0, 0, 0  };			/* one-entry queue :-( for ioctl's */
 char *tmpdir;
 u_char in_sighandler = 0;	/* so I know to not use non-reentrant
 				 * syscalls like ioctl() :-( */
 u_char in_ioctl = 0;
 struct ioctlq curi =
-{0, 0, 0, 0};
+{  0, 0, 0, 0  };
 
 /* this is DEBUGGING code! */
 int sizes = 0;
 
 struct debug_flags d =
-{0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0};
+{  0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0  };
 
 int poll_io = 1;		/* polling io, default on */
 u_char ignore_segv = 0;		/* ignore sigsegv's */
@@ -747,12 +747,12 @@ sigset_t oldset;
 int
 dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 {
-  __asm__("int $0x80":"=a"(sig)
+   __asm__("int $0x80":"=a"(sig)
 	  :"0"(SYS_sigaction), "b"(sig), "c"(new), "d"(old));
-  if (sig >= 0)
-    return 0;
-  errno = -sig;
-  return -1;
+   if (sig >= 0)
+   return 0;
+   errno = -sig;
+   return -1;
 }
 
 /* DANG_BEGIN_FUNCTION signal_init
@@ -767,13 +767,13 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
 void
 signal_init(void)
 {
-  sigset_t trashset;
-  u_short counter;
-
+   sigset_t trashset;
+   u_short counter;
+   
   /* block no additional signals (i.e. get the current signal mask) */
-  sigemptyset(&trashset);
-  sigprocmask(SIG_BLOCK, &trashset, &oldset);
-  g_printf("Initialized all signals to NOT-BLOCK\n");
+   sigemptyset(&trashset);
+   sigprocmask(SIG_BLOCK, &trashset, &oldset);
+   g_printf("Initialized all signals to NOT-BLOCK\n");
 }
 
 /* 
@@ -787,11 +787,11 @@ signal_init(void)
 void
 cli(void)
 {
-  sigset_t blockset;
-
-  return; /* Should be OK now */
-  sigfillset(&blockset);
-  DOS_SYSCALL(sigprocmask(SIG_SETMASK, &blockset, &oldset));
+   sigset_t blockset;
+   
+   return; /* Should be OK now */
+   sigfillset(&blockset);
+   DOS_SYSCALL(sigprocmask(SIG_SETMASK, &blockset, &oldset));
 }
 
 /* 
@@ -805,10 +805,10 @@ cli(void)
 void
 sti(void)
 {
-  sigset_t blockset;
-
-  return; /* Should be OK now */
-  DOS_SYSCALL(sigprocmask(SIG_SETMASK, &oldset, &blockset));
+   sigset_t blockset;
+   
+   return; /* Should be OK now */
+   DOS_SYSCALL(sigprocmask(SIG_SETMASK, &oldset, &blockset));
 }
 
 /*
@@ -826,17 +826,17 @@ sti(void)
  *
  */
 inline void handle_signals(void) {
-  if ( SIGNAL_head != SIGNAL_tail ) {
-    signal_queue[SIGNAL_head].signal_handler();
-    SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
+   if ( SIGNAL_head != SIGNAL_tail ) {
+      signal_queue[SIGNAL_head].signal_handler();
+      SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
 /* 
  * If more SIGNALS need to be dealt with, make sure we request interruption
  * by the kernel ASAP.
  */
       if (SIGNAL_head != SIGNAL_tail) {
-        REG(eflags) |= VIP;
+	 REG(eflags) |= VIP;
       }
-  }
+   }
 }
 
 /*
@@ -853,39 +853,39 @@ inline void handle_signals(void) {
 inline void
 run_vm86(void)
 {
-  static int retval;
-  static u_short next_signal=0;
-  /*
+   static int retval;
+   static u_short next_signal=0;
+/*
    * always invoke vm86() with this call.  all the messy stuff will
    * be in here.
    */
-    in_vm86 = 1;
+   in_vm86 = 1;
 #ifdef NEW_PIC
-    if(pic_icount) 
-      REG(eflags) |= (VIP);
+   if(pic_icount)
+   REG(eflags) |= (VIP);
 #endif
-    switch VM86_TYPE({retval=vm86(&vm86s); in_vm86=0; retval;}) {
+   switch VM86_TYPE({  retval=vm86(&vm86s); in_vm86=0; retval;  }) {
 	case VM86_UNKNOWN:
-		vm86_GP_fault();
+	 vm86_GP_fault();
 		break;
-	case VM86_STI:
-		I_printf("Return from vm86() for timeout\n");
+      case VM86_STI:
+	 I_printf("Return from vm86() for timeout\n");
 #ifndef NEW_PIC
 		REG(eflags) &= ~(VIP);
 #else
           	pic_iret();
 #endif
 		break;
-	case VM86_INTx:
-		do_int(VM86_ARG(retval));
+      case VM86_INTx:
+	 do_int(VM86_ARG(retval));
 		break;
-	case VM86_SIGNAL:
-		I_printf("Return for SIGNAL\n");
+      case VM86_SIGNAL:
+	 I_printf("Return for SIGNAL\n");
 		break;
-	default:
-		error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
+      default:
+	 error("unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
 		fatalerr = 4;
-    }
+   }
 
   handle_signals();
 
@@ -903,10 +903,10 @@ run_vm86(void)
 /* update the pic to reflect IEF */
   if (REG(eflags)&IF_MASK) {
     if (pic_iflag) pic_sti();
-    }
+   }
   else {
     if (!pic_iflag) pic_cli(); /* pic_iflag=0 => enabled */
-    }
+   }
 #endif
 }
 
@@ -985,7 +985,7 @@ dbug_dumpivec(void)
     for (j = 0; j < 8; j++)
       dbug_printf(" %02x", ((unsigned char *) (BIOSSEG * 16 + 16 * i))[j]);
     dbug_printf("\n");
-  }
+   }
 }
 
 #endif
@@ -1020,7 +1020,7 @@ void memory_init(void) {
     fflush(f);
     fclose(f);
 #endif
-  }
+   }
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
@@ -1028,7 +1028,7 @@ void memory_init(void) {
     if ((i & 0xf8) == 0x60)
       continue;			/* user interrupts */
     SETIVEC(i, BIOSSEG, 16 * i);
-  }
+   }
 
   /* Next let's set up those interrupts we look after in 
      protected mode.
@@ -1050,7 +1050,7 @@ void memory_init(void) {
     mouse_sethandler(ptr, seg, off);
     SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
     SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
-  }
+   }
   else
     *(unsigned char *) (BIOSSEG * 16 + 16 * 0x33) = 0xcf;	/* IRET */
 
@@ -1059,7 +1059,7 @@ void memory_init(void) {
     extern void bios_f000_bootdrive(), bios_f000();
     ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));
     *ptr = config.hdiskboot ? 0x80 : 0;
-  }
+   }
 
 
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
@@ -1076,16 +1076,16 @@ void memory_init(void) {
 #if USE_DUALMON
   if (config.dualmon == 2) {
     interrupt_function[0x42] = int10;
-  }
+   }
   else
-#endif 
+#endif
   *(u_char *) 0xff065 = 0xcf;	/* IRET */
 
   /* TRB - initialize a helper routine for IPX in boot() */
 #ifdef IPX
   if (config.ipxsup) {
     InitIPXFarCallHelper();
-  }
+   }
 #endif
 
   /* Install the new packet driver interface */
@@ -1140,12 +1140,12 @@ void memory_init(void) {
   if (config.vga) {
     g_printf("INITIALIZING VGA CARD BIOS!\n");
     init_vga_card();
-  }
+   }
 
   if (config.exitearly) {
     dbug_printf("Leaving DOS before booting\n");
     leavedos(0);
-  }
+   }
 
 }
 
@@ -1157,21 +1157,21 @@ boot(void)
 
   switch (config.hdiskboot) {
   case 0:
-    if (config.bootdisk)
+	 if (config.bootdisk)
       dp = &bootdisk;
     else
       dp = &disktab[0];
     break;
-  case 1:
-    dp = &hdisktab[0];
+      case 1:
+	 dp = &hdisktab[0];
     break;
-  case 2:
-    dp = &disktab[2];
+      case 2:
+	 dp = &disktab[2];
     break;
-  default:
-    error("ERROR: unexpected value for config.hdiskboot\n");
+      default:
+	 error("ERROR: unexpected value for config.hdiskboot\n");
     leavedos(15);
-  }
+   }
 
   ignore_segv++;
 
@@ -1185,16 +1185,16 @@ boot(void)
     if (RPT_SYSCALL(read(dp->fdesc, buffer, SECTOR_SIZE)) != SECTOR_SIZE) {
       error("ERROR: reading partition boot sector using partition %s.\n", dp->dev_name);
       leavedos(16);
-    }
-  }
+      }
+   }
   else if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
     error("ERROR: can't boot from %s, using harddisk\n", dp->dev_name);
     dp = hdisktab;
     if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
       error("ERROR: can't boot from hard disk\n");
       leavedos(16);
-    }
-  }
+      }
+   }
   disk_close();
   ignore_segv--;
 }
@@ -1211,7 +1211,7 @@ void SIGALRM_call(void){
   int retval;
   
 #ifdef X_SUPPORT
-  if (config.X) 
+  if (config.X)
      X_handle_events();
 #endif
 
@@ -1250,14 +1250,14 @@ void SIGALRM_call(void){
 #ifdef X_SUPPORT
   if (config.X && config.X_blinkrate) {
      X_blink_cursor();
-  }
+   }
 #endif
   if (!running && !video_update_lock) {
-    if (Video->update_screen 
+    if (Video->update_screen
 #if VIDEO_CHECK_DIRTY
        && (update_pending || vm86s.screen_bitmap&screen_mask)
 #endif
-       ) 
+       )
     {
        running = -1;
        retval = Video->update_screen();
@@ -1265,7 +1265,7 @@ void SIGALRM_call(void){
        v_printf("update_screen returned %d\n",retval);
 #endif
 #ifdef X_SUPPORT
-       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq) 
+       running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq)
                         : 0;
 #else
        running = retval ? config.term_updatefreq : 0;
@@ -1274,14 +1274,14 @@ void SIGALRM_call(void){
        update_pending=(retval==2);
        vm86s.screen_bitmap=0;
 #endif
-    }
+      }
     else if (Video->update_cursor) {
        Video->update_cursor();
-    }
-  }
+      }
+   }
   else if (running > 0) {
     running--;
-  }
+   }
   
 #if 0
   setitimer(TIMER_TIME, &itv, NULL);
@@ -1312,10 +1312,10 @@ void SIGALRM_call(void){
 #endif
       pic_request(PIC_IRQ0);
 #endif
-    }
+      }
     else
       h_printf("NOT CONFIG.TIMERS\n");
-  }
+   }
 
   if (not_use_sigio)
     io_select(fds_no_sigio);
@@ -1327,7 +1327,7 @@ void SIGALRM_call(void){
     printer_tick((u_long) 0);
     if (config.fastfloppy)
       floppy_tick();
-  }
+   }
 
 }
 
@@ -1436,7 +1436,7 @@ open_terminal_pipe(char *path)
     terminal_pipe = 0;
     error("ERROR: open_terminal_pipe failed - cannot open %s!\n", path);
     return;
-  }
+   }
   else
     terminal_pipe = 1;
 }
@@ -1449,7 +1449,7 @@ open_Xkeyboard_pipe(char *path)
     keypipe = 0;
     error("ERROR: open_Xkeyboard_pipe failed - cannot open %s!\n", path);
     return;
-  }
+   }
   return;
 }
 
@@ -1461,7 +1461,7 @@ open_Xmouse_pipe(char *path)
     mousepipe = 0;
     error("ERROR: open_Xmouse_pipe failed - cannot open %s!\n", path);
     return;
-  }
+   }
   return;
 }
 
@@ -1504,64 +1504,64 @@ parse_debugflags(const char *s)
   while ((c = *(s++)))
     switch (c) {
     case '+':			/* begin options to turn on */
-      if (!flag)
+	 if (!flag)
 	flag = 1;
       break;
-    case '-':			/* begin options to turn off */
-      flag = 0;
+      case '-':			/* begin options to turn off */
+	 flag = 0;
       break;
-    case 'v':			/* video */
-      d.video = flag;
+      case 'v':			/* video */
+	 d.video = flag;
       break;
 #ifdef X_SUPPORT
-    case 'X':
-      d.X = flag;
+      case 'X':
+	 d.X = flag;
       break;
 #endif
-    case 's':			/* serial */
-      d.serial = flag;
+      case 's':			/* serial */
+	 d.serial = flag;
       break;
-    case 'c':			/* disk */
-      d.config = flag;
+      case 'c':			/* disk */
+	 d.config = flag;
       break;
-    case 'd':			/* disk */
-      d.disk = flag;
+      case 'd':			/* disk */
+	 d.disk = flag;
       break;
-    case 'R':			/* disk READ */
-      d.read = flag;
+      case 'R':			/* disk READ */
+	 d.read = flag;
       break;
-    case 'W':			/* disk WRITE */
-      d.write = flag;
+      case 'W':			/* disk WRITE */
+	 d.write = flag;
       break;
-    case 'k':			/* keyboard */
-      d.keyb = flag;
+      case 'k':			/* keyboard */
+	 d.keyb = flag;
       break;
-    case 'p':			/* printer */
-      d.printer = flag;
+      case 'p':			/* printer */
+	 d.printer = flag;
       break;
-    case 'i':			/* i/o instructions (in/out) */
-      d.io = flag;
+      case 'i':			/* i/o instructions (in/out) */
+	 d.io = flag;
       break;
-    case 'w':			/* warnings */
-      d.warning = flag;
+      case 'w':			/* warnings */
+	 d.warning = flag;
       break;
-    case 'g':			/* general messages */
-      d.general = flag;
+      case 'g':			/* general messages */
+	 d.general = flag;
       break;
-    case 'x':			/* XMS */
-      d.xms = flag;
+      case 'x':			/* XMS */
+	 d.xms = flag;
       break;
-    case 'D':			/* DPMI */
-      d.dpmi = flag;
+      case 'D':			/* DPMI */
+	 d.dpmi = flag;
       break;
-    case 'm':			/* mouse */
-      d.mouse = flag;
-    case 'P':
-      d.pd = flag;
+      case 'm':			/* mouse */
+	 d.mouse = flag;
+      case 'P':
+	 d.pd = flag;
       d.network=flag;
       break;
-    case 'a':{			/* turn all on/off depending on flag */
-	char *newopts = (char *) malloc(strlen(allopts) + 2);
+      case 'a':  {			/* turn all on/off depending on flag */
+		    char *newopts = (char *) malloc(strlen(allopts) + 2);
 
 	d.all = flag;
 	newopts[0] = flag ? '+' : '-';
@@ -1570,23 +1570,22 @@ parse_debugflags(const char *s)
 	parse_debugflags(newopts);
 	free(newopts);
 	break;
-      }
-    case 'h':			/* hardware */
-      d.hardware = flag;
+		 }
+      case 'h':			/* hardware */
+	 d.hardware = flag;
       break;
-    case 'I':			/* IPC */
-      d.IPC = flag;
+      case 'I':			/* IPC */
+	 d.IPC = flag;
       break;
-    case 'E':			/* EMS */
-      d.EMS = flag;
+      case 'E':			/* EMS */
+	 d.EMS = flag;
       break;
-    case '0'...'9':		/* set debug level, 0 is off, 9 is most verbose */
-      flag = c - '0';
+      case '0'...'9':		/* set debug level, 0 is off, 9 is most verbose */
+	 flag = c - '0';
       break;
-    default:
-      fprintf(stderr, "Unknown debug-msg mask: %c\n\r", c);
+      default:
       dbug_printf("Unknown debug-msg mask: %c\n", c);
-    }
+   }
 }
 
 /*
@@ -1635,6 +1634,7 @@ config_defaults(void)
   config.X_display     = NULL;     /* NULL means use DISPLAY variable */
   config.X_title       = "dosemu";
   config.X_icon_name   = "dosemu";
+  config.X_font        = "vga";
   config.X_blinkrate   = 8;
   config.X_keycode     = 0;
   config.usesX   = 0;
@@ -1713,7 +1713,7 @@ queue_hard_int(int i, void (*callstart), void (*callend))
   while (i != int_queue_end) {
     h_printf("%x ", int_queue[i].interrupt);
     i = (i + 1) % IQUEUE_LEN;
-  }
+   }
   h_printf("\n");
 
   if (int_queue_start == int_queue_end)
@@ -1736,30 +1736,30 @@ int_queue_run()
     REG(eflags) &= ~(VIP);
 #endif
     return;
-  }
+   }
 g_printf("Still using int_queue_run()\n");
 
   if (!*OUTB_ADD) {
     if (++vif_counter > 0x08) {
       I_printf("OUTB interrupts renabled after %d attempts\n", vif_counter);
-    }
+      }
     else {
       REG(eflags) |= VIP;
       I_printf("OUTB_ADD = %d , returning from int_queue_run()\n", *OUTB_ADD);
       return;
-    }
-  }
+      }
+   }
 
   if (!(REG(eflags) & VIF)) {
     if (++vif_counter > 0x08) {
       I_printf("VIF interrupts renabled after %d attempts\n", vif_counter);
-    }
+      }
     else {
       REG(eflags) |= VIP;
       I_printf("interrupts disabled while int_queue_run()\n");
       return;
-    }
-  }
+      }
+   }
 
   vif_counter=0;
   current_interrupt = int_queue[int_queue_start].interrupt;
@@ -1771,14 +1771,14 @@ g_printf("Still using int_queue_run()\n");
     k_printf("Int9 set\n");
     /* If another program does a keybaord read on port 0x60, we'll know */
     parent_nextscan();
-  }
+   }
 
   /* call user startup function...don't run interrupt if returns -1 */
   if (int_queue[int_queue_start].callstart) {
     if (int_queue[int_queue_start].callstart(current_interrupt) == -1) {
       fprintf(stderr, "Callstart NOWORK\n");
       return;
-    }
+      }
 
     if (int_queue_running + 1 == NUM_INT_QUEUE)
       leavedos(55);
@@ -1801,7 +1801,7 @@ g_printf("Still using int_queue_run()\n");
     /* and the instruction pointer */
     pushw(ssp, sp, int_queue_head[int_queue_running].int_queue_return_addr & 0xf);
     LWORD(esp) -= 8;
-  }
+   }
   else {
 
     pushw(ssp, sp, vflags);
@@ -1810,7 +1810,7 @@ g_printf("Still using int_queue_run()\n");
     /* and the instruction pointer */
     pushw(ssp, sp, LWORD(eip));
     LWORD(esp) -= 6;
-  }
+   }
 
   if (current_interrupt < 0x10)
     *OUTB_ADD = 0;
@@ -1829,7 +1829,7 @@ g_printf("Still using int_queue_run()\n");
     REG(eflags) |= VIP;
 
   int_queue_start = (int_queue_start + 1) % IQUEUE_LEN;
-  h_printf("int_queue: running int %x if applicable, return_addr=%x\n", current_interrupt, int_queue_head[int_queue_running].int_queue_return_addr);
+  h_printf("int_queue: running int %x if applicable, return_addr=%x\n", current_interrupt,int_queue_head[int_queue_running].int_queue_return_addr);
 
   return;
 }
@@ -1853,13 +1853,13 @@ static SillyG_t SillyG_[16+1];
  *
  * DANG_END_FUNCTION
  */
-void 
+void
 SIG_init()
 {
   /* Get in touch with my Silly Interrupt Driver */
   if (config.sillyint) {
     char devname[20];
-    char prio_table[]={9,10,11,12,14,15,3,4,5,6,7};
+    char prio_table[]={  9,10,11,12,14,15,3,4,5,6,7  };
     int i,irq,fd;
     SillyG_t *sg=SillyG_;
     for (i=0; i<sizeof(prio_table); i++) {
@@ -1868,7 +1868,7 @@ SIG_init()
 #ifdef REQUIRES_EMUMODULE
         if (emusyscall(EMUSYS_REQUEST_IRQ, irq)<0) {
           g_printf("Not gonna touch IRQ %d you requested!\n",irq);
-        }
+	    }
         else {
           g_printf("Gonna monitor the IRQ %d you requested\n", irq);
           sg->fd=-1;
@@ -1876,15 +1876,15 @@ SIG_init()
         sprintf(devname, "/dev/int/%d", irq);
         if ((fd = open(devname, O_RDWR)) < 1) {
           g_printf("Not gonna touch IRQ %d you requested!\n",irq);
-        }
+	    }
         else {
           /* Reset interupt incase it went off already */
           RPT_SYSCALL(write(fd, NULL, (int) NULL));
           g_printf("Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq ,fd);
           if (config.sillyint & (0x10000 << irq)) {
-            /* Use SIGIO, this should be faster */ 
+            /* Use SIGIO, this should be faster */
             add_to_io_select(fd, 1);
-          }
+	       }
           /* DANG_BEGIN_REMARK
            * At this time we have to use SIGALRM in addition to SIGIO
            * I don't (yet) know why the SIGIO signal gets lost sometimes
@@ -1893,14 +1893,14 @@ SIG_init()
            * Normally SIGIO happens before SIGALARM, so nothing hurts.
            * (Hans)
            * DANG_END_REMARK
-           */  
+           */
 #if 0
-          else 
+          else
 #endif
           {
             /* use SIGALRM  */
             add_to_io_select(fd, 0);
-          }
+	       }
           sg->fd=fd;
 #endif /* NOT REQUIRES_EMUMODULE */
 #ifndef NEW_PIC
@@ -1912,12 +1912,12 @@ SIG_init()
     	  pic_unmaski(sg->irq);
 	  sg++;
 #endif
-        }
+	    }
+	 }
       }
-    }
     sg->fd=0;
     if (sg != SillyG_) SillyG=SillyG_;
-  }
+   }
 }
 
 void
@@ -1928,12 +1928,12 @@ void
     while (sg->fd) {
       emusyscall(EMUSYS_FREE_IRQ,sg->irq);
       sg++;
-    }
+      }
 #else
     while (sg->fd) close((sg++)->fd);
 #endif
     fprintf(stderr, "Closing all IRQ you opened!\n");
-  }
+   }
 }
 
 #endif
@@ -1959,18 +1959,18 @@ static int check_special_mapping()
   memset(map,0,sizeof(map));
   if (config.ems_size) {
     for (i=EMM_BASE_ADDRESS; i<(EMM_BASE_ADDRESS+0x10000); i+=0x1000) map[_I_]=1;
-  }
+   }
   for (i=VBIOS_START; i < (VBIOS_START+VBIOS_SIZE); i+=0x1000) {
     if (map[_I_]) return 0;
     map[_I_]=1;
-  }
+   }
   if (config.must_spare_hardware_ram) {
     for (i=HARDWARE_RAM_START; i < HARDWARE_RAM_STOP; i+=0x1000) {
       if (config.hardware_pages[_I_ - ((HARDWARE_RAM_START-0xc0000)>>12)]) {
         if (map[_I_]) return 0;
+	 }
       }
-    }
-  }
+   }
   return 1;
   #undef _I_
 }
@@ -2003,20 +2003,6 @@ void
   struct stat statout, staterr;
   extern void map_hardware_ram(void);
 
- /* DANG_BEGIN_REMARK
-  * If DOSEMU starts up with stderr == stdout, then stderr gets 
-  * redirected to '/dev/null'.
-  * DANG_END_REMARK
-  */
-  fstat(STDOUT_FILENO, &statout);
-  fstat(STDERR_FILENO, &staterr);
-  if (staterr.st_ino == statout.st_ino) {
-    if (freopen("/dev/null", "ab", stderr) == (FILE *) - 1) {
-      fprintf(stdout, "ERROR: Could not redirect STDERR to /dev/null!\n");
-      exit(-1);
-    }
-  }
-
   config_defaults();
 
   iq.queued = 0;
@@ -2035,7 +2021,7 @@ void
      p = p ? p+1 : argv[0];
     
      if (strcmp(p,"xdos")==0)
-        config.X=1;               /* activate X mode if dosemu was */ 
+        config.X=1;               /* activate X mode if dosemu was */
                                   /* called as 'xdos'              */
   }
 #endif
@@ -2045,18 +2031,18 @@ void
   while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:dXY:Z:")) != EOF) {
 	  switch (c) {
 	  case 'F':
-		  confname = optarg;
+	    confname = optarg;
 		  break;
-	  case 'd':
-		  if (config.detach)
+	 case 'd':
+	    if (config.detach)
 			  break;
 		  config.detach = (unsigned short)detach();
 		  break;
-	  case 'D':
-	     parse_debugflags(optarg);
+	 case 'D':
+	    parse_debugflags(optarg);
 	     break;
-	  }
-  }
+      }
+   }
 
   parse_config(confname);
 
@@ -2068,32 +2054,32 @@ void
   while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtT:sgx:Km234e:dXY:Z:")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
-    case 'd':
+	 case 'd':
+	    break;
+	 case 'A':
+	    config.hdiskboot = 0;
       break;
-    case 'A':
-      config.hdiskboot = 0;
+	 case 'B':
+	    config.hdiskboot = 2;
       break;
-    case 'B':
-      config.hdiskboot = 2;
+	 case 'C':
+	    config.hdiskboot = 1;
       break;
-    case 'C':
-      config.hdiskboot = 1;
+	 case 'c':
+	    config.console_video = 1;
       break;
-    case 'c':
-      config.console_video = 1;
+	 case 'k':
+	    config.console_keyb = 1;
       break;
-    case 'k':
-      config.console_keyb = 1;
-      break;
-    case 'X':
+	 case 'X':
 #ifdef X_SUPPORT
       config.X = 1;
 #else
       error("X support not compiled in\n");
 #endif
       break;
-    case 'Y':
-      open_Xkeyboard_pipe(optarg);
+	 case 'Y':
+	    open_Xkeyboard_pipe(optarg);
       config.cardtype = CARD_MDA;
       config.mapped_bios = 0;
       config.vbios_file = NULL;
@@ -2107,56 +2093,56 @@ void
       config.usesX = 1;
       config.console_keyb = 1;
       break;
-    case 'Z':
-      open_Xmouse_pipe(optarg);
+	 case 'Z':
+	    open_Xmouse_pipe(optarg);
       config.usesX = 1;
       break;
-    case 'K':
-      warn("Keyboard interrupt enabled...this is still buggy!\n");
+	 case 'K':
+	    warn("Keyboard interrupt enabled...this is still buggy!\n");
       config.keybint = 1;
       break;
-    case 'M':{
-	int max_mem = config.vga ? 640 : MAX_MEM_SIZE;
+	 case 'M':  {
+		       int max_mem = config.vga ? 640 : MAX_MEM_SIZE;
 
 	config.mem_size = atoi(optarg);
 	if (config.mem_size > max_mem)
 	  config.mem_size = max_mem;
 	break;
-      }
-    case 'D':
-      parse_debugflags(optarg);
+		    }
+	 case 'D':
+	    parse_debugflags(optarg);
       break;
-    case 'P':
-      if (terminal_fd == -1)
+	 case 'P':
+	    if (terminal_fd == -1)
 	open_terminal_pipe(optarg);
       else
 	error("ERROR: terminal pipe already open\n");
       break;
-    case 'V':
-      g_printf("Assuming VGA video card & mapped ROM\n");
+	 case 'V':
+	    g_printf("Assuming VGA video card & mapped ROM\n");
       config.vga = 1;
       config.mapped_bios = 1;
       if (config.mem_size > 640)
 	config.mem_size = 640;
       break;
-    case 'N':
-      warn("DOS will not be started\n");
+	 case 'N':
+	    warn("DOS will not be started\n");
       config.exitearly = 1;
       break;
-    case 'T':
-      g_printf("Using tmpdir=%s\n", optarg);
+	 case 'T':
+	    g_printf("Using tmpdir=%s\n", optarg);
       free(tmpdir);
       tmpdir = strdup(optarg);
       break;
-    case 't':
-      g_printf("doing timer emulation\n");
+	 case 't':
+	    g_printf("doing timer emulation\n");
       config.timers = 1;
       break;
-    case 's':
-      g_printf("using new scrn size code\n");
+	 case 's':
+	    g_printf("using new scrn size code\n");
       sizes = 1;
       break;
-    case 'g':
+	 case 'g':
 #ifdef EXPERIMENTAL_GFX
       g_printf("turning graphics option on\n");
       config.graphics = 1;
@@ -2165,48 +2151,48 @@ void
 #endif
       break;
 
-    case 'x':
-      config.xms_size = atoi(optarg);
+	 case 'x':
+	    config.xms_size = atoi(optarg);
       x_printf("enabling %dK XMS memory\n", config.xms_size);
       break;
 
-    case 'e':
-      config.ems_size = atoi(optarg);
+	 case 'e':
+	    config.ems_size = atoi(optarg);
       g_printf("enabling %dK EMS memory\n", config.ems_size);
       break;
 
-    case 'm':
-      g_printf("turning MOUSE support on\n");
+	 case 'm':
+	    g_printf("turning MOUSE support on\n");
       config.mouse_flag = 1;
       break;
 
-    case '2':
-      g_printf("CPU set to 286\n");
+	 case '2':
+	    g_printf("CPU set to 286\n");
       vm86s.cpu_type = CPU_286;
       break;
 
-    case '3':
-      g_printf("CPU set to 386\n");
+	 case '3':
+	    g_printf("CPU set to 386\n");
       vm86s.cpu_type = CPU_386;
       break;
 
-    case '4':
-      g_printf("CPU set to 486\n");
+	 case '4':
+	    g_printf("CPU set to 486\n");
       vm86s.cpu_type = CPU_486;
       break;
 
-    case '?':
-    default:
-      fprintf(stderr, "unrecognized option: -%c\n\r", c);
+	 case '?':
+	 default:
+	    fprintf(stderr, "unrecognized option: -%c\n\r", c);
       usage();
       fflush(stdout);
       fflush(stderr);
       _exit(1);
-    }
-  }
+      }
+   }
   if (config.X) {
     config.console_video = config.vga = config.graphics = 0;
-  }
+   }
 
 #ifdef REQUIRES_EMUMODULE
   resolve_emusyscall();
@@ -2216,13 +2202,34 @@ void
       fflush(stdout);
       fflush(stderr);
       _exit(1);
-    }
-  }
+      }
+   }
 #endif
 
   if (!check_special_mapping()) error("ERROR: You have overlapping mappings (EMS,VBIOS,HARDWARE_RAM)\n");
 
   setup_low_mem();
+
+ /* DANG_BEGIN_REMARK
+  * If DOSEMU starts up with stderr == stdout, then stderr gets 
+  * redirected to '/dev/null'.
+  * The redirection should be done *after* the config-file is parsed
+  * and possibly all error/warning-messages has been issued, so
+  * it may be better to do this immediatly before calling vm86() or 
+  * the video-setup. I don't know where...
+  * If the redirection is done as the first thing at startup dosemu
+  * dies silently if an error occured. That's bad.
+  * If all goes well, no output should be done. 
+  * DANG_END_REMARK
+  */
+  fstat(STDOUT_FILENO, &statout);
+  fstat(STDERR_FILENO, &staterr);
+  if (staterr.st_ino == statout.st_ino) {
+    if (freopen("/dev/null", "ab", stderr) == (FILE *) - 1) {
+      fprintf(stdout, "ERROR: Could not redirect STDERR to /dev/null!\n");
+      exit(-1);
+      }
+   }
 
   /* Set up hard interrupt array */
   {
@@ -2231,8 +2238,8 @@ void
     for (counter = 0; counter < NUM_INT_QUEUE; counter++) {
       int_queue_head[counter].int_queue_return_addr = 0;
       int_queue_head[counter].in_use = 0;
-    }
-  }
+      }
+   }
 
   setbuf(stdout, NULL);
 
@@ -2261,7 +2268,7 @@ void
 
     update_timers();
 
-  };
+   };
 
   /* initialize cli() and sti() */
   signal_init();
@@ -2313,7 +2320,7 @@ void
    * map in some ram locations we need for some adapter's memory mapped IO 
    * (those, who are defined via hardware_ram config)
    */
-  map_hardware_ram();  
+  map_hardware_ram();
 
   serial_init();
   mouse_init();
@@ -2326,7 +2333,7 @@ void
   if (keyboard_init() != 0) {
     error("ERROR: can't open keyboard\n");
     leavedos(19);
-  }
+   }
   if (!config.vga)
     config.allowvideoportaccess = 0;
 
@@ -2378,8 +2385,8 @@ void
       serial_run();
 
       int_queue_run();
-    }
-  }
+      }
+   }
 
   error("error exit: (%d,0x%04x) in_sigsegv: %d ignore_segv: %d\n",
 	fatalerr, fatalerr, in_sigsegv, ignore_segv);
@@ -2410,7 +2417,7 @@ ign_sigs(int sig) {
     fclose(stderr);
     fclose(stdout);
     _exit(1);
-  }
+   }
 }
 
 /* "graceful" shutdown */
@@ -2482,12 +2489,12 @@ void
    pic_unmaski(PIC_IRQ0);
    pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
    pic_unmaski(PIC_IRQ1);
-#else 
+#else
   for (i = 0; i < 2; i++) {
     pics[i].OCW1 = 0;		/* no IRQ's serviced */
     pics[i].OCW2 = 0;		/* no EOI's received */
     pics[i].OCW3 = 8;		/* just marks this as OCW3 */
-  }
+   }
 #endif
 
   g_printf("Hardware initialized\n");
@@ -2510,7 +2517,7 @@ int
       return (1);
     else
       return (0);
-  }
+   }
   else
     return (0);
 }
@@ -2568,7 +2575,7 @@ int
 	if(getenv("SHOWTIME"))
 		show_time = 1;
 	first_time = 0;
-  }
+   }
 #endif
 	
   va_start(args, fmt);
@@ -2589,13 +2596,13 @@ int
 	
 #ifdef MARTY
 	strcpy(buf, tmpbuf);
-  }
+}
 #endif
 
   write(STDERR_FILENO, buf, strlen(buf));
   if (terminal_pipe) {
     write(terminal_fd, buf, strlen(buf));
-  }
+}
   return i;
 }
 

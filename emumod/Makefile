@@ -20,7 +20,9 @@ endif
 
 KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX
  
-
+ifeq (/usr/include/linux/segment.h,$(wildcard /usr/include/linux/segment.h))
+EXTRA_HEADERS=-DEXTRA_HEADERS
+endif
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
@@ -46,19 +48,19 @@ emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
 vm86.o:  vm86.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
+	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
 
 emumod.o:  emumod.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
+	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
 
 emusys.o:  emusys.c $(USRSRCDIR)/linux/tools/version.h 
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
+	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
 
 traps.o:  traps.c emumod.h $(USRSRCDIR)/linux/tools/version.h
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
+	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
 
 fastsys.o: fastsys.S
-	$(CC) -c -D__ASSEMBLY__ fastsys.S -o fastsys.o
+	$(CC) -c $(KERNEL) -D__ASSEMBLY__ $(EXTRA_HEADERS) fastsys.S -o fastsys.o
 
 checkin:
 	-ci $(ALL) Makefile

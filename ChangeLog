@@ -1,3 +1,39 @@
+Fri Dec  9	1994
+
+-	Release pl37
+-	Added garrot02 to dosemu. I think it should be separate on 
+	tsx?
+
+Sat Dec  3	1994
+
+-	Update to add different X fonts :
+
+	Hi!
+
+	I just added support to change the font used with XDOS.  There is a new
+	keyword, "font", in the X-section of the config file which allows you to
+	specify the font to be used.  If the font is not a monospaced font (or can't
+	be found) "vga" is still the default.
+
+	There is no translation done, i.e. the font has to be an IBM font!
+
+	So, if someone wants to create a smaller font...
+
+	BTW, the include file "linux/segment.h" changed to "asm/segment.h" somewhere
+	around linux 1.1.67 (it is used in dpmi.c).
+
+	The diffs are against pre0.53pl36.
+
+	CU
+	   Heiko
+	 Email:                                  | Snail-mail:
+						 |    Heiko Schroeder
+	    heiko@pool.informatik.rwth-aachen.de |    Lerchenweg 120
+						 |    52223 Stolberg
+						 |    GERMANY
+-	Modified to check for VGA, then warn and check for 9x16,
+	then fail.
+	
 Fri Dec  2	1994
 
 -	Release pl36.

@@ -1,4 +1,9 @@
+#ifdef OLD_KERNEL
+#include <linux/segment.h>
+#else
 #include <asm/segment.h>
+#endif
+
 #include <linux/sys.h>
 
 

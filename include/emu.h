@@ -281,9 +281,6 @@ extern int scanseq;
 extern int cursor_row;
 extern int cursor_col;
 
-#define CO	80
-#define LI	25
-
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
 void show_regs(void);
 int ext_fs(int, char *, char *, int);
@@ -504,6 +501,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        char    *X_display;              /* X server to use (":0") */
        char    *X_title;                /* X window title */
        char    *X_icon_name;
+       char    *X_font;
        int     X_blinkrate;
        boolean fullrestore;
        int     dualmon;

@@ -9,6 +9,10 @@
 # if you are doing the first compile.
 #
 
+# Kernel version
+#if less than 1.1.67
+# export KERNEL=-DOLD_KERNEL
+
 # Want to try SLANG?
 USE_SLANG=-DUSE_SLANG
 ifdef USE_SLANG
@@ -75,7 +79,7 @@ export XDEFS
 #  The next lines are for testing the new pic code.  You must do a
 #  make clean, make config if you change these lines.
 # Uncomment the next line to try new pic code on keyboard and timer only.
-# NEW_PIC = -DNEW_PIC=1
+NEW_PIC = -DNEW_PIC=1
 # Uncomment the next line to try new pic code on keyboard, timer, and serial.
 # NOTE:  The serial pic code is known to have bugs.
 # NEW_PIC = -DNEW_PIC=2
@@ -103,7 +107,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   36
+PATCHL  =   37
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -267,7 +271,7 @@ warning3:
 
 doeverything: warning2 config dep optionalsubdirs $(DOCS) installnew
 
-most: warning2 config dep installnew
+most: warning2 config.h dep installnew
 
 all:	warnconf warning3 dos $(LIBDOSEMU) $(X2CEXE)
 
@@ -276,7 +280,7 @@ debug:
 	rm dos
 	$(MAKE) dos
 
-include/config.h: Makefile
+config.h: Makefile
 ifeq (include/config.h,$(wildcard include/config.h))
 	@echo "WARNING: Your Makefile has changed since config.h was generated."
 	@echo "         Consider doing a 'make config' to be safe."
@@ -423,7 +427,7 @@ checkout::
 	-co -M -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(LIBS) $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
-dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
+dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) config.h
 	install -d $(DISTPATH)
 	install -d $(DISTPATH)/lib
 	install -m 0644 dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
@@ -434,6 +438,8 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(DOCS) ipxutils $(OPTIONALSUBDIRS) ipxbridge; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
+	install -d $(DISTPATH)/garrot02
+	install -m 0644 garrot02/* $(DISTPATH)/garrot02
 	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
 	rm -rf $(DISTPATH)
 	@echo "FINAL .tgz FILE:"
@@ -451,7 +457,7 @@ clean::	local_clean
 realclean::   local_realclean local_clean
 
 clean realclean::
-	-@for i in $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS); do \
+	-@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(OPTIONALSUBDIRS); do \
 	  $(MAKE) -C $$i $@; \
 	done
 
@@ -474,7 +480,7 @@ $(DEPENDDIRS):
 	$(MAKE) -C $(subst .depend,,$@) depend
 
 emu.o:	emu.c
-	$(CC) -c $(EMU_CFLAGS) -o $@ $^
+	$(CC) -c $(EMU_CFLAGS) -o $@ $<
 
 emu.d:	emu.c
 	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(EMU_CFLAGS) $< \

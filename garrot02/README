@@ -1,0 +1,118 @@
+ 
+Garrot, a Linux dosemu support driver, releases idle time to system 
+
+
+Question 1.1.  What is Garrot? 
+
+Garrot is a support program for the Linux DOSEMU subsystem. Garrot is
+offered under terms of the GNU General Public License. Garrot improves
+Linux performance by coercing the operating system running inside of
+DOSEMU to release the CPU back to the main system during idle periods.
+CPU usage as reported by 'top' decreases dramatically, dropping down
+from 98% to 1% or less. The current version of Garrot is 0.2, and it
+should be considered pre-alpha software.
+
+
+Question 1.2.  How does one install Garrot?
+
+Garrot runs inside of the emulator session. You must move the program
+garrot.com into the emulator. You may then run it from the "DOS" command
+prompt, usually giving it a numeric argument dubbed "the garrot
+constant", for example:
+
+                    C:> garrot -12
+
+Garrot installs itself as a daemon and returns you to the DOSEMU
+command prompt.  You may re-run garrot at any time if you wish to
+change the original argument.  Type 'garrot -h' for a help screen,
+and 'garrot -q' to query current garrot settings. 
+
+
+
+Question 1.3  What is the "garrot constant"? How does one determine the
+              proper value?
+
+The garrot constant is the numeric argument which provides the optimal
+balance between DOSEMU performance and idle-time cpu usage.  It appears
+that this optimal value is approximately equal to one-half of your Linux
+BogoMips value. For example, if your system reports a BogoMips value of
+20, then choosing a garrot constant value of 10 will be a good first
+approximation. Garrot uses this number as a counter threshold for
+pre-empting DOSEMU after detecting a certain period of idleness. Lower
+values imply less tolerance for idle time CPU use. 
+
+You may determine this empirically by running 'top' in one virtual
+console and running DOSEMU in another.  CPU usage as reported by 'top'
+will drop to 2% or less at the critical value. It is a non-linear
+function, and the change is abrupt. Choose successively lower values
+for the garrot constant until you see the drop. Allow a couple moments
+for 'top' to stabilize and update after changing the garrot value.
+The garrot value which caused the sudden drop in CPU usage, or the value
+one below it, is probably your optimal setting---the "garrot constant"
+for your system. If in doubt, chose the value one below the drop point. 
+
+Note that if you run Garrot without any command arguments, it will try
+to guess an initial value for you. This value should be taken with a
+grain of salt. Unfortunately the timers available inside of the DOSEMU
+sessions are not adequate to accurately calculate the garrot constant.
+Using one-half of your BogoMips value is probably more accurate than
+the guess that garrot can make. After you have determined the proper
+value, you may want to add the garrot command to one of your "DOS"
+initialization files (e.g. autoexec.bat) so that garrot will be
+invoked every time you start a DOSEMU session.
+
+
+Question 1.4  Does Garrot hurt DOSEMU performance? 
+
+By freeing more CPU time for useful tasks, Garrot helps both DOSEMU
+performance and overall Linux system performance.  Responsiveness is
+better and stability is improved. Some computationally intensive "DOS"
+applications may show a slight apparent decrease in performance only
+because DOSEMU must now share the CPU more equitably with the rest of
+the Linux system. The table below shows typical DOSEMU comparisons
+with and without garrot:
+
+               test: compile large source tree 
+
+                   time         %cpu use 
+                  min:sec   (active and idle) 
+               +-------------------------------+
+   with garrot |    4:30      85.5%    0.0%    |
+               +-------------------------------+
+       without |    4:20      97.5%   97.0%    |
+               +-------------------------------+
+
+test conditions: AMD 486dx-40 uP, kernel 1.1.64, dosemu 0.53.28, MS-DOS 5.0 
+
+
+Note that you may easily change the arguments to garrot at anytime.
+Re-run garrot with a high value numeric argument to disable it. Values
+above the ideal "garrot constant" will cause the OS inside of DOSEMU
+to revert to its former behavior of sucking up 98% of the CPU time.
+Note that DOSEMU itself is not at fault. If anything, Garrot
+demonstrates the remarkable efficiency of DOSEMU. When you see the CPU
+meter pegged at 98%, it is the software inside of the DOSEMU which is
+causing the problem, not DOSEMU itself.
+
+
+
+Question 1.5  What are the risks of using Garrot? 
+
+None of which I am aware. But remember, Garrot is offered "as-is"
+without warranty of any kind (see the GPL). Even so, garrot does not
+touch any risky part of the system. It doesn't involve disks or file
+systems. Some DOS programs that bypass certain parts of both the BIOS
+and DOS system may cause CPU usage to rise because Garrot can not
+figure out what it going on. Of course there may be blind spots in
+garrot that need fixing. Please report any quirks to me, or
+suggestions for improvement. Garrot has not been widely tested. It is
+known to work with MS-DOS 5.0, and it should work with later versions.
+Earlier versions are an unknown. Please forward your reports.
+
+
+Copyright (C) 1994  Thomas G. McWilliams
+
+author e-mail: tgm@netcom.com, 
+             : thomas.mcwilliams@f615.n109.z1.fidonet.org
+
+

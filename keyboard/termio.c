@@ -590,8 +590,8 @@ gettermcap(void)
   struct winsize ws;		/* buffer for TIOCSWINSZ */
   struct funkeystruct *fkp;
 
-  li = 25;
-  co = 80;
+  li = LI;
+  co = CO;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) {
     li = ws.ws_row;
     co = ws.ws_col;
@@ -602,6 +602,8 @@ gettermcap(void)
     li = 25;
     co = 80;
   }
+  else
+    v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
 
   /* This won't work with NCURSES version 1.8. */
   /* These routines have been tested with NCURSES version 1.8.5 */
