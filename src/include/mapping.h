@@ -49,25 +49,25 @@
 #define MAPPING_SHM		0x400000
 
 typedef int open_mapping_type(int cap);
-#define open_mapping (*mappingdriver.open)
+int open_mapping (int cap);
 
 typedef void close_mapping_type(int cap);
-#define close_mapping(cap) if (mappingdriver.close) (*mappingdriver.close)(cap)
+void close_mapping(int cap);
 
 typedef void *alloc_mapping_type(int cap, int mapsize, void *target);
-#define alloc_mapping (*mappingdriver.alloc)
+void *alloc_mapping (int cap, int mapsize, void *target);
 
 typedef void free_mapping_type(int cap, void *addr, int mapsize);
-#define free_mapping (*mappingdriver.free)
+void free_mapping (int cap, void *addr, int mapsize);
 
 typedef void *realloc_mapping_type(int cap, void *addr, int oldsize, int newsize);
-#define realloc_mapping (*mappingdriver.realloc)
+void *realloc_mapping (int cap, void *addr, int oldsize, int newsize);
 
 typedef void *mmap_mapping_type(int cap, void *target, int mapsize, int protect, void *source);
 void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source);
 
 typedef int munmap_mapping_type(int cap, void *addr, int mapsize);
-#define munmap_mapping (*mappingdriver.munmap)
+int munmap_mapping (int cap, void *addr, int mapsize);
 
 int mprotect_mapping(int cap, void *addr, int mapsize, int protect);
 void *mapscratch_mapping(int cap, void *target, int mapsize, int protect);

@@ -85,7 +85,7 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
   if (cap & MAPPING_SCRATCH) {
     if (!fixed) target = 0;
     return mmap(target, mapsize, protect,
-		MAP_PRIVATE | fixed | MAP_ANON, -1, 0);
+		MAP_PRIVATE | fixed | MAP_ANONYMOUS, -1, 0);
   }
   return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
 }        
@@ -178,4 +178,37 @@ char *decode_mapping_cap(int cap)
   if (cap & MAPPING_MAYSHARE) p += sprintf(p, " MAYSHARE");
   if (cap & MAPPING_SHM) p += sprintf(p, " SHM");
   return dbuf;
+}
+
+int open_mapping(int cap)
+{
+  return mappingdriver.open(cap);
+}
+
+void close_mapping(int cap)
+{
+  if (mappingdriver.close) mappingdriver.close(cap);
+}
+
+void *alloc_mapping(int cap, int mapsize, void *target)
+{
+  void *addr = mappingdriver.alloc(cap, mapsize, target);
+  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
+  return addr;
+}
+
+void free_mapping(int cap, void *addr, int mapsize)
+{
+  mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
+  mappingdriver.free(cap, addr, mapsize);
+}
+
+void *realloc_mapping(int cap, void *addr, int oldsize, int newsize)
+{
+  return mappingdriver.realloc(cap, addr, oldsize, newsize);
+}
+
+int munmap_mapping(int cap, void *addr, int mapsize)
+{
+  return mappingdriver.munmap(cap, addr, mapsize);
 }
