@@ -1489,28 +1489,28 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
     *segment = (*lp >> 16) & 0xffff;
     switch (reg) {
 	case 0:
-	    (unsigned short)_LWORD(eax) = offset;
+	    _LWORD(eax) = offset;
 	    break;
 	case 1:
-	    (unsigned short)_LWORD(ecx) = offset;
+	    _LWORD(ecx) = offset;
 	    break;
 	case 2:
-	    (unsigned short)_LWORD(edx) = offset;
+	    _LWORD(edx) = offset;
 	    break;
 	case 3:
-	    (unsigned short)_LWORD(ebx) = offset;
+	    _LWORD(ebx) = offset;
 	    break;
 	case 4:
-	    (unsigned short)_LWORD(esp) = offset;
+	    _LWORD(esp) = offset;
 	    break;
 	case 5:
-	    (unsigned short)_LWORD(ebp) = offset;
+	    _LWORD(ebp) = offset;
 	    break;
 	case 6:
-	    (unsigned short)_LWORD(esi) = offset;
+	    _LWORD(esi) = offset;
 	    break;
 	case 7:
-	    (unsigned short)_LWORD(edi) = offset;
+	    _LWORD(edi) = offset;
 	    break;
 	}
     return len;

@@ -2914,7 +2914,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 #endif
 {
 
-#define LWORD32(x,y) {if (DPMI_CLIENT.is_32) (unsigned long) _##x y; else _LWORD(x) y;}
+#define LWORD32(x,y) {if (DPMI_CLIENT.is_32) _##x y; else _LWORD(x) y;}
 #define _LWECX	   (DPMI_CLIENT.is_32 ^ prefix67 ? _ecx : _LWORD(ecx))
 #define set_LWECX(x) {if (DPMI_CLIENT.is_32 ^ prefix67) _ecx=(x); else _LWORD(ecx) = (x);}
 
