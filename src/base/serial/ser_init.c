@@ -444,17 +444,17 @@ static void do_ser_init(int num)
 
   if (com[num].interrupt <= 0) {		/* Is interrupt undefined? */
     /* Define it depending on using standard irqs */
-    com[num].interrupt = default_com[com[num].real_comport].interrupt;
+    com[num].interrupt = default_com[com[num].real_comport-1].interrupt;
   }
   
   if (com[num].base_port <= 0) {		/* Is base port undefined? */
     /* Define it depending on using standard addrs */
-    com[num].base_port = default_com[com[num].real_comport].base_port;
+    com[num].base_port = default_com[com[num].real_comport-1].base_port;
   }
 
   if (com[num].dev[0] == 0) {			/* Is the device file undef? */
     /* Define it using std devs */
-    com[num].dev = default_com[com[num].real_comport].dev;
+    com[num].dev = default_com[com[num].real_comport-1].dev;
   }
   iodev_add_device(com[num].dev);
 
