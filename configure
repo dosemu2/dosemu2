@@ -851,7 +851,6 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-linkstatic     make statically linked binaries
-  --enable-mitshm         force use of MITSHM X extension
   --disable-mitshm        do NOT use the MITSHM X extension
   --disable-vidmode       do NOT use the XF86 vidmode extension
   --enable-experimental   enable configuration of EXPERIMENTAL stuff
@@ -8397,7 +8396,7 @@ VV=${VV#*.}
 SUBLEVEL=${VV%%.*}
 VV=${VV#*.}
 PATCHLEVEL1=${VV%%.*}
-if test $PATCHLEVEL = $VV; then
+if test $PATCHLEVEL1 = $VV; then
   PATCHLEVEL2=0
 else
   VV=${VV#*.}

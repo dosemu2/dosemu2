@@ -276,8 +276,7 @@ if test "$no_x" != "yes" ; then
   dnl Check for the MITSHM extention to speed up VGAemu
 
     AC_ARG_ENABLE(mitshm,
-              [  --enable-mitshm         force use of MITSHM X extension
-  --disable-mitshm        do NOT use the MITSHM X extension])
+              [  --disable-mitshm        do NOT use the MITSHM X extension])
 
     if test "$enable_mitshm" != "no" -a "$no_x" != "yes" ; then
       AC_CHECK_HEADER(X11/extensions/XShm.h,
@@ -305,7 +304,7 @@ VV=${VV#*.}
 SUBLEVEL=${VV%%.*}
 VV=${VV#*.}
 PATCHLEVEL1=${VV%%.*}
-if test $PATCHLEVEL = $VV; then
+if test $PATCHLEVEL1 = $VV; then
   PATCHLEVEL2=0
 else
   VV=${VV#*.}
