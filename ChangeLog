@@ -1,3 +1,16 @@
+97/07/25 ver. 0.67.9 released
+	From Alistair
+	- fixed Makefile.main not to compile threads when not configured.
+	- tests for the presence of 'libgus' in ./configure (SBEMU on).
+	  If it's found then 'midid' will be compiled with that support,
+	  otherwise it doesn't.
+	- update to sound docs.
+	From Hans
+	- full docs recompile (DANG also)
+	- mtools version check in setup-hdimage
+	- some minor changes to mkbindist
+	- introduced compiletime-settings.stable for making stable releases
+	  out of 0.67 for 'joe user'. (0.66 is freezed now)
 97/07/25 ver. 0.67.8.2 unofficial pre-release
 	From Michael Karcher & Alistair
 	- second round sound&dma patches

@@ -309,7 +309,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="8.2"
+PATCHLEVEL="9.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -431,7 +431,13 @@ dnl Do SB emulation
                [AC_CHECKING("Compiling with SB Emulation")
                 AC_DEFINE(USE_SBEMU)
                 USE_SBEMU="USE_SBEMU=1"
+		AC_CHECK_LIB(gus, gus_close,
+			[AC_CHECKING("Compiling Midid with Ultra support")
+			USE_ULTRA="USE_ULTRA=1"
+			AC_DEFINE(USE_ULTRA)
+			AC_SUBST(USE_ULTRA)],)
                 AC_SUBST(USE_SBEMU)])
+
 
 AC_ARG_ENABLE(monoton-timing,
               [  --enable-monoton-timing use monoton micro timing, some games don't like that],

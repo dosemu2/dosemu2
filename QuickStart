@@ -200,7 +200,7 @@ If you don't know how to copy files from/to the hdimage:
 ./man/dos.1
 	This is the DOSEMU man page. It is now up to date with 0.64.
 	This normally goes into the /usr/man/man1 directory.
-./doc/announce0.66
+./doc/announce
 	The announcement textfile for DOSEMU 0.66.
 ./doc/README.txt
 	Readme file for various applications and general purpose settings.

@@ -9,32 +9,46 @@ into the main OS.
 
 <sect1>Using the MPU-401 "Emulation".
 <p>
-The Sound driver opens "/var/run/dosemu-midi" in the current directory and
+The Sound driver opens "/var/run/dosemu-midi" and
 writes the Raw MIDI data to this. A daemon is provided which can be can be used
 to seletc the instruments required for use on some soundcards. It is also
 possible to get various instruments by redirecting '/var/run/dosemu-midi' to
 the relevant part of the sound driver eg:
 
 <tscreen><verb>
-% ln -s /dev/sequencer /var/run/dosemu-midi
+% ln -s /dev/midi /var/run/dosemu-midi
 </verb></tscreen>
 
-This will send all output straight to the midi sequencer and use whatever
+This will send all output straight to the default midi device and use whatever
 instruments happen to be loaded.
 
 <sect1>The MIDI daemon
 <p>
+<tscreen><verb>
   make midid
-This compiles and installs the GUS midid.
-Copy the executeable './bin/midid' so that it is on your path, or somewhere you can
-run it easily.
-
+</verb></tscreen>
+<p>
+This compiles and installs the midi daemon. The daemon currently has support
+for the 'ultra' driver and partial support for the 'OSS' driver (as supplied
+with the kernel) and for no midi system. Support for the 'ultra' driver will
+be compiled in automatically if available on your system.
+<p>
+Copy the executable './bin/midid' so that it is on your path, or somewhere you
+can run it easily.
+<p>
 Before you run DOSEmu for the first time, do the following:
+<tscreen><verb>
   rm -f /var/run/dosemu-midi
   mknod /var/run/dosemu-midi p
+</verb></tscreen>
 
+<p>
 Then you can use the midi daemon like this:
+<tscreen><verb>
   ./midid < /var/run/dosemu-midi &; dos
+</verb></tscreen>
+
+<p>
 (Assuming that you put the midid executeable in the directory you run DOSEmu
 from.) 
 

@@ -2,8 +2,10 @@ REALTOPDIR=@REALTOPDIR@
 ######################################################################
 # MIDID
 
-# Define USEULTRA if you've got the UltraDriver 2.60a installed
-USEULTRA=OK
+# Define USE_ULTRA if you've got the UltraDriver 2.60a installed
+#USE_ULTRA=OK
+# Should now be done by './configure' - Alistair
+@USE_ULTRA@
 
 
 ######################################################################
@@ -15,13 +17,16 @@ LDFLAGS=@LDFLAGS@
 LDFLAGS += -Wall
 OBJECTS=midid.o null.o events.o io.o stats.o emulation.o oss.o
 
-ifdef USEULTRA
- CFLAGS += -DUSEULTRA
+ifdef USE_ULTRA
+ CFLAGS += -DUSE_ULTRA
  LDFLAGS += -lgus
  OBJECTS += gus.o
 endif
 
 all:		$(REALTOPDIR)/bin/midid
+
+install:
+	@echo ""
 
 clean:
 		rm -f *.o
@@ -29,7 +34,10 @@ clean:
 cleanall:	clean
 		rm -f $(REALTOPDIR)/bin/midid
 
+realclean:	cleanall
+
 $(REALTOPDIR)/bin/midid:	$(OBJECTS)
+	$(CC) -o $(REALTOPDIR)/bin/midid $(OBJECTS) $(LDFLAGS)
 
 events.o:	events.c events.h io.h stats.h
 

@@ -1,0 +1,14 @@
+#! /bin/bash
+#
+# (C) 1997 under GPL, Hans Lermen <lermen@fgan.de>
+#
+# Check for the right mtools version.
+# Versions below 3.6 don't work with dosemu
+
+if [ "$(( `mtools -V|awk '{print $3}'|tr ',a-z' ' '|tr '.' '0'` < 306 ))" \
+      = "1" ]; then
+  echo "wrong mtools version installed, please upgrade to >= 3.6"
+  exit 1
+fi
+exit 0
+

@@ -189,7 +189,8 @@
   15.1.   Current DOSEmu sound code Unfortunately I haven't documented
   this yet. However, the current code has been completely rewritten and
   has been designed to support multiple operating systems and sound
-  systems.
+  systems. For details of the internal interface and any available
+  patches see my WWW page at
 
   15.2.   Original DOSEMU sound code
 
@@ -1753,8 +1754,10 @@
 
   1155..11..  UUnnffoorrttuunnaatteellyy II hhaavveenn''tt ddooccuummeenntteedd tthhiiss yyeett.. HHoowweevveerr,, tthhee ccuurr--
   rreenntt ccooddee hhaass bbeeeenn ccoommpplleetteellyy rreewwrriitttteenn aanndd hhaass bbeeeenn ddeessiiggnneedd ttoo ssuupp--
-  ppoorrtt mmuullttiippllee ooppeerraattiinngg ssyysstteemmss aanndd ssoouunndd ssyysstteemmss..  CCuurrrreenntt DDOOSSEEmmuu
-  ssoouunndd ccooddee
+  ppoorrtt mmuullttiippllee ooppeerraattiinngg ssyysstteemmss aanndd ssoouunndd ssyysstteemmss..  FFoorr ddeettaaiillss ooff tthhee
+  iinntteerrnnaall iinntteerrffaaccee aanndd aannyy aavvaaiillaabbllee ppaattcchheess sseeee mmyy WWWWWW ppaaggee aatt
+  hhttttpp::////wwwwww..sslliitteessyyss..ddeemmoonn..ccoo..uukk//aa..mmaaccddoonnaalldd//ddoosseemmuu//ssoouunndd// CCuurrrreenntt
+  DDOOSSEEmmuu ssoouunndd ccooddee
 
   1155..22..  OOrriiggiinnaall DDOOSSEEMMUU ssoouunndd ccooddee
 
@@ -1794,7 +1797,6 @@
   FM currently has been ignored.  Maybe there's a PCGPE newer than 1.0
   which describes the OPL3.  But I have an OPL3, and it would be nice if
   it emulated that.
-
   MIDI and joystick functions are ignored.  And I think that DOSEMU is
   supposed to already have good CDROM support, but I don't know how well
   audio CD players will work.

@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version v0.67 pl8.0
+  version v0.67 pl9.0
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -1762,6 +1762,7 @@
   Alistair MacDonald  <alistair@slitesys.demon.co.uk>
   David Brauman  <crisk@netvision.net.il>
   Rutger Nijlunsing  <rutger@null.net>
+  Michael Karcher  <karcher@dpk.berlin.fidi.de>
 
   1111..22..  FFuunnccttiioonnss iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
 
@@ -1918,7 +1919,6 @@
   thread group. Interfaceing between threads is very cheap performance
   wise, hence, using threads is what You should do when having _one_
   application that needs to do work in parallel.
-
   1122..11..  aarrcchh//lliinnuuxx//tthhrreeaaddss//lltt--tthhrreeaaddss..cc IInnffoorrmmaattiioonn
 
   This thread package does _NOT_  POSIX compatible threading.  As its

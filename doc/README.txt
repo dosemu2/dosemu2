@@ -1617,28 +1617,41 @@
 
   55..11..  UUssiinngg tthhee MMPPUU--440011 ""EEmmuullaattiioonn""..
 
-  The Sound driver opens "/var/run/dosemu-midi" in the current directory
-  and writes the Raw MIDI data to this. A daemon is provided which can
-  be can be used to seletc the instruments required for use on some
-  soundcards. It is also possible to get various instruments by
-  redirecting '/var/run/dosemu-midi' to the relevant part of the sound
-  driver eg:
-       % ln -s /dev/sequencer /var/run/dosemu-midi
+  The Sound driver opens "/var/run/dosemu-midi" and writes the Raw MIDI
+  data to this. A daemon is provided which can be can be used to seletc
+  the instruments required for use on some soundcards. It is also
+  possible to get various instruments by redirecting '/var/run/dosemu-
+  midi' to the relevant part of the sound driver eg:
 
-  This will send all output straight to the midi sequencer and use
+       % ln -s /dev/midi /var/run/dosemu-midi
+
+  This will send all output straight to the default midi device and use
   whatever instruments happen to be loaded.
 
   55..22..  TThhee MMIIDDII ddaaeemmoonn
 
-  make midid This compiles and installs the GUS midid.  Copy the
-  executeable './bin/midid' so that it is on your path, or somewhere you
-  can run it easily.
+         make midid
 
-  Before you run DOSEmu for the first time, do the following: rm -f
-  /var/run/dosemu-midi mknod /var/run/dosemu-midi p
+  This compiles and installs the midi daemon. The daemon currently has
+  support for the 'ultra' driver and partial support for the 'OSS'
+  driver (as supplied with the kernel) and for no midi system. Support
+  for the 'ultra' driver will be compiled in automatically if available
+  on your system.
 
-  Then you can use the midi daemon like this: (Assuming that you put the
-  midid executeable in the directory you run DOSEmu from.)
+  Copy the executable './bin/midid' so that it is on your path, or
+  somewhere you can run it easily.
+
+  Before you run DOSEmu for the first time, do the following:
+
+         rm -f /var/run/dosemu-midi
+         mknod /var/run/dosemu-midi p
+
+  Then you can use the midi daemon like this:
+
+         ./midid < /var/run/dosemu-midi &; dos
+
+  (Assuming that you put the midid executeable in the directory you run
+  DOSEmu from.)
 
   55..33..  DDiissaabblliinngg tthhee EEmmuullaattiioonn aatt RRuunnttiimmee
 
@@ -1672,7 +1685,7 @@
   "000" and using the -m 777 option with mkdir).  Now mount /dos.  Now
   you can add a line like
 
-    lredir d: linux\fs/dos
+         lredir d: linux\fs/dos
 
   to the AUTOEXEC.BAT file in your hdimage (but see the comments below).
   On a multi-user system you may want to use
@@ -1741,7 +1754,6 @@
 
   2. Have the users that are allow to execute dosemu in
      /etc/dosemu.user.  The format is:
-
             loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
 
   For details see ``Configuring DOSEmu''. For a first time _e_a_s_y instal-
@@ -1881,22 +1893,22 @@
 
   Some samples:
 
-       #
-       # mail everything to root, but don't log
-       #
-       mail_always
+  #
+  # mail everything to root, but don't log
+  #
+  mail_always
 
-       #
-       # mail errors to root, log everything
-       # (this is the recommended usage)
-       #
-       mail_error
-       syslog_always
+  #
+  # mail errors to root, log everything
+  # (this is the recommended usage)
+  #
+  mail_error
+  syslog_always
 
-       #
-       # log errors only
-       #
-       syslog_errors
+  #
+  # log errors only
+  #
+  syslog_errors
 
   1100..  UUssiinngg XX
 
@@ -1933,30 +1945,30 @@
      docs, XFree-3.1.1 should do that intrinsicly, but for me it didn't.
      This is a part of the file /usr/X11R6/lib/X11/etc/xmodmap.std
 
-       ! When using ServerNumLock in your XF86Config, the following codes/symbols
-       ! are available in place of 79-81, 83-85, 87-91
-       keycode  136 = KP_7
-       keycode  137 = KP_8
-       keycode  138 = KP_9
-       keycode  139 = KP_4
-       keycode  140 = KP_5
-       keycode  141 = KP_6
-       keycode  142 = KP_1
-       keycode  143 = KP_2
-       keycode  144 = KP_3
-       keycode  145 = KP_0
-       keycode  146 = KP_Decimal
-       keycode  147 = Home
-       keycode  148 = Up
-       keycode  149 = Prior
-       keycode  150 = Left
-       keycode  151 = Begin
-       keycode  152 = Right
-       keycode  153 = End
-       keycode  154 = Down
-       keycode  155 = Next
-       keycode  156 = Insert
-       keycode  157 = Delete
+  ! When using ServerNumLock in your XF86Config, the following codes/symbols
+  ! are available in place of 79-81, 83-85, 87-91
+  keycode  136 = KP_7
+  keycode  137 = KP_8
+  keycode  138 = KP_9
+  keycode  139 = KP_4
+  keycode  140 = KP_5
+  keycode  141 = KP_6
+  keycode  142 = KP_1
+  keycode  143 = KP_2
+  keycode  144 = KP_3
+  keycode  145 = KP_0
+  keycode  146 = KP_Decimal
+  keycode  147 = Home
+  keycode  148 = Up
+  keycode  149 = Prior
+  keycode  150 = Left
+  keycode  151 = Begin
+  keycode  152 = Right
+  keycode  153 = End
+  keycode  154 = Down
+  keycode  155 = Next
+  keycode  156 = Insert
+  keycode  157 = Delete
 
   1100..22..  SSlliigghhttllyy oollddeerr iinnffoorrmmaattiioonn
 
@@ -1989,7 +2001,6 @@
 
   +o  starting xdos in the background (like from a window manager menu)
      appears not to work for some reason.
-
   +o  Keyboard support in the dosemu window isn't perfect yet. It
      probably could be faster, some key combos still don't work (e.g.
      Ctrl-Fn), etc.  However, input through the terminal window (i.e.
@@ -2134,6 +2145,7 @@
      implement, but it is terribly slow because a change in the pelmask
      requires a complete redraw of the screen. Fortunately, the pelmask
      changes aren't used often so nobody will notice ;-)
+
   +o  The attribute controller is partially emulated. (Actually, only
      reads and writes to the ports are emulated)
 
@@ -2189,6 +2201,7 @@
 
   +o  graphics support in X now works on all X servers with color depth
      >= 8
+
   +o  the graphics window is resizeable
 
   +o  support for hi- and true-color modes (using Trident SVGA mode
@@ -2314,16 +2327,16 @@
 
   1111..22..  WWiinnddoowwss 33..11 PPrrootteecctteedd MMooddee
 
-       ***************************************************************
-       *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-       *                                                             *
-       *  Danger Will Robinson!!!  This is not yet fully supported   *
-       *  and there are many known bugs!  Large programs will almost *
-       *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
-       *  YOU TRY THIS!!!                                            *
-       *                                                             *
-       *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-       ***************************************************************
+  ***************************************************************
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  *                                                             *
+  *  Danger Will Robinson!!!  This is not yet fully supported   *
+  *  and there are many known bugs!  Large programs will almost *
+  *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
+  *  YOU TRY THIS!!!                                            *
+  *                                                             *
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  ***************************************************************
 
   What, you're still reading?
 
@@ -2430,7 +2443,6 @@
      gets forced to 0,0 and then back to its right coordinates. Hence,
      if you want to re-calibrate the cursor, just move the cursor
      outside and then inside the DOS-Box again.
-
   1122..  MMoouussee GGaarrrroott
 
   This section, and Mouse Garrot were written by Ed Sirett
@@ -2479,31 +2491,31 @@
   interpreted as in C and leads in ESC-codes. Here a list of of the
   current implemented ones:
 
-       \r     Carriage return == <ENTER>
-       \n     LF
-       \t     tab
-       \b     backspace
-       \f     formfeed
-       \a     bell
-       \v     vertical tab
+  \r     Carriage return == <ENTER>
+  \n     LF
+  \t     tab
+  \b     backspace
+  \f     formfeed
+  \a     bell
+  \v     vertical tab
 
-       \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
-              (e.g.: \^[ == <Ctrl>[ == ESC )
+  \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
+         (e.g.: \^[ == <Ctrl>[ == ESC )
 
-       \Ax    <Alt>x, hence  \Ad means <Alt>d
+  \Ax    <Alt>x, hence  \Ad means <Alt>d
 
-       \Fn;   Function key Fn. Note that the trailing ';' is needed.
-              (e.g.:  \F10;  == F10 )
+  \Fn;   Function key Fn. Note that the trailing ';' is needed.
+         (e.g.:  \F10;  == F10 )
 
-       \Pn;   Set the virtual typematic rate, thats the speed for
-              autotyping in. It is given in unix timer ticks to wait
-              between two strokes. A value of 7 for example leads to
-              a rate of 100/7=14 cps.
+  \Pn;   Set the virtual typematic rate, thats the speed for
+         autotyping in. It is given in unix timer ticks to wait
+         between two strokes. A value of 7 for example leads to
+         a rate of 100/7=14 cps.
 
-       \pn;   Before typing the next stroke wait n unix ticks.
-              This is usefull, when the DOS-application fushes the
-              keybord buffer on startup. Your strokes would be discared,
-              if you don't wait.
+  \pn;   Before typing the next stroke wait n unix ticks.
+         This is usefull, when the DOS-application fushes the
+         keybord buffer on startup. Your strokes would be discared,
+         if you don't wait.
 
   When using X, the keystroke feature can be used to directly fire up a
   DOS application with one click, if you have the right entry in your
@@ -2523,6 +2535,7 @@
 
   +o  execute dosemu on a spare (not used) console, maybe /dev/tty20 such
      like this:
+
           # dos -D-a 2>/dev/null <FILE >/dev/tty20
 
   This will _not_ switch to /dev/tty20, but silently execute dosemu and
@@ -2578,10 +2591,10 @@
   possible speed simply leave the value to zero, but if you are
   concerned about DOSEMU eating too much CPU time it's worth playing
   with the HogThreshold value.
+
      WWhhyy ddoo II nneeeedd ttoo sseett tthhee HHooggTThhrreesshhoolldd vvaalluuee,, wwhhyy ccaann''tt DDOOSSEEMMUU
         just stop if it is waiting for a keystroke ?"  The reason is the
         way how DOS and a lot of applications have implemented
-
         It's most often done by something similar to the following code
         fragment :
 
@@ -2687,7 +2700,6 @@
 
      ssppeeeedd..ccoomm
         set cpu usage (HogThreshold) from inside Dosemu
-
      ssyysstteemm..ccoomm
         interface to system(2)...
 
@@ -2732,6 +2744,7 @@
 
      eemmuuffss..ssyyss
         redirect Unix directory to Dosemu
+
   1166..  KKeeyymmaappss
 
   This keymap is for using dosemu over telnet, and having *all* your

@@ -14,11 +14,12 @@
 
 function usage {
   echo -e "USAGE:
-  mkbindist [-m] [-s] [-t targdir] [-d docdir] [-- configopts ... ]
+  mkbindist [-m] [-s] [-t targdir] [-d docdir] [-f csfile] [-- configopts ... ]
 
   -m          do a 'make pristine; make' before generation
   -c          do just a clean compile, but no generation
   -s          produce static binaries
+  -f csfile   take csfile as compiletime-settings
   -t targdir  use 'targdir' instead of /tmp/dosemu-<version>/*
   -d docdir   include documentation in 'docdir'
   configopts  all valid options for ./configure, don't forget to
@@ -41,15 +42,17 @@ TAKESETUP="0"  # we need this later, needs some more work
 VER=`basename $PWD`
 DIR=/tmp/${VER}
 TMP="/tmp/settings.$$"
+SETTINGS="./compiletime-settings"
 
 SHIFT=""
-while getopts "mcst:d:" OPT; do
+while getopts "mcst:d:f:" OPT; do
   case $OPT in
     m) DOMAKE="1"; SHIFT="$SHIFT x";;
     c) DOMAKE="1"; COMPILE="1"; SHIFT="$SHIFT x";;
     s) STATIC="1"; SHIFT="$SHIFT x";;
     t) DIR=$OPTARG; SHIFT="$SHIFT x x";;
     d) DOCDIR_=$OPTARG; SHIFT="$SHIFT x x";;
+    f) SETTINGS=$OPTARG; SHIFT="$SHIFT x x";;
     ?) usage ;;
   esac
 done
@@ -71,7 +74,7 @@ if [ "$COMPILE" != "1" ]; then
   MANDIR=${DIR}/usr/man/man1
 
   if [ "$DOCDIR_" = "" ]; then
-    DOCDIR_="usr/doc"
+    DOCDIR_="usr/doc/dosemu"
   fi
   DOCDIR="$DOCDIR_"
   if [ "${DOCDIR#/}" = "$DOCDIR" ]; then
@@ -87,12 +90,9 @@ fi
 
 if [ "$DOMAKE" = "1" ]; then
   if [ "$STATIC" = "1" ]; then
-    cat > ${TMP} <<EOF
-config {  sbemu on novm86plus off mitshm on x on dodebug off newkbd off slangforce on tmonoton off runasroot off linkstatic on}
-EOF
-
+    sed -e "s/linkstatic off/linkstatic on/" -e "s/slangforce off/slangforce on/" $SETTINGS > ${TMP}
   else
-    cp -f ./compiletime-settings ${TMP}
+    sed -e "s/linkstatic on/linkstatic off/" -e "s/slangforce off/slangforce on/" $SETTINGS > ${TMP}
   fi
   if [ -f Makefile ]; then
     make pristine
@@ -153,7 +153,7 @@ EOF
 popd >/dev/null
 
 if [ "$DOCDIR" = "" ]; then
-  DOCDIR=/usr/doc
+  DOCDIR=/usr/doc/dosemu
 fi
 install -d $DOCDIR
 cp -fp ./doc/* $DOCDIR

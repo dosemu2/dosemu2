@@ -81,7 +81,7 @@ void device_add(void (*register_func) (Device * dev))
 }
 
 /* The register function are all in their own device file */
-#ifdef USEULTRA
+#ifdef USE_ULTRA
 extern void register_gus(Device * dev);
 #endif
 extern void register_oss(Device * dev);
@@ -91,7 +91,7 @@ void device_register_all(void)
 {
 	device_add(register_null);
 	device_add(register_oss);
-#ifdef USEULTRA
+#ifdef USE_ULTRA
 	device_add(register_gus);
 #endif
 }

@@ -3262,7 +3262,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="8.2"
+PATCHLEVEL="9.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -3448,8 +3448,53 @@ else
 EOF
 
                 USE_SBEMU="USE_SBEMU=1"
+		echo $ac_n "checking for -lgus""... $ac_c" 1>&6
+ac_lib_var=`echo gus'_'gus_close | tr './+\055' '__p_'`
+if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
+  echo $ac_n "(cached) $ac_c" 1>&6
+else
+  ac_save_LIBS="$LIBS"
+LIBS="-lgus  $LIBS"
+cat > conftest.$ac_ext <<EOF
+#line 3460 "configure"
+#include "confdefs.h"
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char gus_close();
+
+int main() { return 0; }
+int t() {
+gus_close()
+; return 0; }
+EOF
+if { (eval echo configure:3472: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+  rm -rf conftest*
+  eval "ac_cv_lib_$ac_lib_var=yes"
+else
+  rm -rf conftest*
+  eval "ac_cv_lib_$ac_lib_var=no"
+fi
+rm -f conftest*
+LIBS="$ac_save_LIBS"
+
+fi
+if eval "test \"`echo '$ac_cv_lib_'$ac_lib_var`\" = yes"; then
+  echo "$ac_t""yes" 1>&6
+  echo "checking "Compiling Midid with Ultra support"" 1>&6
+			USE_ULTRA="USE_ULTRA=1"
+			cat >> confdefs.h <<\EOF
+#define USE_ULTRA 1
+EOF
+
+			
+else
+  echo "$ac_t""no" 1>&6
+fi
+
                 
 fi
+
 
 
 # Check whether --enable-monoton-timing or --disable-monoton-timing was given.
@@ -3795,6 +3840,7 @@ s%@DEBUGGER@%$DEBUGGER%g
 s%@NEW_KBD_CODE@%$NEW_KBD_CODE%g
 s%@NEW_X_CODE@%$NEW_X_CODE%g
 s%@USE_THREADS@%$USE_THREADS%g
+s%@USE_ULTRA@%$USE_ULTRA%g
 s%@USE_SBEMU@%$USE_SBEMU%g
 s%@MONOTON_MICRO_TIMING@%$MONOTON_MICRO_TIMING%g
 s%@RUN_AS_ROOT@%$RUN_AS_ROOT%g

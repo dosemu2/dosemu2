@@ -104,6 +104,11 @@
  */
 #undef USE_SBEMU
 
+/*
+ * This is DEFINED when the Ultra libraries are available
+ */
+#undef USE_ULTRA
+
 /* Define this if you want to use MITSHM */
 #undef HAVE_MITSHM
 

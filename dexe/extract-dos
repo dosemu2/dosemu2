@@ -170,5 +170,5 @@ fi
 echo "System type is $TYPE. sysfiles: ${IOSYS}, ${MSDOS}, $COMCOM"
 mkdir -p $TARGDIR
 get_bootsect $DEVICE ${TARGDIR}/boot.bin
-do_mtool $DEVICE mcopy -n w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
+do_mtool $DEVICE mcopy -an w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
 

@@ -4,6 +4,11 @@ Unfortunately I haven't documented this yet. However, the current code has been
 completely rewritten and has been designed to support multiple operating
 systems and sound systems.
 
+For details of the internal interface and any available patches see my WWW page
+at 
+<htmlurl url="http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/"
+name="http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/">
+
 <sect1>Original DOSEMU sound code
 <p>
 <tscreen><verb>

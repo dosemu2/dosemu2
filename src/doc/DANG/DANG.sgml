@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version v0.67 pl8.0
+<date> version v0.67 pl9.0
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -1920,6 +1920,7 @@ a set of interface functions and the device independant structures.
 Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">&nl;
 David Brauman  <htmlurl url="mailto:crisk@netvision.net.il" name="&lt;crisk@netvision.net.il&gt;">&nl;
 Rutger Nijlunsing  <htmlurl url="mailto:rutger@null.net" name="&lt;rutger@null.net&gt;">&nl;
+Michael Karcher  <htmlurl url="mailto:karcher@dpk.berlin.fidi.de" name="&lt;karcher@dpk.berlin.fidi.de&gt;">&nl;
 <sect1>Functions in dosext/sound/sound.c
 
 <p>

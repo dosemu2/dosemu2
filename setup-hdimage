@@ -18,6 +18,10 @@ else
   DDIR=`pwd -P`
 fi
 
+if ! ${DDIR}/dexe/check-mtools; then
+  exit 1
+fi
+
 cd $DDIR
 
 echo "checking you partitions, wait..."
