@@ -303,7 +303,7 @@ dpmi_pm_block * DPMImallocLinear(unsigned long base, unsigned long size, int com
 
     block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)base,
         size, committed ? PROT_READ | PROT_WRITE | PROT_EXEC : PROT_NONE, 0);
-    if (!block->base) {
+    if (block->base == MAP_FAILED) {
 	free_pm_block(block);
 	return NULL;
     }
