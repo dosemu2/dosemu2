@@ -2617,9 +2617,9 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         height *= char_height;
       } else {
         char_height = height / 25;
-        if (char_height > 16)
+        if (char_height >= 16)
           char_height = 16;
-        else if (char_height > 14)
+        else if (char_height >= 14)
           char_height = 14;
         else
           char_height = 8;
