@@ -2211,9 +2211,15 @@ static void update_xtitle(void)
 {
   char cmdname[9];
   char *cmd_ptr, *tmp_ptr;
-  u_short psp_seg = sda_cur_psp(sda);
-  struct MCB *mcb = (struct MCB *)SEG2LINEAR(psp_seg - 1);
-  int force_update = !strlen(title_hint);
+  u_short psp_seg;
+  struct MCB *mcb;
+  int force_update;
+
+  if (!sda)
+    return;
+  psp_seg = sda_cur_psp(sda);
+  mcb = (struct MCB *)SEG2LINEAR(psp_seg - 1);
+  force_update = !strlen(title_hint);
 
   strncpy(cmdname, mcb->name, 8);
   cmdname[8] = 0;
