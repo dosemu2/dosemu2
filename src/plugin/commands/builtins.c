@@ -273,7 +273,7 @@ char * lowmem_alloc(int size)
 {
 	char *ptr = smalloc(&mp, size);
 	if (!ptr) {
-		com_error("builtin %s OOM\n", builtin_name);
+		error("builtin %s OOM\n", builtin_name);
 		leavedos(86);
 	}
 	if (size > 1024) {
