@@ -1,10 +1,4 @@
-DOS EMULATOR for LINUX 0.97 pl5 or later versions
-
-If you use LINUX 0.97 pl5 you need to fix the bug in emulation code of the 
-kernel:
-
-in the function "mark_screen_rdonly" (kernel/sys.c) you need to change 
-the screen start address from 0xA00000 to 0xA0000.
+DOS EMULATOR for LINUX 0.98 or later versions
 
 This is a pre alpha version. This means there are some bugs and lots of things
 aren't implemented such as
@@ -13,9 +7,14 @@ aren't implemented such as
 - any port io
 - ...
 
-But MS DOS is running and programms using direct screen io are working if
-you use the periodic screen update option (eg. TURBO PASCAL).
+But MS DOS is running and programms using direct screen io are working too.
+(eg. TURBO PASCAL or Norton nc).
 This version needs no further patches to the kernel.
+
+Following problems are solved:
+- dir /p
+- cls
+- using fdisk and format c: allows to change size of hdimage
 
 INSTALLATION
 
@@ -38,25 +37,46 @@ LINUX.EXE has been tested with DOS 3.3 and DOS 5.0. It isn't totaly implemented
 (file attributes cann't be set) and there is a bug that running .EXE files 
 will crash the emulator.
 This program LINUX.EXE is derived from a version in the book 'undocumented
-dos' chapter 4. Due to unknown copyrights I don't post the sources.
+dos' chapter 4. Andrew Schulmann is the author of the original program
+PHANTOM.PAS. He prommised to send me some fixes but I'm still waiting.
 
 Now you can install DOS on C:, but don't format C: use sys.
 Use then 'dos c' to boot direct from C:
 
+
+CHANGING SIZE OF HDIMAGE C:
+
+1. change number of cylinders in emu.c l 57.
+
+struct disk hdisktab[HDISKS] = {
+                {"hdimage", 0, 17, 4, 40},
+                                       ^
+The maximum size of hdimage is now 512 * 17 * 4 * cylinders
+
+2. run make and start the emulator
+3. run your dos fdisk (from disk) and change the primary partition size as
+usual.
+4. run your dos format c: 
+
+
+ACCESSING DOS PARTITIONS WITHOUT LINUX.EXE
+
+change emu.c l 56
+
+#define HDISKS 2        /* maximum 2 */
+               ^
+
+change the drive geometry in l 60 according to your harddisk
+set the readonly flag till you are sure that all is working correct.
+
+Now your primary partition on the harddrive is D:, the first extended
+partition is E: and so on.
+
+Be sure that /dev/hda is readable (and writeable if readonly flag = 0)
+
+
 To stop the DOS emulator kill it from another window or run a command that
 crashes the emulator (-:.
-
-Things crashing the emulator:
-- running any .EXE file from the LINUX drive (loading of .EXE files does not work)
-- dir /p (jumps to an invalide address after the keypress)
-- cls (using not implemented video interrupt)
-- ...
-
-Using programms wich accesses the screen directly:
-
-This implemention of the VM86 system call  supports the 'DIRTY PAGE'
-testing of the vm86 system call. It will test the screen 3 times a second
-and will update the screen only if needed.
 
 Please mail any suggestions, bugs or fixes to me.
 

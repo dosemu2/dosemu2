@@ -7,11 +7,13 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
 #include <time.h>
 #include <sys/time.h>
 #include "emu.h"
 
 const char prefix[] = "/usr/dos";
+char cwd[80] = "/usr/dos";
 int dos_open_modes[3] = {O_RDONLY, O_WRONLY, O_RDWR};
 char findpath[80];
 char findname[13];
@@ -178,7 +180,7 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 {
 	char name[80], name2[80], *cp;
 	struct stat stbuf;
-	struct ustat ubuf;
+	struct statfs fsbuf;
 	int r, m, a, f;
 
 	printf("EXT FS:\n");
@@ -188,6 +190,7 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			printf("CD %s --- %s\n", p1, name);
 			if (stat(name, &stbuf) < 0 || !S_ISDIR(stbuf.st_mode))
 				return 3;
+			strcpy(cwd, name);
 			return 0;
 		case 2: /* MD */
 			if (dos2unix(name, p1)) return 0xf;
@@ -259,8 +262,8 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			if (fstat(dos_files[f], &stbuf) < 0) return 2;
 			if (S_ISDIR(stbuf.st_mode)) return 5;
 			r = (a & (O_CREAT | O_TRUNC)) ? -1 : stbuf.st_size;
-			*((int *)p2)++ = r;
-			*(short *)p2 = (short)f;
+			*((int *)p2) = r;
+			*(short *)(p2 + 4) = (short)f;
 			printf("__%d, SZ=%d\n", f, r);
 			return 0;
 		case 9: /* CLOSE */
@@ -308,8 +311,14 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 				return 5;
 			return 0;
 		case 15: /* SPACE */
-			printf("SPACE \n");
-			*(unsigned short *)p1 = 4;
+			printf("SPACE %s\n", cwd);
+			if (statfs(cwd, &fsbuf) >= 0) {
+				printf("f_bsize %d, f_blocks %d, f_bfree %d, f_bavail %d\n",
+				fsbuf.f_bsize, fsbuf.f_blocks, fsbuf.f_bfree, fsbuf.f_bavail);
+				r = fsbuf.f_bsize * fsbuf.f_bavail / 1024;
+				if (r > 0xffff) r = 0xffff;
+			} else r = 0;
+			*(unsigned short *)p1 = r;
 			return 0;
 		case 16: /* SETATT */
 			if (dos2unix(name, p1)) return 0xf;

@@ -27,7 +27,7 @@
 #define SCREEN_ADR(s)	(us *)(0xb8000 + s * 0x1000)
 #define UPDATE	330000		/* waiting time in usec */
 #define DELAY	250000		/* sleeping time in usec */
-#define OUTBUFSIZE	2500
+#define OUTBUFSIZE	3000
 #define CHOUT(c)	if (outp == &outbuf[OUTBUFSIZE]) { CHFLUSH } \
 			else *outp++ = (c);
 #define CHFLUSH		if (outp > outbuf) { write(2, outbuf, outp - outbuf); \
@@ -49,23 +49,31 @@ struct disk {
 struct disk disktab[DISKS] = {
 		{"/dev/fd0", 0, 0, 0, 0},
 		{"/dev/fd1", 0, 0, 0, 0},
+		/* {"diskimage", 1, 9, 2, 40}, */
 	};
 /* whole hard disks, dos extented partitions (containing one ore more partitions)
    or their images (files) */
 #define HDISKS 1	/* maximum 2 */
 struct disk hdisktab[HDISKS] = {
-		{"hdimage", 0, 17, 4, 6},
+		{"hdimage", 0, 17, 4, 40},
+#if HDISKS == 2
+		{"/dev/hda", 1, 17, 9, 900}, 
+/*			     ^ readonly					*/
+/*				^ sectors 				*/
+/*				    ^ heads				*/
+/*					^ cylinders			*/
+#endif
 	};
 
 
 struct vm86_struct vm86s;
 int error;
 struct timeval scr_tv;
+struct itimerval itv;
 unsigned char outbuf[OUTBUFSIZE], *outp = outbuf;
 int iflag;
 int hdiskboot =0;
 int scrtest_bitmap;
-int must_update;
 long start_time;
 int screen, xpos[8], ypos[8];
 
@@ -167,6 +175,10 @@ void char_out(unsigned char ch, int s)
 	} else if (ch == '\n') {
 		ypos[s]++;
 		if (s == screen) write(2, &ch, 1);
+	} else if (ch == '\t') {
+		do {
+			char_out(' ', s);
+		} while (xpos[s] % 8 != 0);
 	} else if (ch == '\010' && xpos[s] > 0) {
 		xpos[s]--;
 		if (s == screen) write(2, &ch, 1);
@@ -179,6 +191,8 @@ void char_out(unsigned char ch, int s)
 		ypos[s]--;
 		scrollup(0, 0, CO-1, LI-1, 1, 7);
 	}
+	*(unsigned char *)(0x450 + s) = ypos[s];
+	*(unsigned char *)(0x451 + s) = xpos[s];
 }
 
 void clear_screen(int s, int att)
@@ -190,7 +204,6 @@ void clear_screen(int s, int att)
 	xpos[s] = ypos[s] = 0;
 	sadr = SCREEN_ADR(s);
 	for (p = sadr; p < sadr+2000; *p++ = blank);
-	must_update = 0;
 }
 
 void restore_screen(void)
@@ -220,7 +233,6 @@ void restore_screen(void)
 	tputs(me, 1, outcbuf);
 	CHFLUSH;
 	poscur(xpos[screen],ypos[screen]);
-	must_update = 0;
 }
 
 
@@ -354,7 +366,10 @@ void show_regs(void)
 
 int inb(int port)
 {
+	static int cga_r;
+
 	port &= 0xffff;
+	if (port == 0x3da) return (cga_r ^= 1) ? 0xcf : 0xc6; /* graphic status */
 	printf("inb [0x%x] \n", port);
 	return 0;
 }
@@ -415,6 +430,7 @@ void int10(void)
 {
 	int x, y, s, i;
 	char c, m;
+	us *sadr, sc;
 
 	switch(HI(ax)) {
 		case 0x0: /* define mode */
@@ -452,6 +468,7 @@ void int10(void)
 			_regs.edx = (ypos[s] << 8) | xpos[s];
 			break;
 		case 0x5: /* change page */ 
+			printf("video:  change page %d\n", LO(ax));
 			if ((s = LO(ax)) == screen) break;
 			if (s < 4) {
 				screen = s;
@@ -473,13 +490,19 @@ void int10(void)
 			scrolldn(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
 			vm86s.screen_bitmap = -1;
 			break;
+		case 0x8: /* get char */
+			s = HI(bx);
+			sadr = SCREEN_ADR(s);
+			_regs.eax = sadr[ypos[s]*CO + xpos[s]];
+			printf("video:  get char (%d) %x\n", s, _regs.eax);
+			break;
 		case 0x9: /* set chars at cursor pos */
 		case 0xA: /* set chars at cursor pos */
-			if (_regs.eax & 0xff00 == 0x900)
-				m = *(char *)&_regs.eax;
+			if (HI(ax) == 0x9)
+				m = LO(bx);
 			else 
 				m = '\007';
-			c = *(char *)&_regs.eax;
+			c = LO(ax);
 			s = HI(bx);
 			if (s != 0) {
 				printf("video error\n");
@@ -487,7 +510,8 @@ void int10(void)
 				error = 1;
 				return;
 			}
-			for (i=1; i < *(us *)&_regs.ecx; i++)
+			x = *(us *)&_regs.ecx;
+			for (i=0; i < x; i++)
 				char_out(c, s);
 			break;
 		case 0xe: /* print char */ 
@@ -498,8 +522,11 @@ void int10(void)
 			_regs.ebx &= ~0xff00;
 			_regs.ebx |= screen << 8;
 			break;
-		case 0x8: /* get char */
 		case 0xb: /* palette */
+			if (HI(bx) == 0) {
+				printf("set border color 0x%x\n", LO(bx));
+				break;
+			}
 		case 0xc: /* set dot */
 		case 0xd: /* get dot */
 		case 0x4: /* get light pen */
@@ -604,21 +631,79 @@ void int13(void)
 			_regs.eflags &= ~CF;
 			printf("DISK write @%d (%d) OK.\n", pos, res >> 9);
 			break;
+		case 4: /* test */
+			disk_open(dp);
+			head = HI(dx);
+			sect = (_regs.ecx & 0x3f) -1;
+			track = (HI(cx)) |
+				((_regs.ecx & 0xc0) << 2);
+			number = LO(ax);
+			printf("DISK %d test [h%d,s%d,t%d](%d)\n", disk, head, sect, track, number);
+			if (dp == NULL || head >= dp->heads || 
+			    sect >= dp->sectors || track >= dp->tracks) {
+			    _regs.eax = 0x400; /* sector not found */
+			    _regs.eflags |= CF;
+			    break;
+			}
+			pos = ((track * dp->heads + head) * dp->sectors + sect) << 9;
+			if (pos != lseek(dp->fdesc, pos, 0)) {
+			    _regs.eax = 0x400; /* sector not found */
+			    _regs.eflags |= CF;
+			    break;
+			}
+#if 0
+			res = lseek(dp->fdesc, number << 9);
+			if (res & 0x1ff != 0) { /* must read multiple of 512 bytes  and res != -1 */
+			    _regs.eax = 0x200; /* sector corrrupt */
+			    _regs.eflags |= CF;
+			    break;
+			}
+#endif
+			_regs.eax = res >> 9;
+			_regs.eflags &= ~CF;
+			break;
 		case 8: /* get disk drive parameters */
 			printf("disk get parameters %d\n", disk);
 			if (dp != NULL) {
-				_regs.edx = ((dp->heads-((disk < 0x80)?0:1)) <<8) | 
-					   ((disk < 0x80) ? DISKS : HDISKS);
-				_regs.ecx = ((dp->tracks & 0xff) <<8) |
-					   dp->sectors | ((dp->tracks & 0x300) >> 2);
+				HI(dx) = dp->heads-((disk < 0x80)?0:1);
+				LO(dx) = (disk < 0x80) ? DISKS : HDISKS;
+				HI(cx) = dp->tracks & 0xff;
+				LO(cx) = dp->sectors | ((dp->tracks & 0x300) >> 2);
+				LO(bx) = 3;
+				LO(ax) = 0;
+				_regs.eflags &= ~CF; /* no error */
 			} else {
 				_regs.edx = 0; /* no hard disks */
 				_regs.ecx = 0;
+				LO(bx) = 0;
+				LO(ax) = 1; /* bad command */
+				_regs.eflags |= CF; /* error */
 			}	
-			_regs.eflags &= ~CF; /* no error */
 			break;
-		case 0x15:
-			printf("disk 0x15 ?????\n");
+		case 0x15: /* Get type */
+			printf("disk gettype %d\n", disk);
+			if (dp != NULL && disk >= 0x80) {
+				if (dp->removeable) {
+					HI(ax) = 1; /* floppy disk, no change detect */
+					_regs.edx = 0; 
+					_regs.ecx = 0;
+				} else {
+					HI(ax) = 3; /* fixed disk */
+					number = dp->tracks * dp->sectors * dp->heads;
+					_regs.ecx = number >> 16;
+					_regs.edx = number & 0xffff;
+				}
+				_regs.eflags &= ~CF; /* no error */
+			} else {
+				HI(ax) = 0; /* disk not there */
+				_regs.eflags |= CF; /* error */
+			}
+			break;
+		case 0x18: /* Set media type for format */
+			track = HI(cx) + ((LO(cx) & 0xc0) << 2);
+			sect = LO(cx) & 0x3f;
+			printf("disk: set media type %x, %d sectors, %d tracks\n", disk, sect, track);
+			HI(ax) = 1; /* function not avilable */
 			break;
 		default:
 			printf("disk IO error\n");
@@ -643,6 +728,36 @@ void int14(void)
 			show_regs();
 			error = 5;
 			return;
+	}
+}
+
+void int15(void)
+{
+	int num;
+
+	switch(HI(ax)) {
+		case 0x41: /* wait on external event */
+			printf("wait on external event\n");
+			show_regs();
+			break;
+		case 0x87: /* block move */
+			printf("block move not supported\n");
+			_regs.eflags |= CF; /* not supported */
+			break;
+		case 0x88: /* get memory size */
+			_regs.eax = 0;
+			break;
+		case 0xc0: /* get configuration */
+			printf("get configuration not supported\n");
+			_regs.eflags |= CF; /* not supported */
+			break;
+		case 0xc1: /* ext-BIOS data segment */
+			_regs.eflags |= CF; /* not supported */
+			break;
+		default:
+			printf(" cassette 0x%x ignoring\n", HI(ax));
+			show_regs();
+			break;
 	}
 }
 
@@ -671,6 +786,7 @@ void int16(void)
 		case 2: /* read key state */
 			/* printf("get key state not implemented\n"); */
 			_regs.eax &= ~0xff;
+#if 0
 			if (!(vm86s.screen_bitmap & scrtest_bitmap)) {
 				FD_ZERO(&fds);
 				FD_SET(kbd_fd, &fds);
@@ -678,6 +794,7 @@ void int16(void)
 				scr_tv.tv_usec = DELAY;
 				select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
 			}
+#endif
 			break;
 		default:
 			printf("keyboard error\n");
@@ -693,7 +810,7 @@ void int17(void)
 
 	switch(HI(ax)) {
 		case 1: /* init */
-			_regs.eax &= ~0xff00;
+			HI(ax) = 0;
 			num = _regs.edx & 0xffff;
 			printf("init printer %d\n", num);
 			break;
@@ -736,21 +853,44 @@ void int1a(void)
 			ticks = tp.tv_sec - (tzp.tz_minuteswest*60);
 			tm = localtime((time_t *)&ticks);
         		printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec);
-			_regs.ecx = (tm->tm_hour << 8) | tm->tm_min;
-			_regs.edx = (tm->tm_sec << 8) | tm->tm_isdst;
+			HI(cx) = tm->tm_hour % 10;
+			tm->tm_hour /= 10;
+			HI(cx) |= tm->tm_hour << 4;
+			LO(cx) = tm->tm_min % 10;
+			tm->tm_min /= 10;
+			LO(cx) |= tm->tm_min << 4;
+			HI(dx) = tm->tm_sec % 10;
+			tm->tm_sec /= 10;
+			HI(dx) |= tm->tm_sec << 4;
+			/* LO(dx) = tm->tm_isdst; */
 			_regs.eflags &= ~CF;
 			break;
 		case 4: /* get date */
 			gettimeofday(&tp, &tzp);
 			ticks = tp.tv_sec - (tzp.tz_minuteswest*60);
 			tm = localtime((time_t *)&ticks);
-        		printf("get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon+1, tm->tm_year);
-			_regs.ecx = (19 << 8) | tm->tm_year;
-			_regs.edx = ((tm->tm_mon +1) << 8) | tm->tm_mday;
+			tm->tm_year += 1900;
+			tm->tm_mon ++;
+        		printf("get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
+			_regs.ecx = tm->tm_year % 10;
+			tm->tm_year /= 10;
+			_regs.ecx |= (tm->tm_year % 10) << 4;
+			tm->tm_year /= 10;
+			_regs.ecx |= (tm->tm_year % 10) << 8;
+			tm->tm_year /= 10;
+			_regs.ecx |= (tm->tm_year) << 12;
+			LO(dx) = tm->tm_mday % 10;
+			tm->tm_mday /= 10;
+			LO(dx) |= tm->tm_mday << 4;
+			HI(dx) = tm->tm_mon % 10;
+			tm->tm_mon /= 10;
+			HI(dx) |= tm->tm_mon << 4;
 			_regs.eflags &= ~CF;
 			break;
 		case 3: /* set time */
 		case 5: /* set date */
+			printf("timer: can't set time/date\n");
+			break;
 		default:
 			printf("timer error\n");
 			show_regs();
@@ -791,7 +931,8 @@ Restart:
 		case 12: /* clear key buffer, do int AL */
 			while (ReadKeyboard(&c, NOWAIT) == 1);
 			nr = LO(ax);
-			_regs.eax = (nr << 8) | nr;
+			if (nr == 0) break; /* thanx to R Michael McMahon for the hint */
+			HI(ax) = LO(ax);
 			goto Restart;
 		case 0xfa: /* unused by DOS */
 			if ((_regs.ebx & 0xffff) == 0x1234) { /* MAGIC */
@@ -806,6 +947,20 @@ Restart:
 			return 0;
 	}
 	return 1;
+}
+
+int int28(void)		 /* keyboard busy loop */
+{
+	fd_set fds;
+
+	if (!(vm86s.screen_bitmap & scrtest_bitmap)) {
+		FD_ZERO(&fds);
+		FD_SET(kbd_fd, &fds);
+		scr_tv.tv_sec = 0;
+		scr_tv.tv_usec = DELAY;
+		select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
+	}
+	return 0;
 }
 
 void do_int(int i)
@@ -832,7 +987,7 @@ us *ssp;
 			int14();
 			return;
 		case 0x15 : /* Cassette */
-			printf(" cassette %d ???????????\n", HI(ax));
+			int15();
 			return;
 		case 0x16 : /* KEYBOARD */
 			int16();
@@ -862,7 +1017,11 @@ us *ssp;
 			/* else do default handling in vm86 mode */
 			goto default_handling;
 
+		case 0x28 : /* KEYBOARD BUSY LOOP */
+			if (int28()) return;
 			/* else do default handling in vm86 mode */
+			goto default_handling;
+
 		default :
 default_handling:
 			/* if (i != 0x21) printf("interrupt 0x%x default\n", i); */
@@ -884,8 +1043,14 @@ default_handling:
 
 void sigalrm(int sig)
 {
-	if (vm86s.screen_bitmap & scrtest_bitmap) {
-		must_update = 1;
+static int running;
+
+	if ((vm86s.screen_bitmap & scrtest_bitmap) && !running) {
+		running = 1;
+		restore_screen();
+		vm86s.screen_bitmap = 0;
+		setitimer(ITIMER_REAL, &itv, NULL);
+		running = 0;
 	}
 }
 
@@ -1042,7 +1207,6 @@ void sigtrap(int sig)
 int emulate(int argc, char **argv)
 {
 	struct sigaction sa;
-	struct itimerval itv;
 
 	printf("EMULATE\n");
 	sync(); /* for safety */
@@ -1072,12 +1236,6 @@ int emulate(int argc, char **argv)
 	scrtest_bitmap = 1 << (24 + screen);
 	for(;!error;) {
 		(void)vm86(&vm86s);
-		if (must_update) {
-			restore_screen();
-			vm86s.screen_bitmap = 0;
-			must_update = 0;
-			setitimer(ITIMER_REAL, &itv, NULL);
-		}
 	}
 	termioClose();
 	disk_close_all();

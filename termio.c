@@ -329,12 +329,12 @@ void termioInit()
 	}
 	gettermcap();
 	qsort(funkey, FUNKEYS, sizeof(struct funkeystruct), &fkcmp);
-	if (ks) tputs(ks, 1, outc);
+	/* if (ks) tputs(ks, 1, outc); */
 }
 
 void termioClose()
 {
 	CloseKeyboard();
-	if (ke) tputs(ke, 1, outc);
+	/* if (ke) tputs(ke, 1, outc); */
 }
 
