@@ -149,10 +149,12 @@ pkt_init(int vec)
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
     switch (config.vnet) {
       case VNET_TYPE_ETH:
+	strncpy(devname, config.netdev, sizeof(devname) - 1);
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	break;
 
       case VNET_TYPE_DSN:
+	strcpy(devname, DOSNET_DEVICE);
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async);
 	break;
