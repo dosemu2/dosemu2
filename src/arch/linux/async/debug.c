@@ -1,11 +1,11 @@
+#include "emu.h"
+#include "dosemu_config.h"
+#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include "emu.h"
-#include "dosemu_config.h"
-#include "debug.h"
 
 static FILE *gdb_f = NULL;
 
