@@ -46,6 +46,9 @@
 #endif
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#if GLIBC_VERSION_CODE >= 2000
+  #include <sys/io.h>
+#endif
 
 #include "emu.h"
 #include "port.h"

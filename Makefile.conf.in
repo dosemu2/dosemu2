@@ -20,6 +20,23 @@ export INCDIR=@INCDIR@
 export CFLAGS=@CFLAGS@
 export LDFLAGS=@LDFLAGS@
 export CC=@CC@
+
+ifneq "@GCC_VERSION_CODE@" ""
+export GCC_VERSION_CODE=@GCC_VERSION_CODE@
+endif
+
+ifneq "@ASM_PEDANTIC@" ""
+export ASM_PEDANTIC=@ASM_PEDANTIC@
+endif
+
+ifneq "@GLIBC_VERSION_CODE@" ""
+export GLIBC_VERSION_CODE=@GLIBC_VERSION_CODE@
+endif
+
+ifneq "@GLIBCFLAGS@" ""
+export GLIBCFLAGS=@GLIBCFLAGS@
+endif
+
 export YACC=@YACC@
 export LEX=@LEX@
 @X_SUPPORT@

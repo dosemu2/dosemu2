@@ -35,7 +35,7 @@
 #endif
 #ifdef __linux__
 #include <signal.h>
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
 #else
 #include <linux/vt.h>
@@ -97,6 +97,8 @@ __len));
 #ifdef USE_MHPDBG
   #include "mhpdbg.h"
 #endif
+
+#include "dosemu_select.h"
   
 #ifdef SIG
 extern SillyG_t *SillyG;

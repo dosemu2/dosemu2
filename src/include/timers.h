@@ -118,19 +118,30 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 {
 	hitimer_u t;
 
-	__asm__ __volatile__ ("
-		movl	%2,%%eax
-		mull	%%ebx
+#ifdef ASM_PEDANTIC
+	unsigned long int d0;
+#endif
+	__asm__ __volatile__ (
+#ifndef ASM_PEDANTIC
+	       "movl	%2,%%eax;"
+#endif
+	       "mull	%%ebx
 		movl	%%edx,%%ecx
 		movl	%3,%%eax
 		mull	%%ebx
 		addl	%%ecx,%%eax
 		adcl	$0,%%edx
 		"
+#ifndef ASM_PEDANTIC
 		: "=a"(t.t.tl),"=d"(t.t.th)
 		: "g"(((int *)&v)[0]),"g"(((int *)&v)[1]),\
 		  "b"(f)
 		: "%eax","%edx","%ecx","%ebx","memory" );
+#else
+		:"=&a"(t.t.tl),"=&d"(t.t.th), "=&b"(d0)
+		:"g"(((int *)&v)[1]),"2"(f),"0"(((int *)&v)[0])
+		:"%ecx","memory" );
+#endif
 	return t.td;
 }
 
@@ -156,6 +167,8 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 /* --------------------------------------------------------------------- */
 
 EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);
+
+#ifndef ASM_PEDANTIC
 
 #define CPUtoUS() \
 ({ \
@@ -197,6 +210,51 @@ EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);
 		: "%eax","%edx","%ecx","%ebx","memory" ); \
 	t.td; \
 })
+
+#else /* ASM_PEDANTIC */
+
+#define CPUtoUS() \
+({ \
+	hitimer_u t; \
+	__asm__ __volatile__ (" \
+		rdtsc\n \
+		movl	%%edx,%%ebx\n \
+		mull	%2\n \
+		movl	%%edx,%%ecx\n \
+		movl	%%ebx,%%eax\n \
+		mull	%2\n \
+		addl	%%ecx,%%eax\n \
+		adcl	$0,%%edx\n \
+		" \
+		: "=&a"(t.t.tl),"=&d"(t.t.th) \
+		: "m"(config.cpu_spd) \
+		: "%ecx","%ebx","memory" ); \
+	t.td; \
+})
+
+#define CPUtoUS_Z() \
+({ \
+	hitimer_u t; \
+	__asm__ __volatile__ (" \
+		rdtsc\n \
+		movl	%%edx,%%ebx\n \
+		mull	%2\n \
+		movl	%%edx,%%ecx\n \
+		movl	%%ebx,%%eax\n \
+		mull	%2\n \
+		addl	%%ecx,%%eax\n \
+		adcl	$0,%%edx\n \
+		subl	%3,%%eax\n \
+		sbbl	%4,%%edx\n \
+		" \
+		: "=&a"(t.t.tl),"=&d"(t.t.th) \
+		: "m"(config.cpu_spd), \
+		  "m"(ZeroTimeBase.t.tl),"m"(ZeroTimeBase.t.th) \
+		: "%ecx","%ebx","memory" ); \
+	t.td; \
+})
+
+#endif /* ASM_PEDANTIC */
 
 /* 1 us granularity */
 extern hitimer_t GETusTIME(int sc);

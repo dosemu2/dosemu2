@@ -32,6 +32,14 @@
 #include "emu.h"
 #include "disks.h"
 #include "priv.h"
+#include "dosemu_select.h"
+
+#ifdef NEED_LLSEEK_PROTOTYPE
+  /* well, if we don't have llseek prototype,
+   * we most likely won't have __loff_t too, hence using long long
+   */
+  extern long long llseek (int fd, long long offset, int origin);
+#endif
 
 static int disks_initiated = 0;
 

@@ -36,7 +36,7 @@
 
 #include <features.h>
 #include <sys/time.h>
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <sys/kd.h>
 #else
 #include <linux/kd.h>

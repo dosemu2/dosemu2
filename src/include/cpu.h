@@ -300,10 +300,10 @@ EXTERN struct vec_t *ivecs;
 */
 
 #ifdef __linux__
-  #include <asm/sigcontext.h>
-  #if LX_KERNEL_VERSION >= 2001000
+  #if (LX_KERNEL_VERSION >= 2001000) || (GLIBC_VERSION_CODE >= 2000)
   #define sigcontext_struct sigcontext
   #endif
+  #include <asm/sigcontext.h>
 #endif
 
 #ifdef __NetBSD__

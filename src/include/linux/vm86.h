@@ -12,7 +12,7 @@
  *           In this case DELETE <linux/vm86.h>.
  */
 #include <features.h>
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vm86.h>
 #else
 #include <asm/vm86.h>

@@ -12,5 +12,5 @@ config {
   linkstatic off
   newint on
   cpuemu off
-  aspi off
+  aspi on
 }

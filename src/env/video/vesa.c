@@ -60,7 +60,7 @@
 
 
 #include <features.h>
-#if __GLIBC__ == 2 && __GLIBC_MINOR__ == 0
+#if GLIBC_VERSION_CODE == 2000
 #include <sigcontext.h>
 #endif
 #include <string.h>

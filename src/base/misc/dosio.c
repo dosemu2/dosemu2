@@ -20,7 +20,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #ifndef __NetBSD__
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <netinet/if_ether.h>
 #else
 #include <linux/if_ether.h>
@@ -38,7 +38,7 @@
 #ifdef __NetBSD__
 #include <features.h>
 #endif
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <features.h>
 #include <sys/mman.h>
 #else

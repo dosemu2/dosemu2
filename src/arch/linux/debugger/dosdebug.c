@@ -31,6 +31,8 @@
 #include <linux/vt.h> 
 #include <sys/ioctl.h>
 
+#include "dosemu_select.h"
+
 #define    TMPFILE_		"/var/run/dosemu."
 #define    TMPFILE_HOME		".dosemu/run/dosemu."
 #define    TMPFILE               dosemu_tmpfile_path 

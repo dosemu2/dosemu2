@@ -40,7 +40,7 @@
 #include "vm86plus.h"
 
 #ifdef __linux__
-#ifndef __GLIBC__
+#if GLIBC_VERSION_CODE < 1000
 #include <linux/unistd.h>
 #if LX_KERNEL_VERSION < 2001121
   #include <linux/head.h>
@@ -602,7 +602,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
       xorl   %0,%0   "/* preset return code with 0 */"
       push   %%eax   "/* dummy, err */"
       push   %%eax   "/* dummy, trapno */"
-      pushal
+      pusha
       addl   $10*4,12(%%esp)   "/* adjust esp */"
       push   %%ds
       push   %%es
@@ -630,7 +630,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
       pop    %%fs
       pop    %%es
       pop    %%ds
-      popal
+      popa
       popfl
       lss    (%%esp),%%esp  "/* this is: pop ss; pop esp */"
       jmp    __dpmi_switch_jmp   
@@ -1863,11 +1863,21 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
 {
  #ifdef COPY_CONTEXT_USE_ASM
+  #ifdef ASM_PEDANTIC
+  unsigned long int d0, d1, d2;
+  #endif
   __asm__ __volatile__ ("
 	cld
 	rep; movsl
-  ":: "S" (s), "D" (d), "c" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2)
+  "
+  #ifndef ASM_PEDANTIC
+   :: "S" (s), "D" (d), "c" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2)
    : "cx", "si", "di" );
+  #else
+   :"=&c" (d0), "=&D" (d1), "=&S" (d2)
+   :"0" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2), "1" (d), "2" (s)
+   :"memory");
+  #endif
  #else
   memcpy(d, s, ((int)(&s->eax) - (int)(s))+ sizeof(s->eax));
  #endif

@@ -49,6 +49,14 @@
 #define nr_sects dp_size
 #endif
 
+#include "config.h"
+#ifdef NEED_LLSEEK_PROTOTYPE
+  /* well, if we don't have llseek prototype,
+   * we most likely won't have __loff_t too, hence using long long
+   */
+  extern long long llseek (int fd, long long offset, int origin);
+#endif
+
 #define SECTOR_SIZE	512
 #define EXT_MAGIC	5	/* sys_ind for an extended partition */
 

@@ -35,8 +35,6 @@ int token_serial = 0;
   #define shift_comment(s)
 #endif
 
-extern char* strdup(const char *); /* Not defined in string.h :-( */
-
 #undef YY_DECL
 #define YY_DECL int yylex YY_PROTO(( YYSTYPE* yylval ))
 

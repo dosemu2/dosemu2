@@ -54,6 +54,7 @@
 #include "pic.h"
 #include "int.h"
 #include "vc.h"
+#include "dosemu_select.h"
 
 #ifndef max
 #define max(a,b)       ((a)>(b)? (a):(b))
@@ -351,7 +352,6 @@ void run_unix_command(char *buffer)
 int run_system_command(char *buffer)
 {
     int pid, status;
-    char si_buf[128], se_buf[128];
 
     if (!buffer || !buffer[0]) return 1;
 

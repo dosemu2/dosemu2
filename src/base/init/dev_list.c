@@ -32,9 +32,9 @@
 #include "int.h"
 #include "port.h"
 #include "pic.h"
+#include "serial.h"
 #include "keyb_server.h"     /* for keyb_8042_{init,reset} */
 #include "lpt.h"
-#include "serial.h"
 #include "disks.h"
 
 #ifdef USE_SBEMU

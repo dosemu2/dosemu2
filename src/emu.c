@@ -89,7 +89,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "netbsd_vm86.h"
 #endif
 #ifdef __linux__
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
 #include <sys/kd.h>
 #else
@@ -386,7 +386,7 @@ changesegs()
 int 
 main(int argc, char **argv)
 #else
-void 
+int
 emulate(int argc, char **argv)
 #endif
 {
@@ -490,9 +490,7 @@ emulate(int argc, char **argv)
     sync();
     fprintf(stderr, "Not a good day to die!!!!!\n");
     leavedos(99);
-#ifdef __ELF__
-    return 0;		/* to make gcc happy */
-#endif
+    return 0;  /* just to make gcc happy */
 }
 
 #if 0    /* disable C-A-D until someone will fix it (if really needed) */

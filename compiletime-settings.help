@@ -116,7 +116,7 @@ cpuemu		"EXPERIMENTAL, enable CPU emulator" cpuemu
 		This is in _no_ case ready for production, this switch is
 		here just for the developers ;-)
 
-aspi		"EXPERIMENTAL, compile with ASPI support" aspi
+aspi		"compile with ASPI support" aspi
 
 		This enables the dosemu builtin ASPI driver, which also
 		need the DOS driver ./commands/aspi.sys in config.sys.

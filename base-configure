@@ -28,7 +28,7 @@ ac_help="$ac_help
 ac_help="$ac_help
   --enable-threads        EXPERIMENTAL, use threading code"
 ac_help="$ac_help
-  --enable-aspi           EXPERIMENTAL, compile with ASPI support"
+  --enable-aspi           do compile with ASPI support"
 ac_help="$ac_help
   --enable-nosbemu        do NOT use SoundBlaster emulator"
 ac_help="$ac_help
@@ -3706,7 +3706,7 @@ else
   aspi="no"
 fi
 
-  if test "$aspi" = "yes" -a "$experimental" = "yes"; then
+  if test "$aspi" = "yes"; then
    echo "checking "Compiling with ASPI support"" 1>&6
 echo "configure:3712: checking "Compiling with ASPI support"" >&5;
    ASPI_SUPPORT="ASPI_SUPPORT=1"
@@ -3950,24 +3950,62 @@ echo "configure:3948: checking "Compiling with network support"" >&5;
  PIPE=-pipe
 fi
 
-# try to catch glibc the secure way, works even on older autoconf
-cat > conftest.c <<EOF
-#include <features.h>
-#if __GLIBC__ > 1
-  yes_yes_yes;
-#endif
+
+if test "$GCC" = "yes" ; then
+  echo -n "generating gcc version code..."
+  minor=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC_MINOR__/{print $3}'`
+  major=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC__/{print $3}'`
+  GCC_VERSION_CODE=$((($major * 1000) + $minor))
+  echo "$GCC_VERSION_CODE"
+  echo -n "checking need for pedantic asm constraints..."
+  if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
+     echo "yes"
+     ASM_PEDANTIC="-DASM_PEDANTIC"
+     echo -n "checking for egcs..."
+     if gcc -v 2>&1|grep 'egcs-' >/dev/null; then
+       echo "yes, using -fno-gcse to work around bugs"
+       EGCSFLAGS="-fno-gcse"
+     else
+       echo "no"
+     fi
+  else
+     echo "no"
+  fi
+  GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
+
+  echo -n "checking for glibc..."
+  major=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/__GLIBC__/{print $3}'`
+  if test "$major" = ""; then
+    echo "no"
+  else
+    if test "$(( $major > 1 ))" = "1"; then
+      GLIBCFLAGS="-D_XOPEN_SOURCE"
+    fi
+    minor=`echo '#include <features.h>' |${CC-cc} -E -dM -|awk '/__GLIBC_MINOR__/{print $3}'`
+    if test "$minor" = ""; then
+      minor=0;
+    fi
+    GLIBC_VERSION_CODE=$((($major * 1000) + $minor))
+    echo "yes, version code $GLIBC_VERSION_CODE"
+    GLIBC_VERSION_CODE="-DGLIBC_VERSION_CODE=$GLIBC_VERSION_CODE"
+    echo "checking for llseek prototype ..."
+    if echo "#include <unistd.h>" |${CC-cc} -E - |grep '[ \t]llseek[ \t(]' >/dev/null; then
+      echo "yes"
+    else
+      echo 'no, have to add one :-('
+      cat >> confdefs.h <<EOF
+#define NEED_LLSEEK_PROTOTYPE 1
 EOF
 
-echo -n "checking for glibc..."
-if ${CC-cc} -E conftest.c |grep yes_yes_yes >/dev/null 2>&1; then
-  GLIBCFLAGS="-D__USE_UNIX98 -D__USE_GNU"
-  echo "yes"
-else
-  echo "no"
+    fi
+  fi
 fi
-rm -f conftest.c
 
-CFLAGS="${OPT} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
+
+
+
+
+CFLAGS="-D_GNU_SOURCE ${OPT} ${EGCSFLAGS} ${GCC_VERSION_CODE} ${ASM_PEDANTIC} ${GLIBC_VERSION_CODE} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
 
 
 # set for DPMI want windows
@@ -4194,6 +4232,10 @@ s%@REQUIRES_VM86PLUS@%$REQUIRES_VM86PLUS%g
 s%@TOPDIR@%$TOPDIR%g
 s%@INCDIR@%$INCDIR%g
 s%@X86_EMULATOR@%$X86_EMULATOR%g
+s%@GCC_VERSION_CODE@%$GCC_VERSION_CODE%g
+s%@ASM_PEDANTIC@%$ASM_PEDANTIC%g
+s%@GLIBC_VERSION_CODE@%$GLIBC_VERSION_CODE%g
+s%@GLIBCFLAGS@%$GLIBCFLAGS%g
 
 CEOF
 EOF

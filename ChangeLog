@@ -1,3 +1,36 @@
+98/11/21 ver. 0.99.3.5 unofficial pre-release
+	From Florian La Roche <florian@suse.de>
+	- changes/fixes to make DOSEMU compile under all currently
+	  available gcc/egcs/glibc combinations (hopefully).
+	  (This was working 981112, hence what status we have 981113
+	   isn't predictable --Hans :-))
+	From Zoltan Boszormenyi <zboszor@mol.hu>
+	- patches, which touched the same issue as that of Florian,
+	  Zoltan's additional fixes were worked in by Florian.
+	From Karl Kiniger <ki@kretz.co.at>
+	- using pusha/popa instead of pushal/popal (dpmi.c), else
+	  recent binutils would complain.
+	- fix for llseek, when glibc headers don't define them
+	From Hans
+	- changes in base-configure
+	  - generate unique version codes for
+	    gcc and glibc: GCC_VERSION_CODE and GLIBC_VERSION_CODE.
+	    Major/minor is represented as (major * 1000) + minor.
+	  - Also introduced 'ASM_PEDANTIC', which is set when a compiler
+	    would silently produce wrong code on overlapping clobbered
+	    registers in the asm constraints (which worked fine for gcc-2.7.1).
+	  - using -fno-gcse for egcs, because otherwise some realy strange
+	    things happen (last seen in config.c)
+	  All the above are propagated through CFLAGS and are available in the
+	  Makefiles.
+	  - checking for llseek prototype on glibc, defining
+	    NEED_LLSEEK_PROTOTYPE in config.h when needed.
+	- Adapted Florians Patches to reflect the base-configure changes.
+	- Adapted remaining GLIBC/GNUC #if's to *_VERSION_CODE.
+	- removed some gcc/egcs warnings
+	- removed EXPERIMENTAL from ASPI
+	- made ASPI default in compiletime-settings
+	- final finetuning on glibc-2.0.7pre6 stuff
 98/11/21 ver. 0.99.3.4 unofficial pre-release
 	From Shawn Pringle <pringle@uvic.ca>
 	- small fix to global.conf ($_X_winsize typo)

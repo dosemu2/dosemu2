@@ -20,6 +20,7 @@
 #include "keyboard.h"
 #include "utilities.h"
 #include "video.h"
+#include "dosemu_select.h"
 
 #ifndef VOID
 #  define VOID void

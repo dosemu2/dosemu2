@@ -42,14 +42,18 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
-#include <asm/byteorder.h>
-#if __GLIBC__ > 1
-#include <netinet/if_ether.h>
+#if GLIBC_VERSION_CODE >= 2000
+  #if GLIBC_VERSION_CODE == 2000
+    #include <asm/byteorder.h>
+  #endif
+  #include <netinet/if_ether.h>
 #else
-#include <linux/if_ether.h>
+  #include <asm/byteorder.h>
+  #include <linux/if_ether.h>
 #endif
 #include "libpacket.h"
 #include "dosnet.h"
+#include "dosemu_select.h"
 
 /* flag to activate use of pic by packet driver */
 #if 0

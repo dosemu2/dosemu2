@@ -42,7 +42,7 @@
 #include "netbsd_vm86.h"
 #endif
 #ifdef __linux__
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
 #else
 #include <linux/vt.h>

@@ -19,13 +19,13 @@
 #include <errno.h>
 
 #ifdef __linux__
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <sys/utsname.h>
 #define new_utsname utsname
 #else
 #include <linux/config.h>
 #include <linux/utsname.h>
-#endif /* __GLIBC__ */
+#endif /* GLIBC_VERSION_CODE */
 #endif /* __linux__ */
 
 #ifdef __NetBSD__

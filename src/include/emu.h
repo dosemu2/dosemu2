@@ -14,10 +14,10 @@
 
 #include <features.h>
 #include <sys/types.h>
-#include <signal.h> 
-#if __GLIBC__ == 2 && __GLIBC_MINOR__ == 0
+#if GLIBC_VERSION_CODE == 2000
 #include <sigcontext.h>
 #endif
+#include <signal.h> 
 #include "config.h"
 #include "types.h"
 #include "extern.h"
@@ -493,7 +493,7 @@ do { \
 			sigaction(sig, &sa, NULL);
 #endif
 #ifdef __linux__
-#ifdef __GLIBC__
+#if GLIBC_VERSION_CODE
 #define SignalHandler __sighandler_t
 #endif
 #define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \

@@ -15,7 +15,7 @@
 
 #include <stdio.h>		/* for NULL */
 #include <stdlib.h>
-#include <strings.h>		/* for memcpy */
+#include <string.h>		/* for memcpy */
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <fcntl.h>

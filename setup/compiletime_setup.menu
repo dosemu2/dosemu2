@@ -17,7 +17,7 @@ menu "Main Menu" {
   boolean "make static binaries" linkstatic
   boolean "use the new INT code" newint
   boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
-  boolean "EXPERIMENTAL, compile with ASPI driver" aspi
+  boolean "compile with ASPI driver" aspi
 }
 
 menu "Configure Action" {

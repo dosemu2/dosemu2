@@ -12,13 +12,13 @@
 #include "config.h"
 #include "extern.h"
 
-#if __GNUC__ >= 2
+#if GCC_VERSION_CODE >= 2005
 # define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
 #else
 # define FORMAT(T,A,B)
 #endif
 
-#if __GNUC__ >= 2
+#if GCC_VERSION_CODE >= 2005
 # define NORETURN	__attribute__((noreturn))
 #else
 # define NORETURN

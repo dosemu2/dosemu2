@@ -65,7 +65,7 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 static sigset_t oldset;
 
 #ifdef __linux__
-#if __GLIBC__ > 1		/* glibc-2 version */
+#if GLIBC_VERSION_CODE >= 2000
 /*
  * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
  * glibc-2 uses a different struct sigaction type than the one used in

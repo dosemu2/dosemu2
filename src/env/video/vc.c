@@ -42,7 +42,7 @@
 #include <sys/mman.h>
 #endif
 #ifdef __linux__
-#ifndef __GLIBC__
+#if GLIBC_VERSION_CODE < 1000
 #define MAP_ANON MAP_ANONYMOUS
 extern caddr_t mmap __P ((caddr_t __addr, size_t __len,
 			  int __prot, int __flags, int __fd, off_t __off));
@@ -55,7 +55,7 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include <signal.h>
 #include <sys/stat.h>
 #ifdef __linux__
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <sys/vt.h>
 #include <sys/kd.h>
 #else

@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#if defined(__GLIBC__) && __GLIBC__ >= 2
+#if GLIBC_VERSION_CODE >= 2000
   #include <netinet/if_ether.h>
 #else
   #include <linux/sockios.h>

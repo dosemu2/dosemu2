@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-#if __GLIBC__ > 1
+#if GLIBC_VERSION_CODE >= 2000
 #include <errno.h>
 #endif
 

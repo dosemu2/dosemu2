@@ -123,7 +123,6 @@ static int parser_version_3_style_used = 0;
 	/* external procedures */
 
 extern int exchange_uids(void);
-extern char* strdup(const char *); /* Not defined in string.h :-( */
 extern int yylex(); /* exact argument types depend on the way you call bison */
 extern void tell_lexer_if(int value);
 extern void tell_lexer_loop(int cfile, int value);

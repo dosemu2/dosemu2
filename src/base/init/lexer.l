@@ -93,8 +93,6 @@ else if (TESTACTIVE)
 }
 
 
-
-extern char* strdup(const char *); /* Not defined in string.h :-( */
 extern void yyerror(char* string, ...);
 extern void yywarn(char* string, ...);
 

@@ -66,6 +66,7 @@ void keyb_server_close();
 #define SYSRQ_PRESSED  0x4000
 #define ALT            (L_ALT|R_ALT)
 #define SHIFT          (L_SHIFT|R_SHIFT)
+#undef	CTRL
 #define CTRL           (L_CTRL|R_CTRL)
 
 

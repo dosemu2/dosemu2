@@ -36,7 +36,7 @@ typedef u_int64_t          Bit64u;  /* type of 64 bit unsigned quantity */
 typedef   int64_t          Bit64s;  /* type of 64 bit signed quantity */
 
 /* Temporarily defined to allow dosemu to compile with glibc2 */
-#if defined(__GLIBC__) && __GLIBC__ >= 2
+#if (GLIBC_VERSION_CODE >= 2000) && !defined(_I386_TYPES_H)
 typedef u_int8_t	__u8;
 typedef u_int16_t	__u16;
 typedef u_int32_t	__u32;
@@ -44,7 +44,7 @@ typedef u_int32_t	__u32;
 
 typedef Bit32u ioport_t;	/* for compatibility */
 
-#if __GLIBC__ >= 2
+#if GLIBC_VERSION_CODE >= 2000
 #include <stddef.h> /* for ptrdiff_t & friends */
 #endif
 

@@ -23,7 +23,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <net/route.h>
-#if defined (__GLIBC__) && __GLIBC__ >= 2
+#if GLIBC_VERSION_CODE >= 2000
   #include<netipx/ipx.h>
 #else
   #include <linux/sockios.h>
@@ -33,6 +33,7 @@
 #include <errno.h>
 
 #include "emu.h"
+#include "dosemu_select.h"
 
 #define FALSE   0
 #define TRUE    1
