@@ -1,3 +1,7 @@
+2000/07/08 ver. 1.0.1.1 unofficial pre-release, development fork
+	From Hans
+	- added missing parts of 1.0.0.2 vmodem (doors) patch.
+	  (somehow did patch in a broken way at that time)
 2000/07/03 ver. 1.0.1 released
 	From Hans
 	- fixed a diabolic bug in mapping/mapfile.c (s/\|/,/) :-(

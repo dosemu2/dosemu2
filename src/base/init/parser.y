@@ -89,6 +89,7 @@ static int dexe_forbid_disk = 1;
 static int dexe_secure = 1;
 char own_hostname[128];
 
+extern int no_local_video;
 extern struct printer lpt[NUM_PRINTERS];
 static struct printer *pptr;
 static struct printer nullptr;
@@ -266,7 +267,7 @@ extern void yyrestart(FILE *input_file);
         /* lock files */
 %token DIRECTORY NAMESTUB BINARY
 	/* serial */
-%token BASE IRQ INTERRUPT DEVICE CHARSET  BAUDRATE
+%token BASE IRQ INTERRUPT DEVICE CHARSET  BAUDRATE VIRTUAL
 	/* mouse */
 %token MICROSOFT MS3BUTTON LOGITECH MMSERIES MOUSEMAN HITACHI MOUSESYSTEMS BUSMOUSE PS2
 %token INTERNALDRIVER EMULATE3BUTTONS CLEARDTR
@@ -1303,6 +1304,9 @@ serial_flags	: serial_flag
 serial_flag	: DEVICE string_expr		{ strcpy(sptr->dev, $2);
 					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1;
 					  free($2); }
+		| VIRTUAL		  {sptr->virtual = TRUE;
+					   no_local_video = 1;
+					   strcpy(sptr->dev, ttyname(0));}
 		| COM expression		{ sptr->real_comport = $2;
 					  com_port_used[$2] = 1; }
 		| BASE expression		{ sptr->base_port = $2; }
@@ -1780,6 +1784,7 @@ static void start_serial(void)
     sptr->real_comport = 0;
     sptr->fd = -1;
     sptr->mouse = 0;
+    sptr->virtual = FALSE;
   }
 }
 

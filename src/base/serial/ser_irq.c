@@ -214,10 +214,16 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   
   ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
   
-  newmsr = convert_bit(control, TIOCM_CTS, UART_MSR_CTS) |
-           convert_bit(control, TIOCM_DSR, UART_MSR_DSR) |
-           convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
-           convert_bit(control, TIOCM_CAR, UART_MSR_DCD);
+  if(com[num].virtual)
+    newmsr = UART_MSR_CTS |
+             convert_bit(control, TIOCM_DSR, UART_MSR_DSR) |
+             convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
+             UART_MSR_DCD;
+  else
+    newmsr = convert_bit(control, TIOCM_CTS, UART_MSR_CTS) |
+             convert_bit(control, TIOCM_DSR, UART_MSR_DSR) |
+             convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
+             convert_bit(control, TIOCM_CAR, UART_MSR_DCD);
            
   delta = msr_compute_delta_bits(com[num].MSR, newmsr);
   

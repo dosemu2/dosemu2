@@ -490,6 +490,7 @@ interrupt		RETURN(INTERRUPT);
 baudrate		RETURN(BAUDRATE);
 device			RETURN(DEVICE);
 com                     RETURN(COM);
+virtual			RETURN(VIRTUAL);
 
 	/* lock file stuff */
 directory              RETURN(DIRECTORY);

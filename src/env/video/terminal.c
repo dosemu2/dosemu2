@@ -62,6 +62,8 @@
  *      001          000           Underline
  *     anything else is invalid.
  */    
+extern int no_local_video;
+
 static int BW_Attribute_Map[256];
 static int Color_Attribute_Map[256];
 
@@ -215,8 +217,12 @@ terminal_initialize()
    rotate[4] = 1; rotate[5] = 5;
    rotate[6] = 3; rotate[7] = 7;
    
-   Video_term.update_screen = slang_update;
-   
+   if(no_local_video!=1) {
+     Video_term.update_screen = slang_update;
+   }
+   else
+     Video_term.update_screen = NULL;
+
    SLang_Exit_Error_Hook = sl_exit_error;
 #ifdef USE_OLD_SLANG_KBD
    SLtt_get_terminfo ();

@@ -65,6 +65,8 @@
 #include "priv.h"
 #include "utilities.h"	/* due to getpwnam */
 
+int no_local_video = 0;
+
 /* See README.serial file for more information on the com[] structure 
  * The declarations for this is in ../include/serial.h
  */
@@ -233,18 +235,29 @@ static int ser_open(int num)
   
   if (com[num].fd != -1) return (com[num].fd);
   
-  if ( tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
-    /* We know that we have access to the serial port */
-    com[num].dev_locked = TRUE;
-    
-    /* If the port is used for a mouse, then remove lockfile, because
-     * the use of the mouse serial port can be switched between processes,
-     * such as on Linux virtual consoles.
-     */
-    if (com[num].mouse)
-      if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
-        com[num].dev_locked = FALSE;
+  if ( com[num].virtual )
+  {
+    if (tty_lock(com[num].dev, 0) >= 0)
+    {
+      dbug_printf("Opening Virtual Port\n");
+      com[num].dev_locked = FALSE;
+      com[num].fd = 0;
+      no_local_video = 1;
+    }
   }
+  else
+    if ( tty_lock(com[num].dev, 1) >= 0) {		/* Lock port */
+      /* We know that we have access to the serial port */
+      com[num].dev_locked = TRUE;
+    
+      /* If the port is used for a mouse, then remove lockfile, because
+       * the use of the mouse serial port can be switched between processes,
+       * such as on Linux virtual consoles.
+       */
+      if (com[num].mouse)
+        if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
+          com[num].dev_locked = FALSE;
+    }
   else {
     /* The port is in use by another process!  Don't touch the port! */
     com[num].dev_locked = FALSE;
@@ -517,8 +530,10 @@ static void do_ser_init(int num)
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
-  data = TIOCM_DTR | TIOCM_RTS;
-  ioctl(com[num].fd, TIOCMBIC, &data);
+  if (!com[num].virtual) {
+    data = TIOCM_DTR | TIOCM_RTS;
+    ioctl(com[num].fd, TIOCMBIC, &data);
+  }
 }
 
 
