@@ -1,3 +1,20 @@
+97/06/21 ver. 0.67.5 released
+	From Hans
+	- introducing threading into DOSEMU using Linux-clone :-)
+	  Currently its only used for fixing the floppy ioctl that
+	  will return with -EINTR (we normally switch off SIGALRM).
+	  The main reason I put that stuff in is to show the team _how_ it
+	  can be used within dosemu. So, Alistair its your turn now to
+	  make the DMA stuff using it. And Steffen also may look how
+	  we can make the X-update a thread. And of course Alberto now
+	  has a base for his new PIC stuff.
+	  Conclusion: Currently it should be considered as an example and
+	  if we later come to the decision, thats not enhancing DOSEMU
+	  enough, we may back out it.
+	  BTW: its only activated by --enable-threads.
+	- Made the old kbd again the default, because it breaks some of
+	  the older DOS apps (extended code E0 again, forgot that we didn't
+	  fix that yet, will come next).
 97/06/19 ver. 0.67.4.3 unofficial pre-release
 	From Alberto
 	- Support for Matrox-Millenium ( video { ... chipset matrox } )

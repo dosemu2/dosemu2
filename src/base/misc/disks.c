@@ -657,9 +657,14 @@ disk_open(struct disk *dp)
    * during the ioctl. (well, not what we really like)
    * ( 19 May 1996, Hans Lermen ) */
   int res;
+ #ifdef USE_THREADS
+  static int background_ioctl(int fd, int request, void *param);
+  res = background_ioctl(dp->fdesc, FDGETPRM, &fl);
+ #else
   sigalarm_onoff(0);
   res = ioctl(dp->fdesc, FDGETPRM, &fl);
   sigalarm_onoff(1);
+ #endif
   if (res == -1) {
 #else
   if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {
@@ -1333,3 +1338,49 @@ floppy_tick(void)
     secs = 0;
   }
 }
+
+#ifdef USE_THREADS
+
+#include "lt-threads.h"
+
+static mbox_handle ioctlmbox_out;
+static mbox_handle ioctlmbox_in;
+
+struct {
+  struct msg msg;
+  int fd;
+  int request;
+  void *param;
+  int result;
+} ioctlmsg;
+
+void background_ioctl_thread(int start)
+{
+  if (!start) {
+    /* we come here _before_ any thread is started
+     * but threading is active and we run at scope of thread0.
+     * We now create the resoeurce we need.
+     */
+     ioctlmbox_in = create_local_mailbox("diskioctl_in", 2);
+     ioctlmbox_out = create_local_mailbox("diskioctl_out", 2);
+     return;
+  }
+  /* here we are a separate thread */
+  while (1) {
+    receivemessage(ioctlmbox_in);
+    ioctlmsg.result = ioctl(ioctlmsg.fd, ioctlmsg.request, ioctlmsg.param);
+    sendmessage(ioctlmbox_out,0);
+  }
+}
+
+static int background_ioctl(int fd, int request, void *param)
+{
+  ioctlmsg.fd = fd;
+  ioctlmsg.request = request;
+  ioctlmsg.param = param;
+  sendmessage(ioctlmbox_in,0);
+  receivemessage(ioctlmbox_out);
+  return ioctlmsg.result;
+}
+
+#endif

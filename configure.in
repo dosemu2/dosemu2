@@ -309,7 +309,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="4.3"
+PATCHLEVEL="5.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -409,6 +409,19 @@ dnl Use new X code
    AC_SUBST(NEW_X_CODE)
   else
    AC_CHECKING("Compiling with old X code");
+  fi
+ 
+dnl Use threading code
+ AC_ARG_ENABLE(threads,
+               [  --enable-threads      use threading code],
+	       [threads="yes"],[threads="no"])
+  if test "$threads" = "yes"; then
+   AC_CHECKING("Compiling with clone-threading code");
+   USE_THREADS="USE_THREADS=1"
+   AC_DEFINE_UNQUOTED(USE_THREADS)
+   AC_SUBST(USE_THREADS)
+  else
+   AC_CHECKING("Compiling single process code");
   fi
  
 dnl Do SB emulation
@@ -544,6 +557,7 @@ src/Makefile
 src/Makefile.common
 src/arch/linux/Makefile.main
 src/arch/linux/async/Makefile
+src/arch/linux/threads/Makefile
 src/arch/linux/debugger/Makefile
 src/arch/linux/dosext/sound/Makefile
 src/arch/linux/dosext/sound/midid/Makefile

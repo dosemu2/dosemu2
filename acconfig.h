@@ -120,6 +120,9 @@
 /* Define this to use the new X code */
 #undef NEW_X_CODE
 
+/* Define this to use threading code */
+#undef USE_THREADS
+
 @BOTTOM@
 
 #endif /* CONFIG_H */

@@ -68,6 +68,7 @@ endif
 OPTIONALSUBDIRS = @OPTIONALSUBDIRS@
 
 LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
+	arch/linux/threads\
 	emu-i386 env\
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/keyboard base/mouse\

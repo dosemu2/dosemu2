@@ -385,6 +385,14 @@ emulate(int argc, char **argv)
 
     io_select_init();
     config_init(argc, argv);	/* parse the commands & config file(s) */
+#ifdef USE_THREADS
+    treads_init();		/* init the threads system,
+				 * after this we will be thread0.
+				 * Because treads_init() captures SIGTERM
+				 * and signal_init() also does it,
+				 * we capture it via 'exit'.
+    				 */
+#endif
     stdio_init();		/* initialize stdio & open debug file */
     module_init();
     low_mem_init();		/* initialize the lower 1Meg */
@@ -494,6 +502,9 @@ ign_sigs(int sig)
     }
 }
 
+int leavedos_recurse_check = 0;
+
+
 /* "graceful" shutdown */
 void
 leavedos(int sig)
@@ -502,16 +513,15 @@ leavedos(int sig)
     struct itimerval itv;
     extern int errno;
 
-    static int recurse_check = 0;
    
-    warn("leavedos(%d) called - shutting down\n", sig);
-    if (recurse_check)
+    if (leavedos_recurse_check)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
        flush_log();
        _exit(sig);
       }
-    recurse_check = 1;
+    leavedos_recurse_check = 1;
+    warn("leavedos(%d) called - shutting down\n", sig);
 #if 1 /* BUG CATCHER */
     if (in_vm86) {
       g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");
@@ -596,7 +606,14 @@ leavedos(int sig)
 	disallocate_vt();
     }
     flush_log();
+#ifdef USE_THREADS
+    {
+	extern void Exit(int status);
+	Exit(sig);
+    }
+#else
     _exit(sig);
+#endif
 }
 
 #if 0
