@@ -490,15 +490,18 @@ BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
   while (*src) {
     result = charset_to_unicode(&unix_state, &symbol, src, slen);
     if (result == -1) {
-      symbol = '?';
+      symbol = '_';
       result = 1;
     }
     src += result;
     slen -= result;
     result = unicode_to_charset(&dos_state, symbol, dest, dlen);
     if (result == -1) {
-      *dest = '?';
+      *dest = '_';
       result = 1;
+    }
+    if (result == 1 && *dest == '?') {
+      *dest = '_';
     }
     if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0) {
       retval = 0;
@@ -509,8 +512,11 @@ BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
       symbol = towupper(symbol);
       result = unicode_to_charset(&udos_state, symbol, udest, udlen);
       if (result == -1) {
-        *udest = '?';
+        *udest = '_';
         result = 1;
+      }
+      if (result == 1 && *udest == '?') {
+        *udest = '_';
       }
       if (!VALID_DOS_PCHAR(udest) && strchr(" +,;=[]",*udest)==0) {
         retval = 0;

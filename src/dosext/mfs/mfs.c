@@ -1790,27 +1790,29 @@ scan_dir(char *path, char *name, int drive)
     return (FALSE);
   }
 
-  if (cur_dir->dir == NULL && !is_mangled(name)) {
-    /* we're on VFAT: no need to scan since "stat" would have
-       found it before */
-    dos_closedir(cur_dir);
-    return (FALSE);
-  }
-
   /* now scan for matching names */
   while ((cur_ent = dos_readdir(cur_dir))) {
-    char tmpname[100];
+    char tmpname[256];
 
     if (strcasecmpDOS(name, cur_ent->d_name) != 0) {
             
       if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
         continue;
 
-      if (tmpname[0] == '.' && strlen(path) == drives[drive].root_len)
+      if (cur_ent->d_name[0] == '.' && strlen(path) == drives[drive].root_len)
         continue;
 
-      if (strcasecmpDOS(name, tmpname) != 0)
-        continue;
+      if (strcasecmpDOS(name, tmpname) != 0) {
+        if (cur_ent->d_name == cur_ent->d_long_name)
+          continue;
+        
+        if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name,0))
+          if (!name_convert(tmpname,cur_ent->d_long_name,MANGLE,NULL))
+            continue;
+
+        if (strcasecmpDOS(name, tmpname) != 0)
+          continue;
+      }
     }
 
     Debug0((dbg_fd, "scan_dir found %s\n",cur_ent->d_name));

@@ -62,10 +62,9 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 			 de->d_long_name, src, path);
 		if ((strcasecmpDOS(de->d_long_name, src) == 0) ||
 		    (strcasecmpDOS(de->d_name, src) == 0)) {
-			if (alias)
-				strcpy(dest, de->d_name);
-			else
-				strcpy(dest, de->d_long_name);
+			char *name = alias ? de->d_name : de->d_long_name;
+			if (!name_ufs_to_dos(dest, name, 0))
+				name_convert(dest, name, MANGLE, NULL);
 			dos_closedir(dir);
 			return 1;
 		}
@@ -74,7 +73,12 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	return 0;
 }      
 
-static void make_unmake_dos_mangled_path(char *dest, char *fpath,
+/* input: fpath = unix path
+          current_drive = drive for DOS path
+          alias=1: mangle, alias=0: don't mangle
+   output: dest = DOS path
+*/
+static void make_unmake_dos_mangled_path(char *dest, const char *fpath,
 					 int current_drive, int alias)
 {
 	char *src;
