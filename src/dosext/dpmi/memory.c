@@ -86,12 +86,12 @@ unsigned long base2handle( void *base )
 
 static int SetAttribsForPage(char *ptr, us attr, us old_attr)
 {
-    int prot;
+    int prot, com = attr & 7, old_com = old_attr & 7;
 
-    switch (attr & 7) {
+    switch (com) {
       case 0:
         D_printf("UnCom");
-        if ((old_attr & 7) == 1) {
+        if (old_com == 1) {
           D_printf("[!]");
           mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, ptr, DPMI_page_size,
             PROT_NONE, 0);
@@ -101,7 +101,7 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
         break;
       case 1:
         D_printf("Com");
-        if ((old_attr & 7) == 0) {
+        if (old_com == 0) {
           D_printf("[!]");
           if (dpmi_free_memory < DPMI_page_size) {
             D_printf("\nERROR: Memory limit reached, cannot commit page\n");
@@ -118,7 +118,7 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
         D_printf("Att only ");
         break;
       default:
-        D_printf("N/A-%i ", attr & 7);
+        D_printf("N/A-%i ", com);
         break;
     }
     prot = PROT_READ | PROT_EXEC;
@@ -139,14 +139,10 @@ static int SetAttribsForPage(char *ptr, us attr, us old_attr)
     if (attr & 16) D_printf("Set-ACC ");
     else D_printf("Not-Set-ACC ");
 
-    if ((attr & 7) == 0) {
-      /* HACK: fake uncommitted pages by protection */
-      prot = PROT_NONE;
-    }
-
     D_printf("Addr=%p\n", ptr);
 
-    if (mprotect_mapping(MAPPING_DPMI, ptr, 1, prot) == -1) {
+    if (mprotect_mapping(MAPPING_DPMI, ptr, DPMI_page_size,
+        com ? prot : PROT_NONE) == -1) {
       D_printf("mprotect() failed: %s\n", strerror(errno));
       return 0;
     }

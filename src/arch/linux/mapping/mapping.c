@@ -403,7 +403,7 @@ int munmap_mapping(int cap, void *addr, int mapsize)
       memcpy(lowmem_base + (size_t)addr, addr, mapsize);
 #ifndef HAVE_MREMAP_FIXED
     if (!have_mremap_fixed) {
-      if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
+      if (!can_do_root_stuff && mem_fd == -1) return -1;
     } else
 #endif
     {
