@@ -25,6 +25,7 @@
 #include "mangle.h"
 #include "dos2linux.h"
 #include "bios.h"
+#include "lfn.h"
 
 #define EOS '\0'
 #define BACKSLASH '\\'
@@ -79,7 +80,7 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	  alias=1: mangle, alias=0: don't mangle
    output: dest = DOS path
 */
-static void make_unmake_dos_mangled_path(char *dest, char *fpath,
+void make_unmake_dos_mangled_path(char *dest, char *fpath,
 					 int current_drive, int alias)
 {
 	char *src;

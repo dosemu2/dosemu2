@@ -377,6 +377,37 @@ static int com_argparse(char *s, char **argvx, int maxarg)
    return(argcx);
 }
 
+int com_dosgetdrive(void)
+{
+        HI(ax) = 0x19;
+        call_msdos();    /* call MSDOS */
+        return LO(ax);  /* 0=A, 1=B, ... */
+}
+
+int com_dossetdrive(int drive)
+{
+        HI(ax) = 0x0e;
+        LO(dx) = drive; /* 0=A, 1=B, ... */
+        call_msdos();    /* call MSDOS */
+        return LO(ax);  /* number of available logical drives */
+}
+
+int com_dossetcurrentdir(char *path)
+{
+        /*struct com_starter_seg  *ctcb = owntcb->params;*/
+        char *s = com_strdup(path);
+
+        com_errno = 8;
+        if (!s) return -1;
+        HI(ax) = 0x3b;
+        LWORD(ds) = FP_SEG32 (s) /*COM_SEG*/;
+        LWORD(edx) = FP_OFF32 (s) /*COM_OFFS_OF(s)*/;
+        call_msdos();    /* call MSDOS */
+        com_strfree(s);
+        if (LWORD(eflags) & CF) return -1;
+        return 0;
+}
+
 struct REGPACK regs_to_regpack(struct vm86_regs *regs)
 {
 	struct REGPACK regpack;

@@ -63,6 +63,9 @@ int com_system(char *command);
 char * com_strdup(char *s);
 unsigned short get_dos_ver(void);
 void com_strfree(char *s);
+int com_dosgetdrive(void);
+int com_dossetdrive(int drive);
+int com_dossetcurrentdir(char *path);
 void com_intr(int intno, struct REGPACK *regpack);
 int com_int86x(int intno, union com_REGS *inregs,
 		union com_REGS *outregs, struct SREGS *segregs);

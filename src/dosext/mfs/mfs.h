@@ -14,7 +14,6 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 #include <sys/stat.h>
 #include <dirent.h>
 
-#ifdef DOSEMU
 /* definitions to make mach emu code compatible with dosemu */
 #include "emu.h"
 
@@ -67,7 +66,6 @@ typedef struct vm86_regs state_t;
 #define SETHIGH(x,y) 	(*(x) = (*(x) & ~0xff00) | ((MASK8(y))<<8))
 #define SETLOW(x,y) 	(*(x) = (*(x) & ~0xff) | (MASK8(y)))
 #define SETWORD(x,y)	(*(x) = (*(x) & ~0xffff) | (MASK16(y)))
-#endif
 
 /*
  * Copyright (c) 1991 Carnegie Mellon University
@@ -338,6 +336,20 @@ extern struct drive_info drives[MAX_DRIVE];
 #define REDIRECT_DEVICE 3
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
+
+
+/* #define MAX_PATH_LENGTH 57 */
+/* 2001/01/05 Manfred Scherer
+ * With the value 57 I can create pathlength until 54.
+ * In native DOS I can create pathlength until 63.
+ * With the value 66 it should be possible to create
+ * paths with length 63.
+ * I've tested it on my own system, and I found the value 66
+ * is right for me.
+ */
+
+#define MAX_PATH_LENGTH 66
+
 
 extern int build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);

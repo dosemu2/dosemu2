@@ -265,18 +265,6 @@ boolean_t mach_fs_enabled = FALSE;
 #define SFT_FDEVICE 0x0080
 #define SFT_FEOF 0x0040
 
-/* #define MAX_PATH_LENGTH 57 */
-/* 2001/01/05 Manfred Scherer
- * With the value 57 I can create pathlength until 54.
- * In native DOS I can create pathlength until 63.
- * With the value 66 it should be possible to create
- * paths with length 63.
- * I've tested it on my own system, and I found the value 66
- * is right for me.
- */
-
-#define MAX_PATH_LENGTH 66
-
 struct file_fd
 {
   char *name;
@@ -2418,12 +2406,12 @@ GetRedirection(state_t *state, u_short index)
 int
 GetRedirectionRoot(int dsk, char **resourceName,int *ro_flag)
 {
-  if (!drives[dsk].root) return (TRUE);
+  if (!drives[dsk].root) return 1;
   *resourceName = malloc(MAXPATHLEN + 1);
-  if (*resourceName == NULL) return (TRUE);
+  if (*resourceName == NULL) return 1;
   strcpy(*resourceName, drives[dsk].root );
   *ro_flag=drives[dsk].read_only;
-  return (FALSE);
+  return 0;
 
 }
 

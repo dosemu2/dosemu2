@@ -994,21 +994,6 @@ int com_dosfindnext(void)
 	return 0;
 }
 
-int com_dosgetdrive(void)
-{
-	HI(ax) = 0x19;
-	call_msdos();    /* call MSDOS */
-	return LO(ax);	/* 0=A, 1=B, ... */
-}
-
-int com_dossetdrive(int drive)
-{
-	HI(ax) = 0x0e;
-	LO(dx) = drive;	/* 0=A, 1=B, ... */
-	call_msdos();    /* call MSDOS */
-	return LO(ax);	/* number of available logical drives */
-}
-
 int com_dosgetcurrentdir(int drive, char *buf)
 {
 	struct com_starter_seg  *ctcb = owntcb->params;
@@ -1028,22 +1013,6 @@ int com_dosgetcurrentdir(int drive, char *buf)
 	}
 	strcpy(buf, s);
 	lowmem_free(s, 128);
-	return 0;
-}
-
-int com_dossetcurrentdir(char *path)
-{
-	struct com_starter_seg  *ctcb = owntcb->params;
-	char *s = com_strdup(path);
-
-	com_errno = 8;
-	if (!s) return -1;
-	HI(ax) = 0x3b;
-	LWORD(ds) = COM_SEG;
-	LWORD(edx) = COM_OFFS_OF(s);
-	call_msdos();    /* call MSDOS */
-	com_strfree(s);
-	if (LWORD(eflags) & CF) return -1;
 	return 0;
 }
 
