@@ -91,8 +91,6 @@ static int Columns = 80;
 /* sliding window for terminals < 25 lines */
 static int DOSemu_Terminal_Scroll_Min = 0;
 
-Boolean have_focus = TRUE;
-
 void get_screen_size (void)
 {
   struct winsize ws;		/* buffer for TIOCSWINSZ */

@@ -46,6 +46,7 @@
 
 struct text_system * Text = NULL;
 int use_bitmap_font = TRUE;
+Boolean have_focus = FALSE;
 
 static int prev_cursor_row = -1, prev_cursor_col = -1;
 static ushort prev_cursor_shape = NO_CURSOR;

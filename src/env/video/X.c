@@ -429,7 +429,6 @@ static Atom utf8_text_atom = None;
 static Atom text_atom = None;
 #endif
 
-Boolean have_focus = FALSE;
 static Boolean is_mapped = FALSE;
 
 static int cmap_colors = 0;		/* entries in colormaps: {text,graphics}_cmap */
