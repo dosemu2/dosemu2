@@ -24,34 +24,6 @@
 #include "emu.h"
 #include "mapping.h"
 
-/* NOTE: Do not optimize higher then  -O2, else GCC will optimize away what we
-         expect to be on the stack */
-caddr_t libless_mmap(caddr_t addr, size_t len,
-		int prot, int flags, int fd, off_t off) {
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)90), "b" ((int)&addr));
-	if (((unsigned)__res) > ((unsigned)-4096)) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno = 0;
-	return (caddr_t)__res;
-}
-
-int libless_munmap(caddr_t addr, size_t len)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)91), "b" ((int)addr), "c" ((int)len));
-	if (__res < 0) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno =0;
-	return __res;
-}
-
 static int init_done = 0;
 static char *lowmem_base = NULL;
 

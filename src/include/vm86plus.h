@@ -13,9 +13,6 @@
 #include <sys/syscall.h>
 #endif /* __linux__ */
 
-#define OLD_SYS_vm86  113
-#define NEW_SYS_vm86  166
-
 #ifdef X86_EMULATOR
 int e_vm86(void);
 
@@ -24,13 +21,7 @@ int e_vm86(void);
     e_vm86() )
 #endif
 
-static inline int vm86_plus(int function, int param)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)NEW_SYS_vm86), "b" (function), "c" (param));
-	return __res;
-} 
+#define vm86_plus(function,param) syscall(SYS_vm86, function, param)
 
   #undef vm86
   #define vm86(x) vm86_plus(VM86_ENTER, (int) /* struct vm86_struct* */(x))

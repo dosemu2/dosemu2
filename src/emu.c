@@ -202,15 +202,8 @@ boot(void)
 static inline void 
 vm86plus_init(void)
 {
-    static inline int vm86_old(struct vm86_struct* v86)
-    {
-        int __res;
-        __asm__ __volatile__("int $0x80\n"
-        :"=a" (__res):"a" ((int)113), "b" ((int)v86));
-        return __res;
-    }
     if (!vm86_plus(VM86_PLUS_INSTALL_CHECK,0)) return;
-    if (!vm86_old((void *)0xffffff01)) {
+    if (!syscall(SYS_vm86old, (void *)0xffffff01)) {
       fprintf(stderr, "your kernel contains an older (interim) vm86plus version\n\r"
       		      "please upgrade to an newer one\n\r");
     }

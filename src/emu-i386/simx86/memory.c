@@ -58,22 +58,6 @@ static tMpMap *LastMp = NULL;
 
 /////////////////////////////////////////////////////////////////////////////
 
-static int libless_mprotect(caddr_t addr, size_t len, int prot)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)125), "b" ((int)addr), "c"((int)len), "d"(prot) );
-	if (__res < 0) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno =0;
-	return __res;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-
 static inline tMpMap *FindM(caddr_t addr)
 {
 	register long a2l = (long)addr >> (PAGE_SHIFT+8);
@@ -218,7 +202,7 @@ int e_mprotect(caddr_t addr, size_t len)
 	    aend = (caddr_t)((long)(addr+len-1) & PAGE_MASK) + PAGE_SIZE;
 	    if (((aend-abeg)<=PAGE_SIZE) && e_querymprot(abeg)) return 1;
 	}
-	e = libless_mprotect(abeg, aend-abeg, PROT_READ);
+	e = mprotect(abeg, aend-abeg, PROT_READ);
 	if (e>=0) return AddMpMap(abeg, aend, 1);
 	e_printf("MPMAP: %s\n",strerror(errno));
 	return -1;
@@ -237,7 +221,7 @@ int e_munprotect(caddr_t addr, size_t len)
 	    aend = (caddr_t)((long)(addr+len-1) & PAGE_MASK) + PAGE_SIZE;
 	    if (((aend-abeg)<=PAGE_SIZE) && !e_querymprot(abeg)) return 0;
 	}
-	e = libless_mprotect(abeg, aend-abeg, PROT_READ|PROT_WRITE|PROT_EXEC);
+	e = mprotect(abeg, aend-abeg, PROT_READ|PROT_WRITE|PROT_EXEC);
 	if (e>=0) return AddMpMap(abeg, aend, 0);
 	e_printf("MPUNMAP: %s\n",strerror(errno));
 	return -1;
@@ -264,7 +248,7 @@ void mprot_end(void)
 		while (b) {
 		    if (b & 1) {
 			e_printf("MP_END %08lx = RWX\n",(long)addr);
-			(void)libless_mprotect(addr, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
+			(void)mprotect(addr, PAGE_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC);
 		    }
 		    addr += PAGE_SIZE;
 	 	    b >>= 1;   	

@@ -29,11 +29,6 @@
 #include "pagemalloc.h"
 #include "utilities.h"
 
-#undef mmap
-#define mmap libless_mmap
-#undef munmap
-#define munmap libless_munmap
-
 /* ------------------------------------------------------------ */
 
 static int mpool_numpages = (32 * 1024) / 4;

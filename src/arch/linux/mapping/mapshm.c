@@ -31,36 +31,12 @@
 #include "mapping.h"
 #include "pagemalloc.h"
 
-#undef mmap
-#define mmap libless_mmap
-#undef munmap
-#define munmap libless_munmap
-
-#if 0
 static void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 	int flags, void * new_addr)
 {
 	return (void *)syscall(SYS_mremap, addr, old_len, new_len, flags, new_addr);
 	
 }
-#else
-static void *extended_mremap(void *addr, size_t old_len, size_t new_len,
-	int flags, void * new_addr)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-		:"=a" (__res)
-		:"0" ((int)163), "b" ((int)addr), "c" ((int)old_len),
-	 	"d" ((int)new_len), "S" ((int)flags), "D" ((int)new_addr)
-	);
-	if (((unsigned)__res) > ((unsigned)-4096)) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno = 0;
-	return (void *)__res;
-}
-#endif
 
 /* ------------------------------------------------------------ */
 

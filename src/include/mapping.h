@@ -91,10 +91,6 @@ char *decode_mapping_cap(int cap);
 extern struct mappingdrivers mappingdriver_file;
 extern struct mappingdrivers mappingdriver_shm;
 
-caddr_t libless_mmap(caddr_t addr, size_t len,
-                     int prot, int flags, int fd, off_t off);
-int libless_munmap(caddr_t addr, size_t len);
-
 void mapping_init(void);
 void mapping_close(void);
 

@@ -879,7 +879,7 @@ static void port_server(void)
         g_printf("server started\n");
         /* free low memory: the server doesn't need it and it saves
            a bit of memory (~128K out of the 328K fork overhead) */
-        libless_munmap(0, 0x100000);
+        munmap(0, 0x100000);
 	SETSIG(SIG_RELEASE, SIG_IGN);
 	SETSIG(SIG_ACQUIRE, SIG_IGN);
         for (;;) {
