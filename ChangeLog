@@ -1,3 +1,19 @@
+98/04/24 ver. 0.97.5.1 unofficial pre-release
+	From Toshio Sengoku <sengoku@intsys.co.jp>
+	- fixes to INT10 AH=13 (write string).
+	  Now properly handles ^M, ^J and backspace.
+	From Eric
+	- fix for typo (/x instead of /dev/null) in base-configure.in
+	From Hans
+	- temporary disabled use of setup-dosemu, because our users
+	  get confused and _are_ using it though it doesn't work correctly.
+	  ( we _really_ need to fix that )
+	- disabled bug-reporting, when the user missed to give a description
+	  ( realy ugly hack ;-)
+	- removed trailing ^M^J in src/commands/precompiled/autoexec.bat
+	  ( bogus 'command not found' on startup ). Well, now we have
+	  the problem with diff/patch due to the missing \n :-(
+	- made 'newport on' the default again (seems to be stable enough)
 98/02/29 ver. 0.97.5 released
 	From Hans
 	- upgraded to Slang-1.0.3, as we need _this_ version for demudialog

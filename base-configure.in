@@ -612,7 +612,7 @@ cat > conftest.c <<EOF
 EOF
 
 echo -n "checking for glibc..."
-if ${CC-cc} -E conftest.c |grep yes_yes_yes >/x 2>&1; then
+if ${CC-cc} -E conftest.c |grep yes_yes_yes >/dev/null 2>&1; then
   GLIBCFLAGS="-D__USE_UNIX98 -D__USE_GNU"
   echo "yes"
 else

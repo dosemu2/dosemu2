@@ -3,6 +3,17 @@
 # Front end to the runtime & compile time scripts.
 #
 
+echo "
+*** NOTE: setup-dosemu isn't correctly updated to the recent changes
+***       in the configuration stuff. Don't use it at the moment !!
+***       We will fix this in the near future though.
+***
+***       In the meantime just do 'make' to compile DOSEMU and edit
+***       the /etc/dosemu.conf manually.              --Hans, 980424
+"
+exit 1
+
+
 TOPDIR=`pwd -P`
 export TOPDIR
 TEMP=/tmp/$0.$$

@@ -115,6 +115,8 @@ process_report() {
   if [ "@$reportaction" = "@email" -o "@$reportaction" = "@save" ]
   then
 
+if [ -s $TEMP.description ]; then # avoid-bogus-reports
+
     $DIALOG --backtitle "DOSEmu Bug Reporting." \
       --infobox "Building Bug Report ..." 3 50 2> /dev/null
 
@@ -194,6 +196,18 @@ process_report() {
       echo "Bug report left in $REPORT_FILE"
       return 0
     fi      
+
+else  # avoid-bogus-reports
+  echo "
+*** You didn't give any description of the bug, didn't you?
+*** Restart submit-bug-report and enter the menu 'Bug Description'
+*** ... and give some useful information before posting to us.
+***
+***                            Thanks in advance, the DOSEMU-Team.
+"
+  exit 1
+fi    # avoid-bogus-reports
+
   else
     clear
   fi

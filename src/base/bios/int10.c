@@ -697,9 +697,44 @@ void int10()
       
       if (LO(ax) < 2) {                  /* use attribute in BL */
         attr=LO(bx)<<8;
+#if 1					/* 1998/03/13 sengoku@intsys.co.jp */
+        x += n;
+	while(n--) {
+	  /* *(sadr++) = *src++ | attr; */
+          if (*src <= 0x1a) {
+            switch(*src) {
+              case 0x0d :
+                sadr = (u_short *) SCREEN_ADR(page) + y*co, x = n;
+                src++;
+                break;
+              case 0x0a :
+                sadr += co, x--, y++;
+                src++;
+                break;
+              case 0x07 : /* beep */
+#if 0  /* ignored, we have to check wether it breaks the speaker stuff --Hans */
+                putchar(0x07);
+#endif
+                x--;
+                src++;
+                break;
+              case 0x08 : /* backspace */
+                sadr--, x--;
+                src++;
+                break;
+              default:
+                WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
+                break;
+            }
+          } else {
+            WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
+          }
+        }
+#else
 	while(n--)
 	  /* *(sadr++) = *src++ | attr; */
-	  WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
+            WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
+#endif
       }
       else {                             /* use attributes in buffer */
 	/*memcpy(sadr,src,n*2);*/

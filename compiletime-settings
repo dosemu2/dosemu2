@@ -12,7 +12,7 @@ config {
   linkstatic off
   newx on
   newxmouse on
-  newport off
+  newport on
   newcmos on
   newint off
   cpuemu off
