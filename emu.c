@@ -1,12 +1,32 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.52/RCS/emu.c,v $
- * $Revision: 2.1 $
+ * DANG_BEGIN_MODULE
+ * 
+ * This is where we call of the initialisation code. Everything not covered
+ * elsewhere is handled here (Such logic !) By this we mean the speakers,
+ * the standard memory, cassettes etc.
+ *
+ * More than that, I cannot tell you - Things have changed a lot since I
+ * last got an update ... 8-(
+ * DANG_END_MODULE
+ *
+ * DANG_BEGIN_CHANGELOG
+ * $Date: 1994/06/14 22:28:38 $
+ * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.4  1994/06/14  22:28:38  root
+ * Prep for pre51_28.
+ *
+ * Revision 2.3  1994/06/14  22:00:18  root
+ * Alistair's DANG inserted for the first time :-).
+ *
+ * Revision 2.2  1994/06/14  21:34:25  root
+ * Second series of termcap patches.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -331,6 +351,7 @@
  * and signals the parent when a key is received (also sends it on a
  * UNIX domain socket...this might not work well for non-console keyb).
  *
+ * DANG_END_CHANGELOG
  */
 
 /*
@@ -490,7 +511,6 @@ struct int_queue_list_struct {
 } int_queue_head[NUM_INT_QUEUE];
 #endif
 
-int scrtest_bitmap, update_screen;	/* Flags to test if screen to be updated */
 unsigned char *scrbuf;	/* the previously updated screen */
 
 int card_init = 0;		/* VGAon exectuted flag */
@@ -1040,11 +1060,9 @@ sigalrm(int sig, struct sigcontext_struct context)
     dpmi_sigalrm(&context);
 #endif /* DPMI */
 
-  if (((vm86s.screen_bitmap & scrtest_bitmap && !config.console_video) ||
-       (update_screen && !config.console_video)) && !running) {
+  if (!config.console_video && !running) {
     running = 1;
     restore_screen();
-    vm86s.screen_bitmap = 0;
     running = 0;
   }
 
@@ -1805,9 +1823,6 @@ void
     vm86s.flags = VM86_SCREEN_BITMAP;
   else
     vm86s.flags = 0;
-  vm86s.screen_bitmap = 0;
-  scrtest_bitmap = 1 << (24 + bios_current_screen_page);
-  update_screen = 1;
 
   serial_init();
 #ifdef SIG
@@ -1987,7 +2002,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.52/RCS/emu.c,v 2.1 1994/06/12 23:15:37 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.4 1994/06/14 22:28:38 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2046,7 +2061,7 @@ int
 }
 
 void
- p_dos_str(char *fmt,...) {
+p_dos_str(char *fmt,...) {
   va_list args;
   char buf[1025], *s;
   int i;
@@ -2056,8 +2071,7 @@ void
   va_end(args);
 
   s = buf;
-  while (*s)
-    char_out(*s++, bios_current_screen_page, ADVANCE);
+  while (*s) char_out(*s++, bios_current_screen_page);
 }
 
 void
@@ -2205,11 +2219,11 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/06/12 23:15:37 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/06/14 22:28:38 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
-    /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
-    p_dos_str("Bugs & Patches to James MacLean, jmaclean@fox.nstn.ns.ca\n\n");
+      /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
+    p_dos_str("Bugs, Patches & New Code to James MacLean, jmaclean@fox.nstn.ns.ca\n\n");
 #ifdef DPMI
     if (config.dpmi_size)
       p_dos_str("DPMI Version 0.9 not fully inplemented, BE CAREFUL!\n\n");

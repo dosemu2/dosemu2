@@ -6,7 +6,7 @@
  * The parser is a hand-written state machine.
  *
  * $Date: 1994/06/12 23:18:22 $
- * $Source: /home/src/dosemu0.52/init/RCS/parse.c,v $
+ * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
  * $Revision: 2.1 $
  * $State: Exp $
  *

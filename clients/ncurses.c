@@ -1,12 +1,28 @@
 #define NCURSES_C 1
 
+ 
 /* 
- * $Date: 1994/06/12 23:18:11 $
- * $Source: /home/src/dosemu0.52/clients/RCS/ncurses.c,v $
- * $Revision: 2.1 $
+ * DANG_BEGIN_MODULE
+ *
+ * This is James' client based around NCURSES. It (un-)succesfully
+ * demonstrates the procedure for making initial connections to the
+ * server.
+ *
+ * DANG_END_MODULE 
+ */
+ 
+/* 
+ * DANG_BEGIN_CHANGELOG
+ *
+ * $Date: 1994/06/14 22:01:48 $
+ * $Source: /home/src/dosemu0.60/clients/RCS/ncurses.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: ncurses.c,v $
+ * Revision 2.2  1994/06/14  22:01:48  root
+ * Alistair's DANG inserted for the first time :-).
+ *
  * Revision 2.1  1994/06/12  23:18:11  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -34,6 +50,7 @@
  * Revision 1.1  1994/03/24  23:39:23  root
  * Initial revision
  *
+ * DANG_END_CHANGELOG
  */
 
 #include <linux/ipc.h>
@@ -46,6 +63,14 @@
 
 #define u_char unsigned char
 
+/*
+ * DANG_BEGIN_REMARK
+ *
+ * Some of the functions are undocumented. These are the trivial ones.
+ *
+ * DANG_END_REMARK
+ */
+
 int client_init(void){
 	return((int)initscr());
 }
@@ -54,11 +79,34 @@ int client_exit(void){
 	return(endwin());
 }
 
+
+/*
+ * DANG_BEGIN_FUNCTION main
+ *
+ * argc - Number of Command Line arguments.
+ * argv - Command Line arguments - as an array of char*'s
+ * 
+ * This function does all of the work associated with this client. It
+ * grabs the shared memory used to hold the current Video data and makes some
+ * comments about its current screen.
+ *
+ * DANG_END_FUNCTION
+ */
+
 void main(int argc,u_char **argv) {
    u_char c;
    u_char *ptr;
    int shm_video_id;
    caddr_t ipc_return;
+
+/*
+ * DANG_BEGIN_REMARK
+ *
+ * You must be mad if you want to get involved in all of this Shared memory
+ * stuff .... 8-)
+ *
+ * DANG_END_REMARK
+ */
 
 #if 0
 /* Here is an IPC shm area for looking at DOS's video area */

@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.52/RCS/emu.h,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/14 21:34:25 $
+ * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.2  1994/06/14  21:34:25  root
+ * Second series of termcap patches.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -169,7 +172,7 @@
 #define us unsigned short
 
 extern struct vm86_struct vm86s;
-extern int screen, max_page, screen_mode, update_screen, scrtest_bitmap;
+extern int screen, max_page, screen_mode;
 
 extern char *cl,		/* clear screen */
 *le,				/* cursor left */
@@ -203,16 +206,9 @@ extern int scanseq;
 #define CO	co2
 #define LI	li2
 
-/* these are flags to char_out() and char_out_attr()...specify whether the
- * cursor whould be addressed
- */
-#define ADVANCE		1
-#define NO_ADVANCE	0
-
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
 void show_regs(void);
 int ext_fs(int, char *, char *, int);
-void char_out_att(u_char, u_char, int, int);
 int outch(int c);
 void termioInit(void);
 void termioClose(void);
@@ -311,8 +307,8 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define error(f,a...)
 
 #endif
-     /* #define char_out(c,s,af)   char_out_att(c,7,s,af) */
-     void char_out(u_char, int, int);
+
+     void char_out(u_char, int);
 
      struct ioctlq {
        int fd, req, param3;

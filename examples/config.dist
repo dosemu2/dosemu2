@@ -156,6 +156,14 @@ video { vga  console }            # Use this line, if you are using VGA
 # video { cga  console }          # Use this line, if you are using CGA
 # video { ega  console }          # Use this line, if you are using EGA
 # video { mda  console }          # Use this line, if you are using MDA
+
+# Even more basic, like on an xterm or over serial, use one of the
+# following :
+#
+#    For Xterm
+# video { vga chunks 25 }
+#    For serial at 2400 baud
+# video { vga chunks 200 }
 #
 # QuickStart Notes for Graphics:
 #   - If your VGA-Bios resides at E000-EFFF, turn off video BIOS shadow

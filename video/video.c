@@ -1,9 +1,29 @@
+/*
+ * DANG_BEGIN_MODULE
+ *
+ * All of the emulated video interrupts are here (ie int10). In addition,
+ * all the code to try and properly save & restore the video state between
+ * VC's and the attempts to control updates to the VC whilst the user is
+ * using another. We map between the real screen address and that used by
+ * DOSEMU here too.
+ *
+ * Attempts to use a cards own bios require the addition of the parameter
+ * 'graphics' to the video statement in "/etc/dosemu.conf". This will make
+ * the emulator try to execute the card's initialization routine which is
+ * normally located at address c000:0003. This can now be changed as an
+ * option.
+ *
+ * DANG_END_MODULE
+ */
+
 /* video.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/12 23:17:39 $
- * $Source: /home/src/dosemu0.52/video/RCS/video.c,v $
- * $Revision: 2.1 $
+ * DANG_BEGIN_CHANGELOG
+ *
+ * $Date: 1994/06/14 22:01:42 $
+ * $Source: /home/src/dosemu0.60/video/RCS/video.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -68,6 +88,7 @@
  * Revision 1.1  1993/04/05  17:25:13  root
  * Initial revision
  *
+ * DANG_END_CHANGELOG
  */
 #define VIDEO_C 1
 

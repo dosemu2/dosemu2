@@ -1,14 +1,14 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/06/13 20:52:43 $
- * $Source: /home/src/dosemu0.52/RCS/ports.h,v $
- * $Revision: 2.2 $
+ * $Date: 1994/06/14 21:34:25 $
+ * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
- * Revision 2.2  1994/06/13  20:52:43  root
- * Markkk's fix for termcap.
+ * Revision 2.3  1994/06/14  21:34:25  root
+ * Second series of termcap patches.
  *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.

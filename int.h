@@ -3,14 +3,14 @@
 #include "ipx.h"
 
 /* 
- * $Date: 1994/06/13 20:52:43 $
- * $Source: /home/src/dosemu0.52/RCS/int.h,v $
- * $Revision: 2.2 $
+ * $Date: 1994/06/14 21:34:25 $
+ * $Source: /home/src/dosemu0.60/RCS/int.h,v $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: int.h,v $
- * Revision 2.2  1994/06/13  20:52:43  root
- * Markkk's fix for termcap.
+ * Revision 2.3  1994/06/14  21:34:25  root
+ * Second series of termcap patches.
  *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
@@ -856,7 +856,7 @@ do_int(int i)
 
   case 0x29:			/* FAST CONSOLE OUTPUT */
     /* char in AL */
-    char_out(*(char *) &REG(eax), bios_current_screen_page, ADVANCE);	
+    char_out(*(char *) &REG(eax), bios_current_screen_page);
     return;
 
   case 0x2a:			/* CRITICAL SECTION */

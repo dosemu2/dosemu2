@@ -18,13 +18,10 @@ install:
 	cp dos.1 /usr/man/man1
 
 checkin:
-	-ci dosemu.texinfo DPR DANG EMUsuccess.txt
+	-ci dosemu.texinfo DPR DANG DANG.sgml EMUsuccess.txt
 
 checkout:
-	-co -l dosemu.texinfo
-	-co -l DPR
-	-co -l DANG
-	-co -l EMUsuccess.txt
+	-co -l dosemu.texinfo DPR DANG DANG.sgml EMUsuccess.txt
 
 clean:
 	rm -f dosemu.dvi dosemu.cp dosemu.aux dosemu.cps dosemu.fn dosemu.fns 

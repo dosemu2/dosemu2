@@ -103,7 +103,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
 	   
 	opt=4;		/* Remember no htons! - its a byte */
 	
-	if(setsockopt(sock,SOL_SOCKET,SO_TYPE,&opt,sizeof(opt))==-1)
+	if(setsockopt(sock,SOL_SOCKET,IPX_TYPE,&opt,sizeof(opt))==-1)
 	{
 		goto CloseGLTExit;
 	}
@@ -120,6 +120,7 @@ int IPXGetLocalTarget( unsigned long network, int *hops, int *ticks )
         /* prepare destination for send, broadcast to local net */
 	ipxs.sipx_port=htons(0x453);
 	memset(ipxs.sipx_node,0xff,6);
+	ipxs.sipx_type = 4;
         
         /* prepare packet data for RIP request */        
         RipRequest.Operation = htons(1);        /* RIP Request */

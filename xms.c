@@ -1,12 +1,27 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.52/RCS/xms.c,v $
- * $Revision: 2.1 $
+ * DANG_BEGIN_MODULE
+ *
+ * Currently the XMS 3.0 spec is covered in this file. XMS is fairly simple
+ * as it onbly deals with allocating extended memory and then moving it 
+ * around in specific calls. This spec also includes the allocation of UMB's,
+ * so they are also included as part of this file. The amount of xms memory
+ * returned to DOS programs via the XMS requests, or int15 fnc88 is set in
+ * "/etc/dosemu.conf" via the XMS paramter.
+ *
+ * DANG_END_MODULE
+ * DANG_BEGIN_CHANGELOG
+ *
+ * $Date: 1994/06/14 22:00:18 $
+ * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 2.2  1994/06/14  22:00:18  root
+ * Alistair's DANG inserted for the first time :-).
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -86,6 +101,8 @@
  * Revision 1.3  1993/02/16  00:21:29  root
  * DOSEMU 0.48 DISTRIBUTION
  *
+ * DANG_END_CHANGELOG
+ *
  * NOTE: I keep the BYTE size of EMB's in a field called "size" in the EMB
  *    structure.  Most XMS calls specify/expect size in KILOBYTES.
  */
@@ -108,7 +125,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.52/RCS/xms.c,v 2.1 1994/06/12 23:15:37 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.2 1994/06/14 22:00:18 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01

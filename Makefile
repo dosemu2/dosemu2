@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/06/13 20:52:43 $
-# $Source: /home/src/dosemu0.52/RCS/Makefile,v $
-# $Revision: 2.2 $
+# $Date: 1994/06/14 23:09:44 $
+# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
+# $Revision: 2.7 $
 # $State: Exp $
 #
 
@@ -30,6 +30,7 @@ LNKOPTS=-s
 # dosemu version
 EMUVER  =   0.52
 VERNUM  =   0x52
+PATCHL  =   27
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -80,7 +81,7 @@ HFILES=cmos.h emu.h termio.h timers.h xms.h dosio.h \
 SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
-	DOSEMU-HOWTO
+	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml
 BFILES=
 
 F_DOC=dosemu.texinfo Makefile dos.1 wp50
@@ -101,7 +102,8 @@ OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE)
 DEBUG      = $(SYNC_ALOT)
 CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
-	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" 
+	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
+	     -DPATCHSTR=\"$(PATCHL)\"
 
 CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
 COPTFLAGS  = -N -s -O2 -funroll-loops
@@ -210,11 +212,11 @@ newhd: periph/bootsect
 	@echo "You now have a hdimage file called 'newhd'"
 
 checkin:
-	ci $(CFILES) $(HFILES) $(SFILES) $(OFILES)
+	-ci $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
 
 checkout:
-	co -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
+	-co -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
 dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
@@ -256,10 +258,7 @@ clean:
 
 
 depend dep: 
-	@echo TOPDIR=$(TOPDIR)
-ifdef DPMIOBJS
-	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
-endif
+	$(CPP) -MM $(CFLAGS) *.c > .depend ;echo "bios.o : bios.S" >>.depend
 	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 	cd video; make depend
 	cd mouse; make depend
@@ -269,10 +268,11 @@ endif
 ifdef IPX
 	cd ipxutils; make depend
 endif
-	$(CPP) -MM $(CFLAGS) $(INCDIR) *.c > .depend;echo "bios.o : bios.S" >>.depend
+ifdef DPMIOBJS
+	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
+endif
 
 dummy:
-
 #
 # include a dependency file if one exists
 #

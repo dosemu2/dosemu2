@@ -24,12 +24,28 @@
  * the rights to redistribute these changes.
  */
 /*
+ * DANG_BEGIN_MODULE
+ *
+ * This provides the EMM Memory Management for DOSEMU. It was originally part
+ * of the Mach Dos Emulator. 
+ *
+ * Recent work in this area has involved a patch to the Kernel. If this is used
+ * and the DEFINE MMAP_EMS line used, a faster form of EMS memory support is
+ * included, using the /proc filesystem.
+ * 
+ * In contrast to some of the comments (Yes, _I_ know the adage about that...)
+ * we appear to be supporting EMS 4.0, not 3.2
+ *
+ * DANG_END_MODULE
  *
  * Purpose:
  *	Mach EMM Memory Manager
  *
- * HISTORY:
+ * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: bios_emm.c,v $
+ * Revision 2.2  1994/06/14  22:00:18  root
+ * Alistair's DANG inserted for the first time :-).
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -137,6 +153,7 @@
  * 	created
  * 	[91/02/01  13:24:12  grm]
  *
+ * DANG_END_CHANGELOG)
  */
 
 #ifdef __linux__

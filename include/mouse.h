@@ -9,6 +9,7 @@
 /* this is the version returned to DOS programs */
 #define MOUSE_VERSION	  (MOUSE_BASE_VERSION + MOUSE_EMU_VERSION)
 
+#define MOUSE_NONE -1
 #define MOUSE_MICROSOFT 0
 #define MOUSE_MOUSESYSTEMS 1
 #define MOUSE_MMSERIES 2

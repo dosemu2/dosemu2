@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/12 23:17:50 $
- * $Source: /home/src/dosemu0.52/mouse/RCS/mouse.c,v $
- * $Revision: 2.1 $
+ * $Date: 1994/06/14 23:10:21 $
+ * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.2  1994/06/14  23:10:21  root
+ * Alan's latest mice patches
+ *
  * Revision 2.1  1994/06/12  23:17:50  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -315,12 +318,12 @@ mouse_reset(void)
   mouse.minx = mouse.miny = 0;
 
   /* Set up Mouse Maximum co-ordinates, then convert to pixel resolution 
-   * Here we assume a maximum text mode of 132x50, reasonable assumption ?
+   * Here we assume a maximum text mode of 132x60, reasonable assumption ?
    * Possibly, but could run into problems. FIX ME! But Later.... */
   mouse.maxx = bios_screen_columns;
   mouse.maxy = bios_rows_on_screen_minus_1;
   mouse.maxx = ((mouse.maxx <= 132) ? (mouse.maxx * 8) : (mouse.maxx));
-  mouse.maxy = ((mouse.maxy <= 50) ? ((mouse.maxy+1) * 8) : (mouse.maxy));
+  mouse.maxy = ((mouse.maxy <= 60) ? ((mouse.maxy+1) * 8) : (mouse.maxy));
   mouse.maxx -= 1;
   mouse.maxy -= 1;
 
@@ -713,6 +716,11 @@ mouse_init(void)
 
   if (mice->intdrv) {
     mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+    if (mice->fd == -1) {
+      mice->intdrv = FALSE;
+      mice->type = MOUSE_NONE;
+      return;
+    }
     DOSEMUSetupMouse();
     return;
   }

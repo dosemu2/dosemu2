@@ -1,7 +1,24 @@
+Tue Jun 14 1994 JES
+
+	- Next set of patches from Markkk. Major overhaul started
+	  that is really improving termcap. Way to go Markkk!
+	- Alistair has completed in no time flat his automoted 
+	  DANG application. At this time I have NOT included his
+	  perl script, but hope to soon. Look in ../doc/DANG[.sgml].
+	- Michael provides us with an updated DOSEMU-HOWTO in 
+	  .txt,.ps, and .sgml format.
+	- Alan has another few patches bringing mice support along
+	  even further.
+	- Tim's IPX patches for 1.1.14 kernels +.
+
+Mon Jun 13 1994 JES
+
+	- First set of termcap patches from Markkk
+
 Sat Jun 11 1994 JES
 
 -	Latest additions from Alan for busmice.
--	Put CNTRx counters to -= 1.
+-	Put CNTRx counters to -= 2.
 -	Clean up for Thursday release started.
 
 Fri Jun 10 1994 JES

@@ -2,7 +2,7 @@
 
 /* 
  * $Date: 1994/06/12 23:18:11 $
- * $Source: /home/src/dosemu0.52/clients/RCS/ncurses.h,v $
+ * $Source: /home/src/dosemu0.60/clients/RCS/ncurses.h,v $
  * $Revision: 2.1 $
  * $State: Exp $
  *

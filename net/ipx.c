@@ -412,7 +412,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
   }
   /* allow setting the type field in the IPX header */
   opt = 1;
-  if (setsockopt(sock, SOL_SOCKET, SO_TYPE, &opt, sizeof(opt)) == -1) {
+  if (setsockopt(sock, SOL_SOCKET, IPX_TYPE, &opt, sizeof(opt)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not set socket option for type.\n");
     return (RCODE_SOCKET_TABLE_FULL);
@@ -603,6 +603,7 @@ IPXSendPacket(far_t ECBPtr)
   }
   memcpy(&ipxs.sipx_node, IPXHeader->Destination.Node, 6);
   memcpy(&ipxs.sipx_port, IPXHeader->Destination.Socket, 2);
+  ipxs.sipx_type = 1;
   /*	ipxs.sipx_port=htons(0x452); */
   mysock = ipx_find_socket(htons(ECB->ECBSocket));
   if (mysock == NULL) {

@@ -61,9 +61,8 @@ __inline__ void int10(void)
     v_printf("define cursor: 0x%04x\n", LWORD(ecx));
     /* 0x20 is the cursor no blink/off bit */
     /*	if (HI(cx) & 0x20) */
-    if (REG(ecx) == 0x2000) {
+    if (REG(ecx) == 0x2000)
       hide_cursor();
-    }
     else
       show_cursor();
     CARRY;
@@ -104,13 +103,7 @@ __inline__ void int10(void)
       screen = LO(ax);
       error("VID: change page from %d to %d!\n", bios_current_screen_page, screen);
       if (screen <= max_page) {
-	if (!config.console_video) {
-	  scrtest_bitmap = 1 << (24 + screen);
-	  vm86s.screen_bitmap = -1;
-	  update_screen = 1;
-	}
-	else
-	  set_vc_screen_page(screen);
+	if (config.console_video) set_vc_screen_page(screen);
       }
       else {
 	error("ERROR: video error: set bad screen %d\n", screen);
@@ -129,13 +122,11 @@ __inline__ void int10(void)
   case 0x6:			/* scroll up */
     v_printf("scroll up %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
     scrollup(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-    if (!config.console_video) vm86s.screen_bitmap = -1;
     break;
 
   case 0x7:			/* scroll down */
     v_printf("scroll dn %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
     scrolldn(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-    if (!config.console_video) vm86s.screen_bitmap = -1;
     break;
 
   case 0x8:			/* read character at x,y + attr */
@@ -181,66 +172,11 @@ __inline__ void int10(void)
 	  *sadr &= 0xff00;
 	  *(sadr++) |= c;
 	}
-      if (!config.console_video) update_screen = 1;
       break;
     }
 
   case 0xe:			/* print char */
-    {
-      u_short *sadr;
-      screen = bios_current_screen_page;
-      sadr = (u_short *) SCREEN_ADR(screen) 
-	     + bios_cursor_y_position(screen) * CO 
-	     + bios_cursor_x_position(screen);
-      
-      if (LO(ax) == 13) {              /* Carriage return */
-        bios_cursor_x_position(screen) = 0;
-      }
-      else if (LO(ax) == 10) {         /* Linefeed */
-        if (bios_cursor_y_position(screen) < LI-1) {
-          bios_cursor_y_position(screen) = bios_cursor_y_position(screen) + 1;
-        }
-        else if (bios_cursor_y_position(screen) == LI-1) {
-          scrollup(0, 0, CO-1, LI-1, 1, 7);
-          if (!config.console_video) vm86s.screen_bitmap = -1;
-        }
-      }
-      else if (LO(ax) == 8) {          /* Backspace */
-        if (bios_cursor_x_position(screen) > 0) {
-          *--sadr;
-          *sadr &= 0xff00;
-          *(sadr) |= 32;
-          bios_cursor_x_position(screen) = bios_cursor_x_position(screen) - 1;
-        }
-      }
-      else if (LO(ax) == 7) {          /* Bell */
-        /* Bell should be sounded here, but it's more trouble than its */
-        /* worth for now, because printf, addch or addstr or out_char  */
-        /* would all interfere by possibly interrupting terminal codes */
-        /* Ignore this for now, since this is a hack til NCURSES.      */
-      }
-      else {                           /* Printable character */
-        *sadr &= 0xff00;
-        *(sadr) |= LO(ax);
-        if (bios_cursor_x_position(screen) < CO-1) {
-          bios_cursor_x_position(screen) = bios_cursor_x_position(screen) + 1;
-        } 
-        else if (bios_cursor_y_position(screen) < LI-1) {
-          bios_cursor_x_position(screen) = 0;
-          bios_cursor_y_position(screen) = bios_cursor_y_position(screen) + 1;
-        }
-        else if (bios_cursor_y_position(screen) == LI-1) {
-          bios_cursor_x_position(screen) = 0;
-          scrollup(0, 0, CO-1, LI-1, 1, 7);
-          if (!config.console_video) vm86s.screen_bitmap = -1;
-        }
-      }
-      if (!config.console_video) update_screen = 1;
-      break;
-    }
-
-/* The following was the line that caused interference */    
-/* char_out(*(char *) &REG(eax), bios_current_screen_page, ADVANCE); char in AL */ 
+    char_out(*(char *) &REG(eax), bios_current_screen_page); 
     break;
 
   case 0x0f:			/* get screen mode */

@@ -1,13 +1,34 @@
 /* dos emulator, Matthias Lautner */
 
 #define TERMIO_C 1
-/* Extensions by Robert Sanders, 1992-93
+
+/* 
+ * DANG_BEGIN_MODULE
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /home/src/dosemu0.52/RCS/termio.c,v $
- * $Revision: 2.1 $
+ * This handles the keyboard.
+ *
+ * Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
+ * codes as sent out by the kernel and 'xlate' uses plain ASCII as used over
+ * serial lines. The mapping for different languages & the two ALT-keys is
+ * done here, but the definitions are elsewhere. Only the default (US)
+ * keymap is stored here.
+ *
+ * DANG_END_MODULE
+ */
+
+
+/* 
+ * DANG_BEGIN_CHANGELOG
+ * Extensions by Robert Sanders, 1992-93
+ *
+ * $Date: 1994/06/14 22:00:18 $
+ * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
+ * $Revision: 2.2 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.2  1994/06/14  22:00:18  root
+ * Alistair's DANG inserted for the first time :-).
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -71,6 +92,7 @@
  * Revision 1.17  1994/02/20  15:34:40  root
  * Working on keyboard.
  *
+ * DANG_END_CHANGELOG
  */
 
 #include <stdio.h>
@@ -534,7 +556,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.52/RCS/termio.c,v 2.1 1994/06/12 23:15:37 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.2 1994/06/14 22:00:18 root Exp root $\n");
 
   return 0;
 }
