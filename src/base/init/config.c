@@ -458,12 +458,11 @@ void secure_option_preparse(int *argc, char **argv)
   }
 }
 
-static void config_pre_process(void)
+static void read_cpu_info(void)
 {
     char *cpuflags;
     int k = 386;
 
-    parse_debugflags("+cw", 1);
     open_proc_scan("/proc/cpuinfo");
     switch (get_proc_intvalue_by_key(
           kernel_version_code > 0x20100+74 ? "cpu family" : "cpu" )) {
@@ -548,12 +547,17 @@ static void config_pre_process(void)
       config.smp = 1;		/* for checking overrides, later */
     }
     close_proc_scan();
-    warn("Dosemu-" VERSTR " Running on CPU=%d86, FPU=%d\n",
-         config.realcpu, config.mathco);
 }
 
 static void config_post_process(void)
 {
+    config.realcpu = CPU_386;
+    if (vm86s.cpu_type > config.realcpu || config.rdtsc || config.mathco)
+	read_cpu_info();
+    if (vm86s.cpu_type > config.realcpu) {
+    	vm86s.cpu_type = config.realcpu;
+    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %ld86\n",vm86s.cpu_type);
+    }
     /* console scrub */
     if (config.X) {
 	config.console_video = config.vga = 0;
@@ -728,7 +732,7 @@ config_init(int argc, char **argv)
     memset(usedoptions,0,sizeof(usedoptions));
     memcheck_type_init();
     our_envs_init(0);
-    config_pre_process();
+    parse_debugflags("+cw", 1);
 
 #ifdef X_SUPPORT
     /*
@@ -876,11 +880,6 @@ config_init(int argc, char **argv)
 
     if (config.exitearly && !config_check_only)
 	exit(0);
-
-    if (vm86s.cpu_type > config.realcpu) {
-    	vm86s.cpu_type = config.realcpu;
-    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %ld86\n",vm86s.cpu_type);
-    }
 
 #ifdef __linux__
     optind = 0;
