@@ -1224,6 +1224,14 @@ static void keyb_layout(int layout)
     config.alt_map   = alt_map_it;
     config.num_table = num_table_dot;
     break;
+  case KEYB_SW:
+    c_printf("CONF: Keyboard-layout sw\n");
+    config.keyboard  = KEYB_SW;
+    config.key_map   = key_map_sw;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_sw;
+    config.alt_map   = alt_map_sw;
+    config.num_table = num_table_comma;
+    break;
   default:
     c_printf("CONF: ERROR -- Keyboard has incorrect number!!!\n");
   }

@@ -16,6 +16,9 @@
 # Set STATIC to produce one static binary (instead of the binary/library
 # combination
 
+#X86_EMULATOR_FLAGS = -DX86_EMULATOR -I/home/kpl/bochs-hacks -I/home/kpl/bochs
+X86_EMULATOR_FLAGS = 
+
 
 # Want to try SLANG?
 USE_SLANG=-DUSE_SLANG
@@ -121,7 +124,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   46
+PATCHL  =   47
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -239,6 +242,7 @@ PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
 CFLAGS+=$(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 CFLAGS+=$(USE_SLANG)
+CFLAGS+=$(X86_EMULATOR_FLAGS)
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment

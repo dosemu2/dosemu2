@@ -410,7 +410,8 @@ static int dos_helper(void)
 static void int08(u_char i)
 {
   run_int(0x1c);
-  REG(eflags) |= VIF;
+  /* REG(eflags) |= VIF; */
+  WRITE_FLAGS(READ_FLAGS() | VIF);
   return;
 }
 
@@ -421,7 +422,8 @@ static void int15(u_char i)
 
   if (HI(ax) != 0x4f)
     NOCARRY;
-  REG(eflags) |= VIF;
+  /* REG(eflags) |= VIF; */
+  WRITE_FLAGS(READ_FLAGS() | VIF);
 
   switch (HI(ax)) {
   case 0x10:			/* TopView/DESQview */
@@ -437,7 +439,8 @@ static void int15(u_char i)
     break;
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
-    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));
+    /*k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));*/
+    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (WORD(READ_FLAGS()) & CF),LWORD(eax));
 /*
     CARRY;
     if (LO(ax) & 0x80 )
@@ -680,7 +683,8 @@ static void int1a(u_char i)
     tm->tm_sec /= 10;
     HI(dx) |= tm->tm_sec << 4;
     /* LO(dx) = tm->tm_isdst; */
-    REG(eflags) &= ~CF;
+    /* REG(eflags) &= ~CF; */
+    WRITE_FLAGS(READ_FLAGS() & ~CF);
     break;
   case 4:			/* get date */
     time(&time_val);
@@ -705,7 +709,8 @@ static void int1a(u_char i)
     HI(dx) = tm->tm_mon % 10;
     tm->tm_mon /= 10;
     HI(dx) |= tm->tm_mon << 4;
-    REG(eflags) &= ~CF;
+    /* REG(eflags) &= ~CF; */
+    WRITE_FLAGS(READ_FLAGS() & ~CF);
     break;
   case 3:			/* set time */
   case 5:			/* set date */
@@ -824,20 +829,24 @@ run_int(int i)
   unsigned char *ssp;
   unsigned long sp;
 
-  ssp = (unsigned char *)(REG(ss)<<4);
+  /* ssp = (unsigned char *)(REG(ss)<<4); */
+  ssp = (unsigned char *)(READ_SEG_REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
   pushw(ssp, sp, vflags);
-  pushw(ssp, sp, LWORD(cs));
+  /* pushw(ssp, sp, LWORD(cs)); */
+  pushw(ssp, sp, READ_SEG_REG(cs));
   pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 6;
-  LWORD(cs) = ((us *) 0)[(i << 1) + 1];
+  /* LWORD(cs) = ((us *) 0)[(i << 1) + 1]; */
+  WRITE_SEG_REG(cs, ((us *) 0)[(i << 1) + 1]);
   LWORD(eip) = ((us *) 0)[i << 1];
 
   /* clear TF (trap flag, singlestep), IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    */
-  REG(eflags) &= ~(VIF | TF | IF | NT);
+  /* REG(eflags) &= ~(VIF | TF | IF | NT); */
+  WRITE_FLAGS(READ_FLAGS() & ~(VIF | TF | IF | NT));
 }
 
 int can_revector(int i)
@@ -1048,7 +1057,8 @@ static void int2f(u_char i)
       break;
     case 0x10:
       x_printf("Get XMSControl address\n");
-      REG(es) = XMSControl_SEG;
+      /* REG(es) = XMSControl_SEG; */
+      WRITE_SEG_REG(es, XMSControl_SEG);
       LWORD(ebx) = XMSControl_OFF;
       break;
     default:
@@ -1147,7 +1157,8 @@ static void inte8(u_char i) {
 
       /* restore registers */
       REGS = int_queue_head[x].saved_regs;
-      REG(eflags) |= VIF;
+      /* REG(eflags) |= VIF; */
+      WRITE_FLAGS(READ_FLAGS() | VIF);
       
       h_printf("e8 int_queue: finished %x\n",
 	       int_queue_head[x].int_queue_return_addr);

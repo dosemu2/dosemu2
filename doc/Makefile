@@ -33,4 +33,4 @@ realclean: clean
 
 dist: dosemu.texinfo dosemu.info dos.1 DPR EMUsuccess.txt
 	install -d $(DISTPATH)/doc
-	cp -a Makefile dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) DPR DANG EMUsuccess.txt lsm $(DISTPATH)/doc
+	cp -a Makefile DPMIsuccess.txt dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) DPR DANG EMUsuccess.txt lsm $(DISTPATH)/doc

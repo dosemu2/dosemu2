@@ -309,6 +309,7 @@ void config_init(int argc, char **argv)
       if(config.cardtype > 4)
 	config.cardtype = 1;
       g_printf("Configuring cardtype as %d\n", config.cardtype);
+      break;
     case 'N':
       warn("DOS will not be started\n");
       config.exitearly = 1;

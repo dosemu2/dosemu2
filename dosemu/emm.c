@@ -941,12 +941,12 @@ SEG_TO_PHYS(int segaddr)
 }
 
 /* EMS 4.0 functions start here */
-static inline int
+static inline void
 partial_map_registers(state_t * state)
 {
   Kdebug0((dbg_fd, "partial_map_registers %d called\n",
 	   (int) LOW(state->eax)));
-  return 0;
+  SETHIGH(&(state->eax), EMM_NO_ERR);
 }
 
 static void

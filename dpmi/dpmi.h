@@ -95,6 +95,15 @@ struct RealModeCallStructure {
   unsigned short ss;
 };
 
+typedef struct {
+    unsigned short selector;
+    unsigned long  offset;
+    unsigned short rmreg_selector;
+    unsigned long  rmreg_offset;
+    struct RealModeCallStructure *rmreg;
+    unsigned rm_ss_selector;
+} RealModeCallBack;
+
 typedef struct dpmi_pm_block_stuct {
   struct   dpmi_pm_block_stuct *next;
   unsigned long handle;

@@ -441,7 +441,7 @@ config_t;
 #define KEYB_BE               19
 #define KEYB_PO               20
 #define KEYB_IT               21
-
+#define KEYB_SW		      22
 /*
  * Right now, dosemu only supports two serial ports.
  */

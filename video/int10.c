@@ -534,11 +534,13 @@ void int10()
       if (HI(ax) == 9) {                /* use attribute from BL */
 	 c_attr = c | LO(bx)<<8;
 	 while(n--)
-	    *(sadr++) = c_attr;
+	    /* *(sadr++) = c_attr; */
+	    WRITE_WORD(sadr++, c_attr);
       }
       else {                            /* leave attribute as it is */
 	 while(n--)
-	    *(char*)(sadr++) = c;
+	    /* *(char*)(sadr++) = c; */
+	    WRITE_BYTE(sadr++, c);
       }
       set_dirty(page);
       break;
@@ -561,7 +563,8 @@ void int10()
       if (LO(ax) < 2) {                  /* use attribute in BL */
         attr=LO(bx)<<8;
 	while(n--)
-	  *(sadr++) = *src++ | attr;
+	  /* *(sadr++) = *src++ | attr; */
+	  WRITE_WORD(sadr++, READ_BYTE(src++) | attr);
       }
       else {                             /* use attributes in buffer */
 	/*memcpy(sadr,src,n*2);*/

@@ -1,7 +1,7 @@
 SUBDIR= clients
 
-OBJS=keyboard.o video.o get_info.o
-CFILES= keyboard.c video.c get_info.c
+OBJS=keyboard.o video.o get_info.o 
+CFILES= keyboard.c video.c get_info.c 
 DEPENDS= keyboard.d video.d get_info.d
 HFILES= get_info.h
 ALL=$(CFILES) $(HFILES)

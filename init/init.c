@@ -349,10 +349,17 @@ static inline void bios_mem_setup(void)
   bios_memory_size   = config.mem_size;	/* size of memory */
 
   /* The default 16-word BIOS key buffer starts at 0x41e */
+#if 0
   KBD_Head =			/* key buf start ofs */
     KBD_Tail =			/* key buf end ofs */
     KBD_Start = 0x1e;		/* keyboard queue start... */
   KBD_End = 0x3e;		/* ...and end offsets from 0x400 */
+#endif
+  WRITE_WORD(KBD_HEAD, 0x1e); 	/* key buf start ofs */
+  WRITE_WORD(KBD_TAIL, 0x1e);	/* key buf end ofs */
+  WRITE_WORD(KBD_START, 0x1e);	/* keyboard queue start... */
+  WRITE_WORD(KBD_END, 0x3e);	/* ...and end offsets from 0x400 */
+
 
   keybuf_clear();
 

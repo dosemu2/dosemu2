@@ -1,11 +1,19 @@
-#include "slang.h"
+#include "../include/slang.h"
 
 /* These need to be made user definable */
-static char *Alt_Shiftkey = "^@A";
-static char *Ctrl_Shiftkey = "^@C";
-static char *Shift_Shiftkey = "^@S";
+static char *Alt_Shiftkey = "^@a";
+static char *Sticky_Alt_Shiftkey = "^@A";
+static char *Ctrl_Shiftkey = "^@c";
+static char *Sticky_Ctrl_Shiftkey = "^@C";
+static char *Shift_Shiftkey = "^@s";
+static char *Sticky_Shift_Shiftkey = "^@S";
 
 char *DOSemu_Keyboard_Keymap_Prompt = NULL;
+int DOSemu_Terminal_Scroll = 0;
+int DOSemu_Slang_Show_Help = 0;
+
+extern void dos_slang_redraw (void);
+extern void dos_slang_suspend (void);
 
 /* The goal of the routines here is simple: to allow SHIFT, ALT, and CONTROL
  * keys to be used with a remote terminal.  The way this is accomplished is 
@@ -33,18 +41,42 @@ typedef struct
 Keymap_Scan_Type;
 
 #define ALT_KEY_SCAN_CODE 0x10000
-#define SHIFT_KEY_SCAN_CODE 0x10001
-#define CTRL_KEY_SCAN_CODE 0x10002
+#define STICKY_ALT_KEY_SCAN_CODE 0x10001
 
+#define SHIFT_KEY_SCAN_CODE 0x10002
+#define STICKY_SHIFT_KEY_SCAN_CODE 0x10003
+
+#define CTRL_KEY_SCAN_CODE 0x10004
+#define STICKY_CTRL_KEY_SCAN_CODE 0x10005
+
+#define SCROLL_UP_SCAN_CODE 0x10020
+#define SCROLL_DOWN_SCAN_CODE 0x10021
+#define REDRAW_SCAN_CODE 0x10022
+#define SUSPEND_SCAN_CODE 0x10023
+#define HELP_SCAN_CODE 0x10024
+#define RESET_SCAN_CODE 0x10025
 
 static Keymap_Scan_Type Normal_Map [] =
 {
+   /* These are the F1 - F12 keys for terminals without them. */
+     {"^@1", 0x3b00},		       /* F1 */
+     {"^@2", 0x3c00},		       /* F2 */
+     {"^@3", 0x3d00},		       /* F3 */
+     {"^@4", 0x3e00},		       /* F4 */
+     {"^@5", 0x3f00},		       /* F5 */
+     {"^@6", 0x4000},		       /* F6 */
+     {"^@7", 0x4100},		       /* F7 */
+     {"^@8", 0x4200},		       /* F8 */
+     {"^@9", 0x4300},		       /* F9 */
+     {"^@0", 0x4400},		       /* F10 */
+     {"^@-", 0x5700},		       /* F11 */
+     {"^@=", 0x5800},		       /* F12 */
    {"\033\033",	0x011B},	       /* ESC */
    {"1",	0x0231},   	       /* 1 */
    {"!",	0x0221},	       /* ! */
    {"2",	0x0332},	       /* 2 */
    {"@",	0x0340},	       /* @ */
-   {"^@",	0x0300},	       /* ^@ */
+   {"^@^@",	0x0300},	       /* ^@ */
    {"3",	0x0433},	       /* 3 */
    {"#",	0x0423},	       /* # */
    {"4",	0x0534},	       /* 4 */
@@ -340,6 +372,17 @@ static Keymap_Scan_Type Normal_Map [] =
 
 static Keymap_Scan_Type Alt_Map [] =
 {
+   /* These are the F1 - F12 keys for terminals without them. */
+     {"^@1", 0x6800},		       /* F1 */
+     {"^@2", 0x6900},		       /* F2 */
+     {"^@3", 0x6A00},		       /* F3 */
+     {"^@4", 0x6B00},		       /* F4 */
+     {"^@5", 0x6C00},		       /* F5 */
+     {"^@6", 0x6D00},		       /* F6 */
+     {"^@7", 0x6E00},		       /* F7 */
+     {"^@8", 0x6F00},		       /* F8 */
+     {"^@9", 0x7000},		       /* F9 */
+     {"^@0", 0x7100},		       /* F10 */
    {"1",	0x7800},	       /* Alt 1 */
    {"2",	0x7900},	       /* Alt 2 */
    {"3",	0x7a00},	       /* Alt 3 */
@@ -408,6 +451,20 @@ static Keymap_Scan_Type Alt_Map [] =
 
 static Keymap_Scan_Type Ctrl_Map [] =
 {
+   /* These are the F1 - F12 keys for terminals without them. */
+     {"^@1", 0x5E00},		       /* F1 */
+     {"^@2", 0x5F00},		       /* F2 */
+     {"^@3", 0x6000},		       /* F3 */
+     {"^@4", 0x6100},		       /* F4 */
+     {"^@5", 0x6200},		       /* F5 */
+     {"^@6", 0x6300},		       /* F6 */
+     {"^@7", 0x6400},		       /* F7 */
+     {"^@8", 0x6500},		       /* F8 */
+     {"^@9", 0x6600},		       /* F9 */
+     {"^@0", 0x6700},		       /* F10 */
+#if 1
+   {"^M",	0x1c0a},	       /* ^ENTER */
+#endif
    {"2",	0x0300},	       /* ^@ */
    {"6",	0x071E},	       /* ^^ */
    {"-",	0x0C1F},	       /* ^_ */
@@ -475,6 +532,16 @@ static Keymap_Scan_Type Ctrl_Map [] =
 
 static Keymap_Scan_Type Shift_Map [] =
 {
+     {"^@1", 0x5400},		       /* F1 */
+     {"^@2", 0x5500},		       /* F2 */
+     {"^@3", 0x5600},		       /* F3 */
+     {"^@4", 0x5700},		       /* F4 */
+     {"^@5", 0x5800},		       /* F5 */
+     {"^@6", 0x5900},		       /* F6 */
+     {"^@7", 0x5A00},		       /* F7 */
+     {"^@8", 0x5B00},		       /* F8 */
+     {"^@9", 0x5C00},		       /* F9 */
+     {"^@0", 0x5D00},		       /* F10 */
    {"1",	0x0221},	       /* ! */
    {"2",	0x0340},	       /* @ */
    {"3",	0x0423},	       /* # */
@@ -552,7 +619,9 @@ SLKeyMap_List_Type *The_Shift_KeyMap;
 static int init_slang_keymaps (void)
 {
    char *str;
-   Keymap_Scan_Type *k;
+   SLKeyMap_List_Type *kmaps[4], *m;
+   Keymap_Scan_Type *scans[4], *k;
+   int i;
    
    if (The_Normal_KeyMap != NULL) return 0;
    
@@ -562,47 +631,47 @@ static int init_slang_keymaps (void)
        || (NULL == (The_Shift_KeyMap = SLang_create_keymap ("Shift", NULL))))
      return -1;
 
-   k = Normal_Map;
-   while ((str = k->keystr), (*str != 0))
+   kmaps[0] = The_Normal_KeyMap; scans[0] = Normal_Map;
+   kmaps[1] = The_Shift_KeyMap; scans[1] = Shift_Map;
+   kmaps[2] = The_Ctrl_KeyMap; scans[2] = Ctrl_Map;
+   kmaps[3] = The_Alt_KeyMap; scans[3] = Alt_Map;
+  
+   for (i = 0; i < 4; i++)
      {
-	SLang_define_key1 (str, (VOID *) k->scan_code, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	k++;
-     }
-   
-   k = Alt_Map;
-   while ((str = k->keystr), (*str != 0))
-     {
-	SLang_define_key1 (str, (VOID *) k->scan_code, SLKEY_F_INTRINSIC, The_Alt_KeyMap);
-	k++;
-     }
-   k = Ctrl_Map;
-   while ((str = k->keystr), (*str != 0))
-     {
-	SLang_define_key1 (str, (VOID *) k->scan_code, SLKEY_F_INTRINSIC, The_Ctrl_KeyMap);
-	k++;
-     }
-   k = Shift_Map;
-   while ((str = k->keystr), (*str != 0))
-     {
-	SLang_define_key1 (str, (VOID *) k->scan_code, SLKEY_F_INTRINSIC, The_Shift_KeyMap);
-	k++;
-     }
+	k = scans[i]; m = kmaps[i];
+	while ((str = k->keystr), (*str != 0))
+	  {
+	     SLang_define_key1 (str, (VOID *) k->scan_code, SLKEY_F_INTRINSIC, m);
+	     k++;
+	  }
 
-   /* Now setup the shift modifier keys in each of the keymaps.  */
-   SLang_define_key1 (Alt_Shiftkey, (VOID *) ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-   SLang_define_key1 (Alt_Shiftkey, (VOID *) ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Alt_KeyMap);
-   SLang_define_key1 (Alt_Shiftkey, (VOID *) ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Ctrl_KeyMap);
-   SLang_define_key1 (Alt_Shiftkey, (VOID *) ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Shift_KeyMap);
-   SLang_define_key1 (Ctrl_Shiftkey, (VOID *) CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-   SLang_define_key1 (Ctrl_Shiftkey, (VOID *) CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Alt_KeyMap);
-   SLang_define_key1 (Ctrl_Shiftkey, (VOID *) CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Ctrl_KeyMap);
-   SLang_define_key1 (Ctrl_Shiftkey, (VOID *) CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Shift_KeyMap);
-   SLang_define_key1 (Shift_Shiftkey, (VOID *) SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-   SLang_define_key1 (Shift_Shiftkey, (VOID *) SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Alt_KeyMap);
-   SLang_define_key1 (Shift_Shiftkey, (VOID *) SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Ctrl_KeyMap);
-   SLang_define_key1 (Shift_Shiftkey, (VOID *) SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Shift_KeyMap);
-
-   if (SLang_Error) return -1;
+	/* Now setup the shift modifier keys in each of the keymaps.  */
+	SLang_define_key1 (Alt_Shiftkey, (VOID *) ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
+	SLang_define_key1 (Ctrl_Shiftkey, (VOID *) CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
+	SLang_define_key1 (Shift_Shiftkey, (VOID *) SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	
+	SLang_define_key1 (Sticky_Alt_Shiftkey, (VOID *) STICKY_ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
+	SLang_define_key1 (Sticky_Ctrl_Shiftkey, (VOID *) STICKY_CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
+	SLang_define_key1 (Sticky_Shift_Shiftkey, (VOID *) STICKY_SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	
+	SLang_define_key1 ("^@?", (VOID *) HELP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@h", (VOID *) HELP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	
+	SLang_define_key1 ("^@^R", (VOID *) REDRAW_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@^L", (VOID *) REDRAW_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@^Z", (VOID *) SUSPEND_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@ ", (VOID *) RESET_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	
+	SLang_define_key1 ("^@\033[A", (VOID *) SCROLL_UP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@\033OA", (VOID *) SCROLL_UP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@U", (VOID *) SCROLL_UP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	
+	SLang_define_key1 ("^@\033[B", (VOID *) SCROLL_DOWN_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@\033OB", (VOID *) SCROLL_DOWN_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	SLang_define_key1 ("^@D", (VOID *) SCROLL_DOWN_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	
+	if (SLang_Error) return -1;
+     }
 }
 
 
@@ -685,6 +754,7 @@ void do_slang_getkeys (void)
 {
    SLang_Key_Type *key;
    static SLKeyMap_List_Type *map;
+   static int sticky;
    unsigned int scan;
    
    if (map == NULL) map = The_Normal_KeyMap;
@@ -708,7 +778,7 @@ void do_slang_getkeys (void)
 		   * to be read after a brief period, assume user really
 		   * wants esc.
 		   */
-		  if (sltermio_input_pending ()) return;      
+		  if (sltermio_input_pending ()) return;
 		  DOS_setscan ((unsigned short) 0x011B);
 		  key = NULL;
 		  /* drop on through to the return for the undefined key below. */
@@ -716,7 +786,7 @@ void do_slang_getkeys (void)
 	     else return; /* try again next time */
 	  }
 	
-	DOSemu_Keyboard_Keymap_Prompt = NULL;
+	if (sticky == 0) DOSemu_Keyboard_Keymap_Prompt = NULL;
 	
 	kbcount -= Keystr_Len;	       /* update count */
 	kbp += Keystr_Len;
@@ -725,47 +795,100 @@ void do_slang_getkeys (void)
 	  {
 	     /* undefined key --- return */
 	     map = The_Normal_KeyMap;
+	     DOSemu_Slang_Show_Help = 0;
 	     kbcount = 0;
 	     return;
 	  }
 	
+	if (DOSemu_Slang_Show_Help)
+	  {
+	     DOSemu_Slang_Show_Help = 0;
+	     continue;
+	  }
+	     
 	scan = (unsigned int) key->f;
 	
 	if (scan < ALT_KEY_SCAN_CODE)
 	  {
-	     map = The_Normal_KeyMap;
+	     if (sticky == 0) map = The_Normal_KeyMap;
 	     DOS_setscan ((unsigned short) scan);
 	     continue;
 	  }
 	
-	if (scan == ALT_KEY_SCAN_CODE)
+	switch (scan)
 	  {
+	   case STICKY_ALT_KEY_SCAN_CODE:
+	     sticky = 1;
+	     /* drop */
+	   case ALT_KEY_SCAN_CODE:
 	     if (map == The_Alt_KeyMap) map = The_Normal_KeyMap;
 	     else 
 	       {
 		  map = The_Alt_KeyMap;
-		  DOSemu_Keyboard_Keymap_Prompt = "Alt-";
+		  if (sticky) DOSemu_Keyboard_Keymap_Prompt = "[Alt]";
+		  else DOSemu_Keyboard_Keymap_Prompt = "Alt-";
 	       }
-	  }
-	
-	else if (scan == SHIFT_KEY_SCAN_CODE)
-	  {
+	     break;
+	     
+	     
+	   case STICKY_SHIFT_KEY_SCAN_CODE:
+	     sticky = 1;
+	     /* drop */
+	   case SHIFT_KEY_SCAN_CODE:
 	     if (map == The_Shift_KeyMap) map = The_Normal_KeyMap;
 	     else 
 	       {
 		  map = The_Shift_KeyMap;
-		  DOSemu_Keyboard_Keymap_Prompt = "Shift-";
+		  if (sticky) DOSemu_Keyboard_Keymap_Prompt = "[Shift]";
+		  else DOSemu_Keyboard_Keymap_Prompt = "Shift-";
 	       }
-	  }
+	     break;
 	
-	else if (scan == CTRL_KEY_SCAN_CODE)
-	  {
+	   case STICKY_CTRL_KEY_SCAN_CODE:
+	     sticky = 1;
+	     /* drop */
+	   case CTRL_KEY_SCAN_CODE:
 	     if (map == The_Ctrl_KeyMap) map = The_Normal_KeyMap;
 	     else 
 	       {
 		  map = The_Ctrl_KeyMap;
-		  DOSemu_Keyboard_Keymap_Prompt = "Ctrl-";
+		  if (sticky) DOSemu_Keyboard_Keymap_Prompt = "[Ctrl]";
+		  else DOSemu_Keyboard_Keymap_Prompt = "Ctrl-";
 	       }
+	     break;
+	     
+	   case SCROLL_DOWN_SCAN_CODE:
+	     DOSemu_Terminal_Scroll = 1;
+	     break;
+	     
+	   case SCROLL_UP_SCAN_CODE:
+	     DOSemu_Terminal_Scroll = -1;
+	     break;
+	     
+	   case REDRAW_SCAN_CODE:
+	     dos_slang_redraw ();
+	     break;
+	     
+	   case SUSPEND_SCAN_CODE:
+	     dos_slang_suspend ();
+	     break;
+	     
+	   case HELP_SCAN_CODE:
+	     DOSemu_Slang_Show_Help = 1;
+	     break;
+	     
+	   case RESET_SCAN_CODE:
+	     sticky = 0;
+	     map = The_Normal_KeyMap;
+	     DOSemu_Slang_Show_Help = 0;
+	     DOSemu_Terminal_Scroll = 0;
+	     break;
 	  }
+	
+	if (map == The_Normal_KeyMap)
+	 { 
+	   sticky = 0;
+	   DOSemu_Keyboard_Keymap_Prompt = NULL;
+	 }  
      }
 }

@@ -1,3 +1,22 @@
+Fri Mar 03	1995
+
+-	Release pl47.
+-	Small EMS fix.
+
+Wed Mar 01	1995
+
+-	Add break to -v cmdline option :-(.
+-	Added new slang code from John. Includes:
+    1. Online help
+	"^@?"
+    2. Sticky modifier keys.
+    3. Easy terminal independent way of simulating function keys, e.g., ^@5
+       is F5.
+    4. Mechanism for panning screen for terminals with less than 25 lines.
+    5. Redraw
+-	Dong/Lutz latest DPMI
+-	Kevin's latest BOCHS changes.
+
 Sat Feb 25	1995
 
 -	Released pl46.

@@ -148,8 +148,12 @@
 #define LED_NUMLOCK	1
 #define LED_CAPSLOCK	2
 
+#if 0
 #define key_flags *(KEYFLAG_ADDR)
 #define kbd_flags *(KBDFLAG_ADDR)
+#endif
+#define key_flags READ_WORD(KEYFLAG_ADDR)
+#define kbd_flags READ_WORD(KBDFLAG_ADDR)
 
 extern void set_screen_origin(int), set_vc_screen_page(int);
 

@@ -56,13 +56,19 @@
 static int Attribute_Map[256];		       /* if negative, char is invisible */
 
 extern char *DOSemu_Keyboard_Keymap_Prompt;
+extern int DOSemu_Terminal_Scroll;
+extern int DOSemu_Slang_Show_Help;
 
 int cursor_blink = 1;
 static unsigned char *The_Charset = charset_latin;
 static int slang_update (void);
 
-static int Slsmg_is_not_initialized = 0;
+static int Slsmg_is_not_initialized = 1;
 static int Use_IBM_Codes = 0;
+
+/* I think this is what is assumed. */
+static int Rows = 25;
+static int Columns = 80;
 
 static void sl_exit_error (char *err)
 {
@@ -89,7 +95,8 @@ terminal_initialize()
 	Slsmg_is_not_initialized = 1;
 	return 0;
      }
-     
+   Slsmg_is_not_initialized = 0;
+   
    /* This maps (r,g,b) --> (b,g,r) */
    rotate[0] = 0; rotate[1] = 4; 
    rotate[2] = 2; rotate[3] = 6;
@@ -102,6 +109,10 @@ terminal_initialize()
    SLtt_get_terminfo ();
    SLtt_Screen_Rows = li;
    SLtt_Screen_Cols = co;
+
+   /* Now set the variables li and co back to their dos defaults. */
+   li = Rows;
+   co = Columns;
    
    SLtt_Use_Blink_For_ACS = 1;
    SLtt_Blink_Mode = 1;
@@ -194,6 +205,7 @@ void terminal_close (void)
 	     SLtt_flush_output ();
 	  }
 	else putc ('\n', stdout);
+	Slsmg_is_not_initialized = 1;
      }
 }
 
@@ -206,36 +218,109 @@ v_write(int fd, unsigned char *ch, int len)
     error("ERROR: (video) v_write deferred for console_video\n");
 }
 
+static char *Help[] = 
+{
+   "Function Keys:",
+   "    F1: ^@1      F2: ^@2    ...     F9: ^@9    F10: ^@0",
+   "",
+   "Key Modifiers:",
+   "    ^@s : SHIFT KEY        ^@S : STICKY SHIFT KEY",
+   "    ^@a : ALT KEY          ^@A : STICKY ALT KEY",
+   "    ^@c : CTRL KEY         ^@C : STICKY CTRL KEY",
+   "  Note: To cancel the sticky key, press the sticky key again.",
+   "  Examples:",
+   "    Pressing ^@s followed by ^@3 results in SHIFT-F3.",
+   "    Pressing ^@C Up Up Up ^@C results in Ctrl-Up Ctrl-Up Ctrl-Up.",
+   "",
+   "Miscellaneous:",
+   "    ^@^R : Redraw display      ^@^L : Redraw the display.",
+   "    ^@^Z : Suspend dosemu",
+   "    ^@ Up Arrow: Pan the display Up.",
+   "    ^@ Dn Arrow: Pan the display Dn.",
+   "    ^@ Space: Reset Sticky keys and Panning to automatic panning mode.",
+   "    ^@? or ^@h:  SHow this help screen.",
+   "    ^@^@:  Send the ^@ character to dos.",
+   "",
+   "            PRESS THE SPACE BAR TO CONTINUE",
+   NULL
+};
+
+static void show_help (void)
+{
+   int i;
+   char *s;
+   SLsmg_cls ();
+   
+   i = 0;
+   while ((s = Help[i]) != NULL) 
+     {
+	if (*s)
+	  {
+	     SLsmg_gotorc (i, 0);
+	     SLsmg_write_string (s);
+	  }
+	i++;
+     }
+   memset ((char *) prev_screen, 0xFF, 2 * Rows * Columns);
+   SLsmg_refresh ();
+}
+
+   
+   
+
 /* global variables co and li determine the size of the screen.  Also, use
  * the short pointers prev_screen and screen_adr for updating the screen.
  */
 static int slang_update (void)
 {
    register unsigned short *line, *prev_line, *line_max, char_attr;
-   int i, n, row_len = co * 2;
+   int i, pn, sn, row_len = Columns * 2;
    unsigned char buf[256], *bufp;
    int last_obj = 1000, this_obj;
    int changed = 0;
+   int imin, imax;
    
-   static int last_row, last_col;
+   static int last_row, last_col, help_showing;
    static char *last_prompt = NULL;
    
    SLtt_Blink_Mode = char_blink;
-   line = screen_adr;
-   n = 0;
-   for (i = 0; i < li; i++)
+   
+   if (DOSemu_Slang_Show_Help) 
+     {
+	if (help_showing == 0) show_help ();
+	help_showing = 1;
+	return 1;
+     }
+   help_showing = 0;
+   
+   if ((DOSemu_Terminal_Scroll == 0) && (cursor_row < SLtt_Screen_Rows)
+       || (DOSemu_Terminal_Scroll == -1))
+     {
+	imin = 0;
+	imax = SLtt_Screen_Rows;
+     }
+   else 
+     {
+	imax = Rows;
+	imin = imax - SLtt_Screen_Rows;
+	if (imin < 0) imin = 0;
+     }
+   
+   pn = 0;
+   sn = imin * Columns;
+   for (i = imin; i < imax; i++)
      {
 #if 0
-	if (memcmp(screen_adr + n, prev_screen + n, row_len))
+	if (memcmp(screen_adr + sn, prev_screen + pn, row_len))
 #else
-	if (MEMCMP_DOS_VS_UNIX(screen_adr + n, prev_screen + n, row_len))
+	if (MEMCMP_DOS_VS_UNIX(screen_adr + sn, prev_screen + pn, row_len))
 #endif
 	  {
-	     line = screen_adr + n;
-	     prev_line = prev_screen + n;
-	     line_max = line + co;
+	     line = screen_adr + sn;
+	     prev_line = prev_screen + pn;
+	     line_max = line + Columns;
 	     bufp = buf;
-	     SLsmg_gotorc (i, 0);
+	     SLsmg_gotorc (i - imin, 0);
 	     while (line < line_max)
 	       {
 		  /* *prev_line = char_attr = *line++; */
@@ -257,7 +342,8 @@ static int slang_update (void)
 	       }
 	     SLsmg_write_nchars ((char *) buf, (int) (bufp - buf));
 	  }
-	n += co;
+	pn += Columns;
+	sn += Columns;
      }
    
    if (changed || (last_col != cursor_col) || (last_row != cursor_row)
@@ -265,19 +351,26 @@ static int slang_update (void)
      {
 	if (DOSemu_Keyboard_Keymap_Prompt != NULL)
 	  {
-	     last_row = li - 1;
+	     last_row = SLtt_Screen_Rows - 1;
 	     SLsmg_gotorc (last_row, 0);
 	     last_col = strlen (DOSemu_Keyboard_Keymap_Prompt);
 	     SLsmg_set_color (0);
 	     SLsmg_write_nchars (DOSemu_Keyboard_Keymap_Prompt, last_col);
-	     last_col -= 1;
-	     memset ((char *) (prev_screen + (last_row * co)),
-		     co * 2, 0xFF);
+	     memset ((char *) (prev_screen + (last_row * Columns)),
+		     Columns * 2, 0xFF);
+	     
+	     if (*DOSemu_Keyboard_Keymap_Prompt == '[')
+	       {
+		  /* Sticky */
+		  last_row = cursor_row - imin;
+		  last_col = cursor_col;
+	       }
+	     else last_col -= 1;
 	  }
 	else if (cursor_blink == 0) last_row = last_col = 0;
 	else
 	  {
-	     last_row = cursor_row;
+	     last_row = cursor_row - imin;
 	     last_col = cursor_col;
 	  }
 	
@@ -287,6 +380,29 @@ static int slang_update (void)
      }
    return 1;
 }
+
+void dos_slang_redraw (void)
+{
+   if (Slsmg_is_not_initialized) return;
+   
+   SLsmg_cls ();
+   memset ((char *) prev_screen, 0xFF, 2 * Rows * Columns);
+   slang_update ();
+}
+
+void dos_slang_suspend (void)
+{
+   /*
+   if (Slsmg_is_not_initialized) return;
+   terminal_close ();
+   keyboard_close ();
+   
+   terminal_initialize ();
+   keyboard_init ();
+    */
+}
+
+   
 
 
 #define term_setmode NULL
@@ -300,3 +416,5 @@ struct video_system Video_term = {
    slang_update,
    term_update_cursor
 };
+
+

@@ -137,10 +137,17 @@
 #define BIOS_DATA_PTR(off) ((void *) (BIOS_DATA_SEG + off))
 
 /* Bios data area keybuffer */
+#if 0
 #define KBD_Start (*(unsigned short *)BIOS_DATA_PTR(0x80))
 #define KBD_End  (*(unsigned short *)BIOS_DATA_PTR(0x82))
 #define KBD_Head (*(unsigned short *)BIOS_DATA_PTR(0x1A))
 #define KBD_Tail (*(unsigned short *)BIOS_DATA_PTR(0x1C))
+#endif
+
+#define KBD_START BIOS_DATA_PTR(0x80)
+#define KBD_END   BIOS_DATA_PTR(0x82)
+#define KBD_HEAD  BIOS_DATA_PTR(0x1A)
+#define KBD_TAIL  BIOS_DATA_PTR(0x1C)
 
 #define KBDFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x17)
 #define KEYFLAG_ADDR (unsigned short *)BIOS_DATA_PTR(0x96)

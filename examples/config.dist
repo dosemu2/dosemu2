@@ -52,6 +52,7 @@ timint on
 #        de                dk           sg-latin1    es
 #        de-latin1         dk-latin1    fr           es-latin1
 #        be                no           fr-latin1    portuguese
+#	 it		   sw
 #    The us-layout is selected by default if the "layout" keyword is omitted.
 #
 #    The keyword "keybint" allows more accurate of keyboard interrupts,

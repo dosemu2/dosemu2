@@ -132,6 +132,7 @@ es-latin1		{ yylval->i_value = KEYB_ES_LATIN1;
 be			{ yylval->i_value = KEYB_BE; return(KEYB_LAYOUT); }
 po                      { yylval->i_value = KEYB_PO; return(KEYB_LAYOUT); }
 it                      { yylval->i_value = KEYB_IT; return(KEYB_LAYOUT); }
+sw			{ yylval->i_value = KEYB_SW; return(KEYB_LAYOUT); }
 
 	/* serial stuff */
 

@@ -385,37 +385,37 @@ void run_irqs()
 
 #warning using assembly run_irqs
   __asm__ __volatile__
-  ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t"      /* get old ilevel                  */
-   "pushl %%ecx\n\t"                 /* save old ilevel                 */ 
-   "addl "CISH_INLINE(pic_smm)",%%ecx\n\t"         /* check special mask mode         */
-                                     /***       while(.....){           */
-   "L1:movl "CISH_INLINE(pic_isr)",%%eax\n\t"      /* 1: int_request = (pic_isr       */ 
-   "orl "CISH_INLINE(pic_imr)",%%eax\n\t"          /* | pic_imr)                      */ 
-   "notl %%eax\n\t"                  /* int_request = ~int_request      */ 
-   "andl "CISH_INLINE(pic_irr)",%%eax\n\t"         /* int_request &= pic_irr          */ 
-   "jz L3\n\t"                       /* if(!int_request) goto 3         */ 
-   "L2:bsfl %%eax,%%ebx\n\t"         /* 2: ebx=find_bit(int_request)    */ 
-   "jz L3\n\t"                       /* if(!int_request) goto 3         */ 
-   "cmpl %%ebx,%%ecx\n\t"            /* if(ebx > pic_ilevel)...         */ 
-   "jl L3\n\t"                       /* ... goto 3                      */ 
-   "btrl %%ebx,"CISH_INLINE(pic_irr)"\n\t"         /* clear_bit(ebx,&pic_irr)         */ 
-   "jnc L2\n\t"                       /* if bit wasn't set, go back to 2 */ 
-   "movl "CISH_INLINE(pic_isr)",%%ecx\n\t"         /* get current pic_isr             */
-   "btsl %%ebx,%%ecx\n\t"            /* set bit in pic_isr              */ 
-   "movl %%ebx,"CISH_INLINE(pic_ilevel)"\n\t"      /* set new ilevel                  */
-   "movl %%ecx,"CISH_INLINE(pic_isr)"\n\t"         /* save new isr                    */
-   "andl "CISH_INLINE(pic1_mask)",%%ecx\n\t"       /* isolate pic1 irqs               */
-   "movl %%ecx,"CISH_INLINE(pic1_isr)"\n\t"        /* save in pic1_isr                */
-   "call *"CISH_INLINE(pic_iinfo)"(,%%ebx,8)\n\t"  /* call interrupt handler          */
-   "movl "CISH_INLINE(pic_ilevel)",%%eax\n\t"      /* get new ilevel                  */
-   "btrl %%eax,"CISH_INLINE(pic_isr)"\n\t"         /* reset isr bit - just in case    */
-   "btrl %%eax,"CISH_INLINE(pic1_isr)"\n\t"        /* reset isr bit - just in case    */
-   "jmp L1\n\t"                      /* go back for next irq            */
-                                     /**** end of while   }          ****/ 
-   "L3:popl "CISH_INLINE(pic_ilevel)"\n\t"         /* 3: restore old ilevel and exit  */ 
-   :                                 /* no output                       */ 
-   :                                 /* no input                        */ 
-   :"eax","ebx","ecx");              /* registers eax, ebx, ecx used    */
+  ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t" /* get old ilevel              */
+   "pushl %%ecx\n\t"                          /* save old ilevel             */
+   "addl "CISH_INLINE(pic_smm)",%%ecx\n\t"    /* check spec. mask mode       */
+                                              /***  while(.....){            */
+   "L1:movl "CISH_INLINE(pic_isr)",%%eax\n\t" /* 1: int_request = (pic_isr   */
+   "orl "CISH_INLINE(pic_imr)",%%eax\n\t"     /* | pic_imr)                  */
+   "notl %%eax\n\t"                           /* int_request = ~int_request  */
+   "andl "CISH_INLINE(pic_irr)",%%eax\n\t"    /* int_request &= pic_irr      */
+   "jz L3\n\t"                                /* if(!int_request) goto 3     */
+   "L2:bsfl %%eax,%%ebx\n\t"                  /* 2: ebx=find_bit(int_request)*/
+   "jz L3\n\t"                                /* if(!int_request) goto 3     */
+   "cmpl %%ebx,%%ecx\n\t"                     /* if(ebx > pic_ilevel)...     */
+   "jl L3\n\t"                                /* ... goto 3                  */
+   "btrl %%ebx,"CISH_INLINE(pic_irr)"\n\t"    /* clear_bit(ebx,&pic_irr)     */
+   "jnc L2\n\t"                               /* if bit wasn't set, go to 2  */
+   "movl "CISH_INLINE(pic_isr)",%%ecx\n\t"    /* get current pic_isr         */
+   "btsl %%ebx,%%ecx\n\t"                     /* set bit in pic_isr          */
+   "movl %%ebx,"CISH_INLINE(pic_ilevel)"\n\t" /* set new ilevel              */
+   "movl %%ecx,"CISH_INLINE(pic_isr)"\n\t"    /* save new isr                */
+   "andl "CISH_INLINE(pic1_mask)",%%ecx\n\t"  /* isolate pic1 irqs           */
+   "movl %%ecx,"CISH_INLINE(pic1_isr)"\n\t"   /* save in pic1_isr            */
+   "call *"CISH_INLINE(pic_iinfo)"(,%%ebx,8)\n\t" /* call interrupt handler  */
+   "movl "CISH_INLINE(pic_ilevel)",%%eax\n\t" /* get new ilevel              */
+   "btrl %%eax,"CISH_INLINE(pic_isr)"\n\t"    /* reset isr bit - just in case*/
+   "btrl %%eax,"CISH_INLINE(pic1_isr)"\n\t"   /* reset isr bit - just in case*/
+   "jmp L1\n\t"                               /* go back for next irq        */
+                                              /**** end of while   }      ****/
+   "L3:popl "CISH_INLINE(pic_ilevel)"\n\t"    /* 3: restore old ilevel & exit*/
+   :                                          /* no output                   */
+   :                                          /* no input                    */
+   :"eax","ebx","ecx");                       /* registers eax, ebx, ecx used*/
 
  } 
 #endif

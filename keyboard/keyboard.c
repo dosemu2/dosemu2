@@ -211,7 +211,7 @@ void set_raw_mode();
 void get_leds();
 extern void DOS_setscan(u_short);
 void activate(int);
-extern void terminal_initialize();
+extern int terminal_initialize();
 extern void terminal_close();
 
 void convascii(int *);
@@ -1115,15 +1115,27 @@ InsKeyboard(unsigned short scancode)
   unsigned short nextpos;
 
   /* First of all compute the position of the new tail pointer */
+#if 0
   if ((nextpos = KBD_Tail + 2) >= KBD_End)
     nextpos = KBD_Start;
   if (nextpos == KBD_Head)	/* queue full ? */
     return (0);
+#endif
+  if ((nextpos = READ_WORD(KBD_TAIL) + 2) >= READ_WORD(KBD_END))
+    nextpos = READ_WORD(KBD_START);
+  if (nextpos == READ_WORD(KBD_HEAD))	/* queue full ? */
+     return (0);
+
 
   ignore_segv++;
+#if 0
   /* *((unsigned short *) BIOS_DATA_PTR(KBD_Tail)) = scancode;*/
   WRITE_WORD(BIOS_DATA_PTR(KBD_Tail), scancode);
   KBD_Tail = nextpos;
+#endif
+  WRITE_WORD(BIOS_DATA_PTR(READ_WORD(KBD_TAIL)), scancode);
+  WRITE_WORD(KBD_TAIL, nextpos);
+
   ignore_segv--;
 
   /* dump_kbuffer(); */
@@ -1143,7 +1155,8 @@ convKey(int scancode)
   if (config.console_keyb || config.X) {
     unsigned int tmpcode = 0;
 
-    *LASTSCAN_ADD = scancode;
+/*    *LASTSCAN_ADD = scancode; */
+    WRITE_WORD(LASTSCAN_ADD, scancode);
     tmpcode = convscanKey(scancode);
     return tmpcode;
   }
@@ -1154,12 +1167,15 @@ void
 dump_kbuffer(void)
 {
   int i;
-  unsigned short *ptr = BIOS_DATA_PTR(KBD_Start);
+  /* unsigned short *ptr = BIOS_DATA_PTR(KBD_Start); */
+  unsigned short *ptr = BIOS_DATA_PTR(READ_WORD(KBD_START));
 
   k_printf("KEYBUFFER DUMP: 0x%02x 0x%02x\n",
-	   KBD_Head - KBD_Start, KBD_Tail - KBD_Start);
+/*	   KBD_Head - KBD_Start, KBD_Tail - KBD_Start);*/
+	   READ_WORD(KBD_HEAD) - READ_WORD(KBD_START), READ_WORD(KBD_TAIL) - READ_WORD(KBD_START));
   for (i = 0; i < 16; i++)
-    k_printf("%04x ", ptr[i]);
+    /* k_printf("%04x ", ptr[i]); */
+    k_printf("%04x ", (unsigned int) READ_WORD(ptr + i));
   k_printf("\n");
 }
 
@@ -1167,7 +1183,9 @@ void
 keybuf_clear(void)
 {
   ignore_segv++;
-  KBD_Head = KBD_Tail = KBD_Start;
+/*  KBD_Head = KBD_Tail = KBD_Start;*/
+  WRITE_WORD(KBD_HEAD, READ_WORD(KBD_START));
+  WRITE_WORD(KBD_TAIL, READ_WORD(KBD_START));
   ignore_segv--;
   dump_kbuffer();
 }
@@ -1427,11 +1445,18 @@ ScrollLock(unsigned int sc)
   if (key_flag(KKF_E0)) {
     k_printf("KBD: ctrl-break!\n");
     ignore_segv++;
+#if 0
     /* *(unsigned char *) 0x471 = 0x80; */	/* ctrl-break flag */
     WRITE_BYTE(0x471, 0x80); 	/* ctrl-break flag */
     KBD_Head = KBD_Tail = KBD_Start;
     /* *((unsigned short *) (BIOS_DATA_PTR(KBD_Start))) = 0;*/
     WRITE_WORD(BIOS_DATA_PTR(KBD_Start), 0);
+#endif
+    WRITE_BYTE(0x471, 0x80); 	/* ctrl-break flag */
+    WRITE_WORD(KBD_HEAD, READ_WORD(KBD_START));
+    WRITE_WORD(KBD_TAIL, READ_WORD(KBD_START));
+    WRITE_WORD(BIOS_DATA_PTR(READ_WORD(KBD_START)), 0);
+
     ignore_segv--;
     return;
   }
@@ -2020,7 +2045,8 @@ do_irq1(void) {
 
 void
 scan_to_buffer(void) {
-  k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", *LASTSCAN_ADD);
+/*  k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", *LASTSCAN_ADD); */
+  k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", READ_WORD(LASTSCAN_ADD));
   set_keyboard_bios();
   insert_into_keybuffer();
 }
@@ -2073,7 +2099,9 @@ set_keyboard_bios(void)
       inschr = convKey(HI(ax));
     }
     else
-      inschr = convKey(*LASTSCAN_ADD);
+/*      inschr = convKey(*LASTSCAN_ADD);*/
+      inschr = convKey(READ_WORD(LASTSCAN_ADD));
+
 #ifdef NEW_PIC
  /*     *LASTSCAN_ADD=1;   /* flag character as read */
       keys_ready = 0;	/* flag character as read	*/
@@ -2095,12 +2123,15 @@ set_keyboard_bios(void)
 		  }
 	  } else
 	    if(config.X_keycode)
-		  inschr = convKey(*LASTSCAN_ADD);
+		  /* inschr = convKey(*LASTSCAN_ADD); */
+		  inschr = convKey(READ_WORD(LASTSCAN_ADD));
 	    else {
-		  if(*LASTSCAN_ADD & 0x80)
+		  /* if(*LASTSCAN_ADD & 0x80) */
+		  if(READ_WORD(LASTSCAN_ADD) & 0x80)
 			inschr = 0x0;
 		  else
-		  	inschr = *LASTSCAN_ADD >> 8;
+		  	/* inschr = *LASTSCAN_ADD >> 8; */
+		  	inschr = READ_WORD(LASTSCAN_ADD) >> 8;
 		  k_printf("KBD: non-keybint X inschr = 0x%x\n", inschr);
 	    }
 #ifdef NEW_PIC
@@ -2113,16 +2144,22 @@ set_keyboard_bios(void)
       inschr = 0;
     }
   }
-  k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
+
+/*  k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD); */
+  k_printf("set keybaord bios inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, READ_WORD(LASTSCAN_ADD));
   k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
-	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));
+/*	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));*/
+	   READ_BYTE(KEYFLAG_ADDR), READ_BYTE(KEYFLAG_ADDR +1),
+           READ_BYTE(KBDFLAG_ADDR), READ_BYTE(KBDFLAG_ADDR+1));
+
 }
 
 void
 insert_into_keybuffer(void)
 {
   /* int15 fn=4f will reset CF if scan key is not to be used */
-  if (!config.keybint || LWORD(eflags) & CF)
+/*  if (!config.keybint || LWORD(eflags) & CF) */
+  if (!config.keybint || READ_FLAGS() & CF)
     keepkey = 1;
   else
     keepkey = 0;
@@ -2152,10 +2189,12 @@ parent_nextscan(void)
     if (*scan_queue_start != *scan_queue_end)
       *scan_queue_start = (*scan_queue_start + 1) % SCANQ_LEN;
     if (!config.console_keyb && !config.X) {
-       *LASTSCAN_ADD = lastchr >> 8;
+       /* *LASTSCAN_ADD = lastchr >> 8; */
+       WRITE_WORD(LASTSCAN_ADD, lastchr >> 8);
     }
     else {
-       *LASTSCAN_ADD = lastchr;
+       /* *LASTSCAN_ADD = lastchr; */
+       WRITE_WORD(LASTSCAN_ADD, lastchr);
     }
   }
 #ifdef NEW_PIC
@@ -2165,5 +2204,6 @@ parent_nextscan(void)
     k_printf("Parent Nextscan Key not Read!\n");
   k_printf("Parent Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
-  k_printf("start=%d, end=%d, LASTSCAN=%x\n", *scan_queue_start, *scan_queue_end, *LASTSCAN_ADD);
+/*  k_printf("start=%d, end=%d, LASTSCAN=%x\n", *scan_queue_start, *scan_queue_end, *LASTSCAN_ADD); */
+  k_printf("start=%d, end=%d, LASTSCAN=%x\n", *scan_queue_start, *scan_queue_end, READ_WORD(LASTSCAN_ADD));
 }

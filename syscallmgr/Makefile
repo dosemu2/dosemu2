@@ -39,9 +39,6 @@ all: syscallmgr.o insmod testsys.o testmain
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
 
-jim.o:    jim.c 
-	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c jim.c -o jim.o
-
 syscallmgr.o:    syscallmgr.c ../include/syscallmgr.h 
 	$(CC) -m486 -Wall -I$(USRSRCDIR) $(INCDIR) -c -O2 -fomit-frame-pointer -D__KERNEL__ -DLINUX -c syscallmgr.c -o syscallmgr.o
 
