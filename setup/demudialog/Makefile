@@ -3,7 +3,7 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
-USE_SLCURSES = 1
+#USE_SLCURSES = 1  # this works buggy on some systems :-(
 #DBGFLAGS = -g
 
 CC = gcc

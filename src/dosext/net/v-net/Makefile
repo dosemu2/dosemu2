@@ -29,7 +29,7 @@ all: $(OBJS)
 dosnet.o:  dosnet.c
 	$(CC) $(INCDIR) -D__KERNEL__ -Wall -Wstrict-prototypes -O2 \
 	-fno-strength-reduce -I$(KERNEL_INCDIR) -I$(DOSEMU_INCDIR) \
-	-DMODULE -DMODVERSIONS \
+	-DMODULE \
 	-fomit-frame-pointer  -m486 -c -o dosnet.o dosnet.c 
 
 checkin:

@@ -2507,6 +2507,7 @@ static int
 dos_fs_redirect(state)
      state_t *state;
 {
+  PRIV_SAVE_AREA
   char *filename1;
   char *filename2;
   char *dta;
@@ -2608,7 +2609,7 @@ dos_fs_redirect(state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
-    if (mkdir(fpath, 0755) != 0) {
+    if (mkdir(fpath, 0775) != 0) {
       for (i = 0, bs_pos = 0; fpath[i] != EOS; i++) {
 	if (fpath[i] == SLASH)
 	  bs_pos = i;
@@ -2877,6 +2878,11 @@ dos_fs_redirect(state)
       return (FALSE);
     }
     build_ufs_path(fpath, filename2);
+    if (find_file(fpath, &st)) {
+        Debug0((dbg_fd,"Rename, %s already exists\n", fpath));
+        SETWORD(&state->eax, ACCESS_DENIED);
+        return (FALSE);
+    }
     for (i = 0, bs_pos = 0; fpath[i] != EOS; i++) {
       if (fpath[i] == SLASH)
 	bs_pos = i;
@@ -3214,6 +3220,12 @@ dos_fs_redirect(state)
 #endif
 	return (FALSE);
       }
+    }
+
+    if (can_do_root_stuff) {
+      enter_priv_on();
+      fchown(fd, get_orig_uid(), get_orig_gid());
+      leave_priv_setting();
     }
 
     auspr(fpath + bs_pos + 1, sft_name(sft), sft_ext(sft));

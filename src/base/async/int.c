@@ -684,7 +684,7 @@ static void int15(u_char i)
   case 0xc0:
     LWORD(es) = ROM_CONFIG_SEG;
     LWORD(ebx) = ROM_CONFIG_OFF;
-    LO(ax) = 0;
+    HI(ax) = 0;
     return;
   case 0xc1:
     CARRY;

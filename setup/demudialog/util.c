@@ -30,7 +30,11 @@
 
 
 /* use colors by default? */
+#ifdef SLANG
 bool use_colors = 0;
+#else
+bool use_colors = 1;
+#endif
 
 const char *backtitle = NULL;
 

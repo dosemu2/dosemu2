@@ -1491,7 +1491,7 @@ mouse_delta(int event)
 void
 mouse_event()
 {
-  if (mouse.mask & mouse_events && mouse.cs && mouse.ip) {
+  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip)) {
     if(in_dpmi && !in_dpmi_dos_int 
           && !((mouse.cs == DPMI_SEG) && ((void *)(Bit32u)mouse.ip == DPMI_mouse_callback)))
                   fake_pm_int();

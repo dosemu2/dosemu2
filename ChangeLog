@@ -1,3 +1,27 @@
+99/04/20 ver. 0.99.10.2 unofficial pre-release
+	From Josef Pavlik <jet@spintec.com>
+	- fix for MFS creating new files with wrong ownership (mfs.c)
+	From Wojtek Pilorz <wpilorz@bdk.pl>
+	- fix for dosnet having problems to insmod properly
+	  (removed -DMODVERSIONS from src/dosext/net/v-net/Makefile)
+	From Cyril Slobin <slobin@iname.com>
+	- fix for MFS: under DOS (other then under Unix) renaming to an
+	  existing file must result in ACCESS_DENIED (INT21,AH=56).
+	From Jiuming Luo <jiuming_luo@yahoo.com>
+	- fix for INT15,AH=C0 returning the status in the wrong register
+	  (must be AH, not AL), src/base/async/int.c.
+	From Levente Csiszar <eriador@elender.hu>
+	- creating directories in MFS did set the group readonly.
+	  e.g. DOSEMU running as user on the group 'dosemu' would not be able
+	  to work on these directories. Changed perms from 755 to 775
+	From Kyle Fortin <forky@jungle.net>
+	- fix for mouse_event() not detecting a mouse handler when
+	  CS:IP has CS or IP = 0. (src/base/mouse/mouse.c)
+	From Alistair
+	- remove USE_SLCURSES from setup/demudialog/Makefile
+	  (this fixes the socalled 'submit-bug-report bug' ;-)
+	From Hans
+	- changed demudialog back to color mode
 99/03/26 ver. 0.99.10.1 unofficial pre-release
         From Hans
 	- further kludges to /proc/self/mem mmap kernel bug, making the
