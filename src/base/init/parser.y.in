@@ -319,7 +319,7 @@ extern void yyrestart(FILE *input_file);
 	/* joystick */
 %token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
 	/* Hacks */
-%token CLI_TIMEOUT
+%token CLI_TIMEOUT PIC_FORCE_COUNT
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -756,6 +756,8 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| CLI_TIMEOUT int_bool
 		    { config.cli_timeout = $2; }
+		| PIC_FORCE_COUNT int_bool
+		    { config.pic_force_count = $2; }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error

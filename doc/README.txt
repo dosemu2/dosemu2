@@ -1067,31 +1067,27 @@ is,
        for some of your users, just use the keyword `nosuidroot' in
        /etc/dosemu.users to forbid some (or all) users execution of a
        suid root running dosemu (they may use a non-suid root copy of the
-       binary though).
+       binary though) or let them use DOSEMU though "sudo". DOSEMU now
+       drops it root privileges just before booting; however there may
+       still be security problems in the initialization code, and by
+       making DOSEMU suid-root you can give users direct access to
+       resources they don't normally have access too, such as selected
+       I/O ports, hardware IRQs and hardware RAM.
+       If DOSEMU is invoked via "sudo" then it will automatically switch
+       to the user who invoked "sudo". An example /etc/sudoers entry is
+       this:
+
+    joeuser   ALL=NOPASSWD: /usr/local/bin/dosemu.bin
+
+       If you use PASSWD instead of NOPASSWD then users need to type
+       their own passwords when sudo asks for it. The "dosemu" script can
+       be invoked using the "-s" option to automatically use sudo.
      * Use proper file permissions to restrict access to a suid root
        DOSEMU binary in addition to /etc/dosemu.users `nosuidroot'. (
        double security is better ).
      * NEVER let foreign users execute dosemu under root login !!!
        (Starting with dosemu-0.66.1.4 this isn't necessary any more, all
        functionality should also be available when running as user)
-     * Do not configure dosemu with the --enable-runasroot option.
-       Normally dosemu will switch privileges off at startup and only set
-       them on, when it needs them. With '--enable-runasroot' it would
-       permanently run under root privileges and only disable them when
-       accessing secure relevant resources, ... not so good.
-     * Never allow DPMI programms to run, when dosemu is suid root.
-       (in /etc/dosemu.conf set 'dpmi off' to disable)
-       It is possible to overwrite sensitive parts of the emulator code,
-       and this makes it possible for a intruder program under DOS, who
-       knows about dosemu internals (which is easy as you have the
-       source) to get root access also on non dosemu processes. Because a
-       lot of games won't work without, we allow creation of
-       LDT-descriptor that span the whole user space.
-       There is a 'secure' option in /etc/dosemu.conf, that allows to
-       turn off creation of above mentioned descriptors, but those
-       currently protect only the dosemu code and the stack, and may be
-       some diabolical person finds a way to use the (unprotected) heap.
-       Anyway, better 'secure on' than nothing.
      _________________________________________________________________
 
 4. Sound
@@ -1311,15 +1307,11 @@ is,
    Starting with dosemu-0.66.1.4 there should be no reason against
    running dosemu as a normal user. The privilege stuff has been
    extensively reworked, and there was no program that I tested under
-   root, that didn't also run as user. However, if you suspect problems
-   resulting from the fact that you run as user, you should first try
-   configuring dosemu with the 'runasroot' option (see setup-dosemu
-   tool). This lets dosemu permanently run as (suid) root and only use
-   user privileges when accessing secure relevant resources. Normally
-   dosemu will permanently run as user and only temporarily use root
-   privilege when needed and in case of non-suid root (as of
-   dosemu-0.97.10), it will run in lowfeature mode without any
-   privileges.
+   root, that didn't also run as user. Normally dosemu will permanently
+   run as user and only temporarily use root privilege when needed
+   (during initialization) and then drop its root privileges permanently.
+   In case of non-suid root (as of dosemu-0.97.10), it will run in
+   lowfeature mode without any privileges.
      _________________________________________________________________
 
 7. Using CDROMS

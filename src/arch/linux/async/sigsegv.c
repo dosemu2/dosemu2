@@ -199,6 +199,7 @@ sgleave:
         /* start_gdb() */
 
 	/* Going to die from here */
+	goto bad;	/* well, this goto is unnecessary but I like gotos:) */
       }
     } /*_cs==UCODESEL*/
     else {
@@ -212,7 +213,15 @@ sgleave:
 #endif /* X_GRAPHICS */
 
       /* dpmi_fault() will handle that */
-      return dpmi_fault(scp);
+      dpmi_fault(scp);
+      if (_cs==UCODESEL) {
+        /* context was switched to dosemu's, return ASAP */
+        return;
+      }
+
+      CheckSelectors(scp);
+      /* now we are safe */
+      return;
     }
   } /*in_dpmi*/
 

@@ -15,7 +15,7 @@ function usage {
   echo "
 USAGE:
 
- [x]dosemu [-dumb] [-home] [-quiet] [-input] [-install nameofbootdir] [args...]
+ [x]dosemu [-dumb] [-home] [-quiet] [-input] [-s] [-install nameofbootdir] [args...]
 "
   exit 1
 }
@@ -62,7 +62,7 @@ function install_from_template {
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET
+unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO
 
 i=0;
 while [ $(( $# > 0 )) = 1 ] ; do
@@ -98,6 +98,10 @@ while [ $(( $# > 0 )) = 1 ] ; do
       if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
       STRING_I="$STRING_I $2"
       shift
+      shift
+      ;;   
+    -s)
+      USE_SUDO=1
       shift
       ;;   
     *)
@@ -350,8 +354,13 @@ else
   BINARY=$BOOT_DIR_PATH/bin/dosemu.bin
 fi
 
+SUDO=""
+if [ -n "$USE_SUDO" ] ; then
+  SUDO=sudo
+fi
+
 if [ -n "$STRING_I" ] ; then
-  exec $BINARY $XFLAG "-I $STRING_I" "${par[@]}"
+  exec $SUDO $BINARY $XFLAG "-I $STRING_I" "${par[@]}"
 else
-  exec $BINARY $XFLAG "${par[@]}"
+  exec $SUDO $BINARY $XFLAG "${par[@]}"
 fi

@@ -179,17 +179,8 @@ static unsigned long   pic_pirr;         /* pending requests: ->irr when icount=
 static unsigned long   pic_wirr;             /* watchdog timer for pic_pirr */
 static unsigned long   pic_wcount = 0;       /* watchdog for pic_icount  */
 unsigned long	pic_icount_od = 1;           /* overdrive for pic_icount_od */
-#if 0
-unsigned long   pic0_imr = 0xf800;  /* IRQs 3-7 on pic0 start out disabled */
-unsigned long   pic1_imr = 0x07f8;  /* IRQs 8-15 on pic1 start out disabled */
-unsigned long   pic_imr = 0xfff8;   /* interrupt mask register, enable irqs 0,1 */
-unsigned long   pice_imr = -1;      /* interrupt mask register, dos emulator */ 
-unsigned long   pic_stack[32];      /* stack of interrupt levels */
-unsigned long   pic_sp = 0;         /* pointer to stack */
-unsigned long   pic_vm86_count=0;   /* counter for trips around vm86 loop */
-unsigned long   pic_dpmi_count=0;   /* counter for trips around dpmi loop */
-         hitimer_t pic_sys_time=NEVER; /* system time for scheduling interrupts */
-#endif
+unsigned long	pic_irqs_active = 0;
+
 static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -408,13 +399,12 @@ static char                icw_max_state;          /* number of icws expected   
 int ilevel;			  /* level to reset on outb 0x20  */
 
 port -= 0x20;
-ilevel=pic_ilevel;
-if(pic_sp) {
-   if(ilevel!=pic_stack[pic_sp-1]) {
-      pic_print(2,"ilevel=",ilevel," differed from pic_stack");
-   }
-   ilevel=pic_stack[pic_sp-1];
-}
+ilevel = 32;
+if (pic_isr)
+  ilevel=find_bit(pic_isr);
+if(ilevel != pic_ilevel)
+  error("PIC0: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
+    ilevel, pic_ilevel, pic_isr);
 
 if(!port){                          /* icw1, ocw2, ocw3 */
   if(value&0x10){                   /* icw1 */
@@ -430,15 +420,9 @@ if(!port){                          /* icw1, ocw2, ocw3 */
     pic0_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
-     if(!pic_sp) {
-	pic_print(2,"EOI with nothing on pic_stack! ilevel=",ilevel,"");
-     } else if(pic_stack[pic_sp-1]!=ilevel) {
-	pic_print(2,"Stack value differed from ilevel! stack=",pic_stack[pic_sp-1],"");
-     }
     /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
      if(!clear_bit(ilevel,&pic1_isr)) {
        clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
-       pic_ilevel=pic_pop();  /* only pop stack when pic_isr gets cleared */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
        }
      else
@@ -468,13 +452,12 @@ static char /* icw_state, */     /* !=0 => port 1 does icw 2,3,(4) */
 int ilevel;			  /* level to reset on outb 0x20  */
 
 port -= 0xa0;
-ilevel=pic_ilevel;
-if(pic_sp) {
-   if(ilevel!=pic_stack[pic_sp-1]) {
-      pic_print(2,"ilevel=",ilevel," differed from pic_stack");
-   }
-   ilevel=pic_stack[pic_sp-1];
-}
+ilevel = 32;
+if (pic_isr)
+  ilevel=find_bit(pic_isr);
+if(ilevel != pic_ilevel)
+  error("PIC1: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
+    ilevel, pic_ilevel, pic_isr);
 
 if(!port){                            /* icw1, ocw2, ocw3 */
   if(value&0x10){                     /* icw1 */
@@ -489,15 +472,9 @@ if(!port){                            /* icw1, ocw2, ocw3 */
     pic1_cmd=3;
     }
   else if((value&0xb8) == 0x20) {    /* ocw2 */
-     if(!pic_sp) {
-	pic_print(2,"EOI with nothing on pic_stack! ilevel=",ilevel,"");
-     } else if(pic_stack[pic_sp-1]!=ilevel) {
-	pic_print(2,"Stack value differed from ilevel! stack=",pic_stack[pic_sp-1],"");
-     }
     /* irqs on pic1 require an outb20 to each pic. we settle for any 2 */
      if(!clear_bit(ilevel,&pic1_isr)) {
        clear_bit(ilevel,&pic_isr);  /* the famous outb20 */
-       pic_ilevel=pic_pop();  /* only pop stack when pic_isr gets cleared */
        pic_print(1,"EOI resetting bit ",ilevel, " on pic0");
        }
      else
@@ -650,13 +627,9 @@ void run_irqs(void)
 {
        int old_ilevel;
        int int_request;
-       int priority;
 
        /* don't allow HW interrupts in force trace mode */
        if (vm86s.vm86plus.vm86dbg_TFpendig) return;
-
-       /* Old hack, to be removed */
-       if (in_dpmi && in_dpmi_timer_int) return;
 
        /* check for and find any requested irqs.  Having found one, we atomic-ly
         * clear it and verify it was there when we cleared it.  If it wasn't, we
@@ -667,7 +640,6 @@ void run_irqs(void)
         */
 
        old_ilevel=pic_ilevel;                          /* save old pic_ilevl   */
-       priority = pic_smm + old_ilevel;                /* check spec. mask mode       */
 
        while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
                int local_pic_ilevel;
@@ -675,22 +647,25 @@ void run_irqs(void)
 	       if (!isset_IF() && !in_dpmi)
 	    	       goto exit;                      /* exit if ints are disabled */
 
-               do {
-                       local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
-                       /* In case int_request has no bits set */
-                       if (local_pic_ilevel == -1)
-                               goto exit;
-                       if (local_pic_ilevel > priority)  /* priority check */
-                               goto exit;
-               } while (clear_bit(local_pic_ilevel, &pic_irr) == 0);   /* dbl check & clear req */
+               local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
+               /* In case int_request has no bits set */
+               if (local_pic_ilevel == -1)
+                       goto exit;
+               if (local_pic_ilevel >= old_ilevel + pic_smm)  /* priority check */
+                       goto exit;
+
+               if (pic_irqs_active && local_pic_ilevel >= find_bit(pic_irqs_active))
+                       goto exit;
+
+               clear_bit(local_pic_ilevel, &pic_irr);
                pic_ilevel = local_pic_ilevel;
                set_bit(local_pic_ilevel, &pic_isr);     /* set in-service bit */
                set_bit(local_pic_ilevel, &pic1_isr);    /* pic1 too */
                pic1_isr &= pic_isr & pic1_mask;         /* isolate pic1 irqs */
                pic_iinfo[local_pic_ilevel].func();      /* run the function */
-               local_pic_ilevel = pic_ilevel;
                clear_bit(local_pic_ilevel, &pic_isr);   /* clear in_service bit */
                clear_bit(local_pic_ilevel, &pic1_isr);  /* pic1 too */
+	       pic_ilevel=old_ilevel;
        }
  exit:
        /* whether we did or didn't :-( get one, we must still reset pic_ilevel */
@@ -743,7 +718,11 @@ int do_irq()
     if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
     {
-     if (test_bit(ilevel, &pic_irqall)) pic_push(ilevel);
+     if (test_bit(ilevel, &pic_irqall)) {
+       pic_push(ilevel);
+       set_bit(ilevel, &pic_irqs_active);
+       pic_wcount = 0;
+     }
 
      if (!in_dpmi || in_dpmi_dos_int) {
       ssp = (unsigned char *)(LWORD(ss)<<4);
@@ -780,7 +759,6 @@ int do_irq()
      }
 
       pic_icount++;
-      pic_wcount++;
 
  /* enter PIC loop - we can continue only when pic_isr has been cleared */
       while(!fatalerr && test_bit(ilevel,&pic_isr))
@@ -824,9 +802,23 @@ int do_irq()
 void
 pic_resched() 
 {
-unsigned long pic_newirr;
-    if(pic_icount)
+unsigned long pic_newirr, pic_last_ilevel;
+    if(pic_icount) {
        pic_icount--;
+       pic_last_ilevel = pic_pop();
+       if (pic_icount != pic_sp)
+         error("pic_icount=%i != pic_sp=%i\n", pic_icount, pic_sp);
+       if (!test_bit(pic_last_ilevel, &pic_irqs_active)) {
+         error("PIC: bit %li is not set, irqs_active=%lx\n",
+	   pic_last_ilevel, pic_irqs_active);
+	 pic_irqs_active = 0;
+       }
+       clear_bit(pic_last_ilevel, &pic_irqs_active);
+    } else if (pic_irqs_active) {
+      error("pic_icount=%i and pic_irqs_active=%lx are out of sync!\n",
+        pic_icount, pic_irqs_active);
+      pic_irqs_active = 0;
+    }
     if(pic_icount<=pic_icount_od) {
 	pic_newirr=pic_pirr&~pic_irr&~pic_isr;
         pic_irr|=pic_newirr;
@@ -834,6 +826,7 @@ unsigned long pic_newirr;
         pic_wirr&=~pic_newirr;        /* clear watchdog timer */
 	pic_activate();
     }
+    pic_wcount = 0;
 }
 
 /* DANG_BEGIN_FUNCTION pic_request
@@ -1021,6 +1014,16 @@ unsigned long pic_newirr;
   pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];
   if(pic_icount<=pic_icount_od) pic_activate();
+  if(config.pic_force_count > 0) {
+    if(pic_icount && !pic_isr) {
+      if(++pic_wcount >= config.pic_force_count) {
+        error("PIC: force reschedule\n");
+        pic_resched();
+      }
+    } else {
+      pic_wcount = 0;
+    }
+  }
 }      
 
 

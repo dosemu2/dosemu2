@@ -401,8 +401,7 @@ endif
 	@echo "  - Try emumouse.exe -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try unix.exe to run a Unix command under DOSEMU"; \
 	 echo -e "\n  NOTE: DOSEMU is no longer installed suid-root by default!"; \
-	 echo -e   "        If you need it (NOT recommended), do a 'chmod u+s $(bindir)/$(DOSBIN)'"; \
-	 echo "See the QuickStart file for additional information."; \
+	 echo "Please see the QuickStart file for additional information."; \
 	 echo ""
 
 
@@ -469,9 +468,7 @@ $(REALCLEANDIRS):
 
 
 pristine:	realclean
-	-mv lib/libarch_*slang*.a .
 	-rm -f lib/*
-	-mv libarch_*slang*.a lib
 	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont
 	-rm -rf ../testboot
 

@@ -223,7 +223,7 @@ proc write_out {} {
 
 	write_pairs  config  { "experimental" "sbemu" "mitshm" \
 				   "x" "net" "dodebug" \
-				   "runasroot" "linkstatic" \
+				   "linkstatic" \
 				   "cpuemu" "aspi" \
 				   "svgalib" }
 

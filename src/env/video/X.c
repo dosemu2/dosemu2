@@ -1382,6 +1382,7 @@ void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range)
 void X_handle_events()
 {
    static int busy = 0;
+   static int mouse_really_left_window = 1;
    XEvent e;
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
 
@@ -1646,14 +1647,27 @@ void X_handle_events()
 	   * drawn by win31 and align it with the X-cursor.
 	   * (Hans)
 	   */
-	  if(!grab_active) snap_X=3;
-	  X_printf("X: Mouse entering window\n");
-	  set_mouse_position(e.xcrossing.x, e.xcrossing.y);
-	  set_mouse_buttons(e.xcrossing.state);
+          X_printf("X: Mouse entering window event\n");
+          if (mouse_really_left_window)
+          {
+            X_printf("X: Mouse really entering window\n");
+	    if(!grab_active) snap_X=3;
+	    set_mouse_position(e.xcrossing.x, e.xcrossing.y);
+	    set_mouse_buttons(e.xcrossing.state);
+          }
 	  break;
 	  
 	case LeaveNotify:                   /* Should this do anything? */
-	  X_printf("X: Mouse leaving window\n");
+	  X_printf("X: Mouse leaving window, coordinates %d %d\n", e.xcrossing.x, e.xcrossing.y);
+          /* some stupid window managers send this event if you click a
+             mouse button when the mouse is in the window. Let's ignore the
+             next "EnterNotify" if the mouse doesn't really leave the window */
+          mouse_really_left_window = 1;
+          if (e.xcrossing.x >= 0 && e.xcrossing.x < w_x_res &&
+              e.xcrossing.y >= 0 && e.xcrossing.y < w_y_res) {
+            X_printf("X: bogus LeaveNotify event\n");
+            mouse_really_left_window = 0;
+          }
 	  break;
 
         case ConfigureNotify:

@@ -89,16 +89,31 @@ the appropriate action ...
 
 
 --------------------------------------------------------------------------
-4.  Configure for a system wide suid-root installation
+4.  Configure for a system wide suid-root (or sudo-using) installation
 --------------------------------------------------------------------------
 
 (Note: You normally don't need it for a non-suid-root DOSEMU).
 
-(BIG FAT WARNING: you have to be _very_ skilled to do it right !!)
+(BIG FAT WARNING: you have to be skilled to do it right !!)
 
 - Install system-wide, as explained above in section 2.
   Modify /etc/dosemu/dosemu.conf by using the info in the file ./doc/README.txt
   chapter 2
+
+- Either:
+	chmod u+s /path/to/dosemu.bin
+  or (recommended for better protection):
+	* leave dosemu.bin non-suid-root
+	* install "sudo" if you haven't already done so
+	* use "visudo" to add entries such as
+		joeuser   ALL=NOPASSWD: /usr/local/bin/dosemu.bin
+	  to your /etc/sudoers file.
+	* if you change NOPASSWD to PASSWD then joeuser needs to type
+	  the user's password (not root's password) when invoking DOSEMU.
+	* invoke dosemu using "dosemu -s" when suid-root functionality,
+	  such as console graphics, is needed.
+  This way DOSEMU will only use its root privileges during the 
+  initialization phase, and drops them just before booting a DOS.
 
 - Copy /etc/dosemu/dosemu.users.easy to /etc/dosemu/dosemu.users which 
   contains a list of users who are privileged to use dosemu.  The user "all" 

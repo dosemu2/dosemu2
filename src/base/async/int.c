@@ -1168,7 +1168,6 @@ static int ms_dos(int nr)
   case 0x4C:                    /* program exit */
     if(pic_icount) {
       pic_resched();
-      pic_icount=0;
     }
     return 0;
 

@@ -49,26 +49,6 @@
 
 #define dpmi_sti() 	({ dpmi_eflags |= IF; is_cli = 0; pic_sti(); })
 
-#define CHECK_SELECTOR(x) \
-{ if ( (((x) >> 3) >= MAX_SELECTORS) || (!Segments[((x) >> 3)].used) \
-      || (((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
-      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
-	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
-      _LWORD(eax) = 0x8022; \
-      _eflags |= CF; \
-      break; \
-    } \
-}
-#define CHECK_SELECTOR_ALLOC(x) \
-{ if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
-      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
-	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
-      _LWORD(eax) = 0x8022; \
-      _eflags |= CF; \
-      break; \
-    } \
-}
-
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \
 ({ unsigned long __res; \
@@ -145,7 +125,6 @@ EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
 EXTERN int dpmi_eflags INIT(0);    /* used for virtual interruptflag and pending interrupts */
 EXTERN int in_dpmi_dos_int INIT(0);
-EXTERN int in_dpmi_timer_int INIT(0);
 EXTERN int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 EXTERN int is_cli INIT(0);
@@ -197,6 +176,7 @@ int
 DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
 unsigned long GetSegmentBaseAddress(unsigned short);
+void CheckSelectors(struct sigcontext_struct *scp);
 
 extern void DPMI_show_state(struct sigcontext_struct *scp);
 extern void dpmi_sigio(struct sigcontext_struct *scp);

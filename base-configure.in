@@ -489,13 +489,6 @@ dnl Do SB emulation
                 AC_SUBST(USE_SBEMU)])
 
 
-AC_ARG_ENABLE(runasroot,
-              [  --enable-runasroot      dosemu should run as root mostly],
-              [AC_CHECKING("Compiling for dosemu mostly running as root")
-               AC_DEFINE(RUN_AS_ROOT)
-	       AC_SUBST(RUN_AS_ROOT)],
-	      [AC_CHECKING("Compiling for dosemu mostly running as user")])
-
 dnl DPMI requirements
 
 AC_DEFINE_UNQUOTED(WANT_WINDOWS)

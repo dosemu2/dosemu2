@@ -113,19 +113,27 @@ static unsigned get_key(extended)
 
 static unsigned check_key_available(int extended)
 {
+  unsigned keyptr = get_key(extended);
+  static Bit32u oldESP;
   static int trigger = 0, trigger1 = 0;
   
-  if(get_key(extended) == -1 && config.hogthreshold && CAN_SLEEP()) {
+  if(keyptr == -1 && config.hogthreshold && CAN_SLEEP()) {
     if(port60_buffer & 0x80)
       trigger1++;
     else
       trigger1=0;
     if(trigger1 >= config.hogthreshold*500) {
-      if (++trigger >= config.hogthreshold*20) {
-        usleep(INT2F_IDLE_USECS);
+      if(oldESP==_ESP) {
+        if (++trigger >= config.hogthreshold*20) {
+          usleep(INT2F_IDLE_USECS);
+          trigger=0;
+          keyptr = get_key(extended);
+        }
+      } else {
         trigger=0;
       }
       trigger1--;
+      oldESP=_ESP;
     }
   }
   return get_key(extended);

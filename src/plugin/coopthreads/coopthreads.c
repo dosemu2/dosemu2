@@ -1734,6 +1734,20 @@ int com_argparse(char *s, char **argvx, int maxarg)
    }
    else s[1+(unsigned char)s[0]] = 0;
    s++;
+
+   /* transform:
+    *    dir/p to dir /p
+    *    cd\ to cd \
+    *    cd.. to cd ..
+    */
+   p = s;
+   while (isalnum(*p)) p++;
+   if (*p == '\\' || *p == '/' || (*p == '.' && p[1] == '.')) {
+      memmove(p+1, p, s [-1] - (p - s) + 1/*NUL*/);
+      *p = ' ';
+      s[-1]++; /* update length */
+   }
+
    maxarg --;
    for ( ; *s; s++) {
       if (!mode) {

@@ -55,9 +55,6 @@ while [ "$1" != "" ]; do
     sbemu)
       if [ "$2" = "off" ]; then STRING="$STRING --enable-nosbemu"; fi
       ;;
-    runasroot)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-runasroot"; fi
-      ;;
     linkstatic)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
       ;;

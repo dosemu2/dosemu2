@@ -53,6 +53,7 @@
 
 /* define this to work around some buggy OSS drivers */
 #define STALLED_FRAGS 1
+#define BUGGY_DRIVER_NEEDS_POST
 
 /* SB static vars */
 static int mixer_fd = -1;
@@ -450,7 +451,9 @@ static int in_frag = 0;
     return 0;
   }
   if (linux_sb_dma_get_free_space() < size) {
+#ifdef BUGGY_DRIVER_NEEDS_POST
     ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
+#endif
     in_frag = 0;
     return 0;
   }
@@ -463,8 +466,10 @@ static int in_frag = 0;
   S_printf("\n");
   in_frag += amount_done;
   if (in_frag >= (1 << sound_frag_size)) {
+#ifdef BUGGY_DRIVER_NEEDS_POST
     S_printf("SB [Linux]: ioctling POST\n");
     ioctl (dsp_fd, SNDCTL_DSP_POST);	/* some buggy drivers needs this */
+#endif
     in_frag = 0;
   }
   return amount_done;

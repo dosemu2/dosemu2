@@ -141,6 +141,22 @@ struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store th
 static struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
 static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 
+#define CHECK_SELECTOR(x) \
+{ if (!ValidAndUsedSelector(x) || SystemSelector(x)) { \
+      _LWORD(eax) = 0x8022; \
+      _eflags |= CF; \
+      break; \
+    } \
+}
+
+#define CHECK_SELECTOR_ALLOC(x) \
+{ if (!ValidSelector(x) || SystemSelector(x)) { \
+      _LWORD(eax) = 0x8022; \
+      _eflags |= CF; \
+      break; \
+    } \
+}
+
 #ifdef __linux__
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
   #define LDT_WRITE 0x11
@@ -388,6 +404,9 @@ unsigned long inline client_esp(struct sigcontext_struct *scp)
 static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 {
   register int ret;
+
+  CheckSelectors(dpmi_context);
+
   __asm__ volatile (
 "      subl   $12,%%esp\n"		/* dummy, cr2,oldmask,fpstate */
 "      push   %%ss\n"
@@ -702,9 +721,115 @@ static inline unsigned short GetNextSelectorIncrementValue(void)
   return 8;
 }
 
+static int SystemSelector(unsigned short selector)
+{
+  if ((((selector) & 0xfffc) == (DPMI_SEL & 0xfffc)) ||
+     (((selector) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) ||
+     (((selector) & 0xfffc ) == (LDT_ALIAS & 0xfffc)))
+    return 1;
+  return 0;
+}
+
+static inline int ValidSelector(unsigned short selector)
+{
+  if (selector && ((selector >> 3) < MAX_SELECTORS) && (selector & 4) == 4)
+    return 1;
+  return 0;
+}
+
+int ValidAndUsedSelector(unsigned short selector)
+{
+  if (ValidSelector(selector) && Segments[selector >> 3].used)
+    return 1;
+  return 0;
+}
+
+void CheckSelectors(struct sigcontext_struct *scp)
+{
+/* NONCONFORMING-CODE-SEGMENT:
+   RPL of destination selector must be <= CPL ELSE #GP(selector);
+   Descriptor DPL must be = CPL ELSE #GP(selector);
+   Segment must be present ELSE # NP(selector);
+   Instruction pointer must be within code-segment limit ELSE #GP(0);
+*/
+  if (!ValidAndUsedSelector(_cs) || Segments[_cs >> 3].not_present ||
+    Segments[_cs >> 3].type != MODIFY_LDT_CONTENTS_CODE) {
+    error("CS selector invalid: 0x%04X, type=%x np=%i\n",
+      _cs, Segments[_cs >> 3].type, Segments[_cs >> 3].not_present);
+    leavedos(36);
+  }
+
+/*
+IF SS is loaded;
+THEN
+   IF selector is null THEN #GP(0);
+FI;
+   Selector index must be within its descriptor table limits else
+      #GP(selector);
+   Selector's RPL must equal CPL else #GP(selector);
+AR byte must indicate a writable data segment else #GP(selector);
+   DPL in the AR byte must equal CPL else #GP(selector);
+   Segment must be marked present else #SS(selector);
+   Load SS with selector;
+   Load SS with descriptor.
+FI;
+*/
+  if (!ValidAndUsedSelector(_ss) || ((_ss & 3) != 3) || /* writable??? */
+     Segments[_ss >> 3].not_present ||
+     (Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
+      Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_DATA)) {
+    error("SS selector invalid: 0x%04X, type=%x np=%i\n",
+      _ss, Segments[_ss >> 3].type, Segments[_ss >> 3].not_present);
+    leavedos(36);
+  }
+
+/*
+IF DS, ES, FS or GS is loaded with non-null selector;
+THEN
+   Selector index must be within its descriptor table limits
+      else #GP(selector);
+   AR byte must indicate data or readable code segment else
+      #GP(selector);
+   IF data or nonconforming code segment
+   THEN both the RPL and the CPL must be less than or equal to DPL in
+      AR byte;
+   ELSE #GP(selector);
+   FI;
+   Segment must be marked present else #NP(selector);
+   Load segment register with selector;
+   Load segment register with descriptor;
+FI;
+IF DS, ES, FS or GS is loaded with a null selector;
+THEN
+   Load segment register with selector;
+   Clear descriptor valid bit;
+FI;
+*/
+  if (_ds && (!ValidAndUsedSelector(_ds) || Segments[_ds >> 3].not_present)) {
+    error("DS selector invalid: 0x%04X, type=%x np=%i\n",
+      _ds, Segments[_ds >> 3].type, Segments[_ds >> 3].not_present);
+    leavedos(36);
+  }
+  if (_es && (!ValidAndUsedSelector(_es) || Segments[_es >> 3].not_present)) {
+    error("ES selector invalid: 0x%04X, type=%x np=%i\n",
+      _es, Segments[_es >> 3].type, Segments[_es >> 3].not_present);
+    leavedos(36);
+  }
+  if (_fs && (!ValidAndUsedSelector(_fs) || Segments[_fs >> 3].not_present)) {
+    error("FS selector invalid: 0x%04X, type=%x np=%i\n",
+      _fs, Segments[_fs >> 3].type, Segments[_fs >> 3].not_present);
+    leavedos(36);
+  }
+  if (_gs && (!ValidAndUsedSelector(_gs) || Segments[_gs >> 3].not_present)) {
+    error("GS selector invalid: 0x%04X, type=%x np=%i\n",
+      _gs, Segments[_gs >> 3].type, Segments[_gs >> 3].not_present);
+    leavedos(36);
+  }
+}
+
 unsigned long GetSegmentBaseAddress(unsigned short selector)
 {
-  if (selector >= (MAX_SELECTORS << 3))
+  if (!ValidAndUsedSelector(selector))
     return 0;
   return Segments[selector >> 3].base_addr;
 }
@@ -719,9 +844,7 @@ int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetSegmentBaseAddress[0x%04x;0x%04x] 0x%08lx\n", ldt_entry, selector, baseaddr);
-  if (ldt_entry >= MAX_SELECTORS)
-    return -1;
-  if (!Segments[ldt_entry].used)
+  if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1;
   Segments[ldt_entry].base_addr = baseaddr;
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
@@ -738,9 +861,7 @@ int SetSegmentLimit(unsigned short selector, unsigned int limit)
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetSegmentLimit[0x%04x;0x%04x] 0x%08x\n", ldt_entry, selector, limit);
-  if (ldt_entry >= MAX_SELECTORS)
-    return -1;
-  if (!Segments[ldt_entry].used)
+  if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1;
   if (limit > 0x0fffff) {
     /* "Segment limits greater than 1M must have the low 12 bits set" */
@@ -765,10 +886,7 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
 {
   unsigned short ldt_entry = selector >> 3;
   D_printf("DPMI: SetDescriptorAccessRights[0x%04x;0x%04x] 0x%04x\n", ldt_entry, selector, type_byte);
-
-  if (ldt_entry >= MAX_SELECTORS)
-    return -1;
-  if (!Segments[ldt_entry].used)
+  if (!ValidAndUsedSelector((ldt_entry << 3) | 7))
     return -1; /* invalid value 8021 */
   if (!(type_byte & 0x10)) /* we refused system selector */
     return -1; /* invalid value 8021 */
@@ -861,9 +979,7 @@ static int SetDescriptor(unsigned short selector, unsigned long *lp)
 {
   unsigned long base_addr, limit;
   D_printf("DPMI: SetDescriptor[0x%04x;0x%04x] 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
-  if (selector >= (MAX_SELECTORS << 3))
-    return -1;
-  if (!Segments[selector >> 3].used)
+  if (!ValidAndUsedSelector(selector))
     return -1; /* invalid value 8021 */
   base_addr = (*lp >> 16) & 0x0000FFFF;
   limit = *lp & 0x0000FFFF;
@@ -1010,6 +1126,7 @@ static void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
 void indirect_dpmi_switch(struct sigcontext_struct *scp)
 {
     copy_context(emu_stack_frame, scp);
+    CheckSelectors(&dpmi_stack_frame[current_client]);
     copy_context(scp, &dpmi_stack_frame[current_client]);
 }
 
@@ -1838,6 +1955,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   }
   cli_blacklisted = 0;
   in_dpmi_dos_int = 1;
+  in_dpmi_pm_stack = 0;
   in_dpmi--;
   in_win31 = 0;
   if(pic_icount) {
@@ -2005,7 +2123,6 @@ void run_pm_int(int i)
   dpmi_stack_frame[current_client].ss = CLIENT_PMSTACK_SEL;
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
   in_dpmi_pm_stack++;
-  if (i == 0x08 || in_dpmi_timer_int) in_dpmi_timer_int++;
   in_dpmi_dos_int = 0;
   dpmi_cli();
   dpmi_stack_frame[current_client].eflags &= ~(TF | NT);
@@ -2973,7 +3090,6 @@ if ((_ss & 4) == 4) {
 		"interrupt at %p\n", lina);
 	  }
 	  pic_iret();
-	  if (in_dpmi_timer_int) in_dpmi_timer_int--;
 
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_exception)) {
           D_printf("DPMI: Return from client exception handler\n");

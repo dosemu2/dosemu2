@@ -306,6 +306,7 @@ void dump_config_status(void *printfunc)
     (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
         config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
+    (*print)("\npic_force_count %d\n", config.pic_force_count);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
         config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
 
@@ -611,11 +612,7 @@ static void config_post_process(void)
     /* UID scrub */
     if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");
     else {
-#ifdef RUN_AS_ROOT
-      c_printf("CONF: mostly running as ROOT:");
-#else
       c_printf("CONF: mostly running as USER:");
-#endif
     }
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());

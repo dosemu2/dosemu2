@@ -668,6 +668,7 @@ target			RETURN(TARGET);
 
 	/* hacks */
 cli_timeout		RETURN(CLI_TIMEOUT);
+pic_force_count		RETURN(PIC_FORCE_COUNT);
 
 	/* strings */
 

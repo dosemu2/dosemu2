@@ -18,6 +18,9 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 .I keystroke-string
 ]
 [
+.B \-s
+]
+[
 .B \-install
 .I bootdir
 ]
@@ -38,6 +41,9 @@ dosemu, xdosemu \- run DOS and DOS programs under Linux
 [
 .B \-input
 .I keystroke-string
+]
+[
+.B \-s
 ]
 [
 .B \-install
@@ -95,6 +101,12 @@ eats one keystroke at bootup in order to let you time to type in F8. So in
 this case you always should add a '\\r' at the beginning of this
 keystroke-string. As a side effect it will bypass the 'F8' delay and
 FreeDos will boot faster ;-)
+.TP
+.I -s
+Invoke dosemu via sudo. This is necessary to get access to certain I/O ports
+and to get graphics on the Linux console. Please refer to the documentation
+(QuickStart and README.txt) to see which files need to be adjusted before
+attempting this. 
 .TP
 .I -install
 launched as part of a systemwide installation, this option installs

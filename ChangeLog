@@ -1,3 +1,40 @@
+2003/01/17 ver 1.1.4.6 unofficial pre-release
+	From Stas
+	- enforces the PIC reentrancy protection and fix several related
+	  bugs.
+	- add a mechanism to force a PIC reschedule, if the watchdog timer
+	  for pending interrupts is invoked n times.
+	- fault handling fixes: check selectors before loading them into
+	  context. This hopefully removes the possibility of an unhandled
+	  segfault.
+	- compile-time option to be able to avoid the sound POST routine for
+	  certain buggy OSS drivers.
+	From Clarence
+	- Fix comcom problems:
+	  * a space is now inserted for cd\, dir/p etc so that they work.
+	  * check for things such as "..\ws". Comcom thought that this
+	    meant a file with extension \ws, rather then a file ws in the
+	    parent directory.
+	From Bart
+	- remove runasroot compile-time option. It is not relevant anymore
+	  now that DOSEMU drops root privileges.
+	- add possibility to run DOSEMU through sudo while still dropping
+	  root privileges via the SUDO_UID and SUDO_GID environment
+	  variables.
+	- remove restrictions on $_dpmi since DPMI is no longer inherently
+	  insecure.
+	- adjust QuickStart and README.txt to the changed security
+	  situation.
+	- added a "-s" option to the dosemu script to invoke dosemu.bin
+	  via sudo.
+	- solve X mouse problem for certain window managers that invoke
+	  LeaveNotify and EnterNotify events whenever you click a mouse
+	  button and not only when the mouse leaves and enters the window.
+	- introduce $_pic_force_count to allow runtime configuration
+	  of Stas' PIC hack.
+	- reintroduce the ESP hack which was removed in 1.1.4.5. A "dir"
+	  in FreeDOS/comcom with a hogthreshold of 1 became much slower
+	  without this hack.
 2003/01/17 ver 1.1.4.5 unofficial pre-release
 	From Stas
 	- remove $_toggle -- it is no longer needed.

@@ -1016,10 +1016,20 @@ static int com_exist_executable(char *buf, char *file)
 	int i;
 
 	if ((len >4) && (file[len-4] == '.')) {
-		for (i=0; i<3; i++)
-			if (!strncasecmp(file+len-3, extlist[i], 3))
-				if (com_exist_file(file)) return i+1; 
-		return 0;
+		/* '..\ws' does _not_ mean a file with extension '\ws' */
+		boolean isext = TRUE;
+		for (i = len - 3; i < len; i++) {
+			if (!isalnum (file[i])) {
+				isext = FALSE;
+				break;
+			}
+		}
+		if (isext) {
+			for (i=0; i<3; i++)
+				if (!strncasecmp(file+len-3, extlist[i], 3))
+					if (com_exist_file(file)) return i+1;
+			return 0;
+		}
 	}
 	*p++ = '.';
 	for (i=0; i<3; i++) {
@@ -1164,7 +1174,7 @@ static int mkstemm(char *buf, char *path, int expand)
 	char *p;
 
 	if (!expand || (expand && com_doscanonicalize(buf, path)))
-							strcpy(buf, path);
+		strcpy(buf, path);
 	p = basename_of(buf,0);
 	*p = 0;
 	return p - buf;
@@ -1324,6 +1334,7 @@ static int cmd_for(int argc, char **argv)
 		i = replen - (s - replbuf);
 		memcpy(p, s, i+1);
 		callbuf[0] = p - (callbuf+1) + i;
+		/* WARNING! callbuf may be modified by com_argparse */
 		j = com_argparse(callbuf, argv+arg0_new, MAXARGS - (argc-arg0_new) -1);
 		saved_dta = PSP_DTA;
 		SET_CHILD_ARGS(arg0_new);
@@ -3276,6 +3287,7 @@ static int command_inter_preter_loop(int batchmode, char *batchfname,
 		if (!bdta.mode) com_doswrite(2, "\r\n", 2);
 
 		memcpy(argbuf, &LEN0A, LEN0A+2); /* save contents */
+		/* WARNING! argbuf may be modified by com_argparse */
 		argc = com_argparse(argbuf, argv, MAXARGS -1);
 		bdta.argcsub = bdta.argc = argc; /* save positional variables */
 		bdta.argvsub = bdta.argv = argv;

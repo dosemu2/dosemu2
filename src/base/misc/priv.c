@@ -214,6 +214,27 @@ void priv_init(void)
   gid  = cur_gid  = getgid();
   egid = cur_egid = getegid();
 
+  if (under_root_login)
+  {
+    /* check for sudo and set to original user */
+    char *s = getenv("SUDO_GID");
+    if (s) {
+      gid = cur_gid = atoi(s);
+      if (gid) {
+        setregid(gid, egid);
+      }
+    }
+    s = getenv("SUDO_UID");
+    if (s) {
+      uid = cur_uid = atoi(s);
+      if (uid) {
+        skip_priv_setting = under_root_login = 0;
+        setreuid(uid, euid);
+        setenv("USER", getenv("SUDO_USER"), 1);
+      }
+    }
+  }
+  
   if ((euid != 0) && (uid == euid))
     {
       skip_priv_setting = 1;
@@ -225,8 +246,6 @@ void priv_init(void)
   groups = malloc(num_groups * sizeof(gid_t));
   getgroups(num_groups,groups);
 
-#ifndef RUN_AS_ROOT
   if (!skip_priv_setting) _priv_off();
-#endif
 }
 

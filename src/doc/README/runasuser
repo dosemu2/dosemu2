@@ -156,12 +156,9 @@ configured (in /etc/dosemu.conf) for serial and mouse.
 Starting with dosemu-0.66.1.4 there should be no reason against running
 dosemu as a normal user. The privilege stuff has been extensively reworked,
 and there was no program that I tested under root, that didn't also run
-as user. However, if you suspect problems resulting from the fact that
-you run as user, you should first try configuring dosemu with the
-'runasroot' option (see setup-dosemu tool). This lets dosemu permanently run
-as (suid) root and only use user privileges when accessing secure relevant
-resources. Normally dosemu will permanently run as user and only temporarily
-use root privilege when needed and in case of non-suid root
+as user. Normally dosemu will permanently run as user and only temporarily
+use root privilege when needed (during initialization) and then drop its
+root privileges permanently. In case of non-suid root
 (as of dosemu-0.97.10), it will run in lowfeature mode without any privileges.
 </para>
 

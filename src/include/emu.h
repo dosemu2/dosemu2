@@ -371,6 +371,7 @@ typedef struct vesamode_type_struct {
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
        int cli_timeout;		/* cli timeout hack */
+       int pic_force_count;     /* pic watchdog reschedule hack */      
      }
 
 config_t;

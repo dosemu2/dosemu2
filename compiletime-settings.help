@@ -53,19 +53,6 @@ dodebug		"compile with debug info"
 		This uses the '-g' switch for GCC, hence you can use GDB
 		to debug DOSEMU.
 
-runasroot	"run as root mostly"
-
-		DOSEMU is suid root, but when started from a user account
-		it normally tries to drop root priviledges as soon as
-		possible and only switches them temporary on.
-		With this switch set on, it does the invers, dropping
-		only priviledges when accessing security relevant parts.
-		You _realy_ should not set this switch, as DOSEMU now is
-		qite correct in handling priviledges.
-		If you have a DOS application, that needs this switch,
-		then please report to the DOSEMU team, such that we can
-		fix the priviledge handling.
-
 linkstatic	"make static binaries"
 
 		With this switch on, a statically linked binary is generated
