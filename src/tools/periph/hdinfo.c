@@ -24,6 +24,8 @@
  *
  */
 
+#define _FILE_OFFSET_BITS 64
+
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -36,29 +38,6 @@
 #endif
 
 #include "config.h"
-  /* well, if we don't have llseek prototype,
-   * we most likely won't have __loff_t too, hence using long long
-   */
-static long long libless_llseek(int fd, long long offset, int origin)
-{
-  long long result;
-  int offlo = offset;
-  int offhi = offset >> 32;
-  int __res;
-  __asm__ __volatile__(
-    "int $0x80\n"
-    :"=a" (__res)
-    :"a" ((int)140), "b" (fd), "c" (offhi), "d" (offlo),
-                    "S" ((int)&result), "D" (origin)
-  );
-  errno = 0;
-  if (__res < 0) {
-    errno = -__res;
-    result = -1;
-  }
-  return result;
-}
-#define llseek libless_llseek
 
 #define SECTOR_SIZE	512
 #define EXT_MAGIC	5	/* sys_ind for an extended partition */
@@ -88,11 +67,7 @@ static void print_part(struct partition *part, size_t offset, int sect_off, int 
   if (part->sys_ind == EXT_MAGIC && !ext) {
     char extblock[512];
 
-#ifdef __linux__
-    llseek(fd, (long long)part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
-#else
-    lseek(fd, part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
-#endif
+    lseek(fd, (off_t)part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
     if (read(fd, extblock, 512) < 512) {
       perror("hdinfo: Could not read sector");
       exit(1);

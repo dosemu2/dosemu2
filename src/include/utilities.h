@@ -40,7 +40,6 @@ char *assemble_path(char *dir, char *file, int append_pid);
 char *mkdir_under(char *basedir, char *dir, int append_pid);
 char *get_path_in_HOME(char *path);
 char *get_dosemu_local_home(void);
-long long libless_llseek(int fd, long long offset, int origin);
 char *readlink_malloc (const char *filename);
 char * strupr(char *s);
 char * strlower(char *s);

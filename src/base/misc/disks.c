@@ -10,6 +10,10 @@
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
  */
 
+#ifdef __linux__
+#define _LARGEFILE64_SOURCE 1
+#endif
+
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
@@ -37,8 +41,6 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
-
-#define llseek libless_llseek
 
 static int disks_initiated = 0;
 
@@ -132,7 +134,7 @@ int
 read_sectors(struct disk *dp, char *buffer, long head, long sector,
 	     long track, long count)
 {
-  loff_t  pos;
+  off64_t  pos;
   long already = 0;
   long tmpread;
 
@@ -205,11 +207,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
     tmpread *= SECTOR_SIZE;
   }
   else {
-#ifdef __linux__
-    if(pos != llseek(dp->fdesc, pos, SEEK_SET)) {
-#else
-    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
-#endif
+    if(pos != lseek64(dp->fdesc, pos, SEEK_SET)) {
       error("Sector not found in read_sector, error = %s!\n", strerror(errno));
       return -DERR_NOTFOUND;
     }
@@ -235,7 +233,7 @@ int
 write_sectors(struct disk *dp, char *buffer, long head, long sector,
 	      long track, long count)
 {
-  loff_t  pos;
+  off64_t  pos;
   long tmpwrite, already = 0;
 
   if (dp->rdonly) {
@@ -294,11 +292,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
     tmpwrite *= SECTOR_SIZE;
   }
   else {
-#ifdef __linux__
-    if(pos != llseek(dp->fdesc, pos, SEEK_SET)) {
-#else
-    if(pos != lseek(dp->fdesc, pos, SEEK_SET)) {
-#endif
+    if(pos != lseek64(dp->fdesc, pos, SEEK_SET)) {
       error("Sector not found in write_sector!\n");
       return -DERR_NOTFOUND;
     }
@@ -326,14 +320,14 @@ image_auto(struct disk *dp)
 
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
-    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open64(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     /* The next line should only be done in case the open succeeds, 
        but that should be the normal case, and allows somewhat better
        code for the if (how sick can you get, since the open is going to
        take a lot more time anyways :-) )
     */
     dp->rdonly = dp->wantrdonly;
-    dp->fdesc = open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open64(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0);
     if (dp->fdesc == -1) {
       /* We should check whether errno is EROFS, but if not the next open will
          fail again and the following lseek will throw us out of dos. So we win
@@ -341,13 +335,12 @@ image_auto(struct disk *dp)
          this does work (should be impossible), we can at least try to 
          continue. (again how sick can you get :-) )
        */
-      dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+      dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
       dp->rdonly = 1;
     }
   }
 
-  lseek(dp->fdesc, 0, SEEK_SET);/* Use lseek here, as nobody want
-				   > 2^^31 bytes for the image file */
+  lseek64(dp->fdesc, 0, SEEK_SET);
   if (RPT_SYSCALL(read(dp->fdesc, header, HEADER_SIZE)) != HEADER_SIZE) {
     error("could not read full header in image_init\n");
     leavedos(19);
@@ -429,7 +422,7 @@ void dir_setup(struct disk *dp)
   pi->pre_secs = dp->sectors;
   pi->num_secs = (dp->tracks * dp->heads - 1) * dp->sectors;
 
-  dp->header = -(SECTOR_SIZE * (loff_t) (pi->pre_secs));
+  dp->header = -(SECTOR_SIZE * (off64_t) (pi->pre_secs));
 
   pi->mbr_size = SECTOR_SIZE;
   pi->mbr = malloc(pi->mbr_size);
@@ -548,7 +541,7 @@ partition_setup(struct disk *dp)
 			     dp->part_info.beg_cyl) +
 		 (SECTOR_SIZE * (dp->part_info.pre_secs - 1)));
 #else
-  dp->header = -(SECTOR_SIZE * (loff_t) (dp->part_info.pre_secs));
+  dp->header = -(SECTOR_SIZE * (off64_t) (dp->part_info.pre_secs));
 #endif
 
   dp->part_info.mbr_size = SECTOR_SIZE;
@@ -671,7 +664,7 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
     
-  dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  dp->fdesc = SILENT_DOS_SYSCALL(open64(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
 
   /* FIXME:
    * Why the hell was the below handling restricted to non-removeable disks?
@@ -680,7 +673,7 @@ disk_open(struct disk *dp)
    */
   if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
-      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
+      dp->fdesc = DOS_SYSCALL(open64(dp->dev_name, O_RDONLY, 0));
       if (dp->fdesc < 0) {
         error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
@@ -802,11 +795,11 @@ disk_init(void)
 
   disks_initiated = 1;  /* disk_init has been called */
   if (config.bootdisk) {
-    bootdisk.fdesc = open(bootdisk.dev_name,
-			  bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
+    bootdisk.fdesc = open64(bootdisk.dev_name,
+			    bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
     if (bootdisk.fdesc < 0) {
       if (errno == EROFS) {
-        bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY, 0);
+        bootdisk.fdesc = open64(bootdisk.dev_name, O_RDONLY, 0);
         if (bootdisk.fdesc < 0) {
           error("can't open bootdisk %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           leavedos(23);
@@ -847,10 +840,10 @@ disk_init(void)
       continue;
     }
 #endif
-    dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open64(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+        dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           leavedos(25);
@@ -885,10 +878,10 @@ disk_init(void)
 	  d_printf("IMAGE: Using user permissions\n");
 	}
     }
-    dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    dp->fdesc = open64(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+        dp->fdesc = open64(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
           error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           leavedos(26);
@@ -979,7 +972,7 @@ int int13(void)
 {
   unsigned int disk, head, sect, track, number;
   int res;
-  loff_t  pos;
+  off64_t  pos;
   char *buffer;
   struct disk *dp;
   int checkdp_val;
@@ -1162,19 +1155,11 @@ int int13(void)
 		  dp->heads, dp->sectors, dp->tracks);
       break;
     }
-#ifdef __linux__
-    pos = (long long ) ((track * dp->heads + head) * dp->sectors + sect) << 9;
-#else
-    pos = (long) ((track * dp->heads + head) * dp->sectors + sect) << 9;
-#endif
+    pos = (off64_t) ((track * dp->heads + head) * dp->sectors + sect) << 9;
     /* XXX - header hack */
     pos += dp->header;
 
-#ifdef __linux__
-    if (pos != llseek(dp->fdesc, pos, 0)) {
-#else
-    if (pos != lseek(dp->fdesc, pos, 0)) {
-#endif
+    if (pos != lseek64(dp->fdesc, pos, 0)) {
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       error("test: sector not found 6\n");

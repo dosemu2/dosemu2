@@ -20,7 +20,9 @@
 #define PART_BOOT	0x80
 
 #ifndef __linux__
-#define loff_t  off_t
+#define off64_t  off_t
+#define open64   open
+#define lseek64  lseek
 #endif
 
 /* disk file types */

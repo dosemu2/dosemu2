@@ -659,31 +659,6 @@ int is_console(int fd)
   return 1;
 }
 
-
-/*
- * getting tired of needless 'llseek() versus lseek64()' war
- * ... calling the kernel directly  --Hans 2000/03/26
- */
-long long libless_llseek(int fd, long long offset, int origin)
-{
-  long long result;
-  int offlo = offset;
-  int offhi = offset >> 32;
-  int __res;
-  __asm__ __volatile__(
-    "int $0x80\n"
-    :"=a" (__res)
-    :"a" ((int)140), "b" (fd), "c" (offhi), "d" (offlo),
-                    "S" ((int)&result), "D" (origin)
-  );
-  errno = 0;
-  if (__res < 0) {
-    errno = -__res;
-    result = -1;
-  }
-  return result;
-}
-
 /* dynamic readlink, adapted from "info libc" */
 char *readlink_malloc (const char *filename)
 {
