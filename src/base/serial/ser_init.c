@@ -125,13 +125,12 @@ static int tty_lock(char *path, int mode)
     {
       FILE *fd;
       if (tty_already_locked(saved_path) == 1) {
-        s_printf("attempt to use already locked tty %s\n", saved_path);
         error("attempt to use already locked tty %s\n", saved_path);
         return (-1);
       }
+      unlink(saved_path);	/* kill stale lockfiles, if any */
       fd = fopen(saved_path, "w");
       if (fd == (FILE *)0) {
-        s_printf("lock: (%s): %s\n", saved_path, strerror(errno));
         error("tty: lock: (%s): %s\n", saved_path, strerror(errno));
         return(-1);
       }
@@ -159,8 +158,6 @@ static int tty_lock(char *path, int mode)
 
      fd = fopen(saved_path,"w");
      if (fd == (FILE *)0) {
-     s_printf("tty_lock(%s) reaquire: %s\n", 
-              saved_path, strerror(errno));
       error("tty_lock: reacquire (%s): %s\n",
               saved_path, strerror(errno));
       return(-1);
@@ -182,15 +179,13 @@ static int tty_lock(char *path, int mode)
 
     fd = fopen(saved_path,"w");
     if (fd == (FILE *)0) {
-      s_printf("DOSEMU: tty_lock: can't reopen to delete: %s\n",
+      error("DOSEMU: tty_lock: can't reopen to delete: %s\n",
              strerror(errno));
       return (-1);
     }
       
     retval = unlink(saved_path);
     if (retval < 0) {
-      s_printf("tty: unlock: (%s): %s\n", saved_path,
-             strerror(errno));
       error("tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));
       return(-1);
