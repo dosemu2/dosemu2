@@ -44,8 +44,6 @@ case $to in
      ;;
 esac
 
-echo XX
-
 exitcode=0;
 case $Source in
   Dos)

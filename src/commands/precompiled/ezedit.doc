@@ -1,0 +1,180 @@
+ 
+  EZEDIT 1.0 is a line-oriented full-screen text editor designed for editing
+  batch files, program source files, and message files.  Features include:
+ 
+       * Small 6K program, requiring as little as 19K of memory
+       * Easy to learn (uses very few special keys)
+       * On-line help
+       * Supports 35- and 43-line EGA (if active initially, like TED)
+       * 128-column lines (your AUTOEXEC.BAT PATH won't be truncated)
+       * Up to 4096 lines (space allocated as needed)
+       * Dual file editing (you can paste text across files)
+       * Cutting and pasting of text boxes (like Snipper)
+       * Double-line drawing with cursor movement (like WordPerfect)
+       * Repeating a character with cursor movement
+       * Case-insensitive text search capability
+       * Supports full ASCII character set (via the ALT key as in DOS)
+       * Cursor anywhere
+       * Initial mode (like Rbedit) by itself good for touch-ups
+       * Reasonably fast (even on an 8088 crawler)
+       * Free for non-commercial or government use
+ 
+  This utility may not replace whatever you comfortably use now, but it will
+  give you quick access to some nice features with minimal hassle.
+ 
+  Start:
+ 
+  From the DOS prompt, type EZEDIT, optionally followed by a filename.  A help
+  screen appears, with a filename prompt on the top screen line, followed by
+  the first DOS command line argument, if any.  Enter/edit the filename (edit
+  by backspacing) and then press Return.  If the file cannot be opened or if
+  the name is blank, the program assumes you want to edit a new file.  The
+  file is read in otherwise.  On file read, tabs are expanded and any lines
+  longer than 128 columns are split.  Isolated linefeeds and end-of-file marks
+  are also stripped.  An abort due to insufficient memory or to a file read
+  error will be signaled by a beep.
+ 
+  During editing, the top-of-screen status line displays the current active
+  mode -- typeover, insert, linemark, boxmark, draw, repeat, or findtext.  F3
+  toggles the mode and Esc provides a quick return to typeover mode.  Although
+  Esc, BackSpace, Tab, and Return are control keys, you may insert them into
+  text with their ALT key equivalents.  The status line also shows any active
+  function keys, the current cursor line/column, and the current filename (or
+  'New file').  Occasionally, a flashing yes/no prompt or a text search string
+  will also appear in the status line.
+ 
+  Typeover mode:
+ 
+  Typeover mode is the initial editing mode.  Text is treated as a rectangle
+  128 columns wide by however many lines long.  Within the rectangle you may
+  cursor anywhere.  Move left/right/up/down with the four cursor arrows.  Move
+  to column 1/128 with the Home/End keys.  Move to the next right/left tab
+  stop with Tab/Shift-Tab.  Move up/down one full screen with the PgUp/PgDn
+  keys.  Move to the top/bottom line of text with Ctrl-PgUp/Ctrl-PgDn.  There
+  is no cursor wrap.
+ 
+  The Return key positions the cursor at column 1 of the next line.  This also
+  appends a blank line when at the last line of text.  The end of text is
+  followed on screen by inverse blank lines.
+ 
+  Elsewhere in the text rectangle, you may insert a blank line with F1 or
+  delete a line with F2.  If there is no room to append/insert a line, the
+  program will beep.  F1:INS and F2:DEL appear in the status line in typeover
+  mode to remind you of the F1/F2 functions.
+ 
+  New text overwrites existing text.  To insert text without leaving typeover
+  mode, first tap the Ins key to open spaces (a beep will signal a full line).
+  Tapping the Del key deletes text from the right.  The Backspace key spaces
+  leftward.
+ 
+  Insert mode:
+ 
+  In insert mode, new text pushes existing text right.  A beep sounds if the
+  line is full.  Exactly the same editing keys are available as in typeover
+  mode, but with the changes in function described next.
+ 
+  The Return key splits a line by moving text right of the current cursor
+  position to the next line.  When the cursor is at column 1, the BackSpace
+  key joins the current line to the previous line at its last non-space
+  character.  When the cursor is in the white space region to the right of
+  all text in a line, the Del key pulls the next line back to the cursor.
+  Any characters that would exceed the line length (128) in joined lines are
+  retained left-adjusted in the lines from which the characters are moved.
+ 
+  Linemark mode:
+ 
+  This mode lets you cut and paste blocks of lines.  Initially, the status
+  line will display F1:PASTE if there is an active block in the paste buffer.
+  If so, you may press the F1 key to insert that block before the current
+  line.  The block remains in the paste buffer until replaced by other text
+  cut in linemark or boxmark mode or until destroyed by a file read/write.
+ 
+  Instead of pasting, you may move the up/down cursor arrows to highlight a
+  block of up to 64 lines.  As soon as any are highlighted, F1:PASTE
+  disappears from the status line and F2:CUT appears.  Press F2 to cut the
+  highlighted text from the rest and move it to the paste buffer.  After a
+  paste or cut, you will be returned to typeover mode.
+ 
+  Boxmark mode:
+ 
+  In this mode, you may cut or paste boxes of text.  Aside from the different
+  size blocks, this mode differs from linemark mode in that no lines are added
+  to or deleted from existing text.  Pasting a box overwrites existing text
+  and cutting a box blanks out existing text.
+ 
+  As in linemark mode, if there is initially an active block in the paste
+  buffer, F1:PASTE appears in the status line.  If you press F1, the box of
+  text to be replaced (as much as is visible) is highlighted on screen.  This
+  box has its upper left corner at the current cursor position.  The prompt
+  PASTE? flashes in the status line.  If you respond Y, the highlighted box is
+  replaced by the box in the paste buffer.  Respond N to cancel the paste.
+  Any part of the paste buffer box that would extend beyond column 128 or
+  below the last text line is ignored by the current paste operation.
+ 
+  Instead of pressing the F1 key, you may highlight a box to cut (up to 64
+  lines by 127 columns) by using the cursor arrows.  The cursor will remain
+  one line and one column ahead of the highlighted box, so both a horizontal
+  and a vertical movement must be made before any highlighted text appears.
+  At this point, F1:PASTE disappears from the status line and F2:CUT appears.
+  Press F2 to move the highlighted text to the paste buffer and blank out the
+  area left behind.  The cursor will move back to the upper left corner of the
+  blanked area should you wish to restore the original text later.
+ 
+  After a paste or cut, you will be returned to typeover mode.  Note that
+  lines may be pasted in boxmark mode and boxes pasted (left-adjusted) in
+  linemark mode.
+ 
+  Draw mode:
+ 
+  In draw mode, the four cursor arrow keys let you to draw with double bar
+  lines, including corners and intersections.
+ 
+  Repeat mode:
+ 
+  In this mode, movement with the four cursor keys repeats whatever character
+  is currently under the cursor.  Change the repeating character by pressing a
+  new key.  Some common characters to repeat are light, medium, and dark
+  blocks (Alt-176, Alt-177, and Alt-178).  The space character is also
+  convenient to repeat for erasing.
+ 
+  Findtext mode:
+ 
+  When you toggle to findtext mode, the cursor flips to the status line.
+  Enter up to 10 characters of text to search for, or, if you have done a
+  previous search, edit the old search text, backspacing as needed.  When
+  done, press Return to start the search.  The search begins just right of
+  the current cursor position in the document and works downward.  If a match
+  is found, it is highlighted in the document.  The cursor will remain in the
+  status line.  Press Return again to look for the next match, and so on.  If
+  no match is found, you will be returned to typeover mode, with the cursor
+  positioned at the last match found or at the original cursor position, if
+  no previous matches were found.
+ 
+  Search text will appear in upper case, but searches are case insensitive.  A
+  search in progress will be signaled by a temporary shift in the status line
+  cursor position.
+ 
+  Quit:
+ 
+  The F7 key is the program exit key.  After pressing it, the prompt ABORT?
+  flashes in the status line.  Respond Y to abandon the current edit.  This
+  exits you from the program, or exits you to the remaining file, if you were
+  editing two files.  If you respond N, the prompt SWITCH? flashes in the
+  status line.  Respond Y to switch to a second file.  If two file edits were
+  active, this flips you back to continue the other edit.  If not, you will be
+  prompted for a filename, just as at the start of the program.  The two edits
+  are distinguished by reversal of normal and inverse video.  The status line
+  filenames may also differ.
+ 
+  If you respond N to both the abort and switch prompts, you will be prompted
+  for a filename under which to save the current edit.  Leave the name blank
+  or press Esc to continue editing.  Otherwise enter/edit the name and press
+  Return to save the file and exit the program (or exit to the remaining file,
+  if two file edits were active).  If there is a problem saving the file
+  (e.g., open drive door or writing back to a read-only file), a beep will
+  sound and you will be returned to the save prompt.  There you may try a new
+  name or else fix the problem and retry the same name.  When saving a file,
+  the program strips trailing spaces from lines.  No backup file is retained.
+ 
+  CRH -- 20 Apr 89
+ 

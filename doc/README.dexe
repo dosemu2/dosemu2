@@ -53,7 +53,7 @@ Here is what ./mkdexe will print as help, when called without argument:
    USAGE:
      mkdexe [{ application | hdimage}]
                         [-b dospart] [{-s|-S} size] [-x appname]
-                        [-c confsys] [-a autoexe] [-d dosemuconf]
+                        [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
                         [-i IOname] [-m MSname]
                         [-o <option> [-o ...]]
 
@@ -69,6 +69,7 @@ Here is what ./mkdexe will print as help, when called without argument:
      appname      The DOS filename of the application, that should be executed
      confsys      Template for config.sys
      autoexe      Template for autoexec.bat
+     comcom       file name of the shell, usually command.com
      dosemuconf   Template for the dosemu.conf to use
      IOname       The name of DOS file, that usually is called IO.SYS,
                   (default for FreeDos: IPL.SYS) this one is always put as
@@ -95,6 +96,35 @@ extracts the configuration out of 'dexefile' and puts it into 'configfile'
   # dexeconfig -i configfile dexefile
 
 does the reverse.
+
+There is a problem, however, when you want allow a user to execute a DEXE
+and the DOS application needs to write to a file within the dexe
+(which is in fact a whole DOS FS). For this would have to give write
+permissions to the user (what is not what you want).
+DEXEs have a workaround for this: You may set read-only permissions
+for the DEXE file itself in the Linux-FS, but set a flag in the DEXE itself,
+so that DOSEMU will open this file read/write anyway.
+This means: The user cannot delete or replace the DEXE, but the imbedded
+DOS-application can (totally isolated) write to DOS files within the
+DEXE (complicated, isn't it?). To set such a permission, you (again) need
+'dexeconfig':
+
+  # dexeconfig -p W dexefile
+
+Here is what 'dexeconfig' will print as help, when called without argument:
+
+   USAGE:
+      dexeconfig [-M] [-p {w|W}] -i configfile dexefile
+      dexeconfig -x configfile dexefile
+      dexeconfig -v  dexefile
+      dexeconfig -p {w|W}  dexefile
+
+   where is
+      -i      insert a config file
+      -x      extract a config file
+      -p w    clear write permission
+      -p W    set write permission
+      -v      view status information
 
 
 It would be great, if we could collect an archive of working, free
@@ -125,7 +155,25 @@ you /var/lib/dosemu/* directory, you may start it via:
 Hope we get more of *.dexe in the future ....
 
 
-2. Making a bootable hdimage for general purpose
+2. Using binfmt_misc to spawn DEXEs direktly
+============================================
+
+There is a nifty kernel patch flying around from Richard Guenther
+<zxmpm11@student.uni-tuebingen.de>. This can be get via
+
+  http://www.anatom.uni-tuebingen.de/~richi/linux/binfmt_misc.html
+
+We hope this patch makes it into the kernel, because then we could
+execute a DEXE just by typing its name at the Bash prompt. To register
+DEXE format using binfmt_misc you do (in your /etc/rc.-whatever)
+
+  cd /proc/sys/fs/binfmt_misc
+  echo :DEXE:M::\\x0eDEXE::/usr/bin/dosexec: >register
+
+thats all.
+
+
+3. Making a bootable hdimage for general purpose
 ================================================
 
 You may also use './mkdexe' do generate a _normal_ bootable hdimage,
@@ -155,7 +203,7 @@ needed things and should work on most machines.
 
 
 
-3. Accessing hdimage files using mtools
+4. Accessing hdimage files using mtools
 =======================================
 
 In the ./dexe directory there is also a script, that allows you to
@@ -176,5 +224,5 @@ directly access the hdimage's files, even without changing your
      do_mtools /var/lib/dosemu/hdimage mcopy W:/autoexec.bat -
 
 
-Hans, April 30, 1997
+Hans, May 16, 1997
 <lermen@fgan.de>

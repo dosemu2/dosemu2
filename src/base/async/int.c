@@ -1230,7 +1230,9 @@ static void int2f(u_char i)
 
   case 0x1686:            /* Are we in protected mode? */
     D_printf("DPMI CPU mode check in real mode.\n");
+    if (in_dpmi) /* set AX to zero only if program executes in protected mode */
     LWORD(eax) = 0;	/* say ok */
+		 /* else let AX untouched (non-zero) */
     return;
 
   case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */

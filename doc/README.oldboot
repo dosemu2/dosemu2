@@ -1,0 +1,49 @@
+
+Since dosemu-0.66.4 you will not need the complicated method of generating
+a bootable dosemu suite (see Quickstart). However, who knows, maybe you
+need the old information too ...
+
+
+--------------------------------------------------------------------------
+  Boot ( 'traditional' method )
+--------------------------------------------------------------------------
+
+If you are new to DOSEMU:
+           -------------
+- Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf IS
+  pointing to your hdimage!
+
+- Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
+  diskette in your a: drive.  Run "sys a:" to transfer the system files
+  to the diskette.  Copy SYS.COM from your DOS directory
+  (usually C:\DOS) to the diskette.
+
+- Reboot Linux.  Run 'dos -A'.  After a short pause, the system should
+  come up.  Try "dir c:" which should list the files on the harddrive
+  distribution image.  If that works, run: "sys c:".
+  Exit dos by running "c:\exitemu".  If you have problems, hold down the
+  <ctrl> and <alt> buttons simultaneously while pressing <pgdn>.
+  (<ctrl><alt><pgdn> will automatically exit dosemu.)
+
+If you already have a HDIMAGE file:
+       ----------------------
+- If you have a previous version of DOSEMU running, you should copy the
+  .SYS, .COM, & .EXE files in the ./commands directory over to the
+  hdimage drive that you boot from.  Some of these files have changed.
+
+If you don't know how to copy files from/to the hdimage:
+       ----------------------------
+- Have a look at the recent mtools package (version 3.6 at time of writeing).
+  If you have the following line in /etc/mtools.conf
+
+     drive g: file="/var/lib/dosemu/hdimage" partition=1 offset=128
+
+  then you can use all mtool commands to access it, such as
+                   ^^^^^^^^^^^^^^^^^^
+    # mcopy g:autoexec.bat -
+    Copying autoexec.bat
+    @echo off
+    echo "Welcome to dosemu 0.66!"
+
+  ... all clear ? ;-)
+

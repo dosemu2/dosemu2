@@ -1,0 +1,87 @@
+.\" -*- nroff -*-  (This is for Emacs)
+.TH MKFATIMAGE16 1 "May 17, 1997" "Version ALPHA 0.66.5" "Make HDIMAGE for DOSEMU"
+.SH NAME
+mkfatimage16 \- generate a virtual drive image suitable for DOSEMU
+.SH SYNOPSIS
+.B mkfatimage16
+[
+.B \-b bsectfile
+]
+[
+.B \-t tracks
+]
+[
+.B \-l volume-label
+]
+[
+.B file...
+]
+.SH DESCRIPTION
+.B mkfatimage
+creates a hdimage file for
+.BR DOSEMU
+that is pre-loaded with the files specified on the command line.
+The output is written to
+.I stdout
+, hence do not forget to append " > hdimagefile", else you will see garbage
+on the screen.
+This file then can be used as a virtual drive, when defined in
+.I /etc/dosemu.conf.
+The number of heads is always 4 and you have 17 sectors per head.
+To vary the size, you may use the
+.B \-t
+option. All files given behind the options will be copied onto the
+hdimage. In addition a
+.BR DOSEMU
+suitable masterboot record (MBR) is established and via option
+.B \-b
+you may specify a boot sector that gets inserted as first sector
+of the partition. To later access the hdimage outside of
+.BR DOSEMU
+you should use
+.BR mtools
+( /etc/mtools.conf parameters
+.B partition=1
+and
+.B offset=128
+).
+
+
+
+.SH OPTIONS
+.TP
+.I \-b file
+Insert the first 512 bytes of
+.I file
+into the bootsector of the partition.
+.TP
+.I \-t num
+Make the virtual disk have
+.I num
+tracks. This is the only way to define the size of the disk.
+.TP
+.I \-l label
+insert
+.I label
+as volume label for the disk.
+
+
+.SH AUTHOR
+Pasi Eronen (peronen@vipunen.hut.fi) and Peter Wainwright.
+
+.SH BUGS
+This program doesn't support name mangling and does very little checking
+for non-DOS filenames.
+Disk full condition isn't detected (and probably causes
+erratic behaviour).
+Duplicate files aren't detected.
+
+.SH AVAILABILITY
+Comes with
+.B DOSEMU
+
+.SH "SEE ALSO"
+.BR dos "(1), " xdos "(1), " mtools "(1)"
+
+
+

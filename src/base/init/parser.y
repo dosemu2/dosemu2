@@ -61,9 +61,10 @@ static int c_hdisks = 0;
 static int c_fdisks = 0;
 
 #define DEXE_LOAD_PATH "/var/lib/dosemu"
-static int dexe_running = 0;
+int dexe_running = 0;
 static int dexe_forbid_disk = 1;
 static int dexe_secure = 1;
+char own_hostname[128];
 
 extern struct printer lpt[NUM_PRINTERS];
 static struct printer *pptr;
@@ -176,7 +177,8 @@ extern void yyrestart(FILE *input_file);
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
 %token L_SECURE
-%token DEXE ALLOWDISK FORCEXDOS
+%token DEXE ALLOWDISK FORCEXDOS XDOSONLY
+%token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
 %token DOSEMUMAP LOGBUFSIZE
 	/* speaker */
@@ -232,6 +234,12 @@ lines		: line
 line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| DEFINE STRING		{ IFCLASS(CL_VAR){ define_config_variable($2); free($2); }}
 		| UNDEF STRING		{ IFCLASS(CL_VAR){ undefine_config_variable($2); free($2); }}
+		| ABORT			{ leavedos(99); }
+		| ABORT STRING
+		    { fprintf(stderr,"CONF aborted with: %s\n", $2);
+		      leavedos(99);
+		    }
+		| WARN STRING		{ c_printf("CONF: %s\n", $2); free($2); }
  		| EMUSYS STRING
 		    { IFCLASS(CL_FILEEXT){
 		    config.emusys = $2;
@@ -490,7 +498,15 @@ dexeflag	: ALLOWDISK	{ if (!priv_lvl) dexe_forbid_disk = 0; }
 		| L_SECURE	{ dexe_secure = 1; }
 		| FORCEXDOS	{
 			char *env = getenv("DISPLAY");
-			if (env && env[0]) config.X = 1;
+			if (env && env[0] && dexe_running) config.X = 1;
+		}
+		| XDOSONLY	{
+			char *env = getenv("DISPLAY");
+			if (env && env[0] && dexe_running) config.X = 1;
+			else if (dexe_running) {
+			  yyerror("this DEXE requires X, giving up");
+			  leavedos(99);
+			}
 		}
 		;
 
@@ -1266,6 +1282,7 @@ static void start_disk(void)
   dptr->boot_name = NULL;
   dptr->wantrdonly = 0;
   dptr->header = 0;
+  dptr->dexeflags = 0;
 }
 
 static void do_part(char *dev)
@@ -1694,6 +1711,7 @@ static FILE *open_file(char *filename)
   errors   = 0;                  /* Reset error counter */
   warnings = 0;                  /* Reset counter for warnings */
 
+  if (!filename) return 0;
   return fopen(filename, "r"); /* Open config-file */
 }
 
@@ -1705,7 +1723,7 @@ static FILE *open_file(char *filename)
 
 static void close_file(FILE * file)
 {
-  fclose(file);                  /* Close the config-file */
+  if (file) fclose(file);                  /* Close the config-file */
 
   if(errors)
     fprintf(stderr, "%d error(s) detected while parsing the configuration-file\n",
@@ -1756,6 +1774,20 @@ parse_dosemu_users(void)
   int uid;
   int have_vars=0;
 
+  /* get our own hostname and define it as 'h_hostname' */
+  {
+    char buf [128];
+    int l;
+    if (!gethostname(buf+2, sizeof(buf)-1-2)) {
+      buf[0]='h';
+      buf[1]='_';
+      l=strlen(buf+2);
+      if (!getdomainname(buf+2+1+l, sizeof(buf)-1-2-l)) {
+        if (buf[2+1+l] && strncmp(buf+2+1+l, "(none)", 6)) buf[2+l]='.';
+        define_config_variable(buf);
+      }
+    }
+  }
   /* Get the log level*/
   if((fp = open_file(DOSEMU_LOGLEVEL_FILE)))
      {
@@ -1802,16 +1834,17 @@ parse_dosemu_users(void)
        if (fp)
 	 {
 	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
-	     if (buf[0] != '#') {
-	       int l = strlen(buf);
-	       if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
-		ustr = strtok(buf, " \t\n,;:");
+	     int l = strlen(buf);
+	     if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
+	     ustr = strtok(buf, " \t\n,;:");
+	     if (ustr && (ustr[0] != '#')) {
 	       if (strcmp(ustr, pwd->pw_name)== 0) 
 		 userok = 1;
 	       else if (strcmp(ustr, ALL_USERS)== 0)
 		 userok = 1;
 	       if (userok) {
 		 while ((ustr=strtok(0, " \t,;:")) !=0) {
+		   if (ustr[0] == '#') break;
 		   define_config_variable(ustr);
 		   have_vars = 1;
 		 }
@@ -1946,6 +1979,7 @@ void prepare_dexe_load(char *name)
 {
   char *n, *cbuf;
   int fd, csize;
+  struct image_header ihdr;
 
   enter_priv_on(); /* we need search rights for 'stat' */
   n = resolve_exec_path(name, ".dexe");
@@ -1959,8 +1993,13 @@ void prepare_dexe_load(char *name)
   }
   leave_priv_setting();
 
-  /* now we extract the configuration file */
+  /* now we extract the configuration file and the access flags */
   fd = open(n, O_RDONLY);
+  if (read(fd, &ihdr, sizeof(struct image_header)) != sizeof(struct image_header)) {
+    error("broken DEXE format, can't read image header\n");
+    close(fd);
+    exit(1);
+  }
 
   lseek(fd, HEADER_SIZE + 0x200, SEEK_SET); /* just behind the MBR */
   if ((read(fd, &csize, 4) != 4) || (csize > 0x2000)) {
@@ -1990,6 +2029,7 @@ void prepare_dexe_load(char *name)
   dptr->type = IMAGE;
   dptr->header = HEADER_SIZE;
   dptr->dev_name = n;
+  dptr->dexeflags = ihdr.dexeflags | DISK_IS_DEXE;
   stop_disk(DISK);
   dexe_running = 1;
 }
@@ -1999,6 +2039,7 @@ int
 parse_config(char *confname)
 {
   FILE *fd;
+  int is_user_config;
 #if YYDEBUG != 0
   extern int yydebug;
 
@@ -2031,7 +2072,8 @@ parse_config(char *confname)
     sprintf(name, "%s/.dosrc", home);
 
     /* privileged options allowed? */
-    priv_lvl = uid != 0 && strcmp(confname, CONFIG_FILE);
+    is_user_config = strcmp(confname, CONFIG_FILE);
+    priv_lvl = uid != 0 && is_user_config;
 
     /* DEXE together with option F ? */
     if (priv_lvl && dexe_running) {
@@ -2040,7 +2082,7 @@ parse_config(char *confname)
       exit(1);
     }
 
-    if (priv_lvl) define_config_variable("c_user");
+    if (is_user_config) define_config_variable("c_user");
     else define_config_variable("c_system");
     if (dexe_running) define_config_variable("c_dexerun");
 
@@ -2095,6 +2137,8 @@ parse_config(char *confname)
     if (commandline_statements) {
       #define XX_NAME "commandline"
       extern char *yy_vbuffer;
+
+      open_file(0);
       define_config_variable("c_comline");
       c_printf("Parsing " XX_NAME  " statements.\n");
       file_being_parsed = malloc(strlen(XX_NAME) + 1);
@@ -2107,6 +2151,7 @@ parse_config(char *confname)
 	yyerror("error in user's %s statement", XX_NAME);
       free(file_being_parsed);
       undefine_config_variable("c_comline");
+      close_file(0);
     }
   }
 
@@ -2117,6 +2162,10 @@ parse_config(char *confname)
   if (dexe_running) {
     if (dexe_secure && get_orig_uid())
       config.secure = 1;
+    /* force a BootC,
+     * regardless what ever was set in the config files
+     */
+    config.hdiskboot = 1;
   }
   else {
     if (get_config_variable("c_dexeonly")) {
@@ -2146,7 +2195,7 @@ static int allowed_classes = -1;
 static int is_in_allowed_classes(int mask)
 {
   if (!(allowed_classes & mask)) {
-    yyerror("unsufficient class privilege to use this configuration option\n");
+    yyerror("insufficient class privilege to use this configuration option\n");
     leavedos(99);
   }
   return 1;
@@ -2160,7 +2209,7 @@ struct config_classes {
 	{"c_normal", CL_ALL & (~(CL_VAR | CL_BOOT | CL_VPORT | CL_SECURE | CL_IRQ | CL_HARDRAM))},
 	{"c_fileext", CL_FILEEXT},
 	{"c_var", CL_VAR},
-	{"c_system", CL_VAR},
+	{"c_system", CL_ALL},
 	{"c_nice", CL_NICE},
 	{"c_floppy", CL_FLOPPY},
 	{"c_boot", CL_BOOT},

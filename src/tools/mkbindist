@@ -12,49 +12,173 @@
 #   tar -cf- -C /tmp/dosemu-<version> . | gzip -9 >/tmp/dosemu-<version>-bin.tgz
 #
 
-cd ../../
+function usage {
+  echo -e "USAGE:
+  mkbindist [-m] [-s] [-t targdir] [-d docdir] [-- configopts ... ]
+
+  -m          do a 'make pristine; make' before generation
+  -c          do just a clean compile, but no generation
+  -s          produce static binaries
+  -t targdir  use 'targdir' instead of /tmp/dosemu-<version>/*
+  -d docdir   include documentation in 'docdir'
+  configopts  all valid options for ./configure, don't forget to
+              put an empty '--' in front of the first option
+
+  NOTE: this is intended for 'releasers' use mostly,
+        you normally don't need it!
+"
+  exit 1
+}
+
+
+if [ "`basename $PWD`" = "tools" ]; then
+  cd ../../
+fi
+
+TAKESETUP="0"  # we need this later, needs some more work
+               # ^^^^^^^^^^^^^^^^^^
 
 VER=`basename $PWD`
-
 DIR=/tmp/${VER}
+TMP="/tmp/settings.$$"
 
-rm -rf /tmp/${VER}
+SHIFT=""
+while getopts "mcst:d:" OPT; do
+  case $OPT in
+    m) DOMAKE="1"; SHIFT="$SHIFT x";;
+    c) DOMAKE="1"; COMPILE="1"; SHIFT="$SHIFT x";;
+    s) STATIC="1"; SHIFT="$SHIFT x";;
+    t) DIR=$OPTARG; SHIFT="$SHIFT x x";;
+    d) DOCDIR_=$OPTARG; SHIFT="$SHIFT x x";;
+    ?) usage ;;
+  esac
+done
 
-mkdir -p $DIR
-mkdir -p ${DIR}/usr/bin
-mkdir -p ${DIR}/var/lib/dosemu
-mkdir -p ${DIR}/var/lib/dosemu/setup/demudialog
-mkdir -p ${DIR}/var/run
-mkdir -p ${DIR}/usr/X11R6/lib/X11/fonts/misc
+for i in $SHIFT; do
+  shift
+done
 
-cat > ${DIR}/compiletime-settings <<EOF
+SUFFIX=""
+while [ "$1" != "" ]; do
+  if [ "$1" != "--" ]; then
+    SUFFIX="$SUFFIX $1"
+  fi
+  shift
+done
+
+
+if [ "$COMPILE" != "1" ]; then
+  MANDIR=${DIR}/usr/man/man1
+
+  if [ "$DOCDIR_" = "" ]; then
+    DOCDIR_="usr/doc"
+  fi
+  DOCDIR="$DOCDIR_"
+  if [ "${DOCDIR#/}" = "$DOCDIR" ]; then
+    DOCDIR="${DIR}/${DOCDIR}"
+  fi
+
+  install -d  $DIR
+  install -d  ${DIR}/usr/bin
+  install -d  ${DIR}/var/lib/dosemu
+  install -d  ${DIR}/var/run
+  install -d  ${DIR}/usr/X11R6/lib/X11/fonts/misc
+fi
+
+if [ "$DOMAKE" = "1" ]; then
+  if [ "$STATIC" = "1" ]; then
+    cat > ${TMP} <<EOF
 config {  sbemu on novm86plus off mitshm on x on dodebug off newkbd off slangforce off tmonoton off runasroot off linkstatic on}
 EOF
 
-
-if [ "$1" = "make" ]; then
-  make pristine
-  default-configure ${DIR}/compiletime-settings
+  else
+    cp -f ./compiletime-settings ${TMP}
+  fi
+  if [ -f Makefile ]; then
+    make pristine
+  fi
+  ./default-configure ${TMP} ${SUFFIX}
   make 'WAIT='
-  (cd setup/demudialog; make 'STATIC=-static')
+  if [ "$TAKESETUP" = "1" ]; then
+    (cd setup/demudialog; make 'STATIC=-static')
+    strip setup/demudialog/demudialog
+  fi
   strip ./bin/dos
   strip ./bin/dosdebug
   strip ./src/tools/periph/dexeconfig
   strip ./src/tools/periph/mkfatimage16
+  rm -f ${TMP}
 fi
 
-install -c -o root -m 04755 ./bin/dos ${DIR}/usr/bin
-install -c -o root -m 0755 ./bin/dosdebug ${DIR}/usr/bin
-if [ ! -e ${DIR}/usr/bin/dosexec ]; then ln -s dos ${DIR}/usr/bin/dosexec; fi
-install -m 0755 ./etc/xtermdos ${DIR}/usr/bin
-if [ ! -e ${DIR}/usr/bin/xdos ]; then ln -s dos ${DIR}/usr/bin/xdos; fi
-install -m 0644 ./etc/vga.pcf ${DIR}/usr/X11R6/lib/X11/fonts/misc
+if [ "$COMPILE" = "1" ]; then
+  exit 0
+fi
+
+if [ "$DIR" = "/" ]; then
+  make install
+else
+  make "INSTROOT=$DIR" install
+fi
 install -m 0755 src/tools/periph/mkfatimage16 ${DIR}/usr/bin
 install -m 0755 src/tools/periph/dexeconfig ${DIR}/usr/bin
-cp -ap ./dexe  ${DIR}/var/lib/dosemu
-(cd setup; cp -p parse* runtime* select* write* ${DIR}/var/lib/dosemu/setup)
-cp -p setup/demudialog/demudialog ${DIR}/var/lib/dosemu/setup/demudialog
-cat > ${DIR}/var/lib/dosemu/setup-dosemu <<EOF
+
+if [ -d ${DIR}/var/lib/dosemu/dexe ]; then cp -fp ./dexe/* ${DIR}/var/lib/dosemu/dexe
+else cp -ap ./dexe  ${DIR}/var/lib/dosemu; fi
+sed -e "s/ISBINRELEASE/1/" ./dexe/mkdexe >${DIR}/var/lib/dosemu/dexe/mkdexe
+chmod 755 ${DIR}/var/lib/dosemu/dexe/mkdexe
+sed -e "s/ISBINRELEASE/1/" ./setup-hdimage >${DIR}/var/lib/dosemu/setup-hdimage
+chmod 755 ${DIR}/var/lib/dosemu/setup-hdimage
+
+
+if [ -d ${DIR}/var/lib/dosemu/dosC ]; then cp -fp ./contrib/dosC/dist/* ${DIR}/var/lib/dosemu/dosC
+else cp -ap ./contrib/dosC/dist ${DIR}/var/lib/dosemu/dosC; fi
+cp -fp ./contrib/dosC/readme.* ./contrib/dosC/dosc.patch ${DIR}/var/lib/dosemu/dosC
+
+if [ ! -d ${DIR}/var/lib/dosemu/commands ]; then install -d ${DIR}/var/lib/dosemu/commands;fi
+cp -ap ./commands/* ${DIR}/var/lib/dosemu/commands
+
+install -d ${DIR}/var/lib/dosemu/etc
+( cd ./etc; cp -fap config.* dosemu.users* keymap dosemu.xpm \
+  ${DIR}/var/lib/dosemu/etc )
+( cd ${DIR}/var/lib/dosemu/etc; mv config.dist dosemu.conf )
+
+pushd ${DIR}/var/lib/dosemu >/dev/null
+cat > doinstall.sh <<EOF
+#! /bin/bash
+( cd /usr/X11R6/lib/X11/fonts/misc; mkfontdir . )
+( cd /var/lib/dosemu; mkfatimage16 -b dosC/boot.bin -l DOSEMU \
+	dosC/ipl.sys dosC/kernel.exe dosC/command.com \
+	commands/* >hdimage.test )
+EOF
+popd >/dev/null
+
+if [ "$DOCDIR" = "" ]; then
+  DOCDIR=/usr/doc
+fi
+install -d $DOCDIR
+cp -fp ./doc/* $DOCDIR
+rm -f ${DOCDIR}/Makefile.*
+for i in src/base src/dosext src/arch; do
+  cp -fp `find -name 'README.*'` $DOCDIR
+done
+cp -fp src/dosext/net/net/README ${DOCDIR}/README.net
+cp -fp src/commands/README ${DOCDIR}/README.doscommands
+cp -fp ChangeLog ${DOCDIR}
+
+_DOCDIR=""
+for i in `echo -n $DOCDIR_ |tr '/' ' '`; do
+  _DOCDIR="${_DOCDIR}\/${i}"
+done
+
+
+sed -e "s/DOCDIR/${_DOCDIR}/g" ./src/tools/QuickStart.bindist >${DOCDIR}/QuickStart
+cp -fp COPYING ${DOCDIR}
+
+if [ "$TAKESETUP" = "1" ]; then
+  install -d  ${DIR}/var/lib/dosemu/setup/demudialog
+  (cd setup; cp -p parse* runtime* select* write* ${DIR}/var/lib/dosemu/setup)
+  install  setup/demudialog/demudialog ${DIR}/var/lib/dosemu/setup/demudialog
+  cat > ${DIR}/var/lib/dosemu/setup-dosemu <<EOF
 #!/bin/sh
 #
 # Front end to the runtime time script.
@@ -70,4 +194,5 @@ export USING_BIN_DIST
 (cd setup; ./runtime_setup.sh)
 EOF
 
-chmod 755 ${DIR}/var/lib/dosemu/setup-dosemu
+  chmod 755 ${DIR}/var/lib/dosemu/setup-dosemu
+fi

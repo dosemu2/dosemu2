@@ -12,7 +12,7 @@ of DOSEMU (>=dosemu-0.66.2) such as
 
 The "..." will be 'typed in' by dosemu exactly as if you had them
 typed at the keyboard. The advantage of this technique is, that all
-DOS applications will except them, even interactive ones. A '\' is
+DOS applications will accept them, even interactive ones. A '\' is
 interpreted as in C and leads in ESC-codes. Here a list of of the
 current implemented ones:
 

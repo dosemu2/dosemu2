@@ -9,7 +9,7 @@
 
 function usage {
   echo "USAGE:"
-  echo "  extract-dos device targetdir [-i IOname] [-m MSname]"
+  echo '  extract-dos device [targetdir [-t] [-i IOname] [-m MSname]]'
   echo ""
   echo "where is:"
   echo "  device    = DOS-partition such as '/dev/hda1'"
@@ -17,6 +17,10 @@ function usage {
   echo "  targetdir = will be created, get the system files"
   echo "  -i nnn    = name of 'io.sys' if different"
   echo "  -m nnn    = name of 'msdos.sys' if different"
+  echo "  -t        = autocheck for 'io.sys' and 'msdos.sys'"
+  echo "or:"
+  echo '  extract-dos device'
+  echo 'in this case only the type of DOS is checked'
   exit 1
 }
 
@@ -25,6 +29,7 @@ if [ "$(( `mtools -V|awk '{print $3}'|tr ',a-z' ' '|tr '.' '0'` < 306 ))" \
   echo "wrong mtools version installed, please upgrade to >= 3.6"
   exit 1
 fi
+
 
 function is_hdimage {
   xxMAGIC=`dd if=$1 bs=5 count=1 2>/dev/null`
@@ -61,6 +66,17 @@ EOF
 }
 
 
+function exist_file {
+# $1 = device
+# $2 = file on device
+  if do_mtool $1 mdir -faw w:${2} | grep 'not found' >/dev/null; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+
 function get_bootsect {
 # $1  =  device or hdimage
 # $2  =  target file name
@@ -71,32 +87,88 @@ function get_bootsect {
   fi
 }
 
+function check_bootsect {
+# $1  =  device or hdimage
+  tmp="/tmp/bootsect.$$"
+  if is_hdimage $1; then
+    dd if=$1 of=$tmp bs=128 count=4 skip=69 >/dev/null 2>&1
+  else
+    dd if=$1 of=$tmp bs=512 count=1 >/dev/null 2>&1
+  fi
+  if strings ${tmp} |grep 'IBMBIO  COM' >/dev/null 2>&1; then
+    IOSYS="ibmbio.com"
+    MSDOS="ibmdos.com"
+    TYPE="IBMorOpenDos"
+    if strings ${tmp} |grep 'NWDOS' >/dev/null 2>&1; then
+      TYPE="NOVELL"
+    fi
+  else
+    if strings ${tmp} |grep 'MSDOS   SYS' >/dev/null 2>&1; then
+      IOSYS="io.sys"
+      MSDOS="msdos.sys"
+      if strings ${tmp} |grep 'WINBOOT SYS' >/dev/null 2>&1; then
+        TYPE="WIN95"
+      else
+        TYPE="MSDOS"
+      fi
+    else
+      if strings ${tmp} |grep 'IPL     SYS' >/dev/null 2>&1; then
+        IOSYS="ipl.sys"
+        MSDOS="kernel.exe"
+        TYPE="FreeDos"
+      fi
+    fi
+  fi
+  if ! exist_file $1 $IOSYS; then IOSYS="UNKNOWN"; TYPE="UNKNOWN"; fi
+  if ! exist_file $1 $MSDOS; then 
+    MSDOS="UNKNOWN";
+    if [ "$TYPE" != "WIN95" ]; then TYPE="UNKNOWN"; fi
+  fi
+  rm -f ${tmp}
+}
 
-if [ -z $2 ]; then
+
+if [ -z $1 ]; then
   usage
 fi
 
-
 DEVICE="$1"
-TARGDIR="$2"
-shift; shift
 
 IOSYS="io.sys"
 MSDOS="msdos.sys"
-COMCOM="command.com"
+TYPE="UNKNOWN"
+
+check_bootsect $DEVICE
+if [ -z $2 ]; then
+  echo "$TYPE $IOSYS $MSDOS"
+  exit 0
+fi
+
+
+TARGDIR="$2"
+shift; shift
 
 badcase=0
-while getopts "i:m:" OPT; do
+while getopts "i:m:C:t" OPT; do
   case $OPT in
     i) IOSYS=$OPTARG;;
     m) MSDOS=$OPTARG;;
+    C) COMCOM=$OPTARG;;
+    t) check_bootsect $DEVICE;;
     ?) badcase=1
   esac
 done
-
 if [ $badcase -eq 1 ]; then usage; fi
 
+if [ "$TYPE" = "WIN95" ]; then
+  if exist_file $DEVICE /windows/${COMCOM}; then
+    COMCOM="windows/${COMCOM}"
+  fi
+fi
+
+
+echo "System type is $TYPE. sysfiles: ${IOSYS}, ${MSDOS}, $COMCOM"
 mkdir -p $TARGDIR
 get_bootsect $DEVICE ${TARGDIR}/boot.bin
-do_mtool $DEVICE mcopy w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
+do_mtool $DEVICE mcopy -n w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
 

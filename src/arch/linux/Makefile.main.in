@@ -81,7 +81,7 @@ LIBS=$(LIBSUBDIRS)
 
 LIBS_ := $(subst /,_,$(LIBS))
 
-DOCS= $(REALTOPDIR)/doc
+DOCS= $(REALTOPDIR)/man
 
 
 # Relevant to src
@@ -344,27 +344,31 @@ installnew: doslib
 	$(MAKE) install
 
 install:
-	@install -d /var/lib/dosemu
-	@install -d /var/run
-	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
-	@install -c -o root -m 04755 $(BINPATH)/bin/dos /usr/bin
+	@if [ "$(INSTROOT)" != "" ]; then \
+	  install -d $(INSTROOT)/usr/bin; \
+	fi
+	@install -d $(INSTROOT)/var/lib/dosemu
+	@install -d $(INSTROOT)/var/run
+	@if [ -f $(INSTROOT)/lib/libemu ]; then rm -f $(INSTROOT)/lib/libemu ; fi
+	@install -c -o root -m 04755 $(BINPATH)/bin/dos $(INSTROOT)/usr/bin
 ifdef  USE_MHPDBG
-	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug /usr/bin
+	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug $(INSTROOT)/usr/bin
 endif
 ifndef ELF
-	@install -m 0644 $(LIBDOSEMU) /usr/lib/libdosemu-$(THISVERSION)
-	@(cd /usr/lib; ln -sf libdosemu-$(THISVERSION) libdosemu)
+	@install -m 0644 $(LIBDOSEMU) $(INSTROOT)/usr/lib/libdosemu-$(THISVERSION)
+	@(cd $(INSTROOT)/usr/lib; ln -sf libdosemu-$(THISVERSION) libdosemu)
 endif
-	@if [ -f /usr/bin/xdosemu ]; then \
-		install -m 0700 /usr/bin/xdosemu /tmp; \
-		rm -f /usr/bin/xdosemu; \
+	@if [ -f $(INSTROOT)/usr/bin/xdosemu ]; then \
+		install -m 0700 $(INSTROOT)/usr/bin/xdosemu /tmp; \
+		rm -f $(INSTROOT)/usr/bin/xdosemu; \
 	fi
-	@if [ ! -e /usr/bin/dosexec ]; then ln -s dos /usr/bin/dosexec; fi
+	@if [ ! -e $(INSTROOT)/usr/bin/dosexec ]; then ln -s dos $(INSTROOT)/usr/bin/dosexec; fi
 ifdef X_SUPPORT
-	@install -m 0755 ../etc/xtermdos /usr/bin
-	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
+	@install -m 0755 ../etc/xtermdos $(INSTROOT)/usr/bin
+	@if [ ! -e $(INSTROOT)/usr/bin/xdos ]; then ln -s dos $(INSTROOT)/usr/bin/xdos; fi
 	@echo ""
-	@if [ -w $(X11LIBDIR)/X11/fonts/misc ] && \
+	@if [ "$(INSTROOT)" = "" ]; then \
+	 if [ -w $(X11LIBDIR)/X11/fonts/misc ] && \
 	    [ -d $(X11LIBDIR)/X11/fonts/misc ] && \
 	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf ] && \
 	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf.Z ]; then \
@@ -372,14 +376,19 @@ ifdef X_SUPPORT
 		install -m 0644 ../etc/vga.pcf $(X11LIBDIR)/X11/fonts/misc; \
 		cd $(X11LIBDIR)/X11/fonts/misc; \
 		mkfontdir; \
+	fi; \
+	else \
+	 install -d $(INSTROOT)$(X11LIBDIR)/X11/fonts/misc; \
+	 install -m 0644 ../etc/vga.pcf $(INSTROOT)/$(X11LIBDIR)/X11/fonts/misc; \
 	fi
 endif
+	$(MAKE) -C ../man install
 	@echo ""; \
 	 echo "---------------------------------DONE Installing-------------------------------"; \
 	 echo ""; \
 	 echo "  - You need to configure DOSEMU. Read 'etc/config.dist'."; \
 	 echo "  - Update your /etc/dosemu.conf by editing a copy of './etc/config.dist'"; \
-	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU." \
+	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."; \
 	 echo "  - Use 'dosexec' instead of 'dos' to cause DOSEMU execute a DEXE."
 ifdef X_SUPPORT
 	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."; \

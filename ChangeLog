@@ -1,3 +1,77 @@
+97/05/19 ver. 0.67.2.1 unofficial pre-release
+				( taking over stuff from pre-0.66.5 )
+	From Alberto
+	- fixed bug for DIRECT_DPMI_CONTEXT_SWITCH, copy_context was
+	  forgotten at some places. (src/dosext/dpmi/dpmi.c)
+	From Ingo Brueckl <ib@wupperonline.de>
+	- bugfix for 'make install' not installing man/*dos*.1
+	From Michael an Reinhard Karcher <kar@dpk.berlin.fido.de>
+	- fixed bug for DPMI src/base/async/int.c, INT2f AX=1686 not
+	  correctly reporting CPU status.
+	From Hans
+	- fixes and enhancement for bootable hdimage generation
+	  - dexe/extract-dos can detect DOS types.
+	  - setup-hdimage makes use of DOS type detection. The following
+	    DOSes now can be made bootable for DOSEMU via setup-hdimage:
+		PCDOS, NWDOS, MSDOS, WIN95, FreeDos
+	  - fixed extract-dos to take windows/command.com when WIN95
+	  - new option for mkdexe: '-C comcom', here you can define
+	    an other command.com (e.g.4dos).
+	  - introduced 'write permissions' in DEXE files so that the
+	    DOS-app can (isolated) write to files within the DEXE,
+	    even if the file permissions don't allow that. This is
+	    a workaround for a general problem with DEXEs, look at
+	    ./doc/README.dexe for more details.
+	    For this, dexeconfig has a new option -p {w|W}
+	- new config option for DEXE: xdosonly. When set it terminates
+	  dosemu, when no X available, else it forces xdos.
+	- bug fix for 'forcexdos'
+	- force a BootC unconditionally for DEXE
+	- increased number of allowed disks to 16 (there was report of
+	  a user who had 11 disks ;-)
+	- fixed a bug in the 'class' stuff (could not access within scope
+	  of /etc/dosemu.conf)
+	- fixed parser not aborting, when parserror in -I or DEXE.
+	- added (implicit) setting of configuration variable h_<ownhost>
+	  This can be checked in /etc/dosemu.conf to restrict access for
+	  given diskless machines, that mount a dosemu containing FS.
+	- added two new dosemu.conf statements:
+	  - abort <message>   which prints message to stderr and leaves dos.
+	  - warn  <message>   which just prints a message into the logfiles
+			      using c_printf.
+	- added the tiny 'ezedit' editor to src/commands/precompiled
+	- Updating the docs _a lot_ ;-)
+	  - added doc/README.lredir
+	  - added man/mkfatimage16
+	  - reworked Quickstart to reflect setup-hdimage, moved description
+	    of the old method to doc/README.oldboot
+	  - removed etc/BOGUS-Notes (was quite bogus;-)
+	  - added a src/tools/QuickStart.bindist, which will be used for
+	    making the binary distribution (see below)
+	  - e.t.c
+	- reworked ./etc/config.dist again and added a bit more comments ;-)
+	  - we now have the following examples:
+		./etc/config.dist
+		./etc/dosemu.users.easy
+		./etc/dosemu.users.secure
+	  - config.dist is generic, i.e. it checks for config variables
+	    set in dosemu.user such as
+		guest
+		secure
+		vbootfloppy
+	- fixed a bug (report: Hans-Joachim Baader <hans@grumbeer.inka.de>)
+	  in src/base/init/parser.y, parsing dosemu.users crashed on empty
+	  lines.
+	- Finally assembled a binary distribution. Put all stuff needed for
+	  that in to src/tools. In principal you just have to execute
+	     ./src/tools/mkbindist -m -s -d usr/doc
+	  and after this will have a complete tree in /tmp/dosemu-<version>
+	  that only needs to be tar'ed.
+	- changed Makefile.main.in such that you now can specify a directory
+	  into which the installation will be done (needed that for
+	  mkbindist). Example: 'make "INSTROOT=/tmp/dosemu-bin" install'
+	- changed default-configure so that it accepts further ./configure
+	  options such as './default-configure --host=i386-unknown-linux'
 97/05/10 ver. 0.67.2 released
 	From Eric
 	- Fixed a bug where shift number pad key only worked if _both_ left

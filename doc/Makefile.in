@@ -1,6 +1,0 @@
-all:
-
-install:
-	cp dos.1 /usr/man/man1
-
-clean realclean:

@@ -803,8 +803,14 @@ disk_init(void)
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
     if(dp->type == IMAGE)  {
-	d_printf("IMAGE: Using user permissions\n");
-	enter_priv_off();
+	if (dp->dexeflags & DISK_DEXE_RDWR) {
+	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
+	  enter_priv_on();
+	}
+	else {
+	  d_printf("IMAGE: Using user permissions\n");
+	  enter_priv_off();
+	}
     }
     else enter_priv_on();
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);

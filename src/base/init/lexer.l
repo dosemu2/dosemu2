@@ -126,6 +126,8 @@ char *yy_vbuffer=0;
 
 	/* keywords */
 
+abort			RETURN(ABORT);
+warn			RETURN(WARN);
 x			RETURN(L_X);
 dosbanner		RETURN(DOSBANNER);
 fastfloppy		RETURN(FASTFLOPPY);
@@ -383,6 +385,7 @@ fast			RETURN(FAST);
 dexe			RETURN(DEXE);
 allowdisk		RETURN(ALLOWDISK);
 forcexdos		RETURN(FORCEXDOS);
+xdosonly		RETURN(XDOSONLY);
 
 	/* boolean values */
 

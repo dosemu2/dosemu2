@@ -2810,7 +2810,11 @@ if ((_ss & 7) == 7) {
 	  /* dpmi_stack_frame[current_client], will be saved in */
 	  /* Return_To_Dosemu */
 	  restore_pm_regs();
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+	  copy_context(scp,&dpmi_stack_frame[current_client]);
+#else
 	  *scp = dpmi_stack_frame[current_client];
+#endif
 
 	  in_dpmi_dos_int = 1;
 	  dpmi_sti();
@@ -2859,7 +2863,11 @@ if ((_ss & 7) == 7) {
 	     /* dpmi_stack_frame[current_client], will be saved in */
 	     /* Return_To_Dosemu                                   */
 	     restore_pm_regs();
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+	     copy_context(scp,&dpmi_stack_frame[current_client]);
+#else
 	     *scp = dpmi_stack_frame[current_client];
+#endif
 	     /*in_dpmi_dos_int = 1;*/
 	     in_mouse_callback = 0;
 	     /* dpmi_sti(); */

@@ -29,12 +29,12 @@ function usage {
   echo 'USAGE:
   mkdexe [{ application | hdimage}]
                      [-b dospart] [{-s|-S} size] [-x appname]
-                     [-c confsys] [-a autoexe] [-d dosemuconf]
+                     [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
                      [-i IOname] [-m MSname]
                      [-o <option> [-o ...]]
 
   application  the whole DOS application packet into a *.zip file
-  hdimage      the name of the target hdimage, ih -o noapp is give
+  hdimage      the name of the target hdimage, if -o noapp is give
                (see below)
   dospart      If not given, FreeDos will be used as system
                If given it must be either a bootable DOS partion (/dev/...)
@@ -45,6 +45,7 @@ function usage {
   appname      The DOS filename of the application, that should be executed
   confsys      Template for config.sys
   autoexe      Template for autoexec.bat
+  comcom       file name of the shell, usually command.com
   dosemuconf   Template for the dosemu.conf to use
   IOname       The name of DOS file, that usually is called IO.SYS,
                (default for FreeDos: IPL.SYS) this one is always put as
@@ -70,11 +71,17 @@ if [ "$(( `mtools -V|awk '{print $3}'|tr ',a-z' ' '|tr '.' '0'` < 306 ))" \
   exit 1
 fi
 
+
+
 unset POSIXLY_CORRECT  # ... else ls -s would count in 512 bytes units
 
 function fsize {
-  set `ls -s $1`
-  echo "$1"
+  if [ -f $1 ]; then
+    set `ls -s $1`
+    echo "$1"
+  else
+    echo "0"
+  fi
 }
 
 function copy_text_file {
@@ -112,23 +119,37 @@ if [ -z $1 ]; then
   usage
 fi
 
-DDIR=`(cd ..; pwd -P)`
-MYDIR=`pwd -P`
-MKFAT=${DDIR}/src/tools/periph/mkfatimage16
-DEXECONF=${DDIR}/src/tools/periph/dexeconfig
+         # ISBINRELEASE will be changed to 1 (via sed) for bin releases
+if [ "ISBINRELEASE" = "1" ]; then
+  DDIR=/var/lib/dosemu
+  BINDIR=/usr/bin
+  MYDIR="${DDIR}/dexe"
+  MKFAT="${BINDIR}/mkfatimage16"
+  DEXECONF="${BINDIR}/dexeconfig"
+  DOSPART="${DDIR}/dosC"
+  DOSEMUCONF="${DDIR}/etc/config.test"
+  cd $MYDIR
+else
+  DDIR=`(cd ..; pwd -P)`
+  MYDIR=`pwd -P`
+  MKFAT=${DDIR}/src/tools/periph/mkfatimage16
+  DEXECONF=${DDIR}/src/tools/periph/dexeconfig
+  DOSPART="${DDIR}/contrib/dosC/dist"
+  DOSEMUCONF=${DDIR}/etc/config.test
+fi
 
 TARGDIR="/var/lib/dosemu"
-mkdir -p $TARGDIR
+install -d $TARGDIR
 
+EXITEMU="${DDIR}/commands/exitemu.com"
+COMMANDSDIR=${DDIR}/commands
 USE_FREE_DOS="1"
-DOSPART="${DDIR}/contrib/dosC/dist"
 CYLINDERSIZE=`echo "$(( 17 * 4 / 2 ))"`  # 17 sectors, 4 heads
 PARTSIZE="1224"                          # in Kbytes
 FIXSIZE="32"     # for cyl 0, FAT and dir
 FREESIZE="64"    # min reserved size
 CONFSYS=""
 AUTOEXEC=""
-DOSEMUCONF=""
 DCONFIG=""
 IOSYS="ipl.sys"
 MSDOS="kernel.exe"
@@ -137,7 +158,6 @@ BOOTSEC="boot.bin"
 APPNAME="test"
 APPEXE=""
 FILES=""
-EXITEMU="${DDIR}/commands/exitemu.com"
 
 case $1 in
   -*) DOSAPP="hdimage.dist"; NOAPP="1";;
@@ -147,7 +167,7 @@ esac
 CONFIRM="noconfirm"
 
 badcase=0
-while getopts "b:s:S:c:a:d:i:m:x:o:" OPT; do
+while getopts "b:s:S:c:C:a:d:i:m:x:o:" OPT; do
   case $OPT in
     b) DOSPART=$OPTARG
        USE_FREE_DOS="0"
@@ -157,6 +177,7 @@ while getopts "b:s:S:c:a:d:i:m:x:o:" OPT; do
     S) PARTSIZE=$OPTARG;;
     s) FREESIZE=$OPTARG; PARTSIZE="1";;
     c) CONFSYS=$OPTARG;;
+    C) COMCOM=$OPTARG;;
     a) AUTOEXEC=$OPTARG;;
     d) DOSEMUCONF=$OPTARG;;
     i) IOSYS=$OPTARG;;
@@ -201,7 +222,11 @@ mkdir -p $TMP
 
 # extract the system, if we don't use FreeDos
 if [ "$USE_FREE_DOS" = "0" ]; then
-  ${MYDIR}/extract-dos $DOSPART ${TMP}/sys -i $IOSYS -m $MSDOS
+  if [ "$COMCOM" = "" ]; then
+    ${MYDIR}/extract-dos $DOSPART ${TMP}/sys -i $IOSYS -m $MSDOS
+  else
+    ${MYDIR}/extract-dos $DOSPART ${TMP}/sys -i $IOSYS -m $MSDOS -C $COMCOM
+  fi
   DOSPART="${TMP}/sys"
   if strings ${TMP}/sys/boot.bin|grep 'WINBOOT SYS' >/dev/null 2>&1; then
     HAVE_W95="1"
@@ -214,10 +239,10 @@ mkdir -p ${TMP}/app
 if [ "$NOAPP" = "0" ]; then
   (cd ${TMP}/app; if ! unzip $DOSAPP; then exit 1; fi)
 else
-  (cd ${DDIR}/commands; cp -f * ${TMP}/app)
+  (cd $COMMANDSDIR; cp -f * ${TMP}/app)
   if [ "$CONFSYS" = "" ]; then CONFSYS="${TMP}/app/config.sys";fi
   if [ "$AUTOEXEC" = "" ]; then AUTOEXEC="${TMP}/app/autoexec.bat";fi
-  if [ "$DCONFIG" = "" ]; then DCONFIG="${DDIR}/etc/config.test";fi
+  if [ "$DCONFIG" = "" ]; then DCONFIG=$DOSEMUCONF;fi
   EXITEMU=""
 fi
 
@@ -256,14 +281,14 @@ dd if=/dev/zero bs=1024 count=$PADDINGSIZE 2>/dev/null |cat >> $APP_HDIMAGE
 
 # now we copy the whole application tree onto it,
 # we use a modified version of mtools 'xcopy' script for that
-pushd $TMP/app
+pushd $TMP/app >/dev/null
   if ! ${MYDIR}/do_mtools $APP_HDIMAGE ${MYDIR}/myxcopy ./ W:/; then
     echo "XXXX error during mcopy XXXX"
     echo "may be you choose the size of the hdimage too small"
     echo "Use the -s option to give more space on the hdimage"
     exit 1
   fi
-popd
+popd >/dev/null
 
 # we copy the configuration files
 # ... dosemu.conf first
@@ -273,7 +298,7 @@ if [ "$NOAPP" = "0" ]; then
 fi
 
 if [ "$HAVE_W95" = "1" ]; then
-  copy_text_file msdos.sys confirm ${TMP}/sys/msdos.sys
+  copy_text_file msdos.sys $CONFIRM ${TMP}/sys/msdos.sys
 fi
 
 _CONFIRM=$CONFIRM

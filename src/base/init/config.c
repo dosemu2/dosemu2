@@ -231,6 +231,7 @@ void
 config_init(int argc, char **argv)
 {
     extern char *commandline_statements;
+    extern int dexe_running;
     int             c;
     char           *confname = NULL;
     char           *basename;
@@ -352,10 +353,10 @@ config_init(int argc, char **argv)
 	case 'u':
 	    break;
 	case 'A':
-	    config.hdiskboot = 0;
+	    if (!dexe_running) config.hdiskboot = 0;
 	    break;
 	case 'B':
-	    config.hdiskboot = 2;
+	    if (!dexe_running) config.hdiskboot = 2;
 	    break;
 	case 'C':
 	    config.hdiskboot = 1;

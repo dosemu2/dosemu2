@@ -23,6 +23,11 @@ typedef enum {
 #define DISK_RDWR	0
 #define DISK_RDONLY	1
 
+/* definitions for 'dexeflags' in 'struct disk' and 'struct image_header' */
+#define  DISK_IS_DEXE		1
+#define  DISK_DEXE_RDWR		2
+
+
 struct partition {
   int number;
   int beg_head, beg_sec, beg_cyl;
@@ -38,6 +43,7 @@ struct disk {
   char *boot_name;              /* boot image file */
   int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
+  int dexeflags;		/* special flags for DEXE support */
   int sectors, heads, tracks;	/* geometry */
   long start;			/* geometry */
   int default_cmos;		/* default CMOS floppy type */
@@ -68,14 +74,19 @@ struct disk_fptr {
 /* this header appears only in hdimage files
  */
 struct image_header {
-  char sig[7];			/* always set to "DOSEMU", null-terminated */
+  char sig[7];			/* always set to "DOSEMU", null-terminated
+				   or to "\x0eDEXE" */
   long heads;
   long sectors;
   long cylinders;
-  long header_end;		/* distance from beginning of disk to end of header
+  long header_end;	/* distance from beginning of disk to end of header
 			 * i.e. this is the starting byte of the real disk
 			 */
-};
+  char dummy[1];	/* someone did define the header unaligned,
+  			 * we correct that atleast for the future
+  			 */
+  long dexeflags;
+} __attribute__((packed)) ;
 
 #define IMAGE_MAGIC		"DOSEMU"
 #define IMAGE_MAGIC_SIZE	strlen(IMAGE_MAGIC)
@@ -86,7 +97,7 @@ struct image_header {
 #define THREE_INCH_FLOPPY   4	/* 3.5 in, 1.44 MB floppy */
 #define FIVE_INCH_FLOPPY    2	/* 5.25 in, 1.2 MB floppy */
 #define MAX_FDISKS 4
-#define MAX_HDISKS 8
+#define MAX_HDISKS 16
 #define SECTOR_SIZE		512
 
 /*

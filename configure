@@ -3260,7 +3260,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="2.0"
+PATCHLEVEL="2.1"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -3648,7 +3648,7 @@ ac_given_srcdir=$srcdir
 
 trap 'rm -fr `echo "
 Makefile
-doc/Makefile
+man/Makefile
 src/Makefile
 src/Makefile.common
 src/arch/linux/Makefile.main
@@ -3780,7 +3780,7 @@ EOF
 cat >> $CONFIG_STATUS <<EOF
 
 CONFIG_FILES=\${CONFIG_FILES-"Makefile
-doc/Makefile
+man/Makefile
 src/Makefile
 src/Makefile.common
 src/arch/linux/Makefile.main

@@ -1,12 +1,19 @@
+#--------------------------------------------------------------------------
 # Linux dosemu 0.66 configuration file.
 #
-# This is the example file for
+# This is an example file for
 #      /etc/dosemu.conf  ( system wide configuration file )
 #      .dosrc            ( user configuration file )
 #      option -I         ( configuration via commandline, see man/dose.1 )
 #
+# Access rights are defined in
+#
+#      /etc/dosemu.users
+#
 # A detailed description of all configuration items can be found
-# in the file ./doc/README.config
+# in the file  ./doc/README.config
+#              ===================
+# BIG FAT NOTE:^^^^^^^^^^^^^^^^^^^
 #
 # NOTICE:
 #    - For more detailed information you should refer to the documentation in
@@ -15,33 +22,169 @@
 #       it easier for you to set up DOSEMU for your specific system.
 #    - Configuration options between lace brackets { } can be split onto
 #       multiple lines.
-#    - Comments start with # or ; in column 1. (beginning of a line)
+#    - Comments start with # (or ; in column 1. (beginning of a line) )
 #    - If you have problems installing DOSEMU and think it might be useful
 #       to mail or post your /etc/dosemu.conf, please consider to do:
 #
-#         grep ^[^#] /etc/dosemu.conf > /tmp/dosemu.conf-stripped
+#--------------------------------------------------------------------------
 #
-#       and mail or post /tmp/dosemu.conf-stripped instead.
-#       This will prove that you actually read the documentation. :-)
+# Following the standard dosemu configuration, possible alternatives
+# below are all starting at 1st <TAB> and are commented out.
+# Real comments have _two_ ##, to make better clear, what ist meant.
+
+
+## comment out the below line, if you want to boot from a virtual floppy
+#define vbootfloppy
+
+
+##
+## common configuration part, without relation to security
+##
 
 debug { off }
 dosbanner on
 timint on
-keyboard {  layout us  keybint on  rawkeyboard off  }
-HogThreshold 0
-ipxsupport off
 terminal { charset latin  updatefreq 4  color on }
+	#terminal { charset ibm  color on }
+	#terminal { charset latin  color on }
+	#terminal { charset ibm  color on }
 X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
-video { vga }          # Use this line, if you are using VGA
-mathco on           # Math coprocessor valid values:  on  off
-cpu 80386           # CPU emulation valid values:  80[345]86
-bootA               # Startup drive valid values:  bootA  bootC
-secure off
-dpmi 4086               # DPMI size in K, or "off"
-xms 1024		# XMS size in K,  or "off"
-ems 1024		# EMS size in K,  or "off"
-irqpassing off    # this disables IRQ monitoring
-speaker "off"
-floppy { device /dev/fd0 threeinch }
-sound_emu off
-dexe { secure }
+	#X { updatefreq 5 title "DOS in a BOX" icon_name "xdos" sharecmap }
+mathco on           ## Math coprocessor valid values:  on  off
+cpu 80386           ## CPU emulation valid values:  80[345]86
+xms 1024		## XMS size in K,  or "off"
+ems 1024		## EMS size in K,  or "off"
+	#ems { ems_size 2048 ems_frame 0xd000 }
+	#dosmem 640		## Maximum conventional RAM to show apps
+	#EmuSys EMU
+	#EmuBat EMU
+
+##
+## special configuration part, conditional handling of security issues
+##
+
+## host-allowed checking, see ./doc/README.config for details !!
+ifdef h_oddhost.hell.com
+  abort "this host is not allowed to use dosemu"
+endif
+
+
+ifdef guest
+  ## /etc/dosemu.users defined 'guest' for this login
+  define restricted      ## force restricted setting
+  define c_dexeonly  ## forbid any other use than DEXE execution
+  keyboard {  layout us  keybint on  rawkeyboard off  }
+						##^^
+  HogThreshold 1
+  video { vga }
+  sound_emu off
+else
+  ## other then guest
+  keyboard {  layout us  keybint on  rawkeyboard off  }
+						##^^ may be 'on'
+	#keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
+  HogThreshold 0
+	#keystroke "\F8;"
+
+	#serial { com 1  device /dev/modem }
+	#serial { com 4  device /dev/modem }
+	#serial { com 3  base 0x03E8  irq 5  device /dev/cua2 }
+	#serial { mouse  com 1  device /dev/mouse }
+	#mouse { microsoft } ## logitech, mmseries, mouseman, hitachi, mousesystems
+	#mouse { busmouse }
+	#mouse { ps2  device /dev/mouse internaldriver emulate3buttons }
+	#mouse { mousesystems device /dev/mouse internaldriver cleardtr }
+	#ttylocks { directory /var/lock }
+	#ttylocks { directory /var/lock namestub LCK.. }
+	#ttylocks { directory /var/lock namestub LCK.. binary }
+
+  video { vga }          ## Use this line, if you are using VGA
+	#video { cga  console }          ## Use this line, if you are using CGA
+	#video { ega  console }          ## Use this line, if you are using EGA
+	#video { mda  console }          ## Use this line, if you are using MDA
+	#allowvideoportaccess on
+	#video { vga  console  graphics }
+	#video { vga  console  graphics  vbios_seg 0xe000 }
+	#video { vga  console  graphics  chipset trident  memsize 1024 }
+	#video { vga  console  graphics  chipset diamond }
+	#video { vga  console  graphics  chipset cirrus }
+	#video { vga  console  graphics  chipset et4000  memsize 1024 }
+	#video { vga  console  graphics  chipset et4000  memsize 1024 vbios_size 0x8000 }
+	#video { vga  console  graphics  chipset s3  memsize 1024 }
+	#video { vga  console  graphics  chipset avance }
+  ifndef restricted
+	#ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
+  endif
+  sound_emu off
+	#sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp sb_mixer /dev/mixer mpu_base 0x330 }
+endif ## guest
+
+
+ifdef restricted
+  ## /etc/dosemu.users defined 'restricted' for this login
+  define c_normal
+  secure on
+  dexe { secure }
+  ifndef guest
+    ifndef c_dexerun
+      disk { image "/var/lib/dosemu/hdimage.first" }
+    endif
+  endif
+  dpmi off
+  speaker emulated
+  ipxsupport off
+  printer { options "%s"  command "lpr"  timeout 20 }
+else
+  ## /etc/dosemu.users does allow full access for this login
+  secure off
+  dexe { allowdisk }
+  ifndef vbootfloppy
+    bootC               ## Startup drive valid values:  bootA  bootC
+    ifndef c_dexerun
+      disk { image "/var/lib/dosemu/hdimage.first" }   ## use diskimage file.
+    endif
+  endif
+	#disk { partition "/dev/hda1" readonly }       ## 1st partition on 1st IDE.
+	#disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
+	#disk { partition "/dev/hda6" readonly }       ## 6th logical partition.
+	#disk { wholedisk "/dev/hda" }                 ## DANGER: Entire disk drive unit
+	#bootdisk { heads 2 sectors 18 tracks 80 threeinch file /var/lib/dosemu/bdisk }
+  ifndef vbootfloppy
+    floppy { device /dev/fd0 threeinch }
+  else
+    bootA
+    floppy { heads 2  sectors 18  tracks 80 threeinch  file /var/lib/dosemu/diskimage }
+  endif
+	#floppy { device /dev/fd1 fiveinch }
+	#FastFloppy 8
+  dpmi 4086               ## DPMI size in K, or "off"
+	#hardware_ram { 0xc8000 range 0xcc000 0xcffff }
+  irqpassing off    ## this disables IRQ monitoring
+	#irqpassing { use_sigio 15 }
+  #be carefull with port settings !!!
+	#ports { 0x388 0x389 }  ## for SimEarth
+  speaker native         ## or "off" or "emulated"
+  ipxsupport off
+	#pktdriver novell_hack
+  printer { options "%s"  command "lpr"  timeout 20 }
+	#printer { options "-p %s"  command "lpr"  timeout 10 }    ## pr format it
+	#printer { file "lpt3" }
+	#printer { options "%s"  command "lpr"  base 0x3bc }
+	#ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
+  ##debugging aids
+	#dosemumap /var/lib/dosemu/dosemu.map  ## for dosdebug to find the map
+	#logbufsize 0x20000                    ## set buffersize for logging
+endif
+
+
+## define the allowed classes for subsequent .dosrc and -I parsing
+
+ifdef restricted
+  undef c_all
+  ifdef guest
+    undef c_normal
+    define c_dexe
+    define c_nice
+    define c_x
+  endif
+endif

@@ -3,13 +3,22 @@
 CONF_FILE="compiletime-settings"
 
 if [ "$1" != "" ]; then
-  CONF_FILE=$1
+  if [ "${1#--}" = "$1" ]; then
+    CONF_FILE=$1
+    shift
+  fi
 fi
 
 if [ ! -f $CONF_FILE ]; then
   echo "$CONF_FILE cannot be opened"
   exit 1
 fi
+
+SUFFIX=""
+while [ "$1" != "" ]; do
+  SUFFIX="$SUFFIX $1"
+  shift
+done
 
 set `cut '-d{' -f2 $CONF_FILE |cut '-d}' -f1`
 
@@ -61,5 +70,5 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
-echo "./configure $STRING"
-./configure $STRING
+echo "./configure $STRING $SUFFIX"
+./configure $STRING $SUFFIX

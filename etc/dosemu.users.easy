@@ -1,0 +1,19 @@
+# This is a sample /etc/dosemu.users file
+# Here you can restrict access to dosemu
+#
+# However, THIS ONE DOES ALLOW ALL WEIRD THINGS !!!
+# For a more secure one look at ./etc/dosemu.users.secure
+# 
+# Format:
+#
+#   [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
+#
+#   <login>  the login name of a user
+#   canvar   under this name a configuration variable is set which
+#            can be checked via 'ifdef' in /etc/dosemu.conf
+#            Variables starting with 'c_' define class permission
+#
+# For more details look at ./doc/README.conf
+
+root c_all  
+all c_all

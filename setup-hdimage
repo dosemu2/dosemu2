@@ -5,8 +5,20 @@
 # Make a direct executable (bootable) hdimage getting the DOS from
 # your _existing_ native boot partition.
 
-DDIR=`pwd -P`
+PROMPTMODE="-o confirm"
+COMCOM="command.com"
 
+if [ "$1" = "-n" ]; then
+  PROMPTMODE=""
+fi
+
+if [ "ISBINRELEASE" = "1" ]; then  # we will have "1" = "1" for bin releases
+  DDIR=/var/lib/dosemu
+else
+  DDIR=`pwd -P`
+fi
+
+cd $DDIR
 
 echo "checking you partitions, wait..."
 PARTS=`fdisk -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1 " " $2}'|tr '* ' 'B:'| grep ':B'`
@@ -32,7 +44,6 @@ else
 fi
 
 read DEVICE
-echo $DEVICE
 
 #DEVICE=/dev/hda1
 
@@ -43,23 +54,22 @@ if [ "$ISFLOPPY" = "1" ]; then
   read
 fi
 
-# we check if we have the usual sysfile names
-NUMSYS=`${DDIR}/dexe/do_mtools $DEVICE mdir -a w:/*.sys - 2>/dev/null | \
-    awk '/io       sys/ || /msdos    sys/{print $2}'|grep -c sys 2>/dev/null`
+# we now check what type of DOS we have
+set `${DDIR}/dexe/extract-dos $DEVICE`
+TYPE=$1
+IOSYS=$2
+MSDOSSYS=$3
 
-if [ "$NUMSYS" != "2" ]; then
-
+case $TYPE in
+  MSDOS | WIN95 | NOVELL | IBMorOpenDos | FreeDos) ;;
+  *)
   echo "
 
-$DEVICE has the following *.sys files:
-
-"
-  ${DDIR}/dexe/do_mtools $DEVICE mdir -a w:/*.sys 2>/dev//null |grep sys
-
+Your $DEVICE seems not to contain one of the DOSes that I know."
   echo '
 A normal MSDOS system has io.sys and msdos.sys, these are the files that
-are needed to boot your system. These apparently are different for your system,
-but I need to know there names.
+are needed to boot your system. These apparently are different for your
+system, but I need to know their names.
 
 What is the name of the file that corresponds IO.SYS?
 '
@@ -69,30 +79,46 @@ What is the name of the file that corresponds IO.SYS?
 What is the name of the file that corresponds MSDOS.SYS?
 '
   read MSDOSSYS
+  ;;
+esac
+
+echo '
+A normal MSDOS system has command.com as shell.
+If you have a different one, please enter the name,
+else just type ENTER
+'
+read _COMCOM
+if [ "" != "" ]; then
+  COMCOM=$_COMCOM
 fi
 
 echo '
 We now try to generate a bootable hdimage into /var/lib/dosemu/hdimage.first
-and are calling ./dexe/mkdexe for this. You will be prompted to edit the
-configuration files (config.sys, autoexec.bat e.t.c).
+and are calling ./dexe/mkdexe for this.'
+
+if [ "$PROMPTMODE" != "" ]; then
+  echo '
+You will be prompted to edit the configuration files
+(config.sys, autoexec.bat e.t.c).
 
 Enter the name of your favorite editor, if you type just ENTER, the
 editor given via the EDITOR enviroment variable will be used.
 '
 
-read MYEDIT
-if [ "$MYEDIT" != "" ]; then
-  if hash $MYEDIT >/dev/null 2>&1; then
-    EDITOR=$MYEDIT
-    export EDITOR
-  else
-    echo "Sorry, but $MYEDIT seems not to be accessable, using default"
+  read MYEDIT
+  if [ "$MYEDIT" != "" ]; then
+    if hash $MYEDIT >/dev/null 2>&1; then
+      EDITOR=$MYEDIT
+      export EDITOR
+    else
+      echo "Sorry, but $MYEDIT seems not to be accessable, using default"
+    fi
   fi
 fi
 
 echo "Starting ..."
 
-(cd ${DDIR}/dexe; ./mkdexe hdimage.first -b $DEVICE -o noapp -o confirm )
+(cd ${DDIR}/dexe; ./mkdexe hdimage.first -b $DEVICE -i $IOSYS -m $MSDOSSYS -C $COMCOM -o noapp $PROMPTMODE)
 
 echo " ... done"
 

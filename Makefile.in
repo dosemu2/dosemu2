@@ -33,7 +33,7 @@ pristine:  docsclean mididclean
 	rm -f config.cache config.status config.log src/include/config.h
 	rm -f src/Makefile.common src/arch/linux/Makefile.main
 	rm -f core `find src -name Makefile`
-	rm -f doc/Makefile
+	rm -f man/Makefile
 	rm -f core `find . -name '*~'`
 	rm -f core `find . -name '*[\.]o'`
 	rm -f core `find . -name '*.d'`

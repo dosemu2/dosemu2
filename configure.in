@@ -309,7 +309,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="2.0"
+PATCHLEVEL="2.1"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -534,7 +534,7 @@ dnl Create output files. If you add new ones, please do it in order.
 
 AC_OUTPUT([
 Makefile
-doc/Makefile
+man/Makefile
 src/Makefile
 src/Makefile.common
 src/arch/linux/Makefile.main
