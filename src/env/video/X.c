@@ -16,11 +16,7 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
-<<<<<<< X.c
  * $Id$
-=======
- * $Id$
->>>>>>> 1.4.2.2
  *
  * 951205: bon@elektron.ikp.physik.th-darmstadt.de
  *   Merged in again the selection stuff. Hope introduce hidden bugs 
