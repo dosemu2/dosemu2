@@ -497,7 +497,10 @@ leavedos(int sig)
 
     /* try to notify dosdebug */
 #ifdef USE_MHPDBG
-    mhp_exit_intercept(sig);
+    if (fault_cnt > 0)
+      error("leavedos() called from within a signal context!\n");
+    else
+      mhp_exit_intercept(sig);
 #endif
     
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
