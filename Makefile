@@ -10,10 +10,6 @@ SHELL=/bin/bash
 
 all: default configure src/include/config.h.in
 
-#automatic autoconf tool rebuilds
-configure: configure.ac
-	autoreconf
-
 srcdir=.
 top_builddir=.
 -include Makefile.conf
