@@ -462,7 +462,7 @@ static int slang_update (void)
       DOSemu_Terminal_Scroll_Min = imin;
       redraw_text_screen();
    } else {
-      changed = update_text_screen(NULL);
+      changed = update_text_screen();
    }
 
    if (changed || (last_col != cursor_col) || (last_row != cursor_row)

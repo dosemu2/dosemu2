@@ -32,9 +32,8 @@ void blink_cursor(void);
 void reset_redraw_text_screen(void);
 void update_cursor(void);
 struct RectArea convert_bitmap_string(int x, int y, unsigned char *text,
-				      int len, Bit8u attr,
-				      struct RemapObjectStruct *remap_obj);
-int update_text_screen(struct RemapObjectStruct *remap_obj);
+				      int len, Bit8u attr);
+int update_text_screen(void);
 void redraw_text_screen(void);
 void text_gain_focus(void);
 void text_lose_focus(void);

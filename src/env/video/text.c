@@ -39,6 +39,7 @@
 #include "vgaemu.h"
 #include "remap.h"
 #include "vgatext.h"
+#include "render.h"
 
 #ifdef HAVE_UNICODE_TRANSLATION
 #include "translate.h"
@@ -191,7 +192,7 @@ void reset_redraw_text_screen(void)
  *
  * Note: Redraws the *entire* screen if at least one color has changed.
  */
-static void refresh_text_palette(RemapObject *remap_obj)
+static void refresh_text_palette(void)
 {
   DAC_entry col[16];
   int j, k;
@@ -206,8 +207,8 @@ static void refresh_text_palette(RemapObject *remap_obj)
   for(k = 0; k < j; k++) {
     Text->SetPalette(col[k]);
     if (use_bitmap_font)
-      remap_obj->palette_update(remap_obj, col[k].index, vga.dac.bits,
-				col[k].r, col[k].g, col[k].b);
+      remap_obj.palette_update(&remap_obj, col[k].index, vga.dac.bits,
+			       col[k].r, col[k].g, col[k].b);
   }
 
   if(j) redraw_text_screen();
@@ -328,7 +329,7 @@ void blink_cursor()
 }
 
 RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
-			       Bit8u attr, RemapObject *remap_obj)
+			       Bit8u attr)
 {
   unsigned src, height, xx, yy, cc, srcp, srcp2, bits;
   unsigned long fgX;
@@ -374,18 +375,18 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 
   if ( ((y+1) * height) > vga.height ) {
     v_printf("Tried to print below scanline %d (row %d)\n",
-	     remap_obj->src_height, y);
+	     remap_obj.src_height, y);
     return ra;
   }
   if ( ((x+len) * vga.char_width) > vga.width ) {
     v_printf("Tried to print past right margin\n");
     v_printf("x=%d len=%d vga.char_width=%d width=%d\n",
-	     x, len, vga.char_width, remap_obj->src_width);
+	     x, len, vga.char_width, remap_obj.src_width);
     len = vga.width / vga.char_width - x;
   }
 
   /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
-  srcp = remap_obj->src_scan_len * y * height;
+  srcp = remap_obj.src_scan_len * y * height;
   srcp += x * vga.char_width;
 
   /* vgaemu -> vgaemu_put_char would edit the vga.mem.base[...] */
@@ -395,7 +396,7 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
     for (cc = 0; cc < len; cc++) {
       bits = vga.mem.base[0x20000 + src + (32 * (unsigned char)text[cc])];
       for (xx = 0; xx < 8; xx++) {
-	remap_obj->src_image[srcp2++]
+	remap_obj.src_image[srcp2++]
 	  = (bits & 0x80) ? fgX : bgX;
 	bits <<= 1;
       }
@@ -403,26 +404,26 @@ RectArea convert_bitmap_string(int x, int y, unsigned char *text, int len,
 	/* (only if enabled by bit... */
 	if ( (vga.attr.data[0x10] & 0x04) &&
 	     ((text[cc] & 0xc0) == 0xc0) ) {
-	  remap_obj->src_image[srcp2] = remap_obj->src_image[srcp2-1];
+	  remap_obj.src_image[srcp2] = remap_obj.src_image[srcp2-1];
 	  srcp2++;
 	} else {             /* ...or fill with background */
-	  remap_obj->src_image[srcp2++] = bgX;
+	  remap_obj.src_image[srcp2++] = bgX;
 	}
 	srcp2 += (vga.char_width - 9);
       }   /* (pixel-x has reached on next char now) */
     }
-    srcp += remap_obj->src_scan_len;      /* next line */
+    srcp += remap_obj.src_scan_len;      /* next line */
     src++;  /* globally shift to the next font row!!! */
   }
 
-  return remap_obj->remap_rect(remap_obj, vga.char_width * x, height * y,
-			       vga.char_width * len, height);    
+  return remap_obj.remap_rect(&remap_obj, vga.char_width * x, height * y,
+			      vga.char_width * len, height);    
 }
 
 /*
  * Update the text screen.
  */
-int update_text_screen(RemapObject *remap_obj)
+int update_text_screen(void)
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
@@ -440,14 +441,14 @@ int update_text_screen(RemapObject *remap_obj)
     co = vga.text_width;
   }
   
-  refresh_text_palette(remap_obj);
+  refresh_text_palette();
 
   if(vga.reconfig.display) {
     Text->Resize_text_screen();
     vga.reconfig.display = 0;
   }
   if(vga.reconfig.mem) {
-    remap_obj->src_resize(remap_obj, vga.width, vga.height, vga.width);
+    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.width);
     redraw_text_screen();
     vga.reconfig.mem = 0;
   }

@@ -246,6 +246,7 @@
 #include "remap.h"
 #include "vgaemu.h"
 #include "vgatext.h"
+#include "render.h"
 #include "keyb_server.h"
 #include "X.h"
 #include "dosemu_config.h"
@@ -437,7 +438,6 @@ static Boolean have_shmap = FALSE;
 static unsigned long text_colors[16];
 static int text_col_stats[16] = {0};
 
-static RemapObject remap_obj;
 static ColorSpaceDesc X_csd;
 static int have_true_color;
 unsigned dac_bits;			/* the bits visible to the dosemu app, not the real number */
@@ -2921,7 +2921,7 @@ int X_update_screen()
   if(vga.reconfig.re_init) X_setmode(0, 0, 0, 0);
 
   if(!is_mapped) return 0;       /* no need to do anything... */
-  return vga.mode_class == TEXT ? update_text_screen(&remap_obj) :
+  return vga.mode_class == TEXT ? update_text_screen() :
     X_update_graphics_screen();
 }
 
@@ -3040,7 +3040,7 @@ static void X_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr
  */
 static void bitmap_draw_string(int x, int y, unsigned char *text, int len, Bit8u attr)
 {
-  RectArea ra = convert_bitmap_string(x, y, text, len, attr, &remap_obj);
+  RectArea ra = convert_bitmap_string(x, y, text, len, attr);
   /* put_ximage uses display, mainwindow, gc, ximage       */
   X_printf("image at %d %d %d %d %d %d\n", shift_x+ra.x, shift_y+ra.y,
 	   ra.width - shift_x, ra.height, ra.x, ra.y);
