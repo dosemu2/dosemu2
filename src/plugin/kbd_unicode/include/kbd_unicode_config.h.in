@@ -9,7 +9,9 @@
 #endif
 
 
+
 /* Define this if you have the XKB extension */
 #undef HAVE_XKB
+
 
 #endif /* UNICODE_KEYB_CONFIG_H */

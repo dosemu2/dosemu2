@@ -2149,6 +2149,13 @@ void run_dpmi(void)
     retval=DO_VM86(&vm86s);
     in_vm86=0;
 
+    /* This will let foxpro run with cpu>=486 */
+    if (_EFLAGS & (AC|ID)) {
+      _EFLAGS &= ~(AC|ID);
+      if (debug_level('M')>3)
+	D_printf("BUG: AC,ID set; flags changed to %08x\n",_EFLAGS);
+    }
+
     if (
 #ifdef TRACE_DPMI
 	(retval!=1)&&

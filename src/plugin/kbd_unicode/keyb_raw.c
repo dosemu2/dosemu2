@@ -230,7 +230,7 @@ static int raw_keyboard_probe(void)
 {
 	int result = FALSE;
 	if (config.usesX || 
-		((config.console_keyb && can_do_root_stuff) && config.console)) {
+		(config.console_keyb && config.console)) {
 		result = TRUE;
 	}
 	return result;

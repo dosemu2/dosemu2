@@ -136,7 +136,7 @@ void check_console(void) {
     c_printf("major = %d minor = %d\n",
 	    major, minor);
     /* console major num is 4, minor 64 is the first serial line */
-    if (can_do_root_stuff && (major == 4) && (minor < 64)) {
+    if ((major == 4) && (minor < 64)) {
        scr_state.console_no = minor;
        config.console=1;
     }

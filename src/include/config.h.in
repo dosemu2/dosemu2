@@ -85,84 +85,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #endif /* not __ASM__ */
 
 
-/* Define if using alloca.c.  */
-#undef C_ALLOCA
-
-/* Define to empty if the keyword does not work.  */
-#undef const
-
-/* Define to one of _getb67, GETB67, getb67 for Cray-2 and Cray-YMP systems.
-   This function is required for alloca.c support on those systems.  */
-#undef CRAY_STACKSEG_END
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-#undef gid_t
-
-/* Define if you have alloca, as a function or macro.  */
-#undef HAVE_ALLOCA
-
-/* Define if you have <alloca.h> and it should be used (not on Ultrix).  */
-#undef HAVE_ALLOCA_H
-
-/* Define if you don't have vprintf but do have _doprnt.  */
-#undef HAVE_DOPRNT
-
-/* Define if you have a working `mmap' system call.  */
-#undef HAVE_MMAP
-
-/* Define if your struct stat has st_rdev.  */
-#undef HAVE_ST_RDEV
-
-/* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
-#undef HAVE_SYS_WAIT_H
-
-/* Define if utime(file, NULL) sets file's timestamp to the present.  */
-#undef HAVE_UTIME_NULL
-
-/* Define if you have the vprintf function.  */
-#undef HAVE_VPRINTF
-
-/* Define as __inline if that's what the C compiler calls it.  */
-#undef inline
-
-/* Define if major, minor, and makedev are declared in <mkdev.h>.  */
-#undef MAJOR_IN_MKDEV
-
-/* Define if major, minor, and makedev are declared in <sysmacros.h>.  */
-#undef MAJOR_IN_SYSMACROS
-
-/* Define to `long' if <sys/types.h> doesn't define.  */
-#undef off_t
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-#undef pid_t
-
-/* Define as the return type of signal handlers (int or void).  */
-#undef RETSIGTYPE
-
-/* Define to `unsigned' if <sys/types.h> doesn't define.  */
-#undef size_t
-
-/* If using the C implementation of alloca, define if you know the
-   direction of stack growth for your system; otherwise it will be
-   automatically deduced at run-time.
- STACK_DIRECTION > 0 => grows toward higher addresses
- STACK_DIRECTION < 0 => grows toward lower addresses
- STACK_DIRECTION = 0 => direction of growth unknown
- */
-#undef STACK_DIRECTION
-
-/* Define if you have the ANSI C header files.  */
-#undef STDC_HEADERS
-
-/* Define if you can safely include both <sys/time.h> and <time.h>.  */
-#undef TIME_WITH_SYS_TIME
-
-/* Define if your <sys/time.h> declares struct tm.  */
-#undef TM_IN_SYS_TIME
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-#undef uid_t
 
 /* Define the host for which Dosemu is configured */
 #undef CONFIG_HOST
@@ -228,6 +150,12 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef X_GRAPHICS
 
 /*
+ *  DEFINE this, if you have joystick support in the kernel
+ *  or have the joystick module loaded (needing <linux/joystick.h>)
+ */
+#undef USE_MRP_JOYSTICK
+
+/*
  * This is DEFINED when SB emulation is required. Just changing this is not
  * enough - you must reconfigure.
  */
@@ -261,50 +189,163 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
  * because though it has llseek in the library, it doesn't prototype it */
 #undef NEED_LLSEEK_PROTOTYPE
 
-/* Define if you have the getpagesize function.  */
-#undef HAVE_GETPAGESIZE
 
-/* Define if you have the gettimeofday function.  */
-#undef HAVE_GETTIMEOFDAY
+/* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
+   systems. This function is required for `alloca.c' support on those systems.
+   */
+#undef CRAY_STACKSEG_END
 
-/* Define if you have the <dirent.h> header file.  */
+/* Define if using `alloca.c'. */
+#undef C_ALLOCA
+
+/* Define if you have `alloca', as a function or macro. */
+#undef HAVE_ALLOCA
+
+/* Define if you have <alloca.h> and it should be used (not on Ultrix). */
+#undef HAVE_ALLOCA_H
+
+/* Define if you have the <dirent.h> header file, and it defines `DIR'. */
 #undef HAVE_DIRENT_H
 
-/* Define if you have the <fcntl.h> header file.  */
+/* Define if you don't have `vprintf' but do have `_doprnt.' */
+#undef HAVE_DOPRNT
+
+/* Define if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Define if you have the <limits.h> header file.  */
-#undef HAVE_LIMITS_H
+/* Define if you have the `getpagesize' function. */
+#undef HAVE_GETPAGESIZE
 
-/* Define if you have the <ndir.h> header file.  */
-#undef HAVE_NDIR_H
+/* Define if you have the `gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
 
-/* Define if you have the <sys/dir.h> header file.  */
-#undef HAVE_SYS_DIR_H
+/* Define if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
 
-/* Define if you have the <sys/file.h> header file.  */
-#undef HAVE_SYS_FILE_H
-
-/* Define if you have the <sys/ioctl.h> header file.  */
-#undef HAVE_SYS_IOCTL_H
-
-/* Define if you have the <sys/ndir.h> header file.  */
-#undef HAVE_SYS_NDIR_H
-
-/* Define if you have the <sys/time.h> header file.  */
-#undef HAVE_SYS_TIME_H
-
-/* Define if you have the <syslog.h> header file.  */
-#undef HAVE_SYSLOG_H
-
-/* Define if you have the <unistd.h> header file.  */
-#undef HAVE_UNISTD_H
-
-/* Define if you have the slang library (-lslang).  */
+/* Define if you have the `slang' library (-lslang). */
 #undef HAVE_LIBSLANG
 
-/* Define if you have the vga library (-lvga).  */
+/* Define if you have the `vga' library (-lvga). */
 #undef HAVE_LIBVGA
+
+/* Define if you have the <limits.h> header file. */
+#undef HAVE_LIMITS_H
+
+/* Define if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define if you have a working `mmap' system call. */
+#undef HAVE_MMAP
+
+/* Define if you have the <ndir.h> header file, and it defines `DIR'. */
+#undef HAVE_NDIR_H
+
+/* Define if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define if `st_rdev' is member of `struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_RDEV
+
+/* Define if your `struct stat' has `st_rdev'. Deprecated, use
+   `HAVE_STRUCT_STAT_ST_RDEV' instead. */
+#undef HAVE_ST_RDEV
+
+/* Define if you have the <syslog.h> header file. */
+#undef HAVE_SYSLOG_H
+
+/* Define if you have the <sys/dir.h> header file, and it defines `DIR'. */
+#undef HAVE_SYS_DIR_H
+
+/* Define if you have the <sys/file.h> header file. */
+#undef HAVE_SYS_FILE_H
+
+/* Define if you have the <sys/ioctl.h> header file. */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define if you have the <sys/ndir.h> header file, and it defines `DIR'. */
+#undef HAVE_SYS_NDIR_H
+
+/* Define if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define if you have <sys/wait.h> that is POSIX.1 compatible. */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define if `utime(file, NULL)' sets file's timestamp to the present. */
+#undef HAVE_UTIME_NULL
+
+/* Define if you have the `vprintf' function. */
+#undef HAVE_VPRINTF
+
+/* Define if `major', `minor', and `makedev' are declared in <mkdev.h>. */
+#undef MAJOR_IN_MKDEV
+
+/* Define if `major', `minor', and `makedev' are declared in <sysmacros.h>. */
+#undef MAJOR_IN_SYSMACROS
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at run-time.
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
+#undef STACK_DIRECTION
+
+/* Define if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if your <sys/time.h> declares `struct tm'. */
+#undef TM_IN_SYS_TIME
+
+/* Define if `lex' declares `yytext' as a `char *' by default, not a `char[]'.
+   */
+#undef YYTEXT_POINTER
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* Define as `__inline' if that's what the C compiler calls it, or to nothing
+   if it is not supported. */
+#undef inline
+
+/* Define to `long' if <sys/types.h> does not define. */
+#undef off_t
+
+/* Define to `int' if <sys/types.h> does not define. */
+#undef pid_t
+
+/* Define to `unsigned' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef uid_t
 
 #include "plugin_config.h"
 

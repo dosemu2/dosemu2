@@ -15,6 +15,8 @@
  * SIDOC_END_MODULE
  */
 
+#include <errno.h>
+#include <string.h>
 #include "emu.h"
 #include "port.h"
 #include "pci.h"
@@ -42,7 +44,10 @@ int pci_check_conf(void)
 {
     unsigned long save, val;
     
-    priv_iopl(3);
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return 0;
+    }
     save = port_real_ind(PCI_CONF_ADDR);
     port_real_outd(PCI_CONF_ADDR,PCI_EN);
     val = port_real_ind(PCI_CONF_ADDR);
@@ -63,7 +68,10 @@ int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
                       PCI_EN;
   
 
-  priv_iopl(3);
+  if (priv_iopl(3)) {
+    error("iopl(): %s\n", strerror(errno));
+    return 0;
+  }
   for (i=0; i<64; i++) {
 	port_real_outd (PCI_CONF_ADDR, bx|(i<<2));
 	buf[i] = port_real_ind (PCI_CONF_DATA);
@@ -79,7 +87,10 @@ int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
     unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
 	                 PCI_EN;
     
-    priv_iopl(3);
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return 0;
+    }
     port_real_outd (PCI_CONF_ADDR, bx);
     val = port_real_ind (PCI_CONF_DATA);
     priv_iopl(0);
@@ -95,8 +106,11 @@ int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
 {
   int i;
   
-  priv_iopl(3);
-    port_real_outb(PCI_MODE2_ENABLE_REG,0xF1);
+  if (priv_iopl(3)) {
+    error("iopl(): %s\n", strerror(errno));
+    return 0;
+  }
+  port_real_outb(PCI_MODE2_ENABLE_REG,0xF1);
   port_real_outb(PCI_MODE2_FORWARD_REG,bus);
   for (i=0; i<64; i++) {
 	buf[i] = port_real_ind ((device << 8) + i);
@@ -110,7 +124,10 @@ int pci_check_device_present_cfg2(unsigned char bus, unsigned char device)
 {
     unsigned long val;
     
-    priv_iopl(3);
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return 0;
+    }
     port_real_outb(PCI_MODE2_ENABLE_REG,0xF1);
     port_real_outb(PCI_MODE2_FORWARD_REG,bus);
     val = port_real_ind ((device << 8));
@@ -127,11 +144,14 @@ static unsigned int wcf8_pend = 0;
 
 static void chk_pend(void)
 {
-	priv_iopl(3);
-	if (wcf8_pend) {
-		port_real_outd(0xcf8,wcf8_pend);
-		wcf8_pend=0;	/* clear at least bit 31 */
-	}
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return;
+    }
+    if (wcf8_pend) {
+	port_real_outd(0xcf8,wcf8_pend);
+	wcf8_pend=0;	/* clear at least bit 31 */
+    }
 }
 
 static Bit8u pci_port_inb(ioport_t port)

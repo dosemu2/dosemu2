@@ -1494,6 +1494,7 @@ CONST t_keysym alt_map_jp106[] =
 
 
 /* Polish keyboard */
+/*
 CONST t_keysym key_map_pl[] =
 {
   U_VOID, 27, '1', '2', '3', '4', '5', '6',
@@ -1544,6 +1545,71 @@ CONST t_keysym alt_map_pl[] =
   U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID, U_VOID,
   U_VOID
 };
+*/
+CONST t_keysym key_map_pl[] =
+{
+     U_VOID,27,'1','2','3','4','5','6',
+     '7','8','9','0','-','=',127,9,
+     'q','w','e','r','t','y','u','i',
+     'o','p','[',']',13,U_VOID,'a','s',
+     'd','f','g','h','j','k','l',';',
+     39,96,U_VOID,92,'z','x','c','v',
+     'b','n','m',',','.','/',U_VOID,'*',
+     U_VOID,32,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,'-',U_VOID,U_VOID,U_VOID,'+',U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,'<',U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID};
+     
+CONST t_keysym shift_map_pl[] =
+{
+     U_VOID,27,'!','@','#','$','%','^',
+     '&','*','(',')','_','+',127,9,
+     'Q','W','E','R','T','Y','U','I',
+     'O','P','{','}',13,U_VOID,'A','S',
+     'D','F','G','H','J','K','L',':',
+     34,'~',U_VOID,'|','Z','X','C','V',
+     'B','N','M','<','>','?',U_VOID,'*',
+     U_VOID,32,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,'-',U_VOID,U_VOID,U_VOID,'+',U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,'>',U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID};
+     
+CONST t_keysym alt_map_pl[] =
+{
+     U_VOID,U_VOID,U_VOID,'@',U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,0x0119,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     0x00f3,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,0x0105,0x015b,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,0x0142,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,0x017c,0x017a,0x0107,U_VOID,
+     U_VOID,0x0144,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID};
+
+CONST t_keysym shift_alt_map_pl[] =
+{
+     U_VOID,U_VOID,U_VOID,'@',U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,0x0118,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     0x00d3,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,0x0104,0x015a,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,0x0141,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,0x017b,0x0179,0x0106,U_VOID,
+     U_VOID,0x0143,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,U_VOID,
+     U_VOID};
+
 
 CONST t_keysym key_map_hr_cp852[] =
 {
@@ -1895,7 +1961,7 @@ struct keytable_entry keytable_list[] = {
     num_table_dot,},
   {"pl", KEYB_PL, 0, CT(key_map_pl), CT(num_table_comma),
     key_map_pl, shift_map_pl, alt_map_pl,
-    num_table_comma,},
+    num_table_comma, 0, shift_alt_map_pl,},
   {"hr-cp852", KEYB_HR_CP852, 0, CT(key_map_hr_cp852), CT(num_table_comma),
     key_map_hr_cp852, shift_map_hr_cp852, alt_map_hr_cp852,
     num_table_comma,},

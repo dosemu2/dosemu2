@@ -211,14 +211,14 @@ mouse_helper(void)
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else 
-      mouse.speed_y = LO(cx);
+      mouse.init_speed_y = mouse.speed_y = LO(cx);
     break;
   case 5:				/* Set horizontal speed */
     if ((LO(cx) < 1) || (LO(cx) > 255)) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else
-      mouse.speed_x = LO(cx);
+      mouse.init_speed_x = mouse.speed_x = LO(cx);
     break;
   case 6:				/* Ignore horz/vert selection */
     if (LO(cx) == 1) 
@@ -788,14 +788,8 @@ mouse_reset_to_current_video_mode(void)
    * then in mouse_reset, as it gets called more often.
    * -- Eric Biederman 29 May 2000
    */
-  if (mice->type != MOUSE_X) {
-    mouse.speed_x = 8;
-    mouse.speed_y = 16;
-  } else {
-    /* default to 1 to 1 scaling for apps tha read mickeys */
-    mouse.speed_x = 8;
-    mouse.speed_y = 8;
-  }
+   mouse.speed_x = mouse.init_speed_x;
+   mouse.speed_y = mouse.init_speed_y;
 
  /*
   * Here we make sure text modes are resolved properly, according to the
@@ -881,10 +875,6 @@ mouse_reset_to_current_video_mode(void)
   /* Set the maximum sizes */
   mouse.maxx = current_video.width << mouse.xshift;
   mouse.maxy = current_video.height << mouse.yshift;
-
-  /* Find the center of the screen */
-  mouse.x = (mouse.minx + mouse.maxx) / 2;
-  mouse.y = (mouse.miny + mouse.maxy) / 2;
 
   /* force update first time after reset */
   mouse.oldrx = -1;
@@ -1901,6 +1891,15 @@ dosemu_mouse_init(void)
     add_to_io_select(mice->fd, mice->add_to_io_select);
     DOSEMUSetupMouse();
     memcpy(p,mouse_ver,sizeof(mouse_ver));
+  }
+
+  if (mice->type != MOUSE_X) {
+    mouse.init_speed_x = 8;
+    mouse.init_speed_y = 16;
+  } else {
+    /* default to 1 to 1 scaling for apps tha read mickeys */
+    mouse.init_speed_x = 8;
+    mouse.init_speed_y = 8;
   }
   
   /* We set the defaults at the end so that we can test the mouse type */

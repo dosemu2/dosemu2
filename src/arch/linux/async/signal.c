@@ -212,7 +212,7 @@ signal_init(void)
    SIGUSR1		10	?	threads
    SIGSEGV		11	N	dosemu_fault
    SIGUSR2		12	NQ	(SIG_ACQUIRE)
-   SIGPIPE		13
+   SIGPIPE		13      S	SIG_IGN
    SIGALRM		14	NQ	(SIG_TIME)sigalrm
    SIGTERM		15	S	leavedos
    SIGSTKFLT		16
@@ -249,6 +249,7 @@ signal_init(void)
   SETSIG(SIGKILL, leavedos);
 #endif
   SETSIG(SIGQUIT, sigquit);
+  SETSIG(SIGPIPE, SIG_IGN);
 
 #ifdef X_SUPPORT
   if(config.X) {

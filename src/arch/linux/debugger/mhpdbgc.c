@@ -599,6 +599,8 @@ static void mhp_trace_force(int argc, char * argv[])
       else WRITE_FLAGS(READ_FLAGS() | TF);
       vm86s.vm86plus.vm86dbg_TFpendig=1;
       mhpdbgc.trapcmd = 1;
+/* discard pending ints: we want to trace the program, not the HW int handlers */
+      pic_irr = 0;
    }
 }
 

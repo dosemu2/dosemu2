@@ -13,6 +13,7 @@
 #include "timers.h"
 #include "config.h"
 #include "int.h"
+#include "memory.h"
 
 
 #define set_typematic_rate()
@@ -30,7 +31,7 @@ static unsigned do_extended(unsigned key, int extended)
   unsigned char scan_code = key >> 8;
 
   /* Ensure we actually need to do something */
-  if (extended == EXTENDED) {
+  if (extended == EXTENDED || key == 0x00e0) {
     return key;
   }
     
@@ -38,6 +39,8 @@ static unsigned do_extended(unsigned key, int extended)
   /* is character 0xE0 ? */
   if ((key & 0xff) == 0xe0) {     
     key &= ~0xff;           /* yes, set to 0x00 */
+    if (scan_code == 0x23)  /* small cyrillic er */
+      return 0x00e0;
     /* Hide new scan codes */
     return scan_code >= 0x85 ? -1 : key; 
   }

@@ -104,6 +104,7 @@ struct batchdata {
 struct res_dta {
 	struct batchdata *current_bdta;
 	int exitcode;
+	int errorlevel; /* exit code for external commands */
 	int need_errprinting;
 	int echo_on;
 	int envsize;	/* size of enlarged enviroment */
@@ -1277,7 +1278,7 @@ static int cmd_if(int argc, char **argv)
 	if (!strcasecmp(argv[argi], "errorlevel")) {
 		if (argi+2 >= argc) return DOS_EINVAL;
 		level = strtoul(argv[argi+1], 0, 10);
-		if (((EXITCODE >= level) ? 1 : 0) ^ invers) {
+		if (((rdta->errorlevel >= level) ? 1 : 0) ^ invers) {
 			argi += 2;
 			SET_CHILD_ARGS(argi);
 			dopath_exec(argc-argi, argv+argi);
@@ -2740,6 +2741,7 @@ static int launch_child_program(char *name, char *cmdline)
 	saved_cannotexit = rdta->cannotexit;
 	rdta->cannotexit = 0;
 	ret =  load_and_run_DOS_program(name, cmdline);
+	rdta->errorlevel = ret;
 	rdta->cannotexit = saved_cannotexit;
 
 	/* re-enlarge the environment to maximum */
@@ -3256,6 +3258,7 @@ int comcom_main(int argc, char **argv)
 	rdta->need_errprinting = 0;
 
 	EXITCODE = 0;
+	rdta->errorlevel = 0;
 	ECHO_ON = 1;
 
 	/* first free all memory we don't need for ourselves, such that

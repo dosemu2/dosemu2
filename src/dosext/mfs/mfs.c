@@ -381,8 +381,7 @@ static int is_long_path(const char *s);
 
 /* Try and work out if the current command is for any of my drives */
 static int
-select_drive(state)
-     state_t *state;
+select_drive(state_t *state)
 {
   int dd;
   int bs_pos, i;
@@ -877,10 +876,7 @@ mfs_inte6(void)
 /* include a few necessary functions from dos_disk.c in the mach
    code as well */
 static boolean_t
-extract_filename(filename, name, ext)
-     char *filename;
-     char *name;
-     char *ext;
+extract_filename(char *filename, char *name, char *ext)
 {
   int pos;
   int dec_found;
@@ -1165,10 +1161,7 @@ get_dir(char *name, char *fname, char *fext)
  * Assumes that a legal string is passed in.
  */
 static void
-auspr(filestring0, name, ext)
-     char *filestring0;
-     char *name;
-     char *ext;
+auspr(char *filestring0, char *name, char *ext)
 {
   char filestring[100];
 
@@ -1223,8 +1216,7 @@ auspr(filestring0, name, ext)
 }
 
 static void
-init_dos_offsets(ver)
-     int ver;
+init_dos_offsets(int ver)
 {
   Debug0((dbg_fd, "dos_fs: using dos version = %d.\n", ver));
   switch (ver) {
@@ -1407,8 +1399,7 @@ init_dos_offsets(ver)
 
 
 struct direct *
-dos_readdir(dir)
-     DIR *dir;
+dos_readdir(DIR *dir)
 {
   struct direct *ret;
 
@@ -1418,8 +1409,7 @@ dos_readdir(dir)
 }
 
 static inline int
-dos_flush(fd)
-     int fd;
+dos_flush(int fd)
 {
   int ret;
 
@@ -1429,10 +1419,7 @@ dos_flush(fd)
 }
 
 static inline int
-dos_read(fd, data, cnt)
-     int fd;
-     char *data;
-     int cnt;
+dos_read(int fd, char *data, int cnt)
 {
   int ret;
 
@@ -1443,10 +1430,7 @@ dos_read(fd, data, cnt)
 }
 
 static inline int
-dos_write(fd, data, cnt)
-     int fd;
-     char *data;
-     int cnt;
+dos_write(int fd, char *data, int cnt)
 {
   int ret;
 
@@ -1495,8 +1479,7 @@ calculate_drive_pointers(int dd)
 }
 
 static boolean_t
-dos_fs_dev(state)
-     state_t *state;
+dos_fs_dev(state_t *state)
 {
   u_char drive_to_redirect;
   int dos_ver;
@@ -1611,10 +1594,7 @@ dos_fs_dev(state)
 }
 
 __inline__ void
-time_to_dos(clock, date, time)
-     time_t *clock;
-     u_short *date;
-     u_short *time;
+time_to_dos(time_t *clock, u_short *date, u_short *time)
 {
   struct tm *tm;
 
@@ -1651,9 +1631,7 @@ time_to_unix(u_short dos_date, u_short dos_time)
 }
 
 __inline__ int
-strip_char(ptr, ch)
-     char *ptr;
-     char ch;
+strip_char(char *ptr, char ch)
 {
   int len = 0;
   char *wptr;
@@ -1684,18 +1662,25 @@ path_to_ufs(char *ufs, size_t ufs_offset, char *path, int PreserveEnvVar)
 {
   char ch;
   int inenv = 0;
-  size_t dos_offset;
 
-  for(dos_offset = 0;
-      (ch = path[dos_offset]) != EOS && ufs_offset < MAXPATHLEN - 1;
-      dos_offset++) {
+  if (ufs_offset < MAXPATHLEN) do {
+    ch = *path++;
+    if (ufs_offset == MAXPATHLEN - 1)
+      ch = EOS;
     switch (ch) {
     case BACKSLASH:
       if (PreserveEnvVar && 	/* Check for environment variable */
-          (path[dos_offset+1] == '$') && (path[dos_offset+2] == '{'))
+          (*(path+1) == '$') && (*(path+2) == '{'))
         inenv = 1;
       else
 	ch = SLASH;
+      /* fall through */
+    case EOS:  
+    case SLASH:
+    case '.':
+      /* remove trailing spaces */
+      while(ufs_offset > 0 && ufs[ufs_offset - 1] == ' ')
+        ufs_offset--;
       break;
     case '}':
       inenv = 0;
@@ -1705,15 +1690,12 @@ path_to_ufs(char *ufs, size_t ufs_offset, char *path, int PreserveEnvVar)
       break;
     }
     ufs[ufs_offset++] = ch;
-  }
-  ufs[ufs_offset] = EOS;
+  } while(ch != EOS);
 
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-static int build_ufs_path(ufs, path)
-     char *ufs;
-     char *path;
+static int build_ufs_path(char *ufs, char *path)
 {
   char *s;
   int i;
@@ -1903,9 +1885,7 @@ _find_file(char *fpath, struct stat * st)
 }
 
 static boolean_t
-find_file(fpath, st)
-     char *fpath;
-     struct stat *st;
+find_file(char *fpath, struct stat *st)
 {
   boolean_t r;
 
@@ -1994,10 +1974,7 @@ compare(fname, fext, mname, mext)
 }
 
 static struct dir_ent *
-_match_filename_prune_list(list, name, ext)
-     struct dir_ent *list;
-     char *name;
-     char *ext;
+_match_filename_prune_list(struct dir_ent *list, char *name, char *ext)
 {
   struct dir_ent *last_ptr;
   struct dir_ent *tmp_ptr;
@@ -2036,10 +2013,7 @@ _match_filename_prune_list(list, name, ext)
 }
 
 static __inline__ struct dir_ent *
-match_filename_prune_list(list, name, ext)
-     struct dir_ent *list;
-     char *name;
-     char *ext;
+match_filename_prune_list(struct dir_ent *list, char *name, char *ext)
 {
   struct dir_ent *r;
 
@@ -2084,9 +2058,7 @@ static struct dir_ent *hlist_stack[HLIST_STACK_SIZE];
 static unsigned hlist_psp_stack[HLIST_STACK_SIZE];
 
 static __inline__ int
-hlist_push(hlist, psp)
-     struct dir_ent *hlist;
-     unsigned psp;
+hlist_push(struct dir_ent *hlist, unsigned psp)
 {
   Debug0((dbg_fd, "hlist_push: %d hlist=%p PSP=%d\n", hlist_stack_indx, hlist, psp));
   if (hlist_stack_indx >= HLIST_STACK_SIZE) {
@@ -2101,9 +2073,7 @@ hlist_push(hlist, psp)
 }
 
 static __inline__ void
-hlist_pop(indx, psp)
-     int indx;
-     unsigned psp;
+hlist_pop(int indx, unsigned psp)
 {
   struct dir_ent *hl;
   int ind;
@@ -2126,8 +2096,7 @@ hlist_pop(indx, psp)
 }
 
 static __inline__ void
-hlist_pop_psp(psp)
-     unsigned psp;
+hlist_pop_psp(unsigned psp)
 {
   struct dir_ent *hl;
   Debug0((dbg_fd, "hlist_pop_psp: PSP=%d\n", psp));
@@ -2144,8 +2113,7 @@ hlist_pop_psp(psp)
 
 #if 0
 static void
-debug_dump_sft(handle)
-     char handle;
+debug_dump_sft(char handle)
 {
   u_short *ptr;
   u_char *sptr;
@@ -2219,9 +2187,7 @@ path_to_dos(char *path)
 }
 
 static int
-GetRedirection(state, index)
-     state_t *state;
-     u_short index;
+GetRedirection(state_t *state, u_short index)
 {
   int dd;
   u_short returnBX;		/* see notes below */
@@ -2649,8 +2615,7 @@ share(int fd, boolean_t writing, sft_t sft)
 }
 
 static int
-dos_fs_redirect(state)
-     state_t *state;
+dos_fs_redirect(state_t *state)
 {
   PRIV_SAVE_AREA
   char *filename1;
@@ -2866,7 +2831,7 @@ dos_fs_redirect(state)
 	      sft_position(sft)));
       Debug0((dbg_fd, "Handle cnt %d\n",
 	      sft_handle_cnt(sft)));
-      itisnow = lseek(fd, sft_position(sft), L_SET);
+      itisnow = lseek(fd, sft_position(sft), SEEK_SET);
       Debug0((dbg_fd, "Actual pos %d\n",
 	      itisnow));
 
@@ -2925,7 +2890,7 @@ dos_fs_redirect(state)
     }
 
     if (us_debug_level > Debug_Level_0) {
-      s_pos = lseek(fd, sft_position(sft), L_SET);
+      s_pos = lseek(fd, sft_position(sft), SEEK_SET);
     }
     Debug0((dbg_fd, "Handle cnt %d\n",
 	    sft_handle_cnt(sft)));
@@ -2934,6 +2899,12 @@ dos_fs_redirect(state)
       ret = dos_write(fd, dta, cnt);
       if ((ret + s_pos) > sft_size(sft)) {
 	sft_size(sft) = ret + s_pos;
+        if (ret == 0) {
+          /* physically extend the file -- ftruncate() does not
+             extend on all filesystems */
+          lseek(fd, -1, SEEK_CUR);
+          dos_write(fd, "", 1);
+        }
       }
     }
     Debug0((dbg_fd, "write operation done,ret=%x\n", ret));
@@ -3078,6 +3049,7 @@ dos_fs_redirect(state)
   case DELETE_FILE:		/* 0x13 */
     {
       struct dir_ent *de = NULL;
+      int errcode = 0;
 
       Debug0((dbg_fd, "Delete file %s\n", filename1));
       if (read_only) {
@@ -3107,11 +3079,20 @@ dos_fs_redirect(state)
 	  SETWORD(&(state->eax), FILE_NOT_FOUND);
 	  return (FALSE);
 	}
-	if (unlink(fpath) != 0) {
-	  Debug0((dbg_fd, "Deleted %s\n", fpath));
-	  SETWORD(&(state->eax), FILE_NOT_FOUND);
+        if (access(fpath, W_OK) == -1) {
+          SETWORD(&(state->eax), ACCESS_DENIED);
+          return (FALSE);
+        }
+        if (unlink(fpath) != 0) {
+          Debug0((dbg_fd, "Delete failed(%d) %s\n", errno, fpath));
+          if (errno == EACCES) {
+            SETWORD(&(state->eax), ACCESS_DENIED);
+          } else {
+            SETWORD(&(state->eax), FILE_NOT_FOUND);
+          }
 	  return (FALSE);
 	}
+        Debug0((dbg_fd, "Deleted %s\n", fpath));
 	return (TRUE);
       }
 
@@ -3128,18 +3109,34 @@ dos_fs_redirect(state)
 	  if (fpath[cnt - 1] == '.')
 	    fpath[cnt - 1] = EOS;
 	  if (find_file(fpath, &st)) {
-	    unlink(fpath);
-	    Debug0((dbg_fd, "Deleted %s\n", fpath));
+            if (access(fpath, W_OK) == -1) {
+              errcode = EACCES;
+            } else {
+              errcode = unlink(fpath) ? errno : 0;
+            }
+            if (errcode != 0) {
+              Debug0((dbg_fd, "Delete failed(%d) %s\n", errcode, fpath));
+            } else {
+              Debug0((dbg_fd, "Deleted %s\n", fpath));
+            }
 	  }
 	}
 	tmp = de->next;
 	free(de);
 	de = tmp;
+        if (errcode != 0) {
+          if (errcode == EACCES) {
+            SETWORD(&(state->eax), ACCESS_DENIED);
+          } else {
+            SETWORD(&(state->eax), FILE_NOT_FOUND);
+          }
+          return (FALSE);
+        }
       }
       return (TRUE);
     }
 
-  case OPEN_EXISTING_FILE:	/* 0x16 */
+    case OPEN_EXISTING_FILE:	/* 0x16 */
 	/* according to the appendix in undoc dos 2 the top word on the
        stack holds the open mode.  Other than the definition in the
        appendix, I can find nothing else which supports this
@@ -3552,13 +3549,12 @@ dos_fs_redirect(state)
       if (bs_pos == 0)
 	strcpy(fpath, "/");
 	   
-      hlist = get_dir(fpath, fname, fext);
+      hlist =
+        match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
       if (hlist==NULL)  {
          SETWORD(&(state->eax), FILE_NOT_FOUND);
          return (FALSE);
       }
-   
-      hlist = match_filename_prune_list(hlist,fname,fext);
 				  
       hlist_index = hlist_push(hlist, sda_cur_psp(sda));
       sdb_dir_entry(sdb) = hlist_index;
@@ -3571,13 +3567,14 @@ dos_fs_redirect(state)
     if (bs_pos == 0)
       strcpy(fpath, "/");
 
-    hlist = get_dir(fpath, fname, fext);
+    hlist =
+      match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
     if (hlist==NULL)  {
-       SETWORD(&(state->eax), FILE_NOT_FOUND);
+      /* XXX this should be either PATH_NOT_FOUND or NO_MORE_FILES!
+         needs reorganization -- Bart, 2002-05-26 */
+       SETWORD(&(state->eax), NO_MORE_FILES);
        return (FALSE);
     }
-
-    hlist = match_filename_prune_list(hlist, fname, fext);
     if (long_path) {
       set_long_path_on_dirs(hlist);
     }
@@ -3647,6 +3644,9 @@ dos_fs_redirect(state)
     }
     firstfind = 0;
     hlist_stack[hlist_index] = hlist;
+    if (hlist == NULL) {
+      hlist_pop(hlist_index, sda_cur_psp(sda));
+    }
     return (TRUE);
 
   case FIND_NEXT:		/* 0x1c */

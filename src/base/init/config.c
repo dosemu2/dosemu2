@@ -741,7 +741,7 @@ static void config_console_scrub(void)
 	config.emuretrace = 0;	/* already emulated */
     }
     else {
-	if (!can_do_root_stuff && config.console) {
+	if (!can_do_root_stuff && config.console_video) {
 	    /* force use of Slang-terminal on console too */
 	    config.console = config.console_video = config.vga = config.graphics = 0;
 	    config.cardtype = 0;
@@ -1034,7 +1034,7 @@ config_init(int argc, char **argv)
     restore_usedoptions(usedoptions);
 
     if (config.exitearly && !config_check_only)
-	leavedos(0);
+	exit(0);
 
     if (vm86s.cpu_type > config.realcpu) {
     	vm86s.cpu_type = config.realcpu;

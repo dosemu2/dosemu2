@@ -378,7 +378,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 #else
     putchar(0x07);
 #endif
-    break;
+    return;
 
   default:          /* Printable character */
 #if X_GRAPHICS

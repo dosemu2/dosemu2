@@ -86,6 +86,21 @@ int signal, struct sigcontext_struct *scp
   unsigned char *csp;
   int i;
 
+ /*
+  * FIRST thing to do - to avoid being trapped into int0x11
+  * forever, we must clear AC before doing anything else!
+  * Clear also ID for some reasons?
+  */
+ __asm__ __volatile__ (" \
+	pushfl\n \
+	popl	%%eax\n \
+	andl	%0,%%eax\n \
+	pushl	%%eax\n \
+	popfl" \
+	: : "i"(~(AC|ID)) : "%eax");
+  _eflags &= ~(AC|ID);
+  REG(eflags) &= ~(AC|ID);
+
   if (in_vm86) {
     in_vm86 = 0;
     switch (_trapno) {
@@ -108,17 +123,6 @@ int signal, struct sigcontext_struct *scp
 		 return;
 
       case 0x11: /* alignment check */
-		 /*
-		  * FIRST thing to do - to avoid being trapped into int0x11
-		  * forever, we must clear AC before doing anything else!
-		  */
-		 __asm__ __volatile__ (" \
-			pushfl\n \
-			popl	%%eax\n \
-			andl	$0xfffbffff,%%eax\n \
-			pushl	%%eax\n \
-			popfl" \
-			: : : "%eax");
 		 /* we are now safe; nevertheless, fall into the default
 		  * case and exit dosemu, as an AC fault in vm86 is(?) a
 		  * catastrophic failure.

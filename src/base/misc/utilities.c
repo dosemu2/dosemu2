@@ -51,7 +51,7 @@
 #define INITIAL_LOGBUFSIZE      0
 #endif
 #ifndef INITIAL_LOGBUFLIMIT
-#define INITIAL_LOGFILELIMIT	(10*1024*1024)
+#define INITIAL_LOGFILELIMIT	(50*1024*1024)
 #endif
 
 #ifdef CIRCULAR_LOGBUFFER
@@ -209,22 +209,24 @@ static int vlog_printf(int flg, const char *fmt, va_list args)
       if (errno==ENOSPC) leavedos(0x4c4c);
     }
     logptr = logbuf;
+#if 1
     if (logfile_limit) {
       log_written += fsz;
       if (log_written > logfile_limit) {
         fflush(dbg_fd);
-#if 0
+#if 1
         ftruncate(fileno(dbg_fd),0);
         fseek(dbg_fd, 0, SEEK_SET);
         log_written = 0;
-#endif
-	fprintf(dbg_fd, "\n Exceeded maximum logfile limit of %d bytes.  Exiting.\n", logfile_limit);
+#else
 	fclose(dbg_fd);
 	shut_debug = 1;
 	dbg_fd = 0;	/* avoid recursion in leavedos() */
 	leavedos(0);
+#endif
       }
     }
+#endif
   }
 #endif
   return i;

@@ -103,7 +103,7 @@ static int do_garbage_collection(union mentry **mentry)
   /* ok, more then one deleted area, join them */
   size = 0;
   p_bottom = p;
-  while (p->flags) {
+  while (p && p->flags) {
     size += AREA_SIZE_OF(p);
     p_ = p;
     p = MASKED_NEXT(p);
@@ -216,8 +216,8 @@ static int delete_marea(union mentry *mentry)
     return -1;
   }
   if (MASKED_NEXT(mentry) == heap_ptr) {
-    heap_ptr = MASKED_PTR(mentry);
-    heap_ptr->next = 0;
+    reduce_heap_ptr(MASKED_PTR(mentry));
+    garbage_collection();	/* there can be a hole behind this area */
   }
   else mentry->flags = 1;
   return 0;
@@ -236,7 +236,7 @@ static union mentry *resize_marea(union mentry *mentry, int newsize)
   size = AREA_SIZE_OF(mentry);
   newsize = SIZE2MENTRY(PAGE_ALIGN(newsize));
 
-  if (!size) return 0; 
+  if (!size || !newsize) return 0; 
   if (size == newsize) return mentry;
 
   if (size > newsize) {
@@ -396,7 +396,7 @@ void *pgrealloc(void *addr, int newsize)
   union mentry *p;
   int size = get_pgareasize(addr);
 
-  if (!size) return 0;
+  if (!size || !newsize) return 0;
   newsize = PAGE_ALIGN(newsize);
   p = resize_marea(mtable + SIZE2MENTRY(((char *)addr - mpool)), newsize);
   if (!p) return 0;

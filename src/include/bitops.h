@@ -35,7 +35,7 @@
 #define _STATIC_ static
 #endif
 
-_STATIC_ int find_bit(void * addr);
+_STATIC_ int find_bit(unsigned long int word);
 _STATIC_ long atomic_inc(long * addr);
 _STATIC_ long atomic_dec(long * addr);
 _STATIC_ int set_bit(int nr, void * addr);
@@ -60,18 +60,20 @@ struct __dummy {
 #define ADDR (*(struct __dummy *) addr)
 
 /* JLS's stuff */
-/* find_bit returns the bit number of the lowest bit that's set */
-/* it doesn't need to be atomic, but it's much faster than using c */
-
+/*
+ * find_bit returns the bit number of the lowest bit that's set
+ * Returns -1 if no one exists.
+ */
 _INLINE_ int
-find_bit(void *addr)
+find_bit(unsigned long int word)
 {
-    int             bitno;
-
-    __asm__         __volatile__("bsfl %1,%0"
-				 :"=r"           (bitno):"m"(ADDR));
-    return bitno;
+       int result = -1; /* value to return on error */
+       __asm__("bsfl %2,%0"
+               :"=r" (result) /* output */
+               :"0" (result), "r" (word)); /* input */
+       return result;
 }
+
 /* atomic increment flag and decrement flag operations */
 _INLINE_ long int
 atomic_inc(long *addr)

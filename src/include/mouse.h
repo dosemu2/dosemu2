@@ -107,7 +107,7 @@ EXTERN volatile struct  {
   short virtual_minx, virtual_maxx, virtual_miny, virtual_maxy;
 
   /* these are for sensitivity options */
-  short speed_x, speed_y;
+  short speed_x, speed_y, init_speed_x, init_speed_y;
   short threshold;
   short language;
 

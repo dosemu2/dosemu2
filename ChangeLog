@@ -1,3 +1,47 @@
+2002/05/26 ver 1.1.3.1 unofficial pre-release
+	From Eric and Stas
+	- pic.c: C run IRQs; bitops.h: find_bit clean-up.
+	From Stas
+	- ignore SIGPIPE
+	- make sure to always clear the AC and ID flags, when returning from
+	  V86 mode and do not log that action by default
+	- for dosdebug: we want to trace the program, not the HW int handlers
+	- pagemalloc.c: collect garbage when freeing memory (makes sure
+	  that DPMI memory is in a clean state when DPMI is entered, among
+	  other things); extra NULL check; refuse realloc with newsize==0.
+	- pci.c: check each priv_iopl() for failure
+	- leaving DOS before booting calls exit(), not leavedos(), to
+	  prevent a SIGSEGV
+	- circular log buffer of 50 MB - instead of leavedos() it
+	  truncates and rewrites from the start when the log is full
+	- initialize mouse speed correctly (modified from Manfred Scherer)
+	- ports.c - make sure to handle dword ports similarly to word and
+	  byte ports - without this suid-root DOSEMU has full access to
+	  all hardware ports using ind/outd! Another reminder that you 
+	  should not let use suid-root DOSEMU if local security is
+	  important.
+	From Manfred Scherer
+	- do not center mouse cursor when changing graphic modes
+	From Sergey Suleymanov
+	- int10-bell: return from function when beeping. Otherwise
+	  the screen scrolls up.
+	- MFS fixes: Do not permit file deletion for read-only files.
+	             prevent an hlist stack overload with big directories.
+		     return NO_MORE_FILES if FIND_FIRST does not find a
+		     file.
+		     extend file if zero bytes are written past EOF
+		     (all slightly edited -- Bart)
+	From Witold Filipczyk
+	- new Polish keyboard layout (now also applied to the new 
+	  keyboard code)
+	From Bart
+	- MFS: remove trailing spaces in filenames and extensions in the
+	  Unix paths. ANSIfied mfs.c function definitions.
+	- enable raw keyboard for non-privileged DOSEMU
+	- int16: handle ascii 0xe0 and small Cyrillic er correctly.
+	- comcom.c: "errorlevel" applies to external commands only.
+	- use Autoconf 2.52 and check to see whether we should link in
+	  libdl for libX11
 2002/03/19 ver 1.1.3 released
 	From Stas
 	- We must not sleep() immediately after mouse event happened, we

@@ -473,13 +473,12 @@ run_vm86(void)
     }
 #endif /* USE_NEW_INT */
 
-#ifndef X86_EMULATOR
     /* This will protect us from Mr.Norton's bugs */
     if (_EFLAGS & (AC|ID)) {
       _EFLAGS &= ~(AC|ID);
-      dbug_printf("BUG: AC,ID set; flags changed to %08x\n",_EFLAGS);
+      if (debug_level('g')>3)
+	dbug_printf("BUG: AC,ID set; flags changed to %08x\n",_EFLAGS);
     }
-#endif
     if (
 #ifdef X86_EMULATOR
 	(debug_level('e')>1)||

@@ -412,7 +412,7 @@ void memory_init(void)
 
   if (config.exitearly) {
     dbug_printf("Leaving DOS before booting\n");
-    leavedos(0);
+    exit(0);
   }
 
   if (first_call) {

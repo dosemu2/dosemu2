@@ -61,6 +61,7 @@
 #include "emu.h"
 #include "vgaemu.h"
 #include "video.h"
+#include "memory.h"
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */

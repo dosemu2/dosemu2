@@ -282,7 +282,7 @@ Bit32u port_ind(ioport_t port)
 		res = EMU_HANDLER(port).read_portd(port);
 	}
 	else {
-		res = std_port_ind(port);
+		res = (Bit32u) port_inw(port) | (((Bit32u) port_inw(port + 2)) << 16);
 	}
 	return LOG_PORT_READ_D(port, res);
 }
@@ -294,7 +294,8 @@ void port_outd(ioport_t port, Bit32u dword)
 		EMU_HANDLER(port).write_portd(port, dword);
 	}
 	else {
-		std_port_outd(port, dword);
+		port_outw(port, dword & 0xffff);
+		port_outw(port+2, (dword >> 16) & 0xffff);
 	}
 }
 
@@ -775,6 +776,8 @@ int port_init(void)
 	port_handler[NO_HANDLE].write_portb = port_not_avail_outb;
 	port_handler[NO_HANDLE].read_portw = port_not_avail_inw;
 	port_handler[NO_HANDLE].write_portw = port_not_avail_outw;
+	port_handler[NO_HANDLE].read_portd = port_not_avail_ind;
+	port_handler[NO_HANDLE].write_portd = port_not_avail_outd;
 	port_handler[NO_HANDLE].handler_name = "unknown port";
 
   /* the STD handles will be in use by many devices, and their fd
@@ -784,30 +787,40 @@ int port_init(void)
 	port_handler[HANDLE_STD_IO].write_portb = std_port_outb;
 	port_handler[HANDLE_STD_IO].read_portw = std_port_inw;
 	port_handler[HANDLE_STD_IO].write_portw = std_port_outw;
+	port_handler[HANDLE_STD_IO].read_portd = std_port_ind;
+	port_handler[HANDLE_STD_IO].write_portd = std_port_outd;
 	port_handler[HANDLE_STD_IO].handler_name = "std port io";
 
 	port_handler[HANDLE_STD_RD].read_portb = std_port_inb;
 	port_handler[HANDLE_STD_RD].write_portb = port_not_avail_outb;
 	port_handler[HANDLE_STD_RD].read_portw = std_port_inw;
 	port_handler[HANDLE_STD_RD].write_portw = port_not_avail_outw;
+	port_handler[HANDLE_STD_RD].read_portd = std_port_ind;
+	port_handler[HANDLE_STD_RD].write_portd = port_not_avail_outd;
 	port_handler[HANDLE_STD_RD].handler_name = "std port read";
 
 	port_handler[HANDLE_STD_WR].read_portb = port_not_avail_inb;
 	port_handler[HANDLE_STD_WR].write_portb = std_port_outb;
 	port_handler[HANDLE_STD_WR].read_portw = port_not_avail_inw;
 	port_handler[HANDLE_STD_WR].write_portw = std_port_outw;
+	port_handler[HANDLE_STD_WR].read_portd = port_not_avail_ind;
+	port_handler[HANDLE_STD_WR].write_portd = std_port_outd;
 	port_handler[HANDLE_STD_WR].handler_name = "std port write";
 
 	port_handler[HANDLE_VID_IO].read_portb = video_port_in;
 	port_handler[HANDLE_VID_IO].write_portb = video_port_out;
 	port_handler[HANDLE_VID_IO].read_portw = port_not_avail_inw;
 	port_handler[HANDLE_VID_IO].write_portw = port_not_avail_outw;
+	port_handler[HANDLE_VID_IO].read_portd = port_not_avail_ind;
+	port_handler[HANDLE_VID_IO].write_portd = port_not_avail_outd;
 	port_handler[HANDLE_VID_IO].handler_name = "video port io";
 
 	port_handler[HANDLE_SPECIAL].read_portb = special_port_inb;
 	port_handler[HANDLE_SPECIAL].write_portb = special_port_outb;
 	port_handler[HANDLE_SPECIAL].read_portw = port_not_avail_inw;
 	port_handler[HANDLE_SPECIAL].write_portw = port_not_avail_outw;
+	port_handler[HANDLE_SPECIAL].read_portd = port_not_avail_ind;
+	port_handler[HANDLE_SPECIAL].write_portd = port_not_avail_outd;
 	port_handler[HANDLE_SPECIAL].handler_name = "extra stuff";
 
 	port_handles = STD_HANDLES;

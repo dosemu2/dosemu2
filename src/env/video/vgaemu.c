@@ -334,14 +334,18 @@ volatile static int my_fault = 0;
 
 static void chk_ro()
 {
+#ifdef X86_EMULATOR
   if (config.cpuemu<1) {
+#endif
     volatile char *p = (char *) 0xa0077;
     my_fault = 1;
     *p = 0x99;
     if(my_fault) {
       vga_deb_map("vga_emu_fault: IS WRITABLE\n");
     }
+#ifdef X86_EMULATOR
   }
+#endif
   my_fault = 0;
 }
 #endif

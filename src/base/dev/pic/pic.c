@@ -134,7 +134,6 @@
 #ifndef C_RUN_IRQS
 #define C_RUN_IRQS
 #include "bitops.h"
-#undef C_RUN_IRQS
 #else
 #include "bitops.h"
 #endif
@@ -632,55 +631,83 @@ void (*func);
  * assembly macros, because such macros can only return a single result.
  * If I find a way to do it in c, I will, but don't hold your breath.
  *
+ * I found a way to write it in C --EB 15 Jan 97
+ *
  * DANG_END_FUNCTION
  */
 #ifdef C_RUN_IRQS
+/* DANG_BEGIN_COMMENT
+ *   This is my C version of the assembly version of run_irqs.
+ *   I believe it is a correct translation of the assembly into C.
+ *
+ *   I got frustrated with the old incomplete version.  Especially
+ *   because of indent problems and I don't believe in changing code I
+ *   don't understand.
+ *
+ *   This code is correct in the single process case.
+ *   Except possilby it's handling of special mask mode.
+ *   If pic_smm is set to 32 it appears to me that no interrupt is
+ *   ever run.
+ *
+ *   But this code is certainly incorrect in the multiple process
+ *   case.  Because it spins without rereading pic_irr, to recalculate
+ *   pic_ilevel.  And I think there are other less serious problems as
+ *   well.  However it doesn't matter because we aren't doing multiple
+ *   processes, or multiple threads. :)
+ *
+ *   Note Comments taken from the original C version
+ *
+ *   --EB 5 Jan 97
+ *  DANG_END_COMMENT
+ */
 /* see assembly language version below */
-void run_irqs()
+void run_irqs(void)
 /* find the highest priority unmasked requested irq and run it */
 {
- int old_ilevel;
- int int_request;
+       int old_ilevel;
+       int int_request;
+       int priority;
 #warning using C run_irqs
+       /* Old hack, to be removed */
+       if (in_dpmi && in_dpmi_timer_int) return;
 
-/* check for and find any requested irqs.  Having found one, we atomic-ly
- * clear it and verify it was there when we cleared it.  If it wasn't, we
- * look for the next request.  There are two in_service bits for pic1 irqs.
- * This is needed, because irq 8-15 must do 2 outb20s, which, if the dos
- * irq code actually runs, will reset the bits.  We also reset them here,
- * since dos code won't necessarily run.  
- */
-   
-#if 0
- if(!(pic_irr&~(pic_isr|pic_imr))) return;     /* exit if nothing to do */
-#else
- if(!(pic_irr&~(pic_isr))) return;     /* exit if nothing to do */
-#endif
- old_ilevel=pic_ilevel;                          /* save old pic_ilevl   */
- 
-#if 0
- while(int_request= pic_irr&~(pic_isr|pic_imr)) /* while something to do*/
-#else
- while(int_request= pic_irr&~(pic_isr)) /* while something to do*/
-#endif
-  {
-      
-  pic_ilevel=find_bit(&int_request);              /* find out what it is  */
-      
-  if(pic_ilevel<(old_ilevel+pic_smm))            /* priority check       */
-    if(clear_bit(pic_ilevel,&pic_irr))           /* dbl check & clear req*/
-      {     
-      /* we got one!  it is identified by pic_ilevel */
+       /* check for and find any requested irqs.  Having found one, we atomic-ly
+        * clear it and verify it was there when we cleared it.  If it wasn't, we
+        * look for the next request.  There are two in_service bits for pic1 irqs.
+        * This is needed, because irq 8-15 must do 2 outb20s, which, if the dos
+        * irq code actually runs, will reset the bits.  We also reset them here,
+        * since dos code won't necessarily run.
+        */
 
-     set_bit(pic_ilevel,&pic_isr);               /* set in-service bit   */
-     pic1_isr = pic_isr & pic1_mask;            /* pic1 too            */
-     pic_iinfo[pic_ilevel].func();               /* run the function     */
-     clear_bit(pic_ilevel,&pic_isr);             /* clear in_service bit */
-     clear_bit(pic_ilevel,&pic1_isr);            /* pic1 too            */
-     }
-   }
-   /* whether we did or didn't :-( get one, we must still reset pic_ilevel */
-   pic_ilevel=old_ilevel;
+       old_ilevel=pic_ilevel;                          /* save old pic_ilevl   */
+       priority = pic_smm + old_ilevel;                /* check spec. mask mode       */
+
+       while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
+               int local_pic_ilevel;
+
+	       if (!isset_IF() && !in_dpmi)
+	    	       goto exit;                      /* exit if ints are disabled */
+
+               do {
+                       local_pic_ilevel = find_bit(int_request);    /* find out what it is  */
+                       /* In case int_request has no bits set */
+                       if (local_pic_ilevel == -1)
+                               goto exit;
+                       if (local_pic_ilevel > priority)  /* priority check */
+                               goto exit;
+               } while (clear_bit(local_pic_ilevel, &pic_irr) == 0);   /* dbl check & clear req */
+               pic_ilevel = local_pic_ilevel;
+               set_bit(local_pic_ilevel, &pic_isr);     /* set in-service bit */
+               set_bit(local_pic_ilevel, &pic1_isr);    /* pic1 too */
+               pic1_isr &= pic_isr & pic1_mask;         /* isolate pic1 irqs */
+               pic_iinfo[local_pic_ilevel].func();      /* run the function */
+               local_pic_ilevel = pic_ilevel;
+               clear_bit(local_pic_ilevel, &pic_isr);   /* clear in_service bit */
+               clear_bit(local_pic_ilevel, &pic1_isr);  /* pic1 too */
+       }
+ exit:
+       /* whether we did or didn't :-( get one, we must still reset pic_ilevel */
+       pic_ilevel=old_ilevel;
 }
 
 #else
@@ -895,6 +922,10 @@ static char buf[81];
 
   if (pic_iinfo[inum].func == (void *)0)
     return ret; 
+
+  /* don't allow HW interrupts in force trace mode */
+  if (vm86s.vm86plus.vm86dbg_TFpendig)
+    return ret;
 
   REG(eflags) |= VIP;
   if (in_dpmi)
