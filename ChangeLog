@@ -1,3 +1,15 @@
+97/12/12 ver. 0.67.16.8 unofficial pre-release
+	From Robert de Bath <rd103891@mayday.cix.co.uk>
+	- new enhanced Slangterminal code
+	  (src/base/keyboard/keyb_slang.c, src/env/video/terminal.c)
+	From Eric
+	- some fixes to Robert's code
+	From Hans
+	- cleaned up Roberts code such that a diff between
+	  the old and the new code is better readable.
+	- made compilation of the old Slang code a configure option
+	  (--enable-old-slangcode) and moved the old code to o_keyb_slang.c
+	- docs recompile
 97/12/10 ver. 0.67.16.7 unofficial pre-release
 	From Karl Kiniger <ki@kretz.co.at> ( ... ASPI-Karl ;-)
 	- fix for src/dosext/misc/emm.c returning wrong error code

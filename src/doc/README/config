@@ -698,11 +698,14 @@ There are a number of keywords for the terminal { } configuration line.
      A value of 4 (default) is recommended in most cases, but if you have a 
      fast system or link, you can decrease this to 0.
   <tag/escchar/
-     A number that specifies the control character used as a prefix
-     character for sending alt, shift, ctrl, and function keycodes.  The
-     default value is 30 which is Ctrl-^.  So, for example, F1 is
-     'Ctrl-^ 1', Alt-F7 is 'Ctrl-^ 7'.  For online help, press
-     'Ctrl-^ h'.
+     A number (ascii code below 32) that specifies the control character
+     used as a prefix character for sending alt, shift, ctrl, and function
+     keycodes.  The default value is 30 which is Ctrl-^. So, for example,
+<tscreen><verb>
+  F1 is 'Ctrl-^1', Alt-F7 is 'Ctrl-^s Ctrl-^7'.
+  For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
+</verb></tscreen>
+
 </descrip>
 
 Use the following to enable the IBM character set.

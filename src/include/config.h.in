@@ -205,6 +205,9 @@
 /* Define this to use the new interrupt handling code */
 #undef USE_NEW_INT
 
+/* Define this to use the old Slang keyboard code */
+#undef USE_OLD_SLANG_KBD
+
 /* Define this to use the X86 CPU emulator */
 #undef X86_EMULATOR
 

@@ -76,3 +76,8 @@ export RANLIB=@RANLIB@
 ifdef X86_EMULATOR
   export X86_EMULATOR
 endif
+
+@USE_OLD_SLANG_KBD@
+ifdef USE_OLD_SLANG_KBD
+  export USE_OLD_SLANG_KBD
+endif

@@ -823,9 +823,13 @@
         link, you can decrease this to 0.
 
      eesscccchhaarr
-        A number that specifies the control character used as a prefix
-        character for sending alt, shift, ctrl, and function keycodes.
-        The default value is 30 which is Ctrl-^.  So, for example, F1 is
+        A number (ascii code below 32) that specifies the control
+        character used as a prefix character for sending alt, shift,
+        ctrl, and function keycodes.  The default value is 30 which is
+        Ctrl-^. So, for example,
+
+            F1 is 'Ctrl-^1', Alt-F7 is 'Ctrl-^s Ctrl-^7'.
+            For online help, press 'Ctrl-^h' or 'Ctrl-^?'.
 
   Use the following to enable the IBM character set.
 
@@ -860,6 +864,7 @@
         The X server to use. If this is not specified, dosemu will use
         the DISPLAY environment variable. (This is the normal case) The
         default is ":0".
+
      ttiittllee
         What you want dosemu to display in the title bar of its window.
         The default is "dosemu".
@@ -965,10 +970,10 @@
   then when DOSEMU is running, you can set up a better video
   configuration.
 
-    video { vga }                    Use this line, if you are using VGA
-    video { cga  console }           Use this line, if you are using CGA
-    video { ega  console }           Use this line, if you are using EGA
-    video { mda  console }           Use this line, if you are using MDA
+         video { vga }                    Use this line, if you are using VGA
+         video { cga  console }           Use this line, if you are using CGA
+         video { ega  console }           Use this line, if you are using EGA
+         video { mda  console }           Use this line, if you are using MDA
 
   Notes for Graphics:
 
@@ -1048,7 +1053,7 @@
 
   ET4000 SVGA card with 1 megabyte on board:
 
-         video { vga  console  graphics  chipset et4000  memsize 1024 }
+    video { vga  console  graphics  chipset et4000  memsize 1024 }
 
   or
 
@@ -1254,15 +1259,15 @@
 
   Use/modify one (or more) of the folling statements:
 
-         disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
-         disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
-         disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
-                                                       # 1st partition on 1st IDE
-                                                       # booting from the specified
-                                                       # file.
-         disk { partition "/dev/hda6" readonly }       # 6th logical partition.
-         disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
-         disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
+    disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
+    disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
+    disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
+                                                  # 1st partition on 1st IDE
+                                                  # booting from the specified
+                                                  # file.
+    disk { partition "/dev/hda6" readonly }       # 6th logical partition.
+    disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
+    disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
 
   Recommended:
 
@@ -1297,10 +1302,10 @@
 
   Use/modify one of the below:
 
-    floppy { device /dev/fd0 threeinch }
-    floppy { device /dev/fd1 fiveinch }
-    floppy { heads 2  sectors 18  tracks 80
-             threeinch  file /var/lib/dosemu/diskimage }
+         floppy { device /dev/fd0 threeinch }
+         floppy { device /dev/fd1 fiveinch }
+         floppy { heads 2  sectors 18  tracks 80
+                  threeinch  file /var/lib/dosemu/diskimage }
 
   If floppy disk speed is very important, uncomment the following line.
   However, this makes the floppy drive a bit unstable.  This is best
