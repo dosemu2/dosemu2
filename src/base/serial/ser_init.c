@@ -248,13 +248,25 @@ int ser_open(int num)
   if (com[num].fd < 0) {
     error("SERIAL: Unable to open device %s: %s\n",
       com[num].dev, strerror(errno));
-    if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
-      com[num].dev_locked = FALSE;
-    com[num].fd = -2; // disable permanently
-    return -1;
+    goto fail_unlock;
+  }
+  if (!isatty(com[num].fd)) {
+    error("SERIAL: Serial port device %s is not a tty, closing\n",
+      com[num].dev);
+    goto fail_close;
   }
   RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
-  return (com[num].fd);
+  return com[num].fd;
+
+fail_close:
+  close(com[num].fd);
+  /* fall through */
+fail_unlock:
+  if (tty_lock(com[num].dev, 0) >= 0)   		/* Unlock port */
+    com[num].dev_locked = FALSE;
+
+  com[num].fd = -2; // disable permanently
+  return -1;
 }
 
 void ser_set_params(int num)
