@@ -27,13 +27,11 @@
 
 #include <stdlib.h>
 #include <sys/types.h>
-#include <asm/page.h>
 #include <string.h>
 
 #include "emu.h"
 #include "config.h"
 #include "memory.h"
-#include "vgaemu.h"
 #include "xms.h"
 #include "hma.h"
 #include "machcompat.h"
@@ -139,23 +137,6 @@ static struct umb_record {
 #define Debug1(args)		x_Stub args
 #define Debug2(args)		x_Stub args
 /* #define dbg_fd stderr */
-
-static boolean_t
-umb_memory_empty(vm_address_t addr, int size)
-{
-  int i;
-  int *memory = (int *) addr;
-
-  for (i = 0; i < (size / 4); i++) {
-    if ((memory[i] != 0xffffffff) && (memory[i] != 0)) {
-      return FALSE;
-    }
-  }
-#ifdef DEBUG_XMS
-  Debug0((dbg_fd, "Found free UMB region: %p\n", (void *) addr));
-#endif
-  return (TRUE);
-}
 
 static int
 umb_setup(void)
