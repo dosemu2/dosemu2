@@ -1221,14 +1221,14 @@ static int int21(void)
       char *ptr, *tmp_ptr;
       char cmdname[256], tmpname[256];
       char *str = SEG_ADR((char*), ds, dx);
-      struct param4a *pa4 = SEG_ADR((struct param4a *), es, bx);
-      struct lowstring *args = FARt_PTR(pa4->cmdline);
 
       dos_post_boot();
 
 #if WINDOWS_HACKS
       if ((ptr = strstr(str, "\\system\\dosx.exe")) ||
 	  (ptr = strstr(str, "\\system\\win386.exe"))) {
+        struct param4a *pa4 = SEG_ADR((struct param4a *), es, bx);
+        struct lowstring *args = FARt_PTR(pa4->cmdline);
         int have_args = 0;
         strncpy(cmdname, args->s, args->len);
         cmdname[args->len] = 0;
