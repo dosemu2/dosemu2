@@ -144,11 +144,11 @@ void rtc_update (void)	/* called every 1s from SIGALRM */
          if (++Y0>99) {
           Y0=0;
           ++C0;   /* Only 19->20 transition realistic. */
-          SET_CMOS(CMOS_CENTURY, D0);
+          SET_CMOS(CMOS_CENTURY, C0);
          }
-         SET_CMOS(CMOS_YEAR, D0);
+         SET_CMOS(CMOS_YEAR, Y0);
         }
-        SET_CMOS(CMOS_MONTH, D0);
+        SET_CMOS(CMOS_MONTH, M0);
        }
        SET_CMOS(CMOS_DOM, D0);
 
