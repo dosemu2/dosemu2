@@ -1,26 +1,24 @@
 /*
- * remap.h -- header file for remap.c & remap_asm.S
+ * Header file for remap.c & remap_asm.S.
  *
- * (c) sw 1997
- *
- * Steffen.Winterfeldt@itp.uni-leipzig.de
+ * Copyright (c) 1997 Steffen Winterfeldt
  *
  */
 
 /*
  * print listing of generated code
  */
-#undef REMAP_CODE_DEBUG
+#undef	REMAP_CODE_DEBUG
 
-#undef REMAP_RESIZE_DEBUG
-#undef REMAP_AREA_DEBUG
-#undef REMAP_TEST		/* Do not define! -- sw */
+#undef	REMAP_RESIZE_DEBUG
+#undef	REMAP_AREA_DEBUG
+#undef	REMAP_TEST		/* Do not define! -- sw */
 
 /*
  * define to use a 'real' 2x2 dither when using a shared color map
  * (this does not affect the remap speed)
  */
-#define REMAP_REAL_DITHER
+#define	REMAP_REAL_DITHER
 
 #ifndef __ASSEMBLER__
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -105,7 +103,7 @@ typedef struct RemapObjectStruct {
   int state;
   int src_mode, dst_mode;
   ColorSpaceDesc *src_color_space, *dst_color_space;
-  float gamma;		/* 4 byte !! */
+  unsigned gamma;		/* 4 byte !! */
   unsigned char *gamma_lut;
   unsigned char *src_image, *dst_image;
   unsigned src_width, src_height, src_scan_len;
@@ -115,6 +113,7 @@ typedef struct RemapObjectStruct {
   int src_offset, dst_offset;
   int *bre_x, *bre_y;
   unsigned *true_color_lut;
+  int supported_src_modes;
   void (*remap_func)(struct RemapObjectStruct *);
   unsigned remap_func_flags;
   char *remap_func_name;
@@ -140,7 +139,7 @@ void remap_done(RemapObject *);
 unsigned rgb_color_2int(ColorSpaceDesc *, unsigned, RGBColor);
 RGBColor int_2rgb_color(ColorSpaceDesc *, unsigned, unsigned);
 void color_space_complete(ColorSpaceDesc *);
-void adjust_gamma(RemapObject *, double);
+void adjust_gamma(RemapObject *, unsigned);
 void gamma_correct(RemapObject *, RGBColor *, unsigned *);
 
 CodeObj code_init(void);
@@ -189,6 +188,7 @@ void code_append_ins(CodeObj *, int, void *);
 		RO_Struct ro_bre_x
 		RO_Struct ro_bre_y
 		RO_Struct ro_true_color_lut
+		RO_Struct ro_supported_src_modes;
 		RO_Struct ro_remap_func
 		RO_Struct ro_remap_func_flags
 		RO_Struct remap_func_name
@@ -200,3 +200,4 @@ void code_append_ins(CodeObj *, int, void *);
 		RO_Struct ro_func_2
 
 #endif /* __ASSEMBLER__ */
+

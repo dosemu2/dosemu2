@@ -39,7 +39,7 @@ REQUIREMENTS
   - mtools-3.6 (for creating hdimages and DEXEs)
 
 When compiling dosemu yourself:
-  - GCC 2.7.2+ and LIBC 5.2.18+ are recommended for best results.
+  - GCC 2.7.2+ and LIBC 5.4.7+ are recommended for best results.
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
      of total memory to compile, depending on configuration.
 

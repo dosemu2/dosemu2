@@ -70,8 +70,6 @@ int set_video_mode(int mode);  /* root@sjoerd from int10.c,dangerous*/
 #include "emu.h"
 #include "video.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
-#include "vesa.h"
 
 #ifdef NEW_X_CODE          
 /* to be removed soon -- sw */

@@ -62,7 +62,6 @@
 #include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
 #ifdef HAVE_GETTIMEOFDAY
 #  ifdef TIME_WITH_SYS_TIME
 #    include <sys/time.h>

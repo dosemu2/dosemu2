@@ -13,7 +13,9 @@ GROUP:		Main doc/DANG/summary_Main dos.c emu.c include/emu.h
 #GROUP:		Clients doc/DANG/summary_Clients clients/ncurses.c
 GROUP:		DPMI doc/DANG/summary_DPMI dosext/dpmi/dpmi.c
 GROUP:		Video doc/DANG/summary_Video env/video/vc.c
-			env/video/video.c env/video/X.c env/video/console.c
+			env/video/video.c env/video/n_X.c env/video/n_vgaemu.c
+			env/video/vesa.c env/video/attremu.c env/video/dacemu.c
+			env/video/console.c
 			env/video/dualmon.c env/video/et4000.c env/video/hgc.c
 			base/bios/int10.c env/video/s3.c env/video/terminal.c
 			env/video/trident.c env/video/vga.c 

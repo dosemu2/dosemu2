@@ -101,6 +101,10 @@
 #include "serial.h"
 #include "port.h"
 
+#ifdef NEW_X_CODE
+#include "vgaemu.h"
+#endif
+
 #ifdef __NetBSD__
 #define vm86_regs sigcontext
 #endif
@@ -1792,6 +1796,21 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0703:	/* Discard Page Contents */
     D_printf("DPMI: unimplemented int31 func %#x\n",inumber);
     break;
+
+#ifdef NEW_X_CODE
+  case 0x0800: {
+      unsigned addr, size, lfb;
+
+      lfb = vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page << 12;
+      addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
+      size = (_LWORD(esi)) << 16 | (_LWORD(edi));
+
+      if(lfb && lfb == addr) {
+        D_printf("DPMI: getting linear frame buffer at 0x%x, size 0x%x\n", addr, size);
+        break;		/* physical == linear address in this case */
+      }
+    }
+#endif
 
   default:
     D_printf("DPMI: unimplemented int31 func %#x\n",inumber);

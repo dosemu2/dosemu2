@@ -49,7 +49,6 @@
 #include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
 
 
 #define SEQ_MAX_INDEX 16
@@ -182,7 +181,7 @@ void Seq_write_value(unsigned char data)
       vga.scan_len = (vga.scan_len * vga.mem.planes) / u;
       if(u != vga.mem.planes) {
         vga.mem.planes = u;
-        vga.mem.reconfigured = 1;
+        vga.reconfig.mem = 1;
       }
       v_printf("VGAemu: Seq_write_value: chain4 = %u\n", (unsigned) vga.seq.chain4);
       break;

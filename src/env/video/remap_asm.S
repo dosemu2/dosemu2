@@ -1,9 +1,22 @@
 /*
- * remap_asm.S -- low-level functions for remapping an 2d image
+ * DANG_BEGIN_MODULE
  *
- * (c) sw 1997
+ * Low-level assembler functions for remapping 2D images.
  *
- * Steffen.Winterfeldt@itp.uni-leipzig.de
+ * Note that these functions mostly call other functions that
+ * have been calculated in remap.c.
+ *
+ * DANG_END_MODULE
+ *
+ * Copyright (c) 1997 Steffen Winterfeldt
+ *
+ *
+ * DANG_BEGIN_CHANGELOG
+ *
+ * 1997/08/07: Fixed some bugs when remapping very narrow images.
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ *
+ * DANG_END_CHANGELOG
  *
  */
 
@@ -243,6 +256,8 @@ pent16_1_10:
 		movl %edx,x_rest
 		xorl %eax,%eax
 		xorl %edx,%edx
+		cmpl %eax,x_cnt_len
+		jz pent16_1_30
 
 pent16_1_20:
 		movb (%esi),%al
@@ -292,6 +307,7 @@ pent16_1_20:
 		decl x_cnt
 		jnz pent16_1_20
 
+pent16_1_30:
 		testl $8,x_rest
 		jz pent16_1_40
 		movb (%esi),%al
@@ -511,6 +527,8 @@ pent32_1_10:
 		movl %edx,x_rest
 		xorl %eax,%eax
 		xorl %edx,%edx
+		cmpl %eax,x_cnt_len
+		jz pent32_1_30
 
 pent32_1_20:
 		movb (%esi),%al
@@ -568,6 +586,7 @@ pent32_1_20:
 		decl x_cnt
 		jnz pent32_1_20
 
+pent32_1_30:
 		testl $8,x_rest
 		jz pent32_1_40
 		movb (%esi),%al
@@ -796,6 +815,8 @@ pent8_1_10:
 		movl %edx,x_rest
 		xorl %eax,%eax
 		xorl %edx,%edx
+		cmpl %eax,x_cnt_len
+		jz pent8_1_30
 
 pent8_1_20:
 		movb 2(%esi),%al
@@ -845,6 +866,7 @@ pent8_1_20:
 		decl x_cnt
 		jnz pent8_1_20
 
+pent8_1_30:
 		testl $8,x_rest
 		jz pent8_1_40
 		movb 2(%esi),%al

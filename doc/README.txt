@@ -119,6 +119,8 @@
 
   10.4.3. X
 
+  10.5.   The new VGAEmu/X code (July 11, 1997)
+
   11.     Running Windows under DOSEmu
 
   11.1.   Windows 3.0 Real Mode
@@ -747,10 +749,14 @@
         Used to pick a font other than vga (default). Must be
         monospaced.
 
+     mmiittsshhmm
+        Use shared memory extensions. The default is ``on''.
+
      sshhaarreeccmmaapp
         Used to share the colormap with other applications in graphics
         mode.  If not set, a private colormap is used. The default is
         off.
+
      ffiixxeedd__aassppeecctt
         Set fixed aspect for resize the graphics window. One of ``on''
         (default) or ``off''.
@@ -772,21 +778,34 @@
         (320x200).  The default is 2.
 
      wwiinnssiizzee
-        A pair of numbers which set the initial size of the window to a
-        fixed value. They are the X and Y values in that order. The
-        default is to float.
+        A pair of numbers which set the initial width and height of the
+        window to a fixed value. The default is to float.
 
      ggaammmmaa
         Set value for gamma correction, a value of 100 means gamma 1.0.
         The default is 100.
 
      vvggaaeemmuu__mmeemmssiizzee
-        Set the size (in Kbytes) of the regenbuffer for emulated vga
+        Set the size (in Kbytes) of the frame buffer for emulated vga
         under X. The default is 1024.
+
+     llffbb
+        Enable or disable the linear frame buffer in VESA modes. The
+        default is ``on''.
+
+     ppmm__iinntteerrffaaccee
+        Enable or disable the protected mode interface for VESA modes.
+        The default is ``on''.
+
+     vveessaammooddee
+        Define a VESA mode. Two variants are supported: vesamode width
+        height and vesamode width height color_bits. The first adds the
+        specified resolution in all supported color depths (currently 8,
+        15, 16, 24 and 32 bit).
 
   Recommended X statement:
 
-         X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+    X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
 
   22..22..99..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
 
@@ -799,10 +818,10 @@
   then when DOSEMU is running, you can set up a better video
   configuration.
 
-    video { vga }                    Use this line, if you are using VGA
-    video { cga  console }           Use this line, if you are using CGA
-    video { ega  console }           Use this line, if you are using EGA
-    video { mda  console }           Use this line, if you are using MDA
+         video { vga }                    Use this line, if you are using VGA
+         video { cga  console }           Use this line, if you are using CGA
+         video { ega  console }           Use this line, if you are using EGA
+         video { mda  console }           Use this line, if you are using MDA
 
   Notes for Graphics:
 
@@ -944,7 +963,7 @@
 
   or
 
-         ems { ems_size 2048 ems_frame 0xd000 }
+    ems { ems_size 2048 ems_frame 0xd000 }
 
   If you have adapters, which have memory mapped IO, you may map those
   regions with hardware_ram { .. }. You can only map in entities of 4k,
@@ -1088,7 +1107,7 @@
 
   Recommended:
 
-         disk { image "/var/lib/dosemu/hdimage" }
+    disk { image "/var/lib/dosemu/hdimage" }
 
   22..22..1155..  DDOOSSEEMMUU bboooott
 
@@ -1247,28 +1266,28 @@
 
   22..33..11..  //eettcc//ddoosseemmuu..uusseerrss
 
-         root c_all
-         hans c_normal c_var
-         alistair want_sound
-         jim want_sound c_all
-         all guest
+    root c_all
+    hans c_normal c_var
+    alistair want_sound
+    jim want_sound c_all
+    all guest
 
   22..33..22..  //eettcc//ddoosseemmuu..ccoonnff
 
-    ifdef want_sound
-      define c_normal
-      define c_sound
-      include "dosemu.normal.conf"
-      irqpassing off speaker off
-      sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
-                  sb_mixer /dev/mixer mpu_base 0x330 }
-    else
-      ifdef guest
-        include "dosemu.guest.conf"
-      else
-        include "dosemu.norm.conf"
-      endif
-    endif
+         ifdef want_sound
+           define c_normal
+           define c_sound
+           include "dosemu.normal.conf"
+           irqpassing off speaker off
+           sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
+                       sb_mixer /dev/mixer mpu_base 0x330 }
+         else
+           ifdef guest
+             include "dosemu.guest.conf"
+           else
+             include "dosemu.norm.conf"
+           endif
+         endif
 
   22..33..33..  //eettcc//ddoosseemmuu..nnoorrmmaall..ccoonnff
 
@@ -1301,23 +1320,23 @@
 
   22..33..44..  //eettcc//ddoosseemmuu..gguueesstt..ccoonnff
 
-    define c_dexeonly
-    debug { off } dosbanner on
-    sound_emu off
-    timint on HogThreshold 1
-    keyboard {  layout us  keybint on  rawkeyboard off  }
-    ipxsupport off
-    terminal { charset latin  updatefreq 4  color on }
-    X { updatefreq 12 title "guest DOS in a BOX" icon_name "xdos" }
-    video { vga }
-    mathco on cpu 80386
-    dpmi off xms 1024 ems 1024
-    irqpassing off speaker off
-    dexe { secure }
-    # we don't allow anything weird anymore
-    undef c_all
-    define c_x
-    define c_nice
+         define c_dexeonly
+         debug { off } dosbanner on
+         sound_emu off
+         timint on HogThreshold 1
+         keyboard {  layout us  keybint on  rawkeyboard off  }
+         ipxsupport off
+         terminal { charset latin  updatefreq 4  color on }
+         X { updatefreq 12 title "guest DOS in a BOX" icon_name "xdos" }
+         video { vga }
+         mathco on cpu 80386
+         dpmi off xms 1024 ems 1024
+         irqpassing off speaker off
+         dexe { secure }
+         # we don't allow anything weird anymore
+         undef c_all
+         define c_x
+         define c_nice
 
   33..  SSeeccuurriittyy
 
@@ -2161,6 +2180,127 @@
 
   Erik
 
+  1100..55..  TThhee nneeww VVGGAAEEmmuu//XX ccooddee ((JJuullyy 1111,, 11999977))
+
+  Steffen Winterfeldt <Steffen.Winterfeldt@itp.uni-leipzig.de>
+
+  I've been working on the X code and the VGA emulation over the last
+  few months. This is the outcome so far:
+
+  +o  graphics support in X now works on all X servers with color depth
+     >= 8
+  +o  the graphics window is resizeable
+
+  +o  support for hi- and true-color modes (using Trident SVGA mode
+     numbers and bank switching)
+
+  +o  some basic support for mode-X type graphics modes (non-chain4 modes
+     as used by e.g. DOOM)
+
+  +o  some even more basic support for 16 color modes
+
+  +o  nearly full VESA 2.0 support
+
+  +o  gamma correction for graphics modes
+
+  +o  video memory size is configurable via dosemu.conf
+
+  +o  initial graphics window size is configurable
+
+  The current implementation supports 4 and 8 bit SVGA modes on all
+  types of X display. Hi-color modes are supported only on displays
+  matching the exact color depth (15 or 16); true color modes are
+  supported only on true color X displays, but always both 24 bit and 32
+  bit SVGA modes.
+
+  In addition, the current hi- and true color support does not allow
+  resizing of the graphics window and gamma correction is ignored.
+
+  As the typical graphics mode with 320x200x8 will be used often with
+  large scalings and modern graphics boards are pretty fast, I added
+  something to eat up your CPU time: you can turn on the bilinear
+  interpolation. It greatly improves the display quality (but is rather
+  slow as I haven't had time yet to implement an optimized version -
+  it's plain C for now).  If the bilinear filter is too slow, you might
+  instead try the linear filter which interpolates only horizontally.
+
+  Note that (bi)linear filtering is not available on all VGA/X display
+  combinations. The standard drawing routines are used instead in such
+  cases.
+
+  If a VGA mode is not supported on your current X display, the graphics
+  screen will just remain black. Note that this ddooeess nnoott mean that xdos
+  has crashed.
+
+  The VESA support is (or should be) nearly VBE 2.0 compatible. As a
+  reference I used several documents including the unofficial VBE 2.0
+  specs made available by SciTech Software. I checked this against some
+  actual implementations of the VBE 2.0 standard, including SciTech's
+  Display Doctor (formerly known as UniVBE).  Unfortunately
+  implementations and specs disagree at some points.  In such cases I
+  assumed the actual implementation to be correct.
+
+  The only unsupported VBE function is VGA state save/restore. But this
+  functionality is rarely used and its lack should not cause too much
+  problems.
+
+  VBE allows you to use the horizontal and vertical scrolling function
+  even in text modes. This feature is not implemented.
+
+  If you think it causes problems, the linear frame buffer (LFB) can be
+  turned of via dosemu.conf as well as the protected mode interface.
+  Note, however, that LFB modes are faster than banked modes, even in
+  DOSEmu.
+
+  The default VBE mode list defines a lot of medium resolution modes
+  suitable for games (like Duke3D). You can still create your own modes
+  via dosemu.conf. Note that you cannot define the same mode twice; the
+  second (and all subsequent) definitions will be ignored.
+
+  Modes that are defined but cannot be supported due to lack of video
+  memory or because they cannot be displayed on your X display, are
+  marked as unsupported in the VBE mode list (but are still in it).
+  Note that there is currently no support of 4 bit VESA modes.
+
+  The current interface between VGAEmu and X will try to update all
+  invalid video pages at a time. This may, particularly in hi-res
+  VBE/SVGA modes, considerably disturb DOSEmu's signal handling. That
+  cannot be helped for the moment, but will be addressed soon (by
+  running an extra update thread).
+
+  If you really think that this is the cause of your problem, you might
+  try to play with veut.max_max_len in env/video/n_X.c, near line 2005.
+  This variable limits the amount of video memory that is updated during
+  one timer interrupt. This way you can dramatically reduce the load of
+  screen updates, but at the same rate reduce your display quality.
+
+  Gamma correction works in both 4 and 8 bit modes. As the dosemu.conf
+  parser doesn't support float values, it must be specified as a
+  percentage value: gamma 100 = gamma 1.0. Higher values give brighter
+  graphics, lower make them darker. Reasonable values are within a range
+  of 50 ... 200.
+
+  You can specify the video memory size that the VGA emulator should use
+  in dosemu.conf. The value will be rounded up to the nearest 256 kbyte
+  boundary. You should stick to typical values like 1024, 2048 or 4096
+  as not to confuse DOS applications.  Note that whatever value you
+  give, 4 bit modes are only supported up to a size of 800x600.
+
+  You can influence the initial size of the graphics window in various
+  ways. Normally it will have the same size (in pixel) as the VGA
+  graphics mode, except for mode 0x13 (320x200, 256 colors), which will
+  be scaled by the value of _m_o_d_e_1_3_f_a_c_t (defaults to 2).  Alternatively,
+  you can directly specify a window size in dosemu.conf via _w_i_n_s_i_z_e. You
+  can still resize the window later.
+
+  The config option _f_i_x_e_d___a_s_p_e_c_t allows you to fix the aspect ratio of
+  the graphics window while resizing it. Alternatively, _a_s_p_e_c_t___4_3 ties
+  the aspect ratio to a value of 4:3. The idea behind this is that,
+  whatever the actual resolution of a graphics mode is in DOS, it is
+  displayed on a 4:3 monitor. This way you won't run into problems with
+  modes such as 640x200 (or even 320x200) which would look somewhat
+  distorted otherwise.
+
   1111..  RRuunnnniinngg WWiinnddoowwss uunnddeerr DDOOSSEEmmuu
 
   Okay, perhaps you've heard the hooplah.  DOSEMU can run Windows (sort
@@ -2338,6 +2478,8 @@
   DOS applications will accept them, even interactive ones. A '' is
   interpreted as in C and leads in ESC-codes. Here a list of of the
   current implemented ones:
+
+        Carriage return == <ENTER>
   v
   n
   e  00ffRR
@@ -2403,6 +2545,7 @@
   in
   your
   .fvwmrc
+
   1133..22..
   UUssiinngg
   aann
@@ -2793,6 +2936,7 @@
   WWhhyy ddoo II nneeeedd ttoo sseett tthhee HHooggTThhrreesshhoolldd vvaalluuee,, wwhhyy ccaann''tt DDOOSSEEMMUU
   jjuusstt ssttoopp iiff iitt iiss wwaaiittiinngg ffoorr aa kkeeyyssttrrookkee ??"
   The reason is the way how DOS and a lot of applications have implemented
+
   It's most often done by something similar to the following code fragment :
 
        wait_for_key:
@@ -2979,7 +3123,6 @@
 
   ggeettccwwdd..ccoomm
   get the Unix directory for Dosemu (use getcwd(2))
-
   iisseemmuu..ccoomm
   detects Dosemu version and returns greater 0 if running under
   Dosemu
@@ -3043,13 +3186,11 @@
 
   vvggaaooffff..ccoomm
   disable vga option
-
   vvggaaoonn..ccoomm
   enable vga option
 
   1155..22..
   DDrriivveerrss
-
   These
   are
   useful
@@ -3248,7 +3389,7 @@
   root
   type
 
-          loadkeys dosemu.new.keymap
+               loadkeys dosemu.new.keymap
 
   (then
   run
@@ -3308,6 +3449,7 @@
   it
   first!
   :)
+
   if
   you
   find
@@ -3902,7 +4044,6 @@
   packets (rfc 1234). Novell has NLMs for this on the netware
   side. On linux, we should run a daemon implementing this
   rfc.
-
   1177..33..44..
   VViirr--
   ttuuaall
@@ -4468,35 +4609,35 @@
   linux
   sources:
 
-       *** ksyms.c.old Mon Oct 10 11:12:01 1994
-       --- ksyms.c     Mon Oct 10 11:13:31 1994
-       ***************
-       *** 28,33 ****
-       --- 28,39 ----
-         #include <linux/serial.h>
-         #ifdef CONFIG_INET
-         #include <linux/netdevice.h>
-       + extern unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev);
-       + extern int eth_header(unsigned char *buff, struct device *dev, unsigned
-       +               short type, void *daddr, void *saddr, unsigned len, struct
-       +               sk_buff *skb);
-       + extern int eth_rebuild_header(void *buff, struct device *dev, unsigned long
-       +               dst, struct sk_buff *skb);
-         #endif
+  *** ksyms.c.old Mon Oct 10 11:12:01 1994
+  --- ksyms.c     Mon Oct 10 11:13:31 1994
+  ***************
+  *** 28,33 ****
+  --- 28,39 ----
+    #include <linux/serial.h>
+    #ifdef CONFIG_INET
+    #include <linux/netdevice.h>
+  + extern unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev);
+  + extern int eth_header(unsigned char *buff, struct device *dev, unsigned
+  +               short type, void *daddr, void *saddr, unsigned len, struct
+  +               sk_buff *skb);
+  + extern int eth_rebuild_header(void *buff, struct device *dev, unsigned long
+  +               dst, struct sk_buff *skb);
+    #endif
 
-         #include <asm/irq.h>
-       ***************
-       *** 183,188 ****
-       --- 189,197 ----
-               X(dev_rint),
-               X(dev_tint),
-               X(irq2dev_map),
-       +         X(eth_type_trans),
-       +         X(eth_header),
-       +         X(eth_rebuild_header),
-         #endif
+    #include <asm/irq.h>
+  ***************
+  *** 183,188 ****
+  --- 189,197 ----
+          X(dev_rint),
+          X(dev_tint),
+          X(irq2dev_map),
+  +         X(eth_type_trans),
+  +         X(eth_header),
+  +         X(eth_rebuild_header),
+    #endif
 
-               /********************************************************
+          /********************************************************
 
   After
   this,
@@ -4599,6 +4740,7 @@
   ootthheerr
   SSyyss--
   tteemmss
+
   Other
   systems
   need
@@ -5156,6 +5298,7 @@
 
   +o
   Now you must load the dosnet module:
+
              insmod ./src/dosext/net/v-net/dosnet.o
 
   +o
@@ -5218,7 +5361,7 @@
   start the winpkt TSR. (dosemu assign the 0x60 interrupt vector to the
   built-in packet driver)
 
-          winpkt 0x60
+               winpkt 0x60
 
   +o
   edit the trumpet winsock setup file trumpwsk.ini. Here is an example of
@@ -5226,48 +5369,48 @@
   (I think you can use less parameters, if you have the time to play with
   this file. You can also setup this stuff from the winsock setup dialog-box).
 
-               [Trumpet Winsock]
-               netmask=255.255.255.0  <-- class C netmask.
-               gateway=144.16.112.1   <-- address in the default gateway.
-               dns=www.xxx.yyy.zzz    <-- You must use right value for the dns.
-               domain=hi-net.it
-               ip=144.16.112.10       <-- Windows address in the dosnet.
-               vector=60              <-- packet driver interrupt vector.
-               mtu=1500
-               rwin=4096
-               mss=1460
-               rtomax=60
-               ip-buffers=32
-               slip-enabled=0         <--- disable slip
-               slip-port=2
-               slip-baudrate=57600
-               slip-handshake=1
-               slip-compressed=0
-               dial-option=1
-               online-check=0
-               inactivity-timeout=5
-               slip-timeout=0
-               slip-redial=0
-               dial-parity=0
-               font=Courier,9
-               registration-name=""
-               registration-password=""
-               use-socks=0
-               socks-host=0.0.0.0
-               socks-port=1080
-               socks-id=
-               socks-local1=0.0.0.0 0.0.0.0
-               socks-local2=0.0.0.0 0.0.0.0
-               socks-local3=0.0.0.0 0.0.0.0
-               socks-local4=0.0.0.0 0.0.0.0
-               ppp-enabled=0            <-------- disable ppp
-               ppp-usepap=0
-               ppp-username=""
-               ppp-password=""
-               win-posn=42 220 867 686 -1 -1 -4 -4 1
-               trace-options=16392
+          [Trumpet Winsock]
+          netmask=255.255.255.0  <-- class C netmask.
+          gateway=144.16.112.1   <-- address in the default gateway.
+          dns=www.xxx.yyy.zzz    <-- You must use right value for the dns.
+          domain=hi-net.it
+          ip=144.16.112.10       <-- Windows address in the dosnet.
+          vector=60              <-- packet driver interrupt vector.
+          mtu=1500
+          rwin=4096
+          mss=1460
+          rtomax=60
+          ip-buffers=32
+          slip-enabled=0         <--- disable slip
+          slip-port=2
+          slip-baudrate=57600
+          slip-handshake=1
+          slip-compressed=0
+          dial-option=1
+          online-check=0
+          inactivity-timeout=5
+          slip-timeout=0
+          slip-redial=0
+          dial-parity=0
+          font=Courier,9
+          registration-name=""
+          registration-password=""
+          use-socks=0
+          socks-host=0.0.0.0
+          socks-port=1080
+          socks-id=
+          socks-local1=0.0.0.0 0.0.0.0
+          socks-local2=0.0.0.0 0.0.0.0
+          socks-local3=0.0.0.0 0.0.0.0
+          socks-local4=0.0.0.0 0.0.0.0
+          ppp-enabled=0            <-------- disable ppp
+          ppp-usepap=0
+          ppp-username=""
+          ppp-password=""
+          win-posn=42 220 867 686 -1 -1 -4 -4 1
+          trace-options=16392
 
-               [default vars]
+          [default vars]
 
   +o
   Now you can run windows, startup trumpet winsock and .....

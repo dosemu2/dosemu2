@@ -104,10 +104,6 @@
 #include "port.h"
 #include "video.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
-#ifdef VESA
-#include "vesa.h"
-#endif
 #include "priv.h"
 
 
@@ -555,9 +551,7 @@ unsigned char* vga_emu_init(void)
   port_register_handler(io_device);
 #endif
 
-#ifdef VESA
   vesa_init();
-#endif
 
   return vga_emu_memory;
 }

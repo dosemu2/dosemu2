@@ -357,6 +357,11 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 #define HARDWARE_RAM_START 0xc8000
 #define HARDWARE_RAM_STOP  0xf0000
 
+typedef struct vesamode_type_struct {
+  struct vesamode_type_struct *next;
+  unsigned width, height, color_bits;
+} vesamode_type;
+
 
      typedef struct config_info {
        int hdiskboot;
@@ -393,8 +398,11 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        int     X_winsize_x;             /* initial window width */
        int     X_mode13fact;            /* initial size factor for mode 0x13 */
        int     X_winsize_y;             /* initial window height */
-       double  X_gamma;			/* gamma correction value */
+       unsigned X_gamma;		/* gamma correction value */
        u_short vgaemu_memsize;		/* for VGA emulation */
+       vesamode_type *vesamode_list;	/* chained list of VESA modes */
+       int     X_lfb;			/* support VESA LFB modes */
+       int     X_pm_interface;		/* support protected mode interface */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;

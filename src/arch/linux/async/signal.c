@@ -158,7 +158,17 @@ signal_init(void)
   SETSIG(SIGKILL, leavedos);
 #endif
   SETSIG(SIGQUIT, sigquit);
-  SETSIG(SIGWINCH, gettermcap); /* Adjust window sizes in DOS */
+
+#ifdef X_SUPPORT
+  if(config.X) {
+    SETSIG(SIGWINCH, SIG_IGN);
+  }
+  else
+#endif
+  {
+    SETSIG(SIGWINCH, gettermcap); /* Adjust window sizes in DOS */
+  }
+
 /*
   SETSIG(SIGUNUSED, timint);
 */

@@ -180,7 +180,7 @@ warning2:
 	 echo ""; \
 	 echo "-> REQUIREMENTS for DOSEMU:"; \
 	 echo "    - gcc 2.7.2"; \
-	 echo "    - libc 5.2.18"; \
+	 echo "    - libc 5.4.7"; \
 	 echo '    - Linux >= 2.0.28, 2.1.x >= 2.1.15'; \
 	 echo "    - 16 megabytes total memory+swap"; \
 	 echo ""; \

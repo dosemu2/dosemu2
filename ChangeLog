@@ -1,4 +1,30 @@
-97/06/29 ver. 0.67.6 released
+97/07/18 ver. 0.67.7.1 unofficial pre-release
+	From Steffen
+	- new (nearly) full implementation of vesa-2.0
+	  - real true color support for DOS-applications (note: not to confuse
+	    with emulation of 8bpp on a truecolor X-server)
+	  - LFB support.
+	    implemented special DPMI 0x0800 function (map physical)
+	    to fake our virtual LFB.
+	    (this need more work, too dangerous, --Hans)
+	  - new dosemu.conf option for X {}:
+	    lfb on/off, pm_interface on/off, defining new VESA modes.
+	    look at doc/README.txt chapter 2.2.8.
+	  - made 'X {mitshm}' default on, but can be switched off via
+	    'X {mitshm off}'.
+	  - gammcorrection now uses _only_ integer, no FPU usage any more.
+	  - integrated old vgaemu_inside.h and vesa.h into vgaemu.h
+	- fixed a bug in arch/linux/async/signal.c, wrong activation
+	  of resize in text mode.
+	- updated README/X.sgml and README/config to reflect all recent
+	  X changes.
+	From Hans
+	- fixed Makefiles for odd behave on as86 generated objects:
+	  bios.s, vesabios.o (tmp files dependencies went berserk)
+	- fixed README/Makefile so sgml2tex won't screw up your screen;-)
+	- changed docs to reflect the fact, that we now need libc-5.4.7
+	  at minimum (due to mremap)
+97/07/05 ver. 0.67.7 released
 	From Alberto
 	- fix for n_serv_xlat.c, grey +/- on num keypad.
 	- fix for mhpdbgc.c, adjust segment limit value following the

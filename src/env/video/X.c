@@ -147,7 +147,6 @@
 
 
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
 
 static const u_char dos_to_latin[]={
    0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,  /* 80-87 */ 

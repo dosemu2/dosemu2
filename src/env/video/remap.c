@@ -1,15 +1,27 @@
 /*
- * remap.c -- resize an 2D image with color space conversion
+ * DANG_BEGIN_MODULE
  *
- * (c) sw 1997
+ * Transform a 2D image (rescale and color space conversion).
  *
- * Steffen.Winterfeldt@itp.uni-leipzig.de
+ * Here are functions to adapt the VGA graphics to various
+ * X displays.
+ *
+ * DANG_END_MODULE
+ *
+ * Copyright (c) 1997 Steffen Winterfeldt
+ *
+ *
+ * DANG_BEGIN_CHANGELOG
+ *
+ * 1997/07/08: Gamma correction now uses only integer operations.
+ * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ *
+ * DANG_END_CHANGELOG
  *
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>	/* pow() */
 #include <string.h>
 #include <sys/mman.h>	/* mprotect() */
 #include <sys/param.h>	/* EXEC_PAGESIZE */
@@ -29,11 +41,11 @@ RemapFuncDesc *remap_opt(void);
 RemapFuncDesc *remap_gen(void);
 
 RemapFuncDesc *(*remap_list_funcs[])(void) = {
+  remap_gen,
+  remap_opt,
 #ifdef REMAP_TEST
   remap_test,
 #endif
-  remap_opt,
-  remap_gen,
   NULL
 };
 
@@ -53,6 +65,8 @@ static void do_nothing() {};
 static int do_nearly_nothing() { return 0; };
 static RectArea do_nearly_something() { RectArea ra = {0, 0, 0, 0}; return ra; };
 
+static unsigned u_pow(unsigned, unsigned);
+static unsigned gamma_fix(unsigned, unsigned);
 static int true_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 static int pseudo_col_palette_update(RemapObject *, unsigned, unsigned, unsigned, unsigned, unsigned);
 
@@ -79,6 +93,7 @@ void bre_bilin_filt_update(RemapObject *);
 static RemapFuncDesc *find_remap_func(unsigned, int, int, RemapFuncDesc *);
 static RemapFuncDesc *find_best_remap_func(unsigned, int, int, RemapFuncDesc *);
 static void install_remap_funcs(RemapObject *, int);
+static void find_supported_modes(RemapObject *);
 
 static RectArea remap_mem_1(RemapObject *, int, int);
 static RectArea remap_rect_1(RemapObject *, int, int, int, int);
@@ -129,29 +144,20 @@ void set_remap_debug_msg(FILE *_rdm) { rdm = _rdm; }
 static void do_base_init()
 {
   RemapFuncDesc *rfd0, *rfd;
+  int i = 0;
 
   /* setup remap_list to hold a chained list of remap function descriptions */
 
-  remap_list = remap_gen();
+  remap_list = NULL;
 
-  rfd0 = rfd = remap_opt();
-  if(rfd != NULL) {
-    while(rfd->next != NULL) rfd = rfd->next;
-    rfd->next = remap_list;
-    remap_list = rfd0;
+  while(remap_list_funcs[i] != NULL) {
+    rfd0 = rfd = remap_list_funcs[i++]();
+    if(rfd != NULL) {
+      while(rfd->next != NULL) rfd = rfd->next;
+      rfd->next = remap_list;
+      remap_list = rfd0;
+    }
   }
-
-#ifdef REMAP_TEST
-  rfd0 = rfd = remap_test();
-  if(rfd != NULL) {
-    while(rfd->next != NULL) rfd = rfd->next;
-    rfd->next = remap_list;
-    remap_list = rfd0;
-  }
-#endif
-
-  /* add other lists here... */
-
 }
 
 
@@ -181,7 +187,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   ro.bre_x = ro.bre_y = NULL;
   ro.true_color_lut = NULL;
   ro.gamma_lut = NULL;
-  adjust_gamma(&ro, 1.0);
+  adjust_gamma(&ro, 100);
   ro.remap_func = ro.remap_func_init = NULL;
   ro.remap_func_flags = 0;
   ro.remap_func_name = "no_func";
@@ -246,7 +252,7 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   }
 
   if(
-    (ro.src_mode & (MODE_PSEUDO_8 | MODE_VGA_X | MODE_VGA_4)) &&
+    (ro.src_mode & (MODE_TRUE_COL | MODE_PSEUDO_8 | MODE_VGA_X | MODE_VGA_4)) &&
     (ro.dst_mode & (MODE_TRUE_COL | MODE_PSEUDO_8)) == ro.dst_mode
   ) {
     ro.remap_mem = remap_mem_1;
@@ -279,15 +285,51 @@ void remap_done(RemapObject *ro)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-void adjust_gamma(RemapObject *ro, double gamma)
+/*
+ * Calculate a^b (a >= 0, b >= 0).
+ * a, b are fixed point numbers with 16 bit decimals.
+ *
+ * The result is accurate enough for our purpose (relative
+ * error typically 10^-4, worst cases still better than 10^-2).
+ */
+
+unsigned u_pow(unsigned a, unsigned b)
 {
-  int i, g;
-  double ig;
+  unsigned long long l, l2, r;
+  unsigned b0;
+  int i, j;
 
-  g = gamma * 100.0 + 0.5;
+  if(a == 0) return b ? 0 : 1 << 16;
 
-  if(g == 100 || g <= 0) {
-    g = 100;
+  b0 = b >> 16;
+  r = 1 << 16;	/* 1.0 */
+
+  for(l = a, i = 0; i < 16 && b0; i++) {
+    if(b0 & 1) r = r * l >> 16;
+    l = l * l >> 16;
+    b0 >>= 1;
+  }
+
+  for(l = a, i = 0; i < 16 && (b & ((1 << 16) - 1)); i++) {
+    for(l2 = l, j = 0; j < 10; j++) {
+      l2 = (l2 >> 1) + (l << 15) / l2;
+    }	/* l2 = sqrt(l) now */
+    l = l2;
+    if(b & (1 << 15)) r = r * l >> 16;
+    b <<= 1;
+  }
+
+  return r;
+}
+
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+void adjust_gamma(RemapObject *ro, unsigned gamma)
+{
+  int i;
+
+  if(gamma == 100 || gamma == 0) {
+    gamma = 100;
     if(ro->gamma_lut != NULL) { free(ro->gamma_lut); ro->gamma_lut = NULL; }
   }
   else {
@@ -295,20 +337,27 @@ void adjust_gamma(RemapObject *ro, double gamma)
       ro->gamma_lut = malloc(256 * (sizeof *ro->gamma_lut));
       if(ro->gamma_lut == NULL) {
         ro->state |= ROS_MALLOC_FAIL;
-        g = 100;
+        gamma = 100;
       }
     }
   }
 
-  if(g != 100) {
-    ig = 100.0 / g;
+  if(gamma != 100) {
     for(i = 0; i < 256; i++) {
-      ro->gamma_lut[i] = 256. * pow((double) i / 256., ig);
+      ro->gamma_lut[i] = gamma_fix(i, gamma);
     }
   }
 
-  ro->gamma = g / 100.0;
+  ro->gamma = gamma;
 }
+
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+unsigned gamma_fix(unsigned color, unsigned gamma)
+{
+  return gamma ? u_pow(color << 8, (100 << 16) / gamma) >> 8 : color;
+}
+
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 void gamma_correct(RemapObject *ro, RGBColor *c, unsigned *bits)
@@ -863,6 +912,18 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   if(ro->state & ROS_REMAP_IGNORE) return ra;
   if(ro->remap_func == NULL) return ra;
 
+#ifdef REMAP_AREA_DEBUG
+  fprintf(rdm, "remap_mem: ofs = %d, len = %d\n", offset, len);
+  fprintf(rdm,
+    "  src: base = 0x%x, width = %d, height = %d, scan_len = %d\n",
+    (unsigned) ro->src_image, ro->src_width, ro->src_height, ro->src_scan_len
+  );
+  fprintf(rdm,
+    "  dst: base = 0x%x, width = %d, height = %d, scan_len = %d\n",
+    (unsigned) ro->dst_image, ro->dst_width, ro->dst_height, ro->dst_scan_len
+  );
+#endif
+
   if(offset < 0) len += offset, offset = 0;
   if(len <= 0) return ra;
 
@@ -874,11 +935,10 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   j2 = (offset + len) % ro->src_scan_len;
 
   /* make sure it's all visible */
-  if(i1 >= ro->src_height) return ra;
-  if(j1 >= ro->src_height) {
-    j1 = ro->src_height;
-    j2 = 0;
-  }
+  if(i2 >= ro->src_width) i1++, i2 = 0, offset = i1 * ro->src_scan_len;
+  if(i1 >= ro->src_height || i1 > j1) return ra;
+  if(j2 >= ro->src_width) j1++, j2 = 0;
+  if(j1 >= ro->src_height) j1 = ro->src_height, j2 = 0;
 
   switch(ro->dst_mode) {
     case MODE_TRUE_15:
@@ -1143,6 +1203,21 @@ static void install_remap_funcs(RemapObject *ro, int remap_features)
   if(ro->func_all != NULL) ro->state |= ROS_SCALE_ALL;
   if(ro->func_1 != NULL) ro->state |= ROS_SCALE_1;
   if(ro->func_2 != NULL) ro->state |= ROS_SCALE_2;
+
+  find_supported_modes(ro);
+}
+
+
+static void find_supported_modes(RemapObject *ro)
+{
+  RemapFuncDesc *rfd = remap_list;
+
+  ro->supported_src_modes = 0;
+
+  while(rfd != NULL) {
+    if(rfd->dst_mode & ro->dst_mode) ro->supported_src_modes |= rfd->src_mode;
+    rfd = rfd->next;
+  }
 }
 
 
@@ -2366,6 +2441,11 @@ void gen_4to8_all(RemapObject *);
 void gen_4to16_all(RemapObject *);
 void gen_4to32_all(RemapObject *);
 
+void gen_16to16_1(RemapObject *);
+void gen_24to24_1(RemapObject *);
+void gen_32to32_1(RemapObject *);
+void gen_24to32_1(RemapObject *);
+
 static RemapFuncDesc remap_gen_list[] = {
 
   REMAP_DESC(
@@ -2486,8 +2566,47 @@ static RemapFuncDesc remap_gen_list[] = {
     MODE_TRUE_32,
     gen_4to32_all,
     NULL
-  )
+  ),
 
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_15,
+    MODE_TRUE_15,
+    gen_16to16_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_16,
+    MODE_TRUE_16,
+    gen_16to16_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_24,
+    MODE_TRUE_24,
+    gen_24to24_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_32,
+    MODE_TRUE_32,
+    gen_32to32_1,
+    NULL
+  ),
+
+  REMAP_DESC(
+    RFF_SCALE_1  | RFF_REMAP_LINES,
+    MODE_TRUE_24,
+    MODE_TRUE_32,
+    gen_24to32_1,
+    NULL
+  )
 };
 
 /*
@@ -3125,6 +3244,92 @@ void gen_4to32_all(RemapObject *ro)
       dst[d_x++] = ro->true_color_lut[c0];
       s_x += *(bre_x++);
     }
+  }
+}
+
+
+/*
+ * 16 bit true color --> 16 bit true color
+ * 15 bit true color --> 15 bit true color
+ */
+void gen_16to16_1(RemapObject *ro)
+{
+  int i;
+  unsigned char *src, *dst;
+
+  src = ro->src_image + ro->src_offset;
+  dst = ro->dst_image + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width << 1);
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
+
+/*
+ * 24 bit true color --> 24 bit true color
+ */
+void gen_24to24_1(RemapObject *ro)
+{
+  int i;
+  unsigned char *src, *dst;
+
+  src = ro->src_image + ro->src_offset;
+  dst = ro->dst_image + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width * 3);
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
+
+/*
+ * 32 bit true color --> 32 bit true color
+ */
+void gen_32to32_1(RemapObject *ro)
+{
+  int i;
+  unsigned char *src, *dst;
+
+  src = ro->src_image + ro->src_offset;
+  dst = ro->dst_image + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    memcpy(dst, src, ro->src_width << 2);
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
+  }
+}
+
+
+/*
+ * 24 bit true color --> 32 bit true color
+ * *** ingnores color space description ***
+ */
+void gen_24to32_1(RemapObject *ro)
+{
+  int i, j;
+  unsigned char *src, *dst, *src_1;
+  unsigned *dst_4;
+
+  src = ro->src_image + ro->src_offset;
+  dst = ro->dst_image + ro->dst_offset;
+
+  for(i = ro->src_y0; i < ro->src_y1; i++) {
+    src_1 = src;
+    dst_4 = (unsigned *) dst;
+
+    for(j = 0; j < ro->src_width; j++) {
+      *dst_4++ = src_1[0] + (src_1[1] << 8) + (src_1[2] << 16);
+      src_1 += 3;
+    }
+
+    src += ro->src_scan_len;
+    dst += ro->dst_scan_len;
   }
 }
 

@@ -12,19 +12,18 @@
 
 
 /*
- * defines to debug the CRTC
+ * define to debug the CRTC
  */
-#undef DEBUG_CRTC
+#undef	DEBUG_CRTC
 
 
 #include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
 
 #ifndef NEW_X_CODE          
 
-#define CRTC_MAX_INDEX 24
+#define CRTC_MAX_INDEX	24
 
 static indexed_register CRTC_data[CRTC_MAX_INDEX + 1];
 static unsigned CRTC_index = 0;
@@ -78,7 +77,7 @@ void CRTC_write_value(unsigned char data)
   unsigned u;
 
 #ifdef DEBUG_CRTC
-  v_printf("VGAemu: CRTC_write_value: CRTC[0x%02x] = 0x%02x\n", CRTC_index, (unsigned) data);
+  v_printf("VGAEmu: CRTC_write_value: CRTC[0x%02x] = 0x%02x\n", CRTC_index, (unsigned) data);
 #endif
 
   switch(CRTC_index) {
@@ -88,7 +87,7 @@ void CRTC_write_value(unsigned char data)
       u = data;
       CRTC_start_addr = (CRTC_start_addr & 0xff) | (u << 8);
 #ifdef DEBUG_CRTC
-      v_printf("VGAemu: CRTC_write_value: start addr = 0x%04x\n", CRTC_start_addr);
+      v_printf("VGAEmu: CRTC_write_value: start addr = 0x%04x\n", CRTC_start_addr);
 #endif
       break;
 
@@ -97,9 +96,36 @@ void CRTC_write_value(unsigned char data)
       u = data;
       CRTC_start_addr = (CRTC_start_addr & 0xff00) | u;
 #ifdef DEBUG_CRTC
-      v_printf("VGAemu: CRTC_write_value: start addr = 0x%04x\n", CRTC_start_addr);
+      v_printf("VGAEmu: CRTC_write_value: start addr = 0x%04x\n", CRTC_start_addr);
 #endif
       break;
+
+#ifdef NEW_X_CODE
+#if 0		/* cf. vesabios_pm.S */
+    case 0xf3:		/* set display start */
+      CRTC_data[CRTC_index].write = CRTC_data[CRTC_index].read = data;
+      u =  (CRTC_data[0xf0].read & 0xff) +
+          ((CRTC_data[0xf1].read & 0xff) << 8) +
+          ((CRTC_data[0xf2].read & 0xff) << 16) +
+          ((CRTC_data[0xf3].read & 0xff) << 24);
+      u <<= 2;
+      vga.display_start = u;
+#ifdef DEBUG_CRTC
+      v_printf("VGAEmu: CRTC_write_value: display_start = 0x%x\n", u);
+#endif
+      break;
+
+    case 0xf4:		/* set bank */
+      CRTC_data[CRTC_index].write = CRTC_data[CRTC_index].read = data;
+      u = vga_emu_switch_bank(data);
+#ifdef DEBUG_CRTC
+      v_printf("VGAEmu: CRTC_write_value: bank = %u (%s)\n",
+        (unsigned) data, u ? "ok" : "failed"
+      );
+#endif
+      break;
+#endif
+#endif	/* NEW_X_CODE */
 
     default:
       if(CRTC_index <= CRTC_MAX_INDEX)

@@ -595,6 +595,9 @@ to tailor it to your needs. Valid keywords for the X { } config line:
   <tag/font/
      Used to pick a font other than vga (default). Must be monospaced.
 
+  <tag/mitshm/
+     Use shared memory extensions. The default is ``on''.
+
   <tag/sharecmap/
      Used to share the colormap with other applications in graphics mode.
      If not set, a private colormap is used. The default is off.
@@ -618,16 +621,28 @@ to tailor it to your needs. Valid keywords for the X { } config line:
      The default is 2.
 
   <tag/winsize/
-     A pair of numbers which set the initial size of the window to a fixed 
-     value. They are the X and Y values in that order. The default is to float.
+     A pair of numbers which set the initial width and height of the window to a fixed 
+     value. The default is to float.
 
   <tag/gamma/
     Set value for gamma correction, a value of 100 means gamma 1.0. The default
 	is 100.
 
   <tag/vgaemu_memsize/
-     Set the size (in Kbytes) of the regenbuffer for emulated vga under X. The
+     Set the size (in Kbytes) of the frame buffer for emulated vga under X. The
 	default is 1024.
+
+  <tag/lfb/
+     Enable or disable the linear frame buffer in VESA modes. The default is ``on''.
+
+  <tag/pm_interface/
+     Enable or disable the protected mode interface for VESA modes. The default is ``on''.
+
+  <tag/vesamode/
+     Define a VESA mode. Two variants are supported: vesamode width height
+     and vesamode width height color_bits. The first adds the specified
+     resolution in all supported color depths (currently 8, 15, 16, 24 and 32
+     bit).
 </descrip>
 
 Recommended X statement:

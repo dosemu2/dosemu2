@@ -198,7 +198,7 @@ extern void yyrestart(FILE *input_file);
 	/* x-windows */
 %token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_SHARECMAP X_MITSHM X_FONT
 %token X_FIXED_ASPECT X_ASPECT_43 X_LIN_FILT X_BILIN_FILT X_MODE13FACT X_WINSIZE
-%token X_GAMMA VGAEMU_MEMSIZE 
+%token X_GAMMA VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
@@ -478,6 +478,7 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
 		| X_BLINKRATE INTEGER	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
+		| X_MITSHM bool         { config.X_mitshm = $2; }
 		| X_FONT STRING		{ config.X_font = $2; }
 		| X_FIXED_ASPECT bool   { config.X_fixed_aspect = $2; }
 		| X_ASPECT_43           { config.X_aspect_43 = 1; }
@@ -489,8 +490,32 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
                      config.X_winsize_x = $2;
                      config.X_winsize_y = $3;
                    }
-		| X_GAMMA INTEGER  { config.X_gamma = $2 / 100.0; }
+		| X_GAMMA INTEGER  { config.X_gamma = $2; }
 		| VGAEMU_MEMSIZE INTEGER	{ config.vgaemu_memsize = $2; }
+		| VESAMODE INTEGER INTEGER
+                   {
+                     vesamode_type *vmt = malloc(sizeof *vmt);
+                     if(vmt != NULL) {
+                       vmt->width = $2;
+                       vmt->height = $3;
+                       vmt->color_bits = 0;
+                       vmt->next = config.vesamode_list;
+                       config.vesamode_list = vmt;
+                     }
+                   }
+		| VESAMODE INTEGER INTEGER INTEGER
+                   {
+                     vesamode_type *vmt = malloc(sizeof *vmt);
+                     if(vmt != NULL) {
+                       vmt->width = $2;
+                       vmt->height = $3;
+                       vmt->color_bits = $4;
+                       vmt->next = config.vesamode_list;
+                       config.vesamode_list = vmt;
+                     }
+                   }
+		| X_LFB bool            { config.X_lfb = $2; }
+		| X_PM_INTERFACE bool   { config.X_pm_interface = $2; }
 		;
 
 dexeflags	: dexeflag

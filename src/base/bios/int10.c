@@ -19,10 +19,6 @@
 #if X_GRAPHICS
 #include "X.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
-#ifdef VESA /* root@zaphod */
-#include "vesa.h"
-#endif
 #endif
 
 /* a bit brutal, but enough for now */
@@ -439,6 +435,65 @@ error:
   video_mode = old_video_mode;
   return 0;
 }    
+
+#ifdef NEW_X_CODE
+/*
+ * new_set_video_mode() is called to set a VESA mode as set_video_mode()
+ * really has problems getting its job done.
+ */
+
+boolean new_set_video_mode(int mode) {
+  vga_mode_info *vmi;
+  int clear_mem = 1;
+
+  mode &= 0xffff;
+
+  v_printf("new_set_video_mode: mode = 0x%02x\n", mode);
+
+  if((vmi = vga_emu_find_mode(mode, NULL)) == NULL) {
+    v_printf("new_set_video_mode: undefined video mode\n");
+    return 0;
+  }
+
+  if(Video->setmode == NULL) {
+    v_printf("new_set_video_mode: no setmode handler!\n");
+    return 0;
+  }
+
+  video_mode = mode;
+
+  if(mode >= 0x80 && mode < 0x100) {
+    mode &= 0x7f;
+    clear_mem = 0;
+  }
+  if(mode & 0x8000) {
+    mode &= ~0x8000;
+    clear_mem = 0;
+  }
+
+  if(config.cardtype == CARD_MDA) video_mode = 7;
+
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+
+  if(vmi->mode_class == TEXT) {
+    gfx_mode = TEXT;
+    clear_scroll_queue();
+    if(clear_mem) clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
+  }
+
+  li = vmi->text_height;
+  co = vmi->text_width;
+  if(li > MAX_LINES) li = MAX_LINES;
+  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1);
+  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
+  WRITE_WORD(BIOS_FONT_HEIGHT, vmi->char_height);
+  Video->setmode(vmi->mode_class, co, li);
+
+  if(clear_mem && vmi->mode_class == TEXT) clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
+
+  return 1;
+}    
+#endif
 
 /******************************************************************/
 
@@ -901,12 +956,10 @@ void int10()
 #endif
 
 #if X_GRAPHICS
-#ifdef VESA /* root@zaphod */
   case 0x4f:                    /* vesa interrupt */
     if(config.X)
       do_vesa_int();
     break;
-#endif
 #endif
 
   default:

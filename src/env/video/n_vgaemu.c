@@ -7,7 +7,7 @@
  * Parts of the hardware emulation is done in separate files (attremu.c,
  * crtcemu.c, dacemu.c and seqemu.c).
  *
- * VGAEmu uses the video BIOS code in base/bios/int10.c and vesa.c.
+ * VGAEmu uses the video BIOS code in base/bios/int10.c and env/video/vesa.c.
  *
  * For an excellent reference to programming SVGA cards see Finn Thøgersen's
  * VGADOC4, available at http://www.datashopper.dk/~finth
@@ -16,6 +16,7 @@
  *
  *
  * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
+ * Copyright (c) 1997 Steffen Winterfeldt
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -65,7 +66,6 @@
  *   - Added sequencer emulation calls
  *   - Added IO port register calls in vga_emu_init()
  *
- * DANG_BEGIN_MODULE
  * 1997/06/15: Major rework; the interface to the outside now uses the
  * global variable `vga' which holds all VGA related information.
  * The update function now works for all types of modes except for
@@ -73,6 +73,13 @@
  * The VGA memory is now always executable.
  * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
  *
+ * 1997/07/07: Added linear frame buffer (LFB) support, simplified and
+ * generalized video mode definitions (now possible via dosemu.conf).
+ * vga_emu_init() now gets some info about the display it is actually
+ * running on (needed dor VESA emulation).
+ * vga_emu_setmode() now accepts VESA mode numbers.
+ * Hi/true-color modes now work.
+ * -- sw
  *
  * DANG_END_CHANGELOG
  *
@@ -82,10 +89,10 @@
  * define some the following to generate various debug output
  */
 
-#undef DEBUG_IO			/* port emulation */
-#undef DEBUG_MAPPING		/* VGA memory mapping */
-#undef DEBUG_UPDATE		/* screen update process */
-#undef DEBUG_BANK_SWITCHING	/* bank switching */
+#undef	DEBUG_IO		/* port emulation */
+#undef	DEBUG_MAPPING		/* VGA memory mapping */
+#undef	DEBUG_UPDATE		/* screen update process */
+#undef	DEBUG_BANK_SWITCHING	/* bank switching */
 
 
 #include <features.h>
@@ -104,11 +111,8 @@
 #include "emu.h"
 #include "port.h"
 #include "video.h"
+#include "remap.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
-#ifdef VESA
-#include "vesa.h"
-#endif
 #include "priv.h"
 
 #if !defined True
@@ -118,11 +122,16 @@
 
 #define RW 1
 #define RO 0
+/*
+ * We add PROT_EXEC just because pages should be executable. Of course
+ * Intel's x86 processors do not support non-executable pages, but anyway...
+ */
 #define VGA_EMU_RW_PROT (PROT_READ | PROT_WRITE | PROT_EXEC)
 #define VGA_EMU_RO_PROT (PROT_READ | PROT_EXEC)
 
+
 /*
- * Functions local to this file
+ * functions local to this file
  */
 
 static int vga_emu_protect_page(unsigned, int);
@@ -130,84 +139,22 @@ static int vga_emu_protect(unsigned, unsigned, int);
 static int vga_emu_adjust_protection(unsigned, unsigned);
 static int vga_emu_map(unsigned, unsigned);
 #ifdef DEBUG_UPDATE
-static void print_dirty_map(void)
+static void print_dirty_map(void);
 #endif
-inline static unsigned mode_area(unsigned);
+static int vga_emu_setup_mode(vga_mode_info *, int, unsigned, unsigned, unsigned);
+static void vga_emu_setup_mode_table(void);
 
 
 /*
  * holds all VGA data
  */
-
 vga_type vga;
 
+/*
+ * table with video mode definitions
+ */
+#include "vgaemu_modelist.h"
 
-/* **************** General mode data **************** */
-
-/* Table with video mode definitions */
-vga_mode_info vga_mode_table[]=
-{
-  /* The standard CGA/EGA/MCGA/VGA modes */
-  {0x00,   TEXT,   360,  400,   9, 16,   40, 25,   16,  0xb8000,  0x8000,  TEXT},
-  {0x01,   TEXT,   360,  400,   9, 16,   40, 25,   16,  0xb8000,  0x8000,  TEXT},
-  {0x02,   TEXT,   720,  400,   9, 16,   80, 25,   16,  0xb8000,  0x8000,  TEXT},
-  {0x03,   TEXT,   720,  400,   9, 16,   80, 25,   16,  0xb8000,  0x8000,  TEXT},
-
-  /* The additional mode 3: 80x21, 80x28, 80x43, 80x50 and 80x60 */
-  {0x03,   TEXT,   720,  336,   9, 16,   80, 21,   16,  0xb8000,  0x8000,  TEXT},
-  {0x03,   TEXT,   720,  448,   9, 16,   80, 28,   16,  0xb8000,  0x8000,  TEXT},
-  {0x03,   TEXT,   640,  448,   8, 14,   80, 43,   16,  0xb8000,  0x8000,  TEXT},
-  {0x03,   TEXT,   640,  400,   8,  8,   80, 50,   16,  0xb8000,  0x8000,  TEXT},
-  {0x03,   TEXT,   640,  480,   8,  8,   80, 60,   16,  0xb8000,  0x8000,  TEXT},
-
-  {0x04,  GRAPH,   320,  200,   8,  8,   40, 25,    4,  0xb8000,  0x8000,   CGA},
-  {0x05,  GRAPH,   320,  200,   8,  8,   40, 25,    4,  0xb8000,  0x8000,   CGA},
-  {0x06,  GRAPH,   640,  200,   8,  8,   80, 25,    2,  0xb8000,  0x8000,  HERC},
-  {0x07,   TEXT,   720,  400,   9, 16,   80, 25,    2,  0xb0000,  0x8000,  TEXT},
-  
-  /* Forget the PCjr modes (forget the PCjr :-) */
-  
-  /* Standard EGA/MCGA/VGA modes */
-  {0x0d,  GRAPH,   320,  200,   8,  8,   40, 25,   16,  0xa0000, 0x10000,  PL4},
-  {0x0e,  GRAPH,   640,  200,   8,  8,   80, 25,   16,  0xa0000, 0x10000,  PL4},
-  {0x0f,  GRAPH,   640,  350,   8, 14,   80, 25,    2,  0xa0000, 0x10000,  HERC},
-  {0x10,  GRAPH,   640,  350,   8, 14,   80, 25,   16,  0xa0000, 0x10000,   PL4},
-  {0x11,  GRAPH,   640,  480,   8, 16,   80, 30,    2,  0xa0000, 0x10000,  HERC},
-  {0x12,  GRAPH,   640,  480,   8, 16,   80, 30,   16,  0xa0000, 0x10000,   PL4},
-  {0x13,  GRAPH,   320,  200,   8,  8,   40, 25,  256,  0xa0000, 0x10000,    P8},
-  
-  /* SVGA modes. Maybe we are going to emulate a Trident 8900, so
-   * we already use the Trident mode numbers in advance.
-   */
-   
-  {0x50,   TEXT,   640,  480,   8, 16,   80, 30,   16,  0xb8000,  0x8000,  TEXT},
-  {0x51,   TEXT,   640,  473,   8, 11,   80, 43,   16,  0xb8000,  0x8000,  TEXT},
-  {0x52,   TEXT,   640,  480,   8,  8,   80, 60,   16,  0xb8000,  0x8000,  TEXT},
-  
-  {0x53,   TEXT,  1056,  350,   8, 14,  132, 25,   16,  0xb8000,  0x8000,  TEXT},
-  {0x54,   TEXT,  1056,  480,   8, 16,  132, 30,   16,  0xb8000,  0x8000,  TEXT},
-  {0x55,   TEXT,  1056,  473,   8, 11,  132, 43,   16,  0xb8000,  0x8000,  TEXT},
-  {0x56,   TEXT,  1056,  480,   8,  8,  132, 60,   16,  0xb8000,  0x8000,  TEXT},
-  
-  {0x57,   TEXT,  1188,  350,   9, 14,  132, 25,   16,  0xb8000,  0x8000,  TEXT},
-  {0x58,   TEXT,  1188,  480,   9, 16,  132, 30,   16,  0xb8000,  0x8000,  TEXT},
-  {0x59,   TEXT,  1188,  473,   9, 11,  132, 43,   16,  0xb8000,  0x8000,  TEXT},
-  {0x5a,   TEXT,  1188,  480,   9,  8,  132, 60,   16,  0xb8000,  0x8000,  TEXT},
-  
-  {0x5b,  GRAPH,   800,  600,   8,  8,  100, 75,   16,  0xa0000, 0x10000,   PL4},
-  {0x5c,  GRAPH,   640,  400,   8, 16,   80, 25,  256,  0xa0000, 0x10000,    P8},
-  {0x5d,  GRAPH,   640,  480,   8, 16,   80, 30,  256,  0xa0000, 0x10000,    P8},
-  {0x5e,  GRAPH,   800,  600,   8,  8,  100, 75,  256,  0xa0000, 0x10000,    P8},
-  {0x5f,  GRAPH,  1024,  768,   8, 16,  128, 48,   16,  0xa0000, 0x10000,   PL4},
-  {0x60,  GRAPH,  1024,  768,   8, 16,  128, 48,    4,  0xa0000, 0x10000,   CGA}, /* ??? */
-  {0x61,  GRAPH,   768, 1024,   8, 16,   96, 64,   16,  0xa0000, 0x10000,   PL4},
-  {0x62,  GRAPH,  1024,  768,   8, 16,  128, 48,  256,  0xa0000, 0x10000,    P8},
-  {0x63,  GRAPH,  1280, 1024,   8, 16,  160, 64,   16,  0xa0000, 0x10000,   PL4},
-  {  -1,     -1,    -1,   -1,  -1, -1,   -1, -1,   -1,       -1,      -1,    -1}
-};
-
-
-/* **************** VGA emulation routines **************** */
 
 /*
  * DANG_BEGIN_FUNCTION VGA_emulate_outb
@@ -413,7 +360,6 @@ int vga_emu_fault(struct sigcontext_struct *scp)
       vga_emu_protect_page(page_fault, RW);
       return True;
     }
-#ifdef VESA
     if(vesa_emu_fault(scp) == True) {
 #ifdef DEBUG_MAPPING
       v_printf("VGAEmu: vga_emu_fault: VESA fault; address = 0x%lx, page = 0x%x\n",
@@ -422,11 +368,10 @@ int vga_emu_fault(struct sigcontext_struct *scp)
 #endif
       return True;
     }
-    else
-#endif	/* VESA */
-    {
+    else {
       v_printf(
-        "VGAEmu: vga_emu_fault: not in 0xa0000 - 0xc4000 range; page = 0x%02x, address = 0x%lx\n",
+        "VGAEmu: vga_emu_fault: not in 0xa0000 - 0x%05x range; page = 0x%02x, address = 0x%lx\n",
+        0xc0000 + (vgaemu_bios.pages << 12),
         page_fault,
         scp->cr2
       );
@@ -645,15 +590,20 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
  *
  * There should be an accompanying vga_emu_done().
  *
+ * arguments:
+ * vedt - Pointer to struct describing the type of display we are actually
+ *        attached to.
+ *
  * DANG_END_FUNCTION                        
  *
  */     
 
-int vga_emu_init()
+int vga_emu_init(vgaemu_display_type *vedt)
 {
   int i;
   vga_mapping_type vmt = {0, 0, 0};
   emu_iodev_t io_device;
+  static unsigned char *lfb_base = NULL;
 
   if(config.vgaemu_memsize)
     vga.mem.size = config.vgaemu_memsize << 10;
@@ -669,6 +619,16 @@ int vga_emu_init()
   if((vga.mem.base = (unsigned char *) valloc(vga.mem.size)) == NULL) {
     v_printf("VGAEmu: vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     return 1;
+  }
+
+  if(config.X_lfb) {
+    if((lfb_base = (unsigned char *) valloc(vga.mem.size)) == NULL) {
+      v_printf("VGAEmu: vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
+    }
+  }
+
+  if(lfb_base == NULL) {
+    v_printf("VGAEmu: vga_emu_init: linear frame buffer (lfb) disabled\n");
   }
 
   if((vga.mem.dirty_map = (unsigned char *) malloc(vga.mem.pages)) == NULL) {
@@ -697,6 +657,12 @@ int vga_emu_init()
   for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) vga.mem.map[i] = vmt;
 
   vga.mem.bank = vga.mem.bank_pages = 0;
+
+  if(lfb_base != NULL) {
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = (unsigned) lfb_base >> 12;
+  }
+
+  vga_emu_setup_mode_table();
 
   /* initialize other parts */
   DAC_init();
@@ -735,25 +701,36 @@ int vga_emu_init()
   io_device.end_addr = CRTC_DATA;
   port_register_handler(io_device);
 
-#ifdef VESA
-  vesa_init();
-#endif
+  vbe_init(vedt);
 
-  v_printf("VGAEmu: vga_emu_init: memory = %u kbyte\n", vga.mem.size >> 10);
+  v_printf(
+    "VGAEmu: vga_emu_init: memory = %u kbyte at 0x%x, lfb = 0x%x\n",
+    vga.mem.size >> 10, (unsigned) vga.mem.base, vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page << 12
+  );
 
   return 0;
 }
+
+
+void vga_emu_done()
+{
+  /* We should probably do something here - but what ? -- sw */
+}
+
 
 #ifdef DEBUG_UPDATE
 static void print_dirty_map()
 {
   int i, j;
 
-  v_printf("VGAEmu: dirty_map[0 - 256k]\n");
-  for(j = 0; j < 64; j += 16) {
+  v_printf("VGAEmu: dirty_map[0 - 1024k]\n");
+  for(j = 0; j < 256; j += 64) {
     v_printf("  ");
-    for(i = 0; i < 16; i++) {
-      if(!(i & 3)) v_printf(" ");
+    for(i = 0; i < 64; i++) {
+      if(!(i & 15))
+        v_printf(" ");
+      else if(!(i & 3))
+        v_printf(".");
       v_printf("%d", (int) vga.mem.dirty_map[j + i]);
     }
     v_printf("\n");
@@ -901,7 +878,7 @@ int vga_emu_switch_bank(unsigned bank)
 
   vga.mem.bank = bank;
 
-  if((i = vga_emu_map(0, vga.mem.bank_pages * bank))) {
+  if((i = vga_emu_map(VGAEMU_MAP_BANK_MODE, vga.mem.bank_pages * bank))) {
     v_printf("VGAEmu: vga_emu_switch_bank: Remapping failed; reason: %d\n", i);
     return False;
   }
@@ -915,12 +892,212 @@ int vga_emu_switch_bank(unsigned bank)
 
 
 /*
- * Only used by vga_emu_setmode
+ * Create a new video mode.
+ *
+ * This function appends a new mode entry with the required properties to the
+ * internal mode list, if such a mode didn't already exist.
+ *
+ * It returns the number of modes actually created (0 or 1).
+ *
  */
 
-inline static unsigned mode_area(unsigned mode_index)
+int vga_emu_setup_mode(vga_mode_info *vmi, int mode_index, unsigned width, unsigned height, unsigned color_bits)
 {
-  return vga_mode_table[mode_index].x_char * vga_mode_table[mode_index].y_char;
+  int i;
+
+  for(i = 0; i < mode_index; i++) {
+    if(vmi[i].width == width && vmi[i].height == height && vmi[i].color_bits == color_bits) {
+      if(vmi[i].VESA_mode == -1) vmi[i].VESA_mode = -2;
+      return 0;
+    }
+  }
+  vmi += mode_index;
+
+  vmi->mode = -1;
+  vmi->VESA_mode = -2;
+  vmi->mode_class = GRAPH;
+  switch(vmi->color_bits = color_bits) {
+    case  8: vmi->type = P8; break;
+    case 15: vmi->type = P15; break;
+    case 16: vmi->type = P16; break;
+    case 24: vmi->type = P24; break;
+    case 32: vmi->type = P32; break;
+    default: return 0;
+  }
+  vmi->buffer_start = 0xa000;
+  vmi->buffer_len = 64;
+  vmi->width = width;
+  vmi->height = height;
+  vmi->char_width = 8;
+  vmi->char_height = height >= 400 ? 16 : 8;
+  if(vmi->char_height == 16 && (height & 15) == 8) vmi->char_height = 8;
+  vmi->text_width = width / vmi->char_width;
+  vmi->text_height = height / vmi->char_height;
+
+  v_printf(
+    "VGAEmu: vga_emu_setup_mode: creating VESA mode %d x %d x %d\n",
+    width, height, color_bits
+  );
+
+  return 1;
+}
+
+
+/*
+ * Sets up the internal mode table. This table can then be accessed
+ * via vga_emu_find_mode().
+ *
+ * It extends the table vga_mode_table[] found in env/video/vgaemu_modelist.h
+ * using the mode descriptions in vgaemu_simple_mode_list[][] and
+ * user-defined modes in dosemu.conf (in this order). The location and size of
+ * this new mode table is then stored in the global variable vgaemu_bios.
+ *
+ * The memory that was allocated for config.vesamode_list during the parsing
+ * of dosemu.conf is freed.
+ *
+ * Note: a new mode is added only if it didn't already exist.
+ *
+ */     
+
+static void vga_emu_setup_mode_table()
+{
+  int vbe_modes = (sizeof vga_mode_table) / (sizeof *vga_mode_table);
+  int vbe_num = VBE_FIRST_OEM_MODE;
+  int last_mode = 0;
+  vga_mode_info *vmi_end, *vmi;
+  vesamode_type *vmt0, *vmt = config.vesamode_list;
+  int vesa_x_modes = 0;
+  int i, j, k;
+
+  vgaemu_bios.vbe_last_mode = 0;
+
+  while(vmt) {
+    vesa_x_modes += vmt->color_bits ? 1 : 5;	/* 8, 15, 16, 24, 32 bit */
+    vmt = vmt->next;
+  }
+  vesa_x_modes += (sizeof vgaemu_simple_mode_list) / (sizeof *vgaemu_simple_mode_list) * 5;
+
+  vmi = malloc((sizeof *vga_mode_table) * (vbe_modes + vesa_x_modes));
+
+  if(vmi == NULL) {
+    vgaemu_bios.vga_mode_table = vga_mode_table;
+    vgaemu_bios.mode_table_length = vbe_modes;
+    vgaemu_bios.vbe_last_mode = 0;
+    return;
+  }
+
+  memcpy(vmi, vga_mode_table, sizeof vga_mode_table);
+
+  vgaemu_bios.vga_mode_table = vmi;
+
+  for(i = 0; i < (sizeof vgaemu_simple_mode_list) / (sizeof *vgaemu_simple_mode_list); i++) {
+    j = vgaemu_simple_mode_list[i][0];
+    k = vgaemu_simple_mode_list[i][1];
+    vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 8);
+    vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 15);
+    vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 16);
+    vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 24);
+    vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, j, k, 32);
+  }  
+
+  while((vmt0 = vmt = config.vesamode_list) != NULL) {
+    if(vmt != NULL) while(vmt->next != NULL) { vmt0 = vmt; vmt = vmt->next; }
+    if(vmt != NULL) {
+      if(
+        vmt->width && vmt->width < (1 << 15) &&
+        vmt->height && vmt->height < (1 << 15) && (
+          vmt->color_bits == 0 || vmt->color_bits == 8 ||
+          vmt->color_bits == 15 || vmt->color_bits == 16 ||
+          vmt->color_bits == 24 || vmt->color_bits == 32
+        )
+      ) {
+        if(vmt->color_bits) {
+          vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, vmt->width, vmt->height, vmt->color_bits);
+        }
+        else {
+          vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, vmt->width, vmt->height, 8);
+          vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, vmt->width, vmt->height, 15);
+          vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, vmt->width, vmt->height, 16);
+          vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, vmt->width, vmt->height, 24);
+          vbe_modes += vga_emu_setup_mode(vmi, vbe_modes, vmt->width, vmt->height, 32);
+        }
+      }
+      else {
+        v_printf(
+          "VGAEmu: vga_emu_setup_mode_table: invalid VESA mode %d x %d x %d\n",
+          vmt->width, vmt->height, vmt->color_bits
+        );
+      }
+      free(vmt);
+      if(vmt == config.vesamode_list)
+        config.vesamode_list = NULL;
+      else
+        vmt0->next = NULL;
+    }
+  }
+
+  vgaemu_bios.mode_table_length = vbe_modes;
+
+  for(vmi_end = vmi + vbe_modes; vmi < vmi_end; vmi++) {
+    if(vmi->VESA_mode == -2) vmi->VESA_mode = vbe_num++;
+    if(vmi->VESA_mode > last_mode) last_mode = vmi->VESA_mode;
+  }
+
+  vgaemu_bios.vbe_last_mode = last_mode;
+}
+
+
+/*
+ * DANG_BEGIN_FUNCTION vga_emu_find_mode
+ *
+ * description:
+ * Searches a video mode with the requested mode number.
+ *
+ * The search starts with the mode *after* the mode `vmi' points to.
+ * If `vmi' == NULL, starts at the beginning of the internal mode table.
+ * `mode' may be a standard VGA mode number (0 ... 0x7f) or a
+ * VESA mode number (>= 0x100). The mode number may have its don't-clear-bit
+ * (bit 7 or bit 15) or its use-lfb-bit (bit 14) set.
+ * The special mode number -1 will match any mode and may be used to
+ * scan through the whole table.
+ *
+ * Returns NULL if no mode was found and a pointer into the mode table
+ * otherwise. The returned pointer is a suitable argument for subsequent
+ * calls to this function.
+ *
+ * You should (and can) access the mode table only through this function.
+ *
+ * arguments:
+ * mode   - video mode.
+ * vmi    - pointer into internal mode list
+ *
+ * DANG_END_FUNCTION                        
+ *
+ */     
+
+vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
+{
+  vga_mode_info *vmi_end = vgaemu_bios.vga_mode_table + vgaemu_bios.mode_table_length;
+
+  if(mode != -1) {
+    mode &= 0x3fff;
+    if(mode < 0x100) mode &= ~0x80;
+  }
+
+  if(vmi == NULL) {
+    vmi = vgaemu_bios.vga_mode_table;
+  }
+  else {
+    if(++vmi >= vmi_end) return NULL;
+  }
+
+  if(mode == -1) return vmi;
+
+  for(; vmi < vmi_end; vmi++) {
+    if(vmi->mode == mode || vmi->VESA_mode == mode) return vmi;
+  }
+
+  return NULL;
 }
 
 
@@ -944,88 +1121,69 @@ inline static unsigned mode_area(unsigned mode_index)
 
 int vga_emu_setmode(int mode, int width, int height)
 {
-  int i;
-  int index = 0;
-  int found = False;
+  unsigned u = -1;
+  vga_mode_info *vmi = NULL, *vmi2 = NULL;
   
-  /* Search for the first valid mode */
-  for(i = 0; (vga_mode_table[i].mode != -1) && (found == False); i++) {
-    if(vga_mode_table[i].mode == (mode & 0x7f)) {
-      if(vga_mode_table[i].type == TEXT) {
-        /* TEXT modes can use different char boxes, like the
-         * mode 0x03 (80x25). Mode 0x03 uses a 9x16 char box
-         * for 80x25 and a 8x8 charbox for 80x50
-         */
-         if(vga_mode_table[i].x_char == width &&
-            vga_mode_table[i].y_char == height
-         ) {
-            found = True;
-            index = i;
-         }
-      }
-      else {
-        /* GRAPH modes use only one format */
-        found = True;
-        index = i;
-      }
-    }
+  v_printf("VGAEmu: vga_emu_setmode: requested mode: 0x%02x (%d x %d)\n", mode, width, height);
+
+  while((vmi = vga_emu_find_mode(mode, vmi))) {
+    if(vmi->mode_class == GRAPH || (vmi->text_width == width && vmi->text_height == height)) break;
   }
 
-  if(found == True)
-    v_printf("VGAEmu: vga_emu_setmode: mode found in first run\n");
+  if(vmi == NULL) {
+    /* Play it again, Sam!
+     * This is when we can't find the textmode with the appropriate sizes.
+     * Use the best matching text mode
+     */
 
-  /* Play it again, Sam!
-   * This is when we can't find the textmode with the appropriate sizes.
-   * Use the best matching text mode
-   */
-  if(found == False) {
-    for(i = 0; (vga_mode_table[i].mode != -1); i++) {
-      if(vga_mode_table[i].mode == (mode & 0x7f) &&
-         /* make sure everything is visible! */
-         vga_mode_table[i].x_char >= width &&
-         vga_mode_table[i].y_char >= height
-      ) {
-        if(found == True && mode_area(i) >= mode_area(index)) {
-          continue;
-        }
-        else {
-          found = True;
-          index = i;
-        }
+    while((vmi = vga_emu_find_mode(mode, vmi))) {
+      if(vmi->text_width >= width && vmi->text_height >= height && vmi->text_width * vmi->text_height < u) {
+        u = vmi->text_width * vmi->text_height;
+        vmi2 = vmi;
       }
     }
-
-    if(found == True)
-      v_printf("VGAEmu: vga_emu_setmode: mode found in second run\n");
+    vmi = vmi2;
   }
 
-  if(found == False) return False;	/* failed */
+  if(vmi == NULL) {	/* no mode found */
+    v_printf("VGAEmu: vga_emu_setmode: no mode 0x%02x found\n", mode);
+    return False;
+  }
 
-  vga.mode_info = vga_mode_table + index;
+  v_printf("VGAEmu: vga_emu_setmode: mode found in %s run\n", vmi == vmi2 ? "second" : "first");
+
+  vga.mode_info = vmi;
 
   v_printf("VGAEmu: vga_emu_setmode: mode = 0x%02x, (%d x %d, %d x %d, %d x %d)\n",
-    vga.mode_info->mode,
-    vga.mode_info->x_res, vga.mode_info->y_res,
-    vga.mode_info->x_char, vga.mode_info->y_char,
-    vga.mode_info->x_box, vga.mode_info->y_box
+    mode,
+    vga.mode_info->width, vga.mode_info->height,
+    vga.mode_info->text_width, vga.mode_info->text_height,
+    vga.mode_info->char_width, vga.mode_info->char_height
   );
        
-  vga.mode = vga.mode_info->mode;
-  vga.VESA_mode = 0;
-  vga.mode_class = vga.mode_info->type;
-  vga.mode_type = vga.mode_info->memorymodel;
-  vga.width = vga.mode_info->x_res;
-  vga.height = vga.mode_info->y_res;
-  vga.scan_len = vga.mode_info->x_res;
-  vga.text_width = vga.mode_info->x_char;
-  vga.text_height = vga.mode_info->y_char;
-  vga.char_width = vga.mode_info->x_box;
-  vga.char_height = vga.mode_info->y_box;
+  vga.mode = mode;
+  vga.VESA_mode = vga.mode_info->VESA_mode;
+  vga.mode_class = vga.mode_info->mode_class;
+  vga.mode_type = vga.mode_info->type;
+  vga.width = vga.mode_info->width;
+  vga.height = vga.mode_info->height;
+  vga.scan_len = (vga.mode_info->width + 3) & ~3;	/* dword aligned */
+  vga.text_width = vga.mode_info->text_width;
+  vga.text_height = vga.mode_info->text_height;
+  vga.char_width = vga.mode_info->char_width;
+  vga.char_height = vga.mode_info->char_height;
+  vga.pixel_size = vga.mode_info->color_bits;
+  if(vga.pixel_size > 8) {
+    vga.pixel_size = (vga.pixel_size + 7) & ~7;		/* assume byte alignment for these modes */
+    vga.scan_len *= vga.pixel_size >> 3;
+  }
+  v_printf("VGAEmu: vga_emu_setmode: scan_len = %d\n", vga.scan_len);
 
-  vga.mem.reconfigured = 0;
+  vga.reconfig.mem = vga.reconfig.display =
+  vga.reconfig.dac = vga.reconfig.power = 0;
   vga.mem.planes = 1;
-  if(vga.mode_type == PL4) {
-    vga.scan_len >>= 3;		/* hack */
+  if(vga.mode_type == PL4 || vga.mode_type == NONCHAIN4) {
+    vga.scan_len >>= 3;
     vga.mem.planes = 4;
   }
   vga.mem.write_plane = vga.mem.read_plane = 0;
@@ -1049,20 +1207,26 @@ int vga_emu_setmode(int mode, int width, int height)
   /* FIXME: the interface between the bios setmode and this
      setmode are weird!! */
 
-  if(vga_mode_table[index].type != TEXT && !(mode & 0x80)) {
+  if(vga.mode_class == GRAPH && !(mode & 0x80)) {
     memset((void *) vga.mem.base, 0, vga.mem.size);
   }
 
   dirty_all_video_pages();
 
   vga.mem.bank = 0;
-  vga.mem.bank_pages = vga.mode_info->bufferlen >> 12;
+  vga.mem.bank_pages = vga.mode_info->buffer_len >> 2;
 
-  vga.mem.map[0].base_page = vga.mode_info->bufferstart >> 12;
-  vga.mem.map[0].first_page = 0;
-  vga.mem.map[0].pages = vga.mem.bank_pages;
+  vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = vga.mode_info->buffer_start >> 8;
+  vga.mem.map[VGAEMU_MAP_BANK_MODE].first_page = 0;
+  vga.mem.map[VGAEMU_MAP_BANK_MODE].pages = vga.mem.bank_pages;
+  vga_emu_map(VGAEMU_MAP_BANK_MODE, 0);	/* map the VGA memory */
 
-  vga_emu_map(0, 0);	/* map the VGA memory */
+  if(vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page) {
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].first_page = 0;
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;
+    /* vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page is set in vga_emu_init() */
+    vga_emu_map(VGAEMU_MAP_LFB_MODE, 0);	/* map the VGA memory to LFB */
+  }
 
   vga.dac.bits = 6;
   DAC_init();		/* Re-initialize the DAC */
@@ -1071,31 +1235,6 @@ int vga_emu_setmode(int mode, int width, int height)
   vga.seq.map_mask = 1;
 
   return True;
-}
-
-
-/*
- * DANG_BEGIN_FUNCTION get_vgaemu_mode_info
- *
- * description:
- * Returns a pointer to the vga_mode_info structure for the
- * requested mode or NULL if an invalid mode was given.
- *
- * DANG_END_FUNCTION
- *
- * to be removed -- sw
- */
-
-vga_mode_info* get_vgaemu_mode_info(int mode)
-{
-  vga_mode_info *vmi = vga_mode_table;
-
-  do {
-    if(vmi->mode == mode) return vmi;
-  }
-  while(vmi++->mode != -1);
-
-  return NULL;
 }
 
 

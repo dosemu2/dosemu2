@@ -137,7 +137,6 @@
 #include "memory.h"
 #include "remap.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
 
 #ifdef HAVE_MITSHM
 #include <sys/ipc.h>
@@ -162,6 +161,7 @@
 #define Bit8u byte
 #define Bit16u us
 #define Boolean boolean
+
 
 static const u_char dos_to_latin[]={
    0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,  /* 80-87 */ 
@@ -282,6 +282,8 @@ static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
 static remap_features;
 static vga_emu_update_type veut;
+static remap_src_modes = 0;
+static vgaemu_display_type X_screen;
 
 #ifdef ENABLE_POINTER_GRAB
 static int grab_active = 0;
@@ -783,6 +785,9 @@ static void X_get_screen_info()
   X_csd.g_mask = xdv->green_mask;
   X_csd.b_mask = xdv->blue_mask;
   color_space_complete(&X_csd);
+  if(X_csd.bits == 16 && (X_csd.r_bits + X_csd.g_bits + X_csd.b_bits) == 15) {
+    X_csd.bits = ximage_bits_per_pixel = 15;
+  }
 }
 
 
@@ -1011,6 +1016,10 @@ void X_remap_init()
   remap_features = 0;
   if(config.X_lin_filt) remap_features |= RFF_LIN_FILT;
   if(config.X_bilin_filt) remap_features |= RFF_BILIN_FILT;
+
+  remap_obj = remap_init(0, ximage_mode, 0);
+  remap_src_modes = remap_obj.supported_src_modes;
+  remap_done(&remap_obj);
 }
 
 void X_remap_done()
@@ -1061,6 +1070,10 @@ static int X_init(void)
   vga256_cmap_init();		/* 8 bit mode colors */
 
   X_remap_init();		/* init graphics mode support */
+
+  if(!remap_src_modes) {
+    error("X: Warning: no graphics modes supported on this type of screen!\n");
+  }
 
   load_text_font();
 
@@ -1115,9 +1128,21 @@ static int X_init(void)
     screen, (unsigned long) rootwindow, (unsigned long) mainwindow
   );
 
-  /* allocate video memory */
-  if(vga_emu_init()) {
-    error("X: VGAEMU init failed!\n");
+  /* initialize VGA emulator */
+  X_screen.src_modes = remap_src_modes;
+  X_screen.bits = X_csd.bits;
+  X_screen.bytes = X_csd.bytes;
+  X_screen.r_mask = X_csd.r_mask;
+  X_screen.g_mask = X_csd.g_mask;
+  X_screen.b_mask = X_csd.b_mask;
+  X_screen.r_shift = X_csd.r_shift;
+  X_screen.g_shift = X_csd.g_shift;
+  X_screen.b_shift = X_csd.b_shift;
+  X_screen.r_bits = X_csd.r_bits;
+  X_screen.g_bits = X_csd.g_bits;
+  X_screen.b_bits = X_csd.b_bits;
+  if(vga_emu_init(&X_screen)) {
+    error("X: X_init: VGAEmu init failed!\n");
     leavedos(99);
   }
 
@@ -1147,8 +1172,7 @@ static void X_close(void)
 
   destroy_ximage();
 
-  /*free(vga_video_mem);*/
-  /* Uninstall vgaemu!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+  vga_emu_done();
   
   if(vga256_cmap != 0) {
       if (vga.mode_class == GRAPH)
@@ -1211,6 +1235,7 @@ static void X_partial_redraw_screen(void)
 static int X_setmode(int mode_class, int text_width, int text_height) 
 {
   XSizeHints sh;
+  int X_mode_type;
 
   /* tell vgaemu we're going to another mode */
   if(! vga_emu_setmode(video_mode, text_width, text_height)) return 0;	/* if it can't fail! */
@@ -1282,7 +1307,24 @@ static int X_setmode(int mode_class, int text_width, int text_height)
         w_y_res = (w_x_res * 3) >> 2;
       }
 
-      remap_obj = remap_init(vga.mode_type == EGA16 ? MODE_VGA_4 : MODE_PSEUDO_8, ximage_mode, remap_features);
+      remap_done(&remap_obj);
+      switch(vga.mode_type) {
+        case PL4:
+          X_mode_type = MODE_VGA_4; break;
+        case P8:
+          X_mode_type = MODE_PSEUDO_8; break;
+        case P15:
+          X_mode_type = MODE_TRUE_15; break;
+        case P16:
+          X_mode_type = MODE_TRUE_16; break;
+        case P24:
+          X_mode_type = MODE_TRUE_24; break;
+        case P32:
+          X_mode_type = MODE_TRUE_32; break;
+        default:
+          X_mode_type = 0;
+      }
+      remap_obj = remap_init(X_mode_type, ximage_mode, remap_features);
       *remap_obj.dst_color_space = X_csd;
       adjust_gamma(&remap_obj, config.X_gamma);
 
@@ -1390,7 +1432,7 @@ static void X_modify_mode()
 {
   RemapObject tmp_ro;
 
-  if(vga.mem.reconfigured) {
+  if(vga.reconfig.mem) {
     if(remap_obj.src_mode == MODE_PSEUDO_8 || remap_obj.src_mode == MODE_VGA_X) {
 
       tmp_ro = remap_init(vga.mem.planes == 1 ? MODE_PSEUDO_8 : MODE_VGA_X, ximage_mode, remap_features);
@@ -1400,7 +1442,7 @@ static void X_modify_mode()
       tmp_ro.dst_resize(&tmp_ro, w_x_res, w_y_res, ximage->bytes_per_line);
 
       if(!(tmp_ro.state & (ROS_SCALE_ALL | ROS_SCALE_1 | ROS_SCALE_2))) {
-        error("X: X_modify_mode: no modification of current graphics mode supported\n");
+        X_printf("X: X_modify_mode: no memory config change of current graphics mode supported\n");
         remap_done(&tmp_ro);
       }
       else {
@@ -1411,8 +1453,33 @@ static void X_modify_mode()
       }
 
       dirty_all_video_pages();
-      vga.mem.reconfigured = 0;
+      vga.reconfig.mem =
+      vga.reconfig.display =
+      vga.reconfig.dac = 0;
     }
+  }
+
+  if(vga.reconfig.display) {
+    remap_obj.src_resize(&remap_obj, vga.width, vga.height, vga.scan_len);
+    X_printf(
+      "X: X_modify_mode: geometry changed to %d x% d, scan_len = %d bytes\n",
+      vga.width, vga.height, vga.scan_len
+    );
+    dirty_all_video_pages();
+    vga.reconfig.display = 0;
+  }
+
+  if(vga.reconfig.dac) {
+    vga.reconfig.dac = 0;
+    dac_bits = vga.dac.bits;
+    X_printf("X: X_modify_mode: DAC bits = %d\n", dac_bits);
+  }
+
+  veut.display_start = vga.display_start;
+  veut.display_end = veut.display_start + vga.scan_len * vga.height;
+
+  if(vga.reconfig.mem || vga.reconfig.display) {
+    X_printf("X: X_modify_mode: failed to modify current graphics mode\n");
   }
 }
 
@@ -1925,12 +1992,10 @@ chk_cursor:
 
       if(!is_mapped) return 0;		/* no need to do anything... */
 
+      if(vga.reconfig.mem || vga.reconfig.display || vga.reconfig.dac) X_modify_mode();
+
       refresh_palette();
 
-      if(vga.mem.reconfigured) {
-        X_modify_mode();
-        veut.display_end = veut.display_start + vga.scan_len * vga.height;
-      }
       if(vga.display_start != veut.display_start) {
         veut.display_start = vga.display_start;
         veut.display_end = veut.display_start + vga.scan_len * vga.height;
@@ -1952,7 +2017,7 @@ chk_cursor:
 
       while((update_ret = vga_emu_update(&veut)) > 0) {
         remap_obj.src_image = veut.base + veut.display_start;
-        ra = remap_obj.remap_mem(&remap_obj, veut.update_start, veut.update_len);
+        ra = remap_obj.remap_mem(&remap_obj, veut.update_start - veut.display_start, veut.update_len);
 
 #ifdef DEBUG_SHOW_UPDATE_AREA
         XSetForeground(display, gc, dsua_fg_color++);

@@ -41,10 +41,9 @@
  */
 
 
-/* Define to debug the DAC */
-/* #define DEBUG_DAC */
-
-
+/* define to debug the DAC */
+#undef DEBUG_DAC
+#undef DEBUG_DAC_2
 
 
 #if !defined True
@@ -58,7 +57,6 @@
 /* **************** include files **************** */
 #include "emu.h"
 #include "vgaemu.h"
-#include "vgaemu_inside.h"
 
 
 
@@ -176,7 +174,12 @@ static unsigned char DAC_read_index=0;
 static unsigned char DAC_write_index=0;
 static int DAC_pel_index='r';
 
-
+#ifndef NEW_X_CODE
+static unsigned char vga_dac_bits = 6;
+#define VGA_DAC_BITS vga_dac_bits
+#else
+#define VGA_DAC_BITS vga.dac.bits
+#endif
 
 
 /* **************** DAC emulation functions **************** */
@@ -193,14 +196,18 @@ void DAC_init(void)
   int i;
 
 #ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_init()\n");
+  v_printf("VGAEmu: DAC_init()\n");
 #endif
 
   for(i=0; i<256; i++)
     {
+#if 0
       DAC[i].r=DAC_default_values[i].r;
       DAC[i].g=DAC_default_values[i].g;
       DAC[i].b=DAC_default_values[i].b;
+#else
+      DAC[i] = DAC_default_values[i];
+#endif
       DAC_dirty[i]=True;
     }
 
@@ -226,7 +233,7 @@ void DAC_init(void)
 inline void DAC_set_read_index(unsigned char index)
 {
 #ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_set_read_index(%i)\n", index);
+  v_printf("VGAEmu: DAC_set_read_index(%i)\n", index);
 #endif
 
   DAC_read_index=index;
@@ -249,7 +256,7 @@ inline void DAC_set_read_index(unsigned char index)
 inline void DAC_set_write_index(unsigned char index)
 {
 #ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_set_write_index(%i)\n", index);
+  v_printf("VGAEmu: DAC_set_write_index(%i)\n", index);
 #endif
 
   DAC_write_index=index;
@@ -324,37 +331,41 @@ unsigned char DAC_read_value(void)
  */
 void DAC_write_value(unsigned char value)
 {
-  DAC_state=DAC_WRITE_MODE;
+  value &= (1 << VGA_DAC_BITS) - 1;
 
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_write_value(%i)\n", value);
+  DAC_state = DAC_WRITE_MODE;
+
+#ifdef DEBUG_DAC_2
+  v_printf(
+    "VGAEmu: DAC_write_value: DAC[0x%02x].%c = 0x%02x\n",
+    (unsigned) DAC_write_index, (char) DAC_pel_index, (unsigned) value
+  );
 #endif
 
   DAC_dirty[DAC_write_index]=True;
 
-  switch(DAC_pel_index)
-    {
+  switch(DAC_pel_index) {
     case 'r':
-      DAC[DAC_write_index].r=value&0x3f;
+      DAC[DAC_write_index].r = value;
       DAC_pel_index='g';
       break;
 
     case 'g':
-      DAC[DAC_write_index].g=value&0x3f;
+      DAC[DAC_write_index].g = value;
       DAC_pel_index='b';
       break;
 
     case 'b':
-      DAC[DAC_write_index].b=value&0x3f;
+      DAC[DAC_write_index].b = value;
       DAC_pel_index='r';
       DAC_write_index++;
       break;
 
     default:
-      error("VGAemu: DAC_write_value(): DAC_pel_index out of range\n");
+      error("VGAEmu: DAC_write_value: DAC_pel_index out of range\n");
       DAC_pel_index='r';
       break;
-    }
+  }
 }
 
 
@@ -395,14 +406,16 @@ inline void DAC_set_pel_mask(unsigned char mask)
  */
 void DAC_get_entry(DAC_entry *entry, unsigned char index)
 {
-  entry->r=DAC[index].r&DAC_pel_mask;
-  entry->g=DAC[index].g&DAC_pel_mask;
-  entry->b=DAC[index].b&DAC_pel_mask;
-  DAC_dirty[index]=False;
+  entry->r=DAC[index].r & DAC_pel_mask;
+  entry->g=DAC[index].g & DAC_pel_mask;
+  entry->b=DAC[index].b & DAC_pel_mask;
+  DAC_dirty[index] = False;
 
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_get_entry(0x%02x): (0x%02x, 0x%02x, "
-           "0x%02x)\n", index, entry->r, entry->g, entry->b);
+#ifdef DEBUG_DAC_2
+  v_printf(
+    "VGAEmu: DAC_get_entry: DAC[0x%02x] = 0x%02x 0x%02x 0x%02x (rgb)\n",
+    (unsigned) index, (unsigned) entry->r, (unsigned) entry->g, (unsigned) entry->b
+  );
 #endif
 }
 
@@ -479,21 +492,24 @@ int DAC_get_dirty_entry(DAC_entry *entry)
  * DANG_END_FUNCTION
  *
  */
-void DAC_set_entry(unsigned char r, unsigned char g, unsigned char b, 
-                   unsigned char index)
+void DAC_set_entry(unsigned char r, unsigned char g, unsigned char b, unsigned char index)
 {
-#ifdef DEBUG_DAC
-  v_printf("VGAemu: DAC_set_entry(r=0x%02x, g=0x%02x, b=0x%02x, "
-           "index=0x%02x)\n", r, g, b, index);
+  unsigned mask = (1 << VGA_DAC_BITS ) - 1;
+
+  r &= mask; g &= mask; b &= mask;
+
+#ifdef DEBUG_DAC_2
+  v_printf(
+    "VGAEmu: DAC_set_entry: DAC[0x%02x] = 0x%02x 0x%02x 0x%02x (rgb)\n",
+    (unsigned) index, (unsigned) r, (unsigned) g, (unsigned) b);
 #endif
 
-  DAC[index].r=r&0x3f;
-  DAC[index].g=g&0x3f;
-  DAC[index].b=b&0x3f;
-  DAC_dirty[index]=True;
+  if(DAC[index].r != r || DAC[index].g != g || DAC[index].b != b) DAC_dirty[index] = True;
+
+  DAC[index].r=r;
+  DAC[index].g=g;
+  DAC[index].b=b;
 }
-
-
 
 
 /*
@@ -539,6 +555,17 @@ unsigned char DAC_get_state(void)
   return(DAC_state);
 }
 
+#ifdef NEW_X_CODE
+void DAC_set_width(unsigned bits)
+{
+  int i;
 
-
-
+  if(bits > 8) bits = 8;
+  if(bits < 4) bits = 4;	/* it's no use to allow other values than 6 or 8, but anyway... */
+  if(VGA_DAC_BITS != bits) {
+    vga.reconfig.dac = 1;
+    VGA_DAC_BITS = bits;
+    for(i = 0; i < 256; i++) DAC_dirty[i] = True;
+  }
+}
+#endif

@@ -18,13 +18,13 @@ CC=@CC@
 # you should also delete the #define XG in int10.c and sigsegv.c
 ifdef X_SUPPORT
  ifdef NEW_X_CODE
-XCFILES	= n_X.c n_vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c remap.c
-XHDRS	= X.h vgaemu_inside.h n_vgaemu_inside.h vesa.h screen.h remap.h
-XOBJS	= n_X.o n_vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o remap.o
+XCFILES	= n_X.c n_vgaemu.c n_vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c remap.c
+XHDRS	= X.h screen.h remap.h
+XOBJS	= n_X.o n_vgaemu.o n_vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o remap.o
  else
 XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c \
 	  XModeRemapGeneric.c XModeRemap_i386.c
-XHDRS	= X.h vgaemu_inside.h o_vgaemu_inside.h vesa.h screen.h XModeRemap.h
+XHDRS	= X.h screen.h XModeRemap.h
 XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o \
 	  XModeRemapGeneric.o XModeRemap_i386.o
  endif
@@ -35,8 +35,8 @@ endif
 SFILES = vesabios.S
 
 ifdef NEW_X_CODE
-ASFILES = remap_asm.S
-ASOBJS  = remap_asm.o
+ASFILES = remap_asm.S vesabios_pm.S
+ASOBJS  = remap_asm.o vesabios_pm.o
 endif
 
 AS86FLAGS=$(INCDIR)
@@ -59,27 +59,16 @@ SUBDIR=video
 
 all: vesabios.o lib
 
-# this is copied from bios/Makefile
-vesabios.o: vesabios.part.2
-	@SRCPATH@/tools/tools86 $^
-	cp $< $@
- 
-vesabios: vesabios.s
 
-vesabios.s: vesabios.i
-	@SRCPATH@/tools/tools86 -E <$^ >$@
+#	NOTE: we force _whole_ generation of all tmp-files,
+#	      because we came into trouble with make dependencies recently
 
-vesabios.i: vesabios.S
-	$(CC) -E --traditional $(AS86FLAGS) $^ >$@
-
-vesabios.part.1: vesabios.s
-	$(AS86) -0 -w -g -o $@ $^
-
-vesabios.part.2: vesabios.part.1
-	$(LD86) -0 -r -o $@ $^
-
-# generate *dummy* dependency
-vesabios.d: vesabios.o
+vesabios.o: vesabios.S 
+	$(CC) -E --traditional $(AS86FLAGS) $< | @SRCPATH@/tools/tools86 -E > $*.s
+	$(AS86) -0 -w -g -o $@.1.tmp $*.s
+	$(LD86) -0 -r -o $@.2.tmp $@.1.tmp
+	@SRCPATH@/tools/tools86 $@.2.tmp
+	mv -f $@.2.tmp $@
 
 
 install:
@@ -91,7 +80,6 @@ echo::
 	@echo REALTOPDIR=@REALTOPDIR@
 
 clean::
-	rm -f vesabios.o vesabios.s vesabios.i
+	rm -f *.o *.tmp *.s
 
-realclean::
-	rm -f vesabios.part.1 vesabios.part.2
+realclean:: clean

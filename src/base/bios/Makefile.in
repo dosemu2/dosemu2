@@ -29,29 +29,22 @@ export CFLAGS
 all: lib bios.o
 
 
-bios.o: bios.part.2
-	$(TOPDIR)/tools/tools86 $^
-	cp $< $@
+#	NOTE: we force _whole_ generation of all tmp-files,
+#	      because we came into trouble with make dependencies recently
 
-bios:	bios.s
+bios.o: bios.S
+	$(CC) -E --traditional $(AS86FLAGS) $< | @SRCPATH@/tools/tools86 -E > $*.s
+	$(AS86) -0 -w -g -o $@.1.tmp $*.s
+	$(LD86) -0 -r -o $@.2.tmp $@.1.tmp
+	@SRCPATH@/tools/tools86 $@.2.tmp
+	mv -f $@.2.tmp $@
 
-bios.s:	bios.i
-	$(TOPDIR)/tools/tools86 -E <$^ >$@
-
-bios.i:	bios.S
-	$(CC) -E --traditional $(AS86FLAGS) $^ >$@
-
-bios.part.1:	bios.s
-	$(AS86) -0 -w -g -o $@ $^
-
-bios.part.2:	bios.part.1
-	$(LD86) -0 -r -o $@ $^
-
+bios:	bios.o
 
 include $(REALTOPDIR)/src/Makefile.common
 
 clean::
-	rm -f *.o bios.s bios.i bios.part.1 bios.part.2 
+	rm -f *.o *.tmp *.s
 
 realclean:: clean
 

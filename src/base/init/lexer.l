@@ -337,6 +337,9 @@ mode13fact		RETURN(X_MODE13FACT);
 winsize			RETURN(X_WINSIZE);
 gamma			RETURN(X_GAMMA);
 vgaemu_memsize		RETURN(VGAEMU_MEMSIZE);
+vesamode		RETURN(VESAMODE);
+lfb			RETURN(X_LFB);
+pm_interface		RETURN(X_PM_INTERFACE);
 
         /* Sound stuff */
 
