@@ -1,0 +1,44 @@
+
+Out of a posting from Julia A. Case <julie@MageNet.com>
+
+I'm not much of a documentation writer so if all this doesn't make sense
+feel free to write me at julie@MageNet.com for more info.  I wanted a
+better way of running doors than in local mode via dosemu.  And this is what
+I managed to do to fix that problem.
+
+This patch will allow you to add an additional keyword to the serial
+configuration in dosemu.conf.  The 'virtual' flag will allow you to set the
+current tty that dosemu is running on to be a virtual modem.  For things to
+work right you need to make the following changes in your dosemu.conf file.
+
+1.  Remove all video definitions but the terminal.  This forces terminal
+mode.  Which we need to avoid local video.
+2.  add serial { virtual com 1 }  this makes the current tty COM1
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+(**Note from Hans: this is $_comX = "virtual" for dosemu-1.0.1
+                 X being one of 1,2,3,4)
+
+Now when you run an dosemu it will only display the data that is going to
+the COM port.  A DOS door can be run in remote mode vs. the local mode that
+we have all been running them in.  On bug that I've found is that on a
+non-modem tty the speed defaults to 2400 baud.  I tried to change this in
+dosemu, but it really didn't work.  What I did find that works though is to
+get down X00v150.ZIP.  X00 is a very good fossil, which some doors will
+need, beyond that though it has a utility called XU.EXE that lets you set
+the port speed, I call this from autoexec and set the port speed to 57600
+and everything works fine.
+
+This should allow for RIPScrip doors to be run, but at present my testing
+has show the acceptance of my terminal being RIP compatable to be less than
+reliable.  I'm not sure what is causing that.  I'll keep looking at it
+though.
+
+I've run the following doors via this mode.  
+        1.  Solar Realms Elite
+        2.  Barren Realms Elite
+        3.  Falcons Eye
+        4.  Global Wars
+        5.  Terra Firma
+        6.  Legend of the Red Dragon
+        7.  Exitilus
+

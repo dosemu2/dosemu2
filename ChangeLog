@@ -1,3 +1,16 @@
+2000/05/19 ver. 1.0.0.2 unofficial pre-release
+	From Julia A. Case <julie@MageNet.com>
+	- virtual modem support (socalled vmodem or "doors" patch)
+	  See src/doc/README/vmodem for Details (no Alistair, didn't
+	  fiddle with sgml yet;-)
+	From Steffen
+	- fix to dosdebug wrongly taking the mafile as pidfile in
+	  ~/.dosemu/run
+	From Stas Sergeev <stas.orel@mailcity.com>
+	- further fix to dosdebug printing a 'smiley' (0x1) and waiting for
+	  the next command instead of terminating on 'kill'.
+	From Hans
+	- further kludge for mapself mappingdrive (/proc/self/mem)
 2000/03/19 ver. 1.0.0.1 unofficial pre-release
 	From Alberto (...and Hans)
 	- fixed gcc-2.95 miscompile (optimized away our code templates

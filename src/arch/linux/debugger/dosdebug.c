@@ -74,19 +74,21 @@ int find_dosemu_pid(char *tmpfile, int local)
     fprintf(stderr, "can't open directory %s\n",dn);
     exit(1);
   }
-  i=0;
-  while (p = readdir(dir)) {
-    if (!strncmp(id,p->d_name,j) && (p->d_name[j] != 'd')) {
-      if (once && (i++ ==1)) {
-        fprintf(stderr,
-          "Multiple dosemu processes running or stalled files in %s\n"
-          "restart dosdebug with one of the following pids as first arg:\n"
-          "%d", dn, pid
-        );
-        once = 0;
+  i = 0;
+  while(p = readdir(dir)) {
+    if(!strncmp(id,p->d_name,j) && p->d_name[j] >= '0' && p->d_name[j] <= '9') {
+      pid = strtol(p->d_name + j, 0, 0);
+      if(check_pid(pid)) {
+        if(once && i++ == 1) {
+          fprintf(stderr,
+            "Multiple dosemu processes running or stalled files in %s\n"
+            "restart dosdebug with one of the following pids as first arg:\n"
+            "%d", dn, pid
+          );
+          once = 0;
+        }
       }
-      pid=strtol(p->d_name+j,0,0);
-      if (i >1) fprintf(stderr, " %d", pid);
+      if (i > 1) fprintf(stderr, " %d", pid);
     }
   }
   closedir(dir);
@@ -179,14 +181,15 @@ void handle_console_input(void)
 
 void handle_dbg_input(void)
 {
-  char buf[MHP_BUFFERSIZE];
+  char buf[MHP_BUFFERSIZE], *p;
   int n;
   do {
     n=read(fdin, buf, sizeof(buf));
   } while (n == EAGAIN);
   if (n >0) {
-    if (buf[0] != 1) write(1, buf, n);
-    else exit(0);
+    if ((p=strchr(buf,1))!=NULL) n=p-buf;
+    write(1, buf, n);
+    if (p!=NULL) exit(0);
   }
 }
 

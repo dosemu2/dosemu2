@@ -329,8 +329,27 @@ static void *mmap_mapping_self(int cap, void *target, int mapsize, int protect, 
      * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
      */
     TOUCH_PAGES(source, mapsize);
-    return mmap(target, mapsize, protect, MAP_SHARED | fixed,
+    /*
+     * As it turned out, we need a further kludge when mapping other
+     * than RW. In this case we first have to mmap() RW and after this
+     * mprotect() with the desired protection, else the mapping gets wrong
+     * This was found out by Steffen, while hacking on the vgaemu PL4 stuff
+     *                           (Hans, 2000/05/11)
+     */
+    if ((protect & PROT_READ) && (protect & PROT_WRITE)) {
+      return mmap(target, mapsize, protect, MAP_SHARED | fixed,
 				selfmem_fd, (off_t) source);
+    }
+    else {
+      void *ret = mmap(target, mapsize, protect | PROT_READ | PROT_WRITE,
+		MAP_SHARED | fixed, selfmem_fd, (off_t) source);
+      if ((int)ret == -1) {
+        return mmap(target, mapsize, protect, MAP_SHARED | fixed,
+				selfmem_fd, (off_t) source);
+      }
+      if (!mprotect(ret, mapsize, protect)) return ret;
+      return (void *) -1;
+    }
   }
   if (cap & MAPPING_KMEM) {
     void *addr_;
