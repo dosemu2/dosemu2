@@ -391,6 +391,7 @@ get_video_ram (int waitflag)
 	  /*      else error("ERROR: no dosemu_regs.mem!\n"); */
 	}
       g_printf ("mapping GRAPH_BASE\n");
+      alloc_mapping(MAPPING_VC | MAPPING_KMEM, GRAPH_SIZE, (caddr_t)GRAPH_BASE);
       graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
 			(caddr_t) GRAPH_BASE, GRAPH_SIZE,
 			PROT_READ | PROT_WRITE, (caddr_t)GRAPH_BASE);
@@ -405,6 +406,8 @@ get_video_ram (int waitflag)
 
       g_printf ("mapping PAGE_ADDR\n");
 
+      alloc_mapping(MAPPING_VC | MAPPING_KMEM, TEXT_SIZE,
+			(caddr_t)phys_text_base);
       graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
 			(caddr_t)PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)),
 			TEXT_SIZE, PROT_READ | PROT_WRITE,

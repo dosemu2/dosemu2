@@ -84,6 +84,7 @@ void hgc_meminit(void)
     hgc_ctrl = 0;
 
   /* map real HGC-mem (page 0) */
+  alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
   maperr = (caddr_t) mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
      HGC_BASE0,
      HGC_PLEN,
@@ -325,6 +326,7 @@ void set_hgc_page(int page)
  munmap_mapping(MAPPING_HGC, HGC_BASE1, HGC_PLEN);
 
  /* map real HGC-mem to a place from where we can sync */
+ alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
  syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
       (void *)-1,
       HGC_PLEN,
@@ -341,6 +343,7 @@ void set_hgc_page(int page)
  munmap_mapping(MAPPING_HGC, syncadr, HGC_PLEN );
 
  /* map real HGC-mem to page 0 */
+ alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
  Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
       HGC_BASE0,
       HGC_PLEN,
@@ -363,6 +366,7 @@ void set_hgc_page(int page)
    munmap_mapping(MAPPING_HGC, HGC_BASE0, HGC_PLEN);
 
    /* map real HGC-mem to a place from where we can sync */
+   alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
    syncadr = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
     (void *)-1,
     HGC_PLEN,
@@ -379,6 +383,7 @@ void set_hgc_page(int page)
    munmap_mapping(MAPPING_HGC, syncadr, HGC_PLEN );
 
    /* map real HGC-mem to page 1 */
+   alloc_mapping(MAPPING_HGC | MAPPING_KMEM, HGC_PLEN, (void *) HGC_BASE0);
    Test = mmap_mapping(MAPPING_HGC | MAPPING_KMEM,
         HGC_BASE1,
         HGC_PLEN,

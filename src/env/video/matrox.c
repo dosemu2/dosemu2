@@ -57,6 +57,7 @@ static unsigned char *MGAMMIOBase = NULL;
 
 static void *MapVidMem (unsigned long addr, int size)
 {
+  alloc_mapping(MAPPING_VIDEO | MAPPING_KMEM, size, (caddr_t)addr);
   return (char *)mmap_mapping(MAPPING_VIDEO | MAPPING_KMEM,
 	(caddr_t)-1, size, PROT_READ|PROT_WRITE, (caddr_t)addr);
 }

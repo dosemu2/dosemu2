@@ -187,6 +187,11 @@ void close_mapping(int cap)
 void *alloc_mapping(int cap, int mapsize, void *target)
 {
   void *addr;
+
+  if (cap & MAPPING_KMEM) {
+    return NULL;
+  }
+
   addr = mappingdriver.alloc(cap, mapsize);
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
