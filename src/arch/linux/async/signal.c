@@ -178,6 +178,18 @@ signal_init(void)
   struct sigaction sa;
   sigset_t trashset;
 
+  /* Save %fs and %gs for NPTL */
+  __asm__ __volatile__ (" \
+	pushfl\n \
+	popl	%0\n \
+	movw	%%fs, %1\n \
+	movw	%%gs, %2\n \
+	" \
+	:
+	"=m"(_emu_stack_frame.eflags),
+	"=m"(_emu_stack_frame.fs),
+	"=m"(_emu_stack_frame.gs));
+
   /* block no additional signals (i.e. get the current signal mask) */
   sigemptyset(&trashset);
   sigprocmask(SIG_BLOCK, &trashset, &oldset);

@@ -151,7 +151,7 @@ extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern SEGDESC Segments[];
-extern struct sigcontext_struct *emu_stack_frame;
+extern struct sigcontext_struct _emu_stack_frame;
 /* used to store the dpmi client registers */
 extern RealModeCallBack mouseCallBack; /* user\'s mouse routine */
 extern char *ldt_buffer;

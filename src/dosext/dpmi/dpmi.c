@@ -138,7 +138,7 @@ unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 unsigned short DPMI_SEL = 0;
 
 struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
-struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
+static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 
 #define CHECK_SELECTOR(x) \
 { if (!ValidAndUsedSelector(x) || SystemSelector(x)) { \
@@ -564,6 +564,7 @@ static int dpmi_control(void)
     return ret;
   }
 #else
+  emu_stack_frame=&_emu_stack_frame;
   asm("xorl %0,%0; hlt":"=a" (ret));
   return ret;
 #endif
