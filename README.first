@@ -1,0 +1,347 @@
+========================== DOS EMULATOR 0.47 ===========================
+      Robert Sanders                           gt8134b@prism.gatech.edu
+========================================================================
+
+						January 27, 1993
+
+Hello, public,
+
+This is my latest version of the DOS emulator; I call it dosemu47,
+meaning dosemu 0.47 alpha. I hope the numbering doesn't confuse
+anybody.  0.41-0.46 were "internal" versions.  The RCS revision numbers
+printed in various places throughout the emulator mean very little to
+either of us, so don't worry about them.
+
+It is based on dosemu0.4 from Matthias Lautner, but is quite a bit
+more useable.  It is probably already obsolete by now, however, as I
+am continually at work making the code even uglier :-).  Hopefully,
+with all this code uglification will come a stray feature or two.
+
+I apologize for the vaporfeatures I promised.  Dosemu still doesn't
+support virtualized UARTs, and print jobs still aren't queued after a
+given no-print time.  The former was sabotaged by a filesystem crash
+(although it was never really done, anyway), while the latter was
+sabotaged by laziness and time pressures at school.  I will have these
+features done, given time.
+  
+
+Before you boot the MicroBeast, there are some things you'll need to do.
+  1) edit the file emu.c to suit your system (see README, and below).
+  2) compile it.  "make install" does it best.  if you have gcc 2.3.3,
+     edit the Makefile to give the path to your shared library stubs.
+  3) Edit your termcap to have a few new fields (at least new to the standard
+     SLS termcap.)  Here's mine:
+
+console|con80x25|dumb:\
+	:do=^J:co#80:li#25:cl=\E[H\E[J:sf=\ED:sb=\EM:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[27m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;25r\E[25;1H:\
+	:ll=\E[1;25r\E[25;1H:al=\E[L:dc=\E[P:dl=\E[M:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:ti=\E[r\E[H:\
+	:ho=\E[H:kP=\E[5~:kN=\E[6~:kH=\E[4~:kh=\E[1~:kD=\E[3~:kI=\E[2~:\
+	:k1=\E[[A:k2=\E[[B:k3=\E[[C:k4=\E[[D:k5=\E[[E:k6=\E[17~:\
+	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k0=\E[21~:K1=\E[1~:K2=\E[5~:\
+	:K4=\E[4~:K5=\E[6~:\
+	:pt:sr=\EM:vt#3:xn:km:bl=^G:vi=\E[?25l:ve=\E[?25h:vs=\E[?25h:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:\
+
+vs|xterm|vs100|xterm terminal emulator (X Window System):\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:UP=\E[%dA:\
+	:al=\E[L:am:\
+	:bs:cd=\E[J:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:co#80:\
+	:cs=\E[%i%d;%dr:ct=\E[3k:\
+	:dc=\E[P:dl=\E[M:\
+	:im=\E[4h:ei=\E[4l:mi:\
+	:ho=\E[H:\
+	:is=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l:\
+	:rs=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l\E<:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:kb=^H:kd=\EOB:ke=\E[?1l\E>:\
+	:kl=\EOD:km:kn#10:kr=\EOC:ks=\E[?1h\E=:ku=\EOA:\
+	:li#24:md=\E[1m:me=\E[m:mr=\E[7m:ms:nd=\E[C:pt:\
+	:sc=\E7:rc=\E8:sf=\n:so=\E[7m:se=\E[m:sr=\EM:\
+	:te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:\
+	:up=\E[A:us=\E[4m:ue=\E[m:xn:\
+	:k5=\E[15~:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k0=\E[21~:\
+	:kP=\E[5~:kN=\E[6~:kI=\E[2~:
+
+The new fields are vi,ve,vs (set cursor visibility); a lot of fields
+may have changed (I forget).  You might want to compare the whole
+thing to your termcap and just change the differences, or make this
+termcap "consdos" or something.  It works well for me.  I have noticed
+that programs, such as qedit, which use different sets of character
+attributes to create menu selection bars will not work with my current
+termcap translation scheme.  I suggest you remove vi,ve,and vs from
+your termcap if you find that to be the case: this will at least make
+sure the emulator doesn't hide the cursor, so you can find your place.
+
+I'm still trying to devise a way to map a variety of foreground and
+background colors, as well as high intensity, onto a very few
+termcap attributes.
+
+  4) If you're using the raw keyboard (-k) option, you will probably want
+     to change the kernel to allow you an easy way out in case things crash
+     or otherwise become sticky.  This is the tiny patch I use in 0.99pl4
+     (this is not a real diff!):
+
+	if (vc_kbd_flag(kbd,VC_RAW)) {
+		kbd_flags = 0;
+		put_queue(scancode);
++		if (scancode == 0x54) clr_vc_kbd_flag(kbd,VC_RAW);
+		goto end_kbd_intr;
+	}
++	else if (scancode == 0x54) set_vc_kbd_flag(kbd,VC_RAW);
+	if (scancode == 0xe0) {
+
+	This basically gives you the key SysRq (right alt + print screen)
+	to switch between RAW and XLATE modes.  You shouldn't ever have
+	to do this in a normal situation, and once I rewrite a few things
+	in the emulator, you'll never have to.  Patience, little ones.
+
+	I suggest you not use this feature of the DOS emulator unless you
+	really need it.  It gives you some debatably useful things like
+	alt/ctrl/shift key flags (through int16h and the Bios Data Area),
+	but it's not necessary.
+
+  5) I recommend that you use libc.so.4.2.
+  6) If you plan to use raw console video (-c), make a kernel or LILO
+     image spec. that will boot into 80x25 mode.  Although it isn't
+     overpolished yet, raw console video mode is nice.  You get colors
+     and the DOS character set.  Highly recommended if you can stand
+     80x25 console screens.
+  7) If you want to run .EXE files from your DOS partition, edit emu.c
+     to include your hard drive's geometry (the whole thing, not just your
+     DOS partition.)  This is of great functionality, but I don't like
+     it because of the danger.  Otherwise, you'll have to run LINUX.EXE
+     as specified in README, and that won't let you run .EXE files from
+     the phantom drive (yet).  However, you can still run .EXE files
+     from floppies, diskimage, and hdimage.
+
+
+-------- INVOCATION --------
+Here is what you see if you type "dos -?":
+
+usage: dos [-ACrwdvckDbV] [-m SIZE] [-P FILE] [-H|F #disks] > doserr
+    -A boot from first defined floppy disk (A)
+    -C boot from first defined hard disk (C)
+    -r,w report debug messages for disk read/write
+    -d report DOS calls
+    -v report video calls
+    -c use PC console video (kernel 0.99pl3+) (!%)
+    -k use PC console keyboard (kernel 0.99pl3+) (!)
+    -m set memory size to SIZE kilobytes (!)
+    -D report unrecognized interrupts
+    -P copy debugging output to FILE
+    -b map BIOS into emulator RAM (%)
+    -H specify number of hard disks (1 or 2)
+    -F specify number of floppy disks (1-4)
+    -V use VGA specific video optimizations (!%)
+    -N No boot of DOS
+
+     (!) means BE CAREFUL! READ THE DOCS FIRST!
+     (%) marks those options which require dos be run as root (i.e. suid)
+
+The invocation I use under an 80x25 console window is this:
+    dos -ckbm 720 -VP /dev/ttys0 > dosdbg
+
+Under an xterm*:
+    dos -b -P /dev/ttys0 > dosdbg
+* I recommend that you resize the xterm to 25 lines first. The standard 24
+  is insufficient.  Larger sizes will have no affect.
+
+
+Using "-k" direct console keyboard, there are a few things you should know:
+every key is interpreted in scancode form by the emulator.  The current
+emulator has support for only the US keyboard.  You may copy the
+appropriate data structure out of the kernel if you require an
+alternate keyboard. I apologize to non-U.S. users for the inconvenience.
+This will be addressed in future versions.
+
+(Note: this was true for 0.98pl? when I copied the data structures.
+       0.99 sources may have changed the structure.)  
+
+VC switching is accomplished by using LeftAlt+Fn, where RightAlt-Fn
+gives you an alt-fkey as in normal DOS.  Otherwise, any key
+combination (except the pause key) will act exactly as it would under
+native DOS.
+
+-------- KEYBOARD -------
+Once again, I recommend you not use the -k (raw console keyboard)
+option unless you really need it, and that if you do, you apply the
+kernel patch listed above.  If the emulator crashes or for any reason
+does not process any BIOS keyboard requests for a while, you will not
+be able to switch VC's.  (If you have an external terminal, you can
+kill -HUP the emulator process to fix things).
+
+-------- VGA VIDEO ------
+All I'll say about the -V flag is that you have to have also specified
+-c (raw console video) to use it, and that you shouldn't specify this option
+unless you're sure you really have a VGA card installed.  This option
+currently only changes the mapping of the high character attribute bit,
+but it will do more in the future.  Use it at your own risk.
+(If you see programs with blinking text where you think there shouldn't
+ be any, try -cV)
+
+
+
+The "-P /dev/ttys0" sends a copy of dosdbg (the debugging messages) to
+my dumb terminal.  It can be left out if you wish (or have nothing on
+/dev/ttys0!).  This is no big deal, basically just a tee.  The reason
+it's there at all is that it will one day provide me with a debugging
+menu system.  (One day, like everything else :-).
+
+----------- BIOS --------------
+The "-b" option maps the two BIOS ROMs at c000:0000 and f000:0000 into
+the emulator's address space (same addresses).  This is for my
+purposes, and does not (yet) enhance the functionality of the emulator.
+I'm not sure if all computers have their ROMs at those addresses.
+
+
+----------- SERIAL --------------
+ The emulator supports BIOS-accessed serial ports.  This is a feature
+of limited usefulness, and great capacity to suck CPU time.  It was
+easy to implement, so i did.  It's very stupid now, and isn't likely
+to change anytime soon.  I successfully used MS-Kermit to log into my
+school's Sequent using the emulator now, so the fun is over.
+
+The emulator assumes COM1 is /dev/modem (on my system, a symlink to
+/dev/ttys0), and the COM2-COM4 are the files doscom2, doscom3, and doscom4
+in the current directory.  These should also be symlinks to real devices.
+You can change these names directly in emu.c (see the comnames[] array).
+
+----------- PRINTERS ------------
+The emulator supports printing to LPT1, LPT2, and LPT3.  The output from
+these "virtual printers" is dumped into the files dosemulpt1, dosemulpt2,
+and dosemulpt3, respectively.  You can change these names in emu.c
+(see the lptnames[] array).  I can't guarantee that these files are
+fully up-to-date until you exit the emulator.  
+
+I'll revamp the print handling later.  It works for now.
+
+
+----------- MEMORY SIZE ---------
+If you need extra memory, you can use the "-m" switch to set the
+memory size.  This switch specifies, in Kilobytes, how much main memory
+the emulator has available.  The default is 640, although the emulator
+allows up to 734.  I believe that even 734K is safe, although too much
+over that intrudes on the screen memory at b800:0000.  When I add
+real VGA video, this option will be unsafe, as VGA memory starts at
+a000:0000.
+
+I've just gotten some pretty extensive docs on EMS, so I hope to have
+EMS at least buggily implemented by some time or other, give or take a
+while.  It won't hard...all the hard work has been done by giving the
+emulator 32-bit access to DOS RAM.  I don't have docs on XMS yet.
+
+Note that the EMS implementation won't require that you load an
+external EMM386.SYS file or anything.  It will be inherent in the
+emulator code.  In fact, the emulator requires that you not load
+some sort of external memory manager :-).
+
+
+----------- HARD DISKS --------
+My current setup in emu.c has two hard disks: hdimage (C:)*, and
+direct access to my DOS partition (D:).  It has two floppies, a
+"diskimage" Linux file (A:), and my first floppies (B:).  I currently
+have floppy B: set as a 1.2 MB 5 1/4 in drive.  Look in the top
+portions of emu.c on how to change this (with SMALL_FLOPPY and
+LARGE_FLOPPY).  You can have the emulator use more floppies by
+adding them to the table in emu.c and giving dos the parameter
+-F num.  Having more than 2 floppies defined will cause LINUX.EXE
+to fail.
+
+* The drive specifications in parentheses refer to the dos emulator's
+  view of the world, not your normal, real-DOS letters
+
+The "hdimage" and "diskimage" files must exist at dos invocation time.
+Only one of them need be bootable; and they can be of any size.
+In fact, with this installation, you only need to "touch diskimage"
+in the dosemu directory to make it work.  You may then format the A:
+disk to make "diskimage" into an accessible disk.  The hdimage will
+grow to accomodate your usage of it (contary to myth, it will NOT
+shrink).
+
+To boot from diskimage, "dos -A > dosdbg" will work.  You can make a bootable
+diskimage by copying one from your /dev/fdX, where X is 0 or 1. This would
+look like:
+   dd if=/dev/fdX of=diskimage bs=1024 count=1440
+or
+   dd if=/dev/fdX of=diskimage bs=1024 count=1200
+depending on whether it is a 1.44 MB or 1.2 MB drive.
+
+Note that diskimage is currently set up to look like a 3.5 in 1.44 meg
+drive.  You can easily change it to be a 5.25 in "drive."  This is
+slightly explained at the top of emu.c.   You should have the specification
+for diskimage match that of the boot disk you wish to copy into
+the file "diskimage."
+
+Also note that you can change the first entry in disktab to be a
+physical drive, and the emulator will boot from that one if given the -A
+flag.
+
+If you do not want to have direct access to your hard drive, change
+HDISKS to 1 in emu.c.  Then you may invoke LINUX.EXE to set up your
+/usr/dos partition as drive d:.
+
+
+-------- EVERYTHING -----
+The code is a heap right now.  Bear with me.
+
+
+-------- TIDBITS --------
+Try to save the debugging messages (dosdbg file) for any bugs or
+problems that you find.  They are more helpful to me than descriptions
+alone.
+
+-------- DISK IMAGES  -----
+Everyone seems to ask this: "How do I create diskimage/hdimage"?
+Well, it isn't really complicated.  
+
+You must first make sure that a file of the desired name (of any
+size!) exists already in the directory from which you invoke the DOS
+emulator.  Then when inside the emulator, you just format that disk.
+
+If it's hdimage, you must first run DOS fdisk to create a partition.
+Then you exit the emulator, reenter it, and format (DOS command) the
+C: drive.  You can make the disk bootable with the /s parameter to
+format, or with the DOS sys command.
+
+Note that if you have /dev/fd0 defined as B:, and you format B:, no
+actual low-level format will take place.  The disk in /dev/fd0 must
+be pre-formatted; the emulator's format emulation, muck like mtools'
+mformat, only puts a MS-DOS filesystem onto a formatted disk.  You may
+low-level format floppies under Linux with the fdformat command.
+
+
+-------- EXITING --------
+To kill the dos emulator, execute the EXITEMU.COM file found on the
+included hdimage, or send a SIGTERM or SIGHUP signal to it.  If you
+need to simulate a ctrl-break in the emulator, you can send it a SIGQUIT
+from somewhere else.
+Sending a SIGKILL to the emulator is a poor decision.  This will not
+allow the emulator to restore the state of the tty, restore the state
+of the screen, or flush all open files, including the debugging file.
+Use SIGTERM and SIGHUP instead.
+
+
+-------- BUGS -----------
+I probably already know about the lack of features in dosemu47, so
+please don't tell me "It won't recognize my mouse."  However, if you
+do find some bug that you think OUGHT to work, please do write me and
+tell me about it.  Also, if you have some fairly simple feature that
+you really need NOW, I can be flexible.
+
+I've fixed too any bugs to count in dosemu0.4, so I won't list them
+here.  I've probably introduced as many, though, so watch out.
+
+If the emulator crashes on you, the first thing you should do is examine
+the dosdbg file for any line beginning with "ERROR:"; look at the last
+such line first.
+
+
+Enjoy!
+
+Robert Sanders
+gt8134b@prism.gatech.edu
+
+
