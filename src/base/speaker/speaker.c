@@ -132,6 +132,8 @@ void register_speaker(void *gp,
 /* this does the EMULATED mode speaker emulation */
 void speaker_on(unsigned ms, unsigned short period) 
 {
+	if (config.speaker == SPKR_OFF)
+		return;
 	i_printf("SPEAKER: on, period=%d\n", period);
 	if (!speaker.on) {
 		speaker = dumb_speaker;
