@@ -110,11 +110,9 @@ typedef struct {
   u_char rx_buf[RX_BUFFER_SIZE];	/* Receive Buffer */
   u_char rx_buf_start;			/* Receive Buffer queue start */
   u_char rx_buf_end;			/* Receive Buffer queue end */
-  u_char rx_buf_bytes;			/* # of bytes in Receive Buffer */
   u_char tx_buf[TX_BUFFER_SIZE];	/* Transmit Buffer */
   u_char tx_buf_start;			/* Transmit Buffer queue start */
   u_char tx_buf_end;			/* Transmit Buffer queue end */
-  u_char tx_buf_bytes;			/* # of bytes in Transmit Buffer */
 
   struct termios oldset;		/* Original termios settings */
   struct termios newset;		/* Current termios settings */
@@ -122,6 +120,10 @@ typedef struct {
 
 #define MAX_SER 4
 EXTERN serial_t com[MAX_SER];
+
+#define RX_BUF_BYTES(num) (com[num].rx_buf_end - com[num].rx_buf_start)
+#define TX_BUF_BYTES(num) (com[num].tx_buf_end - com[num].tx_buf_start)
+
 extern int int14(void);
 extern void serial_run(void);
 extern int do_serial_in(int, ioport_t);

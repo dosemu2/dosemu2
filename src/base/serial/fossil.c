@@ -281,8 +281,8 @@ void fossil_int14(int num)
   case 0x1b:
   {
     unsigned char *p = SEG_ADR((unsigned char *), es, di);
-    int ifree = RX_BUFFER_SIZE-com[num].rx_buf_bytes,
-      ofree = TX_BUFFER_SIZE-com[num].tx_buf_bytes,
+    int ifree = RX_BUFFER_SIZE-RX_BUF_BYTES(num),
+      ofree = TX_BUFFER_SIZE-TX_BUF_BYTES(num),
       bufsize = (LWORD(ecx) <= 19) ? LWORD(ecx) : 19;
     if (LO(dx) == 0xff)
     {

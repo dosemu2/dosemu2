@@ -173,15 +173,14 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
       }
     }
     /* Clear as much of the transmit FIFO as possible! */
-    while (com[num].tx_buf_bytes > 0) {		/* Any data in fifo? */
+    while (TX_BUF_BYTES(num) > 0) {		/* Any data in fifo? */
       rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].tx_buf[com[num].tx_buf_start], 1));
       if (rtrn != 1) break;				/* Exit Loop if fail */
       com[num].tx_buf_start = (com[num].tx_buf_start+1) % TX_BUFFER_SIZE;
-      com[num].tx_buf_bytes--; 			/* Decr # of bytes */
     }
      
     /* Is FIFO empty, and is it time to trigger an xmit int? */
-    if (!com[num].tx_buf_bytes && com[num].tx_trigger) {
+    if (!TX_BUF_BYTES(num) && com[num].tx_trigger) {
       com[num].tx_trigger = 0;
       com[num].LSRqueued |= UART_LSR_TEMT | UART_LSR_THRE;
       if(s3_printf) s_printf("SER%d: Func transmit_engine requesting TX_INTR\n",num);
@@ -287,7 +286,7 @@ static inline void flag_IIR_receive(int num)
   /* Update the IIR for RDI status */
   if (!com[num].fifo_enable)
     com[num].IIR = UART_IIR_RDI;
-  else if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger)
+  else if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger)
     com[num].IIR = UART_IIR_FIFO | (com[num].IIR & UART_IIR_CTI) | UART_IIR_RDI;  else
     com[num].IIR = UART_IIR_FIFO | UART_IIR_CTI;
 }

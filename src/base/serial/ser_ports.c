@@ -78,7 +78,7 @@ static inline void tx_buffer_dump(int num)
 static inline void flow_control_update(int num)
 {
   int control;
-  if (com[num].rx_buf_bytes == 0) {			/* buffer empty? */
+  if (RX_BUF_BYTES(num) == 0) {			/* buffer empty? */
     control = TIOCM_RTS;
     ioctl(com[num].fd, TIOCMBIS, &control);		/* Raise RTS */
   }
@@ -104,7 +104,7 @@ static void rx_buffer_slide(int num)
   if (com[num].rx_buf_start == 0)
     return;
   /* Move existing chars in receive buffer to the start of buffer */
-  for(i = 0; i < com[num].rx_buf_bytes; i++)
+  for(i = 0; i < RX_BUF_BYTES(num); i++)
     com[num].rx_buf[i] = com[num].rx_buf[com[num].rx_buf_start + i];
 
   /* Update start and end pointers in buffer */        
@@ -137,7 +137,7 @@ void uart_fill(int num)
    * contains enough data for a full FIFO (at least 16 bytes).
    * The receive buffer is a sliding buffer.
    */
-  if (com[num].rx_buf_bytes < com[num].rx_fifo_size) {
+  if (RX_BUF_BYTES(num) < com[num].rx_fifo_size) {
 #if 0
     if (com[num].rx_timer == 0) {
 #endif    
@@ -153,7 +153,7 @@ void uart_fill(int num)
       if (size < 0)
         return;
       if(s3_printf) s_printf("SER%d: Got %i bytes, %i in buffer\n",num,
-        size, com[num].rx_buf_bytes);
+        size, RX_BUF_BYTES(num));
 #if 0    
       if (size == 0) { 				/* No characters read? */
         com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
@@ -163,14 +163,13 @@ void uart_fill(int num)
       if (size > 0) {		/* Note that size is -1 if error */
         com[num].rx_timeout = TIMEOUT_RX;	/* Reset timeout counter */
         com[num].rx_buf_end += size;
-        com[num].rx_buf_bytes += size;		/* No. of chars in buffer */
       }
 #if 0
     }
 #endif
   }
 
-  if (com[num].rx_buf_bytes) {		/* Is data waiting in the buffer? */
+  if (RX_BUF_BYTES(num)) {		/* Is data waiting in the buffer? */
     if (com[num].fifo_enable) {		/* Is it in 16550 FIFO mode? */
 
       com[num].LSR |= UART_LSR_DR;		/* Set recv data ready bit */
@@ -180,7 +179,7 @@ void uart_fill(int num)
        * Reset the receive FIFO counter up to a value of 16 (configurable)
        * if we are not within an interrupt.
        */
-      com[num].rx_fifo_bytes = com[num].rx_buf_bytes;
+      com[num].rx_fifo_bytes = RX_BUF_BYTES(num);
       if (com[num].rx_fifo_bytes > com[num].rx_fifo_size)
 	      com[num].rx_fifo_bytes = com[num].rx_fifo_size;
       
@@ -219,7 +218,6 @@ void uart_clear_fifo(int num, int fifo)
     com[num].LSRqueued &= ~(UART_LSR_ERR | UART_LSR_DR);
     com[num].rx_buf_start = 0;		/* Beginning of rec FIFO queue */
     com[num].rx_buf_end = 0;		/* End of rec FIFO queue */
-    com[num].rx_buf_bytes = 0;		/* Number of bytes in recv queue */
     com[num].rx_fifo_bytes = 0;         /* Number of bytes in emulated FIFO */
     com[num].rx_timeout = 0;		/* Receive intr already occured */
     com[num].int_condition &= ~(LS_INTR | RX_INTR);  /* Clear LS/RX conds */
@@ -233,7 +231,6 @@ void uart_clear_fifo(int num, int fifo)
     com[num].LSRqueued &= ~(UART_LSR_TEMT | UART_LSR_THRE);
     com[num].tx_buf_start = 0;		/* Start of xmit FIFO queue */
     com[num].tx_buf_end = 0;		/* End of xmit FIFO queue */
-    com[num].tx_buf_bytes = 0;		/* Number of bytes in xmit FIFO */
     com[num].tx_trigger = 0;            /* Transmit intr already occured */
     com[num].tx_overflow = 0;		/* Not in overflow state */
     com[num].int_condition &= ~TX_INTR;	/* Clear TX int condition */
@@ -462,7 +459,7 @@ static int get_rx(int num)
      * buffer is bigger) for compatibility purposes.  Note, that the 
      * following code is optimized for speed rather than compactness.
      */
-    com[num].rx_fifo_bytes = com[num].rx_buf_bytes;
+    com[num].rx_fifo_bytes = RX_BUF_BYTES(num);
     if (com[num].rx_fifo_bytes > com[num].rx_fifo_size)
 	      com[num].rx_fifo_bytes = com[num].rx_fifo_size;
      
@@ -471,7 +468,6 @@ static int get_rx(int num)
 
     val = com[num].rx_buf[com[num].rx_buf_start];	/* Get byte */
     com[num].rx_buf_start++;
-    com[num].rx_buf_bytes--;		/* Bytes waiting in rcv queue */
     com[num].rx_fifo_bytes--;		/* Emulated 16-byte limitation */
  
     /* Did the FIFO become "empty" right now? */
@@ -491,7 +487,7 @@ static int get_rx(int num)
     else if ((com[num].IIR & UART_IIR_ID) == UART_IIR_RDI) {
       
       /* Did the FIFO drop below the trigger level? */
-      if (com[num].rx_buf_bytes < com[num].rx_fifo_trigger) {
+      if (RX_BUF_BYTES(num) < com[num].rx_fifo_trigger) {
         com[num].int_condition &= ~RX_INTR;	/* Clear receive condition */
 
         /* DANG_FIXTHIS Is this safe to put this here? */
@@ -511,12 +507,11 @@ static int get_rx(int num)
   /* Get byte from internal receive queue */
   val = com[num].rx_buf[com[num].rx_buf_start];
   /* Update receive queue pointer and number of chars waiting */
-  if (com[num].rx_buf_bytes) {
+  if (RX_BUF_BYTES(num)) {
     com[num].rx_buf_start++;
-    com[num].rx_buf_bytes--;
   }
   com[num].int_condition &= ~RX_INTR;
-  if (!com[num].rx_buf_bytes) {
+  if (!RX_BUF_BYTES(num)) {
     /* Clear data waiting status and interrupt condition flag */
     com[num].LSR &= ~UART_LSR_DR;
     com[num].LSRqueued &= ~UART_LSR_DR;
@@ -646,7 +641,7 @@ static void put_tx(int num, int val)
     if (com[num].fifo_enable) {		/* Is it in FIFO mode? */
     
       /* Is the FIFO full? */
-      if (com[num].rx_buf_bytes >= com[num].rx_fifo_size) {
+      if (RX_BUF_BYTES(num) >= com[num].rx_fifo_size) {
         if(s3_printf) s_printf("SER%d: Func put_tx loopback overrun requesting LS_INTR\n",num);
         com[num].LSR |= UART_LSR_OE;		/* Indicate overrun error */
         com[num].LSRqueued |= UART_LSR_OE;	/* Update queued LSR bits */
@@ -657,14 +652,13 @@ static void put_tx(int num, int val)
         /* Put char into recv FIFO */
         com[num].rx_buf[com[num].rx_buf_end] = val;
         com[num].rx_buf_end++;
-        com[num].rx_buf_bytes++;
-        com[num].rx_fifo_bytes = com[num].rx_buf_bytes;
+        com[num].rx_fifo_bytes = RX_BUF_BYTES(num);
 
 	/* If the buffer touches the top, slide chars to bottom of buffer */
         if ((com[num].rx_buf_end - 1) >= RX_BUFFER_SIZE) rx_buffer_slide(num);
         
         /* Is it the past the receive FIFO trigger level? */
-        if (com[num].rx_buf_bytes >= com[num].rx_fifo_trigger) {
+        if (RX_BUF_BYTES(num) >= com[num].rx_fifo_trigger) {
           com[num].rx_timeout = 0;
           com[num].LSRqueued |= UART_LSR_DR;	/* Flag Data Ready bit */
           if(s3_printf) s_printf("SER%d: Func put_tx loopback requesting RX_INTR\n",num);
@@ -694,7 +688,7 @@ static void put_tx(int num, int val)
   /* Else, not in loopback mode */
   
   if (com[num].fifo_enable) {			/* Is FIFO enabled? */
-    if (com[num].tx_buf_bytes >= TX_BUFFER_SIZE) {	/* Is FIFO already full? */
+    if (TX_BUF_BYTES(num) >= TX_BUFFER_SIZE) {	/* Is FIFO already full? */
       /* try to write the character directly to the tty, hoping it
        * will be queued there. Hmmm... */
       rtrn = RPT_SYSCALL(write(com[num].fd,&com[num].tx_buf[com[num].tx_buf_start],1));
@@ -714,7 +708,6 @@ static void put_tx(int num, int val)
     else {					/* FIFO not full */
       com[num].tx_buf[com[num].tx_buf_end] = val;  /* Put char into FIFO */
       com[num].tx_buf_end = (com[num].tx_buf_end +1) % TX_BUFFER_SIZE;
-      com[num].tx_buf_bytes++;
     } 
   } 
   else { 				/* Not in FIFO mode */
@@ -728,7 +721,7 @@ static void put_tx(int num, int val)
 #endif
   }
   if (!com[num].fifo_enable ||
-       com[num].tx_buf_bytes >= (TX_BUFFER_SIZE-1)) 	/* Is FIFO full? */
+       TX_BUF_BYTES(num) >= (TX_BUFFER_SIZE-1)) 	/* Is FIFO full? */
       com[num].LSR &= ~UART_LSR_THRE;		/* THR full */
 
   transmit_engine(num);
