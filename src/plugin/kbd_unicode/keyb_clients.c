@@ -100,6 +100,9 @@ static void paste_run(void)
 
 static struct keyboard_client *keyb_clients[] =
 {
+#ifdef SDL_SUPPORT
+	&Keyboard_SDL,
+#endif
 #ifdef X_SUPPORT
 	&Keyboard_X,
 #endif
