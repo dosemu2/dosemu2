@@ -20,10 +20,8 @@
 #include "keymaps.h"
 #include "keyb_clients.h"
 #include "keynum.h"
+#include "getfd.h"
 
-static int is_a_console(int);
-static int open_a_console(char *);
-static int getfd(void);
 static int read_kbd_table(struct keytable_entry *);
 
 
@@ -2098,43 +2096,6 @@ struct keytable_entry keytable_list[] = {
   {0},
   {0}
 };
-
-
-/*
- * Look for a console. This is based on code in getfd.c from the kbd-0.99 package
- * (see loadkeys(1)).
- */
-
-static int is_a_console(int fd)
-{
-  char arg = 0;
-
-  return ioctl(fd, KDGKBTYPE, &arg) == 0 && (arg == KB_101 || arg == KB_84);
-}
-
-static int open_a_console(char *fnam)
-{
-  int fd;
-
-  fd = open(fnam, O_RDONLY);
-  if(fd < 0 && errno == EACCES) fd = open(fnam, O_WRONLY);
-  if(fd < 0 || ! is_a_console(fd)) return -1;
-
-  return fd;
-}
-
-static int getfd()
-{
-  int fd, i;
-  char *t[] = { "", "", "", "/dev/tty", "/dev/tty0", "/dev/console" };
-  
-  for(i = 0; i < sizeof t / sizeof *t; i++) {
-    if(!*t[i] && is_a_console(i)) return i;
-    if(*t[i] && (fd = open_a_console(t[i])) >= 0) return fd;
-  }
-
-  return -1;
-}
 
 #if 0
 static char* pretty_keysym(t_keysym d)

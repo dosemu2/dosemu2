@@ -21,7 +21,7 @@ endif
 
 CFILES:=dosemu_keys.c keynum.c
 
-CFILES := serv_xlat.c serv_backend.c serv_8042.c keymaps.c keyb_raw.c \
+CFILES := serv_xlat.c serv_backend.c serv_8042.c keymaps.c keyb_raw.c getfd.c \
           keyb_clients.c prestroke.c $(X_CFILES) keyb_none.c keyboard.c \
           $(CFILES)
 
