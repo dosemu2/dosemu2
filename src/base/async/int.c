@@ -1049,7 +1049,6 @@ Return: nothing
         r_printf("RTC: set alarm to %02d:%02d:%02d\n",h,m,s);  /* BIN! */
         /* This has been VERIFIED on an AMI BIOS -- AV */
         SET_CMOS(CMOS_STATUSB, stb|0x20);
-        clear_bit (PIC_IRQ8, &pic1_imr);
         NOCARRY;
       }
       UNLOCK_CMOS;

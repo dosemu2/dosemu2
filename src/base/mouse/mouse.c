@@ -1882,7 +1882,6 @@ void dosemu_mouse_reset(void)
   if (mice->intdrv) {
     pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, NULL);
     pic_unmaski(PIC_IMOUSE);
-    clear_bit (PIC_IMOUSE, &pic1_imr);
     SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
   }
 

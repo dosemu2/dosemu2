@@ -90,7 +90,7 @@ EXTERN unsigned int pic_icount;       /* iret counter (to avoid filling stack) *
 EXTERN unsigned long pic_irqall INIT(0xfffe);       /* bits for all IRQs set. */
 
 EXTERN unsigned long pic0_imr INIT(0xf800);  /* interrupt mask register, pic0 */
-EXTERN unsigned long pic1_imr INIT(0x06f8);         /* interrupt mask register, pic1 */
+EXTERN unsigned long pic1_imr INIT(0x0670);         /* interrupt mask register, pic1 */
 EXTERN unsigned long pic_imr INIT(0xfff8);          /* interrupt mask register */
 EXTERN unsigned long pice_imr INIT(-1);         /* interrupt mask register, dos emulator */  
 EXTERN unsigned int pic_stack[32];     /* list of active irqd */
