@@ -83,68 +83,9 @@ static void restore_ems_frame(void)
     DPMI_CLIENT.ems_frame_mapped = 0;
 }
 
-static int old_dos_terminate(struct sigcontext_struct *scp)
-{
-    REG(cs)  = DPMI_CLIENT.CURRENT_PSP;
-    REG(eip) = 0x100;
-    if (in_win31) {
-	int i;
-	unsigned short parent_seg;
-	unsigned short parent_off;
-#if 0	
-	/* is seems that winos2 uses a PSP that not allocate via dos, */
-	/* so we can\'t let dos to free it. just restore some DOS int */
-	/* vectors and return. */
-
-	/* restore terminate address address */
-	((unsigned long *)0)[0x22] =
-	             *(unsigned long *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa);
-	/* restore Ctrl-Break address */
-	((unsigned long *)0)[0x23] =
-	             *(unsigned long *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xe);
-	/* restore critical error  address */
-	((unsigned long *)0)[0x24] =
-	             *(unsigned long *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x12);
-#endif
-	/*DTA_over_1MB = 0;*/
-	parent_off = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa);
-	parent_seg = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2);
-#if 0
-	return 1;
-#else	
-
-#if 1	
-        /* find the code selector */
-	for (i=0; i < MAX_SELECTORS; i++)
-	    if (Segments[i].used &&
-		(Segments[i].type & MODIFY_LDT_CONTENTS_CODE) &&
-		(Segments[i].base_addr == (unsigned long)(parent_seg << 4)) &&
-		(Segments[i].limit > parent_off))
-		break;
-	if (i>=MAX_SELECTORS) {
-	    error("DPMI: WARNING !!! invalid terminate address found in PSP\n");
-	    return 1;
-	} else
-	    _cs = (i << 3)|7;
-	_eip = parent_off;
-#endif	
-	/* set parent\'s PSP to itself, so dos won\'t free memory */
-	/* I believe winkernel puts the selector of parent psp there */
-	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16) = DPMI_CLIENT.CURRENT_PSP;
-	
-	/* put our return address there */
-	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa) =
-	     DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + 0x21;
-	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2) = DPMI_SEG;
-	return 0;
-#endif	
-    }
-    return 0;
-}
-
 /* DOS selector is a selector whose base address is less than 0xffff0 */
 /* and para. aligned.                                                 */
-static int inline in_dos_space(unsigned short sel, unsigned long off)
+static int in_dos_space(unsigned short sel, unsigned long off)
 {
     unsigned long base = Segments[sel >> 3].base_addr;
 
@@ -157,6 +98,56 @@ static int inline in_dos_space(unsigned short sel, unsigned long off)
       return 0;
     } else
       return 1;
+}
+
+static void old_dos_terminate(struct sigcontext_struct *scp, int i)
+{
+    unsigned short psp_seg_sel;
+    unsigned char *ptr;
+
+    D_printf("DPMI: old_dos_terminate, int=%#x\n", i);
+
+    REG(cs)  = DPMI_CLIENT.CURRENT_PSP;
+    REG(eip) = 0x100;
+
+#if 0
+    _eip = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa);
+    _cs = ConvertSegmentToCodeDescriptor(
+      *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2));
+#endif
+
+    /* put our return address there */
+    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa) =
+	     DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
+    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2) = DPMI_SEG;
+
+    psp_seg_sel = *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16);
+    ptr = (char *)SEG2LINEAR(psp_seg_sel);
+    if (ptr[0] != 0xCD || ptr[1] != 0x20) {
+	unsigned short psp_seg = DPMI_CLIENT.CURRENT_PSP;
+	D_printf("DPMI: Trying PSP sel=%#x, V=%i, d=%i, l=%#lx\n",
+	    psp_seg_sel, ValidAndUsedSelector(psp_seg_sel),
+	    in_dos_space(psp_seg_sel, 0), GetSegmentLimit(psp_seg_sel));
+	if (ValidAndUsedSelector(psp_seg_sel) && in_dos_space(psp_seg_sel, 0) &&
+		GetSegmentLimit(psp_seg_sel) >= 0xff) {
+	    ptr = (char *)GetSegmentBaseAddress(psp_seg_sel);
+	    D_printf("DPMI: Trying PSP sel=%#x, addr=%p\n", psp_seg_sel, ptr);
+	    if ((!(((int)ptr) & 0x0f)) && ptr[0] == 0xCD && ptr[1] == 0x20) {
+		psp_seg = ((int)ptr) >> 4;
+	        D_printf("DPMI: parent PSP sel=%#x, seg=%#x\n",
+		    psp_seg_sel, psp_seg);
+	    }
+	} else {
+	    D_printf("DPMI: using current PSP as parent!\n");
+	}
+	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16) = psp_seg;
+    } else {
+	D_printf("DPMI: parent PSP seg=%#x\n", psp_seg_sel);
+    }
+
+    /* And update our PSP pointer */
+    DPMI_CLIENT.CURRENT_PSP =
+	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x16);
 }
 
 /*
@@ -253,7 +244,8 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	INT15_SAVED_REGS = *scp;
 	return 0;
     case 0x20:			/* DOS terminate */
-	return old_dos_terminate(scp);
+	old_dos_terminate(scp, intr);
+	return 0;
     case 0x21:
 	if (in_dos_21) 
 	dbug_printf("DPMI: int21 AX=%#04x called recursively "
@@ -347,7 +339,9 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    in_dos_21++;
 	    return 0;
 	case 0x00:		/* DOS terminate */
-	    return old_dos_terminate(scp);
+	    old_dos_terminate(scp, intr);
+	    in_dos_21++;
+	    return 0;
 	case 0x09:		/* Print String */
 	    {
 		int i;
@@ -872,13 +866,6 @@ void msdos_post_extender(int intr)
     case 0x21:
 	in_dos_21--;
 	switch (S_HI(ax)) {
-	case 0x00:
-	    in_dos_21++;
-	    /* restore terminate address */
- 	    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa) = S_LWORD(eip);
-	    *(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0xa+2) =
- 		 GetSegmentBaseAddress(S_REG(cs))>>4;
-	    break;
 	case 0x09:		/* print String */
 	case 0x1a:		/* set DTA */
 	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
@@ -1585,8 +1572,9 @@ int msdos_fault(struct sigcontext_struct *scp)
     unsigned long len;
 
     D_printf("DPMI: msdos_fault, err=%#lx\n",_err);
-
     if ((_err & 0xffff) == 0) {	/*  not a selector error */
+    /* Why should we "fix" the NULL dereferences? */
+#if 0
 	char fixed = 0;
 	unsigned char * csp;
 
@@ -1663,6 +1651,9 @@ int msdos_fault(struct sigcontext_struct *scp)
 	    break;
 	}
 	return fixed;
+#else
+	return 0;
+#endif
     }
     
     /* now it is a invalid selector error, try to fix it if it is */
