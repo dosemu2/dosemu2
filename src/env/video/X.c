@@ -2965,9 +2965,11 @@ void X_redraw_text_screen()
   x_msg("X_redraw_text_screen: all\n");
 
   if(vga.reconfig.display || vga.reconfig.mem) {
-    if(vga.reconfig.display)
+    if(vga.reconfig.display) {
+      vga.reconfig.display = 0;
       X_resize_text_screen();
-    vga.reconfig.display = vga.reconfig.mem = 0;
+    }
+    vga.reconfig.mem = 0;
     co = vga.text_width;
     li = vga.text_height;
   }
