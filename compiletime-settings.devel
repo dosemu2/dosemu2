@@ -9,7 +9,7 @@ config {
   linkstatic off
   cpuemu off
   aspi on
-  svgalib on
+  svgalib off
   gpm on
   plugin_kbd_unicode on
   plugin_extra_charsets on
