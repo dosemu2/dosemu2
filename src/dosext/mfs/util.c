@@ -34,15 +34,10 @@ static void valid_initialise(void)
 unsigned char unicode_to_dos_table[0x10000];
 static void init_unicode_to_dos_table(void)
 {
-  static int initialized;
-
   struct char_set_state dos_state;
   unsigned char *dest;
   t_unicode symbol;
   int result;
-
-  if (initialized) return;
-  initialized = 1;
 
   dest = unicode_to_dos_table;
 
@@ -57,6 +52,29 @@ static void init_unicode_to_dos_table(void)
       error("BUG: Internal multibyte character sets can't happen\n");
     if (result != 1 || *dest == '?')
       *dest = '_';
+    cleanup_charset_state(&dos_state);
+    dest++;
+  }
+}
+
+unsigned short dos_to_unicode_table[0x100];
+static void init_dos_to_unicode_table(void)
+{
+  struct char_set_state dos_state;
+  unsigned short *dest;
+  int i;
+  t_unicode symbol;
+  int result;
+
+  dest = dos_to_unicode_table;
+
+  for (i = 0; i < 0x100; i++) {
+    unsigned char ch = i;
+    init_charset_state(&dos_state, trconfig.dos_charset);
+    result = charset_to_unicode(&dos_state, &symbol, &ch, 1);
+    *dest = symbol;
+    if (result != 1)
+      *dest = '?';
     cleanup_charset_state(&dos_state);
     dest++;
   }
@@ -88,6 +106,7 @@ void init_all_DOS_tables(void)
 {
   valid_initialise();
   init_unicode_to_dos_table();
+  init_dos_to_unicode_table();
   init_upperDOS_table();
 }
 

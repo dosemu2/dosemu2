@@ -177,6 +177,7 @@ TODO:
 #include <sys/param.h>
 #include <stdlib.h>
 #include <utime.h>
+#include <wchar.h>
 
 #if !DOSEMU
 #include <mach/message.h>
@@ -198,9 +199,6 @@ TODO:
 #include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
-#endif
-#ifdef HAVE_UNICODE_TRANSLATION
-#include "translate.h"
 #endif
 #endif
 
@@ -1713,12 +1711,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
   char ch;
 
 #ifdef HAVE_UNICODE_TRANSLATION
-  struct char_set_state dos_state;
   mbstate_t unix_state;
-
-  struct char_set *dos_charset = trconfig.dos_charset;
-  
-  init_charset_state(&dos_state, dos_charset);
   memset(&unix_state, 0, sizeof unix_state);
 #endif
 
@@ -1747,10 +1740,8 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
       ch = tolowerDOS(ch);
 #else
     if (ch != EOS) {
-      t_unicode symbol;
       size_t result;
-      result = charset_to_unicode(&dos_state, &symbol, &ch, 1);
-      if (result == -1) symbol = '?';
+      wchar_t symbol = dos_to_unicode_table[(unsigned char)ch];
       if (lowercase)
         symbol = towlower(symbol);
       result = wcrtomb(&ufs[ufs_offset], symbol, &unix_state);
@@ -1764,9 +1755,6 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
   } while(ch != EOS);
 
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
-#ifdef HAVE_UNICODE_TRANSLATION
-  cleanup_charset_state(&dos_state);
-#endif
 }
 
 int build_ufs_path_(char *ufs, const char *path, int drive, int lowercase)

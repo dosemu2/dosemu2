@@ -71,6 +71,7 @@ extern BOOL check_mangled_stack(char *s, char *MangledMap);
 /* prototypes, found in util.c */
 void init_all_DOS_tables(void);
 extern unsigned char unicode_to_dos_table[0x10000];
+extern unsigned short dos_to_unicode_table[0x100];
 extern unsigned char upperDOS_table[0x100];
 
 BOOL isupperDOS(int c);
