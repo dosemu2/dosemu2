@@ -31,7 +31,7 @@ dos telnet client to telnet to your own machine!
 
 <sect1>Full Details
 <p>
-Detailed original description of Vinod G Kulkarni 
+Modified description of Vinod G Kulkarni 
 <htmlurl url="mailto:vinod@cse.iitb.ernet.in" name="&lt;vinod@cse.iitb.ernet.in&gt;">
 <p>
           Allowing a program to have its own network protocol stacks. 
@@ -110,12 +110,6 @@ the actual stacks which run as user programs.
        address, with a new IP network number. And You have to set up 
        proper routing tables on all machines you want to connect to. 
        So linux side interface is easy to set up.
-<p>
-       <em/Note:/ Some 3 kernel symbols are used by the module, which are not
-       exported by kernel/ksyms.c in the kernel code. You could either
-       add these symbols there, or use Hans' improved 'insmod'  (part of 
-       syscall Manager package). (In that case, it will resolve the
-       symbols from the zSystem.map file.
 <p>
        This device is assigned a virtual ethernet address, defined in
        dosnet.h.  
@@ -209,88 +203,14 @@ the actual stacks which run as user programs.
           in type handler table... how to reduce?
 </enum>
 
-<sect2>Conclusion ..
+<sect2>Conclusion
 <p>
 So at last one can open multiple DOSEMU's and access network
 from each of them ...  However, you HAVE TO set up ROUTING TABLES
 etc.
 
-
 Vinod G Kulkarni 
 <htmlurl url="mailto:vinod@cse.iitb.ernet.in" name="&lt;vinod@cse.iitb.ernet.in&gt;">
-
-<tscreen><verb>
-	From macleajb@ednet.ns.ca Mon Oct 10 06:16:35 1994
-	Return-Path: &lt;macleajb@ednet.ns.ca&gt;
-	
-	At any rate, I compiled dosnet.c with :
-	cc -o dosnet.o  -D__KERNEL__ -DLINUX -O6 dosnet.c -c
-	but insmod declares:
-	_eth_type_trans undefined
-	_eth_header undefined
-	_eth_rebuild_header undefined
-
-</verb></tscreen>
-
-&lsqb; Note from JES : If you wish, you may use Hans ../syscallmgr/insmod
-  with the -m flag instead of patching the kernel as elluded below &rsqb;
-<p>
-I forgot to mention this: The kernel sources need to be patched
-slightly. (This is happening with any new loadable module these days ;-)
-Here is what you need to do:  The only file that gets affected is
-kernel/ksyms.c in the linux sources:
-
-<tscreen><verb>
-*** ksyms.c.old	Mon Oct 10 11:12:01 1994
---- ksyms.c	Mon Oct 10 11:13:31 1994
-***************
-*** 28,33 ****
---- 28,39 ----
-  #include &lt;linux/serial.h&gt;
-  #ifdef CONFIG_INET
-  #include &lt;linux/netdevice.h&gt;
-+ extern unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev);
-+ extern int eth_header(unsigned char *buff, struct device *dev, unsigned
-+               short type, void *daddr, void *saddr, unsigned len, struct
-+               sk_buff *skb);
-+ extern int eth_rebuild_header(void *buff, struct device *dev, unsigned long
-+               dst, struct sk_buff *skb);
-  #endif
-  
-  #include &lt;asm/irq.h&gt;
-***************
-*** 183,188 ****
---- 189,197 ----
-  	X(dev_rint),
-  	X(dev_tint),
-  	X(irq2dev_map),
-+         X(eth_type_trans),
-+         X(eth_header),
-+         X(eth_rebuild_header),
-  #endif
-  
-  	/********************************************************
-</verb></tscreen>
-
-After this, recompile the kernel. You should compile with "IP FORWARD" 
-config option enabled (for allowing routing).
-With this kernel, 'insmod dosnet' will work. After this step, 
-'cat /proc/net/dev' should show this device.
-<p>
-After this it is admin stuff:
-<p>
-I run these commands: 144.16.112.1 is "special" address. 'dsn0' is the
-new interface name.
-<tscreen><verb>
-ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
-route add -net 144.16.112.0 dsn0
-</verb></tscreen>
-
-Compile dosemu with  new pktnew.c and libpacket.c sources (to be put in
-net directory.) Start dosemu. You could start 'telbin 144.16.112.1' 
-after assigning IP address (say 144.16.112.10) for the dosemu in CONFIG.TEL 
-file. Each dosemu should get a new IP address. 
-
 
 <sect3>Telnetting to other Systems
 <p>

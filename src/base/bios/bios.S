@@ -186,19 +186,21 @@ mouse_handler:
 	iret
 
 /* ----------------------------------------------------------------- */   
-	/* NOTE:
-	 * This part currently is overwritten by Vinod's pkt_init()
-	 * because the current address layout depends on "struct pkt_globs"
-	 * I guess, Vinod is the man to actually integrate this stuff.
-	 * ( Vinod ? ).
-	 * So, this is only to be taken as template or example !
-	 */
+	/* the packet driver */
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:3100 (F3100) */
 
 #define PKTDRV_VECTOR 0x60
 
 	.globl	CISH(PKTDRV_signature)
+	.globl	CISH(PKTDRV_size)
+	.globl	CISH(PKTDRV_handle)
+	.globl	CISH(PKTDRV_receiver)
+	.globl	CISH(PKTDRV_buf)
+	.globl	CISH(PKTDRV_helper)
+	.globl	CISH(PKTDRV_driver_name)
+	.globl	CISH(PKTDRV_param)
+	.globl	CISH(PKTDRV_stats)
 CISH(PKTDRV_signature):
 	jmp	PKTDRV_start
 	nop
@@ -207,14 +209,23 @@ CISH(PKTDRV_signature):
 PKTDRV_start:
 	int	PKTDRV_VECTOR
 	retf	#2
-	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF+0x50
-	.ascii	"Linux$\0\0"
-	dw	12	/* type */
-PKTDRV_size: dw	0
-PKTDRV_receiver: dd	0
-	dd	PKTDRV_VECTOR+1 /* helpvec */
 
-PKTDRV_helper:
+CISH(PKTDRV_driver_name):
+	.ascii	"Linux$\0\0"
+CISH(PKTDRV_size):	dw	0
+CISH(PKTDRV_handle):	dw	0
+CISH(PKTDRV_receiver): dd	0
+
+	/* parameter packet, filled in by pkt_init */
+CISH(PKTDRV_param):
+	db	0,0,0,0
+	dw	0,0,0,0,0
+	/* driver statistics structure */
+CISH(PKTDRV_stats):
+	dd	0,0,0,0,0,0,0
+
+	/* helper routine to transfer received packets and call receiver */
+CISH(PKTDRV_helper):
 	pusha
 	push	ds
 	push	es
@@ -222,9 +233,13 @@ PKTDRV_helper:
 	mov	cx,PKTDRV_size
 	jcxz	PKTDRV_nothing
 	xor	ax,ax
+	CSEG
+	mov	bx,PKTDRV_handle
 	push	cx
+	push	bx
 	CSEG
 	call	far [PKTDRV_receiver]
+	pop	bx
 	pop	cx
 	mov	ax,es
 	or	ax,di
@@ -257,8 +272,8 @@ PKTDRV_nothing:
 	popa
 	iret
 
-	.org ((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF+0x1c4  /* 0x62c4 */
-PKTDRV_buf:
+	.align	16
+CISH(PKTDRV_buf):
 
 /* ----------------------------------------------------------------- */
 

@@ -11,13 +11,17 @@
  *
  *     Also added support for multiple handles, and checking the
  *     actual type passed to access_type.  This means other protocols
- *     than Novell 802.3 are now supported.  Don't try to run TCP/IP
- *     over this packet driver, unless you understand what you are
- *     doing, though...
+ *     than Novell 802.3 are now supported.
  *
  *     21/05/97 Gloriano Frisoni (gfrisoni@hi-net.it)
  *              Now we can run tcp/ip stuff (netscape eudora etc) in
  *              "dosemu windoze".  See README.winnet.
+ *
+ *     - merged the virtual net code with the original code
+ *     - integrated asm helper routine into bios.S
+ *     - removed most of the global data from the DOS address space
+ *                                    Marcus.Better@abc.se
+ *
  */
 
 #include <features.h>
@@ -36,6 +40,8 @@
 #else
 #include <linux/if_ether.h>
 #endif
+#include "libpacket.h"
+#include "dosnet.h"
 
 /* flag to activate use of pic by packet driver */
 #if 0
@@ -46,9 +52,6 @@
 #endif
 
 #define min(a,b)	((a) < (b)? (a) : (b))
-
-#include "libpacket.h"
-#include "dosnet.h"
 
 static int Open_sockets(void);
 static int Insert_Type(int, int, char *);
@@ -62,33 +65,29 @@ static int pktdrvr_installed;
 /* array used by virtual net to keep track of packet types */
 #define MAX_PKT_TYPE_SIZE 10
 struct pkt_type {
-    int handle, no_of_chars;
+    int handle;
+    int pkt_type_len;
     char pkt_type[MAX_PKT_TYPE_SIZE];
     int count;       /* To sort the array based on counts of packet type */
 } pkt_type_array[MAX_HANDLE]; 
 int max_pkt_type_array=0;
 
-/* global data which is put at PKTDRV_SEG:PKTDRV_OFF */
-/* (not everything needs to be accessible from DOS space, but it is */
-/* often convenient to be able to look at it with DEBUG...) */
+#define PKT_BUF_SIZE (ETH_FRAME_LEN+32)
+
+/* flags from config file, for pkt_globs.flags */
+#define FLAG_NOVELL 0x01                /* Novell 802.3 <-> 8137 translation */
+
+/* global data common to all interfaces (there is only one interface
+   for the moment...) */
 struct pkt_globs
 {
-    unsigned char signature[20];	/* entry point + signature */
     unsigned char classes[4];		/* supported classes */
     unsigned char hw_address[8];	/* our hardware address */
-    struct pkt_param param;		/* parameters */
-    struct pkt_statistics stats;	/* counters */
-    int flags;				/* global flags */
-#define N_OPTION	0x01		/* Novell 802.3 <-> 8137 translation */
-    char driver_name[8];		/* fixed string: driver name */
     short type;				/* our type */
-    short size;				/* current packet's size */
-    long receiver;			/* current receive handler */
-    int thishandle;			/* the handle for this sucker */
+    int flags;				/* configuration flags */
     int helpvec;			/* vector number for helper */
     int nfds;				/* number of fd's for select() */
     fd_set sockset;			/* set of sockets for select() */
-    unsigned char helper[72];		/* upcall helper */
 
     struct per_handle
     {
@@ -100,140 +99,93 @@ struct pkt_globs
 	long receiver;			/* receive handler */
 	char packet_type[16];		/* packet type for this handle */
     } handle[MAX_HANDLE];          
-
-    char buf[ETH_FRAME_LEN + 32];	/* packet buffer */
-};
+} pg;
 
 static char devname[10] = "eth0";   /* linux device name */
 
-static struct pkt_globs *pg = NULL;
+/* various declarations for interfacing with the packet driver code in
+   bios.S */
+
+extern void bios_f000();
+extern void PKTDRV_size();
+extern void PKTDRV_handle();
+extern void PKTDRV_receiver();
+extern void PKTDRV_buf();
+extern void PKTDRV_helper();
+extern void PKTDRV_signature();
+extern void PKTDRV_driver_name();
+extern void PKTDRV_param();
+extern void PKTDRV_stats();
+
+/* creates a pointer into the BIOS from the asm exported labels */
+#define MK_PTR(ofs) ( (void *)((long)(ofs)-(long)bios_f000+(BIOSSEG << 4)) )
+
+/* calculates offset of a label from the start of the packet driver */
+#define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_signature)
+
+#define pkt_buf ((char *)MK_PTR(PKTDRV_buf))
+
+short *p_helper_size;
+long *p_helper_receiver;
+short *p_helper_handle;
+struct pkt_param *p_param;
+struct pkt_statistics *p_stats;
+
+/************************************************************************/
 
 /* initialize the packet driver interface (called at startup) */
 void
-pkt_init (int vec)
+pkt_init(int vec)
 {
-    register unsigned char *ptr;
-
     /* initialize the globals */
 
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
+    p_helper_size = MK_PTR(PKTDRV_size);
+    p_helper_receiver = MK_PTR(PKTDRV_receiver);
+    p_helper_handle = MK_PTR(PKTDRV_handle);
+    p_param = MK_PTR(PKTDRV_param);
+    p_stats = MK_PTR(PKTDRV_stats);
+
     /* use dosnet device (dsn0) for virtual net */
-    if (config.vnet)
+    if (config.vnet) {
 	strcpy(devname, DOSNET_DEVICE);
-    
-    /* VINOD: Added to receive all packets from dosnet device. These packets 
-       are of special type and are reconverted into broadcast packets 
-       proper after being received by dosemu. */
-    if (config.vnet)
 	if (Open_sockets() < 0)
 	    goto fail;
+    }
 
-    pg = (struct pkt_globs *) PKTDRV_ADD;
-
-    memset(pg,0,sizeof(struct pkt_globs));
-
-    /* init the interrupt vector and signature */
-
-    SETIVEC(vec,PKTDRV_SEG,PKTDRV_OFF + offsetof(struct pkt_globs,signature));
-    ptr = pg->signature;
-
-    *ptr++ = 0xeb;			/* JMP $+10, NOP, PKT DRVR */
-    *ptr++ = 0x0a;
-    *ptr++ = 0x90;
-    strcpy(ptr,"PKT DRVR");	        /* signature */
-    ptr += 9;
-    *ptr++ = 0xcd;			/* 0xcd = INT */
-    *ptr++ = vec;
-    *ptr++ = 0xca;			/* 0xca = RETF xx */
-    *ptr++ = 2;
+    /* init the interrupt vector */
+    SETIVEC(vec, PKTDRV_SEG, PKTDRV_OFF);
 
     /* fill other global data */
 
-    strcpy(pg->driver_name,"Linux$");
-    GetDeviceHardwareAddress(devname, pg->hw_address);
-    pg->classes[0] = ETHER_CLASS;  /* == 1. */
-    pg->classes[1] = IEEE_CLASS;   /* == 11. */
-    pg->type = 12;			/* dummy type (3c503) */
-    pg->flags = config.pktflags;	/* global config flags */
+    GetDeviceHardwareAddress(devname, pg.hw_address);
+    pg.classes[0] = ETHER_CLASS;  /* == 1. */
+    pg.classes[1] = IEEE_CLASS;   /* == 11. */
+    pg.type = 12;			/* dummy type (3c503) */
+    pg.flags = config.pktflags;	/* global config flags */
 
-    pg->param.major_rev = 9;		/* pkt driver spec */
-    pg->param.minor_rev = 1;
-    pg->param.length = sizeof(struct pkt_param);
-    pg->param.addr_len = ETH_ALEN;
-    pg->param.mtu = GetDeviceMTU(devname);
-    pg->param.rcv_bufs = 8 - 1;		/* a guess */
-    pg->param.xmt_bufs = 2 - 1;
+    p_param->major_rev = 9;		/* pkt driver spec */
+    p_param->minor_rev = 1;
+    p_param->length = sizeof(struct pkt_param);
+    p_param->addr_len = ETH_ALEN;
+    p_param->mtu = GetDeviceMTU(devname);
+    p_param->rcv_bufs = 8 - 1;		/* a guess */
+    p_param->xmt_bufs = 2 - 1;
 
-    /* helper routine to transfer received packets and call receiver */
-
-    pg->helpvec = vec + 1;		/* use this for helper vec */
-    SETIVEC(pg->helpvec, PKTDRV_SEG, 
-	    PKTDRV_OFF + offsetof(struct pkt_globs,helper));
-    ptr = pg->helper;
-
-    *ptr++ = 0x60;			/* pusha */
-    *ptr++ = 0x1e;			/* push ds */
-    *ptr++ = 0x06;			/* push es */
-    *ptr++ = 0x2e; *ptr++ = 0x8b; *ptr++ = 0x0e; /* mov cx,cs:[pg->size] */
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) & 0xff;
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) >> 8;
-    *ptr++ = 0xe3; *ptr++ = 0x38;	/* jcxz nothing */
-    *ptr++ = 0x31; *ptr++ = 0xc0;	/* xor ax,ax */
-    *ptr++ = 0x2e; *ptr++ = 0x8b; *ptr++=0x1e; /* mov bx,cs:[pg->thishandle] */
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs, thishandle)) & 0xff;
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs, thishandle)) >> 8;
-    *ptr++ = 0x51;			/* push cx */
-    *ptr++ = 0x53;			/* push bx */
-    *ptr++ = 0x2e; *ptr++ = 0xff; *ptr++ = 0x1e; /* call cs:[pg->receiver] */
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) & 0xff;
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) >> 8;
-    *ptr++ = 0x5b;			/* pop bx */
-    *ptr++ = 0x59;			/* pop cx */
-    *ptr++ = 0x8c; *ptr++ = 0xc0;	/* mov ax,es */
-    *ptr++ = 0x09; *ptr++ = 0xf8;	/* or ax,di */
-    *ptr++ = 0x74; *ptr++ = 0x1b;	/* jz norecv */
-    *ptr++ = 0x0e;			/* push cs */
-    *ptr++ = 0x1f;			/* pop ds */
-    *ptr++ = 0xbe;			/* mov si,pg->buf */
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,buf)) & 0xff;
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,buf)) >> 8;
-    *ptr++ = 0x57;			/* push di */
-    *ptr++ = 0x51;			/* push cx */
-    *ptr++ = 0xfc;			/* cld */
-    *ptr++ = 0xd1; *ptr++ = 0xe9;	/* shr cx,1 */
-    *ptr++ = 0xf3; *ptr++ = 0xa5;	/* rep movsw */
-    *ptr++ = 0x73; *ptr++ = 0x01;	/* jnc nobyte */
-    *ptr++ = 0xa4;			/* movsb */
-    *ptr++ = 0x59;			/* nobyte: pop cx */
-    *ptr++ = 0x5e;			/* pop si */
-    *ptr++ = 0x06;			/* push es */
-    *ptr++ = 0x1f;			/* pop ds */
-    *ptr++ = 0xb8;			/* mov ax,1 */
-    *ptr++ = 0x01; *ptr++ = 0x00;
-    *ptr++ = 0x2e; *ptr++ = 0xff; *ptr++ = 0x1e; /* call cs:[pg->receiver] */
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) & 0xff;
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) >> 8;
-    *ptr++ = 0x2e; *ptr++ = 0xc7; *ptr++ = 0x06; /* norecv: mov cs:[pg->size],0 */
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) & 0xff;
-    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) >> 8;
-    *ptr++ = 0x00; *ptr++ = 0x00;
-    *ptr++ = 0x07;			/* nothing: pop es */
-    *ptr++ = 0x1f;			/* pop ds */
-    *ptr++ = 0x61;			/* popa */
-    *ptr   = 0xcf;			/* iret */
+    pg.helpvec = vec + 1;		/* use this for helper vec */
+    SETIVEC(pg.helpvec, BIOSSEG, (long)PKTDRV_helper-(long)bios_f000);
     return;
 
 fail:
     /* Erase the packet driver signature */
-    memset(pg->signature+3, 0, 8);
+    memset(MK_PTR(PKTDRV_signature)+3, 0, 8);
     pktdrvr_installed = 0;
 }
 
 /* this is the handler for INT calls from DOS to the packet driver */
 int
 pkt_int (void)
-
 {
     struct per_handle *hdlp;
     int hdlp_handle=-1;
@@ -261,7 +213,7 @@ pkt_int (void)
      */
 
     if ((LWORD(ebx) < MAX_HANDLE)) {
-	hdlp = &pg->handle[LWORD(ebx)];
+	hdlp = &pg.handle[LWORD(ebx)];
         hdlp_handle=LWORD(ebx);
     }
     else
@@ -283,20 +235,20 @@ pkt_int (void)
 	if (hdlp_handle !=0 && hdlp != NULL && hdlp->in_use)
 	    REG(ecx) = (hdlp->class << 8) + 1;	/* class, number */
 	else
-	    REG(ecx) = (pg->classes[0] << 8) + 1;
-	REG(edx) = pg->type;			/* type (dummy) */
+	    REG(ecx) = (pg.classes[0] << 8) + 1;
+	REG(edx) = pg.type;			/* type (dummy) */
 	REG(ds) = PKTDRV_SEG;			/* driver name */
-	REG(esi) = PKTDRV_OFF + offsetof(struct pkt_globs,driver_name);
-        pd_printf("Class returned = %ld, handle=%d, pg->classes[0]=%d \n", 
-                         REG(ecx)>>8, hdlp_handle, pg->classes[0] );
+	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_driver_name);
+        pd_printf("Class returned = %ld, handle=%d, pg.classes[0]=%d \n", 
+		  REG(ecx)>>8, hdlp_handle, pg.classes[0] );
 	return 1;
 
     case F_ACCESS_TYPE:
-	if (strchr(pg->classes,LO(ax)) == NULL) { /* check if_class */
+	if (strchr(pg.classes,LO(ax)) == NULL) { /* check if_class */
 	    HI(dx) = E_NO_CLASS;
 	    break;
 	}
-	if (LWORD(ebx) != 0xffff && LWORD(ebx) != pg->type) { 
+	if (LWORD(ebx) != 0xffff && LWORD(ebx) != pg.type) { 
             /* check if_type */
 	    HI(dx) = E_NO_TYPE;
 	    break;
@@ -305,7 +257,7 @@ pkt_int (void)
 	    HI(dx) = E_NO_NUMBER;
 	    break;
 	}
-	if (LWORD(ecx) > sizeof(pg->handle[0].packet_type)) { /* check len */
+	if (LWORD(ecx) > sizeof(pg.handle[0].packet_type)) { /* check len */
 	    HI(dx) = E_BAD_TYPE;
 	    break;
 	}
@@ -322,7 +274,7 @@ pkt_int (void)
 		handle = 0;			/* else search from 1st */
 
 	    for (; handle < MAX_HANDLE; handle++) {
-		hdlp = &pg->handle[handle];
+		hdlp = &pg.handle[handle];
 
 		if (hdlp->in_use) {
 		    if (hdlp->class == LO(ax) && /* same class? */
@@ -346,7 +298,7 @@ pkt_int (void)
 		break;
 	    }
 
-	    hdlp = &pg->handle[free_handle];
+	    hdlp = &pg.handle[free_handle];
 	    memset(hdlp, 0, sizeof(struct per_handle));
 	    hdlp->in_use = 1;
 	    hdlp->receiver = (LWORD(es) << 16) | LWORD(edi);
@@ -369,9 +321,9 @@ pkt_int (void)
 
 		    case ETH_P_IPX:
 			if (hdlp->packet_type_len == 2 &&
-			    (pg->flags & N_OPTION)) /* Novell hack? */
+			    (pg.flags & FLAG_NOVELL))
 			{
-			    hdlp->flags |= N_OPTION;
+			    hdlp->flags |= FLAG_NOVELL;
 			    hdlp->packet_type[0] = hdlp->packet_type[1] = 0xff;
 			    hdlp->class = IEEE_CLASS;
 			    type = ETH_P_802_3;
@@ -392,10 +344,10 @@ pkt_int (void)
 		    break;
 		}
 
-		FD_SET(hdlp->sock, &pg->sockset); /* keep track of sockets */
+		FD_SET(hdlp->sock, &pg.sockset); /* keep track of sockets */
 		add_to_io_select(hdlp->sock, 1);
-		if (hdlp->sock >= pg->nfds)
-		    pg->nfds = hdlp->sock + 1;
+		if (hdlp->sock >= pg.nfds)
+		    pg.nfds = hdlp->sock + 1;
 	    }
 	    REG(eax) = free_handle;		/* return the handle */
 	}
@@ -414,14 +366,14 @@ pkt_int (void)
 		int i, n;
 		
 		CloseNetworkLink(hdlp->sock);      /* close the socket */
-		FD_CLR(hdlp->sock, &pg->sockset);  /* keep track of sockets */
+		FD_CLR(hdlp->sock, &pg.sockset);  /* keep track of sockets */
 		remove_from_io_select(hdlp->sock, 1);
-		n = pg->nfds;
-		pg->nfds = 0;
+		n = pg.nfds;
+		pg.nfds = 0;
 
 		for (i = 0; i < n; i++)
-		    if (FD_ISSET(i,&pg->sockset))
-			pg->nfds = i + 1;
+		    if (FD_ISSET(i,&pg.sockset))
+			pg.nfds = i + 1;
 	    }
 	}
 	if (hdlp->in_use)
@@ -434,14 +386,14 @@ pkt_int (void)
 	/* find a handle which is in use, and use its socket for the send */
 	int handle, socket;
 
-	pg->stats.packets_out++;
-	pg->stats.bytes_out += LWORD(ecx);
+	p_stats->packets_out++;
+	p_stats->bytes_out += LWORD(ecx);
 
 	for (handle = 0; handle < MAX_HANDLE; handle++) {
-	    hdlp = &pg->handle[handle];
+	    hdlp = &pg.handle[handle];
 
 	    if (hdlp->in_use) {
-		if (pg->flags & N_OPTION)	/* Novell hack? */
+		if (pg.flags & FLAG_NOVELL)	/* Novell hack? */
 		{
 		    char *p;
 		    short len;
@@ -462,8 +414,6 @@ pkt_int (void)
 			p[1] = (char)len;
 		    }
 		}
-		/* TODO: For dosnet, we need to check if it is broadcast, 
-		   and if so, use the corresponding socket. ??? */
 		if (config.vnet)
 		    socket = pkt_fd;
 		else
@@ -490,7 +440,7 @@ pkt_int (void)
 	    }
 	}
 	
-	pg->stats.errors_out++;
+	p_stats->errors_out++;
 	HI(dx) = E_CANT_SEND;
     }
     break;
@@ -509,7 +459,7 @@ pkt_int (void)
 	    break;
 	}
 	REG(ecx) = ETH_ALEN;
-	memcpy(SEG_ADR((char *),es,di),pg->hw_address,ETH_ALEN);
+	memcpy(SEG_ADR((char *),es,di), pg.hw_address, ETH_ALEN);
 	return 1;
 
     case F_RESET_IFACE:
@@ -522,7 +472,7 @@ pkt_int (void)
 
     case F_GET_PARAMS:
 	REG(es) = PKTDRV_SEG;
-	REG(edi) = PKTDRV_OFF + offsetof(struct pkt_globs,param);
+	REG(edi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_param);
 	return 1;
 
     case F_SET_RCV_MODE:
@@ -550,7 +500,7 @@ pkt_int (void)
 	    break;
 	}
 	REG(ds) = PKTDRV_SEG;
-	REG(esi) = PKTDRV_OFF + offsetof(struct pkt_globs,stats);
+	REG(esi) = PKTDRV_OFF + MK_PKT_OFS(PKTDRV_stats);
 	return 1;
 
     default:
@@ -572,50 +522,55 @@ pkt_int (void)
     return 1;
 }
 
-/* This handle is inserted to receive packets of type "dosnet broadcast". 
-   These are really speaking broadcast packets meant to be received by
-   all dosemus. Their destination addresses are changed by dosemu, and
-   are changed back to 'ffffff..' when these packets are received by dosemu. 
-*/
+/* Open two sockets for the virtual network, one for normal packets
+   and one for broadcasts. */
 static int
 Open_sockets(void)
 {
-    pkt_broadcast_fd = OpenBroadcastNetworkType(); /* open the socket */
+   /* This handle is inserted to receive packets of type "dosnet broadcast". 
+      These are really speaking broadcast packets meant to be received by
+      all dosemus. Their destination addresses are changed by dosemu, and
+      are changed back to 'ffffff..' when these packets are received by dosemu.    */
+    pkt_broadcast_fd = OpenBroadcastNetworkType();
     if (pkt_broadcast_fd < 0)
 	return pkt_broadcast_fd;
+
+    /* The socket for normal packets */
     pkt_fd = OpenNetworkType((u_short)0);
     if (pkt_fd < 0)
 	return pkt_fd;
+
     max_pkt_fd = pkt_fd + 1;
     if (max_pkt_fd <= pkt_broadcast_fd) 
 	max_pkt_fd = pkt_broadcast_fd + 1; 
     return 0;    
 }
 
+/* register a new packet type */
 static int 
-Insert_Type(int handle, int no_of_chars, char *pkt_type)
+Insert_Type(int handle, int pkt_type_len, char *pkt_type)
 {
     int i, nchars;
-    if(no_of_chars > MAX_PKT_TYPE_SIZE) return -1;
+    if(pkt_type_len > MAX_PKT_TYPE_SIZE) return -1;
     if (max_pkt_type_array >= MAX_HANDLE) return -1;
     
-    pd_printf("Trying to insert: handle %d, no_of_chars=%d\n ",
-	      handle, no_of_chars);
+    pd_printf("Trying to insert: handle %d, pkt_type_len=%d\n ",
+	      handle, pkt_type_len);
 
     /* Find if the type or handle is already present */
     for(i=0; i < max_pkt_type_array; i++) {
-	nchars = pkt_type_array[i].no_of_chars;
+	nchars = pkt_type_array[i].pkt_type_len;
 	if ((pkt_type_array[i].handle == handle) ||
 	    ((nchars > 1) 
 	     && !memcmp(&pkt_type_array[i].pkt_type, pkt_type, nchars)))
 	    return  -1;
     }
-    pkt_type_array[max_pkt_type_array].no_of_chars = no_of_chars;
+    pkt_type_array[max_pkt_type_array].pkt_type_len = pkt_type_len;
     pkt_type_array[max_pkt_type_array].handle = handle;
     pkt_type_array[max_pkt_type_array].count = 0;
     memcpy(&pkt_type_array[max_pkt_type_array].pkt_type, 
-	   pkt_type, no_of_chars);
-    for(i=0; i<no_of_chars; i++) 
+	   pkt_type, pkt_type_len);
+    for(i=0; i<pkt_type_len; i++) 
 	pd_printf(" --%.2x--", pkt_type_array[max_pkt_type_array].pkt_type[i]);
     pd_printf("\n");
     pd_printf("Succeeded: inserted at %d\n", max_pkt_type_array);
@@ -653,8 +608,7 @@ pkt_check_receive(int timeout)
     fd_set readset;
     char device[32];
 
-    if (pg == NULL)				/* packet driver intialized? */
-    {
+    if (!pktdrvr_installed) {
         pd_printf("Driver not initialized ...\n");
 	return -1;
     }
@@ -666,12 +620,12 @@ pkt_check_receive(int timeout)
     **
     ** Gloriano 
     */
-    if (pg->size != 0)				/* transfer area busy? */
+    if (*p_helper_size != 0)			/* transfer area busy? */
     {
 #ifdef PICPKT
 	do_irq();
 #else
-	run_int(pg->helpvec);
+	run_int(pg.helpvec);
 #endif
 	pd_printf("Called the helpvector... (after failure)\n");
 	return 1;
@@ -696,9 +650,9 @@ pkt_check_receive(int timeout)
 	    fd = pkt_broadcast_fd;
 	else return 0;
 
-	size = ReadFromNetwork(fd, device, pg->buf, sizeof(pg->buf));
+	size = ReadFromNetwork(fd, device, pkt_buf, PKT_BUF_SIZE);
 	if (size < 0) {
-	    pg->stats.errors_in++;		/* select() somehow lied */
+	    p_stats->errors_in++;		/* select() somehow lied */
 	    return 0;
 	}
 	if (strcmp(device, devname)) {
@@ -707,25 +661,25 @@ pkt_check_receive(int timeout)
 	}
    
 	pd_printf("========Processing New packet======\n");
-	handle = Find_Handle(pg->buf);
+	handle = Find_Handle(pkt_buf);
 	if (handle == -1) 
 	    return -1;
 	pd_printf("Found handle %d\n", handle);
 
-	hdlp = &pg->handle[handle];
+	hdlp = &pg.handle[handle];
 	if (hdlp->in_use) {
-	    printbuf("received packet:", (struct ethhdr *)pg->buf); 
+	    printbuf("received packet:", (struct ethhdr *)pkt_buf); 
 
             /* VINOD: If it is broadcast type, translate it back ... */
-	    if (memcmp(pg->buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {    
+	    if (memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
 		pd_printf("It is a broadcast packet\n");
-		if(memcmp(pg->buf+ETH_ALEN, pg->hw_address, ETH_ALEN) == 0) {
+		if(memcmp(pkt_buf + ETH_ALEN, pg.hw_address, ETH_ALEN) == 0) {
 		    /* Ignore our own ethernet broadcast. */
 		    pd_printf("It was my own packet, ignored\n"); 
 		    return 0;
 		}
-		memcpy(pg->buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
-		printbuf("Translated:", (struct ethhdr *)pg->buf); 
+		memcpy(pkt_buf, "\x0ff\x0ff\x0ff\x0ff\x0ff\x0ff", ETH_ALEN);
+		printbuf("Translated:", (struct ethhdr *)pkt_buf); 
 	    }
 
 	    /* No need to check the type again. Also, for now, NOVELL_HACK
@@ -736,52 +690,54 @@ pkt_check_receive(int timeout)
 		/* driver class! */
 
 		if (hdlp->class == ETHER_CLASS)
-		    p = pg->buf + 2 * ETH_ALEN;		/* Ethernet-II */
+		    p = pkt_buf + 2 * ETH_ALEN;		/* Ethernet-II */
 		else
-		    p = pg->buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
+		    p = pkt_buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
 
-		if (size >= ((p - pg->buf) + hdlp->packet_type_len) &&
+		if (size >= ((p - pkt_buf) + hdlp->packet_type_len) &&
 		    !memcmp(p,hdlp->packet_type,hdlp->packet_type_len)) {
                 }
-		if (hdlp->flags & N_OPTION) {	/* Novell hack? */
+		if (hdlp->flags & FLAG_NOVELL) {	/* Novell hack? */
 		    *--p = (char)ETH_P_IPX; /* overwrite length with type */
 		    *--p = (char)(ETH_P_IPX >> 8);
 		}
 	    }
-	    pg->stats.packets_in++;
-	    pg->stats.bytes_in += size;
+	    p_stats->packets_in++;
+	    p_stats->bytes_in += size;
 
 	    /* stuff things in global vars and queue a hardware */
 	    /* interrupt which will perform the upcall */
-	    pg->size = size;
-	    pg->receiver = hdlp->receiver;
-	    pg->thishandle = handle;
+
+	    *p_helper_size = size;
+	    *p_helper_receiver = hdlp->receiver;
+	    *p_helper_handle = handle;
 #ifdef PICPKT
 	    do_irq();
 #else
-	    run_int(pg->helpvec);
+	    run_int(pg.helpvec);
 #endif
 	    pd_printf("Called the helpvector ... \n");
 	    return 1;
-	} else
-	    pg->stats.packets_lost++;	/* not really lost... */
-	pd_printf("Handle not in use, ignored this packet\n");
-	return 0;
+	} else {
+	    p_stats->packets_lost++;	/* not really lost... */
+	    pd_printf("Handle not in use, ignored this packet\n");
+	    return 0;
+	}
     }
     else { /* !config.vnet */
-	readset = pg->sockset;
-	if (select(pg->nfds, &readset, NULL, NULL, &tv) <= 0)
+	readset = pg.sockset;
+	if (select(pg.nfds, &readset, NULL, NULL, &tv) <= 0)
 	    return 0;
 
 	for (handle = 0; handle < MAX_HANDLE; handle++) {
-	    hdlp = &pg->handle[handle];
+	    hdlp = &pg.handle[handle];
 	    
 	    if (hdlp->in_use && FD_ISSET(hdlp->sock,&readset)) {
 		/* something is available on this handle's socket */
 		/* attempt to read it. Should always succeed. */
 
 		size = ReadFromNetwork(hdlp->sock, device, 
-				       pg->buf, sizeof(pg->buf));
+				       pkt_buf, PKT_BUF_SIZE);
 
 		/* check if something has been received */
 		/* there was a check for "not multicast" here, but I think */
@@ -798,17 +754,17 @@ pkt_check_receive(int timeout)
 		    /* in the ACCESS_TYPE call.  the position depends on the */
 		    /* driver class! */
 		    if (hdlp->class == ETHER_CLASS)
-			p = pg->buf + 2 * ETH_ALEN;	/* Ethernet-II */
+			p = pkt_buf + 2 * ETH_ALEN;	/* Ethernet-II */
 		    else
-			p = pg->buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
+			p = pkt_buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
 		    
-		    if (size >= ((p - pg->buf) + hdlp->packet_type_len) &&
+		    if (size >= ((p - pkt_buf) + hdlp->packet_type_len) &&
 			!memcmp(p,hdlp->packet_type,hdlp->packet_type_len))
 		    {
-			pg->stats.packets_in++;
-			pg->stats.bytes_in += size;
+			p_stats->packets_in++;
+			p_stats->bytes_in += size;
 			
-			if (hdlp->flags & N_OPTION) {	/* Novell hack? */
+			if (hdlp->flags & FLAG_NOVELL) {
 			    /* overwrite length with type */
 			    *--p = (char)ETH_P_IPX;
 			    *--p = (char)(ETH_P_IPX >> 8);
@@ -816,18 +772,19 @@ pkt_check_receive(int timeout)
 			
 		    /* stuff things in global vars and queue a hardware */
 		    /* interrupt which will perform the upcall */
-			pg->size = size;
-			pg->receiver = hdlp->receiver;
+			*p_helper_size = size;
+			*p_helper_receiver = hdlp->receiver;
+			*p_helper_handle = handle;
 #ifdef PICPKT
 			do_irq();
 #else
-			run_int(pg->helpvec);
+			run_int(pg.helpvec);
 #endif
 			return 1;
 		    } else
-			pg->stats.packets_lost++; /* not really lost... */
+			p_stats->packets_lost++; /* not really lost... */
 		} else
-		    pg->stats.errors_in++; /* select() somehow lied */
+		    p_stats->errors_in++; /* select() somehow lied */
 	    }
 	}
 	
@@ -855,7 +812,7 @@ Find_Handle(u_char *buf)
     pd_printf("Received packet type: %.2x\n", ntohs(eth->h_proto));
 
     for(i=0; i<max_pkt_type_array; i++) {
-	nchars = pkt_type_array[i].no_of_chars;
+	nchars = pkt_type_array[i].pkt_type_len;
 	if ( /* nchars < 2 || */
 	     !memcmp(&pkt_type_array[i].pkt_type, p, nchars) )
 	    return pkt_type_array[i].handle;

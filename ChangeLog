@@ -1,3 +1,16 @@
+98/06/15 ver. 0.97.9 released
+	From Markus
+	- cleanup to dosnet code, involved files: bios.S, pktnew.c
+	  and doc/README/dosnet. Note: this code needs the the old int code.
+	- removed dosext/net/net/select_packet and its entry in
+          set-permission, dosext/net/v-net/{dosnet.h,dosnet.c.kernel-2.1.x}
+	(remark) From Hans
+	- I too had a second patch from Markus, but this one changed
+	  too much and in addition broke our (just gotten working) setup
+	  stuff. So this has to be delay until after 1.0
+	  However, I expect to get atleast a patch from Markus such that the
+	  cleaned up dosnet can run together with the new int code.
+	  (... if not, well then the old int code will be the default for 1.0)
 98/06/14 ver. 0.97.8.2 unofficial pre-release
 	From Eric
 	- x1: quicken mouse fix

@@ -137,7 +137,7 @@
 
   17.3.5. Packet driver code
 
-  17.3.6. Conclusion ..
+  17.3.6. Conclusion
 
   17.3.6.1.       Telnetting to other Systems
 
@@ -506,8 +506,8 @@
   $_X_pm_interface = (on) # use protected mode interface for VESA modes
   $_X_mgrab_key = ""      # KeySym name to activate mouse grab, empty == off
   $_X_vesamode = ""       # "xres,yres ... xres,yres"
-                          # List of vesamodes to add. The list has to
-                          # comma separated "xres,yres" pairs
+                          # List of vesamodes to add. The list has to contain
+                          # SPACE separated "xres,yres" pairs
 
   22..11..66..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
 
@@ -2213,8 +2213,8 @@
 
   1177..33..  FFuullll DDeettaaiillss
 
-  Detailed original description of Vinod G Kulkarni
-  <vinod@cse.iitb.ernet.in>
+  Modified description of Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
+
   Allowing a program to have its own network protocol stacks.
 
   Resulting in multiple dosemu's to use netware, ncsa telnet etc.
@@ -2287,12 +2287,6 @@
   with a new IP network number. And You have to set up proper routing
   tables on all machines you want to connect to.  So linux side
   interface is easy to set up.
-
-  _N_o_t_e_: Some 3 kernel symbols are used by the module, which are not
-  exported by kernel/ksyms.c in the kernel code. You could either add
-  these symbols there, or use Hans' improved 'insmod'  (part of syscall
-  Manager package). (In that case, it will resolve the symbols from the
-  zSystem.map file.
 
   This device is assigned a virtual ethernet address, defined in
   dosnet.h.
@@ -2380,76 +2374,12 @@
   4. Kernel overhead .. lots of packet types getting introduced in type
      handler table... how to reduce?
 
-  1177..33..66..  CCoonncclluussiioonn ....
+  1177..33..66..  CCoonncclluussiioonn
 
   So at last one can open multiple DOSEMU's and access network from each
   of them ...  However, you HAVE TO set up ROUTING TABLES etc.
 
   Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
-
-               From macleajb@ednet.ns.ca Mon Oct 10 06:16:35 1994
-               Return-Path: <macleajb@ednet.ns.ca>
-
-               At any rate, I compiled dosnet.c with :
-               cc -o dosnet.o  -D__KERNEL__ -DLINUX -O6 dosnet.c -c
-               but insmod declares:
-               _eth_type_trans undefined
-               _eth_header undefined
-               _eth_rebuild_header undefined
-
-  [ Note from JES : If you wish, you may use Hans ../syscallmgr/insmod
-  with the -m flag instead of patching the kernel as elluded below ]
-  I forgot to mention this: The kernel sources need to be patched
-  slightly. (This is happening with any new loadable module these days
-  ;-) Here is what you need to do:  The only file that gets affected is
-  kernel/ksyms.c in the linux sources:
-
-       *** ksyms.c.old Mon Oct 10 11:12:01 1994
-       --- ksyms.c     Mon Oct 10 11:13:31 1994
-       ***************
-       *** 28,33 ****
-       --- 28,39 ----
-         #include <linux/serial.h>
-         #ifdef CONFIG_INET
-         #include <linux/netdevice.h>
-       + extern unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev);
-       + extern int eth_header(unsigned char *buff, struct device *dev, unsigned
-       +               short type, void *daddr, void *saddr, unsigned len, struct
-       +               sk_buff *skb);
-       + extern int eth_rebuild_header(void *buff, struct device *dev, unsigned long
-       +               dst, struct sk_buff *skb);
-         #endif
-
-         #include <asm/irq.h>
-       ***************
-       *** 183,188 ****
-       --- 189,197 ----
-               X(dev_rint),
-               X(dev_tint),
-               X(irq2dev_map),
-       +         X(eth_type_trans),
-       +         X(eth_header),
-       +         X(eth_rebuild_header),
-         #endif
-
-               /********************************************************
-
-  After this, recompile the kernel. You should compile with "IP FORWARD"
-  config option enabled (for allowing routing).  With this kernel,
-  'insmod dosnet' will work. After this step,
-
-  After this it is admin stuff:
-
-  I run these commands: 144.16.112.1 is "special" address. 'dsn0' is the
-  new interface name.
-
-       ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
-       route add -net 144.16.112.0 dsn0
-
-  Compile dosemu with  new pktnew.c and libpacket.c sources (to be put
-  in net directory.) Start dosemu. You could start 'telbin 144.16.112.1'
-  after assigning IP address (say 144.16.112.10) for the dosemu in
-  CONFIG.TEL file. Each dosemu should get a new IP address.
 
   1177..33..66..11..  TTeellnneettttiinngg ttoo ootthheerr SSyysstteemmss
 
