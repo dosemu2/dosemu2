@@ -1,3 +1,9 @@
+98/10/03 ver. 0.99.1.2 unofficial pre-release
+	From Alexander R.Adams <a.r.adams@twi.tudelft.nl>
+	- Changes to 80x86 disassembler (src/arch/linux/debugger/dis8086.c)
+	  - more (full?) 32 bit support
+	  - lots more fpu ops and a couple of cpu ops
+	  - better readable output
 98/09/25 ver. 0.99.1.1 unofficial pre-release
 	From Alberto
 	- fix for >=linux-2.1.121 not having inux/head.h
