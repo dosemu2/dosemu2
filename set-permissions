@@ -10,7 +10,7 @@ chmod 644 base-configure
 chmod 755 setup-dosemu submit-bug-report gnats/send-pr gnats/send-pr.sh
 chmod 755 gnats/get-email.sh
 chmod 755 setup/compiletime_setup.sh setup/runtime_setup.sh
-chmod 755 setup/runtime_setup.tk
+chmod 755 setup/runtime_setup.tk setup/compiletime_setup.tk
 chmod 755 install-sh rebuild
 chmod 755 first-test
 chmod 755 src/arch/linux/kversion.sh src/arch/NetBSD/kversion.sh

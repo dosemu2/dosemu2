@@ -54,6 +54,17 @@ if { ![file exists $parser] } {
   exec bash -c "cd parser; make 2>&1" >@ file1
 }
 
+# source the help stuff
+source runtime_setup.help.patterns
+source browse.tk
+
+proc init_help {} {
+    global helptx helpcount readme
+    set helptx ""
+    set helpcount 0
+    readin_readme $readme helptx helpcount {^  2.2\..\. } {^  3.3\..\. }
+}
+
 # Housekeeping ...
 
 proc clean_up {} {
@@ -82,7 +93,7 @@ proc select_configuration_file {} {
   toplevel .configure -class Dialog
   positionWindow .
   positionSubWindow .configure
-  wm title .configure "DOSEmu Run-Time Configuration"
+  wm title .configure "DOSEMU Run-Time Configuration"
   label .configure.header -text "Select a file to configure:\n \
 NOTE: All comments of an existing file will be removed !!"
   pack .configure.header -fill x -padx 12
@@ -97,7 +108,7 @@ NOTE: All comments of an existing file will be removed !!"
   entry .configure.local.entry -textvariable dosemurc
   pack .configure.local.entry -side right -anchor e -fill x
 
-  wm title . "DOSEmu Run-Time Configuration - Status" 
+  wm title . "DOSEMU Run-Time Configuration - Status" 
   label .description -text "Status:" 
   label .status -text "Choose a Configuration File" -relief sunken
   pack .description .status -side left -padx 40
@@ -121,13 +132,8 @@ proc load_system {} {
     pack .status
     update idletasks
 
-    if { [ file exists $dosemuconf ] && [file size $dosemuconf] } {
-      exec $parser -t -p $dosemutemplate -u $dosemuconf | $awk -f parse-config-new -f parse-misc \
+    exec $parser -t -p $dosemutemplate -u $dosemuconf | $awk -f parse-config-new -f parse-misc \
 	-f parse-config-new-tk -v PREFIX=SYSTEM_ > $temp
-    } else {
-      exec $parser -t -p $dosemutemplate | $awk -f parse-config-new -f parse-misc \
-	-f parse-config-new-tk -v PREFIX=SYSTEM_ > $temp
-    }
     source $temp
 
   set conf_file "$dosemuconf"
@@ -138,9 +144,9 @@ proc load_system {} {
 proc load_local {} {
   global conf_type temp
   global env
-  global conf_file conf_infile dosemurc dosemutemplate
-    global awk
-    global parser
+  global conf_file conf_infile dosemurc dosemutemplate dosemuconf
+  global awk
+  global parser
 
   .status configure -text "Reading Local Configuration ..."
   pack .status
@@ -150,13 +156,10 @@ proc load_local {} {
   append conf_file "/$dosemurc"
   set conf_infile $conf_file
 
-  if { [ file exists $conf_file ] && [file size $conf_file] } {
-    exec $parser -r -t -p $dosemutemplate -u $conf_file | $awk -f parse-config-new -f parse-misc \
+  exec  $parser -r -p $dosemutemplate -u $dosemuconf | \
+	$parser -r -t -p - -u $conf_file | \
+	$awk -f parse-config-new -f parse-misc \
 	-f parse-config-new-tk -v PREFIX=SYSTEM_ > $temp
-  } else {
-    exec $parser -r -t -p $dosemutemplate | $awk -f parse-config-new -f parse-misc \
-	-f parse-config-new-tk -v PREFIX=SYSTEM_ > $temp
-  }
   source $temp
 
   set conf_type "local"
@@ -184,7 +187,13 @@ proc do_menus {} {
 }
 
 proc handle_help { help_item } {
-  display_help "Help - $help_item" "Sorry - Help is not available at the moment"
+  global helptx helpcount 
+  global hlp
+  if {[info exists hlp($help_item)]} {
+	show_readme_text helptx $helpcount $help_item $hlp($help_item)
+  } else {
+	display_help "Help - $help_item" "Sorry - Help is not available at the moment"
+  }
 }
 
 proc display_help { help_title help_text } {
@@ -329,15 +338,6 @@ proc do_Output_File {} {
 	clean_up
     }
 
-    if { [file exists $conf_file] == 0 } then {
-	# File doesn't exist.
-	if { [string compare $conf_file $dosemuconf] == 0 } then {
-	    catch { exec cp $dosemutemplate $dosemuconf }
-	} else {
-	    catch { exec echo > $conf_file }
-	}
-    }
-
     .status configure -text "Writing Results ..."
     pack .status
     update idletasks
@@ -348,30 +348,20 @@ proc do_Output_File {} {
     pack .status
     update idletasks
 
-    set option_rc ""
     if { [string compare $conf_type "local"] == 0 } {
-	set option_rc "-r"
-    }
-
-    if { [ file exists $conf_infile ] && [file size $conf_infile] } {
-	if { [file size $temp] } {
-	  catch { exec $parser -p $dosemutemplate -u $conf_infile | $parser $option_rc -u $temp -p - > ${conf_file}.tmp }
-	} else {
-	  catch { exec $parser $option_rc -p $dosemutemplate -u $conf_infile > ${conf_file}.tmp }
-	}
+	catch { exec $parser -r -p $conf_infile -u $temp > ${conf_file}.tmp }
     } else {
-	if { [file size $temp] } {
-	  catch { exec $parser $option_rc -p $dosemutemplate -u $temp > ${conf_file}.tmp }
-	} else {
-	  catch { exec $parser $option_rc -p $dosemutemplate > ${conf_file}.tmp }
-	}
+	catch { exec $parser -p $dosemutemplate -u $conf_infile | $parser -u $temp -p - > ${conf_file}.tmp }
     }
     catch { exec cp -f $conf_file ${conf_file}.old 2> /dev/null }
     catch { exec mv -f ${conf_file}.tmp $conf_file }
-
+    if { ![string compare $conf_type "local"] && ![file size $conf_infile]} {
+	catch { exec rm -f $conf_file }
+    }
     puts file1 "following changes were updated to $conf_file:"
     catch { exec cat $temp >@ file1 }
     clean_up
 }
 
+init_help
 select_configuration_file

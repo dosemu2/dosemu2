@@ -1,29 +1,32 @@
-maintitle "DOSEmu Run-Time Configuration"
+maintitle "DOSEMU Run-Time Configuration"
 
 start "Main Menu"
 
 menu "Main Menu" {
   description "Please select a setting:"
   boolean "enable experimental stuff" experimental
+  boolean "SB Emulation" sbemu
   boolean "disable VM86 enhancement" novm86plus
+  boolean "Use MIT Shared Memory extensions under X" mitshm
+  boolean "Use X-Windows" x
   boolean "enable Linux net code" net
   boolean "compile with debug info" dodebug
-  boolean "use the new port I/O code" newport
-  boolean "Use X-Windows" x
-  boolean "Use new X-code" newx
-  boolean "Use MIT Shared Memory extensions under X" mitshm
-  boolean "SB Emulation" sbemu
   boolean "force use of dosemu supplied Slang-lib" slangforce
   boolean "use monoton micro timing" tmonoton
   boolean "run as root mostly" runasroot
   boolean "make static binaries" linkstatic
+  boolean "use the new X mouse code" newxmouse
+  boolean "use the new port I/O code" newport
+  boolean "use the new CMS code" newcmos
+  boolean "use the new INT code" newint
   boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
 }
 
 menu "Configure Action" {
   description "Do What with the Configuration ?"
   list configure {
-    "Save and Run ./configure" save
+    "Save and configure / make" configure
+    "Save without running configure" save
     "Abort" abort
   }
 }

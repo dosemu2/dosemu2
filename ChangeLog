@@ -1,3 +1,30 @@
+98/06/13 ver. 0.97.8.1 unofficial pre-release
+	From Alistair
+	- Tcl/Tk adaption for compiletime stuff in setup-dosemu
+	From Hans
+	- fixed .dosemurc stuff/changes in runtime_setup.tk not being relative
+          to global settings (yes Alistair, it was me who messed it up ;-)
+	  Also, when resulting in an empty .dosemurc, we delete it
+	  (else src/base/init/parser.y can't cope with it)
+	- changed setup/parser/parser.y such that it can cope with
+	  non-existing/empty files.
+	- temp. disabled 'Debugging' submenu until it realy works
+	- added browser.tk, which is sourced by both, compiletime & runtime
+	  This contains functions to popup a brows window and to
+	  show Help.
+	- wrote the Tk wrapper menu (setup-dosemu can only handle dialog)
+	- added Help to runtime-setu via viewing the appropriate part
+	  of chapter 2 of README.txt
+	- fix a bug in compiletime_setup.tk not using the proper file for
+	  default-configure (configure went berserk)
+	- added to compiletime_setup.tk:
+	  - forced 'make pristine' before doing configure, if Makefile.conf
+	    exists (too dangerous to change settings without it)
+	  - display of ./configure results in a window
+	  - asking for 'compile' and running make, result in a window too 
+	  - help is now working
+	- Changed 'DOSEmu' to 'DOSEMU', as this (all capitals) is the official
+	  form of writing it ;-)
 98/05/31 ver. 0.97.8 released
 	From Alistair (+ Hans)
 	- new Tcl/Tk based runtime setup. We cuurently only support that

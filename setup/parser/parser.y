@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdarg.h>
 
@@ -261,10 +262,23 @@ USAGE:
 	exit(1);
 }
 
+static int filesize(char *name)
+{
+	struct stat s;
+	if (stat(name, &s)) return -1;
+	return (int)s.st_size;
+}
+
+static int valid_file(char *name)
+{
+	return ((name[0] == '-') || (filesize(name) > 0));
+}
+
 int main(int argc, char **argv)
 {
-	int ret;
+	int ret = 0;
 	int stdin_in_use = 0;
+	int valid_parsedfile;
 	char c;
 #if YYDEBUG != 0
 	extern int yydebug;
@@ -283,8 +297,8 @@ int main(int argc, char **argv)
 	}
 
 	if (!parsedfile) usage();
-	if (updatefile) {
-		updatemode = 1;
+	valid_parsedfile = valid_file(parsedfile);
+	if (updatefile && valid_file(updatefile)) {
 		activefile = updatefile;
 		if (updatefile[0] == '-') {
 			yyin = stdin;
@@ -296,15 +310,16 @@ int main(int argc, char **argv)
 			fprintf(stderr, "cannot open file %s\n", updatefile);
 			exit(1);
 		}
+		if (valid_parsedfile) updatemode = 1;
 		ret = yyparse();
 		if (yyin != stdin) fclose(yyin);
 		if (ret) {
 			yyerror("finished parsing updates with %d errors\n", errors);
 			exit(ret);
 		}
-		updatemode = 2;
+		if (valid_parsedfile) updatemode = 2;
 	}
-	{
+	if (valid_parsedfile) {
 		activefile = parsedfile;
 		if (parsedfile[0] == '-') {
 			if (stdin_in_use) {

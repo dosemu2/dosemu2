@@ -1,4 +1,4 @@
-maintitle "DOSEmu Run-Time Configuration"
+maintitle "DOSEMU Run-Time Configuration"
 
 start "Main Menu"
 
@@ -217,7 +217,7 @@ menu "Video Type" {
 menu "Booting" {
   description "Select the boot item to configure:"
   
-  boolean "Show DOSEmu banner" dosbanner
+  boolean "Show DOSEMU banner" dosbanner
   text "Boot Drive:"
   list boot {
     "A: Drive" A

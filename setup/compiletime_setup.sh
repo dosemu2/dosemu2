@@ -141,7 +141,7 @@ write_out() {
   echo "   ... type ENTER to return to menu"
   read
 
-  $DIALOG --backtitle "DOSEmu Compile-Time Configuration" \
+  $DIALOG --backtitle "DOSEMU Compile-Time Configuration" \
     --infobox "Writing Configuration ..." 3 50 2> /dev/null
 
   cp -f $CONF_FILE ${CONF_FILE}~ 2> /dev/null
@@ -153,7 +153,7 @@ write_out() {
 }
 
 load_menus() {
-  $DIALOG --backtitle "DOSEmu Compile-Time Configuration" \
+  $DIALOG --backtitle "DOSEMU Compile-Time Configuration" \
     --infobox "Building Menus ..." 3 50 2> /dev/null
 
   # Create the menus

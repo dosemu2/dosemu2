@@ -1,0 +1,141 @@
+This file describes the compiletime tunable settings for DOSEMU
+
+You have either to edit the ./compiletime-settings file or use the
+the setup-dosemu tool. If you edit manually, you _must_ not remove any
+of the lines, instead just change 'off' to 'on' and vice versa.
+
+The options have the following meaning:
+
+experimental	"enable experimental stuff"
+
+		Global switch to prevent experimental stuff from compile.
+		There are experimental parts in the source, that may do harm to
+		your system if you use them without care / knowledge.
+		In order to protect you, those are normally disbaled
+		in ./base-configure. Even if you enable discrete switches
+		in ./compiletime-settings, those will not have effect
+		without the global switch also set.
+
+sbemu		"SB Emulation"
+
+		Code to support sound via DOSEMU. The sound code emulates
+		a simple SoundBlaster on any sound card supported by the
+		Linux Kernel. Hence, your DOS-Box sees a SoundBlaster
+		even if you don't have it. Keep that in mind
+		when you setup your DOSish software.
+		Note: the code is ALPHA and may not work on all systems.
+
+novm86plus	"disable VM86 enhancement"
+
+		Set this switch, if you have a _really_ old Linux kernel
+		and don't want to upgrade. At time of writing this, this
+		switch is fairly obsolete and should always be off.
+
+mitshm		"Use MIT Shared Memory extensions under X"
+
+		You normal would like to have this activated, though you
+		will not profit from it, when doing remote X.
+		If you encounter problems with your X-server, try to switch
+		this off.
+
+x		"Use X-Windows"
+
+		With this set on, you enable the X-windows support of DOSEMU.
+		Though, the compiled binary will run without X too.
+		If you don't have The X development packages install or
+		if you won't use it and want a smaller DOSEMU binary,
+		then turn this option off.
+
+net		"enable Linux net code"
+
+		There is network related code in DOSEMU such as IPX support,
+		a builtin packet driver, e.t.c. This will be compiled in
+		if you set this switch. You may compile with this option
+		and later disable it in the runtime configuration.
+		Normally you will let it enabled.
+
+
+dodebug		"compile with debug info"
+
+		This uses the '-g' switch for GCC, hence you can use GDB
+		to debug DOSEMU.
+
+slangforce	"force use of dosemu supplied Slang-lib"
+
+		If you set this switch off, DOSEMU tries to compile with
+		your system supplied Slang library. Do this with care,
+		because DOSEMU is tested against its supplied version
+		and may have problems in terminal mode if your Slanglib
+		isn't suiteable. Normal this switch is enabled per default.
+
+tmonoton	"use monoton micro timing"
+
+		To emulate the timer chip of the PC is a very difficult
+		thing, because DOSEMU doesn't own the CPU completely.
+		DOS application, however, _do_ expect this. As a work around
+		we have two strategies:
+			a) keep the time mostly correct
+			b) keep the timer values strict monoton, such that
+			   never the same value is delivered.
+			   ( which results in not so correct absolute time )
+		With this switch you enable strategie b)
+
+runasroot	"run as root mostly"
+
+		DOSEMU is suid root, but when started from a user account
+		it normally tries to drop root priviledges as soon as
+		possible and only switches them temporary on.
+		With this switch set on, it does the invers, dropping
+		only priviledges when accessing security relevant parts.
+		You _realy_ should not set this switch, as DOSEMU now is
+		qite correct in handling priviledges.
+		If you have a DOS application, that needs this switch,
+		then please report to the DOSEMU team, such that we can
+		fix the priviledge handling.
+
+linkstatic	"make static binaries"
+
+		With this switch on, a statically linked binary is generated
+		The size isn't that big (about 30% bigger then a dynamically
+		linked one) and DOSEMU will run faster and is more portable
+		between systems (it then depends only on the kernel
+		version, no (g)libc incompatibilities). The official DOSEMU
+		binary distribution always is statically linked.
+
+newxmouse	"use the new X mouse code"
+
+		This code has some enhancents to the mouse handling
+		under X (mouse grabbing, better absolute positioning, e.t.c.)
+		If you encounter problems with it on your X-server,
+		only then set this switch off.
+
+newport		"use the new port I/O code" on
+
+		The new port code is more generic, though together with
+		some (seldom) DOS drivers, that access hardware directly
+		it encounters problems (we did not yet track that down).
+		Normally you should enable this switch though.
+
+newcmos		"use the new CMS code"
+
+		This handles the access to the PC CMOS memory, they old
+		code missed some handling, so in principal the new one
+		should be better. Though, if you have a DOS application
+		that can only run with some of the old kludges, then
+		you may set this switch off.
+
+newint		"use the new INT code"
+
+		The new interrupt code hooks at different places as the
+		old one and shows different dynamic behave.
+		Currently it isn't yet consider to be stable enough for
+		production, hence better you let it be disbaled.
+		However, if you want help to get it stable, don't hesitate
+		to enable it, it doesn't harm to your machine anyway.
+
+cpuemu		"EXPERIMENTAL, enable CPU emulator" cpuemu
+
+		This is in _no_ case ready for production, this switch is
+		here just for the developers ;-)
+
+

@@ -6,11 +6,11 @@
 if hash wish >/dev/null 2>&1; then
   if [ "$DISPLAY" != "" ]; then
     echo "
-*** NOTE: setup-dosemu currently is only able to handle runtime setup
+*** NOTE: setup-dosemu currently is only able to handle setup
 ***       via TclTk. Fortunately you have that installed ;-)
 "
     cd setup
-    exec ./runtime_setup.tk
+    exec ./setup.tk
   fi
 fi
 

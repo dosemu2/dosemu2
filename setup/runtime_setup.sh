@@ -51,7 +51,7 @@ select_configuration_file() {
   fi
 
 
-  $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
+  $DIALOG --backtitle "DOSEMU Run-Time Configuration" \
     --title "Select Configuration File" \
     --menu "Choose the Configuration File to read" 8 60 2 $CURRENT \
       1 "System Wide (/etc/dosemu.conf)" \
@@ -82,7 +82,7 @@ get_defaults() {
     SYSTEM_FILE=/etc/dosemu.conf
   fi
 
-  $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
+  $DIALOG --backtitle "DOSEMU Run-Time Configuration" \
     --infobox "Reading System Wide Configuration ..." 3 50 2> /dev/null
 
   $AWK -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' -v PREFIX=SYSTEM_ $SYSTEM_FILE > $TEMP
@@ -90,7 +90,7 @@ get_defaults() {
   
   if [ $TYPE = local -a -e $CONF_FILE ]
   then
-    $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
+    $DIALOG --backtitle "DOSEMU Run-Time Configuration" \
       --infobox "Reading Local Configuration ..." 3 50 2> /dev/null
 
     $AWK -f 'parse-config' -f 'parse-misc' -f 'parse-config-sh' -v PREFIX=LOCAL_ $CONF_FILE > $TEMP
@@ -676,7 +676,7 @@ write_out() {
  
   echo "}" >> $TEMP
 
-  $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
+  $DIALOG --backtitle "DOSEMU Run-Time Configuration" \
     --infobox "Writing Configuration ..." 3 50 2> /dev/null
 
   cp $CONF_FILE ${CONF_FILE}.old
@@ -689,7 +689,7 @@ MainMenu_End() {
 }
 
 load_menus() {
-  $DIALOG --backtitle "DOSEmu Run-Time Configuration" \
+  $DIALOG --backtitle "DOSEMU Run-Time Configuration" \
     --infobox "Building Menus ..." 3 50 2> /dev/null
 
   # Create the menus

@@ -1,10 +1,10 @@
-maintitle "DOSEmu Run-Time Configuration"
+maintitle "DOSEMU Run-Time Configuration"
 
 start "Main Menu"
 
 menu "Main Menu" {
   description "Please select an Area to Configure"
-  submenu "Debugging Information"
+  temp_disabled_submenu  "Debugging Information"
   submenu "Keyboard"
   submenu "Serial Ports & Mice"
   submenu "Printing"
@@ -311,8 +311,8 @@ menu "Security settings" {
 boolean "Allow normal users" secure_normal
 boolean "Allow guest users" secure_guest
 boolean "Allow DEXEs" secure_dexe
-string "Don't allow DOSEmu to be run from these hosts" odd_hosts
-string "Don't allow DOSEmu to run on these hosts" diskless_hosts
+string "Don't allow DOSEMU to be run from these hosts" odd_hosts
+string "Don't allow DOSEMU to run on these hosts" diskless_hosts
 }
 
 menu "Output File" {

@@ -148,7 +148,7 @@ function write_menu_menu_footer () {
     print "button .frame_" frame_name(menu_name) ".footer.exit -text \"Ok\" -command { destroy .frame_" frame_name(menu_name) "; if {[string length [ info commands " menu_name"_exit ]] > 0 } { " menu_name "_exit } }"
   }
 
-  print "button .frame_" frame_name(menu_name) ".footer.help -text \"Help\" -command { handle_help menu_name }"
+  print "button .frame_" frame_name(menu_name) ".footer.help -text \"Help\" -command { handle_help {" menu_name"} }"
 
   print "pack configure .frame_" frame_name(menu_name) ".footer.exit .frame_" frame_name(menu_name) ".footer.help -fill x -side left -padx 5"
 }
