@@ -20,9 +20,6 @@
 #include <asm/page.h>
 #include <fcntl.h>
 #include <unistd.h>
-/* man says _GNU_SOURCE must be defined to get MREMAP_MAYMOVE definition. */
-/* However contrary to what man says, __USE_GNU must be defined for that. */
-#define __USE_GNU
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
 #include <errno.h>
 #include "emu.h"
