@@ -21,7 +21,8 @@ html:   $(HTML)
 tex:    $(TEX)
 
 $(TXT): %.txt: %.sgml
-	sgml2txt 2>/dev/null $<
+#	sgml2txt 2>/dev/null $<
+	sgml2txt $<
 
 $(TEX): %.tex: %.sgml
 	sgml2latex $<

@@ -67,7 +67,7 @@ keybint=on/off modes.
 Almost everything seems to work well now.
 <p>
 The keyboard server should now quite accurately emulate all key combinations
-described the 'MAKE CODES' & 'SCAN CODES' tables of HelpPC 2.1, which I
+described the `MAKE CODES' & `SCAN CODES' tables of HelpPC 2.1, which I
 used as a reference.
 <p>
 See below for a list of known bugs.
@@ -125,7 +125,7 @@ to DOS. The two sides communicate only through the queue.
 Each queue entry holds a data structure corresponding to (mostly)
 one keypress or release event. &lsqb;The exception are the braindead
 0xe02a / 0xe0aa shift key emulation codes the keyboard processor
-'decorates' some kinds of keyboard events with, which for convenience
+`decorates' some kinds of keyboard events with, which for convenience
 are treated as seperate events.&rsqb;
 <p>
 Each queue entry holds a up to 4 bytes of raw keycodes for the
@@ -176,7 +176,7 @@ Accordingly, the keyboard code is largely divided into two parts,
 
 
 --------->  data flow (&amp;calls, sometimes)
-.........>  calls
+,,,,,,,,,>  calls
 
 </verb></tscreen>
 
@@ -207,7 +207,7 @@ putkey, and putkey_shift.
 
 <sect4>putkey & others
 <p>
-   ...to be documented.
+   ,,,to be documented.
 
 
 <sect2>The Back End

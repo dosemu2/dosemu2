@@ -18,7 +18,7 @@ Linux and, more worth, you need not to fiddle with installation, because
 the implementor already has done this for you.
 
 On the other hand, you may create your own *.dexe files using the script
-'mkdexe'. For this to run however you need at least mtools-3.6 because
+`mkdexe'. For this to run however you need at least mtools-3.6 because
 this versions has options that older versions don't have.
 
 In detail you need the following to make a *.dexe:
@@ -97,8 +97,8 @@ Here is what ./mkdexe will print as help, when called without argument:
                               DOSEMU usage (replacement for hdimage.dist)
 </verb></tscreen>
 
-If you want to change the builtin configuration file, you may use
-./src/tools/periph/dexeconfig to extract/re-insert the configuration.
+If you want to change the builtin configuration file, you may
+use ./src/tools/periph/dexeconfig to extract/re-insert the configuration.
 
 <tscreen><verb>
   # dexeconfig -x configfile dexefile
@@ -122,7 +122,7 @@ so that DOSEMU will open this file read/write anyway.
 This means: The user cannot delete or replace the DEXE, but the imbedded
 DOS-application can (totally isolated) write to DOS files within the
 DEXE (complicated, isn't it?). To set such a permission, you (again) need
-'dexeconfig':
+`dexeconfig':
 
 <tscreen><verb>
   # dexeconfig -p W dexefile
@@ -215,7 +215,7 @@ Given you have a bootable DOS-partition in /dev/hda1, then this ...
   # ./mkdexe myhdimage -b /dev/hda1 -o noapp
 </verb></tscreen>
 
-... will generate a direct bootable 'myhdimage' from your existing DOS
+will generate a direct bootable 'myhdimage' from your existing DOS
 installation. You need not to make a boot floppy, nor need you to fiddle
 with fdisk /MBR and sys.com any more. Using -o confirm you may also
 edit the configuration files before they are put onto the hdimage.

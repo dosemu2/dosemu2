@@ -42,6 +42,13 @@ do
         (cd setup; ./compiletime_setup.sh)
 	;;
       2)
+# we changed /etc/dosemu.conf
+# as long as those changes aren't reflected, we disable it
+# -- Hans 970115
+echo "Sorry, this one is currently not working"
+FINISHED=1
+rm $TEMP
+exit 1
         (cd setup; ./runtime_setup.sh)
         ;;
       3)

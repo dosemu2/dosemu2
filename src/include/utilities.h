@@ -17,8 +17,6 @@ static __inline__ int power_of_2_sqrt(int val)
 		bsrl	%2,%0
 	" : "=r" (res) : "0" ((int)-1), "r" (val) );
 	if (res <0) return 0;
-        res = ((res + 1) & ~1);
-	if ((1 << res) > val) res -= 2;
 	return 1 << (res >> 1);
 }
 

@@ -1,3 +1,14 @@
+########### NOTE:                                               ##########
+########### settings for older DOSEMUs ( < parser version 3)    ##########
+########### ( this part is subject to disappear in the future ) ##########
+
+ifdef parser_version_3
+  abort '
+**** Your are running the wrong dosemu.conf
+**** This one is only for older DOSEMUs < version 0.97.0.1
+'
+endif
+
 #--------------------------------------------------------------------------
 # Linux dosemu 0.66 configuration file.
 #

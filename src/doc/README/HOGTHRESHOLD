@@ -38,7 +38,7 @@ DOSEMU eating too much CPU time it's worth playing with the HogThreshold value.
      just stop if it is waiting for a keystroke ?
 </tag>
 The reason is the way how DOS and a lot of applications have implemented
-'waiting for a keystroke'.
+`waiting for a keystroke'.
 <p>
 It's most often done by something similar to the following code fragment :
 
@@ -80,11 +80,16 @@ anyway :-).
 <tag>
 How do I found out about CPU usage of DOSEMU ?
 </tag>
-Simply use 'top'. It displays cpu and memory usage.
+Simply use `top'. It displays cpu and memory usage.
 </descrip>
 
 P.S.  If you want to change the HogThreshold value during execution,
-simply call int e6h w/al=12h & bx=the new value.
+simply call
+<tscreen><verb>
+ mov al,12h
+ mov bx,the_new_value
+ int e6h
+</verb></tscreen>
 This is what speed.com does. If you are interested, please take a look
 at speed.c.
 <p>

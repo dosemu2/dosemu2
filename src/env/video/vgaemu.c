@@ -564,7 +564,7 @@ unsigned char* vga_emu_init(void)
   io_device.handler_name = "VGAemu Graph";
   io_device.start_addr = GRAPHICS_BASE;
   io_device.end_addr = GRAPHICS_DATA;
-  port_register_handler(&io_device, 0);
+  port_register_handler(io_device, 0);
 #endif
 
   vesa_init();

@@ -1,4 +1,16 @@
 %{
+
+#define YY_NO_UNPUT		1
+#define USE_LOOP_HANDLING	1
+
+#if USE_LOOP_HANDLING
+  #define YY_NEVER_INTERACTIVE 1 /* need this to avoid access to yyin within
+				    lexer code, even if yyin != NULL */
+  #define LOOP_LIMIT		1000 /* this to avoid infinite loops,
+  					if the user has errors in his
+  					config file */
+#endif
+
 #include <stdlib.h>
 #undef ECHO
 #include <termios.h>
@@ -22,18 +34,26 @@
 #include "timers.h"
 #include "keymaps.h"
 
+#include "parsglob.h"
 #include "parser.h"
 int line_count;
 
+#define NESTING_DEPTH	32 /* as we handle loops as pseudo includes,
+			    * this defines the depth of nested loops
+			    * as well as that of includes
+			    */
+
 static int __active__=1, __next_ITEM_for_me__=0;
-#define __active_max 15
+#define __active_max (2*NESTING_DEPTH) /* Note: 'while' pushes twice */
 static int __active_stack[__active_max+1]={1,0};
 static int __active_i=1;
 
 static void push__active();
 static void pop__active();
 static void enter_includefile(char * fname);
+static void enter_macrofile(char *variable);
 extern char *get_config_variable(char *name);
+extern int config_check_only;
 
 #if 0 /* this just to test the conditional code */
   #define TESTACTIVE (({if(__active__)fprintf(stderr,">>>%s<<<\n", yytext);}),__active__)
@@ -69,6 +89,75 @@ extern void yyerror(char* string, ...);
 
 char *yy_vbuffer=0;
 
+#if USE_LOOP_HANDLING
+
+#define CACHEFILES_MAX  32
+#define MACROFILE	(CACHEFILES_MAX+1)
+
+#define YY_INPUT(buf,result,max_size) \
+  if (!yyin) { \
+    if (yy_vbuffer && yy_vbuffer[0]) { \
+      buf[(max_size)-1]=0; \
+      strncpy(buf,yy_vbuffer,max_size); \
+      if (buf[(max_size)-1]) { \
+        yy_vbuffer+=max_size; \
+        result=max_size; \
+      } \
+      else { \
+        result=strlen(buf); \
+        yy_vbuffer=0; \
+      } \
+    } \
+    else result=0; \
+  } \
+  else { \
+    if ( yy_current_buffer->yy_is_interactive ) { \
+      int c = getc( yyin ); \
+      result = c == EOF ? 0 : 1; \
+      buf[0] = (char) c; \
+    } \
+    else { \
+      if ((unsigned int)yyin <= CACHEFILES_MAX) { \
+        result = cachefile_read(buf, max_size, (unsigned int)yyin - 1 ); \
+      } \
+      else { \
+	if ((unsigned int)yyin == MACROFILE) { \
+	  result = macrofile_read(buf, max_size); \
+	} \
+        else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) && ferror( yyin ) ) \
+                  YY_FATAL_ERROR( "input in flex scanner failed" ); \
+      } \
+    } \
+  }
+
+/*
+ * We are intercepting the yylex() function calls from the parser
+ */ 
+#define OUR_YY_DECL int yylex YY_PROTO(( YYSTYPE* yylval ))
+OUR_YY_DECL;
+
+#undef YY_DECL
+#define YY_DECL static int real_yylex YY_PROTO(( YYSTYPE* yylval ))
+
+
+/*
+ * we intercept lexer before executing each action
+ */
+#define YY_USER_ACTION if (__loop_handling__ > 0) \
+			if (dump_input(yy_act)) break;
+
+static __loop_handling__ = 0;
+static int dump_input(int rulenum);
+static void enter_cachefile(int cfile);
+static int cachefile_read(char *buf, int size, int cfile);
+static int chachefile_wrap(void);
+static int macrofile_read(char *buf, int size);
+static int macrofile_wrap(void);
+
+
+#else /* not USE_LOOP_HANDLING */
+
+
 #define YY_INPUT(buf,result,max_size) \
   if (!yyin) { \
     if (yy_vbuffer && yy_vbuffer[0]) { \
@@ -97,19 +186,51 @@ char *yy_vbuffer=0;
     } \
   }
 
-
 #undef YY_DECL
 #define YY_DECL int yylex YY_PROTO(( YYSTYPE* yylval ))
+
+#endif /* not USE_LOOP_HANDLING */
+
+
 %}
+
+DIGIT		[0-9]
+HEXDIGIT 	{DIGIT}|[a-fA-F]
+LETTER		[a-zA-Z]
+ALPHNUM		{LETTER}|{DIGIT}
+IDENT		_*{LETTER}({ALPHNUM}|_)*
+STRQUOTELESS	({LETTER}|[/\.\~])({ALPHNUM}|[_\~@\-\+:\./])*
 
 %%
 
+%{
+	/* NOTE: "include" _must_ be the first rule, we need to know
+	 *       the rule number, which _here_ is always '1'
+	 */
+#define INCLUDE_RULE_NUM	1
+#define LOOP_RULE_NUM		(INCLUDE_RULE_NUM+1)
+#define DONE_RULE_NUM		(LOOP_RULE_NUM+1)
+%}
+"include"		MAY_BE __next_ITEM_for_me__=2;
+"while"|"foreach"	MAY_BE {
+	#if USE_LOOP_HANDLING
+			  if (!__loop_handling__) {
+			    __loop_handling__ =1;
+			    YY_USER_ACTION
+			  }
+	#endif;
+			};
+"done"			if (__loop_handling__ <0) pop__active();
+"while__yy__"		{ push__active(); RETURN(WHILESTATEMENT); }
+"foreach__yy__"		{ push__active(); RETURN(FOREACHSTATEMENT); }
+
 	/* special characters */
 
-[\|{}=,]		RETURN(yytext[0]);
+[{}()<>=,\-+\*;]		RETURN(yytext[0]);
 
 	/* conditionals */
 
+"if"			{ push__active(); RETURN(IFSTATEMENT); }
 "ifdef"			{ push__active(); if (__active__) __next_ITEM_for_me__=1; }
 "ifndef"		{ push__active(); if (__active__) __next_ITEM_for_me__=-1; }
 "else"			{ 
@@ -117,11 +238,72 @@ char *yy_vbuffer=0;
 			  else if (__active_stack[__active_i-1] ) __active__=1;
 			}
 "endif"			pop__active();
-"include"		MAY_BE __next_ITEM_for_me__=2;
 
 	/* config variable settings */
 "define"		RETURN(DEFINE);
 "undef"			RETURN(UNDEF);
+
+
+	/* boolean values */
+on			RETURN(L_ON);
+off			RETURN(L_OFF);
+yes			RETURN(L_YES);
+no			RETURN(L_NO);
+
+	/* operators */
+"/"			RETURN('/');
+"div"			RETURN('/');
+"|"			RETURN(OR_OP);
+"^"			RETURN(XOR_OP);
+">>"			RETURN(SHR_OP);
+"<<"			RETURN(SHL_OP);
+"!"			RETURN(NOT_OP);
+"=="			RETURN(EQ_OP);
+">="			RETURN(GE_OP);
+"<="			RETURN(LE_OP);
+"!="			RETURN(NEQ_OP);
+"&&"			RETURN(L_AND_OP);
+"&"			RETURN(AND_OP);
+"||"			RETURN(L_OR_OP);
+"~"			RETURN(BIT_NOT_OP);
+"eq"			RETURN(STR_EQ_OP);
+"ne"			RETURN(STR_NEQ_OP);
+
+	/* numbers */
+{DIGIT}+		MAY_BE {yylval->i_value = atoi(yytext);
+				return(INTEGER); }
+
+0x{HEXDIGIT}+		MAY_BE {yylval->i_value = strtol(yytext, 0, 0);
+				return(INTEGER); }
+
+0b[01]+			MAY_BE {yylval->i_value = strtol(yytext+2, 0, 2);
+				return(INTEGER); }
+
+{DIGIT}+\.{DIGIT}*([eE]\-?{DIGIT}+)? MAY_BE {yylval->r_value = atof(yytext);
+				return(REAL); }
+
+	/* casts */
+"int"			RETURN(INTCAST);
+"real"			RETURN(REALCAST);
+
+	/* functions */
+"strlen"		RETURN(STRLEN);
+"strtol"		RETURN(STRTOL);
+"strncmp"		RETURN(STRNCMP);
+"strcat"		RETURN(STRCAT);
+"strpbrk"		RETURN(STRPBRK);
+"strsplit"		RETURN(STRSPLIT);
+"strdel"		RETURN(STRDEL);
+"strchr"		RETURN(STRCHR);
+"strrchr"		RETURN(STRRCHR);
+"strstr"		RETURN(STRSTR);
+"strspn"		RETURN(STRSPN);
+"strcspn"		RETURN(STRCSPN);
+"defined"		RETURN(DEFINED);
+"shell"			RETURN(SHELL);
+
+	/* just for test purposes */
+exprtest		RETURN(EXPRTEST);
 
 	/* keywords */
 
@@ -377,8 +559,6 @@ sb_mixer                RETURN(SB_MIXER);
 mpu_base                RETURN(MPU_BASE);
 
 	/* packet driver */
-	/* NOTE: we need 'no' _before_ 'novell_hack', else the rule will not match */
-no			MAY_BE { yylval->i_value = 0; return(L_NO); }
 novell_hack		RETURN(NOVELLHACK);
 
 	/* debug flags */
@@ -419,47 +599,56 @@ allowdisk		RETURN(ALLOWDISK);
 forcexdos		RETURN(FORCEXDOS);
 xdosonly		RETURN(XDOSONLY);
 
-	/* boolean values */
-
-on			MAY_BE { yylval->i_value = 1; return(L_ON); }
-off			MAY_BE { yylval->i_value = 0; return(L_OFF); }
-yes			MAY_BE { yylval->i_value = 1; return(L_YES); }
-	/*no			MAY_BE { yylval->i_value = 0; return(L_NO); } */
-
-	/* integers */
-
-[0-9]+			MAY_BE { yylval->i_value = atoi(yytext); return(INTEGER); }
-0x[0-9a-f]+		MAY_BE { char *end;
-			  yylval->i_value = strtol(yytext, &end, 0);
-			  return(INTEGER); }
-
 	/* strings */
 
-\"[^\"]*\"		MAY_BEINCLUDE ( { yytext[strlen(yytext)-1] = '\0';
-			  yylval->s_value = strdup(&yytext[1]);
-			  return(STRING); } )
 \'[^\']*\'		MAY_BE { yytext[strlen(yytext)-1] = '\0';
 			  yylval->s_value = strdup(&yytext[1]);
+			  EXPRTYPE(yylval->s_value) = TYPE_STRING1;
 			  return(STRING); }
-[a-z0-9/\~@-_\+:\.]+	MAY_BEFORME { yylval->s_value = strdup(yytext);
+{STRQUOTELESS}		MAY_BEFORME {
+			  yylval->s_value = strdup(yytext);
+			  EXPRTYPE(yylval->s_value) = TYPE_STRQUOTELESS;
 			  return(STRING); }
-$[a-z0-9/\~@-_\+:\.]+	MAY_BE { yylval->s_value = strdup(getenv(&yytext[1]));
-			  return(STRING); }
+${IDENT}		MAY_BE {
+				yylval->s_value = strdup(&yytext[1]);
+				EXPRTYPE(yylval->s_value) = TYPE_STRQUOTELESS;
+				return(VARIABLE);
+			}
+$${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
+
+	/* Note: we need the rule numbers of below actions 
+	 *       The below first one is INCLUDEFILE_RULE_NUM
+	 */
+\"[^\"]*\"		MAY_BEINCLUDE ( { yytext[strlen(yytext)-1] = '\0';
+			  yylval->s_value = strdup(&yytext[1]);
+			  EXPRTYPE(yylval->s_value) = TYPE_STRING;
+			  return(STRING); } )
 
 	/* comments & whitespace */
 
-[#\;\!][^\n]*\n		line_count++;   /* comments to (and including) EOLN */
+[#][^\n]*\n		line_count++;   /* comments to (and including) EOLN */
 [ \t]+			;   		/* ignore all white space */
 \n			line_count++;	/* keep track of lines seen */
-	/* NOTE: the below rule will not have any effect, ... except */
-	/* printing a warning ;-) */
-	/*.			fprintf(stderr, "discarding char '%c'\n", yytext[0]); */
-%%
+.			; /* fprintf(stderr, "discarding char '%c'\n", yytext[0]); */
 
-#define MAX_INCLUDE_DEPTH 10
+
+%%
+	/* the above '\n' rule (last rule) has rule-number 'YY_NUM_RULES-1'
+	 * We have no other chance as to 'count' backward to get the
+	 * rule number of ' quoted string, comments, e.t.c'
+	 * BIG_FAT_NOTE: If you insert rules behind INCLUDEFILE_RULE_NUM,
+	 *               change INCLUDEFILE_RULE_NUM too !!!
+	 */
+#define INCLUDEFILE_RULE_NUM (YY_NUM_RULES-1 - 3)
+#define COMMENT_RULE_NUM (INCLUDEFILE_RULE_NUM +1)
+#define WHITESPACE_RULE_NUM (COMMENT_RULE_NUM +1)
+#define NEWLINE__RULE_NUM (WHITESPACE_RULE_NUM +1)
+
+#define MAX_INCLUDE_DEPTH NESTING_DEPTH
 static YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH] ={0};
 int include_stack_ptr = 0;
 char * include_fnames[MAX_INCLUDE_DEPTH] = {0};
+char * include_macbuf[MAX_INCLUDE_DEPTH] = {0};
 static int include_lines[MAX_INCLUDE_DEPTH] = {0};
 
 static void enter_includefile(char * fname)
@@ -474,7 +663,7 @@ static void enter_includefile(char * fname)
   /* we want to have the include files in the same directory as
    * the main config file, if we have no leading  '/'
    */
-  if (fname[0] != '/')  {
+  if (!strchr("/.", fname[0])) {
     int i;
     if (!strncmp(fname, KEYMAP_DIR, strlen(KEYMAP_DIR)))
       strcpy(fname_, KEYMAP_LOAD_BASE_PATH);
@@ -515,6 +704,15 @@ static void enter_includefile(char * fname)
 int yywrap(void)    /* this gets called at EOF of a parsed file */
 {
   if (include_stack_ptr <= 0 ) return(1);
+#if USE_LOOP_HANDLING
+#if 1
+  if ((unsigned int)yyin <= CACHEFILES_MAX) return chachefile_wrap();
+  if ((unsigned int)yyin == MACROFILE) return macrofile_wrap();
+#else
+  if (macrobuffer) return macrofile_wrap();
+  if (__loop_handling__ < 0) return chachefile_wrap();
+#endif
+#endif
   yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
   fclose(include_stack[include_stack_ptr]->yy_input_file);
   yy_delete_buffer(include_stack[include_stack_ptr]);
@@ -530,19 +728,388 @@ extern void yyerror(char* string, ...);
 
 static void push__active()
 {
+  if (config_check_only>2)
+    fprintf(stderr, "PUSH %d->%d %d >%s<\n", __active_i, __active_i+1, __active__, yytext);
   __active_stack[__active_i++]=__active__;
   if (__active_i > __active_max) {
     __active_i = __active_max;
-    yyerror("Lexer block stack overflow, unmatching #if..#else..#endif");
+    yyerror("Lexer block stack overflow, unmatching  if..else..endif");
   }
 }
 
 static void pop__active()
 {
+  if (config_check_only>2)
+    fprintf(stderr, "POP %d<-%d %d >%s< %d\n", __active_i-1, __active_i, __active__, yytext, __loop_handling__);
   if (__active_i <=0) {
-    yyerror("Lexer block stack underflow, unmatching #if..#else..#endif");
+    yyerror("Lexer block stack underflow, unmatching  if..else..endif");
     return;
   }
   __active__=__active_stack[--__active_i];
 }
 
+void tell_lexer_if(int value)
+{
+  __active__ = value !=0;
+}
+
+
+#if USE_LOOP_HANDLING
+
+/* ---------------------------------------------------------
+ * yylex() wrapper
+ *
+ * Here the record/replay stuff is handled.
+ * We need that in order to realize 'while' loops or such things
+ */
+
+
+#define SAVEBUFSIZE	0x4000
+static char *savebuf = 0;
+static int savebufsize = 0;
+static int savebufwptr =0;
+
+
+#define CACHEFILESIZE	(CACHEFILES_MAX * sizeof(struct cache_file))
+static struct cache_file *cachefile = 0;
+static int cachefilesize = 0;
+static int cachefilewptr = -1;
+static int cachefilecurrent = -1;
+
+static void free_savebuffer(void);
+static void free_cachefile_buffers(void);
+static void close_cachefile_write(int stop);
+
+
+OUR_YY_DECL
+{
+	int ret;
+
+	ret = real_yylex(yylval);
+
+        if (__loop_handling__ >0) {
+		/* we respawn yylex in a loop, while filling the cache files */
+		while (__loop_handling__ >0) {
+			ret = real_yylex(yylval);
+			if (ret == YY_NULL) {
+				__loop_handling__ = 0;
+				close_cachefile_write(savebufwptr);
+				free_cachefile_buffers();
+				free_savebuffer();
+				yyerror("EOF while in loop, probably 'done' missing");
+				return ret;
+			}
+		}
+		/* and again, to get the first token again */
+		ret = real_yylex(yylval);
+	}
+	return(ret);
+}
+
+static void free_savebuffer(void)
+{
+	if (savebuf) free(savebuf);
+	savebuf = 0;
+	savebufsize = 0;
+	savebufwptr = 0;
+}
+
+static void dumpout(char *s, int len)
+{
+	if ((savebufwptr + len) > savebufsize) {
+		do {
+			savebufsize += SAVEBUFSIZE;
+		} while ((savebufwptr + len) > savebufsize);
+		if (!savebuf)
+			savebuf = malloc(savebufsize);
+		else	savebuf = realloc(savebuf, savebufsize);
+	}
+	memcpy(savebuf+savebufwptr, s, len);
+	savebufwptr += len;
+}
+
+
+struct cache_file {
+	int start;	/* point behind the loop begin statement */
+	int stop;	/* point behind the loop end statement */
+	int rptr;
+	int parent;
+	YY_BUFFER_STATE yybuffer;
+	char *origfname;
+	int  firstline;
+	int  need_loop_back;
+	int looplimit;
+};
+
+static void free_cachefile_buffers(void)
+{
+	int i;
+	if (cachefile) {
+		for (i=0; i <cachefilewptr; i++)
+			if (cachefile[i].origfname) free(cachefile[i].origfname);
+		free(cachefile);
+		cachefile = 0;
+	}
+	cachefilesize = 0;
+	cachefilecurrent = cachefilewptr = -1;
+}
+
+static void create_cachefile(int start)
+{
+	struct cache_file *cf;
+
+	cachefilewptr++;
+	if (((cachefilewptr+1) * sizeof(struct cache_file)) > cachefilesize) {
+		cachefilesize += CACHEFILESIZE;
+		if (!cachefile)
+			cachefile = malloc(cachefilesize);
+		else	cachefile = realloc(cachefile, cachefilesize);
+	}
+	cf = cachefile + cachefilewptr;
+	cf->start = start; 
+	cf->stop = start;
+	cf->rptr = start;
+	cf->firstline = line_count;
+	cf->origfname = 0;
+	if (include_stack_ptr > 0 && include_fnames[include_stack_ptr])
+		cf->origfname = strdup(include_fnames[include_stack_ptr]);
+	cf->parent = cachefilecurrent;
+	cachefilecurrent = cachefilewptr;
+}
+
+static void close_cachefile_write(int stop)
+{
+	if (!cachefile || cachefilecurrent <0)
+		return;
+	cachefile[cachefilecurrent].stop = stop;
+	cachefilecurrent = cachefile[cachefilecurrent].parent;
+}
+
+
+static int cachefile_read(char *buf, int size, int cfile)
+{
+	struct cache_file *cf = cachefile+cfile;
+
+	if (!cachefile || cachefilecurrent <0) return 0;
+	if (cf->rptr+size >= cf->stop)
+		size = cf->stop - cf->rptr;
+	if (size <= 0) return 0;
+	memcpy(buf, savebuf + cf->rptr, size);
+	cf->rptr += size;
+	return size;
+}
+
+
+static void enter_cachefile(int cfile)
+{
+	struct cache_file *cf;
+
+	if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
+		yyerror("Loops nested too deeply" );
+		return;
+	}
+	if (!cachefile) {
+		yyerror("mismatching loop begin/end \n");
+		return;
+	}
+	cachefilecurrent = cfile;
+	if (config_check_only>1)
+		c_printf("CONF: opened cache file %d\n", cachefilecurrent);
+	include_lines[include_stack_ptr] = line_count;
+	include_stack[include_stack_ptr] = YY_CURRENT_BUFFER;
+	include_stack_ptr++;
+	cf = cachefile + cachefilecurrent;
+	cf->looplimit = LOOP_LIMIT;
+	cf->rptr = cf->start;
+	if (cf->origfname)
+		include_fnames[include_stack_ptr] = strdup(cf->origfname);
+	else	include_fnames[include_stack_ptr] = 0;
+	line_count = cf->firstline;
+	(int)yyin = cachefilecurrent +1;
+	include_stack[include_stack_ptr] = yy_create_buffer( yyin, cf->stop - cf->start +2);
+	yy_switch_to_buffer(include_stack[include_stack_ptr]);
+}
+
+
+static int chachefile_wrap(void)
+{
+	struct cache_file *cf;
+	int cfile;
+
+	/* we come her from yywrap, when we got an EOF on the cache file */
+	
+	if (include_stack_ptr <= 0 || !cachefile || cachefilecurrent <0) return 0;
+	cfile = cachefilecurrent;
+	cf = cachefile + cfile;
+	if (cf->need_loop_back) {
+		if (--cf->looplimit <0) {
+			yyerror("loop limit of %d loops exceeded\n", LOOP_LIMIT);
+			cf->need_loop_back = 0;
+		}
+		else {
+			cf->rptr = cf->start;
+			line_count = cf->firstline;
+			return(0);
+		}
+	}
+	cachefilecurrent = cf->parent;
+	yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
+	yy_delete_buffer(include_stack[include_stack_ptr]);
+	if (config_check_only>1)
+		c_printf("CONF: closed cache file %d\n", cfile);
+	include_stack_ptr--;
+	line_count=include_lines[include_stack_ptr];
+	if (cfile > 0) {
+		/* when in inner loop, we have been executed from
+		 * the copy, but the main cache file still is positioned
+		 * directly behind the 'while__ ()' in the original.
+		 * we have to skip this until 'done'.
+		 * This can simply done by setting __active__=0,
+		 * because the 'while__' has done an extra push__active()
+		 * and the 'done' in the main cache file will do pop__active()
+		 */
+		__active__ = 0;
+	}
+	if (cachefilecurrent <0) {
+		/* end of loop handling */
+		__loop_handling__ = 0;
+		free_cachefile_buffers();
+		free_savebuffer();
+	}
+	return(0);
+}
+
+void tell_lexer_loop(int cfile, int value)
+{
+	__active__ = value !=0;
+	if (!cachefile) return;
+	if (__active__ && cachefilecurrent != cfile) {
+		/* we have to open a deeper nested cache file */
+		enter_cachefile(cfile);
+	}
+	cachefile[cfile].need_loop_back = __active__;
+	return;
+}
+
+
+static int dump_input(int rulenum)
+{
+	static int lastrule=0;
+	static int lastchar = '\n';
+	int savebufwptr_ = savebufwptr;
+	int skip_action = 1;
+
+	switch (rulenum) {
+		case INCLUDE_RULE_NUM: {
+			dumpout("#",1); /* comment out the include statement*/
+			skip_action = 0;
+			break;
+		}
+	}
+
+	if (rulenum != COMMENT_RULE_NUM ) {
+		if (rulenum == WHITESPACE_RULE_NUM) {
+			if (lastchar != '\n') {
+				dumpout(" ",1);
+				lastchar = ' ';
+			}
+		}
+		else {
+			dumpout(yytext,yyleng);
+			lastchar = yytext[yyleng-1];
+		}
+	}
+	else {
+		dumpout("#\n",2);
+		lastchar = '\n';
+		line_count++;
+	}
+	lastrule = rulenum;
+	switch (rulenum) {
+		case NEWLINE__RULE_NUM: {
+			line_count++;
+			break;
+		}
+		case INCLUDEFILE_RULE_NUM: {
+			if (__next_ITEM_for_me__ == 2) {
+				dumpout("\n",1);
+				lastchar = '\n';
+				skip_action = 0;
+			}
+			break;
+		}
+		case LOOP_RULE_NUM: {
+			char buf[32];
+			create_cachefile(savebufwptr_);
+			sprintf(buf, "__yy__ %d, ", cachefilecurrent);
+			dumpout(buf, strlen(buf));
+			break;
+		}
+		case DONE_RULE_NUM: {
+			close_cachefile_write(savebufwptr);
+			if (cachefilecurrent <0) {
+				/* finished all cashing,
+				 * starting working phase */
+				__loop_handling__ = -1;
+				enter_cachefile(0);
+			}
+		}
+	}
+	return skip_action;
+}
+
+static void enter_macrofile(char *variable)
+{
+	char *macrobuffer;
+	if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
+		yyerror("macrocall ... nested too deeply" );
+		return;
+	}
+        macrobuffer = getenv(variable);
+	if (!macrobuffer) {
+		yyerror("macro '%s'not found \n", variable);
+		return;
+	}
+	if (config_check_only>1)
+		c_printf("CONF: opened macro file %s\n", variable);
+	include_lines[include_stack_ptr] = line_count;
+	include_stack[include_stack_ptr] = YY_CURRENT_BUFFER;
+	include_stack_ptr++;
+	include_macbuf[include_stack_ptr] =
+		include_fnames[include_stack_ptr] = strdup(macrobuffer);
+	(int)yyin = MACROFILE;
+	include_stack[include_stack_ptr] = yy_create_buffer( yyin, strlen(macrobuffer) +2);
+	yy_switch_to_buffer(include_stack[include_stack_ptr]);
+}
+
+static int macrofile_wrap(void)
+{
+	/* we come her from yywrap, when we got an EOF on the macro file */
+	
+	if (include_stack_ptr <= 0) return 0;
+	yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
+	yy_delete_buffer(include_stack[include_stack_ptr]);
+	free(include_macbuf[include_stack_ptr]);
+	if (config_check_only>1)
+		c_printf("CONF: closed macro file\n");
+	include_stack_ptr--;
+	line_count=include_lines[include_stack_ptr];
+	return(0);
+}
+
+
+static int macrofile_read(char *buf, int size)
+{
+	int len;
+	char *macroptr = include_fnames[include_stack_ptr];
+	len = strlen(macroptr);
+	if (!len) return 0;
+	if (size > len) size = len;
+	memcpy(buf, macroptr, size);
+	include_fnames[include_stack_ptr] +=size;
+	return size;
+}
+
+
+
+#endif /* USE_LOOP_HANDLING */

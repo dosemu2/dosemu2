@@ -416,7 +416,7 @@ EXTERN void floppy_tick(void);
 EXTERN void open_kmem(void);
 EXTERN void close_kmem(void);
 EXTERN void CloseNetworkLink(int);
-EXTERN int parse_config(char *);
+EXTERN int parse_config(char *, char *);
 EXTERN void disk_init(void);
 EXTERN void serial_init(void);
 EXTERN void close_all_printers(void);

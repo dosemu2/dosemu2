@@ -64,7 +64,7 @@ to describe the virtual flags used by DOSEmu
 
 <item> Now what are we doing with eflags in dosemu ?
    Well, this I don't really know. I saw IF used (told it Larry), I saw
-   VIF tested an set, I saw TF cleared, ... and NT flag....
+   VIF tested an set, I saw TF cleared, and NT flag e.t.c.
 
    But I know what Linus thinks that we should do:
    Always interpret and set VIF, and let IF untouched, it will nevertheless
@@ -73,7 +73,7 @@ to describe the virtual flags used by DOSEmu
    How I think we should proceed? Well this I did describe in my last mail.
 
 
-....and this from a follow-up mail:
+,,,, and this from a follow-up mail:
 
 
 <em/NOTE/ VIF and VIP in DOS-CPU-flagsregister are inherited from 32-bit,
@@ -82,7 +82,7 @@ to describe the virtual flags used by DOSEmu
       On return to 32-bit, <em/only/ VIF will appear in vm86s.regs.eflags !
       <em/VIP will be ZERO/, again: <em/VIP/ will be used <em/only once/ !!!!
 <p>
-[ ... ]
+[ ,,, ]
 <p>
 I have to add, that VIP will be cleared, because it is not in any
 of the masks of vm86.

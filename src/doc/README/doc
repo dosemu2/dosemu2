@@ -89,7 +89,7 @@ To quote a large section, such as part of a file or an example use
 <tscreen><verb>
 &lt;tscreen&gt;&lt;verb&gt;
 &lt;descrip&gt;
-...
+,,,
 &lt;/descrip&gt;
 &lt;/verb&gt;&lt;/tscreen&gt;
 </verb></tscreen>

@@ -2,7 +2,9 @@
 
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
-CFLAGS+=-DYYPURE
+
+CFLAGS+=-DYYPURE $(DEFINES)
+
 # CFLAGS=-O2 -Wall -Wmissing-prototypes \
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
@@ -10,7 +12,7 @@ CFLAGS+=-DYYPURE
 CFILES = config.c memcheck.c init.c dev_list.c
 LFILES = lexer.l
 YFILES = parser.y
-HFILES = 
+HFILES = parsglob.h
 
 # Insert all source- and header-files here.
 

@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "July 3, 1997" "Version ALPHA 0.66.7" "MS-DOS Emulation"
+.TH DOS 1 "January, 1998" "Version ALPHA 0.97.1" "MS-DOS Emulation"
 .SH NAME
 dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -8,7 +8,15 @@ dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .B \-ABCcdkVNXtsgKm234O 
 ]
 [
+.B \-h
+.I level
+]
+[
 .B \-F
+.I file
+]
+[
+.B \-f
 .I file
 ]
 [
@@ -57,6 +65,10 @@ dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .B \-ABCcdkVNXtsgKm234O 
 ]
 [
+.B \-h
+.I level
+]
+[
 .B \-F
 .I file
 ]
@@ -101,6 +113,10 @@ dexefile
 .B xtermdos
 [
 .B \-ABCcdkVNXtsgKm234O 
+]
+[
+.B \-h
+.I level
 ]
 [
 .B \-F
@@ -154,7 +170,15 @@ dexefile
 .B \-ABCbdNtsK234O 
 ]
 [
+.B \-h
+.I level
+]
+[
 .B \-F
+.I file
+]
+[
+.B \-f
 .I file
 ]
 [
@@ -310,7 +334,10 @@ use RAW console Keyboard (must be at the console)
 .TP
 .I -F
 Parse this config-file instead of /etc/dosemu.conf
-(you need to run as root for this)
+(you need to run as root on suid DOSEMU for this)
+.TP
+.I -f
+Parse this config-file instead of .doserc
 .TP
 .I -u
 set a user configuation variable. An
@@ -350,6 +377,14 @@ argument.
 .TP
 .I -D
 specify which Debugging messages to allow/suppress
+.TP
+.I -h
+dump configuration to stderr and exit (implicit sets -D+c). This is useful
+for debugging configuration files, you should use
+.I -O
+too to direct the +c type messages to stderr. `level' can be 0, 1 or 2
+and controls the amount of configuration parser debug output:
+No parser debug (0), parser loop debug (1), if_else_endif debug (2).
 .TP
 .I -O
 use stderr for output of Debugging messages
@@ -497,7 +532,7 @@ parses this string from left to right.
    -   turns the following options off
    a   turns all the options on/off, depending on flag
    0   turns all options off
-   1   turns all options on
+   1-9 sets the debug level, the higher, the more output
    #   where # is a letter from the valid class list, 
        turns that option off/on depending on the 
        +/- state.
@@ -532,12 +567,12 @@ turns on all debugging messages, and
 turns off all debugging messages.  The characters 
 .I 0 
 and 
-.I 1
+.I 1-9
 are also special: 
 .I 0
 turns off all debugging messages, and 
-.I 1 
-turns on all debugging messages.
+.I 1-9
+turns on all debugging messages, but set the debug level too.
 
 There is an assumed 
 .I \+
@@ -600,7 +635,7 @@ should
 have saner UMB support.
 .PP
 .B DOSEMU
-0.66 also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).
+0.97 also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).
 
 .SH LOGGING 
 .B DOSEMU

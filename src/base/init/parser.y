@@ -1,17 +1,28 @@
-/* $Id: parser.y,v 1.13 1995/05/06 16:26:13 root Exp root $ 
+/* parser.y
  *
- * $Log: parser.y,v $
- * Revision 1.13  1995/05/06  16:26:13  root
- * Prep for 0.60.2.
+ * Parser version 1     ... before 0.66.5
+ * Parser version 2     at state of 0.66.5   97/05/30
+ * Parser version 3     at state of 0.97.0.1 98/01/03
  *
- * Revision 1.12  1995/04/08  22:34:19  root
- * Release dosemu0.60.0
+ * Note:  starting with version 2, you may protect against version 3 via
  *
- * Revision 1.11  1995/02/05  16:53:16  root
- * Prep for Scotts patches.
+ *   ifdef parser_version_3
+ *     # version 3 style parser
+ *   else
+ *     # old style parser
+ *   endif
  *
+ * Note2: starting with version 3 you _need_ atleast _one_ statement such as
+ *
+ *   $XYZ = "something"
+ *
+ * to make the 'new version style check' happy, else dosemu will abort.
  */
+
 %{
+
+#define PARSER_VERSION_STRING "parser_version_3"
+
 #include <stdlib.h>
 #include <termios.h>
 #include <sys/types.h>
@@ -22,6 +33,8 @@
 #include <setjmp.h>
 #include <sys/stat.h>                    /* structure stat       */
 #include <unistd.h>                      /* prototype for stat() */
+#include <sys/wait.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <pwd.h>
 #include <syslog.h>
@@ -51,6 +64,9 @@
 #include "timers.h"
 #include "keymaps.h"
 #include "memory.h"
+
+#include "parsglob.h"
+
 
 static serial_t *sptr;
 static serial_t nullser;
@@ -88,11 +104,17 @@ static int priv_lvl = 0;
 
 static char *file_being_parsed;
 
+			/* this to ensure we are parsing a new style */
+static parser_version_3_style_used = 0;
+
 	/* external procedures */
 
 extern int exchange_uids(void);
 extern char* strdup(const char *); /* Not defined in string.h :-( */
 extern int yylex(); /* exact argument types depend on the way you call bison */
+extern void tell_lexer_if(int value);
+extern void tell_lexer_loop(int cfile, int value);
+extern int parse_debugflags(const char *s, unsigned char flag);
 
 	/* local procedures */
 
@@ -105,6 +127,7 @@ static void stop_mouse(void);
 static void start_debug(void);
 static void start_video(void);
 static void stop_video(void);
+static void set_vesamodes(int width, int height, int color_bits);
 static void start_ttylocks(void);
 static void stop_ttylocks(void);
 static void start_serial(void);
@@ -135,6 +158,8 @@ extern void append_pre_strokes(unsigned char *s);
 char *get_config_variable(char *name);
 int define_config_variable(char *name);
 static int undefine_config_variable(char *name);
+static char *run_shell(char *command);
+static int for_each_handling(int loopid, char *varname, char *delim, char *list);
 
 	/* class stuff */
 #define IFCLASS(m) if (is_in_allowed_classes(m))
@@ -157,6 +182,7 @@ static int undefine_config_variable(char *name);
 #define CL_DEXE		 0x400000
 #define CL_PRINTER	 0x800000
 #define CL_HARDRAM	0x1000000
+#define CL_SHELL	0x2000000
 
 static int is_in_allowed_classes(int mask);
 
@@ -170,15 +196,41 @@ extern void yyrestart(FILE *input_file);
 %start lines
 
 %union {
-  int   i_value;
-  char *s_value;
-  };
+	int i_value;
+	char *s_value;
+	float r_value;
+	long long all_value;
+	ExprType t_value;
+};
+
 
 %token <i_value> INTEGER L_OFF L_ON L_YES L_NO CHIPSET_TYPE
 %token <i_value> CHARSET_TYPE KEYB_LAYOUT
-%token <s_value> STRING
+%token <r_value> REAL
+%token <s_value> STRING VARIABLE
+
+	/* needed for expressions */
+%token EXPRTEST
+%token INTCAST REALCAST
+%left AND_OP OR_OP XOR_OP SHR_OP SHL_OP
+%left NOT_OP /* logical NOT */
+%left EQ_OP GE_OP LE_OP '=' '<' '>' NEQ_OP
+%left STR_EQ_OP STR_NEQ_OP
+%left L_AND_OP L_OR_OP
+%left '+' '-'
+%left '*' '/'
+%left UMINUS UPLUS BIT_NOT_OP
+
+%token	STRLEN STRTOL STRNCMP STRCAT STRPBRK STRSPLIT STRCHR STRRCHR STRSTR
+%token	STRDEL STRSPN STRCSPN SHELL
+%token	DEFINED
+%type	<i_value> expression
+%type	<s_value> string_expr variable_content strarglist strarglist_item
+
+	/* flow control */
+%token DEFINE UNDEF IFSTATEMENT WHILESTATEMENT FOREACHSTATEMENT
+
 	/* main options */
-%token DEFINE UNDEF
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
@@ -224,7 +276,7 @@ extern void yyrestart(FILE *input_file);
 %token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
 	/* ports/io */
-%token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST DEV_NAME
+%token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST
 	/* Silly interrupts */
 %token SILLYINT USE_SIGIO
 	/* hardware ram mapping */
@@ -236,7 +288,7 @@ extern void yyrestart(FILE *input_file);
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
-%expect 1
+	/* %expect 1 */
 
 /* %type <i_value> mem_bool irq_bool bool speaker method_val color_val floppy_bool */
 %type <i_value> mem_bool irq_bool bool speaker color_val floppy_bool
@@ -245,28 +297,85 @@ extern void yyrestart(FILE *input_file);
 
 lines		: line
 		| lines line
+		| lines ';' line
 		;
 
-line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
-		| DEFINE STRING		{ IFCLASS(CL_VAR){ define_config_variable($2); free($2); }}
-		| UNDEF STRING		{ IFCLASS(CL_VAR){ undefine_config_variable($2); free($2); }}
+line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
+		| DEFINE STRING		{ IFCLASS(CL_VAR){ define_config_variable($2);} free($2); }
+		| UNDEF STRING		{ IFCLASS(CL_VAR){ undefine_config_variable($2);} free($2); }
+		| IFSTATEMENT '(' expression ')' {
+			/* NOTE:
+			 * We _need_ absolutely to return to state stack 0
+			 * because we 'backward' modify the input stream for
+			 * the parser (in lexer). Hence, _if_ the parser needs
+			 * to read one token more than needed, we are lost,
+			 * because we can't discard it. So please, don't
+			 * play with the grammar without knowing what you do.
+			 * The ')' _will_ return to state stack 0, but fiddling
+			 * with brackets '()' in the underlaying 'expression'
+			 * rules may distroy this.
+			 *                          -- Hans 971231
+			 */
+			tell_lexer_if($3);
+		}
+		/* Note: the below syntax of the while__yy__ statement
+		 * is internal and _not_ visible out side.
+		 * The visible syntax is:
+		 *	while ( expression )
+		 *	   <loop contents>
+		 *	done
+		 */
+		| WHILESTATEMENT INTEGER ',' '(' expression ')' {
+			tell_lexer_loop($2, $5);
+		}
+		| FOREACHSTATEMENT INTEGER ',' VARIABLE '(' string_expr ',' strarglist ')' {
+			tell_lexer_loop($2, for_each_handling($2,$4,$6,$8));
+			free($4); free($6); free($8);
+		}
+		| SHELL '(' strarglist ')' {
+			IFCLASS(CL_SHELL) {
+				char *s = run_shell($3);
+				if (s) free(s);
+			}
+			else {
+				yyerror("not in allowed class to execute SHELL(%s)",$3);
+			}
+			free($3);
+		}
+		| VARIABLE '=' strarglist { IFCLASS(CL_VAR) {
+			parser_version_3_style_used = 1;
+			if ((strpbrk($1, "uhc") != $1) || ($1[1] != '_'))
+			    setenv($1, $3, 1);
+			else
+			    yyerror("reserved variable %s can't be set\n", $1);
+		} free($1); free($3); }
+		| EXPRTEST expression {
+		    if (EXPRTYPE($2) == TYPE_REAL)
+			c_printf("CONF TESTING: exprtest real %f %08x\n", VAL_R($2), $2);
+		    else
+			c_printf("CONF TESTING: exprtest int %d %08x\n", VAL_I($2), $2);
+		}
+		/* abandoning 'single' abort due to shift/reduce conflicts
+		   Just use ' abort "" '
 		| ABORT			{ leavedos(99); }
-		| ABORT STRING
-		    { fprintf(stderr,"CONF aborted with: %s\n", $2);
+		*/
+		| ABORT strarglist
+		    { if ($2[0]) fprintf(stderr,"CONF aborted with: %s\n", $2);
+			exit(99);
 		      leavedos(99);
 		    }
-		| WARN STRING		{ c_printf("CONF: %s\n", $2); free($2); }
- 		| EMUSYS STRING
+		| WARN strarglist	{ c_printf("CONF: %s\n", $2); free($2); }
+ 		| EMUSYS string_expr
 		    { IFCLASS(CL_FILEEXT){
 		    config.emusys = $2;
 		    c_printf("CONF: config.emusys = '%s'\n", $2);
 		    }}
-		| EMUSYS '{' STRING '}'
+		| EMUSYS '{' string_expr '}'
 		    { IFCLASS(CL_FILEEXT){
 		    config.emusys = $3;
 		    c_printf("CONF: config.emusys = '%s'\n", $3);
 		    }}
-		| DOSEMUMAP STRING
+		| DOSEMUMAP string_expr
 		    {
 #ifdef USE_MHPDBG
 		    extern char dosemu_map_file_name[];
@@ -275,22 +384,22 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 #endif
 		    free($2);
 		    }
- 		| EMUBAT STRING
+ 		| EMUBAT string_expr
 		    { IFCLASS(CL_FILEEXT){
 		    config.emubat = $2;
 		    c_printf("CONF: config.emubat = '%s'\n", $2);
                     }}
-                | EMUINI STRING
+                | EMUINI string_expr
                     { IFCLASS(CL_FILEEXT){
                     config.emuini = $2;
                     c_printf("CONF: config.emuini = '%s'\n", $2);
                     }}
-                | EMUINI '{' STRING '}'
+                | EMUINI '{' string_expr '}'
                     { IFCLASS(CL_FILEEXT){
                     config.emuini = $3;
                     c_printf("CONF: config.emuini = '%s'\n", $3);
 		    }}
-		| EMUBAT '{' STRING '}'
+		| EMUBAT '{' string_expr '}'
 		    { IFCLASS(CL_FILEEXT){
 		    config.emubat = $3;
 		    c_printf("CONF: config.emubat = '%s'\n", $3);
@@ -300,7 +409,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			config.fastfloppy = $2;
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
 			}}
-		| CPU INTEGER
+		| CPU expression
 			{
 			extern int cpu_override(int);
 			int cpu = cpu_override (($2%100)==86?($2/100)%10:0);
@@ -321,7 +430,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 #endif
 #endif
 			}
-		| CPUSPEED INTEGER
+		| CPUSPEED expression
 			{ 
 			if (config.realcpu >= CPU_586) {
 			  config.cpu_spd = LLF_US/$2;
@@ -378,13 +487,13 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    config.timers = $2;
 		    c_printf("CONF: timint %s\n", ($2) ? "on" : "off");
 		    }
-		| TIMER INTEGER
+		| TIMER expression
 		    {
 		    config.freq = $2;
 		    config.update = 1000000 / $2;
 		    c_printf("CONF: timer freq=%d, update=%d\n",config.freq,config.update);
 		    }
-		| LOGBUFSIZE INTEGER
+		| LOGBUFSIZE expression
 		    {
 		      extern int logbuf_size;
 		      extern char *logbuf, *logptr;
@@ -398,7 +507,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		      logptr = logbuf = b;
 		      logbuf_size = $2;
 		    }
-		| LOGFILESIZE INTEGER
+		| LOGFILESIZE expression
 		    {
 		      extern int logfile_limit;
 		      logfile_limit = $2;
@@ -472,6 +581,10 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    { start_terminal(); }
                   '{' term_flags '}'
 		    { stop_terminal(); }
+		| DEBUG strarglist {
+			parse_debugflags($2, 1);
+			free($2);
+		}
 		| DEBUG
 		    { start_debug(); }
 		  '{' debug_flags '}'
@@ -494,13 +607,13 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			{keytable_start($2);}
 		  '{' keyboard_mods '}'
 		  	{keytable_stop();}
- 		| PRESTROKE STRING
+ 		| PRESTROKE string_expr
 		    {
 		    append_pre_strokes($2);
 		    c_printf("CONF: appending pre-strokes '%s'\n", $2);
 		    free($2);
 		    }
-		| KEYTABLE DUMP STRING {
+		| KEYTABLE DUMP string_expr {
 			dump_keytables_to_file($3);
 			free($3);
 		    }
@@ -519,7 +632,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    { IFCLASS(CL_FLOPPY) start_floppy(); }
 		  '{' disk_flags '}'
 		    { stop_disk(L_FLOPPY); }
-                | CDROM '{' STRING '}'
+                | CDROM '{' string_expr '}'
                     { IFCLASS(CL_DISK){
 		    strncpy(path_cdrom, $3, 30);
                     c_printf("CONF: cdrom on %s\n", $3);
@@ -535,9 +648,10 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
                     { IFCLASS(CL_IRQ) config.sillyint=0; }
                   '{' sillyint_flags '}'
 		| SILLYINT irq_bool
-                    { IFCLASS(CL_IRQ)
-		      config.sillyint = 1 << $2;
-		      c_printf("CONF: IRQ %d for irqpassing\n", $2); 
+                    { IFCLASS(CL_IRQ) if ($2) {
+		        config.sillyint = 1 << $2;
+		        c_printf("CONF: IRQ %d for irqpassing\n", $2);
+		      }
 		    }
 		| DEXE { IFCLASS(CL_DEXE); } '{' dexeflags '}'
 		| HARDWARE_RAM
@@ -551,56 +665,252 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		| error
 		;
 
+	/* expressions */
+expression:
+		  INTEGER {TYPINT($$);}
+		| REAL {TYPREAL($$);}
+		| expression '+' expression
+			{V_VAL($$,$1) = TOF($1) + TOF($3); }
+		| expression '-' expression
+			{V_VAL($$,$1) = TOF($1) - TOF($3); }
+		| expression '*' expression
+			{V_VAL($$,$1) = TOF($1) * TOF($3); }
+		| expression '/' expression {
+			if ($3)	V_VAL($$,$1) = TOF($1) / TOF($3);
+			else V_VAL($$,$1) = TOF($3);
+		}
+		| '-' expression %prec UMINUS 
+			{I_VAL($$) = -TOF($2); }
+		| '+' expression %prec UPLUS
+			{V_VAL($$,$2) = TOF($2); }
+		| expression AND_OP expression
+			{I_VAL($$) = VAL_I($1) & VAL_I($3); }
+		| expression OR_OP expression
+			{I_VAL($$) = VAL_I($1) | VAL_I($3); }
+		| expression XOR_OP expression
+			{I_VAL($$) = VAL_I($1) ^ VAL_I($3); }
+		| BIT_NOT_OP expression %prec BIT_NOT_OP
+			{I_VAL($$) = VAL_I($2) ^ (-1); }
+		| expression SHR_OP expression
+			{ unsigned int shift = (1 << VAL_I($3));
+			if (!shift) ALL($$) = ALL($1);
+			else V_VAL($$, $1) =  TOF($1) / shift;}
+		| expression SHL_OP expression
+			{ unsigned int shift = (1 << VAL_I($3));
+			if (!shift) ALL($$) = ALL($1);
+			else V_VAL($$, $1) =  TOF($1) * shift;}
+		| expression EQ_OP expression
+			{B_VAL($$) = TOF($1) == TOF($3); }
+		| expression NEQ_OP expression
+			{B_VAL($$) = TOF($1) != TOF($3); }
+		| expression GE_OP expression
+			{B_VAL($$) = TOF($1) >= TOF($3); }
+		| expression LE_OP expression
+			{B_VAL($$) = TOF($1) <= TOF($3); }
+		| expression '<' expression
+			{B_VAL($$) = TOF($1) < TOF($3); }
+		| expression '>' expression
+			{B_VAL($$) = TOF($1) > TOF($3); }
+		| expression L_AND_OP expression
+			{B_VAL($$) = TOF($1) && TOF($3); }
+		| expression L_OR_OP expression
+			{B_VAL($$) = TOF($1) || TOF($3); }
+		| string_expr STR_EQ_OP string_expr
+			{B_VAL($$) = strcmp($1,$3) == 0; }
+		| string_expr STR_NEQ_OP string_expr
+			{B_VAL($$) = strcmp($1,$3) != 0; }
+		| NOT_OP expression {B_VAL($$) = (TOF($2) ? 0:1); }
+		| L_YES		{B_VAL($$) = 1; }
+		| L_NO		{B_VAL($$) = 0; }
+		| L_ON		{B_VAL($$) = 1; }
+		| L_OFF		{B_VAL($$) = 0; }
+		| INTCAST '(' expression ')' {I_VAL($$) = TOF($3);}
+		| REALCAST '(' expression ')' {R_VAL($$) = TOF($3);}
+		| STRTOL '(' string_expr ')' {
+			I_VAL($$) = strtol($3,0,0);
+			free($3);
+		}
+		| STRLEN '(' string_expr ')' {
+			I_VAL($$) = strlen($3);
+			free($3);
+		}
+		| STRNCMP '(' string_expr ',' string_expr ',' expression ')' {
+			I_VAL($$) = strncmp($3,$5,$7);
+			free($3); free($5);
+		}
+		| STRPBRK '(' string_expr ',' string_expr ')' {
+			char *s = strpbrk($3,$5);
+			if (s) I_VAL($$) = (int)s - (int)$3;
+			else I_VAL($$) = -1;
+			free($3); free($5);
+		}
+		| STRCHR '(' string_expr ',' string_expr ')' {
+			char *s = strchr($3,$5[0]);
+			if (s) I_VAL($$) = (int)s - (int)$3;
+			else I_VAL($$) = -1;
+			free($3); free($5);
+		}
+		| STRRCHR '(' string_expr ',' string_expr ')' {
+			char *s = strrchr($3,$5[0]);
+			if (s) I_VAL($$) = (int)s - (int)$3;
+			else I_VAL($$) = -1;
+			free($3); free($5);
+		}
+		| STRSTR '(' string_expr ',' string_expr ')' {
+			char *s = strstr($3,$5);
+			if (s) I_VAL($$) = (int)s - (int)$3;
+			else I_VAL($$) = -1;
+			free($3); free($5);
+		}
+		| STRSPN '(' string_expr ',' string_expr ')' {
+			I_VAL($$) = strspn($3,$5);
+			free($3); free($5);
+		}
+		| STRCSPN '(' string_expr ',' string_expr ')' {
+			I_VAL($$) = strcspn($3,$5);
+			free($3); free($5);
+		}
+		| DEFINED '(' STRING ')' {
+			B_VAL($$) = get_config_variable($3) !=0;
+			free($3);
+		}
+		| variable_content {
+			char *s;
+			I_VAL($$) = strtol($1,&s,0);
+			switch (*s) {
+				case '.':  case 'e':  case 'E':
+				/* we assume a real number */
+				R_VAL($$) = strtod($1,0);
+			}
+			free($1);
+		}
+		| '(' expression ')' {ALL($$) = ALL($2);}
+		| STRING {
+			if ( $1[0] && !$1[1] && (EXPRTYPE($1) == TYPE_STRING1) )
+				I_VAL($$) = $1[0];
+			else	yyerror("unrecognized expression '%s'", $1);
+			free($1);
+		}
+		;
+
+variable_content:
+		VARIABLE {
+			char *s = $1;
+			if (get_config_variable(s))
+				s = "1";
+			else if (strncmp("c_",s,2)
+					&& strncmp("u_",s,2)
+					&& strncmp("h_",s,2) ) {
+				s = getenv(s);
+				if (!s) s = "";
+			}
+			else
+				s = "0";
+			S_VAL($$) = strdup(s);
+			free($1);
+		}
+		;
+
+string_expr:	STRING {S_VAL($$) = $1;}
+		| STRCAT '(' strarglist ')' { S_VAL($$) = $3; }
+		| STRSPLIT '(' string_expr ',' expression ',' expression ')' {
+			int i = (int)TOF($5);
+			int len = (int)TOF($7);
+			int slen = strlen($3);
+			if ((i >=0) && (i < slen) && (len > 0)) {
+				if ((i+len) > slen) len = slen - i;
+				$3[i+len] = 0;
+				S_VAL($$) = strdup($3 + i);
+			}
+			else
+				S_VAL($$) = strdup("");
+			free($3);
+		}
+		| STRDEL '(' string_expr ',' expression ',' expression ')' {
+			int i = (int)TOF($5);
+			int len = (int)TOF($7);
+			int slen = strlen($3);
+			char *s = strdup($3);
+			if ((i >=0) && (i < slen) && (len > 0)) {
+				if ((i+len) > slen) s[i] = 0;
+				else memcpy(s+i, s+i+len, slen-i-len+1);
+			}
+			free($3);
+			S_VAL($$) = s;
+		}
+		| SHELL '(' strarglist ')' {
+			IFCLASS(CL_SHELL) {
+				S_VAL($$) = run_shell($3);
+			}
+			else {
+				S_VAL($$) = strdup("");
+				yyerror("not in allowed class to execute SHELL(%s)",$3);
+			}
+			free($3);
+		}
+		| variable_content {ALL($$) = ALL($1);}
+		;
+
+strarglist:	strarglist_item
+		| strarglist ',' strarglist_item {
+			char *s = malloc(strlen($1)+strlen($3)+1);
+			strcpy(s, $1);
+			strcat(s, $3);
+			S_VAL($$) = s;
+			free($1); free($3);
+		}
+		;
+
+strarglist_item: string_expr
+		| '(' expression ')' {
+			char buf[128];
+			if (EXPRTYPE($2) == TYPE_REAL)
+				sprintf(buf, "%g", VAL_R($2));
+			else
+				sprintf(buf, "%d", VAL_I($2));
+			S_VAL($$) = strdup(buf);
+		}
+		;
+
+
 	/* x-windows */
 
 x_flags		: x_flag
 		| x_flags x_flag
 		;
-x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
-		| UPDATEFREQ INTEGER	{ config.X_updatefreq = $2; }
-		| L_DISPLAY STRING	{ config.X_display = $2; }
-		| L_TITLE STRING	{ config.X_title = $2; }
-		| ICON_NAME STRING	{ config.X_icon_name = $2; }
+x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
+		| UPDATEFREQ expression	{ config.X_updatefreq = $2; }
+		| L_DISPLAY string_expr	{ config.X_display = $2; }
+		| L_TITLE string_expr	{ config.X_title = $2; }
+		| ICON_NAME string_expr	{ config.X_icon_name = $2; }
 		| X_KEYCODE		{ config.X_keycode = 1; }
-		| X_BLINKRATE INTEGER	{ config.X_blinkrate = $2; }
+		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
 		| X_MITSHM bool         { config.X_mitshm = $2; }
-		| X_FONT STRING		{ config.X_font = $2; }
+		| X_FONT string_expr		{ config.X_font = $2; }
 		| X_FIXED_ASPECT bool   { config.X_fixed_aspect = $2; }
 		| X_ASPECT_43           { config.X_aspect_43 = 1; }
 		| X_LIN_FILT            { config.X_lin_filt = 1; }
 		| X_BILIN_FILT          { config.X_bilin_filt = 1; }
-		| X_MODE13FACT INTEGER  { config.X_mode13fact = $2; }
+		| X_MODE13FACT expression  { config.X_mode13fact = $2; }
 		| X_WINSIZE INTEGER INTEGER
                    {
                      config.X_winsize_x = $2;
                      config.X_winsize_y = $3;
                    }
-		| X_GAMMA INTEGER  { config.X_gamma = $2; }
-		| VGAEMU_MEMSIZE INTEGER	{ config.vgaemu_memsize = $2; }
-		| VESAMODE INTEGER INTEGER
+		| X_WINSIZE expression ',' expression
                    {
-                     vesamode_type *vmt = malloc(sizeof *vmt);
-                     if(vmt != NULL) {
-                       vmt->width = $2;
-                       vmt->height = $3;
-                       vmt->color_bits = 0;
-                       vmt->next = config.vesamode_list;
-                       config.vesamode_list = vmt;
-                     }
+                     config.X_winsize_x = $2;
+                     config.X_winsize_y = $4;
                    }
-		| VESAMODE INTEGER INTEGER INTEGER
-                   {
-                     vesamode_type *vmt = malloc(sizeof *vmt);
-                     if(vmt != NULL) {
-                       vmt->width = $2;
-                       vmt->height = $3;
-                       vmt->color_bits = $4;
-                       vmt->next = config.vesamode_list;
-                       config.vesamode_list = vmt;
-                     }
-                   }
+		| X_GAMMA expression  { config.X_gamma = $2; }
+		| VGAEMU_MEMSIZE expression	{ config.vgaemu_memsize = $2; }
+		| VESAMODE INTEGER INTEGER { set_vesamodes($2,$3,0);}
+		| VESAMODE INTEGER INTEGER INTEGER { set_vesamodes($2,$3,$4);}
+		| VESAMODE expression ',' expression { set_vesamodes($2,$4,0);}
+		| VESAMODE expression ',' expression ',' expression
+			{ set_vesamodes($2,$4,$6);}
 		| X_LFB bool            { config.X_lfb = $2; }
 		| X_PM_INTERFACE bool   { config.X_pm_interface = $2; }
 		;
@@ -630,12 +940,12 @@ dexeflag	: ALLOWDISK	{ if (!priv_lvl) dexe_forbid_disk = 0; }
 sound_flags	: sound_flag
 		| sound_flags sound_flag
 		;
-sound_flag	: SB_BASE INTEGER	{ config.sb_base = $2; }
-		| SB_DMA INTEGER	{ config.sb_dma = $2; }
-		| SB_IRQ INTEGER	{ config.sb_irq = $2; }
-                | SB_MIXER STRING       { config.sb_mixer = $2; }
-                | SB_DSP STRING         { config.sb_dsp = $2; }
-		| MPU_BASE INTEGER	{ config.mpu401_base = $2; }
+sound_flag	: SB_BASE expression	{ config.sb_base = $2; }
+		| SB_DMA expression	{ config.sb_dma = $2; }
+		| SB_IRQ expression	{ config.sb_irq = $2; }
+                | SB_MIXER string_expr       { config.sb_mixer = $2; }
+                | SB_DSP string_expr         { config.sb_dsp = $2; }
+		| MPU_BASE expression	{ config.mpu401_base = $2; }
 		;
 
 	/* video */
@@ -646,14 +956,14 @@ video_flags	: video_flag
 video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| MGA			{ config.cardtype = CARD_MDA; }
 		| CGA			{ config.cardtype = CARD_CGA; }
-		| EGA			{ config.cardtype = CARD_CGA; }
+		| EGA			{ config.cardtype = CARD_EGA; }
 		| CHIPSET CHIPSET_TYPE
 		    {
 		    config.chipset = $2;
                     c_printf("CHIPSET: %d\n", $2);
 		    if ($2==MATROX) config.pci=config.pci_video=1;
 		    }
-		| MEMSIZE INTEGER	{ config.gfxmemsize = $2; }
+		| MEMSIZE expression	{ config.gfxmemsize = $2; }
 		| GRAPHICS
 		    { config.vga =
 #if defined(X86_EMULATOR)&&defined(VT_EMU_ONLY)
@@ -672,7 +982,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		    }
 		| FULLREST		{ config.fullrestore = 1; }
 		| PARTREST		{ config.fullrestore = 0; }
-		| VBIOS_FILE STRING	{ config.vbios_file = $2;
+		| VBIOS_FILE string_expr	{ config.vbios_file = $2;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 0; }
 		| VBIOS_COPY		{ config.vbios_file = NULL;
@@ -681,7 +991,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| VBIOS_MMAP		{ config.vbios_file = NULL;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 1; }
-		| VBIOS_SEG INTEGER
+		| VBIOS_SEG expression
 		   {
 		   config.vbios_seg = $2;
 		   c_printf("CONF: VGA-BIOS-Segment %x\n", $2);
@@ -691,7 +1001,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		      c_printf("CONF: VGA-BIOS-Segment set to 0xc000\n");
 		      }
 		   }
-		| VBIOS_SIZE_TOK INTEGER
+		| VBIOS_SIZE_TOK expression
 		   {
 		   config.vbios_size = $2;
 		   c_printf("CONF: VGA-BIOS-Size %x\n", $2);
@@ -717,8 +1027,8 @@ term_flags	: term_flag
 		;
 term_flag	/* : METHOD method_val	{ config.term_method = $2; } */
 		/* | UPDATELINES INTEGER	{ config.term_updatelines = $2; } */
-                : ESCCHAR INTEGER       { config.term_esc_char = $2; }
-		| UPDATEFREQ INTEGER	{ config.term_updatefreq = $2; }
+                : ESCCHAR expression       { config.term_esc_char = $2; }
+		| UPDATEFREQ expression	{ config.term_updatefreq = $2; }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| COLOR color_val	{ config.term_color = $2; }
 		/* | CORNER bool		{ config.term_corner = $2; } */
@@ -776,10 +1086,10 @@ debug_flag	: VIDEO bool		{ d.video = $2; }
 mouse_flags	: mouse_flag
 		| mouse_flags mouse_flag
 		;
-mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); free($2); }
+mouse_flag	: DEVICE string_expr		{ strcpy(mptr->dev, $2); free($2); }
 		| INTERNALDRIVER	{ mptr->intdrv = TRUE; }
 		| EMULATE3BUTTONS	{ mptr->emulate3buttons = TRUE; }
-		| BAUDRATE INTEGER	{ mptr->baudRate = $2; }
+		| BAUDRATE expression	{ mptr->baudRate = $2; }
 		| CLEARDTR
 		    { if (mptr->type == MOUSE_MOUSESYSTEMS)
 			 mptr->cleardtr = TRUE;
@@ -857,10 +1167,10 @@ keyboard_mods	: keyboard_mod
 		| keyboard_mods keyboard_mod
 		;
 
-keyboard_mod	: INTEGER '=' { keyb_mod(' ', $1); } keyboard_modvals
-		| SHIFT INTEGER '=' { keyb_mod('S', $2); } keyboard_modvals
-		| ALT INTEGER '=' { keyb_mod('A', $2); } keyboard_modvals
-		| NUMPAD INTEGER '=' { keyb_mod('N', $2); } keyboard_modvals
+keyboard_mod	: expression '=' { keyb_mod(' ', $1); } keyboard_modvals
+		| SHIFT expression '=' { keyb_mod('S', $2); } keyboard_modvals
+		| ALT expression '=' { keyb_mod('A', $2); } keyboard_modvals
+		| NUMPAD expression '=' { keyb_mod('N', $2); } keyboard_modvals
 		;
 
 keyboard_modvals: keyboard_modval
@@ -868,6 +1178,7 @@ keyboard_modvals: keyboard_modval
 		;
 
 keyboard_modval : INTEGER { keyb_mod(0, $1); }
+		| '(' expression ')' { keyb_mod(0, $2); }
 		| DGRAVE { keyb_mod(0, DEAD_GRAVE); }
 		| DACUTE { keyb_mod(0, DEAD_ACUTE); }
 		| DCIRCUM { keyb_mod(0, DEAD_CIRCUMFLEX); }
@@ -891,8 +1202,8 @@ keyboard_modval : INTEGER { keyb_mod(0, $1); }
 ttylocks_flags	: ttylocks_flag
 		| ttylocks_flags ttylocks_flag
 		;
-ttylocks_flag	: DIRECTORY STRING	{ config.tty_lockdir = $2; }
-		| NAMESTUB STRING	{ config.tty_lockfile = $2; }
+ttylocks_flag	: DIRECTORY string_expr	{ config.tty_lockdir = $2; }
+		| NAMESTUB string_expr	{ config.tty_lockfile = $2; }
 		| BINARY		{ config.tty_lockbinary = TRUE; }
 		| STRING
 		    { yyerror("unrecognized ttylocks flag '%s'", $1); free($1); }
@@ -904,14 +1215,14 @@ ttylocks_flag	: DIRECTORY STRING	{ config.tty_lockdir = $2; }
 serial_flags	: serial_flag
 		| serial_flags serial_flag
 		;
-serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2);
+serial_flag	: DEVICE string_expr		{ strcpy(sptr->dev, $2);
 					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1;
 					  free($2); }
-		| COM INTEGER		{ sptr->real_comport = $2;
+		| COM expression		{ sptr->real_comport = $2;
 					  com_port_used[$2] = 1; }
-		| BASE INTEGER		{ sptr->base_port = $2; }
-		| IRQ INTEGER		{ sptr->interrupt = $2; }
-		| INTERRUPT INTEGER	{ sptr->interrupt = $2; }
+		| BASE expression		{ sptr->base_port = $2; }
+		| IRQ expression		{ sptr->interrupt = $2; }
+		| INTERRUPT expression	{ sptr->interrupt = $2; }
 		| MOUSE			{ sptr->mouse = 1; }
 		| STRING
 		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
@@ -923,11 +1234,11 @@ serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2);
 printer_flags	: printer_flag
 		| printer_flags printer_flag
 		;
-printer_flag	: COMMAND STRING	{ pptr->prtcmd = $2; }
-		| TIMEOUT INTEGER	{ pptr->delay = $2; }
-		| OPTIONS STRING	{ pptr->prtopt = $2; }
-		| L_FILE STRING		{ pptr->dev = $2; }
-		| BASE INTEGER		{ pptr->base_port = $2; }
+printer_flag	: COMMAND string_expr	{ pptr->prtcmd = $2; }
+		| TIMEOUT expression	{ pptr->delay = $2; }
+		| OPTIONS string_expr	{ pptr->prtopt = $2; }
+		| L_FILE string_expr		{ pptr->dev = $2; }
+		| BASE expression		{ pptr->base_port = $2; }
 		| STRING
 		    { yyerror("unrecognized printer flag %s", $1); free($1); }
 		| error
@@ -935,7 +1246,7 @@ printer_flag	: COMMAND STRING	{ pptr->prtcmd = $2; }
 
 	/* disks */
 
-optbootfile	: BOOTFILE STRING
+optbootfile	: BOOTFILE string_expr
 		  {
                   if (priv_lvl)
                     yyerror("Can not use BOOTFILE in the user config file\n");
@@ -953,12 +1264,12 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
-		| SECTORS INTEGER	{ dptr->sectors = $2; }
-		| CYLINDERS INTEGER	{ dptr->tracks = $2; }
-		| TRACKS INTEGER	{ dptr->tracks = $2; }
-		| HEADS INTEGER		{ dptr->heads = $2; }
-		| OFFSET INTEGER	{ dptr->header = $2; }
-		| DEVICE STRING optbootfile
+		| SECTORS expression	{ dptr->sectors = $2; }
+		| CYLINDERS expression	{ dptr->tracks = $2; }
+		| TRACKS expression	{ dptr->tracks = $2; }
+		| HEADS expression		{ dptr->heads = $2; }
+		| OFFSET expression	{ dptr->header = $2; }
+		| DEVICE string_expr optbootfile
 		  {
                   if (priv_lvl)
                     yyerror("Can not use DISK/DEVICE in the user config file\n");
@@ -966,13 +1277,13 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		    yyerror("Two names for a disk-image file or device given.");
 		  dptr->dev_name = $2;
 		  }
-		| L_FILE STRING
+		| L_FILE string_expr
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
 		  dptr->dev_name = $2;
 		  }
-		| HDIMAGE STRING
+		| HDIMAGE string_expr
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk-image file given.");
@@ -989,7 +1300,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  dptr->type = HDISK;
 		  dptr->dev_name = $2;
 		  }
-		| L_FLOPPY STRING
+		| L_FLOPPY string_expr
 		  {
                   if (priv_lvl)
                     yyerror("Can not use DISK/FLOPPY in the user config file\n");
@@ -998,14 +1309,14 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  dptr->type = FLOPPY;
 		  dptr->dev_name = $2;
 		  }
-		| L_PARTITION STRING INTEGER optbootfile
+		| L_PARTITION string_expr INTEGER optbootfile
 		  {
                   yywarn("{ partition \"%s\" %d } the"
 			 " token '%d' is ignored and can be removed.",
 			 $2,$3,$3);
 		  do_part($2);
 		  }
-		| L_PARTITION STRING optbootfile
+		| L_PARTITION string_expr optbootfile
 		  { do_part($2); }
 		| STRING
 		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
@@ -1022,6 +1333,11 @@ port_flag	: INTEGER
 	           allow_io($1, 1, ports_permission, ports_ormask,
 	                    ports_andmask,portspeed, (char*)dev_name);
 	           }
+		| '(' expression ')'
+	           {
+	           allow_io($2, 1, ports_permission, ports_ormask,
+	                    ports_andmask,portspeed, (char*)dev_name);
+	           }
 		| RANGE INTEGER INTEGER
 		   {
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
@@ -1031,13 +1347,22 @@ port_flag	: INTEGER
 		   portspeed=0;
 		   strcpy(dev_name,"");
 		   }
+		| RANGE expression ',' expression
+		   {
+		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
+			    (unsigned short)$2, (unsigned short)$4);
+		   allow_io($2, $4 - $2 + 1, ports_permission, ports_ormask,
+			    ports_andmask, portspeed, (char*)dev_name);
+		   portspeed=0;
+		   strcpy(dev_name,"");
+		   }
 		| RDONLY		{ ports_permission = IO_READ; }
 		| WRONLY		{ ports_permission = IO_WRITE; }
 		| RDWR			{ ports_permission = IO_RDWR; }
-		| ORMASK INTEGER	{ ports_ormask = $2; }
-		| ANDMASK INTEGER	{ ports_andmask = $2; }
+		| ORMASK expression	{ ports_ormask = $2; }
+		| ANDMASK expression	{ ports_andmask = $2; }
                 | FAST	                { portspeed = 1; }
-                | DEVICE STRING         { strcpy(dev_name,$2); free($2); } 
+                | DEVICE string_expr         { strcpy(dev_name,$2); free($2); } 
 		| STRING
 		    { yyerror("unrecognized port command '%s'", $1);
 		      free($1); }
@@ -1050,11 +1375,14 @@ sillyint_flags	: sillyint_flag
 		| sillyint_flags sillyint_flag
 		;
 sillyint_flag	: INTEGER { set_irq_value(1, $1); }
-		| USE_SIGIO INTEGER { set_irq_value(0x10001, $2); }
+		| '(' expression ')' { set_irq_value(1, $2); }
+		| USE_SIGIO expression { set_irq_value(0x10001, $2); }
 		| RANGE INTEGER INTEGER { set_irq_range(1, $2, $3); }
+		| RANGE expression ',' expression { set_irq_range(1, $2, $4); }
 		| USE_SIGIO RANGE INTEGER INTEGER { set_irq_range(0x10001, $3, $4); }
+		| USE_SIGIO RANGE expression ',' expression { set_irq_range(0x10001, $3, $5); }
 		| STRING
-		    { yyerror("unrecognized sillyint command '%s'", $1);
+		    { yyerror("unrecognized irqpassing command '%s'", $1);
 		      free($1); }
 		| error
 		;
@@ -1069,12 +1397,17 @@ ems_flag	: INTEGER
 		     config.ems_size = $1;
 		     if ($1 > 0) c_printf("CONF: %dk bytes EMS memory\n", $1);
 	           }
-		| EMS_SIZE INTEGER
+		| '(' expression ')'
+	           {
+		     config.ems_size = $2;
+		     if ($2 > 0) c_printf("CONF: %dk bytes EMS memory\n", $2);
+	           }
+		| EMS_SIZE expression
 		   {
 		     config.ems_size = $2;
 		     if ($2 > 0) c_printf("CONF: %dk bytes EMS memory\n", $2);
 		   }
-		| EMS_FRAME INTEGER
+		| EMS_FRAME expression
 		   {
 /* is there a technical reason why the EMS frame can't be at 0xC0000 or
    0xA0000 if there's space? */
@@ -1105,10 +1438,28 @@ hardware_ram_flag : INTEGER
                        yyerror("wrong hardware ram address : 0x%05x", $1);
                      }
 	           }
+		| '(' expression ')'
+	           {
+                     if (!set_hardware_ram($2)) {
+                       yyerror("wrong hardware ram address : 0x%05x", $2);
+                     }
+	           }
 		| RANGE INTEGER INTEGER
 		   {
                      int i;
                      for (i=$2; i<= $3; i+=0x1000) {
+                       if (set_hardware_ram(i))
+	                   c_printf("CONF: hardware ram page at 0x%05x\n", i);
+                       else {
+                         yyerror("wrong hardware ram address : 0x%05x", i);
+                         break;
+                       }
+                     }
+		   }
+		| RANGE expression ',' expression
+		   {
+                     int i;
+                     for (i=$2; i<= $4; i+=0x1000) {
                        if (set_hardware_ram(i))
 	                   c_printf("CONF: hardware ram page at 0x%05x\n", i);
                        else {
@@ -1125,41 +1476,24 @@ hardware_ram_flag : INTEGER
 
 	/* booleans */
 
-bool		: L_YES		{ $$ = 1; }
-		| L_NO		{ $$ = 0; }
-		| L_ON		{ $$ = 1; }
-		| L_OFF		{ $$ = 0; }
-		| INTEGER	{ $$ = $1 != 0; }
-		| STRING        { yyerror("got '%s', expected 'on' or 'off'", $1);
-				  free($1); }
-                | error         { yyerror("expected 'on' or 'off'"); }
+bool:		expression
 		;
 
-floppy_bool	: L_YES		{ $$ = 2; }
-		| L_NO		{ $$ = 0; }
-		| L_ON		{ $$ = 2; }
-		| L_OFF		{ $$ = 0; }
-		| INTEGER	{ $$ = $1; }
-		| STRING        { yyerror("got '%s', expected 'on' or 'off'", $1);
-				  free($1); }
-                | error         { yyerror("expected 'on' or 'off'"); }
+floppy_bool:	expression
 		;
 
-mem_bool	: L_OFF		{ $$ = 0; }
-		| INTEGER
-		| STRING        { yyerror("got '%s', expected 'off' or an integer", $1);
-				  free($1); }
-		| error         { yyerror("expected 'off' or an integer"); }
+mem_bool:	expression {
+			if ($1 == 1) {
+				yyerror("got 'on', expected 'off' or an integer");
+			}
+		}
 		;
 
-irq_bool	: L_OFF		{ $$ = 0; }
-		| INTEGER       { if ( ($1 < 2) || ($1 > 15) ) {
-                                    yyerror("got '%d', expected 'off' or an integer 2..15", $1);
-                                  } 
-                                }
-		| STRING        { yyerror("got '%s', expected 'off' or an integer 2..15", $1);
-				  free($1); }
-		| error         { yyerror("expected 'off' or an integer 2..15"); }
+irq_bool:	expression {
+			if ( $1 && (($1 < 2) || ($1 > 15)) ) {
+				yyerror("got '%d', expected 'off' or an integer 2..15", $1);
+			} 
+		}
 		;
 
 	/* speaker values */
@@ -1273,6 +1607,18 @@ static void stop_video(void)
   }
 }
 
+	/* vesa modes */
+static void set_vesamodes(int width, int height, int color_bits)
+{
+  vesamode_type *vmt = malloc(sizeof *vmt);
+  if(vmt != NULL) {
+    vmt->width = width;
+    vmt->height = height;
+    vmt->color_bits = color_bits;
+    vmt->next = config.vesamode_list;
+    config.vesamode_list = vmt;
+  }
+}
 
         /* tty lock files */
 static void start_ttylocks(void)
@@ -1736,6 +2082,19 @@ static void dump_keytable_part(FILE *f, unsigned char *map, int size)
   fputc('\n', f);
 }
 
+void dump_keytable(FILE *f, struct keytable_entry *kt)
+{
+    fprintf(f, "keytable %s {\n", kt->name);
+    fprintf(f, "  0=\n");
+    dump_keytable_part(f, kt->key_map, kt->sizemap);
+    fprintf(f, "  shift 0=\n");
+    dump_keytable_part(f, kt->shift_map, kt->sizemap);
+    fprintf(f, "  alt 0=\n");
+    dump_keytable_part(f, kt->alt_map, kt->sizemap);
+    fprintf(f, "  numpad 0=\n");
+    dump_keytable_part(f, kt->num_table, kt->sizepad-1);
+    fprintf(f, "}\n\n\n");
+}
 
 static void dump_keytables_to_file(char *name)
 {
@@ -1752,16 +2111,7 @@ static void dump_keytables_to_file(char *name)
   }
   
   while (kt->name) {
-    fprintf(f, "keytable %s {\n", kt->name);
-    fprintf(f, "  0=\n");
-    dump_keytable_part(f, kt->key_map, kt->sizemap);
-    fprintf(f, "  shift 0=\n");
-    dump_keytable_part(f, kt->shift_map, kt->sizemap);
-    fprintf(f, "  alt 0=\n");
-    dump_keytable_part(f, kt->alt_map, kt->sizemap);
-    fprintf(f, "  numpad 0=\n");
-    dump_keytable_part(f, kt->num_table, kt->sizepad-1);
-    fprintf(f, "}\n\n\n");
+    dump_keytable(f, kt);
     kt++;
   }
   fclose(f);
@@ -1903,10 +2253,14 @@ parse_dosemu_users(void)
   int uid;
   int have_vars=0;
 
-  /* get our own hostname and define it as 'h_hostname' */
+  /* get our own hostname and define it as 'h_hostname'
+   * and in $DOSEMU_HOST
+   */
   {
     char buf [128];
     int l;
+    /* preset DOSEMU_HOST env, such that the user may not fake an other */
+    setenv("DOSEMU_HOST", "unknown", 1);
     if (!gethostname(buf+2, sizeof(buf)-1-2)) {
       buf[0]='h';
       buf[1]='_';
@@ -1914,6 +2268,7 @@ parse_dosemu_users(void)
       if (!getdomainname(buf+2+1+l, sizeof(buf)-1-2-l)) {
         if (buf[2+1+l] && strncmp(buf+2+1+l, "(none)", 6)) buf[2+l]='.';
         define_config_variable(buf);
+        setenv("DOSEMU_HOST", buf+2, 1);
       }
     }
   }
@@ -1956,7 +2311,11 @@ parse_dosemu_users(void)
        exit(1);
      }
 
-     {
+  /* preset DOSEMU_*USER env, such that a user can't fake it */
+  setenv("DOSEMU_USER", "unknown", 1);
+  setenv("DOSEMU_REAL_USER", pwd->pw_name, 1);
+
+  {
        enter_priv_on();
        fp = open_file(DOSEMU_USERS_FILE);
        leave_priv_setting();
@@ -1972,6 +2331,7 @@ parse_dosemu_users(void)
 	       else if (strcmp(ustr, ALL_USERS)== 0)
 		 userok = 1;
 	       if (userok) {
+		 setenv("DOSEMU_USER", ustr, 1);
 		 while ((ustr=strtok(0, " \t,;:")) !=0) {
 		   if (ustr[0] == '#') break;
 		   define_config_variable(ustr);
@@ -1996,14 +2356,13 @@ parse_dosemu_users(void)
 		   DOSEMU_USERS_FILE);
 	 }
        fclose(fp);
-     }
+  }
   if (uid == 0) {
      if (!have_vars) define_config_variable("c_all");
      userok=1;  /* This must be root, so always allow DOSEMU start */
   }
 
-  if(userok==0) 
-     {
+  if(userok==0) {
        fprintf(stderr,
 	       "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
 	       pwd->pw_name);
@@ -2024,9 +2383,8 @@ parse_dosemu_users(void)
 	 }
             
        exit(1);
-     }
-  else
-     {
+  }
+  else {
        sprintf(buf, "DOSEMU start by %s (uid=%i)", pwd->pw_name, uid);
             
        if(log_syslog>=2)
@@ -2034,7 +2392,7 @@ parse_dosemu_users(void)
 
        if(log_mail>=2)
 	 mail_to_root("DOSEMU start", buf);
-     }
+  }
 }
 
 
@@ -2166,8 +2524,7 @@ void prepare_dexe_load(char *name)
 }
 
 
-int
-parse_config(char *confname)
+int parse_config(char *confname, char *dosrcname)
 {
   FILE *fd;
   int is_user_config;
@@ -2176,6 +2533,9 @@ parse_config(char *confname)
 
   yydebug  = 1;
 #endif
+
+  define_config_variable(PARSER_VERSION_STRING);
+
 
   {
     /* preset the 'include-stack', so files without '/' can be found */
@@ -2200,8 +2560,15 @@ parse_config(char *confname)
     uid_t uid = get_orig_uid();
 
     char *home = getenv("HOME");
-    char *name = malloc(strlen(home) + 20);
-    sprintf(name, "%s/.dosrc", home);
+    char *name;
+
+    if (!dosrcname) {
+      name = malloc(strlen(home) + 20);
+      sprintf(name, "%s/.dosrc", home);
+    }
+    else {
+      name = strdup(dosrcname);
+    }
 
     /* privileged options allowed? */
     is_user_config = strcmp(confname, CONFIG_FILE);
@@ -2241,6 +2608,17 @@ parse_config(char *confname)
     }
     if (priv_lvl) undefine_config_variable("c_user");
     else undefine_config_variable("c_system");
+
+    if (!parser_version_3_style_used) {
+	/* we obviously have an old configuration file
+         * ( or a too simple one )
+	 * giving up
+	 */
+	yyerror("\nYour %s configuration file is obviously\n"
+		"an old style or a too simple one\n"
+		"Please read README.txt on how to upgrade\n", confname);
+	exit(1);
+    }
 
     /* privileged options allowed for user's config? */
     priv_lvl = uid != 0;
@@ -2338,7 +2716,7 @@ struct config_classes {
 	int mask;
 } config_classes[] = {
 	{"c_all", CL_ALL},
-	{"c_normal", CL_ALL & (~(CL_VAR | CL_BOOT | CL_VPORT | CL_SECURE | CL_IRQ | CL_HARDRAM))},
+	{"c_normal", CL_ALL & (~(CL_SHELL | CL_VAR | CL_BOOT | CL_VPORT | CL_SECURE | CL_IRQ | CL_HARDRAM))},
 	{"c_fileext", CL_FILEEXT},
 	{"c_var", CL_VAR},
 	{"c_system", CL_ALL},
@@ -2357,6 +2735,7 @@ struct config_classes {
 	{"c_dexe", CL_DEXE},
 	{"c_printer", CL_PRINTER},
 	{"c_hardram", CL_HARDRAM},
+	{"c_shell", CL_SHELL},
 	{0,0}
 };
 
@@ -2437,7 +2816,109 @@ static int undefine_config_variable(char *name)
   return 0;
 }
 
+static char *run_shell(char *command)
+{
+	int pipefds[2];
+	pid_t pid;
+	char excode[16] = "1";
 
+	setenv("DOSEMU_SHELL_RETURN", excode, 1);
+	if (pipe(pipefds)) return strdup("");
+	pid = fork();
+	if (pid == -1) return strdup("");
+	if (!pid) {
+		/* child */
+		int ret;
+		close(pipefds[0]);	/* we won't read from the pipe */
+		dup2(pipefds[1], 1);	/* make the pipe child's stdout */
+		priv_drop();	/* drop any priviledges */
+		ret = system(command);
+			/* tell the parent: "we have finished",
+			 * this way we need not to play games with select()
+			 */
+		if (ret == -1) ret = errno;
+		else ret >>=8;
+		write(pipefds[1],"\0\0\0",4);
+		close(pipefds[1]);
+		_exit(ret);
+	}
+	else {
+		/* parent */
+		char *buf = 0;
+		int recsize = 128;
+		int bufsize = 0;
+		int ptr =0;
+		int ret;
+		int status;
+
+		close(pipefds[1]);	/* we won't write to the pipe */
+		do {
+			bufsize = ptr + recsize;
+			if (!buf) buf = malloc(bufsize);
+			else buf = realloc(buf, bufsize);
+			ret = read(pipefds[0], buf+ptr, recsize -1);
+			if (ret > 0) {
+				ptr += ret;
+			}
+		} while (ret >0 && *((int *)(buf+ptr-4)) );
+		close(pipefds[0]);
+		waitpid(pid, &status, 0);
+		buf[ptr] = 0;
+		if (!buf[0]) {
+			free(buf);
+			buf = strdup("");
+		}
+		sprintf(excode, "%d", WEXITSTATUS(status));
+		setenv("DOSEMU_SHELL_RETURN", excode, 1);
+		return buf;
+	}
+}
+
+
+struct for_each_entry {
+	char *list;
+	char *ptr;
+};
+
+#define FOR_EACH_DEPTH	16
+static struct for_each_entry *for_each_list = 0;
+
+static int for_each_handling(int loopid, char *varname, char *delim, char *list)
+{
+	struct for_each_entry *fe;
+	char * new;
+	char saved;
+	if (!for_each_list) {
+		int size = FOR_EACH_DEPTH * sizeof(struct for_each_entry);
+		for_each_list = malloc(size);
+		memset(for_each_list, 0, size);
+	}
+	if (loopid > FOR_EACH_DEPTH) {
+		yyerror("too deeply nested foreach\n");
+		return 0;
+	}
+	fe = for_each_list + loopid;
+	if (!fe->list) {
+		/* starting the loop */
+		fe->ptr = fe->list = strdup(list);
+	}
+	while (fe->ptr[0] && strchr(delim,fe->ptr[0])) fe->ptr++;
+	/* subsequent call */
+	if (!fe->ptr[0]) {
+		/* loop end */
+		free(fe->list);
+		fe->list = 0;
+		return (0);
+	}
+	new = strpbrk(fe->ptr, delim);
+	if (!new) new = strchr(fe->ptr,0);
+	saved = *new;
+	*new = 0;
+	setenv(varname,fe->ptr,1);
+	if (saved) new++;
+	fe->ptr = new;
+	return (1);
+}
 
 #ifdef TESTING_MAIN
 

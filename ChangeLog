@@ -1,3 +1,45 @@
+98/01/14 ver. 0.97.0.1 unofficial pre-release
+	From Kenneth Corbin <kenc@pioneer.net>
+	- fix for >16bit portnumbers in src/emu-i386/n_ports.c
+	From Pasi Eronen
+	- fix typo in vga_emu_init(), in src/env/video/vgaemu.c
+	From Arne de Bruijn <arne@knoware.nl>
+	- fix for seek_from_eof fails on lredir'd drives (mfs.c)
+	From Hans
+	- small optimization to power_of_2_sqrt. (removed silly compares)
+	- fixed (longstanding) typo in parser.y: CARD_EGA was treated as CGA
+	- fixed too late initialization of 'mem_names' in
+	  src/base/init/memcheck.c
+	- enhancements to parser.y /lexer.l.
+	  After long thinking and hesitating I decided to use real number
+	  during startup /configuration. We won't use math support later
+	  but I verified, it doesn't do any harm during start up.
+	  Hence for future configuration stuff, we can avoid such tricks
+	  as 'cpuspeed 500 3' and can have 'cpuspeed 166.666'.
+	  - full expressions evaluation, automatic real/integer evaluation.
+	  - string expressions
+	  - using environment variables ($XXX) in (string) expressions 
+	  - setting environment variables possible
+	  - preset some environment variables before running the parser
+	    (KERNEL_VERSION_CODE, DOSEMU_VERSION_CODE, DOSEMU_EUID,
+	    DOSEMU_UID, DOSEMU_USER, DOSEMU_REAL_USER, DOSEMU_HOST)
+	  - new: 'if ()' statement
+	  - new: 'while () ... done' statement
+	  - new: 'foreach $xxx () ... done' statement
+	  - new: shell() statement
+	  - new: macro expansion ($$xxx)
+	  - ... and lot more, have a look at README.txt
+	  - ./etc/config.dist became ./etc/dosemu.conf
+	    ( rewrote the whole stuff, now checks for a lot more and sets
+	    configuration more correctly in the first place )
+	  - updated the docs accordingly
+	- new commandline option to aid debugging of configuration:
+	  dos -h[0-2] -O 2>&1 prints all usefull configuration data and exits.
+	- new commandline option: '-f dosrcfile', which overwrites reading
+	  of ~/.dosrc
+	- fixed _some_ (not all) sgml2tex errors in src/doc/README
+	  ( man, are those '...' a mess, difficult to find anyway )
+	  because they were 'hiding' a lot of valuable info.
 97/12/13 ver. 0.97.0 unofficial pre-release, VERSION BUMP
 	From Pasi
 	- patch for color allocation problems with -bpp 8 in src/env/video/X.c

@@ -17,7 +17,7 @@ need the old information too ...
 <item> Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
   diskette in your a: drive.  Run "sys a:" to transfer the system files
   to the diskette.  Copy SYS.COM from your DOS directory
-  (usually C:\DOS) to the diskette.
+  (usually C:\\DOS) to the diskette.
 
 <item> Reboot Linux.  Run 'dos -A'.  After a short pause, the system should
   come up.  Try "dir c:" which should list the files on the harddrive
@@ -32,7 +32,7 @@ need the old information too ...
 
 <itemize>
 <item> If you have a previous version of DOSEMU running, you should copy the
-  .SYS, .COM, & .EXE files in the ./commands directory over to the
+  *.SYS, *.COM, & *.EXE files in the ./commands directory over to the
   hdimage drive that you boot from.  Some of these files have changed.
 </itemize>
 
@@ -58,5 +58,5 @@ need the old information too ...
 
 </itemize>
 
-  ... all clear ? ;-)
+  all clear ? ;-)
 

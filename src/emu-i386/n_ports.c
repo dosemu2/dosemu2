@@ -95,8 +95,8 @@ static unsigned char port_handles;	/* number of io_handler's */
 
 static const char *irq_handler_name[EMU_MAX_IRQS];
 
-#define SET_HANDLE(p,h)		port_handle_table[(p)]=(h)
-#define EMU_HANDLER(port)	port_handler[port_handle_table[(port)]]
+#define SET_HANDLE(p,h)		port_handle_table[(Bit16u)(p)]=(h)
+#define EMU_HANDLER(port)	port_handler[port_handle_table[(Bit16u)(port)]]
 
 /* This is the same code that was used in cpu.c, priv_iopl is really
    very slow */

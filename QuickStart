@@ -3,9 +3,18 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 WARNING for old dosemu users:
             ^^^^^^^^^^^^^^^^
         The format of dosemu.conf and dosemu.users has changed !!!
-        Please take over the new config files and read
-        ./doc/README.txt chapter 2
+        Please take over the new config files as follows
 
+        # cd /where/I/have/dosemu
+        # mv /etc/dosemu.config /etc/dosemu.conf.v2
+        # cp ./etc/dosemu.config /etc
+
+        and edit /etc/dosemu.config using ./doc/README.txt chapter 2
+
+        If you want to keep your old dosemu binary running, additionally do
+
+        # mv etc/dosemu.conf /etc/dosemu.conf.v3
+        # cp etc/dosemu.conf.wrapper /etc/dosemu.conf
 
 --------------------------------------------------------------------------
 1. Compile
@@ -64,9 +73,10 @@ or
 3.  Configure  ... the _real_ stuff
 --------------------------------------------------------------------------
 
-- Copy ./etc/config.dist to /etc/dosemu.conf if you are installing for
+- Copy ./etc/{dosemu.conf,dosemu.setup} to /etc if you are installing for
   the first time.
-  Modify it by using the info in the file ./doc/README.txt chapter 2
+  Modify /etc/dosemu.setup by using the info in the file ./doc/README.txt
+  chapter 2
 
 - Copy ./etc/dosemu.users.easy to /etc/dosemu.users which contains a list of
   users who are privileged to use dosemu.  The user "all" will allow anyone
@@ -156,13 +166,13 @@ If you don't know how to copy files from/to the hdimage:
 
 - Check your /etc/dosemu.users file (maybe insufficient privileges set)
 
-- Read your /etc/dosemu.conf file carefully and make corrections.
+- Read your /etc/dosemu.setup file carefully and make corrections.
 
 - Try disabling certain features.  The video options and some of the
   rawkeyboard options sometimes cause problems.
 
 - If the video support does not work, ensure that the video BIOS address
-  in the /etc/dosemu.conf file is correct.
+  in /etc/dosemu.setup (variable $_vbios_seg) is correct.
 
 - Read all documentation files carefully, and try to get some help from
   others who have used DOSEMU.

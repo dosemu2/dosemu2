@@ -6,6 +6,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/utsname.h>
 
 #include "config.h"
 #include "emu.h"
@@ -38,9 +39,12 @@ struct debug_flags d =
 /* d  R  W  D  C  v  X  k  i  T  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
 #endif
 
+int config_check_only = 0;
+
 static void     check_for_env_autoexec_or_config(void);
 int     parse_debugflags(const char *s, unsigned char flag);
 static void     usage(void);
+void memcheck_type_init(void);
 
 /*
  * DANG_BEGIN_FUNCTION cpu_override
@@ -271,6 +275,166 @@ config_defaults(void)
     config.mpu401_base = 0x330;
 }
 
+void dump_config_status(void)
+{
+    char *s;
+    FILE *out = stderr;
+
+    fprintf(out, "\n-------------------------------------------------------------\n");
+    fprintf(out, "------dumping the runtime configuration _after_ parsing -----\n");
+    fprintf(out, "Version: dosemu-" VERSTR " versioncode = 0x%08x\n\n", DOSEMU_VERSION_CODE);
+    fprintf(out, "cpu ");
+    switch (vm86s.cpu_type) {
+      case CPU_386: s = "386"; break;
+      case CPU_486: s = "486"; break;
+      case CPU_586: s = "586"; break;
+      default:  s = "386"; break;
+    }
+    fprintf(out, "%s\nrealcpu ", s);
+    switch (config.realcpu) {
+      case CPU_386: s = "386"; break;
+      case CPU_486: s = "486"; break;
+      case CPU_586: s = "586"; break;
+      default:  s = "386"; break;
+    }
+    fprintf(out, "%s\n", s);
+
+    fprintf(out, "pci %d\nrdtsc %d\nmathco %d\nsmp %d\n",
+                 config.pci, config.rdtsc, config.mathco, config.smp);
+#ifdef X86_EMULATOR
+    fprintf(out, "emuspeed %d\ncpuemu %d\n", config.emuspeed, config.cpuemu);
+#endif
+
+    fprintf(out, "hdiskboot %d\nmem_size %d\n",
+        config.hdiskboot, config.mem_size);
+    fprintf(out, "ems_size 0x%x\nems_frame 0x%x\nsecure %d\n",
+        config.ems_size, config.ems_frame, config.secure);
+    fprintf(out, "xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\n",
+        config.xms_size, config.max_umb, config.dpmi);
+    fprintf(out, "mouse_flag %d\nmapped_bios %d\nvbios_file %s\n",
+        config.mouse_flag, config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
+    fprintf(out, "vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
+        config.vbios_copy, config.vbios_seg, config.vbios_size);
+    fprintf(out, "console %d\nconsole_keyb %d\nconsole_video %d\n",
+        config.console, config.console_keyb, config.console_video);
+    fprintf(out, "kbd_tty %d\nexitearly %d\n",
+        config.kbd_tty, config.exitearly);
+    fprintf(out, "fdisks %d\nhdisks %d\nbootdisk %d\n",
+        config.fdisks, config.hdisks, config.bootdisk);
+    fprintf(out, "term_esc_char 0x%x\nterm_color %d\nterm_updatefreq %d\n",
+        config.term_esc_char, config.term_color, config.term_updatefreq);
+    switch (config.term_charset) {
+      case CHARSET_LATIN: s = "latin"; break;
+      case CHARSET_IBM: s = "ibm"; break;
+      case CHARSET_FULLIBM: s = "fullibm"; break;
+      default: s = "(unknown)";
+    }
+    fprintf(out, "term_charset \"%s\"\nX_updatelines %d\nX_updatefreq %d\n",
+        s, config.X_updatelines, config.X_updatefreq);
+    fprintf(out, "X_display \"%s\"\nX_title \"%s\"\nX_icon_name \"%s\"\n",
+        (config.X_display ? config.X_display :""), config.X_title, config.X_icon_name);
+    fprintf(out, "X_blinkrate %d\nX_sharecmap %d\nX_mitshm %d\n",
+        config.X_blinkrate, config.X_sharecmap, config.X_mitshm);
+    fprintf(out, "X_fixed_aspect %d\nX_aspect_43 %d\nX_lin_filt %d\n",
+        config.X_fixed_aspect, config.X_aspect_43, config.X_lin_filt);
+    fprintf(out, "X_bilin_filt %d\nX_mode13fact %d\nX_winsize_x %d\n",
+        config.X_bilin_filt, config.X_mode13fact, config.X_winsize_x);
+    fprintf(out, "X_winsize_y %d\nX_gamma %d\nvgaemu_memsize 0x%x\n",
+        config.X_winsize_y, config.X_gamma, config.vgaemu_memsize);
+    fprintf(out, "vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
+        config.vesamode_list, config.X_lfb, config.X_pm_interface);
+    fprintf(out, "X_keycode %d\nX_font \"%s\"\nusesX %d\n",
+        config.X_keycode, config.X_font, config.usesX);
+    switch (config.chipset) {
+      case PLAINVGA: s = "plainvga"; break;
+      case TRIDENT: s = "trident"; break;
+      case ET4000: s = "et4000"; break;
+      case DIAMOND: s = "diamond"; break;
+      case S3: s = "s3"; break;
+      case AVANCE: s = "avance"; break;
+      case ATI: s = "ati"; break;
+      case CIRRUS: s = "cirrus"; break;
+      case MATROX: s = "matrox"; break;
+      case WDVGA: s = "wdvga"; break;
+      default: s = "unknown"; break;
+    }
+    fprintf(out, "config.X %d\nhogthreshold %d\nchipset \"%s\"\n",
+        config.X, config.hogthreshold, s);
+    switch (config.cardtype) {
+      case CARD_VGA: s = "VGA"; break;
+      case CARD_MDA: s = "MGA"; break;
+      case CARD_CGA: s = "CGA"; break;
+      case CARD_EGA: s = "EGA"; break;
+      default: s = "unknown"; break;
+    }
+    fprintf(out, "cardtype \"%s\"\npci_video %d\nfullrestore %d\n",
+        s, config.pci_video, config.fullrestore);
+    fprintf(out, "graphics %d\ngfxmemsize %d\nvga %d\n",
+        config.graphics, config.gfxmemsize, config.vga);
+    switch (config.speaker) {
+      case SPKR_OFF: s = "off"; break;
+      case SPKR_NATIVE: s = "native"; break;
+      case SPKR_EMULATED: s = "emulated"; break;
+      default: s = "wrong"; break;
+    }
+    fprintf(out, "dualmon %d\nforce_vt_switch %d\nspeaker \"%s\"\n",
+        config.dualmon, config.force_vt_switch, s);
+    fprintf(out, "update %d\nfreq %d\nwantdelta %d\nrealdelta %d\n",
+        config.update, config.freq, config.wantdelta, config.realdelta);
+    fprintf(out, "timers %d\nkeybint %d\n",
+        config.timers, config.keybint);
+    fprintf(out, "tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
+        config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
+    fprintf(out, "num_ser %d\nnum_lpt %d\nconfig.fastfloppy %d\n",
+        config.num_ser, config.num_lpt, config.fastfloppy);
+    fprintf(out, "emusys \"%s\"\nemubat \"%s\"\nemuini \"%s\"\n",
+        (config.emusys ? config.emusys : ""), (config.emubat ? config.emubat : ""), (config.emuini ? config.emuini : ""));
+    fprintf(out, "dosbanner %d\nallowvideoportaccess %d\ndetach %d\n",
+        config.dosbanner, config.allowvideoportaccess, config.detach);
+    fprintf(out, "debugout \"%s\"\n",
+        (config.debugout ? config.debugout : (unsigned char *)""));
+    {
+      extern void dump_keytable(FILE *f, struct keytable_entry *kt);
+      dump_keytable(out, config.keytable);
+    }
+    fprintf(out, "pre_stroke \"%s\"\n", (config.pre_stroke ? config.pre_stroke : (unsigned char *)""));
+    fprintf(out, "irqpassing= ");
+    if (config.sillyint) {
+      int i;
+      for (i=0; i <16; i++) {
+        if (config.sillyint & (1<<i)) {
+          fprintf(out, "IRQ%d", i);
+          if (config.sillyint & (0x10000<<i))
+            fprintf(out, "(sigio) ");
+          else
+            fprintf(out, " ");
+        }
+      }
+      fprintf(out, "\n");
+    }
+    else fprintf(out, "none\n");
+    fprintf(out, "must_spare_hardware_ram %d\n",
+        config.must_spare_hardware_ram);
+    {
+      int need_header_line =1;
+      int i;
+      for (i=0; i<(sizeof(config.hardware_pages)); i++) {
+        if (config.hardware_pages[i]) {
+          if (need_header_line) {
+            fprintf(out, "hardware_pages:\n");
+            need_header_line = 0;
+          }
+          fprintf(out, "%05x ", (i << 12) + 0xc8000);
+        }
+      }
+      if (!need_header_line) fprintf(out, "\n");
+    }
+    fprintf(out, "\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
+        config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
+    fprintf(out, "\n--------------end of runtime configuration dump -------------\n");
+    fprintf(out,   "-------------------------------------------------------------\n\n");
+}
+
 static void 
 open_terminal_pipe(char *path)
 {
@@ -310,6 +474,42 @@ open_Xmouse_pipe(char *path)
     return;
 }
 
+static void our_envs_init(char *usedoptions)
+{
+    struct utsname unames;
+    char *s;
+    char buf[256];
+    int kversion,i,j;
+
+    uname(&unames);
+    kversion = strtol(unames.release, &s,0) << 16;
+    kversion += strtol(s+1, &s,0) << 8;
+    kversion += strtol(s+1, &s,0);
+    sprintf(buf, "%d", kversion);
+    setenv("KERNEL_VERSION_CODE", buf, 1);
+    sprintf(buf, "%d", DOSEMU_VERSION_CODE);
+    setenv("DOSEMU_VERSION_CODE", buf, 1);
+    sprintf(buf, "%d", geteuid());
+    setenv("DOSEMU_EUID", buf, 1);
+    sprintf(buf, "%d", getuid());
+    setenv("DOSEMU_UID", buf, 1);
+    for (i=0,j=0; i<256; i++) {
+        if (usedoptions[i]) buf[j++] = i;
+    }
+    buf[j] = 0;
+    setenv("DOSEMU_OPTIONS", buf, 1);
+}
+
+
+static void restore_usedoptions(char *usedoptions)
+{
+    char *p = getenv("DOSEMU_OPTIONS");
+    if (p) {
+        memset(usedoptions,0,256);
+        do usedoptions[*p] = *p; while (*++p);
+    }
+}
+
 /*
  * DANG_BEGIN_FUNCTION config_init
  * 
@@ -328,14 +528,18 @@ config_init(int argc, char **argv)
     extern int dexe_running;
     int             c;
     char           *confname = NULL;
+    char           *dosrcname = NULL;
     char           *basename;
     char           *dexe_name = 0;
+    char usedoptions[256];
 
     if (argv[1] && !strcmp("--version",argv[1])) {
       usage();
       exit(0);
     }
 
+    memset(usedoptions,0,sizeof(usedoptions));
+    memcheck_type_init();
     config_defaults();
     basename = strrchr(argv[0], '/');	/* parse the program name */
     basename = basename ? basename + 1 : argv[0];
@@ -349,17 +553,27 @@ config_init(int argc, char **argv)
     {
 	if (strcmp(basename, "xdos") == 0)
 	    config.X = 1;	/* activate X mode if dosemu was */
+	    usedoptions['X'] = 'X';
 	/* called as 'xdos'              */
     }
 #endif
 
     opterr = 0;
     confname = CONFIG_FILE;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:x:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
+	usedoptions[(unsigned char)c] = c;
 	switch (c) {
+	case 'h':
+	    config_check_only = atoi(optarg) + 1;
+	    break;
 	case 'F':
 	    if (get_orig_uid()) {
 		FILE *f;
+		if (!get_orig_euid()) {
+		    /* we are running suid root as user */
+		    fprintf(stderr, "Sorry, -F option not allowed here\n");
+		    exit(1);
+		}
 		enter_priv_off();
 		f=fopen(optarg, "r");
 		leave_priv_setting();
@@ -369,7 +583,21 @@ config_init(int argc, char **argv)
 		}
 		fclose(f);
 	    }
-	    confname = optarg;	/* someone reassure me that this is *safe*? */
+	    confname = optarg;
+	    break;
+	case 'f':
+	    {
+		FILE *f;
+		enter_priv_off();
+		f=fopen(optarg, "r");
+		leave_priv_setting();
+		if (!f) {
+		  fprintf(stderr, "Sorry, no access to user configuration file %s\n", optarg);
+		  exit(1);
+		}
+		fclose(f);
+	        dosrcname = optarg;
+	    }
 	    break;
 	case 'L':
 	    dexe_name = optarg;
@@ -424,6 +652,8 @@ config_init(int argc, char **argv)
 	}
     }
 
+    if (config_check_only) d.config = 1;
+
     if (dexe_name || !strcmp(basename,"dosexec")) {
 	extern void prepare_dexe_load(char *name);
 	if (!dexe_name) dexe_name = argv[optind];
@@ -432,6 +662,7 @@ config_init(int argc, char **argv)
 	  exit(1);
 	}
 	prepare_dexe_load(dexe_name);
+	usedoptions['L'] = 'L';
     }
 
 #if defined(__NetBSD__) && defined(X_SUPPORT) && defined(X_GRAPHICS)
@@ -441,9 +672,11 @@ config_init(int argc, char **argv)
     }
 #endif
 
-    parse_config(confname);
+    our_envs_init(usedoptions);
+    parse_config(confname,dosrcname);
+    restore_usedoptions(usedoptions);
 
-    if (config.exitearly)
+    if (config.exitearly && !config_check_only)
 	leavedos(0);
 
     if (vm86s.cpu_type > config.realcpu) {
@@ -459,9 +692,18 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
-	switch (c) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtT:sgh:x:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
+	/* Note: /etc/dosemu.conf may have disallowed some options
+	 *	 ( by removing them from $DOSEMU_OPTIONS ).
+	 *	 We skip them by re-checking 'usedoptions'.
+	 */
+	if (!usedoptions[(unsigned char)c]) {
+	    warn("command line option -%c disabled by dosemu.conf\n", c);
+	}
+	else switch (c) {
 	case 'F':		/* previously parsed config file argument */
+	case 'f':
+	case 'h':
 	case 'I':
 	case 'd':
 	case 'o':
@@ -528,6 +770,7 @@ config_init(int argc, char **argv)
 	    }
 	case 'D':
 	    parse_debugflags(optarg, 1);
+	    if (config_check_only) d.config = 1;
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
@@ -618,6 +861,12 @@ config_init(int argc, char **argv)
     }
     c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
         geteuid(), get_cur_euid(), getegid(), get_cur_egid());
+
+    if (config_check_only) {
+	dump_config_status();
+	usage();
+	leavedos(0);
+    }
 }
 
 
@@ -671,7 +920,7 @@ check_for_env_autoexec_or_config(void)
 int parse_debugflags(const char *s, unsigned char flag)
 {
     char            c;
-
+    int ret = 0;
 #ifdef X_SUPPORT
     const char      allopts[] = "dRWDCvXkiTsm#pgcwhIExMnPrSe";
 #else
@@ -801,20 +1050,21 @@ int parse_debugflags(const char *s, unsigned char flag)
 	default:
 	    fprintf(stderr, "Unknown debug-msg mask: %c\n\r", c);
 	    dbug_printf("Unknown debug-msg mask: %c\n", c);
-	    return 1;
+	    ret = 1;
 	}
-  return 0;
+  if (config_check_only) d.config = 1;
+  return ret;
 }
 
 static void
 usage(void)
 {
-    fprintf(stdout,
+    fprintf(stderr,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  dos  [-ABCckbVNtsgxKm23456ez] \\\n"
+	"  dos  [-ABCckbVNtsgxKm23456ez] [-h{0|1|2}] \\\n"
 	"       [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] \\\n"
-	"       [-o dbgfile] 2> vital_logs\n"
+	"       [-f dosrcFile] [-o dbgfile] 2> vital_logs\n"
 	"  dos --version\n\n"
 	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
 	"    -A boot from first defined floppy disk (A)\n"
@@ -839,10 +1089,13 @@ usage(void)
 	"       p=printer r=pic      s=serial v=video     w=warning x=xms\n"
 	"    -E STRING pass DOS command on command line\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
-	"    -F use config-file File\n"
+	"    -F use File as global config-file\n"
+	"    -f use dosrcFile as user config-file\n"
 	"    -L load and execute DEXE File\n"
 	"    -I insert config statements (on commandline)\n"
 	"    -g enable graphics modes (!%%#)\n"
+	"    -h dump configuration to stderr and exit (sets -D+c)\n"
+	"       0=no parser debug, 1=loop debug, 2=+if_else debug\n"
 	"    -K Do int9 (!#)\n"
 	"    -k use PC console keyboard (!)\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"

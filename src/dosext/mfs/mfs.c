@@ -3317,7 +3317,7 @@ dos_fs_redirect(state)
     return TRUE;
   case SEEK_FROM_EOF:		/* 0x21 */
     {
-      int offset = (state->ecx << 16) + (state->edx);
+      int offset = (int)WORD(state->ecx << 16) + WORD(state->edx);
 
       fd = sft_fd(sft);
       Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%d\n",
@@ -3329,8 +3329,8 @@ dos_fs_redirect(state)
 	      fd, offset));
       if (offset != -1) {
 	sft_position(sft) = offset;
-	state->edx = offset >> 16;
-	state->eax = WORD(offset);
+	SETWORD(&(state->edx), offset >> 16);
+	SETWORD(&(state->eax), WORD(offset));
 	return (TRUE);
       }
       else {

@@ -37,23 +37,23 @@ with it, large programs will not load, etc. etc. etc.
 In other words, it is NOT ready for daily use.  Many video cards are known
 to have problems (you may see a nice white screen, however, look below
 for win31-in-xdos).  Your program groups are all likely to disappear.
-...  Basically, it's a pain.
+Basically, it's a pain.
 <p>
 On the other hand, if you're dying to see the little Windows screen running
 under Linux and you have read this CAREFULLY and PROMISE NOT TO BOMBARD THE
-DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES...
+DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES
 
 <itemize>
 <item>  Get DOSEMU & the Linux source distributions.
 <item>  Unpack DOSEMU.
 <item>  Configure DOSEMU typing './configure' and do _not_ disable vm86plus.
 <item>  Compile DOSEMU typing 'make'.
-<item>  Get the OS2WIN31.ZIP distribution from .... ????
-    .... oh well, and now you have the first problem.
+<item>  Get the OS2WIN31.ZIP distribution from  ????
+    oh well, and now you have the first problem.
     It _was_ on ibm.com sometime ago, but has vanished from that site, and
-    as long as it was there, we could mirror it. .... you see the problem?
+    as long as it was there, we could mirror it. ,,,, you see the problem?
     However, use 'archie' to find it, it will be around somewhere on the net
-    ... for some time ;-)
+    ,,, for some time ;-)
 <item>  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
     (Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
 <item>  Startup dosemu (make certain that DPMI is set to a value such as 4096)

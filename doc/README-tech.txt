@@ -42,21 +42,21 @@
 
   4.2.2.  Changes to arch/i386/kernel/ldt.c
 
-  4.2.2.1.        New functioncode for 'write' in modify_ldt syscall
+  4.2.2.1.        New functioncode for `write' in modify_ldt syscall
 
-  4.2.2.2.        'useable' bit in LDT descriptor
+  4.2.2.2.        `useable' bit in LDT descriptor
 
-  4.2.2.3.        'present' bit in LDT selector
+  4.2.2.3.        `present' bit in LDT selector
 
   4.2.3.  Changes to arch/i386/kernel/signal.c
 
   4.2.4.  Changes to arch/i386/kernel/traps.c
 
-  4.3.    Abandoned 'bells and whistles' from older emumodule
+  4.3.    Abandoned `bells and whistles' from older emumodule
 
   4.3.1.  Kernel space LDT.
 
-  4.3.2.  LDT Selectors accessing the 'whole space'
+  4.3.2.  LDT Selectors accessing the `whole space'
 
   4.3.3.  Fast syscalls
 
@@ -497,7 +497,7 @@
 
   +o  Now what are we doing with eflags in dosemu ?  Well, this I don't
      really know. I saw IF used (told it Larry), I saw VIF tested an
-     set, I saw TF cleared, ... and NT flag....
+     set, I saw TF cleared, and NT flag e.t.c.
 
      But I know what Linus thinks that we should do: Always interpret
      and set VIF, and let IF untouched, it will nevertheless set to 1 at
@@ -505,11 +505,15 @@
 
      How I think we should proceed? Well this I did describe in my last
      mail.
+     ,,,, and this from a follow-up mail:
+
      _N_O_T_E VIF and VIP in DOS-CPU-flagsregister are inherited from
      32-bit, so actually they are both ZERO.
 
      On return to 32-bit, _o_n_l_y VIF will appear in vm86s.regs.eflags !
      _V_I_P _w_i_l_l _b_e _Z_E_R_O, again: _V_I_P will be used _o_n_l_y _o_n_c_e !!!!
+
+     ,,,
 
      I have to add, that VIP will be cleared, because it is not in any
      of the masks of vm86.
@@ -519,7 +523,7 @@
   ( available now in all kernels >= 2.0.28, >= 2.1.15 )
 
   The below gives some details on the new kernel vm86 functionality that
-  is used for a 'full feature dosemu'. We had more of those kernel
+  is used for a `full feature dosemu'. We had more of those kernel
   changes in the older emumodule, but reduced the kernel support to an
   absolute minimum. As a result of this we now have this support in the
   mainstream kernels >= 2.0.28 as well as >= 2.1.15 and do not need
@@ -569,20 +573,20 @@
 
   44..22..11..22..  AAddddiittiioonnaall DDaattaa ppaasssseedd ttoo vvmm8866(())
 
-  When in vm86plus mode vm86() uses the new 'struct vm86plus_struct'
-  instead of 'struct vm86_struct'. This contains some additional flags
+  When in vm86plus mode vm86() uses the new `struct vm86plus_struct'
+  instead of `struct vm86_struct'. This contains some additional flags
   that are used to control whether vm86() should return earlier than
   usual to give the timer emulation in dosemu a chance to be in sync.
   Without this, updating the emulated timer chip happens too seldom and
-  may even result in 'jumping back', because the granulation is too big
+  may even result in `jumping back', because the granulation is too big
   and rounding happens. As we don't know what granulation the DOS
   application is relying on, we can't emulate the expected behave, hence
   the application locks or crashes.  This especially happens when the
   application is doing micro timing.
 
-  As a downside of 'returning more often', we get DOS-space stack
+  As a downside of `returning more often', we get DOS-space stack
   overflows, when we suck too much CPU. This we compensate by detecting
-  this possibility and decreasing the 'return rate', hence giving more
+  this possibility and decreasing the `return rate', hence giving more
   CPU back to DOS-space.
 
   So we can realize a self adapting control loop with this feature.
@@ -601,10 +605,10 @@
   it. Dosemu has its own builtin debugger (dosdebug) which allows
   especially the dosemu developers to track down problems with dosemu
   and DOS applications for which (as usual) we have no source.  ( ...
-  and debugging DOS applications always has been the 'heart' of dosemu
+  and debugging DOS applications always has been the `heart' of dosemu
   development ).
 
-  Dosdebug uses some special flags and data in 'vm86plus_struct', which
+  Dosdebug uses some special flags and data in `vm86plus_struct', which
   are passed to vm86(), and vm86() reacts on it and returns back to
   dosemu with the dosdebug special return codes.
 
@@ -616,18 +620,18 @@
 
   44..22..22..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//llddtt..cc
 
-  44..22..22..11..  NNeeww ffuunnccttiioonnccooddee ffoorr ''wwrriittee'' iinn mmooddiiffyy__llddtt ssyyssccaallll
+  44..22..22..11..  NNeeww ffuunnccttiioonnccooddee ffoorr ``wwrriittee'' iinn mmooddiiffyy__llddtt ssyyssccaallll
 
   In order to preserve backword compatibility with Wine and Wabi the
   changes in the LDT stuff are only available when using function code
-  0x11 for 'write' in the modify_ldt syscall.  Hence old binaries will
+  0x11 for `write' in the modify_ldt syscall.  Hence old binaries will
   be served with the old LDT behavior.
 
-  44..22..22..22..
+  44..22..22..22..  ``uusseeaabbllee'' bbiitt iinn LLDDTT ddeessccrriippttoorr
 
-  The 'struct modify_ldt_ldt_s' got an additional bit: 'useable'.  This
-  is needed for DPMI clients that make use of the 'available' bits in
-  the descriptor (bit 52).  'available' means, the hardware isn't using
+  The `struct modify_ldt_ldt_s' got an additional bit: `useable'.  This
+  is needed for DPMI clients that make use of the `available' bits in
+  the descriptor (bit 52).  `available' means, the hardware isn't using
   it, but software can put information into.
 
   Because the kernel does not use this bit, its save and harmless.
@@ -636,15 +640,15 @@
   function SetDescriptorAccessRights (AX=0009) passes this in bit 4 of
   CH ((80386 extended access rights).
 
-  44..22..22..33..
+  44..22..22..33..  ``pprreesseenntt'' bbiitt iinn LLDDTT sseelleeccttoorr
 
   The function 1 (write_ldt) of syscall modify_ldt() allows
-  creation/modification of selectors containing a 'present' bit, that
+  creation/modification of selectors containing a `present' bit, that
   get updated correctly later on. These selectors are setup so, that
-  they _e_i_t_h_e_r can't be used for access (null-selector) _o_r the call gate
-  descriptor (segment present). This call gate of course is checked to
-  not give any kernel access rights.  Hence, security will not be hurt
-  by this.
+  they _e_i_t_h_e_r can't be used for access (null-selector) _o_r the `present'
+  info goes into bit 47 (bit 7 of type byte) of a call gate descriptor
+  (segment present). This call gate of course is checked to not give any
+  kernel access rights.  Hence, security will not be hurt by this.
 
   44..22..33..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//ssiiggnnaall..cc
 
@@ -657,7 +661,7 @@
   hasn't privilege level 3, and this also could be one of the LDT
   selectors. However, sys_sigreturn doesn't check the descriptors that
   belong to the selector, hence would not see that they are save.  But
-  as we assure proper setting of _a_l_l LDT selector via 'write_ldt' of
+  as we assure proper setting of _a_l_l LDT selector via `write_ldt' of
   modify_ldt(), we safely may allow LDT selectors to be loaded.  If they
   are not proper, we then get an exception and have a chance to emulate
   access. And because old type binaries (Wabi) will not be able create
@@ -671,7 +675,7 @@
   checks whether it gets interrupted from VM86.
 
   Due to limitation in how we can handle signals in dosemu without
-  becoming to far behind 'real time' and because we need to handle those
+  becoming to far behind `real time' and because we need to handle those
   things on the current vm86() return stack, we need to handle the above
   INTx in a similar manor then INT1.
 
@@ -680,9 +684,8 @@
   the vm86() syscall with an appropriate return code.
 
   If the above INTx happens from within old style vm86() call, the
-  exceptions also are handled 'the old way'. (backward comptibility)
-
-  44..33..  AAbbaannddoonneedd ''bbeellllss aanndd wwhhiissttlleess'' ffrroomm oollddeerr eemmuummoodduullee
+  exceptions also are handled `the old way'. (backward comptibility)
+  44..33..  AAbbaannddoonneedd ``bbeellllss aanndd wwhhiissttlleess'' ffrroomm oollddeerr eemmuummoodduullee
 
   ( If you have an application that needs it, well then it won't work,
   and please don't ask us to re-implement the old behaviour.  We have
@@ -694,14 +697,14 @@
   use the LAR instruction to get info from a descriptor but access the
   LDT directly to get it. Well, this is not problem with our user space
   LDT copy (LDT_ALIAS) as long as the DPMI client doesn't need a
-  reliable information about the 'accessed bit'.
+  reliable information about the `accessed bit'.
 
   In the older emumodule we had a so called KERNEL_LDT, which (readonly)
   accessed the LDT directly in kernel space. This now has been abandoned
   and we use some workarounds which may (or may not) work for the above
   mentioned DPMI clients.
 
-  44..33..22..  LLDDTT SSeelleeccttoorrss aacccceessssiinngg tthhee ''wwhhoollee ssppaaccee''
+  44..33..22..  LLDDTT SSeelleeccttoorrss aacccceessssiinngg tthhee ``wwhhoollee ssppaaccee''
 
   DPMI clients may very well try to create selectors with a type and
   size that would overlap with kernel space, though the client normally
@@ -834,9 +837,9 @@
   +o  Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
      diskette in your a: drive.  Run "sys a:" to transfer the system
      files to the diskette.  Copy SYS.COM from your DOS directory
-     (usually C:.nr bi 1
+     (usually C:\DOS) to the diskette.
 
-     Reboot Linux.  Run 'dos -A'.  After a short pause, the system
+  +o  Reboot Linux.  Run 'dos -A'.  After a short pause, the system
      should come up.  Try "dir c:" which should list the files on the
      harddrive distribution image.  If that works, run: "sys c:".  Exit
      dos by running "c:\xitemu".  If you have problems, hold down the
@@ -846,8 +849,10 @@
   66..11..22..  IIff yyoouu aallrreeaaddyy hhaavvee aa HHDDIIMMAAGGEE ffiillee
 
   +o  If you have a previous version of DOSEMU running, you should copy
+     the *.SYS, *.COM, & *.EXE files in the ./commands directory over to
      the hdimage drive that you boot from.  Some of these files have
      changed.
+
   66..11..33..  IIff yyoouu ddoonn''tt kknnooww hhooww ttoo ccooppyy ffiilleess ffrroomm//ttoo tthhee hhddiimmaaggee
 
   +o  Have a look at the recent mtools package (version 3.6 at time of
@@ -861,6 +866,8 @@
            Copying autoexec.bat
            @echo off
            echo "Welcome to dosemu 0.66!"
+
+  all clear ? ;-)
 
   77..  NNeeww KKeeyybbooaarrdd CCooddee
 
@@ -895,6 +902,7 @@
      (int9, bios etc.), and the `clients', which are the interfaces to
      the user frontends supported by dosemu. Currently, clients are
      `raw', `slang' (i.e. terminal), and `X'.
+
      Clients send keystrokes to the server through the interface
      mentioned above (which is defined in "keyboard.h"), the most
      important functions being `putkey()' and `putrawkey()'.
@@ -924,7 +932,7 @@
   Almost everything seems to work well now.
 
   The keyboard server should now quite accurately emulate all key
-  combinations described the 'MAKE CODES' & 'SCAN CODES' tables of
+  combinations described the `MAKE CODES' & `SCAN CODES' tables of
   HelpPC 2.1, which I used as a reference.
 
   See below for a list of known bugs.
@@ -980,8 +988,9 @@
 
   Each queue entry holds a data structure corresponding to (mostly) one
   keypress or release event. [The exception are the braindead 0xe02a /
-  0xe0aa shift key emulation codes the keyboard processor are treated as
-  seperate events.]
+  0xe0aa shift key emulation codes the keyboard processor `decorates'
+  some kinds of keyboard events with, which for convenience are treated
+  as seperate events.]
 
   Each queue entry holds a up to 4 bytes of raw keycodes for the port
   60h emulation, along with a 2-byte translated int16h keycode and the
@@ -1028,6 +1037,7 @@
                    [shiftstate]---------------/
 
        --------->  data flow (&calls, sometimes)
+       ,,,,,,,,,>  calls
 
   77..44..22..11..  FFuunnccttiioonnss iinn sseerrvv__xxllaatt..cc
 
@@ -1058,6 +1068,8 @@
   placed into the queue.
 
   77..44..22..11..22..  ppuuttkkeeyy && ootthheerrss
+
+  ,,,to be documented.
 
   77..44..33..  TThhee BBaacckk EEnndd
 
@@ -1348,7 +1360,8 @@
 
      WWhhyy ddoo II nneeeedd ttoo sseett tthhee HHooggTThhrreesshhoolldd vvaalluuee,, wwhhyy ccaann''tt DDOOSSEEMMUU
         just stop if it is waiting for a keystroke ?"  The reason is the
-        way how DOS and a lot of applications have implemented
+        way how DOS and a lot of applications have implemented `waiting
+        for a keystroke'.
 
         It's most often done by something similar to the following code
         fragment :
@@ -1379,10 +1392,17 @@
         slow anyway :-).
 
      HHooww ddoo II ffoouunndd oouutt aabboouutt CCPPUU uussaaggee ooff DDOOSSEEMMUU ??
-        Simply use 'top'. It displays cpu and memory usage.
+        Simply use `top'. It displays cpu and memory usage.
+
   P.S.  If you want to change the HogThreshold value during execution,
-  simply call int e6h w/al=12h & bx=the new value.  This is what
-  speed.com does. If you are interested, please take a look at speed.c.
+  simply call
+
+        mov al,12h
+        mov bx,the_new_value
+        int e6h
+
+  This is what speed.com does. If you are interested, please take a look
+  at speed.c.
 
   Notes:  If your application is unkind enough to do waits using an
   int16h fcn 1h loop without calling the keyboard idle interrupt (int
@@ -1712,6 +1732,7 @@
   The last method used is the autocalibration, which compares the values
   of gettimeofday() and TSC over an interval of several hundred
   milliseconds, and is quite accurate AFAIK.
+
   You can further override the speed determination by using the
   statement
 
@@ -1874,6 +1895,7 @@
   be used to describe some particularly interesting or complex code. It
   should be borne in mind that this will be out of context in DANG, and
   that DANG is intended for Novice DOSEmu hackers too ...
+
   Example:
 
        /*
@@ -1987,6 +2009,7 @@
   linuxdoc-sgml is like HTML, which is hardly surprising as they are
   both SGMLs. The source to this document may make useful reading (This
   is the file './src/doc/README/doc')
+
   1166..11..  SSeeccttiioonnss
 
   There are 5 section levels you can use. They are all automatically
@@ -2076,6 +2099,7 @@
 
        <tscreen><verb>
        <descrip>
+       ,,,
        </descrip>
        </verb></tscreen>
 
@@ -2139,20 +2163,19 @@
   iinntteerrnnaall iinntteerrffaaccee aanndd aannyy aavvaaiillaabbllee ppaattcchheess sseeee mmyy WWWWWW ppaaggee aatt
   hhttttpp::////wwwwww..sslliitteessyyss..ddeemmoonn..ccoo..uukk//aa..mmaaccddoonnaalldd//ddoosseemmuu//ssoouunndd// CCuurrrreenntt
   DDOOSSEEmmuu ssoouunndd ccooddee
-
   1177..22..  OOrriiggiinnaall DDOOSSEEMMUU ssoouunndd ccooddee
 
-      Copyright (C) 1995  Joel N. Weber II
+           Copyright (C) 1995  Joel N. Weber II
 
-      This sound code is free software; you can redistribute it and/or modify
-      it under the terms of the GNU General Public License as published by
-      the Free Software Foundation; either version 2 of the License, or
-      (at your option) any later version.
+           This sound code is free software; you can redistribute it and/or modify
+           it under the terms of the GNU General Public License as published by
+           the Free Software Foundation; either version 2 of the License, or
+           (at your option) any later version.
 
-      This program is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
-      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-      GNU General Public License for more details.
+           This program is distributed in the hope that it will be useful,
+           but WITHOUT ANY WARRANTY; without even the implied warranty of
+           MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+           GNU General Public License for more details.
 
   This is a very incomplete sound blaster pro emulator.  I recomend you
   get the PC Game Programmer's Encycolpedia; I give the URL at the end
@@ -2322,7 +2345,6 @@
 
      OOCCWW33    bbiittss 00,,11,,55,,66
         select read register, select special mask mode
-
   Reads of both PICs ports are supported completely.
 
   1199..11..  OOtthheerr ffeeaattuurreess
@@ -2609,7 +2631,7 @@
   To run, start up DOSEMU.  Then switch to another virtual console (or
   remote login) and do:
 
-         dosdebug
+    dosdebug
 
   If there are more then one dosemu process running, you will need to
   pass the pid to dosdebug, e.g:
@@ -2949,15 +2971,15 @@
   In the worst case you will get the following output on your remote
   terminal:
 
-          ...oh dear, have to do kill SIGKILL
-          dosemu process (pid 1234) is killed
-          If you want to switch to an other console,
-          then enter a number between 1..8, else just type enter:
-          2      <========= this is what you enter
-          dosdebug terminated
-          NOTE: If you had a totally locked console,
-                you may have to blindly type in 'kbd -a; texmode
-                on the console you switched to.
+     ...oh dear, have to do kill SIGKILL
+     dosemu process (pid 1234) is killed
+     If you want to switch to an other console,
+     then enter a number between 1..8, else just type enter:
+     2      <========= this is what you enter
+     dosdebug terminated
+     NOTE: If you had a totally locked console,
+           you may have to blindly type in 'kbd -a; texmode
+           on the console you switched to.
 
   2222..11..  TThhee mmaaiill mmeessssaaggee
 
