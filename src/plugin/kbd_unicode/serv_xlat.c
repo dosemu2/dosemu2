@@ -2303,7 +2303,7 @@ int keyb_server_init(void)
 {
 	k_printf("KBD: keyb_server_init()\n");
 	keyb_init_state();
-	return keyb_server_reset();
+	return 1;
 }
 
 void keyb_server_close(void) 
