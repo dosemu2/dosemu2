@@ -906,7 +906,8 @@ static void save_selection(int col1, int row1, int col2, int row2)
 	init_charset_state(&paste_state, paste_charset);
 	
 	p = sel_text_dos = malloc(co);
-	sel_space = (row2-row1+1)*(co+1)+102;
+	/* utf-8 can use 6 bytes per char it seems */
+	sel_space = (row2-row1+1)*(co+1)*6+1;
 	sel_text_latin = sel_text = malloc(sel_space);
   
 	/* Copy the text data. */
@@ -927,12 +928,18 @@ static void save_selection(int col1, int row1, int col2, int row2)
 			/* If we hit any run with what we have */
 			result = charset_to_unicode(&video_state, &symbol,
 						    sel_text_ptr, sel_text_bytes);
-			if (result == -1) break;
+			if (result == -1) {
+				warn("save_selection unfinished\n");
+				break;
+			}
 			sel_text_bytes -= result;
 			sel_text_ptr += result;
 			result = unicode_to_charset(&paste_state, symbol,
 						    sel_text_latin, sel_space);
-			if (result == -1) break;
+			if (result == -1) {
+				warn("save_selection unfinished2\n");
+				break;
+			}
 			sel_text_latin += result;
 			sel_space -= result;
 		}
@@ -940,14 +947,26 @@ static void save_selection(int col1, int row1, int col2, int row2)
 		if (col == co)
 		{ 
 			sel_text_latin--;
-			while ((*sel_text_latin == ' ') && (sel_text_latin > prev_sel_text_latin))
+			while ((*sel_text_latin == ' ') && (sel_text_latin > prev_sel_text_latin)) {
 				sel_text_latin--;
+				sel_space++;
+			}
 			sel_text_latin++;
+			if (!sel_space) {
+				error("BUG: pasting OOM\n");
+				leavedos(91);
+			}
 			*sel_text_latin++ = '\n';
+			sel_space--;
 		}
 	}
 	free(sel_text_dos);
+	if (!sel_space) {
+		error("BUG: pasting OOM2\n");
+		leavedos(91);
+	}
 	*sel_text_latin = '\0';
+	sel_space--;
   
 	cleanup_charset_state(&video_state);
 	cleanup_charset_state(&paste_state);
