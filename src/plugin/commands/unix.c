@@ -13,6 +13,7 @@
  ************************************************/
 
 
+#include "emu.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -20,7 +21,6 @@
 #include <string.h>
 
 #include "config.h"
-#include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
 #include "dos2linux.h"
@@ -217,7 +217,7 @@ static int findDrive (char *linux_path_resolved)
  *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand (char *linux_path, int CommandStyle)
+static int setupDOSCommand (char *linux_path)
 {
   char linux_path_resolved[PATH_MAX];
   char dos_path [MAX_PATH_LENGTH];
@@ -225,19 +225,10 @@ static int setupDOSCommand (char *linux_path, int CommandStyle)
  
   char *b;
 
-  
   if (!realpath (linux_path, linux_path_resolved)) {
-    if (CommandStyle == EXEC_LINUX_PATH) {
-      com_fprintf (com_stderr,
-		   "ERROR: %s.  Cannot canonicalize path.\n",
-		   strerror (errno));
+      com_fprintf (com_stderr, "ERROR: %s: %s\n", strerror(errno), linux_path);
       return (1);
-    }
-    /* CommandStyle == EXEC_CHOICE: don't err but execute the DOS
-       command in linux_path literally */
-    return (0);
   }
-
   
   drive = findDrive (linux_path_resolved);
   if (drive < 0) {
@@ -285,14 +276,17 @@ static int setupDOSCommand (char *linux_path, int CommandStyle)
   j_printf ("DOS path: '%s' (from linux '%s')\n",
             dos_path, linux_path_resolved);
 
-  
   /* switch to the directory */
   if (strlen (dos_path) >= 3 && (b = strrchr (dos_path, '\\')) != NULL) {
-    char *dos_dir = dos_path + 2;
-    *b++ = 0;
+    char *dos_dir, *slash_ptr = dos_path + 2;
+    int err;
+    b++;
+    dos_dir = strndup(slash_ptr, b - slash_ptr);
     
     j_printf ("Changing to directory '%s'\n", dos_dir);
-    if (com_dossetcurrentdir (dos_dir)) {
+    err = com_dossetcurrentdir (dos_dir);
+    free(dos_dir);
+    if (err) {
       com_fprintf (com_stderr,
                    "ERROR: Could not change to directory: %s\n",
                    dos_dir);
@@ -314,7 +308,7 @@ static int setupDOSCommand (char *linux_path, int CommandStyle)
 static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
   char data[PATH_MAX];
-  int ret;
+  int ret, terminate, linux_path;
 
   if (argc == 0) {
     ret = misc_e6_commandline(data);
@@ -322,17 +316,30 @@ static int do_execute_dos (int argc, char **argv, int CommandStyle)
     strcpy (data, argv[0]);
     ret = misc_e6_envvar(data);
   }
+  terminate = misc_e6_need_terminate();
+  linux_path = (CommandStyle == EXEC_LINUX_PATH);
 
   if (! ret) {
     /* SUCCESSFUL */
 
-    if (CommandStyle != EXEC_LITERAL && setupDOSCommand (data, CommandStyle))
+    if (CommandStyle == EXEC_CHOICE && data[0] == '/')
+      linux_path = 1;
+    if (linux_path) {
+      if (setupDOSCommand (data))
         return (1);
-    
+    }
+#if 0
+    /* FIXTHIS: we must not terminate if the DOS path doesn't exist,
+     * so we should check its existance, but it is difficult. */
+    else {
+      terminate = 0;
+    }
+#endif
+
     if (*data) {
       com_printf ("About to Execute : %s\n", data);
 
-      if (com_system (data, misc_e6_need_terminate())) {
+      if (com_system (data, terminate)) {
         /* SYSTEM failed ... */
         com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
         return (1);
