@@ -91,9 +91,9 @@ int video_init()
   }
 #endif
 
-  Video->init();              /* call the specific init routine */
-
   termioInit();            /* kludge! */
+
+  Video->init();              /* call the specific init routine */
 
   if (!Video->is_mapped) {
      /* allocate screen buffer for non-console video compare speedup */

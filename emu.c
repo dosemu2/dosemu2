@@ -3408,9 +3408,10 @@ dos_helper(void) {
 
   case 0xff:
     if (LWORD(eax) == 0xffff) {
+      /* terminate code is in bx */
       dbug_printf("DOS termination requested\n");
       p_dos_str("\n\rLeaving DOS...\n\r");
-      leavedos(0);
+      leavedos(LO(bx));
     }
     break;
 

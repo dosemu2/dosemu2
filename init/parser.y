@@ -1272,10 +1272,14 @@ void close_file(FILE * file)
 void
 parse_dosemu_users(void)
 {
+#define ALL_USERS "all"
+#define PBUFLEN 80
+
   FILE *volatile fp;
   struct passwd *pwd;
-  char buf[80];
+  char buf[PBUFLEN];
   int userok = 0;
+  char ustr[PBUFLEN];
 
   /* Sanity Check, Shouldn't be anyone logged in without a userid */
   if ((pwd = getpwuid(getuid())) == (struct passwd *)0) {
@@ -1285,8 +1289,12 @@ parse_dosemu_users(void)
 
   if (getuid() != 0) {
         if ((fp = open_file(DOSEMU_USERS_FILE))) {
-                while(fgets(buf, 79, fp) != NULL && !userok) {
-			if (!(strncmp(buf, pwd->pw_name, strlen(buf)-1))) userok = 1;
+                for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
+                   sscanf(buf,"%s",ustr);   /* cut off newline at end */
+		   if (strcmp(ustr, pwd->pw_name)== 0) userok = 1;
+		   else
+		     if (strcmp(ustr, ALL_USERS)== 0) userok = 1;
+
                 }
         } else {
 		fprintf(stderr,
@@ -1298,7 +1306,7 @@ parse_dosemu_users(void)
 		exit(1);
         }
         fclose(fp);
-        if (userok == 0) {
+        if (!userok) {
            	fprintf(stderr,
    "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
                                 pwd->pw_name);

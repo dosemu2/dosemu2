@@ -27,7 +27,7 @@ OFILES =
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) $(OFILES)
+ALL = $(CFILES) $(HFILES) $(OFILES) README.syscallmgr
 
 # All object-files are included here.
 

@@ -4,7 +4,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#if 0
 #include <linux/string.h>
+#endif
 
 #include "bios.h"
 #include "emu.h" 

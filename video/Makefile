@@ -32,7 +32,7 @@ HFILES = vga.h et4000.h s3.h trident.h terminal.h vc.h $(XHDRS)
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) 
+ALL = $(CFILES) $(HFILES) terminal.c.ncurses terminal.c.slang
 
 # All object-files are included here.
 
@@ -42,7 +42,7 @@ OBJS = video.o vc.o vga.o et4000.o s3.o trident.o console.o \
 SUBDIR=video
 
 .c.o:
-	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
+	$(CC) $(CFLAGS) $(USE_SLANG) $(XDEFS) -c $<
  
 LIB=../lib$(SUBDIR).a
 

@@ -9,7 +9,14 @@
 # if you are doing the first compile.
 #
 
-# Elimiate to avoid X
+# Want to try SLANG?
+# USE_SLANG=-DUSE_SLANG
+ifdef USE_SLANG
+TCNTRL=-lslang -lncurses
+else
+TCNTRL=-lncurses
+endif
+# Eliminate to avoid X
 USE_X=1
 ifdef USE_X
 # Autodetecting the installation of X11. Looks weird, but works...
@@ -104,7 +111,7 @@ endif
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   34
+PATCHL  =   35
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -264,7 +271,7 @@ warning3:
 	@echo "Hopefully you have at least 16MB swap+RAM available during this compile."
 	@echo ""
 
-doeverything: warning2 config dep dossubdirs optionalsubdirs installnew
+doeverything: warning2 config dep docsubdirs optionalsubdirs installnew
 
 most: warning2 config dep installnew
 
@@ -299,7 +306,7 @@ ifdef STATIC
 		$(addprefix -l, $(LIBS)) -lncurses $(XLIBS)
 else
 	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) \
-		-lncurses $(XLIBS)
+		$(TCNTRL) $(XLIBS)
 endif
 
 x2dos: x2dos.o
@@ -324,10 +331,10 @@ xinstallvgafont:	xinstallvgafont.sh
 $(LIBDOSEMU):	$(SHLIBOBJS) $(DPMIOBJS)
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
 	   -nostdlib $(SHLIBOBJS) $(DPMIOBJS) $(addprefix -L,$(LIBPATH)) $(SHLIBS) \
-	    $(addprefix -l, $(LIBS)) $(XLIBS) -lncurses -lc
+	    $(addprefix -l, $(LIBS)) $(XLIBS) $(TCNTRL) -lc
 
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
-.PHONY: $(SUBDIRS)
+.PHONY: $(SUBDIRS) $(OPTIONALSUBDIRS) $(DOCS)
 
 dossubdirs:	$(SUBDIRS)
 
@@ -418,6 +425,7 @@ checkout:
 dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) config.h
 	install -d $(DISTPATH)
 	install -d $(DISTPATH)/lib
+	install -m 0644 libslang.a $(DISTPATH)
 	install -m 0644 $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp TODO $(DISTPATH)/.todo
 	cp TODO.JES $(DISTPATH)/.todo.jes
@@ -436,7 +444,7 @@ local_clean::
 	  dosconfig dosconfig.o *.tmp dosemu.map
 
 local_realclean::	
-	-rm -f config.h .depend
+	-rm -f config.h .depend lib*.a
 
 clean:	local_clean
 
@@ -453,6 +461,7 @@ pristine:	realclean
 depend dep: 
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend ;echo "bios.o : bios.S" >>.depend
 	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
+	cd keyboard; $(MAKE) depend
 	cd video; $(MAKE) depend
 	cd mouse; $(MAKE) depend
 	cd timer; $(MAKE) depend

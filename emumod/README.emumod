@@ -1,0 +1,59 @@
+NOTES for the team:
+===================
+
+This new emumodule has the *complete* functionality of Lutz's
+latest changes.
+The traps 0,1,3,5,7 are vectored to handle_vm86_trap,
+the trap 13 (gp) is vectored to handle_vm86_fault.
+The module contains the *complete* vm86.c from the kernel
+source tree patched with Lutz's diff and adapted for redirection.
+(only 3 lines are module dependend) and traps.c (tailored via #ifdefs).
+The module and redirection stuff is in emumod.c, emumod.h
+
+And you need NO kernel patch.
+-----------------------------
+
+I tested it with Linux 1.1.50 (will work also ..1.1.54)
+and dosemu0.53.27.
+I had not the time to run many DOS programs, 
+but TC, TURBO PASCAL, TURBO DEBUGGER an my net-software
+directly driving WD8013 with sillyint are working well.
+
+Some special notes:
+
+
+1.  My aim was to have only one set of sources, which will compile
+    to loadable modules as well as for hardcoded kernel.
+    So, if we came to the state to mail to Linus, we have already the
+    tested version. Errors due to manually changing the kernel sources
+    are then unlikely.
+
+2.  To load the emumodule you need the insmod from the syscall directory
+    and the /usr/src/linux/zSystem.map (which must fit the loaded kernel).
+    If there is any map-mismatch, don't worry, you will be told.
+    Given you have replaced /sbin/insmod with ./dosemu/syscall/insmod
+    you may (under suid) type:
+
+    insmod -m emumodule
+
+3.  Now you can start dosemu as usual.
+
+    But NOTE: you must NOT use rmmod emumodule, before all dosemu processes
+    have finished and returned to Linux.
+
+4.  If you want the special features of emumodule enabled for dosemu
+    (i.e. dosemu then REQUIRES emumodule), you must edit include/emu.h
+    and set #define REQUIRES_EMUMODULE
+
+    At this time only support for sillyint is replaced by the module
+    but you can see, how it works. I would like to see other features
+    built in from you guys in the team. He ?
+    Have a look at include/emusys.h
+
+
+
+Have fun, but be carefully if changing some thing
+(you are working in kernel space)
+
+Hans
+<lermen@elserv.ffm.fgan.de>

@@ -25,13 +25,13 @@ KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
 CFILES = vm86.c traps.c emumod.c emusys.c
-AFILES = fastsys.S
+SFILES = fastsys.S
 HFILES = emumod.h
 OFILES = vm86.o traps.o emumod.o emusys.o
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) $(AFILES)
+ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 # All object-files are included here.
 
@@ -40,7 +40,7 @@ OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
  
-all: ${OBJS} emumodule.o
+all: $(OBJS) emumodule.o
 
 
 emumodule.o: ${OBJS}

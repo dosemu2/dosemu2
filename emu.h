@@ -286,7 +286,9 @@ extern int cursor_col;
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
 void show_regs(void);
 int ext_fs(int, char *, char *, int);
+#if 0 /* Not used anymore */
 int outch(int c);
+#endif
 void termioInit(void);
 extern __inline__ void run_vm86(void);
 

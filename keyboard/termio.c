@@ -569,6 +569,7 @@ unsigned char highscan[256] =
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0	/* ASC 0xf0-0xff */
 };
 
+#if 0 /* Not used anymore */
 int
 outch(int c)
 {
@@ -576,6 +577,7 @@ outch(int c)
   refresh();
   return 1;
 }
+#endif
 
 static void
 gettermcap(void)

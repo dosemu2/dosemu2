@@ -1,3 +1,18 @@
+Sat Nov  19     1994
+
+-	Latest terminal.c from John Davis.
+
+Fri Nov  18     1994
+
+-	Patch for PS/2 mice from Keith Parks <keithp@its.bt.co.uk>.
+-	Slang code replacement in test. Set USE_SLANG in Makefile.
+	Slang is a faster terminal control library than ncurses.
+	Requires slang (amy.tch.harvard.edu in pub/slang , or tsx
+	in the dosemu Development subdir). Many thanks to
+	John Davis (davis@amy.tch.harvard.edu) for trying to
+	win us over.
+-	Patches to /init/parser.y for /etc/dosemu.users.
+
 Wed Nov  16     1994
 
 -	Rod May has noted that due to race conditions in the kernel

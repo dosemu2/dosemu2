@@ -234,13 +234,44 @@ inline void vm86_GP_fault()
 
   switch (*csp) {
 
-  case 0x6c:			/* insb */
-  case 0x6d:			/* insw */
-  case 0x6e:			/* outsb */
-  case 0x6f:			/* outsw */
-    error("ERROR: IN/OUT SB/SW: 0x%02x\n", *csp);
+  case 0x6c:                    /* insb */
+    *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
+    i_printf("insb(0x%04x) value %02x \n",
+            LWORD(edx),*(SEG_ADR((unsigned char *),es,di)));   
+    if(LWORD(eflags) & DF) LWORD(edi)--;
+    else LWORD(edi)++;
     LWORD(eip)++;
     break;
+
+  case 0x6d:			/* insw */
+    *(SEG_ADR((unsigned short *),es,di)) =inw((int) LWORD(edx));
+    i_printf("insw(0x%04x) value %04x \n",
+            LWORD(edx),*(SEG_ADR((unsigned short *),es,di)));
+    if(LWORD(eflags) & DF) LWORD(edi) -= 2;
+    else LWORD(edi) +=2;
+    LWORD(eip)++;
+    break;
+      
+
+  case 0x6e:			/* outsb */
+    outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
+    fprintf(stderr,"untested: outsb port 0x%04x value %02x",
+            LWORD(edx),*(SEG_ADR((unsigned char *),ds,si)));
+    if(LWORD(eflags) & DF) LWORD(esi)--;
+    else LWORD(esi)++;
+    LWORD(eip)++;
+    break;
+
+
+  case 0x6f:			/* outsw */
+    outw(LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
+    fprintf(stderr,"untested: outsw port 0x%04x value %04x",
+            LWORD(edx), *(SEG_ADR((unsigned short *),ds,si)));
+    if(LWORD(eflags) & DF ) LWORD(esi) -= 2;
+    else LWORD(esi) +=2; 
+    LWORD(eip)++;
+    break;
+
   case 0xe5:			/* inw xx */
     LWORD(eax) = inw((int) csp[1]);
     LWORD(eip) += 2;
@@ -281,10 +312,9 @@ inline void vm86_GP_fault()
     LWORD(eip) += 1;
     break;
 
-    /* Emulate REP F3 6F */
-  case 0xf3:
-    fprintf(stderr, "Checking for REP F3 6F\n");
-    if ((csp[1] & 0xff) == 0x6f) {
+  case 0xf3:                    /* rep */ 
+    if ((csp[1] & 0xff) == 0x6f) { 
+      /* Emulate REP F3 6F */
       u_char *si = SEG_ADR((unsigned char *), ds, si);
 
       fprintf(stderr, "Doing REP F3 6F\n");
@@ -307,8 +337,47 @@ inline void vm86_GP_fault()
       LWORD(eflags) |= CF;
       break;
     }
+    else if ((csp[1] & 0xff) == 0x6c) {     /* rep insb */
+      int delta = 1;
+      if(LWORD(eflags) &DF ) delta = -1;
+      i_printf("Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
+              LWORD(ecx),delta);
+      while (LWORD(ecx))  {
+        *(SEG_ADR((unsigned char *),es,di)) = inb((int) LWORD(edx));
+        LWORD(edi) += delta;
+        LWORD(ecx)--;
+      }
+      LWORD(eip)+=2;
+      break;
+    }
+    else if((csp[1] & 0xff) == 0x6d) {      /* rep insw */
+      int delta =2;
+      if(LWORD(eflags) & DF) delta = -2;
+      i_printf("REP F3 6D (rep insw) %04x words, DELTA %d\n",
+              LWORD(ecx),delta);
+      while(LWORD(ecx)) {
+        *(SEG_ADR((unsigned short *),es,di))=inw(LWORD(edx));
+        LWORD(edi) += delta;
+        LWORD(ecx)--;
+       }
+       LWORD(eip) +=2;
+       break;
+    }
+    else if((csp[1] & 0xff) == 0x6e) {      /* rep outsb */
+      int delta = 1;
+      if(LWORD(eflags) & DF) delta = -1;
+      while(LWORD(ecx)) {
+        outb(LWORD(edx), *(SEG_ADR((unsigned char *),ds,si)));
+        LWORD(esi) += delta;
+        LWORD(ecx)--;
+      }
+      LWORD(eip)+=2;
+      fprintf(stderr,"untested: rep outsb");
+      break;
+    }
+
     else
-      fprintf(stderr, "Nope CSP[1] = 0x%04x\n", csp[1]);
+      fprintf(stderr, "Nope REP F3,CSP[1] = 0x%04x\n", csp[1]);
 
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */

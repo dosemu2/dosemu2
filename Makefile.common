@@ -22,7 +22,5 @@ realclean clean::
 realclean::
 	-rm .depend
 
-%.o:	 %.c
-	$(CC) -c $(CFLAGS) -o $@ $^
-
-
+%.o: %.c
+	$(CC) -c $(CFLAGS) -o $@ $<

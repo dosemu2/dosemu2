@@ -1,0 +1,148 @@
+The aim of this packet is to speed up developement of DOSEMU and
+other projects, that require heavy kernel support.
+With this packet you can avoid the anoying patching/recompiling/reboot
+of the Linux kernel and can develop syscalls and other kernel changes
+on the fly on a running system. Sure, you MUST be uid root !
+
+It is NOT the aim of this packet to generally replace hardcoded kernel
+support by loadable modules, because this would lead to insecure behavour
+of the kernel ! So, if all works, the critical parts should be put back
+to the kernel source tree.
+
+The package mainly consists of
+
+1. The syscall manager
+2. A modified insmod (from modules package)
+
+
+1. The syscall manager
+   ==================
+
+   The loadable module syscallmgr.o allows to put system calls into a loadable
+   module (wasn't supported by the kernel) without confusing the kernel by 
+   double __NR__ syscall numbers. This would allow dosemu to do many things 
+   in kernel space, that actually are can only be done via kernel patches 
+   and/or device drivers.
+   Syscallmgr.o should be loaded via insmod as first of all loadable modules
+   and must stay loaded as long as there is any application and/or loadable
+   module using it.
+
+   Syscalls must be registered by other loadable modules before use as follows:
+
+     register_syscall(nr_syscall, routine, name);
+        nr_syscall  The number of the syscall (greater 140)
+                    or ZERO, if allocating a number dynamically
+        routine     Pointer to the new user syscall routine, must be conform
+                    to the kernel interface, see below resolve_syscall routine
+                    as an example.
+        name        The identification string for this syscall, e.g the name of
+                    the routine.
+     It returns the desired or the allocated syscall number on success or
+     or < 0 on error. As the kernel syscall interface (int 0x80) refuses numbers
+     out of range, this is a save way, even if usinging an unallocated number.
+  
+   Syscall must be unregistered by the module's cleanup routine via:
+  
+     unregister_syscall(nr_syscall)
+     where nr_syscall is the number delivered by register_syscall.
+  
+   At userlevel a program first must include syscallmgr.h 
+   and get the allocated nr_syscall via:
+  
+     resolve_syscall(char *name, struct syscall_sym_entry *buf);
+        name         identification string for the syscall
+        buf          =NULL for normal purpose,
+                     else address of a buffer to get the list of all
+                     allocated user syscalls.
+     It returns the syscall number or <0 on error (see above).
+     To get the required size of "buf" you may do:
+         size = resolve_syscall(0,0);
+     to get the number of entries you may do:
+         count=resolve_syscall(0,buf)
+  
+   Example (user level):
+  
+     #include <linux/unistd.h>
+     #include "syscallmgr.h"
+     
+     int __NR_my_private_syscall=-1;
+     /* defines: 
+      * static inline my_private_syscall(char *hellotext);
+      */
+     static inline _syscall1(int,my_private_syscall, char *,hellotext);
+  
+     main() {
+       struct syscall_sym_entry *p;
+       int size,count,i;
+       __NR_my_private_syscall = resolve_syscall("my_private_syscall",0);
+       my_private_syscall("Hello Linux kernel");
+       my_private_syscall("I'm not invited, but I'm here");
+       size=resolve_syscall(0,0);
+       p=malloc(size);
+       count=resolve_syscall(0,p);
+       for (i=0; i <count; i++) printf("nr=%d %s\n",p[i].nr, p[i].name);
+     }
+  
+  
+
+   NOTE:
+   1. Naming convention with <unistd.h> is    __NR_routine_name, 
+      but naming convention in <syscall.h> is SYS_routine_name !
+      You can use all standard macros/function along with your syscall number.
+   2. Syscallmgr can NOT be used to replace existing kernel resident syscalls.
+      (though you may do it manually).
+
+
+
+2. A modified insmod
+   =================
+
+
+   This is a modified insmod for development purpose, which can load a module
+   even if some syms are undefined in ksyms. The addresses then come out
+   of /usr/src/zSystem.map. To avoid reading the wrong map I compare the 
+   known addresses from get_kernel_sym() against the ones in zSystem.map.
+   So there is *very* low propability of crashes.
+
+   Again:
+     Together with syscallmgr.o this allowes nearly all freedom (if suid)
+     without kernel patches !
+
+
+   The new insmod can replace the default one, because the special features
+   are switched on by command line options. Usage is:
+
+   insmod [-o name] [-f] [-l] [-m | -M mapfile] module
+     module     Filename of a loadable kernel module (*.o)
+     -o name    Set internal modulname to name
+     -f         Force loading under wrong kernel version
+                (together with -m also disables mapfile check)
+     -m         At last use /usr/src/linux/zSystem.map to resolve
+     -M mapfile As -m, but use mapfile
+     -l         Together with -m, -M, also take local symbols from map
+                (But note, local symbols can be multiple defined, 
+                 last one is taken)
+
+
+3. You may test this stuff with:
+
+     ./insmod syscallmgr.o
+     ./insmod -lm testsys.o
+     ./testmain
+     rmmod testsys
+     rmmod syscall
+
+   You then get a klog like this
+
+   Oct 19 00:43:09 el15 kernel: Syscall_Modul, init_module called, NR_resolve_syscall=255
+   Oct 19 00:44:27 el15 kernel: Testsys, init_module called, NR_testsys=141
+   Oct 19 00:44:59 el15 kernel: Testsys: >hello<
+   Oct 19 00:44:59 el15 kernel: Testsys: code at fast_IRQ10_interrupt=501e06fc
+   Oct 19 00:47:18 el15 kernel: Testsys: cleanup modul called
+   Oct 19 00:54:32 el15 kernel: Syscall_Modul: cleanup modul called
+
+   The testsys.c is also an example of how to even resolve local kernel symbols
+
+
+Try it, and let me know how it works!
+Hans <lermen@elserv.ffm.fgan.de>

@@ -880,7 +880,10 @@ mouse_init(void)
  	mice->type = MOUSE_NONE;
  	return;
       }
-      add_to_io_select(mice->fd, 1);
+      if (mice->type == MOUSE_PS2)            /* want_sigio causes problems */
+        add_to_io_select(mice->fd, 0);        /* with my ps2 mouse,set to 0 */
+      else                                    /* keithp@its.bt.co.uk        */
+        add_to_io_select(mice->fd, 1);
       DOSEMUSetupMouse();
       return;
     }
@@ -892,7 +895,7 @@ mouse_init(void)
     else {
       int x;
       for (x=0;x<config.num_ser;x++){
-        sptr = &com[config.num_ser];
+        sptr = &com[x];
         if (sptr->mouse) break;
       }
       if (!(sptr->mouse)) {

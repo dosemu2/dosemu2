@@ -3,7 +3,7 @@
 
 
 ALL = bios.h keymaps.h port.h video.h ipx.h mouse.h inifile.h hgc.h \
-	dosnet.h termio.h syscallmgr.h
+	dosnet.h termio.h syscallmgr.h emusys.h slang.h
 
 OBJS = 
 

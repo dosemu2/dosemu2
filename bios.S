@@ -178,7 +178,7 @@ _INT08_dummy_start:			/* TIMER INTERRUPT ROUTINE	*/
 #define ADC_addr_0x46e_cx .byte	0x13,0x0e,0x6e,0x04	/* adcw [0x46e],cx */
 #define CMP_cx_24	  .byte	0x83,0xf9,0x18		/* cmpw cx,24      */
 #define MOV_bl_addr_0x470 .byte	0x88,0x1e,0x70,0x04	/* movw bl,[0x470] */
-#define MOV_cx_addr_0x46e .byte	0x89,0x0e,0x6c,0x04	/* movw cx,[0x46e] */
+#define MOV_cx_addr_0x46e .byte	0x89,0x0e,0x6e,0x04	/* movw cx,[0x46e] */
 #define MOV_0xf100_bx     .byte	0xbb,0x00,0xf1		/* movw 0xf100,bx  */
 #define MOV_0x20f0_bx     .byte	0xbb,0xf0,0x20		/* movw 0x20f0,bx  */
 #define	MOV_cx_addr_bx    .byte	0x89,0x0f		/* movw cx,[bx]    */
@@ -198,8 +198,8 @@ _INT08_dummy_start:			/* TIMER INTERRUPT ROUTINE	*/
 	.byte	0x00,0x1e,0x70,0x04	/* addb   %bl,[$0x0470] */
 #else
 	incl	%ebx			/* we need a 1			*/
-	ADD_bx_addr_0x46c		/* add it to low order time	*/
 	xorl	%ecx,%ecx		/* set cx to zero		*/
+	ADD_bx_addr_0x46c		/* add it to low order time	*/
 	ADC_addr_0x46e_cx		/* add high order time + carry	*/
 
 	/* 18.2044/sec = 65536/hour, therefore high order time is hours	*/
@@ -210,6 +210,7 @@ _INT08_dummy_start:			/* TIMER INTERRUPT ROUTINE	*/
 	MOV_bl_addr_0x470		/* set overflow byte to 1	*/
 L81:	MOV_cx_addr_0x46e		/* store hours			*/
 #endif
+#ifndef NEW_PIC
 	MOV_0xf100_bx			/* set bx to segment 0xf100	*/
 	pushl	%ebx
 	popl	%ds			/* ds = segment of OUTB_ADDR	*/
@@ -217,6 +218,7 @@ L81:	MOV_cx_addr_0x46e		/* store hours			*/
 	incl	%ecx			/* put a 1 into cx		*/
 	MOV_0x20f0_bx			/* set bx to OUTB_ADDR		*/
 	MOV_cx_addr_bx			/* flag outb (EOI) complete	*/
+#endif
 #ifdef NEW_PIC
         pushl   %eax
         movb    $0x20,%al
