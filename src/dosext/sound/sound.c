@@ -210,14 +210,12 @@ void dsp_write_output(uint8_t value)
 {
   /* There is no check for exceeding the length of the queue ... */
 
-  ++SB_queue.holds;
-  SB_queue.output[SB_queue.end++] = value;
-  SB_queue.end &= (DSP_QUEUE_SIZE - 1);
+  Q_PUT(SB_queue, value);
   SB_dsp.data = SB_DATA_AVAIL;
 
   if (debug_level('S') >= 2) {
     S_printf ("SB: Insert into output Queue [%u]... (0x%x)\n", 
-	    SB_queue.holds, value);
+	    Q_HOLDS(SB_queue), value);
   }
 }
 
@@ -227,9 +225,7 @@ void dsp_clear_output(void)
     S_printf ("SB: Clearing the output Queue\n");
   }
 
-  SB_queue.holds = 0;
-  SB_queue.end   = 0;
-  SB_queue.start = 0;
+  Q_CLEAR(SB_queue);
   SB_dsp.data    = SB_DATA_UNAVAIL;
 }
 
@@ -237,20 +233,19 @@ uint8_t dsp_read_output(void)
 {
   Bit8u r = 0xFF;
 
-  if (SB_queue.holds) {
-    r = SB_queue.output[SB_queue.start];
-    SB_queue.output[SB_queue.start++] = 0x00;
-    SB_queue.start &= (DSP_QUEUE_SIZE - 1);
-
-    if (--SB_queue.holds)
-      SB_dsp.data = SB_DATA_AVAIL;
-    else
-      SB_dsp.data = SB_DATA_UNAVAIL;
+  if (Q_HOLDS(SB_queue)) {
+    r = Q_GET(SB_queue);
 
     if (debug_level('S') >= 2) {
       S_printf ("SB: Remove from output Queue [%u]... (0x%X)\n", 
-	      SB_queue.holds, r);
+	      Q_HOLDS(SB_queue), r);
     }
+  }
+  if (Q_HOLDS(SB_queue))
+    SB_dsp.data = SB_DATA_AVAIL;
+  else {
+    SB_dsp.data = SB_DATA_UNAVAIL;
+    Q_CLEAR(SB_queue);
   }
   return r;
 }
@@ -652,8 +647,7 @@ Bit8u mpu401_io_read(ioport_t port)
   switch(addr) {
   case 0:
     /* Read data port */
-    r=0xfe; /* Whatever happened before, send a MPU_ACK */
-    mpu401_info.isdata=0;
+    r=Q_GET(mpu401_info.data);
     S_printf("MPU401: Read data port = 0x%02x\n",r);
     sb_deactivate_irq(SB_IRQ_MIDI);
     break;
@@ -661,7 +655,7 @@ Bit8u mpu401_io_read(ioport_t port)
      /* Read status port */
     /* 0x40=OUTPUT_AVAIL; 0x80=INPUT_AVAIL */
     r=0xff & (~0x40); /* Output is always possible */
-    if (mpu401_info.isdata) r &= (~0x80);
+    if (Q_HOLDS(mpu401_info.data)) r &= (~0x80);
     S_printf("MPU401: Read status port = 0x%02x\n",r);
   }
   return r;
@@ -1830,14 +1824,22 @@ void mpu401_io_write(ioport_t port, Bit8u value)
 	case 1:
 		/* Write command port */
 		S_printf("MPU401: Write 0x%02x to command port\n",value);
+		Q_PUT(mpu401_info.data, 0xfe); /* A command is sent: MPU_ACK it next time */
+		sb_activate_irq(SB_IRQ_MIDI);
 		switch (value) {
 		  case 0x3f:		// 0x3F = UART mode
-		    sb_activate_irq(SB_IRQ_MIDI);
 		    break;
 		  case 0xff:		// 0xFF = reset MPU. Does anyone know more?
 		    break;
+		  case 0x80:		// Clock ??
+		    break;
+		  case 0xac:		// Query version
+		    Q_PUT(mpu401_info.data, 0x15);
+		    break;
+		  case 0xad:		// Query revision
+		    Q_PUT(mpu401_info.data, 0x1);
+		    break;
 		}
-		mpu401_info.isdata=1; /* A command is sent: MPU_ACK it next time */
 		break;
 	}
 }
@@ -2394,15 +2396,21 @@ void sb_irq_trigger (void)
 {
   S_printf ("SB: Interrupt activated.\n");
 
+  if (SB_info.irq.pending & (SB_IRQ_8BIT | SB_IRQ_16BIT)) {
+    if (SB_driver.DMA_complete != NULL) {
+      (*SB_driver.DMA_complete)();
+    }
+    else if (debug_level('S') >= 3) {
+      S_printf ("SB: Optional function 'DMA_complete' not provided.\n");
+    }
+  }
+
+  if (SB_info.irq.pending & SB_IRQ_MIDI) {
+    S_printf("SB: Activated IRQ for MIDI\n");
+  }
+
   SB_info.irq.active |= SB_info.irq.pending;
   SB_info.irq.pending = 0;
-
-  if (SB_driver.DMA_complete != NULL) {
-    (*SB_driver.DMA_complete)();
-  }
-  else if (debug_level('S') >= 3) {
-    S_printf ("SB: Optional function 'DMA_complete' not provided.\n");
-  }
 
   into_irq = 1;
   do_irq();
@@ -2545,7 +2553,7 @@ static void sb_init(void)
 
   /* Register the Interrupt */
 
-  SB_info.irq.irq8 = SB_info.irq.irq16 = pic_irq_list[config.sb_irq];
+  SB_info.irq.irq8 = SB_info.irq.irq16 = SB_info.irq.midi = pic_irq_list[config.sb_irq];
 
   /* We let DOSEMU handle the interrupt */
   pic_seti(SB_info.irq.irq8, sb_irq_trigger, 0, NULL);
@@ -2617,7 +2625,7 @@ static void mpu401_init(void)
   S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n", 
 	    config.mpu401_base);
 
-  mpu401_info.isdata = 0;
+  Q_CLEAR(mpu401_info.data);
 
   (void) MPU_driver_init();
 }

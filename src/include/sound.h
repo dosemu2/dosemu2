@@ -216,6 +216,31 @@ EXTERN struct adlib_info_t {
 
 } adlib_info;
 
+/* 
+ * Output Queue information 
+ */
+
+/* 
+ * How big the output buffer should be. This _MUST_ be a power of 2.
+ * The queue is big, so that it can accomodate the copyright string.
+ */
+
+#define QUEUE_SIZE  64
+#define Q_HOLDS(q) (q.end - q.start)
+#define Q_CLEAR(q) (q.start = q.end = 0)
+#define Q_PUT(q, v) { if (q.end < QUEUE_SIZE) q.output[q.end++] = v; }
+#define Q_GET(q) ({ \
+    Bit8u __ret = Q_HOLDS(q) ? q.output[q.start++] : 0xff; \
+    if (!Q_HOLDS(q)) Q_CLEAR(q); \
+    __ret; \
+})
+
+typedef struct {
+  uint8_t  output[QUEUE_SIZE];  /* Output Queue */
+  int   start;                   /* Current Queue Start */
+  int   end;                     /* Current Queue End */
+} queue_t;
+
 /*
  ***************************************************************************
  * MPU-401 Support                                                         *
@@ -228,7 +253,7 @@ EXTERN struct adlib_info_t {
 
 EXTERN struct mpu401_info_t {
 	/* MPU401 state data */
-	int isdata;         /* TRUE iff byte available at input */
+	queue_t data;
 	/* Architecture specific procedures */
 	void (*data_write)(uint8_t data); /* process 1 MIDI byte */
 } mpu401_info;
@@ -262,23 +287,7 @@ extern void sb_controller(void);
 #define SOUND_IO_MASK 0xFFF0
 #define SOUND_IO_MASK2 0x0F
 
-/* 
- * Output Queue information 
- */
-
-/* 
- * How big the output buffer should be. This _MUST_ be a power of 2.
- * The queue is big, so that it can accomodate the copyright string.
- */
-
-#define DSP_QUEUE_SIZE  64
-
-EXTERN struct SB_queue_t {
-  uint8_t  output[DSP_QUEUE_SIZE];  /* Output Queue */
-  int   holds;                   /* Items in the Queue */
-  int   start;                   /* Current Queue Start */
-  int   end;                     /* Current Queue End */
-} SB_queue;
+EXTERN queue_t SB_queue;
 
 /*
  * The definitions needed for setting up the device structures.
