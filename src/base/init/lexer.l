@@ -472,6 +472,10 @@ jp106			MAY_BE { yylval->i_value = KEYB_JP106; return(KEYB_LAYOUT); }
 pl			MAY_BE { yylval->i_value = KEYB_PL; return(KEYB_LAYOUT); }
 hr-cp852		MAY_BE { yylval->i_value = KEYB_HR_CP852;
 			  return(KEYB_LAYOUT); }
+cz-qwerty		MAY_BE { yylval->i_value = KEYB_CZ_QWERTY;
+			  return(KEYB_LAYOUT); }
+cz-qwertz		MAY_BE { yylval->i_value = KEYB_CZ_QWERTZ;
+			  return(KEYB_LAYOUT); }
 hr-latin2		MAY_BE { yylval->i_value = KEYB_HR_LATIN2;
 			  return(KEYB_LAYOUT); }
 keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }

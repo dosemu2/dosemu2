@@ -385,6 +385,7 @@ any new one to /var/lib/dosemu/keymap/*):
   dvorak          hr-latin2       sf
   es              hu              sf-latin1
   es-latin1       hu-cwi          sg              jp106
+  cz-qwerty       cz-qwertz
 </verb></tscreen>
 
 You define an internal keytable such as

@@ -214,6 +214,7 @@ static const char help_page[]=
   "bl                     list active breakpoints\n"
   "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
   "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
+  "rmapfile [file]        (re)read a dosemu.map ('nm' format) file\n"
   "                       code origin = 'org'.\n"
   "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
   "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
@@ -388,16 +389,23 @@ static void mhp_rusermap(int argc, char *argv[])
 
 static void mhp_rmapfile(int argc, char *argv[])
 {
+  PRIV_SAVE_AREA
   FILE * ifp;
   unsigned char bytebuf[IBUFS];
   unsigned long a1;
+  char *map_fname = DOSEMU_MAP_PATH;
 
-  ifp = fopen(DOSEMU_MAP_PATH, "r");
+  if (argc >= 2) {
+    map_fname = argv[1];
+  }
+  enter_priv_off();
+  ifp = fopen(map_fname, "r");
+  leave_priv_setting();
   if (!ifp) {
-     mhp_printf("unable to open map file %s\n", DOSEMU_MAP_PATH);
+     mhp_printf("unable to open map file %s\n", map_fname);
      return;
   }
-  mhp_printf("Reading map file %s\n", DOSEMU_MAP_PATH);
+  mhp_printf("Reading map file %s\n", map_fname);
   last_symbol = 0;
   while (last_symbol < MAXSYM) {
      if(!fgets(bytebuf, 100, ifp))

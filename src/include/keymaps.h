@@ -48,7 +48,8 @@
 #define KEYB_PL               29
 #define KEYB_HR_CP852	      30
 #define KEYB_HR_LATIN2	      31
-
+#define KEYB_CZ_QWERTY        32
+#define KEYB_CZ_QWERTZ        33		
 #define CONST
 
 

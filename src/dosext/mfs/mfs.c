@@ -243,6 +243,8 @@ boolean_t mach_fs_enabled = FALSE;
 #define	SLASH		'/'
 #define BACKSLASH	'\\'
 
+#define MAX_PATH_LENGTH 57
+
 /* Need to know how many drives are redirected */
 static u_char redirected_drives = 0;
 
@@ -355,6 +357,8 @@ struct direct *dos_readdir(DIR *);
 
 void build_ufs_path(char *ufs, char *path);
 char *is_reserved_msdos (char *s);
+static void set_long_path_on_dirs(struct dir_ent *);
+static int is_long_path(const char *s);
 
 /* Try and work out if the current command is for any of my drives */
 static int
@@ -960,9 +964,10 @@ make_entry(void)
  * Is this significant?
  * DANG_END_REMARK
  */
-  entry = (struct dir_ent *) malloc(sizeof(struct dir_ent)+10);
+  entry = (struct dir_ent *) malloc(sizeof(struct dir_ent));
   entry->hidden = FALSE;
   entry->next = NULL;
+  entry->long_path = FALSE;
   return (entry);
 }
 
@@ -2025,6 +2030,29 @@ match_filename_prune_list(list, name, ext)
   return (r);
 }
 
+/* Set the long_path flag for every directory on a dir_ent list.
+   Called on FIND_FIRST when we are in a directory with a long
+   pathname. The potentially dangerous subdirectories can then be
+   handled properly.*/
+static void
+set_long_path_on_dirs(struct dir_ent *list)
+{
+  while (list != NULL) {
+    if (S_ISDIR(list->mode)) {
+      list->long_path = TRUE;
+    }
+    list = list->next;
+  }
+}
+
+static int
+is_long_path(const char* path)
+{
+  char *p = strrchr(path, BACKSLASH);
+  return (p != NULL)
+    && (p-path > MAX_PATH_LENGTH-8);
+}
+
 #if 0
 #define HLIST_STACK_SIZE 32
 #else
@@ -2532,6 +2560,7 @@ dos_fs_redirect(state)
   char buf[1024];
   struct dir_ent *tmp;
   struct stat st;
+  boolean_t long_path;
 #if 0
   static char last_find_name[8] = "";
   static char last_find_ext[3] = "";
@@ -2540,8 +2569,9 @@ dos_fs_redirect(state)
   char *resourceName;
   char *deviceName;
 #endif
- dos_mode = 0;
 
+ dos_mode = 0;
+ 
   if (!mach_fs_enabled)
     return (REDIRECT);
 
@@ -2598,7 +2628,7 @@ dos_fs_redirect(state)
   case MAKE_DIRECTORY:		/* 0x03 */
   case MAKE_DIRECTORY_2:	/* 0x04 */
     Debug0((dbg_fd, "Make Directory %s\n", filename1));
-    if (read_only) {
+    if (read_only || is_long_path(filename1)) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
@@ -2629,6 +2659,11 @@ dos_fs_redirect(state)
     return (TRUE);
   case SET_CURRENT_DIRECTORY:	/* 0x05 */
     Debug0((dbg_fd, "set directory to: %s\n", filename1));
+    if (is_long_path(filename1)) {
+      /* Path is too long, so we block access */
+      SETWORD(&(state->eax), PATH_NOT_FOUND);
+      return (FALSE);
+    }
     build_ufs_path(fpath, filename1);
     Debug0((dbg_fd, "set directory to ufs path: %s\n", fpath));
 
@@ -2839,7 +2874,7 @@ dos_fs_redirect(state)
       u_short att = *(u_short *) Addr(state, ss, esp);
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
-      if (read_only) {
+      if (read_only || is_long_path(filename1)) {
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
       }
@@ -2867,7 +2902,13 @@ dos_fs_redirect(state)
       return (FALSE);
     }
 
-    SETWORD(&(state->eax), get_dos_attr(st.st_mode,is_hidden(fpath)));
+    attr = get_dos_attr(st.st_mode,is_hidden(fpath));
+    if (is_long_path(filename1)) {
+      /* turn off directory attr for directories with long path */
+      attr &= ~DIRECTORY;
+    }
+
+    SETWORD(&(state->eax), attr);
     state->ebx = st.st_size >> 16;
     state->edi = MASK16(st.st_size);
     return (TRUE);
@@ -3303,6 +3344,12 @@ dos_fs_redirect(state)
 
     Debug0((dbg_fd, "attr = 0x%x\n", attr));
 
+    /* check if path is long */
+    long_path = FALSE;
+    if (is_long_path(filename1)) {
+      long_path = TRUE;
+    }    
+
     build_ufs_path(fpath, filename1);
 
     for (i = 0, bs_pos = 0; fpath[i] != EOS; i++) {
@@ -3423,6 +3470,10 @@ dos_fs_redirect(state)
     }
 
     hlist = match_filename_prune_list(hlist, fname, fext);
+    if (long_path) {
+      set_long_path_on_dirs(hlist);
+    }
+
     hlist_index = hlist_push(hlist, sda_cur_psp(sda));
     sdb_dir_entry(sdb) = hlist_index;
     firstfind = 1;
@@ -3456,6 +3507,15 @@ dos_fs_redirect(state)
 	  free(hlist);
 	  hlist = tmp;
 	  goto find_again;
+	}
+	if (hlist->long_path 
+	    && strncmp(hlist->name, ".       ", 8)
+	    && strncmp(hlist->name, "..      ", 8)) {
+	  /* Path is long, so we do not allow subdirectories
+	     here. Instead return the entry as a regular file.
+	  */
+	  sdb_file_attr(sdb) &= ~DIRECTORY;
+	  hlist->size = 0; /* fake empty file */
 	}
       }
       time_to_dos(&hlist->time,

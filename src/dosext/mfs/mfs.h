@@ -250,11 +250,14 @@ typedef struct vm86_regs state_t;
 
 #define DUPLICATE_REDIR		0x55
 
+/* Something seems to depend on this structure being no more than 32
+   bytes, otherwise dosemu crashes. Why? /MB */
 struct dir_ent {
   char name[8];			/* dos name and ext */
   char ext[3];
   u_short mode;			/* unix st_mode value */
-  boolean_t hidden;
+  u_short hidden;
+  u_short long_path;            /* directory has long path */
   long size;			/* size of file */
   time_t time;			/* st_mtime */
   struct dir_ent *next;

@@ -1489,6 +1489,104 @@ CONST unsigned char alt_map_hr_latin2[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
+
+/* Czech keyboard QWERTY */
+CONST unsigned char key_map_cz_qwerty[] =
+{
+  0, 27, '+', 216, 231, 159, 253, 167,
+  236, 160, 161, 130, '=', DEAD_ACUTE, 127, 9,
+  'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
+  'o', 'p', 163, ')', 13, 0, 'a', 's',
+  'd', 'f', 'g', 'h', 'j', 'k', 'l', 133,
+  245, ';', 0, DEAD_DIAERESIS, 'z', 'x', 'c', 'v',
+  'b', 'n', 'm', ',', '.', '-', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '&', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char shift_map_cz_qwerty[] =
+{
+  0, 27, '1', '2', '3', '4', '5', '6',
+  '7', '8', '9', '0', '%', DEAD_CARON, 127, 9,
+  'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
+  'O', 'P', '/', '(', 13, 0, 'A', 'S',
+  'D', 'F', 'G', 'H', 'J', 'K', 'L', '"',
+  '!', 248, 0, '\'', 'Z', 'X', 'C', 'V',
+  'B', 'N', 'M', '?', ':', '_', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '*', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char alt_map_cz_qwerty[] =
+{
+  0, 0, '~', DEAD_CARON, DEAD_CIRCUMFLEX, DEAD_BREVE, 248, DEAD_OGONEK,
+  DEAD_GRAVE, DEAD_ABOVEDOT, DEAD_ACUTE, DEAD_DOUBLEACUTE, DEAD_DIAERESIS, DEAD_CEDILLA, 0, 0,
+  '\\', '|', 169, 0, 0, 0, 0, 0,
+  162, 0, 246, 158, 0, 0, 165, 208,
+  209, '[', ']', 0, 0,136, 157, '$',
+  225, 0, 0, 207, '>', '#', 134, '@',
+  '{', '}', 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, '<', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+/* Czech keyboard QWERTZ */
+CONST unsigned char key_map_cz_qwertz[] =
+{
+  0, 27, '+', 216, 231, 159, 253, 167,
+  236, 160, 161, 130, '=', DEAD_ACUTE, 127, 9,
+  'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
+  'o', 'p', 163, ')', 13, 0, 'a', 's',
+  'd', 'f', 'g', 'h', 'j', 'k', 'l', 133,
+  245, ';', 0, DEAD_DIAERESIS, 'y', 'x', 'c', 'v',
+  'b', 'n', 'm', ',', '.', '-', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '&', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char shift_map_cz_qwertz[] =
+{
+  0, 27, '1', '2', '3', '4', '5', '6',
+  '7', '8', '9', '0', '%', DEAD_CARON, 127, 9,
+  'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
+  'O', 'P', '/', '(', 13, 0, 'A', 'S',
+  'D', 'F', 'G', 'H', 'J', 'K', 'L', '"',
+  '!', 248, 0, '\'', 'Y', 'X', 'C', 'V',
+  'B', 'N', 'M', '?', ':', '_', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '*', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char alt_map_cz_qwertz[] =
+{
+  0, 0, '~', DEAD_CARON, DEAD_CIRCUMFLEX, DEAD_BREVE, 248, DEAD_OGONEK,
+  DEAD_GRAVE, DEAD_ABOVEDOT, DEAD_ACUTE, DEAD_DOUBLEACUTE, DEAD_DIAERESIS, DEAD_CEDILLA, 0, 0,
+  '\\', '|', 169, 0, 0, 0, 0, 0,
+  162, 0, 246, 158, 0, 0, 165, 208,
+  209, '[', ']', 0, 0, 136, 157, '$',
+  225, 0, 0, 207, '>', '#', 134, '@',
+  '{', '}', 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, '<', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
 /* this prefereable is overloaded via '-I keytable keyb-user'
  * and is preset with an US keyboard layout
  */
@@ -1788,6 +1886,14 @@ struct keytable_entry keytable_list[] = {
     key_map_hr_latin2, shift_map_hr_latin2, alt_map_hr_latin2,
     num_table_comma, dead_key_table,
     dos850_dead_map},
+  {"cz-qwerty", KEYB_CZ_QWERTY, KT_USES_ALTMAP, sizeof(key_map_cz_qwerty), sizeof(num_table_comma),
+    key_map_cz_qwerty, shift_map_cz_qwerty, alt_map_cz_qwerty,
+    num_table_dot, dead_key_table,
+    dos852_dead_map},
+  {"cz-qwertz", KEYB_CZ_QWERTZ, KT_USES_ALTMAP, sizeof(key_map_cz_qwertz), sizeof(num_table_comma),
+    key_map_cz_qwertz, shift_map_cz_qwertz, alt_map_cz_qwertz,
+    num_table_comma, dead_key_table,
+    dos852_dead_map},                                       
   {"keyb-user", KEYB_USER, 0, sizeof(key_map_user), sizeof(num_table_comma),
     key_map_user, shift_map_user, alt_map_user,
     num_table_dot, dead_key_table,

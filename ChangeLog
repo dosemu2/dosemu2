@@ -1,3 +1,17 @@
+99/04/21 ver. 0.99.10.3 unofficial pre-release
+	From Marcus (bug report from gvz@pop.de)
+	- fix (errm, workaround) for the 57 characters path limit in MFS
+	  (buffer overflow in cds_record).
+	  We block access to directories, that would exceed that limit.
+	  Blocked directories are returned as zero-sized files; we do this
+	  do prevent the user to create a directory with the same name.
+	  (hack, hack ... but it should avoid crashes atleast;-)
+	From Wojtek Pilorz
+	- changed dosdebug such that it can (re)read a valid dosemu.map
+	  (type 'rmapfile /anywhere/dosemu.map' at dosdebug prompt)
+	From Josef Pavlik <jet@spintec.com>
+	- added czech keyboard support: cz-qwerty, cz-qwertz,
+	  both are CP852.
 99/04/20 ver. 0.99.10.2 unofficial pre-release
 	From Josef Pavlik <jet@spintec.com>
 	- fix for MFS creating new files with wrong ownership (mfs.c)
