@@ -35,11 +35,12 @@
 #define FP_SEG(x) FP_SEG32(x)
 
 #define CAN_EXECUTE_DOS 1
+enum { EXEC_LINUX_PATH, EXEC_LITERAL, EXEC_CHOICE };
 
 static int usage (void);
 static int send_command (char **argv);
 #if CAN_EXECUTE_DOS
-static int do_execute_dos (int argc, char **argv, int isLiteralCommand);
+static int do_execute_dos (int argc, char **argv, int CommandStyle);
 #endif
 static int do_set_dosenv (int agrc, char **argv);
 
@@ -58,12 +59,16 @@ int unix_main(int argc, char **argv)
 #if CAN_EXECUTE_DOS
     case 'e':
     case 'E':
+      /* EXECUTE dos program or command if program does not exist */
+      return do_execute_dos (argc-2, argv+2, EXEC_CHOICE);
+    case 'r':
+    case 'R':
       /* EXECUTE dos command*/
-      return do_execute_dos (argc-2, argv+2, 1/*literal DOS cmd*/);
+      return do_execute_dos (argc-2, argv+2, EXEC_LITERAL);
     case 'c':
     case 'C':
       /* EXECUTE dos program*/
-      return do_execute_dos (argc-2, argv+2, 0/*not literal DOS cmd - is Linux path*/);
+      return do_execute_dos (argc-2, argv+2, EXEC_LINUX_PATH);
 #endif
     case 's':
     case 'S':
@@ -85,6 +90,11 @@ static int usage (void)
   com_printf ("Run Linux commands from DOSEMU\n\n");
 #if CAN_EXECUTE_DOS
   com_printf ("UNIX -e [ENVVAR]\n");
+  com_printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
+  com_printf ("  variable \"ENVVAR\".\n");
+  com_printf ("  If the Linux path does not exist, interprete as a DOS command\n");
+  com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
+  com_printf ("UNIX -r [ENVVAR]\n");
   com_printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\".\n");
   com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
   com_printf ("UNIX -c [ENVVAR]\n");
@@ -212,7 +222,7 @@ static int findDrive (char *linux_path_resolved)
  *
  * Returns 0 on success, nonzero on failure.
  */
-static int setupDOSCommand (char *linux_path)
+static int setupDOSCommand (char *linux_path, int CommandStyle)
 {
   char linux_path_resolved[PATH_MAX];
   char dos_path [MAX_PATH_LENGTH];
@@ -222,10 +232,15 @@ static int setupDOSCommand (char *linux_path)
 
   
   if (!realpath (linux_path, linux_path_resolved)) {
-    com_fprintf (com_stderr,
-                 "ERROR: %s.  Cannot canonicalize path.\n",
-                 strerror (errno));
-    return (1);
+    if (CommandStyle == EXEC_LINUX_PATH) {
+      com_fprintf (com_stderr,
+		   "ERROR: %s.  Cannot canonicalize path.\n",
+		   strerror (errno));
+      return (1);
+    }
+    /* CommandStyle == EXEC_CHOICE: don't err but execute the DOS
+       command in linux_path literally */
+    return (0);
   }
 
   
@@ -301,7 +316,7 @@ static int setupDOSCommand (char *linux_path)
   return (0);
 }
 
-static int do_execute_dos (int argc, char **argv, int isLiteralCommand)
+static int do_execute_dos (int argc, char **argv, int CommandStyle)
 {
   char *data = lowmem_alloc(256);
   struct REGPACK preg = REGPACK_INIT;
@@ -323,7 +338,7 @@ static int do_execute_dos (int argc, char **argv, int isLiteralCommand)
   if (! preg.r_ax) {
     /* SUCCESSFUL */
 
-    if (!isLiteralCommand && setupDOSCommand (data))
+    if (CommandStyle != EXEC_LITERAL && setupDOSCommand (data, CommandStyle))
         return (1);
     
     if (*data) {
