@@ -65,7 +65,6 @@
 #undef  DEBUG_INT1A
 
 static void dos_post_boot(void);
-static int can_revector_from_int(int i, Boolean from_int);
 static int int33(void);
 
 typedef int interrupt_function_t(void);
@@ -1346,13 +1345,15 @@ void real_run_int(int i)
  *
  * Trying to get it right now -- BO 25 Jan 2003
  *
+ * This function returns 1 if it's completely finished (no need to run
+ * real_run_int()), otherwise 0.
+ *
  * DANG_END_FUNCTION
  */
 
-static void run_caller_func(int i, Boolean from_int)
+static int run_caller_func(int i, Boolean from_int)
 {
 	interrupt_function_t *caller_function;
-	int revect = can_revector_from_int(i, from_int);
 	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
 	if (!from_int) {
@@ -1364,29 +1365,19 @@ static void run_caller_func(int i, Boolean from_int)
 		set_FLAGS(popw(ssp, sp));
 	}
 	caller_function = interrupt_function[i];
-	if ((!caller_function || !caller_function()) && revect == REVECT && from_int)
-	{
-			di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-
-			if (!IS_REDIRECTED(i) || (!IVEC(i))) {
-				g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
-			} else if (IS_IRET(i)) {
-				if ((i != 0x2a) && (i != 0x28))
-					g_printf("just an iret 0x%02x\n", i);
-			} else
-				real_run_int(i);
-	}
-	else
-	{
+	if (caller_function) {
+		return caller_function();
+	} else {
 		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 		g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
 		/* This is here for old SIGILL's that modify IP */
 		if (i == 0x00)
 			LWORD(eip)+=2;
+		return 0;
 	}
 }
 
-static int can_revector_from_int(int i, Boolean from_int)
+int can_revector(int i)
 {
 /* here's sort of a guideline:
  * if we emulate it completely, but there is a good reason to stick
@@ -1414,16 +1405,9 @@ static int can_revector_from_int(int i, Boolean from_int)
        the hogthreshold part is revectored (should always occur even
        for DOS mouse drivers, but the INT33 API is non-revectored
        just like int10 */
-    if (from_int && config.hogthreshold)
+    if (config.hogthreshold)
       return REVECT;
     else
-      /* this happens if hogthreshold == 0 or for the case
-	 DOS->int33()->do_intr_call_back()->..->f000:0330
-	 (if a DOS program sticks something in front of int 33 but
-	  is not a mouse driver itself)
-	 we skip the callback if int33 is not redirected
-	 (see code in int33())
-      */
       return NO_REVECT;
 
 #if 0		/* no need to specify all */
@@ -1448,11 +1432,6 @@ static int can_revector_from_int(int i, Boolean from_int)
   default:
     return NO_REVECT;
   }
-}
-
-int can_revector(int i)
-{
-  return can_revector_from_int(i, TRUE);
 }
 
 static int can_revector_int21(int i)
@@ -1983,14 +1962,18 @@ void do_int(int i)
  			  i, _EAX, _EBX, _SS, _ESP,
  			  _ECX, _EDX, _DS, _CS, _IP,
  			  _ESI, _EDI, _ES, (int) read_EFLAGS());
- 	}
- 	}
- 	else if ((magic_address == IVEC(i)) || (can_revector(i) == REVECT)) {
- 		run_caller_func(i, TRUE);
- 	}
- 	else {
- 		real_run_int(i);
- 	}
+		}
+ 	} else if (magic_address == IVEC(i)) {
+		run_caller_func(i, TRUE);
+	} else if (can_revector(i) != REVECT || !run_caller_func(i, TRUE)) {
+		di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
+		if (IS_IRET(i)) {
+			if ((i != 0x2a) && (i != 0x28))
+				g_printf("just an iret 0x%02x\n", i);
+		} else {
+			real_run_int(i);
+		}
+	}
 }
 
 void fake_int(int cs, int ip)
