@@ -55,6 +55,10 @@ extern do_device_not_available(), _TRANSIENT_do_device_not_available();
 extern do_debug(), _TRANSIENT_do_debug();
 extern save_v86_state(), _TRANSIENT_save_v86_state();
 extern sys_vm86(), _TRANSIENT_sys_vm86();
+#ifdef _DPMI_MODULE_
+extern sys_sigreturn(), _TRANSIENT_sys_sigreturn();
+extern sys_modify_ldt(), _TRANSIENT_sys_modify_ldt();
+#endif
 extern /*handle_vm86_fault(),*/  _TRANSIENT_handle_vm86_fault();
 
 static struct redirect_db redirect_list[] = {
@@ -76,6 +80,12 @@ static struct redirect_db redirect_list[] = {
     _TRANSIENT_do_debug },
   { sys_vm86,
     _TRANSIENT_sys_vm86 }
+#ifdef _DPMI_MODULE_
+  , { sys_sigreturn,
+    _TRANSIENT_sys_sigreturn }
+  , { sys_modify_ldt,
+    _TRANSIENT_sys_modify_ldt }
+#endif
 };
 
 
@@ -160,6 +170,10 @@ void cleanup_module( void) {
   for (i=0; i<8 ; i++) printk(" %d",vm86_trap_count[i]);
   printk("\n" ID_STRING ": statistics vm86_faults= %d\n",vm86_fault_count);
   printk( ID_STRING ": statistics vm86_count_cli= %d vm86_count_sti= %d\n",  vm86_count_cli, vm86_count_sti);
+  #ifdef _DPMI_MODULE_
+    printk( ID_STRING ": statistics signalret_count= %d\n",  signalret_count);
+    printk( ID_STRING ": statistics sys_ldt_count= %d\n",  sys_ldt_count);
+  #endif
 #endif
 
   /* wait arround to be sure no process is still in the module */

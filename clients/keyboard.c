@@ -80,7 +80,7 @@ main (int argc, char **argv)
 		  (u_char) memory[1824 + i + (j * 10)] <= 121)
 		E_printf ("%c ", (u_char) memory[1824 + i + (j * 10)]);
 	      else
-		E_printf ("  ", (u_char) memory[1824 + i + (j * 10)]);
+		E_printf ("  ");
 	      E_printf ("0x%02x  ", (u_char) memory[1824 + i + (j * 10) + 1]);
 	    }
 	  putchar ('\n');

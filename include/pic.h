@@ -25,6 +25,13 @@
    $Id: pic.h,v 2.4 1995/02/25 22:38:09 root Exp root $
 */
    
+/* Valuse from 16 - 31 are available for assignment if not already 
+ * assigned below.  They can be used to activate dos interrupts not
+ * associated to the hardware pic controllers, or simply to activate
+ * other dosemu code.  This is best used to initiate non-signal dosemu
+ * code from within a signal handler.
+ */
+
 
 #ifndef PIC
 #define PIC
@@ -45,6 +52,7 @@
 #define PIC_IRQ5  13       /*  LPT 2      usually int 0x0d */
 #define PIC_IRQ6  14       /*  floppy     usually int 0x0e */
 #define PIC_IRQ7  15       /*  LPT 1      usually int 0x0f */
+#define PIC_NET   16       /*  packet receive check - no dos equivalent */
 
 #define PIC_IRQALL 0xfffe  /*  bits for all IRQs set. This never changes  */
 /* pic_irq_list translates irq numbers to pic_ilevels.  This is not used

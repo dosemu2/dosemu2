@@ -66,6 +66,9 @@ struct audio_status { unsigned int status;
 #define MSCD_CTRL_VOLUME2          6
 #define MSCD_CTRL_VOLUME3          8
 
+#ifdef __linux__
+#define _PATH_CDROM "/dev/cdrom"
+#endif
 
 void cdrom_reset()
 {
@@ -73,8 +76,14 @@ void cdrom_reset()
      return in error. In order to unlock this condition
      the drive must be reopend.
      Does some one knows a better way?                   */
+    pd_printf("cdrom reset\n");
   close (cdrom_fd); 
-  cdrom_fd = open ("/dev/cdrom", O_RDONLY);
+  priv_off();
+  cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+#ifdef __NetBSD__
+  if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
+#endif
+  priv_on();
  }
 #define MSCD_AUDCHAN_VOLUME0       2
 #define MSCD_AUDCHAN_VOLUME1       4
@@ -127,7 +136,12 @@ void cdrom_helper(void)
                 audio_status.outchan2 = 2;
                 audio_status.outchan3 = 3;
                 
-                cdrom_fd = open ("/dev/cdrom", O_RDONLY);
+		priv_off();
+                cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+#ifdef __NetBSD__
+		if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
+#endif
+		priv_on();
                 
                 if (cdrom_fd < 0) 
                   LO(ax) = 1;

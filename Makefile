@@ -9,6 +9,17 @@
 # if you are doing the first compile.
 #
 
+# Uncomment REQUIRES_EMUMODULE, if you you need the emumodules special features
+# You also must load the modules as follows:
+#   login in as root
+#   cd /usr/src/dosemu/syscallmgr
+#   ./insmod syscallmgr.o
+#   ./insmod -m ../emumod/emumodule.o
+# NOTE: Do NOT start dosemu (compiled with REQUIRES_EMUMODULE),
+#       if you have not loaded emumodule.o !
+#
+# REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
+
 # Want to make elf Binaries.
 # ELF=1
 
@@ -84,13 +95,8 @@ endif
 export X_SUPPORT
 export XDEFS
 
-#  This next section is temporary.  For now, you need it.
-NEW_PIC = -DNEW_PIC=2
-ifdef NEW_PIC
 PICOBJS = libpic.a
-export NEW_PIC
 export PICOBJS
-endif
 
 # The next lines define the Lock file set up.  You must do a make clean
 # make config if change these lines
@@ -122,7 +128,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   55
+PATCHL  =   56
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -155,9 +161,6 @@ DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 # it is for the makefile and also for the C compiler
 DPMI=-DDPMI
 # ???
-ifndef NEW_PIC	# I need PIC for DPMI
-DPMI=
-endif
 
 ###################################################################
 #
@@ -167,7 +170,11 @@ endif
 
 CLIENTSSUB=clients
 
+ifndef REQUIRES_EMUMODULE
 OPTIONALSUBDIRS =examples v-net syscallmgr emumod ipxutils
+else
+OPTIONALSUBDIRS =examples v-net ipxutils
+endif
 
 LIBSUBDIRS= video dosemu pic mfs init keyboard mouse $(NET) $(IPX) drivers
 
@@ -178,7 +185,11 @@ endif
 SUBDIRS= include boot \
 	$(CLIENTSSUB) kernel
 
+ifndef REQUIRES_EMUMODULE
 REQUIRED=tools bios periph commands
+else
+REQUIRED=tools bios periph commands syscallmgr emumod
+endif
 
 # call all libraries the name of the directory
 LIBS=$(LIBSUBDIRS)
@@ -190,7 +201,7 @@ DOCS= doc
 OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
 	BOGUS-Notes \
 	vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh \
-	Configure 
+	Configure load_module.sh unload_module.sh
 
 BFILES=
 
@@ -227,19 +238,28 @@ export INCDIR
 
 
 
-# if NEWPIC is there, use it
 # if DPMI is there, use it
 # -m486 is usually in the specs for the compiler
 OPT=  -O2 -funroll-loops # -fno-inline
 # OPT=-fno-inline
 PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
-CFLAGS+=$(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+CFLAGS+=$(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
+ifdef REQUIRES_EMUMODULE
+   CFLAGS+=$(REQUIRES_EMUMODULE)
+  ifdef DPMI
+    CFLAGS+=-D_DPMI_MODULE_
+  endif
+endif
 
 # set for DPMI want windows
-LDTPATCH:= $(shell grep -c useable /usr/include/linux/ldt.h)
+ifdef REQUIRES_EMUMODULE
+  LDTPATCH=2
+else
+  LDTPATCH:= $(shell grep -c useable /usr/include/linux/ldt.h)
+endif
 ifeq ($(LDTPATCH),2)
   CFLAGS+=-DWANT_WINDOWS
   WIN31=1
@@ -258,8 +278,6 @@ endif
 # use fd3 for soft errors, stderr for hard error, don't ope
 # stderr to /dev/null
 # CFLAGS+=-DUSE_FD3_FOR_ERRORS
-
-export ASFLAGS    = $(NEW_PIC)
 
 
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
@@ -314,7 +332,7 @@ warning2:
 		echo "     DOSEMU will be compiled without X11-support." ; \
 	fi
 	@if [ "1" = "$(WIN31)" ]; then \
-		echo "  -> You patched the kernel for Windows 3.1, using it." ; \
+		echo "  -> You are OK for Windows 3.1 support, using it." ; \
 	else \
 		echo "  -> No kernel-support for Windows 3.1." ; \
 	fi
@@ -515,6 +533,11 @@ endif
 	@echo "  - Try the ./commands/mouse.exe if your INTERNAL mouse won't work"
 	@echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"
 	@echo ""
+ifdef REQUIRES_EMUMODULE
+	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"
+	@echo "    use load_module.sh from this directory."
+	@echo ""
+endif
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert

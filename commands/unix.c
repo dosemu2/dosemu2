@@ -8,19 +8,23 @@
 #include <process.h>
 
 int check_for_DOSEMU(void);
-void usage (char *name);
-send_command(int argc, char **argv);
+void usage (void);
+send_command(char **argv);
 void do_execute_dos (int argc, char **argv);
 void do_set_dosenv (int agrc, char **argv);
 
 
 int main(int argc, char **argv)
 {
+  if (argc == 1) {
+    usage();
+  }
+
   if (!check_for_DOSEMU ()) {
     printf ("This Command can only be used under DOSEMU.\n");
     exit (-1);
   }
-  
+
   if (*argv[1] == '-') {
     /* Got a switch */
     switch ((argv[1])[1]) {
@@ -35,30 +39,34 @@ int main(int argc, char **argv)
       do_set_dosenv (argc-2, argv+2);
       break;
     default:
-      usage(argv[0]);
+      usage();
     }
   }
-    
-  send_command (argc, argv);
+
+  send_command (argv);
 
   return (0);
 }
 
 
-void usage (char *name)
+void usage (void)
 {
-  puts ("Usage:\n======\n");
-  printf ("\t%s -e [ENVVAR]\n", name);
-  puts("\t\tExecute the command given in the Linux Environment variable\n");
-  puts("\t\t\"ENVVAR\". If not given, use the argument to the -E flag\n");
-  puts("\t\tof DOSEMU\n");
-  printf ("\t%s command [arg1 ...]\n", name);
-  puts("\t\tExecute the linux command with the arguments given.\n");
+  printf ("Usage: UNIX [FLAG COMMAND]\n");
+  printf ("Run Linux commands from DOSEMU\n\n");
+  printf ("UNIX -e [ENVVAR]\n");
+  printf ("  Execute the command given in the Linux environment variable \"ENVVAR\".\n");
+  printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
+  printf ("UNIX command [arg1 ...]\n");
+  printf ("  Execute the Linux command with the arguments given.\n\n");
+  printf ("UNIX\n");
+  printf ("  show this help screen\n\n\n");
+  printf ("Note: Use UNIX only to run Linux commands that terminates without user\n");
+  printf ("      interaction. Otherwise it will start and wait forever!\n");
 
   exit(-1);
 }
 
-send_command(int argc, char **argv)
+send_command(char **argv)
 {
     static char command_line[256] = "";
     struct REGPACK preg;
@@ -115,7 +123,7 @@ void do_execute_dos (int argc, char **argv)
   /* Store the string address in the registers */
   preg.r_dx = (unsigned int) &data;
   preg.r_es = _DS;
-  
+
   intr(0xe6, &preg);
 
   if (! preg.r_ax) {
@@ -166,7 +174,7 @@ void do_set_dosenv (int argc, char **argv)
   /* Store the string address in the registers */
   preg.r_dx = (unsigned int) &data;
   preg.r_es = _DS;
-  
+
   intr(0xe6, &preg);
 
   if (! preg.r_ax) {
@@ -177,9 +185,7 @@ void do_set_dosenv (int argc, char **argv)
   } else {
     /* UNSUCCESFUL */
     printf ("Anyway, the lookup failed ...(%d)\n", _AX);
-    
+
   }
   exit (-1);
 }
-
-

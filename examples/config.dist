@@ -131,6 +131,8 @@ HogThreshold 10
 #    The following line won't run for now, but I hope it will sometimes
 #mouse { mousesystems device /dev/mouse internaldriver cleardtr }
 
+# For tty locking capabilities:
+# ttylocks { directory /var/locks namestub LCK.. [binary] }
 
 #************************* NETWORKING SUPPORT *****************************
 #

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -14,9 +15,7 @@
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
 #endif
-#ifdef NEW_PIC
 #include "pic.h"
-#endif
 #include "ipx.h"
 
 /* Variables for keeping track of signals */
@@ -374,11 +373,7 @@ timint(int sig)
        IVEC(0x1c));
   show_regs(__FILE__, __LINE__);
 
-#ifdef NEW_PIC
   pic_request(PIC_IRQ0);
-#else
-  do_hard_int(0x8);
-#endif
 
   in_sighandler = 0;
 }

@@ -117,7 +117,13 @@
 #include <unistd.h>
 #include <linux/unistd.h>
 #include <linux/head.h>
-#include <linux/ldt.h>
+
+#if defined(REQUIRES_EMUMODULE) && defined(WANT_WINDOWS)
+  #include "ldt.h" /* NOTE we have a patched version in dosemu/include */
+#else
+  #include <linux/ldt.h>
+#endif
+
 #include "kversion.h"
 #include <asm/segment.h>
 #include <string.h>
@@ -285,7 +291,9 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   }
   *lp =     ((ldt_info.base_addr & 0x0000ffff) << 16) |
             (ldt_info.limit & 0x0ffff);
-  *(lp+1) = (ldt_info.base_addr & 0xff000000) |
+  /* it seems winos2 uses the accessed bit of ldt to do vm */
+  if (ldt_info.seg_not_present)
+    *(lp+1) = (ldt_info.base_addr & 0xff000000) |
             ((ldt_info.base_addr & 0x00ff0000)>>16) |
             (ldt_info.limit & 0xf0000) |
             (ldt_info.contents << 10) |
@@ -297,6 +305,20 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.useable << 20) |
 #endif
             0x7000;
+  else
+    *(lp+1) = (ldt_info.base_addr & 0xff000000) |
+            ((ldt_info.base_addr & 0x00ff0000)>>16) |
+            (ldt_info.limit & 0xf0000) |
+            (ldt_info.contents << 10) |
+            ((ldt_info.read_exec_only ^ 1) << 9) |
+            (ldt_info.seg_32bit << 22) |
+            (ldt_info.limit_in_pages << 23) |
+            ((ldt_info.seg_not_present ^1) << 15) |
+#ifdef WANT_WINDOWS
+            (ldt_info.useable << 20) |
+#endif
+            0x7100;
+  
 
   return 0;
 }
@@ -1084,7 +1106,10 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       _LWORD(ecx) = DPMI_OFF + HLT_OFF(DPMI_save_restore);
       _LWORD(esi) = DPMI_SEL;
       _edi = DPMI_OFF + HLT_OFF(DPMI_save_restore);
-      _LWORD(eax) = sizeof(struct vm86_regs);
+      _LWORD(eax) = sizeof(struct sigcontext_struct) >
+		    sizeof(struct vm86_regs) ?
+	            sizeof(struct sigcontext_struct) :
+	            sizeof(struct vm86_regs);
     break;
   case 0x0306:	/* Get Raw Mode Switch Adresses */
       _LWORD(ebx) = DPMI_SEG;
@@ -1123,8 +1148,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
          _LWORD(esi) = 0;
 	 break;
       }
-      if (in_win31)
-         memset(ptr, 0, mem_required);
+      if (in_win31)  /* It seems clear memory helps winos2 :=(( */
+	  memset(ptr, 0, mem_required);
       block -> handle = pm_block_handle_used++;
       block -> base = ptr;
       block -> size = mem_required;
@@ -1389,11 +1414,12 @@ inline void run_pm_int(int i)
   dpmi_stack_frame[current_client].ss = PMSTACK_SEL;
   dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
   in_dpmi_dos_int = 0;
+  dpmi_cli();
 }
 
 inline void run_dpmi(void)
 {
-  static int retval;
+   static int retval;
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
    */
@@ -1517,6 +1543,7 @@ void dpmi_init()
     modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
 
     pm_block_handle_used = 1;
+    DTA_over_1MB = 0;		/* from msdos.h */
 /*
  * DANG_BEGIN_NEWIDEA
  * Simulate Local Descriptor Table for MS-Windows 3.1
@@ -1752,12 +1779,18 @@ static inline void do_cpu_exception(struct sigcontext_struct *scp)
   unsigned char *csp2, *ssp2;
   int i;
 
+  /* My log file grows to 2MB, I have to turn off dpmi debugging,
+     so this log excptions even dpmi debug is off */
+  unsigned char dd = d.dpmi;
+  d.dpmi = 1;
   D_printf("DPMI: do_cpu_exception(0x%02x) called\n",_trapno);
   DPMI_show_state;
+  if ( _trapno == 0xe)
+      D_printf("DPMI: page fault. in dosemu?\n");
 #ifdef SHOWREGS
   print_ldt();
 #endif
-
+  d.dpmi = dd;
   
 #if 0			/* it has been taken care of in msdos_fault() */
 #ifdef CLIENT_USE_GDT_40
@@ -2077,12 +2110,10 @@ if ((_ss & 7) == 7) {
     case 0xfa:			/* cli */
       _eip += 1;
       dpmi_cli();
-      pic_cli();
       break;
     case 0xfb:			/* sti */
       _eip += 1;
       dpmi_sti();
-      pic_sti();
       break;
     case 0x6c:                    /* insb */
       *((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
@@ -2467,8 +2498,16 @@ done:
     dpmi_stack_frame[current_client].ebp = REG(ebp);
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_save_restore))) {
-    D_printf("DPMI: save/restore protected mode registers\n");
-    /* must be implemented here */
+    void *buffer = SEG_ADR((void *),es,di);
+    if (LO(ax)==0) {
+       D_printf("DPMI: save protected mode registers\n");
+       memcpy(buffer, &dpmi_stack_frame[current_client],
+	              sizeof(struct sigcontext_struct));
+    } else {
+       D_printf("DPMI: restore protected mode registers\n");
+       memcpy(&dpmi_stack_frame[current_client], buffer,
+	              sizeof(struct sigcontext_struct));
+    }
     REG(eip) += 1;            /* skip halt to point to FAR RET */
 
   } else

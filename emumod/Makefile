@@ -14,15 +14,27 @@ ifndef INCDIR
   INCDIR=-I/usr/include/ncurses -I../include -I..
 endif
 
+ifndef DPMI_MODULE
+DPMI_MODULE=-D_DPMI_MODULE_
+WANT_WINDOWS=-DWANT_WINDOWS
+else
+  ifdef WANT_WINDOWS
+    ifndef DPMI_MODULE
+      DPMI_MODULE=-D_DPMI_MODULE_
+    endif
+  endif
+endif
+
 # let gcc do extended checking
 
 
 
-KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX
+KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX $(DPMI_MODULE) $(WANT_WINDOWS)
  
 ifeq (/usr/include/linux/segment.h,$(wildcard /usr/include/linux/segment.h))
 EXTRA_HEADERS=-DEXTRA_HEADERS
 endif
+
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
@@ -30,6 +42,10 @@ CFILES = vm86.c traps.c emumod.c emusys.c
 SFILES = fastsys.S
 HFILES = emumod.h
 OFILES = vm86.o traps.o emumod.o emusys.o
+ifdef DPMI_MODULE
+CFILES += signal.c ldt.c
+OFILES += signal.o ldt.o
+endif
 KVFILE = ../include/kversion.h
 
 # Insert all source- and header-files here.
@@ -39,6 +55,9 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 # All object-files are included here.
 
 OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o
+ifdef DPMI_MODULE
+OBJS += signal.o ldt.o
+endif
  
 all: $(OBJS) emumodule.o
 
@@ -50,6 +69,16 @@ emumodule.o: ${OBJS}
 
 vm86.o:  vm86.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
+
+ifdef DPMI_MODULE
+
+signal.o:  signal.c emumod.h ${KVFILE}
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c signal.c -o signal.o
+
+ldt.o:  ldt.c emumod.h ${KVFILE}
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c ldt.c -o ldt.o
+
+endif
 
 emumod.o:  emumod.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o

@@ -193,6 +193,7 @@ parent_close_mouse (void)
   if (mice->intdrv)
     {
 	remove_from_io_select(mice->fd, mice->add_to_io_select);
+        DOS_SYSCALL(close (mice->fd));
     }
   else
     child_close_mouse ();
@@ -205,6 +206,7 @@ parent_open_mouse (void)
     {
       static int old_mice_flags;
       mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
+      if (mice->fd > 0)
 	add_to_io_select(mice->fd, mice->add_to_io_select);
     }
   else

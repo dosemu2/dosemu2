@@ -1,5 +1,7 @@
 %{
 #include <stdlib.h>
+#undef ECHO
+#include <termios.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -16,7 +18,6 @@
 #include "lpt.h"
 #include "video.h"
 #include "mouse.h"
-#undef ECHO
 #include "serial.h"
 #include "timers.h"
 #include "keymaps.h"
@@ -70,7 +71,7 @@ bootdisk		return(BOOTDISK);
 printer			return(PRINTER);
 emusys                  return(EMUSYS);
 emubat                  return(EMUBAT);
-
+ttylocks		return(TTYLOCKS);
 
 	/* sillyint values */
 use_sigio		return(USE_SIGIO);
@@ -143,6 +144,11 @@ interrupt		return(INTERRUPT);
 baudrate		return(BAUDRATE);
 device			return(DEVICE);
 com                     return(COM);
+
+	/* lock file stuff */
+directory              return(DIRECTORY);
+namestub               return(NAMESTUB);
+binary                 return(BINARY);
 
 	/* terminal stuff */
 

@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <linux/vt.h>
 #include <linux/kd.h>
+#include <sys/types.h>
 #include <linux/time.h>
 #include <sys/stat.h>
 
@@ -428,11 +429,7 @@ ScrollLock (unsigned int sc)
   else if (kbd_flag (KF_RSHIFT))
     {
       warn ("timer int 8 requested...\n");
-#ifdef NEW_PIC
       pic_request (PIC_IRQ0);
-#else
-      do_hard_int (8);
-#endif
     }
   else if (kbd_flag (KF_LSHIFT))
     {
@@ -922,7 +919,6 @@ shared_keyboard_init (void)
   *scan_queue_end = 0;
 }
 
-#ifdef NEW_PIC
 /* This is used to run the keyboard interrupt */
 void
 do_irq1 (void)
@@ -940,7 +936,6 @@ do_irq1 (void)
   keys_ready = 0;
 }
 
-#endif
 
 void
 set_keyboard_bios (void)
@@ -953,9 +948,7 @@ set_keyboard_bios (void)
     }
   else
     next_scancode = convscanKey(next_scancode);
-#ifdef NEW_PIC
   keys_ready = 0;		/* flag character as read	*/
-#endif
   k_printf ("set keybaord bios next_scancode = 0x%04\n", next_scancode);
 }
 
@@ -995,20 +988,14 @@ add_scancode_to_queue (u_short scan)
   if (config.keybint)
     {
       k_printf ("Hard queue\n");
-#ifdef NEW_PIC
       pic_request (PIC_IRQ1);
-#else
-      do_hard_int (9);
-#endif
     }
   else
     {
       k_printf ("NOT Hard queue\n");
       read_next_scancode_from_queue ();
       scan_to_buffer ();
-#ifdef NEW_PIC
       keys_ready = 0;
-#endif
     }
 }
 
@@ -1016,12 +1003,8 @@ add_scancode_to_queue (u_short scan)
 void
 read_next_scancode_from_queue (void)
 {
-#ifndef NEW_PIC
-  keys_ready = 0;
-#else
   if (!keys_ready)
     {				/* make sure last character has been read */
-#endif
       if (*scan_queue_start != *scan_queue_end)
 	{
 	  keys_ready = 1;
@@ -1030,9 +1013,7 @@ read_next_scancode_from_queue (void)
 	    *scan_queue_start = (*scan_queue_start + 1) % SCANQ_LEN;
 	  WRITE_WORD (LASTSCAN_ADD, next_scancode);
 	}
-#ifdef NEW_PIC
     }
-#endif
   else
     k_printf ("KBD: read_next_scancode key not Read!\n");
 

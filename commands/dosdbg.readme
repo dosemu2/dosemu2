@@ -34,10 +34,11 @@ If no string is specified, then DOSDBG will show the current debug settings.
 <string> can contain letters, and the '+' and '-' characters.
   Letters denote message classes from the following list:
 
-k  keyboard     d  disk         R  disk Reads   W  disk Writes
-h  hardware     i  port I/O     v  video        w  warnings
-s  serial       m  mouse        p  printer      g  general
-x  XMS          E  EMS          I  IPC          c  configuration
+d  disk         R  disk Reads   W  disk Writes  D  dos
+v  video        X  X support    k  keyboard     ?  debug
+i  port I/O     s  serial       #  interrupt    p  printer
+g  general      w  warnings     h  hardware     x  XMS
+m  mouse        I  IPC          E  EMS          c  config
 n  network
 a  all (shorthand for all of the above)
 

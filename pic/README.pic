@@ -127,7 +127,10 @@
   a 0 is returned to the caller.  Note that the 16 interrupts that are not
   part of the standard AT PIC system will not be writing OCW2s; for these
   interrupts the vm86 loop is executed once, and control is returned before
-  the corresponding dos code has completed.
+  the corresponding dos code has completed.  If run_int() is called, the
+  flags, cs, and ip are pushed onto the stack, and cs:ip is pointed to
+  PIC_SEG:PIC_OFF in the bios, where there is a hlt instruction.  This is
+  handled by pic_iret.
 
   Since the while loop above checks for interrupts, this function can be
   re-entered.  In the worst case, a total of about 1k of process stack space
@@ -152,7 +155,12 @@
   pic_iret() is called.  It is held off until this call in an effort 
   to avoid filling up the stack.  If pic_iret() is called too soon,
   it may aggravate stack overflow problems.  If it is called too late,
-  a self-scheduled interrupt won't occur quite as soon.
+  a self-scheduled interrupt won't occur quite as soon.  To guarantee
+  that pic_iret will be called, do_irq saves the real return address on the
+  stack, then pushes the address of a hlt, which generates a SIGSEGV.
+  Because the SIGSEGV comes before the hlt, pic_iret can be called by the
+  signal handler, as well as from the vm86 loop.  In either case, pic_iret
+  looks for this situation, and pops the real flags, cs, and ip.
 ----------------------------------------------------------------------------
   Other Functions:
   
@@ -198,39 +206,14 @@
   checks if an emulator function is assigned to the given level.  If so,
   the mask bit for the level is reset.
 
-From popserver Thu Oct 19 14:23:31 GMT 1994
-Received: from marlin.ssnet.com (ssnet.com [165.113.8.3]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id KAA03316 for <jmaclean@fox.nstn.ns.ca>; Wed, 19 Oct 1994 10:40:18 -0300
-Received: by marlin.ssnet.com (4.1/SMI-4.1)
-	id AA21140; Wed, 19 Oct 94 09:39:00 EDT
-From: jlarry@marlin.ssnet.com (J. Lawrence Stephan)
-Message-Id: <9410191339.AA21140@marlin.ssnet.com>
-Subject: pic announcement
-To: jmaclean@fox.nstn.ns.ca (James MacLean)
-Date: Wed, 19 Oct 1994 09:38:57 -0400 (EDT)
-X-Mailer: ELM [version 2.4 PL20]
-Content-Type: text
-Content-Length: 2237      
-Status: RO
+  void pic_watch()
 
-Hi Jes -
+  runs periodically and checks for 'stuck' interrupt requests.  These
+  can happen if an irq causes a stack switch and enables interrupts
+  before returning.  If an interrupt is stuck this way for 2 successive
+  callse to pic_watch, that interrupt is activated.
 
-Here is the new pic code.  It is implemented as contidional code, so you'll
-have to un-comment a line in the Makefile if you want to try it.
-Look for the string NEW_PIC in the Makefile; the instructions are right
-before it.
 
-Because the serial.c pic mods don't work very well yet, I have provided
-two options:  The firstone only implements pic for keyboard and timer code.
-This stuff is pretty solid, and I would appreciate bug reports, etc.
-The second option implements pic for timer, keyboard, and serial interrupts.
-The serial code is knows to have bugs, although it is useable.  PLEASE,
-if all you know is that the serial code doesn't work right, DON'T send
-a bug report.  I already know that much :-).  On the other hand, if you have
-a fix, or even just a partial one, please let me know.  The serial bug
-shows as an extermely low send rate; only half as fast as whennot using pic.
-
-I would appreciate any bug reports on the keyboard and timer code.  They are 
-not complete, but I believe this code to be bug-free.
 
 And now, a (very) little technical information for the curious:
 
@@ -242,14 +225,5 @@ Triggering them involves merely specifying the appropriate irq.
 
 Since timer interrupts are always spaced apart, the lack of queueing has no
 effect on them.  The keyboard interrupts are re-scheduled if there is
-anything in the scan_queue.  The keyboard pseudo-input register,
-*LASTSCAN_ADD, is set to 1 (an otherwise unused value) to indicate that it
-has been read, and can therefore be re-filled.  Both the keyboard and timer
-bios routines now have outb 0x20 to signal the EOI.  The OUTB_ADDR is no
-longer used.
+anything in the scan_queue.  
 
-This has been slow in coming, I know; and it will be a while before it gets
-fully utilized.  But, at least when the serial code gets done, it should
-help get dpmi on its way.  I'll keep working on this; I think it has a lot
-of potential to help organize the code.  Good luck with it to all, and
-thanks in advance for any comments.

@@ -3,8 +3,7 @@
 /** This is the virtual PC's Bios (F000:0 .. F000:FFFF)                 **/
 /**                                                                     **/
 /** We must compile this with as86/ld86 as follows:                     **/
-/**   AS86FLAGS="-DNEW_PIC"    (or AS86FLAGS="")                        **/
-/**   gcc -E ${AS86FLAGS} bios.S | tools/tools86 -E >bios.s             **/
+/**   gcc -E  bios.S | tools/tools86 -E >bios.s             **/
 /**   as86 -0 -w -g -o bios.o bios.s                                    **/
 /**   ld86 -0 -r -o bios bios.o                                         **/
 /**   tools/tools86 bios                                                **/
@@ -516,14 +515,8 @@ CISH(INT08_dummy_start):		/* TIMER INTERRUPT ROUTINE	*/
 CISH(INT08_L1):
 	int	0x1c		/* call int 0x1c, per bios spec	*/
 				/* must do it before EOI, but after count */
-#ifndef NEW_PIC
-	mov	ax,#OUTB_SEG		/* set bx to segment 0xf100	*/
-	mov	ds,ax			/* ds = segment of OUTB_ADDR    */
-	mov	word ptr [OUTB_OFF],#1	/* flag outb (EOI) complete     */
-#else
         mov     al,#0x20
         out     0x20,al			/* flag interrupt complete	*/
-#endif
 	pop	ax			/* restore registers            */
 	pop	ds
 	iret				/* return to interrupted code	*/
@@ -670,18 +663,8 @@ CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
 	mov	al,#6			/* dosemu helper func 6		*/
 
 	int	0xe6			/* call dos helper		*/
-#ifndef NEW_PIC
-	mov	bx,#OUTB_SEG		/* get segment of OUTB_ADDR	*/
-	push	bx
-	pop	ds			/* put it into ds		*/
-	xor	cx,cx
-	inc	cx			/* put a 1 into cx		*/
-	mov	bx,#OUTB_OFF		/* set bx to OUTB_ADDR		*/
-	mov	[bx],cx			/* flag outb as complete	*/
-#else
 	mov    	al,#0x20
 	out     0x20,al			/* tell pic we're done 		*/
-#endif
 	pop	cx			/* restore registers		*/
 	pop	ax
 	pop	bx

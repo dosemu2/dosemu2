@@ -559,6 +559,35 @@ struct direct *dos_readdir(DIR *);
 
 #if DOSEMU
 /* FIXME -- move elsewhere (inline/) */
+#ifdef __NetBSD__
+static uid_t euid;
+static gid_t egid;
+static inited = 0;
+
+__inline__ int
+priv_on(void)
+{
+    if (seteuid(euid) || setegid(egid)) {
+	error("MFS: Cannot enable privs!\n");
+	return (0);
+    }
+    return (1);
+}
+__inline__ int
+priv_off(void)
+{
+    if (!inited) {
+	euid = geteuid();
+	egid = getegid();
+    }
+    if (seteuid(getuid()) || setegid(getgid())) {
+	error("MFS: Cannot disable privs!\n");
+	return (0);
+    }
+    return (1);
+}
+#endif
+#ifdef __linux__
 __inline__ int
 exchange_uids(void)
 {
@@ -569,6 +598,7 @@ exchange_uids(void)
   }
   return (1);
 }
+#endif
 
 #endif
 
@@ -998,7 +1028,7 @@ mfs_redirector(void)
   int dos_fs_redirect();
   int ret;
 
-  if (!exchange_uids())
+  if (!priv_off())
     return 0;
 
   PS(MFS);
@@ -1009,7 +1039,7 @@ mfs_redirector(void)
 
   finds_in_progress[current_drive] = find_in_progress;
 
-  exchange_uids();
+  priv_on();
 
   switch (ret) {
   case FALSE:
@@ -1033,11 +1063,11 @@ mfs_inte6(void)
   boolean_t dos_fs_dev();
   boolean_t result;
 
-  if (!exchange_uids())
+  if (!priv_off())
     return 0;
 
   result = dos_fs_dev(&REGS);
-  exchange_uids();
+  priv_on();
   return (result);
 }
 
@@ -2333,7 +2363,7 @@ GetRedirection(state, index)
 	deviceName[1] = ':';
 	deviceName[2] = EOS;
 	resourceName = (u_char *) Addr(state, es, edi);
-	strcpy(resourceName, "\\\\LINUX\\FS");
+	strcpy(resourceName, LINUX_RESOURCE);
 	strcat(resourceName, dos_roots[dd]);
 	path_to_dos(resourceName);
 	Debug0((dbg_fd, "resource name =%s\n", resourceName));

@@ -128,10 +128,8 @@
 static char rcsid[]="$Id: sigsegv.c,v 2.19 1995/02/26 00:54:47 root Exp root $";
 
 #include <stdio.h>
+#include <termios.h>
 #include <stdlib.h>
-
-
-#include <unistd.h>
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
@@ -158,9 +156,7 @@ static char rcsid[]="$Id: sigsegv.c,v 2.19 1995/02/26 00:54:47 root Exp root $";
 
 #include "video.h"
 
-#ifdef NEW_PIC
 #include "pic.h"
-#endif
 
 #ifdef DPMI
 #include "dpmi.h"
@@ -181,8 +177,6 @@ static char rcsid[]="$Id: sigsegv.c,v 2.19 1995/02/26 00:54:47 root Exp root $";
  */ 
 #define PORT_DEBUG 0
 
-/* int port61 = 0xd0;           the pseudo-8255 device on AT's */
-static int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
 extern void set_leds(void);
 /* FIXME -- move to common header */
 extern int s3_8514_base;
@@ -259,7 +253,6 @@ inb(int port)
   }
 #endif
   else switch (port) {
-#ifdef NEW_PIC
   case 0x20:
   case 0x21:
     r = read_pic0(port-0x20);
@@ -268,7 +261,6 @@ inb(int port)
   case 0xa1:
     r = read_pic1(port-0xa0);
     break; 
-#endif
   case 0x60:
     if (keys_ready) microsoft_port_check = 0;
     k_printf("direct 8042 0x60 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
@@ -280,8 +272,7 @@ inb(int port)
     break;
 
   case 0x61:
-    k_printf("inb [0x61] = 0x%02x (8255 chip)\n", port61);
-    r = port61;
+    r = read_port61();
     break;
 
   case 0x64:
@@ -300,7 +291,7 @@ inb(int port)
     r = pit_inp(port - 0x40);
     break;
   case 0x43:
-    r = inport_43();
+    r = pit_control_inp();
     break;
 
   case 0x3ba:
@@ -343,7 +334,7 @@ inb(int port)
 #if PORT_DEBUG == 1
   if (port < 0x100)
 #endif
-    fprintf(stderr,"PORT: Rd 0x%04x -> 0x%02x\n",port,r);
+    i_printf("PORT: Rd 0x%04x -> 0x%02x\n",port,r);
 #endif
 
   return r;    /* Return with port read value */
@@ -378,7 +369,7 @@ outb(int port, int byte)
 #if PORT_DEBUG == 1
   if (port < 0x100)
 #endif
-    fprintf(stderr,"PORT: Wr 0x%04x <- 0x%02x\n",port,byte);
+    i_printf("PORT: Wr 0x%04x <- 0x%02x\n",port,byte);
 #endif
 
   if (port_writeable(port)) {
@@ -505,19 +496,7 @@ outb(int port, int byte)
   switch (port) {
   case 0x20:
   case 0x21:
-#ifdef NEW_PIC
     write_pic0(port-0x20,byte);
-#else /* NEW_PIC */
-    k_printf("OUTB 0x%x to byte=%x\n", port, byte);
-#if 0				/* 94/04/30 */
-    REG(eflags) |= VIF;
-#endif
-#if 1				/* 94/05/11 */
-    *OUTB_ADD = 1;
-#endif
-    if (port == 0x20 && byte != 0x20)
-      set_leds();
-#endif  /* NEW_PIC */
     break;
   case 0x60:
     k_printf("keyboard 0x60 outb = 0x%x\n", byte);
@@ -533,38 +512,23 @@ outb(int port, int byte)
     k_printf("keyboard 0x64 outb = 0x%x\n", byte);
     break;
   case 0x61:
-    port61 = byte & 0x0f;
-    k_printf("8255 0x61 outb = 0x%x\n", byte);
-    if (((byte & 3) == 3) 
-#if 1
-    && (timer_beep == 1) 
-#endif
-    && (config.speaker == SPKR_EMULATED)) {
-      i_printf("beep!\n");
-      putchar('\007');
-      timer_beep = 0;
-    }
-    else {
-      timer_beep = 1;
-    }
+    write_port61(byte);
     break;
   case 0x70:
   case 0x71:
     cmos_write(port, byte);
     break;
-#ifdef NEW_PIC
   case 0xa0:
   case 0xa1:
     write_pic1(port-0xa0,byte);
     break;
-#endif
   case 0x40:
   case 0x41:
   case 0x42:
     pit_outp(port - 0x40, byte);
     break;
   case 0x43:
-    outport_43(byte);
+    pit_control_outp(byte);
     break;
 
   default:
@@ -806,11 +770,9 @@ void vm86_GP_fault(void)
       LWORD(eip) += 2;		/* skip halt and info byte to point to FAR RET */
       xms_control();
     }
-#ifdef NEW_PIC	
     else if (lina == (unsigned char *) PIC_ADD) {
       pic_iret();
     }
-#endif /* NEW_PIC */
 
 #ifdef DPMI
     else if ((lina >=(unsigned char *)DPMI_ADD) &&

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
@@ -144,7 +145,7 @@ static int dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1995/02/25 22:37:48 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "." PATCHSTR " $Date: 1995/02/25 22:37:48 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -959,7 +960,7 @@ static void int2f(u_char i)
     return;
 
   case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-#if 0			/* it seens this confuse winos2 */
+#if 1			/* it seens this confuse winos2 */
     if (in_dpmi && in_win31)
       LO(ax) = 3;	/* let's try enhaced mode :-))))))) */
 #endif    
@@ -1042,7 +1043,7 @@ static void int33(u_char i) {
 m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
 /* Ok now we test to see if the mouse has been taking a break and we can let the 
  * system get on with some real work. :-) */
-   if (trigger >= config.hogthreshold)  {
+   if (config.hogthreshold && trigger >= config.hogthreshold)  {
      m_printf("Ignoring the quiet mouse.\n");
      usleep(INT2F_IDLE_USECS);
      trigger=0;

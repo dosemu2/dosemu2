@@ -139,6 +139,7 @@
  */
 
 #include <stdio.h>
+#include <termios.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -555,7 +556,7 @@ mouse_int(void)
     error("MOUSE: function 0x%04x not implemented\n", LWORD(eax));
     break;
   }
-  if (! config.X)
+  if (!config.X)
      mouse_do_cur();
 }
 
@@ -1044,6 +1045,12 @@ mouse_setsub(void)
   *mouse.ipp = mouse.ip;
 
   mouse.mask = LWORD(ecx);
+#if 0
+  if (LWORD(ecx) & 0x2000)
+    mouse.gfx_cursor = TRUE;
+  else
+    mouse.gfx_cursor = FALSE;
+#endif
 
   m_printf("MOUSE: user defined sub %04x:%04x, mask 0x%02x\n",
 	   LWORD(es), LWORD(edx), LWORD(ecx));
@@ -1321,7 +1328,7 @@ mouse_do_cur(void)
   }
   else
   {
-    m_printf("MOUSE: DOING TEXT CURSOR !\n");
+    m_printf("MOUSE: DOING TEXT CURSOR! display_page=%d\n", mouse.display_page);
     text_cursor();
   }
 }
@@ -1517,6 +1524,9 @@ mouse_init(void)
         m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
  	mice->intdrv = FALSE;
       }
+      else {
+        m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
+      }
     }
   }
   else {
@@ -1542,7 +1552,8 @@ mouse_close(void)
   if (config.X || config.usesX) return;
 #endif
   
-  if (mice->intdrv) {
+  if (mice->intdrv && mice->fd != -1 ) {
+    tcsetattr(mice->fd, TCSANOW, &mice->oldset);
     DOS_SYSCALL(close(mice->fd));
     return;
   }

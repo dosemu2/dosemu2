@@ -52,6 +52,7 @@
 typedef struct { int fd; int irq; } SillyG_t;
 #endif
 
+#if 0 /* NOTE: This has been moved to the main Makefile */
 #if 0 
   /* Set this to 1, if you you need the emumodules special features
    * You also must load the modules as follows:
@@ -64,7 +65,7 @@ typedef struct { int fd; int irq; } SillyG_t;
 #else 
   #undef REQUIRES_EMUMODULE
 #endif 
-
+#endif
 
 #define inline __inline__
 
@@ -488,7 +489,15 @@ extern void open_kmem(void);
 extern void close_kmem(void);
 extern void CloseNetworkLink(int);
 extern int parse_config(char *);
+#ifdef __NetBSD__
+extern int priv_on(void);
+extern int priv_off(void);
+#endif
+#ifdef __linux__
 extern int exchange_uids(void);
+#define priv_on exchange_uids
+#define priv_off exchange_uids
+#endif
 extern void disk_init(void);
 extern void serial_init(void);
 extern void close_all_printers(void);
@@ -574,9 +583,6 @@ extern inline void handle_signals(void);
 
 
 #ifdef REQUIRES_EMUMODULE
-  #ifdef EMU_C
-    #define __EMUSYS_parent
-  #endif  
   #include "emusys.h"
 #endif
 

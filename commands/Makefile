@@ -6,8 +6,8 @@ SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	bootoff.S booton.S dosdbg.c dosdbg.readme mouse.c isemu.c \
 	emufs.S ems.S cdrom.S chdir.c   getcwd.c  system.c
 COM=exitemu.com vgaoff.com vgaon.com eject.com bootoff.com booton.com
-EXE=lredir.exe dumpconf.exe dosdbg.com lancheck.exe isemu.com unix.exe \
-	unix.c mouse.exe mgarrot.com mgarrot.a86 isemu.com \
+EXE=lredir.com dumpconf.exe dosdbg.com lancheck.exe isemu.com unix.com \
+	unix.c mouse.com mgarrot.com mgarrot.a86 isemu.com \
 	chdir.exe   getcwd.exe  system.exe
 SYS=emufs.sys ems.sys cdrom.sys
 DOC=README

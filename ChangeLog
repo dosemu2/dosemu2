@@ -1,3 +1,25 @@
+Tue Mar 28	1995
+
+-	Release pl56
+-	Kang-Jin Lee lee@tengu.in-berlin.de patches to
+	lredir.c, unix.c, mouse.c, etc...
+-	Addition of tty_locks { } from:
+	 Matthew Grant <grantma@ritz.equinox.gen.nz>
+
+Mon Mar 27	1995
+
+-	John's patches to add priv_on() and priv_off().
+-	Dong's latest DPMI enhancements
+-	Scott's latest timer code to remove the need for 
+	speaker access to port 0x42
+-	Hans' syscallmgr/emumodule combo so now we will not
+	require kernel patches to run DOSEMU with the extra
+	DPMI support. There are 2 scripts load_module.sh and
+	unload_module.sh to make the module stuff easier for 
+	newbies. You'll need to modify the 
+	Makefile if you chose to go with emumodule support
+	for this release.
+
 Sat Mar 25	1995
 
 -	Release pl55.

@@ -50,6 +50,7 @@ void
 DOSEMUSetupMouse()
 {
   if ( ! config.usesX ){
+      tcgetattr(mice->fd, &mice->oldset);
       if (mice->type == MOUSE_MOUSEMAN)
         {
           DOSEMUSetMouseSpeed(1200, 1200, mice->flags);
@@ -250,15 +251,15 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   buttons = pBuf[0] & 0x07;
 	   if (buttons != 0)
 	      buttons = 1 << (buttons - 1);
-	   dx = (pBuf[0] & 0x10) ?   pBuf[1] : - pBuf[1];
-	   dy = (pBuf[0] & 0x08) ? - pBuf[2] :   pBuf[2];
+	   dx = (pBuf[0] & 0x10) ?   pBuf[1] : -pBuf[1];
+	   dy = (pBuf[0] & 0x08) ? -pBuf[2] :   pBuf[2];
 	   break;
 
 	case MOUSE_MMSERIES:              /* MM Series */
 	case MOUSE_LOGITECH:            /* Logitech Mice */
 	   buttons = pBuf[0] & 0x07;
-	   dx = (pBuf[0] & 0x10) ?   pBuf[1] : - pBuf[1];
-	   dy = (pBuf[0] & 0x08) ? - pBuf[2] :   pBuf[2];
+	   dx = (pBuf[0] & 0x10) ?   pBuf[1] : -pBuf[1];
+	   dy = (pBuf[0] & 0x08) ? -pBuf[2] :   pBuf[2];
 	   break;
       
 	case MOUSE_BUSMOUSE:              /* BusMouse */

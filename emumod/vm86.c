@@ -279,7 +279,6 @@ static inline void set_vflags_short(unsigned short flags, struct vm86_regs * reg
 #endif
 	set_flags(regs->eflags, flags, SAFE_MASK);
 	if (flags & IF_MASK)
-	if (VFLAGS & IF_MASK)
 		set_IF(regs);
 }
 

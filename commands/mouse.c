@@ -1,115 +1,213 @@
+/********************************************
+ * MOUSE.C
+ *
+ * Adjusts settings of the internal mouse driver of DOSEMU
+ *
+ * Written by Kang-Jin Lee (lee@tengu.in-berlin.de) at 3/20/95
+ * based on MOUSE.C in dosemu0.53.51 by ...
+ *
+ * Note:
+ *   There are some incompatible changes in arguments
+ *   - Arguments to switch between 2 and 3 button mouse mode has
+ *     changed from m to 2 and p to 3
+ *   - Mouse speed value ranges from 1 to 31 and is not multiplied by 8
+ *   - Arguments are case insensitiv
+ *   - Added argument h for help screen
+ ********************************************/
+
 #include <dos.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #define MHLP(rin, rout) int86(0xe6, &rin, &rout)
 
-main(int __argc, char * * __argv)
+union REGS regs;
+
+
+/* Show help screen */
+void usage(void)
 {
-  int i;
-  union REGS regs;
+  printf("Usage: MOUSE [option]\n");
+  printf("Utility to control the internal mousedriver of DOSEMU\n\n");
+  printf("Options:\n");
+  printf("  r       - Reset IRET.\n");
+  printf("  i       - Inquire current configuration.\n");
+  printf("  2       - Select 2 button mouse mode (Microsoft).\n");
+  printf("  3       - Select 3 button mouse mode (e.g. Mousesystems, PS2).\n");
+  printf("  x value - Set horizontal speed.\n");
+  printf("  y value - Set vertical speed.\n");
+  printf("  a       - Ignore application's setting of vert/horz speed settings.\n");
+  printf("  b       - Take application's settings of vert/horz speed settings.\n");
+  printf("  h       - Display this screen.\n\n");
+  printf("Valid range for \"value\" is from 1 (slowest) to 31 (fastest).\n\n");
+  printf("Example: MOUSE r a x 10 i\n");
+  printf("reset, fixed speed setting, set horizontal speed to 10 and show current\n");
+  printf("  configuraton of the mouse\n\n");
 
-  printf("Linux Internal Mouse Driver v7.00\n");
+  exit(1);
+}
 
+/* Are we running under DOSEMU? */
+void isEmu(void)
+{
+  regs.x.ax = 0x0000;
+  MHLP(regs, regs);
+  if (regs.x.ax != 0xaa55) {
+    printf("This program requires Linux DOSEMU.\n");
+    exit(1);
+  }
+}
+
+/* Detect internal mouse driver of Linux */
+void detectInternalMouse(void)
+{
   regs.x.ax = 0x0033;
   regs.x.bx = 0x00ff;
   MHLP(regs, regs);
   if (regs.x.ax == 0xffff) {
-        printf("ERROR! InternalDriver option not set, enable internal driver in /etc/dosemu.conf.\n");
-        exit(1);
+    printf("ERROR! Internal driver option not set, enable internal driver\n");
+    printf("       in /etc/dosemu.conf.\n");
+    exit(1);
   }
+}
+
+main(int argc, char **argv)
+{
+  int i, value;
+
+  if (argc == 1)
+    usage();
+
+  switch (argv[1][0]) {
+    case '?':
+    case 'H':
+    case 'h':
+      usage();
+      break;
+    default:
+      break;
+  }
+
+  isEmu();
+  detectInternalMouse();
 
   i = 1;
 
-        switch(__argv[i][0]) {
-                case 'a':
-                        printf("Ignoring Speed settings.\n");
-                        regs.h.cl = 0x0001;
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0006;
-                        MHLP(regs, regs);
-                        printf("Done.\n");
-                        break;
-                case 'b':
-                        printf("Taking Speed settings.\n");
-                        regs.h.cl = 0x0000;
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0006;
-                        MHLP(regs, regs);
-                        printf("Done.\n");
-                        break;
-                case 'r':
-                        printf("Resetting iret.\n");
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0000;
-                        MHLP(regs, regs);
-                        break;
-                case 'i':
-                        printf("Inquiry:\n");
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0003;
-                        MHLP(regs, regs);
-                        if (regs.h.bh == 0x10)
-                                printf("        Microsoft Mode (2 Buttons).\n");
-                        else 
-                                printf("        PC Mouse Mode (3 Buttons).\n");
-                        printf("        Vertical Speed   (Y) - %d\n", regs.h.ch);
-                        printf("        Horizontal Speed (X) - %d\n", regs.h.cl);
-                        printf("        Speed Setting        - %s\n", regs.h.dl ? "Ignoring" : "Taking");
-                        break;
-                case 'p':
-                        printf("Selecting PC Mouse Mode (3 Buttons).\n");
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0002;
-                        MHLP(regs, regs);
-                        if (regs.h.al == 0xff) {
-                                printf("ERROR! Cannot select PC Mouse Mode, emulate3buttons not set in /etc/dosemu.conf.\n");
-                                printf("e.g. 'mouse { ps2 /dev/mouse internaldriver emulate3buttons }\n");
-                        } else {
-                                printf("Done.\n");
-                        }
-                        break;
-                case 'm':
-                        printf("Selecting Microsoft Mode (2 Buttons).\n");
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0001;
-                        MHLP(regs, regs);
-                        printf("Done.\n");
-                        break;
-                case 'y':
-                        printf("Selecting vertical speed to %d.\n",atoi(__argv[i+1])*8);
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0004;
-                        regs.h.cl = atoi(__argv[i+1]);
-                        MHLP(regs, regs);
-                        if (regs.x.ax == 1)
-                                printf("ERROR! Selected speed is out of range. Unable to set speed.\n");
-                        else
-                                printf("Done.\n");
-                        i++;
-                        break;
-                case 'x':
-                        printf("Selecting horizontal speed to %d.\n",atoi(__argv[i+1])*8);
-                        regs.x.ax = 0x0033;
-                        regs.x.bx = 0x0005;
-                        regs.h.cl = atoi(__argv[i+1]);
-                        MHLP(regs, regs);
-                        if (regs.x.ax == 1)
-                                printf("ERROR! Selected speed is out of range. Unable to set speed.\n");
-                        else
-                                printf("Done.\n");
-                        i++;
-                        break;
-             
-                default:
-                        printf("Help:   r       - Reset IRET.\n");
-                        printf("        m       - Select Microsoft Mode (2 Buttons).\n");
-                        printf("        p       - Select PC Mouse Mode (3 Buttons).\n");
-                        printf("        i       - Inquire Current Configuration.\n");
-                        printf("        y value - Set vertical speed, where value is a multiple of 8.\n");
-                        printf("        x value - Set horizontal speed, where value is a multiple of 8.\n");
-                        printf("        a       - Ignore Application's setting of vert/horz speed settings.\n");
-                        printf("        b       - Take Application's settings of vert/horz speed settings.\n");
+  while (i < argc)
+  {
+    switch(argv[i][0]) {
+
+      case 'A':
+      case 'a':
+        printf("Fixed speed settings.\n");
+        regs.h.cl = 0x0001;
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0006;
+        MHLP(regs, regs);
+        break;
+
+      case 'B':
+      case 'b':
+        printf("Variable speed settings.\n");
+        regs.h.cl = 0x0000;
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0006;
+        MHLP(regs, regs);
+        break;
+
+      case 'R':
+      case 'r':
+        printf("Resetting iret.\n");
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0000;
+        MHLP(regs, regs);
+        break;
+
+      case 'I':
+      case 'i':
+        printf("\nCurrent mouse setting:\n");
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0003;
+        MHLP(regs, regs);
+        if (regs.h.bh == 0x10)
+          printf("  2 button mouse mode (Microsoft)\n");
+        else
+          printf("  3 button mouse mode (e.g. Mousesystems, PS2)\n");
+        printf  ("  Horizontal Speed (X) - %d\n", regs.h.cl / 8);
+        printf  ("  Vertical Speed   (Y) - %d\n", regs.h.ch / 8);
+        printf  ("  Speed Setting        - %s\n\n", regs.h.dl ? "fixed" : "variable");
+        break;
+
+      case '3':
+        printf("Selecting 3 button mouse mode (e.g. Mousesystems, PS2).\n");
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0002;
+        MHLP(regs, regs);
+        if (regs.h.al == 0xff) {
+          printf("ERROR! Cannot select 3 button mouse mode, \"emulate3buttons\" not set\n");
+          printf("       in /etc/dosemu.conf, try e.g.\n");
+          printf("       'mouse { ps2 device /dev/mouse internaldriver emulate3buttons }'\n");
+          exit (1);
         }
-  
+        break;
+
+      case '2':
+        printf("Selecting 2 button mouse mode (Microsoft).\n");
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0001;
+        MHLP(regs, regs);
+        break;
+
+      case 'Y':
+      case 'y':
+        i++;
+        if (i == argc) {
+          printf("ERROR! No value for \"y\" found.\n");
+          exit(1);
+        }
+        value = atoi(argv[i]);
+        printf("Selecting vertical speed to %d.\n", value);
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0004;
+        regs.h.cl = value;
+        MHLP(regs, regs);
+        if (regs.x.ax == 1) {
+          printf("ERROR! Selected speed is out of range. Unable to set speed.\n");
+          exit(1);
+        }
+        break;
+
+      case 'X':
+      case 'x':
+        i++;
+        if (i == argc) {
+          printf("ERROR! No value for \"x\" found.\n");
+          exit(1);
+        }
+        value = atoi(argv[i]);
+        printf("Selecting horizontal speed to %d.\n", value);
+        regs.x.ax = 0x0033;
+        regs.x.bx = 0x0005;
+        regs.h.cl = value;
+        MHLP(regs, regs);
+        if (regs.x.ax == 1) {
+          printf("ERROR! Selected speed is out of range. Unable to set speed.\n");
+          exit(1);
+        }
+        break;
+
+      default:
+        printf("ERROR! Unknow option \"%s\".\n\n", argv[i]);
+        usage();
+        /* never reached */
+        break;
+
+    } /* switch */
+
+    i++;
+
+  } /* while */
+
+  return (0);
+
 }

@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <malloc.h>
+#include <termios.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -113,6 +114,7 @@ static int X_init(void) {
 /* Let's do this here for now  95/02/06 */
    co = 80;
    li = 25;
+   set_video_bios_size();		/* make it stick */
    dpy=XOpenDisplay(config.X_display);
    if (!dpy) {
 	char *display_name;

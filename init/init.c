@@ -1,9 +1,10 @@
 /* 
  * $Id: init.c,v 1.2 1995/02/25 22:37:44 root Exp root $
  */
+#include <stdio.h>
+#include <termios.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/times.h>
@@ -26,10 +27,8 @@
 #ifdef USING_NET
 #include "ipx.h"
 #endif
-#ifdef NEW_PIC
 #include "bitops.h"
 #include "pic.h"
-#endif
 
 extern void pkt_check_receive_quick(void);
 
@@ -120,11 +119,11 @@ void tmpdir_init(void)
 {
   /* create tmpdir */
 #ifndef RUN_AS_USER
-  exchange_uids();
+  priv_off();
 #endif
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
 #ifndef RUN_AS_USER
-  exchange_uids();
+  priv_on();
 #endif
 }
 
@@ -183,7 +182,6 @@ void hardware_setup(void)
   int i;
 
   /* PIC init */
-#ifdef NEW_PIC
   pic_seti(PIC_IRQ0, do_irq0, 0);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
   pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
@@ -193,15 +191,8 @@ void hardware_setup(void)
     pic_unmaski(PIC_IRQ12);
   }
 #ifdef USING_NET
-  pic_seti(16, pkt_check_receive_quick, 0);
-  pic_unmaski(16);
-#endif
-#else 
-  for (i = 0; i < 2; i++) {
-    pics[i].OCW1 = 0;		/* no IRQ's serviced */
-    pics[i].OCW2 = 0;		/* no EOI's received */
-    pics[i].OCW3 = 8;		/* just marks this as OCW3 */
-  }
+  pic_seti(PIC_NET, pkt_check_receive_quick, 0);
+  pic_unmaski(PIC_NET);
 #endif
 
   g_printf("Hardware initialized\n");
@@ -475,12 +466,12 @@ void device_init(void)
   if (!config.vga)
     config.allowvideoportaccess = 0;
  
+  scr_state_init();
+  video_config_init();
   serial_init();
   mouse_init();
   printer_init();
   disk_init();
-  scr_state_init();
-  video_config_init();
 }
 
 /* 
@@ -520,7 +511,7 @@ void version_init(void) {
   struct new_utsname unames;
 
   uname(&unames);
-  warn("DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);  
+  warn("DOSEMU%s.%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);
   warn("Built for %d\n", KERNEL_VERSION);
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||

@@ -448,11 +448,11 @@ void dos_slang_suspend (void)
 {
    /*
    if (Slsmg_is_not_initialized) return;
-   terminal_close ();
-   keyboard_close ();
+   terminal_close();
+   keyboard_close();
    
-   terminal_initialize ();
-   keyboard_init ();
+   terminal_initialize();
+   keyboard_init();
     */
 }
 

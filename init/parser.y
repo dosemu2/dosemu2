@@ -7,6 +7,7 @@
  */
 %{
 #include <stdlib.h>
+#include <termios.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -75,6 +76,8 @@ static void stop_mouse(void);
 static void start_debug(void);
 static void start_video(void);
 static void stop_video(void);
+static void start_ttylocks(void);
+static void stop_ttylocks(void);
 static void start_serial(void);
 static void stop_serial(void);
 static void start_printer(void);
@@ -115,7 +118,7 @@ extern void yyrestart(FILE *input_file);
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token L_EMS L_UMB EMS_SIZE EMS_FRAME
+%token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT L_X
 	/* speaker */
 %token EMULATED NATIVE
@@ -123,6 +126,8 @@ extern void yyrestart(FILE *input_file);
 %token KEYBINT RAWKEYBOARD
 	/* ipx */
 %token NETWORK PKTDRIVER
+        /* lock files */
+%token DIRECTORY NAMESTUB BINARY
 	/* serial */
 %token BASE IRQ INTERRUPT DEVICE CHARSET  BAUDRATE
 	/* mouse */
@@ -256,16 +261,16 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| PKTDRIVER NOVELLHACK	{ config.pktflags = 1; }
 		| SPEAKER speaker
 		    {
-		    if ($2 != config.speaker) {
-		      if ($2 == SPKR_NATIVE) {
-                        yywarn("allowing access to the speaker ports!");
-		        allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
-		        allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
-		        }
-		      else
-                        c_printf("CONF: not allowing speaker port access\n");
-		      config.speaker = $2;
-                      }
+		    if ($2 == SPKR_NATIVE) {
+                      c_printf("CONF: allowing speaker port access!");
+#if 0  /* this is now handled in timers.c */
+		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
+		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
+#endif
+		      }
+		    else
+                      c_printf("CONF: not allowing speaker port access\n");
+		    config.speaker = $2;
 		    }
 		| VIDEO
 		    { start_video(); }
@@ -282,6 +287,10 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    { start_mouse(); }
 		  '{' mouse_flags '}'
 		    { stop_mouse(); }
+                | TTYLOCKS
+                    { start_ttylocks(); }
+                  '{' ttylocks_flags '}'
+                    { stop_ttylocks(); }
 		| SERIAL
 		    { start_serial(); }
 		  '{' serial_flags '}'
@@ -528,6 +537,19 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| error
 		;
 
+	/* lock files */
+
+ttylocks_flags	: ttylocks_flag
+		| ttylocks_flags ttylocks_flag
+		;
+ttylocks_flag	: DIRECTORY STRING	{ config.tty_lockdir = $2; }
+		| NAMESTUB STRING	{ config.tty_lockfile = $2; }
+		| BINARY		{ config.tty_lockbinary = TRUE; }
+		| STRING
+		    { yyerror("unrecognized ttylocks flag '%s'", $1); free($1); }
+		| error
+		;
+
 	/* serial ports */
 
 serial_flags	: serial_flag
@@ -729,7 +751,7 @@ hardware_ram_flag : INTEGER
                      }
 		   }
 		| STRING
-		    { yyerror("unrecognized sillyint command '%s'", $1);
+		    { yyerror("unrecognized hardware ram command '%s'", $1);
 		      free($1); }
 		| error
 		;
@@ -880,6 +902,21 @@ static void stop_video(void)
     config.mapped_bios = 1;
     config.console_video = 1;
   }
+}
+
+
+        /* tty lock files */
+static void start_ttylocks(void)
+{
+  if (priv_lvl)
+    yyerror("Can not change lock file settings in user config file");
+}
+
+
+static void stop_ttylocks(void)
+{
+  c_printf("SER: directory %s namestub %s binary %s\n", config.tty_lockdir,
+	   config.tty_lockfile,(config.tty_lockbinary?"Yes":"No"));
 }
 
 	/* serial */
@@ -1321,8 +1358,9 @@ static void keyb_layout(int layout)
 
 static int set_hardware_ram(int addr)
 {
-  memcheck_reserve('h', addr, 4096);
+  if ((addr>=0xc800) || (addr<0xf000))   addr *= 0x10;
   if ((addr<0xc8000) || (addr>=0xf0000)) return 0;
+  memcheck_reserve('h', addr, 4096);
   config.must_spare_hardware_ram=1;
   config.hardware_pages[(addr-0xc8000) >> 12]=1;
   return 1;
@@ -1493,8 +1531,8 @@ parse_config(char *confname)
     sprintf(name, "%s/.dosrc", home);
 
     if (getuid() != 0) {
-      if (!exchange_uids()) die("Cannot exchange uids\n");
-      if (!exchange_uids()) die("Cannot changeback uids\n");
+      if (!priv_off()) die("Cannot turn off privs\n");
+      if (!priv_on()) die("Cannot turn on privs\n");
     }
 
     priv_lvl = 0;

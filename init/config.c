@@ -2,6 +2,7 @@
  * $Id: config.c,v 1.4 1995/02/25 22:37:46 root Exp root $
  */
 #include <stdio.h>
+#include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -297,14 +298,14 @@ config_init(int argc, char **argv)
 	    parse_debugflags(optarg);
 	    break;
 	case 'o':
-	    exchange_uids();
+	    priv_off();
 	    config.debugout = strdup(optarg);
 	    dbg_fd = fopen(config.debugout, "w");
 	    if (!dbg_fd) {
 		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
 		exit(1);
 	    }
-	    exchange_uids();
+	    priv_on();
 	    break;
 	case 'P':
 	    if (terminal_fd == -1)
@@ -442,7 +443,7 @@ parse_debugflags(const char *s)
 {
     char            c;
     unsigned char   flag = 1;
-    const char      allopts[] = "vsdDRWkpiwghxmIEcXP";
+    const char      allopts[] = "vsdDRWkpiwghxmIEcXP#";
 
     /*
      * if you add new classes of debug messages, make sure to add the
@@ -529,6 +530,9 @@ parse_debugflags(const char *s)
 	    break;
 	case 'E':		/* EMS */
 	    d.EMS = flag;
+	    break;
+	case '#':			/* defint */
+	    d.defint = flag;
 	    break;
 	case '0'...'9':	/* set debug level, 0 is off, 9 is most
 				 * verbose */

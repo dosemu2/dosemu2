@@ -269,10 +269,8 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include "mouse.h"
 #include "int.h"
 
-#ifdef NEW_PIC
 #include "pic.h"
 #include "bitops.h"
-#endif
 
 extern void DOSEMUMouseEvents(void);
 
@@ -469,11 +467,7 @@ io_select(fd_set fds)
       if (mice->intdrv || mice->type == MOUSE_PS2)
 	if (FD_ISSET(mice->fd, &fds)) {
 		m_printf("MOUSE: We have data\n");
-#ifdef NEW_PIC
 	  pic_request(PIC_IRQ12);
-#else
-	  DOSEMUMouseEvents();
-#endif
 	}
       if (FD_ISSET(kbd_fd, &fds)) {
 	getKeys();
@@ -501,14 +495,6 @@ process_interrupt(SillyG_t *sg)
 
   if ((irq = sg->irq) != 0) {
     h_printf("INTERRUPT: 0x%02x\n", irq);
-#ifndef PIC
-    if (irq < 8)
-      chr = irq + 8;
-    else
-      chr = irq + 0x68;
-    do_hard_int(chr);
-#else
     pic_request(irq);
-#endif
   }
 }

@@ -49,6 +49,9 @@ typedef struct  {
   int sampleRate;
   int lastButtons;
   int chordMiddle;
+
+  struct termios oldset;
+
 } mouse_t;
 
 EXTERN struct  {

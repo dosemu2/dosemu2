@@ -94,14 +94,13 @@
 #include "emu.h"
 #include "timers.h"
 #include "int.h"
-#ifdef NEW_PIC
 #include "pic.h"
-#endif
 
 #define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
 
 typedef struct {
-  int            state;
+  short          read_state;
+  short          write_state;
   int            mode;
   int            read_latch;
   int            write_latch;
@@ -113,6 +112,8 @@ static pit_latch_struct pit[3];   /* values of 3 PIT counters */
 
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
+
+static int    port61 = 0x0e;      /* Speaker control */
 
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
@@ -127,23 +128,29 @@ void initialize_timers(void)
 
   gettimeofday(&cur_time, NULL);
 
-  pit[0].mode = 3;
-  pit[0].cntr = 0x10000;
-  pit[0].time = cur_time;
+  pit[0].mode        = 3;
+  pit[0].cntr        = 0x10000;
+  pit[0].time        = cur_time;
   pit[0].read_latch  = -1;
   pit[0].write_latch = 0;
+  pit[0].read_state  = 3;
+  pit[0].write_state = 3;
 
-  pit[1].mode = 2;
-  pit[1].cntr = 18;
-  pit[1].time = cur_time;
-  pit[0].read_latch  = -1;
+  pit[1].mode        = 2;
+  pit[1].cntr        = 18;
+  pit[1].time        = cur_time;
+  pit[1].read_latch  = -1;
   pit[1].write_latch = 18;
+  pit[1].read_state  = 3;
+  pit[1].write_state = 3;
 
-  pit[2].mode = 0;
-  pit[2].cntr = -1;
-  pit[2].time = cur_time;
-  pit[0].read_latch  = -1;
+  pit[2].mode        = 0;
+  pit[2].cntr        = -1;
+  pit[2].time        = cur_time;
+  pit[2].read_latch  = -1;
   pit[2].write_latch = 0;
+  pit[2].read_state  = 3;
+  pit[2].write_state = 3;
 
   ticks_accum   = 0;
   timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
@@ -190,7 +197,6 @@ void timer_tick(void)
   timer_int_engine();
 }
 
-
 void set_ticks(unsigned long new)
 {
   unsigned long *ticks = BIOS_TICK_ADDR;
@@ -205,7 +211,8 @@ void set_ticks(unsigned long new)
 
 static void pit_latch(int latch)
 {
-  i_printf("pit_latch:  invoked for timer %d\n", latch);
+  struct timeval cur_time;
+  u_long         ticks;
 
   /* check for special 'read latch status' mode */
   if (pit[latch].mode & 0x80) {
@@ -218,56 +225,59 @@ static void pit_latch(int latch)
      *   bit 1-3 = read latch mode
      *   bit 0   = BCD flag (1 == BCD, 0 == 16-bit -- always 0)
      */
-    pit[latch].read_latch = (pit[latch].state << 4) | (pit[latch].mode << 1);
+    pit[latch].read_latch = (pit[latch].read_state << 4) |
+                            (pit[latch].mode << 1);
     if (pit[latch].cntr == -1)
       pit[latch].read_latch |= 0x40;
     return;
   }
 
-  pit[latch].read_latch = 0;
-
-  if (pit[latch].cntr != -1) {
-    struct timeval cur_time;
-    u_long         ticks;
-
-    i_printf("pit_latch:  computing new cntr value\n", latch);
-
-    gettimeofday(&cur_time, NULL);
-    
-    switch (pit[latch].mode) {
-      case 0x00:  /* mode 0   -- countdown, interrupt, wait*/
-      case 0x01:  /* mode 1   -- countdown, wait */
-      case 0x04:  /* mode 4   -- countdown, wait */
-      case 0x05:  /* mode 5   -- countdown, wait */
+  switch (pit[latch].mode) {
+    default:    /* just in case... */
+    case 0x00:  /* mode 0   -- countdown, interrupt, wait*/
+    case 0x01:  /* mode 1   -- countdown, wait */
+    case 0x04:  /* mode 4   -- countdown, wait */
+    case 0x05:  /* mode 5   -- countdown, wait */
+      if (pit[latch].cntr != -1) {
+	gettimeofday(&cur_time, NULL);
 	ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) * CLOCK_TICK_RATE +
-		((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
+	        ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
 
-        if (ticks > pit[latch].cntr) {
+	if (ticks > pit[latch].cntr) {
 	  pit[latch].cntr = -1;
+	  pit[latch].read_latch = pit[latch].write_latch;
 	} else {
 	  pit[latch].read_latch = pit[latch].cntr - ticks;
 	}
-	break;
+      } else {
+	pit[latch].read_latch = pit[latch].write_latch;
+      }
+      break;
 
-      case 0x02:  /* mode 2,6 -- countdown, reload */
-      case 0x06:
-	/* fancy calculations to avoid overflow */
-	ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
-	ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
-		((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
-	pit[latch].read_latch = pit[latch].cntr - ticks % pit[latch].cntr;
-	break;
+    case 0x02:  /* mode 2,6 -- countdown, reload */
+    case 0x06:
+      gettimeofday(&cur_time, NULL);
+      /* fancy calculations to avoid overflow */
+      ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
+      ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
+	      ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
+      pit[latch].read_latch = pit[latch].cntr - ticks % pit[latch].cntr;
+      break;
 
-      case 0x03:  /* mode 3,7 -- countdown by 2(?), interrupt, reload */
-      case 0x07:
-	/* fancy calculations to avoid overflow */
-	ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
-	ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
-		((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
-	pit[latch].read_latch = pit[latch].cntr - (2*ticks) % pit[latch].cntr;
-	break;
-    }
+    case 0x03:  /* mode 3,7 -- countdown by 2(?), interrupt, reload */
+    case 0x07:
+      gettimeofday(&cur_time, NULL);
+      /* fancy calculations to avoid overflow */
+      ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
+      ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
+	      ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
+      pit[latch].read_latch = pit[latch].cntr - (2*ticks) % pit[latch].cntr;
+      break;
   }
+#if 0 /* for debugging */
+  i_printf("pit_latch:  latched value 0x%4.4x for timer %d\n",
+	   pit[latch].read_latch, latch);
+#endif
 }
 
 int pit_inp(int port)
@@ -280,20 +290,22 @@ int pit_inp(int port)
   if (pit[port].read_latch == -1)
     pit_latch(port);
 
-  switch (pit[port].state) {
-    case 0: /* latch & read */
+  switch (pit[port].read_state) {
+    case 0: /* read MSB & return to state 3 */
+      ret = (pit[port].read_latch >> 8) & 0xff;
+      pit[port].read_state = 3;
+      pit[port].read_latch = -1;
+      break;
     case 3: /* read LSB followed by MSB */
       ret = (pit[port].read_latch & 0xff);
-      pit[port].state = 1;
+      pit[port].read_state = 0;
       break;
     case 1: /* read MSB */
       ret = (pit[port].read_latch >> 8) & 0xff;
-      pit[port].state      = 0;
       pit[port].read_latch = -1;
       break;
     case 2: /* read LSB */
       ret = (pit[port].read_latch & 0xff);
-      pit[port].state      = 0;
       pit[port].read_latch = -1;
       break;
   }
@@ -308,44 +320,43 @@ void pit_outp(int port, int val)
   static int timer_beep;
 
   if (port == 1)
-    i_printf("PORT:  someone is writing the CMOS refresh time?!?");
+    i_printf("PORT: someone is writing the CMOS refresh time?!?");
 
-  /* someone should check this code!!! */
   if (port == 2) {
-    if (config.speaker == SPKR_NATIVE) {
-      safe_port_out_byte(0x42, val);
-      i_printf("PORT: Doing outp(42, 0x%x)\n", val);
-    } else if (config.speaker == SPKR_EMULATED) {
-      i_printf("PORT: Emulating outp(42, 0x%x)\n", val);
-      if (timer_beep) {
-	putchar('\007');
-	timer_beep = 0;
-      } else {
-	timer_beep = 1;
-      }
+    switch (config.speaker) {
+      case SPKR_NATIVE:
+        safe_port_out_byte(0x42, val);
+	break;
+      case SPKR_EMULATED:
+	if ((port61 & 3) == 3) {
+	  i_printf("PORT: Emulated beep!");
+	  putchar('\007');
+	}
+	break;
     }
   }
 
-  switch (pit[port].state) {
+  switch (pit[port].write_state) {
     case 0:
+      pit[port].write_latch = pit[port].write_latch | ((val & 0xff) << 8);
+      pit[port].write_state = 3;
+      break;
     case 3:
-      pit[port].write_latch = val;
-      pit[port].state = 2;
+      pit[port].write_latch = val & 0xff;
+      pit[port].write_state = 0;
       break;
     case 1:
-      pit[port].write_latch = (pit[port].write_latch & 0xff00) | (val&0xff);
-      pit[port].state = 0;
+      pit[port].write_latch = val & 0xff;
       break;
     case 2:
-      pit[port].write_latch = (pit[port].write_latch & 0xff) | (val << 8);
-      pit[port].state = 0;
+      pit[port].write_latch = (val & 0xff) << 8;
       break;
     }
 #if 0
   i_printf("PORT: pit_outp(0x%x, 0x%x)\n", port+0x40, val);
 #endif
 
-  if (pit[port].state == 0) {
+  if (pit[port].write_state != 0) {
     if (pit[port].write_latch == 0)
       pit[port].cntr = 0x10000;
     else
@@ -358,23 +369,26 @@ void pit_outp(int port, int val)
       timer_div     = (pit[0].cntr * 10000) / CLOCK_TICK_RATE;
       if (timer_div == 0)
 	timer_div = 1;
-
+#if 0
       i_printf("timer_interrupt_rate requested %.3g Hz, granted %.3g Hz\n",
 	       CLOCK_TICK_RATE/(double)pit[0].cntr, 10000.0/timer_div);
+#endif
     }
   }
 }
 
-int inport_43()
+int pit_control_inp()
 {
-  return safe_port_in_byte(0x43);
+  return 0;
 }
 
-void outport_43(int val)
+void pit_control_outp(int val)
 {
   int mode, latch, state;
 
+#if 0
   i_printf("PORT: outp(43, 0x%x)\n",val);
+#endif
 
   mode  = (val >> 1) & 0x07;
   state = (val >> 4) & 0x03;
@@ -384,22 +398,26 @@ void outport_43(int val)
     case 0:
     case 1:
     case 2:
-      pit[latch].state = state;
       if (state == 0)
 	pit_latch(latch);
-      else
-	pit[latch].mode  = mode;
+      else {
+	pit[latch].read_state  = state;
+	pit[latch].write_state = state;
+	pit[latch].mode        = mode;
+      }
       if (latch == 2 && config.speaker == SPKR_NATIVE) {
         safe_port_out_byte(0x43, val);
+#if 0
         i_printf("PORT: writing outp(0x43, 0x%x)\n", val);
+#endif
       }
       break;
     case 3:
       /* I think this code is more or less correct */
       if ((val & 0x20) == 0) {        /* latch counts? */
-	if (val & 0x02) pit[0].state = 0;
-	if (val & 0x04) pit[1].state = 0;
-	if (val & 0x08) pit[2].state = 0;
+	if (val & 0x02) pit_latch(0);
+	if (val & 0x04) pit_latch(1);
+	if (val & 0x08) pit_latch(2);
       }
       else if ((val & 0x10) == 0) {   /* latch status words? */
 	if (val & 0x02) pit[0].mode |= 0x80;
@@ -410,6 +428,31 @@ void outport_43(int val)
   }
 }
 
+int read_port61()
+{
+  if (config.speaker == SPKR_NATIVE)
+    port61 = safe_port_in_byte(0x61);
+
+  return port61;
+}
+
+void write_port61(int byte)
+{
+  port61 = byte & 0x0f;
+
+  switch (config.speaker) {
+    case SPKR_NATIVE:
+      safe_port_out_byte(0x61, byte);
+      break;
+
+    case SPKR_EMULATED:
+      if (((byte & 3) == 3) && (pit[2].cntr != -1)) {
+	i_printf("PORT: emulated beep!\n");
+	putchar('\007');
+      }
+      break;
+  }
+}
 
 /* DANG_BEGIN_FUNCTION timer_int_engine
  *
@@ -441,11 +484,7 @@ void timer_int_engine(void)
     if (continuous > 50) 
       continuous = 0;                   /* Reset overflow guard */
     else {
-      #ifdef NEW_PIC
         pic_request(PIC_IRQ0);            /* Start a timer irq */
-      #else
-        if (!do_hard_int(8)) h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
-      #endif
     }
 
     /* Decrement the ticks accumulator */

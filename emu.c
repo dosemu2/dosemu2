@@ -391,6 +391,7 @@ __asm__("___START___: jmp _emulate\n");
 #endif
 
 #include <stdio.h>
+#include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -413,7 +414,13 @@ __asm__("___START___: jmp _emulate\n");
 
 #include "config.h"
 #include "memory.h"
+
+#ifdef REQUIRES_EMUMODULE
+  /* Please folks, don't remove this, it's required for emusys.h (within emu.h) */
+  #define __EMUSYS_parent
+#endif
 #include "emu.h"
+
 #include "bios.h"
 #include "termio.h"
 #include "video.h"
@@ -429,10 +436,8 @@ __asm__("___START___: jmp _emulate\n");
 #include "keymaps.h"
 #include "cpu.h"
 #include "int.h"
-#ifdef NEW_PIC
 #include "bitops.h"
 #include "pic.h"
-#endif
 #ifdef DPMI
 #include "dpmi.h"
 #endif
@@ -452,26 +457,6 @@ extern void	timer_int_engine(void);
 
 void io_select_init(void);
 
-#ifndef NEW_PIC
-/* Programmable Interrupt Controller, 8259 */
-struct pic {
-    int             stage;	/* where in init. , 0=ICW1 */
-    /*
-     * the seq. is ICW1 to 0x20, ICW2 to 0x21 if ICW1:D1=0, ICW3 to 0x20h,
-     * ICW4 to 0x21, OCWs any order
-     */
-    unsigned char
-                    ICW1,	/* Input Control Words */
-                    ICW2,
-                    ICW3,
-                    ICW4,
-                    OCW1,	/* Output Control Words */
-                    OCW2,
-                    OCW3;
-}
-
-pics            [2];
-#endif
 static int      special_nowait = 0;
 
 
@@ -500,10 +485,8 @@ run_vm86(void)
      * in here.
      */
     in_vm86 = 1;
-#ifdef NEW_PIC
     if (pic_icount)
 	REG(eflags) |= (VIP);
-#endif
     /* FIXME: this needs to be clarified and rewritten */
 
     retval = vm86(&vm86s);
@@ -515,11 +498,7 @@ run_vm86(void)
 	break;
     case VM86_STI:
 	I_printf("Return from vm86() for timeout\n");
-#ifndef NEW_PIC
-	REG(eflags) &= ~(VIP);
-#else
 	pic_iret();
-#endif
 	break;
     case VM86_INTx:
 	do_int(VM86_ARG(retval));
@@ -544,7 +523,6 @@ run_vm86(void)
      */
     if (iq.queued)
 	do_queued_ioctl();
-#ifdef NEW_PIC
     /* update the pic to reflect IEF */
     if (REG(eflags) & IF_MASK) {
 	if (pic_iflag)
@@ -553,7 +531,6 @@ run_vm86(void)
 	if (!pic_iflag)
 	    pic_cli();		/* pic_iflag=0 => enabled */
     }
-#endif
 }
 
 void 
@@ -677,15 +654,11 @@ SIG_init()
 		    }
 		    sg->fd = fd;
 #endif				/* NOT REQUIRES_EMUMODULE */
-#ifndef NEW_PIC
-		    (sg++)->irq = irq;
-#else
 		    sg->irq = pic_irq_list[irq];
 		    g_printf("SIG %x: enabling interrupt %x\n", irq, sg->irq);
 		    pic_seti(sg->irq, do_irq, 0);
 		    pic_unmaski(sg->irq);
 		    sg++;
-#endif
 		}
 	    }
 	}
@@ -779,7 +752,7 @@ emulate(int argc, char **argv)
     /* stdio_init, as that and config_init have now changed places and */
     /* allowing reading arbitrary files while being root is not smart */
 
-    exchange_uids();
+    priv_off();	
 #endif
 
     /* the transposal of (config_|stdio_)init allows the addition of -o */
@@ -812,20 +785,14 @@ emulate(int argc, char **argv)
 #if 0
 	timer_int_engine();
 #endif
-#ifdef NEW_PIC
 	run_irqs();		/* trigger any hardware interrupts
 				 * requested */
-#endif
 	serial_run();
 #if 0
 #ifdef USING_NET
 	/* check for available packets on the packet driver interface */
 	/* (timeout=0, so it immediately returns when none are available) */
-#ifdef NEW_PIC
 	pic_request(16);
-#else
-	pkt_check_receive(0);
-#endif
 #endif
 #endif
 	int_queue_run();
@@ -848,13 +815,13 @@ dos_ctrl_alt_del(void)
     HMA_MAP(1);
     time_setting_init();
     keyboard_flags_init();
+    video_config_init();
     serial_init();
     mouse_init();
     printer_init();
     disk_close();
     disk_init();
     scr_state_init();
-    video_config_init();
     clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
     special_nowait = 0;
     p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
