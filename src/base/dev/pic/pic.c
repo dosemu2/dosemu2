@@ -908,7 +908,9 @@ unsigned long pic_newirr;
   if(t_time<pic_sys_time) {
      for (timer=0;timer<33;++timer) { 
        if(pic_itime[timer]>=pic_dos_time) {
+	 if (pic_itime[timer] != NEVER)
           pic_itime[timer] -= 900*1193047;
+         if (pic_ltime[timer] != NEVER)
           pic_ltime[timer] -= 900*1193047;
           }
        else pic_ltime[timer] = pic_itime[timer] = NEVER;

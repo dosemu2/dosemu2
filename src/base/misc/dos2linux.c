@@ -33,13 +33,24 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <string.h>
+#include <ctype.h>
 
+#include "config.h"
 #include "dos2linux.h" 
 #include "emu.h"
 #include "priv.h"
+#include "pic.h"
+#include "int.h"
+#include "vc.h"
+
+#ifndef max
+#define max(a,b)       ((a)>(b)? (a):(b))
+#endif
 
 #define GET_USER_ENVVAR      0x52
 #define GET_USER_COMMAND     0x51
@@ -48,6 +59,9 @@
 #define MAX_DOS_COMMAND_LEN  256
 
 char misc_dos_command[MAX_DOS_COMMAND_LEN + 1];
+
+extern void handle_signals(void);
+
 
 int misc_e6_envvar (char *str)
 {
@@ -138,6 +152,8 @@ static int fork_debug(void)
  * 3/10/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
  *  - fixed securety hole
  *  - stderr output also to dosemu screen
+ * 2/27/1997, Alberto Vignani (vignani@torino.alpcom.it):
+ *  - make it work (tested with 'ls -lR /' and 'updatedb &')
  *
  * DANG_BEGIN_FUNCTION run_unix_command
  *
@@ -179,37 +195,15 @@ void run_unix_command(char *buffer)
 {
     /* unix command is in a null terminate buffer pointed to by ES:DX. */
 
-#ifdef SIMPLE_FORK
-#warning Using SIMPLE_FORK
-    /* Who made this old version avaliable again and why? The #else variant 
-     * is much more elegant in my opinion, because you get the output *in* 
-     * dosemu.  --  Erik Mouw
-     *
-     * I made this option safe, too, but I didn't test it, so I am not
-     * sure. When accidents happen, don't say I didn't warn you!
-     */
-     
-     /* DANG_FIXTHIS Remove the "SIMPLE_FORK" stuff if it is not really necessary */
-     /* DANG_FIXTHIS This "SIMPLE_FORK" stuff is broken anyway, it makes unix commands execute uid=euid=root! */
-    uid_t uid, gid;
-    
-    uid=geteuid();
-    gid=geteuid();
-    setuid(getuid());  /* Note: this won't help! euid=user, not root.  root is uid! */
-    setgid(getgid());
-    
-    system(buffer);
-    
-    setuid(uid);
-    setgid(gid);
-
-#else
     /* IMPORTANT NOTE: euid=user uid=root (not the other way around!) */
 
     int p[2];
     int q[2];
-    int pid, status, retval, tuid;
-    char buf;
+    int pid, status;
+    char si_buf[128], se_buf[128];
+
+    if (buffer==NULL) return;
+    g_printf("UNIX: run '%s'\n",buffer);
 
     /* create a pipe... */
     if(pipe(p)!=0)
@@ -234,6 +228,8 @@ void run_unix_command(char *buffer)
     }
     else if(pid==0) /* child */
     {
+	int retval;
+
         close(p[0]);		/* close read side of the stdout pipe */
         close(q[0]);		/* and the stderr pipe */
         close(1);		/* close stdout */
@@ -256,19 +252,7 @@ void run_unix_command(char *buffer)
          *
          * NOTE: euid=user uid=root!  -Steven P. Crain
          */
-#if 1
 	priv_drop();
-#else
-        tuid=geteuid(); /* Save user's uid */
-        setuid(getuid()); /* Switch to root */
-        setuid(tuid);     /* You can't switch back anymore: good thing we're forked! */ 
-        setgid(getgid());
-#endif
-        
-#if 0
-        g_printf("run_unix_command() (child): uid/gid=%i/%i\n", getuid(), getgid());
-        g_printf("run_unix_command() (child): euid/egid=%i/%i\n", geteuid(), getegid());
-#endif
         
         retval=system(buffer);	/* execute command */
         close(p[1]);		/* close write side of the stdout pipe */
@@ -277,26 +261,71 @@ void run_unix_command(char *buffer)
     }
     else /* parent */
     {
+        fd_set rfds;
+        struct timeval tv;
+        int mxs, retval = 0;
+
         close(p[1]);		/* close write side of the pipe */
         close(q[1]);		/* and stderr pipe */
         
-        /* read bytes until an error occurs 
+        /* read bytes until an error occurs or child exits
          * no big buffer here, because speed is not important
          * if speed *is* important, switch to another virtual console!
-         * first read stdout, then stderr. if both stdout and stderr produce
-         * output, only the stderr output is printed.
+         * If both stdout and stderr produce output, we should
+         * decide what to do (print only the stderr?)
          */
-        while((read(p[0], &buf, 1)==1) || (read(q[0], &buf, 1)==1))
-        {
-            p_dos_str("%c", buf);	/* print character */
-        }
+	FD_ZERO(&rfds);
+	FD_SET(p[0], &rfds);
+	FD_SET(q[0], &rfds);
+	mxs = max(p[0], q[0]) + 1;
+
+	for (;;) {		/* nice eternal loop */
+		int nr;
+
+		tv.tv_sec = 0;
+		tv.tv_usec = 10000;
+		retval = select (mxs, &rfds, NULL, NULL, &tv);
+
+		if (retval > 0) {
+			/* one of the pipes has data, or EOF */
+			if (FD_ISSET(p[0], &rfds)) {
+				nr = read(p[0], si_buf, 80);
+				if (nr <= 0) break;
+				si_buf[nr] = 0;
+				p_dos_str("%s", si_buf);
+			}
+			if (FD_ISSET(q[0], &rfds)) {
+				nr = read(q[0], se_buf, 80);
+				if (nr <= 0) break;
+				se_buf[nr] = 0;
+				p_dos_str("%s", se_buf);
+			}
+		}
+		else {
+			/* return for timeout or signal
+			 * we'll lose a LOT of SIGALRMs here but
+			 * this is not critical; instead, we could
+			 * find a way to process other signals
+			 * (e.g. currently we can't stop the child!)
+			 */
+			handle_signals();
+			if (iq.queued)
+				do_queued_ioctl();
+			/*
+			 * if the child doesn't send anything to the
+			 * pipes, we check here for termination
+			 */
+			if (waitpid(pid, &status, WNOHANG)==pid) break;
+		}
+	}
+ 
         
         /* kill the child (to be sure (s)he (?) is really dead) */
         if(kill(pid, SIGTERM)!=0)
             kill(pid, SIGKILL);
             
         close(p[0]);		/* close read side of the stdout pipe */
-        close(q[1]);		/* and the stderr pipe */
+        close(q[0]);		/* and the stderr pipe */
         
         /* anti-zombie code */
         waitpid(pid, &status, WUNTRACED);
@@ -305,7 +334,6 @@ void run_unix_command(char *buffer)
         g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(status));
     }
-#endif
 }
 
 /* interface to system -- run a real uid */
