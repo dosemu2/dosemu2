@@ -259,7 +259,10 @@ void Seq_write_value(unsigned char data)
       break;
 
     case 0x02:		/* Map Mask */
-      u = vga.seq.map_mask = data & 0x0f;
+      u = data;
+      if (vga.color_bits != 8)
+        u &= 0xf;
+      vga.seq.map_mask = u;
       u1 = 0;
       if(u) while(!(u & 1)) u >>= 1, u1++;
       seq_deb("Seq_write_value: map mask = 0x%x, write plane = %u\n",
