@@ -1252,7 +1252,7 @@ void msdos_post_extender(int intr)
 		    MEMCPY_DOS2DOS((void *)GetSegmentBaseAddress(S_REG(es))
 			+ D_16_32(S_REG(edi)),
 			SEG_ADR((void *), es, di),
-			S_LWORD(ecx));
+			LWORD(ecx));
 		    break;
 		case 0x21:
 		case 0xa1:
