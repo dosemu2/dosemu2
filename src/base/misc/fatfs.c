@@ -1076,9 +1076,11 @@ void build_boot_blk(fatfs_t *f)
    * beyond 0x7ded (incl. final '\0').
    */
   char *msg_f = "\r\nSorry, could not load an operating system from\r\n%s\r\n\r\n"
-"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n";
+"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n\r\n"
+"Press any key to return to Linux...\r\n";
   char *msg1_f = "\r\nSorry, there is no operating system here:\r\n%s\r\n\r\n"
-"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n";
+"Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n\r\n"
+"Press any key to return to Linux...\r\n";
   char *msg, *msg1;
 
   int i;

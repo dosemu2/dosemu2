@@ -75,6 +75,8 @@ write_msg:
 write_msg_10:
 	movb	$0,%ah
 	int	$0x16
+	movw	$0xffff,%ax
+	int	$0xe6
 	jmp	write_msg_10
 write_msg_20:
 	movb	$0x0e,%ah
