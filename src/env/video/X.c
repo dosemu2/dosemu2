@@ -525,6 +525,7 @@ static int NewXErrorHandler(Display *, XErrorEvent *);
 static char X_title_emuname [X_TITLE_EMUNAME_MAXLEN] = {0};
 char X_title_appname [X_TITLE_APPNAME_MAXLEN] = {0};		/* used in plugin/commands/comcom.c */
 static int X_title_show_appname = 1;
+static int X_change_config(unsigned, void *);	/* modify X config data from DOS */
 
 /* colormap related stuff */
 static void graphics_cmap_init(void);
@@ -613,7 +614,8 @@ struct video_system Video_X =
    X_close,      
    X_set_videomode,      
    X_update_screen,
-   X_update_cursor
+   X_update_cursor,
+   X_change_config
 };
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -1239,7 +1241,7 @@ static void X_keymap_init()
  * of X and the VGA emulation during a DOSEMU session.
  * It is used by the xmode.exe program that comes with DOSEMU.
  */
-int X_change_config(unsigned item, void *buf)
+static int X_change_config(unsigned item, void *buf)
 {
   int err = 0;
   XFontStruct *xfont;
@@ -1372,7 +1374,11 @@ int X_change_config(unsigned item, void *buf)
       X_printf("X: X_change_config: background_pause %i\n", *((int *) buf));
       config.X_background_pause = *((int *) buf);
       break;
-      
+
+  case X_GET_TITLE_APPNAME:
+      snprintf (buf, X_TITLE_APPNAME_MAXLEN, "%s", X_title_appname);
+      break;
+          
     default:
       err = 100;
   }

@@ -21,10 +21,6 @@
 
 #include "config.h"
 
-#if X_GRAPHICS
-#include "../env/video/X.h"
-#endif
-
 #include "emu.h"
 #include "serial.h"
 #include "memory.h"
@@ -88,24 +84,14 @@ static struct timeval scr_tv;        /* For translating UNIX <-> DOS times */
 /* set if some directories are mounted during startup */
 int redir_state = 0;
 
-#ifndef X_GRAPHICS
-#define X_TITLE_APPNAME_MAXLEN 25
-#endif
-
-static char x_title_hint[9] = "";
-static char x_title_current[X_TITLE_APPNAME_MAXLEN];
-static int can_change_x_title = 0;
+static char title_hint[9] = "";
+static char title_current[TITLE_APPNAME_MAXLEN];
+static int can_change_title = 0;
 
 static void change_window_title(char *title)
 {
-#ifdef X_GRAPHICS
-   if (config.X)
-      X_change_config(X_CHG_TITLE_APPNAME, title);
-   else
-#endif
-   /* could be a cleaner check but this works */          
-   if (config.mouse.type == MOUSE_XTERM)
-      printf("\x1b]2;DOSEMU - %s\7", title);
+   if (Video->change_config)
+      Video->change_config(CHG_TITLE_APPNAME, title);
 } 
 
 static void kill_time(long usecs) {
@@ -559,12 +545,9 @@ int dos_helper(void)
         break;
 #endif
     case DOS_HELPER_XCONFIG:
-#if X_GRAPHICS
-	if (config.X) {
-		LWORD(eax) = X_change_config((unsigned) LWORD(edx), SEG_ADR((void *), es, bx));
-	} else 
-#endif /* X_GRAPHICS */
-	{
+	if (Video->change_config) {
+		LWORD(eax) = Video->change_config((unsigned) LWORD(edx), SEG_ADR((void *), es, bx));
+	} else {
 		_AX = -1;
 	}
         break;
@@ -1214,11 +1197,11 @@ static int int21(void)
 
   case 0x4B: {			/* program load */
       char *ptr, *tmp_ptr;
-      char cmdname[X_TITLE_APPNAME_MAXLEN];
+      char cmdname[TITLE_APPNAME_MAXLEN];
       char *str = SEG_ADR((char*), ds, dx);
-      if (!config.X && config.mouse.type != MOUSE_XTERM)
+      if (!Video->change_config)
         return 0;
-      if (!strlen(x_title_hint) || strcmp(x_title_current, x_title_hint) != 0)
+      if (!strlen(title_hint) || strcmp(title_current, title_hint) != 0)
         return 0;
 
       ptr = strrchr(str, '\\');
@@ -1232,14 +1215,14 @@ static int int21(void)
         if (iscntrl(*tmp_ptr++))
           return 0;
       }
-      strncpy(cmdname, ptr, X_TITLE_APPNAME_MAXLEN-1);
-      cmdname[X_TITLE_APPNAME_MAXLEN-1] = 0;
+      strncpy(cmdname, ptr, TITLE_APPNAME_MAXLEN-1);
+      cmdname[TITLE_APPNAME_MAXLEN-1] = 0;
       ptr = strchr(cmdname, '.');
       if (ptr) *ptr = 0;
       /* change the title */
-      strcpy(x_title_current, cmdname);
-      change_window_title(x_title_current);
-      can_change_x_title = 0;
+      strcpy(title_current, cmdname);
+      change_window_title(title_current);
+      can_change_title = 0;
       return 0;
   }
 
@@ -1687,19 +1670,19 @@ static int int2f(void)
 #endif
 
     case 0xae00: {
-      char cmdname[X_TITLE_APPNAME_MAXLEN];
-      char appname[X_TITLE_APPNAME_MAXLEN];
+      char cmdname[TITLE_APPNAME_MAXLEN];
+      char appname[TITLE_APPNAME_MAXLEN];
       struct lowstring *str = SEG_ADR((struct lowstring *), ds, si);
       u_short psp_seg = sda_cur_psp(sda);
       struct MCB *mcb = (struct MCB *)SEG2LINEAR(psp_seg - 1);
       int len;
       char *ptr, *tmp_ptr;
-      if (!config.X && config.mouse.type != MOUSE_XTERM)
+      if (!Video->change_config)
         break;
 
-      strncpy(x_title_hint, mcb->name, 8);
-      x_title_hint[8] = 0;
-      len = MIN(str->len, X_TITLE_APPNAME_MAXLEN - 1);
+      strncpy(title_hint, mcb->name, 8);
+      title_hint[8] = 0;
+      len = MIN(str->len, TITLE_APPNAME_MAXLEN - 1);
       memcpy(cmdname, str->s, len);
       cmdname[len] = 0;
       ptr = cmdname + strspn(cmdname, " \t");
@@ -1710,9 +1693,9 @@ static int int2f(void)
         if (iscntrl(*tmp_ptr++))
           return 0;
       }
-      strcpy(x_title_current, x_title_hint);
-      snprintf(appname, X_TITLE_APPNAME_MAXLEN, "%s ( %s )",
-        x_title_current, strlower(ptr));
+      strcpy(title_current, title_hint);
+      snprintf(appname, TITLE_APPNAME_MAXLEN, "%s ( %s )",
+        title_current, strlower(ptr));
       change_window_title(appname);
       return 0;
     }
@@ -2226,7 +2209,7 @@ static void update_xtitle(void)
   char *cmd_ptr, *tmp_ptr;
   u_short psp_seg = sda_cur_psp(sda);
   struct MCB *mcb = (struct MCB *)SEG2LINEAR(psp_seg - 1);
-  int force_update = !strlen(x_title_hint);
+  int force_update = !strlen(title_hint);
 
   strncpy(cmdname, mcb->name, 8);
   cmdname[8] = 0;
@@ -2236,16 +2219,16 @@ static void update_xtitle(void)
       return;
   }
 
-  if (force_update || strcmp(x_title_current, x_title_hint) != 0) {
-    if (force_update || strcmp(cmd_ptr, x_title_hint) == 0) {
-      if (force_update || can_change_x_title) {
-	if (strcmp(x_title_current, cmd_ptr) == 0)
+  if (force_update || strcmp(title_current, title_hint) != 0) {
+    if (force_update || strcmp(cmd_ptr, title_hint) == 0) {
+      if (force_update || can_change_title) {
+	if (strcmp(title_current, cmd_ptr) == 0)
 	  return;
-        strcpy(x_title_current, cmd_ptr);
-        change_window_title(x_title_current);
+        strcpy(title_current, cmd_ptr);
+        change_window_title(title_current);
       }
     } else {
-      can_change_x_title = 1;
+      can_change_title = 1;
     }
   }
 }
@@ -2277,6 +2260,6 @@ void do_periodic_stuff(void)
     if (iq.queued)
 	do_queued_ioctl();
 
-    if (config.X || config.mouse.type == MOUSE_XTERM)
+    if (Video->change_config)
 	update_xtitle();
 }

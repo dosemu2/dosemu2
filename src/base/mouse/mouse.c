@@ -24,9 +24,6 @@
 #include <sys/mman.h>
 #include <slang.h>
 
-#ifdef X_SUPPORT
-#include "../env/video/X.h"
-#endif
 #ifdef USE_GPM
 #include <gpm.h>
 #endif
@@ -36,6 +33,11 @@
 #include "int.h"
 #include "memory.h"
 #include "video.h"		/* video base address */
+#ifdef X_SUPPORT
+#undef True
+#undef False
+#include "../env/video/X.h"
+#endif
 #include "mouse.h"
 #include "serial.h"
 #include "port.h"

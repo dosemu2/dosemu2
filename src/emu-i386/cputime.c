@@ -21,10 +21,8 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
-#ifdef X_SUPPORT
-#include "../env/video/X.h"
-#endif
 #include "emu.h"
+#include "video.h"
 #include "timers.h"
 #include "pic.h"
 #include "speaker.h"
@@ -255,10 +253,8 @@ void freeze_dosemu(void)
   
   speaker_pause();
   
-#ifdef X_SUPPORT
-  if (config.X)
-    X_change_config (X_CHG_TITLE, NULL);
-#endif
+  if (Video->change_config)
+    Video->change_config (CHG_TITLE, NULL);
 }
 
 void unfreeze_dosemu(void)
@@ -272,10 +268,8 @@ void unfreeze_dosemu(void)
   dosemu_user_froze = 0;
   dbug_printf("*** dosemu unfrozen\n");
 
-#ifdef X_SUPPORT
-  if (config.X)
-    X_change_config (X_CHG_TITLE, NULL);
-#endif
+  if (Video->change_config)
+    Video->change_config (CHG_TITLE, NULL);
 }
 
 

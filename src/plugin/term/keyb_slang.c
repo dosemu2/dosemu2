@@ -812,7 +812,7 @@ static int init_slang_keymaps(void)
 	define_keyset(CTRL, m);
 	
 	term = getenv("TERM");
-	if( term && !strncmp("xterm", term, 5) ) {
+	if( using_xterm() ) {
 		/* Oh no, this is _BAD_, there are so many different things called 'xterm'*/
 #if 0
 /* This breaks the 8-bit charsets, disable it for now */		

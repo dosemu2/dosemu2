@@ -162,6 +162,34 @@ static void set_char_set (void)
 	}
 }
 
+int using_xterm(void)
+{
+   char *term = getenv("TERM");
+
+   if (term == NULL)
+      return 0;
+   
+   return !strncmp("xterm", term, 5) ||
+           !strncmp("rxvt", term, 4) ||
+           !strcmp("dtterm", term);
+}
+
+static int term_change_config(unsigned item, void *buf)
+{
+   static char title_appname[TITLE_APPNAME_MAXLEN];
+
+   switch (item) {
+   case CHG_TITLE_APPNAME:
+      snprintf (title_appname, TITLE_APPNAME_MAXLEN, "%s", (char *) buf);
+      printf("\x1b]2;DOSEMU - %s\7", (char *)buf);
+      return 0;
+   case GET_TITLE_APPNAME:
+      snprintf (buf, TITLE_APPNAME_MAXLEN, "%s", title_appname);
+      return 0;
+   } 
+   return 100;   
+}
+
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
@@ -193,6 +221,9 @@ static int terminal_initialize(void)
    }
    else
      Video_term.update_screen = NULL;
+
+   if (using_xterm())
+     Video_term.change_config = term_change_config;
 
    term_init();
 
@@ -558,9 +589,6 @@ void dos_slang_smart_set_mono (void)
    SLsmg_cls ();
 }
 
-
-
-
 #define term_setmode NULL
 #define term_update_cursor NULL
 
@@ -570,7 +598,8 @@ struct video_system Video_term = {
    terminal_close,      
    term_setmode,      
    slang_update,
-   term_update_cursor
+   term_update_cursor,
+   NULL
 };
 
 

@@ -461,8 +461,7 @@ char *mkdir_under(char *basedir, char *dir, int append_pid)
 	if (dir) s = assemble_path(basedir, dir, append_pid);
 	if (!exists_dir(s)) {
 		if (mkdir(s, S_IRWXU)) {
-			fprintf(stderr, "can't create local %s directory, giving up\n", s);
-			longjmp(NotJEnv, 0x42);
+			fprintf(stderr, "can't create local %s directory\n", s);
 		}
 	}
 	return s;

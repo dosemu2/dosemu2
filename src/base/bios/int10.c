@@ -57,16 +57,18 @@
 #include <string.h>
 #include <unistd.h>
 
-#if X_GRAPHICS
-#include "X.h"
-#endif
-
 #include "emu.h"
 #include "video.h"
 #include "memory.h"
 #include "bios.h"
 #include "vc.h"
 #include "speaker.h"
+
+#if X_GRAPHICS
+#undef True
+#undef False
+#include "X.h"
+#endif
 
 #if X_GRAPHICS
 #include "vgaemu.h"

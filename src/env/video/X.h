@@ -7,24 +7,22 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 
-#define X_CHG_TITLE	1
-#define X_CHG_FONT	2
-#define X_CHG_MAP	3
-#define X_CHG_UNMAP	4
-#define X_CHG_WINSIZE	5
-#define X_CHG_TITLE_EMUNAME	6
-#define X_CHG_TITLE_APPNAME	7
-#define X_CHG_TITLE_SHOW_APPNAME	8
-#define X_CHG_BACKGROUND_PAUSE	9
+#define X_CHG_TITLE	CHG_TITLE
+#define X_CHG_FONT	CHG_FONT
+#define X_CHG_MAP	CHG_MAP
+#define X_CHG_UNMAP	CHG_UNMAP
+#define X_CHG_WINSIZE	CHG_WINSIZE
+#define X_CHG_TITLE_EMUNAME	CHG_TITLE_EMUNAME
+#define X_CHG_TITLE_APPNAME	CHG_TITLE_APPNAME
+#define X_CHG_TITLE_SHOW_APPNAME	CHG_TITLE_SHOW_APPNAME
+#define X_CHG_BACKGROUND_PAUSE	CHG_BACKGROUND_PAUSE
+#define X_GET_TITLE_APPNAME	GET_TITLE_APPNAME
 
-#define X_TITLE_EMUNAME_MAXLEN 128
-#define X_TITLE_APPNAME_MAXLEN 25
+#define X_TITLE_EMUNAME_MAXLEN TITLE_EMUNAME_MAXLEN
+#define X_TITLE_APPNAME_MAXLEN TITLE_APPNAME_MAXLEN
 
 extern int grab_active;
 extern Display *display;
-extern char X_title_appname [X_TITLE_APPNAME_MAXLEN];		/* used in plugin/commands/comcom.c */
-
-int X_change_config(unsigned, void *);		/* modify X config data from DOS */
 
 void           get_vga_colors (void);
 void           X_handler      (void);

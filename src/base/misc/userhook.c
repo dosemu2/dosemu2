@@ -25,10 +25,8 @@
 #include <fcntl.h>
 #include <ctype.h>
 
-#if X_GRAPHICS
-#include "../../env/video/X.h"
-#endif
 #include "emu.h"
+#include "video.h"
 #include "utilities.h"
 #include "disks.h"
 #include "userhook.h"
@@ -206,13 +204,18 @@ static void uhook_boot(int argc, char **argv)
 
 static void uhook_xmode(int argc, char **argv)
 {
-#ifdef X_SUPPORT
   char *p;
   long l, ll[2];
 
   do_syn(argv[0]);
   argc--; argv++;
   errorcode = 1;
+
+  if (Video->change_config == NULL) {
+    do_syn(argv[0]);
+    uhook_printf("xmode does not work for the console\n");
+  }
+
 
   if(argc <= 0) {
     uhook_printf(
@@ -227,11 +230,11 @@ static void uhook_xmode(int argc, char **argv)
   }
   while(argc >0) {
     if(!strcmp(*argv, "-title") && argc >= 2) {
-      X_change_config(X_CHG_TITLE, argv[1]);
+      Video->change_config(CHG_TITLE, argv[1]);
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-font") && argc >= 2) {
-      X_change_config(X_CHG_FONT, argv[1]);
+      Video->change_config(CHG_FONT, argv[1]);
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-map") && argc >= 2) {
@@ -240,7 +243,7 @@ static void uhook_xmode(int argc, char **argv)
         uhook_printf("invalid mode number \"%s\"\n", argv[1]);
         return;
       }
-      X_change_config(X_CHG_MAP, &l);
+      Video->change_config(CHG_MAP, &l);
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-unmap") && argc >= 2) {
@@ -249,7 +252,7 @@ static void uhook_xmode(int argc, char **argv)
         uhook_printf("invalid mode number \"%s\"\n", argv[1]);
         return;
       }
-      X_change_config(X_CHG_UNMAP, &l);
+      Video->change_config(CHG_UNMAP, &l);
       argc -= 2; argv += 2;
     }
     else if(!strcmp(*argv, "-winsize") && argc >= 3) {
@@ -263,7 +266,7 @@ static void uhook_xmode(int argc, char **argv)
         uhook_printf("invalid height \"%s\"\n", argv[2]);
         return;
       }
-      X_change_config(X_CHG_WINSIZE, ll);
+      Video->change_config(CHG_WINSIZE, ll);
       argc -= 3; argv += 3;
     }
     else {
@@ -272,10 +275,6 @@ static void uhook_xmode(int argc, char **argv)
     }
   }
   errorcode = 0;
-#else
-	do_syn(argv[0]);
-	uhook_printf("X support not compiled in\n");
-#endif
 }
 
 static void uhook_lredir(int argc, char **argv)

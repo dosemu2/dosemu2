@@ -112,6 +112,8 @@ struct video_system {
    void (*update_cursor)(void);    /* update cursor position&shape. Called by sigalrm
                                   handler *only* if update_screen does not exist
                                   or is not done because the video mem is clean */
+   int (*change_config)(unsigned item, void *buf); /* change configuration
+                                  e.g. window title (optional) */
 };
 
 extern struct video_system *Video;
@@ -238,6 +240,21 @@ EXTERN int v_8514_base INIT(0);
 #define SIS		10
 #define SVGALIB	11
 #define MAX_CARDTYPE	SVGALIB
+
+/* title and change config definitions */
+#define TITLE_EMUNAME_MAXLEN 128
+#define TITLE_APPNAME_MAXLEN 25
+
+#define CHG_TITLE	1
+#define CHG_FONT	2
+#define CHG_MAP		3
+#define CHG_UNMAP	4
+#define CHG_WINSIZE	5
+#define CHG_TITLE_EMUNAME	6
+#define CHG_TITLE_APPNAME	7
+#define CHG_TITLE_SHOW_APPNAME	8
+#define CHG_BACKGROUND_PAUSE	9
+#define GET_TITLE_APPNAME	10
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);
