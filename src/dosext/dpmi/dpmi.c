@@ -1061,7 +1061,6 @@ void direct_ldt_write(int offset, int length, char *buffer)
   int selector = (ldt_entry << 3) | 7;
   char lp[LDT_ENTRY_SIZE];
   int i;
-  D_printf(DPMI_show_state(&DPMI_CLIENT.stack_frame));
   D_printf("Direct LDT write, offs=%#x len=%i en=%#x off=%i\n",
     offset, length, ldt_entry, ldt_offs);
   for (i = 0; i < length; i++)
@@ -3629,7 +3628,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
       }
     } else if (_trapno == 0x0e) {
       if (_cr2 >= (int)ldt_buffer && _cr2 < (int)ldt_buffer + LDT_ENTRIES*LDT_ENTRY_SIZE) {
-	copy_context(&DPMI_CLIENT.stack_frame, scp);
 	instr_emu(scp, 1, 1);
 	return;
       }
