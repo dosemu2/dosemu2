@@ -1688,13 +1688,12 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
 
 #ifdef HAVE_UNICODE_TRANSLATION
   struct char_set_state dos_state;
-  struct char_set_state unix_state;
+  mbstate_t unix_state;
 
   struct char_set *dos_charset = trconfig.dos_charset;
-  struct char_set *unix_charset = trconfig.unix_charset;
   
   init_charset_state(&dos_state, dos_charset);
-  init_charset_state(&unix_state, unix_charset);
+  memset(&unix_state, 0, sizeof unix_state);
 #endif
 
   if (ufs_offset < MAXPATHLEN) do {
@@ -1728,8 +1727,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
       if (result == -1) symbol = '?';
       if (lowercase)
         symbol = towlower(symbol);
-      result = unicode_to_charset(&unix_state, symbol, &ufs[ufs_offset],
-                                  MAXPATHLEN - ufs_offset - 1);
+      result = wcrtomb(&ufs[ufs_offset], symbol, &unix_state);
       if (result == -1)
         ufs[ufs_offset++] = '?';
       else
@@ -1741,7 +1739,6 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar,
 
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 #ifdef HAVE_UNICODE_TRANSLATION
-  cleanup_charset_state(&unix_state);
   cleanup_charset_state(&dos_state);
 #endif
 }
@@ -1836,7 +1833,7 @@ scan_dir(char *path, char *name, int drive)
 	    continue;
 	}
       }
-    } else if (strcasecmpDOS(name, cur_ent->d_long_name) != 0) {
+    } else if (strcasecmp(name, cur_ent->d_long_name) != 0) {
       continue;
     }
 

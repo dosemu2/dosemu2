@@ -155,7 +155,11 @@ BOOL isalnumDOS(int c)
 
 BOOL is_valid_DOS_char(int c)
 { unsigned char u=(unsigned char)c; /* convert to ascii */
+#if HAVE_UNICODE_TRANSLATION
+  if (u >= 128 || isalnum(u)) return(True);
+#else
   if(isalnum(c)) return(True);
+#endif
 
   /* now we add some extra special chars  */
   if(strchr("._^$~!#%&-{}()@'`",c)!=0) return(True); /* general for
@@ -195,8 +199,6 @@ BOOL is_valid_DOS_char(int c)
   case 157: return(True); break;     /* Phi     (WIN)*/
   case 212: return(True); break;     /* E`      (WIN)*/
   }
-#else
-  if (u >= 128) return(True);
 #endif
 /* no match is found, then    */
   return(False);
@@ -282,39 +284,7 @@ int strncasecmpDOS(char *s1, char *s2, int n)
 
 #ifdef HAVE_UNICODE_TRANSLATION
 /* this is better called "strcasecmpUNIX" since it
-   operates on the UNIX charset;
-   only cares about equality!!! */
-int strcasecmpDOS(char *s1, char *s2)
-{
-  struct char_set_state unix_state1;
-  struct char_set_state unix_state2;
-
-  t_unicode symbol1, symbol2;
-  size_t len1 = strlen(s1), len2 = strlen(s2);
-  int result;
-
-  init_charset_state(&unix_state1, trconfig.unix_charset);
-  init_charset_state(&unix_state2, trconfig.unix_charset);
-
-  while (*s1 && *s2) {
-    result = charset_to_unicode(&unix_state1, &symbol1, s1, len1);
-    if (result == -1)
-      break;
-    len1 -= result;
-    s1 += result;
-    result = charset_to_unicode(&unix_state2, &symbol2, s2, len2);
-    if (result == -1)
-      break;
-    if (towupper(symbol1) != towupper(symbol2))
-      break;
-    len2 -= result;
-    s2 += result;
-  }
-  cleanup_charset_state(&unix_state1);
-  cleanup_charset_state(&unix_state2);
-  return len1 != 0 || len2 != 0;
-}
-
+   operates on the UNIX charset; */
 BOOL strhasupperDOS(char *s)
 {
   struct char_set_state dos_state;
@@ -425,8 +395,12 @@ void array_promote(char *array,int elsize,int element)
 BOOL strequal(char *s1,char *s2)
 {
   if (!s1 || !s2) return(False);
-  
+
+#ifdef HAVE_UNICODE_TRANSLATION
+  return(strcasecmp(s1,s2)==0);
+#else
   return(strcasecmpDOS(s1,s2)==0);
+#endif
 }
 
 

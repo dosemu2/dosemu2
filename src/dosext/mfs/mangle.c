@@ -510,32 +510,33 @@ static void init_unicode_to_dos_table(void)
 
 BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
 {
-  struct char_set_state unix_state;
+  mbstate_t unix_state;
 
   int retval = 1;
-  
-  t_unicode symbol;
-  size_t slen, result;
+
+  wchar_t symbol;
+  size_t slen = strlen(src), result;
+  wchar_t wdst[slen + 1], *wdest = wdst;
 
   init_unicode_to_dos_table();
-  init_charset_state(&unix_state, trconfig.unix_charset);
+  memset(&unix_state, 0, sizeof unix_state);
 
-  slen = strlen(src);
-  while (*src) {
-    result = charset_to_unicode(&unix_state, &symbol, src, slen);
-    if (result == -1) {
+  *dest = '\0';
+  result = mbsrtowcs(wdest, &src, slen + 1, &unix_state);
+  if (result == (size_t) -1)
+    return 0;
+
+  while (*wdest) {
+    symbol = *wdest++;
+    if (symbol > 0xffff)
       symbol = '_';
-      result = 1;
-    }
-    src += result;
-    slen -= result;
     *dest = unicode_to_dos_table[symbol];
     if (udest) {
-      wint_t wupper = towupper(symbol);
-      if ((wchar_t)wupper >= 0x10000)
+      symbol = towupper(symbol);
+      if (symbol > 0xffff)
 	*udest = '_';
       else
-	*udest = unicode_to_dos_table[wupper];
+	*udest = unicode_to_dos_table[symbol];
       udest++;
       /* with udest != NULL set we never care about the retval */
     } else if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0) {
@@ -547,7 +548,6 @@ BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
   if (udest) {
     *udest = '\0';
   }
-  cleanup_charset_state(&unix_state);
   return retval;
 }
 #endif

@@ -58,9 +58,6 @@ static void set_external_charset(char *charset_name)
 		if (!trconfig.keyb_charset) {
 			trconfig.keyb_charset = charset;
 		}
-		if (!trconfig.unix_charset) {
-			trconfig.unix_charset = charset;
-		}
 	}
 	return;
 }

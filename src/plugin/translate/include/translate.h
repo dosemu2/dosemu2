@@ -171,7 +171,6 @@ struct translate_config_t {
        struct char_set *paste_charset;  /* character set paste data comes in */
        struct char_set *keyb_charset;  /* character set keyboard input comes in */
        struct char_set *dos_charset;   /* character set used for DOS filesystem */
-       struct char_set *unix_charset;  /* character set used for UNIX filesystem */
 };
 
 extern struct translate_config_t trconfig;

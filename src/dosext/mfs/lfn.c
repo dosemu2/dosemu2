@@ -89,8 +89,8 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 	if (dir->dir == NULL) while ((de = dos_readdir(dir)) != NULL) {
 		d_printf("LFN: vfat_search %s %s %s %s\n", de->d_name,
 			 de->d_long_name, src, path);
-		if ((strcasecmpDOS(de->d_long_name, src) == 0) ||
-		    (strcasecmpDOS(de->d_name, src) == 0)) {
+		if ((strcasecmp(de->d_long_name, src) == 0) ||
+		    (strcasecmp(de->d_name, src) == 0)) {
 			char *name = alias ? de->d_name : de->d_long_name;
 			if (!name_ufs_to_dos(dest, name, 0))
 				name_convert(dest, name, MANGLE, NULL);

@@ -16,12 +16,10 @@ static void config_translate_scrub(void)
 {
     k_printf("config.term_charset=%d\n", config.term_charset);
     /* set the character sets used base upon config.term_charset */
-    if (!trconfig.unix_charset)
-	trconfig.unix_charset = lookup_charset("default");
     if (!trconfig.paste_charset)
-	trconfig.paste_charset = trconfig.unix_charset;
+	trconfig.paste_charset = lookup_charset("default");
     if (!trconfig.keyb_charset)
-	trconfig.keyb_charset = trconfig.unix_charset;
+	trconfig.keyb_charset = trconfig.paste_charset;
     switch (config.term_charset) {
     case CHARSET_FULLIBM:
 	error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
@@ -105,8 +103,6 @@ static void config_translate_scrub(void)
 	    trconfig.paste_charset?trconfig.paste_charset->names[0]:"<NULL>");
     k_printf("keyb_charset=%s\n", 
 	    trconfig.keyb_charset?trconfig.keyb_charset->names[0]:"<NULL>");
-    d_printf("unix_charset=%s\n", 
-	    trconfig.unix_charset?trconfig.unix_charset->names[0]:"<NULL>");
     d_printf("dos_charset=%s\n", 
 	    trconfig.dos_charset?trconfig.dos_charset->names[0]:"<NULL>");
 }
