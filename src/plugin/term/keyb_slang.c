@@ -398,8 +398,6 @@ static Keymap_Scan_Type terminfo_keys[] =
    {"^(k8)",	KEY_F8},	       /* F8 */
    {"^(k9)",	KEY_F9},	       /* F9 */
    {"^(k;)",	KEY_F10},	       /* F10 */
-   {"^(F1)",	KEY_F11},	       /* F11 */
-   {"^(F2)",	KEY_F12},	       /* F12 */
    {"^(kI)",	KEY_INS|MOVE_MASK},    /* Ins */
    {"^(#3)",	KEY_INS|MOVE_MASK|SHIFT_MASK},   /* Shift Insert */
    {"^(kD)",	KEY_DEL},	       /* Del */
@@ -432,9 +430,11 @@ static Keymap_Scan_Type terminfo_keys[] =
    {"", 0}
 };
 
-/* Keyboard map for basic terminfo keys F13--F20 */
+/* Keyboard map for basic terminfo keys F11--F20 */
 static Keymap_Scan_Type terminfo_basic_fkeys[] =
 {
+   {"^(F1)",	KEY_F1|SHIFT_MASK},    /* Shuft F1 */
+   {"^(F2)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
    {"^(F3)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
    {"^(F4)",	KEY_F4|SHIFT_MASK},    /* Shift F4 */
    {"^(F5)",	KEY_F5|SHIFT_MASK},    /* Shift F5 */
@@ -446,9 +446,11 @@ static Keymap_Scan_Type terminfo_basic_fkeys[] =
    {"", 0}
 };
 
-/* Keyboard map for extended terminfo keys F13--F48 */
+/* Keyboard map for extended terminfo keys F11--F48 */
 static Keymap_Scan_Type terminfo_ext_fkeys[] =
 {
+   {"^(F1)",	KEY_F11},	       /* F11 */
+   {"^(F2)",	KEY_F12},	       /* F12 */
    {"^(F3)",	KEY_F1|SHIFT_MASK},    /* Shift F1 */
    {"^(F4)",	KEY_F2|SHIFT_MASK},    /* Shift F2 */
    {"^(F5)",	KEY_F3|SHIFT_MASK},    /* Shift F3 */
