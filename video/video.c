@@ -19,6 +19,8 @@
 #if 0
 #include "hgc.h"
 #endif
+#include "termio.h"
+#include "vc.h"
 
 extern void open_kmem();      /* from vc.c */
 extern void set_process_control();
@@ -79,12 +81,12 @@ int video_init()
 
   if (!Video->is_mapped) {
      /* allocate screen buffer for non-console video compare speedup */
-     prev_screen = (ushort *)malloc(CO * MAX_LINES * 2);
+     prev_screen = (ushort *)malloc(co * MAX_LINES * 2);
      if (prev_screen==NULL) {
         error("could not malloc prev_screen\n");
         leavedos(99);
      }
-     v_printf("SCREEN saves at: %p of %d size\n", prev_screen, CO * LI * 2);
+     v_printf("SCREEN saves at: %p of %d size\n", prev_screen, co * li * 2);
 /* 
  * DANG_BEGIN_REMARK
  * Here the sleeping lion will be awoken and eat much of CPU time !!!
@@ -112,6 +114,15 @@ int video_init()
   clear_screen(video_page, 7);
 
   return 0;
+}
+
+void
+scr_state_init(void){
+  scr_state.vt_allow = 0;
+  scr_state.vt_requested = 0;
+  scr_state.mapped = 0;
+  scr_state.pageno = 0;
+  scr_state.virt_address = PAGE_ADDR(0);
 }
 
 void video_close() {
@@ -237,8 +248,15 @@ reserve_video_memory(void)
   }
 }
 
-static void
-gettermcap(void)
+void 
+set_video_bios_size(void){
+  WRITE_WORD(BIOS_SCREEN_COLUMNS, co);     /* chars per line */
+  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li - 1); /* lines on screen - 1 */
+  WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE);   /* size of video regen area in bytes */
+}
+
+void
+gettermcap(int i)
 {
   char *garb;
   struct winsize ws;		/* buffer for TIOCSWINSZ */
@@ -252,21 +270,19 @@ gettermcap(void)
 
   if (li == 0 || co == 0) {
     error("ERROR: unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
-    li = 25;
-    co = 80;
+    li = LI;
+    co = CO;
   }
   else
     v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
+  get_screen_size();
+  set_video_bios_size();
 }
 
 void
 video_config_init(void) {
 
-  gettermcap();
-#if 0
-  li = 25;
-  co = 80;
-#endif
+  gettermcap(0);
 
   switch (config.cardtype) {
   case CARD_MDA:
@@ -335,9 +351,7 @@ video_config_init(void) {
   WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
 
   WRITE_BYTE(BIOS_VIDEO_MODE, video_mode); /* video mode */
-  WRITE_WORD(BIOS_SCREEN_COLUMNS, CO);     /* chars per line */
-  WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, LI - 1); /* lines on screen - 1 */
-  WRITE_WORD(BIOS_VIDEO_MEMORY_USED, TEXT_SIZE);   /* size of video regen area in bytes */
+  set_video_bios_size();
   WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
 
   WRITE_WORD(BIOS_FONT_HEIGHT, 16);

@@ -234,6 +234,7 @@ void DPMI_dummy_start();
 void DPMI_dummy_end();
 void DPMI_dpmi_init();
 void DPMI_return_from_dos();
+void DPMI_return_from_dos_exec(); /* for bcc.h */
 void DPMI_return_from_dosint();
 void DPMI_return_from_realmode();
 void DPMI_return_from_dos_memory();

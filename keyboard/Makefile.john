@@ -10,8 +10,8 @@ XFILES = Xkeyb.c
 XOBJS  = Xkeyb.o
 endif
 
-CFILES = keymaps.c keyboard.c
-DEPENDS= keymaps.d keyboard.d
+CFILES = keymaps.c keyboard-server.c keyboard-client.c
+DEPENDS= keymaps.d keyboard-server.d keyboard-client.d
 HFILES = 
 # XSRC   = XKeyb.c
 
@@ -19,11 +19,11 @@ CFLAGS+= $(USE_SLANG)
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES) $(XFILES) slang-keyboard.c keyboard-server.c keyboard-client.c Makefile.john
+ALL = $(CFILES) $(HFILES) $(XFILES) slang-keyboard.c
 
 # All object-files are included here.
 
-OBJS = keymaps.o keyboard.o $(XOBJS) 
+OBJS = keymaps.o keyboard-server.o keyboard-client.o $(XOBJS) 
 
 
 all: lib

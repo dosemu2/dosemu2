@@ -276,7 +276,6 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 
 extern void DOSEMUMouseEvents(void);
 
-inline void scan_to_buffer(void);
 extern void xms_init(void);
 extern void video_memory_setup(void);
 extern void dump_kbuffer(void);

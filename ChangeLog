@@ -1,3 +1,41 @@
+Tue Mar 06	1995
+
+-	Release pl48
+-	Latest from Marty (need to test serial)
+-	Scott adds new timer code
+-	Latest DPMI
+-	Latest Slang, uses ^^ instead of ^@.
+-	Beginning of keyboard split.
+-	Alistairs UNIX power additions:
+OK - This version of unix.exe allows you to interrogate UNIX environment 
+variables and then execute a program contained within AND you can now pass
+programs to DOSEMU to execute.
+
+Basics:
+
+Passing a command to DOSEMU:
+============================
+	dos -E "command to be passed to DOSEMU" ....
+	....
+	C:\> unix.exe -e
+  	>> RUNS command to be passed to DOSEMU <<
+
+Executing the contents of an UNIX Environment Variable:
+=======================================================
+	C:\> unix.exe -e ENV_VAR_NAME
+	>> RUNS COMMAND NAMED IN env_var_name <<
+
+  NB ENV_VAR_NAME will probably need to be in CAPITALS !
+
+Running a UNIX Command:
+=======================
+  (As Before...)
+	C:\ unix.exe ls -l /dev
+	>> RUNS "ls -l /dev" under Linux .... <<
+
+----------
+Alistair
+
 Fri Mar 03	1995
 
 -	Release pl47.

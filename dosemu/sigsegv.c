@@ -159,11 +159,11 @@ static char rcsid[]="$Id: sigsegv.c,v 2.19 1995/02/26 00:54:47 root Exp root $";
 #include "video.h"
 
 #ifdef NEW_PIC
-#include "../timer/pic.h"
+#include "pic.h"
 #endif
 
 #ifdef DPMI
-#include "../dpmi/dpmi.h"
+#include "dpmi.h"
 #endif
 
 #ifdef USING_NET
@@ -187,163 +187,6 @@ extern void set_leds(void);
 /* FIXME -- move to common header */
 extern int s3_8514_base;
 static u_short microsoft_port_check = 0;
-
-/* 
- * Copied adverbatim from Mach code, please be aware of their 
- * copyright in mfs.c
- */
-static int timer_interrupt_rate = 55;
-static int min_timer_milli_pause = 16;
-static int timer_milli_pause = 55;
-
-static int timer0_read_latch_value = 0;
-static int timer0_read_latch_value_orig = 0;
-static int timer0_latched_value = 0;
-static int timer0_new_value = 0;
-static boolean_t latched_counter_msb = FALSE;
-
-void update_timers(void);
-/* ??? */
-static u_long milliseconds_since_boot;
-
-#if 1
-static int do_40(in_out, val)
-	boolean_t in_out;
-	int val;
-{
-	int ret;
-
-	if (in_out) {  /* true => in, false => out */
-
-		update_timers();
-		if (timer0_latched_value == 0) {
-			timer0_latched_value = timer_interrupt_rate*850;
-		}
-		switch (timer0_read_latch_value) {
-			case 0x30:
-				ret = timer0_latched_value&0xf;
-				timer0_read_latch_value = 0x20;
-				break;
-			case 0x10:
-				ret = timer0_latched_value&0xf;
-				timer0_read_latch_value = 0x0;
-				break;
-			case 0x20:
-				ret = (timer0_latched_value&0xf0)>>8;
-				timer0_read_latch_value = 0x0;
-				timer0_latched_value = 0;
-				break;
-			case 0x0:
-				if (latched_counter_msb) {
-					ret = 
-					(milliseconds_since_boot >> 8) & 0xff;
-				} else {
-					ret = milliseconds_since_boot & 0xff;
-				}
-				latched_counter_msb = !latched_counter_msb;
-				break;
-
-		}
-		i_printf("PORT: do_40, in = 0x%x\n",ret);
-	} else {
-		switch (timer0_read_latch_value) {
-			case 0x0:
-			case 0x30:
-				timer0_new_value = val;
-				timer0_read_latch_value = 0x20;
-				break;
-			case 0x10:
-				timer0_new_value = val;
-				timer0_read_latch_value = 0x0;
-				break;
-			case 0x20:
-				timer0_new_value |= (val<<8);
-				timer0_read_latch_value = 0x0;
-				break;
-		}
-		i_printf("PORT: do_40, out = 0x%x\n",val);
-		if (timer0_read_latch_value == 0) {
-			timer0_read_latch_value=timer0_read_latch_value_orig;
-			if (timer0_new_value == 0) timer0_new_value = 64*1024;
-			timer_interrupt_rate = ((timer0_new_value)/1193);
-			if (timer_interrupt_rate < min_timer_milli_pause) {
-				int i;
-				if (timer_interrupt_rate == 0) 
-					timer_interrupt_rate = 1;
-				for (i = 1; i<=min_timer_milli_pause;i++) {
-				    if (i*timer_interrupt_rate >= 
-						min_timer_milli_pause){
-				    	timer_milli_pause = i*
-						timer_interrupt_rate;
-					break;
-				    }
-				}
-			} else {
-				timer_milli_pause = timer_interrupt_rate;
-			}
-			i_printf("timer_interrupt_rate = %d\n",
-					  timer_interrupt_rate);
-			i_printf("timer_milli_pause = %d\n",
-					  timer_milli_pause);
-		}
-	}
-	return(ret);
-}
-
-#endif
-#if 0
-/* return value of port -- what happens when output?  Stack trash? */
-static int do_42(in_out, val)
-	boolean_t in_out;
-	int val;
-{
-	int ret;
-	if (in_out) {  /* true => in, false => out */
-		ioperm(0x42,1,1);
-		ret = port_in(0x42);
-		ioperm(0x42,1,0);
-		i_printf( "PORT: do_42, in = 0x%x\n",ret);
-	} else {
-		ioperm(0x42,1,1);
-		port_out(val, 0x42);
-		ioperm(0x42,1,0);
-		i_printf( "PORT: do_42, out = 0x%x\n",val);
-	}
-	return(ret);
-}
-
-#endif
-
-static int do_43(boolean_t in_out, int val)
-{
-	int ret;
-	
-	if (in_out) {  /* true => in, false => out */
-		i_printf( "PORT: do_43, in = 0x%x\n",ret);
-	} else {
-		i_printf( "PORT: do_43, out = 0x%x\n",val);
-		switch(val>>6) {
-			case 0:
-				timer0_read_latch_value = (val&0x30);
-				timer0_read_latch_value_orig = (val&0x30);
-				if (timer0_read_latch_value == 0) {
-					latched_counter_msb = FALSE;
-				}
-				break;
-			case 2:
-#if 0
-				ioperm(0x43,1,1);
-				port_out(val, 0x43);
-				ioperm(0x43,1,0);
-#else
-				safe_port_out_byte(0x43, val);
-#endif
-				i_printf( "PORT: Really do_43\n");
-				break;
-		}
-	}
-	return(ret);
-}
 
 /*
  * DANG_BEGIN_FUNCTION inb(int port)
@@ -452,7 +295,7 @@ inb(int port)
     break;
 
 #define COUNTER 2
-#if 0 /*Nov-21-94*/
+#if 1 /*Nov-21-94*/
   case 0x40:
     r = do_40(1, 0);
     break;
@@ -799,37 +642,6 @@ outw(int port, int value)
   }
 
 }
-
-
-
-/* time of boot */
-static struct timeval initial_time;
-
-void initialize_timers(void)
-{
-
-	gettimeofday(&initial_time, NULL);
-}
-
-	
-/* not sure what adder does -- get time in relation to inital time and
- * convert to milliseocnds
- */
-static void update_timers(void) {
-  static unsigned long adder=0;
-  struct timeval tp;
-
-  gettimeofday(&tp, NULL);
-
-  milliseconds_since_boot = (tp.tv_sec - initial_time.tv_sec)*1000;
-  milliseconds_since_boot += (tp.tv_usec - initial_time.tv_usec)/1000;
-  milliseconds_since_boot += adder;
-
-  adder = (adder + 1) % 20;
-  i_printf("Timers updated: %x\n", milliseconds_since_boot);
-
-}
- 
 
 /*
  * DANG_BEGIN_FUNCTION vm86_GP_fault();

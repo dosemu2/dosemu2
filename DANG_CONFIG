@@ -3,7 +3,7 @@
 #
 
 # BASEDIR sets a path fragment which is prepended to _all_ paths.
-BASEDIR: 	../dosemu0.53pl36/
+BASEDIR: 	../dosemu0.60/
 
 # GROUPs are formed from :
 # <group_name> <summary_file> <file1> ... <fileN>

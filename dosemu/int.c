@@ -18,6 +18,8 @@
 #include "bios.h"
 #include "xms.h"
 #include "int.h"
+#include "../dos2linux/dos2linux.h"
+
 #ifdef USING_NET
 #include "ipx.h"
 #endif
@@ -25,6 +27,8 @@
 #ifdef DPMI
 #include "../dpmi/dpmi.h"
 #endif
+
+extern void scan_to_buffer(void);
 
 /*
    This flag will be set when doing video routines so that special
@@ -64,132 +68,6 @@ static void default_interrupt(u_char i) {
       g_printf("just an iret 0x%02x\n", i);
   } else
     run_int(i);
-}
-
-#ifdef FORK_DEBUG
-#warning USING FORK DEBUG
-/* system to debug through forks...
- * If used, setenv FORKDEBUG to stop child on fork call
- */
-static int fork_debug(void)
-{
-	int retval;
-
-	retval = fork();
-
-	if(retval == 0) {
-		/* child -- maybe stop */
-		if(getenv("FORKDEBUG")) {
-			printf("stopping %d\n", getpid());
-			raise(SIGSTOP);
-		}
-	}
-	return retval;
-}
-#define fork	fork_debug
-#endif
-
-
-/*
- * 2/9/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
- *
- * DANG_BEGIN_FUNCTION run_unix_command
- *
- * arguments: string with command to execute
- *
- * returns: nothing
- *
- * description:
- *  Runs a command and prints the (stdout) output on the dosemu screen.
- *
- * DANG_END_FUNCTION
- *
- *
- * This function forks a child process (don't worry, it doesn't take 
- * much memory, read the fork manpage) and creates a pipe between the 
- * parent and the child. The child redirects stdout to the write side 
- * of the pipe and executes the command, the parents reads the read 
- * side of the pipe and prints the command output on the dosemu screen. 
- * system() is used to execute the command because this function uses a 
- * shell (/bin/sh -c command), so nice things like this work: 
- *
- * C:\>unix ls -CF /usr/src/dosemu/video/*.[ch]
- *
- * Even output redirection works, but you have to quote the command in 
- * dosemu:
- *
- * C:\>unix "ps aux | grep dos > /msdos/c/unixcmd.txt"
- *
- * DOS output redirection doesn't work, p_dos_str() uses direct video 
- * memory access (I think).
- *
- * Be prepared to kill the child from a telnet session or a terminal 
- * on /dev/ttyS? when you start an interactive command!
- *
- */
-static void run_unix_command(const char *buffer)
-{
-#ifdef SIMPLE_FORK
-	/* unix command is in a null terminate buffer pointed to by ES:DX. */
-      system(buffer);
-
-#else
-    int p[2];
-    int pid, status, retval;
-    char buf;
-    
-    /* create a pipe */
-    if(pipe(p)!=0)
-    {
-        g_printf("run_unix_command(): pipe() failed\n");
-        return;
-    }
-    
-    /* fork child */
-    pid=fork();
-    if(pid==-1) /* failed */
-    {
-        g_printf("run_unix_command(): fork() failed\n");
-        return;
-    }
-    else if(pid==0) /* child */
-    {
-        close(p[0]);		/* close read side of the pipe */
-        close(1);		/* close stdout */
-        if(dup(p[1])!=1)	/* copy write side of the pipe to stdout */
-        {
-            /* hmm, I wonder if the next line works ok... */
-            g_printf("run_unix_command() (child): dup() failed\n");
-            _exit(-1);
-        }
-            
-        retval=system(buffer);	/* execute command */
-        close(p[1]);		/* close write side of the pipe */
-        _exit(retval);
-    }
-    else /* parent */
-    {
-        close(p[1]);		/* close write side of the pipe */
-        
-        /* read bytes until an error occurs */
-        /* no big buffer here, because speed is not important */
-        /* if speed *is* important, switch to another virtual console! */
-        while(read(p[0], &buf, 1)==1)
-        {
-            p_dos_str("%c", buf);	/* print character */
-        }
-        
-        /* kill the child (to be sure (s)he (?) is really dead) */
-        if(kill(pid, SIGTERM)!=0)
-            kill(pid, SIGKILL);
-            
-        close(p[0]);		/* close read side of the pipe */
-        waitpid(pid, &status, WUNTRACED);
-        /* print child exitcode. not perfect */
-        g_printf("run_unix_command() (parent): child exit code: %i\n",
-            WEXITSTATUS(&status));
-    }
-#endif
 }
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
@@ -279,8 +157,7 @@ static int dos_helper(void)
 
   case 6:			/* Do inline int09 insert_into_keybuffer() */
     k_printf("Doing INT9 insert_into_keybuffer() bx=0x%04x\n", LWORD(ebx));
-    set_keyboard_bios();
-    insert_into_keybuffer();
+    scan_to_buffer();
     break;
 
   case 8:
@@ -375,6 +252,24 @@ static int dos_helper(void)
       break;
     }
 
+  case 0x50:
+    /* run the unix command in es:dx (a null terminated buffer) */
+    g_printf("Running Unix Command\n");
+    run_unix_command(SEG_ADR((char *), es, dx));
+    break;   
+
+  case 0x51:
+    /* Get DOS command from UNIX in es:dx (a null terminated buffer) */
+    g_printf("Locating DOS Command\n");
+    LWORD(eax) = misc_e6_commandline(SEG_ADR((char *), es, dx));
+    break;   
+
+  case 0x52:
+    /* Interrogate the UNIX environment in es:dx (a null terminated buffer) */
+    g_printf("Interrogating UNIX Environment\n");
+    LWORD(eax) = misc_e6_envvar(SEG_ADR((char *), es, dx));
+    break;   
+
 #ifdef IPX
   case 0x7a:
     if (config.ipxsup) {
@@ -384,12 +279,6 @@ static int dos_helper(void)
     break;
 #endif
 
-  case 0xfe:
-    /* run the unix command in es:dx (a null terminated buffer) */
-    g_printf("Running Unix Command\n");
-    run_unix_command(SEG_ADR((char *), es, dx));
-    break;   
-
   case 0xff:
     if (LWORD(eax) == 0xffff) {
       /* terminate code is in bx */
@@ -398,6 +287,28 @@ static int dos_helper(void)
       leavedos(LO(bx));
     }
     break;
+
+/*
+ * DANG_BEGIN_REMARK
+ * The Helper Interrupt uses the following groups:
+ * 
+ * 0x00      - Check for DOSEMU
+ * 0x01-0x11 - Initialisation functions & Debugging
+ * 0x12      - Set hogthreshold (aka garrot?)
+ * 0x20      - MFS functions
+ * 0x21-0x22 - EMS functions
+ * 0x28      - Garrot Functions for use with the mouse
+ * 0x30      - Whether to use the BOOTDISK predicate
+ * 0x33      - Mouse Functions
+ * 0x40      - CD-ROM functions
+ * 0x50-0x52 - DOSEMU/Linux communications
+ * 0x7a      - IPX functions
+ * 0xff      - Terminate DOSEMU
+ *
+ * There are (as yet) no guidelines on choosing areas for new functions.
+ * DANG_END_REMARK
+ */
+
 
   default:
     error("ERROR: bad dos helper function: AX=0x%04x\n", LWORD(eax));
@@ -1278,7 +1189,7 @@ void int_queue_run(void)
   if (current_interrupt == 0x09) {
     k_printf("Int9 set\n");
     /* If another program does a keybaord read on port 0x60, we'll know */
-    parent_nextscan();
+    read_next_scancode_from_queue();
   }
 
   /* call user startup function...don't run interrupt if returns -1 */

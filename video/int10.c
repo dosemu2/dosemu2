@@ -236,7 +236,6 @@ char_out(unsigned char ch, int s)
     break;
 
   default:          /* Printable character */
-    /* CHAR(SCREEN_ADR(s) + ypos*co + xpos) = ch; */
     WRITE_BYTE(SCREEN_ADR(s) + ypos*co + xpos, ch);
     xpos++;
     set_dirty(s);
@@ -249,9 +248,6 @@ char_out(unsigned char ch, int s)
   if (ypos == li) {
     ypos--;
     bios_scroll(0,0,co-1,li-1,1,newline_att);
-/*
-    scrollup(0, 0, co - 1, li - 1, 1, newline_att);
-*/
   }
   set_bios_cursor_x_position(s, xpos);
   set_bios_cursor_y_position(s, ypos);
@@ -586,7 +582,7 @@ void int10()
 
   case 0x0f:			/* get video mode */
 #if USE_DUALMON
-    if (IS_SCREENMODE_MDA) LWORD(eax) = (CO << 8) | READ_BYTE(BIOS_VIDEO_MODE);
+    if (IS_SCREENMODE_MDA) LWORD(eax) = (co << 8) | READ_BYTE(BIOS_VIDEO_MODE);
     else 
 #endif
     LWORD(eax) = (co << 8) | video_mode;

@@ -496,6 +496,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <limits.h>
 #include <getopt.h>
 #include <assert.h>
+#include <linux/vt.h>
 
 #include <linux/fd.h>
 #include <linux/hdreg.h>
@@ -902,7 +903,7 @@ void emulate(int argc, char **argv)
     run_irqs();      /*  trigger any hardware interrupts requested */
 #endif
     serial_run();
-#if 1
+#if 0
 #ifdef USING_NET
     /* check for available packets on the packet driver interface */
     /* (timeout=0, so it immediately returns when none are available) */
@@ -1135,3 +1136,73 @@ void remove_from_io_select(int new_fd, u_char used_sigio) {
     not_use_sigio++;
   }
 }
+
+#if 1
+int
+do_ioctl(int fd, int req, int param3)
+{
+  int tmp;
+
+  if (in_sighandler && in_ioctl) {
+    k_printf("KBD: do_ioctl(): in ioctl %d 0x%04x 0x%04x.\nqueuing: %d 0x%04x 0x%04x\n",
+	     curi.fd, curi.req, curi.param3, fd, req, param3);
+    queue_ioctl(fd, req, param3);
+    errno = EDEADLOCK;
+#ifdef SYNC_ALOT
+    fflush(stdout);
+    sync();			/* for safety */
+#endif
+    return -1;
+  }
+  else {
+    in_ioctl = 1;
+    curi.fd = fd;
+    curi.req = req;
+    curi.param3 = param3;
+    if (iq.queued) {
+      k_printf("KBD: detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
+	       iq.fd, iq.req, iq.param3);
+    }
+    k_printf("KBD: IOCTL fd=0x%x, req=0x%x, param3=0x%x\n", fd, req, param3);
+    tmp = ioctl(fd, req, param3);
+    in_ioctl = 0;
+    return tmp;
+  }
+}
+
+int
+queue_ioctl(int fd, int req, int param3)
+{
+  if (iq.queued) {
+    error("ioctl already queued: %d 0x%04x 0x%04x\n", iq.fd, iq.req,
+	  iq.param3);
+    return 1;
+  }
+  iq.fd = fd;
+  iq.req = req;
+  iq.param3 = param3;
+  iq.queued = 1;
+
+  return 0;			/* success */
+}
+
+void
+do_queued_ioctl(void)
+{
+  if (iq.queued) {
+    iq.queued = 0;
+    do_ioctl(iq.fd, iq.req, iq.param3);
+  }
+}
+
+void
+activate(int con_num)
+{
+  if (in_ioctl) {
+    k_printf("KBD: can't ioctl for activate, in a signal handler\n");
+    do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
+  }
+  else
+    do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
+}
+#endif

@@ -147,17 +147,16 @@
 #include "serial.h"
 #include "mouse.h"
 #if NEW_PIC==2   /*  add includes for NEW_PIC */
-#include "../timer/bitops.h"
-#include "../timer/pic.h"
+#include "bitops.h"
+#include "pic.h"
 #else
 extern void queue_hard_int(int i, void (*), void (*));
 #endif
-extern config_t config;
 
 serial_t com[MAX_SER];
 #if NEW_PIC==2
-int tx_timer[MAX_SER];
-int br_divisor[MAX_SER];
+static int tx_timer[MAX_SER];
+static int br_divisor[MAX_SER];
 #endif
 /* The following are positive constants that adjust the soonness of the next
  * receive or transmit interrupt in FIFO mode.  These are a little
@@ -171,18 +170,42 @@ int br_divisor[MAX_SER];
  * DELTA_BIT   returns 'outbit' if 'inbit' changed between bytes 'old' and 'new'
  * TRAIL_EDGE  returns 'outbit' if 'inbit' is on in 'old' and off in 'new'
  */
+#if 0
 #define CONVERT_BIT(testbyte,inbit,outbit) ((testbyte & inbit) ? outbit : 0)
 #define DELTA_BIT(old,new,inbit,outbit) \
                  ((old ^ new) & inbit) ? outbit : 0
 #define TRAIL_EDGE(old,new,inbit,outbit) \
                   ((old & inbit) > (new & inbit)) ? outbit : 0
 
-inline int get_msr(int num);
-inline void transmit_engine(int num);
-inline void receive_engine(int num);
-inline void interrupt_engine(int num);
+#else
+static inline int CONVERT_BIT(int testbyte, int inbit, int outbit)
+{
+	if(testbyte & inbit) 
+		return outbit;
+	return 0;
+}
+
+static inline int DELTA_BIT(int old, int new, int inbit, int output)
+{
+	if((old ^ new) & inbit) 	
+		return output;
+	else	return 0;
+}
+
+static inline int TRAIL_EDGE(int old, int new, int inbit,  int outbit)
+{
+	if((old & inbit) > (new  & inbit)) 
+		return outbit;
+	else	return 0;
+}
+#endif
+	
+int get_msr(int num);
+void transmit_engine(int num);
+void receive_engine(int num);
+void interrupt_engine(int num);
 #if NEW_PIC==2
-void pic_serial_run();
+void pic_serial_run(void);
 #endif
 
 /*************************************************************************/
@@ -192,7 +215,7 @@ void pic_serial_run();
 /* This function flushes the internal unix receive buffer,
  * up to 10 KB at a time.  [num = port]
  */
-inline void
+static void
 buffer_dump(int num)
 {
   u_char bytes[1024];
@@ -206,7 +229,7 @@ buffer_dump(int num)
 /* This function checks for newly received data and fills the UART
  * FIFO (16550 mode) or receive register (16450 mode).  [num = port]
  */
-inline void
+static void
 uart_fill(int num)
 {
   static u_char bytes[RX_FIFO_SIZE];
@@ -262,7 +285,7 @@ uart_fill(int num)
  * done on initialization, and when changing from 16450 to 16550 mode, and
  * vice versa.  [num = port, fifo = flags to indicate which fifos to clear]
  */ 
-inline void 
+static void 
 uart_clear_fifo(int num, int fifo)
 {
   /* Should clearing a UART cause a THRE interrupt if it's enabled? XXXXXX */
@@ -303,11 +326,11 @@ uart_clear_fifo(int num, int fifo)
  * stored in the Line Control Register (com[].LCR) and the Baudrate
  * Divisor Latch Registers (com[].dlm and com[].dll)     [num = port]
  */
-void
+static void
 ser_termios(int num)
 {
-  static speed_t baud;
-  static int rounddiv;
+  speed_t baud;
+  int rounddiv;
 
   /* The following is the same as (com[num].dlm * 256) + com[num].dll */
 #define DIVISOR ((com[num].dlm<<8)|com[num].dll)
@@ -444,7 +467,7 @@ ser_termios(int num)
 /* This function opens the serial port for DOSEMU.  Normally called only
  * by do_ser_init below.   [num = port, return = file descriptor]
  */
-int
+static int
 ser_open(int num)
 {
   s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
@@ -463,7 +486,7 @@ ser_open(int num)
 /* This function closes the serial port for DOSEMU.  Normally called 
  * only by do_ser_init below.   [num = port, return = file error code]
  */
-int
+static int
 ser_close(int num)
 {
   static int i;
@@ -486,7 +509,7 @@ ser_close(int num)
  * and the emulated UART's initialization state, and open/initialize the 
  * serial line.   [num = port]
  */
-void
+static void
 do_ser_init(int num)
 {
   int data = 0;
@@ -694,7 +717,7 @@ serial_close(void)
  * (Also, this silly function name needs to be changed soon.)
  */
 void
-child_close_mouse()
+child_close_mouse(void)
 {
   static u_char i, rtrn;
   if ( !config.usesX ){
@@ -721,7 +744,7 @@ child_close_mouse()
  * (Also, this silly function name needs to be changed soon.)
  */
 void
-child_open_mouse()
+child_open_mouse(void)
 {
   static u_char i;
   if ( ! config.usesX ){
@@ -749,7 +772,7 @@ child_open_mouse()
  * actual reads from the serial line) or loopback code.  This function
  * usually runs through the do_serial_in routine.    [num = port]
  */
-inline int
+static int
 get_rx(int num)
 {
   static int val;
@@ -814,7 +837,7 @@ get_rx(int num)
  * before executing the Received Data Ready ISR (Interrupt Service Routine).
  * [intnum = software interrupt number]
  */
-int
+static int
 beg_rxint(int intnum)
 {
   static u_char num;
@@ -837,7 +860,7 @@ beg_rxint(int intnum)
 /* This function is the post-interrupt initialization called right after
  * the Received Data Ready ISR.   [intnum = software interrupt number]
  */ 
-int
+static int
 end_rxint(int intnum)
 {
   static u_char num;
@@ -863,13 +886,14 @@ end_rxint(int intnum)
  * One of the bit is actually a trailing edge bit (for the ring indicator)
  * instead of a delta bit.    [oldmsr = old value, newmsr = new value]
  */
-inline int
+static inline int
 msr_delta(int oldmsr, int newmsr)
 {
   /* There were some errors (compiler bug?  Formula too complex?) when I tried
   ** to put all four DELTA_BIT & TRAIL_EDGE in the same variable assignment.
   */
-  static int delta;
+  int delta;
+
   delta  = DELTA_BIT(oldmsr, newmsr, UART_MSR_CTS, UART_MSR_DCTS);
   delta |= DELTA_BIT(oldmsr, newmsr, UART_MSR_DSR, UART_MSR_DDSR);
   delta |= TRAIL_EDGE(oldmsr, newmsr, UART_MSR_RI, UART_MSR_TERI);
@@ -882,10 +906,11 @@ msr_delta(int oldmsr, int newmsr)
  * and does the expected UART operation whenever the MSR is read.
  * [num = port]
  */
-inline int
+static int
 get_msr(int num)
 {
-  static int val;
+  int val;
+
   val = com[num].MSR;				/* Save old MSR value */
   com[num].MSR &= UART_MSR_STAT; 		/* Clear delta bits */
   com[num].int_type &= ~MS_INTR;		/* No MSI needed anymore */
@@ -901,10 +926,11 @@ get_msr(int num)
 /* This function is the pre-interrupt initialization called right before
  * the Modem Status ISR.   [intnum = software interrupt number]
  */ 
-int
+static int
 beg_msi(int intnum)
 {
-  static u_char num;
+  u_char num;
+
   num = irq_source_num[intnum];		/* port number that caused int */
   com[num].int_type &= ~MS_INTR;	/* Prevent further MSI occurances */
   com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_MSI;
@@ -918,10 +944,11 @@ beg_msi(int intnum)
 /* This function is the post-interrupt initialization called right after
  * the Modem Status ISR.   [intnum = software interrupt number]
  */ 
-int
+static int
 end_msi(int intnum)
 {
-  static u_char num;
+  u_char num;
+
   num = irq_source_num[intnum];		/* Port that had caused int */
   com[num].int_type &= ~MS_INTR;	/* MSI interrupt finished. */
   #if SUPER_DBG > 1
@@ -941,10 +968,11 @@ end_msi(int intnum)
  * and does the expected UART operation whenever the LSR is read.
  * [num = port]
  */
-inline int
+static int
 get_lsr(int num)
 {
-  static int val;
+  int val;
+
   val = com[num].LSR;			/* Save old LSR value */
   com[num].int_type &= ~LS_INTR;	/* Clear line stat int flag */
   com[num].LSR &= ~UART_LSR_ERR;	/* Clear error bits */
@@ -960,10 +988,11 @@ get_lsr(int num)
 /* This function is the pre-interrupt initialization called right before
  * the Receiver Line Status ISR.   [intnum = software interrupt number]
  */ 
-int
+static int
 beg_lsi(int intnum)
 {
-  static u_char num;
+  u_char num;
+
   num = irq_source_num[intnum];		/* Port that caused interrupt */
   com[num].int_type &= ~LS_INTR;	/* No more interrupt needed */
   com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_RLSI;
@@ -977,10 +1006,11 @@ beg_lsi(int intnum)
 /* This function is the post-interrupt initialization called right after
  * the Receiver Line Status ISR.   [intnum = software interrupt number]
  */ 
-int
+static int
 end_lsi(int intnum)
 {
-  static u_char num;
+  u_char num;
+
   num = irq_source_num[intnum];		/* Port that caused interrupt */
   #if SUPER_DBG > 1
     s_printf("SER%d: ---END---Line Status Interrupt\n",num);
@@ -1001,7 +1031,7 @@ end_lsi(int intnum)
  * transmit FIFO. (or receive fifo if in Loopback test mode)
  * [num = port, val = character to transmit]
  */
-inline void
+static void
 put_tx(int num, int val)
 {
   static int rtrn;
@@ -1105,10 +1135,11 @@ put_tx(int num, int val)
 /* This function is the pre-interrupt initialization called right before
  * the Transmit Holding Reg Empty ISR.  [intnum = software interrupt number]
  */ 
-int
+static int
 beg_txint(int intnum)
 {                  
-  static u_char num;
+  u_char num;
+
   num = irq_source_num[intnum];		/* Port that caused interrupt */
   com[num].int_type &= ~TX_INTR;	/* No more interrupt needed */
   com[num].tx_timeout = 0;		/* Reset xmit counter */
@@ -1124,10 +1155,11 @@ beg_txint(int intnum)
 /* This function is the post-interrupt initialization called right after
  * the Transmit Holding Reg Empty ISR.  [intnum = software interrupt number]
  */ 
-int
+static int
 end_txint(int intnum)
 {
-  static u_char num;
+  u_char num;
+
   num = irq_source_num[intnum];		/* Port that caused interrupt */
   #if SUPER_DBG > 1
     s_printf("SER%d: ---END---Transmit Interrupt\n",num);
@@ -1147,7 +1179,7 @@ end_txint(int intnum)
 /* This function handles writes to the FCR (FIFO Control Register).
  * [num = port, val = new value to write to FCR]
  */
-inline void
+static void
 put_fcr(int num, int val)
 {
   val &= 0xcf;				/* bits 4,5 are reserved. */
@@ -1203,7 +1235,7 @@ put_fcr(int num, int val)
 /* This function handles writes to the LCR (Line Control Register).
  * [num = port, val = new value to write to LCR]
  */
-inline void
+static void
 put_lcr(int num, int val)
 {
   com[num].LCR = val;			/* Set new LCR value */
@@ -1225,7 +1257,7 @@ put_lcr(int num, int val)
 /* This function handles writes to the MCR (Modem Control Register).
  * [num = port, val = new value to write to MCR]
  */
-inline void
+static void
 put_mcr(int num, int val)
 {
   static int newmsr, delta;
@@ -1289,7 +1321,7 @@ put_mcr(int num, int val)
 /* This function handles writes to the LSR (Line Status Register).
  * [num = port, val = new value to write to LSR]
  */
-inline void
+static void
 put_lsr(int num, int val) 
 {
   com[num].LSR = val & 0x1F;			/* Bits 6 to 8 are ignored */
@@ -1319,7 +1351,7 @@ put_lsr(int num, int val)
 /* This function handles writes to the MSR (Modem Status Register).
  * [num = port, val = new value to write to MSR]
  */
-inline void
+static inline void
 put_msr(int num, int val)
 {
   com[num].MSR = (com[num].MSR & UART_MSR_STAT) | (val & UART_MSR_DELTA);
@@ -1341,7 +1373,7 @@ put_msr(int num, int val)
  * the base port (ie 0x3F8) to the base port plus seven (ie 0x3FF).
  * [num = abritary port number for serial line, address = I/O port address]
  */
-inline int
+int
 do_serial_in(int num, int address)
 {
   static int val;
@@ -1443,7 +1475,7 @@ do_serial_in(int num, int address)
  * [num = abritary port number for serial line, address = I/O port address,
  * val = value to write to I/O port address]
  */
-inline int
+int
 do_serial_out(int num, int address, int val)
 {
   switch (address - com[num].base_port) {
@@ -1646,7 +1678,7 @@ s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n",
  * and checking if it's time to generate a hardware interrupt (RDI).
  * [num = port]
  */
-inline void
+static void
 receive_engine(int num)		/* Internal 16550 Receive emulation */ 
 {
   /* Occasional stack overflows occured when "uart_fill" done inside intr */
@@ -1681,8 +1713,8 @@ receive_engine(int num)		/* Internal 16550 Receive emulation */
  * 10 bits/character, this will be br_divisor times chars/second.
  * If I ever get ambitious, I'll get this to adapt to other character sizes.
  */
-inline void
-age_transmit_queues()
+static void
+age_transmit_queues(void)
 {
   s_printf("SER: ageing serial transmit queues\n");
   s_printf("SER: pic_irr=%x, pic_isr=%x\n",pic_irr, pic_isr);
@@ -1724,7 +1756,7 @@ age_transmit_queues()
  * of the XMIT FIFO/THR register, and checking if it's time to generate
  * a hardware interrupt (THRI).    [num = port]
  */
-inline void
+static void
 transmit_engine(int num)      /* Internal 16550 Transmission emulation */
 {
   static int rtrn;
@@ -1783,11 +1815,13 @@ transmit_engine(int num)      /* Internal 16550 Transmission emulation */
  * and updating the MSR, and checking if it's time to generate a hardware
  * interrupt (MSI).    [num = port]
  */
-inline void
+static void
 modstat_engine(int num)		/* Internal Modem Status processing */ 
 {
+	/* why static? */
   static int control;
-  static int newmsr, delta;
+  int newmsr, delta;
+
   control = 0;
 
   if (!(com[num].MCR & UART_MCR_LOOP)) {	/* Not in Loopback mode */
@@ -1836,7 +1870,7 @@ modstat_engine(int num)		/* Internal Modem Status processing */
  * especially for applications that are extremely fussy about interrupt 
  * occuring at the right time.    [num = port]
  */
-inline void
+static void
 interrupt_engine(int num)
 {
 u_char tmp;
@@ -1956,7 +1990,7 @@ u_char num;
  * especially for applications that are extremely fussy about interrupt 
  * occuring at the right time.    [num = port]
  */
-inline void
+static void
 interrupt_engine(int num)
 {
   /* Quit if all interrupts disabled, DLAB high, interrupt pending, or */
@@ -2034,7 +2068,7 @@ interrupt_engine(int num)
  * for speed optimization purposes.  (In this function, and for the 
  * TIMEOUT_TX, TIMEOUT_RX values)
  */
-inline void
+void
 serial_run(void)	
 {
   static int i;
@@ -2068,6 +2102,3 @@ serial_run(void)
   }
   return;
 }
-#if NEW_PIC==0
-#undef NEW_PIC
-#endif

@@ -1,12 +1,6 @@
 #include "../include/slang.h"
 
-/* These need to be made user definable */
-static char *Alt_Shiftkey = "^@a";
-static char *Sticky_Alt_Shiftkey = "^@A";
-static char *Ctrl_Shiftkey = "^@c";
-static char *Sticky_Ctrl_Shiftkey = "^@C";
-static char *Shift_Shiftkey = "^@s";
-static char *Sticky_Shift_Shiftkey = "^@S";
+unsigned char DOSemu_Slang_Escape_Character = 30;
 
 char *DOSemu_Keyboard_Keymap_Prompt = NULL;
 int DOSemu_Terminal_Scroll = 0;
@@ -14,6 +8,7 @@ int DOSemu_Slang_Show_Help = 0;
 
 extern void dos_slang_redraw (void);
 extern void dos_slang_suspend (void);
+extern void dos_slang_smart_set_mono (void);
 
 /* The goal of the routines here is simple: to allow SHIFT, ALT, and CONTROL
  * keys to be used with a remote terminal.  The way this is accomplished is 
@@ -35,8 +30,8 @@ extern void dos_slang_suspend (void);
 
 typedef struct
 {
-   unsigned char keystr[8];
-   unsigned int scan_code;
+   unsigned char keystr[10];
+   unsigned long scan_code;
 }
 Keymap_Scan_Type;
 
@@ -55,6 +50,8 @@ Keymap_Scan_Type;
 #define SUSPEND_SCAN_CODE 0x10023
 #define HELP_SCAN_CODE 0x10024
 #define RESET_SCAN_CODE 0x10025
+
+#define SET_MONO_SCAN_CODE 0x10026
 
 static Keymap_Scan_Type Normal_Map [] =
 {
@@ -75,8 +72,8 @@ static Keymap_Scan_Type Normal_Map [] =
    {"1",	0x0231},   	       /* 1 */
    {"!",	0x0221},	       /* ! */
    {"2",	0x0332},	       /* 2 */
-   {"@",	0x0340},	       /* @ */
-   {"^@^@",	0x0300},	       /* ^@ */
+   {"@",	0x0340},               /* @ */
+   /* {"^@",	0x0300}, */	       /* ^@ --- handled below. */
    {"3",	0x0433},	       /* 3 */
    {"#",	0x0423},	       /* # */
    {"4",	0x0534},	       /* 4 */
@@ -615,13 +612,85 @@ SLKeyMap_List_Type *The_Alt_KeyMap;
 SLKeyMap_List_Type *The_Ctrl_KeyMap;
 SLKeyMap_List_Type *The_Shift_KeyMap;
 
+static unsigned char Esc_Char;
+int define_key (unsigned char *key, unsigned long scan, SLKeyMap_List_Type *m)
+{
+   unsigned char buf[16], k1;
+   
+   if (*key == '^')
+     {
+	k1 = key[1];
+	if (k1 == Esc_Char) return 0;  /* ^Esc_Char is not defined here */
+	if (k1 == '@')
+	  {
+	     strcpy ((char *) buf, (char *) key);
+	     buf[1] = Esc_Char;
+	     key = buf;
+	  }
+     }
+   return SLang_define_key1 (key, (VOID *) scan, SLKEY_F_INTRINSIC, m);
+}
 
+/* The entries with 0x0000 are not going to be used by any sane person. */
+unsigned long Ctrl_Char_Scan_Codes[32] = 
+{
+   0x0300,			       /* ^@ */
+   0x1E01,			       /* ^A */
+   0x3002,			       /* ^B */
+   0x2E03,			       /* ^C */
+   0x2004,			       /* ^D */
+   0x1205,			       /* ^E */
+   0x2106,			       /* ^F */
+   0x2207,			       /* ^G */
+   0x2308,			       /* ^H */
+   0x0F09,			       /* TAB */
+   0x240A,			       /* ^J */
+   0x250B,			       /* ^K */
+   0x260C,			       /* ^L */
+   0x0000,			       /* ^M --- RETURN-- Not used.*/
+   0x310E,			       /* ^N */
+   0x180F,			       /* ^O */
+   0x2510,			       /* ^P */
+   0x1011,			       /* ^Q */
+   0x1312,			       /* ^R */
+   0x1F13,			       /* ^S */
+   0x1414,			       /* ^T */
+   0x1615,			       /* ^U */
+   0x2F16,			       /* ^V */
+   0x1117,			       /* ^W */
+   0x2D18,			       /* ^X */
+   0x1519,			       /* ^Y */
+   0x2C1A,			       /* ^Z */
+   0x0000,			       /* ^[ --- ESC --- Not used. */
+   0x2B1C,			       /* ^\\ */
+   0x1B1D,			       /* ^] */
+   0x071E,			       /* ^^ */
+   0x0C1F			       /* ^_ */
+};
+
+	
 static int init_slang_keymaps (void)
 {
    char *str;
    SLKeyMap_List_Type *kmaps[4], *m;
    Keymap_Scan_Type *scans[4], *k;
+   unsigned char buf[5];
    int i;
+   unsigned long esc_scan;
+   
+   /* Do some sanity checking */
+   if (DOSemu_Slang_Escape_Character >= 32)
+     DOSemu_Slang_Escape_Character = 0;
+   
+   esc_scan = Ctrl_Char_Scan_Codes[DOSemu_Slang_Escape_Character];
+   if (esc_scan == 0) 
+     {
+	DOSemu_Slang_Escape_Character = 0;
+	esc_scan = Ctrl_Char_Scan_Codes[0];
+     }
+   
+   Esc_Char = DOSemu_Slang_Escape_Character + '@';
+   
    
    if (The_Normal_KeyMap != NULL) return 0;
    
@@ -641,37 +710,48 @@ static int init_slang_keymaps (void)
 	k = scans[i]; m = kmaps[i];
 	while ((str = k->keystr), (*str != 0))
 	  {
-	     SLang_define_key1 (str, (VOID *) k->scan_code, SLKEY_F_INTRINSIC, m);
+	     define_key (str, k->scan_code, m);
 	     k++;
 	  }
 
 	/* Now setup the shift modifier keys in each of the keymaps.  */
-	SLang_define_key1 (Alt_Shiftkey, (VOID *) ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
-	SLang_define_key1 (Ctrl_Shiftkey, (VOID *) CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
-	SLang_define_key1 (Shift_Shiftkey, (VOID *) SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	define_key ("^@a", ALT_KEY_SCAN_CODE, m);
+	define_key ("^@c", CTRL_KEY_SCAN_CODE, m);
+	define_key ("^@s", SHIFT_KEY_SCAN_CODE, m);
 	
-	SLang_define_key1 (Sticky_Alt_Shiftkey, (VOID *) STICKY_ALT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
-	SLang_define_key1 (Sticky_Ctrl_Shiftkey, (VOID *) STICKY_CTRL_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, m);
-	SLang_define_key1 (Sticky_Shift_Shiftkey, (VOID *) STICKY_SHIFT_KEY_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	define_key ("^@A", STICKY_ALT_KEY_SCAN_CODE, m);
+	define_key ("^@C", STICKY_CTRL_KEY_SCAN_CODE, m);
+	define_key ("^@S", STICKY_SHIFT_KEY_SCAN_CODE, m);
 	
-	SLang_define_key1 ("^@?", (VOID *) HELP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@h", (VOID *) HELP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	define_key ("^@?", HELP_SCAN_CODE, m);
+	define_key ("^@h", HELP_SCAN_CODE, m);
 	
-	SLang_define_key1 ("^@^R", (VOID *) REDRAW_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@^L", (VOID *) REDRAW_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@^Z", (VOID *) SUSPEND_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@ ", (VOID *) RESET_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	define_key ("^@^R", REDRAW_SCAN_CODE, m);
+	define_key ("^@^L", REDRAW_SCAN_CODE, m);
+	define_key ("^@^Z", SUSPEND_SCAN_CODE, m);
+	define_key ("^@ ", RESET_SCAN_CODE, m);
+	define_key ("^@B", SET_MONO_SCAN_CODE, m);
 	
-	SLang_define_key1 ("^@\033[A", (VOID *) SCROLL_UP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@\033OA", (VOID *) SCROLL_UP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@U", (VOID *) SCROLL_UP_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	define_key ("^@\033[A", SCROLL_UP_SCAN_CODE, m);
+	define_key ("^@\033OA", SCROLL_UP_SCAN_CODE, m);
+	define_key ("^@U", SCROLL_UP_SCAN_CODE, m);
 	
-	SLang_define_key1 ("^@\033[B", (VOID *) SCROLL_DOWN_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@\033OB", (VOID *) SCROLL_DOWN_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
-	SLang_define_key1 ("^@D", (VOID *) SCROLL_DOWN_SCAN_CODE, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+	define_key ("^@\033[B", SCROLL_DOWN_SCAN_CODE, m);
+	define_key ("^@\033OB", SCROLL_DOWN_SCAN_CODE, m);
+	define_key ("^@D", SCROLL_DOWN_SCAN_CODE, m);
 	
 	if (SLang_Error) return -1;
      }
+   
+   /* Now add one more for the esc character so that sending it twice
+    * sends it.
+    */
+   buf[0] = '^'; buf[1] = Esc_Char; 
+   buf[2] = '^'; buf[3] = Esc_Char; 
+   buf[4] = 0;
+   SLang_define_key1 (buf, (VOID *) esc_scan, SLKEY_F_INTRINSIC, The_Normal_KeyMap);
+   if (SLang_Error) return -1;
+   return 0;
 }
 
 
@@ -779,7 +859,8 @@ void do_slang_getkeys (void)
 		   * wants esc.
 		   */
 		  if (sltermio_input_pending ()) return;
-		  DOS_setscan ((unsigned short) 0x011B);
+		  add_scancode_to_queue ((unsigned short) (scan >> 8));
+		  add_key_depress((scan>>8));
 		  key = NULL;
 		  /* drop on through to the return for the undefined key below. */
 	       }
@@ -811,7 +892,9 @@ void do_slang_getkeys (void)
 	if (scan < ALT_KEY_SCAN_CODE)
 	  {
 	     if (sticky == 0) map = The_Normal_KeyMap;
-	     DOS_setscan ((unsigned short) scan);
+  	     add_scancode_to_queue ((unsigned short) (scan >> 8));
+	     add_key_depress((scan>>8));
+
 	     continue;
 	  }
 	
@@ -882,6 +965,10 @@ void do_slang_getkeys (void)
 	     map = The_Normal_KeyMap;
 	     DOSemu_Slang_Show_Help = 0;
 	     DOSemu_Terminal_Scroll = 0;
+	     break;
+
+	   case SET_MONO_SCAN_CODE:
+	     dos_slang_smart_set_mono ();
 	     break;
 	  }
 	

@@ -1,9 +1,12 @@
 /* for Linux DOS emulator
  *   Robert Sanders, gt8134b@prism.gatech.edu
+ * $Id$
+ *
  */
 #ifndef DISKS_H
 #define DISKS_H
 
+#include "extern.h"
 #define PART_INFO_START		0x1be	/* offset in MBR for partition table */
 #define PART_INFO_LEN   	0x10	/* size of each partition record */
 #define PART_SIG		0x55aa	/* magic signature */
@@ -47,6 +50,7 @@ struct disk {
   struct partition part_info;	/* neato partition info */
 };
 
+#if 0
 /* NOTE: the "header" element in the structure above can (and will) be
  * negative. This facilitates treating partitions as disks (i.e. using
  * /dev/hda1 with a simulated partition table) by adjusting out the
@@ -58,10 +62,8 @@ struct disk_fptr {
   void (*setup) (struct disk *);
 };
 
-#ifndef DISKS_C
-extern
 #endif
-struct disk_fptr disk_fptrs[];
+
 
 /* this header appears only in hdimage files
  */
@@ -86,10 +88,28 @@ struct image_header {
 #define MAX_HDISKS 8
 #define SECTOR_SIZE		512
 
-extern struct disk disktab[MAX_FDISKS];
-extern struct disk hdisktab[MAX_HDISKS];
-extern struct disk bootdisk;
-extern int use_bootdisk;
+/*
+ * Array of disk structures for floppies...
+ */ 
+EXTERN struct disk disktab[MAX_FDISKS];
+
+/*
+ * Array of disk structures for hard disks...
+ *
+ * Can be whole hard disks, dos extended partitions (containing one or
+ * more partitions) or their images (files)
+ */
+EXTERN struct disk hdisktab[MAX_HDISKS];
+
+/*
+ * Special bootdisk which can be temporarily swapped out for drive A,
+ * during the boot process.  The idea is to boot off the bootdisk, and
+ * then have the autoexec.bat swap out the boot disk for the "real"
+ * drive A.
+ */
+EXTERN struct disk bootdisk;
+
+EXTERN int use_bootdisk INIT(0);
 
 #if 1
 #define DISK_OFFSET(dp,h,s,t) \

@@ -508,6 +508,9 @@ CISH(DPMI_dpmi_init):
 	.globl	CISH(DPMI_return_from_dos)
 CISH(DPMI_return_from_dos):
 	hlt
+	.globl	CISH(DPMI_return_from_dos_exec) /* for bcc.h */
+CISH(DPMI_return_from_dos_exec):
+	hlt
 	.globl	CISH(DPMI_return_from_dosint)
 CISH(DPMI_return_from_dosint):
 	FILL_OPCODE(256,hlt)
@@ -651,11 +654,7 @@ CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
 	mov	bx, #LASTSCAN_SEG	/* get segment of LASTSCAN_ADDR	*/
 	push	bx
 	pop	ds
-#ifndef NEW_PIC				/* next 2 lines not needed?	*/
-	xor	cx,cx
-	inc	cx
-#endif
-			/* LASTSCAN_OFF = 0x20f2 = pseudo 8042 output	*/
+/* LASTSCAN_OFF = 0x20f2 = pseudo 8042 output	*/
 	mov	bx,#LASTSCAN_OFF
 	mov	ax,[bx]			/* "read" keyboard controller	*/
 

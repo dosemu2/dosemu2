@@ -6,6 +6,7 @@ typedef unsigned char byte;
 
 typedef struct { byte end, start; } cshape;
 
+extern void gettermcap(int);
 
 /* if you set this to 1, the video memory dirty bit will be checked 
    before updating the screen.

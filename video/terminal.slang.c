@@ -23,6 +23,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <termios.h>
 
 #include "bios.h"
 #include "emu.h"
@@ -53,7 +55,11 @@
  *      001          000           Underline
  *     anything else is invalid.
  */    
-static int Attribute_Map[256];		       /* if negative, char is invisible */
+static int BW_Attribute_Map[256];
+static int Color_Attribute_Map[256];
+
+static int *Attribute_Map;
+/* if negative, char is invisible */
 
 extern char *DOSemu_Keyboard_Keymap_Prompt;
 extern int DOSemu_Terminal_Scroll;
@@ -76,13 +82,79 @@ static void sl_exit_error (char *err)
 	leavedos (32);
 }
 
+
+void get_screen_size (void)
+{
+  struct winsize ws;		/* buffer for TIOCSWINSZ */
+
+   SLtt_Screen_Rows = 0;
+   SLtt_Screen_Cols = 0;
+   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) 
+     {
+	SLtt_Screen_Rows = ws.ws_row;
+	SLtt_Screen_Cols = ws.ws_col;
+     }
+   if ((SLtt_Screen_Rows <= 0) 
+       || (SLtt_Screen_Cols <= 0))
+     {
+	SLtt_Screen_Cols = 80;
+	SLtt_Screen_Rows = 24;
+     }
+   Rows = SLtt_Screen_Rows;
+   Columns = SLtt_Screen_Cols;
+}
+
+static void set_char_set (int cs)
+{
+   int i;
+   switch (cs)
+     {
+      case CHARSET_FULLIBM:
+	error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
+	/* The_Charset = charset_fullibm; */
+	/* drop */
+      case CHARSET_IBM:     	
+	The_Charset = charset_ibm;
+	Use_IBM_Codes = 1;
+ 	SLsmg_Display_Eight_Bit = 0x80;
+	break;
+	
+      case CHARSET_LATIN:
+      default:
+	if (Use_IBM_Codes) 
+	  {
+	     SLtt_write_string ("\n\033(B\033(B\r         \r");
+	  }
+	SLsmg_Display_Eight_Bit = 160;
+	Use_IBM_Codes = 0;
+	The_Charset = charset_latin;
+	break; 
+     }
+   
+   /* The fact is that this code is used to talk to a terminal.  Control 
+    * sequences 0-31 and 128-159 are reserved for the terminal.  Here I fixup 
+    * the character set map to reflect this fact (only if not ibmpc codes).
+    */
+   
+   if (!Use_IBM_Codes) for (i = 0; i < 256; i++)
+     {
+	if ((The_Charset[i] & 0x7F) < 32) The_Charset[i] |= 32;
+     }
+   
+    /* The following turns on the IBM character set mode of virtual console
+     * The same code is echoed twice, then just in case the escape code
+     * not recognized and was printed, erase it with spaces.
+     */
+   if (Use_IBM_Codes) SLtt_write_string ("\033(U\033(U\r        \r");
+}
+
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */ 
 int
 terminal_initialize()
 {
-   SLtt_Char_Type sltt_attr, fg, bg, attr;
+   SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color, i;
    int rotate[8];
    
@@ -107,87 +179,67 @@ terminal_initialize()
    
    SLang_Exit_Error_Hook = sl_exit_error;
    SLtt_get_terminfo ();
-   SLtt_Screen_Rows = li;
-   SLtt_Screen_Cols = co;
+   
+   get_screen_size ();
 
    /* Now set the variables li and co back to their dos defaults. */
+#if 0
    li = Rows;
    co = Columns;
+#endif
    
    SLtt_Use_Blink_For_ACS = 1;
    SLtt_Blink_Mode = 1;
+   
    SLtt_Use_Ansi_Colors = is_color;
    
+   if (is_color) Attribute_Map = Color_Attribute_Map;
+   else Attribute_Map = BW_Attribute_Map;
+     
    if (!SLsmg_init_smg ())
      sl_exit_error ("Unable to initialze SMG routines.");
    
    for (attr = 0; attr < 256; attr++)
      {
-	Attribute_Map[attr] = attr;
+	BW_Attribute_Map[attr] = Color_Attribute_Map[attr] = attr;
+	BW_Attribute_Map[attr] = 0;
+	
 	sltt_attr = 0;
 	if (attr & 0x80) sltt_attr |= SLTT_BLINK_MASK;
 	if (attr & 0x08) sltt_attr |= SLTT_BOLD_MASK;
+	
+	bw_sltt_attr = color_sltt_attr = sltt_attr;
+	
 	bg = (attr >> 4) & 0x07;
 	fg = (attr & 0x07);
-	if (is_color)
+	
+	/* color information */
+	color_sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
+	SLtt_set_color_object (attr, color_sltt_attr);
+	
+	/* Monochrome information */
+	if ((fg == 0x01) && (bg == 0x00)) bw_sltt_attr |= SLTT_ULINE_MASK;
+	if (bg & 0x7) bw_sltt_attr |= SLTT_REV_MASK;
+	else if (fg == 0)
 	  {
-	     sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
-	     SLtt_set_color_object (attr, sltt_attr);
+	     /* Invisible */
+	     BW_Attribute_Map [attr] = -attr;
 	  }
-	else
-	  {
-	     if ((fg == 0x01) && (bg == 0x00)) sltt_attr |= SLTT_ULINE_MASK;
-	     if (bg & 0x7) sltt_attr |= SLTT_REV_MASK;
-	     else if (fg == 0)
-	       {
-		  /* Invisible */
-		  Attribute_Map[attr] = -attr;
-	       }
-	     SLtt_set_mono (attr, NULL, sltt_attr);
-	  }
+	
+	SLtt_set_mono (attr, NULL, bw_sltt_attr);
      }
    
    /* object 0 is special.  It is normal video.  Lets fix that now. */   
-   Attribute_Map[0x7] = 0;
-   if (is_color) SLtt_set_color_object (0, 0x000700);
-   else SLtt_set_mono (0, NULL, 0x000700);
+   BW_Attribute_Map[0x7] = Color_Attribute_Map[0x7] = 0;
+   
+   SLtt_set_color_object (0, 0x000700);
+   SLtt_set_mono (0, NULL, 0x000700);
    
    SLsmg_refresh ();
-   
-   switch (config.term_charset) 
-     {
-      case CHARSET_FULLIBM:
-	error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
-	/* The_Charset = charset_fullibm; */
-	/* drop */
-      case CHARSET_IBM:     	
-	The_Charset = charset_ibm;
-	Use_IBM_Codes = 1;
- 	SLsmg_Display_Eight_Bit = 0x80;
-	break;
-	
-      case CHARSET_LATIN:
-      default:
-	The_Charset = charset_latin;
-	break; 
-     }
-   
-   /* The fact is that this code is used to talk to a terminal.  Control 
-    * sequences 0-31 and 128-159 are reserved for the terminal.  Here I fixup 
-    * the character set map to reflect this fact (only if not ibmpc codes).
+   /* This goes after the refresh because it might try 
+    * resetting the character set.
     */
-   
-   if (!Use_IBM_Codes) for (i = 0; i < 256; i++)
-     {
-	if ((The_Charset[i] & 0x7F) < 32) The_Charset[i] |= 32;
-     }
-   
-    /* The following turns on the IBM character set mode of virtual console
-     * The same code is echoed twice, then just in case the escape code
-     * not recognized and was printed, erase it with spaces.
-     */
-   if (Use_IBM_Codes) SLtt_write_string ("\033(U\033(U\r        \r");
-
+   set_char_set (config.term_charset);
    return 0;
 }
 
@@ -221,8 +273,7 @@ v_write(int fd, unsigned char *ch, int len)
 static char *Help[] = 
 {
    "Function Keys:",
-   "    F1: ^@1      F2: ^@2    ...     F9: ^@9    F10: ^@0",
-   "",
+   "    F1: ^@1      F2: ^@2    ...     F9: ^@9    F10: ^@0   F11: ^@-   F12: ^@=",
    "Key Modifiers:",
    "    ^@s : SHIFT KEY        ^@S : STICKY SHIFT KEY",
    "    ^@a : ALT KEY          ^@A : STICKY ALT KEY",
@@ -231,17 +282,18 @@ static char *Help[] =
    "  Examples:",
    "    Pressing ^@s followed by ^@3 results in SHIFT-F3.",
    "    Pressing ^@C Up Up Up ^@C results in Ctrl-Up Ctrl-Up Ctrl-Up.",
-   "",
    "Miscellaneous:",
    "    ^@^R : Redraw display      ^@^L : Redraw the display.",
-   "    ^@^Z : Suspend dosemu",
-   "    ^@ Up Arrow: Pan the display Up.",
-   "    ^@ Dn Arrow: Pan the display Dn.",
+   "    ^@^Z : Suspend dosemu      ^@b  : Select BEST monochrome mode.",    
+   "    ^@ Up Arrow: Force the top of DOS screen to be displayed.",
+   "    ^@ Dn Arrow: Force the bottom of DOS screen to be displayed.",
    "    ^@ Space: Reset Sticky keys and Panning to automatic panning mode.",
-   "    ^@? or ^@h:  SHow this help screen.",
+   "    ^@? or ^@h:  Show this help screen.",
    "    ^@^@:  Send the ^@ character to dos.",
+   " The default panning mode is such that the cursor will always remain visible.",
    "",
-   "            PRESS THE SPACE BAR TO CONTINUE",
+   "Note: The actual control character to use may not be ^@.",
+   "PRESS THE SPACE BAR TO CONTINUE---------",
    NULL
 };
 
@@ -402,7 +454,55 @@ void dos_slang_suspend (void)
     */
 }
 
+
+void dos_slang_smart_set_mono (void)
+{
+   int i, max_attr;
+   unsigned int attr_count [256], max_count;
+   register unsigned short *s, *smax;
    
+   Attribute_Map = BW_Attribute_Map;
+   s = screen_adr;
+   smax = s + Rows * Columns;
+   
+   for (i = 0; i < 256; i++) attr_count[i] = 0;
+   
+   while (s < smax)
+     {
+	attr_count[*s >> 8] += 1;
+	s++;
+     }
+   
+   max_attr = 0;
+   max_count = 0;
+   
+   for (i = 0; i < 256; i++)
+     {
+	Attribute_Map[i] = 1;
+	if (attr_count[i] > max_count) 
+	  {
+	     max_attr = i;
+	     max_count = attr_count[i];
+	  }
+     }
+   
+   SLtt_normal_video ();
+   
+   Attribute_Map [max_attr] = 0;
+   SLtt_Use_Ansi_Colors = 0;
+   
+   SLtt_set_mono (1, NULL, SLTT_REV_MASK);
+   SLtt_set_mono (0, NULL, 0);
+   
+   memset ((unsigned char *) prev_screen, 0xFF, 
+	   2 * SLtt_Screen_Rows * SLtt_Screen_Cols);
+   
+   set_char_set (CHARSET_LATIN);
+   
+   SLsmg_cls ();
+}
+
+
 
 
 #define term_setmode NULL

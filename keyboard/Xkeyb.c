@@ -175,15 +175,15 @@ static void put_key(ushort scan, short charcode) {
    X_printf("put_key(0x%X,'%c'=%d)\n",scan,charcode>=0x20?charcode:'?',charcode);
    
    if (charcode!=-1) {
-      DOS_setscan((charcode<<8) | scan);
+      add_scancode_to_queue((charcode<<8) | scan);
    }
    else {
       if (scan & 0xFF00) {
 	 child_set_flags(scan>>8);
-	 DOS_setscan(scan>>8);
+	 add_scancode_to_queue(scan>>8);
       } 
       child_set_flags(scan&0xff);
-      DOS_setscan(scan&0xff);
+      add_scancode_to_queue(scan&0xff);
    }
 }
 
@@ -200,7 +200,7 @@ static void put_keycode(int scan, int released)
    while (scan) {
       code = released ? (scan & 0xff) | 0x80 : (scan & 0xff);
       child_set_flags(code);
-      DOS_setscan(code);
+      add_scancode_to_queue(code);
       scan >>= 8;	 
    }
 }

@@ -68,7 +68,7 @@ typedef struct segment_descriptor_s
     unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
-#define MAX_SELECTORS	0x0400
+#define MAX_SELECTORS	0x0800
 #define MODIFY_LDT_CONTENTS_DATA        0
 #define MODIFY_LDT_CONTENTS_STACK       1
 #define MODIFY_LDT_CONTENTS_CODE        2

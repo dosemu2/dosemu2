@@ -124,7 +124,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   47
+PATCHL  =   48
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -171,7 +171,7 @@ CLIENTSSUB=clients
 
 OPTIONALSUBDIRS =examples v-net syscallmgr emumod ipxutils
 
-LIBSUBDIRS= dosemu timer mfs video init keyboard mouse $(NET) $(IPX) drivers
+LIBSUBDIRS= video dosemu timer mfs init keyboard mouse $(NET) $(IPX) drivers
 
 ifdef DPMI
 LIBSUBDIRS+= dpmi
@@ -222,6 +222,7 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 # does this work if you do make -C <some dir>
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE)
+INCDIR += -I$(TOPDIR)/timer -I$(TOPDIR)/dpmi
 ifndef USE_SLANG
 INCDIR  += -I$(NCURSES_INC)
 endif
@@ -392,7 +393,7 @@ dos:	dos.o
 	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
 		$(TCNTRL) $(XLIBS)
 
-$(LIBDOSEMU): 	emu.o data.o # dossubdirs
+$(LIBDOSEMU): 	emu.o data.o dos2linux/dos2linux.o # dossubdirs
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
 	   -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
@@ -507,6 +508,8 @@ checkout::
 dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)
 	install -d $(DISTPATH)/lib
+	install -d $(DISTPATH)/dos2linux
+	cp -a dos2linux/*.[ch] $(DISTPATH)/dos2linux
 	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp -a TODO $(DISTPATH)/.todo
 	cp -a TODO.JES $(DISTPATH)/.todo.jes
@@ -540,11 +543,11 @@ realclean:: $(REALCLEANDIRS)
 
 .PHONY: $(CLEANDIRS)
 $(CLEANDIRS):
-	$(MAKE) -C $(subst .clean,,$@) clean CLEANING=true
+	-@$(MAKE) -C $(subst .clean,,$@) clean CLEANING=true
 
 .PHONY: $(REALCLEANDIRS)
 $(REALCLEANDIRS):
-	$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
+	-@$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
 
 
 

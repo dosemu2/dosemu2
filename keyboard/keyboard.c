@@ -209,7 +209,7 @@ extern void clear_consoleX_video();
 extern void clear_process_control();
 void set_raw_mode();
 void get_leds();
-extern void DOS_setscan(u_short);
+extern void read_next_scancode_from_queue(u_short);
 void activate(int);
 extern int terminal_initialize();
 extern void terminal_close();
@@ -579,31 +579,6 @@ unsigned char highscan[256] =
 
 #endif /* NOT USE_SLANG_KEYS */
 
-static void
-gettermcap(void)
-{
-  char *garb;
-  struct winsize ws;		/* buffer for TIOCSWINSZ */
-#ifndef USE_SLANG_KEYS
-  struct funkeystruct *fkp;
-#endif
-  li = LI;
-  co = CO;
-  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) {
-    li = ws.ws_row;
-    co = ws.ws_col;
-  }
-
-  if (li == 0 || co == 0) {
-    error("ERROR: unknown window sizes li=%d  co=%d, setting to 80x25\n", li, co);
-    li = 25;
-    co = 80;
-  }
-  else
-    v_printf("VID: Setting windows size to li=%d, co=%d\n", li, co);
-   
-}
-
 void
 keyboard_close(void)
 {
@@ -647,6 +622,8 @@ print_termios(struct termios term)
   k_printf("KBD: 	c_lflag=%x\n", term.c_lflag);
   k_printf("KBD: 	c_line =%x\n", term.c_line);
 }
+
+extern void scr_state_init(void);
 
 /*
  * DANG_BEGIN_FUNCTION keyboard_init
@@ -694,11 +671,14 @@ keyboard_init(void)
   } else
      major = minor = 0;
 
+  scr_state_init();
+#if 0
   scr_state.vt_allow = 0;
   scr_state.vt_requested = 0;
   scr_state.mapped = 0;
   scr_state.pageno = 0;
   scr_state.virt_address = PAGE_ADDR(0);
+#endif
 
   if (!config.usesX) {
     /* console major num is 4, minor 64 is the first serial line */
@@ -861,7 +841,7 @@ getKeys(void)
       for (i = 0; i < cc; i++) {
 	k_printf("KEY: readcode: %d \n", kbp[kbcount + i]);
 	child_set_flags(kbp[kbcount + i]);
-	DOS_setscan(kbp[kbcount + i]);
+	read_next_scancode_from_queue(kbp[kbcount + i]);
 	k_printf("KBD: cc pushing %d'th character\n", i);
       }
     }
@@ -870,8 +850,7 @@ getKeys(void)
 
 #ifdef USE_SLANG_KEYS
      do_slang_getkeys ();
-#endif
-#ifndef USE_SLANG_KEYS
+#else
     if (kbcount == 0)
       kbp = kbbuf;
     else if (kbp > &kbbuf[(KBBUF_SIZE * 3) / 5]) {
@@ -1056,7 +1035,7 @@ convascii(int *cc)
 	  kbcount -= i;
 	  *cc -= i;
 	  kbp += i;
-	  DOS_setscan(fkp->code);
+	  read_next_scancode_from_queue(fkp->code);
 	  return;
 	}
       }
@@ -1066,7 +1045,7 @@ convascii(int *cc)
     if (kbcount == 1) {
       kbcount--;
       (*cc)--;
-      DOS_setscan((highscan[*kbp] << 8) + (unsigned char) *kbp++);
+      read_next_scancode_from_queue((highscan[*kbp] << 8) + (unsigned char) *kbp++);
       return;
     }
 
@@ -1075,7 +1054,7 @@ convascii(int *cc)
   else if (*kbp >= 128) {
     for (fkp = xfunkey; fkp->code; fkp++) {
       if ((unsigned char) (*kbp) == fkp->esc[0]) {
-	DOS_setscan(fkp->code);
+	read_next_scancode_from_queue(fkp->code);
 	break;
       }
     }
@@ -1089,7 +1068,7 @@ convascii(int *cc)
     kbcount--;
     (*cc)--;
     kbp++;
-    DOS_setscan(((unsigned char) highscan[8] << 8) + (unsigned char) 8);
+    read_next_scancode_from_queue(((unsigned char) highscan[8] << 8) + (unsigned char) 8);
     return;
   }
 
@@ -1099,7 +1078,7 @@ convascii(int *cc)
   if ((unsigned char) *kbp < 0x80)
     i |= (unsigned char) *kbp;
 
-  DOS_setscan(i);
+  read_next_scancode_from_queue(i);
   kbcount--;
   (*cc)--;
   kbp++;
@@ -1115,30 +1094,24 @@ InsKeyboard(unsigned short scancode)
   unsigned short nextpos;
 
   /* First of all compute the position of the new tail pointer */
-#if 0
-  if ((nextpos = KBD_Tail + 2) >= KBD_End)
-    nextpos = KBD_Start;
-  if (nextpos == KBD_Head)	/* queue full ? */
-    return (0);
-#endif
   if ((nextpos = READ_WORD(KBD_TAIL) + 2) >= READ_WORD(KBD_END))
     nextpos = READ_WORD(KBD_START);
-  if (nextpos == READ_WORD(KBD_HEAD))	/* queue full ? */
+  if (nextpos == READ_WORD(KBD_HEAD)){	/* queue full ? */
+     if(scancode == 0x2e03) {
+        WRITE_BYTE(0x471, 0x80);    /* ctrl-break flag */
+        WRITE_WORD(KBD_HEAD, READ_WORD(KBD_START));
+        WRITE_WORD(KBD_TAIL, READ_WORD(KBD_START));
+        WRITE_WORD(BIOS_DATA_PTR(READ_WORD(KBD_START)), 0);
+        k_printf("KBD: cntrl-C received\n");
+     	return (1);
+     }
+     putchar('\007');
      return (0);
+  }
 
-
-  ignore_segv++;
-#if 0
-  /* *((unsigned short *) BIOS_DATA_PTR(KBD_Tail)) = scancode;*/
-  WRITE_WORD(BIOS_DATA_PTR(KBD_Tail), scancode);
-  KBD_Tail = nextpos;
-#endif
   WRITE_WORD(BIOS_DATA_PTR(READ_WORD(KBD_TAIL)), scancode);
   WRITE_WORD(KBD_TAIL, nextpos);
 
-  ignore_segv--;
-
-  /* dump_kbuffer(); */
   return 1;
 }
 
@@ -1815,73 +1788,6 @@ func(unsigned int sc)
     put_queue(FCH(fnum, sc, (sc + 0x2e)) << 8);
 }
 
-void
-activate(int con_num)
-{
-  if (in_ioctl) {
-    k_printf("KBD: can't ioctl for activate, in a signal handler\n");
-    do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
-  }
-  else
-    do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
-}
-
-int
-do_ioctl(int fd, int req, int param3)
-{
-  int tmp;
-
-  if (in_sighandler && in_ioctl) {
-    k_printf("KBD: do_ioctl(): in ioctl %d 0x%04x 0x%04x.\nqueuing: %d 0x%04x 0x%04x\n",
-	     curi.fd, curi.req, curi.param3, fd, req, param3);
-    queue_ioctl(fd, req, param3);
-    errno = EDEADLOCK;
-#ifdef SYNC_ALOT
-    fflush(stdout);
-    sync();			/* for safety */
-#endif
-    return -1;
-  }
-  else {
-    in_ioctl = 1;
-    curi.fd = fd;
-    curi.req = req;
-    curi.param3 = param3;
-    if (iq.queued) {
-      k_printf("KBD: detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
-	       iq.fd, iq.req, iq.param3);
-    }
-    tmp = ioctl(fd, req, param3);
-    in_ioctl = 0;
-    return tmp;
-  }
-}
-
-int
-queue_ioctl(int fd, int req, int param3)
-{
-  if (iq.queued) {
-    error("ioctl already queued: %d 0x%04x 0x%04x\n", iq.fd, iq.req,
-	  iq.param3);
-    return 1;
-  }
-  iq.fd = fd;
-  iq.req = req;
-  iq.param3 = param3;
-  iq.queued = 1;
-
-  return 0;			/* success */
-}
-
-void
-do_queued_ioctl(void)
-{
-  if (iq.queued) {
-    iq.queued = 0;
-    do_ioctl(iq.fd, iq.req, iq.param3);
-  }
-}
-
 static void
 slash(unsigned int sc)
 {
@@ -2029,7 +1935,7 @@ void shared_keyboard_init(void) {
 /* This is used to run the keyboard interrupt */
 void
 do_irq1(void) {
-   parent_nextscan();
+   add_scancode_to_queue();
   /* reschedule if queue not empty */
   if (*scan_queue_start!=*scan_queue_end) { 
     k_printf("KBD: Requesting next keyboard interrupt startstop %d:%d\n", 
@@ -2045,14 +1951,13 @@ do_irq1(void) {
 
 void
 scan_to_buffer(void) {
-/*  k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", *LASTSCAN_ADD); */
   k_printf("scan_to_buffer LASTSCAN_ADD = 0x%04x\n", READ_WORD(LASTSCAN_ADD));
   set_keyboard_bios();
   insert_into_keybuffer();
 }
 
 void
-DOS_setscan(u_short scan)
+read_next_scancode_from_queue(u_short scan)
 {
   k_printf("DOS got set scan %04x, startq=%d, endq=%d\n", scan, *scan_queue_start, *scan_queue_end);
   scan_queue[*scan_queue_end] = scan;
@@ -2067,22 +1972,31 @@ DOS_setscan(u_short scan)
   }
   else {
     k_printf("NOT Hard queue\n");
-    parent_nextscan();
+    add_scancode_to_queue();
     scan_to_buffer();
 #ifdef NEW_PIC
  /*   *LASTSCAN_ADD=1; */
     keys_ready = 0;
 #endif
   }
+  add_key_depress(scan );
+
+}
+
+void
+add_key_depress(u_short scan){
   if (!config.console_keyb && !config.X) {
     static u_short tmp_scan;
     tmp_scan = scan & 0xff00;
     if (tmp_scan < 0x8000 && tmp_scan > 0) {
       k_printf("Adding Key-Release\n");
-      DOS_setscan(scan | 0x8000);
+      read_next_scancode_from_queue(scan | 0x8000);
     }
   }
+}
 
+void
+keyboard_flags_init(void){
 }
 
 static int lastchr;
@@ -2176,7 +2090,7 @@ insert_into_keybuffer(void)
 }
 
 void
-parent_nextscan(void)
+add_scancode_to_queue(void)
 {
 #ifndef NEW_PIC
   keys_ready = 0;

@@ -456,6 +456,7 @@ void device_init(void)
     error("ERROR: can't open keyboard\n");
     leavedos(19);
   }
+  keyboard_flags_init();
   if (!config.vga)
     config.allowvideoportaccess = 0;
  

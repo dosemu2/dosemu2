@@ -37,7 +37,7 @@ lex.yy.c : lexer.l parser.y
 	$(LEX) -i $< 
 
 clean::
-	-rm -f  parser.[ch] lex.yy.cc
+	-rm -f  parser.[ch] lex.yy.c
 # how do we generate dependcies?
 
 

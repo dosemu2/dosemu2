@@ -84,6 +84,7 @@ signal_init(void)
   SETSIG(SIGKILL, leavedos);
 #endif
   SETSIG(SIGQUIT, sigquit);
+  SETSIG(SIGWINCH, gettermcap); /* Adjust window sizes in DOS */
 /*
   SETSIG(SIGUNUSED, timint);
 */
@@ -162,7 +163,6 @@ void SIGALRM_call(void){
   static volatile int running = 0;
   static volatile inalrm = 0;
   static int partials = 0;
-  static u_char timals = 0;
 #if VIDEO_CHECK_DIRTY
   static int update_pending = 0;
 #endif
@@ -173,7 +173,7 @@ void SIGALRM_call(void){
      X_handle_events();
 #endif
 
-#if 0
+#if 1
 #ifdef USING_NET
   /* check for available packets on the packet driver interface */
   /* (timeout=0, so it immediately returns when none are available) */
@@ -258,26 +258,7 @@ void SIGALRM_call(void){
     AESTimerTick();
 #endif
 
-  if (++timals == TIMER_DIVISOR) {
-    timals = 0;
-    /* update the Bios Data Area timer dword if interrupts enabled */
-/*    if (REG(eflags) & VIF)
-      timer_tick();*/
-    if (config.timers) {
-      h_printf("starting timer int 8...\n");
-#ifndef NEW_PIC
-      if (!do_hard_int(8))
-	h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
-#else
-#if NEW_PIC==2
-      age_transmit_queues();
-#endif
-      pic_request(PIC_IRQ0);
-#endif
-    }
-    else
-      h_printf("NOT CONFIG.TIMERS\n");
-  }
+  timer_tick();
 
   if (not_use_sigio)
     io_select(fds_no_sigio);
@@ -311,7 +292,9 @@ void SIGALRM_call(void){
 inline void SIGNAL_save( void (*signal_call)() ) {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
+#ifdef DPMI
   if (!in_dpmi)
+#endif
     REG(eflags) |= VIP;
 }
 

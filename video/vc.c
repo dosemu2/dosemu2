@@ -1199,4 +1199,3 @@ install_int_10_handler (void)
   }
 #endif
 }
-

@@ -24,8 +24,6 @@
 #include "emu.h"
 #include "disks.h"
 
-extern config_t config;
-extern int fatalerr;
 
 #define FDISKS config.fdisks
 #define HDISKS config.hdisks
@@ -45,7 +43,18 @@ inline void disk_close(void);
   ioctl(dp->fdesc, FDFLUSH, 0)
 #endif
 
-struct disk_fptr disk_fptrs[NUM_DTYPES] =
+/* NOTE: the "header" element in the structure above can (and will) be
+ * negative. This facilitates treating partitions as disks (i.e. using
+ * /dev/hda1 with a simulated partition table) by adjusting out the
+ * simulated partition table offset...
+ */
+
+struct disk_fptr {
+  void (*autosense) (struct disk *);
+  void (*setup) (struct disk *);
+};
+
+static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 {
   {image_auto, image_setup},
   {hdisk_auto, hdisk_setup},
@@ -53,28 +62,6 @@ struct disk_fptr disk_fptrs[NUM_DTYPES] =
   {partition_auto, partition_setup}
 };
 
-/*
- * Array of disk structures for floppies...
- */
-struct disk disktab[MAX_FDISKS];
-
-/*
- * Array of disk structures for hard disks...
- *
- * Can be whole hard disks, dos extended partitions (containing one or
- * more partitions) or their images (files)
- */
-
-struct disk hdisktab[MAX_HDISKS];
-
-/*
- * Special bootdisk which can be temporarily swapped out for drive A,
- * during the boot process.  The idea is to boot off the bootdisk, and
- * then have the autoexec.bat swap out the boot disk for the "real"
- * drive A.
- */
-struct disk bootdisk;
-int use_bootdisk = 0;
 
 /* read_sectors
  *

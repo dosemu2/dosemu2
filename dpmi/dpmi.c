@@ -148,10 +148,6 @@
 #define BCC_HACK
 #endif
 
-/* define CLIENT_USE_GDT_40, to work around some bugy client */
-/* (like  dos4gw :=(. ) want to use gdt 0x40 to access bios area */
-#define CLIENT_USE_GDT_40
-
 #include "dpmi.h"
 #include "bios.h"
 #include "config.h"
@@ -178,7 +174,7 @@ int DPMI_pm_procedure_running = 0;
 
 static char *pm_stack; /* locked protected mode stack */
 
-static dpmi_pm_block *pm_block_root;
+static dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 static unsigned long pm_block_handle_used; /* tracking handle */
 
 static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.11 1995/02/25 21:54:02 root Exp $";
@@ -201,6 +197,10 @@ static struct sigcontext_struct emu_stack_frame;  /* used to store emulator regi
 #if defined(BCC_HACK) || defined(CLIENT_USE_GDT_40)
 #include "bcc.h"
 #endif /* BCC_HACK */
+
+/* define CLIENT_USE_GDT_40, to work around some bugy client */
+/* (like  dos4gw :=(. ) want to use gdt 0x40 to access bios area */
+#define CLIENT_USE_GDT_40
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 
@@ -405,10 +405,8 @@ void dpmi_get_entry_point(void)
    if (bcc_check_dpmiload(old_es)) {
      in_bcc = 1;
      D_printf("DPMI: we are running Borland DOS extender\n");
-     LWORD(esi) += 0x2000;
-   } else
-     if (!in_dpmires)
-      in_bcc = 0;
+     LWORD(esi) += 0x2008;
+   } 
 
 #endif /* BCC_HACK */
 }
@@ -697,8 +695,8 @@ static inline dpmi_pm_block * alloc_pm_block()
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
 	return NULL;
-    p -> next =	pm_block_root;	/* add it to list */
-    pm_block_root = p;
+    p -> next =	pm_block_root[current_client];	/* add it to list */
+    pm_block_root[current_client] = p;
     return p;
 }
 /* free_pm_block free a dpmi_pm_block struct and delete it from list */
@@ -706,12 +704,12 @@ static inline int free_pm_block(dpmi_pm_block *p)
 {
     dpmi_pm_block *tmp;
     if (!p) return -1;
-    if (p == pm_block_root) {
-	pm_block_root = p -> next;
+    if (p == pm_block_root[current_client]) {
+	pm_block_root[current_client] = p -> next;
 	free(p);
 	return 0;
     }
-    for(tmp = pm_block_root; tmp; tmp = tmp -> next)
+    for(tmp = pm_block_root[current_client]; tmp; tmp = tmp -> next)
 	if (tmp -> next == p)
 	    break;
     if (!tmp) return -1;
@@ -723,7 +721,7 @@ static inline int free_pm_block(dpmi_pm_block *p)
 static inline dpmi_pm_block *lookup_pm_block(unsigned long h)
 {
     dpmi_pm_block *tmp;
-    for(tmp = pm_block_root; tmp; tmp = tmp -> next)
+    for(tmp = pm_block_root[current_client]; tmp; tmp = tmp -> next)
 	if (tmp -> handle == h)
 	    return tmp;
     return 0;
@@ -1165,17 +1163,6 @@ inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   if (in_dpmi==1) {
     if (ldt_buffer) free(ldt_buffer);
     if (pm_stack) free(pm_stack);
-    if (pm_block_root) {
-        dpmi_pm_block *p = pm_block_root;
-        while(p) {
-          dpmi_pm_block *tmp;
-	  if (p->base)
-	      free(p->base);
-          tmp = p->next;
-	  free(p);
-	  p = tmp;
-        }
-    }
 #ifdef BCC_HACK
     in_bcc = 0;
 #endif /* BCC_HACK */
@@ -1188,10 +1175,23 @@ inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
         Segments[i>>3].used = 0;
     }
   }
+  if (pm_block_root[current_client]) {
+     dpmi_pm_block *p = pm_block_root[current_client];
+     while(p) {
+       dpmi_pm_block *tmp;
+       if (p->base)
+	  free(p->base);
+       tmp = p->next;
+       free(p);
+       p = tmp;
+     }
+  }
   in_dpmi_dos_int = 1;
   in_dpmi--;
   in_win31 = 0;
+#if 0
   dpmi_cli();
+#endif
   memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct));
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -1421,7 +1421,6 @@ void dpmi_init()
     memset(ldt_buffer,0xff,LDT_ENTRIES*LDT_ENTRY_SIZE);
     modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
 
-    pm_block_root = 0;
     pm_block_handle_used = 1;
 /*
  * DANG_BEGIN_NEWIDEA
@@ -1551,6 +1550,7 @@ void dpmi_init()
   in_win31 = 0;
   in_dpmi_dos_int = 0;
   in_sigsegv--;
+  pm_block_root[current_client] = 0;
   memset((void *)(&realModeCallBack[current_client][0]), 0,
 	 sizeof(RealModeCallBack)*0x10);
   dpmi_stack_frame[current_client].eip	= my_ip;
@@ -1569,6 +1569,8 @@ void dpmi_init()
   dpmi_stack_frame[current_client].esi = REG(esi);
   dpmi_stack_frame[current_client].edi = REG(edi);
   dpmi_stack_frame[current_client].ebp = REG(ebp);
+
+  if (in_dpmi>1) return; /* return immediately to the main loop */
 
   for (; (!fatalerr && in_dpmi) ;) {
     run_dpmi();
@@ -1595,10 +1597,16 @@ static inline void Return_to_dosemu_code(struct sigcontext_struct *scp)
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
   if (_cs != UCODESEL){
+#if 0
     if (dpmi_eflags & IF) {
       D_printf("DPMI: return to dosemu code for handling signals\n");
       Return_to_dosemu_code(scp);
-   } else dpmi_eflags |= VIP;
+    } else dpmi_eflags |= VIP;
+#else
+/* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
+    D_printf("DPMI: return to dosemu code for handling signals\n");
+    Return_to_dosemu_code(scp);
+#endif
   }
 }
 
@@ -2161,6 +2169,16 @@ void dpmi_realmode_hlt(unsigned char * lina)
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
+#ifdef BCC_HACK    
+  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_exec))) {
+
+    D_printf("BCC: Return from DOS exec\n");
+    bcc_post_exec();
+
+    restore_rm_regs();
+    in_dpmi_dos_int = 0;
+
+#endif
   } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) &&
 	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256)) ) {
     int intr = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_return_from_dosint);

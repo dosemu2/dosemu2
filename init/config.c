@@ -17,6 +17,8 @@
 #include "bios.h"
 #include "kversion.h"
 
+#include "../dos2linux/dos2linux.h"
+
 /* XXX - the mem size of 734 is much more dangerous than 704.
  * 704 is the bottom of 0xb0000 memory.  use that instead?
  */
@@ -207,7 +209,7 @@ void config_init(int argc, char **argv)
      
   opterr = 0;
   confname = CONFIG_FILE;
-  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:dXY:Z:")) != EOF) {
+  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:E:dXY:Z:")) != EOF) {
 	  switch (c) {
 	  case 'F':
 		  confname = optarg;
@@ -230,7 +232,7 @@ void config_init(int argc, char **argv)
 
   optind = 0;
   opterr = 0;
-  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:")) != EOF) {
+  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:E:")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
     case 'd':
@@ -364,6 +366,11 @@ void config_init(int argc, char **argv)
     case '4':
       g_printf("CPU set to 486\n");
       vm86s.cpu_type = CPU_486;
+      break;
+
+    case 'E':
+      g_printf("DOS command given on command line\n");
+      misc_e6_store_command (optarg);
       break;
 
     case '?':
