@@ -1376,11 +1376,14 @@ Win32s is not supported yet, Win95 is neither.
 </sect2>
 
 <sect2>
-<title>Windows 3.x in xdosemu:</title>
+<title>Can I run Windows 3.x in xdosemu</title>
 
 <para>
-As of version 1.2.0, DOSEMU is able to run Windows in xdosemu, but it
-works reliably only since 1.2.2.
+Yes, this is similar to using it in DOSEMU on the console; the only
+extra thing to consider here is that the emulated graphics card
+in xdosemu is a Trident, which is most likely different from
+your real graphics card. The mouse also needs some special
+attention.
 </para>
 
 <para>
@@ -1391,7 +1394,7 @@ Hints:
 <listitem>
 <para>
 For faster graphics (256 colors instead of 16 is faster in xdosemu),
-get a Trident SVGA drivers for Windows. The files are tvgaw31a.zip
+get the Trident SVGA drivers for Windows. The files are tvgaw31a.zip
 and/or tvgaw31b.zip. They are available at garbo.uwasa.fi in
 /windows/drivers (any mirrors?).
 </para>
