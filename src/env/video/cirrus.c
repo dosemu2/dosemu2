@@ -484,7 +484,7 @@ static int cirrusProbe(void)
      v_printf("Cirrus base address: 0x%x\n", cirrus_8514_base);
      v_printf("Cirrus memory size : %d kbyte\n", cirrus_memsize);
 
-     config.gfxmemsize = cirrus_memsize;
+     if (config.gfxmemsize == 0) config.gfxmemsize = cirrus_memsize;
      v_8514_base = cirrus_8514_base;
 
      return(1);

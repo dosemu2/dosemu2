@@ -597,8 +597,6 @@ int vga_initialize(void)
   /* don't release it; we're trying text mode restoration */
   dosemu_regs.release_video = 1;
 
-  v_printf("VGA: mem size %ld, banks %d\n", config.gfxmemsize,
-	   dosemu_regs.banks);
   return 0;
 }
 
@@ -718,6 +716,10 @@ void init_vga_card(void)
     vesa_init();
     port_leave_critical_section();
   }
+
+  /* fall back to 256K if not autodetected at this stage */
+  if (config.gfxmemsize == 0) config.gfxmemsize = 256;
+  v_printf("VGA: mem size %ld\n", config.gfxmemsize);
 
   save_vga_state(&linux_regs);
   dosemu_vga_screenon();

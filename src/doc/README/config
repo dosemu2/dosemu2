@@ -1392,10 +1392,9 @@ Start with only text video using the following setup
   $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
   $_console = (0)         # use 'console' video
   $_graphics = (0)        # use the cards BIOS to set graphics
-  $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
   $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
   $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
-  $_vmemsize = (1024)     # size of regen buffer
+  $_vmemsize = (0)        # amount of video RAM to save/restore
   $_chipset = ""       
   $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
 </screen>
@@ -1426,7 +1425,7 @@ video chips and you tell DOSEMU to use it such as
 <screen>
   $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
                           # avance, cirrus, matrox, wdvga, paradise, ati, sis,
-			  # svgalib
+			  # svgalib, vesa
 </screen>
 
 </para>
@@ -1440,6 +1439,17 @@ else it most like will crash your screen.
 The 'svgalib' setting uses svgalib 1.4.2 or greater for determining the correct
 video chip. It should work with all svgalib drivers, except for "vesa" and
 "ati", which are dangerous with respect to opening IO-ports.
+</para>
+
+<para>
+The 'vmemsize' setting's default of 0 causes DOSEMU to try to autodetect
+the amount of video memory on the graphics card. This amount is saved
+and restored when you switch away from and back to the virtual console DOSEMU
+runs in using the Ctrl-Alt-Fn key combination. Since saving video
+memory can be a very slow operation you may want to restrict 'vmemsize'
+to a value that was more common when DOS was still mainstream. For instance
+1024 covers it if you want to be able to save and restore modes up to
+1024x768x256.
 </para>
 
 <para>

@@ -249,7 +249,7 @@ static Boolean matroxProbe(void)
 	
   v_printf("MGA base address: 0x%x\n", MGA_8514_base);
 
-  if (config.gfxmemsize < MGA_memsize)
+  if (config.gfxmemsize == 0)
 	config.gfxmemsize = MGA_memsize;
   v_printf("MGA memory size : %ld kbyte\n", config.gfxmemsize);
   v_8514_base = MGA_8514_base;
