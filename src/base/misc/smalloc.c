@@ -209,7 +209,7 @@ size_t smget_free_space(struct memnode *mp)
   return count;
 }
 
-size_t smget_area_size(struct memnode *mp, void *ptr)
+int smget_area_size(struct memnode *mp, void *ptr)
 {
   struct memnode *mn;
   for (mn = mp->next; mn; mn = mn->next) {
