@@ -538,6 +538,10 @@ void do_call_back(Bit32u codefarptr)
 		error("do_call_back() cannot call protected mode code\n");
 		leavedos(25);
 	}
+	if (fault_cnt) {
+		error("do_call_back() executed within the signal context!\n");
+		leavedos(25);
+	}
 	if (callback_level) {
 		g_printf("do_call_back() re-entered! level=%i\n", callback_level);
 	}
