@@ -1017,7 +1017,20 @@ int earliest, timer, count;
 void pic_sched(int ilevel, int interval)
 {
   char mesg[35];
+
+ /* default for interval is 65536 (=54.9ms)
+  * There's a problem with too small time intervals - an interrupt can
+  * be continuously scheduled, without letting any time to process other
+  * code.
+  *
+  * BIG WARNING - in non-periodic timer modes pit[0].cntr goes to -1
+  *	at the end of the interval - was this the reason for the following
+  *	[1u-15sec] range check?
+  */
   if(interval > 0 && interval < 0x3fffffff) {
+     if (interval < 100) {
+       if (in_dpmi) run_dpmi();  /* we're surely out of int8 here */
+     }
      if(pic_ltime[ilevel]==NEVER) {
 	pic_itime[ilevel] = pic_itime[32] + interval;
      } else {

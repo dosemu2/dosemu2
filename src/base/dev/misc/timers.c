@@ -35,6 +35,7 @@
 #include "port.h"
 #include "int.h"
 #include "pic.h"
+#include "dpmi.h"
 
 #ifdef NEW_KBD_CODE
 #include "keyb_server.h"
@@ -504,6 +505,13 @@ void timer_int_engine(void)
 #else /* new engine */
 void timer_int_engine(void)
 {
+/* Try to terminate previous int8 routine before scheduling
+ * another one. Without this one dope crashes (DPMI_rm_procedure_
+ * running increases up to a stack fault)
+ */
+ if (in_dpmi) {
+   while (in_dpmi_pm_int==8) run_dpmi();
+ }
  pic_sched(PIC_IRQ0,pit[0].cntr);
  do_irq();
 }

@@ -41,6 +41,9 @@
 #include <linux/unistd.h>
 #include <ctype.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -108,6 +111,9 @@ static void mhp_kill    (int, char *[]);
 static void mhp_help    (int, char *[]);
 static void mhp_enter   (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
+static void mhp_debuglog (int, char *[]);
+static void mhp_dump_to_file (int, char *[]);
+
 static unsigned int lookup(unsigned char *, unsigned int *, unsigned int *);
 static inline int get_ldt(void *);
 
@@ -163,6 +169,8 @@ static const struct cmd_db cmdtab[] = {
    {"kill",          mhp_kill},
    {"?",             mhp_help},
    {"ldt",           mhp_print_ldt},
+   {"log",           mhp_debuglog},
+   {"dump",          mhp_dump_to_file},
    {"",              NULL}
 };
 
@@ -188,6 +196,8 @@ static const char help_page[]=
   "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
   "                       code origin = 'org'.\n"
   "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
+  "log [flags]            get/set debug-log flags (e.g 'log +M-k')\n"
+  "dump ADDR SIZE FILE    dump a piece of memory to file\n"
   "<ENTER>                repeats previous command\n";
 
 /********/
@@ -629,6 +639,49 @@ static void mhp_dis(int argc, char * argv[])
    } else {
       sprintf(lastd, "%lx", seekval + i);
    }
+}
+
+static void mhp_dump_to_file(int argc, char * argv[])
+{
+   unsigned int nbytes;
+   unsigned long seekval;
+   unsigned char * buf = 0;
+   unsigned int seg;
+   unsigned int off;
+   unsigned int limit=0;
+   int fd;
+
+   if (argc <= 3) {
+      mhp_printf("USAGE: dump <addr> <size> <filesname>\n");
+      return;
+   }
+
+   seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off, &limit);
+
+   buf = (unsigned char *) seekval;
+   sscanf(argv[2], "%x", &nbytes);
+   if (nbytes == 0) {
+      mhp_printf("invalid size\n");
+      return;
+   }
+
+   if (config.secure && ((seekval+nbytes) >0x10ffff)) {
+      mhp_printf("secure is ON, can\'t access above 1MEG\n");
+      return;
+   }
+
+   enter_priv_off();
+   fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC, 00775);
+   leave_priv_setting();
+
+   if (fd < 0) {
+      mhp_printf("cannot open/create file %s\n%s\n", argv[3], sys_errlist[errno]);
+      return;
+   }
+   if (write(fd, buf, nbytes) != nbytes) {
+      mhp_printf("write error: %s\n", sys_errlist[errno]);
+   }
+   close(fd);
 }
 
 static void mhp_mode(int argc, char * argv[])
@@ -1397,3 +1450,10 @@ static void mhp_print_ldt(int argc, char * argv[])
   sprintf (lastldt, "%x", i);
 }
 
+static void mhp_debuglog(int argc, char * argv[])
+{
+   char buf[256];
+   if (argc >1) SetDebugFlagsHelper(argv[1]);
+   GetDebugFlagsHelper(buf);
+   mhp_printf ("current Debug-log flags:\n%s\n", buf);
+}

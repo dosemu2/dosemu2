@@ -1,3 +1,13 @@
+97/04/17 ver. 0.66.2.2 unofficial pre-release
+	From Alberto
+	- fix for INT8 rescheduled to fast in DPMI
+	From Hans
+	- new dosdebug commands: 'log' and 'dump'
+	  With 'log' you can change/display the debug-logging flags such as
+	  'log +M-k' on the fly within dosdebug.
+	  With 'dump' you may write any piece of allowed dosemu mem to
+	  a file, such as 'dump cs:100 1234 /dosc/xxx.com'
+	  (wishes from Grant R. Guenther, the great parallel ZIP hacker ;-)
 97/04/16 ver. 0.66.2.1 unofficial pre-release
 	From Hans
 	- 'keystroke' feature now also available for new-kbd
