@@ -621,9 +621,11 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
 static int SystemSelector(unsigned short selector)
 {
   if (
+#if 0
        (((selector) & 0xfffc) == (DPMI_CLIENT.DPMI_SEL & 0xfffc)) ||
        (((selector) & 0xfffc) == (DPMI_CLIENT.PMSTACK_SEL & 0xfffc)) ||
        (((selector) & 0xfffc) == (DPMI_CLIENT.LDT_ALIAS & 0xfffc)) ||
+#endif
        (((selector) & 0xfffc) == (UCODESEL & 0xfffc)) ||
        (((selector) & 0xfffc) == (UDATASEL & 0xfffc)) ||
        (((selector) & 0xfffc) == (_emu_stack_frame.fs & 0xfffc)) ||
