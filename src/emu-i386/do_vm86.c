@@ -561,8 +561,7 @@ void do_call_back(Bit32u codefarptr)
 		leavedos(25);
 	}
 	if (callback_level) {
-		error("do_call_back() re-entered!\n");
-		leavedos(25);
+		g_printf("do_call_back() re-entered! level=%i\n", callback_level);
 	}
 
 	/* we push the address of our HLT place in the bios
