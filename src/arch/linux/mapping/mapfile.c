@@ -89,8 +89,10 @@ static int open_mapping_file(int cap)
       char *name;
       asprintf(&name, "%s%d", "DOSEMU:", getpid());
       tmpfile_fd = shm_open(name, O_RDWR|O_CREAT|O_TRUNC, 700);
-      if (tmpfile_fd == -1)
+      if (tmpfile_fd == -1) {
+	free(name);
 	return 0;
+      }
       shm_unlink(name);
       free(name);
     } else
