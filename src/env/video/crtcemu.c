@@ -167,14 +167,32 @@ void CRTC_write_value(unsigned char data)
       break;
 
     case 0x06:
-    case 0x07:
-    case 0x09:
       if(NEWBITS(0xFF)) {
         todo[todo_ind++] = CFG_CRTC_HEIGHT;
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
 
+    case 0x07:
+      if(NEWBITS(0x10)) {
+        todo[todo_ind++] = CFG_CRTC_LINE_COMPARE;
+      }
+      if(NEWBITS(0xEF)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
+      break;
+
+    case 0x09:
+      if(NEWBITS(0x40)) {
+        todo[todo_ind++] = CFG_CRTC_LINE_COMPARE;
+      }
+      if(NEWBITS(0xBF)) {
+        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+      }
+      crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
+      break; 
+     
     case 0x0c:		/* Start Address High */
       /* these shifts involving vga.crtc.addr_mode should really be rotations, 
          depending on mode control bit 5 */
@@ -251,7 +269,7 @@ void CRTC_write_value(unsigned char data)
 
     case 0x18: /* line compare */
       if(NEWBITS(0xFF)) {
-        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+        todo[todo_ind++] = CFG_CRTC_LINE_COMPARE;
       }
       break;
       

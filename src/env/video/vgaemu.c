@@ -2524,10 +2524,6 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       int vertical_blanking_start;
       int vertical_blanking_end;
       int height;
-      vga.crtc.line_compare =
-              vga.crtc.data[0x18] +
-              ((vga.crtc.data[0x7] & 0x10) << (8 - 4)) +
-              ((vga.crtc.data[0x9] & 0x40) << (9 - 6));
       vertical_total = 
 	      vga.crtc.data[0x6] + 
 	      ((vga.crtc.data[0x7] & 0x1) << (8 - 0)) +
@@ -2550,7 +2546,6 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vertical_multiplier = ((vga.crtc.data[0x9] & 0x1F) +1) <<
 	      ((vga.crtc.data[0x9] & 0x80) >> 7);
       height = (vertical_display_end +1) / vertical_multiplier;
-      vga_msg("vgaemu_adj_cfg: line_compare = %d\n", vga.crtc.line_compare);
       vga_msg("vgaemu_adj_cfg: vertical_total = %d\n", vertical_total);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_start = %d\n", vertical_retrace_start);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_end = %d\n", vertical_retrace_end);
@@ -2561,7 +2556,7 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: height = %d\n", height);
       if (vga.line_compare != vga.crtc.line_compare / vertical_multiplier) {
         vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
-        vga.reconfig.display = 1;
+        dirty_all_video_pages();
       }
       if (vga.height != height) {
         vga.height = height;
@@ -2602,6 +2597,22 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	 vga.reconfig.display = 1;
       }
       break;
+    }
+    case CFG_CRTC_LINE_COMPARE:
+    {
+      int vertical_multiplier;
+      vga.crtc.line_compare =
+              vga.crtc.data[0x18] +
+              ((vga.crtc.data[0x7] & 0x10) << (8 - 4)) +
+              ((vga.crtc.data[0x9] & 0x40) << (9 - 6));
+      vertical_multiplier = ((vga.crtc.data[0x9] & 0x1F) +1) <<
+	      ((vga.crtc.data[0x9] & 0x80) >> 7);
+      vga_msg("vgaemu_adj_cfg: line_compare = %d\n", vga.crtc.line_compare);
+      if (vga.line_compare != vga.crtc.line_compare / vertical_multiplier) {
+        vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
+        dirty_all_video_pages();
+      }
+      if (vga.line_compare == 0) vga.line_compare = vga.height;
     }
     default:
       vga_msg("vgaemu_adj_cfg: unknown item %u\n", what);
