@@ -1,4 +1,39 @@
+2004-07-11  Bart
+
+	* NEWS, dosemu.spec.in:
+	Added one more NEWS entry. Adjust dosemu.spec.in.
+
+	* README, THANKS, doc/EMUfailure.txt, doc/announce,
+	etc/dosemu.conf, man/dosemu.1.in, man/dosemu.bin.1.in,
+	src/arch/linux/Makefile.main:
+	Some minor documentation updates.
+
+	* src/: arch/linux/async/signal.c, base/misc/ioctl.c:
+	Block all async signals before signal_init. Avoids that the portserver will
+	catch any -- set_process_control is also called from raw_keyboard_init.
+
+2004-07-10  Stas
+
+	* src/dosext/dpmi/dpmi.c:
+	(AllocateSpecificDescriptor): we dont need this anymore.
+
+	* src/: base/mouse/mouse.c, base/mouse/mouseint.c, include/mouse.h:
+	Dont enable mouse driver before post_boot.
+	Dont process mouse events when driver is disabled, to avoid crash.
+	Init mouse.speed_x and mouse.speed_y early to avoid divizion by zero
+	at startup.
+
+	* NEWS:
+	Some more news worth to mention.
+
 2004-07-10  Bart
+
+	* ChangeLog.old, NEWS, ChangeLog, VERSION:
+	Renamed old ChangeLog to ChangeLog.old
+	The new ChangeLog is now a more GNU-style changelog based on the raw commit
+	dates on log messages so we can track more easily when a specific change
+	was made.
+	User visible changes go into NEWS.
 
 	* src/base/async/int.c:
 	reset idle for int21 functions that output
