@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/time.h>
 #include <errno.h>
 
@@ -222,7 +223,7 @@ void cpu_setup(void)
 {
   unsigned long int stk_ptr, stk_beg, stk_end;
   FILE *fp;
-  char line[100];
+  char line[PATH_MAX];
 
   int_vector_setup();
 
@@ -263,10 +264,10 @@ void cpu_setup(void)
    "=m"(_emu_stack_frame.fs),
    "=m"(_emu_stack_frame.gs),
    "=m"(_emu_stack_frame.eflags),
-   "=m"(stk_ptr):);
+   "=m"(stk_ptr));
 
   if ((fp = fopen("/proc/self/maps", "r"))) {
-    while(fgets(line, 100, fp)) {
+    while(fgets(line, sizeof(line) - 1, fp)) {
       sscanf(line, "%lx-%lx", &stk_beg, &stk_end);
       if (stk_ptr >= stk_beg && stk_ptr < stk_end) {
         stack_init_top = stk_end;
