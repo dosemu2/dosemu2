@@ -1,0 +1,46 @@
+NEWS file for DOSEMU
+====================
+
+This file contains a list of user visible changes in DOSEMU. For the
+raw developer changelog please refer to ChangeLog.
+
+Version 1.3.1 (2004-07-11)
+=============
+* The Blinker extender is now supported.
+* Improved DPMI uncommitted memory support (started in 1.3.0).
+* The hogtheshold code was reorganized to be able to pass through certain
+  events quicker (such as loading a file in FreeDOS EDIT) even when you 
+  have it set to "1".
+* Fixed all new warnings with GCC 3.4.
+* Fixed compilation problem with Fedora Core 2 headers.
+* Added cp895 and bg-mik character set support.
+* Many VGAEMU bugs were fixed, and bitmap fonts are much quicker.
+* Allow "fast" i/o ports above 0x400 for kernels that support it
+  (2.6.7-mm kernels only for now)
+* Implemented VxD hooks for WinOS2: seems to solve all remaining problems with
+  Win3.1(WinOS2): allows Alt-Tab and the timer.
+* Many DPMI and DOS extender fixes.
+* An automatic backtrace using GDB (output in ~/.dosemu/boot.log)
+  is attempted when DOSEMU crashes.
+* Serial code fixes.
+* Corrected int15/ax=e801 for so $_xms > 64M is reported correctly by MEM.
+* Fix NPTL issues when switching VC's on the console.
+* Check /proc/net/ipx/route etc for kernel 2.6.x.
+* LFN (long file name) fixes. Still needs more testing
+
+List of SourceForge tracker numbers with bugs that were closed:
+#885692 (Support) Serial port problem
+#902742 bug in DOSEMU's DOS API translation
+#909015 bugs/suggestions concerning DOSEMU's DPMI implementation
+#909588 keystroke command kills dosemu
+#911174 Problem with graphics under X
+#929123 Microsoft LINK.EXE 5.31.009 causes segmentation fault
+#930572 Only the half of the screen is displayed in xdosemu
+#934921 pmode/w extended 32bit dos app causes DOSEMU to terminate
+#944346 Serial port trouble
+#951087 IPX and kernel 2.6.5
+#958717 Only small part of the screen visible under X
+#959015 dosemu xterm mouse & network traffic
+#962683 graphical problems with win98/DOS
+#982872 Regression with VGA emu
+#984975 (Patches) Console & S3 graphic: No portserver
