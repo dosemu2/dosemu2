@@ -480,7 +480,7 @@ int register_hardware_ram(int type, size_t base, size_t size)
 {
   struct hardware_ram *hw;
 
-  if (!can_do_root_stuff && type) {
+  if (!can_do_root_stuff && type == 'h') {
     fprintf(stderr, "can't use hardware ram in low feature (non-suid root) DOSEMU\n");
     return 0;
   }
@@ -488,7 +488,8 @@ int register_hardware_ram(int type, size_t base, size_t size)
   hw->base = base;
   hw->vbase = (void *)base;
   hw->size = size;
-  hw->type = type;
+  /* use a virtual type for virtual video memory */
+  hw->type = (type == 'v' && !config.console_video) ? 0 : type;
   hw->next = hardware_ram;
   hardware_ram = hw;
   if ((size_t)base < LOWMEM_SIZE)
