@@ -80,7 +80,6 @@ typedef struct {
   				/*   MISCELLANEOUS  */
   u_char int_request;		/* Interrupt Request flags - TX/RX/MS/LS */
   u_char int_condition;		/* Interrupt Condition flags - TX/RX/MS/LS */
-  u_char int_pend;		/* Interrupt Pending flag */
   u_char int_enab;		/* Interrupt Enabled flag (OUT2 of MCR) */
   u_char fifo_enable;		/* FIFO enabled flag */
   u_char uart_full;		/* UART full flag */

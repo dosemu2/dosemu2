@@ -41,8 +41,6 @@
 #include "serial.h"
 #include "ser_defs.h"
 
-static int into_irq = 0;
-
 /**************************************************************************/
 /*                          The SERIAL ENGINES                            */
 /**************************************************************************/
@@ -464,17 +462,9 @@ void serial_int_engine(int num, int int_requested)
   /* See if a requested interrupt is enabled */
   if (com[num].int_enab && com[num].interrupt && (int_requested & com[num].IER)) {
     
-    /* if no int was requested before, request this one */
-    if (!com[num].int_pend) {
       if(s3_printf) s_printf("SER%d: Func pic_request intlevel=%d, int_requested=%d\n", 
                  num, com[num].interrupt, int_requested);
-      /*irq_source_num[com[num].interrupt] = num;*/ /* Permit shared IRQ */
-      com[num].int_pend = 1;			/* Interrupt is now pending */
       pic_request(com[num].interrupt);		/* Flag PIC for interrupt */
-    }
-    else
-      if(s3_printf) s_printf("SER%d: Interrupt already requested (%d)\n", 
-                 num, int_requested);
   }
   else
     if(s3_printf) s_printf("SER%d: Interrupt %d (%d) cannot be requested: enable=%d IER=0x%x\n", 
@@ -499,8 +489,6 @@ pic_serial_run(int ilevel)
 {
 /*  static u_char*/ int tmp;
 /*  static u_char*/ int num;
-
-  into_irq = 1;
 
   num = irq_source_num[ilevel];
 
@@ -568,32 +556,6 @@ pic_serial_run(int ilevel)
      * DANG_FIXTHIS how do we cancel a PIC interrupt, when we have come this far?
      */
   }
-
-  /* The following code executes best right after end of interrupt code */
-  com[num].int_pend = 0;
-  
-  /* Note: Some serial software, including the X00 fossil driver 
-   * actually prints this debug message at the _start_ of the interrupt, 
-   * because do_irq does not completely execute all the way to IRET
-   * before the code reaches here!?
-   */
-  if(s2_printf) s_printf("SER%d: ---END INTERRUPT---\n",num);
-#if 0
-  /* Update the internal serial timers */
-  serial_timer_update();
-#endif
-  /* The following chains the next serial interrupt, if necessary.
-   * Warning: Running the following code causes stack overflows sometimes 
-   * but is necessary to chain the next serial interrupt because there can
-   * hundreds or thousands of serial interrupts per second, and chaining
-   * is the only way to achieve this.
-   * DANG_FIXTHIS Perhaps this can be modified to limit max chain length?
-   */
-  into_irq = 0;
-  serial_int_engine(num, 0);              /* Update interrupt status */
-  receive_engine(num);
-  transmit_engine(num);
-  modstat_engine(num);
 }
 
 
@@ -627,7 +589,7 @@ serial_run(void)
    * All the engines have built-in code to prevent loading the
    * system if they are called 100x's per second.
    */
-  for (i = 0; !into_irq && (i < config.num_ser); i++) {
+  for (i = 0; i < config.num_ser; i++) {
     if (com[i].fd < 0) continue;
     receive_engine(i);		/* Receive operations */
     transmit_engine(i);		/* Transmit operations */

@@ -502,8 +502,7 @@ static int get_rx(int num)
         com[num].int_condition &= ~RX_INTR;	/* Clear receive condition */
 
         /* DANG_FIXTHIS Is this safe to put this here? */
-	/* I don't think so  - SS */
-//        serial_int_engine(num, 0);		/* Update interrupt status */
+        serial_int_engine(num, 0);		/* Update interrupt status */
       }
       else {		
         /* No, the FIFO didn't drop below trigger, but clear timeout bit */
@@ -1071,6 +1070,9 @@ do_serial_in(int num, ioport_t address)
     val = 0;
     break;
   }
+
+  serial_run();		/* See if some work is to be done */
+
   return val;
 }
 
@@ -1164,5 +1166,8 @@ do_serial_out(int num, ioport_t address, int val)
              address,num);
     break;
   }
+
+  serial_run();		/* See if some work is to be done */
+
   return 0;
 }

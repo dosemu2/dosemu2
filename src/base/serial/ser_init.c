@@ -327,7 +327,6 @@ void ser_set_params(int num)
   com[num].MSRqueued = 0;		/* Queued MSR bits */
   com[num].SCR = 0; 			/* Scratch Register */
   com[num].int_enab = 0;		/* FLAG: Interrupts disabled */
-  com[num].int_pend = 0;		/* FLAG: No interrupts pending */
   com[num].int_condition = 0;		/* FLAG: No int conditions set */
   com[num].int_request = 0;		/* FLAG: No int requested */
   com[num].fifo_enable = 0;		/* FLAG: FIFO enabled */
