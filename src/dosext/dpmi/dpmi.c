@@ -118,7 +118,7 @@ static int cli_blacklisted = 0;
 static int find_cli_in_blacklist(unsigned char *);
 static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
 
-RealModeCallBack mouseCallBack; /* user\'s mouse routine */
+RealModeCallBack mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
 
 struct vm86_regs DPMI_rm_stack[DPMI_max_rec_rm_func];
 int DPMI_rm_procedure_running = 0;
@@ -3363,6 +3363,21 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 	  dpmi_sti();
+        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_return_from_PS2_mouse_callback)) {
+
+	  if (in_dpmi_pm_stack) {
+	    in_dpmi_pm_stack--;
+	    if (!in_dpmi_pm_stack && _ss != DPMI_CLIENT.PMSTACK_SEL) {
+	      error("DPMI: Client's PM Stack corrupted during PS2 mouse callback!\n");
+//	      leavedos(91);
+	    }
+	  }
+	  D_printf("DPMI: Return from PS2 mouse callback, in_dpmi_pm_stack=%i\n",
+	    in_dpmi_pm_stack);
+
+	  restore_pm_regs(scp);
+	  in_dpmi_dos_int = 1;
+	  dpmi_sti();
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_OFF-HLT_OFF(DPMI_exception);
 	  D_printf("DPMI: default exception handler 0x%02x called\n",excp);
@@ -3895,6 +3910,82 @@ done:
 	*--ssp = DPMI_CLIENT.DPMI_SEL; 
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
 	ADD_16_32(PMSTACK_ESP, -4);
+    }
+    DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
+    DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
+    DPMI_CLIENT.stack_frame.esp = D_16_32(PMSTACK_ESP);
+    in_dpmi_pm_stack++;
+    dpmi_cli();
+    in_dpmi_dos_int = 0;
+
+  } else if (lina ==(unsigned char *)(DPMI_ADD +
+				      HLT_OFF(DPMI_PS2_mouse_callback))) {
+    unsigned short *ssp, *rm_ssp;
+    unsigned short CLIENT_PMSTACK_SEL;
+
+    REG(eip) += 1;            /* skip halt to point to FAR RET */
+    D_printf("DPMI: starting PS2 mouse callback\n");
+    save_pm_regs(&DPMI_CLIENT.stack_frame);
+    DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags)) |
+      dpmi_mhp_TF;
+    DPMI_CLIENT.stack_frame.cs = PS2mouseCallBack.selector;
+    DPMI_CLIENT.stack_frame.eip = PS2mouseCallBack.offset;
+
+    if (!in_dpmi_pm_stack) {
+      D_printf("DPMI: Switching to locked stack\n");
+      CLIENT_PMSTACK_SEL = DPMI_CLIENT.PMSTACK_SEL;
+      if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL)
+        error("DPMI: run_pm_mouse: App is working on host\'s PM locked stack, expect troubles!\n");
+    }
+    else {
+      D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+        in_dpmi_pm_stack);
+      CLIENT_PMSTACK_SEL = DPMI_CLIENT.stack_frame.ss;
+    }
+
+    if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
+      PMSTACK_ESP = client_esp(0);
+    else
+      PMSTACK_ESP = D_16_32(DPMI_pm_stack_size);
+
+    if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+    }
+
+    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
+    rm_ssp = (unsigned short *)SEGOFF2LINEAR(LWORD(ss), LWORD(esp) + 4 + 8);
+
+    if (DPMI_CLIENT.is_32) {
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("data: 0x%x ", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x\n", *ssp);
+	*--ssp = (us) 0;
+	*--ssp = DPMI_CLIENT.DPMI_SEL; 
+	ssp -= 2, *((unsigned long *) ssp) =
+	     DPMI_OFF + HLT_OFF(DPMI_return_from_PS2_mouse_callback);
+	ADD_16_32(PMSTACK_ESP, -24);
+    } else {
+	*--ssp = *--rm_ssp;
+	D_printf("data: 0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x ", *ssp);
+	*--ssp = *--rm_ssp;
+	D_printf("0x%x\n", *ssp);
+	*--ssp = DPMI_CLIENT.DPMI_SEL; 
+	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_PS2_mouse_callback);
+	ADD_16_32(PMSTACK_ESP, -12);
     }
     DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
     DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;

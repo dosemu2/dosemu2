@@ -265,6 +265,7 @@ void            DPMI_return_from_dosint(void);
 void            DPMI_return_from_realmode(void);
 void            DPMI_return_from_dos_memory(void);
 void            DPMI_mouse_callback(void);
+void            DPMI_PS2_mouse_callback(void);
 void            DPMI_raw_mode_switch(void);
 void            DPMI_save_restore(void);
 void            DPMI_API_extension(void);
@@ -273,6 +274,7 @@ void            DPMI_return_from_exception(void);
 void            DPMI_return_from_ext_exception(void);
 void            DPMI_return_from_rm_callback(void);
 void            DPMI_return_from_mouse_callback(void);
+void            DPMI_return_from_PS2_mouse_callback(void);
 void            DPMI_exception(void);
 void            DPMI_interrupt(void);
 

@@ -1650,7 +1650,7 @@ static void call_int15_mouse_event_handler(void)
     mouse.old_mickeyx += dx;
     mouse.old_mickeyy -= dy / 2;
 
-    m_printf("PS2MOUSE data: dx=%x, dy=%x, status=%x\n", dx, dy, status);
+    m_printf("PS2MOUSE data: dx=%hhx, dy=%hhx, status=%hx\n", (Bit8u)dx, (Bit8u)dy, status);
     pushw(ssp, sp, status | 8);
     pushw(ssp, sp, dx & 0xff);
     pushw(ssp, sp, dy & 0xff);

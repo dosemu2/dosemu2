@@ -316,7 +316,31 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	break;
     case 0x15:			/* misc */
 	INT15_SAVED_REGS = *scp;
-	return 0;
+	switch (_HI(ax)) {
+	  case 0xc2:
+	    D_printf("DPMI: PS2MOUSE function 0x%x\n", _LO(ax));
+	    switch (_LO(ax)) {
+	      case 0x07:		/* set handler addr */
+		if ( _es && D_16_32(_ebx) ) {
+		  D_printf("DPMI: PS2MOUSE: set handler addr 0x%x:0x%lx\n",
+		    _es, D_16_32(_ebx));
+		  PS2mouseCallBack.selector = _es;
+		  PS2mouseCallBack.offset = D_16_32(_ebx); 
+		  REG(es) = DPMI_SEG;
+		  REG(ebx) = DPMI_OFF + HLT_OFF(DPMI_PS2_mouse_callback);
+		} else {
+		  D_printf("DPMI: PS2MOUSE: reset handler addr\n");
+		  REG(es) = 0;
+		  REG(ebx) = 0;
+		}
+		return 0;
+	      default:
+		return 0;
+	    }
+	    break;
+	  default:
+	    return 0;
+	}
     case 0x20:			/* DOS terminate */
 	old_dos_terminate(scp, intr);
 	return 0;
@@ -782,7 +806,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		REG(edx) = DPMI_OFF + HLT_OFF(DPMI_mouse_callback);
 	    } else {
 		D_printf("DPMI: reset mouse callback\n");
-		REG(es) =0;
+		REG(es) = 0;
 		REG(edx) = 0;
 	    }
 	    return 0;

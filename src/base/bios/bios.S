@@ -746,6 +746,15 @@ CISH(DPMI_VXD_VTDAPI):
 	hlt
 	lret
 /* ======================= Addr = F800:4A54 (FCA54) */
+	.globl	CISH(DPMI_PS2_mouse_callback)
+CISH(DPMI_PS2_mouse_callback):
+	hlt
+	lret
+/* ======================= Addr = F800:4A56 (FCA56) */
+	.globl	CISH(DPMI_return_from_PS2_mouse_callback)
+CISH(DPMI_return_from_PS2_mouse_callback):
+	hlt
+/* ======================= Addr = F800:4A57 (FCA57) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 
