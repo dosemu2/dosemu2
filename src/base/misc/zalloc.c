@@ -1,3 +1,8 @@
+/*
+   This memory allocator was originally written by Matt Dillon. It
+   was obtained from
+   http://apollo.backplane.com/FreeSrc/allocator-1.2.tgz
+*/
 
 /*
  * LIB/MEMORY/ZALLOC.C	- self contained low-overhead memory pool/allocation 
