@@ -2506,7 +2506,17 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
         vga.mem.planes = u1; vga.reconfig.mem = 1;   
         vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
       }
-      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]); 
+      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
+      if (vga.mode_class == TEXT) {
+        int horizontal_display_end = vga.crtc.data[0x1] + 1;
+	int multiplier = 9 - (vga.seq.data[1] & 1);
+	int width = horizontal_display_end * multiplier;
+	if ((vga.width != width) || (vga.char_width != multiplier)) {
+	  vga.width = width;
+	  vga.char_width = multiplier;
+	  vga.reconfig.display = 1;
+	}
+      }
     break;
 
     case CFG_CRTC_ADDR_MODE:
@@ -2611,7 +2621,11 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       horizontal_blanking_end = vga.crtc.data[0x3] & 0xF;
       horizontal_retrace_start = vga.crtc.data[0x4];
       horizontal_retrace_end = vga.crtc.data[0x5] & 0xF;
-      multiplier = (vga.mode_class == TEXT) ? 9 : (vga.mode_type == P8) ? 4 : 8;
+      if (vga.mode_class == TEXT) {
+        multiplier = 9 - (vga.seq.data[1] & 1);
+      } else {
+	multiplier = (vga.mode_type == P8) ? 4 : 8;
+      }
       width = horizontal_display_end * multiplier;
       vga_msg("vgaemu_adj_cfg: horizontal_total = %d\n", horizontal_total);
       vga_msg("vgaemu_adj_cfg: horizontal_retrace_start = %d\n", horizontal_retrace_start);

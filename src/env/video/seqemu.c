@@ -274,6 +274,9 @@ void Seq_write_value(unsigned char data)
           seq_deb("Seq_write_value: video signal turned %s\n", vga.config.video_off ? "off" : "on");
         }
       }
+      if(NEWBITS(0x9)) {
+	todo[todo_ind++] = CFG_SEQ_ADDR_MODE;
+      }
       break;
 
     case 0x02:		/* Map Mask */

@@ -3060,6 +3060,10 @@ int X_update_text_screen()
   
   refresh_palette();
 
+  if(vga.reconfig.display) {
+    X_resize_text_screen();
+    vga.reconfig.display = 0;
+  }
   if(vga.reconfig.mem) {
     X_redraw_text_screen();
     vga.reconfig.mem = 0;
