@@ -263,7 +263,6 @@ void            DPMI_return_from_dos_exec(void);
 void            DPMI_return_from_dosint(void);
 void            DPMI_return_from_realmode(void);
 void            DPMI_return_from_dos_memory(void);
-void            DPMI_realmode_callback(void);
 void            DPMI_mouse_callback(void);
 void            DPMI_raw_mode_switch(void);
 void            DPMI_save_restore(void);

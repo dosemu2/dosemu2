@@ -51,11 +51,8 @@ static struct sigcontext INT15_SAVED_REGS;
 #define S_LWORD(reg)	(*((unsigned short *)&S_REG(reg)))
 #define S_HWORD(reg)	(*((unsigned short *)&S_REG(reg) + 1))
 
-#define DTA_Para_ADD 0
-
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
-#define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + \
-    DPMI_private_paragraphs + DTA_Para_ADD) << 4)
+#define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + DTA_Para_ADD) << 4)
 
 #define MAX_DOS_PATH 128
 
@@ -443,8 +440,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    if ( !in_dos_space(_ds, off)) {
 		DPMI_CLIENT.USER_DTA_SEL = _ds;
 		DPMI_CLIENT.USER_DTA_OFF = off;
-		REG(ds) = DPMI_CLIENT.private_data_segment+DPMI_private_paragraphs+
-		                  DTA_Para_ADD;
+		REG(ds) = DPMI_CLIENT.private_data_segment+DTA_Para_ADD;
 		REG(edx)=0;
                 memmove(DTA_under_1MB, DTA_over_1MB, 0x80);
 	    } else {

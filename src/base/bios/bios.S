@@ -645,123 +645,119 @@ CISH(DPMI_return_from_realmode):
 	.globl	CISH(DPMI_return_from_dos_memory)
 CISH(DPMI_return_from_dos_memory):
 	hlt
-/* ======================= Addr = F800:490E (FC90E+n_callback) */
-	.globl   CISH(DPMI_realmode_callback)
-CISH(DPMI_realmode_callback):
-	FILL_OPCODE 0x10,hlt
-/* ======================= Addr = F800:491E (FC91E) */
+/* ======================= Addr = F800:490E (FC90E) */
 	.globl	CISH(DPMI_mouse_callback)
 CISH(DPMI_mouse_callback):
 	hlt
 	lret
-/* ======================= Addr = F800:4920 (FC920) */
+/* ======================= Addr = F800:4910 (FC910) */
 	.globl	CISH(DPMI_raw_mode_switch)
 CISH(DPMI_raw_mode_switch):
 	hlt
-/* ======================= Addr = F800:4921 (FC921) */
+/* ======================= Addr = F800:4911 (FC911) */
 	.globl	CISH(DPMI_save_restore)
 CISH(DPMI_save_restore):
 	hlt
 	lret
-/* ======================= Addr = F800:4923 (FC923) */
+/* ======================= Addr = F800:4913 (FC913) */
 	.globl	CISH(DPMI_API_extension)
 CISH(DPMI_API_extension):
 	hlt
 	lret
-/* ======================= Addr = F800:4925 (FC925) */
+/* ======================= Addr = F800:4915 (FC915) */
 	.globl	CISH(DPMI_return_from_pm)
 CISH(DPMI_return_from_pm):
 	hlt
-/* ======================= Addr = F800:4926 (FC926) */
+/* ======================= Addr = F800:4916 (FC916) */
 	.globl	CISH(DPMI_return_from_exception)
 CISH(DPMI_return_from_exception):
 	hlt
-/* ======================= Addr = F800:4927 (FC927) */
+/* ======================= Addr = F800:4917 (FC917) */
 	.globl	CISH(DPMI_return_from_rm_callback)
 CISH(DPMI_return_from_rm_callback):
 	hlt
-/* ======================= Addr = F800:4928 (FC928) */
+/* ======================= Addr = F800:4918 (FC918) */
 	.globl	CISH(DPMI_return_from_mouse_callback)
 CISH(DPMI_return_from_mouse_callback):
 	hlt
-/* ======================= Addr = F800:4929 (FC929+except) */
+/* ======================= Addr = F800:4919 (FC919+except) */
 	.globl	CISH(DPMI_exception)
 CISH(DPMI_exception):
 	FILL_OPCODE 32,hlt
-/* ======================= Addr = F800:4949 (FC949+intno) */
+/* ======================= Addr = F800:4939 (FC939+intno) */
 	.globl	CISH(DPMI_interrupt)
 CISH(DPMI_interrupt):
 	FILL_OPCODE 256,hlt
-/* ======================= Addr = F800:4A49 (FCA49) */
+/* ======================= Addr = F800:4A39 (FCA39) */
 	.globl	CISH(DPMI_return_from_ext_exception)
 CISH(DPMI_return_from_ext_exception):
 	hlt
-/* ======================= Addr = F800:4A4A (FCA4A) */
+/* ======================= Addr = F800:4A3A (FCA3A) */
 	.globl	CISH(DPMI_VXD_VMM)
 CISH(DPMI_VXD_VMM):
 	hlt
 	lret
-/* ======================= Addr = F800:4A4C (FCA4C) */
+/* ======================= Addr = F800:4A3C (FCA3C) */
 	.globl	CISH(DPMI_VXD_PageFile)
 CISH(DPMI_VXD_PageFile):
 	hlt
 	lret
-/* ======================= Addr = F800:4A4E (FCA4E) */
+/* ======================= Addr = F800:4A3E (FCA3E) */
 	.globl	CISH(DPMI_VXD_Reboot)
 CISH(DPMI_VXD_Reboot):
 	hlt
 	lret
-/* ======================= Addr = F800:4A50 (FCA50) */
+/* ======================= Addr = F800:4A40 (FCA40) */
 	.globl	CISH(DPMI_VXD_VDD)
 CISH(DPMI_VXD_VDD):
 	hlt
 	lret
-/* ======================= Addr = F800:4A52 (FCA52) */
+/* ======================= Addr = F800:4A42 (FCA42) */
 	.globl	CISH(DPMI_VXD_VMD)
 CISH(DPMI_VXD_VMD):
 	hlt
 	lret
-/* ======================= Addr = F800:4A54 (FCA54) */
+/* ======================= Addr = F800:4A44 (FCA44) */
 	.globl	CISH(DPMI_VXD_VXDLDR)
 CISH(DPMI_VXD_VXDLDR):
 	hlt
 	lret
-/* ======================= Addr = F800:4A56 (FCA56) */
+/* ======================= Addr = F800:4A46 (FCA46) */
 	.globl	CISH(DPMI_VXD_SHELL)
 CISH(DPMI_VXD_SHELL):
 	hlt
 	lret
-/* ======================= Addr = F800:4A58 (FCA58) */
+/* ======================= Addr = F800:4A48 (FCA48) */
 	.globl	CISH(DPMI_VXD_VCD)
 CISH(DPMI_VXD_VCD):
 	hlt
 	lret
-/* ======================= Addr = F800:4A5A (FCA5A) */
+/* ======================= Addr = F800:4A4A (FCA4A) */
 	.globl	CISH(DPMI_VXD_VTD)
 CISH(DPMI_VXD_VTD):
 	hlt
 	lret
-/* ======================= Addr = F800:4A5C (FCA5C) */
+/* ======================= Addr = F800:4A4C (FCA4C) */
 	.globl	CISH(DPMI_VXD_CONFIGMG)
 CISH(DPMI_VXD_CONFIGMG):
 	hlt
 	lret
-/* ======================= Addr = F800:4A5E (FCA5E) */
+/* ======================= Addr = F800:4A4E (FCA4E) */
 	.globl	CISH(DPMI_VXD_ENABLE)
 CISH(DPMI_VXD_ENABLE):
 	hlt
 	lret
-/* ======================= Addr = F800:4A60 (FCA60) */
+/* ======================= Addr = F800:4A50 (FCA50) */
 	.globl	CISH(DPMI_VXD_APM)
 CISH(DPMI_VXD_APM):
 	hlt
 	lret
-/* ======================= Addr = F800:4A62 (FCA62) */
+/* ======================= Addr = F800:4A52 (FCA52) */
 	.globl	CISH(DPMI_VXD_VTDAPI)
 CISH(DPMI_VXD_VTDAPI):
 	hlt
 	lret
-/* ======================= Addr = F800:4A64 (FCA64) */
+/* ======================= Addr = F800:4A54 (FCA54) */
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 

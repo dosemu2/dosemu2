@@ -27,6 +27,10 @@
 
 #define DPMI_private_paragraphs	((DPMI_rm_stacks * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
+#define DTA_Para_ADD DPMI_private_paragraphs
+#define DTA_Para_SIZE 8
+#define RM_CB_Para_ADD (DTA_Para_ADD+DTA_Para_SIZE)
+#define RM_CB_Para_SIZE 1
 #define current_client (in_dpmi-1)
 #define DPMI_CLIENT (DPMIclient[current_client])
 #define PREV_DPMI_CLIENT (DPMIclient[current_client-1])
@@ -246,5 +250,7 @@ extern int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
 extern int FreeDescriptor(unsigned short selector);
 extern void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector);
 extern void dpmi_memory_init(void);
+extern int lookup_realmode_callback(char *lina);
+extern void dpmi_realmode_callback(int rmcb_client, int num);
 
 #endif /* DPMI_H */

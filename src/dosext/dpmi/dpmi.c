@@ -574,7 +574,7 @@ void dpmi_get_entry_point(void)
     REG(edi) = DPMI_OFF;
 
     /* private data */
-    LWORD(esi) = DPMI_private_paragraphs + 0x8;
+    LWORD(esi) = DPMI_private_paragraphs + DTA_Para_SIZE + RM_CB_Para_SIZE;
 
     D_printf("DPMI entry returned\n");
 }
@@ -1663,25 +1663,23 @@ err:
 	                  (struct RealModeCallStructure *)
 	                         (GetSegmentBaseAddress(_es) +
 	                         (DPMI_CLIENT.is_32 ? _edi : _LWORD(edi)));
-       _LWORD(ecx) = DPMI_SEG;
-       _LWORD(edx) = DPMI_OFF + HLT_OFF(DPMI_realmode_callback)+i;
-       D_printf("DPMI: Allocate realmode callback for 0x%0x4:0x%08lx use #%i callback address\n",
+       _LWORD(ecx) = DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD;
+       _LWORD(edx) = i;
+       D_printf("DPMI: Allocate realmode callback for %#04x:%#08lx use #%i callback address, %#4x:%#4x\n",
 		DPMI_CLIENT.realModeCallBack[i].selector,
-		DPMI_CLIENT.realModeCallBack[i].offset,i);
+		DPMI_CLIENT.realModeCallBack[i].offset,i,
+		_LWORD(ecx), _LWORD(edx));
     }
     break;
   case 0x0304: /* free realmode call back address */
-    {
-       unsigned short offset, rcbase;
-       rcbase = DPMI_OFF + HLT_OFF(DPMI_realmode_callback);
-       offset = _LWORD(edx) - rcbase;
-       if ((_LWORD(ecx) == DPMI_SEG) && (offset < 0x10)) {
-	 DPMI_CLIENT.realModeCallBack[offset].selector = 0;
-	 DPMI_CLIENT.realModeCallBack[offset].offset = 0;
-	 FreeDescriptor(DPMI_CLIENT.realModeCallBack[offset].rm_ss_selector);
-       } else
+      if ((_LWORD(ecx) == DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD)
+        && (_LWORD(edx) < 0x10)) {
+         D_printf("DPMI: Free realmode callback #%i\n", _LWORD(edx));
+	 DPMI_CLIENT.realModeCallBack[_LWORD(edx)].selector = 0;
+	 DPMI_CLIENT.realModeCallBack[_LWORD(edx)].offset = 0;
+	 FreeDescriptor(DPMI_CLIENT.realModeCallBack[_LWORD(edx)].rm_ss_selector);
+      } else
 	 _eflags |= CF;
-    }
     break;
   case 0x0305:	/* Get State Save/Restore Adresses */
       _LWORD(ebx) = DPMI_SEG;
@@ -2054,6 +2052,124 @@ err:
   } /* switch */
   if (_eflags & CF)
     D_printf("DPMI: dpmi function failed, CF=1\n");
+}
+
+int lookup_realmode_callback(char *lina)
+{
+  int i;
+  char *base;
+  for (i = 0; i < in_dpmi; i++) {
+    base = SEG2LINEAR(DPMIclient[i].private_data_segment+RM_CB_Para_ADD);
+    if ((lina >= base) && (lina < base + 0x10))
+      return i;
+  }
+  return -1;
+}
+
+void dpmi_realmode_callback(int rmcb_client, int num)
+{
+#ifdef X86_EMULATOR
+    int tmp;
+#endif
+    unsigned short *ssp;
+    unsigned short CLIENT_PMSTACK_SEL;
+    struct RealModeCallStructure *rmreg;
+
+    rmreg = DPMIclient[rmcb_client].realModeCallBack[num].rmreg;
+
+    D_printf("DPMI: Real Mode Callback for #%i address of client %i (from %i)\n",
+      num, rmcb_client, current_client);
+
+#ifdef X86_EMULATOR
+    tmp = E_MUNPROT_STACK(rmreg);
+#endif
+    rmreg->edi = REG(edi);
+    rmreg->esi = REG(esi);
+    rmreg->ebp = REG(ebp);
+    rmreg->ebx = REG(ebx);
+    rmreg->edx = REG(edx);
+    rmreg->ecx = REG(ecx);
+    rmreg->eax = REG(eax);
+    rmreg->flags = LWORD(eflags);
+    rmreg->es = REG(es);
+    rmreg->ds = REG(ds);
+    rmreg->fs = REG(fs);
+    rmreg->gs = REG(gs);
+    rmreg->cs = REG(cs);
+    rmreg->ip = LWORD(eip);
+    rmreg->ss = REG(ss);
+    rmreg->sp = LWORD(esp);
+#ifdef X86_EMULATOR
+    if (tmp) E_MPROT_STACK(rmreg);
+#endif
+    save_pm_regs(&DPMI_CLIENT.stack_frame);
+
+    /* the realmode callback procedure will return by an iret */
+    /* WARNING - realmode flags can contain the dreadful NT flag which
+     * will produce an exception 10 as soon as we return from the
+     * callback! */
+    DPMI_CLIENT.stack_frame.eflags =  REG(eflags)&(~(AC|VM|IF|TF|NT));
+
+    if (!in_dpmi_pm_stack) {
+      D_printf("DPMI: Switching to locked stack\n");
+      CLIENT_PMSTACK_SEL = DPMI_CLIENT.PMSTACK_SEL;
+      if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL)
+        error("DPMI: rm_callback: App is working on host\'s PM locked stack, expect troubles!\n");
+    }
+    else {
+      D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
+        in_dpmi_pm_stack);
+      CLIENT_PMSTACK_SEL = DPMI_CLIENT.stack_frame.ss;
+    }
+
+    if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
+      PMSTACK_ESP = client_esp(0);
+    else
+      PMSTACK_ESP = DPMI_pm_stack_size;
+
+    if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+    }
+
+    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
+/* ---------------------------------------------------
+	| 000FC927 | <- ssp here
+	| dpmi_sel |
+	|  eflags  |
+   --------------------------------------------------- */
+    if (DPMI_CLIENT.is_32) {
+	ssp -= 2, *((unsigned long *) ssp) = DPMI_CLIENT.stack_frame.eflags;
+	*--ssp = (us) 0;
+	*--ssp = DPMI_CLIENT.DPMI_SEL; 
+	ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
+	PMSTACK_ESP -= 12;
+    } else {
+	*--ssp = (unsigned short) DPMI_CLIENT.stack_frame.eflags;
+	*--ssp = DPMI_CLIENT.DPMI_SEL; 
+	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
+	PMSTACK_ESP -= 6;
+    }
+    DPMI_CLIENT.stack_frame.cs =
+	DPMIclient[rmcb_client].realModeCallBack[num].selector;
+    DPMI_CLIENT.stack_frame.eip =
+	DPMIclient[rmcb_client].realModeCallBack[num].offset;
+    DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
+    DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
+    in_dpmi_pm_stack++;
+    SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
+		(REG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
+		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
+    DPMI_CLIENT.stack_frame.ds =
+	DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector;
+    DPMI_CLIENT.stack_frame.esi = REG(esp);
+    DPMI_CLIENT.stack_frame.es =
+	DPMIclient[rmcb_client].realModeCallBack[num].rmreg_selector;
+    DPMI_CLIENT.stack_frame.edi=
+	DPMIclient[rmcb_client].realModeCallBack[num].rmreg_offset;
+
+    dpmi_cli();
+    in_dpmi_dos_int = 0;
 }
 
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
@@ -2439,11 +2555,8 @@ static void dpmi_init(void)
     }
   }
 
-  if (in_dpmi > 1) {
-    /* Then we also inherit the realmode callbacks */
-    for (i = 0; i < 0x10; i++)
-      DPMI_CLIENT.realModeCallBack[i] = PREV_DPMI_CLIENT.realModeCallBack[i];
-  }
+  /* Install the realmode callbacks, 0xf4=hlt */
+  MEMSET_DOS(SEG2LINEAR(DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD), 0xf4, 0x10);
 
   ssp = (unsigned char *) (REG(ss) << 4);
   sp = (unsigned long) LWORD(esp);
@@ -3695,112 +3808,6 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
 done:
     restore_rm_regs();
-  } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_realmode_callback))) &&
-	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_realmode_callback)+0x10)) ) {
-#ifdef X86_EMULATOR
-    int tmp;
-#endif
-    int num;
-    unsigned short *ssp;
-    unsigned short CLIENT_PMSTACK_SEL;
-    struct RealModeCallStructure *rmreg;
-
-    num = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_realmode_callback);
-    rmreg = DPMI_CLIENT.realModeCallBack[num].rmreg;
-
-    D_printf("DPMI: Real Mode Callback for #%i address\n", num);
-
-#ifdef X86_EMULATOR
-    tmp = E_MUNPROT_STACK(rmreg);
-#endif
-    rmreg->edi = REG(edi);
-    rmreg->esi = REG(esi);
-    rmreg->ebp = REG(ebp);
-    rmreg->ebx = REG(ebx);
-    rmreg->edx = REG(edx);
-    rmreg->ecx = REG(ecx);
-    rmreg->eax = REG(eax);
-    rmreg->flags = LWORD(eflags);
-    rmreg->es = REG(es);
-    rmreg->ds = REG(ds);
-    rmreg->fs = REG(fs);
-    rmreg->gs = REG(gs);
-    rmreg->cs = REG(cs);
-    rmreg->ip = LWORD(eip);
-    rmreg->ss = REG(ss);
-    rmreg->sp = LWORD(esp);
-#ifdef X86_EMULATOR
-    if (tmp) E_MPROT_STACK(rmreg);
-#endif
-    save_pm_regs(&DPMI_CLIENT.stack_frame);
-
-    /* the realmode callback procedure will return by an iret */
-    /* WARNING - realmode flags can contain the dreadful NT flag which
-     * will produce an exception 10 as soon as we return from the
-     * callback! */
-    DPMI_CLIENT.stack_frame.eflags =  REG(eflags)&(~(AC|VM|IF|TF|NT));
-
-    if (!in_dpmi_pm_stack) {
-      D_printf("DPMI: Switching to locked stack\n");
-      CLIENT_PMSTACK_SEL = DPMI_CLIENT.PMSTACK_SEL;
-      if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL)
-        error("DPMI: rm_callback: App is working on host\'s PM locked stack, expect troubles!\n");
-    }
-    else {
-      D_printf("DPMI: Not switching to locked stack, in_dpmi_pm_stack=%d\n",
-        in_dpmi_pm_stack);
-      CLIENT_PMSTACK_SEL = DPMI_CLIENT.stack_frame.ss;
-    }
-
-    if (DPMI_CLIENT.stack_frame.ss == DPMI_CLIENT.PMSTACK_SEL || in_dpmi_pm_stack)
-      PMSTACK_ESP = client_esp(0);
-    else
-      PMSTACK_ESP = DPMI_pm_stack_size;
-
-    if (PMSTACK_ESP < 100) {
-      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
-      leavedos(25);
-    }
-
-    ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) + D_16_32(PMSTACK_ESP));
-/* ---------------------------------------------------
-	| 000FC927 | <- ssp here
-	| dpmi_sel |
-	|  eflags  |
-   --------------------------------------------------- */
-    if (DPMI_CLIENT.is_32) {
-	ssp -= 2, *((unsigned long *) ssp) = DPMI_CLIENT.stack_frame.eflags;
-	*--ssp = (us) 0;
-	*--ssp = DPMI_CLIENT.DPMI_SEL; 
-	ssp -= 2, *((unsigned long *) ssp) = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
-	PMSTACK_ESP -= 12;
-    } else {
-	*--ssp = (unsigned short) DPMI_CLIENT.stack_frame.eflags;
-	*--ssp = DPMI_CLIENT.DPMI_SEL; 
-	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_rm_callback);
-	PMSTACK_ESP -= 6;
-    }
-    DPMI_CLIENT.stack_frame.cs =
-	DPMI_CLIENT.realModeCallBack[num].selector;
-    DPMI_CLIENT.stack_frame.eip =
-	DPMI_CLIENT.realModeCallBack[num].offset;
-    DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
-    DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
-    in_dpmi_pm_stack++;
-    SetSelector(DPMI_CLIENT.realModeCallBack[num].rm_ss_selector,
-		(REG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
-		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
-    DPMI_CLIENT.stack_frame.ds =
-	DPMI_CLIENT.realModeCallBack[num].rm_ss_selector;
-    DPMI_CLIENT.stack_frame.esi = REG(esp);
-    DPMI_CLIENT.stack_frame.es =
-	DPMI_CLIENT.realModeCallBack[num].rmreg_selector;
-    DPMI_CLIENT.stack_frame.edi=
-	DPMI_CLIENT.realModeCallBack[num].rmreg_offset;
-
-    dpmi_cli();
-    in_dpmi_dos_int = 0;
-
   } else if (lina ==(unsigned char *)(DPMI_ADD +
 				      HLT_OFF(DPMI_mouse_callback))) {
     unsigned short *ssp;
