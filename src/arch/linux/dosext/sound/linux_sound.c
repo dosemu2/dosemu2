@@ -220,7 +220,7 @@ void linux_sb_disable_speaker(void)
   {
     S_printf ("SB:[Linux] Syncing DSP\n");
     /* don't use blocking ioctl's like DSP_SYNC!!! */
-    ioctl(dsp_fd, SNDCTL_DSP_POST);
+    ioctl(dsp_fd, SNDCTL_DSP_SYNC);
     close (dsp_fd);
     dsp_fd = -1;
   } else {
