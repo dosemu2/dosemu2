@@ -150,17 +150,15 @@ pkt_init(int vec)
 	break;
 
       case VNET_TYPE_TAP:
+        strcpy(devname, TAP_DEVICE);
         if (strncmp(config.netdev, TAP_DEVICE, 3) == 0) {
           pd_printf("PKT: trying to bind to device %s\n", config.netdev);
           strcpy(devname, config.netdev);
-          pkt_fd = tun_alloc(devname);
         }
+        pkt_fd = tun_alloc(devname);
         if (pkt_fd < 0) {
-          strcpy(devname, TAP_DEVICE);
-          if ((pkt_fd = tun_alloc(devname)) < 0) {
-            error("Cannot allocate TAP device\n");
-            goto fail;
-          }
+          error("Cannot allocate TAP device %s\n", devname);
+          goto fail;
         }
 	max_pkt_fd = pkt_fd + 1;
 	add_to_io_select(pkt_fd, 1, pkt_receive_async);
