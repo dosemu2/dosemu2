@@ -108,6 +108,7 @@
 #endif
 
 #define CURRENT_DMA_CHANNEL (SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma)
+#define CURRENT_SB_IRQ (SB_dsp.is_16bit ? SB_IRQ_16BIT : SB_IRQ_8BIT)
 
 /* Internal Functions */
 
@@ -1690,7 +1691,7 @@ void *silence_data;
 		silence_data = malloc(SB_dsp.length);
 		if (silence_data == NULL) {
 		  S_printf("SB: Failed to alloc memory for silence. Aborting\n");
-		  sb_activate_irq(SB_dsp.is_16bit ? SB_IRQ_16BIT : SB_IRQ_8BIT);
+		  sb_activate_irq(CURRENT_SB_IRQ);
 		  return;
 		}
 
@@ -1710,7 +1711,7 @@ void *silence_data;
 		else {
 		  if (debug_level('S') >= 3)
 		    S_printf ("SB: Optional function 'play_buffer' not provided.\n");
-		  sb_activate_irq(SB_dsp.is_16bit ? SB_IRQ_16BIT : SB_IRQ_8BIT);
+		  sb_activate_irq(CURRENT_SB_IRQ);
 		}
 }
 
@@ -2126,7 +2127,7 @@ static void handle_dma_IO(int size)
     {
       /* Reset block size */
       SB_dsp.units_left = SB_dsp.length;
-      sb_activate_irq(SB_dsp.is_16bit ? SB_IRQ_16BIT : SB_IRQ_8BIT);
+      sb_activate_irq(CURRENT_SB_IRQ);
       if (!SB_dsp.empty_state) {
 	S_printf("SB: Auto-reinitialized for next block\n");
 
@@ -2134,6 +2135,7 @@ static void handle_dma_IO(int size)
 	if (test_bit(SB_dsp.is_16bit ? SB_info.irq.irq16 : SB_info.irq.irq8, &pic0_imr)) {
           S_printf("SB: Warning: SB IRQ (%d) is masked!!!\n", config.sb_irq);
 	  dma_assert_DREQ(CURRENT_DMA_CHANNEL);
+	  sb_deactivate_irq(CURRENT_SB_IRQ);
 	  SB_dsp.empty_state &= ~DREQ_AT_EOI;
 	}
         else
@@ -2147,7 +2149,7 @@ static void handle_dma_IO(int size)
       SB_dsp.dma_mode &= ~SB_USES_DMA;
       if((SB_dsp.length > dma_get_block_size(CURRENT_DMA_CHANNEL)) ||
 	(SB_dsp.empty_state & START_DMA_AT_EMPTY)) {
-        sb_activate_irq(SB_dsp.is_16bit ? SB_IRQ_16BIT : SB_IRQ_8BIT);
+        sb_activate_irq(CURRENT_SB_IRQ);
 	if(SB_dsp.empty_state & START_DMA_AT_EMPTY) {
 /* we are probably switching from Auto-init to Single, so try to start DMA ASAP */
 	  start_dsp_dma();
@@ -2454,7 +2456,7 @@ static void sb_check_complete (void)
       }
     }
     if(SB_dsp.empty_state & IRQ_AT_EMPTY)
-      sb_activate_irq(SB_dsp.is_16bit ? SB_IRQ_16BIT : SB_IRQ_8BIT);
+      sb_activate_irq(CURRENT_SB_IRQ);
     SB_dsp.empty_state &= ~IRQ_AT_EMPTY;
     if(!SB_dsp.units_left) {
       SB_dsp.dma_mode = 0;
