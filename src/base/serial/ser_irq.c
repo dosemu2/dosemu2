@@ -217,11 +217,12 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   /* Return if in loopback mode */
   if (com[num].MCR & UART_MCR_LOOP) return;
 
+#if 0
   /* Return if it is not time to do a modem status check */  
   if (com[num].ms_timer > 0) return;
   com[num].ms_timer += MS_MIN_FREQ;
-  
-  
+#endif
+
   if(com[num].pseudo) {
     newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
   } else {

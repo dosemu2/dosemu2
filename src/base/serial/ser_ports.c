@@ -260,6 +260,8 @@ void ser_termios(int num)
     return;
   }
   ioctl(com[num].fd, TIOCGSERIAL, &ser_info);
+  ser_info.flags |= ASYNC_LOW_LATENCY;
+  ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
 
   s_printf("SER%d: LCR = 0x%x, ",num,com[num].LCR);
 
@@ -412,8 +414,6 @@ void ser_termios(int num)
   cfsetispeed(&com[num].newset, baud);
   cfsetospeed(&com[num].newset, baud);
   tcsetattr(com[num].fd, TCSADRAIN, &com[num].newset);
-  ser_info.flags |= ASYNC_LOW_LATENCY;
-  ioctl(com[num].fd, TIOCSSERIAL, &ser_info);
 
 #if 0
   /* Many mouse drivers require this, they detect for Framing Errors
