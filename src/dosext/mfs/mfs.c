@@ -2853,6 +2853,34 @@ static void open_device(unsigned long devptr, char *fname, sft_t sft)
   sft_position(sft) = 0;
 }
 
+/* In writable Linux directories it is possible to have uids not equal
+   to your own one. In that case Linux denies any chmod or utime,
+   but DOS really expects any attribute/time set to succeed. We'll fake it
+   with a warning */
+static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal)
+{
+  char *slash;
+  if (errno != EPERM)
+    return FALSE;
+
+  slash = strrchr(fpath, '/');
+  if (slash) *slash = '\0';
+  if (access(fpath, W_OK) != 0)
+    return FALSE;
+  if (slash) *slash = '/';
+
+  /* no need to warn if there was nothing to do */
+  if (equal)
+    return TRUE;
+
+  warn("MFS: Ignoring request for %s(\"%s\") (%s), where DOS expects "
+          "it to succeed.\n"
+	   "MFS: If you are using the FAT file system, try to set the \"uid\" "
+	   "mount option to your own uid or use \"quiet\".\n",
+       op, fpath, strerror(errno));
+  return TRUE;
+}
+
 static int
 dos_fs_redirect(state_t *state)
 {
@@ -3037,7 +3065,9 @@ dos_fs_redirect(state_t *state)
          ut.actime=ut.modtime=time_to_unix(dos_date,dos_time);
 
          if (filename1!=NULL && *filename1) 
-            utime(filename1,&ut);
+	   if (utime(filename1,&ut) != 0)
+	     /* output a warning if we can't do this */
+	     dos_would_allow(filename1, "utime", 0);
       }
       else {
          Debug0((dbg_fd,"close: not setting file date/time\n"));
@@ -3211,6 +3241,7 @@ dos_fs_redirect(state_t *state)
   case SET_FILE_ATTRIBUTES:	/* 0x0e */
     {
       u_short att = *(u_short *) Addr(state, ss, esp);
+      int mode;
 
       Debug0((dbg_fd, "Set File Attributes %s 0%o\n", filename1, att));
       if (drives[drive].read_only || is_long_path(filename1)) {
@@ -3224,10 +3255,9 @@ dos_fs_redirect(state_t *state)
 	SETWORD(&(state->eax), FILE_NOT_FOUND);
 	return (FALSE);
       }
-      if (chmod(fpath, get_unix_attr(st.st_mode, att)) != 0) {
-	error("Failed to chmod %s: %s.\n"
-	  "If you are using the FAT file system, use \"quiet\" mount option.\n",
-	   fpath, strerror(errno));
+      mode = get_unix_attr(st.st_mode, att);
+      if (chmod(fpath, mode) != 0 &&
+	  !dos_would_allow(fpath, "chmod", mode == st.st_mode)) {
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
       }
