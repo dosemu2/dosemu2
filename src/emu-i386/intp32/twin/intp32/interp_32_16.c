@@ -47,8 +47,8 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
  */
 
 #include <stdio.h>
-#ifdef linux
-#include <asm/bitops.h>
+#ifdef DOSEMU
+#include "bitops.h"
 #endif
 #include "Log.h"
 #include "hsw_interp.h"

@@ -1438,10 +1438,8 @@ static void
 mouse_update_cursor(void)
 {
 	/* sigh, too many programs seem to expect the mouse cursor
-		to magically redraw itself when in text mode, so we'll
-		bend to their will... */
-	if ((mouse.rx != mouse.oldrx || mouse.ry != mouse.oldry) &&
-			!mouse.gfx_cursor) {
+		to magically redraw itself, so we'll bend to their will... */
+	if (mouse.rx != mouse.oldrx || mouse.ry != mouse.oldry) {
 		mouse_do_cur();
 		mouse.oldrx = mouse.rx;
 		mouse.oldry = mouse.ry;

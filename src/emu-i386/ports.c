@@ -30,9 +30,7 @@
 #ifdef __NetBSD__
 #include <errno.h>
 #endif
-#ifdef __linux__
-#include <asm/bitops.h>
-#endif
+#include "bitops.h"
 #if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
 #endif

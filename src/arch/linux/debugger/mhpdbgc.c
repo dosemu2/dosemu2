@@ -47,7 +47,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <asm/bitops.h>
+#include "bitops.h"
 #include "config.h"
 #include "emu.h"
 #include "cpu.h"

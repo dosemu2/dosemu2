@@ -24,7 +24,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #endif
-#include <asm/bitops.h>
+#include "bitops.h"
 
 #include "config.h"
 #include "emu.h"

@@ -4,7 +4,8 @@
 # and want all scrpts to have the exec-bit set.
 
 chmod 755 set-permissions # myself ;-)
-chmod 755 config.guess config.sub base-configure default-configure mkconfscript
+chmod 755 config.guess config.sub default-configure mkconfscript
+chmod 644 base-configure
 chmod 755 setup-dosemu submit-bug-report gnats/send-pr gnats/send-pr.sh
 chmod 755 gnats/get-email.sh
 chmod 755 setup/compiletime_setup.sh setup/runtime_setup.sh

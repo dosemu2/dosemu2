@@ -55,7 +55,7 @@ extern void scr_state_init(void);
 #define ATTR(w) (((byte*)(w))[1])
 #else
 #define CHAR(w) ((char)READ_BYTE(w))
-#define ATTR(w) ((byte)READ_BYTE(((ubyte_t *)(w))+1))
+#define ATTR(w) ((byte)READ_BYTE(((Bit8u *)(w))+1))
 #endif
 #define ATTR_FG(attr) (attr & 0x0F)
 #define ATTR_BG(attr) (attr >> 4)

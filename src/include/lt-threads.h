@@ -52,16 +52,20 @@
 				 */
 
 /* --------------------- for clone stuff */
-#include <linux/version.h>
-#if LINUX_VERSION_CODE < 0x020100
- /* Note: Linux-2.1.x don't like that :-( */
- #include <linux/sched.h>
+#if defined(__GLIBC__) && __GLIBC__ >= 2
+ #include <schedbits.h>
 #else
- #define CSIGNAL         0x000000ff      /* signal mask to be sent at exit */
- #define CLONE_VM        0x00000100      /* set if VM shared between processes */
- #define CLONE_FS        0x00000200      /* set if fs info shared between processes */
- #define CLONE_FILES     0x00000400      /* set if open files shared between processes */
- #define CLONE_SIGHAND   0x00000800      /* set if signal handlers shared */
+ #include <linux/version.h>
+ #if LINUX_VERSION_CODE < 0x020100
+ /* Note: Linux-2.1.x don't like that :-( */
+  #include <linux/sched.h>
+ #else
+  #define CSIGNAL         0x000000ff      /* signal mask to be sent at exit */
+  #define CLONE_VM        0x00000100      /* set if VM shared between processes */
+  #define CLONE_FS        0x00000200      /* set if fs info shared between processes */
+  #define CLONE_FILES     0x00000400      /* set if open files shared between processes */
+  #define CLONE_SIGHAND   0x00000800      /* set if signal handlers shared */
+ #endif
 #endif
 
 

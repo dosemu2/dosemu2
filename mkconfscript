@@ -9,6 +9,6 @@
 
 autoconf
 autoheader
-sed -e 's|#! /bin/sh|#! /bin/bash|' configure >base-configure
-chmod 755 base-configure
+sed -e 's|#! /bin/sh|# DO NOT EXECUTE THIS exept via default-configure|' configure >base-configure
+chmod 644 base-configure
 rm -f configure

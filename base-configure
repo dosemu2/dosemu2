@@ -1,4 +1,4 @@
-#! /bin/bash
+# DO NOT EXECUTE THIS exept via default-configure
 
 # Guess values for system-dependent variables and create Makefiles.
 # Generated automatically using autoconf version 2.10 
@@ -3788,7 +3788,7 @@ DEFS=-DHAVE_CONFIG_H
 echo creating $CONFIG_STATUS
 rm -f $CONFIG_STATUS
 cat > $CONFIG_STATUS <<EOF
-#! /bin/bash
+# DO NOT EXECUTE THIS exept via default-configure
 # Generated automatically by configure.
 # Run this file to recreate the current configuration.
 # This directory was configured as follows,

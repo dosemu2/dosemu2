@@ -88,16 +88,12 @@
 
 
 
-typedef unsigned char ubyte_t;
-typedef unsigned short uword_t;
-typedef unsigned long udword_t;
-
-#define READ_BYTE(addr)                 (*(ubyte_t *) (addr))
-#define WRITE_BYTE(addr, val)           (*(ubyte_t *) (addr) = (val) )
-#define READ_WORD(addr)                 (*(uword_t *) (addr))
-#define WRITE_WORD(addr, val)           (*(uword_t *) (addr) = (val) )
-#define READ_DWORD(addr)                (*(udword_t *) (addr))
-#define WRITE_DWORD(addr, val)          (*(udword_t *) (addr) = (val) )
+#define READ_BYTE(addr)                 (*(Bit8u *) (addr))
+#define WRITE_BYTE(addr, val)           (*(Bit8u *) (addr) = (val) )
+#define READ_WORD(addr)                 (*(Bit16u *) (addr))
+#define WRITE_WORD(addr, val)           (*(Bit16u *) (addr) = (val) )
+#define READ_DWORD(addr)                (*(Bit32u *) (addr))
+#define WRITE_DWORD(addr, val)          (*(Bit32u *) (addr) = (val) )
 
 #define MEMCPY_2UNIX(unix_addr, dos_addr, n) \
 	memcpy((unix_addr), (Bit8u *)(dos_addr), (n))

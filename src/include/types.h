@@ -29,6 +29,17 @@ typedef   int32_t          Bit32s;  /* type of 32 bit signed quantity */
 typedef u_int64_t          Bit64u;  /* type of 64 bit unsigned quantity */
 typedef   int64_t          Bit64s;  /* type of 64 bit signed quantity */
 
+/* Temporarily defined to allow dosemu to compile with glibc2 */
+#if defined(__GLIBC__) && __GLIBC__ >= 2
+typedef u_int8_t	__u8;
+typedef u_int16_t	__u16;
+typedef u_int32_t	__u32;
+#endif
+
 typedef Bit32u ioport_t;	/* for compatibility */
+
+#if __GLIBC__ >= 2
+#include <stddef.h> /* for ptrdiff_t & friends */
+#endif
 
 #endif /* EMU_TYPES_H */

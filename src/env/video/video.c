@@ -346,35 +346,6 @@ video_config_init(void) {
       break;
     }
   }
-  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0x0);	/* Current Screen Page */
-  video_page = 0;
-  screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
-  screen_adr = SCREEN_ADR(0);
-  WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
-  
-  /* This is needed in the video stuff. Grabbed from boot(). */
-  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
-  else
-    WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);	/* base port of CRTC - IMPORTANT! */
-
-  WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
-
-  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode); /* video mode */
-  set_video_bios_size();
-  WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
-
-  WRITE_WORD(BIOS_FONT_HEIGHT, 16);
-  
-  /* XXX - these are the values for VGA color!
-     should reflect the real display hardware. */
-  WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);
-  WRITE_BYTE(BIOS_VIDEO_INFO_1, 0xF9);
-  WRITE_BYTE(BIOS_VIDEO_INFO_2, 0x51);
-  WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
-
-  WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
-
   if (!config.console) {
      /* NOTE: BIG FAT WARNING !!!
       *       without this you will reproduceable KILL LINUX
@@ -398,6 +369,37 @@ video_config_init(void) {
      if (config.speaker == SPKR_NATIVE)
         config.speaker = SPKR_EMULATED;
   }
+  if (!config.vga) {
+    WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0x0);	/* Current Screen Page */
+    video_page = 0;
+    screen_mask = 1 << (((int)phys_text_base-0xA0000)/4096);
+    screen_adr = SCREEN_ADR(0);
+    WRITE_WORD(BIOS_CURSOR_SHAPE, (configuration&MDA_CONF_SCREEN_MODE)?0x0A0B:0x0607);
+    
+    /* This is needed in the video stuff. Grabbed from boot(). */
+    if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
+      WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);	/* base port of CRTC - IMPORTANT! */
+    else
+      WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);	/* base port of CRTC - IMPORTANT! */
+    
+    WRITE_BYTE(BIOS_VDU_CONTROL, 9);	/* current 3x8 (x=b or d) value */
+    
+    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode); /* video mode */
+    set_video_bios_size();
+    WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, 0);/* offset of current page in buffer */
+    
+    WRITE_WORD(BIOS_FONT_HEIGHT, 16);
+    
+    /* XXX - these are the values for VGA color!
+       should reflect the real display hardware. */
+    WRITE_BYTE(BIOS_VIDEO_INFO_0, 0x60);
+    WRITE_BYTE(BIOS_VIDEO_INFO_1, 0xF9);
+    WRITE_BYTE(BIOS_VIDEO_INFO_2, 0x51);
+    WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
+    
+    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
+  }
+    
   if (config.console_video && !config.usesX)
     set_process_control();
 

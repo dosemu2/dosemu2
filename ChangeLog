@@ -1,3 +1,19 @@
+98/01/15 ver. 0.97.0.2 unofficial pre-release
+	From Eric
+	- Changed ubyte_t to Bit8u (in video.h, bios.h ) (x10)
+	- Changed include of <asm/bitops.h> to "bitops.h" ( in mhpdbg.c
+	  mhpdbgc.c, interp_32_16.c, interp_main.c, ports.c ) (x11)
+	- Updates the cursor in grahics mode now too, mouse/mouse.c  (x14)
+	- Allow threads to compile with glibc (include/lt-threads.h) (x20)
+	- removed __u*: include/cpu.h (glibc2 problem) (x21)
+	- further glibc fixes, include/types.h (x22,23)
+	- docs for Priv-usage (x24)
+	From Arne de Bruijn <arne@knoware.nl>
+	  don't set video bios variables for native VBIOS, video.c
+	From Hans
+	- 'desperate' try to disable direct execution of ./base-configure
+	  ( '#! /bin/bash' and x-bit removed )
+	- fixed console detection in etc/dosemu.conf
 98/01/14 ver. 0.97.0.1 unofficial pre-release
 	From Kenneth Corbin <kenc@pioneer.net>
 	- fix for >16bit portnumbers in src/emu-i386/n_ports.c

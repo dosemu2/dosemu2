@@ -1,0 +1,65 @@
+Catalog of usages of priveleges.
+
+mhpdbg.c in mhp_close() for:
+unlink(pipename_in) 
+unlink(pipename_out)
+
+reason: Because the pipe are typically created in a directory that has
+        restricted writership.
+fix: Remove the privelege and change the directory.
+
+mhpdbg.c in mhp_init() for:
+mkfifo(pipename_in ...)
+mkfifo(pipename_out ...)
+open(pipename_in ...)
+open(pipename_out ..)
+unlink pipename_in ...)
+unlink pipename_out ...)
+
+Reason: Fix: see above.
+
+mhpdbgc.c in  mhp_dump_to_file() for:
+enter_priv_off
+open(argv[3], O_WRONLY | O_CREAT | O_TRUNC, 00775);
+
+Reason: Fix: Being careful no fix needed.
+
+int.c in DOS_HELPER_0x53 for:
+enter_priv_off()
+system(...)
+Reason: Fix: Being careful no fix needed.
+
+lpt.c in printer_open() for:
+enter_priv_off()
+lpt[prnum].file = fopen(lpt[prpnum].dev, "a")
+lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+Reason: Fix: Being careful no fix needed.
+
+config.c in open_terminal_pipe() for:
+enter_priv_off()
+terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
+Reason: Fix: Being careful no fix needed.
+
+config.c in config_init() for:
+enter_priv_off()
+f=open(optarg, "r")
+dbg_fd = fopen(config.debugout, "w");
+Reason: Fix: Being careful no fix needed.
+
+init.c in tmpdir_init() for:
+enter_priv_off()
+mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC)
+
+Reason: Be careful in creating a temporary directory for the mfs code.
+Fix: None needed
+
+lexer.l in enter_include_file() for:
+priv_on if ("c_system")
+new_yyin = fopen( fname, "r" );
+
+Reason: We should use all our priveleges to access the global config file.
+        But only user privelges to access the others.
+Fix: Don't allow access to global config files when we don't have privelges.
+
+parser.y
+
