@@ -1,3 +1,13 @@
+2003/07/15 ver 1.1.5.4 unofficial pre-release
+	From Eric Auer, Witold Filpczyk and Bart
+	- use bitmap fonts by default, rather than X fonts.
+	- Support 80x100 CGA "text graphics" with 8x2 font.
+	- allow resizing of the text window.
+	- VGA attribute emulator cleanups.
+	- Make the 8x16 font in vgafonts.c equal to the one in vga.pcf.
+	From Bart
+	- miscemu.c:
+	  The retrace time is measured in microsecs, not ticks.
 2003/07/15 ver 1.1.5.3 unofficial pre-release
 	From Clarence
 	- minor config tweaks $_X_backgroundfreeze -> $_X_background_pause,
