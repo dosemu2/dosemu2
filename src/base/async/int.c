@@ -1164,6 +1164,14 @@ static int int21(void)
 #endif
 
   switch (HI(ax)) {
+  case 0x02:
+  case 0x04:
+  case 0x05:
+  case 0x06:
+  case 0x09:
+  case 0x40:       /* output functions: reset idle */
+    reset_idle();
+    return 0;
   case 0x3d:       /* DOS handle open */
   case 0x6c:
 #ifdef INTERNAL_EMS
@@ -1442,6 +1450,12 @@ int can_revector(int i)
 static int can_revector_int21(int i)
 {
   switch (i) {
+  case 0x02:
+  case 0x04:
+  case 0x05:
+  case 0x06:
+  case 0x09:
+  case 0x40:          /* output functions: reset idle */
   case 0x2c:          /* get time */
 #ifdef INTERNAL_EMS
   case 0x3e:          /* dos handle close */
