@@ -308,7 +308,7 @@ static inline void flag_IIR_modstat(int num)
 /* This function updates the IIR for No Interrupt.  [num = port] */
 static inline void flag_IIR_noint(int num)
 {
-  com[num].IIR = (com[num].IIR & UART_IIR_FIFO) | UART_IIR_NO_INT;
+  com[num].IIR = UART_IIR_NO_INT;
 }
 
 
