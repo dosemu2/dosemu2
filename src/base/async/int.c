@@ -64,6 +64,8 @@
 
 #undef  DEBUG_INT1A
 
+static void dos_post_boot(void);
+
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100];
 
@@ -1199,6 +1201,9 @@ static int int21(void)
       char *ptr, *tmp_ptr;
       char cmdname[TITLE_APPNAME_MAXLEN];
       char *str = SEG_ADR((char*), ds, dx);
+      
+      dos_post_boot();
+
       if (!Video->change_config)
         return 0;
       if (!strlen(title_hint) || strcmp(title_current, title_hint) != 0)
@@ -1612,17 +1617,16 @@ static int redir_it(void)
 
 static void dos_post_boot(void)
 {
+  static int first = 1;
+  if (first) {
+    first = 0;
     mouse_post_boot();
+  }
 }
 
 /* KEYBOARD BUSY LOOP */
 static int int28(void) {
-  static int first = 1;
-  if (first) {
-    first = 0;
-    dos_post_boot();
-  }
-
+  dos_post_boot();
   if (config.hogthreshold && CAN_SLEEP()) {
     /* the hogthreshold value just got redefined to be the 'garrot' value */
     static int time_count = 0;
