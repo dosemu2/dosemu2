@@ -310,7 +310,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all `touch ./plugin_configure; cat ./plugin_configure`"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_SVGALIB USE_PTHREADS X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT X_GRAPHICS USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_ULTRA USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CPP EGREP AWK INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LEX LEXLIB LEX_OUTPUT_ROOT lex_ok LN_S SET_MAKE RANLIB ac_ct_RANLIB YACC ALLOCA LIBOBJS docdir x11fontdir syshdimagedir fdtarball CONFIG_HOST USE_SVGALIB USE_PTHREADS X_CFLAGS X_PRE_LIBS X_LIBS X_EXTRA_LIBS X_SUPPORT X_GRAPHICS VERSION SUBLEVEL PATCHLEVEL1 PATCHLEVEL2 USE_MHPDBG DEBUGGER subdirs ASPI_SUPPORT USE_ULTRA USE_SBEMU OPTIONALSUBDIRS REQUIRED PLUGINSUBDIRS INCDIR X86_EMULATOR ASM_PEDANTIC LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -8306,18 +8306,23 @@ VERSION=${VV%%.*}
 VV=${VV#*.}
 SUBLEVEL=${VV%%.*}
 VV=${VV#*.}
-PATCHLEVEL=${VV%%.*}
+PATCHLEVEL1=${VV%%.*}
 if test $PATCHLEVEL = $VV; then
-  PATCHLEVEL_=0
+  PATCHLEVEL2=0
 else
   VV=${VV#*.}
-  PATCHLEVEL_=${VV%%.*}
+  PATCHLEVEL2=${VV%%.*}
 fi
-DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL * 256 ) + $PATCHLEVEL_ ))"`
-PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
+DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL1 * 256 ) + $PATCHLEVEL2 ))"`
+PATCHLEVEL="${PATCHLEVEL1}.${PATCHLEVEL2}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="$VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $srcdir/ChangeLog | cut '-d ' -f1`
+
+
+
+
+
 
 cat >>confdefs.h <<_ACEOF
 #define EMUVER "$EMUVER"
@@ -9509,6 +9514,10 @@ s,@X_LIBS@,$X_LIBS,;t t
 s,@X_EXTRA_LIBS@,$X_EXTRA_LIBS,;t t
 s,@X_SUPPORT@,$X_SUPPORT,;t t
 s,@X_GRAPHICS@,$X_GRAPHICS,;t t
+s,@VERSION@,$VERSION,;t t
+s,@SUBLEVEL@,$SUBLEVEL,;t t
+s,@PATCHLEVEL1@,$PATCHLEVEL1,;t t
+s,@PATCHLEVEL2@,$PATCHLEVEL2,;t t
 s,@USE_MHPDBG@,$USE_MHPDBG,;t t
 s,@DEBUGGER@,$DEBUGGER,;t t
 s,@subdirs@,$subdirs,;t t
