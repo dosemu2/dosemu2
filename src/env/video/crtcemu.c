@@ -143,7 +143,6 @@ unsigned char CRTC_get_index()
 void CRTC_write_value(unsigned char data)
 {
   unsigned u = data, u1, ind = vga.crtc.index;
-  unsigned todo_ind, todo[4];
 
   if(ind > CRTC_MAX_INDEX) {
     crtc_deb("CRTC_write_value: data (0x%02x) ignored\n", u);
@@ -162,9 +161,6 @@ void CRTC_write_value(unsigned char data)
 
   if(vga.crtc.data[ind] == data) return;
 
-  for(todo_ind = 0; todo_ind < sizeof todo / sizeof *todo; todo_ind++) todo[todo_ind] = 0;
-  todo_ind = 0;
-
   switch(ind) {
     case 0x00:
     case 0x01:
@@ -173,34 +169,34 @@ void CRTC_write_value(unsigned char data)
     case 0x04:
     case 0x05:
       if(NEWBITS(0xFF)) {
-        todo[todo_ind++] = CFG_CRTC_WIDTH;
+	vgaemu_adj_cfg(CFG_CRTC_WIDTH, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
 
     case 0x06:
       if(NEWBITS(0xFF)) {
-        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
 
     case 0x07:
       if(NEWBITS(0x10)) {
-        todo[todo_ind++] = CFG_CRTC_LINE_COMPARE;
+	vgaemu_adj_cfg(CFG_CRTC_LINE_COMPARE, 0);
       }
       if(NEWBITS(0xEF)) {
-        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
 
     case 0x09:
       if(NEWBITS(0x40)) {
-        todo[todo_ind++] = CFG_CRTC_LINE_COMPARE;
+	vgaemu_adj_cfg(CFG_CRTC_LINE_COMPARE, 0);
       }
       if(NEWBITS(0xBF)) {
-        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break; 
@@ -239,7 +235,7 @@ void CRTC_write_value(unsigned char data)
         vga.crtc.readonly = (data >= 0x80);
       }
       if(NEWBITS(0x7F)) {
-        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
@@ -247,35 +243,35 @@ void CRTC_write_value(unsigned char data)
     case 0x10:
     case 0x12:
       if(NEWBITS(0xFF)) {
-        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
   
     case 0x13:          /* Number of bytes in a scanline */
       if(NEWBITS(0xFF)) {
-        todo[todo_ind++] = CFG_CRTC_ADDR_MODE;
+	vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
 
     case 0x14:		/* Underline Location */
       if(NEWBITS(0x40)) {
-        todo[todo_ind++] = CFG_CRTC_ADDR_MODE;
+	vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 0);
       }
       break;
 
     case 0x15:
     case 0x16:
       if(NEWBITS(0xFF)) {
-        todo[todo_ind++] = CFG_CRTC_HEIGHT;
+	vgaemu_adj_cfg(CFG_CRTC_HEIGHT, 0);
       }
       crtc_deb("CRTC_write_value: crtc[0x%02x] = 0x%02x (guessed)\n", ind, u);
       break;
 
     case 0x17:		/* Mode Control */
       if(NEWBITS(0x40)) {
-        todo[todo_ind++] = CFG_CRTC_ADDR_MODE;
+	vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 0);
       }
       if(NEWBITS(0x80)) {
         crtc_deb("CRTC_write_value: %svideo access\n", (data & 0x80) ? "" : "no ");
@@ -290,7 +286,7 @@ void CRTC_write_value(unsigned char data)
 
     case 0x18: /* line compare */
       if(NEWBITS(0xFF)) {
-        todo[todo_ind++] = CFG_CRTC_LINE_COMPARE;
+	vgaemu_adj_cfg(CFG_CRTC_LINE_COMPARE, 0);
       }
       break;
       
@@ -299,10 +295,6 @@ void CRTC_write_value(unsigned char data)
   }
 
   vga.crtc.data[ind] = data;
-
-  for(todo_ind = 0; todo_ind < sizeof todo / sizeof *todo; todo_ind++) {
-    if(todo[todo_ind]) vgaemu_adj_cfg(todo[todo_ind], 0);
-  }
 }
 
 
