@@ -88,9 +88,9 @@ struct p_fops def_pfops =
 
 struct printer lpt[NUM_PRINTERS] =
 {
-  {NULL, "lpr", "%s", 5},
-  {"lpt2", "lpr", "%s", 5},
-  {"lpt3", NULL, NULL, 10}
+  {NULL, "lpr", "%s", 5, 0x378},
+  {"lpt2", "lpr", "%s", 5, 0x278},
+  {"lpt3", NULL, NULL, 10, 0x3bc}
 };
 
 void
@@ -243,6 +243,9 @@ printer_init(void)
     lpt[i].file = NULL;
     lpt[i].remaining = -1;	/* mark not accessed yet */
     lpt[i].fops = def_pfops;
+    if (i >= config.num_lpt) lpt[i].base_port = 0;
+    /* set the port address for each printer in bios */
+    *((u_short *)(0x408) + i) = lpt[i].base_port;
   }
 }
 

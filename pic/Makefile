@@ -1,11 +1,11 @@
 
 CFILES = pic.c
-HFILES = pic.h bitops.h
+HFILES = 
 DEPENDS= pic.d
 
 ALL = $(CFILES) $(HFILES) README.pic
 
-SUBDIR=timer
+SUBDIR=pic
 
 OBJS = pic.o
 

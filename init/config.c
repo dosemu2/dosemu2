@@ -530,10 +530,12 @@ static void
   fprintf(stdout, "    -k use PC console keyboard (kernel 0.99pl3+) (!)\n");
 #ifdef X_SUPPORT
   fprintf(stdout, "    -X run in X Window (#)\n");
-#endif
-  fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!\n");
-  fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!\n");
-  fprintf(stdout, "    -D set debug-msg mask to flags (+-)(vsdDRWkpiwghxmIEc01)\n");
+  fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
+  fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
+  fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvXk?is#pgwhxmIEcn01)\n");
+#else /* X_SUPPORT */
+  fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvk?is#pgwhxmIEcn01)\n");
+#endif /* X_SUPPORT */
   fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
   fprintf(stdout, "    -P copy debugging output to FILE\n");
   fprintf(stdout, "    -b map BIOS into emulator RAM (%%)\n");

@@ -25,7 +25,7 @@
 #endif
 
 #ifdef DPMI
-#include "../dpmi/dpmi.h"
+#include "dpmi.h"
 #endif
 
 extern void scan_to_buffer(void);
@@ -269,6 +269,9 @@ static int dos_helper(void)
     g_printf("Interrogating UNIX Environment\n");
     LWORD(eax) = misc_e6_envvar(SEG_ADR((char *), es, dx));
     break;   
+  case 0x53:
+	LWORD(eax) = system(SEG_ADR((char *), es, dx));
+	break;
 
 #ifdef IPX
   case 0x7a:
@@ -278,7 +281,12 @@ static int dos_helper(void)
     }
     break;
 #endif
-
+    case 0x80:
+        LWORD(eax) = getcwd(SEG_ADR((char *), es, dx), LWORD(eax));
+        break;
+  case 0x81:
+        LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
+        break;
   case 0xff:
     if (LWORD(eax) == 0xffff) {
       /* terminate code is in bx */
@@ -302,7 +310,13 @@ static int dos_helper(void)
  * 0x33      - Mouse Functions
  * 0x40      - CD-ROM functions
  * 0x50-0x52 - DOSEMU/Linux communications
+ *      50 -- run unix command in ES:DX
+ *      51,52?
+ *      53 -- do system(ES:DX)
  * 0x7a      - IPX functions
+ * 0x8x   -- utility functions
+ *	0x80 -- getcwd(ES:DX, size AX)
+ *	0x81 -- chdir(ES:DX)
  * 0xff      - Terminate DOSEMU
  *
  * There are (as yet) no guidelines on choosing areas for new functions.

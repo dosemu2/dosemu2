@@ -270,8 +270,8 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include "int.h"
 
 #ifdef NEW_PIC
-#include "../timer/pic.h"
-#include "../timer/bitops.h"
+#include "pic.h"
+#include "bitops.h"
 #endif
 
 extern void DOSEMUMouseEvents(void);

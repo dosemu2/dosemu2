@@ -26,8 +26,8 @@
 #include "ipx.h"
 #endif
 #ifdef NEW_PIC
-#include "../timer/bitops.h"
-#include "../timer/pic.h"
+#include "bitops.h"
+#include "pic.h"
 #endif
 
 
@@ -318,13 +318,6 @@ static inline void bios_mem_setup(void)
     g_printf("%s%s", (configuration & (1 << b)) ? "1" : "0", (b%4) ? "" : " ");
   g_printf("\n");
 
-  if (config.num_lpt >= 1)
-    bios_address_lpt1 = 0x378;
-  if (config.num_lpt >= 2)
-    bios_address_lpt2 = 0x278;
-  if (config.num_lpt >= 3)
-    bios_address_lpt3 = 0x3bc;
-      
   bios_configuration = configuration;
   bios_memory_size   = config.mem_size;	/* size of memory */
 

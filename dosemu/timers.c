@@ -98,7 +98,7 @@
 #include "timers.h"
 #include "int.h"
 #ifdef NEW_PIC
-#include "../timer/pic.h"
+#include "pic.h"
 #endif
 
 #define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */

@@ -33,7 +33,7 @@ typedef unsigned char boolean_t;
 
 #define us_debug_level 10
 #define Debug_Level_0 0
-#define dbg_fd stderr
+#define dbg_fd d.disk
 
 #define d_Stub(arg1, s, a...)   d_printf("MFS: "s, ##a)
 #define Debug0(args)		d_Stub args
@@ -228,6 +228,7 @@ struct dir_ent {
   char name[8];			/* dos name and ext */
   char ext[3];
   u_short mode;			/* unix st_mode value */
+  boolean_t hidden;
   long size;			/* size of file */
   time_t time;			/* st_mtime */
   struct dir_ent *next;

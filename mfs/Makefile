@@ -1,9 +1,10 @@
 SUBDIR=mfs
 
-OBJS=mfs.o	# I don't know why this isn't automatic -- ml
-CFILES=mfs.c
-HFILES=mfs.h
+CFILES=mfs.c mangle.c util.c
+HFILES=mfs.h mangle.h
 ALL=$(CFILES) $(HFILES)
+
+CFLAGS += -DDOSEMU=1 -DMANGLE=1 -DMANGLED_STACK=50
 
 include ../Makefile.common
 

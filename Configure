@@ -645,7 +645,7 @@ else
    echo -e "FDISK /MBR\r\nSYS C:\r\nEXITEMU\n\r" > /temp_dosemu/autoexec.bat
    umountfloppy /dev/fd0
    rmdir /temp_dosemu
-   cp hdimage.dist /var/lib/dosemu/hdimage
+   cp -i hdimage.dist /var/lib/dosemu/hdimage
    echo -n "disk { " >> $CONFIG
    echo "image \"/var/lib/dosemu/hdimage\" } " >> $CONFIG
    dialog --title "HARD DISKS" --msgbox "Configure will now start DOSEMU !

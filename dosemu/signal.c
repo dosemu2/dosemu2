@@ -15,9 +15,9 @@
 #include "../dpmi/dpmi.h"
 #endif
 #ifdef NEW_PIC
-#include "../timer/pic.h"
+#include "pic.h"
 #endif
-#include "../include/ipx.h"
+#include "ipx.h"
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50

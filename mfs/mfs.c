@@ -723,7 +723,7 @@ select_drive(state)
     }
 
     if (found && name[0] == '.' && name[1] == '\\') {
-      fprintf(stderr, "MFS: ---> %s\n", nametmp);
+      Debug0((dbg_fd, "MFS: ---> %s\n", nametmp));
       if (nametmp[2] == '\\')
 	strcat(nametmp, &name[2]);
       else
@@ -771,8 +771,16 @@ select_drive(state)
   return (1);
 }
 
+static boolean_t
+is_hidden(char *fname)
+{
+  char *p = strrchr(fname,'/');
+  if (p) fname = p+1;
+  return(fname[0] == '.' && strcmp(fname,"..") && fname[1]);
+}
+
 static int
-get_dos_attr(int mode)
+get_dos_attr(int mode,boolean_t hidden)
 {
   int attr = 0;
 
@@ -782,6 +790,8 @@ get_dos_attr(int mode)
     attr |= READ_ONLY_FILE;
   if (!(mode & S_IEXEC))
     attr |= ARCHIVE_NEEDED;
+  if (hidden)
+    attr |= HIDDEN_FILE;
   return (attr);
 }
 
@@ -1162,6 +1172,7 @@ make_entry(void)
  * DANG_END_FUNCTION
  */
   entry = (struct dir_ent *) malloc(sizeof(struct dir_ent)+10);
+  entry->hidden = FALSE;
   entry->next = NULL;
   return (entry);
 }
@@ -1241,26 +1252,32 @@ _get_dir(char *name, char *mname, char *mext)
   }
   else
     while ((cur_ent = dos_readdir(cur_dir))) {
+      char tmpname[100];
+      int namlen;
 
       if (cur_ent->d_ino == 0)
 	continue;
-      if (cur_ent->d_namlen > 13)
+
+      if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
 	continue;
-      if (cur_ent->d_name[0] == '.') {
-	if (cur_ent->d_namlen > 2)
+
+      namlen = strlen(tmpname);
+	
+      if (tmpname[0] == '.') {
+	if (namlen > 2)
 	  continue;
 	if (strncasecmp(name, dos_root, strlen(name)) == 0)
 	  continue;
-	if ((cur_ent->d_namlen == 2) &&
-	    (cur_ent->d_name[1] != '.'))
+	if ((namlen == 2) &&
+	    (tmpname[1] != '.'))
 	  continue;
-	strncpy(fname, "..      ", cur_ent->d_namlen);
-	strncpy(fname + cur_ent->d_namlen, "        ",
-		8 - cur_ent->d_namlen);
+	strncpy(fname, "..      ", namlen);
+	strncpy(fname + namlen, "        ",
+		8 - namlen);
 	strncpy(fext, "   ", 3);
       }
       else {
-	if (!extract_filename(cur_ent->d_name, fname, fext))
+	if (!extract_filename(tmpname, fname, fext))
 	  continue;
 	if (mname && mext && !compare(fname, fext, mname, mext))
 	  continue;
@@ -1278,6 +1295,8 @@ _get_dir(char *name, char *mname, char *mext)
 
       strncpy(entry->name, fname, 8);
       strncpy(entry->ext, fext, 3);
+
+      entry->hidden = is_hidden(cur_ent->d_name);
 
       strcpy(buf, name);
       slen = strlen(buf);
@@ -1318,14 +1337,18 @@ get_dir(char *name, char *fname, char *fext)
  * Assumes that a legal string is passed in.
  */
 static void
-auspr(filestring, name, ext)
-     char *filestring;
+auspr(filestring0, name, ext)
+     char *filestring0;
      char *name;
      char *ext;
 {
+  char filestring[100];
+
   int pos = 0;
   int dot_pos = 0;
   int elen;
+
+  name_convert(filestring,filestring0,MANGLE,NULL);
 
   Debug1((dbg_fd, "auspr '%s'\n", filestring));
   for (pos = 0;; pos++) {
@@ -1366,6 +1389,9 @@ auspr(filestring, name, ext)
     if (isalpha(ch) && islower(ch))
       ext[pos] = toupper(ch);
   }
+
+  Debug0((dbg_fd,"auspr(%s,%s,%s)\n",filestring0,name,ext));
+
 }
 
 static void
@@ -1887,6 +1913,8 @@ scan_dir(char *path, char *name)
   if (*path == 0)
     path = "/";
 
+  Debug0((dbg_fd,"scan_dir(%s,%s)\n",path,name));
+
   /* open the directory */
   if ((cur_dir = opendir(path)) == NULL) {
     Debug0((dbg_fd, "scan_dir(): failed to open dir: %s\n", path));
@@ -1895,13 +1923,22 @@ scan_dir(char *path, char *name)
 
   /* now scan for matching names */
   while ((cur_ent = dos_readdir(cur_dir))) {
+    char tmpname[100];
+
     if (cur_ent->d_ino == 0)
       continue;
-    if (cur_ent->d_name[0] == '.' &&
+
+    if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
+      continue;
+
+    if (tmpname[0] == '.' &&
 	strncasecmp(path, dos_root, strlen(path)) != 0)
       continue;
-    if (strcasecmp(name, cur_ent->d_name) != 0)
+
+    if (strcasecmp(name, tmpname) != 0)
       continue;
+
+    Debug0((dbg_fd, "scan_dir found %s\n",cur_ent->d_name));
 
     /* we've found the file, change it's name and return */
     strcpy(name, cur_ent->d_name);
@@ -1910,6 +1947,12 @@ scan_dir(char *path, char *name)
   }
 
   closedir(cur_dir);
+
+  if (MANGLE && is_mangled(name))
+    check_mangled_stack(name,NULL);
+
+  Debug0((dbg_fd, "scan_dir gave %s FALSE\n",name));
+
   return (FALSE);
 }
 
@@ -1971,18 +2014,23 @@ _find_file(char *fpath, struct stat * st)
       return (FALSE);
     }
     else {
+      char remainder[1024];
       *slash1 = 0;
+      if (slash2) {
+	remainder[0] = '/';
+	strcpy(remainder+1,slash2+1);
+      }
       if (!scan_dir(fpath, slash1 + 1)) {
 	*slash1 = '/';
 	Debug0((dbg_fd, "find_file(): no match: %s\n", fpath));
 	if (slash2)
-	  *slash2 = '/';
+	  strcat(slash1+1,remainder);
 	return (FALSE);
       }
       *slash1 = '/';
       if (slash2)
-	*slash2 = '/';
-      slash1 = slash2;
+	  strcat(slash1+1,remainder);
+      slash1 = strchr(slash1+1,'/');
     }
   }
 
@@ -2003,9 +2051,14 @@ find_file(fpath, st)
 {
   boolean_t r;
 
+  Debug0((dbg_fd, "find_file(%s)\n",fpath));
+
   PS(FINDFILE);
   r = _find_file(fpath, st);
   PE(FINDFILE);
+
+  Debug0((dbg_fd, "find_file gave %s %d\n",fpath,(int)r));
+
   return (r);
 }
 
@@ -2213,26 +2266,26 @@ debug_dump_sft(handle)
 	      sft_dev_drive_ptr(sptr)));
       Debug0((dbg_fd, "starting cluster = %x\n",
 	      sft_start_cluster(sptr)));
-      fprintf(dbg_fd, "file time = %x\n",
-	      sft_time(sptr));
-      fprintf(dbg_fd, "file date = %x\n",
-	      sft_date(sptr));
-      fprintf(dbg_fd, "file size = %lx\n",
-	      sft_size(sptr));
-      fprintf(dbg_fd, "pos = %lx\n",
-	      sft_position(sptr));
-      fprintf(dbg_fd, "rel cluster = %x\n",
-	      sft_rel_cluster(sptr));
-      fprintf(dbg_fd, "abs cluster = %x\n",
-	      sft_abs_cluster(sptr));
-      fprintf(dbg_fd, "dir sector = %x\n",
-	      sft_directory_sector(sptr));
-      fprintf(dbg_fd, "dir entry = %x\n",
-	      sft_directory_entry(sptr));
-      fprintf(dbg_fd, "name = %.8s\n",
-	      sft_name(sptr));
-      fprintf(dbg_fd, "ext = %.3s\n",
-	      sft_ext(sptr));
+      Debug0((dbg_fd, "file time = %x\n",
+	      sft_time(sptr)));
+      Debug0((dbg_fd, "file date = %x\n",
+	      sft_date(sptr)));
+      Debug0((dbg_fd, "file size = %lx\n",
+	      sft_size(sptr)));
+      Debug0((dbg_fd, "pos = %lx\n",
+	      sft_position(sptr)));
+      Debug0((dbg_fd, "rel cluster = %x\n",
+	      sft_rel_cluster(sptr)));
+      Debug0((dbg_fd, "abs cluster = %x\n",
+	      sft_abs_cluster(sptr)));
+      Debug0((dbg_fd, "dir sector = %x\n",
+	      sft_directory_sector(sptr)));
+      Debug0((dbg_fd, "dir entry = %x\n",
+	      sft_directory_entry(sptr)));
+      Debug0((dbg_fd, "name = %.8s\n",
+	      sft_name(sptr)));
+      Debug0((dbg_fd, "ext = %.3s\n",
+	      sft_ext(sptr)));
       return;
     }
     sftn -= ptr[2];
@@ -2473,8 +2526,8 @@ dos_fs_redirect(state)
   int bs_pos;
   char fname[8];
   char fext[3];
-  char fpath[256];
-  char buf[256];
+  char fpath[1024];
+  char buf[1024];
   struct dir_ent *tmp;
   struct stat st;
   static char last_find_name[8] = "";
@@ -2806,7 +2859,7 @@ dos_fs_redirect(state)
       return (FALSE);
     }
 
-    SETWORD(&(state->eax), get_dos_attr(st.st_mode));
+    SETWORD(&(state->eax), get_dos_attr(st.st_mode,is_hidden(fpath)));
     state->ebx = st.st_size >> 16;
     state->edi = MASK16(st.st_size);
     return (TRUE);
@@ -3255,7 +3308,7 @@ dos_fs_redirect(state)
       return (FALSE);
     }
     else {
-      sdb_file_attr(sdb) = get_dos_attr(hlist->mode);
+      sdb_file_attr(sdb) = get_dos_attr(hlist->mode,hlist->hidden);
 
       if (hlist->mode & S_IFDIR) {
 	Debug0((dbg_fd, "Directory ---> YES 0x%x\n", hlist->mode));

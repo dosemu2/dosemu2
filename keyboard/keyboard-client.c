@@ -23,10 +23,6 @@
  * DANG_END_CHANGELOG
  */
 
-#ifdef USE_SLANG
-#define USE_SLANG_KEYS
-#endif
-
 #include <unistd.h>
 #include <termios.h>
 #include <fcntl.h>
@@ -407,9 +403,7 @@ add_key_depress (u_short scan)
     }
 }
 
-#ifdef USE_SLANG_KEYS
 #include "slang-keyboard.c"
-#endif
 
 void
 getKeys (void)

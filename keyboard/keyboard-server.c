@@ -32,7 +32,7 @@
 #include "dosio.h"
 #include "mouse.h"
 #include "bios.h"
-#include "../timer/pic.h"
+#include "pic.h"
 
 static unsigned int convscanKey (unsigned char);
 void dump_kbuffer (void);

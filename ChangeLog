@@ -1,3 +1,22 @@
+Thr Mar 16	1995
+
+-	Release pre0.53.51
+-	Minor updates to DANG
+-	lee@tengu.in-berlin.de (Kang-Jin Lee) submitted new
+	isemu.c/com, dosdbg.c/com, config cleanups.
+-	Andrew's latest mfs patches to hide hidden files.
+-	David Hansen <dhansen@networksnw.com> patches to add
+	lpt port configuration to the conf file.
+-	Marty added chdir, system and getcmd commands.
+
+Wed Mar 15	1995
+
+-	Added "Andrew.Tridgell" <tridge@arvidsjaur.anu.edu.au> 's
+	name mangling patch to mfs.c. Too bad Andrew had to see
+	his previos work in such a hacked state :-(.
+-	Dong's latest DPMI patches.
+
+
 Tue Mar 14	1995
 
 -	Changed Makefile to make;make install

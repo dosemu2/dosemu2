@@ -18,10 +18,13 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
+ *
+ *	$Log$
  * DANG_END_CHANGELOG
+ *
+ * $Id$
  */
 
-/* JAMES - Can you edit the CHANGELOG into place for me please ???!! 8-) */
 
 
 #include <stdio.h>
@@ -33,8 +36,8 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-/* #include "dos2linux.h" */
-#include "../include/emu.h"
+#include "dos2linux.h" 
+#include "emu.h"
 
 #define GET_USER_ENVVAR      0x52
 #define GET_USER_COMMAND     0x51
@@ -290,5 +293,10 @@ void run_unix_command(char *buffer)
             WEXITSTATUS(&status));
     }
 #endif
+}
+
+int run_simple_system_command(const char *p)
+{
+	return system(p);
 }
 

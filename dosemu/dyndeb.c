@@ -26,6 +26,7 @@ SetDebugFlagsHelper(char *debugStr)
       d.video = value;
       break;
 #ifdef X_SUPPORT
+    case 'X':
       d.X = value;
       break;
 #endif

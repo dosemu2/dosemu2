@@ -20,17 +20,12 @@
 X86_EMULATOR_FLAGS = 
 
 
-# Want to try SLANG?
-USE_SLANG=-DUSE_SLANG
-ifdef USE_SLANG
 ifdef ELF
-TCNTRL=-lslang-elf
+# TCNTRL=-lslang-elf
+# or if you have the full slang library enabled..
+TCNTRL=-lslang -lm
 else
 TCNTRL=-lslang
-endif
-export USE_SLANG
-else
-TCNTRL=-lncurses
 endif
 
 # Eliminate to avoid X
@@ -65,10 +60,6 @@ LINUX_INCLUDE = $(LINUX_KERNEL)/include
 export LINUX_KERNEL
 export LINUX_INCLUDE  
 
-#Change the following line to point to your ncurses include
-NCURSES_INC = /usr/include/ncurses
-export NCURSES_INC
-
 #Change the following line to point to your loadable modules directory
 BOOTDIR = /boot/modules
 
@@ -98,7 +89,7 @@ NEW_PIC = -DNEW_PIC=1
 # NOTE:  The serial pic code is known to have bugs.
 # NEW_PIC = -DNEW_PIC=2
 ifdef NEW_PIC
-PICOBJS = libtimer.a
+PICOBJS = libpic.a
 export NEW_PIC
 export PICOBJS
 endif
@@ -107,15 +98,14 @@ endif
 # do_DEBUG=true
 ifdef ELF
 export CC         = gcc-elf  # I use gcc-specific features (var-arg macros, fr'instance)
-export LD         = gcc-elf
 else
 export CC         = gcc  # I use gcc-specific features (var-arg macros, fr'instance)
-export LD         = gcc
 endif
 ifdef do_DEBUG
 COPTFLAGS	=  -g -Wall
 endif
 
+export LD=$(CC)
 OBJS	= dos.o 
 DEPENDS = dos.d emu.d
 
@@ -124,7 +114,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   50
+PATCHL  =   51
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -139,7 +129,7 @@ CFILES=emu.c dos.c $(X2CFILES) data.c dosstatic.c
 # IPX = ipxutils
 
 
-export USING_NET = -DUSING_NET
+# export USING_NET = -DUSING_NET
 ifdef USING_NET
 export NET = net
 endif
@@ -171,7 +161,7 @@ CLIENTSSUB=clients
 
 OPTIONALSUBDIRS =examples v-net syscallmgr emumod ipxutils
 
-LIBSUBDIRS= video dosemu timer mfs init keyboard mouse $(NET) $(IPX) drivers
+LIBSUBDIRS= video dosemu pic mfs init keyboard mouse $(NET) $(IPX) drivers
 
 ifdef DPMI
 LIBSUBDIRS+= dpmi
@@ -190,11 +180,9 @@ DOCS= doc
 
 
 OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
-	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
-	NOVELL-HOWTO.txt BOGUS-Notes \
-	README.ncurses vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh README.X \
-	README.CDROM README.video Configure DANG_CONFIG README.HOGTHRESHOLD \
-	README.mgarrot
+	BOGUS-Notes \
+	vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh \
+	Configure 
 
 BFILES=
 
@@ -222,10 +210,7 @@ CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 # does this work if you do make -C <some dir>
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include  -I$(LINUX_INCLUDE)
-INCDIR += -I$(TOPDIR)/timer -I$(TOPDIR)/dpmi
-ifndef USE_SLANG
-INCDIR  += -I$(NCURSES_INC)
-endif
+INCDIR += -I$(TOPDIR)/pic -I$(TOPDIR)/dpmi
  
 ifdef X11LIBDIR
 INCDIR  +=  -I$(X11INCDIR)
@@ -237,20 +222,22 @@ export INCDIR
 # if NEWPIC is there, use it
 # if DPMI is there, use it
 # -m486 is usually in the specs for the compiler
-OPT=  -O -funroll-loops # -fno-inline
+OPT=  -O2 -funroll-loops # -fno-inline
 # OPT=-fno-inline
 PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
 CFLAGS+=$(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
-CFLAGS+=$(USE_SLANG)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
+
+# set for DPMI want windows
+# CFLAGS+=-DWANT_WINDOWS
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment
 # CFLAGS+=-DFORK_DEBUG
 
 # We need to use the C_RUN_IRQS with -fno-inline (TBD why)
-# this is in timer/pic.c
+# this is in pic/pic.c
 #CFLAGS+=-DC_RUN_IRQS
 
 # use fd3 for soft errors, stderr for hard error, don't ope
@@ -283,7 +270,7 @@ firstsimple:	include/config.h version dep simple
 endif
 
 ifdef ELF
-simple:	dossubdirs dosstatic dos
+simple:	dossubdirs dos
 else
 simple:	dossubdirs dosstatic # libdosemu dos
 endif
@@ -347,7 +334,7 @@ ifeq (include/config.h,$(wildcard include/config.h))
 	@echo "WARNING: Your Makefile has changed since config.h was generated."
 	@echo "         Consider doing a 'make config' to be safe."
 else
-	@echo "WARNING: You have no config.h file in the current directory."
+	@echo "WARNING: You have no config.h file in the ./include directory."
 	@echo "         Generating config.h..."
 	$(MAKE) dosconfig
 	./dosconfig $(CONFIGINFO) > include/config.h
@@ -419,8 +406,18 @@ $(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
 
 version:	include/kversion.h
 
+# define this if we know the version we're running
+# KERNEL_VERSION=1001088
+ifdef KERNEL_VERSION
 include/kversion.h:
-	$(SHELL) ./tools/kversion.sh $(LINUX_KERNEL) ./
+	echo '#ifndef KERNEL_VERSION' >$@
+	echo '#define KERNEL_VERSION $(KERNEL_VERSION)' >>$@
+	echo '#endif' >>$@
+else
+include/kversion.h:
+	 $(SHELL) ./tools/kversion.sh $(LINUX_KERNEL) ./
+endif
+
 
 config: include/config.h include/kversion.h
 #	./dosconfig $(CONFIGINFO) > include/config.h
@@ -437,7 +434,7 @@ doslib: $(REQUIRED) all
 	@echo ""
 	@echo ""
 
-installnew: lib
+installnew: doslib
 	$(MAKE) install
 
 install:
@@ -522,9 +519,6 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)
 	install -d $(DISTPATH)/lib
 	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
-	cp -a TODO $(DISTPATH)/.todo
-	cp -a TODO.JES $(DISTPATH)/.todo.jes
-	cp -a .indent.pro $(DISTPATH)/.indent.pro
 	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
 	@for i in $(REQUIRED) $(LIBS) $(SUBDIRS) $(DOCS) ipxutils $(OPTIONALSUBDIRS) ipxbridge; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \

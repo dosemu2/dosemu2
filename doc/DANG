@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, am20@unix.york.ac.uk
-  For DOSEMU v0.53 pl36
+  For DOSEMU v pl
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -111,48 +111,7 @@
 
 
 
-  2.2.1.2.  DBGTIME
-
-
-  o  x - character to print with time.
-
-     Inline function to debug time differences between different points
-     of execution within DOSEMU. Thanks Ronnie :-).  Only used by
-     developers and not expected to execute in any general releases.
-
-
-
-  2.2.1.3.  signal_init
-
-  Initialize the signals to have NONE being blocked.  Currently this is
-  NOT of much use to DOSEMU.
-
-
-
-
-  2.2.1.4.  cli
-
-  Stop additional signals from interrupting DOSEMU.
-
-
-
-  2.2.1.5.  sti
-
-  Allow all signals to interrupt DOSEMU.
-
-
-
-  2.2.1.6.  handle_signals
-
-  Due to signals happening at any time, the actual work to be done
-  because a signal occurs is done here in a serial fashion.  The
-  concept, should this eventualy work, is that a signal should only flag
-  that it has occurred and let DOSEMU deal with it in an orderly fashion
-  as it executes the rest of it's code.
-
-
-
-  2.2.1.7.  run_vm86
+  2.2.1.2.  run_vm86
 
   Here is where DOSEMU runs VM86 mode with the vm86() call which also
   has the registers that it will be called with. It will stop vm86 mode
@@ -161,63 +120,7 @@
 
 
 
-  2.2.1.8.  memory_init
-
-  Set up all memory areas as would be present on a typical i86 during
-  the boot phase.
-
-
-
-  2.2.1.9.  SIGNAL_save
-
-
-  o  context	- signal context to save.
-
-  o  signal_call - signal handling routine to be called.
-
-     Save into an array structure queue the signal context of the
-     current signal as well as the function to call for dealing with
-     this signal.  This is a queue because any signal may occur multiple
-     times before DOSEMU deals with it down the road.
-
-
-
-  2.2.1.10.  SIGIO_call
-
-  Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU will be
-  flagged to run this call which inturn checks which fd(s) was set and
-  execute the proper routine to get the I/O from that device.
-
-
-
-  2.2.1.11.  parse_debugflags
-
-
-  o  s - string of options.
-
-     This part is fairly flexible...you specify the debugging flags you
-     wish with -D string.  The string consists of the following
-     characters: +   turns the following options on (initial state) -
-     turns the following options off a	turns all the options on/off,
-     depending on whether +/- is set 0-9 sets debug levels (0 is off, 9
-     is most verbose) #	where # is a letter from the valid option list
-     (see docs), turns that option off/on depending on the +/- state.
-     Any option letter can occur in any place.	Even meaningless
-     combinations, such as "01-a-1+0vk" will be parsed without error, so
-     be careful.  Some options are set by default, some are clear. This
-     is subject to my whim.  You can ensure which are set by explicitly
-     specifying.
-
-
-
-  2.2.1.12.  config_defaults
-
-  Set all values in the `config` structure to their default value.
-  These will be modified by the config parser.
-
-
-
-  2.2.1.13.  SIG_int
+  2.2.1.3.  SIG_int
 
   Allow DOSEMU to be made aware when a hard interrupt occurs Requires
   the sig/sillyint.o driver loaded (using NEW modules package), or a
@@ -227,15 +130,7 @@
 
 
 
-  2.2.1.14.  check_special_mapping
-
-  This is called after all configuration stuff is done to make sure that
-  no mapped areas are overlapping.  It checks EMS, VBIOS, HARDWARE_RAM
-  and exits with "false", if any of it overlapp.
-
-
-
-  2.2.1.15.  emulate
+  2.2.1.4.  emulate
 
 
   o  argc - Argument count.
@@ -250,19 +145,7 @@
 
 
 
-  2.2.1.16.  hardware_init
-
-  Initialize any leftover hardware.
-
-
-
-  2.2.1.17.  version_init
-
-  Find version of OS running and set necessary global parms.
-
-
-
-  2.2.1.18.  add_to_io_select
+  2.2.1.5.  add_to_io_select
 
 
   o  fd - File handle to add to select statment.
@@ -277,6 +160,21 @@
 
 
 
+  2.2.1.6.  remove_from_io_select
+
+
+  o  fd - File handle to remove from select statment.
+
+  o  used_sigio - Specifiy whether you used SIGIO (1) if it's available,
+     or
+
+  o  not (0).
+
+     Remove a file handle from one of 2 select FDS_SET's depending on
+     whether the kernel can handle SIGIO.
+
+
+
   2.2.2.  Remarks in emu.c
 
   DOSEMU must not work within the 1 meg DOS limit, so start of code is
@@ -286,35 +184,10 @@
 
   -----
 
-  DOSEMU keeps system wide configuration status in a structure called
-  config.
-
-  -----
-
-  The `vm86_struct` is used to pass all the necessary status/registers
-  to DOSEMU when running in vm86 mode.
-
-  -----
-
-  The var `fatalerr` can be given a true value at any time to have
-  DOSEMU exit on the next return from vm86 mode.
-
-  -----
-
   At this time we have to use SIGALRM in addition to SIGIO I don't (yet)
   know why the SIGIO signal gets lost sometimes (once per minute or
   longer).  But if it happens, we can retrigger this way over SIGALRM.
   Normally SIGIO happens before SIGALARM, so nothing hurts.  (Hans)
-
-  -----
-
-  If DOSEMU starts up with stderr == stdout, then stderr gets redirected
-  to '/dev/null'.
-
-  -----
-
-  For simpler support of X, DOSEMU can be started by a symbolic link
-  called `xdos` which DOSEMU will use to switch into X-mode.
 
 
   2.2.3.  Items for Fixing in emu.c
@@ -322,10 +195,10 @@
   Apparently, nothing needs fixing in emu.c.
 
 
+
   2.2.4.  New Ideas for emu.c
 
   Apparently, there are no new ideas for emu.c.
-
 
 
   2.3.	include/emu.h Information
@@ -355,10 +228,25 @@
 
   2.3.2.  Remarks in include/emu.h
 
+  The `vm86_struct` is used to pass all the necessary status/registers
+  to DOSEMU when running in vm86 mode.
+
+  -----
+
   We assume system call restarting... under linux 0.99pl8 and earlier,
   this was the default.	SA_RESTART was defined in 0.99pl8 to explicitly
   request restarting (and thus does nothing).  However, if this ever
   changes, I want to be safe
+
+  -----
+
+  DOSEMU keeps system wide configuration status in a structure called
+  config.
+
+  -----
+
+  The var `fatalerr` can be given a true value at any time to have
+  DOSEMU exit on the next return from vm86 mode.
 
 
   2.3.3.  Items for Fixing in include/emu.h
@@ -369,6 +257,9 @@
   2.3.4.  New Ideas for include/emu.h
 
   Apparently, there are no new ideas for include/emu.h.
+
+
+
 
 
   3.  The Clients group of Modules
@@ -382,41 +273,19 @@
 
   3.1.	clients/ncurses.c Information
 
-  This is James' client based around NCURSES. It (un-)succesfully
-  demonstrates the procedure for making initial connections to the
-  server.
-
+  There appears to be no MODULE information for this file.
 
 
   3.1.1.  Functions in clients/ncurses.c
 
-  These are the functions defined in clients/ncurses.c.
-
-
-
-  3.1.1.1.  main
-
-
-  o  argc - Number of Command Line arguments.
-
-  o  argv - Command Line arguments - as an array of char*'s
-
-     This function does all of the work associated with this client. It
-     grabs the shared memory used to hold the current Video data and
-     makes some comments about its current screen.
-
+  We appear to have no information on the functions in
+  clients/ncurses.c.
 
 
   3.1.2.  Remarks in clients/ncurses.c
 
-  Some of the functions are undocumented. These are the trivial ones.
-
-
-  -----
-
-  You must be mad if you want to get involved in all of this Shared
-  memory stuff .... 8-)
-
+  Apparently, no-one has anything interesting to say about
+  clients/ncurses.c.
 
 
   3.1.3.  Items for Fixing in clients/ncurses.c
@@ -435,6 +304,9 @@
   far as we are concerned, since it will allow us to run so many more
   programs and, most importantly, bcc. This is the one thing that the
   WINE developers want that we haven't been able to give them.
+
+  Now that Dong has come on mainstream, these two gurus are creating
+  patches hand over fist as we approach being able to run Windows 3.1
 
   If you think you can help .... "Away you Go!" (Sorry to those non-UK
   folks ...  Thats a reference to a UK kids sports programme from my
@@ -456,10 +328,6 @@
 
   These are the functions defined in dpmi/dpmi.c.
 
-
-
-
-
   4.1.1.1.  dpmi_control
 
   This function is similar to the vm86() syscall in the kernel and
@@ -467,7 +335,16 @@
 
 
 
-  4.1.1.2.  do_default_cpu_exception
+  4.1.1.2.  run_pm_int
+
+  This routine is used for running protected mode hardware interrupts
+  and software interrupts 0x1c, 0x23 and 0x24.	run_pm_int() switches to
+  the locked protected mode stack and calls the handler. If no handler
+  is installed the real mode interrupt routine is called.
+
+
+
+  4.1.1.3.  do_default_cpu_exception
 
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
@@ -475,14 +352,15 @@
 
 
 
-  4.1.1.3.  do_cpu_exception
+  4.1.1.4.  do_cpu_exception
 
-  This calls the DPMI client exception handler. If none is installed
-  do_default_cpu_exception() is called.
+  This routine switches to the locked protected mode stack, disables
+  interrupts and calls the DPMI client exception handler.  If no handler
+  is installed the default handler is called.
 
 
 
-  4.1.1.4.  dpmi_fault
+  4.1.1.5.  dpmi_fault
 
   This is the brain of DPMI. All CPU exceptions are first reflected
   (from the signal handlers) to this code.  Exception from nonpriveleged
@@ -512,19 +390,25 @@
   emulator...............
 
 
+  -----
+
+  Handling of the virtuell interruptflag is still not correct and there
+  are many open questions since DPMI specifications are unclear in this
+  point.  An example: If IF=1 in protected mode and real mode code is
+  called which is disabling interrupts via cli and returning to
+  protected mode, is IF then still one or zero?	I guess I have to think
+  a lot about this and to write a small dpmi client running under a
+  commercial dpmi server :-).
+
 
   4.1.3.  Items for Fixing in dpmi/dpmi.c
 
-  don't free protected mode stack if DPMI client terminates from
-  exception handler
+  We shouldn't return to dosemu code if IF=0, but it helps - WHY?
 
   -----
 
-  not yet implemented
+  we should not change registers for hardware interrupts
 
-  -----
-
-  not yet implemented
 
   4.1.4.  New Ideas for dpmi/dpmi.c
 
@@ -573,6 +457,9 @@
   Apparently, nothing needs fixing in video/vc.c.
 
 
+
+
+
   5.1.4.  New Ideas for video/vc.c
 
   Apparently, there are no new ideas for video/vc.c.
@@ -592,6 +479,9 @@
 
   Set pointer to correct structure of functions to initialize, close,
   etc... video routines.
+
+
+
   5.2.2.  Remarks in video/video.c
 
   Here the sleeping lion will be awoken and eat much of CPU time !!!
@@ -605,6 +495,15 @@
   the page.  (this could happen 32000000 per second, if the CPU were
   fast enough) It would be better to get the DIRTY-bit directly from the
   page table, isn't it?	A special syscall in emumodule could do this.
+
+  -----
+
+  reserve_video_memory()
+
+  This procedure is trying to eke out all the UMB blocks possible to
+  maximize your memory under DOSEMU.  If you know about dual monitor
+  setups, you can contribute by putting in the correct graphics page
+  address values.
 
 
   5.2.3.  Items for Fixing in video/video.c
@@ -670,18 +569,49 @@
 
   5.5.	video/dualmon.c Information
 
-  There appears to be no MODULE information for this file.
+  The dual monitor support files to use a monochrome card as second
+  video subsystem. Usefull with for example Borland Turbo Debugger and
+  Turbo Profiler, HelpPC.  Supported cards are: - MDA (Monochrome
+  Display Adapter) - Hercules Graphics Card (_the_ Hercules card) -
+  Hercules Graphics Card Plus (a.k.a. Hercules RamFont) - Hercules
+  InColor (the "color monochrome card").
+
 
 
   5.5.1.  Functions in video/dualmon.c
 
-  We appear to have no information on the functions in video/dualmon.c.
+  These are the functions defined in video/dualmon.c.
+
+
+  5.5.1.1.  MDA_init
+
+
+  o  returns: nothing
+
+     Initializes the monochrome card. First detects which monochrome
+     card is used, because the Hercules RamFont and the Hercules InColor
+     need one more register to be initialized. If there is no monochrome
+     card at all, we just think there is one and poke an peek in the
+     void.  After the detection the card is initialized.
+
 
 
   5.5.2.  Remarks in video/dualmon.c
 
-  Apparently, no-one has anything interesting to say about
-  video/dualmon.c.
+  After MDA_init() the VGA is configured, something in video.c or
+  console.c "reprograms" the monochrome card again in such a way that I
+  always have to run hgc.com before I can use any program that uses the
+  monochrome card. I've spent a day trying to find it, but I can't
+  figure out. Something is writing to one of the following ports: 0x3b4,
+  0x3b5, 0x3b8, 0x3b9, 0x3ba, 0x3bb, 0x3bf.  The problem occurs at (at
+  least) the following 2 systems:
+
+  - AMD 386DX40, Trident 9000/512Kb ISA, Hercules Graphics Card Plus -
+  Intel 486DX2/66, Cirrus Logic 5426/1Mb VLB, Hercules clone
+
+  The problem doesn't occur when I start dosemu from a telnet connection
+  or from a VT100 terminal. (Erik Mouw, jakmouw@et.tudelft.nl)
+
 
 
   5.5.3.  Items for Fixing in video/dualmon.c
@@ -723,6 +653,10 @@
   5.7.	video/hgc.c Information
 
   There appears to be no MODULE information for this file.
+
+
+
+
 
   5.7.1.  Functions in video/hgc.c
 
@@ -882,44 +816,19 @@
 
   6.1.	keyboard/termio.c Information
 
-  This handles the keyboard.
-
-  Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
-  codes as sent out by the kernel and 'xlate' uses plain ASCII as used
-  over serial lines. The mapping for different languages & the two ALT-
-  keys is done here, but the definitions are elsewhere. Only the default
-  (US) keymap is stored here.
-
+  There appears to be no MODULE information for this file.
 
 
   6.1.1.  Functions in keyboard/termio.c
 
-  These are the functions defined in keyboard/termio.c.
-
-
-  6.1.1.1.  keyboard_init
-
-  Initialize the keyboard to DOSEMU deafaults plus those requested in
-  the configs if allowable.
-
-
-
-  6.1.1.2.  convascii
-
-
-  o  cc - count of characters on queue
-
-     For dealing with translating esc character sequences received in
-     XLATE mode. Every effort is made to give the characters a time
-     slice of approx. 3/4 of a second to arrive at DOSEMU.  Also handles
-     alt-keys and other character translations.
-
+  We appear to have no information on the functions in
+  keyboard/termio.c.
 
 
   6.1.2.  Remarks in keyboard/termio.c
 
-  Code is called at start up to set up the terminal line for non-raw
-  mode.
+  Apparently, no-one has anything interesting to say about
+  keyboard/termio.c.
 
 
   6.1.3.  Items for Fixing in keyboard/termio.c
@@ -946,7 +855,6 @@
 
   Apparently, no-one has anything interesting to say about
   keyboard/Xkeyb.c.
-
 
   6.2.3.  Items for Fixing in keyboard/Xkeyb.c
 
@@ -985,9 +893,6 @@
   Apparently, nothing needs fixing in keyboard/keymaps.c.
 
 
-
-
-
   6.3.4.  New Ideas for keyboard/keymaps.c
 
   Apparently, there are no new ideas for keyboard/keymaps.c.
@@ -1015,6 +920,8 @@
   Apparently, nothing needs fixing in keyboard/slang-termio.c.
 
 
+
+
   6.4.4.  New Ideas for keyboard/slang-termio.c
 
   Apparently, there are no new ideas for keyboard/slang-termio.c.
@@ -1030,16 +937,7 @@
 
   7.1.	dosemu/bios_emm.c Information
 
-  This provides the EMM Memory Management for DOSEMU. It was originally
-  part of the Mach Dos Emulator.
-
-  Recent work in this area has involved a patch to the Kernel. If this
-  is used and the DEFINE MMAP_EMS line used, a faster form of EMS memory
-  support is included, using the /proc filesystem.
-
-  In contrast to some of the comments (Yes, _I_ know the adage about
-  that...)  we appear to be supporting EMS 4.0, not 3.2
-
+  There appears to be no MODULE information for this file.
 
 
   7.1.1.  Functions in dosemu/bios_emm.c
@@ -1090,7 +988,6 @@
 
   Apparently, nothing needs fixing in dosemu/xms.c.
 
-
   7.2.4.  New Ideas for dosemu/xms.c
 
   Apparently, there are no new ideas for dosemu/xms.c.
@@ -1106,14 +1003,20 @@
   These are the functions defined in dosemu/sigsegv.c.
 
 
-  7.3.1.1.  vm86_GP_fault
+  7.3.1.1.  inb
+
+  INB is used to do controlled emulation of input from ports.
+
+
+
+  7.3.1.2.  vm86_GP_fault
 
   All from the kernel unhandled general protection faults from V86 mode
   are handled here. This are mainly port IO and the HLT instruction.
 
 
 
-  7.3.1.2.  dosemu_fault
+  7.3.1.3.  dosemu_fault
 
   All CPU exceptions (except 13=general_protection from V86 mode, which
   is directly scaned by the kernel) are handled here.
@@ -1144,36 +1047,12 @@
 
   7.4.	include/int.h Information
 
-  Centralized area for interrupt service routine calls and support
-  functions.
-
+  There appears to be no MODULE information for this file.
 
 
   7.4.1.  Functions in include/int.h
 
-  These are the functions defined in include/int.h.
-
-
-  7.4.1.1.  DO_INT
-
-  DO_INT is used to deal with interrupts returned to DOSEMU by the
-  kernel.
-
-
-
-  7.4.1.2.  DEFAULT_INTERRUPT
-
-  DEFAULT_INTERRUPT is the default interrupt service routine called when
-  DOSEMU initializes.
-
-
-
-  7.4.1.3.  SETUP_INTERRUPTS
-
-  SETUP_INTERRUPTS is used to initialize those interrupt calls that we
-  are specifically handling in protected mode.
-
-
+  We appear to have no information on the functions in include/int.h.
 
   7.4.2.  Remarks in include/int.h
 
@@ -1198,13 +1077,7 @@
 
   7.5.1.  Functions in include/ports.h
 
-  These are the functions defined in include/ports.h.
-
-
-  7.5.1.1.  inb
-
-  INB is used to do controlled emulation of input from ports.
-
+  We appear to have no information on the functions in include/ports.h.
 
 
   7.5.2.  Remarks in include/ports.h
@@ -1230,13 +1103,7 @@
 
   7.6.1.  Functions in dosemu/dosio.c
 
-  These are the functions defined in dosemu/dosio.c.
-
-
-  7.6.1.1.  memory_setup
-
-  Setup HMA area via IPC. Call EMS and XMS initialization routines.
-
+  We appear to have no information on the functions in dosemu/dosio.c.
 
 
   7.6.2.  Remarks in dosemu/dosio.c
@@ -1248,6 +1115,7 @@
   7.6.3.  Items for Fixing in dosemu/dosio.c
 
   Apparently, nothing needs fixing in dosemu/dosio.c.
+
 
 
 
@@ -1430,15 +1298,49 @@
   Apparently, there are no new ideas for mouse/mouse.c.
 
 
-  9.  The PIC group of Modules
-
-  All of the PIC handling code is in the "timer" subdirectory. Odd isn't
-  it.
+  9.  The Bios group of Modules
 
 
+  All of the Bios code is in the "bios" subdirectory.
+
+  DOSEMU requires certain code to be coded in assembler and also code to
+  be located in the F000 segment. This is where all such code should be
+  put.
 
 
-  9.1.	timer/pic.c Information
+
+  9.1.	bios/bios.S Information
+
+  There appears to be no MODULE information for this file.
+
+
+  9.1.1.  Functions in bios/bios.S
+
+  We appear to have no information on the functions in bios/bios.S.
+
+  9.1.2.  Remarks in bios/bios.S
+
+  Apparently, no-one has anything interesting to say about bios/bios.S.
+
+
+  9.1.3.  Items for Fixing in bios/bios.S
+
+  Apparently, nothing needs fixing in bios/bios.S.
+
+
+  9.1.4.  New Ideas for bios/bios.S
+
+  Apparently, there are no new ideas for bios/bios.S.
+
+
+  10.  The PIC group of Modules
+
+  All of the PIC handling code is in the "PIC" subdirectory.
+
+
+
+
+  10.1.	pic/pic.c Information
 
   pic.c is a fairly co,plete emulation of both 8259 Priority Interrupt
   Controllers.	It also includes provision for 16 lower level
@@ -1469,12 +1371,12 @@
 
 
 
-  9.1.1.  Functions in timer/pic.c
+  10.1.1.  Functions in pic/pic.c
 
-  These are the functions defined in timer/pic.c.
+  These are the functions defined in pic/pic.c.
 
 
-  9.1.1.1.  write_pic0
+  10.1.1.1.  write_pic0
 
   write_pic_0() and write_pic1() implement dos writes to the pic ports.
   They are called by the code that emulates inb and outb instructions.
@@ -1482,9 +1384,7 @@
   0x20 and 0x21; pic1 is on ports 0xa0 and 0xa1.  These functions take
   two arguements: a port number (0 or 1) and a value to be written.
 
-
-
-  9.1.1.2.  read_pic0
+  10.1.1.2.  read_pic0
 
   read_pic0 and read_pic1 return the values for the interrupt mask
   register (port 1), or either the in service register or interrupt
@@ -1494,7 +1394,7 @@
 
 
 
-  9.1.1.3.  pic_mask
+  10.1.1.3.  pic_mask
 
   The pic maintains an additional interrupt mask which is not visible to
   the DOS process.  This is normally cleared (enabling an interrupt)
@@ -1506,7 +1406,7 @@
 
 
 
-  9.1.1.4.  pic_seti
+  10.1.1.4.  pic_seti
 
   pic_seti is used to initialize an interrupt for dosemu.  It requires
   three parameters.  The first parameter is the interrupt level, which
@@ -1516,7 +1416,10 @@
   DOS interruptis really to be activated.  If there is no special dosemu
   code to call, the second parameter can specify do_irq(), but see that
   description for some special considerations.
-  9.1.1.5.  run_irqs
+
+
+
+  10.1.1.5.  run_irqs
 
   run_irqs, which is initiated via the macro pic_run, is the "brains" of
   the pic.  It is called from the vm86() loop, checks for the highest
@@ -1530,20 +1433,24 @@
 
 
 
-  9.1.1.6.  do_irq
+  10.1.1.6.  do_irq
 
   do_irq() calls the correct do_int().	It then executes a vm86 loop
   until an outb( end-of-interrupt) is found.  For priority levels 0 and
   >15 (not real IRQs), vm86 executes once, then returns, since no outb20
   will come.  Returns: 0 = complete, 1 = interrupt not run because it
   directly calls our "bios"   See run_timer_tick() in timer.c for an
-  example This routine is RE-ENTRANT - it calls run_irqs, which which
-  may call an interrupt routine, which may call do_irq().  Be Careful!
-  !!!!!!!!!!!!!!!!!!  No single interrupt is ever re-entered.
+  example To assure notification when the irq completes, we push flags,
+  ip, and cs here and fake cs:ip to INTE8_SEG,OFF.  This makes the irq
+  call interrupt e8 (which calls pic_return) when it completes.	int e8
+  then pops the real cs:ip from the stack.  This routine is RE-ENTRANT -
+  it calls run_irqs, which which may call an interrupt routine, which
+  may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!!  No single
+  interrupt is ever re-entered.
 
 
 
-  9.1.1.7.  pic_request
+  10.1.1.7.  pic_request
 
   pic_request triggers an interrupt.  There is presently no way to "un-
   trigger" an interrupt.  The interrupt will be initiated the next time
@@ -1557,7 +1464,7 @@
 
 
 
-  9.1.1.8.  pic_iret
+  10.1.1.8.  pic_iret
 
   pic_iret is used to sense that all active interrupts are really
   complete, so that interrupts queued by pic_request can be triggered.
@@ -1571,53 +1478,80 @@
   queued interrupts to the interrupt request register.	It is possible
   for pic_iret to be fooled by dos code; for this reason active
   interrupts are checked, any queued interrupts that are also active
-  will remain queued.
+  will remain queued.  Also, some programs fake an iret, so that it is
+  possible for pic_iret to fail.  See pic_watch for the watchdog timer
+  that catches and fixes this event.
 
 
 
-  9.1.2.  Remarks in timer/pic.c
+  10.1.1.9.  pic_return
 
-  Apparently, no-one has anything interesting to say about timer/pic.c.
+  pic_return is called by interrupt e8.	It does the same thing as
+  pic_iret, but expects cs:ip pointing to INTE8_ SEG,OFF instead.  DPMI
+  never calls this function since it uses his own stackframe to indicate
+  an iret.  / void pic_return() { unsigned short * tmp; /* if we've come
+  from the right place, cs:ip will point to the BIOS tmp =
+  SEG_ADR((short *),ss,sp)-3; if (INTE8_SEG == REG(cs)) if(INTE8_OFF+2
+  == LWORD(eip)) { if(pic_icount) if(!(--pic_icount)) {
+  pic_irr|=(pic_pirr& pic_isr); pic_pirr&= pic_irr; pic_wirr&= pic_irr;
+  /* clear watchdog timer */ REG(eflags)&= (VIP); } /* simulate an iret
+  (without the flags - they should be OK) Note that this stuff was
+  pushed on the stack before the irq began */ if(tmp0 == INTE8_SEG &&
+  tmp1 == INTE8_OFF) { LWORD(eip) == tmp3; REG(cs) == tmp4; LWORD(esp)
+  += 6; } } return; } pic_watch is a watchdog timer for pending
+  interrupts.  If pic_iret somehow fails to activate a pending interrupt
+  request for 2 consecutive timer ticks, pic_watch will activate them
+  anyway.  pic_watch is called by do_irq0, the timer interrupt routine.
 
 
 
+  10.1.1.10.  do_irq0
 
-  9.1.3.  Items for Fixing in timer/pic.c
-
-  Apparently, nothing needs fixing in timer/pic.c.
-
-
-  9.1.4.  New Ideas for timer/pic.c
-
-  Apparently, there are no new ideas for timer/pic.c.
+  This is the routine for timer interrupts.  It simply calls
+  pic_watch(), then triggers IRQ0 via do_irq().
 
 
-  9.2.	timer/pic.h Information
+
+  10.1.2.  Remarks in pic/pic.c
+
+  Apparently, no-one has anything interesting to say about pic/pic.c.
+
+  10.1.3.  Items for Fixing in pic/pic.c
+
+  Apparently, nothing needs fixing in pic/pic.c.
+
+
+  10.1.4.  New Ideas for pic/pic.c
+
+  Apparently, there are no new ideas for pic/pic.c.
+
+
+  10.2.	pic/pic.h Information
 
   There appears to be no MODULE information for this file.
 
 
-  9.2.1.  Functions in timer/pic.h
+  10.2.1.  Functions in pic/pic.h
 
-  We appear to have no information on the functions in timer/pic.h.
-
-
-  9.2.2.  Remarks in timer/pic.h
-
-  Apparently, no-one has anything interesting to say about timer/pic.h.
+  We appear to have no information on the functions in pic/pic.h.
 
 
-  9.2.3.  Items for Fixing in timer/pic.h
+  10.2.2.  Remarks in pic/pic.h
 
-  Apparently, nothing needs fixing in timer/pic.h.
-
-
-  9.2.4.  New Ideas for timer/pic.h
-
-  Apparently, there are no new ideas for timer/pic.h.
+  Apparently, no-one has anything interesting to say about pic/pic.h.
 
 
-  10.  And Finally ...
+  10.2.3.  Items for Fixing in pic/pic.h
+
+  Apparently, nothing needs fixing in pic/pic.h.
+
+
+  10.2.4.  New Ideas for pic/pic.h
+
+  Apparently, there are no new ideas for pic/pic.h.
+
+
+  11.  And Finally ...
 
   The Following items are used to delimit the text used to create this
   file.	Whilst it is not necessary to know this, they are included

@@ -2,7 +2,7 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 
 1) Document files and their locations:
 --------------------------------------
-	./DOSEMU-HOWTO
+	./doc/DOSEMU-HOWTO
 		This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
 		but still very helpful.  (Read this file first, however.)
         ./ChangeLog
@@ -21,7 +21,7 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 	./doc/dosemu.texinfo
 		The full documentation for DOSEMU, in LaTeX format.  This
 		documentation is getting to be sorely outdated, however.
-	./doc/announce0.53
+	./doc/announce0.60
 		The announcement textfile for DOSEMU 0.53.
 
 2) Kernel/GCC/libc Requirements:
@@ -58,9 +58,8 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 
 5) Compile DOSEMU:
 ------------------
-	- Type 'make doeverything' at the prompt.
-	  If this fails with no rule to build a '.h' file, type
-	  'make install'.
+	- Type 'make' 
+	- Type 'make install'.
 	- Copy ./examples/config.dist to /etc/dosemu.conf and then edit it.
           There are lots of explanations and options in this config file.
 	  !!NOTE!! You will need to discard your old /etc/dosemu/config
@@ -123,7 +122,7 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 	- Read all documentation files carefully, and try to get some help
 	  from others who have used DOSEMU.
 	- Read the DOSEMU-HOWTO for Q&A's.
-	- If no luck, please send a debug report by typing 'dos -D+a 2>debug'
+	- If no luck, please send a debug report by typing 'dos -D+a -o debug'
 	  and send the file 'debug' to jmaclean@fox.nstn.ns.ca
 	  Also, send your /etc/dosemu.conf file and a description of the 
 	  system you're running on.  (Video card, linux version, CPU, memory)

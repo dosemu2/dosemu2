@@ -106,6 +106,7 @@ typedef struct {
 typedef struct dpmi_pm_block_stuct {
   struct   dpmi_pm_block_stuct *next;
   unsigned long handle;
+  unsigned long size;
   void     *base;
 } dpmi_pm_block;
 

@@ -14,6 +14,7 @@ struct printer {
   char *prtcmd;
   char *prtopt;
   int delay;
+  int base_port;		/* Base port address handled by device */
 
   /* end of user-set options */
   FILE *file;

@@ -237,7 +237,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    config.max_umb = $2;
 		    if ($2 > 0) c_printf("CONF: maximize umb's %s\n", ($2) ? "on" : "off");
 		    }
-		| L_DPMI bool
+		| L_DPMI mem_bool
 		    {
 		    config.dpmi = $2;
 		    c_printf("CONF: DPMI-Server %s\n", ($2) ? "on" : "off");
@@ -542,6 +542,7 @@ printer_flag	: COMMAND STRING	{ pptr->prtcmd = $2; }
 		| TIMEOUT INTEGER	{ pptr->delay = $2; }
 		| OPTIONS STRING	{ pptr->prtopt = $2; }
 		| L_FILE STRING		{ pptr->dev = $2; }
+		| BASE INTEGER		{ pptr->base_port = $2; }
 		| STRING
 		    { yyerror("unrecognized printer flag %s", $1); free($1); }
 		| error
@@ -914,8 +915,9 @@ static void start_printer(void)
 
 static void stop_printer(void)
 {
-  c_printf("CONF(LPT%d) f: %s   c: %s  o: %s  t: %d\n",
-	   c_printers, pptr->dev, pptr->prtcmd, pptr->prtopt, pptr->delay);
+  c_printf("CONF(LPT%d) f: %s   c: %s  o: %s  t: %d  port: %x\n",
+	   c_printers, pptr->dev, pptr->prtcmd, pptr->prtopt,
+           pptr->delay, pptr->base_port);
   c_printers++;
   config.num_lpt = c_printers;
 }

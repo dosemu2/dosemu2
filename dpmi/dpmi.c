@@ -145,8 +145,8 @@
 #include "dpmi.h"
 #include "bios.h"
 #include "config.h"
-#include "../timer/bitops.h"
-#include "../timer/pic.h"
+#include "bitops.h"
+#include "pic.h"
 #include "meminfo.h"
 #include "int.h"
 
@@ -171,6 +171,8 @@ unsigned short LDT_ALIAS = 0;
 
 static char *pm_stack; /* locked protected mode stack */
 
+static unsigned long dpmi_free_memory; /* how many bytes memory client */
+				       /* can allocate */
 static dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 static unsigned long pm_block_handle_used; /* tracking handle */
 
@@ -179,7 +181,6 @@ static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.11 19
 int in_dpmi = 0;		/* Set to 1 when running under DPMI */
 int in_win31 = 0;		/* Set to 1 when running Windows 3.1 */
 int in_bcc = 0;			/* Set to 1 when running dpmiload */
-int in_dpmires = 0;             /* set 1 when dpmires is loaded */
 
 int dpmi_eflags = 0;		/* used for virtuell interruptflag and pending interrupts */
 static int DPMIclient_is_32 = 0;
@@ -198,6 +199,7 @@ static struct sigcontext_struct emu_stack_frame;  /* used to store emulator regi
 #define CLIENT_USE_GDT_40
 
 #include "msdos.h"
+#include "bcc.h"
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 
@@ -229,6 +231,8 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 #ifdef WANT_WINDOWS
   ldt_info.seg_not_present = seg_not_present;
   ldt_info.useable = useable;
+#else
+  ldt_info.seg_not_present = 0;
 #endif
 
   limit2 = ldt_info.limit;
@@ -288,8 +292,8 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             ((ldt_info.read_exec_only ^ 1) << 9) |
             (ldt_info.seg_32bit << 22) |
             (ldt_info.limit_in_pages << 23) |
-#ifdef WANT_WINDOWS
             ((ldt_info.seg_not_present ^1) << 15) |
+#ifdef WANT_WINDOWS
             (ldt_info.useable << 20) |
 #endif
             0x7000;
@@ -416,7 +420,7 @@ void dpmi_get_entry_point(void)
     if (in_dpmi)
       LWORD(esi) = 0;
     else
-      LWORD(esi) = DPMI_private_paragraphs + 0x2008;
+      LWORD(esi) = DPMI_private_paragraphs + 0x1008;
 
     if (bcc_check_dpmiload(old_es)) {
       in_bcc = 1;
@@ -679,14 +683,14 @@ static inline void GetFreeMemoryInformation(unsigned int *lp)
   D_printf("      (mi->swaptotal)/DPMI_page_size=%d\n", (unsigned int) (mi->swaptotal)/DPMI_page_size);
 #endif
 
-  /*00h*/	*lp = (unsigned int) (mi->free + mi->swapfree);
-  /*04h*/	*++lp = (unsigned int) (mi->free + mi->swapfree)/DPMI_page_size;
-  /*08h*/	*++lp = (unsigned int) (mi->free + mi->swapfree)/DPMI_page_size;
-  /*0ch*/	*++lp = (unsigned int) (mi->total + mi->swaptotal)/DPMI_page_size;
+  /*00h*/	*lp = dpmi_free_memory;
+  /*04h*/	*++lp = dpmi_free_memory/DPMI_page_size;
+  /*08h*/	*++lp = dpmi_free_memory/DPMI_page_size;
+  /*0ch*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*10h*/	*++lp = 0xffffffff;
-  /*14h*/	*++lp = (unsigned int) (mi->free + mi->swapfree)/DPMI_page_size;
+  /*14h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*18h*/	*++lp = (unsigned int) (mi->total)/DPMI_page_size;
-  /*1ch*/	*++lp = (unsigned int) (mi->free + mi->swapfree)/DPMI_page_size;
+  /*1ch*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*20h*/	*++lp = (unsigned int) (mi->swaptotal)/DPMI_page_size;
   /*24h*/	*++lp = 0xffffffff;
   /*28h*/	*++lp = 0xffffffff;
@@ -866,15 +870,10 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       _eflags |= CF;
       break;
     }
-    if (in_bcc) {
-      if (bcc_SetDescriptor(scp))
-        _eflags |= CF;
-    } else {
-      if (SetDescriptor(_LWORD(ebx),
-		(unsigned long *) (GetSegmentBaseAddress(_es) +
+    if (SetDescriptor(_LWORD(ebx),
+		      (unsigned long *) (GetSegmentBaseAddress(_es) +
 			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) ))
       _eflags |= CF;
-    }
     break;
   case 0x000d:
     if (_LWORD(ebx) & 0x7 != 0x7) {
@@ -1091,8 +1090,17 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0501:	/* Allocate Memory Block */
     { unsigned long *ptr;
       dpmi_pm_block *block;
+      unsigned long mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
+
+      if (mem_required > dpmi_free_memory) { /* sorry, no more mem. */
+	 _eflags |= CF;
+         _LWORD(edi) = 0;
+         _LWORD(esi) = 0;
+	 break;
+      }	
+
       block = alloc_pm_block();
-      ptr = malloc( (_LWORD(ebx))<<16 | (_LWORD(ecx)) );
+      ptr = malloc(mem_required);
 
       if ((ptr==NULL)||(block == NULL)) {
 	 _eflags |= CF;
@@ -1102,6 +1110,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       }
       block -> handle = pm_block_handle_used++;
       block -> base = ptr;
+      block -> size = mem_required;
+      dpmi_free_memory -= mem_required;
       D_printf("DPMI: malloc attempt for siz 0x%08lx\n", (_LWORD(ebx))<<16 | (_LWORD(ecx)));
       D_printf("      malloc returns address 0x%08lx\n", ptr);
       D_printf("                using handle 0x%08lx\n",block->handle);
@@ -1121,6 +1131,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    break;
 	}
 	D_printf(" DPMI: Free Mem Blk. for handle %08x\n", block->handle);
+	dpmi_free_memory += block -> size;
 	free(block->base);
 	free_pm_block(block);
     }
@@ -1141,6 +1152,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    _eflags |= CF;
 	    break;
 	}
+	if ((newsize > block -> size) &&
+	    ((newsize - block -> size) > dpmi_free_memory)) {
+	    _eflags |= CF;
+	    break;
+	}
 	D_printf("DPMI: Realloc to size %x\n", (_LWORD(ebx)<<16 | _LWORD(ecx)));
 	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", block->handle);
 	old_base = block -> base;
@@ -1152,7 +1168,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    D_printf("DPMI: realloc failed\n");
 	    break;
 	}
-	msdos_fixed_realloc_descriptor(old_base, block, newsize);
+	dpmi_free_memory += block -> size;
+	dpmi_free_memory -= newsize;
+	block -> size = newsize;
+	if (in_bcc)
+	    bcc_fixed_realloc_descriptor(old_base, block, newsize);
 	_LWORD(ecx) = (unsigned long)(block->base) & 0xffff;
 	_LWORD(ebx) = ((unsigned long)(block->base) >> 16) & 0xffff;
     }
@@ -1161,16 +1181,21 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0601:	/* Unlock Linear Region */
   case 0x0602:	/* Mark Real Mode Region as Pageable */
   case 0x0603:	/* Relock Real Mode Reagion */
-   break;
+    break;
   case 0x0604:	/* Get Page Size */
     _LWORD(ebx) = 0;
     _LWORD(ecx) = DPMI_page_size;
     break;
   case 0x0700:	/* Reserved */
+    break;
   case 0x0701:	/* Reserved */
+    D_printf("DPMI: undoc. func. 0x0701 called\n");
+    D_printf("      BX=0x%04x, CX=0x%04x, SI=0x%04x, DI=0x%04x\n",
+			_LWORD(ebx), _LWORD(ecx), _LWORD(esi), _LWORD(edi));
+    break;
   case 0x0702:	/* Mark Page as Demand Paging Candidate */
   case 0x0703:	/* Discard Page Contents */
-   break;
+    break;
   case 0x0900:	/* Get and Disable Virtual Interrupt State */
     _LO(ax) = (dpmi_eflags & IF) ? 1 : 0;
     dpmi_cli();
@@ -1212,10 +1237,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 
 inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 {
-  if (in_dpmi==1) {
-    if (ldt_buffer) free(ldt_buffer);
-    if (pm_stack) free(pm_stack);
-  }
   { 
   /* We can't free selectors here, may be a kernel problem? */
     int i;
@@ -1230,16 +1251,22 @@ inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
        dpmi_pm_block *tmp;
        if (p->base)
 	  free(p->base);
+       dpmi_free_memory += p -> size;
        tmp = p->next;
        free(p);
        p = tmp;
      }
   }
+  /* we must free ldt_buffer here, because FreeDescriptor() will */
+  /* modify ldt_buffer */
+  if (in_dpmi==1) {
+    if (ldt_buffer) free(ldt_buffer);
+    if (pm_stack) free(pm_stack);
+    in_bcc = 0;
+  }
   in_dpmi_dos_int = 1;
   in_dpmi--;
   in_win31 = 0;
-  in_bcc = 0;
-  in_dpmires = 0;
   memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct));
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -1437,6 +1464,17 @@ void dpmi_init()
   }
 
   if(!in_dpmi) {
+    struct meminfo *mi;
+
+    mi = readMeminfo();
+    if (mi)
+      dpmi_free_memory = ((mi->free + mi->swapfree)<
+			  (((unsigned long)config.dpmi)*1024))?
+                   	  (mi->free + mi->swapfree):
+                	  ((unsigned long)config.dpmi)*1024;
+    else
+     dpmi_free_memory = ((unsigned long)config.dpmi)*1024;
+     
     DPMI_rm_procedure_running = 0;
 
     DPMIclient_is_32 = LWORD(eax) ? 1 : 0;
@@ -1569,12 +1607,12 @@ void dpmi_init()
 			DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
 	*(unsigned short *)(((char *)(psp<<4))+0x2c) = envpd;
 
-        CURRENT_ENV = (unsigned short *)(((char *)(psp<<4))+0x2c);
         CURRENT_ENV_SEL = envpd;
-
 	D_printf("DPMI: env segement %X converted to descriptor %X\n",
 		envp,envpd);
-     }
+     } else
+          CURRENT_ENV_SEL = 0;
+     CURRENT_PSP = psp;
   }
 
   print_ldt();

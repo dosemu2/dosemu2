@@ -26,7 +26,7 @@ GROUP:		Misc ../DANG_c/summary_Misc dosemu/bios_emm.c dosemu/xms.c
 			dosemu/cpu.c dosemu/lpt.c 
 GROUP:		Mouse ../DANG_c/summary_Mouse mouse/mouse.c 
 GROUP:		Bios ../DANG_c/summary_Bios bios/bios.S 
-GROUP:		PIC ../DANG_c/summary_PIC timer/pic.c timer/pic.h
+GROUP:		PIC ../DANG_c/summary_PIC pic/pic.c pic/pic.h
 
 # INTRODUCTION is the location of Introduction. There may be
 # more than one of these.

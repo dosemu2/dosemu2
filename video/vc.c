@@ -103,9 +103,6 @@
 #include <ctype.h>
 /*#include <termio.h>*/
 #include <sys/time.h>
-#ifndef USE_SLANG
-#include <ncurses.h>		/*termcap.h*/
-#endif
 #ifdef WHY_DONT_PEOPLE_HAVE_THIS
 #include <sys/mman.h>
 #else

@@ -522,11 +522,11 @@ __asm__("___START___: jmp _emulate\n");
 #include "cpu.h"
 #include "int.h"
 #ifdef NEW_PIC
-#include "timer/bitops.h"
-#include "timer/pic.h"
+#include "bitops.h"
+#include "pic.h"
 #endif
 #ifdef DPMI
-#include "dpmi/dpmi.h"
+#include "dpmi.h"
 #endif
 
 extern void stdio_init(void);
@@ -541,24 +541,6 @@ extern void keyboard_close(void);
 extern void vm86_GP_fault();
 extern void config_init(int argc, char **argv);
 
-/* DANG_BEGIN_FUNCTION DBGTIME 
- *
- * arguments:
- * x - character to print with time.
- *
- * description:
- *  Inline function to debug time differences between different points of
- * execution within DOSEMU. Thanks Ronnie :-).
- * Only used by developers and not expected to execute in any general 
- * releases.
- *
- * DANG_END_FUNCTION
- */
-#define DBGTIME(x) {\
-                        struct timeval tv;\
-                        gettimeofday(&tv,NULL);\
-                        fprintf(stderr,"%c %06d:%06d\n",x,(int)tv.tv_sec,(int)tv.tv_usec);\
-                   }
 
 #ifndef NEW_PIC
 /* Programmable Interrupt Controller, 8259 */
