@@ -404,8 +404,9 @@ void serial_int_engine(int num, int int_requested)
   /* Update the IIR status immediately */
   tmp = (com[num].int_condition & com[num].IER);
 
-  if(s3_printf) s_printf("SER%d: tmp=%d int_cond=%d int_req=%d int=%d\n",
-    num, tmp, com[num].int_condition, com[num].int_request, int_requested);
+  if(s3_printf) s_printf("SER%d: tmp=%d int_cond=%d int_req=%d int=%d fifo=%i\n",
+    num, tmp, com[num].int_condition, com[num].int_request, int_requested,
+    com[num].fifo_enable);
   if (int_requested && !(int_requested & com[num].int_condition))
     s_printf("SER%d: Warning: int_condition is not set for the requested interrupt!\n", num);
 
