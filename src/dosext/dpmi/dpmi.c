@@ -3613,12 +3613,9 @@ void dpmi_fault(struct sigcontext_struct *scp)
   else {
     if (_trapno == 0x0c) {
       if (Segments[_cs >> 3].is_32 && !Segments[_ss >> 3].is_32 && _HWORD(esp)) {
-        error("Stack Fault due to a CPU bug!\n"
-	      "For more information read a chapter \"Specification Clarifications\"\n"
-	      "section 4 of the document \"Intel386 DX Processor Specification Update\"\n"
-	      "at http://www.intel.com/design/intarch/specupdt/27287402.PDF\n"
-	      "If your program uses a dos4gw DOS extender, try dos32a extender\n"
-	      "instead, which may solve the problem.\n");
+        error("Stack Fault, ESP corrupted due to a CPU bug. Exiting.\n"
+	      "For more details on that problem and possible work-arounds,\n"
+	      "please read EMUfailure.txt, section 1.7.2\n");
 #if 0
 	_HWORD(ebp) = 0;
 	_HWORD(esp) = 0;
