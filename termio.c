@@ -21,11 +21,20 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/14 22:00:18 $
+ * $Date: 1994/07/11 21:04:57 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.5 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.5  1994/07/11  21:04:57  root
+ * Latest keycode/terminfo updates by Markkk.
+ *
+ * Revision 2.4  1994/07/09  14:29:43  root
+ * prep for pre53_3.
+ *
+ * Revision 2.3  1994/07/05  21:59:13  root
+ * NCURSES IS HERE.
+ *
  * Revision 2.2  1994/06/14  22:00:18  root
  * Alistair's DANG inserted for the first time :-).
  *
@@ -97,19 +106,15 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <linux/utsname.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
-#include <termio.h>
 #include <sys/time.h>
-#ifdef USE_NCURSES
 #include <ncurses.h>
-#else
-#include <termcap.h>
-#endif
 #include <sys/mman.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -132,6 +137,8 @@ u_char keepkey = 1;
 
 inline void child_set_flags(int );
 
+extern unsigned int use_sigio;
+
 void clear_raw_mode();
 extern void clear_console_video();
 extern void clear_process_control();
@@ -141,6 +148,9 @@ extern void set_process_control();
 void get_leds();
 extern void DOS_setscan(u_short);
 void activate(int);
+extern int colors[8][8];
+extern void terminal_initialize();
+extern void terminal_close();
 
 void convascii(int *);
 
@@ -161,11 +171,7 @@ unsigned int queue;
 
 #define put_queue(psc) (queue = psc)
 
-#ifdef USE_NCURSES
-static void
-#else
 static void gettermcap(void),
-#endif
  CloseKeyboard(void), sysreq(unsigned int), ctrl(unsigned int),
  alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int), lshift(unsigned int),
  unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
@@ -293,38 +299,92 @@ char tc[1024], termcap[1024], *cl,	/* clear screen */
 *tp;
 int li, co;			/* lines, columns */
 
-/* this is DEBUGGING code! */
-int li2, co2;
-
 struct funkeystruct {
   char *esc;
   char *tce;
   us code;
 };
 
-#define FUNKEYS 20
+#define FUNKEYS 77
 static struct funkeystruct funkey[FUNKEYS] =
 {
-  {NULL, "kI", 0x5200},		/* Ins */
-  {NULL, "kD", 0x5300},		/* Del...he had 127 */
-  {NULL, "kh", 0x4700},		/* Ho...he had 0x5c00 */
-  {NULL, "kH", 0x4f00},		/* End...he had 0x6100 */
-  {NULL, "ku", 0x4800},		/* Up */
-  {NULL, "kd", 0x5000},		/* Dn */
-  {NULL, "kr", 0x4d00},		/* Ri */
-  {NULL, "kl", 0x4b00},		/* Le */
-  {NULL, "kP", 0x4900},		/* PgUp */
-  {NULL, "kN", 0x5100},		/* PgDn */
-  {NULL, "k1", 0x3b00},		/* F1 */
-  {NULL, "k2", 0x3c00},		/* F2 */
-  {NULL, "k3", 0x3d00},		/* F3 */
-  {NULL, "k4", 0x3e00},		/* F4 */
-  {NULL, "k5", 0x3f00},		/* F5 */
-  {NULL, "k6", 0x4000},		/* F6 */
-  {NULL, "k7", 0x4100},		/* F7 */
-  {NULL, "k8", 0x4200},		/* F8 */
-  {NULL, "k9", 0x4300},		/* F9 */
-  {NULL, "k0", 0x4400},		/* F10 */
+  {NULL, "kich1", 0x5200},	/* kI     Ins */
+  {NULL, "kdch1", 0x5300},	/* kD     Del   127*/
+  {NULL, "khome", 0x4700},	/* kh     Ho    0x5c00 */
+  {NULL, "kend", 0x4f00},	/* kH     End   0x6100 */
+  {NULL, "kcuu1", 0x4800},	/* ku     Up */  
+  {NULL, "kcud1", 0x5000},	/* kd     Dn */
+  {NULL, "kcuf1", 0x4d00},	/* kr     Ri */
+  {NULL, "kcub1", 0x4b00},	/* kl     Le */
+  {NULL, "kpp", 0x4900},	/* kP     PgUp */
+  {NULL, "knp", 0x5100},	/* kN     PgDn */
+  {NULL, "kf1", 0x3b00},	/* k1     F1 */
+  {NULL, "kf2", 0x3c00},	/* k2     F2 */
+  {NULL, "kf3", 0x3d00},	/* k3     F3 */
+  {NULL, "kf4", 0x3e00},	/* k4     F4 */
+  {NULL, "kf5", 0x3f00},	/* k5     F5 */
+  {NULL, "kf6", 0x4000},	/* k6     F6 */
+  {NULL, "kf7", 0x4100},	/* k7     F7 */
+  {NULL, "kf8", 0x4200},	/* k8     F8 */
+  {NULL, "kf9", 0x4300},	/* k9     F9 */
+  {NULL, "kf10", 0x4400},	/* k0     F10 */
+  {NULL, "kf11", 0x8500},	/*        F11 */
+  {NULL, "kf12", 0x8600},	/*        F12 */
+  {"\033[2~", NULL, 0x5200},	/* Ins */
+  {"\033[3~", NULL, 0x5300},	/* Del   127*/
+  {"\033[1~", NULL, 0x4700},	/* Ho    0x5c00 */
+  {"\033[4~", NULL, 0x4f00},	/* End   0x6100 */
+  {"\033[5~", NULL, 0x4900},	/* PgUp */
+  {"\033[6~", NULL, 0x5100},	/* PgDn */
+  {"\033[A", NULL, 0x4800},	/* Up */  
+  {"\033OA", NULL, 0x4800},	/* Up */
+  {"\033[B", NULL, 0x5000},	/* Dn */
+  {"\033OB", NULL, 0x5000},	/* Dn */
+  {"\033[C", NULL, 0x4d00},	/* Ri */
+  {"\033OC", NULL, 0x4d00},	/* Ri */
+  {"\033[D", NULL, 0x4b00},	/* Le */
+  {"\033OD", NULL, 0x4b00},	/* Le */
+  {"\033[[A", NULL, 0x3b00},	/* F1 */
+  {"\033[[B", NULL, 0x3c00},	/* F2 */
+  {"\033[[C", NULL, 0x3d00},	/* F3 */
+  {"\033[[D", NULL, 0x3e00},	/* F4 */
+  {"\033[[E", NULL, 0x3f00},	/* F5 */
+  {"\033[17~", NULL, 0x4000},	/* F6 */
+  {"\033[18~", NULL, 0x4100},	/* F7 */
+  {"\033[19~", NULL, 0x4200},	/* F8 */
+  {"\033[20~", NULL, 0x4300},	/* F9 */
+  {"\033[21~", NULL, 0x4400},	/* F10 */
+  {"\033[23~", NULL, 0x8500},	/* F11 */
+  {"\033[24~", NULL, 0x8600},	/* F12 */
+  {"\033OQ", NULL, 0x352F},	/* Keypad / */
+  {"\033OR", NULL, 0x372A},	/* Keypad * */
+  {"\033OS", NULL, 0x4A2D},	/* Keypad - */
+  {"\033Ol", NULL, 0x4E2B},	/* Keypad + */
+  {"\033On", NULL, 0x5300},	/* Keypad . */
+  {"\033Op", NULL, 0x5200},	/* Keypad 0 */
+  {"\033Oq", NULL, 0x4F00},	/* Keypad 1 */
+  {"\033Or", NULL, 0x5000},	/* Keypad 2 */
+  {"\033Os", NULL, 0x5100},	/* Keypad 3 */
+  {"\033Ot", NULL, 0x4B00},	/* Keypad 4 */
+  {"\033Ou", NULL, 0x4C00},	/* Keypad 5 */
+  {"\033Ov", NULL, 0x4D00},	/* Keypad 6 */
+  {"\033Ow", NULL, 0x4700},	/* Keypad 7 */
+  {"\033Ox", NULL, 0x4800},	/* Keypad 8 */
+  {"\033Oy", NULL, 0x4900},	/* Keypad 9 */
+  {"\033OM", NULL, 0x1C0D},	/* Keypad Enter */
+  {"\033`", NULL, 0x2900},	/* Alt ` */
+  {"\033\011", NULL, 0xA500},	/* Alt Tab */
+  {"\033-", NULL, 0x8200},	/* Alt - */
+  {"\033=", NULL, 0x8300},	/* Alt = */
+  {"\033\\", NULL, 0x2B00},	/* Alt \ */
+  {"\033[", NULL, 0x1A00},	/* Alt [ */
+  {"\033]", NULL, 0x1B00},	/* Alt ] */
+  {"\033\015", NULL, 0x1C00},	/* Alt Enter */
+  {"\033;", NULL, 0x2700},	/* Alt ; */
+  {"\033'", NULL, 0x2800},	/* Alt ' */
+  {"\033,", NULL, 0x3300},	/* Alt , */
+  {"\033.", NULL, 0x3400},	/* Alt . */
+  {"\033/", NULL, 0x3500},	/* Alt / */
 };
 
 /* this table is used by convKey() to give the int16 functions the
@@ -366,51 +426,44 @@ unsigned char highscan[256] =
 int
 outch(int c)
 {
-#ifdef USE_NCURSES
-  addch((u_char)c);
+  addch((u_char)c); 
   refresh();
-#else
-  write(STDOUT_FILENO, (char *) &c, 1);
-#endif
   return 1;
 }
 
-#ifndef USE_NCURSES
 static void
 gettermcap(void)
 {
+  char *garb; 
   struct winsize ws;		/* buffer for TIOCSWINSZ */
   struct funkeystruct *fkp;
 
-  li = 0;
-  co = 0;
+  li = 25;
+  co = 80;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) >= 0) {
     li = ws.ws_row;
     co = ws.ws_col;
-    /* this is DEBUGGING code! */
-    if (sizes) {
-      warn("using real found screen sizes: %d x %d!\n", co, li);
-      co2 = co;
-      li2 = li;
-    }
-    else {
-      v_printf("using 80x25 screen size no matter what\n");
-      co2 = 80;
-      li2 = 25;
-    }
-    v_printf("SCREEN SIZE----co: %d, li: %d, CO: %d, LI: %d\n",
-	     co, li, co2, li2);
   }
-  if (tgetent(termcap, getenv("TERM")) != 1) {
-    error("ERROR: no termcap \n");
-    leavedos(17);
-  }
+    
   if (li == 0 || co == 0) {
-    li = tgetnum("li");		/* lines   */
-    co = tgetnum("co");		/* columns */
-    v_printf("TERMCAP screen size: %d x %d\n", co, li);
+    error("ERROR: unknown window sizes li=%d  co=%d, setting to 80x25\n",li,co);
+    li=25;
+    co=80;
   }
-  tp = tc;
+
+  /* This won't work with NCURSES version 1.8. */
+  /* These routines have been tested with NCURSES version 1.8.5 */
+  /* Can someone make this compatible with 1.8? */
+  for (fkp = funkey; fkp < &funkey[FUNKEYS]; fkp++) {
+    if (fkp->tce != NULL) {
+      fkp->esc = tigetstr(fkp->tce);
+      error("TERMINFO string %s = %s\n", fkp->tce, fkp->esc);
+      /*if (!fkp->esc) error("ERROR: can't get terminfo %s\n", fkp->tce);*/
+    }
+  }
+
+#if 0
+  /* This is old termcap stuff */
   cl = tgetstr("cl", &tp);	/* clear entire screen */
   le = tgetstr("le", &tp);	/* move cursor left one column */
   cm = tgetstr("cm", &tp);	/* cursor motion */
@@ -427,6 +480,7 @@ gettermcap(void)
   me = tgetstr("me", &tp);	/* turn off all appearance modes */
   vi = tgetstr("vi", &tp);	/* hide cursor */
   ve = tgetstr("ve", &tp);	/* return cursor to normal */
+
   if (se == NULL)
     so = NULL;
   if (md == NULL || mr == NULL)
@@ -435,14 +489,8 @@ gettermcap(void)
     error("ERROR: unknown window sizes \n");
     leavedos(18);
   }
-  for (fkp = funkey; fkp < &funkey[FUNKEYS]; fkp++) {
-    fkp->esc = tgetstr(fkp->tce, &tp);
-    if (!fkp->esc)
-      error("ERROR: can't get termcap %s\n", fkp->tce);
-  }
-}
-
 #endif
+}
 
 static void
 CloseKeyboard(void)
@@ -479,6 +527,16 @@ OpenKeyboard(void)
   struct termio newtermio;	/* new terminal modes */
   struct stat chkbuf;
   int major, minor;
+  struct new_utsname unames;
+
+  uname(&unames);
+  if (unames.release[0] > 0 ) {
+    if ((unames.release[2] == 1  && unames.release[3] > 1 ) || 
+         unames.release[2] > 1 ) {
+      use_sigio=FASYNC;
+      k_printf("KBD: Using SIGIO\n");
+    }
+  }
 
   kbd_fd = dup(STDIN_FILENO);
   ioc_fd = dup(STDIN_FILENO);
@@ -490,8 +548,10 @@ OpenKeyboard(void)
     }
 
   old_kbd_flags = fcntl(kbd_fd, F_GETFL);
-  fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
-  fcntl(ioc_fd, F_SETFL, O_WRONLY | O_NONBLOCK);
+  fcntl(kbd_fd, F_SETOWN,  getpid());
+  fcntl(ioc_fd, F_SETOWN,  getpid());
+  fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK | use_sigio);
+  fcntl(ioc_fd, F_SETFL, O_WRONLY | O_NONBLOCK | use_sigio);
 
   scr_state.vt_allow = 0;
   scr_state.vt_requested = 0;
@@ -556,7 +616,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.2 1994/06/14 22:00:18 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.5 1994/07/11 21:04:57 root Exp root $\n");
 
   return 0;
 }
@@ -762,7 +822,6 @@ child_set_flags(int sc)
 void
 convascii(int *cc)
 {
-
   /* get here only if in cooked mode (i.e. K_XLATE) */
   int i;
   struct timeval scr_tv;
@@ -987,33 +1046,20 @@ termioInit()
     error("ERROR: can't open keyboard\n");
     leavedos(19);
   }
-#ifndef USE_NCURSES
+  terminal_initialize(); 
+  setupterm(NULL, 1, (int *)0);
   gettermcap();
-#endif
+  
+  li = 25;
+  co = 80;
   qsort(funkey, FUNKEYS, sizeof(struct funkeystruct), &fkcmp);
-
-#ifdef USE_NCURSES
-  initscr();			/* Init curses */
-  keypad(stdscr, TRUE);
-  cbreak();
-  /*  noecho(); */
-#else
-  if (ks)
-    tputs(ks, 1, outch);
-#endif
 }
 
 void
 termioClose()
 {
-  CloseKeyboard();
-#ifdef USE_NCURSES
-  endwin();			/* exit curses */
-#else
-  if (ke)
-    tputs(ke, 1, outch);
-  tputs(cl, 1, outch);
-#endif
+  terminal_close();
+  CloseKeyboard(); 
 }
 
 /**************************************************************

@@ -1,3 +1,46 @@
+Sat Jul 11 1994 JES
+
+	- Latest termio.c with keyboard enhancements from Markkk
+	- Added SIGIO conditional on uname().
+
+Sun Jul 10 09:38:23 1994  Jochen Hein  (jochen@No-MS-DOS)
+
+	* added setlocale-call to dos.c
+	* reformatted highscan[] in termio.c
+
+Sat Jul 09 1994 JES
+
+	- DPMI patches from Lutz
+	- Pktdriver enhancements by Rob
+	- Mouse patch from Douglas Gleichman p86884@tcville.ES.hac.com
+	- Changed install dos as per Jochen
+	- Windows 3.0 mouse is back.
+	- I added insert esc-seq to gettermcap of termio.c 
+
+Tue Jul 05 1994 JES
+
+	- Finally... Markkk succeeds where so many of us have failed.
+	  NCURSES support is here, and I believe to stay :-). It's 
+	  still a bit rough, but it IS. You should truly think about
+	  getting ncurses-1.8.5.tgz from:
+	  netcom.com:pub/zmbenhal/ncurses/1.8.5.tgz
+	  This of course brings color to serial lines and preps for
+	  many more. I couldn't activate it on a telnet or rlogin 
+	  connect yet. Thanks Markkk, from many of us :-).
+
+Sat Jul 02 1994 JES
+
+	- Finally... interrupt routines are called by functions of
+	  an array. I'm certain that someone can come up with a better
+	  method as I'm using 0x100 pointers in interrupt_function().
+
+Tue Jun 28 1994 JES
+
+	- Markkk brings actuall character set to DOSEMU
+	  when in non-graphics mode ... Yaaa :-). Pease
+	  read README.ibmset
+	- Patch to modify timers done in SIGALRM.
+
 Fri Jun 24 1994 JES
 
 	- Markks console cursor patches, and more speed increses to

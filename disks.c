@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/17 00:13:32 $
+ * $Date: 1994/07/04 23:59:23 $
  * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -570,7 +570,7 @@ checkdp(struct disk *disk)
 }
 
 void
-int13(void)
+int13(u_char i)
 {
   unsigned int disk, head, sect, track, number;
   int res;

@@ -1,12 +1,18 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/06/27 02:15:58 $
+ * $Date: 1994/07/09 14:29:43 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.5 $
+ * $Revision: 2.7 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.7  1994/07/09  14:29:43  root
+ * prep for pre53_3.
+ *
+ * Revision 2.6  1994/07/04  23:59:23  root
+ * Prep for Markkk's NCURSES patches.
+ *
  * Revision 2.5  1994/06/27  02:15:58  root
  * Prep for pre53
  *
@@ -83,12 +89,16 @@ extern int cursor_row;
 extern int cursor_col;
 u_short microsoft_port_check = 0;
 
+/*
+   DANG_BEGIN_FUNCTION inline int inb(int port)
+
+   INB is used to do controlled emulation of input from ports.
+
+   DANG_END_FUNCTION
+*/
 inline int
 inb(int port)
 {
-  /* for scanseq */
-#define NEWCODE      1
-#define BREAKCODE    2
 
   static unsigned int cga_r = 0;
   static unsigned int tmp = 0;
@@ -115,22 +125,19 @@ inb(int port)
     if (keys_ready)
       microsoft_port_check = 0;
     k_printf("direct 8042 read1: 0x%02x microsoft=%d\n", *LASTSCAN_ADD, microsoft_port_check);
-    /*	      tmp=*LASTSCAN_ADD;
-	      *LASTSCAN_ADD=0; */
     if (microsoft_port_check)
       return microsoft_port_check;
     else
       return *LASTSCAN_ADD;
-
-  case 0x64:
-    tmp = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
-    /* *LASTSCAN_ADD=0; */
-    k_printf("direct 8042 0x64 status check: 0x%02x keys_ready=%d, microsoft=%d\n", tmp, keys_ready, microsoft_port_check);
-    return tmp;
     
   case 0x61:
     k_printf("inb [0x61] =  0x%02x (8255 chip)\n", port61);
     return port61;
+
+  case 0x64:
+    tmp = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
+    k_printf("direct 8042 0x64 status check: 0x%02x keys_ready=%d, microsoft=%d\n", tmp, keys_ready, microsoft_port_check);
+    return tmp;
 
   case 0x70:
   case 0x71:
@@ -157,6 +164,7 @@ inb(int port)
   case 0x3da:
     /* graphic status - many programs will use this port to sync with
      * the vert & horz retrace so as not to cause CGA snow */
+    i_printf("3ba/3da port inb\n");
     return (cga_r ^= 1) ? 0xcf : 0xc6;
   case 0x3bc:
     i_printf("printer port inb [0x3bc] = 0\n");
@@ -178,7 +186,7 @@ inb(int port)
       return (tmp);
     }
     i_printf("default inb [0x%x] = 0x%02x\n", port, (LWORD(eax) & 0xFF));
-    return 0xff;
+    return 0x00;
   }
   return 0;
 }
@@ -221,6 +229,7 @@ outb(int port, int byte)
       static int last_byte;
       static int hi = 0, lo = 0;
       int pos;
+      v_printf("Video Port outb [0x%04x]\n", port);
       if ( (port == bios_video_port+1) && (last_port == bios_video_port) )
 	{
 	  /* We only take care of cursor positioning for now. */

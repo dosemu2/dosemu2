@@ -3,12 +3,18 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/24 14:51:06 $
+ * $Date: 1994/07/05 21:59:13 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.3 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.5  1994/07/05  21:59:13  root
+ * NCURSES IS HERE.
+ *
+ * Revision 2.4  1994/07/04  23:59:23  root
+ * Prep for Markkk's NCURSES patches.
+ *
  * Revision 2.3  1994/06/24  14:51:06  root
  * Markks's patches plus.
  *
@@ -199,17 +205,13 @@ extern int in_readkeyboard;
 
 extern int in_vm86;
 
-extern int li, co, li2, co2;	/* lines, columns */
+extern int li, co;	/* lines, columns */
 extern int scanseq;
 extern int cursor_row;
 extern int cursor_col;
 
-/* #define CO	80
-   #define LI	25 */
-
-/* would use the info termio.c nicely got for us, but it works badly now */
-#define CO	co2
-#define LI	li2
+#define CO	80
+#define LI	25
 
 void dos_ctrlc(void), dos_ctrl_alt_del(void);
 void show_regs(void);
@@ -375,8 +377,10 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
       } while ((s_tmp == -1) ); \
   s_tmp; })
 
-#ifndef USE_NCURSES
+#ifndef FALSE
 #define FALSE	0
+#endif
+#ifndef TRUE
 #define TRUE	1
 #endif
 
@@ -392,7 +396,10 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        u_short cardtype;
        u_short chipset;
        u_short gfxmemsize;	/* for SVGA card, in K */
-       u_short redraw_chunks;
+       u_short term_color;
+       u_short term_updatelines;
+       u_short term_updatefreq;
+       u_short term_charset;
        boolean fullrestore;
 
        boolean console_keyb;
@@ -497,10 +504,10 @@ extern void show_cursor(void);
 extern void cpu_init(void);
 extern __inline__ void run_int(int);
 extern int mfs_redirector(void);
-extern void int10(void);
-extern void int13(void);
-extern void int14(void);
-extern void int17(void);
+extern void int10(u_char);
+extern void int13(u_char);
+extern void int14(u_char);
+extern void int17(u_char);
 extern void io_select(void);
 extern int pd_receive_packet(void);
 extern int printer_tick(u_long);

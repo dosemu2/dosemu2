@@ -34,6 +34,7 @@
  */
 
 #include <stdio.h>
+#include <locale.h>
 #include "config.h"
 
 void (*dosemu) ();
@@ -58,6 +59,7 @@ main(int argc, char **argv)
     fprintf(stderr, "cannot load shared library /usr/lib/libdosemu!\n");
     exit(1);
   }
+  setlocale(LC_CTYPE,"");
   dosemu = (void *) LIBSTART;
   dosemu(argc, argv);
 #endif

@@ -1,4 +1,4 @@
-#include <termcap.h>
+#include <ncurses.h>       /*termcap.h*/
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/kd.h>
@@ -10,17 +10,18 @@
 
 extern int wait_vc_active(void);
 
+void console_poscur(int xpos, int ypos)
+{
+  mvcur(-1,-1,ypos,xpos);
+}
+
 void set_console_video(void)
 {
   /* clear Linux's (unmapped) screen */
-#ifdef USE_NCURSES 
-  clear();
+  clear(); 
   refresh();
-#else
-  tputs(cl, 1, outch);
-#endif
-  scr_state.mapped = 0;
 
+  scr_state.mapped = 0;
   allow_switch();
 
   if (config.vga) {

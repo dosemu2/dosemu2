@@ -10,19 +10,13 @@ LD86 = ld86 -0
 	dd if=$*.tmp of=$@ bs=1 skip=288
 	rm -f $*.tmp $*.o
 
-ALL = dpmi.c ldtlib.c dpmi.h \
-	ldt.c call.S testdpmi.S
+ALL = dpmi.c dpmi.h \
+	call.S testdpmi.S
 
-all: dpmi.o ldtlib.o ldt.o call.o testdpmi.com
+all: dpmi.o call.o testdpmi.com
 
 dpmi.o:
 	$(CC) -DDPMI $(INCDIR) -N -O6 -c dpmi.c
-
-ldtlib.o:
-	$(CC) $(INCDIR) -N -O6 -c ldtlib.c
-
-ldt.o:
-	$(CC) $(INCDIR) -N -O6 -c ldt.c
 
 call.o:
 	$(CC) -N -O6 -c -o $@ call.S

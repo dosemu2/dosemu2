@@ -21,9 +21,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/06/14 22:01:42 $
+ * $Date: 1994/07/05 22:00:23 $
  * $Source: /home/src/dosemu0.60/video/RCS/video.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -102,9 +102,9 @@
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
-#include <termio.h>
+/*#include <termio.h>*/
 #include <sys/time.h>
-#include <termcap.h>
+#include <ncurses.h>     /*termcap.h*/
 #include <sys/mman.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -132,7 +132,7 @@ extern void child_close_mouse();
 extern void child_open_mouse();
 extern struct config_info config;
 extern void clear_screen(int, int);
-extern inline void poscur(int, int);
+extern inline void console_poscur(int, int);
 extern void Scroll(int, int, int, int, int, int);
 void set_dos_video();
 void put_video_ram();
@@ -329,7 +329,7 @@ release_vt(int sig)
 		 "decl %%edx; movb $0xf,%%al; outb %%al,%%dx; "
 		 "incl %%edx; inb %%dx,%%al; mov %%ax,%0"
 		 :"=g" (pos):"m" (bios_video_port):"%dx", "%ax");
-    poscur(pos%80, pos/80);  /* Let the kernel know the cursor location. */
+    console_poscur(pos%80, pos/80);  /* Let kernel know the cursor location. */
 
     set_linux_video();
     put_video_ram();
@@ -673,28 +673,22 @@ set_vc_screen_page(int page)
 void
 hide_cursor()
 {
-#ifdef USE_NCURSES
-  /* Can't figure out how to hide cursor with ncurses yet */
   return;
-#else
+  /* Can't figure out how to hide cursor with NCURSES yet */
   /* the Linux terminal driver hide_cursor string is
    * "\033[?25l" - put it in as the "vi" termcap in /etc/termcap
    */
-  tputs(vi, 1, outch);
-#endif
+  /* tputs(vi, 1, outch); */
 }
 
 void
 show_cursor()
 {
-#ifdef USE_NCURSES
   return;
-#else
   /* the Linux terminal driver show_cursor string is
    * "\033[?25h" - put it in as the "ve" termcap in /etc/termcap
    */
-  tputs(ve, 1, outch);
-#endif
+  /* tputs(ve, 1, outch); */
 }
 
 

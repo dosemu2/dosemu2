@@ -1,11 +1,14 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1994/06/12 23:15:37 $
+ * $Date: 1994/07/04 23:59:23 $
  * $Source: /home/src/dosemu0.60/RCS/lpt.c,v $
- * $Revision: 2.1 $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 2.2  1994/07/04  23:59:23  root
+ * Prep for Markkk's NCURSES patches.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -73,7 +76,7 @@ struct printer lpt[NUM_PRINTERS] =
 };
 
 void
-int17(void)
+int17(u_char ii)
 {
   int num;
 

@@ -125,6 +125,7 @@ DOSEMUSetupMouse()
         }
 #endif
 #endif
+  m_printf("MOUSE: INIT complete\n");
 }
  
 void

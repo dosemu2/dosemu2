@@ -1,14 +1,27 @@
 #define INT_H 1
-
-#include "ipx.h"
-
 /* 
- * $Date: 1994/06/27 02:15:58 $
+ * DANG_BEGIN_MODULE 
+ *
+ * Centralized area for interrupt service routine calls and support
+ * functions.
+ *
+ * DANG_END_MODULE
+ *
+ * $Date: 1994/07/09 14:29:43 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 2.6 $
+ * $Revision: 2.9 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.9  1994/07/09  14:29:43  root
+ * prep for pre53_3.
+ *
+ * Revision 2.8  1994/07/05  21:59:13  root
+ * NCURSES IS HERE.
+ *
+ * Revision 2.7  1994/07/04  23:59:23  root
+ * Prep for Markkk's NCURSES patches.
+ *
  * Revision 2.6  1994/06/27  02:15:58  root
  * Prep for pre53
  *
@@ -104,10 +117,13 @@
  *
  */
 
+#include "ipx.h"
+
 extern int pkt_int(void);
 extern void pkt_init(int);
-extern int pkt_check_receive(void);
+extern int pkt_check_receive(int);
 extern int restore_screen(void);
+void default_interrupt(u_char);
 
 extern int fatalerr;
 
@@ -159,7 +175,7 @@ u_char leds = 0;
 
 /* This is not used at this time */
 inline void
-int08(void)
+int08(u_char i)
 {
   run_int(0x1c);
   REG(eflags) |= VIF;
@@ -167,13 +183,14 @@ int08(void)
 }
 
 inline void
-int15(void)
+int15(u_char i)
 {
   struct timeval wait_time;
   int num;
 
   if (HI(ax) != 0x4f)
     NOCARRY;
+  REG(eflags) |= VIF;
 
   switch (HI(ax)) {
   case 0x10:			/* TopView/DESQview */
@@ -414,7 +431,7 @@ int2f(void)
 }
 
 inline void
-int1a(void)
+int1a(u_char i)
 {
   unsigned long ticks;
   long akt_time, elapsed;
@@ -535,8 +552,10 @@ Restart:
  */
 #define EMM_FILE_HANDLE 200
 
-#ifndef USE_NCURSES
+#ifndef FALSE
 #define FALSE 0
+#endif
+#ifndef TRUE
 #define TRUE 1
 #endif
 
@@ -644,31 +663,6 @@ run_int(int i)
   unsigned char *ssp;
   unsigned long sp;
 
-#if 0
-  if (i == 0x16 && config.hogthreshold && KBD_Head == KBD_Tail ) {
-    static struct timeval tp1;
-    static struct timeval tp2;
-    static int time_count = 0;
-    if (time_count == 0)
-      gettimeofday(&tp1, NULL);
-    else {
-      gettimeofday(&tp2, NULL);
-      if ((tp2.tv_sec - tp1.tv_sec) * 1000000 +
-	  ((int) tp2.tv_usec - (int) tp1.tv_usec) < config.hogthreshold){
-	usleep(100);
-      }
-    }
-    time_count = (time_count + 1) % 10;
-  }
-
-  /* XXX bootstrap cs is now 0 */
-  if (!(REG(eip) && REG(cs))) {
-    error("run_int: not running NULL interrupt 0x%04x handler\n", i);
-    show_regs();
-    return 0;
-  }
-#endif
-
   ssp = (unsigned char *)(REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
@@ -706,9 +700,12 @@ can_revector(int i)
        */
   case 0x21:			/* we want it first...then we'll pass it on */
   case 0x2f:			/* needed for XMS, redirector, and idle interrupt */
-if ((mice->type == MOUSE_PS2) || (mice->intdrv)) {
+    return 0;
   case 0x74:			/* needed for PS/2 Mouse */
-}
+    if ((mice->type == MOUSE_PS2) || (mice->intdrv)) {
+      return 0;
+    }
+    else return 1;
   case 0xe6:			/* for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
   case 0xe8:			/* for int_queue_run return */
@@ -756,162 +753,173 @@ if ((mice->type == MOUSE_PS2) || (mice->intdrv)) {
   }
 }
 
+void *interrupt_function[0x100];
+
+static inline int is_revectored(int nr, struct revectored_struct * bitmap)
+{
+	__asm__ __volatile__("btl %2,%%fs:%1\n\tsbbl %0,%0"
+		:"=r" (nr)
+		:"m" (*bitmap),"r" (nr));
+	return nr;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION DO_INT 
+ *
+ * DO_INT is used to deal with interrupts returned to DOSEMU by the
+   kernel.
+ *
+ * DANG_END_FUNCTION
+ */
+
 inline void
 do_int(int i)
 {
-  u_char highint = 0;
 
-#if 0
+  void (* caller_function)();
+
+#if 0 /* 94/07/02 Just for reference */
   saytime("do_int");
 #endif
-
-#if 0
+#if 0 /* 94/07/02 Just for reference */
   k_printf("Do INT0x%02x, eax=0x%04x, ebx=0x%04x ss=0x%04x esp=0x%04x cs=0x%04x ip=0x%04x CF=%d \n", i, LWORD(eax), LWORD(ebx), LWORD(ss), LWORD(esp), LWORD(cs), LWORD(eip), (int)REG(eflags) & CF);
 #endif
 
-  if ((LWORD(cs)) == BIOSSEG)
-    highint = 1;
-  else
-    if (IS_REDIRECTED(i) && can_revector(i)){
-      run_int(i);
-      return;
-    }
-
-  switch (i) {
-  case 0x5:
-    g_printf("BOUNDS exception\n");
-    goto default_handling;
+  if ((LWORD(cs)) != BIOSSEG && IS_REDIRECTED(i) && can_revector(i)){
+    run_int(i);
     return;
-  case 0x0a:
-  case 0x0b:			/* com2 interrupt */
-  case 0x0c:			/* com1 interrupt */
-  case 0x0d:
-  case 0x0e:
-  case 0x0f:
+  }
+
+  caller_function = interrupt_function[i];
+  caller_function(i);
+  
+}
+
+void inline int05(u_char i) {
+    g_printf("BOUNDS exception\n");
+    default_interrupt(i);
+    return;
+}
+
+void inline int_a_b_c_d_e_f(u_char i) {
     g_printf("IRQ->interrupt %x\n", i);
     show_regs();
-    goto default_handling;
-  case 0x09:			/* IRQ1, keyb data ready */
+    default_interrupt(i);
+    return;
+}
+
+/* IRQ1, keyb data ready */
+void inline int09(u_char i) {
     fprintf(stderr, "IRQ->interrupt %x\n", i);
     run_int(0x09);
     return;
-  case 0x08:
-    int08();
-    return;
-  case 0x10:			/* VIDEO */
-    int10();
-    return;
-  case 0x11:			/* CONFIGURATION */
+}
+
+/* CONFIGURATION */
+void inline int11(u_char i) {
     LWORD(eax) = configuration;
     return;
-  case 0x12:			/* MEMORY */
+}
+
+/* MEMORY */
+void inline int12(u_char i) {
     LWORD(eax) = config.mem_size;
     return;
-  case 0x13:			/* DISK IO */
-    int13();
-    return;
-  case 0x14:			/* COM IO */
-    int14();
-    return;
-  case 0x15:			/* Cassette */
-    int15();
-    REG(eflags) |= VIF;
-    return;
-  case 0x16:			/* KEYBOARD */
+}
+
+/* KEYBOARD */
+void inline int16(u_char i) {
     run_int(0x16);
     return;
-  case 0x17:			/* PRINTER */
-    int17();
+}
+
+/* BASIC */
+void inline int18(u_char i) {
+    k_printf("BASIC interrupt being attempted.\n");
     return;
-  case 0x18:			/* BASIC */
-    break;
-  case 0x19:			/* LOAD SYSTEM */
+}
+
+/* LOAD SYSTEM */
+void inline int19(u_char i) {
     boot();
     return;
-  case 0x1a:			/* CLOCK */
-    int1a();
+}
+
+/* MS-DOS */
+void inline int21(u_char i) {
+  if (ms_dos(HI(ax)))
     return;
-#if 0
-  case 0x1b:			/* BREAK */
-  case 0x1c:			/* TIMER */
-  case 0x1d:			/* SCREEN INIT */
-  case 0x1e:			/* DEF DISK PARMS */
-  case 0x1f:			/* DEF GRAPHIC */
-  case 0x20:			/* EXIT */
-  case 0x27:			/* TSR */
-#endif
+  default_interrupt(i);
+  return;
+}
 
-  case 0x21:			/* MS-DOS */
-    if (ms_dos(HI(ax)))
-      return;
-    /* else do default handling in vm86 mode */
-    goto default_handling;
-
-  case 0x28:			/* KEYBOARD BUSY LOOP */
-    {
-      static int first = 1;
-
-      if (first && !config.keybint && config.console_keyb) {
-	first = 0;
-	/* revector int9, so dos doesn't play with the keybuffer */
-	k_printf("revectoring int9 away from dos\n");
-	SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);	/* point to IRET */
-      }
-    }
-    if (int28())
-      return;
-    goto default_handling;
+/* KEYBOARD BUSY LOOP */
+void inline int28caller(u_char i) {
+  static int first = 1;
+  if (first && !config.keybint && config.console_keyb) {
+    first = 0;
+    /* revector int9, so dos doesn't play with the keybuffer */
+    k_printf("revectoring int9 away from dos\n");
+    SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);	/* point to IRET */
+  }
+  if (int28())
     return;
+  default_interrupt(i);
+  return;
+}
 
-  case 0x29:			/* FAST CONSOLE OUTPUT */
+/* FAST CONSOLE OUTPUT */
+void inline int29(u_char i) {
     /* char in AL */
     char_out(*(char *) &REG(eax), bios_current_screen_page);
     return;
+}
 
-  case 0x2a:			/* CRITICAL SECTION */
-    goto default_handling;
-
-  case 0x2f:			/* Multiplex */
+/* Multiplex */
+void inline int2fcaller(u_char i) {
     if (int2f())
       return;
-    goto default_handling;
+    default_interrupt(i);
+    return;
+}
 
-  case 0x33:			/* mouse */
-if (mice->intdrv) {
+/* mouse */
+void inline int33(u_char i) {
+  if (mice->intdrv) {
     mouse_int();
     return;
-}
-else {
+  }
+  else {
     k_printf("Why is this being called?\n");
-    goto default_handling;
-    break;
+    default_interrupt(i);
+  }
 }
 
-  case 0x67:			/* EMS */
-    goto default_handling;
-
-  case 0x60:			/* new packet driver interface */
+/* new packet driver interface */
+void inline int_pktdrvr(u_char i) {
     if (pkt_int())
       return;
-    goto default_handling;
+    default_interrupt(i);
+    return;
+}
 
-  case 0x74:			/* PS/2 Mouse */
-    return;			/* Need to implement real ps/2 mouse */
-    break; 			/* Should call hardware 0x12 */
-				/* for the moment, internaldriver only support */
-
-  case 0xe6:			/* dos helper and mfs startup (was 0xfe) */
+/* dos helper and mfs startup (was 0xfe) */
+void inline inte6(u_char i) {
     if (dos_helper())
       return;
-    goto default_handling;
+    default_interrupt(i);
     return;
+}
 
-  case 0xe7:			/* mfs FCB call */
+/* mfs FCB call */
+void inline inte7(u_char i) {
     SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
     run_int(0xe7);
     return;
+}
 
-  case 0xe8:
+/* End function for interrupt calls from int_queue_run() */
+void inline inte8(u_char i) {
     {
       static unsigned short *csp;
       static int x;
@@ -941,24 +949,30 @@ else {
     h_printf("e8 int_queue: shouldn't get here\n");
     show_regs();
     return;
+}
 
-  default:
+/*
+ * DANG_BEGIN_FUNCTION DEFAULT_INTERRUPT 
+ *
+ * DEFAULT_INTERRUPT is the default interrupt service routine 
+   called when DOSEMU initializes.
+ *
+ * DANG_END_FUNCTION
+ */
+
+void default_interrupt(u_char i) {
     if (d.defint)
       dbug_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-    /* fall through */
-
-  default_handling:
-
-    if (highint) {
-      return;
-    }
 
     if (!IS_REDIRECTED(i)) {
       g_printf("DEFIVEC: int 0x%02x  SG: 0x%04x  OF: 0x%04x\n",
 	       i, ISEG(i), IOFF(i));
+
+/*    This is here for old SIGILL's that modify IP */
       if (i == 0x00) {
 	LWORD(eip)+=2;
       }
+
       return;
     }
 
@@ -971,11 +985,48 @@ else {
     run_int(i);
 
     return;
-  }
-  error("\nERROR: int 0x%02x not implemented\n", i);
-  show_regs();
-  fatalerr = 1;
-  return;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION SETUP_INTERRUPTS 
+ *
+ * SETUP_INTERRUPTS is used to initialize those interrupt calls that
+   we are specifically handling in protected mode.
+ *
+ * DANG_END_FUNCTION
+ */
+
+void setup_interrupts(void) {
+  
+  interrupt_function[5] = int05;
+  interrupt_function[8] = int08;
+  interrupt_function[9] = int09;
+  interrupt_function[0xa] = int_a_b_c_d_e_f;
+  interrupt_function[0xb] = int_a_b_c_d_e_f;
+  interrupt_function[0xc] = int_a_b_c_d_e_f;
+  interrupt_function[0xd] = int_a_b_c_d_e_f;
+  interrupt_function[0xe] = int_a_b_c_d_e_f;
+  interrupt_function[0xf] = int_a_b_c_d_e_f;
+  interrupt_function[0x10] = int10;
+  interrupt_function[0x11] = int11;
+  interrupt_function[0x12] = int12;
+  interrupt_function[0x13] = int13;
+  interrupt_function[0x14] = int14;
+  interrupt_function[0x15] = int15;
+  interrupt_function[0x16] = int16;
+  interrupt_function[0x17] = int17;
+  interrupt_function[0x18] = int18;
+  interrupt_function[0x19] = int19;
+  interrupt_function[0x1a] = int1a;
+  interrupt_function[0x21] = int21;
+  interrupt_function[0x28] = int28caller;
+  interrupt_function[0x29] = int29;
+  interrupt_function[0x2f] = int2fcaller;
+  interrupt_function[0x33] = int33;
+  interrupt_function[0x60] = int_pktdrvr;
+  interrupt_function[0xe6] = inte6;
+  interrupt_function[0xe7] = inte7;
+  interrupt_function[0xe8] = inte8;
 }
 
 #undef INT_H

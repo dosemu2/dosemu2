@@ -1,0 +1,61 @@
+
+This is Mark Rejhon's version 3 of terminal support for the IBM graphics
+character set with a remote DOSEMU or a xterm DOSEMU.  This is a step
+closer to nice, color terminal support with IBM characters for DOSEMU.]
+
+Please give feedback or suggestions to Mark Rejhon at the
+mdrejhon@csclub.uwaterloo.ca address.  Thanks!
+
+This update supports:
+	- NCURSES COLOR (finally!) whenever TERM=console.
+	- "xdosemu" script to run DOSEMU in a normal xterm/rxvt!
+	- IBM characters in telnet or kermit session from a Linux console.
+	- IBM characters in an IBM character terminal like minicom or a
+	   DOS-based ANSI terminal.
+     ---> Better terminal customization in the configuration file.
+           Take a look in the ./examples/config.dist file for examples!
+
+
+What's new in configuration:
+----------------------------
+There is a new keyword called "charset" which accept either of these 
+values: "latin" "ibm" and "fullibm".   View ./video/terminal.h for
+more information on these character set.  Here are the instructions
+on how to activate the 8-bit graphical IBM character set for DOSEMU:
+
+
+IBM character set in an xterm:
+------------------------------
+GREAT NEWS: You just use your existing ordinary "rxvt" or "xterm".
+Just install the VGA font by going into the DOSEMU directory and running
+the "xinstallvgafont" script by typing "./xinstallvgafont".
+Then just run "xdosemu" to start a DOSEMU window!
+
+
+IBM character set at the console:
+---------------------------------
+This will work if you are using the Linux console for telnet or kermit,
+to run a remote DOSEMU session.  Select "charset ibm" inside the 
+"video { }" configuration in /etc/dosemu.conf.  Run "dos" and enjoy!
+If you want to use color as well, make sure that the environment 
+variable on the end running DOSEMU is equal to "console".  If not, 
+then type "export TERM=console" before running DOSEMU.  Otherwise
+you may only see black and white if NCURSES can't do color with
+the terminal in the environmental variable.
+
+
+IBM character set over a serial line into an IBM ANSI terminal.
+---------------------------------------------------------------
+Simply specify "charset ibm" or "charset fullibm" inside the 
+"video { }" configuration in /etc/dosemu.conf and then run "dos" 
+in the normal manner.  You must be running in an ANSI emulation 
+mode (or a vt102 mode that is compatible with ANSI and uses the 
+IBM character set.) 
+
+
+THE FUTURE by Mark Rejhon:
+--------------------------
+	- Add support for color xterms (8 colors) and 
+          ANSI color xterm (full color).
+	- Add command line interface for character set and for serial port
+	  enable/disabling.

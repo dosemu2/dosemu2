@@ -142,6 +142,48 @@ ipxsupport off
 #pktdriver novell_hack
 
 
+#************************** TERMINALS *************************************
+#
+# This section applies whenever you run DOSEMU in a terminal, such as over
+# a serial line or in an Xterm.  Color terminal suport is now built into
+# DOSEMU.  Skip this section for now until you get DOSEMU to work, using
+# terminal defaults.
+#
+# QuickStart: 
+#    There is a number of keywords that can be used in the terminal { } line.
+#    "charset" - selects the character set to use with DOSEMU.  There are 
+#    two available, "latin" and "ibm".  Also, "color" - Sets color display
+#    on or off.  "updatefreq" - the frequency of terminal updates of the 
+#    screen.  The smaller the number, the more frequent.  A value of 20 gives 
+#    a frequency of about one per second, which is very slow.  The less
+#    frequent the updates, the more CPU time is given to DOS than is done
+#    updating the screen.  "updatelines" - The size of each screen update
+#    in number of lines.  This is extremely useful for modem users to improve
+#    typing and interactive response.  The smaller this number, the better
+#    the typing response, but the slower the update becomes.
+#
+#    This enables the graphics IBM character set.  This should only be
+#    used at Linux consoles, xterms, or from an ANSI terminal with IBM
+#    characters.
+#terminal { charset ibm  color on }
+#
+#    This uses the default latin character set, with color turned off.
+#    Use this for dumb terminals that can't display the IBM character set,
+#    and can't do color.
+#terminal { charset latin  color off }
+#
+#    This is a more detailed line provided for your customization.
+#    Originally these values are exactly the same as DOSEMU's current 
+#    defaults if no "terminal" configuration is given:
+#terminal { charset latin  updatefreq 2  updatelines 25  color on }
+#
+#    Use an updatefreq value of 4 and an updatelines value of 1 when
+#    using DOSEMU over a 2400bps modem.  Use an updatefreq value of 2
+#    and an updatelines value of 2 when using DOSEMU over a 14400bps modem.
+#    Experiment.  Too fast an update may cause lost characters or garbage
+#    over a modem.
+
+
 #************************* VIDEO ******************************************
 #
 # !!WARNING!!: A LOT OF THIS VIDEO CODE IS ALPHA!  IF YOU ENABLE GRAPHICS
@@ -156,12 +198,12 @@ video { vga  console }            # Use this line, if you are using VGA
 # video { cga  console }          # Use this line, if you are using CGA
 # video { ega  console }          # Use this line, if you are using EGA
 # video { mda  console }          # Use this line, if you are using MDA
-
+#
 # Even more basic, like on an xterm or over serial, use one of the
 # following :
 #
 #    For Xterm
-# video { vga chunks 25 }
+# video { vga chunks 1 }
 #    For serial at 2400 baud
 # video { vga chunks 200 }
 #

@@ -12,12 +12,24 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/06/27 02:15:58 $
+ * $Date: 1994/07/09 14:29:43 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.7 $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.11  1994/07/09  14:29:43  root
+ * prep for pre53_3.
+ *
+ * Revision 2.10  1994/07/05  21:59:13  root
+ * NCURSES IS HERE.
+ *
+ * Revision 2.9  1994/07/04  23:59:23  root
+ * Prep for Markkk's NCURSES patches.
+ *
+ * Revision 2.8  1994/06/28  22:47:46  root
+ * Prep for Markk's latest.
+ *
  * Revision 2.7  1994/06/27  02:15:58  root
  * Prep for pre53
  *
@@ -390,12 +402,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <ctype.h>
 #include <fcntl.h>
 #include <signal.h>
-#ifdef USE_NCURSES
-#include <ncurses.h>
-#else
-#include <termio.h>
-#include <termcap.h>
-#endif
+/*#include <ncurses.h>    *//*termcap.h*/
 #include <sys/stat.h>
 #include <time.h>
 #include <sys/times.h>
@@ -444,6 +451,8 @@ extern inline void disk_open(struct disk *);
 extern inline void vm86_GP_fault();
 extern int cursor_row;
 extern int cursor_col;
+
+unsigned int use_sigio=0;
 
 char *cstack[16384];
 
@@ -813,6 +822,7 @@ boot(void)
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
+    interrupt_function[i] = default_interrupt;
     if ((i & 0xf8) == 0x60)
       continue;			/* user interrupts */
     SETIVEC(i, BIOSSEG, 16 * i);
@@ -827,6 +837,11 @@ boot(void)
       *ptr++ = 0;		/* 0xca = RETF */
     }
   }
+
+  /* Next let's set up those interrupts we look after in 
+     protected mode.
+  */
+  setup_interrupts();
 
   /* user timer tick, should be an IRET */
   *(unsigned char *) (BIOSSEG * 16 + 16 * 0x1c) = 0xcf;
@@ -1084,14 +1099,14 @@ sigalrm(int sig, struct sigcontext_struct context)
       if (!running) {
         running = -1;
         anychanges = restore_screen();
-        running = anychanges ? 2 : 0;
+        running = anychanges ? config.term_updatefreq : 0;
       }
       else if (running > 0) {
         running--;
       }
     }
     else if ((old_row != cursor_row) || (old_col != cursor_col)) {
-      poscur(cursor_col, cursor_row);
+      console_poscur(cursor_col, cursor_row);
       old_col = cursor_col;
       old_row = cursor_row;
     }
@@ -1111,11 +1126,8 @@ sigalrm(int sig, struct sigcontext_struct context)
 #endif
 
   /* check for available packets on the packet driver interface */
-  pkt_check_receive();
-
-  /* update the Bios Data Area timer dword if interrupts enabled */
-  if (REG(eflags) & VIF)
-    timer_tick();
+  /* (timeout=0, so it immediately returns when none are available) */
+  pkt_check_receive(0);
 
 #if 0 /* 94/05/24 Seems to cause more harm than good :-( */
   /* Deal with timer ports 0x40 - 0x42 */
@@ -1124,19 +1136,24 @@ sigalrm(int sig, struct sigcontext_struct context)
   pit.CNTR2 -= 0x1fff;
 #endif
 
-  if (config.timers) {
-    if (++timals == 2) {
-      timals = 0;
+  if (++timals == TIMER_DIVISOR) {
+    timals = 0;
+    /* update the Bios Data Area timer dword if interrupts enabled */
+    if (REG(eflags) & VIF)
+      timer_tick();
+    if (config.timers) {
       h_printf("starting timer int 8...\n");
       if (!do_hard_int(8))
 	h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
     }
+    else
+      h_printf("NOT CONFIG.TIMERS\n");
   }
-  else
-    h_printf("NOT CONFIG.TIMERS\n");
 
+  if (!use_sigio) {
   /* Call select to see if any I/O is ready on devices */
-  io_select();
+    io_select();
+  }
 
   /* this is for per-second activities */
   partials++;
@@ -1149,6 +1166,23 @@ sigalrm(int sig, struct sigcontext_struct context)
 
   in_sighandler = 0;
   inalrm = 0;
+}
+
+void
+sigio(int sig)
+{
+  static insigio = 0;
+
+  if (insigio) {
+    error("ERROR: Reentering SIGIO!\n");
+    return;
+  }
+  insigio = 1;
+
+  /* Call select to see if any I/O is ready on devices */
+  io_select();
+
+  insigio = 0;
 }
 
 void
@@ -1328,7 +1362,10 @@ config_defaults(void)
   config.hdisks = 0;
   config.bootdisk = 0;
   config.exitearly = 0;
-  config.redraw_chunks = 1;
+  config.term_color = 1;
+  config.term_updatelines = 25;
+  config.term_updatefreq = 2;
+  config.term_charset = CHARSET_LATIN;
   config.hogthreshold = 5000;	/* in usecs */
   config.chipset = PLAINVGA;
   config.cardtype = CARD_VGA;
@@ -1710,6 +1747,9 @@ void
     }
   }
 
+  if (!config.graphics)
+    config.allowvideoportaccess = 0;
+
   fstat(STDOUT_FILENO, &statout);
   fstat(STDERR_FILENO, &staterr);
   if (staterr.st_ino == statout.st_ino) {
@@ -1754,7 +1794,8 @@ void
       load_file(config.vbios_file, 0, (char *) VBIOS_START, VBIOS_SIZE);
     }
     else if (config.vbios_copy) {
-      warn("WARN: copying VBIOS file from /dev/kmem\n");
+      warn("WARN: copying VBIOS from /dev/kmem at 0x%X (0x%X bytes)\n",
+	   VBIOS_START, VBIOS_SIZE);
       load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
     }
     else {
@@ -1809,6 +1850,7 @@ void
 /*
   SETSIG(SIGUNUSED, timint);
 */
+  SETSIG(SIGIO, sigio);
 
   /* do time stuff - necessary for initial time setting */
   {
@@ -1835,8 +1877,8 @@ void
 
   NEWSETSIG(SIGSEGV, dosemu_fault);
   hardware_init();
-  if (config.vga)
-    vga_initialize();
+  if (config.vga) vga_initialize();
+  
   clear_screen(bios_current_screen_page, 7);
 
   boot();
@@ -1986,11 +2028,10 @@ void
 
   show_ints(0, 0x33);
   show_regs();
-  fflush(stderr);
-  fflush(stdout);
-
   disk_close_all();
   termioClose();
+  fflush(stderr);
+  fflush(stdout);
 
   _exit(0);
 }
@@ -2036,7 +2077,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.7 1994/06/27 02:15:58 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.11 1994/07/09 14:29:43 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2149,7 +2190,8 @@ void
 
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 int
- dos_helper(void) {
+dos_helper(void) {
+
   switch (LO(ax)) {
   case 0x20:
     mfs_inte6();
@@ -2253,7 +2295,7 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/06/27 02:15:58 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/07/09 14:29:43 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

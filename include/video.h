@@ -110,7 +110,7 @@ extern unsigned char video_initialized;
 extern void vga_initialize(void);
 
 #define MAX_S_REGS	71
-#define MAX_X_REGS	30
+#define MAX_X_REGS	50
 #define MAX_X_REGS16	10
 
 /* Struct to hold necessary elements during a save/restore */
@@ -244,6 +244,11 @@ extern u_char permissions;
 extern struct screen_stat scr_state;
 extern int cursor_row;
 extern int cursor_col;
+
+/* The following defines are for terminal (curses) mode */
+#define CHARSET_LATIN	1
+#define CHARSET_IBM	2
+#define CHARSET_FULLIBM	3
 
 #endif 
 /* End of include/video.h */

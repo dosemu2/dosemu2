@@ -19,7 +19,7 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
 CFILES = video.c vga.c et4000.c s3.c trident.c console.c terminal.c
-HFILES =         vga.h et4000.h s3.h trident.h 
+HFILES =         vga.h et4000.h s3.h trident.h terminal.h
 
 # Insert all source- and header-files here.
 

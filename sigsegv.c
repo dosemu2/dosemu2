@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/06/27 02:15:58 $
+ * $Date: 1994/07/09 14:29:43 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.4  1994/07/09  14:29:43  root
+ * prep for pre53_3.
+ *
  * Revision 2.3  1994/06/27  02:15:58  root
  * Prep for pre53
  *
@@ -337,15 +340,12 @@ dosemu_fault(int signal, struct sigcontext_struct context)
     in_vm86 = 0;
     switch (_trapno) {
       case 0x00: /* divide_error */
-		 return (void) do_int(0);
       case 0x01: /* debug */
- 		 return (void) do_int(1);
       case 0x03: /* int3 */
- 		 return (void) do_int(3);
       case 0x04: /* overflow */
- 		 return (void) do_int(4);
       case 0x05: /* bounds */
- 		 return (void) do_int(5);
+      case 0x07: /* device_not_available */
+		 return (void) do_int(_trapno);
       case 0x06: /* invalid_op */
  		 csp = SEG_ADR((unsigned char *), cs, ip);
  		 /* Some db commands start with 2e (use cs segment) and thus is accounted

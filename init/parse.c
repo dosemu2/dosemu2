@@ -5,12 +5,15 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/06/24 14:52:20 $
+ * $Date: 1994/07/05 22:00:34 $
  * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 2.5  1994/07/05  22:00:34  root
+ * NCURSES IS HERE.
+ *
  * Revision 2.3  1994/06/24  14:52:20  root
  * Messing with parse_config.
  *
@@ -184,27 +187,34 @@ typedef enum {
   SEC_DISK, D_HEADS, D_SECTORS, D_CYLINDERS, D_FLOPPY, D_HARD,
   D_PARTITION, D_WHOLEDISK, D_OFFSET, D_FILE, D_FIVEINCH,
   D_READONLY, D_HDIMAGE, D_THREEINCH, VAL_FASTFLOPPY, VAL_CPU,
-  SEC_VIDEO, VAL_XMS, VAL_EMS, VAL_DOSMEM, 
+  VAL_XMS, VAL_EMS, VAL_DOSMEM, 
+  EOL_COMMENT, P_COMMAND, P_OPTIONS, P_TIMEOUT,
+  P_FILE, SEC_PORTS, PRT_RANGE, PRT_RDONLY, PRT_WRONLY,
+  PRT_RDWR, PRT_ANDMASK, PRT_ORMASK, VAL_SPEAKER,
+  VAL_PKTFLAGS, VAL_HOGTHRESHOLD, VAL_TIMER,
+  VAL_DOSBANNER, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS,
+  SEC_BOOTDISK, VAL_DPMI, VAL_ALLOWVIDEOPORTACCESS,
+
   SEC_PRINTER, VAL_MATHCO, VAL_IPXSUP, LCCOM, PRED_BOOTA, PRED_BOOTC,
+  
   SEC_DEBUG, DBG_IO, DBG_VIDEO, DBG_SERIAL, DBG_CONFIG, DBG_DISK,
              DBG_READ, DBG_WRITE, DBG_KEYB, DBG_PRINTER, DBG_WARNING,
              DBG_GENERAL, DBG_XMS, DBG_DPMI, DBG_MOUSE, DBG_HARDWARE,
              DBG_IPC, DBG_EMS, DBG_NET,
+  
   SEC_KEYBOARD, KEYB_RAWKEYBOARD, KEYB_LAYOUT, KEYB_KEYBINT,
-  EOL_COMMENT, P_COMMAND, P_OPTIONS, P_TIMEOUT,
-  P_FILE, SEC_PORTS, PRT_RANGE, PRT_RDONLY, PRT_WRONLY,
-  PRT_RDWR, PRT_ANDMASK, PRT_ORMASK, VAL_SPEAKER,
-  V_CHUNKS, V_CHIPSET, V_MDA, V_VGA, V_CGA, V_EGA, V_VBIOSF,
-  V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
-  V_MEMSIZE, V_VBIOSM, V_VBIOS_SEG,
-  VAL_PKTFLAGS, VAL_HOGTHRESHOLD, VAL_TIMER,
+
+  SEC_TERMINAL, T_UPDATELINES, T_UPDATEFREQ, T_CHARSET, T_COLOR,
+  
+  SEC_VIDEO, V_CHIPSET, V_MDA, V_VGA, V_CGA, V_EGA, V_VBIOSF,
+             V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
+             V_MEMSIZE, V_VBIOSM, V_VBIOS_SEG,
+  
   SEC_SERIAL, S_DEVICE, S_PORT, S_BASE, S_IRQ, S_MODEM, S_MOUSE,
 
   SEC_MOUSE, M_INTDRV, M_BAUDRATE, M_DEVICE, M_MICROSOFT, M_PS2, 
              M_MOUSESYSTEMS, M_MMSERIES, M_LOGITECH, M_BUSMOUSE, 
-             M_MOUSEMAN, M_HITACHI, M_CLEARDTR,
-  VAL_DOSBANNER, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS,
-  SEC_BOOTDISK, VAL_DPMI, VAL_ALLOWVIDEOPORTACCESS
+             M_MOUSEMAN, M_HITACHI, M_CLEARDTR
 } tok_t;
 
 typedef enum {
@@ -249,6 +259,9 @@ void stop_printer(word_t *, arg_t, arg_t);
 
 int do_video(word_t *, arg_t, arg_t);
 void stop_video(word_t *, arg_t, arg_t);
+
+int do_terminal(word_t *, arg_t, arg_t);
+void stop_terminal(word_t *, arg_t, arg_t);
 
 int do_serial(word_t *, arg_t, arg_t);
 void start_serial(word_t *, arg_t, arg_t);
@@ -313,7 +326,18 @@ word_t video_words[] =
   {"vbios_copy", V_VBIOSC, PRED, do_video},
   {"vbios_mmap", V_VBIOSM, PRED, do_video},
   {"vbios_seg", V_VBIOS_SEG, VALUE, do_video},
-  {"chunks", V_CHUNKS, VALUE, do_video},
+  NULL_WORD
+};
+
+word_t terminal_words[] = 
+{
+  NULL_WORD,
+  {"{", LBRACE, ODELIM, do_terminal},
+  {"}", RBRACE, CDELIM, do_terminal},
+  {"updatelines", T_UPDATELINES, VALUE, do_terminal},
+  {"updatefreq", T_UPDATEFREQ, VALUE, do_terminal},
+  {"charset", T_CHARSET, VALUE, do_terminal},
+  {"color", T_COLOR, VALUE, do_terminal},
   NULL_WORD
 };
 
@@ -460,6 +484,7 @@ word_t top_words[] =
   {"floppy", SEC_FLOPPY, SECTION, do_top, start_disk, stop_disk, disk_words},
   {"bootdisk", SEC_BOOTDISK, SECTION, do_top, start_disk, stop_disk, disk_words},
   {"video", SEC_VIDEO, SECTION, do_top, 0, stop_video, video_words},
+  {"terminal", SEC_TERMINAL, SECTION, do_top, 0, stop_terminal, terminal_words},
   {"serial", SEC_SERIAL, SECTION, do_top, start_serial, stop_serial, serial_words},
   {"mouse", SEC_MOUSE, SECTION, do_top, start_mouse, stop_mouse, mouse_words},
   {"xms", VAL_XMS, VALUE, do_num, 0, 0, null_words},
@@ -538,6 +563,10 @@ syn_t global_syns[] =
   {"es",            "17" },
   {"es-latin1",     "18" },
   {"be",            "19" },
+  
+  {"latin",         "1" },   /* Ugly, must match CHARSET_* defines in video.h */
+  {"ibm",           "2" },   
+  {"fullibm",       "3" },
 
   NULL_SYN
 };
@@ -578,7 +607,7 @@ void parse_error(char *s)
 void parse_warning(char *s)
 {
   fprintf(stderr, "WARNING: %s\n",s);
-  warnings = warnings + 1;
+  warnings++;
 }
 
 int
@@ -954,7 +983,7 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
       free(arg);
     break;
   default:
-    c_printf("non-value in do_val!\n");
+    c_printf("non-value in do_num!\n");
   }
  return 0;
 }
@@ -980,8 +1009,7 @@ do_video(word_t * word, arg_t farg1, arg_t farg2)
 {
   char *arg = NULL;
   char *end;
-
-/*   c_printf("do_video: %s %d\n", word->name, word->token); */
+  /* c_printf("do_video: %s %d\n", word->name, word->token); */
 
   switch (word->form) {
   case VALUE:
@@ -1026,9 +1054,6 @@ do_video(word_t * word, arg_t farg1, arg_t farg2)
   case V_PARTIALREST:
     config.fullrestore = 0;
     break;
-  case V_CHUNKS:
-    config.redraw_chunks = atoi(arg);
-    break;
   case V_VBIOSF:
     config.vbios_file = strdup(arg);
     config.mapped_bios = 1;
@@ -1055,6 +1080,57 @@ do_video(word_t * word, arg_t farg1, arg_t farg2)
     break;
   default:
     error("CONF: unknown video token: %s\n", word->name);
+    break;
+  }
+
+  if (arg)
+    free(arg);
+  return (word->token);
+}
+
+void
+stop_terminal(word_t * word, arg_t farg1, arg_t farg2)
+{
+  if (config.term_updatefreq > 100) {
+    warn("CONF: terminal updatefreq too large (too slow)!");
+    config.term_updatefreq = 100;
+  } 
+}
+
+int
+do_terminal(word_t * word, arg_t farg1, arg_t farg2)
+{
+  char *arg = NULL;
+  /* c_printf("do_terminal: %s %d\n", word->name, word->token); */
+
+  switch (word->form) {
+  case VALUE:
+    arg = get_arg(globl_file);
+    break;
+  case PRED:
+    break;
+  default:
+    break;
+  }
+
+  switch (word->token) {
+  case RBRACE:
+  case LBRACE:
+    break;
+  case T_UPDATELINES:
+    config.term_updatelines = atoi(arg);
+    break;
+  case T_UPDATEFREQ:
+    config.term_updatefreq = atoi(arg);
+    break;
+  case T_CHARSET:
+    config.term_charset = atoi(arg);
+    break;
+  case T_COLOR:
+    config.term_color = atoi(arg);
+    break;
+  default:
+    error("CONF: unknown terminal token: %s\n", word->name);
     break;
   }
 
@@ -1702,6 +1778,7 @@ do_top(word_t * word, arg_t arg1, arg_t arg2)
     case SEC_BOOTDISK:
     case SEC_PRINTER:
     case SEC_VIDEO:
+    case SEC_TERMINAL:
     case SEC_SERIAL:
     case SEC_MOUSE:
     case SEC_DEBUG:

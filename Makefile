@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/06/27 02:15:58 $
+# $Date: 1994/07/09 14:35:24 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.9 $
+# $Revision: 2.13 $
 # $State: Exp $
 #
 
@@ -11,18 +11,21 @@
 
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include
+
+#Change the following line to point to your ncurses include
+NCURSES_INC = /usr/include/ncurses
+
 #ifdef DEBUG
 #STATIC=1
 #DOSOBJS=$(OBJS)
 #SHLIBOBJS=
-#DOSLNK=-ltermcap -lipc
+#DOSLNK=-lncurses -lipc
 #CDEBUGOPTS=-g -DSTATIC=1
 #LNKOPTS=
 #else
 STATIC=0
 DOSOBJS=
 SHLIBOBJS=$(OBJS)
-#CDEBUGOPTS=-DUSE_NCURSES
 LNKOPTS=-s
 #MAGIC=-zmagic
 #endif
@@ -38,7 +41,7 @@ LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-DPMIOBJS = dpmi/dpmi.o dpmi/ldtlib.o dpmi/call.o dpmi/ldt.o
+DPMIOBJS = dpmi/dpmi.o dpmi/call.o
 
 # For testing the internal IPX code
 # IPX = ipxutils
@@ -52,6 +55,7 @@ DPMIOBJS = dpmi/dpmi.o dpmi/ldtlib.o dpmi/call.o dpmi/ldt.o
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\"
 
 ###################################################################
+
 ifdef DPMIOBJS
 DPMISUB= dpmi
 else
@@ -65,10 +69,10 @@ endif
 ###################################################################
 
 CLIENTSSUB=clients
-# NCURSES_OBJS=$(CLIENTSSUB)/ncurses.o
 
-SUBDIRS= boot commands doc drivers examples periph video mouse include \
-	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel
+SUBDIRS= periph video mouse include boot commands doc drivers \
+	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
+	examples
 
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
 	timers.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
@@ -81,7 +85,9 @@ HFILES=cmos.h emu.h termio.h timers.h xms.h dosio.h \
 SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
-	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml
+	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
+	README.ncurses vga.pcf xdosemu xinstallvgafont
+
 BFILES=
 
 F_DOC=dosemu.texinfo Makefile dos.1 wp50
@@ -117,7 +123,7 @@ DPMI =
 endif
 
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
-INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE)
+INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
 export INCDIR
 CFLAGS     = $(DPMI) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
@@ -137,7 +143,7 @@ warning2:
 	@echo ""
 	@echo "IMPORTANT: Please read the new 'QuickStart' file before compiling DOSEMU!"
 	@echo "The location and format of DOSEMU files have changed since 0.50pl1 release!"
-	@echo "You need gcc 2.58, lib 4.5.21, linux 1.1.12 (or patched linux) and at least"
+	@echo "You need gcc 2.4.5, lib 4.4.4, linux 1.1.12 (or patched linux) and at least"
 	@echo "16MB total RAM+swap to compile DOSEMU."
 	@echo ""
 	@sleep 10
@@ -148,7 +154,7 @@ warning3:
 	@echo "Hopefully you have at least 12MB RAM+swap available during this compile."
 	@echo ""
 
-doeverything: warning2 clean config dep install
+doeverything: warning2 clean config dep installnew
 
 all:	warnconf dos dossubdirs warning3 libdosemu
 
@@ -175,12 +181,11 @@ dos.o: config.h dos.c
 
 dos:	dos.c $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
-	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) $(DOSLNK)
+	$(CC) $(DOSLNK) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS)
 
-libdosemu:	$(SHLIBOBJS) $(DPMIOBJS) $(NCURSES_OBJS)
+libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ \
-	   $(SHLIBOBJS) $(DPMIOBJS) $(NCURSES_OBJS) $(SHLIBS) -ltermcap -lc
-# -lncurses
+	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) -lncurses -lc
 
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \
@@ -190,8 +195,12 @@ dossubdirs: dummy
 config: dosconfig
 	@./dosconfig $(CONFIGINFO) > config.h
 
+installnew: dummy
+	$(MAKE) install
+
 install: all
-	install -m 04755 dos /usr/bin
+	install -c -o root -g root -m 04755 dos /usr/bin
+	install -m 0755 xdosemu /usr/bin
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	install -m 0755 libdosemu /usr/lib
 	install -d /var/lib/dosemu

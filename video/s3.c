@@ -4,11 +4,14 @@
  * This file contains support for VGA-cards with an S3 chip.
  *
  * (C) 1994 Christoph Niemann
- *          niemann@swt.uni-bochum.de
+ *          Christoph.Niemann@linux.org
  *
  * The programming information was taken from the file vgadoc3.zip
  * by Finn Thoegersen and from the german computer magazine c't,
  * nov. 1992, p 242.
+ *
+ * Additional information came from the SuperProbe package of
+ * XFree86 version 2.1.1 and from the S3-driver in XFree86.
  */
 
 /*
@@ -33,7 +36,10 @@
 
 static int s3_type = 0;
 static int s3_memsize = 0;
+static int s3_series = 0;
+static int s3_Ramdac = 0;
 int s3_8514_base = 0;
+static unsigned short s3BtLowBits[] = { 0x3C8, 0x3C9, 0x3C6, 0x3C7 };
 
 #define BASE_8514_1	0x2e8
 #define BASE_8514_2	0x148
@@ -50,21 +56,54 @@ static int in_crt(const int index)
 	return (port_in(CRT_D) & 0xff);
 }
 
+/*
+ * These functions are from XFree-86:
+ * /mit/server/ddx/x386/common_hw/ATTDac.c
+ */
+static void setdaccomm(unsigned char value)
+{
+        port_in(0x3c6);
+        port_in(0x3c6);
+        port_in(0x3c6);
+        port_in(0x3c6);
+        port_out(value, 0x3c6);
+        port_in(0x3c8);
+}
+
+static unsigned char getdaccomm(void)
+{
+        unsigned char ret;
+        port_in(0x3c6);
+        port_in(0x3c6);
+        port_in(0x3c6);
+        port_in(0x3c6);
+        ret = port_in(0x3c6);
+        port_in(0x3c8);
+        return ret;
+}
+
+static unsigned char dactocomm(void)
+{
+        port_in(0x3c6);
+        port_in(0x3c6);
+        port_in(0x3c6);
+        return port_in(0x3c6);
+}
+
 #define S + 256
 
-static short s3_crt_regs[0x60] = {
+static short s3_crt_regs[0x40] = {
 /*	 0   1   2   3   4   5   6   7   8   9   a   b   c   d   e   f */
-/* 0 */	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-/* 1 */	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-/* 2 */	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-/* 3 */	-1,  4, -1, -1,  5,  6, -1, -1,  0,  1,  7, -1,  8, -1, -1, -1,
-/* 4 */	 9, 10, 11, 12, -1, 13, 14, 15, 16, 17, -1, -1, 18, 19, 20, 21,
-/* 5 */	24 S,25 S, -1,26 S, -1, 22, -1, -1, 23,27 S,28 S, -1, -1, -1,29 S, -1 };
+/* 3 */	 4,  5,  6,  7,  8, -1, -1, -1,  0,  1,  9, 10, 11, -1, -1, -1,
+/* 4 */	14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+/* 5 */	30 S,31 S, -1,39 S,32 S,33 S, -1, -1,34 S,35 S,36 S, -1, -1,37 S,38 S, -1,
+/* 6 */	40 S,41 S,42 S,43 S,44 S,45 S, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 
 #undef S
 
 static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
+	int i;
 	v_printf("s3_save_ext_regs(): start.\n");
 
 	/*
@@ -78,50 +117,60 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 	out_crt(0x38, 0x48);
 	out_crt(0x39, 0xa5);
 
-	xregs[4] = in_crt(0x31);	/* display start */
+	xregs[13] = port_in(0x3cc);
 
-	xregs[5] = in_crt(0x34);
-	xregs[6] = in_crt(0x35);	/* active bank number */
+	for (i = 0; i < 5; i++)
+		xregs[i + 4] = in_crt(0x30 + i);
 
-	xregs[7] = in_crt(0x3a);
+	xregs[9] = in_crt(0x3a);
+	xregs[10] = in_crt(0x3b);
+	xregs[11] = in_crt(0x3c);
 
-	xregs[8] = in_crt(0x3c);
-
-	xregs[9] = in_crt(0x40);
-	xregs[10] = in_crt(0x41);
-	xregs[11] = in_crt(0x42);
-	xregs[12] = in_crt(0x43);
-
-	xregs[13] = in_crt(0x45);
-	xregs[14] = in_crt(0x46);
-	xregs[15] = in_crt(0x47);
-	xregs[16] = in_crt(0x48);
-	xregs[17] = in_crt(0x49);
-
-	xregs[18] = in_crt(0x4c);
-	xregs[19] = in_crt(0x4d);
-	xregs[20] = in_crt(0x4e);
-	xregs[21] = in_crt(0x4f);
-
-	xregs[22] = in_crt(0x55);
-	xregs[23] = in_crt(0x58);
+	for (i = 0; i < 0x10; i++)
+		xregs[i + 14] = in_crt(0x40 + i);
 
 	if (s3_type)
 	{
 		/*
-		 * I have an S3-911, so this part is untested
+		 * I have an S3-911, so this part is untested.
+		 * This part has now been tested with an S3-928 PCI
 		 */
 		v_printf("s3_save_ext_regs(): saving additional regs\n");
-		xregs[24] = in_crt(0x50);
-		xregs[25] = in_crt(0x51);
 
-		xregs[26] = in_crt(0x53);
+		xregs[30] = in_crt(0x50);
+		xregs[31] = in_crt(0x51);
 
-		xregs[27] = in_crt(0x59);
-		xregs[28] = in_crt(0x5a);
+		xregs[32] = in_crt(0x54);
+		xregs[33] = in_crt(0x55);
 
-		xregs[29] = in_crt(0x5e);
+		xregs[34] = in_crt(0x58);
+		xregs[35] = in_crt(0x59);
+		xregs[36] = in_crt(0x5a);
+
+		xregs[37] = in_crt(0x5d);
+		xregs[38] = in_crt(0x5e);
+
+		xregs[39] = in_crt(0x53);
+
+		for (i = 0; i < 6; i++)
+			xregs[40 + i] = in_crt(0x60 + i);
 	}
+	if (s3_Ramdac == S3_NORMAL_DAC)
+	{
+		v_printf("S3: Saving Ramdac data\n");
+		xregs[49] = getdaccomm();
+		setdaccomm((xregs[49] | 0x10));
+		(void)dactocomm();
+		port_out(0x08, 0x3c7);
+		xregs[48] = port_in(0x3c8);
+		setdaccomm(xregs[49]);
+	}
+
+	port_in(0x3da);			/* reset flip-flop */
+	port_out(0x36, 0x3c0);
+	xregs[12] = port_in(0x3c1);
+	port_out(xregs[12], 0x3c0);
+
 	/*
 	 * restore the status of the extensions
 	 */
@@ -143,6 +192,7 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 
 static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
+	int i;
         v_printf("s3_restore_ext_regs(): start.\n");
 
         /*
@@ -151,54 +201,56 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
         out_crt(0x38, 0x48);
         out_crt(0x39, 0xa5);
 
-	out_crt(0x31, xregs[4]);
+	port_out(xregs[13], 0x3c2);
 
-	out_crt(0x34, xregs[5]);
-	out_crt(0x35, xregs[6]);
+	for (i = 0; i < 5; i++)
+		out_crt(0x30 + i, xregs[i + 4]);
 
-	out_crt(0x3a, xregs[7]);
+	out_crt(0x3a, xregs[9]);
+	out_crt(0x3b, xregs[10]);
+	out_crt(0x3c, xregs[11]);
 
-	out_crt(0x3c, xregs[8]);
-
-	out_crt(0x40, xregs[9]);
-	out_crt(0x41, xregs[10]);
-	out_crt(0x42, xregs[11]);
-	out_crt(0x43, xregs[12]);
-
-	out_crt(0x45, xregs[13]);
-	out_crt(0x46, xregs[14]);
-	out_crt(0x47, xregs[15]);
-	out_crt(0x48, xregs[16]);
-	out_crt(0x49, xregs[17]);
-
-	out_crt(0x4c, xregs[18]);
-	out_crt(0x4d, xregs[19]);
-	out_crt(0x4e, xregs[20]);
-	out_crt(0x4f, xregs[21]);
-
-	out_crt(0x55, xregs[22]);
-	out_crt(0x58, xregs[23]);
+	for (i = 0; i < 0x10; i++)
+		out_crt(0x40 + i, xregs[i + 14]);
 
 	if (s3_type)
 	{
-		/*
-		 * I have an S3-911, so this part is untested
-		 */
 		v_printf("s3_restore_ext_regs(): restoring additional regs\n");
-		out_crt(0x50,xregs[24]);
-		out_crt(0x51,xregs[25]);
+		out_crt(0x50, xregs[30]);
+		out_crt(0x51, xregs[31]);
 
-		out_crt(0x53,xregs[26]);
+		out_crt(0x54, xregs[32]);
+		out_crt(0x55, xregs[33]);
 
-		out_crt(0x59,xregs[27]);
-		out_crt(0x5a,xregs[28]);
+		out_crt(0x58, xregs[34]);
+		out_crt(0x59, xregs[35]);
+		out_crt(0x5a, xregs[36]);
 
-		out_crt(0x5e,xregs[29]);
+		out_crt(0x5d, xregs[37]);
+		out_crt(0x5e, xregs[38]);
+		out_crt(0x53,xregs[39]);
+
+		for (i = 0; i < 6; i++)
+			out_crt(0x60 + i, xregs[40 + i]);
 	}
 
-	/*
-	 * restore the status of the extensions
-	 */
+	if (s3_Ramdac == S3_NORMAL_DAC)
+	{
+		int c;
+		v_printf("S3: Restoring Ramdac data\n");
+		c=getdaccomm();
+		setdaccomm( c | 0x10 );
+		(void)dactocomm();
+		port_out(0x08, 0x3c7);
+		port_out(xregs[48], 0x3c8);
+		setdaccomm(c);
+		setdaccomm(xregs[49]);
+	}
+
+	port_in(0x3da);
+	port_out(0x36, 0x3c0);
+	port_out(xregs[12], 0x3c0);
+
 	out_crt(0x38, xregs[0]);
 	out_crt(0x39, xregs[1]);
 
@@ -216,7 +268,7 @@ static void s3_set_bank(u_char bank)
 {
 	/*
 	 * For S3 chips the memory bank is always the same for
-	 * reading and writing-
+	 * reading and writing
 	 */
 	int mode = in_crt(0x38);
 	int old_reg;
@@ -248,8 +300,8 @@ static u_char s3_ext_video_port_in(int port)
 	{
 	case CRT_DC:
 	case CRT_DM:
-		if (dosemu_regs.regs[CRTI] < 0x60 &&
-				(x_reg = s3_crt_regs[dosemu_regs.regs[CRTI]]) != -1)
+		if (dosemu_regs.regs[CRTI] < 0x70 && dosemu_regs.regs[CRTI] >= 0x30 &&
+				(x_reg = s3_crt_regs[dosemu_regs.regs[CRTI] - 0x30]) != -1)
 		{
 			/*
 			 * some registers are available only on `advanced'
@@ -277,8 +329,8 @@ static void s3_ext_video_port_out(u_char value, int port)
 	{
 	case CRT_DC:
 	case CRT_DM:
-		if (dosemu_regs.regs[CRTI] < 0x60 &&
-				(x_reg = s3_crt_regs[dosemu_regs.regs[CRTI]]) != -1)
+		if (dosemu_regs.regs[CRTI] < 0x70 && dosemu_regs.regs[CRTI] >= 0x30 &&
+				(x_reg = s3_crt_regs[dosemu_regs.regs[CRTI] - 0x30]) != -1)
 		{
 			/*
 			 * some registers are available only on `advanced'
@@ -323,9 +375,55 @@ static void s3_ext_video_port_out(u_char value, int port)
 	v_printf("S3: Bad Write on port 0x%04x with value 0x%02x\n", port, value);
 }
 
+/*
+ * this function was taken from XFree86, s3BtCursor.c
+ */
+unsigned char s3InBtReg(unsigned short reg)
+{
+	unsigned char tmp, ret;
+	tmp = in_crt(0x55) & 0xFC;
+	out_crt(tmp | ((reg & 0x0C) >> 2), 0x55);
+	ret = port_in(s3BtLowBits[reg & 0x03]);
+	out_crt(tmp, 0x55);
+	return ret;
+}
+
+void s3OutBtReg(unsigned short reg, unsigned char mask, unsigned char data)
+{
+	unsigned char tmp;
+	unsigned char tmp1 = 0x00;
+
+	tmp = in_crt(0x55) & 0xFC;
+	out_crt(0x55, tmp | ((reg & 0x0C) >> 2));
+
+	if (mask != 0x00)
+		tmp1 = port_in(s3BtLowBits[reg & 0x03]) & mask;
+	port_out(tmp1 | data, s3BtLowBits[reg & 0x03]);
+
+	/* Now clear 2 high-order bits so that other things work */
+	out_crt(0x55, tmp);
+}
+
+unsigned char s3InBtStatReg()
+{
+   unsigned char tmp, ret;
+
+   tmp = s3InBtReg(BT_COMMAND_REG_0);
+   if ((tmp & 0x80) == 0x80) {
+      /* Behind Command Register 3 */
+      tmp = s3InBtReg(BT_WRITE_ADDR);
+      s3OutBtReg(BT_WRITE_ADDR, 0x00, 0x00);
+      ret = s3InBtReg(BT_STATUS_REG);
+      s3OutBtReg(BT_WRITE_ADDR, 0x00, tmp);
+   } else {
+      ret = s3InBtReg(BT_STATUS_REG);
+   }
+   return(ret);
+}
+
 void vga_init_s3(void)
 {
-	int mode, mode2, chip;
+	int mode, mode2, chip, subtype;
 	char *name = NULL;
 
 	save_ext_regs = s3_save_ext_regs;
@@ -339,25 +437,143 @@ void vga_init_s3(void)
 	out_crt(0x38, 0x48);
 	chip = in_crt(0x30);
 
-	switch(chip)
+	name = NULL;
+
+	switch(chip & 0xF0)
 	{
-		case 0x81:	name = "911";				break;
-		case 0x82:	name = "911A/924";			break;
-		case 0x90:	name = "928C"; s3_type = 1;		break;
-		case 0x91:	name = "928D"; s3_type = 1;		break;
-		case 0x94:
-		case 0x95:	name = "928E"; s3_type = 1;		break;
-		case 0xA0:	name = "801/805A/B"; s3_type = 1;	break;
-		case 0xA2:
-		case 0xA3:
-		case 0xA4:	name = "801/805C"; s3_type = 1;		break;
-		case 0xA5:	name = "801/805D"; s3_type = 1;		break;
-		case 0xB0:	name = "928PCI"; s3_type = 1;		break;
-		default:	v_printf("Unknown S3-chip, type = 0x%xd\n", chip);
+		case 0x80:
+			s3_series = S3_911;
+			switch(chip & 0x0F)
+			{
+				case 0x01:	name = "911";
+						break;
+				case 0x02:	name = "911A/924";
+						break;
+			}
+			break;
+		case 0x90:	/* 928 */
+			s3_type = 1;
+			s3_series = S3_928;
+			switch(chip & 0x0F)
+			{
+				case 0x00:	name = "928C";
+						break;
+				case 0x01:	name = "928D";
+						break;
+				case 0x04:
+				case 0x05:	name = "928E";
+						break;
+			}
+			break;
+		case 0xA0:	/* 801 / 805 */
+			subtype = in_crt(0x36) & 0x03;
+			s3_type = 1;
+			if ((subtype & 0x02) == 0)
+			{
+				/* EISA or VLB => 805 */
+				s3_series = S3_805;
+				switch (chip & 0x0F)
+				{
+					case 0x00:	name = "805A/B";
+							break;
+					case 0x02:
+					case 0x03:
+					case 0x04:	name = "805C";
+							break;
+					case 0x05:	name = "805D";
+							break;
+					case 0x08:	name = "805I";
+							break;
+				}
+			}
+			else if (subtype == 3)
+			{
+				/* ISA => 801 */
+				s3_series = S3_801;
+				switch(chip & 0x0F)
+				{
+					case 0x00:	name = "801A/B";
+							break;
+					case 0x02:
+					case 0x03:
+					case 0x04:	name = "801C";
+							break;
+					case 0x05:	name = "801D";
+							break;
+					case 0x08:	name = "801I";
+							break;
+				}
+			}
+			break;
+				
+		case 0xB0:	name = "928PCI";
+				s3_series = S3_928;
+				s3_type = 1;
+				break;
 	}
 
 	if (name)
 		v_printf("S3 chip 86c%s detected.\n", name);
+	else
+		v_printf("Unknown S3-chip, type = 0x%xd\n", chip);
+
+#if 1
+	s3_Ramdac = S3_NORMAL_DAC;
+#else
+	s3_Ramdac = 0;
+	if (s3_series != S3_928)
+		s3_Ramdac = S3_NORMAL_DAC;
+
+	if (!s3_Ramdac)
+	{
+		/* probe for Ramdac Bt485/AT&T20C505 */
+		unsigned char tmp1, tmp2;
+		out_crt(0x39, 0xA5);
+		tmp1 = port_in(S3_DAC_INDEX_REG);
+		port_out(0x0f, S3_DAC_INDEX_REG);
+		tmp2 = s3InBtStatReg();
+		if ((tmp2 & 0x80) == 0x80)
+		{
+			if ((tmp2 & 0xF0) == 0xD0)
+				s3_Ramdac = S3_ATT20C505_DAC;
+			else
+				s3_Ramdac = S3_BT485_DAC;
+		}
+		port_out(tmp1, S3_DAC_INDEX_REG);
+	}
+
+	if (!s3_Ramdac)
+	{
+		/* Probe for a Ti3020 */
+		unsigned char tmp1, tmp2;
+		tmp1 = in_crt(0x55);
+		out_crt(0x55, (tmp1 & 0xfc) | 0x01);
+		tmp2 = port_in(S3_DAC_INDEX_REG);
+		port_out(S3_TI3020_ID2, S3_DAC_INDEX_REG);
+		if (port_in(S3_DAC_DATA_REG) == S3_TI3020_ID)
+			s3_Ramdac = S3_TI3020_DAC;
+		port_out(tmp2, S3_DAC_INDEX_REG);
+		out_crt(0x55, tmp1);
+	}
+
+	if (!s3_Ramdac)
+		s3_Ramdac = S3_NORMAL_DAC;
+
+	v_printf("Detected a ");
+	switch(s3_Ramdac)
+	{
+		case S3_NORMAL_DAC:	v_printf("normal");
+					break;
+		case S3_ATT20C505_DAC:	v_printf("AT&T 20C505");
+					break;
+		case S3_BT485_DAC:	v_printf("BlockTree Bt485");
+					break;
+		case S3_TI3020_DAC:	v_printf("TI ViewPoint 3020");
+					break;
+	}
+	v_printf(" RAMDAC\n");
+#endif
+
 
 	mode2 = in_crt(0x39);
         out_crt(0x39, 0xa5);

@@ -3,12 +3,15 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/27 02:15:58 $
+ * $Date: 1994/07/04 23:59:23 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.4  1994/07/04  23:59:23  root
+ * Prep for Markkk's NCURSES patches.
+ *
  * Revision 2.3  1994/06/27  02:15:58  root
  * Prep for pre53
  *
@@ -240,8 +243,11 @@ cpu_init(void)
     if (!can_revector(i) && i!=0x21)
       set_revectored(i, &vm86s.int_revectored);
   set_revectored(0x0c, &vm86s.int21_revectored);
+
+#if 0 /* 94/07/02 Looked after in helper fnx... I think :-) */
   if(config.hogthreshold)
     set_revectored(0x16, &vm86s.int_revectored);
+#endif
 
 #ifdef INTERNAL_EMS
   set_revectored(0x3e, &vm86s.int21_revectored);

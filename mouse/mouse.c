@@ -1,12 +1,18 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/27 02:16:59 $
+ * $Date: 1994/07/09 14:30:38 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.6  1994/07/09  14:30:38  root
+ * prep for pre53_3.
+ *
+ * Revision 2.5  1994/07/05  00:01:31  root
+ * Prep for Markkk's NCURSES patches.
+ *
  * Revision 2.4  1994/06/27  02:16:59  root
  * Prep for pre53
  *
@@ -121,7 +127,7 @@ void DOSEMUSetupMouse(void);
 
 extern struct config_info config;
 
-void mouse_reset(void), mouse_cursor(int), mouse_pos(void), mouse_curpos(void),
+void mouse_reset(void), mouse_cursor(int), mouse_pos(void), mouse_setpos(void),
  mouse_setxminmax(void), mouse_setyminmax(void), mouse_set_tcur(void),
  mouse_set_gcur(void), mouse_setsub(void), mouse_bpressinfo(void), mouse_brelinfo(void),
  mouse_mickeys(void), mouse_version(void);
@@ -198,8 +204,8 @@ mouse_int(void)
     mouse_pos();
     break;
 
-  case 4:			/* Get Cursor Position */
-    mouse_curpos();
+  case 4:			/* Set Cursor Position */
+    mouse_setpos();
     break;
 
   case 5:			/* Get mouse button press info */
@@ -381,12 +387,13 @@ mouse_pos(void)
   LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
 }
 
+/* Set mouse position */
 void 
-mouse_curpos(void)
+mouse_setpos(void)
 {
-  m_printf("MOUSE: get cursor pos x:%d, y:%d\n", mouse.cx, mouse.cy);
-  LWORD(ecx) = mouse.cx;
-  LWORD(edx) = mouse.cy;
+  mouse.x = LWORD(ecx);
+  mouse.y = LWORD(edx) ;
+  m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
 }
 
 void 
@@ -740,7 +747,7 @@ mouse_init(void)
   else {
     sptr = &com[config.num_ser];
     if (!(sptr->mouse)) {
-      m_printf("MOUSE: Failed to add internal serial mouse, no 'mouse' keyword in serial config!\n");
+      m_printf("MOUSE: Failed to add internal serial mouse, no 'mouse' keyword in serial config! num_ser=%d\n",config.num_ser);
       mice->intdrv = FALSE;
     }
   }

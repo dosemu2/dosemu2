@@ -7,7 +7,7 @@ extern void hide_cursor(void);
 extern int cursor_row;
 extern int cursor_col;
 
-__inline__ void int10(void)
+__inline__ void int10(u_char ii)
 {
   /* some code here is copied from Alan Cox ***************/
   int x, y, i, tmp;

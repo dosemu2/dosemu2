@@ -3,7 +3,7 @@
  *     Packet driver emulation for the Linux DOS emulator.
  *
  *     Written almost from scratch by Rob Janssen, PE1CHL
- *     (pe1chl@rabo.nl, rob@cmgit.uucp, PE1CHL@PI8UTR.#UTR.NLD.EU, pe1chl@ko23)
+ *     (pe1chl@rabo.nl, PE1CHL@PI8UTR.#UTR.NLD.EU, pe1chl@ko23)
  *
  *     Now it is entirely contained in dosemu, no driver needs to
  *     be loaded in DOS anymore.
@@ -52,7 +52,9 @@ struct pkt_globs
     short size;				/* current packet's size */
     long receiver;			/* current receive handler */
     int helpvec;			/* vector number for helper */
-    unsigned char helper[60];		/* upcall helper */
+    int nfds;				/* number of fd's for select() */
+    fd_set sockset;			/* set of sockets for select() */
+    unsigned char helper[72];		/* upcall helper */
 
     struct per_handle
     {
@@ -129,7 +131,7 @@ pkt_init (int vec)
     *ptr++ = 0x2e; *ptr++ = 0x8b; *ptr++ = 0x0e; /* mov cx,cs:[pg->size] */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) >> 8;
-    *ptr++ = 0xe3; *ptr++ = 0x2c;	/* jcxz nothing */
+    *ptr++ = 0xe3; *ptr++ = 0x31;	/* jcxz nothing */
     *ptr++ = 0x31; *ptr++ = 0xc0;	/* xor ax,ax */
     *ptr++ = 0x51;			/* push cx */
     *ptr++ = 0x2e; *ptr++ = 0xff; *ptr++ = 0x1e; /* call cs:[pg->receiver] */
@@ -138,7 +140,7 @@ pkt_init (int vec)
     *ptr++ = 0x59;			/* pop cx */
     *ptr++ = 0x8c; *ptr++ = 0xc0;	/* mov ax,es */
     *ptr++ = 0x09; *ptr++ = 0xf8;	/* or ax,di */
-    *ptr++ = 0x74; *ptr++ = 0x16;	/* jz norecv */
+    *ptr++ = 0x74; *ptr++ = 0x1b;	/* jz norecv */
     *ptr++ = 0x0e;			/* push cs */
     *ptr++ = 0x1f;			/* pop ds */
     *ptr++ = 0xbe;			/* mov si,pg->buf */
@@ -147,8 +149,11 @@ pkt_init (int vec)
     *ptr++ = 0x57;			/* push di */
     *ptr++ = 0x51;			/* push cx */
     *ptr++ = 0xfc;			/* cld */
-    *ptr++ = 0xf3; *ptr++ = 0xa4;	/* rep movsb */
-    *ptr++ = 0x59;			/* pop cx */
+    *ptr++ = 0xd1; *ptr++ = 0xe9;	/* shr cx,1 */
+    *ptr++ = 0xf3; *ptr++ = 0xa5;	/* rep movsw */
+    *ptr++ = 0x73; *ptr++ = 0x01;	/* jnc nobyte */
+    *ptr++ = 0xa4;			/* movsb */
+    *ptr++ = 0x59;			/* nobyte: pop cx */
     *ptr++ = 0x5e;			/* pop si */
     *ptr++ = 0x06;			/* push es */
     *ptr++ = 0x1f;			/* pop ds */
@@ -308,6 +313,10 @@ pkt_int ()
 		break;
 	    }
 
+	    FD_SET(hdlp->sock,&pg->sockset);	/* keep track of sockets */
+	    if (hdlp->sock >= pg->nfds)
+		pg->nfds = hdlp->sock + 1;
+
 	    REG(eax) = free_handle;		/* return the handle */
 	}
 	return 1;
@@ -317,9 +326,21 @@ pkt_int ()
 	    HI(dx) = E_BAD_HANDLE;
 	    break;
 	}
-	if (hdlp->in_use)
+
+	if (hdlp->in_use) {
+	    int i,n;
+
 	    CloseNetworkLink(hdlp->sock);	/* close the socket */
-	hdlp->in_use = 0;			/* no longer in use */
+	    FD_CLR(hdlp->sock,&pg->sockset);	/* keep track of sockets */
+	    n = pg->nfds;
+	    pg->nfds = 0;
+
+	    for (i = 0; i < n; i++)
+		if (FD_ISSET(i,&pg->sockset))
+		    pg->nfds = i + 1;
+
+	    hdlp->in_use = 0;			/* no longer in use */
+	}
 	return 1;
 
     case F_SEND_PKT:
@@ -363,10 +384,7 @@ pkt_int ()
 		    {
 			/* send was okay, check for a reply to speedup */
 			/* things (background poll is quite slow) */
-			for (handle = 0; handle < 100; handle++)
-			    if (pkt_check_receive())
-				break;
-
+			pkt_check_receive(50000);
 			return 1;
 		    } else {
 			warn("NPKT: WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
@@ -461,27 +479,39 @@ pkt_int ()
 }
 
 int
-pkt_check_receive()
+pkt_check_receive(timeout)
+int timeout;
 
 {
     int size,handle;
     struct per_handle *hdlp;
     char *p;
+    struct timeval tv;
+    fd_set readset;
     char device[32];
 
     if (pg == NULL)				/* packet driver intialized? */
 	return -1;
 
+    if (pg->nfds == 0)				/* no active sockets? */
+	return 0;
+
     if (pg->size != 0)				/* transfer area busy? */
 	return 1;
+
+    tv.tv_sec = 0;				/* set a (small) timeout */
+    tv.tv_usec = timeout;
+    readset = pg->sockset;
+
+    if (select(pg->nfds,&readset,NULL,NULL,&tv) <= 0) /* anything ready? */
+	return 0;
 
     for (handle = 0; handle < MAX_HANDLE; handle++) {
 	hdlp = &pg->handle[handle];
 
-	if (hdlp->in_use) {
-	    /* attempt to read from this handle's socket */
-	    /* it is in NODELAY mode so the read will return immediately */
-	    /* when no data is pending */
+	if (hdlp->in_use && FD_ISSET(hdlp->sock,&readset)) {
+	    /* somethine is available on this handle's socket */
+	    /* attempt to read it.  that should always succeed... */
 
 	    size = ReadFromNetwork(hdlp->sock,device,pg->buf,sizeof(pg->buf));
 
@@ -489,7 +519,13 @@ pkt_check_receive()
 	    /* there was a check for "not multicast" here, but I think */
 	    /* it should not be there... */
 
-	    if (size > 1) {
+	    if (size >= 0) {
+		/* verify the source of the packet.  when not from eth0, */
+		/* discard it for now (multiple network cards are next) */
+
+		if (strcmp(device,devname))
+		    continue;
+
 		/* check if the packet's type matches the specified type */
 		/* in the ACCESS_TYPE call.  the position depends on the */
 		/* driver class! */
@@ -499,7 +535,9 @@ pkt_check_receive()
 		else
 		    p = pg->buf + 2 * ETH_ALEN + 2;	/* IEEE 802.3 */
 
-		if (!memcmp(p,hdlp->packet_type,hdlp->packet_type_len)) {
+		if (size >= ((p - pg->buf) + hdlp->packet_type_len) &&
+		    !memcmp(p,hdlp->packet_type,hdlp->packet_type_len))
+		{
 		    pg->stats.packets_in++;
 		    pg->stats.bytes_in += size;
 
@@ -515,8 +553,9 @@ pkt_check_receive()
 		    do_hard_int(pg->helpvec);
 		    return 1;
 		} else
-		    pg->stats.errors_in++;	/* not really an error */
-	    }
+		    pg->stats.packets_lost++;	/* not really lost... */
+	    } else
+		pg->stats.errors_in++;		/* select() somehow lied */
 	}
     }
 

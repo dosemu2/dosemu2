@@ -9,18 +9,20 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1994/06/27 02:17:03 $
+ * $Date: 1994/07/09 14:30:45 $
  * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 2.5  1994/07/09  14:30:45  root
+ * prep for pre53_3.
+ *
  * Revision 2.4  1994/06/27  02:17:03  root
  * Prep for pre53
  *
  * Revision 2.3  1994/06/24  14:52:04  root
  * Lutz's patches against DPMI
- * ,
  *
  * Revision 2.2  1994/06/17  00:14:41  root
  * Let's wrap it up and call it DOSEMU0.52.
@@ -112,18 +114,15 @@ unsigned long RealModeContext;
 extern int int_queue_running;
 extern u_char in_sigsegv;
 
-extern print_ldt();
-
 INTDESC Interrupt_Table[0x100];
 INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
-static char ldt_buffer[LDT_ENTRIES*LDT_ENTRY_SIZE];
+char *ldt_buffer;
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.4 1994/06/27 02:17:03 root Exp root $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.5 1994/07/09 14:30:45 root Exp root $";
 
 /* Set to 1 when running under DPMI */
 u_char in_dpmi = 0;
-u_char in_win31 = 0;
 u_char DPMIclient_is_32 = 0;
 us DPMI_private_data_segment;
 u_char in_dpmi_dos_int = 0;
@@ -131,7 +130,122 @@ us DPMI_SEL = 0;
 us LDT_ALIAS = 0;
 extern int fatalerr;
 
-void dpmi_get_entry_point()
+_syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+
+inline int get_ldt(void *buffer)
+{
+  return modify_ldt(0, buffer, 32 * sizeof(struct modify_ldt_ldt_s));
+}
+
+inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
+	      int seg_32bit_flag, int contents, int read_only_flag,
+	      int limit_in_pages_flag)
+{
+  struct modify_ldt_ldt_s ldt_info;
+  unsigned long *lp;
+  int __retval;
+
+  ldt_info.entry_number = entry;
+  ldt_info.base_addr = base;
+  ldt_info.limit = limit;
+  ldt_info.seg_32bit = seg_32bit_flag;
+  ldt_info.contents = contents;
+  ldt_info.read_exec_only = read_only_flag;
+  ldt_info.limit_in_pages = limit_in_pages_flag;
+  ldt_info.seg_not_present = 0;
+
+  if (__retval=modify_ldt(1, &ldt_info, sizeof(ldt_info)))
+    return __retval;
+
+/*
+ * DANG_BEGIN_REMARK
+ * 
+ * We are caching ldt here for speed reasons and for Windows 3.1.
+ * I would love to have an readonly ldt-alias (located in the first
+ * 16MByte for use with 16-Bit descriptors (WIN-LDT)). This is on my
+ * wish list for the kernel hackers (Linus mainly) :-))))))).
+ *
+ * DANG_END_REMARK
+ */
+
+  lp = (unsigned long *) &ldt_buffer[ldt_info.entry_number*LDT_ENTRY_SIZE];
+  if (ldt_info.base_addr == 0 && ldt_info.limit == 0) {
+    *lp = 0;
+    *(lp+1) = 0;
+    return 0;
+  }
+  *lp =     ((ldt_info.base_addr & 0x0000ffff) << 16) |
+            (ldt_info.limit & 0x0ffff);
+  *(lp+1) = (ldt_info.base_addr & 0xff000000) |
+            ((ldt_info.base_addr & 0x00ff0000)>>16) |
+            (ldt_info.limit & 0xf0000) |
+            (ldt_info.contents << 10) |
+            ((ldt_info.read_exec_only ^ 1) << 9) |
+            (ldt_info.seg_32bit << 22) |
+            (ldt_info.limit_in_pages << 23) |
+            ((ldt_info.seg_not_present ^1) << 15) |
+            0x7000;
+  return 0;
+}
+
+void print_ldt() /* stolen from WINE */
+{
+  static char buffer[0x10000];
+  unsigned long *lp;
+  unsigned long base_addr, limit;
+  int type, dpl, i;
+
+  if (get_ldt(buffer) < 0)
+    exit(1);
+
+  lp = (unsigned long *) buffer;
+
+  for (i = 0; i < 4096; i++, lp++) {
+    /* First 32 bits of descriptor */
+    base_addr = (*lp >> 16) & 0x0000FFFF;
+    limit = *lp & 0x0000FFFF;
+    lp++;
+
+    /* First 32 bits of descriptor */
+    base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
+    limit |= (*lp & 0x000F0000);
+    type = (*lp >> 10) & 7;
+    dpl = (*lp >> 13) & 3;
+    if ((base_addr > 0) || (limit > 0 ))
+      if (*lp & 1000)  {
+	D_printf("Entry %2d: Base %08.8x, Limit %05.5x, DPL %d, Type %d\n",
+	       i, base_addr, limit, dpl, type);
+	D_printf("          ");
+	if (*lp & 0x100)
+	  D_printf("Accessed, ");
+	if (!(*lp & 0x200))
+	  D_printf("Read/Excecute only, ");
+	if (*lp & 8000)
+	  D_printf("Present, ");
+	if (*lp & 0x100000)
+	  D_printf("User, ");
+	if (*lp & 0x200000)
+	  D_printf("X, ");
+	if (*lp & 0x400000)
+	  D_printf("32, ");
+	else
+	  D_printf("16, ");
+	if (*lp & 0x800000)
+	  D_printf("page limit, ");
+	else
+	  D_printf("byte limit, ");
+	D_printf("\n");
+	D_printf("          %08.8x %08.8x\n", *(lp), *(lp - 1));
+      }
+      else {
+	D_printf("Entry %2d: Base %08.8x, Limit %05.5x, DPL %d, Type %d\n",
+	       i, base_addr, limit, dpl, type);
+	D_printf("          SYSTEM: %08.8x %08.8x\n", *lp, *(lp - 1));
+      }
+  }
+}
+
+inline void dpmi_get_entry_point()
 {
     D_printf("Request for DPMI entry\n");
 
@@ -286,12 +400,9 @@ inline unsigned short CreateCSAlias(unsigned short selector)
   return ds_selector;
 }
 
-u_char GetDescriptor(us selector, unsigned long *lp)
+GetDescriptor(us selector, unsigned long *lp)
 {
-  if (modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE) < 0)
-    return 1;
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
-  return 0;
 }
 
 inline unsigned char SetDescriptor(unsigned short selector, unsigned long *lp)
@@ -325,6 +436,10 @@ void GetFreeMemoryInformation(unsigned long *lp)
   for (i=0;i<11;i++)
     *++lp = 0xffffffff;
 }
+
+/* #define WIN31 */
+
+#ifdef WIN31
 /* Simulate direct LDT access for MS-Windows 3.1 */
 u_char win31ldt(struct sigcontext_struct *scp, unsigned char *csp)
 {
@@ -362,6 +477,7 @@ u_char win31ldt(struct sigcontext_struct *scp, unsigned char *csp)
   }
   return 0;
 }
+#endif /* WIN31 */
 
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
@@ -421,10 +537,9 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       _eflags |= CF;
     break;
   case 0x000b:
-    if (GetDescriptor(_LWORD(ebx),
+    GetDescriptor(_LWORD(ebx),
 		(unsigned long *) (GetSegmentBaseAddress(_es) +
-			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) ))
-      _eflags |= CF;
+			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) );
     break;
   case 0x000c:
     if (SetDescriptor(_LWORD(ebx),
@@ -589,7 +704,11 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     {
       char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMIclient_is_32 ? _esi : _LWORD(esi)));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
-      if (!strcmp("MS-DOS", ptr)) {
+#if WIN31
+      if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
+#else
+      if (!strcmp("WINOS2", ptr)) {
+#endif
 	_LWORD(eax) = 0;
 	_es = DPMI_SEL;
 	_edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
@@ -728,11 +847,15 @@ void dpmi_init()
     return;
 
   /* should be in dpmi_quit() */
+  if (ldt_buffer) free(ldt_buffer);
+
+  ldt_buffer = malloc(LDT_ENTRIES*LDT_ENTRY_SIZE);
+  /* should be in dpmi_quit() */
   for (i=0;i<MAX_SELECTORS;i++) FreeDescriptor(i<<3);
 
+  /* all selectors are used */
+  memset(ldt_buffer,0xff,LDT_ENTRIES*LDT_ENTRY_SIZE);
   modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
-  /* all other selectors are used */
-  memset(&ldt_buffer[MAX_SELECTORS], 0xff, (LDT_ENTRIES-MAX_SELECTORS)*LDT_ENTRY_SIZE);
 
 /*
  * DANG_BEGIN_NEWIDEA
@@ -742,6 +865,7 @@ void dpmi_init()
  * and and emulate direct ldt access
  * DANG_END_NEWIDEA
  */
+
   if (!(LDT_ALIAS = AllocateDescriptors(1))) return;
   if (SetSelector(LDT_ALIAS, (unsigned long) ldt_buffer, 0xffff, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 1, 0)) return;
@@ -832,7 +956,61 @@ inline void dpmi_sigalrm(struct sigcontext_struct *scp)
 }
 
 /*
- * DANG_BEGIN_FUNCTION void dpmi_fault(struct sigcontext_struct);
+ * DANG_BEGIN_FUNCTION do_default_cpu_exception
+ *
+ * This is the default CPU exception handler.
+ * Exceptions 0, 1, 2, 3, 4, 5 and 7 are reflected
+ * to real mode. All other exceptions are terminating the client
+ * (and may be dosemu too :-)).
+ *
+ * DANG_END_FUNCTION
+ */
+
+inline void do_default_cpu_exception(int trapno)
+{
+  REG(cs) = DPMI_SEG;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
+  in_dpmi_dos_int = 1;
+  switch (trapno) {
+    case 0x00: /* divide_error */
+    case 0x01: /* debug */
+    case 0x03: /* int3 */
+    case 0x04: /* overflow */
+    case 0x05: /* bounds */
+    case 0x07: /* device_not_available */
+	       return (void) do_int(trapno);
+    default:
+	       p_dos_str("DPMI: Unhandled Execption %02x - Terminating Client\n"
+			 "It is likely that dosemu is unstable now and should be rebooted\n",
+			 trapno);
+	       in_dpmi = 0;
+	       REG(eax) = 0x4cff;
+	       do_int(0x21);
+  }
+}
+
+/*
+ * DANG_BEGIN_FUNCTION do_cpu_exception
+ *
+ * This calls the DPMI client exception handler. If none is
+ * installed do_default_cpu_exception() is called.
+ *
+ * DANG_END_FUNCTION
+ */
+
+inline void do_cpu_exception(struct sigcontext_struct *scp)
+{
+/*
+ * DANG_FIXTHIS not yet implemented 
+ */
+  error("DPMI: Unhandled Execption 0x%02x\n", _trapno);
+  print_ldt();
+
+  return do_default_cpu_exception(_trapno);
+}
+
+/*
+ * DANG_BEGIN_FUNCTION dpmi_fault
  *
  * This is the brain of DPMI. All CPU exceptions are first
  * reflected (from the signal handlers) to this code.
@@ -840,10 +1018,7 @@ inline void dpmi_sigalrm(struct sigcontext_struct *scp)
  * Exception from nonpriveleged instructions INT XX, STI, CLI, HLT
  * and from WINDOWS 3.1 are handled here.
  *
- * If installed one, the DPMI client exception handler is called first.
- * If not installed, exceptions 0, 1, 2, 3, 4, 5 and 7 are reflected
- * to real mode. All other exceptions are terminating the client
- * (and may be dosemu too :-)).
+ * All here unhandled exceptions are reflected to do_cpu_exception()
  *
  * DANG_END_FUNCTION
  */
@@ -872,7 +1047,6 @@ void dpmi_fault(struct sigcontext_struct *scp)
       if (Interrupt_Table[*csp].selector == DPMI_SEL)
 	do_dpmi_int(scp, *csp);
       else {
-	/* hope that 32Bit Clients don't use initial (16Bit) CS for interrupthandler */
 	if (DPMIclient_is_32) {
 	  *(--((unsigned long *) ssp)) = _eflags;
 	  *--ssp = (us) 0;
@@ -922,18 +1096,21 @@ void dpmi_fault(struct sigcontext_struct *scp)
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
             _eax = LDT_ALIAS;  /* simulate direct ldt access */
+#ifdef WIN31
             *ssp += (us) 7; /* jump over writeaccess test of the LDT in krnl386.exe! */
+#endif
 	  } else
             _eflags |= CF;
 
-        } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_exception)) {
+	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_exception)) && (_eip<=DPMI_OFF+32+HLT_OFF(DPMI_exception))) {
 	  D_printf("DPMI: default exception handler called\n");
-	  goto leavedpmi;
+	  /*
+	   * DANG_FIXTHIS not yet implemented 
+	   */
+	  do_default_cpu_exception(_eip-1-DPMI_OFF-HLT_OFF(DPMI_exception));
 
 	} else if ((_eip>=DPMI_OFF+1+HLT_OFF(DPMI_interrupt)) && (_eip<=DPMI_OFF+256+HLT_OFF(DPMI_interrupt))) {
 	  D_printf("DPMI: default protected mode interrupthandler called\n");
-	  i = _eip - 1 - DPMI_OFF - HLT_OFF(DPMI_interrupt);
-	  /* hope that 32Bit Clients don't use initial (16Bit) CS for interrupthandler */
 	  if (DPMIclient_is_32) {
 	    _eflags = *(((unsigned long *) ssp)++);
 	    ssp++;
@@ -946,7 +1123,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	    _LWORD(eip) = *ssp;
 	    _esp += 6;
 	  }
-	  do_dpmi_int(scp, i);
+	  do_dpmi_int(scp, _eip-1-DPMI_OFF-HLT_OFF(DPMI_interrupt));
 
         } else
 	  return;
@@ -963,54 +1140,27 @@ void dpmi_fault(struct sigcontext_struct *scp)
         break;
 
     default:
-      csp--;
+#ifdef WIN31
       /* Simulate direct LDT access for MS-Windows 3.1 */
-      if (win31ldt(scp, csp))
+      if (win31ldt(scp, --csp))
       return;
+#endif
 
-      error("DPMI: Unhandled Execption 0x%02x\n", _trapno);
-leavedpmi:
-      p_dos_str("DPMI: Unhandled Execption %02lx at %04x:%08lx\n"
-      		"Terminating Client\n"
-		"It is likely that dosemu is unstable now and should be rebooted\n",
-		_trapno, _cs, _eip);
-      REG(eax) = 0x4cff;
-      REG(cs) = DPMI_SEG;
-      REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
-      print_ldt();
-      in_dpmi = 0;
-      in_dpmi_dos_int = 1;
-      do_int(0x21);
+      do_cpu_exception(scp);
+
     } /* switch */
-    if (in_dpmi_dos_int || int_queue_running) {
-      *--ssp = (us) 0;
-      *--ssp = (us) _cs;
-      *(--((unsigned long *) ssp)) = _eip;
-      _esp -= 8;
-      _cs = UCODESEL;
-      _eip = (unsigned long) ReturnFrom_dpmi_control;
-    }
-    return;
   } /* _trapno==13 */
+  else
+    do_cpu_exception(scp);
 
-  error("DPMI: Unhandled Execption 0x%02x\n", _trapno);
-  p_dos_str("DPMI: Unhandled Execption %02lx at %04x:%08lx\n"
-	    "Terminating Client\n"
-	    "It is likely that dosemu is unstable now and should be rebooted\n",
-	    _trapno, _cs, _eip);
-  REG(eax) = 0x4cff;
-  REG(cs) = DPMI_SEG;
-  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint);
-  print_ldt();
-  in_dpmi = 0;
-  in_dpmi_dos_int = 1;
-  do_int(0x21);
-  *--ssp = (us) 0;
-  *--ssp = (us) _cs;
-  *(--((unsigned long *) ssp)) = _eip;
-  _esp -= 8;
-  _cs = UCODESEL;
-  _eip = (unsigned long) ReturnFrom_dpmi_control;
+  if (in_dpmi_dos_int || int_queue_running) {
+    *--ssp = (us) 0;
+    *--ssp = (us) _cs;
+    *(--((unsigned long *) ssp)) = _eip;
+    _esp -= 8;
+    _cs = UCODESEL;
+    _eip = (unsigned long) ReturnFrom_dpmi_control;
+  }
 }
 
 inline void dpmi_realmode_hlt(unsigned char * lina)

@@ -13,11 +13,14 @@
  *	ag115@freenet.carleton.ca
  *
  *
- * $Date: 1994/06/12 23:15:37 $
+ * $Date: 1994/07/04 23:59:23 $
  * $Source: /home/src/dosemu0.60/RCS/serial.c,v $
- * $Revision: 2.1 $
+ * $Revision: 2.2 $
  * $State: Exp $
  * $Log: serial.c,v $
+ * Revision 2.2  1994/07/04  23:59:23  root
+ * Prep for Markkk's NCURSES patches.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -577,7 +580,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.1 1994/06/12 23:15:37 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.2 1994/07/04 23:59:23 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */
@@ -1455,10 +1458,13 @@ do_serial_out(int num, int address, int val)
  * XXXXX - Change this to assembly inline code sometime, perhaps? 
  */
 void 
-int14(void)
+int14(u_char ii)
 {
   static int num;
   
+s_printf("SER%d TEST: INT14 0x0: Initialize port %d, AL=0x%x\n", 
+	num, LO(dx), LO(ax));
+
   /* Translate the requested COM port number in the DL register, into
    * the necessary arbritary port number system used throughout this module.
    */
