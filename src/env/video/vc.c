@@ -254,18 +254,6 @@ acquire_vt (int sig, struct sigcontext_struct context)
   scr_state.current = 1;
 }
 
-static inline void
-get_permissions (void)
-{
-  DOS_SYSCALL (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 1));
-}
-
-static inline void
-giveup_permissions (void)
-{
-  DOS_SYSCALL (set_ioperm (0x3b0, 0x3df - 0x3b0 + 1, 0));
-}
-
 static void
 set_dos_video (void)
 {
@@ -502,7 +490,6 @@ get_video_ram (int waitflag)
 
       close_kmem ();
       /* the code below is done by the video save/restore code */
-      get_permissions ();
     }
   else
     {
@@ -543,7 +530,6 @@ get_video_ram (int waitflag)
 	v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
 		  (void *) phys_text_base, (void *) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)));
 
-      get_permissions ();
       /* copy contents of page onto video RAM */
       memcpy ((caddr_t) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)), textbuf, TEXT_SIZE);
     }
@@ -596,7 +582,6 @@ put_video_ram (void)
 	  memcpy (scr_state.virt_address, putbuf, TEXT_SIZE);
 	}
 
-      giveup_permissions ();
       scr_state.mapped = 0;
     }
   else

@@ -73,12 +73,11 @@ void do_console_update_cursor() {
 void set_console_video(void)
 {
   if (config.console_video) {
-    k_printf("KBD: Taking mouse control\n");
-    if ( config.cardtype == CARD_MDA )
-      ioctl(console_fd, KDSETMODE, KD_TEXT);  /* The kernel doesn't support
-					     HGA graphics */
-    else
-      ioctl(console_fd, KDSETMODE, KD_GRAPHICS);
+    int kdmode;
+    k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
+    /* Some escape sequences don't work in KD_GRAPHICS... */
+    kdmode = config.vga? KD_GRAPHICS: KD_TEXT;
+    ioctl(console_fd, KDSETMODE, kdmode);
   }
 
   /* Clear the Linux console screen. The console recognizes these codes: 

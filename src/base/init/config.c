@@ -39,6 +39,7 @@ struct debug_flags d =
 /* d  R  W  D  C  v  X  k  i  T  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
 #endif
 
+int kernel_version_code = 0;
 int config_check_only = 0;
 
 static void     check_for_env_autoexec_or_config(void);
@@ -102,11 +103,12 @@ config_defaults(void)
 #endif
 
     open_proc_scan("/proc/cpuinfo");
-    switch (get_proc_intvalue_by_key("cpu")) {
-      case 386: config.realcpu = CPU_386;	/* redundant */
+    switch (get_proc_intvalue_by_key(
+          kernel_version_code > 0x20100+74 ? "cpu family" : "cpu" )) {
+      case 3: case 386: config.realcpu = CPU_386;	/* redundant */
       	break;
-      case 586:
-      case 686:
+      case 5: case 586:
+      case 6: case 686:
         config.realcpu = CPU_586;
         config.pci = 1;	/* fair guess */
         cpuflags = get_proc_string_by_key("flags");
@@ -119,12 +121,13 @@ config_defaults(void)
           }
         }
         /* fall thru */
-      case 486: config.realcpu = CPU_486;
+      case 4: case 486: config.realcpu = CPU_486;
       	break;
       default:
       	exit(1);	/* no 186,286,786.. */
     }
     config.mathco = strcmp(get_proc_string_by_key("fpu"), "yes") == 0;
+    reset_proc_bufferptr();
     k = 0;
     while (get_proc_string_by_key("processor")) {
       k++;
@@ -479,13 +482,21 @@ static void our_envs_init(char *usedoptions)
     struct utsname unames;
     char *s;
     char buf[256];
-    int kversion,i,j;
+    int i,j;
 
+    if (usedoptions) {
+        for (i=0,j=0; i<256; i++) {
+            if (usedoptions[i]) buf[j++] = i;
+        }
+        buf[j] = 0;
+        setenv("DOSEMU_OPTIONS", buf, 1);
+        return;
+    }
     uname(&unames);
-    kversion = strtol(unames.release, &s,0) << 16;
-    kversion += strtol(s+1, &s,0) << 8;
-    kversion += strtol(s+1, &s,0);
-    sprintf(buf, "%d", kversion);
+    kernel_version_code = strtol(unames.release, &s,0) << 16;
+    kernel_version_code += strtol(s+1, &s,0) << 8;
+    kernel_version_code += strtol(s+1, &s,0);
+    sprintf(buf, "%d", kernel_version_code);
     setenv("KERNEL_VERSION_CODE", buf, 1);
     sprintf(buf, "%d", DOSEMU_VERSION_CODE);
     setenv("DOSEMU_VERSION_CODE", buf, 1);
@@ -493,11 +504,6 @@ static void our_envs_init(char *usedoptions)
     setenv("DOSEMU_EUID", buf, 1);
     sprintf(buf, "%d", getuid());
     setenv("DOSEMU_UID", buf, 1);
-    for (i=0,j=0; i<256; i++) {
-        if (usedoptions[i]) buf[j++] = i;
-    }
-    buf[j] = 0;
-    setenv("DOSEMU_OPTIONS", buf, 1);
 }
 
 
@@ -540,6 +546,7 @@ config_init(int argc, char **argv)
 
     memset(usedoptions,0,sizeof(usedoptions));
     memcheck_type_init();
+    our_envs_init(0);
     config_defaults();
     basename = strrchr(argv[0], '/');	/* parse the program name */
     basename = basename ? basename + 1 : argv[0];

@@ -1,3 +1,13 @@
+98/01/15 ver. 0.97.0.3 unofficial pre-release
+	From Pasi
+	- fixed 'missing KeyRelease' when out of window focus in keyb_X.c
+	  ( thanks Pasi, that also fixes 'arrgh, hit wrong Alt-Fx' probl. :-)
+	From Eric
+	- no-cursor-bug-fix (console), int10.c, console.c (x26)
+	From Alberto
+	- adapt /proc/cpuinfo scanning to kernels 2.1.x
+	From Hans
+	- introduced 'runtime' kernel version checking: kernel_version_code.
 98/01/15 ver. 0.97.0.2 unofficial pre-release
 	From Eric
 	- Changed ubyte_t to Bit8u (in video.h, bios.h ) (x10)

@@ -560,6 +560,7 @@ void int10()
     page = HI(bx);
     x = LO(dx);
     y = HI(dx);
+    v_printf("set cursor: pg:%d x:%d y:%d\n", page, x, y);
     if (page > 7) {
       v_printf("ERROR: video error (setcur/page>7: %d)\n", page);
       CARRY;

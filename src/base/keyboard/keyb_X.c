@@ -245,6 +245,18 @@ void X_process_key(XKeyEvent *e)
 
    /* do latin1 translation */
    if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];
+
+   /* Check for modifiers released outside this window */
+   if (key!=KEY_L_SHIFT && (shiftstate & L_SHIFT) && !(e->state & ShiftMask))
+     putkey(RELEASE, KEY_L_SHIFT, 0);
+   if (key!=KEY_R_SHIFT && (shiftstate & R_SHIFT) && !(e->state & ShiftMask))
+     putkey(RELEASE, KEY_R_SHIFT, 0);
+   if (key!=KEY_L_CTRL && (shiftstate & L_CTRL) && !(e->state & ControlMask))
+     putkey(RELEASE, KEY_L_CTRL, 0);
+   if (key!=KEY_R_CTRL && (shiftstate & R_CTRL) && !(e->state & ControlMask))
+     putkey(RELEASE, KEY_R_CTRL, 0);
+   if (key!=KEY_L_ALT && (shiftstate & L_ALT) && !(e->state & AltMask))
+     putkey(RELEASE, KEY_L_ALT, 0);
     
    if (key || ch)
       putkey((e->type==KeyPress), key, ch);
