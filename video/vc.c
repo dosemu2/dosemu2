@@ -21,9 +21,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/09/11 01:02:53 $
+ * $Date: 1994/09/23 01:32:36 $
  * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.4 $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -105,7 +105,15 @@
 /*#include <termio.h>*/
 #include <sys/time.h>
 #include <ncurses.h>     /*termcap.h*/
+#ifdef WHY_DONT_PEOPLE_HAVE_THIS
 #include <sys/mman.h>
+#else
+#define MAP_ANON MAP_ANONYMOUS
+extern caddr_t mmap __P((caddr_t __addr, size_t __len,
+                int __prot, int __flags, int __fd, off_t __off));
+extern int munmap __P((caddr_t __addr, size_t __len));
+#include <linux/mman.h>
+#endif
 #include <signal.h>
 #include <sys/stat.h>
 #include <linux/vt.h>
@@ -156,7 +164,7 @@ u_char video_initialized = 0;
 struct screen_stat scr_state;	/* main screen status variables */
 void release_vt(), acquire_vt();
 void get_video_ram(int), open_kmem();
-extern int mem_fd, ioc_fd;
+extern int mem_fd;
 
 int gfx_mode = TEXT;
 int max_page = 7;		/* number of highest vid page - 1*/
@@ -168,10 +176,13 @@ int virt_text_base = 0;
 int video_combo = 0;
 int video_subsys = 0;
 
+#if 1
+#undef SETSIG
 #define SETSIG(sa, sig, fun)	sa.sa_handler = fun; \
 				sa.sa_flags = 0; \
 				sa.sa_mask = 0; \
 				sigaction(sig, &sa, NULL);
+#endif
 
 inline void
 forbid_switch()
@@ -193,11 +204,11 @@ void
 parent_close_mouse(void)
 {
   if (mice->intdrv) {
-    DOS_SYSCALL(close(mice->fd));
-    if (use_sigio) {
-      FD_CLR(mice->fd, &fds_sigio);
-    } else
-      FD_CLR(mice->fd, &fds_no_sigio);
+      DOS_SYSCALL(close(mice->fd));
+      if (use_sigio) {
+        FD_CLR(mice->fd, &fds_sigio);
+      } else
+        FD_CLR(mice->fd, &fds_no_sigio);
   }
   else
     child_close_mouse();
@@ -232,11 +243,10 @@ acquire_vt(int sig)
 
 #if 1
   oldalrm = signal(SIGALRM, SIG_IGN);
+  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
 #endif
 
-  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
-
-  if (ioctl(ioc_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
+  if (ioctl(kbd_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf("VT_RELDISP failed (or was queued)!\n");
 
   if (config.console_video) {
@@ -314,7 +324,9 @@ release_vt(int sig)
   struct sigaction siga;
 
   v_printf("VID: Releasing VC\n");
+#if 1
   SETSIG(siga, SIG_RELEASE, release_vt);
+#endif
 
   parent_close_mouse();
 
@@ -348,14 +360,14 @@ release_vt(int sig)
   }
 
   scr_state.current = 0;	/* our console is no longer current */
-  if (do_ioctl(ioc_fd, VT_RELDISP, 1))	/* switch ok by me */
+  if (do_ioctl(kbd_fd, VT_RELDISP, 1))	/* switch ok by me */
     v_printf("VT_RELDISP failed!\n");
 }
 
 int
 wait_vc_active(void)
 {
-  if (ioctl(ioc_fd, VT_WAITACTIVE, scr_state.console_no) < 0) {
+  if (ioctl(kbd_fd, VT_WAITACTIVE, scr_state.console_no) < 0) {
     error("ERROR: VT_WAITACTIVE for %d gave %d: %s\n", scr_state.console_no,
 	  errno, strerror(errno));
     return -1;
@@ -403,8 +415,8 @@ get_video_ram(int waitflag)
       v_printf("Keeps waiting...And\n");
     }
     while (errno == EINTR);
+#if 1
     SETSIG(siga, SIG_ACQUIRE, oldhandler);
-#if 0
     config.console_video = 1;
 #endif
   }
@@ -449,7 +461,7 @@ get_video_ram(int waitflag)
 	memcpy(dosemu_regs.mem, textbuf, TEXT_SIZE * 8);
       /*      else error("ERROR: no dosemu_regs.mem!\n"); */
     }
-    fprintf(stderr, "mapping GRAPH_BASE\n");
+    g_printf("mapping GRAPH_BASE\n");
     open_kmem();
     graph_mem = (char *) mmap((caddr_t) GRAPH_BASE,
 			      (size_t) (GRAPH_SIZE),
@@ -467,7 +479,7 @@ get_video_ram(int waitflag)
     if (PAGE_ADDR(bios_current_screen_page) != scr_state.virt_address)
       memcpy(textbuf, PAGE_ADDR(bios_current_screen_page), TEXT_SIZE);
 
-    fprintf(stderr, "mapping PAGE_ADDR\n");
+    g_printf("mapping PAGE_ADDR\n");
     open_kmem();
 
 #if 0
@@ -575,7 +587,7 @@ void
 set_process_control()
 {
   struct vt_mode vt_mode;
-  struct sigaction siga;
+  struct sigaction sa;
 
   vt_mode.mode = VT_PROCESS;
   vt_mode.waitv = 0;
@@ -586,10 +598,10 @@ set_process_control()
   scr_state.vt_requested = 0;	/* a switch has not been attempted yet */
   allow_switch();
 
-  SETSIG(siga, SIG_RELEASE, release_vt);
-  SETSIG(siga, SIG_ACQUIRE, acquire_vt);
+  SETSIG(sa, SIG_RELEASE, release_vt);
+  SETSIG(sa, SIG_ACQUIRE, acquire_vt);
 
-  if (do_ioctl(ioc_fd, VT_SETMODE, (int) &vt_mode))
+  if (do_ioctl(kbd_fd, VT_SETMODE, (int) &vt_mode))
     v_printf("initial VT_SETMODE failed!\n");
   v_printf("VID: Set process control\n");
 }
@@ -598,12 +610,12 @@ void
 clear_process_control()
 {
   struct vt_mode vt_mode;
-  struct sigaction siga;
+  struct sigaction sa;
 
   vt_mode.mode = VT_AUTO;
-  ioctl(ioc_fd, VT_SETMODE, (int) &vt_mode);
-  SETSIG(siga, SIG_RELEASE, SIG_IGN);
-  SETSIG(siga, SIG_ACQUIRE, SIG_IGN);
+  ioctl(kbd_fd, VT_SETMODE, (int) &vt_mode);
+  signal(SIG_RELEASE, SIG_IGN);
+  signal(SIG_ACQUIRE, SIG_IGN);
 }
 
 u_char kmem_open_count = 0;
@@ -697,9 +709,9 @@ vc_active(void)
 {				/* return 1 if our VC is active */
   struct vt_stat vtstat;
 
-  error("VC_ACTIVE!\n");
-  ioctl(ioc_fd, VT_GETSTATE, &vtstat);
-  error("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, vtstat.v_active);
+  g_printf("VC_ACTIVE!\n");
+  ioctl(kbd_fd, VT_GETSTATE, &vtstat);
+  g_printf("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, vtstat.v_active);
   return ((vtstat.v_active == scr_state.console_no));
 }
 

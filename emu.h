@@ -3,12 +3,18 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/11 01:01:23 $
+ * $Date: 1994/09/23 01:29:36 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.14 $
+ * $Revision: 2.16 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.16  1994/09/23  01:29:36  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.15  1994/09/20  01:53:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.14  1994/09/11  01:01:23  root
  * Prep for pre53_19.
  *
@@ -230,7 +236,7 @@ extern char *cl,		/* clear screen */
 *vi,				/* cursor invisible */
 *ve;				/* cursor normal */
 
-extern int kbd_fd, mem_fd, ioc_fd;
+extern int kbd_fd, mem_fd;
 extern int in_readkeyboard;
 
 /* X-pipes */
@@ -481,6 +487,8 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
        int mem_size, xms_size, ems_size, dpmi_size;
 
+       int sillyint;            /* IRQ number for Silly Interrupt Generator */
+
        int keyboard;
        unsigned char *key_map;     /* pointer to the correct keyboard-map */
        unsigned char *shift_map;
@@ -516,6 +524,7 @@ extern config_t config;
 #define KEYB_ES               17
 #define KEYB_ES_LATIN1        18
 #define KEYB_BE               19
+#define KEYB_PO               20
 
 /*
  * Right now, dosemu only supports two serial ports.
@@ -568,5 +577,67 @@ extern boolean_t bios_emm_fn(state_t *);
 extern int GetDebugFlagsHelper(char *);
 extern int SetDebugFlagsHelper(char *);
 extern void leavedos(int) NORETURN;
+extern void version_init(void);
+extern void add_to_io_select(int);
+
+/* signals for Linux's process control of consoles */
+#define SIG_RELEASE     SIGWINCH
+#define SIG_ACQUIRE     SIGUSR1
+
+ /* DANG_BEGIN_REMARK
+  * we assume system call restarting... under linux 0.99pl8 and earlier,
+  * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
+  * request restarting (and thus does nothing).  However, if this ever
+  * changes, I want to be safe
+  * DANG_END_REMARK
+  */
+#ifndef SA_RESTART
+#define SA_RESTART 0
+#endif
+
+/* DANG_BEGIN_FUNCTION NEWSETQSIG
+ *
+ * arguments:
+ * sig - the signal to have a handler installed to.
+ * fun - the signal handler function to install
+ *
+ * description:
+ *  All signals that wish to be handled properly in context with the
+ * execution of vm86() mode, and signals that wish to use non-reentrant
+ * functions should add themselves to the SIGNALS_THAT_QUEUE define and
+ * use SETQSIG(). To that end they will also need to be set up in an
+ * order such as SIGIO.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+#define SIGNALS_THAT_QUEUE SIGIO|SIGALRM
+
+#define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
+			/* Point to the top of the stack, minus 4 \
+			   just in case, and make it aligned  */ \
+			sa.sa_restorer = \
+			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+					sa.sa_flags = SA_RESTART; \
+					sigemptyset(&sa.sa_mask); \
+					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
+					sigaction(sig, &sa, NULL);
+
+#define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
+					sa.sa_flags = SA_RESTART; \
+					sigemptyset(&sa.sa_mask); \
+					sigaddset(&sa.sa_mask, SIG_TIME); \
+					sigaction(sig, &sa, NULL);
+
+#define NEWSETSIG(sig, fun) \
+			sa.sa_handler = (__sighandler_t) fun; \
+			/* Point to the top of the stack, minus 4 \
+			   just in case, and make it aligned  */ \
+			sa.sa_restorer = \
+			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+			sa.sa_flags = SA_RESTART; \
+			sigemptyset(&sa.sa_mask); \
+			sigaddset(&sa.sa_mask, SIG_TIME); \
+			dosemu_sigaction(sig, &sa, NULL);
 
 #endif /* EMU_H */

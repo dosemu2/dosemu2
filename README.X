@@ -4,6 +4,9 @@ Sometimes it's even sort of useable now.
 
 What you should take care of:
 
+-- Do a 'xmodmap -e "keycode 22 = 0xff08"' to get use of your backspace key.
+-- Do a 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete key.
+
 -- Make sure dosemu has X support compiled in. 
    (X_SUPPORT = 1 in the Makefile)
 

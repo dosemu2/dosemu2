@@ -1,14 +1,28 @@
-/* CPU/V86 support for dosemu
+/* 
+ * DANG_BEGIN_MODULE
+ * 
+ * CPU/V86 support for dosemu
+ *
+ * DANG_END_MODULE
+ *
+ * DANG_BEGIN_CHANGELOG
+ *
  * much of this code originally written by Matthias Lautner
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/08/14 02:52:04 $
+ * $Date: 1994/09/23 01:29:36 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.8  1994/09/23  01:29:36  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.7  1994/09/20  01:53:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.6  1994/08/14  02:52:04  root
  * Rain's latest CLEANUP and MOUSE for X additions.
  *
@@ -184,6 +198,7 @@
  * Revision 1.2  1993/07/13  19:18:38  root
  * changes for using the new (0.99pl10) signal stacks
  *
+ * DANG_END_CHANGELOG
  *
  */
 #define CPU_C
@@ -223,12 +238,25 @@ extern int fatalerr;
 
 extern struct config_info config;
 
+/* 
+ * DANG_BEGIN_FUNCTION cpu_init
+ *
+ * description:
+ *  Setup initial interrupts which can be revectored so that the kernel
+ * does not need to return to DOSEMU if such an interrupt occurs.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
 void
 cpu_init(void)
 {
   int i;
+
+#if 0 /* already done in memory_init() of emu.c 94/09/19 */
   /* cpu_type set in emulate() via getopt */
   REG(eflags) = VIF | IF;
+#endif
 
   /* make ivecs array point to low page (real mode IDT) */
   ivecs = 0;
@@ -265,23 +293,23 @@ show_regs(void)
   else
     sp = SEG_ADR((u_char *), ss, sp);
 
-  dbug_printf("\nEIP: %04x:%08lx", LWORD(cs), REG(eip));
-  dbug_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
-  dbug_printf("         VFLAGS(b): ");
+  g_printf("\nEIP: %04x:%08lx", LWORD(cs), REG(eip));
+  g_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
+  g_printf("         VFLAGS(b): ");
   for (i = (1 << 0x11); i > 0; i = (i >> 1))
-    dbug_printf((vflags & i) ? "1" : "0");
+    g_printf((vflags & i) ? "1" : "0");
 
-  dbug_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx VFLAGS(h): %08lx",
+  g_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx VFLAGS(h): %08lx",
 	      REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
-  dbug_printf("\nESI: %08lx EDI: %08lx EBP: %08lx",
+  g_printf("\nESI: %08lx EDI: %08lx EBP: %08lx",
 	      REG(esi), REG(edi), REG(ebp));
-  dbug_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
+  g_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n",
 	      LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs));
 
   /* display vflags symbolically...the #f "stringizes" the macro name */
 #define PFLAG(f)  if (REG(eflags)&(f)) dbug_printf(#f" ")
 
-  dbug_printf("FLAGS: ");
+  g_printf("FLAGS: ");
   PFLAG(CF);
   PFLAG(PF);
   PFLAG(AF);
@@ -297,27 +325,27 @@ show_regs(void)
   PFLAG(AC);
   PFLAG(VIF);
   PFLAG(VIP);
-  dbug_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
+  g_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
-  dbug_printf("STACK: ");
+  g_printf("STACK: ");
   sp -= 10;
   for (i = 0; i < 10; i++)
-    dbug_printf("%02x ", *sp++);
-  dbug_printf("-> ");
+    g_printf("%02x ", *sp++);
+  g_printf("-> ");
   for (i = 0; i < 10; i++)
-    dbug_printf("%02x ", *sp++);
-  dbug_printf("\n");
-  dbug_printf("OPS  : ");
+    g_printf("%02x ", *sp++);
+  g_printf("\n");
+  g_printf("OPS  : ");
   cp -= 10;
   for (i = 0; i < 10; i++)
-    dbug_printf("%02x ", *cp++);
-  dbug_printf("-> ");
+    g_printf("%02x ", *cp++);
+  g_printf("-> ");
   for (i = 0; i < 10; i++)
-    dbug_printf("%02x ", *cp++);
-  dbug_printf("\n");
+    g_printf("%02x ", *cp++);
+  g_printf("\n");
 }
 
 void
@@ -327,11 +355,11 @@ show_ints(int min, int max)
 
   max = (max - min) / 3;
   for (i = 0, b = min; i <= max; i++, b += 3) {
-    dbug_printf("%02x| %04x:%04x->%05x    ", b, ISEG(b), IOFF(b),
+    g_printf("%02x| %04x:%04x->%05x    ", b, ISEG(b), IOFF(b),
 		IVEC(b));
-    dbug_printf("%02x| %04x:%04x->%05x    ", b + 1, ISEG(b + 1), IOFF(b + 1),
+    g_printf("%02x| %04x:%04x->%05x    ", b + 1, ISEG(b + 1), IOFF(b + 1),
 		IVEC(b + 1));
-    dbug_printf("%02x| %04x:%04x->%05x\n", b + 2, ISEG(b + 2), IOFF(b + 2),
+    g_printf("%02x| %04x:%04x->%05x\n", b + 2, ISEG(b + 2), IOFF(b + 2),
 		IVEC(b + 2));
   }
 }

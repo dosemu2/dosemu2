@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/11 01:01:23 $
+ * $Date: 1994/09/20 01:53:26 $
  * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -456,6 +456,14 @@ disk_close_all(void)
   }
 }
 
+/*
+ * DANG_BEGIN_FUNCTION disk_init
+ *
+ * description:
+ *  Test by opening all floppies/hardrives configured.
+ *
+ * DANG_END_FUNCTION
+ */
 void
 disk_init(void)
 {

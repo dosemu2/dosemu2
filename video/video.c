@@ -44,6 +44,15 @@ int vga_font_height = 16;  /* current font height */
 int std_font_height = 16;  /* font height set by int10,0 mode 3 */
 int text_scanlines = 400;
 
+/* 
+ * DANG_BEGIN_FUNCTION video_init
+ *
+ * description:
+ *  Set pointer to correct structure of functions to initialize, close,
+ *  etc... video routines.
+ *
+ * DANG_END_FUNCTION
+ */
 int video_init()
 {
   /* figure out which video front end we are to use */
@@ -124,7 +133,7 @@ load_file(char *name, int foffset, char *mstart, int msize)
 
 
 void
- video_config_init(void) {
+video_config_init(void) {
 
   switch (config.cardtype) {
   case CARD_MDA:

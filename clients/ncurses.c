@@ -14,12 +14,15 @@
 /* 
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/06/14 22:01:48 $
+ * $Date: 1994/09/23 01:33:26 $
  * $Source: /home/src/dosemu0.60/clients/RCS/ncurses.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: ncurses.c,v $
+ * Revision 2.3  1994/09/23  01:33:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.2  1994/06/14  22:01:48  root
  * Alistair's DANG inserted for the first time :-).
  *
@@ -83,9 +86,11 @@ int client_exit(void){
 /*
  * DANG_BEGIN_FUNCTION main
  *
+ * arguments:
  * argc - Number of Command Line arguments.
  * argv - Command Line arguments - as an array of char*'s
  * 
+ * description:
  * This function does all of the work associated with this client. It
  * grabs the shared memory used to hold the current Video data and makes some
  * comments about its current screen.

@@ -7,12 +7,18 @@
  *
  * DANG_END_MODULE
  *
- * $Date: 1994/08/05 22:29:31 $
+ * $Date: 1994/09/23 01:29:36 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 2.10 $
+ * $Revision: 2.12 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.12  1994/09/23  01:29:36  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.11  1994/09/22  23:51:57  root
+ * Prep for pre53_21.
+ *
  * Revision 2.10  1994/08/05  22:29:31  root
  * Prep dir pre53_10.
  *
@@ -438,6 +444,7 @@ int1a(u_char i)
 {
   unsigned long ticks;
   long akt_time, elapsed;
+  time_t time_val;
   struct timeval tp;
   struct timezone tzp;
   struct tm *tm;
@@ -447,14 +454,17 @@ int1a(u_char i)
     /* A timer read should reset the overflow flag */
   case 0:			/* read time counter */
     time(&akt_time);
-    elapsed = akt_time - start_time;
-    ticks = (elapsed * 182) / 10 + last_ticks;
+    elapsed = (akt_time - start_time)%(24L*60L*60L);
+    ticks = (elapsed * 18206) / 1000 + last_ticks;
     LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
     *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
     LWORD(ecx) = (ticks >> 16) & 0xffff;
     LWORD(edx) = ticks & 0xffff;
-    /* dbug_printf("read timer st: %ud %ud t=%d\n",
-				    start_time, ticks, akt_time); */
+#if 0
+    g_printf("read timer st: %ud %ud t=%d\n",
+				    start_time, ticks, akt_time);
+#endif
+    set_ticks(ticks);
     break;
   case 1:			/* write time counter */
     last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
@@ -463,10 +473,13 @@ int1a(u_char i)
     g_printf("set timer to %lu \n", last_ticks);
     break;
   case 2:			/* get time */
+    time(&time_val);
+    tm = localtime((time_t *) &time_val);
+    g_printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec);
+#if 0
     gettimeofday(&tp, &tzp);
     ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-    tm = localtime((time_t *) & ticks);
-    /* g_printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec); */
+#endif
     HI(cx) = tm->tm_hour % 10;
     tm->tm_hour /= 10;
     HI(cx) |= tm->tm_hour << 4;
@@ -480,12 +493,15 @@ int1a(u_char i)
     REG(eflags) &= ~CF;
     break;
   case 4:			/* get date */
-    gettimeofday(&tp, &tzp);
-    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-    tm = localtime((time_t *) & ticks);
+    time(&time_val);
+    tm = localtime((time_t *) &time_val);
     tm->tm_year += 1900;
     tm->tm_mon++;
-    /* g_printf("get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon, tm->tm_year); */
+    g_printf("get date %02d.%02d.%04d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
+#if 0
+    gettimeofday(&tp, &tzp);
+    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
+#endif
     LWORD(ecx) = tm->tm_year % 10;
     tm->tm_year /= 10;
     LWORD(ecx) |= (tm->tm_year % 10) << 4;
@@ -758,8 +774,9 @@ static inline int is_revectored(int nr, struct revectored_struct * bitmap)
 /*
  * DANG_BEGIN_FUNCTION DO_INT 
  *
+ * description:
  * DO_INT is used to deal with interrupts returned to DOSEMU by the
-   kernel.
+ * kernel.
  *
  * DANG_END_FUNCTION
  */
@@ -946,8 +963,9 @@ void inline inte8(u_char i) {
 /*
  * DANG_BEGIN_FUNCTION DEFAULT_INTERRUPT 
  *
+ * description:
  * DEFAULT_INTERRUPT is the default interrupt service routine 
-   called when DOSEMU initializes.
+ * called when DOSEMU initializes.
  *
  * DANG_END_FUNCTION
  */
@@ -982,8 +1000,9 @@ void default_interrupt(u_char i) {
 /*
  * DANG_BEGIN_FUNCTION SETUP_INTERRUPTS 
  *
+ * description:
  * SETUP_INTERRUPTS is used to initialize those interrupt calls that
-   we are specifically handling in protected mode.
+ * we are specifically handling in protected mode.
  *
  * DANG_END_FUNCTION
  */

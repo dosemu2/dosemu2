@@ -3,12 +3,15 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/06/12 23:15:37 $
+ * $Date: 1994/09/23 01:29:36 $
  * $Source: /home/src/dosemu0.60/RCS/termio.h,v $
- * $Revision: 2.1 $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 2.2  1994/09/23  01:29:36  root
+ * Prep for pre53_21.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -131,13 +134,9 @@
 #define key_flags *(KEYFLAG_ADDR)
 #define kbd_flags *(KBDFLAG_ADDR)
 
-void set_screen_origin(int), set_vc_screen_page(int);
+extern void set_screen_origin(int), set_vc_screen_page(int);
 
-int vc_active(void);
-
-/* signals for Linux's process control of consoles */
-#define SIG_RELEASE	SIGWINCH
-#define SIG_ACQUIRE	SIGUSR1
+extern int vc_active(void);
 
 #define KBBUF_SIZE	80	/* dosemu read buffer for keyboard */
 
@@ -163,6 +162,6 @@ struct screen_stat {
   int old_modecr, new_modecr;
 };
 
-void set_leds(void);
+extern void set_leds(void);
 
 #endif /* TERMIO_H */

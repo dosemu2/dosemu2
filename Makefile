@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/09/11 01:01:23 $
+# $Date: 1994/09/23 01:29:36 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.27 $
+# $Revision: 2.30 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
@@ -63,7 +63,8 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   20
+PATCHL  =   21
+LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -118,7 +119,7 @@ SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
-	README.ncurses vga.pcf xtermdos xinstallvgafont README.X \
+	README.ncurses vga.pcf vga.bdf xtermdos xinstallvgafont README.X \
 	README.CDROM README.video Configure
 
 BFILES=
@@ -200,7 +201,7 @@ doeverything: warning2 config dep installnew docsubdirs
 
 most: warning2 config dep installnew
 
-all:	warnconf x2dos dos dossubdirs warning3 libdosemu
+all:	warnconf x2dos dos dossubdirs warning3 $(LIBDOSEMU)
 
 .EXPORT_ALL_VARIABLES:
 
@@ -236,10 +237,12 @@ x2dos: x2dos.c
 	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) \
 	  -o $@ $< -L$(X11LIBDIR) -lXaw -lXt -lX11
 
-libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
-	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \
+$(LIBDOSEMU):	$(SHLIBOBJS) $(DPMIOBJS)
+	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
 	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 
+#	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \
+#	   $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) $(XLIBS) -lncurses -lc
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE)) || exit; \
@@ -258,14 +261,15 @@ installnew: dummy
 
 install: all
 	@install -d /var/lib/dosemu
-	@nm libdosemu | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
+	@nm $(LIBDOSEMU) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > dosemu.map
 	@if [ -f /lib/libemu ]; then rm -f /lib/libemu ; fi
 	@for i in $(SUBDIRS); do \
 		(cd $$i && echo $$i && $(MAKE) install) || exit; \
 	done
 	@install -c -o root -m 04755 dos /usr/bin
-	@install -m 0755 libdosemu /usr/lib
+	@install -m 0755 $(LIBDOSEMU) /usr/lib
+	@ln -sf /usr/lib/$(LIBDOSEMU) /usr/lib/libdosemu
 	@if [ -f /usr/bin/xdosemu ]; then \
 		install -m 0700 /usr/bin/xdosemu /tmp; \
 		rm -f /usr/bin/xdosemu; \
@@ -277,10 +281,13 @@ ifdef X_SUPPORT
 	@echo ""
 	@echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."
 	@if [ -w /usr/lib/X11/fonts/misc ] && [ -d /usr/lib/X11/fonts/misc ]; then \
-		install -m 0644 vga.pcf /usr/lib/X11/fonts/misc; \
-		if [ -x /usr/bin/X11/mkfontdir ]; then \
-			cd /usr/lib/X11/fonts/misc; \
-			mkfontdir; \
+		if [ ! -e /usr/lib/X11/fonts/misc/vga.bdf ]; then \
+			install -m 0644 vga.pcf /usr/lib/X11/fonts/misc; \
+			install -m 0644 vga.bdf /usr/lib/X11/fonts/misc; \
+			if [ -x /usr/bin/X11/mkfontdir ]; then \
+				cd /usr/lib/X11/fonts/misc; \
+				mkfontdir; \
+			fi \
 		fi \
 	fi
 endif
@@ -293,7 +300,10 @@ endif
 	@echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
 ifdef X_SUPPORT
 	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."
-	@echo "  - If Xwindows is running now, restart it before 'xdos' for the first time."
+	@echo "  - Type 'xset fp rehash' before running 'xdos' for the first time."
+	@echo "  - To make your backspace and delete key work properly in 'xdos', type:"
+	@echo '        xmodmap -e "keycode 107 = 0xffff"'
+	@echo '        xmodmap -e "keycode 22 = 0xff08"'
 endif
 	@echo ""
 
@@ -330,7 +340,7 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	@ls -l $(DISTFILE) 
 
 clean:
-	rm -f $(OBJS) x2dos dos libdosemu *.s core config.h .depend \
+	rm -f $(OBJS) x2dos dos $(LIBDOSEMU) *.s core config.h .depend \
 	      dosconfig dosconfig.o *.tmp
 	@for i in $(SUBDIRS); do \
              (cd $$i && echo $$i && $(MAKE) clean) || exit; \

@@ -1,6 +1,52 @@
+Thr Sep 22 1994 Jmaclean
+
+-	Messed with timer code. Changed tick setting to different
+	method and relied on time() to give acurate time.
+	Found what seems to be the 24 hour bug and inilated it!!!!!!
+	With many thanks to Corey.
+-	Added backspace/delete patch to Xkeyb.c. Thanks to Scott and Mark.
+-	Hacked up HogThreshold again. Rule: Closer you set to 0, the
+	lower the CPU usage. At 0 though, hogThreshold is turned off,
+	and int16/int2a are run full open.
+-	Added HogThreshold to int2a.
+-	Added patches to bring -F config file option back to life
+	thanks to Dino Dini <ddini@dircon.co.uk>.
+-	Added patches to ./video/X.c for better color reps thanks
+	to Mark.
+-	Prepared to move vc_acquire/release under new signal
+	handling... but failed miserably :-(.
+-	Makefile additions by Mark.
+
+Tue Sep 20 1994 Jmaclean
+
+-	Removed most coding from SIGIO and SIGALRM signals in an
+	effort to remove race conditions. Now these signals just
+	mark that they've occured, save their context, and 
+	continue. Lutz's DPMI will suffer :-(. Probably best to 
+	go through DANG to get an idea of what's going on :-).
+
+Mon Sep 19 1994 Jmaclean
+
+-	Wrapped lpt opens in exchange_uids() to allow "lpr" to run at
+	user level.
+-	Modified Makefile to create libdosemu$(EMUVER)pl$(PATCHL) and link
+	libdosemu to it. Now folks can compare releases just by changing
+	symlinks. Probably not what was wanted, but a close facsimile :-).
+-	Added SIG mods by Hans Lermen (lermen@elserv.ffm.fgan.de). More to
+	come.
+-	Cleaned up boot() in emu.c to just boot. Added memory_init() for
+	all specific memory setups for proper i86 boots.
+-	Added portuguese keyboard map.
+
+Sun Sep 18 1994 Jmaclean
+
+-	Removed ioc_fd and replaced all occurances with kbd_fd.
+-	Started DANGing :-).
+
 fri Sep 16 1994 Jmaclean
 
 -	Another change to the readonly open error
+-	Fix to mfs.c for return values for readonly mfs drives.
 
 Sat Sep 10 1994 Jmaclean
 

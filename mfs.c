@@ -146,6 +146,12 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.6  1994/09/23  01:29:36  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.5  1994/09/20  01:53:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.4  1994/08/17  02:08:22  root
  * Mods to Rain's patches to get all modes back on the road.
  *
@@ -372,13 +378,13 @@ TODO:
 
 #include "dos.h"
 #else
+#include <dirent.h>
+#include <signal.h>
+#include <string.h>
 #include "mfs.h"
 #include "config.h"
 /* For passing through GetRedirection Status */
 #include "memory.h"
-#include <dirent.h>
-#include <signal.h>
-#include <string.h>
 #endif
 
 /* these universal globals defined here (externed in dos.h) */

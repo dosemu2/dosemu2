@@ -1,11 +1,14 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1994/09/11 01:01:23 $
+ * $Date: 1994/09/20 01:53:26 $
  * $Source: /home/src/dosemu0.60/RCS/lpt.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 2.4  1994/09/20  01:53:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.3  1994/09/11  01:01:23  root
  * Prep for pre53_19.
  *
@@ -125,13 +128,17 @@ printer_open(int prnum)
   um = umask(026);
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
+      exchange_uids();
       lpt[prnum].dev = tmpnam(NULL);
-
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+      exchange_uids();
       p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
     }
-    else
+    else {
+      exchange_uids();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+      exchange_uids();
+    }
   }
   umask(um);
 
@@ -210,8 +217,15 @@ printer_write(int prnum, int outchar)
   return (LPT_NOTBUSY | LPT_ACK | LPT_ONLINE);
 }
 
+/* DANG_BEGIN_FUNCTION printer_init
+ *
+ * description:
+ *  Initialize printer control structures
+ *
+ * DANG_END_FUNCTIONS
+ */
 void
-init_all_printers(void)
+printer_init(void)
 {
   int i;
 

@@ -4,12 +4,18 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/09/11 01:01:23 $
+ * $Date: 1994/09/22 23:51:57 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.8  1994/09/22  23:51:57  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.7  1994/09/20  01:53:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.6  1994/09/11  01:01:23  root
  * Prep for pre53_19.
  *
@@ -307,6 +313,14 @@ set_a20(int enableHMA)
   sharedmem.hmastate = enableHMA;
 }
 
+/*
+ * DANG_BEGIN_FUNCTION memory_setup
+ *
+ * description:
+ *  Setup HMA area via IPC. Call EMS and XMS initialization routines.
+ *
+ * DANG_END_FUNCTION
+ */
 void
 memory_setup(void)
 {
@@ -406,19 +420,6 @@ io_select(fd_set fds)
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
 
-#if 0 /* Now called with fd_set */
-  FD_ZERO(&fds);
-  FD_SET(kbd_fd, &fds);
-
-#ifdef SIG
-  if (SillyG)
-    FD_SET(SillyG, &fds);
-#endif
-  
-  if (mice->intdrv)
-    FD_SET(mice->fd, &fds);
-#endif
-
   switch ((selrtn = select(15, &fds, NULL, NULL, &tvptr))) {
     case 0:			/* none ready, nothing to do :-) */
       return;
@@ -515,7 +516,7 @@ set_keyboard_bios(void)
       inschr = 0;
     }
   }
-  k_printf("parent nextscan found inschr=0x%02x, lastchr = 0x%02x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
+  k_printf("parent nextscan found inschr=0x%04x, lastchr = 0x%04x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
   k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));
 }

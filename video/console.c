@@ -64,6 +64,11 @@ void do_console_update_cursor() {
 
 void set_console_video(void)
 {
+  if (config.vga) {
+    k_printf("KBD: Taking mouse control\n");
+    ioctl(kbd_fd, KDSETMODE, KD_GRAPHICS);
+  }
+
   /* Clear the Linux console screen. The console recognizes these codes: 
    * \033[?25h = show cursor.
    * \033[0m = reset color.  
@@ -74,11 +79,6 @@ void set_console_video(void)
 
   scr_state.mapped = 0;
   allow_switch();
-
-  if (config.vga) {
-    k_printf("KBD: Taking mouse control\n");
-    ioctl(ioc_fd, KDSETMODE, KD_GRAPHICS);
-  }
 
   /* warning! this must come first! the VT_ACTIVATES which some below
      * cause set_dos_video() and set_linux_video() to use the modecr
@@ -110,8 +110,8 @@ void set_console_video(void)
     scr_state.mapped = 1;
 #endif
     if (!config.vga) {
-      ioctl(ioc_fd, VT_ACTIVATE, other_no);
-      ioctl(ioc_fd, VT_ACTIVATE, scr_state.console_no);
+      ioctl(kbd_fd, VT_ACTIVATE, other_no);
+      ioctl(kbd_fd, VT_ACTIVATE, scr_state.console_no);
     }
   }
   else
@@ -131,13 +131,13 @@ void clear_console_video(void)
   /* XXX - must be current console! */
 
   if (config.vga) 
-    ioctl(ioc_fd, KIOCSOUND, 0);	/* turn off any sound */
+    ioctl(kbd_fd, KIOCSOUND, 0);	/* turn off any sound */
   else
     fprintf(stdout,"\033[?25h");        /* Turn on the cursor */
 
   if (config.console_video) {
     k_printf("KBD: Release mouse control\n");
-    ioctl(ioc_fd, KDSETMODE, KD_TEXT);
+    ioctl(kbd_fd, KDSETMODE, KD_TEXT);
   }
 }
 

@@ -1,12 +1,18 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/09/11 01:03:30 $
+ * $Date: 1994/09/22 23:53:01 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.11 $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.13  1994/09/22  23:53:01  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.12  1994/09/20  01:55:27  root
+ * Prep for pre53_21.
+ *
  * Revision 2.11  1994/09/11  01:03:30  root
  * Prep for pre53_19.
  *
@@ -160,7 +166,7 @@ void mouse_delta(int);
 
 boolean gfx_cursor;
 
-mouse_t mice[MAX_MOUSE];
+mouse_t mice[MAX_MOUSE] ;
 
 static long mousecursormask[HEIGHT] =  {
   0x00000000L,  /*0000000000000000*/
@@ -181,6 +187,7 @@ static long mousecursormask[HEIGHT] =  {
   0x00000000L   /*0000000000000000*/
 };
 
+#if 0
 static long mousescreenmask[HEIGHT] =  {
   0x3fffffffL,  /*0011111111111111*/
   0x1fffffffL,  /*0001111111111111*/
@@ -199,6 +206,7 @@ static long mousescreenmask[HEIGHT] =  {
   0xf87fffffL,  /*1111100001111111*/
   0xfcffffffL   /*1111110011111111*/
 };
+#endif
 
 static ushort mousetextscreen = 0xffff;
 static ushort mousetextcursor = 0xff00;
@@ -799,11 +807,21 @@ mouse_sethandler(void *f, us * cs, us * ip)
   mouse.ipp = ip;
 }
 
+/*
+ * DANG_BEGIN_FUNCTION mouse_init
+ *
+ * description:
+ *  Initialize internal mouse.
+ *
+ * DANG_END_FUNCTION
+ */
 void
 mouse_init(void)
 {
   serial_t *sptr;
+#if 0 /* Not sure why she's here? 94/09/19 */
   int old_mice_flags = -1;
+#endif
 
 #ifdef X_SUPPORT
   if (config.X) {
@@ -816,36 +834,21 @@ mouse_init(void)
   
   if ( ! config.usesX ){
     if (mice->intdrv) {
+      m_printf("Opening internal mouse: %s\n", mice->dev);
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
       if (mice->fd == -1) {
  	mice->intdrv = FALSE;
  	mice->type = MOUSE_NONE;
  	return;
       }
-      if (use_sigio) {
-        old_mice_flags = fcntl(mice->fd, F_GETFL);
-        fcntl(mice->fd, F_SETOWN,  getpid());
-        fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
-        FD_SET(mice->fd, &fds_sigio);
-      } else  {
-        FD_SET(mice->fd, &fds_no_sigio);
-        not_use_sigio++;
-      }
+      add_to_io_select(mice->fd);
       DOSEMUSetupMouse();
       return;
     }
 
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
-      if (use_sigio) {
-        old_mice_flags = fcntl(mice->fd, F_GETFL);
-        fcntl(mice->fd, F_SETOWN,  getpid());
-        fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
-        FD_SET(mice->fd, &fds_sigio);
-      } else  {
-        FD_SET(mice->fd, &fds_no_sigio);
-        not_use_sigio++;
-      }
+      add_to_io_select(mice->fd);
     }
     else {
       sptr = &com[config.num_ser];
@@ -862,16 +865,8 @@ mouse_init(void)
       mice->type = MOUSE_NONE;
       return;
     }
+    add_to_io_select(mice->fd);
     DOSEMUSetupMouse();
-    if (use_sigio) {
-      old_mice_flags = fcntl(mice->fd, F_GETFL);
-      fcntl(mice->fd, F_SETOWN,  getpid());
-      fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
-      FD_SET(mice->fd, &fds_sigio);
-    } else {
-      FD_SET(mice->fd, &fds_no_sigio);
-      not_use_sigio++;
-    }
     return;
   }
 

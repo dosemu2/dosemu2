@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/09/11 01:01:23 $
+ * $Date: 1994/09/23 01:29:36 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.8 $
+ * $Revision: 2.9 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.9  1994/09/23  01:29:36  root
+ * Prep for pre53_21.
+ *
  * Revision 2.8  1994/09/11  01:01:23  root
  * Prep for pre53_19.
  *
@@ -149,6 +152,7 @@ extern inline void do_int(int);
 /*
  * DANG_BEGIN_FUNCTION void vm86_GP_fault();
  *
+ * description:
  * All from the kernel unhandled general protection faults from V86 mode
  * are handled here. This are mainly port IO and the HLT instruction.
  *

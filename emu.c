@@ -3,21 +3,38 @@
  *
  * DANG_BEGIN_MODULE
  * 
- * This is where we call of the initialisation code. Everything not covered
- * elsewhere is handled here (Such logic !) By this we mean the speakers,
- * the standard memory, cassettes etc.
+ * Here is where DOSEMU gets booted. From emu.c external calls are made
+ * to the specific I/O systems (video/keyboard/serial/etc...) to
+ * initialize them. Memory is cleared/set up and the boot sector is read
+ * from the boot drive. Many SIGNALS are set so that DOSEMU can 
+ * exploit things like timers, I/O signals, illegal instructions, etc...
+ * When every system gives the green light, vm86()
+ * is called to switch into vm86 mode and start executing i86 code. 
  *
- * More than that, I cannot tell you - Things have changed a lot since I
- * last got an update ... 8-(
+ * The vm86() function will return to DOSEMU when certain `exceptions`
+ * occur as when some interrupt instructions occur (0xcd).
+ *
+ * The top level function emulate() is called from dos.c by way of a
+ * dll entry point.
+ *
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/09/11 01:01:23 $
+ * $Date: 1994/09/23 01:29:36 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.22 $
+ * $Revision: 2.25 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.25  1994/09/23  01:29:36  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.24  1994/09/22  23:51:57  root
+ * Prep for pre53_21.
+ *
+ * Revision 2.23  1994/09/20  01:53:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.22  1994/09/11  01:01:23  root
  * Prep for pre53_19.
  *
@@ -409,21 +426,28 @@
  */
 
 /*
+ * DANG_BEGIN_REMARK
    DOSEMU must not work within the 1 meg DOS limit, so start of code
    is loaded at a higher address, at some time this could conflict with
-   other shared libs
+   other shared libs. If DOSEMU is compiled statically (without shared
+   libs), and org instruction is used to provide the jump above 1 meg.
+ * DANG_END_REMARK
 */
 #if STATIC
 __asm__(".org 0x110000");
 #endif
 
 /*
-   Here DOSEMU jumps to the emulate function which was loaded above
-   the 1 meg DOS area
-
-   make sure that this line is the first of emu.c
-   and link emu.o as the first object file to the lib
-*/
+ * DANG_BEGIN_FUNCTION jmp_emulate
+ *
+ * description:
+ * This function allows the startup program `dos` to know how to call
+ * the emulate function by way of the dll headers.
+ * Always make sure that this line is the first of emu.c
+ * and link emu.o as the first object file to the lib
+ *
+ * DANG_END_FUNCTION
+ */
 __asm__("___START___: jmp _emulate\n");
 
 #include <stdio.h>
@@ -435,7 +459,6 @@ __asm__("___START___: jmp _emulate\n");
 #include <ctype.h>
 #include <fcntl.h>
 #include <signal.h>
-/*#include <ncurses.h>    *//*termcap.h*/
 #include <sys/stat.h>
 #include <time.h>
 #include <sys/times.h>
@@ -451,6 +474,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <syscall.h>
 #include <linux/cdrom.h>
 #include <linux/config.h>
+#include <linux/utsname.h>
 
 #include "config.h"
 #include "memory.h"
@@ -478,10 +502,9 @@ __asm__("___START___: jmp _emulate\n");
 #include "int.h"
 #endif
 
-/* Using 2 fd_sets. One fot SIGIO Routines, one for the rest */
-fd_set fds_sigio, fds_no_sigio;
-
 extern void getKeys(void);
+
+extern void setup_low_mem(void);
 
 extern struct pit pit;
 
@@ -489,6 +512,20 @@ extern inline void disk_open(struct disk *);
 extern inline void vm86_GP_fault();
 extern int cursor_row, cursor_col, cursor_blink;
 
+/* Variables for keeping track of signals */
+#define MAX_SIG_QUEUE_SIZE 50
+u_short SIGNAL_head=0; u_short SIGNAL_tail=0;
+struct SIGNAL_queue {
+  struct sigcontext_struct context;
+  void (* signal_handler)(void);
+};
+struct SIGNAL_queue	signal_queue[MAX_SIG_QUEUE_SIZE];
+
+void SIGIO_call(void);
+void SIGALRM_call(void);
+
+/* Using 2 fd_sets. One for SIGIO Routines, one for the rest */
+fd_set fds_sigio, fds_no_sigio;
 unsigned int use_sigio=0;
 unsigned int not_use_sigio=0;
 
@@ -503,6 +540,19 @@ inline void int_queue_run();
 
 #define TIMER_DIVISOR 3
 
+/* DANG_BEGIN_FUNCTION DBGTIME 
+ *
+ * arguments:
+ * x - character to print with time.
+ *
+ * description:
+ *  Inline function to debug time differences between different points of
+ * execution within DOSEMU. Thanks Ronnie :-).
+ * Only used by developers and not expected to execute in any general 
+ * releases.
+ *
+ * DANG_END_FUNCTION
+ */
 #define DBGTIME(x) {\
                         struct timeval tv;\
                         gettimeofday(&tv,NULL);\
@@ -526,16 +576,28 @@ extern void keyboard_close(void);
 */
 extern struct disk disktab[], hdisktab[];
 
-/* Structure to hold all current configuration information */
+/*
+ * DANG_BEGIN_REMARK
+ * DOSEMU keeps system wide configuration status in a structure 
+ * called config.
+ * DANG_END_REMARK
+ */
 struct config_info config;
 
 /*
-   Structure to hold current state of all VM86 registers used in
-   VM86 mode
+ * DANG_BEGIN_REMARK
+   The `vm86_struct` is used to pass all the necessary status/registers to
+   DOSEMU when running in vm86 mode. 
+ * DANG_END_REMARK
 */
 extern struct vm86_struct vm86s;
 
-/* Keep track of error that causes DOSEMU to exit */
+/*
+ * DANG_BEGIN_REMARK
+ * The var `fatalerr` can be given a true value at any time to have DOSEMU 
+ * exit on the next exit from vm86 mode.
+ * DANG_END_REMARK
+ */
 int fatalerr;
 
 /*
@@ -588,7 +650,7 @@ unsigned long precard_eip, precard_cs;	/* Save state at VGAon */
 unsigned int configuration = 0;
 void config_init(void);
 
-/* Function to set up all memory area for DOS, as well as load boot block */
+/* Function to set up all memory areas for DOS, as well as load boot block */
 void boot(void);
 
 extern void map_bios(void);	/* map in VIDEO bios */
@@ -662,18 +724,35 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   return -1;
 }
 
+/* DANG_BEGIN_FUNCTION signal_init
+ *
+ * description:
+ *  Initialize the signals to have NONE being blocked.
+ *  Initialize the signal_queue.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
 void
 signal_init(void)
 {
   sigset_t trashset;
+  u_short counter;
 
   /* block no additional signals (i.e. get the current signal mask) */
   sigemptyset(&trashset);
   sigprocmask(SIG_BLOCK, &trashset, &oldset);
-
-  /*  g_printf("CLI/STI initialized\n"); */
+  g_printf("Initialized all signals to NOT-BLOCK\n");
 }
 
+/* 
+ * DANG_BEGIN_FUNCTION cli
+ *
+ * description:
+ *  Stop additional signals from interrupting DOSEMU.
+ *
+ * DANG_END_FUNCTION
+ */
 void
 cli(void)
 {
@@ -683,6 +762,14 @@ cli(void)
   DOS_SYSCALL(sigprocmask(SIG_SETMASK, &blockset, &oldset));
 }
 
+/* 
+ * DANG_BEGIN_FUNCTION sti
+ *
+ * description:
+ *  Allow all signals to interrupt DOSEMU.
+ *
+ * DANG_END_FUNCTION
+ */
 void
 sti(void)
 {
@@ -692,16 +779,52 @@ sti(void)
 }
 
 /*
-   Here is where DOSEMU runs VM86 mode with the vm86() call which
-   also has the registers that it will be called with. It will stop
-   vm86 mode for many reasons, like trying to execute an interrupt,
-   doing port I/O to ports not opened for I/O, etc ...
-*/
+ * DANG_BEGIN_FUNCTION handle_signals
+ *
+ * description:
+ *  Due to signals happening at any time, the actual work to be done 
+ * because a signal occurs is done here in a serial fashion.
+ *
+ * The concept, should this eventualy work, is that a signal should only
+ * flag that it has occurred and let DOSEMU deal with it in an orderly 
+ * fashion as it executes the rest of it's code.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+inline void handle_signals(void) {
+
+  if ( SIGNAL_head != SIGNAL_tail ) {
+    signal_queue[SIGNAL_head].signal_handler();
+    SIGNAL_head = (SIGNAL_head + 1) % MAX_SIG_QUEUE_SIZE;
+/* 
+ * If more SIGNALS need to be dealt with, make sure we request interruption
+ * by the kernel ASAP.
+ */
+      if (SIGNAL_head != SIGNAL_tail) {
+        REG(eflags) |= VIP;
+      }
+  }
+}
+
+/*
+ * DANG_BEGIN_FUNCTION run_vm86
+ *
+ * description:
+ *  Here is where DOSEMU runs VM86 mode with the vm86() call which
+ *  also has the registers that it will be called with. It will stop
+ *  vm86 mode for many reasons, like trying to execute an interrupt,
+ *  doing port I/O to ports not opened for I/O, etc ...
+ *
+ * DANG_END_FUNCTION
+ */
 inline void
 run_vm86(void)
 {
   static int retval;
-  /* always invoke vm86() with this call.  all the messy stuff will
+  static u_short next_signal=0;
+  /*
+   * always invoke vm86() with this call.  all the messy stuff will
    * be in here.
    */
     in_vm86 = 1;
@@ -723,7 +846,10 @@ run_vm86(void)
 		fatalerr = 4;
     }
 
-  /* this is here because ioctl() is non-reentrant, and signal handlers
+  handle_signals();
+
+  /* 
+   * This is here because ioctl() is non-reentrant, and signal handlers
    * may have to use ioctl().  This results in a possible (probable) time
    * lag of indeterminate length (and a bad return value).
    * Ah, life isn't perfect.
@@ -753,10 +879,10 @@ config_init(void)
 
   g_printf("CONFIG: 0x%04x    binary: ", configuration);
   for (b = 15; b >= 0; b--)
-    dbug_printf("%s%s", (configuration & (1 << b)) ? "1" : "0",
+    g_printf("%s%s", (configuration & (1 << b)) ? "1" : "0",
 		(b % 4) ? "" : " ");
 
-  dbug_printf("\n");
+  g_printf("\n");
 }
 
 void
@@ -814,43 +940,22 @@ dbug_dumpivec(void)
 
 #endif
 
-void
-boot(void)
-{
-  char *buffer;
+
+/* 
+ * DANG_BEGIN_FUNCTION memory_init
+ * 
+ * description:
+ *  Set up all memory areas as would be present on a typical i86 during
+ * the boot phase.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void memory_init(void) {
+
   unsigned int i;
   unsigned char *ptr;
-  struct disk *dp = NULL;
   ushort *seg, *off;
-
-  switch (config.hdiskboot) {
-  case 0:
-    if (config.bootdisk)
-      dp = &bootdisk;
-    else
-      dp = &disktab[0];
-    break;
-  case 1:
-    dp = &hdisktab[0];
-    break;
-  case 2:
-    dp = &disktab[2];
-    break;
-  default:
-    error("ERROR: unexpected value for config.hdiskboot\n");
-    leavedos(15);
-  }
-
-  config_init();
-  cpu_init();
-  cmos_init();
-
-  ignore_segv++;
-
-  disk_close();
-  disk_open(dp);
-
-  buffer = (char *) 0x7c00;
 
   /* fill the last page w/HLT, except leave the BIOS date & machine
    * type there if BIOS mapped in... */
@@ -886,6 +991,7 @@ boot(void)
 
   /* user timer tick, should be an IRET */
   *(unsigned char *) (BIOSSEG * 16 + 16 * 0x1c) = 0xcf;
+
   /* Let kernel handle this, no need to return to DOSEMU */
   SETIVEC(0x1c, 0xf01c, 0);
 
@@ -899,7 +1005,6 @@ boot(void)
   *ptr++ = 0xf4;		/* HLT...the current emulator trap */
   *ptr++ = INT2F_XMS_MAGIC;	/* just an info byte. reserved for later */
   *ptr++ = 0xcb;		/* FAR RET */
-  /*  xms_init(); */
 
   /* show EMS as disabled */
   SETIVEC(0x67, 0, 0);
@@ -908,9 +1013,10 @@ boot(void)
     /* this is the mouse handler */
     ptr = (unsigned char *) (Mouse_ADD);
 
-    /* mouse routine simulates the stack frame of an int, then does a
-       * "pushad" before here...so we just "popad; iret" to get back out
-       */
+/* 
+ * mouse routine simulates the stack frame of an int, then does a
+ * "pushad" before here...so we just "popad; iret" to get back out
+ */
     *ptr++ = 0xff;
     *ptr++ = 0x1e;
     *(((us *) ptr)++) = Mouse_OFF + 7;	/* uses ptr[3] as well */
@@ -945,12 +1051,12 @@ boot(void)
   memcpy(ptr, INT16_dummy_start, (unsigned long) INT16_dummy_end - (unsigned long) INT16_dummy_start);
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
 
-  /* Welcome to an -inline- int09 routine - ask for details :-) */
+  /* inline int09 routine */
   ptr = (u_char *) INT09_ADD;
   memcpy(ptr, INT09_dummy_start, (unsigned long) INT09_dummy_end - (unsigned long) INT09_dummy_start);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
 
-  /* Welcome to an -inline- int08 */
+  /* int08 */
   ptr = (u_char *) INT08_ADD;
   memcpy(ptr, INT08_dummy_start, (unsigned long) INT08_dummy_end - (unsigned long) INT08_dummy_start);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
@@ -1033,16 +1139,6 @@ boot(void)
   *ptr++ = 0x00;
   *ptr++ = 0x00;
 
-  if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
-    error("ERROR: can't boot from %s, using harddisk\n", dp->dev_name);
-    dp = hdisktab;
-    if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
-      error("ERROR: can't boot from hard disk\n");
-      leavedos(16);
-    }
-  }
-  disk_close();
-
   REG(ebx) = 0;			/* ax,bx,cx,dx,si,di,bp,fs,gs probably can be anything */
   REG(ecx) = 0;
   REG(edx) = 0;
@@ -1059,7 +1155,12 @@ boot(void)
   REG(fs) = 0;
   REG(gs) = 0;
 
-  /* the banner helper actually get called *after* the VGA card
+  /* Set OUTB_ADD to 1 */
+  *OUTB_ADD = 1;
+  *LASTSCAN_ADD = 0;
+  REG(eflags) |= (IF | VIF | VIP);
+  /* 
+   * The banner helper actually gets called *after* the VGA card
    * is initialized (if it is) because we set up a return chain:
    *      init_vga_card -> dosemu_banner -> 7c00:0000 (boot block)
    */
@@ -1077,17 +1178,75 @@ boot(void)
     leavedos(0);
   }
 
-  /* Set OUTB_ADD to 1 */
-  *OUTB_ADD = 1;
-  *LASTSCAN_ADD = 0;
-  REG(eflags) |= (IF | VIF | VIP);
-
-  ignore_segv--;
 }
 
 void
-sigalrm(int sig, struct sigcontext_struct context)
+boot(void)
 {
+  char *buffer;
+  struct disk *dp = NULL;
+
+  switch (config.hdiskboot) {
+  case 0:
+    if (config.bootdisk)
+      dp = &bootdisk;
+    else
+      dp = &disktab[0];
+    break;
+  case 1:
+    dp = &hdisktab[0];
+    break;
+  case 2:
+    dp = &disktab[2];
+    break;
+  default:
+    error("ERROR: unexpected value for config.hdiskboot\n");
+    leavedos(15);
+  }
+
+  ignore_segv++;
+
+  disk_close();
+  disk_open(dp);
+
+  buffer = (char *) 0x7c00;
+
+  if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+    error("ERROR: can't boot from %s, using harddisk\n", dp->dev_name);
+    dp = hdisktab;
+    if (read_sectors(dp, buffer, 0, 0, 0, 1) != SECTOR_SIZE) {
+      error("ERROR: can't boot from hard disk\n");
+      leavedos(16);
+    }
+  }
+  disk_close();
+  ignore_segv--;
+}
+
+/* DANG_BEGIN_FUNCTION SIGNAL_save
+ *
+ * arguments:
+ * context     - signal context to save.
+ * signal_call - signal handling routine to be called.
+ *
+ * description:
+ *  Save into an array structure queue the signal context of the current
+ * signal. This is a queue because any signal may occur multiple times before
+ * DOSEMU deals with it down the road
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+inline void SIGNAL_save(
+			struct sigcontext_struct *context, 
+			void (*signal_call)() ) {
+  signal_queue[SIGNAL_tail].context = *context;
+  signal_queue[SIGNAL_tail].signal_handler=signal_call;
+  SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
+  REG(eflags) |= (VIP) ;
+}
+
+void SIGALRM_call(void){
   static volatile int running = 0;
   static volatile inalrm = 0;
   static int partials = 0;
@@ -1097,18 +1256,9 @@ sigalrm(int sig, struct sigcontext_struct context)
 #endif
   int retval;
   
-  if (inalrm || in_sighandler) {
-    error("ERROR: Reentering SIGALRM! alrm=%d, in_sig=%d\n", inalrm, in_sighandler);
-    setitimer(TIMER_TIME, &itv, NULL);
-    return;
-  }
-
-  inalrm = 1;
-  in_sighandler = 1;
-
 #ifdef DPMI
   if (in_dpmi && !in_vm86)
-    dpmi_sigalrm(&context);
+    dpmi_sigalrm(&signal_queue[SIGNAL_head].context);
 #endif /* DPMI */
 
 #ifdef X_SUPPORT
@@ -1215,20 +1365,8 @@ sigalrm(int sig, struct sigcontext_struct context)
       h_printf("NOT CONFIG.TIMERS\n");
   }
 
-#if 1 /* New way 94/08/30 */
   if (not_use_sigio)
     io_select(fds_no_sigio);
-#else
-  if (!use_sigio
-    | config.num_ser
-#ifdef SIG
-    | SillyG
-#endif
-     ) {
-  /* Call select to see if any I/O is ready on devices */
-    io_select();
-  }
-#endif
 
   /* this is for per-second activities */
   partials++;
@@ -1239,30 +1377,39 @@ sigalrm(int sig, struct sigcontext_struct context)
       floppy_tick();
   }
 
-  in_sighandler = 0;
-  inalrm = 0;
+}
+
+void
+sigalrm(int sig, struct sigcontext_struct context)
+{
+  SIGNAL_save(&context, SIGALRM_call);
+}
+
+/*
+ * DANG_BEGIN_FUNCTION SIGIO_call
+ *
+ * description:
+ *  Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU
+ * will be flagged to run this call which inturn checks which 
+ * fd(s) was set and execute the proper routine to get the I/O
+ * from that device.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
+void SIGIO_call(void){
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(&signal_queue[SIGNAL_head].context);
+#endif /* DPMI */
+  /* Call select to see if any I/O is ready on devices */
+  io_select(fds_sigio);
 }
 
 void
 sigio(int sig, struct sigcontext_struct context)
 {
-  static insigio = 0;
-
-  if (insigio) {
-    error("ERROR: Reentering SIGIO!\n");
-    return;
-  }
-  insigio = 1;
-
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    dpmi_sigio(&context);
-#endif /* DPMI */
-
-  /* Call select to see if any I/O is ready on devices */
-  io_select(fds_sigio);
-
-  insigio = 0;
+  SIGNAL_save(&context, SIGIO_call);
 }
 
 void
@@ -1336,21 +1483,29 @@ open_Xmouse_pipe(char *path)
   return;
 }
 
-/* this part is fairly flexible...you specify the debugging flags you wish
-	 * with -D string.  The string consists of the following characters:
-	 *   +   turns the following options on (initial state)
-	 *   -   turns the following options off
-	 *   a   turns all the options on/off, depending on whether +/- is set
-	 *   0-9 sets debug levels (0 is off, 9 is most verbose)
-	 *   #   where # is a letter from the valid option list (see docs), turns
-	 *       that option off/on depending on the +/- state.
-	 *
-	 * Any option letter can occur in any place.  Even meaningless combinations,
-	 * such as "01-a-1+0vk" will be parsed without error, so be careful.
-	 * Some options are set by default, some are clear. This is subject to my
-	 * whim.  You can ensure which are set by explicitly specifying.
-	 */
-
+/* 
+ * DANG_BEGIN_FUNCTION parse_debugflags
+ *
+ * arguments:
+ *  s - string of options.
+ * 
+ * description:
+ *  This part is fairly flexible...you specify the debugging flags you wish
+ * with -D string.  The string consists of the following characters:
+ *   +   turns the following options on (initial state)
+ *   -   turns the following options off
+ *   a   turns all the options on/off, depending on whether +/- is set
+ *   0-9 sets debug levels (0 is off, 9 is most verbose)
+ *   #   where # is a letter from the valid option list (see docs), turns
+ *       that option off/on depending on the +/- state.
+ *
+ * Any option letter can occur in any place.  Even meaningless combinations,
+ * such as "01-a-1+0vk" will be parsed without error, so be careful.
+ * Some options are set by default, some are clear. This is subject to my
+ * whim.  You can ensure which are set by explicitly specifying.
+ *
+ * DANG_END_FUNCTION
+ */
 void
 parse_debugflags(const char *s)
 {
@@ -1449,6 +1604,16 @@ parse_debugflags(const char *s)
     }
 }
 
+/*
+ * DANG_BEGIN_FUNCTION config_defaults
+ *
+ * description:
+ *  Set all values in the `config` structure to their default value.
+ *  These will be modified by the config parser.
+ *
+ * DANG_END_FUNCTION
+ *
+ */
 void
 config_defaults(void)
 {
@@ -1521,7 +1686,17 @@ config_defaults(void)
   config.alt_map = alt_map_us;	/* And the Alt-map              */
   config.num_table = num_table_dot;	/* Numeric keypad has a dot     */
   config.detach = 0; /* Don't detach from current tty and open new VT. */
+  config.sillyint = 0;
 
+  mice->fd         = -1;
+  mice->type       = 0;
+  mice->flags      = 0;
+  mice->intdrv     = 0;
+  mice->cleardtr   = 0;
+  mice->baudRate   = 0;
+  mice->sampleRate = 0;
+  mice->lastButtons= 0;
+  mice->chordMiddle= 0;
 }
 
 /*
@@ -1674,20 +1849,33 @@ int_queue_run()
 #ifdef SIG
 int SillyG = 0;
 
+/* 
+ * DANG_BEGIN_FUNCTION SIG_int
+ *
+ * description:
+ *  Allow DOSEMU to be made aware when a hard interrupt occurs
+ *  Require a kernel patch.
+ *
+ * DANG_END_FUNCTION
+ */
 void 
 SIG_init()
 {
   /* Get in touch with my Silly Interupt Driver */
-  if ((SillyG = open("/dev/int/4", O_RDWR)) < 1) {
-    fprintf(stderr, "Not gonna touch INT you requested!\n");
-    SillyG = 0;
-  }
-  else {
-    /* Reset interupt incase it went off already */
-    write(SillyG, NULL, (int) NULL);
-    fprintf(stderr, "Gonna monitor the INT you requested, Return=0x%02x\n", SillyG);
-    FD_SET(SillyG, &fds_no_sigio);
-    not_use_sigio++;
+  if (config.sillyint) {
+    char devname[20];
+    sprintf(devname, "/dev/int/%d", config.sillyint);
+    if ((SillyG = open(devname, O_RDWR)) < 1) {
+      fprintf(stderr, "Not gonna touch IRQ %d you requested!\n",config.sillyint);
+      SillyG = 0;
+    }
+    else {
+      /* Reset interupt incase it went off already */
+      write(SillyG, NULL, (int) NULL);
+      fprintf(stderr, "Gonna monitor the IRQ %d you requested, Return=0x%02x\n", config.sillyint ,SillyG);
+      FD_SET(SillyG, &fds_no_sigio);
+      not_use_sigio++;
+    }
   }
 }
 
@@ -1701,12 +1889,23 @@ void
 
 #endif
 
-#define LOW_MEM 1
-
-#ifdef LOW_MEM
-extern void setup_low_mem(void);
-#endif
-
+/*
+ * DANG_BEGIN_FUNCTION emulate
+ *
+ * arguments:
+ * argc - Arguement count.
+ * argv - Arguements.
+ *
+ * description:
+ *  Emulate gets called from dos.c. It initializes DOSEMU to prepare it
+ *  for running in vm86 mode. This involves catching signals, preparing
+ *  memory, calling all the initialization functions for the I/O
+ *  subsystems (video/serial/etc...), getting the boot sector instructions
+ *  and calling vm86().
+ *
+ * DANG_END_FUNCTION
+ *
+ */
 void
  emulate(int argc, char **argv) {
   struct sigaction sa;
@@ -1714,15 +1913,32 @@ void
   char *confname = NULL;
   struct stat statout, staterr;
 
-  config_defaults();
+ /* DANG_BEGIN_REMARK
+  * If DOSEMU starts up with stderr == stdout, then stderr gets 
+  * redirected to '/dev/null'.
+  * DANG_END_REMARK
+  */
+  fstat(STDOUT_FILENO, &statout);
+  fstat(STDERR_FILENO, &staterr);
+  if (staterr.st_ino == statout.st_ino) {
+    if (freopen("/dev/null", "ab", stderr) == (FILE *) - 1) {
+      fprintf(stdout, "ERROR: Could not redirect STDERR to /dev/null!\n");
+      exit(-1);
+    }
+  }
 
-  /* initialize cli() and sti() */
-  signal_init();
+  config_defaults();
 
   iq.queued = 0;
   in_sighandler = 0;
   sync();			/* for safety */
 
+/*
+ * DANG_BEGIN_REMARK
+ *  For simpler support of X, DOSEMU can be started by a symbolic
+ *  link called `xdos` which DOSEMU will use to switch into X-mode.
+ * DANG_END_REMARK
+ */
 #ifdef X_SUPPORT
   {  char *p;
      p = strrchr(argv[0],'/');    /* parse the program name */
@@ -1732,9 +1948,6 @@ void
         config.X=1;               /* activate X mode if dosemu was */ 
                                   /* called as 'xdos'              */
   }
-#if 0
-  config.X_display = getenv("DISPLAY");
-#endif
 #endif
      
   opterr = 0;
@@ -1751,7 +1964,7 @@ void
       break;
     }
   }
-  parse_config(NULL);
+  parse_config(confname);
 
   if (config.exitearly)
     leavedos(0);
@@ -1901,21 +2114,8 @@ void
   if (config.X) {
     config.console_video = config.vga = config.graphics = 0;
   }
-  if (!config.graphics)
-    config.allowvideoportaccess = 0;
 
-  fstat(STDOUT_FILENO, &statout);
-  fstat(STDERR_FILENO, &staterr);
-  if (staterr.st_ino == statout.st_ino) {
-    if (freopen("/dev/null", "ab", stderr) == (FILE *) - 1) {
-      fprintf(stdout, "ERROR: Could not redirect STDERR to /dev/null!\n");
-      exit(-1);
-    }
-  }
-
-#ifdef LOW_MEM
   setup_low_mem();
-#endif
 
   /* Set up hard interrupt array */
   {
@@ -1934,41 +2134,31 @@ void
   mkdir(tmpdir, S_IREAD | S_IWRITE | S_IEXEC);
   exchange_uids();
 
-  /* setup DOS memory, whether shared or not */
-  memory_setup();
+  /* do time stuff - necessary for initial time setting */
+  {
+    struct timeval tp;
+    struct timezone tzp;
+    struct tm *tm;
+    unsigned long ticks;
 
-  g_printf("EMULATE\n");
-
-  /* we assume system call restarting... under linux 0.99pl8 and earlier,
-   * this was the default.  SA_RESTART was defined in 0.99pl8 to explicitly
-   * request restarting (and thus does nothing).  However, if this ever
-   * changes, I want to be safe
-   */
-#ifndef SA_RESTART
-#define SA_RESTART 0
+    time(&start_time);
+    tm = localtime((time_t *) &start_time);
+    g_printf("Set date %02d.%02d.%02d\n", tm->tm_mday, tm->tm_mon, tm->tm_year);
+#if 0
+    gettimeofday(&tp, &tzp);
+    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
 #endif
+    last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
+    set_ticks(last_ticks);
+  };
 
-#define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
-					sa.sa_flags = SA_RESTART; \
-					sigemptyset(&sa.sa_mask); \
-					sigaddset(&sa.sa_mask, SIG_TIME); \
-					sigaction(sig, &sa, NULL);
-
-#define NEWSETSIG(sig, fun) \
-			sa.sa_handler = (__sighandler_t) fun; \
-			/* Point to the top of the stack, minus 4 just in case, and make \
-			   just in case, and make it aligned  */ \
-			sa.sa_restorer = \
-			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
-			sa.sa_flags = SA_RESTART; \
-			sigemptyset(&sa.sa_mask); \
-			sigaddset(&sa.sa_mask, SIG_TIME); \
-			dosemu_sigaction(sig, &sa, NULL);
+  /* initialize cli() and sti() */
+  signal_init();
 
   /* init signal handlers */
 
   NEWSETSIG(SIGILL, dosemu_fault);
-  NEWSETSIG(SIG_TIME, sigalrm);
+  NEWSETQSIG(SIG_TIME, sigalrm);
   NEWSETSIG(SIGFPE, dosemu_fault);
   NEWSETSIG(SIGTRAP, dosemu_fault);
 
@@ -1983,22 +2173,8 @@ void
 /*
   SETSIG(SIGUNUSED, timint);
 */
-  SETSIG(SIGIO, sigio);
-
-  /* do time stuff - necessary for initial time setting */
-  {
-    struct timeval tp;
-    struct timezone tzp;
-    struct tm *tm;
-    unsigned long ticks;
-
-    time(&start_time);
-    gettimeofday(&tp, &tzp);
-    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-    tm = localtime((time_t *) & ticks);
-    last_ticks = (tm->tm_hour * 60 * 60 + tm->tm_min * 60 + tm->tm_sec) * 18.206;
-    set_ticks(last_ticks);
-  };
+  NEWSETQSIG(SIGIO, sigio);
+  NEWSETSIG(SIGSEGV, dosemu_fault);
 
   vm86s.flags=0;
 
@@ -2006,13 +2182,33 @@ void
   FD_ZERO(&fds_sigio);
   FD_ZERO(&fds_no_sigio);
 
-  /* Verify that Keyboard is OK as well as turn off some
-     options if not at a console
-  */
+  /*
+   * Check the version of the OS and set parms accordingly
+   */
+  version_init();
+
+  /* 
+   * Setup DOS emulated memory, HMA, EMS, XMS . Also clear all
+   * low memory, so this must be called prior to setting up
+   * low memory.
+   */
+  memory_setup();
+
+  serial_init();
+  mouse_init();
+  printer_init();
+
+  /* 
+   * Verify that Keyboard is OK as well as turn off some
+   * options if not at a console
+   */
   if (keyboard_init() != 0) {
     error("ERROR: can't open keyboard\n");
     leavedos(19);
   }
+  if (!config.graphics)
+    config.allowvideoportaccess = 0;
+
   /* initialize some video config variables, possibly map video bios,
      get graphics chars
   */
@@ -2023,24 +2219,32 @@ void
 #ifdef SIG
   SIG_init();
 #endif
-  mouse_init();
-#if 0
-  video_init();
-#endif
   disk_init();
-  serial_init();
-  NEWSETSIG(SIGSEGV, dosemu_fault);
   hardware_init();
+  config_init();
+  cpu_init();
+  cmos_init();
+
+  /* Setup specific memory addresses */
+  memory_init();
 
   boot();
 
+  if (not_use_sigio)
+    k_printf("Atleast 1 NON-SIGIO file handle in use.\n");
+  else
+    k_printf("No NON-SIGIO file handles in use.\n");
+
   fflush(stdout);
+
   itv.it_interval.tv_sec = 0;
   itv.it_interval.tv_usec = UPDATE / TIMER_DIVISOR;
   itv.it_value.tv_sec = 0;
   itv.it_value.tv_usec = UPDATE / TIMER_DIVISOR;
+  k_printf("Used %d for updating timers\n", UPDATE / TIMER_DIVISOR);
   setitimer(TIMER_TIME, &itv, NULL);
-  k_printf("Used %d for update\n", UPDATE / TIMER_DIVISOR);
+
+  g_printf("EMULATE\n");
 
   for (; !fatalerr;) {
     run_vm86();
@@ -2135,12 +2339,17 @@ void
   _exit(0);
 }
 
+/*
+ * DANG_BEGIN_FUNCTION hardware_init
+ *
+ * description:
+ *  Initialize any leftover hardware. 
+ * 
+ * DANG_END_FUNCTION
+ */
 void
  hardware_init(void) {
   int i;
-
-  /* do PIT init here */
-  init_all_printers();
 
   /* PIC init */
   for (i = 0; i < 2; i++) {
@@ -2176,7 +2385,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.22 1994/09/11 01:01:23 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.25 1994/09/23 01:29:36 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2874,7 +3083,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/09/11 01:01:23 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/09/23 01:29:36 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -2929,16 +3138,19 @@ dos_helper(void) {
       static struct timeval tp2;
       static int time_count = 0;
 
-      if (time_count == 0)
+      if (time_count == 0){
 	gettimeofday(&tp1, NULL);
+        time_count++;
+      }
       else {
+        time_count++;
 	gettimeofday(&tp2, NULL);
 	if ((tp2.tv_sec - tp1.tv_sec) * 1000000 +
-	    ((int) tp2.tv_usec - (int) tp1.tv_usec) < config.hogthreshold) {
+	    ((int) tp2.tv_usec - (int) tp1.tv_usec) > config.hogthreshold) {
 	  usleep(100);
+	  time_count = 0;
 	}
       }
-      time_count = (time_count + 1) % 10;
     }
 #endif
     REG(eflags) |= VIF | IF; /* sti with return to dosemu code */
@@ -3014,6 +3226,51 @@ int
 
   errno = s_errno;
   return tmp;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION version_init
+ * 
+ * description:
+ *  Find version of OS running and set necessary global parms.
+ *
+ * DANG_END_FUNCTION
+ */
+void version_init(void) {
+  struct new_utsname unames;
+  uname(&unames);
+  fprintf(stderr, "DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);  
+  if (unames.release[0] > 0 ) {
+    if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
+         unames.release[2] > 1 ) {
+      use_sigio=FASYNC;
+    }
+  }
+}
+
+/*
+ * DANG_BEGIN_FUNCTION add_to_io_select
+ * 
+ * arguments:
+ *  fd - File handle to add to select statment.
+ *
+ * description:
+ *  Add file handle to one of 2 select FDS_SET's depending on 
+ *  whether the kernel can handle SIGIO.
+ *
+ * DANG_END_FUNCTION
+ */
+void add_to_io_select(int new_fd) {
+  if (use_sigio) {
+    int flags;
+    flags = fcntl(new_fd, F_GETFL);
+    fcntl(new_fd, F_SETOWN,  getpid());
+    fcntl(new_fd, F_SETFL, flags | use_sigio);
+    FD_SET(new_fd, &fds_sigio);
+  } else {
+    FD_SET(kbd_fd, &fds_no_sigio);
+    not_use_sigio++;
+  }
 }
 
 #undef EMU_C

@@ -3,12 +3,15 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/12 23:15:37 $
+ * $Date: 1994/09/22 23:51:57 $
  * $Source: /home/src/dosemu0.60/RCS/timers.c,v $
- * $Revision: 2.1 $
+ * $Revision: 2.2 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 2.2  1994/09/22  23:51:57  root
+ * Prep for pre53_21.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *
@@ -60,6 +63,7 @@
  *
  */
 
+#include <linux/time.h>
 #include "emu.h"
 #include "timers.h"
 
@@ -114,7 +118,27 @@ int28(void)
   else
     return 0;
 #else
+#if 1
+      static struct timeval tp1;
+      static struct timeval tp2;
+      static int time_count = 0;
+
+      if (time_count == 0){
+        gettimeofday(&tp1, NULL);
+        time_count++;
+      }
+      else {
+        time_count++;
+        gettimeofday(&tp2, NULL);
+        if ((tp2.tv_sec - tp1.tv_sec) * 1000000 +
+            ((int) tp2.tv_usec - (int) tp1.tv_usec) > config.hogthreshold) {
+          usleep(100);
+          time_count = 0;
+        }
+      }
+#else
   return 0;
+#endif
 #endif
 }
 

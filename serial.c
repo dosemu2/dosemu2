@@ -13,11 +13,14 @@
  *	ag115@freenet.carleton.ca
  *
  *
- * $Date: 1994/09/11 01:01:23 $
+ * $Date: 1994/09/20 01:53:26 $
  * $Source: /home/src/dosemu0.60/RCS/serial.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  * $Log: serial.c,v $
+ * Revision 2.5  1994/09/20  01:53:26  root
+ * Prep for pre53_21.
+ *
  * Revision 2.4  1994/09/11  01:01:23  root
  * Prep for pre53_19.
  *
@@ -578,15 +581,21 @@ do_ser_init(int num)
 }
 
 
-/* The following is the master serial initialization function called 
+/* 
+ * DANG_BEGIN_FUNCTION serial_init
+ * 
+ * description:
+ * The following is the master serial initialization function called 
  * externally (from this serial.c module) during DOSEMU startup. It
  * initializes all the configured serial ports.
+ *
+ * DANG_END_FUNCTION
  */
 void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.4 1994/09/11 01:01:23 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.5 1994/09/20 01:53:26 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */

@@ -44,13 +44,16 @@ boolean have_focus=0, is_mapped=0;
 /* from Xkeyb.c */
 void X_process_key(XKeyEvent *);
 
+/* The following are almost IBM standard color codes, with some slight
+ *gamma correction for the dim colors to compensate for bright Xwindow screens.
+ */
 struct {
    unsigned char r,g,b;
 } crgb[16]={
-{0,0,0},{10,10,185},{10,195,10},{20,160,160},
-{167,10,10},{167,0,167},{165,165,40},{197,197,197},
-{100,100,100},{10,10,255},{10,255,10},{10,255,255},
-{255,10,10},{255,10,255},{255,255,0},{255,255,255}};
+{0x00,0x00,0x00},{0x18,0x18,0xB2},{0x18,0xB2,0x18},{0x18,0xB2,0xB2},
+{0xB2,0x18,0x18},{0xB2,0x18,0xB2},{0xB2,0x68,0x18},{0xB2,0xB2,0xB2},
+{0x68,0x68,0x68},{0x54,0x54,0xFF},{0x54,0xFF,0x54},{0x54,0xFF,0xFF},
+{0xFF,0x54,0x54},{0xFF,0x54,0xFF},{0xFF,0xFF,0x54},{0xFF,0xFF,0xFF}};
 
 /* initialization is used just in case XAllocColor fails */
 static int vga_colors[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
@@ -95,7 +98,6 @@ int X_init() {
    Font cfont,decfont;
    int cmap;
    
-
    X_printf("X_init()\n");
    
    dpy=XOpenDisplay(config.X_display);

@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide DANG
   Alistair MacDonald, am20@unix.york.ac.uk
-  For DOSEMU v0.52 pl27
+  For DOSEMU v0.53 pl21
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -12,12 +12,12 @@
   document to create new dosemu hackers.  This concept was inspired by
   the linux kernel hackers guide.
 
-  This Guide was concieved and originally written by " Corey Sweeney" <
-  corey@amiganet.chi.il.us> . It has been completely revised. It is now
+  This Guide was concieved and originally written by "Corey Sweeney"
+  <corey@amiganet.chi.il.us>. It has been completely revised. It is now
   generated automatically directly from the source code. Special thanks
-  to " James B. MacLean"  < jmaclean@fox.nstn.ns.ca>  for supplying the
-  original information. (It was mostly ripped out of a mail message.) "
-  Jochen Hein" has made many useful comments &	suggestions.
+  to "James B. MacLean" <jmaclean@fox.nstn.ns.ca> for supplying the
+  original information. (It was mostly ripped out of a mail message.)
+  "Jochen Hein" has made many useful comments & suggestions.
 
   At the end if this document is a section detailing how this guide is
   put together. This may help you when trying to locate the relevant
@@ -31,7 +31,322 @@
 
 
 
-  2.  The Clients group of Modules
+  2.  The Main group of Modules
+
+  These files are used to start DOSEMU as well as hold globally called
+  functions and global vars.
+
+
+
+  2.1.	dos.c Information
+
+  Initial program executed to run DOSEMU. Gets access to libdosemu and
+  sets international character parms. Finally calls entry point of
+  DOSEMU emulate() function which is loaded above the usual DOS memory
+  area from 0 - 1meg. Emulate() is in emu.c.
+
+
+
+  2.1.1.  Functions in dos.c
+
+  These are the functions defined in dos.c.
+
+
+  2.1.1.1.  dosemu
+
+
+  o  argc - Count of argumnents.
+
+  o  argc - Actual arguments.
+
+     Function created by entry point into libdosemu. Called to jump into
+     the emulate function of DOSEMU.
+
+
+
+  2.1.2.  Remarks in dos.c
+
+  Apparently, no-one has anything interesting to say about dos.c.
+
+
+  2.1.3.  Items for Fixing in dos.c
+
+  Apparently, nothing needs fixing in dos.c.
+
+
+  2.1.4.  New Ideas for dos.c
+
+  Apparently, there are no new ideas for dos.c.
+
+
+  2.2.	emu.c Information
+
+  Here is where DOSEMU gets booted. From emu.c external calls are made
+  to the specific I/O systems (video/keyboard/serial/etc...) to
+  initialize them. Memory is cleared/set up and the boot sector is read
+  from the boot drive. Many SIGNALS are set so that DOSEMU can exploit
+  things like timers, I/O signals, illegal instructions, etc...	When
+  every system gives the green light, vm86() is called to switch into
+  vm86 mode and start executing i86 code.
+
+  The vm86() function will return to DOSEMU when certain `exceptions`
+  occur as when some interrupt instructions occur (0xcd).
+
+  The top level function emulate() is called from dos.c by way of a dll
+  entry point.
+
+
+
+  2.2.1.  Functions in emu.c
+
+  These are the functions defined in emu.c.
+
+
+  2.2.1.1.  jmp_emulate
+
+  This function allows the startup program `dos` to know how to call the
+  emulate function by way of the dll headers.  Always make sure that
+  this line is the first of emu.c and link emu.o as the first object
+  file to the lib
+
+
+
+  2.2.1.2.  DBGTIME
+
+
+  o  x - character to print with time.
+
+     Inline function to debug time differences between different points
+     of execution within DOSEMU. Thanks Ronnie :-).  Only used by
+     developers and not expected to execute in any general releases.
+
+
+
+  2.2.1.3.  signal_init
+
+  Initialize the signals to have NONE being blocked.  Initialize the
+  signal_queue.
+
+
+
+
+  2.2.1.4.  cli
+
+  Stop additional signals from interrupting DOSEMU.
+
+
+
+  2.2.1.5.  sti
+
+  Allow all signals to interrupt DOSEMU.
+
+
+
+  2.2.1.6.  handle_signals
+
+  Due to signals happening at any time, the actual work to be done
+  because a signal occurs is done here in a serial fashion.  The
+  concept, should this eventualy work, is that a signal should only flag
+  that it has occurred and let DOSEMU deal with it in an orderly fashion
+  as it executes the rest of it's code.
+
+
+
+  2.2.1.7.  run_vm86
+
+  Here is where DOSEMU runs VM86 mode with the vm86() call which also
+  has the registers that it will be called with. It will stop vm86 mode
+  for many reasons, like trying to execute an interrupt, doing port I/O
+  to ports not opened for I/O, etc ...
+
+
+
+  2.2.1.8.  memory_init
+
+  Set up all memory areas as would be present on a typical i86 during
+  the boot phase.
+
+
+
+  2.2.1.9.  SIGNAL_save
+
+
+  o  context	- signal context to save.
+
+  o  signal_call - signal handling routine to be called.
+
+     Save into an array structure queue the signal context of the
+     current signal. This is a queue because any signal may occur
+     multiple times before DOSEMU deals with it down the road
+
+
+
+  2.2.1.10.  SIGIO_call
+
+  Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU will be
+  flagged to run this call which inturn checks which fd(s) was set and
+  execute the proper routine to get the I/O from that device.
+
+
+
+  2.2.1.11.  parse_debugflags
+
+
+  o  s - string of options.
+
+     This part is fairly flexible...you specify the debugging flags you
+     wish with -D string.  The string consists of the following
+     characters: +   turns the following options on (initial state) -
+     turns the following options off a	turns all the options on/off,
+     depending on whether +/- is set 0-9 sets debug levels (0 is off, 9
+     is most verbose) #	where # is a letter from the valid option list
+     (see docs), turns that option off/on depending on the +/- state.
+     Any option letter can occur in any place.	Even meaningless
+     combinations, such as "01-a-1+0vk" will be parsed without error, so
+     be careful.  Some options are set by default, some are clear. This
+     is subject to my whim.  You can ensure which are set by explicitly
+     specifying.
+
+
+
+  2.2.1.12.  config_defaults
+
+  Set all values in the `config` structure to their default value.
+  These will be modified by the config parser.
+
+
+
+  2.2.1.13.  SIG_int
+
+  Allow DOSEMU to be made aware when a hard interrupt occurs Require a
+  kernel patch.
+
+
+
+  2.2.1.14.  emulate
+
+
+  o  argc - Arguement count.
+
+  o  argv - Arguements.
+
+     Emulate gets called from dos.c. It initializes DOSEMU to prepare it
+     for running in vm86 mode. This involves catching signals, preparing
+     memory, calling all the initialization functions for the I/O
+     subsystems (video/serial/etc...), getting the boot sector
+     instructions and calling vm86().
+
+
+
+  2.2.1.15.  hardware_init
+
+  Initialize any leftover hardware.
+
+
+
+  2.2.1.16.  version_init
+
+  Find version of OS running and set necessary global parms.
+
+
+
+  2.2.1.17.  add_to_io_select
+
+
+  o  fd - File handle to add to select statment.
+
+     Add file handle to one of 2 select FDS_SET's depending on whether
+     the kernel can handle SIGIO.
+
+
+
+
+
+  2.2.2.  Remarks in emu.c
+
+  DOSEMU must not work within the 1 meg DOS limit, so start of code is
+  loaded at a higher address, at some time this could conflict with
+  other shared libs. If DOSEMU is compiled statically (without shared
+  libs), and org instruction is used to provide the jump above 1 meg.
+
+  -----
+
+  DOSEMU keeps system wide configuration status in a structure called
+  config.
+
+  -----
+
+  The `vm86_struct` is used to pass all the necessary status/registers
+  to DOSEMU when running in vm86 mode.
+
+  -----
+
+  The var `fatalerr` can be given a true value at any time to have
+  DOSEMU exit on the next exit from vm86 mode.
+
+  -----
+
+  If DOSEMU starts up with stderr == stdout, then stderr gets redirected
+  to '/dev/null'.
+
+  -----
+
+  For simpler support of X, DOSEMU can be started by a symbolic link
+  called `xdos` which DOSEMU will use to switch into X-mode.
+
+
+  2.2.3.  Items for Fixing in emu.c
+
+  Apparently, nothing needs fixing in emu.c.
+
+
+  2.2.4.  New Ideas for emu.c
+
+  Apparently, there are no new ideas for emu.c.
+
+
+  2.3.	emu.h Information
+
+  There appears to be no MODULE information for this file.
+
+
+  2.3.1.  Functions in emu.h
+
+  These are the functions defined in emu.h.
+
+
+  2.3.1.1.  NEWSETQSIG
+
+
+  o  sig - the signal to have a handler installed to.
+
+  o  fun - the signal handler function to install
+
+     All signals that wish to be handled properly in context with the
+     execution of vm86() mode, and signals that wish to use non-
+     reentrant functions should add themselves to the SIGNALS_THAT_QUEUE
+     define and use SETQSIG(). To that end they will also need to be set
+     up in an order such as SIGIO.
+
+  2.3.2.  Remarks in emu.h
+
+  we assume system call restarting... under linux 0.99pl8 and earlier,
+  this was the default.	SA_RESTART was defined in 0.99pl8 to explicitly
+  request restarting (and thus does nothing).  However, if this ever
+  changes, I want to be safe
+
+
+  2.3.3.  Items for Fixing in emu.h
+
+  Apparently, nothing needs fixing in emu.h.
+
+
+  2.3.4.  New Ideas for emu.h
+
+  Apparently, there are no new ideas for emu.h.
+
+
+  3.  The Clients group of Modules
 
   One of the long term aims of the DOSEMU development team is to provide
   a client-server based system. This will allow people to add different
@@ -39,7 +354,8 @@
   detailed in this section.
 
 
-  2.1.	clients/ncurses.c Information
+
+  3.1.	clients/ncurses.c Information
 
   This is James' client based around NCURSES. It (un-)succesfully
   demonstrates the procedure for making initial connections to the
@@ -47,24 +363,25 @@
 
 
 
-  2.1.1.  Functions in clients/ncurses.c
+  3.1.1.  Functions in clients/ncurses.c
 
   These are the functions defined in clients/ncurses.c.
 
 
-  2.1.1.1.  main
-
-  main
+  3.1.1.1.  main
 
 
   o  argc - Number of Command Line arguments.
 
   o  argv - Command Line arguments - as an array of char*'s
 
-  This function does all of the work associated with this client. It
-  grabs the shared memory used to hold the current Video data and makes
-  some comments about its current screen.
-  2.1.2.  Remarks in clients/ncurses.c
+     This function does all of the work associated with this client. It
+     grabs the shared memory used to hold the current Video data and
+     makes some comments about its current screen.
+
+
+
+  3.1.2.  Remarks in clients/ncurses.c
 
   Some of the functions are undocumented. These are the trivial ones.
 
@@ -76,30 +393,32 @@
 
 
 
-  2.1.3.  Items for Fixing in clients/ncurses.c
+
+  3.1.3.  Items for Fixing in clients/ncurses.c
 
   Apparently, nothing needs fixing in clients/ncurses.c.
 
 
-  2.1.4.  New Ideas for clients/ncurses.c
+  3.1.4.  New Ideas for clients/ncurses.c
 
   Apparently, there are no new ideas for clients/ncurses.c.
 
 
-  3.  The DPMI group of Modules
+  4.  The DPMI group of Modules
 
   DPMI is Lutz's Baby. It's a really important part of the Emulator as
   far as we are concerned, since it will allow us to run so many more
   programs and, most importantly, bcc. This is the one thing that the
   WINE developers want that we haven't been able to give them.
 
-  If you think you can help .... " Away you Go!"  (Sorry to those non-UK
+  If you think you can help .... "Away you Go!" (Sorry to those non-UK
   folks ...  Thats a reference to a UK kids sports programme from my
   youth ... anyway ...	enough of this banter. You'll be wanting to know
   that this is all about DPMI ...)
 
 
-  3.1.	dpmi/dpmi.c Information
+
+  4.1.	dpmi/dpmi.c Information
 
   dpmi.c
 
@@ -108,74 +427,188 @@
 
 
 
-  3.1.1.  Functions in dpmi/dpmi.c
+  4.1.1.  Functions in dpmi/dpmi.c
 
-  We appear to have no information on the functions in dpmi/dpmi.c.
-
-
-  3.1.2.  Remarks in dpmi/dpmi.c
-
-  Apparently, no-one has anything interesting to say about dpmi/dpmi.c.
+  These are the functions defined in dpmi/dpmi.c.
 
 
-  3.1.3.  Items for Fixing in dpmi/dpmi.c
+  4.1.1.1.  do_default_cpu_exception
 
-  Apparently, nothing needs fixing in dpmi/dpmi.c.
+  This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
+  5 and 7 are reflected to real mode. All other exceptions are
+  terminating the client (and may be dosemu too :-)).
 
 
-  3.1.4.  New Ideas for dpmi/dpmi.c
+
+  4.1.1.2.  do_cpu_exception
+
+  This calls the DPMI client exception handler. If none is installed
+  do_default_cpu_exception() is called.
+
+
+
+  4.1.1.3.  dpmi_fault
+
+  This is the brain of DPMI. All CPU exceptions are first reflected
+  (from the signal handlers) to this code.  Exception from nonpriveleged
+  instructions INT XX, STI, CLI, HLT and from WINDOWS 3.1 are handled
+  here.	All here unhandled exceptions are reflected to
+  do_cpu_exception()
+
+
+
+
+
+
+  4.1.2.  Remarks in dpmi/dpmi.c
+
+  We are caching ldt here for speed reasons and for Windows 3.1.  I
+  would love to have an readonly ldt-alias (located in the first 16MByte
+  for use with 16-Bit descriptors (WIN-LDT)). This is on my wish list
+  for the kernel hackers (Linus mainly) :-))))))).
+
+
+
+  4.1.3.  Items for Fixing in dpmi/dpmi.c
+
+  don't free protected mode stack if DPMI client terminates from
+  exception handler
+
+  -----
+
+  not yet implemented
+
+  -----
+
+  not yet implemented
+
+
+  4.1.4.  New Ideas for dpmi/dpmi.c
 
   Simulate Local Descriptor Table for MS-Windows 3.1 must be read only,
   so if krnl386.exe/krnl286.exe try to write to this table, we will bomb
   into sigsegv() and and emulate direct ldt access
 
 
-  4.  The Video group of Modules
+  5.  The Video group of Modules
 
-  All of the Video handling code is in the " video"  subdirectory.
+  All of the Video handling code is in the "video" subdirectory.
 
   There is one file for each video card or chipset and the master file.
-  To Add a new card, it needs a set of save &  restore routines putting
+  To Add a new card, it needs a set of save & restore routines putting
   in a file here.
 
 
-  4.1.	video/video.c Information
 
-  All of the emulated video interrupts are here (ie int10). In addition,
-  all the code to try and properly save &  restore the video state
+  5.1.	video/vc.c Information
+
+  Here's all the code to try and properly save & restore the video state
   between VC's and the attempts to control updates to the VC whilst the
   user is using another. We map between the real screen address and that
   used by DOSEMU here too.
 
   Attempts to use a cards own bios require the addition of the parameter
-  the emulator try to execute the card's initialization routine which is
-  normally located at address c000:0003. This can now be changed as an
-  option.
+  "graphics" to the video statement in "/etc/dosemu.conf". This will
+  make the emulator try to execute the card's initialization routine
+  which is normally located at address c000:0003. This can now be
+  changed as an option.
 
 
 
-  4.1.1.  Functions in video/video.c
+  5.1.1.  Functions in video/vc.c
 
-  We appear to have no information on the functions in video/video.c.
+  We appear to have no information on the functions in video/vc.c.
 
 
-  4.1.2.  Remarks in video/video.c
+  5.1.2.  Remarks in video/vc.c
+
+  Apparently, no-one has anything interesting to say about video/vc.c.
+
+
+
+  5.1.3.  Items for Fixing in video/vc.c
+
+  Apparently, nothing needs fixing in video/vc.c.
+
+
+  5.1.4.  New Ideas for video/vc.c
+
+  Apparently, there are no new ideas for video/vc.c.
+
+
+  5.2.	video/video.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  5.2.1.  Functions in video/video.c
+
+  These are the functions defined in video/video.c.
+
+
+  5.2.1.1.  video_init
+
+  Set pointer to correct structure of functions to initialize, close,
+  etc... video routines.
+
+
+
+  5.2.2.  Remarks in video/video.c
 
   Apparently, no-one has anything interesting to say about
   video/video.c.
 
 
-  4.1.3.  Items for Fixing in video/video.c
+  5.2.3.  Items for Fixing in video/video.c
 
   Apparently, nothing needs fixing in video/video.c.
 
 
-  4.1.4.  New Ideas for video/video.c
+  5.2.4.  New Ideas for video/video.c
 
   Apparently, there are no new ideas for video/video.c.
 
 
-  5.  The Misc group of Modules
+  5.3.	termio.c Information
+
+  This handles the keyboard.
+
+  Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
+  codes as sent out by the kernel and 'xlate' uses plain ASCII as used
+  over serial lines. The mapping for different languages & the two ALT-
+  keys is done here, but the definitions are elsewhere. Only the default
+  (US) keymap is stored here.
+
+
+
+  5.3.1.  Functions in termio.c
+
+  These are the functions defined in termio.c.
+
+
+  5.3.1.1.  keyboard_init
+
+  Initialize the keyboard to DOSEMU deafaults plus those requested in
+  the configs if allowable.
+
+
+  5.3.2.  Remarks in termio.c
+
+  This code is called to set up the terminal line for non-raw mode.
+
+
+
+  5.3.3.  Items for Fixing in termio.c
+
+  Apparently, nothing needs fixing in termio.c.
+
+
+  5.3.4.  New Ideas for termio.c
+
+  Apparently, there are no new ideas for termio.c.
+
+
+  6.  The Misc group of Modules
 
   These are the remaining important files, that do not really fit into
   another group. These should not be dismissed as unimportant - rather,
@@ -183,7 +616,7 @@
 
 
 
-  5.1.	bios_emm.c Information
+  6.1.	bios_emm.c Information
 
   This provides the EMM Memory Management for DOSEMU. It was originally
   part of the Mach Dos Emulator.
@@ -196,120 +629,102 @@
   that...)  we appear to be supporting EMS 4.0, not 3.2
 
 
-  5.1.1.  Functions in bios_emm.c
+
+  6.1.1.  Functions in bios_emm.c
 
   We appear to have no information on the functions in bios_emm.c.
 
 
-  5.1.2.  Remarks in bios_emm.c
+  6.1.2.  Remarks in bios_emm.c
 
   Apparently, no-one has anything interesting to say about bios_emm.c.
 
 
-  5.1.3.  Items for Fixing in bios_emm.c
+  6.1.3.  Items for Fixing in bios_emm.c
 
   Apparently, nothing needs fixing in bios_emm.c.
 
 
-  5.1.4.  New Ideas for bios_emm.c
+  6.1.4.  New Ideas for bios_emm.c
 
   Apparently, there are no new ideas for bios_emm.c.
 
 
-  5.2.	emu.c Information
-
-  This is where we call of the initialisation code. Everything not
-  covered elsewhere is handled here (Such logic !) By this we mean the
-  speakers, the standard memory, cassettes etc.
-
-  More than that, I cannot tell you - Things have changed a lot since I
-  last got an update ... 8-(
-
-
-  5.2.1.  Functions in emu.c
-
-  We appear to have no information on the functions in emu.c.
-
-
-  5.2.2.  Remarks in emu.c
-
-  Apparently, no-one has anything interesting to say about emu.c.
-
-
-  5.2.3.  Items for Fixing in emu.c
-
-  Apparently, nothing needs fixing in emu.c.
-
-
-  5.2.4.  New Ideas for emu.c
-
-  Apparently, there are no new ideas for emu.c.
-
-
-  5.3.	xms.c Information
+  6.2.	xms.c Information
 
   Currently the XMS 3.0 spec is covered in this file. XMS is fairly
   simple as it onbly deals with allocating extended memory and then
   moving it around in specific calls. This spec also includes the
   allocation of UMB's, so they are also included as part of this file.
   The amount of xms memory returned to DOS programs via the XMS
-  requests, or int15 fnc88 is set in " /etc/dosemu.conf"  via the XMS
+  requests, or int15 fnc88 is set in "/etc/dosemu.conf" via the XMS
   paramter.
 
 
 
-  5.3.1.  Functions in xms.c
+  6.2.1.  Functions in xms.c
 
   We appear to have no information on the functions in xms.c.
 
-  5.3.2.  Remarks in xms.c
+
+  6.2.2.  Remarks in xms.c
 
   Apparently, no-one has anything interesting to say about xms.c.
 
 
-  5.3.3.  Items for Fixing in xms.c
+  6.2.3.  Items for Fixing in xms.c
 
   Apparently, nothing needs fixing in xms.c.
 
 
-  5.3.4.  New Ideas for xms.c
+  6.2.4.  New Ideas for xms.c
 
   Apparently, there are no new ideas for xms.c.
 
 
-  5.4.	termio.c Information
+  6.3.	termio.c Information
 
   This handles the keyboard.
 
   Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
   codes as sent out by the kernel and 'xlate' uses plain ASCII as used
-  over serial lines. The mapping for different languages &  the two ALT-
+  over serial lines. The mapping for different languages & the two ALT-
   keys is done here, but the definitions are elsewhere. Only the default
   (US) keymap is stored here.
 
 
 
-  5.4.1.  Functions in termio.c
+  6.3.1.  Functions in termio.c
 
-  We appear to have no information on the functions in termio.c.
-
-
-  5.4.2.  Remarks in termio.c
-
-  Apparently, no-one has anything interesting to say about termio.c.
+  These are the functions defined in termio.c.
 
 
-  5.4.3.  Items for Fixing in termio.c
+  6.3.1.1.  keyboard_init
+
+  Initialize the keyboard to DOSEMU deafaults plus those requested in
+  the configs if allowable.
+
+
+
+  6.3.2.  Remarks in termio.c
+
+  This code is called to set up the terminal line for non-raw mode.
+
+
+
+  6.3.3.  Items for Fixing in termio.c
 
   Apparently, nothing needs fixing in termio.c.
 
 
-  5.4.4.  New Ideas for termio.c
+  6.3.4.  New Ideas for termio.c
 
   Apparently, there are no new ideas for termio.c.
 
 
-  5.5.	keymaps.c Information
+
+
+  6.4.	keymaps.c Information
 
   These are definitions, giving which key is related to which scancode
   in raw keyboard mode. Basically, the code of 'x' on a US keyboard may
@@ -319,26 +734,342 @@
 
 
 
-  5.5.1.  Functions in keymaps.c
+  6.4.1.  Functions in keymaps.c
 
   We appear to have no information on the functions in keymaps.c.
 
 
-  5.5.2.  Remarks in keymaps.c
+  6.4.2.  Remarks in keymaps.c
 
   Apparently, no-one has anything interesting to say about keymaps.c.
 
-  5.5.3.  Items for Fixing in keymaps.c
+
+  6.4.3.  Items for Fixing in keymaps.c
 
   Apparently, nothing needs fixing in keymaps.c.
 
 
-  5.5.4.  New Ideas for keymaps.c
+  6.4.4.  New Ideas for keymaps.c
 
   Apparently, there are no new ideas for keymaps.c.
 
 
-  6.  And Finally ...
+  6.5.	sigsegv.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.5.1.  Functions in sigsegv.c
+
+  These are the functions defined in sigsegv.c.
+
+
+  6.5.1.1.  void
+
+  All from the kernel unhandled general protection faults from V86 mode
+  are handled here. This are mainly port IO and the HLT instruction.
+
+
+
+  6.5.1.2.  void
+
+  All CPU exceptions (except 13=general_protection from V86 mode, which
+  is directly scaned by the kernel) are handled here.
+
+
+
+  6.5.2.  Remarks in sigsegv.c
+
+  Apparently, no-one has anything interesting to say about sigsegv.c.
+
+
+  6.5.3.  Items for Fixing in sigsegv.c
+
+  Apparently, nothing needs fixing in sigsegv.c.
+
+
+
+
+  6.5.4.  New Ideas for sigsegv.c
+
+  Apparently, there are no new ideas for sigsegv.c.
+
+
+  6.6.	int.h Information
+
+  Centralized area for interrupt service routine calls and support
+  functions.
+
+
+
+  6.6.1.  Functions in int.h
+
+  These are the functions defined in int.h.
+
+
+  6.6.1.1.  DO_INT
+
+  DO_INT is used to deal with interrupts returned to DOSEMU by the
+  kernel.
+
+
+
+  6.6.1.2.  DEFAULT_INTERRUPT
+
+  DEFAULT_INTERRUPT is the default interrupt service routine called when
+  DOSEMU initializes.
+
+
+
+  6.6.1.3.  SETUP_INTERRUPTS
+
+  SETUP_INTERRUPTS is used to initialize those interrupt calls that we
+  are specifically handling in protected mode.
+
+
+
+  6.6.2.  Remarks in int.h
+
+  Apparently, no-one has anything interesting to say about int.h.
+
+
+  6.6.3.  Items for Fixing in int.h
+
+  Apparently, nothing needs fixing in int.h.
+
+
+  6.6.4.  New Ideas for int.h
+
+  Apparently, there are no new ideas for int.h.
+
+
+  6.7.	ports.h Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.7.1.  Functions in ports.h
+
+  These are the functions defined in ports.h.
+
+
+
+
+
+  6.7.1.1.  inline
+
+  INB is used to do controlled emulation of input from ports.
+
+
+
+  6.7.2.  Remarks in ports.h
+
+  Apparently, no-one has anything interesting to say about ports.h.
+
+
+  6.7.3.  Items for Fixing in ports.h
+
+  Apparently, nothing needs fixing in ports.h.
+
+
+  6.7.4.  New Ideas for ports.h
+
+  Apparently, there are no new ideas for ports.h.
+
+
+  6.8.	dosio.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.8.1.  Functions in dosio.c
+
+  These are the functions defined in dosio.c.
+
+
+  6.8.1.1.  memory_setup
+
+  Setup HMA area via IPC. Call EMS and XMS initialization routines.
+
+
+
+  6.8.2.  Remarks in dosio.c
+
+  Apparently, no-one has anything interesting to say about dosio.c.
+
+
+  6.8.3.  Items for Fixing in dosio.c
+
+  Apparently, nothing needs fixing in dosio.c.
+
+
+  6.8.4.  New Ideas for dosio.c
+
+  Apparently, there are no new ideas for dosio.c.
+
+
+  6.9.	mouse/mouse.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.9.1.  Functions in mouse/mouse.c
+
+  These are the functions defined in mouse/mouse.c.
+
+
+  6.9.1.1.  mouse_init
+
+  Initialize internal mouse.
+
+  6.9.2.  Remarks in mouse/mouse.c
+
+  Apparently, no-one has anything interesting to say about
+  mouse/mouse.c.
+
+
+  6.9.3.  Items for Fixing in mouse/mouse.c
+
+  Apparently, nothing needs fixing in mouse/mouse.c.
+
+
+  6.9.4.  New Ideas for mouse/mouse.c
+
+  Apparently, there are no new ideas for mouse/mouse.c.
+
+
+  6.10.	serial.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.10.1.  Functions in serial.c
+
+  These are the functions defined in serial.c.
+
+
+  6.10.1.1.  serial_init
+
+  The following is the master serial initialization function called
+  externally (from this serial.c module) during DOSEMU startup. It
+  initializes all the configured serial ports.
+
+
+
+  6.10.2.  Remarks in serial.c
+
+  Apparently, no-one has anything interesting to say about serial.c.
+
+
+  6.10.3.  Items for Fixing in serial.c
+
+  Apparently, nothing needs fixing in serial.c.
+
+
+  6.10.4.  New Ideas for serial.c
+
+  Apparently, there are no new ideas for serial.c.
+
+
+  6.11.	disks.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.11.1.  Functions in disks.c
+
+  These are the functions defined in disks.c.
+
+
+  6.11.1.1.  disk_init
+
+  Test by opening all floppies/hardrives configured.
+
+
+
+
+  6.11.2.  Remarks in disks.c
+
+  Apparently, no-one has anything interesting to say about disks.c.
+
+
+  6.11.3.  Items for Fixing in disks.c
+
+  Apparently, nothing needs fixing in disks.c.
+
+
+  6.11.4.  New Ideas for disks.c
+
+  Apparently, there are no new ideas for disks.c.
+
+
+  6.12.	cpu.c Information
+
+  CPU/V86 support for dosemu
+
+
+
+  6.12.1.  Functions in cpu.c
+
+  These are the functions defined in cpu.c.
+
+
+  6.12.1.1.  cpu_init
+
+  Setup initial interrupts which can be revectored so that the kernel
+  does not need to return to DOSEMU if such an interrupt occurs.
+
+
+
+  6.12.2.  Remarks in cpu.c
+
+  Apparently, no-one has anything interesting to say about cpu.c.
+
+
+  6.12.3.  Items for Fixing in cpu.c
+
+  Apparently, nothing needs fixing in cpu.c.
+
+
+  6.12.4.  New Ideas for cpu.c
+
+  Apparently, there are no new ideas for cpu.c.
+
+
+  6.13.	lpt.c Information
+
+  There appears to be no MODULE information for this file.
+
+
+  6.13.1.  Functions in lpt.c
+
+  These are the functions defined in lpt.c.
+
+
+  6.13.1.1.  printer_init
+
+  Initialize printer control structures
+
+
+
+
+
+  6.13.2.  Remarks in lpt.c
+
+  Apparently, no-one has anything interesting to say about lpt.c.
+
+
+  6.13.3.  Items for Fixing in lpt.c
+
+  Apparently, nothing needs fixing in lpt.c.
+
+
+  6.13.4.  New Ideas for lpt.c
+
+  Apparently, there are no new ideas for lpt.c.
+
+
+  7.  And Finally ...
 
   The Following items are used to delimit the text used to create this
   file.	Whilst it is not necessary to know this, they are included
@@ -365,3 +1096,27 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

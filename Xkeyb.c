@@ -126,7 +126,6 @@ static struct _key_scan
     { XK_Tab,           0x0f },
     { XK_Return,        0x1c },
     { XK_Escape,        0x01 },
-    { XK_Delete,        0xe053 },
     { XK_Insert,        0xe052 },
 
     { XK_KP_Enter,      0xe01c },
@@ -289,6 +288,10 @@ void X_process_key(XKeyEvent *e)
     else if (key == XK_BackSpace) {
        scan = 0x0e;
        ch = 8;
+    }
+    else if (key == XK_Delete) {
+       scan = 0x53;
+       ch = 0;
     }
     else {
        scan = translate(key);

@@ -90,7 +90,7 @@ struct mouse_struct {
 
 void mouse_keyboard(int), mouse_curtick(void), mouse_sethandler(void *, unsigned short *, unsigned short *);
 
-extern mouse_t mice[MAX_MOUSE];
+extern mouse_t mice[MAX_MOUSE] ;
 
 #ifndef MOUSE_C
 #define MEX extern
