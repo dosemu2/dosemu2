@@ -332,6 +332,7 @@ void std_port_outb(ioport_t port, Bit8u byte)
         pr.port = port;
         pr.type = TYPE_OUTB;
 	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
 }
 
 Bit16u std_port_inw(ioport_t port)
@@ -360,6 +361,7 @@ void std_port_outw(ioport_t port, Bit16u word)
         pr.port = port;
         pr.type = TYPE_OUTW;
 	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
 }
 
 Bit32u std_port_ind(ioport_t port)
@@ -388,6 +390,7 @@ void std_port_outd(ioport_t port, Bit32u dword)
         pr.port = port;
         pr.type = TYPE_OUTD;
 	write(port_fd_out[1], &pr, sizeof(pr));
+	read(port_fd_in[0], &pr, sizeof(pr));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -642,21 +645,9 @@ static Bit8u special_port_inb(ioport_t port)
 {
 	Bit8u res = 0xff;
 
-	if (config.usesX) {
-	/* HGC stuff */
-	    if (port==0x3b8) {	/* HGC mode-reg */
-		res = std_port_inb (port);
-		return ((res & 0x7f) | (hgc_Mode & 0x80));
-	    }
-	    else
-	    if (port==0x3bf) {	/* HGC conf-reg */
-		res = std_port_inb (port);
-		return ((res & 0xfd) | (hgc_Konv & 0x02));
-	    }
-	}
 	if ((port==0x3ba)||(port==0x3da)) {
 		res = Misc_get_input_status_1();
-		if (!config.usesX && !r3da_pending && (config.emuretrace>1)) {
+		if (!r3da_pending && (config.emuretrace>1)) {
 			r3da_pending = port;
 		}
 	}
@@ -668,22 +659,6 @@ static Bit8u special_port_inb(ioport_t port)
 
 static void special_port_outb(ioport_t port, Bit8u byte)
 {
-	if (config.usesX) {
-	    if (port==0x3b8) {	/* HGC mode-reg */
-		if (byte & 0x80) set_hgc_page(1);
-			else set_hgc_page(0);
-		byte &= 0x7f;
-		goto defout;
-	    }
-	    else
-	    if (port==0x3bf) {	/* HGC conf-reg */
-		if (byte & 0x02) map_hgc_page(1);
-			else map_hgc_page(0);
-		byte &= 0xfd;
-		goto defout;
-	    }
-	}
-
 	/* Port writes for enable/disable blinking character mode */
 	if (port == 0x03c0) {
 		static int last_byte = -1;
@@ -706,7 +681,7 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		 *
 		 * SIDOC_END_REMARK
 		 */
-		if (config.vga && !config.usesX && (config.emuretrace>1)) {
+		if (config.vga && (config.emuretrace>1)) {
 		    if (r3da_pending) {
 			(void)std_port_inb(r3da_pending);
 			r3da_pending = 0;
@@ -729,7 +704,7 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 	}
 
 	/* Port writes for cursor position: 3b4-3b5 or 3d4-3d5 */
-	if (!config.usesX && ((port & 0xfffe)==READ_WORD(BIOS_VIDEO_PORT))) {
+	if ((port & 0xfffe)==READ_WORD(BIOS_VIDEO_PORT)) {
 		/* Writing to the 6845 */
 		static int last_port;
 		static int last_byte;
@@ -878,7 +853,7 @@ static void port_server(void)
         for (;;) {
                 read(port_fd_out[0], &pr, sizeof(pr));
                 if (pr.type >= TYPE_EXIT)
-                        exit((int)pr.word);
+                        exit(0);
 		ph = &EMU_HANDLER(pr.port);
                 switch (pr.type) {
                 case TYPE_INB:
@@ -900,8 +875,7 @@ static void port_server(void)
                         ph->write_portd(pr.port, pr.word);
                         break;
                 }
-                if (!(pr.type & 1))
-                        write(port_fd_in[1], &pr, sizeof(pr));
+                write(port_fd_in[1], &pr, sizeof(pr));
         }
 }
 
@@ -972,14 +946,6 @@ int extra_port_init(void)
 		for (i=0x3b4; i<0x3df; i++)
 			SET_HANDLE_COND(i,HANDLE_VID_IO);
 	}
-#if 1		/* HGC ports */
-	if (config.usesX) {
-		SET_HANDLE_COND(0x3b4,HANDLE_STD_IO);
-		SET_HANDLE_COND(0x3b5,HANDLE_STD_IO);
-		SET_HANDLE_COND(0x3ba,HANDLE_STD_IO);
-	}
-#endif
-
 	if (!config.X) {
  	  SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
 	  SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
@@ -1017,11 +983,10 @@ int extra_port_init(void)
  	return 0;
 }
 
-void port_exit(int sig)
+void port_exit(void)
 {
         struct portreq pr;
         pr.type = TYPE_EXIT;
-        pr.word = (unsigned long)sig;
         if (port_fd_out[1]) write(port_fd_out[1], &pr, sizeof(pr));
 }
 

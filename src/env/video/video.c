@@ -86,10 +86,6 @@ static int video_init(void)
      Video=&Video_X;
   }
 #endif
-  else if (config.usesX) {
-     v_printf("VID: Video set to Video_hgc\n");
-     Video=&Video_hgc;
-  }
   else if (config.cardtype == CARD_NONE) {
      v_printf("VID: Video set to Video_none");
      Video=&Video_none;
@@ -231,13 +227,7 @@ reserve_video_memory(void)
 
     c_printf("CONF: Trying to set minimum video memory to maximize UMB's\n");
 
-    if (config.usesX) {
-      graph_base = 0xB0000;
-      graph_size = 64*1024;
-      c_printf("CONF: X-Windows.  Assuming %uKB video memory @ 0x%5.5X\n",
-	       graph_size/1024, graph_base);
-    }
-    else if (!config.console_video) {
+    if (!config.console_video) {
       graph_base = 0xB0000;
       graph_size = 64*1024;
       c_printf("CONF: remote session.  Assuming %uKB video memory @ 0x%5.5X\n",
@@ -428,15 +418,10 @@ video_config_init(void) {
     WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
   }
     
-  if (config.console_video && !config.usesX)
-    set_process_control();
-
   if (config.console_video) {
+    set_process_control();
     set_console_video();
   }
-
-  if (config.usesX)
-    set_consoleX_video();
 
   video_init();
 

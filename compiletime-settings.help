@@ -102,6 +102,16 @@ plugin_translate "Use Unicode translation plugin" plugin_translate
 
 plugin_demo 	"Use demo plugin" plugin_demo
 
+plugin_slang	"Use S-Lang plugin"
+
+		If you leave this switch to "on", then DOSEMU uses the
+		supplied S-Lang files in src/plugin/slang. Otherwise it
+		tries to compile with your system supplied S-Lang library.
+		Note however that some distributions ship UTF8-enabled S-Lang 
+		libraries that break DOSEMU.
+		Instead of "on" or "off" you may also specify a directory
+		pointing directly to your S-Lang library.
+
 target_cpu	"Target cpu" target_cpu
 
 prefix		"Prefix for DOSEMU system-wide directory structure" prefix
@@ -119,13 +129,6 @@ docdir		"Directory for DOSEMU documentation" docdir
 syshdimagedir	"Default directory for images and boot directories" syshdimagedir
 
 x11fontdir	"Directory for X fonts" x11fontdir
-
-slangdir	"Specify location of the S-Lang library"
-
-		If you leave this switch to "default", then DOSEMU tries 
-		to compile with	your system supplied S-Lang library. 
-		Alternatively you can point it to an S-Lang source directory,
-		where S-Lang was compiled in.
 
 fdtarball	"Name of the FreeDOS tarball" fdtarball
 		This is normally named dosemu-freedos-bin.tgz, to be obtained from www.dosemu.org

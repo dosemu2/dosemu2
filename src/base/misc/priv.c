@@ -145,7 +145,7 @@ int priv_iopl(int pl)
   if (config.cpuemu) e_priv_iopl(pl);
 #endif
   if (ret == 0)
-    current_iopl = 3;
+    current_iopl = pl;
   return ret;
 }
 

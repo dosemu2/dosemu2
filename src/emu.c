@@ -235,7 +235,7 @@ static void do_liability_disclaimer_prompt(void)
   char buf[32];
   char disclaimer_file_name[256];
   static char text[] =
-  "The Linux DOSEMU, Copyright (C) 2002 the 'DOSEMU-Development-Team'.\n"
+  "The Linux DOSEMU, Copyright (C) 2003 the 'DOSEMU-Development-Team'.\n"
   "This program is  distributed  in  the  hope that it will be useful,\n"
   "but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of\n"
   "MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file\n"
@@ -565,7 +565,7 @@ leavedos(int sig)
     }
 
     /* terminate port server */
-    port_exit(sig);
+    port_exit();
 
     g_printf("releasing ports and blocked devices\n");
     release_ports();

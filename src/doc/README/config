@@ -1382,62 +1382,6 @@ For more on this look at chapter 15 (Net code).
 </sect3>
 
 <sect3>
-<title>Security settings</title>
-
-<para>
-There are some features in DOSEMU, that may violate system security
-and which you should not use on machines, which are `net open'. To
-have atleast a minimum of protection against intruders, use the folling:
-
-<screen>
-  $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
-                   # empty string: depending on 'restricted'
-</screen>
-
-The above is a string of which may be given or not, hence
-
-<screen>
-  $_secure ="d"
-</screen>
-
-would only effect execution of DEXEs. If you are not a `restricted' user
-(as given via /etc/dosemu.users) the above settings won't apply.
-To disable security checking atall set
-
-<screen>
-  $_secure ="0"
-</screen>
-
-</para>
-
-<para>
-NOTE: `$_secure' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
-</para>
-
-<para>
-For the similar reasons you may `backout' some host, which you don't like
-to have access to dosemu
-
-<screen>
-  $_odd_hosts = ""    # black list such as
-                      #      "lucifer.hell.com billy.the.cat"
-  $_diskless_hosts="" # black list such as "hacker1 newbee gateway1"
-</screen>
-
-The items in the lists are blank separated, `odd_hosts' checks for remote
-logins, `diskless_hosts' are meant to be maschines, that mount a complete
-tree, hence the checked host is the host DOSEMU is running on (not the
-remote host). However, read README-tech,txt for more details on what
-actually is disabled.
-</para>
-
-<para>
-NOTE: `$_*_hosts' can <emphasis>not</emphasis> be overwritten by ~/.dosemurc.
-</para>
-
-</sect3>
-
-<sect3>
 <title>Settings for enabling direct hardware access</title>
 <para>
 The following settings (together with the direct console video settings

@@ -230,6 +230,7 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
     fi
   fi
   dnl --- now that we've found it, check the link
+  AC_MSG_RESULT($SLANGINC $SLANGLIB)
   AC_CHECK_LIB(slang, SLtt_get_terminfo, ,
                 [AC_MSG_ERROR(unable to compile.  install slang-devel or check config.log)])
   LDFLAGS="$LDFLAGS $SLANGLIB"
@@ -278,6 +279,11 @@ if test "$forced_nomitshm" != "yes" -a "$no_x" != "yes" ; then
          AS_MESSAGE(checking Compiling without the MITSHM X extension),
          [#include <X11/Xlib.h>])
 fi
+
+AC_CHECK_HEADER(X11/extensions/xf86vmode.h,
+         [AC_DEFINE(HAVE_XVIDMODE,1) LIBS="-lXxf86vm $LIBS"],
+         AS_MESSAGE(checking Compiling without the XF86 video mode extension),
+         [#include <X11/Xlib.h>])
 
 PACKAGE_VERSION=`cat VERSION`
 VV=$PACKAGE_VERSION
@@ -719,6 +725,9 @@ AH_TEMPLATE([USE_ULTRA],
 
 AH_TEMPLATE([HAVE_MITSHM],
 [ Define this if you want to use MITSHM ])
+
+AH_TEMPLATE([HAVE_XVIDMODE],
+[ Define this if you want to use the XF86 video mode extension ])
 
 AH_TEMPLATE([ASPI_SUPPORT],
 [ Define this for ASPI (generic SCSI) support ])

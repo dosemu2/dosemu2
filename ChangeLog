@@ -1,3 +1,41 @@
+2003/02/04 ver 1.1.4.11 unofficial pre-release
+	From Stas
+	- prevent IRQ conflicts and fix double registrations of the
+	  keyboard IRQ in init.c and serv_8042.c.
+	From Bart
+	- small Makefile cleanups; include only necessary dependency files
+	- remove all traces of $_secure, $_odd_hosts and $_diskless_hosts
+	  since by default any remote hosts will get root privileges
+	  dropped and diskless host security can be managed via sudo.
+	- re-add SLang library, but now updated to version 1.4.8, as a
+	  plugin, in stripped down source code form, to avoid problems 
+	  with the utf-8 enabled default SLang library that various 
+	  distributions ship.
+	- adjustments to dosemu script: do not silently write to
+	  ~/.dosemurc, run with /bin/sh instead of /bin/bash and only
+	  write $_hdimage to ~/.dosemurc for system-wide installations.
+	  Also adjust "-install" to be able to take no parameters (which
+	  reinstalls FreeDOS).
+	- quit DOSEMU (via the sigchld handler) if the port server is
+	  killed.
+	- remove config.usesX setting and any usage of it. It was only set 
+	  by the -Y and -Z options which seem to have been unused since
+	  1995.
+	- fix for current_iopl in priv.c (misbehaviour spotted by Reinhard
+	  Karcher)
+	- don't open /dev/gpmdata-style mice in terminal mode. They don't
+	  work then.
+	- Made the portserver synchronous for port writes -- DOSEMU waits
+	  for an acknowledgement. This already naturally happened for reads.
+	- use the XFree86 video mode extension if available to switch 
+	  resolutions for fullscreen X.
+	- the X mouse cursor is now always invisible if mouse grab is active.
+	- center text modes for fullscreen X.
+	- (with help from Stas) don't pass the ctrl-alt-f keycode to DOS
+	  apps when fullscreen is toggled. Enable mouse grab automatically 
+	  for fullscreen X in graphics mode if the X mouse cursor is
+	  invisible. Move fullscreen and mouse grab toggle code to 
+	  seperate functions.
 2003/02/01 ver 1.1.4.10 unofficial pre-release
 	From Stas
 	- pic_force_count->pic_watchdog correction

@@ -151,6 +151,11 @@
  * 2000/05/31: Cleaned up mouse handling with help of Bart Oldeman.
  *  -- Eric Biederman 
  *
+ * 2003/02/02: Implemented full-screen mode. Thanks to
+ *             Michael Graffam <mgraffam@idsi.net> for his XF86 VidMode
+ *             Extension example.
+ *  -- Bart Oldeman
+ *
  * DANG_END_CHANGELOG
  */
 
@@ -223,6 +228,10 @@
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
 #include <sys/mman.h>           /* root@sjoerd:for mprotect*/
+
+#ifdef HAVE_XVIDMODE
+#include <X11/extensions/xf86vmode.h>
+#endif
 
 #include "emu.h"
 #include "timers.h"
@@ -396,6 +405,12 @@ static unsigned _dga_height = 0;
 static Window dga_window;
 #endif
 
+#ifdef HAVE_XVIDMODE
+static int xf86vm_ok = 0;
+static int modecount;          
+static XF86VidModeModeInfo **vidmode_modes;
+#endif
+
 Display *display;		/* used in plugin/?/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
@@ -416,7 +431,7 @@ static GC gc, fullscreengc, normalgc;
 static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
 static XFontStruct *font = NULL;
-static int font_width, font_height, font_shift;
+static int font_width, font_height, font_shift, shift_x, shift_y;
 static int prev_cursor_row = -1, prev_cursor_col = -1;
 static ushort prev_cursor_shape = NO_CURSOR;
 static int blink_state = 1;
@@ -445,6 +460,7 @@ static int have_true_color;
 static unsigned dac_bits;		/* the bits visible to the dosemu app, not the real number */
 static int x_res, y_res;		/* emulated window size in pixels */
 static int w_x_res, w_y_res;		/* actual window size */
+static int saved_w_x_res, saved_w_y_res;	/* saved normal window size */
 static unsigned ximage_bits_per_pixel;
 static unsigned ximage_mode;
 static int remap_features;
@@ -453,11 +469,11 @@ static int remap_src_modes = 0;
 static vgaemu_display_type X_screen;
 
 int grab_active = 0;
-int freeze_active = 0;
 #if CONFIG_X_MOUSE
 static char *grab_keystring = "Home";
 static KeySym grab_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;
+static int force_grab = 0;
 #endif
 
 static int X_map_mode = -1;
@@ -480,6 +496,10 @@ static void X_shm_done(void);
 #ifdef HAVE_DGA
 static void X_dga_init(void);
 static void X_dga_done(void);
+#endif
+#ifdef HAVE_XVIDMODE
+static void X_xf86vm_init(void);
+static void X_xf86vm_done(void);
 #endif
 static void X_remap_init(void);
 static void X_remap_done(void);
@@ -518,6 +538,8 @@ static int X_set_videomode(int, int, int);
 static int X_setmode(int, int, int, int);
 static void X_modify_mode(void);
 static void X_resize_text_screen(void);
+static void toggle_fullscreen_mode(void);
+static void X_vidmode(int w, int h, int *new_width, int *new_height);
 
 /* screen update/redraw functions */
 static void X_reset_redraw_text_screen(void);
@@ -543,6 +565,7 @@ static inline void restore_cell(int, int);
 /* mouse related code */
 static void set_mouse_position(int, int);
 static void set_mouse_buttons(int);
+static void toggle_mouse_grab(void);
 #endif
 
 #if CONFIG_X_SELECTION
@@ -687,6 +710,10 @@ int X_init()
   X_dga_init();
 #endif
 
+#ifdef HAVE_XVIDMODE
+  X_xf86vm_init();
+#endif
+  
   /* see if we find out something useful about our X server... -- sw */
   X_keymap_init();
 
@@ -700,8 +727,8 @@ int X_init()
 
   load_text_font();
 
-  w_x_res = x_res = co * font_width;
-  w_y_res = y_res = li * font_height;
+  saved_w_x_res = w_x_res = x_res = co * font_width;
+  saved_w_y_res = w_y_res = y_res = li * font_height;
 
   s = getenv("DOSEMU_WINDOW_ID");
   if(s && (i = strtol(s, NULL, 0)) > 0) {
@@ -881,8 +908,15 @@ void X_close()
 
   if (kdos_client) kdos_close_msg();
 
+#ifdef HAVE_XVIDMODE
+  X_xf86vm_done();
+#endif
+
   XUnloadFont(display, vga_font);
-  if(our_window) XDestroyWindow(display, mainwindow);
+  if(our_window) {
+    XDestroyWindow(display, normalwindow);
+    XDestroyWindow(display, fullscreenwindow);
+  }
 
   destroy_ximage();
 
@@ -1077,6 +1111,31 @@ void X_dga_done()
 }
 #endif
 
+#ifdef HAVE_XVIDMODE
+static void X_xf86vm_init(void)
+{
+  unsigned int eventB, errorB, ver, rev;
+  if (XF86VidModeQueryExtension(display, &eventB, &errorB))
+  {
+    XF86VidModeQueryVersion(display, &ver, &rev);
+    X_printf("X: VidMode Extension version %u.%u\n", ver, rev);
+    XF86VidModeGetAllModeLines(display, 0, &modecount, &vidmode_modes);
+    xf86vm_ok = 1;
+  }
+  else
+  {
+    X_printf("X: xvidmode: No VidMode Extension\n");
+  }
+}
+
+static void X_xf86vm_done(void)
+{
+  if (mainwindow == fullscreenwindow)
+    X_vidmode(-1, -1, &w_x_res, &w_y_res);
+  xf86vm_ok = 0;
+}
+
+#endif 
 
 /*
  * Initialize the interface between the VGA emulator and X.
@@ -1312,23 +1371,54 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
  */
 void X_show_mouse_cursor(int yes)
 {
-   if(vga.mode_class != GRAPH) {
-      mouse_cursor_visible = 1;
-      return;
-   }
-   if (yes) {
+   if (yes || vga.mode_class != GRAPH) {
+      if (force_grab && grab_active) {
+         toggle_mouse_grab();
+      }
       if (mouse_cursor_visible) return;
-      XDefineCursor(display, mainwindow, X_standard_cursor);
+      if (grab_active) {
+         XDefineCursor(display, normalwindow, X_mouse_nocursor);
+         XDefineCursor(display, fullscreenwindow, X_mouse_nocursor);
+      } else {
+         XDefineCursor(display, normalwindow, X_standard_cursor);
+         XDefineCursor(display, fullscreenwindow, X_standard_cursor);
+      }
       mouse_cursor_visible = 1;
-   }
-   else {
+   } else {
+      if (force_grab && !grab_active) {
+         toggle_mouse_grab();
+      }
       if (!mouse_cursor_visible) return;
-      XDefineCursor(display, mainwindow, X_mouse_nocursor);
+      XDefineCursor(display, normalwindow, X_mouse_nocursor);
+      XDefineCursor(display, fullscreenwindow, X_mouse_nocursor);
       mouse_cursor_visible = 0;
    }
 }
 
-
+static void toggle_mouse_grab(void)
+{
+  if(grab_active ^= 1) {
+    X_printf("X: mouse grab activated\n");
+    if (mainwindow != fullscreenwindow) {
+#ifdef ENABLE_KEYBOARD_GRAB
+      XGrabKeyboard(display, mainwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+#endif
+      XGrabPointer(display, mainwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+                   GrabModeAsync, GrabModeAsync, mainwindow,  None, CurrentTime);
+    }
+    X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
+  }
+  else {
+    X_printf("X: mouse grab released\n");
+    if (mainwindow != fullscreenwindow) {
+      XUngrabPointer(display, CurrentTime);
+#ifdef ENABLE_KEYBOARD_GRAB
+      XUngrabKeyboard(display, CurrentTime);
+#endif
+    }
+    X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
+  }
+}
 
 /*
  * DANG_BEGIN_FUNCTION X_set_mouse_cursor
@@ -1364,18 +1454,79 @@ void X_set_mouse_cursor(int yes, int mx, int my, int x_range, int y_range)
 
 	/* Update the X cursor as needed */
 	if (new_cursor != last_cursor) {
-		XDefineCursor(display, mainwindow, *new_cursor);
+		XDefineCursor(display, fullscreenwindow, *new_cursor);
+		XDefineCursor(display, normalwindow, *new_cursor);
 		last_cursor = new_cursor;
 	}
 
 	/* Move the X cursor if needed */
 	x = (x_range * mouse_x)/w_x_res;
 	y = (y_range * mouse_y)/w_y_res;
-	if (!grab_active && ((mx != x) || (my != y))) {
+	if ((mx != x) || (my != y)) {
+		if (grab_active) {
+			if (force_grab)
+				toggle_mouse_grab();
+			else
+				return;
+		}
 		XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
-			(w_x_res * mx)/x_range, (w_y_res * my)/y_range);
+			shift_x + (w_x_res * mx)/x_range,
+                        shift_y + (w_y_res * my)/y_range);
 	}
 #endif /* CONFIG_X_MOUSE */
+}
+
+static void toggle_fullscreen_mode(void)
+{
+  unsigned resize_height, resize_width;
+
+  XUnmapWindow(display, mainwindow);
+  if (mainwindow == normalwindow) {
+    X_printf("X: entering fullscreen mode\n");
+    saved_w_x_res = w_x_res;
+    saved_w_y_res = w_y_res;
+    if (!grab_active) {
+      if(vga.mode_class == GRAPH && !mouse_cursor_visible) {
+        toggle_mouse_grab();
+      }
+      force_grab = 1;
+    }
+    X_vidmode(w_x_res, w_y_res, &resize_width, &resize_height);
+    mainwindow = fullscreenwindow;
+    gc = fullscreengc;
+    XCopyGC(display, normalgc, -1, gc);
+    XMapWindow(display, mainwindow);
+    XRaiseWindow(display, mainwindow);
+    XGrabPointer(display, mainwindow, True,
+                 PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+                 GrabModeAsync, GrabModeAsync, mainwindow,  None,
+                 CurrentTime);
+    XGrabKeyboard(display, mainwindow, True, GrabModeAsync,
+                  GrabModeAsync, CurrentTime);
+  } else {
+    X_printf("X: entering windowed mode!\n");
+    w_x_res = saved_w_x_res;
+    w_y_res = saved_w_y_res;
+    XUngrabKeyboard(display, CurrentTime);
+    XUngrabPointer(display, CurrentTime);
+    if (force_grab && grab_active) {
+      toggle_mouse_grab();
+    }
+    force_grab = 0;
+    mainwindow = normalwindow;
+    X_vidmode(-1, -1, &resize_width, &resize_height);
+    gc = normalgc;
+    XCopyGC(display, fullscreengc, -1, gc);
+    XMapWindow(display, mainwindow);
+  }
+  if(vga.mode_class == TEXT) {
+    X_resize_text_screen();
+  } else {	/* GRAPH */
+    XResizeWindow(display, mainwindow, resize_width, resize_height);
+    resize_ximage(resize_width, resize_height);
+    dirty_all_video_pages();
+    X_update_screen();
+  }
 }
 
 /*
@@ -1422,19 +1573,13 @@ void X_handle_events()
      if(vga.mode_class == GRAPH) {
        if(! lastingraphics) {
          lastingraphics = 1;
-         mouse_cursor_visible = 0;
-#ifndef DEBUG_MOUSE_POS
-         XDefineCursor(display, mainwindow, X_mouse_nocursor);
-#else
-         XDefineCursor(display, mainwindow, X_standard_cursor);
-#endif
+         X_show_mouse_cursor(0);
        }
      }
      else {
        if(lastingraphics) {
          lastingraphics = 0;
-         mouse_cursor_visible = 1;
-         XDefineCursor(display, mainwindow, X_standard_cursor);
+         X_show_mouse_cursor(1);
        }
      }
    }
@@ -1550,61 +1695,22 @@ void X_handle_events()
     /* Keyboard events */
 
 	case KeyPress:
-          if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask) && grab_keysym != NoSymbol) {
+          if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask)) {
             KeySym keysym = XKeycodeToKeysym(display, e.xkey.keycode, 0);
-            if(keysym == grab_keysym) {
-              if(grab_active ^= 1) {
-                X_printf("X: mouse grab activated\n");
-#ifdef ENABLE_KEYBOARD_GRAB
-                XGrabKeyboard(display, mainwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-#endif
-                XGrabPointer(display, mainwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                  GrabModeAsync, GrabModeAsync, mainwindow,  None, CurrentTime);
-                X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
-              }
-              else {
-                X_printf("X: mouse grab released\n");
-                XUngrabPointer(display, CurrentTime);
-#ifdef ENABLE_KEYBOARD_GRAB
-                XUngrabKeyboard(display, CurrentTime);
-#endif
-                X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
-              }
+            if (keysym == grab_keysym) {
+              force_grab = 0;
+              toggle_mouse_grab();
               break;
             } else if (keysym == XK_Pause) {
-              if (freeze_active ^= 1) {
+              if (!dosemu_frozen) {
                 freeze_dosemu();
               } else {
                 unfreeze_dosemu();
               }
               break;
             } else if (keysym == XK_f) {
-              XUnmapWindow(display, mainwindow);
-              if (mainwindow == normalwindow) {
-                X_printf("X: entering fullscreen mode\n");
-                mainwindow = fullscreenwindow;
-                gc = fullscreengc;
-                XCopyGC(display, normalgc, -1, gc);
-                XMapWindow(display, mainwindow);
-                XGrabKeyboard(display, mainwindow, True, GrabModeAsync,
-                              GrabModeAsync, CurrentTime);
-                resize_width = DisplayWidth(display, screen);
-                resize_height = DisplayHeight(display, screen);
-              } else {
-                X_printf("X: entering windowed mode!\n");
-                XUngrabKeyboard(display, CurrentTime);
-                mainwindow = normalwindow;
-                gc = normalgc;
-                XCopyGC(display, fullscreengc, -1, gc);
-                XMapWindow(display, mainwindow);
-              }
-              if(vga.mode_class == TEXT) {
-                X_resize_text_screen();
-              } else {	/* GRAPH */
-                resize_ximage(resize_width, resize_height);
-                dirty_all_video_pages();
-                X_update_screen();
-              }
+              toggle_fullscreen_mode();
+              break;
             }
           }
 	case KeyRelease:
@@ -2281,6 +2387,7 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
 #endif
 
   if(vga.mode_class == TEXT) {
+    int x_fill, y_fill;
 
     XSetWindowColormap(display, mainwindow, text_cmap);
 
@@ -2288,8 +2395,8 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
 
     dac_bits = vga.dac.bits;
 
-    w_x_res = x_res = vga.text_width * font_width;
-    w_y_res = y_res = vga.text_height * font_height;
+    saved_w_x_res = w_x_res = x_res = vga.text_width * font_width;
+    saved_w_y_res = w_y_res = y_res = vga.text_height * font_height;
 
     /* We use the X font! Own font in future? */
 
@@ -2297,18 +2404,17 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
     sh.height = sh.min_height = sh.max_height = w_y_res;
 
     sh.flags = PSize | PMinSize | PMaxSize;
-    XSetNormalHints(display, mainwindow, &sh);
+    XSetNormalHints(display, normalwindow, &sh);
     XSync(display, False);
 
-    if (mainwindow == normalwindow)
-      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    x_fill = w_x_res;
+    y_fill = w_y_res;
+    if (mainwindow == fullscreenwindow)
+      X_vidmode(w_x_res, w_y_res, &x_fill, &y_fill);
+    XResizeWindow(display, mainwindow, x_fill, y_fill);
 
     XSetForeground(display, gc, text_colors[0]);
-    if (mainwindow == normalwindow)
-      XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
-    else
-      XFillRectangle(display, mainwindow, gc, 0, 0,
-                     DisplayWidth(display, screen), DisplayHeight(display, screen));
+    XFillRectangle(display, mainwindow, gc, 0, 0, x_fill, y_fill);
   }
   else {	/* GRAPH */
 
@@ -2339,11 +2445,6 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
 
     if(config.X_aspect_43) {
       w_y_res = (w_x_res * 3) >> 2;
-    }
-
-    if(mainwindow == fullscreenwindow) {
-      w_x_res = DisplayWidth(display, screen);
-      w_y_res = DisplayHeight(display, screen);
     }
 
     remap_done(&remap_obj);
@@ -2384,6 +2485,12 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
         w_x_res = x_res;
         w_y_res = y_res;
       }
+    }
+
+    if(mainwindow == fullscreenwindow) {
+      saved_w_x_res = w_x_res;
+      saved_w_y_res = w_y_res;
+      X_vidmode(x_res, y_res, &w_x_res, &w_y_res);
     }
 
     create_ximage();
@@ -2442,9 +2549,8 @@ int X_setmode(int mode, int text_width, int text_height, int init_vga)
     veut.update_gran = 0;
     veut.update_pos = veut.display_start;
 
-    XSetNormalHints(display, mainwindow, &sh);
-    if (mainwindow == normalwindow)
-      XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+    XSetNormalHints(display, normalwindow, &sh);
+    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
   }
 
   /* unconditionally update the palette */
@@ -2543,29 +2649,96 @@ void X_set_textsize(int width, int height)
 void X_resize_text_screen() 
 {
   XSizeHints sh;
+  int x_fill, y_fill;
                                 
-  w_x_res = x_res = vga.text_width * font_width;
-  w_y_res = y_res = vga.text_height * font_height;
+  saved_w_x_res = w_x_res = x_res = vga.text_width * font_width;
+  saved_w_y_res = w_y_res = y_res = vga.text_height * font_height;
 
   sh.width = sh.min_width = sh.max_width = w_x_res;
   sh.height = sh.min_height = sh.max_height = w_y_res;
 
   sh.flags = PSize | PMinSize | PMaxSize;
-  XSetNormalHints(display, mainwindow, &sh);
+  XSetNormalHints(display, normalwindow, &sh);
 
-  if (mainwindow == normalwindow)
-    XResizeWindow(display, mainwindow, w_x_res, w_y_res);
+  if (mainwindow == normalwindow) {
+    x_fill = w_x_res;
+    y_fill = w_y_res;
+  } else { 
+    X_vidmode(w_x_res, w_y_res, &x_fill, &y_fill);
+  }
+  XResizeWindow(display, mainwindow, x_fill, y_fill);
 
   XSetForeground(display, gc, text_colors[0]);
-  if (mainwindow == normalwindow)
-    XFillRectangle(display, mainwindow, gc, 0, 0, w_x_res, w_y_res);
-  else
-    XFillRectangle(display, mainwindow, gc, 0, 0,
-      DisplayWidth(display, screen), DisplayHeight(display, screen));
-
+  XFillRectangle(display, mainwindow, gc, 0, 0, x_fill, y_fill);
   X_redraw_text_screen();
 }
 
+/*
+ * Change to requested video mode or the closest greater one.
+ */
+static void X_vidmode(int w, int h, int *new_width, int *new_height)
+{
+  int nw, nh, dw, dh, mx, my;
+  
+  nw = dw = DisplayWidth(display, screen);
+  nh = dh = DisplayHeight(display, screen);
+  
+#ifdef HAVE_XVIDMODE
+  if (xf86vm_ok) {
+    static XF86VidModeModeLine vidmode_modeline;
+    static int viewport_x, viewport_y;
+    int vx = 0, vy = 0;
+    int i, j;
+    int dotclock;
+
+    if (w == -1 && h == -1) { /* need to perform reset to windowed mode */
+      w = vidmode_modeline.hdisplay;
+      h = vidmode_modeline.vdisplay;
+      vx = viewport_x;
+      vy = viewport_y;
+    } else if (mainwindow != fullscreenwindow) {
+      XF86VidModeGetModeLine(display,screen,&dotclock,&vidmode_modeline);
+      XF86VidModeGetViewPort(display,screen,&viewport_x,&viewport_y);
+      mainwindow = fullscreenwindow;
+    }
+    j=0;
+    for (i=0; i<modecount; i++) {
+      if ((vidmode_modes[i]->hdisplay >= w) && 
+          (vidmode_modes[i]->vdisplay >= h) &&
+          (vidmode_modes[i]->hdisplay < nw) &&
+          (vidmode_modes[i]->vdisplay < nh)) {
+        nw = vidmode_modes[i]->hdisplay;
+        nh = vidmode_modes[i]->vdisplay;
+        j = i;
+      }
+    }
+
+    X_printf("X: vidmode asking for (%d,%d); setting (%d,%d)\n", w, h, nw, nh);
+    XF86VidModeSwitchToMode(display,screen,vidmode_modes[j]);
+    XF86VidModeSetViewPort (display,screen,vx,vy);
+  }
+#endif
+
+  if (mainwindow == normalwindow) {
+    nw = w_x_res;
+    nh = w_y_res;
+  }
+          
+  mx = MIN(mouse_x, nw - 1);
+  my = MIN(mouse_y, nh - 1);
+  shift_x = 0;
+  shift_y = 0;
+  if(vga.mode_class == TEXT) {
+    shift_x = (nw - w_x_res)/2;
+    shift_y = (nh - w_y_res)/2;
+  }
+  
+  if (!grab_active && (mx != 0 || my != 0))
+    XWarpPointer(display, None, mainwindow, 0, 0, 0, 0,
+                 mx + shift_x, my + shift_y);
+  *new_width = nw;
+  *new_height = nh;
+}
 
 /*
  * Sync prev_screen & screen_adr.
@@ -2921,8 +3094,8 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
 
   XDrawImageString(
     display, mainwindow, gc,
-    font_width * x,
-    font_height * y + font_shift,
+    shift_x + font_width * x,
+    shift_y + font_height * y + font_shift,
     text,
     len
   );
@@ -2930,8 +3103,9 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
   if(vga.mode_type == TEXT_MONO && (attr == 0x01 || attr == 0x09 || attr == 0x89)) {
     XDrawLine(
       display, mainwindow, gc,
-      font_width * x, font_height * y + font_shift,
-      font_width * (x + len) - 1, font_height * y + font_shift
+      shift_x + font_width * x, font_height * y + font_shift,
+      shift_x + font_width * (x + len) - 1,
+      shift_y + font_height * y + font_shift
     );
   }
 }
@@ -3041,7 +3215,7 @@ void draw_cursor(int x, int y)
   if(!have_focus) {
     XDrawRectangle(
       display, mainwindow, gc,
-      x * font_width, y * font_height,
+      shift_x + x * font_width, shift_y + y * font_height,
       font_width - 1, font_height - 1
     );
   }
@@ -3050,7 +3224,7 @@ void draw_cursor(int x, int y)
     cend = CURSOR_END(cursor_shape) * font_height / 16;
     XFillRectangle(
       display, mainwindow, gc,
-      x * font_width, y * font_height + cstart,
+      shift_x + x * font_width, shift_y + y * font_height + cstart,
       font_width, cend - cstart + 1
     );
   }
@@ -3159,7 +3333,12 @@ inline void restore_cell(int x, int y)
  */ 
 void set_mouse_position(int x, int y)
 {
-  int dx, dy, center_x, center_y, x0 = x, y0 = y;
+  int dx, dy, center_x, center_y, x0, y0;
+
+  x -= shift_x;
+  y -= shift_y;
+  x0 = x;
+  y0 = y;
 
   if(grab_active) {
     center_x = w_x_res >> 1;
@@ -3209,7 +3388,7 @@ void set_mouse_buttons(int state)
  */
 int x_to_col(int x)
 {
-  int col = x/font_width;
+  int col = (x-shift_x)/font_width;
   if (col < 0)
     col = 0;
   else if (col >= co)
@@ -3223,7 +3402,7 @@ int x_to_col(int x)
  */
 int y_to_row(int y)
 {
-  int row = y/font_height;
+  int row = (y-shift_y)/font_height;
   if (row < 0)
     row = 0;
   else if (row >= li)

@@ -91,6 +91,8 @@ static void cleanup_child(void)
 {
   int status;
   wait(&status);
+  if (WIFSIGNALED(status))
+    leavedos(1);
 }
 
 /* Silly Interrupt Generator Initialization/Closedown */

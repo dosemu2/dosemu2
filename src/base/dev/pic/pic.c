@@ -570,6 +570,20 @@ void pic_seti(unsigned int level, void (*func), unsigned int ivec,
   void (*callback))
 {
   if(level>=32) return;
+  if(!func) {
+    error("pic_seti() called with no function for IRQ level %i\n", level);
+    leavedos(1);
+  }
+  if(pic_iinfo[level].func) {
+    if(pic_iinfo[level].func != func) {
+      error("Attempt to register more than one handler for IRQ level %i (%p %p)\n",
+        level, pic_iinfo[level].func, func);
+      config.exitearly = 1;
+    } else {
+      error("Handler for IRQ level %i was registered more than once! (%p)\n",
+        level, func);
+    }
+  }
   pic_iinfo[level].func = func;
   if(callback) {
     pic_iinfo[level].callback = callback;

@@ -1841,28 +1841,14 @@ dosemu_mouse_init(void)
   }
   else 
 #endif
-  
-  if ( mice->type != MOUSE_X ){
+  {
     if (mice->intdrv) {
       struct stat buf;
-      int mode = O_RDWR | O_NONBLOCK;
-
       m_printf("Opening internal mouse: %s\n", mice->dev);
-      stat(mice->dev, &buf);
-      if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
-	/* no write permission is necessary for FIFO's (eg., gpm) */
-        mode = O_RDONLY | O_NONBLOCK;
-      }
-      mice->fd = DOS_SYSCALL(open(mice->dev, mode));
-      if (mice->fd == -1) {
-	error("Cannot open internal mouse device %s\n",mice->dev);
- 	mice->intdrv = FALSE;
- 	mice->type = MOUSE_NONE;
- 	mice->add_to_io_select = 0;
+      if (!parent_open_mouse())
  	return;
-      }
-      /* want_sigio causes problems with internal mouse driver */
-      add_to_io_select(mice->fd, mice->add_to_io_select);
+
+      fstat(mice->fd, &buf);
       if (!S_ISFIFO(buf.st_mode) && mice->type != MOUSE_BUSMOUSE && mice->type != MOUSE_PS2)
         DOSEMUSetupMouse();
       /* this is only to try to get the initial internal driver two/three
@@ -1889,18 +1875,6 @@ dosemu_mouse_init(void)
         m_printf("MOUSE: Mouse configured in serial config! num_ser=%d\n",config.num_ser);
       }
     }
-  }
-  else {
-    mice->fd = mousepipe;
-    if (mice->fd == -1) {
-      mice->intdrv = FALSE;
-      mice->type = MOUSE_NONE;
-      mice->add_to_io_select = 1;
-      return;
-    }
-    add_to_io_select(mice->fd, mice->add_to_io_select);
-    DOSEMUSetupMouse();
-    memcpy(p,mouse_ver,sizeof(mouse_ver));
   }
 
   if (mice->type != MOUSE_X) {
@@ -1962,16 +1936,39 @@ void parent_close_mouse (void)
     child_close_mouse ();
 }
 
-void parent_open_mouse (void)
+int parent_open_mouse (void)
 {
   if (mice->intdrv)
     {
-      mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
-      if (mice->fd > 0)
-	add_to_io_select(mice->fd, mice->add_to_io_select);
+      struct stat buf;
+      int mode = O_RDWR | O_NONBLOCK;
+  
+      stat(mice->dev, &buf);
+      if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
+	/* no write permission is necessary for FIFO's (eg., gpm) */
+        mode = O_RDONLY | O_NONBLOCK;
+      }
+      mice->fd = -1;
+      /* gpm + non-graphics mode doesn't work */
+      if (!S_ISFIFO(buf.st_mode) || config.vga)
+      {
+        mice->fd = DOS_SYSCALL(open(mice->dev, mode));
+        if (mice->fd == -1) {
+          error("Cannot open internal mouse device %s\n",mice->dev);
+        }
+      }
+      if (mice->fd == -1) {
+ 	mice->intdrv = FALSE;
+ 	mice->type = MOUSE_NONE;
+ 	mice->add_to_io_select = 0;
+ 	return 0;
+      }
+      /* want_sigio causes problems with internal mouse driver */
+      add_to_io_select(mice->fd, mice->add_to_io_select);
     }
   else
     child_open_mouse ();
+  return 1;
 }
 
 void

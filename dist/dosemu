@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 #
 # (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
 #
@@ -15,9 +15,17 @@ usage () {
   echo "
 USAGE:
 
- [x]dosemu [-dumb] [-home] [-quiet] [-input] [-s] [-install nameofbootdir] [args...]
+ [x]dosemu [-dumb] [-home] [-quiet] [-input] [-s] [-install [nameofbootdir]] [args...]
 "
   exit 1
+}
+
+create_dosemurc() {
+    echo "
+#This is .dosemurc, the user-specific DOSEMU configuration file.
+#See $SYSTEM_CONF_PATH/dosemu.conf for examples of other options.
+\$_hdimage = \"$BOOTDIR\"  
+" > $HOME/.dosemurc
 }
 
 install_from_template () {
@@ -26,19 +34,32 @@ install_from_template () {
     tar -xzf $SYSTEM_INSTALL_PATH/dosemu-bin.tgz
   )
   if [ -z "$PROPRIETARY" ]; then
+    BOOTDIR="$1/dosemu/freedos"
+  else
+    BOOTDIR="$PROPRIETARY"
+  fi
+  if [ -f $HOME/.dosemurc ]; then
+    echo "
+  Adjusting local configuration in $HOME/.dosemurc ...
+"
+    cat $HOME/.dosemurc | \
+      sed -e "s#[[:space:]\#]*\(\$_hdimage[[:space:]]*=[[:space:]]*\"\).*\([[:space:]\#]\)#\1$BOOTDIR\"\2#" \
+	  > $HOME/.dosemu/.dosemurc
+    mv $HOME/.dosemu/.dosemurc $HOME/.dosemurc
+  else
+    echo "
+  Storing local configuration into $HOME/.dosemurc ...
+"
+    create_dosemurc
+  fi
+  if [ -z "$PROPRIETARY" ]; then
     (cd $1
-      cat $SYSTEM_CONF_PATH/dosemu.conf | \
-       sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$1/dosemu/freedos#" \
-	  > $HOME/.dosemurc
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
     )
   else
     (cd $1
       mv dosemu/freedos/dosemu dosemu/commands
       rmdir dosemu/freedos
-      cat $SYSTEM_CONF_PATH/dosemu.conf | \
-          sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$PROPRIETARY#" \
-	  > $HOME/.dosemurc
     )
     echo "
   The DOSEMU part of the proprietary installation has been done.
@@ -62,11 +83,10 @@ install_from_template () {
 THISDIR=$PWD
 ARG0="$0"
 
-unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO
+unset DUMBTERM STRING_I LREDIRHOME PROPRIETARY QUIET USE_SUDO INSTALL
 
 SUFFIX=""
-while [ $(( $# > 0 )) = 1 ] ; do
-#NOTE, this won't work on older BASHes: while (( $# )); do
+while [ $# -gt 0 ] ; do
   case $1 in
     -dumb)
       DUMBTERM=1
@@ -79,9 +99,11 @@ while [ $(( $# > 0 )) = 1 ] ; do
       shift
       ;;
     -install)
-      if [ -z "$2" -o "${2-*}" != "$2" ]; then usage; fi
-      PROPRIETARY=$2
-      shift
+      INSTALL=1
+      if [ -n "$2" -a "${2:0:1}" != "-" ]; then
+        PROPRIETARY=$2
+        shift
+      fi
       shift
       ;;
     -quiet)
@@ -127,11 +149,12 @@ w4l_check () {
 BPATH_FILE=~/.dosemu/bindist_path
 
 # check whether this user has already got his private installation
-if [ ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dosemu/disclaimer ]; then
+if [ -n "$INSTALL" -o ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dosemu/disclaimer ]; then
 
   # This either is the first time this user calls 'dosemu'
   # or the user cd'ed here and we forced a 'take over'
 
+  mkdir -p ~/.dosemu
   if [ -z "$IS_SYSTEM_WIDE" ]; then
     # we assume this is a fresh unpacked dosemu-freedos distribution
     # In this case this script has to be called _from_ this directory.
@@ -148,10 +171,18 @@ if [ ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dosemu/disclaimer ]; 
       exit 1
     fi
     BOOT_DIR_PATH=$THISDIR
-    mkdir -p ~/.dosemu
-    cat $BOOT_DIR_PATH/conf/dosemurc.example | \
-       sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$BOOT_DIR_PATH/freedos#" \
-	  > $HOME/.dosemurc
+    echo "
+  Storing local configuration into ~/.dosemurc ...
+"
+    if [ -f $HOME/.dosemurc ]; then
+      SUBSTFILE=$HOME/.dosemurc
+    else
+      SUBSTFILE=$BOOT_DIR_PATH/conf/dosemurc.example
+    fi
+    cat $SUBSTFILE | \
+       sed -e "s#[[:space:]\#]*\(\$_hdimage[[:space:]]*=[[:space:]]*\"\).*\([[:space:]\#]\)#\1$BOOT_DIR_PATH/freedos\"\2#" \
+	  > $HOME/.dosemu/.dosemurc
+    mv $HOME/.dosemu/.dosemurc $HOME/.dosemurc
     echo $BOOT_DIR_PATH > $BPATH_FILE
 
   else
@@ -175,16 +206,15 @@ if [ ! -f $HOME/.dosemurc -a -f $BPATH_FILE -o ! -f $HOME/.dosemu/disclaimer ]; 
   and the boot.log file is in $HOME/.dosemu.
   Please adapt ~/.dosemurc to your situation; the old settings are not kept.
       "
-      cat $SYSTEM_CONF_PATH/dosemu.conf | \
-       sed -e "s#\#\([[:space:]]*\$_hdimage[[:space:]]*=[[:space:]]*\"\)freedos#\1$BOOT_DIR_PATH/freedos#" \
-	  > $HOME/.dosemurc
+      BOOTDIR=$BOOT_DIR_PATH/freedos
+      create_dosemurc
     else
       # We copy the binaries from the directory SYSTEM_INSTALL_PATH
       # to the users $HOME.
       echo "
   Going to install your private DOSEMU files into the directory
   $HOME/dosemu
-  Enter an empty string to confirm, a new path, or "none" (without
+  Enter an empty string to confirm, a new path, or \"none\" (without
   the quotes) if you don't want this:"
       read BOOT_DIR_PATH
       if [ "$BOOT_DIR_PATH" == "none" ]; then
@@ -241,11 +271,11 @@ if [ -n "$XFLAG" ]; then
   You do not have the DISPLAY variable set, but want to run DOSEMU
   in its own X-window. Set the DISPLAY variable such as
 
-      export DISPLAY=:0.0
+      DISPLAY=:0.0; export DISPLAY
 
   if running X locally or
 
-      export DISPLAY=host:0.0
+      DISPLAY=host:0.0; export DISPLAY
 
   when running remotely ('host' being the machine where you are typing at)
 
@@ -332,7 +362,8 @@ else
 fi
 
 if [ -n "$LREDIRHOME" ]; then
-  export DOSDRIVE_D="$HOME"
+  DOSDRIVE_D="$HOME"
+  export DOSDRIVE_D
 fi
 
 if [ $UID = 0 -a -f $HOME/.dosemurc ]; then

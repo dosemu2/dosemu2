@@ -156,7 +156,7 @@ extern int mouse_is_ps2(void);
 extern int mouse_int(void);
 extern void dosemu_mouse_close(void);
 extern void parent_close_mouse(void);
-extern void parent_open_mouse(void);
+extern int parent_open_mouse(void);
 extern void mouse_post_boot(void);
 extern void int74(void);
 

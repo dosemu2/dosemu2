@@ -107,8 +107,10 @@ the appropriate action ...
 	* leave dosemu.bin non-suid-root
 	* install "sudo" if you haven't already done so
 	* use "visudo" as root to add entries such as
-		joeuser   ALL=NOPASSWD: /usr/local/bin/dosemu.bin
-	  to your /etc/sudoers file.
+		joeuser   hostname=(root) NOPASSWD: /usr/local/bin/dosemu.bin
+	  to your /etc/sudoers file, where "joeuser" is the user who is
+	  allowed to run privileged DOSEMU and "hostname" is the name of
+	  your current host (use "ALL" for any host).
 	* if you change NOPASSWD to PASSWD then joeuser needs to type
 	  the user's password (not root's password) when invoking DOSEMU.
 	* invoke dosemu using "dosemu -s" when privileged functionality,

@@ -336,7 +336,7 @@ static void terminal_close (void)
 #if 0
 static void v_write(int fd, unsigned char *ch, int len)
 {
-  if (!config.console_video && !config.usesX)
+  if (!config.console_video)
     DOS_SYSCALL(write(fd, ch, len));
   else
     error("(video) v_write deferred for console_video\n");

@@ -109,10 +109,6 @@ EXTERN int console_fd INIT(-1);
 EXTERN int mem_fd INIT(-1);
 EXTERN int in_readkeyboard;
 
-/* X-pipes */
-EXTERN int keypipe;
-EXTERN int mousepipe;
-
 EXTERN int in_vm86 INIT(0);
 
 EXTERN int scanseq;
@@ -259,8 +255,6 @@ typedef struct vesamode_type_struct {
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;
-
-       u_short usesX;  /* !=0 if dosemu owns an X window */
 
        boolean console_keyb;
        boolean kbd_tty;

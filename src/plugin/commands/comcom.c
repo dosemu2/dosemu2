@@ -3512,13 +3512,17 @@ static void com_fatal_handler(int param)
 
 static int duplicate_env(int size)
 {
-	struct com_starter_seg  *ctcb = CTCB;
-	struct com_MCB *mcb = (void *)((ctcb->envir_frame-1) << 4);
+	struct com_starter_seg	*ctcb = CTCB;
+	struct com_MCB *mcb = NULL;
 	char *newenv;
-	int oldsize = mcb->size << 4;
+	int oldsize = 0;
 
 	size = (size+15) & -16;
-	if (size <= oldsize) size = oldsize;
+	if (ctcb->envir_frame != 0) {
+		mcb = (void *)((ctcb->envir_frame-1) << 4);	   
+		oldsize = mcb->size << 4;
+		if (size <= oldsize) size = oldsize;
+	}
 	newenv = (char *)com_dosallocmem(size);
 	if ((int)newenv < 0) return oldsize;	/* giving up */
 	memcpy(newenv, ((char *)mcb)+16, oldsize);

@@ -433,11 +433,6 @@ Alistair MacDonald
     endif
 
 
-   DOSEMU_HOST
-          Name of the host DOSEMU is running on. This is same as what
-          follows the `h_' configuration variable, see below. ( if not
-          available, then DOSEMU_HOST contains `unknown' )
-
    DOSEMU_USER
           The user name, that got matched in /etc/dosemu.users. This
           needs not to be the _real_ user name, it may be `all' or
@@ -883,11 +878,6 @@ Alistair MacDonald
 
       if ($DOSEMU_REAL_USER eq "alistair")
         # ha, this one is allowed to do odds sound tricks :-)
-      endif
-
-      if (strsplit($DOSEMU_HOST, 0, strchr($DOSEMU_HOST,"."))
-                                                       eq $DOSEMU_HOST)
-        # we have no domain suffix for this host, should be a local one
       endif
 
       # disable setting graphics mode per commandline option -g

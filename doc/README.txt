@@ -32,9 +32,8 @@ Alistair MacDonald
               2.1.11. Sound
               2.1.12. Joystick
               2.1.13. Networking under DOSEMU
-              2.1.14. Security settings
-              2.1.15. Settings for enabling direct hardware access
-              2.1.16. Video settings ( console only )
+              2.1.14. Settings for enabling direct hardware access
+              2.1.15. Video settings ( console only )
 
    3. Security
    4. Sound
@@ -946,41 +945,7 @@ ium
    look at chapter 15 (Net code).
      _________________________________________________________________
 
-2.1.14. Security settings
-
-   There are some features in DOSEMU, that may violate system security
-   and which you should not use on machines, which are `net open'. To
-   have atleast a minimum of protection against intruders, use the
-   folling:
-      $_secure ="ngd"  # secure for: n (normal users), g (guest), d (dexe)
-                       # empty string: depending on 'restricted'
-
-   The above is a string of which may be given or not, hence
-         $_secure ="d"
-
-   would only effect execution of DEXEs. If you are not a `restricted'
-   user (as given via /etc/dosemu.users) the above settings won't apply.
-   To disable security checking atall set
-         $_secure ="0"
-
-   NOTE: `$_secure' can not be overwritten by ~/.dosemurc.
-
-   For the similar reasons you may `backout' some host, which you don't
-   like to have access to dosemu
-      $_odd_hosts = ""    # black list such as
-                          #      "lucifer.hell.com billy.the.cat"
-      $_diskless_hosts="" # black list such as "hacker1 newbee gateway1"
-
-   The items in the lists are blank separated, `odd_hosts' checks for
-   remote logins, `diskless_hosts' are meant to be maschines, that mount
-   a complete tree, hence the checked host is the host DOSEMU is running
-   on (not the remote host). However, read README-tech,txt for more
-   details on what actually is disabled.
-
-   NOTE: `$_*_hosts' can not be overwritten by ~/.dosemurc.
-     _________________________________________________________________
-
-2.1.15. Settings for enabling direct hardware access
+2.1.14. Settings for enabling direct hardware access
 
    The following settings (together with the direct console video
    settings below make it possible for DOSEMU to access your real
@@ -1009,7 +974,7 @@ ium
                          # "3 8 10"
      _________________________________________________________________
 
-2.1.16. Video settings ( console only )
+2.1.15. Video settings ( console only )
 
    !!WARNING!!: IF YOU ENABLE GRAPHICS ON AN INCOMPATIBLE ADAPTOR, YOU
    COULD GET A BLANK SCREEN OR MESSY SCREEN EVEN AFTER EXITING DOSEMU.
@@ -1077,7 +1042,7 @@ is,
        to the user who invoked "sudo". An example /etc/sudoers entry is
        this:
 
-    joeuser   ALL=NOPASSWD: /usr/local/bin/dosemu.bin
+    joeuser  hostname=(root) NOPASSWD: /usr/local/bin/dosemu.bin
 
        If you use PASSWD instead of NOPASSWD then users need to type
        their own passwords when sudo asks for it. The "dosemu" script can

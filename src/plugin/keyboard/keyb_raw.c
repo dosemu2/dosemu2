@@ -139,17 +139,8 @@ int raw_keyboard_init(void)
 {
   k_printf("KBD(raw): raw_keyboard_init()\n");
    
-  if (config.usesX) {
-     kbd_fd = dup(keypipe);
-     if (kbd_fd < 0) {
-        error("KBD(raw): Couldn't duplicate keypipe !\n");
-        return FALSE;
-     }
-  }
-  else {
-     kbd_fd = STDIN_FILENO;
-     set_process_control();
-  }
+  kbd_fd = STDIN_FILENO;
+  set_process_control();
       
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
     error("KBD(raw): Couldn't tcgetattr(kbd_fd,...) !\n");
@@ -196,11 +187,7 @@ void raw_keyboard_close(void)
     }
     fcntl(kbd_fd, F_SETFL, save_kbd_flags);
 
-    if (!config.usesX)
-       clear_process_control();
-
-    if (config.usesX)    /* otherwise, it's stdin */
-       close(kbd_fd);
+    clear_process_control();
 
     kbd_fd = -1;
   }

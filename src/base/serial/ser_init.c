@@ -565,7 +565,7 @@ void serial_init(void)
      * to the fact the mouse is in use by Xwindows (internal driver is used)
      * Direct access to the mouse by dosemu is useful mainly at the console.
      */
-    if (com[i].mouse && (config.usesX || !config.console)) 
+    if (com[i].mouse && !config.console)
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
     else
       do_ser_init(i);
@@ -583,7 +583,7 @@ void serial_close(void)
   for (i = 0; i < config.num_ser; i++) {
     if (com[i].fd < 0)
       continue;
-    if (com[i].mouse && (config.usesX || !config.console)) 
+    if (com[i].mouse && !config.console)
       s_printf("SER%d: Not touching mouse outside of the console!\n",i);
     else {
       RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
@@ -600,7 +600,7 @@ void serial_close(void)
 void child_close_mouse(void)
 {
   static u_char i, rtrn;
-  if (!config.usesX || config.console) {
+  if (config.console) {
     s_printf("MOUSE: CLOSE function starting. num_ser=%d\n", config.num_ser);
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
@@ -626,7 +626,7 @@ void child_close_mouse(void)
 void child_open_mouse(void)
 {
   static u_char i;
-  if (!config.usesX || config.console) {
+  if (config.console) {
     s_printf("MOUSE: OPEN function starting.\n");
     for (i = 0; i < config.num_ser; i++) {
       s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",

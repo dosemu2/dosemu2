@@ -281,7 +281,6 @@ EXTERN void scr_state_init(void);
 
 extern void set_console_video(void);
 extern void clear_console_video(void);
-extern void set_consoleX_video(void);
 extern inline void console_update_cursor (int, int, int, int);
 extern int load_file(char *name, int foffset, char *mstart, int msize);
 

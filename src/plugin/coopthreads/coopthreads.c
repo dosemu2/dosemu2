@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "memory.h"
 #include "doshelpers.h"
+#include "bitops.h"
 
 #define COOPTHREADS_H_ITSELF
 #include "coopthreads.h"
@@ -167,38 +168,6 @@ struct coop__dummy {
     unsigned long   a[100];
 };
 #define DUMMYADDR (*(struct coop__dummy *) addr)
-
-
-
-static __inline__ int set_bit(int nr, void *addr)
-{
-  int oldbit;
-  __asm__ __volatile__("btsl %2,%1\n\tsbbl %0,%0"
-    :"=r" (oldbit), "=m"(DUMMYADDR)
-    :"r" (nr)
-  );
-  return oldbit;
-}
-
-static __inline__ int clear_bit(int nr, void *addr)
-{
-  int oldbit;
-  __asm__ __volatile__("btrl %2,%1\n\tsbbl %0,%0"
-    :"=r" (oldbit), "=m"(DUMMYADDR)
-    :"r" (nr)
-  );
-  return oldbit;
-}
-
-static __inline__ int test_bit(int nr, void *addr)
-{
-  int oldbit;
-  __asm__ __volatile__("btl %2,%1\n\tsbbl %0,%0"
-    :"=r" (oldbit)
-    :"m"  (DUMMYADDR), "r"(nr)
-  );
-  return oldbit;
-}
 
 /* --------------------- stack alloc stuff ------------------ */
 

@@ -2324,26 +2324,6 @@ parse_dosemu_users(void)
   }
   if (fp) fclose(fp);
 
-  /* get our own hostname and define it as 'h_hostname'
-   * and in $DOSEMU_HOST
-   */
-  {
-    char buf [128];
-    int l;
-    /* preset DOSEMU_HOST env, such that the user may not fake an other */
-    setenv("DOSEMU_HOST", "unknown", 1);
-    if (!gethostname(buf+2, sizeof(buf)-1-2)) {
-      buf[0]='h';
-      buf[1]='_';
-      l=strlen(buf+2);
-      if (!getdomainname(buf+2+1+l, sizeof(buf)-1-2-l)) {
-        if (buf[2+1+l] && strncmp(buf+2+1+l, "(none)", 6)) buf[2+l]='.';
-        define_config_variable(buf);
-        setenv("DOSEMU_HOST", buf+2, 1);
-      }
-    }
-  }
-
   /* We want to test if the _user_ is allowed to do certain privileged    */
   /* things, o check if the username connected to the get_orig_uid() is   */
   /* in the DOSEMU_USERS_FILE file (usually /etc/dosemu.users).           */

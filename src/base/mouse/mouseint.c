@@ -188,7 +188,6 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
     {	0xc0,	0x00,	0x00,	0x00,	4	},  /* IMPS/2 mouse */
   };
   
-  if (!config.usesX) {
      for ( i=0; i < nBytes; i++) {
 	/*
 	 * check, if we have a usable data byte
@@ -358,8 +357,7 @@ static int DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 	pBufP = 0;
 	return (i + 1);
      }	/* assembly full package */
-  }	/* !config.usesX */
-  return nBytes;
+     return nBytes;
 }
 
 static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
@@ -457,7 +455,7 @@ void DOSEMUMouseEvents(void)
 
 	nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
 	    sizeof(rBuf)-qEnd));
-	if (nBytes>0 && !config.usesX)
+	if (nBytes>0)
 	  qEnd += nBytes;
 	if (qBeg < qEnd) {
 	  m_printf("MOUSE: Read %d bytes. %d bytes in queue\n",

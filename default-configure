@@ -71,7 +71,7 @@ while [ "$1" != "" ]; do
     svgalib)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-use-svgalib"; fi
       ;;
-    docdir|x11fontdir|slangdir|syshdimagedir|fdtarball)
+    docdir|x11fontdir|syshdimagedir|fdtarball)
       STRING="$STRING --with-$1=$2"
       ;;
     mandir|datadir|sysconfdir|bindir|prefix)
@@ -79,6 +79,18 @@ while [ "$1" != "" ]; do
       ;;
     target_cpu)
       if [ "$2" != "auto" ]; then STRING="$STRING --target_cpu=$2"; fi
+      ;;
+    plugin_slang)
+      if [ "$2" = "on" ]; then 
+        PLUGIN="$PLUGIN slang yes";
+      else
+        PLUGIN="$PLUGIN slang no";
+        if [ "$2" = "off" ]; then 
+          STRING="$STRING --with-slangdir=default"
+        else 
+	  STRING="$STRING --with-slangdir=$2"
+	fi  
+      fi
       ;;
     plugin_*)
       plugin=`expr substr $1 8 100`

@@ -185,19 +185,6 @@ void clear_console_video(void)
   }
 }
 
-void set_consoleX_video(void)
-{
-/*  clear_screen(0, 7); */
-}
-
-#if 0
-/* unused ? -- Bart */
-void clear_consoleX_video(void)
-{
-
-}
-#endif
- 
 static int console_init(void)
 {
   return Video_term.init();

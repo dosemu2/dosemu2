@@ -207,8 +207,8 @@ int keyb_client_init(void)  {
    }
    else 
 #endif
-   if (config.usesX || config.console_keyb)  {
-      if (config.usesX || config.console)
+   if (config.console_keyb)  {
+      if (config.console)
          Keyboard = &Keyboard_raw;
       else {
 	 Keyboard = &Keyboard_slang;

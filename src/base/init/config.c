@@ -181,8 +181,8 @@ void dump_config_status(void *printfunc)
         config.X_winsize_y, config.X_gamma, config.vgaemu_memsize);
     (*print)("vesamode_list %p\nX_lfb %d\nX_pm_interface %d\n",
         config.vesamode_list, config.X_lfb, config.X_pm_interface);
-    (*print)("X_keycode %d\nX_font \"%s\"\nusesX %d\n",
-        config.X_keycode, config.X_font, config.usesX);
+    (*print)("X_keycode %d\nX_font \"%s\"\n",
+        config.X_keycode, config.X_font);
     (*print)("X_mgrab_key \"%s\"\n",  config.X_mgrab_key);
     switch (config.chipset) {
       case PLAINVGA: s = "plainvga"; break;
@@ -314,30 +314,6 @@ open_terminal_pipe(char *path)
 	return;
     } else
 	terminal_pipe = 1;
-}
-
-static void 
-open_Xkeyboard_pipe(char *path)
-{
-    keypipe = DOS_SYSCALL(open(path, O_RDWR));
-    if (keypipe == -1) {
-	keypipe = 0;
-	error("open_Xkeyboard_pipe failed - cannot open %s!\n", path);
-	return;
-    }
-    return;
-}
-
-static void 
-open_Xmouse_pipe(char *path)
-{
-    mousepipe = DOS_SYSCALL(open(path, O_RDWR));
-    if (mousepipe == -1) {
-	mousepipe = 0;
-	error("open_Xmouse_pipe failed - cannot open %s!\n", path);
-	return;
-    }
-    return;
 }
 
 static void our_envs_init(char *usedoptions)
@@ -925,29 +901,6 @@ config_init(int argc, char **argv)
 	    error("X support not compiled in\n");
 #endif
 	    break;
-	case 'Y':
-#ifdef X_SUPPORT
-	    open_Xkeyboard_pipe(optarg);
-	    config.cardtype = CARD_MDA;
-	    config.mapped_bios = 0;
-	    config.vbios_file = NULL;
-	    config.vbios_copy = 0;
-	    config.vbios_seg = 0xc000;
-	    config.console_video = 0;
-	    config.chipset = 0;
-	    config.fullrestore = 0;
-	    config.graphics = 0;
-	    config.vga = 0;	/* this flags BIOS graphics */
-	    config.usesX = 1;
-	    config.console_keyb = 1;
-#endif
-	    break;
-	case 'Z':
-#ifdef X_SUPPORT
-	    open_Xmouse_pipe(optarg);
-	    config.usesX = 1;
-#endif
-	    break;
 	case 'K':
 #if 0 /* now dummy, leave it for compatibility */
 	    warn("Keyboard interrupt enabled...this is still buggy!\n");
@@ -1078,10 +1031,6 @@ usage(char *basename)
 #ifdef X_SUPPORT
 	"    -X run in X Window (#)\n"
 #endif
-/* seems no longer valid bo 18.7.95
-	"    -Y NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n"
-	"    -Z NAME use FIFO NAME for mouse (only with x2dos!)\n"
-*/
     ,basename, basename);
     print_debug_usage(stderr);
     fprintf(stderr,

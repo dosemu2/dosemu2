@@ -51,13 +51,15 @@ global_c.c : ../../../etc/global.conf
 parser.y: parser.y.in
 	cd ../../..; ./mkpluginhooks parser
 
+parser.h: parser.c
+
 parser.c : parser.y
 	$(YACC) -v -do $@  $<
 
 lexer.l: lexer.l.in
 	cd ../../..; ./mkpluginhooks lexer
 
-lex.yy.c : lexer.l parser.y
+lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 
 
 clean::

@@ -13,11 +13,6 @@ all: default configure src/include/config.h.in
 #automatic autoconf tool rebuilds
 configure: configure.ac
 	autoreconf
-	touch src/include/config.h.in
-
-src/include/config.h.in: configure.ac
-	autoreconf
-	touch configure
 
 Makefile.conf: Makefile.conf.in configure default-configure
 	@echo "You chose not to run ./default-configure, doing it now";
@@ -59,7 +54,7 @@ export WAIT=yes
 endif
 export do_DEBUG=no
 
-default clean realclean echo help depend version install: config.status
+default clean realclean install: config.status
 	@$(MAKE) -C src -f $(REALTOPDIR)/src/arch/$(OS)/Makefile.main $@
 
 dosbin:

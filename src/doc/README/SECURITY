@@ -39,7 +39,7 @@ ports, hardware IRQs and hardware RAM.
 If DOSEMU is invoked via "sudo" then it will automatically switch to
 the user who invoked "sudo". An example /etc/sudoers entry is this:
 <screen>
-joeuser   ALL=NOPASSWD: /usr/local/bin/dosemu.bin
+joeuser  hostname=(root) NOPASSWD: /usr/local/bin/dosemu.bin
 </screen>
 If you use PASSWD instead of NOPASSWD then users need to type their
 own passwords when sudo asks for it. The "dosemu" script can be

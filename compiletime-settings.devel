@@ -13,6 +13,7 @@ config {
   plugin_kbd_unicode on
   plugin_extra_charsets on
   plugin_term on
+  plugin_slang on
   plugin_translate on
   plugin_demo off
   target_cpu auto
@@ -24,6 +25,5 @@ config {
   docdir ${datadir}/doc/dosemu
   syshdimagedir /var/lib/dosemu
   x11fontdir ${datadir}/dosemu/Xfonts
-  slangdir default
   fdtarball dosemu-freedos-bin.tgz
 }

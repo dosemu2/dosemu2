@@ -649,7 +649,7 @@ get_perm (void)
 	  FCR_W = FCR_WM;
 	}
     }
-  else if (config.usesX || (config.console_video && (config.cardtype == CARD_MDA)))
+  else if (config.console_video && (config.cardtype == CARD_MDA))
     {
       if (set_ioperm (0x3b4, 1, 1) ||
 	  set_ioperm (0x3b5, 1, 1) ||
@@ -711,7 +711,7 @@ release_perm (void)
 	      leavedos (-1);
 	    }
 	}
-      else if (config.usesX || (config.console_video && (config.cardtype == CARD_MDA)))
+      else if (config.console_video && (config.cardtype == CARD_MDA))
 	{
 	  if (set_ioperm (0x3b4, 1, 0) ||
 	      set_ioperm (0x3b5, 1, 0) ||

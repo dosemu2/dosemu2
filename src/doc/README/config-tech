@@ -424,15 +424,6 @@ endif
 </para>
 </listitem></varlistentry>
 <varlistentry>
-<term>DOSEMU_HOST</term>
-<listitem>
-<para>
- Name of the host DOSEMU is running on. This is same
-as what follows the `h_' configuration variable, see below.
-( if not available, then DOSEMU_HOST contains `unknown' )
-</para>
-</listitem></varlistentry>
-<varlistentry>
 <term>DOSEMU_USER</term>
 <listitem>
 <para>
@@ -1191,11 +1182,6 @@ dosemu and/or kernel versions. Here some small examples:
 
   if ($DOSEMU_REAL_USER eq "alistair")
     # ha, this one is allowed to do odds sound tricks :-)
-  endif
-
-  if (strsplit($DOSEMU_HOST, 0, strchr($DOSEMU_HOST,"."))
-                                                   eq $DOSEMU_HOST)
-    # we have no domain suffix for this host, should be a local one
   endif
 
   # disable setting graphics mode per commandline option -g
