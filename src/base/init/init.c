@@ -101,6 +101,8 @@ dosemu_banner(void)
  */
 void stdio_init(void)
 {
+  setbuf(stdout, NULL);
+
   if(dbg_fd) {
     warn("DBG_FD already set\n");
     return;
@@ -123,7 +125,6 @@ void stdio_init(void)
     warn("No debug output file specified, debugging information will not be printed");
   }
   sync();  /* for safety */
-  setbuf(stdout, NULL);
 }
 
 /*

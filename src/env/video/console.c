@@ -155,6 +155,7 @@ void set_console_video(void)
       while(vc_active())handle_signals();
       ioctl(console_fd, VT_ACTIVATE, scr_state.console_no);
       while(!vc_active())handle_signals();
+      handle_signals();
     }
   }
   else
