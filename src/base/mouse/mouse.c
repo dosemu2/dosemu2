@@ -1886,6 +1886,7 @@ dosemu_mouse_init(void)
       if (mice->fd >= 0) {
         mice->type = MOUSE_GPM;
         mice->intdrv = TRUE;
+        fcntl(mice->fd, F_SETFL, fcntl(mice->fd, F_GETFL) | O_NONBLOCK);
         add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
         memcpy(p,mouse_ver,sizeof(mouse_ver));
         m_printf("GPM MOUSE: Using GPM Mouse\n");
@@ -1901,7 +1902,7 @@ dosemu_mouse_init(void)
       /* save old highlight mouse tracking */
       printf("\033[?1001s");
       /* enable mouse tracking */
-      printf("\033[?1002h");	
+      printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");	
       fflush (stdout);
       m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
     }
@@ -2040,7 +2041,7 @@ dosemu_mouse_close(void)
   if (mice->type == MOUSE_X) return;   
   if (mice->type == MOUSE_XTERM) {
     /* disable mouse tracking */
-    printf("\033[?1002l");
+    printf("\033[?1003l\033[?1002l\033[?1000l\033[9l");
     /* restore old highlight mouse tracking */
     printf("\033[?1001r");
 
