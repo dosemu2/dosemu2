@@ -592,7 +592,8 @@ void child_set_flags(int sc) {
 		child_set_kbd_flag(2);
 		return;
 	case 0x38:
-		child_set_kbd_flag(3);
+		if (!child_kbd_flag(4))
+		  child_set_kbd_flag(3);
 		return;
 	case 0xaa:
 		if (child_kbd_flag(4))
@@ -609,6 +610,7 @@ void child_set_flags(int sc) {
 		return;
 	case 0xb8:
 		child_clr_kbd_flag(3);
+		child_clr_kbd_flag(4);
 		return;
 	case 0x3b:
 	case 0x3c:
@@ -649,6 +651,9 @@ void child_set_flags(int sc) {
 		  ipc_wakeparent();
 		  ipc_send2parent(DMSG_EXIT);
 		}
+		return;
+	default:
+		child_clr_kbd_flag(4);
 		return;
 	}
 }
