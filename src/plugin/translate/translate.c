@@ -216,6 +216,9 @@ static size_t attempt_piece(struct char_set_state *state,
 	t_unicode symbol,
 	unsigned char *outbuf, size_t out_len)
 {
+	if (piece == NULL) {
+		return -1;
+	}
 	if (piece->logical_chars_count == 94) {
 		offset++;
 	}
@@ -284,9 +287,12 @@ static size_t compound_charset_to_unicode(
 	else {
 		offset = (str[0] & 0x80) + 0x20;
 		piece = (offset < 0x80)?set->g0:set->g1;
-		if (piece->logical_chars_count == 94) {
+		if (piece && piece->logical_chars_count == 94) {
 			offset++;
 		}
+	}
+	if (piece == NULL) {
+		return -1;
 	}
 	return piece->ops->charset_to_unicode(
 		state, piece, offset, symbol_out, str, in_len);

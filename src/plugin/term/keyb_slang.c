@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <string.h>
+#include <ctype.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -244,77 +245,6 @@ static Keymap_Scan_Type Xterm_Xkeys[] =
 
   {"\033[Z",   KEY_TAB | SHIFT_MASK },  /* Shift-Tab */
 
-  /* some modern varieties of xterm recognize shift and ctrl (+ some others
-     but these are the most important) */
-
-  /* not in application mode */
-  {"\033[2A",   KEY_UP | SHIFT_MASK },   /* Up */
-  {"\033[2B",   KEY_DOWN | SHIFT_MASK }, /* Dn */
-  {"\033[2C",   KEY_RIGHT | SHIFT_MASK },/* Ri */
-  {"\033[2D",   KEY_LEFT | SHIFT_MASK }, /* Le */
-  {"\033[2H",   KEY_HOME | SHIFT_MASK }, /* Ho  */
-  {"\033[2F",   KEY_END | SHIFT_MASK },  /* End */
-  {"\033[5A",   KEY_UP | CTRL_MASK },    /* Up */
-  {"\033[5B",   KEY_DOWN | CTRL_MASK },  /* Dn */
-  {"\033[5C",   KEY_RIGHT | CTRL_MASK }, /* Ri */
-  {"\033[5D",   KEY_LEFT | CTRL_MASK },  /* Le */
-  {"\033[5H",   KEY_HOME | CTRL_MASK },  /* Ho  */
-  {"\033[5F",   KEY_END | CTRL_MASK },   /* End */
-  {"\033[6A",   KEY_UP | CTRL_MASK | SHIFT_MASK },   /* Up */
-  {"\033[6B",   KEY_DOWN | CTRL_MASK | SHIFT_MASK }, /* Dn */
-  {"\033[6C",   KEY_RIGHT | CTRL_MASK | SHIFT_MASK },/* Ri */
-  {"\033[6D",   KEY_LEFT | CTRL_MASK | SHIFT_MASK }, /* Le */
-  {"\033[6H",   KEY_HOME | CTRL_MASK | SHIFT_MASK }, /* Ho */
-  {"\033[6F",   KEY_END | CTRL_MASK | SHIFT_MASK },  /* End */
-
-  /* application mode (konsole / some xterm / gnome-terminal) */
-  {"\033O2A",   KEY_UP | SHIFT_MASK },   /* Up */
-  {"\033O2B",   KEY_DOWN | SHIFT_MASK }, /* Dn */
-  {"\033O2C",   KEY_RIGHT | SHIFT_MASK },/* Ri */
-  {"\033O2D",   KEY_LEFT | SHIFT_MASK }, /* Le */
-  {"\033O2H",   KEY_HOME | SHIFT_MASK }, /* Ho  */
-  {"\033O2F",   KEY_END | SHIFT_MASK },  /* End */
-  {"\033O5A",   KEY_UP | CTRL_MASK },    /* Up */
-  {"\033O5B",   KEY_DOWN | CTRL_MASK },  /* Dn */
-  {"\033O5C",   KEY_RIGHT | CTRL_MASK }, /* Ri */
-  {"\033O5D",   KEY_LEFT | CTRL_MASK },  /* Le */
-  {"\033O5H",   KEY_HOME | CTRL_MASK },  /* Ho  */
-  {"\033O5F",   KEY_END | CTRL_MASK },   /* End */
-  {"\033O6A",   KEY_UP | CTRL_MASK | SHIFT_MASK },   /* Up */
-  {"\033O6B",   KEY_DOWN | CTRL_MASK | SHIFT_MASK }, /* Dn */
-  {"\033O6C",   KEY_RIGHT | CTRL_MASK | SHIFT_MASK },/* Ri */
-  {"\033O6D",   KEY_LEFT | CTRL_MASK | SHIFT_MASK }, /* Le */
-  {"\033O6H",   KEY_HOME | CTRL_MASK | SHIFT_MASK }, /* Ho */
-  {"\033O6F",   KEY_END | CTRL_MASK | SHIFT_MASK },  /* End */
-
-  /* semicolon scheme (newer xterm) */
-  {"\033[1;2A", KEY_UP | SHIFT_MASK },   /* Up */
-  {"\033[1;2B", KEY_DOWN | SHIFT_MASK }, /* Dn */
-  {"\033[1;2C", KEY_RIGHT | SHIFT_MASK },/* Ri */
-  {"\033[1;2D", KEY_LEFT | SHIFT_MASK }, /* Le */
-  {"\033[1;2H", KEY_HOME | SHIFT_MASK }, /* Ho  */
-  {"\033[1;2F", KEY_END | SHIFT_MASK },  /* End */
-  {"\033[2;2~", KEY_INS | SHIFT_MASK },  /* Ins */
-  {"\033[3;2~", KEY_DEL | SHIFT_MASK },  /* Del */
-  {"\033[5;2~", KEY_PGUP | SHIFT_MASK }, /* PgUp */
-  {"\033[6;2~", KEY_PGDN | SHIFT_MASK }, /* PgDn */
-  {"\033[1;5A", KEY_UP | CTRL_MASK },    /* Up */
-  {"\033[1;5B", KEY_DOWN | CTRL_MASK },  /* Dn */
-  {"\033[1;5C", KEY_RIGHT | CTRL_MASK }, /* Ri */
-  {"\033[1;5D", KEY_LEFT | CTRL_MASK },  /* Le */
-  {"\033[1;5H", KEY_HOME | CTRL_MASK },  /* Ho  */
-  {"\033[1;5F", KEY_END | CTRL_MASK },   /* End */
-  {"\033[1;6A", KEY_UP | CTRL_MASK | SHIFT_MASK },   /* Up */
-  {"\033[1;6B", KEY_DOWN | CTRL_MASK | SHIFT_MASK }, /* Dn */
-  {"\033[1;6C", KEY_RIGHT | CTRL_MASK | SHIFT_MASK },/* Ri */
-  {"\033[1;6D", KEY_LEFT | CTRL_MASK | SHIFT_MASK }, /* Le */
-  {"\033[1;6H", KEY_HOME | CTRL_MASK | SHIFT_MASK }, /* Ho */
-  {"\033[1;6F", KEY_END | CTRL_MASK | SHIFT_MASK },  /* End */
-  {"\033[2;5~", KEY_INS | CTRL_MASK },   /* Ins */
-  {"\033[3;5~", KEY_DEL | CTRL_MASK },   /* Del */
-  {"\033[5;5~", KEY_PGUP | CTRL_MASK },  /* PgUp */
-  {"\033[6;5~", KEY_PGDN | CTRL_MASK },  /* PgDn */
-  
   /* rxvt keys */
   {"\033[a",    KEY_UP | SHIFT_MASK },   /* Up */
   {"\033[b",    KEY_DOWN | SHIFT_MASK }, /* Dn */
@@ -324,16 +254,6 @@ static Keymap_Scan_Type Xterm_Xkeys[] =
   {"\033Ob",    KEY_DOWN | CTRL_MASK },  /* Dn */
   {"\033Oc",    KEY_RIGHT | CTRL_MASK }, /* Ri */
   {"\033Od",    KEY_LEFT | CTRL_MASK },  /* Le */
-  {"\033[5^",   KEY_PGUP | CTRL_MASK },  /* PgUp */
-  {"\033[6^",   KEY_PGDN | CTRL_MASK },  /* PgDn */
-  {"\033[7^",   KEY_HOME | CTRL_MASK },  /* Ho */
-  {"\033[8^",   KEY_END | CTRL_MASK },   /* End */
-  {"\033[7$",   KEY_HOME | SHIFT_MASK }, /* Ho */
-  {"\033[8$",   KEY_END | SHIFT_MASK },  /* End */
-  {"\033[2^",   KEY_INS | CTRL_MASK },   /* Ins */
-  {"\033[3^",   KEY_DEL | CTRL_MASK },   /* Del */
-  {"\033[2$",   KEY_INS | SHIFT_MASK },  /* Ins */
-  {"\033[3$",   KEY_DEL | SHIFT_MASK },  /* Del */
 
   {"", 0}
 };
@@ -1208,11 +1128,76 @@ static void do_slang_special_keys(unsigned long scan)
 	DOSemu_Keyboard_Keymap_Prompt = keymap_prompts[prompt_no];
 }
 
+/* checks for xterm and rxvt style modifiers in the escape sequence */
+static int get_modifiers(void)
+{
+	int i, mod, replacepos, modifier;
+
+	/* always starts with ^[[ or ^[O */
+	if (keyb_state.kbcount < 4 ||
+	    (keyb_state.kbp[1] != '[' && keyb_state.kbp[1] != 'O') ||
+	    /* then either a digit or digits semicolon digit (or rxvt) */
+	    !isdigit(keyb_state.kbp[2]))
+		return 0;
+
+	for (i = 3; isdigit(keyb_state.kbp[i]); i++)
+		if (i >= keyb_state.kbcount - 1)
+			return 0;
+
+	mod = keyb_state.kbp[i];
+	replacepos = i;
+	if (mod == ';') {
+		/* ^[[1;2A is special: get rid of "1;2" */
+		if (i == 3 && keyb_state.kbp[2] == '1')
+			replacepos--;
+		/* e.g. ^[[15;2~ */
+		i++;
+		if (i >= keyb_state.kbcount - 1 || !isdigit(keyb_state.kbp[i]))
+			return 0;
+	} else if (mod == '$' || mod == '^' || mod == '@') {
+		/*rxvt */
+		keyb_state.kbp[i] = '~';
+		if (mod == '$')
+			return SHIFT_MASK;
+		if (mod == '^')
+			return CTRL_MASK;
+		return CTRL_MASK | SHIFT_MASK; /* '@' */
+	} else {
+		/* e.g. ^[[2A */
+		i--;
+		if (i != 2)
+			return 0;
+		replacepos = i;
+	}
+	mod = (unsigned char)keyb_state.kbp[i] - '0';
+	if(isdigit(keyb_state.kbp[i+1])) {
+		i++;
+		mod = mod * 10 + keyb_state.kbp[i] - '0';
+	}
+	mod--;
+	/* after the digit must be a non-digit */
+	if (mod == 0 || mod > 15 ||
+	    i >= keyb_state.kbcount - 1 || isdigit(keyb_state.kbp[i+1]))
+		return 0;
+	modifier = 0;
+	if (mod & 1)
+		modifier |= SHIFT_MASK;
+	if ((mod & 2) || (mod & 8))
+		modifier |= ALT_MASK;
+	if (mod & 4)
+		modifier |= CTRL_MASK;
+	/* now remove the modifier and figure out the unmodified string */
+	memmove(&keyb_state.kbp[replacepos], &keyb_state.kbp[i+1],
+		keyb_state.kbcount - (i + 1));
+	keyb_state.kbcount -= (i - replacepos + 1);
+	return modifier;
+}
+
 static void do_slang_getkeys(void)
 {
 	SLang_Key_Type *key;
 	int cc;
-	int used_alt = 0;
+	int modifier = 0;
 
 	k_printf("KBD: do_slang_getkeys()\n");
 
@@ -1253,6 +1238,7 @@ static void do_slang_getkeys(void)
 	while (keyb_state.kbcount) {
 		unsigned long scan = 0;
 		t_unicode symbol = KEY_VOID;
+		size_t result;
 
 		keyb_state.Keystr_Len = 0;
 		keyb_state.KeyNot_Ready = 0;
@@ -1280,25 +1266,33 @@ static void do_slang_getkeys(void)
 		} 
 		
 		if (key) {
-			scan = (unsigned long) key->f.f | used_alt;
+			scan = (unsigned long) key->f.f | modifier;
 			symbol = scan & 0xFFFF;
 		} 
+		result = 1;
 		if (symbol == KEY_VOID) {
-			size_t result;
 			/* rough draft version don't stop here... */
 			result = charset_to_unicode(&keyb_state.translate_state,
 				&symbol, keyb_state.kbp, keyb_state.kbcount);
-			k_printf("KBD: got %08x\n", symbol);
+			k_printf("KBD: got %08x, result=%x\n", symbol, result);
 		}
 
-		if (!used_alt && key == NULL && symbol == KEY_ESC &&
-		    keyb_state.Keystr_Len > 1) {
+		if (key == NULL && symbol == KEY_ESC && keyb_state.Keystr_Len > 1) {
+			int old_modifier = modifier;
+			modifier = get_modifiers();
+			if (modifier != old_modifier)
+				continue;
 			keyb_state.kbcount--;
 			keyb_state.kbp++;
-			used_alt = ALT_MASK;
+			modifier = ALT_MASK;
 			continue;
 		}
-		used_alt = 0;
+		modifier = 0;
+		if (result == -1 && (unsigned char)keyb_state.kbp[0] >= 0x80) {
+			/* allow for high bit meta on dumb ascii terminals */
+			scan |= ALT_MASK;
+			symbol = keyb_state.kbp[0] & 0x7f;
+		}
 
 		keyb_state.kbcount -= keyb_state.Keystr_Len;	/* update count */
 		keyb_state.kbp += keyb_state.Keystr_Len;
