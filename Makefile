@@ -69,6 +69,7 @@ pristine distclean mrproper:  docsclean mididclean
 	(cd setup/parser; make clean)
 	rm -rf ./dist/tmp
 	rm -f man/dosemu.1 man/dosemu.bin.1 man/ru/dosemu.1 man/ru/dosemu.bin.1
+	rm -rf autom4te*.cache
 	$(srcdir)/mkpluginhooks clean
 
 tar: distclean
