@@ -966,6 +966,7 @@ void msdos_post_extender(int intr)
 		DPMI_CLIENT.stack_frame.ebx = DPMI_CLIENT.USER_DTA_OFF;
 	    } else {
 		DPMI_CLIENT.stack_frame.es = ConvertSegmentToDescriptor(REG(es));
+		HI_WORD(DPMI_CLIENT.stack_frame.ebx) = 0;
 	    }
 	    break;
 
