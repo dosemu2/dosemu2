@@ -154,6 +154,16 @@ static int open_mapping_shm(int cap)
       if (!cap)return 0;
       leavedos(2);
     }
+    /* do a test HMA mapping. kernel 2.6.1 doesn't support our mremap trick */
+    if ((int)extended_mremap(mpool, 0, PAGE_SIZE,
+			     MREMAP_MAYMOVE | MREMAP_FIXED, (void *)0x100000) == -1) {
+      Q_printf("MAPPING: not using mapshm because alias mapping does not work\n");
+      shmdt(mpool);
+      mpool = 0;
+      if (!cap)return 0;
+      leavedos(2);
+    }
+    munmap((void *)0x100000, PAGE_SIZE);
     if (pgmalloc_init(mpool_numpages, mpool_numpages/4, mpool)) {
       error("MAPPING: cannot get table mem for pgmalloc_init \n",strerror(errno));
       if (!cap)return 0;
