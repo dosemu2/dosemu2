@@ -612,6 +612,11 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 	if (lfn_sfn_match(dir->pattern, de, name_lfn, name_8_3) != 0)
 		return 0;	
 
+	if (!strcmp(de->d_long_name,".") || !strcmp(de->d_long_name,"..")) {
+		if (strlen(dir->dirbase) <= drives[dir->drive].root_len)
+			return 0;
+	}
+
 	fpath = malloc(strlen(dir->dirbase) + 1 + strlen(de->d_long_name) + 1);
 	strcpy(fpath, dir->dirbase);
 	strcat(fpath, "/");
@@ -899,8 +904,8 @@ int mfs_lfn(void)
 		d_printf("LFN: getcwd %s %s\n", cwd, fpath);
 		d_printf("LFN: %p %d %p %s\n", drive_cds(drive), drive, dest,
 			 fpath+drives[drive].root_len);
-		make_unmake_dos_mangled_path(dest, fpath, drive, 0);
-		memmove(dest, dest + 3, strlen(dest + 3) + 1);
+		make_unmake_dos_mangled_path(fpath2, fpath, drive, 0);
+		strcpy(dest, fpath2 + 3);
 		break;
 	case 0x4e: /* find first */
 	{
@@ -910,8 +915,6 @@ int mfs_lfn(void)
 		slash = strrchr(fpath, '/');
 		d_printf("LFN: posix:%s\n", fpath);
 		*slash++ = '\0';
-		if (slash - 3 > fpath && slash[-3] == '/' && slash[-2] == '.')
-			slash[-3] = '\0';
 		/* note: DJGPP doesn't like "0" as a directory handle */
 		for (dirhandle = 1; dirhandle < MAX_OPEN_DIRS; dirhandle++)
 			if (lfndirs[dirhandle] == NULL)
