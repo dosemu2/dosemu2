@@ -10,7 +10,7 @@ CC=@CC@
 #INCDIR = -I../ -I../include/
 CFLAGS+= $(KERNEL) # -DWANT_WINDOWS
 
-ALL = dpmi.c dpmi.h meminfo.c meminfo.h memory.c msdos.h kernel.diff winemu.bat
+ALL = dpmi.c dpmi.h meminfo.c meminfo.h memory.c msdos.h winemu.bat
 
 SUBDIR=dpmi
 

@@ -98,6 +98,7 @@ static const struct
     { XK_Alt_L,         KEY_L_ALT },
     { XK_Meta_R,        KEY_R_ALT },
     { XK_Alt_R,         KEY_R_ALT },
+    { XK_Mode_switch,   KEY_R_ALT },
 
     { XK_Scroll_Lock,   KEY_SCROLL },
     { XK_Break,         KEY_BREAK },

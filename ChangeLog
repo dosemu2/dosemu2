@@ -1,3 +1,13 @@
+97/05/31 ver. 0.67.4 released
+	From Alberto
+	- disable ctrl-alt-del. (as its broken, better disable it)
+	- deleted (unused) dos_ctrlc()
+	From ??? <uweigand@easynet.de>
+	- Several bugfixes to new keyboard code
+	  - Raw client: ALT+Letter - Translation on non-US keyboards
+	  - X client: didn't set AltGr flag in BIOS shiftstate (non-US)
+	  - All clients: cursor block keys should yield ascii code 0xE0
+	  - Hooking INT 15 AH=4F did not work
 97/05/31 ver. 0.67.3.4 unofficial pre-release
 				( taking over stuff from final 0.66.5 )
 	From Hans

@@ -117,8 +117,9 @@ EXTERN int scanseq;
 EXTERN int cursor_row;
 EXTERN int cursor_col;
 
-void dos_ctrlc(void), dos_ctrl_alt_del(void);
-int ext_fs(int, char *, char *, int);
+#if 0
+void dos_ctrl_alt_del(void);	/* disabled */
+#endif
 
 EXTERN void run_vm86(void);
 EXTERN void     vm86_GP_fault();

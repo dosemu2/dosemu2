@@ -723,11 +723,13 @@ cursor (unsigned int sc)
   if (sc < 0x47 || sc > 0x53)
     return;
 
-  /* do dos_ctrl_alt_del on C-A-Del and C-A-PGUP */
+  /* leave dosemu on C-A-PGDN */
   if (kbd_flag (KF_CTRL) && kbd_flag (KF_ALT))
     {
+#if 0	/* C-A-D, C-A-PgUp are disabled */
       if (sc == 0x53 /*del*/  || sc == 0x49 /*pgup*/ )
 	dos_ctrl_alt_del ();
+#endif
       if (sc == 0x51)
 	{			/*pgdn*/
 	  k_printf ("KBD: ctrl-alt-pgdn taking her down!\n");

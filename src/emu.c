@@ -432,6 +432,7 @@ emulate(int argc, char **argv)
     leavedos(99);
 }
 
+#if 0    /* disable C-A-D until someone will fix it (if really needed) */
 extern void HMA_MAP(int);
 
 void
@@ -462,17 +463,6 @@ dos_ctrl_alt_del(void)
     memory_init();
     boot();
     timer_interrupt_init();	/* start sending int 8h int signals */
-}
-
-#if 0    /* this appears to be unused. */
-void
-dos_ctrlc(void)
-{
-    k_printf("DOS ctrl-c!\n");
-    p_dos_str("^C\n\r");	/* print ctrl-c message */
-    keybuf_clear();
-
-    do_soft_int(0x23);
 }
 #endif
 

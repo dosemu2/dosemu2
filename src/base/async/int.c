@@ -1436,7 +1436,7 @@ if (i== 0x2f) {
 }
 #endif
 
-  if ((LWORD(cs)) != BIOSSEG && IS_REDIRECTED(i) && can_revector(i)){
+  if ((LWORD(cs) != BIOSSEG || LWORD(eip) != (i * 16 + 2)) && IS_REDIRECTED(i) && can_revector(i)){
     run_int(i);
     return;
   }

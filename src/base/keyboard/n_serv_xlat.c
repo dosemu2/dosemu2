@@ -309,6 +309,10 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
       /* all shiftstates */
       if (key==KEY_SPACE) ascii=' ';
       if (key==KEY_DEL) ascii=0;
+      
+      /* distinction cursor block / keypad */
+      if (ascii == 0 && (key&0xff00) == 0xe000)
+         ascii = 0xe0;
    }
    else { /* !make */
       if (key==KEY_SYSRQ) {
@@ -521,12 +525,13 @@ static Boolean handle_dosemu_keys(t_keysym key) {
 
    if ((shiftstate&CTRL) && (shiftstate&ALT)) {
       switch(key) {
+#if 0	/* C-A-D is disabled */
        case KEY_DEL:
        case KEY_PGUP:
              k_printf("KBD: Ctrl-Alt-{Del|PgUp}: rebooting dosemu\n");
              dos_ctrl_alt_del();
              return 1;
-
+#endif
        case KEY_PGDN:
              k_printf("KBD: Ctrl-Alt-PgDn: bye bye!\n");
              leavedos(0);
@@ -633,6 +638,14 @@ void putrawkey(t_rawkeycode code) {
       is_shift = do_shift_keys(make,key);
 
       ascii = (make && !is_shift) ? translate(key, &is_accent) : 0;
+
+      /* quick hack: translate ALT+letter keys */
+      if (   config.keyboard != KEYB_US && (shiftstate & ALT)
+          && config.key_map[key] >= 'a' && config.key_map[key] <= 'z')
+      {
+        extern const Bit8u ascii_keys[];
+        key = ascii_keys[config.key_map[key] - 0x20];
+      }
 
 #if 0     
       k_printf("KBD: in putrawkey(): make=%d is_shift=%d key=%08x isaccent=%d ascii=0x%02x\n",

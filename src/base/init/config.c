@@ -504,11 +504,13 @@ config_init(int argc, char **argv)
 	}
     }
     if (config.X) {
+#ifndef NEW_KBD_CODE
 	if (!config.X_keycode) {
 	    extern void keyb_layout(int layout);
 	    keyb_layout(-1);
 	    c_printf("CONF: Forceing neutral Keyboard-layout, X-server will translate\n");
 	}
+#endif /* NEW_KBD_CODE */
 	config.console_video = config.vga = config.graphics = 0;
     }
     check_for_env_autoexec_or_config();
