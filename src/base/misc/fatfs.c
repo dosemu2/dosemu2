@@ -45,6 +45,7 @@
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#include "emu.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -56,7 +57,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "emu.h"
 #include "disks.h"
 #include "fatfs.h"
 #include "doshelpers.h"
@@ -1075,10 +1075,11 @@ void build_boot_blk(fatfs_t *f)
    * Make sure this messages are not too long; they should not extend
    * beyond 0x7ded (incl. final '\0').
    */
-  char *msg = "\r\nSorry, could not load an operating system.\r\n"
+  char *msg_f = "\r\nSorry, could not load an operating system from\r\n%s\r\n\r\n"
 "Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n";
-  char *msg1 = "\r\nSorry, there is no operating system.\r\n"
+  char *msg1_f = "\r\nSorry, there is no operating system here:\r\n%s\r\n\r\n"
 "Please try to install FreeDOS from dosemu-freedos-*-bin.tgz\r\n";
+  char *msg, *msg1;
 
   int i;
   unsigned r_o, d_o, t_o;
@@ -1087,6 +1088,8 @@ void build_boot_blk(fatfs_t *f)
 
   if(!(f->boot_sec = malloc(0x200))) return;
 
+  asprintf(&msg, msg_f, f->dir);
+  asprintf(&msg1, msg1_f, f->dir);
   b = f->boot_sec;
   memset(b, 0, 0x200);
   b[0x00] = 0xeb;	/* jmp 0x7c40 */
@@ -1234,6 +1237,8 @@ void build_boot_blk(fatfs_t *f)
       fatfs_msg("boot block has no boot program\n");
       break;
   }
+  free(msg);
+  free(msg1);
 }
 
 
