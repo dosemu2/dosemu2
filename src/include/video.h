@@ -99,6 +99,7 @@ struct video_system {
    boolean is_mapped;          /* if true, video ram is directly mapped and
                                   update_screen is not needed. */
 
+   int (*priv_init)(void);     /* does setup which needs root privileges */
    int (*init)(void);              /* does all frontend-specific setup,
                                   like mapping video memory, opening XWindow,
                                   etc. */
@@ -265,7 +266,6 @@ EXTERN void init_vga_card(void);
 EXTERN void scr_state_init(void);
 
 extern void set_console_video(void);
-extern void console_video_post_init(void);
 extern void clear_console_video(void);
 extern inline void console_update_cursor (int, int, int, int);
 extern int load_file(char *name, int foffset, char *mstart, int msize);

@@ -100,15 +100,16 @@ void set_console_video(void)
   }
 }
 
-void console_video_post_init(void)
+static void console_post_init(void)
 {
-  if (config.console_video) {
-    int kdmode;
-    k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
-    /* Some escape sequences don't work in KD_GRAPHICS... */
-    kdmode = config.vga? KD_GRAPHICS: KD_TEXT;
-    ioctl(console_fd, KDSETMODE, kdmode);
-  }
+  int kdmode;
+  if (!config.vga)
+    Video_term.init();
+  set_process_control();
+  k_printf("KBD: Taking mouse control\n");  /* Actually only in KD_GRAPHICS... */
+  /* Some escape sequences don't work in KD_GRAPHICS... */
+  kdmode = config.vga? KD_GRAPHICS: KD_TEXT;
+  ioctl(console_fd, KDSETMODE, kdmode);
 
   /* Clear the Linux console screen. The console recognizes these codes: 
    * \033[?25h = show cursor.
@@ -131,7 +132,7 @@ void console_video_post_init(void)
                                                    saw@shade.msu.ru
   */
   
-  if (config.console_video && config.force_vt_switch && !vc_active()) {
+  if (config.force_vt_switch && !vc_active()) {
     if (ioctl(console_fd, VT_ACTIVATE, scr_state.console_no)<0)
       v_printf("VID: error VT switching %s\n", strerror(errno));
   }
@@ -190,7 +191,7 @@ void clear_console_video(void)
 
 static int console_init(void)
 {
-  return Video_term.init();
+  return 0;
 }
 
 static void console_close(void)
@@ -203,6 +204,7 @@ static void console_close(void)
 struct video_system Video_console = {
    1,                /* is_mapped */
    console_init,
+   console_post_init,
    console_close,
    console_setmode,
    NULL,             /* update_screen */

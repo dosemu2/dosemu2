@@ -366,6 +366,7 @@ if (old != Video->is_mapped) {
 struct video_system Video_dualmon = {
    1,                /* is_mapped, will be overwritten by parent Video system */
    dualmon_init,
+   NULL,
    dualmon_close,
    dualmon_setmode,
    dualmon_update_screen,             /* update_screen */

@@ -613,6 +613,7 @@ void kdos_close_msg(void);
 struct video_system Video_X = 
 {
    0,                /* is_mapped */
+   0,
    X_init,         
    X_close,      
    X_set_videomode,      
@@ -630,12 +631,7 @@ static Display *XKBOpenDisplay(char *display_name)
 {
 	Display *dpy;
 #ifndef HAVE_XKB
-	{
-		PRIV_SAVE_AREA
-		enter_priv_on();	
-		dpy = XOpenDisplay(display_name);
-		leave_priv_setting();
-	}
+	dpy = XOpenDisplay(display_name);
 #else /* HAVE_XKB */
 	int use_xkb;
 	int major_version, minor_version;
@@ -649,12 +645,7 @@ static Display *XKBOpenDisplay(char *display_name)
 	 * sure the library doesn't either.
 	 */
 	XkbIgnoreExtension(!use_xkb);
-	{
-		PRIV_SAVE_AREA
-		enter_priv_on();
-		dpy = XOpenDisplay(display_name);
-		leave_priv_setting();
-	}
+	dpy = XOpenDisplay(display_name);
 	if (dpy == NULL) {
 		return NULL;
 	}
@@ -877,6 +868,10 @@ int X_init()
   X_screen.r_bits = X_csd.r_bits;
   X_screen.g_bits = X_csd.g_bits;
   X_screen.b_bits = X_csd.b_bits;
+  if(vga_emu_init(&X_screen)) {
+    error("X: X_init: VGAEmu init failed!\n");
+    leavedos(99);
+  }
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
   if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
@@ -887,25 +882,18 @@ int X_init()
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
 
-#if CONFIG_X_SPEAKER
-  register_speaker(display, X_speaker_on, X_speaker_off);
-#endif
-
-  return 0;
-}
-
-void X_init_videomode(void)
-{
-  if(vga_emu_init(&X_screen)) {
-    error("X: X_init: VGAEmu init failed!\n");
-    leavedos(99);
-  }
   /* start with some standard text mode */
   X_set_videomode(TEXT, co, li);
   mouse_reset_to_current_video_mode();
 
   if (config.X_fullscreen)
     toggle_fullscreen_mode();
+
+#if CONFIG_X_SPEAKER
+  register_speaker(display, X_speaker_on, X_speaker_off);
+#endif
+
+  return 0;
 }
 
 /*

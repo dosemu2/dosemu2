@@ -378,11 +378,6 @@ emulate(int argc, char **argv)
 
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
-#ifdef X_SUPPORT
-    if (config.X)		/* and the same is true for vgaemu */
-      X_init_videomode();
-#endif
-    
     memory_init();		/* initialize the memory contents */
     iodev_reset();		/* reset all i/o devices          */
     boot();			/* read the boot sector & get moving */

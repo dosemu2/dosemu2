@@ -453,6 +453,7 @@ static void hga_close(void)
 struct video_system Video_hgc = {
    1,                /* is_mapped */
    hgc_init,
+   NULL,
    hga_close,
    hgc_setmode,
    NULL,             /* update_screen */

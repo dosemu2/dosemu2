@@ -598,6 +598,7 @@ void dos_slang_smart_set_mono (void)
 
 struct video_system Video_term = {
    0,                /* is_mapped */
+   NULL,
    terminal_initialize, 
    terminal_close,      
    term_setmode,      

@@ -44,6 +44,7 @@ static int i_empty_3int (int type, int xsize, int ysize) {return 0;}
 
 struct video_system Video_none = {
   0,		/* is_mapped */
+  i_empty_void,	/* priv_init */
   i_empty_void,	/* init */
   v_empty_void,	/* close */
   i_empty_3int,	/* setmode */
@@ -99,7 +100,8 @@ static int video_init(void)
   init_dualmon();
 #endif
 
-  Video->init();              /* call the specific init routine */
+  if (Video->priv_init)
+      Video->priv_init();          /* call the specific init routine */
 
   if (!Video->is_mapped) {
      /* allocate screen buffer for non-console video compare speedup */
@@ -431,41 +433,37 @@ video_config_init(void) {
   reserve_video_memory();
 }
 
-/* this function sets up the video ram mmaps and initializes
-   vc switch routines */
-void video_post_init(void)
+static void vga_post_init(void)
 {
-  if (config.console_video) {
-    if (config.vga) {
-      WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
-      WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-    }
-    set_process_control();
-    console_video_post_init();
-    if (config.vga) {
-      save_vga_state(&linux_regs);
+  /* this function sets up the video ram mmaps and initializes
+     vc switch routines */
+
+  WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+  Video_console.init();
+  save_vga_state(&linux_regs);
 #if 0
-      save_vga_state(&dosemu_regs);
-      restore_vga_state(&dosemu_regs);
+  save_vga_state(&dosemu_regs);
+  restore_vga_state(&dosemu_regs);
 #endif
-      dosemu_vga_screenon();
-      memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
-      dump_video_linux();
-      video_initialized = 1;
+  dosemu_vga_screenon();
+  memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
+  dump_video_linux();
+  video_initialized = 1;
   /* release_perm(); */
-    }
-  }
 }
 
-#define graphics_init vga_initialize
-#define graphics_close NULL
-#define graphics_setmode NULL
+void video_post_init(void)
+{
+  if (Video && Video->init) Video->init();
+}
 
 struct video_system Video_graphics = {
    1,                /* is_mapped */
-   graphics_init,
-   graphics_close,
-   graphics_setmode,
+   vga_initialize,
+   vga_post_init,
+   NULL,
+   NULL,
    NULL,             /* update_screen */
    NULL
 };
