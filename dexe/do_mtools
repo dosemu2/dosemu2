@@ -31,7 +31,9 @@ if [ "$(( `mtools -V|awk '{print $3}'|tr ',a-z' ' '|tr '.' '0'` < 306 ))" \
 fi
 
 function is_hdimage {
-  if [ "DOSEMU" = "`dd if=$1 bs=6 count=1 2>/dev/null`" ]; then
+  xxMAGIC=`dd if=$1 bs=5 count=1 2>/dev/null`
+  xxDEX=`echo -e "\016DEXE"`
+  if [ "$xxMAGIC" = "DOSEM" -o "$xxMAGIC" = "$xxDEX" ]; then
     return 0
   fi
   return 1
@@ -54,7 +56,7 @@ function do_mtool {
     offset="offset=128"
   fi
 cat > $tmprc <<EOF
-drive w: file="$device" MTOOLS_LOWER_CASE=1 MTOOLS_NO_VFAT=1 $partition $offset
+drive w: file="$device" MTOOLS_SKIP_CHECK=1 MTOOLS_LOWER_CASE=1 MTOOLS_NO_VFAT=1 $partition $offset
 EOF
   MTOOLSRC="$tmprc"
   export MTOOLSRC

@@ -1,3 +1,4 @@
+dexe { forcexdos }
 debug { config  off	disk    off	warning off	hardware off
         port    off	read    off	general off	IPC      off
         video   off	write   off	xms     off	ems      off
@@ -11,7 +12,7 @@ HogThreshold 1
 ipxsupport off
 terminal { charset latin  updatefreq 4  color on }
 X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
-video { vga }          # Use this line, if you are using VGA
+video { vga console graphics vbios_size 0x8000 }          # Use this line, if you are using VGA
 mathco on           # Math coprocessor valid values:  on  off
 cpu 80386           # CPU emulation valid values:  80[345]86
 #bootC               # Startup drive valid values:  bootA  bootC

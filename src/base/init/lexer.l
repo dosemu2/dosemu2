@@ -317,6 +317,11 @@ rdwr			return(RDWR);
 range			return(RANGE);
 fast			return(FAST);
 
+	/* dexe stuff */
+dexe			return(DEXE);
+allowdisk		return(ALLOWDISK);
+forcexdos		return(FORCEXDOS);
+
 	/* boolean values */
 
 on			{ yylval->i_value = 1; return(L_ON); }

@@ -96,14 +96,15 @@ function copy_text_file {
     $editor ${TMP}/$1
   fi
   if [ -f ${TMP}/$1 ]; then
-    docrlf=""
-    if [ "$1" != "dconfig" ]; then docrlf="-t";fi
-    if ! ${MYDIR}/do_mtools $APP_HDIMAGE mcopy -o $docrlf ${TMP}/$1 W:/${1}; then
-      echo "XXXX error during mcopy of $1 XXXX"
-      echo "may be you choose the size of the hdimage too small"
-      exit 1
-    fi 
-
+    if [ "$1" = "dconfig" ]; then
+      $DEXECONF -M -i ${TMP}/$1 $APP_HDIMAGE
+    else
+      if ! ${MYDIR}/do_mtools $APP_HDIMAGE mcopy -o -t ${TMP}/$1 W:/${1}; then
+        echo "XXXX error during mcopy of $1 XXXX"
+        echo "may be you choose the size of the hdimage too small"
+        exit 1
+      fi 
+    fi
   fi
 }
 
@@ -114,6 +115,7 @@ fi
 DDIR=`(cd ..; pwd -P)`
 MYDIR=`pwd -P`
 MKFAT=${DDIR}/src/tools/periph/mkfatimage16
+DEXECONF=${DDIR}/src/tools/periph/dexeconfig
 
 TARGDIR="/var/lib/dosemu"
 mkdir -p $TARGDIR
@@ -280,6 +282,8 @@ copy_text_file config.sys $_CONFIRM $CONFSYS
 
 copy_text_file autoexec.bat $CONFIRM $AUTOEXEC
 
+# make it executable
+chmod 755 $APP_HDIMAGE
 
 # we cleanup things
 rm -rf $TMP

@@ -274,6 +274,7 @@ $(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
 	    @XLIBSW@ @SLANGLIB@ -lc 
 	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
+	@ln -sf dos $(BINPATH)/bin/dosexec
 ifdef X_SUPPORT
 	@ln -sf dos $(BINPATH)/bin/xdos
 endif
@@ -289,6 +290,7 @@ $(LIBDOSEMU): 	emu.o base/data.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}} #
 	   -nostartfiles -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
             @XLIBSW@ @SLANGLIB@ -lc 
+	@ln -sf dos $(BINPATH)/bin/dosexec
 ifdef X_SUPPORT
 	@ln -sf dos $(BINPATH)/bin/xdos
 endif
@@ -356,6 +358,7 @@ endif
 		install -m 0700 /usr/bin/xdosemu /tmp; \
 		rm -f /usr/bin/xdosemu; \
 	fi
+	@if [ ! -e /usr/bin/dosexec ]; then ln -s dos /usr/bin/dosexec; fi
 ifdef X_SUPPORT
 	@install -m 0755 ../etc/xtermdos /usr/bin
 	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
@@ -375,7 +378,8 @@ endif
 	 echo ""; \
 	 echo "  - You need to configure DOSEMU. Read 'etc/config.dist'."; \
 	 echo "  - Update your /etc/dosemu.conf by editing a copy of './etc/config.dist'"; \
-	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
+	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU." \
+	 echo "  - Use 'dosexec' instead of 'dos' to cause DOSEMU execute a DEXE."
 ifdef X_SUPPORT
 	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."; \
 	 echo "  - Type 'xset fp rehash' before running 'xdos' for the first time ever."; \
@@ -434,7 +438,8 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	@ls -l $(DISTFILE)
 
 local_clean:
-	-rm -f $(OBJS) @X2CEXE@ x2dos.o $(BINPATH)/bin/dos $(BINPATH)/bin/xdos $(BINPATH)/bin/libdosemu *.s core \
+	-rm -f $(OBJS) @X2CEXE@ x2dos.o $(BINPATH)/bin/dos $(BINPATH)/bin/xdos \
+	  $(BINPATH)/bin/dosexec $(BINPATH)/bin/libdosemu *.s core \
 	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug base/data.o
 
 local_realclean:

@@ -44,8 +44,9 @@ In detail you need the following to make a *.dexe:
   - If all went ok, you then have a /var/lib/dosemu/myapp.dexe and this
     one can be executed via
 
-       # cd ./dexe
-       # ./dosexec myapp.dex [ dosemu-options ]
+       # dos -L myapp.dex [ dosemu-options ]
+    or
+       # dosexec myapp.dex [ dosemu-options ]
 
 Here is what ./mkdexe will print as help, when called without argument:
 
@@ -82,6 +83,18 @@ Here is what ./mkdexe will print as help, when called without argument:
                               when using  shell=c:\appname.exe
                     noapp     Make a simple bootable hdimage for standard
                               DOSEMU usage (replacement for hdimage.dist)
+
+
+If you want to change the builtin configuration file, you may use
+./src/tools/periph/dexeconfig to extract/re-insert the configuration.
+
+  # dexeconfig -x configfile dexefile
+
+extracts the configuration out of 'dexefile' and puts it into 'configfile'
+
+  # dexeconfig -i configfile dexefile
+
+does the reverse.
 
 
 It would be great, if we could collect an archive of working, free
@@ -163,5 +176,5 @@ directly access the hdimage's files, even without changing your
      do_mtools /var/lib/dosemu/hdimage mcopy W:/autoexec.bat -
 
 
-Hans, April 20, 1997
+Hans, April 30, 1997
 <lermen@fgan.de>

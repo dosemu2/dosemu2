@@ -291,7 +291,8 @@ image_auto(struct disk *dp)
     leavedos(19);
   }
 
-  if (strncmp(header, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)) {
+  if (strncmp(header, IMAGE_MAGIC, IMAGE_MAGIC_SIZE)
+		&& (*((long *)header) != DEXE_MAGIC) ) {
     error("ERROR: IMAGE %s header lacks magic string - cannot autosense!\n",
 	  dp->dev_name);
     leavedos(20);

@@ -425,11 +425,14 @@ bootA               # Startup drive valid values:  bootA  bootC
 
 #umb_max on		# be more aggressive about finding XMS UMB blocks
 
-secure off              # "on" or "off"
+secure on               # "on" or "off"
                         # if "on", then it disables DPMI access to dosemu code
                         # and also disables execution of dosemu supplied
-                        # 'unix' and 'system' commands, which may execute
+                        # 'system' commands, which may execute
                         # arbitrary Linux-commands otherwise.
+                        # NOTE: You may not be able to run some DPMI
+                        # programs, hence, before reporting such a program
+                        # as 'not running', first try to set 'secure off'.
 
 dpmi 4086               # DPMI size in K, or "off"
 xms 1024		# XMS size in K,  or "off"
@@ -645,3 +648,30 @@ sound_emu off
 
 #dosemumap /var/lib/dosemu/dosemu.map  # for dosdebug to find the map
 #logbufsize 0x20000                    # set buffersize for logging
+
+#******************* DEXE  ***********************************************
+#
+# These are the setting for DEXE type DOS application, which are executed
+# by DOSEMU via the -L option.
+# ( for what DEXE is look at ./doc/README.dexe
+#
+# set the below to force 'secure on', when -L option is used _and_ the user
+# isn't root.
+#
+dexe { secure }
+#
+# set the below, if you want that a dexe may be allowed to have additional
+# disks. Normally the hdimage containing the DOS app (the .dexe itself) is
+# the only available disk, all other 'disk {}' statement are ignored.
+#
+#dexe { allowdisk }
+#
+# set the below, if you want a DEXE to be forced to 'xdos', when X
+# available. This mainly is intended for beeing included into the
+# configuration of a DEXE file (see mkdexe). e.g. when the application
+# needs graphic it should not run on slang-terminal.
+#
+#dexe { forcexdos }
+#
+
+

@@ -79,6 +79,7 @@ struct image_header {
 
 #define IMAGE_MAGIC		"DOSEMU"
 #define IMAGE_MAGIC_SIZE	strlen(IMAGE_MAGIC)
+#define DEXE_MAGIC		0x5845440e /* 0x0e,'D','E','X' */
 #define HEADER_SIZE		128
 
 /* CMOS types for the floppies */

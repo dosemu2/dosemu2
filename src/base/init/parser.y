@@ -60,6 +60,11 @@ static struct disk nulldisk;
 static int c_hdisks = 0;
 static int c_fdisks = 0;
 
+#define DEXE_LOAD_PATH "/var/lib/dosemu"
+static int dexe_running = 0;
+static int dexe_forbid_disk = 1;
+static int dexe_secure = 1;
+
 extern struct printer lpt[NUM_PRINTERS];
 static struct printer *pptr;
 static struct printer nullptr;
@@ -89,7 +94,6 @@ extern int yylex(); /* exact argument types depend on the way you call bison */
 
 static void yyerror(char *, ...);
 static void yywarn(char *, ...);
-static void die(char *reason) NORETURN;
 void keyb_layout(int value);
 static void start_ports(void);
 static void start_mouse(void);
@@ -144,6 +148,7 @@ extern void yyrestart(FILE *input_file);
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
 %token L_SECURE
+%token DEXE ALLOWDISK FORCEXDOS
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
 %token DOSEMUMAP LOGBUFSIZE
 	/* speaker */
@@ -317,7 +322,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    if (priv_lvl && config.secure && (! $2))
 			yyerror("secure option is illegal in user config file");
 		    config.secure = $2;
-		    if ($2 > 0) c_printf("CONF: security %s\n", ($2) ? "on" : "off");
+		    if (config.secure > 0) c_printf("CONF: security %s\n", ($2) ? "on" : "off");
 		    }
 		| L_DPMI mem_bool
 		    {
@@ -407,6 +412,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		      config.sillyint = 1 << $2;
 		      c_printf("CONF: IRQ %d for irqpassing\n", $2); 
 		    }
+		| DEXE '{' dexeflags '}'
 		| HARDWARE_RAM
                     {
 		    if (priv_lvl)
@@ -433,6 +439,18 @@ x_flag		: UPDATELINES INTEGER	{ config.X_updatelines = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
 		| X_FONT STRING		{ config.X_font = $2; }
+		;
+
+dexeflags	: dexeflag
+		| dexeflags dexeflag
+		;
+
+dexeflag	: ALLOWDISK	{ if (!priv_lvl) dexe_forbid_disk = 0; }
+		| L_SECURE	{ dexe_secure = 1; }
+		| FORCEXDOS	{
+			char *env = getenv("DISPLAY");
+			if (env && env[0]) config.X = 1;
+		}
 		;
 
 	/* sb emulation */
@@ -1235,6 +1253,8 @@ static void stop_disk(int token)
 #endif
   int    mounted_rw;
 
+  if (dexe_running && dexe_forbid_disk)
+    return;
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
 
@@ -1616,13 +1636,6 @@ static void yyerror(char* string, ...)
   errors++;
 }
 
-#if 0
-static void die(char *reason)
-{
-  error("ERROR: par dead: %s\n", reason);
-  leavedos(0);
-}
-#endif
 
 /*
  * open_file - opens the configuration-file named *filename and returns
@@ -1802,6 +1815,123 @@ parse_dosemu_users(void)
 
 char *commandline_statements=0;
 
+static int has_dexe_magic(char *name)
+{
+  int fd, magic, ret;
+  enter_priv_off();
+  fd = open(name, O_RDONLY);
+  leave_priv_setting();
+  if (fd <0) return 0;
+  ret = (read(fd, &magic, 4) == 4) && (magic == DEXE_MAGIC);
+  close(fd);
+  return ret;
+}
+
+static int stat_dexe(char *name)
+{
+  struct stat s;
+  extern int is_in_groups(gid_t);
+  if (stat(name, &s)) return 0;
+  if ( ! S_ISREG(s.st_mode)) return 0;
+  if ((s.st_mode & S_IXUSR) && (s.st_uid == get_orig_uid()))
+    return has_dexe_magic(name);
+  if ((s.st_mode & S_IXGRP) && (is_in_groups(s.st_gid)))
+    return  has_dexe_magic(name); 
+  if (s.st_mode & S_IXOTH) return has_dexe_magic(name);
+  return 0;
+}
+
+static char *resolve_exec_path(char *dexename, char *ext)
+{
+  static char n[256];
+  static char name[256];
+  char *p, *path=getenv("PATH");
+
+  p = rindex(dexename, '.');
+  if ( ext && ((p && strcmp(p, ext)) || !p) )
+    sprintf(name,"%s%s",dexename,ext);
+  else
+    strcpy(name,dexename);
+
+
+  /* first try the pure file name */
+  if (!path || (name[0] == '/') || (!strncmp(name, "./", 2))) {
+    if (stat_dexe(name)) return name;
+    return 0;
+  }
+
+  /* next try the standard path for DEXE files */
+  sprintf(n, DEXE_LOAD_PATH "/%s", name);
+  if (stat_dexe(n)) return n;
+
+  /* now search in the users normal PATH */
+  path = strdup(path);
+  p= strtok(path,":");
+  while (p) {
+    sprintf(n, "%s/%s", p, name);
+    if (stat_dexe(n)) {
+      free(path);
+      return n;
+    }
+    p=strtok(0,":");
+  }
+  free(path);
+  return 0;
+}
+
+void prepare_dexe_load(char *name)
+{
+  char *n, *cbuf;
+  int fd, csize;
+
+  enter_priv_on(); /* we need search rights for 'stat' */
+  n = resolve_exec_path(name, ".dexe");
+  if (!n) {
+    n = resolve_exec_path(name, 0);
+    if (!n) {
+      leave_priv_setting();
+      error("DEXE file not found or not executable\n");
+      exit(1);
+    }
+  }
+  leave_priv_setting();
+
+  /* now we extract the configuration file */
+  fd = open(n, O_RDONLY);
+
+  lseek(fd, HEADER_SIZE + 0x200, SEEK_SET); /* just behind the MBR */
+  if ((read(fd, &csize, 4) != 4) || (csize > 0x2000)) {
+    error("broken DEXE format, configuration not found\n");
+    close(fd);
+    exit(1);
+  }
+  
+  /* we use the -I option to feed in the configuration,
+   * and we put ours in front of eventually existing options
+   */
+  if (commandline_statements) {
+    cbuf = malloc(csize+1+strlen(commandline_statements)+1);
+    read(fd, cbuf, csize);
+    cbuf[csize] = '\n';
+    strcpy(cbuf+csize+1, commandline_statements);
+  }
+  else {
+    cbuf = malloc(csize+1);
+    read(fd, cbuf, csize);
+    cbuf[csize] = 0;
+  }
+  commandline_statements = cbuf;
+  close(fd);
+
+  start_disk();
+  dptr->type = IMAGE;
+  dptr->header = HEADER_SIZE;
+  dptr->dev_name = n;
+  stop_disk(DISK);
+  dexe_running = 1;
+}
+
+
 int
 parse_config(char *confname)
 {
@@ -1812,8 +1942,6 @@ parse_config(char *confname)
   yydebug  = 1;
 #endif
 
-  c_hdisks = 0;
-  c_fdisks = 0;
 
   /* Parse valid users who can execute DOSEMU */
   parse_dosemu_users();
@@ -1831,21 +1959,35 @@ parse_config(char *confname)
 
     /* privileged options allowed? */
     priv_lvl = uid != 0 && strcmp(confname, CONFIG_FILE);
-    enter_priv_on();
-    fd = open_file(confname);
-    leave_priv_setting();
-    if (!fd) {
-      fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
+
+    /* DEXE together with option F ? */
+    if (priv_lvl && dexe_running) {
+      /* for security reasons we cannot allow this */
+      fprintf(stderr, "user cannot load DEXE file together with option -F\n");
       exit(1);
     }
-    yyin = fd;
-    line_count = 1;
-    c_printf("Parsing %s file.\n", confname);
-    file_being_parsed = malloc(strlen(confname) + 1);
-    strcpy(file_being_parsed, confname);
-    if (yyparse())
-      yyerror("error in configuration file %s", confname);
-    close_file(fd);
+
+    if (strcmp(confname, "none")) {
+      enter_priv_on();
+      fd = open_file(confname);
+      leave_priv_setting();
+      if (!fd) {
+        if (!dexe_running) {
+          fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
+          exit(1);
+        }
+      }
+      else {
+        yyin = fd;
+        line_count = 1;
+        c_printf("Parsing %s file.\n", confname);
+        file_being_parsed = malloc(strlen(confname) + 1);
+        strcpy(file_being_parsed, confname);
+        if (yyparse())
+          yyerror("error in configuration file %s", confname);
+        close_file(fd);
+      }
+    }
 
     /* privileged options allowed for user's config? */
     priv_lvl = uid != 0;
@@ -1884,6 +2026,15 @@ parse_config(char *confname)
     }
   }
 
+  /* check for global settings, that should know the whole settings
+   * This we only can do, after having parsed all statements
+   */
+
+  if (dexe_running) {
+    if (dexe_secure && get_orig_uid())
+      config.secure = 1;
+  }
+
 #ifdef TESTING
   error("TESTING: parser is terminating program\n");
   leavedos(0);
@@ -1893,6 +2044,13 @@ parse_config(char *confname)
 }
 
 #ifdef TESTING_MAIN
+
+static void die(char *reason)
+{
+  error("ERROR: par dead: %s\n", reason);
+  leavedos(0);
+}
+
 int
 main(int argc, char **argv)
 {

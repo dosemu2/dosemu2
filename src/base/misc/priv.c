@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <unistd.h>
 #include "emu.h"
 #include "priv.h"
@@ -193,6 +194,21 @@ int priv_drop(void)
 }
 #endif /* __linux__ */
 
+#define MAXGROUPS  20
+static gid_t *groups;
+static int num_groups = 0;
+
+
+int is_in_groups(gid_t gid)
+{
+  int i;
+  for (i=0; i<num_groups; i++) {
+    if (gid == groups[i]) return 1;
+  }
+  return 0;
+}
+
+
 
 void priv_init(void)
 {
@@ -213,6 +229,10 @@ void priv_init(void)
        */
   i_am_root = 1;
 #endif
+
+  num_groups = getgroups(0,0);
+  groups = malloc(num_groups * sizeof(gid_t));
+  getgroups(num_groups,groups);
 
 #ifndef RUN_AS_ROOT
   _priv_off();

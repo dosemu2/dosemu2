@@ -226,8 +226,13 @@ config_init(int argc, char **argv)
     extern char *commandline_statements;
     int             c;
     char           *confname = NULL;
+    char           *basename;
+    char           *dexe_name = 0;
 
     config_defaults();
+
+    basename = strrchr(argv[0], '/');	/* parse the program name */
+    basename = basename ? basename + 1 : argv[0];
 
 #ifdef X_SUPPORT
     /*
@@ -236,11 +241,7 @@ config_init(int argc, char **argv)
      * into X-mode. DANG_END_REMARK
      */
     {
-	char           *p;
-	p = strrchr(argv[0], '/');	/* parse the program name */
-	p = p ? p + 1 : argv[0];
-
-	if (strcmp(p, "xdos") == 0)
+	if (strcmp(basename, "xdos") == 0)
 	    config.X = 1;	/* activate X mode if dosemu was */
 	/* called as 'xdos'              */
     }
@@ -248,7 +249,7 @@ config_init(int argc, char **argv)
 
     opterr = 0;
     confname = CONFIG_FILE;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:O")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:VNtsgx:KL:m234e:E:dXY:Z:o:O")) != EOF) {
 	switch (c) {
 	case 'F':
 	    if (get_orig_uid()) {
@@ -263,6 +264,9 @@ config_init(int argc, char **argv)
 		fclose(f);
 	    }
 	    confname = optarg;	/* someone reassure me that this is *safe*? */
+	    break;
+	case 'L':
+	    dexe_name = optarg;
 	    break;
 	case 'I':
 	    commandline_statements = optarg;
@@ -292,6 +296,16 @@ config_init(int argc, char **argv)
 	}
     }
 
+    if (dexe_name || !strcmp(basename,"dosexec")) {
+	extern void prepare_dexe_load(char *name);
+	if (!dexe_name) dexe_name = argv[optind];
+	if (!dexe_name) {
+	  usage();
+	  exit(1);
+	}
+	prepare_dexe_load(dexe_name);
+    }
+
 #if defined(__NetBSD__) && defined(X_SUPPORT) && defined(X_GRAPHICS)
     { extern int selfmem_fd;
     /* do this before any set*id functions are called */
@@ -312,13 +326,14 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:Km2345e:dXY:Z:E:o:O")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:KLm2345e:dXY:Z:E:o:O")) != EOF) {
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'I':
 	case 'd':
 	case 'o':
 	case 'O':
+	case 'L':
 	    break;
 	case 'A':
 	    config.hdiskboot = 0;
@@ -671,7 +686,7 @@ static void
 usage(void)
 {
     fprintf(stdout, "dosemu 0.66\n");
-    fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
+    fprintf(stdout, "USAGE:\n dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] 2> dosdbg\n");
     fprintf(stdout, "    -2,3,4,5 choose 286, 386, 486 or 586 CPU\n");
     fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
     fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -696,6 +711,7 @@ usage(void)
     fprintf(stdout, "    -E STRING pass DOS command on command line\n");
     fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
     fprintf(stdout, "    -F use config-file File\n");
+    fprintf(stdout, "    -L load and execute DEXE File\n");
     fprintf(stdout, "    -I insert config statements (on commandline)\n");
     fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
     fprintf(stdout, "    -K Do int9 (!#)\n");
@@ -713,5 +729,7 @@ usage(void)
     fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
     fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");
     fprintf(stdout, "    (%%) require dos be run as root (i.e. suid)\n");
-    fprintf(stdout, "    (#) options do not fully work yet\n");
+    fprintf(stdout, "    (#) options do not fully work yet\n\n");
+    fprintf(stdout, "xdos [options]           == dos [options] -X\n");
+    fprintf(stdout, "dosexec [options] <file> == dos [options] -L <file>\n");
 }

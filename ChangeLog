@@ -1,3 +1,24 @@
+97/04/30 ver. 0.67.0.1 unofficial pre-release
+	From Hans
+	- further enhancements to DEXE stuff
+	  - hdimages containing DEXE get a magic "\x0eDEXE"
+	  - configuration is now (hidden from file access) put into
+	    cylinder 0 (behind the MBR)
+	  - dosemu now handles DEXE loading itself ( option -L)
+	    a 'dosexec' sym-linked dos sets -L option (like xdos does -X)
+	  - a DEXEs hdimage is always drive C, if not explicitle allowed
+	    via 'dexe { allowdisk }', no other disk will be available
+	    even if defined in /etc/dosemu.conf
+	  - Option -F is forbidden for DEXE, so the security settings
+	    in /etc/dosemu.conf can't be disabled.
+	  - 'secure on' can be forced in /etc/dosemu.conf for DEXE,
+	    even if 'off' otherwise.
+	  - 'dexe { forcexdos }' forces xdos, when DEXE is run on X.
+	    This can be included in DEXE-configurations, when the
+	    application requires graphics and would bomb on Slang otherwise.
+	  - New tool: src/tools/periph/dexeconfig, which inserts/extracts
+	    the configuration file from a DEXE
+	  - updated dexe/mkdexe to reflect the changes
 97/04/20 ver. 0.67.0 released
 	From Hans
 	- Opening the new development phase

@@ -1,9 +1,54 @@
 .\" -*- nroff -*-  (This is for Emacs)
 .TH DOS 1 "April 20, 1997" "Version ALPHA 0.66.3" "MS-DOS Emulation"
 .SH NAME
-dos, dosdebug, xdos \- run MS-DOS and MS-DOS programs under Linux and NetBSD
+dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
 .B dos
+[
+.B \-ABCcdkVNXtsgKm234O 
+]
+[
+.B \-F
+.I file
+]
+[
+.B \-L
+.I dexefile
+]
+[
+.B \-D
+.I flags
+]
+[ 
+.B \-M 
+.I size
+]
+[ 
+.B \-e 
+.I size
+]
+[ 
+.B \-x 
+.I size
+]
+[
+.B \-P 
+.I file
+]
+[
+.B \-o
+.I file
+]
+[
+2\>
+.I debugfile
+]
+[
+.B \-I
+.I config-options
+]
+.sp
+.B dosexec
 [
 .B \-ABCcdkVNXtsgKm234O 
 ]
@@ -43,6 +88,7 @@ dos, dosdebug, xdos \- run MS-DOS and MS-DOS programs under Linux and NetBSD
 .B \-I
 .I config-options
 ]
+dexefile
 .sp
 .B xtermdos
 [
@@ -156,7 +202,14 @@ is used to control or debug an already running
 .B xdos
 starts
 .B DOSEMU
-in it's own X window.
+in it's own X window. This is the same as
+.B dos -X
+.PP
+.B dosexec
+starts
+.B DOSEMU
+and executes a DEXE file. This is the same as
+.B dos -L
 .PP
 Although this program is known as the DOS
 .I emulator,
@@ -234,6 +287,10 @@ use RAW console Keyboard (must be at the console)
 .I -F
 Parse this config-file instead of /etc/dosemu.conf
 (you need to run as root for this)
+.TP
+.I -L
+Load and start a DEXE file (special preconfigured bootable hdimage
+containing just one DOS application)
 .TP
 .I -I
 Parse the string behind
