@@ -54,7 +54,7 @@ net		"enable Linux net code"
 		Normally you will let it enabled.
 
 
-dodebug		"compile with debug info"
+debug		"compile with debug info"
 
 		This uses the '-g' switch for GCC, hence you can use GDB
 		to debug DOSEMU.

@@ -44,23 +44,23 @@ while [ "$1" != "" ]; do
     experimental)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-experimental"; fi
       ;;
-    dodebug)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-dodebug"; fi
+    debug)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-debug"; fi
       ;;
     net)
-      if [ "$2" = "off" ]; then STRING="$STRING --enable-nonet"; fi
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-net"; fi
       ;;
     x)
       if [ "$2" = "off" ]; then STRING="$STRING --without-x"; fi
       ;;
     mitshm)
-      if [ "$2" = "off" ]; then STRING="$STRING --enable-nomitshm"; fi
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-mitshm"; fi
       ;;
     vidmode)
-      if [ "$2" = "off" ]; then STRING="$STRING --enable-novidmode"; fi
+      if [ "$2" = "off" ]; then STRING="$STRING --without-vidmode"; fi
       ;;
     sbemu)
-      if [ "$2" = "off" ]; then STRING="$STRING --enable-nosbemu"; fi
+      if [ "$2" = "off" ]; then STRING="$STRING --disable-sbemu"; fi
       ;;
     linkstatic)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
@@ -72,7 +72,7 @@ while [ "$1" != "" ]; do
       if [ "$2" = "on" ]; then STRING="$STRING --enable-aspi"; fi
       ;;
     svgalib)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-use-svgalib"; fi
+      if [ "$2" = "on" ]; then STRING="$STRING --with-svgalib"; fi
       ;;
     docdir|x11fontdir|syshdimagedir|fdtarball)
       STRING="$STRING --with-$1=$2"

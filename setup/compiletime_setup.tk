@@ -222,7 +222,7 @@ proc write_out {} {
 	puts $tmp_file "function setup_config () {"
 
 	write_pairs  config  { "experimental" "sbemu" "mitshm" \
-				   "x" "net" "dodebug" \
+				   "x" "net" "debug" \
 				   "linkstatic" \
 				   "cpuemu" "aspi" \
 				   "svgalib" }

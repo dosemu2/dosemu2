@@ -9,7 +9,7 @@ menu "Main Menu" {
   boolean "Use MIT Shared Memory extensions under X" mitshm
   boolean "Use X-Windows" x
   boolean "enable Linux net code" net
-  boolean "compile with debug info" dodebug
+  boolean "compile with debug info" debug
   boolean "make static binaries" linkstatic
   boolean "EXPERIMENTAL, enable CPU emulator" cpuemu
   boolean "compile with ASPI driver" aspi

@@ -5,7 +5,7 @@ config {
   vidmode on
   x on
   net on
-  dodebug off
+  debug off
   linkstatic off
   cpuemu off
   aspi on

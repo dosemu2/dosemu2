@@ -133,7 +133,7 @@ write_out() {
  if [ "@$value" = "@save" ]; then
 
   echo "function setup_config () {" > $TEMP
-  write_pairs  config  experimental sbemu mitshm x net dodebug \
+  write_pairs  config  experimental sbemu mitshm x net debug \
     newport linkstatic newx cpuemu dummydummy
   echo "}" >> $TEMP
 

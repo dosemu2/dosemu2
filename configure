@@ -851,18 +851,15 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-linkstatic     make statically linked binaries
-  --enable-use-svgalib    use svgalib if available
-
   --enable-mitshm         force use of MITSHM X extension
-  --enable-nomitshm       do NOT use the MITSHM X extension
-  --enable-novidmode      do NOT use the XF86 vidmode extension
+  --disable-mitshm        do NOT use the MITSHM X extension
+  --disable-vidmode       do NOT use the XF86 vidmode extension
   --enable-experimental   enable configuration of EXPERIMENTAL stuff
-  --enable-dodebug        do compile for with debug info
   --enable-debug          compile with debug info
-  --enable-aspi           do compile with ASPI support
-  --enable-nosbemu        do NOT use SoundBlaster emulator
+  --enable-aspi           compile with ASPI support
+  --disable-sbemu         do NOT use SoundBlaster emulator
   --enable-cpuemu         EXPERIMENTAL, compile with optional x86 emulation code
-  --enable-nonet          do NOT use Linux net code
+  --disable-net           do NOT use Linux net code
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -875,6 +872,8 @@ Optional Packages:
                           (default: /var/lib/dosemu)
   --with-fdtarball=file   give the name of the FreeDOS tarball or 'none'
                           (default: dosemu-freedos-bin.tgz)
+  --with-svgalib          use svgalib if available
+
   --with-slangdir=dir     Specify S-Lang directory
   --with-x                use the X Window System
 
@@ -4164,7 +4163,8 @@ fi
 
 
 
-for ac_header in fcntl.h limits.h syslog.h sys/file.h sys/ioctl.h sys/time.h unistd.h termios.h
+for ac_header in fcntl.h limits.h syslog.h sys/file.h sys/ioctl.h sys/time.h \
+    unistd.h termios.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then
@@ -6304,23 +6304,25 @@ LDFLAGS="-Wl,-warn-common"
 # Check whether --enable-linkstatic or --disable-linkstatic was given.
 if test "${enable_linkstatic+set}" = set; then
   enableval="$enable_linkstatic"
-  { echo "$as_me:$LINENO: Linking statically..." >&5
+
+fi;
+if test "$enable_linkstatic" = "yes"; then
+              { echo "$as_me:$LINENO: Linking statically..." >&5
 echo "$as_me: Linking statically..." >&6;}
-               LDFLAGS="${LDFLAGS} -static"
+              LDFLAGS="${LDFLAGS} -static"
 else
-  { echo "$as_me:$LINENO: Linking for shared libraries..." >&5
+	      { echo "$as_me:$LINENO: Linking for shared libraries..." >&5
 echo "$as_me: Linking for shared libraries..." >&6;}
-fi;
+fi
 
 
-# Check whether --enable-use-svgalib or --disable-use-svgalib was given.
-if test "${enable_use_svgalib+set}" = set; then
-  enableval="$enable_use_svgalib"
-  use_svgalib="yes"
-else
-  use_svgalib="no"
+
+# Check whether --with-svgalib or --without-svgalib was given.
+if test "${with_svgalib+set}" = set; then
+  withval="$with_svgalib"
+
 fi;
-if test "$use_svgalib" = "yes"; then
+if test "$with_svgalib" = "yes"; then
 
 echo "$as_me:$LINENO: checking for vga_simple_init in -lvga" >&5
 echo $ECHO_N "checking for vga_simple_init in -lvga... $ECHO_C" >&6
@@ -6384,11 +6386,11 @@ _ACEOF
   LIBS="-lvga $LIBS"
 
 else
-  use_svgalib="no"
+  with_svgalib="no"
 fi
 
 fi
-if test "$use_svgalib" = "yes"; then
+if test "$with_svgalib" = "yes"; then
   { echo "$as_me:$LINENO: Compiling with svgalib support..." >&5
 echo "$as_me: Compiling with svgalib support..." >&6;}
   cat >>confdefs.h <<\_ACEOF
@@ -6403,14 +6405,13 @@ echo "$as_me: Compiling without svgalib support..." >&6;}
 fi
 
 
-# Check whether --enable-use-pthreads or --disable-use-pthreads was given.
-if test "${enable_use_pthreads+set}" = set; then
-  enableval="$enable_use_pthreads"
-  use_pthreads="yes"
-else
-  use_pthreads="no"
+
+# Check whether --with-pthreads or --without-pthreads was given.
+if test "${with_pthreads+set}" = set; then
+  withval="$with_pthreads"
+
 fi;
-if test "$use_pthreads" = "yes"; then
+if test "$with_pthreads" = "yes"; then
 
 echo "$as_me:$LINENO: checking for pthread_create in -lpthread" >&5
 echo $ECHO_N "checking for pthread_create in -lpthread... $ECHO_C" >&6
@@ -6474,11 +6475,11 @@ _ACEOF
   LIBS="-lpthread $LIBS"
 
 else
-  use_pthreads="no"
+  with_pthreads="no"
 fi
 
 fi
-if test "$use_pthreads" = "yes"; then
+if test "$with_pthreads" = "yes"; then
   { echo "$as_me:$LINENO: Compiling with pthreads support..." >&5
 echo "$as_me: Compiling with pthreads support..." >&6;}
   cat >>confdefs.h <<\_ACEOF
@@ -8064,26 +8065,10 @@ _ACEOF
     # Check whether --enable-mitshm or --disable-mitshm was given.
 if test "${enable_mitshm+set}" = set; then
   enableval="$enable_mitshm"
-  forced_mitshm="yes"
-else
-  forced_mitshm="no"
+
 fi;
 
-    # Check whether --enable-nomitshm or --disable-nomitshm was given.
-if test "${enable_nomitshm+set}" = set; then
-  enableval="$enable_nomitshm"
-  forced_nomitshm="yes"
-else
-  forced_nomitshm="no"
-fi;
-
-    if test "$forced_mitshm" = "yes" -a "$forced_nomitshm" = "yes" ; then
-      { { echo "$as_me:$LINENO: error: Can't use --enable-mitshm and --enable-nomitshm at the same time" >&5
-echo "$as_me: error: Can't use --enable-mitshm and --enable-nomitshm at the same time" >&2;}
-   { (exit 1); exit 1; }; }
-    fi
-
-    if test "$forced_nomitshm" != "yes" -a "$no_x" != "yes" ; then
+    if test "$enable_mitshm" != "no" -a "$no_x" != "yes" ; then
       echo "$as_me:$LINENO: checking for X11/extensions/XShm.h" >&5
 echo $ECHO_N "checking for X11/extensions/XShm.h... $ECHO_C" >&6
 if test "${ac_cv_header_X11_extensions_XShm_h+set}" = set; then
@@ -8136,13 +8121,16 @@ fi
 
     fi
 
-    # Check whether --enable-novidmode or --disable-novidmode was given.
-if test "${enable_novidmode+set}" = set; then
-  enableval="$enable_novidmode"
-  { echo "$as_me:$LINENO: Compiling without the XF86 video mode extension" >&5
+    # Check whether --enable-vidmode or --disable-vidmode was given.
+if test "${enable_vidmode+set}" = set; then
+  enableval="$enable_vidmode"
+
+fi;
+    if test "$enable_vidmode" = "no"; then
+               { echo "$as_me:$LINENO: Compiling without the XF86 video mode extension" >&5
 echo "$as_me: Compiling without the XF86 video mode extension" >&6;}
-else
-  echo "$as_me:$LINENO: checking for X11/extensions/xf86vmode.h" >&5
+    else
+	       echo "$as_me:$LINENO: checking for X11/extensions/xf86vmode.h" >&5
 echo $ECHO_N "checking for X11/extensions/xf86vmode.h... $ECHO_C" >&6
 if test "${ac_cv_header_X11_extensions_xf86vmode_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -8192,7 +8180,7 @@ echo "$as_me: Compiling without the XF86 video mode extension" >&6;}
 fi
 
 
-fi;
+    fi
 fi
 
 PACKAGE_VERSION=`cat ${srcdir}/VERSION`
@@ -8258,11 +8246,9 @@ REQUIRED="tools commands tools/periph"
  # Check whether --enable-experimental or --disable-experimental was given.
 if test "${enable_experimental+set}" = set; then
   enableval="$enable_experimental"
-  experimental="yes"
-else
-  experimental="no"
+
 fi;
-  if test "$experimental" = "yes"; then
+  if test "$enable_experimental" = "yes"; then
    { echo "$as_me:$LINENO: Allowing EXPERIMENTAL stuff to be configured..." >&5
 echo "$as_me: Allowing EXPERIMENTAL stuff to be configured..." >&6;};
   else
@@ -8318,29 +8304,12 @@ fi
 subdirs="$subdirs `touch ./plugin_configure; cat ./plugin_configure`"
 
 
- # Check whether --enable-dodebug or --disable-dodebug was given.
-if test "${enable_dodebug+set}" = set; then
-  enableval="$enable_dodebug"
-  dodebug="yes"
-else
-  dodebug="no"
-fi;
-  if test "$dodebug" = "yes"; then
-   { echo "$as_me:$LINENO: Compiling with debug info..." >&5
-echo "$as_me: Compiling with debug info..." >&6;};
-  else
-   { echo "$as_me:$LINENO: Compiling without debug info..." >&5
-echo "$as_me: Compiling without debug info..." >&6;};
-  fi
-
  # Check whether --enable-debug or --disable-debug was given.
 if test "${enable_debug+set}" = set; then
   enableval="$enable_debug"
-  debug="yes"
-else
-  debug="no"
+
 fi;
-  if test "$debug" = "yes"; then
+  if test "$enable_debug" = "yes"; then
    { echo "$as_me:$LINENO: Compiling with debug info..." >&5
 echo "$as_me: Compiling with debug info..." >&6;};
   else
@@ -8351,11 +8320,9 @@ echo "$as_me: Compiling without debug info..." >&6;};
  # Check whether --enable-aspi or --disable-aspi was given.
 if test "${enable_aspi+set}" = set; then
   enableval="$enable_aspi"
-  aspi="yes"
-else
-  aspi="no"
+
 fi;
-  if test "$aspi" = "yes"; then
+  if test "$enable_aspi" = "yes"; then
    { echo "$as_me:$LINENO: Compiling with ASPI support..." >&5
 echo "$as_me: Compiling with ASPI support..." >&6;};
    cat >>confdefs.h <<\_ACEOF
@@ -8369,13 +8336,16 @@ _ACEOF
 echo "$as_me: Compiling without ASPI support..." >&6;};
   fi
 
- # Check whether --enable-nosbemu or --disable-nosbemu was given.
-if test "${enable_nosbemu+set}" = set; then
-  enableval="$enable_nosbemu"
-  { echo "$as_me:$LINENO: Compiling without SB Emulation..." >&5
+ # Check whether --enable-sbemu or --disable-sbemu was given.
+if test "${enable_sbemu+set}" = set; then
+  enableval="$enable_sbemu"
+
+fi;
+ if test "$enable_sbemu" = "no"; then
+                { echo "$as_me:$LINENO: Compiling without SB Emulation..." >&5
 echo "$as_me: Compiling without SB Emulation..." >&6;}
-else
-  { echo "$as_me:$LINENO: Compiling with SB Emulation..." >&5
+ else
+                { echo "$as_me:$LINENO: Compiling with SB Emulation..." >&5
 echo "$as_me: Compiling with SB Emulation..." >&6;}
                 cat >>confdefs.h <<\_ACEOF
 #define USE_SBEMU 1
@@ -8448,7 +8418,7 @@ _ACEOF
 fi
 
 
-fi;
+ fi
 
 
 
@@ -8466,7 +8436,7 @@ INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include ${S
 
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
-if test "$dodebug" = "yes" -o "$debug" = "yes"; then
+if test "$enable_debug" = "yes"; then
   CFLAGS="$CFLAGS -gstabs+"
   cat >>confdefs.h <<\_ACEOF
 #define _DEBUG 1
@@ -8483,11 +8453,9 @@ fi
  # Check whether --enable-cpuemu or --disable-cpuemu was given.
 if test "${enable_cpuemu+set}" = set; then
   enableval="$enable_cpuemu"
-  cpuemu="yes"
-else
-  cpuemu="no"
+
 fi;
-  if test "$cpuemu" = "yes" -a "$experimental" = "yes"; then
+  if test "$enable_cpuemu" = "yes" -a "$enable_experimental" = "yes"; then
    { echo "$as_me:$LINENO: Compiling with optional 386 emulation code..." >&5
 echo "$as_me: Compiling with optional 386 emulation code..." >&6;};
    cat >>confdefs.h <<_ACEOF
@@ -8528,14 +8496,12 @@ _ACEOF
 if test "$CONFIG_HOST" = "linux"; then
  { echo "$as_me:$LINENO: Linux Specific build options..." >&5
 echo "$as_me: Linux Specific build options..." >&6;}
-   # Check whether --enable-nonet or --disable-nonet was given.
-if test "${enable_nonet+set}" = set; then
-  enableval="$enable_nonet"
-  nonet="yes"
-else
-  nonet="no"
+   # Check whether --enable-net or --disable-net was given.
+if test "${enable_net+set}" = set; then
+  enableval="$enable_net"
+
 fi;
-  if test "$nonet" = "yes"; then
+  if test "$enable_net" = "no"; then
     { echo "$as_me:$LINENO: Compiling without network support..." >&5
 echo "$as_me: Compiling without network support..." >&6;};
   else
