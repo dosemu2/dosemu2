@@ -37,11 +37,6 @@
 
 #define MAX_DOS_PATH 260
 
-/* We use static varialbes because DOS in non-reentrant, but maybe a */
-/* better way? */
-static unsigned short DS_MAPPED;
-static unsigned short ES_MAPPED;
-
 static void prepare_ems_frame(void)
 {
     if (DPMI_CLIENT.ems_frame_mapped)
@@ -57,6 +52,91 @@ static void restore_ems_frame(void)
 	return;
     emm_set_map_registers(DPMI_CLIENT.ems_map_buffer);
     DPMI_CLIENT.ems_frame_mapped = 0;
+}
+
+static int need_copy_dseg(struct sigcontext_struct *scp, int intr)
+{
+    switch (intr) {
+	case 0x21:
+	    switch (_HI(ax)) {
+		case 0x0a:		/* buffered keyboard input */
+		case 0x38:
+		case 0x5a:		/* mktemp */
+		case 0x5d:		/* Critical Error Information  */
+		case 0x69:
+		    return 1;
+		case 0x44:		/* IOCTL */
+		    switch (_LO(ax)) {
+			case 0x02 ... 0x05:
+			case 0x0c: case 0x0d:
+			    return 1;
+		    }
+		    break;
+		case 0x5e:
+		    return (_LO(ax) != 0x03);
+	    }
+	    break;
+	case 0x25:			/* Absolute Disk Read */
+	case 0x26:			/* Absolute Disk write */
+	    return 1;
+    }
+
+    return 0;
+}
+
+static int need_copy_eseg(struct sigcontext_struct *scp, int intr)
+{
+    switch (intr) {
+	case 0x10:			/* video */
+	    switch (_HI(ax)) {
+		case 0x10:		/* Set/Get Palette Registers (EGA/VGA) */
+		    switch(_LO(ax)) {
+			case 0x2:		/* set all palette registers and border */
+			case 0x09:		/* ead palette registers and border (PS/2) */
+			case 0x12:		/* set block of DAC color registers */
+			case 0x17:		/* read block of DAC color registers */
+			    return 1;
+		    }
+		    break;
+		case 0x11:		/* Character Generator Routine (EGA/VGA) */
+		    switch (_LO(ax)) {
+			case 0x0:		/* user character load */
+			case 0x10:		/* user specified character definition table */
+			case 0x20: case 0x21:
+			    return 1;
+		    }
+		    break;
+		case 0x13:		/* Write String */
+		case 0x15:		/*  Return Physical Display Parms */
+		case 0x1b:
+		    return 1;
+		case 0x1c:
+		    if (_LO(ax) == 1 || _LO(ax) == 2)
+			return 1;
+		    break;
+	}
+	break;
+	case 0x21:
+	    switch (_HI(ax)) {
+		case 0x57:		/* Get/Set File Date and Time Using Handle */
+		    if ((_LO(ax) == 0) || (_LO(ax) == 1)) {
+			return 0;
+		    }
+		    return 1;
+		case 0x5e:
+		    return (_LO(ax) == 0x03);
+	    }
+	    break;
+	case 0x33:
+	    switch (_HI(ax)) {
+		case 0x16:		/* save state */
+		case 0x17:		/* restore */
+		    return 1;
+	    }
+	    break;
+    }
+
+    return 0;
 }
 
 /* DOS selector is a selector whose base address is less than 0xffff0 */
@@ -141,8 +221,6 @@ static void old_dos_terminate(struct sigcontext_struct *scp, int i)
 int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
     D_printf("DPMI: pre_extender: int 0x%x, ax=0x%x\n", intr, _LWORD(eax));
-    DS_MAPPED = 0;
-    ES_MAPPED = 0;
     if (DPMI_CLIENT.USER_DTA_SEL && intr == 0x21) {
 	switch (_HI(ax)) {	/* functions use DTA */
 	case 0x11: case 0x12:	/* find first/next using FCB */
@@ -157,46 +235,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     case 0x41:			/* win debug */
 	return MSDOS_DONE;
 
-    case 0x10:			/* video */
-	switch (_HI(ax)) {
-	case 0x10:		/* Set/Get Palette Registers (EGA/VGA) */
-	    switch(_LO(ax)) {
-	    case 0x2:		/* set all palette registers and border */
-	    case 0x09:		/* ead palette registers and border (PS/2) */
-	    case 0x12:		/* set block of DAC color registers */
-	    case 0x17:		/* read block of DAC color registers */
-		ES_MAPPED = 1;
-		break;
-	    default:
-		return 0;
-	    }
-	    break;
-	case 0x11:		/* Character Generator Routine (EGA/VGA) */
-	    switch (_LO(ax)) {
-	    case 0x0:		/* user character load */
-	    case 0x10:		/* user specified character definition table */
-	    case 0x20: case 0x21:
-		ES_MAPPED = 1;
-		break;
-	    default:
-		return 0;
-	    }
-	    break;
-	case 0x13:		/* Write String */
-	case 0x15:		/*  Return Physical Display Parms */
-	case 0x1b:
-	    ES_MAPPED = 1;
-	    break;
-	case 0x1c:
-	    if (_LO(ax) == 1 || _LO(ax) == 2)
-		ES_MAPPED = 1;
-	    else
-		return 0;
-	    break;
-	default:
-	    return 0;
-	}
-	break;
     case 0x15:			/* misc */
 	switch (_HI(ax)) {
 	  case 0xc2:
@@ -329,13 +367,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		}
 	    }
 	    return 0;
-	case 0x0a:		/* buffered keyboard input */
-	case 0x38:
-	case 0x5a:		/* mktemp */
-	case 0x5d:		/* Critical Error Information  */
-	case 0x69:
-	    DS_MAPPED = 1;
-	    break;
 	case 0x1a:		/* set DTA */
 	  {
 	    unsigned long off = D_16_32(_edx);
@@ -388,16 +419,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			    0x50);
 	    }
 	    return 0;
-	case 0x44:		/* IOCTL */
-	    switch (_LO(ax)) {
-	    case 0x02 ... 0x05:
-	    case 0x0c: case 0x0d:
-		DS_MAPPED = 1;
-		break;
-	    default:
-		return 0;
-	    }
-	    break;
 	case 0x47:		/* GET CWD */
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
@@ -528,18 +549,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			     (char *)GetSegmentBaseAddress(_es) + D_16_32(_edi));
 	    }
 	    return 0;
-	case 0x57:		/* Get/Set File Date and Time Using Handle */
-	    if ((_LO(ax) == 0) || (_LO(ax) == 1)) {
-		return 0;
-	    }
-	    ES_MAPPED = 1;
-	    break;
-	case 0x5e:
-	    if (_LO(ax) == 0x03)
-		ES_MAPPED = 1;
-	    else
-		DS_MAPPED = 1;
-	    break;
 	case 0x5f:		/* redirection */
 	    switch (_LO(ax)) {
 	    case 0: case 1:
@@ -675,11 +684,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    break;
 	}
 	break;
-    case 0x25:			/* Absolute Disk Read */
-    case 0x26:			/* Absolute Disk write */
-	DS_MAPPED = 1;
-	D_printf("DPMI: msdos Absolute Disk Read/Write called.\n");
-	break;
     case 0x33:			/* mouse */
 	switch (_LWORD(eax)) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
@@ -713,18 +717,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    }
 	  }
 	  return 0;
-	case 0x16:		/* save state */
-	case 0x17:		/* restore */
-	    ES_MAPPED = 1;
-	    break;
-	default:
-	    return 0;
 	}
-    default:
-	return 0;
+	break;
     }
 
-    if (DS_MAPPED) {
+    if (need_copy_dseg(scp, intr)) {
 	char *src, *dst;
 	int len;
 	prepare_ems_frame();
@@ -739,7 +736,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	MEMCPY_DOS2DOS(dst, src, len);
     }
 
-    if (ES_MAPPED) {
+    if (need_copy_eseg(scp, intr)) {
 	char *src, *dst;
 	int len;
 	prepare_ems_frame();
@@ -856,7 +853,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	}
     }
 
-    if (DS_MAPPED) {
+    if (need_copy_dseg(scp, intr)) {
 	unsigned short my_ds;
 	char *src, *dst;
 	int len;
@@ -866,12 +863,12 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	len = ((Segments[_ds >> 3].limit > 0xffff) ||
 	    	Segments[_ds >> 3].is_big) ?
 		0xffff : Segments[_ds >> 3].limit;
-	D_printf("DPMI: DS_MAPPED seg at %#x copy back at %#x for %#x\n",
+	D_printf("DPMI: DS seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     } 
 
-    if (ES_MAPPED) {
+    if (need_copy_eseg(scp, intr)) {
 	unsigned short my_es;
 	char *src, *dst;
 	int len;
@@ -881,7 +878,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	len = ((Segments[_es >> 3].limit > 0xffff) ||
 	    	Segments[_es >> 3].is_big) ?
 		0xffff : Segments[_es >> 3].limit;
-	D_printf("DPMI: ES_MAPPED seg at %#x copy back at %#x for %#x\n",
+	D_printf("DPMI: ES seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
     } 
@@ -1183,11 +1180,8 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	default:
 	    break;
 	}
-    default:
 	break;
     }
-    DS_MAPPED = 0;
-    ES_MAPPED = 0;
     restore_ems_frame();
     return update_mask;
 }
