@@ -230,7 +230,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
   }
 
   if(tmpread != -1) {
-    if (d.disk > 8) dump_disk_blks(buffer, count - already / SECTOR_SIZE, SECTOR_SIZE);
+    if (debug_level('d') > 8) dump_disk_blks(buffer, count - already / SECTOR_SIZE, SECTOR_SIZE);
     return tmpread + already;
   }
   else {

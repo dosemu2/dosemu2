@@ -359,10 +359,10 @@ emulate(int argc, char **argv)
     config_init(argc, argv);	/* parse the commands & config file(s) */
 #ifdef X86_EMULATOR
 #ifdef DONT_DEBUG_BOOT		/* cpuemu only */
-    memcpy(&d_save,&d,sizeof(struct debug_flags));
-    d.emu = 0;
+    memcpy(&debug_save, &debug, sizeof(debug));
+    set_debug_level('e', 0);
 #ifdef TRACE_DPMI
-    d.dpmit = 0;
+    set_debug_level('t', 0);
 #endif
 #endif
 #endif

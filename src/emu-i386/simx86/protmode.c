@@ -151,7 +151,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	}
 	if (!sys) {	/* must be GDT now */
 	    unsigned short sx = sysxfer[wFlags&15];
-	    if (d.emu>3)
+	    if (debug_level('e')>3)
 	        e_printf("GDT system segment %#lx type %d\n",sel,sx);
 	    if (sx==DT_NO_XFER) return EXCP0D_GPF;
 	    sd->BoundH = 0;	  /* try to trap if not checked */
@@ -185,11 +185,11 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 		    return EXCP0D_GPF;
 	}
 	if (lbig && a16) {
-	    if (d.emu>3)
+	    if (debug_level('e')>3)
 	        e_printf("Large segment %#lx in 16-bit mode\n",sel);
 	}
 	else if (!lbig && !a16) {
-	    if (d.emu>3)
+	    if (debug_level('e')>3)
 	        e_printf("Small segment %#lx in 32-bit mode\n",sel);
 	}
 	SetFlagAccessed(sel);
@@ -199,7 +199,7 @@ int SetSegProt(int a16, int ofs, unsigned char *big, unsigned long sel)
 	e_printf("SetSeg PROT %s%04lx\n",MKOFSNAM(ofs,buf),sel);
 
 	if (big) *big = lbig;
-	if (d.emu>2) {
+	if (debug_level('e')>2) {
 		e_printf("PMSEL %#04lx bounds=%08lx:%08lx flg=%04x big=%d\n",
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}

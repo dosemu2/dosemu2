@@ -341,7 +341,7 @@ printECB(ECB_t * ECB)
 {
   int i;
    
-  if( d.network ) {
+  if(debug_level('n')) {
     n_printf("--DOS ECB (dump)--\n");
     dumpBytes((u_char *) ECB, 60);
     n_printf("--DOS ECB--\n");
@@ -370,7 +370,7 @@ printECB(ECB_t * ECB)
 void
 printIPXHeader(IPXPacket_t * IPXHeader)
 {
-  if (d.network) {
+  if (debug_level('n')) {
     n_printf("--IPX Header (dump)--\n");
     dumpBytes((u_char *) IPXHeader, 30);
     n_printf("--IPX Header --\n");
@@ -442,7 +442,7 @@ IPXOpenSocket(u_short port, u_short * newPort)
 
   opt = 1;
   /* turn on socket debugging */
-  if (d.network) {
+  if (debug_level('n')) {
     enter_priv_on();
     if (setsockopt(sock, SOL_SOCKET, SO_DEBUG, &opt, sizeof(opt)) == -1) {
       leave_priv_setting();
@@ -582,7 +582,7 @@ GatherFragmentData(char *buffer, ECB_t * ECB)
   }
   n_printf("IPX: gathered %d fragments for %d bytes of data\n",
 	   ECB->FragmentCount, totalDataCount);
-  if (d.network) {
+  if (debug_level('n')) {
     dumpBytes(buffer, totalDataCount);
   }
   return (totalDataCount);
@@ -887,7 +887,7 @@ ScatterFragmentData(int size, char *buffer, ECB_t * ECB,
   IPXPacket_t *IPXHeader;
 
   n_printf("received data bytes:\n");
-  if (d.network) {
+  if (debug_level('n')) {
     dumpBytes(buffer, size);
   }
   dataLeftCount = size;

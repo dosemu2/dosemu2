@@ -66,7 +66,7 @@ static int libless_munmap(caddr_t addr, size_t len)
 /* ------------------------------------------------------------ */
 
 #define Q__printf(f,cap,a...) ({\
-  if (d.mapping) Q_printf(f,decode_mapping_cap(cap),##a); \
+  Q_printf(f,decode_mapping_cap(cap),##a); \
 })
 
 static int selfmem_fd = -1;
@@ -75,7 +75,7 @@ static int open_mapping_self(int cap)
   PRIV_SAVE_AREA
   extern int kernel_version_code;
 
-  if (cap && d.mapping) Q_printf("MAPPING: open, cap=%s\n",
+  if (cap) Q_printf("MAPPING: open, cap=%s\n",
 				decode_mapping_cap(cap));
   if (kernel_version_code >= (0x20300+27)) {
     return 0;
@@ -166,7 +166,7 @@ static int open_mapping_self(int cap)
 
 static void close_mapping_self(int cap)
 {
-  if (d.mapping) Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
+  Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
   if (selfmem_fd != -1) close(selfmem_fd);
 }
 

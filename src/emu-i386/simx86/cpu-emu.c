@@ -331,7 +331,7 @@ char *e_print_regs(void)
 	exprintw(TheCPU.gs,buf,(ERB_L4+ERB_LEFTM)+13);
 	exprintw(TheCPU.ss,buf,(ERB_L4+ERB_LEFTM)+26);
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
-	if (d.emu>4) {
+	if (debug_level('e')>4) {
 		int i;
 		unsigned short *stk = (unsigned short *)(LONG_SS+TheCPU.esp);
 		for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
@@ -461,7 +461,7 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
    pb = buf;
    org2 = org;
    while ((*org2&0xfc)==0x64) org2++;	/* skip most prefixes */
-   if ((d.dpmit>3)||(InterOps[*org2]&2))
+   if ((debug_level('t')>3)||(InterOps[*org2]&2))
 	pb += sprintf(pb,"%s",e_print_scp_regs(scp,pmode));
 
    p = pb + sprintf(pb,"    %08lx: ",(long)org);
@@ -600,7 +600,7 @@ static void Reg2Cpu (int mode)
     config.cpuemu=2;
   }
 
-  if (d.emu>1) e_printf("Reg2Cpu> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
+  if (debug_level('e')>1) e_printf("Reg2Cpu> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
 	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
   TheCPU.eax     = vm86s.regs.eax;	/* 2c -> 18 */
   TheCPU.ebx     = vm86s.regs.ebx;	/* 20 -> 00 */
@@ -621,8 +621,8 @@ static void Reg2Cpu (int mode)
   SetSegReal(vm86s.regs.gs,Ofs_GS);
   trans_addr     = LONG_CS + TheCPU.eip;
 
-  if (d.emu>1) {
-	if (d.emu==3) e_printf("Reg2Cpu< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n%s\n",
+  if (debug_level('e')>1) {
+	if (debug_level('e')==3) e_printf("Reg2Cpu< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n%s\n",
 		vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags,
 		e_print_regs());
 	else e_printf("Reg2Cpu< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
@@ -636,7 +636,7 @@ static void Reg2Cpu (int mode)
 static void Cpu2Reg (void)
 {
   int mask;
-  if (d.emu>1) e_printf("Cpu2Reg> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
+  if (debug_level('e')>1) e_printf("Cpu2Reg> vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
 	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
   vm86s.regs.eax = TheCPU.eax;
   vm86s.regs.ebx = TheCPU.ebx;
@@ -662,7 +662,7 @@ static void Cpu2Reg (void)
   vm86s.regs.eflags = (vm86s.regs.eflags & VIP) | 
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
 
-  if (d.emu>1) e_printf("Cpu2Reg< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
+  if (debug_level('e')>1) e_printf("Cpu2Reg< vm86=%08lx dpm=%08x emu=%08lx evf=%08lx\n",
 	vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,TheCPU.veflags);
 }
 
@@ -674,7 +674,7 @@ static void Cpu2Reg (void)
  */
 static void Scp2CpuR (struct sigcontext_struct *scp)
 {
-  if (d.emu>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+  if (debug_level('e')>1) e_printf("Scp2CpuR> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
 	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
   __memcpy(&TheCPU.gs,scp,sizeof(struct sigcontext_struct));
   TheCPU.err = 0;
@@ -685,7 +685,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
   TheCPU.eflags = (scp->eflags&(eTSSMASK|0x10ed5)) | 0x20002;
   trans_addr = ((scp->cs<<4) + scp->eip);
 
-  if (d.emu>1) e_printf("Scp2CpuR< scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+  if (debug_level('e')>1) e_printf("Scp2CpuR< scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
 	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
 }
 
@@ -694,7 +694,7 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
  */
 static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
 {
-  if (d.emu>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+  if (debug_level('e')>1) e_printf("Cpu2Scp> scp=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
 	scp->eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
 
   /* setup stack context from cpu registers */
@@ -724,7 +724,7 @@ static void Cpu2Scp (struct sigcontext_struct *scp, int trapno)
   			(eVEFLAGS & mask) | (TheCPU.eflags & ~(mask|VIP));
     scp->eflags = vm86s.regs.eflags & ~VM;
   }
-  if (d.emu>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
+  if (debug_level('e')>1) e_printf("Cpu2Scp< scp=%08lx vm86=%08lx dpm=%08x fl=%08lx vf=%08lx\n",
 	scp->eflags,vm86s.regs.eflags,dpmi_eflags,TheCPU.eflags,eVEFLAGS);
 }
 
@@ -764,8 +764,8 @@ erseg:
   /* push scp flags, pop eflags - this clears RF,VM */
   TheCPU.eflags = (scp->eflags & (eTSSMASK|0xed5)) | 2;
   trans_addr = LONG_CS + scp->eip;
-  if (d.emu>1) {
-	if (d.emu==3) e_printf("Scp2CpuD%s: %08lx -> %08lx\n\tIP=%08lx:%08lx\n%s\n",
+  if (debug_level('e')>1) {
+	if (debug_level('e')==3) e_printf("Scp2CpuD%s: %08lx -> %08lx\n\tIP=%08lx:%08lx\n%s\n",
 			(TheCPU.err? " ERR":""),
 			scp->eflags, TheCPU.eflags, LONG_CS, scp->eip,
 			e_print_regs());
@@ -1041,7 +1041,7 @@ static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
 	REG(eflags) &= ~(TF|RF|AC);
 	eVEFLAGS &= ~VIF_MASK;
 
-	/* see config.c: int21 goes here when d.dos==0 ... */
+	/* see config.c: int21 goes here when debug_level('D')==0 ... */
 	if (i!=0x16) {
 	    e_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n",
 		i, _AX, _CS, _IP);
@@ -1075,7 +1075,7 @@ static int handle_vm86_fault(long *error_code)
 	sp = _SP;
 	ip = _IP;
 	op = popb(csp, ip);
-	if (d.emu>1) e_printf("EMU86: vm86 fault %#x at %#x:%#x\n",
+	if (debug_level('e')>1) e_printf("EMU86: vm86 fault %#x at %#x:%#x\n",
 		op, _CS, _IP);
 
 	/* int xx */
@@ -1128,9 +1128,9 @@ int e_vm86(void)
   mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
   TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE
-  demusav=d.emu; if (d.emu) d.emu=1;
+  demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);
 #endif
-//  if (lastEMUsig && (d.emu>1))
+//  if (lastEMUsig && (debug_level('e')>1))
 //    e_printf("EMU86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
@@ -1165,7 +1165,7 @@ int e_vm86(void)
 #endif
 
     Cpu2Reg();
-    if (d.emu>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
+    if (debug_level('e')>1) e_printf("---------------------\n\t   EMU86: EXCP %#x\n", xval-1);
 
     retval = -1;
     E_TIME_STRETCH;
@@ -1220,7 +1220,7 @@ int e_vm86(void)
   e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
 
 #ifdef SKIP_VM86_TRACE
-  d.emu=demusav;
+  set_debug_level('e',demusav);
 #endif
   TotalTime += (GETTSC() - tt0);
   /* this time should become >0 only when dosemu was descheduled
@@ -1247,7 +1247,7 @@ int e_dpmi(struct sigcontext_struct *scp)
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
 
-  if (d.emu>2) {
+  if (debug_level('e')>2) {
 	long swa = (long)(DTgetSelBase(_cs)+_eip);
 	D_printf("EMU86: DPMI enter at %08lx\n",swa);
   }
@@ -1290,7 +1290,7 @@ int e_dpmi(struct sigcontext_struct *scp)
     FlagSync_All();
 #endif
 
-    if (d.emu>1) e_printf("DPM86: EXCP %#x eflags=%08lx\n",
+    if (debug_level('e')>1) e_printf("DPM86: EXCP %#x eflags=%08lx\n",
 	xval-1, REG(eflags));
 
     TheCPU.eflags &= ~TF;	/* is it right? */
@@ -1300,7 +1300,7 @@ int e_dpmi(struct sigcontext_struct *scp)
     E_TIME_STRETCH;
 
     if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
-	if (d.emu>2) e_printf("DPMI retcode = %d\n",emu_dpmi_retcode);
+	if (debug_level('e')>2) e_printf("DPMI retcode = %d\n",emu_dpmi_retcode);
 	if (emu_dpmi_retcode >= 0) {
 	    retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
 	}

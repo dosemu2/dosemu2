@@ -812,9 +812,9 @@ void int10_old()
   }
 #endif
 
-  if (d.video >= 3)
+  if (debug_level('v') >= 3)
     {
-      if (d.video >= 4)
+      if (debug_level('v') >= 4)
 /*	dbug_printf("int10 near %04x:%08lx\n", LWORD(cs), REG(eip));*/
 	dbug_printf("int10 near %04x:%08lx\n", READ_SEG_REG(cs), REG(eip));
       if ( (LO(ax) >= ' ') && (LO(ax) < 0x7f) )
@@ -1385,9 +1385,9 @@ void int10_new()
   us *sm;
 
   if(HI(ax) > 0x0f)	// EVIL hack! Remove it later!!!
-  if (d.video >= 3)
+  if (debug_level('v') >= 3)
     {
-      if (d.video >= 4)
+      if (debug_level('v') >= 4)
 	i10_msg("near %04x:%08lx\n", READ_SEG_REG(cs), REG(eip));
       if ( (LO(ax) >= ' ') && (LO(ax) < 0x7f) )
 	i10_msg("AH=%02x AL=%02x '%c'\n",

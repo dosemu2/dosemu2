@@ -36,6 +36,7 @@
 #include "keyb_server.h"     /* for keyb_8042_{init,reset} */
 #include "lpt.h"
 #include "disks.h"
+#include "dosemu_debug.h"
 
 #ifdef USE_SBEMU
 #include "sound.h"

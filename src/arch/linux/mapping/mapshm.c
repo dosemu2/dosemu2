@@ -97,7 +97,7 @@ static void *extended_mremap(void *addr, size_t old_len, size_t new_len,
 /* ------------------------------------------------------------ */
 
 #define Q__printf(f,cap,a...) ({\
-  if (d.mapping) Q_printf(f,decode_mapping_cap(cap),##a); \
+  Q_printf(f,decode_mapping_cap(cap),##a); \
 })
 
 extern int pgmalloc_init(int numpages, int lowater, void *pool);
@@ -178,7 +178,7 @@ static int open_mapping_shm(int cap)
   if (kernel_version_code < (0x20300+33)) {
     return 0;
   }
-  if (cap && d.mapping) Q_printf("MAPPING: open, cap=%s\n",
+  if (cap) Q_printf("MAPPING: open, cap=%s\n",
 				decode_mapping_cap(cap));
 
   if (first) {
@@ -279,7 +279,7 @@ static int open_mapping_shm(int cap)
 
 static void close_mapping_shm(int cap)
 {
-  if (d.mapping) Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
+  Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
 }
 
 static void *alloc_mapping_shm(int cap, int mapsize, void *target)

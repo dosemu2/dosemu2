@@ -404,12 +404,12 @@ extern void dosemu_fault1(int signal, struct sigcontext_struct *scp);
 void e_emu_fault1(int signal, struct sigcontext_struct *scp)
 {
 
-  if ((d.emu>1) || (_trapno!=0x0e)) {
+  if ((debug_level('e')>1) || (_trapno!=0x0e)) {
     dbug_printf("==============================================================\n");
     dbug_printf("CPU exception 0x%02lx err=0x%08lx cr2=%08lx eip=%08lx\n",
 	  	 _trapno, _err, _cr2, _eip);
     dbug_printf("==============================================================\n");
-    if (d.emu>1) {
+    if (debug_level('e')>1) {
 	dbug_printf("Host CPU op=%02x\n%s\n",*((unsigned char *)_eip),
 	    e_print_scp_regs(scp,(in_dpmi?3:2)));
 	dbug_printf("Emul CPU mode=%04x cr2=%08lx\n%s\n",
@@ -488,7 +488,7 @@ cont0e:
 #ifdef PROFILE
 		PageFaults++;
 #endif
-		if (d.emu) {
+		if (debug_level('e')) {
 		    v = *((long *)p);
 		    __asm__("bswap %0" : "=r" (v) : "0" (v));
 		    e_printf("Faulting ops: %08lx\n",v);

@@ -322,7 +322,7 @@ void avltr_delete (const long key)
 /**/ if (k>=AVL_MAX_HEIGHT) leavedos(0x777);
   }
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-  if (d.emu>2)
+  if (debug_level('e')>2)
 	e_printf("Found node to delete at %08lx(%08lx)\n",(long)p,p->key);
 #endif
   tree->count--;
@@ -398,7 +398,7 @@ void avltr_delete (const long key)
 
 /**/ if (Traverser.p==p) Traverser.init=0;
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-  if (d.emu>2) e_printf("Remove node %08lx\n",(long)p);
+  if (debug_level('e')>2) e_printf("Remove node %08lx\n",(long)p);
 #endif
 #ifdef DEBUG_LINKER
 	if (p->clink.nrefs) {
@@ -653,7 +653,7 @@ void CheckLinks (void)
 	e_printf("Node %08lx invalidated\n",(long)G);
 	continue;
     }
-    if (d.emu>5) e_printf("Node %08lx at %08lx selfr=%08lx\n",(long)G,G->key,
+    if (debug_level('e')>5) e_printf("Node %08lx at %08lx selfr=%08lx\n",(long)G,G->key,
     	*((long *)G->mblock));
     if (*((long *)G->mblock) != (long)G) {
 	e_printf("bad selfref\n"); goto nquit;
@@ -662,14 +662,14 @@ void CheckLinks (void)
     if (L->t_type) {
 	if (L->t_ref) {
 	    GL = (TNode *)*((long *)L->t_ref);
-	    if (d.emu>5)
+	    if (debug_level('e')>5)
 		e_printf("  T: ref=%08lx link=%08lx undo=%08lx\n",
 		    (long)GL,L->t_link,L->t_undo);
 	    p = ((unsigned char *)L->t_link) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad t_link jmp\n"); goto nquit;
 	    }
-	    if (d.emu>5)
+	    if (debug_level('e')>5)
 		e_printf("  T: links to %08lx at %08lx with jmp %08lx\n",(long)GL,GL->key,
 		*((long *)L->t_link));
 	    if (L->t_undo != GL->key) {
@@ -685,7 +685,7 @@ void CheckLinks (void)
 	    while (B) {
 		if ((long)B->ref==(long)G->mblock) {
 		    n++;
-		    if (d.emu>5) e_printf("  T: backref %d from %08lx\n",n,(long)GL);
+		    if (debug_level('e')>5) e_printf("  T: backref %d from %08lx\n",n,(long)GL);
 		}
 		B = B->next;
 	    }
@@ -704,14 +704,14 @@ void CheckLinks (void)
 	}
 	if (L->nt_ref) {
 	    GL = (TNode *)*((long *)L->nt_ref);
-	    if (d.emu>5)
+	    if (debug_level('e')>5)
 		e_printf("  N: ref=%08lx link=%08lx undo=%08lx\n",
 		    (long)GL,L->nt_link,L->nt_undo);
 	    p = ((unsigned char *)L->nt_link) - 1;
 	    if ((*p!=0xe9)&&(*p!=0xeb)) {
 		e_printf("bad nt_link jmp\n"); goto nquit;
 	    }
-	    if (d.emu>5)
+	    if (debug_level('e')>5)
 		e_printf("  N: links to %08lx at %08lx with jmp %08lx\n",(long)GL,GL->key,
 		*((long *)L->nt_link));
 	    if (L->nt_undo != GL->key) {
@@ -727,7 +727,7 @@ void CheckLinks (void)
 	    while (B) {
 		if ((long)B->ref==(long)G->mblock) {
 		    n++;
-		    if (d.emu>5) e_printf("  N: backref %d from %08lx\n",n,(long)GL);
+		    if (debug_level('e')>5) e_printf("  N: backref %d from %08lx\n",n,(long)GL);
 		}
 		B = B->next;
 	    }
@@ -860,7 +860,7 @@ static int TraverseAndClean(void)
   NEXTNODE(G);
   if (G == &CollectTree.root) {
       hitimer_t bt1 = GETTSC();
-      if (d.emu>2) e_printf("*\tRestart traversing n=%d %16Ld\n",ninodes,(bt1-bT));
+      if (debug_level('e')>2) e_printf("*\tRestart traversing n=%d %16Ld\n",ninodes,(bt1-bT));
       bT = bt1;
       NEXTNODE(G);
   }
@@ -868,16 +868,16 @@ static int TraverseAndClean(void)
   if ((G->addr != NULL) && (G->alive>0)) {
       G->alive -= AGENODE;
       if (G->alive <= 0) {
-	if (d.emu>2) e_printf("TraverseAndClean: node at %08lx decayed\n",G->key);
+	if (debug_level('e')>2) e_printf("TraverseAndClean: node at %08lx decayed\n",G->key);
 	NodeUnlinker(G);
       }
   }
   if ((G->addr == NULL) || (G->alive<=0)) {
-      if (d.emu>2) e_printf("Delete node %08lx\n",G->key);
+      if (debug_level('e')>2) e_printf("Delete node %08lx\n",G->key);
       avltr_delete(G->key);
   }
   else {
-      if (d.emu>3)
+      if (debug_level('e')>3)
 	e_printf("TraverseAndClean: node at %08lx of %d life=%d\n",
 		G->key,ninodes,G->alive);
       Traverser.p = G;
@@ -928,7 +928,7 @@ TNode *Move2Tree(void)
 /**/ if (nG==NULL) leavedos(0x8201);
 
   if (found) {
-	if (d.emu>2) {
+	if (debug_level('e')>2) {
 		e_printf("Equal keys: replace node %08lx at %08lx\n",
 			(long)nG,key);
 	}
@@ -939,10 +939,10 @@ TNode *Move2Tree(void)
   }
   else {
 #if !defined(SINGLESTEP)&&!defined(SINGLEBLOCK)
-	if (d.emu>2) {
+	if (debug_level('e')>2) {
 		e_printf("New TNode %d at=%08lx key=%08lx\n",
 			ninodes,(long)nG,key);
-		if (d.emu>3)
+		if (debug_level('e')>3)
 			e_printf("Header: len=%d n_ops=%d PC=%08lx\n",
 				I0->totlen, I0->ncount, (long)I0->npc);
 	}
@@ -985,7 +985,7 @@ TNode *Move2Tree(void)
   nG->clink.t_type  = I0->clink.t_type;
   nG->clink.t_link  = I0->clink.t_link  + (I0->clink.t_type? (long)nG->addr:0);
   nG->clink.nt_link = I0->clink.nt_link + (I0->clink.t_type>JMP_LINK? (long)nG->addr:0);
-  if ((d.emu>3) && nG->clink.t_type)
+  if ((debug_level('e')>3) && nG->clink.t_type)
 	dbug_printf("Link %d: %08lx:%08lx %08lx:%08lx\n",nG->clink.t_type,
 		nG->clink.t_link,
 		(nG->clink.t_type? *((long *)nG->clink.t_link):0),
@@ -999,13 +999,13 @@ TNode *Move2Tree(void)
 	ap->daddr = I->addr - I0->addr;
 	apl = ap->daddr + I->len;
 	ap->dnpc  = I->npc - I0->npc;
-	if (d.emu>8)
+	if (debug_level('e')>8)
 	    e_printf("Pmeta %03d: %08lx(%04x):%08lx(%04x)\n",i,
 		(long)(nG->addr+ap->daddr),ap->daddr,(long)I->npc,ap->dnpc);
 	ap++, I++;
   }
   ap->daddr = apl;
-  if (d.emu>8) e_printf("Pmeta %03d:         (%04x)\n",i,apl);
+  if (debug_level('e')>8) e_printf("Pmeta %03d:         (%04x)\n",i,apl);
 
 #ifdef DEBUG_LINKER
   CheckLinks();
@@ -1047,7 +1047,7 @@ TNode *FindTree(long key)
 	    H = LastXNode;
 	}
 	if (H) {
-	    if (d.emu>4) 
+	    if (debug_level('e')>4) 
 		e_printf("History: LastXNode at %08lx to key=%08lx\n",
 			LastXNode->key, key);
 	    H->alive = NODELIFE(H);
@@ -1079,7 +1079,7 @@ TNode *FindTree(long key)
   }
 
   if (I && I->addr && (I->alive>0)) {
-	if (d.emu>3) e_printf("Found key %08lx\n",key);
+	if (debug_level('e')>3) e_printf("Found key %08lx\n",key);
 #ifdef PROFILE
 	NodesFound++;
 #endif
@@ -1102,7 +1102,7 @@ endsrch:
 	tccount=0;
   }
 
-  if (d.emu>4) e_printf("Not found key %08lx\n",key);
+  if (debug_level('e')>4) e_printf("Not found key %08lx\n",key);
 #ifdef PROFILE
   NodesNotFound++;
 #endif
@@ -1169,7 +1169,7 @@ int FindCodeNode (long addr)
 
   t0 = GETTSC();
 #endif
-  if (d.emu>2) e_printf("Find code node for %08lx\n",addr);
+  if (debug_level('e')>2) e_printf("Find code node for %08lx\n",addr);
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
@@ -1207,7 +1207,7 @@ int InvalidateSingleNode (long addr, long eip)
 
   t0 = GETTSC();
 #endif
-  if (d.emu>1) e_printf("Invalidate at %08lx\n",addr);
+  if (debug_level('e')>1) e_printf("Invalidate at %08lx\n",addr);
 
   /* find nearest (lesser than) node */
   G = G->link[0]; if (G == NULL) goto quit;
@@ -1224,7 +1224,7 @@ int InvalidateSingleNode (long addr, long eip)
       }
       else break;
   }
-  if (d.emu>1) e_printf("Invalidate from node %08lx\n",G->key);
+  if (debug_level('e')>1) e_printf("Invalidate from node %08lx\n",G->key);
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
@@ -1290,7 +1290,7 @@ int InvalidateNodePage (long addr, int len, long eip, int *codehit)
       }
       else break;
   }
-  if (d.emu>1) e_printf("Invalidate from node %08lx on\n",G->key);
+  if (debug_level('e')>1) e_printf("Invalidate from node %08lx on\n",G->key);
 
   /* walk tree in ascending, hopefully sorted, address order */
   for (;;) {
@@ -1389,7 +1389,7 @@ int NewIMeta(unsigned char *npc, int mode, int *rc)
 
 		I  = &InstrMeta[CurrIMeta];
 		if (CurrIMeta==0) {		// no open code sequences
-			if (d.emu>2) e_printf("============ Opening sequence at %08lx\n",(long)npc);
+			if (debug_level('e')>2) e_printf("============ Opening sequence at %08lx\n",(long)npc);
 			I0 = I;
 		}
 		else {
@@ -1403,7 +1403,7 @@ int NewIMeta(unsigned char *npc, int mode, int *rc)
 		if (CurrIMeta>0) {
 			I0->flags |= I->flags;
 		}
-		if (d.emu>4) {
+		if (debug_level('e')>4) {
 			e_printf("Metadata %03d PC=%08lx mode=%x(%x) ng=%d\n",
 				CurrIMeta,(long)I->npc,I->flags,I0->flags,I->ngen);
 		}
@@ -1426,7 +1426,7 @@ quit:
 	return -1;
 #else	// HOST_ARCH_SIM
 	if (CurrIMeta==0) {		// no open code sequences
-		if (d.emu>2) e_printf("============ Opening sequence at %08lx\n",(long)npc);
+		if (debug_level('e')>2) e_printf("============ Opening sequence at %08lx\n",(long)npc);
 	}
 	CurrIMeta++; InstrMeta[CurrIMeta].ngen=0;
 	return CurrIMeta;
@@ -1512,7 +1512,7 @@ void InitTrees(void)
 
 	avltr_reinit();
 
-	if (d.emu>1) {
+	if (debug_level('e')>1) {
 	    e_printf("Root tree node at %08lx\n",(long)&CollectTree.root);
 	    e_printf("TNode pool at %08lx\n",(long)TNodePool);
 	}

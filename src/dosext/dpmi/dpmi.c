@@ -640,10 +640,10 @@ static int dpmi_control(void)
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
   struct sigcontext_struct *scp=&dpmi_stack_frame[current_client];
 #ifdef TRACE_DPMI
-  if (d.dpmit) _eflags |= TF;
+  if (debug_level('t')) _eflags |= TF;
 #endif
   if (!(_eflags & TF)) {
-	if (d.dpmi>6) {
+	if (debug_level('M')>6) {
 	  D_printf("DPMI SWITCH to %08lx, esp=%08lx\n",(long)SEL_ADR(_cs,_eip),_esp);
 	}
 	return direct_dpmi_switch(scp);
@@ -1007,7 +1007,7 @@ static  void GetFreeMemoryInformation(unsigned int *lp)
 {
   struct meminfo *mi = readMeminfo();
 
-  if (d.dpmi > 4) {
+  if (debug_level('M') > 4) {
     D_printf("DPMI: GetFreeMemoryInformation at %08lx\n",(long)lp);
     D_printf("      free=%lx(%x)\n", dpmi_free_memory, mi->free);
     D_printf("      swapfree=%x\n", mi->swapfree);
@@ -1099,7 +1099,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 #ifdef X86_EMULATOR
   extern void e_dpmi_b0x(int op,struct sigcontext_struct *);
 
-  if (d.dpmi) {
+  if (debug_level('M')) {
     D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
     D_printf("        edi=%08lx, esi=%08lx, ebp=%08lx, esp=%08lx\n",
@@ -1383,10 +1383,10 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       in_dpmi_dos_int=1;
     }
 #ifdef SHOWREGS
-    if (d.emu==0) {
-      d.general++;
+    if (debug_level('e')==0) {
+      set_debug_level('g', debug_level('g') + 1);
       show_regs(__FILE__, __LINE__);
-      d.general--;
+      set_debug_level('g', debug_level('g') - 1);
     }
 #endif
     break;
@@ -2118,7 +2118,7 @@ void run_dpmi(void)
     * there's no need to lose time calling vm86() again - AV
     */
    if ((csp==lastcsp) && (*csp == 0xf4)) {
-     if (d.dpmi>3) D_printf("DPMI: skip 0xf4 at %p\n", csp);
+     if (debug_level('M')>3) D_printf("DPMI: skip 0xf4 at %p\n", csp);
      retval=VM86_UNKNOWN;
    }
    else {
@@ -2138,9 +2138,9 @@ void run_dpmi(void)
 
     if (
 #ifdef TRACE_DPMI
-	((d.dpmit==0)||((REG(cs)!=0x70)&&(REG(eip)!=0x5b0)))&&
+	((debug_level('t')==0)||((REG(cs)!=0x70)&&(REG(eip)!=0x5b0)))&&
 #endif
-	(d.dpmi>2)) {
+	(debug_level('M')>2)) {
 	D_printf ("DPMI: do_vm86,  %04x:%04lx %08lx %08lx %08x\n", REG(cs),
 		REG(eip), REG(esp), REG(eflags), dpmi_eflags);
     }
@@ -2153,7 +2153,7 @@ void run_dpmi(void)
 #ifdef TRACE_DPMI
 	(retval!=1)&&
 #endif
-	(d.dpmi>3)) {
+	(debug_level('M')>3)) {
 	D_printf ("DPMI: ret_vm86, %04x:%04lx %08lx %08lx %08x ret=%#x\n",
 		REG(cs), REG(eip), REG(esp), REG(eflags), dpmi_eflags, retval);
 #ifdef TRACE_DPMI
@@ -2216,7 +2216,7 @@ void run_dpmi(void)
 #endif
 		if (!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
 #ifdef TRACE_DPMI
-		   if ((d.dpmit==0)||(VM86_ARG(retval)!=1))
+		   if ((debug_level('t')==0)||(VM86_ARG(retval)!=1))
 #endif
 		   do_int(VM86_ARG(retval));
 		break;
@@ -2342,11 +2342,11 @@ void dpmi_init()
     }
 
     D_printf("Freeing descriptors\n");
-    { int dd=d.dpmi; d.dpmi=0;	/* don't be unnecessarily verbose */
+    { int dd=debug_level('M'); set_debug_level('M', 0); /* don't be unnecessarily verbose */
       for (i=0;i<MAX_SELECTORS;i++) {
 	  FreeDescriptor(i<<3);
       }
-      d.dpmi=dd;
+      set_debug_level('M', dd);
     }
     D_printf("Descriptors freed\n");
 
@@ -2416,7 +2416,7 @@ void dpmi_init()
   my_ip = popw(ssp, sp);
   my_cs = popw(ssp, sp);
 
-  if (d.dpmi) {
+  if (debug_level('M')) {
     cp = (unsigned char *) ((my_cs << 4) +  my_ip);
 
     D_printf("Going protected with fingers crossed\n"
@@ -2487,7 +2487,7 @@ void dpmi_init()
      CURRENT_PSP = psp;
   }
 
-  if (d.dpmi) {
+  if (debug_level('M')) {
     print_ldt();
     D_printf("LDT_ALIAS=%x DPMI_SEL=%x CS=%x DS=%x SS=%x ES=%x\n", LDT_ALIAS, DPMI_SEL, CS, DS, SS, ES);
   }
@@ -2530,9 +2530,9 @@ void dpmi_init()
 
   in_sigsegv--;
   for (; (!fatalerr && in_dpmi) ;) {
-    if (d.dpmi>6) {
+    if (debug_level('M')>6) {
 #ifdef TRACE_DPMI
-	if (d.dpmit==0)
+	if (debug_level('t')==0)
 #endif
 	D_printf("------ DPMI: dpmi loop ---------------------\n");
     }
@@ -2544,7 +2544,7 @@ void dpmi_init()
     run_sb(); /* Suggested Karcher */
 #endif
   }
-  if (d.dpmi>6) D_printf("DPMI: end dpmi loop\n");
+  if (debug_level('M')>6) D_printf("DPMI: end dpmi loop\n");
   in_sigsegv++;
 }
 
@@ -2590,9 +2590,9 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     case 0x05: /* bounds */
     case 0x07: /* device_not_available */
 #ifdef TRACE_DPMI
-	       if (d.dpmit && (trapno==1)) {
+	       if (debug_level('t') && (trapno==1)) {
 	         extern char *e_scp_disasm();
-	         if (d.dpmit>1)
+	         if (debug_level('t')>1)
 			dbug_printf("\n%s",e_scp_disasm(scp,1));
 		 return;
 	       }
@@ -2636,12 +2636,12 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 #ifdef DPMI_DEBUG
   /* My log file grows to 2MB, I have to turn off dpmi debugging,
      so this log exceptions even if dpmi debug is off */
-  unsigned char dd = d.dpmi;
-  d.dpmi = 1;
+  unsigned char dd = debug_level('M');
+  set_debug_level('M', 1);
 #endif
 
 #ifdef TRACE_DPMI
-  if (d.dpmit && (_trapno == 1)) {
+  if (debug_level('t') && (_trapno == 1)) {
     do_default_cpu_exception(scp, _trapno);
     return;
   }
@@ -2650,7 +2650,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#x\n",_trapno,
   	(int)_cs, (int)_eip);
   if (_trapno == 0xe) {
-      d.dpmi = 9;
+      set_debug_level('M', 9);
       D_printf("DPMI: page fault. in dosemu?\n");
       /* why should we let dpmi continue after this point and crash
        * the system? */
@@ -2661,7 +2661,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
 
   if ((_trapno != 0xe)
 #ifdef X86_EMULATOR
-      || d.emu
+      || debug_level('e')
 #endif
      )
     { DPMI_show_state(scp); }
@@ -2675,7 +2675,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
      )
     leavedos(98);
 #ifdef DPMI_DEBUG
-  d.dpmi = dd;
+  set_debug_level('M', dd);
 #endif
   
   if (Exception_Table[_trapno].selector == DPMI_SEL) {
@@ -3466,7 +3466,7 @@ void run_pm_mouse()
 void dpmi_realmode_hlt(unsigned char * lina)
 {
 #ifdef TRACE_DPMI
-  if ((d.dpmit==0)||((int)lina!=0xfc80a))
+  if ((debug_level('t')==0)||((int)lina!=0xfc80a))
 #endif
   D_printf("DPMI: realmode hlt: %p\n", lina);
   if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
@@ -3479,7 +3479,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos))) {
 
 #ifdef TRACE_DPMI
-    if ((d.dpmit==0)||((int)lina!=0xfc80a))
+    if ((debug_level('t')==0)||((int)lina!=0xfc80a))
 #endif
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();

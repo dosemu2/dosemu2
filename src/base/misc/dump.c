@@ -71,7 +71,7 @@ show_regs(char *file, int line)
   unsigned char *sp;
   unsigned char *cp;
 
-  if (!d.general)
+  if (debug_level('g') == 0)
     return;
 
   cp = SEG_ADR((unsigned char *), cs, ip);

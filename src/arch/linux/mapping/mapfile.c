@@ -69,7 +69,7 @@ static int libless_munmap(caddr_t addr, size_t len)
 /* ------------------------------------------------------------ */
 
 #define Q__printf(f,cap,a...) ({\
-  if (d.mapping) Q_printf(f,decode_mapping_cap(cap),##a); \
+  Q_printf(f,decode_mapping_cap(cap),##a); \
 })
 
 extern int pgmalloc_init(int numpages, int lowater, void *pool);
@@ -114,8 +114,8 @@ static void discardtempfile(void)
 
 static int open_mapping_file(int cap)
 {
-  if (cap && d.mapping) Q_printf("MAPPING: open, cap=%s\n",
-				decode_mapping_cap(cap));
+  if (cap) Q_printf("MAPPING: open, cap=%s\n",
+	  decode_mapping_cap(cap));
 
   if (tmpfile_fd == -1) {
     PRIV_SAVE_AREA
@@ -249,7 +249,7 @@ static int open_mapping_file(int cap)
 
 static void close_mapping_file(int cap)
 {
-  if (d.mapping) Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
+  Q_printf("MAPPING: close, cap=%s\n", decode_mapping_cap(cap));
   if (cap == MAPPING_ALL && tmpfile_fd != -1) discardtempfile();
 }
 

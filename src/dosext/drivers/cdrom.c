@@ -163,7 +163,7 @@ int logging_ioctl(int fd, unsigned int cmd, void *arg)
 {
     int rval;
     int err;
-    if (d.cdrom>5)
+    if (debug_level('C')>5)
       C_printf("CDROM: ioctl %#x\n", cmd);
     rval = ioctl(fd, cmd, arg);
     err = errno;
@@ -182,7 +182,7 @@ void dump_cd_sect (char *tb)
     unsigned char *p,*q,c;
 
     q=tb;
-    for (i=0; i<32 && d.cdrom>5; i++) {		/* 32x64 */
+    for (i=0; i<32 && debug_level('C')>5; i++) {		/* 32x64 */
       p=buf;
       for (j=0; j<64; j++) {
         c=*q++;
@@ -191,7 +191,7 @@ void dump_cd_sect (char *tb)
       C_printf("%03x[%s]\n",i*64,buf);
     }
     q=tb;
-    for (i=0; i<64 && d.cdrom>8; i++) {		/* 64x32 */
+    for (i=0; i<64 && debug_level('C')>8; i++) {		/* 64x32 */
       p=buf;
       for (j=0; j<4; j++) {
         p+=sprintf(p,":%02x%02x%02x%02x%02x%02x%02x%02x",q[0],q[1],q[2],
@@ -722,7 +722,7 @@ void cdrom_helper(void)
    }
 
 #ifdef CDROM_DEBUG
-   if (d.cdrom>5) {
+   if (debug_level('C')>5) {
      C_printf ("CDROM: req_buf ");
      req_buf = SEG_ADR((char *), es, di);
      for (n = 0; n < 22; ++n)

@@ -323,7 +323,7 @@ sti(void)
 void handle_signals(void) {
   if ( SIGNAL_head != SIGNAL_tail ) {
 #ifdef X86_EMULATOR
-    if ((config.cpuemu>1) && (d.emu>3))
+    if ((config.cpuemu>1) && (debug_level('e')>3))
       {e_printf("EMU86: SIGNAL at %d\n",SIGNAL_head);}
 #endif
     signal_pending = 0;

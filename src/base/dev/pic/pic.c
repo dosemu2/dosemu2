@@ -299,7 +299,7 @@ static unsigned char pic1_cmd;
 #ifdef NO_DEBUGPRINT_AT_ALL
 #define pic_print(code,s1,v1,s2)
 #else
-#define pic_print(code,s1,v1,s2)	if (d.request>code){p_pic_print(s1,v1,s2);}
+#define pic_print(code,s1,v1,s2)	if (debug_level('r')>code){p_pic_print(s1,v1,s2);}
 
 static void p_pic_print(char *s1, int v1, char *s2)
 {
@@ -837,7 +837,7 @@ g_printf("+%d",(int)pic_ilevel);
  /* enter PIC loop - we can continue only when pic_isr has been cleared */
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
-	if (d.request>2)
+	if (debug_level('r')>2)
 		r_printf("------ PIC: intr loop ---%06lx--%06lx----\n",
 			pic_vm86_count,pic_dpmi_count);
 	if (in_dpmi ) {
@@ -922,7 +922,7 @@ static char buf[81];
     pic_ltime[inum] = pic_itime[inum];
     ret=PIC_REQ_OK;
   }
-  if (d.request&2) {
+  if (debug_level('r') >2) {
     /* avoid going through sprintf for non-debugging */
     sprintf(buf,", k%d",(int)pic_dpmi_count);
     pic_print(2,"Zeroing vm86, DPMI from ",pic_vm86_count,buf);
@@ -1137,7 +1137,7 @@ void pic_sched(int ilevel, int interval)
 	pic_itime[ilevel] = pic_itime[ilevel] + interval;
      }
   }
-  if (d.request > 2) {
+  if (debug_level('r') > 2) {
     /* avoid going through sprintf for non-debugging */
     sprintf(mesg,", delay= %d.",interval);
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);

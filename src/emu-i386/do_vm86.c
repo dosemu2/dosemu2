@@ -383,7 +383,7 @@ op0ferr:
 #ifdef USE_MHPDBG
     mhp_debug(DBG_GPF, 0, 0);
 #endif
-    d.general=1;
+    set_debug_level('g', 1);
     error("general protection at %p: %x\n", lina,*lina);
     show_regs(__FILE__, __LINE__);
     show_ints(0, 0x33);
@@ -393,7 +393,7 @@ op0ferr:
   }				/* end of switch() */
 
 #ifdef TRACE_DPMI
-  if (d.dpmit==0)
+  if (debug_level('t')==0)
 #endif
   if (LWORD(eflags) & TF) {
     g_printf("TF: trap done");
@@ -449,12 +449,12 @@ run_vm86(void)
 
     if (
 #ifdef X86_EMULATOR
-	(d.emu>1)||
+	(debug_level('e')>1)||
 #endif
-	(d.general>3)) {
+	(debug_level('g')>3)) {
 	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS);
-	if (d.general>8)
+	if (debug_level('g')>8)
 	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
 	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
 	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
@@ -482,12 +482,12 @@ run_vm86(void)
 #endif
     if (
 #ifdef X86_EMULATOR
-	(d.emu>1)||
+	(debug_level('e')>1)||
 #endif
-	(d.general>3)) {
+	(debug_level('g')>3)) {
 	dbug_printf ("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x ret=0x%x\n",
 		_CS, _EIP, _SS, _SP, _EFLAGS, retval);
-	if (d.general>8)
+	if (debug_level('g')>8)
 	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
 	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
 	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",

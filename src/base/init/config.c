@@ -25,6 +25,7 @@
 #include "bios.h"
 #include "lpt.h"
 #include "int.h"
+#include "init.h"
 
 #include "dos2linux.h"
 #include "priv.h"
@@ -59,7 +60,7 @@ int dosemu_argc;
 char **dosemu_argv;
 
 static void     check_for_env_autoexec_or_config(void);
-int     parse_debugflags(const char *s, unsigned char flag);
+extern int     parse_debugflags(const char *s, unsigned char flag);
 static void     usage(void);
 void memcheck_type_init(void);
 
@@ -879,7 +880,7 @@ config_init(int argc, char **argv)
 	}
     }
 
-    if (config_check_only) d.config = 1;
+    if (config_check_only) set_debug_level('c',1);
 
     if (dexe_name || !strcmp(basename,"dosexec")) {
 	extern void prepare_dexe_load(char *name);
@@ -992,7 +993,6 @@ config_init(int argc, char **argv)
 	    }
 	case 'D':
 	    parse_debugflags(optarg, 1);
-	    if (config_check_only) d.config = 1;
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
@@ -1129,193 +1129,6 @@ check_for_env_autoexec_or_config(void)
 #endif
 }
 
-/*
- * DANG_BEGIN_FUNCTION parse_debugflags
- * 
- * arguments: 
- * s - string of options.
- * 
- * description: 
- * This part is fairly flexible...you specify the debugging
- * flags you wish with -D string.  The string consists of the following
- * characters: +   turns the following options on (initial state) -
- * turns the following options off a   turns all the options on/off,
- * depending on whether +/- is set 0-9 sets debug levels (0 is off, 9 is
- * most verbose) #   where # is a letter from the valid option list (see
- * docs), turns that option off/on depending on the +/- state.
- * 
- * Any option letter can occur in any place.  Even meaningless combinations,
- * such as "01-a-1+0vk" will be parsed without error, so be careful. Some
- * options are set by default, some are clear. This is subject to my whim.
- * You can ensure which are set by explicitly specifying.
- * 
- * DANG_END_FUNCTION
- */
-int parse_debugflags(const char *s, unsigned char flag)
-{
-    char c;
-    int ret = 0;
-#ifdef X_SUPPORT
-    const char      allopts[] = "dARWDCvXkiTtsm#pQgcwhIExMnPrSeZ";
-#else
-    const char      allopts[] = "dARWDCvkiTtsm#pQgcwhIExMnPrSeZ";
-#endif
-/*    abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ  */
-/*      *** *** * ** * *** ***  * ***   *   *  *****  ** *  */
-
-    /*
-     * if you add new classes of debug messages, make sure to add the
-     * letter to the allopts string above so that "1" and "a" can work
-     * correctly.
-     */
-
-    dbug_printf("debug flags: (%d)%s\n", flag, s);
-    while ((c = *(s++)))
-	switch (c) {
-	case '+':		/* begin options to turn on */
-	    if (!flag)
-		flag = 1;
-	    break;
-	case '-':		/* begin options to turn off */
-	    flag = 0;
-	    break;
-
-	case 'd':		/* disk */
-	    d.disk = flag;
-	    break;
-	case 'R':		/* disk READ */
-	    d.read = flag;
-	    break;
-	case 'W':		/* disk WRITE */
-	    d.write = flag;
-	    break;
-	case 'D':		/* DOS int 21h */
-	    d.dos = flag;
-	    { static int first = 1;
-	      if(first) { set_int21_revectored(d.dos ? 1 : 0); first = 0; }
-	    }
-	    break;
-        case 'C':               /* CDROM */
-	    d.cdrom = flag;
-            break;
-	case 'v':		/* video */
-	    d.video = flag;
-	    break;
-#ifdef X_SUPPORT
-	case 'X':
-	    d.X = flag;
-	    break;
-#endif
-	case 'k':		/* keyboard */
-	    d.keyb = flag;
-	    break;
-	case 'i':		/* i/o instructions (in/out) */
-	    d.io = flag;
-	    break;
-	case 'T':		/* i/o port tracing */
-	{   extern void init_port_traceing(void);
-	    d.io_trace = flag;
-	    if (d.io_trace) init_port_traceing();
-	    break;
-	}
-	case 's':		/* serial */
-	    d.serial = flag;
-	    break;
-	case 'm':		/* mouse */
-	    d.mouse = flag;
-	    break;
-	case '#':		/* default int */
-	    d.defint =flag;
-	    break;
-	case 'p':		/* printer */
-	    d.printer = flag;
-	    break;
-	case 'g':		/* general messages */
-	    d.general = flag;
-	    break;
-	case 'c':		/* configuration */
-	    d.config = flag;
-	    break;
-	case 'w':		/* warnings */
-	    d.warning = flag;
-	    break;
-	case 'h':		/* hardware */
-	    d.hardware = flag;
-	    break;
-	case 'I':		/* IPC */
-	    d.IPC = flag;
-	    break;
-	case 'E':		/* EMS */
-	    d.EMS = flag;
-	    break;
-	case 'x':		/* XMS */
-	    d.xms = flag;
-	    break;
-	case 'M':		/* DPMI */
-	    d.dpmi = flag;
-	    break;
-	case 'n':		/* IPX network */
-	    d.network = flag;
-	    break;
-	case 'P':		/* Packet driver */
-	    d.pd = flag;
-	    break;
-	case 'Q':		/* Mapping driver */
-	    d.mapping = flag;
-	    break;
-	case 'r':		/* PIC */
-	    d.request = flag;
-	    break;
-	case 'S':		/* SOUND */
-	    d.sound = flag;
-	    break;
-	case 'A':		/* ASPI */
-	    d.aspi = flag;
-	    break;
-	case 'Z':
-	    d.pci = flag;       /* PCI */
-	    break;
-#ifdef X86_EMULATOR
-	case 'e':		/* cpu-emu */
-	    d.emu = flag;
-	    dbug_printf("debug flags: (%d)e\n", flag);
-	    break;
-#endif
-#ifdef TRACE_DPMI
-	case 't':		/* dpmi */
-	    d.dpmit = flag;
-	    dbug_printf("debug flags: (%d)t\n", flag);
-	    break;
-#endif
-	case 'a':{		/* turn all on/off depending on flag */
-		char *newopts = (char *) malloc(strlen(allopts) + 2);
-
-		newopts[0] = flag ? '+' : '-';
-		newopts[1] = 0;
-		strcat(newopts, allopts);
-#if 1 /* we need to _always_ remove these flags here !!! #ifdef X86_EMULATOR */
-		/* hack-do not set 'e,t' flags if not explicitly specified */
-		{char *p=newopts;
-		 while (*p) {if ((*p=='e')||(*p=='t')) *p='!'; p++;}}
-#endif
-		parse_debugflags(newopts, flag);
-		free(newopts);
-	    }
-	    break;
-	case '0' ... '9':	/* set debug level, 0 is off, 9 is most
-				 * verbose */
-	    flag = c - '0';
-	case '!':		/* do-nothing */
-	    break;
-	default:
-	    fprintf(stderr, "Unknown debug-msg mask: %c\n\r", c);
-	    dbug_printf("Unknown debug-msg mask: %c\n", c);
-	    ret = 1;
-	}
-  if (config_check_only) d.config = 1;
-  return ret;
-}
-
 static void
 usage(void)
 {
@@ -1335,18 +1148,14 @@ usage(void)
 	"    -d detach (?)\n"
 #ifdef X_SUPPORT
 	"    -X run in X Window (#)\n"
+#endif
 /* seems no longer valid bo 18.7.95
 	"    -Y NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n"
 	"    -Z NAME use FIFO NAME for mouse (only with x2dos!)\n"
 */
-	"    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWXcdghikmnprsvwx}\n"
-#else				/* X_SUPPORT */
-	"    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWcdghikmnprsvwx}\n"
-#endif				/* X_SUPPORT */
-	"       #=defint  C=cdrom    D=dos    E=ems       I=ipc     M=dpmi\n"
-	"       P=packet  R=diskread S=sound  W=diskwrite c=config  d=disk\n"
-	"       g=general h=hardware i=i/o    k=keyb      m=mouse   n=ipxnet\n"
-	"       p=printer r=pic      s=serial v=video     w=warning x=xms\n"
+    );
+    print_debug_usage(stderr);
+    fprintf(stderr,
 	"    -E STRING pass DOS command on command line\n"
 	"    -e SIZE enable SIZE K EMS RAM\n"
 	"    -F use File as global config-file\n"

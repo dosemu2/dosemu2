@@ -1,3 +1,14 @@
+2002/01/06 ver 1.1.2.3 unofficial pre-release
+	From Eric	
+	- dosemu_debug.h Rework to for the debug print statement rewrite
+	  - Rewrote the debug print statements to allow plugin to
+	    define their own types.
+	- serv_xlat.c 
+	  - Modify Albertos Ctrl-Alt-PgDn hook to work with the new
+	    debug message style.
+	- init.h 
+	  - Added so we can have initialization function in plugins that
+	    don't need a call chain.
 2002/01/06 ver 1.1.2.2 unofficial pre-release
 	From Eric
 	- mkconfscript: 

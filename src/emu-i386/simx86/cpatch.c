@@ -39,20 +39,20 @@
 
 int s_munprotect(caddr_t addr)
 {
-	if (d.emu>3) e_printf("\tS_MUNPROT %08lx\n",(long)addr);
+	if (debug_level('e')>3) e_printf("\tS_MUNPROT %08lx\n",(long)addr);
 	return e_munprotect(addr,0);
 }
 
 int s_mprotect(caddr_t addr)
 {
-	if (d.emu>3) e_printf("\tS_MPROT   %08lx\n",(long)addr);
+	if (debug_level('e')>3) e_printf("\tS_MPROT   %08lx\n",(long)addr);
 	return e_mprotect(addr,0);
 }
 
 int m_mprotect(caddr_t addr)
 {
 	__asm__ ("cld");
-	if (d.emu>3)
+	if (debug_level('e')>3)
 	    e_printf("\tM_MPROT   %08lx\n",(long)addr);
 	return e_mprotect(addr,0);
 }
@@ -63,7 +63,7 @@ int m_mprotect(caddr_t addr)
 int m_munprotect(caddr_t addr, long eip)
 {
 	__asm__ ("cld");
-	if (d.emu>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
+	if (debug_level('e')>3) e_printf("\tM_MUNPROT %08lx:%08lx [%08lx]\n",
 		(long)addr,eip,*((long *)(eip-5)));
 #ifndef HOST_ARCH_SIM
 	/* verify that data, not code, has been hit */
@@ -83,7 +83,7 @@ int r_munprotect(caddr_t addr, long len, long flags)
 {
 	__asm__ ("cld");
 	if (flags & EFLAGS_DF) addr -= len;
-	if (d.emu>3)
+	if (debug_level('e')>3)
 	    e_printf("\tR_MUNPROT %08lx:%08lx %s\n",
 		(long)addr,(long)addr+len,(flags&EFLAGS_DF?"back":"fwd"));
 #ifndef HOST_ARCH_SIM
@@ -690,7 +690,7 @@ int Cpatch(unsigned char *eip)
 	// mov %%{e}ax,(%%esi,%%ecx,1)
 	// we have a sequence:	66 89 04 0e 90
 	//		or	89 04 0e 90 90
-	if (d.emu>1) e_printf("### Stack patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### Stack patch at %08lx\n",(long)eip);
 	if (w16) {
 	    p--; JSRPATCH(p,&stub_stk_16);
 	}
@@ -701,14 +701,14 @@ int Cpatch(unsigned char *eip)
     }
     if (v==0x90900788) {	// movb %%al,(%%edi)
 	// we have a sequence:	88 07 90 90 90
-	if (d.emu>1) e_printf("### Byte write patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### Byte write patch at %08lx\n",(long)eip);
 	JSRPATCH(p,&stub_wri_8);
 	return 1;
     }
     if (v==0x90900789) {	// mov %%{e}ax,(%%edi)
 	// we have a sequence:	89 07 90 90 90
 	//		or	66 89 07 90 90
-	if (d.emu>1) e_printf("### Word/Long write patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### Word/Long write patch at %08lx\n",(long)eip);
 	if (w16) {
 	    p--; JSRPATCH(p,&stub_wri_16);
 	}
@@ -719,7 +719,7 @@ int Cpatch(unsigned char *eip)
     }
     if (v==0x909090a5) {	// movsw
 	if (rep) {
-	if (d.emu>1) e_printf("### REP movs{wl} patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### REP movs{wl} patch at %08lx\n",(long)eip);
 	    if (w16) {
 		p-=2; JSRPATCH(p,&stub_rep_movsw);
 	    }
@@ -728,7 +728,7 @@ int Cpatch(unsigned char *eip)
 	    }
 	}
 	else {
-	if (d.emu>1) e_printf("### movs{wl} patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### movs{wl} patch at %08lx\n",(long)eip);
 	    if (w16) {
 		p--; JSRPATCH(p,&stub_movsw);
 	    }
@@ -740,18 +740,18 @@ int Cpatch(unsigned char *eip)
     }
     if (v==0x909090a4) {	// movsb
 	if (rep) {
-	if (d.emu>1) e_printf("### REP movsb patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### REP movsb patch at %08lx\n",(long)eip);
 	    p--; JSRPATCH(p,&stub_rep_movsb);
 	}
 	else {
-	if (d.emu>1) e_printf("### movsb patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### movsb patch at %08lx\n",(long)eip);
 	    JSRPATCH(p,&stub_movsb);
 	}
 	return 1;
     }
     if (v==0x909090ab) {	// stosw
 	if (rep) {
-	if (d.emu>1) e_printf("### REP stos{wl} patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### REP stos{wl} patch at %08lx\n",(long)eip);
 	    if (w16) {
 		p-=2; JSRPATCH(p,&stub_rep_stosw);
 	    }
@@ -760,7 +760,7 @@ int Cpatch(unsigned char *eip)
 	    }
 	}
 	else {
-	if (d.emu>1) e_printf("### stos{wl} patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### stos{wl} patch at %08lx\n",(long)eip);
 	    if (w16) {
 		p--; JSRPATCH(p,&stub_stosw);
 	    }
@@ -772,16 +772,16 @@ int Cpatch(unsigned char *eip)
     }
     if (v==0x909090aa) {	// stosb
 	if (rep) {
-	if (d.emu>1) e_printf("### REP stosb patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### REP stosb patch at %08lx\n",(long)eip);
 	    p--; JSRPATCH(p,&stub_rep_stosb);
 	}
 	else {
-	if (d.emu>1) e_printf("### stosb patch at %08lx\n",(long)eip);
+	if (debug_level('e')>1) e_printf("### stosb patch at %08lx\n",(long)eip);
 	    JSRPATCH(p,&stub_stosb);
 	}
 	return 1;
     }
-    if (d.emu>1) e_printf("### Patch unimplemented: %08lx\n",*((long *)p));
+    if (debug_level('e')>1) e_printf("### Patch unimplemented: %08lx\n",*((long *)p));
     return 0;
 }
 

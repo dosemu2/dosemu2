@@ -96,10 +96,9 @@ int signal, struct sigcontext_struct *scp
       case 0x05: /* bounds */
       case 0x07: /* device_not_available */
 #ifdef TRACE_DPMI
-		 if (d.dpmit && (_trapno==1)) {
+		 if (_trapno==1) {
 	           extern char *e_scp_disasm();
-	           if (d.dpmit>1)
-			dbug_printf("\n%s",e_scp_disasm(scp,0));
+	           t_printf("\n%s",e_scp_disasm(scp,0));
 		 }
 #endif
 		 return (void) do_int(_trapno);
@@ -182,20 +181,20 @@ sgleave:
 	  	 _trapno, _err, _cr2);
 		{
 		  extern FILE *dbg_fd;
-		  int auxg = d.general;
+		  int auxg = debug_level('g');
 		  FILE *aux = dbg_fd;
 		  flush_log();  /* important! else we flush to stderr */
 		  dbg_fd = stderr;
-		  d.general =1;
+		  set_debug_level('g',1);
 		  show_regs(__FILE__, __LINE__);
-		  d.general = auxg;
+		  set_debug_level('g', auxg);
 		  flush_log();
 		  dbg_fd = aux;
 		}
 #endif
 
  		 show_regs(__FILE__, __LINE__);
-		 if (d.network)		/* XXX */
+		 if (debug_level('n'))		/* XXX */
 		     abort();
 		 flush_log();
  		 leavedos(4);

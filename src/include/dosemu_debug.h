@@ -29,7 +29,7 @@
  *	avoid the long DOS intro when using high debug values.
  *	You have to define it if you want to trace into the DOS boot
  *	phase (i.e. from the loading at 0x7c00 on) */
-#if 1
+#if 0
 #define DONT_DEBUG_BOOT
 #endif
 
@@ -40,15 +40,8 @@
 #define	CIRCULAR_LOGBUFFER
 #endif
 
-/* this is for cpuemu-like tracing via TF (w/o dosdebug) */
-#ifdef X86_EMULATOR	/* for the moment */
-#if 0
-#define TRACE_DPMI
-#endif
-#endif
-
 /*
- * The 'struct debug_flags' defines which features may print discrete debug
+ * The 'debug' array defines which features may print discrete debug
  * messages. If you want to add one, also adapt the following places in the
  * DOSEMU code:
  *
@@ -59,53 +52,22 @@
  * Here is an overview of which flags are used and which not, please keep
  * this comment in sync with the reality:
  *
- *   used: aA  cCdDeE  g h iI  k   mMn   pP QrRsStT  v wWxX      and '#'
- *   free:   bB      fF G H  jJ KlL   NoO  q        U V    yYzZ
+ *   used: aA  cCdDeE  g h iI  k   mMn   pP QrRsStTu v wW X   Z#
+ *   free:   bB      fF G H  jJ KlL   NoO  q        U V  x yYz
  */
-struct debug_flags {
-  unsigned char
-   disk,		/* disk msgs         "d" */
-   read,		/* disk read         "R" */
-   write,		/* disk write        "W" */
-   dos,			/* unparsed int 21h  "D" */
-   cdrom,               /* cdrom             "C" */
-   video,		/* video             "v" */
-   X,			/* X support         "X" */
-   keyb,		/* keyboard          "k" */
-   io,			/* port I/O          "i" */
-   io_trace, 		/* I/O trace         "T" */
-   serial,		/* serial            "s" */
-   mouse,		/* mouse             "m" */
-   defint,		/* default ints      "#" */
-   printer,		/* printer           "p" */
-   general,		/* general           "g" */
-   config,		/* configuration     "c" */
-   warning,		/* warning           "w" */
-   hardware,		/* hardware          "h" */
-   IPC,			/* IPC               "I" */
-   EMS,			/* EMS               "E" */
-   xms,			/* xms               "x" */
-   dpmi,		/* dpmi              "M" */
-   network,		/* IPX network       "n" */
-   pd,			/* Packet driver     "P" */
-   request,		/* PIC               "r" */
-   sound, 		/* SOUND	     "S" */
-   aspi,		/* ASPI interface    "A" */
-   mapping,		/* Mapping driver    "Q" */
-   pci                  /* PCI               "Z" */
-#ifdef X86_EMULATOR
-   ,emu			/* CPU emulation     "e" */
-#endif
-#ifdef TRACE_DPMI
-   ,dpmit		/* DPMI emu-debug    "t" */
-#endif
-   ;
+ 
+#define DEBUG_CLASSES 128
+struct debug_class
+{
+	void (*change_level)(int level);
+	char *help_text;
+	unsigned char level, letter;
 };
 
 #ifdef DONT_DEBUG_BOOT
-extern struct debug_flags d_save;
+EXTERN struct debug_class debug_save[DEBUG_CLASSES];
 #endif
-extern struct debug_flags d;
+EXTERN struct debug_class debug[DEBUG_CLASSES];
 
 int log_printf(int, const char *,...) FORMAT(printf, 2, 3);
 
@@ -140,50 +102,105 @@ void verror(const char *fmt, va_list args);
 #define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
 
 /* "dRWDCvXkiTsm#pgcwhIExMnPrS" */
-#define d_printf(f,a...) 	ifprintf(d.disk,f,##a)
-#define R_printf(f,a...) 	ifprintf(d.read,f,##a)
-#define W_printf(f,a...) 	ifprintf(d.write,f,##a)
-#define ds_printf(f,a...)     	ifprintf(d.dos,f,##a)
-#define C_printf(f,a...)        ifprintf(d.cdrom,f,##a)
-#define v_printf(f,a...) 	ifprintf(d.video,f,##a)
-#define X_printf(f,a...)        ifprintf(d.X,f,##a)
-#define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
-#define i_printf(f,a...) 	ifprintf(d.io,f,##a)
-#define T_printf(f,a...) 	ifprintf(d.io_trace,f,##a)
-#define s_printf(f,a...) 	ifprintf(d.serial,f,##a)
-#define m_printf(f,a...)	ifprintf(d.mouse,f,##a)
-#define di_printf(f,a...)     	ifprintf(d.defint,f,##a)
-#define p_printf(f,a...) 	ifprintf(d.printer,f,##a)
-#define g_printf(f,a...)	ifprintf(d.general,f,##a)
-#define c_printf(f,a...) 	ifprintf(d.config,f,##a)
-#define warn(f,a...)     	ifprintf(d.warning,f,##a)
-#define h_printf(f,a...) 	ifprintf(d.hardware,f,##a)
-#define I_printf(f,a...) 	ifprintf(d.IPC,f,##a)
-#define E_printf(f,a...) 	ifprintf(d.EMS,f,##a)
-#define x_printf(f,a...)	ifprintf(d.xms,f,##a)
-#define D_printf(f,a...)	ifprintf(d.dpmi,f,##a)
-#define n_printf(f,a...)        ifprintf(d.network,f,##a)  /* TRB     */
-#define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	   /* pktdrvr */
-#define r_printf(f,a...)        ifprintf(d.request,f,##a)
-#define S_printf(f,a...)     	ifprintf(d.sound,f,##a)
-#define A_printf(f,a...)     	ifprintf(d.aspi,f,##a)
-#define Q_printf(f,a...)	ifprintf(d.mapping,f,##a)
-#define Z_printf(f,a...)        ifprintf(d.pci,f,##a)
-#ifdef X86_EMULATOR
-#define e_printf(f,a...)     	ifprintf(d.emu,f,##a)
-#define t_printf(f,a...)     	ifprintf(d.dpmit,f,##a)
-#endif
+#define b_printf(f,a...)	ifprintf(debug_level('b'),f,##a)
+#define c_printf(f,a...)	ifprintf(debug_level('c'),f,##a)
+#define d_printf(f,a...)	ifprintf(debug_level('d'),f,##a)
+#define e_printf(f,a...)	ifprintf(debug_level('e'),f,##a)
+#define f_printf(f,a...)	ifprintf(debug_level('f'),f,##a)
+#define g_printf(f,a...)	ifprintf(debug_level('g'),f,##a)
+#define h_printf(f,a...)	ifprintf(debug_level('h'),f,##a)
+#define i_printf(f,a...)	ifprintf(debug_level('i'),f,##a)
+#define j_printf(f,a...)	ifprintf(debug_level('j'),f,##a)
+#define k_printf(f,a...)	ifprintf(debug_level('k'),f,##a)
+#define l_printf(f,a...)	ifprintf(debug_level('l'),f,##a)
+#define m_printf(f,a...)	ifprintf(debug_level('m'),f,##a)
+#define n_printf(f,a...)	ifprintf(debug_level('n'),f,##a)
+#define o_printf(f,a...)	ifprintf(debug_level('o'),f,##a)
+#define p_printf(f,a...)	ifprintf(debug_level('p'),f,##a)
+#define q_printf(f,a...)	ifprintf(debug_level('q'),f,##a)
+#define r_printf(f,a...)	ifprintf(debug_level('r'),f,##a)
+#define s_printf(f,a...)	ifprintf(debug_level('s'),f,##a)
+#define t_printf(f,a...)	ifprintf(debug_level('t'),f,##a)
+#define u_printf(f,a...)	ifprintf(debug_level('u'),f,##a)
+#define v_printf(f,a...)	ifprintf(debug_level('v'),f,##a)
+#define w_printf(f,a...)	ifprintf(debug_level('w'),f,##a)
+#define x_printf(f,a...)	ifprintf(debug_level('x'),f,##a)
+#define y_printf(f,a...)	ifprintf(debug_level('y'),f,##a)
+#define z_printf(f,a...)	ifprintf(debug_level('z'),f,##a)
+
+#define A_printf(f,a...)	ifprintf(debug_level('A'),f,##a)
+#define B_printf(f,a...)	ifprintf(debug_level('B'),f,##a)
+#define C_printf(f,a...)	ifprintf(debug_level('C'),f,##a)
+#define D_printf(f,a...)	ifprintf(debug_level('D'),f,##a)
+#define E_printf(f,a...)	ifprintf(debug_level('E'),f,##a)
+#define F_printf(f,a...)	ifprintf(debug_level('F'),f,##a)
+#define G_printf(f,a...)	ifprintf(debug_level('G'),f,##a)
+#define H_printf(f,a...)	ifprintf(debug_level('H'),f,##a)
+#define I_printf(f,a...)	ifprintf(debug_level('I'),f,##a)
+#define J_printf(f,a...)	ifprintf(debug_level('J'),f,##a)
+#define K_printf(f,a...)	ifprintf(debug_level('K'),f,##a)
+#define L_printf(f,a...)	ifprintf(debug_level('L'),f,##a)
+#define M_printf(f,a...)	ifprintf(debug_level('M'),f,##a)
+#define N_printf(f,a...)	ifprintf(debug_level('N'),f,##a)
+#define O_printf(f,a...)	ifprintf(debug_level('O'),f,##a)
+#define P_printf(f,a...)	ifprintf(debug_level('P'),f,##a)
+#define Q_printf(f,a...)	ifprintf(debug_level('Q'),f,##a)
+#define R_printf(f,a...)	ifprintf(debug_level('R'),f,##a)
+#define S_printf(f,a...)	ifprintf(debug_level('S'),f,##a)
+#define T_printf(f,a...)	ifprintf(debug_level('T'),f,##a)
+#define U_printf(f,a...)	ifprintf(debug_level('U'),f,##a)
+#define V_printf(f,a...)	ifprintf(debug_level('V'),f,##a)
+#define W_printf(f,a...)	ifprintf(debug_level('W'),f,##a)
+#define X_printf(f,a...)	ifprintf(debug_level('X'),f,##a)
+#define Y_printf(f,a...)	ifprintf(debug_level('Y'),f,##a)
+#define Z_printf(f,a...)	ifprintf(debug_level('Z'),f,##a)
+
+#define di_printf(f,a...)	ifprintf(debug_level('#'),f,##a)
+
+/* Handle the weird leftovers */
+#undef D_printf
+#undef M_printf
+#undef w_printf
+#undef P_printf
+#define ds_printf(f,a...)	ifprintf(debug_level('D'),f,##a)
+#define D_printf(f,a...)	ifprintf(debug_level('M'),f,##a)
+#define warn(f,a...)		ifprintf(debug_level('w'),f,##a)
+#define pd_printf(f,a...)	ifprintf(debug_level('P'),f,##a)
 
 #ifndef NO_DEBUGPRINT_AT_ALL
 
-#define ALL_DEBUG_ON	memset(&d,9,sizeof(d))
-#define ALL_DEBUG_OFF	memset(&d,0,sizeof(d))
+extern int parse_debugflags(const char *s, unsigned char flag);
+extern int SetDebugFlagsHelper(char *debugStr);
+extern int GetDebugFlagsHelper(char *debugStr, int print);
+extern int register_debug_class(
+	int letter, void (*change_level)(int level), char *help_text);
+extern int unregister_debug_class(int letter);
+extern void print_debug_usage(FILE *stream);
+extern int set_debug_level(int letter, int level);
+extern inline int debug_level(int letter)
+{
+	if (letter >= DEBUG_CLASSES) {
+		return -1;
+	}
+	return debug[letter].level;
+
+}
 
 #else
 
-#define ALL_DEBUG_ON
-#define ALL_DEBUG_OFF
 
+extern int inline parse_debugflags(const char *s, unsigned char flag) { return 0; }
+extern int inline SetDebugFlagsHelper(char *debugStr) { return 0; }
+extern int inline GetDebugFlagsHelper(char *debugStr) { debugStr[0] = '\0'; return 0; }
+extern int inline register_debug_class(
+	int letter, void (*change_level)(int level), char *help_text)
+{
+	return 0;
+}
+extern int inline unregister_debug_class(int letter) { return 0; }
+extern void inline print_debug_usage(FILE *stream) { return; }
+extern int inline set_debug_level(int letter, int level) { return 0; }
+extern inline int debug_level(int letter) { return 0; }
 #endif
 
 #endif /* DOSEMU_DEBUG_H */

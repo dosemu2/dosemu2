@@ -142,7 +142,7 @@ static inline void FlagSync_C (int sub)
 	    cy = (((((RFL.S1)^(RFL.S2)) & ~(RFL.RES.d)) | ((RFL.S1)&(RFL.S2))) >> 31) & 1;
 	    if (sub) cy = !cy ^ (RFL.S2==0);
 	}
-	if (d.emu>1) e_printf("Sync CY flag = %d\n", cy);
+	if (debug_level('e')>1) e_printf("Sync CY flag = %d\n", cy);
 	SET_CF(cy);
 }
 
@@ -164,7 +164,7 @@ static inline int FlagSync_NZ (void)
 	    pl = (RFL.RES.d>>24) & 0x80;
 	}
 	nf = zr | pl;
-	if (d.emu>2) e_printf("Sync NZ flags = %02x\n", nf);
+	if (debug_level('e')>2) e_printf("Sync NZ flags = %02x\n", nf);
 	return nf;
 }
 
@@ -211,7 +211,7 @@ static inline int FlagSync_O_ (void)
 		}
 		nf = (of^xof) & 0x800;
 	}
-	if (d.emu>1) e_printf("Sync O flag = %04x\n", nf);
+	if (debug_level('e')>1) e_printf("Sync O flag = %04x\n", nf);
 	return nf;
 }
 
@@ -256,7 +256,7 @@ static inline int FlagSync_AP_ (void)
 	// PF
 	pf = parity[RFL.RES.b.bl];
 	nf = af | pf;
-	if (d.emu>2) e_printf("Sync AP flags = %02x\n", nf);
+	if (debug_level('e')>2) e_printf("Sync AP flags = %02x\n", nf);
 	return nf;
 }
 
@@ -278,7 +278,7 @@ void FlagSync_All (void)
 		nf |= FlagSync_O_();
 		mk = 0xf72b;
 	}
-	if (d.emu>1) e_printf("Sync ALL flags = %04x\n", nf);
+	if (debug_level('e')>1) e_printf("Sync ALL flags = %04x\n", nf);
 	CPUWORD(Ofs_FLAGS) = (CPUWORD(Ofs_FLAGS) & mk) | nf;
 	RFL.valid = V_INVALID;
 }
@@ -576,7 +576,7 @@ void Gen(int op, int mode, ...)
 		else {
 			CPULONG(o) = DR1.d;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		}
 		break;
 
@@ -624,7 +624,7 @@ void Gen(int op, int mode, ...)
 		else {
 		    DR1.d = *AR1.pdu;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		break;
 	case L_VGAWRITE:
 #if X_GRAPHICS
@@ -646,7 +646,7 @@ void Gen(int op, int mode, ...)
 		else {
 		    *AR1.pdu = DR1.d;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		break;
 
 	case O_ADD_R: {		// OSZAPC
@@ -674,7 +674,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = CPULONG(v.bs.bl);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		FlagSync_C(0);
 		}
 		break;
@@ -700,7 +700,7 @@ void Gen(int op, int mode, ...)
 		    if (!(mode & IMMED)) RFL.S2 = CPULONG(v);
 		    DR1.d = RFL.RES.d = RFL.S1 | RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -726,7 +726,7 @@ void Gen(int op, int mode, ...)
 		    if (!(mode & IMMED)) RFL.S2 = CPULONG(v);
 		    DR1.d = RFL.RES.d = RFL.S1 & RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -752,7 +752,7 @@ void Gen(int op, int mode, ...)
 		    if (!(mode & IMMED)) RFL.S2 = CPULONG(v);
 		    DR1.d = RFL.RES.d = RFL.S1 ^ RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		SET_CF(0);
 		}
 		break;
@@ -781,7 +781,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(CPULONG(v.bs.bl));
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -838,7 +838,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = (CPULONG(v.bs.bl) + cy);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		FlagSync_C(0);
 		}
 		break;
@@ -870,7 +870,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(CPULONG(v.bs.bl) + cy);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -999,7 +999,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(*AR1.pdu + cy);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -1027,7 +1027,7 @@ void Gen(int op, int mode, ...)
 			else RFL.S2 = -(*AR1.pdu);
 		    DR1.d = RFL.RES.d = RFL.S1 + RFL.S2;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		FlagSync_C(1);
 		}
 		break;
@@ -1477,7 +1477,7 @@ void Gen(int op, int mode, ...)
 			e_printf("Sync C flag = %d\n", cy);
 			SET_CF(cy);
 			if (sh>1) RFL.mode |= IGNOVF;
-			if (d.emu>3) dbug_printf("(V) %08x\n",raft);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		}
 		break;
@@ -1520,7 +1520,7 @@ void Gen(int op, int mode, ...)
 			e_printf("Sync C flag = %d\n", cy);
 			SET_CF(cy);
 			if (sh>1) RFL.mode |= IGNOVF;
-			if (d.emu>3) dbug_printf("(V) %08x\n",raft);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		}
 		break;
@@ -1563,7 +1563,7 @@ void Gen(int op, int mode, ...)
 			e_printf("Sync C flag = %d\n", cy);
 			SET_CF(cy);
 			if (sh>1) RFL.mode |= IGNOVF;
-			if (d.emu>3) dbug_printf("(V) %08x\n",raft);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		}
 		break;
@@ -1604,7 +1604,7 @@ void Gen(int op, int mode, ...)
 			e_printf("Sync C flag = %d\n", cy);
 			SET_CF(cy);
 			if (sh>1) RFL.mode |= IGNOVF;
-			if (d.emu>3) dbug_printf("(V) %08x\n",raft);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		}
 		break;
@@ -1647,7 +1647,7 @@ void Gen(int op, int mode, ...)
 			e_printf("Sync C flag = %d\n", cy);
 			SET_CF(cy);
 			if (sh>1) RFL.mode |= IGNOVF;
-			if (d.emu>3) dbug_printf("(V) %08x\n",raft);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		}
 		break;
@@ -1690,7 +1690,7 @@ void Gen(int op, int mode, ...)
 			e_printf("Sync C flag = %d\n", cy);
 			SET_CF(cy);
 			if (sh>1) RFL.mode |= IGNOVF;
-			if (d.emu>3) dbug_printf("(V) %08x\n",raft);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		}
 		break;
@@ -1734,7 +1734,7 @@ void Gen(int op, int mode, ...)
 			e_printf("Sync C flag = %d\n", cy);
 			SET_CF(cy);
 			if (sh>1) RFL.mode |= IGNOVF;
-			if (d.emu>3) dbug_printf("(V) %08x\n",raft);
+			if (debug_level('e')>3) dbug_printf("(V) %08x\n",raft);
 		}
 		}
 		break;
@@ -1850,7 +1850,7 @@ void Gen(int op, int mode, ...)
 #endif
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		} break;
 
 /* PUSH derived (sub-)sequences: */
@@ -1875,7 +1875,7 @@ void Gen(int op, int mode, ...)
 			SR1.d &= CPULONG(Ofs_STACKM);
 			*((long *)(AR2.d + SR1.d)) = DR1.d;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		} break;
 
 	case O_PUSH3:
@@ -1900,7 +1900,7 @@ void Gen(int op, int mode, ...)
 			*((long *)(AR2.d + SR1.d)) = ftmp & 0x3c7eff;
 		}
 		CPULONG(Ofs_ESP) = SR1.d;
-		if (d.emu>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
+		if (debug_level('e')>3) dbug_printf("(V) %08x\n",ftmp&0x3c7eff);
 		} break;
 
 	case O_PUSHI: {
@@ -1987,7 +1987,7 @@ void Gen(int op, int mode, ...)
 #endif
 			CPULONG(Ofs_ESP) = SR1.d;
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		} break;
 
 /* POP derived (sub-)sequences: */
@@ -2016,7 +2016,7 @@ void Gen(int op, int mode, ...)
 			SR1.d |= (CPULONG(Ofs_ESP) & ~stackm);
 #endif
 		}
-		if (d.emu>3) dbug_printf("(V) %08lx\n",DR1.d);
+		if (debug_level('e')>3) dbug_printf("(V) %08lx\n",DR1.d);
 		} break;
 
 	case O_POP3:
@@ -2531,9 +2531,9 @@ void Gen(int op, int mode, ...)
 
 	va_end(ap);
 #ifdef DEBUG_MORE
-	if (d.emu>3) {
+	if (debug_level('e')>3) {
 #else
-	if (d.emu>6) {
+	if (debug_level('e')>6) {
 #endif
 	    dbug_printf("(R) DR1=%08lx DR2=%08lx AR1=%08lx AR2=%08lx\n",
 		DR1.d,DR2.d,AR1.d,AR2.d);
@@ -2541,13 +2541,13 @@ void Gen(int op, int mode, ...)
 		SR1.d,TR1.d);
 	    dbug_printf("(R) RFL m=[%s] v=%d S1=%08lx S2=%08lx RES=%08lx\n",
 		showmode(RFL.mode),RFL.valid,RFL.S1,RFL.S2,RFL.RES.d);
-	    if (d.emu==9) dbug_printf("\n%s",e_print_regs());
+	    if (debug_level('e')==9) dbug_printf("\n%s",e_print_regs());
 	}
 
 	/* was there at least one FP op in the sequence? */
 	if (TheCPU.mode & M_FPOP) {
 		int exs = TheCPU.fpus & 0x7f;
-		if (d.emu>3) {
+		if (debug_level('e')>3) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
 		if (exs) {
@@ -2570,9 +2570,9 @@ void Gen(int op, int mode, ...)
 
 unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 {
-	if (d.emu>1) {
+	if (debug_level('e')>1) {
 	    if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
-	    if (d.emu>2) {
+	    if (debug_level('e')>2) {
 		e_printf("== (%04d) == Closing sequence at %08lx\n",ln,(long)PC);
 	    }
 	}
@@ -2581,12 +2581,12 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 	if (RFL.valid!=V_INVALID)
 	    CPUBYTE(Ofs_FLAGS) = (CPUBYTE(Ofs_FLAGS) & 0x3f) | FlagSync_NZ();
 #if defined(SINGLESTEP)||defined(SINGLEBLOCK)
-	if (d.emu>1) e_printf("\n%s",e_print_regs());
+	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
 #endif
 #ifdef DEBUG_MORE
-	if (d.emu>1) {
+	if (debug_level('e')>1) {
 #else
-	if (d.emu>3) {
+	if (debug_level('e')>3) {
 #endif
 	    dbug_printf("(R) DR1=%08lx DR2=%08lx AR1=%08lx AR2=%08lx\n",
 		DR1.d,DR2.d,AR1.d,AR2.d);

@@ -140,7 +140,7 @@ void init_port_traceing(void)
 }
 
 #define TT_printf(p,f,v,m) ({ \
-  if ( d.io_trace && test_bit(p & PORTLOG_MASK, portlog_map)) { \
+  if (debug_level('T') && test_bit(p & PORTLOG_MASK, portlog_map)) { \
     log_printf(1, "%x %c %x\n", p, f, v & m); \
   } \
 })
@@ -178,13 +178,13 @@ static void log_port_write_d(ioport_t port, Bit32u w)
   TT_printf(port, '[', w, 0xffffffff);
 }
 
-#define LOG_PORT_READ(port, r) (d.io_trace ? log_port_read(port, r) : r)
-#define LOG_PORT_READ_W(port, r) (d.io_trace ? log_port_read_w(port, r) : r)
-#define LOG_PORT_READ_D(port, r) (d.io_trace ? log_port_read_d(port, r) : r)
+#define LOG_PORT_READ(port, r) (debug_level('T') ? log_port_read(port, r) : r)
+#define LOG_PORT_READ_W(port, r) (debug_level('T') ? log_port_read_w(port, r) : r)
+#define LOG_PORT_READ_D(port, r) (debug_level('T') ? log_port_read_d(port, r) : r)
 
-#define LOG_PORT_WRITE(port, w) do{ if (d.io_trace) log_port_write(port, w); }while(0)
-#define LOG_PORT_WRITE_W(port, w) do{ if (d.io_trace) log_port_write_w(port, w); }while(0)
-#define LOG_PORT_WRITE_D(port, w) do{ if (d.io_trace) log_port_write_d(port, w); }while(0)
+#define LOG_PORT_WRITE(port, w) do{ if (debug_level('T')) log_port_write(port, w); }while(0)
+#define LOG_PORT_WRITE_W(port, w) do{ if (debug_level('T')) log_port_write_w(port, w); }while(0)
+#define LOG_PORT_WRITE_D(port, w) do{ if (debug_level('T')) log_port_write_d(port, w); }while(0)
 
 /* ---------------------------------------------------------------------- */
 /* SIDOC_BEGIN_REMARK
@@ -367,35 +367,35 @@ static Bit8u port_not_avail_inb(ioport_t port)
 /* it is a fact of (hardware) life that unused locations return all
    (or almost all) the bits at 1; some software can try to detect a
    card basing on this fact and fail if it reads 0x00 - AV */
-	if (d.io) pna_emsg(port,'b',"read");
+	if (debug_level('i')) pna_emsg(port,'b',"read");
 	return 0xff;
 }
 
 static void port_not_avail_outb(ioport_t port, Bit8u byte)
 {
-	if (d.io) pna_emsg(port,'b',"write");
+	if (debug_level('i')) pna_emsg(port,'b',"write");
 }
 
 static Bit16u port_not_avail_inw(ioport_t port)
 {
-	if (d.io) pna_emsg(port,'w',"read");
+	if (debug_level('i')) pna_emsg(port,'w',"read");
 	return 0xffff;
 }
 
 static void port_not_avail_outw(ioport_t port, Bit16u value)
 {
-	if (d.io) pna_emsg(port,'w',"write");
+	if (debug_level('i')) pna_emsg(port,'w',"write");
 }
 
 static Bit32u port_not_avail_ind(ioport_t port)
 {
-	if (d.io) pna_emsg(port,'d',"read");
+	if (debug_level('i')) pna_emsg(port,'d',"read");
 	return 0xffffffff;
 }
 
 static void port_not_avail_outd(ioport_t port, Bit32u value)
 {
-	if (d.io) pna_emsg(port,'d',"write");
+	if (debug_level('i')) pna_emsg(port,'d',"write");
 }
 
 
@@ -433,7 +433,7 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
-	if (d.io_trace) {
+	if (debug_level('T')) {
 		dest = base;
 		while (count_--) {
 			LOG_PORT_READ(port, *dest);
@@ -466,7 +466,7 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
-	if (d.io_trace) {
+	if (debug_level('T')) {
 		dest = base;
 		while (count_--) {
 			LOG_PORT_WRITE(port, *dest);
@@ -507,7 +507,7 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
-	if (d.io_trace) {
+	if (debug_level('T')) {
 		dest = base;
 		while (count_--) {
 			LOG_PORT_READ_W(port, *dest);
@@ -548,7 +548,7 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
-	if (d.io_trace) {
+	if (debug_level('T')) {
 		dest = base;
 		while (count_--) {
 			LOG_PORT_WRITE_W(port, *dest);

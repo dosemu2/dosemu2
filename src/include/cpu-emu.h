@@ -37,7 +37,7 @@ extern void e_priv_iopl(int);
 #define	SKIP_EMU_VBIOS
 #endif
 
-/* if defined, trace instructions (with d.emu>3) only in protected
+/* if defined, trace instructions (with debug_level('e')>3) only in protected
  * mode code. This is useful to skip timer interrupts and/or better
  * follow the instruction flow */
 #if 0

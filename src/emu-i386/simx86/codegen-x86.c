@@ -2017,7 +2017,7 @@ shrot0:
 			}
 			q = Cp; GNX(Cp, p, sz);
 			*((int *)(q+1)) = dspnt;
-			if (d.emu>1) e_printf("CALL: ret=%08x\n",dspnt);
+			if (debug_level('e')>1) e_printf("CALL: ret=%08x\n",dspnt);
 		}
 		// t:	b8 [exit_pc] c3
 		G1(0xb8,Cp);
@@ -2026,7 +2026,7 @@ shrot0:
 		lt->t_link = Cp-BaseGenBuf;
 		lt->nt_link = 0;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (d.emu>2) e_printf("JMP_Link %08x:%08x lk=%d:%08lx:%08lx\n",
+		if (debug_level('e')>2) e_printf("JMP_Link %08x:%08x lk=%d:%08lx:%08lx\n",
 			dspt,dspnt,lt->t_type,lt->t_link,lt->nt_link);
 		}
 		break;
@@ -2085,7 +2085,7 @@ shrot0:
 		G1(0xb8,Cp);
 		lt->t_link = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (d.emu>2) e_printf("J_Link %08x:%08x lk=%d:%08lx:%08lx\n",
+		if (debug_level('e')>2) e_printf("J_Link %08x:%08x lk=%d:%08lx:%08lx\n",
 			dspt,dspnt,lt->t_type,lt->t_link,lt->nt_link);
 		}
 		break;
@@ -2140,7 +2140,7 @@ shrot0:
 		G1(0xb8,Cp);
 		lt->t_link = Cp-BaseGenBuf;
 		G4(dspt,Cp); G2(0xc35a,Cp);
-		if (d.emu>2) e_printf("JLOOP_Link %08x:%08x lk=%d:%08lx:%08lx\n",
+		if (debug_level('e')>2) e_printf("JLOOP_Link %08x:%08x lk=%d:%08lx:%08lx\n",
 			dspt,dspnt,lt->t_type,lt->t_link,lt->nt_link);
 		}
 		break;
@@ -2172,7 +2172,7 @@ void AddrGen(int op, int mode, ...)
 	}
 	I = &InstrMeta[CurrIMeta];
 	IG = &(I->gen[I->ngen]);
-	if (d.emu>6) dbug_printf("AGEN: %3d %6x\n",op,mode);
+	if (debug_level('e')>6) dbug_printf("AGEN: %3d %6x\n",op,mode);
 
 	va_start(ap, mode);
 	IG->op = op;
@@ -2269,7 +2269,7 @@ void Gen(int op, int mode, ...)
 	}
 	I = &InstrMeta[CurrIMeta];
 	IG = &(I->gen[I->ngen]);
-	if (d.emu>6) dbug_printf("CGEN: %3d %6x\n",op,mode);
+	if (debug_level('e')>6) dbug_printf("CGEN: %3d %6x\n",op,mode);
 
 	va_start(ap, mode);
 	IG->op = op;
@@ -2507,7 +2507,7 @@ static void ProduceCode(unsigned char *PC)
 	unsigned char *adr_lo=0, *adr_hi=0, *cp1;
 	IMeta *I0 = &InstrMeta[0];
 
-	if (d.emu>1) {
+	if (debug_level('e')>1) {
 	    e_printf("---------------------------------------------\n");
 	    e_printf("ProduceCode: CurrIMeta=%d\n",CurrIMeta);
 	}
@@ -2535,7 +2535,7 @@ static void ProduceCode(unsigned char *PC)
 	/* actual code buffer starts from here */
 	BaseGenBuf = CodePtr = GenCodeBuf + (2*sizeof(void *) + nap);
 	I0->addr = BaseGenBuf;
-	if (d.emu>1)
+	if (debug_level('e')>1)
 	    e_printf("CodeBuf=%p siz %d CodePtr=%p\n",GenCodeBuf,GenBufSize,CodePtr);
 
 	for (i=0; i<CurrIMeta; i++) {
@@ -2550,7 +2550,7 @@ static void ProduceCode(unsigned char *PC)
 	    I->addr = cp1 = CodePtr;
 	    for (j=0; j<I->ngen; j++) {
 		CodeGen(I, j);
-		if (d.emu>1) {
+		if (debug_level('e')>1) {
 		    IGen *IG = &(I->gen[j]);
 		    int dg = CodePtr-cp1;
 		    e_printf("PGEN(%02d,%02d) %3d %6x %2d %08x %08x %08x %08x %08x\n",
@@ -2564,9 +2564,9 @@ static void ProduceCode(unsigned char *PC)
 		}
 	    }
 	    I->len = CodePtr - I->addr;
-	    if (d.emu>3) GCPrint(I->addr, BaseGenBuf, I->len);
+	    if (debug_level('e')>3) GCPrint(I->addr, BaseGenBuf, I->len);
 	}
-	if (d.emu>1)
+	if (debug_level('e')>1)
 	    e_printf("Size=%d guess=%d\n",(CodePtr-BaseGenBuf),GenBufSize);
 /**/ if ((CodePtr-BaseGenBuf) > GenBufSize) leavedos(0x535347);
 	if (PC < adr_lo) adr_lo = PC;
@@ -2574,7 +2574,7 @@ static void ProduceCode(unsigned char *PC)
 	InstrMeta[0].seqbase = adr_lo;
 	InstrMeta[0].seqlen  = adr_hi - adr_lo;
 
-	if (d.emu>1)
+	if (debug_level('e')>1)
 	    e_printf("---------------------------------------------\n");
 }
 
@@ -2620,7 +2620,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 	linkdesc *T = &G->clink;
 	backref *B;
 
-	if (d.emu>8) e_printf("nodelinker2: %08lx->%08lx\n",LG->key,G->key);
+	if (debug_level('e')>8) e_printf("nodelinker2: %08lx->%08lx\n",LG->key,G->key);
 
 	if (LG && (LG->alive>0)) {
 	    int ra;
@@ -2652,14 +2652,14 @@ static void _nodelinker2(TNode *LG, TNode *G)
 		    T->nrefs++;
 		    if (G==LG) {
 			G->flags |= F_SLFL;
-			if (d.emu>1) {
+			if (debug_level('e')>1) {
 			    e_printf("Linker: node (%08lx:%08lx:%08lx) SELF link\n"
 				"\t\tjmp %08x, undo=%08lx, t_ref %d=%08lx->%08lx\n",
 				(long)G,G->key,(long)G->addr,
 				ra, L->t_undo, T->nrefs, (long)L->t_ref, *((long *)L->t_ref));
 			}
 		    }
-		    else if (d.emu>1) {
+		    else if (debug_level('e')>1) {
 			e_printf("Linker: previous node (%08lx:%08lx:%08lx)\n"
 			    "\t\tlinked to (%08lx:%08lx:%08lx)\n"
 			    "\t\tjmp %08x, undo=%08lx, t_ref %d=%08lx->%08lx\n",
@@ -2667,7 +2667,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			    (long)G,G->key,(long)G->addr,
 			    ra, L->t_undo, T->nrefs, (long)L->t_ref, *((long *)L->t_ref));
 		    }
-		    if (d.emu>8) { backref *bk = T->bkr.next;
+		    if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8108); }
 #endif
@@ -2702,14 +2702,14 @@ static void _nodelinker2(TNode *LG, TNode *G)
 			T->nrefs++;
 			if (G==LG) {
 			    G->flags |= F_SLFL;
-			    if (d.emu>1) {
+			    if (debug_level('e')>1) {
 				e_printf("Linker: node (%08lx:%08lx:%08lx) SELF link\n"
 				"\t\tjmp %08x, undo=%08lx, nt_ref %d=%08lx->%08lx\n",
 				(long)G,G->key,(long)G->addr,
 				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, *((long *)L->nt_ref));
 			    }
 			}
-			else if (d.emu>1) {
+			else if (debug_level('e')>1) {
 			    e_printf("Linker: previous node (%08lx:%08lx:%08lx)\n"
 				"\t\tlinked to (%08lx:%08lx:%08lx)\n"
 				"\t\tjmp %08x, undo=%08lx, nt_ref %d=%08lx->%08lx\n",
@@ -2717,7 +2717,7 @@ static void _nodelinker2(TNode *LG, TNode *G)
 				(long)G,G->key,(long)G->addr,
 				ra, L->nt_undo, T->nrefs, (long)L->nt_ref, *((long *)L->nt_ref));
 			}
-			if (d.emu>8) { backref *bk = T->bkr.next;
+			if (debug_level('e')>8) { backref *bk = T->bkr.next;
 #ifdef DEBUG_LINKER
 			    if (bk==NULL) { dbug_printf("bkr null\n"); leavedos(0x8109); }
 #endif
@@ -2773,14 +2773,14 @@ void NodeUnlinker(TNode *G)
 #endif
 	// unlink backward references (from other nodes to the current
 	// node)
-	if (d.emu>8)
+	if (debug_level('e')>8)
 	    e_printf("Unlinker: bkr.next=%08lx\n",(long)B);
 	while (B) {
 	    backref *b2 = B;
 	    if (B->branch=='T') {
 		TNode *H = (TNode *)*((long *)B->ref);
 		linkdesc *L = &H->clink;
-		if (d.emu>2) e_printf("Unlinking T ref from node %08lx(%08lx) to %08lx\n",
+		if (debug_level('e')>2) e_printf("Unlinking T ref from node %08lx(%08lx) to %08lx\n",
 			(long)H, L->t_undo, G->key);
 		if (L->t_undo != G->key) {
 		    dbug_printf("Unlinker: BK ref error u=%08lx k=%08lx\n",
@@ -2796,7 +2796,7 @@ void NodeUnlinker(TNode *G)
 	    else if (B->branch=='N') {
 		TNode *H = (TNode *)*((long *)B->ref);
 		linkdesc *L = &H->clink;
-		if (d.emu>2) e_printf("Unlinking N ref from node %08lx(%08lx) to %08lx\n",
+		if (debug_level('e')>2) e_printf("Unlinking N ref from node %08lx(%08lx) to %08lx\n",
 			(long)H, L->nt_undo, G->key);
 		if (L->nt_undo != G->key) {
 		    dbug_printf("Unlinker: BK ref error u=%08lx k=%08lx\n",
@@ -2826,13 +2826,13 @@ void NodeUnlinker(TNode *G)
 
 	// unlink forward references (from the current node to other
 	// nodes), which are backward refs for the other nodes
-	if (d.emu>8)
+	if (debug_level('e')>8)
 	    e_printf("Unlinker: refs=T%08lx N%08lx\n",(long)T->t_ref,(long)T->nt_ref);
 	if (T->t_ref) {
 	    TNode *Gt = (TNode *)*((long *)T->t_ref);
 	    backref *Btq = &Gt->clink.bkr;
 	    backref *Bt  = Gt->clink.bkr.next;
-	    if (d.emu>2) e_printf("Unlink fwd T ref to node %08lx(%08lx)\n",(long)Gt,
+	    if (debug_level('e')>2) e_printf("Unlink fwd T ref to node %08lx(%08lx)\n",(long)Gt,
 		Gt->key);
 	    while (Bt) {
 		if (*Bt->ref==(long)G) {
@@ -2854,7 +2854,7 @@ void NodeUnlinker(TNode *G)
 	    TNode *Gn = (TNode *)*((long *)T->nt_ref);
 	    backref *Bnq = &Gn->clink.bkr;
 	    backref *Bn  = Gn->clink.bkr.next;
-	    if (d.emu>2) e_printf("Unlink fwd N ref to node %08lx(%08lx)\n",(long)Gn,
+	    if (debug_level('e')>2) e_printf("Unlink fwd N ref to node %08lx(%08lx)\n",(long)Gn,
 		Gn->key);
 	    while (Bn) {
 		if (*Bn->ref==(long)G) {
@@ -2924,7 +2924,7 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 		IMeta *I0 = &InstrMeta[0];
 		unsigned char *p;
 
-		if (d.emu>2) {
+		if (debug_level('e')>2) {
 		    e_printf("== (%d) == Closing sequence at %08lx\n",ln,(long)PC);
 		}
 
@@ -2943,14 +2943,14 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 		}
 
 		/* show jump+tail code */
- 		if ((d.emu>6) && (CurrIMeta>0)) {
+ 		if ((debug_level('e')>6) && (CurrIMeta>0)) {
 		    IMeta *GL = &InstrMeta[CurrIMeta-1];
 		    char *pl = GL->addr+GL->len;
 		    GCPrint(pl, BaseGenBuf, (long)CodePtr - (long)pl);
 		}
 
 		I0->totlen = CodePtr - BaseGenBuf;
-		if (d.emu>3)
+		if (debug_level('e')>3)
 		    e_printf("Seq len %#x:%#x\n",I0->seqlen,I0->totlen);
 
 		seqflg = I0->flags;
@@ -2981,11 +2981,11 @@ unsigned char *CloseAndExec(unsigned char *PC, TNode *G, int mode, int ln)
 	if (LastXNode && (LastXNode->alive>0)) {
 	    LastXNode->nxnode = G;	// can be relocated in the tree!
 	    LastXNode->nxkey  = G->key;
-	    if (d.emu>2) e_printf("History: from %08lx to %08lx\n",LastXNode->key,G->key);
+	    if (debug_level('e')>2) e_printf("History: from %08lx to %08lx\n",LastXNode->key,G->key);
 	}
 
 	ecpu = (long)CPUOFFS(0);
-	if (d.emu>1) {
+	if (debug_level('e')>1) {
 		if (TheCPU.sigalrm_pending>0) e_printf("** SIGALRM is pending\n");
 		e_printf("== (%d) == Executing code at %08lx flg=%04x\n",
 			ln,(long)SeqStart,seqflg);
@@ -3098,14 +3098,14 @@ _llab:	__asm__	__volatile__ (
 #ifdef PROFILE
 	ExecTime += TimeEndExec.td;
 #endif
-	if (d.emu>1) {
+	if (debug_level('e')>1) {
 		e_printf("** End code, PC=%08lx sig=%x\n",(long)ePC,
 		    TheCPU.sigalrm_pending);
-		if ((d.emu>3) && (seqflg & F_FPOP)) {
+		if ((debug_level('e')>3) && (seqflg & F_FPOP)) {
 		    e_printf("  %s\n", e_trace_fp());
 		}
 		/* DANGEROUS - can crash dosemu! */
-		if ((d.emu>4) && goodmemref(mem_ref)) {
+		if ((debug_level('e')>4) && goodmemref(mem_ref)) {
 		    TryMemRef = 1;
 		    e_printf("*mem_ref [%08lx] = %08lx\n",mem_ref,
 			*((unsigned long *)mem_ref));
@@ -3129,7 +3129,7 @@ _llab:	__asm__	__volatile__ (
 
 #if defined(SINGLESTEP)||defined(SINGLEBLOCK)
 	avltr_delete(G->key);
-	if (d.emu>1) e_printf("\n%s",e_print_regs());
+	if (debug_level('e')>1) e_printf("\n%s",e_print_regs());
 #else
 	/*
 	 * After execution comes the linker stage.
@@ -3146,7 +3146,7 @@ _llab:	__asm__	__volatile__ (
 	if (G && (G->alive>0)) {
 	    if (UseLinker) NodeLinker(G);
 	    LastXNode = G;
-	    if (d.emu>2) e_printf("New LastXNode=%08lx\n",G->key);
+	    if (debug_level('e')>2) e_printf("New LastXNode=%08lx\n",G->key);
 	}
 	else
 #endif

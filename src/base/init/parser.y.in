@@ -1151,29 +1151,29 @@ color_val	: L_OFF			{ $$ = 0; }
 debug_flags	: debug_flag
 		| debug_flags debug_flag
 		;
-debug_flag	: VIDEO bool		{ d.video = $2; }
-		| L_OFF			{ memset(&d, 0, sizeof(d)); }
-		| SERIAL bool		{ d.serial = $2; }
-		| CONFIG bool		{ if (!d.config) d.config = $2; }
-		| DISK bool		{ d.disk = $2; }
-		| READ bool		{ d.read = $2; }
-		| WRITE bool		{ d.write = $2; }
-		| KEYB bool		{ d.keyb = $2; }
-		| KEYBOARD bool		{ d.keyb = $2; }
-		| PRINTER bool		{ d.printer = $2; }
-		| IO bool		{ d.io = $2; }
-		| PORT bool 		{ d.io = $2; }
-		| WARNING bool		{ d.warning = $2; }
-		| GENERAL bool		{ d.general = $2; }
-		| L_XMS bool		{ d.xms = $2; }
-		| L_DPMI bool		{ d.dpmi = $2; }
-		| MOUSE bool		{ d.mouse = $2; }
-		| HARDWARE bool		{ d.hardware = $2; }
-		| L_IPC bool		{ d.IPC = $2; }
-		| L_EMS bool		{ d.EMS = $2; }
-		| NETWORK bool		{ d.network = $2; }
-		| L_X bool		{ d.X = $2; }
-		| SOUND	bool		{ d.sound = $2; }
+debug_flag	: VIDEO bool		{ set_debug_level('v', $2); }
+		| L_OFF			{ set_debug_level('a', 0); }
+		| SERIAL bool		{ set_debug_level('s', $2); }
+		| CONFIG bool		{ set_debug_level('c', $2); }
+		| DISK bool		{ set_debug_level('d', $2); }
+		| READ bool		{ set_debug_level('R', $2); }
+		| WRITE bool		{ set_debug_level('W', $2); }
+		| KEYB bool		{ set_debug_level('k', $2); }
+		| KEYBOARD bool		{ set_debug_level('k', $2); }
+		| PRINTER bool		{ set_debug_level('p', $2); }
+		| IO bool		{ set_debug_level('i', $2); }
+		| PORT bool 		{ set_debug_level('i', $2); }
+		| WARNING bool		{ set_debug_level('w', $2); }
+		| GENERAL bool		{ set_debug_level('g', $2); }
+		| L_XMS bool		{ set_debug_level('X', $2); }
+		| L_DPMI bool		{ set_debug_level('M', $2); }
+		| MOUSE bool		{ set_debug_level('m', $2); }
+		| HARDWARE bool		{ set_debug_level('h', $2); }
+		| L_IPC bool		{ set_debug_level('I', $2); }
+		| L_EMS bool		{ set_debug_level('E', $2); }
+		| NETWORK bool		{ set_debug_level('n', $2); }
+		| L_X bool		{ set_debug_level('X', $2); }
+		| SOUND	bool		{ set_debug_level('S', $2); }
 		| STRING
 		    { yyerror("unrecognized debug flag '%s'", $1); free($1); }
 		| error
@@ -1687,29 +1687,7 @@ static void start_ports(void)
 
 static void start_debug(void)
 {
-  int flag = 0;                 /* Default is no debugging output at all */
-
-  d.video = flag;               /* For all options */
-  d.serial = flag;
-#if 0
-  d.config = flag;
-#endif
-  d.disk = flag;
-  d.read = flag;
-  d.write = flag;
-  d.keyb = flag;
-  d.printer = flag;
-  d.io = flag;
-  d.warning = flag;
-  d.general = flag;
-  d.xms = flag;
-  d.dpmi = flag;
-  d.mouse = flag;
-  d.hardware = flag;
-  d.IPC = flag;
-  d.EMS = flag;
-  d.network = flag;
-  d.sound = flag;
+  set_debug_level('a', 0);	      /* Default is no debugging output at all */
 }
 
 	/* video */

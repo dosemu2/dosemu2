@@ -189,7 +189,7 @@ static void pci_port_outd(ioport_t port, Bit32u value)
 {
 	if ((port==0xcf8)&&(value&PCI_EN)&&(!wcf8_pend)) {
 		wcf8_pend=value;
-		if (d.io>3) i_printf("PCICFG: %08x pending\n", value);
+		if (debug_level('i')>3) i_printf("PCICFG: %08x pending\n", value);
 	}
 	else {
 		chk_pend();

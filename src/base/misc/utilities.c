@@ -218,6 +218,7 @@ static int vlog_printf(int flg, const char *fmt, va_list args)
         fseek(dbg_fd, 0, SEEK_SET);
         log_written = 0;
 #endif
+	fprintf(dbg_fd, "\n Exceeded maximum logfile limit of %d bytes.  Exiting.\n", logfile_limit);
 	fclose(dbg_fd);
 	shut_debug = 1;
 	dbg_fd = 0;	/* avoid recursion in leavedos() */

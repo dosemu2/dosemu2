@@ -183,7 +183,7 @@ void dsp_write_output(__u8 value)
   SB_queue.end &= (DSP_QUEUE_SIZE - 1);
   SB_dsp.data = SB_DATA_AVAIL;
 
-  if (d.sound >= 2) {
+  if (debug_level('S') >= 2) {
     S_printf ("SB: Insert into output Queue [%u]... (0x%x)\n", 
 	    SB_queue.holds, value);
   }
@@ -191,7 +191,7 @@ void dsp_write_output(__u8 value)
 
 void dsp_clear_output(void)
 {
-  if (d.sound >= 2) {
+  if (debug_level('S') >= 2) {
     S_printf ("SB: Clearing the output Queue\n");
   }
 
@@ -215,7 +215,7 @@ __u8 dsp_read_output(void)
     else
       SB_dsp.data = SB_DATA_UNAVAIL;
 
-    if (d.sound >= 2) {
+    if (debug_level('S') >= 2) {
       S_printf ("SB: Remove from output Queue [%u]... (0x%X)\n", 
 	      SB_queue.holds, r);
     }
@@ -363,7 +363,7 @@ Bit8u sb_io_read(ioport_t port)
 		result = 0xFF;
 	};
 
-  if (d.sound >= 3) {
+  if (debug_level('S')>= 3) {
     S_printf ("SB: port read 0x%x returns 0x%x\n", port, result);
   }
 
@@ -529,7 +529,7 @@ Bit8u adlib_io_read(ioport_t port)
 		S_printf("%#x is an unhandled read port\n", port);
   };
   
-  if (d.sound >= 2) {
+  if (debug_level('S') >= 2) {
     S_printf ("Adlib: Read from port 0x%x returns 0x%x\n", port, result);
   }
 
@@ -632,7 +632,7 @@ void sb_io_write(ioport_t port, Bit8u value)
   
   addr = port - config.sb_base;
 
-  if (d.sound >= 2) {
+  if (debug_level('S') >= 2) {
     S_printf("SB: [crisk] port 0x%04x value 0x%02x\n", (Bit16u)port, value);
   }
   
@@ -1278,7 +1278,7 @@ void sb_write_silence (void)
 		if (SB_driver.play_buffer != NULL) {
 		  (*SB_driver.play_buffer)(silence_data, SB_dsp.length);
 		}
-		else if (d.sound >= 3) {
+		else if (debug_level('S') >= 3) {
 		  S_printf ("SB: Optional function 'play_buffer' not provided.\n");
 		}
                 SB_dsp.empty_state = IRQ_AT_EMPTY;
@@ -1843,7 +1843,7 @@ void pause_dsp_dma(void)
   if (SB_driver.DMA_pause != NULL) {
     (*SB_driver.DMA_pause)();
   }
-  else if (d.sound >= 3) {
+  else if (debug_level('S') >= 3) {
     S_printf ("SB: Optional function 'DMA_pause' not provided.\n");
   }
 
@@ -1865,7 +1865,7 @@ void restart_dsp_dma(void)
   if (SB_driver.DMA_resume != NULL) {
     (*SB_driver.DMA_resume)();
   }
-  else if (d.sound >= 3) {
+  else if (debug_level('S') >= 3) {
     S_printf ("SB: Optional function 'DMA_resume' not provided.\n");
   }
    
@@ -2197,7 +2197,7 @@ int sb_dma_handler (int status, Bit16u amount)
 
   result = DMA_HANDLER_OK;
 
-  if (d.sound >= 2) {
+  if (debug_level('S') >= 2) {
     S_printf ("SB: In DMA Handler\n");
   }
 
@@ -2213,7 +2213,7 @@ int sb_dma_handler (int status, Bit16u amount)
     if(!amount)
       return DMA_HANDLER_OK; /* I'm getting a zero length call when DMA
                                 auto-reinits. Ignore it! */
-    if (d.sound >= 2) {
+    if (debug_level('S') >= 2) {
       S_printf ("SB: Outputted %d bytes\n",amount);
     }
 
@@ -2284,7 +2284,7 @@ void sb_irq_trigger (void)
 	if (SB_driver.DMA_complete != NULL) {
 		(*SB_driver.DMA_complete)();
 	}
-	else if (d.sound >= 3) {
+	else if (debug_level('S') >= 3) {
 		S_printf ("SB: Optional function 'DMA_complete' not provided.\n");
 	}
 
@@ -2298,7 +2298,7 @@ static void sb_check_complete (void)
   if (SB_driver.DMA_complete_test != NULL) {
     result = (*SB_driver.DMA_complete_test)();
   }
-  else if (d.sound >= 3) {
+  else if (debug_level('S') >= 3) {
     S_printf ("SB: Optional function 'DMA_complete_test' not provided.\n");
   }
 

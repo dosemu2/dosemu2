@@ -528,11 +528,11 @@ static int dos_helper(void)
 #ifdef X86_EMULATOR
   case DOS_HELPER_CPUEMUON:
 #ifdef TRACE_DPMI
-	if (d.dpmit==0)
+	if (debug_level('t')==0)
 #endif
 	{
 #ifdef DONT_DEBUG_BOOT
-	    memcpy(&d,&d_save,sizeof(struct debug_flags));
+	    memcpy(&debug,&debug_save,sizeof(debug));
 #endif
 	    /* we could also enter from inside dpmi, provided we already
 	     * mirrored the LDT into the emu's own one */
@@ -542,7 +542,7 @@ static int dos_helper(void)
   case DOS_HELPER_CPUEMUOFF:
 	if ((config.cpuemu>1) 
 #ifdef TRACE_DPMI
-	&& (d.dpmit==0) 
+	&& (debug_level('t')==0) 
 #endif
 	&& !in_dpmi)
 	    leave_cpu_emu();
@@ -967,7 +967,7 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
     LWORD(edx) = last_ticks & 0xffff;
 
 #ifdef DEBUG_INT1A
-    if (d.general) {
+    if (debug_level('g')) {
       long k = last_ticks/18.2065;	/* sorry */
       time(&time_val);
       g_printf("INT1A: read timer = %ld (%ld:%ld:%ld) %s\n", last_ticks,
@@ -1672,7 +1672,7 @@ static int redir_it()
 
 
 /* MS-DOS */
-/* see config.c: int21 is redirected here only when d.dos>0 !! */
+/* see config.c: int21 is redirected here only when debug_level('D)>0 !! */
 static void int21(u_char i)
 {
 #ifdef X86_EMULATOR
@@ -2060,7 +2060,7 @@ void do_int(int i)
 	}
 	
 #ifndef TRACE_DPMI
- 	if ((d.defint > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
+ 	if ((debug_level('#') > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
  		di_printf("Do INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%04x esp=0x%08x\n"
  			  "           ecx=0x%08x edx=0x%08x ds=0x%04x  cs=0x%04x ip=0x%04x\n"
  			  "           esi=0x%08x edi=0x%08x es=0x%04x flg=0x%08x\n",

@@ -115,7 +115,7 @@ static int AddMpMap(caddr_t addr, caddr_t aend, int onoff)
 			    clear_bit(page&255, M->pagemap)) & 1) << bp);
 		bp++;
 	    }
-	    if (d.emu) {
+	    if (debug_level('e')) {
 		if ((long)addr > mMaxMem) mMaxMem = (long)addr;
 		if (onoff)
 		  dbug_printf("MPMAP:   protect page=%08lx was %x\n",(long)addr,bs);
@@ -170,7 +170,7 @@ int e_markpage(caddr_t addr, size_t len)
 	aend = ((((long)addr+len) >> CGRAN) + 1) & CGRMASK;
 nextmega:
 	M = FindM(addr); if (M==NULL) return 0;
-	if (d.emu>1) e_printf("MARK from %04x to %04x for %08lx\n",abeg,aend-1,(long)addr);
+	if (debug_level('e')>1) e_printf("MARK from %04x to %04x for %08lx\n",abeg,aend-1,(long)addr);
 	while (abeg != aend) {
 	    set_bit(abeg, M->subpage);
 	    abeg = (abeg+1) & CGRMASK;
@@ -197,7 +197,7 @@ int e_resetpagemarks(caddr_t addr)
 	M = FindM(addr); if (M==NULL) return 0;
 	/* reset all 256 bits=8 longs for the page */
 	idx = (((long)addr >> PAGE_SHIFT) & 255) << 3;
-	if (d.emu>1) e_printf("UNMARK 256 bits at %08lx (long=%x)\n",(long)addr,idx);
+	if (debug_level('e')>1) e_printf("UNMARK 256 bits at %08lx (long=%x)\n",(long)addr,idx);
 	for (i=0; i<8; i++) M->subpage[idx++] = 0;
 	return 1;
 }

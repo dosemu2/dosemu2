@@ -571,16 +571,13 @@ static Boolean handle_dosemu_keys(t_keysym key) {
              k_printf("KBD: Ctrl-Alt-PgUp\n");
              if (config.cpuemu) {
 		int v;
-		if (d.emu<2) {
-		  d.emu=5; v=3;
+		if (debug_level('e')<2) {
+		  set_debug_level('e', 5); v=3;
 		}
 		else {
-		  d.emu=0; v=0;
+		  set_debug_level('e', 0); v=0;
 		}
-		d.disk = d.dos = d.video = d.keyb = d.io = d.pci =
-		d.io_trace = d.defint = d.general = d.hardware =
-		d.EMS = d.xms = d.dpmi = d.request = d.sound =
-		d.mouse = d.mapping = v;
+		parse_debugflags("dDvkiZT#ghExMrSmQ", v);
 		fflush(dbg_fd);
              }
              return 1;
