@@ -58,25 +58,28 @@ static void stop_gdb(void)
   fflush(stdout);
 }
 
-static void collect_info(void)
+static void collect_info(pid_t pid)
 {
-  char *cmd0;
+  char *cmd0 = "ldd %s";
   char *cmd1 = "getconf GNU_LIBC_VERSION";
   char *cmd2 = "getconf GNU_LIBPTHREAD_VERSION";
   char *cmd3 = "gcc -v";
   char *cmd4 = "uname -a";
-  char *cmd5 = "cat /proc/self/maps";
+  char *cmd5 = "cat /proc/%i/maps";
+  char *tmp;
 
   printf("System info:\n");
   fflush(stdout);
-  asprintf(&cmd0, "ldd %s", dosemu_proc_self_exe);
-  system(cmd0);
-  free(cmd0);
+  asprintf(&tmp, cmd0, dosemu_proc_self_exe);
+  system(tmp);
+  free(tmp);
   system(cmd1);
   system(cmd2);
   system(cmd3);
   system(cmd4);
-  system(cmd5);
+  asprintf(&tmp, cmd5, pid);
+  system(tmp);
+  free(tmp);
   fflush(stdout);
 }
 
@@ -94,7 +97,7 @@ void gdb_debug(void)
       dup2(fileno(dbg_fd), STDOUT_FILENO);
       dup2(fileno(dbg_fd), STDERR_FILENO);
 
-      collect_info();
+      collect_info(dosemu_pid);
 
       if (start_gdb(dosemu_pid)) {
         do_debug();
