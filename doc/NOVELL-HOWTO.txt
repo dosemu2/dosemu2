@@ -1,7 +1,8 @@
   Netware-HOWTO
   Lauri Tischler ltischler@fipower.pp.fi
   rev.0.2 30 Mar 1995
-  updated for DOSEMU 1.2.0, 28 Sep 2003, Bart Oldeman
+  updated for DOSEMU 1.2.0, 18 Jan 2004, Bart Oldeman -- contributions
+  by Peter Eckhardt
 
   This document tryes to descibe how to connect to Novell Netware
   servers from Linux.
@@ -98,7 +99,10 @@
   3.  Making The Connection.
 
   There are basically two methods for making the connection between the
-  Linuxbox and Netware server, The Direct-IPX or Packet Drivers.
+  Linuxbox and Netware server, The Direct-IPX or Packet Drivers. At
+  the time of writing the Packet Driver method is the most reliable
+  in particular if you combine it with DPMI programs. Direct-IPX may
+  just work though (depending on the DOS program in question).
 
 
   3.1.	The Direct-IPX.
@@ -189,6 +193,12 @@
   $_pktdriver = (on)
   # $_novell_hack = (off)
 
+  Also set up a working packet driver (eg. TUN/TAP) connection; refer to
+  README.txt for details. For example (with tunctl) set:
+
+  $_netdev="tap0"
+  $_vnet="tap"
+
   There are various versions of the packetdriver PDETHER floating around, but
   it is recommended to use version 1.05 or later. Those versions have
   support for a "raw packet send" interface, which allows to use the
@@ -247,6 +257,54 @@
 
   Read the PDETHER.DOC for further info.
 
+  Example from Peter Eckhardt:
+
+   Create a startnet.bat and net.cfg in dosemu
+
+   CD C:\NWCLIENT
+   edit ....
+
+   - startnet.bat -
+
+   SET NWLANGUAGE=DEUTSCH
+   LH C:\NWCLIENT\LSL /c=C:\NWCLIENT\net.cfg
+   C:\NWCLIENT\PDETHER.EXE
+   LH C:\NWCLIENT\IPXODI.COM
+   rem LH C:\NWCLIENT\NETX
+   LH C:\NWCLIENT\VLM.EXE
+
+   - net.cfg -
+
+   Link Support
+          Buffers 4 1514
+          MemPool 2048
+
+   Link Driver PDETHER
+          Int 60
+          FRAME Ethernet_II
+          USE DEFAULTS=OFF
+          VLM=CONN.VLM
+          VLM=IPXNCP.VLM
+          VLM=TRAN.VLM
+          VLM=SECURITY.VLM
+          VLM=NDS.VLM
+          VLM=NWP.VLM
+          VLM=FIO.VLM
+          VLM=BIND.VLM
+          VLM=PRINT.VLM
+          VLM=GENERAL.VLM
+          VLM=REDIR.VLM
+          VLM=NETX.VLM
+
+   NetWare DOS Requester
+          FIRST NETWORK DRIVE   = F
+          NETWORK PROTOCOL      = BIND
+          SHOW DOTS             = ON
+          SET STATION TIME      = ON
+          PREFERRED SERVER      = EMK1
+          FILE HANDLES          = 40
+          LOCAL PRINTERS        = 1
+          VLM                   = AUTO.VLM
 
   4.  Speed Of Connection
 
