@@ -1,5 +1,6 @@
 /* DANG_BEGIN_MODULE
  * 
+ * REMARK
  * ser_irq.c: Serial interrupt services for DOSEMU
  * Please read the README.serial file in this directory for more info!
  * 
@@ -10,6 +11,7 @@
  * as published by the Free Software Foundation; either version 2 of 
  * the License, or (at your option) any later version.
  *
+ * /REMARK
  * This module is maintained by Mark Rejhon at these Email addresses:
  *      marky@magmacom.com
  *      ag115@freenet.carleton.ca

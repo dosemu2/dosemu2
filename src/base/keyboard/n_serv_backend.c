@@ -5,6 +5,7 @@
  * 
  * Maintainer: Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de>
  * 
+ * REMARK
  * This module handles interfacing to the DOS side both on int9/port60h level
  * (if keybint=on), or on the bios buffer level.
  * Keycodes are buffered in a queue, which, however, has limited depth, so it
@@ -12,6 +13,7 @@
  *
  * More information about this module is in doc/README.newkbd
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  */

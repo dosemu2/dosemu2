@@ -2,6 +2,7 @@
  *
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * This handles the keyboard.
  *
  * Two keyboard modes are handled 'raw' and 'xlate'. 'Raw' works with
@@ -10,6 +11,7 @@
  * done here, but the definitions are elsewhere. Only the default (US)
  * keymap is stored here.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  *

@@ -1,11 +1,13 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * VESA BIOS Extensions for VGAEmu.
  *
  * Supported are VBE version 2.0, including a linear frame buffer
  * and display power management support.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  *

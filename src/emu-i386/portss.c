@@ -8,9 +8,11 @@
  * 
  * Maintainers: Volunteers?
  *
+ * REMARK
  * This is the code that allows and disallows port access within DOSEMU.
  * The BOCHS port IO code was actually very cleverly done.  So I stole
  * the idea.
+ * /REMARK
  *
  * DANG_END_MODULE
  *

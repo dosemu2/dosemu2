@@ -6,6 +6,7 @@
  * Maintainers: J. Lawrence Stephan
  *              Scott Buchholz
  *
+ * REMARK
  * This is the timer emulation for DOSEMU.  It emulates the Programmable
  * Interval Timer (PIT), and also handles IRQ0 interrupt events.
  * A lot of animation and video game software are dependant on this module
@@ -22,6 +23,7 @@
  *
  * Speaker emulation, now including port 61h, is also in here. [rz]
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  */

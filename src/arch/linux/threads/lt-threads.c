@@ -3,6 +3,9 @@
  *
  * (C) 1997 under GPL, Hans Lermen <lermen@fgan.de>
  *
+ * SIDOC_BEGIN_MODULE
+ *
+ * REMARK
  * This thread package does _NOT_  POSIX compatible threading.
  * As its name says: it is a tiny fast alternative using Linux cloning.
  * The aim was to avoid as much unnecessary sys_calls as possible.
@@ -14,6 +17,7 @@
  *
  * However, there are restrictions given by the technique used:
  *
+ * VERB
  *   - The total maximum number of threads is 27.
  *   - The size of the stack must be at power of 2 and is equal
  *     for all threads. It is not a problem to make the stack area huge,
@@ -24,8 +28,16 @@
  *     of libc (malloc _is_ no-reentrant).
  *   - You must not use atexit, exit, _exit atall. instead use the techniques
  *     and functions supplied by lt-threads.
+ * /VERB
+ *
+ * /REMARK
+ *
+ * maintainer:
+ * Hans Lermen <lermen@fgan.de>
+ *
+ * SIDOC_END_MODULE
  */
-
+ 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -92,22 +104,27 @@ static void *alloc_stack_page(int size, int gran);
 
 /* --------------------- stack alloc stuff ------------------ */
 
+/* SIDOC_BEGIN_FUNCTION Making room on the stack
+ * PROTO */
 static char *force_stack_expand(unsigned long address)
 {
-	/* The kernel has a feature, such that it doesn't
+	/* /PROTO
+	 * The kernel has a feature, such that it doesn't
 	 * allow grow down the stack below the current stack pointer.
 	 * This makes sense in single threaded applications,
 	 * but is bad for threading purposes:
+VERB	 *
 	 *   1.	You are forced to put the stacks into the heap (below 1st giga)
 	 *	hence it is less protected against overwriting then normally.
-	 *   2. The 1 giga stack address space isn't used any more, and
+	 *   2.	The 1 giga stack address space isn't used any more, and
 	 *	you may have problems with address space, on huge programs
 	 *	that use huge arrays (data bases, matrices).
+/VERB	 *
 	 * We trick out the kernel by expanding the stack vma to a given
 	 * value (setting ESP to the bottom and thouching it).
 	 * ( look at do_page_fault in arch/i386/mm/fault.c how it
 	 *   treats growing down of stack )
-	 */
+ * SIDOC_END_FUNCTION */
 	__asm__ volatile ("
 		xchgl	%%esp,%%eax
 		movb	$1,(%%esp)
@@ -131,17 +148,20 @@ static void *alloc_stack_page(int size, int gran)
 }
 
 
-/*
- * When running as user, current Linux has a stacklimit of 8Mb.
- * ( no way to change that via bash ulimit )
- * This is enough for normal stacksizes, however, if you need more
- * You need some way to set it to 'unlimited'. This only can be done
- * as root, hence setting the suid bit is needed.
- * The below function sets the limit high, and (in case drop_privs)
- * will drop root priviledges before return.
- */
+/* SIDOC_BEGIN_FUNCTION Setting User Space Stack limits
+ * PROTO */
 int make_stack_unlimited(int drop_privs)
 {
+	/* /PROTO
+	 * When running as user, current Linux has a stacklimit of 8Mb.
+	 * ( no way to change that via bash ulimit )
+	 * This is enough for normal stacksizes, however, if you need more
+	 * You need some way to set it to 'unlimited'. This only can be done
+	 * as root, hence setting the suid bit is needed.
+	 * The below function sets the limit high, and (in case drop_privs)
+	 * will drop root priviledges before return.
+ * SIDOC_END_FUNCTION */
+
 	struct rlimit rlim;
 	uid_t uid = getuid();
 	int ret;
@@ -155,12 +175,17 @@ int make_stack_unlimited(int drop_privs)
 /* ------------------------ queue stuff --------------------- */
 
 
-/*
- * Note:
- * An 'existing' entry _must_ have valid pointers in 'next', 'last'.
- * We build the head of a queue with an empty 'queue_entry' haveing
- * 'next', 'last' poining to itself.
- */
+/* SIDOC_BEGIN_FUNCTION Queuing tools
+ * These two functions have to be used when maintaining queues of various
+ * sorts. You may cast to your private queue entry structure as long as
+ * the top of this structure fits `struct queue_entry':
+ * VERB
+	struct queue_entry {
+		struct queue_entry *next;
+		struct queue_entry *last;
+	};
+ * /VERB
+ * PROTO */
 void append_to_queue(struct queue_entry *existing, struct queue_entry *new)
 {
 	new->next = existing->next;
@@ -169,16 +194,37 @@ void append_to_queue(struct queue_entry *existing, struct queue_entry *new)
 	new->next->last = new;
 }
 
+/* PROTO */
 void remove_from_queue(struct queue_entry *entry)
 {
 	entry->last->next = entry->next;
 	entry->next->last = entry->last;
 }
 
+/* /PROTO
+ * Note: An existing entry _must_ have valid pointers in `next', `last'.
+ * We build the head of a queue with an empty queue_entry haveing
+ * `next', `last' poining to itself.
+ * 
+ * SIDOC_END_FUNCTION */
 
 /* ----------------------- malloc stuff --------------------- */
 
 
+/* SIDOC_BEGIN_FUNCTION Avoiding Libc reentrancy Problems
+ * Because all threads share the same VM, libc needs to be reentrant.
+ * This isn't the case for a lot of functions ( malloc() is one on them).
+ * Though newer libc can be made reentrant (needs the -D_REENTRANT on compilation
+ * of _each_ object file), this feature has a performance lost due to the
+ * overhead that applies to evry libc call. As we exactly know _when_ we
+ * come into trouble with libc, the faster (and IMHO) better solution is to
+ * to take care of this at application level.
+ *
+ * For this to accomplish we have to put a (un)lock_resource(resource_libc)
+ * bracket around those involved libc functions. The most frequently used ones
+ * are offered by the threads package, including such locking.
+ * Some of those are:
+ * PROTO */
 void *locked_malloc(size_t size)
 {
 	void *p;
@@ -188,6 +234,7 @@ void *locked_malloc(size_t size)
 	return p;
 }
 
+/* PROTO */
 void locked_free(void *p)
 {
 	lock_resource(resource_libc);
@@ -195,6 +242,17 @@ void locked_free(void *p)
 	unlock_resource(resource_libc);
 }
 
+/* /PROTO
+ * The prototype is exactly as you expect it from the libc functions.
+ * SIDOC_END_FUNCTION
+ */
+
+
+/* SIDOC_BEGIN_FUNCTION getting page aligned memory from the heap
+ * If you need a page aligned piece of memory, you usualy would use valloc().
+ * However, you can't free that memory later. For this purpose you may use the
+ * below functions, which are put on top of malloc()/free().
+ * PROTO */
 void *page_malloc(size_t size)
 {
 	/* NOTE:
@@ -206,22 +264,52 @@ void *page_malloc(size_t size)
 	 */
 	void **p, *porg;
 	size += PAGE_SIZE;
-	p = porg =malloc(size);
+	p = porg =locked_malloc(size);
 	p = (void *)((((int)porg) + PAGE_SIZE) & (-PAGE_SIZE));
 	p[-1] = porg;
 	return p;
 }
 
+/* PROTO */
 void page_free(void *ptr)
 {
 	int *p = ptr;
-	free(((void **)p)[-1]);
+	locked_free(((void **)p)[-1]);
 }
-
+/* SIDOC_END_FUNCTION */
 
 
 /* ------------------------ name lists ---------------------- */
 
+/* SIDOC_BEGIN_FUNCTION Name List Tools
+ * The below functions are used for handling small name lists (you may call
+ * it directories). All major resources in lt-threads are accessable also by
+ * their names, as they are defined on creation time. Especially when it comes
+ * to link between different processes (thread cores) and different maschines,
+ * we look up the resources (such as mailboxes, threads, services) via name lists.
+ *
+ * The global structures used for building namelists (as defined in lt-threads.h)
+ * are:
+ * VERB
+struct name_list_entry {
+	char *name;
+	union {
+		void *p;
+		struct tcb *tcb;
+		struct lock_struct *lock;
+		struct mbox *mbox;
+		int idata;
+	} u;
+};
+
+struct name_list {
+	int size;
+	int count;
+	struct name_list_entry list[0];
+};
+ * /VERB
+ * The follow functions are available:
+ * PROTO */
 struct name_list *create_namelist(int numentries)
 {
 	struct name_list *p;
@@ -234,6 +322,7 @@ struct name_list *create_namelist(int numentries)
 	return p;
 }
 
+/* PROTO */
 int lookup_name_list(struct name_list *list, char *name)
 {
 	int i;
@@ -244,6 +333,7 @@ int lookup_name_list(struct name_list *list, char *name)
 	return -1;
 }
 
+/* PROTO */
 void * get_name_list_value(struct name_list *list, char *name)
 {
 	int i;
@@ -251,6 +341,7 @@ void * get_name_list_value(struct name_list *list, char *name)
 	return 0;
 }
 
+/* PROTO */
 int set_name_list_value(struct name_list *list, char *name, void *value)
 {
 	int i;
@@ -267,6 +358,7 @@ static int find_deleted_name_list_entry(struct name_list *list)
 	return -1;
 }
 
+/* PROTO */
 int insert_name_list_entry(struct name_list *list, char *name, void *value)
 {
 	struct name_list_entry *p;
@@ -290,6 +382,7 @@ int insert_name_list_entry(struct name_list *list, char *name, void *value)
 	return i;
 }
 
+/* PROTO */
 int delete_name_list_entry(struct name_list *list, char *name)
 {
 	int i;
@@ -298,6 +391,7 @@ int delete_name_list_entry(struct name_list *list, char *name)
 	list->list[i].name = 0;
 	return i;
 }
+/* SIDOC_END_FUNCTION */
 
 /* ------------------------ termination stuff ---------------- */
 #if 0
@@ -337,6 +431,12 @@ static void init_sigterm()
 }
 
 
+/* SIDOC_BEGIN_FUNCTION Exiting a thread
+ * Once the threading system is setup, you never should use exit() or
+ * _exit(). Instead use exit_thread(0) to exit the running thread,
+ * exit_thread(tcb) to kill an other thread and exit_all() to terminate
+ * all threads.
+ * PROTO */
 void exit_thread(struct tcb *tcb)
 {
 	if (!tcb)  tcb = OWN_TCB;
@@ -357,7 +457,7 @@ void exit_thread(struct tcb *tcb)
 	kill(tcb->pid, SIGTERM);
 }
 
-
+/* PROTO */
 void exit_all(int exit_code)
 {
 	if (!thread0_tcb) exit(exit_code);
@@ -365,6 +465,7 @@ void exit_all(int exit_code)
 	exit_thread(thread0_tcb);
 	exit_thread(0);
 }
+/* SIDOC_END_FUNCTION */
 
 /* -------------------------- suspend/resume ----------------- */
 
@@ -398,6 +499,11 @@ static void init_suspend()
 	sigaction(SIG_SUSPEND_WAKEUP, &new, 0);
 }
 
+/* SIDOC_BEGIN_FUNCTION Suspending / resuming a thread
+ * When a thread has nothing valuable to do (e.g. it is waiting for
+ * some event to happen), it should go asleep. The following function
+ * supends the current running thread:
+ * PROTO */
 void suspend_thread()
 {
 	struct tcb *owntcb = OWN_TCB;
@@ -405,25 +511,76 @@ void suspend_thread()
 	atomic_dec(&owntcb->suspend_count, 1);
 }
 
+/* /SKIP
+ * With the follow function a thread can awake a sleeping thread.
+ * This may (but need not) happen imediately such that the calling thread
+ * has been sleeping before retuning from resume_thread()
+ * PROTO */
 void resume_thread(struct tcb *tcb)
 {
 	kill(tcb->pid, SIG_SUSPEND_WAKEUP);
 }
 
 
+/* --------------------- timed sleep stuff --------------------*/
+
+/* /SKIP
+ * To suspend a thread for a given time interval (not resume_thread() needed
+ * to awaken it later) the function thread_usleep can be used.
+ * VERB
+ * Note: we use our own usleep to avoid
+ *  A) problems with signal stuff
+ *  B) problems with libc
+ * /VERB
+ * SKIP */
+
+static inline int libless_nanosleep(const struct timespec *req, struct timespec *rem)
+{
+	int __res;
+	__asm__ __volatile__("int $0x80\n"
+	:"=a" (__res):"a" ((int)__NR_nanosleep), "b" ((int)req), "c" ((int)rem) );
+	return __res;
+}
+
+/* PROTO */
+void thread_usleep(int useconds)
+{
+	struct timespec req, rem;
+	req.tv_sec = useconds / 1000000;
+	req.tv_nsec = (useconds % 1000000) * 1000;
+	while (libless_nanosleep(&req, &rem)) {
+		req = rem;
+	}
+}
+/* SIDOC_END_FUNCTION */
+
 /* -------------------------- locking ------------------------ */
 
-/*
+/* SIDOC_BEGIN_FUNCTION Locking Resources
+ *
  * The below locking scheme implements userspace semaphores,
  * that in the most frequent cases do _not_ enter the kernel.
  * ( doesn't use IPC or kernel semphores )
  * It depends on the atomic_reserv/free() algorithme defined above
  * and won't work with other locking strategies, that cannot
- * 'reserve and queue' with _one_ atomic operation.
+ * `reserve and queue' with _one_ atomic operation.
  *
  * The win of this algorithme is _much_ more speed,
  * the disadvantage is that you can't have more then 27 threads.
  * (though, on 64-bit machines it could be 58 threads)
+ *
+ * All locking function rely on the following structure
+ * VERB 
+struct lock_struct {
+	int used;
+	int id;
+	int owner_count;
+	struct tcb *owner;
+	int successor_id;
+};
+ * /VERB
+ * However, you should not manipulate them manually.
+ * SKIP
  */
 
 static void init_resources()
@@ -436,36 +593,51 @@ static void init_resources()
 }
 
 
+/* PROTO */
 struct lock_struct *create_resource(char *name)
 {
+/* /PROTO
+ * create_resource returns a pointer to a newly created resource.
+ * This one also is then added to the resources namelist so you may
+ * look up for then `name'. If there are too many resources NULL will
+ * be returned.
+ * SKIP
+ */
 	int i = insert_name_list_entry(resource_list, name, 0);
-	struct lock_struct *sem;
+	struct lock_struct *lock;
 
 	if (i <0) return 0;
-	sem = RESOURCES(i) = locked_malloc(sizeof(struct lock_struct));
-	sem->successor_id = sem->used = -1;
-	sem->owner = 0;
-	sem->owner_count =0;
-	sem->id = i;
-	set_name_list_value(resource_list, name, sem);
-	return sem;
+	lock = RESOURCES(i) = locked_malloc(sizeof(struct lock_struct));
+	lock->successor_id = lock->used = -1;
+	lock->owner = 0;
+	lock->owner_count =0;
+	lock->id = i;
+	set_name_list_value(resource_list, name, lock);
+	return lock;
 }
 
-void lock_resource(struct lock_struct *sem)
+/* /SKIP
+ * The following two functions are used to lock and unlock a previosly
+ * created resource. A call to lock_resource() will put the thread into
+ * sleep state, when the resource is already locked by an other thread.
+ * A call to unlock_resource() will awake a thread, that has been waiting on
+ * the resource.
+ * PROTO */
+void lock_resource(struct lock_struct *lock)
 {
 	struct tcb *owntcb = OWN_TCB;
 
 	if (owntcb->threadflags & TCB_F_STARTUP)
 		/* we are in the startphase, locking not yet working */
 		 return;
-	if (sem->owner == owntcb) {
-		sem->owner_count++;
+	if (lock->owner == owntcb) {
+		lock->owner_count++;
 		return;
 	}
-	if (atomic_reserv(&sem->used, owntcb->tcb_id)) {
-		atomic_bitset(&owntcb->owning_locks,sem->id);
-		sem->owner = owntcb;
-		sem->owner_count = 0;
+	if (atomic_reserv(&lock->used, owntcb->tcb_id)) {
+		atomic_bitset(&owntcb->owning_locks,lock->id);
+		lock->owner = owntcb;
+		lock->owner_count = 0;
 		return;
 	}
 
@@ -477,7 +649,8 @@ void lock_resource(struct lock_struct *sem)
 	/* when we are coming here, we own the resource */
 }
 
-void unlock_resource(struct lock_struct *sem)
+/* PROTO */
+void unlock_resource(struct lock_struct *lock)
 {
 	struct tcb *owntcb = OWN_TCB;
 	struct tcb *othertcb;
@@ -488,24 +661,24 @@ void unlock_resource(struct lock_struct *sem)
 		/* we are in the startphase, locking not yet working */
 		 return;
 
-	if (sem->owner != owntcb) return;
-	if (sem->owner_count--) return; 
+	if (lock->owner != owntcb) return;
+	if (lock->owner_count--) return; 
 
-	sem->owner = 0;
-	atomic_bitclear(&owntcb->owning_locks,sem->id);
+	lock->owner = 0;
+	atomic_bitclear(&owntcb->owning_locks,lock->id);
 
-	succid = sem->successor_id;
+	succid = lock->successor_id;
 	if (succid >=0) {
 		/* We have to transfer the resource to a given successor.
 		 * We assume that the successor task did _not_ try to lock
 		 * the resource, hence _we_ now do do it for it.
 		 */
-		sem->successor_id = -1;
+		lock->successor_id = -1;
 		if (get_tcb_from_id(succid))
-			 atomic_reserv(&sem->used, succid);
+			 atomic_reserv(&lock->used, succid);
 	}
 
-	if (atomic_free(&sem->used, owntcb->tcb_id)) {
+	if (atomic_free(&lock->used, owntcb->tcb_id)) {
 		/* there's nobody else waiting in the queue
 		 * and the above atomic_free did remove ourself from
 		 * the queue, hence nothing else to do
@@ -526,7 +699,7 @@ void unlock_resource(struct lock_struct *sem)
 	 * We also have to take care about deleted threads as well.
 	 */
 	if (succid < 0)
-		otherid = get_lowest_waiting_id_from_resource(sem->used);
+		otherid = get_lowest_waiting_id_from_resource(lock->used);
 	else	otherid = succid;
 
 	while (otherid >=0) {
@@ -537,8 +710,8 @@ void unlock_resource(struct lock_struct *sem)
 			 * above got deleted.
 			 * We have to avoid that on 'exit_thread' side.
 			 */
-			sem->owner = othertcb;
-			sem->owner_count = 0;
+			lock->owner = othertcb;
+			lock->owner_count = 0;
 			resume_thread(othertcb);
 			return;
 		}
@@ -547,58 +720,51 @@ void unlock_resource(struct lock_struct *sem)
 			 * Maybe the waiting tread just gots deleted,
 			 * so we remove it from the queue and try the next one
 		 	 */
-			if (atomic_free(&sem->used, otherid)) {
+			if (atomic_free(&lock->used, otherid)) {
 				/* nothing else to do */
 				return;
 			}
 		}
-		otherid = get_lowest_waiting_id_from_resource(sem->used);
+		otherid = get_lowest_waiting_id_from_resource(lock->used);
 	}
 }
 
-void transfer_resource(struct lock_struct *sem, int successor_id)
+/* /SKIP
+ * The below function is a special one: The owner of a lock may dedicate
+ * the lock to a given other thread instead of just releasing it.
+ * This will change the normal scheduling of locks.
+ * (for example, this is used by the message routines)
+ * PROTO */
+void transfer_resource(struct lock_struct *lock, int successor_id)
 {
-	if (sem->owner != OWN_TCB) return;
+	if (lock->owner != OWN_TCB) return;
 	/* Note: only the owner of a resource may dedicate the ownership
 	 * to another thread. And because transfer_resource() is called
 	 * only by the owner, the below is save.
 	 */
-	sem->successor_id = successor_id;
-	unlock_resource(sem);
+	lock->successor_id = successor_id;
+	unlock_resource(lock);
 }
 
+/* SIDOC_END_FUNCTION */
 
 /* ------------------------ end locking ------------------------*/
 
-/* --------------------- timed sleep stuff --------------------*/
-
-/*
- * Note: we use our own usleep to avoid
- *  A) problems with signal stuff
- *  B) problems with libc
- */
-
-static inline int libless_nanosleep(const struct timespec *req, struct timespec *rem)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)__NR_nanosleep), "b" ((int)req), "c" ((int)rem) );
-	return __res;
-}
-
-void thread_usleep(int useconds)
-{
-	struct timespec req, rem;
-	req.tv_sec = useconds / 1000000;
-	req.tv_nsec = (useconds % 1000000) * 1000;
-	while (libless_nanosleep(&req, &rem)) {
-		req = rem;
-	}
-}
-
 /* ----------------------- messages stuff ----------------------*/
 
-
+/* SIDOC_BEGIN_FUNCTION Sending and receiving messages
+ * A threading system without message transfer would be worthless.
+ * We have it ;-)
+ *
+ * All messages can be send to `mailboxes', that were created before.
+ * The size of the message queue within a mailbox can be defined at
+ * creation time. When a sending thread hits a queue overflow in the mailbox,
+ * the sending thread is put asleep and queued for later to be awaken.
+ * When a receiving thread hits an empty mailbox, it also gets asleep.
+ * A sending thread on an empty mailbox awakens a sleeping receiver,
+ * A receiving thread on a full mailbox awakens a sleeping sender.
+ * SKIP */
+ 
 static void init_message_system()
 {
 	/* This must be called _before_ use of messages.
@@ -608,7 +774,7 @@ static void init_message_system()
 	create_local_mailbox("dummy",1); /* to avoid ZERO-id */
 }
 
-
+/* PROTO */
 mbox_handle create_local_mailbox(char *name, int numentries)
 {
 	int i;
@@ -650,6 +816,7 @@ static mbox_handle get_global_mailbox(char *name)
 	return 0;
 }
 
+/* PROTO */
 mbox_handle get_mailbox(char *name)
 {
 	mbox_handle mbh;
@@ -658,6 +825,7 @@ mbox_handle get_mailbox(char *name)
 	return get_global_mailbox(name);
 }
 
+/* PROTO */
 mbox_handle get_mailbox_wait(char *name)
 {
 	mbox_handle mbh;
@@ -768,6 +936,7 @@ static inline int mailbox_is_empty_local(mbox_handle mbx)
 }
 
 
+/* PROTO */
 void sendmessage(mbox_handle mbx, struct msg *msg)
 {
 	if (!MBOX_IS_LOCAL(mbx)) {
@@ -777,6 +946,7 @@ void sendmessage(mbox_handle mbx, struct msg *msg)
 	sendmessage_local(mbx, msg);
 }
 
+/* PROTO */
 struct msg *receivemessage(mbox_handle mbx)
 {
 	if (!MBOX_IS_LOCAL(mbx)) {
@@ -786,6 +956,7 @@ struct msg *receivemessage(mbox_handle mbx)
 	return receivemessage_local(mbx);
 }
 
+/* PROTO */
 int mailbox_is_empty(mbox_handle mbx)
 {
 	if (!MBOX_IS_LOCAL(mbx)) {
@@ -794,6 +965,7 @@ int mailbox_is_empty(mbox_handle mbx)
 	}
 	return mailbox_is_empty_local(mbx);
 }
+/* SIDOC_END_FUNCTION */
 
 /* -------------------- tcb and thread stuff -------------------*/
 
@@ -823,6 +995,22 @@ static void free_tcb_space(struct tcb *tcb)
 	lock_resource(resource_sys);
 	page_free(tcb);
 	append_to_queue(tcb_free_pool.last, &tcb->link);
+	unlock_resource(resource_sys);
+}
+
+static void try_to_reclaim_thread_resources(void)
+{
+	int i;
+	struct tcb *tcb;
+	lock_resource(resource_sys);
+	for (i=0; i < max_used_threads; i++) {
+		tcb = thread_list[i];
+		if (tcb && ((int)tcb != -1) && (tcb->threadflags & TCB_F_UNUSED)) {
+			thread_list[i] =0;
+			if (i == (max_used_threads-1)) max_used_threads--;
+			free_tcb_space(tcb);
+		}
+	}
 	unlock_resource(resource_sys);
 }
 
@@ -870,6 +1058,11 @@ static void thread_stub_function(void)
 	/* ... and return, the clone asm wrapper will call exit() */
 }
 
+/* SIDOC_BEGIN_FUNCTION Creating (starting) a thread
+ * Any thread can create child threads. You must pass the address of
+ * the function, that contains the thread's code and (optionaly)
+ * pass the thread a private parameter pointer.
+ * PROTO */
 struct tcb *create_thread(thread_function_type *thread_code, void *params)
 {
 	struct tcb *tcb = 0;
@@ -877,12 +1070,14 @@ struct tcb *create_thread(thread_function_type *thread_code, void *params)
 	pid_t pid;
 
 	lock_resource(resource_sys);
+	try_to_reclaim_thread_resources();
 	for (i=0; i < MAX_THREADS; i++) if (!thread_list[i]) break;
 	if (!thread_list[i]) {
 		/*
 		 * tell the other processes: slot taken, keep away ...
 		 */
 		thread_list[i] = (void *)-1;
+		if (i == max_used_threads) max_used_threads++;
 		/*
 		 * ... and free the system resources,
 		 * a later write to thread_list[i] will be atomic.
@@ -894,8 +1089,11 @@ struct tcb *create_thread(thread_function_type *thread_code, void *params)
 		tcb->params = params;
 		pid = sys_thread_start(tcb);
 		if (pid < 0) {
+			lock_resource(resource_sys);
 			free_tcb_space(tcb);
 			thread_list[i] = tcb = 0;
+			if (i == (max_used_threads-1)) max_used_threads--;
+			unlock_resource(resource_sys);
 		}
 		else {
 			tcb->pid = pid;
@@ -931,15 +1129,27 @@ static void thread0_exit_stuff(void)
 }
 
 /*
- * "init_zero_thread()" makes the starting parent process behave
- * as a normal thread. All tcbs of the children will be
+ * /SKIP
+ * A little bit different is the creation of the `father of all threads',
+ * the original Unix process itself. In order to let it also use the
+ * threads related functions, it must be converted into a thread.
+ *
+ * `init_zero_thread()' makes the starting parent process behave
+ * as a normal thread and threfore this function call must come before
+ * any other thread related call. It initializes the thrreads system.
+ * SKIP
+ * All tcbs of the children will be
  * below our current stack, hence we don't wast heap size
  * and have the stack in the area were they belong too.
- */
+ * PROTO */
 struct tcb *init_zero_thread(int stacksize)
 {
 	struct tcb *tcb;
 
+	if (max_used_threads) {
+		/* attempt to create thread0 once more */
+		return 0;
+	}
 	if (stacksize) {
 		tcb_gran = roundup_to_power_of_2(stacksize);
 		tcb_gran_mask = ~(tcb_gran - 1);
@@ -958,6 +1168,7 @@ struct tcb *init_zero_thread(int stacksize)
 	/* Ok, now we have our own TCB, we initialize it */
 	memset(tcb, 0, sizeof(struct tcb));
 	tcb->tcb_id = 0;	/* parent of parent is always 0 */
+	max_used_threads=1;	/* one thread atleast */
 	tcb->stack_size = TCB_GRAN;
 	tcb->thread_code = 0;	/* parent of parent has no thread function */
 	tcb->pid = getpid();
@@ -1026,12 +1237,20 @@ static int sys_thread_start(struct tcb *tcb)
 		"int $0x80\n\t"		/* Linux/i386 system call */
 		"testl %0,%0\n\t"	/* check return value */
 		"jne 1f\n\t"		/* jump if parent */
-		"call *%3\n\t"		/* start subthread function */
+		"call *%6\n\t"		/* start subthread function */
 		"movl %2,%0\n\t"
+		"movl	%%esp,%%ecx
+		 andl	%5,%%ecx
+		 addl	%3,%%ecx
+		 orl	%4,(%%ecx)\n\t"	/* mark TCB as unsused, hope this there
+		 			 * is no race until int80 below */
 		"int $0x80\n"		/* exit system call: exit subthread */
 		"1:\t"
 		:"=a" (retval)
 		:"0" (__NR_clone),"i" (__NR_exit),
+		 "i" (((int)(&((struct tcb *)0)->threadflags))),
+		 "i" (TCB_F_UNUSED),
+		 "m" (TCB_GRAN_MASK),
 		 "r" ((int)thread_stub_function),
 		 "b" (CLONE_VM | CLONE_FS | CLONE_FILES | /*CLONE_SIGHAND |*/ SIGCHLD),
 		 "c" (newstack));
@@ -1042,9 +1261,17 @@ static int sys_thread_start(struct tcb *tcb)
 	}
 	return retval;
 }
+/* SIDOC_END_FUNCTION */
+
 
 /* -------------------- debugging aids -------------------*/
 
+/* SIDOC_BEGIN_FUNCTION Some debugging aids
+ *
+ * To make your life a bit easier (and because GDB has problems
+ * debugging a thread group), here some usefull functions
+ *
+ * PROTO */
 int locked_printf( const char *fmt, ...)
 {
 	va_list args;
@@ -1059,6 +1286,7 @@ int locked_printf( const char *fmt, ...)
 }
 
 
+/* PROTO */
 void print_tcb(struct tcb *tcb)
 {
 	char lck[MAX_RESOURCES>>3];
@@ -1085,22 +1313,23 @@ void print_tcb(struct tcb *tcb)
 	unlock_resource(resource_libc);
 }
 
-void print_resource(struct lock_struct *sem)
+/* PROTO */
+void print_resource(struct lock_struct *lock)
 {
 	if (!do_print_r) return;
 	lock_resource(resource_libc);
 	printf(
 	  "resource: %s, id %d, at %p, used %08x\n",
-	  resource_list->list[sem->id].name, sem->id, sem, sem->used
+	  resource_list->list[lock->id].name, lock->id, lock, lock->used
 	);
-	if (sem->owner) {
+	if (lock->owner) {
 	  	printf("  owned by thread %d count %d\n",
-	  		sem->owner->tcb_id, sem->owner_count);
+	  		lock->owner->tcb_id, lock->owner_count);
 	}
 	else {
-		if (sem->used != -1) {
+		if (lock->used != -1) {
 			printf(" in transition phase to thread %d\n",
-				sem->owner_count);
+				lock->owner_count);
 		}
 		else {
 			printf("  not owned\n");
@@ -1109,6 +1338,7 @@ void print_resource(struct lock_struct *sem)
 	unlock_resource(resource_libc);
 }
 
+/* PROTO */
 void print_mbox(mbox_handle mbx)
 {
 	struct mbox *mbox;
@@ -1134,3 +1364,4 @@ void print_mbox(mbox_handle mbx)
 	}
 	unlock_resource(resource_libc);
 }
+/* SIDOC_END_FUNCTION */

@@ -5,20 +5,24 @@
  * 
  * Maintainer: Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de>
  * 
+ * REMARK
  * This module contains the the translation part of the keyboard 'server',
  * which translates keysyms into the form in which they can be sent do DOS.
  *
  * The frontends will call one of the following functions to send
  * keyboard events to DOS:
  *
+ * VERB
  *     putrawkey(t_rawkeycode code);
  *     putkey(Boolean make, t_keysym key)
  *     set_shiftstate(t_shiftstate s);
+ * /VERB
  *
  * Interface to serv_backend.c is through write_queue(bios_key, shift, raw).
  *
  * More information about this module is in doc/README.newkbd
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  */

@@ -3,6 +3,7 @@
  * 
  * DANG_BEGIN_MODULE
  * 
+ * REMARK
  * Here is where DOSEMU gets booted. From emu.c external calls are made to
  * the specific I/O systems (video/keyboard/serial/etc...) to initialize
  * them. Memory is cleared/set up and the boot sector is read from the
@@ -17,6 +18,7 @@
  * The top level function emulate() is called from dos.c by way of a dll
  * entry point.
  * 
+ * /REMARK
  * DANG_END_MODULE
  * 
  */

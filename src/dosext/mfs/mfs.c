@@ -1,12 +1,14 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * This is the file redirector code for DOSEMU. It was built on the Mach
  * DOS redirector and as such continues that copyright as well in 
  * addition the GNU copyright. This redirector uses the 
  * DOS int2f fnx 11 calls to give running DOS programs access to any 
  * Unix mounted drives that permissions exist for.
  *
+ * /REMARK
  * DANG_END_MODULE
  * DANG_FIXTHIS We probably should use llseek here for file > 2 GBytes
  *

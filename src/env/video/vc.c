@@ -1,6 +1,7 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * Here's all the calls to the code to try and properly save & restore
  * the video state between VC's and the attempts to control updates to
  * the VC whilst the user is using another. We map between the real
@@ -11,6 +12,7 @@
  * the emulator try to execute the card's initialization routine which is
  * normally located at address c000:0003. This can now be changed as an
  * option.
+ * /REMARK
  *
  * DANG_END_MODULE
  *

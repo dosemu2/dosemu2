@@ -6,12 +6,14 @@
 
 /* DANG_BEGIN_MODULE
  * 
+ * REMARK
  * These are definitions, giving which key is related to which scancode in
  * raw keyboard mode. Basically, the code of 'x' on a US keyboard may be that
  * of a 'Y' on a German keyboard. This way, all types of keyboard can be
  * represented under DOSEMU. Also, the right ALT-key is often a function
  * key in it's own right.
  *
+ * /REMARK
  * DANG_END_MODULE
  */
 

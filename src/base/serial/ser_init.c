@@ -1,5 +1,6 @@
 /* DANG_BEGIN_MODULE
  * 
+ * REMARK
  * ser_init.c: Serial ports initialization for DOSEMU
  * Please read the README.serial file in this directory for more info!
  * 
@@ -18,6 +19,7 @@
  * This module is maintained by Mark Rejhon at these Email addresses:
  *      marky@magmacom.com
  *      ag115@freenet.carleton.ca
+ * /REMARK
  *
  * maintainer:
  * Mark Rejhon <marky@ottawa.com>

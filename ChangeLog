@@ -1,3 +1,16 @@
+97/07/19 ver. 0.67.8 released
+	From Hans
+	- lot of work on DANG (hey Alistair, hope you don't mind)
+	 - made the keywords also accept 'SIDOC' instead of 'DANG, because
+	   else I would have to maintain two versions of the threads
+	   package (which I mainly use at office). Yeah, using the DANG
+	   compiler now for my work at office ;-)
+	 - Added some new features to DANG (have a look at chapter 12 and
+	   13 of DANG.txt)
+	 - edited _all_ DANG_*_MODULE entries such that now the contents
+	   _really_ will appear in the 'Infomation' sections of DANG.txt.
+	   (before all those valuable comments were ignored :-()
+	- new threads version: 0.4
 97/07/18 ver. 0.67.7.1 unofficial pre-release
 	From Steffen
 	- new (nearly) full implementation of vesa-2.0

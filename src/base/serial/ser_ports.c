@@ -1,5 +1,6 @@
 /* DANG_BEGIN_MODULE
  * 
+ * REMARK
  * ser_ports.c: Serial ports for DOSEMU: Software emulated 16550 UART!
  * Please read the README.serial file in this directory for more info!
  * 
@@ -14,6 +15,7 @@
  *      marky@magmacom.com
  *      ag115@freenet.carleton.ca
  *
+ * /REMARK
  * DANG_END_MODULE
  */
 

@@ -1,6 +1,7 @@
 /*
  * 
  * DANG_BEGIN_MODULE
+ * REMARK
  *
  * This file contains a simple system for passing information through to
  * DOSEMU from the Linux side. It does not allow dynamic message passing,
@@ -15,6 +16,7 @@
  * string also contains the name of the environment variable to interrogate.
  * (The string is overwritten with the reply).
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG

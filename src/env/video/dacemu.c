@@ -34,7 +34,9 @@
  *
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The DAC emulator for DOSemu.
+ * /REMARK
  *
  * DANG_END_MODULE
  *

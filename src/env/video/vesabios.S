@@ -2,6 +2,7 @@
  * vesabios.S
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The VGA/VESA BIOS for VGAEmu.
  *
  * This is what DOS applications see as their video BIOS. It will be
@@ -16,6 +17,7 @@
  * Note that some parts of the video BIOS are added by vbe_init()
  * in env/video/vesa.c.
  *
+ * /REMARK
  * DANG_END_NODULE
  *
  * This is vgaemu's VESA BIOS (C000:0 .. C800:0)

@@ -3,6 +3,7 @@
  *
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * Currently the XMS 3.0 spec is covered in this file. XMS is fairly simple
  * as it only deals with allocating extended memory and then moving it 
  * around in specific calls. This spec also includes the allocation of UMB's,
@@ -10,6 +11,7 @@
  * returned to DOS programs via the XMS requests, or int15 fnc88 is set in
  * "/etc/dosemu.conf" via the XMS paramter.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * NOTE: I keep the BYTE size of EMB's in a field called "size" in the EMB

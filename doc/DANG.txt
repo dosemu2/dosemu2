@@ -1,6 +1,6 @@
-  The DOSEMU Alterer Novices Guide DANG
-  Alistair MacDonald, alistair@slitesys.demon.co.uk
-  For DOSEMU v0.66 pl0.0
+  The DOSEMU Alterer Novices Guide
+  Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
+  version v0.67 pl8.0
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -14,51 +14,51 @@
 
   2.1.    dos.c Information
 
-  2.1.1.  Functions in dos.c
+  2.2.    Functions in dos.c
 
-  2.1.1.1.        dosemu
+  2.2.1.  dosemu
 
-  2.2.    emu.c Information
+  2.3.    emu.c Information
 
-  2.2.1.  Functions in emu.c
+  2.4.    Functions in emu.c
 
-  2.2.1.1.        jmp_emulate
+  2.4.1.  jmp_emulate
 
-  2.2.1.2.        SIG_int
+  2.4.2.  SIG_int
 
-  2.2.1.3.        emulate
+  2.4.3.  emulate
 
-  2.2.2.  Remarks in emu.c
+  2.5.    Remarks in emu.c
 
-  2.3.    include/emu.h Information
+  2.6.    include/emu.h Information
 
-  2.3.1.  Functions in include/emu.h
+  2.7.    Functions in include/emu.h
 
-  2.3.1.1.        NEWSETQSIG
+  2.7.1.  NEWSETQSIG
 
-  2.3.2.  Remarks in include/emu.h
+  2.8.    Remarks in include/emu.h
 
   3.      The DPMI group of Modules
 
   3.1.    dosext/dpmi/dpmi.c Information
 
-  3.1.1.  Functions in dosext/dpmi/dpmi.c
+  3.2.    Functions in dosext/dpmi/dpmi.c
 
-  3.1.1.1.        dpmi_control
+  3.2.1.  dpmi_control
 
-  3.1.1.2.        run_pm_int
+  3.2.2.  run_pm_int
 
-  3.1.1.3.        do_default_cpu_exception
+  3.2.3.  do_default_cpu_exception
 
-  3.1.1.4.        do_cpu_exception
+  3.2.4.  do_cpu_exception
 
-  3.1.1.5.        dpmi_fault
+  3.2.5.  dpmi_fault
 
-  3.1.2.  Remarks in dosext/dpmi/dpmi.c
+  3.3.    Remarks in dosext/dpmi/dpmi.c
 
-  3.1.3.  Items for Fixing in dosext/dpmi/dpmi.c
+  3.4.    Items for Fixing in dosext/dpmi/dpmi.c
 
-  3.1.4.  New Ideas for dosext/dpmi/dpmi.c
+  3.5.    New Ideas for dosext/dpmi/dpmi.c
 
   4.      The Video group of Modules
 
@@ -66,53 +66,157 @@
 
   4.2.    env/video/video.c Information
 
-  4.2.1.  Functions in env/video/video.c
+  4.3.    Functions in env/video/video.c
 
-  4.2.1.1.        video_init
+  4.3.1.  video_init
 
-  4.2.2.  Remarks in env/video/video.c
+  4.4.    Remarks in env/video/video.c
 
-  4.3.    env/video/X.c Information
+  4.5.    env/video/n_X.c Information
 
-  4.3.1.  Functions in env/video/X.c
+  4.6.    Functions in env/video/n_X.c
 
-  4.3.1.1.        get_vga256_colors
+  4.6.1.  vga256_cmap_init
 
-  4.3.1.2.        X_close
+  4.6.2.  X_close
 
-  4.3.1.3.        X_setmode
+  4.6.3.  X_setmode
 
-  4.3.1.4.        X_change_mouse_cursor
+  4.6.4.  X_change_mouse_cursor(void)
 
-  4.3.1.5.        X_redraw_screen
+  4.6.5.  X_redraw_screen
 
-  4.3.1.6.        X_update_screen
+  4.6.6.  X_update_screen
 
-  4.3.1.7.        set_mouse_position
+  4.6.7.  set_mouse_position
 
-  4.4.    env/video/console.c Information
+  4.7.    env/video/n_vgaemu.c Information
 
-  4.5.    env/video/dualmon.c Information
+  4.8.    Functions in env/video/n_vgaemu.c
 
-  4.5.1.  Functions in env/video/dualmon.c
+  4.8.1.  VGA_emulate_outb
 
-  4.5.1.1.        MDA_init
+  4.8.2.  VGA_emulate_inb
 
-  4.5.2.  Remarks in env/video/dualmon.c
+  4.8.3.  vga_emu_fault
 
-  4.6.    env/video/et4000.c Information
+  4.8.4.  vga_emu_init
 
-  4.7.    env/video/hgc.c Information
+  4.8.5.  vga_emu_update
 
-  4.8.    base/bios/int10.c Information
+  4.8.6.  vga_emu_switch_bank
 
-  4.9.    env/video/s3.c Information
+  4.8.7.  vga_emu_find_mode
 
-  4.10.   env/video/terminal.c Information
+  4.8.8.  vga_emu_setmode
 
-  4.11.   env/video/trident.c Information
+  4.8.9.  dirty_all_video_pages
 
-  4.12.   env/video/vga.c Information
+  4.8.10. vga_emu_set_text_page
+
+  4.9.    env/video/vesa.c Information
+
+  4.10.   Functions in env/video/vesa.c
+
+  4.10.1. vesa_init
+
+  4.10.2. vesa_emu_fault(struct sigcontext_struct *scp)
+
+  4.10.3. vesa_translate_mode
+
+  4.10.4. do_vesa_int
+
+  4.10.5. vesa_get_SVGA_info
+
+  4.10.6. vesa_get_SVGA_mode_info
+
+  4.10.7. vesa_set_SVGA_mode
+
+  4.11.   env/video/attremu.c Information
+
+  4.12.   Functions in env/video/attremu.c
+
+  4.12.1. Attr_init
+
+  4.12.2. Attr_write_value
+
+  4.12.3. Attr_read_value
+
+  4.12.4. Attr_get_index
+
+  4.12.5. Attr_get_input_status_1
+
+  4.13.   env/video/dacemu.c Information
+
+  4.14.   Functions in env/video/dacemu.c
+
+  4.14.1. DAC_init
+
+  4.14.2. DAC_set_read_index
+
+  4.14.3. DAC_set_write_index
+
+  4.14.4. DAC_read_value
+
+  4.14.5. DAC_write_value
+
+  4.14.6. DAC_set_pel_mask
+
+  4.14.7. DAC_get_entry
+
+  4.14.8. DAC_read_entry
+
+  4.14.9. DAC_get_dirty_entry
+
+  4.14.10.        DAC_set_entry
+
+  4.14.11.        DAC_get_pel_mask
+
+  4.14.12.        DAC_get_state
+
+  4.15.   env/video/console.c Information
+
+  4.16.   env/video/dualmon.c Information
+
+  4.17.   Functions in env/video/dualmon.c
+
+  4.17.1. MDA_init
+
+  4.18.   Remarks in env/video/dualmon.c
+
+  4.19.   env/video/et4000.c Information
+
+  4.20.   env/video/hgc.c Information
+
+  4.21.   base/bios/int10.c Information
+
+  4.22.   env/video/s3.c Information
+
+  4.23.   env/video/terminal.c Information
+
+  4.24.   env/video/trident.c Information
+
+  4.25.   env/video/vga.c Information
+
+  4.26.   env/video/vgaemu.c Information
+
+  4.27.   Functions in env/video/vgaemu.c
+
+  4.27.1. VGA_emulate_outb
+
+  4.27.2. VGA_emulate_inb
+
+  4.27.3. vga_emu_fault(struct sigcontext_struct *scp)
+
+  4.27.4. vga_emu_init(void)
+
+  4.27.5. int vgaemu_get_changes_in_pages
+
+  4.27.6. vgaemu_get_changes_and_update_XImage_0x13
+
+  4.27.7. vga_emu_switch_page(unsigned int pagenumber)
+
+  4.27.8. get_vga_mode_info
 
   5.      The Keyboard group of Modules
 
@@ -120,9 +224,23 @@
 
   5.2.    base/keyboard/keymaps.c Information
 
-  5.2.1.  Remarks in base/keyboard/keymaps.c
+  5.3.    Remarks in base/keyboard/keymaps.c
 
-  5.3.    base/keyboard/slang-termio.c Information
+  5.4.    base/keyboard/slang-termio.c Information
+
+  5.5.    base/keyboard/n_serv_xlat.c Information
+
+  5.6.    Functions in base/keyboard/n_serv_xlat.c
+
+  5.6.1.  putrawkey
+
+  5.6.2.  putkey
+
+  5.6.3.  set_shiftstate
+
+  5.7.    base/keyboard/n_serv_backend.c Information
+
+  5.8.    base/keyboard/n_serv_8042.c Information
 
   6.      The Misc group of Modules
 
@@ -132,75 +250,83 @@
 
   6.3.    arch/linux/async/sigsegv.c Information
 
-  6.3.1.  Functions in arch/linux/async/sigsegv.c
+  6.4.    Functions in arch/linux/async/sigsegv.c
 
-  6.3.1.1.        dosemu_fault
+  6.4.1.  dosemu_fault(int, struct sigcontext_struct);
 
-  6.3.1.2.        print_exception_info
+  6.4.2.  print_exception_info
 
-  6.4.    include/int.h Information
+  6.5.    include/int.h Information
 
-  6.5.    include/ports.h Information
+  6.6.    include/ports.h Information
 
-  6.6.    base/misc/dosio.c Information
+  6.7.    base/misc/dosio.c Information
 
-  6.7.    base/misc/disks.c Information
+  6.8.    base/misc/disks.c Information
 
-  6.7.1.  Functions in base/misc/disks.c
+  6.9.    Functions in base/misc/disks.c
 
-  6.7.1.1.        disk_init
+  6.9.1.  disk_init
 
-  6.8.    emi-i386/cpu.c Information
+  6.10.   emi-i386/cpu.c Information
 
-  6.9.    dev/misc/lpt.c Information
+  6.11.   dev/misc/lpt.c Information
+
+  6.12.   base/dev/misc/timers.c Information
+
+  6.13.   Functions in base/dev/misc/timers.c
+
+  6.13.1. initialize_timers
+
+  6.13.2. timer_tick
+
+  6.13.3. timer_int_engine
 
   7.      The Serial group of Modules
 
   7.1.    base/serial/ser_defs.h Information
 
-  7.1.1.  Remarks in base/serial/ser_defs.h
+  7.2.    Remarks in base/serial/ser_defs.h
 
-  7.2.    base/serial/ser_init.c Information
+  7.3.    base/serial/ser_init.c Information
 
-  7.2.1.  Maintainers
+  7.4.    Functions in base/serial/ser_init.c
 
-  7.2.2.  Functions in base/serial/ser_init.c
+  7.4.1.  serial_init
 
-  7.2.2.1.        serial_init
+  7.5.    Items for Fixing in base/serial/ser_init.c
 
-  7.2.3.  Items for Fixing in base/serial/ser_init.c
+  7.6.    base/serial/ser_ports.c Information
 
-  7.3.    base/serial/ser_ports.c Information
+  7.7.    Functions in base/serial/ser_ports.c
 
-  7.3.1.  Functions in base/serial/ser_ports.c
+  7.7.1.  do_serial_in
 
-  7.3.1.1.        do_serial_in
+  7.7.2.  do_serial_out
 
-  7.3.1.2.        do_serial_out
+  7.8.    Items for Fixing in base/serial/ser_ports.c
 
-  7.3.2.  Items for Fixing in base/serial/ser_ports.c
+  7.9.    base/serial/ser_irq.c Information
 
-  7.4.    base/serial/ser_irq.c Information
+  7.10.   Functions in base/serial/ser_irq.c
 
-  7.4.1.  Functions in base/serial/ser_irq.c
+  7.10.1. serial_int_engine
 
-  7.4.1.1.        serial_int_engine
+  7.10.2. pic_serial_run
 
-  7.4.1.2.        pic_serial_run
+  7.10.3. serial_run
 
-  7.4.1.3.        serial_run
+  7.11.   Remarks in base/serial/ser_irq.c
 
-  7.4.2.  Remarks in base/serial/ser_irq.c
-
-  7.4.3.  Items for Fixing in base/serial/ser_irq.c
+  7.12.   Items for Fixing in base/serial/ser_irq.c
 
   8.      The Mouse group of Modules
 
   8.1.    base/mouse/mouse.c Information
 
-  8.1.1.  Functions in base/mouse/mouse.c
+  8.2.    Functions in base/mouse/mouse.c
 
-  8.1.1.1.        mouse_init
+  8.2.1.  mouse_init
 
   9.      The Bios group of Modules
 
@@ -216,25 +342,73 @@
 
   11.1.   dosext/sound/sound.c Information
 
-  11.1.1. Maintainers
+  11.2.   Functions in dosext/sound/sound.c
 
-  11.1.2. Functions in dosext/sound/sound.c
+  11.2.1. sb_io_read
 
-  11.1.2.1.       sb_io_read
+  11.2.2. adlib_io_read
 
-  11.1.2.2.       adlib_io_read
+  11.2.3. mpu401_io_read
 
-  11.1.2.3.       mpu401_io_read
+  11.2.4. sb_io_write
 
-  11.1.2.4.       sb_io_write
+  11.2.5. sb_dsp_write
 
-  11.1.2.5.       sb_dsp_write
+  11.3.   Remarks in dosext/sound/sound.c
 
-  11.1.3. Remarks in dosext/sound/sound.c
+  11.4.   Items for Fixing in dosext/sound/sound.c
 
-  11.1.4. Items for Fixing in dosext/sound/sound.c
+  12.     The Threads group of Modules
 
-  12.     And Finally ...
+  12.1.   arch/linux/threads/lt-threads.c Information
+
+  12.2.   Functions in arch/linux/threads/lt-threads.c
+
+  12.2.1. Making room on the stack
+
+  12.2.2. Setting User Space Stack limits
+
+  12.2.3. Queuing tools
+
+  12.2.4. Avoiding Libc reentrancy Problems
+
+  12.2.5. getting page aligned memory from the heap
+
+  12.2.6. Name List Tools
+
+  12.2.7. Exiting a thread
+
+  12.2.8. Suspending / resuming a thread
+
+  12.2.9. Locking Resources
+
+  12.2.10.        Sending and receiving messages
+
+  12.2.11.        Creating (starting) a thread
+
+  12.2.12.        Some debugging aids
+
+  12.3.   include/lt-threads.h Information
+
+  12.4.   Functions in include/lt-threads.h
+
+  12.4.1. The thread itself
+
+  12.4.2. A thread's exit function
+
+  12.4.3. Accessing a thread's TCB
+
+  12.4.4. Looping through all TCBs
+
+  12.4.5. Atomic inline Functions
+
+  12.4.6. Misc inline Functions
+
+  12.5.   Data Definitions in include/lt-threads.h
+
+  12.5.1. TCB  (Thread Control Block)
+
+  13.     And Finally ...
   ______________________________________________________________________
 
   11..  IInnttrroodduuccttiioonn
@@ -266,11 +440,16 @@
 
   22..11..  ddooss..cc IInnffoorrmmaattiioonn
 
-  22..11..11..  FFuunnccttiioonnss iinn ddooss..cc
+  Initial program executed to run DOSEMU. Gets access to libdosemu and
+  sets international character parms. Finally calls entry point of
+  DOSEMU emulate() function which is loaded above the usual DOS memory
+  area from 0 - 1meg. Emulate() is in emu.c.
+
+  22..22..  FFuunnccttiioonnss iinn ddooss..cc
 
   These are the functions defined in dos.c.
 
-  22..11..11..11..  ddoosseemmuu
+  22..22..11..  ddoosseemmuu
 
   Arguments are:
 
@@ -281,25 +460,39 @@
      Function created by entry point into libdosemu. Called to jump into
      the emulate function of DOSEMU.
 
-  22..22..  eemmuu..cc IInnffoorrmmaattiioonn
+  22..33..  eemmuu..cc IInnffoorrmmaattiioonn
 
-  22..22..11..  FFuunnccttiioonnss iinn eemmuu..cc
+  Here is where DOSEMU gets booted. From emu.c external calls are made
+  to the specific I/O systems (video/keyboard/serial/etc...) to
+  initialize them. Memory is cleared/set up and the boot sector is read
+  from the boot drive. Many SIGNALS are set so that DOSEMU can exploit
+  things like timers, I/O signals, illegal instructions, etc... When
+  every system gives the green light, vm86() is called to switch into
+  vm86 mode and start executing i86 code.
+
+  The vm86() function will return to DOSEMU when certain `exceptions`
+  occur as when some interrupt instructions occur (0xcd).
+
+  The top level function emulate() is called from dos.c by way of a dll
+  entry point.
+
+  22..44..  FFuunnccttiioonnss iinn eemmuu..cc
 
   These are the functions defined in emu.c.
 
-  22..22..11..11..  jjmmpp__eemmuullaattee
+  22..44..11..  jjmmpp__eemmuullaattee
 
   call the emulate function by way of the dll headers. Always make sure
   that this line is the first of emu.c and link emu.o as the first
   object file to the lib
 
-  22..22..11..22..  SSIIGG__iinntt
+  22..44..22..  SSIIGG__iinntt
 
   The IRQ numbers to monitor are taken from config.sillyint, each bit
   corresponding to one IRQ. The higher 16 bit are defining the use of
   SIGIO
 
-  22..22..11..33..  eemmuullaattee
+  22..44..33..  eemmuullaattee
 
   Arguments are:
 
@@ -313,20 +506,20 @@
      subsystems (video/serial/etc...), getting the boot sector
      instructions and calling vm86().
 
-  22..22..22..  RReemmaarrkkss iinn eemmuu..cc
+  22..55..  RReemmaarrkkss iinn eemmuu..cc
 
   DOSEMU must not work within the 1 meg DOS limit, so start of code is
   loaded at a higher address, at some time this could conflict with
   other shared libs. If DOSEMU is compiled statically (without shared
   libs), and org instruction is used to provide the jump above 1 meg.
 
-  22..33..  iinncclluuddee//eemmuu..hh IInnffoorrmmaattiioonn
+  22..66..  iinncclluuddee//eemmuu..hh IInnffoorrmmaattiioonn
 
-  22..33..11..  FFuunnccttiioonnss iinn iinncclluuddee//eemmuu..hh
+  22..77..  FFuunnccttiioonnss iinn iinncclluuddee//eemmuu..hh
 
   These are the functions defined in include/emu.h.
 
-  22..33..11..11..  NNEEWWSSEETTQQSSIIGG
+  22..77..11..  NNEEWWSSEETTQQSSIIGG
 
   Arguments are:
 
@@ -340,7 +533,7 @@
      define and use SETQSIG(). To that end they will also need to be set
      up in an order such as SIGIO.
 
-  22..33..22..  RReemmaarrkkss iinn iinncclluuddee//eemmuu..hh
+  22..88..  RReemmaarrkkss iinn iinncclluuddee//eemmuu..hh
 
   The `vm86_struct` is used to pass all the necessary status/registers
   to DOSEMU when running in vm86 mode.
@@ -368,6 +561,7 @@
   far as we are concerned, since it will allow us to run so many more
   programs and, most importantly, bcc. This is the one thing that the
   WINE developers want that we haven't been able to give them.
+
   If you think you can help .... "Away you Go!" (Sorry to those non-UK
   folks ...  Thats a reference to a UK kids sports programme from my
   youth ... anyway ...  enough of this banter. You'll be wanting to know
@@ -375,43 +569,48 @@
 
   33..11..  ddoosseexxtt//ddppmmii//ddppmmii..cc IInnffoorrmmaattiioonn
 
-  33..11..11..  FFuunnccttiioonnss iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
+  DOS Protected Mode Interface allows DOS programs to run in the
+  protected mode of [2345..]86 processors
+
+  33..22..  FFuunnccttiioonnss iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   These are the functions defined in dosext/dpmi/dpmi.c.
 
-  33..11..11..11..  ddppmmii__ccoonnttrrooll
+  33..22..11..  ddppmmii__ccoonnttrrooll
 
   This function is similar to the vm86() syscall in the kernel and
   switches to dpmi code.
 
-  33..11..11..22..  rruunn__ppmm__iinntt
+  33..22..22..  rruunn__ppmm__iinntt
 
   This routine is used for running protected mode hardware interrupts
   and software interrupts 0x1c, 0x23 and 0x24.  run_pm_int() switches to
   the locked protected mode stack and calls the handler. If no handler
   is installed the real mode interrupt routine is called.
 
-  33..11..11..33..  ddoo__ddeeffaauulltt__ccppuu__eexxcceeppttiioonn
+  33..22..33..  ddoo__ddeeffaauulltt__ccppuu__eexxcceeppttiioonn
 
   This is the default CPU exception handler.  Exceptions 0, 1, 2, 3, 4,
   5 and 7 are reflected to real mode. All other exceptions are
   terminating the client (and may be dosemu too :-)).
 
-  33..11..11..44..  ddoo__ccppuu__eexxcceeppttiioonn
+  33..22..44..  ddoo__ccppuu__eexxcceeppttiioonn
 
   This routine switches to the locked protected mode stack, disables
   interrupts and calls the DPMI client exception handler.  If no handler
   is installed the default handler is called.
 
-  33..11..11..55..  ddppmmii__ffaauulltt
+  33..22..55..  ddppmmii__ffaauulltt
 
   This is the brain of DPMI. All CPU exceptions are first reflected
-  (from the signal handlers) to this code.  Exception from nonprivileged
-  instructions INT XX, STI, CLI, HLT and from WINDOWS 3.1 are handled
-  here.  All here unhandled exceptions are reflected to
-  do_cpu_exception()
+  (from the signal handlers) to this code.
 
-  33..11..22..  RReemmaarrkkss iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
+  Exception from nonprivileged instructions INT XX, STI, CLI, HLT and
+  from WINDOWS 3.1 are handled here.
+
+  All here unhandled exceptions are reflected to do_cpu_exception()
+
+  33..33..  RReemmaarrkkss iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   We are caching ldt here for speed reasons and for Windows 3.1.  I
   would love to have an readonly ldt-alias (located in the first 16MByte
@@ -435,6 +634,8 @@
   (context) replacement. For back-switching, however, we need the
   sigcontext technique, so we build a proper sigcontext structure even
   for 'hand made taskswitch'. (Hans Lermen, June 1996)
+
+  dpmi_control is called only from dpmi_run when in_dpmi_dos_int==0
 
   -----
 
@@ -462,19 +663,19 @@
   effects the the faulting instruction, hence, 0x65 0x66 is same as 0x66
   0x65.  So we collect all prefixes and remember them.  - Hans Lermen
 
-  33..11..33..  IItteemmss ffoorr FFiixxiinngg iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
+  33..44..  IItteemmss ffoorr FFiixxiinngg iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   Should we really care for the Memory info?
 
   -----
 
-  We shouldn't return to dosemu code if IF=0, but it helps - WHY?
+  We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
 
   -----
 
-  we should not change registers for hardware interrupts
+  we should not change registers for hardware interrupts */
 
-  33..11..44..  NNeeww IIddeeaass ffoorr ddoosseexxtt//ddppmmii//ddppmmii..cc
+  33..55..  NNeeww IIddeeaass ffoorr ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   Simulate Local Descriptor Table for MS-Windows 3.1 must be read only,
   so if krnl386.exe/krnl286.exe try to write to this table, we will bomb
@@ -490,18 +691,29 @@
 
   44..11..  eennvv//vviiddeeoo//vvcc..cc IInnffoorrmmaattiioonn
 
+  Here's all the calls to the code to try and properly save & restore
+  the video state between VC's and the attempts to control updates to
+  the VC whilst the user is using another. We map between the real
+  screen address and that used by DOSEMU here too.
+
+  Attempts to use a cards own bios require the addition of the parameter
+  "graphics" to the video statement in "/etc/dosemu.conf". This will
+  make the emulator try to execute the card's initialization routine
+  which is normally located at address c000:0003. This can now be
+  changed as an option.
+
   44..22..  eennvv//vviiddeeoo//vviiddeeoo..cc IInnffoorrmmaattiioonn
 
-  44..22..11..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vviiddeeoo..cc
+  44..33..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vviiddeeoo..cc
 
   These are the functions defined in env/video/video.c.
 
-  44..22..11..11..  vviiddeeoo__iinniitt
+  44..33..11..  vviiddeeoo__iinniitt
 
   Set pointer to correct structure of functions to initialize, close,
   etc... video routines.
 
-  44..22..22..  RReemmaarrkkss iinn eennvv//vviiddeeoo//vviiddeeoo..cc
+  44..44..  RReemmaarrkkss iinn eennvv//vviiddeeoo//vviiddeeoo..cc
 
   Here the sleeping lion will be awoken and eat much of CPU time !!!
 
@@ -524,79 +736,413 @@
   setups, you can contribute by putting in the correct graphics page
   address values.
 
-  44..33..  eennvv//vviiddeeoo//XX..cc IInnffoorrmmaattiioonn
+  44..55..  eennvv//vviiddeeoo//nn__XX..cc IInnffoorrmmaattiioonn
 
-  44..33..11..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//XX..cc
+  This module contains the video interface for the X Window System. It
+  has mouse and selection 'cut' support.
 
-  These are the functions defined in env/video/X.c.
+  44..66..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//nn__XX..cc
 
-  44..33..11..11..  ggeett__vvggaa225566__ccoolloorrss
+  These are the functions defined in env/video/n_X.c.
+
+  44..66..11..  vvggaa225566__ccmmaapp__iinniitt
 
   Allocates a colormap for 256 color modes and initializes it.
 
-  44..33..11..22..  XX__cclloossee
+  44..66..22..  XX__cclloossee
 
   Destroys the window, unloads font, pixmap and colormap.
 
-  44..33..11..33..  XX__sseettmmooddee
+  44..66..33..  XX__sseettmmooddee
 
   Resizes the window, also the graphical sizes/video modes.  remember
   the dos videomodi
 
-  44..33..11..44..  XX__cchhaannggee__mmoouussee__ccuurrssoorr
+  44..66..44..  XX__cchhaannggee__mmoouussee__ccuurrssoorr((vvooiidd))
 
   This function seems to be called each screen_update :( It is called in
   base/mouse/mouse.c:mouse_cursor(int) a lot for show and hide.
 
-  44..33..11..55..  XX__rreeddrraaww__ssccrreeeenn
+  44..66..55..  XX__rreeddrraaww__ssccrreeeenn
 
   Redraws the entire screen, also in graphics mode Used for expose
-  events etc.  returns: nothing
+  events etc.
+
+  returns: nothing
 
   Arguments are:
 
   +o  none
 
-  44..33..11..66..  XX__uuppddaattee__ssccrreeeenn
+  44..66..66..  XX__uuppddaattee__ssccrreeeenn
 
-  Updates, also in graphics mode Graphics in X has to be smarter and
-  improved returns: 0 - nothing updated 2 - partly updated 1 - whole
-  update
+  Updates the X screen, in text mode and in graphics mode.  Both text
+  and graphics in X have to be smarter and improved.
+
+  X_update_screen returns 0 if nothing was updated, 1 if the whole
+  screen was updated, and 2 for a partial update.
+
+  It is called in arch/linux/async/signal.c::SIGALRM_call() as part of a
+  struct video_system (see end of X.c) every 50 ms or every 10 ms if 2
+  was returned, depending somewhat on various config options as e.g.
+  config.X_updatefreq and VIDEO_CHECK_DIRTY.  At least it is supposed to
+  do that.
 
   Arguments are:
 
   +o  none
 
-  44..33..11..77..  sseett__mmoouussee__ppoossiittiioonn
+  44..66..77..  sseett__mmoouussee__ppoossiittiioonn
 
   places the mouse on the right position Not tested in X with graphics
+
   returns: nothing
 
   Arguments are:
 
   +o  x,y - coordinates
 
-  44..44..  eennvv//vviiddeeoo//ccoonnssoollee..cc IInnffoorrmmaattiioonn
+  44..77..  eennvv//vviiddeeoo//nn__vvggaaeemmuu..cc IInnffoorrmmaattiioonn
 
-  44..55..  eennvv//vviiddeeoo//dduuaallmmoonn..cc IInnffoorrmmaattiioonn
+  The VGA emulator for DOSEmu.
 
-  44..55..11..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
+  Emulated are the video memory and the VGA register set (CRTC, DAC,
+  etc.).  Parts of the hardware emulation is done in separate files
+  (attremu.c, crtcemu.c, dacemu.c and seqemu.c).
+
+  VGAEmu uses the video BIOS code in base/bios/int10.c and
+  env/video/vesa.c.
+
+  For an excellent reference to programming SVGA cards see Finn
+  Thgersen's VGADOC4, available at http://www.datashopper.dk/ finth
+
+  44..88..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//nn__vvggaaeemmuu..cc
+
+  These are the functions defined in env/video/n_vgaemu.c.
+
+  44..88..11..  VVGGAA__eemmuullaattee__oouuttbb
+
+  Emulates writes to VGA ports.  This is a hardware emulation function.
+
+  Arguments are:
+
+  +o  port  - The port being written to.
+
+  +o  value - The value written,
+
+  44..88..22..  VVGGAA__eemmuullaattee__iinnbb
+
+  Emulates reads from VGA ports.  This is a hardware emulation function.
+
+  Arguments are:
+
+  +o  port  - The port being read from.
+
+  44..88..33..  vvggaa__eemmuu__ffaauulltt
+
+  vga_emu_fault() is used to catch video access, and handle it.  This
+  function is called from arch/linux/async/sigsegv.c::dosemu_fault1().
+  The sigcontext_struct is defined in include/cpu.h.  Now it catches
+  only changes in a 4K page, but maybe it is useful to catch each video
+  access. The problem when you do that is, you have to simulate each
+  instruction which could write to the video memory.  It is easy to get
+  the place where the exception happens (scp->cr2), but what are those
+  changes?  An other problem is, it could eat a lot of time, but it does
+  now also.
+
+  Arguments are:
+
+  +o  scp - A pointer to a struct sigcontext_struct holding some relevant
+     data.
+
+  44..88..44..  vvggaa__eemmuu__iinniitt
+
+  vga_emu_init() must be called before using the VGAEmu functions.  It
+  is only called from env/video/X.c::X_init() at the moment.  This
+  function basically initializes the global variable `vga' and allocates
+  the VGA memory.
+
+  It does in particular *not* map any memory into the range 0xa0000 -
+  0xc0000, this is done as part of a VGA mode switch.
+
+  There should be an accompanying vga_emu_done().
+
+  Arguments are:
+
+  +o  vedt - Pointer to struct describing the type of display we are
+     actually
+
+  +o  attached to.
+
+  44..88..55..  vvggaa__eemmuu__uuppddaattee
+
+  vga_emu_update() scans the VGA memory for dirty (= written to since
+  last update) pages and returns the changed area in *veut. See the
+  definition of vga_emu_update_type in env/video/vgaemu_inside.h for
+  details.
+
+  You will need to call this function repeatedly until it returns 0 to
+  grab all changes. You can specify an upper limit for the size of the
+  area that will be returned using `veut->max_max_len' and
+  `veut->max_len'.  See the example in env/video/X.c how this works.
+
+  If the return value of vga_emu_update() is >= 0, it is the number of
+  changed pages, -1 means there are still changed pages but the maximum
+  update chunk size (`veut->max_max_len') was exceeded.
+
+  This function does in its current form not work for Hercules modes; it
+  does, however work for text modes, although this feature is currently
+  not used.
+
+  Arguments are:
+
+  +o  veut - A pointer to a vga_emu_update_type object holding all
+     relevant info.
+
+  44..88..66..  vvggaa__eemmuu__sswwiittcchh__bbaannkk
+
+  vga_emu_switch_bank() is used to emulate video-bankswitching.
+
+  This function returns True on success and False on error, usually
+  indicating an invalid bank number.
+
+  Arguments are:
+
+  +o  bank - The bank to switch to.
+
+  44..88..77..  vvggaa__eemmuu__ffiinndd__mmooddee
+
+  Searches a video mode with the requested mode number.
+
+  The search starts with the mode *after* the mode `vmi' points to.  If
+  `vmi' == NULL, starts at the beginning of the internal mode table.
+  `mode' may be a standard VGA mode number (0 ... 0x7f) or a VESA mode
+  number (>= 0x100). The mode number may have its don't-clear-bit (bit 7
+  or bit 15) or its use-lfb-bit (bit 14) set.  The special mode number
+  -1 will match any mode and may be used to scan through the whole
+  table.
+
+  Returns NULL if no mode was found and a pointer into the mode table
+  otherwise. The returned pointer is a suitable argument for subsequent
+  calls to this function.
+
+  You should (and can) access the mode table only through this function.
+
+  Arguments are:
+
+  +o  mode   - video mode.
+
+  +o  vmi    - pointer into internal mode list
+
+  44..88..88..  vvggaa__eemmuu__sseettmmooddee
+
+  Set a video mode.
+
+  Switches to `mode' with text sizes `width' and `height' or (if no such
+  mode was found) at least `width' and `height'.
+
+  Arguments are:
+
+  +o  mode   - The new video mode.
+
+  +o  width  - Number of text columns.
+
+  +o  height - Number of text rows.
+
+  44..88..99..  ddiirrttyy__aallll__vviiddeeoo__ppaaggeess
+
+  Marks the whole VGA memory as modified.
+
+  44..88..1100..  vvggaa__eemmuu__sseett__tteexxtt__ppaaggee
+
+  Set visible text page.
+
+  `vga.display_start' is set to `page' * `page_size'.  This function
+  works only in text modes.
+
+  Arguments are:
+
+  +o  page      - Number of the text page.
+
+  +o  page_size - Size of one text page.
+
+  44..99..  eennvv//vviiddeeoo//vveessaa..cc IInnffoorrmmaattiioonn
+
+  VESA BIOS enhancements for vgaemu.
+
+  44..1100..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vveessaa..cc
+
+  These are the functions defined in env/video/vesa.c.
+
+  44..1100..11..  vveessaa__iinniitt
+
+  Initializes the VESA emulator, i.e. sets up the VESA BIOS.
+
+  44..1100..22..  vveessaa__eemmuu__ffaauulltt((ssttrruucctt ssiiggccoonntteexxtt__ssttrruucctt **ssccpp))
+
+  vesa_emu_fault() is used to handle video ROM acces.  This function is
+  called from ./video/vgaemu.c:vga_emu_fault().  The sigcontext_struct
+  is defined in include/cpu.h It just jumps over the intruction (LWORD
+  (eip)+=instr-len) which caused the write exeption to the video ROM. It
+  is needed for some dirty programs that try to write to a ROM
+  (dos=high,umb seems to do this, but not on all PC's) We're sure now,
+  nobody can write to the ROM and we don't crash on it, just ignore as
+  it should be!
+
+  44..1100..33..  vveessaa__ttrraannssllaattee__mmooddee
+
+  Translates a VESA mode number to an (own) OEM mode number using the
+  mode_translate_table. Returns the OEM mode if succesful or -1
+  otherwise.
+
+  44..1100..44..  ddoo__vveessaa__iinntt
+
+  This is the VESA interrupt handler. It is called from int10.c:
+  int10().  The VESA interrupt is called with 0x4f in AH and the
+  function number in AL.
+
+  44..1100..55..  vveessaa__ggeett__SSVVGGAA__iinnffoo
+
+  Fills out a table with SuperVGA information. AH=0 if succesfull.
+
+  44..1100..66..  vveessaa__ggeett__SSVVGGAA__mmooddee__iinnffoo
+
+  Fills out a table with SuperVGA information. AH=0 if succesfull.
+
+  44..1100..77..  vveessaa__sseett__SSVVGGAA__mmooddee
+
+  Is called from int10.c:int10->vesa.c:do_vesa_int Calls
+  int10:set_video_mode, which calls X_setmode pff...  But it has this
+  way to be I think / root@sjoerd / The dangerous thing is when the
+  functions disagree
+
+  44..1111..  eennvv//vviiddeeoo//aattttrreemmuu..cc IInnffoorrmmaattiioonn
+
+  The Attribute Controller emulator for VGAemu.
+
+  44..1122..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//aattttrreemmuu..cc
+
+  These are the functions defined in env/video/attremu.c.
+
+  44..1122..11..  AAttttrr__iinniitt
+
+  Initializes the attribute controller.
+
+  44..1122..22..  AAttttrr__wwrriittee__vvaalluuee
+
+  Emulates writes to attribute controller combined index and data
+  register. Read vgadoc3 for details.  This is a hardware emulation
+  function.
+
+  44..1122..33..  AAttttrr__rreeaadd__vvaalluuee
+
+  Emulates reads from the attribute controller.  This is a hardware
+  emulation function.
+
+  44..1122..44..  AAttttrr__ggeett__iinnddeexx
+
+  Returns the current index of the attribute controller.  This is a
+  hardware emulation function, though in fact this function is undefined
+  in a real attribute controller.
+
+  44..1122..55..  AAttttrr__ggeett__iinnppuutt__ssttaattuuss__11
+
+  44..1133..  eennvv//vviiddeeoo//ddaacceemmuu..cc IInnffoorrmmaattiioonn
+
+  The DAC emulator for DOSemu.
+
+  44..1144..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//ddaacceemmuu..cc
+
+  These are the functions defined in env/video/dacemu.c.
+
+  44..1144..11..  DDAACC__iinniitt
+
+  Initializes the DAC.
+
+  44..1144..22..  DDAACC__sseett__rreeaadd__iinnddeexx
+
+  Specifies which palette entry is read.  This is a hardware emulation
+  function.
+
+  44..1144..33..  DDAACC__sseett__wwrriittee__iinnddeexx
+
+  Specifies which palette entry is written.  This is a hardware
+  emulation function.
+
+  44..1144..44..  DDAACC__rreeaadd__vvaalluuee
+
+  Read a value from the DAC. Each read will cycle through the registers
+  for red, green and blue. After a ``blue read'' the read index will be
+  incremented. Read vgadoc3 if you want to know more about the DAC.
+  This is a hardware emulation function.
+
+  44..1144..55..  DDAACC__wwrriittee__vvaalluuee
+
+  Write a value to the DAC. Each write will cycle through the registers
+  for red, green and blue. After a ``blue write'' the write index will
+  be incremented.  This is a hardware emulation function.
+
+  44..1144..66..  DDAACC__sseett__ppeell__mmaasskk
+
+  Sets the pel mask and marks all DAC entries as dirty.  This is a
+  hardware emulation function.
+
+  44..1144..77..  DDAACC__ggeett__eennttrryy
+
+  Returns a complete DAC entry (r,g,b). Color values are AND-ed with the
+  pel mask.  This is an interface function.
+
+  44..1144..88..  DDAACC__rreeaadd__eennttrryy
+
+  Returns a complete DAC entry (r,g,b), doesn't un-dirty it.  Color
+  values are _not_ maked.  This is an interface function.
+
+  44..1144..99..  DDAACC__ggeett__ddiirrttyy__eennttrryy
+
+  Searches the DAC_dirty list for the first dirty entry. Returns the
+  changed entrynumber and fills in the entry if a dirty entry is found
+  or returns -1 otherwise.  This is an interface function.
+
+  44..1144..1100..  DDAACC__sseett__eennttrryy
+
+  Sets a complete DAC entry (r,g,b).  This is an interface function for
+  the int 10 handler.
+
+  44..1144..1111..  DDAACC__ggeett__ppeell__mmaasskk
+
+  Returns the current pel mask. Drawing functions should get the pel
+  mask and AND it with the pixel values to get the correct pixel value.
+  This is *very* slow to implement and fortunately this register is used
+  very rare. Maybe the implementation should be in vgaemu, maybe in the
+  vgaemu client...  This is an interface function.
+
+  44..1144..1122..  DDAACC__ggeett__ssttaattee
+
+  Returns the current state of the DAC This is an interface function.
+
+  44..1155..  eennvv//vviiddeeoo//ccoonnssoollee..cc IInnffoorrmmaattiioonn
+
+  44..1166..  eennvv//vviiddeeoo//dduuaallmmoonn..cc IInnffoorrmmaattiioonn
+
+  44..1177..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
 
   These are the functions defined in env/video/dualmon.c.
 
-  44..55..11..11..  MMDDAA__iinniitt
+  44..1177..11..  MMDDAA__iinniitt
 
   Initializes the monochrome card. First detects which monochrome card
   is used, because the Hercules RamFont and the Hercules InColor need
   one more register to be initialized. If there is no monochrome card at
   all, we just think there is one and poke an peek in the void.  After
-  the detection the card is initialized.  returns: nothing
+  the detection the card is initialized.
+
+  returns: nothing
 
   Arguments are:
 
   +o  none
 
-  44..55..22..  RReemmaarrkkss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
+  44..1188..  RReemmaarrkkss iinn eennvv//vviiddeeoo//dduuaallmmoonn..cc
 
   After MDA_init() the VGA is configured, something in video.c or
   console.c "reprograms" the monochrome card again in such a way that I
@@ -612,19 +1158,87 @@
   The problem doesn't occur when I start dosemu from a telnet connection
   or from a VT100 terminal. (Erik Mouw, jakmouw@et.tudelft.nl)
 
-  44..66..  eennvv//vviiddeeoo//eett44000000..cc IInnffoorrmmaattiioonn
+  44..1199..  eennvv//vviiddeeoo//eett44000000..cc IInnffoorrmmaattiioonn
 
-  44..77..  eennvv//vviiddeeoo//hhggcc..cc IInnffoorrmmaattiioonn
+  44..2200..  eennvv//vviiddeeoo//hhggcc..cc IInnffoorrmmaattiioonn
 
-  44..88..  bbaassee//bbiiooss//iinntt1100..cc IInnffoorrmmaattiioonn
+  44..2211..  bbaassee//bbiiooss//iinntt1100..cc IInnffoorrmmaattiioonn
 
-  44..99..  eennvv//vviiddeeoo//ss33..cc IInnffoorrmmaattiioonn
+  44..2222..  eennvv//vviiddeeoo//ss33..cc IInnffoorrmmaattiioonn
 
-  44..1100..  eennvv//vviiddeeoo//tteerrmmiinnaall..cc IInnffoorrmmaattiioonn
+  44..2233..  eennvv//vviiddeeoo//tteerrmmiinnaall..cc IInnffoorrmmaattiioonn
 
-  44..1111..  eennvv//vviiddeeoo//ttrriiddeenntt..cc IInnffoorrmmaattiioonn
+  44..2244..  eennvv//vviiddeeoo//ttrriiddeenntt..cc IInnffoorrmmaattiioonn
 
-  44..1122..  eennvv//vviiddeeoo//vvggaa..cc IInnffoorrmmaattiioonn
+  44..2255..  eennvv//vviiddeeoo//vvggaa..cc IInnffoorrmmaattiioonn
+
+  44..2266..  eennvv//vviiddeeoo//vvggaaeemmuu..cc IInnffoorrmmaattiioonn
+
+  The VGA emulator for dosemu. Emulated are the video meory and the VGA
+  register set (CRTC, DAC, etc.).
+
+  44..2277..  FFuunnccttiioonnss iinn eennvv//vviiddeeoo//vvggaaeemmuu..cc
+
+  These are the functions defined in env/video/vgaemu.c.
+
+  44..2277..11..  VVGGAA__eemmuullaattee__oouuttbb
+
+  Emulates writes to VGA ports.  This is a hardware emulation function.
+
+  44..2277..22..  VVGGAA__eemmuullaattee__iinnbb
+
+  Emulates reads from VGA ports.  This is a hardware emulation function.
+
+  44..2277..33..  vvggaa__eemmuu__ffaauulltt((ssttrruucctt ssiiggccoonntteexxtt__ssttrruucctt **ssccpp))
+
+  vga_emu_fault() is used to catch video access, and handle it.  This
+  function is called from dosemu/sigsegv.c:dosemu_fault() The
+  sigcontext_struct is defined in include/cpu.h Now it catches only
+  changes in a 4K page, but maybe it is useful to catch each video
+  access. The problem when you do that is, you have to simulate each
+  instruction which could write to the video-memory.  it is easy to get
+  the place where the exception happens (scp->cr2), but what are those
+  changes?  An other problem is, it could eat a lot of time, but it does
+  now also.
+
+  44..2277..44..  vvggaa__eemmuu__iinniitt((vvooiidd))
+
+  vga_emu_init() is used to emulate video.  This function is only called
+  from video/X.c at the moment.  This function has to set a global
+  variable to detect it in other functions it has to map the right
+  video-bank to the 0xA0000 adress.
+
+  44..2277..55..  iinntt vvggaaeemmuu__ggeett__cchhaannggeess__iinn__ppaaggeess
+
+  vgaemu_get_changes_in_pages() is used to get the changed 4K pages.
+  This function is only called from video/vgaemu.c .  It has to be
+  called several times to make sure we grab all the changed pages.
+
+  should be updated for other video modes than 0x13
+
+  44..2277..66..  vvggaaeemmuu__ggeett__cchhaannggeess__aanndd__uuppddaattee__XXIImmaaggee__00xx1133
+
+  vgaemu_get_changes() is used to get the changed area and update the
+  image.  This function is only called from video/X.c at the moment.  It
+  has to called several times to make sure grabbing all the changed
+  areas.
+
+  This is only for mode 0x13: 256 colors
+
+  44..2277..77..  vvggaa__eemmuu__sswwiittcchh__ppaaggee((uunnssiiggnneedd iinntt ppaaggeennuummbbeerr))
+
+  vga_emu_switch_page() is used to emulate video-bankswitching.  This
+  function isn't called anywhere, but has to be used, with other
+  videomodes.  This function just remaps his 'own' memory into the
+  0xA000-0xB0000 area and returns True on success and False on error.
+
+  At the moment just a stupid function, but it is a start.  Jou must be
+  sure, you've got all changes before you switch a bank!
+
+  44..2277..88..  ggeett__vvggaa__mmooddee__iinnffoo
+
+  Returns a pointer to the vga_mode_info structure for the requested
+  mode or NULL if an invalid mode was given.
 
   55..  TThhee KKeeyybbooaarrdd ggrroouupp ooff MMoodduulleess
 
@@ -634,9 +1248,26 @@
 
   55..11..  bbaassee//kkeeyybbooaarrdd//XXkkeeyybb..cc IInnffoorrmmaattiioonn
 
+  This file contains X keyboard tables and handling routines for dosemu.
+
+     exports:  X_process_key(XKeyEvent *)
+     exports:  X_process_char(char)
+     uses:     put_key(ushort scan, short charcode)
+
+  Part of this code is taken from pcemu written by David Hedley
+  (hedley@cs.bris.ac.uk) and is
+
+  Copyright (C) 1994 University of Bristol, England
+
   55..22..  bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc IInnffoorrmmaattiioonn
 
-  55..22..11..  RReemmaarrkkss iinn bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc
+  These are definitions, giving which key is related to which scancode
+  in raw keyboard mode. Basically, the code of 'x' on a US keyboard may
+  be that of a 'Y' on a German keyboard. This way, all types of keyboard
+  can be represented under DOSEMU. Also, the right ALT-key is often a
+  function key in it's own right.
+
+  55..33..  RReemmaarrkkss iinn bbaassee//kkeeyybbooaarrdd//kkeeyymmaappss..cc
 
   The DEAD codes must refer to keys that don't exist on any language
   keyboard. I hope nobody has a smily face key :-) dead_key_table is a
@@ -650,7 +1281,95 @@
   If you uses a different code page, please create a map!  Jon Tombs
   jon@gtex02.us.es
 
-  55..33..  bbaassee//kkeeyybbooaarrdd//ssllaanngg--tteerrmmiioo..cc IInnffoorrmmaattiioonn
+  55..44..  bbaassee//kkeeyybbooaarrdd//ssllaanngg--tteerrmmiioo..cc IInnffoorrmmaattiioonn
+
+  55..55..  bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__xxllaatt..cc IInnffoorrmmaattiioonn
+
+  This module contains the the translation part of the keyboard
+  'server', which translates keysyms into the form in which they can be
+  sent do DOS.
+
+  The frontends will call one of the following functions to send
+  keyboard events to DOS:
+
+       putrawkey(t_rawkeycode code);
+       putkey(Boolean make, t_keysym key)
+       set_shiftstate(t_shiftstate s);
+
+  Interface to serv_backend.c is through write_queue(bios_key, shift,
+  raw).
+
+  More information about this module is in doc/README.newkbd
+
+  Maintainers:
+
+  Rainer Zimmermann  <zimmerm@mathematik.uni-marburg.de>
+
+  55..66..  FFuunnccttiioonnss iinn bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__xxllaatt..cc
+
+  These are the functions defined in base/keyboard/n_serv_xlat.c.
+
+  55..66..11..  ppuuttrraawwkkeeyy
+
+  This function sends a raw keycode byte, e.g. read directly from the
+  hardware, to DOS. It is both queued for the port60h emulation and
+  processed for the BIOS keyboard buffer, using the national translation
+  tables etc.
+
+  For DOS applications using int16h we will therefore not have to load
+  KEYB.EXE, others (e.g. games) need their own drivers anyway.
+
+  This function is used if we are at the console and
+  config.rawkeyboard=on.
+
+  55..66..22..  ppuuttkkeeyy
+
+  This does all the work of sending a key event to DOS.  scan  - the
+  keycode, one of the KEY_ constants from new-kbd.h make  - TRUE for key
+  press, FALSE for release ascii - the key's ascii value, or 0 for none.
+
+  Applications using int16h will always see the ASCII code passed here
+  independently of the scancode, so no character translation
+  needs/should be done. As DOS expects characters in IBM Extended ASCII,
+  the keyboard clients may have to do ISO->IBM character translation or
+  similar!
+
+  An emulated hardware scancode is also sent to port60h.
+
+  Note that you have to send both MAKE (press) and BREAK (release)
+  events.  If no BREAK codes are available (e.g. terminal mode), send
+  them immediately after the MAKE codes.  Also, shift keys should be
+  sent (with ascii = 0).
+
+  55..66..33..  sseett__sshhiiffttssttaattee
+
+  This simply sets the keyboard server's shift state.
+
+  USE WITH CAUTION: this changes the keyboard flags without generating
+  the appropriate shift key make/break codes that normally come along
+  with such changes. This function is mostly intended for start-up
+  shiftstate synchronisation.
+
+  Note also that you can't simply write to the shiftstate variable
+  instead of using this function.
+
+  55..77..  bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__bbaacckkeenndd..cc IInnffoorrmmaattiioonn
+
+  This module handles interfacing to the DOS side both on int9/port60h
+  level (if keybint=on), or on the bios buffer level.  Keycodes are
+  buffered in a queue, which, however, has limited depth, so it
+  shouldn't be used for pasting.
+
+  More information about this module is in doc/README.newkbd
+
+  Maintainers:
+
+  Rainer Zimmermann  <zimmerm@mathematik.uni-marburg.de>
+
+  55..88..  bbaassee//kkeeyybbooaarrdd//nn__sseerrvv__88004422..cc IInnffoorrmmaattiioonn
+
+  This code provides truly rudimentary 8042 controller emulation.  Not
+  having any documentation on the 8042 makes it hard to improve. :)
 
   66..  TThhee MMiisscc ggrroouupp ooff MMoodduulleess
 
@@ -660,44 +1379,116 @@
 
   66..11..  ddoosseexxtt//mmiisscc//eemmmm..cc IInnffoorrmmaattiioonn
 
+  This provides the EMM Memory Management for DOSEMU. It was originally
+  part of the Mach Dos Emulator.
+
+  Recent work in this area has involved a patch to the Kernel. If this
+  is used and the DEFINE MMAP_EMS line used, a faster form of EMS memory
+  support is included, using the /proc filesystem.
+
+  In contrast to some of the comments (Yes, _I_ know the adage about
+  that...)  we appear to be supporting EMS 4.0, not 3.2.  The following
+  EMS 4.0 functions are not supported (yet): 0x4f (partial page map
+  functions), 0x55 (map pages and jump), and 0x56 (map pages and call).
+  OS handle support is missing, and raw page size is 16k (instead of
+  4k).  Other than that, EMS 4.0 support appears complete.
+
   66..22..  ddoosseexxtt//mmiisscc//xxmmss..cc IInnffoorrmmaattiioonn
+
+  Currently the XMS 3.0 spec is covered in this file. XMS is fairly
+  simple as it only deals with allocating extended memory and then
+  moving it around in specific calls. This spec also includes the
+  allocation of UMB's, so they are also included as part of this file.
+  The amount of xms memory returned to DOS programs via the XMS
+  requests, or int15 fnc88 is set in "/etc/dosemu.conf" via the XMS
+  paramter.
 
   66..33..  aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc IInnffoorrmmaattiioonn
 
-  66..33..11..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc
+  66..44..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//aassyynncc//ssiiggsseeggvv..cc
 
   These are the functions defined in arch/linux/async/sigsegv.c.
 
-  66..33..11..11..  ddoosseemmuu__ffaauulltt
+  66..44..11..  ddoosseemmuu__ffaauulltt((iinntt,, ssttrruucctt ssiiggccoonntteexxtt__ssttrruucctt));;
 
   All CPU exceptions (except 13=general_protection from V86 mode, which
   is directly scanned by the kernel) are handled here.
 
-  66..33..11..22..  pprriinntt__eexxcceeppttiioonn__iinnffoo
+  66..44..22..  pprriinntt__eexxcceeppttiioonn__iinnffoo
 
   Prints information about an exception: exception number, error code,
   address, reason, etc.
 
-  66..44..  iinncclluuddee//iinntt..hh IInnffoorrmmaattiioonn
+  66..55..  iinncclluuddee//iinntt..hh IInnffoorrmmaattiioonn
 
-  66..55..  iinncclluuddee//ppoorrttss..hh IInnffoorrmmaattiioonn
+  66..66..  iinncclluuddee//ppoorrttss..hh IInnffoorrmmaattiioonn
 
-  66..66..  bbaassee//mmiisscc//ddoossiioo..cc IInnffoorrmmaattiioonn
+  66..77..  bbaassee//mmiisscc//ddoossiioo..cc IInnffoorrmmaattiioonn
 
-  66..77..  bbaassee//mmiisscc//ddiisskkss..cc IInnffoorrmmaattiioonn
+  66..88..  bbaassee//mmiisscc//ddiisskkss..cc IInnffoorrmmaattiioonn
 
-  66..77..11..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddiisskkss..cc
+  66..99..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddiisskkss..cc
 
   These are the functions defined in base/misc/disks.c.
 
-  66..77..11..11..  ddiisskk__iinniitt
+  66..99..11..  ddiisskk__iinniitt
 
   Test by opening all floppies/hardrives configured.
 
-  66..88..  eemmii--ii338866//ccppuu..cc IInnffoorrmmaattiioonn
+  66..1100..  eemmii--ii338866//ccppuu..cc IInnffoorrmmaattiioonn
 
-  66..99..  ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
+  66..1111..  ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
 
+  66..1122..  bbaassee//ddeevv//mmiisscc//ttiimmeerrss..cc IInnffoorrmmaattiioonn
+
+  This is the timer emulation for DOSEMU.  It emulates the Programmable
+  Interval Timer (PIT), and also handles IRQ0 interrupt events.  A lot
+  of animation and video game software are dependant on this module for
+  high frequency timer interrupts (IRQ0).
+
+  This code will actually generate 18.2 DOS interrupts/second (the code
+  here itself will be triggered about 100 times per second). It will
+  even happily attempt to generate faster clocks, right up to the point
+  where it chokes.  Since the absolute best case timing we can get out
+  of Linux is 100Hz, figure that anything approaching or exceeding that
+  isn't going to work well.  (The code will attempt to generate up to
+  10Khz interrupts per second at the moment.  Too bad that would
+  probably overflow all internal queues really fast. :)
+
+  Speaker emulation, now including port 61h, is also in here. [rz]
+
+  66..1133..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//ttiimmeerrss..cc
+
+  These are the functions defined in base/dev/misc/timers.c.
+
+  66..1133..11..  iinniittiiaalliizzee__ttiimmeerrss
+
+  ensure the 0x40 port timer is initially set correctly
+
+  66..1133..22..  ttiimmeerr__ttiicckk
+
+  Every time we get a TIMER signal from Linux, this procedure is called.
+  It checks to see if we should queue a timer interrupt based on the
+  current values.
+
+  66..1133..33..  ttiimmeerr__iinntt__eennggiinnee
+
+  This is experimental TIMER-IRQ CHAIN code!  This is a function to
+  determine whether it is time to invoke a new timer irq 0 event.
+  Normally it is 18 times a second, but many video games set it to 100
+  times per second or more.  Since the kernel cannot keep an accurate
+  timer interrupt, the job of this routine is to perform a chained timer
+  irq 0 right after the previous timer irq 0.  This routine should,
+  ideally, be called right after the end of a timer irq, if possible.
+
+  This would speed up high frequency timer interrupts if this code can
+  be converted into an assembly macro equivalent!
+
+  PLEASE NOTE
+
+  This code has been replaced by interrupt scheduling code in pic.  The
+  result is that we simply call pic_sched and run the dos interrupt.  If
+  the new code causes no problems, I'll revise this section permanently.
   77..  TThhee SSeerriiaall ggrroouupp ooff MMoodduulleess
 
   This is the code that works our serial emulation. This needs to be
@@ -706,7 +1497,11 @@
 
   77..11..  bbaassee//sseerriiaall//sseerr__ddeeffss..hh IInnffoorrmmaattiioonn
 
-  77..11..11..  RReemmaarrkkss iinn bbaassee//sseerriiaall//sseerr__ddeeffss..hh
+  ser_defs.h: Include file for all files in the 'serial' subdirectory.
+  Please send bug reports and bugfixes to marky@magmacom.com Please read
+  the files in this 'serial' subdirectory for more info.
+
+  77..22..  RReemmaarrkkss iinn bbaassee//sseerriiaall//sseerr__ddeeffss..hh
 
   Extensions to serial debugging.
 
@@ -738,6 +1533,7 @@
   Most of the serial variables are stored in the com[] array.  The com[]
   array is a structure in itself.   Take a look at the about this.  Only
   the most commonly referenced global variables are listed here:
+
   config.num_ser         Number of serial ports active.
   com[x].base_port       The base port address of emulated serial port.
   com[x].real_comport    The COM port number.  com[x].interrupt
@@ -756,37 +1552,69 @@
   for (i = 0; i < config.numser; i++) s_printf("COM port number %d has a
   base address of %x", com[i].real_comport, com[i].base_port);
 
-  77..22..  bbaassee//sseerriiaall//sseerr__iinniitt..cc IInnffoorrmmaattiioonn
+  77..33..  bbaassee//sseerriiaall//sseerr__iinniitt..cc IInnffoorrmmaattiioonn
 
-  77..22..11..  MMaaiinnttaaiinneerrss
+  ser_init.c: Serial ports initialization for DOSEMU Please read the
+  README.serial file in this directory for more info!
+
+  Lock file stuff was derived from Taylor UUCP with these copyrights:
+  Copyright (C) 1991, 1992 Ian Lance Taylor Uri Blumenthal
+  <uri@watson.ibm.com> (C) 1994 Paul Cadach, <paul@paul.east.alma-
+  ata.su> (C) 1994
+
+  Rest of serial code Copyright (C) 1995 by Mark Rejhon
+
+  The code in this module is free software; you can redistribute it
+  and/or modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of the
+  License, or (at your option) any later version.
+
+  This module is maintained by Mark Rejhon at these Email addresses:
+  marky@magmacom.com ag115@freenet.carleton.ca
+
+  Maintainers:
 
   Mark Rejhon  <marky@ottawa.com>
 
-  77..22..22..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__iinniitt..cc
+  77..44..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__iinniitt..cc
 
   These are the functions defined in base/serial/ser_init.c.
 
-  77..22..22..11..  sseerriiaall__iinniitt
+  77..44..11..  sseerriiaall__iinniitt
 
   This is the master serial initialization function that is called upon
   startup of DOSEMU to initialize ALL the emulated UARTs for all
   configured serial ports.  The UART is initialized via the
   initialize_uart function, which opens the serial ports and defines
-  variables for the specific UART.  If the port is a mouse, the port is
-  only initialized when i
+  variables for the specific UART.
 
-  77..22..33..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__iinniitt..cc
+  If the port is a mouse, the port is only initialized when i
+
+  77..55..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__iinniitt..cc
 
   This needs more work before it is implemented into /etc/dosemu.conf as
   an 'rtscts' option.
 
-  77..33..  bbaassee//sseerriiaall//sseerr__ppoorrttss..cc IInnffoorrmmaattiioonn
+  77..66..  bbaassee//sseerriiaall//sseerr__ppoorrttss..cc IInnffoorrmmaattiioonn
 
-  77..33..11..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__ppoorrttss..cc
+  ser_ports.c: Serial ports for DOSEMU: Software emulated 16550 UART!
+  Please read the README.serial file in this directory for more info!
+
+  Copyright (C) 1995 by Mark Rejhon
+
+  The code in this module is free software; you can redistribute it
+  and/or modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of the
+  License, or (at your option) any later version.
+
+  This module is maintained by Mark Rejhon at these Email addresses:
+  marky@magmacom.com ag115@freenet.carleton.ca
+
+  77..77..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__ppoorrttss..cc
 
   These are the functions defined in base/serial/ser_ports.c.
 
-  77..33..11..11..  ddoo__sseerriiaall__iinn
+  77..77..11..  ddoo__sseerriiaall__iinn
 
   The following function returns a value from an I/O port.  The port is
   an I/O address such as 0x3F8 (the base port address of COM1).  There
@@ -794,16 +1622,16 @@
   port (ie 0x3F8) to the base port plus seven (ie 0x3FF).  [num =
   abritary port number for serial line, address = I/O port address]
 
-  77..33..11..22..  ddoo__sseerriiaall__oouutt
+  77..77..22..  ddoo__sseerriiaall__oouutt
 
   The following function writes a value to an I/O port.  The port is an
   I/O address such as 0x3F8 (the base port address of COM1).  [num =
   abritary port number for serial line, address = I/O port address, val
   = value to write to I/O port address]
 
-  77..33..22..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__ppoorrttss..cc
+  77..88..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__ppoorrttss..cc
 
-  Should clearing UART cause THRE int if it's enabled?
+  Should clearing UART cause THRE int if it's enabled? */
 
   -----
 
@@ -811,58 +1639,72 @@
 
   -----
 
-  Is this safe to put this here?
+  Is this safe to put this here? */
 
   -----
 
-  Is this safe to put this here?
+  Is this safe to put this here? */
 
-  77..44..  bbaassee//sseerriiaall//sseerr__iirrqq..cc IInnffoorrmmaattiioonn
+  77..99..  bbaassee//sseerriiaall//sseerr__iirrqq..cc IInnffoorrmmaattiioonn
 
-  77..44..11..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
+  ser_irq.c: Serial interrupt services for DOSEMU Please read the
+  README.serial file in this directory for more info!
+
+  Copyright (C) 1995 by Mark Rejhon
+
+  The code in this module is free software; you can redistribute it
+  and/or modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2 of the
+  License, or (at your option) any later version.
+
+  77..1100..  FFuunnccttiioonnss iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
 
   These are the functions defined in base/serial/ser_irq.c.
 
-  77..44..11..11..  sseerriiaall__iinntt__eennggiinnee
+  77..1100..11..  sseerriiaall__iinntt__eennggiinnee
 
   This function is the serial interrupts scheduler.  Its purpose is to
   update interrupt status and/or invoke a requested serial interrupt.
   If interrupts are not enabled, the Interrupt Identification Register
   is still updated and the function returns.  See pic_serial_run() below
   it is executed right at the instant the interrupt is actually invoked.
+
   Since it is not possible to run the interrupt on the spot, it triggers
   the interrupt via the pic_request() function (which is in pic.c) and
-  sets a flag that an interrupt is going to be occur soon.  Please read
-  pic_serial_run() for more information about interrupts.  [num = port,
-  int_requested = the requested serial interrupt]
+  sets a flag that an interrupt is going to be occur soon.
 
-  77..44..11..22..  ppiicc__sseerriiaall__rruunn
+  Please read pic_serial_run() for more information about interrupts.
+  [num = port, int_requested = the requested serial interrupt]
+
+  77..1100..22..  ppiicc__sseerriiaall__rruunn
 
   This function is called by the priority iunterrupt controller when a
   serial interrupt occurs.  It executes the highest priority serial
   interrupt for that port. (Priority order is: RLSI, RDI, THRI, MSI)
+
   Because it is theoretically possible for things to change between the
   interrupt trigger and the actual interrupt, some checks must be
   repeated.
 
-  77..44..11..33..  sseerriiaall__rruunn
+  77..1100..33..  sseerriiaall__rruunn
 
   This is the main housekeeping function, which should be called about
   20 to 100 times per second.  The more frequent, the better, up to a
   certain point.   However, it should be self-compensating if it
   executes 10 times or even 1000 times per second.   Serial performance
-  increases with frequency of execution of serial_run.  Serial mouse
-  performance becomes more smooth if the time between calls to
-  serial_run are smaller.
+  increases with frequency of execution of serial_run.
 
-  77..44..22..  RReemmaarrkkss iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
+  Serial mouse performance becomes more smooth if the time between calls
+  to serial_run are smaller.
+
+  77..1111..  RReemmaarrkkss iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
 
   Linux code hackers: How do I detect a break signal without having to
   rely on Linux signals?  Can I peek a 'break state bit'?  Also, how do
   I 'turn on' and 'turn off' the break state, via an ioctl() or
   tcsetattr(), rather than using POSIX tcsendbrk()?
 
-  77..44..33..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
+  77..1122..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//sseerr__iirrqq..cc
 
   how do we cancel a PIC interrupt, when we have come this far?
 
@@ -878,11 +1720,11 @@
 
   88..11..  bbaassee//mmoouussee//mmoouussee..cc IInnffoorrmmaattiioonn
 
-  88..11..11..  FFuunnccttiioonnss iinn bbaassee//mmoouussee//mmoouussee..cc
+  88..22..  FFuunnccttiioonnss iinn bbaassee//mmoouussee//mmoouussee..cc
 
   These are the functions defined in base/mouse/mouse.c.
 
-  88..11..11..11..  mmoouussee__iinniitt
+  88..22..11..  mmoouussee__iinniitt
 
   Initialize internal mouse.
 
@@ -915,17 +1757,17 @@
 
   1111..11..  ddoosseexxtt//ssoouunndd//ssoouunndd..cc IInnffoorrmmaattiioonn
 
-  1111..11..11..  MMaaiinnttaaiinneerrss
+  Maintainers:
 
   Alistair MacDonald  <alistair@slitesys.demon.co.uk>
   David Brauman  <crisk@netvision.net.il>
   Rutger Nijlunsing  <rutger@null.net>
 
-  1111..11..22..  FFuunnccttiioonnss iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
+  1111..22..  FFuunnccttiioonnss iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
 
   These are the functions defined in dosext/sound/sound.c.
 
-  1111..11..22..11..  ssbb__iioo__rreeaadd
+  1111..22..11..  ssbb__iioo__rreeaadd
 
   Arguments are:
 
@@ -935,7 +1777,7 @@
      is returned. The value of 0xFF indicates an invalid read. (assumes
      the ports float high when not pulled low by the hardware.)
 
-  1111..11..22..22..  aaddlliibb__iioo__rreeaadd
+  1111..22..22..  aaddlliibb__iioo__rreeaadd
 
   Arguments are:
 
@@ -948,7 +1790,7 @@
      is to use the midi emulation where available as this is the most
      common use for the FM sound.
 
-  1111..11..22..33..  mmppuu440011__iioo__rreeaadd
+  1111..22..33..  mmppuu440011__iioo__rreeaadd
 
   Arguments are:
 
@@ -958,7 +1800,7 @@
      standalone program. This makes most of the MPU-401 code simply a
      pass-through driver.
 
-  1111..11..22..44..  ssbb__iioo__wwrriittee
+  1111..22..44..  ssbb__iioo__wwrriittee
 
   Arguments are:
 
@@ -973,7 +1815,7 @@
      actions and responses that the different revisions of the SB series
      give.
 
-  1111..11..22..55..  ssbb__ddsspp__wwrriittee
+  1111..22..55..  ssbb__ddsspp__wwrriittee
 
   Arguments are:
 
@@ -990,22 +1832,22 @@
      functions to do the real work, and apart from storing details of
      the command and parameters is basically a large switch statement.
 
-  1111..11..33..  RReemmaarrkkss iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
+  1111..33..  RReemmaarrkkss iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
 
   Write silence could probably be implemented by setting up a "DMA"
   transfer from /dev/null - AM
 
-  1111..11..44..  IItteemmss ffoorr FFiixxiinngg iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
+  1111..44..  IItteemmss ffoorr FFiixxiinngg iinn ddoosseexxtt//ssoouunndd//ssoouunndd..cc
 
-  The file header needs tidying up a _LOT_ !
-
-  -----
-
-  Adlib status reads are unimplemented
+  The file header needs tidying up a _LOT_ ! */
 
   -----
 
-  Advanced adlib reads are unimplemented
+  Adlib status reads are unimplemented */
+
+  -----
+
+  Advanced adlib reads are unimplemented */
 
   -----
 
@@ -1021,19 +1863,19 @@
 
   -----
 
-  Adlib register writes are unimplemented
+  Adlib register writes are unimplemented */
 
   -----
 
-  Adlib data writes are unimplemented
+  Adlib data writes are unimplemented */
 
   -----
 
-  Advanced Adlib register writes are unimplemented
+  Advanced Adlib register writes are unimplemented */
 
   -----
 
-  Advanced Adlib data writes are unimplemented
+  Advanced Adlib data writes are unimplemented */
 
   -----
 
@@ -1059,7 +1901,470 @@
 
   Stopping Auto-Init DMA is not implemented
 
-  1122..  AAnndd FFiinnaallllyy ......
+  1122..  TThhee TThhrreeaaddss ggrroouupp ooff MMoodduulleess
+
+  This is the (non-POSIX) threads package, that uses the basic clone
+  interface of the Linux-kernel.
+
+  Now, what is the difference between threads and processes? A process
+  runs totaly isolated from the other processes in the Unix system, it
+  concurrently request resources and is controled by the operating
+  system such that it does no harm to the other processes.  Interfaceing
+  between processes is cost intensive performance wise.
+
+  A thread, on the other hand, is scheduled within the context of _one_
+  process, shares most (if not all) of its resources, and has to
+  cooperate with the other threads in order to do no harm to whole
+  thread group. Interfaceing between threads is very cheap performance
+  wise, hence, using threads is what You should do when having _one_
+  application that needs to do work in parallel.
+
+  1122..11..  aarrcchh//lliinnuuxx//tthhrreeaaddss//lltt--tthhrreeaaddss..cc IInnffoorrmmaattiioonn
+
+  This thread package does _NOT_  POSIX compatible threading.  As its
+  name says: it is a tiny fast alternative using Linux cloning.  The aim
+  was to avoid as much unnecessary sys_calls as possible.  Locking is
+  _NOT_ done via IPC semaphores, instead we use a user level atomic
+  technique, when the resource is free, there will be no sys_call atall.
+
+  Each thread has its own 'Thread Control Block' (TCB) at the bottom of
+  its stack. Hence to identify itself it doesn't need to go over
+  getpid().
+
+  However, there are restrictions given by the technique used:
+
+     - The total maximum number of threads is 27.
+     - The size of the stack must be at power of 2 and is equal
+       for all threads. It is not a problem to make the stack area huge,
+       because only those pages actually used will be allocated (paged in)
+       by the system. Though you will be estonished what /proc/<pid>/status
+       is telling you about stack consumption, ... just ignore it;-)
+     - You have to lock/unlock resource_libc when using non-reentrant parts
+       of libc (malloc _is_ no-reentrant).
+     - You must not use atexit, exit, _exit atall. instead use the techniques
+       and functions supplied by lt-threads.
+
+  Maintainers:
+
+  Hans Lermen  <lermen@fgan.de>
+
+  1122..22..  FFuunnccttiioonnss iinn aarrcchh//lliinnuuxx//tthhrreeaaddss//lltt--tthhrreeaaddss..cc
+
+  These are the functions defined in arch/linux/threads/lt-threads.c.
+
+  1122..22..11..  MMaakkiinngg rroooomm oonn tthhee ssttaacckk
+
+  static char *force_stack_expand(unsigned long address)
+
+  The kernel has a feature, such that it doesn't allow grow down the
+  stack below the current stack pointer.  This makes sense in single
+  threaded applications, but is bad for threading purposes:
+
+     1.   You are forced to put the stacks into the heap (below 1st giga)
+          hence it is less protected against overwriting then normally.
+     2.   The 1 giga stack address space isn't used any more, and
+          you may have problems with address space, on huge programs
+          that use huge arrays (data bases, matrices).
+
+  We trick out the kernel by expanding the stack vma to a given value
+  (setting ESP to the bottom and thouching it).  ( look at do_page_fault
+  in arch/i386/mm/fault.c how it treats growing down of stack )
+
+  1122..22..22..  SSeettttiinngg UUsseerr SSppaaccee SSttaacckk lliimmiittss
+
+  int make_stack_unlimited(int drop_privs)
+
+  When running as user, current Linux has a stacklimit of 8Mb.  ( no way
+  to change that via bash ulimit ) This is enough for normal stacksizes,
+  however, if you need more You need some way to set it to 'unlimited'.
+  This only can be done as root, hence setting the suid bit is needed.
+  The below function sets the limit high, and (in case drop_privs) will
+  drop root priviledges before return.
+
+  1122..22..33..  QQuueeuuiinngg ttoooollss
+
+  These two functions have to be used when maintaining queues of various
+  sorts. You may cast to your private queue entry structure as long as
+  the top of this structure fits `struct queue_entry':
+
+          struct queue_entry {
+                  struct queue_entry *next;
+                  struct queue_entry *last;
+          };
+
+  void append_to_queue(struct queue_entry *existing, struct queue_entry *new)
+
+  void remove_from_queue(struct queue_entry *entry)
+
+  Note: An existing entry _must_ have valid pointers in `next', `last'.
+  We build the head of a queue with an empty queue_entry haveing `next',
+  `last' poining to itself.
+
+  1122..22..44..  AAvvooiiddiinngg LLiibbcc rreeeennttrraannccyy PPrroobblleemmss
+
+  Because all threads share the same VM, libc needs to be reentrant.
+  This isn't the case for a lot of functions ( malloc() is one on them).
+  Though newer libc can be made reentrant (needs the -D_REENTRANT on
+  compilation of _each_ object file), this feature has a performance
+  lost due to the overhead that applies to evry libc call. As we exactly
+  know _when_ we come into trouble with libc, the faster (and IMHO)
+  better solution is to to take care of this at application level.
+
+  For this to accomplish we have to put a
+  (un)lock_resource(resource_libc) bracket around those involved libc
+  functions. The most frequently used ones are offered by the threads
+  package, including such locking.  Some of those are:
+
+  void *locked_malloc(size_t size)
+
+  void locked_free(void *p)
+
+  The prototype is exactly as you expect it from the libc functions.
+
+  1122..22..55..  ggeettttiinngg ppaaggee aalliiggnneedd mmeemmoorryy ffrroomm tthhee hheeaapp
+
+  If you need a page aligned piece of memory, you usualy would use
+  valloc().  However, you can't free that memory later. For this purpose
+  you may use the below functions, which are put on top of
+  malloc()/free().
+
+  void *page_malloc(size_t size)
+
+  void page_free(void *ptr)
+
+  1122..22..66..  NNaammee LLiisstt TToooollss
+
+  The below functions are used for handling small name lists (you may
+  call it directories). All major resources in lt-threads are accessable
+  also by their names, as they are defined on creation time. Especially
+  when it comes to link between different processes (thread cores) and
+  different maschines, we look up the resources (such as mailboxes,
+  threads, services) via name lists.
+
+  The global structures used for building namelists (as defined in lt-
+  threads.h) are:
+
+  struct name_list_entry {
+          char *name;
+          union {
+                  void *p;
+                  struct tcb *tcb;
+                  struct lock_struct *lock;
+                  struct mbox *mbox;
+                  int idata;
+          } u;
+  };
+
+  struct name_list {
+          int size;
+          int count;
+          struct name_list_entry list[0];
+  };
+
+  The follow functions are available:
+
+  struct name_list *create_namelist(int numentries)
+
+  int lookup_name_list(struct name_list *list, char *name)
+
+  void * get_name_list_value(struct name_list *list, char *name)
+
+  int set_name_list_value(struct name_list *list, char *name, void *value)
+
+  int insert_name_list_entry(struct name_list *list, char *name, void *value)
+
+  int delete_name_list_entry(struct name_list *list, char *name)
+
+  1122..22..77..  EExxiittiinngg aa tthhrreeaadd
+
+  Once the threading system is setup, you never should use exit() or
+  _exit(). Instead use exit_thread(0) to exit the running thread,
+  exit_thread(tcb) to kill an other thread and exit_all() to terminate
+  all threads.
+
+  void exit_thread(struct tcb *tcb)
+
+  void exit_all(int exit_code)
+
+  1122..22..88..  SSuussppeennddiinngg // rreessuummiinngg aa tthhrreeaadd
+
+  When a thread has nothing valuable to do (e.g. it is waiting for some
+  event to happen), it should go asleep. The following function supends
+  the current running thread:
+
+  void suspend_thread()
+
+  With the follow function a thread can awake a sleeping thread.  This
+  may (but need not) happen imediately such that the calling thread has
+  been sleeping before retuning from resume_thread()
+
+  void resume_thread(struct tcb *tcb)
+
+  To suspend a thread for a given time interval (not resume_thread()
+  needed to awaken it later) the function thread_usleep can be used.
+
+   Note: we use our own usleep to avoid
+    A) problems with signal stuff
+    B) problems with libc
+
+  void thread_usleep(int useconds)
+
+  1122..22..99..  LLoocckkiinngg RReessoouurrcceess
+
+  The below locking scheme implements userspace semaphores, that in the
+  most frequent cases do _not_ enter the kernel.  ( doesn't use IPC or
+  kernel semphores ) It depends on the atomic_reserv/free() algorithme
+  defined above and won't work with other locking strategies, that
+  cannot `reserve and queue' with _one_ atomic operation.
+
+  The win of this algorithme is _much_ more speed, the disadvantage is
+  that you can't have more then 27 threads.  (though, on 64-bit machines
+  it could be 58 threads)
+
+  All locking function rely on the following structure
+
+  struct lock_struct {
+          int used;
+          int id;
+          int owner_count;
+          struct tcb *owner;
+          int successor_id;
+  };
+
+  However, you should not manipulate them manually.
+
+  struct lock_struct *create_resource(char *name)
+
+  create_resource returns a pointer to a newly created resource.  This
+  one also is then added to the resources namelist so you may look up
+  for then `name'. If there are too many resources NULL will be
+  returned.  The following two functions are used to lock and unlock a
+  previosly created resource. A call to lock_resource() will put the
+  thread into sleep state, when the resource is already locked by an
+  other thread.  A call to unlock_resource() will awake a thread, that
+  has been waiting on the resource.
+
+  void lock_resource(struct lock_struct *lock)
+
+  void unlock_resource(struct lock_struct *lock)
+
+  The below function is a special one: The owner of a lock may dedicate
+  the lock to a given other thread instead of just releasing it.  This
+  will change the normal scheduling of locks.  (for example, this is
+  used by the message routines)
+  void transfer_resource(struct lock_struct *lock, int successor_id)
+
+  1122..22..1100..  SSeennddiinngg aanndd rreecceeiivviinngg mmeessssaaggeess
+
+  A threading system without message transfer would be worthless.  We
+  have it ;-)
+
+  All messages can be send to `mailboxes', that were created before.
+  The size of the message queue within a mailbox can be defined at
+  creation time. When a sending thread hits a queue overflow in the
+  mailbox, the sending thread is put asleep and queued for later to be
+  awaken.  When a receiving thread hits an empty mailbox, it also gets
+  asleep.  A sending thread on an empty mailbox awakens a sleeping
+  receiver, A receiving thread on a full mailbox awakens a sleeping
+  sender.
+
+  mbox_handle create_local_mailbox(char *name, int numentries)
+
+  mbox_handle get_mailbox(char *name)
+
+  mbox_handle get_mailbox_wait(char *name)
+
+  void sendmessage(mbox_handle mbx, struct msg *msg)
+
+  struct msg *receivemessage(mbox_handle mbx)
+
+  int mailbox_is_empty(mbox_handle mbx)
+
+  1122..22..1111..  CCrreeaattiinngg ((ssttaarrttiinngg)) aa tthhrreeaadd
+
+  Any thread can create child threads. You must pass the address of the
+  function, that contains the thread's code and (optionaly) pass the
+  thread a private parameter pointer.
+
+  struct tcb *create_thread(thread_function_type *thread_code, void *params)
+
+  A little bit different is the creation of the `father of all threads',
+  the original Unix process itself. In order to let it also use the
+  threads related functions, it must be converted into a thread.
+
+  `init_zero_thread()' makes the starting parent process behave as a
+  normal thread and threfore this function call must come before any
+  other thread related call. It initializes the thrreads system.
+
+  struct tcb *init_zero_thread(int stacksize)
+
+  1122..22..1122..  SSoommee ddeebbuuggggiinngg aaiiddss
+
+  To make your life a bit easier (and because GDB has problems debugging
+  a thread group), here some usefull functions
+
+  int locked_printf( const char *fmt, ...)
+
+  void print_tcb(struct tcb *tcb)
+
+  void print_resource(struct lock_struct *lock)
+
+  void print_mbox(mbox_handle mbx)
+
+  1122..33..  iinncclluuddee//lltt--tthhrreeaaddss..hh IInnffoorrmmaattiioonn
+
+  1122..44..  FFuunnccttiioonnss iinn iinncclluuddee//lltt--tthhrreeaaddss..hh
+
+  These are the functions defined in include/lt-threads.h.
+
+  1122..44..11..  TThhee tthhrreeaadd iittsseellff
+
+  typedef void thread_function_type(void *params);
+
+  All treads are functions of this type, when control reaches end of
+  this function, the thread exits the same as with exit_threads(0).  The
+  'params' pointer can be passed on create_tread().
+
+  1122..44..22..  AA tthhrreeaadd''ss eexxiitt ffuunnccttiioonn
+
+  typedef void thread_exit_function_type(void);
+
+  A thread must _not_ use atexit() to register a exit-function (problems
+  with non reentrancy of libc).  Instead, it may use the tcb->exit_func
+  pointer point to a function of below type. However, the old value of
+  tcb->exit_func must be saved on a _static_ place and restored within
+  the exit function.  This way a a chain of exit functions will be
+  called on a `last-in first-out' policy.
+
+  1122..44..33..  AAcccceessssiinngg aa tthhrreeaadd''ss TTCCBB
+
+  All thread private data is on the stack, there may be private data
+  allocated on the heap, but the pointers to those areas should be
+  itself on the stack. As long as access happens within scope of the
+  thread function itself (or within local functions within function)
+  this needs no extra handling. However, calling an other function that
+  needs to access thread private data may be a problem. This problem can
+  be solved by putting all this data into a private structure and
+  starting the thread by passing it a pointer to this structure. Now,
+  within scope of the thread one has access to this pointer via.
+
+   OWN_TCB->params;
+
+  The TCB itself always is on bottom of the stack, hence it is also
+  available within a signal handler.
+
+  1122..44..44..  LLooooppiinngg tthhrroouugghh aallll TTCCBBss
+
+  It may be necessary to scan data of all running threads or doing
+  something special like notifying e.t.c. To acomplish this you should
+  use the macro FOR_ALL_TCB such as
+
+   struct tcb *tcb;
+   int id;
+   FOR_ALL_TCB(id,tcb) {
+      locked_printf("thread %d tcb is at address %p\n", id, tcb);
+   }
+
+  1122..44..55..  AAttoommiicc iinnlliinnee FFuunnccttiioonnss
+
+  This set of functions is mainly used within the threads package
+  itself, however, you may find them usefull for your stuff too.
+
+  Below function atomically reserves 'resource' and queues ID.  When the
+  reservation was successfull (i.e. if 'resource' was -1 before) the
+  function returns -1, otherwise '0'.  Id must be a number in the range
+  0..27.  In any case bit 'idnum' is set in resource. Due to the
+  technique used for being atomic, only 27 of 32 bits in the integer can
+  be used.
+
+  static __inline__ int atomic_reserv(int *resource, int id)
+
+  Below function frees a previously with atomic_reserv reserved resource
+  If there are still IDs queued, the function returns with 0, otherwise
+  -1.
+
+  static __inline__ int atomic_free(int *resource, int id)
+
+  Below function return the highest priority queued ID in the resource
+  or -1, if none is queued.  Format of 'resource' is as in atomic_reserv
+  and atomic_free.
+
+  static __inline__ int get_lowest_waiting_id_from_resource(int resource)
+
+  Below function increases `flag' atomically and returns -1 if increas-
+  ing did result in transition from negativ to positive, else returns 0.
+
+  static __inline__ int atomic_inc(int *flag, int increment)
+
+  Below function decreases `flag' atomically and returns -1 if decreas-
+  ing did result in transition from positive to negative, else returns
+  0.
+
+  static __inline__ int atomic_dec(int *flag, int decrement)
+
+  Below function atomicaly tests and sets bit `bitnum' in the bitfield
+  pointed to by `addr'. It returns 0 if the bit was 0 before, else -1.
+
+  static __inline__ int atomic_bitset(void *addr, int bitnum)
+
+  Below function atomicaly tests and clears bit `bitnum' in the bitfield
+  pointed to by `addr'. It returns 0 if the bit was 0 before, else -1.
+
+  static __inline__ int atomic_bitclear(void *addr, int bitnum)
+
+  1122..44..66..  MMiisscc iinnlliinnee FFuunnccttiioonnss
+
+  This set of functions is mainly used within the threads package
+  itself, however, you may find them usefull for your stuff too.
+
+  search_lowest_bit returns the index of lowest bit set or -1, if not
+  found `fieldsize' must be multiple of 32
+
+  static __inline__ int search_lowest_bit(void *addr, int fieldsize)
+
+  As its name says: roundup_to_power_of_2
+
+  static __inline__ int roundup_to_power_of_2(int val)
+
+  1122..55..  DDaattaa DDeeffiinniittiioonnss iinn iinncclluuddee//lltt--tthhrreeaaddss..hh
+
+  These are the structures and/or data defined in include/lt-threads.h.
+
+  1122..55..11..  TTCCBB  ((TThhrreeaadd CCoonnttrrooll BBlloocckk))
+
+  The TCB is the main data structure, that is unic to each thread.  It
+  alway is at bottom of the thread's stack and can be accessed using the
+  OWN_TCB macro. This also is valid while in signal handlers.
+
+  Elements are:
+
+  +o  struct queue_entry link;
+
+  +o  pid_t pid;
+
+  +o  int tcb_id;
+
+  +o  int threadflags;
+
+  +o  struct tcb *parent;
+
+  +o  thread_function_type *thread_code;
+
+  +o  void *params;
+
+  +o  unsigned long stack_size;
+
+  +o  int suspend_count;
+
+  +o  char owning_locks[MAX_RESOURCES>>3];
+
+  +o  jmp_buf exit_jmpbuf;
+
+  +o  thread_exit_function_type *exit_func;
+
+  +o  int exit_code;
+
+  1133..  AAnndd FFiinnaallllyy ......
 
   The Following items are used to delimit the text used to create this
   file.  Whilst it is not necessary to know this, they are included
@@ -1067,11 +2372,25 @@
   moment) reasonably unique.
 
   DANG_BEGIN_MODULE / DANG_END_MODULE This will bracket a description of
-  the file (normally at the start).
+  the file (normally at the start). Within this you may have the keyword
+  'Maintainer:' followed by a list (one line each) of maintainers for
+  this packet. These will be turned into URLs.
 
   DANG_BEGIN_FUNCTION / DANG_END_FUNCTION This brackets a description of
   functions (good this, isn't it!)  Not every function needs to be
-  described in this way - just the major ones.
+  described in this way - just the major ones. Within this you may have
+  the keywords: `arguments:', `return:' and `description:', which will
+  sort out the information following it to build proper lists.
+
+  DANG_BEGIN_STRUCT / DANG_END_STRUCT This brackets a description of
+  structures and data definitions Not every structure needs to be
+  described in this way - just the major ones. Within this you may have
+  the keywords: `elements:', and `description:', which will sort out the
+  information following it to build proper lists. Also, you may bracket
+  the structur definition of real C-code, given you have one element per
+  line. In this case comments (/*...*/) behind the element will be
+  inserted properly into the formatted list while the C-code itself is
+  still compilable.
 
   DANG_BEGIN_REMARK / DANG_END_REMARK This brackets descriptions of
   obscure items, like data structures and architecture.
@@ -1086,4 +2405,22 @@
 
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
+
+  In addition there are some keywords, that are recognized within a
+  bracket.
+
+  VERB ... /VERB This formats the enclosed text verbatim. This is valid
+  within *_MODULE, *_REMARK, *_STRUCT, *_FUNCTION
+
+  REMARK ... /REMARK This is only valid within *_MODULE and also can
+  contain VERB brakets. Its usefull to when you want to have a global
+  modul description
+
+  PROTO ... /PROTO This is only valid within *_FUNCTION and takes a C-
+  function prototype as `verbatim' until either a `{' or a /PROTO is
+  seen. After this all input is `skipped' until the next PROTO or a
+  /SKIP.
+
+  SKIP ... /SKIP This is only valid within *_FUNCTION and skips
+  formatting until either PROTO or /SKIP is seen.
 

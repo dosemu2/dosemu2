@@ -1,3 +1,3 @@
 #/bin/sh
 rm -f DANG.sgml
-./DANG_c.pl -c DANG_CONFIG
+./DANG_c.pl -v -c DANG_CONFIG

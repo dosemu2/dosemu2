@@ -1,6 +1,7 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The protected mode code for the VESA BIOS Extensions.
  *
  * We define some functions here that are required to support the
@@ -9,6 +10,7 @@
  * The whole code _must_ be fully relocatable. It will be copied into
  * the video BIOS during VBE initialization (cf. vbe_init()).
  *
+ * /REMARK
  * DANG_END_NODULE
  *
  *

@@ -26,6 +26,7 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * This provides the EMM Memory Management for DOSEMU. It was originally part
  * of the Mach Dos Emulator. 
  *
@@ -40,6 +41,7 @@
  * support is missing, and raw page size is 16k (instead of 4k).  Other than
  * that, EMS 4.0 support appears complete.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * Purpose:

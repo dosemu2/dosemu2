@@ -36,7 +36,9 @@
  *
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The VGA sequencer for VGAemu.
+ * /REMARK
  *
  * DAND_END_MODULE
  *

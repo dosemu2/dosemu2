@@ -1,8 +1,10 @@
 /* 
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * This module contains a text-mode video interface for the X Window 
  * System. It has mouse and selection 'cut' support.
+ * /REMARK
  *
  * DANG_END_MODULE
  *

@@ -1,11 +1,13 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The VGA CRT controller emulator for VGAEmu.
  *
  * This emulates a very basic CRT controller. Just
  * the start address registers (0xc, 0xd).
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  */

@@ -63,8 +63,10 @@
  *
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The VGA emulator for dosemu. Emulated are the video meory and the VGA
  * register set (CRTC, DAC, etc.).
+ * /REMARK
  *
  * DANG_END_MODULE
  *

@@ -1,11 +1,13 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * Header file for the VGA emulator for DOSEmu.
  *
  * This file describes the interface to the VGA emulator.
  * Have a look at env/video/vgaemu.c and env/video/vesa.c for details.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  *

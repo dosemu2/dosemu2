@@ -7,9 +7,11 @@
  *
  * Maintainers: Scott Buchholz, Rainer Zimmermann
  * 
+ * REMARK
  * This code provides truly rudimentary 8042 controller emulation.
  * Not having any documentation on the 8042 makes it hard to improve. :)
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  */

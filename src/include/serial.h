@@ -1,8 +1,10 @@
 /* DANG_BEGIN_MODULE
  *
+ * REMARK
  * serial.h: Include file for port data array for DOSEMU serial.
  * Please send bug reports and bugfixes to marky@magmacom.com
  * Please read the files in the 'serial' subdirectory for more info.
+ * /REMARK
  *
  * This module is maintained by Mark Rejhon at these Email addresses:
  *      marky@magmacom.com

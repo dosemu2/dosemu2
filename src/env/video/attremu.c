@@ -41,7 +41,9 @@
  *
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The Attribute Controller emulator for VGAemu.
+ * /REMARK
  *
  * DANG_END_MODULE
  *

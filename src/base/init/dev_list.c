@@ -1,13 +1,17 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * Description:
  *  Manages a list of the available I/O devices.  It will automatically
  *  call their initialization and termination routines.
  *  The current I/O device list includes:
+ * VERB
  *     Fully emulated:      pit, pic, cmos, serial
  *     Partially emulated:  rtc, keyb, lpt
  *     Unemulated:          dma, hdisk, floppy, pos
+ * /VERB
+ * /REMARK
  *
  * Maintainers: Scott Buchholz
  * 

@@ -2,9 +2,11 @@
  *
  * DANG_BEGIN_MODULE msdos.h
  *
+ * REMARK
  * MS-DOS API translator allows DPMI programs to call DOS service directly
  * in protected mode.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * First Attempted by Dong Liu,  dliu@rice.njit.edu

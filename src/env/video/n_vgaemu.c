@@ -1,6 +1,7 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * The VGA emulator for DOSEmu.
  *
  * Emulated are the video memory and the VGA register set (CRTC, DAC, etc.).
@@ -12,6 +13,7 @@
  * For an excellent reference to programming SVGA cards see Finn Thøgersen's
  * VGADOC4, available at http://www.datashopper.dk/~finth
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  *
@@ -1244,7 +1246,7 @@ int vga_emu_setmode(int mode, int width, int height)
  * description:
  * Marks the whole VGA memory as modified.
  *
- * DANG_END_FUNCTION                        
+ * DANG_END_FUNCTION
  *
  */     
 

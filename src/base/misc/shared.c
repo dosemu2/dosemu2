@@ -1,8 +1,10 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  *	Memory areas needed to be shared between the DOSEMU process
  *	and other clients.
+ * /REMARK
  *
  * DANG_END_MODULE
  *

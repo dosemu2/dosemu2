@@ -1,11 +1,13 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * Transform a 2D image (rescale and color space conversion).
  *
  * Here are functions to adapt the VGA graphics to various
  * X displays.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * Copyright (c) 1997 Steffen Winterfeldt

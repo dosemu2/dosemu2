@@ -1,5 +1,6 @@
 /* DANG_BEGIN_MODULE
  * 
+ * REMARK
  * fossil.c: FOSSIL serial driver emulator for dosemu.
  * 
  * Copyright (C) 1995 by Pasi Eronen.
@@ -10,6 +11,7 @@
  * as published by the Free Software Foundation; either version 2 of 
  * the License, or (at your option) any later version.
  *
+ * /REMARK
  * DANG_END_MODULE
  */
 

@@ -1,7 +1,9 @@
 /*
  * dualmon.c
  *
+ * REMARK
  * Dual-monitor support.
+ * /REMARK
  *
  * (C) 1994 under GPL, Hans Lermen (lermen@elserv.ffm.fgan.de)
  *

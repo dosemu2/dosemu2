@@ -1,7 +1,9 @@
 /* 
  * DANG_BEGIN_MODULE
  * 
+ * REMARK
  * Contains the functions to fake the stack push's & pop's
+ * /REMARK
  *
  * DANG_END_MODULE
  *

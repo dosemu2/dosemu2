@@ -1,19 +1,22 @@
 /*
  * DANG_BEGIN_MODULE
  * 
+ * REMARK
  * This file contains X keyboard tables and handling routines
  * for dosemu. 
+ * VERB
  *   exports:  X_process_key(XKeyEvent *)
  *   exports:  X_process_char(char)
  *   uses:     put_key(ushort scan, short charcode)
  *    
-******************************************************************
+ * /VERB
  *   
  * Part of this code is taken from pcemu written by David Hedley 
  * (hedley@cs.bris.ac.uk) and is
  * 
  *   Copyright (C) 1994 University of Bristol, England
  * 
+ * /REMARK
  * DANG_END_MODULE
  * Permission is granted to use, copy, modify, and distribute this
  * software and its documentation for any non-commercial purpose,

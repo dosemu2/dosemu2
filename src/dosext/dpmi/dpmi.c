@@ -2,9 +2,11 @@
  *
  * DANG_BEGIN_MODULE dpmi.c
  *
+ * REMARK
  * DOS Protected Mode Interface allows DOS programs to run in the
  * protected mode of [2345..]86 processors
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * First Attempted by James B. MacLean macleajb@ednet.ns.ca

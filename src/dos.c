@@ -3,11 +3,13 @@
  *
  * DANG_BEGIN_MODULE
  * 
+ * REMARK
  * Initial program executed to run DOSEMU. Gets access to libdosemu
  * and sets international character parms. Finally calls entry
  * point of DOSEMU emulate() function which is loaded above the
  * usual DOS memory area from 0 - 1meg. Emulate() is in emu.c.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  */

@@ -2,6 +2,10 @@
 # DANG configuration Data - For v0.3
 #
 
+TITLE:		The DOSEMU Alterer Novices Guide
+AUTHOR:		Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
+ABSTRACT:	This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
+
 # BASEDIR sets a path fragment which is prepended to _all_ paths.
 BASEDIR: 	../../
 
@@ -23,11 +27,15 @@ GROUP:		Video doc/DANG/summary_Video env/video/vc.c
 GROUP:		Keyboard doc/DANG/summary_Keyboard 
 			base/keyboard/Xkeyb.c base/keyboard/keymaps.c
 			base/keyboard/slang-termio.c
+			base/keyboard/n_serv_xlat.c
+			base/keyboard/n_serv_backend.c
+			base/keyboard/n_serv_8042.c
 GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c 
 			dosext/misc/xms.c 
 			arch/linux/async/sigsegv.c include/int.h 
 			include/ports.h base/misc/dosio.c base/misc/disks.c 
 			emi-i386/cpu.c dev/misc/lpt.c 
+			base/dev/misc/timers.c
 GROUP:		Serial doc/DANG/summary_Serial 
 			base/serial/ser_defs.h base/serial/ser_init.c
 			base/serial/ser_ports.c base/serial/ser_irq.c
@@ -37,6 +45,9 @@ GROUP:		Bios doc/DANG/summary_BIOS base/bios/bios.S
 GROUP:		PIC doc/DANG/summary_PIC dev/pic/pic.c devpic/pic.h
 GROUP:		Sound doc/DANG/summary_Sound dosext/sound/sound.c
 #GROUP:		Shared doc/DANG/summary_SHARED dosemu/shared.c
+GROUP:		Threads arch/linux/threads/summary_threads
+		arch/linux/threads/lt-threads.c
+		include/lt-threads.h
 
 # INTRODUCTION is the location of Introduction. There may be
 # more than one of these.

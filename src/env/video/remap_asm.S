@@ -1,11 +1,13 @@
 /*
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * Low-level assembler functions for remapping 2D images.
  *
  * Note that these functions mostly call other functions that
  * have been calculated in remap.c.
  *
+ * /REMARK
  * DANG_END_MODULE
  *
  * Copyright (c) 1997 Steffen Winterfeldt

@@ -30,9 +30,11 @@
  *
  * DANG_BEGIN_MODULE
  *
+ * REMARK
  * VESA BIOS enhancements for vgaemu.
+ * /REMARK
  *
- * DANG_END_NODULE
+ * DANG_END_MODULE
  *
  */
 

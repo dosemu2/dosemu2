@@ -1,7 +1,9 @@
 /* 
  * DANG_BEGIN_MODULE
  * 
+ * REMARK
  * CPU/V86 support for dosemu
+ * /REMARK
  *
  * DANG_END_MODULE
  *

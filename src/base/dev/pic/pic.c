@@ -1,9 +1,11 @@
 /*  DANG_BEGIN_MODULE
  *
+ * REMARK
  *  pic.c is a fairly complete emulation of both 8259 Priority Interrupt 
  *  Controllers.  It also includes provision for 16 lower level interrupts.
  *  This implementation supports the following i/o commands:
  *
+ * VERB
  *      ICW1    bits 0 and 1     number of ICWs to expect
  *      ICW2    bits 3 - 7       base address of IRQs
  *      ICW3    no bits          accepted but ignored
@@ -15,6 +17,7 @@
  *                               select special mask mode
  *
  *     Reads of both pic ports are supported completely.
+ * /VERB
  *
  *  An important concept to understand in pic is the interrupt level.
  *  This is a value which represents the priority of the current interrupt.  
@@ -37,6 +40,7 @@
  *  or 0r will turn off debugging messages.  Flags may be combined:
  *  to get both 1r and 2r, use a value of 3r.
  *
+ * /REMARK
  * DANG_END_MODULE
  */
 
