@@ -270,13 +270,16 @@ unsigned char Attr_get_entry(unsigned char index)
  */
 void Attr_set_entry(unsigned char index, unsigned char value)
 {
+  unsigned char old_cpu_video = vga.attr.cpu_video;
   attr_deb("Attr_set_entry: data[0x%02x] = 0x%02x\n", (unsigned) index, (unsigned) value);
 
   if(index > ATTR_MAX_INDEX) return;
 
   vga.attr.index = index;
+  vga.attr.cpu_video = 0;
   vga.attr.flipflop = ATTR_DATA_FLIPFLOP;
   Attr_write_value(value);
+  vga.attr.cpu_video = old_cpu_video;
 }
 
 /*
