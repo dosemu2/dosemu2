@@ -39,14 +39,28 @@ unsigned long pm_block_handle_used;       /* tracking handle */
 /* I don\'t think these function will ever become bottleneck, so just */
 /* keep it simple, --dong */
 /* alloc_pm_block: allocate a dpmi_pm_block struct and add it to the list */
-static dpmi_pm_block * alloc_pm_block(void)
+static dpmi_pm_block * alloc_pm_block(unsigned long size)
 {
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
 	return NULL;
+    p->attrs = malloc((size >> PAGE_SHIFT) * sizeof(u_short));
+    if(!p->attrs) {
+	free(p);
+	return NULL;
+    }
     p->next = DPMI_CLIENT.pm_block_root->first_pm_block;	/* add it to list */
     DPMI_CLIENT.pm_block_root->first_pm_block = p;
     return p;
+}
+
+static void * realloc_pm_block(dpmi_pm_block *block, unsigned long newsize)
+{
+    u_short *new_addr = realloc(block->attrs, (newsize >> PAGE_SHIFT) * sizeof(u_short));
+    if (!new_addr)
+	return NULL;
+    block->attrs = new_addr;
+    return new_addr;
 }
 
 /* free_pm_block free a dpmi_pm_block struct and delete it from list */
@@ -56,6 +70,7 @@ static int free_pm_block(dpmi_pm_block *p)
     if (!p) return -1;
     if (p == DPMI_CLIENT.pm_block_root->first_pm_block) {
 	DPMI_CLIENT.pm_block_root->first_pm_block = p -> next;
+	free(p->attrs);
 	free(p);
 	return 0;
     }
@@ -64,6 +79,7 @@ static int free_pm_block(dpmi_pm_block *p)
 	    break;
     if (!tmp) return -1;
     tmp -> next = p -> next;	/* delete it from list */
+    free(p->attrs);
     free(p);
     return 0;
 }
@@ -185,7 +201,7 @@ DPMImalloc(unsigned long size, int committed)
 				      ? DPMI_page_size : 0);
     if (committed && size > dpmi_free_memory)
 	return NULL;
-    if ((block = alloc_pm_block()) == NULL)
+    if ((block = alloc_pm_block(size)) == NULL)
 	return NULL;
 
     block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
@@ -194,7 +210,6 @@ DPMImalloc(unsigned long size, int committed)
 	free_pm_block(block);
 	return NULL;
     }
-    block->attrs = malloc((size >> PAGE_SHIFT) * sizeof(u_short));
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
     if (committed)
@@ -241,7 +256,7 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
 	    return NULL;	/* overlap */
     }
 
-    if ((block = alloc_pm_block()) == NULL)
+    if ((block = alloc_pm_block(size)) == NULL)
 	return NULL;
 
     block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)base,
@@ -250,7 +265,6 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
 	free_pm_block(block);
 	return NULL;
     }
-    block->attrs = malloc((size >> PAGE_SHIFT) * sizeof(u_short));
     for (i = 0; i < size >> PAGE_SHIFT; i++)
 	block->attrs[i] = committed ? 9 : 8;
     if (committed)
@@ -263,12 +277,15 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
 int DPMIfree(unsigned long handle)
 {
     dpmi_pm_block *block;
+    int i;
 
     if ((block = lookup_pm_block(handle)) == NULL)
 	return -1;
     munmap_mapping(MAPPING_DPMI, block->base, block->size);
-    dpmi_free_memory += block -> size;
-    free(block->attrs);
+    for (i = 0; i < block->size >> PAGE_SHIFT; i++) {
+	if ((block->attrs[i] & 7) == 1)    // if committed page, account it
+	    dpmi_free_memory += DPMI_page_size;
+    }
     free_pm_block(block);
     return 0;
 }
@@ -315,7 +332,7 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     if (ptr == MAP_FAILED)
 	return NULL;
 
-    block->attrs = realloc(block->attrs, new_npages * sizeof(u_short));
+    realloc_pm_block(block, newsize);
     if (newsize > block->size) {
 	for (i = npages; i < new_npages; i++)
 	    block->attrs[i] = 9;
@@ -333,19 +350,9 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
 void 
 DPMIfreeAll(void)
 {
-    if (DPMI_CLIENT.pm_block_root) {
-	dpmi_pm_block *p = DPMI_CLIENT.pm_block_root->first_pm_block;
-	while(p) {
-	    dpmi_pm_block *tmp;
-	    if (p->base) {
-		munmap_mapping(MAPPING_DPMI, p->base, p->size);
-		free(p->attrs);
-		dpmi_free_memory += p -> size;
-	    }
-	    tmp = p->next;
-	    free(p);
-	    p = tmp;
-	}
+    dpmi_pm_block **p = &DPMI_CLIENT.pm_block_root->first_pm_block;
+    while(*p) {
+	DPMIfree((*p)->handle);
     }
 }
 
