@@ -2871,9 +2871,8 @@ if test "$CONFIG_HOST" = "Linux"; then
 fi
 
 
-force_k7="no"
 if grep -q "^vendor.*AuthenticAMD" /proc/cpuinfo && grep -q "^model.*Athlon" /proc/cpuinfo; then
-   force_k7="yes"
+   target_cpu="athlon"
 fi
 
 
@@ -2912,7 +2911,7 @@ fi
 
 if test "$use_svgalib" = "yes"; then
   echo $ac_n "checking for vga_simple_init in -lvga""... $ac_c" 1>&6
-echo "configure:2916: checking for vga_simple_init in -lvga" >&5
+echo "configure:2915: checking for vga_simple_init in -lvga" >&5
 ac_lib_var=`echo vga'_'vga_simple_init | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
@@ -2920,7 +2919,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lvga  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 2924 "configure"
+#line 2923 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -2931,7 +2930,7 @@ int main() {
 vga_simple_init()
 ; return 0; }
 EOF
-if { (eval echo configure:2935: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:2934: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -2962,7 +2961,7 @@ fi
 fi
 if test "$use_svgalib" = "yes"; then
   echo "checking "compiling with svgalib support"" 1>&6
-echo "configure:2966: checking "compiling with svgalib support"" >&5
+echo "configure:2965: checking "compiling with svgalib support"" >&5
   cat >> confdefs.h <<\EOF
 #define USE_SVGALIB 1
 EOF
@@ -2971,7 +2970,7 @@ EOF
   
 else
   echo "checking "compiling without svgalib support"" 1>&6
-echo "configure:2975: checking "compiling without svgalib support"" >&5
+echo "configure:2974: checking "compiling without svgalib support"" >&5
 fi
 
  # Check whether --enable-force-slang or --disable-force-slang was given.
@@ -2986,7 +2985,7 @@ fi
 
 if test "$force_slang" = "no"; then
   echo $ac_n "checking for SLkm_define_key in -lslang""... $ac_c" 1>&6
-echo "configure:2990: checking for SLkm_define_key in -lslang" >&5
+echo "configure:2989: checking for SLkm_define_key in -lslang" >&5
 ac_lib_var=`echo slang'_'SLkm_define_key | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
@@ -2994,7 +2993,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lslang  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 2998 "configure"
+#line 2997 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3005,7 +3004,7 @@ int main() {
 SLkm_define_key()
 ; return 0; }
 EOF
-if { (eval echo configure:3009: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:3008: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3046,7 +3045,7 @@ if test "$force_slang" = "no"; then
         SLANGINC="-I/usr/local/include"
       else
         echo "checking "no system supplied slang.h found -- forceing dosemu slang"" 1>&6
-echo "configure:3050: checking "no system supplied slang.h found -- forceing dosemu slang"" >&5
+echo "configure:3049: checking "no system supplied slang.h found -- forceing dosemu slang"" >&5
         force_slang="yes"
       fi
     fi
@@ -3056,16 +3055,16 @@ fi
 if test "$force_slang" = "no"; then
   SLANGLIB="-lslang -lm"
   echo "checking "using system supplied libslang.a"" 1>&6
-echo "configure:3060: checking "using system supplied libslang.a"" >&5
+echo "configure:3059: checking "using system supplied libslang.a"" >&5
 else
  if test "$ELF" = "ELF=1"; then
    SLANGLIB="-larch_${CONFIG_HOST}_slang-elf -lm"
    echo "checking "using dosemu supplied libarch_${CONFIG_HOST}_slang-elf.a"" 1>&6
-echo "configure:3065: checking "using dosemu supplied libarch_${CONFIG_HOST}_slang-elf.a"" >&5
+echo "configure:3064: checking "using dosemu supplied libarch_${CONFIG_HOST}_slang-elf.a"" >&5
  else
    SLANGLIB="-larch_${CONFIG_HOST}_slang"
    echo "checking "using dosemu supplied libarch_${CONFIG_HOST}_slang.a"" 1>&6
-echo "configure:3069: checking "using dosemu supplied libarch_${CONFIG_HOST}_slang.a"" >&5
+echo "configure:3068: checking "using dosemu supplied libarch_${CONFIG_HOST}_slang.a"" >&5
  fi
 fi
 
@@ -3074,7 +3073,7 @@ fi
 # Extract the first word of "xmkmf", so it can be a program name with args.
 set dummy xmkmf; ac_word=$2
 echo $ac_n "checking for $ac_word""... $ac_c" 1>&6
-echo "configure:3078: checking for $ac_word" >&5
+echo "configure:3077: checking for $ac_word" >&5
 if eval "test \"`echo '$''{'ac_cv_prog_x_ok'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -3107,7 +3106,7 @@ if test $x_ok = 1 -a "${with_x+set}" != set; then
 # Uses ac_ vars as temps to allow command line to override cache and checks.
 # --without-x overrides everything else, but does not touch the cache.
 echo $ac_n "checking for X""... $ac_c" 1>&6
-echo "configure:3111: checking for X" >&5
+echo "configure:3110: checking for X" >&5
 
 # Check whether --with-x or --without-x was given.
 if test "${with_x+set}" = set; then
@@ -3169,12 +3168,12 @@ if test "$ac_x_includes" = NO; then
 
   # First, try using that file with no special directory specified.
 cat > conftest.$ac_ext <<EOF
-#line 3173 "configure"
+#line 3172 "configure"
 #include "confdefs.h"
 #include <$x_direct_test_include>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:3178: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:3177: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -3243,14 +3242,14 @@ if test "$ac_x_libraries" = NO; then
   ac_save_LIBS="$LIBS"
   LIBS="-l$x_direct_test_library $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3247 "configure"
+#line 3246 "configure"
 #include "confdefs.h"
 
 int main() {
 ${x_direct_test_function}()
 ; return 0; }
 EOF
-if { (eval echo configure:3254: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:3253: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   LIBS="$ac_save_LIBS"
 # We can link X programs with no special library path.
@@ -3346,15 +3345,15 @@ elif test "$x_includes" != "NONE"; then
     XINCLUDES="-I$x_includes"
 else
     echo "checking for X11 header files" 1>&6
-echo "configure:3350: checking for X11 header files" >&5
+echo "configure:3349: checking for X11 header files" >&5
     XINCLUDES="# no special path needed"
     cat > conftest.$ac_ext <<EOF
-#line 3353 "configure"
+#line 3352 "configure"
 #include "confdefs.h"
 #include <X11/Intrinsic.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:3358: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:3357: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -3394,9 +3393,9 @@ elif test "$x_libraries" != "NONE"; then
     XLIBSWD="-L$x_libraries"
 else
     echo "checking for X11 library archive" 1>&6
-echo "configure:3398: checking for X11 library archive" >&5
+echo "configure:3397: checking for X11 library archive" >&5
     echo $ac_n "checking for main in -lX11""... $ac_c" 1>&6
-echo "configure:3400: checking for main in -lX11" >&5
+echo "configure:3399: checking for main in -lX11" >&5
 ac_lib_var=`echo X11'_'main | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
@@ -3404,14 +3403,14 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lX11  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3408 "configure"
+#line 3407 "configure"
 #include "confdefs.h"
 
 int main() {
 main()
 ; return 0; }
 EOF
-if { (eval echo configure:3415: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:3414: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3444,7 +3443,7 @@ fi
 fi
 if test "$XLIBSWL" = nope ; then
     echo $ac_n "checking for main in -lXwindow""... $ac_c" 1>&6
-echo "configure:3448: checking for main in -lXwindow" >&5
+echo "configure:3447: checking for main in -lXwindow" >&5
 ac_lib_var=`echo Xwindow'_'main | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
@@ -3452,14 +3451,14 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lXwindow  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3456 "configure"
+#line 3455 "configure"
 #include "confdefs.h"
 
 int main() {
 main()
 ; return 0; }
 EOF
-if { (eval echo configure:3463: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:3462: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3486,7 +3485,7 @@ fi
 if test "$XLIBSWL" = nope ; then
     echo "configure: warning: Couldn't find the X11 library archive." 1>&2
     echo "checking Compiling without X support" 1>&6
-echo "configure:3490: checking Compiling without X support" >&5
+echo "configure:3489: checking Compiling without X support" >&5
     XLIBSWL=""
     XLIBSWD=""
     X_SUPPORT=""
@@ -3499,7 +3498,7 @@ echo "configure:3490: checking Compiling without X support" >&5
     
 else
     echo "checking Compiling with X support" 1>&6
-echo "configure:3503: checking Compiling with X support" >&5
+echo "configure:3502: checking Compiling with X support" >&5
     X_SUPPORT="X_SUPPORT=1"
     cat >> confdefs.h <<EOF
 #define X_SUPPORT 1
@@ -3561,17 +3560,17 @@ fi
 if test "$forced_mitshm" = "no" -a "$forced_nomitshm" = "no" ; then
   ac_safe=`echo "X11/extensions/XShm.h" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for X11/extensions/XShm.h""... $ac_c" 1>&6
-echo "configure:3565: checking for X11/extensions/XShm.h" >&5
+echo "configure:3564: checking for X11/extensions/XShm.h" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3570 "configure"
+#line 3569 "configure"
 #include "confdefs.h"
 #include <X11/extensions/XShm.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:3575: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:3574: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -3703,10 +3702,10 @@ fi
 
   if test "$experimental" = "yes"; then
    echo "checking "allowing EXPERIMENTAL stuff to be configured"" 1>&6
-echo "configure:3707: checking "allowing EXPERIMENTAL stuff to be configured"" >&5;
+echo "configure:3706: checking "allowing EXPERIMENTAL stuff to be configured"" >&5;
   else
    echo "checking "EXPERIMENTAL stuff disabled"" 1>&6
-echo "configure:3710: checking "EXPERIMENTAL stuff disabled"" >&5;
+echo "configure:3709: checking "EXPERIMENTAL stuff disabled"" >&5;
   fi
 
 if test "$CONFIG_HOST" = "linux"; then
@@ -3728,7 +3727,7 @@ if test -x ./mkpluginhooks; then
   ./mkpluginhooks
   if test -f ./plugin_libdirs; then
     echo "checking "Including plugins: `cat ./plugin_libdirs`"" 1>&6
-echo "configure:3732: checking "Including plugins: `cat ./plugin_libdirs`"" >&5;
+echo "configure:3731: checking "Including plugins: `cat ./plugin_libdirs`"" >&5;
     PLUGINSUBDIRS=`cat ./plugin_libdirs`
     if test -f ./plugin_incdirs; then
       for i in `cat ./plugin_incdirs`; do
@@ -3737,12 +3736,16 @@ echo "configure:3732: checking "Including plugins: `cat ./plugin_libdirs`"" >&5;
     fi
   else
     echo "checking "Compiling without plug-ins"" 1>&6
-echo "configure:3741: checking "Compiling without plug-ins"" >&5
+echo "configure:3740: checking "Compiling without plug-ins"" >&5
   fi
 else
   echo "checking "Compiling without plug-ins"" 1>&6
-echo "configure:3745: checking "Compiling without plug-ins"" >&5
+echo "configure:3744: checking "Compiling without plug-ins"" >&5
 fi
+
+touch ./plugin_configure
+subdirs="`cat ./plugin_configure`"
+
 
  # Check whether --enable-dodebug or --disable-dodebug was given.
 if test "${enable_dodebug+set}" = set; then
@@ -3754,10 +3757,10 @@ fi
 
   if test "$dodebug" = "yes"; then
    echo "checking "Compiling with debug info"" 1>&6
-echo "configure:3758: checking "Compiling with debug info"" >&5;
+echo "configure:3761: checking "Compiling with debug info"" >&5;
   else
    echo "checking "Compiling without debug info"" 1>&6
-echo "configure:3761: checking "Compiling without debug info"" >&5;
+echo "configure:3764: checking "Compiling without debug info"" >&5;
   fi
 
  # Check whether --enable-aspi or --disable-aspi was given.
@@ -3770,7 +3773,7 @@ fi
 
   if test "$aspi" = "yes"; then
    echo "checking "Compiling with ASPI support"" 1>&6
-echo "configure:3774: checking "Compiling with ASPI support"" >&5;
+echo "configure:3777: checking "Compiling with ASPI support"" >&5;
    ASPI_SUPPORT="ASPI_SUPPORT=1"
    cat >> confdefs.h <<EOF
 #define ASPI_SUPPORT 1
@@ -3779,24 +3782,24 @@ EOF
    
   else
    echo "checking "Compiling without ASPI support"" 1>&6
-echo "configure:3783: checking "Compiling without ASPI support"" >&5;
+echo "configure:3786: checking "Compiling without ASPI support"" >&5;
   fi
  
  # Check whether --enable-nosbemu or --disable-nosbemu was given.
 if test "${enable_nosbemu+set}" = set; then
   enableval="$enable_nosbemu"
   echo "checking "Compiling without SB Emulation"" 1>&6
-echo "configure:3790: checking "Compiling without SB Emulation"" >&5
+echo "configure:3793: checking "Compiling without SB Emulation"" >&5
 else
   echo "checking "Compiling with SB Emulation"" 1>&6
-echo "configure:3793: checking "Compiling with SB Emulation"" >&5
+echo "configure:3796: checking "Compiling with SB Emulation"" >&5
                 cat >> confdefs.h <<\EOF
 #define USE_SBEMU 1
 EOF
 
                 USE_SBEMU="USE_SBEMU=1"
 		echo $ac_n "checking for gus_close in -lgus""... $ac_c" 1>&6
-echo "configure:3800: checking for gus_close in -lgus" >&5
+echo "configure:3803: checking for gus_close in -lgus" >&5
 ac_lib_var=`echo gus'_'gus_close | sed 'y%./+-%__p_%'`
 if eval "test \"`echo '$''{'ac_cv_lib_$ac_lib_var'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
@@ -3804,7 +3807,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lgus  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3808 "configure"
+#line 3811 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3815,7 +3818,7 @@ int main() {
 gus_close()
 ; return 0; }
 EOF
-if { (eval echo configure:3819: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:3822: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3831,7 +3834,7 @@ fi
 if eval "test \"`echo '$ac_cv_lib_'$ac_lib_var`\" = yes"; then
   echo "$ac_t""yes" 1>&6
   echo "checking "Compiling Midid with Ultra support"" 1>&6
-echo "configure:3835: checking "Compiling Midid with Ultra support"" >&5
+echo "configure:3838: checking "Compiling Midid with Ultra support"" >&5
 			USE_ULTRA="USE_ULTRA=1"
 			cat >> confdefs.h <<\EOF
 #define USE_ULTRA 1
@@ -3851,7 +3854,7 @@ fi
 if test "${enable_runasroot+set}" = set; then
   enableval="$enable_runasroot"
   echo "checking "Compiling for dosemu mostly running as root"" 1>&6
-echo "configure:3855: checking "Compiling for dosemu mostly running as root"" >&5
+echo "configure:3858: checking "Compiling for dosemu mostly running as root"" >&5
                cat >> confdefs.h <<\EOF
 #define RUN_AS_ROOT 1
 EOF
@@ -3859,7 +3862,7 @@ EOF
 	       
 else
   echo "checking "Compiling for dosemu mostly running as user"" 1>&6
-echo "configure:3863: checking "Compiling for dosemu mostly running as user"" >&5
+echo "configure:3866: checking "Compiling for dosemu mostly running as user"" >&5
 fi
 
 
@@ -3867,7 +3870,7 @@ fi
 if test "${enable_new_intcode+set}" = set; then
   enableval="$enable_new_intcode"
   echo "checking "Compiling with new interrupt handling code"" 1>&6
-echo "configure:3871: checking "Compiling with new interrupt handling code"" >&5
+echo "configure:3874: checking "Compiling with new interrupt handling code"" >&5
                cat >> confdefs.h <<\EOF
 #define USE_NEW_INT 1
 EOF
@@ -3875,7 +3878,7 @@ EOF
 	       
 else
   echo "checking "Compiling with normal interrupt handling code"" 1>&6
-echo "configure:3879: checking "Compiling with normal interrupt handling code"" >&5
+echo "configure:3882: checking "Compiling with normal interrupt handling code"" >&5
 fi
 
 
@@ -3885,13 +3888,13 @@ LNKOPTS="-Wl,-warn-common"
 if test "${enable_linkstatic+set}" = set; then
   enableval="$enable_linkstatic"
   echo "checking "Linking statically"" 1>&6
-echo "configure:3889: checking "Linking statically"" >&5
+echo "configure:3892: checking "Linking statically"" >&5
                PORTABLE_BINARY="-DPORTABLE_BINARY"
                
                LNKOPTS="${LNKOPTS} -static"
 else
   echo "checking "Linking for shared libraries"" 1>&6
-echo "configure:3895: checking "Linking for shared libraries"" >&5
+echo "configure:3898: checking "Linking for shared libraries"" >&5
 fi
 
 
@@ -3944,7 +3947,7 @@ fi
 
   if test "$cpuemu" = "yes" -a "$experimental" = "yes"; then
    echo "checking "Compiling with optional 386 emulation code"" 1>&6
-echo "configure:3948: checking "Compiling with optional 386 emulation code"" >&5;
+echo "configure:3951: checking "Compiling with optional 386 emulation code"" >&5;
    X86_EMULATOR="X86_EMULATOR=1"
    cat >> confdefs.h <<EOF
 #define X86_EMULATOR 1
@@ -3953,7 +3956,7 @@ EOF
    
   else
    echo "checking "Compiling for native x86"" 1>&6
-echo "configure:3957: checking "Compiling for native x86"" >&5;
+echo "configure:3960: checking "Compiling for native x86"" >&5;
   fi
 
 
@@ -3984,7 +3987,7 @@ OPT="$OPT -MD" # this should give painless dependencies
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
  echo "checking "Linux Specific build options"" 1>&6
-echo "configure:3988: checking "Linux Specific build options"" >&5
+echo "configure:3991: checking "Linux Specific build options"" >&5
    # Check whether --enable-nonet or --disable-nonet was given.
 if test "${enable_nonet+set}" = set; then
   enableval="$enable_nonet"
@@ -3995,11 +3998,11 @@ fi
 
   if test "$nonet" = "yes"; then
     echo "checking "Compiling without network support"" 1>&6
-echo "configure:3999: checking "Compiling without network support"" >&5;
+echo "configure:4002: checking "Compiling without network support"" >&5;
     USING_NET=""
   else
     echo "checking "Compiling with network support"" 1>&6
-echo "configure:4003: checking "Compiling with network support"" >&5;
+echo "configure:4006: checking "Compiling with network support"" >&5;
     USING_NET="-DUSING_NET"
   fi
  PIPE=-pipe
@@ -4033,24 +4036,17 @@ if test "$GCC" = "yes" ; then
   else
      echo "no"
   fi
-  GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
+
 
   # -m486 is usually in the specs for the compiler
   # but gcc-3.0 wants -mcpu=i486 instead
   # let the compiler options be dependent of the _target_
   # where dosemu is compiled for, not the host
-  if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
-     case "$target_cpu" in
-       i386 | i486 | i586 | i686)
-          if test "$force_k7" = "yes"; then
-	     OPT="$OPT -mcpu=athlon"
-	  else
-             OPT="$OPT -mcpu=$target_cpu"
-	  fi
-          ;;
-       *)
-          ;;
-     esac
+  if test "$target_cpu" = "athlon" -a $GCC_VERSION_CODE -le 2095 ;  then
+    target_cpu="i686"
+  fi
+  if test "$GCC_VERSION_CODE" -ge 2095 ; then
+     OPT="$OPT -mcpu=$target_cpu"
   else
      case "$target_cpu" in
        i486)
@@ -4063,11 +4059,12 @@ if test "$GCC" = "yes" ; then
          ;;
      esac
   fi
-  if test "$force_k7" = "yes"; then
+  if test "$target_cpu" = "athlon"; then
      OPT="$OPT -malign-functions=4 -fexpensive-optimizations"
   elif test "$target_cpu" = "i486"; then
      OPT="$OPT -malign-loops=2 -malign-jumps=2 -malign-functions=2"
   fi
+  GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
 
   echo -n "checking for glibc..."
   set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
@@ -4303,6 +4300,7 @@ s%@BINPATH@%$BINPATH%g
 s%@SRCPATH@%$SRCPATH%g
 s%@USE_MHPDBG@%$USE_MHPDBG%g
 s%@DEBUGGER@%$DEBUGGER%g
+s%@subdirs@%$subdirs%g
 s%@ASPI_SUPPORT@%$ASPI_SUPPORT%g
 s%@USE_ULTRA@%$USE_ULTRA%g
 s%@USE_SBEMU@%$USE_SBEMU%g
@@ -4533,6 +4531,99 @@ EOF
 chmod +x $CONFIG_STATUS
 rm -fr confdefs* $ac_clean_files
 test "$no_create" = yes || ${CONFIG_SHELL-/bin/sh} $CONFIG_STATUS || exit 1
+
+if test "$no_recursion" != yes; then
+
+  # Remove --cache-file and --srcdir arguments so they do not pile up.
+  ac_sub_configure_args=
+  ac_prev=
+  for ac_arg in $ac_configure_args; do
+    if test -n "$ac_prev"; then
+      ac_prev=
+      continue
+    fi
+    case "$ac_arg" in
+    -cache-file | --cache-file | --cache-fil | --cache-fi \
+    | --cache-f | --cache- | --cache | --cach | --cac | --ca | --c)
+      ac_prev=cache_file ;;
+    -cache-file=* | --cache-file=* | --cache-fil=* | --cache-fi=* \
+    | --cache-f=* | --cache-=* | --cache=* | --cach=* | --cac=* | --ca=* | --c=*)
+      ;;
+    -srcdir | --srcdir | --srcdi | --srcd | --src | --sr)
+      ac_prev=srcdir ;;
+    -srcdir=* | --srcdir=* | --srcdi=* | --srcd=* | --src=* | --sr=*)
+      ;;
+    *) ac_sub_configure_args="$ac_sub_configure_args $ac_arg" ;;
+    esac
+  done
+
+  for ac_config_dir in `cat ./plugin_configure`; do
+
+    # Do not complain, so a configure script can configure whichever
+    # parts of a large source tree are present.
+    if test ! -d $srcdir/$ac_config_dir; then
+      continue
+    fi
+
+    echo configuring in $ac_config_dir
+
+    case "$srcdir" in
+    .) ;;
+    *)
+      if test -d ./$ac_config_dir || mkdir ./$ac_config_dir; then :;
+      else
+        { echo "configure: error: can not create `pwd`/$ac_config_dir" 1>&2; exit 1; }
+      fi
+      ;;
+    esac
+
+    ac_popdir=`pwd`
+    cd $ac_config_dir
+
+      # A "../" for each directory in /$ac_config_dir.
+      ac_dots=`echo $ac_config_dir|sed -e 's%^\./%%' -e 's%[^/]$%&/%' -e 's%[^/]*/%../%g'`
+
+    case "$srcdir" in
+    .) # No --srcdir option.  We are building in place.
+      ac_sub_srcdir=$srcdir ;;
+    /*) # Absolute path.
+      ac_sub_srcdir=$srcdir/$ac_config_dir ;;
+    *) # Relative path.
+      ac_sub_srcdir=$ac_dots$srcdir/$ac_config_dir ;;
+    esac
+
+    # Check for guested configure; otherwise get Cygnus style configure.
+    if test -f $ac_sub_srcdir/configure; then
+      ac_sub_configure=$ac_sub_srcdir/configure
+    elif test -f $ac_sub_srcdir/configure.in; then
+      ac_sub_configure=$ac_configure
+    else
+      echo "configure: warning: no configuration information is in $ac_config_dir" 1>&2
+      ac_sub_configure=
+    fi
+
+    # The recursion is here.
+    if test -n "$ac_sub_configure"; then
+
+      # Make the cache file name correct relative to the subdirectory.
+      case "$cache_file" in
+      /*) ac_sub_cache_file=$cache_file ;;
+      *) # Relative path.
+        ac_sub_cache_file="$ac_dots$cache_file" ;;
+      esac
+
+      echo "running ${CONFIG_SHELL-/bin/sh} $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir"
+      # The eval makes quoting arguments work.
+      if eval ${CONFIG_SHELL-/bin/sh} $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir
+      then :
+      else
+        { echo "configure: error: $ac_sub_configure failed for $ac_config_dir" 1>&2; exit 1; }
+      fi
+    fi
+
+    cd $ac_popdir
+  done
+fi
 
 
 

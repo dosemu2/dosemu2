@@ -1,3 +1,11 @@
+2002/01/06 ver 1.1.2.2 unofficial pre-release
+	From Eric
+	- mkconfscript: 
+	  - Remove base-configure before overwriting it, this solves
+	    with developing with hard links...
+	- base-configure.in: 
+	  - Clean up cpu optimization rules
+	  - Run configure scripts in plugins
 2001/11/07 ver. 1.1.2.1 unofficial pre-release
 	From Alberto
 	- made it compile with gcc-3.0 under Mandrake 8.0.

@@ -92,9 +92,8 @@ if test "$CONFIG_HOST" = "Linux"; then
 fi
 AC_SUBST(CONFIG_HOST)
 
-force_k7="no"
 if grep -q "^vendor.*AuthenticAMD" /proc/cpuinfo && grep -q "^model.*Athlon" /proc/cpuinfo; then
-   force_k7="yes"
+   target_cpu="athlon"
 fi
 
 dnl Do ELF if possible
@@ -418,6 +417,10 @@ else
   AC_CHECKING("Compiling without plug-ins")
 fi
 
+dnl Setup to run plugin configure scripts
+touch ./plugin_configure
+AC_CONFIG_SUBDIRS(`cat ./plugin_configure`)
+
 dnl Do compilation for GDB
  AC_ARG_ENABLE(dodebug,
                [  --enable-dodebug        do compile for with debug info],
@@ -599,24 +602,17 @@ if test "$GCC" = "yes" ; then
   else
      echo "no"
   fi
-  GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
+
 
   # -m486 is usually in the specs for the compiler
   # but gcc-3.0 wants -mcpu=i486 instead
   # let the compiler options be dependent of the _target_
   # where dosemu is compiled for, not the host
-  if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
-     case "$target_cpu" in
-       i386 | i486 | i586 | i686)
-          if test "$force_k7" = "yes"; then
-	     OPT="$OPT -mcpu=athlon"
-	  else
-             OPT="$OPT -mcpu=$target_cpu"
-	  fi
-          ;;
-       *)
-          ;;
-     esac
+  if test "$target_cpu" = "athlon" -a $GCC_VERSION_CODE -le 2095 ;  then
+    target_cpu="i686"
+  fi
+  if test "$GCC_VERSION_CODE" -ge 2095 ; then
+     OPT="$OPT -mcpu=$target_cpu"
   else
      case "$target_cpu" in
        i486)
@@ -629,11 +625,12 @@ if test "$GCC" = "yes" ; then
          ;;
      esac
   fi
-  if test "$force_k7" = "yes"; then
+  if test "$target_cpu" = "athlon"; then
      OPT="$OPT -malign-functions=4 -fexpensive-optimizations"
   elif test "$target_cpu" = "i486"; then
      OPT="$OPT -malign-loops=2 -malign-jumps=2 -malign-functions=2"
   fi
+  GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
 
   echo -n "checking for glibc..."
   set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`

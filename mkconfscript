@@ -10,6 +10,7 @@
 ln -sf base-configure.in configure.in
 autoconf
 autoheader
+rm -f base-configure
 sed -e 's|#! /bin/sh|# DO NOT EXECUTE THIS exept via default-configure|' configure >base-configure
 chmod 644 base-configure
 rm -f configure configure.in
