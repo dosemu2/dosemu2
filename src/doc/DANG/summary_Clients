@@ -1,0 +1,4 @@
+One of the long term aims of the DOSEMU development team is to provide
+a client-server based system. This will allow people to add different 
+display systems in more simply. Those in current development are detailed
+in this section.

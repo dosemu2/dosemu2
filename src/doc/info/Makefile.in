@@ -21,3 +21,5 @@ clean:
 	rm -f dosemu.info*
 	rm -f dosemu.ky dosemu.kys dosemu.log dosemu.pg dosemu.pgs dosemu.toc
 	rm -f dosemu.tp dosemu.tps dosemu.vr dosemu.vrs
+
+install:

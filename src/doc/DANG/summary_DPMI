@@ -1,0 +1,9 @@
+DPMI is Lutz's Baby. It's a really important part of the Emulator as far
+as we are concerned, since it will allow us to run so many more programs
+and, most importantly, bcc. This is the one thing that the WINE developers
+want that we haven't been able to give them.
+
+If you think you can help .... "Away you Go!" (Sorry to those non-UK folks ...
+Thats a reference to a UK kids sports programme from my youth ... anyway ...
+enough of this banter. You'll be wanting to know that this is all about 
+DPMI ...)

@@ -1,0 +1,30 @@
+The Following items are used to delimit the text used to create this file.
+Whilst it is not necessary to know this, they are included because they may
+be useful for searching, as they are (at least at the moment) reasonably 
+unique.
+
+DANG_BEGIN_MODULE / DANG_END_MODULE
+	This will bracket a description of the file (normally at the
+	start).
+
+DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+	This brackets a description of functions (good this, isn't it!)
+	Not every function needs to be described in this way - just the
+	major ones.
+
+DANG_BEGIN_REMARK / DANG_END_REMARK
+	This brackets descriptions of obscure items, like data structures
+	and architecture.
+
+DANG_FIXTHIS
+	This is a one line item, indicating a an area requiring a fix, or
+	redesign.
+
+DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+	New Ideas Start Here! As Ideas are proposed, that get added with 
+	their description, so that future generations can laugh at or
+	code the ideas ..... These bracket the idea description.
+
+DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+	Changelogs - very useful for bug fixing, and avvailable for use
+	with DPR (or that's the theory)

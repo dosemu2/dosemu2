@@ -1,0 +1,2 @@
+This is the code that works our serial emulation. This needs to be very fast
+if we are to convince DOS that we have a very fast serial port.
