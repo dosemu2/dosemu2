@@ -181,7 +181,7 @@ static struct handle_record {
   int numpages;
   mach_port_t object;
   size_t objsize;
-  char name[8];
+  char name[9];
   int saved_mappings_handle[EMM_MAX_PHYS];
   int saved_mappings_logical[EMM_MAX_PHYS];
 }
@@ -307,7 +307,7 @@ ems_init(void)
   handle_info[OS_HANDLE].objsize = 0;
   handle_info[OS_HANDLE].active = 1;
   for (j = 0; j < EMM_MAX_PHYS; j++) {
-    handle_info[OS_HANDLE].saved_mappings_handle[j] = NULL_PAGE;
+    handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
   }
 
   handle_total++;
@@ -378,7 +378,7 @@ allocate_handle(int pages_needed)
       handle_total++;
       emm_allocated += pages_needed;
       for (j = 0; j < EMM_MAX_PHYS; j++) {
-	handle_info[i].saved_mappings_handle[j] = NULL_PAGE;
+	handle_info[i].saved_mappings_logical[j] = NULL_PAGE;
       }
       handle_info[i].active = 1;
       return (i);
