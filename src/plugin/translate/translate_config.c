@@ -14,20 +14,10 @@ struct translate_config_t trconfig; /* Intialized to nulls */
 
 static void config_translate_scrub(void)
 {
-    char *charset;
     k_printf("config.term_charset=%d\n", config.term_charset);
     /* set the character sets used base upon config.term_charset */
-    setlocale (LC_ALL, "");
-    if (!trconfig.unix_charset) {
-	charset = strdup(nl_langinfo(CODESET));
-	strlower(charset);
-	if (memcmp(charset, "iso-", 4) == 0)
-	    memmove(charset + 3, charset + 4, strlen(charset + 3));
-	trconfig.unix_charset = lookup_charset(charset);
-	free(charset);
-	if (!trconfig.unix_charset)
-	    trconfig.unix_charset = lookup_charset("iso8859-1");
-    }     
+    if (!trconfig.unix_charset)
+	trconfig.unix_charset = lookup_charset("default");
     if (!trconfig.paste_charset)
 	trconfig.paste_charset = trconfig.unix_charset;
     if (!trconfig.keyb_charset)
