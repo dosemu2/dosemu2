@@ -509,25 +509,49 @@ static int build_posix_path(char *dest, const char *src, int allowwildcards)
 	return dd;
 }
 
-static int getfindnext(char *fpath, struct mfs_dirent *de, int attr, int drive)
+static int lfn_sfn_match(char *pattern, struct mfs_dirent *de, char *lfn, char *sfn)
+{
+	int dotpos = strlen(pattern) - 2;
+	if (dotpos > 0 && strcmp(&pattern[dotpos], ".*") == 0)
+		pattern[dotpos] = '*';
+	if (!name_ufs_to_dos(lfn, de->d_long_name, 0))
+		name_convert(lfn, de->d_long_name, MANGLE, NULL);
+	name_convert(sfn, de->d_name, MANGLE, NULL);
+	return	(fnmatch(pattern, lfn, FNM_CASEFOLD) != 0 &&
+		 fnmatch(pattern, sfn, FNM_CASEFOLD) != 0);
+}
+
+static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 {
 	char name_8_3[PATH_MAX];
+	char name_lfn[PATH_MAX];
 	struct stat st;
-	char *dest = (char *)SEGOFF2LINEAR(_ES, _DI);
-	char *long_name;
-	
-	memset(dest, 0, 0x20);
+	char *dest, *fpath;
+
+	if (lfn_sfn_match(dir->pattern, de, name_lfn, name_8_3) != 0)
+		return 0;	
+
+	fpath = malloc(strlen(dir->dirbase) + 1 + strlen(de->d_long_name) + 1);
+	strcpy(fpath, dir->dirbase);
+	strcat(fpath, "/");
+	strcat(fpath, de->d_long_name);
 	d_printf("LFN: findnext %s\n", fpath);
-	if (!find_file(fpath, &st, drive))
+	if (stat(fpath, &st) != 0) {
+		free(fpath);
 		return 0;
+	}
+	free(fpath);
 	if (st.st_mode & S_IFDIR) {
-		if ((attr & DIRECTORY) == 0)
+		if ((dir->dirattr & DIRECTORY) == 0)
 			return 0;
 	} else {
-		if ((attr >> 8) & DIRECTORY)
+		if ((dir->dirattr >> 8) & DIRECTORY)
 			return 0;
 	}
-	*dest = get_dos_attr(st.st_mode,is_hidden(fpath));
+
+	dest = (char *)SEGOFF2LINEAR(_ES, _DI);
+	memset(dest, 0, 0x20);
+	*dest = get_dos_attr(st.st_mode,is_hidden(de->d_long_name));
 	*((unsigned *)(dest + 0x20)) = st.st_size;
 	if (_SI == 1) {
 		d_printf("LFN: using DOS date/time\n");
@@ -549,27 +573,10 @@ static int getfindnext(char *fpath, struct mfs_dirent *de, int attr, int drive)
 		*(unsigned long long *)(dest+0xc) =
 			unix_to_win_time(st.st_atime);
 	}
-
-	long_name = strrchr(fpath, '/') + 1;
-	if (!name_ufs_to_dos(dest + 0x2c, long_name, 0))
-		name_convert(dest + 0x2c, long_name, MANGLE, NULL);
-	dest += 0x130;
-	if (de == NULL) {
-		long_name[-1] = '\0';
-		if (vfat_search(dest, long_name, fpath, 1)) {
-			long_name[-1] = '/';
-			return 1;
-		}
-		long_name[-1] = '/';		    
-	}
-	dest[0] = '\0';
-	if (de && de->d_name != de->d_long_name) {
-		name_convert(name_8_3, de->d_name, MANGLE, NULL);
-	} else {
-		name_convert(name_8_3, long_name, MANGLE, NULL);
-	}
-	if (strcmp(name_8_3, dest - 0x130 + 0x2c) != 0) {
-		strcpy(dest, name_8_3);
+	strcpy(dest + 0x2c, name_lfn);
+	dest[0x130] = '\0';
+	if (strcmp(name_8_3, name_lfn) != 0) {
+		strcpy(dest + 0x130, name_8_3);
 	}
 	return 1;
 }
@@ -593,9 +600,7 @@ static int wildcard_delete(char *fpath, int drive)
 	struct mfs_dirent *de;
 	struct stat st;
 	unsigned dirattr = _CX;
-	char pattern[PATH_MAX];
-	char *slash;
-	int dotpos;
+	char *pattern, *slash;
 	int errcode;
 
 	slash = strrchr(fpath, '/');
@@ -605,10 +610,6 @@ static int wildcard_delete(char *fpath, int drive)
 	*slash = '\0';
 	if (slash == fpath)
 		strcpy(fpath, "/");
-	strcpy(pattern, slash + 1);
-	dotpos = strlen(pattern) - 2;
-	if (dotpos > 0 && strcmp(&pattern[dotpos], ".*") == 0)
-		pattern[dotpos] = '*';
 	/* XXX check for device (special dir entry) */
 	if (!find_file(fpath, &st, drive) || is_dos_device(fpath)) {
 		Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
@@ -621,9 +622,12 @@ static int wildcard_delete(char *fpath, int drive)
 		free(dir);
 		return lfn_error(PATH_NOT_FOUND);
 	}
+	pattern = strdup(slash + 1);
 	d_printf("LFN: wildcard delete %s %s %x\n", pattern, fpath, dirattr);
 	while ((de = dos_readdir(dir))) {
-		if (fnmatch(pattern, de->d_long_name, FNM_CASEFOLD) == 0) {
+		char name_8_3[PATH_MAX];
+		char name_lfn[PATH_MAX];
+		if (lfn_sfn_match(pattern, de, name_lfn, name_8_3) == 0) {
 			*slash = '/';
 			strcpy(slash + 1, de->d_long_name);
 
@@ -644,6 +648,7 @@ static int wildcard_delete(char *fpath, int drive)
 			if (errcode != 0) {
 				Debug0((dbg_fd, "Delete failed(%s) %s\n",
 					strerror(errcode), fpath));
+				free(pattern);
 				dos_closedir(dir);
 				if (errcode == EACCES) {
 					return lfn_error(ACCESS_DENIED);
@@ -654,6 +659,7 @@ static int wildcard_delete(char *fpath, int drive)
 			Debug0((dbg_fd, "Deleted %s\n", fpath));
 		}
 	}
+	free(pattern);
 	dos_closedir(dir);
 	return 1;
 }
@@ -817,8 +823,6 @@ int mfs_lfn(void)
 		break;
 	case 0x4e: /* find first */
 	{
-		int dotpos;
-
 		drive = build_posix_path(fpath, src, 1);
 		if (drive < 0)
 			return drive + 2;
@@ -843,9 +847,6 @@ int mfs_lfn(void)
 		dir->dirattr = _CX;
 		dir->drive = drive;
 		strcpy(dir->pattern, slash);
-		dotpos = strlen(dir->pattern) - 2;
-		if (dotpos > 0 && strcmp(&dir->pattern[dotpos], ".*") == 0)
-			dir->pattern[dotpos] = '*';
 		/* XXX check for device (special dir entry) */
 		if (!find_file(dir->dirbase, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
@@ -870,7 +871,7 @@ int mfs_lfn(void)
 		}
 		if (dir == NULL)
 			return lfn_error(NO_MORE_FILES);
-		while (1) {
+		do {
 			de = dos_readdir(dir->dir);
 			if (de == NULL) {
 				dos_closedir(dir->dir);
@@ -879,20 +880,12 @@ int mfs_lfn(void)
 				return lfn_error(NO_MORE_FILES);
 			}
 			d_printf("LFN: findnext %s %x\n", de->d_long_name, dir->dirattr);
-			if (fnmatch(dir->pattern, de->d_long_name, FNM_CASEFOLD) == 0) {
-				strcpy(fpath, dir->dirbase);
-				strcat(fpath, "/");
-				strcat(fpath, de->d_long_name);
-				if (!getfindnext(fpath, de, dir->dirattr, dir->drive))
-					continue;
-				if (_AL != 0x4e)
-					_AX = 0x4f00 + dirhandle;
-				else
-					_AX = dirhandle;
-				_CX = 0;
-				break;
-			}
-		}
+		} while (!getfindnext(de, dir));
+		if (_AL != 0x4e)
+			_AX = 0x4f00 + dirhandle;
+		else
+			_AX = dirhandle;
+		_CX = 0;
 		break;
 	}
 	case 0x56: /* rename file */
