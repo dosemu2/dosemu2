@@ -77,8 +77,8 @@
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-#define DAC_READ_MODE 0
-#define DAC_WRITE_MODE 3
+#define DAC_READ_MODE 3
+#define DAC_WRITE_MODE 0
 
 #if !defined True
 #define False 0
