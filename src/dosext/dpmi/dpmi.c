@@ -580,8 +580,10 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
                        unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
   int ldt_entry = selector >> 3;
-  if (!ValidSelector(selector))
+  if (!ValidSelector(selector)) {
+    D_printf("ERROR: Invalid selector passed to SetSelector(): %#x\n", selector);
     return -1;
+  }
   if (Segments[ldt_entry].used) {
     if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big,
         seg_not_present, useable)) {
@@ -701,7 +703,7 @@ static void FreeAllDescriptors(void)
     int i;
     for (i=0;i<MAX_SELECTORS;i++) {
       if (Segments[i].used==in_dpmi)
-        FreeDescriptor(i<<3);
+        FreeDescriptor((i << 3) | 7);
     }
 }
 
@@ -2471,7 +2473,7 @@ static void dpmi_init(void)
     D_printf("Freeing descriptors\n");
     { int dd=debug_level('M'); set_debug_level('M', 0); /* don't be unnecessarily verbose */
       for (i=0;i<MAX_SELECTORS;i++) {
-	  FreeDescriptor(i<<3);
+	  FreeDescriptor((i << 3) | 7);
       }
       set_debug_level('M', dd);
     }
