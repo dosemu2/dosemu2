@@ -574,3 +574,10 @@ floppy { device /dev/fd0 threeinch }
 #sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp sb_mixer /dev/mixer mpu_base 0x330 }
 # NetBSD defaults
 #sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound sb_mixer /dev/mixer mpu_base 0x330 }
+
+
+#******************* MISC  ***********************************************
+#
+# misc setting for dosemu
+
+#dosemumap /var/lib/dosemu/dosemu.map  # for dosdebug to find the map

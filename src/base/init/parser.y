@@ -144,6 +144,7 @@ extern void yyrestart(FILE *input_file);
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
 %token L_SECURE
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
+%token DOSEMUMAP
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
@@ -202,6 +203,13 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    {
 		    config.emusys = $3;
 		    c_printf("CONF: config.emusys = '%s'\n", $3);
+		    }
+		| DOSEMUMAP STRING
+		    {
+		    extern char dosemu_map_file_name[];
+		    strcpy(dosemu_map_file_name, $2);
+		    c_printf("CONF: dosemu.map path = '%s'\n", $2);
+		    free($2);
 		    }
  		| EMUBAT STRING
 		    {

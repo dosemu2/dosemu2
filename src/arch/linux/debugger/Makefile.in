@@ -16,6 +16,8 @@ CFILES = mhpdbg.c mhpdbgc.c dis8086.c dosdebug.c
 DEPENDS =  mhpdbg.d mhpdbgc.d dis8086.d dosdebug.d
 HFILES =
 
+CFLAGS += -DMAP_LOC=\"$(REALTOPDIR)/bin/dosemu.map\"
+
 # Insert all source- and header-files here.
 ALL = $(CFILES) $(HFILES) README.dosdebug README.recover Changelog
 

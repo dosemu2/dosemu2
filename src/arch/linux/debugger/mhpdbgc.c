@@ -53,7 +53,11 @@
 #define MHP_PRIVATE
 #include "mhpdbg.h"
 
-#define MAP_LOC		"/usr/src/dosemu/bin/dosemu.map"
+#ifndef MAP_LOC
+  #define MAP_LOC		"/usr/src/dosemu/bin/dosemu.map"
+#endif
+
+char dosemu_map_file_name[256] = MAP_LOC;
 
 #define makeaddr(x,y) ((((unsigned long)x) << 4) + (unsigned long)y)
 
@@ -358,19 +362,23 @@ static void mhp_rmapfile(int argc, char *argv[])
   unsigned char bytebuf[IBUFS];
   unsigned long a1;
 
-  ifp = fopen(MAP_LOC, "r");
+  ifp = fopen(dosemu_map_file_name, "r");
   if (!ifp) {
      mhp_printf("unable to open map file\n");
      return;
   }
   mhp_printf("Reading map file\n");
   last_symbol = 0;
-  for(;;) {
+  while (last_symbol < MAXSYM) {
      if(!fgets(bytebuf, 100, ifp))
         break;
-     if (!strlen(bytebuf))
+     if (!strlen(bytebuf) || !isxdigit(*bytebuf))
         continue;
-     sscanf(&bytebuf[0], "%lx", &a1);
+      /* recent versions of nm put out the address in long long
+       * format, with 16 digits: we can't rely on absolute offsets.
+       */
+      sscanf(bytebuf, "%lx %c %40s", &a1, &symbol_table[last_symbol].type,
+              (char *)&symbol_table[last_symbol].name);
 #ifdef __ELF__
      if (a1 < 0x08000000) continue;
 #else
@@ -380,8 +388,6 @@ static void mhp_rmapfile(int argc, char *argv[])
         break;
 #endif
      symbol_table[last_symbol].addr = a1;
-     symbol_table[last_symbol].type = bytebuf[9];
-     sscanf(&bytebuf[11], "%s", (char *)&symbol_table[last_symbol].name);
      last_symbol++;
   }
   fclose(ifp);
