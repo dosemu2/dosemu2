@@ -373,14 +373,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     break;
 
   case 7:           /* Bell */
-#if 0
-    /* Bell should be sounded here, but it's more trouble than its */
-    /* worth for now, because printf, addch or addstr or out_char  */
-    /* would all interfere by possibly interrupting terminal codes */
-    /* Ignore this for now, since this is a hack til NCURSES.      */
-#else
-    putchar(0x07);
-#endif
+    speaker_on(125, 0x637);
     return;
 
   default:          /* Printable character */
@@ -1003,12 +996,7 @@ void int10_old()
                 src++;
                 break;
               case 0x07 : /* beep */
-#if 0  /* ignored, we have to check wether it breaks the speaker stuff --Hans */
-                putchar(0x07);
-#else
-                /* this should do what we want, says Eric 980425 */
                 speaker_on(125, 0x637);
-#endif
                 x--;
                 src++;
                 break;

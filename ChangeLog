@@ -1,3 +1,11 @@
+2003/02/10 ver 1.1.4.13 unofficial pre-release
+	From Stas
+	- fatfs: ignore 0 sized io.sys and ibmbio.com files.
+	- add some ethernet frame debugging
+	From Bart
+	- fix mkpluginhooks to create config directories for plugins
+	  if they don't exist.
+	- fix the ASCII-7 speaker bell beep
 2003/02/09 ver 1.1.4.12 unofficial pre-release
 	From Stas
 	- $_pic_watchdog related PIC code adjustments.

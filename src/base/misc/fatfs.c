@@ -491,13 +491,16 @@ void scan_dir(fatfs_t *f, unsigned oi)
     dir = opendir(name = full_name(f, oi, ""));
     if(dir != NULL) {
       while((dent = readdir(dir))) {
-        if(!strcasecmp(dent->d_name, "io.sys")) f->sys_type |= 1;
+        if(!strcasecmp(dent->d_name, "io.sys") &&
+	  (stat(s = full_name(f, oi, dent->d_name), &sb) == 0) &&
+	  sb.st_size > 0)
+	    f->sys_type |= 1;
         if(!strcasecmp(dent->d_name, "msdos.sys")) f->sys_type |= 2;
-        if(!strcasecmp(dent->d_name, "ibmbio.com")) {
+        if(!strcasecmp(dent->d_name, "ibmbio.com") &&
+	  (stat(s = full_name(f, oi, dent->d_name), &sb) == 0) &&
+	  sb.st_size > 0) {
 	  f->sys_type |= 4;
-          if((s = full_name(f, oi, dent->d_name))) {
-            if(!stat(s, &sb)) {
-              if(S_ISREG(sb.st_mode)) {
+          if(S_ISREG(sb.st_mode)) {
                 if((fd = open(s, O_RDONLY)) != -1) {
                   buf = malloc(sb.st_size + 1);
 		  size = read(fd, buf, sb.st_size);
@@ -513,8 +516,6 @@ void scan_dir(fatfs_t *f, unsigned oi)
                   free(buf);
                   close(fd);
                 }
-              }
-            }
           }
 	}
         if(!strcasecmp(dent->d_name, "ibmdos.com")) f->sys_type |= 8;

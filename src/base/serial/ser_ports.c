@@ -786,9 +786,9 @@ put_lcr(int num, int val)
     /* there is change of break state */
     if (val & UART_LCR_SBC) {
       tcdrain(com[num].fd);
-      ioctl(com[num].fd, TIOCSBRK, 0);
+      ioctl(com[num].fd, TIOCSBRK);
     }
-    else ioctl(com[num].fd, TIOCCBRK, 0);
+    else ioctl(com[num].fd, TIOCCBRK);
   }
 }
 

@@ -93,10 +93,16 @@ struct speaker_info {
  * =============================================================================
  */
 #include <stdio.h> /* for putchar */
+#include <unistd.h>
 
 static void dumb_speaker_on(void * gp, unsigned ms, unsigned short period)
 {
+	/* note that putchar doesn't work...; see int10.c */
+	char ch = '\007';
+	write(1, &ch, 1); 
+#if 0
 	putchar('\007');
+#endif
 }
 static void dumb_speaker_off(void *gp)
 {

@@ -858,10 +858,19 @@ Find_Handle(u_char *buf)
 
 static void
 printbuf(char *mesg, struct ethhdr *buf)
-{ int i;
+{
+int i;
+u_char *p;
   pd_printf( "%s :\n Dest.=", mesg);
   for (i=0;i<6;i++) pd_printf("%x:",buf->h_dest[i]);
   pd_printf( " Source=");
   for (i=0;i<6;i++) pd_printf("%x:",buf->h_source[i]);
-  pd_printf( " Type= 0x%x \n", ntohs(buf->h_proto));
+  if (ntohs(buf->h_proto) >= 1536) {
+    p = (u_char *)buf + 2 * ETH_ALEN;		/* Ethernet-II */
+    pd_printf(" Ethernet-II;");
+  } else {
+    p = (u_char *)buf + 2 * ETH_ALEN + 2;     /* All the rest frame types. */
+    pd_printf(" 802.3;");
+  }
+  pd_printf( " Type= 0x%x \n", ntohs(*(u_short *)p));
 }

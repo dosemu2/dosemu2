@@ -44,7 +44,8 @@ if [ "$1" = 'enable' ]; then
 		on=$2
 		shift
 		shift
-		if test -d src/plugin/$dir/config ; then
+		if test -d src/plugin/$dir ; then
+			mkdir -p src/plugin/$dir/config
 			echo $on > src/plugin/$dir/config/plugin_enable
 		fi
 	done
