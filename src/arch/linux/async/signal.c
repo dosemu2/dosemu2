@@ -336,6 +336,11 @@ sti(void)
  *
  */
 void handle_signals(void) {
+  static int in_handle_signals = 0;
+
+  if (in_handle_signals++)
+    error("BUG: handle_signals() re-entered!\n");
+
   if ( SIGNAL_head != SIGNAL_tail ) {
 #ifdef X86_EMULATOR
     if ((config.cpuemu>1) && (debug_level('e')>3))
@@ -362,6 +367,8 @@ void handle_signals(void) {
       dpmi_eflags |= VIP;
     REG(eflags) |= VIP;
   }
+
+  in_handle_signals--;
 }
 
 /* ==============================================================
