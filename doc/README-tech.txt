@@ -1526,10 +1526,41 @@
 
 
 
-         cdrom /dev/xxx
+         cdrom { /dev/xxx }
 
 
 
+
+  However, you need to include the DOSEMU supplied cdrom.sys into your
+  config.sys such as
+
+
+         device=cdrom.sys
+
+
+
+
+  If you have more then one cdrom, you have to use the cdrom statement
+  multiple times such as
+
+
+         cdrom { /dev/cdrom }
+         cdrom { /dev/cdrom2 }
+
+
+
+
+  and have multiple instancies of the DOS driver too:
+
+
+         device=cdrom.sys
+         device=cdrom.sys 2
+
+
+
+
+  In any case you will need MSCDEX.EXE in your autoexe.bat refer to the
+  DOS devices MSCD0001, MSCD0002 respectively.
 
 
   22..22..1100..  CCooddee ppaaggee aanndd cchhaarraacctteerr sseett
@@ -1549,6 +1580,7 @@
         the text is taken whithout translation, it is to the user to
         load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
         console).
+
 
      llaattiinn
         the text is processed using cp437->iso-8859-1 translation, so
@@ -1582,11 +1614,11 @@
 
 
 
-    keyboard {  layout us  .... }
+         keyboard {  layout us  .... }
 
-  or
+       or
 
-    keyboard {  layout us {alt 66=230} ... }
+         keyboard {  layout us {alt 66=230} ... }
 
 
 
@@ -1648,6 +1680,8 @@
          dcaron        (dead caron)
 
 
+
+
   After a "key_number =" there may be any number of comma separated
   values, which will go into the table starting with "key_number", hence
   all below examples are equivalent
@@ -1679,8 +1713,6 @@
   create such a list. The following statement will dump all current key
   tables out into a file "kbdtables", which is directly suitable for
   inclusion into global.conf (hence it follows the syntax):
-
-
 
          keytable dump "kbdtables"
 
@@ -1731,7 +1763,7 @@
            be                keyb-no      fr-latin1    po
            it                no-latin1    sw           jp106
            hu                hu-cwi       hu-latin2    keyb-user
-           po
+           po                hr-cp852     hr-latin2
 
 
 
@@ -1780,6 +1812,9 @@
 
          keystroke "cd c:\\mysource\r"
 
+
+
+
   You may have any number of 'keystroke' statements, they all will be
   concatenated.
 
@@ -1802,6 +1837,9 @@
 
 
         keystroke "\F8;"
+
+
+
 
 
 
@@ -1873,6 +1911,7 @@
 
 
 
+
   What type is your mouse?  Use one of the following.  Use the
   'internaldriver' option to try Dosemu internaldriver.  Use the
   'emulate3buttons' for 3button mice.
@@ -1912,6 +1951,8 @@
   _N_o_t_e_: you are responsible for ensuring that the directory exists !  If
   you want to define the lock prefix stub also, use this one
 
+
+
          ttylocks { directory /var/lock namestub LCK.. }
 
 
@@ -1935,7 +1976,6 @@
   Therefore, there is no need to load IPX.COM within the DOS session.
   The following option does not emulate LSL.COM, IPXODI.COM, etc.  _N_O_T_E_:
   _Y_O_U _M_U_S_T _H_A_V_E _I_P_X _P_R_O_T_O_C_O_L _E_N_A_B_L_E_D _I_N _K_E_R_N_E_L _!_!
-
 
 
          ipxsupport off
@@ -1977,7 +2017,6 @@
         recommended in most cases, but if you have a fast system or
         link, you can decrease this to 0.
 
-
      eesscccchhaarr
         A number (ascii code below 32) that specifies the control
         character used as a prefix character for sending alt, shift,
@@ -2003,7 +2042,6 @@
 
   Use this for color xterms or rxvt's with no IBM font, with only 8
   colors.
-
 
 
          terminal { charset latin  color on }
@@ -2044,6 +2082,8 @@
         a frequency of about one per second, which is very slow.
         However, more CPU time is given to DOS applications when updates
         are less frequent.  The default is 8.
+
+
      ddiissppllaayy
         The X server to use. If this is not specified, dosemu will use
         the DISPLAY environment variable. (This is the normal case) The
@@ -2068,6 +2108,7 @@
 
      +o  You should _not_ use this when using X remotely (the remote site
         may have other raw keyboard settings).
+
 
      +o  _I_f you use "keycode", you also _m_u_s_t define an appropriate
         keyboard layout (see above).
@@ -2110,6 +2151,7 @@
         Always use an aspect ratio of 4:3 for graphics. The default is
         ``floating''.
 
+
      lliinn__ffiilltt
         Use linear filtering for >15 bpp interpolation. The default is
         off.
@@ -2133,7 +2175,6 @@
      ggaammmmaa
         Set value for gamma correction, a value of 100 means gamma 1.0.
         The default is 100.
-
 
      vvggaaeemmuu__mmeemmssiizzee
         Set the size (in Kbytes) of the frame buffer for emulated vga
@@ -2201,7 +2242,6 @@
 
   +o  If your VBios size is only 32K you set it with  vbios_size 0x8000,
      you then gain some space for UMB or hardware ram locations.
-
   +o  Set "allowvideoportaccess on" earlier in this configuration file if
      DOSEMU won't boot properly, such as hanging with a blank screen,
      beeping, leaving Linux video in a bad state, or the video card
@@ -2242,6 +2282,9 @@
 
                   { vga console forcevtswitch }
 
+
+
+
   Without the option dosemu waits for becoming virtual terminal on which
   dosemu is run active (i.e. user must press Alt-F?).  With this option
   dosemu perform the switch itself.  Be careful with this option because
@@ -2264,9 +2307,6 @@
 
 
          video { vga  console  graphics }
-
-
-
 
   If your VGA-BIOS is at segment E000, this may work for you:
 
@@ -2308,7 +2348,7 @@
 
 
 
-    video { vga  console  graphics  chipset et4000  memsize 1024 }
+         video { vga  console  graphics  chipset et4000  memsize 1024 }
 
 
 
@@ -2334,7 +2374,7 @@
 
 
 
-         video { vga  console  graphics  chipset avance }
+    video { vga  console  graphics  chipset avance }
 
 
 
@@ -2365,8 +2405,6 @@
 
 
          video { vga  console  graphics  chipset wdvga }
-
-
 
 
 
@@ -2439,7 +2477,6 @@
 
 
 
-
   For ems, you now can set the frame to any 16K between 0xc800..0xe000
 
 
@@ -2469,9 +2506,6 @@
   regions with hardware_ram { .. }. You can only map in entities of 4k,
   you give the address, not the segment.  The below maps
   0xc8000..0xc8fff and 0xcc000..0xcffff:
-
-
-
          hardware_ram { 0xc8000 range 0xcc000 0xcffff }
 
 
@@ -2505,6 +2539,11 @@
          irqpassing { 15 }
          irqpassing { use_sigio 15 }
          irqpassing { 10  use_sigio range 3 5 }
+
+
+
+
+
 
   22..22..1199..  PPoorrtt AAcccceessss
 
@@ -2572,6 +2611,11 @@
 
          speaker off
 
+
+
+
+
+
   22..22..2211..  HHaarrdd ddiisskkss
 
 
@@ -2633,20 +2677,15 @@
 
 
 
-
-
-
-
-
-    disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
-    disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
-    disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
-                                                  # 1st partition on 1st IDE
-                                                  # booting from the specified
-                                                  # file.
-    disk { partition "/dev/hda6" readonly }       # 6th logical partition.
-    disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
-    disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
+         disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
+         disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
+         disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
+                                                       # 1st partition on 1st IDE
+                                                       # booting from the specified
+                                                       # file.
+         disk { partition "/dev/hda6" readonly }       # 6th logical partition.
+         disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
+         disk { wholedisk "/dev/hda" }                 # Entire disk drive unit
 
 
 
@@ -2656,6 +2695,9 @@
 
 
          disk { image "/var/lib/dosemu/hdimage" }
+
+
+
 
 
 
@@ -2728,7 +2770,7 @@
 
 
 
-         FastFloppy 8
+    FastFloppy 8
 
 
 
@@ -2770,6 +2812,8 @@
   To just have your printer output end up in a file, use the following
   line:
 
+
+
          printer { file "lpt3" }
 
 
@@ -2792,7 +2836,7 @@
 
 
 
-         ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
+    ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
 
 
 
@@ -2902,6 +2946,8 @@
   set the below, if you want a DEXE _only_ running on X (because it
   otherwise would not run)
 
+
+
          dexe { xdosonly }
 
 
@@ -2968,6 +3014,7 @@
   +o  the _p_o_r_t _t_a_b_l_e, a 64k char array indexed by port number and storing
      the number of the handle to be used for that port. 0 means no
      handle defined, valid range is 1-253, 0xfe and 0xff are reserved.
+
   +o  the _h_a_n_d_l_e _t_a_b_l_e, an array of structures describing the properties
      for a port group and its associated functions:
 
@@ -3031,7 +3078,6 @@
 
 
   33..22..22..  SSyysstteemm SSeeccuurriittyy
-
 
 
   If the strategy administrator did list ports in /etc/dosemu.conf and
@@ -3100,6 +3146,7 @@
      in VEFLAGS.  To handle the flag setting there are macros within
      vm86.c, which do the following:
 
+
      sseett__IIFF,, cclleeaarr__IIFF
         only modifies VEFLAGS;
 
@@ -3119,7 +3166,6 @@
      userspace vm86s.regs.eflags. This is done by save_v86_state() and
      this does _n_o_t translate the VIF to IF, it should be as it was on
      entry of sys_vm86: set to 1.
-
   +o  Now what are we doing with eflags in dosemu ?  Well, this I don't
      really know. I saw IF used (told it Larry), I saw VIF tested an
      set, I saw TF cleared, and NT flag e.t.c.
@@ -3163,9 +3209,6 @@
   Written on January 14, 1997 by Hans Lermen <lermen@fgan.de>.
 
 
-
-
-
   55..11..  RReessttrriiccttiioonnss
 
 
@@ -3184,6 +3227,9 @@
 
 
   55..22..  PPaarrttss iinn tthhee kkeerrnneell tthhaatt ggeett cchhaannggeedd ffoorr vvmm8866pplluuss
+
+
+
 
 
   55..22..11..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//vvmm8866..cc
@@ -3228,8 +3274,6 @@
   CPU back to DOS-space.
 
   So we can realize a self adapting control loop with this feature.
-
-
 
 
   55..22..11..33..  IIRRQQ ppaassssiinngg
@@ -3298,6 +3342,7 @@
   kernel access rights.  Hence, security will not be hurt by this.
 
 
+
   55..22..33..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//ssiiggnnaall..cc
 
   Because DPMI code switches via signal return, some type of selectors
@@ -3314,6 +3359,9 @@
   are not proper, we then get an exception and have a chance to emulate
   access. And because old type binaries (Wabi) will not be able create
   newer type selector (see 2.2.1), gain this wont hurt.
+
+
+
 
 
   55..22..44..  CChhaannggeess ttoo aarrcchh//ii338866//kkeerrnneell//ttrraappss..cc
@@ -3381,6 +3429,7 @@
   space get/set the dosemu used IRQ-flags and return without letting the
   kernel a chance to reschedule.
 
+
   Today the machines perform much better, so there is no need for for
   those ugly tricks any more. In dosemu-0.64.1 fast syscalls are no
   longer used.
@@ -3429,7 +3478,6 @@
         console mode? graphics?
 
 
-
      vviiddeeoo//tteerrmmiinnaall..cc
         terminal mode video update routines (ansi/ncurses)
 
@@ -3447,7 +3495,6 @@
 
      iinncclluuddee//vviiddeeoo..hh
         def's for general video status variables and functions
-
 
   66..33..  NNootteess
 
@@ -3514,6 +3561,7 @@
   +o  Make _C_E_R_T_A_I_N that your first disk statement in /etc/dosemu.conf _I_S
      pointing to your hdimage!
 
+
   +o  Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
      diskette in your a: drive.  Run "sys a:" to transfer the system
      files to the diskette.  Copy SYS.COM from your DOS directory
@@ -3560,6 +3608,9 @@
            Copying autoexec.bat
            @echo off
            echo "Welcome to dosemu 0.66!"
+
+
+
 
 
   all clear ? ;-)
@@ -3628,6 +3679,8 @@
   Just like the old keyboard code, we still have the rawkeyboard=on/off
   and keybint=on/off modes.
 
+
+
   88..22..  SSttaattuuss
 
 
@@ -3694,6 +3747,7 @@
   frontend' (serv_xlat.c, serv_maps.c), which does keycode translation,
   and the `queue backend' (serv_backend.c, serv_8042.c), which does the
   interfacing to DOS. The two sides communicate only through the queue.
+
   Each queue entry holds a data structure corresponding to (mostly) one
   keypress or release event. [The exception are the braindead 0xe02a /
   0xe0aa shift key emulation codes the keyboard processor `decorates'
@@ -3705,7 +3759,6 @@
   shift state after this event was processed.  Note that the bios_key
   field can be empty (=0), e.g. for shift keys, while the raw field
   should always contain something.
-
 
   88..44..11..  qquueeuuee hhaannddlliinngg ffuunnccttiioonnss
 
@@ -3760,6 +3813,7 @@
 
 
 
+
   88..44..22..11..  FFuunnccttiioonnss iinn sseerrvv__xxllaatt..cc
 
 
@@ -3770,6 +3824,7 @@
      ascii);
 
   +o  static uchar translate(t_keysym key);
+
 
   +o  static Boolean handle_dosemu_keys(t_keysym key);
 
@@ -3810,43 +3865,28 @@
 
 
 
+                          EMULATOR SIDE        |    x86 SIDE
+                                               |
+                             ....[through PIC].|....................
+                             :                 |           :        v
+       QUEUE      .....> out_b_8042() --> [ port 60h ] ----:---> other_int9_handler
+       |         :                             |        \  `.......    (:) (|)
+       |         :                             |         \         v   (v) (|)
+       +->int_chk_q()-> bios_buffer----> [ get_bios_key ]-----> default_int9_handler
+             ^  \                           :  |                   |       (|)
+             :   \----> shiftstate_buffer   :  |                   v       (v)
+             :               |         .....:  |               bios keyb buffer
+             :               v        v        |
+             :          copy_shift_state() ----+-------------> bios shiftstate
+             :                                 |
+             :                                 |
+             :                                 |
+           backend_run()                       |
 
+       Abbreviations:
+       int_chk_q() = int_check_queue()
+       out_b_8042() = output_byte_8042()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                     EMULATOR SIDE        |    x86 SIDE
-                                          |
-                        ....[through PIC].|....................
-                        :                 |           :        v
-  QUEUE      .....> out_b_8042() --> [ port 60h ] ----:---> other_int9_handler
-  |         :                             |        \  `.......    (:) (|)
-  |         :                             |         \         v   (v) (|)
-  +->int_chk_q()-> bios_buffer----> [ get_bios_key ]-----> default_int9_handler
-        ^  \                           :  |                   |       (|)
-        :   \----> shiftstate_buffer   :  |                   v       (v)
-        :               |         .....:  |               bios keyb buffer
-        :               v        v        |
-        :          copy_shift_state() ----+-------------> bios shiftstate
-        :                                 |
-        :                                 |
-        :                                 |
-      backend_run()                       |
-
-  Abbreviations:
-  int_chk_q() = int_check_queue()
-  out_b_8042() = output_byte_8042()
 
 
 
@@ -3958,6 +3998,7 @@
                      iret
 
 
+
      (** multiple port 60h reads during the same interrupt yield the
      same result.)
 
@@ -3983,7 +4024,6 @@
 
   +o  CAPS LOCK uppercase translation may be incorrect for some (non-
      german) national characters.
-
   +o  typematic codes in X and non-raw modes are Make+Break, not just
      Make.  This shouldn't hurt, though.
 
@@ -4048,6 +4088,7 @@
   graphics character set with a remote DOSEMU or a xterm DOSEMU.   Don't
   take these patches as final or original, as there is some cleaning up
   to do, Look forward to version 3 of the terminal support...! :-)
+
 
   Please give feedback or suggestions to Mark Rejhon at the
   <marky@magmacom.com> address.  Thanks!
@@ -4178,7 +4219,6 @@
                   ; found a key
                   mov ah,0
                   int 0x16 ; get key
-
 
 
 
@@ -4445,6 +4485,7 @@
   is  /.dosemu/* and dosdebug was adapted to support that.
 
 
+
   1122..  TTiimmiinngg iissssuueess iinn ddoosseemmuu
 
   This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
@@ -4508,6 +4549,7 @@
   bit too heavy for such machines. Hence, it has been restricted to the
   pentium-class CPUs only, which can use the CPU timer to reduce use of
   kernel resources.
+
 
 
   1122..33..  NNoonn--ppeerriiooddiicc ttiimmeerr mmooddeess iinn PPIITT
@@ -4618,6 +4660,8 @@
   you can't run a binary compiled for pentium on a 486 or lower CPU
   (this is not the case for dosemu, as it can dynamically switch back to
   486-style code).
+
+
   1133..22..  HHooww ttoo ccoommppiillee ffoorr ppeennttiiuumm
 
   There are no special options required to compile for pentium, the CPU
@@ -4639,10 +4683,6 @@
 
 
            export CPUSPEED=200
-
-
-
-
 
   The last method used is the autocalibration, which compares the values
   of gettimeofday() and TSC over an interval of several hundred
@@ -4680,8 +4720,6 @@
   should be not a very important point, since all the file timings are
   done by calling the library/kernel time routines, and do not depend on
   the TSC.
-
-
 
 
   1133..55..  AAddddiittiioonnaall ppooiinnttss
@@ -4778,7 +4816,6 @@
   following lines should contain the maintainers details in form:
 
 
-
        name ..... <user@address>
 
 
@@ -4844,6 +4881,7 @@
 
 
 
+
   1144..55..22..  DDAANNGG__BBEEGGIINN__RREEMMAARRKK // DDAANNGG__EENNDD__RREEMMAARRKK
 
   This is used to provide in-context comments within the code. They can
@@ -4878,20 +4916,16 @@
   Example:
 
 
-
-
-
-
-  /*
-   * DANG_BEGIN_NEWIDEA
-   *
-   * Rather than hard coding the names of the mixer functions we could try
-   * using an array constructed at compile time - Alistair
-   *
-   * How to we get the list of functions ? - Foo
-   *
-   * DANG_END_NEWIDEA
-   */
+       /*
+        * DANG_BEGIN_NEWIDEA
+        *
+        * Rather than hard coding the names of the mixer functions we could try
+        * using an array constructed at compile time - Alistair
+        *
+        * How to we get the list of functions ? - Foo
+        *
+        * DANG_END_NEWIDEA
+        */
 
 
 
@@ -4907,6 +4941,8 @@
 
 
        /* DANG_FIXTHIS The mix_foo() function should be written to replace the stub */
+
+
 
 
 
@@ -4946,7 +4982,6 @@
   system. Don't hold your breath for an imminent release though. The new
   version will make it easier to change the markers & document
   structure, as well as providing feedback on errors.
-
 
   1155..  mmkkffaattiimmaaggee ---- MMaakkee aa FFAATT hhddiimmaaggee pprree--llooaaddeedd wwiitthh ffiilleess
 
@@ -5014,6 +5049,7 @@
   +o  You _c_a_n_n_o_t skip section levels on the way down (ie you must go
      <sect>,<sect1>,<sect2> and not <sect>,<sect2>).  On the way back it
      doesn't matter!
+
   +o  Any text on the same line as the tag will be used to identify the
      section
 
@@ -5041,6 +5077,7 @@
   +o  <em/.../
 
   This second form can be very useful.
+
 
 
   1177..33..  LLiissttss
@@ -5080,6 +5117,8 @@
 
 
 
+
+
   1177..44..  QQuuoottiinngg ssttuuffff
 
   If you want to quote a small amount use <tt>. eg:
@@ -5102,6 +5141,9 @@
   Note that the order of closing the tags is the reverse of opening! You
   also still need to ``quote'' any < or > characters although most other
   characters should be OK.
+
+
+
 
 
   1177..55..  SSppeecciiaall CChhaarraacctteerrss
@@ -5146,6 +5188,8 @@
 
 
   Which will appear as <someone@no.where.com>
+
+
   1177..77..  GGoottcchhaass
 
 
@@ -5234,7 +5278,6 @@
   and while I'm complaining, those mystery ports that SimEarth needs are
   for the FM synthesiser.  Watch it guys, you might generate interrupts
   with that....)
-
   Reference:
 
   PC Game Programers Encyclopedia
@@ -5343,7 +5386,6 @@
   like it that I can find in the Hawaii State Library System :-)
 
 
-
   2200..  DDOOSSEEmmuu PPrrooggrraammmmaabbllee IInntteerrrruupptt CCoonnttrroolllleerr
 
   This emulation, in files picu.c and picu.h, emulates all of the useful
@@ -5366,6 +5408,7 @@
 
      OOCCWW11    aallll bbiittss
         sets interrupt mask
+
 
      OOCCWW22    bbiittss 77,,55--00
         EOI commands only
@@ -5409,6 +5452,7 @@
      loop, detects a bit set in the interrupt request register.  This
      register is a global variable, so that any dosemu code can easily
      trigger an interrupt.
+
 
   2200..22..
 
@@ -5476,6 +5520,7 @@
   would also be no recursion if the dos irq code didn't enable
   interrupts early, which is quite common.
 
+
   2200..33..11..  FFuunnccttiioonnss ssuuppppoorrtteedd ffrroomm DDOOSSEEmmuu ssiiddee
 
 
@@ -5496,7 +5541,6 @@
         the i/o handler whenever a write to a PIC port is requested.
         Port mapping is the same as for read_picu, above.  The value to
         be written is passed in parameter "value".
-
 
      iinntt ddoo__iirrqq(())
         is the function that actually executes a dos interrupt.
@@ -5628,6 +5672,8 @@
   <mhp@light.lightlink.com> and to Hans Lermen <lermen@fgan.de>
 
 
+
+
   2211..11..  IInnttrroodduuccttiioonn
 
   This is release v0.6 of the DOSEMU debugger, with the following
@@ -5691,7 +5737,6 @@
 
 
          dosdebug 2134
-
 
 
 
@@ -5806,6 +5851,7 @@
 
      bbcc bbrreeaakkpp..NNoo..
         Clear a breakpoint.
+
      bbppiinntt xxxx
         set breakpoint on INT xx
 
@@ -5871,7 +5917,6 @@
 
   4. an asterisk(*): CS:IP    (cs:eip)
 
-
   5. a dollar sign($): SS:SP  (ss:esp)
 
 
@@ -5892,7 +5937,6 @@
   2211..66..  BBUUGGSS
 
   There must be some.
-
 
   2211..66..11..  KKnnoowwnn bbuuggss
 
@@ -5938,6 +5982,7 @@
 
      sseerr__iinniitt..cc
         Serial initialization code.
+
      sseerr__ppoorrttss..cc
         Serial Port I/O emulation code.
 
@@ -6021,7 +6066,6 @@
                  for (i = 0; i < config.numser; i++)
                    s_printf("COM port number %d has a base address of %x",
                             com[i].real_comport, com[i].base_port);
-
 
 
 
@@ -6130,65 +6174,21 @@
 
 
 
-
-
-
-
-
-
-     ...oh dear, have to do kill SIGKILL
-     dosemu process (pid 1234) is killed
-     If you want to switch to an other console,
-     then enter a number between 1..8, else just type enter:
-     2      <========= this is what you enter
-     dosdebug terminated
-     NOTE: If you had a totally locked console,
-           you may have to blindly type in 'kbd -a; texmode
-           on the console you switched to.
+          ...oh dear, have to do kill SIGKILL
+          dosemu process (pid 1234) is killed
+          If you want to switch to an other console,
+          then enter a number between 1..8, else just type enter:
+          2      <========= this is what you enter
+          dosdebug terminated
+          NOTE: If you had a totally locked console,
+                you may have to blindly type in 'kbd -a; texmode
+                on the console you switched to.
 
 
 
 
 
   2233..11..  TThhee mmaaiill mmeessssaaggee
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

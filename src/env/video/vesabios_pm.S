@@ -18,7 +18,7 @@
  * the video BIOS during VBE initialization (cf. vbe_init()).
  *
  * /REMARK
- * DANG_END_NODULE
+ * DANG_END_MODULE
  *
  *
  * Copyright (c) 1997 Steffen Winterfeldt,

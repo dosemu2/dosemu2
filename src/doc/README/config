@@ -3,7 +3,7 @@
 
 This section of the document by Hans, 
 <htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
-updated on Mar 20, 1998.
+updated on Jan 12, 1999.
 
 <p>
 Most of DOSEMU configuration is done during runtime and per default it
@@ -523,9 +523,9 @@ setup:
   $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
   $_floppy_b = ""       # dito for B:
 
-  $_hdimage = "hdimage.first" # list of hdimages under /var/lib/dosemu
-                        # assigned in this order such as
-                        # "hdimage_c hdimage_d hdimage_e"
+  $_hdimage = "hdimage.first" # list of hdimages or boot directories
+                        # under /var/lib/dosemu assigned in this order
+                        # such as "hdimage_c hdimage_d hdimage_e"
   $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
 </verb></tscreen>
 
@@ -534,11 +534,33 @@ hdimage in the file /var/lib/dosemu/hdimage.first. It contains a very tiny
 installation of FreeDos, just to show you that it works. A hdimage is
 a file containing a virtual image of a DOS-FAT filesystem. Once you have
 booted it, you (or autoexec.bat) can use `lredir' to access any directory
-in your Linux tree as DOS drive (a -t msdos mounted too). Look at chapter
-6 (Using Lredir) and for more details
+in your Linux tree as DOS drive (a -t msdos mounted too). Note, however,
+that the DosC kernel (FreeDos) is <em/not/ capable yet for redirection,
+for this you need a proprietary DOS such as MSDOS, PCDOS, DRDOS.
+Look at chapter 6 (Using Lredir) and for more details
 on creating your own (better) hdimage look at chapter 4.3 of this README
 (Making a bootable hdimage for general purpose). Chapter 4.4 also describes
 how to import/export files from/to a hdimage.
+
+Starting with dosemu-0.99.8, there is a more convenient method available:
+you just can have a Linux directory containing all what you want to have
+under your DOS C:. Copy your IO.SYS, MSDOS.SYS or what ever to that
+directory (e.g. /var/lib/dosemu/bootdir), put
+<tscreen><verb>
+   $_hdimage = "bootdir"
+</verb></tscreen>
+into your /etc/dosemu.conf, and up it goes. DOSEMU makes a lredir'ed
+drive out of it and can boot from it. You can edit the config.sys and the
+autoexec.bat within this directory before you start dosemu. There is, however,
+one drawback, you can't use the DosC kernel (FreeDos) for it, because it hasn't yet
+a working redirector (will hopefully be available some time in the future).
+But, if you just need a readonly drive C: for booting DosC, you can use
+the `bootdir' method anyway, because, befor the directory becomes
+redirected, it is converted into an emulated FAT type FS, which DosC
+<em/can/ cope with. This FAT FS emulation doesn't need much memory,
+because it only contains the FAT and the directory entries. You could have
+a hdimage as drive D: for writing and anyway use the convenient boot method.
+Your choice, just take what best fits your need.
 
 Now, what does the above `vbootfloppy' mean? Alternatively of booting
 from a virtual `disk' you may have an image of a virtual `floppy' which

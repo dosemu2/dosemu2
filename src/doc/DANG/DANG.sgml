@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.99.4
+<date> version dosemu-0.99.8
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -790,13 +790,27 @@ These are the functions defined in env/video/X.c.
  
 
 
+<sect2>X_set_videomode
+
+
+<p>
+ 
+ This is the interface function called by the video subsystem
+ to set a video mode.
+
+ NOTE: The actual mode is taken from the global variable &dquot;video_mode&dquot;.
+
+ 
+
+
 <sect2>X_setmode
 
 
 <p>
  
- Set the video mode. Note that the mode is taken from
- the global variable &dquot;video_mode&dquot;.
+ Set the video mode.
+ If init_vga is zero, this will only reinitialize the current mode.
+ The other arguments are ignored in this case.
 
  
 
@@ -973,6 +987,22 @@ These are the functions defined in env/video/vgaemu.c.
 </itemize>
 
 
+<sect2>vgaemu_switch_plane
+
+
+<p>
+ 
+ vgaemu_switch_plane() maps the specified plane.
+
+ This function returns True on success and False on error, usually
+ indicating an invalid bank number.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  plane (0..3) - The plane to map.
+</itemize>
+
+
 <sect2>vga_emu_switch_bank
 
 
@@ -1035,6 +1065,21 @@ These are the functions defined in env/video/vgaemu.c.
 </itemize>
 
 
+<sect2>vga_emu_set_textsize
+
+
+<p>
+ 
+ Sets the text mode resolution. Typically called after
+ a font change.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  width  - Number of text columns.
+<ITEM>  height - Number of text rows.
+</itemize>
+
+
 <sect2>dirty_all_video_pages
 
 
@@ -1062,6 +1107,16 @@ These are the functions defined in env/video/vgaemu.c.
 </itemize>
 
 
+<sect2>dirty_all_vga_colors
+
+
+<p>
+ 
+ Marks all colors as changed.
+
+ 
+
+
 <sect2>changed_vga_colors
 
 
@@ -1077,6 +1132,16 @@ These are the functions defined in env/video/vgaemu.c.
 <itemize>
 <ITEM>  de - list of DAC entries to store changed colors in
 </itemize>
+
+
+<sect2>vgaemu_adj_cfg
+
+
+<p>
+ 
+ Adjust VGAEmu according to VGA register changes.
+
+ 
 
 
 <sect1>env/video/vesa.c Information
@@ -1103,26 +1168,6 @@ These are the functions defined in env/video/vesa.c.
 <itemize>
 <ITEM>  vedt - Pointer to struct describing the type of display we are actually
 <ITEM>         attached to.
-</itemize>
-
-
-<sect2>vesa_emu_fault
-
-
-<p>
- 
- vesa_emu_fault() is used to handle video ROM accesses.
- This function is called from env/video/vgaemu.c:vga_emu_fault().
- The sigcontext_struct is defined in include/cpu.h
- It just jumps over the instruction (LWORD (eip) += instr-len)
- which caused the write exception to the video ROM. It is needed for
- some dirty programs that try to write to a ROM (dos=high,umb seems
- to do this, but not on all PC's). We're sure now, nobody can write to
- the ROM and we don't crash on it, just ignore as it should be!
-
-<p>Arguments are:&nl;
-<itemize>
-<ITEM>  scp - A pointer to a struct sigcontext_struct holding some relevant data.
 </itemize>
 
 
@@ -1159,9 +1204,6 @@ These are the functions defined in env/video/vesa.c.
 <sect1>env/video/vesabios_pm.S Information
 
 <p>
-<sect1>env/video/attremu.c Information
-
-<p>
  The protected mode code for the VESA BIOS Extensions.
  
  We define some functions here that are required to support the
@@ -1170,6 +1212,9 @@ These are the functions defined in env/video/vesa.c.
  The whole code _must_ be fully relocatable. It will be copied into
  the video BIOS during VBE initialization (cf. vbe_init()).
 
+<sect1>env/video/attremu.c Information
+
+<p>
  The Attribute Controller emulator for VGAemu.
 <sect1>Functions in env/video/attremu.c
 
@@ -1246,19 +1291,6 @@ These are the functions defined in env/video/attremu.c.
  
 
 
-<sect2>Attr_get_input_status_1
-
-
-<p>
- 
- Emulate input status &num;1 register. The essential part is to
- simulate the retrace signals.
- Clears the Attribute Controller's flip-flop.
- This is a hardware emulation function.
-
- 
-
-
 <sect1>env/video/dacemu.c Information
 
 <p>
@@ -1311,6 +1343,17 @@ These are the functions defined in env/video/dacemu.c.
 <p>
  
  Sets a complete DAC entry (r,g,b).
+ This is an interface function.
+
+ 
+
+
+<sect2>DAC_rgb2gray
+
+
+<p>
+ 
+ Converts a DAC register's RGB values to gray scale.
  This is an interface function.
 
  
@@ -1401,14 +1444,26 @@ These are the functions defined in env/video/dacemu.c.
 <sect1>env/video/seqemu.c Information
 
 <p>
+ The VGA Sequencer emulator for VGAEmu.
 <sect1>env/video/crtcemu.c Information
 
 <p>
- The VGA sequencer for VGAemu.
- The VGA CRT controller emulator for VGAEmu.
+ The VGA CRT Controller emulator for VGAEmu.
+<sect1>Functions in env/video/crtcemu.c
 
- This emulates a very basic CRT controller. Just
- the start address registers (0xc, 0xd).
+<p>
+These are the functions defined in env/video/crtcemu.c.
+
+<sect2>CRTC_init
+
+
+<p>
+ 
+ Initializes the CRT Controller.
+ This is an interface function.
+
+ 
+
 
 <sect1>env/video/remap.c Information
 
@@ -1622,6 +1677,22 @@ These are the functions defined in env/video/vgaemu.c.
 </itemize>
 
 
+<sect2>vgaemu_switch_plane
+
+
+<p>
+ 
+ vgaemu_switch_plane() maps the specified plane.
+
+ This function returns True on success and False on error, usually
+ indicating an invalid bank number.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  plane (0..3) - The plane to map.
+</itemize>
+
+
 <sect2>vga_emu_switch_bank
 
 
@@ -1684,6 +1755,21 @@ These are the functions defined in env/video/vgaemu.c.
 </itemize>
 
 
+<sect2>vga_emu_set_textsize
+
+
+<p>
+ 
+ Sets the text mode resolution. Typically called after
+ a font change.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  width  - Number of text columns.
+<ITEM>  height - Number of text rows.
+</itemize>
+
+
 <sect2>dirty_all_video_pages
 
 
@@ -1711,6 +1797,16 @@ These are the functions defined in env/video/vgaemu.c.
 </itemize>
 
 
+<sect2>dirty_all_vga_colors
+
+
+<p>
+ 
+ Marks all colors as changed.
+
+ 
+
+
 <sect2>changed_vga_colors
 
 
@@ -1726,6 +1822,16 @@ These are the functions defined in env/video/vgaemu.c.
 <itemize>
 <ITEM>  de - list of DAC entries to store changed colors in
 </itemize>
+
+
+<sect2>vgaemu_adj_cfg
+
+
+<p>
+ 
+ Adjust VGAEmu according to VGA register changes.
+
+ 
 
 
 <sect1>include/vgaemu.h Information

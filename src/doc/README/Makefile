@@ -10,7 +10,7 @@ TEX = $(DOCSOURCES:.sgml=.tex)
 HTML = $(DOCSOURCES:.sgml=.html)
 
 SECTIONS = config SECURITY dexe sound lredir runasuser CDROM loglevel \
-	X Windows mgarrot batch HOGTHRESHOLD commands keymap dosnet Winnet
+	X Windows mgarrot batch commands keymap dosnet Winnet
 
 TECHSECTIONS = config-tech port-io vif vm86plus video oldboot newkbd ibmset \
 	HOGTHRESHOLD priv timing pentium DANG-tech mkfatimage mkfatimage16 doc sound-tech \

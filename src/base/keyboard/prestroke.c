@@ -169,7 +169,6 @@ int type_in_pre_strokes()
       o=out;
       while (*o) {
         int c = (*o >>8) & 0xff;
-        if (!c) c = ' ';
         putkey((*o & 0x80)==0, (t_keysym)((*o & 0x7f) | ((*o >> 8) & 0xff00)), c);
         o++;
       }

@@ -3,7 +3,7 @@
 
 This section of the document by Hans, 
 <htmlurl url="mailto:lermen@fgan.de" name="&lt;lermen@fgan.de&gt;">. Last
-updated on June 16, 1997.
+updated on January 12, 1999.
 
 <p>
 
@@ -17,7 +17,10 @@ partition access.
 <sect1>how do you use it?
 <P>
 
-First, mount your dos hard disk partition as a Linux subdirectory.
+First make sure you aren't using DosC (the FreeDos kernel), because
+unfortunately this can't yet cope with the redirector stuff.
+
+Mount your dos hard disk partition as a Linux subdirectory.
 For example, you could create a directory in Linux such as /dos (mkdir
 -m 755 /dos) and add a line like
 

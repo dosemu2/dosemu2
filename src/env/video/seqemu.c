@@ -43,7 +43,7 @@
  * The VGA Sequencer emulator for VGAEmu.
  * /REMARK
  *
- * DAND_END_MODULE
+ * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
  *

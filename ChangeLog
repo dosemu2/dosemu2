@@ -1,3 +1,14 @@
+99/02/12 ver. 0.99.8 released
+	From Markus Kossmann <markus.kossmann@inka.de>
+	- missing <errno.h> in utilities.c made compile fail for glibc
+	From Hans
+	- fix to type_in_pre_strokes() (keyboard/prestroke.c) not doing
+	  'keystroke "\Fx;"'
+	- removed HOGTHRESHOLD from README.txt (hopelessly outdated)
+	- wrote some minimum docs for Steffens 'bootdir' stuff.
+	- Stated in the docs, that DosC can't cope with lredir
+	  (hope this stops the questions on linux-msdos).
+	- docs recompile (including DANG)
 99/02/11 ver. 0.99.7.1 unofficial pre-release
 	From Steffen
 	- introduced booting _directly_ from a (lredir'ed) Linux directory.

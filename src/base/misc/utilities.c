@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "emu.h"
 #include "machcompat.h"
