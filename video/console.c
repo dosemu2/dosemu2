@@ -149,7 +149,7 @@ void clear_console_video(void)
 
 void set_consoleX_video(void)
 {
-  clear_screen(0, 7);
+/*  clear_screen(0, 7); */
 }
 
 void clear_consoleX_video(void)

@@ -74,6 +74,10 @@ int video_init()
      Video=&Video_X;
   }
 #endif
+  else if (config.usesX) {
+     v_printf("VID: Video set to Video_hgc\n");
+     Video=&Video_hgc;
+  }
   else {
      v_printf("VID: Video set to Video_term\n");
      Video=&Video_term;       /* ansi or ncurses */
@@ -94,7 +98,6 @@ int video_init()
      vm86s.flags |= VM86_SCREEN_BITMAP;
   }
   
-  if (config.usesX) mda_initialize();
   clear_screen(video_page, 7);
 
   return 0;

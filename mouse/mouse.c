@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/09/22 23:53:01 $
+ * $Date: 1994/10/14 18:02:19 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.13 $
+ * $Revision: 2.14 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.14  1994/10/14  18:02:19  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.13  1994/09/22  23:53:01  root
  * Prep for pre53_21.
  *
@@ -219,7 +222,7 @@ mouse_int(void)
 {
   unsigned short tmp1, tmp2, tmp3;
 
-	m_printf("MOUSEALAN: int 0x%x\n", LWORD(eax));
+  m_printf("MOUSEALAN: int 0x%x\n", LWORD(eax));
   switch (LWORD(eax)) {
   case 0:			/* Mouse Reset/Get Mouse Installed Flag */
     mouse_reset();
@@ -776,6 +779,7 @@ mouse_event()
 	     LWORD(cs), LWORD(eip));	
   }
   mouse_events = 0;
+  show_regs();
 }
 
 void
@@ -870,14 +874,14 @@ mouse_init(void)
  	mice->type = MOUSE_NONE;
  	return;
       }
-      add_to_io_select(mice->fd);
+      add_to_io_select(mice->fd, 1);
       DOSEMUSetupMouse();
       return;
     }
 
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
-      add_to_io_select(mice->fd);
+      add_to_io_select(mice->fd, 0);
     }
     else {
       sptr = &com[config.num_ser];
@@ -894,7 +898,7 @@ mouse_init(void)
       mice->type = MOUSE_NONE;
       return;
     }
-    add_to_io_select(mice->fd);
+    add_to_io_select(mice->fd, 1);
     DOSEMUSetupMouse();
     return;
   }

@@ -36,7 +36,8 @@ struct partition {
 
 struct disk {
   char *dev_name;		/* disk file */
-  int rdonly;			/* readonly flag */
+  int wantrdonly;		/* user wants the disk to be read only */
+  int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
   int sectors, heads, tracks;	/* geometry */
   int default_cmos;		/* default CMOS floppy type */
   disk_t type;			/* type of file: image, partition,

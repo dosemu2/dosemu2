@@ -1,8 +1,11 @@
 #!/bin/sh
 #
-# Configure 0.1
+# Configure 0.2
 # configuration program for dosemu
 # WARNIG : This program is pre-alpha !
+#
+# If you have any problems or bugs with this program, 
+# please let me know.
 #
 # (c) 1994 Jan 'TWP' VANDENBERGHE
 #          jvdbergh@wins.uia.ac.be
@@ -12,23 +15,38 @@
 TEMP=/tmp/dosconfig.answers
 
 # config file
-CONFIG=/etc/dosemu.conf
+CONFIG_BACK=/tmp/dosemu.backup
 
 
+# checks status of dialog
 check_status() {
 
 if [ "$?" != 0 ]
 then
    clear
    echo -e "\nDosconfig canceled! Exiting to shell \n"
+   cp $CONFIG_BACK $CONFIG
    exit
 fi
 
 }
 
 
+# deleteds part of config. file
+delete_part() {
+
+if test -f $CONFIG
+then
+  awk  -v dummy="$1" '{ if ( match($0,dummy) ) \
+  { do { getline } while ( (match($0,"##") == 0 ) && ( $0 != "" )) } print }'\
+  < $CONFIG > $TEMP
+  mv $TEMP $CONFIG 
+fi 
+}
+
 select_debug() {
 
+delete_part "## DEBUG ##"
 echo "## DEBUG ##" >> $CONFIG
 
 dialog  --title "DEBUG" --checklist "choose one or more options" 24 60 17 \
@@ -85,6 +103,7 @@ echo "" >> $CONFIG
 
 select_miscallenous() {
 
+delete_part "## MISCALLENOUS ##"
 echo "## MISCALLENOUS ##" >> $CONFIG
 
 dialog  --title "MISCALLENOUS" --checklist "DOSBANNER : Want startup DOSEMU \
@@ -105,12 +124,54 @@ do
    esac
 done
 
+# radiolist
+dialog  --title "MISCALLENOUS" --radiolist "select cpu-type to emulate" 10 40 3\
+   1 80286 off\
+   2 80386 off \
+   3 80486 on 2>$TEMP
+
+check_status
+
+choice=`cat $TEMP`
+case $choice in
+   1) echo "cpu 80286" >> $CONFIG;;
+   2) echo "cpu 80386" >> $CONFIG;;
+   3) echo "cpu 80486" >> $CONFIG;;
+esac
+
+# radiolist
+dialog  --title "MISCALLENOUS" --checklist "mathcoprocessor on durin DOSEMU\
+? : " 8 50 1 \
+   1 "mathcoprocessor on" on 2> $TEMP
+
+check_status
+
+choice=`cut -c -3 $TEMP`
+case $choice in
+   \"1\") echo "mathco on" >> $CONFIG;;
+   "") echo "mathco off" >> $CONFIG;;
+esac
+
+# radiolist
+dialog  --title "MISCALLENOUS" --radiolist "boot from" 9 30 2\
+   1 "boot from A" off\
+   2 "boot from C" on 2> $TEMP
+
+check_status
+
+choice=`cat $TEMP`
+case $choice in
+   1) echo "bootA" >> $CONFIG;;
+   2) echo "bootC" >> $CONFIG;;
+esac
+
 echo "" >> $CONFIG
 }
 
 
 select_keyboard() {
 
+delete_part "## KEYBOARD ##"
 echo "## KEYBOARD ##" >> $CONFIG
 
 # radiolist
@@ -202,46 +263,6 @@ select_miscallenous2() {
 
 echo "## MISCALLENOUS ##" >> $CONFIG
 
-# radiolist
-dialog  --title "MISCALLENOUS" --radiolist "select cpu-type to emulate" 10 40 3\
-   1 80286 off\
-   2 80386 off \
-   3 80486 on 2>$TEMP
-
-check_status
-
-choice=`cat $TEMP`
-case $choice in
-   1) echo "cpu 80286" >> $CONFIG;;
-   2) echo "cpu 80386" >> $CONFIG;;
-   3) echo "cpu 80486" >> $CONFIG;;
-esac
-
-# radiolist
-dialog  --title "MISCALLENOUS" --checklist "mathcoprocessor on durin DOSEMU\
-? : " 8 50 1 \
-   1 "mathcoprocessor on" on 2> $TEMP
-
-check_status
-
-choice=`cut -c -3 $TEMP`
-case $choice in
-   \"1\") echo "mathco on" >> $CONFIG;;
-   "") echo "mathco off" >> $CONFIG;;
-esac
-
-# radiolist
-dialog  --title "MISCALLENOUS" --radiolist "boot from" 9 30 2\
-   1 "boot from A" off\
-   2 "boot from C" on 2> $TEMP
-
-check_status
-
-choice=`cat $TEMP`
-case $choice in
-   1) echo "bootA" >> $CONFIG;;
-   2) echo "bootC" >> $CONFIG;;
-esac
 
 echo "" >> $CONFIG  
 }
@@ -249,6 +270,7 @@ echo "" >> $CONFIG
 
 select_memory() {
 
+delete_part "## MEMORY ##"
 echo "## MEMORY ##" >> $CONFIG
 
 dialog --title "MEMORY" --inputbox "give size 'XMS' in Kb or type 'off'\
@@ -276,6 +298,7 @@ echo "" >> $CONFIG
 
 select_speaker() {
 
+delete_part "## SPEAKER ##"
 echo "## SPEAKER ##" >> $CONFIG
 
 # radiolist
@@ -383,6 +406,7 @@ echo  "device /dev/modem }" >> $CONFIG
 
 select_serial() {
 
+delete_part "## SERIAL ##"
 echo "## SERIAL ##" >> $CONFIG
 
 dialog --title "SERIAL" --yesno "Do you want to install a mouse ?" 5 40
@@ -406,6 +430,7 @@ echo "" >> $CONFIG
 
 select_network() {
 
+delete_part "## NETWORKING SUPPORT ##"
 echo "## NETWORKING SUPPORT ##" >> $CONFIG
 
 dialog  --title "NETWORK" --checklist "Turn the following option 'on' \
@@ -440,6 +465,7 @@ echo "" >> $CONFIG
 
 select_video() {
 
+delete_part "## VIDEO ##"
 echo "## VIDEO ##" >> $CONFIG
 
 # radiolist
@@ -498,11 +524,21 @@ dialog --title "VIDEO" --inputbox "give videomemory in Kb :" 8 40 2> $TEMP
 
 check_status
 choice=`cat $TEMP`
-echo -n "memsize $choice" >> $CONFIG
+echo -n "memsize $choice  " >> $CONFIG
+
+dialog --title "VIDEO" --yesno "Do you want to use a videobios file ?" 5 45\
+  2> $TEMP
+
+if [ "$?" = "0" ]
+then
+   dialog --title "VIDEO" --infobox "       Please wait ...
+   Configure is making the videobios file " 5 50
+   /usr/lib/dosemu/getrom  > /usr/lib/dosemu/vbios 2> $TEMP
+   echo -n "vbios_file /usr/lib/dosemu/vbios  " >> $CONFIG 
+fi
 
 echo " }" >> $CONFIG
 
-# radiolist
 dialog  --title "VIDEO" --checklist "allow videoport access on ?" 8 35 1\
    1 "port access on" on 2> $TEMP
 
@@ -512,12 +548,14 @@ case $choice in
    \"1\") echo  "allowvideoportaccess on " >> $CONFIG;;
 esac
 
+
 echo "" >> $CONFIG
 
 }
 
 select_floppy() {
 
+delete_part "## FLOPPY DISKS ##"
 echo "## FLOPPY DISKS ##" >> $CONFIG
 
 # radiolist
@@ -580,7 +618,6 @@ select_partition() {
 dialog --title "HARD DISKS"  --inputbox "which disk ?" 8 40 2> $TEMP
 
 choice=`cat $TEMP`
-echo "$choice" > tmp
 echo -n "partition \"$choice\" " >> $CONFIG
 dialog --title "HARD DISKS"  --inputbox "which partition ?" 8 40 2> $TEMP  
 choice=`cat $TEMP`
@@ -606,16 +643,52 @@ echo  "wholedisk \"$choice\" }" >> $CONFIG
 }
 
 
+select_image() {
+
+dialog --title "HARD DISKS" --yesno "Do you have a DOS bootable disk ?" 5 50
+
+if [ "$?" = "1" ]
+then 
+   dialog --title "HARD DISKS" --msgbox "- Boot DOS on a system. 
+      That's the real DOS, not DOSEMU.
+   - Format a diskette with 'FORMAT A: /S'
+   - Copy C:\DOS\FDISK.EXE to the diskette.
+   - Copy C:\DOS\SYS.COM to the diskette." 10 50
+   exit
+else
+   dialog --title "HARD DISKS" --msgbox "Please insert the DOS disk in drive
+   A: (/dev/fd0)" 5 50
+   dialog --title "HARD DISKS" --infobox "Configure will now copy some files
+   This could take a while ..." 4 50
+   mkdir /temp_dosemu
+   mount -t msdos /dev/fd0 /temp_dosemu
+   cp commands/exitemu.com /temp_dosemu
+   echo -e "FDISK /MBR\r\nSYS C:\r\nEXITEMU\n\r" > /temp_dosemu/autoexec.bat
+   umountfloppy /dev/fd0
+   rmdir /temp_dosemu
+   cp hdimage.dist /var/lib/dosemu/hdimage
+   echo -n "disk { " >> $CONFIG
+   echo "image \"/var/lib/dosemu/hdimage\" } " >> $CONFIG
+   dialog --title "HARD DISKS" --msgbox "Configure will now start DOSEMU !
+It then will execute some commands,
+and exit DOSEMU ... " 7 50 
+   dos -A 
+fi
+
+}
+
 select_harddisk() {
 
+delete_part "## HARD DISK ##"
 echo "## HARD DISK ##" >> $CONFIG
 
 dialog --title "HARD DISKS" --yesno "Do you want to use a DISKIMAGE file ?"\
  5 50 
 
+
 if [ "$?" = "0" ]
 then
-   dialog --title "HARD DISKS" --msgbox "Dream on !!!!!" 5 20
+   select_image
 else
    echo -n "disk { " >> $CONFIG
    dialog --title "HARD DISKS" --radiolist "Do you want to use a partion \
@@ -637,75 +710,92 @@ echo "" >> $CONFIG
 
 select_terminals() {
 
+delete_part "## TERMINAL ##"
 echo "## TERMINAL ##" >> $CONFIG
 
-dialog --title "TERMINAL" --yesno "Do you want to use a TERMINAL ?"\
- 5 50 
+echo -n "terminal { " >> $CONFIG
 
-if [ "$?" = "0" ]
-then
-   echo -n "terminal { " >> $CONFIG
-   dialog --title "TERMINAL" --radiolist "which charset ?" 9 50 2\
-   1 "latin" on \
-   2 "IBM" off 2> $TEMP
+dialog --title "TERMINAL" --radiolist "Select the character set to use with \
+DOSEMU." 9 50 2 \
+  1 "latin" on \
+  2 "IBM" off 2> $TEMP
 
-   check_status
-   choice=`cat $TEMP`
-   case $choice in
-      1) echo -n "charset latin  " >> $CONFIG;;
-      2) echo -n "charset ibm  " >> $CONFIG;;
-   esac
-   dialog --title "TERMINAL" --radiolist "color ?" 10 30 3\
-   1 "off" off \
-   2 "normal" on \
-   3 "xterm" off 2> $TEMP
+#check_status
+choice=`cat $TEMP`
+case $choice in
+   1) echo -n "charset latin  " >> $CONFIG;;
+   2) echo -n "charset ibm  " >> $CONFIG;;
+esac
 
-   check_status
-   choice=`cat $TEMP`
-   case $choice in
-      1) echo -n "color off  " >> $CONFIG;;
-      2) echo -n "color normal  " >> $CONFIG;;
-      3) echo -n "color xterm  " >> $CONFIG;;
-   esac
-   
+dialog --title "TERMINAL" --radiolist "Enable or disable color terminal \
+support.  "normal" means to use the normal color set, \
+and "xterm" uses the color set enhanced for use on terminals that \
+can only display 8 colors instead of 16 colors." 14 50 3\
+  1 "off" off \
+  2 "normal" on \
+  3 "xterm" off 2> $TEMP
 
-dialog --title "TERMINALS" --inputbox "give updatefreq (def = 2):" 8 40 2> $TEMP
+check_status
+choice=`cat $TEMP`
+case $choice in
+  1) echo -n "color off  " >> $CONFIG;;
+  2) echo -n "color normal  " >> $CONFIG;;
+  3) echo -n "color xterm  " >> $CONFIG;;
+esac
+  
+dialog --title "TERMINALS" --inputbox "A number indicating the frequency \
+of terminal updates of the 
+screen. The smaller the number, the more frequent. 
+A value of 20 gives a frequency of about one per second, 
+which is very slow. However, more CPU time is to DOS applications 
+when updates are less frequent. 
+A value of 2 is recommended in most cases, but if you have a fast 
+system or link, you can decrease this to 0. ( default = 2 )" 14 70 2> $TEMP
 
 check_status
 choice=`cat $TEMP`
 echo -n "updatefreq $choice  " >> $CONFIG
 
-dialog --title "TERMINALS" --inputbox "give updatelines (def = 25):" 8 40 2> $TEMP
+dialog --title "TERMINALS" --inputbox "The size of each screen update in 
+number of lines.  This is extremely useful for modem users 
+to improve typing and interactive response.
+The smaller this number, the better the typing response, 
+but the slower the update becomes. A value of 1 is good for 
+2400bps  modem links, and a value of 5 is good for 14400bps 
+modem links. ( default = 25 )" 14 65 2> $TEMP
 
 check_status
 choice=`cat $TEMP`
 echo -n "updatelines $choice  " >> $CONFIG
 
-
-   dialog --title "TERMINAL" --radiolist "methode ?" 9 40 2\
+dialog --title "TERMINAL" --radiolist "This selects the screen-update engine\
+to use.  It is highly recommended that you select the "fast" update system, \
+unless you are running on a nonstandard terminal that does not support ANSI \
+or VT100 sequences.  In this case, use "ncurses"." 13 60 2\
    1 "fast" on \
    2 "ncurses" off 2> $TEMP
 
-   check_status
-   choice=`cat $TEMP`
-   case $choice in
-      1) echo -n "methode fast  " >> $CONFIG;;
-      2) echo -n "methode ncurses  " >> $CONFIG;;
-   esac
+ check_status
+ choice=`cat $TEMP`
+ case $choice in
+   1) echo -n "methode fast  " >> $CONFIG;;
+   2) echo -n "methode ncurses  " >> $CONFIG;;
+ esac
 
-   dialog --title "TERMINAL" --radiolist "corner ?" 9 40 2\
+ dialog --title "TERMINAL" --radiolist "Enable/disable printing of the\
+character at the bottom-right corner of the screen.  Some terminals, \
+especially DOS based ones, scroll the screen when something is printed \
+in the corner. " 12 60 2\
    1 "on" on \
    2 "off" off 2> $TEMP
 
-   check_status
-   choice=`cat $TEMP`
-   case $choice in
-      1) echo -n "corner on  " >> $CONFIG;;
-      2) echo -n "corner off  " >> $CONFIG;;
-   esac
-   echo "}" >> $CONFIG
-fi
- 
+ check_status
+ choice=`cat $TEMP`
+ case $choice in
+   1) echo -n "corner on  " >> $CONFIG;;
+   2) echo -n "corner off  " >> $CONFIG;;
+ esac
+ echo "}" >> $CONFIG
 
 echo "" >> $CONFIG
 
@@ -717,7 +807,9 @@ echo "" >> $CONFIG
 
 select_printers() {
 
+delete_part "## PRINTERS ##"
 echo "## PRINTERS ##" >> $CONFIG
+
 
 
 echo "" >> $CONFIG
@@ -727,78 +819,132 @@ echo "" >> $CONFIG
 
 select_X() {
 
+delete_part "## X SUPPORT ##"
 echo "## X SUPPORT ##" >> $CONFIG
 
-dialog --title "X SUPPORT" --yesno "Do you want to use a X ?"\
- 5 50 
+echo -n "X { " >> $CONFIG
 
-if [ "$?" = "0" ]
-then
-   echo -n "X { " >> $CONFIG
-   
-
-   dialog --title "X SUPPORT" --inputbox "give updatefreq (def = 8):" 8 40 2> $TEMP
+dialog --title "X SUPPORT" --inputbox "A number indicating the frequency of \
+X updates of the screen. 
+The smaller the number, the more frequent. A value of 20 
+gives a frequency of about one per second, which is very 
+slow.
+However, more CPU time is given to DOS  applications 
+when updates are less frequent. (default = 8):" 13 66 2> $TEMP
   
-   check_status
-   choice=`cat $TEMP`
-   echo -n "updatefreq $choice  " >> $CONFIG
+check_status
+choice=`cat $TEMP`
+echo -n "updatefreq $choice  " >> $CONFIG
 
-   dialog --title "X SUPPORT" --inputbox "give updatelines (def = 25):" 8 40 2> $TEMP
+dialog --title "X SUPPORT" --inputbox "The size of each screen update in
+number of lines. The smaller this number, the better 
+the typing response, but the slower the update becomes. 
+(default = 25):" 11 60 2> $TEMP
 
-   check_status
-   choice=`cat $TEMP`
-   echo -n "updatelines $choice  " >> $CONFIG
+check_status
+choice=`cat $TEMP`
+echo -n "updatelines $choice  " >> $CONFIG
 
-   dialog --title "X SUPPORT" --inputbox "give display string (def = :0):" \
-8 50 2> $TEMP
+dialog --title "X SUPPORT" --inputbox "The X server to use. If this is not
+specified, dosemu will use the DISPLAY 
+environment variable.
+(This is the normal case) (def = :0):" 11 45 2> $TEMP
   
-   check_status
-   choice=`cat $TEMP`
-   echo -n "display \"$choice\"  " >> $CONFIG
+check_status
+choice=`cat $TEMP`
+echo -n "display \"$choice\"  " >> $CONFIG
 
-
-  dialog --title "X SUPPORT" --inputbox "give title string (def = dosemu):" \
-8 50 2> $TEMP
+dialog --title "X SUPPORT" --inputbox "What you want dosemu to display in \
+the title bar 
+of its window. (def = dosemu):" 9 55 2> $TEMP
   
-   check_status
-   choice=`cat $TEMP`
-   echo -n "title \"$choice\"  " >> $CONFIG
+check_status
+choice=`cat $TEMP`
+echo -n "title \"$choice\"  " >> $CONFIG
 
-   dialog --title "X SUPPORT" --inputbox "give icon name string (def = dosemu):"\
- 8 50 2> $TEMP
+dialog --title "X SUPPORT" --inputbox "Used when the dosemu window is \
+iconified.
+(def = dosemu):"  9 46 2> $TEMP
   
-   check_status
-   choice=`cat $TEMP`
-   echo -n "icon_name \"$choice\"  " >> $CONFIG
+check_status
+choice=`cat $TEMP`
+echo -n "icon_name \"$choice\"  " >> $CONFIG
 
-   echo "}" >> $CONFIG
-
-fi
+echo "}" >> $CONFIG
  
 echo "" >> $CONFIG
 
 }
 
 main_menu() {
-cp -b /etc/dosemu.conf /etc/dosemu.conf.backup
-echo -e "## configuration file for DOSEMU created by dosconfig 0.1##\n" > $CONFIG
-select_debug
-select_miscallenous
-select_keyboard
-select_miscallenous2
-select_memory
-select_speaker
-select_serial
-select_network
-select_video
-select_terminals
-select_X
-select_floppy
-select_printers
-select_harddisk
 
+
+dialog --title "DosEmu configuration program" \
+   --menu "Select function" 21 60 13 \
+  1 "Debug " \
+  2 "Miscallenous" \
+  3 "Keyboard" \
+  4 "Memory" \
+  5 "Speaker" \
+  6 "Serial" \
+  7 "Network" \
+  8 "Video" \
+  9 "Terminals" \
+  a "X" \
+  b "Floppy disk" \
+  c "Printers" \
+  d "Harddisk" 2> $TEMP
+
+if [ $? != 0 ]
+then tput sgr0
+     clear
+     echo -e "configuration finnished\n\n"
+     exit
+fi
+
+choice=`cat $TEMP`
+case $choice in
+   1) select_debug;;
+   2) select_miscallenous;;
+   3) select_keyboard;;
+   4) select_memory;;
+   5) select_speaker;;
+   6) select_serial;;
+   7) select_network;;
+   8) select_video;;
+   9) select_terminals;;
+   a) select_X;;
+   b) select_floppy;;
+   c) select_printers;;
+   d) select_harddisk;;
+
+esac	 
 
 }
 
 
-main_menu
+dialog --title "DosEmu configuration program" \
+   --menu "Select function" 9 50 2 \
+  1 "global configuration file" \
+  2 "local configuration file" 2> $TEMP
+
+check_status
+choice=`cat $TEMP`
+if [ $choice = 1 ]
+then 
+   CONFIG="/etc/dosemu.conf"
+else
+   CONFIG="$HOME/.dosrc"
+fi
+if test -f $CONFIG
+then echo "" 
+else 
+    cp -b $CONFIG $CONFIG_BACK
+    echo  "## configuration file for DOSEMU created by dosconfig 0.2 ##" > $CONFIG
+    echo -e "##                 please do not edit                     ##\n" >> $CONFIG
+fi
+
+while true
+do 
+  main_menu
+done

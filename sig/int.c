@@ -93,10 +93,6 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 
-#ifdef MAKE_LOADABLE_MODULE
-#include <linux/module.h>
-
-
 #if 0
   #define WANT_DEBUG
   #define ___static
@@ -104,12 +100,15 @@
   #define ___static static
 #endif
 
+#ifdef MAKE_LOADABLE_MODULE
+#include <linux/module.h>
+
 /*
  * NOTE:
  *   To install the module, we must include the kernel identification string.
  *   (so, don't panic if you get a GCC warning "_kernel_version not used" )
  */
-#include "linux/tools/version.h"
+#include "../tools/version.h"
 static char kernel_version[] = UTS_RELEASE;
 
 #endif /* MAKE_LOADABLE_MODULE */

@@ -217,6 +217,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 		 n=0;
 		 do {
 		    n = read(mice->fd, rBuf+i, 1);
+		    m_printf("MOUSEINT: Inside read waiting for input!\n");
 		 } while (n < 1 && clock() < c);
 		 if (n==1) {
 		    /*
@@ -229,8 +230,9 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 		       buttons |= (rBuf[i] & 0x20) >> 4;
 		       m_printf("MOUSEINT: middle button read: %02x\n",
 				buttons);
-		    } else
+		    } else {
 		       i--;
+		    }
 		 }
 	      }
 	   }
@@ -419,10 +421,12 @@ unsigned cflag;
 
 void DOSEMUMouseEvents()
 {
+#define MOUSE_BUFFER 64
 	unsigned char rBuf[64];
 	int nBytes;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, (char *)rBuf, sizeof(rBuf)));
 	DOSEMUMouseProtocol(rBuf, nBytes);
+	m_printf("MOUSE: Read %d bytes\n", nBytes);
 }
 

@@ -12,8 +12,6 @@
 extern void hgc_meminit(void);
 extern void mda_initialize(void);
 extern void mda_reinitialize(void);
-extern void hgc_init(void);
-
 
 extern char hgc_Mode;
 extern char hgc_Konv;

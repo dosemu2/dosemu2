@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/10/03 00:24:25 $
+ * $Date: 1994/10/14 17:58:38 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.18 $
+ * $Revision: 2.19 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.19  1994/10/14  17:58:38  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.18  1994/10/03  00:24:25  root
  * Checkin prior to pre53_25.tgz
  *
@@ -600,7 +603,7 @@ extern int GetDebugFlagsHelper(char *);
 extern int SetDebugFlagsHelper(char *);
 extern void leavedos(int) NORETURN;
 extern void version_init(void);
-extern void add_to_io_select(int);
+extern void add_to_io_select(int, unsigned char);
 
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGWINCH
@@ -662,7 +665,7 @@ extern void add_to_io_select(int);
 			sigaddset(&sa.sa_mask, SIG_TIME); \
 			dosemu_sigaction(sig, &sa, NULL);
 
-extern inline void SIGNAL_save( void (*signal_call)() );
+extern inline void SIGNAL_save( void (*signal_call)(void) );
 extern inline void handle_signals(void);
 
 #endif /* EMU_H */

@@ -24,7 +24,8 @@ HFILES =       libpacket.h pktdrvr.h
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES)
+ALL = $(CFILES) $(HFILES) libpacket.c.multi libpacket.c.single \
+	pktnew.c.multi pktnew.c.single
 
 # All object-files are included here.
 
@@ -39,6 +40,7 @@ all: ../$(SUBDIR).o
 	$(LD) -r -o ../$(SUBDIR).o $(OBJS)
 
 checkin:
+	echo $(ALL)
 	-ci $(ALL) Makefile
 
 checkout:

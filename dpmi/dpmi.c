@@ -9,12 +9,15 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1994/08/05 22:31:46 $
+ * $Date: 1994/10/14 18:02:48 $
  * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 2.7 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 2.8  1994/10/14  18:02:48  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.7  1994/08/05  22:31:46  root
  * Prep dir pre53_10.
  *
@@ -128,7 +131,7 @@ SEGDESC Segments[MAX_SELECTORS];
 char *ldt_buffer;
 char *pm_stack; /* protected mode stack */
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.7 1994/08/05 22:31:46 root Exp root $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.8 1994/10/14 18:02:48 root Exp root $";
 
 u_char in_dpmi = 0;		/* Set to 1 when running under DPMI */
 u_char DPMIclient_is_32 = 0;

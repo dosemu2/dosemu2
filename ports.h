@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /*
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/10/14 17:58:38 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.13 $
+ * $Revision: 2.14 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.14  1994/10/14  17:58:38  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.13  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *
@@ -98,6 +101,13 @@
 */
 extern u_char keys_ready;
 
+/* PORT_DEBUG is to specify whether to record port writes to debug output.
+ * 0 means disabled.
+ * 1 means record all port accesses to 0x00 to 0xFF
+ * 2 means record ANY port accesses!  (big fat debugfile!)
+ */ 
+#define PORT_DEBUG 0
+
 /* int port61 = 0xd0;           the pseudo-8255 device on AT's */
 int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
 extern int fatalerr;
@@ -109,6 +119,10 @@ extern int cursor_col;
 extern int char_blink;
 u_short microsoft_port_check = 0;
 
+/* 
+ * Copied adverbatim from Mach code, please be aware of their 
+ * copyright in mfs.c
+ */
 int timer_interrupt_rate = 55;
 int min_timer_milli_pause = 16;
 int timer_milli_pause = 55;
@@ -269,10 +283,17 @@ inb(int port)
   static unsigned int tmp = 0;
   static unsigned int r = 0;
 
+#ifdef PORT_DEBUG
+#if PORT_DEBUG == 1
+  if (port < 0x100)
+#endif
+    fprintf(stderr,"PORT: Rd 0x%04x\n",port);
+#endif
+
   port &= 0xffff;
   if (port_readable(port))
     return (read_port(port) & 0xFF);
-
+ 
   if (config.usesX) {
     v_printf("HGC Portread: %d\n", (int) port);
     switch (port) {
@@ -422,6 +443,13 @@ outb(int port, int byte)
 
   port &= 0xffff;
   byte &= 0xff;
+
+#ifdef PORT_DEBUG
+#if PORT_DEBUG == 1
+  if (port < 0x100)
+#endif
+    fprintf(stderr,"PORT: Wr 0x%04x <- 0x%02x\n",port,byte);
+#endif
 
   if (port_writeable(port)) {
     write_port(byte, port);
@@ -646,6 +674,7 @@ void update_timers(void) {
   static long initial_sec=0L;
   static long initial_usec;
   static struct timeval tp;
+  static unsigned long adder=0;
 
   gettimeofday(&tp, NULL);
 
@@ -655,7 +684,8 @@ void update_timers(void) {
   }
 
   milliseconds_since_boot = ((tp.tv_sec - initial_sec)*1000) +
-                            ((tp.tv_usec - initial_usec)/1000);
+                            ((tp.tv_usec - initial_usec)/1000) + adder;
+  adder = (adder + 1) % 20;
   i_printf("Timers updated: %x\n", milliseconds_since_boot);
 
 }

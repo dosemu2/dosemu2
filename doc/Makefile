@@ -1,6 +1,6 @@
 all: 
-	-make dosemu.info
-	-make dosemu.dvi
+	-$(MAKE) dosemu.info
+	-$(MAKE) dosemu.dvi
 
 dvi: dosemu.dvi
 

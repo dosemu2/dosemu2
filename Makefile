@@ -1,29 +1,28 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/10/03 00:24:25 $
+# $Date: 1994/10/14 17:58:38 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.33 $
+# $Revision: 2.34 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
 # if you are doing the first compile.
 #
-# PLEASE, PLEASE, PLEASE, PLEASE make a provision to automatically detect
-# an xwindows installation!  A dirty hack example is the following:
 
-#ifdef X_SUPPORT
-#	if [ ! -e /usr/X11/bin ] || \
-#	   [ ! -e /lib/libX11* ] || \
-#	   [ ! -e /usr/lib/X11/fonts ]; then undef X_SUPPORT; fi
-#endif
+# if [ -e /usr/X11/bin ] && \
+# [ -e /lib/libX11* ] && \
+# [ -e /usr/lib/X11/fonts ]; then;
 
 # Until then, if you do NOT have X support, comment out the following
 #  2 lines.
 X_SUPPORT = 1
 X2_SUPPORT = 1
 
+# fi
+
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include
+export LINUX_INCLUDE  
 
 #Change the following line if the your X libs are elsewhere.
 X11LIBDIR = /usr/X386/lib
@@ -72,7 +71,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   26
+PATCHL  =   27
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -112,7 +111,7 @@ CLIENTSSUB=clients
 
 SUBDIRS= periph video mouse include boot commands drivers \
 	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
-	examples sig
+	examples sig dosnet
 
 DOCS= doc
 
@@ -169,6 +168,7 @@ endif
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
 INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
 export INCDIR
+
 CFLAGS     = $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
@@ -217,7 +217,7 @@ all:	warnconf $(X2CEXE) dos dossubdirs warning3 $(LIBDOSEMU)
 
 debug:
 	rm dos
-	make dos
+	$(MAKE) dos
 
 config.h: Makefile
 ifeq (config.h,$(wildcard config.h))
@@ -226,7 +226,7 @@ ifeq (config.h,$(wildcard config.h))
 else
 	@echo "WARNING: You have no config.h file in the current directory."
 	@echo "         Generating config.h..."
-	make config
+	$(MAKE) config
 endif
 
 warnconf: config.h
@@ -366,13 +366,13 @@ clean:
 depend dep: 
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend ;echo "bios.o : bios.S" >>.depend
 	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
-	cd video; make depend
-	cd mouse; make depend
-	cd timer; make depend
-	cd init; make depend
-	cd net; make depend
+	cd video; $(MAKE) depend
+	cd mouse; $(MAKE) depend
+	cd timer; $(MAKE) depend
+	cd init; $(MAKE) depend
+	cd net; $(MAKE) depend
 ifdef IPX
-	cd ipxutils; make depend
+	cd ipxutils; $(MAKE) depend
 endif
 ifdef DPMIOBJS
 	cd dpmi;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend

@@ -20,12 +20,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/10/03 00:24:25 $
+ * $Date: 1994/10/14 17:58:38 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.27 $
+ * $Revision: 2.28 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.28  1994/10/14  17:58:38  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.27  1994/10/03  00:24:25  root
  * Checkin prior to pre53_25.tgz
  *
@@ -1277,10 +1280,11 @@ void SIGALRM_call(void){
     *
     * note that update_screen also updates the cursor.
     */
-
+#ifdef X_SUPPORT
   if (config.X && config.X_blinkrate) {
      X_blink_cursor();
   }
+#endif
   if (!running && !video_update_lock) {
     if (Video->update_screen 
 #if VIDEO_CHECK_DIRTY
@@ -1898,7 +1902,7 @@ SIG_init()
           fprintf(stderr, "Gonna monitor the IRQ %d you requested, Return=0x%02x\n", irq ,fd);
           if (config.sillyint & (0x10000 << irq)) {
             /* Use SIGIO, this should be faster */ 
-            add_to_io_select(fd);
+            add_to_io_select(fd, 1);
           }
           /* DANG_BEGIN_REMARK
            * At this time we have to use SIGALRM in addition to SIGIO
@@ -2322,8 +2326,6 @@ void
      get graphics chars
   */
   video_config_init();
-  if ( config.usesX )
-    hgc_meminit();
 
 #ifdef SIG
   SIG_init();
@@ -2494,7 +2496,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.27 1994/10/03 00:24:25 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.28 1994/10/14 17:58:38 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -3180,7 +3182,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/10/03 00:24:25 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/10/14 17:58:38 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -3354,6 +3356,8 @@ void version_init(void) {
  * 
  * arguments:
  *  fd - File handle to add to select statment.
+ *  want_sigio - Specifiy whether you want SIGIO (1) if it's available, or
+ * 		 not (0).
  *
  * description:
  *  Add file handle to one of 2 select FDS_SET's depending on 
@@ -3361,15 +3365,17 @@ void version_init(void) {
  *
  * DANG_END_FUNCTION
  */
-void add_to_io_select(int new_fd) {
-  if (use_sigio) {
+void add_to_io_select(int new_fd, u_char want_sigio) {
+  if (use_sigio && want_sigio) {
     int flags;
     flags = fcntl(new_fd, F_GETFL);
     fcntl(new_fd, F_SETOWN,  getpid());
     fcntl(new_fd, F_SETFL, flags | use_sigio);
     FD_SET(new_fd, &fds_sigio);
+    g_printf("GEN: fd=%d gets SIGIO\n", new_fd);
   } else {
     FD_SET(new_fd, &fds_no_sigio);
+    g_printf("GEN: fd=%d does not get SIGIO\n", new_fd);
     not_use_sigio++;
   }
 }

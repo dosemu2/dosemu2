@@ -5,12 +5,15 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/08/01 14:28:09 $
+ * $Date: 1994/10/14 18:03:04 $
  * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 2.7 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 2.8  1994/10/14  18:03:04  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.7  1994/08/01  14:28:09  root
  * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
  *
@@ -1886,7 +1889,7 @@ void start_disk(word_t * word, arg_t arg1, arg_t arg2)
     }
 
   dptr->dev_name = NULL;              /* default-values */
-  dptr->rdonly = 0;
+  dptr->wantrdonly = 0;
   dptr->header = 0;
 }
 
@@ -1989,7 +1992,7 @@ int do_disk(word_t * word, arg_t farg1, arg_t farg2)
 
   switch (word->token) {
   case D_READONLY:
-    dptr->rdonly = 1;
+    dptr->wantrdonly = 1;
     break;
   case D_FIVEINCH:
     dptr->default_cmos = FIVE_INCH_FLOPPY;

@@ -445,5 +445,36 @@ void map_hgc_page( int fullmode )
   return;
 }
 
+int hgc_init(void)
+{
+  hgc_meminit();
+  mda_initialize();
+  return 0;
+}
+
+int hgc_setmode(int type, int xsize,int ysize)
+{
+  mda_reinitialize();
+    /* outb(0x03b8, 0x28); */ /* 6845: text, visible, page0, cursor */
+  return 0;
+}
+
+void do_hgc_update_cursor(void)
+{
+  poshgacur(cursor_col,cursor_row);
+  return;
+}
+
+struct video_system Video_hgc = {
+   1,                /* is_mapped */
+   hgc_init,
+   NULL,
+   hgc_setmode,
+   NULL,             /* update_screen */
+   do_hgc_update_cursor
+};
+
+
+
 #undef HGC_C
 

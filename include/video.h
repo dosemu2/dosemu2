@@ -113,7 +113,7 @@ struct video_system {
 
 extern struct video_system *Video;
 
-extern struct video_system Video_graphics,  Video_X, Video_console, Video_term;
+extern struct video_system Video_graphics,  Video_X, Video_console, Video_hgc, Video_term;
 
 extern ushort *screen_adr;   /* pointer to video memory of current page */
 extern ushort *prev_screen;  /* pointer to currently displayed screen   */

@@ -54,6 +54,7 @@ void die(char *reason) NORETURN;
 extern int allow_io(int, int, int, int, int);
 extern int exchange_uids(void);
 extern char* strdup(const char *); /* Not defined in string.h :-( */
+extern int yylex(); /* exact argument types depend on the way you call bison */
 
 	/* local procedures */
 
@@ -521,7 +522,7 @@ printer_flag	: COMMAND STRING	{ pptr->prtcmd = $2; }
 disk_flags	: disk_flag
 		| disk_flags disk_flag
 		;
-disk_flag	: READONLY		{ dptr->rdonly = 1; }
+disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| SECTORS INTEGER	{ dptr->sectors = $2; }
@@ -890,7 +891,7 @@ void start_bootdisk(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->rdonly = 0;
+  dptr->wantrdonly = 0;
   dptr->header = 0;
 }
 
@@ -911,7 +912,7 @@ void start_floppy(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->rdonly = 0;
+  dptr->wantrdonly = 0;
   dptr->header = 0;
 }
 
@@ -931,7 +932,7 @@ void start_disk(void)
   dptr->tracks  = -1;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
-  dptr->rdonly = 0;
+  dptr->wantrdonly = 0;
   dptr->header = 0;
 }
 
@@ -1277,7 +1278,7 @@ parse_dosemu_users(void)
   }
 
   if (getuid() != 0) {
-        if (fp = open_file(DOSEMU_USERS_FILE)) {
+        if ((fp = open_file(DOSEMU_USERS_FILE))) {
                 while(fgets(buf, 79, fp) != NULL && !userok) {
 			if (!(strncmp(buf, pwd->pw_name, strlen(buf)-1))) userok = 1;
                 }
@@ -1313,7 +1314,8 @@ parse_config(char *confname)
   /* Parse valid users who can execute DOSEMU */
   parse_dosemu_users();
 
-  /* Let's first try the user's own .dosrc */
+  /* Let's try confname if not null, and fail if not found */
+  /* Else try the user's own .dosrc */
   /* If that doesn't exist we will default to CONFIG_FILE */
 
   { 
@@ -1326,12 +1328,20 @@ parse_config(char *confname)
       if (!exchange_uids()) die("Cannot changeback uids\n");
     }
 
-    if (!(fd = open_file(name))) {
-         fprintf(stderr, "Cannot open user config file %s, Trying default.\n",name);
-         if (!(fd = open_file(CONFIG_FILE))) {
-           fprintf(stderr, "Cannot open default config file %s, Aborting DOSEMU.\n",CONFIG_FILE);
+    if(confname) {
+      if(!(fd = open_file(confname))) {
+        fprintf(stderr, "Cannot open -F config file %s, Aborting DOSEMU.\n",confname);
            exit(1);
-         }
+      }
+    } else {
+
+      if (!(fd = open_file(name))) {
+        fprintf(stderr, "Cannot open user config file %s, Trying default.\n",name);
+        if (!(fd = open_file(CONFIG_FILE))) {
+          fprintf(stderr, "Cannot open default config file %s, Aborting DOSEMU.\n",CONFIG_FILE);
+          exit(1);
+        }
+      }
     }
 
     yyin = fd;

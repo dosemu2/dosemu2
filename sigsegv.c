@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/10/03 00:24:25 $
+ * $Date: 1994/10/14 17:58:38 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.12 $
+ * $Revision: 2.13 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.13  1994/10/14  17:58:38  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.12  1994/10/03  00:24:25  root
  * Checkin prior to pre53_25.tgz
  *

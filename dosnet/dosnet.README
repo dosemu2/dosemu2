@@ -1,0 +1,273 @@
+
+          Allowing a program to have its own network protocol stacks. 
+
+
+                 Resulting in multiple dosemu's to use
+                      netware, ncsa telnet etc. 
+                     
+
+Introduction:
+     Allowing network access from dosemu is an important functionality.
+For pc based network product developers, it will offer an easy development 
+environment will full control over all the traffic without having to run 
+around and use  several machines.  It will allow already available 
+client-server based "front-ends" to run on dosemulator.  (Assuming that
+they are all packet driver based -- as of now ;-) )
+
+    To accomplish that, we require independent protocol stacks to coexist
+along with linux' IP stack. One way is to add independent network card.
+However, it is cumbersome and allows at most only 2-3 stacks. Other option
+is to use the a virtual network device that will route the packets to
+the actual stacks which run as user programs. 
+
+Design:
+   
+    Have a virtual device which provides  routing interface at one end
+    (so it is a network device from linux side) and at other end, it
+    sends/receives packets from/to user stacks. 
+    
+    All the user stacks AND virtual device are virtually connected by
+    a network (equavalent to a physical cable). Any broadcast packet 
+    (sent by either user stack or router interface of the virtual
+     device) should be sent to all the user stacks and router.
+    All non-broadcast packets can be sent by communicating with
+    each other.
+      
+    Each user stack (here dosemu process) will have an base interface 
+    which allows sending and receiving of packets. On the top of this,
+    a proper interface (such as  packet driver interface) can be built.
+    In dosemu, a packet driver interface is emulated.
+
+    Every user stack will have a unique  virtual ethernet address.
+
+
+Implementation:
+
+    This package includes:
+         1. dosnet module. Acts as virtual network device introducing
+            'dsn0' interface.
+            It provides usual network interface AND also facility to
+            communicate with dosemu's. 
+
+         2. Modified  packet driver code (pktnew.c and libdosemu.c)
+            to enable the above. Modifications include these:
+              1. Generate an unique ethernet address for each dosemu .
+                 I have used minor no. of the tty in use as part
+                 of ethernet address. This works unless you start
+                 two dosemu's in same tty.
+              2. Communication with dosnet device is done by opening 
+                 a SOCK_PACKET socket of special type. 
+              
+         3. IPX bridge code. Between eth0 and dsn0 so that multiple
+            lan accesses can be made. 0.1 is non-intelligent.
+            (both versions are alpha codes.)
+            Actually IPX routing code is there in kernel.  Has anyone been 
+            successful in using this?
+
+  Virtual device 'dsn0': 
+       Compile the module dosnet and insmod it, and give it an IP
+       address, with a new IP network number. And You have to set up 
+       proper routing tables on all machines you want to connect to. 
+       So linux side interface is easy to set up.
+
+       This device should be assigned a virtual ethernet address.
+       I have used a random one, please change it if required.
+
+       This device is usual loadable module. (Someone please check if
+       it can be made more efficient.) However, what is interesting is
+       the way it allows access to user stacks (i.e. dosemu's.) i.e.
+       its media interface.
+
+       A packet arrives to dosnet from linux for our virtual internal 
+       network (after routing process). If it is broadcast packet, dosnet 
+       should send it to all dosemu's/user stacks.  If it is normal
+       packet, it should send it only particular user stack which has
+       same destination ethernet address . 
+
+       It performs this process by the following method, using SOCK_PACKET
+       interface , (and not introducing new devices).: 
+
+         The dosemu opens a SOCK_PACKET interface for type 'x' with the dosnet
+         device. The result of this will be an addition of entry into
+         type handler table for type 'x'.  This table stores the type and
+         corresponding handler function  (called when a packet of this type 
+         arrives.) 
+         Each dosemu will open the interface with unique 'x'  .
+         1) sending packets from dosemu to dosnet : 
+               SOCK_PACKET  allows you to send the packet "as is". 
+               So not a problem at all.
+         2)  dosnet -> dosemu: 
+               this is tricky. The packet is simply given by dosnet 
+               device to upper layers. However, the upper layer calls
+               function to find out the type of the packet which is
+               device specific (default is eth_type_trans().). 
+               This routine, which returns type of given packet, is to 
+               be implemented in each device. So in dosnet, this plays
+               a special role. If the packet is identified as 
+               type 'x',  the upper layers (net/inet/dev.c) call the
+               type handler for 'x'.
+               Looking at destination ethernet address of a packet, we can say 
+               deduct that it is packet for dosemu, and its type is
+               'x' (i.e. 'x' is "inserted" in dosemu's virtual ethernet
+               address.)  Type handler function for 'x' is essentially
+               SOCK_PACKET receiver function which sends packet back to 
+               dosemu.
+               NOTE: the "type" field is in destination ethernet address
+               and not its usual place (which depends on frame type.) So
+               the packet is left intact -- there is no wrapper function
+               etc.  We should use type "x" which is unused by others;
+               so the packet can carry _ANY_ protocol since the data 
+               field is left untouched. 
+
+        Broadcast packets: We use a common type "y" for dosnet
+               broadcasts. Each dosemu "registers" for "y" along
+               with usual "x" type packet using SOCK_PACKET. This
+               "y" is same for all dosemu's.
+               (The packet is duplicated  if  more than one SOCK_PACKET 
+                asks for same type. )
+
+ Packet driver code:
+               Right now, only one protocol will run per dosemu session. 
+               ( i.e. you can access EITHER novell netware OR NCSA
+               telnet ... not both at once.)
+               Because I couldn't accomplish type switching from within
+                dosemu. When a packet arrives,  it arrives on single
+                SOCK_PACKET handle ; so we need to find out which 
+                of the registered protocols  should be handled this
+                code. If there is only one, this problem is not
+                there ;-)
+   Rob, you should help in the following:
+      1. Packet driver code ... 
+                We should now open only two sockets: one specific to dosemu and
+                other broadcast. So we have to add code to demultiplex
+                into packet types... I couldn't succeed. Even
+                broadcast packets are not getting to dosemu.
+       2. Which virtual ethernet  addresses to use (officially)?
+       3. Which  special packet type can be used?
+       4. Kernel overhead .. lots of packet types getting introduced
+          in type handler table... how to reduce?
+
+Conclusion ..
+
+So at last one can open multiple DOSEMU's and access network
+from each of them ...  However, you HAVE TO set up ROUTING TABLES
+etc.
+
+
+Vinod G Kulkarni
+
+vinod@cse.iitb.ernet.in
+
+
+	From jmaclean@fox.nstn.ns.ca Mon Oct 10 06:16:35 1994
+	Return-Path: <jmaclean@fox.nstn.ns.ca>
+	
+	At any rate, I compiled dosnet.c with :
+	cc -o dosnet.o  -D__KERNEL__ -DLINUX -O6 dosnet.c -c
+	but insmod declares:
+	_eth_type_trans undefined
+	_eth_header undefined
+	_eth_rebuild_header undefined
+
+I forgot to mention this: The kernel sources need to be patched
+slightly. (This is happening with any new loadable module these days ;-)
+Here is what you need to do:  The only file that gets affected is
+kernel/ksyms.c in the linux sources:
+
+*** ksyms.c.old	Mon Oct 10 11:12:01 1994
+--- ksyms.c	Mon Oct 10 11:13:31 1994
+***************
+*** 28,33 ****
+--- 28,39 ----
+  #include <linux/serial.h>
+  #ifdef CONFIG_INET
+  #include <linux/netdevice.h>
++ extern unsigned short eth_type_trans(struct sk_buff *skb, struct device *dev);
++ extern int eth_header(unsigned char *buff, struct device *dev, unsigned
++               short type, void *daddr, void *saddr, unsigned len, struct
++               sk_buff *skb);
++ extern int eth_rebuild_header(void *buff, struct device *dev, unsigned long
++               dst, struct sk_buff *skb);
+  #endif
+  
+  #include <asm/irq.h>
+***************
+*** 183,188 ****
+--- 189,197 ----
+  	X(dev_rint),
+  	X(dev_tint),
+  	X(irq2dev_map),
++         X(eth_type_trans),
++         X(eth_header),
++         X(eth_rebuild_header),
+  #endif
+  
+  	/********************************************************
+
+After this, recompile the kernel. You should compile with "IP FORWARD" 
+config option enabled (for allowing routing).
+With this kernel, 'insmod dosnet' will work. After this step, 
+'cat /proc/net/dev' should show this device.
+
+After this it is admin stuff:
+I run these commands: 144.16.112.1 is "special" address. 'dsn0' is the
+new interface name.
+
+ifconfig dsn0 144.16.112.1 broadcast 144.16.112.255 netmask 255.255.255.0
+route add -net 144.16.112.0 dsn0
+
+Compile dosemu with  new pktnew.c and libpacket.c sources (to be put in
+net directory.) Start dosemu. You could start 'telbin 144.16.112.1' 
+after assigning IP address (say 144.16.112.10) for the dosemu in CONFIG.TEL 
+file. Each dosemu should get a new IP address. 
+
+Telnetting to other Systems: Other systems need to have route to this
+"new" network. The easiest way to do this is to have  static route for
+dosnet IP network included in remote machine you want to connect to. 
+After all tests are carried out, one could include them permanently 
+(i.e. in gated configurations etc.). However, the "new" IP address should 
+only be internal to your organisation, and not allowed to route outside. 
+There is some rfc in this regard, I will let you know later.
+For e.g., I am working on 144.16.98.20. Internal network I created was
+144.16.112.0. (See the above route command.)
+To connect to another linux system 144.16.98.26 from dosemu, I include
+static route by running 'route add -net 144.16.112.0 gw 144.16.98.20'
+on that system. It becomes more complex if you need to connect to 
+outside of 144.16.98.0.
+
+Accessing Novell netware:
+   Since dosemu is now on "different device", IPX needs to be either
+bridged or routed. If it is bridged, then there is no requirement for
+any extra administration ; simply run 'ipxbridge' program supplied with
+the dosnet sources. (There are two versions of it; 0.1 copies all
+packets to from/to both interface. 0.2 is "intelligent bridge", it
+copies packet to other interface only if the destination lies on other
+interface. )
+   If you instead want to use "routing" for IPX, then you need to
+enable IPX config option in the kernel.  Next, you should select a
+network number that won't clash with others. Set up static direct 
+ipx routes in linux, and then in one Novell netware server which is 
+directly connected (i.e. without any router inbetween.). (That is where
+you should contact Novell sysadm's ;-) The idea is, the server acts as route 
+broadcaster. (I haven't actually tested this; and we are working on getting 
+proper daemons etc. which will make linux act as IPX router proper.) 
+
+(You could include this info along with other documentation...)
+
+Hope this helps,
+
+Vinod.
+
+I just realised one more thing: The ipxbridge-0.2 code assumes that
+you have 'eth0' and 'eth1' as the two interfaces. And it uses this
+fact while choosing the interface to put the packet. So it won't
+recognise when 'dsn0' is used. 
+
+ipxbridge-0.1 will work though.
+
+Also, note that both these programs put the card in promiscuous mode.
+
+So my suggestion is to "somehow" get IPX routing done by linux!
+
+
+Vinod.

@@ -19,7 +19,7 @@ endif
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 DEFINES=-DYYPURE
-CFLAGS=-O2 -Wall -Wmissing-prototypes \
+# CFLAGS=-O2 -Wall -Wmissing-prototypes \
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
 #-Wwrite-strings
 

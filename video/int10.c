@@ -186,7 +186,10 @@ char_out(unsigned char ch, int s)
   
   case '\t':        /* Tab */
     v_printf("tab\n");
-    do char_out(' ', s); while (xpos % 8 != 0);
+    do {
+	char_out(' ', s); 
+  	xpos = bios_cursor_x_position(s);
+    } while (xpos % 8 != 0);
     break;
 
   case 7:           /* Bell */
@@ -258,6 +261,7 @@ boolean set_video_mode(int mode) {
     
   case 2:
   case 3:
+  case 7:
     /* set 80 column text mode */
     co=80;
     

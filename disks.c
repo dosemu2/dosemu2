@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/10/14 17:58:38 $
  * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.7 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -239,6 +239,23 @@ image_auto(struct disk *dp)
   if (dp->fdesc == -1) {
     warn("WARNING: image filedesc not open\n");
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    /* The next line should only be done in case the open succeeds, 
+       but that should be the normal case, and allows somewhat better
+       code for the if (how sick can you get, since the open is going to
+       take a lot more time anyways :-) )
+    */
+    dp->rdonly = dp->wantrdonly;
+    dp->fdesc = open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0);
+    if (dp->fdesc == -1) {
+      /* We should check whether errno is EROFS, but if not the next open will
+         fail again and the following lseek will throw us out of dos. So we win
+         a very tiny amount of time in case it works. Also, if for some reason
+         this does work (should be impossible), we can at least try to 
+         continue. (again how sick can you get :-) )
+       */
+      dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+      dp->rdonly = 1;
+    }
   }
 
   lseek(dp->fdesc, 0, SEEK_SET);
@@ -316,6 +333,8 @@ partition_setup(struct disk *dp)
   }
 
   RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
+
+  close(part_fd);
 
   dp->part_info.beg_head = PART_BYTE(PNUM, 1);
   dp->part_info.beg_sec = PART_BYTE(PNUM, 2) & ~0xc0;
@@ -399,21 +418,29 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
     
-try_readonly:
-  dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0));
-  if (dp->fdesc < 0) {
-    d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
-    if ((errno==EROFS || errno==EACCES) && !dp->rdonly) {
-       /* try to open readonly */
-       d_printf("trying to open read-only\n");
-       dp->rdonly = 1;
-       goto try_readonly;
-    }
+  dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  if (dp->fdesc < 0) 
+    if (errno == EROFS) {
+      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
+      if (dp->fdesc < 0) {
+        d_printf("ERROR: (disk) can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+        /* In case we DO get more clever, we want to share that code */
+        goto fail;
+      } else {
+        dp->rdonly = 1;
+        d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
+      }
+    } else {
+      d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
+    fail:
 #if 0
-    fatalerr = 5;
+      /* We really should be more clever here */
+      fatalerr = 5;
 #endif
-    return;
-  }
+      return;
+    }
+  else dp->rdonly = dp->wantrdonly;
+
   if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {
     if (errno == ENODEV) {	/* no disk available */
       dp->sectors = 0;
@@ -481,11 +508,22 @@ disk_init(void)
   if (config.bootdisk) {
     bootdisk.fdesc = open(bootdisk.dev_name,
 			  bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
+    if (bootdisk.fdesc < 0) 
+      if (errno == EROFS) {
+        bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY, 0);
+        if (bootdisk.fdesc < 0) {
+          error("ERROR: can't open bootdisk %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          leavedos(23);
+        } else {
+          bootdisk.rdonly = 1;
+          d_printf("(disk) can't open bootdisk %s for read/write. Readonly did work though\n", bootdisk.dev_name);
+        }
+      } else {
+        error("ERROR: can't open bootdisk %s: %sn", dp->dev_name, strerror(errno));
+        leavedos(23);
+      }
+    else bootdisk.rdonly = bootdisk.wantrdonly;
     bootdisk.removeable = 0;
-    if (bootdisk.fdesc < 0) {
-      error("ERROR: can't open bootdisk %s\n", dp->dev_name);
-      leavedos(23);
-    }
   }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (stat(dp->dev_name, &stbuf) < 0) {
@@ -502,18 +540,40 @@ disk_init(void)
       continue;
     }
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
-    if (dp->fdesc < 0) {
-      error("ERROR: can't open %s\n", dp->dev_name);
-      leavedos(25);
-    }
+    if (dp->fdesc < 0) 
+      if (errno == EROFS) {
+        dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+        if (dp->fdesc < 0) {
+          error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          leavedos(25);
+        } else {
+          dp->rdonly = 1;
+          d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
+        }
+      } else {
+        error("ERROR: can't open %s: %s\n", dp->dev_name, strerror(errno));
+        leavedos(25);
+      }
+    else dp->rdonly = dp->wantrdonly;
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    if (dp->fdesc < 0) 
+      if (errno == EROFS) {
+        dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+        if (dp->fdesc < 0) {
+          error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          leavedos(26);
+        } else {
+          dp->rdonly = 1;
+          d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
+        }
+      } else {
+        error("ERROR: can't open %s: %s\n", dp->dev_name, strerror(errno));
+        leavedos(26);
+      }
+    else dp->rdonly = dp->wantrdonly;
     dp->removeable = 0;
-    if (dp->fdesc < 0) {
-      error("ERROR: can't open %s\n", dp->dev_name);
-      leavedos(26);
-    }
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
        May only work on WD compatible disks (MFM/RLL/ESDI/IDE). */

@@ -13,12 +13,15 @@
  * DANG_END_MODULE
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/10/14 17:58:38 $
  * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 2.5  1994/10/14  17:58:38  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.4  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *
@@ -131,7 +134,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.4 1994/09/26 23:10:13 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 2.5 1994/10/14 17:58:38 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -836,6 +839,7 @@ xms_move_EMB(void)
 
   x_printf("XMS move extended memory block\n");
   show_emm(e);
+  LWORD(eax) = 1;		/* start with success */
 
   if (e.SourceHandle == 0) {
     src = (char *) (((e.SourceOffset >> 16) << 4) + \
@@ -845,6 +849,12 @@ xms_move_EMB(void)
     if (handles[e.SourceHandle].valid == 0)
       error("XMS: invalid source handle\n");
     src = handles[e.SourceHandle].addr + e.SourceOffset;
+    if (((unsigned long int)handles[e.SourceHandle].addr + handles[e.SourceHandle].size) <
+        ((unsigned long int)src + e.Length) ) {
+      e.Length = (unsigned long int)handles[e.SourceHandle].addr + handles[e.SourceHandle].size - (unsigned long int)src;
+      LWORD(eax) = 0;
+      LO(bx) = 0xa7;		/* invalid Length */
+    }
   }
 
   if (e.DestHandle == 0) {
@@ -855,13 +865,18 @@ xms_move_EMB(void)
     if (handles[e.DestHandle].valid == 0)
       error("XMS: invalid dest handle\n");
     dest = handles[e.DestHandle].addr + e.DestOffset;
+    if (((unsigned long int)handles[e.DestHandle].addr + handles[e.DestHandle].size) <
+        ((unsigned long int)dest + e.Length) ) {
+      e.Length = (unsigned long int)handles[e.DestHandle].addr + handles[e.DestHandle].size - (unsigned long int)dest;
+      LWORD(eax) = 0;
+      LO(bx) = 0xa7;		/* invalid Length */
+    }
   }
 
   x_printf("XMS: block move from %p to %p len 0x%lx\n",
 	   (void *) src, (void *) dest, e.Length);
 
   memmove(dest, src, e.Length);
-  LWORD(eax) = 1;		/* success */
 
   x_printf("XMS: block move done\n");
 

@@ -1,5 +1,42 @@
+Fri Oct 14 1994 JES
+
+-	Release pre53_27.tgz
+-	Small patch to int10.c so that recursive calls to char_out()
+	for tab's doesn't become and endless loop :-(
+-	Patch from Dino Dini to get that -F option working again.
+-	Patch to emu.c to make clean compiles without X.
+-	Added adder var to timer code so that 2 reads don't return
+	the same number.
+-	More I'm sure... But I forget :-(.
+
+Mon Oct 10 1994 JES
+
+-	vinod@cse.iitb.ernet.in (Vinod G Kulkarni) has added multiple
+	protocal/sessions under DOSEMU via dosnet (dsn0) device. Requires
+	reading of ./dosnet/dosnet.README, loading the dosnet.o module,
+	ifconfig'ing it with a new IP, and running ipxbridge (ipxbridge0.1).
+
+
+Sat Oct 07 1994 JES
+
+-	andi@andiunx.m.isar.de (Andreas Kies) added the catch for 
+	keystate to HogThreshold. Seems to be a great help for keeping
+	CPU usage down.
+
+Fri Oct 07 1994 JES
+
+-	Removed SIGIO for PS2 and busmice.
+
+Wed Oct 05 1994 JES
+
+-	Even better Configure script from Jan.
+-	Diffs from Martin.
+-	Changed Extended Move Block call in xms.c to not move outside
+	(from/to) of valid memory.
+
 Tue Oct 04 1994 JES
 
+-	pre53_26 released.
 -	Added in some timer code from MACH for Scott to play with.
 	NOTE ****** This is scary stuff so beware of this release
 	as the code WILL get direct access of certain ports :-(.

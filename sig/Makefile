@@ -7,11 +7,16 @@
 
 CC   = gcc
 LD   = ld
-USRSRCDIR=/usr/src
+
 
 # If INCDIR exists, it was exported from the master Makefile.
 ifndef INCDIR
   INCDIR=-I/usr/include/ncurses -I../include -I..
+endif
+
+# If LINUX_INCLUDE exists, it was exported from the master Makefile.
+ifndef LINUX_INCLUDE 
+LINUX_INCLUDE = /usr/src/linux/include
 endif
 
 # let gcc do extended checking
@@ -21,9 +26,9 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = 
+CFILES = int.c
 HFILES = 
-OFILES = Makefile.kernel HowTo int.c mem.c
+OFILES = Makefile.kernel HowTo mem.c
 
 # Insert all source- and header-files here.
 
@@ -31,7 +36,7 @@ ALL = $(CFILES) $(HFILES) $(OFILES)
 
 # All object-files are included here.
 
-OBJS = exit.o fcntl.o
+OBJS = 
 
 .c.o:
 	$(CC) $(CFLAGS) $(XDEFS) $(INCDIR) -c $<
@@ -39,8 +44,8 @@ OBJS = exit.o fcntl.o
 all: sillyint.o
 
 
-sillyint.o:    int.c  $(USRSRCDIR)/linux/tools/version.h
-	$(CC) -m486 -Wall -I$(USRSRCDIR) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o sillyint.o
+sillyint.o:    int.c  $(LINUX_INCLUDE)/../tools/version.h
+	$(CC) -m486 -Wall -I$(LINUX_INCLUDE) -DMAKE_LOADABLE_MODULE int.c -c -O6 -D__KERNEL__ -DLINUX -o sillyint.o
 
 checkin:
 	-ci $(ALL) Makefile

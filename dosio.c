@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/10/14 17:58:38 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.10  1994/10/14  17:58:38  root
+ * Prep for pre53_27.tgz
+ *
  * Revision 2.9  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *
@@ -423,7 +426,14 @@ io_select(fd_set fds)
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
 
-  switch ((selrtn = select(15, &fds, NULL, NULL, &tvptr))) {
+  while ( ((selrtn = select(15, &fds, NULL, NULL, &tvptr)) == -1)
+        && (errno == EINTR)) {
+    tvptr.tv_sec=0L;
+    tvptr.tv_usec=0L;
+    error("ERROR: interrupted io_select: %s\n", strerror(errno));
+  }
+
+  switch (selrtn) {
     case 0:			/* none ready, nothing to do :-) */
       return;
       break;
