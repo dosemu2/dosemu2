@@ -429,7 +429,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 "      ljmp   *%%cs:%3\n"
 "   dpmi_switch_return:"
     : "=a"(ret), "=m"(emu_stack_frame)
-    : "m"(dpmi_context), "m"(dpmi_switch_jmp)
+    : "d"(dpmi_context), "m"(dpmi_switch_jmp)
   );
   return ret;
 }
