@@ -2897,7 +2897,8 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 #if EXC_TO_PM_INT
     /* Route the exception to protected-mode interrupt handler or
      * terminate the client if the one is not installed. */
-    if (DPMI_CLIENT.Interrupt_Table[trapno].selector == DPMI_CLIENT.DPMI_SEL) {
+    if (trapno == 6 || trapno >= 8 ||
+      DPMI_CLIENT.Interrupt_Table[trapno].selector == DPMI_CLIENT.DPMI_SEL) {
 	p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
 	  "It is likely that dosemu is unstable now and should be rebooted\n",
 	  trapno);
