@@ -361,7 +361,7 @@ void matrox_save_ext_regs(u_char xregs[], u_short xregs16[])
 
 void vga_init_matrox(void)
 {
-  if (config.pci && config.pci_video && matroxProbe()) {
+  if (config.pci_video && matroxProbe()) {
 
         if (MGAchipset==PCI_CHIP_MGA2064) {
 	  save_ext_regs = matrox_save_ext_regs;

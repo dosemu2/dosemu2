@@ -8,10 +8,9 @@
  * SIDOC_BEGIN_MODULE
  *
  * Description: PCI configuration space access
- * currently used only by the Matrox video driver
+ * (only configuration mechanism 1 is fully implemented so far)
+ * used by the console video drivers and the PCI BIOS
  * 
- * Maintainers: Alberto Vignani (vignani@tin.it)
- *
  * SIDOC_END_MODULE
  */
 
@@ -38,16 +37,15 @@ int (*pci_read_header) (unsigned char bus, unsigned char device,
  */
 int pci_check_conf(void)
 {
-    unsigned long save, val;
-    
+    unsigned long val;
+
     if (priv_iopl(3)) {
       error("iopl(): %s\n", strerror(errno));
       return 0;
     }
-    save = port_real_ind(PCI_CONF_ADDR);
     port_real_outd(PCI_CONF_ADDR,PCI_EN);
     val = port_real_ind(PCI_CONF_ADDR);
-    port_real_outd(PCI_CONF_ADDR, save);
+    port_real_outd(PCI_CONF_ADDR, 0);
     priv_iopl(0);
     if (val == PCI_EN)
 	return 1;
@@ -55,14 +53,14 @@ int pci_check_conf(void)
 	return 0;
 }
 
-
+/* only called from pci bios init */
 int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
 	unsigned char fn, unsigned long *buf)
 {
   int i;
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
                       PCI_EN;
-  
+
 
   if (priv_iopl(3)) {
     error("iopl(): %s\n", strerror(errno));
@@ -72,10 +70,58 @@ int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
 	port_real_outd (PCI_CONF_ADDR, bx|(i<<2));
 	buf[i] = port_real_ind (PCI_CONF_DATA);
   }
+  port_real_outd (PCI_CONF_ADDR, 0);
   priv_iopl(0);
   return 0;
 }
 
+unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
+	unsigned char fn, unsigned long reg)
+{
+  unsigned long val;
+  unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
+                      PCI_EN;
+
+  if (can_do_root_stuff) {
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return 0;
+    }
+    port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
+    val = port_real_ind (PCI_CONF_DATA);
+    port_real_outd (PCI_CONF_ADDR, 0);
+    priv_iopl(0);
+  } else {
+    std_port_outd (PCI_CONF_ADDR, bx | (reg & ~3));
+    val = std_port_ind (PCI_CONF_DATA);
+    std_port_outd (PCI_CONF_ADDR, 0);
+  }
+  return val;
+}
+
+void pci_write_cfg1 (unsigned char bus, unsigned char device,
+	unsigned char fn, unsigned long reg, unsigned long val)
+{
+  unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
+                      PCI_EN;
+
+  if (can_do_root_stuff) {
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return;
+    }
+    port_real_outd (PCI_CONF_ADDR, bx | (reg & ~3));
+    port_real_outd (PCI_CONF_DATA, val);
+    port_real_outd (PCI_CONF_ADDR, 0);
+    priv_iopl(0);
+  } else {
+    std_port_outd (PCI_CONF_ADDR, bx | (reg & ~3));
+    std_port_outd (PCI_CONF_DATA, val);
+    std_port_outd (PCI_CONF_ADDR, 0);
+  }
+}
+
+/* only called from pci bios init */
 int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
 			     unsigned char fn)
 {
@@ -89,6 +135,7 @@ int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
     }
     port_real_outd (PCI_CONF_ADDR, bx);
     val = port_real_ind (PCI_CONF_DATA);
+    port_real_outd (PCI_CONF_ADDR, 0);
     priv_iopl(0);
 
     if (val == 0xFFFFFFFF)
@@ -97,6 +144,7 @@ int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
 	return 1;
 }
 
+/* only called from pci bios init */
 int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
 			  unsigned char fn, unsigned long *buf)
 {
@@ -106,16 +154,62 @@ int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
     error("iopl(): %s\n", strerror(errno));
     return 0;
   }
-  port_real_outb(PCI_MODE2_ENABLE_REG,0xF1);
-  port_real_outb(PCI_MODE2_FORWARD_REG,bus);
+  port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+  port_real_outb(PCI_MODE2_FORWARD_REG, bus);
   for (i=0; i<64; i++) {
-	buf[i] = port_real_ind ((device << 8) + i);
+	buf[i] = port_real_ind (0xc000 | (device << 8) | (i << 2));
   }
   port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
   priv_iopl(0);
   return 0;
 }
 
+unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
+			  unsigned char fn, unsigned long num)
+{
+  unsigned long val;
+  
+  if (can_do_root_stuff) {
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return 0;
+    }
+    port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+    port_real_outb(PCI_MODE2_FORWARD_REG, bus);
+    val = port_real_ind (0xc000 | (device << 8) | num);
+    port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    priv_iopl(0);
+  } else {
+    std_port_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+    std_port_outb(PCI_MODE2_FORWARD_REG, bus);
+    val = std_port_ind (0xc000 | (device << 8) | num);
+    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
+  }
+  return val;
+}
+
+void pci_write_cfg2 (unsigned char bus, unsigned char device,
+		unsigned char fn, unsigned long num, unsigned long val)
+{
+  if (can_do_root_stuff) {
+    if (priv_iopl(3)) {
+      error("iopl(): %s\n", strerror(errno));
+      return;
+    }
+    port_real_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+    port_real_outb(PCI_MODE2_FORWARD_REG, bus);
+    port_real_outd (0xc000 | (device << 8) | num, val);
+    port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    priv_iopl(0);
+  } else {
+    std_port_outb(PCI_MODE2_ENABLE_REG, (fn << 1) | 0xF0);
+    std_port_outb(PCI_MODE2_FORWARD_REG, bus);
+    std_port_outd (0xc000 | (device << 8) | num, val);
+    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
+  }
+}
+
+/* only called from pci bios init */
 int pci_check_device_present_cfg2(unsigned char bus, unsigned char device)
 {
     unsigned long val;
@@ -136,70 +230,21 @@ int pci_check_device_present_cfg2(unsigned char bus, unsigned char device)
 	return 1;
 }
 
-static unsigned int wcf8_pend = 0;
-
-static void chk_pend(void)
-{
-    if (wcf8_pend) {
-	std_port_outd(0xcf8,wcf8_pend);
-	wcf8_pend=0;	/* clear at least bit 31 */
-    }
-}
-
 static Bit8u pci_port_inb(ioport_t port)
 {
-	chk_pend();
+    if (port != 0xcf9)
 	return std_port_inb(port);
+    return 0;
 }
 
 static void pci_port_outb(ioport_t port, Bit8u byte)
 {
-	chk_pend();
-	std_port_outb(port,byte);
+    /* don't allow DOSEMU to reset the CPU */
+    if (port != 0xcf9)
+	std_port_outb(port, byte);
 }
 
-static Bit16u pci_port_inw(ioport_t port)
-{
-	chk_pend();
-	return std_port_inw(port);
-}
-
-static void pci_port_outw(ioport_t port, Bit16u value)
-{
-	chk_pend();
-	std_port_outw(port,value);
-}
-
-static Bit32u pci_port_ind(ioport_t port)
-{
-	chk_pend();
-	return std_port_ind(port);
-}
-
-/* SIDOC_BEGIN_FUNCTION pci_read_header
- *
- * 32-bit I/O port output on PCI ports (0xcf8=addr,0xcfc=data)
- * Optimization: trap the config writes (outd 0xcf8 with bit31=1).
- * Since this kind of access is always followed by another R/W access
- * to port 0xcfc, we can just set it as pending and merge it with the
- * following operation, saving two calls to priv_iopl().
- *
- * SIDOC_END_FUNCTION
- */
-static void pci_port_outd(ioport_t port, Bit32u value)
-{
-	if ((port==0xcf8)&&(value&PCI_EN)&&(!wcf8_pend)) {
-		wcf8_pend=value;
-		if (debug_level('i')>3) i_printf("PCICFG: %08x pending\n", value);
-	}
-	else {
-		chk_pend();
-		std_port_outd(port,value);
-	}
-}
-
-
-/* SIDOC_BEGIN_FUNCTION pci_read_header
+/* SIDOC_BEGIN_FUNCTION pci_setup
  *
  * Register standard PCI ports 0xcf8-0xcff
  *
@@ -210,13 +255,14 @@ int pci_setup (void)
   emu_iodev_t io_device;
 
   if (config.pci) {
+    pcibios_init();
     /* register PCI ports */
     io_device.read_portb = pci_port_inb;
     io_device.write_portb = pci_port_outb;
-    io_device.read_portw = pci_port_inw;
-    io_device.write_portw = pci_port_outw;
-    io_device.read_portd = pci_port_ind;
-    io_device.write_portd = pci_port_outd;
+    io_device.read_portw = std_port_inw;
+    io_device.write_portw = std_port_outw;
+    io_device.read_portd = std_port_ind;
+    io_device.write_portd = std_port_outd;
     io_device.irq = EMU_NO_IRQ;
     io_device.fd = -1;
   
@@ -226,4 +272,165 @@ int pci_setup (void)
     port_register_handler(io_device, 0);
   }
   return 0;
+}
+
+/* basic r/o PCI emulation, enough for VGA-style classes */
+
+/* sets the pci record if the bdf changes */
+static pciRec *set_pcirec(unsigned short bdf)
+{
+  /* cached pci record */
+  static pciRec *pcirec;
+  pciRec *pci = pcirec;
+
+  if (pci == NULL || bdf != pci->bdf) {
+    pci = pcibios_find_bdf(bdf);
+    if(pci != NULL)
+      pcirec = pci;
+  }
+  return pci;
+}
+
+static unsigned long
+emureadPciCfg1(unsigned long reg)
+{
+  unsigned long val;
+  unsigned short bdf;
+  pciRec *pci;
+
+  if (!(reg & PCI_EN))
+    return 0xffffffff;
+  bdf = (reg >> 8) & 0xffff;
+  pci = set_pcirec(bdf);
+  if (pci == NULL)
+    return 0xffffffff;
+  val = pci->header[(reg & 0xfc) >> 2];
+  Z_printf("PCIEMU: reading 0x%lx from 0x%lx\n",val,reg);
+  return val;
+}
+
+static void
+emuwritePciCfg1(unsigned long reg, unsigned long val)
+{
+  unsigned short bdf;
+  pciRec *pci;
+
+  if (!(reg & PCI_EN) || reg == PCI_EN)
+    return;
+  bdf = (reg >> 8) & 0xffff;
+  pci = set_pcirec(bdf);
+  if (pci == NULL)
+    return;
+  reg &= 0xfc;
+  if ((pci->header[3] & 0x007f0000) == 0) {
+    if (reg >= PCI_BASE_ADDRESS_0 && reg <= PCI_BASE_ADDRESS_5)
+      val &= pci->region[reg - PCI_BASE_ADDRESS_0].rawsize;
+    if (reg == PCI_ROM_ADDRESS) 
+      val &= pci->region[6].rawsize;
+  }
+  Z_printf("PCIEMU: writing 0x%lx to 0x%lx\n",val,reg);
+  pci->header[reg >> 2] = val;
+}
+
+static unsigned long current_pci_reg;
+
+static Bit8u pciemu_port_inb(ioport_t port)
+{
+  /* 0xcf8 -- 0xcfb as bytes or words don't access sub-parts;
+     for instance writing to 0xcf9 as a byte may reset the CPU */
+  if (port == 0xcf9) /* TURBO/RESET control register */
+    return 0;
+  if (port < PCI_CONF_DATA)
+    return 0xff;
+  return readPci((port & 0xfffc) >> ((port & 0x3) << 3)) & 0xff;
+}
+
+static void pciemu_port_outb(ioport_t port, Bit8u byte)
+{
+  unsigned long val;
+  int shift;
+  
+  if (port < PCI_CONF_DATA)
+    return;
+  val = readPci(current_pci_reg);
+  shift = (port & 0x3) << 3;
+  val &= ~(unsigned long)(0xff << shift);
+  val |= byte << shift;
+  writePci(current_pci_reg, val);
+}
+
+static Bit16u pciemu_port_inw(ioport_t port)
+{
+  if (port < PCI_CONF_DATA)
+    return 0xffff;
+  return readPci((port & 0xfffd) >> ((port & 0x2) << 3)) & 0xffff;
+}
+
+static void pciemu_port_outw(ioport_t port, Bit16u value)
+{
+  unsigned long val;
+  int shift;
+
+  if (port < PCI_CONF_DATA)
+    return;
+  shift = (port & 0x2) << 3;
+  val = readPci(current_pci_reg);
+  val &= ~(unsigned long)(0xffff << shift);
+  val |= value << shift;
+  writePci(current_pci_reg, val);
+}
+
+static Bit32u pciemu_port_ind(ioport_t port)
+{
+  if (port == PCI_CONF_DATA)
+    return readPci(current_pci_reg);
+  if (port == PCI_CONF_ADDR)
+    return current_pci_reg;
+  return 0xffffffff;
+}
+
+static void pciemu_port_outd(ioport_t port, Bit32u value)
+{
+  if (port == PCI_CONF_ADDR)
+    current_pci_reg = value;
+  else if (port == PCI_CONF_DATA)
+    writePci(current_pci_reg, value);
+}
+
+/* set up emulated r/o PCI config space for the given class */
+pciRec *pciemu_setup(unsigned long class)
+{
+  static int pciemu_initialized = 0;
+  pciRec *pci;
+
+  if (!pciemu_initialized)
+    pcibios_init();
+  pci = pcibios_find_class(class, 0);
+  if (pci == NULL)
+    return pci;
+  pci->enabled = 1;
+  if (!pciemu_initialized) {
+    emu_iodev_t io_device;
+
+    /* register PCI ports */
+    io_device.read_portb = pciemu_port_inb;
+    io_device.write_portb = pciemu_port_outb;
+    io_device.read_portw = pciemu_port_inw;
+    io_device.write_portw = pciemu_port_outw;
+    io_device.read_portd = pciemu_port_ind;
+    io_device.write_portd = pciemu_port_outd;
+    io_device.irq = EMU_NO_IRQ;
+    io_device.fd = -1;
+
+    io_device.handler_name = "PCI Emulated Config";
+    io_device.start_addr = PCI_CONF_ADDR;
+    io_device.end_addr = PCI_CONF_DATA+3;
+    port_register_handler(io_device, 0);
+
+    readPci = emureadPciCfg1;
+    writePci = emuwritePciCfg1;
+
+    pciemu_initialized = 1;
+  }
+  return pci;
 }

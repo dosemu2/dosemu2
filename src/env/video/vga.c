@@ -29,6 +29,8 @@
 #include "matrox.h"
 #include "wdvga.h"
 #include "sis.h"
+#include "pci.h"
+#include "mapping.h"
 #ifdef USE_SVGALIB
 #include "svgalib.h"
 #endif
@@ -412,6 +414,56 @@ void restore_vga_state(struct video_save_struct *save_regs)
   v_printf("Restore_vga_state complete\n");
 }
 
+static void pcivga_init(void)
+{
+  unsigned long base, size;
+  int i;
+  pciRec *pcirec;
+
+  if (!config.pci)
+    /* set up emulated r/o PCI config space, enough
+       for VGA BIOSes to use */
+    pcirec = pciemu_setup(PCI_CLASS_DISPLAY_VGA << 8);
+  else
+    pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
+  if (!pcirec) {
+    /* only set pci_video=0 if no PCI is available. Otherwise
+       it's set by default */
+    config.pci_video = 0;
+    return;
+  }
+  v_printf("PCIVGA: found PCI device, bdf=%#x\n", pcirec->bdf);
+  for (i = 0; i < 6; i++) {
+    base = pcirec->region[i].base;
+    if (!base)
+      continue;
+    size = pcirec->region[i].size;
+    if (pcirec->region[i].type == PCI_BASE_ADDRESS_SPACE_IO) {
+      emu_iodev_t io_device;
+      v_printf("PCIVGA: found IO region at %#lx [%#lx]\n",
+	       base, size);
+
+      /* register PCI VGA ports */
+      io_device.irq = EMU_NO_IRQ;
+      io_device.fd = -1;
+      io_device.handler_name = "std port io";
+      io_device.start_addr = base;
+      io_device.end_addr = base + size;
+      port_register_handler(io_device, PORT_FAST);
+    } else {
+      char *vbase;
+      v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n",
+	       base, size);
+      alloc_mapping(MAPPING_VC | MAPPING_KMEM, size,
+		    (void*)base);
+      vbase = mmap_mapping(MAPPING_VC|MAPPING_KMEM,(void*)-1,
+			   size, PROT_READ | PROT_WRITE,
+			   (void *)base);
+      pcirec->region[i].vbase = (unsigned long)vbase;
+    }
+  }
+}
+
 int vga_initialize(void)
 {
   Video_console.priv_init();
@@ -427,6 +479,9 @@ int vga_initialize(void)
   set_bank_write = set_bank_write_dummy;
   ext_video_port_in = dummy_ext_video_port_in;
   ext_video_port_out = dummy_ext_video_port_out;
+
+  if (config.pci_video)
+    pcivga_init();
 
   switch (config.chipset) {
   case TRIDENT:

@@ -49,8 +49,29 @@
 #define PCI_MODE2_FORWARD_REG 0xCFA
 #define PCI_MODE2_ENABLE_REG 0xCF8
 
+typedef struct _pciRec {
+    int enabled;
+    unsigned short bdf;
+    unsigned short vendor;
+    unsigned short device;
+    unsigned long class;
+    struct {
+        int type;
+        unsigned long base;
+        unsigned long vbase;
+        unsigned long size;
+        unsigned long rawsize;
+    } region[7];
+    unsigned long header[64];
+    struct _pciRec *next;
+} pciRec, *pciPtr;
+
 void pci_bios(void);
 int pcibios_init(void);
+pciRec *pcibios_find_class(unsigned long class,  int num);
+pciRec *pcibios_find_bdf(unsigned short bdf);
+extern unsigned long (*readPci)(unsigned long reg);
+extern void (*writePci)(unsigned long reg, unsigned long val);
 
 int pci_check_conf(void);
 
@@ -59,14 +80,23 @@ int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
 
 int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
 	unsigned char fn, unsigned long *buf);
+unsigned long pci_read_cfg1 (unsigned char bus, unsigned char device,
+	unsigned char fn, unsigned long reg);
+void pci_write_cfg1 (unsigned char bus, unsigned char device,
+	unsigned char fn, unsigned long reg, unsigned long val);
 
 int pci_check_device_present_cfg2(unsigned char bus, unsigned char device);
 
 int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
 			  unsigned char fn, unsigned long *buf);
+unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
+			  unsigned char fn, unsigned long num);
+void pci_write_cfg2 (unsigned char bus, unsigned char device,
+		unsigned char fn, unsigned long num, unsigned long val);
 
 extern int (*pci_read_header) (unsigned char bus, unsigned char device,
 			       unsigned char fn, unsigned long *buf);
 int pci_setup (void);
+pciRec *pciemu_setup(unsigned long class);
 
 #endif /* DOSEMU_PCI_H */

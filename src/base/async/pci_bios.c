@@ -12,10 +12,10 @@
  */
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include "pci.h"
 #include "emu.h"
 #include "cpu.h"
-#include "port.h"
 
 #define PCI_VERSION 0x0210  /* version 2.10 */
 #define PCI_CONFIG_1 0x01 
@@ -34,14 +34,6 @@
 #define PCI_BRIDGE_HOST_CLASS(class) ((class & PCI_SUBCLASS_MASK) \
                                        == PCI_SUBCLASS_BRIDGE_HOST)
 				     
-typedef struct _pciRec {
-    unsigned short bdf;
-    unsigned short vendor;
-    unsigned short device;
-    unsigned long class;
-    struct _pciRec *next;
-} pciRec, *pciPtr;
-
 /* variables get initialized by pcibios_init() */
 static pciPtr pciList = NULL;
 static int pciConfigType = 0;
@@ -60,8 +52,8 @@ static void writePciCfg1(unsigned long reg, unsigned long val);
 static unsigned long readPciCfg2(unsigned long reg);
 static void writePciCfg2(unsigned long reg, unsigned long val);
 
-static unsigned long (*readPci)(unsigned long reg) = readPciCfg1;
-static void (*writePci)(unsigned long reg, unsigned long val) = writePciCfg1;
+unsigned long (*readPci)(unsigned long reg) = readPciCfg1;
+void (*writePci)(unsigned long reg, unsigned long val) = writePciCfg1;
 
 
 static void write_dword(unsigned short loc,
@@ -183,8 +175,7 @@ pcibios_init(void)
     int cardnum;
 
     pcibuses[0] = 0;
-    
-    if (!config.pci) return 0;
+
     Z_printf("PCI enabled\n");
     
     pciConfigType = pci_check_conf();
@@ -242,7 +233,7 @@ findDevice(unsigned short device, unsigned short vendor, int num)
 
     Z_printf("PCIBIOS: find device %d id=%04x vend=%04x", num,device,vendor);
     while (pci) {
-	if ((pci->vendor == vendor) && (pci->device == device)) {
+	if ((pci->vendor == vendor) && (pci->device == device) && pci->enabled) {
 	    if (num-- == 0) {
 		Z_printf(" at: %04x\n",pci->bdf);
 		return pci->bdf;
@@ -254,8 +245,7 @@ findDevice(unsigned short device, unsigned short vendor, int num)
     return 0xffff;
 }
 
-static unsigned short
-findClass(unsigned long class,  int num)
+pciRec *pcibios_find_class(unsigned long class,  int num)
 {
     pciPtr pci = pciList;
 
@@ -264,23 +254,49 @@ findClass(unsigned long class,  int num)
 	if ((pci->class & 0xFFFFFF) == (class & 0xFFFFFF)) {
 	    if (num-- == 0) {
 		Z_printf(" at: %04x\n",pci->bdf);
-		return pci->bdf;
+		return pci;
 	    }
 	}
 	pci=pci->next;
     }
     Z_printf(" not found\n");
-    return 0xffff;
+    return NULL;
+}
+
+pciRec *pcibios_find_bdf(unsigned short bdf)
+{
+    pciPtr pci = pciList;
+
+    Z_printf("pcibios find bdf %x ", bdf);
+    while (pci) {
+	if (pci->enabled && pci->bdf == bdf) {
+	    Z_printf("class: %lx\n",pci->class);
+	    return pci;
+	}
+	pci=pci->next;
+    }
+    Z_printf(" not found\n");
+    return NULL;
+}
+
+static unsigned short
+findClass(unsigned long class,  int num)
+{
+    pciPtr pci = pcibios_find_class(class, num);
+    return (pci && pci->enabled) ? pci->bdf : 0xffff;
 }
 
 static unsigned long
 readPciCfg1(unsigned long reg)
 {
     unsigned long val;
+
+    unsigned char bus = (reg >> 16) & 0xff;
+    unsigned char dev = (reg >> 11) & 0x1f;
+    unsigned char fn  = (reg >>  8) & 7;
+    unsigned char num = reg & 0xff;
     
-    std_port_outd(PCI_CONF_ADDR, reg);
-    val = std_port_ind(PCI_CONF_DATA);
-    std_port_outd(PCI_CONF_ADDR, 0);
+    val = pci_read_cfg1(bus, dev, fn, num);
     Z_printf("PCIBIOS: reading 0x%lx from 0x%lx\n",val,reg);
     return val;
 }
@@ -288,25 +304,26 @@ readPciCfg1(unsigned long reg)
 static void
 writePciCfg1(unsigned long reg, unsigned long val)
 {
+    unsigned char bus = (reg >> 16) & 0xff;
+    unsigned char dev = (reg >> 11) & 0x1f;
+    unsigned char fn  = (reg >>  8) & 7;
+    unsigned char num = reg & 0xff;
+
     Z_printf("PCIBIOS writing: 0x%lx to 0x%lx\n",val,reg);
-    std_port_outd(PCI_CONF_ADDR, reg);
-    std_port_outd(PCI_CONF_DATA,val);
-    std_port_outd(PCI_CONF_ADDR, 0);
+    pci_write_cfg1(bus, dev, fn, num, val);
 }
 
 static unsigned long
 readPciCfg2(unsigned long reg)
 {
     unsigned long val;
-    
+
     unsigned char bus = (reg >> 16) & 0xff;
     unsigned char dev = (reg >> 11) & 0x1f;
+    unsigned char fn  = (reg >>  8) & 7;
     unsigned char num = reg & 0xff;
     
-    std_port_outb(PCI_MODE2_ENABLE_REG, 0xF1);
-    std_port_outb(PCI_MODE2_FORWARD_REG, bus); 
-    val = std_port_ind((dev << 8) + num);
-    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    val = pci_read_cfg2(bus, dev, fn, num);
     Z_printf("PCIBIOS: reading 0x%lx from 0x%lx\n",val,reg);
     return val;
 }
@@ -316,13 +333,11 @@ writePciCfg2(unsigned long reg, unsigned long val)
 {
     unsigned char bus = (reg >> 16) & 0xff;
     unsigned char dev = (reg >> 11) & 0x1f;
+    unsigned char fn  = (reg >>  8) & 7;
     unsigned char num = reg & 0xff;
 
     Z_printf("PCIBIOS writing: 0x%lx to 0x%lx\n",val,reg);
-    std_port_outb(PCI_MODE2_ENABLE_REG, 0xF1);
-    std_port_outb(PCI_MODE2_FORWARD_REG, bus); 
-    std_port_outd((dev << 8) + num,val);
-    std_port_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    pci_write_cfg2(bus, dev, fn, num, val);
 }
 
 static void
@@ -354,7 +369,7 @@ write_byte(unsigned short loc,unsigned short reg,unsigned char byte)
     int shift = reg & 0x3;
 
     val = readPci(reg32);
-    val &= ~(unsigned long)(0xff << shift);
+    val &= ~(unsigned long)(0xff << (shift << 3));
     val |= byte << (shift << 3);
     writePci(reg32, val);
 }
@@ -397,11 +412,13 @@ static int
 interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 		   unsigned char dev, unsigned char func)
 {
-    int tmp;
-    
+    static char *typestr[] = { "MEM", "IO", "ROM" };
+    int tmp, i;
+
     pciPtr pciTmp = (pciPtr)malloc(sizeof(pciRec));
     pciTmp->next = pciList;
     pciList = pciTmp;
+    pciTmp->enabled = config.pci;
     pciTmp->bdf = pcibuses[busidx] << 8 | dev << 3 | func;
     pciTmp->vendor = pciheader[0] & 0xffff;
     pciTmp->device = pciheader[0] >> 16;
@@ -414,12 +431,51 @@ interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,int busidx,
 		pcibuses[++numbus] = tmp; /* secondary bus */
 	} else if (PCI_BRIDGE_HOST_CLASS(pciTmp->class)) {
 	    Z_printf("PCI-HOST bridge:\n");
+	    /* always enable for PCI emulation */
+	    pciTmp->enabled = 1;
 	    if (++hostbridges > 1) {/* HOST-PCI bridges*/
 		numbus++;
 		pcibuses[numbus] = numbus;
 	    }
 	}
     }
+    memcpy(pciTmp->header, pciheader, sizeof(*pciheader) * 64);
+    if ((pciheader[3] & 0x007f0000) == 0) for (i = 0; i < 7; i++) {
+	unsigned long mask, base, size, pci_val, pci_val1;
+	unsigned long reg = PCI_BASE_ADDRESS_0 + (i << 2);
+	int type;
+
+	memset(&pciTmp->region[i], 0, sizeof(pciTmp->region[i]));
+	if (i == 6) reg = PCI_ROM_ADDRESS;
+	pci_val = pci_read_cfg1(pcibuses[busidx], dev, func, reg);
+	if (pci_val == 0xffffffff || pci_val == 0)
+	    continue;
+	if (i == 6) {
+	    mask = PCI_ROM_ADDRESS_MASK;
+	    type = 2;
+	} else if (pci_val & PCI_BASE_ADDRESS_SPACE_IO) {
+	    mask = PCI_BASE_ADDRESS_IO_MASK & 0xffff;
+	    type = PCI_BASE_ADDRESS_SPACE_IO;
+	} else { /* memory */
+	    mask = PCI_BASE_ADDRESS_MEM_MASK;
+	    type = PCI_BASE_ADDRESS_SPACE_MEMORY;
+	}
+	base = pci_val & mask;
+	if (!base)
+	    continue;
+	pciTmp->region[i].base = base;
+	pciTmp->region[i].type = type;
+	pci_write_cfg1(pcibuses[busidx], dev, func, reg, 0xffffffff);
+	pci_val1 = pci_read_cfg1(pcibuses[busidx], dev, func, reg);
+	pci_write_cfg1(pcibuses[busidx], dev, func, reg, pci_val);
+	pciTmp->region[i].rawsize = pci_val1;
+	size = pci_val1 & mask;
+	size = (size & ~(size - 1)) - 1;
+	Z_printf("PCI: found %s region at %#lx [%#lx] (%lx,%lx)\n",
+		 typestr[type], base, size, pci_val, pci_val1);
+	pciTmp->region[i].size = size;
+    }
+
     Z_printf("bus:%li dev:%i func:%i vend:0x%x dev:0x%x"
 	     " class:0x%lx bdf:0x%x\n",pcibuses[busidx],
 	     dev,func,pciTmp->vendor,pciTmp->device,

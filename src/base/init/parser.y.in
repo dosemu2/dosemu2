@@ -1052,7 +1052,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		    {
 		    config.chipset = $2;
                     c_printf("CHIPSET: %d\n", $2);
-		    if ($2==MATROX) config.pci=config.pci_video=1;
+		    config.pci_video=1;
 		    }
 		| MEMSIZE expression	{ config.gfxmemsize = $2; }
 		| GRAPHICS

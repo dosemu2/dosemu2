@@ -79,6 +79,7 @@
 #include "dma.h"
 #include "timers.h"
 #include "userhook.h"
+#include "pci.h"
 
 #if X_GRAPHICS
 #include "vgaemu.h"
@@ -2020,20 +2021,45 @@ err:
     D_printf("DPMI: unimplemented int31 func %#x\n",_LWORD(eax));
     break;
 
-#if X_GRAPHICS
   case 0x0800: {
-      unsigned addr, size, lfb;
+      unsigned addr, size, i;
+      pciRec *pcirec;
 
-      lfb = vga.mem.lfb_base_page << 12;
       addr = (_LWORD(ebx)) << 16 | (_LWORD(ecx));
       size = (_LWORD(esi)) << 16 | (_LWORD(edi));
 
-      if((lfb && lfb == addr) || (addr == 0xa0000 && size == 0x10000)) {
+      D_printf("DPMI: Map Physical Memory, addr=%#08x size=%#x\n", addr, size);
+
+#if X_GRAPHICS
+      if (addr && addr == (vga.mem.lfb_base_page << 12)) {
         D_printf("DPMI: getting linear frame buffer at 0x%x, size 0x%x\n", addr, size);
         break;		/* physical == linear address in this case */
       }
-    }
 #endif
+
+      if (addr == 0xa0000 && size == 0x10000)
+        break;		/* physical == linear address in this case */
+
+      if (config.pci_video) {
+	pcirec = pcibios_find_class(PCI_CLASS_DISPLAY_VGA << 8, 0);
+	if (pcirec) for (i = 0; i < 7; i++) {
+	  if (pcirec->region[i].type == PCI_BASE_ADDRESS_SPACE_MEMORY &&
+	      pcirec->region[i].base <= addr &&
+	      addr < pcirec->region[i].base + pcirec->region[i].size) {
+	    size_t vbase = pcirec->region[i].vbase;
+	    vbase += addr - pcirec->region[i].base;
+	    _LWORD(ebx) = vbase >> 16;
+	    _LWORD(ecx) = vbase;
+	    D_printf("DPMI: getting PCI memory area at 0x%x, size 0x%x, "
+		     "ret=%#x:%#x\n",
+		     addr, size, _LWORD(ebx), _LWORD(ecx));
+	    return;
+	  }
+	}
+      }
+    }
+    _eflags |= CF;
+    break;
 
   default:
     D_printf("DPMI: unimplemented int31 func %#x\n",_LWORD(eax));
