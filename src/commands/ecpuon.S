@@ -5,7 +5,7 @@
 !
 
 ! turn CPU emulator ON
-! Alberto Vignani, vignani@mbox.vol.it
+! Alberto Vignani, vignani@mail.tin.it
 !
 
 .text

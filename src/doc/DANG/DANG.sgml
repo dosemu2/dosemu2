@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.97.10.5
+<date> version dosemu-0.99.4
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -285,7 +285,8 @@ These are the functions defined in base/init/init.c.
 
 <p>
  
-  Setup the dosemu amazing custom BIOS
+  Setup the dosemu amazing custom BIOS, quietly overwriting anything
+  was copied there before. Do not overwrite graphic fonts!
  
  
 
@@ -721,12 +722,12 @@ These are the functions defined in env/video/video.c.
 <p>
 These are the functions defined in env/video/X.c.
 
-<sect2>vga256_cmap_init
+<sect2>X_close
 
 
 <p>
  
- Allocates a colormap for 256 color modes and initializes it.
+ Initialize everything X-related.
 
  
 
@@ -736,7 +737,55 @@ These are the functions defined in env/video/X.c.
 
 <p>
  
-  Destroys the window, unloads font, pixmap and colormap.
+ Destroy the window, unload font, pixmap and colormap.
+
+ 
+
+
+<sect2>X_shm_init
+
+
+<p>
+ 
+ Check availability of the MIT-SHM shared memory extension.
+
+ 
+
+
+<sect2>X_shm_init
+
+
+<p>
+ 
+ Turn off usage of the MIT-SHM shared memory extension.
+
+ 
+
+
+<sect2>X_handle_events
+
+
+<p>
+ 
+ Handle pending X events (called from SIGALRM handler).
+
+ 
+
+
+<sect2>graphics_cmap_init
+
+
+<p>
+ 
+ Allocate a colormap for graphics modes and initialize it.
+ Do mostly nothing on true color displays.
+ Otherwise, do:
+   - if colormaps have less than 256 entries (notably 16 or 2 colors),
+     don't use a private colormap
+   - if a shared map is requested and there are less than 36 colors (3/4/3)
+     available, use a private colormap
+
+ Note: Text modes always use the screen's default colormap.
 
  
 
@@ -746,38 +795,10 @@ These are the functions defined in env/video/X.c.
 
 <p>
  
-  Resizes the window, also the graphical sizes/video modes.
-  remember the dos videomodi
+ Set the video mode. Note that the mode is taken from
+ the global variable &dquot;video_mode&dquot;.
 
  
-
-
-<sect2>X_change_mouse_cursor(void)
-
-
-<p>
-   
- This function seems to be called each screen_update :(
- It is called in base/mouse/mouse.c:mouse_cursor(int) a lot for show and 
- hide.
- 
-
-
-<sect2>X_redraw_screen
-
-
-<p>
- 
-  Redraws the entire screen, also in graphics mode
-  Used for expose events etc.
-
- returns: 
-  nothing
-
-<p>Arguments are:&nl;
-<itemize>
-<ITEM>   none
-</itemize>
 
 
 <sect2>X_update_screen
@@ -785,22 +806,31 @@ These are the functions defined in env/video/X.c.
 
 <p>
  
- Updates the X screen, in text mode and in graphics mode.
- Both text and graphics in X have to be smarter and improved.
-  
+ Update the part of the screen which has changed, in text mode
+ and in graphics mode. Usually called from the SIGALRM handler.
+
  X_update_screen returns 0 if nothing was updated, 1 if the whole
  screen was updated, and 2 for a partial update.
 
  It is called in arch/linux/async/signal.c::SIGALRM_call() as part
- of a struct video_system (see end of X.c) every 50 ms or
+ of a struct video_system (see top of X.c) every 50 ms or
  every 10 ms if 2 was returned, depending somewhat on various config
  options as e.g. config.X_updatefreq and VIDEO_CHECK_DIRTY.
  At least it is supposed to do that.
+
  
-<p>Arguments are:&nl;
-<itemize>
-<ITEM>  none
-</itemize>
+
+
+<sect2>X_change_mouse_cursor
+
+
+<p>
+ 
+ This function seems to be called each screen_update :(
+ It is called in base/mouse/mouse.c:mouse_cursor(int) a lot for
+ show and hide (changes the mouse cursor shape).
+
+ 
 
 
 <sect2>set_mouse_position
@@ -808,16 +838,9 @@ These are the functions defined in env/video/X.c.
 
 <p>
  
-  places the mouse on the right position
- Not tested in X with graphics
+ Place the mouse on the right position.
  
- returns: 
-  nothing
-
-<p>Arguments are:&nl;
-<itemize>
-<ITEM>  x,y - coordinates
-</itemize>
+ 
 
 
 <sect1>Remarks in env/video/X.c
@@ -1039,6 +1062,23 @@ These are the functions defined in env/video/vgaemu.c.
 </itemize>
 
 
+<sect2>changed_vga_colors
+
+
+<p>
+ 
+ Checks DAC and Attribute Controller to find all colors with
+ changed RGB-values.
+ Returns number of changed colors.
+ Note: the list _must_ be large enough, that is, have at least
+ min(256, (1 &lt;&lt; vga.pixel_size)) entries!
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  de - list of DAC entries to store changed colors in
+</itemize>
+
+
 <sect1>env/video/vesa.c Information
 
 <p>
@@ -1142,18 +1182,29 @@ These are the functions defined in env/video/attremu.c.
 <p>
  
  Initializes the attribute controller.
+ This is an interface function.
 
  
 
 
-<sect2>Attr_write_value
+<sect2>Attr_get_entry
 
 
 <p>
  
- Emulates writes to attribute controller combined index and data
- register. Read vgadoc3 for details.
- This is a hardware emulation function.
+ Directly reads the Attribute Controller's registers.
+ This is an interface function.
+
+ 
+
+
+<sect2>Attr_set_entry
+
+
+<p>
+ 
+ Directly sets the Attribute Controller's registers.
+ This is an interface function.
 
  
 
@@ -1169,6 +1220,18 @@ These are the functions defined in env/video/attremu.c.
  
 
 
+<sect2>Attr_write_value
+
+
+<p>
+ 
+ Emulates writes to attribute controller combined index and data
+ register. Read VGADOC for details.
+ This is a hardware emulation function.
+
+ 
+
+
 <sect2>Attr_get_index
 
 
@@ -1177,6 +1240,8 @@ These are the functions defined in env/video/attremu.c.
  Returns the current index of the attribute controller.
  This is a hardware emulation function, though in fact this function
  is undefined in a real attribute controller.
+ Well, it is exactly what my VGA board (S3) does. -- sw
+ This is a hardware emulation function.
 
  
 
@@ -1186,13 +1251,18 @@ These are the functions defined in env/video/attremu.c.
 
 <p>
  
+ Emulate input status &num;1 register. The essential part is to
+ simulate the retrace signals.
+ Clears the Attribute Controller's flip-flop.
+ This is a hardware emulation function.
+
  
 
 
 <sect1>env/video/dacemu.c Information
 
 <p>
- The DAC emulator for DOSemu.
+ The DAC emulator for DOSEMU.
 <sect1>Functions in env/video/dacemu.c
 
 <p>
@@ -1204,16 +1274,44 @@ These are the functions defined in env/video/dacemu.c.
 <p>
  
  Initializes the DAC.
+ It depends on a correct value in vga.pixel_size. This function should be
+ called during VGA mode initialization.
+ This is an interface function.
 
  
 
 
-<sect2>DAC_dirty_all
+<sect2>DAC_set_width
 
 
 <p>
  
- Dirty all DAC entries.  Usefull for a mode set.
+ Sets the DAC width. Typical values are 6 or 8 bits.
+ In theory, we support other values as well (untested).
+ This is an interface function.
+
+ 
+
+
+<sect2>DAC_get_entry
+
+
+<p>
+ 
+ Returns a complete DAC entry (r, g, b).
+ Don't forget to set DAC_entry.index first!
+ This is an interface function.
+
+ 
+
+
+<sect2>DAC_set_entry
+
+
+<p>
+ 
+ Sets a complete DAC entry (r,g,b).
+ This is an interface function.
 
  
 
@@ -1247,7 +1345,7 @@ These are the functions defined in env/video/dacemu.c.
  
  Read a value from the DAC. Each read will cycle through the registers for
  red, green and blue. After a ``blue read'' the read index will be 
- incremented. Read vgadoc3 if you want to know more about the DAC.
+ incremented. Read VGADOC4 if you want to know more about the DAC.
  This is a hardware emulation function.
 
  
@@ -1259,8 +1357,20 @@ These are the functions defined in env/video/dacemu.c.
 <p>
  
  Write a value to the DAC. Each write will cycle through the registers for
- red, green and blue. After a ``blue write'' the write index will be 
+ red, green and blue. After a ``blue write'' the write index will be
  incremented.
+ This is a hardware emulation function.
+
+ 
+
+
+<sect2>DAC_get_pel_mask
+
+
+<p>
+ 
+ Returns the current PEL mask. Note that changed_vga_colors() already
+ applies the PEL mask; so applications should not worry too much about it.
  This is a hardware emulation function.
 
  
@@ -1271,71 +1381,8 @@ These are the functions defined in env/video/dacemu.c.
 
 <p>
  
- Sets the pel mask and marks all DAC entries as dirty.
+ Sets the PEL mask and marks all DAC entries as dirty.
  This is a hardware emulation function.
-
- 
-
-
-<sect2>DAC_get_entry
-
-
-<p>
- 
- Returns a complete DAC entry (r,g,b). Color values are AND-ed with the
- pel mask.
- This is an interface function.
-
- 
-
-
-<sect2>DAC_read_entry
-
-
-<p>
- 
- Returns a complete DAC entry (r,g,b), doesn't un-dirty it.
- Color values are _not_ maked.
- This is an interface function.
-
- 
-
-
-<sect2>DAC_get_dirty_entry
-
-
-<p>
- 
- Searches the DAC_dirty list for the first dirty entry. Returns the 
- changed entrynumber and fills in the entry if a dirty entry is found or
- returns -1 otherwise.
- This is an interface function.
-
- 
-
-
-<sect2>DAC_set_entry
-
-
-<p>
- 
- Sets a complete DAC entry (r,g,b).
- This is an interface function for the int 10 handler.
-
- 
-
-
-<sect2>DAC_get_pel_mask
-
-
-<p>
- 
- Returns the current pel mask. Drawing functions should get the pel
- mask and AND it with the pixel values to get the correct pixel value.
- This is *very* slow to implement and fortunately this register is used
- very rare. Maybe the implementation should be in vgaemu, maybe in the
- vgaemu client...
- This is an interface function. 
 
  
 
@@ -1345,8 +1392,8 @@ These are the functions defined in env/video/dacemu.c.
 
 <p>
  
- Returns the current state of the DAC
- This is an interface function.
+ Returns the current state of the DAC.
+ This is a hardware emulation function.
 
  
 
@@ -1661,6 +1708,23 @@ These are the functions defined in env/video/vgaemu.c.
 <itemize>
 <ITEM>  page      - Number of the text page.
 <ITEM>  page_size - Size of one text page.
+</itemize>
+
+
+<sect2>changed_vga_colors
+
+
+<p>
+ 
+ Checks DAC and Attribute Controller to find all colors with
+ changed RGB-values.
+ Returns number of changed colors.
+ Note: the list _must_ be large enough, that is, have at least
+ min(256, (1 &lt;&lt; vga.pixel_size)) entries!
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  de - list of DAC entries to store changed colors in
 </itemize>
 
 
@@ -2542,6 +2606,39 @@ These are the functions defined in base/dev/misc/pci.c.
  
  There are (as yet) no guidelines on choosing areas for new functions.
  
+<sect1>dosext/drivers/aspi.c Information
+
+<p>
+<p><verb>
+ drivers/aspi.c - emulate the DOS ASPI programming interface using 
+		    the Linux generic SCSI driver (/dev/sg?)
+ basic aspi code shamelessly stolen from the wine
+ project aspi.c written by  Bruce Milner <Bruce.Milner@genetics.utah.edu>
+ 
+ hacked by         Karl Kiniger <ki@kretz.co.at>
+ further hacked by Hans Lermen <lermen@dosemu.org>
+
+ For now there are several limitations I am aware of:
+
+ - Residual byte length reporting not handled
+ - Only Linux supported so far
+ - SG_BIG_BUFF may need to be adjusted and the sg driver therefore be recompiled
+ - No posting routine possible - reentrancy needed for posting, since the
+   posting routine may call ASPI services
+ - Blocking read/write to/from /dev/sg? used
+ - Too few sense bytes returned (16 instead of 18). This is a limitiation
+     from the sg driver.
+ - SCSI timeout may need to be increased - formatting a DAT tape may take some time
+     set to 5 minutes for now.
+ - 'Direction' table very incomplete (see below)
+ - Debug output not well organized/formatted
+ - no access control for now
+ - Look at the various FIXME's
+ - all hostadapters are mapped to _one_ single seen by DOS,
+   but the targetID can be mapped differently.
+ - LUNs have to be equal for real and DOS seen ones, because we
+   don't translate the LUNs in the CDB.
+</verb>
 <sect>The CPU_Intel group of Modules
 
 <p>
@@ -2584,84 +2681,6 @@ These are the functions defined in emu-i386/cpu.c.
 <sect1>emu-i386/ports.c Information
 
 <p>
-<sect1>Functions in emu-i386/ports.c
-
-<p>
-These are the functions defined in emu-i386/ports.c.
-
-<sect2>inb
-
-
-<p>
- 
-  INB is used to do controlled emulation of input from ports.
-
-<p>Arguments are:&nl;
-<itemize>
-<ITEM>   port - port to input from.
-</itemize>
-
-
-<sect1>emu-i386/do_vm86.c Information
-
-<p>
-<sect1>Functions in emu-i386/do_vm86.c
-
-<p>
-These are the functions defined in emu-i386/do_vm86.c.
-
-<sect2>vm86_GP_fault
-
-
-<p>
- 
- All from the kernel unhandled general protection faults from V86 mode
- are handled here. This are mainly port IO and the HLT instruction.
-
- 
-
-
-<sect2>run_vm86
-
-
-<p>
- 
- Here is where DOSEMU runs VM86 mode with the vm86() call
- which also has the registers that it will be called with. It will stop
- vm86 mode for many reasons, like trying to execute an interrupt, doing
- port I/O to ports not opened for I/O, etc ...
- 
- 
-
-
-<sect1>Remarks in emu-i386/do_vm86.c
-
-<p>
- In a properly functioning emulator :-), sigsegv's will never come
- while in a non-reentrant system call (ioctl, select, etc).  Therefore,
- there's really no reason to worry about them, so I say that I'm NOT
- in a signal handler (I might make this a little clearer later, to
- show that the purpose of in_sighandler is to stop non-reentrant system
- calls from being reentered.
- I reiterate: sigsegv's should only happen when I'm running the vm86
- system call, so I really shouldn't be in a non-reentrant system call
- (except maybe vm86)
- - Robert Sanders
- 
------
-
- Here we handle all prefixes prior switching to the appropriate routines
- The exception CS:EIP will point to the first prefix that effects
- the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
- So we collect all prefixes and remember them.
- - Hans Lermen
- 
-<sect1>emu-i386/fake_cpu.c Information
-
-<p>
-<sect1>emu-i386/n_ports.c Information
-
-<p>
  This is the code that allows and disallows port access within DOSEMU.
  The BOCHS port IO code was actually very cleverly done.  So the idea
  was stolen from there.
@@ -2672,10 +2691,10 @@ These are the functions defined in emu-i386/do_vm86.c.
 
  Remains of the old code are emerging here and there, they will
  hopefully be moved back to where they belong, mainly video code.
-<sect1>Functions in emu-i386/n_ports.c
+<sect1>Functions in emu-i386/ports.c
 
 <p>
-These are the functions defined in emu-i386/n_ports.c.
+These are the functions defined in emu-i386/ports.c.
 
 <sect2>port_inb(ioport_t port)
 
@@ -2737,7 +2756,8 @@ These are the functions defined in emu-i386/n_ports.c.
  I don't know what to do of this stuff... it was added incrementally to
  port.c and has mainly to do with video code. This is not the right
  place for it...
- Anyway, this implements some HGC stuff for X
+ Anyway, this implements some HGC stuff for X and the emuretrace
+ port access for 0x3c0/0x3da
 
  
 
@@ -2801,7 +2821,7 @@ These are the functions defined in emu-i386/n_ports.c.
  
 
 
-<sect1>Remarks in emu-i386/n_ports.c
+<sect1>Remarks in emu-i386/ports.c
 
 <p>
 <p><verb>
@@ -2831,6 +2851,21 @@ These are the functions defined in emu-i386/n_ports.c.
  
 -----
 
+ This is the core of the new emuretrace algorithm:
+ If a read of port 0x3da is performed we just set it
+  as pending and set ioperm OFF for port 0x3c0
+ When a write to port 0x3c0 is then trapped, we perform
+  any pending read to 0x3da and reset the ioperm for
+  0x3c0 in the default ON state.
+ This way we avoid extra port accesses when the program
+ is only looking for the sync bits, and we don't miss
+ the case where the read to 0x3da is used to reset the
+ index/data flipflop for port 0x3c0. Futher accesses to
+ port 0x3c0 are handled at full speed.
+ 
+ 
+-----
+
  find out whether the port address request is available;
  this way, try to deny uncoordinated access
  
@@ -2851,7 +2886,7 @@ These are the functions defined in emu-i386/n_ports.c.
  code the device wasn't used, just locked, and only then
  port access was granted.
  
-<sect1>Items for Fixing in emu-i386/n_ports.c
+<sect1>Items for Fixing in emu-i386/ports.c
 
 <p>
  This stuff should be moved to video code!!
@@ -2864,6 +2899,66 @@ These are the functions defined in emu-i386/n_ports.c.
 
  we should free the name but we are going to exit anyway
 
+<sect1>emu-i386/do_vm86.c Information
+
+<p>
+<sect1>Functions in emu-i386/do_vm86.c
+
+<p>
+These are the functions defined in emu-i386/do_vm86.c.
+
+<sect2>vm86_GP_fault
+
+
+<p>
+ 
+ All from the kernel unhandled general protection faults from V86 mode
+ are handled here. This are mainly port IO and the HLT instruction.
+
+ 
+
+
+<sect2>run_vm86
+
+
+<p>
+ 
+ Here is where DOSEMU runs VM86 mode with the vm86() call
+ which also has the registers that it will be called with. It will stop
+ vm86 mode for many reasons, like trying to execute an interrupt, doing
+ port I/O to ports not opened for I/O, etc ...
+ 
+ 
+
+
+<sect1>Remarks in emu-i386/do_vm86.c
+
+<p>
+ In a properly functioning emulator :-), sigsegv's will never come
+ while in a non-reentrant system call (ioctl, select, etc).  Therefore,
+ there's really no reason to worry about them, so I say that I'm NOT
+ in a signal handler (I might make this a little clearer later, to
+ show that the purpose of in_sighandler is to stop non-reentrant system
+ calls from being reentered.
+ I reiterate: sigsegv's should only happen when I'm running the vm86
+ system call, so I really shouldn't be in a non-reentrant system call
+ (except maybe vm86)
+ - Robert Sanders
+ 
+-----
+
+ Here we handle all prefixes prior switching to the appropriate routines
+ The exception CS:EIP will point to the first prefix that effects
+ the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
+ So we collect all prefixes and remember them.
+ - Hans Lermen
+ 
+<sect1>emu-i386/fake_cpu.c Information
+
+<p>
+<sect1>emu-i386/n_ports.c Information
+
+<p>
 <sect1>emu-i386/cputime.c Information
 
 <p>

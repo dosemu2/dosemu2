@@ -9,7 +9,7 @@
  *
  * Description: New port handling code for DOSEMU
  * 
- * Maintainers: Alberto Vignani (vignani@mbox.vol.it)
+ * Maintainers: Alberto Vignani (vignani@mail.tin.it)
  *
  * REMARK
  * This is the code that allows and disallows port access within DOSEMU.

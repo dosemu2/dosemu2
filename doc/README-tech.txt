@@ -1,7 +1,7 @@
   DOSEmu Technical Guide
   The DOSEmu team, Edited by Alistair MacDonald  <alis-
   tair@slitesys.demon.co.uk>
-  For DOSEMU v0.97 pl3.0
+  For DOSEMU v0.99 pl4.0
 
   This document is the amalgamation of a series of technical README
   files which were created to deal with the lack of DOSEmu documenta-

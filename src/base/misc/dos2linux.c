@@ -160,7 +160,7 @@ static int fork_debug(void)
  * 3/10/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
  *  - fixed security hole
  *  - stderr output also to dosemu screen
- * 2/27/1997, Alberto Vignani (vignani@torino.alpcom.it):
+ * 2/27/1997, Alberto Vignani (vignani@mail.tin.it):
  *  - make it work (tested with 'ls -lR /' and 'updatedb &')
  *
  * DANG_BEGIN_FUNCTION run_unix_command

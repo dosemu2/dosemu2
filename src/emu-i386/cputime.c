@@ -11,7 +11,7 @@
  *
  * Functions used to get a monoton, 64-bit time value either from the
  * kernel (with gettimeofday()) or from the CPU hi-res timer
- * Maintainer: vignani@mbox.vol.it (Alberto Vignani)
+ * Maintainer: vignani@mail.tin.it (Alberto Vignani)
  * 
  * SIDOC_END_MODULE
  */

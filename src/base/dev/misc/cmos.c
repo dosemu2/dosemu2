@@ -10,7 +10,7 @@
  * Description: CMOS handling routines
  * 
  * Originally by Robert Sanders, gt8134b@prism.gatech.edu
- * New CMOS code by vignani@mbox.vol.it 1997-98
+ * New CMOS code by vignani@mail.tin.it 1997-98
  *
  * SIDOC_END_MODULE
  *

@@ -137,25 +137,25 @@ missing implementation of DMPI Call 0x0800, as Uwe Bonnes reported it
 once working on the console with some hack.
 
 <sect1>tasmx.exe 
-<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+<p>Reported by vignani@mail.tin.it (Alberto Vignani):
 Protected-mode version of the Borland Turbo Assembler. It crashes with
 "out of memory" at startup. I traced it at the assembly level, no result
 until now. Maybe a DPMI problem (97/03/04).
 
 <sect1>xaos.exe
-<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+<p>Reported by vignani@mail.tin.it (Alberto Vignani):
 Mandelbrot zoomer, version 2.2 under djgpp, using Allegro 2.1 library.
 Can be found on any simtelnet mirror (xaos22b.exe?)
 Any mouse movement (in console mode with a button pressed) crashes it
 (97/03/04).
 
 <sect1>QIC tape programs
-<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+<p>Reported by vignani@mail.tin.it (Alberto Vignani):
 Tape is not supported. Worse, if you use a floppy under dosemu, you
 have sometimes to remove/reinstall the ftape module.
 
 <sect1> Any program using SCSI
-<p>Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+<p>Reported by vignani@mail.tin.it (Alberto Vignani):
 
 No ASPI support until now(97/03/04).
 

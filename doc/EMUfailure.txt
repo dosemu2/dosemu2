@@ -173,32 +173,32 @@
 
   33..33..  ttaassmmxx..eexxee
 
-  Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
-  Protected-mode version of the Borland Turbo Assembler. It crashes with
-  "out of memory" at startup. I traced it at the assembly level, no
-  result until now. Maybe a DPMI problem (97/03/04).
+  Reported by vignani@mail.tin.it (Alberto Vignani): Protected-mode
+  version of the Borland Turbo Assembler. It crashes with "out of
+  memory" at startup. I traced it at the assembly level, no result until
+  now. Maybe a DPMI problem (97/03/04).
 
 
   33..44..  xxaaooss..eexxee
 
-  Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
-  Mandelbrot zoomer, version 2.2 under djgpp, using Allegro 2.1 library.
-  Can be found on any simtelnet mirror (xaos22b.exe?)  Any mouse
-  movement (in console mode with a button pressed) crashes it
-  (97/03/04).
+  Reported by vignani@mail.tin.it (Alberto Vignani): Mandelbrot zoomer,
+  version 2.2 under djgpp, using Allegro 2.1 library.  Can be found on
+  any simtelnet mirror (xaos22b.exe?)  Any mouse movement (in console
+  mode with a button pressed) crashes it (97/03/04).
 
 
   33..55..  QQIICC ttaappee pprrooggrraammss
 
-  Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani): Tape
-  is not supported. Worse, if you use a floppy under dosemu, you have
-  sometimes to remove/reinstall the ftape module.
+  Reported by vignani@mail.tin.it (Alberto Vignani): Tape is not
+  supported. Worse, if you use a floppy under dosemu, you have sometimes
+  to remove/reinstall the ftape module.
+
 
 
 
   33..66..  AAnnyy pprrooggrraamm uussiinngg SSCCSSII
 
-  Reported by alberto.vignani@torino.alpcom.it (Alberto Vignani):
+  Reported by vignani@mail.tin.it (Alberto Vignani):
 
   No ASPI support until now(97/03/04).
 

@@ -1,7 +1,7 @@
   DOSEmu
   The DOSEmu team Edited by Alistair MacDonald  <alis-
   tair@slitesys.demon.co.uk>
-  For DOSEMU v0.97 pl3.0
+  For DOSEMU v0.99 pl4.0
 
   This document is the amalgamation of a series of README files which
   were created to deal with the lack of DOSEmu documentation.
@@ -81,6 +81,7 @@
         2.1.10 Printers
         2.1.11 Networking under DOSEMU
         2.1.12 Sound
+        2.1.13 Builtin ASPI SCSI Driver
 
   3. Security
 
@@ -130,10 +131,12 @@
      11.3 Windows 3.x in xdos
 
   12. Mouse Garrot
+
   13. Running a DOS-application directly from Unix shell
 
      13.1 Using the keystroke and commandline options.
      13.2 Using an input file
+     13.3 Running DOSEMU within a cron job
 
   14. Setting HogThreshold
 
@@ -258,10 +261,12 @@
   disable all secure relevant feature. Setting `guest' will force set-
   ting `restricted' too.
 
+
   The use of `nosuidroot' will force a suid root dosemu binary to exit,
   the user may however use a non-suid root copy of the binary.  For more
   information on this look at README-tech, chapter 11.1 `Privileges and
   Running as User'
+
   Giving the keyword `private_setup' to a user means he/she can have a
   private DOSEMU lib under $HOME/.dosemu/lib. If this directory is
   existing, DOSEMU will expect all normally under /var/lib/dosemu within
@@ -389,12 +394,10 @@
 
 
 
-
   Wether a numeric processor should be shown to the DOS space
 
 
-
-    $_mathco = (on)
+         $_mathco = (on)
 
 
 
@@ -460,6 +463,7 @@
   either _n_o_t give access to dosemu for normal users (via
   /etc/dosemu.users) or give those users the `restricted' attribute (see
   above).
+
   There are some features in DOSEMU, that may violate system security
   and which you should not use on machines, which are `net open'. To
   have atleast a minimum of protection against intruders, use the
@@ -519,9 +523,12 @@
 
 
 
-         $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
-         $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
-         $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
+
+
+
+    $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
+    $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
+    $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
 
 
 
@@ -585,13 +592,13 @@
 
 
 
-
   where XXX is one of
 
      iibbmm
         the text is taken whithout translation, it is to the user to
         load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on the
         console).
+
      llaattiinn
         the text is processed using cp437->iso-8859-1 translation, so
         the font used must be iso-8859-1 (eg iso01.f16 on console);
@@ -649,6 +656,8 @@
 
 
 
+
+
   22..11..55..  KKeeyybbooaarrdd sseettttiinnggss
 
 
@@ -658,6 +667,8 @@
   keytable from /var/lib/dosemu/keymap/* (which you may modify according
   to your needs). Both sets have identical names (though you may add any
   new one to /var/lib/dosemu/keymap/*):
+
+
          be              es-latin1       hu-latin2       sg
          de              finnish         it              sg-latin1
          de-latin1       finnish-latin1  keyb-no         sw
@@ -724,6 +735,10 @@
 
 
 
+
+
+
+
   22..11..66..  XX SSuuppppoorrtt sseettttiinnggss
 
   If DOSEMU is running in its own X-window (not xterm), you may need to
@@ -774,15 +789,16 @@
 
 
 
-         $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
-         $_console = (0)         # use 'console' video
-         $_graphics = (0)        # use the cards BIOS to set graphics
-         $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
-         $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
-         $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
-         $_vmemsize = (1024)     # size of regen buffer
-         $_chipset = ""
-         $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
+
+    $_video = "vga"         # one of: plainvga, vga, ega, mda, mga, cga
+    $_console = (0)         # use 'console' video
+    $_graphics = (0)        # use the cards BIOS to set graphics
+    $_videoportaccess = (1) # allow videoportaccess when 'graphics' enabled
+    $_vbios_seg = (0xc000)  # set the address of your VBIOS (e.g. 0xe000)
+    $_vbios_size = (0x10000)# set the size of your BIOS (e.g. 0x8000)
+    $_vmemsize = (1024)     # size of regen buffer
+    $_chipset = ""
+    $_dualmon = (0)         # if you have one vga _plus_ one hgc (2 monitors)
 
 
 
@@ -790,6 +806,9 @@
   After you get it `somehow' working and you have one of the DOSEMU
   supported graphic cards you may switch to graphics mode changing the
   below
+
+
+
          $_graphics = (1)        # use the cards BIOS to set graphics
 
 
@@ -801,8 +820,8 @@
 
 
 
-         $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond,
-                                 # avance, cirrus, matrox, wdvga, paradise
+         $_chipset = "s3"        # one of: plainvga, trident, et4000, diamond, s3,
+                                 # avance, cirrus, matrox, wdvga, paradise, ati
 
 
 
@@ -826,17 +845,28 @@
 
 
 
-         $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
-                               # file name of the floppy image under /var/lib/dosemu
-                               # e.g. "floppyimage" disables $_hdimage
-                               #      "floppyimage +hd" does _not_ disable $_hdimage
-         $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
-         $_floppy_b = ""       # dito for B:
 
-         $_hdimage = "hdimage.first" # list of hdimages under /var/lib/dosemu
-                               # assigned in this order such as
-                               # "hdimage_c hdimage_d hdimage_e"
-         $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
+
+
+
+
+
+
+
+
+
+
+    $_vbootfloppy = ""    # if you want to boot from a virtual floppy:
+                          # file name of the floppy image under /var/lib/dosemu
+                          # e.g. "floppyimage" disables $_hdimage
+                          #      "floppyimage +hd" does _not_ disable $_hdimage
+    $_floppy_a ="threeinch" # or "fiveinch" or empty, if not existing
+    $_floppy_b = ""       # dito for B:
+
+    $_hdimage = "hdimage.first" # list of hdimages under /var/lib/dosemu
+                          # assigned in this order such as
+                          # "hdimage_c hdimage_d hdimage_e"
+    $_hdimage_r = $_hdimage # hdimages for 'restricted access (if different)
 
 
 
@@ -856,6 +886,9 @@
   from a virtual `disk' you may have an image of a virtual `floppy'
   which you just created such as `dd if=/dev/fd0 of=floppy_image'. If
   this floppy contains a bootable DOS, then
+
+
+
          $_vbootfloppy = "floppy_image"
 
 
@@ -888,7 +921,8 @@
 
 
 
-         $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
+
+    $_hdimage = "hdimage.first /dev/hda1 /dev/sdc4:ro"
 
 
 
@@ -921,16 +955,15 @@
 
 
 
+         $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
+         $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
 
-    $_com1 = ""           # e.g. "/dev/mouse" or "/dev/cua0"
-    $_com2 = "/dev/modem" # e.g. "/dev/modem" or "/dev/cua1"
-
-    $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
-                          # mmseries, mouseman, hitachi, busmouse, ps2
-    $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
-    $_mouse_flags = ""        # list of none or one or more of:
-                          # "emulate3buttons cleardtr"
-    $_mouse_baud = (0)    # baudrate, 0 == don't set
+         $_mouse = "microsoft" # one of: microsoft, mousesystems, logitech,
+                               # mmseries, mouseman, hitachi, busmouse, ps2
+         $_mouse_dev = "/dev/mouse" # one of: com1, com2 or /dev/mouse
+         $_mouse_flags = ""        # list of none or one or more of:
+                               # "emulate3buttons cleardtr"
+         $_mouse_baud = (0)    # baudrate, 0 == don't set
 
 
 
@@ -955,9 +988,6 @@
   And finaly, when having a PS2 mouse running on your Linuxbox you use
   the builtin mousedriver (not your mouse.com) to get it work: ( again
   leaving the rest of variables unchanged)
-
-
-
          $_mouse = "ps2"
          $_mouse_dev = "/dev/mouse"
 
@@ -988,6 +1018,9 @@
   tells DOSEMU how long to wait after the last output to LPTx before
   considering the print job as `done' and to to spool out the data to
   the printer.
+
+
+
        $_printer = "lp"        # list of (/etc/printcap) printer names to appear as
                                # LPT1 ... LPT3 (not all are needed, empty for none)
        $_printer_timeout = (20)# idle time in seconds before spooling out
@@ -1016,6 +1049,7 @@
 
 
          $_novell_hack = (on)
+
 
 
 
@@ -1052,6 +1086,148 @@
                                  # (not yet implemented)
 
 
+
+
+
+  22..11..1133..  BBuuiillttiinn AASSPPII SSCCSSII DDrriivveerr
+
+
+  The builtin ASPI driver (a SCSI interface protocol defined by Adaptec)
+  can be used to run DOS based SCSI drivers that use this standard (most
+  SCSI devices ship with such a DOS driver). This enables you to run
+  hardware on Linux, that normally isn't supported otherwise, such as CD
+  writers, Scanners e.t.c.  The driver was successfully tested with Dat-
+  streamers, EXABYTE tapedrives, JAZ drives (from iomega) and CD
+  writers. To make it work under DOSEMU you need
+
+  +o  to configure $_aspi in /etc/dosemu.conf to define which of the
+     /dev/sgX devices you want to show up in DOSEMU.
+
+  +o  to load the DOSEMU aspi.sys stub driver within config.sys (e.g.
+     DEVICE=ASPI.SYS) _b_e_f_o_r_e any ASPI using driver.
+
+  The $_aspi variable in dosemu.conf takes strings listing all generic
+  SCSI devices, that you want give to DOSEMU. NOTE: You should make
+  sure, that they are _n_o_t used by Linux elsewere, else you would come
+  into _m_u_c_h trouble. To help you not doing the wrong thing, DOSEMU can
+  check the devicetype of the SCSI device such as
+
+
+       $_aspi = "sg2:WORM"
+
+
+
+
+  in which case you define /dev/sg2 beeing a CD writer device. If you
+  omit the type,
+       $_aspi = "sg2 sg3 sg4"
+
+
+
+
+  DOSEMU will refuse any device that is a disk drive (imagine, what
+  would happen if you try to map a CD writer to the disk which contains
+  a mounted Linux FS?).  If you _w_a_n_t to map a disk drive to DOSEMU's
+  ASPI driver, you need to tell it explicitely
+
+
+       $_aspi = "sg1:Direct-Access"
+       or
+       $_aspi = "sg1:0"
+
+
+
+
+  and as you can see, `Direct-Access' is the devicetype reported by
+
+
+       $ cat /proc/scsi/scsi
+
+
+
+
+  which will list all SCSI devices in the order they are assigned to the
+  /dev/sgX devices (the first being /dev/sg0). You may also use the
+  DOSEMU supplied tool `scsicheck' (in src/tools/peripher), which helps
+  a lot to get the configuration right:
+
+
+       $ scsicheck
+       sg0 scsi0 ch0 ID0 Lun0 ansi2 Direct-Access(0) IBM DCAS-34330 S61A
+           $_aspi = "sg0:Direct-Access:0" (or "0/0/0/0:Direct-Access:0")
+       sg1 scsi0 ch0 ID5 Lun0 ansi2 Direct-Access(0) IOMEGA ZIP 100 D.08
+           $_aspi = "sg1:Direct-Access:5" (or "0/0/5/0:Direct-Access:5")
+       sg2 scsi0 ch0 ID6 Lun0 ansi2 CD-ROM(5) TOSHIBA CD-ROM XM-5701TA 0167
+           $_aspi = "sg2:CD-ROM:6" (or "0/0/6/0:CD-ROM:6") <== multiple IDs
+       sg3 scsi1 ch0 ID4 Lun0 ansi2 Sequential-Access(1) HP C1533A 9503
+           $_aspi = "sg3:Sequential-Access:4" (or "1/0/4/0:Sequential-Access:4")
+       sg4 scsi1 ch0 ID6 Lun0 ansi1 WORM(4) IMS CDD522/10 1.07
+           $_aspi = "sg4:WORM:6" (or "1/0/6/0:WORM:6") <== multiple IDs
+
+
+
+
+  In the above example there are two scsi hostadapters (scsi0 and scsi1)
+  and DOSEMU will not show more than _o_n_e hostadapter to DOS (mapping
+  them all into one), hence you would get problems accessing sg2 and
+  sg4. For this you may remap a different targetID such as
+
+
+       $_aspi = "sg2:CD-ROM:5 sg4:WORM"
+
+
+
+
+  and all would be fine. From the DOS side the CD-ROM appears as target
+  5 and the WORM (CD writer) as target 6.  Also from the above scsicheck
+  output, you can see, that you can opt to use a `host/channel/ID/LUN'
+  construct in place of `sgX' such as
+
+
+       $_aspi = "0/0/6/0:CD-ROM:5 1/0/6/0:WORM"
+
+  which is exactly the same as the above example, exept it will assign
+  the right device, even if for some reasons you have changed the order
+  in which sgX device are assigned by the kernel. Those changes happen,
+  if you turned off power of one device `between' or if you play with
+  dynamic allocation of scsi devices via the /proc/scsi interface such
+  as
+
+
+       echo "scsi remove-single-device 0 0 5 0" >/proc/scsi/scsi
+
+
+
+
+  to delete a device and
+
+
+       echo "scsi add-single-device 0 0 5 0" >/proc/scsi/scsi
+
+
+
+
+  to add a device. HOWEVER, we _s_t_r_o_n_g_l_y discourage you to use these ker-
+  nel feature for temporaryly switching off power of connected devices
+  or even unplugging them: normal SCSI busses are _n_o_t hotpluggable. Dam-
+  age may happen and uncontroled voltage bursts during power off/on may
+  lock your system !!!
+
+  Coming so far, _o_n_e big problem remains: the (hard coded) buffersize
+  for the sg devices in the Linux kernel (default 32k) may be to small
+  for DOS applications and, if your distributor yet didn't it, you may
+  need to recompile your kernel with a bigger buffer. The buffer size is
+  defined in linux/include/scsi/sg.h and to be on the secure side you
+  may define
+
+
+       #define SG_BIG_BUFF (128*1024-512)  /* 128 Kb buffer size */
+
+
+
+
+  though, CD writers are reported to work with 64Kb and the `Iomega
+  guest' driver happily works with the default size of 32k.
 
 
   33..  SSeeccuurriittyy
@@ -1142,7 +1318,6 @@
   On the other hand, you may create your own *.dexe files using the
   script `mkdexe'. For this to run however you need at least mtools-3.6
   because this versions has options that older versions don't have.
-
   In detail you need the following to make a *.dexe:
 
 
@@ -1186,6 +1361,7 @@
 
 
 
+
   or
 
 
@@ -1199,40 +1375,49 @@
 
 
 
-          USAGE:
-            mkdexe [{ application | hdimage}]
-                               [-b dospart] [{-s|-S} size] [-x appname]
-                               [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
-                               [-i IOname] [-m MSname]
-                               [-o <option> [-o ...]]
 
-            application  the whole DOS application packet into a *.zip file
-            hdimage      the name of the target hdimage, ih -o noapp is give
-                         (see below)
-            dospart      If not given, FreeDos will be used as system
-                         If given it must be either a bootable DOS partion (/dev/...)
-                         or a already made bootable dosemu hdimage
-            -s size      The _additional_ free space (in Kbytes) on the hdimage
-            -S size      The total size (in Kbytes) of the hdimage -s,-S are mutual
-                         exclusive.
-            appname      The DOS filename of the application, that should be executed
-            confsys      Template for config.sys
-            autoexe      Template for autoexec.bat
-            comcom       file name of the shell, usually command.com
-            dosemuconf   Template for the dosemu.conf to use
-            IOname       The name of DOS file, that usually is called IO.SYS,
-                         (default for FreeDos: IPL.SYS) this one is always put as
-                         first file onto the hdimage
-            MSname       The name of DOS file, that usually is called MSDOS.SYS,
-                         (default for FreeDos: MSDOS.SYS) this one is always put as
-                         second file onto the hdimage
-            -o <option>  Following option flags are recognized:
-                           confirm   offer config.sys, autoexec.bat and dconfig
-                                     to edit via $EDITOR
-                           nocomcom  Omit command.com, because its not used anyway
-                                     when using  shell=c:\appname.exe
-                           noapp     Make a simple bootable hdimage for standard
-                                     DOSEMU usage (replacement for hdimage.dist)
+
+
+
+
+
+
+
+
+     USAGE:
+       mkdexe [{ application | hdimage}]
+                          [-b dospart] [{-s|-S} size] [-x appname]
+                          [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuconf]
+                          [-i IOname] [-m MSname]
+                          [-o <option> [-o ...]]
+
+       application  the whole DOS application packet into a *.zip file
+       hdimage      the name of the target hdimage, ih -o noapp is give
+                    (see below)
+       dospart      If not given, FreeDos will be used as system
+                    If given it must be either a bootable DOS partion (/dev/...)
+                    or a already made bootable dosemu hdimage
+       -s size      The _additional_ free space (in Kbytes) on the hdimage
+       -S size      The total size (in Kbytes) of the hdimage -s,-S are mutual
+                    exclusive.
+       appname      The DOS filename of the application, that should be executed
+       confsys      Template for config.sys
+       autoexe      Template for autoexec.bat
+       comcom       file name of the shell, usually command.com
+       dosemuconf   Template for the dosemu.conf to use
+       IOname       The name of DOS file, that usually is called IO.SYS,
+                    (default for FreeDos: IPL.SYS) this one is always put as
+                    first file onto the hdimage
+       MSname       The name of DOS file, that usually is called MSDOS.SYS,
+                    (default for FreeDos: MSDOS.SYS) this one is always put as
+                    second file onto the hdimage
+       -o <option>  Following option flags are recognized:
+                      confirm   offer config.sys, autoexec.bat and dconfig
+                                to edit via $EDITOR
+                      nocomcom  Omit command.com, because its not used anyway
+                                when using  shell=c:\appname.exe
+                      noapp     Make a simple bootable hdimage for standard
+                                DOSEMU usage (replacement for hdimage.dist)
 
 
 
@@ -1252,7 +1437,7 @@
 
 
 
-    # dexeconfig -i configfile dexefile
+         # dexeconfig -i configfile dexefile
 
 
 
@@ -1317,7 +1502,6 @@
 
 
 
-
   I'll then put it into
 
 
@@ -1332,9 +1516,6 @@
   Tetris like games that I found on an old CDrom and which runs in
   300x200 on console and X (not Slang-terminal). When you put it into
   you /var/lib/dosemu/* directory, you may start it via:
-
-
-
           dosexec fallout.dexe -X
 
 
@@ -1382,10 +1563,8 @@
 
 
 
-
-
-    # cd ./dexe
-    # ./mkdexe myhdimage -b /dev/hda1 -o noapp
+         # cd ./dexe
+         # ./mkdexe myhdimage -b /dev/hda1 -o noapp
 
 
 
@@ -1402,8 +1581,9 @@
 
 
 
-         # cd /where/I/have/dosemu
-         # ./setup-hdimage
+
+    # cd /where/I/have/dosemu
+    # ./setup-hdimage
 
 
 
@@ -1450,6 +1630,9 @@
   the instruments required for use on some soundcards. It is also
   possible to get various instruments by redirecting '/var/run/dosemu-
   midi' to the relevant part of the sound driver eg:
+
+
+
        % ln -s /dev/midi /var/run/dosemu-midi
 
 
@@ -1464,9 +1647,6 @@
 
 
          make midid
-
-
-
 
   This compiles and installs the midi daemon. The daemon currently has
   support for the 'ultra' driver and partial support for the 'OSS'
@@ -1533,7 +1713,8 @@
 
 
 
-          /dev/hda1       /dos     msdos   umask=022
+
+     /dev/hda1       /dos     msdos   umask=022
 
 
 
@@ -1579,6 +1760,7 @@
          copy c:\dosemu\auto2.bat z:\dosemu\auto2.bat
          lredir del z:
          c:\dosemu\auto2.bat
+
 
 
 
@@ -1648,6 +1830,7 @@
      dosemu-0.97.10, you need not if you don't access to ports, external
      DOSish hardware and won't use the console other then in normal
      terminal mode.
+
   2. You can restrict access to the suid root binary via
      /etc/dosemu.user.  by specifying `nosuidroot' for a given user (or
      all).
@@ -1714,6 +1897,7 @@
 
 
 
+
   _N_o_t_e_: the changes to /etc/passwd and /etc/group only take place the
   _n_e_x_t time you login, so don't forget to re-login.
 
@@ -1728,8 +1912,6 @@
 
 
   You can do the same with an explicit mount command:
-
-
              mount -t msdos -o gid=200,umask=002 /dev/hda1 /dosc
 
 
@@ -1779,7 +1961,6 @@
      your drive, otherwise you won't be able to use the cdrom under
      Dosemu directly because of security reasons.
 
-
   +o  Load cdrom.sys within your config.sys file with e.g.:
 
 
@@ -1795,8 +1976,6 @@
 
 
            mscdex /d:mscd0001 /l:driveletter
-
-
 
 
   To change the cd while Dosemu is running, use the DOS program
@@ -1852,22 +2031,35 @@
 
 
 
-       #
-       # mail everything to root, but don't log
-       #
-       mail_always
 
-       #
-       # mail errors to root, log everything
-       # (this is the recommended usage)
-       #
-       mail_error
-       syslog_always
 
-       #
-       # log errors only
-       #
-       syslog_errors
+
+
+
+
+
+
+
+
+
+
+
+  #
+  # mail everything to root, but don't log
+  #
+  mail_always
+
+  #
+  # mail errors to root, log everything
+  # (this is the recommended usage)
+  #
+  mail_error
+  syslog_always
+
+  #
+  # log errors only
+  #
+  syslog_errors
 
 
 
@@ -1912,30 +2104,36 @@
      docs, XFree-3.1.1 should do that intrinsicly, but for me it didn't.
      This is a part of the file /usr/X11R6/lib/X11/etc/xmodmap.std
 
-       ! When using ServerNumLock in your XF86Config, the following codes/symbols
-       ! are available in place of 79-81, 83-85, 87-91
-       keycode  136 = KP_7
-       keycode  137 = KP_8
-       keycode  138 = KP_9
-       keycode  139 = KP_4
-       keycode  140 = KP_5
-       keycode  141 = KP_6
-       keycode  142 = KP_1
-       keycode  143 = KP_2
-       keycode  144 = KP_3
-       keycode  145 = KP_0
-       keycode  146 = KP_Decimal
-       keycode  147 = Home
-       keycode  148 = Up
-       keycode  149 = Prior
-       keycode  150 = Left
-       keycode  151 = Begin
-       keycode  152 = Right
-       keycode  153 = End
-       keycode  154 = Down
-       keycode  155 = Next
-       keycode  156 = Insert
-       keycode  157 = Delete
+
+
+
+
+
+
+  ! When using ServerNumLock in your XF86Config, the following codes/symbols
+  ! are available in place of 79-81, 83-85, 87-91
+  keycode  136 = KP_7
+  keycode  137 = KP_8
+  keycode  138 = KP_9
+  keycode  139 = KP_4
+  keycode  140 = KP_5
+  keycode  141 = KP_6
+  keycode  142 = KP_1
+  keycode  143 = KP_2
+  keycode  144 = KP_3
+  keycode  145 = KP_0
+  keycode  146 = KP_Decimal
+  keycode  147 = Home
+  keycode  148 = Up
+  keycode  149 = Prior
+  keycode  150 = Left
+  keycode  151 = Begin
+  keycode  152 = Right
+  keycode  153 = End
+  keycode  154 = Down
+  keycode  155 = Next
+  keycode  156 = Insert
+  keycode  157 = Delete
 
 
 
@@ -2660,9 +2858,26 @@
   dos-command to execute from the commandline and generate 'FILE' for
   you.
 
+
+  1133..33..  RRuunnnniinngg DDOOSSEEMMUU wwiitthhiinn aa ccrroonn jjoobb
+
   When you try to use one of the above to start dosemu out of a crontab,
   then you have to asure, that the process has a proper environement set
   up ( especially the TERM and/or TERMCAP variable ).
+
+  Normally cron would setup TERM=dumb, this is fine because DOSEMU
+  recognizes it and internally sets it's own TERMCAP entry and TERM to
+  `dosemu-none'.  You may also configure your video to
+
+
+          # dos ... -I 'video { none }'
+
+
+
+
+  or have a TERM=none to force the same setting.  In all other crontab
+  run cases you may get nasty error messages either from DOSEMU or from
+  Slang.
 
   1144..  SSeettttiinngg HHooggTThhrreesshhoolldd
 
@@ -2751,9 +2966,11 @@
   simply call
 
 
-        mov al,12h
-        mov bx,the_new_value
-        int e6h
+
+
+   mov al,12h
+   mov bx,the_new_value
+   int e6h
 
 
 
@@ -2766,9 +2983,6 @@
   28h), this code is not going to help much.  If someone runs into a
   program like this, let me ( <scottb@eecs.nwu.edu> ) know and I'll
   rewrite something into the int16 bios.
-
-
-
 
   1155..  CCoommmmaannddss && UUttiilliittiieess
 
@@ -2820,7 +3034,6 @@
      eexxiitteemmuu..ccoomm
         terminate Dosemu
 
-
      ggeettccwwdd..ccoomm
         get the Unix directory for Dosemu (use getcwd(2))
 
@@ -2836,6 +3049,7 @@
 
      llrreeddiirr..ccoomm
         redirect Linux directory to Dosemu
+
      +o  lredir -- show current redirections
 
      +o  lredir D: LINUX\FS\tmp -- redirects /tmp to drive D:
@@ -2902,6 +3116,7 @@
 
   These are useful drivers for Dosemu
 
+
      ccddrroomm..ssyyss
         allow direct access to CD-ROM drives from Dosemu
 
@@ -2951,7 +3166,7 @@
   as root type
 
 
-               loadkeys dosemu.new.keymap
+          loadkeys dosemu.new.keymap
 
 
 
@@ -3099,7 +3314,6 @@
   This device is assigned a virtual ethernet address, defined in
   dosnet.h.
 
-
   This device is usual loadable module. (Someone please check if it can
   be made more efficient.) However, what is interesting is the way it
   allows access to user stacks (i.e. dosemu's.) i.e.  its media
@@ -3231,7 +3445,6 @@
 
   (You could include this info along with other documentation...)
 
-
   Hope this helps,
 
   Vinod.
@@ -3282,6 +3495,7 @@
   1188..22..  SSTTEEPP BBYY SSTTEEPP OOPPEERRAATTIIOONN ((LLIINNUUXX SSIIDDEE))
 
 
+
   +o  Enable "dosnet" based dosemu packet driver:
 
 
@@ -3297,9 +3511,8 @@
 
 
 
-
-        cd ./src/dosext/net/v-net
-        make
+             cd ./src/dosext/net/v-net
+             make
 
 
 
@@ -3364,6 +3577,10 @@
 
                winpkt 0x60
 
+
+
+
+
   +o  edit the trumpet winsock setup file trumpwsk.ini. Here is an
      example of how to setup this file: (I think you can use less
      parameters, if you have the time to play with this file. You can
@@ -3371,48 +3588,88 @@
 
 
 
-               [Trumpet Winsock]
-               netmask=255.255.255.0  <-- class C netmask.
-               gateway=144.16.112.1   <-- address in the default gateway.
-               dns=www.xxx.yyy.zzz    <-- You must use right value for the dns.
-               domain=hi-net.it
-               ip=144.16.112.10       <-- Windows address in the dosnet.
-               vector=60              <-- packet driver interrupt vector.
-               mtu=1500
-               rwin=4096
-               mss=1460
-               rtomax=60
-               ip-buffers=32
-               slip-enabled=0         <--- disable slip
-               slip-port=2
-               slip-baudrate=57600
-               slip-handshake=1
-               slip-compressed=0
-               dial-option=1
-               online-check=0
-               inactivity-timeout=5
-               slip-timeout=0
-               slip-redial=0
-               dial-parity=0
-               font=Courier,9
-               registration-name=""
-               registration-password=""
-               use-socks=0
-               socks-host=0.0.0.0
-               socks-port=1080
-               socks-id=
-               socks-local1=0.0.0.0 0.0.0.0
-               socks-local2=0.0.0.0 0.0.0.0
-               socks-local3=0.0.0.0 0.0.0.0
-               socks-local4=0.0.0.0 0.0.0.0
-               ppp-enabled=0            <-------- disable ppp
-               ppp-usepap=0
-               ppp-username=""
-               ppp-password=""
-               win-posn=42 220 867 686 -1 -1 -4 -4 1
-               trace-options=16392
 
-               [default vars]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          [Trumpet Winsock]
+          netmask=255.255.255.0  <-- class C netmask.
+          gateway=144.16.112.1   <-- address in the default gateway.
+          dns=www.xxx.yyy.zzz    <-- You must use right value for the dns.
+          domain=hi-net.it
+          ip=144.16.112.10       <-- Windows address in the dosnet.
+          vector=60              <-- packet driver interrupt vector.
+          mtu=1500
+          rwin=4096
+          mss=1460
+          rtomax=60
+          ip-buffers=32
+          slip-enabled=0         <--- disable slip
+          slip-port=2
+          slip-baudrate=57600
+          slip-handshake=1
+          slip-compressed=0
+          dial-option=1
+          online-check=0
+          inactivity-timeout=5
+          slip-timeout=0
+          slip-redial=0
+          dial-parity=0
+          font=Courier,9
+          registration-name=""
+          registration-password=""
+          use-socks=0
+          socks-host=0.0.0.0
+          socks-port=1080
+          socks-id=
+          socks-local1=0.0.0.0 0.0.0.0
+          socks-local2=0.0.0.0 0.0.0.0
+          socks-local3=0.0.0.0 0.0.0.0
+          socks-local4=0.0.0.0 0.0.0.0
+          ppp-enabled=0            <-------- disable ppp
+          ppp-usepap=0
+          ppp-username=""
+          ppp-password=""
+          win-posn=42 220 867 686 -1 -1 -4 -4 1
+          trace-options=16392
+
+          [default vars]
 
 
 
@@ -3422,6 +3679,13 @@
      with your windoze tcp/ip :-)
 
   Gloriano Frisoni.  <gfrisoni@hi-net.it>
+
+
+
+
+
+
+
 
 
 
