@@ -70,9 +70,6 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "internal_mouse",  dosemu_mouse_init,  dosemu_mouse_reset, dosemu_mouse_close },
   { "serial",  serial_init,  serial_reset,  serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
-#ifdef HAVE_KEYBOARD_V1
-  { "keyb",    keyb_8042_init, keyb_8042_reset, NULL },
-#endif
 #if 0
   { "pos",     pos_init,     pos_reset,     NULL },
   { "lpt",     lpt_init,     lpt_reset,     lpt_term },

@@ -18,10 +18,6 @@
 #include <setjmp.h>
 #include <signal.h> 
 
-#if defined(HAVE_KEYBOARD_V1) && (HAVE_KEYBOARD_V1 > 1)
-  #error "Sorry, wrong keyboard code version for this DOSEMU version"
-#endif
-
 #if defined(HAVE_UNICODE_KEYB) && (HAVE_UNICODE_KEYB != 2)
   #error "Sorry, wrong unicode keyboard code version for this DOSEMU version"
 #endif
@@ -41,7 +37,6 @@
 typedef struct { int fd; int irq; } SillyG_t;
 extern SillyG_t *SillyG;
 extern void SillyG_do_irq(int);
-extern inline void irq_select(void);
 #endif
 
 #define inline __inline__
@@ -75,7 +70,7 @@ EXTERN char *(*cstack)[16384];
 /* this is DEBUGGING code! */
 EXTERN int sizes INIT(0);
 
-EXTERN int screen, screen_mode;
+EXTERN int screen_mode;
 
 /* number of highest vid page - 1 */
 EXTERN int max_page INIT(7);

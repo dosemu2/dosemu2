@@ -554,12 +554,6 @@ static void config_post_process(void)
 {
     /* console scrub */
     if (config.X) {
-#ifdef HAVE_KEYBOARD_V1
-	if (!config.X_keycode) {
-	    keyb_layout(-1);
-	    c_printf("CONF: Forcing neutral Keyboard-layout, X-server will translate\n");
-	}
-#endif
 	config.console_video = config.vga = 0;
 	config.emuretrace = 0;	/* already emulated */
     }

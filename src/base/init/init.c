@@ -410,16 +410,6 @@ void device_init(void)
   check_console();
 
   scr_state_init();
-#ifdef HAVE_KEYBOARD_V1
-  if (!keyb_server_init()) {
-    error("can't init keyboard server\n");
-    config.exitearly = 1;
-  }
-  if (!keyb_client_init()) {
-    error("can't open keyboard client\n");
-    config.exitearly = 1;
-  }
-#endif
    
   if (!config.vga)
     config.vbios_post = 0;
