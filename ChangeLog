@@ -1,3 +1,11 @@
+2003/07/15 ver 1.1.5.5 unofficial pre-release
+	From Bart
+	- Add support for the Long File Name (int21/ah=71) interface
+	  on redirected drives. For now it's off by default because
+	  it hasn't received much testing yet -- see $_lfn_support.
+	From Stas
+	- Fix DPMI to be able to revector interrupts that are called by
+	  DPMI clients (such as the above int21/ah=71).
 2003/07/15 ver 1.1.5.4 unofficial pre-release
 	From Eric Auer, Witold Filpczyk and Bart
 	- use bitmap fonts by default, rather than X fonts.
