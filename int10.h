@@ -183,6 +183,14 @@ __inline__ void int10(u_char ii)
     HI(bx) = bios_current_screen_page;
     break;
 
+  case 0x10:			/* ega palette */
+    /* Sets blinking or bold background mode.  This is important for Norton
+     * and PCTools type programs that uses bright background colors.
+     */
+    if (LO(ax) = 3) {      
+      mode_blink = LO(bx) & 1;
+    }
+
 #if 0
   case 0xb:			/* palette */
   case 0xc:			/* set dot */
@@ -248,7 +256,6 @@ __inline__ void int10(u_char ii)
     break;
 
   case 0x11:			/* ega character generator */
-  case 0x10:			/* ega palette */
   case 0x4f:			/* vesa interrupt */
 
   default:

@@ -48,10 +48,10 @@ timint on
 #    With the "layout" keyword, you can specify your country's keyboard
 #    layout.  The following layouts are implemented:
 #        finnish           us           dvorak       sf
-#        finnish_latin1    uk           sg           sf_latin1
-#        gr                dk           sg_latin1    es
-#        gr_latin1         dk_latin1    fr           es_latin1
-#        be                no           fr_latin1
+#        finnish_latin1    uk           sg           sf-latin1
+#        gr                dk           sg-latin1    es
+#        gr-latin1         dk-latin1    fr           es-latin1
+#        be                no           fr-latin1
 #    The us-layout is selected by default if the "layout" keyword is omitted.
 #
 #    The keyword "keybint" allows more accurate of keyboard interrupts,
@@ -144,17 +144,18 @@ ipxsupport off
 
 #************************** TERMINALS *************************************
 #
-# This section applies whenever you run DOSEMU in a terminal, such as over
-# a serial line or in an Xterm.  Color terminal suport is now built into
-# DOSEMU.  Skip this section for now until you get DOSEMU to work, using
-# terminal defaults.
+# This section applies whenever you run DOSEMU remotely or in an xterm.
+# Color terminal suport is now built into DOSEMU.  Skip this section for 
+# now to use terminal defaults, until you get DOSEMU to work.
 #
 # QuickStart: 
 #       There is a number of keywords for the terminal { } configuration line.
 #    "charset" latin, ibm                                  (default latin)
 #       Select the character set to use with DOSEMU. 
-#    "color" on, off                                       (default on)
-#       Enable or disable color terminal support.
+#    "color" off, normal, xterm                            (default normal)
+#       Enable or disable color terminal support.  "normal" means to use the
+#       normal color set, and "xterm" uses the color set enhanced for use on
+#       terminals that can only display 8 colors instead of 16 colors.
 #    "updatefreq" value                                    (default 2)
 #       A number indicating the frequency of terminal updates of the screen.  
 #       The smaller the number, the more frequent.  A value of 20 gives a 
@@ -173,19 +174,30 @@ ipxsupport off
 #       recommended that you select the "fast" update system, unless you
 #       are running on a nonstandard terminal that does not support ANSI 
 #       or VT100 sequences.  In this case, use "ncurses". 
+#    "corner" on, off                                      (default on)
+#       Enable/disable printing of the character at the bottom-right corner of
+#       the screen.  Some terminals, especially DOS based ones, scroll the 
+#       screen when something is printed in the corner. 
 #
-#    The following enables the graphics IBM character set.  Will work when
-#    DOSEMU runs directly at the Linux console, or Xterm with the VGA font,
-#    or from an ANSI terminal with IBM characters.
-#terminal { charset ibm  color on }
+#    Note: DOSEMU will automatically detect for the prescence of 
+#    ANSI Xterm 2.0 which enables all 16 colors and 256 colors for DOSEMU,
+#    and adjust terminal parameters accordingly.
 #
-#    Use the following for dumb terminals that screws up in "fast" mode.
-#terminal { charset latin  color off  ncurses on }
+#    Use the following to enable the IBM character set.
+#terminal { charset ibm  color on  method fast }
 #
-#    This is a more detailed line provided for your customization.
-#    Originally these values are exactly the same as DOSEMU's current 
-#    defaults if no "terminal" configuration is given:
-#terminal { charset latin updatefreq 2 updatelines 25 color on method fast }
+#    Use this for color xterms or rxvt's with no IBM font, with only 8 colors.
+#terminal { charset latin  color xterm  method fast }
+#
+#    Use this for color xterms or rxvt's with IBM font, with only 8 colors.
+#terminal { charset ibm  color xterm  method fast }
+#
+#    Use the following for terminals not compatible with vt100 or xterms.
+#terminal { charset latin  color on  method ncurses }
+#
+#    More detailed line for user configuration:
+#terminal { charset latin  updatefreq 2  updatelines 25  color on 
+#           method fast  corner on }
 
 
 #************************* VIDEO ******************************************
@@ -198,18 +210,10 @@ ipxsupport off
 #    Start with only text video using the following line, to get started.
 #    then when DOSEMU is running, you can set up a better video configuration.
 #
-video { vga  console }            # Use this line, if you are using VGA
-# video { cga  console }          # Use this line, if you are using CGA
-# video { ega  console }          # Use this line, if you are using EGA
-# video { mda  console }          # Use this line, if you are using MDA
-#
-# Even more basic, like on an xterm or over serial, use one of the
-# following :
-#
-#    For Xterm
-# video { vga chunks 1 }
-#    For serial at 2400 baud
-# video { vga chunks 200 }
+video { vga  console }          # Use this line, if you are using VGA
+#video { cga  console }          # Use this line, if you are using CGA
+#video { ega  console }          # Use this line, if you are using EGA
+#video { mda  console }          # Use this line, if you are using MDA
 #
 # QuickStart Notes for Graphics:
 #   - If your VGA-Bios resides at E000-EFFF, turn off video BIOS shadow
@@ -315,7 +319,8 @@ speaker native         # or "off" or "emulated"
 #    or partition only access.  Stacker 4.0 has been reported to work with
 #    wholedisk access.  If you want to use disk compression using partition
 #    access, you will need to use the "mkpartition" command included with
-#    dosemu to create a partition table datafile for dosemu.
+#    dosemu to create a partition table datafile for dosemu.  The command are
+#    installed in /var/lib/dosemu.
 #
 #    Please read the documentation in the "doc" subdirectory for info
 #    on how to set up access to real hard disk.

@@ -43,6 +43,15 @@
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: bios_emm.c,v $
+ * Revision 2.6  1994/08/01  15:08:39  root
+ * EMS RCS fix.
+ *
+ * Revision 2.5  1994/08/01  14:30:06  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
+ * Revision 2.4  1994/08/01  00:54:27  root
+ * Testing why FoxPro doesn't run.
+ *
  * Revision 2.3  1994/07/26  01:12:20  root
  * prep for pre53_6.
  *
@@ -310,7 +319,6 @@ inline boolean_t unmap_page(int);
 
 #define EMM_ERROR -1
 u_char emm_error;
-u_char anonmap_fd;
 
 extern struct config_info config;
 
@@ -395,7 +403,7 @@ boolean_t
 probe_mmap()
 {
   char *page1 = NULL, *page2 = NULL;
-  char *maperr, maperr2, maperr3;
+  char *maperr;
 
   /* open our fd for mmap()ing */
   selfmem_fd = open("/proc/self/mem", O_RDWR);
@@ -637,6 +645,54 @@ deallocate_handle(handle)
   return (TRUE);
 }
 
+inline boolean_t
+__map_page(physical_page)
+     int physical_page;
+{
+  int handle;
+  caddr_t logical, base;
+
+  if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS))
+    return (FALSE);
+  handle=emm_map[physical_page].handle;
+  if (handle == NULL_HANDLE)
+    return (FALSE);
+
+#ifdef __linux__
+
+  E_printf("EMS: map()ing physical page 0x%01x, handle=%d, logical page 0x%x\n", 
+           physical_page,handle,emm_map[physical_page].logical_page);
+
+  base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
+
+#ifdef MMAP_EMS
+#else
+  logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
+
+#ifdef IPC_EMS
+  if ((logical = (caddr_t) shmat(shmid[physical_page],logical,SHM_REMAP)) == (caddr_t) 0xffffffff) {
+    E_printf("EMS: map_page shmat logical unsuccessful: %s\n", strerror(errno));
+    PRINT_EMS;
+    leavedos(29);
+  }
+  PRINT_EMS;
+#endif
+
+#ifdef COPY_EMS
+  E_printf("EMS: COPY-MAP   l=0x%08x, bs=0x%04x, d=0x%02x, s=0x%02x\n",
+        (int)logical, (int)base, *(u_short *)logical, * (u_short *) base);
+  memmove((u_char *) base, (u_char *) logical, EMM_PAGE_SIZE);
+#endif
+#endif
+
+#else /* __linux__ */
+  MACH_CALL((vm_allocate(mach_task_self(),
+			 EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
+			   EMM_PAGE_SIZE)), "unmap");
+#endif /* __linux__ */
+
+  return (TRUE);
+}
 
 inline boolean_t
 __unmap_page(physical_page)
@@ -810,11 +866,9 @@ inline boolean_t
 remap_page(physical_page)
      int physical_page;
 {
-  E_printf("EMS: remaping physical page 0x%08x\n", physical_page);
+  E_printf("EMS: remaping physical page 0x%01x\n", physical_page);
 
-  return map_page(emm_map[physical_page].handle,
-                  physical_page,
-                  emm_map[physical_page].logical_page);
+  return __map_page(physical_page);
 }
 
 
@@ -1395,6 +1449,7 @@ move_memory_region(state_t * state)
 #ifdef COPY_EMS
   for (i = 0; i < EMM_MAX_PHYS; i++)
     remap_page(i);
+  E_printf("EMS: remap_page\n");
 #endif
 
   if (source < dest) {

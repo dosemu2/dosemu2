@@ -1,5 +1,5 @@
 .\" -*- nroff -*-
-.TH DOS 1 "May 18, 1994" "Version ALPHA 0.52" "MS-DOS Emulation"
+.TH DOS 1 "June 17, 1994" "Version ALPHA 0.53" "MS-DOS Emulation"
 .SH NAME
 dos \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -23,7 +23,7 @@ dos \- run MS-DOS and MS-DOS programs under Linux
 2\> dosdbg
 .SH DESCRIPTION
 .B dos
-invokes the Linux dos emulator, also known as dosemu.
+invokes the Linux dos emulator, also known as DOSEMU.
 .br
 .I dosdbg
 is an optional file into which all debugging output will be redirected.
@@ -33,13 +33,13 @@ Although this program is known as the DOS
 it is actually a virtual machine for MS-DOS, allowing DOS and programs
 written for DOS to operate in an environment similar to a standard IBM
 PC/AT or compatible with an Intel 80x86 processor in real mode.
-.B dosemu
+.B DOSEMU
 provides emulation of such services as BIOS video, disk, keyboard, serial, 
 and printer; CMOS memory for configuration information; a real time clock; 
 memory allocation through the XMS specification and EMS 4.0.
 .PP
 Because 
-.B dosemu
+.B DOSEMU
 is not really an emulator, a copy of MS-DOS 3.3-6.2 is required.
 (Future versions of MS-DOS may run, but have of course not been verified.
 DR-DOS 6.0 has also been reported to work.)
@@ -47,12 +47,12 @@ DR-DOS 6.0 has also been reported to work.)
 See the files 
 .B QuickStart,
 .B ChangeLog, 
-.B doc/announce0.52, 
+.B doc/announce0.53, 
 and the
 .B Makefile
 contained in the source distribution
 for information on how to configure, compile, and boot 
-.B dosemu.
+.B DOSEMU.
 .SH KERNEL PATCHES - WARNING!!!
 At present, you will need Linux 1.1.12 or above with the SYSV IPC option
 (System V InterProcess Communication facilities) compiled.  SYSV IPC is
@@ -60,7 +60,7 @@ an option in the config setup during compiling a Linux kernel.
 
 For kernels older than 1.1.12 a patch is also required. If you use 1.1.x please
 update to 1.1.12+. If you prefer to use 1.0.x apply the diff which comes with
-dosemu. The patch can be found in:
+DOSEMU. The patch can be found in:
 .TP
 .PD 0
 .B kernel/kernel.1.0.x.diff
@@ -107,13 +107,13 @@ enable internal mouse-support
 copy debugging output to FILE
 .TP
 .I -2,3,4
-choose 286, 386, or 486 processor (BE CAREFUL! dosemu is not yet 32-bit clean,
+choose 286, 386, or 486 processor (BE CAREFUL! DOSEMU is not yet 32-bit clean,
 so if your program detects a 386 or 486 processor and uses 32-bit registers,
 it might be confused by BIOS functions.  If you think this is happening, use
--2 to force dosemu into 286-mode.)
+-2 to force DOSEMU into 286-mode.)
 .PD 1
 .SH HARD DISKS
-.B dosemu
+.B DOSEMU
 supports four methods of supplying DOS with hard disks:
 .IP 1.
 a virtual disk file residing on a Linux filesystem which emulates a hard 
@@ -125,23 +125,23 @@ direct access to an MS-DOS partition through a raw disk device (i.e. /dev/hda,
 direct access to an MS-DOS partition through single partition access 
 (i.e. /dev/hda1, /dev/hdb2, /dev/sdxx). You need to run the program
 .B /usr/lib/dosemu/mkpartition
-to enable dosemu to access your DOS-partitions with SPA.
+to enable DOSEMU to access your DOS-partitions with SPA.
 .IP 4.
 access to a Linux filesystem as a "network" drive using the driver emufs.sys
 supplied with
-.B dosemu
+.B DOSEMU
 in driver/emufs.sys.
 .PP
 This is explained more thoroughly in
 .B QuickStart.
 .PP
 Configuration of
-.B dosemu's
+.B DOSEMU's
 hard disk resources is done by editing 
 .B /etc/dosemu.conf
-before running dosemu. You find an example in examples/config.dist
+before running DOSEMU. You find an example in examples/config.dist
 .SH FLOPPY DISKS
-.B dosemu
+.B DOSEMU
 supports two methods of supplying DOS with floppy disks:
 .IP 1.
 a virtual disk file residing on a Linux filesystem which emulates a floppy
@@ -154,15 +154,15 @@ This is also explained more thoroughly in
 .B QuickStart.
 .PP
 Configuration of
-.B dosemu's
+.B DOSEMU's
 floppy disk resources is done by editing the
 .B /etc/dosemu.conf
-before running dosemu.
+before running DOSEMU.
 .SH VIDEO
-.B dosemu
+.B DOSEMU
 may be run on any tty device.  However, increased performance and functionality
 may be had by taking advantage of special features of the Linux console.
-Those running dosemu on the console may wish to investigate the 
+Those running DOSEMU on the console may wish to investigate the 
 .I \-c,
 .I \-k,
 and
@@ -177,7 +177,7 @@ allows the user to view a DOS program in its original color and font,
 with none of the periodic screen update problems with the generic tty
 output code.
 .SH KEYBOARD
-Those using dosemu on the Linux console may also wish to use the RAW
+Those using DOSEMU on the Linux console may also wish to use the RAW
 keyboard support.  This mode of operation, selected by the
 .I \-k
 switch, provides the user with access to the entire keyboard accessible
@@ -195,13 +195,13 @@ All characters sent to LPTx will be redirected to the file dosemulptx in
 the current directory.
 .PP
 .B WARNING!
-dosemu does not keep the file buffers flushed; therefore, the state of these
+DOSEMU does not keep the file buffers flushed; therefore, the state of these
 files is undefined until you actually exit the DOS emulator.  Please
 excuse the inconvenience.
 .SH DEBUGGING MESSAGES
 Debugging messages can be controlled either at the command line or in the
 configuration file.  Take a look at the documentation inside the config.dist 
-file included with dosemu in the examples subdirectory, for debugging 
+file included with DOSEMU in the examples subdirectory, for debugging 
 options.  At the command line, you may specify which classes of messages 
 you wish 
 .B dos
@@ -273,7 +273,7 @@ which are set by always explicitly specifying them.
 .SH SPECIAL KEYS
 In RAW keyboard mode (see the
 .BR \-k
-option), dosemu responds to certain key sequences as control functions.
+option), DOSEMU responds to certain key sequences as control functions.
 .PP
 .PD 0
 .IP 
@@ -297,18 +297,18 @@ ALT key together with the desired function key; the LEFT ALT key pressed
 together with a function key will change virtual consoles, as it normally
 does under Linux.
 .SH MEMORY
-The XMS memory support in dosemu conforms to Lotus/Intel/Microsoft/AST extended
+The XMS memory support in DOSEMU conforms to Lotus/Intel/Microsoft/AST extended
 memory specification 3.0.  I have implemented all XMS functions except
 function 0x12 (Reallocate Upper Memory Block).
 .PP
 While I have implemented the UMB functions, they are extremely stupid and 
-will almost always act suboptimally.  The next release of dosemu should
+will almost always act suboptimally.  The next release of DOSEMU should
 have saner UMB support.
 .PP
-dosemu 0.52 also supports EMS and effort has started to implement
+DOSEMU 0.53 also supports EMS and effort has started to implement
 DPMI.
 .SH AUTHOR
-.B dosemu
+.B DOSEMU
 (comprised of the files
 .B dos 
 and 
@@ -318,7 +318,7 @@ and
 .PP
 Robert Sanders <gt8134b@prism.gatech.edu> was maintaining and enhancing 
 the incarnation of 
-.B dosemu 
+.B DOSEMU 
 with which this man page was originally distributed. Now
 James B. MacLean <jmaclean@fox.nstn.ns.ca> is maintaining this funny software.
 .PP
@@ -327,8 +327,10 @@ There is also an X-based version of Matthias Lautner's DOS emulator called
 adapted by Edward Der-Hua Liu.
 .B Xdos
 uses X-specific code to provide color and line-drawing characters, and
-can be found on some of the same sites as dosemu.  Currently, X support 
-is being planned for dosemu.
+can be found on some of the same sites as DOSEMU.  However, DOSEMU has 
+much more features than xdos.  There is now a special color xterm that 
+allows DOSEMU to run with all 256 IBM characters in all 16 colors.  This 
+special color xterm is available at tsx-11.mit.edu:/pub/linux/ALPHA/dosemu.
 .SH BUGS
 There are too many to count, much less list.  
 .PP
@@ -338,9 +340,9 @@ detailing what program (and what version) you are using, what works and
 what doesn't, etc.
 .SH AVAILABILITY
 The most recent public version of 
-.B dosemu
+.B DOSEMU
 can be ftp'ed from tsx-11.mit.edu in the /pub/linux/ALPHA/dosemu directory.
-If you want to keep up on private developer pre-releases, join the dosemu
+If you want to keep up on private developer pre-releases, join the DOSEMU
 developer team - even just good detailed debug reports are all you need!
 .SH FILES
 .PD 0
@@ -352,26 +354,26 @@ The invoker program.
 The actual emulator code as a shared library.
 .TP
 .I /usr/lib/dosemu/*
-Various programs to install and maintain dosemu on your system.
+Various programs to install and maintain DOSEMU on your system.
 .TP
 .I /var/lib/dosemu/*
-Various files used by dosemu including diskimages and disk config files.
+Various files used by DOSEMU including diskimages and disk config files.
 .TP
 .I /etc/dosemu.conf
-Main configuration file for dosemu.
+Main configuration file for DOSEMU.
 
 .TP
-.I dosemu0.52/doc/DPR
-Dosemu development team: Who is doing which part of the dosemu project?
+.I dosemu0.53/doc/DPR
+Dosemu development team: Who is doing which part of the DOSEMU project?
 .TP
-.I dosemu0.52/doc/DANG
-To help you hack dosemu code.
+.I dosemu0.53/doc/DANG
+To help you hack DOSEMU code.
 .TP
-.I dosemu0.52/QuickStart
-To set up dosemu quickly.
+.I dosemu0.53/QuickStart
+To set up DOSEMU quickly.
 .TP
-.I dosemu0.52/ChangeLog
-Changes in dosemu since the last release.
+.I dosemu0.53/ChangeLog
+Changes in DOSEMU since the last release.
 .TP
 .I MSDOS mailing list
 For more information, mail to

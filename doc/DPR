@@ -92,7 +92,7 @@ automatically open when dosemu is run (if you are in X).  The best way
 to go about this would probably be to compare xdos with it's non-x
 counterpart, to find out where they are differn't.  Then try to guess
 which changes are for opening the x-window, and applying those changes
-to  the latest release (currently .49pl3-3).  If that is successfully
+to  the latest release (currently 0.53).  If that is successfully
 completed, then the next thing would be to make sure that the Makefile
 would check for the existance of the xwindow development files, and
 only compile in the xsupport if they were found (allowing everyone who
@@ -433,7 +433,7 @@ emulator was broken. Performance: miserable.
 dosemu .50 - should be able to run many programs and
 will actually work!  :)  Performance: still miserable.
 
-dosemu .52 - should be able to run many programs, actually work, and 
+dosemu .52+ - should be able to run many programs, actually work, and 
 performace should go off the scale!  (Let's see... 'fair'...or just 
 maybe even 'good' is more like it)
 

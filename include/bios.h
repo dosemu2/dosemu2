@@ -12,7 +12,8 @@
 
 #define bios_base_address_com1          (*(unsigned short *) 0x400)
 #define bios_base_address_com2          (*(unsigned short *) 0x402)
-                                      /* 0x404-0x407 is reserved */
+#define bios_base_address_com3          (*(unsigned short *) 0x404)
+#define bios_base_address_com4          (*(unsigned short *) 0x406)
 #define bios_address_lpt1               (*(unsigned short *) 0x408)
 #define bios_address_lpt2               (*(unsigned short *) 0x40a)
 #define bios_address_lpt3               (*(unsigned short *) 0x40c)

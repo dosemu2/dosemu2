@@ -244,6 +244,7 @@ extern u_char permissions;
 extern struct screen_stat scr_state;
 extern int cursor_row;
 extern int cursor_col;
+extern int mode_blink;
 
 /* The following defines are for terminal (curses) mode */
 
@@ -251,6 +252,10 @@ extern int cursor_col;
 #define CHARSET_LATIN	1
 #define CHARSET_IBM	2
 #define CHARSET_FULLIBM	3
+
+/* Color set defines */
+#define COLOR_NORMAL	1
+#define COLOR_XTERM	2
 
 /* Terminal update defines. For using direct ANSI sequences, or NCURSES */
 #define METHOD_FAST	1

@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/07/09 14:29:43 $
+ * $Date: 1994/08/01 14:26:23 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.7 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.8  1994/08/01  14:26:23  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
  * Revision 2.7  1994/07/09  14:29:43  root
  * prep for pre53_3.
  *
@@ -222,6 +225,25 @@ outb(int port, int byte)
     return;
   }
 
+  /* Port writes for enable/disable blinking character mode */
+  if ( port == 0x03C0 ) {
+    static int last_byte = -1;
+    static int last_index = -1;
+    static int flip_flop = 1;
+
+    flip_flop = !flip_flop;
+    if (flip_flop) {
+      if (last_index = 0x10)
+        mode_blink = (byte & 8) ? 1 : 0;
+      last_byte = byte;
+    }
+    else {
+      last_index = byte;
+    }
+    return;
+  }
+
+  /* Port writes for cursor position */
   if ( (port & 0xfffe) == bios_video_port )
     {
       /* Writing to the 6845 */
@@ -252,7 +274,9 @@ outb(int port, int byte)
 	      cursor_row = pos/80;
 	    }
 	}
-      last_port = port; last_byte = byte;
+      last_port = port; 
+      last_byte = byte;
+      return;
     }
 
 #if 1

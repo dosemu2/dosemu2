@@ -1,4 +1,4 @@
-Here comes the great, new, faster, improved DOSEMU....Version 0.52!  
+Here comes the great, new, faster, improved DOSEMU....Version 0.53!  
 
     DOSEMU is a Linux specific application that allows Linux to run many
 DOS based programs. It requires a bootable DOS disk and Linux 1.1.12+
@@ -21,23 +21,31 @@ Alessandro Rubini and possibly myself from time to time.
 beware it is not yet fully functional, or always smooth sailing.
 
 Very soon, (As of June 16) it should be locatable at:
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.52.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.52.tgz
-  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.52.tgz
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.53.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.53.tgz
+  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.53.tgz
 
     Thanks to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher) for dspsun.
-Micheal may also have DOSEMU added to the Debian distribution down the 
-road, now that DOSEMU 0.52 almost conforms to the Debian distribution
-format.
+Micheal has a version of DOSEMU for the Debian distribution, since DOSEMU
+is now conformed easily to the Debian distribution format.
 
 *** NOTE ***
     There has been many changes since DOSEMU 0.50pl1, so please go to 
 great caution to read the "QuickStart" file included with DOSEMU since 
 the location and format of files (including the configuration file) has 
-changed since the last public DOSEMU release.  One of the noteable
-changes is /etc/dosemu now becomes /var/lib/dosemu.
+changed since the last public DOSEMU release.  One of the noteable changes 
+(since 0.50pl1 and before) is /etc/dosemu now becomes /var/lib/dosemu.
 
-Updated in this release:
+The following was updated in DOSEMU 0.53:
+     -  Color Xwindows client for DOSEMU available in a separate package.
+     -  color NCURSES and color ANSI support for running DOSEMU remotely.
+     -  IBM character set support for running DOSEMU remotely.
+     -  Better terminal keyboard support.
+     -  Much improved terminal support in general. 
+     -  The mouse works better, especially for Windows 3.0.
+     -  Other Bugfixes.
+        
+The following was updated in DOSEMU 0.52:
      -  Major speed improvement (2-5 times faster) compared to DOSEMU 0.50.
 	 Many thanks to Linus for the kernel enhancement, and always helpful
 	 feedback.

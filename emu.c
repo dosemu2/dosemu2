@@ -12,12 +12,18 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/07/26 01:12:20 $
+ * $Date: 1994/08/01 14:58:59 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.13 $
+ * $Revision: 2.15 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.15  1994/08/01  14:58:59  root
+ * Added detach (-d) option from Karl Hakimian.
+ *
+ * Revision 2.14  1994/08/01  14:26:23  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
  * Revision 2.13  1994/07/26  01:12:20  root
  * prep for pre53_6.
  *
@@ -1374,10 +1380,11 @@ config_defaults(void)
   config.bootdisk = 0;
   config.exitearly = 0;
   config.term_method = METHOD_FAST;
-  config.term_color = 1;
+  config.term_color = COLOR_NORMAL;
   config.term_updatelines = 25;
   config.term_updatefreq = 2;
   config.term_charset = CHARSET_LATIN;
+  config.term_corner = 1;
   config.hogthreshold = 5000;	/* in usecs */
   config.chipset = PLAINVGA;
   config.cardtype = CARD_VGA;
@@ -1414,6 +1421,7 @@ config_defaults(void)
   config.shift_map = shift_map_us;	/* Here the Shilt-map           */
   config.alt_map = alt_map_us;	/* And the Alt-map              */
   config.num_table = num_table_dot;	/* Numeric keypad has a dot     */
+  config.detach = 0; /* Don't detach from current tty and open new VT. */
 
 }
 
@@ -1618,7 +1626,7 @@ void
 
 #endif
 
-#undef LOW_MEM
+#define LOW_MEM 1
 
 #ifdef LOW_MEM
 extern void setup_low_mem(void);
@@ -1646,9 +1654,18 @@ void
 
   opterr = 0;
   confname = NULL;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:")) != EOF)
-    if (c == 'F')
+  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:d")) != EOF) {
+    switch (c) {
+    case 'F':
       confname = optarg;
+      break;
+    case 'd':
+      if (config.detach)
+        break;
+      config.detach = (unsigned short)detach();
+      break;
+    }
+  }
   parse_config(NULL);
 
   if (config.exitearly)
@@ -1656,9 +1673,10 @@ void
 
   optind = 0;
   opterr = 0;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtT:sgx:Km234e:")) != EOF) {
+  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtT:sgx:Km234e:d")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
+    case 'd':
       break;
     case 'A':
       config.hdiskboot = 0;
@@ -2058,6 +2076,9 @@ void
   fflush(stderr);
   fflush(stdout);
 
+  if (config.detach)
+	restore_vt(config.detach);
+	
   _exit(0);
 }
 
@@ -2102,7 +2123,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.13 1994/07/26 01:12:20 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.15 1994/08/01 14:58:59 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2320,7 +2341,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/07/26 01:12:20 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/01 14:58:59 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

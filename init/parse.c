@@ -5,12 +5,15 @@
  *
  * The parser is a hand-written state machine.
  *
- * $Date: 1994/07/14 23:21:28 $
+ * $Date: 1994/08/01 14:28:09 $
  * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.7 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 2.7  1994/08/01  14:28:09  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
  * Revision 2.6  1994/07/14  23:21:28  root
  * Markkk's patches.
  *
@@ -208,6 +211,7 @@ typedef enum {
   SEC_KEYBOARD, KEYB_RAWKEYBOARD, KEYB_LAYOUT, KEYB_KEYBINT,
 
   SEC_TERMINAL, T_METHOD, T_UPDATELINES, T_UPDATEFREQ, T_CHARSET, T_COLOR,
+                T_CORNER,
   
   SEC_VIDEO, V_CHIPSET, V_MDA, V_VGA, V_CGA, V_EGA, V_VBIOSF,
              V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
@@ -342,6 +346,7 @@ word_t terminal_words[] =
   {"updatefreq", T_UPDATEFREQ, VALUE, do_terminal},
   {"charset", T_CHARSET, VALUE, do_terminal},
   {"color", T_COLOR, VALUE, do_terminal},
+  {"corner", T_CORNER, VALUE, do_terminal},
   NULL_WORD
 };
 
@@ -574,6 +579,9 @@ syn_t global_syns[] =
   
   {"fast",          "1" },   /* Ugly, must match METHOD_* defines in video.h */
   {"ncurses",       "2" },
+
+  {"normal",        "1" },   /* Ugly, must match COLOR_* defines in video.h */
+  {"xterm",         "2" },
 
   NULL_SYN
 };
@@ -1138,6 +1146,9 @@ do_terminal(word_t * word, arg_t farg1, arg_t farg2)
     break;
   case T_COLOR:
     config.term_color = atoi(arg);
+    break;
+  case T_CORNER:
+    config.term_corner = atoi(arg);
     break;
   default:
     error("CONF: unknown terminal token: %s\n", word->name);

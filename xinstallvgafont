@@ -44,5 +44,9 @@ else
 	mkfontdir
 	if ! [ $? -eq 0 ]; then
 		echo "ERROR: Could not execute 'mkfontdir'.  VGA font not installed."
+	else
+		echo ""
+		echo "If you are in X now, you need to reset or restart X windows to recognize"
+		echo "the newly added font file."
 	fi
 fi

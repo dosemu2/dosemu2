@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/07/26 01:12:20 $
+# $Date: 1994/08/01 15:05:16 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.15 $
+# $Revision: 2.18 $
 # $State: Exp $
 #
 
@@ -70,13 +70,15 @@ endif
 
 CLIENTSSUB=clients
 
-SUBDIRS= periph video mouse include boot commands doc drivers \
+SUBDIRS= periph video mouse include boot commands drivers \
 	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
 	examples
 
+DOCS= doc
+
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
 	timers.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
-        serial.c dyndeb.c sigsegv.c
+        serial.c dyndeb.c sigsegv.c detach.c
 
 HFILES=cmos.h emu.h termio.h timers.h xms.h dosio.h \
         cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
@@ -102,7 +104,7 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o \
      dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o \
-     serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o
+     serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o detach.o
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE)
@@ -152,10 +154,11 @@ warning2:
 warning3:
 	@echo ""
 	@echo "Be patient...This may take a while to complete, especially for 'mfs.c'."
-	@echo "Hopefully you have at least 12MB RAM+swap available during this compile."
+	@echo "Hopefully you have at least 16MB RAM+swap available during this compile."
 	@echo ""
 
-doeverything: warning2 config dep installnew
+doeverything: warning2 config dep installnew docsubdirs
+most: config dep installnew
 
 all:	warnconf dos dossubdirs warning3 libdosemu
 
@@ -190,6 +193,11 @@ libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do \
+	    (cd $$i && echo $$i && $(MAKE)) || exit; \
+	done
+
+docsubdirs: dummy
+	@for i in $(DOCS); do \
 	    (cd $$i && echo $$i && $(MAKE)) || exit; \
 	done
 
@@ -239,20 +247,20 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	cp .indent.pro $(DISTPATH)/.indent.pro
 	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
 ifdef DPMIOBJS
-	@for i in $(SUBDIRS); do \
+	@for i in $(SUBDIRS) $(DOCS); do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 else
-	@for i in $(SUBDIRS) dpmi; do \
+	@for i in $(SUBDIRS) $(DOCS) dpmi; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 endif
 ifdef IPX
-	@for i in $(SUBDIRS); do \
+	@for i in $(SUBDIRS) $(DOCS); do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 else
-	@for i in $(SUBDIRS) ipxutils; do \
+	@for i in $(SUBDIRS) $(DOCS) ipxutils; do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done
 endif

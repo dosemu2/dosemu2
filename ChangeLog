@@ -1,3 +1,20 @@
+Mon Aug 01 1994 Jmaclean
+
+-	Markks latest and greatest additions to the Xterm capabilities
+	of DOSEMU. Best to get ansi_xterm from a site at this time :-).
+-	Detach capability added, thanks to Karl Hakimian. Now with 
+	the optional -d parm, a new VT will be switched to for starting
+	and running DOSEMU.
+-	Added __map_page() to fix EMS error caused by remap() calling
+	__unamp_page() first. FoxPro is running again.
+
+Fri Jul 29 1994 Jmaclean
+
+-	By Jon's request, set '_''s to '-' in keyboard parms
+	in examples/config.dist
+-	By Jon's request, added 'make most' option which does
+	NOT make the doc subdir.
+
 Tue Jul 26 1994 Jmaclean
 
 -	Thanks to Scottb which fixed the DOSEMU memory problems

@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/07/09 14:30:38 $
+ * $Date: 1994/08/01 14:27:57 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.7 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.7  1994/08/01  14:27:57  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
  * Revision 2.6  1994/07/09  14:30:38  root
  * prep for pre53_3.
  *
@@ -111,7 +114,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <errno.h>
-#include <linux/mman.h>
+#include <sys/mman.h>
 
 #include "bios.h"
 #include "emu.h"

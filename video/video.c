@@ -21,9 +21,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/07/26 23:12:01 $
+ * $Date: 1994/08/01 14:27:47 $
  * $Source: /home/src/dosemu0.60/video/RCS/video.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -509,13 +509,14 @@ void
 setup_low_mem(void)
 {
   char * result;
+  v_printf("Low memory mapping!\n");
   result = mmap(NULL, 0x110000,
-#if 1
+#if 0
          PROT_EXEC | PROT_READ | PROT_WRITE,
          MAP_FIXED | MAP_SHARED | MAP_ANON,
 #else
-         PROT_READ | PROT_WRITE,
-         MAP_FIXED | MAP_SHARED,
+         PROT_EXEC | PROT_READ | PROT_WRITE,
+         MAP_FIXED | MAP_PRIVATE | MAP_ANON,
 #endif
          -1, 0);
   if (result != NULL) {

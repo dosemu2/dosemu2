@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/07/09 14:29:43 $
+ * $Date: 1994/08/01 14:26:23 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.5  1994/08/01  14:26:23  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
  * Revision 2.4  1994/07/09  14:29:43  root
  * prep for pre53_3.
  *
@@ -359,7 +362,11 @@ dosemu_fault(int signal, struct sigcontext_struct context)
  		   LWORD(eip)++;
  		   return;
  		 }
-      default:	 error("ERROR: unexpected CPU exceptions 0x%02lx while in vm86()\n",_trapno);
+      default:	error("ERROR: unexpected CPU exception 0x%02lx while in vm86()\n"
+	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
+	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
+	  	_eip, _esp, _eflags, _cs, _ds, _es, _ss);
+		perror("YUCK");
  		 show_regs();
  		 leavedos(4);
     }

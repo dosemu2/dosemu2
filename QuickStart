@@ -16,13 +16,13 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 		The Dosemu Project Registry, which is a document keeping
 		track of who's doing what kind of programming for DOSEMU.
 	./doc/dos.1
-		This is the DOSEMU man page. It is now up to date with 0.52.
+		This is the DOSEMU man page. It is now up to date with 0.53.
 		This normally goes into the /usr/man/man1 directory.
 	./doc/dosemu.texinfo
 		The full documentation for DOSEMU, in LaTeX format.  This
 		documentation is getting to be sorely outdated, however.
-	./doc/announce0.52
-		The announcement textfile for DOSEMU 0.52.
+	./doc/announce0.53
+		The announcement textfile for DOSEMU 0.53.
 
 2) Kernel Patch for older Linux versions:
 -----------------------------------------
@@ -77,7 +77,7 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
      >>>> Go to section 7 below if you have never used DOSEMU before.
         - Copy ./drivers/*.sys, ./commands/*.com, ./commands/*.exe
           to a directory accessible to dosemu, such as /tmp.
-	- If you used the mkpartition command before DOSEMU 0.52, you
+	- If you used the mkpartition command before DOSEMU 0.53, you
 	  will need to re-run the "mkpartition" command, due to a new
 	  partition table datafile format.
         - Type "dos" to start up DOSEMU.
@@ -89,7 +89,7 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 ------------------
      >>>> If you have used DOSEMU before, you may want to try the above
 	  section 6 first, with your existing hard disk configuration.
-	- From the dosemu0.52 directory, type dos -A (to boot off drive A:)
+	- From the dosemu0.53 directory, type dos -A (to boot off drive A:)
 	  After some delay, dosemu should boot and show the A> prompt.
 	- From the A: drive, try viewing the drive C: drive, to make sure
 	  you are using the disk image file.

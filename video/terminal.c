@@ -1,6 +1,14 @@
 /* 
- * video/terminal.c - contains the video-functions
- *                    for terminals (NCURSES and ANSI)
+ * video/terminal.c - contains the video-functions for terminals 
+ *
+ * This module has been extensively updated by Mark Rejhon at: 
+ * ag115@freenet.carleton.ca  
+ *
+ * Please send patches and bugfixes for this module to the above Email
+ * address.  Thanks!
+ *
+ * Now, who can write a VGA emulator for SVGALIB and X? :-)
+ *
  */
 
 #include <stdio.h>
@@ -17,7 +25,9 @@
 #include "terminal.h" 
 
 /* The default character set is to use the latin character set */
-unsigned char *trans = charset_latin;
+unsigned char *chartrans = charset_latin;
+unsigned char *attrtrans = attrset_normal;
+
 int colormap[8][8];
 int attrlookup[256];
 WINDOW *win;
@@ -30,7 +40,7 @@ chtype *noutp = noutbuf;
 unsigned char outbuf[CHBUFSIZE + 5];
 unsigned char *outp = outbuf;
 
-int cursor_row, cursor_col;
+int cursor_row, cursor_col, mode_blink;
 int ibm_codes;
 
 /* The following initializes the terminal.  This should be called at the
@@ -40,6 +50,10 @@ void
 terminal_initialize()
 {
   int i,j,fore,back,attr,pairnum;
+  
+  cursor_row = 0;
+  cursor_col = 0;
+  mode_blink = 1;
 
   if (config.term_charset == CHARSET_FULLIBM) {
      error("WARNING: 'charset fullibm' doesn't work.  Use 'charset ibm' instead.\n");
@@ -47,9 +61,29 @@ terminal_initialize()
   }
 
   switch (config.term_charset) {
-  case CHARSET_LATIN:   trans = charset_latin;   ibm_codes = 0;  break; 
-  case CHARSET_IBM:     trans = charset_ibm;     ibm_codes = 1;  break;
-  case CHARSET_FULLIBM: trans = charset_fullibm; ibm_codes = 1;  break;
+  case CHARSET_IBM:     	
+    chartrans = charset_ibm;
+    ibm_codes = 1;
+    break;
+  case CHARSET_FULLIBM:
+    chartrans = charset_fullibm; 
+    ibm_codes = 1;
+    break;
+  case CHARSET_LATIN:
+  default:
+    chartrans = charset_latin;
+    ibm_codes = 0;
+    break; 
+  }
+
+  switch (config.term_color) {
+  case COLOR_XTERM:
+    attrtrans = attrset_xterm;
+    break;
+  case COLOR_NORMAL: 
+  default:
+    attrtrans = attrset_normal;
+    break;
   }
 
   raw();
@@ -339,17 +373,17 @@ ncurses_update()
     wmove(win, y, x);
   }
 
-  us *sadr;	/* Pointer to start of screen memory of curr page */
-  us *srow;	/* Pointer to start of screen row updated */
-  us *schar;	/* Pointer to character being updated */
-  int bufrow;	/* Pointer to start of buffer row corresp to screen row */
-  int x, y;	/* X and Y position of character being updated */
-  int scanx;	/* Index for comparing screen and buffer rows */
-  int endx;     /* Last character for line loop index */
-  int xdiff;    /* Counter for scan checking used for optimization */
-  int lines;    /* Number of lines to redraw */
-  int numscan;  /* counter for number of lines scanned */
-  int numdone;  /* counter for number of lines actually updated */
+  us *sadr;		/* Ptr to start of screen memory of curr page */
+  us *srow;		/* Ptr to start of screen row updated */
+  us *schar;		/* Ptr to character being updated */
+  uchar *bufrow;	/* Ptr to start of buffer row corresp to screen row */
+  int x, y;		/* X and Y position of character being updated */
+  int scanx;		/* Index for comparing screen and buffer rows */
+  int endx;     	/* Last character for line loop index */
+  int xdiff;    	/* Counter for scan checking used for optimization */
+  int lines;    	/* Number of lines to redraw */
+  int numscan;  	/* counter for number of lines scanned */
+  int numdone;  	/* counter for number of lines actually updated */
   static int newattr = 0;
   static int a, c;
   static int oa = 256;
@@ -410,24 +444,23 @@ ncurses_update()
     }
     numscan++;
 
-    /* If it is the last line of the screen, then only process up to 2nd   */
-    /* last character, because printing last character of last line can    */
-    /* scroll the screen of some terminals.  We don't want this to happen. */
-    /* You will see a blank gap in its place.  This should not be a big    */
-    /* problem for most users.   */
-    if (y == (li - 1))
-      endx = co - 1;
-    else
-      endx = co;
+    endx = co;
+    if (!config.term_corner) {
+      /* If it is the last line of the screen, then only process up to 2nd   */
+      /* last character, because printing last character of last line can    */
+      /* scroll the screen of some terminals.  We don't want this to happen. */
+      /* You will see a blank gap in its place. */
+      if (y == (li - 1)) endx = co - 1;
+    }
 
     /* Only update if the line has changed.  Note that sadr is an unsigned
      * short ptr, so co is not multiplied by 2...I'll clean this up later.
      */
-    bufrow = y * co * 2;	/* Position of first char in row in sadr */
-    srow = sadr + y * co;	/* p is unsigned short ptr to char in sadr */   
+    bufrow = scrbuf + y * co * 2; /* Position of first char in row in sadr */
+    srow = sadr + y * co;	  /* p is unsigned short ptr to char in sadr */   
     
     /* If the line matches, then no updated is needed, and skip the line. */
-    if (!memcmp(scrbuf + bufrow, srow, endx * 2)) continue;
+    if (!memcmp(bufrow, srow, endx * 2)) continue;
 
     /* Increment the number of successfully updated lines counter */
     numdone++;
@@ -450,7 +483,7 @@ ncurses_update()
 
         /* Scan for first character that needs to be updated */
         for (scanx = x; scanx < endx; scanx++)
-          if (memcmp(scrbuf + bufrow + scanx * 2, sadr + y * co + scanx, 2))
+          if (memcmp(bufrow + scanx * 2, sadr + y * co + scanx, 2))
             break;
       
         /* Do Next row if there are no more chars needing to be updated */
@@ -471,8 +504,8 @@ ncurses_update()
 
       /* The following outputs attributes if necessary, then outputs the */
       /* character onscreen. */
-      c = *(unsigned char *) schar;
-      a = ((unsigned char *) schar)[1];
+      c = chartrans[ ((unsigned char *) schar)[0] ];
+      a = attrtrans[ ((unsigned char *) schar)[1] ];
       if (a != oa) {     /*(a != oa) {*/
         newattr = attrlookup[a];
         /* This is a workaround for some of NCURSES bugs messing up screen */
@@ -482,11 +515,11 @@ ncurses_update()
         oa = a;			/* save old attr as current */
       }
       /* Output character to buffer */
-      NOUT(trans[c] | newattr);              /* Output the actual char */
+      NOUT(c | newattr);                    /* Output the actual char */
       schar++;                              /* Increment screen pointer */
       if (xdiff) xdiff--;                   /* Decrement scan check counter */
     }
-    memcpy(scrbuf + bufrow, srow, co * 2);  /* Copy screen mem line to buffer */
+    memcpy(bufrow, srow, co * 2);  /* Copy screen mem line to buffer */
   }
 
   /* If any part of the screen was updated, then reset the attributes */
@@ -591,20 +624,21 @@ ansi_update()
     STROUT(color);
   }
 
-  us *sadr;	/* Pointer to start of screen memory of curr page */
-  us *srow;	/* Pointer to start of screen row updated */
-  us *schar;	/* Pointer to character being updated */
-  int bufrow;	/* Pointer to start of buffer row corresp to screen row */
-  int x, y;	/* X and Y position of character being updated */
-  int scanx;	/* Index for comparing screen and buffer rows */
-  int endx;     /* Last character for line loop index */
-  int xdiff;    /* Counter for scan checking used for optimization */
-  int lines;    /* Number of lines to redraw */
-  int numscan;  /* counter for number of lines scanned */
-  int numdone;  /* counter for number of lines actually updated */
-  static int a, c;
+  static us *sadr;	/* Ptr to start of screen memory of curr page */
+  static us *schar;	/* Ptr to character being updated */
+  static us scrrow[256];/* Array to hold screen memory row temporarily */
+  static us *temprow;	/* Temporary buffer pointer for scrrow[] */
+  static uchar *bufrow;	/* Ptr to start of buffer row corresp to screen row */
+  static int x, y;	/* X and Y position of character being updated */
+  static int scanx;	/* Index for comparing screen and buffer rows */
+  static int endx;	/* Last character for line loop index */
+  static int xdiff;    	/* Counter for scan checking used for optimization */
+  static int lines;    	/* Number of lines to redraw */
+  static int numscan;	/* counter for number of lines scanned */
+  static int numdone;  	/* counter for number of lines actually updated */
+  static int a, c;          /* Attrib and character temp variables */
   static int yloop = -1;    /* Row index for loop */
-  static int oldattr = 0;
+  static int oldattr = 0;   /* Previous attributes */
   static int oldx = 1;      /* Previous x cursor position */
   static int oldy = 1;      /* Previous y cursor position */
 
@@ -617,7 +651,7 @@ ansi_update()
   v_printf("SCREEN: %x\n", bios_current_screen_page);
 #endif  
 
-  /* The following determins how many lines it should scan at once,
+  /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
    * screen changes, it often incurs considerable delay when this
    * routine updates the entire screen.  So the variable "lines"
@@ -659,24 +693,32 @@ ansi_update()
     }
     numscan++;
 
-    /* If it is the last line of the screen, then only process up to 2nd   */
-    /* last character, because printing last character of last line can    */
-    /* scroll the screen of some terminals.  We don't want this to happen. */
-    /* You will see a blank gap in its place.  This should not be a big    */
-    /* problem for most users.   */
-    if (y == (li - 1))
-      endx = co - 1;
-    else
-      endx = co;
+    endx = co;
+    if (!config.term_corner) {
+      /* If it is the last line of the screen, then only process up to 2nd   */
+      /* last character, because printing last character of last line can    */
+      /* scroll the screen of some terminals.  We don't want this to happen. */
+      /* You will see a blank gap in its place. */
+      if (y == (li - 1)) endx = co - 1;
+    }
 
     /* Only update if the line has changed.  Note that sadr is an unsigned
      * short ptr, so co is not multiplied by 2...I'll clean this up later.
      */
-    bufrow = y * co * 2;	/* Position of first char in row in sadr */
-    srow = sadr + y * co;	/* p is unsigned short ptr to char in sadr */   
+    bufrow = scrbuf + y * co * 2;  /* Position of first char in row in sadr */
+
+    /* Copy screen mem line to temporary buffer row */
+    memcpy(scrrow, sadr + y * co, co * 2);  
+    
+    /* Strip all blinking bits from temp buffer row if blinking disabled */
+    if (!mode_blink) {
+      temprow = scrrow;
+      for (scanx = 0; scanx < co; scanx++, temprow++)
+        *temprow &= 0x7FFF;
+    }
     
     /* If the line matches, then no updated is needed, and skip the line. */
-    if (!memcmp(scrbuf + bufrow, srow, endx * 2)) continue;
+    if (!memcmp(bufrow, scrrow, endx * 2)) continue;
 
     /* Increment the number of successfully updated lines counter */
     numdone++;
@@ -685,8 +727,8 @@ ansi_update()
      * time.  It does a little bit optimization now, thanks to Mark D. Rejhon,
      * to avoid redundant updates.
      */
-    schar = srow;         /* Pointer to start of row in screen memory */
-    xdiff = 0;            /* scan check counter */
+    schar = scrrow;         /* Pointer to start of row in screen memory */
+    xdiff = 0;              /* scan check counter */
     for (x = 0; x < endx; x++) {
 
       /* The following checks if it needs to scan the line for the first
@@ -699,7 +741,7 @@ ansi_update()
 
         /* Scan for first character that needs to be updated */
         for (scanx = x; scanx < endx; scanx++)
-          if (memcmp(scrbuf + bufrow + scanx * 2, sadr + y * co + scanx, 2))
+          if (memcmp(bufrow + scanx * 2, scrrow + scanx, 2))
             break;
       
         /* Do next row if there are no more chars needing to be updated */
@@ -720,24 +762,30 @@ ansi_update()
 
       /* The following outputs attributes if necessary, then outputs the */
       /* character onscreen. */
-      c = *(unsigned char *) schar;
-      a = ((unsigned char *) schar)[1];
+      c = chartrans[ ((unsigned char *) schar)[0] ];
+
+      /* Strip blinking bit if blinking characters are disabled */
+      if (mode_blink)
+        a = attrtrans[ ((unsigned char *) schar)[1] ];
+      else
+        a = attrtrans[ ((unsigned char *) schar)[1] ] & 0x7F;
+
       if (oldattr != a) {
         fast_buffer_setcolor(oldattr, a);
         oldattr = a;
       }
 
       /* Output character to buffer */
-      CHOUT(trans[c]);                      /* Output the actual char */
+      CHOUT(c);                      /* Output the actual char */
       oldx++;
-      schar++;                              /* Increment screen pointer */
-      if (xdiff) xdiff--;                   /* Decrement scan check counter */
+      schar++;                       /* Increment screen pointer */
+      if (xdiff) xdiff--;            /* Decrement scan check counter */
     }
-    memcpy(scrbuf + bufrow, srow, co * 2);  /* Copy screen mem line to buffer */
+    memcpy(bufrow, scrrow, co * 2);  /* Copy screen mem line to buffer */
   }
 
   fast_buffer_poscur(oldx,oldy,cursor_col,cursor_row);
-  oldx = cursor_col; oldy = cursor_row;
+  oldx = cursor_col; oldy = cursor_row; 
   CHFLUSH;
   if (!numdone) {
     /* The updates look a bit cleaner when reset to top of the screen

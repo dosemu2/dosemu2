@@ -8,8 +8,10 @@
 CC   = gcc
 LD   = ld
 
-# INCDIR is exported from ..
-#INCDIR= -I../include -I..
+# If INCDIR exists, it was exported from the master Makefile.
+ifndef INCDIR
+  INCDIR= -I../include -I..
+endif
 
 # let gcc do extended checking
 

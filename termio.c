@@ -16,16 +16,18 @@
  * DANG_END_MODULE
  */
 
-
 /* 
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/07/14 23:19:20 $
+ * $Date: 1994/08/01 14:26:23 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.6 $
+ * $Revision: 2.7 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.7  1994/08/01  14:26:23  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
  * Revision 2.6  1994/07/14  23:19:20  root
  * Markkk's patches.
  *
@@ -287,17 +289,20 @@ char tc[1024], termcap[1024];
 int li, co;			/* lines, columns */
 
 struct funkeystruct {
-  char *esc;
-  char *tce;
+  unsigned char *esc;
+  unsigned char *tce;
   us code;
 };
 
-#define FUNKEYS 111
-static struct funkeystruct funkey[FUNKEYS] =
+/* The funkeystruct structures have been moved to termio.h
+/* This is a translation table for esc-prefixed terminal keyboard codes 
+ * to PC computer keyboard codes.
+ */
+static struct funkeystruct funkey[] =
 {
   {NULL, "kich1", 0x5200},	/* kI     Ins */
-  {NULL, "kdch1", 0x5300},	/* kD     Del   127*/
-  {NULL, "khome", 0x4700},	/* kh     Ho    0x5c00 */
+  {NULL, "kdch1", 0x5300},	/* kD     Del   0x007F */
+  {NULL, "khome", 0x4700},	/* kh     Ho    0x5C00 */
   {NULL, "kend", 0x4f00},	/* kH     End   0x6100 */
   {NULL, "kcuu1", 0x4800},	/* ku     Up */  
   {NULL, "kcud1", 0x5000},	/* kd     Dn */
@@ -318,9 +323,11 @@ static struct funkeystruct funkey[FUNKEYS] =
   {NULL, "kf11", 0x8500},	/*        F11 */
   {NULL, "kf12", 0x8600},	/*        F12 */
   {"\033[2~", NULL, 0x5200},	/* Ins */
-  {"\033[3~", NULL, 0x5300},	/* Del   127*/
-  {"\033[1~", NULL, 0x4700},	/* Ho    0x5c00 */
-  {"\033[4~", NULL, 0x4f00},	/* End   0x6100 */
+  {"\033[3~", NULL, 0x5300},	/* Del    Another keyscan is 0x007F */
+  {"\033[1~", NULL, 0x4700},	/* Ho     Another keyscan is 0x5c00 */
+  {"\033[H", NULL, 0x4700},	/* Ho */
+  {"\033[4~", NULL, 0x4f00},	/* End    Another keyscan is 0x6100 */
+  {"\033[K", NULL, 0x4f00},	/* End */
   {"\033[5~", NULL, 0x4900},	/* PgUp */
   {"\033[6~", NULL, 0x5100},	/* PgDn */
   {"\033[A", NULL, 0x4800},	/* Up */  
@@ -336,13 +343,26 @@ static struct funkeystruct funkey[FUNKEYS] =
   {"\033[[C", NULL, 0x3d00},	/* F3 */
   {"\033[[D", NULL, 0x3e00},	/* F4 */
   {"\033[[E", NULL, 0x3f00},	/* F5 */
+  {"\033[11~", NULL, 0x3b00},	/* F1 */
+  {"\033[12~", NULL, 0x3c00},	/* F2 */
+  {"\033[13~", NULL, 0x3d00},	/* F3 */
+  {"\033[14~", NULL, 0x3e00},	/* F4 */
+  {"\033[15~", NULL, 0x3f00},	/* F5 */
   {"\033[17~", NULL, 0x4000},	/* F6 */
   {"\033[18~", NULL, 0x4100},	/* F7 */
   {"\033[19~", NULL, 0x4200},	/* F8 */
   {"\033[20~", NULL, 0x4300},	/* F9 */
   {"\033[21~", NULL, 0x4400},	/* F10 */
-  {"\033[23~", NULL, 0x8500},	/* F11 */
-  {"\033[24~", NULL, 0x8600},	/* F12 */
+  {"\033[23~", NULL, 0x5400},	/* Shift F1  (F11 acts like Shift-F1) */
+  {"\033[24~", NULL, 0x5500},	/* Shift F2  (F12 acts like Shift-F2) */
+  {"\033[25~", NULL, 0x5600},	/* Shift F3 */
+  {"\033[26~", NULL, 0x5700},	/* Shift F4 */
+  {"\033[28~", NULL, 0x5800},	/* Shift F5 */
+  {"\033[29~", NULL, 0x5900},	/* Shift F6 */
+  {"\033[31~", NULL, 0x5A00},	/* Shift F7 */
+  {"\033[32~", NULL, 0x5B00},	/* Shift F8 */
+  {"\033[33~", NULL, 0x5C00},	/* Shift F9 */
+  {"\033[34~", NULL, 0x5D00},	/* Shift F10 */
   {"\033OQ", NULL, 0x352F},	/* Keypad / */
   {"\033OR", NULL, 0x372A},	/* Keypad * */
   {"\033OS", NULL, 0x4A2D},	/* Keypad - */
@@ -384,7 +404,7 @@ static struct funkeystruct funkey[FUNKEYS] =
   {"\033w", NULL, 0x1100},	/* Alt W */
   {"\033x", NULL, 0x2d00},	/* Alt X */
   {"\033y", NULL, 0x1500},	/* Alt Y */
-  {"\033z", NULL, 0x2c00},      /* Alt Z */
+  {"\033z", NULL, 0x2c00},	/* Alt Z */
   {"\0330", NULL, 0x8100},	/* Alt 0 */
   {"\0331", NULL, 0x7800},	/* Alt 1 */
   {"\0332", NULL, 0x7900},	/* Alt 2 */
@@ -405,29 +425,79 @@ static struct funkeystruct funkey[FUNKEYS] =
   {"\033.", NULL, 0x3400},	/* Alt . */
   {"\033/", NULL, 0x3500},	/* Alt / */
   {"\033\011", NULL, 0xA500},	/* Alt Tab */
-  {"\033\015", NULL, 0x1C00}	/* Alt Enter */
-#if 0
-  /* The following key combinations block out keyboard sequences that starts
-   * with Esc[ and Esc] so this is commented out for now until better terminfo
-   * keyboard handling arrives.
-   */
-  {"\033[", NULL, 0x1A00},      /* Alt [ */
-  {"\033]", NULL, 0x1B00}	/* Alt ] */
-#endif
+  {"\033\015", NULL, 0x1C00},	/* Alt Enter */
+  {NULL, NULL, 0}		/* Ending delimiter */
 };
 
-/* this table is used by convKey() to give the int16 functions the
-   correct scancode in the high byte of the returned key (AH) */
+/* This is a translation table for single character high ASCII characters
+ * used by ALT keypresses in Xterms, into PC computer keyboard codes.
+ */
+static struct funkeystruct xfunkey[] =
+{
+  {"\341", NULL, 0x1e00},	/* Alt A */
+  {"\342", NULL, 0x3000},	/* Alt B */
+  {"\343", NULL, 0x2e00},	/* Alt C */
+  {"\344", NULL, 0x2000},	/* Alt D */
+  {"\345", NULL, 0x1200},	/* Alt E */
+  {"\346", NULL, 0x2100},	/* Alt F */
+  {"\347", NULL, 0x2200},	/* Alt G */
+  {"\350", NULL, 0x2300},	/* Alt H */
+  {"\351", NULL, 0x1700},	/* Alt I */
+  {"\352", NULL, 0x2400},	/* Alt J */
+  {"\353", NULL, 0x2500},	/* Alt K */
+  {"\354", NULL, 0x2600},	/* Alt L */
+  {"\355", NULL, 0x3200},	/* Alt M */
+  {"\356", NULL, 0x3100},	/* Alt N */
+  {"\357", NULL, 0x1800},	/* Alt O */
+  {"\360", NULL, 0x1900},	/* Alt P */
+  {"\361", NULL, 0x1000},	/* Alt Q */
+  {"\362", NULL, 0x1300},	/* Alt R */
+  {"\363", NULL, 0x1f00},	/* Alt S */
+  {"\364", NULL, 0x1400},	/* Alt T */
+  {"\365", NULL, 0x1600},	/* Alt U */
+  {"\366", NULL, 0x2f00},	/* Alt V */
+  {"\367", NULL, 0x1100},	/* Alt W */
+  {"\370", NULL, 0x2d00},	/* Alt X */
+  {"\371", NULL, 0x1500},	/* Alt Y */
+  {"\372", NULL, 0x2c00},	/* Alt Z */
+  {"\260", NULL, 0x8100},	/* Alt 0 */
+  {"\261", NULL, 0x7800},	/* Alt 1 */
+  {"\262", NULL, 0x7900},	/* Alt 2 */
+  {"\263", NULL, 0x7a00},	/* Alt 3 */
+  {"\264", NULL, 0x7b00},	/* Alt 4 */
+  {"\265", NULL, 0x7c00},	/* Alt 5 */
+  {"\266", NULL, 0x7d00},	/* Alt 6 */
+  {"\267", NULL, 0x7e00},	/* Alt 7 */
+  {"\270", NULL, 0x7f00},	/* Alt 8 */
+  {"\271", NULL, 0x8000},	/* Alt 9 */
+  {"\340", NULL, 0x2900},	/* Alt ` */
+  {"\255", NULL, 0x8200},	/* Alt - */
+  {"\275", NULL, 0x8300},	/* Alt = */
+  {"\334", NULL, 0x2B00},	/* Alt \ */
+  {"\273", NULL, 0x2700},	/* Alt ; */
+  {"\247", NULL, 0x2800},	/* Alt ' */
+  {"\254", NULL, 0x3300},	/* Alt , */
+  {"\256", NULL, 0x3400},	/* Alt . */
+  {"\257", NULL, 0x3500},	/* Alt / */
+  {"\333", NULL, 0x1A00},	/* Alt [ */
+  {"\335", NULL, 0x1B00},	/* Alt ] */
+  {"\233", NULL, 0x0100},	/* Alt Esc */
+  {"\377", NULL, 0x0E00},	/* Alt Backspace */
+  {"\211", NULL, 0xA500},	/* Alt Tab */
+  {"\215", NULL, 0x1C00},	/* Alt Enter */
+  {NULL, NULL, 0}		/* Ending delimiter */
+};
 
-/* this might need changing per country, like the RAW keyboards, but I
+
+/* this table is used by convKey() to give the int16 functions the
+ * correct scancode in the high byte of the returned key (AH) 
+ * this might need changing per country, like the RAW keyboards, but I
  * don't think so.  I think that it'll make every keyboard look like
  * a U.S. keyboard to DOS, which maybe "keyb" does anyway.  Sorry
  * it's so ugly.
+ * this is a table of scancodes, indexed by the ASCII value of the character
+ * to be completed 
  */
-
-/* this is a table of scancodes, indexed by the ASCII value of the character
- * to be completed */
-
 unsigned char highscan[256] =
 {
   0, 0x1e, 0x30, 0x2e, 0x20, 0x12, 0x21, 0x22, 0xe, 0x0f, 0x24, 0x25, 0x2e, 0x1c,	/* 0-0xd */
@@ -483,7 +553,7 @@ gettermcap(void)
   /* This won't work with NCURSES version 1.8. */
   /* These routines have been tested with NCURSES version 1.8.5 */
   /* Can someone make this compatible with 1.8? */
-  for (fkp = funkey; fkp < &funkey[FUNKEYS]; fkp++) {
+  for (fkp = funkey; fkp->code; fkp++) {
     if (fkp->tce != NULL) {
       fkp->esc = tigetstr(fkp->tce);
       error("TERMINFO string %s = %s\n", fkp->tce, fkp->esc);
@@ -612,7 +682,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.6 1994/07/14 23:19:20 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.7 1994/08/01 14:26:23 root Exp root $\n");
 
   return 0;
 }
@@ -832,13 +902,13 @@ convascii(int *cc)
       }
 
     }
-    fkp = funkey;
 
+    fkp = funkey;
     i = 1;
     while (1) {
       if (fkp->esc == NULL || (unsigned char) fkp->esc[i] < kbp[i]) {
-	if (++fkp >= &funkey[FUNKEYS])
-	  break;
+        fkp++;
+        if (!fkp->code) break;
       }
       else if ((unsigned char) fkp->esc[i] == kbp[i]) {
 	if (fkp->esc[++i] == '\0') {
@@ -850,7 +920,6 @@ convascii(int *cc)
 	}
 	if (kbcount <= i) {
 	  char contin;
-
 	  do {
 	    scr_tv.tv_sec = 0;
 	    scr_tv.tv_usec = 200000;
@@ -863,9 +932,7 @@ convascii(int *cc)
 	      *cc += ccc;
 	    }
 	  } while (ccc > 0);
-	  if (kbcount <= i) {
-	    break;
-	  }
+	  if (kbcount <= i) break;
 	}
       }
       else {
@@ -873,7 +940,21 @@ convascii(int *cc)
       }
     }
     in_readkeyboard = 0;
-  } /* end of if (*kbp == '\033')... */
+  } /* if (*kbp == '\033') */
+  
+  else if (*kbp >= 128) {
+    for (fkp = xfunkey; fkp->code; fkp++) {
+      if ( (unsigned char) (*kbp) == fkp->esc[0] ) {
+        DOS_setscan(fkp->code);
+        break;
+      }
+    }
+    kbcount--;
+    (*cc)--;
+    kbp++;
+    return;
+  } /* if (*kbp >= 128) */
+  
   else if (*kbp == erasekey) {
     kbcount--;
     (*cc)--;
@@ -968,6 +1049,9 @@ fkcmp(const void *a, const void *b)
 void
 termioInit()
 {
+  int numkeys;
+  struct funkeystruct *fkp;
+
   scr_state.current = 1;
   if (OpenKeyboard() != 0) {
     error("ERROR: can't open keyboard\n");
@@ -978,7 +1062,11 @@ termioInit()
   gettermcap();
   li = 25;
   co = 80;
-  qsort(funkey, FUNKEYS, sizeof(struct funkeystruct), &fkcmp);
+  
+  numkeys = 0;
+  for (fkp = funkey; fkp->code; fkp++) 
+    numkeys++;
+  qsort(funkey, numkeys, sizeof(struct funkeystruct), &fkcmp);
 }
 
 void
@@ -988,9 +1076,9 @@ termioClose()
   CloseKeyboard(); 
 }
 
-/**************************************************************
+/***************************************************************
  * this was copied verbatim from the Linux kernel (keyboard.c) *
- **************************************************************/
+ ***************************************************************/
 
 static unsigned char resetid = 0;
 static unsigned char firstid = 0;

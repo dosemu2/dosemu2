@@ -3,12 +3,18 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/07/14 23:19:20 $
+ * $Date: 1994/08/01 14:58:59 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.6 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.8  1994/08/01  14:58:59  root
+ * Added detach (-d) option from Karl Hakimian.
+ *
+ * Revision 2.7  1994/08/01  14:26:23  root
+ * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
+ *
  * Revision 2.6  1994/07/14  23:19:20  root
  * Markkk's patches.
  *
@@ -404,6 +410,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        u_short term_updatelines;	/* Amount to update at a time */
        u_short term_updatefreq;		/* Terminal update frequency */
        u_short term_charset;		/* Terminal Character set */
+       u_short term_corner;             /* Update char at lower-right corner */
        boolean fullrestore;
 
        boolean console_keyb;
@@ -445,6 +452,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        unsigned char *shift_map;
        unsigned char *alt_map;
        unsigned char *num_table;
+       unsigned short detach;
      }
 
 config_t;

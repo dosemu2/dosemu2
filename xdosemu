@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/sh 
 #
 # This script is made by Mark D. Rejhon to automatically bring up DOSEMU
 # in an xterm (or one of its cousins: color_xterm, ansi_xterm, or rxvt).
@@ -13,15 +13,19 @@
 if ! [ -r /usr/lib/X11/fonts/misc/vga.pcf ]; then
 	echo "Hey...I could not find the IBM VGA font for xwindows!"
 	echo "To install the VGA font, go into the DOSEMU source directory and type:"
-	echo "./xinstallvgafont"
+	echo "sh xinstallvgafont"
 	echo ""
-	echo "Starting xdosbox with default font.  If not using the VGA font, you should use"
-	echo "the latin character set instead of the IBM character set in /etc/dosemu.conf."
+	echo "Starting xdosemu with default font.  If not using the VGA font, you should use"
+	echo "the latin character set instead of the PC character set in /etc/dosemu.conf."
 	echo ""
 
 	#Search for various xterm-related clients and choose the best or
 	#fastest one to run.
-	if [ -x /usr/bin/X11/rxvt ]; then
+	if [ -x /usr/bin/X11/ansi_xterm ]; then
+		echo "Found ansi_xterm.  (Hopefully it's at least version 2.0!)"
+		echo "Starting ansi_xterm 2.0 DOSEMU without IBM font..."
+		ansi_xterm -geometry 80x25 -bg black -fg gray -T DOSEMU -n DOSEMU -e dos $* &
+	elif [ -x /usr/bin/X11/rxvt ]; then
 		echo "Found rxvt."
 		echo "Starting regular rxvt DOSEMU without IBM font..."
 		rxvt -geometry 80x25 -bg black -fg gray -T DOSEMU -n DOSEMU -e dos $* &
@@ -36,10 +40,11 @@ if ! [ -r /usr/lib/X11/fonts/misc/vga.pcf ]; then
 	fi
 else
 	# The IBM font was found, now find the best xterm to start.
-	if [ -x /usr/bin/X11/xterm-ansi ]; then
-		echo "Found xterm-ansi."
-		echo "Starting xterm-ansi DOSEMU with IBM font..."
-		xterm-ansi -font vga -geometry 80x25 -bg black -fg gray -T DOSEMU -n DOSEMU -e dos $* &
+	if [ -x /usr/bin/X11/ansi_xterm ]; then
+		echo "Found ansi_xterm.  (Hopefully it's at least version 2.0!)"
+		echo "Congratulations for choosing the best xterm for DOSEMU."
+		echo "Starting ansi_xterm DOSEMU with IBM font..."
+		ansi_xterm -font vga -fb vga -geometry 80x25 -bg black -fg gray -T DOSEMU -n DOSEMU -e dos $* &
 	elif [ -x /usr/bin/X11/rxvt ]; then
 		echo "Found rxvt."
 		echo "Starting regular rxvt DOSEMU with IBM font..."
@@ -47,7 +52,7 @@ else
 	elif [ -x /usr/bin/X11/xterm ]; then
 		echo "Found xterm."
 		echo "Starting regular xterm DOSEMU with IBM font..."
-		xterm -font vga -geometry 80x25 -bg black -fg gray -T DOSEMU -n DOSEMU -e dos $* &
+		xterm -font vga -fb vga -geometry 80x25 -bg black -fg gray -T DOSEMU -n DOSEMU -e dos $* &
 	else
 		echo "ERROR: No xterm programs found in /usr/bin/X11" 
         	echo "Perhaps you don't have Xwindows installed on your system?" 
