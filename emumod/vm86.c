@@ -9,7 +9,7 @@
 #ifdef _LOADABLE_VM86_
   #include "kversion.h"
 #else
-  #define KERNEL_VERSION 1001076 /* last verified kernel version */
+  #define KERNEL_VERSION 1002001 /* last verified kernel version */
 #endif
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -17,8 +17,14 @@
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
+#if KERNEL_VERSION >= 1001085
+#include <linux/mm.h>
+#endif
 
 #include <asm/segment.h>
+#if KERNEL_VERSION >= 1001088
+#include <asm/pgtable.h>
+#endif
 #include <asm/io.h>
 
 /*
@@ -95,6 +101,7 @@ asmlinkage struct pt_regs * save_v86_state(struct vm86_regs * regs)
 
 static void mark_screen_rdonly(struct task_struct * tsk)
 {
+#if KERNEL_VERSION < 1001084
 	unsigned long tmp;
 	unsigned long *pg_table;
 
@@ -111,6 +118,28 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 			}
 		}
 	}
+#else
+	pgd_t *pg_dir;
+
+	pg_dir = PAGE_DIR_OFFSET(tsk, 0);
+	if (!pgd_none(*pg_dir)) {
+		pte_t *pg_table;
+		int i;
+
+		if (pgd_bad(*pg_dir)) {
+			printk("vm86: bad page table directory entry %08lx\n", pgd_val(*pg_dir));
+			pgd_clear(pg_dir);
+			return;
+		}
+		pg_table = (pte_t *) pgd_page(*pg_dir);
+		pg_table += 0xA0000 >> PAGE_SHIFT;
+		for (i = 0 ; i < 32 ; i++) {
+			if (pte_present(*pg_table))
+				*pg_table = pte_wrprotect(*pg_table);
+			pg_table++;
+ 		}
+ 	}
+#endif
 }
 
 asmlinkage int sys_vm86(struct vm86_struct * v86)
@@ -427,12 +456,14 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 		set_vflags_short(popw(ssp, sp), regs);
 		return;
 
+#if KERNEL_VERSION < 1001089
 #if 0
 	/* int 3 */
 	case 0xcc:
 		IP(regs)++;
 		do_int(regs, 3, ssp, sp);
 		return;
+#endif
 #endif
 	/* int xx */
 	case 0xcd:

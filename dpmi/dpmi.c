@@ -1451,7 +1451,7 @@ inline void run_dpmi(void)
   }
   else {
     if(pic_icount)
-      dpmi_eflags = VIP;
+      dpmi_eflags |= VIP;
     dpmi_control();
   }
     handle_signals();

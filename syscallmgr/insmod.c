@@ -18,7 +18,7 @@
  *       much *earlier* then the release of modules-1.1.67.
  *       Unfortunately the meanings of the -m switch differs.
  *       Because of this I decided to take over the meaning from the official
- *       moduls release, but replaced the very dumb SHAME_ON_YOU-code
+ *       moduls release, but replaced the very simple SHAME_ON_YOU-code
  *       by the more sophisticated and *really* secure HACKER_TOOL-code.
  *       So, for old users of dosemu's insmod:  -m, -M  becomes -z, -Z ! Ok?
  *       Starting with Linux 1.1.76 the zSystem.map exists no longer,
@@ -34,7 +34,7 @@
   #if 0
     #include "kversion.h"
   #else
-    #define KERNEL_VERSION 1001080 /* last verified kernel version */
+    #define KERNEL_VERSION 1002001 /* last verified kernel version */
   #endif
 #else
   /*#define SHAME_ON_YOU*/
@@ -163,6 +163,7 @@ struct zSystem_entry {
   struct zSystem_entry *next;
   int value;;
   char *name;
+  int chkcount;
 };
 
 int use_zSystem=0, use_zSystem_local=0;
@@ -209,6 +210,7 @@ static struct zSystem_entry *build_zSystem_syms(char *name)
         p->name=strdup(n);
         p->value=i;
         p->next=table;
+        p->chkcount=0;
         table=p;
       }
     }
@@ -226,10 +228,28 @@ static struct kernel_sym *find_resident_sym(struct kernel_sym *ksym, int nksyms,
   return 0;
 }
 
+static int get_silly_multiple_defined_count(struct kernel_sym *ksym, int nksyms)
+{
+  int sillycount=0;
+  struct kernel_sym *p;
+  for (; nksyms >0 ; --nksyms, ksym++) {
+    p=find_resident_sym(ksym+1,nksyms-1,ksym->name);
+    if (p) {
+      sillycount++;
+      fprintf(stderr,
+        "Warning: ksyms has symbol '%s' multiple defined.\n"
+        "         (report this to the kernel team, don't bother the dosemu team)\n",
+        ksym->name
+      );
+    }
+  }
+  return sillycount;
+}
+
 static int check_for_right_zSystem_map(struct zSystem_entry *zsym, struct kernel_sym *ksymtab, int nksyms)
 {
   struct kernel_sym *ksym, *p;
-  int i,matches;
+  int i,matches,sillycount;
   
   if (!zsym) return 0;
   
@@ -241,7 +261,8 @@ static int check_for_right_zSystem_map(struct zSystem_entry *zsym, struct kernel
   ksym++; 
   nksyms -= i+1;
   matches=0;
-  
+  sillycount=get_silly_multiple_defined_count(ksym,nksyms);
+
   while (zsym) {
     p=find_resident_sym(ksym,nksyms,zsym->name);
     if (p) {
@@ -249,7 +270,7 @@ static int check_for_right_zSystem_map(struct zSystem_entry *zsym, struct kernel
     }
     zsym=zsym->next;
   }
-  return (nksyms == matches);
+  return (nksyms == (matches+sillycount));
 }
 
 

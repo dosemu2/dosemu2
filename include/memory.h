@@ -28,7 +28,7 @@
 #endif
 #endif
 
-/* split segment 0xf000 into tow region, 0xf0000 to 0xf7fff is read-write */
+/* split segment 0xf000 into two region, 0xf0000 to 0xf7fff is read-write */
 /*                                       0xf8000 to 0xfffff is read-only  */
 /* so put anything need read-write into BIOSSEG and anything read-only */
 /* to ROMBIOSSEG  */
@@ -58,9 +58,16 @@
 /* The packet driver has some code in this segment which needs to be */
 /* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
 /* Memory required is about 2000 bytes, beware! */
-#define PKTDRV_SEG	(BIOSSEG + 0x100)
-#define PKTDRV_OFF	0x1100
+#define PKTDRV_SEG	(BIOSSEG)
+#define PKTDRV_OFF	0x3100
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
+
+/* don't change these for now, they're hardwired! */
+#define Mouse_SEG       (BIOSSEG)
+#define Mouse_OFF       0x20f0
+#define Mouse_ROUTINE_OFF  0x2140
+#define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
+#define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
 
 #ifndef ROMBIOSSEG
 #define ROMBIOSSEG	0xf800
@@ -83,13 +90,6 @@
 #define Banner_SEG	ROMBIOSSEG
 #define Banner_OFF	0x2000
 #define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
-
-/* don't change these for now, they're hardwired! */
-#define Mouse_SEG       ROMBIOSSEG
-#define Mouse_OFF       0x20f0
-#define Mouse_ROUTINE_OFF  0x2140
-#define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
-#define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
 
 #define INT16_SEG	ROMBIOSSEG
 #define INT16_OFF	0x3000

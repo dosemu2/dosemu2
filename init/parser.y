@@ -17,6 +17,7 @@
 #include <unistd.h>                      /* prototype for stat() */
 #include <stdarg.h>
 #include <pwd.h>
+#include <mntent.h>
 
 #include "config.h"
 #include "emu.h"
@@ -614,8 +615,6 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_PARTITION STRING INTEGER
 		  {
-                  if (priv_lvl)
-                    yyerror("Can not use DISK/PARTITION in the user config file\n");
                   yywarn("{ partition \"%s\" %d } the"
 			 " token '%d' is ignored and can be removed.",
 			 $2,$3,$3);
@@ -1066,6 +1065,10 @@ static void do_part(char *dev)
 
 static void stop_disk(int token)
 {
+  FILE   *f;
+  struct mntent *mtab;
+  int    mounted_rw;
+
   if (dptr == &nulldisk)              /* is there any disk? */
     return;                           /* no, nothing to do */
 
@@ -1085,10 +1088,30 @@ static void stop_disk(int token)
   else
     c_printf("type %d ", dptr->type);
 
-  if (dptr->type == PARTITION)
-    {
-      c_printf("partition# %d ", dptr->part_info.number);
+  if (dptr->type == PARTITION) {
+    c_printf("partition# %d ", dptr->part_info.number);
+    mtab = NULL;
+    if ((f = setmntent(MOUNTED, "r")) != NULL) {
+      while (mtab = getmntent(f))
+        if (!strcmp(dptr->dev_name, mtab->mnt_fsname)) break;
+      endmntent(f);
     }
+    if (mtab) {
+      mounted_rw = ( hasmntopt(mtab, MNTOPT_RW) != NULL );
+      if (mounted_rw && !dptr->wantrdonly) 
+        yyerror("\n\nYou specified '%s' for read-write Direct Partition Access,"
+                "\nit is currently mounted read-write on '%s' !!!\n",
+                dptr->dev_name, mtab->mnt_dir);
+      else if (mounted_rw) 
+        yywarn("You specified '%s' for read-only Direct Partition Access,"
+               "\n         it is currently mounted read-write on '%s'.\n",
+               dptr->dev_name, mtab->mnt_dir);
+      else if (!dptr->wantrdonly) 
+        yywarn("You specified '%s' for read-write Direct Partition Access,"
+               "\n         it is currently mounted read-only on '%s'.\n",
+               dptr->dev_name, mtab->mnt_dir);
+    }
+  }
 
   if (dptr->header)
     c_printf("header_size: %ld ", (long) dptr->header);

@@ -62,8 +62,8 @@ timint on
 #    DOS programs, and is only activated when DOSEMU starts up at the 
 #    console.  It only becomes a problem when DOSEMU prematurely exits 
 #    with a "Segmentation Fault" fatal error, because the keyboard would
-#    have not been reset properly.  In that case, you would have to reboot 
-#    your Linux system remotely, or using the RESET button.  In reality, 
+#    have not been reset properly.  In that case, you would have to run 
+#    kbd_mode -a remotely, or use the RESET button.  In reality, 
 #    this should never happen.  But if it does, please do report to the 
 #    dosemu development team, of the problem and detailed circumstances, 
 #    we're trying our best!  If you don't need near complete keyboard

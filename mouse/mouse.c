@@ -704,11 +704,11 @@ mouse_setsensitivity(void)
 static void
 mouse_restorestate(void)
 {
-  struct mouse *mpt;
 /*
+  struct mouse *mpt;
   mpt=&mouse;
 */
-  memcpy(mpt, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
+  memcpy(&mouse, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
   m_printf("MOUSE: Restore mouse state\n");
 }
 
@@ -716,11 +716,11 @@ mouse_restorestate(void)
 static void
 mouse_storestate(void)
 {
-  struct mouse *mpt;
 /*
+  struct mouse *mpt;
   mpt=&mouse;
 */
-  memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), mpt, sizeof(mouse));
+  memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), &mouse, sizeof(mouse));
   m_printf("MOUSE: Save mouse state\n");
 }
 
@@ -1459,7 +1459,7 @@ mouse_sethandler(void *f, us * cs, us * ip)
 void
 mouse_init(void)
 {
-  serial_t *sptr;
+  serial_t *sptr=NULL;
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
   char *p=(char *)0xefe00;
 #if 0 /* Not sure why she's here? 94/09/19 */

@@ -7,9 +7,10 @@ SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
 	emufs.S ems.S cdrom.S chdir.c   getcwd.c  system.c
 COM=exitemu.com vgaoff.com vgaon.com eject.com bootoff.com booton.com
 EXE=lredir.exe dumpconf.exe dosdbg.com lancheck.exe isemu.com unix.exe \
-	unix.c pdipx.com mouse.exe mgarrot.com mgarrot.a86 isemu.com \
+	unix.c mouse.exe mgarrot.com mgarrot.a86 isemu.com \
 	chdir.exe   getcwd.exe  system.exe
 SYS=emufs.sys ems.sys cdrom.sys
+DOC=README
 
 all: $(COM) $(SYS)
 
@@ -39,6 +40,6 @@ realclean: clean
 
 dist: Makefile $(SRC) $(COM) $(SYS)
 	install -d $(DISTPATH)/commands
-	install -m 0644 Makefile $(SRC) $(COM) $(EXE) $(SYS) $(DISTPATH)/commands
+	install -m 0644 Makefile $(SRC) $(COM) $(EXE) $(SYS) $(DOC) $(DISTPATH)/commands
 
 install:

@@ -1,0 +1,14 @@
+This are some utitlies to assist in using dosemu.
+
+dosdbg.com -- change the debug seeting
+	dosdbg -- show current state	
+	dosdsb <string>
+	dosdbg help -- show usage information
+
+chdir.exe -- change the Unix directory  for dosemu (use chdir(2))
+
+getcwd.exe -- get the Unix directory for dosemu (use getcwd(2))
+
+
+system.exe -- interface to system(2)...
+

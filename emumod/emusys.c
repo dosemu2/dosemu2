@@ -5,14 +5,26 @@
  * (C) 1994 under GPL, Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
+#include "kversion.h"
+#if 0
+#define KERNEL_VERSION 1002001 /* last verified kernel version */
+#endif
+
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
+#if KERNEL_VERSION >= 1001085
+#include <linux/mm.h>
+#endif
+
 
 #include <asm/segment.h>
+#if KERNEL_VERSION >= 1001088
+#include <asm/pgtable.h>
+#endif
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/irq.h>
@@ -33,7 +45,11 @@ static struct task_struct *tasks[16]={0};
 static int irqbits=0;
 
 
+#if KERNEL_VERSION < 1001089
 static void irq_handler(int intno) {
+#else
+static void irq_handler(int intno, struct pt_regs * unused) {
+#endif
   int int_bit;
   cli();
   intno= (-(((struct pt_regs *)intno)->orig_eax+2) & 0xf);

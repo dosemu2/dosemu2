@@ -16,7 +16,7 @@
 #ifdef _LOADABLE_VM86_
   #include "kversion.h"
 #else
-  #define KERNEL_VERSION 1001080 /* last verified kernel version */
+  #define KERNEL_VERSION 1002001 /* last verified kernel version */
 #endif
 #include <linux/head.h>
 #include <linux/sched.h>
@@ -33,6 +33,10 @@
 #include <linux/config.h>
 #include <linux/timer.h>
 #endif
+#endif
+
+#if KERNEL_VERSION >= 1001085
+#include <linux/mm.h>
 #endif
 
 #include <asm/system.h>
@@ -248,13 +252,16 @@ DO_ERROR(17, SIGSEGV, "alignment check", alignment_check, current)
 
 asmlinkage void do_general_protection(struct pt_regs * regs, long error_code)
 {
+#if KERNEL_VERSION < 1001090
 	int signr = SIGSEGV;
 
+#endif
 	if (regs->eflags & VM_MASK) {
 		handle_vm86_fault((struct vm86_regs *) regs, error_code);
 		return;
 	}
 	die_if_kernel("general protection",regs,error_code);
+#if KERNEL_VERSION < 1001090 
 	switch (get_seg_byte(regs->cs, (char *)regs->eip)) {
 		case 0xCD: /* INT */
 		case 0xF4: /* HLT */
@@ -262,15 +269,27 @@ asmlinkage void do_general_protection(struct pt_regs * regs, long error_code)
 		case 0xFB: /* STI */
 			signr = SIGILL;
 	}
+#endif
 	current->tss.error_code = error_code;
 	current->tss.trap_no = 13;
+#if KERNEL_VERSION < 1001090 
 	send_sig(signr, current, 1);	
+#else
+	send_sig(SIGSEGV, current, 1);
+#endif
 }
 
 asmlinkage void do_nmi(struct pt_regs * regs, long error_code)
 {
 	printk("Uhhuh. NMI received. Dazed and confused, but trying to continue\n");
+#if KERNEL_VERSION < 1001089
 	printk("You probably have a hardware problem with your RAM chips\n");
+#else
+#ifndef CONFIG_IGNORE_NMI
+	printk("You probably have a hardware problem with your RAM chips or a\n");
+	printk("power saving mode enabled.\n");
+#endif	
+#endif
 }
 
 #endif /* NOT _LOADABLE_VM86_ */

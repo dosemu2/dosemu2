@@ -23,7 +23,14 @@
  * DANG_END_CHANGELOG
  */
 
+#include <unistd.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <linux/vt.h>
 #include <linux/kd.h>
+#include <linux/time.h>
+#include <sys/stat.h>
 
 #include "emu.h"
 #include "memory.h"

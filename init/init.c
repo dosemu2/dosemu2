@@ -387,12 +387,14 @@ void memory_init(void)
   /* first_call is a truly awful hack to keep some of these procedures from
      being called twice.  It should be fixed sometime. */
 
+#if 0
   if( first_call == 0) {
     /* make interrupts vector read-write */
     mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_WRITE|PROT_READ|PROT_EXEC);
     /* make memory area 0xf8000 to 0xfffff read write */
     mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_WRITE|PROT_READ|PROT_EXEC);
   }
+#endif
   map_video_bios();            /* map the video bios */
   if (first_call)
     map_hardware_ram();        /* map the direct hardware ram */
@@ -446,10 +448,12 @@ void memory_init(void)
     shared_keyboard_init();
   }
   first_call = 0;
+#if 0
   /* make interrupts vector read-only */
   mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_READ|PROT_EXEC);
   /* make memory area 0xf8000 to 0xfffff read only */
   mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_READ|PROT_EXEC);
+#endif
 }
 
 /* 

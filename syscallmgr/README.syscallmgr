@@ -1,3 +1,14 @@
+================================================================
+syscallmgr, 
+A manager for embedding system calls
+by means of loadable modules
+
+(C) 1994,1995 under GPL, Hans Lermen <lermen@elserv.ffm.fgan.de>
+================================================================
+
+NOTE: This packet was originally develloped for the DOSEMU-team
+
+
 The aim of this packet is to speed up developement of DOSEMU and
 other projects, that require heavy kernel support.
 With this packet you can avoid the anoying patching/recompiling/reboot
@@ -100,8 +111,8 @@ The package mainly consists of
 
    This is a modified insmod for development purpose, which can load a module
    even if some syms are undefined in ksyms. The addresses then come out
-   of /usr/src/zSystem.map. To avoid reading the wrong map I compare the 
-   known addresses from get_kernel_sym() against the ones in zSystem.map.
+   of /usr/src/(z)System.map. To avoid reading the wrong map I compare the 
+   known addresses from get_kernel_sym() against the ones in (z)System.map.
    So there is *very* low propability of crashes.
 
    Again:
@@ -130,7 +141,7 @@ The package mainly consists of
         much *earlier* then the now released modules-1.1.67.
         Unfortunately the meanings of the -m switch differs.
         Because of this I decided to take over the meaning from the official
-        moduls release, but replaced the very dumb SHAME_ON_YOU-code
+        moduls release, but replaced the very simple SHAME_ON_YOU-code
         by the more sophisticated and *really* secure HACKER_TOOL-code.
         So, for old users of dosemu's insmod:  -m, -M  becomes -z, -Z ! Ok?
         Starting with Linux 1.1.76 the zSystem.map exists no longer,

@@ -84,12 +84,7 @@ endif
 export X_SUPPORT
 export XDEFS
 
-#  The next lines are for testing the new pic code.  You must do a
-#  make clean, make config if you change these lines.
-# Uncomment the next line to try new pic code on keyboard and timer only.
-# NEW_PIC = -DNEW_PIC=1
-# Uncomment the next line to try new pic code on keyboard, timer, and serial.
-# NOTE:  The serial pic code is known to have bugs.
+#  This next section is temporary.  For now, you need it.
 NEW_PIC = -DNEW_PIC=2
 ifdef NEW_PIC
 PICOBJS = libpic.a
@@ -127,7 +122,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   54
+PATCHL  =   55
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 

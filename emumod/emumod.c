@@ -5,6 +5,9 @@
  */
   
 #include "kversion.h"
+#if 0
+#define KERNEL_VERSION 1002001 /* last verified kernel version */
+#endif
 
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -12,8 +15,14 @@
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
+#if KERNEL_VERSION >= 1001085
+#include <linux/mm.h>
+#endif
 
 #include <asm/segment.h>
+#if KERNEL_VERSION >= 1001088
+#include <asm/pgtable.h>
+#endif
 #include <asm/io.h>
 
 #define  _EMUMOD_itself

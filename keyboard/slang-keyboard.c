@@ -1,4 +1,3 @@
-/* slang-keyboard.c */
 #include "../include/slang.h"
 
 unsigned char DOSemu_Slang_Escape_Character = 30;
@@ -74,147 +73,7 @@ static Keymap_Scan_Type Normal_Map [] =
      {"^@-", 0x5700},		       /* F11 */
      {"^@=", 0x5800},		       /* F12 */
      {"\033\033",	0x011B},       /* ESC */
-     {"1",	0x0231},   	       /* 1 */
-     {"!",	0x0221 | SHIFT_MASK},  /* ! */
-     {"2",	0x0332},	       /* 2 */
-     {"@",	0x0340 | SHIFT_MASK},  /* @ */
-     /* {"^@",	0x0300}, */	       /* ^@ --- handled below. */
-     {"3",	0x0433},	       /* 3 */
-     {"#",	0x0423 | SHIFT_MASK},  /* # */
-     {"4",	0x0534},	       /* 4 */
-     {"$",	0x0524 | SHIFT_MASK},  /* $ */
-     {"5",	0x0635},	       /* 5 */
-     {"%",	0x0625 | SHIFT_MASK},  /* % */
-     {"6",	0x0736},	       /* 6 */
-     {"^",	0x075E | SHIFT_MASK},  /* ^ */
-     {"^^",	0x071E | CTRL_MASK},   /* ^^ */
-     {"7",	0x0837},	       /* 7 */
-     {"&",	0x0826 | SHIFT_MASK},  /* & */
-     {"8",	0x0938},	       /* 8 */
-     {"*",	0x092A | SHIFT_MASK},  /* Shift-8 */
-     {"9",	0x0A39},	       /* 9 */
-     {"(",	0x0A28 | SHIFT_MASK},  /* ( */
-     {"0",	0x0B30},	       /* 0 */
-     {")",	0x0B29 | SHIFT_MASK},  /* ) */
-     {"-",	0x0C2D},	       /* - */
-     {"_",	0x0C5F | SHIFT_MASK},  /* _ */
-     {"^_",	0x0C1F | CTRL_MASK},   /* ^_ */
-     {"=",	0x0D3D},	       /* = */
-     {"+",	0x0D2B | SHIFT_MASK},  /* + */
-     {"^?",	0x0E08},	       /* Delete mapped to backspace. */
-     {"^I",	0x0F09},	       /* TAB */
-     {"q",	0x1071},	       /* q */
-     {"Q",	0x1051 | SHIFT_MASK},  /* Q */
-     {"^Q",	0x1011 | CTRL_MASK},   /* ^Q */
-     {"w",	0x1177},	       /* w */
-     {"W",	0x1157 | SHIFT_MASK},  /* W */
-     {"^W",	0x1117 | CTRL_MASK},   /* ^W */
-     {"e",	0x1265},	       /* e */
-     {"E",	0x1245 | SHIFT_MASK},  /* E */
-     {"^E",	0x1205 | CTRL_MASK},   /* ^E */
-     {"r",	0x1372},	       /* r */
-     {"R",	0x1352 | SHIFT_MASK},  /* R */
-     {"^R",	0x1312 | CTRL_MASK},   /* ^R */
-     {"t",	0x1474},	       /* t */
-     {"T",	0x1454 | SHIFT_MASK},  /* T */
-     {"^T",	0x1414 | CTRL_MASK},   /* ^T */
-     {"y",	0x1579},	       /* y */
-     {"Y",	0x1559 | SHIFT_MASK},  /* Y */
-     {"^Y",	0x1519 | CTRL_MASK},   /* ^Y */
-     {"u",	0x1675},	       /* u */
-     {"U",	0x1655 | SHIFT_MASK},  /* U */
-     {"^U",	0x1615 | CTRL_MASK},   /* ^U */
-     {"i",	0x1769},	       /* i */
-     {"I",	0x1749 | SHIFT_MASK},  /* I */
-     {"o",	0x186F},	       /* o */
-     {"O",	0x184F | SHIFT_MASK},  /* O */
-     {"^O",	0x180F | CTRL_MASK},   /* ^O */
-     {"p",	0x1970},	       /* p */
-     {"P",	0x1950 | SHIFT_MASK},  /* P */
-     {"^P",	0x2510 | CTRL_MASK},   /* ^P */
-     {"[",	0x1A5B},	       /* [ */
-     {"{",	0x1A7B | SHIFT_MASK},  /* { */
-     {"]",	0x1B5D},	       /* ] */
-     {"}",	0x1B7D | SHIFT_MASK},  /* } */
-     {"^]",	0x1B1D | CTRL_MASK},   /* ^] */
-     {"^M",	0x1C0D},	       /* ENTER */
-     {"a",	0x1E61},	       /* a */
-     {"A",	0x1E41 | SHIFT_MASK},  /* A */
-     {"^A",	0x1E01 | CTRL_MASK},   /* ^A */
-     {"s",	0x1F73},	       /* s */
-     {"S",	0x1F53 | SHIFT_MASK},  /* S */
-     {"^S",	0x1F13 | CTRL_MASK},   /* ^S */
-     {"d",	0x2064},	       /* d */
-     {"D",	0x2044 | SHIFT_MASK},  /* D */
-     {"^D",	0x2004 | CTRL_MASK},   /* ^D */
-     {"f",	0x2166},	       /* f */
-     {"F",	0x2146 | SHIFT_MASK},  /* F */
-     {"^F",	0x2106 | CTRL_MASK},   /* ^F */
-     {"g",	0x2267},	       /* g */
-     {"G",	0x2247 | SHIFT_MASK},  /* G */
-     {"^G",	0x2207 | CTRL_MASK},   /* ^G */
-     {"h",	0x2368},	       /* h */
-     {"H",	0x2348 | SHIFT_MASK},  /* H */
-     {"^H",	0x2308 | CTRL_MASK},   /* ^H */
-     {"j",	0x246A},	       /* j */
-     {"J",	0x244A | SHIFT_MASK},  /* J */
-     {"^J",	0x240A | CTRL_MASK},   /* ^J */
-     {"k",	0x256B},	       /* k */
-     {"K",	0x254B | SHIFT_MASK},  /* K */
-     {"^K",	0x250B | CTRL_MASK},   /* ^K */
-     {"l",	0x266C},	       /* l */
-     {"L",	0x264C | SHIFT_MASK},  /* L */
-     {"^L",	0x260C | CTRL_MASK},   /* ^L */
-     {";",	0x273B},	       /* ; */
-     {":",	0x273A | SHIFT_MASK},  /* : */
-     {"'",	0x2827},	       /* ' */
-     {"\"",	0x2822 | SHIFT_MASK},  /* " */
-     {"`",	0x2960},	       /* ` */
-     {"~",	0x297E | SHIFT_MASK},  /* ~ */
-     {"\\",	0x2B5C},	       /* \\ */
-     {"|",	0x2B7C | SHIFT_MASK},  /* | */
-     {"^\\",	0x2B1C | CTRL_MASK},   /* ^\\ */
-     {"z",	0x2C7A},	       /* z */
-     {"Z",	0x2C5A | SHIFT_MASK},  /* Z */
-     {"^Z",	0x2C1A | CTRL_MASK},   /* ^Z */
-     {"x",	0x2D78},	       /* x */
-     {"X",	0x2D58 | SHIFT_MASK},  /* X */
-     {"^X",	0x2D18 | CTRL_MASK},   /* ^X */
-     {"c",	0x2E63},	       /* c */
-     {"C",	0x2E43 | SHIFT_MASK},  /* C */
-     {"^C",	0x2E03 | CTRL_MASK},   /* ^C */
-     {"v",	0x2F76},	       /* v */
-     {"V",	0x2F56 | SHIFT_MASK},  /* V */
-     {"^V",	0x2F16 | CTRL_MASK},   /* ^V */
-     {"b",	0x3062},	       /* b */
-     {"B",	0x3042 | SHIFT_MASK},  /* B */
-     {"^B",	0x3002 | CTRL_MASK},   /* ^B */
-     {"n",	0x316E},	       /* n */
-     {"N",	0x314E | SHIFT_MASK},  /* N */
-     {"^N",	0x310E | CTRL_MASK},   /* ^N */
-     {"m",	0x326D},	       /* m */
-     {"M",	0x324D | SHIFT_MASK},  /* M */
-     {",",	0x332C},	       /* , */
-     {"<",	0x333C | SHIFT_MASK},  /* < */
-     {".",	0x342E},	       /* . */
-     {">",	0x343E | SHIFT_MASK},  /* > */
-     {"/",	0x352F},	       /* / */
-     {"?",	0x353F | SHIFT_MASK},  /* ? */
-     {" ",	0x3920},	       /* SPACE */
-     
      /* Alt keys (high bit set) */
-#if 0
-     /* I have no idea what these are.  They came from the other code
-      * but make no sense to me as scan codes.
-      */
-   {"\374",	0x0081},	       /* Umlaut ue */
-   {"\344",	0x0084},	       /* Umlaut ae */
-   {"\304",	0x008E},	       /* Umlaut Ae */
-   {"\366",	0x0094},	       /* Umlaut oe */
-   {"\326",	0x0099},	       /* Umlaut Oe */
-   {"\334",	0x009A},	       /* Umlaut Ue */
-   {"\337",	0x00E1},	       /* Umlaut sz */
-#endif
      {"\233",	0x0100 | ALT_MASK},    /* Alt Esc */
      {"\377",	0x0E00 | ALT_MASK},    /* Alt Backspace */
      {"\361",	0x1000 | ALT_MASK},    /* Alt Q */
@@ -380,11 +239,12 @@ static Keymap_Scan_Type Normal_Map [] =
 static SLKeyMap_List_Type *The_Normal_KeyMap;
 
 static unsigned char Esc_Char;
-int define_key (unsigned char *key, unsigned long scan, SLKeyMap_List_Type *m)
+int define_key (unsigned char *key, unsigned long scan, 
+		SLKeyMap_List_Type *m, int esc_flag)
 {
    unsigned char buf[16], k1;
    
-   if (*key == '^')
+   if ((*key == '^') && (Esc_Char != '@') && esc_flag)
      {
 	k1 = key[1];
 	if (k1 == Esc_Char) return 0;  /* ^Esc_Char is not defined here */
@@ -417,7 +277,7 @@ unsigned long Ctrl_Char_Scan_Codes[32] =
    0x0000,			       /* ^M --- RETURN-- Not used.*/
    0x310E,			       /* ^N */
    0x180F,			       /* ^O */
-   0x1910,			       /* ^P */
+   0x2510,			       /* ^P */
    0x1011,			       /* ^Q */
    0x1312,			       /* ^R */
    0x1F13,			       /* ^S */
@@ -441,8 +301,9 @@ int init_slang_keymaps (void)
    char *str;
    SLKeyMap_List_Type *m;
    Keymap_Scan_Type *k;
-   unsigned char buf[5];
+   unsigned char buf[5], *current_map;
    unsigned long esc_scan;
+   int i, imax;
    
    /* Do some sanity checking */
    if (DOSemu_Slang_Escape_Character >= 32)
@@ -467,37 +328,72 @@ int init_slang_keymaps (void)
 
    k = Normal_Map; m = The_Normal_KeyMap;
    
+   /* EXtract as much information as possible from the configed keypaps */
+   imax = 97;
+   current_map = config.key_map;
+   buf[1] = 0; buf[2] = 0;
+   for (i = 0; i < imax; i++)
+     {
+	unsigned char ch;
+	if ((ch = current_map[i]) == 0) continue;
+	buf[0] = ch;
+	define_key (buf, (unsigned long) i << 8, m, 1);
+	if ((ch < '@'+ 32) && (ch >= '@'))
+	  {
+	     buf[0] = '^'; buf[1] = ch; 
+	     define_key (buf, CTRL_MASK | ((unsigned long) i << 8), m, 0);
+	     buf[1] = 0;
+	  }
+     }
+   
+   current_map = config.shift_map;
+   buf[1] = 0; buf[2] = 0;
+   for (i = 0; i < imax; i++)
+     {
+	unsigned char ch;
+	if ((ch = current_map[i]) == 0) continue;
+	buf[0] = ch;
+	define_key (buf, SHIFT_MASK | ((unsigned long) i << 8), m, 1);
+	if ((ch < '@'+ 32) && (ch >= '@'))
+	  {	     
+	     buf[0] = '^'; buf[1] = ch; 
+	     define_key (buf, CTRL_MASK | ((unsigned long) i << 8), m, 0);
+	     buf[1] = 0;
+	  }
+     }
+   
+   
    while ((str = k->keystr), (*str != 0))
      {
-	define_key (str, k->scan_code, m);
+	define_key (str, k->scan_code, m, 1);
 	k++;
      }
 
    /* Now setup the shift modifier keys */
-   define_key ("^@a", ALT_KEY_SCAN_CODE, m);
-   define_key ("^@c", CTRL_KEY_SCAN_CODE, m);
-   define_key ("^@s", SHIFT_KEY_SCAN_CODE, m);
+   define_key ("^@a", ALT_KEY_SCAN_CODE, m, 1);
+   define_key ("^@c", CTRL_KEY_SCAN_CODE, m, 1);
+   define_key ("^@s", SHIFT_KEY_SCAN_CODE, m, 1);
 	
-   define_key ("^@A", STICKY_ALT_KEY_SCAN_CODE, m);
-   define_key ("^@C", STICKY_CTRL_KEY_SCAN_CODE, m);
-   define_key ("^@S", STICKY_SHIFT_KEY_SCAN_CODE, m);
+   define_key ("^@A", STICKY_ALT_KEY_SCAN_CODE, m, 1);
+   define_key ("^@C", STICKY_CTRL_KEY_SCAN_CODE, m, 1);
+   define_key ("^@S", STICKY_SHIFT_KEY_SCAN_CODE, m, 1);
 	
-   define_key ("^@?", HELP_SCAN_CODE, m);
-   define_key ("^@h", HELP_SCAN_CODE, m);
+   define_key ("^@?", HELP_SCAN_CODE, m, 1);
+   define_key ("^@h", HELP_SCAN_CODE, m, 1);
 	
-   define_key ("^@^R", REDRAW_SCAN_CODE, m);
-   define_key ("^@^L", REDRAW_SCAN_CODE, m);
-   define_key ("^@^Z", SUSPEND_SCAN_CODE, m);
-   define_key ("^@ ", RESET_SCAN_CODE, m);
-   define_key ("^@B", SET_MONO_SCAN_CODE, m);
+   define_key ("^@^R", REDRAW_SCAN_CODE, m, 1);
+   define_key ("^@^L", REDRAW_SCAN_CODE, m, 1);
+   define_key ("^@^Z", SUSPEND_SCAN_CODE, m, 1);
+   define_key ("^@ ", RESET_SCAN_CODE, m, 1);
+   define_key ("^@B", SET_MONO_SCAN_CODE, m, 1);
 	
-   define_key ("^@\033[A", SCROLL_UP_SCAN_CODE, m);
-   define_key ("^@\033OA", SCROLL_UP_SCAN_CODE, m);
-   define_key ("^@U", SCROLL_UP_SCAN_CODE, m);
+   define_key ("^@\033[A", SCROLL_UP_SCAN_CODE, m, 1);
+   define_key ("^@\033OA", SCROLL_UP_SCAN_CODE, m, 1);
+   define_key ("^@U", SCROLL_UP_SCAN_CODE, m, 1);
    
-   define_key ("^@\033[B", SCROLL_DOWN_SCAN_CODE, m);
-   define_key ("^@\033OB", SCROLL_DOWN_SCAN_CODE, m);
-   define_key ("^@D", SCROLL_DOWN_SCAN_CODE, m);
+   define_key ("^@\033[B", SCROLL_DOWN_SCAN_CODE, m, 1);
+   define_key ("^@\033OB", SCROLL_DOWN_SCAN_CODE, m, 1);
+   define_key ("^@D", SCROLL_DOWN_SCAN_CODE, m, 1);
 	
    if (SLang_Error) return -1;
    

@@ -1,7 +1,7 @@
 /*
  * User Syscall manager for loadable modules
  *
- * (C) 1994 under GPL:  Hans Lermen <lermen@elserv.ffm.fgan.de>
+ * (C) 1994,1995 under GPL:  Hans Lermen <lermen@elserv.ffm.fgan.de>
  *  
  * Should be loaded via insmod as first of all loadable modules and must stay loaded
  * as long as there is any application and/or loadable module using it.

@@ -19,10 +19,16 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- *	$Log$
+ *	$Log: dos2linux.c,v $
+ * Revision 1.2  1995/03/24  14:10:47  leisner
+ * added exchange_ids around system call
+ *
+ * Revision 1.1  1995/03/24  03:32:21  leisner
+ * Initial revision
+ *
  * DANG_END_CHANGELOG
  *
- * $Id$
+ * $Id: dos2linux.c,v 1.2 1995/03/24 14:10:47 leisner Exp leisner $
  */
 
 
@@ -295,8 +301,15 @@ void run_unix_command(char *buffer)
 #endif
 }
 
+/* interface to system -- run a real uid */
 int run_simple_system_command(const char *p)
 {
-	return system(p);
+	int result;
+	
+	if(i_am_root)
+		exchange_uids();
+	result = system(p);
+	if(i_am_root)
+		exchange_uids();
 }
 

@@ -1,3 +1,16 @@
+Sat Mar 25	1995
+
+-	Release pl55.
+-	Patches by Rod May:
+I've got patch for you that will check that partitions
+specified for DPA are not already mounted. As it stands you get
+an error if the fs is mounted read-write, and DPA read-only is
+*not* specified. You get a warning if one is read-write and the
+other read-only. Both read-only is accepted.
+-	Hans' latest patches to bring the syscallmgr compliment
+	up to 1.2.0.
+-	Various patches by Marty
+
 Wed Mar 22	1995
 
 -	Release pl54

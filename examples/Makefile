@@ -12,4 +12,4 @@ install:
 
 dist: config.dist
 	install -d $(DISTPATH)/examples
-	install -m 0644 Makefile config.dist $(DISTPATH)/examples
+	cp -a  Makefile config.dist $(DISTPATH)/examples

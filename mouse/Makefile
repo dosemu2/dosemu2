@@ -9,7 +9,7 @@ SUBDIR=mouse
 
 
 DEFINES=-DCLEARDTR_SUPPORT
-
+CFLAGS+=$(DEFINES)
 
 # Insert all source- and header-files here.
 

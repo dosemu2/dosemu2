@@ -58,10 +58,16 @@ static asmlinkage int testsys(int mode,void *params)
       return 0;
     }
     case 1: {
-      extern void fast_IRQ10_interrupt();
-      int *p=(int *)&fast_IRQ10_interrupt;
-      printk(ID_STRING ": code at fast_IRQ10_interrupt=%08x\n",*p);
-      *p=0x501e06fc;
+      extern void fast_IRQ12_interrupt();
+      volatile int *p=(int *)&fast_IRQ12_interrupt;
+      int saved=*p; /* normaly = 0x501e06fc */
+#if 0 /* testing writeability of kernel code space */
+      *p=(saved & ~255) | 0x90;
+      printk(ID_STRING ": code at fast_IRQ12_interrupt=%08x (patched=%08x)\n",saved,*p);
+      *p=saved;
+#else
+      printk(ID_STRING ": code at fast_IRQ12_interrupt=%08x\n",saved);
+#endif
       return 0;
     }
   }

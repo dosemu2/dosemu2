@@ -134,6 +134,28 @@ irqnum	set	0x78
 irqnum	set	irqnum+1
 .ENDR
 
+/* ----------------------------------------------------------------- */
+	/* this is the mouse handler */
+	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_OFF
+   
+	/* 
+	mouse routine simulates the stack frame of an int, then does a 
+	"pushad" before here...so we just "popad; iret" to get back out
+	*/
+
+	call	far [mouse_handler]
+	pop	es
+	pop	ds
+	popa
+	iret
+	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_OFF+8
+mouse_handler: 
+	dd	0x1c810227
+	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
+	push	ax
+	pop	ax
+	iret
+
 /* ----------------------------------------------------------------- */   
 	/* NOTE:
 	 * This part currently is overwritten by Vinod's pkt_init()
@@ -232,28 +254,6 @@ CISH(bios_f000_bootdrive):
 	db	0
 	retf
 
-
-/* ----------------------------------------------------------------- */
-	/* this is the mouse handler */
-	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_OFF
-   
-	/* 
-	mouse routine simulates the stack frame of an int, then does a 
-	"pushad" before here...so we just "popad; iret" to get back out
-	*/
-
-	call	far [mouse_handler]
-	pop	es
-	pop	ds
-	popa
-	iret
-	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_OFF+8
-mouse_handler: 
-	dd	0x1c810227
-	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
-	push	ax
-	pop	ax
-	iret
 
 /* ----------------------------------------------------------------- */
 
