@@ -729,6 +729,8 @@ int X_init()
   }
 
   load_text_font();
+  if (font == NULL)
+    font_width = 9;
 
   saved_w_x_res = w_x_res = x_res = co * font_width;
   saved_w_y_res = w_y_res = y_res = li * font_height;
@@ -2940,7 +2942,7 @@ void X_reset_redraw_text_screen()
     if (co > MAX_COLUMNS) co = MAX_COLUMNS;
     if (li > MAX_LINES  ) li = MAX_LINES;
   }
-  MEMCPY_2UNIX(prev_screen, screen_adr, vga.text_width * vga.text_height * 2);
+  MEMCPY_2UNIX(prev_screen, screen_adr, vga.scan_len * vga.text_height);
 }
 
 
@@ -3002,10 +3004,11 @@ void X_redraw_text_screen()
       } while(XATTR(sp) == attr && x < co);
 
       X_draw_string(start_x, y, charbuff, x - start_x, attr);
-      if (font == NULL && co * 2 < vga.scan_len) {
-        sp += vga.scan_len / 2 - co;
-      }
     } while(x < co);
+    if (co * 2 < vga.scan_len) {
+      sp += vga.scan_len / 2 - co;
+      oldsp += vga.scan_len / 2 - co;
+    }
   }
 
   X_reset_redraw_text_screen();
@@ -3127,7 +3130,7 @@ int X_update_text_screen()
 	    
 	    sp = screen_adr + y*co;
 	    oldsp = prev_screen + y*co;
-	    if (font == NULL) {
+	    if (font == NULL || co * 2 < vga.scan_len) {
 	      sp = screen_adr + y * vga.scan_len / 2;
 	      oldsp = prev_screen + y * vga.scan_len / 2;
 	    }
