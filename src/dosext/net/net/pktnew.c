@@ -693,7 +693,9 @@ static int pkt_receive(void)
 
 	    /* stuff things in global vars and queue a hardware */
 	    /* interrupt which will perform the upcall */
-
+	    if (p_helper_size)
+		error("PKT: Receiver is not ready, packet dropped (size=%i)\n",
+		  p_helper_size);
 	    p_helper_size = size;
 	    p_helper_receiver = hdlp->receiver;
 	    p_helper_handle = handle;
