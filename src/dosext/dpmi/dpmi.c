@@ -2151,20 +2151,6 @@ void run_dpmi(void)
      REG(eflags) |= IF;
    }
    else {
-#if 1 			/* <ESC> BUG FIXER (if 1) */
-    #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
-    #define OVERLOAD_THRESHOULD1  238608 /* good average value */
-    #define OVERLOAD_THRESHOULD0  100000 /* minimum acceptable value */
-    if ((pic_icount && (dpmi_eflags & VIP)) ||
-          ((pic_icount || (pic_dos_time<pic_sys_time))
-        && ((pic_sys_time - pic_dos_time) < OVERLOAD_THRESHOULD1)))
-       REG(eflags) |= (VIP);
-    else REG(eflags) &= ~(VIP);
-#else
-    if (pic_icount)
-        REG(eflags) |= (VIP);
-#endif
-
     if (
 #ifdef TRACE_DPMI
 	((debug_level('t')==0)||((REG(cs)!=0x70)&&(REG(eip)!=0x5b0)))&&
@@ -2271,7 +2257,7 @@ void run_dpmi(void)
   }
   else {
     int retcode;
-    if (pic_icount) dpmi_eflags |= VIP;
+    if (pic_irr & ~(pic_isr | pice_imr)) dpmi_eflags |= VIP;
     retcode = (
 #ifdef X86_EMULATOR
 	config.cpuemu>1?
@@ -2544,7 +2530,6 @@ static void dpmi_init(void)
     D_printf("DPMI: Warning: trying to enter DPMI when pic_icount=%li\n",
 	pic_icount);
     pic_resched();
-    pic_icount=0;
   }
   pm_block_root[current_client] = 0;
   memset((void *)(&realModeCallBack[current_client][0]), 0,
@@ -2578,10 +2563,10 @@ static void dpmi_init(void)
     run_dpmi();
     serial_run();
     dma_run();
-    run_irqs();
 #ifdef USE_SBEMU
     run_sb(); /* Suggested Karcher */
 #endif
+    pic_run();
   }
   if (debug_level('M')>6) D_printf("DPMI: end dpmi loop\n");
 }
@@ -2593,12 +2578,6 @@ void dpmi_sigio(struct sigcontext_struct *scp)
 #else
   if (_cs != UCODESEL){
 #endif
-#if 0
-    if (in_win31 || (dpmi_eflags & IF)) {
-      D_printf("DPMI: return to dosemu code for handling signals\n");
-      Return_to_dosemu_code(scp,0);
-    } else dpmi_eflags |= VIP;
-#else
 /* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
 /*
    Because IF is not set by popf and because dosemu have to do some background
@@ -2606,7 +2585,6 @@ void dpmi_sigio(struct sigcontext_struct *scp)
 */
     D_printf("DPMI: return to dosemu code for handling signals\n");
     Return_to_dosemu_code(scp,0);
-#endif
   }
 }
 

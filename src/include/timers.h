@@ -148,7 +148,7 @@ static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 
 /* --------------------------------------------------------------------- */
 
-extern hitimer_u ZeroTimeBase;
+extern hitimer_u ZeroTimeBase, ZeroTSCBase;
 extern hitimer_t t_vretrace;
 
 EXTERN hitimer_t (*GETcpuTIME)(void) INIT(0);

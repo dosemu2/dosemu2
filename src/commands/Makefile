@@ -52,10 +52,14 @@ all: $(COM2) $(SYS)
 dosbin: $(COM1) $(COM2) $(SYS)
 
 $(D)/%.sys: %.S detect.h
-	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
+	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,0,-e,_start16,--oformat,binary -nostdlib -s -o $*.sys $< > $*.s.out
+	mv $*.sys $@
+	chmod -x $@ 
 
 $(D)/%.com: %.S detect.h
-	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $@ $< > $*.s.out
+	$(LD) $(CPPFLAGS) -traditional -Wa,-a -Wl,-Ttext,100,-e,_start16,--oformat,binary -nostdlib -s -o $*.com $< > $*.s.out
+	mv $*.com $@
+	chmod -x $@
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
 		$(PD)/lredir.exe $(PD)/dosdbg.exe $(PD)/xmode.exe

@@ -48,6 +48,7 @@ struct meminfo *readMeminfo(void) {
  *
  * linux <  2.1.41 has part A + B
  * linux >= 2.1.41 has only part B
+ * linux >= 2.5.x does not have the "MemShared" value
  * for compatibility reasons we only use Part B
  *
  * Part A:
@@ -89,7 +90,6 @@ SwapFree:     68484 kB
   mem.total = getvalue_by_key(buf, "MemTotal:") <<10;
   mem.free = getvalue_by_key(buf, "MemFree:") <<10;
   mem.used = mem.total - mem.free;
-  mem.shared = getvalue_by_key(buf, "MemShared:") <<10;
   mem.buffers = getvalue_by_key(buf, "Buffers:") <<10;
   mem.cached = getvalue_by_key(buf, "Cached:") <<10;
   mem.swaptotal = getvalue_by_key(buf, "SwapTotal:") <<10;

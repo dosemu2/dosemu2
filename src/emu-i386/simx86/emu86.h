@@ -619,7 +619,7 @@ extern int eTimeCorrect;
  * good compromise, but it depends on the target machine too.
  */
 #define E_TIME_STRETCH	if (eTimeCorrect>=0) { hitimer_t t0=GETTSC();\
-			  ZeroTimeBase.td += ((t0 - TheCPU.EMUtime) >> eTimeCorrect);\
+			  ZeroTSCBase.td += ((t0 - TheCPU.EMUtime) >> eTimeCorrect);\
 			  TheCPU.EMUtime = t0; }
 
 #ifndef min

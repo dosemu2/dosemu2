@@ -1,3 +1,34 @@
+2003/03/15 ver 1.1.4.15 unofficial pre-release
+	From Witold
+	- fix configure.ac for people without X support (changed a
+	  little by Bart)
+	From Stas
+	- VIP fixes
+	- sound code: fix unexpected beep when exiting the Alladin game.
+	From Clarence
+	- fix compilation problem if one disables CONFIG_X_SPEAKER
+	- allow ctrl-alt-p to be used to freeze DOSEMU
+	- always update real window's title instead of fullscreen one
+	- reverse X title order
+	- append "[Paused - <keycombo>]" to the X title if DOSEMU is
+	  paused using a ctrl-alt-key combination
+	From Bart
+	- guard includes of env/video/X.h if X_SUPPORT isn't there
+	- fix "make -jn" compilations
+	- remove -Wpointer-arith from warnings -- some system headers
+	  don't like it.
+	- configure.ac cleanups
+	- fix compilation of the dosnet kernel module
+	- dosemu script fixes: do not rely on the existence of
+	  ~/.dosemurc anymore.
+	- (adjusted from Andy Shevchenko's patch) make install cleanups
+	- (with Stas) more cpuemu stack protection and time system
+	  counter fixes to get cpuemu for vm86 working again.
+	- fix long long cpu speed multiplication in config.c to fix
+	  a problem with > 2GHz CPUs.
+	- fix /proc/meminfo parsing for 2.5 kernels: the "MemShared"
+	  part went away.
+	- XMS "query free memory" needs to set _BL to 0 (success).
 2003/02/10 ver 1.1.4.13 unofficial pre-release
 	From Stas
 	- fatfs: ignore 0 sized io.sys and ibmbio.com files.

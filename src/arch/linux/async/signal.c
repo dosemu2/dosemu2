@@ -554,7 +554,6 @@ inline void SIGNAL_save( void (*signal_call)(void) ) {
   signal_pending = 1;
   if (in_dpmi)
     dpmi_eflags |= VIP;
-  REG(eflags) |= VIP;
 }
 
 

@@ -484,7 +484,7 @@ static void config_pre_process(void)
 		cdd[6]=0; sscanf(cdd,"%d",&df);
 		/* speed division factor to get 1us from CPU clocks - for
 		 * details on fast division see timers.h */
-		chz = (di * 1000000) + df;
+		chz = (di * 1000000LL) + df;
 
 		/* speed division factor to get 1us from CPU clock */
 		config.cpu_spd = (LLF_US*1000000)/chz;

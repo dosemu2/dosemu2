@@ -2379,6 +2379,7 @@ static void sb_reset (void)
 {
   S_printf ("SB: Resetting SB\n");
 
+  sb_disable_speaker();
   sb_detect();			/* check if noone occupied /dev/dsp */
 
   if (SB_info.version != SB_NONE) {
@@ -2386,7 +2387,6 @@ static void sb_reset (void)
     sb_deactivate_irq(SB_IRQ_PEND);
     SB_info.irq.active = 0;
 
-    sb_disable_speaker();
     dsp_clear_output ();
     SB_dsp.pause_state = 0;
 
@@ -2475,6 +2475,10 @@ void sb_enable_speaker (void)
 void sb_disable_speaker(void)
 {
   S_printf ("SB: Disabling Speaker\n");
+  if (!SB_info.speaker) {
+    S_printf("SB: Speaker already disabled\n");
+    return;
+  }
 
   if (SB_driver.speaker_off == NULL) {
     S_printf ("SB: Required function 'speaker_off' not provided.\n");

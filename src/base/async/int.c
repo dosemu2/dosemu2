@@ -1925,6 +1925,10 @@ void do_int(int i)
 
 void fake_int(int cs, int ip)
 {
+#ifdef X86_EMULATOR
+  int tmp;
+  unsigned char *tmp_ssp;
+#endif
   unsigned char *ssp;
   unsigned long sp;
 
@@ -1932,9 +1936,16 @@ void fake_int(int cs, int ip)
   ssp = (unsigned char *)(LWORD(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
+#ifdef X86_EMULATOR
+  tmp_ssp = ssp+sp;
+  tmp = E_MUNPROT_STACK(tmp_ssp);
+#endif
   pushw(ssp, sp, vflags);
   pushw(ssp, sp, cs);
   pushw(ssp, sp, ip);
+#ifdef X86_EMULATOR
+  if (tmp) E_MPROT_STACK(tmp_ssp);
+#endif
   LWORD(esp) -= 6;
 
   clear_TF();
@@ -1944,6 +1955,10 @@ void fake_int(int cs, int ip)
 
 void fake_call(int cs, int ip)
 {
+#ifdef X86_EMULATOR
+  int tmp;
+  unsigned char *tmp_ssp;
+#endif
   unsigned char *ssp;
   unsigned long sp;
 
@@ -1951,19 +1966,34 @@ void fake_call(int cs, int ip)
   sp = (unsigned long) LWORD(esp);
 
   g_printf("fake_call() CS:IP %04x:%04x\n", cs, ip);
+#ifdef X86_EMULATOR
+  tmp_ssp = ssp+sp;
+  tmp = E_MUNPROT_STACK(tmp_ssp);
+#endif
   pushw(ssp, sp, cs);
   pushw(ssp, sp, ip);
+#ifdef X86_EMULATOR
+  if (tmp) E_MPROT_STACK(tmp_ssp);
+#endif
   LWORD(esp) -= 4;
 }
 
 void fake_pusha(void)
 {
+#ifdef X86_EMULATOR
+  int tmp;
+  unsigned char *tmp_ssp;
+#endif
   unsigned char *ssp;
   unsigned long sp;
 
   ssp = (unsigned char *)(LWORD(ss)<<4);
   sp = (unsigned long) LWORD(esp);
 
+#ifdef X86_EMULATOR
+  tmp_ssp = ssp+sp;
+  tmp = E_MUNPROT_STACK(tmp_ssp);
+#endif
   pushw(ssp, sp, LWORD(eax));
   pushw(ssp, sp, LWORD(ecx));
   pushw(ssp, sp, LWORD(edx));
@@ -1976,6 +2006,9 @@ void fake_pusha(void)
   pushw(ssp, sp, REG(ds));
   pushw(ssp, sp, REG(es));
   LWORD(esp) -= 4;
+#ifdef X86_EMULATOR
+  if (tmp) E_MPROT_STACK(tmp_ssp);
+#endif
 }
 
 

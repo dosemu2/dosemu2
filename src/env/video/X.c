@@ -415,6 +415,7 @@ Display *display;		/* used in plugin/?/keyb_X_keycode.c */
 static int screen;
 static Visual *visual;
 static Window rootwindow, mainwindow, parentwindow, normalwindow, fullscreenwindow;
+static int toggling_fullscreen;
 static Boolean our_window;     	/* Did we create the window? */
 
 static XImage *ximage;		/* Used as a buffer for the X-server */
@@ -899,7 +900,7 @@ void X_close()
 
   if(display == NULL) return;
 
-#ifdef CONFIG_X_SPEAKER
+#if CONFIG_X_SPEAKER
   /* turn off the sound, and */
   speaker_off();
   /* reset the speaker to it's default */
@@ -1241,26 +1242,39 @@ int X_change_config(unsigned item, void *buf)
        if (buf)
        {
          X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
-         XStoreName(display, mainwindow, buf);
+         /* always change the normal window's title - never the full-screen one */
+         XStoreName(display, normalwindow, buf);
        }
        /* high-level write (shows name of emulator + running app) */
        else
        {
-         char title [X_TITLE_EMUNAME_MAXLEN + X_TITLE_APPNAME_MAXLEN + 5];
-           
-         /* write name of emulator */
-         if (strlen (X_title_emuname))
-           snprintf (title, X_TITLE_EMUNAME_MAXLEN, "%s", X_title_emuname);
-         else
-           snprintf (title, X_TITLE_EMUNAME_MAXLEN, "%s", config.X_title);
-           
-         /* append name of running application (if any) */
+         char title [X_TITLE_EMUNAME_MAXLEN + X_TITLE_APPNAME_MAXLEN + 35] = {0};
+         
+         /* app - DOS in a BOX */
+         /* name of running application (if any) */
          if (X_title_show_appname && strlen (X_title_appname))
+           strcpy (title, X_title_appname);
+         
+         /* append name of emulator */
+         if (strlen (X_title_emuname))
          {
            if (strlen (title)) strcat (title, " - ");
-           strcat (title, X_title_appname);
+           strcat (title, X_title_emuname);
          }
-           
+         else if (strlen (config.X_title))
+         {
+           if (strlen (title)) strcat (title, " - ");
+           /* foreign string, cannot trust its length to be <= X_TITLE_EMUNAME_MAXLEN */
+           snprintf (title + strlen (title), X_TITLE_EMUNAME_MAXLEN, "%s", config.X_title);  
+         }
+
+         if (dosemu_frozen)
+         {
+           if (strlen (title)) strcat (title, " ");
+           strcat (title, "[paused - Ctrl+Alt+P]");
+         }
+
+         
          /* now actually change the title of the Window */
          X_change_config (X_CHG_TITLE, title);
        }
@@ -1483,6 +1497,7 @@ static void toggle_fullscreen_mode(void)
   XUnmapWindow(display, mainwindow);
   if (mainwindow == normalwindow) {
     X_printf("X: entering fullscreen mode\n");
+    toggling_fullscreen = 2;
     saved_w_x_res = w_x_res;
     saved_w_y_res = w_y_res;
     if (!grab_active) {
@@ -1505,6 +1520,7 @@ static void toggle_fullscreen_mode(void)
                   GrabModeAsync, CurrentTime);
   } else {
     X_printf("X: entering windowed mode!\n");
+    toggling_fullscreen = 1;
     w_x_res = saved_w_x_res;
     w_y_res = saved_w_y_res;
     XUngrabKeyboard(display, CurrentTime);
@@ -1695,13 +1711,16 @@ void X_handle_events()
     /* Keyboard events */
 
 	case KeyPress:
+	case KeyRelease:
           if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask)) {
             KeySym keysym = XKeycodeToKeysym(display, e.xkey.keycode, 0);
             if (keysym == grab_keysym) {
+              if (e.type == KeyRelease) break;
               force_grab = 0;
               toggle_mouse_grab();
               break;
-            } else if (keysym == XK_Pause) {
+            } else if (keysym == XK_p) {
+              if (e.type == KeyRelease) break;
               if (!dosemu_frozen) {
                 freeze_dosemu();
               } else {
@@ -1709,11 +1728,11 @@ void X_handle_events()
               }
               break;
             } else if (keysym == XK_f) {
+              if (e.type == KeyRelease) break;
               toggle_fullscreen_mode();
               break;
             }
           }
-	case KeyRelease:
 /* 
       Clears the visible selection if the cursor is inside the selection
 */
@@ -1724,7 +1743,11 @@ void X_handle_events()
 	  X_process_key(&e.xkey);
 	  break;
 	case KeymapNotify:
-	  X_process_keys(&e.xkeymap);
+          X_printf("X: KeymapNotify event\n");
+          /* don't process keys when doing fullscreen switching (this generates
+             two events for fullscreen and one back to windowed mode )*/
+          if (toggling_fullscreen) toggling_fullscreen--;
+          X_process_keys(&e.xkeymap);
 	  break;
 
     /* A keyboard mapping has been changed (e.g., with xmodmap). */

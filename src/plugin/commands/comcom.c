@@ -20,7 +20,9 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+#ifdef X_SUPPORT
 #include "../../env/video/X.h"
+#endif
 #include "emu.h"
 #include "memory.h"
 #include "bios.h"

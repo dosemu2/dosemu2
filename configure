@@ -2839,7 +2839,8 @@ _ACEOF
 fi
 
 fi
-# Extract the first word of "$LEX", so it can be a program name with args.
+if test -z "`echo $LEX | grep flex`" ; then
+  # Extract the first word of "$LEX", so it can be a program name with args.
 set dummy $LEX; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
@@ -2875,7 +2876,8 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
-if test "$lex_ok" != "yes"; then
+fi
+if test "$lex_ok" = "no"; then
   { echo "$as_me:$LINENO: WARNING: " >&5
 echo "$as_me: WARNING: " >&2;}
   { echo "$as_me:$LINENO: WARNING: Your system doesn't seem to have lex or flex available." >&5
@@ -6247,12 +6249,12 @@ LDFLAGS="-Wl,-warn-common"
 # Check whether --enable-linkstatic or --disable-linkstatic was given.
 if test "${enable_linkstatic+set}" = set; then
   enableval="$enable_linkstatic"
-  { echo "$as_me:$LINENO: checking \"Linking statically\"..." >&5
-echo "$as_me: checking \"Linking statically\"..." >&6;}
+  { echo "$as_me:$LINENO: Linking statically..." >&5
+echo "$as_me: Linking statically..." >&6;}
                LDFLAGS="${LDFLAGS} -static"
 else
-  { echo "$as_me:$LINENO: checking \"Linking for shared libraries\"..." >&5
-echo "$as_me: checking \"Linking for shared libraries\"..." >&6;}
+  { echo "$as_me:$LINENO: Linking for shared libraries..." >&5
+echo "$as_me: Linking for shared libraries..." >&6;}
 fi;
 
 
@@ -6332,8 +6334,8 @@ fi
 
 fi
 if test "$use_svgalib" = "yes"; then
-  { echo "$as_me:$LINENO: checking \"compiling with svgalib support\"..." >&5
-echo "$as_me: checking \"compiling with svgalib support\"..." >&6;}
+  { echo "$as_me:$LINENO: Compiling with svgalib support..." >&5
+echo "$as_me: Compiling with svgalib support..." >&6;}
   cat >>confdefs.h <<\_ACEOF
 #define USE_SVGALIB 1
 _ACEOF
@@ -6341,8 +6343,8 @@ _ACEOF
   USE_SVGALIB="USE_SVGALIB=1"
 
 else
-  { echo "$as_me:$LINENO: checking \"compiling without svgalib support\"..." >&5
-echo "$as_me: checking \"compiling without svgalib support\"..." >&6;}
+  { echo "$as_me:$LINENO: Compiling without svgalib support..." >&5
+echo "$as_me: Compiling without svgalib support..." >&6;}
 fi
 
 
@@ -6422,8 +6424,8 @@ fi
 
 fi
 if test "$use_pthreads" = "yes"; then
-  { echo "$as_me:$LINENO: checking \"compiling with pthreads support\"..." >&5
-echo "$as_me: checking \"compiling with pthreads support\"..." >&6;}
+  { echo "$as_me:$LINENO: Compiling with pthreads support..." >&5
+echo "$as_me: Compiling with pthreads support..." >&6;}
   cat >>confdefs.h <<\_ACEOF
 #define USE_PTHREADS 1
 _ACEOF
@@ -6432,7 +6434,7 @@ _ACEOF
 
 # pthreads causes stability problems so ordinary users shouldn't know about it
 #else
-#  AS_MESSAGE(checking "compiling without pthreads support"...)
+#  AC_MSG_NOTICE(Compiling without pthreads support...)
 fi
 
 #S-Lang directory checking -- thanks to mutt's configure script.
@@ -6595,7 +6597,11 @@ fi
 
 fi;
 
-echo "$as_me:$LINENO: checking for X" >&5
+if test "$no_x" = "yes" ; then
+  { echo "$as_me:$LINENO: Compiling without X support..." >&5
+echo "$as_me: Compiling without X support..." >&6;}
+else
+  echo "$as_me:$LINENO: checking for X" >&5
 echo $ECHO_N "checking for X... $ECHO_C" >&6
 
 
@@ -7791,8 +7797,8 @@ fi
 
 fi
 
-LDFLAGS="$LDFLAGS $X_LIBS"
-CPPFLAGS="$X_CFLAGS"
+  LDFLAGS="$LDFLAGS $X_LIBS"
+  CPPFLAGS="$X_CFLAGS"
 
 
 echo "$as_me:$LINENO: checking for XOpenDisplay in -lX11" >&5
@@ -7979,13 +7985,11 @@ fi
 
 fi
 
+fi
 
-if test "$no_x" = "yes" ; then
-    { echo "$as_me:$LINENO: checking Compiling without X support..." >&5
-echo "$as_me: checking Compiling without X support..." >&6;}
-else
-    { echo "$as_me:$LINENO: checking Compiling with X support..." >&5
-echo "$as_me: checking Compiling with X support..." >&6;}
+if test "$no_x" != "yes" ; then
+    { echo "$as_me:$LINENO: Compiling with X support..." >&5
+echo "$as_me: Compiling with X support..." >&6;}
     cat >>confdefs.h <<\_ACEOF
 #define X_SUPPORT 1
 _ACEOF
@@ -7998,11 +8002,10 @@ _ACEOF
 
     X_GRAPHICS="X_GRAPHICS=1"
 
-fi
 
 
 
-# Check whether --enable-mitshm or --disable-mitshm was given.
+    # Check whether --enable-mitshm or --disable-mitshm was given.
 if test "${enable_mitshm+set}" = set; then
   enableval="$enable_mitshm"
   forced_mitshm="yes"
@@ -8010,7 +8013,7 @@ else
   forced_mitshm="no"
 fi;
 
-# Check whether --enable-nomitshm or --disable-nomitshm was given.
+    # Check whether --enable-nomitshm or --disable-nomitshm was given.
 if test "${enable_nomitshm+set}" = set; then
   enableval="$enable_nomitshm"
   forced_nomitshm="yes"
@@ -8018,14 +8021,14 @@ else
   forced_nomitshm="no"
 fi;
 
-if test "$forced_mitshm" = "yes" -a "$forced_nomitshm" = "yes" ; then
-  { { echo "$as_me:$LINENO: error: Can't use --enable-mitshm and --enable-nomitshm at the same time" >&5
+    if test "$forced_mitshm" = "yes" -a "$forced_nomitshm" = "yes" ; then
+      { { echo "$as_me:$LINENO: error: Can't use --enable-mitshm and --enable-nomitshm at the same time" >&5
 echo "$as_me: error: Can't use --enable-mitshm and --enable-nomitshm at the same time" >&2;}
    { (exit 1); exit 1; }; }
-fi
+    fi
 
-if test "$forced_nomitshm" != "yes" -a "$no_x" != "yes" ; then
-  echo "$as_me:$LINENO: checking for X11/extensions/XShm.h" >&5
+    if test "$forced_nomitshm" != "yes" -a "$no_x" != "yes" ; then
+      echo "$as_me:$LINENO: checking for X11/extensions/XShm.h" >&5
 echo $ECHO_N "checking for X11/extensions/XShm.h... $ECHO_C" >&6
 if test "${ac_cv_header_X11_extensions_XShm_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -8070,14 +8073,14 @@ if test $ac_cv_header_X11_extensions_XShm_h = yes; then
 _ACEOF
  LIBS="-lXext $LIBS"
 else
-  { echo "$as_me:$LINENO: checking Compiling without the MITSHM X extension" >&5
-echo "$as_me: checking Compiling without the MITSHM X extension" >&6;}
+  { echo "$as_me:$LINENO: Compiling without the MITSHM X extension" >&5
+echo "$as_me: Compiling without the MITSHM X extension" >&6;}
 fi
 
 
-fi
+    fi
 
-echo "$as_me:$LINENO: checking for X11/extensions/xf86vmode.h" >&5
+    echo "$as_me:$LINENO: checking for X11/extensions/xf86vmode.h" >&5
 echo $ECHO_N "checking for X11/extensions/xf86vmode.h... $ECHO_C" >&6
 if test "${ac_cv_header_X11_extensions_xf86vmode_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -8122,11 +8125,12 @@ if test $ac_cv_header_X11_extensions_xf86vmode_h = yes; then
 _ACEOF
  LIBS="-lXxf86vm $LIBS"
 else
-  { echo "$as_me:$LINENO: checking Compiling without the XF86 video mode extension" >&5
-echo "$as_me: checking Compiling without the XF86 video mode extension" >&6;}
+  { echo "$as_me:$LINENO: Compiling without the XF86 video mode extension" >&5
+echo "$as_me: Compiling without the XF86 video mode extension" >&6;}
 fi
 
 
+fi
 
 PACKAGE_VERSION=`cat VERSION`
 VV=$PACKAGE_VERSION
@@ -8196,11 +8200,11 @@ else
   experimental="no"
 fi;
   if test "$experimental" = "yes"; then
-   { echo "$as_me:$LINENO: checking \"allowing EXPERIMENTAL stuff to be configured\"..." >&5
-echo "$as_me: checking \"allowing EXPERIMENTAL stuff to be configured\"..." >&6;};
+   { echo "$as_me:$LINENO: Allowing EXPERIMENTAL stuff to be configured..." >&5
+echo "$as_me: Allowing EXPERIMENTAL stuff to be configured..." >&6;};
   else
-   { echo "$as_me:$LINENO: checking \"EXPERIMENTAL stuff disabled\"..." >&5
-echo "$as_me: checking \"EXPERIMENTAL stuff disabled\"..." >&6;};
+   { echo "$as_me:$LINENO: EXPERIMENTAL stuff disabled..." >&5
+echo "$as_me: EXPERIMENTAL stuff disabled..." >&6;};
   fi
 
 if test "$CONFIG_HOST" = "linux"; then
@@ -8220,8 +8224,8 @@ if test -x ./mkpluginhooks; then
   ./mkpluginhooks
   if test -f ./plugin_libdirs; then
     PLUGINSUBDIRS=`cat ./plugin_libdirs`
-    { echo "$as_me:$LINENO: checking \"Including plugins: $PLUGINSUBDIRS\"..." >&5
-echo "$as_me: checking \"Including plugins: $PLUGINSUBDIRS\"..." >&6;};
+    { echo "$as_me:$LINENO: Including plugins: $PLUGINSUBDIRS..." >&5
+echo "$as_me: Including plugins: $PLUGINSUBDIRS..." >&6;};
     if test -f ./plugin_incdirs; then
       cd src
       for i in `cat ../plugin_incdirs`; do
@@ -8232,12 +8236,12 @@ echo "$as_me: checking \"Including plugins: $PLUGINSUBDIRS\"..." >&6;};
       cd ..
     fi
   else
-    { echo "$as_me:$LINENO: checking \"Compiling without plug-ins\"..." >&5
-echo "$as_me: checking \"Compiling without plug-ins\"..." >&6;}
+    { echo "$as_me:$LINENO: Compiling without plug-ins..." >&5
+echo "$as_me: Compiling without plug-ins..." >&6;}
   fi
 else
-  { echo "$as_me:$LINENO: checking \"Compiling without plug-ins\"..." >&5
-echo "$as_me: checking \"Compiling without plug-ins\"..." >&6;}
+  { echo "$as_me:$LINENO: Compiling without plug-ins..." >&5
+echo "$as_me: Compiling without plug-ins..." >&6;}
 fi
 
 
@@ -8253,11 +8257,11 @@ else
   dodebug="no"
 fi;
   if test "$dodebug" = "yes"; then
-   { echo "$as_me:$LINENO: checking \"Compiling with debug info\"..." >&5
-echo "$as_me: checking \"Compiling with debug info\"..." >&6;};
+   { echo "$as_me:$LINENO: Compiling with debug info..." >&5
+echo "$as_me: Compiling with debug info..." >&6;};
   else
-   { echo "$as_me:$LINENO: checking \"Compiling without debug info\"..." >&5
-echo "$as_me: checking \"Compiling without debug info\"..." >&6;};
+   { echo "$as_me:$LINENO: Compiling without debug info..." >&5
+echo "$as_me: Compiling without debug info..." >&6;};
   fi
 
  # Check whether --enable-aspi or --disable-aspi was given.
@@ -8268,8 +8272,8 @@ else
   aspi="no"
 fi;
   if test "$aspi" = "yes"; then
-   { echo "$as_me:$LINENO: checking \"Compiling with ASPI support\"..." >&5
-echo "$as_me: checking \"Compiling with ASPI support\"..." >&6;};
+   { echo "$as_me:$LINENO: Compiling with ASPI support..." >&5
+echo "$as_me: Compiling with ASPI support..." >&6;};
    cat >>confdefs.h <<\_ACEOF
 #define ASPI_SUPPORT 1
 _ACEOF
@@ -8277,18 +8281,18 @@ _ACEOF
    ASPI_SUPPORT="ASPI_SUPPORT=1"
 
   else
-   { echo "$as_me:$LINENO: checking \"Compiling without ASPI support\"..." >&5
-echo "$as_me: checking \"Compiling without ASPI support\"..." >&6;};
+   { echo "$as_me:$LINENO: Compiling without ASPI support..." >&5
+echo "$as_me: Compiling without ASPI support..." >&6;};
   fi
 
  # Check whether --enable-nosbemu or --disable-nosbemu was given.
 if test "${enable_nosbemu+set}" = set; then
   enableval="$enable_nosbemu"
-  { echo "$as_me:$LINENO: checking \"Compiling without SB Emulation\"..." >&5
-echo "$as_me: checking \"Compiling without SB Emulation\"..." >&6;}
+  { echo "$as_me:$LINENO: Compiling without SB Emulation..." >&5
+echo "$as_me: Compiling without SB Emulation..." >&6;}
 else
-  { echo "$as_me:$LINENO: checking \"Compiling with SB Emulation\"..." >&5
-echo "$as_me: checking \"Compiling with SB Emulation\"..." >&6;}
+  { echo "$as_me:$LINENO: Compiling with SB Emulation..." >&5
+echo "$as_me: Compiling with SB Emulation..." >&6;}
                 cat >>confdefs.h <<\_ACEOF
 #define USE_SBEMU 1
 _ACEOF
@@ -8349,8 +8353,8 @@ fi
 echo "$as_me:$LINENO: result: $ac_cv_lib_gus_gus_close" >&5
 echo "${ECHO_T}$ac_cv_lib_gus_gus_close" >&6
 if test $ac_cv_lib_gus_gus_close = yes; then
-  { echo "$as_me:$LINENO: checking \"Compiling Midid with Ultra support\"..." >&5
-echo "$as_me: checking \"Compiling Midid with Ultra support\"..." >&6;}
+  { echo "$as_me:$LINENO: Compiling Midid with Ultra support..." >&5
+echo "$as_me: Compiling Midid with Ultra support..." >&6;}
 			USE_ULTRA="USE_ULTRA=1"
 			cat >>confdefs.h <<\_ACEOF
 #define USE_ULTRA 1
@@ -8377,7 +8381,7 @@ _ACEOF
 INCDIR="-I\${SRCPATH}/plugin/include -I\${SRCPATH}/include ${SLANGINC}"
 
 
-CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs -Wpointer-arith"
+CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
 if test "$dodebug" = "yes"; then
   CFLAGS="$CFLAGS -gstabs+"
   cat >>confdefs.h <<\_ACEOF
@@ -8400,8 +8404,8 @@ else
   cpuemu="no"
 fi;
   if test "$cpuemu" = "yes" -a "$experimental" = "yes"; then
-   { echo "$as_me:$LINENO: checking \"Compiling with optional 386 emulation code\"..." >&5
-echo "$as_me: checking \"Compiling with optional 386 emulation code\"..." >&6;};
+   { echo "$as_me:$LINENO: Compiling with optional 386 emulation code..." >&5
+echo "$as_me: Compiling with optional 386 emulation code..." >&6;};
    cat >>confdefs.h <<_ACEOF
 #define X86_EMULATOR 1
 _ACEOF
@@ -8409,8 +8413,8 @@ _ACEOF
    X86_EMULATOR="X86_EMULATOR=1"
 
   else
-   { echo "$as_me:$LINENO: checking \"Compiling for native x86\"..." >&5
-echo "$as_me: checking \"Compiling for native x86\"..." >&6;};
+   { echo "$as_me:$LINENO: Compiling for native x86..." >&5
+echo "$as_me: Compiling for native x86..." >&6;};
   fi
 
 
@@ -8438,8 +8442,8 @@ _ACEOF
 
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
- { echo "$as_me:$LINENO: checking \"Linux Specific build options\"..." >&5
-echo "$as_me: checking \"Linux Specific build options\"..." >&6;}
+ { echo "$as_me:$LINENO: Linux Specific build options..." >&5
+echo "$as_me: Linux Specific build options..." >&6;}
    # Check whether --enable-nonet or --disable-nonet was given.
 if test "${enable_nonet+set}" = set; then
   enableval="$enable_nonet"
@@ -8448,11 +8452,11 @@ else
   nonet="no"
 fi;
   if test "$nonet" = "yes"; then
-    { echo "$as_me:$LINENO: checking \"Compiling without network support\"..." >&5
-echo "$as_me: checking \"Compiling without network support\"..." >&6;};
+    { echo "$as_me:$LINENO: Compiling without network support..." >&5
+echo "$as_me: Compiling without network support..." >&6;};
   else
-    { echo "$as_me:$LINENO: checking \"Compiling with network support\"..." >&5
-echo "$as_me: checking \"Compiling with network support\"..." >&6;};
+    { echo "$as_me:$LINENO: Compiling with network support..." >&5
+echo "$as_me: Compiling with network support..." >&6;};
     cat >>confdefs.h <<\_ACEOF
 #define USING_NET 1
 _ACEOF
@@ -8463,37 +8467,48 @@ fi
 
 
 if test "$GCC" = "yes" ; then
-  echo -n "generating gcc version code..."
+  echo "$as_me:$LINENO: checking for the version of gcc..." >&5
+echo $ECHO_N "checking for the version of gcc...... $ECHO_C" >&6
   minor=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC_MINOR__/{print $3}'`
   major=`echo "" |${CC-cc} -E -dM -|awk '/__GNUC__/{print $3}'`
   GCC_VERSION_CODE=$((($major * 1000) + $minor))
-  echo "$GCC_VERSION_CODE"
-  echo -n "checking need for pedantic asm constraints..."
+  echo "$as_me:$LINENO: result: $GCC_VERSION_CODE" >&5
+echo "${ECHO_T}$GCC_VERSION_CODE" >&6
+  echo "$as_me:$LINENO: checking need for pedantic asm constraints..." >&5
+echo $ECHO_N "checking need for pedantic asm constraints...... $ECHO_C" >&6
   if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
-     echo "yes"
+     echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
      cat >>confdefs.h <<\_ACEOF
 #define ASM_PEDANTIC 1
 _ACEOF
 
-     echo -n "checking for egcs..."
+     echo "$as_me:$LINENO: checking for egcs..." >&5
+echo $ECHO_N "checking for egcs...... $ECHO_C" >&6
      if gcc -v 2>&1|grep 'egcs-' >/dev/null; then
-       echo "yes, using -fno-gcse to work around bugs"
+       echo "$as_me:$LINENO: result: yes, using -fno-gcse to work around bugs" >&5
+echo "${ECHO_T}yes, using -fno-gcse to work around bugs" >&6
        OPT="$OPT -fno-gcse"
      else
-       echo "no"
+       echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
      fi
-     echo -n "checking for gcc-2.95..."
+     echo "$as_me:$LINENO: checking for gcc-2.95 or newer ..." >&5
+echo $ECHO_N "checking for gcc-2.95 or newer ...... $ECHO_C" >&6
      if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
-       echo "yes, using -fno-strict-aliasing to work around bugs"
+       echo "$as_me:$LINENO: result: yes, using -fno-strict-aliasing to work around bugs" >&5
+echo "${ECHO_T}yes, using -fno-strict-aliasing to work around bugs" >&6
        OPT="$OPT -fno-strict-aliasing"
        if test "$(( $GCC_VERSION_CODE >= 3000 ))" = "1"; then
          CPPFLAGS="$CPPFLAGS -MP"
        fi
      else
-       echo "no"
+       echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
      fi
   else
-     echo "no"
+     echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
   fi
 
 
@@ -8524,20 +8539,25 @@ _ACEOF
      OPT="$OPT -malign-loops=2 -malign-jumps=2 -malign-functions=2"
   fi
 
-  echo -n "checking for glibc..."
+  echo "$as_me:$LINENO: checking for glibc..." >&5
+echo $ECHO_N "checking for glibc...... $ECHO_C" >&6
   set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
   major=$1; minor=$2
   if test "$major" = "__GLIBC__"; then
-    echo "no"
+    { { echo "$as_me:$LINENO: error: Sorry, you need glibc-2.1.3 or newer." >&5
+echo "$as_me: error: Sorry, you need glibc-2.1.3 or newer." >&2;}
+   { (exit 1); exit 1; }; }
   else
     if test "$minor" = "__GLIBC_MINOR__"; then
       minor=0;
     fi
     GLIBC_VERSION_CODE=$((($major * 1000) + $minor))
-    echo "yes, version code $GLIBC_VERSION_CODE"
+    echo "$as_me:$LINENO: result: yes, version code $GLIBC_VERSION_CODE" >&5
+echo "${ECHO_T}yes, version code $GLIBC_VERSION_CODE" >&6
     if test $GLIBC_VERSION_CODE -lt 2001; then
-      echo Sorry, you need glibc-2.1.3 or newer.
-      exit 1
+      { { echo "$as_me:$LINENO: error: Sorry, you need glibc-2.1.3 or newer." >&5
+echo "$as_me: error: Sorry, you need glibc-2.1.3 or newer." >&2;}
+   { (exit 1); exit 1; }; }
     fi
   fi
 fi

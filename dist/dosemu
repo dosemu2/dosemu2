@@ -34,7 +34,8 @@ install_from_template () {
   Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
 "
   mkdir -p $HOME/.dosemu/drives
-  ln -s $BOOTDIR $HOME/.dosemu/drives/c
+  rm -f $HOME/.dosemu/drives/c
+  ln -sf $BOOTDIR $HOME/.dosemu/drives/c
   if [ -z "$PROPRIETARY" ]; then
     (cd $1
       tar -xzf $SYSTEM_INSTALL_PATH/dosemu-freedos-bin.tgz
@@ -134,39 +135,52 @@ w4l_check () {
   fi
 }
 
+mkdir -p ~/.dosemu
 BPATH_FILE=~/.dosemu/bindist_path
 
+BOOT_DIR_PATH=$THISDIR
 # check whether this user has already got his private installation
+if [ -f $BPATH_FILE ]; then
+  BOOT_DIR_PATH=`cat $BPATH_FILE`
+      echo "
+  Upgrading an existing dosemu configuration: your local configuration can now
+  be stored in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
+  and the boot.log file is in $HOME/.dosemu.
+      "
+  BOOTDIR=$BOOT_DIR_PATH/freedos
+fi
+
 if [ -n "$INSTALL" -o \
-    ! -e $HOME/.dosemu/drives/c -a \( -f $BPATH_FILE -o -f $HOME/.dosemurc \) -o \
+     -f $BPATH_FILE -o \
+    ! -e $HOME/.dosemu/drives/c -a -z "$IS_SYSTEM_WIDE" -o \
     ! -f $HOME/.dosemu/disclaimer ]; then
 
   # This either is the first time this user calls 'dosemu'
   # or the user cd'ed here and we forced a 'take over'
 
-  mkdir -p ~/.dosemu
+  rm -f $BPATH_FILE
   if [ -z "$IS_SYSTEM_WIDE" ]; then
     # we assume this is a fresh unpacked dosemu-freedos distribution
     # In this case this script has to be called _from_ this directory.
 
-    if [ ! -x bin/dosemu.bin ]; then
+    if [ ! -x $BOOT_DIR_PATH/bin/dosemu.bin ]; then
       echo "
   You are starting this script from the wrong directory.
   e.g. if you unpacked dosemu-freedos-bin.tgz within
   $HOME/mydos, you have to 'cd' into
   $HOME/mydos/dosemu before running this script.
   Once you have successfully booted, this directory will be remembered
-  in the file ~/.dosemu/bindist_path and you can call dosemu from everywhere.
+  via the symbolic link ~/.dosemu/drives/c and you can call dosemu from 
+  everywhere.
 "
       exit 1
     fi
-    BOOT_DIR_PATH=$THISDIR
     echo "
   Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c
 "
-    rm -f $BPATH_FILE
     mkdir -p $HOME/.dosemu/drives
-    ln -s $BOOT_DIR_PATH/freedos $HOME/.dosemu/drives/c
+    rm -f $HOME/.dosemu/drives/c
+    ln -sf $BOOT_DIR_PATH/freedos $HOME/.dosemu/drives/c
 
   else
 
@@ -181,54 +195,40 @@ if [ -n "$INSTALL" -o \
       exit 1;
     fi
 
-    if [ -f $BPATH_FILE ]; then
-      BOOT_DIR_PATH=`cat $BPATH_FILE`
-      echo "
-  Upgrading an existing dosemu configuration: your local configuration can now
-  be stored in ~/.dosemurc instead of $BOOT_DIR_PATH/conf/dosemu.conf
-  and the boot.log file is in $HOME/.dosemu.
-  Creating symbolic link for bootdirectory as $HOME/.dosemu/drives/c.
-      "
-      BOOTDIR=$BOOT_DIR_PATH/freedos
-      mkdir -p $HOME/.dosemu/drives
-      ln -s $BOOTDIR $HOME/.dosemu/drives/c
-      rm -f $BPATH_FILE
-    else
-      # We copy the binaries from the directory SYSTEM_INSTALL_PATH
-      # to the users $HOME.
-      echo "
+    # We copy the binaries from the directory SYSTEM_INSTALL_PATH
+    # to the users $HOME.
+    echo "
   Going to install your private DOSEMU files into the directory
   $HOME/dosemu
   Enter an empty string to confirm, a new path, or \"none\" (without
   the quotes) if you don't want this:"
-      read BOOT_DIR_PATH
-      if [ "$BOOT_DIR_PATH" == "none" ]; then
-	if [ ! -f $HOME/.dosemu/disclaimer ]; then
-          echo "
+    read BOOT_DIR_PATH
+    if [ "$BOOT_DIR_PATH" == "none" ]; then
+      if [ ! -f $HOME/.dosemu/disclaimer ]; then
+        echo "
   Please put the paths of your DOSEMU DOS drives in \$_hdimage in
   $SYSTEM_CONF_PATH/dosemu.conf or copy that file to $HOME/.dosemurc and
   adjust it there if you haven't already done so.
           "
-        fi
-      elif [ "$BOOT_DIR_PATH" != "" ]; then
-        if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
-          echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
-          read x
-        fi
-        echo "
+      fi
+    elif [ "$BOOT_DIR_PATH" != "" ]; then
+      if [ "${BOOT_DIR_PATH#/*}" != "$BOOT_DIR_PATH" ]; then
+        echo "  You gave an absolute path, type ENTER to confirm or Ctrl-C"
+        read x
+      fi
+      echo "
   Ok, will install into $BOOT_DIR_PATH/dosemu
   type ENTER to confirm or Ctrl-C to abort"
-        read x
-        if ! mkdir -p $BOOT_DIR_PATH 2>/dev/null; then
-          echo "  unable to create $BOOT_DIR_PATH, giving up"
-          exit 1
-        fi
-        install_from_template $BOOT_DIR_PATH
-        BOOT_DIR_PATH="$BOOT_DIR_PATH/dosemu"
-      else
-        install_from_template $HOME
-        BOOT_DIR_PATH="$HOME/dosemu"
+      read x
+      if ! mkdir -p $BOOT_DIR_PATH 2>/dev/null; then
+        echo "  unable to create $BOOT_DIR_PATH, giving up"
+        exit 1
       fi
+      install_from_template $BOOT_DIR_PATH
+      BOOT_DIR_PATH="$BOOT_DIR_PATH/dosemu"
+    else
+      install_from_template $HOME
+      BOOT_DIR_PATH="$HOME/dosemu"
     fi
   fi
 fi

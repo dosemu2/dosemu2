@@ -3,10 +3,16 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+LANGUAGES = ru
+
 all:
 
 install:
-	@install -d $(INSTROOT)/usr/man/man1; \
-	install *dos*.1 mkfatimage*.1 $(INSTROOT)/usr/man/man1
+	$(INSTALL) -d $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -m 0644 *.1 $(DESTDIR)$(mandir)/man1
+	for i in $(LANGUAGES); do \
+	    $(INSTALL) -d $(DESTDIR)$(mandir)/$$i/man1; \
+	    $(INSTALL) -m 0644 $$i/*.1 $(DESTDIR)$(mandir)/$$i/man1; \
+	done
 
 clean realclean:

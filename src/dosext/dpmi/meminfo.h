@@ -12,7 +12,6 @@ struct meminfo {
   int total;
   int used;
   int free;
-  int shared;
   int buffers;
   int cached;
   int swaptotal;

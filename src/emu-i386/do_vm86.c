@@ -385,26 +385,6 @@ run_vm86(void)
      * in here.
      */
 
-/*    dma_trans(); */
-    dma_run ();
-
-    /* FIXME: is this the optimal place for this??????? */
-
-    in_vm86 = 1;
-#if 1 /* <ESC> BUG FIXER (if 1) */
-    #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
-    #define OVERLOAD_THRESHOULD1  238608 /* good average value */
-    #define OVERLOAD_THRESHOULD0  100000 /* minum acceptable value */
-    if ((pic_icount || (pic_dos_time<pic_sys_time))
-        && ((pic_sys_time - pic_dos_time) < OVERLOAD_THRESHOULD1) )
-       REG(eflags) |= (VIP);
-    else REG(eflags) &= ~(VIP);
-#else
-    if (pic_icount||pic_dos_time<pic_sys_time)
-	REG(eflags) |= (VIP);
-#endif
-    /* FIXME: this needs to be clarified and rewritten */
-
     if (
 #ifdef X86_EMULATOR
 	(debug_level('e')>1)||
@@ -420,7 +400,9 @@ run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
+    in_vm86 = 1;
     retval = DO_VM86(&vm86s);
+    in_vm86 = 0;
 
   /* sync the pic interrupt state with the flags && sync VIF & IF */
     if (_EFLAGS & VIF) {
@@ -453,7 +435,6 @@ run_vm86(void)
 			_SI, _DI, _ES, _EFLAGS);
     }
 
-    in_vm86 = 0;
     switch VM86_TYPE
 	(retval) {
     case VM86_UNKNOWN:
@@ -539,11 +520,11 @@ void loopstep_run_vm86(void)
 	++pic_vm86_count;
 	run_vm86();
 	serial_run();
-	pic_run();		/* trigger any hardware interrupts
-				 * requested */
+	dma_run ();
 #ifdef USE_SBEMU
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
 #endif
+	pic_run();		/* trigger any hardware interrupts requested */
 }
 
 

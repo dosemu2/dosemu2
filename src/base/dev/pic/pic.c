@@ -864,10 +864,6 @@ static char buf[81];
   if (pic_iinfo[inum].func == (void *)0)
     return ret; 
 
-  REG(eflags) |= VIP;
-  if (in_dpmi)
-    dpmi_eflags |= VIP;
-
 #if 1		/* use this result mouse slowdown in winos2 */
   if (((pic_irr|pic_isr)&(1<<inum)) || (pic_icount>pic_icount_od))
 #else          /* this makes mouse work under winos2, but sometimes */
@@ -948,7 +944,6 @@ unsigned long sp;
  * in protected mode, so we can't modify it here.
  */
     pic_resched();
-    if(!pic_irr) dpmi_eflags &= ~VIP;
     pic_print(2,"IRET in dpmi, loops=",pic_dpmi_count," ");
     pic_dpmi_count=0;
     if ((cb_cs || cb_ip) && !pic_icount) {
@@ -970,7 +965,6 @@ unsigned long sp;
  */ 
     if(REG(cs) == PIC_SEG && LWORD(eip) == PIC_OFF) {
       pic_resched();
-      if(!pic_irr) REG(eflags)&=~(VIP);
       pic_print(2,"IRET in vm86, loops=", in_dpmi?
       pic_dpmi_count : pic_vm86_count," ");
       pic_vm86_count=0;

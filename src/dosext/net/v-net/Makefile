@@ -8,7 +8,7 @@
 # for Linux.
 #
 
-KERNEL_INCDIR="/usr/src/linux/include"
+KERNEL_INCDIR="/lib/modules/`uname -r`/build/include"
 DOSEMU_INCDIR="../../../include"
 
 CFILES = dosnet.c
@@ -30,7 +30,7 @@ dosnet.o:  dosnet.c
 	$(CC) $(INCDIR) -D__KERNEL__ -Wall -Wstrict-prototypes -O2 \
 	-fno-strength-reduce -I$(KERNEL_INCDIR) -I$(DOSEMU_INCDIR) \
 	-DMODULE \
-	-fomit-frame-pointer  -m486 -c -o dosnet.o dosnet.c 
+	-fomit-frame-pointer -c -o dosnet.o dosnet.c 
 
 checkin:
 	-ci -l $(ALL) Makefile

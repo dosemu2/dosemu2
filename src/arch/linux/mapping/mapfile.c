@@ -74,7 +74,6 @@ static int open_mapping_file(int cap)
 
   if (tmpfile_fd == -1) {
     int mapsize, estsize, padsize = 4*1024;
-    char *tmp_mapfile_name;
 
     /* first estimate the needed size of the mapfile */
     mapsize  = 2*16;		/* HMA */

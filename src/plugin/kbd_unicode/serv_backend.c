@@ -36,6 +36,9 @@
 #include "pic.h"
 #include "cpu.h"
 #include "keystate.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 /* If this is set to 1, the server will check whether the BIOS keyboard buffer is
  * full.
@@ -171,11 +174,17 @@ t_rawkeycode read_queue(struct keyboard_queue *q)
 
 void clear_bios_keybuf() 
 {
+#ifdef X86_EMULATOR
+   int tmp = E_MUNPROT_STACK(0);	/* no faults in BIOS area! */
+#endif
    WRITE_WORD(BIOS_KEYBOARD_BUFFER_START,0x001e);
    WRITE_WORD(BIOS_KEYBOARD_BUFFER_END,  0x003e);
    WRITE_WORD(BIOS_KEYBOARD_BUFFER_HEAD, 0x001e);
    WRITE_WORD(BIOS_KEYBOARD_BUFFER_TAIL, 0x001e);
    MEMSET_DOS(BIOS_KEYBOARD_BUFFER,0,32);
+#ifdef X86_EMULATOR
+   if (tmp) E_MPROT_STACK(0);
+#endif
 }
 
 static inline Boolean bios_keybuf_full(void) 
@@ -226,6 +235,9 @@ void copy_shift_state(t_shiftstate shift)
 {
    Bit8u flags1, flags2, flags3, leds;
 
+#ifdef X86_EMULATOR
+   int tmp = E_MUNPROT_STACK(0);	/* no faults in BIOS area! */
+#endif
 #if 0
    k_printf("KBD: copy_shift_state() %04x\n",shift);
 #endif
@@ -259,6 +271,9 @@ void copy_shift_state(t_shiftstate shift)
    WRITE_BYTE(BIOS_KEYBOARD_FLAGS2,flags2);
    WRITE_BYTE(BIOS_KEYBOARD_FLAGS3,flags3);
    WRITE_BYTE(BIOS_KEYBOARD_LEDS,leds);
+#ifdef X86_EMULATOR
+   if (tmp) E_MPROT_STACK(0);
+#endif
 }
 
 
@@ -343,14 +358,20 @@ void backend_run(void)
 }
 
 
-void backend_reset() 
+void backend_reset(void)
 {
+#ifdef X86_EMULATOR
+   int tmp = E_MUNPROT_STACK(0);	/* no faults in BIOS area! */
+#endif
    clear_queue(&keyb_queue);
 
 /* initialise keyboard-related BIOS variables */
 
    WRITE_BYTE(BIOS_KEYBOARD_TOKEN,0);  /* buffer for Alt-XXX (not used by emulator) */
    
+#ifdef X86_EMULATOR
+   if (tmp) E_MPROT_STACK(0);
+#endif
    clear_bios_keybuf();
    copy_shift_state(dos_keyboard_state.shiftstate);
    keyb_client_set_leds(get_modifiers_r(dos_keyboard_state.shiftstate));

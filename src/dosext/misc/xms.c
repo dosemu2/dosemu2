@@ -685,6 +685,7 @@ xms_query_freemem(int api)
     x_printf("XMS query free memory(new): %ldK %ldK\n",
 	     REG(eax), REG(edx));
   }
+  _BL = 0;
   return 0;
 }
 

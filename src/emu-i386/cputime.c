@@ -21,6 +21,9 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <unistd.h>
+#ifdef X_SUPPORT
+#include "../env/video/X.h"
+#endif
 #include "emu.h"
 #include "timers.h"
 #include "pic.h"
@@ -82,6 +85,7 @@
 static hitimer_t (*RAWcpuTIME)(void);
 
 hitimer_u ZeroTimeBase = { 0 };
+hitimer_u ZeroTSCBase = { 0 };
 static hitimer_t LastTimeRead = 0;
 static hitimer_t StopTimeBase = 0;
 int cpu_time_stop = 0;
@@ -180,6 +184,8 @@ void get_time_init (void)
      * but only flags processing (& other features) */
     RAWcpuTIME = rawP5time;		/* in usecs */
     GETcpuTIME = getP5time;		/* in usecs */
+    ZeroTSCBase.td = GETTSC();
+    ZeroTimeBase.td = TSCtoUS(ZeroTSCBase.td);
     g_printf("TIMER: using pentium timing\n");
   }
   else {
@@ -187,6 +193,7 @@ void get_time_init (void)
      * 'rdtsc off' into config file */
     RAWcpuTIME = rawC4time;		/* in usecs */
     GETcpuTIME = getC4time;		/* in usecs */
+    ZeroTimeBase.td = rawC4time();
     if (config.realcpu) {
       if (kernel_version_code < 0x2017e)
         g_printf("TIMER: using gettimeofday\n");
@@ -194,7 +201,6 @@ void get_time_init (void)
         g_printf("TIMER: using new gettimeofday with microsecond resolution\n");
     }
   }
-  ZeroTimeBase.td = RAWcpuTIME();
 }
 
 
@@ -227,19 +233,33 @@ int dosemu_frozen = 0;
 void freeze_dosemu(void)
 {
   if (dosemu_frozen) return;
+  
   stop_cputime(0);
-  dbug_printf("*** dosemu frozen\n");
   dosemu_frozen = 1;
+  dbug_printf("*** dosemu frozen\n");
+  
   speaker_pause();
+  
+#ifdef X_SUPPORT
+  if (config.X)
+    X_change_config (X_CHG_TITLE, NULL);
+#endif
 }
 
 void unfreeze_dosemu(void)
 {
   if (!dosemu_frozen) return;
+  
   speaker_resume ();
+  
   restart_cputime(0);
-  dbug_printf("*** dosemu unfrozen\n");
   dosemu_frozen = 0;
+  dbug_printf("*** dosemu unfrozen\n");
+
+#ifdef X_SUPPORT
+  if (config.X)
+    X_change_config (X_CHG_TITLE, NULL);
+#endif
 }
 
 
