@@ -17,9 +17,10 @@
 #include <sys/time.h>
 #include <ctype.h>
 #include <dirent.h>
-#include <fnmatch.h>
 #include <errno.h>
+#include <wctype.h>
 
+#include "translate.h"
 #include "emu.h"
 #include "mfs.h"
 #include "mangle.h"
@@ -123,6 +124,7 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
 #define PATHLEN 256
 
 #define PNE_WILDCARD 1
+#define PNE_WILDCARD_STAR 2
 
 #define addChar(c) \
 { \
@@ -165,10 +167,14 @@ static int parse_name(const char **src, char **cp, char *dest)
 	case '\\':
 	case '\0':
 		/* delete trailing periods and spaces */
+		p[0] = '\0';
 		while ((p[-1] == '.' || p[-1] == ' ') && p != *cp)
 			p--;
 		if (p == *cp)
 			return -1;
+		/* keep one trailing period if a * was encountered */
+		if (p[0] == '.' && (retval & PNE_WILDCARD_STAR))
+			p++;		
 		*cp = p;
 		return retval;
 	case ' ':
@@ -177,6 +183,8 @@ static int parse_name(const char **src, char **cp, char *dest)
 			addChar(c);
 		break;
 	case '*':
+		retval |= PNE_WILDCARD_STAR;
+		/* fall through */
 	case '?':
 		retval |= PNE_WILDCARD;
 		/* fall through */
@@ -509,16 +517,94 @@ static int build_posix_path(char *dest, const char *src, int allowwildcards)
 	return dd;
 }
 
+
+/* wildcard match routine, losely based upon the GLIBC fnmatch
+   routine */
+static int recur_match(const char *pattern, const char *string,
+		      struct char_set_state *patternstate,
+		      struct char_set_state *strstate,
+		      char *endp, char *ends)
+{
+	unsigned char c;
+	while ((c = *pattern++) != '\0') {
+		if (c == '*') {
+			while ((c = *pattern++) == '?' || c == '*') {
+				if (c == '?' && *string++ == '\0')
+					return 1;
+			}
+			if (c == '\0')
+				/* * at end of pattern, matches anything */
+				return 0;
+			for (pattern--; *string != '\0'; string++) {
+				/* recursive search if rest of pattern
+				   matches a string part */
+				if (recur_match(pattern, string, 
+						patternstate, strstate,
+						endp, ends) == 0)
+					return 0;
+			}
+			/* no match, failure... */
+			return 1;				
+		} else if (c == '?') {
+			if (*string++ == '\0')
+				return 1;
+		} else {
+			t_unicode symbol1, symbol2;
+			int result;
+
+			pattern--;
+			result = charset_to_unicode(patternstate, &symbol1, 
+						    pattern, endp - pattern);
+			if (result == -1)
+				return 1;
+			pattern += result;
+			result = charset_to_unicode(strstate, &symbol2, 
+						    string, ends - string);
+			if (result == -1)
+				return 1;
+			if (towupper(symbol1) != towupper(symbol2))
+				return 1;
+			string += result;
+		}
+	}
+	/* at end of string, then no differences, success == 0 */
+	/* also check for a trailing dot so that *. works      */
+	return !((*string == '\0') || (*string == '.' && string[1] == '\0'));
+}
+
+static int wild_match(char *pattern, char *string)
+{
+	char *dotpos;
+	struct char_set_state patternstate;
+	struct char_set_state strstate;
+	int rc;
+	size_t slen = strlen(string);
+
+	init_charset_state(&patternstate, trconfig.dos_charset);
+	init_charset_state(&strstate, trconfig.dos_charset);
+
+	/* add a trailing period if there is no period, so that *.* matches */
+	dotpos = NULL;
+	if (!strchr(string, '.')) {
+		dotpos = string + slen;
+		strcpy(dotpos, ".");
+		slen++;
+	}
+	rc = recur_match(pattern, string, &patternstate, &strstate,
+			pattern + strlen(pattern), string + slen);
+	if (dotpos) *dotpos = '\0';
+	cleanup_charset_state(&patternstate);
+	cleanup_charset_state(&strstate);
+	return rc;
+}
+
 static int lfn_sfn_match(char *pattern, struct mfs_dirent *de, char *lfn, char *sfn)
 {
-	int dotpos = strlen(pattern) - 2;
-	if (dotpos > 0 && strcmp(&pattern[dotpos], ".*") == 0)
-		pattern[dotpos] = '*';
 	if (!name_ufs_to_dos(lfn, de->d_long_name, 0))
 		name_convert(lfn, de->d_long_name, MANGLE, NULL);
 	name_convert(sfn, de->d_name, MANGLE, NULL);
-	return	(fnmatch(pattern, lfn, FNM_CASEFOLD) != 0 &&
-		 fnmatch(pattern, sfn, FNM_CASEFOLD) != 0);
+	return wild_match(pattern, de->d_long_name) != 0 &&
+		wild_match(pattern, sfn) != 0;
 }
 
 static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
