@@ -56,6 +56,8 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 {
 	struct mfs_dir *dir = dos_opendir(path);
 	struct mfs_dirent *de;
+	if (dir == NULL)
+		return 0;
 	if (dir->dir == NULL) while ((de = dos_readdir(dir)) != NULL) {
 		d_printf("LFN: vfat_search %s %s %s %s\n", de->d_name,
 			 de->d_long_name, src, path);
