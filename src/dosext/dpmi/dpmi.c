@@ -93,7 +93,7 @@
   mprotect_mapping(MAPPING_DPMI, \
     (void *)(((unsigned long)&ldt_buffer[(ent)*LDT_ENTRY_SIZE]) & PAGE_MASK), \
     PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE)
-#define LDT_INIT_LIMIT 0x1fff
+#define LDT_INIT_LIMIT 0xfff
 
 int dpmi_eflags = 0;
 
@@ -698,10 +698,12 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
   if (selector && DPMI_CLIENT.LDT_ALIAS) {
     ldt_entry = selector >> 3;
     if ((limit = GetSegmentLimit(DPMI_CLIENT.LDT_ALIAS)) <
-        (ldt_entry + 1) * LDT_ENTRY_SIZE - 1) {
+        (ldt_entry + number_of_descriptors) * LDT_ENTRY_SIZE - 1) {
       D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
       SetSelector(DPMI_CLIENT.LDT_ALIAS, (unsigned long) ldt_buffer,
-        limit + 0x1000, 0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
+        limit + (number_of_descriptors / (DPMI_page_size /
+        LDT_ENTRY_SIZE) + 1) * DPMI_page_size,
+        0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
     }
   }
   return selector;
