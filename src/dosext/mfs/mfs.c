@@ -1408,7 +1408,7 @@ struct mfs_dir *dos_opendir(const char *name)
 struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 {
   if (dir->dir) {
-    struct direct *de = (struct direct *)RPT_SYSCALL(readdir(dir->dir));
+    struct direct *de = (struct direct *) readdir(dir->dir);
     if (de == NULL)
       return NULL;
     dir->de.d_name = dir->de.d_long_name = de->d_name;
