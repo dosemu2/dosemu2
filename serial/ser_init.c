@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -300,6 +301,9 @@ static void do_ser_init(int num)
     default: strcpy(com[num].dev, "/dev/cua0"); break;
     }
   }
+
+  /* FOSSIL emulation is inactive at startup. */
+  com[num].fossil_active = FALSE;
 
   /* Flag whether to emulate RTS/CTS for DOS or let Linux do the job
    * If this is nonzero, Linux will handle RTS/CTS flow control directly.

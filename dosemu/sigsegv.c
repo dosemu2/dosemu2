@@ -172,6 +172,9 @@ static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
 /* Needed for DIAMOND define */
 #include "vc.h"
 
+#include "sound.h"
+
+#include "dma.h"
 
 /* PORT_DEBUG is to specify whether to record port writes to debug output.
  * 0 means disabled.
@@ -320,6 +323,16 @@ inb(int port)
 	r = do_serial_in(tmp, port);
 	break;
       }
+
+    /* Sound I/O */
+    if ((port & SOUND_IO_MASK) == sound_base) {r=sb_read(port & SOUND_IO_MASK2);};
+    /* It seems that we might need 388, but this is write-only, at least in the
+       older chip... */
+
+    /* DMA I/O */
+    if ((port & ~15) == 0) {r=dma_read(port);};
+    if ((port & ~15) == 0x80) {r=dma_read(port);};
+    if ((port & ~31) == 0xC0) {r=dma_read(port);};
 
     /* The diamond bug */
     if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
@@ -551,6 +564,16 @@ outb(int port, int byte)
 	return;
       }
     }
+
+    /* Sound I/O */
+    if ((port & SOUND_IO_MASK) == sound_base) {sb_write(port & SOUND_IO_MASK2, byte);};
+    if ((port & ~3) == 388) {fm_write(port & 3, byte);};
+
+    /* DMA I/O */
+    if ((port & ~15) == 0) {dma_write(port, byte);};
+    if ((port & ~15) == 0x80) {dma_write(port, byte);};
+    if ((port & ~31) == 0xC0) {dma_write(port, byte);};
+
     i_printf("outb [0x%x] 0x%02x\n", port, byte);
   }
   lastport = port;

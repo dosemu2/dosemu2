@@ -35,7 +35,13 @@
  *
  * ---------------------------
  * Support for (z)System.map resolving of unresolved symbols (HACKER_TOOL)
- * added by Hans Lermen <lermen@elserv.ffm.fgan.de>
+ * added by Hans Lermen <lermen@elserv.ffm.fgan.de>.
+ *
+ * Changes:
+ * 
+ *   August 1995, 
+ *   fixed 'magic' stuff for 1.3.x, added readonly (R) label types for ELF.
+ *   ( Thanks to Eddie C. Dost <ecd@dressler.de> )
  *
  * NOTE:
  *
@@ -203,7 +209,6 @@ struct zSystem_entry {
   struct zSystem_entry *next;
   int value;;
   char *name;
-  int chkcount;
 };
 
 int use_zSystem=0, use_zSystem_local=0;
@@ -227,36 +232,39 @@ static struct zSystem_entry *build_zSystem_syms(char *name)
   char c;
   int i;
   char n[256];
-  static char magic[]="00100000 t startup_32";
+  static char magic[]="00100000 t startup_32\n";
   
   f=fopen(name, "r");
   if (!f) {
     insmod_error("error reading zSystem.map, errno=%d",errno);
     return 0;
   }
-  i=fread(n,sizeof(magic),1,f);
-  n[sizeof(magic)-1]=0;
-  if ((i != 1) || (strcmp(magic,n)) ) {
+  memset(n,' ',sizeof(n));
+  i=fread(n,1,sizeof(n),f);
+  n[sizeof(n)-1]=0;
+  if ((i < sizeof(magic)) || (!strstr(n,magic)) || (strncmp(n,magic,9)) ) {
     insmod_error("wrong file format of %s",name);
     return 0;
   } 
-  while (!feof(f)) {
+  fseek(f,0,SEEK_SET);
+  while (!feof(f) && n[0]) {
+    n[0]=0;
     fscanf(f, "%08x %c %s\n", &i, &c, n);
     switch (c) {
-      case 't': case 'd': case 'b': 
+      case 't': case 'd': case 'b': case 'r': 
         if (!use_zSystem_local) break;
         /* else fall through */
-      case 'T': case 'D': case 'B': {
+      case 'T': case 'D': case 'B': case 'R':{
         struct zSystem_entry *p=malloc(sizeof(struct zSystem_entry));
         p->name=strdup(n);
         p->value=i;
         p->next=table;
-        p->chkcount=0;
         table=p;
       }
     }
   }
   fclose(f);
+  if (!n[0]) insmod_error("warning: file %s may be corrupt or empty",name);
   return table;
 }
 

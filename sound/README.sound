@@ -1,0 +1,59 @@
+    DOSEMU sound code
+    Copyright (C) 1995  Joel N. Weber II
+
+    This sound code is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+This is a very incomplete sound blaster pro emulator.  I recomend you get the
+PC Game Programmer's Encycolpedia; I give the URL at the end of this document.
+
+The mixer emulator probably doesn't do the math precisely enough (why did Hannu
+use a round base 10 number when all the sound boards I know use base 2?)  It
+ignores obscure registers.  So repeatedly reading and writing data will zero
+the volume.  If you want to fix this, send Hannu a message indicating that
+you want the volume to be out of 255.  It will probably fix the problem that
+he advertises with his driver: if you read the volume and write it back as is,
+you'll get zero volume in the end.  And on the obscure registers issue, it
+only pays attention to volumes and the dsp stereo bit.  The filters probably
+don't matter much, but the record source will need to be added some day.
+
+The dsp only supports reset and your basic dma playpack.  Recording hasn't been
+implemented, directly reading and writing samples won't work too well because
+it's too timing sensitive, and compression isn't supported.
+
+FM currently has been ignored.  Maybe there's a PCGPE newer than 1.0 which
+describes the OPL3.  But I have an OPL3, and it would be nice if it emulated
+that.
+
+MIDI and joystick functions are ignored.  And I think that DOSEMU is supposed
+to already have good CDROM support, but I don't know how well audio CD players
+will work.
+
+If you're having performance problems with wavesample playback, read
+/usr/src/linux/drivers/sound/Readme.v30, which describes the fragment parameter
+which you currently can adjust in ../include/sound.h
+
+I haven't tested this code extensively.  All the software that came with my
+system is for Windows.  (My father claimed that one of Compaq's advantages
+is user friendlyness.  Well, user friendlyness and hackerfriendlyness
+don't exactly go hand in hand.  I also haven't found a way to disable bios
+shadowing or even know if it's happening...)  I can't get either of my DOS
+games to work, either (Descent and Sim City 2000).  Can't you guys support
+the Cirrus?  (Oh, and while I'm complaining, those mystery ports that SimEarth
+needs are for the FM synthesiser.  Watch it guys, you might generate interrupts
+with that....)
+
+Reference:
+
+PC Game Programers Encyclopedia
+ftp://teeri.oulu.fi/pub/msdos/programming/gpe
+
+Joel Weber (age 15)
+July 17, 1995

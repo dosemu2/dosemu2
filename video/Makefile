@@ -5,9 +5,9 @@
 # $Id: Makefile,v 2.15 1995/04/08 22:30:27 root Exp $
 
 ifdef X_SUPPORT
-XCFILES	= X.c
-XHDRS	= X.h
-XOBJS	= X.o
+XCFILES	= X.c screen.c
+XHDRS	= X.h screen.h
+XOBJS	= X.o screen.o
 endif
 
 

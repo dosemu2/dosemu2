@@ -14,6 +14,9 @@ DANG_BEGIN_REMARK
 	   ser_init.c		- Serial initialization code.
 	   ser_ports.c		- Serial Port I/O emulation code.
 	   ser_irq.c		- Serial Interrupts emulation code.
+	   int14.c		- BIOS int14 emulation code.
+	   fossil.c		- FOSSIL driver emulation code.
+	   ../commands/fossil.S	- DOS part of FOSSIL emulation.
 	   ser_defs.h		- Include file for above files only.
 	   ../include/serial.h	- General include file for all DOSEMU code.
 
@@ -86,6 +89,32 @@ DEBUGGING HELP
 	  - additional debug output related to serial interrupt code,
 	    including flagging serial interrupts, or PIC-driven code.
 
+	SER_DEBUG_FOSSIL_RW   (0 or 1)
+	  - heavy FOSSIL debug output, including all reads and writes.
+
+	SER_DEBUG_FOSSIL_STATUS   (0 or 1)
+	  - super-heavy FOSSIL debug output, including all status checks.
+
+
+
+
+FOSSIL EMULATION
+~~~~~~~~~~~~~~~~
+	The FOSSIL emulation requires a memory-resident DOS module,
+	FOSSIL.COM. If you don't load it, the code in fossil.c does nothing,
+	permitting you to use another FOSSIL driver such as X00 or BNU.
+
+	The emulation isn't as complete as it could be. Some calls aren't
+	implemented at all. However, the programs I've tried don't seem to
+	use these calls. Check fossil.c if you're interested in details.
+
+	I've done only minimal testing on this code, but at least the
+	performance seems to be quite good. Depending on system load, I got
+	Zmodem speeds ranging from 1500 to nearly 3800 cps over a 38400 bps
+	null-modem cable when sending data to another PC. Zmodem receive,
+	however, was only about 2200 cps, since Linux tried to slow down the
+	sender with flow control (I'm not sure why).
+
 
 
 
@@ -94,6 +123,9 @@ COPYRIGHTS
 	Most of the code in the DOSEMU 'serial' subdirectory is:
 	Copyright (C) 1995 by Mark D. Rejhon <mdrejhon@magi.com>
 	with the following exceptions:
+	
+	FOSSIL driver emulation is Copyright (C) 1995 by 
+	Pasi Eronen <pasi@forum.nullnet.fi>.
 
 	Lock-file functions were derived from Taylor UUCP:
 	Copyright (C) 1991, 1992 Ian Lance Taylor

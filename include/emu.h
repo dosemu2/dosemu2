@@ -174,7 +174,8 @@ struct debug_flags {
    dpmi,		/* dpmi              "M" */
    network,		/* IPX network       "n" */
    pd,			/* Packet driver     "P" */
-   request;		/* PIC               "r" */
+   request,		/* PIC               "r" */
+   sound;		/* SOUND	     "S" */
 };
 
 #if __GNUC__ >= 2
@@ -228,6 +229,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	   /* pktdrvr */
 #define r_printf(f,a...)        ifprintf(d.request,f,##a)
 #define warn(f,a...)     	ifprintf(d.warning,f,##a)
+#define S_printf(f,a...)     	ifprintf(d.sound,f,##a)
 
 #else
 
@@ -254,6 +256,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define pd_printf(f,a...)
 #define r_printf(f,a...)
 #define warn(f,a...)
+#define S_printf(f,a...)
 
 #endif
 

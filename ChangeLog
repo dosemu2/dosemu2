@@ -1,3 +1,17 @@
+Tue Sep 12	1995
+
+-	Added first layer of DMA and SoundBlaster code oringinally
+	contributed by Joel Weber (age 15), then put into the
+	distribution by Alistair.
+
+Sat Sep 09	1995
+
+-	Added FOSSIL internal support by 
+	pasi@forum.nullnet.fi (Pasi Eronen)
+-	Added X enhancments and -O option by 
+	Uwe Bonnes bon@elektron.ikp.physik.th-darmstadt.de and Pasi.
+-	Hans' latest syscallmgr updates.
+
 Thu Jul 28	1995
 
 -	Release DOSEMU-0.60.4.tgz

@@ -29,6 +29,8 @@
 #endif
 #include "bitops.h"
 #include "pic.h"
+#include "dma.h"
+#include "sound.h"
 
 extern void pkt_check_receive_quick(void);
 /* flag to activate use of pic by packet driver */
@@ -201,6 +203,9 @@ void hardware_setup(void)
 #endif
   pic_unmaski(PIC_NET);
 #endif
+  
+  /* DMA Init */
+  /*dma_init(); - not used yet ??? */
 
   g_printf("Hardware initialized\n");
 }
@@ -479,6 +484,7 @@ void device_init(void)
   mouse_init();
   printer_init();
   disk_init();
+  sound_init();
 }
 
 /* 

@@ -245,6 +245,10 @@ static int dos_helper(void)
     }
     break;
 
+  case 0x29:			/* Serial helper */
+    serial_helper();
+    break;
+
   case 0x30:			/* set/reset use bootdisk flag */
     use_bootdisk = LO(bx) ? 1 : 0;
     break;
@@ -314,6 +318,7 @@ static int dos_helper(void)
  * 0x20      - MFS functions
  * 0x21-0x22 - EMS functions
  * 0x28      - Garrot Functions for use with the mouse
+ * 0x29      - Serial functions
  * 0x30      - Whether to use the BOOTDISK predicate
  * 0x33      - Mouse Functions
  * 0x40      - CD-ROM functions

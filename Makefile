@@ -147,7 +147,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 4
+PATCHLEVEL = 4.2
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -192,7 +192,8 @@ else
 OPTIONALSUBDIRS =examples v-net ipxutils
 endif
 
-LIBSUBDIRS=video dosemu pic dpmi mfs init serial keyboard mouse $(NET) $(IPX) drivers
+LIBSUBDIRS=video dosemu pic dpmi mfs init serial keyboard mouse dma sound \
+	$(NET) $(IPX) drivers
 
 SUBDIRS= include boot \
 	$(CLIENTSSUB) kernel

@@ -28,8 +28,8 @@
 
 
 struct debug_flags d =
-{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  };
-/* d  R  W  D  C  v  X  k  i  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r */
+{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+/* d  R  W  D  C  v  X  k  i  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r  S */
 
 static void     check_for_env_autoexec_or_config(void);
 static void     parse_debugflags(const char *s);
@@ -239,7 +239,7 @@ config_init(int argc, char **argv)
 
     optind = 0;
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:E:o:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:E:o:O")) != EOF) {
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'd':
@@ -298,6 +298,10 @@ config_init(int argc, char **argv)
 	    }
 	case 'D':
 	    parse_debugflags(optarg);
+	    break;
+	case 'O':
+	    fprintf(stderr, "using stderr for debug-output\n");
+	    dbg_fd = stderr;
 	    break;
 	case 'o':
 	    priv_off();
@@ -453,9 +457,9 @@ parse_debugflags(const char *s)
     unsigned char   flag = 1;
 
 #ifdef X_SUPPORT
-    const char      allopts[] = "dRWDCvXkism#pgcwhIExMnPr";
+    const char      allopts[] = "dRWDCvXkism#pgcwhIExMnPrS";
 #else
-    const char      allopts[] = "dRWDCvkism#pgcwhIExMnPr";
+    const char      allopts[] = "dRWDCvkism#pgcwhIExMnPrS";
 #endif
 
     /*
@@ -549,6 +553,9 @@ parse_debugflags(const char *s)
 	case 'r':		/* PIC */
 	    d.request = flag;
 	    break;
+	case 'S':		/* SOUND */
+	    d.sound = flag;
+	    break;
 	case 'a':{		/* turn all on/off depending on flag */
 		char           *newopts = (char *) malloc(strlen(allopts) + 2);
 
@@ -581,7 +588,9 @@ usage(void)
     fprintf(stdout, "    -k use PC console keyboard (!)\n");
 #ifdef X_SUPPORT
     fprintf(stdout, "    -X run in X Window (#)\n");
+/* seems no longer valid bo 18.7.95
     fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
+/*
     fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
     fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvXkism#pgcwhIExMnPr01)\n");
 #else				/* X_SUPPORT */
@@ -599,6 +608,8 @@ usage(void)
     fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
     fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
     fprintf(stdout, "    -m enable mouse support (!#)\n");
+    fprintf(stdout, "    -o FILE put debugmessages in file\n");
+    fprintf(stdout, "    -O write debugmessages to stderr\n");
     fprintf(stdout, "    -2,3,4 choose 286, 386 or 486 CPU\n");
     fprintf(stdout, "    -K Do int9 (!#)\n\n");
     fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");

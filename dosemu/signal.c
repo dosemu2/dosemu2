@@ -73,7 +73,7 @@ signal_init(void)
 #ifdef SIGBUS /* for newer kernels */
   NEWSETSIG(SIGBUS, dosemu_fault);
 #endif
-
+  SETSIG(SIGINT, leavedos);   /* for "graceful" shutdown for ^C too*/
   SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
   SETSIG(SIGTERM, leavedos);
 #if 0 /* Richard Stevens says it can't be caught. It's returning an

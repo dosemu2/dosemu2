@@ -363,7 +363,7 @@ void ser_termios(int num)
     rounddiv = DIV_50;
     baud = B50;
   }
-  s_printf("divisor 0x%x -> 0x%x\n", DIVISOR, rounddiv);
+  s_printf("divisor 0x%x -> 0x%lx\n", DIVISOR, rounddiv);
 
   /* Number of 115200ths of a second for each char to transmit,
    * This assumes 10 bits per characters, although math can easily

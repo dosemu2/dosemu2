@@ -20,7 +20,6 @@
 /* DANG_BEGIN_NEWIDEA
  * If any of you coders are ambitious, try thinking of the following:
  * - Converting this into inline assembler and use direct port access 
- * - Code an internal FOSSIL driver right into this module!
  * DANG_END_NEWIDEA
  */
 
@@ -89,6 +88,13 @@ void int14(u_char ii)
     if (com[num].real_comport == (LO(dx)+1)) break;
 
   if (num >= config.num_ser) return;	/* Exit if not on supported port */
+
+  /* If FOSSIL is active, call it! */
+  if (com[num].fossil_active)
+  {
+    fossil_int14(num);
+    return;
+  }
 
   switch (HI(ax)) {
   case 0:		/* Initialize serial port. */
@@ -161,11 +167,11 @@ void int14(u_char ii)
                num,HI(ax),LO(ax));
     break;
     
-  /* Extended initialize. Not supported. */
+  /* FOSSIL initialize. */
   case 4:
-    s_printf("SER%d: INT14 0x4: Unsupported Extended serial initialize\n",num);
-    return;
-    
+    fossil_int14(num);
+    break;
+
   /* This runs if nothing handles the int14 function */
   default:
     s_printf("SER%d: INT14 0x%x: Unsupported interrupt on port %d\n",

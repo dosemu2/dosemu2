@@ -59,6 +59,8 @@ typedef struct serial_struct {
   int interrupt;		/* IRQ line handled by device */
   boolean mouse;		/* Flag to turn on mouse sharing features */
   boolean dev_locked;           /* Flag to indicate that device is locked */
+  boolean fossil_active;	/* Flag: FOSSIL emulation active */
+  u_char fossil_info[19];	/* FOSSIL driver info buffer */
   int system_rtscts;		/* Flag: emulate RTS or let system handle it */
   				/*   MODEM STATUS  */
   long int ms_freq;		/* Frequency of Modem Status (MS) check */
@@ -123,5 +125,6 @@ extern void int14(u_char);
 extern inline void serial_run(void);
 extern inline int do_serial_in(int, int);
 extern inline int do_serial_out(int, int, int);
+extern void serial_helper();
 
 #endif /* SERIAL_H */

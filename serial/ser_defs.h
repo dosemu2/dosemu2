@@ -39,6 +39,12 @@
  *   - additional debug output related to serial interrupt code,
  *      including flagging serial interrupts, or PIC-driven code.
  *
+ * SER_DEBUG_FOSSIL_RW   (0 or 1)
+ *   - heavy FOSSIL debug output, including all reads and writes.
+ *
+ * SER_DEBUG_FOSSIL_STATUS   (0 or 1)
+ *   - super-heavy FOSSIL debug output, including all status checks.
+ *
  * You must recompile dosemu everytime one of these constants are modified.
  * Just type 'make' in the dosemu dir and it will recompile the changes only.
  * DANG_END_REMARK
@@ -46,6 +52,8 @@
 #define SER_DEBUG_MAIN       0		/* 0 or 1 */
 #define SER_DEBUG_HEAVY      0		/* 0 or 1 */
 #define SER_DEBUG_INTERRUPT  0		/* 0 or 1 */
+#define SER_DEBUG_FOSSIL_RW  0       	/* 0 or 1 */
+#define SER_DEBUG_FOSSIL_STATUS 0	/* 0 or 1 */
 
 /* For more information about the com[] structure, please see serial.h */
 serial_t com[MAX_SER];
@@ -282,6 +290,8 @@ int convert_bit(int, int, int);
 void serial_int_engine(int, int);
 void serial_timer_update(void);
 void uart_fill(int);
+void uart_clear_fifo(int, int);
 void pic_serial_run(void);
+void fossil_int14(int);
 
 #endif /* SER_DEFS_H */

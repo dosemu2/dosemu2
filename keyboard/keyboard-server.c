@@ -941,7 +941,7 @@ key_flag (int flag)
 
 /************* end of key-related functions *************/
 
-#define SCANQ_LEN 100
+#define SCANQ_LEN 1000
 static u_short *scan_queue;
 static int *scan_queue_start;
 static int *scan_queue_end;
@@ -961,7 +961,8 @@ shared_keyboard_init (void)
 void
 do_irq1 (void)
 {
-  read_next_scancode_from_queue ();
+  unsigned short nextpos;
+
   /* reschedule if queue not empty */
   if (*scan_queue_start != *scan_queue_end)
     {
@@ -972,8 +973,18 @@ do_irq1 (void)
       keys_ready = 0;
 #endif
     }
+
+  if ((nextpos = READ_WORD (KBD_TAIL) + 2) >= READ_WORD (KBD_END))
+    nextpos = READ_WORD (KBD_START); /*process overflow of kbd-queue*/
+  if (nextpos != READ_WORD (KBD_HEAD))
+    {  
+      read_next_scancode_from_queue ();
   if (keys_ready) do_irq ();			/* do dos interrupt */
   keys_ready = 0;
+}
+  else /* delay processing */
+    {
+    }
 }
 
 

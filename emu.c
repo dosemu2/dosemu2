@@ -487,6 +487,10 @@ run_vm86(void)
      * always invoke vm86() with this call.  all the messy stuff will be
      * in here.
      */
+
+    dma_trans();
+    /* FIXME: is this the optimal place for this??????? */
+
     in_vm86 = 1;
 #if 1 /* <ESC> BUG FIXER (if 1) */
     #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
@@ -869,7 +873,7 @@ emulate(int argc, char **argv)
 	timer_int_engine();
 #endif
 	serial_run();
-	run_irqs();		/* trigger any hardware interrupts
+	/*run_irqs();*/ pic_run();		/* trigger any hardware interrupts
 				 * requested */
 #if 0
 #ifdef USING_NET
