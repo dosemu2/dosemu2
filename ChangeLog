@@ -1,3 +1,25 @@
+2003/07/20 ver 1.1.5.6 unofficial pre-release
+	From Bart
+	* src/plugin/: kbd_unicode/keymaps.c, keyboard/keymaps.c: Hungarian
+	  keyboard adjustments (anonymous contribution, see bug 687850)
+	* src/dosext/mfs/: lfn.c, mfs.c, mfs.h: Fix LFN's for VFAT.  Make
+	  use of the VFAT_IOCTL_READDIR_BOTH ioctl to obtain the short
+	  aliases for long filenames (Wine provided a good example).
+	  Remove unnecessary scan_dir usage on VFAT (because stat is
+	  already case-insensitive)
+	* src/dosext/mfs/mfs.c: Fix problem with dir searches that should
+	  *not* find a volume label (such as the attribute 0x3f)
+	* src/dosext/mfs/lfn.c: Fix problem with LFN "truename"
+	  (int21/ax=0x7160/cl=1), case insensitive open's and mkdir.
+	* src/base/bios/int10.c: Fix compilation without X development
+	  libraries.
+	From Stas:
+	* configure, configure.ac: small configure adjustments.
+	* src/dosext/sound/sound.c: Use only the current DMA channel on
+	  SB16.  This allows the QV to work. QV is an MPEG4/DivX player for
+	  DOS!
+	* src/base/mouse/mouse.c: Enable mouse at startup in case the
+	  program doesn't do that manually.
 2003/07/15 ver 1.1.5.5 unofficial pre-release
 	From Bart
 	- Add support for the Long File Name (int21/ah=71) interface
