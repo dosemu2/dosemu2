@@ -487,7 +487,7 @@ static char *com_getarg0(void)
 int commands_plugin_inte6(void)
 {
 #define MAX_ARGS 63
-	char *args[MAX_ARGS + 1], *ptr;
+	char *args[MAX_ARGS + 1];
 	struct PSP *psp;
 	struct MCB *mcb;
 	struct com_program_entry *com;
@@ -522,10 +522,9 @@ int commands_plugin_inte6(void)
 	/* first parse commandline */
 	args[0] = strlower(strdup(com_getarg0()));
 	argc = com_argparse(&psp->cmdline_len, &args[1], MAX_ARGS - 1) + 1;
-	strncpy(builtin_name, ptr = strlower(strdup(mcb->name)),
-	    sizeof(builtin_name) - 1);
+	strncpy(builtin_name, mcb->name, sizeof(builtin_name) - 1);
 	builtin_name[sizeof(builtin_name) - 1] = 0;
-	free(ptr);
+	strlower(builtin_name);
 
 	com = find_com_program(builtin_name);
 	if (com) {
