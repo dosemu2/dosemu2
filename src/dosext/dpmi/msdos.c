@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2004 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
@@ -54,7 +54,7 @@ static struct sigcontext INT15_SAVED_REGS;
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
 #define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + DTA_Para_ADD) << 4)
 
-#define MAX_DOS_PATH 0x100
+#define MAX_DOS_PATH 0x200
 
 /* We use static varialbes because DOS in non-reentrant, but maybe a */
 /* better way? */
@@ -759,6 +759,20 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
             in_dos_21++;
             return 0;
         case 0x47: /* get cur dir */
+            REG(ds) = TRANS_BUFFER_SEG;
+            REG(esi) = 0;
+            in_dos_21++;
+            return 0;
+	case 0x60: /* canonicalize filename */
+	    REG(ds) = TRANS_BUFFER_SEG;
+	    REG(esi) = 0;
+	    REG(es) = TRANS_BUFFER_SEG;
+	    REG(edi) = MAX_DOS_PATH;
+	    src = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_esi);	
+	    dst = SEG_ADR((char *), ds, si);
+	    snprintf(dst, MAX_DOS_PATH, "%s", src);
+	    in_dos_21++;
+	    return 0;
         case 0x6c: /* extended open/create */
             REG(ds) = TRANS_BUFFER_SEG;
             REG(esi) = 0;
@@ -1132,7 +1146,7 @@ void msdos_post_extender(int intr)
 	    {/* convert environment pointer to a descriptor*/
 		unsigned short 
 #if 0
-		envp, 
+		envp,
 #endif
 		psp;
 		psp = LWORD(ebx);
@@ -1218,6 +1232,21 @@ void msdos_post_extender(int intr)
                         0x13E);
             break;
         case 0x47:
+            DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+            if (LWORD(eflags) & CF)
+                break;
+	    snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
+			D_16_32(S_REG(esi))), MAX_DOS_PATH, "%s", 
+		        SEG_ADR((char *), ds, si));
+            break;
+	case 0x60:
+	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
+	    DPMI_CLIENT.stack_frame.edi = S_REG(edi);
+	    if (LWORD(eflags) & CF)
+		break;
+	    strncpy((void *)GetSegmentBaseAddress(S_REG(es)) + D_16_32(S_REG(edi)),
+		SEG_ADR((void *), es, di), 261);
+	    break;
         case 0x6c:
             DPMI_CLIENT.stack_frame.esi = S_REG(esi);
             break;
