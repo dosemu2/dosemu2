@@ -477,7 +477,7 @@ int dos_helper(void)
 	else i = 1;				/* Slang keyboard */
 
 	if (config.console_video) i |= 0x10;
-	if (config.graphics)      i |= 0x20;
+	if (config.vga)           i |= 0x20;
 	if (config.dualmon)       i |= 0x40;
 	LWORD(eax) = i;
 	break;

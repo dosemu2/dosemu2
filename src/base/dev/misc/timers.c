@@ -126,11 +126,6 @@ void timer_tick(void)
   u_long time_curr;
   static u_long time_old = 0;       /* Preserve value for next call */
 
-  if (!config.timers) {
-    h_printf("NOT CONFIG.TIMERS\n");
-    return;
-  }
-
   /* Get system time in ticks */
   tp.td = GETtickTIME(0);
 #ifdef ONE_MINUTE_TEST

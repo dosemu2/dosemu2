@@ -382,7 +382,6 @@ video_config_init(void) {
      config.console_video = 0;
      config.mapped_bios = 0;
      config.vga = 0;
-     config.graphics = 0;
      config.console = 0;
      if (config.speaker == SPKR_NATIVE)
         config.speaker = SPKR_EMULATED;

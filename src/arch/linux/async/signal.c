@@ -437,7 +437,7 @@ static void SIGALRM_call(void)
      X_blink_cursor();
   }
 #endif
-  if (!running && !video_update_lock) {
+  if (!running) {
     if (Video->update_screen 
 #if VIDEO_CHECK_DIRTY
        && (update_pending || vm86s.screen_bitmap&screen_mask)
@@ -461,6 +461,7 @@ static void SIGALRM_call(void)
 #endif
     }
     else if (Video->update_cursor) {
+       v_printf("update cursor\n");
        Video->update_cursor();
     }
   }

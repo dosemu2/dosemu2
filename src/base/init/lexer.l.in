@@ -338,7 +338,6 @@ x			RETURN(L_X);
 dosbanner		RETURN(DOSBANNER);
 fastfloppy		RETURN(FASTFLOPPY);
 timer			RETURN(TIMER);
-timint			RETURN(TIMINT);
 hogthreshold		RETURN(HOGTHRESH);
 speaker			RETURN(SPEAKER);
 ipxsupport		RETURN(IPXSUPPORT);

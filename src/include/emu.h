@@ -214,7 +214,6 @@ typedef struct vesamode_type_struct {
        /* for video */
        boolean console;
        boolean console_video;
-       boolean graphics;
        boolean vga;
        boolean X;
        u_short cardtype;
@@ -270,7 +269,6 @@ typedef struct vesamode_type_struct {
        boolean dosbanner;
        boolean emuretrace;
        boolean rdtsc;
-       boolean timers;
        boolean mouse_flag;
        boolean mapped_bios;	/* video BIOS */
        char *vbios_file;	/* loaded VBIOS file */
