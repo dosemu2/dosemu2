@@ -25,6 +25,7 @@
 #include "config.h"
 #include "emu.h"
 #include "port.h"
+#include "priv.h"
 
 #ifndef __min
 #define __min(x,y)   (((x)<(y))?(x):(y))

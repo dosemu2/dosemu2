@@ -56,6 +56,7 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 
 #include "pic.h"
 #include "bitops.h"
+#include "priv.h"
 
 extern void DOSEMUMouseEvents(void);
 
@@ -94,16 +95,22 @@ static caddr_t ipc_return;
 
 void HMA_MAP(int HMA)
 {
+  int retval;
 
-  priv_on();
   E_printf("Entering HMA_MAP with HMA=%d\n", HMA);
-  if (shmdt(HMAAREA) < 0) {
+  priv_on();
+  retval = shmdt(HMAAREA);
+  priv_default();
+  if (retval < 0) {
     E_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
     leavedos(48);
   }
   E_printf("HMA: detached at %p\n", HMAAREA);
   if (HMA){
-    if ((ipc_return = (caddr_t) shmat(shm_hma_id, HMAAREA, SHM_REMAP )) == (caddr_t) 0xffffffff) {
+    priv_on();
+    ipc_return = (caddr_t) shmat(shm_hma_id, HMAAREA, SHM_REMAP );
+    priv_default();
+    if (ipc_return == (caddr_t) 0xffffffff) {
       E_printf("HMA: Mapping HMA id %x to HMAAREA %p unsuccessful: %s\n",
 	       shm_hma_id, HMAAREA, strerror(errno));
       leavedos(47);
@@ -111,13 +118,15 @@ void HMA_MAP(int HMA)
     E_printf("HMA: mapped id %x to %p\n", shm_hma_id, ipc_return);
   }
   else {
-    if ((ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, 0 )) == (caddr_t) 0xffffffff) {
+    priv_on();
+    ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, 0 );
+    priv_default();
+    if (ipc_return == (caddr_t) 0xffffffff) {
       E_printf("HMA: Mapping WRAP to HMAAREA unsuccessful: %s\n", strerror(errno));
       leavedos(47);
     }
     E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
   }
-  priv_default();
 }
 
 void

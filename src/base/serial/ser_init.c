@@ -53,6 +53,7 @@ extern int errno;
 #include "pic.h"
 #include "serial.h"
 #include "ser_defs.h"
+#include "priv.h"
 
 /* See README.serial file for more information on the com[] structure 
  * The declarations for this is in ../include/serial.h
@@ -130,7 +131,10 @@ static int tty_lock(char *path, int mode)
         error("\nDOSEMU: attempt to use already locked tty %s\n", saved_path);
         return (-1);
       }
-      if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
+      priv_on();
+      fd = fopen(saved_path, "w");
+      priv_default();
+      if (fd == (FILE *)0) {
         s_printf("DOSEMU: lock: (%s): %s\n", saved_path, strerror(errno));
         error("\nDOSEMU: tty: lock: (%s): %s\n", saved_path, strerror(errno));
         return(-1);
@@ -157,8 +161,11 @@ static int tty_lock(char *path, int mode)
   else if (mode == 2) { /* re-acquire a lock after a fork() */
     FILE *fd;
 
-    if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
-      s_printf("DOSEMU: tty_lock(%s) reaquire: %s\n", 
+     priv_on();
+     fd = fopen(saved_path,"w");
+     priv_default();
+     if (fd == (FILE *)0) {
+     s_printf("DOSEMU: tty_lock(%s) reaquire: %s\n", 
               saved_path, strerror(errno));
       error("\nDOSEMU: tty_lock: reacquire (%s): %s\n",
               saved_path, strerror(errno));
@@ -178,14 +185,21 @@ static int tty_lock(char *path, int mode)
   } 
   else {    /* unlock */
     FILE *fd;
+    int retval;
 
-    if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
+    priv_on();
+    fd = fopen(saved_path,"w");
+    priv_default();
+    if (fd == (FILE *)0) {
       s_printf("DOSEMU: tty_lock: can't reopen to delete: %s\n",
              strerror(errno));
       return (-1);
     }
       
-    if (unlink(saved_path) < 0) {
+    priv_on();
+    retval = unlink(saved_path);
+    priv_off();
+    if (retval < 0) {
       s_printf("DOSEMU: tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));
       error("\nDOSEMU: tty: unlock: (%s): %s\n", saved_path,

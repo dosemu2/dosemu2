@@ -29,6 +29,7 @@
 
 #include "emu.h"
 #include "disks.h"
+#include "priv.h"
 
 
 #define FDISKS config.fdisks
@@ -351,7 +352,10 @@ partition_setup(struct disk *dp)
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
 #endif
 
-  if ((part_fd = DOS_SYSCALL(open(hd_name, O_RDONLY))) == -1) {
+  priv_on();
+  part_fd = DOS_SYSCALL(open(hd_name, O_RDONLY));
+  priv_default();
+  if (part_fd == -1) {
     error("ERROR: opening device %s to read MBR for PARTITION %s\n",
 	  hd_name, dp->dev_name);
     leavedos(22);
@@ -511,10 +515,14 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
     
+  priv_on();
   dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  priv_default();
   if (dp->fdesc < 0) 
     if (errno == EROFS || errno == EACCES) {
+      priv_on();
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
+      priv_default();
       if (dp->fdesc < 0) {
         d_printf("ERROR: (disk) can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
@@ -578,10 +586,15 @@ disk_open(struct disk *dp)
   if (dp == NULL || dp->fdesc >= 0)
     return;
     
+  priv_on();
   dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  priv_default();
+
   if (dp->fdesc < 0) 
     if (errno == EROFS) {
+      priv_on();
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
+      priv_default();
       if (dp->fdesc < 0) {
         d_printf("ERROR: (disk) can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
@@ -684,11 +697,15 @@ disk_init(void)
 #endif
 
   if (config.bootdisk) {
+    priv_on();
     bootdisk.fdesc = open(bootdisk.dev_name,
 			  bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
+    priv_default();
     if (bootdisk.fdesc < 0) 
       if (errno == EROFS) {
+        priv_on();
         bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY, 0);
+        priv_default();
         if (bootdisk.fdesc < 0) {
           error("ERROR: can't open bootdisk %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
           leavedos(23);
@@ -730,10 +747,14 @@ disk_init(void)
       continue;
     }
 #endif
+    priv_on();
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    priv_default();
     if (dp->fdesc < 0) 
       if (errno == EROFS || errno == EACCES) {
+        priv_on();
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+        priv_default();
         if (dp->fdesc < 0) {
           error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
           leavedos(25);
@@ -749,13 +770,17 @@ disk_init(void)
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
     if(dp->type == IMAGE)  {
-	priv_off();
 	d_printf("IMAGE: Using user permissions\n");
+	priv_off();
     }
+    else priv_on();
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+    priv_default();
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
+        if (dp->type == IMAGE) priv_off(); else priv_on();
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
+        priv_default();
         if (dp->fdesc < 0) {
           error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
           leavedos(26);
@@ -770,9 +795,6 @@ disk_init(void)
     }
     else dp->rdonly = dp->wantrdonly;
     dp->removeable = 0;
-
-    if(dp->type == IMAGE)
-	priv_default();
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
        May only work on WD compatible disks (MFM/RLL/ESDI/IDE). */

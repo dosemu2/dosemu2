@@ -36,6 +36,7 @@
 #include "config.h"
 #include "emu.h"
 #include "shared.h"
+#include "priv.h"
 
 static char devname_[30];
 #ifdef __NetBSD__
@@ -120,7 +121,10 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
   pid = getpid();
   sprintf(devname_, "%s%d", TMPFILE, pid);
 
-  if ((tmpfile_fd = open(devname_, O_WRONLY|O_CREAT, 0666)) < 1) {
+  priv_on();
+  tmpfile_fd = open(devname_, O_WRONLY|O_CREAT, 0666);
+  priv_default();
+  if (tmpfile_fd < 1) {
     E_printf("SHM: Unable to open %s%d for sending client data: %s\n",TMPFILE, pid, strerror(errno));
   }
   sprintf(info, "dosemu-%s\n", VERSTR);
@@ -137,7 +141,9 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
 void shared_memory_exit(void) {
 
 #if 1
+  priv_on();
   unlink(devname_);
+  priv_default();
 #endif
 
 }

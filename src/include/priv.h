@@ -1,85 +1,52 @@
 #ifndef __PRIV_H__
 #define __PRIV_H__
 
-#include <unistd.h>
-#include "extern.h"
+#include "config.h"
 
-/*  */
-/* priv_on,priv_off,exchange_uids @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/dosext/mfs/mfs.c --> src/include/priv.h  */
+extern int i_am_root;
 
-#ifdef __NetBSD__
-EXTERN uid_t euid;
-EXTERN gid_t egid;
-EXTERN priv_inited INIT(0);
+void priv_init(void);
+int internal_priv_on(void);
+int internal_priv_off(void);
+int priv_drop(void);
 
-static __inline__ int
-priv_on(void)
-{
-    if (seteuid(euid) || setegid(egid)) {
-	error("Cannot enable privs!\n");
-	return (0);
-    }
-    return (1);
-}
-static __inline__ int
-priv_off(void)
-{
-    if (!priv_inited) {
-	euid = geteuid();
-	egid = getegid();
-	priv_inited = 1;
-    }
-    if (seteuid(getuid()) || setegid(getgid())) {
-	error("Cannot disable privs!\n");
-	return (0);
-    }
-    return (1);
-}
-#endif
+/* I've found about 99% of the places in dosemu where it is important
+   that you be root.  I have done the important thing though and at
+   least made the current usage consistent.  If someone else wants to
+   actually make this work with RUN_AS_USER, it would probably benefit
+   dosemu in the long run.  EB -- 11 Aug 1996
+   The proper formant for using priv_on, priv_off, and priv_default
+   is:
+   priv_on();       -* If you need to be root to do what you are doing next 
+   code();
+   priv_default;
 
-#ifdef __linux__
-EXTERN Bit32u priv_rootaccess INIT(1); /* Dosemu starts with root access */
-static __inline__ int priv_on(void)
-{
-  if (!priv_rootaccess) {
-  if (setreuid(geteuid(), getuid()) ||
-      setregid(getegid(), getgid())) {
-    error("Cannot exchange real/effective uid or gid!\n");
-    return (0);
-  }
-  priv_rootaccess = 1;
-  return (1);
-  }
-  else return (1);
-}
+   priv_off();      -* If you definentily need to be the user who is running dosemu
+   code();
+   priv_default();
+   */
 
-static __inline__ int priv_off(void)
-{
-  if (priv_rootaccess) {
-  if (setreuid(geteuid(), getuid()) ||
-      setregid(getegid(), getgid())) {
-    error("Cannot exchange real/effective uid or gid!\n");
-    return (0);
-  }
-  priv_rootaccess = 0;
-  return (1);
-  }
-  else return (1);
-}
+/* Having a priv_default routine isn't quite as good as a
+   the ability to arbitrarily nest which privs are in effect,
+   but it is much cleaner then ending arbitrary procedures with priv_on,
+   and possibly some better then ending them with priv_off.
 
-static __inline__ int exchange_uids(void)
-{
-  if (setreuid(geteuid(), getuid()) ||
-      setregid(getegid(), getgid())) {
-    error("Cannot exchange real/effective uid or gid!\n");
-    return (0);
-  }
-  return (1);
-}
-#endif
-/* @@@ MOVE_END @@@ 32768 */
+   It at least simplifies concepts like RUN_AS_USER
 
+   Please keep priv_on / priv_off statements that are added as few and
+   as closely focused as possible so we can be assured that dosemu
+   does the right thing.
+   */
 
-#define priv_default() priv_on()
+#ifdef RUN_AS_USER
+#define priv_default()  internal_priv_off()
+#define priv_on()       internal_priv_on()
+#define priv_off()      internal_priv_off()
+#else
+#define priv_default()  internal_priv_on()
+#define priv_on()       internal_priv_on()
+#define priv_off()      internal_priv_off()
+#endif /* RUN_AS_USER */
 
-#endif /* __PRIV_H__ */
+#endif /* PRIV_H */
+

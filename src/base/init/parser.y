@@ -1619,6 +1619,13 @@ static void mail_to_root(char *subject, char *message)
  *  - fixed securety bug: the euid (effective user ID) has to be checked
  *    against the /etc/dosemu.users file, not the uid! (uid=root!!!)
  *  - added logging facilities
+ * 9 Aug 1996 Eric Biederman (ebiederm@cse.unl.edu)
+ * - worked on the privs more.  Since priv_on are intialized already I
+ *   just call priv_off and then the euid is definentially the
+ *   privelige to check.  I'm trying to make everytime we need
+ *   root/user privelege specifically to use 
+ *   priv_on / priv_off / priv_default so we don't get strange bugs
+ *   along one line of code path if someone somewhere messes up.
  */
 static void
 parse_dosemu_users(void)
@@ -1633,6 +1640,7 @@ parse_dosemu_users(void)
   char ustr[PBUFLEN];
   int log_mail=0;
   int log_syslog=0;
+  int euid;
 
   /* Get the log level*/
   if((fp = open_file(DOSEMU_LOGLEVEL_FILE)))
@@ -1659,8 +1667,14 @@ parse_dosemu_users(void)
   /* Dosemu, so check if the username connected to the euid is in the     */
   /* DOSEMU_USERS_FILE file (usually /etc/dosemu.users).                  */
    
+  priv_off();
+  euid = geteuid();
+  priv_default();
+
+  pwd = getpwuid(euid);
+
   /* Sanity Check, Shouldn't be anyone logged in without a userid */
-  if((pwd = getpwuid(geteuid())) == (struct passwd *)0) 
+  if (pwd  == (struct passwd *)0) 
      {
        fprintf(stderr, "Illegal User!!!\n");
        sprintf(buf, "Illegal DOSEMU user: uid=%i", geteuid());
@@ -1669,9 +1683,12 @@ parse_dosemu_users(void)
        exit(1);
      }
 
-  if (geteuid() != 0)
+  if (euid != 0)
      {
-       if ((fp = open_file(DOSEMU_USERS_FILE)))
+       priv_on();
+       fp = open_file(DOSEMU_USERS_FILE);
+       priv_default();
+       if (fp)
 	 {
 	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) 
 	     {
@@ -1703,7 +1720,7 @@ parse_dosemu_users(void)
 	       pwd->pw_name);
 
        sprintf(buf, "Illegal DOSEMU start attempt by %s (uid=%i)", 
-       pwd->pw_name, geteuid());
+       pwd->pw_name, euid);
             
        if(log_syslog>=1)
          {
@@ -1753,20 +1770,22 @@ parse_config(char *confname)
 
   { 
     /* setuid tricks: effective uid must be checked! */
-    uid_t uid = geteuid();
+    uid_t uid;
 
     char *home = getenv("HOME");
     char *name = malloc(strlen(home) + 20);
     sprintf(name, "%s/.dosrc", home);
 
-    if (uid != 0) {
-      if (!priv_off()) die("Cannot turn off privs\n");
-      if (!priv_on()) die("Cannot turn on privs\n");
-    }
+    priv_off();
+    uid = geteuid();
+    priv_default();
 
     /* privileged options allowed? */
     priv_lvl = uid != 0 && strcmp(confname, CONFIG_FILE);
-    if (!(fd = open_file(confname))) {
+    priv_on();
+    fd = open_file(confname);
+    priv_default();
+    if (!fd) {
       fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
       exit(1);
     }

@@ -22,6 +22,7 @@
 #include "emu.h"
 #include "dosio.h"
 #include "lpt.h"
+#include "priv.h"
 
 extern config_t config;
 extern int fatalerr;
@@ -88,23 +89,25 @@ printer_open(int prnum)
 {
   int um;
 
-  priv_off();
   um = umask(026);
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
       lpt[prnum].dev = tmpnam(NULL);
+      priv_off();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+      priv_default();
       p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
     }
     else {
+      priv_off();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+      priv_default();
     }
   }
   umask(um);
 
   p_printf("LPT: opened printer %d to %s, file %p\n", prnum,
 	   lpt[prnum].dev, (void *) lpt[prnum].file);
-  priv_default();
   return 0;
 }
 

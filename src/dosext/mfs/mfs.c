@@ -340,6 +340,8 @@ struct direct *dos_readdir(DIR *);
 
 #endif
 
+void build_ufs_path(char *ufs, char *path);
+
 /* Try and work out if the current command is for any of my drives */
 static int
 select_drive(state)
@@ -794,18 +796,17 @@ mfs_redirector(void)
   int dos_fs_redirect();
   int ret;
 
+  PS(MFS);
   if (!priv_off())
     return 0;
 
-  PS(MFS);
   ret = dos_fs_redirect(&REGS);
+  priv_default();
   PE(MFS);
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
 
   finds_in_progress[current_drive] = find_in_progress;
-
-  priv_default();
 
   switch (ret) {
   case FALSE:

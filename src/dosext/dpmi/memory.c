@@ -18,6 +18,7 @@
 #include "emu.h"
 #include "dpmi.h"
 #include "pic.h"
+#include "priv.h"
 
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
 dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
@@ -260,7 +261,12 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 {
     void *mapped_base;
     if ( fd_self_mem == -1) {
-	if ((fd_self_mem = open("/proc/self/mem", O_RDWR)) == -1 ) {
+        priv_on();  /* to open proc self mem takes I need to halve full permissions */
+                    /* Note: this isn't even the correct file name for BSD */
+                    /* -- EB 6 Sept 96 */
+        fd_self_mem = open("/proc/self/mem", O_RDWR);
+	priv_default();
+	if ((fd_self_mem) == -1 ) {
 	    error("DPMI: can't open /proc/self/mem\n");
 	    return -1;
 	}

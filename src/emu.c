@@ -378,17 +378,8 @@ emulate(int argc, char **argv)
 #ifdef __NetBSD__
     changesegs();
 #endif
-    if (0 == geteuid()) {
-	warn("I am root\n");
-	i_am_root = 1;
-    } else {
-	if (getuid() != geteuid()) {
-	    fprintf(stderr, "Can't setuid to anyone else but root\n");
-	    exit(1);
-	}
-    }
 
-    priv_default();
+    priv_init();  /* This must come first! */
 
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
@@ -520,9 +511,18 @@ leavedos(int sig)
     extern int errno;
 
     static int recurse_check = 0;
-    if (recurse_check);
+   
+    warn("leavedos(%d) called - shutting down\n", sig);
+   
+    if (recurse_check)
+      {
+       error("leavedos called recursively, forgetting the graceful exit!\n");
+       _exit(sig);
+      }
     recurse_check = 1;
+#if 0
     priv_on();
+#endif
 #if 1 /* BUG CATCHER */
     if (in_vm86) {
       g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");

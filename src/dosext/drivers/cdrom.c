@@ -31,6 +31,7 @@
 #endif
 
 #include "emu.h"
+#include "priv.h"
 
 extern int errno;
 
@@ -139,10 +140,10 @@ void cdrom_reset()
    close (cdrom_fd);
    priv_off();
    cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+   priv_default();
 #ifdef __NetBSD__
    if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-   priv_default();
 }
 
 #define MSCD_AUDCHAN_VOLUME0       2
@@ -184,10 +185,10 @@ void cdrom_helper(void)
    if ((cdu33a) && (cdrom_fd < 0)) {
         priv_off();
         cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+        priv_default();
 #ifdef __NetBSD__
         if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-        priv_default();
 
         if (cdrom_fd < 0) {
           LO(bx) = 1; /* media changed (for media changed request) */
@@ -221,11 +222,11 @@ void cdrom_helper(void)
 
                 priv_off();
                 cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+                priv_default();
 		error = errno;
 #ifdef __NetBSD__
                 if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-                priv_default();
 
                 if (cdrom_fd < 0) {
 		  C_printf("cdrom open (" _PATH_CDROM ") failed: %s\n",

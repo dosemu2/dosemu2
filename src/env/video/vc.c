@@ -78,6 +78,7 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include "s3.h"
 #include "trident.h"
 #include "et4000.h"
+#include "priv.h"
 
 extern void child_close_mouse ();
 extern void child_open_mouse ();
@@ -203,7 +204,9 @@ parent_open_mouse (void)
 {
   if (mice->intdrv)
     {
+      priv_on(); /* The mouse may not be a resource everyone can open. */
       mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
+      priv_default();
       if (mice->fd > 0)
 	add_to_io_select(mice->fd, mice->add_to_io_select);
     }
@@ -617,7 +620,9 @@ clear_process_control (void)
   struct vt_mode vt_mode;
 
   vt_mode.mode = VT_AUTO;
-  ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
+  priv_on();
+  ioctl (kbd_fd, VT_SETMODE, (int) &vt_mode);
+  priv_default();
   signal (SIG_RELEASE, SIG_IGN);
   signal (SIG_ACQUIRE, SIG_IGN);
 }

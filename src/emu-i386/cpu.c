@@ -40,6 +40,7 @@
 #include "vc.h"
 
 #include "../dpmi/dpmi.h"
+#include "priv.h"
 
 extern void xms_control(void);
 

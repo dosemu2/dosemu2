@@ -51,6 +51,8 @@
 #include "timers.h"
 
 #include "video.h"
+#include "priv.h"
+
 #if X_GRAPHICS
 #include "vgaemu.h" /* root@zaphod */
 #endif

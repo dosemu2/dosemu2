@@ -19,6 +19,7 @@
 #include "kversion.h"
 
 #include "dos2linux.h"
+#include "priv.h"
 
 #ifdef __NetBSD__
 extern int errno;
@@ -170,7 +171,9 @@ config_defaults(void)
 static void 
 open_terminal_pipe(char *path)
 {
+    priv_off();
     terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
+    priv_default();
     if (terminal_fd == -1) {
 	terminal_pipe = 0;
 	error("ERROR: open_terminal_pipe failed - cannot open %s!\n", path);
@@ -269,14 +272,14 @@ config_init(int argc, char **argv)
 	    dbg_fd = stderr;
 	    break;
 	case 'o':
-	    priv_off();
 	    config.debugout = strdup(optarg);
+	    priv_off();
 	    dbg_fd = fopen(config.debugout, "w");
+	    priv_default();
 	    if (!dbg_fd) {
 		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
 		exit(1);
 	    }
-	    priv_default();
 	    break;
 	}
     }
@@ -288,11 +291,7 @@ config_init(int argc, char **argv)
     }
 #endif
 
-    priv_off();
-
     parse_config(confname);
-
-    priv_default();
 
     if (config.exitearly)
 	leavedos(0);
@@ -369,9 +368,7 @@ config_init(int argc, char **argv)
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {
-		priv_off();
 		open_terminal_pipe(optarg);
-		priv_default();
 	    } else
 		error("ERROR: terminal pipe already open\n");
 	    break;

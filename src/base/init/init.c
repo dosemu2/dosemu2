@@ -46,6 +46,7 @@
 #include "xms.h"
 #include "shared.h"
 #include "iodev.h"
+#include "priv.h"
 
 #ifdef NEW_KBD_CODE
 #include "keyb_clients.h"

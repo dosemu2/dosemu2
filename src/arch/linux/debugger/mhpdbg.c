@@ -34,6 +34,7 @@
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
+#include "priv.h"
 
 extern void handle_signals(void);
 
@@ -111,8 +112,10 @@ void mhp_close(void)
      mhp_putc(1); /* tell debugger terminal to also quit */
      mhp_send();
    }
+   priv_on();
    unlink(pipename_in);
    unlink(pipename_out);   
+   priv_default();
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
    vm86s.vm86plus.vm86dbg_active = 0;
@@ -120,6 +123,8 @@ void mhp_close(void)
 
 static void mhp_init(void)
 {
+  int retval;
+
   mhpdbg.fdin = mhpdbg.fdout = -1;
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
@@ -129,12 +134,24 @@ static void mhp_init(void)
   memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
 
   sprintf(pipename_in, "%sdbgin.%d", TMPFILE, getpid());
-  if (!mkfifo(pipename_in, S_IFIFO | 0600)) {
+  priv_on();
+  retval = mkfifo(pipename_in, S_IFIFO | 0600);
+  priv_default();
+  if (!retval) {
     sprintf(pipename_out, "%sdbgout.%d", TMPFILE, getpid());
-    if (!mkfifo(pipename_out, S_IFIFO | 0600)) {
-      if ((mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK)) != -1) {
+    priv_on();
+    retval = mkfifo(pipename_out, S_IFIFO | 0600);
+    priv_default();
+    if (!retval) {
+      priv_on();
+      mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
+      priv_default();
+      if (mhpdbg.fdin != -1) {
         /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
-        if ((mhpdbg.fdout = open(pipename_out, O_RDWR | O_NONBLOCK)) != -1) {
+        priv_on();
+        mhpdbg.fdout = open(pipename_out, O_RDWR | O_NONBLOCK);
+        priv_default();
+        if (mhpdbg.fdout != -1) {
           add_to_io_select(mhpdbg.fdin,0);
         }
         else {
@@ -145,8 +162,10 @@ static void mhp_init(void)
     }
   }
   if (mhpdbg.fdin == -1) {
+    priv_on();
     unlink(pipename_in);
     unlink(pipename_out);
+    priv_default();
   }
   else {
     uid_t owner=getuid();

@@ -39,6 +39,7 @@
 
 #include "dos2linux.h" 
 #include "emu.h"
+#include "priv.h"
 
 #define GET_USER_ENVVAR      0x52
 #define GET_USER_COMMAND     0x51
@@ -255,10 +256,14 @@ void run_unix_command(char *buffer)
          *
          * NOTE: euid=user uid=root!  -Steven P. Crain
          */
+#if 1
+	priv_drop();
+#else
         tuid=geteuid(); /* Save user's uid */
         setuid(getuid()); /* Switch to root */
         setuid(tuid);     /* You can't switch back anymore: good thing we're forked! */ 
         setgid(getgid());
+#endif
         
 #if 0
         g_printf("run_unix_command() (child): uid/gid=%i/%i\n", getuid(), getgid());

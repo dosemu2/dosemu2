@@ -78,6 +78,7 @@ static inline boolean_t unmap_page(int);
 
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#include "priv.h"
 
 #if defined(__NetBSD__) || defined(__linux__)
 #define __freeunices__
@@ -385,7 +386,13 @@ ems_init(void)
   if (ems_mmap) {
      E_printf("EMS: opening " MEMFILE "\n");
 
+     /* currently running Linux 2.0.17 I have to be root to open my
+      * own /proc/self/mem.  Is this a bug or a feature???
+      * It's certainly a pain. -- EB 6 Sept 1996
+      */
+     priv_on();
      selfmem_fd = open(MEMFILE, O_RDWR);
+     priv_default();
      if (selfmem_fd < 0) {
        error("EMS: cannot open " MEMFILE ": %s\n",strerror(errno));
        ems_mmap = 0;
