@@ -16,6 +16,7 @@
 
 #include "et4000.h"
 #include "s3.h"
+#include "ati.h"
 #include "trident.h"
 #include "avance.h"
 #if 0
@@ -481,6 +482,11 @@ int vga_initialize(void)
     vga_init_avance();
     v_printf("Avance Logic CARD in use\n");
     break;
+  case ATI:
+    vga_init_ati();
+    v_printf("ATI CARD in use\n");
+    break;
+
   default:
     save_ext_regs = save_ext_regs_dummy;
     restore_ext_regs = restore_ext_regs_dummy;

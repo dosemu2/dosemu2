@@ -1,3 +1,11 @@
+97/02/20 ver. 0.65.99.2 unofficial pre-release
+	From Josef Pavlik <jetset@ibm.net>
+	- Added ATI support (untested --Hans)
+	  This patch is for VGA ATI Mach 64 (probably will work with Mach8
+	  and Mach32 too).  Set "video { vga console graphics chipset ati }"
+	  in dosemu.conf. Resolves problem with ioports >0x3ff and saves
+	  registers which contains clock speed. Without this patch dosemu
+	  changes clock speed of VGA.
 97/02/20 ver. 0.65.99.1 unofficial pre-release
 	From Alberto
 	- Fix PIC bug (replacment for old ALBERTO_KLUDGE)

@@ -119,6 +119,22 @@ extern void set_leds(void);
 /* FIXME -- move to common header */
 extern int s3_8514_base;
 
+/*                              3b0         3b4         3b8         3bc                     */
+const unsigned char ATIports[]={ 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, /* 3b0-3bf */
+                                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, /* 3c0-3cf */
+                                 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0  /* 3d0-3df */
+                               };
+
+int isATIport(int port)
+{
+  return (    (port & 0x3ff) == 0x102
+          ||  (port & 0x3fe) == 0x1ce
+          ||  (port & 0x3fc) == 0x2ec
+          || ((port & 0x3ff) >= 0x3b0 && (port & 0x3ff) < 0x3e0 && ATIports[(port & 0x3ff)-0x3b0])
+          ||  port == 0x46e8
+         );
+}
+
 /*
  * DANG_BEGIN_FUNCTION inb
  *
@@ -196,6 +212,12 @@ inb(unsigned int port)
     r = port_in((u_int)port) & 0xff;
     iopl(0);
     v_printf("S3 inb [0x%04x] = 0x%02x\n", port, r);
+  }
+  else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
+    iopl(3);
+    r = port_in(port) & 0xff;
+    iopl(0);
+    v_printf("ATI inb [0x%04x] = 0x%02x\n", port, r);
   }
 #endif
   else switch ((u_int)port) {
@@ -315,6 +337,15 @@ inw(int port)
     value = port_in_w(port) & 0xffff;
     iopl(0);
     v_printf("S3 inw [0x%04x] = 0x%04x\n", port, value);
+    return value;
+  }
+  else if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
+    int value;
+
+    iopl(3);
+    value = port_in_w(port) & 0xffff;
+    iopl(0);
+    v_printf("ATI inw [0x%04x] = 0x%04x\n", port, value);
     return value;
   }
   return( read_port_w(port) );
@@ -459,6 +490,13 @@ outb(unsigned int port, unsigned int byte)
     v_printf("S3 outb [0x%04x] = 0x%02x\n", port, byte);
     return;
   }
+  if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
+    iopl(3);
+    port_out(byte, port);
+    iopl(0);
+    v_printf("ATI outb [0x%04x] = 0x%02x\n", port, byte);
+    return;
+  }
 #endif
 
   /* The diamond bug */
@@ -568,6 +606,13 @@ outw(unsigned int port, unsigned int value)
     port_out_w(value, port);
     iopl(0);
     v_printf("S3 outw [0x%04x] = 0x%04x\n", port, value);
+    return;
+  }
+  if ((config.chipset == ATI) && isATIport(port) && (port & 0xfc00)) {
+    iopl(3);
+    port_out(value, port);
+    iopl(0);
+    v_printf("ATI outb [0x%04x] = 0x%02x\n", port, value);
     return;
   }
   if(!write_port_w(value,port) ) {

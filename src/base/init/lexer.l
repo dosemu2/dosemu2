@@ -217,6 +217,7 @@ et4000			{ yylval->i_value = 2; return(CHIPSET_TYPE); }
 diamond			{ yylval->i_value = 3; return(CHIPSET_TYPE); }
 s3			{ yylval->i_value = 4; return(CHIPSET_TYPE); }
 avance			{ yylval->i_value = 5; return(CHIPSET_TYPE); }
+ati			{ yylval->i_value = 5; return(CHIPSET_TYPE); }
 
 	/* xwindows stuff */
 

@@ -245,6 +245,7 @@ EXTERN int video_subsys;
 #define DIAMOND		3
 #define S3		4
 #define AVANCE		5
+#define ATI		6
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);
