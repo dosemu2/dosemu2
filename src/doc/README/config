@@ -1257,7 +1257,7 @@ $_joy_dos_max = (150)	  # avoid setting this to > 250
 $_joy_granularity = (1)   # the higher, the less sensitive - 
 			  # useful if you have a wobbly joystick
                           #
-$_joy_latency = (0)       # delay between nonblocking linux joystick reads
+$_joy_latency = (1)       # delay between nonblocking linux joystick reads
                           # increases performance if >0 and processor>=Pentium
                           # recommended: 1-50ms or 0 if unsure
 </screen>
