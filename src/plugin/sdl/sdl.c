@@ -444,6 +444,9 @@ static void SDL_handle_events(void)
      case SDL_MOUSEMOTION:
        SDL_set_mouse_move(event.button.x, event.button.y, w_x_res, w_y_res);
        break;
+     case SDL_QUIT:
+       leavedos(0);
+       break;
      default:
        v_printf("PAS ENCORE TRAITE\n");
        /* TODO */
