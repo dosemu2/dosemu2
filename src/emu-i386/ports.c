@@ -1092,7 +1092,6 @@ void release_ports (void)
 int port_register_handler(emu_iodev_t device, int flags)
 {
     int handle, i;
-    struct stat devstat;
 
     if (device.irq != EMU_NO_IRQ && device.irq >= EMU_MAX_IRQS) {
 	dbug_printf("PORT: IO device %s registered with IRQ=%d above %u\n",
@@ -1159,7 +1158,7 @@ int port_register_handler(emu_iodev_t device, int flags)
 
     i_printf("PORT: registered \"%s\" handle 0x%02x [0x%04x-0x%04x] fd=%d\n",
 	port_handler[handle].handler_name, handle, device.start_addr,
-	device.end_addr, (int)(device.fd>=0? devstat.st_dev:device.fd));
+	device.end_addr, device.fd);
 
     if (flags & PORT_FAST) {
 	i_printf("PORT: trying to give fast access to ports [0x%04x-0x%04x]\n",
