@@ -12,9 +12,7 @@
 #ifndef CPU_H
 #define CPU_H
 
-/* pic.h & dpmi.h are just for set_IF() & clear_IF() */
 #include "pic.h"
-extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
 #include "types.h"
 
 #ifdef BIOSSEG
@@ -218,8 +216,8 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 
   /* Flag setting and clearing, and testing */
         /* interrupt flag */
-#define set_IF() ((_EFLAGS |= (VIF | IF)), (dpmi_eflags |= IF), is_cli = 0, pic_sti())
-#define clear_IF() ((_EFLAGS &= ~(VIF | IF)), (dpmi_eflags &= ~IF), pic_cli())
+#define set_IF() (_EFLAGS |= VIF, is_cli = 0)
+#define clear_IF() (_EFLAGS &= ~VIF)
 #define isset_IF() ((_EFLAGS & VIF) != 0)
        /* carry flag */
 #define set_CF() (_EFLAGS |= CF)
@@ -246,8 +244,21 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #define clear_VIP() (_EFLAGS &= ~VIP)
 #define isset_VIP()   ((_EFLAGS & VIP) != 0)
 
-#define set_EFLAGS(eflags) ((_EFLAGS = eflags), ((_EFLAGS & IF)? set_IF(): clear_IF()))
-#define set_FLAGS(flags) ((_FLAGS = flags), ((_FLAGS & IF)? set_IF(): clear_IF()))
+#define set_EFLAGS(flgs, new_flgs) ({ \
+  int __nflgs = (new_flgs); \
+  (flgs)=(__nflgs) | IF | IOPL_MASK; \
+  ((__nflgs & IF) ? set_IF() : clear_IF()); \
+})
+#define set_FLAGS(flags) ((_FLAGS = (flags) | IF | IOPL_MASK), ((_FLAGS & IF)? set_IF(): clear_IF()))
+#define get_EFLAGS(flags) ({ \
+  int __flgs = flags; \
+  (((__flgs & IF) ? __flgs | VIF : __flgs & ~VIF) | IF | IOPL_MASK); \
+})
+#define get_vFLAGS(flags) ({ \
+  int __flgs = flags; \
+  ((isset_IF() ? __flgs | IF : __flgs & ~IF) | IOPL_MASK); \
+})
+#define eflags_VIF(flags) (((flags) & ~VIF) | (isset_IF() ? VIF : 0) | IF | IOPL_MASK)
 #define read_EFLAGS() (isset_IF()? (_EFLAGS | IF):(_EFLAGS & ~IF))
 #define read_FLAGS()  (isset_IF()? (_FLAGS | IF):(_FLAGS & ~IF))
 

@@ -408,7 +408,7 @@ if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
 }
 
 if (in_dpmi)
-  dpmi_eflags |= VIP;	/* we have to leave the signal context */
+  dpmi_return_request();	/* we have to leave the signal context */
 
 if(!port){                          /* icw1, ocw2, ocw3 */
   if(value&0x10){                   /* icw1 */
@@ -466,7 +466,7 @@ if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
 }
 
 if (in_dpmi)
-  dpmi_eflags |= VIP;	/* we have to leave the signal context */
+  dpmi_return_request();	/* we have to leave the signal context */
 
 if(!port){                            /* icw1, ocw2, ocw3 */
   if(value&0x10){                     /* icw1 */
@@ -663,7 +663,7 @@ void run_irqs(void)
        while((int_request = pic_irr & ~(pic_isr | pic_imr)) != 0) { /* while something to do*/
                int local_pic_ilevel, old_ilevel;
 
-	       if (!isset_IF() && !in_dpmi)
+	       if (!isset_IF())
 	    	       return;                      /* exit if ints are disabled */
 
                local_pic_ilevel = find_bit(int_request);    /* find out what it is  */

@@ -940,7 +940,7 @@ static inline void dma_start(int use_16bit, int use_signed, int sb16_command)
     * start and complete it right now.
     */
     if (in_dpmi)
-      dpmi_eflags |= VIP;
+      dpmi_return_request();
   }
 }
     

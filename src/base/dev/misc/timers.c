@@ -154,7 +154,7 @@ void timer_tick(void)
       D_printf("DPMI: Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");
       add_cli_to_blacklist();
-      dpmi_sti();
+      set_IF();
     }
   }
   

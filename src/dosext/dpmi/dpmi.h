@@ -49,22 +49,6 @@
 #define UDATASEL _emu_stack_frame.ds
 #endif
 
-/* DANG_BEGIN_REMARK
- * Handling of the virtual interrupt flag is still not correct and there
- * are many open questions since DPMI specifications are unclear in this
- * point.
- * An example: If IF=1 in protected mode and real mode code is called
- * which is disabling interrupts via cli and returning to protected
- * mode, is IF then still one or zero?
- * I guess I have to think a lot about this and to write a small dpmi
- * client running under a commercial dpmi server :-).
- * DANG_END_REMARK
- */
-
-#define dpmi_cli() 	({ dpmi_eflags &= ~IF; pic_cli(); })
-
-#define dpmi_sti() 	({ dpmi_eflags |= IF; is_cli = 0; pic_sti(); })
-
 #ifdef __linux__
 int modify_ldt(int func, void *ptr, unsigned long bytecount);
 #define LDT_WRITE 0x11
@@ -256,5 +240,7 @@ extern void dpmi_memory_init(void);
 extern int lookup_realmode_callback(char *lina, int *num);
 extern void dpmi_realmode_callback(int rmcb_client, int num);
 extern int get_ldt(void *buffer);
+void dpmi_return_request(void);
+void dpmi_check_return(struct sigcontext_struct *scp);
 
 #endif /* DPMI_H */

@@ -431,13 +431,10 @@ static void handle_signals_force(int force_reentry) {
   }
 
   if (!signal_pending) {
-    if (in_dpmi)
-      dpmi_eflags &= ~VIP;
-    REG(eflags) &= ~VIP;
+    clear_VIP();
   } else {
-    if (in_dpmi)
-      dpmi_eflags |= VIP;
-    REG(eflags) |= VIP;
+    set_VIP();
+    dpmi_return_request();
   }
 
   in_handle_signals--;
@@ -648,7 +645,7 @@ inline void SIGNAL_save( void (*signal_call)(void) ) {
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
   signal_pending = 1;
   if (in_dpmi)
-    dpmi_eflags |= VIP;
+    dpmi_return_request();
 }
 
 

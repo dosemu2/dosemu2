@@ -1912,16 +1912,7 @@ void do_int(int i)
            a 486. They hopefully protect this test using cli and sti, or
            hardware INTs will mess things up.
         */
-	if(REG(eflags & AC)) g_printf("Clearing AC flag\n");
         clear_AC();
-	if (in_dpmi) {
-		if (dpmi_eflags & IF) {
-			set_IF();
-		} else {
-			clear_IF();
-		}
-/**/ D_printf("DPMI: do_int %x: dpmi_eflags=%08x\n",i,dpmi_eflags);
-	}
 	
 #ifndef TRACE_DPMI
  	if ((debug_level('#') > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {

@@ -311,9 +311,8 @@ void mhp_intercept(char *msg, char *logflags)
    mhp_cmd("r0");
    mhp_send();
    if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) {
-     set_VIP();
      if (in_dpmi)
-       dpmi_eflags |= VIP;
+       dpmi_return_request();
      if (logflags)
        mhp_intercept_log(logflags, 1);
      return;

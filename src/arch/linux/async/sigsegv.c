@@ -229,9 +229,7 @@ sgleave:
 
       if(_trapno==0x0e && Video->update_screen) {
         if(VGA_EMU_FAULT(scp,code,1)==True) {
-	  if (dpmi_eflags & VIP) {
-	    dpmi_sigio(scp);
-	  }
+	  dpmi_check_return(scp);
           return;
 	}
       }
