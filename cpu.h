@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/27 02:15:58 $
+ * $Date: 1994/08/05 22:29:31 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.h,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  */
 
@@ -73,6 +73,20 @@ __asm__ __volatile__( \
 	: "=r" (ptr), "=r" (base), "=q" (__res) \
 	: "0" (ptr), "1" (base), "2" (0)); \
 __res; })
+
+static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
+{
+	__asm__ __volatile__("btsl %1,%0"
+		: /* no output */
+		:"m" (*bitmap),"r" (nr));
+}
+
+static __inline__ void reset_revectored(int nr, struct revectored_struct * bitmap)
+{
+	__asm__ __volatile__("btrl %1,%0"
+		: /* no output */
+		:"m" (*bitmap),"r" (nr));
+}
 
 /* flags */
 #define CF  (1 <<  0)

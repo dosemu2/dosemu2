@@ -1,12 +1,15 @@
 #define SIGSEGV_C 1
 
 /* 
- * $Date: 1994/08/01 14:26:23 $
+ * $Date: 1994/08/05 22:29:31 $
  * $Source: /home/src/dosemu0.60/RCS/sigsegv.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.6  1994/08/05  22:29:31  root
+ * Prep dir pre53_10.
+ *
  * Revision 2.5  1994/08/01  14:26:23  root
  * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
  *
@@ -108,7 +111,6 @@
 
 #include "memory.h"
 #include "cpu.h"
-#include <linux/mm.h>
 #include "termio.h"
 #include "config.h"
 #include "port.h"
@@ -350,6 +352,8 @@ dosemu_fault(int signal, struct sigcontext_struct context)
       case 0x07: /* device_not_available */
 		 return (void) do_int(_trapno);
       case 0x06: /* invalid_op */
+		 dbug_printf("SIGILL while in vm86()\n");
+		 show_regs();
  		 csp = SEG_ADR((unsigned char *), cs, ip);
  		 /* Some db commands start with 2e (use cs segment) and thus is accounted
  		    for here */
@@ -387,9 +391,11 @@ dosemu_fault(int signal, struct sigcontext_struct context)
 #else
   {
 #endif
-    error("ERROR: exception 0x%02lx in dosemu code!\n"
-	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
-	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
+    error("ERROR: cpu exception in dosemu code!\n"
+	  "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
+	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
+	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
+	  _trapno, scp->err, scp->cr2,
 	  _eip, _esp, _eflags, _cs, _ds, _es, _ss);
 
     dbug_printf("  VFLAGS(b): ");

@@ -8,6 +8,7 @@
 #include <setjmp.h>
 #include <sys/stat.h>                    /* structure stat       */
 #include <unistd.h>                      /* prototype for stat() */
+#include <stdarg.h>
 
 #include "config.h"
 #include "emu.h"
@@ -56,6 +57,7 @@ extern char* strdup(const char *); /* Not defined in string.h :-( */
 	/* local procedures */
 
 void yyerror(char *, ...);
+void yywarn(char *, ...);
 void keyb_layout(int value);
 void start_ports(void);
 void start_mouse(void);
@@ -66,6 +68,7 @@ void start_serial(void);
 void stop_serial(void);
 void start_printer(void);
 void stop_printer(void);
+void stop_terminal(void);
 void start_disk(void);
 void start_bootdisk(void);
 void start_floppy(void);
@@ -75,7 +78,7 @@ void close_file(FILE* file);
 
 	/* variables in lexer.l */
 
-extern extern int line_count;
+extern int line_count;
 extern FILE* yyin;
 extern void yyrestart(FILE *input_file);
 %}
@@ -87,14 +90,16 @@ extern void yyrestart(FILE *input_file);
   char *s_value;
   };
 
-%token <i_value> INTEGER L_OFF L_ON L_YES L_NO L_SPEAKER CHIPSET_TYPE
+%token <i_value> INTEGER L_OFF L_ON L_YES L_NO CHIPSET_TYPE
 %token <i_value> CHARSET_TYPE KEYB_LAYOUT
 %token <s_value> STRING
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTC L_XMS L_EMS L_DPMI PORTS DISK DOSMEM PRINTER
-%token BOOTDISK L_FLOPPY
+%token BOOTDISK L_FLOPPY EMUSYS EMUBAT
+	/* speaker */
+%token EMULATED NATIVE
 	/* keyboard */
 %token KEYBINT RAWKEYBOARD
 	/* ipx */
@@ -111,14 +116,14 @@ extern void yyrestart(FILE *input_file);
 %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST
 	/* debug */
 %token IO PORT CONFIG READ WRITE KEYB PRINTER WARNING GENERAL HARDWARE
-%token L_IPC
+%token L_IPC L_X
 	/* printer */
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
 %token L_PARTITION WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
 %token SECTORS CYLINDERS HEADS OFFSET HDIMAGE
 	/* ports/io */
-%token RDONLY WRONLY RDWR ORMASK ANDMASK
+%token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE
 
 %type <i_value> mem_bool bool speaker method_val color_val
 
@@ -129,33 +134,66 @@ lines		: line
 		;
 
 line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
-/* 		| EMUSYS ??? */
-/* 		| EMUBAT ??? */
+ 		| EMUSYS STRING
+		    {
+		    config.emusys = strdup($2);
+		    c_printf("CONF: config.emusys = %s\n", $2);
+		    }
+ 		| EMUBAT STRING
+		    {
+		    config.emusys = strdup($2);
+		    c_printf("CONF: config.emusys = %s\n", $2);
+		    }
 		| FASTFLOPPY bool	{ config.fastfloppy = $2; }
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
 		| BOOTA			{ config.hdiskboot = 0; }
 		| BOOTC			{ config.hdiskboot = 1; }
-		| TIMINT bool		{ config.timers = $2; }
-		| TIMER INTEGER		{ config.freq = $2;
-					  config.update = 1000000 / $2; }
-		| DOSBANNER bool	{ config.dosbanner = $2; }
-		| ALLOWVIDEOPORT bool	{ config.allowvideoportaccess = $2; }
+		| TIMINT bool
+		    {
+		    config.timers = $2;
+		    c_printf("CONF: timint %s", ($2) ? "on" : "off");
+		    }
+		| TIMER INTEGER
+		    {
+		    config.freq = $2;
+		    config.update = 1000000 / $2;
+		    }
+		| DOSBANNER bool
+		    {
+		    config.dosbanner = $2;
+		    c_printf("CONF: dosbanner %s", ($2) ? "on" : "off");
+		    }
+		| ALLOWVIDEOPORT bool
+		    {
+		    config.allowvideoportaccess = $2;
+		    c_printf("CONF: allowvideoport %s", ($2) ? "on" : "off");
+		    }
 		| L_EMS mem_bool	{ config.ems_size = $2; }
 		| L_XMS mem_bool	{ config.xms_size = $2; }
 		| L_DPMI mem_bool	{ config.dpmi_size = $2; }
 		| DOSMEM mem_bool	{ config.mem_size = $2; }
 		| MATHCO bool		{ config.mathco = $2; }
 		| IPXSUPPORT bool	{ config.ipxsup = $2; }
+		    {
+		    config.ipxsup = $2;
+		    c_printf("CONF: IPX support %s", ($2) ? "on" : "off");
+		    }
 		| PKTDRIVER NOVELLHACK	{ config.pktflags = 1; }
-		| SPEAKER speaker	{ if ($2 == 2)
-					 {
-					 allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
-					 allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
-					 }
-					config.speaker = $2; }
+		| SPEAKER speaker
+		    {
+		    if ($2 == SPKR_NATIVE) {
+                      yywarn("CONF: allowing access to the speaker ports!");
+		      allow_io(0x42, 1, IO_RDWR, 0, 0xFFFF);
+		      allow_io(0x61, 1, IO_RDWR, 0, 0xFFFF);
+		      }
+		    else
+                      c_printf("CONF: not allowing speaker port access\n");
+		    config.speaker = $2;
+		    }
 		| VIDEO	'{' video_flags '}'
 		    { stop_video(); }
 		| TERMINAL '{' term_flags '}'
+		    { stop_terminal(); }
 		| DEBUG
 		    { start_debug(); }
 		  '{' debug_flags '}'
@@ -187,6 +225,8 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    { start_printer(); }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
+		| STRING
+		    { yyerror("unrecognized command '%s'", $1); }
 		| error
 		;
 
@@ -199,7 +239,11 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| MGA			{ config.cardtype = CARD_MDA; }
 		| CGA			{ config.cardtype = CARD_CGA; }
 		| EGA			{ config.cardtype = CARD_CGA; }
-		| CHIPSET CHIPSET_TYPE	{ config.chipset = $2; }
+		| CHIPSET CHIPSET_TYPE
+		    {
+		    config.chipset = $2;
+                    c_printf("CHIPSET: %d\n", $2);
+		    }
 		| MEMSIZE INTEGER	{ config.gfxmemsize = $2; }
 		| GRAPHICS		{ config.vga = 1; }
 		| CONSOLE		{ config.console_video = 1; }
@@ -215,7 +259,19 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 1; }
 
-		| VBIOS_SEG INTEGER	{ config.vbios_seg = $2; }
+		| VBIOS_SEG INTEGER
+		   {
+		   config.vbios_seg = $2;
+		   c_printf("CONF: VGA-BIOS-Segment %x\n", $2);
+		   if (($2 != 0xe000) && ($2 != 0xc000))
+		      {
+		      config.vbios_seg = 0xc000;
+		      c_printf("CONF: VGA-BIOS-Segment set to 0xc000\n");
+		      }
+		   }
+		| STRING
+		    { yyerror("unrecognized video option '%s'", $1); }
+		| error
 		;
 
 	/* terminal */
@@ -229,6 +285,9 @@ term_flag	: METHOD method_val	{ config.term_method = $2; }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
 		| COLOR color_val	{ config.term_color = $2; }
 		| CORNER bool		{ config.term_corner = $2; }
+		| STRING
+		    { yyerror("unrecognized terminal option '%s'", $1); }
+		| error
 		;
 
 color_val	: L_OFF			{ return 0; }
@@ -266,6 +325,10 @@ debug_flag	: VIDEO bool		{ d.video = $2; }
 		| L_IPC bool		{ d.IPC = $2; }
 		| L_EMS bool		{ d.EMS = $2; }
 		| NETWORK bool		{ d.network = $2; }
+		| L_X bool		{ d.X = $2; }
+		| STRING
+		    { yyerror("unrecognized debug flag '%s'", $1); }
+		| error
 		;
 
 	/* mouse */
@@ -276,11 +339,12 @@ mouse_flags	: mouse_flag
 mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); }
 		| INTERNALDRIVER	{ mptr->intdrv = TRUE; }
 		| BAUDRATE INTEGER	{ mptr->baudRate = $2; }
-		| CLEARDTR		{ if (mptr->type == MOUSE_MOUSESYSTEMS)
-					    mptr->cleardtr = TRUE;
-					  else
-					    yyerror("Option CLEARDTR is only valid for MicroSystems-Mice");
-					}
+		| CLEARDTR
+		    { if (mptr->type == MOUSE_MOUSESYSTEMS)
+			 mptr->cleardtr = TRUE;
+		      else
+			 yyerror("option CLEARDTR is only valid for MicroSystems-Mice");
+		    }
 		| MICROSOFT
 		  {
 		  mptr->type = MOUSE_MICROSOFT;
@@ -321,6 +385,9 @@ mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); }
 		  mptr->type = MOUSE_BUSMOUSE;
 		  mptr->flags = 0;
 		  }
+		| STRING
+		    { yyerror("unrecognized mouse flag '%s'", $1); }
+		| error
 		;
 
 	/* keyboard */
@@ -332,6 +399,9 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| LAYOUT L_NO		{ keyb_layout(KEYB_NO); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| KEYBINT bool		{ config.keybint = $2; }
+		| STRING
+		    { yyerror("unrecognized keyboard flag '%s'", $1); }
+		| error
 		;
 
 	/* serial ports */
@@ -346,6 +416,9 @@ serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2); }
 		| IRQ INTEGER		{ sptr->interrupt = $2; }
 		| INTERRUPT INTEGER	{ sptr->interrupt = $2; }
 		| MOUSE			{ sptr->mouse = 1; }
+		| STRING
+		    { yyerror("unrecognized serial flag '%s'", $1); }
+		| error
 		;
 
 	/* printer */
@@ -357,6 +430,9 @@ printer_flag	: COMMAND STRING	{ pptr->prtcmd = strdup($2); }
 		| TIMEOUT INTEGER	{ pptr->delay = $2; }
 		| OPTIONS STRING	{ pptr->prtopt = strdup($2); }
 		| L_FILE STRING		{ pptr->dev = strdup($2); }
+		| STRING
+		    { yyerror("unrecognized printer flag %s", $1); }
+		| error
 		;
 
 	/* disks */
@@ -371,11 +447,17 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| CYLINDERS INTEGER	{ dptr->tracks = $2; }
 		| HEADS INTEGER		{ dptr->heads = $2; }
 		| OFFSET INTEGER	{ dptr->header = $2; }
+		| DEVICE STRING
+		  {
+		  if (dptr->dev_name != NULL)
+		    yyerror("Two names for a disk-image file or device given.");
+		  dptr->dev_name = strdup($2);
+		  }
 		| L_FILE STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
-		  dptr->dev_name = $2;
+		  dptr->dev_name = strdup($2);
 		  }
 		| HDIMAGE STRING
 		  {
@@ -383,21 +465,21 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		    yyerror("Two names for a harddisk-image file given.");
 		  dptr->type = IMAGE;
 		  dptr->header = HEADER_SIZE;
-		  dptr->dev_name = $2;
+		  dptr->dev_name = strdup($2);
 		  }
 		| WHOLEDISK STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk given.");
 		  dptr->type = HDISK;
-		  dptr->dev_name = $2;
+		  dptr->dev_name = strdup($2);
 		  }
 		| L_FLOPPY STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a floppy-device given.");
 		  dptr->type = FLOPPY;
-		  dptr->dev_name = $2;
+		  dptr->dev_name = strdup($2);
 		  }
 		| L_PARTITION STRING INTEGER
 		  {
@@ -405,12 +487,15 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		    yyerror("Two names for a partition given.");
 		  dptr->type = PARTITION;
 		  dptr->part_info.number = $3;
-		  dptr->dev_name = $2;
+		  dptr->dev_name = strdup($2);
 
 		  dptr->part_info.file = malloc(strlen(PARTITION_PATH ".")+10); 
 		  dptr->part_info.file = strcpy(dptr->part_info.file,PARTITION_PATH "."); 
 		  dptr->part_info.file = strcat(dptr->part_info.file,dptr->dev_name+5);
 		  }
+		| STRING
+		    { yyerror("unrecognized disk flag '%s'\n", $1); }
+		| error
 		;
 
 	/* i/o ports */
@@ -423,11 +508,21 @@ port_flag	: INTEGER
 	           allow_io($1, 1, ports_permission, ports_ormask,
 	                    ports_andmask);
 	           }
+		| RANGE INTEGER INTEGER
+		   {
+		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
+			    (unsigned short)$2, (unsigned short)$3);
+		   allow_io($2, $3 - $2 + 1, ports_permission, ports_ormask,
+			    ports_andmask);
+		   }
 		| RDONLY		{ ports_permission = IO_READ; }
 		| WRONLY		{ ports_permission = IO_WRITE; }
 		| RDWR			{ ports_permission = IO_RDWR; }
 		| ORMASK INTEGER	{ ports_ormask = $2; }
 		| ANDMASK INTEGER	{ ports_andmask = $2; }
+		| STRING
+		    { yyerror("unrecognized port command '%s'", $1); }
+		| error
 		;
 
 	/* booleans */
@@ -437,16 +532,20 @@ bool		: L_YES
 		| L_ON
 		| L_OFF
 		| INTEGER	{ $$ = $1 != 0; }
+                | error         { yyerror("expected 'on' or 'off'"); }
 		;
 
 mem_bool	: L_OFF		{ $$ = 0; }
 		| INTEGER
+		| error         { yyerror("expected 'off' or an integer"); }
 		;
 
 	/* speaker values */
 
-speaker		: L_OFF		{ $$ = 0; }
-		| L_SPEAKER
+speaker		: L_OFF		{ $$ = SPKR_OFF; }
+		| NATIVE	{ $$ = SPKR_NATIVE; }
+		| EMULATED	{ $$ = SPKR_EMULATED; }
+		| error         { yyerror("expected 'emulated' or 'native'"); }
 		;
 
 %%
@@ -550,10 +649,24 @@ void start_serial(void)
 
 void stop_serial(void)
 {
+  if (c_ser >= MAX_SER) {
+    c_printf("SER: too many ports, ignoring %s\n", sptr->dev);
+    return;
+  }
   c_ser++;
   config.num_ser = c_ser;
-  c_printf("SERIAL: com%i int = %i\n", sptr->real_comport, sptr->interrupt);
+  c_printf("SER: %s port %x int %x\n", sptr->dev, sptr->base_port,
+	   sptr->interrupt);
+}
 
+	/* terminal */
+
+void stop_terminal(void)
+{
+  if (config.term_updatefreq > 100) {
+    yywarn("CONF: terminal updatefreq too large (too slow)!");
+    config.term_updatefreq = 100;
+  } 
 }
 
 	/* printer */
@@ -661,15 +774,7 @@ void stop_disk(int token)
 
       c_printf("device: %s ", dptr->dev_name);
       if (stat(dptr->dev_name,&file_status) != 0) /* Does this file exist? */
-	{
-	  char *str;
-
-	  str = malloc(128);             /* No, issue an error-message */
-	  sprintf(str,"Disk-device/file %s doesn't exist.",dptr->dev_name);
-	  yyerror(str);
-
-	  free(str);
-	}
+	 yyerror("Disk-device/file %s doesn't exist.",dptr->dev_name);
     }
 
   if (dptr->type == NODISK)    /* Is it one of bootdisk, floppy, harddisk ? */
@@ -684,15 +789,7 @@ void stop_disk(int token)
       c_printf("partition# %d ", dptr->part_info.number);
       
       if (stat(dptr->part_info.file,&file_status) != 0) /* check part_info */
-	{
-	  char *str;
-	  
-	  str = malloc(128);             /* issue an error-message */
-	  sprintf(str,"Partition-Info %s doesn't exist.",dptr->part_info.file);
-	  yyerror(str);
-	  
-	  free(str);
-	}
+	  yyerror("Partition-Info %s doesn't exist.",dptr->part_info.file);
     }
 
   if (dptr->header)
@@ -877,13 +974,28 @@ void keyb_layout(int layout)
   }
 }
 
+	/* errors & warnings */
 
-	/* errors */
+void yywarn(char* string, ...)
+{
+  va_list vars;
+  va_start(vars, string);
+  vfprintf(stderr, string, vars);
+  fprintf(stderr, "\n");
+  va_end(vars);
+  warnings++;
+}
 
 void yyerror(char* string, ...)
-  {
-  fprintf(stderr, "%.3d:  %s\n", line_count, string);
-  }
+{
+  va_list vars;
+  va_start(vars, string);
+  fprintf(stderr, "PAR: (line %.3d) ", line_count);
+  vfprintf(stderr, string, vars);
+  fprintf(stderr, "\n");
+  va_end(vars);
+  errors++;
+}
 
 void die(char *reason)
 {

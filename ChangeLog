@@ -1,3 +1,19 @@
+Fri Aug 05 1994 Jmaclean
+
+-	Added kludge to keyboard so that keypresses in non-console
+	keyboard mode send keypress then keyrelease sequences. This
+	seems to fix atleast WordPerfect double chars. Doesn't
+	seem to help German aumlets though :-(.
+-	Scottb's latest parser patches adding back emu(sys/bat) and
+	a debug { X on } option.
+
+Thu Aug 04 1994 Lutz
+
+- dpmi/call.S is now totally rewritten to fix a problem with
+  returning to DOS code (stack problem).
+- CallToInit() deleted
+- more dpmi cleaning/preparing
+
 Wed Aug 03 1994 Jmaclean
 
 -	Added patches from Tomi, Scottb to new parse generator...

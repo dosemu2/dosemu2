@@ -6,18 +6,17 @@
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
 #define DPMI_private_paragraphs	0x0100	/* private data for DPMI server */
+#define DPMI_pm_stack_size	0x1000	/* protected mode stack for exceptions etc. */
 
 #define UCODESEL 0x23
 #define UDATASEL 0x2b
 
 extern u_char in_dpmi;
 extern u_char in_dpmi_dos_int;
-extern us DPMI_SavedDOS_ss;
-extern unsigned long DPMI_SavedDOS_esp;
 extern void ReturnFrom_dpmi_control();
 
 void dpmi_get_entry_point();
-void dpmi_control();
+extern void dpmi_control(struct sigcontext_struct *);
 
 void dpmi_fault(struct sigcontext_struct *);
 inline void dpmi_realmode_hlt(unsigned char *);
@@ -63,24 +62,6 @@ typedef struct segment_descriptor_s
 
 extern SEGDESC Segments[];
 
-struct pm86 {
-  unsigned short gs;
-  unsigned short fs;
-  unsigned short es;
-  unsigned short ds;
-  unsigned long edi;
-  unsigned long esi;
-  unsigned long ebp;
-  unsigned long esp;
-  unsigned long ebx;
-  unsigned long edx;
-  unsigned long ecx;
-  unsigned long eax;
-  unsigned long eflags;
-  unsigned long eip;
-  unsigned short cs, __csh;
-};
-
 struct RealModeCallStructure {
   unsigned long edi;
   unsigned long esi;
@@ -102,9 +83,10 @@ struct RealModeCallStructure {
 };
 
 #define DPMI_show_state \
-    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx  trapno:0x%02lx\n" \
+    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \
+	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n" \
 	     "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n", \
-	     _eip, _esp, _eflags, _trapno, _cs, _ds, _es, _ss, _fs, _gs); \
+	     _eip, _esp, _eflags, _trapno, scp->err, scp->cr2, _cs, _ds, _es, _ss, _fs, _gs); \
     D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n", \
 	     _eax, _ebx, _ecx, _edx); \
     D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n", \

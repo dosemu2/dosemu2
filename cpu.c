@@ -3,12 +3,15 @@
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/07/04 23:59:23 $
+ * $Date: 1994/08/05 22:29:31 $
  * $Source: /home/src/dosemu0.60/RCS/cpu.c,v $
- * $Revision: 2.4 $
+ * $Revision: 2.5 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.5  1994/08/05  22:29:31  root
+ * Prep dir pre53_10.
+ *
  * Revision 2.4  1994/07/04  23:59:23  root
  * Prep for Markkk's NCURSES patches.
  *
@@ -219,13 +222,6 @@ extern u_char in_sigsegv, in_sighandler, ignore_segv;
 extern int fatalerr;
 
 extern struct config_info config;
-
-inline void set_revectored(int nr, struct revectored_struct * bitmap)
-{
-	__asm__ __volatile__("btsl %1,%0"
-		: /* no output */
-		:"m" (*bitmap),"r" (nr));
-}
 
 void
 cpu_init(void)

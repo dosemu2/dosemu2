@@ -61,32 +61,13 @@ ports			return(PORTS);
 disk			return(DISK);
 bootdisk		return(BOOTDISK);
 printer			return(PRINTER);
-
-	/* integers */
-
-[0-9]+			{ yylval->i_value = atoi(yytext); return(INTEGER); }
-0x[0-9a-f]+		{ char *end;
-			  yylval->i_value = strtol(yytext, &end, 0);
-			  return(INTEGER); }
-
-	/* strings */
-
-\/dev\/[a-z0-9]+	{ yylval->s_value = yytext; return(STRING); }
-\"[^\"]*\"		{ yylval->s_value = &yytext[1];
-			  yytext[strlen(yytext)-1] = '\0';
-			  return(STRING); }
-
-	/* boolean values */
-
-on			{ yylval->i_value = 1; return(L_ON); }
-off			{ yylval->i_value = 0; return(L_OFF); }
-yes			{ yylval->i_value = 1; return(L_YES); }
-no			{ yylval->i_value = 0; return(L_NO); }
+emusys                  return(EMUSYS);
+emubat                  return(EMUBAT);
 
 	/* speaker values */
 
-emulated		{ yylval->i_value = 2; return(L_SPEAKER); }
-native			{ yylval->i_value = 1; return(L_SPEAKER); }
+emulated		return(EMULATED);
+native			return(NATIVE);
 
 	/* disk keywords */
 
@@ -216,6 +197,7 @@ general			return(GENERAL);
 hardware		return(HARDWARE);
 ipc			return(L_IPC);
 network			return(NETWORK);
+x			return(L_X);
 
 	/* printer stuff */
 
@@ -231,12 +213,37 @@ andmask			return(ANDMASK);
 rdonly			return(RDONLY);
 wronly			return(WRONLY);
 rdwr			return(RDWR);
+range			return(RANGE);
+
+	/* boolean values */
+
+on			{ yylval->i_value = 1; return(L_ON); }
+off			{ yylval->i_value = 0; return(L_OFF); }
+yes			{ yylval->i_value = 1; return(L_YES); }
+no			{ yylval->i_value = 0; return(L_NO); }
+
+	/* integers */
+
+[0-9]+			{ yylval->i_value = atoi(yytext); return(INTEGER); }
+0x[0-9a-f]+		{ char *end;
+			  yylval->i_value = strtol(yytext, &end, 0);
+			  return(INTEGER); }
+
+	/* strings */
+
+\"[^\"]*\"		{ yylval->s_value = &yytext[1];
+			  yytext[strlen(yytext)-1] = '\0';
+			  return(STRING); }
+\'[^\']*\'		{ yylval->s_value = &yytext[1];
+			  yytext[strlen(yytext)-1] = '\0';
+			  return(STRING); }
+[a-z0-9/\~@$-_\+=:,\.]+ { yylval->s_value = yytext; return(STRING); }
 
 	/* comments & whitespace */
 
 [#\;\!][^\n]*\n		line_count++;	/* comments to EOLN */
 [ \t]+			;   		/* ignore all white space */
 \n			line_count++;	/* keep track of lines seen */
-.			;
+.			fprintf(stderr, "discarding char '%c'\n", yytext[0]);
 
 %%

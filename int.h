@@ -7,12 +7,15 @@
  *
  * DANG_END_MODULE
  *
- * $Date: 1994/07/09 14:29:43 $
+ * $Date: 1994/08/05 22:29:31 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 2.9 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.10  1994/08/05  22:29:31  root
+ * Prep dir pre53_10.
+ *
  * Revision 2.9  1994/07/09  14:29:43  root
  * prep for pre53_3.
  *
@@ -207,8 +210,8 @@ int15(u_char i)
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
     k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));
-    CARRY;
 /*
+    CARRY;
     if (LO(ax) & 0x80 )
       if (1 || !(LO(ax)&0x80) ){
 	fprintf(stderr, "Carrying it out\n");
@@ -632,17 +635,6 @@ Restart:
       error("ERROR: dos_ioctl shouldn't get here. XXX\n");
       return (FALSE);
     }
-#endif
-
-#ifdef DPMI
-    /* DPMI must leave protected mode with an int21 4c call */
-  case 0x4c:
-    if (in_dpmi) {
-      D_printf("Leaving DPMI with err of 0x%02x\n", LO(ax));
-      /* in_dpmi_dos_int = 0; */
-      in_dpmi = 0;
-    }
-    return 0;
 #endif
 
   default:

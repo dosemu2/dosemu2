@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/01 14:58:59 $
+ * $Date: 1994/08/05 22:29:31 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.8 $
+ * $Revision: 2.10 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.10  1994/08/05  22:29:31  root
+ * Prep dir pre53_10.
+ *
  * Revision 2.8  1994/08/01  14:58:59  root
  * Added detach (-d) option from Karl Hakimian.
  *

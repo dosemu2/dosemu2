@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/07/26 01:12:20 $
+ * $Date: 1994/08/05 22:29:31 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.3  1994/08/05  22:29:31  root
+ * Prep dir pre53_10.
+ *
  * Revision 2.2  1994/07/26  01:12:20  root
  * prep for pre53_6.
  *
@@ -443,7 +446,7 @@ io_select(void)
 void
 DOS_setscan(u_short scan)
 {
-  k_printf("DOS got set scan %x, startq=%d, endq=%d\n", scan, scan_queue_start, scan_queue_end);
+  k_printf("DOS got set scan %04x, startq=%d, endq=%d\n", scan, scan_queue_start, scan_queue_end);
   scan_queue[scan_queue_end] = scan;
   scan_queue_end = (scan_queue_end + 1) % SCANQ_LEN;
   if (config.keybint) {
@@ -454,6 +457,12 @@ DOS_setscan(u_short scan)
     k_printf("NOT Hard queue\n");
     parent_nextscan();
     scan_to_buffer();
+  }
+  if (!config.console_keyb) {
+    if ((scan & 0xff00) < 0x8000) {
+      k_printf("Adding Key-Release\n");
+      DOS_setscan(scan | 0x8000);
+    }
   }
 
 }
@@ -473,8 +482,12 @@ set_keyboard_bios(void)
     else
       inschr = convKey(*LASTSCAN_ADD);
   }
-  else
+  else {
     inschr = lastchr;
+    if (inschr > 0x7fff) {
+      inschr = 0;
+    }
+  }
   k_printf("parent nextscan found inschr=0x%02x, lastchr = 0x%02x, *LASTSCAN_ADD = 0x%04x\n", inschr, lastchr, *LASTSCAN_ADD);
   k_printf("MOVING   key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *)KEYFLAG_ADDR , *(u_char *)(KEYFLAG_ADDR +1), *(u_char *)KBDFLAG_ADDR, *(u_char *)(KBDFLAG_ADDR+1));

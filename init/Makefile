@@ -33,7 +33,7 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 
 # All object-files are included here.
 
-OBJS = parser.o lex.yy.o inifile.o parse.o
+OBJS = parser.o lex.yy.o parse.o 
 
 .c.o:
 	$(CC) $(CFLAGS) $(DEFINES) $(INCDIR) -c $<
