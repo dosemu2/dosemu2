@@ -123,8 +123,9 @@ menu "Speaker and Sound" {
 menu "Sound Card Emulation" {
   description "Select the Sound Card emulation parameter to change:"
   input "SB base port" sound_emu_sb_base
-  input "SB 8-bit IRQ" sound_emu_sb_irq
+  input "SB IRQ" sound_emu_sb_irq
   input "SB 8-bit DMA" sound_emu_sb_dma
+  input "SB 16-bit DMA" sound_emu_sb_hdma
   input "SB DSP" sound_emu_sb_dsp
   input "SB Mixer" sound_emu_sb_mixer
   input "MPU-401 base port" sound_emu_mpu_base

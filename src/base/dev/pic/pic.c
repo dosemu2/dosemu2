@@ -919,7 +919,6 @@ void pic_untrigger(int inum)
     pic_pirr &= ~(1<<inum);
     pic_irr &= ~(1<<inum);
     pic_wirr &= ~(1<<inum);
-    pic_ltime[inum] = 0;
 }
 
 /* DANG_BEGIN_FUNCTION pic_iret

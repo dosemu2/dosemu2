@@ -630,6 +630,8 @@ static int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
     D_printf("DPMI: set_ldt_entry() failed\n");
     return -1;
   }
+  D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x\n",
+    selector, base_addr, limit);
   Segments[ldt_entry].base_addr = base_addr;
   Segments[ldt_entry].limit = limit;
   Segments[ldt_entry].type = type;
@@ -645,6 +647,33 @@ static int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
   return 0;
 } 
 
+static unsigned short AllocateDescriptorsAt(unsigned short selector,
+    int number_of_descriptors)
+{
+  int ldt_entry = selector >> 3, i;
+
+  if (ldt_entry <= 0x10) return 0;
+  if (ldt_entry == MAX_SELECTORS-number_of_descriptors+1) return 0;
+  for (i=0;i<number_of_descriptors;i++)
+    if (Segments[ldt_entry+i].used) return 0;
+
+  for (i=0;i<number_of_descriptors;i++) {
+    if (in_dpmi)
+      Segments[ldt_entry+i].used = in_dpmi;
+    else {
+      error("AllocateDescriptor() called while in_dpmi=0\n");
+      Segments[ldt_entry+i].used = 1;
+    }
+  }
+  D_printf("DPMI: Allocate %d descriptors started at 0x%04x\n",
+	number_of_descriptors, (ldt_entry<<3) | 0x0007);
+  /* dpmi spec says, the descriptor allocated should be "data" with */
+  /* base and limit set to 0 */
+  for (i = 0; i < number_of_descriptors; i++)
+      if (SetSelector(((ldt_entry+i)<<3) | 0x0007, 0, 0, DPMIclient_is_32,
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
+  return (ldt_entry<<3) | 0x0007;
+}
 
 unsigned short AllocateDescriptors(int number_of_descriptors)
 {
@@ -657,22 +686,15 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
       isfree |= Segments[next_ldt+i].used;
     if (next_ldt == MAX_SELECTORS-number_of_descriptors+1) return 0;
   }
-  for (i=0;i<number_of_descriptors;i++) {
-    if (in_dpmi)
-      Segments[next_ldt+i].used = in_dpmi;
-    else {
-      error("AllocateDescriptor() called while in_dpmi=0\n");
-      Segments[next_ldt+i].used = 1;
-    }
-  }
-  D_printf("DPMI: Allocate %d descriptors started at 0x%04x\n",
-	number_of_descriptors, (next_ldt<<3) | 0x0007);
-  /* dpmi spec says, the descriptor allocated should be "data" with */
-  /* base and limit set to 0 */
-  for (i = 0 ; i< number_of_descriptors; i++)
-      if (SetSelector(((next_ldt+i)<<3) | 0x0007, 0, 0, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
-  return (next_ldt<<3) | 0x0007;
+  return AllocateDescriptorsAt((next_ldt<<3) | 0x0007, number_of_descriptors);
+}
+
+static void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
+{
+    if ((_ds | 7) == (selector | 7)) _ds = 0;
+    if ((_es | 7) == (selector | 7)) _es = 0;
+    if ((_fs | 7) == (selector | 7)) _fs = 0;
+    if ((_gs | 7) == (selector | 7)) _gs = 0;
 }
 
 int FreeDescriptor(unsigned short selector)
@@ -682,6 +704,7 @@ int FreeDescriptor(unsigned short selector)
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
 
+  D_printf("DPMI: Free descriptor, selector=0x%x\n", selector);
   Segments[ldt_entry].used = 0;
   Segments[ldt_entry].base_addr = 0;
   Segments[ldt_entry].limit = 0;
@@ -851,6 +874,13 @@ unsigned long GetSegmentBaseAddress(unsigned short selector)
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector)
 {
   return GetSegmentBaseAddress(selector);
+}
+
+unsigned long GetSegmentLimit(unsigned short selector)
+{
+  if (!ValidAndUsedSelector(selector))
+    return 0;
+  return Segments[selector >> 3].limit;
 }
 
 int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
@@ -1211,7 +1241,89 @@ void fake_pm_int(void)
   in_dpmi_dos_int = 1;
 }
 
-static void do_int31(struct sigcontext_struct *scp, int inumber)
+static void get_ext_API(struct sigcontext_struct *scp)
+{
+      char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMIclient_is_32 ? _esi : _LWORD(esi)));
+      D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
+#ifdef WANT_WINDOWS
+	if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr)))
+      {
+        if(_LWORD(eax) == 0x168a)
+	  _LO(ax) = 0;
+	_es = DPMI_SEL;
+	_edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
+      } else
+#endif
+	if ((!strcmp("PHARLAP.HWINT_SUPPORT", ptr))||(!strcmp("PHARLAP.CE_SUPPORT", ptr)))
+      {
+        if(_LWORD(eax) == 0x168a)
+	  _LO(ax) = 0;
+	_LWORD(eax) = 0;
+      } else
+      {
+	if (!(_LWORD(eax)==0x168a))
+	  _eax = 0x8001;
+	_eflags |= CF;
+      }
+}
+
+static int ResizeDescriptorBlock(struct sigcontext_struct *scp,
+ unsigned short begin_selector, unsigned long length)
+{
+    unsigned short num_descs, old_num_descs;
+    unsigned long old_length, base;
+    int i;
+
+    if (!ValidAndUsedSelector(begin_selector)) return 0;
+    base = GetSegmentBaseAddress(begin_selector);
+    old_length = GetSegmentLimit(begin_selector) + 1;
+    old_num_descs = (old_length ? (DPMIclient_is_32 ? 1 : (old_length/0x10000 +
+				((old_length%0x10000) ? 1 : 0))) : 0);
+    num_descs = (length ? (DPMIclient_is_32 ? 1 : (length/0x10000 +
+				((length%0x10000) ? 1 : 0))) : 0);
+
+    if (num_descs > old_num_descs) {
+	/* grow block. This can fail so do this before anything else. */
+	if (! AllocateDescriptorsAt(begin_selector + (old_num_descs<<3),
+	    num_descs - old_num_descs)) {
+	    _LWORD(eax) = 0x8011;
+	    _LWORD(ebx) = old_length >> 4;
+	    D_printf("DPMI: Unable to allocate %i descriptors starting at 0x%x\n",
+		num_descs - old_num_descs, begin_selector + (old_num_descs<<3));
+	    return 0;
+	}
+	/* last descriptor has a valid base, lets adjust the limit */
+	if (SetSegmentLimit(begin_selector + ((old_num_descs-1)<<3), 0xffff))
+	    return 0;
+        /* init all the newly allocated descs, including the last one */
+	for (i = old_num_descs; i < num_descs; i++) {
+	    if (SetSelector(begin_selector + (i<<3), base+i*0x10000,
+		    0xffff, DPMIclient_is_32,
+		    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
+	}
+    }
+    if (old_num_descs > num_descs) {
+	/* shrink block */
+	for (i = num_descs; i < old_num_descs; i++) {
+	    FreeDescriptor(begin_selector + (i<<3));
+	    FreeSegRegs(scp, begin_selector + (i<<3));
+	}
+    }
+
+    if (num_descs > 0) {
+	/* adjust the limit of the leading descriptor */
+	if (SetSegmentLimit(begin_selector, length-1)) return 0;
+    }
+    if (num_descs > 1) {
+	/* now adjust the last descriptor. Base is already set. */
+	if (SetSegmentLimit(begin_selector + ((num_descs-1)<<3),
+	    (length%0x10000 ? (length%0x10000)-1 : 0xffff))) return 0;
+    }
+
+    return 1;
+}
+
+static void do_int31(struct sigcontext_struct *scp)
 {
 #ifdef X86_EMULATOR
   if (debug_level('M')) {
@@ -1225,7 +1337,7 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
 #endif
 
   _eflags &= ~CF;
-  switch (inumber) {
+  switch (_LWORD(eax)) {
   case 0x0000:
     if (!(_LWORD(eax) = AllocateDescriptors(_LWORD(ecx)))) {
       _LWORD(eax) = 0x8011;
@@ -1240,10 +1352,7 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
     }
 #if 1    
     /* do it dpmi 1.00 host\'s way */
-    if ( _ds == _LWORD(ebx)) _ds = 0;
-    if ( _es == _LWORD(ebx)) _es = 0;
-    if ( _fs == _LWORD(ebx)) _fs = 0;
-    if ( _gs == _LWORD(ebx)) _gs = 0;
+    FreeSegRegs(scp, _LWORD(ebx));
 #endif    
     break;
   case 0x0002:
@@ -1319,45 +1428,80 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
     }
     break;
   case 0x0100:			/* Dos allocate memory */
-  case 0x0101:			/* Dos resize memory */
-  case 0x0102:			/* Dos free memory */
+  case 0x0101:			/* Dos free memory */
+  case 0x0102:			/* Dos resize memory */
     {
-	unsigned char * rm_ssp;
-	unsigned long rm_sp;
-#ifdef X86_EMULATOR
-	int tmp;
-	unsigned char *tmp_ssp;
-#endif
+        D_printf("DPMI: call DOS memory service AX=0x%04X, BX=0x%04x, DX=0x%04x\n",
+                  _LWORD(eax), _LWORD(ebx), _LWORD(edx));
+
 	save_rm_regs();
-	if(inumber == 0x0100)
-	    LWORD(eax) = 0x4800;
-	else if (inumber == 0x0101) {
-	    REG(es) = GetSegmentBaseAddress(_LWORD(edx)) >> 4;
-	    LWORD(eax) = 0x4900;
-	} else if (inumber == 0x0102) {
-	    REG(es) = GetSegmentBaseAddress(_LWORD(edx)) >> 4;
-	    LWORD(eax) = 0x4a00;
-	}
 	REG(eflags) = _eflags;
-	REG(ebx) = _ebx;
-	rm_ssp = (unsigned char *) (REG(ss) << 4);
-	rm_sp = (unsigned long) LWORD(esp);
-	LWORD(esp) -= 4;
-#ifdef X86_EMULATOR
-	tmp_ssp = rm_ssp+rm_sp;
-	tmp = E_MUNPROT_STACK(tmp_ssp);
-#endif
-	pushw(rm_ssp, rm_sp, inumber);
-	pushw(rm_ssp, rm_sp, LWORD(ebx));
-#ifdef X86_EMULATOR
-	if (tmp) E_MPROT_STACK(tmp_ssp);
-#endif
+	REG(ebx) = _LWORD(ebx);
+	REG(es) = GetSegmentBaseAddress(_LWORD(edx)) >> 4;
+
+	switch(_LWORD(eax)) {
+	  case 0x0100: {
+	    unsigned short begin_selector, num_descs;
+	    unsigned long length;
+	    int i;
+
+	    length = _LWORD(ebx) << 4;
+	    num_descs = (length ? (DPMIclient_is_32 ? 1 : (length/0x10000 +
+					((length%0x10000) ? 1 : 0))) : 0);
+	    if (!num_descs) goto err;
+
+	    if (!(begin_selector = AllocateDescriptors(num_descs))) goto err;
+	    _LWORD(edx) = begin_selector;
+
+	    if (SetSelector(begin_selector, 0, length-1, DPMIclient_is_32,
+			    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
+	    for(i = 1; i < num_descs - 1; i++) {
+		if (SetSelector(begin_selector + (i<<3), 0, 0xffff,
+		    DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0))
+			goto err;
+	    }
+	    if (num_descs > 1) {
+		if (SetSelector(begin_selector + ((num_descs-1)<<3), 0,
+			    (length%0x10000 ? (length%0x10000)-1 : 0xffff),
+			    DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0))
+		    goto err;
+	    }
+
+	    LWORD(eax) = 0x4800;
+	  }
+	  break;
+
+	  case 0x0101:
+	    if (!ResizeDescriptorBlock(scp, _LWORD(edx), 0))
+		goto err;
+
+	    LWORD(eax) = 0x4900;
+	    break;
+
+	  case 0x0102: {
+	    unsigned long old_length;
+
+	    if (!ValidAndUsedSelector(_LWORD(edx))) goto err;
+	    old_length = GetSegmentLimit(_LWORD(edx)) + 1;
+	    if (!ResizeDescriptorBlock(scp, _LWORD(edx), _LWORD(ebx) << 4))
+		goto err;
+	    _LWORD(ebx) = old_length >> 4; /* in case of a failure */
+
+	    LWORD(eax) = 0x4a00;
+	  }
+	  break;
+	}
+
 	REG(cs) = DPMI_SEG;
 	REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_memory);
 	in_dpmi_dos_int=1;
-        D_printf("DPMI: call DOS memory service AX=0x%04X, BX=0x%04x, ES=0x%04x\n",
-                  LWORD(eax), LWORD(ebx), REG(es));
-	return (void) do_int(0x21); /* call dos for memory service */
+	return do_int(0x21); /* call dos for memory service */
+
+err:
+        D_printf("DPMI: DOS memory service failed\n");
+	_eflags |= CF;
+	restore_rm_regs();
+	in_dpmi_dos_int = 0;
     }
     break;
   case 0x0200:	/* Get Real Mode Interrupt Vector */
@@ -1437,7 +1581,7 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
       REG(ds) = rmreg->ds;
       REG(fs) = rmreg->fs;
       REG(gs) = rmreg->gs;
-      if (inumber==0x0300) {
+      if (_LWORD(eax)==0x0300) {
         if (_LO(bx)==0x21)
           D_printf("DPMI: int 0x21 fn %04x\n",LWORD(eax));
 	REG(cs) = ((us *) 0)[(_LO(bx) << 1) + 1];
@@ -1462,7 +1606,7 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
       if (tmp) E_MPROT_STACK(tmp_ssp);
 #endif
       LWORD(esp) -= 2 * (_LWORD(ecx));
-      if (inumber==0x0301)
+      if (_LWORD(eax)==0x0301)
 	       LWORD(esp) -= 4;
       else {
 	LWORD(esp) -= 6;
@@ -1824,30 +1968,7 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
     _LO(ax) = (dpmi_eflags & IF) ? 1 : 0;
     break;
   case 0x0a00:	/* Get Vendor Specific API Entry Point */
-    {
-      char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMIclient_is_32 ? _esi : _LWORD(esi)));
-      D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
-#ifdef WANT_WINDOWS
-	if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr)))
-      {
-        if(_LWORD(eax) == 0x168a)
-	  _LO(ax) = 0;
-	_es = DPMI_SEL;
-	_edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
-      } else
-#endif
-	if ((!strcmp("PHARLAP.HWINT_SUPPORT", ptr))||(!strcmp("PHARLAP.CE_SUPPORT", ptr)))
-      {
-        if(_LWORD(eax) == 0x168a)
-	  _LO(ax) = 0;
-	_LWORD(eax) = 0;
-      } else
-      {
-	if (!(_LWORD(eax)==0x168a))
-	  _eax = 0x8001;
-	_eflags |= CF;
-      }
-    }
+    get_ext_API(scp);
     break;
   case 0x0b00:	/* Set Debug Breakpoint ->bx=handle(!CF) */
     {
@@ -1912,7 +2033,7 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0700:	/* Reserved,MARK PAGES AS PAGING CANDIDATES, see intr. lst */
   case 0x0702:	/* Mark Page as Demand Paging Candidate */
   case 0x0703:	/* Discard Page Contents */
-    D_printf("DPMI: unimplemented int31 func %#x\n",inumber);
+    D_printf("DPMI: unimplemented int31 func %#x\n",_LWORD(eax));
     break;
 
 #if X_GRAPHICS
@@ -1931,7 +2052,7 @@ static void do_int31(struct sigcontext_struct *scp, int inumber)
 #endif
 
   default:
-    D_printf("DPMI: unimplemented int31 func %#x\n",inumber);
+    D_printf("DPMI: unimplemented int31 func %#x\n",_LWORD(eax));
     _eflags |= CF;
   } /* switch */
   if (_eflags & CF)
@@ -1983,7 +2104,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 {
 
   if ((i == 0x2f) && (_LWORD(eax) == 0x168a))
-    return do_int31(scp, 0x0a00);
+    return get_ext_API(scp);
   if ((i == 0x2f) && (_LWORD(eax) == 0x1686)) {
     _eax = 0;
     D_printf("DPMI: CPU mode check in protected mode.\n");
@@ -2004,7 +2125,7 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
         }
       }
     }
-    return do_int31(scp, _LWORD(eax));
+    return do_int31(scp);
   } else {
     save_rm_regs();
     REG(eflags) = _eflags;
@@ -2680,7 +2801,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   	(int)_cs, (int)_eip);
   if (_trapno == 0xe) {
       set_debug_level('M', 9);
-      D_printf("DPMI: page fault. in dosemu?\n");
+      error("DPMI: page fault. in dosemu?\n");
       /* why should we let dpmi continue after this point and crash
        * the system? */
       flush_log();
@@ -3448,81 +3569,66 @@ void dpmi_realmode_hlt(unsigned char * lina)
     in_dpmi_dos_int = 0;
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_memory))) {
-    unsigned char  *rm_ss;
-    unsigned long rm_sp;
-    us orig_inumber;
-    us orig_bx;
-    char error;
+    unsigned long length, base;
+    unsigned short begin_selector, num_descs;
+    int i;
     
-    rm_ss = (unsigned char *) (REG(ss) << 4);
-    rm_sp = (unsigned long) LWORD(esp);
-      
-    orig_bx = popw(rm_ss, rm_sp);
-    orig_inumber = popw(rm_ss, rm_sp);
     D_printf("DPMI: Return from DOS memory service, CARRY=%d,ES=0x%04x\n",
 	     LWORD(eflags) & CF, REG(es));
 
     in_dpmi_dos_int = 0;
+
+    begin_selector = LO_WORD(dpmi_stack_frame[current_client].edx);
+
+    dpmi_stack_frame[current_client].eflags &= ~CF;
     if(LWORD(eflags) & CF) {	/* error */
-	dpmi_stack_frame[current_client].eax = REG(eax);/* get error code */
-	if (orig_inumber != 0x101)
+	switch (LO_WORD(dpmi_stack_frame[current_client].eax)) {
+	  case 0x100:
+	    ResizeDescriptorBlock(&dpmi_stack_frame[current_client],
+		begin_selector, 0);
+	    break;
+
+	  case 0x102:
+	    if (!ResizeDescriptorBlock(&dpmi_stack_frame[current_client],
+		begin_selector, LO_WORD(dpmi_stack_frame[current_client].ebx) << 4))
+		error("Unable to resize descriptor block\n");
+	}
+	if (LO_WORD(dpmi_stack_frame[current_client].eax) != 0x101)
 	    dpmi_stack_frame[current_client].ebx = REG(ebx);/* max para aval */
+	dpmi_stack_frame[current_client].eax = REG(eax);/* get error code */
 	dpmi_stack_frame[current_client].eflags |= CF;
-	restore_rm_regs();
-	return;
+	goto done;
     }
 
-    error = 0;
-    if (orig_inumber == 0x0100)
+    base = 0;
+    length = 0;
+    switch (LO_WORD(dpmi_stack_frame[current_client].eax)) {
+      case 0x0100:	/* allocate block */
 	dpmi_stack_frame[current_client].eax = LWORD(eax);
-    if (orig_inumber == 0x0100) {
-	/* allocate desciptor for it */
-	unsigned long length = 0x10*orig_bx;
-	unsigned long base;
-	unsigned short begin_selector;
-	int i;
-	
 	base = LWORD(eax) << 4;
+	length = GetSegmentLimit(begin_selector) + 1;
+	dpmi_stack_frame[current_client].ebx = length >> 4;
+	num_descs = (length ? (DPMIclient_is_32 ? 1 : (length/0x10000 +
+					((length%0x10000) ? 1 : 0))) : 0);
+	for (i = 0; i < num_descs; i++) {
+	    if (SetSegmentBaseAddress(begin_selector + (i<<3), base+i*0x10000))
+		error("Set segment base failed\n");
+	}
+	break;
 
-	begin_selector = AllocateDescriptors(length/0x10000 +
-						((length%0x10000) ? 1 : 0));
-	if (!begin_selector) {
-	    error = 1;
-	    goto done;
+      case 0x0101:	/* free block */
+	break;
+      
+      case 0x0102:	/* resize block */
+        if (ValidAndUsedSelector(begin_selector)) {
+	  length = GetSegmentLimit(begin_selector) + 1;
 	}
-	dpmi_stack_frame[current_client].edx = begin_selector;
-	SetSegmentBaseAddress(begin_selector, base);
-	if ( SetSegmentLimit(begin_selector, length)) {
-	    error = 1;
-	    goto done;
-	}
-	if (length < 0x10000)
-	    goto done;
-	i = 1;
-	length -= 0x10000;
-	while (length > 0xffff) {
-	    if (SetSelector(begin_selector + (i<<3), base+i*0x10000,
-			    0xffff, DPMIclient_is_32,
-			    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) {
-		error =1;
-		goto done;
-	    }
-	    length -= 0x10000;
-	    i++;
-	}
-	if (length)
-	    if (SetSelector(begin_selector + (i<<3), base+i*0x10000,
-			    length, DPMIclient_is_32,
-			    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0))
-		error = 1;
+	dpmi_stack_frame[current_client].ebx = length >> 4;
+	break;
     }
+
 done:
-    if (error)
-	dpmi_stack_frame[current_client].eflags |= CF;
-    else
-	dpmi_stack_frame[current_client].eflags  &= ~CF;
     restore_rm_regs();
-    in_dpmi_dos_int = 0;
   } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_realmode_callback))) &&
 	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_realmode_callback)+0x10)) ) {
 #ifdef X86_EMULATOR

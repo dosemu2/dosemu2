@@ -114,6 +114,8 @@ void stdio_init(void)
 	      config.debugout);
       exit(1);
     }
+    free(config.debugout);
+    config.debugout = NULL;
   }
   else
   {
@@ -444,11 +446,11 @@ void device_init(void)
 #ifdef HAVE_KEYBOARD_V1
   if (!keyb_server_init()) {
     error("can't init keyboard server\n");
-    leavedos(19);
+    config.exitearly = 1;
   }
   if (!keyb_client_init()) {
     error("can't open keyboard client\n");
-    leavedos(19);
+    config.exitearly = 1;
   }
 #endif
    
@@ -483,7 +485,7 @@ void low_mem_init(void)
   if (result != NULL)
     {
       perror ("anonymous mmap");
-      leavedos (1);
+      config.exitearly = 1;
     }
 }
 

@@ -1,3 +1,29 @@
+2003/06/12 ver 1.1.5.1 unofficial pre-release
+	From Ben Davis
+	- Implemented SB16 support.
+	- Fixed sevaral typos in the dcos :)
+	From Stas
+	- Leak-free DOS memory management for DPMI.
+	  Additionally the "Allocate DOS memory" routine
+	  was fixed to match the DPMI specs.
+	- fix SB mixer rates
+	- pic fix to get SC2000 running with SB16
+	- use exit()/config.exitearly=1 instead of leavedos() during init
+	- don't leavedos (but let the BIOS set CF) if there is no disk
+	- FCB fix for coopthreads
+	From Manfred Scherer
+	- use a per-PSP heap to watch for hlist overflow (and then
+	  delete the oldest list) in the MFS.
+	From Bart
+	- clean up MFS a little more; use arrays instead of linked lists
+	  for the hlists; this allows us to avoid duplicate hlists much
+	  more often than before, since the hlists can be walked though
+	  independently with random access.
+	- fix a problem where the MFS chdir did not remove the trailing
+	  backslash
+	- use sigaltstack(2) instead of sa_restorer if it is available
+	- fix memory leaks in the parser and lexer (found by valgrind)
+	- fix more typos
 2003/06/07 ver 1.1.5 released
 	From Bart:
 	- documented TUN/TAP support and the port server.
@@ -14,9 +40,6 @@
 	  * Re-including protection to all headers
 	- fix the DPMI descriptor leaks in:
 	  1. dpmi_init()
-	  2. "Free DOS memory" service routine.
-	  Additionally the "Allocate DOS memory" routine
-	  was fixed to match the DPMI specs.
 	- fix the environment translation for DPMI (bug #731906)
 	- sleep in the dosdebug poll cycle
 	- allow to configure the TAP device before starting DOSEMU

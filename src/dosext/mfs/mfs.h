@@ -251,7 +251,12 @@ struct dir_ent {
   u_short long_path;            /* directory has long path */
   long size;			/* size of file */
   time_t time;			/* st_mtime */
-  struct dir_ent *next;
+};
+
+struct dir_list {
+  int nr_entries;
+  int size;
+  struct dir_ent *de;
 };
 
 struct dos_name {

@@ -36,7 +36,7 @@ static char *dosemurc_varlist[] = {
 	"_com1", "_com2", "_com3", "_com4", "_mouse", "_mouse_dev", "_mouse_flags", "_mouse_baud",
 	"_printer", "_printer_timeout", "_ports",
 	"_ipxsupport", "_novell_hack", "_vnet",
-	"_sound", "_sb_base", "_sb_irq", "_sb_dma", "_sb_dsp", "_sb_mixer", "_mpu_base",
+	"_sound", "_sb_base", "_sb_irq", "_sb_dma", "_sb_hdma", "_sb_dsp", "_sb_mixer", "_mpu_base",
 	"_hogthreshold", "_dpmi", "_vbootfloppy", "_hdimage", "_ttylocks",
 	"_aspi",
 	NULL

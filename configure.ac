@@ -92,6 +92,7 @@ dnl we currently don't use the following ...
 dnl ___AC_CHECK_FUNCS(getcwd gethostname gettimeofday mkdir mkfifo mktime rmdir select socket strdup strerror strstr strtol strtoul uname)
 dnl ... except
 AC_CHECK_FUNCS(gettimeofday)
+AC_CHECK_FUNCS(sigaltstack)
 
 dnl Here is where we do our stuff
 
@@ -626,14 +627,17 @@ EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
 EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
 EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
 
-EXTERN char *dosemu_lib_dir_path INIT(DOSEMULIB_DEFAULT);
-EXTERN char *dosemu_hdimage_dir_path INIT(DOSEMUHDIMAGE_DEFAULT);
-EXTERN char *keymap_load_base_path INIT(DOSEMULIB_DEFAULT "/");
+EXTERN char dosemulib_default[] INIT(DOSEMULIB_DEFAULT);
+EXTERN char *dosemu_lib_dir_path INIT(dosemulib_default);
+EXTERN char dosemuhdimage_default[] INIT(DOSEMUHDIMAGE_DEFAULT);
+EXTERN char *dosemu_hdimage_dir_path INIT(dosemuhdimage_default);
+EXTERN char keymaploadbase_default[] INIT(DOSEMULIB_DEFAULT "/");
+EXTERN char *keymap_load_base_path INIT(keymaploadbase_default);
 EXTERN char *keymap_dir_path INIT("keymap/");
 EXTERN char *owner_tty_locks INIT("uucp");
 EXTERN char *tty_locks_dir_path INIT("/var/lock");
 EXTERN char *tty_locks_name_path INIT("LCK..");
-EXTERN char *dexe_load_path INIT(DOSEMUHDIMAGE_DEFAULT);
+EXTERN char *dexe_load_path INIT(dosemuhdimage_default);
 EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
@@ -641,14 +645,11 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
 #define    RUNDIR                dosemu_rundir_path
 #define    LOCALDIR              dosemu_localdir_path
-#define    DOSEMU_LIB_DIR        dosemu_lib_dir_path
-#define    DOSEMU_HDIMAGE_DIR    dosemu_hdimage_dir_path
 #define    KEYMAP_LOAD_BASE_PATH keymap_load_base_path
 #define    KEYMAP_DIR            keymap_dir_path
 #define    OWNER_LOCKS           owner_tty_locks
 #define    PATH_LOCKD            tty_locks_dir_path
 #define    NAME_LOCKF            tty_locks_name_path
-#define    DEXE_LOAD_PATH        dexe_load_path
 #define    IPX_DOS_INI_PATH      ipx_dos_ini_path
 #define    DOSEMU_MAP_PATH       dosemu_map_file_name
 #define    DOSEMU_MIDI_PATH      dosemu_midi_path

@@ -3461,7 +3461,9 @@ continue to send the output piped to the file or unix command.
 <title>Sound</title>
 
 <para>
-The sound driver is more or less likely to be broken at the moment.
+The sound driver is capable of emulating Sound Blaster cards up to
+and including the SB16. It works for most programs, but there are
+a few that cause problems.
 </para>
 
 <para>
@@ -3485,14 +3487,21 @@ The sound driver is more or less likely to be broken at the moment.
 <term>sb_dma</term>
 <listitem>
 <para>
- DMA channel for the SB
+ Low 8-bit DMA channel for the SB
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>sb_hdma</term>
+<listitem>
+<para>
+ High 16-bit DMA channel for the SB
 </para>
 </listitem></varlistentry>
 <varlistentry>
 <term>sb_dsp</term>
 <listitem>
 <para>
- Path the sound device
+ Path to the sound device
 </para>
 </listitem></varlistentry>
 <varlistentry>
@@ -3532,7 +3541,7 @@ Linux defaults
 <para>
 
 <screen>
-  sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
+  sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_hdma 5 sb_dsp /dev/dsp
                sb_mixer /dev/mixer mpu_base 0x330 }
 </screen>
 
@@ -3545,7 +3554,7 @@ NetBSD defaults
 <para>
 
 <screen>
-  sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound
+  sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_hdma 5 sb_dsp /dev/sound
               sb_mixer /dev/mixer mpu_base 0x330 }
 </screen>
 

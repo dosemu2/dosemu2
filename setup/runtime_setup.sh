@@ -671,7 +671,7 @@ write_out() {
   write_single  emusys
   write_single  fastfloppy
   write_printer
-  write_pairs  sound_emu  sb_base sb_irq sb_dma sb_dsp sb_mixer mpu_base
+  write_pairs  sound_emu  sb_base sb_irq sb_dma sb_hdma sb_dsp sb_mixer mpu_base
  
   echo "}" >> $TEMP
 

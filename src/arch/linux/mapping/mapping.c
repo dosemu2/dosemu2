@@ -90,20 +90,6 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
   return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
 }        
 
-static int munmap_mapping_shm(int cap, void *addr, int mapsize)
-{
-  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%x\n",
-	cap, addr, mapsize);
-  return munmap(addr, mapsize);
-}
-
-static int munmap_mapping_file(int cap, void *addr, int mapsize)
-{
-  Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%x\n",
-	cap, addr, mapsize);
-  return munmap(addr, mapsize);
-}
-
 void *mapscratch_mapping(int cap, void *target, int mapsize, int protect)
 {
   return mmap_mapping(cap|MAPPING_SCRATCH, target, mapsize, protect, 0);

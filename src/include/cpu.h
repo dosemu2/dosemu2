@@ -104,6 +104,9 @@ extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
 #define READ_FLAGS()        LWORD(eflags)
 #define READ_FLAGSE()        REG(eflags)
 
+#define LO_WORD(wrd)	(*((unsigned short *)&(wrd)))
+#define HI_WORD(wrd)	(*((unsigned short *)&(wrd) + 1))
+
 /*
  * nearly directly stolen from Linus : linux/kernel/vm86.c
  *

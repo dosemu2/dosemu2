@@ -89,9 +89,11 @@ from.)
 <title>Disabling the Emulation at Runtime</title>
 
 <para>
-You can now disable the code after it is compiled in by setting the IRQ or DMA
-channels to invalid values (ie IRQ = 0 or &#62; 15, or DMA = 4 or &#62; 7)
-The simplest way, however, is to say 'sound_emu off' in /etc/dosemu.conf
+You can disable the SB emulation by changing the 'sound' variable in
+/etc/dosemu.conf to 'off'. There is currently no way to specify at runtime
+which SB model DOSEMU should emulate; the best you can do is set the T value
+of the BLASTER environment variable (see sound-usage.txt), but not all
+programs will take note of this.
 </para>
 
 </sect2>

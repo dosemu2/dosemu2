@@ -87,15 +87,19 @@ EXTERN struct sb_information_t {
 
 EXTERN struct DSP_information_t {
   uint8_t  time_constant;         /* The current Time constant for writes */
-  uint16_t sample_rate;           /* The current sample rate */
+  uint16_t output_sample_rate;    /* The current sample rate for output */
+  uint16_t input_sample_rate;     /* The current sample rate for input */
   uint8_t  test;                  /* Storage for the test value */
   uint8_t  stereo;                /* Is the device Stereo */
+  uint8_t  is_sb16_command;       /* Was it an SB16-only command? */
+  uint8_t  is_16bit;              /* Is the device 16-bit */
+  uint8_t  is_signed;             /* Is the device accepting signed samples */
   uint8_t  ready;                 /* Is DSP Ready ? */
   uint8_t  data;                  /* Data is available */
-  int32_t  length;                /* Length of the DMA transfer */
-  int32_t  bytes_left;	          /* No. of bytes left in current blk */
+  int32_t  length;                /* Length of the DMA transfer, in bytes or words */
+  int32_t  units_left;            /* No. of bytes/words left in current blk */
 /* 
- * This is the maximum number of bytes transferred via DMA. If you turn
+ * This is the maximum number of bytes/words transferred via DMA. If you turn
  * it too low, the dosemu-overhead gets too big, so the transfer is
  * interrupted (clicking, buzzing), if you make it too high, some
  * programs reading the dma-registers are confused, because the registers
@@ -109,7 +113,8 @@ EXTERN struct DSP_information_t {
   uint8_t  pause_state;	       /* is DMA transfer paused? */ 
 #define SB_USES_DMA 1
 #define HIGH_SPEED_DMA 2
-#define SB_DMA_AUTO_INIT 4
+#define SB_DMA_INPUT 4
+#define SB_DMA_AUTO_INIT 8
   uint8_t  dma_mode;              /* Information we need on the DMA transfer */
   uint8_t  command;               /* DSP command in progress */
 #define SB_NO_DSP_COMMAND 0
@@ -159,7 +164,7 @@ EXTERN struct SB_driver_t {
   /*
    * Miscellaneous Functions
    */
-  int  (* set_speed)(uint16_t speed, uint8_t stereo);
+  int  (* set_speed)(uint16_t speed, uint8_t stereo, uint8_t is_16bit, uint8_t is_signed);
   void  (* play_buffer)(void *buffer, uint16_t length);
 
 } SB_driver; 

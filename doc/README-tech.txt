@@ -2006,7 +2006,9 @@ isk }
 
 2.2.25. Sound
 
-   The sound driver is more or less likely to be broken at the moment.
+   The sound driver is capable of emulating Sound Blaster cards up to and
+   including the SB16. It works for most programs, but there are a few
+   that cause problems.
 
    sb_base
           base address of the SB (HEX)
@@ -2015,10 +2017,13 @@ isk }
           IRQ for the SB
 
    sb_dma
-          DMA channel for the SB
+          Low 8-bit DMA channel for the SB
+
+   sb_hdma
+          High 16-bit DMA channel for the SB
 
    sb_dsp
-          Path the sound device
+          Path to the sound device
 
    sb_mixer
           path to the mixer control
@@ -2032,12 +2037,12 @@ isk }
 
    Linux defaults
 
-      sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/dsp
+      sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_hdma 5 sb_dsp /dev/dsp
                    sb_mixer /dev/mixer mpu_base 0x330 }
 
    NetBSD defaults
 
-      sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound
+      sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_hdma 5 sb_dsp /dev/sound
                   sb_mixer /dev/mixer mpu_base 0x330 }
      _________________________________________________________________
 

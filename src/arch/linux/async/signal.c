@@ -183,6 +183,17 @@ signal_init(void)
   sigprocmask(SIG_BLOCK, &trashset, &oldset);
   g_printf("Initialized all signals to NOT-BLOCK\n");
 
+#ifdef HAVE_SIGALTSTACK
+  {
+    stack_t ss;
+    ss.ss_sp = cstack;
+    ss.ss_size = sizeof(cstack);
+    ss.ss_flags = SS_ONSTACK;
+    
+    if (sigaltstack(&ss, NULL) == 0)
+      have_working_sigaltstack = 1;
+  }
+#endif
 
   /* init signal handlers - these are the defined signals:
    ---------------------------------------------

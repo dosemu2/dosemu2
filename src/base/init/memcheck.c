@@ -42,7 +42,7 @@ int memcheck_addtype(unsigned char map_char, char *name)
     if (strcmp(mem_names[map_char], name) != 0) {
       c_printf("CONF: memcheck, conflicting map type '%c' defined for '%s' \
 & '%s'\n", map_char, mem_names[map_char], name);
-      leavedos(1);
+      config.exitearly = 1;
     }
     else
       c_printf("CONF: memcheck, map type '%c' re-defined for '%s'\n",
@@ -78,7 +78,7 @@ void memcheck_reserve(unsigned char map_char, int addr_start, int size)
 	fprintf(stderr, "    '%s' & '%s'\n", mem_names[map_char],
 		mem_names[mem_map[cntr]]);
 	memcheck_dump();
-	leavedos(1);
+	config.exitearly = 1;
       }
     }
     else

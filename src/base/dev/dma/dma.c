@@ -661,7 +661,7 @@ inline long int dma_get_block_size(int channel)
   return (get_value(dma[controller].i[ch].length) + 1);
 }
 
-long int dma_bytes_left(int channel)
+long int dma_units_left(int channel) /* units are bytes or words */
 {
   int controller, ch;
 
@@ -927,8 +927,8 @@ static void dma_process_demand_mode_write(int controller, int channel)
 
     dma_drop_DREQ(ch);
 
-    if (dma_bytes_left(ch) < dma_get_transfer_size(ch)) {
-      dma[controller].i[channel].size = dma_bytes_left(ch);
+    if (dma_units_left(ch) < dma_get_transfer_size(ch)) {
+      dma[controller].i[channel].size = dma_units_left(ch);
     }
 
     amount_done = dma_do_write(controller, channel, (void *) target_addr,
@@ -974,8 +974,8 @@ static void dma_process_single_mode_write(int controller, int channel)
 
     dma_drop_DREQ(ch);
 
-    if (dma_bytes_left(ch) < dma_get_transfer_size(ch)) {
-      dma[controller].i[channel].size = dma_bytes_left(ch);
+    if (dma_units_left(ch) < dma_get_transfer_size(ch)) {
+      dma[controller].i[channel].size = dma_units_left(ch);
     }
 
     amount_done = dma_do_write(controller, channel, (void *) target_addr,
@@ -1024,8 +1024,8 @@ static void dma_process_block_mode_write(int controller, int channel)
 
     dma_drop_DREQ(ch);
 
-    if (dma_bytes_left(ch) < dma_get_transfer_size(ch)) {
-      dma[controller].i[channel].size = dma_bytes_left(ch);
+    if (dma_units_left(ch) < dma_get_transfer_size(ch)) {
+      dma[controller].i[channel].size = dma_units_left(ch);
     }
 
     amount_done = dma_do_write(controller, channel, (void *) target_addr,
@@ -1088,8 +1088,8 @@ static void dma_process_demand_mode_read(int controller, int channel)
 
     dma_drop_DREQ(ch);
 
-    if (dma_bytes_left(ch) < dma_get_transfer_size(ch)) {
-      dma[controller].i[channel].size = dma_bytes_left(ch);
+    if (dma_units_left(ch) < dma_get_transfer_size(ch)) {
+      dma[controller].i[channel].size = dma_units_left(ch);
     }
 
     amount_done = dma_do_read(controller, channel, (void *) target_addr,
@@ -1127,15 +1127,15 @@ static void dma_process_single_mode_read(int controller, int channel)
 			    dma[controller].address[channel], controller);
 
   h_printf("DMA: Single Mode Read - length %ld (%ld)\n",
-	   dma_bytes_left(ch), dma[controller].i[channel].size);
+	   dma_units_left(ch), dma[controller].i[channel].size);
 
   if (dma_test_DREQ(ch)) {
     dma[controller].i[channel].run = 1;
 
     dma_drop_DREQ(ch);
 
-    if (dma_bytes_left(ch) < dma_get_transfer_size(ch)) {
-      dma[controller].i[channel].size = dma_bytes_left(ch);
+    if (dma_units_left(ch) < dma_get_transfer_size(ch)) {
+      dma[controller].i[channel].size = dma_units_left(ch);
     }
 
     amount_done = dma_do_read(controller, channel, (void *) target_addr,
@@ -1187,8 +1187,8 @@ static void dma_process_block_mode_read(int controller, int channel)
 
     dma_drop_DREQ(ch);
 
-    if (dma_bytes_left(ch) < dma_get_transfer_size(ch)) {
-      dma[controller].i[channel].size = dma_bytes_left(ch);
+    if (dma_units_left(ch) < dma_get_transfer_size(ch)) {
+      dma[controller].i[channel].size = dma_units_left(ch);
     }
 
     amount_done = dma_do_read(controller, channel, (void *) target_addr,

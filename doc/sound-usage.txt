@@ -1,7 +1,7 @@
 
 Using The DOSEMU Sound System (SBEMU)
 
-Alistair MacDonald, updated by Stas Sergeev.
+Alistair MacDonald, updated by Stas Sergeev and subsequently by Ben Davis.
 
    dosemu-1.0
 
@@ -37,7 +37,7 @@ Alistair MacDonald, updated by Stas Sergeev.
 
    It is much better to be pessimistic about the capabilities of DOSEMU's
    sound code. The code itself provides an EMULATION of the popular SB
-   cards. The actual level of emulation that can be achieved is dependant
+   cards. The actual level of emulation that can be achieved is dependent
    upon the capabilities of the sound driver on your system. Currently
    the emulation can only talk to the OSS driver (included in the Linux
    kernel) although it has been written in a modular fashion to allow
@@ -45,8 +45,11 @@ Alistair MacDonald, updated by Stas Sergeev.
    see the WWW pages at
    http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/.
 
-   Note that the SB and DMA emulation has been extensively reworked by
-   Stas Sergeev now, and DOSEMU can emulate an SB Pro quite well.
+   The SB and DMA emulation was extensively reworked a while ago by Stas
+   Sergeev to the point of emulating the SB Pro quite well. Ben Davis has
+   since added SB16 support. So the pessimism in the last paragraph may
+   no longer be justified. However, there are programs that don't work or
+   don't work well. (SB16 support implemented 22-24 May 2003.)
      _________________________________________________________________
 
 2. What to (and what not to!) expect
@@ -75,14 +78,15 @@ Alistair MacDonald, updated by Stas Sergeev.
 2.3. SB (Digital)
 
    This is the digital aspect of the audio output. It is the most mature.
-   Most of the functionality up to SB-16 is implemented. Note that SB
-   MIDI is not implemented, although MPU-401 emulation (above) is.
+   Most of the functionality up to and including SB-16 is implemented.
+   Note that SB MIDI is not implemented, although MPU-401 emulation
+   (above) is.
      _________________________________________________________________
 
 3. Using SBEMU
 
    SBEMU needs to be turned on at run-time. Then your DOS applications
-   need to be configured to use the emulation. (Just as they need to be
+   need to be configured to use the emulation (just as they need to be
    configured to use the real Sound Blaster card). The basic steps are
    given below.
      _________________________________________________________________
@@ -107,6 +111,7 @@ Alistair MacDonald, updated by Stas Sergeev.
     $_sb_base = (0x220)
     $_sb_irq = (5)
     $_sb_dma = (1)
+    $_sb_hdma = (5)
     $_sb_dsp = "/dev/dsp"
     $_sb_mixer = ""
     $_mpu_base = (0x330)
@@ -167,7 +172,7 @@ Alistair MacDonald, updated by Stas Sergeev.
    already have a ~/.dosemu/run directory then the mkdir will fail. This
    is not a problem.
 
-   For ALSA the things are a bit trickier. Here is an explanation from
+   For ALSA, things are a bit trickier. Here is an explanation from
    Robert Komar:
 
    The kernel-side basics for getting it working are described at
@@ -244,9 +249,9 @@ Alistair MacDonald, updated by Stas Sergeev.
    card. For a base SB with the values above, use the following DOS
    command:
 
-       set BLASTER=A220 I5 D1 T4
+       set BLASTER=A220 I5 D1 H5 T6
 
-   The T4 identifies this as a Type 4 SB device eg SB Pro 2.0. Here is a
+   The T6 identifies this as a Type 6 SB device, i.e. an SB 16. Here is a
    table of SB types:
 
     1. Legacy SB
@@ -255,9 +260,6 @@ Alistair MacDonald, updated by Stas Sergeev.
     4. SB Pro 2.0
     5. SB Pro MCV
     6. SB 16
-
-   SB16 (Type 6) and newer won't work in most cases, other types should
-   work well.
      _________________________________________________________________
 
 3.3. Configuring the Applications
@@ -277,7 +279,7 @@ Alistair MacDonald, updated by Stas Sergeev.
 
 3.3.2. SB Music with SB Audio
 
-   Configure the application with 'SB' for Music & Audio. Note that if
+   Configure the application with 'SB' for Music and Audio. Note that if
    the system plans to use FM for the music you will not get music.
      _________________________________________________________________
 
@@ -296,11 +298,13 @@ Alistair MacDonald, updated by Stas Sergeev.
 
        % dosemu.bin -D-a+Sh -o sound.out
 
-   You can get slightly more verbose output is you use level 2 debugging
-   (eg use -D-a+2Sh). If you need someone else to look at the debug
-   output then feel free to send it to the list, but PLEASE, remove any
-   unnecessary debug output, and give a DETAILED description of the
-   problem. Ideally, use the bug reporting toolsubmit-bug-report.
+   You can get slightly more verbose output if you use level 2 debugging
+   (e.g. use -D-a+2Sh). If you need someone else to look at the debug
+   output then feel free to send it to the list or report it at the
+   SourceForge bug tracker at
+   http://sourceforge.net/tracker/?atid=457447=49784=browse, but PLEASE,
+   remove any unnecessary debug output, and give a DETAILED description
+   of the problem.
 
   Notes
 

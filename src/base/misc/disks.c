@@ -686,14 +686,12 @@ disk_open(struct disk *dp)
       if (dp->fdesc < 0) {
         error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
-        if (!dp->removeable) leavedos(22);
       } else {
         dp->rdonly = 1;
         d_printf("(disk) can't open %s for read/write. Readonly used.\n", dp->dev_name);
       }
     } else {
       d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
-      if (!dp->removeable) leavedos(22);
     }
   }
   else dp->rdonly = dp->wantrdonly;

@@ -159,14 +159,6 @@ TODO:
 #define DOSEMU 1		/* this is a port to dosemu */
 #endif
 
-#if PROFILE
-#include "profile.h"
-#else
-#define PS(x)
-#define PE(x)
-#endif
-
-
 #if !DOSEMU
 #include "base.h"
 #include "bios.h"
@@ -267,7 +259,7 @@ boolean_t mach_fs_enabled = FALSE;
  * With the value 66 it should be possible to create
  * paths with length 63.
  * I've tested it on my own system, and I found the value 66
- * ist right for me.
+ * is right for me.
  */
 
 #define MAX_PATH_LENGTH 66
@@ -287,7 +279,6 @@ static boolean_t find_file(char *, struct stat *);
 static boolean_t compare(char *, char *, char *, char *);
 static int dos_fs_redirect(state_t *);
 static int build_ufs_path(char *ufs, const char *path);
-static void set_long_path_on_dirs(struct dir_ent *);
 static int is_long_path(const char *s);
 
 static boolean_t drives_initialized = FALSE;
@@ -797,12 +788,9 @@ mfs_redirector(void)
 {
   int ret;
 
-  PS(MFS);
-
   sigalarm_onoff(0);
   ret = dos_fs_redirect(&REGS);
   sigalarm_onoff(1);
-  PE(MFS);
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
 
@@ -938,22 +926,44 @@ extract_filename(char *filename, char *name, char *ext)
   return (TRUE);
 }
 
-static struct dir_ent *
-make_entry(void)
+static struct dir_list *make_dir_list(int n)
 {
-  struct dir_ent *entry;
+  struct dir_list *dir_list = malloc(sizeof(*dir_list));
+  dir_list->size = n;
+  dir_list->nr_entries = 0;
+  dir_list->de = malloc(n * sizeof(dir_list->de[0]));
+  return dir_list;
+}
 
+static void enlarge_dir_list(struct dir_list *dir_list, int n)
+{
+  dir_list->size = n;
+  dir_list->de = realloc(dir_list->de, n * sizeof(dir_list->de[0]));
+}
+
+static struct dir_ent *make_entry(struct dir_list *dir_list)
+{
 /* DANG_FIXTHIS returned size of struct dir_ent seems wrong at 28 bytes. */
 /* DANG_BEGIN_REMARK
  * The msdos_dir_ent structure has much more than 28 bytes. 
  * Is this significant?
  * DANG_END_REMARK
  */
-  entry = (struct dir_ent *) malloc(sizeof(struct dir_ent));
+  struct dir_ent *entry;
+
+  if (dir_list->nr_entries == 0xffff) {
+    Debug0((dbg_fd, "DOS cannot handle more than 65535 files in one directory\n"));
+    error("DOS cannot handle more than 65535 files in one directory\n");
+    /* dos limit -- can't get beyond here */
+    return NULL;
+  }
+  if (dir_list->nr_entries >= dir_list->size)
+    enlarge_dir_list(dir_list, dir_list->size * 2);
+  entry = &dir_list->de[dir_list->nr_entries];
+  dir_list->nr_entries++;
   entry->hidden = FALSE;
-  entry->next = NULL;
   entry->long_path = FALSE;
-  return (entry);
+  return entry;
 }
 
 /* check if name/mname.mext exists as such if it does not contain
@@ -983,12 +993,11 @@ static boolean_t exists(char *name, char *mname, char *mext, struct stat *st)
   return rc;
 }
 
-static  struct dir_ent *
-_get_dir(char *name, char *mname, char *mext)
+static struct dir_list *get_dir(char *name, char *mname, char *mext)
 {
   DIR *cur_dir;
   struct direct *cur_ent;
-  struct dir_ent *dir_list;
+  struct dir_list *dir_list;
   struct dir_ent *entry;
   struct stat sbuf;
   int slen;
@@ -1008,7 +1017,6 @@ _get_dir(char *name, char *mname, char *mext)
   Debug0((dbg_fd, "get_dir() opened '%s'\n", name));
 
   dir_list = NULL;
-  entry = dir_list;
 
 /* DANG_BEGIN_REMARK
  * 
@@ -1018,9 +1026,8 @@ _get_dir(char *name, char *mname, char *mext)
  * DANG_END_REMARK
  */
   if (is_dos_device(mname)) {
-    entry = make_entry();
-    dir_list = entry;
-    entry->next = NULL;
+    dir_list = make_dir_list(1);
+    entry = make_entry(dir_list);
 
     memcpy(entry->name, mname, 8);
     memset(entry->ext, ' ', 3);
@@ -1038,9 +1045,8 @@ _get_dir(char *name, char *mname, char *mext)
     if (exists(name, mname, mext, &sbuf))
     {
       Debug0((dbg_fd, "filename exists, %s %.8s%.3s\r\n", name, mname, mext));
-      entry = make_entry();
-      dir_list = entry;
-      entry->next = NULL;
+      dir_list = make_dir_list(1);
+      entry = make_entry(dir_list);
 
       memcpy(entry->name, mname, 8);
       memcpy(entry->ext, mext, 3);
@@ -1051,7 +1057,7 @@ _get_dir(char *name, char *mname, char *mext)
     closedir(cur_dir);
     return (dir_list);      
   }
-  else
+  else {
     while ((cur_ent = dos_readdir(cur_dir))) {
       char tmpname[100];
       int namlen;
@@ -1092,15 +1098,13 @@ _get_dir(char *name, char *mname, char *mext)
 	  continue;
       }
 
-      if (entry == NULL) {
-	entry = make_entry();
-	dir_list = entry;
+      if (dir_list == NULL) {
+        dir_list = make_dir_list(20);
+	entry = make_entry(dir_list);
       }
       else {
-	entry->next = make_entry();
-	entry = entry->next;
+	entry = make_entry(dir_list);
       }
-      entry->next = NULL;
 
       memcpy(entry->name, fname, 8);
       memcpy(entry->ext, fext, 3);
@@ -1125,20 +1129,10 @@ _get_dir(char *name, char *mname, char *mext)
 	entry->time = sbuf.st_mtime;
       }
 
-    }
+    } 
+  }
   closedir(cur_dir);
   return (dir_list);
-}
-
-static __inline__ struct dir_ent *
-get_dir(char *name, char *fname, char *fext)
-{
-  struct dir_ent *r;
-
-  PS(GETDIR);
-  r = _get_dir(name, fname, fext);
-  PE(GETDIR);
-  return (r);
 }
 
 /*
@@ -1745,8 +1739,7 @@ scan_dir(char *path, char *name)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-static boolean_t
-_find_file(char *fpath, struct stat * st)
+static boolean_t find_file(char *fpath, struct stat * st)
 {
   char *slash1, *slash2;
 
@@ -1763,12 +1756,15 @@ _find_file(char *fpath, struct stat * st)
       path_exists = (!stat(fpath, &st) && S_ISDIR(st.st_mode));
       *s = '/';
     }
+    Debug0((dbg_fd, "device exists  = %d\n", s == NULL || path_exists));
     return (s == NULL || path_exists);
   }
   
   /* first see if the path exists as is */
-  if (stat(fpath, st) == 0)
+  if (stat(fpath, st) == 0) {
+    Debug0((dbg_fd, "file exists as is\n"));
     return (TRUE);
+  }
 
   /* if it isn't an absolute path then we're in trouble */
   if (*fpath != '/') {
@@ -1837,22 +1833,6 @@ _find_file(char *fpath, struct stat * st)
 
   Debug0((dbg_fd, "found file %s\n", fpath));
   return (TRUE);
-}
-
-static boolean_t
-find_file(char *fpath, struct stat *st)
-{
-  boolean_t r;
-
-  Debug0((dbg_fd, "find_file(%s)\n",fpath));
-
-  PS(FINDFILE);
-  r = _find_file(fpath, st);
-  PE(FINDFILE);
-
-  Debug0((dbg_fd, "find_file gave %s %d\n",fpath,(int)r));
-
-  return (r);
 }
 
 static boolean_t
@@ -1927,68 +1907,19 @@ compare(char *fname, char *fext, char *mname, char *mext)
   return (TRUE);
 }
 
-static struct dir_ent *
-_match_filename_prune_list(struct dir_ent *list, char *name, char *ext)
-{
-  struct dir_ent *last_ptr;
-  struct dir_ent *tmp_ptr;
-  struct dir_ent *first_ptr;
-
-  /* special case checks */
-  if ((strncmpDOS(name, "????????", 8) == 0) &&
-      (strncmpDOS(ext, "???", 3) == 0))
-    return (list);
-
-  /* more special case checks */
-  if ((strncmpDOS(name, "????????", 8) == 0) &&
-      (strncmpDOS(ext, "   ", 3) == 0))
-    return (list);
-
-  first_ptr = NULL;
-  last_ptr = NULL;
-
-  while (list != NULL) {
-    if (compare(list->name, list->ext, name, ext)) {
-      if (first_ptr == NULL) {
-	first_ptr = list;
-      }
-      last_ptr = list;
-      tmp_ptr = list->next;
-      list = tmp_ptr;
-    }
-    else {
-      last_ptr->next = list->next;
-      tmp_ptr = list->next;
-      free(list);
-      list = tmp_ptr;
-    }
-  }
-  return (first_ptr);
-}
-
-static __inline__ struct dir_ent *
-match_filename_prune_list(struct dir_ent *list, char *name, char *ext)
-{
-  struct dir_ent *r;
-
-  PS(MATCH);
-  r = _match_filename_prune_list(list, name, ext);
-  PE(MATCH);
-  return (r);
-}
-
 /* Set the long_path flag for every directory on a dir_ent list.
    Called on FIND_FIRST when we are in a directory with a long
    pathname. The potentially dangerous subdirectories can then be
    handled properly.*/
-static void
-set_long_path_on_dirs(struct dir_ent *list)
+static void set_long_path_on_dirs(struct dir_list *dir_list)
 {
-  while (list != NULL) {
+  int i;
+  struct dir_ent *list = &dir_list->de[0];
+  for (i = 0; i < dir_list->nr_entries; i++) {
     if (S_ISDIR(list->mode)) {
       list->long_path = TRUE;
     }
-    list = list->next;
+    list++;
   }
 }
 
@@ -2000,146 +1931,239 @@ is_long_path(const char* path)
     && (p-path > MAX_PATH_LENGTH-8);
 }
 
-#if 0
-#define HLIST_STACK_SIZE 32
-#else
 #define HLIST_STACK_SIZE 256
-#endif
 
 struct stack_entry
 {
-  struct dir_ent *hlist;
+  struct dir_list *hlist;
   unsigned psp;
-  unsigned attr;
-  unsigned char *fpath;
+  int seq;
+  int duplicates;
+  unsigned char *fpath;      
 };
+
+#define HLIST_WATCH_CNT 64	/* if more than HWC hlist positions then ... */
 
 static struct
 {
-  int tail;
-  int head;
+  int tos;                      /* top of stack */
+  int seq;                      /* sequence number */
+  /* 
+   * = 1 : watching
+   * = 0 : findnext in progress without watching
+   */
+  int watch;
   struct stack_entry stack[HLIST_STACK_SIZE];
 } hlists;
 
-static  void
-free_list(struct stack_entry *se)
+static void free_list(struct stack_entry *se, boolean_t force)
 {
-  struct dir_ent *list, *next;
+  struct dir_list *list;
+
+  if (se->duplicates && !force) {
+    se->duplicates--;
+    return;
+  }
 
   free(se->fpath);
   se->fpath = NULL;
-  se->attr = 0;
-  se->psp = 0;
 
-  list = se->hlist;
+  list = se->hlist;  
   if (list == NULL)
     return;
 
-  while (list->next != NULL) {
-    next = list->next;
-    free(list);
-    list = next;
-  }
+  free(list->de);
   free(list);
   se->hlist = NULL;
 }
 
-static __inline__ int
-hlist_push(struct dir_ent *hlist, unsigned psp, unsigned attr, char *fpath)
+static inline int hlist_push(struct dir_list *hlist, unsigned psp, char *fpath)
 {
-  struct stack_entry *se = &hlists.stack[hlists.head];
-  int ind = hlists.head;
-  Debug0((dbg_fd, "hlist_push: %d %d hlist=%p PSP=%d\n", hlists.tail, hlists.head, hlist, psp));
-  if (ind != hlists.tail || se->hlist != NULL) do {
-    if (ind == 0)
-      ind = HLIST_STACK_SIZE;
-    ind--;
-    se = &hlists.stack[ind];
-    if (se->hlist && se->psp == psp && se->attr == attr &&
-        se->fpath && strcmp(se->fpath, fpath) == 0) {
+  struct stack_entry *se;
+  static unsigned prev_psp = 0;
+
+  Debug0((dbg_fd, "hlist_push: %d hlist=%p PSP=%d path=%s\n", hlists.tos, hlist, psp, fpath));
+
+  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+    if (se->hlist && se->fpath && strcmp(se->fpath, fpath) == 0) {
       Debug0((dbg_fd, "hlist_push: found duplicate\n"));
-      free_list(se);
+      /* if the list is owned by the current PSp then we must not
+         destroy it after the last findnext. If the list is owned
+         by a different PSP then it is never destroyed by the current
+         PSP so we should not mark it duplicate.
+         We then replace the duplicate with a fresh directory list;
+         this does not conflict with how DOS works on real FAT drives,
+         where a "findnext" looks directly in the directory.
+      */
+      if (se->psp == psp)
+        se->duplicates++;
+      free_list(se, TRUE);
       goto exit;
     }
-  } while (ind != hlists.tail);
-  se = &hlists.stack[hlists.head];
-  if (hlists.head == hlists.tail && se->hlist != NULL) {
-    Debug0((dbg_fd, "hlist_push: clean tail\n"));
-    free_list(se);
-    hlists.tail++;
   }
-  ind = hlists.head;
-  hlists.head++;
-  if (hlists.head == HLIST_STACK_SIZE)
-    hlists.head = 0;
- exit:  
-  se->hlist = hlist;
+
+  if (psp != prev_psp) {
+    Debug0((dbg_fd, "hlist_push_new_psp: prev_psp=%d psp=%d\n", prev_psp, psp));
+    prev_psp = psp;
+    hlists.watch = 0;	/* reset watch for new PSP */
+  }
+  else {
+    /*
+     * we're looking for a gap, which is a result from a deletion of
+     * a previous broken(?) findfirst/findnext. --ms
+     */
+    for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+      if (se->hlist == NULL) {
+        Debug0((dbg_fd, "hlist_push gap=%d\n", se - hlists.stack));
+        se->duplicates = 0;
+        se->psp = psp;
+        goto exit;
+      }
+    }
+  }
+  
+  if (hlists.tos >= HLIST_STACK_SIZE) {
+    Debug0((dbg_fd, "hlist_push: past maximum stack\n"));
+    error("MFS: hlist_push: past maximum stack\n");
+    return -1;
+  }
+
+  se = &hlists.stack[hlists.tos++];
+  se->duplicates = 0;
   se->psp = psp;
-  se->attr = attr;
+ exit:
+  se->hlist = hlist;
   se->fpath = strdup(fpath);
-  Debug0((dbg_fd, "hlist_push: %d %d hlist=%p FPATH=%s\n", hlists.tail, hlists.head, se->hlist, se->fpath));
-  return ind;
+  return se - hlists.stack;;
 }
 
-static __inline__ void
-hlist_pop(int indx, unsigned psp)
+/* 
+ * DOS allows more than one open (not finished) findfirst/findnext!
+ * But repeated findfirst with more than HLIST_WATCH_CNT hlist positions 
+ * is an indicator for possible broken findfirsts/findnexts.
+ * We are looking for more than HLIST_WATCH_CNT hlist positions,
+ * these are candidates to watch for deletion. --ms
+ */
+static inline void hlist_set_watch(unsigned psp)
+{
+  struct stack_entry *se;
+  int cnt = 0;
+
+  if (hlists.watch) return; /* watching in progress */
+          
+  se = &hlists.stack[hlists.tos];
+  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+    if ((se->psp == psp) && (++cnt > HLIST_WATCH_CNT)) {
+      /* we set all findfirst of these PSP onto the watchlist */
+      hlists.watch = 1;	/* watching on */
+      Debug0((dbg_fd, "watch hlist_stack for PSP=%d\n", psp));
+      return;
+    }
+  }
+}
+
+static inline void hlist_pop(int indx, unsigned psp)
 {
   struct stack_entry *se = &hlists.stack[indx];
-  Debug0((dbg_fd, "hlist_pop: %d popping=%d PSP=%d\n", hlists.head, indx, psp));
-  if (hlists.head >= hlists.tail && (indx < hlists.tail || indx >= hlists.head))
-    return;
-  if (hlists.head < hlists.tail && (hlists.head <= indx && indx < hlists.tail))
+  Debug0((dbg_fd, "hlist_pop: %d popping=%d PSP=%d\n", hlists.tos, indx, psp));
+  if (hlists.tos <= indx)
     return;
   if (se->psp != psp) {
     Debug0((dbg_fd, "hlist_pop: psp mismatch\n"));
     return;
   }
+  if (se->duplicates) {
+    Debug0((dbg_fd, "hlist_pop: don't pop duplicates\n"));
+    se->duplicates--;
+    return;
+  }
   if (se->hlist != NULL) {
     Debug0((dbg_fd, "hlist_pop: popped list not empty?!\n"));
   }
-  free_list(se);
-  se = &hlists.stack[hlists.head];
-  if (hlists.head == hlists.tail && se->hlist == NULL)
-    return;
-  do {
-    if (hlists.head == 0)
-      hlists.head = HLIST_STACK_SIZE;
-    if (hlists.stack[hlists.head - 1].hlist != NULL)
-      break;
-    hlists.head--;
-  } while (hlists.head != hlists.tail);
-  if (hlists.head == HLIST_STACK_SIZE)
-    hlists.head = 0;
-  do {
-    if (hlists.stack[hlists.tail].hlist != NULL)
-      break;
-    hlists.tail++;
-    if (hlists.tail == HLIST_STACK_SIZE)
-      hlists.tail = 0;
-  } while (hlists.head != hlists.tail);
+  free_list(se, FALSE);
+  
+  for (se = &hlists.stack[hlists.tos-1];
+       se >= hlists.stack && se->hlist == NULL;
+       --se);
+  hlists.tos = se - hlists.stack + 1;
+
+  Debug0((dbg_fd, "hlist_pop: %d poped=%d PSP=%d\n",
+		 hlists.tos, indx, psp));
 }
 
-static __inline__ void
-hlist_pop_psp(unsigned psp)
+static inline void hlist_pop_psp(unsigned psp)
 {
-  struct stack_entry *se = &hlists.stack[hlists.head];
-  int ind = hlists.head, old_head = hlists.head;
+  struct stack_entry *se;
+  int new_tos = hlists.tos;
   Debug0((dbg_fd, "hlist_pop_psp: PSP=%d\n", psp));
-  if (hlists.head == hlists.tail && se->hlist == NULL)
-    return;
-  do {
-    if (ind == 0)
-      ind = HLIST_STACK_SIZE;    
-    ind--;
-    se = &hlists.stack[ind];
-    if (se->psp == psp) {
+
+  hlists.watch = 0;	/* reset, we give the previous PSP a new chance --ms */
+
+  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+    if (se->psp == psp && se->hlist != NULL) {
       Debug0((dbg_fd, "hlist_pop_psp: deleting hlist=%p\n", se->hlist));
-      free_list(se);
+      free_list(se, TRUE);
     }
-    else if (hlists.head == old_head) {
-      hlists.head = ind + 1;
+    if (se->hlist != NULL) {
+      new_tos = se - hlists.stack + 1;
+    }            
+  }
+  hlists.tos = new_tos;
+}
+
+
+static inline void hlist_watch_pop(unsigned psp)
+{
+  int act_seq = hlists.seq;
+  struct stack_entry *se_del = NULL;
+  struct stack_entry *se;
+
+  /*
+   * We delete simple the oldest hlist of the current PSP.
+   * This means not simple a circuit buffer but a heap for the current PSP!
+   * The oldest hlist is this one which is longest time
+   * not touched for a find_next.
+   * We never delete a hlist from a parent PSP!!!
+   * We cancel only the oldest hlist of the current PSP.
+   * --ms
+   */
+
+  for (se = hlists.stack; se < &hlists.stack[hlists.tos]; se++) {
+    if (se->psp != psp)
+      continue;
+
+    if (se->seq < 0) {
+      se_del = NULL;	/* we have found a gap, it is not neccessary ... */
+      break;
     }
-  } while (ind != hlists.tail);
+
+    if (hlists.watch && (se->seq > 0) && (se->seq < act_seq)) {
+      se_del = se;
+      act_seq = se->seq;
+    }
+  }
+  if (se_del != NULL) {
+    se = se_del;
+    Debug0((dbg_fd, "hlist_watch_pop: deleting ind=%d hlist=%p\n",
+						se_del-hlists.stack,se->hlist));
+    free_list(se, TRUE);
+    se->seq = -1; /* done */
+  }
+
+  /* shrinking hlists.stack.hlist if is possible
+   */
+  se = &hlists.stack[hlists.tos];
+  while (se > hlists.stack) {
+    se--;
+    if (se->hlist != NULL) {
+      se++;
+      break;
+    }
+    Debug0((dbg_fd, "hlist_watch_pop: shrinking stack_top=%d\n",
+						se - hlists.stack));
+    hlists.watch = 0;	/* reset watch */
+  }
+  hlists.tos = se - hlists.stack;
 }
 
 #if 0
@@ -2801,10 +2825,9 @@ dos_fs_redirect(state_t *state)
   char fext[3];
   char fpath[MAXPATHLEN];
   char buf[MAXPATHLEN];
-  struct dir_ent *tmp;
   struct stat st;
   boolean_t long_path;
-  struct dir_ent *hlist;
+  struct dir_list *hlist;
   int hlist_index;
 #if 0
   static char last_find_name[8] = "";
@@ -2921,22 +2944,14 @@ dos_fs_redirect(state_t *state)
       Debug0((dbg_fd, "Set Directory %s not found\n", fpath));
       return (FALSE);
     }
-    /* what we do now is update the cds_current_path, although it is
-       probably superflous in most cases as dos seems to do it for us */
+    /* strip trailing backslash in the filename */
     {
-      char *fp, *cwd;
-
-      fp = fpath + strlen(dos_root);
-
-      /* Skip over leading <drive>:\ */
-      cwd = cds_current_path(cds) + cds_rootlen(cds) + 1;
-
-      /* now copy the rest of the path, changing / to \ */
-      do
-	*cwd++ = (*fp == '/' ? '\\' : *fp);
-      while (*fp++);
+      size_t len = strlen(filename1);
+      if (len > 3 && filename1[len-1] == '\\') {
+        filename1[len-1] = '\0';
+      }
     }
-    Debug0((dbg_fd, "New CWD is %s\n", cds_current_path(cds)));
+    Debug0((dbg_fd, "New CWD is %s\n", filename1));
     return (TRUE);
   case CLOSE_FILE:		/* 0x06 */
     cnt = sft_fd(sft);
@@ -3218,8 +3233,10 @@ dos_fs_redirect(state_t *state)
     }
   case DELETE_FILE:		/* 0x13 */
     {
-      struct dir_ent *de = NULL;
+      struct dir_list *dir_list = NULL;
       int errcode = 0;
+      int i;
+      struct dir_ent *de;
 
       Debug0((dbg_fd, "Delete file %s\n", filename1));
       if (read_only) {
@@ -3242,10 +3259,9 @@ dos_fs_redirect(state_t *state)
 	strcpy(fpath, "/");
       }
 
-      de = match_filename_prune_list(get_dir(fpath, fname, fext),
-				     fname, fext);
+      dir_list = get_dir(fpath, fname, fext);
 
-      if (de == NULL) {
+      if (dir_list == NULL) {
 	build_ufs_path(fpath, filename1);
 	if (!find_file(fpath, &st)) {
 	  SETWORD(&(state->eax), FILE_NOT_FOUND);
@@ -3270,7 +3286,8 @@ dos_fs_redirect(state_t *state)
 
       cnt1 = strlen(fpath);
       fpath[cnt1] = SLASH;
-      while (de != NULL) {
+      de = &dir_list->de[0];
+      for(i = 0; i < dir_list->nr_entries; i++, de++) {
 	if ((de->mode & S_IFMT) == S_IFREG) {
 	  cnt = cnt1;
 	  memcpy(&fpath[cnt+1], de->name, 8);
@@ -3294,18 +3311,19 @@ dos_fs_redirect(state_t *state)
             }
 	  }
 	}
-	tmp = de->next;
-	free(de);
-	de = tmp;
         if (errcode != 0) {
           if (errcode == EACCES) {
             SETWORD(&(state->eax), ACCESS_DENIED);
           } else {
             SETWORD(&(state->eax), FILE_NOT_FOUND);
           }
+          free(dir_list->de);
+          free(dir_list);
           return (FALSE);
         }
       }
+      free(dir_list->de);
+      free(dir_list);
       return (TRUE);
     }
 
@@ -3635,11 +3653,16 @@ dos_fs_redirect(state_t *state)
 
     Debug0((dbg_fd, "findfirst %s attr=%x\n", filename1, attr));
 
+    /* 
+     * we examine the hlists.stack.hlist for broken find_firsts/find_nexts. --ms
+     */
+    hlist_watch_pop(sda_cur_psp(sda));
+
     /* check if path is long */
     long_path = is_long_path(filename1);
 
     if (!build_ufs_path(fpath, filename1)) {
-      sdb_dir_entry(sdb) = HLIST_STACK_SIZE*2; /* no findnext */
+      sdb_p_cluster(sdb) = 0xffff; /* no findnext */
       sdb_file_attr(sdb) = 0;
       time_to_dos(time(NULL), &sdb_file_date(sdb), &sdb_file_time(sdb));
       sdb_file_size(sdb) = 0;
@@ -3660,58 +3683,46 @@ dos_fs_redirect(state_t *state)
     memcpy(sdb_template_ext(sdb), fext, 3);
     sdb_attribute(sdb) = attr;
     sdb_drive_letter(sdb) = 0x80 + current_drive;
-    sdb_dir_entry(sdb) = HLIST_STACK_SIZE*2;  /* correct value later */
+    sdb_p_cluster(sdb) = 0xffff;  /* correct value later */
 
     Debug0((dbg_fd, "Find first %8.8s.%3.3s\n",
 	    (char *) sdb_template_name(sdb),
 	    (char *) sdb_template_ext(sdb)));
-/*
-    strncpy(last_find_name, sdb_template_name(sdb), 8);
-    strncpy(last_find_ext, sdb_template_ext(sdb), 3);
-    last_find_dir = sdb_dir_entry(sdb);
-    last_find_drive = sdb_drive_letter(sdb);
-*/
+
+
 #ifndef NO_VOLUME_LABELS
     if (attr & VOLUME_LABEL &&
 	strncmpDOS(sdb_template_name(sdb), "????????", 8) == 0 &&
 	strncmpDOS(sdb_template_ext(sdb), "???", 3) == 0) {
       Debug0((dbg_fd, "DO LABEL!!\n"));
-#if 0
-      auspr(VOLUMELABEL, fname, fext);
-      sprintf(fext, "%d", current_drive);
-#else
       {
-	char *label, *root, *p;
+        char *label, *root, *p;
 
-	p = dos_roots[current_drive];
-	label = (char *) malloc(8 + 3 + 1);
-	root = strdup(p);
-	if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
-	  root[strlen(root) - 1] = '\0';
-#if 0
-	sprintf(label, "%d:", current_drive);
-#else
-	label[0] = '\0';
-#endif
-	if (strlen(label) + strlen(root) <= 8 + 3) {
-	  strcat(label, root);
-	}
-	else {
-#if 0
-	  strcat(label, "...");
-#endif
-	  strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
-	}
+        p = dos_roots[current_drive];
+        label = (char *) malloc(8 + 3 + 1);
+        root = strdup(p);
+        if (root[strlen(root) - 1] == '/' && strlen(root) > 1)
+          root[strlen(root) - 1] = '\0';
+
+        label[0] = '\0';
+
+        if (strlen(label) + strlen(root) <= 8 + 3) {
+          strcat(label, root);
+        }
+        else {
+
+          strcat(label, root + strlen(root) - (8 + 3 - strlen(label)));
+        }
         p = label + strlen(label);
         if (p < label + 8 + 3)
           memset(p, ' ', label + 8 + 3 - p);
 
-	memcpy(fname, label, 8);
-	memcpy(fext, label + 8, 3);
-	free(label);
-	free(root);
+        memcpy(fname, label, 8);
+        memcpy(fext, label + 8, 3);
+        free(label);
+        free(root);
       }
-#endif
+
       memcpy(sdb_file_name(sdb), fname, 8);
       memcpy(sdb_file_ext(sdb), fext, 3);
       sdb_file_attr(sdb) = VOLUME_LABEL;
@@ -3721,30 +3732,21 @@ dos_fs_redirect(state_t *state)
       /* if (attr != VOLUME_LABEL)
 	find_in_progress = TRUE; */
       auspr(bs_pos + 1, fname, fext);
-      if (bs_pos == fpath)
-	strcpy(fpath, "/");
-	   
-      hlist =
-        match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
-      if (hlist==NULL)  {
-        SETWORD(&(state->eax), NO_MORE_FILES);
-        return (FALSE);
-      }
 
-      strcat(fpath, buf);
-      hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
-      sdb_dir_entry(sdb) = hlist_index;
-      return (TRUE);
+      /* We fill the hlist for labels not here,
+       * we do it a few lines later. --ms
+       */
+
     }
 #else
     if (attr == VOLUME_LABEL)
       return (FALSE);
 #endif
+
     if (bs_pos == fpath)
       strcpy(fpath, "/");
 
-    hlist =
-      match_filename_prune_list(get_dir(fpath, fname, fext), fname, fext);
+    hlist = get_dir(fpath, "????????", "???");
     if (hlist==NULL)  {
       SETWORD(&(state->eax), NO_MORE_FILES);
       return (FALSE);
@@ -3752,14 +3754,30 @@ dos_fs_redirect(state_t *state)
     if (long_path) {
       set_long_path_on_dirs(hlist);
     }
+    hlist_index = hlist_push(hlist, sda_cur_psp(sda), fpath);
     strcat(fpath, buf);
-    hlist_index = hlist_push(hlist, sda_cur_psp(sda), attr, fpath);
-    sdb_dir_entry(sdb) = hlist_index;
+    sdb_dir_entry(sdb) = 0;
+    sdb_p_cluster(sdb) = hlist_index;
+
+    hlists.stack[hlist_index].seq = ++hlists.seq; /* new watch stamp --ms */
+    hlist_set_watch(sda_cur_psp(sda));
+
+    /*
+     * This is the right place to leave this stuff for volume labels. --ms
+     */
+    if (attr & VOLUME_LABEL &&
+        strncmpDOS(sdb_template_name(sdb), "????????", 8) == 0 &&
+        strncmpDOS(sdb_template_ext(sdb), "???", 3) == 0) {
+      Debug0((dbg_fd, "DONE LABEL!!\n"));
+
+      return (TRUE);
+    }
+
     firstfind = 1;
 
   find_again:
 
-    if (hlist == NULL) {
+    if (hlist == NULL || sdb_dir_entry(sdb) >= hlist->nr_entries) {
       /* no matches or empty directory */
       Debug0((dbg_fd, "No more matches\n"));
 #if 0 /* Hardly any directory is really empty (there are always some vol.labels,
@@ -3771,68 +3789,69 @@ dos_fs_redirect(state_t *state)
       else
 #endif
         SETWORD(&(state->eax), NO_MORE_FILES);
-      hlists.stack[hlist_index].hlist = NULL;
       return (FALSE);
     }
     
-    Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", hlist->name, hlist->ext));
     {
-      sdb_file_attr(sdb) = get_dos_attr(hlist->mode,hlist->hidden);
+      struct dir_ent *de = &hlist->de[sdb_dir_entry(sdb)];
+      Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
+      sdb_dir_entry(sdb)++;
 
-      if (hlist->mode & S_IFDIR) {
-	Debug0((dbg_fd, "Directory ---> YES 0x%x\n", hlist->mode));
+      if (!compare(de->name, de->ext, sdb_template_name(sdb), sdb_template_ext(sdb)))
+        goto find_again;
+              
+      sdb_file_attr(sdb) = get_dos_attr(de->mode,de->hidden);
+
+      if (de->mode & S_IFDIR) {
+	Debug0((dbg_fd, "Directory ---> YES 0x%x\n", de->mode));
 	if (!(attr & DIRECTORY)) {
-	  tmp = hlist->next;
-	  free(hlist);
-	  hlist = tmp;
 	  goto find_again;
 	}
-	if (hlist->long_path 
-	    && strncmp(hlist->name, ".       ", 8)
-	    && strncmp(hlist->name, "..      ", 8)) {
+	if (de->long_path 
+	    && strncmp(de->name, ".       ", 8)
+	    && strncmp(de->name, "..      ", 8)) {
 	  /* Path is long, so we do not allow subdirectories
 	     here. Instead return the entry as a regular file.
 	  */
 	  sdb_file_attr(sdb) &= ~DIRECTORY;
-	  hlist->size = 0; /* fake empty file */
+	  de->size = 0; /* fake empty file */
 	}
       }
-      time_to_dos(hlist->time,
+      time_to_dos(de->time,
 		  &sdb_file_date(sdb),
 		  &sdb_file_time(sdb));
-      sdb_file_size(sdb) = hlist->size;
-      strncpy(sdb_file_name(sdb), hlist->name, 8);
-      strncpy(sdb_file_ext(sdb), hlist->ext, 3);
-
-#if 0
-      sdb_dir_entry(sdb)++;
-#endif
+      sdb_file_size(sdb) = de->size;
+      strncpy(sdb_file_name(sdb), de->name, 8);
+      strncpy(sdb_file_ext(sdb), de->ext, 3);
 
       Debug0((dbg_fd, "'%.8s'.'%.3s' hlist=%d\n",
 	      sdb_file_name(sdb),
 	      sdb_file_ext(sdb), hlist_index));
 
-      tmp = hlist->next;
-      free(hlist);
-      hlist = tmp;
     }
     firstfind = 0;
-    hlists.stack[hlist_index].hlist = hlist;
-    if (hlist == NULL) {
+    if (sdb_dir_entry(sdb) >= hlist->nr_entries)
       hlist_pop(hlist_index, sda_cur_psp(sda));
-    }
     return (TRUE);
 
   case FIND_NEXT:		/* 0x1c */
-    hlist_index = sdb_dir_entry(sdb);
+    hlist_index = sdb_p_cluster(sdb);
     hlist = NULL;
-    if ((hlists.head >= hlists.tail && (hlists.tail <= hlist_index && hlist_index < hlists.head)) ||
-        (hlists.head <  hlists.tail && (hlist_index >= hlists.tail || hlist_index < hlists.head)))
+
+    /* 
+     * if watched find_next in progress, refresh sequence number. --ms
+     */
+    Debug0((dbg_fd, "Find next hlist_index=%d\n",hlist_index));
+
+    if (hlist_index < hlists.tos) {
+      if (hlists.stack[hlist_index].seq > 0)
+        hlists.stack[hlist_index].seq = hlists.seq; 
+
+      Debug0((dbg_fd, "Find next seq=%d\n",hlists.stack[hlist_index].seq));
+
       hlist = hlists.stack[hlist_index].hlist;
-    if (hlist) {
-      free(hlists.stack[hlist_index].fpath);
-      hlists.stack[hlist_index].fpath = NULL;
     }
+
     Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%d\n",
 	    (char *) sdb_template_name(sdb),
 	    (char *) sdb_template_ext(sdb), (int)hlist));

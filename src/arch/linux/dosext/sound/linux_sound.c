@@ -291,7 +291,7 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
            S_printf ("SB:[Linux] Warning: failed to change sound fragment size.\n");
            bits_per_samp = 0;
         }
-        linux_sb_set_speed(DIRECT_WRITE_FREQ, 0);
+        linux_sb_set_speed(DIRECT_WRITE_FREQ, 0, 0, 0);
         /* reset DMA settings */
         sample_rate = 0;
         num_channels = 0;
@@ -561,11 +561,13 @@ void linux_sb_dma_complete(void)
 	S_printf ("SB:[Linux] DMA Completed\n");
 }
 
-int linux_sb_set_speed (uint16_t speed, uint8_t stereo_mode)
+int linux_sb_set_speed (uint16_t speed, uint8_t stereo_mode, uint8_t is_16bit, uint8_t is_signed)
 {
   int rate = speed;
   int channels, result = 0;
-  long int samplesize = AFMT_U8;
+  long int samplesize = is_16bit ?
+    (is_signed ? AFMT_S16_LE : AFMT_U16_LE) :
+    (is_signed ? AFMT_S8 : AFMT_U8);
 
   /* stereo_mode is actually 2 is stereo is requested - Karcher */
   channels = stereo_mode ? 2 : 1;

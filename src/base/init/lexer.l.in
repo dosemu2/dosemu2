@@ -151,7 +151,7 @@ static int __loop_handling__ = 0;
 static int dump_input(int rulenum);
 static void enter_cachefile(int cfile);
 static int cachefile_read(char *buf, int size, int cfile);
-static int chachefile_wrap(void);
+static int cachefile_wrap(void);
 static int macrofile_read(char *buf, int size);
 static int macrofile_wrap(void);
 
@@ -598,6 +598,7 @@ background_pause	RETURN(X_BACKGROUND_PAUSE);
 sb_base                 RETURN(SB_BASE);
 sb_irq                  RETURN(SB_IRQ);
 sb_dma                  RETURN(SB_DMA);
+sb_hdma                 RETURN(SB_HDMA);
 sb_dsp                  RETURN(SB_DSP);
 sb_mixer                RETURN(SB_MIXER);
 mpu_base                RETURN(MPU_BASE);
@@ -781,11 +782,11 @@ int yywrap(void)    /* this gets called at EOF of a parsed file */
   if (include_stack_ptr <= 0 ) return(1);
 #if USE_LOOP_HANDLING
 #if 1
-  if ((unsigned int)yyin <= CACHEFILES_MAX) return chachefile_wrap();
+  if ((unsigned int)yyin <= CACHEFILES_MAX) return cachefile_wrap();
   if ((unsigned int)yyin == MACROFILE) return macrofile_wrap();
 #else
   if (macrobuffer) return macrofile_wrap();
-  if (__loop_handling__ < 0) return chachefile_wrap();
+  if (__loop_handling__ < 0) return cachefile_wrap();
 #endif
 #endif
   yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
@@ -919,7 +920,7 @@ static void free_cachefile_buffers(void)
 {
 	int i;
 	if (cachefile) {
-		for (i=0; i <cachefilewptr; i++)
+		for (i=0; i <= cachefilewptr; i++)
 			if (cachefile[i].origfname) free(cachefile[i].origfname);
 		free(cachefile);
 		cachefile = 0;
@@ -1017,12 +1018,12 @@ static void enter_cachefile(int cfile)
 }
 
 
-static int chachefile_wrap(void)
+static int cachefile_wrap(void)
 {
 	struct cache_file *cf;
 	int cfile;
 
-	/* we come her from yywrap, when we got an EOF on the cache file */
+	/* we come here from yywrap, when we got an EOF on the cache file */
 	
 	if (include_stack_ptr <= 0 || !cachefile || cachefilecurrent <0) return 0;
 	cfile = cachefilecurrent;
@@ -1041,6 +1042,7 @@ static int chachefile_wrap(void)
 	cachefilecurrent = cf->parent;
 	yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
 	yy_delete_buffer(include_stack[include_stack_ptr]);
+	free(include_fnames[include_stack_ptr]);
 	if (config_check_only>1)
 		c_printf("CONF: closed cache file %d\n", cfile);
 	include_stack_ptr--;
@@ -1134,7 +1136,7 @@ static int dump_input(int rulenum)
 		case DONE_RULE_NUM: {
 			close_cachefile_write(savebufwptr);
 			if (cachefilecurrent <0) {
-				/* finished all cashing,
+				/* finished all caching,
 				 * starting working phase */
 				__loop_handling__ = -1;
 				enter_cachefile(0);

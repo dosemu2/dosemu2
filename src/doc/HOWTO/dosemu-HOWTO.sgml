@@ -608,9 +608,10 @@ a per-user basis using the /etc/dosemu.users file.
 Programs that require direct access to hardware ports (e.g. if the
 program needs to talk to some unusual hardware that is not supported
 by Linux and dosemu) require dosemu to run as root but printers,
-serial ports, mice and video cards (and to a small extent sound -
-hopefully more soon) are emulated by dosemu so you don't need direct
-hardware access and don't need to run as root to use these.
+serial ports, mice, video cards and sound are emulated by dosemu so
+you won't usually need direct hardware access and won't need to
+run as root to use these. Some programs are just too sneaky for
+dosemu's hardware emulation to work properly though ...
 </para>
 
 </sect2>
@@ -1639,9 +1640,7 @@ configured in raw keyboard mode and enabled VGA graphics modes, in the
 </para>
 
 <para>
-Note, however, you will have to turn off the sound in the game.
-(Someone will have to program in sound board emulation before we can
-avoid this).  Note that game timers can be a little bit slow, due to
+Note that game timers can be a little bit slow, due to
 Linux multitasking and lack of high-frequency timer support.  So the
 games may run from anywhere from 5 to 100 percent speed.  Typically,
 the speed is approximately 50 percent in recent dosemu releases and is
@@ -1710,11 +1709,25 @@ README.dosdebug, dosdebug can aid you recovering.
 <title>Why doesn't my soundcard software work with dosemu?</title>
 
 <para>
-Dosemu includes a rudimentary soundblaster emulator called SBemu -
-the documentation for it is currently at
-http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/
-This is a work in progress, not completed yet so much or most
-DOS software that uses sound will not work correctly with it yet.
+Dosemu includes a Sound Blaster 16 emulator called SBemu. See
+sound-usage.txt for information on setting this up. It may not
+work for everything. Programs that are known to work are Impulse
+Tracker and most games. One that is known not to work well is
+FastTracker II.
+
+If you have trouble getting sound to work at all, make sure you
+have a working OSS driver and have configured everything properly
+as described in sound-usage.txt. If most of your sound software
+works but some programs don't detect sound, make sure your BLASTER
+environment variable is set properly. Finally, make sure you are
+aware of the difference between digital sound, FM, and MIDI; it
+may be, for example, that you have digital sound working but MIDI
+isn't set up properly.
+
+If you believe DOSEMU really is having trouble with a specific
+program, and it isn't a configuration error on your part, then
+please, submit a bug report! Have a look at sound-usage.txt for
+information on getting debugging output.
 </para>
 
 </sect2>

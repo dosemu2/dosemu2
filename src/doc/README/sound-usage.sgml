@@ -7,7 +7,7 @@
 <title> Using The DOSEMU Sound System (SBEMU)</title>
 
 <author>
-<firstname> Alistair MacDonald, updated by Stas Sergeev.
+<firstname> Alistair MacDonald, updated by Stas Sergeev and subsequently by Ben Davis.
 </firstname>
 
 <authorblurb>
@@ -40,7 +40,7 @@ what you can expect from it.
 It is much better to be pessimistic about the capabilities of DOSEMU's
 sound code. The code itself provides an <emphasis>EMULATION</emphasis> of the popular
 SB cards. The actual level of emulation that can be achieved is
-dependant upon the capabilities of the sound driver on your
+dependent upon the capabilities of the sound driver on your
 system. Currently the emulation can only talk to the OSS driver
 (included in the Linux kernel) although it has been written in a
 modular fashion to allow other drivers to be written. For more details 
@@ -51,8 +51,11 @@ url="http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/"
 </para>
 
 <para>
-Note that the SB and DMA emulation has been extensively reworked by
-Stas Sergeev now, and DOSEMU can emulate an SB Pro quite well.
+The SB and DMA emulation was extensively reworked a while ago by Stas
+Sergeev to the point of emulating the SB Pro quite well. Ben Davis
+has since added SB16 support. So the pessimism in the last paragraph
+may no longer be justified. However, there are programs that don't
+work or don't work well. (SB16 support implemented 22-24 May 2003.)
 </para>
 
 </sect1>
@@ -96,7 +99,7 @@ It is possible to use TiMidity++ instead.
 
 <para>
 This is the digital aspect of the audio output. It is the most mature.
-Most of the functionality up to SB-16 is implemented.
+Most of the functionality up to and including SB-16 is implemented.
 Note that SB MIDI is not implemented, although MPU-401 
 emulation (above) is.
 </para>
@@ -111,7 +114,7 @@ emulation (above) is.
 <para>
 SBEMU needs to be turned on at
 run-time. Then your DOS applications need to be configured to use the
-emulation. (Just as they need to be configured to use the real Sound
+emulation (just as they need to be configured to use the real Sound
 Blaster card). The basic steps are given below.
 </para>
 
@@ -160,6 +163,7 @@ $_sound = (off)		# sound support on/off
 $_sb_base = (0x220)
 $_sb_irq = (5)
 $_sb_dma = (1)
+$_sb_hdma = (5)
 $_sb_dsp = "/dev/dsp"
 $_sb_mixer = ""
 $_mpu_base = (0x330)
@@ -262,7 +266,7 @@ then the <literal remap="tt">mkdir</literal> will fail. This is not a problem.
 </para>
 
 <para>
-For ALSA the things are a bit trickier.
+For ALSA, things are a bit trickier.
 Here is an explanation from Robert Komar:
 </para>
 
@@ -381,13 +385,13 @@ card. For a base SB with the values above, use the following DOS command:
 <para>
 
 <screen>
-set BLASTER=A220 I5 D1 T4
+set BLASTER=A220 I5 D1 H5 T6
 </screen>
 
 </para>
 
 <para>
-The T4 identifies this as a Type 4 SB device eg SB Pro 2.0.
+The T6 identifies this as a Type 6 SB device, i.e. an SB 16.
 Here is a table of SB types:
 <orderedList>
 <listitem><para>Legacy SB</para></listitem>
@@ -397,8 +401,6 @@ Here is a table of SB types:
 <listitem><para>SB Pro MCV</para></listitem>
 <listitem><para>SB 16</para></listitem>
 </orderedList>
-SB16 (Type 6) and newer won't work in most cases, other types
-should work well.
 </para>
 
 </sect2>
@@ -429,7 +431,7 @@ or hardware mixing ability (TiMidity++).
 <title> SB Music with SB Audio</title>
 
 <para>
-Configure the application with 'SB' for Music &#38; Audio. Note that if
+Configure the application with 'SB' for Music and Audio. Note that if
 the system plans to use FM for the music you will not get music.
 </para>
 
@@ -468,11 +470,18 @@ flag 'h'. To get basic debugging information into a file called
 </para>
 
 <para>
-You can get slightly more verbose output is you use level 2 debugging
-(eg use <literal remap="tt">-D-a+2Sh</literal>). If you need someone else to look at the
-debug output then feel free to send it to the list, but <emphasis>PLEASE,
+You can get slightly more verbose output if you use level 2 debugging
+(e.g. use <literal remap="tt">-D-a+2Sh</literal>). If you need someone
+else to look at the
+debug output then feel free to send it to the list or report it at
+<ulink url="
+http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse">
+the SourceForge bug tracker at
+http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse
+</ulink>,
+but <emphasis>PLEASE,
 remove any unnecessary debug output, and give a DETAILED description
-of the problem. Ideally, use the bug reporting tool</emphasis><literal remap="tt">submit-bug-report</literal>.
+of the problem.
 </para>
 
 </sect1>

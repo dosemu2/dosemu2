@@ -294,8 +294,8 @@ void dump_config_status(void *printfunc)
 	}
     }
 
-    (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
-        config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
+    (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_hdma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
+        config.sb_base, config.sb_dma, config.sb_hdma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
     (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
@@ -432,7 +432,7 @@ void secure_option_preparse(int *argc, char **argv)
       fprintf(stderr, "Bypassing systemwide configuration not allowed for suid-root\n");
       exit(0);
     }
-    DOSEMU_LIB_DIR = opt;
+    dosemu_lib_dir_path = opt;
   }
 
   opt = get_option("--Fimagedir", 1);
@@ -441,7 +441,7 @@ void secure_option_preparse(int *argc, char **argv)
       fprintf(stderr, "Bypassing systemwide boot path not allowed for suid-root\n");
       exit(0);
     }
-    DOSEMU_HDIMAGE_DIR = opt;
+    dosemu_hdimage_dir_path = opt;
   }
 }
 
@@ -596,6 +596,16 @@ static void config_post_process(void)
 	"Please consider using TAP instead.\n"
 	"To do this, you have to set $_vnet=\"TAP\"\n");
     }
+    if (dosemu_lib_dir_path != dosemulib_default)
+        free(dosemu_lib_dir_path);
+    dosemu_lib_dir_path = NULL;
+    if (dosemu_hdimage_dir_path != dosemuhdimage_default)
+        free(dosemu_hdimage_dir_path);
+    dosemu_hdimage_dir_path = NULL;
+    if (keymap_load_base_path != keymaploadbase_default)
+        free(keymap_load_base_path);
+    keymap_load_base_path = NULL;
+    dexe_load_path = NULL;
 }
 
 static config_scrub_t config_scrub_func[100];
@@ -825,8 +835,10 @@ config_init(int argc, char **argv)
             dbg_fd = fopen(config.debugout, "w");
             if (!dbg_fd) {
                 fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
-                leavedos(1);
+                exit(1);
             }
+            free(config.debugout);
+            config.debugout = NULL;
         }
     }
 
@@ -981,7 +993,7 @@ config_init(int argc, char **argv)
 	    usage(basename);
 	    fflush(stdout);
 	    fflush(stderr);
-	    _exit(1);
+	    exit(1);
 	}
     }
     if (optind < argc) {
@@ -993,7 +1005,7 @@ config_init(int argc, char **argv)
     if (config_check_only) {
 	dump_config_status(0);
 	usage(basename);
-	leavedos(0);
+	exit(1);
     }
 }
 

@@ -543,7 +543,7 @@ int load_and_run_DOS_program(char *command, char *cmdline)
 	pa4->envframe = 0; // ctcb->envir_frame;
 	pa4->cmdline = MK_FP(COM_SEG, COM_OFFS_OF(cmdl));
 	pa4->fcb1 = MK_FP(COM_SEG, COM_OFFS_OF(ctcb->FCB1));
-	pa4->fcb1 = MK_FP(COM_SEG, COM_OFFS_OF(ctcb->FCB2));
+	pa4->fcb2 = MK_FP(COM_SEG, COM_OFFS_OF(ctcb->FCB2));
 	LWORD(ds) = COM_SEG;
 	LWORD(ebx) = COM_OFFS_OF(pa4);
 

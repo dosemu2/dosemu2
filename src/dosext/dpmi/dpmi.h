@@ -182,6 +182,7 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
+unsigned long GetSegmentLimit(unsigned short);
 void CheckSelectors(struct sigcontext_struct *scp);
 
 extern void DPMI_show_state(struct sigcontext_struct *scp);

@@ -856,15 +856,16 @@ s
 
 2.1.11. Sound
 
-   Here are the settings for SBPro sound card emulation by passing the
-   control to the Linux soundrivers. For more information see
+   The following settings will tell DOSEMU to emulate an SB16 sound card
+   using your Linux sound drivers. For more information see
    sound-usage.txt.
 
     $_sound = (on)            # sound support on/off
     $_sb_base = (0x220)       # base IO-address (HEX)
     $_sb_irq = (5)            # IRQ
-    $_sb_dma = (1)            # DMA channel
-    $_sb_dsp = "/dev/dsp"     # Path the sound device
+    $_sb_dma = (1)            # Low 8-bit DMA channel
+    $_sb_hdma = (5)           # High 16-bit DMA channel
+    $_sb_dsp = "/dev/dsp"     # Path to the sound device
     $_sb_mixer = ""       # path to the mixer control
     $_mpu_base = (0x330)      # base address for the MPU-401 chip (HEX)
      _________________________________________________________________
@@ -915,7 +916,7 @@ ium
 
          $_netdev = "eth0"
 
-   Note that dosnet and eth0 requires raw packet access, and hence
+   Note that dosnet and eth0 require raw packet access, and hence
    (suid)-root. If $_vnet = "dosnet", then $_netdev will default to
    "dsn0". If you would like to use persistent TUN/TAP devices then you
    need to specifify the TAP device in $_netdev. For more on this look at
@@ -1082,10 +1083,11 @@ is,
 
 4.3. Disabling the Emulation at Runtime
 
-   You can now disable the code after it is compiled in by setting the
-   IRQ or DMA channels to invalid values (ie IRQ = 0 or > 15, or DMA = 4
-   or > 7) The simplest way, however, is to say 'sound_emu off' in
-   /etc/dosemu.conf
+   You can disable the SB emulation by changing the 'sound' variable in
+   /etc/dosemu.conf to 'off'. There is currently no way to specify at
+   runtime which SB model DOSEMU should emulate; the best you can do is
+   set the T value of the BLASTER environment variable (see
+   sound-usage.txt), but not all programs will take note of this.
      _________________________________________________________________
 
 5. Using Lredir
@@ -2173,25 +2175,31 @@ is,
    needing root privileges, although some setup (as root, depending on
    the distribution) is still needed.
 
-   First make sure that you have TUN/TAP support is configured in your
-   kernel; for details check Documentation/networking/tuntap.txt from the
-   Linux kernel source. The user who runs DOSEMU should have read/write
-   access to /dev/net/tun. Then either:
+   First make sure that your Linux kernel comes with support for TUN/TAP;
+   for details check Documentation/networking/tuntap.txt in the Linux
+   kernel source. The user who runs DOSEMU should have read/write access
+   to /dev/net/tun. Then either:
 
-    1. Set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "". Start
+    1. set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "". Start
        DOSEMU as usual and configure the network device while DOSEMU is
        running (using ifconfig manually as root, a script, or usernetctl
        if your distribution supplies that), e.g. ifconfig tap0
        192.168.74.1. Configure the DOS network clients to have another IP
        address withing the same domain (e.g. 192.168.74.2). Your network
-       should now be up and running, but it will be down is soon as you
+       should now be up and running, but it will be down as soon as you
        exit DOSEMU.
     2. or set $_pktdriver=(on), $_vnet = "tap" and $_netdev = "tap0".
-       Obtain tunctl from the user mode linux project. Then setup a
+       Obtain tunctl from the user mode linux project. Then set up a
        persistent TAP device using tunctl (use the -u owner option if you
        do that as root). Configure the network using ifconfig as above,
        but now before starting DOSEMU. Now start DOSEMU as often as you
        like and you can use the network in the same way as you did above.
+
+   Note, however, that multiple DOSEMU sessions that run at the same time
+   need to use multiple tapxx devices. $_netdev can be changed without
+   editing dosemu.conf/~./dosemurc (if you leave it commented out there)
+   by setting the dosemu__netdev environment variable or by using
+   something like [x]dosemu -I "netdev tap1".
      _________________________________________________________________
 
 15.2. The DOSNET virtual device (deprecated).

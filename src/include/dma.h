@@ -32,7 +32,7 @@ void dma_drop_DACK(int channel);
 void dma_assert_DREQ(int channel);
 void dma_assert_DACK(int channel);
 inline long int dma_get_block_size (int channel);
-inline long int dma_bytes_left (int channel);
+inline long int dma_units_left (int channel); /* units are bytes or words */
 inline long int dma_get_transfer_size (int channel);
 
 

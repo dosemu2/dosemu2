@@ -345,6 +345,7 @@ typedef struct vesamode_type_struct {
        int sound;
        uint16_t sb_base;
        uint8_t sb_dma;
+       uint8_t sb_hdma;
        uint8_t sb_irq;
        char *sb_dsp;
        char *sb_mixer;
@@ -430,6 +431,9 @@ EXTERN void SIG_init(void);
 EXTERN void SIG_close(void);
 #endif
 
+/* set if sigaltstack(2) is available */
+EXTERN int have_working_sigaltstack;
+
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGWINCH
 #define SIG_ACQUIRE     SIGUSR2
@@ -471,33 +475,49 @@ do { \
 } while(0)
 
 #ifdef __linux__
+#ifndef SA_ONSTACK
+#define SA_ONSTACK 0
+#undef HAVE_SIGALTSTACK
+#endif
 #define SignalHandler __sighandler_t
-#define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
-			/* Point to the top of the stack, minus 4 \
-			   just in case, and make it aligned  */ \
-			sa.sa_restorer = \
-			(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
-					sa.sa_flags = SA_RESTART ; \
-					sigemptyset(&sa.sa_mask); \
-					ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
-					dosemu_sigaction(sig, &sa, NULL);
+#define NEWSETQSIG(sig, fun) \
+	sa.sa_handler = (__sighandler_t)fun; \
+	sa.sa_flags = SA_RESTART; \
+	sigemptyset(&sa.sa_mask); \
+	ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
+	if (have_working_sigaltstack) { \
+		sa.sa_flags |= SA_ONSTACK; \
+		sigaction(sig, &sa, NULL); \
+	} else { \
+		/* Point to the top of the stack, minus 4 \
+		   just in case, and make it aligned  */ \
+		sa.sa_restorer = \
+		(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+		dosemu_sigaction(sig, &sa, NULL); \
+	}
 
-#define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
-					sa.sa_flags = SA_RESTART; \
-					sigemptyset(&sa.sa_mask); \
-					sigaddset(&sa.sa_mask, SIGALRM); \
-					sigaction(sig, &sa, NULL);
+#define SETSIG(sig, fun) \
+	sa.sa_handler = (SignalHandler)fun; \
+	sa.sa_flags = SA_RESTART; \
+	sigemptyset(&sa.sa_mask); \
+	sigaddset(&sa.sa_mask, SIGALRM); \
+	sigaction(sig, &sa, NULL);
 
 #define NEWSETSIG(sig, fun) \
-			sa.sa_handler = (__sighandler_t) fun; \
-			/* Point to the top of the stack, minus 4 \
-			   just in case, and make it aligned  */ \
-			sa.sa_restorer = \
-			(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
-			sa.sa_flags = SA_RESTART; \
-			sigemptyset(&sa.sa_mask); \
-			sigaddset(&sa.sa_mask, SIGALRM); \
-			dosemu_sigaction(sig, &sa, NULL);
+	sa.sa_handler = (__sighandler_t) fun; \
+	sa.sa_flags = SA_RESTART; \
+	sigemptyset(&sa.sa_mask); \
+	sigaddset(&sa.sa_mask, SIGALRM); \
+	if (have_working_sigaltstack) { \
+		sa.sa_flags |= SA_ONSTACK; \
+		sigaction(sig, &sa, NULL); \
+	} else { \
+		/* Point to the top of the stack, minus 4 \
+		   just in case, and make it aligned  */ \
+		sa.sa_restorer = \
+		(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+		dosemu_sigaction(sig, &sa, NULL); \
+	}
 #endif
 
 EXTERN inline void SIGNAL_save( void (*signal_call)(void) );

@@ -1215,9 +1215,9 @@ $_printer_timeout = (20)# idle time in seconds before spooling out
 <title>Sound</title>
 
 <para>
-Here are the settings for SBPro sound card emulation
-by passing the control to the Linux soundrivers. For
-more information see sound-usage.txt.
+The following settings will tell DOSEMU to emulate an SB16 sound
+card using your Linux sound drivers. For more information see
+sound-usage.txt.
 </para>
 
 <para>
@@ -1226,8 +1226,9 @@ more information see sound-usage.txt.
 $_sound = (on)            # sound support on/off
 $_sb_base = (0x220)       # base IO-address (HEX)
 $_sb_irq = (5)            # IRQ
-$_sb_dma = (1)            # DMA channel
-$_sb_dsp = "/dev/dsp"     # Path the sound device
+$_sb_dma = (1)            # Low 8-bit DMA channel
+$_sb_hdma = (5)           # High 16-bit DMA channel
+$_sb_dsp = "/dev/dsp"     # Path to the sound device
 $_sb_mixer = "" 	  # path to the mixer control
 $_mpu_base = (0x330)      # base address for the MPU-401 chip (HEX)
 </screen>
@@ -1326,7 +1327,7 @@ instance, your ethernet card eth0 then you need to set
 </para>
 
 <para>
-Note that dosnet and eth0 requires raw packet access, and hence 
+Note that dosnet and eth0 require raw packet access, and hence 
 (suid)-root. If $_vnet = "dosnet", then $_netdev will default to "dsn0".
 If you would like to use persistent TUN/TAP devices then you
 need to specifify the TAP device in $_netdev.

@@ -52,8 +52,6 @@ You can just execute ./ViewDocs to read the docs.
 	Describes the ready-to-use DOSEMU binary distribution, which
 	frees you from all bothering about compilation, installation
 	and configuration ... just _use_ it.
-./README.distributors
-	Not intended for 'Joe User' but for Linux distributors.
 ./doc/dosemu-HOWTO.txt
 	This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
 	but still very helpful.  (Read this file first, however.)

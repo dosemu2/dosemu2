@@ -70,8 +70,9 @@ menu "Sound Card Emulation" {
   description "Select the Sound Card emulation parameter to change:"
   boolean "Turn on SB support" sound
   input "SB base port" sb_base
-  input "SB 8-bit IRQ" sb_irq
+  input "SB IRQ" sb_irq
   input "SB 8-bit DMA" sb_dma
+  input "SB 16-bit DMA" sb_hdma
   input "SB DSP" sb_dsp
   input "SB Mixer" sb_mixer
   input "MPU-401 base port" mpu_base
