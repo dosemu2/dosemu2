@@ -36,6 +36,7 @@ struct lfndir {
 	int drive;
 	struct mfs_dir *dir;
 	unsigned dirattr;
+	unsigned psp;
 	char pattern[PATH_MAX];
 	char dirbase[PATH_MAX];
 };
@@ -52,6 +53,31 @@ static unsigned long long unix_to_win_time(time_t ut)
 static time_t win_to_unix_time(unsigned long long wt)
 {
 	return (wt / 10000000) - (369 * 365 + 89)*24*60*60ULL;
+}
+
+static int close_dirhandle(int handle)
+{
+	struct lfndir *dir;
+	if (handle < MAX_OPEN_DIRS && lfndirs[handle]) {
+		dir = lfndirs[handle];
+		if (dir->dir) dos_closedir(dir->dir);
+		free(dir);
+		lfndirs[handle] = NULL;
+		return 1;
+	}
+	return 0;
+}
+
+/* close all findfirst handles belonging to the current psp */
+void close_dirhandles(unsigned psp)
+{
+	int dirhandle;
+	for (dirhandle = 1; dirhandle < MAX_OPEN_DIRS; dirhandle++) {
+		struct lfndir *dir = lfndirs[dirhandle];
+		if (dir && dir->psp == psp) {
+			close_dirhandle(dirhandle);
+		}
+	}
 }
 
 static int vfat_search(char *dest, char *src, char *path, int alias)
@@ -930,10 +956,12 @@ int mfs_lfn(void)
 			strcpy(dir->dirbase, fpath);
 		dir->dirattr = _CX;
 		dir->drive = drive;
+		dir->psp = sda_cur_psp(sda);
 		strcpy(dir->pattern, slash);
 		/* XXX check for device (special dir entry) */
 		if (!find_file(dir->dirbase, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
+			free(dir);
 			return lfn_error(NO_MORE_FILES);
 		}
 		dir->dir = dos_opendir(dir->dirbase);
@@ -954,13 +982,15 @@ int mfs_lfn(void)
 			dir = lfndirs[dirhandle];
 		}
 		if (dir == NULL)
-			return lfn_error(NO_MORE_FILES);
+			return 0;
+		if (dir->dir == NULL)
+			lfn_error(NO_MORE_FILES);
 		do {
 			de = dos_readdir(dir->dir);
 			if (de == NULL) {
 				dos_closedir(dir->dir);
-				free(dir);
-				lfndirs[dirhandle] = NULL;
+				dir->dir = NULL;
+				if (_AL == 0x4e) close_dirhandle(dirhandle);
 				return lfn_error(NO_MORE_FILES);
 			}
 			d_printf("LFN: findnext %s %x\n", de->d_long_name, dir->dirattr);
@@ -1083,12 +1113,7 @@ int mfs_lfn(void)
 		break;
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
-		if (_BX < MAX_OPEN_DIRS && lfndirs[_BX]) {
-			dos_closedir(lfndirs[_BX]->dir);
-			free(lfndirs[_BX]);
-			lfndirs[_BX] = NULL;
-		}
-		break;
+		return close_dirhandle(_BX);
 	case 0xa6: /* get file info by handle */
 		d_printf("LFN: get file info by handle %x\n", _BX);
 		return 0;

@@ -4079,6 +4079,7 @@ dos_fs_redirect(state_t *state)
   case PROCESS_TERMINATED:	/* 0x22*/
     Debug0((dbg_fd, "Process terminated PSP=%d\n", state->ds));
     hlist_pop_psp(state->ds);
+    if (config.lfn) close_dirhandles(state->ds);
     return (REDIRECT);
   case CONTROL_REDIRECT:	/* 0x1e */
     /* get low word of parameter, should be one of 2, 3, 4, 5 */

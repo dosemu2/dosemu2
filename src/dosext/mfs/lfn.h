@@ -7,4 +7,4 @@
 
 void make_unmake_dos_mangled_path(char *dest, char *fpath,
                                          int current_drive, int alias);
-
+void close_dirhandles(unsigned psp);
