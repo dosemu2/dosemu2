@@ -13,6 +13,7 @@
  * instead malloc() here.
  */
 
+#include "emu.h"
 #include <stdio.h>		/* for NULL */
 #include <stdlib.h>
 #include <string.h>		/* for memcpy */
@@ -22,7 +23,6 @@
 #include <unistd.h>
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
 #include <errno.h>
-#include "emu.h"
 #include "dpmi.h"
 #include "pic.h"
 #include "priv.h"
