@@ -107,6 +107,8 @@
 #error SB_MAX_DMA_TRANSFERSIZE too large
 #endif
 
+#define CURRENT_DMA_CHANNEL (SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma)
+
 /* Internal Functions */
 
 inline void dsp_write_output(uint8_t value);
@@ -355,7 +357,7 @@ Bit8u sb_io_read(ioport_t port)
      if(SB_dsp.empty_state & DREQ_AT_EOI)
      {
        if(!SB_dsp.pause_state)
-         dma_assert_DREQ(config.sb_dma);
+         dma_assert_DREQ(CURRENT_DMA_CHANNEL);
        SB_dsp.empty_state &= ~DREQ_AT_EOI;
      }
      result = SB_dsp.data;
@@ -369,7 +371,7 @@ Bit8u sb_io_read(ioport_t port)
      if(SB_dsp.empty_state & DREQ_AT_EOI)
      {
        if(!SB_dsp.pause_state)
-         dma_assert_DREQ(config.sb_hdma);
+         dma_assert_DREQ(CURRENT_DMA_CHANNEL);
        SB_dsp.empty_state &= ~DREQ_AT_EOI;
      }
      result = SB_dsp.data;
@@ -900,8 +902,7 @@ void sb_mixer_data_write (Bit8u value)
     
 void sb_do_reset (Bit8u value)
 {
-  dma_drop_DREQ(config.sb_dma);
-  dma_drop_DREQ(config.sb_hdma);
+  dma_drop_DREQ(CURRENT_DMA_CHANNEL);
 
   if (SB_dsp.dma_mode & HIGH_SPEED_DMA) {
 /* for High-Speed mode reset means only exit High-Speed */
@@ -926,7 +927,7 @@ static inline void dma_start(int use_16bit, int use_signed, int sb16_command)
   if (SB_dsp.dma_mode & SB_USES_DMA)
     SB_dsp.empty_state |= START_DMA_AT_EMPTY;
   dma_pending = 1;
-  dma_assert_DREQ(use_16bit ? config.sb_hdma : config.sb_dma);
+  dma_assert_DREQ(CURRENT_DMA_CHANNEL);
   if (!SB_info.speaker) {
    /* 
     * it seems that when speaker is disabled, DMA transfer is running at
@@ -1926,7 +1927,7 @@ void pause_dsp_dma(void)
   }
 
   if(!SB_dsp.pause_state)
-    dma_drop_DREQ(SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma);
+    dma_drop_DREQ(CURRENT_DMA_CHANNEL);
   sb_deactivate_irq(SB_IRQ_PEND);
   dma_pending = 0;
   sb_is_running &= ~DSP_OUTPUT_RUN;
@@ -1947,13 +1948,13 @@ void restart_dsp_dma(void)
   SB_dsp.pause_state = 0;
   sb_is_running |= DSP_OUTPUT_RUN;
   if (!SB_dsp.empty_state)
-    dma_assert_DREQ(SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma);
+    dma_assert_DREQ(CURRENT_DMA_CHANNEL);
 }
 
 static void sb_dma_done_block(void)
 {
   S_printf("SB: DMA block completed\n");
-  if (dma_test_DACK(SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma))
+  if (dma_test_DACK(CURRENT_DMA_CHANNEL))
     S_printf("SB: DMA transfer continues (Auto-Init)\n");
 }
 
@@ -1968,7 +1969,6 @@ void start_dsp_dma(void)
   static int dma_transfer_length;
   int result = 0;
   int real_sampling_rate;
-  int dma = SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma;
   const char *unit_str = SB_dsp.is_16bit ? "word" : "byte";
 
   S_printf("SB: Starting to open DMA access to DSP (%s mode)\n",
@@ -1992,7 +1992,7 @@ void start_dsp_dma(void)
     }
 
  /* drop DRQ for now - DMA startup can fail */
-  dma_drop_DREQ(dma);
+  dma_drop_DREQ(CURRENT_DMA_CHANNEL);
 
  if (SB_info.speaker) {
   int sample_rate = SB_dsp.dma_mode & SB_DMA_INPUT ? SB_dsp.input_sample_rate : SB_dsp.output_sample_rate;
@@ -2024,7 +2024,7 @@ void start_dsp_dma(void)
    dma_transfer_length * 2 < SB_dsp.length)
     dma_transfer_length++;
   dma_transfer_length = MIN(dma_transfer_length,
-    dma_get_block_size(dma));
+    dma_get_block_size(CURRENT_DMA_CHANNEL));
   if (dsp_block_size != SB_dsp.length) {
     if (SB_driver.DMA_set_blocksize != NULL)
       (*SB_driver.DMA_set_blocksize)
@@ -2055,15 +2055,15 @@ void start_dsp_dma(void)
     S_printf ("SB: Speaker not enabled\n");
     dma_transfer_length = MIN(SB_dsp.length, SB_MAX_DMA_TRANSFERSIZE);
     dma_transfer_length = MIN(dma_transfer_length,
-      dma_get_block_size(dma));
+      dma_get_block_size(CURRENT_DMA_CHANNEL));
     /* we want only one irq when speaker not enabled */
     SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
  }
 
-  dma_set_transfer_size(dma, dma_transfer_length);
+  dma_set_transfer_size(CURRENT_DMA_CHANNEL, dma_transfer_length);
   S_printf("SB: DSP block size is set to %d\n", SB_dsp.length);
   S_printf("SB: DMA block size is %ld (%ld left)\n",
-    dma_get_block_size(dma), dma_units_left(dma));
+    dma_get_block_size(CURRENT_DMA_CHANNEL), dma_units_left(CURRENT_DMA_CHANNEL));
   S_printf("SB: DMA transfer size is set to %d\n", dma_transfer_length);
 
   SB_dsp.pause_state = 0;
@@ -2078,15 +2078,13 @@ void start_dsp_dma(void)
 //  word_skipped = 0;
 
   /* Commence Firing ... */
-  dma_assert_DREQ(dma);
+  dma_assert_DREQ(CURRENT_DMA_CHANNEL);
 }
 
 static void handle_dma_IO(int size)
 {
-  int dma = SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma;
-
   sb_is_running |= DSP_OUTPUT_RUN;
-  dma_drop_DREQ(dma);
+  dma_drop_DREQ(CURRENT_DMA_CHANNEL);
 
   if (size > SB_dsp.units_left) {
     error("SB: DMA crossed transfer buffer! (size=%d left=%d)\n",
@@ -2104,7 +2102,7 @@ static void handle_dma_IO(int size)
     }
     /* Still some data left till IRQ */
     if(!SB_dsp.pause_state)
-      dma_assert_DREQ(dma);
+      dma_assert_DREQ(CURRENT_DMA_CHANNEL);
     else
       sb_is_running &= ~DSP_OUTPUT_RUN;
   }
@@ -2122,7 +2120,7 @@ static void handle_dma_IO(int size)
 	/* bad HACK :( */
 	if (test_bit(SB_dsp.is_16bit ? SB_info.irq.irq16 : SB_info.irq.irq8, &pic0_imr)) {
           S_printf("SB: Warning: SB IRQ (%d) is masked!!!\n", config.sb_irq);
-	  dma_assert_DREQ(dma);
+	  dma_assert_DREQ(CURRENT_DMA_CHANNEL);
 	  SB_dsp.empty_state &= ~DREQ_AT_EOI;
 	}
         else
@@ -2134,7 +2132,7 @@ static void handle_dma_IO(int size)
     }
     else {
       SB_dsp.dma_mode &= ~SB_USES_DMA;
-      if((SB_dsp.length > dma_get_block_size(dma)) ||
+      if((SB_dsp.length > dma_get_block_size(CURRENT_DMA_CHANNEL)) ||
 	(SB_dsp.empty_state & START_DMA_AT_EMPTY)) {
         sb_activate_irq(SB_dsp.is_16bit ? SB_IRQ_16BIT : SB_IRQ_8BIT);
 	if(SB_dsp.empty_state & START_DMA_AT_EMPTY) {
@@ -2447,7 +2445,7 @@ static void sb_check_complete (void)
       if (!into_irq && !SB_info.irq.pending) {
 	S_printf("SB: Warning: program doesn't ACK the interrupt, enjoy clicking.\n");  
 	if(!SB_dsp.pause_state)
-          dma_assert_DREQ(SB_dsp.is_16bit ? config.sb_hdma : config.sb_dma);
+          dma_assert_DREQ(CURRENT_DMA_CHANNEL);
 	SB_dsp.empty_state &= ~DREQ_AT_EOI;
       }
       else
