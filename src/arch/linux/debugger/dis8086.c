@@ -39,7 +39,7 @@ static unsigned int  * refaddr;
 static const char *conditions[16] =
 {
   "o ", "no", "b ", "ae", "e ", "ne", "be", "a ",
-  "s ", "ns", "p ", "np", "le", "g ", "le", "g "
+  "s ", "ns", "p ", "np", "l ", "ge", "le", "g "
 };
 
 static const char *cr[] =
@@ -328,7 +328,7 @@ unsigned char hex32[9];
         }
     }
     else if (mod == 1)
-        disp = modrm_disp8(*code++);
+        disp = modrm_disp8((signed char)*code++);
     else
     {
         disp = modrm_disp32(immed32(code));
@@ -629,11 +629,11 @@ int  dis_8086(unsigned int org,
 	      break;
 	    case 0x02:
 	      d86_printf("lar     ");
-	      code = mod_rm(code, seg, wreg, addr32);
+	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
 	      break;
 	    case 0x03:
 	      d86_printf("lsl     ");
-	      code = mod_rm(code, seg, wreg, addr32);
+	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
 	      break;
 	    case 0x05:
 	      d86_printf("loadall");
@@ -743,14 +743,14 @@ int  dis_8086(unsigned int org,
 	
 	    case 0xa4:
 	      d86_printf("shld    ");
-	      mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
 	      d86_printf(",%02X", *code++);
 	      break;
 
 	    case 0xa5:
-	      d86_printf("shrd    ");
-	      mod_reg_rm(code, seg, wreg, wreg, addr32);
-	      d86_printf(",%02X", *code++);
+	      d86_printf("shld    ");
+	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      d86_printf(",cl");
 	      break;
 
 	    case 0xa8:
@@ -762,15 +762,20 @@ int  dis_8086(unsigned int org,
 	      break;
 
 	    case 0xac:
-	      d86_printf("shld    ");
-	      mod_reg_rm(code, seg, wreg, wreg, addr32);
-	      d86_printf(",cl");
+	      d86_printf("shrd    ");
+	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      d86_printf(",%02X", *code++);
 	      break;
 
 	    case 0xad:
 	      d86_printf("shrd    ");
-	      mod_reg_rm(code, seg, wreg, wreg, addr32);
+	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
 	      d86_printf(",cl");
+	      break;
+	
+	    case 0xaf:
+	      d86_printf("imul    ");
+	      code = mod_reg_rm(code, seg, wreg, wreg, addr32);
 	      break;
 	
 	    case 0xb0:
@@ -837,7 +842,7 @@ int  dis_8086(unsigned int org,
 	      break;
 
 	    case 0xbf:
-	      d86_printf("movzx   %s,", wreg[(*code >> 3) & 7]);
+	      d86_printf("movsx   %s,", wreg[(*code >> 3) & 7]);
 	      if ((*code & 0xc0) != 0xc0)
 	        d86_printf("word ptr ");
 	      code = mod_rm(code, seg, reg16, addr32);
@@ -1200,7 +1205,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0x99:
-	  d86_printf("cwd");
+	  d86_printf(data32 ? "cdq" : "cwd");
 	  break;
 
 	case 0x9a:
@@ -1299,8 +1304,8 @@ int  dis_8086(unsigned int org,
 	  if (seg == "")
 	    d86_printf("cmpsb");
 	  else
-	    d86_printf("cmpsb   es:[%s],%s[%s]", data32 ? 'd' : 'w',
-	          addr32 ? "edi" : "di", seg, addr32 ? "esi" : "si");
+	    d86_printf("cmpsb   es:[%s],%s[%s]", addr32 ? "edi" : "di",
+	          seg, addr32 ? "esi" : "si");
 	  break;
 
 	case 0xa7:
@@ -1627,7 +1632,13 @@ int  dis_8086(unsigned int org,
 	case 0xdf:
           if (((*code & 0xe0) == 0xe0) || ((*code & 0xf8) == 8))    
             {
-              code = esc_op(opcode, code, seg, wreg, addr32);
+	      if (*code == 0xe0)
+		{
+		  d86_printf("fnstsw  ax");
+		  code++;
+		}
+              else
+                  code = esc_op(opcode, code, seg, wreg, addr32);
               break;
     	    }
           if (*code & 0x20)
@@ -1735,7 +1746,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xf2:
-	  d86_printf("rep     ");
+	  d86_printf("repne   ");
 	  prefix = 1; i--;
 	  continue;
 	

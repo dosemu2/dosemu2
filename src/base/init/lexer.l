@@ -468,6 +468,10 @@ hu-latin2		MAY_BE { yylval->i_value = KEYB_HU_LATIN2;
 			  return(KEYB_LAYOUT); }
 jp106			MAY_BE { yylval->i_value = KEYB_JP106; return(KEYB_LAYOUT); }
 pl			MAY_BE { yylval->i_value = KEYB_PL; return(KEYB_LAYOUT); }
+hr-cp852		MAY_BE { yylval->i_value = KEYB_HR_CP852;
+			  return(KEYB_LAYOUT); }
+hr-latin2		MAY_BE { yylval->i_value = KEYB_HR_LATIN2;
+			  return(KEYB_LAYOUT); }
 keyb-user		MAY_BE { yylval->i_value = KEYB_USER; return(KEYB_LAYOUT); }
 
 	/* serial stuff */

@@ -194,6 +194,7 @@ void handle_dbg_input(void)
 int main (int argc, char **argv)
 {
   int numfds,n,flags,dospid;
+  char *home_p=0;
   
   FD_ZERO(&readfds);
 
@@ -215,15 +216,30 @@ int main (int argc, char **argv)
     fprintf(stderr, "no dosemu running on pid %d\n", dospid);
     exit(1);
   }
-
+  home_p = getenv("HOME");
+  if (home_p)
+    sprintf(TMPFILE, "%s/%s", home_p, TMPFILE_HOME);
+  else
+    strcpy(TMPFILE, TMPFILE_);
   sprintf(shared_info_file, "%s.%d", TMPFILE, dospid);
   sprintf(pipename_in, "%sdbgin.%d", TMPFILE, dospid);
   sprintf(pipename_out, "%sdbgout.%d", TMPFILE, dospid);
 
   /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
   if ((fdout = open(pipename_in, O_RDWR | O_NONBLOCK)) == -1) {
-    perror("can't open output fifo");
-    exit(1);
+    if (home_p) {
+      /* if we cannot open pipe and we were trying $HOME/.dosemu/run directory,
+         try with /var/run/dosemu directory */
+      strcpy(TMPFILE, TMPFILE_);
+      sprintf(shared_info_file, "%s.%d", TMPFILE, dospid);
+      sprintf(pipename_in, "%sdbgin.%d", TMPFILE, dospid);
+      sprintf(pipename_out, "%sdbgout.%d", TMPFILE, dospid);
+      fdout = open(pipename_in, O_RDWR | O_NONBLOCK);
+    }
+    if (fdout == -1) {
+      perror("can't open output fifo");
+      exit(1);
+    }
   }
   if ((fdin = open(pipename_out, O_RDONLY | O_NONBLOCK)) == -1) {
     close(fdout);

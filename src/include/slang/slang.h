@@ -1,10 +1,3 @@
-/* 
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 #ifndef DAVIS_SLANG_H_
 #define DAVIS_SLANG_H_
 /* -*- mode: C; mode: fold; -*- */
@@ -14,7 +7,7 @@
  * You may distribute under the terms of either the GNU General Public
  * License or the Perl Artistic License.
  */
-#define SLANG_VERSION 10003
+#define SLANG_VERSION 10202
 /*{{{ System Dependent Macros and Typedefs */
 
 #if defined(__WATCOMC__) && defined(DOS)
@@ -114,7 +107,7 @@ extern "C" {
 
 typedef int (*FVOID_STAR)(void);
 
-#if defined(__BORLANDC__)
+#if defined(__MSDOS_) && defined(__BORLANDC__)
 # define SLFREE(buf)  farfree((void far *)(buf))
 # define SLMALLOC(x) farmalloc((unsigned long) (x))
 # define SLREALLOC(buf, n) farrealloc((void far *) (buf), (unsigned long) (n))
@@ -479,7 +472,6 @@ extern SLang_MMT_Type *SLang_create_mmt (unsigned char, VOID_STAR);
 extern int SLang_push_mmt (SLang_MMT_Type *);
 extern SLang_MMT_Type *SLang_pop_mmt (unsigned char);
 extern void SLang_inc_mmt (SLang_MMT_Type *);
-
 /*}}}*/
 /*{{{ Interpreter Function Prototypes */
 
@@ -625,6 +617,25 @@ extern int SLang_Num_Function_Args;
     * If -1 is returned, it failed and the original string is not freed.
     */
 
+extern int SLang_push_null (void);
+extern int SLang_pop_null (void);
+
+extern int SLang_push_value (unsigned char type, VOID_STAR);
+extern int SLang_pop_value (unsigned char type, VOID_STAR);
+extern void SLang_free_value (unsigned char type, VOID_STAR);
+
+#ifdef _SLANG_SOURCE_
+typedef struct _SLang_Ref_Type SLang_Ref_Type;
+#else
+typedef int SLang_Ref_Type;
+#endif
+
+
+extern int SLang_pop_ref (SLang_Ref_Type **);
+extern void SLang_free_ref (SLang_Ref_Type *);
+extern int SLang_assign_to_ref (SLang_Ref_Type *, unsigned char, VOID_STAR);
+
+
    extern int SLang_is_defined(char *);
    /* Return non-zero is p1 is defined otherwise returns 0. */
 
@@ -769,45 +780,41 @@ extern int (*SLtty_VMS_Ctrl_Y_Hook) (void);
 /*{{{ SLang Keymap routines */
 
 typedef struct SLKeymap_Function_Type
-  {
-      char *name;
-      int (*f)(void);
-  }
+{
+   char *name;
+   int (*f)(void);
+}
 SLKeymap_Function_Type;
 
+#define SLANG_MAX_KEYMAP_KEY_SEQ	14
 typedef struct SLang_Key_Type
-  {
-     unsigned char str[13];	       /* key sequence */
+{
+   struct SLang_Key_Type *next;
+   union
+     {
+	char *s;
+	FVOID_STAR f;
+	unsigned int keysym;
+     }
+     f;
+   unsigned char type;	       /* type of function */
 #define SLKEY_F_INTERPRET	0x01
 #define SLKEY_F_INTRINSIC	0x02
 #define SLKEY_F_KEYSYM		0x03
-     unsigned char type;	       /* type of function */
-     union
-       {
-	  char *s;
-	  FVOID_STAR f;
-	  unsigned int keysym;
-       }
-     f;
-     struct SLang_Key_Type *next;      /* */
-  }
+   unsigned char str[SLANG_MAX_KEYMAP_KEY_SEQ + 1];/* key sequence */
+}
 SLang_Key_Type;
 
-#define MAX_KEYMAP_NAME_LEN 8
 typedef struct SLKeyMap_List_Type
 {
-   char name[MAX_KEYMAP_NAME_LEN + 1];
+   char *name;			       /* hashed string */
    SLang_Key_Type *keymap;
    SLKeymap_Function_Type *functions;  /* intrinsic functions */
 }
 SLKeyMap_List_Type;
 
 /* This is arbitrary but I have got to start somewhere */
-#if defined(__MSDOS__) && !defined(__unix__)
-# define SLANG_MAX_KEYMAPS 10
-#else
-# define SLANG_MAX_KEYMAPS 30
-#endif
+#define SLANG_MAX_KEYMAPS 30
 extern SLKeyMap_List_Type SLKeyMap_List[SLANG_MAX_KEYMAPS];
 
 extern char *SLang_process_keystring(char *);
@@ -901,6 +908,7 @@ typedef struct
     */
    /* This function is only called when blinking matches */
    int (*input_pending)(int);
+   unsigned long reserved[4];
 } SLang_RLine_Info_Type;
 
 extern int SLang_RL_EOF_Char;
@@ -935,6 +943,10 @@ extern int SLtt_Use_Ansi_Colors;
 extern int SLtt_Ignore_Beep;
 #if defined(REAL_UNIX_SYSTEM)
 extern int SLtt_Force_Keypad_Init;
+#endif
+
+#ifndef IBMPC_SYSTEM
+extern char *SLtt_Graphics_Char_Pairs;
 #endif
 
 #ifndef __GO32__
@@ -1074,10 +1086,16 @@ extern void SLsmg_forward (int);
 extern void SLsmg_write_color_chars (unsigned short *, unsigned int);
 extern unsigned int SLsmg_read_raw (unsigned short *, unsigned int);
 extern unsigned int SLsmg_write_raw (unsigned short *, unsigned int);
-
+extern void SLsmg_set_color_in_region (int, int, int, unsigned int, unsigned int);
 extern int SLsmg_Display_Eight_Bit;
 extern int SLsmg_Tab_Width;
-extern int SLsmg_Newline_Moves;
+
+#define SLSMG_NEWLINE_IGNORED	0      /* default */
+#define SLSMG_NEWLINE_MOVES	1      /* moves to next line, column 0 */
+#define SLSMG_NEWLINE_SCROLLS	2      /* moves but scrolls at bottom of screen */
+#define SLSMG_NEWLINE_PRINTABLE	3      /* prints as ^J */
+extern int SLsmg_Newline_Behavior;
+
 extern int SLsmg_Backspace_Moves;
 
 #ifdef IBMPC_SYSTEM
@@ -1127,6 +1145,34 @@ extern int SLsmg_Backspace_Moves;
 # define SLSMG_COLOR_BRIGHT_MAGENTA	0x00000E
 # define SLSMG_COLOR_BRIGHT_WHITE	0x00000F
 #endif
+
+typedef struct 
+{
+   void (*tt_normal_video)(void);
+   void (*tt_set_scroll_region)(int, int);
+   void (*tt_goto_rc)(int, int);
+   void (*tt_reverse_index)(int);
+   void (*tt_reset_scroll_region)(void);
+   void (*tt_delete_nlines)(int);
+   void (*tt_cls) (void);
+   void (*tt_del_eol) (void);
+   void (*tt_smart_puts) (unsigned short *, unsigned short *, int, int);
+   int (*tt_flush_output) (void);
+   int (*tt_reset_video) (void);
+   int (*tt_init_video) (void);
+
+   int *tt_screen_rows;
+   int *tt_screen_cols;
+
+   int *tt_term_cannot_scroll;
+   int *tt_has_alt_charset;
+   int *tt_use_blink_for_acs;
+   char **tt_graphic_char_pairs;
+
+   long reserved[4];
+}
+SLsmg_Term_Type;
+extern void SLsmg_set_terminal_info (SLsmg_Term_Type *);
 
 /*}}}*/
 
@@ -1215,6 +1261,9 @@ extern SLSig_Fun_Type *SLsignal_intr (int, SLSig_Fun_Type *);
 extern int SLsig_block_signals (void);
 extern int SLsig_unblock_signals (void);
 extern int SLsystem (char *);
+
+extern char *SLerrno_strerror (int);
+
 /*}}}*/
 
 /*{{{ Interpreter Macro Definitions */
@@ -1432,23 +1481,24 @@ extern char *SLregexp_quote_string (char *, char *, unsigned int);
 
 /*{{{ SLang Command Interface */
 
-#define SLCMD_MAX_ARGS 10
 struct _SLcmd_Cmd_Type; /* Pre-declaration is needed below */
 typedef struct
 {
    struct _SLcmd_Cmd_Type *table;
    int argc;
-   char *string_args[SLCMD_MAX_ARGS];
-   int int_args[SLCMD_MAX_ARGS];
-   double double_args[SLCMD_MAX_ARGS];
-   unsigned char arg_type[SLCMD_MAX_ARGS];
+   /* Version 2.0 needs to use a union!! */
+   char **string_args;
+   int *int_args;
+   double *double_args;
+   unsigned char *arg_type;
+   unsigned long reserved[4];
 } SLcmd_Cmd_Table_Type;
 
 typedef struct _SLcmd_Cmd_Type
 {
    int (*cmdfun)(int, SLcmd_Cmd_Table_Type *);
-   char cmd[32];
-   char arg_type[SLCMD_MAX_ARGS];
+   char *cmd;
+   char *arg_type;
 } SLcmd_Cmd_Type;
 
 extern int SLcmd_execute_string (char *, SLcmd_Cmd_Table_Type *);

@@ -1,10 +1,3 @@
-/* 
- * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
- *
- * for details see file COPYING in the DOSEMU distribution
- */
-
 /* Copyright (c) 1998 John E. Davis
  * This file is part of the S-Lang library.
  *
@@ -281,8 +274,9 @@ extern SLtt_Char_Type SLcurses_Acs_Map [128];
 #define COLOR_CYAN	SLSMG_COLOR_CYAN
 #define COLOR_WHITE	SLSMG_COLOR_LGRAY
 
-#define COLORS		8
-#define COLOR_PAIRS	(8 * 8)
+extern int SLcurses_Num_Colors;
+#define COLORS		SLcurses_Num_Colors
+#define COLOR_PAIRS	(SLcurses_Num_Colors*SLcurses_Num_Colors)
 
 #define init_pair(_x,_f,_b) \
  SLtt_set_color_object((_x), ((_f) == (_b) ? 0x0700 : ((_f) | ((_b) << 8)) << 8))

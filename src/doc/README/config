@@ -377,13 +377,14 @@ keytable from /var/lib/dosemu/keymap/* (which you may modify according
 to your needs). Both sets have identical names (though you may add
 any new one to /var/lib/dosemu/keymap/*):
 <tscreen><verb>
-  be              es-latin1       hu-latin2       sg
-  de              finnish         it              sg-latin1
-  de-latin1       finnish-latin1  keyb-no         sw
-  dk              fr              no-latin1       uk
-  dk-latin1       fr-latin1       po              us
-  dvorak          hu              sf              
-  es              hu-cwi          sf-latin1       jp106
+  be              finnish         hu-latin2       sg-latin1
+  de              finnish-latin1  it              sw
+  de-latin1       fr              keyb-no         uk
+  dk              fr-latin1       no-latin1       us
+  dk-latin1       hr-cp852        po
+  dvorak          hr-latin2       sf
+  es              hu              sf-latin1
+  es-latin1       hu-cwi          sg              jp106
 </verb></tscreen>
 
 You define an internal keytable such as

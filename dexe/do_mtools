@@ -47,7 +47,7 @@ function do_mtool {
   device=$1
   mcommand=$2
   shift; shift
-  params="$*"
+#  params="$*"
   mkdir -p ~/.dosemu/tmp
   tmprc=~/.dosemu/tmp/mtoolrc.$$
   partition=""
@@ -61,7 +61,7 @@ drive w: file="$device" MTOOLS_SKIP_CHECK=1 MTOOLS_LOWER_CASE=1 MTOOLS_NO_VFAT=1
 EOF
   MTOOLSRC="$tmprc"
   export MTOOLSRC
-  $mcommand $params
+  $mcommand "$@"
   myerrcode=$?
   rm -f $tmprc
   return $myerrcode
@@ -71,5 +71,5 @@ if [ -z $2 ]; then
   usage
 fi
 
-do_mtool $*
+do_mtool "$@"
 exit $myerrcode

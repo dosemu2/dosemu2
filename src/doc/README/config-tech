@@ -1107,7 +1107,7 @@ The following builtin layouts are implemented:
     be                keyb-no      fr-latin1    po
     it                no-latin1    sw           jp106
     hu                hu-cwi       hu-latin2    keyb-user
-    po
+    po                hr-cp852     hr-latin2
 </verb></tscreen>
 
 

@@ -221,6 +221,8 @@ menu "Keyboard Layout" {
     "Hungarian latin2" hu-latin2
     "Japanese jp106" jp106
     "Polish pl" pl
+    "Croatian cp852" hr-cp852
+    "Croatian latin2" hr-latin2
   }
 }
 

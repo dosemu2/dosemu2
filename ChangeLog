@@ -1,3 +1,24 @@
+99/01/06 ver. 0.99.5.3 unofficial pre-release
+	From Marcus
+	- fix for misc/136 dosnet bug report (e.g. put back old loopback.c
+	  code for  kernel 2.0.36)
+	From A.R.Adams <a.r.adams@twi.tudelft.nl>
+	- fixes for src/arch/linux/debugger/dis8086.c
+	From Wojtek Pilorz <wpilorz@bdk.pl>
+	- fix for dosdebug not finding the pipes, when pid was given
+	  explicitely, but $HOME/.dosemu/run contains other running pids.
+	- fix for do_mtools not taking filesnames containing whitespaces
+	  into account
+	From Mislav Korona <mkorona@public.srce.hr>
+	- added support for croatian keyboard ('hr' comes from 'Hrvatska'),
+	  iso8859-2 (hr-latin2) and cp852 (hr-cp852)
+	From Hans
+	- upgraded to slang-1.2.2 because of buffer overrun exploits
+	  in 1.0.3. Verified, that _both_ exploits are fixed.
+	- fixed (now) possible buffer overrun in verror (utilities.c), because
+	  slang-1.2.2 fixed its exploit by passing the involved printout
+	  via (*SLang_Exit_Error_Hook)() to _our_ hooking routine.
+	  (well, so we now have it ;-)
 99/01/06 ver. 0.99.5.2 unofficial pre-release
 	From Steffen
 	- Further work on VGAEMU, involved files: int10.c, timers.c

@@ -147,33 +147,50 @@ dosnet_xmit(struct sk_buff *skb, struct device *dev)
 {
 	stats_t *stats = (stats_t *)dev->priv;
 	struct ethhdr *eth; 
-	struct sk_buff *skb2=skb;
+#if LX_KERNEL_VERSION < 2001000
+	int unlock=1;
+#endif
 	
 	/* Probably unnecessary */
 	if (skb == NULL || dev == NULL) return 0;
 	
 #if LX_KERNEL_VERSION >= 2001000
-	if(atomic_read(&skb->users) != 1 && skb->sk) {
+	if(atomic_read(&skb->users) != 1)
+	{
+		/* does this ever happen? */
+	  	struct sk_buff *skb2=skb;
+	  	skb=skb_clone(skb, GFP_ATOMIC);		/* Clone the buffer */
+	  	if(skb==NULL) {
+			kfree_skb(skb2);
+			return 0;
+		}
+	  	kfree_skb(skb2);
+	}
+	else
+	{
+		/* this is necessary */
+		skb_orphan(skb);
+	}
 #else
-        if(skb->free == 0 && skb->sk) {
-#endif
-	        /*
+	if(skb->free==0) 
+	{
+		struct sk_buff *skb2=skb;
+		skb=skb_clone(skb, GFP_ATOMIC);		/* Clone the buffer */
+		dev_kfree_skb(skb2, FREE_WRITE);
+	  	if(skb==NULL)
+	  		return 0;
+		unlock=0;
+	}
+	else if(skb->sk) 
+	{
+		/*
 		 *	Packet sent but looped back around. Cease to charge
 		 *	the socket for the frame.
 		 */
 		atomic_sub(skb->truesize, &skb->sk->wmem_alloc);
 		skb->sk->write_space(skb->sk);
 	}
-		
-	/* Clone the buffer */
-	skb=skb_clone(skb, GFP_ATOMIC);		
-#ifdef FREE_WRITE /* kernel <= 2.1.85 */
-	kfree_skb(skb2, FREE_WRITE);
-#else
-	kfree_skb(skb2);
 #endif
-	if(skb==NULL)
-	    return 0;
 
 	skb->protocol=dosnet_eth_type_trans(skb,dev);
 	skb->dev=dev;
@@ -211,8 +228,18 @@ dosnet_xmit(struct sk_buff *skb, struct device *dev)
 		memcpy(eth->h_dest, DOSNET_BROADCAST_ADDRESS, 6 );
 	}
 	netif_rx(skb);
+#if LX_KERNEL_VERSION < 2001000
+	if(unlock)
+	  	skb_device_unlock(skb);
+#endif
+
+#if LX_KERNEL_VERSION >= 2001000
+	stats->rx_bytes+=skb->len;
+	stats->tx_bytes+=skb->len;
+#endif
 	stats->rx_packets++;
 	stats->tx_packets++;
+
 	return 0;
 }
 

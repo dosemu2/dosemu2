@@ -218,7 +218,8 @@ void verror(const char *fmt, va_list args)
 		vfprintf(stderr, fmt+1, args);
 	}
 	else {
-		sprintf(fmtbuf, "ERROR: %s", fmt);
+		fmtbuf[sizeof(fmtbuf)-1] = 0;
+		snprintf(fmtbuf, sizeof(fmtbuf)-1, "ERROR: %s", fmt);
 		vlog_printf(10, fmtbuf, args);
 		vfprintf(stderr, fmtbuf, args);
 	}
@@ -243,7 +244,8 @@ p_dos_str(char *fmt,...) {
   int i;
 
   va_start(args, fmt);
-  i = vsprintf(buf, fmt, args);
+  buf[sizeof(buf)-1] = 0;
+  i = vsnprintf(buf, sizeof(buf)-1,  fmt, args);
   va_end(args);
 
   s = buf;
