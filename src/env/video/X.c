@@ -1384,7 +1384,13 @@ static int X_change_config(unsigned item, void *buf)
       config.X_background_pause = *((int *) buf);
       break;
 
-  case X_GET_TITLE_APPNAME:
+    case X_CHG_FULLSCREEN:
+      X_printf("X: X_change_config: fullscreen %i\n", *((int *) buf));
+      if (*((int *) buf) == (mainwindow == normalwindow))
+	toggle_fullscreen_mode();
+      break;
+
+    case X_GET_TITLE_APPNAME:
       snprintf (buf, X_TITLE_APPNAME_MAXLEN, "%s", X_title_appname);
       break;
           

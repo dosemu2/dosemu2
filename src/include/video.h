@@ -255,6 +255,7 @@ EXTERN int v_8514_base INIT(0);
 #define CHG_TITLE_SHOW_APPNAME	8
 #define CHG_BACKGROUND_PAUSE	9
 #define GET_TITLE_APPNAME	10
+#define CHG_FULLSCREEN	11
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);

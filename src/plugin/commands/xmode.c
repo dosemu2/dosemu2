@@ -34,6 +34,7 @@
 #define X_CHG_TITLE_APPNAME	7
 #define X_CHG_TITLE_SHOW_APPNAME	8
 #define X_CHG_BACKGROUND_PAUSE	9
+#define X_CHG_FULLSCREEN	11
 
 static int X_change_config(unsigned, void *);
 
@@ -55,6 +56,7 @@ int xmode_main(int argc, char **argv)
       "  -unmap <mode>    unmap window before graphics <mode> is left\n"
       "  -winsize <width> <height>    set initial graphics window size\n"
       "  -bpause on|off   pause DOSEMU if the window loses focus\n"
+      "  -fullscreen on|off           fullscreen mode\n"
     );
     return 1;
   }
@@ -137,6 +139,15 @@ int xmode_main(int argc, char **argv)
 	l = 1;
 
       X_change_config(X_CHG_BACKGROUND_PAUSE, &l);
+      argc -= 2; argv += 2;
+    }
+    else if (!strcmp(*argv, "-fullscreen") && argc >= 2) {
+      if (!strcasecmp (argv [1], "off") || !strcasecmp (argv [1], "0"))
+	l = 0;
+      else
+	l = 1;
+
+      X_change_config(X_CHG_FULLSCREEN, &l);
       argc -= 2; argv += 2;
     }
     else {
