@@ -36,7 +36,6 @@
 #include <sys/param.h>
 #include <errno.h>
 #include "dpmi.h"
-#include "meminfo.h"
 #include "emu-ldt.h"
 #include "pic.h"
 #include "mapping.h"
@@ -127,7 +126,6 @@ void dpmi_memory_init(void)
 {
     int num_pages, mpool_numpages, memsize;
     void *mpool;
-    struct meminfo *mi;
 
     /* Create DPMI pool */
     num_pages = config.dpmi >> 2;
@@ -144,13 +142,7 @@ void dpmi_memory_init(void)
     sminit(&mem_pool, mpool, memsize);
     dpmi_total_memory = num_pages << PAGE_SHIFT;
 
- /* DANG_FIXTHIS Should we really care for the Memory info? 
-    After the next task switch everything may have changed substantially
-    bon@elektron.ikp.physik.th-darmstadt.de 2/16/97 */
-    mi = readMeminfo();
-    dpmi_free_memory = dpmi_total_memory;
-
-    D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_free_memory); 
+    D_printf("DPMI: dpmi_free_memory available 0x%lx\n",dpmi_total_memory); 
     
     ldt_buffer = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE, 0);

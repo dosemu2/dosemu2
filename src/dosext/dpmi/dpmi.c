@@ -72,7 +72,6 @@
 #include "config.h"
 #include "bitops.h"
 #include "pic.h"
-#include "meminfo.h"
 #include "int.h"
 #include "serial.h"
 #include "port.h"
@@ -1123,31 +1122,15 @@ void direct_ldt_write(int offset, int length, char *buffer)
 
 static void GetFreeMemoryInformation(unsigned int *lp)
 {
-  struct meminfo *mi = readMeminfo();
-
-  if (debug_level('M') > 4) {
-    D_printf("DPMI: GetFreeMemoryInformation at %08lx\n",(long)lp);
-    D_printf("      free=%lx(%x)\n", dpmi_free_memory, mi->free);
-    D_printf("      swapfree=%x\n", mi->swapfree);
-    D_printf("      swaptotal=%x\n", mi->swaptotal);
-    D_printf("      total=%x\n",mi->total);
-    D_printf("      mi->free + mi->swapfree=%d\n",(unsigned int) (mi->free + mi->swapfree));
-    D_printf("      mi->free + mi->swapfree/DPMI=%d\n",(unsigned int) (mi->free + mi->swapfree)/DPMI_page_size);
-    D_printf("      (mi->total + mi->swaptotal)/DPMI_page_size=%d\n",
-    (unsigned int) (mi->total + mi->swaptotal)/DPMI_page_size);
-    D_printf("      (mi->free)/DPMI_page_size=%d\n", (unsigned int) (mi->free)/DPMI_page_size);
-    D_printf("      (mi->total)/DPMI_page_size=%d\n", (unsigned int) (mi->total)/DPMI_page_size);
-    D_printf("      (mi->swaptotal)/DPMI_page_size=%d\n", (unsigned int) (mi->swaptotal)/DPMI_page_size);
-  }
   /*00h*/	*lp = dpmi_free_memory;
   /*04h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*08h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*0ch*/	*++lp = dpmi_total_memory/DPMI_page_size;
-  /*10h*/	*++lp = dpmi_free_memory/DPMI_page_size;;
-  /*14h*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*18h*/	*++lp = (unsigned int) (mi->total)/DPMI_page_size;
+  /*10h*/	*++lp = dpmi_total_memory/DPMI_page_size;;
+  /*14h*/	*++lp = dpmi_total_memory/DPMI_page_size;
+  /*18h*/	*++lp = dpmi_total_memory/DPMI_page_size;
   /*1ch*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*20h*/	*++lp = (unsigned int) (mi->swaptotal)/DPMI_page_size;
+  /*20h*/	*++lp = dpmi_total_memory/DPMI_page_size;
   /*24h*/	*++lp = 0xffffffff;
   /*28h*/	*++lp = 0xffffffff;
   /*2ch*/	*++lp = 0xffffffff;
