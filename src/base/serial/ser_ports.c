@@ -572,6 +572,7 @@ get_msr(int num)
 {
   int val;
 
+  modstat_engine(num);				/* Get the fresh MSR status */
   val = com[num].MSR;				/* Save old MSR value */
   com[num].MSR &= UART_MSR_STAT; 		/* Clear delta bits */
   com[num].int_condition &= ~MS_INTR;		/* MSI condition satisfied */
