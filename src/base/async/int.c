@@ -42,6 +42,9 @@
 
 #define DJGPP_HACK	/* AV Feb 97 */
 
+/* prototype is in X.h -- 1998/03/08 sw */
+int X_change_config(unsigned, void *);
+
 /*
    This flag will be set when doing video routines so that special
    access can be given
@@ -483,6 +486,9 @@ static int dos_helper(void)
   	if (config.cpuemu && !in_dpmi) leave_cpu_emu();
         break;
 #endif
+    case DOS_HELPER_XCONFIG:
+        LWORD(eax) = config.X ? X_change_config((unsigned) LWORD(edx), SEG_ADR((void *), es, bx)) : -1;
+        break;
   case DOS_HELPER_MBR:
     if (LWORD(eax) == 0xfffe) {
       process_master_boot_record();

@@ -4,20 +4,12 @@ LD86 = $(_LD86_) -0
 
 D=$(REALTOPDIR)/$(THISVERSION)/commands
 
-SRC=exitemu.S vgaoff.S vgaon.S eject.S lredir.c lredir.readme dumpconf.asm \
-	bootoff.S booton.S dosdbg.c dosdbg.readme emumouse.c isemu.c \
-	emufs.S ems.S cdrom.S chdir.c getcwd.c system.c unix.c fossil.S \
-	ecpuon.S ecpuoff.S speed.c emulib.c emulib.h mgarrot.a86 compile.bat
 COM=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
 	$(D)/bootoff.com $(D)/booton.com $(D)/fossil.com \
 	$(D)/ecpuon.com $(D)/ecpuoff.com \
 	$(D)/uchdir.com $(D)/speed.com $(D)/isemu.com $(D)/ugetcwd.com \
 	$(D)/system.com $(D)/mgarrot.com
-EXE=lredir.com dosdbg.com lancheck.exe \
-	emumouse.com mgarrot.com isemu.com \
-	unix.com
 SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys
-DOC=README
 
 # --------------- begin 'tcc via dosemu' --------------------
 # The below are settings to compile the stuff in 'precompiled'
@@ -38,6 +30,7 @@ DOC=README
 #   4. cd into this directory (src/commands) and do 'make precomp'
 #      this should compile the *.exe in the precompile directory.
 #
+#CALLDOS=dos -D-a 2>/dev/null
 CALLDOS=../../bin/dos -D-a 2>/dev/null
 COMMANDDIR=$(shell nolinks=1;pwd)
 BOOTUP=\P2;2\rn
@@ -66,7 +59,7 @@ $(D)/%.com: %.s
 	rm -f $*.tmp $*.o
 
 precomp: $(PD)/unix.exe $(PD)/cmdline.exe $(PD)/emumouse.exe \
-		$(PD)/lredir.exe $(PD)/dosdbg.exe
+		$(PD)/lredir.exe $(PD)/dosdbg.exe $(PD)/xmode.exe
 	rm -f *.obj
 
 $(PD)/unix.exe: unix.c msetenv.c detect.h
@@ -89,6 +82,10 @@ $(PD)/dosdbg.exe: dosdbg.c detect.h
 	$(CALLDOS) -I $(subst COMMAND,tcc dosdbg.c,$(DOSINVOKE))
 	mv *.exe $(PD)
 
+$(PD)/xmode.exe: xmode.c detect.h
+	$(CALLDOS) -I $(subst COMMAND,tcc xmode.c,$(DOSINVOKE))
+	mv *.exe $(PD)
+
 precomp1:
 	$(CALLDOS) -I $(subst COMMAND,dir /w,$(DOSINVOKE_KEEP))
 
@@ -98,9 +95,6 @@ clean:
 
 realclean: clean
 
-dist: Makefile $(SRC)
-	install -d $(DISTPATH)/commands
-	install -m 0644 Makefile $(SRC) $(EXE) $(DOC) $(DISTPATH)/commands
 
 install:
 

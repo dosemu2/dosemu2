@@ -1,3 +1,11 @@
+#define X_CHG_TITLE	1
+#define X_CHG_FONT	2
+#define X_CHG_MAP	3
+#define X_CHG_UNMAP	4
+#define X_CHG_WINSIZE	5
+
+int X_change_config(unsigned, void *);		/* modify X config data from DOS */
+
 void           get_vga_colors (void);
 int            X_init         (void);
 void           X_close        (void);

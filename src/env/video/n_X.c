@@ -103,6 +103,10 @@
  * default is "Home". (the code needs to be enabled via NEW_X_MOUSE)
  * -- sw
  *
+ * 1998/03/08: Further work at mouse support in graphics modes.
+ * Added config capabilities via DOS tool (X_change_config).
+ * -- sw
+ *
  *
  * DANG_END_CHANGELOG
  */
@@ -114,6 +118,8 @@
 #define CONFIG_X_SPEAKER 1  		/* do you want speaker support in X? */
 
 #define TEXT_DAC_UPDATES		/* updates palettes even in text modes */
+
+#undef DEBUG_MOUSE_POS			/* show X mouse in graphics modes */
 
 #ifndef NEW_X_MOUSE
   #undef ENABLE_POINTER_GRAB		/* when defined, F12 toggles grabbing of all key & mouse events */
@@ -151,6 +157,7 @@
 #include "memory.h"
 #include "remap.h"
 #include "vgaemu.h"
+#include "X.h"
 
 #ifdef HAVE_MITSHM
 #include <sys/ipc.h>
@@ -264,6 +271,7 @@ static int snap_X = 0;
 static GC gc;
 static Font vga_font;
 static Atom proto_atom = None, delete_atom = None;
+static XFontStruct *font = NULL;
 static int font_width, font_height, font_shift;
 static int prev_cursor_row = -1, prev_cursor_col = -1;
 static ushort prev_cursor_shape = NO_CURSOR;
@@ -314,6 +322,9 @@ static int grab_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;
 #endif /* NEW_X_MOUSE */
 
+static int X_map_mode = -1;
+static int X_unmap_mode = -1;
+
 typedef struct { unsigned char r, g, b; } c_cube;
 
 /*
@@ -348,8 +359,8 @@ static void X_dga_done(void);
 #endif
 static void X_remap_init(void);
 static void X_remap_done(void);
-static int X_init(void);
-static void X_close(void);
+int X_init(void);
+void X_close(void);
 static int X_setmode(int, int, int);
 static void X_modify_mode(void);
 static inline void set_gc_attr(Bit8u);
@@ -358,12 +369,12 @@ static inline void restore_cell(int, int);
 static void redraw_cursor(void);
 static void X_update_cursor(void);
 extern void X_blink_cursor(void);
-static void X_redraw_screen(void);
+void X_redraw_screen(void);
 #if USE_SCROLL_QUEUE
 static void X_scroll(int, int, int, int, int, byte);
 static void do_scroll(void);
 #endif
-static int X_update_screen(void);
+int X_update_screen(void);
 extern void X_change_mouse_cursor(void);
 #if CONFIG_X_MOUSE
 static void set_mouse_position(int, int);
@@ -596,7 +607,6 @@ static void vga256_cmap_init(void)
 static void load_text_font(void)
 {
   const char *fonts[] = {config.X_font, "vga", "9x15", "fixed", NULL}, **p;
-  XFontStruct *font;
   p = fonts;
   while (1) {
     if ((font=XLoadQueryFont(display, *p)) == NULL) {
@@ -1061,7 +1071,7 @@ void X_remap_done()
 /*
  * Initialize everything X-related.
  */
-static int X_init(void)
+int X_init(void)
 {
   XGCValues gcv;
   XClassHint xch;
@@ -1154,7 +1164,15 @@ static int X_init(void)
     );
   }
 
-  XMapWindow(display, mainwindow);
+
+  {
+    /* just for testing purposes; this still lacks some proper configuration strategy
+     * -- 1998/03/08 sw
+     */
+    if(getenv("DOSEMU_HIDE_WINDOW") == NULL) XMapWindow(display, mainwindow);
+  }
+
+
   X_printf("X: X_init done, screen = %d, root = 0x%lx, mainwindow = 0x%lx\n",
     screen, (unsigned long) rootwindow, (unsigned long) mainwindow
   );
@@ -1207,7 +1225,7 @@ static int X_init(void)
  *
  * DANG_END_FUNCTION
  */
-static void X_close(void) 
+void X_close(void) 
 {
   X_printf("X_close()\n");
 
@@ -1297,6 +1315,11 @@ static int X_setmode(int mode_class, int text_width, int text_height)
     (int) video_mode, vga.mode_class ? "GRAPH" : "TEXT",
     vga.text_width, vga.text_height, vga.width, vga.height
   );
+
+  if(X_unmap_mode != -1 && (X_unmap_mode == vga.mode || X_unmap_mode == vga.VESA_mode)) {
+    XUnmapWindow(display, mainwindow);
+    X_unmap_mode = -1;
+  }
 
   destroy_ximage();
 
@@ -1475,6 +1498,11 @@ static int X_setmode(int mode_class, int text_width, int text_height)
       X_printf("X: X_setmode: Invalid mode class %d (neither TEXT nor GRAPH)\n", vga.mode_class);
       return 0;
 
+  }
+
+  if(X_map_mode != -1 && (X_map_mode == vga.mode || X_map_mode == vga.VESA_mode)) {
+    XMapWindow(display, mainwindow);
+    X_map_mode = -1;
   }
 
   return 1;
@@ -1697,7 +1725,7 @@ void X_blink_cursor(void)
 /**************************************************************************/
 
 /* Redraw the entire screen. Used for expose events. */
-static void X_redraw_screen(void)
+void X_redraw_screen(void)
 {
   Bit16u *sp, *oldsp;
   u_char charbuff[MAX_COLUMNS], *bp;
@@ -1872,7 +1900,7 @@ static void do_scroll(void)
  * DANG_END_FUNCTION
  */ 
 
-static int X_update_screen()
+int X_update_screen()
 {
   switch(vga.mode_class) {
 
@@ -2228,14 +2256,6 @@ static void set_mouse_position(int x, int y)
   }
   
   if(vga.mode_class == GRAPH) {
-    /*
-     * win31 cursor snap kludge, we temporary force the DOS cursor to the
-     * upper left corner (0,0). If we after that release snapping,
-     * normal X-events will move the cursor to the exact position. (Hans)
-     */
-    if(snap_X) {
-      x = -127; y = -127; snap_X--;
-    }
 
     if(grab_active) {
       dx = x - mouse_x;
@@ -2243,19 +2263,32 @@ static void set_mouse_position(int x, int y)
       mouse.x += dx; mouse.y += dy;
     }
     else {
-      if(x_res == 320) x <<= 1;		/* 320 -> 640 cf. mouse.c -- 1998/02/22 sw */
-      x = (x * x_res) / w_x_res;
-      y = (y * y_res) / w_y_res;
-      dx = x - (mouse_x * x_res) / w_x_res;
-      dy = y - (mouse_y * y_res) / w_y_res;
-      if(mouse.x != x || mouse.y != y) move_it = 1;
-      mouse.x = x; mouse.y = y;
+      if(snap_X) {
+        /*
+         * win31 cursor snap kludge, we temporary force the DOS cursor to the
+         * upper left corner (0,0). If we after that release snapping,
+         * normal X-events will move the cursor to the exact position. (Hans)
+         */
+        mouse.x = mouse.y = 0;
+        x0 = y0 = 0;
+        dx = -3 * x_res; dy = -3 * y_res;		// enough ??? -- sw
+        snap_X--;
+      }
+      else {
+        x = (x * x_res) / w_x_res;
+        y = (y * y_res) / w_y_res;
+        dx = x - (mouse_x * x_res) / w_x_res;
+        dy = y - (mouse_y * y_res) / w_y_res;
+        if(x_res == 320) x <<= 1;		/* 320 -> 640 cf. mouse.c -- 1998/02/22 sw */
+        if(mouse.x != x || mouse.y != y) move_it = 1;
+        mouse.x = x; mouse.y = y;
+      }
     }
 
     mouse.mickeyx += dx;
     mouse.mickeyy += dy;
     if(dx || dy) move_it = 1;
-    /* fprintf(stderr, "X: mouse.x = %d, mouse.y = %d, dx = %d, dy = %d\n", mouse.x, mouse.y, dx, dy); */
+    /* fprintf(stderr, "X: mouse.x = %d(X %d), mouse.y = %d(X %d), dx = %d, dy = %d\n", mouse.x, x, mouse.y, y, dx, dy); */
   }
 
   if(move_it) mouse_move();
@@ -2563,7 +2596,11 @@ void X_handle_events(void)
      static int lastingraphics = 0;
      if (vga.mode_class == GRAPH) {
        lastingraphics = 1;
+#ifndef DEBUG_MOUSE_POS
        XDefineCursor(display, mainwindow, X_mouse_nocursor);
+#else
+       XDefineCursor(display, mainwindow, X_standard_cursor);
+#endif
      }
      else {
        if (lastingraphics) {
@@ -2837,6 +2874,76 @@ void X_handle_events(void)
    /*   gettimeofday(&currenttime, &tz);
    printf("\nLEAVE: %10d %10d\n",currenttime.tv_sec,currenttime.tv_usec);*/
 
+}
+
+int X_change_config(unsigned item, void *buf)
+{
+  int err = 0;
+  XFontStruct *xfont;
+  XGCValues gcv;
+
+  X_printf("X: X_change_config: item = %d, buffer = 0x%x\n", item, (unsigned) buf);
+
+  switch(item) {
+
+    case X_CHG_TITLE:
+      X_printf("X: X_change_config: win_name = %s\n", (char *) buf);
+      XStoreName(display, mainwindow, buf);
+      break;
+
+    case X_CHG_FONT:
+      xfont = XLoadQueryFont(display, (char *) buf);
+      if(xfont == NULL) {
+        X_printf("X: X_change_config: font \"%s\" not found\n", (char *) buf);
+      }
+      else {
+        if(xfont->min_bounds.width != xfont->max_bounds.width) {
+          X_printf("X: X_change_config: font \"%s\" is not monospaced\n", (char *) buf);
+          XFreeFont(display, xfont);
+        }
+        else {
+          if(font != NULL) XFreeFont(display, font);
+          font = xfont;
+          font_width  = font->max_bounds.width;
+          font_height = font->max_bounds.ascent + font->max_bounds.descent;
+          font_shift  = font->max_bounds.ascent;
+          vga_font    = font->fid;
+          gcv.font = vga_font;
+          XChangeGC(display, gc, GCFont, &gcv);
+
+          X_printf("X: X_change_config: using font \"%s\", size = %d x %d\n", (char *) buf, font_width, font_height);
+
+          if(vga.mode_class == TEXT) {
+            X_setmode(vga.mode_class, vga.text_width, vga.text_height);
+          }
+
+        }
+      }
+      break;
+
+    case X_CHG_MAP:
+      X_map_mode = *((int *) buf);
+      X_printf("X: X_change_config: map window at mode 0x%02x\n", X_map_mode);
+      if(X_map_mode == -1) { XMapWindow(display, mainwindow); }
+      break;
+
+    case X_CHG_UNMAP:
+      X_unmap_mode = *((int *) buf);
+      X_printf("X: X_change_config: unmap window at mode 0x%02x\n", X_unmap_mode);
+      if(X_unmap_mode == -1) { XUnmapWindow(display, mainwindow); }
+      break;
+
+    case X_CHG_WINSIZE:
+      config.X_winsize_x = *((int *) buf);
+      config.X_winsize_y = ((int *) buf)[1];
+      X_printf("X: X_change_config: set initial graphics window size to %d x %d\n", config.X_winsize_x, config.X_winsize_y);
+      break;
+
+    default:
+      err = 100;
+  }
+
+  return err;
 }
 
 

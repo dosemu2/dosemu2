@@ -80,6 +80,8 @@
 #define DOS_HELPER_CPUEMUOFF        0x91
 #endif
 
+#define DOS_HELPER_XCONFIG          0xa0
+
 #define DOS_HELPER_MBR              0xfe
 #define DOS_HELPER_EXIT             0xff
 #define DOS_HELPER_REALLY_EXIT      0xffff

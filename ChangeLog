@@ -1,3 +1,19 @@
+98/03/12 ver. 0.97.4.2 unofficial pre-release
+	From Steffen
+	- fix for NEW_X_MOUSE not snapping win31 mouse
+	- fix for not handling repnz (f2 prefix) in do_vm86.c, dpmi.c
+	- new DOSHELPER: DOS_HELPER_XCONFIG. This takes input from
+	  the new xmode.exe  to set X configuration from within the DOS session.
+	  (hope Steffen also writes the docs for it ;-)
+	- hiding the main Xwindow (text) via env.variable DOSEMU_HIDE_WINDOW
+	  ( may need to be moved to some config.* variable)
+	  Purpose: when starting an graphics application as the only app
+	  for this session (maybe via DEXE), only the graphics window
+	  shows up, hiding the fact that it is run under dosemu ;-)
+	From Hans
+	- make xmode.c 'norm-conform' ;-) and re-compiled it
+	- adapted and cleaned up src/commands/Makefile
+	- made 'newxmouse on' default in both compiletime-settings
 98/03/01 ver. 0.97.4.1 unofficial pre-release
 	From Alistair
 	- fix for send-pr reporting wrong version when running under buggy

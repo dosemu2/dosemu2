@@ -2714,10 +2714,8 @@ if ((_ss & 7) == 7) {
          case 0x36:      /* SS */              pref_seg=_ss; break;
          case 0x65:      /* GS */              pref_seg=_gs; break;
          case 0x64:      /* FS */              pref_seg=_fs; break;
-         case 0xf3:      /* rep */             is_rep=1; break;
-  #if 0
          case 0xf2:      /* repnz */
-  #endif
+         case 0xf3:      /* rep */             is_rep=1; break;
          default: done=1;
       }
     } while (!done);
