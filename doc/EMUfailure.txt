@@ -3,14 +3,14 @@ EMUfailure.txt
 
 Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
-   Sep 28, 2003 for dosemu 1.2.0 (and possibly earlier versions)
+   Jul 11, 2004 for dosemu 1.2.2 (and possibly earlier versions)
 
    This file lists programs and groups of programs not running or running
    only partially under dosemu. The most up-to-date version of this file
    may be found on: http://www.dosemu.org/. Please report about possible
-   additions to linux-msdos@vger.rutgers.edu. or the SourceForge BTS at
-   http://www.dosemu.org/. Perhaps it can be made going with the help
-   others. Have a look at the dosemu-howto how to do so.
+   additions to linux-msdos@vger.kernel.org or the SourceForge BTS at
+   http://www.dosemu.org/. Perhaps your program can be made going with
+   the help of others. Have a look at the dosemu-howto how to do so.
      _________________________________________________________________
 
    Table of Contents
@@ -31,7 +31,7 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
         2.1. Things YOU may help changing
 
-              2.1.1. List of currently known bugs in Dosemu 1.2.0.
+              2.1.1. List of currently known bugs in Dosemu 1.2.2.
               2.1.2. Bug reports that are currently open at
                       http://www.dosemu.org/. but that were not yet
                       confirmed by dosemu developers.
@@ -41,8 +41,7 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
    3. Programs exhibiting graphical problems in xdosemu
 
-        3.1. Text programs with custom fonts
-        3.2. Games with graphical problems
+        3.1. Games with graphical problems
 
 1. Fundamental problems
 
@@ -218,10 +217,9 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 
 2.1. Things YOU may help changing
 
-2.1.1. List of currently known bugs in Dosemu 1.2.0.
+2.1.1. List of currently known bugs in Dosemu 1.2.2.
 
      * Some documentation is known to be well out of date.
-     * Windows 3.1 will not run very well because for some reasons.
      * OPL3 FM is not implemented yet (but Midi, SB8 and SB16 work)
      * IPX doesn't play well with DPMI. You might be able to use the
        packet driver in combination with DOS TSR drivers such as LSL,
@@ -235,7 +233,8 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
      * Console graphics (especially switching VCs) can be problematic
        with certain video cards, in particular in combination with fbdev
        graphical consoles.
-     * DPMI interrupt handling may be unreliable.
+     * DPMI interrupt handling may be unreliable. Transport Tycoon game
+       crashes sometimes.
      * Mortal Kombat 1 and 2 are not producing any sound for unknown
        reasons.
      * X-COM Apocalypse locks up at startup if configured with sound.
@@ -245,7 +244,6 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
 2.1.2. Bug reports that are currently open at http://www.dosemu.org/. but
 that were not yet confirmed by dosemu developers.
 
-     * An (unknown) DPMI clipper program hangs when run on a SMP machine
      * A chess program (VChess) may crash in xdosemu when the mouse is
        moved (there are still some issues with the internal mouse driver)
      * Another chess program (Nimzo 3) crashes when there is no CD in the
@@ -260,28 +258,11 @@ that were not yet confirmed by dosemu developers.
    report if you had problems in the listed areas and these problems are
    now solved.
 
-     * There are known problems with xdosemu (e.g. it may not work at all
-       for you.)
+     * There are known problems with xdosemu.
      * xdosemu sessions accessed from remote, non-Linux X-sessions (e.g.
        SUN stations and others) may not work correctly. Use
        $_mitshm=(off).
      * The internal mouse driver is known to have problems.
-     * Running a protected mode 'make' and a protected mode compiler
-       (e.g. Borland's) may not work. Try switching to a real mode make.
-     * dd2demo.exe
-       This is a game found at
-
-    http://www.psygnosis.com/
-
-       Reported by Hans Lermen, it kills dosemu, giving an output like:
-
-    general protection at 0x1fba: a7
-    ERROR: SIGSEGV, protected insn...exiting!
-
-       The crash happens in DMPI Call 0x0302 At least DMPI Call 0x0506 is
-       not yet implemented.
-       This demo is no longer for download. But if you can test please
-       let us know for completeness.
      * bae.exe
        This is a demo version of an Electronic CAD programm, found at
 
@@ -310,15 +291,7 @@ that were not yet confirmed by dosemu developers.
    glitches in xdosemu.
      _________________________________________________________________
 
-3.1. Text programs with custom fonts
-
-   Programs such as Norton Commander and the Watcom Debugger use custom
-   characters to display icons, radio buttons and similar characters.
-   This problem is addressed in current development versions and the
-   fixes will likely be backported to a later version of DOSEMU 1.2.x
-     _________________________________________________________________
-
-3.2. Games with graphical problems
+3.1. Games with graphical problems
 
    The following games exhibit glitches or don't work at all in xdosemu.
    Please let us know when any problems are solved or even better, help
@@ -326,7 +299,7 @@ that were not yet confirmed by dosemu developers.
 
      * Commander Keen 1 wobbles like jelly and the window shakes every
        time it scrolls.
-     * Commander Keen 4 gives you a black screen.
+     * Commander Keen 4 has some problems with colours.
      * Clyde's Adventures statsbar fonts completely garbled xdosemu.
        Download at: http://www.gamesdomain.com/directd/513.html
      * Pinball Dreams 2 takes a long time to start. Once it's past the
