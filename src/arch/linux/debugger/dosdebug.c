@@ -250,7 +250,7 @@ int main (int argc, char **argv)
     exit(1);
   }
 
-  write(fdout,"\n",1);
+  write(fdout,"r0\n",3);
   do {
     FD_SET(fdin, &readfds);
     FD_SET(0, &readfds);   /* stdin */

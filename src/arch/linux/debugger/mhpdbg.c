@@ -195,40 +195,21 @@ void mhp_input()
   if (mhpdbg.fdin == -1) return;
   mhpdbg.nbytes = read(mhpdbg.fdin, mhpdbg.recvbuf, SRSIZE);
   if (mhpdbg.nbytes == -1) return;
+  if (mhpdbg.nbytes == 0) {
+    if (mhpdbgc.stopped) {
+      mhp_cmd("g");
+      mhp_send();
+    }
+    mhpdbg.active = 0;
+    return;
+  }
   if (!mhpdbg.active) {
     mhpdbg.active = 1; /* 1 = new session */
   }
 }
 
-static void mhp_poll(void)
+static void mhp_poll_loop(void)
 {
-
-   if (!mhpdbg.active) {
-     mhpdbg.nbytes = 0;
-     return;
-   }
-
-   if (mhpdbg.active == 1) {
-      /* new session has started */
-      mhpdbg.active++;
-      vm86s.vm86plus.vm86dbg_active = 1;
-      
-      mhp_printf ("%s", mhp_banner);
-      mhp_cmd("rmapfile");
-      if (wait_for_debug_terminal) wait_for_debug_terminal =0;
-      else mhp_cmd("r0");
-      mhp_send();
-   }
-
-   if (mhpdbgc.want_to_stop) {
-      mhpdbgc.stopped = 1;
-      mhpdbgc.want_to_stop = 0;
-   }
-   if (mhpdbgc.stopped) {
-      mhp_cmd("r0");
-      mhp_send();
-   }
-
    for (;;) {
       handle_signals();
       /* NOTE: if there is input on mhpdbg.fdin, as result of handle_signals
@@ -252,6 +233,10 @@ static void mhp_poll(void)
         if (traceloop) { traceloop=loopbuf[0]=0; }
       }
       if ((mhpdbg.recvbuf[0] == 'q') && (mhpdbg.recvbuf[1] <= ' ')) {
+	 if (mhpdbgc.stopped) {
+	   mhp_cmd("g");
+	   mhp_send();
+	 }
 	 mhpdbg.active = 0;
 	 vm86s.vm86plus.vm86dbg_active = 0;
 	 mhpdbg.sendptr = 0;
@@ -263,6 +248,36 @@ static void mhp_poll(void)
       mhp_send();
       mhpdbg.nbytes = 0;
    }
+}
+
+static void mhp_poll(void)
+{
+
+   if (!mhpdbg.active) {
+     mhpdbg.nbytes = 0;
+     return;
+   }
+
+   if (mhpdbg.active == 1) {
+      /* new session has started */
+      mhpdbg.active++;
+      vm86s.vm86plus.vm86dbg_active = 1;
+      
+      mhp_printf ("%s", mhp_banner);
+      mhp_cmd("rmapfile");
+      mhp_send();
+      if (wait_for_debug_terminal) wait_for_debug_terminal =0;
+   }
+
+   if (mhpdbgc.want_to_stop) {
+      mhpdbgc.stopped = 1;
+      mhpdbgc.want_to_stop = 0;
+   }
+   if (mhpdbgc.stopped) {
+      mhp_cmd("r0");
+      mhp_send();
+   }
+   mhp_poll_loop();
 }
 
 void mhp_intercept(char *msg)
@@ -280,36 +295,7 @@ void mhp_intercept(char *msg)
        dpmi_eflags |= VIP;
      return;
    }
-   for (;;) {
-      mhp_input();
-      if (mhpdbg.nbytes <= 0) {
-         if (traceloop && mhpdbgc.stopped) {
-           strcpy(mhpdbg.recvbuf,loopbuf);
-           mhpdbg.nbytes=strlen(loopbuf);
-         }
-         else {
-          if (mhpdbgc.stopped) {
-            usleep(JIFFIE_TIME/10);
-            continue;
-          }
-          else break;
-        }
-      }
-      else {
-        if (traceloop) { traceloop=loopbuf[0]=0; }
-      }
-      if ((mhpdbg.recvbuf[0] == 'q') && (mhpdbg.recvbuf[1] <= ' ')) {
-	 mhpdbg.active = 0;
-	 vm86s.vm86plus.vm86dbg_active = 0;
-	 mhpdbg.sendptr = 0;
-         mhpdbg.nbytes = 0;
-         return;
-      }
-      mhpdbg.recvbuf[mhpdbg.nbytes] = 0x00;
-      mhp_cmd(mhpdbg.recvbuf);
-      mhp_send();
-      mhpdbg.nbytes = 0;
-   }
+   mhp_poll_loop();
 }
 
 void mhp_exit_intercept(int errcode)
