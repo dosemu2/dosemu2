@@ -70,6 +70,8 @@ int allow_io(unsigned int start, int size, int permission, int ormask,
 #include "memory.h"
 
 #include "parsglob.h"
+#include "lexer.h"
+
 
 #define USERVAR_PREF	"dosemu_"
 static int user_scope_level;
@@ -201,7 +203,6 @@ static int is_in_allowed_classes(int mask);
 
 	/* variables in lexer.l */
 
-extern int line_count;
 extern FILE* yyin;
 extern void yyrestart(FILE *input_file);
 %}
@@ -2223,7 +2224,18 @@ void yyerror(char* string, ...)
 {
   va_list vars;
   va_start(vars, string);
-  fprintf(stderr, "Error in %s: (line %.3d) ", file_being_parsed, line_count);
+  if (include_stack_ptr != 0 && !last_include) {
+	  int i;
+	  fprintf(stderr, "In file included from %s:%d\n",
+		  include_fnames[0], include_lines[0]);
+	  for(i = 1; i < include_stack_ptr; i++) {
+		  fprintf(stderr, "                 from %s:%d\n",
+			  include_fnames[i], include_lines[i]);
+	  }
+	  last_include = 1;
+  }
+  fprintf(stderr, "Error in %s: (line %.3d) ", 
+	  include_fnames[include_stack_ptr], line_count);
   vfprintf(stderr, string, vars);
   fprintf(stderr, "\n");
   va_end(vars);
@@ -2576,6 +2588,22 @@ void prepare_dexe_load(char *name)
 }
 
 
+static void do_parse(FILE* fp, char *confname, char *errtx)
+{
+        yyin = fp;
+        line_count = 1;
+	include_stack_ptr = 0;
+        c_printf("CONF: Parsing %s file.\n", confname);
+	file_being_parsed = strdup(confname);
+	include_fnames[include_stack_ptr] = file_being_parsed;
+	yyrestart(fp);
+        if (yyparse()) yyerror(errtx, confname);
+        close_file(fp);
+	include_stack_ptr = 0;
+	include_fnames[include_stack_ptr] = 0;
+	free(file_being_parsed);
+}
+
 int parse_config(char *confname, char *dosrcname)
 {
   FILE *fd;
@@ -2587,13 +2615,6 @@ int parse_config(char *confname, char *dosrcname)
 #endif
 
   define_config_variable(PARSER_VERSION_STRING);
-
-
-  {
-    /* preset the 'include-stack', so files without '/' can be found */
-    extern char * include_fnames[];
-    include_fnames[0]=strdup(CONFIG_FILE);
-  }
 
   /* Parse valid users who can execute DOSEMU */
   parse_dosemu_users();
@@ -2653,14 +2674,7 @@ int parse_config(char *confname, char *dosrcname)
         }
       }
       else {
-        yyin = fd;
-        line_count = 1;
-        c_printf("CONF: Parsing %s file.\n", confname);
-        file_being_parsed = malloc(strlen(confname) + 1);
-        strcpy(file_being_parsed, confname);
-        if (yyparse())
-          yyerror("error in configuration file %s", confname);
-        close_file(fd);
+	do_parse(fd, confname, "error in configuration file %s");
       }
     }
     if (priv_lvl) undefine_config_variable("c_user");
@@ -2683,18 +2697,8 @@ int parse_config(char *confname, char *dosrcname)
     define_config_variable("c_dosrc");
     if (!skip_dosrc && !get_config_variable("skip_dosrc")
                     && ((fd = open_file(name)) != 0)) {
-      c_printf("Parsing %s file.\n", name);
-      free(file_being_parsed);
-      file_being_parsed = malloc(strlen(name) + 1);
-      strcpy(file_being_parsed, name);
-      yyin = fd;
-      line_count = 1;
-      yyrestart(fd);
-      if (yyparse())
-	yyerror("error in user's configuration file %s", name);
-      close_file(fd);
+      do_parse(fd, name, "error in user's configuration file %s");
     }
-    free(file_being_parsed);
     undefine_config_variable("c_dosrc");
 
     /* Now we parse any commandline statements from option '-I'
@@ -2709,17 +2713,10 @@ int parse_config(char *confname, char *dosrcname)
       open_file(0);
       define_config_variable("c_comline");
       c_printf("Parsing " XX_NAME  " statements.\n");
-      file_being_parsed = malloc(strlen(XX_NAME) + 1);
-      strcpy(file_being_parsed, XX_NAME);
       yyin=0;				 /* say: we have no input file */
       yy_vbuffer=commandline_statements; /* this is the input to scan */
-      line_count = 1;
-      yyrestart(yyin);
-      if (yyparse())
-	yyerror("error in user's %s statement", XX_NAME);
-      free(file_being_parsed);
+      do_parse(0, XX_NAME, "error in user's %s statement");
       undefine_config_variable("c_comline");
-      close_file(0);
     }
   }
 

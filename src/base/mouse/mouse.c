@@ -757,6 +757,12 @@ mouse_reset_to_current_video_mode(void)
    * confuse people. Besides, they ignore the ACTUAL maxx,maxy values as
    * stored in the BIOS variables.
    */
+  /* To get quicken to run correctly I no longer ignore maxx and maxy
+   * values as stored in the BIOS variables for text mode.
+   * Does this violate a spec?
+   * -- EB 25 May 1998
+   */
+
 
   if (current_video.textgraph == 'T') {
     mouse.gfx_cursor = FALSE;

@@ -36,6 +36,7 @@
 
 #include "parsglob.h"
 #include "parser.h"
+#include "lexer.h"
 int line_count;
 
 #define NESTING_DEPTH	32 /* as we handle loops as pseudo includes,
@@ -47,7 +48,8 @@ static int __active__=1, __next_ITEM_for_me__=0;
 #define __active_max (2*NESTING_DEPTH) /* Note: 'while' pushes twice */
 static int __active_stack[__active_max+1]={1,0};
 static int __active_i=1;
-static int include_stack_ptr = 0;
+int include_stack_ptr = 0;
+int last_include = 0;
 
 static void push__active();
 static void pop__active();
@@ -615,10 +617,17 @@ xdosonly		RETURN(XDOSONLY);
 
 	/* strings */
 
-\'[^\']*\'		MAY_BE { yytext[strlen(yytext)-1] = '\0';
+\'[^\']*\'		{
+			char *s;
+			for(s = strchr(yytext, '\n'); s != NULL; s = strchr(s+1,'\n'))
+			      line_count++;
+
+			MAY_BE { yytext[strlen(yytext)-1] = '\0';
 			  yylval->s_value = strdup(&yytext[1]);
 			  EXPRTYPE(yylval->s_value) = TYPE_STRING1;
 			  return(STRING); }
+			}
+
 {STRQUOTELESS}		MAY_BEFORME {
 			  yylval->s_value = strdup(yytext);
 			  EXPRTYPE(yylval->s_value) = TYPE_STRQUOTELESS;
@@ -633,17 +642,24 @@ $${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
 	/* Note: we need the rule numbers of below actions 
 	 *       The below first one is INCLUDEFILE_RULE_NUM
 	 */
-\"[^\"]*\"		MAY_BEINCLUDE ( { yytext[strlen(yytext)-1] = '\0';
+\"[^\"]*\"		{
+			char *s;
+			for(s = strchr(yytext, '\n'); s != NULL; s = strchr(s+1,'\n'))
+			      line_count++;
+
+			MAY_BEINCLUDE ( { yytext[strlen(yytext)-1] = '\0';
 			  yylval->s_value = strdup(&yytext[1]);
 			  EXPRTYPE(yylval->s_value) = TYPE_STRING;
 			  return(STRING); } )
+			}
 
 	/* comments & whitespace */
 
 [#][^\n]*\n		line_count++;   /* comments to (and including) EOLN */
 [ \t]+			;   		/* ignore all white space */
 \n			line_count++;	/* keep track of lines seen */
-.			; /* fprintf(stderr, "discarding char '%c'\n", yytext[0]); */
+.			;/* fprintf(stderr, "%s:%d discarding char '%c'\n", 
+				include_fnames[include_stack_ptr],line_count, yytext[0]); */
 
 
 %%
@@ -662,7 +678,7 @@ $${IDENT}		MAY_BE { enter_macrofile(&yytext[2]);}
 static YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH] ={0};
 char * include_fnames[MAX_INCLUDE_DEPTH] = {0};
 char * include_macbuf[MAX_INCLUDE_DEPTH] = {0};
-static int include_lines[MAX_INCLUDE_DEPTH] = {0};
+int include_lines[MAX_INCLUDE_DEPTH] = {0};
 
 static void enter_includefile(char * fname)
 {
@@ -673,6 +689,7 @@ static void enter_includefile(char * fname)
     yyerror("Includes nested too deeply" );
     return;
   }
+#if 0
   /* we want to have the include files in the same directory as
    * the main config file, if we have no leading  '/'
    */
@@ -690,6 +707,22 @@ static void enter_includefile(char * fname)
       fname=fname_;
     }
   }
+#else
+  /* we want to have the include files in the same directory as
+   * the file that includes them, if we have no leading '/'
+   */
+  if (fname[0] != '/') {
+	  int i;
+	  strcpy(fname_,include_fnames[include_stack_ptr]);
+	  i=strlen(fname_);
+	  while (i && (fname_[i] != '/')) i--;
+	  if (i) {
+		  i++;
+		  strcpy(fname_+i, fname);
+		  fname=fname_;
+	  }
+  }
+#endif
   if (get_config_variable("c_system")) enter_priv_on();
   else enter_priv_off();
   new_yyin = fopen( fname, "r" );
@@ -707,6 +740,7 @@ static void enter_includefile(char * fname)
   yyin = new_yyin;
   include_stack[include_stack_ptr] = yy_create_buffer( yyin, YY_BUF_SIZE );
   yy_switch_to_buffer(include_stack[include_stack_ptr]);
+  last_include = 0;
 }
 
 
@@ -733,6 +767,7 @@ int yywrap(void)    /* this gets called at EOF of a parsed file */
   free(include_fnames[include_stack_ptr]);
   include_stack_ptr--;
   line_count=include_lines[include_stack_ptr];
+  last_include = 0;
   return(0);
 }
 
@@ -884,7 +919,19 @@ static void create_cachefile(int start)
 	cf->rptr = start;
 	cf->firstline = line_count;
 	cf->origfname = 0;
+#if 0
+	/* NOTE: The 'include_stack_ptr > 0' sanity check may be needed
+	   because of errors in do loops (to much 'done'), though this
+	   would be for sure a syntax error in the config file, but we
+	   got segfaults in the past and came not so far to report the
+	   error. Hence, we have to check if the segfaults happen again.
+	   Till then we leave the old code here in place.
+			--Hans, 980614
+	*/
 	if (include_stack_ptr > 0 && include_fnames[include_stack_ptr])
+#else
+	if (include_fnames[include_stack_ptr])
+#endif
 		cf->origfname = strdup(include_fnames[include_stack_ptr]);
 	cf->parent = cachefilecurrent;
 	cachefilecurrent = cachefilewptr;

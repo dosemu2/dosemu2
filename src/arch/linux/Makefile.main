@@ -475,7 +475,7 @@ pristine:	realclean
 	-mv lib/libarch_*slang*.a .
 	-rm -f lib/*
 	-mv libarch_*slang*.a lib
-	-rm -rf $(BINPATH) ../bin ../commands
+	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont
 
 # DEPENDS=dos.d emu.d 
 # this is to do make subdir.depend to make a dependency

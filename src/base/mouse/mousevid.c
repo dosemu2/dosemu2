@@ -64,6 +64,7 @@ get_current_video_mode(void)
 	m_printf("MOUSE: Unknown video mode %x, no mouse cursor.\n",i);
   	return i;
 #else /* NEW_X_MOUSE */
+#if X_GRAPHICS
   if(config.X) {
     current_video.mode = vga.mode;
     current_video.textgraph = vga.mode_class == TEXT ? 'T' : 'G';
@@ -84,7 +85,10 @@ get_current_video_mode(void)
     }
     current_video.offset = (vga.mode_info->buffer_start - 0xa000) << 4;
   }
-  else {
+  else 
+#endif /* X_GRAPHICS */
+  {
+
     int i = READ_BYTE(BIOS_VIDEO_MODE);
     /* invalid video mode */
     if(i < 0 || i > 0x13 || !videomodes[i].textgraph) {
@@ -92,11 +96,21 @@ get_current_video_mode(void)
       return i;
     }
     current_video = videomodes[i];
+    if (current_video.textgraph == 'T') { /* read the size from the bios data area */
+	    current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
+	    current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
+	    current_video.bytesperline = current_video.width *2;
+    }
 #endif /* NEW_X_MOUSE */
   }
 
 #ifndef NEW_X_MOUSE
   current_video = videomodes[i];
+  if (current_video.textgraph == 'T') { /* read the size from the bios data area */
+	  current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
+	  current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
+	  current_video.bytesperline = current_video.width *2;
+  }
 #else /* NEW_X_MOUSE */
   m_printf(
     "MOUSE: video mode 0x%02x found (%c%dx%d at 0x%04x).\n",

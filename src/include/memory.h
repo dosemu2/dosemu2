@@ -112,8 +112,14 @@
 
 #define INT10_SEG	ROMBIOSSEG
 #define INT10_OFF	0x4200
-#define INT10_WATCHER_OFF	0x4240
 #define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
+
+/* int10 watcher for mouse support */
+/* This was in BIOSSEG (a) so we could write old_int10,
+ * when it made a difference...
+ */
+#define INT10_WATCHER_SEG	ROMBIOSSEG
+#define INT10_WATCHER_OFF	0x4240
 
 /* This inline interrupt is used for FCB open calls */
 #define INTE7_SEG	ROMBIOSSEG

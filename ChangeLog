@@ -1,3 +1,25 @@
+98/06/14 ver. 0.97.8.2 unofficial pre-release
+	From Eric
+	- x1: quicken mouse fix
+	  - fix a little piece of code without a sanity check
+	    (src/base/mouse/gcursor.c )
+	  -  Added code to correct textmodes,
+	     mousevid.c (get_current_video_mode)
+	  - async/int.c: Readded old call to SETIVEC, mouse_post_boot,
+	    dos_post_boot, moved code to dos_post_boot, and mouse_post_boot
+	- x2: fixes to keyb_slang.c
+	- x3: further fixes to EMS&X bug
+	- x5: emulated speaker fix, base/dev/misc/timers.c
+	- x6: enhancing X color palette handling, video/X.c, dacemu.c
+	      (but sorry, the palette in 4-bit ega mode is still wrong,
+	        --Hans)
+	- x9: fixed bugs in global.conf
+	    - fixed line counting and error reporting in lexer.l, parser.y
+	- x10: readed old new_set_video_mode for 0.97.4, broke non-X compiles
+	From Hans
+	- renamed new_set_video_mode to X_set_video_mode to avoid further
+	  confusion.
+	- some small 'adjustments' to x1,x6,x9 from Eric.
 98/06/13 ver. 0.97.8.1 unofficial pre-release
 	From Alistair
 	- Tcl/Tk adaption for compiletime stuff in setup-dosemu

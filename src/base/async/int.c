@@ -42,8 +42,10 @@
 
 #define DJGPP_HACK	/* AV Feb 97 */
 
+#if X_GRAPHICS
 /* prototype is in X.h -- 1998/03/08 sw */
 int X_change_config(unsigned, void *);
+#endif
 
 /*
    This flag will be set when doing video routines so that special
@@ -339,16 +341,6 @@ static int dos_helper(void)
     }
     v_printf("Restore hi vector area\n");
     MEMCPY_2DOS(0x380,save_hi_ints,128);
-    /* The video BIOS just wrote its entry point into the int0x10 vector */
-    if (mice->intdrv) { /* grab int10 back from video card for mouse */
-        void bios_f000(), bios_f000_int10_old();
-        us *ptr = (us*)((BIOSSEG << 4) +
-                        ((long)bios_f000_int10_old - (long)bios_f000));
-        m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
-        ptr[0] = IOFF(0x10);
-        ptr[1] = ISEG(0x10);
-        m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",ptr[0],ptr[1]);
-    }
     break;
 
   case DOS_HELPER_GET_DEBUG_STRING:
@@ -487,7 +479,14 @@ static int dos_helper(void)
         break;
 #endif
     case DOS_HELPER_XCONFIG:
-        LWORD(eax) = config.X ? X_change_config((unsigned) LWORD(edx), SEG_ADR((void *), es, bx)) : -1;
+#if X_GRAPHICS
+	if (config.X) {
+		LWORD(eax) = X_change_config((unsigned) LWORD(edx), SEG_ADR((void *), es, bx));
+	} else 
+#endif /* X_GRAPHICS
+	{
+		_AX = -1;
+	}
         break;
   case DOS_HELPER_MBR:
     if (LWORD(eax) == 0xfffe) {
@@ -1453,31 +1452,56 @@ static void int23(u_char i)
 }
 #endif
 
-/* KEYBOARD BUSY LOOP */
-static void int28(u_char i) {
-  static int first = 1;
-  if (first) {
-    first = 0;
+static void mouse_post_boot(void)
+{
+	void bios_f000(), bios_f000_int10_old();
+	us *ptr;
+	/* This is needed here to revectoring the interrupt, after dos
+	 * has revectored it. --EB 1 Nov 1997 */
+
+	/* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
+	#define Mouse_INT       (0x33 * 16)
+	SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#ifndef USE_NEW_INT
+      	#define Mouse_INT74     (0x74 * 16)
+	SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
+#else /* USE_NEW_INT */
+#if 0
+	SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
+
+#endif /* USE_NEW_INT */
+      
+	/* grab int10 back from video card for mouse */
+        ptr = (us*)((BIOSSEG << 4) +
+		    ((long)bios_f000_int10_old - (long)bios_f000));
+        m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
+        ptr[0] = IOFF(0x10);
+        ptr[1] = ISEG(0x10);
+        m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",ptr[0],ptr[1]);
+#if defined(USE_NEW_INT) || (INT10_WATCHER_SEG != BIOSSEG)
+	 /* Otherwise this isn't safe */
+	SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
+#endif
+}
+
+static void dos_post_boot(void)
+{
     if (!config.keybint && config.console_keyb) {
       /* revector int9, so dos doesn't play with the keybuffer */
       k_printf("revectoring int9 away from dos\n");
       SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);  /* point to the IRET before INT9 */
     }
-    if (mice->intdrv) {
-      /* This is needed here to revectoring the interrupt, after dos has revectored 
-	 it. --EB 1 Nov 1997 */
-      /* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
-      #define Mouse_INT       (0x33 * 16)
-      SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#ifndef USE_NEW_INT
-      #define Mouse_INT74     (0x74 * 16)
-      SETIVEC(0x74, Mouse_SEG, Mouse_INT74);
-#else /* USE_NEW_INT */
-#if 0
-      SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
-#endif /* USE_NEW_INT */
-    }
+    if (mice->intdrv) mouse_post_boot();
+
+}
+
+/* KEYBOARD BUSY LOOP */
+static void int28(u_char i) {
+  static int first = 1;
+  if (first) {
+    first = 0;
+    dos_post_boot();
   }
 
   if (config.hogthreshold) {
@@ -2054,12 +2078,6 @@ void setup_interrupts(void) {
   else
     *(unsigned char *) (BIOSSEG * 16 + 16 * 0x33) = 0xcf;	/* IRET */
 #else /* USE_NEW_INT */
- #if 0
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
- #endif
-    /* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
-    #define Mouse_INT       (0x33 * 16)
-    SETIVEC(0x33, Mouse_SEG, Mouse_INT);
   }
   else {
     /* point to the retf#2 immediately after the int 33 entry point. */

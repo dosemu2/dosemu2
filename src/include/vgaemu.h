@@ -395,6 +395,7 @@ int vesa_emu_fault(struct sigcontext_struct *scp);
  */
 
 void DAC_init(void);
+void DAC_dirty_all(void);
 void DAC_get_entry(DAC_entry *, unsigned char);
 void DAC_read_entry(DAC_entry *, unsigned char);
 int DAC_get_dirty_entry(DAC_entry *);

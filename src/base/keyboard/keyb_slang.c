@@ -478,6 +478,8 @@ static Keymap_Scan_Type Dosemu_Xkeys[] =
   {"^@Kh",  KEY_PAUSE },	/* Hold or Pause DOS */
   {"^@Kp",  KEY_PRTSCR },	/* Print screen, SysRequest. */
   {"^@Ky",  KEY_SYSRQ },	/* SysRequest. */
+  {"^@KS",  KEY_SCROLL },	/* Scroll Lock */
+  {"^@KN",  KEY_NUM },		/* Num Lock */
 
   {"", 0}
 };
@@ -964,6 +966,28 @@ static void slang_send_scancode(unsigned long lscan, unsigned char ch)
       && ((lscan & STICKY_ALTGR_MASK) == 0)) {
     flags |= ALTGR_MASK;
     presskey(KEY_R_ALT,0);
+  }
+
+  /* create a character if we don't have one */
+  if (!ch) {
+	  switch(lscan) {
+	  case KEY_PAD_ENTER:	ch= 0x0d; break;
+	  case KEY_PAD_PLUS:	ch= '+'; break;
+	  case KEY_PAD_MINUS:	ch= '-'; break;
+	  case KEY_PAD_AST:	ch= '*'; break;
+	  case KEY_PAD_DECIMAL:	ch= '.'; break;
+	  case KEY_PAD_SLASH:	ch= '/'; break;
+	  case KEY_PAD_0:	ch= '0'; break;
+	  case KEY_PAD_1:	ch= '1'; break;
+	  case KEY_PAD_2:	ch= '2'; break;
+	  case KEY_PAD_3:	ch= '3'; break;
+	  case KEY_PAD_4:	ch= '4'; break;
+	  case KEY_PAD_5:	ch= '5'; break;
+	  case KEY_PAD_6:	ch= '6'; break;
+	  case KEY_PAD_7:	ch= '7'; break;
+	  case KEY_PAD_8:	ch= '8'; break;
+	  case KEY_PAD_9:	ch= '9'; break;
+	  }
   }
 
   /* Sanity adjustments on ch */

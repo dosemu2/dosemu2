@@ -735,18 +735,25 @@ static void refresh_private_palette()
   RGBColor c;
   XColor xcolor[256];
   int i, n;
-  unsigned bits, bit_mask;
+  unsigned bits;
 
   for (n = 0; ((i = DAC_get_dirty_entry(&color)) != -1) && n < 256; n++) {
+    unsigned shift;
     c.r = color.r; c.g = color.g; c.b = color.b;
     bits = dac_bits;
     gamma_correct(&remap_obj, &c, &bits);
-    bit_mask = (1 << bits) - 1;
+    shift = 16 - bits;
     xcolor[n].flags = DoRed | DoGreen | DoBlue;
     xcolor[n].pixel = i;
-    xcolor[n].red   = (c.r * 65535) / bit_mask;
-    xcolor[n].green = (c.g * 65535) / bit_mask;
-    xcolor[n].blue  = (c.b * 65535) / bit_mask;
+    xcolor[n].red   = c.r << shift;
+    xcolor[n].green = c.g << shift;
+    xcolor[n].blue  = c.b << shift;
+    X_printf("X: refresh_private_palette: %d: (%u %u %u)->(%u, %u, %u)\n",
+	     i,
+	     c.r, c.g, c.b,
+	     xcolor[n].red, 
+	     xcolor[n].green, 
+	     xcolor[n].blue);
   }
   /* Hopefully this is faster */
   XStoreColors(display, vga256_cmap, xcolor, n);
@@ -767,6 +774,11 @@ static void refresh_truecolor()
 
 static void refresh_palette()
 {
+#ifdef TEXT_DAC_UPDATES
+  if (vga.mode_class == TEXT)
+	  refresh_text_palette();
+  else
+#endif
   if(have_true_color || have_shmap)
     refresh_truecolor();
   else
@@ -778,14 +790,14 @@ static void refresh_text_palette()
 {
   DAC_entry color;
   XColor xc;
-  int i, n, dac_mask = (1 << dac_bits) - 1;
+  int i, n, shift = 16 - dac_bits;
 
   for (n = 0; ((i = DAC_get_dirty_entry(&color)) != -1) && n < 16 && i < 16; n++) {
     xc.flags = DoRed | DoGreen | DoBlue;
     xc.pixel = text_colors[i];
-    xc.red   = (color.r * 65535) / dac_mask;
-    xc.green = (color.g * 65535) / dac_mask;
-    xc.blue  = (color.b * 65535) / dac_mask;
+    xc.red   = color.r << shift;
+    xc.green = color.g << shift;
+    xc.blue  = color.b << shift;
 
     if(text_col_stats[i]) XFreeColors(display, text_cmap, &(xc.pixel), 1, 0);
 
@@ -1533,6 +1545,10 @@ static int X_setmode(int mode_class, int text_width, int text_height)
 
   }
 
+  /* unconditionally update the palette */
+  DAC_dirty_all();
+  refresh_palette();
+
   if(X_map_mode != -1 && (X_map_mode == vga.mode || X_map_mode == vga.VESA_mode)) {
     XMapWindow(display, mainwindow);
     X_map_mode = -1;
@@ -1772,9 +1788,7 @@ void X_redraw_screen(void)
    sp=screen_adr;
   oldsp = prev_screen;
 
-#ifdef TEXT_DAC_UPDATES
-  refresh_text_palette();
-#endif
+  refresh_palette();
 
   switch(video_mode)
     {
@@ -1953,9 +1967,7 @@ int X_update_screen()
 	if (!is_mapped) 
 	  return 0;       /* no need to do anything... */
 
-#ifdef TEXT_DAC_UPDATES
-        refresh_text_palette();
-#endif
+        refresh_palette();
 
 #if USE_SCROLL_QUEUE
   do_scroll();
@@ -2599,7 +2611,7 @@ void X_handle_events(void)
 {
    static int busy = 0;
    XEvent e;
-   unsigned resize_width = 0, resize_height = 0, resize_event = 0;
+   unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
 
    /*  struct timeval currenttime;
   struct timezone tz;*/
@@ -2731,7 +2743,7 @@ void X_handle_events(void)
 #if CONFIG_X_SELECTION
     /* The user made a selection in another window, so our selection
      * data is no longer needed. 
-*/
+     */
 	case SelectionClear:
 	  clear_selection_data();
 	  break;
@@ -2874,8 +2886,16 @@ void X_handle_events(void)
 
         case ConfigureNotify:
           /* printf("X: configure event: width = %d, height = %d\n", e.xconfigure.width, e.xconfigure.height); */
-          resize_width = w_x_res;
-          resize_height = w_y_res;
+ 	/* DANG_BEGIN_REMARK
+ 	 * DO NOT REMOVE THIS TEST!!!
+ 	 * It is magic, without it EMS fails on my machine under X.
+ 	 * Perhaps someday when we don't use a buggy /proc/self/mem..
+ 	 * -- EB 18 May 1998
+	 * A slightly further look says it's not the test so much as
+	 * suppressing noop resize events...
+	 * -- EB 1 June 1998
+ 	 * DANG_END_REMARK
+ 	 */
           if ((e.xconfigure.width != resize_width)
                        || (e.xconfigure.height != resize_height)) {
             resize_event = 1;

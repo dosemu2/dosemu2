@@ -80,6 +80,7 @@ irqnum	set	irqnum+1
 .ENDR
 
 			/* system-soft ints 0x10 .. 0x12 */
+int10:		
 irqnum	set	0x10
 	.org	irqnum*16
 .REPT (0x13-0x10) .align 16
@@ -681,41 +682,46 @@ CISH(bios_f000_int10ptr):
 /* This is installed after video init (helper fcn 0x9) when the internal
 	mouse driver is in use.  It watches for mouse set commands and
 	resets the mouse driver when it sees one. */
-/* Comments and bugs to David Etherton, etherton@netcom.com */
+/* Was: Comments and bugs to David Etherton, etherton@netcom.com
+ * Current Maintainer:	Eric W. Biederman <ebiederm+eric@npwt.net>
+ */	
 
-	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
+	.org	((INT10_WATCHER_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
 /* ======================= Addr = F800:4240 (FC240) */
 	or	ah,ah
 	jz	L9	/* normal mode set */
+	cmp	ah,#0x11
+	je	L9	/* character generator, possibly resize the screen */
 	cmp	ax,#0x4F02
 	jne	L10	/* svga mode set */
 L9:
-	pusha		/* save everything */
+	push 	ax	/* save everything */
+	push	bx
 	mov	ax,#0x33	/* mouse helper */
 	mov	bx,#0xf0	/* start video mode set */
 	int	DOSHELPER_INT
-	popa
+	pop	bx
+	pop	ax
 
 	pushf		/* fake stack frame for iret */
 	push	cs
 	call	L10	/* perform the actual mode set */
 
-	pushf		/* remember everything from int10 call */
-	pusha
+	push	ax	/* remember everything from int10 call */
+	push	bx
 	mov	ax,#0x33	/* mouse helper */
 	mov	bx,#0xf1	/* end video mode set */
 	int	DOSHELPER_INT
-	popa
-	popf
+	pop	bx
+	pop	ax
 	iret		/* return to original caller */
 
 L10:	/* chain to original handler (probably the video bios) */
-	pushf
-	db	0x9a
+	db 	0xea /* jump far */
 	.globl	CISH(bios_f000_int10_old)
 CISH(bios_f000_int10_old):
 	dw	0,0
-	iret
+	JMPL(int10)
 
 /* ----------------------------------------------------------------- */   
 		/* This is an int e7 used for FCB opens */

@@ -108,7 +108,9 @@
 #include "port.h"
 #include "dma.h"
 
+#if X_GRAPHICS
 #include "vgaemu.h"
+#endif
 
 #ifdef __NetBSD__
 #define vm86_regs sigcontext

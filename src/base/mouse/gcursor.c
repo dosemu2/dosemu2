@@ -403,7 +403,7 @@ static mouse_cursor_func mouse_cursors[] = {
 void
 define_graphics_cursor(short *scrmask,short *curmask)
 {
-	int org = videomodes[READ_BYTE(BIOS_VIDEO_MODE)].organization;
+	int org = current_video.organization;
 
 	/* build optimized versions of cursor */
 	realize_cursor(scrmask,curmask,org);

@@ -22,6 +22,13 @@
  * more VGA comaptible) and removed new_set_video_mode().
  * Removed (useless) global variable "gfx_mode".
  * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * 
+ * Readded new_set_video_mode, its needed for non-X compiles.
+ * -- EB 3 June 1998
+ *
+ * Renamed new_set_video_mode to X_set_video_mode to avoid confusion
+ * in the future
+ * -- Hans 980614
  *
  * DANG_END_CHANGELOG
  */
@@ -335,6 +342,8 @@ clear_screen(int s, int att)
 }
 
 
+#if X_GRAPHICS
+
 /*
  * set_video_mode() accepts both (S)VGA and VESA mode numbers
  * It should be fully compatible with the old set_video_mode()
@@ -344,7 +353,7 @@ clear_screen(int s, int att)
  * -- 1998/04/04 sw
  */
 
-boolean set_video_mode(int mode) {
+static boolean X_set_video_mode(int mode) {
   vga_mode_info *vmi;
   int clear_mem = 1;
   int adjust_font_size = 0;
@@ -462,6 +471,128 @@ boolean set_video_mode(int mode) {
    */
 
   return 1;
+}    
+#endif /* X_GRAPHICS */
+
+
+/* XXX- shouldn't this reset the current video page to 0 ? 
+*/
+
+boolean set_video_mode(int mode) {
+  int type=0;
+  int old_video_mode,oldco;
+
+  v_printf("set_video_mode: mode = 0x%02x\n",mode);
+  
+#ifdef X_GRAPHICS
+  if (Video == &Video_X) return X_set_video_mode(mode);
+#endif  
+  oldco = co;
+  old_video_mode = video_mode;
+  video_mode=mode&0x7f;
+
+  if (Video->setmode == 0)
+    { 
+      v_printf("video: no setmode handler!\n");
+      goto error;
+    }
+
+
+  switch (mode&0x7f) {
+  case 0x50:
+  case 0x51:
+  case 0x52:
+    co=80;
+    goto do_text_mode;
+  case 0x53:
+  case 0x54:
+  case 0x55:
+  case 0x56:
+  case 0x57:
+  case 0x58:
+  case 0x59:
+  case 0x5a:
+    co=132;
+    goto do_text_mode;
+  
+  case 0:
+  case 1:
+    /* 40 column modes... */
+    co=40;
+    goto do_text_mode;
+    
+  case 7:
+    /*
+     * This to be sure in case of older DOS programs probing HGC.
+     * There was no secure way to detect a HGC before VGA was invented.
+     * ( Now we can do INT 10, AX=1A00 ).
+     * Some older DOS programs do it by modifying EQUIP-flags
+     * and then let the BIOS say, if it can ?!?!)
+     * If we have config.dualmon, this happens legaly.
+     */
+#if USE_DUALMON
+    if (config.dualmon) {
+      type=7;
+      text_scanlines = 400;
+      vga_font_height=text_scanlines/25;
+    }
+#endif
+    /* fall through */
+     
+  case 2:
+  case 3:
+    /* set 80 column text mode */
+#if USE_DUALMON
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co = CO); /*80*/
+#else
+    co=80;
+#endif
+    
+do_text_mode:
+    clear_scroll_queue();
+
+    li=text_scanlines/vga_font_height;
+    if (li>MAX_LINES) li=MAX_LINES;
+    WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
+    WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
+    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
+    Video->setmode(type,co,li);
+    /* mode change clears screen unless bit7 of AL set */
+    if (!(mode & 0x80))
+       clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
+
+    if ( config.cardtype == CARD_MDA )
+      mode = 7;
+       
+    break;
+
+
+case 0x13:	/*Not finished ! */
+case 0x5c:
+case 0x5d:
+case 0x5e:
+case 0x62:
+  /* 0x01 == GRAPH for us, but now it's sure! */
+  if (Video->setmode != NULL)
+  Video->setmode(0x01,0,0);
+  break;
+
+  default:
+    /* handle graphics modes here */
+    v_printf("undefined video mode 0x%x\n", mode);
+  goto error;
+  }
+
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
+
+  if (oldco != co)
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
+  return 1;
+
+error:
+  /* don't change any state on failure */
+  video_mode = old_video_mode;
+  return 0;
 }    
 
 

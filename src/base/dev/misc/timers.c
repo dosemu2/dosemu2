@@ -56,7 +56,7 @@ pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
-static Bit8u port61 = 0x0e;
+static Bit8u port61 = 0x0c;
 
 
 /*
@@ -105,7 +105,7 @@ void initialize_timers(void)
 
   timer_tick();  /* a starting tick! */
 
-  port61 = 0x0e;
+  port61 = 0x0c;
 }
 
 /*
@@ -671,7 +671,7 @@ void pit_init(void)
   port_register_handler(io_device, 0);
 
   /* register_handler for port 0x61 is in keyboard code */
-  port61 = (config.speaker==SPKR_OFF? 0x0c:0x0e);
+  port61 = 0x0c;
 #if 0
   io_device.start_addr   = 0x0047;
   io_device.end_addr     = 0x0047;
@@ -725,7 +725,7 @@ void pit_reset(void)
 #if 0
   timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
 #endif
-  port61 = (config.speaker==SPKR_OFF? 0x0c:0x0e);
+  port61 = 0x0c;
   do_ioctl(console_fd,KIOCSOUND,0);    /* sound off */
 }
 #endif /* new engine */

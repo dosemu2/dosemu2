@@ -217,6 +217,19 @@ void DAC_init(void)
 
 
 
+/* DANG_BEGIN_FUNCTION DAC_dirty_all
+ *
+ * Dirty all DAC entries.  Usefull for a mode set.
+ *
+ * DANG_END_FUNCTION
+ */
+void DAC_dirty_all(void)
+{
+	int i;
+	for(i = 0; i < 256; i++) {
+		DAC_dirty[i]=True;
+	}
+}
 
 /*
  * DANG_BEGIN_FUNCTION DAC_set_read_index
@@ -406,7 +419,9 @@ void DAC_get_entry(DAC_entry *entry, unsigned char index)
   entry->r=DAC[index].r & DAC_pel_mask;
   entry->g=DAC[index].g & DAC_pel_mask;
   entry->b=DAC[index].b & DAC_pel_mask;
+#if 0 /* This function is too general, to always clear the dirty flag */
   DAC_dirty[index] = False;
+#endif
 
 #ifdef DEBUG_DAC_2
   v_printf(
@@ -461,6 +476,7 @@ int DAC_get_dirty_entry(DAC_entry *entry)
       if(DAC_dirty[i]==True)
 	{
 	  DAC_get_entry(entry, (unsigned char)i);
+	  DAC_dirty[i] = False;
 #ifdef DEBUG_DAC
 	  v_printf("VGAemu: DAC_get_dirty_entry() returns dirty entry "
 	           "0x%02x\n", i);
