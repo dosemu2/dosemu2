@@ -149,6 +149,14 @@ SYSTEM=`( [ -f /bin/uname ] && /bin/uname -a ) || \
         ( [ -f /usr/bin/uname ] && /usr/bin/uname -a ) || echo ""`
 ARCH=`[ -f /bin/arch ] && /bin/arch`
 MACHINE=`[ -f /bin/machine ] && /bin/machine`
+LIBS=`ls -F /lib/libc.* |grep -v '@'`
+USRLIBS=`ls -F /usr/lib/libc.* |grep -v '@'`
+LDVER=`ld -v`
+GCCVER=`gcc -v 2>&1 |grep version`
+SLANG=`[ -f /usr/include/slang.h ] && grep VERSION /usr/include/slang.h`
+PROCESSOR=`[ -f /proc/cpuinfo ] && grep processor /proc/cpuinfo | cut -d':' -f2`
+CONFIG=`[ -f ${TOPDIR}/config.status ] &&\
+	grep /configure ${TOPDIR}/config.status | head -n1| cut -d' ' -f2-`
 
 COMMAND=`echo $0 | sed -e 's,.*/,,'`
 USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [-s severity]
@@ -363,6 +371,14 @@ ${ORGANIZATION-	$ORGANIZATION_C}
 `[ -n "$SYSTEM" ] && echo System: $SYSTEM`
 `[ -n "$ARCH" ] && echo Architecture: $ARCH`
 `[ -n "$MACHINE" ] && echo Machine: $MACHINE`
+`[ -n "$SLANG" ] && echo Slang: $SLANG`
+`[ -n "$LIBS" ] && echo Libraries: $LIBS`
+`[ -n "$USRLIBS" ] && echo UsrLibraries: $USRLIBS`
+`[ -n "$GCCVER" ] && echo GCC: $GCCVER`
+`[ -n "$LDVER" ] && echo Ld: $LDVER`
+`[ -n "$PROCESSOR" ] && echo Processor: $PROCESSOR`
+`[ -n "$CONFIG" ] && echo Config: $CONFIG`
+
 >Description:
 	$DESCRIPTION_C
 >How-To-Repeat:

@@ -25,6 +25,5 @@ pristine:
 	rm -f `find . -name '*[\.]orig'`
 	rm -f `find . -name '*[\.]rej'`
 	rm -f `find . -size 0`
-	rm -f midi
 	(cd setup/demudialog; make clean)
 	rm -f Makefile

@@ -357,7 +357,6 @@ endif
 		rm -f /usr/bin/xdosemu; \
 	fi
 ifdef X_SUPPORT
-	@ln -sf dos $(BINPATH)/bin/xdos
 	@install -m 0755 ../etc/xtermdos /usr/bin
 	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
 	@echo ""

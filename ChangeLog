@@ -1,3 +1,15 @@
+97/03/12 ver. 0.65.99.18 unofficial pre-release
+	From Alistair
+	- Further gnats enhancements
+	From Hans
+	- Because 'midi' always was created in the default directory (which
+	  also is the name of the 'midi' executable ;-) ), I
+	  renamed the 'midi' file to /var/run/dosemu-midi, removed the
+          'create' on open and checked for 'is open' when writeing to it.
+	  Updated README.sound accordingly.
+	From Uwe
+	- second try (;-) to make compiling on NFS mounted directory
+          possible
 97/03/11 ver. 0.65.99.17 unofficial pre-release
 	From Alberto
 	- deleted 'rm modules' in src/arch/linux/Makefile.main.in

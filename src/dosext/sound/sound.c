@@ -925,7 +925,7 @@ void mpu401_io_write(Bit32u port, Bit8u value)
   switch (addr){
     case 0:
 	/* Write data port */
-	write(mpufile,&value,1);
+	if (mpufile > 0) write(mpufile,&value,1);
 	S_printf("MPU401: Write 0x%02x to data port\n",value);
 	break;
     case 1:
@@ -1182,7 +1182,12 @@ static void mpu401_init(void)
 
   /* FIXME: Rutger, this is _driver_ specific */
   /* Quick hack */
-  mpufile=open("midi",O_WRONLY | O_CREAT, 0777);
+  mpufile=open("/var/run/dosemu-midi",O_WRONLY);
+  /* NOTE: If it can't be opened, mpufile will be -1, which is checked
+   *       above in mpu401_io_write()
+   * FIXME: ... and where will mpufile closed? --Hans
+   */
+  if (mpufile < 0) S_printf("MPU401: Cannot open /var/run/dosemu-midi\n");
 
   MPU_driver_init();
 }
