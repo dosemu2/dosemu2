@@ -3551,6 +3551,10 @@ void draw_cursor(int x, int y)
   /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
   if(vga.mode_class == GRAPH) return;
 
+  /* don't draw it if it's out of bounds */
+  if(cursor_row < 0 || cursor_row >= li) return;
+  if(cursor_col < 0 || cursor_col >= co) return;
+
   set_gc_attr(XATTR(screen_adr + y * co + x));
   if(!have_focus) {
     XDrawRectangle(
@@ -3659,17 +3663,20 @@ inline void restore_cell(int x, int y)
   Bit16u *sp, *oldsp;
   u_char c;
 
+  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
+  if(vga.mode_class == GRAPH) return;
+
   if (font == NULL) {
     li = vga.text_height;
     co = vga.scan_len / 2;
   }
   
+  /* don't draw it if it's out of bounds */
+  if(y < 0 || y >= li || x < 0 || x >= co) return;
+
   sp = screen_adr + y * co + x;
   oldsp = prev_screen + y * co + x;
   c = XCHAR(sp);
-
-  /* no hardware cursor emulation in graphics modes (erik@sjoerd) */
-  if(vga.mode_class == GRAPH) return;
 
   *oldsp = XREAD_WORD(sp);
   X_draw_string(x, y, &c, 1, XATTR(sp));
