@@ -1107,6 +1107,10 @@ do_serial_out(int num, ioport_t address, int val)
       if(s2_printf) s_printf("SER%d: Divisor MSB = 0x%x\n", num, val);
     }
     else {			/* Else, write to Interrupt Enable Register */
+      if ( !(com[num].IER & 2) && (val & 2) ) {
+        /* Flag to allow THRI if enable THRE went from state 0 -> 1 */
+        com[num].tx_trigger = 1;
+      }
       com[num].IER = (val & 0xF);	/* Write to IER */
       if(s1_printf) s_printf("SER%d: Write IER = 0x%x\n", num, val);
       serial_int_engine(num, 0);		/* Update interrupt status */
