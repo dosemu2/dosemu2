@@ -63,10 +63,6 @@ struct sb_irq_t {
   __u16 midi;                  /* Midi IRQ (internal PIC value) */
 
   __u8  active;                /* Currently active IRQs */
-
-  __u8  activating;            /* IRQs queued for activation */
-#define SB_IRQ_COUNTDOWN_AMOUNT 5
-  __u8  countdown;             /* Iterations until actual trigger */
 };
 
 EXTERN struct sb_information_t {
@@ -96,7 +92,7 @@ EXTERN struct DSP_information_t {
   __u16 blocksize;             /* **CRISK** Block size of transfer */
   __u16 bytes_left;	       /* No. of bytes left in current blk */
 /* 
- * This is the maximum number of bytes transferred via DMA if you turn
+ * This is the maximum number of bytes transferred via DMA. If you turn
  * it too low, the dosemu-overhead gets too big, so the transfer is
  * interrupted (clicking, buzzing), if you make it too high, some
  * programs reading the dma-registers are confused, because the registers
@@ -105,9 +101,9 @@ EXTERN struct DSP_information_t {
 #define MAX_DMA_TRANSFERSIZE 512
   __u16 dma_transfer_size;
   __u8  empty_state;	       /* what we have to do when transfer ends */ 
-#define DACK_AT_EMPTY 1
+#define DREQ_AT_EMPTY 1
 #define IRQ_AT_EMPTY 2
-#define DACK_AT_EOI 4
+#define DREQ_AT_EOI 4
   __u8  dma_mode;              /* Information we need on the DMA transfer */
   __u8  command;               /* DSP command in progress */
   __u8  sb16_playmode;         /* DSP command byte 2 - SB16+ */
@@ -236,7 +232,6 @@ EXTERN __u8 sb_is_running; /* Do we need a tick ? */
 
 #define FM_TIMER_RUN   1 /* Indicates FM sub-system in operation */
 #define DSP_OUTPUT_RUN 2 /* Indicates DSP sub-system in operation */
-#define SB_IRQ_RUN     4 /* Indicates IRQ operation */
 
 extern void sb_controller(void);
 

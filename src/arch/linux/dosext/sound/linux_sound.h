@@ -8,7 +8,12 @@
  */
 
 #define MAX_NUM_FRAGMENTS       0x20
-#define LOW_FRAGMENT_WATERMARK  3
+
+/* 
+ * milliseconds to buffer sound. It should be high enough to avoid
+ * clicking, but low enough to not delay the sound to much 
+ */
+#define BUFFER_MSECS		60
 
 void linux_sb_mixer_write_setting (int ch, __u8 val);
 __u8 linux_sb_mixer_read_setting(int ch);

@@ -154,7 +154,6 @@ int sb_set_rate(Bit16u *variable);   /* MSB, LSB */
 void sb_update_timers (void);
 
 static void sb_activate_irq (int type);
-static void sb_update_irqs (void);
 static void sb_check_complete (void);
 
 Bit8u sb_get_mixer_IRQ_mask (void);
@@ -308,6 +307,11 @@ Bit8u sb_io_read(ioport_t port)
      /* DSP 8-bit IRQ Ack - SB */
      S_printf("SB: Ready?/8-bit IRQ Ack: %x\n", SB_dsp.data);
      SB_info.irq.active &= ~SB_IRQ_8BIT; /* may mean it never triggers! */
+     if(SB_dsp.empty_state & DREQ_AT_EOI)
+     {
+       dma_assert_DREQ(config.sb_dma);
+       SB_dsp.empty_state &= ~DREQ_AT_EOI;
+     }
 
      result = SB_dsp.data; 
      break;
@@ -317,10 +321,10 @@ Bit8u sb_io_read(ioport_t port)
 
      SB_info.irq.active &= ~SB_IRQ_16BIT; /* may mean it never triggers! */
 
-     if(SB_dsp.empty_state & DACK_AT_EOI)
+     if(SB_dsp.empty_state & DREQ_AT_EOI)
      {
-       dma_assert_DACK(config.sb_dma);
-       SB_dsp.empty_state &= ~DACK_AT_EOI;
+       dma_assert_DREQ(config.sb_dma);
+       SB_dsp.empty_state &= ~DREQ_AT_EOI;
      }
 
      result = SB_dsp.data;
@@ -1825,6 +1829,10 @@ void sb16_adc(void)
 /*
  * SB operations use READ, SINGLE-MODE
  */
+ 
+#define PAUSE_DREQ 0x80
+
+int pause_state; /* SB_dsp.empty_state will be moved to here while pausing */
 
 void pause_dsp_dma(void)
 {
@@ -1834,6 +1842,14 @@ void pause_dsp_dma(void)
   else if (d.sound >= 3) {
     S_printf ("SB: Optional function 'DMA_pause' not provided.\n");
   }
+
+/* Don't do anything till unpause or another start playback command */
+  pause_state = SB_dsp.empty_state;
+  SB_dsp.empty_state = 0;
+  /* Save DREQ also */
+  if(dma_test_DREQ(config.sb_dma))
+    pause_state |= PAUSE_DREQ;
+  sb_is_running &= ~DSP_OUTPUT_RUN;
 
   dma_drop_DREQ(config.sb_dma);
 
@@ -1848,8 +1864,12 @@ void restart_dsp_dma(void)
   else if (d.sound >= 3) {
     S_printf ("SB: Optional function 'DMA_resume' not provided.\n");
   }
-
-  dma_assert_DREQ(config.sb_dma);
+   
+  if(pause_state & PAUSE_DREQ)
+    dma_assert_DREQ(config.sb_dma);
+  SB_dsp.empty_state = pause_state & ~PAUSE_DREQ;
+  if (SB_dsp.empty_state & (DREQ_AT_EMPTY | IRQ_AT_EMPTY))
+    sb_is_running = DSP_OUTPUT_RUN;
 
   SB_dsp.command = SB_NO_DSP_COMMAND;
 }
@@ -1869,7 +1889,7 @@ int sb_set_length(Bit16u *variable)
 			return 0;
 		}
 		else {
-			*variable += (SB_dsp.parameter << 8) /* + 1 */ ;
+			*variable += (SB_dsp.parameter << 8);
 			SB_dsp.write_size_mode = !SB_dsp.write_size_mode;
 			return 1;
 		}
@@ -1923,7 +1943,6 @@ void start_dsp_dma(void)
 			/* Not complete yet */
 			return;
 		}
-		/* Extra 1 should be added by the DMA system */
 		break;
 
 	case 0x1C:
@@ -1940,7 +1959,7 @@ void start_dsp_dma(void)
  		 * is reset when resetting the SB. The game "Millenia", which
  		 * is using the HMI-Driverkit uses the first way, but the
  		 * Shareware Version of Jazz Jackrabit uses the second one.
- 		 * Does anyone no, which programmer to flame, and also know,
+ 		 * Does anyone know, which programmer to flame, and also know,
  		 * what his e-mail adress is? - Karcher
  		 */
 		if (SB_info.version < SB_20) {
@@ -2001,12 +2020,13 @@ void start_dsp_dma(void)
     */
 
         case 0x90:
+                /* Moved for gcc-optimization */
+		SB_dsp.dma_mode |= DMA_AUTO_INIT;
     		if (SB_info.version < SB_20 /*|| SB_info.version > SB_PRO*/)  {
     			S_printf ("SB: 8-bit Auto-Init High Speed DMA DAC not supported on this SB version.\n");
     			SB_dsp.command = SB_NO_DSP_COMMAND;
     			return;
     		}
-		SB_dsp.dma_mode |= DMA_AUTO_INIT;
     		break;
 
         case 0x91:
@@ -2103,6 +2123,20 @@ void stop_dsp_dma(void)
 	command = SB_dsp.command;
 	SB_dsp.command = SB_NO_DSP_COMMAND;
 
+        /* I think, that should do it - MK */
+	SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+
+	/* 
+	 * We should stop after the block
+	 * that is currently in transfer. In our system, that is the
+	 * block, we already got an DMA_READ call for. And if we already
+	 * caught the last DMA_READ for that block, some things of auto-
+	 * initing are already done, and have to be cleared - MK
+	 */
+	
+	/* Don't continue on an EOI with the next block */
+	
+	SB_dsp.empty_state &= ~DREQ_AT_EOI;
 	/*	switch (command) {
 		}
 	*/
@@ -2113,8 +2147,8 @@ int set_dma_blocksize(void)
    if (SB_info.version >= SB_20) {
       if (sb_set_length (&SB_dsp.blocksize)) 
 	{
-	   /* Always need to move 1 more byte */
-	   /* SB_dsp.blocksize++; */
+	  /* DMA system transfers 1 extra byte, so ensure we know about it */
+	  SB_dsp.blocksize++;
            if (SB_driver.DMA_set_blocksize != NULL)
 	     (*SB_driver.DMA_set_blocksize)(SB_dsp.blocksize);
 	   S_printf("SB: DMA blocksize set to %u.\n", 
@@ -2165,11 +2199,23 @@ int sb_dma_handler (int status, Bit16u amount)
 
   switch (status) {
   case DMA_HANDLER_READ:
+    dma_assert_DACK(config.sb_dma);
+    if(!amount)
+      return DMA_HANDLER_OK; /* I'm getting a zero length call when DMA
+                                auto-reinits. Ignore it! */
     if (d.sound >= 2) {
       S_printf ("SB: Outputted %d bytes\n",amount);
     }
 
     SB_dsp.bytes_left -= amount;
+     
+    /* For to not reach impossible transfer speeds and thus overfilling
+       the oss-driver-buffer, we interrupt data-flow till we see enough
+       space in the buffer, or if it is the last fragment of an block,
+       till the next block is started. On auto-init, next block start
+       on an EOI. - MK */
+        
+    dma_drop_DREQ(config.sb_dma);
     if(SB_dsp.bytes_left)
     {
       /* Still some bytes left till IRQ */
@@ -2179,11 +2225,7 @@ int sb_dma_handler (int status, Bit16u amount)
 	SB_dsp.dma_transfer_size = SB_dsp.bytes_left;
 	dma_transfer_size(config.sb_dma,SB_dsp.dma_transfer_size);
       }
-      /* 
-       * I could assert DACK here, but then DMA would be too fast...
-       * I assert DACK when SB-linux indicates buffer-refill needed 
-       */
-      SB_dsp.empty_state = DACK_AT_EMPTY;
+      SB_dsp.empty_state = DREQ_AT_EMPTY;
       sb_is_running |= DSP_OUTPUT_RUN;
     }
     else
@@ -2204,8 +2246,7 @@ int sb_dma_handler (int status, Bit16u amount)
 	  SB_dsp.dma_transfer_size = SB_dsp.blocksize;
 	dma_transfer_size(config.sb_dma, SB_dsp.dma_transfer_size);
 	S_printf("Auto-reinitialized for next block\n");
-	SB_dsp.empty_state = DACK_AT_EOI | IRQ_AT_EMPTY;
-	/* Same thing for DACK as above */
+	SB_dsp.empty_state = DREQ_AT_EOI | IRQ_AT_EMPTY;
       } 
     }
     return DMA_HANDLER_OK;
@@ -2219,33 +2260,8 @@ int sb_dma_handler (int status, Bit16u amount)
     return DMA_HANDLER_NOT_OK;
 
   case DMA_HANDLER_DONE:
-#if 1
     return DMA_HANDLER_OK;
-#else
-    if (SB_driver.DMA_complete_test != NULL) {
-      result = (*SB_driver.DMA_complete_test)();
-      /*      result = linux_sb_dma_complete_test();*/
-    }
-    else if (d.sound >= 3) {
-      S_printf ("SB: Optional function 'DMA_complete_test' not provided.\n");
-    }
 
-S_printf ("SB: Returned from completion test.\n");
-
-    if (result == DMA_HANDLER_OK) {
-      if (d.sound >= 2) {
-	S_printf ("SB: Asserting DACK & triggering Interrupt\n");
-      }
-      dma_assert_DACK(config.sb_dma);
-
-      /* Finally, trigger the interrupt */
-      sb_activate_irq(SB_IRQ_8BIT);
-
-      return DMA_HANDLER_OK;
-    } else {
-      return DMA_HANDLER_NOT_OK;
-    }
-#endif /* ! 1 */
   };
 
   return DMA_HANDLER_NOT_OK;
@@ -2279,11 +2295,11 @@ static void sb_check_complete (void)
   if(result == DMA_HANDLER_OK)
   {
     sb_is_running &= ~DSP_OUTPUT_RUN;
-    if(SB_dsp.empty_state & DACK_AT_EMPTY)
-      dma_assert_DACK(config.sb_dma);
+    if(SB_dsp.empty_state & DREQ_AT_EMPTY)
+      dma_assert_DREQ(config.sb_dma);
     if(SB_dsp.empty_state & IRQ_AT_EMPTY)
       sb_activate_irq(SB_IRQ_8BIT);
-    SB_dsp.empty_state &= ~(DACK_AT_EMPTY | IRQ_AT_EMPTY);
+    SB_dsp.empty_state &= ~(DREQ_AT_EMPTY | IRQ_AT_EMPTY);
   }
 }
 
@@ -2481,6 +2497,10 @@ static void sb_reset (void)
 
   dsp_clear_output ();
 
+  SB_dsp.dma_mode &= ~DMA_AUTO_INIT;
+  dma_drop_DREQ(config.sb_dma);
+  sb_is_running = 0;
+  SB_dsp.empty_state = 0;
   SB_dsp.last_write = 0;
   SB_info.mixer_index = 0;
   SB_dsp.write_size_mode = 0;
@@ -2604,9 +2624,6 @@ void sb_controller(void) {
   if (sb_is_running & FM_TIMER_RUN)
     sb_update_timers ();
 
-  if (sb_is_running & SB_IRQ_RUN)
-    sb_update_irqs ();
-
   if (sb_is_running & DSP_OUTPUT_RUN)
     sb_check_complete ();
 }
@@ -2684,62 +2701,28 @@ void sb_update_timers () {
 
 static void sb_activate_irq (int type)
 {
-  /* Mark the interupt for activation */
-  SB_info.irq.activating |= type;
-
-  /* Set the counter */
-  SB_info.irq.countdown = SB_IRQ_COUNTDOWN_AMOUNT;
-  
-  /*
-   * The countdown is to provide latency. _Why_ we need it I don't know, but
-   * Michael Karcher thinks we do ...
-   */
-
-  /* 
-   * BEWARE: 
-   * The countdown is _always_ reset which could delay some IRQs under 
-   * certain conditions - AM
-   */
-
-  /* Indicate this needs processing */
-  sb_is_running |= SB_IRQ_RUN;
-}
-
-
-static void sb_update_irqs (void)
-{
-  if ( SB_info.irq.countdown ? --SB_info.irq.countdown : 0 ) {
-    /* 
-     * What an IF ! 
-     * It's _supposed_ to say, if irq_countdown > 0, decrement it. If it's
-     * still above 0, do this bit!
-     */
-
-    S_printf ("SB: IRQ Latency countdown complete\n");
-
-    if (SB_info.irq.activating & SB_IRQ_8BIT) {
-      pic_request (SB_info.irq.irq8);
-    }
+    S_printf ("SB: Activating irq type %d\n",type);
 
     /* On a real SB-board, all three sources use the same IRQ-number. -MK */
     /* So ? Just means we are more flexible. - AM */
 
-    if (SB_info.irq.activating & SB_IRQ_16BIT) {
-      /* pic_request (SB_info.irq.irq16); */
+    switch(type)
+    {
+        case SB_IRQ_8BIT:
+          pic_request(SB_info.irq.irq8);
+          break;
+        case SB_IRQ_16BIT:
+          pic_request(SB_info.irq.irq16);
+          break;
+        case SB_IRQ_MIDI:
+          pic_request(SB_info.irq.midi);
+          break;
+        /* Any more ? - AM */
+        /* On an SB16: No - MK */
+        default:
+          S_printf("SB: ERROR! Wrong IRQ-type passed to activate_irq!\n");
+          break;
     }
-
-    if (SB_info.irq.activating & SB_IRQ_MIDI) {
-      /* pic_request (SB_info.irq.midi); */
-    }
-
-    /* Any more ? */
-
-    /* All done, clear the activating list */
-    SB_info.irq.active |= SB_info.irq.activating;
-    SB_info.irq.activating = 0;
-
-    /* And turn off the run information */
-    sb_is_running &= ~SB_IRQ_RUN;
-  }
+    SB_info.irq.active |= type;
 }
 

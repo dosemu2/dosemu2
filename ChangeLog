@@ -1,3 +1,6 @@
+98/05/03 ver. 0.97.7 released
+	From Micheal (via Alistair;-)
+	- newest sound patches
 98/05/03 ver. 0.97.6.1 unofficial pre-release
 	From Eric
 	- fix for the 'beep' in INT10 AH=13: speaker_on(125, 0x637);

@@ -62,6 +62,7 @@ typedef union {
 } multi_t;
 
 typedef struct {
+  int     mask;          /* Whether channel is masked */
   int     wfd;           /* Write part of pipe */
   int     rfd;           /* Read part of pipe */
   int     dack;          /* DACK */
@@ -157,8 +158,10 @@ void dma_assert_DREQ(int channel)
 
   controller = channel & 4;
   ch = channel & DMA_CH_SELECT;
-
   mask = 1 << (ch + 4);
+  
+  if(!dma[controller].i[ch].mask)
+    activate_channel (controller, ch);
 
   dma[controller].status |= mask;
 }
@@ -188,6 +191,8 @@ void dma_drop_DREQ(int channel)
 
   controller = channel & 4;
   ch = channel & DMA_CH_SELECT;
+
+  deactivate_channel(controller, ch);
 
   mask = 1 << (ch +4);
   dma[controller].status &= ~ mask;
@@ -367,26 +372,16 @@ inline void activate_channel (int controller, int channel)
 
   ch = get_ch (controller, channel);
 
-#if 0
+  dma[controller].i[channel].mask = 0;
   /* 
    * We only _actually_ activate the channel if DREQ is set. It's irrelevant
-   * otherwise (from an idea by Michael Karcher)
+   * otherwise (from an idea by Michael Karcher) - AM
    */
      
-  if (dma_test_DREQ(ch) )
-#endif /* 0 */
- {
+  if (dma_test_DREQ(ch) ) {
     mask = get_mask (ch);
 
     is_dma |= mask;
-#ifdef EXCESSIVE_DEBUG
-
-    h_printf ("DMA: Activated channel %d\n", ch);
-#if 0
-  } else {
-    h_printf ("DMA: Activation of channel %d ignored\n", ch);
-#endif /* 0 */  
-#endif /* EXCESSIVE_DEBUG */
   }
 }
 
@@ -397,14 +392,11 @@ inline void deactivate_channel (int controller, int channel)
 {
   int mask, ch;
 
+  dma[controller].i[channel].mask = 1;
   ch = get_ch (controller, channel);
   mask = get_mask (ch);
 
   is_dma &= ~mask;  
-
-#ifdef EXCESSIVE_DEBUG
-  h_printf ("DMA: De-activated channel %d\n", ch);
-#endif /* EXCESSIVE_DEBUG */
 }
 
 inline Bit32u create_addr(Bit8u page, multi_t address, int dma_c)
@@ -601,11 +593,9 @@ inline void dma_write_mask (int dma_c, Bit8u value)
     }
     else
     {
-      /* I don't "trust" 'value' so I use our recorded value - AM */
       h_printf ("DMA: Channel %u deselected.\n", 
-			 (dma_c * 4) + dma[dma_c].current_channel);
+			 (dma_c * 4) + (value&3));
 
-      /*      is_dma |= (1 << dma[dma_c].current_channel); */
       activate_channel (dma_c, dma[dma_c].current_channel);
 
       dma[dma_c].current_channel = -1;

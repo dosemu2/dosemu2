@@ -55,6 +55,7 @@ static long int sound_frag = 0xc;
 /* New fragment control - AM */
 static int sound_frag_size = 0x9; /* ie MAX_DMA_TRANSFERSIZE (== 512) */
 static int num_sound_frag  = MAX_NUM_FRAGMENTS;
+static int extra_buffer    = 8000*BUFFER_MSECS/1000;
 
 /* MPU static vars */
 static int mpu_fd = -1;	             /* -1 = closed */
@@ -62,9 +63,9 @@ static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
 
 extern void sb_set_speed (void);   /* From sound.c */
 
-void linux_sb_dma_set_blocksize(__u16 val)
+void linux_sb_dma_set_blocksize(__u16 sb_blocksize)
 {
-  __u16 i, tmp;
+  __u16 blockbits, oss_blocksize, oss_blocknum;
 
   /* 
    * The blocksize we are passed is the actual number of bytes to include in a
@@ -74,32 +75,49 @@ void linux_sb_dma_set_blocksize(__u16 val)
    * which monitor the DMA transfer)
    * Ideally, the size of a fragment should match that of the transfer. This
    * will not be possible in all cases as the fragment size must be a power of
-   * 2.
+   * ---
+   * New by MK:
+   * We provide more space than sb_blocksize for buffering, as the IRQ-timing
+   * in dosemu is lousy. I hardly get 100 Hz on the SB-irq. The extra space
+   * is depending on the actual data rate. The default is to buffer 10 msec,
+   * but it can be changed in linux_sound.h. The calculation is done in
+   * linux_sb_set_speed. There will be a problem when we start implementing
+   * SB16, as stereo and 16-bit flags are not known till the sound really
+   * starts.
    */
-
-  if(val > MAX_DMA_TRANSFERSIZE) {
-    tmp = MAX_DMA_TRANSFERSIZE;
+  
+  if(sb_blocksize > MAX_DMA_TRANSFERSIZE) {
+    oss_blocksize = MAX_DMA_TRANSFERSIZE;
   } else {
-    tmp = val;
+    oss_blocksize = sb_blocksize;
   }
+  block_size = oss_blocksize;
 
-  for (i = 0; tmp > 1; i++, tmp = tmp >> 1)
+  for (blockbits = 0; oss_blocksize > 1; 
+       blockbits++, oss_blocksize = oss_blocksize >> 1)
     ;
+  /* blockbits now contains floor(log2(oss_blocksize)), and oss_blocksize is
+      destroyed */
 
-  sound_frag_size = i;
+  sound_frag_size = blockbits;
 
-  tmp = val / (1 << sound_frag_size);
-  if (val - ( tmp  * (1 << sound_frag_size)) > 0 ) {
-    num_sound_frag = tmp + 1;
+  /* This is intentionally here, because fragments should not be greater
+     than the SB block size */
+  sb_blocksize += extra_buffer;
+
+  oss_blocknum = sb_blocksize / (1 << sound_frag_size);
+  
+  if (sb_blocksize - ( oss_blocknum * (1 << sound_frag_size)) > 0 ) {
+    num_sound_frag = oss_blocknum + 1;
   } else {
-    num_sound_frag = tmp;
+    num_sound_frag = oss_blocknum;
   }
 
   if (num_sound_frag > MAX_NUM_FRAGMENTS) {
     num_sound_frag = MAX_NUM_FRAGMENTS;
   }
 
-  S_printf ("SB:[Linux] DMA blocksize set to %u (%u,%u)\n", val, 
+  S_printf ("SB:[Linux] DMA blocksize set to %u (%u,%u)\n", sb_blocksize, 
 	    sound_frag_size, num_sound_frag);
 }
 
@@ -361,6 +379,9 @@ void linux_sb_dma_start_init(__u32 command)
   case 0x90: /* 8-bit DMA (Auto-Init, High Speed) */
     S_printf ("SB:[Linux] 8-bit DMA (High Speed, Auto-Init) starting\n");
     break;
+  case 0x91: /* 8-bit DMA (High Speed) */
+    S_printf ("SB:[Linux] 8-bit DMA (High Speed) starting\n");
+    break;
   default:
     S_printf ("SB:[Linux] Unsupported DMA type (%x)\n", command);
     return;
@@ -377,9 +398,6 @@ void linux_sb_dma_start_init(__u32 command)
 
 
 void linux_sb_dma_start_complete (void) {
-   extern long int block_size; 
-   long int fragsize;
-   
   /*
    * This is the important part:
    *
@@ -406,16 +424,14 @@ void linux_sb_dma_start_complete (void) {
     *
     */
    
-   fragsize = (1 << sound_frag_size);
-   if (!fragsize) 
-     {
-	fragsize = block_size;
-	S_printf("SB:[Linux] Using default blocksize\n");
-     }
-   S_printf ("SB:[Linux] DMA start completed (blocksize %lu)\n",fragsize);
-   dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, fragsize);
-/*dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, 1);*/
-/*dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, SOUND_SIZE);*/
+   if(!block_size)
+   {
+     S_printf("SB:[Linux] Using default blocksize\n");
+     block_size = MAX_DMA_TRANSFERSIZE;
+   }
+   S_printf ("SB:[Linux] DMA start completed (block_size %lu)\n",block_size);
+
+   dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, block_size);
 }
 
 int linux_sb_dma_complete_test(void)
@@ -426,7 +442,14 @@ int linux_sb_dma_complete_test(void)
     S_printf ("SB:[Linux] DMA completion test (%d, %d)\n", 
 	      data.fragstotal, data.fragments);
 
-    if (data.fragstotal <= data.fragments + LOW_FRAGMENT_WATERMARK) {
+    /* 
+     * As we set fragments that way that all are used, we can just
+     * look for space in the output buffer. If there is more than
+     * one fragment left, we have still space, and we want it to be
+     * filled as soon as possible. - MK
+     */
+
+    if(data.fragments > 2) {
       return DMA_HANDLER_OK;
     }
 
@@ -499,6 +522,7 @@ void linux_sb_set_speed (__u16 speed, __u8 stereo_mode)
   {
     S_printf ("SB:[Linux] Device not open - Can't set speed.\n");
   }
+  extra_buffer = channels*rate*BUFFER_MSECS/1000;
 }
 
 
