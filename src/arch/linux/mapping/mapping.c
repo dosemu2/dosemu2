@@ -164,8 +164,8 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
       if (!can_do_root_stuff && mem_fd == -1) return MAP_FAILED;
       open_kmem();
       if (!fixed) target = 0;
-      addr = mmap(target, mapsize, protect, MAP_SHARED | fixed,
-		  mem_fd, (size_t) source);
+      target = mmap(target, mapsize, protect, MAP_SHARED | fixed,
+		    mem_fd, (size_t) source);
       close_kmem();
       if (cap & MAPPING_COPYBACK)
 	/* copy from low shared memory to the /dev/mem memory */
@@ -183,11 +183,15 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
 	      source, kmem_map[i].len, mapsize);
 	return MAP_FAILED;
       }
-      kmem_map[i].dst = target;
-      if (cap & MAPPING_COPYBACK) {
-        memcpy(kmem_map[i].base, target, mapsize);
+      if (target != (void*)-1) {
+	kmem_map[i].dst = target;
+	if (cap & MAPPING_COPYBACK) {
+	  memcpy(kmem_map[i].base, target, mapsize);
+	}
+	kmem_map_single(cap, i);
+      } else {
+	target = kmem_map[i].base;
       }
-      kmem_map_single(cap, i);
     }
     mprotect_mapping(cap, target, mapsize, protect);
     return target;
