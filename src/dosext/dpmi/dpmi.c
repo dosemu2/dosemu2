@@ -2327,7 +2327,7 @@ void run_dpmi(void)
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
-    D_printf("DPMI: retval=%x %x:%x", VM86_ARG(retval), _CS, _IP);
+    D_printf("DPMI: retval=%x %x:%x\n", VM86_ARG(retval), _CS, _IP);
 		switch (VM86_ARG(retval)) {
 		  case 0x1c:	/* ROM BIOS timer tick interrupt */
 		  case 0x23:	/* DOS Ctrl+C interrupt */
