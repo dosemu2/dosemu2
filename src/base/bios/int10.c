@@ -723,6 +723,7 @@ static void return_state(Bit8u *statebuf) {
 /* helpers for font processing - eric@coli.uni-sb.de  11/2002 */
 /* only for TEXT mode: Otherwise, int 0x43 is used...         */
 
+#ifdef X_GRAPHICS
 static void vga_RAM_to_RAM(unsigned height, unsigned char chr, unsigned count,
                            unsigned seg, unsigned ofs, int bank)
 {
@@ -767,6 +768,7 @@ static void vga_ROM_to_RAM(unsigned height, int bank)
   }
   vga_RAM_to_RAM(height,0,256,seg,ofs,bank);
 }
+#endif /* X_GRAPHICS */
 
 /******************************************************************/
 
