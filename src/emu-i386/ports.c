@@ -1005,6 +1005,10 @@ int extra_port_init(void)
 			    port_handle_table[i] >= HANDLE_STD_IO &&
                             port_handle_table[i] <= HANDLE_STD_WR)) {
                                 /* fork the privileged port server */
+                                /* first make sure signals are handled ok */
+                                sigset_t set, oldset;
+                                sigfillset(&set);
+                                sigprocmask(SIG_BLOCK, &set, &oldset);
                                 g_printf("starting port server\n");
                                 pipe(port_fd_out);
                                 pipe(port_fd_in);
@@ -1012,6 +1016,7 @@ int extra_port_init(void)
                                 if (portserver_pid == 0) {
                                         port_server();
                                 }
+                                sigprocmask(SIG_SETMASK, &oldset, NULL);
                                 close(port_fd_in[1]);
                                 close(port_fd_out[0]);
                                 break;
