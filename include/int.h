@@ -35,7 +35,12 @@ struct int_queue_list_struct {
   struct int_queue_struct int_queue_ptr;
   int int_queue_return_addr;
   u_char in_use;
+#ifdef __NetBSD__
+  struct sigcontext saved_regs;
+#endif
+#ifdef __linux__
   struct vm86_regs saved_regs;
+#endif
 };
 EXTERN struct int_queue_list_struct int_queue_head[NUM_INT_QUEUE];
 

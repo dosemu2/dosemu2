@@ -101,11 +101,12 @@
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
-/*#include <termio.h>*/
+#include <termios.h>			/* needed for mouse.h */
 #include <sys/time.h>
-#ifdef WHY_DONT_PEOPLE_HAVE_THIS
+#ifdef __NetBSD__
 #include <sys/mman.h>
-#else
+#endif
+#ifdef __linux__
 #define MAP_ANON MAP_ANONYMOUS
 extern caddr_t mmap __P ((caddr_t __addr, size_t __len,
 			  int __prot, int __flags, int __fd, off_t __off));
@@ -114,8 +115,15 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #endif
 #include <signal.h>
 #include <sys/stat.h>
+#ifdef __linux__
 #include <linux/vt.h>
 #include <linux/kd.h>
+#endif
+#ifdef __NetBSD__
+#include <machine/pcvt_ioctl.h>
+#endif
+
+#define INIT_C2TRAP
 
 #include "emu.h"
 #include "memory.h"
@@ -230,6 +238,10 @@ acquire_vt (int sig, struct sigcontext_struct context)
 {
   v_printf ("VID: Acquiring VC\n");
   forbid_switch ();
+#ifdef __NetBSD__
+  if (config.console_keyb)
+      set_raw_mode();
+#endif
   if (ioctl (kbd_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf ("VT_RELDISP failed (or was queued)!\n");
   allow_switch ();
@@ -341,6 +353,10 @@ SIGRELEASE_call (void)
 	  /*      if (config.vga) dos_pause(); */
 	  scr_state.current = 0;
 	}
+#ifdef __NetBSD__
+      if (config.console_keyb)
+	  clear_raw_mode();
+#endif
     }
 
   scr_state.current = 0;	/* our console is no longer current */
@@ -502,7 +518,8 @@ get_video_ram (int waitflag)
 
       if ((long) graph_mem < 0)
 	{
-	  error ("ERROR: mmap error in get_video_ram (text)\n");
+	  error ("ERROR: mmap error in get_video_ram (text): %x, errno %d\n",
+		 graph_mem, errno);
 	  return;
 	}
       else
@@ -621,16 +638,21 @@ open_kmem (void)
      * and /dev/mem is the identity-mapped (i.e. physical addressed)
      * memory. Currently under Linux, both are the same.
      */
+    /* Under NetBSD, /dev/mem is the physical memory space.  /dev/kmem
+     * is the kernel's mapping to the physical space.  Therefore, we want
+     * /dev/mem.  Since this won't cause problems on linux, I've changed
+     * everything to use /dev/mem.
+     */
 
   kmem_open_count++;
 
   if (mem_fd != -1)
     return;
   priv_on();
-  mem_fd = open("/dev/kmem", O_RDWR);
+  mem_fd = open("/dev/mem", O_RDWR);
   if (mem_fd < 0)
     {
-      error ("ERROR: can't open /dev/kmem: errno=%d, %s \n",
+      error ("ERROR: can't open /dev/mem: errno=%d, %s \n",
 	     errno, strerror (errno));
       leavedos (0);
       return;
@@ -656,12 +678,23 @@ close_kmem (void)
 int
 vc_active (void)
 {				/* return 1 if our VC is active */
+#ifdef __linux__
   struct vt_stat vtstat;
 
   g_printf ("VC_ACTIVE!\n");
   ioctl (kbd_fd, VT_GETSTATE, &vtstat);
   g_printf ("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, vtstat.v_active);
   return ((vtstat.v_active == scr_state.console_no));
+#endif
+
+#ifdef __NetBSD__
+  int active;
+
+  g_printf ("VC_ACTIVE!\n");
+  ioctl (kbd_fd, VT_GETACTIVE, &active);
+  g_printf ("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, active);
+  return ((active == scr_state.console_no));
+#endif
 }
 
 void

@@ -4,7 +4,7 @@ Andrew Tridgell
 March 1995
 */
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__NetBSD__)
 #define DOSEMU 1		/* this is a port to dosemu */
 #endif
 
@@ -14,6 +14,7 @@ March 1995
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
+#include <stddef.h>
 
 
 /* no debugging - the code is perfect! */

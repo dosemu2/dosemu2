@@ -1,10 +1,12 @@
 ALL=bios.S test.S
-
 OBJS=
 
 SUBDIR=bios
 
 AS86FLAGS=$(INCDIR)
+
+LD86=ld86
+AS86=as86
 
 ifndef TOPDIR
 TOPDIR=..
@@ -25,10 +27,10 @@ bios.i:	bios.S
 	$(CC) -E --traditional $(AS86FLAGS) $^ >$@
 
 bios.part.1:	bios.s
-	as86 -0 -w -g -o $@ $^
+	$(AS86) -0 -w -g -o $@ $^
 
 bios.part.2:	bios.part.1
-	ld86 -0 -r -o $@ $^
+	$(LD86) -0 -r -o $@ $^
 
 
 include ../Makefile.common

@@ -11,8 +11,14 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 
+#ifdef __linux__
 #include <linux/config.h>
 #include <linux/utsname.h>
+#endif
+#ifdef __NetBSD__
+#include <sys/utsname.h>
+#define new_utsname utsname
+#endif
 
 #include "emu.h"
 #include "memory.h"
@@ -229,17 +235,17 @@ static inline void map_video_bios(void)
       load_file(config.vbios_file, 0, (char *) VBIOS_START, VBIOS_SIZE);
     }
     else if (config.vbios_copy) {
-      warn("WARN: copying VBIOS from /dev/kmem at 0x%X (0x%X bytes)\n",
+      warn("WARN: copying VBIOS from /dev/mem at 0x%X (0x%X bytes)\n",
 	   VBIOS_START, VBIOS_SIZE);
-      load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
+      load_file("/dev/mem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
     }
     else {
-      warn("WARN: copying VBIOS file from /dev/kmem\n");
-      load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
+      warn("WARN: copying VBIOS file from /dev/mem\n");
+      load_file("/dev/mem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
     }
 
     /* copy graphics characters from system BIOS */
-    load_file("/dev/kmem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
+    load_file("/dev/mem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
 
     memcheck_addtype('V', "Video BIOS");
     memcheck_reserve('V', VBIOS_START, VBIOS_SIZE);
@@ -258,6 +264,10 @@ static inline void map_hardware_ram(void)
 {
   int i, j;
   unsigned int addr, size;
+#ifdef __NetBSD__
+  extern int errno;
+#endif
+
   if (!config.must_spare_hardware_ram)
     return;
   open_kmem ();
@@ -270,7 +280,7 @@ static inline void map_hardware_ram(void)
       addr = HARDWARE_RAM_START + (j << 12);
       size = (i - j) << 12;
       if (mmap((caddr_t) addr, (size_t) size, PROT_READ | PROT_WRITE, 
-	       MAP_SHARED | MAP_FIXED, mem_fd, addr) < 0) {
+	       MAP_SHARED | MAP_FIXED, mem_fd, addr) == (caddr_t) -1) {
 	error("ERROR: mmap error in map_hardware_ram %s\n", strerror (errno));
 	close_kmem();
 	return;
@@ -392,10 +402,12 @@ void memory_init(void)
 
 #if 0
   if( first_call == 0) {
+#ifdef __linux__
     /* make interrupts vector read-write */
     mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_WRITE|PROT_READ|PROT_EXEC);
     /* make memory area 0xf8000 to 0xfffff read write */
     mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_WRITE|PROT_READ|PROT_EXEC);
+#endif
   }
 #endif
   map_video_bios();            /* map the video bios */
@@ -525,7 +537,12 @@ void version_init(void) {
 
   uname(&unames);
   warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
+#ifdef __linux__
   warn("Built for %d\n", KERNEL_VERSION);
+#endif
+#ifdef __NetBSD__
+  warn("Built for %d\n", NETBSD_VERSION);
+#endif
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
          unames.release[2] > 1 ) {

@@ -1,6 +1,6 @@
 #include "kversion.h"
 #if 0
-#define KERNEL_VERSION 1002002 /* last verified kernel version */
+#define KERNEL_VERSION 1003028 /* last verified kernel version */
 #endif
 #if KERNEL_VERSION >= 01001067
 #include <asm/segment.h>

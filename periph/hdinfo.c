@@ -60,7 +60,23 @@
 #include <sys/types.h>
 #include <sys/fcntl.h>
 #include <stdio.h>
+#ifdef __linux__
 #include <linux/genhd.h>
+#endif
+#ifdef __NetBSD__
+#include <machine/disklabel.h>
+#define partition dos_partition
+#define boot_ind dp_flag
+#define head dp_shd
+#define sector dp_ssect
+#define cyl dp_scyl
+#define sys_ind dp_typ
+#define end_head dp_ehd
+#define end_sector dp_esect
+#define end_cyl dp_ecyl
+#define start_sect dp_start
+#define nr_sects dp_size
+#endif
 
 #define SECTOR_SIZE	512
 #define EXT_MAGIC	5	/* sys_ind for an extended partition */
@@ -151,4 +167,5 @@ main(int argc, char **argv)
   for (i = 0; i < 4; i++)
     print_part((struct partition *) (mbr + 0x1be + hdimage_off + i * 16),
 	       hdimage_off, 0, 0);
+  exit(0);
 }

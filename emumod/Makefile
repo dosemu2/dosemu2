@@ -17,9 +17,12 @@ ifndef INCDIR
   endif
   ifndef USE_VM86PLUS
     USE_VM86PLUS=-DUSE_VM86PLUS
+    ifndef USE_MHPDBG
+     USE_MHPDBG=-DUSE_MHPDBG
+    endif
   endif
   ifndef USE_VM86_STACKVERIFY
-    USE_VM86_STACKVERIFY=-DUSE_VM86_STACKVERIFY
+#    USE_VM86_STACKVERIFY=-DUSE_VM86_STACKVERIFY
   endif
 endif
 
@@ -58,7 +61,7 @@ emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
 vm86.o:  vm86.c emumod.h ${KVFILE}
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_ $(USE_MHPDBG)  -c vm86.c -o vm86.o
 
 signal.o:  signal.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c signal.c -o signal.o

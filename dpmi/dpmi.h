@@ -19,8 +19,14 @@
 #define DPMI_private_paragraphs	((DPMI_max_rec_rm_func * DPMI_rm_stack_size)>>4)
 					/* private data for DPMI server */
 
+#ifdef __linux__
 #define UCODESEL 0x23
 #define UDATASEL 0x2b
+#endif
+#ifdef __NetBSD__
+#define	UCODESEL GSEL(GUCODE_SEL, SEL_UPL)
+#define	UDATASEL GSEL(GUDATA_SEL, SEL_UPL)
+#endif
 
 extern int in_dpmi;
 #define current_client (in_dpmi-1)
@@ -30,7 +36,12 @@ extern int in_dpmi_dos_int;
 
 void dpmi_get_entry_point();
 
+#ifdef __linux__
 void dpmi_fault(struct sigcontext_struct *);
+#endif
+#ifdef __NetBSD__
+void dpmi_fault(struct sigcontext *, int);
+#endif
 void dpmi_realmode_hlt(unsigned char *);
 void run_pm_int(int);
 
@@ -125,7 +136,7 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \
 	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n" \
 	     "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x  fs: 0x%04x  gs: 0x%04x\n", \
-	     _eip, _esp, _eflags, _trapno, scp->err, scp->cr2, _cs, _ds, _es, _ss, _fs, _gs); \
+	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs); \
     D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx\n", \
 	     _eax, _ebx, _ecx, _edx); \
     D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n", \

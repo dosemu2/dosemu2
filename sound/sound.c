@@ -4,7 +4,13 @@
 #include "emu.h" /* For S_printf */
 
 #include <fcntl.h>
+#ifdef __linux__
 #include <linux/soundcard.h>
+#endif
+#ifdef __NetBSD__
+#include <sys/ioctl.h>
+#include <sys/audioio.h>
+#endif
 #include "pic.h"
 #include "dma.h"
 #include "sound.h"
@@ -48,6 +54,9 @@ static unsigned char dsp_rate = 0;
 driver */
 static int mixer_fd = -1, dsp_fd = -1, synth_fd = -1;
 
+static void dsp_clear_output(void);
+
+#ifdef __linux__
 inline void start_dsp_dma(void)
 
 /* This will open the fd and do everything else to prepare to output data... */
@@ -79,6 +88,31 @@ inline void start_dsp_dma(void)
   dma_ch[sound_dma_ch].fd = dsp_fd;
   dma_ch[sound_dma_ch].dreq = DREQ_COUNTED;
 };
+#endif __linux__
+#ifdef __NetBSD__
+inline void start_dsp_dma(void)
+/* This will open the fd and do everything else to prepare to output data... */
+{
+  int real_speed, trash;
+  struct audio_info ainfo;
+
+  S_printf ("Starting to open DMA access to DSP\n");
+
+  dsp_fd = open(DSP_PATH, O_WRONLY | O_NONBLOCK);
+  if (dsp_fd == -1)
+      return;				/* XXX */
+
+  AUDIO_INITINFO(&ainfo);
+  ainfo.play.sample_rate = dsp_rate;
+  ainfo.play.channels = dsp_stereo ? 2 : 1;
+  ainfo.play.precision = 8;
+  ainfo.play.encoding = AUDIO_ENCODING_PCM8; /* XXX unsigned linear 8-bit */
+
+  ioctl(dsp_fd, AUDIO_SETINFO, &ainfo);
+  dma_ch[sound_dma_ch].fd = dsp_fd;
+  dma_ch[sound_dma_ch].dreq = DREQ_COUNTED;
+};
+#endif /* __NetBSD__ */
 
 inline void stop_dsp_dma(void)
 
@@ -91,6 +125,7 @@ inline void stop_dsp_dma(void)
   close(dsp_fd);
 }
 
+#ifdef __linux__
 inline void mixer_write_setting(unsigned char ch, unsigned char val)
 {
   int newsetting;
@@ -110,8 +145,16 @@ inline void mixer_write_mic(unsigned char val)
   newsetting = ((val & 0x7) * 0x0C0C);
   ioctl(mixer_fd, MIXER_WRITE(SOUND_MIXER_MIC), &newsetting);
 }
+#endif /* __linux__ */
 
 
+#ifdef __NetBSD__
+/*
+ * should assemble a mixer structure for dealing with SB-type devices.
+ * not all audio devices will have a good mixer, though :(
+ * For now, just punt.
+ */
+#endif
 /* addr must be offset from base */
 void sb_write(unsigned char addr, unsigned char value)
 {
@@ -165,6 +208,8 @@ void sb_write(unsigned char addr, unsigned char value)
                  /* 0x0C is ignored; it sets record source and a filter */
                  case 0x0E: dsp_stereo = value & 2;
                             break; /* I ignored the output filter */
+#ifdef __linux__
+			    /* XXX ignore these on NetBSD for now */
                  case 0x22: mixer_write_setting(SOUND_MIXER_VOLUME, value);
                             break;
                  case 0x04: mixer_write_setting(SOUND_MIXER_PCM, value);
@@ -179,11 +224,13 @@ void sb_write(unsigned char addr, unsigned char value)
                             break;
                             /* This is special because the mic has a different
                                param set */
+#endif
                };
   };
 }
 
 
+#ifdef __linux__
 inline unsigned char mixer_read_setting(unsigned char ch)
 {
   int x;
@@ -192,7 +239,7 @@ inline unsigned char mixer_read_setting(unsigned char ch)
   
   S_printf ("Reading from the Mixer (%u -> %u)\n", ch, x);
 
-  return (((x & 0x00FF) / 6) | ((x & 0xFF0) / 0x600));
+  return (((x & 0x00FF) / 6) | ((x & 0xFF00) / 0x600));
 }
 
 /* The following routine is broken :-( */
@@ -207,14 +254,14 @@ inline unsigned char mixer_read_mic(void)
   return x / 7; /* This isn't the right value.  Anyone care to tell me
                    how to do division in C???? */
 }
-
+#endif
 
 void dsp_write_output(unsigned char value)
 {
   /* This implements a queue for output ... */
   /* These is no check for exceeding the length of the queue ... */
 
-  S_printf ("Insert into SB output Qeue ... (%u)\n", value);
+  S_printf ("Insert into SB output Queue ... (%u)\n", value);
   dsp_out[dsp_queue_end] = value;
   dsp_queue_end = (dsp_queue_end < DSP_QUEUE_SIZE) ? dsp_queue_end+1 : 0;
 
@@ -238,7 +285,7 @@ unsigned char dsp_read_output()
 
   /* this implementes a queue for output ... */
   r = dsp_out[dsp_queue_start];
-  S_printf ("Remove from SB output Qeue ... (%u)\n", r);
+  S_printf ("Remove from SB output Queue ... (%u)\n", r);
   dsp_out[dsp_queue_start] = 0x00;
   dsp_queue_start = (dsp_queue_start < DSP_QUEUE_SIZE) ? dsp_queue_start+1 : 0;
 
@@ -265,12 +312,25 @@ unsigned char sb_read(unsigned char addr)
     case 0x0E: return dsp_avail; break;
     case 0x05: switch (mixer_index){
       case 0x0E: return dsp_stereo;
+#ifdef __linux__
       case 0x22: return mixer_read_setting(SOUND_MIXER_VOLUME);
       case 0x04: return mixer_read_setting(SOUND_MIXER_PCM);
       case 0x26: return mixer_read_setting(SOUND_MIXER_SYNTH);
       case 0x28: return mixer_read_setting(SOUND_MIXER_CD);
       case 0x2E: return mixer_read_setting(SOUND_MIXER_LINE);
       case 0x0A: return mixer_read_mic();
+#endif
+#ifdef __NetBSD__
+	  /* gack koff bletch.  XXX punt for now. */
+      case 0x22:
+      case 0x04:
+      case 0x26:
+      case 0x28:
+      case 0x2E:
+	  return (0xff / 6) | (0xffff / 0x600);
+      case 0x0A:
+	  return 0xff / 7;
+#endif
       };
     };
 }

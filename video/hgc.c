@@ -82,7 +82,7 @@ void hgc_meminit(void)
      MAP_SHARED | MAP_FIXED,
      mem_fd,
      (off_t) HGC_BASE0);
-  if ( maperr < 0 ){
+  if ( maperr == (caddr_t) -1 ){
     error("ERROR: can't map HGC-mem: errno=%d, %s \n",
    errno, strerror(errno));
     leavedos(0);

@@ -8,7 +8,7 @@ ALL = bios.h cmos.h cpu.h disks.h dosio.h dosnet.h emu.h \
 	serial.h slang.h syscallmgr.h termio.h timers.h video.h xms.h \
 	macros86.h vc.h extern.h int.h shared.h pktdrvr.h dos2linux.h \
 	ldt.h pic.h bitops.h vm86plus.h gcursor.h kernel_space.h \
-	sound.h dma.h
+	sound.h dma.h mhpdbg.h
 
 OBJS =
 

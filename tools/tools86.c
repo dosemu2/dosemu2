@@ -92,7 +92,13 @@
 #include <string.h> 
 #include <errno.h>
 #include <ctype.h>
+#ifdef __NetBSD__
+#include <a.out.h>
+#define sym_entry nlist
+#define flags n_type
+#endif
 
+#ifdef __linux__
 struct gnu_header {
   unsigned long a_info;         /* Use macros N_MAGIC, etc for access */
   unsigned long a_text;         /* length of text, in bytes */
@@ -125,9 +131,9 @@ struct bsd_header {            /* a.out header */
   long          a_dbase;        /* data relocation base */
 #endif
 };
+#endif
 
-
-
+#ifdef __linux__
 int header_ld86out_to_gnuasout(struct bsd_header *bsd, struct gnu_header *gnu)
 {
   if (  ((long *)bsd)[0] != 0x10000301 ) return -1;
@@ -146,17 +152,24 @@ int header_ld86out_to_gnuasout(struct bsd_header *bsd, struct gnu_header *gnu)
 struct sym_entry {
   unsigned long addr,flags,stringoffs;
 };
+#endif
 
 int change_aout(char *objfile, int update_symtable)
 {
   FILE * f;
+#ifdef __linux__
   struct bsd_header bsd; 
   struct gnu_header gnu;
+#endif
+#ifdef __NetBSD__
+  struct exec gnu;
+#endif
   int ret;
   if ( (f = fopen(objfile,"r+")) == 0) {
     perror("problems on opening obj file");
     return errno;
   }
+#ifdef __linux__
   if (fread(&bsd,sizeof(gnu),1,f) != 1 ) {
     fclose(f);
     return -1;
@@ -171,6 +184,13 @@ int change_aout(char *objfile, int update_symtable)
     fclose(f);
     return -1;
   }
+#endif
+#ifdef __NetBSD__
+  if (fread(&gnu,sizeof(gnu),1,f) != 1) {
+      fclose(f);
+      return -1;
+  }
+#endif
   if (update_symtable && gnu.a_syms) {
     struct sym_entry *b = malloc(gnu.a_syms);
     int nsyms=gnu.a_syms / sizeof(struct sym_entry);
@@ -183,7 +203,12 @@ int change_aout(char *objfile, int update_symtable)
     for (i=0; i<nsyms; i++) {
       if (b[i].flags == 2) b[i].flags = 5; /* convert a to T */
     }
+#ifdef __linux__
     fseek(f,sizeof(gnu)+gnu.a_text,SEEK_SET);
+#endif
+#ifdef __NetBSD__
+    fseek(f,N_SYMOFF(gnu),SEEK_SET);
+#endif
     ret = fwrite(b,gnu.a_syms,1,f);
   }
   fclose(f);

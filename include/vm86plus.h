@@ -1,6 +1,7 @@
 #ifndef _LINUX_VM86PLUS_H
 #define _LINUX_VM86PLUS_H
 
+#ifdef __linux__
 #include <linux/vm86.h>
 
 #define VM86PLUS_MAGIC 0x4d564544 /* = "DEVM" */
@@ -9,6 +10,9 @@ struct vm86plus_info_struct {
 	long vm86plus_magic;
 	long dosemuver;      /* format 53058 = 0.53.58 or 1002003 = 1.2.3 */
         unsigned long force_return_for_pic:1;
+        unsigned long mhpdbg_active:1;       /* for debugger */
+        unsigned long mhpdbg_TFpendig:1;     /* for debugger */
+        unsigned char mhpdbg_intxxtab[32];   /* for debugger */
 };
 
 struct vm86plus_struct {
@@ -32,17 +36,29 @@ struct vm86plus_struct {
  */
 #define VM86_PICRETURN  4     /* return due to pending PIC request */
 #define VM86_STACKVERIFY 5    /* return due to failed stack verify_area */
-
+#ifdef USE_MHPDBG
+#define VM86_TRAP	6     /* return due to DOS-debugger request */
+#endif
 /*
  * This is how vm86() should be called, if using vm86plus
  *
  */
- 
+#endif
 
 #ifdef USE_VM86PLUS
-  #define DO_VM86(x) ( \
+  #define _DO_VM86_(x) ( \
     (x)->vm86plus.force_return_for_pic = (pic_irr & ~(pic_isr | pice_imr)) != 0, \
     vm86((struct vm86_struct *)(x)) )
+  #ifdef USE_MHPDBG
+    #if 1
+      #define DO_VM86(x) _DO_VM86_(x)
+    #else
+      /* ...hmm, this one seems not to work properly (Hans) */
+      #define DO_VM86(x) (WRITE_FLAGS((READ_FLAGS() & ~TF) | mhpdbg.flags), _DO_VM86_(x))
+    #endif
+  #else
+    #define DO_VM86(x) _DO_VM86_(x)
+  #endif
 #else
   #define DO_VM86(x) vm86(x)
 #endif

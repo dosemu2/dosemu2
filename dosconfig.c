@@ -19,6 +19,9 @@
 #include <string.h>
 #include <time.h>
 #include <sys/utsname.h>
+#ifdef __NetBSD__
+#include <sys/param.h>
+#endif
 
 #define DEF_FORMAT   "#define    %-15s %-15s\n"
 #define STR_FORMAT   "#define    %-15s \"%-15s\"\n"

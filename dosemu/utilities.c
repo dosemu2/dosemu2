@@ -15,7 +15,7 @@ FILE *dbg_fd=0;			/* referenced in a billion other places */
 #endif
 
 int
- ifprintf(unsigned char flg, const char *fmt,...) {
+ ifprintf(unsigned int flg, const char *fmt,...) {
   va_list args;
   char buf[1025];
   int i;

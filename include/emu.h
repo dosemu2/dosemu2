@@ -72,6 +72,7 @@ typedef struct { int fd; int irq; } SillyG_t;
    DOSEMU when running in vm86 mode.
  * DANG_END_REMARK
 */ 
+
 #ifdef USE_VM86PLUS
   EXTERN struct vm86plus_struct vm86s INIT ( {
    {0},0,0,0,{0},{0}, {VM86PLUS_MAGIC}
@@ -193,7 +194,7 @@ struct debug_flags {
 extern void saytime(char *m_str);
 
 int
-ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
+ifprintf(unsigned int, const char *,...) FORMAT(printf, 2, 3);
      void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
 #if 0  /* set this to 0, if you want dosemu to honor the -D flags */
@@ -536,9 +537,15 @@ extern int SetDebugFlagsHelper(char *);
 extern void leavedos(int) NORETURN;
 extern void add_to_io_select(int, unsigned char);
 extern void remove_from_io_select(int, unsigned char);
-extern void sigio(int, struct sigcontext_struct);
 extern void sigquit(int);
+#ifdef __linux__
 extern void sigalrm(int, struct sigcontext_struct);
+extern void sigio(int, struct sigcontext_struct);
+#endif
+#ifdef __NetBSD__
+extern void sigalrm(int, int, struct sigcontext *);
+extern void sigio(int, int, struct sigcontext *);
+#endif
 
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGWINCH
@@ -574,6 +581,30 @@ extern void sigalrm(int, struct sigcontext_struct);
  */
 #define SIGNALS_THAT_QUEUE SIGIO|SIGALRM|SIG_RELEASE|SIG_ACQUIRE
 
+#ifdef __NetBSD__
+#define SignalHandler sig_t
+#define __sighandler_t sig_t
+
+#define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
+					sa.sa_flags = SA_RESTART|SA_ONSTACK ; \
+					sigemptyset(&sa.sa_mask); \
+					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
+					sigaction(sig, &sa, NULL);
+
+#define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \
+					sa.sa_flags = SA_RESTART; \
+					sigemptyset(&sa.sa_mask); \
+					sigaddset(&sa.sa_mask, SIG_TIME); \
+					sigaction(sig, &sa, NULL);
+
+#define NEWSETSIG(sig, fun) \
+			sa.sa_handler = (__sighandler_t) fun; \
+			sa.sa_flags = SA_RESTART|SA_ONSTACK; \
+			sigemptyset(&sa.sa_mask); \
+			sigaddset(&sa.sa_mask, SIG_TIME); \
+			sigaction(sig, &sa, NULL);
+#endif
+#ifdef __linux__
 #define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
 			/* Point to the top of the stack, minus 4 \
 			   just in case, and make it aligned  */ \
@@ -600,6 +631,7 @@ extern void sigalrm(int, struct sigcontext_struct);
 			sigemptyset(&sa.sa_mask); \
 			sigaddset(&sa.sa_mask, SIG_TIME); \
 			dosemu_sigaction(sig, &sa, NULL);
+#endif
 
 extern inline void SIGNAL_save( void (*signal_call)(void) );
 extern inline void handle_signals(void);
@@ -626,5 +658,8 @@ EXTERN struct config_info config;
  */
 EXTERN int fatalerr;
 
+#ifdef __NetBSD__
+#define iopl(value)			{ extern int errno; if (i386_iopl(value) == -1) { g_printf("iopl failed: %s\n", strerror(errno)); leavedos(4);}}
+#endif
 
 #endif /* EMU_H */

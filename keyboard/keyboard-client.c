@@ -29,9 +29,14 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifdef __linux__
 #include <linux/vt.h>
 #include <linux/kd.h>
 #include <linux/time.h>
+#endif
+#ifdef __NetBSD__
+#include <machine/pcvt_ioctl.h>
+#endif
 #include <sys/stat.h>
 
 #include "emu.h"
@@ -42,11 +47,11 @@
 
 static int      tty_raw(int);
 inline void     child_set_flags(int);
-static void     clear_raw_mode();
+void		clear_raw_mode();
 extern void     clear_console_video();
 extern void     clear_consoleX_video();
 extern void     clear_process_control();
-static void     set_raw_mode();
+void		set_raw_mode();
 void            set_leds();
 extern void     set_leds_area();
 extern void     add_scancode_to_queue(u_short);
@@ -190,7 +195,9 @@ print_termios(struct termios term)
     k_printf("KBD: 	c_oflag=%x\n", term.c_oflag);
     k_printf("KBD: 	c_cflag=%x\n", term.c_cflag);
     k_printf("KBD: 	c_lflag=%x\n", term.c_lflag);
+#ifdef __linux__
     k_printf("KBD: 	c_line =%x\n", term.c_line);
+#endif
 }
 
 #ifdef X_SUPPORT
@@ -226,8 +233,13 @@ keyboard_init(void)
 {
     struct termios  newtermio;	/* new terminal modes */
     struct stat     chkbuf;
+#ifdef __NetBSD__
+    struct screeninfo info;
+#endif
+#ifdef __linux__
     int             major,
                     minor;
+#endif
 
 #ifdef X_SUPPORT
     if (config.X) {
@@ -246,6 +258,14 @@ keyboard_init(void)
 	kbd_fd = STDIN_FILENO;
     }
 
+#ifdef __NetBSD__
+    if (ioctl(kbd_fd, VGAGETSCREEN, &info) == 0) {
+	/* it's zero-based, we use 1-based */
+	scr_state.console_no = info.screen_no + 1;
+	config.console = 1;
+    }
+#endif
+#ifdef __linux__
     fstat(kbd_fd, &chkbuf);
     major = chkbuf.st_rdev >> 8;
     minor = chkbuf.st_rdev & 0xff;
@@ -254,7 +274,9 @@ keyboard_init(void)
     if ((major == 4) && (minor < 64)) {
 	scr_state.console_no = minor;	/* get minor number */
 	config.console = 1;
-    } else {
+    } 
+#endif
+    else {
 	if (config.console_keyb || config.console_video)
 	    k_printf("ERROR: STDIN not a console-can't do console modes!\n");
 	scr_state.console_no = 0;
@@ -321,7 +343,7 @@ keyboard_init(void)
     return 0;
 }
 
-static void
+void
 clear_raw_mode(void)
 {
     do_ioctl(kbd_fd, KDSKBMODE, K_XLATE);
@@ -331,7 +353,7 @@ clear_raw_mode(void)
     }
 }
 
-static void
+void
 set_raw_mode(void)
 {
     k_printf("KBD: Setting keyboard to RAW mode\n");
@@ -340,6 +362,12 @@ set_raw_mode(void)
     do_ioctl(kbd_fd, KDSKBMODE, K_RAW);
     tty_raw(kbd_fd);
 }
+
+#ifdef __NetBSD__
+#define IUCLC	0
+#define OCRNL	ONLCR
+#define OLCUC	0
+#endif
 
 static int
 tty_raw(int fd)

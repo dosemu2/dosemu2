@@ -16,13 +16,15 @@
 /**                                                                     **/
 /** NOTE: be careful with overlapping ".org",                           **/
 /**       or ld86 will then reach your disk quotas !                    **/
-/* $Id$
+/* $Id: bios.S,v 1.2 1995/03/10 12:59:53 jtk Exp $
 /*************************************************************************/
 
 #define __ASM__
 #include "memory.h"
 #include "macros86.h"
+#ifdef __linux__
 #include <linux/linkage.h>
+#endif
 
 /* some other usefull definitions */
 
@@ -253,6 +255,47 @@ PKTDRV_buf:
 
 
 /* ----------------------------------------------------------------- */
+
+
+	.org	((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF
+/* we come here after we have intercepted INT21 AX=4B00
+ * in order to get a breakpoint for the debugger
+ * (wanting to debugg a program from it's very beginning
+ */
+	.globl	CISH(DBGload)
+	.globl	CISH(DBGload_CSIP)
+	.globl	CISH(DBGload_parblock)
+CISH(DBGload):
+	cli	/* first we set up the users stack */
+	CSEG
+	mov	ss,word ptr DBGload_SSSP+2
+	CSEG
+	mov	sp,word ptr DBGload_SSSP
+	mov	ah,#$62	/* we must get the PSP of the loaded program */
+	int	#$21
+        mov	es,bx
+	mov     ds,bx
+	xor     ax,ax
+	mov     bx,ax
+	mov     cx,ax
+	mov     dx,ax
+	mov     si,ax
+	mov     di,ax
+	mov     bp,ax
+	sti
+	CSEG
+	jmp	far [CISH(DBGload_CSIP)] /* and give control to the program */
+
+
+	/* this is the paramblock, we told DOS to use for INT21 AX=4B01 */
+	.align	16
+CISH(DBGload_parblock):	dw	0
+			dd	0,0,0
+DBGload_SSSP:		dd	0
+CISH(DBGload_CSIP):	dd	0
+
+/* ----------------------------------------------------------------- */
+
 
 	/* XMS has it's handler just after the interrupt dummy segment */
 	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF

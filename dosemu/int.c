@@ -1441,6 +1441,7 @@ void int_vector_setup(void)
   int i;
 
   /* set up the redirection arrays */
+#ifdef __linux__
   memset(&vm86s.int_revectored, 0x00, sizeof(vm86s.int_revectored));
   memset(&vm86s.int21_revectored, 0x00, sizeof(vm86s.int21_revectored));
 
@@ -1451,4 +1452,17 @@ void int_vector_setup(void)
   for (i=0; i<0x100; i++)
     if (!can_revector_int21(i))
       set_revectored(i, &vm86s.int21_revectored);
+#endif
+#ifdef __NetBSD__
+  memset(&vm86s.int_byuser[0], 0x00, sizeof(vm86s.int_byuser));
+  memset(&vm86s.int21_byuser[0], 0x00, sizeof(vm86s.int21_byuser));
+
+  for (i=0; i<0x100; i++)
+    if (!can_revector(i) && i!=0x21)
+      set_revectored(i, vm86s.int_byuser);
+
+  for (i=0; i<0x100; i++)
+    if (!can_revector_int21(i))
+      set_revectored(i, vm86s.int21_byuser);
+#endif
 }

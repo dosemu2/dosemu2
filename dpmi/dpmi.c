@@ -125,6 +125,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef __linux__
 #include <linux/unistd.h>
 #include <linux/head.h>
 
@@ -135,8 +136,6 @@
 #endif
 
 #include "kversion.h"
-#include <string.h>
-#include <errno.h>
 #if KERNEL_VERSION < 1001067
 #include <linux/segment.h>
 #include <linux/page.h>
@@ -144,9 +143,31 @@
 #include <asm/segment.h>
 #include <asm/page.h>
 #endif
+#endif
+#ifdef __NetBSD__
+#include <signal.h>
+#include <machine/segments.h>
+#include <machine/sysarch.h>
+#include <sys/param.h>
+#define PAGE_SIZE NBPG
+#define LDT_ENTRY_SIZE        8               /* 8 bytes each */
+#define MODIFY_LDT_CONTENTS_DATA      0
+#define MODIFY_LDT_CONTENTS_STACK     1
+#define MODIFY_LDT_CONTENTS_CODE      2
+#define LDT_ENTRIES                   8192            /* XXX ?? */
+#endif
+#include <string.h>
+#include <errno.h>
 #include "emu.h"
 #include "memory.h"
+#ifdef USE_MHPDBG
+#include "mhpdbg.h"
+#endif
 #include "dosio.h"
+
+#ifdef __NetBSD__
+#define sigcontext_struct sigcontext  /* XXX easier this way */
+#endif
 
 #if 0
 #define SHOWREGS
@@ -165,6 +186,9 @@
 #include "meminfo.h"
 #include "int.h"
 
+#ifdef __NetBSD__
+#define vm86_regs sigcontext
+#endif
 unsigned long RealModeContext;
 
 static INTDESC Interrupt_Table[0x100];
@@ -229,13 +253,57 @@ extern int fatalerr;
 static struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
 static struct sigcontext_struct emu_stack_frame;  /* used to store emulator registers */
 
+#ifdef __NetBSD__
+#undef vm86_regs
+#endif
+
 #include "msdos.h"
 
+#ifdef __linux__
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
+#endif
+
+#ifdef __NetBSD__
+/* from WINE: */
+struct segment_descriptor *
+make_sd(unsigned base,
+	unsigned limit,
+	int contents,
+	int read_exec_only,
+	int seg32,
+	int inpgs,
+	int seg_not_present,
+	int usable
+	)
+{
+        static long d[2];
+
+        d[0] = ((base & 0x0000ffff) << 16) |
+                (limit & 0x0ffff);
+        d[1] = (base & 0xff000000) |
+               ((base & 0x00ff0000)>>16) |
+               (limit & 0xf0000) |
+               (contents << 10) |
+               ((read_exec_only ^ 1) << 9) |
+               (seg32 << 22) |
+               (inpgs << 23) |
+               ((seg_not_present ^1) << 15) |
+               (usable << 20) |
+               0x7000;
+        
+        return ((struct segment_descriptor *)d);
+}
+#endif
 
 inline int get_ldt(void *buffer)
 {
-  return modify_ldt(0, buffer, 32 * sizeof(struct modify_ldt_ldt_s));
+#ifdef __linux__
+  return modify_ldt(0, buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+#endif
+#ifdef __NetBSD__
+  D_printf("fetching ldt @ %p\n", buffer);
+    return i386_get_ldt(0, (union descriptor *)buffer, LDT_ENTRIES);
+#endif
 }
 
 __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
@@ -246,6 +314,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 #endif
 )
 {
+#ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
   unsigned long *lp;
   unsigned long base2, limit2;
@@ -275,19 +344,80 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   limit2 += base2;
   if ((limit2 < base2 || limit2 >= 0xC0000000) && ldt_info.seg_not_present == 0) {
     if (base2 >= 0xC0000000) {
-      ldt_info.seg_not_present = 1;
+      ldt_info.seg_not_present = seg_not_present = 1;
       D_printf("DPMI: WARNING: set segment[0x%04x] to NOT PRESENT\n",entry);
     } else {
       if (ldt_info.limit_in_pages)
-        ldt_info.limit = ((0xC0000000 - base2)>>12) - 1;
+        limit = ldt_info.limit = ((0xC0000000 - base2)>>12) - 1;
       else
-        ldt_info.limit = 0xC0000000 - base2 - 1;
+        limit = ldt_info.limit = 0xC0000000 - base2 - 1;
       D_printf("DPMI: WARNING: reducing limit of segment[0x%04x]\n",entry);
     }
   }
 
   if (__retval=modify_ldt(1, &ldt_info, sizeof(ldt_info)))
 	return __retval;
+#endif
+#ifdef __NetBSD__
+#ifndef WANT_WINDOWS
+  int seg_not_present = 0;
+  int useable = 0;
+#endif
+  unsigned long *lp;
+  unsigned long base2, limit2;
+  int __retval;
+    struct segment_descriptor *sd;
+    int ret;
+    
+  ifprintf(d.dpmi, "DPMI: entry=%x base=%x limit=%x%s %s-bit contents=%d %s"
+#ifdef WANT_WINDOWS
+	   "%s%s"
+#endif
+	   "\n",
+	   entry, base, limit, limit_in_pages_flag?"-pages":"",
+	   seg_32bit_flag?"32":"16",
+	   contents, read_only_flag?"read-only":""
+#ifdef WANT_WINDOWS
+	   ,seg_not_present ? " not present" :"",
+	   useable ? " usable" : ""
+#endif
+      );
+
+  limit2 = limit;
+  base2 = base;
+  if (limit_in_pages_flag) {
+  	limit2 *= PAGE_SIZE;
+  	limit2 += PAGE_SIZE-1;
+  }
+
+  limit2 += base2;
+  if ((limit2 < base2 || limit2 >= 0xC0000000) && seg_not_present == 0) {
+    if (base2 >= 0xC0000000) {
+      seg_not_present = 1;
+      D_printf("DPMI: WARNING: set segment[0x%04x] to NOT PRESENT\n",entry);
+    } else {
+      if (limit_in_pages_flag)
+        limit = (0xC0000000 - base2)>>12 - 1;
+      else
+        limit = 0xC0000000 - base2 - 1;
+      D_printf("DPMI: WARNING: reducing limit of segment[0x%04x]\n",entry);
+    }
+  }
+
+  sd = make_sd(base, limit, contents, read_only_flag, seg_32bit_flag, limit_in_pages_flag, seg_not_present, useable);
+  /* easier to read in big-endian order */
+  D_printf("DPMI: setldt %x %x\n",
+	   ((unsigned long *)sd)[1],
+	   ((unsigned long *)sd)[0]);
+  if (dbg_fd) {
+      fflush(dbg_fd);
+      fsync(fileno(dbg_fd));
+  }
+  if ((__retval = i386_set_ldt(entry, (union descriptor *)sd, 1)) == -1)
+      return errno;
+  D_printf("DPMI: setldt succeeded\n");
+#endif
+
 
 #ifndef KERNEL_LDTALIAS  
 /*
@@ -301,19 +431,20 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
  * DANG_END_REMARK
  */
 
-  lp = (unsigned long *) &ldt_buffer[ldt_info.entry_number*LDT_ENTRY_SIZE];
+  lp = (unsigned long *) &ldt_buffer[entry*LDT_ENTRY_SIZE];
 
-  if (ldt_info.base_addr == 0 && ldt_info.limit == 0 &&
-      ldt_info.contents == 0 && ldt_info.read_exec_only == 1 &&
-      ldt_info.seg_32bit == 0 && ldt_info.limit_in_pages == 0
+  if (base == 0 && limit == 0 &&
+      contents == 0 && read_only_flag == 1 &&
+      seg_32bit_flag == 0 && limit_in_pages_flag == 0
 #ifdef WANT_WINDOWS
-      && ldt_info.seg_not_present == 1 && ldt_info.useable == 0
+      && seg_not_present == 1 && useable == 0
 #endif
       ) {
 	*lp = 0;
 	*(lp+1) = 0;
 	return 0;
   }
+#ifdef __linux__
   *lp =     ((ldt_info.base_addr & 0x0000ffff) << 16) |
             (ldt_info.limit & 0x0ffff);
   *(lp+1) = (ldt_info.base_addr & 0xff000000) |
@@ -328,6 +459,11 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.useable << 20) |
 #endif
             0x7000;
+#endif
+#ifdef __NetBSD__
+  *lp = ((u_long *)sd)[0];
+  *(lp+1) = ((u_long *)sd)[1];
+#endif
 #endif /* KERNEL_LDTALIAS */
   return 0;
 }
@@ -470,6 +606,7 @@ void dpmi_get_entry_point(void)
     else
       LWORD(esi) = DPMI_private_paragraphs + 0x1008;
 
+    D_printf("DPMI entry returned\n");
 }
 
 static int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
@@ -576,7 +713,9 @@ static int FreeDescriptor(unsigned short selector)
 {
   unsigned short ldt_entry = selector >> 3;
   unsigned long *lp;
+#ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
+#endif
 
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
@@ -591,11 +730,14 @@ static int FreeDescriptor(unsigned short selector)
   Segments[ldt_entry].not_present = 1;
   Segments[ldt_entry].useable = 0;
 
-#ifndef KERNEL_LDTALIAS  
+#ifdef KERNEL_LDTALIAS
+#ifdef __NetBSD__
+#error need to figure this out
+#else
   lp = (unsigned long *) &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE];
+#ifdef __linux__
   *lp = 0;
   *(lp+1) = 0;
-#endif /* KERNEL_LDTALIAS */
   
   /* WinOS2 depends on freeed descrpitor really free */
   memset((void *)&ldt_info, 0, sizeof(ldt_info));
@@ -605,6 +747,26 @@ static int FreeDescriptor(unsigned short selector)
   ldt_info.seg_not_present = 1;
 #endif  
   return modify_ldt(1, &ldt_info, sizeof(ldt_info));
+#endif
+#ifdef __NetBSD__
+#if 0
+  i386_get_ldt(ldt_entry, (union descriptor *)lp, 1);
+  D_printf("freeing descriptor %d: %x %x\n", ldt_entry, lp[0], lp[1]);
+#endif
+#ifdef WANT_WINDOWS
+  lp[0] = lp[1] = 0;
+#else
+  lp[0] = 0;
+  lp[1] = (1 << 9) |			/* writable */
+      (1 << 15);			/* Present */
+#endif  
+  if (i386_set_ldt(ldt_entry, (union descriptor *)lp, 1) == -1)
+      return errno;
+  else
+      return 0;
+#endif
+#endif
+#endif /* KERNEL_LDTALIAS */
 
 }
 
@@ -1043,10 +1205,18 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
         case 0x24:	/* DOS critical error interrupt */
 	  if ((Interrupt_Table[_LO(bx)].selector==DPMI_SEL) &&
 		(Interrupt_Table[_LO(bx)].offset==DPMI_OFF + HLT_OFF(DPMI_interrupt) + _LO(bx)))
+#ifdef __linux__
 	    if (can_revector(_LO(bx)))
 	      reset_revectored(_LO(bx),&vm86s.int_revectored);
 	  else
 	    set_revectored(_LO(bx),&vm86s.int_revectored);
+#endif
+#ifdef __NetBSD__
+	    if (can_revector(_LO(bx)))
+	      reset_revectored(_LO(bx), vm86s.int_byuser);
+	  else
+	    set_revectored(_LO(bx), vm86s.int_byuser);
+#endif
         default:
       }
     }
@@ -1500,7 +1670,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   in_dpmi_dos_int = 1;
   in_dpmi--;
   in_win31 = 0;
-  memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct));
+  memcpy(scp, &dpmi_stack_frame[current_client], sizeof(dpmi_stack_frame[0]));
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   HI(ax) = 0x4c;
@@ -1673,9 +1843,18 @@ void run_dpmi(void)
 			run_pm_int(VM86_ARG(retval));
 			break;
 		  default:
+#ifdef USE_MHPDBG
+			mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+#endif
 			do_int(VM86_ARG(retval));
 		}
 		break;
+#ifdef USE_MHPDBG
+    case VM86_TRAP:
+	if(!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
+	   do_int(VM86_ARG(retval));
+	break;
+#endif
 #ifdef USE_VM86PLUS
 	case VM86_PICRETURN:
 #endif
@@ -1692,6 +1871,10 @@ void run_dpmi(void)
     dpmi_control();
   }
     handle_signals();
+
+#ifdef USE_MHPDBG  
+    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
+#endif
 
   if (iq.queued)
     do_queued_ioctl();
@@ -1712,6 +1895,7 @@ void dpmi_init()
   if (!config.dpmi)
     return;
 
+  D_printf("DPMI: initializing\n");
   if (in_dpmi>=DPMI_MAX_CLIENTS) {
     p_dos_str("Sorry, only %d DPMI clients supported under DOSEMU :-(\n", DPMI_MAX_CLIENTS);
     return;
@@ -1753,11 +1937,20 @@ void dpmi_init()
       return;
     }
 
-    for (i=0;i<MAX_SELECTORS;i++) FreeDescriptor(i<<3);
+    D_printf("Freeing descriptors\n");
+    for (i=0;i<MAX_SELECTORS;i++) {
+	FreeDescriptor(i<<3);
+/*	D_printf("%d freed\n", i);*/
+    }
+    D_printf("Descriptors freed\n");
+    if (dbg_fd) {
+	fflush(dbg_fd);
+	fsync(fileno(dbg_fd));
+    }
 
     /* all selectors are used */
     memset(ldt_buffer,0xff,LDT_ENTRIES*LDT_ENTRY_SIZE);
-    modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
+    get_ldt(ldt_buffer);
 
     pm_block_handle_used = 1;
     DTA_over_1MB = 0;		/* from msdos.h */
@@ -1933,8 +2126,8 @@ void dpmi_init()
 
 static inline void Return_to_dosemu_code(struct sigcontext_struct *scp)
 {
-  memcpy(&dpmi_stack_frame[current_client], scp, sizeof(struct sigcontext_struct));
-  memcpy(scp, &emu_stack_frame, sizeof(struct sigcontext_struct));
+  memcpy(&dpmi_stack_frame[current_client], scp, sizeof(dpmi_stack_frame[0]));
+  memcpy(scp, &emu_stack_frame, sizeof(emu_stack_frame));
 }
 
 void dpmi_sigio(struct sigcontext_struct *scp)
@@ -1998,7 +2191,12 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
  * DANG_END_FUNCTION
  */
 
+#ifdef __linux__
 static void do_cpu_exception(struct sigcontext_struct *scp)
+#endif
+#ifdef __NetBSD__
+static void do_cpu_exception(struct sigcontext *scp, int code)
+#endif
 {
   us *ssp;
   unsigned char *csp2, *ssp2;
@@ -2071,7 +2269,12 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
  * DANG_END_FUNCTION
  */
 
+#ifdef __linux__
 void dpmi_fault(struct sigcontext_struct *scp)
+#endif
+#ifdef __NetBSD__
+void dpmi_fault(struct sigcontext *scp, int code)
+#endif
 {
   us *ssp;
   unsigned char *csp;
@@ -2150,8 +2353,8 @@ if ((_ss & 7) == 7) {
 
       if (_cs==UCODESEL) {
 	/* HLT in dosemu code - must in dpmi_control() */
-	memcpy(&emu_stack_frame, scp, sizeof(struct sigcontext_struct)); /* backup the registers */
-	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct)); /* switch the stack */
+	memcpy(&emu_stack_frame, scp, sizeof(emu_stack_frame)); /* backup the registers */
+	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(dpmi_stack_frame[0])); /* switch the stack */
 #if 0
 	D_printf("DPMI: now jumping to dpmi client code\n");
 #ifdef SHOWREGS
@@ -2513,20 +2716,36 @@ if ((_ss & 7) == 7) {
 	    break;
 	}
 	default:
-	    D_printf("DPMI: Nope REP F3,CSP[1] = 0x%04x\n", csp[1]);
+	    D_printf("DPMI: Nope REP F3,CSP[0..1] = 0x%02x%02x\n",
+		     csp[0], csp[1]);
+#ifdef __linux__
 	    do_cpu_exception(scp);
+#endif
+#ifdef __NetBSD__
+	    do_cpu_exception(scp, code);
+#endif
       }
       break;        
     default:
 
       if (msdos_fault(scp))
 	  return;
+#ifdef __linux__
       do_cpu_exception(scp);
+#endif
+#ifdef __NetBSD__
+      do_cpu_exception(scp, code);
+#endif
 
     } /* switch */
   } /* _trapno==13 */
   else
-    do_cpu_exception(scp);
+#ifdef __linux__
+      do_cpu_exception(scp);
+#endif
+#ifdef __NetBSD__
+      do_cpu_exception(scp, code);
+#endif
 
   if (in_dpmi_dos_int || int_queue_running || ((dpmi_eflags&(VIP|IF))==(VIP|IF)) ) {
     dpmi_eflags &= ~VIP;
@@ -2676,6 +2895,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
 {
   unsigned short *ssp;
 
+  D_printf("DPMI: realmode hlt: %p\n", lina);
   if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
     /* The hlt instruction is 6 bytes in from DPMI_ADD */
     LWORD(eip) += 1;	/* skip halt to point to FAR RET */

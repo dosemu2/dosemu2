@@ -141,7 +141,7 @@
 #ifndef	_BASE_H
 #define	_BASE_H
 
-#ifndef __linux__
+#if !defined(__linux__) && !defined(__NetBSD__)
 
 #include <mach.h>
 #include <mach_error.h>
@@ -433,7 +433,7 @@ typedef int onoff_t;
 #define VGA_ENABLED		1
 #define VGA_DISABLED		2
 
-#ifndef __linux__
+#if !defined(__linux__) && !defined(__NetBSD__)
 #include <mach/thread_status.h>
 #include <machine/psl.h>
 #include <i386/pio.h>
@@ -502,10 +502,17 @@ typedef struct i386_thread_state state_t;
 #include "cpu.h"
 #endif
 
+#ifdef __NetBSD__
+typedef struct sigcontext state_t;
+#endif
+#ifdef __linux__
 typedef struct vm86_regs state_t;
+#endif
 typedef int boolean_t;
 typedef caddr_t vm_address_t;
+#ifndef __NetBSD__
 typedef size_t vm_size_t;
+#endif
 
 
 /* this is used for memory objects (pointer to malloc()ed memory */
@@ -532,7 +539,7 @@ typedef size_t vm_size_t;
 
 EXTERN FILE *dbg_fd INIT(NULL);
 
-#ifndef __linux__
+#if !defined(__linux__) && !defined(__NetBSD__)
 
 #define MAX_IO_PORTS	128
 extern u_char io_ports[MAX_IO_PORTS];

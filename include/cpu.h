@@ -12,11 +12,22 @@
 #ifdef BIOSSEG
 #undef BIOSSEG
 #endif
+#ifdef __NetBSD__
+#include <signal.h>
+#include "netbsd_vm86.h"
+#endif
+#ifdef __linux__
 #include <linux/vm86.h>
+#endif
 #ifndef BIOSSEG
 #define BIOSSEG 0xf000
 #endif
+#ifdef __linux__
 #define _regs vm86s.regs
+#endif
+#ifdef __NetBSD__
+#define _regs vm86s.substr.regs.vmsc
+#endif
 
 #include "extern.h"
 
@@ -26,12 +37,38 @@
 
 #ifndef X86_EMULATOR
 /* all registers as a structure */
+#ifdef __linux__
 #define REGS  vm86s.regs
-
 /* this is used like: REG(eax) = 0xFFFFFFF */
 #define REG(reg) (REGS.##reg)
 #define READ_SEG_REG(reg) (REGS.##reg)
 #define WRITE_SEG_REG(reg, val) REGS.##reg = (val)
+#endif
+
+#ifdef __NetBSD__
+#define REGS  vm86s.substr.regs.vmsc
+/* this is used like: REG(eax) = 0xFFFFFFF */
+#define REG(reg) (REGS.##reg)
+#define READ_SEG_REG(reg) (REGS.##reg)
+#define WRITE_SEG_REG(reg, val) REGS.##reg = (val)
+#define es sc_es
+#define	ds sc_ds
+#define	edi sc_edi
+#define	esi sc_esi
+#define	ebp sc_ebp
+#define	ebx sc_ebx
+#define	edx sc_edx
+#define	ecx sc_ecx
+#define	eax sc_eax
+#define	eip sc_eip
+#define	cs sc_cs
+#define	eflags sc_eflags
+#define	esp sc_esp
+#define	ss sc_ss
+#define	fs sc_fs
+#define	gs sc_gs
+#endif
+
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
 #define LO(reg)  (*(unsigned char *)&REG(e##reg))
@@ -93,6 +130,7 @@ __asm__ __volatile__( \
 	: "0" (ptr), "1" (base), "2" (0)); \
 __res; })
 
+#ifdef __linux__
 static __inline__ void set_revectored(int nr, struct revectored_struct * bitmap)
 {
 	__asm__ __volatile__("btsl %1,%0"
@@ -106,6 +144,25 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 		: /* no output */
 		:"m" (*bitmap),"r" (nr));
 }
+#endif
+#ifdef __NetBSD__
+struct revectored_struct {
+	unsigned long __map[8];			/* 256 bits */
+};
+static __inline__ void set_revectored(int nr, unsigned char * bitmap)
+{
+	__asm__ __volatile__("btsl %1,%0"
+		: /* no output */
+		:"m" (* (struct revectored_struct *)bitmap),"r" (nr));
+}
+
+static __inline__ void reset_revectored(int nr, unsigned char * bitmap)
+{
+	__asm__ __volatile__("btrl %1,%0"
+		: /* no output */
+		:"m" (* (struct revectored_struct *)bitmap),"r" (nr));
+}
+#endif
 
 /* flags */
 #define CF  (1 <<  0)
@@ -196,6 +253,63 @@ struct sigcontext_struct {
   unsigned long cr2;
 };
 
+
+#ifdef __NetBSD__
+#define _gs     (scp->sc_gs)
+#define _fs     (scp->sc_fs)
+#define _es     (scp->sc_es)
+#define _ds     (scp->sc_ds)
+#define _edi    (scp->sc_edi)
+#define _esi    (scp->sc_esi)
+#define _ebp    (scp->sc_ebp)
+#define _esp    (scp->sc_esp)
+#define _ebx    (scp->sc_ebx)
+#define _edx    (scp->sc_edx)
+#define _ecx    (scp->sc_ecx)
+#define _eax    (scp->sc_eax)
+#define _err	(scp->sc_err)
+#define _eip    (scp->sc_eip)
+#define _cs     (scp->sc_cs)
+#define _eflags (scp->sc_eflags)
+#define _ss     (scp->sc_ss)
+#define _cr2	0			/* XXX no cr2 in sigcontext */
+
+
+#define _trapno (c2trap[code])
+
+#ifdef INIT_C2TRAP
+/* convert from trap codes in trap.h back to source interrupt #'s
+   (index into IDT) */
+int c2trap[] = {
+	0x06,				/* T_PRIVINFLT */
+	0x03,				/* T_BPTFLT */
+	0x10,				/* T_ARITHTRAP */
+	0xff,				/* T_ASTFLT */
+	0x0D,				/* T_PROTFLT */
+	0x01,				/* T_TRCTRAP */
+	0x0E,				/* T_PAGEFLT */
+	0x11,				/* T_ALIGNFLT */
+	0x00,				/* T_DIVIDE */
+	0x02,				/* T_NMI */
+	0x04,				/* T_OFLOW */
+	0x05,				/* T_BOUND */
+	0x07,				/* T_DNA */
+	0x08,				/* T_DOUBLEFLT */
+	0x09,				/* T_FPOPFLT */
+	0x0A,				/* T_TSSFLT */
+	0x0B,				/* T_SEGNPFLT */
+	0x0C,				/* T_STKFLT */
+};
+#else
+extern int c2trap[];
+#endif
+
+void dosemu_fault(int, int, struct sigcontext *);
+void vm86_return(int, int, struct sigcontext *);
+void vm86_setstate(struct vm86_struct *, struct sigcontext *);
+#endif
+
+#ifdef __linux__
 #define _gs     (scp->gs)
 #define _fs     (scp->fs)
 #define _es     (scp->es)
@@ -214,8 +328,10 @@ struct sigcontext_struct {
 #define _cs     (scp->cs)
 #define _eflags (scp->eflags)
 #define _ss     (scp->ss)
+#define _cr2	(scp->cr2)
 
 void dosemu_fault(int, struct sigcontext_struct);
+#endif
 
 void show_regs(char *, int), show_ints(int, int);
 __inline__ int do_hard_int(int), do_soft_int(int);

@@ -308,7 +308,7 @@ void run_unix_command(char *buffer)
         
         /* print child exitcode. not perfect */
         g_printf("run_unix_command() (parent): child exit code: %i\n",
-            WEXITSTATUS(&status));
+            WEXITSTATUS(status));
     }
 #endif
 }

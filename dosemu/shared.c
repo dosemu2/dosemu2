@@ -37,7 +37,10 @@
 #include "emu.h"
 #include "shared.h"
 
-static char devname[30];
+static char devname_[30];
+#ifdef __NetBSD__
+#define SHM_REMAP 0			/* XXX? */
+#endif
 
 /*
  * DANG_BEGIN_FUNCTION shared_qf_memory_init
@@ -115,9 +118,9 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
  * DANG_END_REMARK
  */
   pid = getpid();
-  sprintf(devname, "%s%d", TMPFILE, pid);
+  sprintf(devname_, "%s%d", TMPFILE, pid);
 
-  if ((tmpfile_fd = open(devname, O_WRONLY|O_CREAT), 0666) < 1) {
+  if ((tmpfile_fd = open(devname_, O_WRONLY|O_CREAT, 0666)) < 1) {
     E_printf("SHM: Unable to open %s%d for sending client data: %s\n",TMPFILE, pid, strerror(errno));
   }
   sprintf(info, "dosemu-%s\n", VERSTR);
@@ -134,7 +137,7 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
 void shared_memory_exit(void) {
 
 #if 1
-  unlink(devname);
+  unlink(devname_);
 #endif
 
 }

@@ -130,7 +130,7 @@ static int map_MDA_for_dualmon()
     int size=TEXT_SIZE;
     open_kmem();
     if (mmap((caddr_t) MDA_PHYS_TEXT_BASE, (size_t) size,
-         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mem_fd, MDA_PHYS_TEXT_BASE) <0) {
+         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, mem_fd, MDA_PHYS_TEXT_BASE) == (caddr_t) -1) {
       error("ERROR: mmap error in MDA video mapping %s\n", strerror(errno));
       return 0;
     }

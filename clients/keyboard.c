@@ -5,7 +5,9 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <linux/if_ether.h>
+#endif
 #include <signal.h>
 #include <stdlib.h>
 #include <fcntl.h>

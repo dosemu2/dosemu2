@@ -130,6 +130,9 @@
  *
  */
 
+#ifdef USE_MHPDBG
+#include "mhpdbg.h"
+#endif
 
 static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
 
@@ -143,6 +146,9 @@ static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/times.h>
+#ifdef __NetBSD__
+#include <setjmp.h>
+#endif
 
 #include "emu.h"
 #include "bios.h"
@@ -931,8 +937,11 @@ void vm86_GP_fault(void)
     if (is_rep) fprintf(stderr, "Nope REP F3,CSP = 0x%04x\n", csp[0]);
     /* er, why don't we advance eip here, and
 	 why does it work??  */
-    error("general protection at %p: %x\n", lina,*lina);
     REG(eip) = org_eip;
+#ifdef USE_MHPDBG
+    mhp_debug(DBG_GPF, 0, 0);
+#endif
+    error("general protection at %p: %x\n", lina,*lina);
     show_regs(__FILE__, __LINE__);
     show_ints(0, 0x33);
     error("ERROR: SIGSEGV, protected insn...exiting!\n");
@@ -949,6 +958,67 @@ void vm86_GP_fault(void)
   in_sighandler = 0;
 }
 
+#ifdef __NetBSD__
+#include <machine/segments.h>
+
+extern sigjmp_buf handlerbuf;
+
+void dosemu_fault1(int, int, struct sigcontext *);
+
+void
+dosemu_fault(int signal, int code, struct sigcontext *scp)
+{
+    register unsigned short dsel;
+    unsigned long retaddr;
+    int jmp = 0;
+    if (scp->sc_eflags & PSL_VM) {
+	vm86s.substr.regs.vmsc = *scp;
+	jmp = 1;
+    }
+
+    if (!in_dpmi) {
+	asm("pushl %%ds; popl %0" : "=r" (dsel));
+	if (dsel & SEL_LDT) {
+	    error("ds in LDT!\n");
+	    abort();
+	}
+	asm("pushl %%es; popl %0" : "=r" (dsel));
+	if (dsel & SEL_LDT) {
+	    error("es in LDT!\n");
+	    abort();
+	}
+	asm("movl %%fs,%0" : "=r" (dsel) );
+	if (dsel & SEL_LDT) {
+	    error("fs in LDT!\n");
+	    abort();
+	}
+	asm("movl %%gs,%0" : "=r" (dsel) );
+	if (dsel & SEL_LDT) {
+	    error("gs in LDT!\n");
+	    abort();
+	}
+	asm("movl %%ss,%0" : "=r" (dsel) );
+	if (dsel & SEL_LDT) {
+	    error("ss in LDT!\n");
+	    abort();
+	}
+	asm("movl %%cs,%0" : "=r" (dsel) );
+	if (dsel & SEL_LDT) {
+	    error("cs in LDT!\n");
+	    abort();
+	}
+    }
+    dosemu_fault1(signal, code, scp);
+    if (jmp)
+	siglongjmp(handlerbuf, VM86_SIGNAL | 0x80000000);
+    return;
+}
+#endif
+
+#ifdef __linux__
+#define dosemu_fault1 dosemu_fault
+#endif
+
 /*
  * DANG_BEGIN_FUNCTION dosemu_fault(int, struct sigcontext_struct);
  *
@@ -959,14 +1029,42 @@ void vm86_GP_fault(void)
  */
 
 void 
-dosemu_fault(int signal, struct sigcontext_struct context)
+dosemu_fault1(
+#ifdef __linux__
+int signal, struct sigcontext_struct context
+#endif
+#ifdef __NetBSD__
+int signal, int code, struct sigcontext *scp
+#endif
+)
 {
+#ifdef __linux__
   struct sigcontext_struct *scp = &context;
+#endif
   unsigned char *csp;
+  unsigned char c;
   int i;
 
   if (in_vm86) {
     in_vm86 = 0;
+#if 0
+    write(2, "fault1 sig ", 11);
+    c = signal + '0';
+    write(2, &c, 1);
+    write(2, " code ", 6);
+    c = code + '0';
+    write(2, &c, 1);
+    write(2, " scp ", 5);
+    for (i = 7; i >= 0; i--) {
+	c = (((long)scp >> (i*4)) & 0xf);
+	if (c > 9)
+	    c = c + 'a' - 10;
+	else
+	    c = c + '0';
+	write(2, &c, 1);
+    }
+    write(2, "\n", 1);
+#endif
     switch (_trapno) {
       case 0x00: /* divide_error */
       case 0x01: /* debug */
@@ -994,18 +1092,26 @@ dosemu_fault(int signal, struct sigcontext_struct context)
  		 }
       default:	error("ERROR: unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
 	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
-	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,scp->err,
+	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
+		_err,
 	  	_eip, _esp, _eflags, _cs, _ds, _es, _ss);
 #if 0
 		perror("dosemu_fault:");
 #endif
  		 show_regs(__FILE__, __LINE__);
+		 if (d.network)		/* XXX */
+		     abort();
  		 leavedos(4);
     }
   }
 
   if (in_dpmi)
-    return dpmi_fault(&context);
+#ifdef __linux__
+    return dpmi_fault(scp);
+#endif
+#ifdef __NetBSD__
+    return dpmi_fault(scp, code);
+#endif
 
   csp = (char *) _eip;
 
@@ -1021,7 +1127,7 @@ dosemu_fault(int signal, struct sigcontext_struct context)
 	  "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
 	  "eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
 	  "cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
-	  _trapno, scp->err, scp->cr2,
+	  _trapno, _err, _cr2,
 	  _eip, _esp, _eflags, _cs, _ds, _es, _ss);
 
     dbug_printf("  VFLAGS(b): ");

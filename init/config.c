@@ -20,6 +20,10 @@
 
 #include "dos2linux.h"
 
+#ifdef __NetBSD__
+extern int errno;
+#endif
+
 /*
  * XXX - the mem size of 734 is much more dangerous than 704. 704 is the
  * bottom of 0xb0000 memory.  use that instead?
@@ -232,12 +236,22 @@ config_init(int argc, char **argv)
 	}
     }
 
+    priv_off();
+
     parse_config(confname);
+
+    priv_on();
 
     if (config.exitearly)
 	leavedos(0);
 
+#ifdef __NetBSD__
+    optreset = 1;
+    optind = 1;
+#endif
+#ifdef __linux__
     optind = 0;
+#endif
     opterr = 0;
     while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:E:o:O")) != EOF) {
 	switch (c) {
@@ -314,9 +328,11 @@ config_init(int argc, char **argv)
 	    priv_on();
 	    break;
 	case 'P':
-	    if (terminal_fd == -1)
+	    if (terminal_fd == -1) {
+		priv_off();
 		open_terminal_pipe(optarg);
-	    else
+		priv_on();
+	    } else
 		error("ERROR: terminal pipe already open\n");
 	    break;
 	case 'V':

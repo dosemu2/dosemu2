@@ -62,7 +62,7 @@
 #ifdef _LOADABLE_VM86_
 #include "kversion.h"
 #if 0
-#define KERNEL_VERSION 1002008 /* last verified kernel version */
+#define KERNEL_VERSION 1003028 /* last verified kernel version */
 #endif
 
 #if KERNEL_VERSION < 1001090
@@ -111,7 +111,11 @@ static void unprotect_vmarea(unsigned long address, unsigned long size)
   /* NOTE: we support only Intel x86 family, so we have 2-Level page table
    *       and we skip the pmd_t related stuff
    */
+#if KERNEL_VERSION < 1003024
   dir = pgd_offset(current, addr);
+#else
+  dir = pgd_offset(current->mm, addr);
+#endif
   while (addr < end) {
 #if 0
     printk("LDT: addr=%08x, pgd=%08x\n", addr, pgd_val(*dir));

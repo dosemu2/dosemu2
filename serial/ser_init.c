@@ -30,8 +30,14 @@
 #include <sys/time.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <linux/fs.h>
+#endif
 #include <pwd.h>
+#ifdef __NetBSD__
+#include <sys/syslimits.h>		/* PATH_MAX */
+extern int errno;
+#endif
 
 #include "config.h"
 #include "emu.h"
@@ -247,6 +253,16 @@ static int ser_close(int num)
   return (i);
 }
 
+#ifdef __NetBSD__
+#define IUCLC 0
+#define OLCUC 0
+#define OCRNL ONLCR
+#define ONOCR 0
+#define ONLRET 0
+#define OFILL 0
+#define OFDEL 0
+#define XCASE 0
+#endif
 
 /* The following function is the main initialization routine that
  * initializes the UART for ONE serial port.  This includes setting up 
@@ -373,7 +389,9 @@ static void do_ser_init(int num)
   com[num].newset.c_cflag &= ~(HUPCL | CRTSCTS);
 #endif
 
+#ifdef __linux__
   com[num].newset.c_line = 0;
+#endif
   com[num].newset.c_cc[VMIN] = 1;
   com[num].newset.c_cc[VTIME] = 0;
   if (com[num].system_rtscts) com[num].newset.c_cflag |= CRTSCTS;

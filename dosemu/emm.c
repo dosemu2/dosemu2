@@ -199,7 +199,7 @@
  * DANG_END_CHANGELOG)
  */
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__NetBSD__)
 
 #include <unistd.h>
 #include <string.h>
@@ -208,7 +208,13 @@
 #include <malloc.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#ifdef __linux__
 #include <linux/utsname.h>
+#endif
+#ifdef __NetBSD__
+#include <sys/utsname.h>
+#define new_utsname utsname
+#endif
 
 #include "emu.h"
 #include "memory.h"
@@ -223,6 +229,10 @@ static inline boolean_t unmap_page(int);
 
 #include <sys/file.h>
 #include <sys/ioctl.h>
+
+#ifdef __NetBSD__
+#define __linux__			/* XXX */
+#endif
 
 /*****************************************************************************/
 
@@ -771,12 +781,12 @@ map_page(handle, physical_page, logical_page)
   if (ems_mmap) {
     E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
     
-    if (base!=mmap(base,
-                   EMM_PAGE_SIZE,
-	           PROT_READ | PROT_WRITE | PROT_EXEC,
-	           MAP_SHARED | MAP_FIXED,
-	           selfmem_fd,
-	           (off_t) logical))
+    if ((caddr_t)base != mmap(base,
+			      EMM_PAGE_SIZE,
+			      PROT_READ | PROT_WRITE | PROT_EXEC,
+			      MAP_SHARED | MAP_FIXED,
+			      selfmem_fd,
+			      (off_t) logical))
     {
         E_printf("EMS: mmap() failed: %s\n",strerror(errno));
         leavedos(2);

@@ -9,7 +9,7 @@
 #ifdef _LOADABLE_VM86_
   #include "kversion.h"
 #else
-  #define KERNEL_VERSION 1002002 /* last verified kernel version */
+  #define KERNEL_VERSION 1003028 /* last verified kernel version */
 #endif
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -26,6 +26,10 @@
 #include <asm/pgtable.h>
 #endif
 #include <asm/io.h>
+
+#if defined(_LOADABLE_VM86_) && defined(USE_MHPDBG)
+#include "mhpdbg.h"
+#endif
 
 /*
  * Known problems:
@@ -152,7 +156,11 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 	pte_t *pte;
 	int i;
 
+#if KERNEL_VERSION < 1003024
 	pgd = pgd_offset(tsk, 0xA0000);
+#else
+	pgd = pgd_offset(tsk->mm, 0xA0000);
+#endif
 	if (pgd_none(*pgd))
 		return;
 	if (pgd_bad(*pgd)) {
@@ -171,7 +179,11 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 	pte = pte_offset(pmd, 0xA0000);
 	for (i = 0; i < 32; i++) {
 		if (pte_present(*pte))
+#if KERNEL_VERSION < 1003022
 			*pte = pte_wrprotect(*pte);
+#else
+			set_pte(pte, pte_wrprotect(*pte));
+#endif
 		pte++;
  	}
 	invalidate();
@@ -524,9 +536,16 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
     struct vm86plus_struct *vmp=(void *)(current->vm86_info);
   #endif
   int is_vm86plus=( get_fs_long(&vmp->vm86plus.vm86plus_magic) == VM86PLUS_MAGIC );
+  struct vm86plus_info_struct vmpi;
   #define VM86_FAULT_RETURN   if (is_vm86plus) break; else return
+  #ifdef USE_MHPDBG
+    #define CHECK_IF_IN_TRAP    if (vmpi.mhpdbg_active && vmpi.mhpdbg_TFpendig) pushw(ssp,sp,popw(ssp,sp) | TF_MASK);
+  #else
+    #define CHECK_IF_IN_TRAP
+  #endif
 #else
   #define VM86_FAULT_RETURN   return
+  #define CHECK_IF_IN_TRAP
 #endif
 
 #if defined(_LOADABLE_VM86_) && defined(_VM86_STATISTICS_)
@@ -536,6 +555,19 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 #endif
 
 
+#if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS)
+	if (is_vm86plus) {
+  #if 0
+	  /* We will copy the whole tail later,
+	     if more stuff is put into vm86plus */
+	  memcpy_fromfs(&vmpi.dosemuver, &vmp->vm86plus.dosemuver, sizeof(struct vm86plus_info_struct)-sizeof(long));
+  #else
+	  /* For now it's enough to get just the flag bit fields */
+	  *(((long *)&vmpi.dosemuver)+1) = get_fs_long(((long *)&vmp->vm86plus.dosemuver)+1);
+  #endif
+	}
+	else *(((long *)&vmpi.dosemuver)+1) = 0;
+#endif
 	csp = (unsigned char *) (regs->cs << 4);
 	ssp = (unsigned char *) (regs->ss << 4);
 	sp = SP(regs);
@@ -560,6 +592,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 			STACKVERIFY(+4)
 			SP(regs) += 4;
 			IP(regs) += 2;
+			CHECK_IF_IN_TRAP
 			set_vflags_long(popl(ssp, sp), regs);
 			VM86_FAULT_RETURN;
 
@@ -571,6 +604,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 			SP(regs) += 12;
 			IP(regs) = (unsigned short)popl(ssp, sp);
 			regs->cs = (unsigned short)popl(ssp, sp);
+			CHECK_IF_IN_TRAP
 			set_vflags_long(popl(ssp, sp), regs);
 			VM86_FAULT_RETURN;
 /* #endif */
@@ -596,6 +630,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 		STACKVERIFY(+2)
 		SP(regs) += 2;
 		IP(regs)++;
+		CHECK_IF_IN_TRAP
 		set_vflags_short(popw(ssp, sp), regs);
 		VM86_FAULT_RETURN;
 
@@ -609,17 +644,27 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 #endif
 #endif
 	/* int xx */
-	case 0xcd:
+	case 0xcd: {
+	        int intno=popb(csp, ip);
 		IP(regs) += 2;
-		do_int(regs, popb(csp, ip), ssp, sp);
+#if defined(_LOADABLE_VM86_) && defined(USE_MHPDBG)
+		if (is_vm86plus) {
+		  if (vmpi.mhpdbg_active) {
+		    if ( (1 << (intno &7)) & get_fs_byte((char *)&vmp->vm86plus.mhpdbg_intxxtab[intno >> 3]) )
+		         return_to_32bit(regs, VM86_INTx + (intno << 8));
+		  }
+		}
+#endif
+		do_int(regs, intno, ssp, sp);
 		return;
-
+	}
 	/* iret */
 	case 0xcf:
 		STACKVERIFY(+6)
 		SP(regs) += 6;
 		IP(regs) = popw(ssp, sp);
 		regs->cs = popw(ssp, sp);
+		CHECK_IF_IN_TRAP
 		set_vflags_short(popw(ssp, sp), regs);
 		VM86_FAULT_RETURN;
 
@@ -653,16 +698,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 #if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS)
 	if (is_vm86plus) {
-	  struct vm86plus_info_struct vmpi;
-  #if 0
-	  /* We will copy the whole tail later,
-	     if more stuff is put into vm86plus */
-	  memcpy_fromfs(&vmpi.dosemuver, &vmp->vm86plus.dosemuver, sizeof(struct vm86plus_info_struct)-sizeof(long));
-  #else
-	  /* For now it's enough to get just the flag bit fields */
-	  *(((long *)&vmpi.dosemuver)+1) = get_fs_long(((long *)&vmp->vm86plus.dosemuver)+1);
-  #endif
-	  if (vmpi.force_return_for_pic  && (VEFLAGS & IF_MASK) )
+	  if (vmpi.force_return_for_pic  && (VEFLAGS & IF_MASK))
                          return_to_32bit(regs, VM86_PICRETURN);
  	}
 #endif
@@ -685,6 +721,9 @@ void handle_vm86_trap(struct vm86_regs * regs, long error_code, int trapno)
           extern int vm86_trap_count[8];
           vm86_trap_count[trapno & 7]++;
         }
+#endif
+#if defined(_LOADABLE_VM86_) && defined(USE_MHPDBG)
+	if ( (trapno==3) || (trapno==1) ) return_to_32bit(regs, VM86_TRAP + (trapno << 8));
 #endif
 	do_int(regs, trapno, (unsigned char *) (regs->ss << 4), SP(regs));
 	return;

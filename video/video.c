@@ -142,7 +142,7 @@ load_file(char *name, int foffset, char *mstart, int msize)
 {
   int fd;
 
-  if (strcmp(name, "/dev/kmem") == 0) {
+  if (strcmp(name, "/dev/mem") == 0) {
     v_printf("kmem used for loadfile\n");
     open_kmem();
     fd = mem_fd;
@@ -153,7 +153,7 @@ load_file(char *name, int foffset, char *mstart, int msize)
   DOS_SYSCALL(lseek(fd, foffset, SEEK_SET));
   RPT_SYSCALL(read(fd, mstart, msize));
 
-  if (strcmp(name, "/dev/kmem") == 0)
+  if (strcmp(name, "/dev/mem") == 0)
     close_kmem();
   else
     close(fd);

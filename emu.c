@@ -382,6 +382,12 @@
  * above 1 meg. DANG_END_REMARK
  */
 
+#ifdef __NetBSD__
+#define __ELF__				/* simluated with a.out mmap-ing stuff.
+					   use _main entrypoint. */
+#define EDEADLOCK EDEADLK
+#endif
+
 #ifndef __ELF__
 /*
  * DANG_BEGIN_FUNCTION jmp_emulate
@@ -409,17 +415,30 @@ __asm__("___START___: jmp _emulate\n");
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <limits.h>
+#ifndef __NetBSD__
 #include <getopt.h>
+#endif
 #include <assert.h>
-#include <linux/vt.h>
 
+#ifdef __NetBSD__
+#include <signal.h>
+#include <machine/pcvt_ioctl.h>
+#include "netbsd_vm86.h"
+#endif
+#ifdef __linux__
+#include <linux/vt.h>
 #include <linux/fd.h>
 #include <linux/hdreg.h>
 #include <sys/vm86.h>
 #include <syscall.h>
+#endif
 
 #include "config.h"
 #include "memory.h"
+
+#ifdef USE_MHPDBG
+#include "mhpdbg.h"
+#endif
 
 #ifdef REQUIRES_EMUMODULE
   /* Please folks, don't remove this, it's required for emusys.h (within emu.h) */
@@ -444,6 +463,9 @@ __asm__("___START___: jmp _emulate\n");
 #include "bitops.h"
 #include "pic.h"
 #include "dpmi.h"
+#ifdef __NetBSD__
+#include <setjmp.h>
+#endif
 
 extern void     stdio_init(void);
 extern void     time_setting_init(void);
@@ -466,6 +488,33 @@ static int      special_nowait = 0;
 
 static int      poll_io = 1;	/* polling io, default on */
 
+
+#ifdef __NetBSD__
+
+sigjmp_buf handlerbuf;
+
+int
+vm86(register struct vm86_struct *vm86p)
+{
+    int retval;
+
+    retval = sigsetjmp(handlerbuf, 1);
+    if (retval == 0) {
+	i386_vm86(vm86p);	/* never returns, except via signal */
+	I_printf("Return from i386_vm86()??\n");
+	vm86_GP_fault();
+	abort();			/* WTF? */
+    }
+    return retval & ~0x80000000;
+}
+
+void
+vm86_return(int sig, int code, struct sigcontext *scp)
+{
+    vm86s.substr.regs.vmsc = *scp;	/* copy vm86 registers first... */
+    siglongjmp(handlerbuf, code | 0x80000000); /* then simulate return */
+}
+#endif
 
 /*
  * DANG_BEGIN_FUNCTION run_vm86
@@ -561,8 +610,17 @@ run_vm86(void)
 	pic_iret();
 	break;
     case VM86_INTx:
+#ifdef USE_MHPDBG
+	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+#endif
 	do_int(VM86_ARG(retval));
 	break;
+#ifdef USE_MHPDBG
+    case VM86_TRAP:
+	if(!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
+	   do_int(VM86_ARG(retval));
+	break;
+#endif
 #ifdef USE_VM86PLUS
     case VM86_PICRETURN:
         I_printf("Return for FORCE_PIC\n");
@@ -577,7 +635,9 @@ run_vm86(void)
 	}
 
     handle_signals();
-
+#ifdef USE_MHPDBG  
+    if (mhpdbg.active) mhp_debug(DBG_POLL, 0, 0);
+#endif
     /*
      * This is here because ioctl() is non-reentrant, and signal handlers
      * may have to use ioctl().  This results in a possible (probable)
@@ -771,7 +831,7 @@ SIG_close()
 	while (sg->fd)
 	    close((sg++)->fd);
 #endif
-	fprintf(stderr, "Closing all IRQ you opened!\n");
+	g_printf("Closing all IRQ you opened!\n");
     }
 #endif
 }
@@ -801,6 +861,38 @@ module_init(void)
     tmpdir_init();		/* create our temporary dir */
 }
 
+#ifdef __NetBSD__
+#include <machine/segments.h>
+/*
+ * Switch all segment registers to use well-known GDT entries.
+ * (The default process setup uses LDT entries for all segment registers)
+ */
+static unsigned short csel = GSEL(GUCODE_SEL, SEL_UPL);
+asm(".text");
+asm(".align 4");
+asm(".globl changesegs_lret");
+asm("changesegs_lret:");
+asm("popl %eax");
+asm("pushl _csel");
+asm("pushl %eax");
+asm("lret");
+
+void
+changesegs()
+{
+    register unsigned short dsel = GSEL(GUDATA_SEL, SEL_UPL);
+    unsigned long retaddr;
+
+    asm("pushl %0; popl %%ds" : : "g" (dsel) );
+    asm("pushl %0; popl %%es" : : "g" (dsel) );
+    asm("movl %0,%%fs" : : "r" (dsel) );
+    asm("movl %0,%%gs" : : "r" (dsel) );
+    asm("movl %0,%%ss" : : "r" (dsel) );
+    asm("call changesegs_lret");
+    return;
+}
+#endif
+
 /*
  * DANG_BEGIN_FUNCTION emulate
  * 
@@ -823,6 +915,9 @@ void
 emulate(int argc, char **argv)
 #endif
 {
+#ifdef __NetBSD__
+    changesegs();
+#endif
     if (0 == geteuid()) {
 	warn("I am root\n");
 	i_am_root = 1;
@@ -865,6 +960,10 @@ emulate(int argc, char **argv)
     g_printf("EMULATE\n");
 
     fflush(stdout);
+
+#ifdef USE_MHPDBG  
+    mhp_debug(DBG_INIT, 0, 0);
+#endif
 
     while (!fatalerr) {
 	++pic_vm86_count;
@@ -957,6 +1056,8 @@ void
 leavedos(int sig)
 {
     struct sigaction sa;
+    struct itimerval itv;
+    extern int errno;
 
     static int recurse_check = 0;
     if (recurse_check) return;
@@ -973,7 +1074,11 @@ leavedos(int sig)
     /* remove tmpdir */
     rmdir(tmpdir);
 
-    setitimer(TIMER_TIME, NULL, NULL);
+    itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
+    itv.it_value = itv.it_interval;
+    if (setitimer(TIMER_TIME, &itv, NULL) == -1) {
+	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
+    }
     SETSIG(SIG_TIME, ign_sigs);
     SETSIG(SIGSEGV, ign_sigs);
     SETSIG(SIGILL, ign_sigs);
@@ -1006,6 +1111,12 @@ leavedos(int sig)
 
     g_printf("calling shared memory exit\n");
     shared_memory_exit();
+    g_printf("calling HMA exit\n");
+    hma_exit();
+#ifdef USE_MHPDBG
+    g_printf("closing debugger pipes\n");
+    mhp_close();
+#endif
     if (config.detach) {
 	restore_vt(config.detach);
 	disallocate_vt();
@@ -1214,4 +1325,77 @@ activate(int con_num)
     } else
 	do_ioctl(kbd_fd, VT_ACTIVATE, con_num);
 }
+#endif
+
+#ifdef __NetBSD__
+void
+usleep(u_int microsecs)
+{
+    /* system usleep is ghastly inefficient, using SIGALRM.
+       Instead, we use select :) */
+    struct timeval tv;
+    tv.tv_sec = microsecs / 1000000;
+    tv.tv_usec = microsecs % 1000000;
+    select(0, 0, 0, 0, &tv);
+    /* return early if awoken */
+    return;
+}
+
+/* lifted from linux kernel, ioport.c */
+
+/* Set EXTENT bits starting at BASE in BITMAP to value TURN_ON. */
+static void
+set_bitmap(unsigned long *bitmap, short base, short extent, int new_value)
+{
+	int mask;
+	unsigned long *bitmap_base = bitmap + (base >> 5);
+	unsigned short low_index = base & 0x1f;
+	int length = low_index + extent;
+
+	if (low_index != 0) {
+		mask = (~0 << low_index);
+		if (length < 32)
+				mask &= ~(~0 << length);
+		if (new_value)
+			*bitmap_base++ |= mask;
+		else
+			*bitmap_base++ &= ~mask;
+		length -= 32;
+	}
+
+	mask = (new_value ? ~0 : 0);
+	while (length >= 32) {
+		*bitmap_base++ = mask;
+		length -= 32;
+	}
+
+	if (length > 0) {
+		mask = ~(~0 << length);
+		if (new_value)
+			*bitmap_base++ |= mask;
+		else
+			*bitmap_base++ &= ~mask;
+	}
+}
+
+#include <machine/sysarch.h>
+
+int
+ioperm(unsigned int startport, unsigned int howmany, int onoff)
+{
+    unsigned long bitmap[IONPORTS/32];
+    int err;
+
+    if (startport + howmany > IONPORTS)
+	return ERANGE;
+
+    if (err = i386_get_ioperm(bitmap))
+	return err;
+    i_printf("%sabling %x->%x\n", onoff ? "en" : "dis", startport, startport+howmany);
+    /* now diddle the current bitmap with the request */
+    set_bitmap(bitmap, startport, howmany, !onoff);
+
+    return i386_set_ioperm(bitmap);
+}
+
 #endif

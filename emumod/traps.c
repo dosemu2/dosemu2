@@ -16,7 +16,7 @@
 #ifdef _LOADABLE_VM86_
   #include "kversion.h"
 #else
-  #define KERNEL_VERSION 1002002 /* last verified kernel version */
+  #define KERNEL_VERSION 1003028 /* last verified kernel version */
 #endif
 #include <linux/head.h>
 #include <linux/sched.h>
@@ -136,7 +136,11 @@ asmlinkage void alignment_check(void);
 
 #ifdef _LOADABLE_VM86_
 
+#if KERNEL_VERSION < 1003015
 extern void die_if_kernel(char * str, struct pt_regs * regs, long err);
+#else
+extern void die_if_kernel(const char * str, struct pt_regs * regs, long err);
+#endif
 
 #else /* NOT _LOADABLE_VM86_ */
 
@@ -152,14 +156,22 @@ int kstack_depth_to_print = 24;
 #define MODULE_RANGE (8*1024*1024)
 #endif
 
+#if KERNEL_VERSION < 1003015
 void die_if_kernel(char * str, struct pt_regs * regs, long err)
+#else
+/*static*/ void die_if_kernel(const char * str, struct pt_regs * regs, long err)
+#endif
 {
 	int i;
 	unsigned long esp;
 	unsigned short ss;
 #if KERNEL_VERSION >= 1001079
 	unsigned long *stack, addr, module_start, module_end;
+  #if KERNEL_VERSION < 1003005
 	extern char start_kernel, etext;
+  #else
+	extern char start_kernel, _etext;
+  #endif
 #endif
 	esp = (unsigned long) &regs->esp;
 	ss = KERNEL_DS;
@@ -211,7 +223,11 @@ void die_if_kernel(char * str, struct pt_regs * regs, long err)
 		 * out the call path that was taken.
 		 */
 		if (((addr >= (unsigned long) &start_kernel) &&
-		     (addr <= (unsigned long) &etext)) ||
+  #if KERNEL_VERSION < 1003005
+  		     (addr <= (unsigned long) &etext)) ||
+  #else
+		     (addr <= (unsigned long) &_etext)) ||
+  #endif
 		    ((addr >= module_start) && (addr <= module_end))) {
 			if (i && ((i % 8) == 0))
 				printk("\n       ");

@@ -96,7 +96,12 @@
  *
  */
 
+#ifdef __NetBSD__
+#include <sys/time.h>
+#endif
+#ifdef __linux__
 #include <linux/time.h>
+#endif
 #include "emu.h"
 #include "timers.h"
 #include "int.h"

@@ -24,7 +24,13 @@
 #include <unistd.h>                      /* prototype for stat() */
 #include <stdarg.h>
 #include <pwd.h>
+#ifdef __linux__
 #include <mntent.h>
+#endif
+#ifdef __NetBSD__
+#include <sys/param.h>
+#include <sys/mount.h>
+#endif
 
 #include "config.h"
 #include "emu.h"
@@ -1132,7 +1138,12 @@ static void do_part(char *dev)
     yyerror("Two names for a partition given.");
   dptr->type = PARTITION;
   dptr->dev_name = dev;
+#ifdef __NetBSD__
+  dptr->part_info.number = dptr->dev_name[strlen(dptr->dev_name)-1] - 'a' + 1;
+#endif
+#ifdef __linux__
   dptr->part_info.number = atoi(dptr->dev_name+8);
+#endif
   if (dptr->part_info.number == 0) 
     yyerror("%s must be a PARTITION, can't find number suffix!\n",
    	    dptr->dev_name);
@@ -1141,7 +1152,13 @@ static void do_part(char *dev)
 static void stop_disk(int token)
 {
   FILE   *f;
+#ifdef __linux__
   struct mntent *mtab;
+#endif
+#ifdef __NetBSD__
+  struct statfs *statfs, *rstatfs;
+  register int i, j;
+#endif
   int    mounted_rw;
 
   if (dptr == &nulldisk)              /* is there any disk? */
@@ -1165,6 +1182,7 @@ static void stop_disk(int token)
 
   if (dptr->type == PARTITION) {
     c_printf("partition# %d ", dptr->part_info.number);
+#ifdef __linux__
     mtab = NULL;
     if ((f = setmntent(MOUNTED, "r")) != NULL) {
       while (mtab = getmntent(f))
@@ -1186,6 +1204,42 @@ static void stop_disk(int token)
                "\n         it is currently mounted read-only on '%s'.\n",
                dptr->dev_name, mtab->mnt_dir);
     }
+#endif
+#ifdef __NetBSD__
+    i = getmntinfo(&statfs, 0);
+    rstatfs = NULL;
+    if (i > 0) for (j = 0; j < i; j++) {
+	char *cp1, *cp2;
+	if (!strcmp(statfs[j].f_mntfromname, dptr->dev_name)) {
+	    rstatfs = &statfs[j];
+	    break;
+	}
+	cp1 = strrchr(statfs[j].f_mntfromname, '/');
+	cp2 = strrchr(dptr->dev_name, '/');
+	if (cp1 && cp2) {
+	    /* lop off leading 'r' for raw device on dptr->dev_name */
+	    if (!strcmp(cp1+1, cp2+2)) {
+		rstatfs = &statfs[j];
+		break;
+	    }
+	}
+    }
+    if (rstatfs) {
+      mounted_rw = ((rstatfs->f_flags & MNT_RDONLY) == 0);
+      if (mounted_rw && !dptr->wantrdonly) 
+        yyerror("\n\nYou specified '%s' for read-write Direct Partition Access,"
+                "\nit is currently mounted read-write on '%s' !!!\n",
+                dptr->dev_name, rstatfs->f_mntonname);
+      else if (mounted_rw) 
+        yywarn("You specified '%s' for read-only Direct Partition Access,"
+               "\n         it is currently mounted read-write on '%s'.\n",
+               dptr->dev_name, rstatfs->f_mntonname);
+      else if (!dptr->wantrdonly) 
+        yywarn("You specified '%s' for read-write Direct Partition Access,"
+               "\n         it is currently mounted read-only on '%s'.\n",
+               dptr->dev_name, rstatfs->f_mntonname);
+    }
+#endif
   }
 
   if (dptr->header)

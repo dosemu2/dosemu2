@@ -17,13 +17,26 @@
 #include <fcntl.h>
 #include <math.h>
 #include <string.h>
+#ifdef __NetBSD__
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <errno.h>
+#define boolean_t xxx_t
+#endif
 #include "meminfo.h"
 #include "emu.h"
 
 /**************************************************/
 struct meminfo *readMeminfo(void) {
 /* Read /proc/meminfo and return the new values */
+/*
+        total:   used:    free:   shared:  buffers:
+Mem:  13406208 13139968   266240  5574656  2301952
+Swap: 16773120  5550080 11223040
+*/
   static struct meminfo mem = { 0 };
+#ifdef __linux__
   char buf[4097];
   char *tok, *nextline;
   int cnt;
@@ -34,12 +47,12 @@ struct meminfo *readMeminfo(void) {
     lseek(mem.meminfofd, 0, SEEK_SET);
   if (mem.meminfofd <= 0) {
     error("Cannot open /proc/meminfo\n");
-    return;
+    leavedos(5);
   }
   cnt = read(mem.meminfofd, buf, 4096);
   if (cnt <= 0) {
     error("Read failure on /proc/meminfo");
-    return;
+    leavedos(5);
   }
   buf[cnt] = '\0';
 
@@ -47,7 +60,7 @@ struct meminfo *readMeminfo(void) {
   if ((tok = strtok(buf, "\r\n")) == NULL) {
 BadFormat:
     error("Unknown format on /proc/meminfo\n");
-    return;
+    leavedos(5);
   }
   
 /* Read meminfo */
@@ -101,7 +114,26 @@ BadFormat:
   mem.swapmegs = (mem.swaptotal / (1024 * 1024)) + 1;
   mem.bytes_per_tick = mem.total >> 8; 
   mem.swapbytes_per_tick = mem.swaptotal >> 8; 
+#endif
+#ifdef __NetBSD__
+  int len;
+  int mib[2];
 
+  mib[0] = CTL_HW;
+  mib[1] = HW_USERMEM;
+  len = sizeof(mem.total);
+  if (sysctl(mib, 2, &mem.total, &len, NULL, 0) != sizeof(mem.total)) {
+      error("Can't read CT_HW.HW_USERMEM: %s", strerror(errno));
+      leavedos(5);
+  }
+
+  /* We make up the rest of these numbers :) */
+
+  mem.swaptotal = 2*mem.total;
+  mem.free = 4*mem.total/5;
+  mem.swapfree = 2*mem.free;
+
+#endif
   return(&mem);
 }
 /**************************************************/

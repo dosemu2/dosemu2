@@ -69,6 +69,10 @@
 #define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)
 
+/* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
+#define DBGload_SEG BIOSSEG
+#define DBGload_OFF (0x8000 - 128)
+
 #ifndef ROMBIOSSEG
 #define ROMBIOSSEG	0xf800
 #endif

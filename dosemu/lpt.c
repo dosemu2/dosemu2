@@ -165,13 +165,14 @@ printer_open(int prnum)
 int
 printer_close(int prnum)
 {
-  p_printf("LPT: closing printer %d, %s\n", prnum, lpt[prnum].dev);
+  p_printf("LPT: closing printer %d, %s\n", prnum,
+	   lpt[prnum].dev ? lpt[prnum].dev : "<<NODEV>>");
   if (lpt[prnum].file != NULL)
     fclose(lpt[prnum].file);
   lpt[prnum].file = NULL;
 
   /* delete any temporary files */
-  if (lpt[prnum].prtcmd) {
+  if (lpt[prnum].prtcmd && lpt[prnum].dev) {
     unlink(lpt[prnum].dev);
     lpt[prnum].dev = NULL;
   }
@@ -184,6 +185,7 @@ int
 printer_flush(int prnum)
 {
   int returnstat;
+  extern int errno;
 
   p_printf("LPT: flushing printer %d, %s\n", prnum, lpt[prnum].dev);
 
@@ -261,7 +263,8 @@ close_all_printers(void)
   int loop;
 
   for (loop = 0; loop < NUM_PRINTERS; loop++) {
-    p_printf("LPT: closing printer %d (%s)\n", loop, lpt[loop].dev);
+    p_printf("LPT: closing printer %d (%s)\n", loop,
+	     lpt[loop].dev ? lpt[loop].dev : "<<NODEV>>");
     if (lpt[loop].fops.close)
        (lpt[loop].fops.close) (loop);
   }

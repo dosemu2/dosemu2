@@ -1,0 +1,149 @@
+README file for DOSEMU debugger  v0.3	9/27/95
+send comments to Max Parke     <mhp@light.lightlink.com>
+       and    to Hans Lermen   <lermen@elserv.ffm.fgan.de>
+================================================================
+
+This is a second preliminary release of the DOSEMU debugger, with the
+following features:
+* interactive
+* display/disassembly/modify of registers and memory(0-1Mb)
+* breakpoints (int3-style, and breakpoint on INT xx)
+* symbolic debugging via microsoft linker .MAP file support
+* read-only access to DOSEMU kernel via memory dump and disassembly
+* uses /usr/src/dosemu/dosemu.map for above
+* access is via the 'dosdebug' client from another virtual console.
+  So, you have a "debug window" and the DOS window/keyboard, etc. are
+  undisturbed.	VM86 execution can be started, stopped, etc.
+* If dosemu 'hangs' you can use the 'kill' command from dosbugger to
+  recover.
+* code base is on DOSEMU pre-0.60.4.2
+
+================================================================
+Changes were added to these modules in the source tree:
+./emu.c
+./dosemu/sigsegv.c
+./dosemu/dosio.c
+./emumod/vm86.c
+./include/vm86plus.h
+./dpmi/dpmi.c
+./bios/bios.S
+All changes are #ifdef'ed with USE_MHPDBG
+
+New modules:
+./debugger/mhpdbg.c
+./debugger/mhpdbgc.c
+./debugger/dis8086.c
+./include/mhpdbg.h
+
+New executable:
+./dosdebug.c
+
+================================================================
+INSTALLATION:
+
+In order to use DOSEMU debugger you must also use EMUMODULE.
+In the main Makefile uncomment:
+
+  REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
+  USE_VM86PLUS= -DUSE_VM86PLUS
+  USE_MHPDBG= -DUSE_MHPDBG
+
+and then do a 'make realclean' and recompile dosemu.
+
+  
+================================================================
+USAGE
+To run, start up DOSEMU.  Then switch to another virtual console
+(or remote login) and do:
+
+  dosdebug
+
+If there are more then one dosemu process running, you will need
+to pass the pid to dosdebug, e.g:
+
+  dosdebug 2134
+  
+NOTE: You must be the owner of the running dosemu to 'debug-login'.
+
+You should get connected and a banner message.
+If you type 'q', only the terminal client will terminate,
+if you type 'kill', both dosemu and the terminal client will be
+terminated.
+
+================================================================
+COMMANDS (see mhpdbgc.c for code and cmd table)
+
+(all numeric args in hex)
+
+?                 Print a help page
+q		  Quit the debug session
+kill              Kill the dosemu process
+                  (this may take a while, so be patient)
+		  See also README.recover.
+console n	  Switch to console n
+r		  list regs
+r reg val         change contents of 'reg' to 'val'
+                  (e.g: r AX 1234)
+e ADDR HEXSTR     modify memory (0-1Mb)
+d ADDR SIZE	  dump memory (no limit)
+u ADDR SIZE	  unassemble memory (no limit)
+g		  go (if stopped)
+stop		  stop (if running)
+mode 0|1	  set mode (0=SEG16, 1=LIN32) for u and d commands
+t		  single step (not fully debugged!!!)
+tf                single step, force over IRET and POPF
+r32		  dump regs in 32 bit format
+bp addr 	  set int3 style breakpoint
+bpint xx	  set breakpoint on INT xx
+bcint xx	  clr breakpoint on INT xx
+bpload            set one shot breakpoint at entry point
+                  of the next loaded DOS-program.
+bl		  list active breakpoints
+(rmapfile)	  (internal command to read /usr/src/dosemu/dosemu.map
+		  at startup time)
+rusermap org fn   read microsoft linker format .MAP file "fn"
+		  code origin = "org".
+		  for example if your code is at 1234:0, org would
+		  be 12340.
+Addresses may be specified as:
+1) a linear address.  Allows 'd' and 'u' commands to look at both
+   DOSEMU kernel and DOS box memory (0-1Mb).
+2) a seg:off address (0-1Mb)
+3) a symbolic address.	usermap is searched first, then dosemu map.
+4) an asterisk(*): CS:IP
+5) a dollar sign($): SS:SP
+
+================================================================
+PERFORMANCE
+
+If you have dosemu compiled with the debugger support, but the
+debugger is not active and/or the process is not stopped, you
+will not see any great performance penalty.
+
+
+================================================================
+WISH LIST
+
+Main wish is to add support for hardware debug registers (if someone
+would point me in the direction, what syscalls to use, etc.)
+Then you could breakpoint on memory reads/writes, etc!
+
+================================================================
+BUGS
+
+There must be some.
+
+Known bugs:
+
+ - Single stepping doesn't work correctly on call's. May be the
+   trap-flag is lost.
+ - popf sometime clears the trap-flag, so single stepping
+   results in a 'go' command.
+   'tf' works around, but we should do it better.
+ - When stopped for a long period, the BIOS-timer will be updated to
+   fast and may result in stack overflow. We need to also stop the timer
+   for dosemu.
+ - When not stopped, setting break points doesn't work properly.
+   So, as a work aoround: Ownly set breakpoints while in stop.
+
+================================================================

@@ -33,11 +33,16 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifdef __linux__
 #include <linux/vt.h>
 #include <linux/kd.h>
-#include <sys/types.h>
 #include <linux/time.h>
+#endif
+#include <sys/types.h>
 #include <sys/stat.h>
+#ifdef __NetBSD__
+#include <machine/pcvt_ioctl.h>
+#endif
 
 #include "emu.h"
 #include "memory.h"
@@ -259,7 +264,7 @@ convscanKey (unsigned char scancode)
 
   rep = scancode;
   queue = 0;
-  key_table[scancode] (scancode);
+  (*key_table[scancode])(scancode);
 
   k_printf ("KBD: resetid = %d firstid = %d\n", resetid, firstid);
   if (resetid)
@@ -624,6 +629,7 @@ do_self (unsigned int sc)
   for (i = 0; dead_key_table[i] != 0; i++) {
      if (ch == dead_key_table[i]) {
 	if (accent != ch) {
+	   k_printf("KBD: dead key accent %d\n", ch);
 	   accent=ch;
 	   return;
 	}
@@ -636,6 +642,8 @@ do_self (unsigned int sc)
 	if (accent == dos850_dead_map[i].d_key &&
 	    dos850_dead_map[i].in_key == ch) {
 
+	    k_printf("KBD: map accent %d/key %d to %d\n", accent, ch,
+		     dos850_dead_map[i].out_key);
 	    ch = dos850_dead_map[i].out_key;
 	    sc = 0; /* keyb.exe uses 0 for dead keys */
             break;
@@ -740,9 +748,12 @@ cursor (unsigned int sc)
       else if (kbd_flag (KF_CTRL))
 	put_queue (ctrl_cursor[sc]);
       else
+#if 0 /* 0xe0 as low byte for Cursor-keys messes up 
+       * older DOS-editors and DOS-tools ! (Hans) */
       if (key_flag(KKF_E0))
         put_queue (old_sc << 8 | 0xe0);
       else
+#endif
 	put_queue (old_sc << 8);
       return;
     }

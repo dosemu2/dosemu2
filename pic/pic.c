@@ -41,10 +41,18 @@
  */
 
 #include <stdio.h>
+#ifndef C_RUN_IRQS
+#define C_RUN_IRQS
 #include "bitops.h"
+#undef C_RUN_IRQS
+#else
+#include "bitops.h"
+#endif
 #include "pic.h"
 #include "memory.h"
+#ifdef __linux__
 #include <linux/linkage.h>
+#endif
 /* #include <sys/vm86.h> */
 #include <sys/time.h>
 #include "cpu.h"

@@ -41,7 +41,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#ifdef __linux__
 #include <getopt.h>
+#endif
 #include <errno.h>
 #include <string.h>
 

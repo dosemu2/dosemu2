@@ -33,6 +33,10 @@
 #include "terminal.h"
 #include "slang.h"
 
+#ifdef __NetBSD__
+extern int errno;
+#endif
+
 /* The interpretation of the DOS attributes depend upon if the adapter is 
  * color or not.
  * If color:

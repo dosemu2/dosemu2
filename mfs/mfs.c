@@ -373,7 +373,7 @@ TODO:
 
 */
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__NetBSD__)
 #define DOSEMU 1		/* this is a port to dosemu */
 #endif
 
@@ -1310,7 +1310,8 @@ _get_dir(char *name, char *mname, char *mext)
     while ((cur_ent = dos_readdir(cur_dir))) {
       char tmpname[100];
       int namlen;
-
+	Debug0((dbg_fd, "get_dir(): `%s' (%d)\n", cur_ent->d_name,
+	       cur_ent->d_namlen));
       if (cur_ent->d_ino == 0)
 	continue;
 
@@ -2138,10 +2139,8 @@ compare(fname, fext, mname, mext)
 {
   int i;
 
-#if 0
   Debug0((dbg_fd, "dos_gen: compare '%.8s'.'%.3s' to '%.8s'.'%.3s'\n",
 	  mname, mext, fname, fext));
-#endif
   /* match name first */
   for (i = 0; i < 8; i++) {
     if (mname[i] == '?') {

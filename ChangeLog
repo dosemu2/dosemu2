@@ -1,3 +1,8 @@
+Wed Sep 27	1995
+
+-	Included many patches to get NetBSD back on track.
+-	Added in 2 patches for debugger and other en-Hans-ments :-)
+
 Tue Sep 12	1995
 
 -	Added first layer of DMA and SoundBlaster code oringinally

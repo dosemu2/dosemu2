@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#ifdef __linux__
 #include <syscall.h>
+#endif
 
 #include "emu.h"
 #include "mouse.h"
@@ -15,6 +17,10 @@
 #include "../dpmi/dpmi.h"
 #include "pic.h"
 #include "ipx.h"
+
+#ifdef __NetBSD__
+extern int errno;
+#endif
 
 /* Variables for keeping track of signals */
 #define MAX_SIG_QUEUE_SIZE 50
@@ -28,6 +34,7 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 /* for use by cli() and sti() */
 static sigset_t oldset;
 
+#ifdef __linux__
 /* Similar to the sigaction function in libc, except it leaves alone the
    restorer field
    stolen from the wine-project */
@@ -41,6 +48,7 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   errno = -sig;
   return -1;
 }
+#endif
 
 /* DANG_BEGIN_FUNCTION signal_init
  *
@@ -57,11 +65,29 @@ signal_init(void)
   struct sigaction sa;
   sigset_t trashset;
   u_short counter;
+#ifdef __NetBSD__
+  struct sigaltstack salt;
+
+  /* Point to the top of the stack, minus 4
+     just in case, and make it aligned  */ 
+  salt.ss_base = (char *)cstack;
+  salt.ss_size = sizeof(cstack);
+  salt.ss_flags = 0;
+  if (sigaltstack(&salt, 0) != 0) {
+      /* Aieee! */
+      fprintf(stderr, "cannot set signal handling stack: %s\n\r",
+	      strerror(errno));
+      fflush(stdout);
+      fflush(stderr);
+      _exit(1);
+  }
+#endif
 
   /* block no additional signals (i.e. get the current signal mask) */
   sigemptyset(&trashset);
   sigprocmask(SIG_BLOCK, &trashset, &oldset);
   g_printf("Initialized all signals to NOT-BLOCK\n");
+
 
   /* init signal handlers */
 
@@ -74,6 +100,9 @@ signal_init(void)
   NEWSETSIG(SIGBUS, dosemu_fault);
 #endif
   SETSIG(SIGINT, leavedos);   /* for "graceful" shutdown for ^C too*/
+#ifdef __NetBSD__
+  NEWSETSIG(SIGURG, vm86_return);
+#endif
   SETSIG(SIGHUP, leavedos);	/* for "graceful" shutdown */
   SETSIG(SIGTERM, leavedos);
 #if 0 /* Richard Stevens says it can't be caught. It's returning an
@@ -165,6 +194,7 @@ void SIGALRM_call(void){
 #endif
   int retval;
   
+  h_printf("whoisit?\n");
 #ifdef X_SUPPORT
   if (config.X) 
      X_handle_events();
@@ -319,6 +349,7 @@ void SIGIO_call(void){
   io_select(fds_sigio);
 }
 
+#ifdef __linux__
 void
 sigio(int sig, struct sigcontext_struct context)
 {
@@ -326,7 +357,29 @@ sigio(int sig, struct sigcontext_struct context)
     dpmi_sigio(&context);
   SIGNAL_save(SIGIO_call);
 }
+#endif
 
+#ifdef __NetBSD__
+#include <setjmp.h>
+
+extern sigjmp_buf handlerbuf;
+
+void
+sigio(int sig, int code, struct sigcontext *scp)
+{
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(scp);
+#endif /* DPMI */
+  SIGNAL_save(SIGIO_call);
+    if (scp->sc_eflags & PSL_VM) {
+	vm86s.substr.regs.vmsc = *scp;
+	siglongjmp(handlerbuf, VM86_SIGNAL | 0x80000000);
+    }
+}
+#endif
+
+#ifdef __linux__
 void
 sigalrm(int sig, struct sigcontext_struct context)
 {
@@ -334,6 +387,24 @@ sigalrm(int sig, struct sigcontext_struct context)
     dpmi_sigio(&context);
   SIGNAL_save(SIGALRM_call);
 }
+#endif
+
+#ifdef __NetBSD__
+void
+sigalrm(int sig, int code, struct sigcontext *scp)
+{
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    dpmi_sigio(scp);
+#endif /* DPMI */
+  h_printf("ding dong\n");
+  SIGNAL_save(SIGALRM_call);
+    if (scp->sc_eflags & PSL_VM) {
+	vm86s.substr.regs.vmsc = *scp;
+	siglongjmp(handlerbuf, VM86_SIGNAL | 0x80000000);
+    }
+}
+#endif
 
 void
 sigquit(int sig)

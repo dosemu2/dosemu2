@@ -25,11 +25,19 @@ static char *rcsid = "$Header: /usr/src/dosemu0.60/dpmi/RCS/msdos.h,v 1.2 1995/0
 enum { ES_INDEX = 0, CS_INDEX = 1, SS_INDEX = 2,  DS_INDEX = 3,
        FS_INDEX = 4, GS_INDEX = 5 };
 
+#ifdef __linux__
 static struct vm86_regs SAVED_REGS;
 static struct vm86_regs MOUSE_SAVED_REGS;
 static struct vm86_regs VIDEO_SAVED_REGS;
-
 #define S_REG(reg) (SAVED_REGS.##reg)
+#endif
+#ifdef __NetBSD__
+static struct sigcontext SAVED_REGS;
+static struct sigcontext MOUSE_SAVED_REGS;
+static struct sigcontext VIDEO_SAVED_REGS;
+#define S_REG(reg) (SAVED_REGS.##reg)
+#endif
+
 
 /* these are used like:  S_LO(ax) = 2 (sets al to 2) */
 #define S_LO(reg)  (*(unsigned char *)&S_REG(e##reg))

@@ -19,19 +19,22 @@
 
 /* function definitions */
 
-int             find_bit(void *addr);
-long            atomic_inc(long *addr);
-long            atomic_dec(long *addr);
-int             set_bit(int nr, void *addr);
-int             clear_bit(int nr, void *addr);
-int             test_bit(int nr, void *addr);
-int             pic0_to_emu(char flags);
 
 #ifndef  C_RUN_IRQS
 #define _INLINE_ extern __inline__
+#define _STATIC_
 #else
 #define _INLINE_ static __inline__
+#define _STATIC_ static
 #endif
+
+_STATIC_ int find_bit(void * addr);
+_STATIC_ long atomic_inc(long * addr);
+_STATIC_ long atomic_dec(long * addr);
+_STATIC_ int set_bit(int nr, void * addr);
+_STATIC_ int clear_bit(int nr, void * addr);
+_STATIC_ int test_bit(int nr, void * addr);
+_STATIC_ int pic0_to_emu(char flags);
 
 /*
  * These have to be done with inline assembly: that way the bit-setting is

@@ -249,7 +249,9 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#ifndef __NetBSD__
 #include <linux/if_ether.h>
+#endif
 #include <signal.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -258,7 +260,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
-#ifdef WHY_DONT_PEOPLE_HAVE_THIS
+#include <termios.h>			/* for mouse.h */
+#ifdef __NetBSD__
 #include <sys/mman.h>
 #else
 #define MAP_ANON MAP_ANONYMOUS
@@ -274,6 +277,9 @@ extern int munmap __P ((caddr_t __addr, size_t __len));
 #include "dosio.h"
 #include "mouse.h"
 #include "int.h"
+#ifdef USE_MHPDBG
+  #include "mhpdbg.h"
+#endif
 
 #include "pic.h"
 #include "bitops.h"
@@ -304,6 +310,9 @@ sharedmem;
 
 #define HMASIZE (64*1024 - 16)
 #define HMAAREA (u_char *)0x100000
+#ifdef __NetBSD__
+#define SHM_REMAP 0			/* XXX? */
+#endif
 
 /* Used for all IPC HMA activity */
 static u_char *HMAkeepalive; /* Use this to keep shm_hma_alive */
@@ -321,17 +330,21 @@ void HMA_MAP(int HMA)
     E_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
     leavedos(48);
   }
+  E_printf("HMA: detached at %p\n", HMAAREA);
   if (HMA){
     if ((ipc_return = (caddr_t) shmat(shm_hma_id, HMAAREA, SHM_REMAP )) == (caddr_t) 0xffffffff) {
-      E_printf("HMA: Mapping HMA to HMAAREA unsuccessful: %s\n", strerror(errno));
+      E_printf("HMA: Mapping HMA id %x to HMAAREA %p unsuccessful: %s\n",
+	       shm_hma_id, HMAAREA, strerror(errno));
       leavedos(47);
     }
+    E_printf("HMA: mapped id %x to %p\n", shm_hma_id, ipc_return);
   }
   else {
     if ((ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, 0 )) == (caddr_t) 0xffffffff) {
       E_printf("HMA: Mapping WRAP to HMAAREA unsuccessful: %s\n", strerror(errno));
       leavedos(47);
     }
+    E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
   }
   priv_off();
 }
@@ -388,22 +401,27 @@ void HMA_init(void)
     E_printf("HMA: Mapping to 0 unsuccessful: %s\n", strerror(errno));
     leavedos(44);
   }
+  E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
   if ((ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, SHM_REMAP)) == (caddr_t) 0xffffffff) {
     E_printf("HMA: Adding mapping to 0x100000 unsuccessful: %s\n", strerror(errno));
     leavedos(44);
   }
+  E_printf("HMA: mapped id %x to %p\n", shm_wrap_id, ipc_return);
   if ((ipc_return = (caddr_t) shmat(shm_hma_id, HMAkeepalive, SHM_REMAP)) == (caddr_t) 0xffffffff) {
     E_printf("HMA: Adding mapping to HMAkeepalive unsuccessful: %s\n", strerror(errno));
     leavedos(45);
   }
+  E_printf("HMA: mapped id %x to %p\n", shm_hma_id, ipc_return);
 #ifdef NCU
   if ((ipc_return = (caddr_t) shmat(shm_video_id, (caddr_t)0xb0000, SHM_REMAP)) == (caddr_t) 0xffffffff) {
     E_printf("VIDEO: Adding mapping to video memory unsuccessful: %s\n", strerror(errno));
     leavedos(45);
   }
   else
-    v_printf("VIDEO: Video attached\n");
+    v_printf("VIDEO: Video attached %x to %p\n", shm_video_id, ipc_return);
 #endif
+#ifdef __linux__
+  /* On other systems, you'll have to delete the segments in hma_exit... */
   if (shmctl(shm_hma_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
     E_printf("HMA: Shmctl HMA unsuccessful: %s\n", strerror(errno));
   }
@@ -414,6 +432,7 @@ void HMA_init(void)
   if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
     E_printf("VIDEO: Shmctl VIDEO unsuccessful: %s\n", strerror(errno));
   }
+#endif
 #endif
 }
 
@@ -494,7 +513,9 @@ io_select(fd_set fds)
       if (FD_ISSET(kbd_fd, &fds)) {
 	getKeys();
       }
-
+#ifdef USE_MHPDBG
+      if (mhpdbg.fdin != -1) if (FD_ISSET(mhpdbg.fdin, &fds)) mhp_input();
+#endif
       /* XXX */
 #if 0
       fflush(stdout);
@@ -519,4 +540,22 @@ process_interrupt(SillyG_t *sg)
     h_printf("INTERRUPT: 0x%02x\n", irq);
     pic_request(pic_irq_list[irq]);
   }
+}
+
+void
+hma_exit(void)
+{
+#ifdef __NetBSD__
+  if (shmctl(shm_hma_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
+    E_printf("HMA: Shmctl HMA unsuccessful: %s\n", strerror(errno));
+  }
+  if (shmctl(shm_wrap_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
+    E_printf("HMA: Shmctl WRAP unsuccessful: %s\n", strerror(errno));
+  }
+#ifdef NCU
+  if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
+    E_printf("VIDEO: Shmctl VIDEO unsuccessful: %s\n", strerror(errno));
+  }
+#endif
+#endif
 }

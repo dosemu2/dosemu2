@@ -16,10 +16,15 @@
 #include <malloc.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <linux/hdreg.h>
 #include <linux/fd.h>
-#include <sys/stat.h>
 #include <linux/fs.h>
+#endif
+#ifdef __NetBSD__
+#include "netbsd_disk.h"
+#endif
+#include <sys/stat.h>
 
 #include "emu.h"
 #include "disks.h"
@@ -271,6 +276,25 @@ image_auto(struct disk *dp)
 void
 hdisk_auto(struct disk *dp)
 {
+#ifdef __NetBSD__
+  struct disklabel label;
+  struct stat stb;
+
+  if (ioctl(dp->fdesc, DIOCGDINFO, &label) != 0 ||
+      fstat(dp->fdesc, &stb) != 0) {
+      error("ERROR: can't fstat %s: %s\n", dp->dev_name,
+	    strerror(errno));
+      leavedos(21);
+  } else {
+    dp->sectors = label.d_nsectors;
+    dp->heads = label.d_ntracks;
+    dp->tracks = label.d_ncylinders;
+    dp->start = label.d_partitions[DISKPART(stb.st_rdev)].p_offset;
+    d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%d\n",
+	     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
+  }
+#endif
+#ifdef __linux__
   struct hd_geometry geo;
 
   if (ioctl(dp->fdesc, HDIO_GETGEO, &geo) < 0) {
@@ -286,6 +310,7 @@ hdisk_auto(struct disk *dp)
     d_printf("HDISK auto_info disk %s; h=%d, s=%d, t=%d, start=%d\n",
 	     dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->start);
   }
+#endif
 }
 
 /* XXX - relies upon a file of SECTOR_SIZE in PARTITION_PATH that which
@@ -315,8 +340,15 @@ partition_setup(struct disk *dp)
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
+#ifdef __NetBSD__
+  hd_name = strdup(dp->dev_name);
+  hd_name[strlen(hd_name)-1] = 'd';	/* i.e.  /dev/rwd0g -> /dev/rwd0d */
+  PNUM = 5;				/* XXX */
+#endif
+#ifdef __linux__
   hd_name = strdup(dp->dev_name);
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
+#endif
 
   if ((part_fd = DOS_SYSCALL(open(hd_name, O_RDONLY))) == -1) {
     error("ERROR: opening device %s to read MBR for PARTITION %s\n",
@@ -403,10 +435,24 @@ set_part_ent(struct disk *dp, char *tmp_mbr)
   long	end;		/* last sector number offset		*/
   char	*p;		/* ptr to part table entry to create	*/
 
+#ifdef __NetBSD__
+  struct disklabel label;
+  struct stat stb;
+
+  if (ioctl(dp->fdesc, DIOCGDINFO, &label) != 0 ||
+      fstat(dp->fdesc, &stb) != 0) {
+      error("ERROR: can't fstat %s: %s\n", dp->dev_name,
+	    strerror(errno));
+      leavedos(21);
+  } else
+      length = label.d_partitions[DISKPART(stb.st_rdev)].p_size;
+#endif
+#ifdef __linux__
   if (ioctl(dp->fdesc, BLKGETSIZE, &length)) {
     error("ERROR: calling ioctl BLKGETSIZE for PARTITION %s\n", dp->dev_name);
     leavedos(22);
   }
+#endif
 #define SECPERCYL	(dp->heads * dp->sectors)
 #define CYL(s)		((s)/SECPERCYL)			/* 0-based */
 #define HEAD(s)		(((s)%SECPERCYL)/dp->sectors)	/* 0-based */
@@ -455,6 +501,62 @@ disk_close(void)
   }
 }
 
+#ifdef __NetBSD__
+inline void
+disk_open(struct disk *dp)
+{
+  struct fd_type fl;
+
+  if (dp == NULL || dp->fdesc >= 0)
+    return;
+    
+  dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
+  if (dp->fdesc < 0) 
+    if (errno == EROFS || errno == EACCES) {
+      dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
+      if (dp->fdesc < 0) {
+        d_printf("ERROR: (disk) can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+        /* In case we DO get more clever, we want to share that code */
+        goto fail;
+      } else {
+        dp->rdonly = 1;
+        d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
+      }
+    } else {
+      d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
+    fail:
+#if 0
+      /* We really should be more clever here */
+      fatalerr = 5;
+#endif
+      return;
+    }
+  else dp->rdonly = dp->wantrdonly;
+
+  if (ioctl(dp->fdesc, FD_GTYPE, &fl) == -1) {
+      int err = errno;
+      d_printf("ERROR: floppy gettype: %s\n", strerror(err));
+    if (err == ENODEV || err == EIO) {	/* no disk available */
+      dp->sectors = 0;
+      dp->heads = 0;
+      dp->tracks = 0;
+      return;
+    }
+    error("ERROR: can't get floppy parameter of %s (%s)\n", dp->dev_name, strerror(err));
+    fatalerr = 5;
+    return;
+  }
+  d_printf("FLOPPY %s h=%d, s=%d, t=%d\n",
+	   dp->dev_name, fl.heads, fl.sectrac, fl.tracks);
+  dp->sectors = fl.sectrac;
+  dp->heads = fl.heads;
+  dp->tracks = fl.tracks;
+  /* XXX turn media change msgs off? */
+  /*  DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));*/
+}
+#endif
+
+#ifdef __linux__
 inline void
 disk_open(struct disk *dp)
 {
@@ -503,6 +605,7 @@ disk_open(struct disk *dp)
   dp->tracks = fl.track;
   DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
 }
+#endif
 
 void
 disk_close_all(void)
@@ -577,16 +680,29 @@ disk_init(void)
     }
     if (S_ISBLK(stbuf.st_mode))
       d_printf("ISBLK\n");
+    if (S_ISCHR(stbuf.st_mode))
+      d_printf("ISCHR\n");
     d_printf("dev : %x\n", stbuf.st_rdev);
+#ifdef __NetBSD__
+    if ((S_ISBLK(stbuf.st_mode) && major(stbuf.st_rdev) == 0x2) ||
+	(S_ISCHR(stbuf.st_mode) && major(stbuf.st_rdev) == 0x9)) {
+      d_printf("DISK %s removeable\n", dp->dev_name);
+      dp->removeable = 1;
+      dp->fdesc = -1;
+      continue;
+    }
+#endif
+#ifdef __linux__
     if (S_ISBLK(stbuf.st_mode) && (stbuf.st_rdev & 0xff00) == 0x200) {
       d_printf("DISK %s removeable\n", dp->dev_name);
       dp->removeable = 1;
       dp->fdesc = -1;
       continue;
     }
+#endif
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     if (dp->fdesc < 0) 
-      if (errno == EROFS) {
+      if (errno == EROFS || errno == EACCES) {
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
           error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
@@ -757,6 +873,15 @@ int13(u_char i)
     if (checkdp(dp) || head >= dp->heads ||
 	sect >= dp->sectors || track >= dp->tracks) {
       error("ERROR: Sector not found 1!\n");
+      d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%p\n",
+	       disk, head, sect, track, number, (void *) buffer);
+      if (dp) {
+	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
+		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);
+      } else {
+	  d_printf("DISK %x undefined.\n", disk);
+      }
+
       HI(ax) = DERR_NOTFOUND;
       REG(eflags) |= CF;
       show_regs(__FILE__, __LINE__);
@@ -779,8 +904,8 @@ int13(u_char i)
 
     LWORD(eax) = res >> 9;
     REG(eflags) &= ~CF;
-    R_printf("DISK read @%d/%d/%d (%d) OK.\n",
-	     head, track, sect, res >> 9);
+    R_printf("DISK read @%d/%d/%d (%d) -> %p OK.\n",
+	     head, track, sect, res >> 9, (void *)buffer);
     break;
 
   case 3:			/* write */
