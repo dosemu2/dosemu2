@@ -6,6 +6,9 @@ You may freely use, modify and redistribute it under the terms
 of the GNU General Public License, version 2; for details see
 the file "COPYING".
 
+Please refer to the NEWS file to read about recent user-visible
+changes.
+
 How to set up DOSEMU:
 * Installation from source:
   please refer to the file INSTALL

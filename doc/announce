@@ -102,51 +102,6 @@ The DOS, which is processed (booted) by DOSEMU, may have any other policy and is
 explicitly allowed to be proprietary.
 
 
-CREDITS
-~~~~~~~
-This release could not have gotten out the door without the work of
-our relentless development team, friends and contributors, consisting of
-at least (sorted by first name):
-
-  Aaron			Adam J. Richter		Alan Cox
-  Alberto Vignani	Alessandro Rubini	Alexander R.Adams
-  Alexander V. Lukyanov	Alistair MacDonald	Amit Margalt
-  Andrew.Tridgell	Andries			Andy Shevchenko
-  Antonio Larrosa	Arjan Filius		Arne de Bruijn
-  Bart Oldeman		Ben Davis		Bernd Paysan
-  Bernd Schueler	Christoph Niemann	Clarence Dang
-  Corey Sweeney		Daniel R. Barrlow	David Brauman
-  David Etherton	David Hansen		David Hindman
-  David Hodges		David Pinson		Derek Fawcus
-  DJ Delorie		Dong Liu		Egbert Eich
-  Emmanuel Jeandel	Eric W. Biederman	Erik Mouw		
-  Florian La Roche	George K.Bronnikov	Grant R. Guenther
-  Grigory Batalov       Hans Lermen		Herbert Xu
-  James Maclean		Jason E Gorden		Jochen Hein
-  John Davis		John Kohl 		Jon Tombs
-  Josef Pavlik		Julia A. Case		Kang-Jin Lee
-  Karl Kiniger		Karl-Max Wagner		Kenneth Corbin
-  Kevin P Lawton 	Lam Lai Yin, Savio	Larry Stephan
-  Lawrence K Mao	Linus Torvalds		Lutz Molgedey
-  Manfred Scherer	Marcus Better		Mark Rejhon
-  Marty Leisner		Matthew Grant 		Maxim Ruchko		
-  Michael E. Deisher    Michael Karcher		Oleg V. Zhirov		
-  Pablo Saratxaga	Pasi Eronen		Pat Villani		
-  Rainer Zimmermann	Reinhard Karcher	Rob Clark		
-  Robert de Bath	Rod May			Ronnie			
-  Rutger Nijlunsing	Scott Buchholz		Sergey Suleymanov	
-  Stas Sergeev		Steffen Winterfeld	Theodore T'so		
-  Tim Van der Linden	Ulrich Weigand		Uwe Bonnes		
-  Urban Widmark		Vinod G Kulkarni	Wayne P Meissner	
-  Witold Filipczyk	Wojtek Pilorz
-
-  ... and others too important to mention.
-
-Of course, all those people involved in the FreeDOS development should be
-mentioned here too, but before I fail to mention some of them, I better point
-to http://www.freedos.org ;-)
-
-
 WHERE TO GET IT
 ~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded at:

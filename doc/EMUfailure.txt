@@ -164,7 +164,7 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    "Specification Clarifications" section 4: "Use Of ESP In 16-Bit Code
    With 32-Bit Interrupt Handlers", which reads as follows:
 
-   --- ISSUE: When a 32-bit IRET is used to return to another privilege
+   " ISSUE: When a 32-bit IRET is used to return to another privilege
    level, and the old level uses a 4G stack (D/B bit in the segment
    register = 1), while the new level uses a 64k stack (D/B bit = 0),
    then only the lower word of ESP is updated. The upper word remains
@@ -172,41 +172,41 @@ Uwe Bonnes (original author), bon@elektron.ikp.physik.th-darmstadt.de
    code. However, when 32-bit interrupt handlers are present, 16-bit code
    should avoid any dependence on the upper word of ESP. No changes are
    necessary in existing 16-bit code, since the only way to access ESP in
-   USE16 segments is through the 32-bit address size prefix. ---
+   USE16 segments is through the 32-bit address size prefix. "
 
-   The corruption happens when the Linux kernel returns the control to
-   dosemu process, while the 32-bit DPMI client that uses a 16-bit data
-   segment for the stack is active. This is not an usual case, but
+   The corruption happens when the Linux kernel returns control to the
+   dosemu process, while a 32-bit DPMI client that uses a 16-bit data
+   segment for the stack is active. This is not the usual case, but
    unfortunately some 32-bit DPMI clients are actually using a 16-bit
    segment for the stack, and even the dos4gw extender behaves that way
    sometimes. Intel was contacted to comment on that issue, and their
    comment follows:
 
-   --- We understand your concern, but at this time we do not have anyone
+   " We understand your concern, but at this time we do not have anyone
    to look at this. This part has been out for nearly 20 years and all of
    the designers are currently working on new projects. We will make a
    note of this and see if somewhere down the road someone in software
-   can take a look at this. ---
+   can take a look at this. "
 
-   The reliable work-around on dosemu side was not found, but there are
-   some hopes that this can be worked around on a kernel's side. The
-   programs that are known to be affected by that issue:
+   The reliable workaround on the dosemu side was not found, but there
+   are some hopes that this can be worked around on the kernel's side.
+   Programs that are known to be affected by this issue are:
 
      * Need For Speed 1 (demo version at least, when configured with
        sound)
      * Syndicate Wars (when used with dos4gw 0.8)
      * Open Cubic Player
 
-   That programs are crashing shortly after the startup, but this problem
-   is difficult to detect reliably, so there may be many more programs
-   that experience a random crashes due to that CPU bug.
+   These programs are crashing shortly after startup, but this problem is
+   difficult to detect reliably, so there may be many more programs that
+   experience a random crashes due to this CPU bug.
 
    It appeared that it may be possible to work around this problem by
    using a different DOS extender with the programs that are using the
-   dos4gw extender by default. DOS32A extender at http://dos32a.sf.net,
-   seems to not trigger that problem. It can be used as follows: DOS32A
-   progname.exe (at the DOS prompt) CauseWay dos extender also seems to
-   help.
+   dos4gw extender by default. The DOS32A extender at
+   http://dos32a.sf.net, seems not to trigger the problem. It can be used
+   as follows: DOS32A progname.exe (at the DOS prompt). CauseWay dos
+   extender also seems to help.
 
    It may be possible in the future to work around this problem by using
    the CPU emulation. It is already possible to run dosemu under a CPU

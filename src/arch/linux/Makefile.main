@@ -199,7 +199,7 @@ ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 endif
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	$(INSTALL) -m 0644 $(REALTOPDIR)/README.bindist $(DESTDIR)$(docdir)
+	$(INSTALL) -m 0644 $(REALTOPDIR)/{README.bindist,NEWS,THANKS} $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
 	   $(REALTOPDIR)/doc/announce $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{DANG,EMUfailure,NOVELL-HOWTO}.txt \
