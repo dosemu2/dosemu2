@@ -2632,7 +2632,7 @@ static void dpmi_init(void)
 	pic_icount);
     pic_resched();
   }
-  pm_block_root[current_client] = 0;
+  DPMI_CLIENT.pm_block_root = 0;
   memset((void *)(&realModeCallBack[current_client][0]), 0,
 	 sizeof(RealModeCallBack)*0x10);
   DPMI_CLIENT.stack_frame.eip	= my_ip;

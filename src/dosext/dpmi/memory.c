@@ -40,8 +40,8 @@ static dpmi_pm_block * alloc_pm_block(void)
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)
 	return NULL;
-    p -> next =	pm_block_root[current_client];	/* add it to list */
-    pm_block_root[current_client] = p;
+    p -> next =	DPMI_CLIENT.pm_block_root;	/* add it to list */
+    DPMI_CLIENT.pm_block_root = p;
     return p;
 }
 
@@ -50,12 +50,12 @@ static int free_pm_block(dpmi_pm_block *p)
 {
     dpmi_pm_block *tmp;
     if (!p) return -1;
-    if (p == pm_block_root[current_client]) {
-	pm_block_root[current_client] = p -> next;
+    if (p == DPMI_CLIENT.pm_block_root) {
+	DPMI_CLIENT.pm_block_root = p -> next;
 	free(p);
 	return 0;
     }
-    for(tmp = pm_block_root[current_client]; tmp; tmp = tmp -> next)
+    for(tmp = DPMI_CLIENT.pm_block_root; tmp; tmp = tmp -> next)
 	if (tmp -> next == p)
 	    break;
     if (!tmp) return -1;
@@ -68,7 +68,7 @@ static int free_pm_block(dpmi_pm_block *p)
 dpmi_pm_block *lookup_pm_block(unsigned long h)
 {
     dpmi_pm_block *tmp;
-    for(tmp = pm_block_root[current_client]; tmp; tmp = tmp -> next)
+    for(tmp = DPMI_CLIENT.pm_block_root; tmp; tmp = tmp -> next)
 	if (tmp -> handle == h)
 	    return tmp;
     return 0;
@@ -77,7 +77,7 @@ dpmi_pm_block *lookup_pm_block(unsigned long h)
 unsigned long base2handle( void *base )
 {
     dpmi_pm_block *tmp;
-    for(tmp = pm_block_root[current_client]; tmp; tmp = tmp -> next)
+    for(tmp = DPMI_CLIENT.pm_block_root; tmp; tmp = tmp -> next)
 	if (tmp -> base == base)
 	    return tmp -> handle;
     return 0;
@@ -214,8 +214,8 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
 void 
 DPMIfreeAll(void)
 {
-    if (pm_block_root[current_client]) {
-	dpmi_pm_block *p = pm_block_root[current_client];
+    if (DPMI_CLIENT.pm_block_root) {
+	dpmi_pm_block *p = DPMI_CLIENT.pm_block_root;
 	while(p) {
 	    dpmi_pm_block *tmp;
 	    if (p->base) {

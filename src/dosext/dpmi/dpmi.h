@@ -130,6 +130,7 @@ typedef struct dpmi_pm_block_stuct {
 struct DPMIclient_struct {
   struct sigcontext_struct stack_frame;
   int is_32;
+  dpmi_pm_block *pm_block_root;
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
@@ -140,7 +141,6 @@ EXTERN int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 EXTERN int is_cli INIT(0);
 
-extern dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 extern unsigned short DPMI_private_data_segment;
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
