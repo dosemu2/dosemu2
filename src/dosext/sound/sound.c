@@ -1478,13 +1478,19 @@ void sb_dsp_write ( Bit8u value )
 	case 0xD1:
 		/* Enable Speaker - SB */
 		sb_enable_speaker();
+		if (SB_dsp.dma_mode & SB_DMA_INPUT) {
+		  /* we want only one irq when speaker not enabled */
+		  SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
+		}
 	break;
 	
 	case 0xD3:
 		/* Disable Speaker - SB */
 		sb_disable_speaker();
-		/* we want only one irq when speaker not enabled */
-		SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
+		if (!(SB_dsp.dma_mode & SB_DMA_INPUT)) {
+		  /* we want only one irq when speaker not enabled */
+		  SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
+		}
 	break;
 	
 	
@@ -2010,6 +2016,10 @@ void start_dsp_dma(void)
 
  if (SB_info.speaker) {
   int sample_rate = SB_dsp.dma_mode & SB_DMA_INPUT ? SB_dsp.input_sample_rate : SB_dsp.output_sample_rate;
+  if (SB_dsp.dma_mode & SB_DMA_INPUT) {
+    /* we want only one irq when speaker not enabled */
+    SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
+  }
   if (!sample_rate && !SB_dsp.time_constant) {
     sample_rate = SB_dsp.input_sample_rate | SB_dsp.output_sample_rate; /* We know one of these was 0. */
     if (sample_rate) {
@@ -2070,8 +2080,10 @@ void start_dsp_dma(void)
     dma_transfer_length = MIN(SB_dsp.length, SB_MAX_DMA_TRANSFERSIZE);
     dma_transfer_length = MIN(dma_transfer_length,
       dma_get_block_size(CURRENT_DMA_CHANNEL));
-    /* we want only one irq when speaker not enabled */
-    SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
+    if (!(SB_dsp.dma_mode & SB_DMA_INPUT)) {
+      /* we want only one irq when speaker not enabled */
+      SB_dsp.dma_mode &= ~SB_DMA_AUTO_INIT;
+    }
  }
 
   dma_set_transfer_size(CURRENT_DMA_CHANNEL, dma_transfer_length);
@@ -2339,11 +2351,11 @@ char fill;
     amount_done = length;
   }
   else {
-    if (SB_info.speaker)
+    if (!SB_info.speaker && !E2_Active)
       amount_done = SB_driver.DMA_do_read(ptr, length);
     else {
       fill = E2_Active ? m_E2Value : (SB_dsp.is_signed ? 0x00 : 0x80);
-      S_printf("SB: Speaker not enabled, memset'ing buffer with 0x%02hhX\n", fill);
+      S_printf("SB: Speaker enabled, memset'ing buffer with 0x%02hhX\n", fill);
       memset(ptr, fill, length);
       E2_Active = 0;
       amount_done = length;

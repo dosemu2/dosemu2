@@ -50,6 +50,7 @@
 /* SB static vars */
 static int mixer_fd = -1;
 static int dsp_fd = -1;
+static int dsp_fd_read = -1;
 
 /* Old variables - Obselete - AM */
 static long int block_size = 0;
@@ -233,8 +234,12 @@ void linux_sb_enable_speaker (void)
   bits_per_samp = 0;
   sample_rate = 0;
   num_channels = 0;
+  if (dsp_fd_read != -1) {
+    close(dsp_fd_read);
+    dsp_fd_read = -1;
+  }
   if (dsp_fd == -1)
-    if ((dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_RDWR | O_NONBLOCK))) < 0)
+    if ((dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_WRONLY | O_NONBLOCK))) < 0)
       S_printf ("SB:[Linux] Failed to initiate connection to %s (%s)\n",
         config.sb_dsp, strerror(errno));
 }
@@ -334,8 +339,13 @@ int linux_sb_get_version(void)
   int tmp, version = 0;
   char *s=NULL;
 
+  if (dsp_fd_read != -1) {
+    close(dsp_fd_read);
+    dsp_fd_read = -1;
+  }
+
   if (dsp_fd == -1)
-    dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_RDWR | O_NONBLOCK));
+    dsp_fd = RPT_SYSCALL(open(config.sb_dsp, O_WRONLY | O_NONBLOCK));
   
   if (dsp_fd > 0) {
     /* Ok, let's try to set stereo for output */
@@ -437,11 +447,16 @@ int linux_sb_dma_start_init(void)
 size_t linux_sb_do_read(void *ptr, size_t size)
 {
 int amount_done;
-  if (dsp_fd == -1) {
-    S_printf("SB [Linux]: ERROR: Device is not opened for read!\n");
+  if (dsp_fd != -1) {
+    S_printf("SB [Linux]: ERROR: Speaker not disabled\n");
     return 0;
   }
-  amount_done = read(dsp_fd, ptr, size);
+  if (dsp_fd_read == -1) {
+    if ((dsp_fd_read = RPT_SYSCALL(open(config.sb_dsp, O_RDONLY))) < 0)
+      S_printf ("SB:[Linux] Failed to open %s for read (%s)\n",
+        config.sb_dsp, strerror(errno));
+  }
+  amount_done = read(dsp_fd_read, ptr, size);
   S_printf("SB [Linux]: read() returned %d", amount_done);
   if (amount_done < 0)
     S_printf(": %s", strerror(errno));
