@@ -37,6 +37,6 @@ struct mousevideoinfo {
 	int offset;		/* offset from 0xA0000 of vram for this mode */
 };
 
-extern struct mousevideoinfo videomodes[], current_video;
+extern struct mousevideoinfo videomodes[], mouse_current_video;
 
 int get_current_video_mode(void);

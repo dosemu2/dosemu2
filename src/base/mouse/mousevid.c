@@ -47,32 +47,32 @@ struct mousevideoinfo videomodes[] =  {
 	{ 0x13,'G',320,200,320,ORG_VGA,EGA_OFFS },
 };
 
-struct mousevideoinfo current_video;
+struct mousevideoinfo mouse_current_video;
 
 int
 get_current_video_mode(void)
 {
 #if X_GRAPHICS
   if(config.X) {
-    current_video.mode = vga.mode;
-    current_video.textgraph = vga.mode_class == TEXT ? 'T' : 'G';
+    mouse_current_video.mode = vga.mode;
+    mouse_current_video.textgraph = vga.mode_class == TEXT ? 'T' : 'G';
     if(vga.mode_class == TEXT) {
-      current_video.width = vga.text_width;
-      current_video.height = vga.text_height;
+      mouse_current_video.width = vga.text_width;
+      mouse_current_video.height = vga.text_height;
     }
     else {
-      current_video.width = vga.width;
-      current_video.height = vga.height;
+      mouse_current_video.width = vga.width;
+      mouse_current_video.height = vga.height;
     }
-    current_video.bytesperline = vga.scan_len;
+    mouse_current_video.bytesperline = vga.scan_len;
     switch(vga.mode_type) {
       case TEXT:
-      case TEXT_MONO: current_video.organization = ORG_TEXT; break;
-      case  CGA: current_video.organization = ORG_CGA4; break;
-      case  PL4: current_video.organization = ORG_EGA16; break;
-      default: current_video.organization = ORG_VGA;
+      case TEXT_MONO: mouse_current_video.organization = ORG_TEXT; break;
+      case  CGA: mouse_current_video.organization = ORG_CGA4; break;
+      case  PL4: mouse_current_video.organization = ORG_EGA16; break;
+      default: mouse_current_video.organization = ORG_VGA;
     }
-    current_video.offset = (vga.buffer_seg - 0xa000) << 4;
+    mouse_current_video.offset = (vga.buffer_seg - 0xa000) << 4;
   }
   else 
 #endif /* X_GRAPHICS */
@@ -84,19 +84,19 @@ get_current_video_mode(void)
       m_printf("MOUSE: Unknown video mode 0x%02x, no mouse cursor.\n", i);
       return i;
     }
-    current_video = videomodes[i];
-    if (current_video.textgraph == 'T') { /* read the size from the bios data area */
-	    current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
-	    current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
-	    current_video.bytesperline = current_video.width *2;
+    mouse_current_video = videomodes[i];
+    if (mouse_current_video.textgraph == 'T') { /* read the size from the bios data area */
+	    mouse_current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
+	    mouse_current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
+	    mouse_current_video.bytesperline = mouse_current_video.width *2;
     }
   }
 
   m_printf(
     "MOUSE: video mode 0x%02x found (%c%dx%d at 0x%04x).\n",
-    current_video.mode, current_video.textgraph,
-    current_video.width, current_video.height,
-    current_video.offset + 0xa0000
+    mouse_current_video.mode, mouse_current_video.textgraph,
+    mouse_current_video.width, mouse_current_video.height,
+    mouse_current_video.offset + 0xa0000
   );
 
   /* valid video mode */

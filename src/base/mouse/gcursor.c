@@ -106,7 +106,7 @@ realize_cursor(short *scrmask,short *curmask,int org)
 }
 
 
-#define GRBASE (scr_state.phys_address + current_video.offset)
+#define GRBASE (scr_state.phys_address + mouse_current_video.offset)
 
 static inline 
 unsigned char read_ega_reg(int port,int index)
@@ -413,7 +413,7 @@ static mouse_cursor_func mouse_cursors[] = {
 void
 define_graphics_cursor(short *scrmask,short *curmask)
 {
-	int org = current_video.organization;
+	int org = mouse_current_video.organization;
 
 	/* build optimized versions of cursor */
 	realize_cursor(scrmask,curmask,org);
@@ -429,13 +429,13 @@ get_current_graphics_video_mode(void)
 		m_printf("MOUSE: Unknown video mode 0x%x.\n",badmode);
 		return 0;
 	}
-	if (current_video.organization == ORG_TEXT) {
+	if (mouse_current_video.organization == ORG_TEXT) {
 		m_printf("MOUSE: OOPS!  why are we in text mode?\n");
 		return 0;
 	}
 
 	m_printf("MOUSE: [video memory organization %d]\n",
-		current_video.organization);
+		mouse_current_video.organization);
 
 	return 1;
 }
@@ -446,10 +446,10 @@ erase_graphics_cursor(mouse_erase_t *erase)
 {
 	/* erase old graphics cursor */
 	if (erase->drawn && get_current_graphics_video_mode()) {
-		mouse_blitters[current_video.organization](
+		mouse_blitters[mouse_current_video.organization](
 			erase->x,erase->y,
 			erase->width,erase->height,
-			1,current_video.bytesperline,
+			1,mouse_current_video.bytesperline,
 			erase->backingstore.graphics);
 		erase->drawn = FALSE;
 	}
@@ -475,8 +475,8 @@ draw_graphics_cursor(int x,int y,int hotx,int hoty,int width,int height,
 	}
 	else {	/* right clip?  (never need both) */
 		xofs = 0;
-		if (erase->x + width > current_video.width)
-			width = current_video.width - erase->x;
+		if (erase->x + width > mouse_current_video.width)
+			width = mouse_current_video.width - erase->x;
 	}
 
 	/* adjust for hot spot */
@@ -489,8 +489,8 @@ draw_graphics_cursor(int x,int y,int hotx,int hoty,int width,int height,
 	}
 	else {	/* bottom clip?  (never need both) */
 		yofs = 0;
-		if (erase->y + height > current_video.height)
-			height = current_video.height - erase->y;
+		if (erase->y + height > mouse_current_video.height)
+			height = mouse_current_video.height - erase->y;
 	}
 
 	/* remember final (clipped) width and height */
@@ -499,18 +499,18 @@ draw_graphics_cursor(int x,int y,int hotx,int hoty,int width,int height,
 
 	if (width > 0 && height > 0) {
 		/* remember contents beneath cursor. */
-		mouse_blitters[current_video.organization](
+		mouse_blitters[mouse_current_video.organization](
 			erase->x,erase->y,
 			erase->width,erase->height,
-			0,current_video.bytesperline,
+			0,mouse_current_video.bytesperline,
 			erase->backingstore.graphics);
 
 		/* draw new cursor */
-		mouse_cursors[current_video.organization](
+		mouse_cursors[mouse_current_video.organization](
 			erase->x,erase->y,
 			erase->width,erase->height,
 			xofs,yofs,
-			current_video.bytesperline);
+			mouse_current_video.bytesperline);
 
 		/* remember that we need to erase it. */
 		erase->drawn = TRUE;

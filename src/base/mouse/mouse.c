@@ -946,10 +946,10 @@ mouse_reset_to_current_video_mode(void)
  * DANG_END_REMARK
  */
 
-  if (current_video.textgraph == 'T') {
+  if (mouse_current_video.textgraph == 'T') {
     mouse.xshift = 3;
     mouse.yshift = 3;
-    if (current_video.width == 40) {
+    if (mouse_current_video.width == 40) {
 	    mouse.xshift = 4;
     }
     mouse.gfx_cursor = FALSE;
@@ -957,18 +957,18 @@ mouse_reset_to_current_video_mode(void)
     mouse.gfx_cursor = TRUE;
     mouse.xshift = 0;    
     mouse.yshift = 0;
-    while ((current_video.width << mouse.xshift) < mouse.min_max_x) {
+    while ((mouse_current_video.width << mouse.xshift) < mouse.min_max_x) {
       mouse.xshift++;
     }
-    while ((current_video.height << mouse.yshift) < mouse.min_max_y) {
+    while ((mouse_current_video.height << mouse.yshift) < mouse.min_max_y) {
       mouse.yshift++;
     }
     define_graphics_cursor(default_graphscreenmask,default_graphcursormask);
   }
 
   /* Set the maximum sizes */
-  mouse.maxx = current_video.width << mouse.xshift;
-  mouse.maxy = current_video.height << mouse.yshift;
+  mouse.maxx = mouse_current_video.width << mouse.xshift;
+  mouse.maxy = mouse_current_video.height << mouse.yshift;
 
   /* force update first time after reset */
   mouse.oldrx = -1;
