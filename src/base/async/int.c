@@ -65,6 +65,8 @@
 #undef  DEBUG_INT1A
 
 static void dos_post_boot(void);
+static int can_revector_from_int(int i, Boolean from_int);
+static int int33(void);
 
 typedef int interrupt_function_t(void);
 static interrupt_function_t *interrupt_function[0x100];
@@ -1350,6 +1352,7 @@ void real_run_int(int i)
 static void run_caller_func(int i, Boolean from_int)
 {
 	interrupt_function_t *caller_function;
+	int revect = can_revector_from_int(i, from_int);
 	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
 	if (!from_int) {
@@ -1362,7 +1365,7 @@ static void run_caller_func(int i, Boolean from_int)
 	}
 	caller_function = interrupt_function[i];
 	if (caller_function) {
-		if (!caller_function() && can_revector(i) == REVECT && from_int)
+		if (!caller_function() && revect == REVECT && from_int)
 		{
 			di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
@@ -1385,7 +1388,7 @@ static void run_caller_func(int i, Boolean from_int)
 	}
 }
 
-int can_revector(int i)
+static int can_revector_from_int(int i, Boolean from_int)
 {
 /* here's sort of a guideline:
  * if we emulate it completely, but there is a good reason to stick
@@ -1404,9 +1407,20 @@ int can_revector(int i)
     return REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
-    if (config.mouse.intdrv || config.hogthreshold)
+    /* the mouse is a bit of a special case:
+       the hogthreshold part is revectored (should always occur even
+       for DOS mouse drivers, but the INT33 API is non-revectored
+       just like int10 */
+    if (from_int && config.hogthreshold)
       return REVECT;
     else
+      /* this happens if hogthreshold == 0 or for the case
+	 DOS->int33()->do_intr_call_back()->..->f000:0330
+	 (if a DOS program sticks something in front of int 33 but
+	  is not a mouse driver itself)
+	 we skip the callback if int33 is not redirected
+	 (see code in int33())
+      */
       return NO_REVECT;
 
 #if 0		/* no need to specify all */
@@ -1431,6 +1445,11 @@ int can_revector(int i)
   default:
     return NO_REVECT;
   }
+}
+
+int can_revector(int i)
+{
+  return can_revector_from_int(i, TRUE);
 }
 
 static int can_revector_int21(int i)
@@ -1836,16 +1855,22 @@ static int int33(void) {
   static unsigned short int oldx=0, oldy=0;
    
 /* Firstly do the actual mouse function. */   
-/* N.B. This code only works with the intdrv since default_interrupt() does not
+/* N.B. This code uses a callback or the intdrv since real_run_int() would not
  * actually call the real mode mouse driver now. (It simply sets up the registers so
  * that when the signal that we are currently handling has completed and the kernel
  * reschedules dosemu it will then start executing the real mode mouse handler). :-( 
  * Do we need/have we got post_interrupt (IRET) handlers? 
  */
 /* We have post_interrupt handlers in dpmi --EB 28 Oct 1997 */
+  if (IS_REDIRECTED(0x33)) {
+    /* avoid recursion */
+    interrupt_function[0x33] = mouse_int;
+    do_intr_call_back(0x33);
+    interrupt_function[0x33] = int33;
+  }
+  else
+    mouse_int();
 
-  int ret = mouse_int();
-  
 /* It seems that the only mouse sub-function that could be plausibly used to 
  * poll the mouse is AX=3 - get mouse buttons and position. 
  * The mouse driver should have left AX=3 unaltered during its call.
@@ -1871,7 +1896,7 @@ m_printf("Called/ing the mouse with AX=%x \n",LWORD(eax));
 /* Ok now we test to see if the mouse has been taking a break and we can let the 
  * system get on with some real work. :-) */
   idle(200, 20, INT15_IDLE_USECS, "mouse");
-  return ret;
+  return 1;
 }
 
 /* mfs FCB call */
@@ -2134,8 +2159,6 @@ void setup_interrupts(void) {
 
   /* show EMS as disabled */
   SETIVEC(0x67, 0, 0);
-
-  mouse_sethandler();
 
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);

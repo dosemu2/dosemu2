@@ -180,16 +180,18 @@ irqnum  =       DOSHELPER_INT
 	mouse routine simulates the stack frame of an int, then does a 
 	"pusha" before here...so we just "popa; iret" to get back out
 	*/
-
-	lcall	INDIRECT_PTR(mouse_handler)
 	popw	%es
 	popw	%ds
 	popa
 	iret
-	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_OFF+8
-mouse_handler: 
-	.long	0x1c810227
-	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
+
+/* ----------------------------------------------------------------- */
+	.org	((Mouse_SEG - BIOSSEG) << 4) + Mouse_PS2_OFF
+/* ======================= Addr = F000:2100 (F2100) */
+	addw	$8, %sp			/* pop PS/2 mouse information   */
+	iret
+        
+        .org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
 	pushw	%ax
         movb    $0x20,%al
         outb    %al,$0x20		/* flag interrupt complete	*/

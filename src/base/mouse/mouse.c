@@ -189,6 +189,10 @@ mouse_helper(struct vm86_regs *regs)
   case 0:				/* Reset iret for mouse */
     m_printf("MOUSE move iret !\n");
     mouse_enable_internaldriver();
+    SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#if 0
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
     break;
   case 1:				/* Select Microsoft Mode */
     m_printf("MOUSE Microsoft Mouse (two buttons) selected.\n");
@@ -261,7 +265,7 @@ mouse_helper(struct vm86_regs *regs)
 
 void mouse_ps2bios(void)
 {        
-  m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
+  m_printf("PS2MOUSE: Call ax=0x%04x, bx=0x%04x\n", LWORD(eax), LWORD(ebx));
   if (!mice->intdrv) {
     REG(eax) = 0x0500;        /* No ps2 mouse device handler */
     CARRY;
@@ -271,12 +275,9 @@ void mouse_ps2bios(void)
   switch (REG(eax) &= 0x00FF) {
   case 0x0000:                    
     mouse.ps2.state = HI(bx);
-    if (mouse.ps2.state == 0)
-      mouse_disable_internaldriver();
-    else
-      mouse_enable_internaldriver();
+    mouse.enabled = (mouse.ps2.state != 0);
     HI(ax) = 0;
-    NOCARRY;		
+    NOCARRY;
     break;
   case 0x0001:
     HI(ax) = 0;
@@ -284,10 +285,12 @@ void mouse_ps2bios(void)
     NOCARRY;
     break;
   case 0x0003:
-    if (HI(bx) != 0) {
+    if (HI(bx) > 3) {
       CARRY;
       HI(ax) = 1;
     } else {
+      mouse.speed_x = 64/(1<<HI(bx));
+      mouse.speed_y = 128/(1<<HI(bx));
       NOCARRY;
       HI(ax) = 0;
     }
@@ -325,18 +328,13 @@ void mouse_ps2bios(void)
       break;
     }
     break;
-#if 0
   case 0x0007:
-    pushw(ssp, sp, 0x000B);
-    pushw(ssp, sp, 0x0001);
-    pushw(ssp, sp, 0x0001);
-    pushw(ssp, sp, 0x0000);
-    REG(cs) = REG(es);
-    REG(eip) = REG(ebx);
+    m_printf("PS2MOUSE: set device handler %04x:%04x\n", REG(es), LWORD(ebx));
+    mouse.ps2.cs = LWORD(es);
+    mouse.ps2.ip = LWORD(ebx);
     HI(ax) = 0;
     NOCARRY;
     break;
-#endif
   default:
     HI(ax) = 1;
     g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
@@ -1251,10 +1249,6 @@ mouse_setsub(void)
 {
   mouse.cs = LWORD(es);
   mouse.ip = LWORD(edx);
-
-  *mouse.csp = mouse.cs;
-  *mouse.ipp = mouse.ip;
-
   mouse.mask = LWORD(ecx);
 
   m_printf("MOUSE: user defined sub %04x:%04x, mask 0x%02x\n",
@@ -1305,10 +1299,6 @@ void
 mouse_enable_internaldriver()
 {
   mouse.enabled = TRUE;
-  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
-#if 0
-  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
-#endif
   m_printf("MOUSE: Enable InternalDriver\n");
 }
 
@@ -1630,10 +1620,77 @@ mouse_delta(int event)
 }
 
 /*
+ * call PS/2 (int15) event handler
+ */
+static void do_mouse_irq_ps2(void)
+{
+    int status;
+    unsigned char *ssp;
+    unsigned long sp;
+    static int old_mickeyx, old_mickeyy;
+    int dx, dy;
+
+    if(in_dpmi && !in_dpmi_dos_int)
+      fake_pm_int();
+
+    /* push iret frame on _SS:_SP. At F000:2146 (bios.S) we get an
+     * iret and return to _CS:_IP */
+    fake_int(LWORD(cs), LWORD(eip));
+
+    /* push iret frame. At F000:20F7 (bios.S) we get an
+     * iret and return to F000:2140 for EOI */
+    fake_int(Mouse_SEG, Mouse_ROUTINE_OFF);
+
+    ssp = (unsigned char *)(LWORD(ss)<<4);
+    sp = (unsigned long) LWORD(esp);
+
+    dx = mouse.mickeyx - old_mickeyx;
+    old_mickeyx = mouse.mickeyx;
+    /* PS/2 wants the y direction reversed */
+    dy = old_mickeyy - mouse.mickeyy;
+    old_mickeyy = mouse.mickeyy;
+
+    status = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0) | 8;
+    if (mouse.threebuttons)
+      status |= (mouse.mbutton ? 4 : 0);
+    if (dx < 0) {
+      status |= 0x10;
+      dx += 0x100;
+    }
+    if (dy < 0) {
+      status |= 0x20;
+      dy += 0x100;
+    }
+    /* overflow */
+    if (dx < 0 || dx > 0xff) {
+      status |= 0x40;
+      dx = dx < 0 ? 0 : 0xff;
+    }
+    if (dy < 0 || dy > 0xff) {
+      status |= 0x80;
+      dy = dy < 0 ? 0 : 0xff;
+    }
+    m_printf("PS2MOUSE data: dx=%x, dy=%x, status=%x\n", dx, dy, status);
+    pushw(ssp, sp, status | 8);
+    pushw(ssp, sp, dx);
+    pushw(ssp, sp, dy);
+    pushw(ssp, sp, 0);
+    LWORD(esp) -= 8;
+
+    /* push return address F000:2100 */
+    fake_call(Mouse_SEG, Mouse_PS2_OFF);
+
+    /* jump to mouse cs:ip */
+    REG(cs) = mouse.ps2.cs;
+    REG(eip) = mouse.ps2.ip;
+
+    m_printf("PS2MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
+}
+
+/*
  * call user event handler
  */
-void
-do_mouse_irq()
+static void do_mouse_irq_int33(void)
 {
     if(in_dpmi && !in_dpmi_dos_int)
       fake_pm_int();
@@ -1659,27 +1716,33 @@ do_mouse_irq()
     if (mouse.threebuttons)
       LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
 
-    /* push return address F000:20F4 */
-    fake_call(Mouse_SEG, Mouse_OFF + 4);	/* skip to popa */
+    /* push return address F000:20F0 */
+    fake_call(Mouse_SEG, Mouse_OFF);
 
     /* jump to mouse cs:ip */
     REG(cs) = mouse.cs;
     REG(eip) = mouse.ip;
 
-    REG(ds) = *mouse.csp;	/* put DS in user routine */
+    REG(ds) = mouse.cs;		/* put DS in user routine */
 
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
-    m_printf("MOUSE: "
-	     "should call %04x:%04x (actually %04x:%04x)"
-	     ".........jumping to %04x:%04x\n",
-	     mouse.cs, mouse.ip, *mouse.csp, *mouse.ipp,
-	     LWORD(cs), LWORD(eip));
+    m_printf("MOUSE: .........jumping to %04x:%04x\n", LWORD(cs), LWORD(eip));
+}
+
+void
+do_mouse_irq()
+{
+  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
+    do_mouse_irq_int33();
+  if (mouse.ps2.cs || mouse.ps2.ip)
+    do_mouse_irq_ps2();
 }
 
 static void mouse_event(int ilevel)
 {
-  if (mouse.mask & mouse_events && (mouse.cs || mouse.ip))
+  if ((mouse.mask & mouse_events && (mouse.cs || mouse.ip)) ||
+      (mouse.ps2.cs || mouse.ps2.ip))
     do_irq(ilevel);
   else
     m_printf("MOUSE: Skipping irq, mask=0x%x, ev=0x%x, cs=0x%x, ip=0x%x\n",
@@ -1791,26 +1854,6 @@ mouse_curtick(void)
   mouse_update_cursor();
 }
 
-/* are ip and cs in right order?? */
-void mouse_sethandler(void)
-{
-  if (mice->intdrv) {
-    /* this is the mouse handler */
-    unsigned char *f = (unsigned char *) (Mouse_ADD+12);
-    u_short *ip = (u_short *) (Mouse_ADD + 8);
-    u_short *cs = (u_short *) (Mouse_ADD + 10);
-    /* tell the mouse driver where we are...exec add, seg, offset */
-    m_printf("MOUSE: sethandler...%p, %p, %p\n",
-	   (void *) f, (void *) cs, (void *) ip);
-    m_printf("...............CS:%04x.....IP:%04x\n", *cs, *ip);
-    mouse.csp = cs;
-    mouse.ipp = ip;
-  } else {
-    /* point to the retf#2 immediately after the int 33 entry point. */
-    SETIVEC(0x33, BIOSSEG, INT_OFF(0x33)+2);
-  }
-}
-
 static void mouse_client_init(void)
 {
   int i;
@@ -1910,6 +1953,10 @@ void mouse_post_boot(void)
   
   mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
+  SETIVEC(0x33, Mouse_SEG, Mouse_INT);
+#if 0
+  SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+#endif
   
   /* grab int10 back from video card for mouse */
   ptr = (us*)((BIOSSEG << 4) +

@@ -70,6 +70,7 @@
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG)
 #define Mouse_OFF       0x20f0
+#define Mouse_PS2_OFF   0x2100
 #define Mouse_ROUTINE_OFF  0x2140
 #define Mouse_ADD      ((Mouse_SEG << 4)+Mouse_OFF)
 #define Mouse_ROUTINE  ((Mouse_SEG << 4)+Mouse_ROUTINE_OFF)

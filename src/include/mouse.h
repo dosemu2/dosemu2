@@ -122,7 +122,6 @@ struct mouse_struct {
 
   /* this is for the user-defined subroutine */
   unsigned short cs, ip;
-  unsigned short *csp, *ipp;
   unsigned short mask;
 
   /* true if mouse has three buttons (third might be emulated) */
@@ -140,6 +139,7 @@ struct mouse_struct {
   struct {
     boolean state;
     unsigned short pkg;
+    unsigned short cs, ip;
   } ps2;
 };
 extern volatile struct mouse_struct mouse;
@@ -168,7 +168,6 @@ void mouse_keyboard(Boolean make, t_keysym key);
 void mouse_keyboard(int);
 #endif
 void mouse_curtick(void);
-void mouse_sethandler(void);
 
 EXTERN int keyboard_mouse;
 
