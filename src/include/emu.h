@@ -295,7 +295,6 @@ typedef struct vesamode_type_struct {
        boolean mathco, smp, cpummx;
        boolean ipxsup;
        boolean vnet;
-       boolean keybint;
        boolean dosbanner;
        boolean allowvideoportaccess;
        boolean emuretrace;

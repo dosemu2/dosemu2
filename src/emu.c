@@ -121,6 +121,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "speaker.h"
 #include "utilities.h"
 #include "dos2linux.h"
+#include "iodev.h"
 
 #include "keyb_clients.h"
 
@@ -424,6 +425,7 @@ dos_ctrl_alt_del(void)
     HMA_MAP(1);
     time_setting_init();
     keyb_server_reset();
+    iodev_reset();
     video_config_init();
     serial_init();
     dosemu_mouse_init();
@@ -543,6 +545,7 @@ leavedos(int sig)
     g_printf("calling keyboard_close\n");
     keyb_server_close();
     keyb_client_close();
+    iodev_term();
 
 #if defined(X86_EMULATOR)
     /* if we are here with config.cpuemu>1 something went wrong... */
@@ -597,8 +600,6 @@ leavedos(int sig)
     g_printf("calling close_all_printers\n");
     close_all_printers();
 
-    g_printf("calling serial_close\n");
-    serial_close();
     g_printf("calling mouse_close\n");
     dosemu_mouse_close();
 

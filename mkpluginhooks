@@ -7,8 +7,10 @@ DIR=src/$PLUG
 INC=src/include
 PREF=plugin_
 CONF=config
+CONFIGURE=configure
 LIB=plugin_libdirs
 PINC=plugin_incdirs
+PCONF=plugin_configure
 PARSDIR=src/base/init
 
 PDIRS=`cd $DIR; find ./ -maxdepth 1 -type d -printf ' %f'`
@@ -33,9 +35,23 @@ function restore_enable {
   fi
 }
 
+if [ "$1" = 'enable' ]; then
+	shift 
+	while [ $# -ge 2 ]; do
+		dir=$1
+		on=$2
+		shift
+		shift
+		if test -d src/plugin/$dir/config ; then
+			echo $on > src/plugin/$dir/config/plugin_enable
+		fi
+	done
+	exit 0
+fi
+
 gendummy clean
 restore_enable
-rm -f $LIB $PINC $PARSDIR/{parser.y,lexer.l}
+rm -f $LIB $PINC $PCONF $PARSDIR/{parser.y,lexer.l}
 if [ "$1" = "clean" ]; then
   exit 0
 fi
@@ -71,12 +87,14 @@ if [ "$PDIRS" != " " ]; then
 
   rm -f $LIB
   for d in $PDIRS; do
+    # Test if this plugin is enabled
     if [ -f $DIR/$d/$CONF/${PREF}enable ]; then
       enable=`cat $DIR/$d/$CONF/${PREF}enable`
     else
       enable=no
     fi
     if [ "$enable" = "yes" ]; then
+      # Plugin library direcories
       if [ -f $DIR/$d/$CONF/${PREF}dirs ]; then
         for i in `cat $DIR/$d/$CONF/${PREF}dirs`; do
           if [ "$i" = "./" ]; then
@@ -88,6 +106,7 @@ if [ "$PDIRS" != " " ]; then
       else
         echo -n " $PLUG/$d" >>$LIB
       fi
+      # Plugin include directories
       if [ -f $DIR/$d/$CONF/${PREF}incdirs ]; then
         for i in `cat $DIR/$d/$CONF/${PREF}incdirs`; do
           if [ "$i" = "./" ]; then
@@ -97,14 +116,21 @@ if [ "$PDIRS" != " " ]; then
           fi
         done
       fi
+      # Plugin configure directories
+      if [ -f $DIR/$d/$CONFIGURE ]; then
+        echo -n " $DIR/$d" >> $PCONF
+      fi
+      # Plugin parsers parts
       if [ -f $DIR/$d/$CONF/${PREF}parser ]; then
         ./bisonpp.pl -y $PARSDIR/parser.y $DIR/$d/$CONF/${PREF}parser >$PARSDIR/parser.y.tmp
         mv -f $PARSDIR/parser.y.tmp $PARSDIR/parser.y
       fi
+      # Plugin lexer parts
       if [ -f $DIR/$d/$CONF/${PREF}lexer ]; then
         ./bisonpp.pl -l $PARSDIR/lexer.l $DIR/$d/$CONF/${PREF}lexer >$PARSDIR/lexer.l.tmp
         mv -f $PARSDIR/lexer.l.tmp $PARSDIR/lexer.l
       fi
+      # Plugin special headers... 
       for h in $HEADERS; do
         if [ -f $DIR/$d/$CONF/$PREF$h.h ]; then
           echo -E "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
@@ -117,5 +143,8 @@ if [ "$PDIRS" != " " ]; then
   fi
   if [ -f $PINC ]; then
     echo "" >>$PINC
+  fi
+  if [ -f $PCONF ]; then
+    echo "" >>$PCONF
   fi
 fi

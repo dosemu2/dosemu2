@@ -7,10 +7,33 @@
 # simply 'make'
 #
 
+autorebuild()
+{
+  dir=$1
+  (
+    cd $dir
+    if [ -f configure.in ]; then
+      echo $dir
+      autoconf
+    fi
+    if [ -f acconfig.h ]; then
+      autoheader
+    fi
+  )
+}
 ln -sf base-configure.in configure.in
-autoconf
-autoheader
+autorebuild .
 rm -f base-configure
 sed -e 's|#! /bin/sh|# DO NOT EXECUTE THIS exept via default-configure|' configure >base-configure
 chmod 644 base-configure
 rm -f configure configure.in
+
+PLUG=plugin
+DIR=src/$PLUG
+if [ ! -d $DIR ]; then
+  exit 1
+fi
+PDIRS=`cd $DIR; find ./ -maxdepth 1 -type d -printf ' %f'`
+for dir in $PDIRS ; do 
+  autorebuild $DIR/$dir
+done

@@ -26,7 +26,9 @@
 extern void iodev_init(void);
 extern void iodev_reset(void);
 extern void iodev_term(void);
-
+extern void iodev_register(char *name, void (*init_func)(void), 
+	void (*reset_func)(void), void (*term_func)(void));
+void iodev_unregiseter(char *name);
 /*******************************************************************
  * Programmable Interrupt Timer (PIT) chip                         *
  *******************************************************************/

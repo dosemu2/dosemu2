@@ -25,6 +25,7 @@
 #include "bios.h"
 #include "lpt.h"
 #include "int.h"
+#include "dosemu_config.h"
 #include "init.h"
 
 #include "dos2linux.h"
@@ -287,7 +288,6 @@ config_defaults(void)
     config.realdelta = 9154;
 
     config.timers = 1;		/* deliver timer ints */
-    config.keybint = 1;		/* keyboard interrupts, now ALWAYS 1 */
  
     /* Lock file stuff */
     config.tty_lockdir = PATH_LOCKD;    /* The Lock directory  */
@@ -475,8 +475,8 @@ void dump_config_status(void *printfunc)
         config.dualmon, config.force_vt_switch, s);
     (*print)("update %d\nfreq %d\nwantdelta %d\nrealdelta %d\n",
         config.update, config.freq, config.wantdelta, config.realdelta);
-    (*print)("timers %d\nkeybint %d\n",
-        config.timers, config.keybint);
+    (*print)("timers %d\n",
+        config.timers);
     (*print)("tty_lockdir \"%s\"\ntty_lockfile \"%s\"\nconfig.tty_lockbinary %d\n",
         config.tty_lockdir, config.tty_lockfile, config.tty_lockbinary);
     (*print)("num_ser %d\nnum_lpt %d\nnum_mice %d\nfastfloppy %d\n",
@@ -724,6 +724,140 @@ void secure_option_preparse(int *argc, char **argv)
   leave_priv_setting();
 }
 
+
+static void config_console_scrub(void)
+{
+    if (config.X) {
+#ifdef HAVE_KEYBOARD_V1
+	if (!config.X_keycode) {
+	    extern void keyb_layout(int layout);
+	    keyb_layout(-1);
+	    c_printf("CONF: Forceing neutral Keyboard-layout, X-server will translate\n");
+	}
+#endif
+	config.console_video = config.vga = config.graphics = 0;
+	config.emuretrace = 0;	/* already emulated */
+    }
+    else {
+	if (!can_do_root_stuff && config.console) {
+	    /* force use of Slang-terminal on console too */
+	    config.console = config.console_video = config.vga = config.graphics = 0;
+	    config.cardtype = 0;
+	    config.vbios_seg = 0;
+	    config.mapped_bios = 0;
+	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
+	}
+    }
+}
+static void config_uid_scrub(void)
+{
+    if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");
+    else {
+#ifdef RUN_AS_ROOT
+      c_printf("CONF: mostly running as ROOT:");
+#else
+      c_printf("CONF: mostly running as USER:");
+#endif
+    }
+    c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
+        geteuid(), get_cur_euid(), getegid(), get_cur_egid());
+
+}
+
+static void config_speaker_scrub(void)
+{
+#ifdef X86_EMULATOR
+    if (config.cpuemu && config.speaker==SPKR_NATIVE) {
+	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
+	config.speaker=SPKR_EMULATED;
+    }
+#endif
+}
+
+
+CONSTRUCTOR(static void init(void))
+{
+	/* Setup the scrub values */
+	register_config_scrub(config_console_scrub);
+	register_config_scrub(check_for_env_autoexec_or_config);
+	register_config_scrub(config_uid_scrub);
+	register_config_scrub(config_speaker_scrub);
+}
+
+static config_scrub_t config_scrub_func[100] = {
+	config_console_scrub,
+	config_uid_scrub,
+	config_speaker_scrub,
+};
+
+/*
+ * DANG_BEGIN_FUNCTION register_config_scrub
+ * 
+ * description: 
+ * register a function Enforce consistency upon the `config` structure after
+ * all values have been set to remove silly option combinations
+ * 
+ * DANG_END_FUNCTION
+ * 
+ */
+int register_config_scrub(config_scrub_t new_config_scrub)
+{
+	int i;
+	int result = -1;
+	for(i = 0; i < sizeof(config_scrub_func)/sizeof(config_scrub_func[0]); i++) {
+		if (!config_scrub_func[i]) {
+			config_scrub_func[i] = new_config_scrub;
+			result = 0;
+			break;
+		}
+	}
+	if (result < 0) {
+		c_printf("register_config_scrub failed > %d config_scrub functions\n",
+			sizeof(config_scrub_func)/sizeof(config_scrub_func[0]));
+	}
+	return result;
+}
+
+/*
+ * DANG_BEGIN_FUNCTION unregister_config_scrub
+ * 
+ * description: 
+ * Complement of register_config_scrub 
+ * This removes a scrub function.
+ * 
+ * DANG_END_FUNCTION
+ * 
+ */
+void unregister_config_scrub( config_scrub_t old_config_scrub)
+{
+	int i;
+	for(i = 0; i < sizeof(config_scrub_func)/sizeof(config_scrub_func[0]); i++) {
+		if (config_scrub_func[i] == old_config_scrub) {
+			config_scrub_func[i] = 0;
+		}
+	}
+}
+
+/*
+ * DANG_BEGIN_FUNCTION config_scrub
+ * 
+ * description: 
+ * Enforce consistency upon the `config` structure after
+ * all values have been set to remove silly option combinations
+ * 
+ * DANG_END_FUNCTION
+ * 
+ */
+static void config_scrub(void)
+{
+	int i;
+	for(i = 0; i < sizeof(config_scrub_func)/sizeof(config_scrub_func[0]); i++) {
+		config_scrub_t func = config_scrub_func[i];
+		if (func) {
+			func();
+		}
+	}
+}
 
 /*
  * DANG_BEGIN_FUNCTION config_init
@@ -981,7 +1115,6 @@ config_init(int argc, char **argv)
 	case 'K':
 #if 0 /* now dummy, leave it for compatibility */
 	    warn("Keyboard interrupt enabled...this is still buggy!\n");
-	    config.keybint = 1;
 #endif
 	    break;
 	case 'M':{
@@ -1059,43 +1192,7 @@ config_init(int argc, char **argv)
 	    _exit(1);
 	}
     }
-    if (config.X) {
-	if (!config.X_keycode) {
-	    extern void keyb_layout(int layout);
-	    keyb_layout(-1);
-	    c_printf("CONF: Forceing neutral Keyboard-layout, X-server will translate\n");
-	}
-	config.console_video = config.vga = config.graphics = 0;
-	config.emuretrace = 0;	/* already emulated */
-    }
-    else {
-	if (!can_do_root_stuff && config.console) {
-	    /* force use of Slang-terminal on console too */
-	    config.console = config.console_video = config.vga = config.graphics = 0;
-	    config.cardtype = 0;
-	    config.vbios_seg = 0;
-	    config.mapped_bios = 0;
-	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
-	}
-    }
-    check_for_env_autoexec_or_config();
-    if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");
-    else {
-#ifdef RUN_AS_ROOT
-      c_printf("CONF: mostly running as ROOT:");
-#else
-      c_printf("CONF: mostly running as USER:");
-#endif
-    }
-    c_printf(" uid=%d (cached %d) gid=%d (cached %d)\n",
-        geteuid(), get_cur_euid(), getegid(), get_cur_egid());
-
-#ifdef X86_EMULATOR
-    if (config.cpuemu && config.speaker==SPKR_NATIVE) {
-	c_printf("SPEAKER: can`t use native mode with cpu-emu\n");
-	config.speaker=SPKR_EMULATED;
-    }
-#endif
+    config_scrub();
     if (config_check_only) {
 	dump_config_status(0);
 	usage();

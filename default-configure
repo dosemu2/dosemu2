@@ -31,6 +31,7 @@ set $CONF
 #echo "$*"
 
 STRING=""
+PLUGIN=""
 
 while [ "$1" != "" ]; do
 #  echo "$1 $2"
@@ -75,12 +76,20 @@ while [ "$1" != "" ]; do
     svgalib)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-use-svgalib"; fi
       ;;
+    plugin_*)
+      plugin=`expr substr $1 8 100`
+      if [ "$2" = "on" ]; then PLUGIN="$PLUGIN $plugin yes"; fi
+      if [ "$2" = "off" ]; then PLUGIN="$PLUGIN $plugin no"; fi
+      ;;
     *)
       ;;
   esac
 
   shift; shift;
 done
+
+echo "mkpluginhooks enable $PLUGIN"
+mkpluginhooks enable $PLUGIN
 
 echo ". ./base-configure $STRING $SUFFIX"
 . ./base-configure $STRING $SUFFIX

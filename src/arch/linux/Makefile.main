@@ -221,7 +221,7 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 $(BINPATH)/bin/$(DOSBIN): 	emu.o base/data.o dossubdirs
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
-	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) \
+	-Wl,--whole-archive $(addprefix -l, $(LIBS_))  -Wl,--no-whole-archive \
 	    $(SVGALIB) $(XLIBSW) $(SLANGLIB) -lc 
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map

@@ -1,3 +1,21 @@
+2002/01/06 ver 1.1.2.4 unofficial pre-release
+	From Eric   
+	- Makefile.main Always link in all of the dosemu .o files
+	- default-configure 
+	  - parses options of the form plugin_<plugin_name> [on|off]
+	    and explictly enables or disables them.
+	- mkpluginhooks Removed plugin_override code, added plugin configure
+	  plugin configure scripts plugin enable/disable from default-configure
+	- mkpluginhooks Removed plugin_override code, added plugin configure
+	  plugin configure scripts plugin enable/disable from default-configure
+	- dosemu_config.h
+	- config.c
+	  - Added for the config_scrub callbacks
+	  - Added config scrub callbacks so we can make certain the 
+	    config options are sane, even from plugins.
+	  - Further killed keybint
+	- dev_list.c, iodev.h
+	  - Updated to allow registering io_devices
 2002/01/06 ver 1.1.2.3 unofficial pre-release
 	From Eric	
 	- dosemu_debug.h Rework to for the debug print statement rewrite
