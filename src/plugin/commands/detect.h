@@ -20,7 +20,7 @@
 #define DOSEMU_BIOS_DATE		"02/25/93"
 #define DOSEMU_MAGIC			"$DOSEMU$"
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__ASSEMBLER__)
 #define DOSEMU_BIOS_DATE_LOCATION	0x000FFFF5
 #define DOSEMU_MAGIC_LOCATION		0x000FFFE0
 #define FAR

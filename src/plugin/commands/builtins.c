@@ -19,8 +19,6 @@ static char scratch[BUF_SIZE];
 static char scratch2[BUF_SIZE];
 static char *builtin_name;
 
-unsigned char _osmajor;
-unsigned char _osminor;
 int com_errno;
 
 static MemPool mp;

@@ -19,6 +19,8 @@
 	.globl	_start16
 _start16:
 
+#include "detect.h"
+
 #define stack_size		0x100
 #define stack			(stack_start + stack_size)
 #define psp_size		0x100
