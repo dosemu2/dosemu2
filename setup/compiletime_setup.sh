@@ -124,66 +124,22 @@ write_single() {
 
 write_out() {
   local value
-  local STRING=""
 
   handle_Configure_Action
 
   value=""
   get_value value configure
-  if [ "@$value" = "@save" ]
-  then
-    value=""
-  get_value value novm86plus
-  if [ "@$value" = "@on" ]
-  then
-    STRING="$STRING --enable-novm86plus"
-  fi
+ if [ "@$value" = "@save" ]; then
 
-  value=""
-  get_value value dodebug
-  if [ "@$value" = "@on" ]
-  then
-    STRING="$STRING --enable-dodebug"
-  fi
+  echo "function setup_config () {" > $TEMP
+  write_pairs  config  sbemu novm86plus mitshm x dodebug newkbd \
+    slangforce tmonoton dummydummy
+  echo "}" >> $TEMP
 
-  value=""
-    get_value value newkbd
-  if [ "@$value" = "@on" ]
-  then
-    STRING="$STRING --enable-new-kbd"
-  fi
-
-  value=""
-  get_value value x
-  if [ "@$value" != "@on" ]
-  then
-    STRING="$STRING --without-x"
-  fi
-
-  value=""
-  get_value value mitshm
-  if [ "@$value" != "@on" ]
-  then
-    STRING="$STRING --enable-nomitshm"
-  fi
-
-  value=""
-  get_value value sbemu
-  if [ "@$value" != "@on" ]
-  then
-    STRING="$STRING --enable-nosbemu"
-  fi
-
-  (cd ..; clear; ./configure $STRING)
+  (cd ..; clear; ./default-configure $TEMP)
   echo ""
   echo "   ... type ENTER to return to menu"
   read
-
-  echo "function setup_config () {" > $TEMP
-
-  write_pairs  config  sbemu novm86plus mitshm x dodebug newkbd
-
-  echo "}" >> $TEMP
 
   $DIALOG --backtitle "DOSEmu Compile-Time Configuration" \
     --infobox "Writing Configuration ..." 3 50 2> /dev/null
@@ -192,8 +148,8 @@ write_out() {
   touch $CONF_FILE
   awk -f 'parse-misc' -f 'write-config' -f $TEMP $CONF_FILE > $CONF_FILE.tmp
   mv $CONF_FILE.tmp $CONF_FILE  
-  fi
 
+ fi
 }
 
 load_menus() {

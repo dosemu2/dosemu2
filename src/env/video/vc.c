@@ -621,7 +621,7 @@ clear_process_control (void)
 
   vt_mode.mode = VT_AUTO;
   priv_on();
-  ioctl (kbd_fd, VT_SETMODE, (int) &vt_mode);
+  ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
   priv_default();
   signal (SIG_RELEASE, SIG_IGN);
   signal (SIG_ACQUIRE, SIG_IGN);

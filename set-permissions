@@ -1,0 +1,12 @@
+#! /bin/sh
+#
+# execute this script, when you patched your dosemu distribution
+# and want all scrpts to have the exec-bit set.
+
+chmod 755 set-permissions # myself ;-)
+chmod 755 config.guess config.sub configure default-configure
+chmod 755 setup-dosemu submit-bug-report gnats/send-pr gnats/send-pr.sh
+chmod 755 setup/compiletime_setup.sh setup/runtime_setup.sh
+chmod 755 install-sh rebuild
+chmod 755 src/arch/linux/kversion.sh src/arch/NetBSD/kversion.sh
+chmod 755 src/tools/periph/getrom

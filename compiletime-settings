@@ -1,1 +1,1 @@
-config {  sbemu on mitshm on x on }
+config {  sbemu on novm86plus off mitshm on x on dodebug off newkbd off slangforce off tmonoton off }

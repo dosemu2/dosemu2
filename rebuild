@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+#  rebuild - properly clean source tree, configure and recompile dosemu
+#
+TGT=/usr/bin
+#
+if [ $1 -a $1 == "all" -o ! -f Makefile ]; then
+  if [ -f Makefile ]; then
+    make pristine
+    rm -f gen.log
+  fi
+
+  ./default-configure 2>&1 | tee gen.log
+fi
+make 'WAIT=' 2>&1 | tee -a gen.log
+
+if [ "$UID" = "0" ]; then
+  #
+  # special installs
+  #
+  install -s -m 4755 bin/dos ${TGT}/dos
+  cp -f bin/dosdebug /usr/bin
+fi
+sync

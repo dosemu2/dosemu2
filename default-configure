@@ -1,0 +1,51 @@
+#! /bin/bash
+
+CONF_FILE="compiletime-settings"
+
+if [ "$1" != "" ]; then
+  CONF_FILE=$1
+fi
+
+set `cut '-d{' -f2 $CONF_FILE |cut '-d}' -f1`
+
+#echo "$*"
+
+STRING=""
+
+while [ "$1" != "" ]; do
+#  echo "$1 $2"
+
+  case "$1" in
+    novm86plus)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-nomitshm"; fi
+      ;;
+    dodebug)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-dodebug"; fi
+      ;;
+    newkbd)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-kbd"; fi
+      ;;
+    x)
+      if [ "$2" = "off" ]; then STRING="$STRING --without-x"; fi
+      ;;
+    mitshm)
+      if [ "$2" = "off" ]; then STRING="$STRING --enable-nomitshm"; fi
+      ;;
+    sbemu)
+      if [ "$2" = "off" ]; then STRING="$STRING --enable-nosbemu"; fi
+      ;;
+    slangforce)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-force-slang"; fi
+      ;;
+    tmonoton)
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-monoton-timing"; fi
+      ;;
+    *)
+      ;;
+  esac
+
+  shift; shift;
+done
+
+echo "./configure $STRING"
+./configure $STRING

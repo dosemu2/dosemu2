@@ -288,7 +288,7 @@ static int dos_helper(void)
 
   case 0x28:                    /* Mouse garrot helper */
     if (!LWORD(ebx))   /* Wait sub-function requested */
-      usleep(INT2F_IDLE_USECS);
+      usleep(INT28_IDLE_USECS);
     else {             /* Get Hogthreshold value sub-function*/
       LWORD(ebx)= config.hogthreshold;
       LWORD(eax)= config.hogthreshold;

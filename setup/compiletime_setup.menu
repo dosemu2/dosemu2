@@ -10,6 +10,8 @@ menu "Main Menu" {
   boolean "Use X-Windows" x
   boolean "Use MIT Shared Memory extensions under X" mitshm
   boolean "SB Emulation" sbemu
+  boolean "force use of dosemu supplied Slang-lib" slangforce
+  boolean "use monoton micro timing" tmonoton
 }
 
 menu "Configure Action" {
