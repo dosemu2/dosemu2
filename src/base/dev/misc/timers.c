@@ -58,6 +58,8 @@
 extern hitimer_t pic_itime[33];
 #endif /* MONOTON_MICRO_TIMING */
 
+extern hitimer_t t_vretrace;	/* see env/video/attremu.c */
+
 pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 
 static u_long timer_div;          /* used by timer int code */
@@ -398,6 +400,15 @@ void pit_outp(ioport_t port, Bit8u val)
   switch (pit[port].write_state) {
     case 0:
       pit[port].write_latch = pit[port].write_latch | ((val & 0xff) << 8);
+      /*
+       * TRICK: some graphics apps use the vertical retrace bit to
+       * calibrate themselves. AFAIK this is done by starting PIT#0
+       * with a value of 0 after detecting the sync, then reading it
+       * again at next sync pulse. In this special case, synchronizing
+       * the emulated vertical retrace with the PIT write yields some
+       * better timing results. It works under X and with emuretrace -- AV
+       */
+      if (pit[port].write_latch==0) t_vretrace = pic_sys_time;
       pit[port].write_state = 3;
       break;
     case 3:

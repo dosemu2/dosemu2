@@ -282,8 +282,8 @@ EXTERN struct vec_t *ivecs;
 #endif
 
 #define IVEC(i) ((ISEG(i)<<4) + IOFF(i))
-#define SETIVEC(i, seg, ofs)	((us *)0)[ ((i)<<1) +1] = (us)seg; \
-				((us *)0)[  (i)<<1    ] = (us)ofs
+#define SETIVEC(i, seg, ofs)	{ ((us *)0)[ ((i)<<1) +1] = (us)seg; \
+				  ((us *)0)[  (i)<<1    ] = (us)ofs; }
 
 #define OP_IRET			0xcf
 

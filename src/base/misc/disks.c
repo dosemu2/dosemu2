@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
+#include <ctype.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
@@ -72,6 +73,29 @@ static struct disk_fptr disk_fptrs[NUM_DTYPES] =
 };
 
 
+static void dump_disk_blks(unsigned char *tb, int count, int ssiz)
+{
+  static unsigned char buf[80], cbuf[20];
+  int a,i,j;
+  unsigned char *p,*q;
+
+  q=tb; a=0;
+  while (count--) {
+    for (i=0; i < (ssiz>>4); i++) {
+      p=buf;
+      p+=sprintf(p,"%04x: ",a);
+      for (j=0; j<16; j++) {
+        p+=sprintf(p,"%02x ",*q);
+        cbuf[j] = (isprint(*q)? *q:'.');
+        q++;
+      }
+      cbuf[16]=0; a+=16;
+      d_printf("%s  %s\n",buf,cbuf);
+    }
+    d_printf("\n");
+  }
+}
+
 /* read_sectors
  *
  * okay, here's the purpose of this: to handle reads orthogonally across
@@ -106,8 +130,8 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
 
   /* XXX - header hack. dp->header can be negative for type PARTITION */
   pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
-  d_printf("DISK: Trying to read %ld bytes at T/S/H %ld/%ld/%ld",
-	   count,track,sector,head);
+  d_printf("DISK: %s: Trying to read %ld sectors at T/S/H %ld/%ld/%ld",
+	   dp->dev_name,count,track,sector,head);
 #ifdef __linux__
   d_printf(" at pos %Ld\n", pos);
 #else
@@ -189,8 +213,11 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
   }
 
   tmpread = RPT_SYSCALL(read(dp->fdesc, buffer, count * SECTOR_SIZE));
-  if (tmpread != -1)
+  if (tmpread != -1) {
+    if (d.disk>8)
+	dump_disk_blks(buffer, count, SECTOR_SIZE);
     return (tmpread + already);
+  }
   else
     return -DERR_ECCERR;
 }
@@ -214,8 +241,8 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
 
   /* XXX - header hack */
   pos = DISK_OFFSET(dp, head, sector, track) + dp->header;
-  d_printf("DISK: Trying to write %ld bytes T/S/H %ld/%ld/%ld",
-	   count,track,sector,head);
+  d_printf("DISK: %s: Trying to write %ld sectors T/S/H %ld/%ld/%ld",
+	   dp->dev_name,count,track,sector,head);
 #ifdef __linux__
   d_printf(" at pos %Ld\n", pos);
 #else
@@ -386,9 +413,10 @@ partition_setup(struct disk *dp)
 #endif
 
   enter_priv_on();
-  part_fd = DOS_SYSCALL(open(hd_name, O_RDONLY));
+  part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
   leave_priv_setting();
   if (part_fd == -1) {
+    if (dp->removeable) return;
     error("opening device %s to read MBR for PARTITION %s\n",
 	  hd_name, dp->dev_name);
     leavedos(22);
@@ -525,6 +553,9 @@ d_nullf(struct disk *dp)
   d_printf("NULLF for %s\n", dp->dev_name);
 }
 
+
+unsigned char ATAPI_buf0[512] = { 0 };
+
 inline void
 disk_close(void)
 {
@@ -533,12 +564,13 @@ disk_close(void)
   if (!disks_initiated) return;  /* just to be safe */
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (dp->removeable && dp->fdesc >= 0) {
-      d_printf("DISK: Closing a disk\n");
+      d_printf("DISK: %s: Closing a disk\n",dp->dev_name);
       (void) close(dp->fdesc);
       dp->fdesc = -1;
     }
   }
 }
+
 
 #ifdef __NetBSD__
 void
@@ -626,7 +658,7 @@ disk_open(struct disk *dp)
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
   leave_priv_setting();
 
-  if (dp->fdesc < 0) {
+  if (!dp->removeable && (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
       enter_priv_on();
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
@@ -660,7 +692,24 @@ disk_open(struct disk *dp)
    * To overcome this problem we temporary switch off the timer
    * during the ioctl. (well, not what we really like)
    * ( 19 May 1996, Hans Lermen ) */
-  int res;
+  int res=0;
+  if (dp->default_cmos == ATAPI_FLOPPY) {
+	unsigned long tns;
+	if (ATAPI_buf0[0] || (read_sectors(dp, ATAPI_buf0, 0, 0, 0, 1) > 0)) {
+	      fl.sect = *((unsigned char *)&ATAPI_buf0[0x18]);
+	      fl.head = *((unsigned char *)&ATAPI_buf0[0x1a]);
+	      tns = *((unsigned short *)&ATAPI_buf0[0x13]);
+	      if (tns==0) tns = *((unsigned long *)&ATAPI_buf0[0x20]);
+	      fl.track = tns/(fl.sect*fl.head);
+	}
+	else {	/* no disk available */
+	      dp->sectors = 0;
+	      dp->heads = 0;
+	      dp->tracks = 0;
+	      return;
+	}
+  }
+  else {
  #ifdef USE_THREADS
   static int background_ioctl(int fd, int request, void *param);
   res = background_ioctl(dp->fdesc, FDGETPRM, &fl);
@@ -669,6 +718,7 @@ disk_open(struct disk *dp)
   res = ioctl(dp->fdesc, FDGETPRM, &fl);
   sigalarm_onoff(1);
  #endif
+  }
   if (res == -1) {
 #else
   if (ioctl(dp->fdesc, FDGETPRM, &fl) == -1) {
@@ -688,7 +738,8 @@ disk_open(struct disk *dp)
   dp->sectors = fl.sect;
   dp->heads = fl.head;
   dp->tracks = fl.track;
-  DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
+  if (dp->default_cmos != ATAPI_FLOPPY)
+    DOS_SYSCALL(ioctl(dp->fdesc, FDMSGOFF, 0));
 }
 #endif
 
@@ -705,6 +756,7 @@ disk_close_all(void)
     d_printf("BOOTDISK Closing\n");
   }
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
+    ATAPI_buf0[0] = 0;
     if (dp->fdesc >= 0) {
       d_printf("Floppy disk Closing %x\n", dp->fdesc);
       (void) close(dp->fdesc);
@@ -761,23 +813,28 @@ disk_init(void)
           d_printf("(disk) can't open bootdisk %s for read/write. Readonly did work though\n", bootdisk.dev_name);
         }
       } else {
-        error("can't open bootdisk %s: %sn", dp->dev_name, strerror(errno));
+        error("can't open bootdisk %s: %s\n", dp->dev_name, strerror(errno));
         leavedos(23);
       }
     }
     else bootdisk.rdonly = bootdisk.wantrdonly;
     bootdisk.removeable = 0;
   }
+
+  /*
+   * Open floppy disks
+   */
+  ATAPI_buf0[0] = 0;
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (stat(dp->dev_name, &stbuf) < 0) {
       error("can't stat %s\n", dp->dev_name);
       leavedos(24);
     }
     if (S_ISBLK(stbuf.st_mode))
-      d_printf("ISBLK\n");
+      d_printf("ISBLK ");
     if (S_ISCHR(stbuf.st_mode))
-      d_printf("ISCHR\n");
-    d_printf("dev : %x\n", stbuf.st_rdev);
+      d_printf("ISCHR ");
+    d_printf("dev %s: %#x\n", dp->dev_name, stbuf.st_rdev);
 #ifdef __NetBSD__
     if ((S_ISBLK(stbuf.st_mode) && major(stbuf.st_rdev) == 0x2) ||
 	(S_ISCHR(stbuf.st_mode) && major(stbuf.st_rdev) == 0x9)) {
@@ -788,7 +845,9 @@ disk_init(void)
     }
 #endif
 #ifdef __linux__
-    if (S_ISBLK(stbuf.st_mode) && (stbuf.st_rdev & 0xff00) == 0x200) {
+    if (S_ISBLK(stbuf.st_mode) && 
+    (((stbuf.st_rdev & 0xff00)==0x200) || (dp->default_cmos==ATAPI_FLOPPY))
+    ) {
       d_printf("DISK %s removeable\n", dp->dev_name);
       dp->removeable = 1;
       dp->fdesc = -1;
@@ -812,11 +871,16 @@ disk_init(void)
         }
       } else {
         error("can't open %s: %s\n", dp->dev_name, strerror(errno));
+        /* 'leavedos' here hangs the machine */
         leavedos(25);
       }
     }
     else dp->rdonly = dp->wantrdonly;
   }
+
+  /*
+   * Open hard disks
+   */
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
     if(dp->type == IMAGE)  {
 	if (dp->dexeflags & DISK_DEXE_RDWR) {
@@ -1142,33 +1206,32 @@ int13(u_char i)
     break;
 
   case 8:			/* get disk drive parameters */
-    d_printf("disk get parameters %d\n", disk);
+    d_printf("disk get parameters %#x\n", disk);
 
     if (dp != NULL) {
       /* get CMOS type */
-      /* LO(bx) = 3; */
       switch (dp->sectors) {
       case 9:
-	LO(bx) = 3;
+	LO(bx) = THREE_INCH_720KFLOP;
 	break;
       case 15:
-	LO(bx) = 2;
+	LO(bx) = FIVE_INCH_FLOPPY;
 	break;
       case 18:
-	LO(bx) = 4;
+	LO(bx) = THREE_INCH_FLOPPY;
 	break;
       case 0:
 	LO(bx) = dp->default_cmos;
 	dp->tracks = 80;
 	dp->heads = 2;
-	if (LO(bx) == 4)
-	  dp->sectors = 18;
-	else
+	if (LO(bx) == FIVE_INCH_FLOPPY)
 	  dp->sectors = 15;
+	else
+	  dp->sectors = 18;
 	d_printf("auto type defaulted to CMOS %d, sectors: %d\n", LO(bx), dp->sectors);
 	break;
       default:
-	LO(bx) = 4;
+	LO(bx) = THREE_INCH_FLOPPY;
 	d_printf("type det. failed. num_tracks is: %d\n", dp->tracks);
 	break;
       }
@@ -1178,7 +1241,7 @@ int13(u_char i)
       HI(cx) = (dp->tracks - 1) & 0xff;
 
       LO(dx) = (disk < 0x80) ? FDISKS : HDISKS;
-      LO(cx) = dp->sectors | (((dp->tracks -1) & 0x300) >> 2);
+      LO(cx) = (dp->sectors & 0x3f) | (((dp->tracks -1) & 0x300) >> 2);
       LO(ax) = 0;
       HI(ax) = DERR_NOERR;
       REG(eflags) &= ~CF;	/* no error */
@@ -1248,7 +1311,7 @@ int13(u_char i)
     /* end of Alan's additions */
 
   case 0x15:			/* Get type */
-    d_printf("disk gettype %d\n", disk);
+    d_printf("disk gettype %#x\n", disk);
     if (dp != NULL && disk >= 0x80) {
       if (dp->removeable) {
 	HI(ax) = 1;		/* floppy disk, change detect (1=no, 2=yes) */

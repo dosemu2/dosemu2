@@ -127,7 +127,7 @@ config_defaults(void)
         if (strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-#ifdef HAS_CPUINFO_PATCH
+#if LX_KERNEL_VERSION > 201126
 	  if ((cpuflags = get_proc_string_by_key("cpu MHz"))) {
 	    int di,df;
 	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2) {
@@ -279,6 +279,7 @@ config_defaults(void)
     config.emuini = (char *) NULL;
     config.dosbanner = 1;
     config.allowvideoportaccess = 0;
+    config.emuretrace = 0;
 
     config.keytable = &keytable_list[KEYB_USER]; /* What's the current keyboard  */
 
@@ -922,6 +923,7 @@ config_init(int argc, char **argv)
 	    c_printf("CONF: Forceing neutral Keyboard-layout, X-server will translate\n");
 	}
 	config.console_video = config.vga = config.graphics = 0;
+	config.emuretrace = 0;	/* already emulated */
     }
     else {
 	if (!can_do_root_stuff && config.console) {

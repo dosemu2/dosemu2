@@ -36,22 +36,25 @@ void ati_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
   int i;
 
+  emu_video_retrace_off();
   for (i=0; i<ATI_EXTREGS; i++)
   { 
     port_out(ati_extregs[i], 0x1ce);
     xregs[1+i] = port_in(0x1cf) & 0xff;
   }
+  emu_video_retrace_on();
 }
 
 void ati_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
-
   int i;
 
+  emu_video_retrace_off();
   for (i=0; i<ATI_EXTREGS; i++)
   { 
     port_out_w(ati_extregs[i]+((int)xregs[1+i]<<8), 0x1ce);
   }
+  emu_video_retrace_on();
 }
 
 void ati_set_bank_read(u_char bank)

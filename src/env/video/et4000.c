@@ -27,6 +27,7 @@
 
 void et4000_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
+  emu_video_retrace_off();
   xregs[12] = port_in(0x3bf) & 0xff;
   xregs[11] = port_in(0x3d8) & 0xff;
   port_out(0x03, 0x3bf);
@@ -65,10 +66,12 @@ void et4000_save_ext_regs(u_char xregs[], u_short xregs16[])
   xregs[13] = port_in(GRA_D) & 0xff;
   port_out(0xe, GRA_I);
   xregs[14] = port_in(GRA_D) & 0xff;
+  emu_video_retrace_on();
 }
 
 void et4000_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
+  emu_video_retrace_off();
   port_out(0x03, 0x3bf);
   port_out(0xa0, 0x3d8);
   port_out(0x00, 0x3cd);
@@ -121,6 +124,7 @@ void et4000_restore_ext_regs(u_char xregs[], u_short xregs16[])
   port_out(xregs[11], 0x3d8);
   port_out(0x0, 0x3c4);
   port_out(0x3, 0x3c5);
+  emu_video_retrace_on();
 }
 
 void et4000_set_bank_read(u_char bank)

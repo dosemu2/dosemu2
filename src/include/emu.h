@@ -71,6 +71,11 @@ EXTERN int screen, screen_mode;
 /* number of highest vid page - 1 */
 EXTERN int max_page INIT(7);
 
+#if 0
+/*
+ * 1) this stuff is unused
+ * 2) it should be FORBIDDEN to use global names less than 4 chars long!
+ */
 EXTERN char *cl,		/* clear screen */
 *le,				/* cursor left */
 *cm,				/* goto */
@@ -87,6 +92,7 @@ EXTERN char *cl,		/* clear screen */
 *ke,				/* ens keys */
 *vi,				/* cursor invisible */
 *ve;				/* cursor normal */
+#endif
 
 /* the fd for the keyboard */ 
 EXTERN int console_fd INIT(-1);
@@ -285,6 +291,7 @@ typedef struct vesamode_type_struct {
        boolean keybint;
        boolean dosbanner;
        boolean allowvideoportaccess;
+       boolean emuretrace;
        boolean rdtsc;
        boolean timers;
        boolean mouse_flag;

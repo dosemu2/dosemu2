@@ -41,8 +41,8 @@ struct p_fops def_pfops =
 struct printer lpt[NUM_PRINTERS] =
 {
   {NULL, "lpr", "%s", 5, 0x378},
-  {"lpt2", "lpr", "%s", 5, 0x278},
-  {"lpt3", NULL, NULL, 10, 0x3bc}
+  {NULL, "lpr", "%s", 5, 0x278},
+  {NULL, NULL, NULL, 10, 0x3bc}
 };
 
 void

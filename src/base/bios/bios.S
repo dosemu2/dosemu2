@@ -990,7 +990,22 @@ CISH(INT09_dummy_end):
 /* COMPAS FEC5C-FEF56	reserved */
 /* COMPAS FEF57		jmp to INT0E */
 /* COMPAS FEF5A-FEFC6	reserved */
+/* ----------------------------------------------------------------- */
+	.org	0xefc7
 /* COMPAS FEFC7		FDD param table */
+/* no one uses it, but it's there for compatibility */
+	db	0xaf	/* b7-4=step rate b3-0=head unload time */
+	db	0x02	/* b7=1=head load time b0=0 */
+	db	0x25	/* motor off delay in clock ticks */
+	db	0x02	/* bytes per sector 00=128..03=1024 */
+	db	18	/* sectors per track */
+	db	0x1b	/* gap between sectors */
+	db	0xff	/* ignored */
+	db	0x6c	/* format gap length */
+	db	0xf6	/* format filler byte */
+	db	0x0f	/* head settle time (ms) */
+	db	0x08	/* motor start time (1/8") */
+
 /* COMPAS FEFD2		jmp to INT17 */
 /* COMPAS FEFD5-FF064	reserved */
 /* ----------------------------------------------------------------- */

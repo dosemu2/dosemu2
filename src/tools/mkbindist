@@ -179,7 +179,7 @@ fi
 install -d $DOCDIR
 cp -fp ./doc/* $DOCDIR
 rm -f ${DOCDIR}/Makefile.*
-cp -fp ChangeLog ${DOCDIR}
+cp -fp ChangeLog* ${DOCDIR}
 
 _DOCDIR=""
 for i in `echo -n $DOCDIR_ |tr '/' ' '`; do

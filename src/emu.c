@@ -41,7 +41,7 @@
  */
 
 #ifdef __NetBSD__
-#define __ELF__				/* simluated with a.out mmap-ing stuff.
+#define __ELF__				/* simulated with a.out mmap-ing stuff.
 					   use _main entrypoint. */
 #define EDEADLOCK EDEADLK
 #endif
@@ -100,6 +100,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <linux/hdreg.h>
 #include <sys/vm86.h>
 #include <syscall.h>
+#include <setjmp.h>
 #endif
 
 #include "config.h"
@@ -163,7 +164,7 @@ extern void io_select_init(void);
 extern void treads_init(void);
 #endif
 
-
+jmp_buf NotJEnv;
 
 void 
 boot(void)
@@ -382,7 +383,7 @@ changesegs()
  * 
  */
 #ifdef __ELF__
-void 
+int 
 main(int argc, char **argv)
 #else
 void 
@@ -395,6 +396,14 @@ emulate(int argc, char **argv)
 #endif
 
     srand(time(NULL));
+
+    if (setjmp(NotJEnv)) {
+    	fprintf(stderr,"EMERGENCY JUMP!!!\n");
+    	/* there's no other way to stop a signal 11 from hanging dosemu
+    	 * but politely ask the kernel to terminate ourselves */
+	kill(0, SIGKILL);
+	_exit(1);		/* just in case */
+    }
 
 #ifdef USE_THREADS
     treads_init();		/* init the threads system,
@@ -481,6 +490,9 @@ emulate(int argc, char **argv)
     sync();
     fprintf(stderr, "Not a good day to die!!!!!\n");
     leavedos(99);
+#ifdef __ELF__
+    return 0;		/* to make gcc happy */
+#endif
 }
 
 #if 0    /* disable C-A-D until someone will fix it (if really needed) */
@@ -520,7 +532,7 @@ ign_sigs(int sig)
     static int      timerints = 0;
     static int      otherints = 0;
 
-    g_printf("ERROR: signal %d received in leavedos()\n", sig);
+    error("signal %d received in leavedos()\n", sig);
     show_regs(__FILE__, __LINE__);
     flush_log();
     if (sig == SIG_TIME)
@@ -530,9 +542,9 @@ ign_sigs(int sig)
 
 #define LEAVEDOS_TIMEOUT (3 * config.freq)
 #define LEAVEDOS_SIGOUT  5
-    if ((timerints >= LEAVEDOS_TIMEOUT) || (otherints >= LEAVEDOS_SIGOUT)) {
+    if ((sig==11) || (timerints >= LEAVEDOS_TIMEOUT) || (otherints >= LEAVEDOS_SIGOUT)) {
 	error("timed/signalled out in leavedos()\n");
-	exit(1);
+	longjmp(NotJEnv, 1);
     }
 }
 
@@ -546,6 +558,7 @@ leavedos(int sig)
     struct sigaction sa;
     struct itimerval itv;
     extern int errno;
+    extern void do_r3da_pending (void);	/* emuretrace stuff */
 
    
     if (leavedos_recurse_check)
@@ -591,34 +604,21 @@ leavedos(int sig)
        /* Since the speaker is native hardware use port manipulation,
 	* we don't know what is actually implementing the kernel's
 	* ioctls.
-	* My port logic is acutally stolen from kd_nosound in the kernel.
+	* My port logic is actually stolen from kd_nosound in the kernel.
 	* 		--EB 21 September 1997
 	*/
        port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
     }
 
-    g_printf("calling close_all_printers\n");
-    close_all_printers();
-
-    g_printf("releasing ports and blocked devices\n");
-    release_ports();
-
-    g_printf("calling serial_close\n");
-    serial_close();
-    g_printf("calling mouse_close\n");
-    mouse_close();
-
-#ifdef IPX
-    {
-      extern void ipx_close(void);
-      ipx_close();
-    }
-#endif
-
 #ifdef SIG
     g_printf("calling SIG_close\n");
 #endif
     SIG_close();
+
+    /* try to regain control of keyboard and video first */
+    g_printf("calling keyboard_close\n");
+    keyb_server_close();
+    keyb_client_close();
 
     show_ints(0, 0x33);
     g_printf("calling disk_close_all\n");
@@ -626,10 +626,15 @@ leavedos(int sig)
     g_printf("calling video_close\n");
     video_close();
    
-    g_printf("calling keyboard_close\n");
-    keyb_server_close();
-    keyb_client_close();
+    if (config.emuretrace) {
+      do_r3da_pending ();
+      set_ioperm (0x3da, 1, 1);
+      set_ioperm (0x3c0, 1, 1);
+      config.emuretrace = 0;
+    }
 
+    g_printf("releasing ports and blocked devices\n");
+    release_ports();
 
     g_printf("calling shared memory exit\n");
     shared_memory_exit();
@@ -643,6 +648,22 @@ leavedos(int sig)
 	restore_vt(config.detach);
 	disallocate_vt();
     }
+
+#ifdef IPX
+    {
+      extern void ipx_close(void);
+      ipx_close();
+    }
+#endif
+
+    g_printf("calling close_all_printers\n");
+    close_all_printers();
+
+    g_printf("calling serial_close\n");
+    serial_close();
+    g_printf("calling mouse_close\n");
+    mouse_close();
+
     flush_log();
 
     /* remove per process tmpdir and its contents */

@@ -299,6 +299,7 @@ MGA3026Restore(void)
  */
 void matrox_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
+  emu_video_retrace_off();
   vgaProtect(TRUE);
 	
   switch (MGAchipset)
@@ -314,6 +315,7 @@ void matrox_restore_ext_regs(u_char xregs[], u_short xregs16[])
   }
 
   vgaProtect(FALSE);
+  emu_video_retrace_on();
 }
 
 /*
@@ -353,6 +355,7 @@ MGA3026Save(void)
  */
 void matrox_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
+  emu_video_retrace_off();
   switch (MGAchipset)
   {
     case PCI_CHIP_MGA2064: MGA3026Save(); break;
@@ -360,6 +363,7 @@ void matrox_save_ext_regs(u_char xregs[], u_short xregs16[])
     case PCI_CHIP_MGA1064: MGA1064Save(); break;
 #endif
   }
+  emu_video_retrace_on();
 }
 
 

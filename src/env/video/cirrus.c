@@ -518,6 +518,7 @@ void cirrus_restore_ext_regs(u_char xregs[], u_short xregs16[])
 /*  18 DACcolourRec  FOREGROUND;    Hidden DAC cursor foreground colour */
 /*  19 DACcolourRec  BACKGROUND;    Hidden DAC cursor background colour */
 
+  emu_video_retrace_off();
   port_out_w(0x0009, 0x3CE);	/* select bank 0 */
   port_out_w(0x000a, 0x3CE);
 
@@ -595,7 +596,7 @@ void cirrus_restore_ext_regs(u_char xregs[], u_short xregs16[])
       port_out(0x1d, vgaIOBase+4);
       port_out(xregs[16], vgaIOBase+5);
   }
-
+  emu_video_retrace_on();
 }
 
 /*
@@ -606,6 +607,7 @@ void cirrus_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
   unsigned char             temp1, temp2;
   
+  emu_video_retrace_off();
   vgaIOBase = (port_in(0x3CC) & 0x01) ? 0x3D0 : 0x3B0;
 
   port_out(0x09, 0x3CE);
@@ -704,6 +706,7 @@ void cirrus_save_ext_regs(u_char xregs[], u_short xregs16[])
   }
 #endif
 
+  emu_video_retrace_on();
 }
 
 

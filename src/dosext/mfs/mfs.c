@@ -3374,7 +3374,7 @@ dos_fs_redirect(state)
     return TRUE;
   case SEEK_FROM_EOF:		/* 0x21 */
     {
-      int offset = (int)WORD(state->ecx << 16) + WORD(state->edx);
+      int offset = (((int)WORD(state->ecx)<<16) + WORD(state->edx));
 
       fd = sft_fd(sft);
       Debug0((dbg_fd, "Seek From EOF fd=%x ofs=%d\n",

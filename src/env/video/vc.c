@@ -866,6 +866,7 @@ set_regs (u_char regs[])
 {
   int i;
 
+  emu_video_retrace_off();
   /* port_out(dosemu_regs.regs[FCR], FCR_W); */
   /* update misc output register */
   port_out (regs[MIS], MIS_W);
@@ -917,6 +918,7 @@ port_out(dosemu_regs.regs[SEQI], SEQ_I); */
   /* v_printf("CRTI=0x%02x\n",dosemu_regs.regs[CRTI]);
 v_printf("GRAI=0x%02x\n",dosemu_regs.regs[GRAI]);
 v_printf("SEQI=0x%02x\n",dosemu_regs.regs[SEQI]); */
+  emu_video_retrace_on();
   return (0);
 }
 
@@ -925,7 +927,9 @@ v_printf("SEQI=0x%02x\n",dosemu_regs.regs[SEQI]); */
 static inline void
 reset_att (void)
 {
+  emu_video_retrace_off();
   port_in (IS1_R);
+  emu_video_retrace_on();
 }
 
 

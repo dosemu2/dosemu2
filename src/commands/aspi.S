@@ -184,7 +184,7 @@ Message:.ascii	"[ASPI driver installed]"
 
 OutMess:
 	.byte	cr,lf,lf
-	.ascii	"No ASPI devices connfigured."
+	.ascii	"No ASPI devices configured."
 	.byte	cr,lf
 	.ascii	"Installation aborted."
 	.byte	cr,lf,lf,eom

@@ -618,10 +618,21 @@ int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
  * I don't know what to do of this stuff... it was added incrementally to
  * port.c and has mainly to do with video code. This is not the right
  * place for it...
- * Anyway, this implements some HGC stuff for X
+ * Anyway, this implements some HGC stuff for X and the emuretrace
+ * port access for 0x3c0/0x3da
  *
  * SIDOC_END_FUNCTION
  */
+
+static int r3da_pending = 0;
+
+void do_r3da_pending (void)
+{
+  if (r3da_pending) {
+    (void)std_port_inb(r3da_pending);
+    r3da_pending = 0;
+  }
+}
 
 static Bit8u special_port_inb(ioport_t port)
 {
@@ -639,12 +650,14 @@ static Bit8u special_port_inb(ioport_t port)
 		return ((res & 0xfd) | (hgc_Konv & 0x02));
 	    }
 	}
-#if X_GRAPHICS
 	if ((port==0x3ba)||(port==0x3da)) {
 		res = Attr_get_input_status_1();
+		if (!config.usesX && !r3da_pending && (config.emuretrace>1)) {
+			set_ioperm(0x3c0,1,0);
+			r3da_pending = port;
+		}
 	}
 	else
-#endif
 	if (port==0x3db)	/* light pen strobe reset */
 		res = 0;
 	return res;
@@ -674,6 +687,32 @@ static void special_port_outb(ioport_t port, Bit8u byte)
 		static int last_index = -1;
 		static int flip_flop = 1;
 
+		/* SIDOC_BEGIN_REMARK
+		 *
+		 * This is the core of the new emuretrace algorithm:
+		 * If a read of port 0x3da is performed we just set it
+		 *  as pending and set ioperm OFF for port 0x3c0
+		 * When a write to port 0x3c0 is then trapped, we perform
+		 *  any pending read to 0x3da and reset the ioperm for
+		 *  0x3c0 in the default ON state.
+		 * This way we avoid extra port accesses when the program
+		 * is only looking for the sync bits, and we don't miss
+		 * the case where the read to 0x3da is used to reset the
+		 * index/data flipflop for port 0x3c0. Futher accesses to
+		 * port 0x3c0 are handled at full speed.
+		 *
+		 * SIDOC_END_REMARK
+		 */
+		if (config.vga && !config.usesX && (config.emuretrace>1)) {
+		    if (r3da_pending) {
+			(void)std_port_inb(r3da_pending);
+			r3da_pending = 0;
+			set_ioperm(0x3c0,1,1);
+			port_real_outb(0x3c0, byte);
+			return;
+		    }
+		    goto defout;
+		}
 		flip_flop = !flip_flop;
 		if (flip_flop) {
 		/* JES This was last_index = 0x10..... WRONG? */

@@ -31,10 +31,10 @@ AS86FLAGS=$(INCDIR)
 LD86=$(_LD86_)
 AS86=$(_AS86_)
 
-CFILES = video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
+CFILES = attremu.c video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
 	 matrox.c wdvga.c console.c $(XCFILES) hgc.c dualmon.c terminal.c $(ASOBJS)
 HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h terminal.h $(XHDRS)
-OFILES = video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
+OFILES = attremu.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
 	 matrox.o wdvga.o console.o $(XOBJS) hgc.o dualmon.o terminal.o
 #OBJS = $(OFILES)
 

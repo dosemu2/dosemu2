@@ -106,6 +106,9 @@ struct image_header {
 
 /* CMOS types for the floppies */
 #define THREE_INCH_FLOPPY   4	/* 3.5 in, 1.44 MB floppy */
+#define THREE_INCH_720KFLOP 3	/* 3.5 in,  720 kB floppy */
+#define THREE_INCH_288MFLOP 5	/* 3.5 in, 2.88 MB floppy */
+#define ATAPI_FLOPPY	   16	/* ATAPI removable floppy */
 #define FIVE_INCH_FLOPPY    2	/* 5.25 in, 1.2 MB floppy */
 #define MAX_FDISKS 4
 #define MAX_HDISKS 16

@@ -188,6 +188,7 @@ static unsigned char clear_undef_bits(unsigned char i, unsigned char v)
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+#ifdef X_SUPPORT
 
 /*
  * DANG_BEGIN_FUNCTION Attr_init
@@ -388,7 +389,11 @@ unsigned char Attr_get_index()
   return uc;
 }
 
+#endif	/* X_SUPPORT */
 
+
+hitimer_t t_vretrace = 0;
+ 
 /*
  * DANG_BEGIN_FUNCTION Attr_get_input_status_1
  *
@@ -400,13 +405,18 @@ unsigned char Attr_get_index()
  * DANG_END_FUNCTION
  *
  */
-unsigned char Attr_get_input_status_1()
+unsigned char Attr_get_input_status_1(void)
 {
   /* 
    * Graphic status - many programs will use this port to sync with
    * the vert & horz retrace so as not to cause CGA snow. On VGAs this
    * register is used to get full (read: fast) access to the video memory 
    * during the vertical retrace.
+   *
+   * bit 0 is Display Enable, bit 3 is Vertical Retrace
+   * 00=display 01=horiz.retrace 09=vert.retrace
+   * We're in vertical retrace?  If so, set VR and DE flags
+   * We're in horizontal retrace?  If so, just set DE flag, 0 in VR
    *
    * Idea from Adam Moss:
    * Wait 20 milliseconds before we tell the DOS program that the VGA is
@@ -419,28 +429,34 @@ unsigned char Attr_get_input_status_1()
    * horizontal retrace too.  (--adm)
    *
    */
-#ifdef HAVE_GETTIMEOFDAY
   static unsigned char hretrace=0, vretrace=0, first=1;
   static hitimer_t t_vretrace = 0;
   /* Timings are 'ballpark' guesses and may vary from mode to mode, but
      such accuracy is probably not important... I hope. (--adm) */
-  static int vvfreq = 14250;	/* 70 Hz */
+  static int vvfreq = 17000;	/* 70 Hz - but the best we'll get with
+  				 * current PIC will be 50 Hz */
   hitimer_t t;
   long tdiff;
-#else
-  static unsigned int cga_r=0;
-#endif
   unsigned char retval;
 
+#ifdef X_SUPPORT
   vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
+#endif
 
-#ifdef HAVE_GETTIMEOFDAY
-  t=GETusTIME(0);
+#ifdef OLD_CGA_SNOW_CODE
+  /* old 'cga snow' code with the new variables - looks terrible,
+   * but since it sometimes works we keep it for emergencies */
+  hretrace ^= 0x01;
+  vretrace++;
+  retval = 0xc6 | hretrace | (vretrace&0xfc? 0:0x09);
+#else
+  t = pic_sys_time = GETtickTIME(0);
 
   if (first) {
     t_vretrace=t; first=0;
   }
   tdiff = t-t_vretrace;
+  r_printf("EMUVR diff=%ld\n", tdiff);
 
   switch (vretrace) {
     /* set retrace on timeout */
@@ -458,9 +474,7 @@ unsigned char Attr_get_input_status_1()
     case 9: if (tdiff > 1000) vretrace=hretrace=0;
     	    break;
   }
-  retval = 0xc4 | hretrace | vretrace;
-#else
-  retval=((cga_r ^= 1) ? 0xcf : 0xc6);
+  retval = 0xc6 | hretrace | vretrace;
 #endif
 
   attr_deb("VGAEmu: Attr_get_input_status_1: status = 0x%02x\n", retval);

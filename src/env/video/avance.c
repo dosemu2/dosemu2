@@ -184,6 +184,7 @@ void avance_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
     int tmp;
 
+    emu_video_retrace_off();
     ali_unlock();
     tmp = GETB(GRA_I, 0x0c);
     xregs[8] = port_in(0x3d6);
@@ -201,6 +202,7 @@ void avance_save_ext_regs(u_char xregs[], u_short xregs16[])
     port_in(PEL_M);
     port_in(PEL_M);
     xregs[7] = port_in(PEL_M);
+    emu_video_retrace_on();
 }
 
 /*
@@ -211,6 +213,7 @@ void avance_restore_ext_regs(u_char xregs[], u_short xregs16[])
 {
     int tmp;
 
+    emu_video_retrace_off();
     ali_unlock();
     tmp = GETB(GRA_I, 0x0f);
     port_out(tmp | 4, GRA_D);
@@ -230,6 +233,7 @@ void avance_restore_ext_regs(u_char xregs[], u_short xregs16[])
     port_out(xregs[7], PEL_M);
     port_out(xregs[8], 0x3d6);
     port_out(xregs[9], 0x3d7);
+    emu_video_retrace_on();
 }
 
 

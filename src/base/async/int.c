@@ -346,6 +346,8 @@ static int dos_helper(void)
     }
     v_printf("Restore hi vector area\n");
     MEMCPY_2DOS(0x380,save_hi_ints,128);
+    config.emuretrace <<= 1;
+    emu_video_retrace_on();
     break;
 
   case DOS_HELPER_GET_DEBUG_STRING:

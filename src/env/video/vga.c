@@ -169,6 +169,7 @@ int vga_getpalvec(int start, int num, u_char * pal)
 __inline__ void disable_vga_card(void)
 {
   /* enable video */
+  emu_video_retrace_off();
   port_in(IS1_R);
   port_out(0x00, ATT_IW);
 }
@@ -176,8 +177,10 @@ __inline__ void disable_vga_card(void)
 /* Finish doing business with the EGA/VGA card */
 __inline__ void enable_vga_card(void)
 {
+  emu_video_retrace_off();
   port_in(IS1_R);
   port_out(0x20, ATT_IW);
+  emu_video_retrace_on();
   /* disable video */
 }
 /* Store current EGA/VGA regs */
@@ -185,6 +188,7 @@ int store_vga_regs(char regs[])
 {
   int i;
 
+  emu_video_retrace_off();
   /* Start with INDEXS */
   regs[CRTI] = port_in(CRT_I);
   regs[GRAI] = port_in(GRA_I);
@@ -220,6 +224,7 @@ int store_vga_regs(char regs[])
   port_out(regs[GRAI], GRA_I);
   port_out(regs[SEQI], SEQ_I);
   v_printf("Store regs complete!\n");
+  emu_video_retrace_on();
   return 0;
 }
 
@@ -564,6 +569,7 @@ void dump_video_regs()
 {
   int i;
 
+  emu_video_retrace_off();
   /* save VGA registers */
   v_printf("CRT=");
   for (i = 0; i < CRT_C; i++) {
@@ -649,6 +655,7 @@ void dump_video_regs()
     port_out(0xe, GRA_I);
     v_printf("ET4000 GRA 0x0e  =0x%02x\n", (u_char) port_in(GRA_D));
   }
+  emu_video_retrace_on();
 }
 
 /* init_vga_card - Inititalize a VGA-card */

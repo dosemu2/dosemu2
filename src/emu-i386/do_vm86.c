@@ -437,49 +437,18 @@ run_vm86(void)
 #endif
     /* FIXME: this needs to be clarified and rewritten */
 
-#if 0
-#define PFLAG(f)  if (REG(eflags)&(f)) k_printf(#f" ")
-
-  k_printf("FLAGS BEFORE: ");
-  PFLAG(CF);
-  PFLAG(PF);
-  PFLAG(AF);
-  PFLAG(ZF);
-  PFLAG(SF);
-  PFLAG(TF);
-  PFLAG(IF);
-  PFLAG(DF);
-  PFLAG(OF);
-  PFLAG(NT);
-  PFLAG(RF);
-  PFLAG(VM);
-  PFLAG(AC);
-  PFLAG(VIF);
-  PFLAG(VIP);
-  k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
-#endif
+    if (d.general>3) {
+	dbug_printf ("DO_VM86,  cs=%04x:%04x ss=%04x:%04x f=%08x\n",
+		_CS, _EIP, _SS, _SP, _EFLAGS);
+	if (d.general>8)
+	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
+	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
+	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
+			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
+			_SI, _DI, _ES, _EFLAGS);
+    }
 
     retval = DO_VM86(&vm86s);
-
-#if 0
-  k_printf("FLAGS AFTER: ");
-  PFLAG(CF);
-  PFLAG(PF);
-  PFLAG(AF);
-  PFLAG(ZF);
-  PFLAG(SF);
-  PFLAG(TF);
-  PFLAG(IF);
-  PFLAG(DF);
-  PFLAG(OF);
-  PFLAG(NT);
-  PFLAG(RF);
-  PFLAG(VM);
-  PFLAG(AC);
-  PFLAG(VIF);
-  PFLAG(VIP);
-  k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
-#endif
 
 #ifdef USE_NEW_INT
   /* sync the pic interrupt state with the flags && sync VIF & IF */
@@ -494,6 +463,16 @@ run_vm86(void)
     if (_EFLAGS & (AC|ID)) {
       g_printf("BUG: flags changed to %08x\n",_EFLAGS);
       _EFLAGS &= ~(AC|ID);
+    }
+    if (d.general>3) {
+	dbug_printf ("RET_VM86, cs=%04x:%04x ss=%04x:%04x f=%08x ret=0x%x\n",
+		_CS, _EIP, _SS, _SP, _EFLAGS, retval);
+	if (d.general>8)
+	    dbug_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
+	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
+	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
+			_AX, _BX, _SS, _SP, _BP, _CX, _DX, _DS, _CS, _IP,
+			_SI, _DI, _ES, _EFLAGS);
     }
 
     in_vm86 = 0;

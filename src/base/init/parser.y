@@ -251,7 +251,7 @@ extern void yyrestart(FILE *input_file);
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
 %token VNET
-%token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
+%token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT EMURETRACE TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
 %token L_SECURE
@@ -292,7 +292,7 @@ extern void yyrestart(FILE *input_file);
 	/* printer */
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
-%token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
+%token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH ATAPI READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE DISKCYL4096
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE FAST
@@ -472,19 +472,23 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 		| CPUSPEED expression
 			{ 
+#if 0 /* no longer used, but left in for dosemu.conf compatibility */
 			if (config.realcpu >= CPU_586) {
 			  config.cpu_spd = ((double)LLF_US)/TOF($2);
 			  config.cpu_tick_spd = ((double)LLF_TICKS)/TOF($2);
 			  c_printf("CONF: CPU speed = %g\n", ((double)TOF($2)));
 			}
+#endif
 			}
 		| CPUSPEED INTEGER INTEGER
 			{ 
+#if 0 /* no longer used, but left in for dosemu.conf compatibility */
 			if (config.realcpu >= CPU_586) {
 			  config.cpu_spd = (LLF_US*$3)/$2;
 			  config.cpu_tick_spd = (LLF_TICKS*$3)/$2;
 			  c_printf("CONF: CPU speed = %d/%d\n", $2, $3);
 			}
+#endif
 			}
 		| RDTSC bool
 		    {
@@ -563,6 +567,13 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		      yyerror("Can not enable video port access in user config file");
 		    config.allowvideoportaccess = $2;
 		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
+		    }}
+		| EMURETRACE bool
+		    { IFCLASS(CL_VPORT){
+		    if ($2 && !config.emuretrace && priv_lvl)
+		      yyerror("Can not modify video port access in user config file");
+		    config.emuretrace = $2;
+		    c_printf("CONF: emu_retrace %s\n", ($2) ? "on" : "off");
 		    }}
 		| L_EMS { config.ems_size=0; }  '{' ems_flags '}'
 		| L_EMS mem_bool
@@ -1332,6 +1343,7 @@ disk_flags	: disk_flag
 		;
 disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| THREEINCH	{ dptr->default_cmos = THREE_INCH_FLOPPY; }
+		| ATAPI		{ dptr->default_cmos = ATAPI_FLOPPY; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| DISKCYL4096	{ dptr->diskcyl4096 = 1; }
 		| SECTORS expression	{ dptr->sectors = $2; }
