@@ -271,7 +271,6 @@ int ReadKeyboard(int *buf, int wait)
 			FD_ZERO(&fds);
 			FD_SET(kbd_fd, &fds);
 			r = select(kbd_fd+1, &fds, NULL, NULL, NULL);
-			if (r < 0) printf("select %s\n", sys_errlist[errno]);
 		}
 		getKeys();
 		if (kbcount == 0 && wait != WAIT) return 0;

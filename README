@@ -1,4 +1,10 @@
-DOS EMULATOR for LINUX 0.97 pl4 or later versions
+DOS EMULATOR for LINUX 0.97 pl5 or later versions
+
+If you use LINUX 0.97 pl5 you need to fix the bug in emulation code of the 
+kernel:
+
+in the function "mark_screen_rdonly" (kernel/sys.c) you need to change 
+the screen start address from 0xA00000 to 0xA0000.
 
 This is a pre alpha version. This means there are some bugs and lots of things
 aren't implemented such as
@@ -48,11 +54,9 @@ Things crashing the emulator:
 
 Using programms wich accesses the screen directly:
 
-This implemention of the VM86 system call doesn't support the 'DIRTY
-PAGE' testing so you need to do screen updating continuosly. If you run
-'dos u' or 'dos c u' every 1 second the screen will be updated. I will look
-how to implement the 'SCREEN DIRTY' feature in the kernel to get rid of
-this.
+This implemention of the VM86 system call  supports the 'DIRTY PAGE'
+testing of the vm86 system call. It will test the screen 3 times a second
+and will update the screen only if needed.
 
 Please mail any suggestions, bugs or fixes to me.
 

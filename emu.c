@@ -25,8 +25,8 @@
 #define CO	80
 #define LI	25
 #define SCREEN_ADR(s)	(us *)(0xb8000 + s * 0x1000)
-#define UPDATE	250000		/* waiting time in usec */
-#define UTICKS	(1250 /* ms */ * CLK_TCK / 1000) /* time betwenn two screen updates in ticks */
+#define UPDATE	330000		/* waiting time in usec */
+#define DELAY	250000		/* sleeping time in usec */
 #define OUTBUFSIZE	2500
 #define CHOUT(c)	if (outp == &outbuf[OUTBUFSIZE]) { CHFLUSH } \
 			else *outp++ = (c);
@@ -49,9 +49,6 @@ struct disk {
 struct disk disktab[DISKS] = {
 		{"/dev/fd0", 0, 0, 0, 0},
 		{"/dev/fd1", 0, 0, 0, 0},
-		/* {"/dev/hdb1", 1, 29, 16, 141}, */
-		/* {"/dev/hda1", 1, 17, 9, 428}, */
-		/* {"diskimage", 1, 9, 2, 40}, */
 	};
 /* whole hard disks, dos extented partitions (containing one ore more partitions)
    or their images (files) */
@@ -67,11 +64,10 @@ struct timeval scr_tv;
 unsigned char outbuf[OUTBUFSIZE], *outp = outbuf;
 int iflag;
 int hdiskboot =0;
-int do_screen_updates;
+int scrtest_bitmap;
+int must_update;
 long start_time;
-int screen_bitfield;
 int screen, xpos[8], ypos[8];
-unsigned int next_upd;
 
 
 
@@ -194,17 +190,16 @@ void clear_screen(int s, int att)
 	xpos[s] = ypos[s] = 0;
 	sadr = SCREEN_ADR(s);
 	for (p = sadr; p < sadr+2000; *p++ = blank);
-	screen_bitfield = 0;
+	must_update = 0;
 }
 
-void restore_screen(int bitmap)
+void restore_screen(void)
 {
 	us *sadr, *p; 
 	unsigned char c, a;
 	int x, y, oa;
 
-	if ((bitmap & (1 << (24 + screen))) == 0) return;
-	printf("RESTORE SCREEN 0x%x\n", screen_bitfield);
+	printf("RESTORE SCREEN\n");
 	sadr = SCREEN_ADR(screen);
 	oa = 7;
 	p = sadr;
@@ -225,7 +220,7 @@ void restore_screen(int bitmap)
 	tputs(me, 1, outcbuf);
 	CHFLUSH;
 	poscur(xpos[screen],ypos[screen]);
-	screen_bitfield = 0;
+	must_update = 0;
 }
 
 
@@ -343,11 +338,12 @@ void disk_init(void)
 void show_regs(void)
 {
 	int i;
-	unsigned char *cp = (unsigned char *)0 + (_regs.cs<<4) + _regs.eip;
+	unsigned char *cp = SEG_ADR((unsigned char *), cs, ip);
 
 	printf(" cs    eip     ss    esp      flags    ds   es   fs   gs \n");
-	printf("%4x:%08x %4x:%08x %08x %4x %4x %4x %4x\n", _regs.cs, _regs.eip, 
-		_regs.ss, _regs.esp, _regs.eflags, _regs.ds, _regs.es, _regs.fs, _regs.gs);
+	printf("%4x:%08x %4x:%08x %08x %4x %4x %4x %4x\n", *(us *)&_regs.cs, _regs.eip, 
+		*(us *)&_regs.ss, _regs.esp, _regs.eflags, *(us *)&_regs.ds,
+		*(us *)&_regs.es, *(us *)&_regs.fs, *(us *)&_regs.gs);
 	printf("  eax      ebx      ecx      edx      edi      esi      ebp\n");
 	printf("%08x %08x %08x %08x %08x %08x %08x \n", _regs.eax, _regs.ebx, 
 		_regs.ecx, _regs.edx, _regs.edi, _regs.esi, _regs.ebp);
@@ -420,10 +416,10 @@ void int10(void)
 	int x, y, s, i;
 	char c, m;
 
-	switch((_regs.eax >> 8) & 0xff) {
+	switch(HI(ax)) {
 		case 0x0: /* define mode */
-			if (_regs.eax & 0xfe != 2) {
-				printf("undefined video mode %d\n", _regs.eax & 0xff);
+			if ((_regs.eax & 0xfe) != 2) {
+				printf("undefined video mode %d\n", LO(ax));
 				error = 1;
 			}
 			break;
@@ -431,9 +427,9 @@ void int10(void)
 			printf("define cursor shape not implemented\n");
 			break;
 		case 0x2: /* set cursor pos */
-			s = (_regs.ebx >> 8) & 0xff;
-			x = _regs.edx & 0xff;
-			y = (_regs.edx >> 8) & 0xff;
+			s = HI(bx);
+			x = LO(dx);
+			y = HI(dx);
 			if (s != 0) {
 				printf("video error\n");
 				show_regs();
@@ -446,7 +442,7 @@ void int10(void)
 			if (s == screen) poscur(x, y);
 			break;
 		case 0x3: /* get cursor pos */
-			s = (_regs.ebx >> 8) & 0xff;
+			s = HI(bx);
 			if (s != 0) {
 				printf("video error\n");
 				show_regs();
@@ -456,22 +452,26 @@ void int10(void)
 			_regs.edx = (ypos[s] << 8) | xpos[s];
 			break;
 		case 0x5: /* change page */ 
-			if ((_regs.eax & 0xff) == 0) break;
-			printf("video error\n");
+			if ((s = LO(ax)) == screen) break;
+			if (s < 4) {
+				screen = s;
+				scrtest_bitmap = 1 << (24 + screen);
+				vm86s.screen_bitmap = -1;
+				return;
+			}
+			printf("video error: set wrong screen %d\n", s);
 			show_regs();
 			error = 1;
 			return;
 		case 0x6: /* scroll up */
 			printf("scroll up %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
-			show_regs();
 			scrollup(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-			screen_bitfield = -1;
+			vm86s.screen_bitmap = -1;
 			break;
 		case 0x7: /* scroll down */
 			printf("scroll dn %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
-			show_regs();
 			scrolldn(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-			screen_bitfield = -1;
+			vm86s.screen_bitmap = -1;
 			break;
 		case 0x9: /* set chars at cursor pos */
 		case 0xA: /* set chars at cursor pos */
@@ -480,7 +480,7 @@ void int10(void)
 			else 
 				m = '\007';
 			c = *(char *)&_regs.eax;
-			s = (_regs.ebx >> 8) & 0xff;
+			s = HI(bx);
 			if (s != 0) {
 				printf("video error\n");
 				show_regs();
@@ -529,7 +529,7 @@ void int13(void)
 	} else if (disk >= 0x80 && disk < 0x80 + HDISKS) 
 		dp = &hdisktab[disk - 0x80];
 	else dp = NULL;
-	switch((_regs.eax >> 8) & 0xff) {
+	switch(HI(ax)) {
 		case 0: /* init */
 			printf("DISK init %d\n", disk);
 			break;
@@ -539,12 +539,12 @@ void int13(void)
 			break;
 		case 2: /* read */
 			disk_open(dp);
-			head = (_regs.edx >> 8) & 0xff;
+			head = HI(dx);
 			sect = (_regs.ecx & 0x3f) -1;
-			track = ((_regs.ecx >> 8) & 0xff) |
+			track = (HI(cx)) |
 				((_regs.ecx & 0xc0) << 2);
 			buffer = SEG_ADR((char *), es, bx);
-			number = _regs.eax & 0xff;
+			number = LO(ax);
 			printf("DISK %d read [h%d,s%d,t%d](%d)->0x%x\n", disk, head, sect, track, number, buffer);
 			if (dp == NULL || head >= dp->heads || 
 			    sect >= dp->sectors || track >= dp->tracks) {
@@ -570,12 +570,12 @@ void int13(void)
 			break;
 		case 3: /* write */
 			disk_open(dp);
-			head = (_regs.edx >> 8) & 0xff;
+			head = HI(dx);
 			sect = (_regs.ecx & 0x3f) -1;
-			track = ((_regs.ecx >> 8) & 0xff) |
+			track = (HI(cx)) |
 				((_regs.ecx & 0xc0) << 2);
 			buffer = SEG_ADR((char *), es, bx);
-			number = _regs.eax & 0xff;
+			number = LO(ax);
 			printf("DISK write [h%d,s%d,t%d](%d)->0x%x\n", head, sect, track, number, buffer);
 			if (dp == NULL || head >= dp->heads || 
 			    sect >= dp->sectors || track >= dp->tracks) {
@@ -632,7 +632,7 @@ void int14(void)
 {
 	int num;
 
-	switch((_regs.eax >> 8) & 0xff) {
+	switch(HI(ax)) {
 		case 0: /* init */
 			_regs.eax = 0;
 			num = _regs.edx & 0xffff;
@@ -651,7 +651,7 @@ void int16(void)
 	int key;
 	fd_set fds;
 
-	switch((_regs.eax >> 8) & 0xff) {
+	switch(HI(ax)) {
 		case 0: /* read key code, wait */
 			/* printf("get key\n"); */
 			for (;;) {
@@ -671,11 +671,13 @@ void int16(void)
 		case 2: /* read key state */
 			/* printf("get key state not implemented\n"); */
 			_regs.eax &= ~0xff;
-			FD_ZERO(&fds);
-			FD_SET(kbd_fd, &fds);
-			scr_tv.tv_sec = 0;
-			scr_tv.tv_usec = UPDATE;
-			select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
+			if (!(vm86s.screen_bitmap & scrtest_bitmap)) {
+				FD_ZERO(&fds);
+				FD_SET(kbd_fd, &fds);
+				scr_tv.tv_sec = 0;
+				scr_tv.tv_usec = DELAY;
+				select(kbd_fd+1, &fds, NULL, NULL, &scr_tv);
+			}
 			break;
 		default:
 			printf("keyboard error\n");
@@ -689,7 +691,7 @@ void int17(void)
 {
 	int num;
 
-	switch((_regs.eax >> 8) & 0xff) {
+	switch(HI(ax)) {
 		case 1: /* init */
 			_regs.eax &= ~0xff00;
 			num = _regs.edx & 0xffff;
@@ -709,8 +711,12 @@ void int1a(void)
 	static unsigned long last_ticks;
 	unsigned long ticks;
 	long akt_time, elapsed;
+	struct timeval tp;
+	struct timezone tzp;
+	struct tm *tm;
 
-	switch((_regs.eax >> 8) & 0xff) {
+
+	switch(HI(ax)) {
 		case 0: /* read time counter */
 			time(&akt_time);
 			elapsed = akt_time - start_time;
@@ -725,9 +731,26 @@ void int1a(void)
 			time(&start_time);
 			printf("set timer to %ud \n", last_ticks);
 			break;
-		case 2:
-			printf("int 1a, 2 ?????\n");
+		case 2: /* get time */
+			gettimeofday(&tp, &tzp);
+			ticks = tp.tv_sec - (tzp.tz_minuteswest*60);
+			tm = localtime((time_t *)&ticks);
+        		printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec);
+			_regs.ecx = (tm->tm_hour << 8) | tm->tm_min;
+			_regs.edx = (tm->tm_sec << 8) | tm->tm_isdst;
+			_regs.eflags &= ~CF;
 			break;
+		case 4: /* get date */
+			gettimeofday(&tp, &tzp);
+			ticks = tp.tv_sec - (tzp.tz_minuteswest*60);
+			tm = localtime((time_t *)&ticks);
+        		printf("get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon+1, tm->tm_year);
+			_regs.ecx = (19 << 8) | tm->tm_year;
+			_regs.edx = ((tm->tm_mon +1) << 8) | tm->tm_mday;
+			_regs.eflags &= ~CF;
+			break;
+		case 3: /* set time */
+		case 5: /* set date */
 		default:
 			printf("timer error\n");
 			show_regs();
@@ -767,12 +790,12 @@ Restart:
 			break;
 		case 12: /* clear key buffer, do int AL */
 			while (ReadKeyboard(&c, NOWAIT) == 1);
-			nr = _regs.eax & 0xff;
+			nr = LO(ax);
 			_regs.eax = (nr << 8) | nr;
 			goto Restart;
 		case 0xfa: /* unused by DOS */
 			if ((_regs.ebx & 0xffff) == 0x1234) { /* MAGIC */
-				_regs.eax = ext_fs(_regs.eax & 0xff, SEG_ADR((char *), fs, di), 
+				_regs.eax = ext_fs(LO(ax), SEG_ADR((char *), fs, di), 
 						SEG_ADR((char *), gs, si), _regs.ecx & 0xffff); 
 				printf("RESULT %d\n", _regs.eax);
 				break;
@@ -809,7 +832,7 @@ us *ssp;
 			int14();
 			return;
 		case 0x15 : /* Cassette */
-			printf(" cassette %d ???????????\n", (_regs.eax >>8) & 0xff);
+			printf(" cassette %d ???????????\n", HI(ax));
 			return;
 		case 0x16 : /* KEYBOARD */
 			int16();
@@ -835,7 +858,7 @@ us *ssp;
 		case 0x27 : /* TSR */
 #endif
 		case 0x21 : /* MS-DOS */
-			if (ms_dos((_regs.eax>>8) & 0xff)) return;
+			if (ms_dos(HI(ax))) return;
 			/* else do default handling in vm86 mode */
 			goto default_handling;
 
@@ -861,12 +884,15 @@ default_handling:
 
 void sigalrm(int sig)
 {
-	printf("SIGALRM received!!!!!\n"); 
+	if (vm86s.screen_bitmap & scrtest_bitmap) {
+		must_update = 1;
+	}
 }
 
 void sigsegv(int sig)
 {
 	short d;
+	unsigned long a;
 	us *ssp;
 	unsigned char *csp;
 
@@ -908,15 +934,15 @@ void sigsegv(int sig)
 			_regs.eip += 1;
 			break;
 		case 0xe7: /* outw xx */
-			outb((int)csp[1] +1, _regs.eax >>8);
+			outb((int)csp[1] +1, HI(ax));
 		case 0xe6: /* outb xx */
-			outb((int)csp[1], _regs.eax);
+			outb((int)csp[1], LO(ax));
 			_regs.eip += 2;
 			break;
 		case 0xef: /* outw dx */
-			outb(_regs.edx +1, _regs.eax >>8);
+			outb(_regs.edx +1, HI(ax));
 		case 0xee: /* outb dx */
-			outb(_regs.edx, _regs.eax);
+			outb(_regs.edx, LO(ax));
 			_regs.eip += 1;
 			break;
 		case 0xfa: /* cli */
@@ -928,8 +954,8 @@ void sigsegv(int sig)
 			_regs.eip += 1;
 			break;
 		case 0x9c: /* pushf */
-			_regs.eflags &= 0xfff ^ IF;
 			if (iflag) _regs.eflags |= IF;
+			else _regs.eflags &= ~IF;
 			ssp = SEG_ADR((us *), ss, sp);
 			*--ssp = (us)_regs.eflags;
 			_regs.esp -= 2;
@@ -1016,15 +1042,13 @@ void sigtrap(int sig)
 int emulate(int argc, char **argv)
 {
 	struct sigaction sa;
-	unsigned int akt_t;
+	struct itimerval itv;
 
 	printf("EMULATE\n");
 	sync(); /* for safety */
 
 	if (argc >= 2 && toupper(argv[1][0]) == 'A') hdiskboot = 0;
 	if (argc >= 2 && toupper(argv[1][0]) == 'C') hdiskboot = 1;
-	if (argc >= 2 && toupper(argv[1][0]) == 'U') do_screen_updates = 1;
-	if (argc >= 3 && toupper(argv[2][0]) == 'U') do_screen_updates = 1;
 
 	/* init signal handlers */
 	SETSIG(SIGSEGV, sigsegv);
@@ -1038,19 +1062,21 @@ int emulate(int argc, char **argv)
 	clear_screen(screen, 7);
 	boot(hdiskboot? hdisktab : disktab);
 	fflush(stdout);
+	itv.it_interval.tv_sec = 0;
+	itv.it_interval.tv_usec = UPDATE;
+	itv.it_value.tv_sec = 0;
+	itv.it_value.tv_usec = UPDATE;
+	setitimer(ITIMER_REAL, &itv, NULL);
+	vm86s.screen_bitmap = 0;
+	vm86s.flags = VM86_SCREEN_BITMAP;
+	scrtest_bitmap = 1 << (24 + screen);
 	for(;!error;) {
-		if (do_screen_updates) alarm(1);
 		(void)vm86(&vm86s);
-		/* screen_bitfield |= vm86s.screen_dirty; */
-		if (do_screen_updates) screen_bitfield = -1;
-		if (do_screen_updates) alarm(0);
-		akt_t = times(NULL);
-		if (akt_t >= next_upd) {
-			if (screen_bitfield) {
-				restore_screen(screen_bitfield);
-				akt_t = times(NULL);
-			}
-			next_upd = akt_t + UTICKS;
+		if (must_update) {
+			restore_screen();
+			vm86s.screen_bitmap = 0;
+			must_update = 0;
+			setitimer(ITIMER_REAL, &itv, NULL);
 		}
 	}
 	termioClose();
