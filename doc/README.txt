@@ -551,8 +551,8 @@ ge
          $_external_char_set = "XXX"
 
    where XXX is one of
-    "cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
-    "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874",
+    "cp437", "cp737", "cp773", "cp775", "cp850", "cp852", "cp857", "cp860",
+    "cp861", "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874",
     "iso8859-1", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5",
     "iso8859-6", "iso8859-7", "iso8859-8", "iso8859-9", "iso8859-14",
     "iso8859-15"
@@ -568,8 +568,8 @@ ge
          $_internal_char_set = "XXX"
 
    where XXX is one of:
-    "cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
-    "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874"
+    "cp437", "cp737", "cp773", "cp775", "cp850", "cp852", "cp857", "cp860",
+    "cp861", "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874"
 
    The internal character set is used to:
 
