@@ -690,3 +690,23 @@ char *readlink_malloc (const char *filename)
     buffer[nchars] = '\0';
   return buffer;
 }
+
+char * strupr(char *s)
+{
+	char *p = s;
+	while (*p) {
+		*p = toupper(*p);
+		p++;
+	}
+	return s;
+}
+
+char * strlower(char *s)
+{
+	char *p = s;
+	while (*p) {
+		*p = tolower(*p);
+		p++;
+	}
+	return s;
+}

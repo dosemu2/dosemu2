@@ -21,7 +21,7 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
-#include "../coopthreads/coopthreads.h"
+#include "builtins.h"
 
 #include "msetenv.h"
 #include "unix.h"
@@ -31,16 +31,18 @@
 #undef stderr
 #define stderr  com_stderr
 #define puts	com_puts
-#define intr    com_intr
 #define system	com_system
 #define errno	com_errno
 #define FP_OFF(x) FP_OFF32(x)
 #define FP_SEG(x) FP_SEG32(x)
 
+#define CAN_EXECUTE_DOS 1
 
 static int usage (void);
 static int send_command (char **argv);
+#if CAN_EXECUTE_DOS
 static int do_execute_dos (int argc, char **argv);
+#endif
 static int do_set_dosenv (int agrc, char **argv);
 
 
@@ -55,10 +57,12 @@ int unix_main(int argc, char **argv)
   if (*argv[1] == '-') {
     /* Got a switch */
     switch ((argv[1])[1]) {
+#if CAN_EXECUTE_DOS
     case 'e':
     case 'E':
       /* EXECUTE dos command*/
       return do_execute_dos (argc-2, argv+2);
+#endif
     case 's':
     case 'S':
       /* SETENV */
@@ -77,10 +81,12 @@ static int usage (void)
 {
   printf ("Usage: UNIX [FLAG COMMAND]\n");
   printf ("Run Linux commands from DOSEMU\n\n");
+#if CAN_EXECUTE_DOS
   printf ("UNIX -e [ENVVAR]\n");
   printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\"\n");
   printf ("  and then exit DOSEMU.\n");
   printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
+#endif
   printf ("UNIX -s ENVVAR\n");
   printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
   printf ("UNIX command [arg1 ...]\n");
@@ -97,7 +103,7 @@ static int usage (void)
 static int send_command(char **argv)
 {
     char *command_line = lowmem_alloc(256);
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
 
     command_line[0] = 0;
     argv++;
@@ -114,16 +120,16 @@ static int send_command(char **argv)
     preg.r_ax = DOS_HELPER_RUN_UNIX;
     preg.r_dx = FP_OFF(command_line);
     preg.r_es = FP_SEG(command_line);
-    intr(DOS_HELPER_INT, &preg);
+    dos_helper_r(&preg);
 
     return(0);
 }
 
-
+#if CAN_EXECUTE_DOS
 static int do_execute_dos (int argc, char **argv)
 {
   char *data = lowmem_alloc(256);
-  struct REGPACK preg;
+  struct REGPACK preg = REGPACK_INIT;
 
   if (argc == 0) {
     data[0] = '\0';
@@ -137,7 +143,7 @@ static int do_execute_dos (int argc, char **argv)
   preg.r_dx = FP_OFF(data);
   preg.r_es = FP_SEG(data);
 
-  intr(DOS_HELPER_INT, &preg);
+  dos_helper_r(&preg);
 
   if (! preg.r_ax) {
     /* SUCCESSFUL */
@@ -150,11 +156,6 @@ static int do_execute_dos (int argc, char **argv)
 		fprintf (stderr, "SYSTEM failed ....(%d)\n", errno);
 		return (1);
 	}
-	/* bye bye! */
-        if (data[strlen(data)+1] == '\0') {
-	  preg.r_ax = 0xffff;
-	  intr(0xe6, &preg);
-        }
  
 	return (0);
   }
@@ -166,11 +167,11 @@ static int do_execute_dos (int argc, char **argv)
     return (1);
   }
 }
-
+#endif
 
 static int do_set_dosenv (int argc, char **argv)
 {
-  struct REGPACK preg;
+  struct REGPACK preg = REGPACK_INIT;
   char *data = lowmem_alloc(256);
 
   if (argc == 0) return usage();
@@ -183,7 +184,7 @@ static int do_set_dosenv (int argc, char **argv)
   preg.r_dx = FP_OFF(data);
   preg.r_es = FP_SEG(data);
 
-  intr(DOS_HELPER_INT, &preg);
+  dos_helper_r(&preg);
 
   if (! preg.r_ax) {
     if (msetenv(argv[0],data))

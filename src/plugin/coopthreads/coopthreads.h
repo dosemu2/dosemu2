@@ -15,6 +15,29 @@
 #ifndef COOPTHREADS_H
 #define COOPTHREADS_H 1
 
+#define lowmem_alloc coop_lowmem_alloc
+#define lowmem_free coop_lowmem_free
+#define call_msdos coop_call_msdos
+#define com_dosallocmem coop_com_dosallocmem
+#define com_dosfreemem coop_com_dosfreemem
+#define com_getenv coop_com_getenv
+#define com_system coop_com_system
+#define com_intr coop_com_intr
+#define com_int86x coop_com_int86x
+#define com_int86 coop_com_int86
+#define register_com_program coop_register_com_program
+#define com_doswrite coop_com_doswrite
+#define com_dosread coop_com_dosread
+#define com_strdup coop_com_strdup
+#define com_strfree coop_com_strfree
+#define com_vsprintf coop_com_vsprintf
+#define com_sprintf coop_com_sprintf
+#define com_vprintf coop_com_vprintf
+#define com_vfprintf coop_com_vfprintf
+#define com_fprintf coop_com_fprintf
+#define com_printf coop_com_printf
+#define com_puts coop_com_puts
+
 #if 0
 #include <unistd.h>
 #define COM_CHECK_PERMISSIONS { \
@@ -78,7 +101,6 @@ void switch_to(struct tcb* new);
 
 typedef int com_program_type(int argc, char **argv);
 typedef void function_call_type(void);
-typedef unsigned long FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
 
 #define COM_THREAD_MAGIC	0xd0c0
 
@@ -182,9 +204,9 @@ FAR_PTR register_com_hook_function(int intnum,
 
 /* ============= MDOS functions (and equivalent) calls ============== */
 
-COOPEXTRN  unsigned char _osmajor;
-COOPEXTRN  unsigned char _osminor;
-COOPEXTRN  int com_errno;
+extern unsigned char _osmajor;
+extern unsigned char _osminor;
+extern int com_errno;
 
 #define _psp (((struct com_starter_seg  *)(owntcb->params))->real_psp)
 

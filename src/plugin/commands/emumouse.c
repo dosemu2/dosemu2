@@ -32,7 +32,7 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
-#include "../coopthreads/coopthreads.h"
+#include "builtins.h"
 
 #include "emumouse.h"
 

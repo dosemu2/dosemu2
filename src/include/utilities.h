@@ -41,6 +41,8 @@ char *get_path_in_HOME(char *path);
 char *get_dosemu_local_home(void);
 long long libless_llseek(int fd, long long offset, int origin);
 char *readlink_malloc (const char *filename);
+char * strupr(char *s);
+char * strlower(char *s);
 
 /* returns y = sqrt(x), for y*y beeing a power of 2 below x
  */

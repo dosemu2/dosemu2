@@ -166,9 +166,14 @@ static void process_master_boot_record(void)
    LWORD(ebp) = LWORD(esi) = (unsigned)&mbr->partition[i];
 }
 
+static int inte6(void)
+{
+  return dos_helper();
+}
+
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 /* dos helper and mfs startup (was 0xfe) */
-static int inte6(void)
+int dos_helper(void)
 {
   switch (LO(ax)) {
   case DOS_HELPER_DOSEMU_CHECK:			/* Linux dosemu installation test */
@@ -1902,6 +1907,13 @@ void fake_int(int cs, int ip)
   clear_TF();
   clear_NT();
   clear_IF();
+}
+
+void fake_int_to(int cs, int ip)
+{
+  fake_int(REG(cs), LWORD(eip));
+  REG(cs) = cs;
+  REG(eip) = ip;
 }
 
 void fake_call(int cs, int ip)

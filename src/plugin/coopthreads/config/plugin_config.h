@@ -13,6 +13,8 @@
  *
  */
 
+#define DOS_HELPER_COOP		0xc0
+
 extern void coopthreads_plugin_init(void);
 extern int coopthreads_plugin_inte6(void);
 extern void coopthreads_plugin_close(void);

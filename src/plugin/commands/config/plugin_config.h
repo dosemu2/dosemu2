@@ -13,5 +13,8 @@
  *
  */
 
+#define DOS_HELPER_COMMANDS         0xc0
+
 extern void commands_plugin_init(void);
+extern int commands_plugin_inte6(void);
 extern void commands_plugin_close(void);

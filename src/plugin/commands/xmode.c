@@ -12,7 +12,7 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
-#include "../coopthreads/coopthreads.h"
+#include "builtins.h"
 
 #include "xmode.h"
 
@@ -116,14 +116,14 @@ int xmode_main(int argc, char **argv)
         return 2;
       }
       if(l & ~0xff) {
-        struct REGPACK r;
+        struct REGPACK r = REGPACK_INIT;
 
         r.r_bx = l & 0xffff;
         r.r_ax = 0x4f02;
         intr(0x10, &r);
       }
       else {
-        struct REGPACK r;
+        struct REGPACK r = REGPACK_INIT;
 
         r.r_ax = l & 0xff;
         intr(0x10, &r);
@@ -150,7 +150,7 @@ int xmode_main(int argc, char **argv)
 
 static int X_change_config(unsigned item, void *buf)
 {
-  struct REGPACK r;
+  struct REGPACK r = REGPACK_INIT;
   char *lbuf = lowmem_alloc(128);
 
   memcpy(lbuf, buf, 128);
@@ -159,7 +159,7 @@ static int X_change_config(unsigned item, void *buf)
   r.r_dx = item;
   r.r_ax = DOS_HELPER_XCONFIG;
 
-  intr(DOS_HELPER_INT, &r);
+  dos_helper_r(&r);
 
   return r.r_ax;
 } 

@@ -15,15 +15,14 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
-#include "../coopthreads/coopthreads.h"
+#include "builtins.h"
+#include "msetenv.h"
 
 #include "cmdline.h"
 
 #define printf	com_printf
 #define perror	com_printf
 #define read	com_dosread
-
-int msetenv(char *,char *);
 
 #define CMDBUFFSIZE 256
 /* This program just reads stdin... */

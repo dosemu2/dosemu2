@@ -58,8 +58,9 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
+#include "utilities.h"
 #include "lredir.h"
-#include "../coopthreads/coopthreads.h"
+#include "builtins.h"
 
 #define printf	com_printf
 #define	intr	com_intr
@@ -99,7 +100,7 @@ static FAR_PTR /* char far * */
 GetListOfLists(void)
 {
     FAR_PTR LOL;
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
 
     preg.r_ax = DOS_GET_LIST_OF_LISTS;
     intr(0x21, &preg);
@@ -111,7 +112,7 @@ static FAR_PTR /* char far * */
 GetSDAPointer(void)
 {
     FAR_PTR SDA;
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
 
     preg.r_ax = DOS_GET_SDA_POINTER;
     intr(0x21, &preg);
@@ -128,7 +129,7 @@ static void InitMFS(void)
 {
     FAR_PTR LOL;
     FAR_PTR SDA;
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
 
     LOL = GetListOfLists();
     SDA = GetSDAPointer();
@@ -142,7 +143,7 @@ static void InitMFS(void)
     preg.r_ds = FP_SEG16(SDA);
     preg.r_bx = 0x500;
     preg.r_ax = DOS_HELPER_MFS_HELPER;
-    intr(DOS_HELPER_INT, &preg);
+    dos_helper_r(&preg);
 }
 
 /********************************************
@@ -168,7 +169,7 @@ static uint16 RedirectDevice(char *deviceStr, char *resourceStr, uint8 deviceTyp
                       uint16 deviceParameter)
 {
     char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
     char *dStr, *sStr;
 
     /* prepend the resource string with slashes */
@@ -221,7 +222,7 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceS
     uint16 ccode;
     uint8 deviceTypeTemp;
     char slashedResourceStr[MAX_RESOURCE_PATH_LENGTH];
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
     char *dStr, *sStr;
 
     dStr = com_strdup(deviceStr);
@@ -267,7 +268,7 @@ static uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceS
  ********************************************/
 static uint16 CancelRedirection(char *deviceStr)
 {
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
     char *dStr;
 
     dStr = com_strdup(deviceStr);
@@ -371,10 +372,10 @@ DeleteDriveRedirection(char *deviceStr)
 #if 0
 static uint16 CheckForDosc(void)
 {
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
 
     preg.r_ax = 0xdddc;
-    intr(DOS_HELPER_INT, &preg);
+    dos_helper_r(&preg);
 
     if (preg.r_ax == 0xdddc) {
       return 0;

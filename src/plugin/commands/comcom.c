@@ -28,6 +28,7 @@
 #include "bios.h"
 #include "video.h"	/* for CARD_NONE */
 #include "doshelpers.h"
+#include "utilities.h"
 #include "../coopthreads/coopthreads.h"
 
 #include "comcom.h"
@@ -2522,7 +2523,7 @@ static int cmd_set(int argc, char **argv)
 		return DOS_EINVAL;
 	}
 	*p = 0;
-	if (!com_msetenv(buf, p+1, 1)) return 0;
+	if (!com_msetenv(buf, p+1, _psp)) return 0;
 	return DOS_ENOMEM;
 }
 
@@ -2535,7 +2536,7 @@ static int cmd_path(int argc, char **argv)
 		com_printf("%s\n", p ? p : "PATH not set");
 		return 0;
 	}
-	if (!com_msetenv("PATH", argv[1], 1)) return 0;
+	if (!com_msetenv("PATH", argv[1], _psp)) return 0;
 	return DOS_ENOMEM;
 }
 
@@ -2544,7 +2545,7 @@ static int cmd_prompt(int argc, char **argv)
 	char *p = argv[1];
 
 	if (!argv[1]) p = "";
-	if (!com_msetenv("PROMPT", argv[1], 1)) return 0;
+	if (!com_msetenv("PROMPT", argv[1], _psp)) return 0;
 	return DOS_ENOMEM;
 }
 
@@ -3621,7 +3622,7 @@ int comcom_main(int argc, char **argv)
 			comspec = comspec_;
 			sprintf(comspec, "%c:\\COMMAND.COM", drive);
 		}
-		com_msetenv("COMSPEC", comspec, 1);
+		com_msetenv("COMSPEC", comspec, _psp);
 		argc = remove_arg(i, argc, argv);
 
 		/* we now try to exec autoexec.bat or its substitute */

@@ -14,24 +14,22 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
-#include "../coopthreads/coopthreads.h"
+#include "utilities.h"
+#include "dos2linux.h"
+#include "builtins.h"
 
 #include "msetenv.h"
-
-#define peek	com_peek
-#define MCB	com_MCB
 
 /*
    envptr - returns pointer to parent command.com's copy of the environment
 */
-static char *envptr(int *size, int takeown)
+static char *envptr(int *size, int parent_p)
 {
-    int parent_p;
+    struct PSP *parent_psp;
     struct MCB *mcb;
 
-    parent_p=peek(_psp,0x16);    /* find pointer to parent in psp */
-    if (takeown) parent_p = _psp;
-    if (peek(parent_p,0x2c)==0) {
+    parent_psp = (struct PSP *)SEG2LINEAR(parent_p);
+    if (parent_psp->envir_frame == 0) {
        mcb = (struct MCB *) (((long) (peek(parent_p-1,0x3) + parent_p)) << 4);
     }
     else {
@@ -47,7 +45,7 @@ static char *envptr(int *size, int takeown)
              the envrionment.
 */
 
-int com_msetenv(char *variable, char *value, int takeown)
+int com_msetenv(char *variable, char *value, int parent_p)
 {
     char *env1, *env2;
     char *cp;
@@ -55,7 +53,7 @@ int com_msetenv(char *variable, char *value, int takeown)
     int size;
     int l;
 
-    env1 = env2 = envptr(&size, takeown);
+    env1 = env2 = envptr(&size, parent_p);
     l = strlen(variable);
     var = alloca(l+1);
     memcpy(var, variable, l+1);
@@ -101,5 +99,6 @@ int com_msetenv(char *variable, char *value, int takeown)
 
 int msetenv(char *var, char *value)
 {
-    return com_msetenv(var, value, 0);
+    struct PSP *psp = COM_PSP_ADDR;
+    return com_msetenv(var, value, psp->parent_psp);
 }

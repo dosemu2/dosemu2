@@ -26,6 +26,8 @@
 #include "memory.h"
 #include "doshelpers.h"
 #include "bitops.h"
+#include "utilities.h"
+#include "../commands/comcom.h"
 
 #define COOPTHREADS_H_ITSELF
 #include "coopthreads.h"
@@ -1390,26 +1392,6 @@ void com_strfree(char *s)
 	lowmem_free((char *)p, p->len);
 }
 
-char * strupr(char *s)
-{
-	char *p = s;
-	while (*p) {
-		*p = toupper(*p);
-		p++;
-	}
-	return s;
-}
-
-char * strlower(char *s)
-{
-	char *p = s;
-	while (*p) {
-		*p = tolower(*p);
-		p++;
-	}
-	return s;
-}
-
 /* ================================================================ */
 
 
@@ -1987,11 +1969,10 @@ static function_call_type *default_com_program_functions[] = {
 
 
 /* ================================================================ */
+static char *chistname = 0;
 
 void coopthreads_plugin_init(void)
 {
-	if (tcb0) return;
-
 	COM_CHECK_PERMISSIONS
 
 		/* 16 Meg stack should be enough for main DOSEMU thread */
@@ -1999,6 +1980,14 @@ void coopthreads_plugin_init(void)
 	if (!tcb0) return;
 	register_com_program("default_com_program",
 		default_com_program, "f", default_com_program_functions);
+
+	/* try to load old history file for comcom */
+	chistname = get_path_in_HOME(".dosemu/comcom.history");
+	if (exists_file(chistname)) {
+		load_comcom_history(chistname);
+	}
+
+	register_com_program("comcom", comcom_main, 0);
 
 #if 0
 	fprintf(stderr, "PLUGIN: coopthreads_plugin_init called\n");
@@ -2011,6 +2000,7 @@ void coopthreads_plugin_init(void)
 void coopthreads_plugin_close(void)
 {
 	if (!tcb0) return;
+	save_comcom_history(chistname);
 #if 0
 	fprintf(stderr, "PLUGIN: coopthreads_plugin_close called\n");
 #endif
@@ -2019,6 +2009,8 @@ void coopthreads_plugin_close(void)
 
 int coopthreads_plugin_inte6(void)
 {
+	if (!tcb0) coopthreads_plugin_init();
+
 	switch (HI(ax)) {
 		case 0: {
 			/* program start */

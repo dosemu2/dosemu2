@@ -99,6 +99,20 @@ extern int dpmi_eflags;  /* don't include 'dpmi.h' just for this! */
 /* alternative SEG:OFF to linear conversion macro */
 #define SEGOFF2LINEAR(seg, off)  ((((Bit32u)(seg)) << 4) + (off))
 
+#define SEG2LINEAR(seg)	((void *)  ( ((unsigned int)(seg)) << 4)  )
+
+typedef unsigned long FAR_PTR;	/* non-normalized seg:off 32 bit DOS pointer */
+#define MK_FP16(s,o)	((((unsigned long)s) << 16) | (o & 0xffff))
+#define MK_FP			MK_FP16
+#define FP_OFF16(far_ptr)	((int)far_ptr & 0xffff)
+#define FP_SEG16(far_ptr)	(((unsigned int)far_ptr >> 16) & 0xffff)
+#define MK_FP32(s,o)		((void *)SEGOFF2LINEAR(s,o))
+#define FP_OFF32(void_ptr)	((unsigned int)void_ptr & 15)
+#define FP_SEG32(void_ptr)	(((unsigned int)void_ptr >> 4) & 0xffff)
+#define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))
+
+#define peek(seg, off)	(READ_WORD(SEGOFF2LINEAR(seg, off)))
+
 #define WRITE_FLAGS(val)    LWORD(eflags) = (val)
 #define WRITE_FLAGSE(val)    REG(eflags) = (val)
 #define READ_FLAGS()        LWORD(eflags)

@@ -122,6 +122,7 @@ EXTERN void loopstep_run_vm86(void);
 EXTERN void vm86_GP_fault(void);
 
 EXTERN void do_call_back(Bit32u codefarptr);
+EXTERN void do_intr_call_back(int intno, int inter);
 
 #define NOWAIT  0
 #define WAIT    1

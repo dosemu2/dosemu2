@@ -16,7 +16,7 @@
 	.globl	_start16
 _start16:
 
-#define	DOS_HELPER_COOP		0xc0
+#define	DOS_HELPER_COMMANDS	0xc0
 #define	saved_ax		0x108
 #define real_psp		0x10a
 #define far_sp			0x10c
@@ -39,6 +39,12 @@ start:
 	int	$0x21
 	movw	%bx, %cs:(real_psp)
 				# are we 'far' called by an .exe ?
+	movw	%bx, %es
+	movb	$0x4a, %ah
+	movw	$0x1000, %bx
+	int	$0x21
+
+	movw	%cs:(real_psp), %bx
 	movw	%cs,%ax
 	cmp	%ax,%bx
 	je	normal_start
@@ -55,7 +61,7 @@ far_called:			# yes, far-called by .exe, have to save something
 
 				# ok, all is fine
 continue:
-	movw	$DOS_HELPER_COOP, %ax
+	movw	$DOS_HELPER_COMMANDS, %ax
 	int	$0xe6
 				# back, thread deleted
 	cmpw	$0, %cs:(far_ss)
@@ -74,7 +80,7 @@ normal_exit:
 #ifdef TEST
 	.align	16,0
 called:
-	movw	$DOS_HELPER_COOP, %ax
+	movw	$DOS_HELPER_COMMANDS, %ax
 	movb	$3, %ah
 	int	$0xe6
 	ret

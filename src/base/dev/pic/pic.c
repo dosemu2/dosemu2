@@ -403,6 +403,11 @@ if (pic_isr)
 if(ilevel != pic_ilevel)
   error("PIC0: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
     ilevel, pic_ilevel, pic_isr);
+if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
+  /* this is a fake IRQ, don't allow to reset its ISR bit */
+  pic_print(1, "Protecting ISR bit for lvl ", ilevel, " from spurious EOI");
+  ilevel = 32;
+}
 
 if (in_dpmi)
   dpmi_eflags |= VIP;	/* we have to leave the signal context */
@@ -459,6 +464,11 @@ if (pic_isr)
 if(ilevel != pic_ilevel)
   error("PIC1: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
     ilevel, pic_ilevel, pic_isr);
+if (ilevel != 32 && !test_bit(ilevel, &pic_irqall)) {
+  /* this is a fake IRQ, don't allow to reset its ISR bit */
+  pic_print(1, "Protecting ISR bit for lvl ", ilevel, " from spurious EOI");
+  ilevel = 32;
+}
 
 if (in_dpmi)
   dpmi_eflags |= VIP;	/* we have to leave the signal context */
@@ -793,7 +803,6 @@ int do_irq(void)
 	  pic_print(2, "Initiating VM86 irq lvl ", ilevel, " in do_irq");
           run_vm86();
         }
-        pic_isr &= pic_irqall;    /*  levels 0 and 16-31 are Auto-EOI  */
 	if (!test_bit(ilevel,&pic_isr))
 	  break;
 

@@ -9,7 +9,7 @@ include $(top_builddir)/Makefile.conf
 
 
 CFILES=dosio.c ioctl.c shared.c disks.c utilities.c dos2linux.c dump.c \
-	priv.c fatfs.c userhook.c
+	priv.c fatfs.c userhook.c zalloc.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

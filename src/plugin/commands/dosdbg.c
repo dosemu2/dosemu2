@@ -41,12 +41,11 @@
 #include "emu.h"
 #include "memory.h"
 #include "doshelpers.h"
-#include "../coopthreads/coopthreads.h"
+#include "builtins.h"
 
 #include "dosdbg.h"
 
 #define printf  com_printf
-#define intr    com_intr
 #define strcmpi strcasecmp
 #define FP_OFF(x) FP_OFF32(x)
 #define FP_SEG(x) FP_SEG32(x)
@@ -106,12 +105,12 @@ T  I/O-trace    e  cpu-emu\n");
 
 static uint16 GetDebugString(char *debugStr)
 {
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
     char *s = com_strdup(debugStr);
     preg.r_es = FP_SEG(s);
     preg.r_di = FP_OFF(s);
     preg.r_ax = DOS_HELPER_GET_DEBUG_STRING;
-    intr(DOS_HELPER_INT, &preg);
+    dos_helper_r(&preg);
     strcpy(debugStr,s);
     com_strfree(s);
     return (preg.r_ax);
@@ -120,12 +119,12 @@ static uint16 GetDebugString(char *debugStr)
 
 static uint16 SetDebugString(char *debugStr)
 {
-    struct REGPACK preg;
+    struct REGPACK preg = REGPACK_INIT;
     char *s = com_strdup(debugStr);
     preg.r_es = FP_SEG(s);
     preg.r_di = FP_OFF(s);
     preg.r_ax = DOS_HELPER_SET_DEBUG_STRING;
-    intr(DOS_HELPER_INT, &preg);
+    dos_helper_r(&preg);
     com_strfree(s);
     return (preg.r_ax);
 }
