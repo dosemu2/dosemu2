@@ -237,13 +237,19 @@ bad:
  * dosemu/utilities.c:     char_out(*s++, READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
  * video/int10.c:    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
  * EMS and XMS memory transfer functions may also touch video mem.
+ *  but if only the protection needs to be adjusted (no instructions emulated)
+ *  we should be able to handle it in DOSEMU 
  */
   if(_trapno==0x0e && config.X) {
     for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
       if ((_cr2 >> PAGE_SHIFT) >= vga.mem.map[i].base_page &&
-         (_cr2 >> PAGE_SHIFT) < vga.mem.map[i].base_page + vga.mem.map[i].pages)
+	  (_cr2 >> PAGE_SHIFT) < vga.mem.map[i].base_page + vga.mem.map[i].pages) {
         /* Is this check correct??? */
-        error("BUG: dosemu touched the protected video memory!!!\n");
+	if (vga.inst_emu)
+	  error("BUG: dosemu touched the protected video memory!!!\n");
+	else if(VGA_EMU_FAULT(scp,code,1)==True)
+          return;
+      }
     }
   }
 #endif /* X_GRAPHICS */
