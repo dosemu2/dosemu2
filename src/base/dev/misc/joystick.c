@@ -11,7 +11,7 @@
  * routines for DOSEMU.
  *
  * If you have set up the joystick in Linux, everything should work like it
- * does in real DOS ie. you can have two joysticks (untested) or one joystick,
+ * does in real DOS i.e. you can have two joysticks (untested) or one joystick,
  * in which this code will do the appropriate (and correct) axis and button
  * mapping or of course, no joysticks, which is also supported :).
  *
@@ -23,7 +23,8 @@
  * Copyright (c) 2002 Clarence Dang <dang@kde.org>
  * (not to be confused with DANG, which is the Dosemu Alterer Novices Guide :)
  *
- * Last Modified: 20 Nov 2002 (Version 2)
+ *
+ * Last Modified: $Date$ (Version 2)
  */
 
 
@@ -369,8 +370,7 @@ void joy_init (void)
 		#ifdef JOY_INIT_DEBUG
 			joy_init_printf ("joystick 0x%X: will not be initialised\n", joynum);
 		#endif
-			continue;	/* I wonder if a real PC would treat the 2nd joystick as
-								the 2nd joystick if the 1st failed to init... */
+			continue;
 		}
 
 		/* open joystick device */
@@ -703,7 +703,7 @@ static inline int joy_latency_over (void)
  * Update the button status for each joystick.
  *
  * We must perform "button mapping" if only the first joystick is enabled
- * ie. we are required to map the "excessive" buttons (>2) from the first
+ * i.e. we are required to map the "excessive" buttons (>2) from the first
  * joystick onto the second:
  *
  *	a) 3rd button of 1st joy --> 1st button of 2nd joy
@@ -756,7 +756,7 @@ static inline void joy_emu_button_set (const int joynum, const int button, const
  * Update the axis status for each joystick.
  *
  * We must perform "axis mapping" if only the first joystick is enabled
- * ie. we are required to map the "excessive" axes (>2) from the first
+ * i.e. we are required to map the "excessive" axes (>2) from the first
  * joystick onto the second:
  *
  *	a) 3rd axis of 1st joy --> 2st axis of 2nd joy
@@ -765,9 +765,6 @@ static inline void joy_emu_button_set (const int joynum, const int button, const
  *	   (yes, these are reversed deliberately because it's what happens in DOS)
  *
  * DANG_END_FUNCTION
- */
-
-/* DANG_FIXTHIS I've lost my joystick Y-cable (lets you connect two joysticks to one gameport) so the code to handle two joysticks is totally untested!
  */
 static inline void joy_emu_axis_set (const int joynum, const int axis, const int value)
 {
@@ -1195,7 +1192,7 @@ static int joy_linux_read_axis_new_threaded (const int joynum, const int axis,
 /*
  * DANG_BEGIN_FUNCTION joy_bios_read
  *
- * This is the int15 function 0x84 handler (ie. BIOS joystick emulation),
+ * This is the int15 function 0x84 handler (i.e. BIOS joystick emulation),
  * called from src/base/async/int.c.
  *
  * The real BIOS actually reads its values straight from the joystick port
