@@ -585,11 +585,6 @@ static void end_selection(void);
 static void send_selection(Time, Window, Atom, Atom);
 #endif
 
-#if USE_SCROLL_QUEUE
-static void X_scroll(int, int, int, int, int, Bit8u);
-static void do_scroll(void);
-#endif
-
 void kdos_recv_msg(unsigned char *);
 void kdos_send_msg(unsigned char *);
 void kdos_close_msg(void);
@@ -2786,12 +2781,10 @@ void X_reset_redraw_text_screen()
   if(!is_mapped) return;
 
   prev_cursor_shape = NO_CURSOR; redraw_cursor();
-  clear_scroll_queue();
 
   XFlush(display);
 
   MEMCPY_2UNIX(prev_screen, screen_adr, co * li * 2);
-  clear_scroll_queue();
 }
 
 
@@ -2904,10 +2897,6 @@ int X_update_text_screen()
 
   refresh_palette();
 
-#if USE_SCROLL_QUEUE
-  do_scroll();
-#endif
-  
   /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
    * screen changes, it often incurs considerable delay when this
@@ -3801,83 +3790,6 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
 }
 
 #endif /* CONFIG_X_SELECTION */
-
-
-#if USE_SCROLL_QUEUE
-#if 0
-#define Bit16u us
-#define Boolean boolean
-#endif
-
-#error X does not do scroll queueing
-  
-/* XCopyArea can't be used if the window is obscured and backing store
- * isn't used!
- */
-void X_scroll(int x, int y, int width, int height, int n, Bit8u attr)
-{
-  x*=font_width;
-  y*=font_height;
-  width*=font_width;
-  height*=font_height;
-  n*=font_height;
-  
-  XSetForeground(display,gc,text_colors[attr>>4]);
-  
-  if (n > 0) 
-    {       /* scroll up */
-      if (n>=height) 
-	{
-        n=height;
-     }
-      else 
-	{
-        height-=n;
-	  XCopyArea(display,mainwindow,mainwindow,gc,x,y+n,width,height,x,y);
-     }
-     /*
-      XFillRectangle(display,mainwindow,gc,x,y+height,width,n);
-     */
-  }
-  else if (n < 0) 
-    {  /* scroll down */
-      if (-n>=height) 
-	{
-        n=-height;
-     }
-      else 
-	{
-        height+=n;
-	  XCopyArea(display,mainwindow,mainwindow,gc,x,y,width,height,x,y-n);
-     }
-     /*
-      XFillRectangle(display,mainwindow,gc,x,y,width,-n);
-     */
-  }
-}
-
-
-/* Process the scroll queue */
-static void do_scroll(void) 
-{
-   struct scroll_entry *s;
-
-   X_printf("X: do_scroll\n");
-  while(s=get_scroll_queue()) 
-    {
-      if (s->n!=0) 
-	{
-         X_scroll(s->x0,s->y0,s->x1-s->x0+1,s->y1-s->y0+1,s->n,s->attr);
-         Scroll(prev_screen,s->x0,s->y0,s->x1,s->y1,s->n,0xff);
-      if ((prev_cursor_col >= s->x0) && (prev_cursor_col <= s->x1) &&
-        (prev_cursor_row >= s->y0) && (prev_cursor_row <= s->y1))
-         {
-        prev_cursor_shape = NO_CURSOR;  /* Cursor was overwritten. */
-         }
-      }
-   }
-}
-#endif   /* USE_SCROLL_QUEUE */
 
 
 /*

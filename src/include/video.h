@@ -72,39 +72,6 @@ void init_dualmon(void);
 #define ATTR_FG(attr) (attr & 0x0F)
 #define ATTR_BG(attr) (attr >> 4)
 
-/**********************************************************************/
-/* scroll queue */
-
-#define USE_SCROLL_QUEUE 0
-
-#if USE_SCROLL_QUEUE
-
-struct scroll_entry {
-   short x0,y0,x1,y1;
-   short n;
-   byte attr;
-};
-
-#define SQ_MAXLENGTH 5
-
-struct scroll_entry scroll_queue[SQ_MAXLENGTH+1];
-int sq_head,sq_tail;
-
-struct scroll_entry *get_scroll_queue();
-void clear_scroll_queue();
-
-extern int video_update_lock;
-
-#define VIDEO_UPDATE_LOCK() video_update_lock++;
-#define VIDEO_UPDATE_UNLOCK() video_update_lock--;
-
-#else
-#define video_update_lock 0
-#define VIDEO_UPDATE_LOCK()
-#define VIDEO_UPDATE_UNLOCK()
-#define clear_scroll_queue()
-#endif
-
 /***********************************************************************/
 
 /* Here's an idea to clean up the video code: Build a 'virtual' video

@@ -82,9 +82,6 @@
 #endif
 
 #if USE_DUALMON
-  #if USE_SCROLL_QUEUE
-    #error "dualmon: You can't have defined USE_SCROLL_QUEUE together with USE_DUALMON"
-  #endif
   #define BIOS_CONFIG_SCREEN_MODE (READ_WORD(BIOS_CONFIGURATION) & 0x30)
   #define IS_SCREENMODE_MDA (BIOS_CONFIG_SCREEN_MODE == 0x30)
   /* This is the text screen base, the DOS program actually has to use.
@@ -235,65 +232,13 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
   }
 }
 
-/**************************************************************/
-/* scroll queue */
-
-#if USE_SCROLL_QUEUE
-
-int sq_head=0, sq_tail=0;
-
-#define SQ_INC(i) ((i+1)%(SQ_MAXLENGTH+1))
-
-struct scroll_entry *get_scroll_queue() {
-   if (sq_head==sq_tail) return NULL;
-   sq_tail=SQ_INC(sq_tail);
-   return &scroll_queue[sq_tail];
-}
-
-void clear_scroll_queue() {
-   while(get_scroll_queue());
-}
-
-volatile int video_update_lock = 0;
-
-void bios_scroll(int x0,int y0,int x1,int y1,int n,byte attr) {
-   struct scroll_entry *s;
-   int sqh2;
-
-   if (config.cardtype == CARD_NONE)
-     return;
-
-   VIDEO_UPDATE_LOCK();
-   sqh2=SQ_INC(sq_head);
-   if (n!=0 && !Video->is_mapped && sqh2!=sq_tail) {
-      s=&scroll_queue[sq_head];
-      if (sq_head!=sq_tail && 
-	 s->x0==x0 && s->y0==y0 && 
-	 s->x1==x1 && s->y1==y1 &&
-	 s->attr==attr)
-      {
-         s->n+=n;
-      }
-      else {
-	 s=&scroll_queue[sqh2];
-         s->x0=x0; s->y0=y0;
-         s->x1=x1; s->y1=y1;
-         s->n=n;   s->attr=attr;
-         sq_head=sqh2;
-      }
-   }
-   Scroll(screen_adr,x0,y0,x1,y1,n,attr);
-   VIDEO_UPDATE_UNLOCK();
-}
+#if USE_DUALMON
+  #define bios_scroll(x0,y0,x1,y1,n,attr) ({\
+    if (IS_SCREENMODE_MDA) Scroll((void *)MDA_PHYS_TEXT_BASE,x0,y0,x1,y1,n,attr); \
+    else Scroll(screen_adr,x0,y0,x1,y1,n,attr);\
+   })
 #else
-  #if USE_DUALMON
-    #define bios_scroll(x0,y0,x1,y1,n,attr) ({\
-     if (IS_SCREENMODE_MDA) Scroll((void *)MDA_PHYS_TEXT_BASE,x0,y0,x1,y1,n,attr); \
-     else Scroll(screen_adr,x0,y0,x1,y1,n,attr);\
-    })
-  #else
-    #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
-  #endif
+  #define bios_scroll(x0,y0,x1,y1,n,attr) Scroll(screen_adr,x0,y0,x1,y1,n,attr)
 #endif
 
 /* Output a character to the screen. */ 
@@ -423,7 +368,6 @@ clear_screen(int s, int att)
   set_bios_cursor_x_position(s, 0);
   set_bios_cursor_y_position(s, 0);
   cursor_row = cursor_col = 0;
-  clear_scroll_queue();
 }
 
 
@@ -502,10 +446,6 @@ static boolean X_set_video_mode(int mode) {
    */
   WRITE_BYTE(BIOS_VIDEO_MODE, vmi->VGA_mode & 0x7f);
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
-
-  if(vmi->mode_class == TEXT) {
-    clear_scroll_queue();
-  }
 
   li = vmi->text_height;
   co = vmi->text_width;
@@ -656,8 +596,6 @@ boolean set_video_mode(int mode) {
 #endif
     
 do_text_mode:
-    clear_scroll_queue();
-
     li=text_scanlines/vga_font_height;
     if (li>MAX_LINES) li=MAX_LINES;
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
