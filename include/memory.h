@@ -105,6 +105,7 @@
 
 #define INT10_SEG	ROMBIOSSEG
 #define INT10_OFF	0x4200
+#define INT10_WATCHER_OFF	0x4240
 #define INT10_ADD	((INT10_SEG << 4) + INT10_OFF)
 
 /* This inline interrupt is used for FCB open calls */

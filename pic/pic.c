@@ -488,8 +488,8 @@ int do_irq()
 	else
           run_vm86();
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
-        run_irqs();
         serial_run();           /*  delete when moved to timer stuff */
+        run_irqs();
 #if 0
 #ifdef USING_NET
         /* check for available packets on the packet driver interface */
@@ -536,7 +536,7 @@ int inum;
   if (pic_iinfo[inum].func == (void *)0)
     return; 
 #if 1		/* use this result mouse slowndown in winos2 */
-  if(pic_isr&(1<<inum) || (inum==pic_ilevel && pic_icount !=0))
+  if(((pic_irr|pic_isr)&(1<<inum)) || (inum==pic_ilevel && pic_icount !=0))
 #else          /* this make mouse work under winos2, but sometime */
 	       /* result in internal stack overflow  */
   if(pic_isr&(1<<inum) || pic_irr&(1<<inum))
@@ -621,6 +621,7 @@ inline void pic_watch()
   pic_pirr&=~pic_irr;
   pic_wirr&=~pic_irr;
   pic_wirr|=pic_pirr;   	  /* set a new pending list for next time */
+  if(!pic_wirr) pic_icount=0;
 }      
 
 

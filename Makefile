@@ -103,8 +103,8 @@ export PICOBJS
 # make config if change these lines
 # Uncomment the following if you still have your UUCP locks in /usr/spool/uucp
 PATH_LOCKD = -DPATH_LOCKD=\"/usr/spool/uucp\"
-# Uncomment the following if you your UUCP locks in /var/locks
-#PATH_LOCKD = -DPATH_LOCKD=\"/var/locks\"
+# Uncomment the following if you your UUCP locks in /var/lock
+#PATH_LOCKD = -DPATH_LOCKD=\"/var/lock\"
 # First part of Lock file names, prepended to 'tty5' etc.
 NAME_LOCKF = -DNAME_LOCKF=\"LCK..\"
 
@@ -128,7 +128,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 0
+PATCHLEVEL = 1
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -148,11 +148,12 @@ CFILES=emu.c dos.c $(X2CFILES) data.c dosstatic.c
 
 export USING_NET = -DUSING_NET
 ifdef USING_NET
-export NET = net
+export NET=net
 endif
 
 # SYNC_ALOT
-#   uncomment this if the emulator is crashing your machine and some debug info #   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) #SYNC_ALOT = -DSYNC_ALOT=1 
+#   uncomment this if the emulator is crashing your machine and some debug info 
+#   isn't being sync'd to the debug file (stdout). shouldn't happen. :-) 
 #SYNC_ALOT = -DSYNC_ALOT=1
 
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\" 
@@ -172,7 +173,7 @@ else
 OPTIONALSUBDIRS =examples v-net ipxutils
 endif
 
-LIBSUBDIRS= video dosemu pic dpmi mfs init keyboard mouse $(NET) $(IPX) drivers
+LIBSUBDIRS=video dosemu pic dpmi mfs init serial keyboard mouse $(NET) $(IPX) drivers
 
 SUBDIRS= include boot \
 	$(CLIENTSSUB) kernel
@@ -298,51 +299,60 @@ simple:	dossubdirs dosstatic # libdosemu dos
 endif
 endif
 
-default: warning2 config dep doslibnew
+# The assumption is that most new users will only type 'make'
+# if they have not read the documentation, so therefore a 
+# keypress pause is a good idea here and is included here.
 
-# warning: warning2
-#	@echo "To compile DOSEMU, type 'make doeverything'"
-#	@echo "To compile DOSEMU if you dont want to use TeX, type 'make most'"
-#	@echo ""
-	
+default: warning2 pausekey config dep doslibnew
+
 warning2: 
-	@echo ""
-	@echo "IMPORTANT: "
-	@echo "  -> Please read the new 'QuickStart' file before compiling DOSEMU!"
-	@echo "  -> The location and format of DOSEMU files have changed since 0.50pl1 release!"
-	@echo "  -> This package requires at least the following:"
-	@echo "     gcc 2.4.5, lib 4.4.4, Linux 1.1.30,"
-	@echo "     and 16MB total swap+RAM.  (you may actually need up to 20MB total)"
-	@if [ "1" = "$(X_SUPPORT)" ]; then \
-		echo "  -> I guess, you'll compile DOSEMU with X11-support." ; \
-		echo "     The X11-libs reside in $(X11LIBDIR)"; \
-	else \
-		echo "  -> I didn't find the X11-development-system here." ; \
-		echo "     DOSEMU will be compiled without X11-support." ; \
-	fi
-	@if [ "1" = "$(WIN31)" ]; then \
-		echo "  -> You are OK for Windows 3.1 support, using it." ; \
-	else \
-		echo "  -> No kernel-support for Windows 3.1." ; \
-	fi
-	@echo "  -> Hit Ctrl-C now to abort if you forgot something!"
-	@echo ""
+	@echo ""; \
+	 echo "Starting DOSEMU "$(EMUVER)" compile..."; \
+	 echo ""; \
+	 echo "-> IMPORTANT!"; \
+	 echo "    - Please read 'QuickStart' file before compiling DOSEMU!"; \
+	 echo "    - Location and format of DOSEMU files have changed since 0.50pl1!"; \
+	 echo ""; \
+	 echo "-> REQUIREMENTS for DOSEMU:"; \
+	 echo "    - gcc 2.5.8"; \
+	 echo "    - libc 4.5.21"; \
+	 echo "    - Linux 1.1.45"; \
+	 echo "    - 16 megabytes total memory+swap"; \
+	 echo ""; \
+	 echo "-> AUTOMATIC DETECTION:"; \
+	 if [ "1" = "$(X_SUPPORT)" ]; then \
+	 	echo "    - Found X11 development files, X-libs in $(X11LIBDIR)."; \
+	 	echo "      DOSEMU will be compiled with X-window support."; \
+	 else \
+	 	echo "    - Could not find the X11 development files"; \
+	 	echo "      DOSEMU will be compiled without X-window support."; \
+	 fi; \
+	 if [ "1" = "$(WIN31)" ]; then \
+	 	echo "    - Your kernel contains support for experimental use of Windows 3.1."; \
+	 else \
+	 	echo "    - Kernel is not patched for experimental use of Windows 3.1."; \
+	 fi; \
+	 echo ""; \
+
+pausekey:
+	@echo "====> Press Enter to continue, or hit Ctrl-C to abort <===="
+	@read
+
+pausedelay:
+	@echo "====> HIT CTRL-C NOW to abort if you forgot something! <===="
 	@sleep 10
 
-#	@echo "  -> You need to edit XWINDOWS SUPPORT accordingly in Makefile if you"
-#	@echo "     don't have Xwindows installed!" 
-
 warning3:
-	@echo ""
-	@echo "Be patient...This may take a while to complete, especially for 'mfs.c'."
-	@echo "Hopefully you have at least 16MB swap+RAM available during this compile."
-	@echo ""
+	@echo ""; \
+	 echo "Be patient...Some of this code may take a while to complete."; \
+	 echo "Hopefully you have at least 16MB swap+RAM available during this compile."; \
+	 echo ""
 
-doeverything: warning2 config dep $(DOCS) installnew
+doeverything: warning2 pausedelay config dep $(DOCS) installnew
 
-most: warning2 config dep installnew
+most: warning2 pausedelay config dep installnew
 
-itall: warning2 config dep optionalsubdirs $(DOCS) installnew
+itall: warning2 pausedelay config dep optionalsubdirs $(DOCS) installnew
 
 ifdef ELF
 all:	warnconf warning3 dos $(X2CEXE)
@@ -372,9 +382,13 @@ dos.o: include/config.h
 x2dos.o: include/config.h x2dos.c
 	$(CC) $(CFLAGS) -I/usr/openwin/include -c x2dos.c
 
-dosstatic:	dosstatic.c emu.o data.o bios/bios.o
-	$(LD) $(LDFLAGS) -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
-		$(addprefix -l, $(LIBS))  $(TCNTRL) $(XLIBS)
+DOSSTATICFILES = dosstatic.c emu.o data.o bios/bios.o
+
+dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS)}}
+	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
+		$(addprefix -L,$(LIBPATH)) \
+		-L. $(addprefix -l, $(LIBS)) \
+		$(TCNTRL) $(XLIBS)
 
 x2dos: x2dos.o
 	@echo "Including x2dos.o "
@@ -504,35 +518,35 @@ ifdef X_SUPPORT
 		fi \
 	fi
 endif
-	@echo ""
-	@echo "---------------------------------DONE Installing-------------------------------"
-	@echo ""
-	@echo "  - You need to configure DOSEMU. Read 'config.dist' in the 'examples' dir."
-	@echo "  - Update your /etc/dosemu.conf by editing a copy of './examples/config.dist'"
-	@echo "  - Using your old DOSEMU 0.52 configuration file might not work."
-	@echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
+	@echo ""; \
+	 echo "---------------------------------DONE Installing-------------------------------"; \
+	 echo ""; \
+	 echo "  - You need to configure DOSEMU. Read 'config.dist' in the 'examples' dir."; \
+	 echo "  - Update your /etc/dosemu.conf by editing a copy of './examples/config.dist'"; \
+	 echo "  - Using your old DOSEMU 0.52 configuration file might not work."; \
+	 echo "  - After configuring DOSEMU, you can type 'dos' to run DOSEMU."
 ifdef X_SUPPORT
-	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."
-	@echo "  - Type 'xset fp rehash' before running 'xdos' for the first time."
-	@echo "  - To make your backspace and delete key work properly in 'xdos', type:"
-	@echo "		xmodmap -e \"keycode 107 = 0xffff\""
-	@echo "		xmodmap -e \"keycode 22 = 0xff08\""
-	@echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"	
-	@echo ""
+	@echo "  - Use 'xdos' instead of 'dos' to cause DOSEMU to open its own Xwindow."; \
+	 echo "  - Type 'xset fp rehash' before running 'xdos' for the first time ever."; \
+	 echo "  - To make your backspace and delete key work properly in 'xdos', type:"; \
+	 echo "		xmodmap -e \"keycode 107 = 0xffff\""; \
+	 echo "		xmodmap -e \"keycode 22 = 0xff08\""; \
+	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
+	 echo ""
 endif
-	@echo "  - Try the ./commands/mouse.com if your INTERNAL mouse won't work"
-	@echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"
-	@echo ""
+	@echo "  - Try the ./commands/mouse.com if your INTERNAL mouse won't work"; \
+	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
+	 echo ""
 ifdef REQUIRES_EMUMODULE
-	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"
-	@echo "    use load_module.sh from this directory."
-	@echo ""
+	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"; \
+	 echo "    use load_module.sh from this directory."; \
+	 echo ""
 endif
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert
 	periph/mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
-	@echo "Your hdimage is now converted and ready to use with 0.52!"
+	@echo "Your hdimage is now converted and ready to use with 0.52 and above!"
 
 newhd: periph/bootsect
 	periph/mkhdimage -h 4 -s 17 -c 40 | cat - periph/bootsect > newhd
@@ -563,8 +577,8 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	@ls -l $(DISTFILE)
 
 local_clean:
-	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos libdosemu-0.* *.s core \
-	  dosstatic dosconfig  *.tmp dosemu.map *.o
+	-rm -f $(OBJS) $(X2CEXE) x2dos.o dos xdos libdosemu-* *.s core \
+	  dosstatic dosconfig *.tmp dosemu.map *.o
 
 local_realclean:
 	-rm -f include/config.h include/kversion.h tools/tools86 .depend
@@ -617,15 +631,15 @@ $(DEPENDDIRS):
 
 .PHONY: help
 help:
-	@echo The following targets will do make depends:
-	@echo 	$(DEPENDDIRS)
-	@echo "Each .c file has a corresponding .d file (the dependencies)"
-	@echo
-	@echo 
-	@echo Making dossubdirs will make the follow targets:
-	@echo "    " $(LIBSUBDIRS)
-	@echo
-	echo "To clean a directory, do make -C <dirname> clean|realclean"
+	@echo "The following targets will do make depends:"; \
+	 echo "     $(DEPENDDIRS)"; \
+	 echo "Each .c file has a corresponding .d file (the dependencies)"; \
+	 echo ""; \
+	 echo ""; \
+	 echo "'make dossubdirs' will make the follow targets:"; \
+	 echo "     $(LIBSUBDIRS)"; \
+	 echo ""; \
+	 echo "To clean a directory, do make -C <dirname> clean|realclean"
 
 echo::
 	for i in $(LIBSUBDIRS); do \

@@ -178,6 +178,15 @@ static int dos_helper(void)
       }
       in_video = 0;
     }
+    if (mice->intdrv) { /* grab int10 back from video card for mouse */
+        void bios_f000(), bios_f000_int10_old();
+        us *ptr = (us*)((BIOSSEG << 4) +
+                        ((long)bios_f000_int10_old - (long)bios_f000));
+        m_printf("ptr is at %p; ptr[0] = %x, ptr[1] = %x\n",ptr,ptr[0],ptr[1]);
+        ptr[0] = IOFF(0x10);
+        ptr[1] = ISEG(0x10);
+        m_printf("after store, ptr[0] = %x, ptr[1] = %x\n",ptr[0],ptr[1]);
+    }
     break;
 
   case 0x10:
@@ -639,10 +648,10 @@ static void int1a(u_char i)
     break;
   case 3:			/* set time */
   case 5:			/* set date */
-    error("ERROR: timer: can't set time/date\n");
+    g_printf("ERROR: timer: can't set time/date\n");
     break;
   default:
-    error("ERROR: timer error AX=0x%04x\n", LWORD(eax));
+    g_printf("ERROR: timer error AX=0x%04x\n", LWORD(eax));
     /* show_regs(__FILE__, __LINE__); */
     /* fatalerr = 9; */
     return;

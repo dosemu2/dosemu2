@@ -34,6 +34,8 @@ mgarrot.com  : give up cpu time when Dosemu is idle
 mouse.com    : fine tune internal mousedriver of Dosemu
                mouse h -- display help screen
 
+speed.com    : set cpu usage (HogThreshold) from inside Dosemu
+
 system.exe   : interface to system(2)...
 
 unix.com     : execute Linux commands from Dosemu

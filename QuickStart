@@ -88,9 +88,7 @@ If you already have a HDIMAGE file:
 - You can set up DOSEMU to boot directly off your DOS hard disk partition.
 
 - If you want to use disk compression such as STACKER or DOUBLESPACE with
-  DOSEMU, using partition access, you will probably need to use the
-  /usr/lib/dosemu/mkpartition command to create partition table data files.
-  Read documentation for more information.
+  DOSEMU, you will have to configure /etc/dosemu.conf for partition access.
 
 - From here you are on your own. Please read the documentation in the
   ./examples/config.dist file, the "DOSEMU-HOWTO" file, and the files

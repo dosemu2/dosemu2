@@ -29,8 +29,14 @@ extern void outport_43(int);
  * like this works okay...thanks to Andrew Tridgell.
  * same for int 0x15, ax=0x1000 (TopView/DESQview).
  */
+#if 1
 #define INT2F_IDLE_USECS	80000
 #define INT15_IDLE_USECS	80000
 #define INT28_IDLE_USECS	5000
+#else
+#define INT2F_IDLE_USECS	0
+#define INT15_IDLE_USECS	0
+#define INT28_IDLE_USECS	0
+#endif
 
 #endif /* TIMERS_H */

@@ -133,7 +133,7 @@ static int X_init(void) {
       
    if ((font=XLoadQueryFont(dpy, config.X_font))==NULL 
        || font->min_bounds.width != font->max_bounds.width) {
-      printf("ERROR: \"%s\" is not a monospaced font! Falling back to \"vga\".\n");
+      printf("ERROR: \"%s\" is not a monospaced font! Falling back to \"vga\".\n",config.X_font);
       if ((font=XLoadQueryFont(dpy, "vga"))==NULL
 	  || font->min_bounds.width!=font->max_bounds.width ) {
 	   printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
@@ -610,7 +610,6 @@ static void m_setpos(int x,int y) {
    if (x!=mouse.x || y!=mouse.y) {
       mouse.x=x; 
       mouse.y=y;
-      update_cursor_reg();
       mouse_move();
    }
 }   
@@ -623,8 +622,7 @@ static void m_setbuttons(int state) {
    mouse.mbutton = ((state & Button2Mask) != 0);
    mouse.rbutton = ((state & Button3Mask) != 0);
    if (mouse.lbutton!=mouse.oldlbutton) mouse_lb();
-   if (!mouse.mode)
-   if (mouse.mbutton!=mouse.oldmbutton) mouse_mb();
+   if (mouse.threebuttons && mouse.mbutton!=mouse.oldmbutton) mouse_mb();
    if (mouse.rbutton!=mouse.oldrbutton) mouse_rb();
 }
 

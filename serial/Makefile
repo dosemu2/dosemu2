@@ -1,0 +1,22 @@
+# This is the Makefile for the serial-subdirectory of DOSEMU.
+# Please send comments and bug-reports to mdrejhon@magi.com
+# Please read the code in this directory for more information.
+
+SUBDIR=serial
+
+#The C files, include files and dependancies here.
+CFILES = ser_init.c ser_irq.c ser_ports.c int14.c
+DEPENDS= ser_init.d ser_irq.d ser_ports.d int14.d
+HFILES = ser_defs.h
+
+# Insert all source- and header-files here.
+ALL = $(CFILES) $(HFILES) README.serial
+
+# All object-files are included here.
+OBJS = ser_init.o ser_irq.o ser_ports.o int14.o
+
+all: lib
+
+install:
+
+include ../Makefile.common

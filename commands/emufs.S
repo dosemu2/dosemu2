@@ -366,7 +366,7 @@ MFSin:
 	ret
 
 
-Mesage:	.ascii	"[Linux File System] drive "
+Mesage:	.ascii	"[Host File System] drive "
 Mesage1:
 	.ascii	"A: is directory "
 DirName:
@@ -375,7 +375,7 @@ DirName:
 
 OutMess:
 	.byte	cr,lf,lf
-	.ascii	"Linux Dos Server not responding."
+	.ascii	"Dosemu Server not responding."
 	.byte	cr,lf
 	.ascii	"Installation aborted."
 	.byte	cr,lf,lf,eom
@@ -384,5 +384,3 @@ NoName:	.ascii	"NO NAME"
 	.byte	0
 
 	end
-
-

@@ -44,6 +44,7 @@ typedef struct  {
   boolean add_to_io_select;
   boolean intdrv;
   boolean emulate3buttons;
+  boolean has3buttons;
   boolean cleardtr;
   int baudRate;
   int sampleRate;
@@ -54,56 +55,66 @@ typedef struct  {
 
 } mouse_t;
 
+/* this entire structure gets saved on a driver state save */
+/* therefore we try to keep it small where appropriate */
 EXTERN struct  {
   unsigned char lbutton, mbutton, rbutton;
   unsigned char oldlbutton, oldmbutton, oldrbutton;
 
-  int lpcount, lrcount, mpcount, mrcount, rpcount, rrcount;
+  short lpcount, lrcount, mpcount, mrcount, rpcount, rrcount;
 
   /* positions for last press/release for each button */
-  int lpx, lpy, mpx, mpy, rpx, rpy;
-  int lrx, lry, mrx, mry, rrx, rry;
+  short lpx, lpy, mpx, mpy, rpx, rpy;
+  short lrx, lry, mrx, mry, rrx, rry;
+
+  /* TRUE if we're in a graphics mode */
+  boolean gfx_cursor;
+
+  unsigned char xshift, yshift;
+
+  /* text cursor definition (we only support software cursor) */
+  unsigned short textscreenmask, textcursormask;
+
+  /* graphics cursor defnition */
+  signed char hotx, hoty;
+  unsigned short graphscreenmask[16], graphcursormask[16];
 
   /* exclusion zone */
-  int exc_ux, exc_uy, exc_lx, exc_ly;
+  short exc_ux, exc_uy, exc_lx, exc_ly;
 
-  /* these are for MOUSE position */
-  int x, y;
-  int points;
-  int minx, maxx, miny, maxy;
-  float speed_x, speed_y;
-
-  /* these are for CURSOR position */
-  int cx, cy;
-
-  /* these are for GRAPHIC cursor stuff */
-  boolean gfx_cursor;
-  unsigned short gfx_width, gfx_height;
-  unsigned short gfx_segment, gfx_offset;
-  unsigned char gsave[HEIGHT][PLANES][2];
-  int goldx, goldy;
-  boolean ginit;
+  /* these are clipped to min and max x; they are *not* rounded. */
+  short x, y;
+  /* these are rounded-off versions of the above which are returned
+  	to a client */
+  short rx, ry;
+  /* coordinates at which the cursor was last drawn */
+  short oldrx, oldry;
+  /* these are the cursor extents; they are rounded off. */
+  short minx, maxx, miny, maxy;
 
   /* these are for sensitivity options */
-  int threshold;
-  int language;
+  short speed_x, speed_y;
+  short threshold;
+  short language;
 
-  signed short mickeyx, mickeyy;
+  /* accumulated motion counters */
+  short mickeyx, mickeyy;
 
-  unsigned int cursor_on;
+  /* zero if cursor is on, negative if it's off */
+  short cursor_on;
 
   /* this is for the user-defined subroutine */
   unsigned short cs, ip;
   unsigned short *csp, *ipp;
   unsigned short mask;
 
-  unsigned short hidchar, newchar;
-  unsigned int hidx, hidy;
+  /* true if mouse has three buttons (third might be emulated) */
+  boolean threebuttons;
 
-  boolean mode;
+  short display_page;
 
-  int display_page;
-
+  /* ignore application's x/y speed settings?  might not be necessary
+  	anymore if I managed to get the speed settings correct. */
   boolean ignorexy;
 
   struct {

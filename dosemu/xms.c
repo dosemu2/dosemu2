@@ -713,7 +713,7 @@ xms_control(void)
     break;
 
   default:
-    error("Unimplemented XMS function AX=0x%04x", LWORD(eax));
+    x_printf("XMS: Unimplemented XMS function AX=0x%04x", LWORD(eax));
     show_regs(__FILE__, __LINE__);		/* if you delete this, put the \n on the line above */
     LWORD(eax) = 0;		/* failure */
     LO(bx) = 0x80;		/* function not implemented */
@@ -887,7 +887,7 @@ xms_move_EMB(void)
   }
   else {
     if (handles[e.SourceHandle].valid == 0)
-      error("XMS: invalid source handle\n");
+      x_printf("XMS: invalid source handle\n");
     src = handles[e.SourceHandle].addr + e.SourceOffset;
     if (((unsigned long int)handles[e.SourceHandle].addr + handles[e.SourceHandle].size) <
         ((unsigned long int)src + e.Length) ) {
@@ -903,7 +903,7 @@ xms_move_EMB(void)
   }
   else {
     if (handles[e.DestHandle].valid == 0)
-      error("XMS: invalid dest handle\n");
+      x_printf("XMS: invalid dest handle\n");
     dest = handles[e.DestHandle].addr + e.DestOffset;
     if (((unsigned long int)handles[e.DestHandle].addr + handles[e.DestHandle].size) <
         ((unsigned long int)dest + e.Length) ) {

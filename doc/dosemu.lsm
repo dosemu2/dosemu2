@@ -1,7 +1,7 @@
 Begin3
 Title:          DOSEMU PC Emulator
 
-Version:        0.60
+Version:        0.60.1
 
 Description:    This is a DOS emulation package with support for console, 
                 terminal and X-windows.  Includes DPMI emulation to run some 
@@ -15,7 +15,7 @@ Author:         linux-msdos@vger.rutgers.edu (The DOSEMU team)
 
 Maintained-by:  linux-msdos@vger.rutgers.edu (The DOSEMU team)
 
-Primary-site:   tsx-11.mit.edu /pub/linux/ALPHA/dosemu/dosemu-0.60.tgz
+Primary-site:   tsx-11.mit.edu /pub/linux/ALPHA/dosemu/dosemu-0.60.1.tgz
 
 Alternate-site: sunsite.unc.edu /pub/Linux/system/Emulators
                 dspsun.eas.asu.edu /pub/dosemu

@@ -13,12 +13,12 @@ CFLAGS+=$(DEFINES)
 
 # Insert all source- and header-files here.
 
-ALL = $(CFILES) $(HFILES)
 
-CFILES = mouse.c mouseint.c
+CFILES = mouse.c mouseint.c mousevid.c gcursor.c
 DEPENDS=$(CFILES:.c=.d)
 HFILES = mousevid.h
-OBJS = mouse.o mouseint.o
+ALL = $(CFILES) $(HFILES)
+OBJS = mouse.o mouseint.o mousevid.o gcursor.o
 
 all:  	lib
 

@@ -185,7 +185,7 @@ Initial Serial tty locking code: - Matthew Grant
 	Finally DOSEMU can be a bit UNIX wise when it tries to grab
 those serial tty's :-)
 
-Internal Mouse Driver: - Alan Hourihane
+Internal Mouse Driver: - Alan Hourihane, David Etherton
 
 	Here in is created code to emulate a built in PS/2 mouse by
 properly emulating all int33 mouse interupts and some more invloved
@@ -497,7 +497,7 @@ John Kohl		- jtk@atria.com
 Kevin P Lawton		- bochs@world.std.com
 Rod May			- stoke@melbourne.DIALix.oz.au
 WAYNE P MEISSNER	- n1046128@student.fit.qut.edu.au
-Vinod G Kulkarni	- vinod@cse.iitb.ernet.in
+David Etherton		- etherton@megatek.com
 
 Corey Sweeney
 corey@bbs.xnet.com

@@ -2,7 +2,8 @@ AS86 = as86 -0 -a
 LD86 = ld86 -0
 
 SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c
-OBJ=hdinfo bootsect mkhdimage getrom mkpartition putrom
+OBJ=hdinfo bootsect mkhdimage putrom
+SCRIPT=getrom
 
 all: $(OBJ)
 
@@ -20,20 +21,20 @@ bootsect: bootsect.S
 
 install:
 	install -d /usr/lib/dosemu
-	install -m 0755 mkhdimage mkpartition getrom putrom /usr/lib/dosemu
+	install -m 0755 mkhdimage putrom $(SCRIPT) /usr/lib/dosemu
 
 checkin:
-	-ci -l keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile
+	-ci -l keyboard.c.diff $(SRC) $(SCRIPT) Makefile
 
 checkout:
-	-co -M -l keyboard.c.diff hdinfo.c bootsect.S mkhdimage.c putrom.c mkpartition getrom Makefile
+	-co -M -l keyboard.c.diff $(SRC) $(SCRIPT) Makefile
 
 clean:
-	rm -f bootsect *.o hdinfo mkhdimage putrom
+	rm -f $(OBJ) *.o
 
 realclean: clean
 
-dist: $(SRC) $(OBJ)
+dist: $(SRC) $(SCRIPT)
 	install -d $(DISTPATH)/periph
 	install -m 0644 Makefile keyboard.c.diff $(SRC) $(DISTPATH)/periph
-	install -m 0755 $(OBJ) $(DISTPATH)/periph
+	install -m 0755 $(SCRIPT) $(DISTPATH)/periph

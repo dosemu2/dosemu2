@@ -44,7 +44,7 @@
 
 #ifdef _LOADABLE_VM86_
   #include "emumod.h"
-  #ifdef JONS_VM86_TIME
+  #ifdef JONS_VM86_TIME_NOT
     #if KERNEL_VERSION < 1001075
       #error "can't compile Jon's timer patch for kernels < 1.1.75"
     #endif
@@ -94,7 +94,7 @@ asmlinkage struct pt_regs * save_v86_state(struct vm86_regs * regs)
 	set_flags(regs->eflags, VEFLAGS, VIF_MASK | current->tss.v86mask);
 	memcpy_tofs(&current->tss.vm86_info->regs,regs,sizeof(*regs));
 	put_fs_long(current->tss.screen_bitmap,&current->tss.vm86_info->screen_bitmap);
-  #if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+  #if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 	{
 	  struct timeval tp;
 	  struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
@@ -200,7 +200,7 @@ asmlinkage int sys_vm86(struct vm86_struct * v86)
 	if (current->saved_kernel_stack)
 		return -EPERM;
 	/* v86 must be readable (now) and writable (for save_v86_state) */
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 	error = verify_area(VERIFY_WRITE,v86,sizeof(struct vm86plus_struct));
 #else
 	error = verify_area(VERIFY_WRITE,v86,sizeof(*v86));
@@ -462,7 +462,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	unsigned char *csp, *ssp;
 	unsigned long ip, sp;
 
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 	struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
 	int is_vm86plus;
 	long vmpmagic;
@@ -474,7 +474,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	vm86_fault_count++;
 #endif
 
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 	memcpy_fromfs(&vmpmagic,&vmp->vm86plus_magic,sizeof(long));
 	is_vm86plus=( vmpmagic == VM86PLUS_MAGIC );
 #endif
@@ -495,7 +495,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 			SP(regs) -= 4;
 			IP(regs) += 2;
 			pushl(ssp, sp, get_vflags(regs));
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 			if (is_vm86plus) break;
 			else return;
 #else
@@ -507,7 +507,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 			SP(regs) += 4;
 			IP(regs) += 2;
 			set_vflags_long(popl(ssp, sp), regs);
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 			if (is_vm86plus) break;
 			else return;
 #else
@@ -520,7 +520,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 		SP(regs) -= 2;
 		IP(regs)++;
 		pushw(ssp, sp, get_vflags(regs));
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 		if (is_vm86plus) break;
 		else return;
 #else
@@ -532,7 +532,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 		SP(regs) += 2;
 		IP(regs)++;
 		set_vflags_short(popw(ssp, sp), regs);
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 		if (is_vm86plus) break;
 		else return;
 #else
@@ -560,7 +560,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 		IP(regs) = popw(ssp, sp);
 		regs->cs = popw(ssp, sp);
 		set_vflags_short(popw(ssp, sp), regs);
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 		if (is_vm86plus) break;
 		else return;
 #else
@@ -574,7 +574,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 #endif
 		IP(regs)++;
 		clear_IF(regs);
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 		if (is_vm86plus) break;
 		else return;
 #else
@@ -594,7 +594,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 #endif          
 		IP(regs)++;
 		set_IF(regs);
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 		if (is_vm86plus) break;
 		else return;
 #else
@@ -604,7 +604,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	default:
 		return_to_32bit(regs, VM86_UNKNOWN);
 	}
-#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME)
+#if defined(_LOADABLE_VM86_) && defined(JONS_VM86_TIME_NOT)
 	if (is_vm86plus) {
 		struct timeval tv, vmptv;
 		memcpy_fromfs(&vmptv,&vmp->tv,sizeof(struct timeval));

@@ -23,10 +23,8 @@ clean:
 
 realclean: clean
 
-realclean:
-
 install:
 
-dist: boot.S boot.o
+dist: boot.S
 	install -d $(DISTPATH)/boot
-	install -m 0644 Makefile boot.S boot.o $(DISTPATH)/boot
+	install -m 0644 Makefile boot.S $(DISTPATH)/boot

@@ -786,9 +786,9 @@ emulate(int argc, char **argv)
 #if 0
 	timer_int_engine();
 #endif
+	serial_run();
 	run_irqs();		/* trigger any hardware interrupts
 				 * requested */
-	serial_run();
 #if 0
 #ifdef USING_NET
 	/* check for available packets on the packet driver interface */

@@ -1,7 +1,7 @@
 #! /bin/sh
 #
 # Well, we need this to generate a kernel version number,
-# that can be easyly used whith #if.
+# that can be easily used whith #if.
 #
 # We do *not* use /proc/version, because we don't rely on the version of the
 # loaded kernel, but on the /usr/src/linux/include..., which is used
@@ -12,6 +12,10 @@
 #
 
 VERSION=""
+
+# "set -P" does not work on bash 1.14.2, and 1.14.3 is buggy
+nolinks=1
+export nolinks
 
 function zeropad() {
   if [ $1 -lt 10 ]; then VERSION="${VERSION}00$1"
@@ -30,14 +34,14 @@ fi
 if [ "$KERNELSRC" = "-find" ]; then
   KERNELSRC=""
   if [ -d /usr/include/linux ]; then
-    xxxx=`(cd /usr/include/linux; set -P; pwd)`
+    xxxx=`(cd /usr/include/linux; pwd)`
     KERNELSRC=`(cd $xxxx/../..; pwd)`
   else
     if [ -d /usr/src/linux ]; then
-      KERNELSRC=`(cd /usr/src/linux; set -P; pwd)`
+      KERNELSRC=`(cd /usr/src/linux; pwd)`
     else
       if [ -d /linux ]; then
-        KERNELSRC=`(cd /linux; set -P; pwd)`
+        KERNELSRC=`(cd /linux; pwd)`
       else
         echo "kversion.sh: cannot find any of the standard linux trees, giving up"
         echo "You have to edit LINUX_KERNEL in the main Makefile so that it"

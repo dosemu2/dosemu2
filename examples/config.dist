@@ -1,4 +1,4 @@
-# Linux dosemu 0.53 configuration file.
+# Linux dosemu 0.60 configuration file.
 # Updated to include QuickStart documentation 5/10/94 by Mark Rejhon
 # James MacLean, jmaclean@fox.nstn.ns.ca, 12/31/93
 # Robert Sanders, gt8134b@prism.gatech.edu, 5/16/93
@@ -170,7 +170,7 @@ ipxsupport off
 #       default value is 30 which is Ctrl-^.  So, for example, F1 is 
 #       'Ctrl-^ 1', Alt-F7 is 'Ctrl-^ a Ctrl-^ 7'.  For online help, press
 #       'Ctrl-^ h'.
-@
+#
 #    Use the following to enable the IBM character set.
 #terminal { charset ibm  color on }
 #
@@ -395,10 +395,7 @@ speaker native         # or "off" or "emulated"
 #    You must not have LILO installed on the partition for dosemu to boot off. 
 #    As of 04/26/94, doublespace and stacker 3.1 will work with wholedisk 
 #    or partition only access.  Stacker 4.0 has been reported to work with
-#    wholedisk access.  If you want to use disk compression using partition
-#    access, you will need to use the "mkpartition" command included with
-#    dosemu to create a partition table datafile for dosemu.  The command are
-#    installed in /var/lib/dosemu.
+#    wholedisk access.
 #
 #    Please read the documentation in the "doc" subdirectory for info
 #    on how to set up access to real hard disk.

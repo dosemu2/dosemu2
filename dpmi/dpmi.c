@@ -1716,8 +1716,8 @@ void dpmi_init()
   in_sigsegv--;
   for (; (!fatalerr && in_dpmi) ;) {
     run_dpmi();
-    run_irqs();
     serial_run();
+    run_irqs();
     int_queue_run();
   }
   in_sigsegv++;

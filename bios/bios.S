@@ -539,6 +539,45 @@ CISH(bios_f000_int10ptr):
 	sti
 	retf
 
+
+/* This is installed after video init (helper fcn 0x9) when the internal
+	mouse driver is in use.  It watches for mouse set commands and
+	resets the mouse driver when it sees one. */
+/* Comments and bugs to David Etherton, etherton@netcom.com */
+
+	.org	((INT10_SEG-BIOSSEG) << 4)+INT10_WATCHER_OFF
+	or	ah,ah
+	jz	L9	/* normal mode set */
+	cmp	ax,#0x4F02
+	jne	L10	/* svga mode set */
+L9:
+	pusha		/* save everything */
+	mov	ax,#0x33	/* mouse helper */
+	mov	bx,#0xf0	/* start video mode set */
+	int	DOSHELPER_INT
+	popa
+
+	pushf		/* fake stack frame for iret */
+	push	cs
+	call	L10	/* perform the actual mode set */
+
+	pushf		/* remember everything from int10 call */
+	pusha
+	mov	ax,#0x33	/* mouse helper */
+	mov	bx,#0xf1	/* end video mode set */
+	int	DOSHELPER_INT
+	popa
+	popf
+	iret		/* return to original caller */
+
+L10:	/* chain to original handler (probably the video bios) */
+	pushf
+	db	0x9a
+	.globl	CISH(bios_f000_int10_old)
+CISH(bios_f000_int10_old):
+	dw	0,0
+	iret
+
 /* ----------------------------------------------------------------- */   
 		/* This is an int e7 used for FCB opens */
 	.org	((INTE7_SEG-BIOSSEG) << 4)+INTE7_OFF

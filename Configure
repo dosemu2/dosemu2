@@ -101,12 +101,12 @@ echo "" >> $CONFIG
 }
 
 
-select_miscallenous() {
+select_miscellaneous() {
 
-delete_part "## MISCALLENOUS ##"
-echo "## MISCALLENOUS ##" >> $CONFIG
+delete_part "## MISCELLANEOUS ##"
+echo "## MISCELLANEOUS ##" >> $CONFIG
 
-dialog  --title "MISCALLENOUS" --checklist "DOSBANNER : Want startup DOSEMU \
+dialog  --title "MISCELLANEOUS" --checklist "DOSBANNER : Want startup DOSEMU \
 banner messages?  Of course :-)\nTIMEINT   : is necessary for many programs to \
 work." 10 70 2\
    1 dosbanner on \
@@ -124,7 +124,7 @@ do
    esac
 done
 
-dialog  --title "MISCALLENOUS" --radiolist "select cpu-type to emulate" 10 40 3\
+dialog  --title "MISCELLANEOUS" --radiolist "select cpu-type to emulate" 10 40 3\
    1 80286 off\
    2 80386 off \
    3 80486 on 2>$TEMP
@@ -138,7 +138,7 @@ case $choice in
    3) echo "cpu 80486" >> $CONFIG;;
 esac
 
-dialog  --title "MISCALLENOUS" --checklist "mathcoprocessor on durin DOSEMU\
+dialog  --title "MISCELLANEOUS" --checklist "mathcoprocessor on during DOSEMU\
 ? : " 8 50 1 \
    1 "mathcoprocessor on" on 2> $TEMP
 
@@ -150,7 +150,7 @@ case $choice in
    "") echo "mathco off" >> $CONFIG;;
 esac
 
-dialog  --title "MISCALLENOUS" --radiolist "boot from" 9 30 2\
+dialog  --title "MISCELLANEOUS" --radiolist "boot from" 9 30 2\
    1 "boot from A" off\
    2 "boot from C" on 2> $TEMP
 
@@ -866,7 +866,7 @@ main_menu() {
 dialog --title "DosEmu configuration program" \
    --menu "Select function" 21 60 13 \
   1 "Debug " \
-  2 "Miscallenous" \
+  2 "Miscellaneous" \
   3 "Keyboard" \
   4 "Memory" \
   5 "Speaker" \
@@ -882,14 +882,14 @@ dialog --title "DosEmu configuration program" \
 if [ $? != 0 ]
 then tput sgr0
      clear
-     echo -e "configuration finnished\n\n"
+     echo -e "configuration finished\n\n"
      exit
 fi
 
 choice=`cat $TEMP`
 case $choice in
    1) select_debug;;
-   2) select_miscallenous;;
+   2) select_miscellaneous;;
    3) select_keyboard;;
    4) select_memory;;
    5) select_speaker;;

@@ -73,7 +73,7 @@ DOSEMUSetupMouse()
 	      	were already *in* MM series mode. */
 	      RPT_SYSCALL(write(mice->fd, "S", 1));
 
-	      /* Need to use flags for MM series, not Logitech */
+	      /* Need to use flags for MM series, not Logitech (bugfix) */
 	      DOSEMUSetMouseSpeed(mice->baudRate, mice->baudRate,
 	      	CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL);
 	    }
@@ -136,7 +136,14 @@ DOSEMUSetupMouse()
         }
 #endif
 #endif
-    }
+    /* this is only to try to get the initial internal driver two/three
+    	button mode state correct; user can override it later. */
+    if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_BUSMOUSE ||
+		mice->type == MOUSE_PS2)
+	mice->has3buttons = FALSE;
+    else
+    	mice->has3buttons = TRUE;
+  }
   m_printf("MOUSE: INIT complete\n");
 }
  
@@ -147,7 +154,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 {
   int                  i, buttons=0, dx=0, dy=0;
   static int           pBufP = 0;
-  static unsigned char pBuf[1024];
+  static unsigned char pBuf[8];
 
   static unsigned char proto[8][5] = {
     /*  hd_mask hd_id   dp_mask dp_id   nobytes */
@@ -296,7 +303,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   Alan Hourihane */
 
 	if (mice->emulate3buttons == TRUE) {
-	  if (mouse.mode == FALSE) {	/* PC Mouse Mode 3 button emulation */
+	  if (mouse.threebuttons) {	/* PC Mouse Mode 3 button emulation */
 	    if ((buttons & 0x04) && (buttons & 0x01)) 
 	      buttons = 0x02;	/* Set middle button */
 	  }
@@ -306,9 +313,15 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	 * calculate the new values for buttons, dx and dy
   	 * Ensuring that speed is calculated from current values.
 	 */
-	mouse.x = mouse.x + (dx * (mouse.speed_x / 8));
-	mouse.y = mouse.y + (dy * (mouse.speed_y / 8));
-	update_cursor_reg();
+	/* according to the interrupt list, the speed setting is in
+		mickeys per eight pixels. */
+	/* IDEA: running dx and dy through a filter which dampens
+		values near zero and amplifies larger values might
+		give us a cheap acceleration profile. */
+	mouse.x += ((dx << 3) / mouse.speed_x);
+	mouse.y += ((dy << 3) / mouse.speed_y);
+	mouse.mickeyx += dx;
+	mouse.mickeyy += dy;
 	mouse.oldlbutton = mouse.lbutton;
 	mouse.oldmbutton = mouse.mbutton;
 	mouse.oldrbutton = mouse.rbutton;
@@ -322,7 +335,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   mouse_move();
 	if (mouse.oldlbutton != mouse.lbutton)
 	   mouse_lb();
-        if (mouse.mode == FALSE) {
+        if (mouse.threebuttons == FALSE) {
 	  if (mouse.oldmbutton != mouse.mbutton)
 	     mouse_mb();
         }

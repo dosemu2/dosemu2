@@ -20,7 +20,7 @@ realclean clean::
 	rm -f $(OBJS) keyboard video
 
 realclean::
-	rm -f *.d
+	rm -f *.d .depend
 
 checkin::
 	-ci -l $(ALL) Makefile

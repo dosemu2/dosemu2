@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.60, the PC Emulator for Linux!
+The DOSEMU team is proud to announce DOSEMU 0.60.1, the PC Emulator for Linux!
 
 
 
@@ -21,7 +21,7 @@ many DOS applications.  These are capabilities of DOSEMU worth noting:
      at the Linux console.  A partial list of successfully tested games 
      includes DOOM2, Heretic, Descent, MK2, OMF2097, ROTT, and WarCraft!
   - Games runs *MUCH* faster in dosemu due to improved timer emulation
-  - FreeBSD verison of DOSEMU under development, contact jtk@atria.com
+  - NetBSD verison of DOSEMU under development, contact jtk@atria.com
   - CDROM support
 
 
@@ -29,7 +29,7 @@ many DOS applications.  These are capabilities of DOSEMU worth noting:
 REQUIREMENTS
 ~~~~~~~~~~~~
   - Linux 1.1.31+ (with IPC support, IPX support optional)
-  - GCC 2.6.3 and LIBC 4.6.27 are recommended for best results.
+  - GCC 2.6.2 and LIBC 4.6.27 are recommended for best results.
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
      of total memory to compile, depending on Makefile configuration.
 
@@ -42,7 +42,7 @@ the our relentless development team and friends, currently consisting
 of at least:
 
   Jon Tombs            	Aaron			Karl Kiniger
-  Daniel R. Barrlow	Christoph Niemann	Theadore Tso
+  Daniel R. Barrlow	Christoph Niemann	Theodore T'so
   Derek Fawcus		Linus Torvalds		Alan Cox
   Alessandro Rubini	Corey Sweeney		James Maclean
   Hans Lermen		Andrew.Tridgell		Jochen Hein
@@ -53,7 +53,8 @@ of at least:
   Scott Buchholz 	Tim Van der Linden 	John Davis
   Kang-Jin Lee 		Matthew Grant 		David Hansen
   John Kohl 		Kevin P Lawton 		Rod May	
-  Wayne P Meissner 	Vinod G Kulkarni 
+  Wayne P Meissner 	Vinod G Kulkarni 	Andries
+  David Etherton
 
 
 WHERE TO GET IT:
@@ -92,10 +93,10 @@ become bullet-proof, at the cost of some convenience.
 
 HELPING US
 ~~~~~~~~~~
-Many thanks to all who have helped with this release, by sending bug 
-reports, patches, comments and/or ideas for DOSEMU!  My apologies for 
-not having answered every letter, and possibly missing some important 
-information.  If you know something you think we should know, 
+Many thanks to all who have helped with this release, by sending bug
+reports, patches, comments and/or ideas for DOSEMU!  My apologies for
+not having answered every letter, and possibly missing some important
+information.  If you know something you think we should know,
 contact us, PLEASE!  We can be reached at:
 
 linux-msdos@vger.rutgers.edu (The DOSEMU team)

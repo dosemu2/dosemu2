@@ -84,7 +84,7 @@ config_defaults(void)
     config.X_title = "dosemu";
     config.X_icon_name = "dosemu";
     config.X_blinkrate = 8;
-    config.X_keycode = 1;
+    config.X_keycode = 0;
     config.X_font = "vga";
     config.usesX = 0;
     config.X = 0;

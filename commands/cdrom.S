@@ -554,11 +554,11 @@ INIT_BDN	= 22
 
 
 Message:
-	.ascii	"[dosemu 0.53 cdrom driver installed (V0.2)]"
-        .byte	cr,lf,eom
+	.ascii	"[dosemu cdrom driver installed (V0.2)]"
+	.byte	cr,lf,eom
 FailMsg:
-        .byte	cr,lf,lf
-	.ascii  "Linux cdrom server not responding."
+	.byte	cr,lf,lf
+	.ascii  "Access to cdrom denied."
 	.byte	cr,lf
 	.ascii	"Installation aborted."
 	.byte	cr,lf,lf,eom
@@ -587,6 +587,3 @@ InitEnde:
 
 	mov	ax, #0
 	br      exit
-
-
-

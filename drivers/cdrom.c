@@ -8,6 +8,7 @@
 #include "emu.h"
 
 int cdrom_fd = -1;
+int cdu33a = 0;
 
 unsigned int device_status;
 struct audio_status { unsigned int status;
@@ -77,20 +78,20 @@ void cdrom_reset()
      the drive must be reopend.
      Does some one knows a better way?                   */
     pd_printf("cdrom reset\n");
-  close (cdrom_fd); 
-  priv_off();
-  cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+   close (cdrom_fd); 
+   priv_off();
+   cdrom_fd = open (_PATH_CDROM, O_RDONLY);
 #ifdef __NetBSD__
-  if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
+   if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-  priv_on();
- }
+   priv_on();
+}
+
 #define MSCD_AUDCHAN_VOLUME0       2
 #define MSCD_AUDCHAN_VOLUME1       4
 #define MSCD_AUDCHAN_VOLUME2       6
 #define MSCD_AUDCHAN_VOLUME3       8
 
-                                            
 void cdrom_helper(void)
 {
    unsigned char *req_buf,*transfer_buf;
@@ -102,27 +103,26 @@ void cdrom_helper(void)
    struct cdrom_volctrl cdrom_volctrl;
    int n,ioctlin;
    
-                /* error ("call function %d !\n", HI(ax));
+   if ((cdu33a) && (cdrom_fd < 0)) {
+        priv_off();
+        cdrom_fd = open ("/dev/cdrom", O_RDONLY);
+#ifdef __NetBSD__
+        if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
+#endif
+        priv_on();
+                                        
+        if (cdrom_fd < 0) {
+          LO(bx) = 1; /* media changed (for media changed request) */
+          LWORD(ebx) = audio_status.status | 0x800; /* no disc (for device status request) */
 
-                ioctlin = 0;
-                req_buf = SEG_ADR((char *), es, di);
-                error ("\ndebug cdrom: \n");
-                for (n = 1; n <= req_buf[0]; ++n) {
-                   error ("  %3x", req_buf[n-1]);
-                   if ((n % 8) == 0)
-                     error ("\n");
-                };
-                error ("\n");
-                if (req_buf[2] == 3) {
-                  ioctlin = 1;
-                  error ("Ein ioctlin request : ");
-                  req_buf = SEG_ADR((char *), ds, si);
-                  for (n = 0; n <= 9; ++n)
-                     error ("  %3x", req_buf[n]);
-                  error ("\n");
-                }
-                error ("\n");
-                */
+          if ((HI(ax) == 0x09) || (HI(ax) == 0x0A))
+            LO(ax) = 0;
+           else LO(ax) = 1; /* for other requests return with error */
+          return ;
+        }
+   }
+
+
    switch (HI(ax)) {
      case 0x01: audio_status.status = 0x00000310;
                 audio_status.paused_bit = 0;
@@ -135,19 +135,37 @@ void cdrom_helper(void)
                 audio_status.outchan1 = 1;
                 audio_status.outchan2 = 2;
                 audio_status.outchan3 = 3;
-                
-		priv_off();
-                cdrom_fd = open (_PATH_CDROM, O_RDONLY);
+
+                priv_off();
+                cdrom_fd = open ("/dev/cdrom", O_RDONLY);
 #ifdef __NetBSD__
-		if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
+                if (cdrom_fd >= 0) ioctl(cdrom_fd, CDIOCALLOW, 0);
 #endif
-		priv_on();
-                
-                if (cdrom_fd < 0) 
-                  LO(ax) = 1;
-                 else LO(ax) = 0;
+                priv_on();
+
+                if (cdrom_fd < 0) {
+                  if (errno == EIO) {
+                    /* drive which cannot be opened if no 
+                       disc is inserted!                   */
+                    LO(ax) = 0;
+                    cdu33a = 1;
+                   }
+                  else LO(ax) = 1; /* no cdrom drive installed */
+                 }
+                else LO(ax) = 0;
                 break;
-     case 0x02: /* read long */
+     case 0x02: /* read long */ 
+                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                  audio_status.media_changed = 1;
+                  if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    /* no disc in drive */
+                    LO(ax) = 1;
+                    break;
+                   }                  
+                  else { /* disc in drive */
+                       }
+                }
+
                 req_buf = SEG_ADR((char *), es, di);
                 transfer_buf = SEG_ADR((char *), ds, si);
                 
@@ -160,10 +178,18 @@ void cdrom_helper(void)
                  }                
                  else { Sector = *CALC_PTR(req_buf,MSCD_READ_STARTSECTOR,u_long);
                       }
+
                 lseek (cdrom_fd, Sector*2048, SEEK_SET);
-                if (read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048) < 0)
-                  LO(ax) = 1;
+                if (read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048) < 0) {
+                  /* cd must be in drive, reset drive and try again */ 
+                  cdrom_reset();
+                  lseek (cdrom_fd, Sector*2048, SEEK_SET);
+                  if (read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048) < 0)
+                    LO(ax) = 1; /* give up */
+                   else LO(ax) = 0;
+                 }
                  else LO(ax) = 0;
+
                 break; 
      case 0x03: /* seek */
                 req_buf = SEG_ADR((char *), es, di);
@@ -273,10 +299,9 @@ void cdrom_helper(void)
                       ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
                   audio_status.media_changed = 0;
                   LO(bx) = 1; /* media has been changed */
-                  if (! ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
-                    /* new disk inserted */
-                    cdrom_reset();
-                  }
+                  ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl);
+                  if (! ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
+                    cdrom_reset(); /* disc in drive */
                  }
                  else /* media has not changed, check audio status */
                       if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
@@ -290,9 +315,7 @@ void cdrom_helper(void)
                       LWORD(ebx) = audio_status.status | 0x800;
                       break;
                     }
-                   else { /* disk has been changed; new disk in drive ! */
-                          cdrom_reset();
-                        }
+                   else cdrom_reset(); 
                 /* disk in drive */
                 LWORD(ebx) = audio_status.status;
                 if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)

@@ -7,7 +7,7 @@ if not exist %WINDIR%\SYSTEM\OS2K386.EXE goto NOWINOS2
 
 :BOOTWIN
 echo Warning!  This may crash your system!  This is your chance to hit Ctrl-C now!
-echo If Windows fails to start, please read the %WINDIR%\BOOTLOG.TXT file.
+echo If Windows fails to start, please read the %WINDIR%\BOOTLOG.TXT logfile.
 pause
 echo Starting Windows...
 c:
@@ -19,7 +19,7 @@ goto END
 
 :NOWINDIR
 echo You don't have a %WINDIR% directory!  
-echo Please edit WIN.BAT
+echo Please edit WINEMU.BAT
 goto END
 
 :NOWINOS2

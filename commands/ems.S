@@ -292,12 +292,12 @@ MFSin:
 	ret
 
 
-Mesage:	.ascii	"[dosemu 0.52 EMS 4.0 driver installed]"
+Mesage:	.ascii	"[dosemu EMS 4.0 driver installed]"
 	.byte	cr,lf,eom
 
 OutMess:
 	.byte	cr,lf,lf
-	.ascii	"Linux EMS Server not responding."
+	.ascii	"EMS Server not responding."
 	.byte	cr,lf
 	.ascii	"Installation aborted."
 	.byte	cr,lf,lf,eom
@@ -306,5 +306,3 @@ NoName:	.ascii	"NO NAME"
 	.byte	0
 
 	end
-
-

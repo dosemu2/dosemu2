@@ -22,8 +22,11 @@ GROUP:		Keyboard ../DANG_c/summary_Keyboard keyboard/termio.c
 			keyboard/slang-termio.c
 GROUP:		Misc ../DANG_c/summary_Misc dosemu/bios_emm.c dosemu/xms.c 
 			dosemu/sigsegv.c include/int.h include/ports.h
-			dosemu/dosio.c dosemu/serial.c dosemu/disks.c 
+			dosemu/dosio.c dosemu/disks.c 
 			dosemu/cpu.c dosemu/lpt.c 
+GROUP:		Serial ../DANG_c/summary/Serial serial/README.serial
+			serial/ser_defs.h serial/ser_init.c
+			serial/ser_ports.c serial/ser_irq.c
 GROUP:		Mouse ../DANG_c/summary_Mouse mouse/mouse.c 
 GROUP:		Bios ../DANG_c/summary_Bios bios/bios.S 
 GROUP:		PIC ../DANG_c/summary_PIC pic/pic.c pic/pic.h

@@ -33,13 +33,12 @@ checkout:
 	-co -M -l $(SRC) $(EXE)
 
 clean:
-	rm -f exitemu.com vgaoff.com vgaon.com speed.com eject.com booton.com \
-	bootoff.com *.o emufs.sys ems.sys cdrom.sys *.tmp *.out
+	rm -f $(COM) $(SYS) *.o *.tmp *.out
 
 realclean: clean
 
-dist: Makefile $(SRC) $(COM) $(SYS)
+dist: Makefile $(SRC)
 	install -d $(DISTPATH)/commands
-	install -m 0644 Makefile $(SRC) $(COM) $(EXE) $(SYS) $(DOC) $(DISTPATH)/commands
+	install -m 0644 Makefile $(SRC) $(EXE) $(DOC) $(DISTPATH)/commands
 
 install:

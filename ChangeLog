@@ -1,3 +1,12 @@
+Fri Apr 14	1995
+
+-	RELEASE of DOSEMU0.60.1.
+-	Patches to internal mouse.
+-	Patches to serial.
+-	Patches to PIC.
+-	Set X_keycode back to 0. This will require setting keycode in
+	your /etc/dosemu.conf for all folks who didn't need it before.
+
 Sat Apr 08	1995
 
 -	OFFICIAL RELEASE of DOSEMU0.60.0.
