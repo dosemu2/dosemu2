@@ -2336,7 +2336,9 @@ void dpmi_init()
     run_dpmi();
     serial_run();
     run_irqs();
+#ifdef USE_INT_QUEUE
     int_queue_run();
+#endif
   }
   if (d.dpmi>6) D_printf("DPMI: end dpmi loop\n");
   in_sigsegv++;

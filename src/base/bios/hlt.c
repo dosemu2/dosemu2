@@ -13,6 +13,8 @@
  *
  */
 
+#ifdef USE_HLT_CODE /* this currently is not used */
+
 #include "config.h"
 #include "emu.h"
 #include "hlt.h"
@@ -158,3 +160,5 @@ int hlt_register_handler(emu_hlt_t handler)
   }
   return(1);
 }
+
+#endif /* USE_HLT_CODE */

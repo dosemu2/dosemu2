@@ -74,12 +74,14 @@ void cpu_setup(void)
 
 
 
+#ifdef USE_INT_QUEUE
 int
 do_hard_int(int intno)
 {
   queue_hard_int(intno, NULL, NULL);
   return (1);
 }
+#endif
 
 int
 do_soft_int(int intno)

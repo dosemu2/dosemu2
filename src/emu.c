@@ -419,7 +419,9 @@ emulate(int argc, char **argv)
 	pic_request(16);
 #endif
 #endif
+#ifdef USE_INT_QUEUE
 	int_queue_run();
+#endif
     }
 
     error("error exit: (%d,0x%04x) in_sigsegv: %d ignore_segv: %d\n",
@@ -482,6 +484,7 @@ ign_sigs(int sig)
 
     g_printf("ERROR: signal %d received in leavedos()\n", sig);
     show_regs(__FILE__, __LINE__);
+    flush_log();
     if (sig == SIG_TIME)
 	timerints++;
     else

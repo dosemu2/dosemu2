@@ -831,7 +831,9 @@ g_printf("+%d",(int)pic_ilevel);
         pkt_check_receive(0);
 #endif
 #endif
+#ifdef USE_INT_QUEUE
         int_queue_run();        /*  delete when moved to timer stuff */
+#endif
       }
       pic_sti();
       return(0);
@@ -1151,7 +1153,9 @@ void pic_init(void)
 {
   /* do any one-time initialization of the PIC */
   emu_iodev_t  io_device;
+#ifdef USE_HLT_CODE
   emu_hlt_t    hlt_hdlr;
+#endif
 
   /* 8259 PIC (Programmable Interrupt Controller) */
   io_device.read_portb   = read_pic0;
@@ -1170,11 +1174,13 @@ void pic_init(void)
   io_device.write_portb  = write_pic1;
   port_register_handler(io_device);
 
+#ifdef USE_HLT_CODE
   hlt_hdlr.name       = "PIC";
   hlt_hdlr.start_addr = 0x0fff;
   hlt_hdlr.end_addr   = 0x0fff;
   hlt_hdlr.func       = (emu_hlt_func)pic_iret;
   hlt_register_handler(hlt_hdlr);
+#endif
 
 }
 

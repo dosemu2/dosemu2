@@ -3,6 +3,7 @@
 
 #include "extern.h"
 
+#ifdef USE_INT_QUEUE
 /*
    Queue to hold all pending hard-interrupts. When an interrupt is
    placed into this queue, it can include a function to be run
@@ -10,13 +11,8 @@
    as well as include a function to be called after the interrupt
    finishes.
 */
-EXTERN void *interrupt_function[0x100];
-
 EXTERN int           int_queue_start INIT(0);
 EXTERN int           int_queue_end INIT(0);
-EXTERN unsigned int  check_date INIT(0);
-EXTERN time_t        start_time;
-EXTERN unsigned long last_ticks;
 
 #define IQUEUE_LEN 1000
 struct int_queue_struct {
@@ -45,6 +41,15 @@ struct int_queue_list_struct {
 EXTERN struct int_queue_list_struct int_queue_head[NUM_INT_QUEUE];
 
 EXTERN int int_queue_running INIT(0);
+
+#else  /* not USE_INT_QUEUE */
+  #define int_queue_running (0)
+#endif /* not USE_INT_QUEUE */
+
+EXTERN void *interrupt_function[0x100];
+EXTERN unsigned int  check_date INIT(0);
+EXTERN time_t        start_time;
+EXTERN unsigned long last_ticks;
 EXTERN u_char in_sigsegv INIT(0);
 EXTERN u_char in_sighandler INIT(0);	/* so I know to not use non-reentrant
 					 * syscalls like ioctl() :-( */

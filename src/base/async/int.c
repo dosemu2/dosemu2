@@ -1022,7 +1022,9 @@ int can_revector(int i)
   case 0x2f:			/* needed for XMS, redirector, and idling */
   case DOS_HELPER_INT:		/* e6 for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
+#ifdef USE_INT_QUEUE
   case 0xe8:			/* for int_queue_run return */
+#endif
     return REVECT;
 
   case 0x74:			/* needed for PS/2 Mouse */
@@ -1373,6 +1375,7 @@ static void inte7(u_char i) {
   run_int(0xe7);
 }
 
+#ifdef USE_INT_QUEUE
 /* End function for interrupt calls from int_queue_run() */
 static void inte8(u_char i) {
   static unsigned short *csp;
@@ -1404,6 +1407,7 @@ static void inte8(u_char i) {
   h_printf("e8 int_queue: shouldn't get here\n");
   show_regs(__FILE__,__LINE__);
 }
+#endif /* USE_INT_QUEUE */
 
 /*
  * DANG_BEGIN_FUNCTION DO_INT 
@@ -1464,6 +1468,7 @@ if (i== 0x2f) {
 #endif
 }
 
+#ifdef USE_INT_QUEUE
 /*
  * Called to queue a hardware interrupt - will call "callstart"
  * just before the interrupt occurs and "callend" when it finishes
@@ -1603,6 +1608,7 @@ void int_queue_run(void)
 	   current_interrupt,
 	   int_queue_head[int_queue_running].int_queue_return_addr);
 }
+#endif /* USE_INT_QUEUE */
 
 /*
  * DANG_BEGIN_FUNCTION setup_interrupts
@@ -1629,6 +1635,7 @@ void setup_interrupts(void) {
 #endif
     interrupt_function[i] = default_interrupt;
     if ((i & 0xf8) == 0x60) { /* user interrupts */
+	/* show also EMS (int0x67) as disabled */
 	SETIVEC(i, 0, 0);
     } else {
 	SETIVEC(i, BIOSSEG, 16 * i);
@@ -1644,6 +1651,7 @@ void setup_interrupts(void) {
   interrupt_function[0xd] = int_a_b_c_d_e_f;
   interrupt_function[0xe] = int_a_b_c_d_e_f;
   interrupt_function[0xf] = int_a_b_c_d_e_f;
+  /* This is called only when revectoring int10 */
   interrupt_function[0x10] = int10;
   interrupt_function[0x11] = int11;
   interrupt_function[0x12] = int12;
@@ -1668,7 +1676,9 @@ void setup_interrupts(void) {
 #endif
   interrupt_function[0xe6] = inte6;
   interrupt_function[0xe7] = inte7;
+#ifdef USE_INT_QUEUE
   interrupt_function[0xe8] = inte8;
+#endif
 
   /* Let kernel handle this, no need to return to DOSEMU */
   SETIVEC(0x1c, 0xf010, 0xc0);
