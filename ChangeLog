@@ -1,3 +1,23 @@
+97/06/28 ver. 0.67.5.1 unofficial pre-release
+	From Michael an Reinhard Karcher <kar@dpk.berlin.fido.de>
+	- fix for extended key-code (E0) in new and old kbd code.
+	- fix for mfs.c: a DOS app that wants to read a newly created file
+	  without reopen failed. Fix was to set the openflags in the SFT
+	  to read/write instead of writeonly. ( same open mode mode as for
+	  the linux file).
+	From Alberto
+	- fixed typo in bios.S (wrong SIM_INT(15) instead of SIM_INT(0x15))
+	From Hans
+	- some fixes to lt-threads
+	  - kernel version dependent include of <linux/sched.h>
+	  - fixed misaligned force_stack_expand, when using -malign-double
+	    ( ... guess who jumped into this trap and found out what was
+	    wrong?  Alberto! ;-)
+	  - changed SIG_ACQUIRE to SIGUSR2 (src/include/emu.h) because
+	    the SIGUSR1 collides with SIG_SUSPEND_WAKEUP in lt-threads.
+	- made new kbd the default again (in-out-in ... what comes next?;-)
+	- in src/dosext/dpmi/memory.c DPMIrealloc() use mremap() instead of
+	  mmap()/memmove()/munmap(). Should be faster.
 97/06/21 ver. 0.67.5 released
 	From Hans
 	- introducing threading into DOSEMU using Linux-clone :-)

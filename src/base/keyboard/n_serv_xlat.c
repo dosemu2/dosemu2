@@ -232,8 +232,10 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
             bios_scan=0xe0;
          }
          else if (key&0xff00) {
-            if (key>=E0_MINIDX && key<=E0_MAXIDX)
+            if (key>=E0_MINIDX && key<=E0_MAXIDX) {
                bios_scan=bios_ctrl_e0_scancodes[key-E0_MINIDX];
+			   ascii=0xE0;
+			}
          }
          else {
             bios_scan=bios_ctrl_scancodes[key&0xff];
@@ -280,6 +282,8 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
           case KEY_PRTSCR:
           case KEY_PAD_AST:
                   bios_scan=0; break;
+		  case 0xe047 ... 0xe053:
+				  ascii=0xe0; bios_scan=key&0x7f; break;
           case KEY_PAD_SLASH:
                   ascii='/';   /* fallthrough */
           default:
@@ -302,6 +306,8 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
                   bios_scan=0xe0; break;
           case KEY_PRTSCR:
                   bios_scan=0; break;
+          case 0xe047 ... 0xe053:
+                  ascii=0xe0;
           default:
                   bios_scan=key&0x7f; break;
          }

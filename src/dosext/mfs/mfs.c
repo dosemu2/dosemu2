@@ -3033,7 +3033,11 @@ dos_fs_redirect(state)
     if (FCBcall)
       sft_open_mode(sft) |= 0x00f0;
     else
-      sft_open_mode(sft) = 0x3;
+  #if 0
+      sft_open_mode(sft) = 0x3; /* write only */
+  #else
+      sft_open_mode(sft) = 0x2; /* read/write */
+  #endif
 #endif
     sft_directory_entry(sft) = 0;
     sft_directory_sector(sft) = 0;

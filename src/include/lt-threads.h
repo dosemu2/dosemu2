@@ -33,14 +33,16 @@
 #include <setjmp.h>
 
 
-#define LT_THREADS_VERSION	0x000200	/* 0.2 */
+#define LT_THREADS_VERSION	0x000201	/* 0.2.1 */
 
 #define MAX_THREADS	27	/* NOTE: don't make it > 27
 				 * atomic_reserve/free rely on that
 				 */
 
 /* --------------------- for clone stuff */
-#if 1
+#include <linux/version.h>
+#if LINUX_VERSION_CODE < 0x020100
+ /* Note: Linux-2.1.x don't like that :-( */
  #include <linux/sched.h>
 #else
  #define CSIGNAL         0x000000ff      /* signal mask to be sent at exit */

@@ -771,12 +771,9 @@ cursor (unsigned int sc)
       else if (kbd_flag (KF_CTRL))
 	put_queue (ctrl_cursor[sc]);
       else
-#if 0 /* 0xe0 as low byte for Cursor-keys messes up 
-       * older DOS-editors and DOS-tools ! (Hans) */
       if (key_flag(KKF_E0))
         put_queue (old_sc << 8 | 0xe0);
       else
-#endif
 	put_queue (old_sc << 8);
       return;
     }

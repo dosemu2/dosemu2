@@ -210,6 +210,11 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     if (newsize > block -> size)  { /* we must mmap another block */
 	void *ptr;
 	
+#if 1	/* trying mremap() which is faster as it only moves pagetable entries */
+	ptr = (void *) mremap(block->base, block->size, newsize, MREMAP_MAYMOVE);
+	if ( ptr == (void *)-1)
+	    return NULL;
+#else
         if ( fd_zero == -1) {
   	    if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
 	        error("DPMI: can't open /dev/zero\n");
@@ -229,6 +234,7 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
 
 	/* unmap the old block */
 	munmap(block -> base, block -> size);
+#endif
 	block -> base = ptr;
     } else 			/* just unmap the extra part */
 	munmap(block -> base + newsize , block -> size - newsize);

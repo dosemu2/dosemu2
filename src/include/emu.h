@@ -570,7 +570,7 @@ EXTERN void sigio(int, int, struct sigcontext *);
 
 /* signals for Linux's process control of consoles */
 #define SIG_RELEASE     SIGWINCH
-#define SIG_ACQUIRE     SIGUSR1
+#define SIG_ACQUIRE     SIGUSR2
 
  /* DANG_BEGIN_REMARK
   * We assume system call restarting... under linux 0.99pl8 and earlier,

@@ -332,10 +332,12 @@ CISH(bios_f000_bootdrive):
 
 	.globl	CISH(INT16_dummy_start)
 CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
+	push	dx		/* dx needed for extended calls */
 	push    ds			/* save ds and bx               */
 	push    bx		/* next 2 lines set ds to bios data seg	*/
         mov     bx,#BIOS_DATA
 	mov	ds,bx
+	mov dl,#0x00        /* clear mask for extended calls */
 
 #if 1 /* new */
 #ifdef NEW_KBD_CODE
@@ -353,6 +355,7 @@ CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
 #endif
 	cmp	ah,#5
 	je	INT16_5			/* store key in buffer */
+	mov	dl,#0xFF		/* set mask for extended calls */
 	cmp	ah,#0x10
 	je	INT16_10		/* read key extended */
 	cmp	ah,#0x11
@@ -363,6 +366,7 @@ CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
 INT16_ex:
 	pop     bx			/* do nothing and return	*/
 	pop     ds
+	pop	dx
 	iret   
 #else
 	cmp	ah,#2
@@ -388,6 +392,7 @@ INT16_10:				/* 0x10 => extended read        */
 	je      INT16_0_idle		/* jump if not empty		*/
 INT16_0_a:
 	mov	ax,[bx]			/* get last key	*/
+	call	do_extended /* for non-extend calls remove 0xE0 from AL */
 	inc     bx			/* advance buffer pointer 2 bytes*/
 	inc     bx
 #ifdef NEW_KBD_CODE
@@ -417,8 +422,12 @@ INT16_11:				/* 0x11 => extended check       */
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
 	mov	ax,[bx]			/* put char into ax		*/
 	sti
+ 	je	INT16_1_a		/* buffer empty			*/
+	call 	do_extended		/* differences for extended calls */
+INT16_1_a:
 	pop     bx
 	pop     ds
+	pop	dx
 	retf    #2		/* can't do iret, it would change flags	*/
 
 INT16_2:				/* RETURN SHIFT FLAG STATUS     */
@@ -432,6 +441,19 @@ INT16_12:
 	or      ah,bh			/* merge them with flags in ax	*/
 	jmp	INT16_ex		/* return to caller		*/
 
+do_extended:				/* remove 0xE0 from AL for nonextended calls */
+	pushf				/* save Flags for CALL with AX = 1 or 11 */
+	cmp	al,#0xe0		/* is character 0xE0 ? */
+	jne	DONT_MASK		/* no, done */
+	cmp	ah,#0x47		/* is scan code in range ? */
+	jb	DONT_MASK
+	cmp	ah,#0x53
+	ja	DONT_MASK
+	and	al,dl			/* yes, mask with 0xFF or 0x00 */
+DONT_MASK:
+	popf
+	ret
+
 #ifdef NEW_KBD_CODE
 INT16_5:				/* STORE KEY INTO BUFFER	*/
 	mov	ax,cx
@@ -444,6 +466,7 @@ INT16_5:				/* STORE KEY INTO BUFFER	*/
 INT16_5_full:
 	mov	al,#1			/* return al=1 (buffer full)	*/
  	jmp	INT16_ex
+
 
 /* SUBROUTINE: store keycode in AX in the BIOS keyboard buffer, 
  * return CF=1 if buffer is full.
@@ -482,6 +505,7 @@ INT16_3:
 INT16_ex:
 	pop     bx			/* do nothing and return	*/
 	pop     ds
+	pop	dx
 	iret   
 
 INT16_5:
@@ -919,7 +943,7 @@ CISH(DPMI_dummy_end):
 		 * this doesn't make problems.
 		 * -- Hans, June 15 1997
 		 */
-	SIM_INT(15,n_kbd_int15_return)
+	SIM_INT(0x15,n_kbd_int15_return)
 #else
 	int	#0x15
 #endif
@@ -1021,7 +1045,7 @@ CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
 		 * this doesn't make problems.
 		 * -- Hans, June 15 1997
 		 */
-	SIM_INT(15,kbd_int15_return)
+	SIM_INT(0x15,kbd_int15_return)
 #else
 	int	0x15			/* int 15 func 4f per bios spec	*/
 #endif

@@ -104,13 +104,17 @@ static char *force_stack_expand(unsigned long address)
 	 *	you may have problems with address space, on huge programs
 	 *	that use huge arrays (data bases, matrices).
 	 * We trick out the kernel by expanding the stack vma to a given
-	 * value using alloca() and touching the bottom.
+	 * value (setting ESP to the bottom and thouching it).
 	 * ( look at do_page_fault in arch/i386/mm/fault.c how it
 	 *   treats growing down of stack )
 	 */
-	char volatile *p = alloca(__ESP-address);
-	*p = 1;
-	return (char *)p;
+	__asm__ volatile ("
+		xchgl	%%esp,%%eax
+		movb	$1,(%%esp)
+		xchgl	%%esp,%%eax
+		": : "a" (address)
+	);
+	return (char *)address;
 }
 
 static void *alloc_stack_page(int size, int gran)
