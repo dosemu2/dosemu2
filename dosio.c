@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/10/14 17:58:38 $
+ * $Date: 1994/11/03 11:43:26 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.10 $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.11  1994/11/03  11:43:26  root
+ * Checkin Prior to Jochen's Latest.
+ *
  * Revision 2.10  1994/10/14  17:58:38  root
  * Prep for pre53_27.tgz
  *
@@ -620,7 +623,9 @@ parent_nextscan()
        *LASTSCAN_ADD = lastchr;
     }
   }
+#ifdef NEW_PIC
   }
+#endif
   else
     k_printf("Parent Nextscan Key not Read!\n");
   k_printf("Parent Nextscan key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",

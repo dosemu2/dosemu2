@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.8  1994/11/03  11:43:26  root
+ * Checkin Prior to Jochen's Latest.
+ *
  * Revision 2.7  1994/10/03  00:24:25  root
  * Checkin prior to pre53_25.tgz
  *

@@ -1,5 +1,8 @@
 /*
  * $Log: serial.h,v $
+ * Revision 2.2  1994/11/03  11:43:26  root
+ * Checkin Prior to Jochen's Latest.
+ *
  * Revision 2.1  1994/06/12  23:15:37  root
  * Wrapping up prior to release of DOSEMU0.52.
  *

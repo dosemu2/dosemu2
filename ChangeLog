@@ -1,5 +1,27 @@
+Thu Nov  3          1994
+
+-	Fixed Serial (removed r=0 setting at the end of inb() in
+	ports.h)
+-	Removed SA_RESTART for some functions (atleast temporarily)
+
+Wed Nov  2 23:04:02 1994  Jochen Hein (Hein@Student.TU-Clausthal.de)
+
+	* [Makefile]
+	guessing in X installation 
+
+	* [keyboard/*]
+	moved all keyboard-related file there, addes a Makefile
+	termio.h moved to :/include
+
+	* [*/Makefile]
+	Cleanup in clean targets, CFLAGS simplified
+
+	* [commands/isemu.asm]
+	New file, disassembled isemu.com
+
 Tue Nov 01 1994 JES
 
+-	Released pred0.53_29.
 -	Tested that Helppc ran.
 -	Added STI to keyboard int16 of bios.S. One fix for PIC, for 
 	now :-).

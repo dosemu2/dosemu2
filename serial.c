@@ -13,11 +13,14 @@
  *	ag115@freenet.carleton.ca
  *
  *
- * $Date: 1994/09/20 01:53:26 $
+ * $Date: 1994/11/03 11:43:26 $
  * $Source: /home/src/dosemu0.60/RCS/serial.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  * $Log: serial.c,v $
+ * Revision 2.6  1994/11/03  11:43:26  root
+ * Checkin Prior to Jochen's Latest.
+ *
  * Revision 2.5  1994/09/20  01:53:26  root
  * Prep for pre53_21.
  *
@@ -108,7 +111,7 @@
  *
  * You must recompile everytime this constant is modified.
  */
-#define SUPER_DBG 2
+#define SUPER_DBG 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -183,7 +186,7 @@ buffer_dump(int num)
   u_char bytes[1024];
   int i;
   if (com[num].fd != -1) 
-    for (i = 0; (i < 10) && (read(com[num].fd,bytes,1024) > 0); i++)
+    for (i = 0; (i < 10) && (RPT_SYSCALL(read(com[num].fd,bytes,1024)) > 0); i++)
       ;
 }
 
@@ -206,7 +209,7 @@ uart_fill(int num)
     }
     else {
       /* Do a block read up to the amount of empty space left in FIFO */
-      size = read(com[num].fd, bytes, (RX_FIFO_SIZE - com[num].RX_FIFO_BYTES));
+      size = RPT_SYSCALL(read(com[num].fd, bytes, (RX_FIFO_SIZE - com[num].RX_FIFO_BYTES)));
       if (size > 0) {			/* Note that size is -1 if error */
         com[num].rx_timeout = TIMEOUT_RX;	/* Reset timeout counter */
         for (i = 0; i < size; i++) {
@@ -229,7 +232,7 @@ uart_fill(int num)
   else if (!(com[num].LSR & UART_LSR_DR)) {
     /* Normal mode.  Don't overwrite if data is already waiting.    */
     /* Now Copy one byte to RX register.                            */
-    if (read(com[num].fd,bytes,1) > 0) {
+    if (RPT_SYSCALL(read(com[num].fd,bytes,1)) > 0) {
       com[num].LSR |= UART_LSR_DR;	/* Set received data ready bit */
       com[num].RX = bytes[0];		/* Put byte into RBR */
       com[num].uart_full = 1;		/* RBR is occupied */
@@ -359,7 +362,7 @@ ser_termios(int num)
   ** upwards to the next higher baudrate. (ie, rounds downwards to the next 
   ** valid divisor value) The formula is:  bps = 1843200 / (divisor * 16)
   */
-  if (DIVISOR < DIV_38400) {		/* above 38400, use 38400 bps */
+  if (DIVISOR < DIV_38400 && DIVISOR) {		/* above 38400, use 38400 bps */
     s_printf("bps = %d, using 38400, ", 1843200 / (DIVISOR * 16));
     rounddiv = DIV_38400;
     baud = B38400;
@@ -432,15 +435,15 @@ ser_termios(int num)
 int
 ser_open(int num)
 {
-  s_printf("SER%d: Running ser_open\n",num);
+  s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
   if (com[num].dev[0] == 0) {
     s_printf("SER%d: Device file not yet defined!\n",num);
     return (-1);
   }
   if (com[num].fd != -1) return (com[num].fd);
-  com[num].fd = DOS_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
-  DOS_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
-  DOS_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].newset));
+  com[num].fd = RPT_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
+  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].oldset));
+  RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].newset));
   return (com[num].fd);
 }
 
@@ -457,9 +460,9 @@ ser_close(int num)
   if (com[num].fd == -1) return (0);
   /* save current dosemu settings of the file and restore the old settings
    * before closing the file down. */
-  DOS_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-  DOS_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].oldset));
-  i = DOS_SYSCALL(close(com[num].fd));
+  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
+  RPT_SYSCALL(tcsetattr(com[num].fd, TCSANOW, &com[num].oldset));
+  i = RPT_SYSCALL(close(com[num].fd));
   com[num].fd = -1;
   return (i);
 }
@@ -556,9 +559,9 @@ do_ser_init(int num)
 #endif
 
   /* The following obtains current line settings of line for compatibility */
-  com[num].fd = DOS_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
-  DOS_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
-  DOS_SYSCALL(close(com[num].fd));
+  com[num].fd = RPT_SYSCALL(open(com[num].dev, O_RDWR | O_NONBLOCK));
+  RPT_SYSCALL(tcgetattr(com[num].fd, &com[num].newset));
+  RPT_SYSCALL(close(com[num].fd));
  
   /* The following adjust raw line settings needed for DOSEMU serial */
   com[num].newset.c_cflag |= (CLOCAL | CREAD);
@@ -633,7 +636,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.5 1994/09/20 01:53:26 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.6 1994/11/03 11:43:26 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */
@@ -666,7 +669,7 @@ serial_close(void)
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
     if ( ( ! config.usesX ) || ( ! com[i].mouse ) ){
-      DOS_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
+      RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
       ser_close(i);
     }
   }
@@ -1054,7 +1057,7 @@ put_tx(int num, int val)
   else {				/* Not in loopback mode */
     if (com[num].fifo_enable) {			/* Is FIFO enabled? */
       if (com[num].TX_FIFO_BYTES == TX_FIFO_SIZE) {	/* Is FIFO full? */
-        rtrn = write(com[num].fd,&com[num].TX_FIFO[com[num].TX_FIFO_START],1);	
+        rtrn = RPT_SYSCALL(write(com[num].fd,&com[num].TX_FIFO[com[num].TX_FIFO_START],1));	
         if (rtrn != 1) {			/* Did transmit fail? */
           com[num].tx_overflow = 1;		/* Set overflow flag */
         }
@@ -1074,7 +1077,7 @@ put_tx(int num, int val)
       } 
     } 
     else { 				/* Not in FIFO mode */
-      rtrn = write(com[num].fd, &val, 1);	/* Attempt char transmit */
+      rtrn = RPT_SYSCALL(write(com[num].fd, &val, 1));	/* Attempt char transmit */
       if (rtrn != 1) 				/* Did transmit fail? */
         com[num].tx_overflow = 1; 		/* Set overflow flag */
 #if NEW_PIC==2
@@ -1716,7 +1719,7 @@ transmit_engine(int num)      /* Internal 16550 Transmission emulation */
   if (tx_timer[num] < 0) return; /* Wait until a real uart would empty*/
 #endif
   if (com[num].tx_overflow) {		/* Is it in overflow state? */
-    rtrn = write(com[num].fd, &com[num].TX, 1);	/* Write to port */
+    rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX, 1));	/* Write to port */
     if (rtrn == 1) 				/* Did it succeed? */
       com[num].tx_overflow = 0;			/* Exit overflow state */
 #if NEW_PIC==2
@@ -1740,7 +1743,7 @@ transmit_engine(int num)      /* Internal 16550 Transmission emulation */
 
     /* Clear as much of the transmit FIFO as possible! */
     while (com[num].TX_FIFO_BYTES > 0) {		/* Any data in fifo? */
-      rtrn = write(com[num].fd, &com[num].TX_FIFO[com[num].TX_FIFO_START], 1);
+      rtrn = RPT_SYSCALL(write(com[num].fd, &com[num].TX_FIFO[com[num].TX_FIFO_START], 1));
       if (rtrn != 1) break;				/* Exit Loop if fail */
 #if NEW_PIC==2
       tx_timer[num] -= br_divisor[num];			/* note 1 char time */

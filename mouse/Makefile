@@ -57,7 +57,7 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o ../$(SUBDIR).o
+	rm -f *.o ../lib$(SUBDIR).a
 
 realclean:
 	rm -f .depend

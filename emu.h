@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/10/14 17:58:38 $
+ * $Date: 1994/11/03 11:43:26 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.19 $
+ * $Revision: 2.20 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.20  1994/11/03  11:43:26  root
+ * Checkin Prior to Jochen's Latest.
+ *
  * Revision 2.19  1994/10/14  17:58:38  root
  * Prep for pre53_27.tgz
  *
@@ -419,10 +422,9 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
 #define RPT_SYSCALL(sc) ({ int s_tmp, s_err; \
    do { \
-	  errno = s_err = 0; \
 	  s_tmp = sc; \
+	  s_err = errno; \
 	  if (errno == EINTR) {\
-	    s_err = errno; \
 	    g_printf("Recursive run_irqs() RPT_SYSCALL()\n"); \
 	    handle_signals(); \
 	/*    run_irqs(); */ \
@@ -432,10 +434,9 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 
 #define RPT_SYSCALL2(sc) ({ int s_tmp; \
    do { \
-	  errno = s_err = 0; \
 	  s_tmp = sc; \
+	  s_err = errno; \
 	  if (errno == EINTR) {\
-	    s_err = errno; \
 	    g_printf("Recursive run_irqs() RPT_SYSCALL2()\n"); \
 	    handle_signals(); \
 	/*    run_irqs(); */ \
@@ -659,7 +660,7 @@ extern void add_to_io_select(int, unsigned char);
 			   just in case, and make it aligned  */ \
 			sa.sa_restorer = \
 			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
-					sa.sa_flags = 0 /* SA_RESTART  */; \
+					sa.sa_flags = 0 /* SA_RESTART */ ; \
 					sigemptyset(&sa.sa_mask); \
 					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
 					dosemu_sigaction(sig, &sa, NULL);

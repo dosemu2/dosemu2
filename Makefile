@@ -1,34 +1,28 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/10/14 17:58:38 $
+# $Date: 1994/11/03 11:43:26 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.34 $
+# $Revision: 2.35 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
 # if you are doing the first compile.
 #
 
-# if [ -e /usr/X11/bin ] && \
-# [ -e /lib/libX11* ] && \
-# [ -e /usr/lib/X11/fonts ]; then;
-
-# Until then, if you do NOT have X support, comment out the following
-#  2 lines.
-X_SUPPORT = 1
-X2_SUPPORT = 1
-
-# fi
+# Autodetecting the installation of X11. Looks weired, but works...
+ifeq (/usr/include/X11/X.h,$(wildcard /usr/include/X11/X.h))
+ifeq (/usr/X11R6/lib/libX11.sa,$(wildcard /usr/X11R6/lib/libX11.sa))
+X11LIBDIR  = /usr/X11R6/lib
+else
+ifeq (/usr/X368/lib/libX11.sa,$(wildcard /usr/X386/lib/libX11.sa))
+X11LIBDIR  = /usr/X386/lib
+endif
+endif
+endif
 
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include # why not
 export LINUX_INCLUDE  
-
-#Change the following line if the your X is elsewhere.
-X11ROOTDIR = /usr/X386
-
-X11LIBDIR = $(X11ROOTDIR)/lib
-X11INCDIR = $(X11ROOTDIR)/include
 
 #Change the following line to point to your ncurses include
 NCURSES_INC = /usr/include/ncurses
@@ -37,9 +31,9 @@ NCURSES_INC = /usr/include/ncurses
 BOOTDIR = /boot/modules
 
 # The following sets up the X windows support for DOSEMU.
-ifdef X_SUPPORT
-XCFILES = Xkeyb.c
-XOBJS   = Xkeyb.o
+ifdef X11LIBDIR
+X_SUPPORT  = 1
+X2_SUPPORT = 1
 #the -u forces the X11 shared library to be linked into ./dos
 XLIBS   = -L$(X11LIBDIR) -lX11 -u _XOpenDisplay
 XDEFS   = -DX_SUPPORT
@@ -60,7 +54,7 @@ export XDEFS
 # NEW_PIC = -DNEW_PIC
 # Uncomment the next line to try new pic code on keyboard, timer, and serial.
 # NOTE:  The serial pic code is known to have bugs.
-NEW_PIC = -DNEW_PIC=2
+# NEW_PIC = -DNEW_PIC=2
 ifdef NEW_PIC
 PICOBJS = libtimer.a
 export NEW_PIC
@@ -95,7 +89,7 @@ endif
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   29
+PATCHL  =   30
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -135,16 +129,16 @@ CLIENTSSUB=clients
 
 OPTIONALSUBDIRS =examples sig v-net syscallmgr emumod
 
-SUBDIRS= periph video mouse include boot commands drivers \
+SUBDIRS= keyboard periph video mouse include boot commands drivers \
 	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
 
 DOCS= doc
 
-CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
+CFILES=cmos.c dos.c emu.c xms.c disks.c mutex.c \
 	timers.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
         serial.c dyndeb.c sigsegv.c detach.c $(XCFILES) $(X2CFILES)
 
-HFILES=cmos.h emu.h termio.h timers.h xms.h dosio.h \
+HFILES=cmos.h emu.h timers.h xms.h dosio.h \
         cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
         serial.h mutex.h int.h ports.h
 
@@ -167,10 +161,10 @@ F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c
 
 ###################################################################
 
-OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o libmouse.a \
+OBJS=emu.o disks.o timers.o cmos.o libmouse.a \
      dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o $(PICOBJS)\
      serial.o dyndeb.o sigsegv.o libvideo.a bios.o libinit.a libnet.a \
-     detach.o $(XOBJS)
+     detach.o libkeyboard.a $(XOBJS)
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
@@ -187,7 +181,7 @@ DPMI =
 endif
 
 TOPDIR  := $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
-INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC) -I$(X11INCDIR)
+INCDIR     = -I$(TOPDIR)/include -I$(TOPDIR) -I$(LINUX_INCLUDE) -I$(NCURSES_INC)
 export INCDIR
 
 #ifndef NEW_PIC
@@ -235,13 +229,21 @@ warning2:
 	@echo "  -> This package requires at least the following:"
 	@echo "     gcc 2.4.5, lib 4.4.4, Linux 1.1.12 (or patch to Linux 1.0.9),"
 	@echo "     and 16MB total swap+RAM.  (you may actually need up to 20MB total)"
-	@echo "  -> You need to edit XWINDOWS SUPPORT accordingly in Makefile if you"
-	@echo "     don't have Xwindows installed!" 
+	@if [ "1" = "$(X_SUPPORT)" ]; then \
+		echo "  -> I guess, you'll compile DOSEMU with X11-support." ; \
+		echo "     The X11-libs reside in $(X11LIBDIR)"; \
+	else \
+		echo "  -> I didn't find the X11-development-system here." ; \
+		echo "     DOSEMU will be compiled without X11-support." ; \
+	fi
 	@echo "  -> Type 'make most' instead of 'make doeverything' if you don't have TeX."
 	@echo "  -> Hit Ctrl-C now to abort if you forgot something!"
 	@echo ""
 	@echo -n "Hit Enter to continue..."
 	@read
+
+#	@echo "  -> You need to edit XWINDOWS SUPPORT accordingly in Makefile if you"
+#	@echo "     don't have Xwindows installed!" 
 
 warning3:
 	@echo ""
@@ -415,8 +417,8 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 
 clean:
 	-rm -f $(OBJS) $(X2CEXE) dos libdosemu0.* *.s core \
-	  dosconfig dosconfig.o *.tmp
-	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS); do \
+	  dosconfig dosconfig.o *.tmp dosemu.map
+	-@for i in $(SUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) ; do \
 	  $(MAKE) -C $$i clean; \
 	done
 

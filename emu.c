@@ -1099,12 +1099,12 @@ void memory_init(void) {
 
   /* inline int09 routine */
   ptr = (u_char *) INT09_ADD;
-  memcpy(ptr, INT09_dummy_start, (unsigned long) INT09_dummy_end - (unsigned long) INT09_dummy_start + 1);
+  memcpy(ptr, INT09_dummy_start, (unsigned long) INT09_dummy_end - (unsigned long) INT09_dummy_start);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
 
   /* int08 */
   ptr = (u_char *) INT08_ADD;
-  memcpy(ptr, INT08_dummy_start, (unsigned long) INT08_dummy_end - (unsigned long) INT08_dummy_start + 1);
+  memcpy(ptr, INT08_dummy_start, (unsigned long) INT08_dummy_end - (unsigned long) INT08_dummy_start);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
 
   install_int_10_handler();	/* Install the handler for video-interrupt */
@@ -1720,7 +1720,7 @@ config_defaults(void)
 
   config.speaker = SPKR_EMULATED;
 
-#if 1 /* This is too slow, but why? */
+#if 0 /* This is too slow, but why? */
   config.update = 54945;
 #else
   config.update = 27472;

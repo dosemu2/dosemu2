@@ -429,7 +429,6 @@ inb(int port)
       i_printf(" Diamond inb [0x%x] = 0x%x\n", port, r);
       break;
     }
-    r = 0;
     i_printf("default inb [0x%x] = 0x%02x\n", port, r);
   }
 

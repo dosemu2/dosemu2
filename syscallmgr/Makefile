@@ -58,7 +58,7 @@ checkout:
 	-co -l $(ALL) Makefile
 
 clean:
-	rm -f *.o
+	rm -f *.o insmod testmain
 
 realclean: clean
 	rm -f .depend
