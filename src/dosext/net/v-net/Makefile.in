@@ -3,6 +3,7 @@
 # for Linux.
 #
 
+KERNEL_INCDIR="/usr/src/linux/include"
 REALTOPDIR=@REALTOPDIR@
 TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
@@ -27,7 +28,8 @@ CFLAGS += $(KERNEL2)
 all: $(OBJS)
 
 dosnet.o:  dosnet.c
-	$(CC) $(INCDIR) -D__KERNEL__ -Wall -Wstrict-prototypes -O6 \
+	$(CC) $(INCDIR) -D__KERNEL__ -Wall -Wstrict-prototypes -O2 \
+	-fno-strength-reduce -I$(KERNEL_INCDIR) \
 	-fomit-frame-pointer  -m486 -c -o dosnet.o dosnet.c 
 
 checkin:

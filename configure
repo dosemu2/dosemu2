@@ -2694,6 +2694,20 @@ force_slang="yes"
 fi
 
 fi
+
+if test "$force_slang" = "no"; then
+  if test -d "$oldincludedir/slang"; then
+    SLANGINC="-I$oldincludedir/slang"
+  else
+    if test -f "$oldincludedir/slang.h"; then
+      SLANGINC=""
+    else
+      echo "checking "no system supplied slang.h found -- forceing dosemu slang"" 1>&6
+      force_slang="yes"
+    fi
+  fi
+fi
+
 if test "$force_slang" = "no"; then
   SLANGLIB="-lslang -lm"
   echo "checking "using system supplied libslang.a"" 1>&6
@@ -2705,7 +2719,6 @@ else
    SLANGLIB="-larch_${CONFIG_HOST}_slang"
    echo "checking "using dosemu supplied libarch_${CONFIG_HOST}_slang.a"" 1>&6
  fi
- SLANGINC="include/slang"
 fi
 
 
@@ -2803,12 +2816,12 @@ if test "$ac_x_includes" = NO; then
 
   # First, try using that file with no special directory specified.
 cat > conftest.$ac_ext <<EOF
-#line 2807 "configure"
+#line 2820 "configure"
 #include "confdefs.h"
 #include <$x_direct_test_include>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:2812: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:2825: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -2875,7 +2888,7 @@ if test "$ac_x_libraries" = NO; then
   ac_save_LIBS="$LIBS"
   LIBS="-l$x_direct_test_library $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 2879 "configure"
+#line 2892 "configure"
 #include "confdefs.h"
 
 int main() { return 0; }
@@ -2883,7 +2896,7 @@ int t() {
 ${x_direct_test_function}()
 ; return 0; }
 EOF
-if { (eval echo configure:2887: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:2900: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   LIBS="$ac_save_LIBS"
 # We can link X programs with no special library path.
@@ -2979,12 +2992,12 @@ else
     echo "checking for X11 header files" 1>&6
     XINCLUDES="# no special path needed"
     cat > conftest.$ac_ext <<EOF
-#line 2983 "configure"
+#line 2996 "configure"
 #include "confdefs.h"
 #include <X11/Intrinsic.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:2988: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:3001: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out`
 if test -z "$ac_err"; then
   :
@@ -3030,7 +3043,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lX11  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3034 "configure"
+#line 3047 "configure"
 #include "confdefs.h"
 
 int main() { return 0; }
@@ -3038,7 +3051,7 @@ int t() {
 main()
 ; return 0; }
 EOF
-if { (eval echo configure:3042: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3055: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3076,7 +3089,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lXwindow  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3080 "configure"
+#line 3093 "configure"
 #include "confdefs.h"
 
 int main() { return 0; }
@@ -3084,7 +3097,7 @@ int t() {
 main()
 ; return 0; }
 EOF
-if { (eval echo configure:3088: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3101: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3182,12 +3195,12 @@ if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3186 "configure"
+#line 3199 "configure"
 #include "confdefs.h"
 #include <X11/extensions/XShm.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:3191: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:3204: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -3237,7 +3250,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="66"
-PATCHLEVEL="0.2"
+PATCHLEVEL="0.3"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -3419,12 +3432,8 @@ WANT_WINDOWS=""
 TOPDIR=`nolinks=1;pwd`
 
 
-if test "$SLANGINC" != ""; then
-  SLANGINC="-I${SRCPATH}/${SLANGINC}"
-else
-  if test -d "$oldincludedir/slang"; then
-    SLANGINC="-I$oldincludedir/slang"
-  fi
+if test "$force_slang" != "no"; then
+ SLANGINC="-I${SRCPATH}/include/slang"
 fi
 
 # BIG NOTE: XINCLUDES _must_ come last, because some joker did preset

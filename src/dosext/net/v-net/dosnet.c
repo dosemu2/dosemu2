@@ -1,4 +1,6 @@
 /*
+ * DOSNET	A virtual device for usage with dosemu.
+ * derived from:
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
  *		interface as the means of communication with the user level.
@@ -13,14 +15,19 @@
  *
  *		Alan Cox	:	Fixed oddments for NET3.014
  *
+ * Changes for dosemu:
+ *		Bart Hartgers <barth@stack.nl> : adapt. to Linux-2.0.x
+ *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
+ *
  */
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -28,7 +35,6 @@
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
-#include <linux/if_ether.h>	/* For the statistics structure. */
 
 #include <asm/system.h>
 #include <asm/segment.h>
@@ -38,6 +44,9 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <net/sock.h>
+#include <linux/if_ether.h>	/* For the statistics structure. */
+#include <linux/if_arp.h>	/* For ARPHRD_ETHER */
 
 #define MODULE
 
@@ -91,7 +100,6 @@ unsigned char *dosnet_generic_address=DOSNET_FAKED_ETH_ADDRESS ;
 */
 
 
-unsigned short (*_eth_type_trans) (struct sk_buff *skb, struct device *dev);
 
 /*
  *	Determine the packet's "special" protocol ID if the destination
@@ -102,7 +110,11 @@ unsigned short (*_eth_type_trans) (struct sk_buff *skb, struct device *dev);
  */
 unsigned short int dosnet_eth_type_trans(struct sk_buff *skb, struct device *dev)
 {
+	int result;
 	struct ethhdr *eth = (struct ethhdr *) skb->data;
+
+	result = eth_type_trans(skb,dev);
+	eth=skb->mac.ethernet;
 
         /* This is quite tricky. 
            See the notes in dosnet_xmit.
@@ -128,46 +140,49 @@ unsigned short int dosnet_eth_type_trans(struct sk_buff *skb, struct device *dev
                   (eth->h_source[1] == dosnet_generic_address[1]) &&
                   (eth->h_source[3] == dosnet_generic_address[3])  ) 
         {
-              return(_eth_type_trans(skb, dev)); 	
+	      return result;
         }
         /* cases 4 and 5 are ignored. */
         return( htons(DOSNET_INVALID_TYPE) );
 }
 
+/*
+ * The higher levels take care of making this non-reentrant (it's
+ * called with bh's disabled).
+ */
 
 static int
 dosnet_xmit(struct sk_buff *skb, struct device *dev)
 {
-  struct sk_buff *new_skb, *new_skb2;
   struct enet_statistics *stats = (struct enet_statistics *)dev->priv;
   struct ethhdr *eth; 
+  int unlock=1;
 
   if (skb == NULL || dev == NULL) return(0);
 
-  cli();
-  if (dev->tbusy != 0) {
-	sti();
-	stats->tx_errors++;
-	return(1);
+   /*
+    *	Optimise so buffers with skb->free=1 are not copied but
+    *	instead are lobbed from tx queue to rx queue 
+    */
+   
+  if(skb->free==0) {
+	struct sk_buff *skb2=skb;
+	skb=skb_clone(skb, GFP_ATOMIC);		/* Clone the buffer */
+	dev_kfree_skb(skb2, FREE_WRITE);
+	if(skb==NULL)  return 0;
+	unlock=0;
   }
-  dev->tbusy = 1;
-  sti();
-  
-  new_skb = alloc_skb(skb->len, GFP_ATOMIC);
-  if (new_skb == NULL) {
-	printk("%s: Memory squeeze, dropping packet.\n", dev->name);
-	stats->rx_dropped++;
-        dev->tbusy = 0;
-        return(1); 
+  else if(skb->sk) {
+	/*
+	 *	Packet sent but looped back around. Cease to charge
+	 *	the socket for the frame.
+	 */
+	atomic_sub(skb->truesize, &skb->sk->wmem_alloc);
+	skb->sk->write_space(skb->sk);
   }
-  new_skb->len = skb->len;
-  new_skb->dev = skb->dev;
- 
-  memcpy(new_skb->data, skb->data, skb->len);
-
-  dev_kfree_skb(skb, FREE_WRITE);
-  stats->tx_packets++;
-  dev->tbusy = 0;
+  skb->protocol=dosnet_eth_type_trans(skb,dev);
+  skb->dev=dev;
+  eth=skb->mac.ethernet;
 
   /* When it is a broadcast packet, we need to 
          duplicate this packet under one special case - case 6. 
@@ -177,7 +192,6 @@ dosnet_xmit(struct sk_buff *skb, struct device *dev)
      Duplicated packet -> no change in dest address. 
      Original broadcast packet: change dest. address.
   */
-  eth = (struct ethhdr *) new_skb->data;
   if (  (eth->h_dest[0] == 0xff) && (eth->h_dest[1] == 0xff) ) {
         /* broadcast packet. */
         /* Two cases: from dosemu OR from linux(i.e. dsn0). 
@@ -191,29 +205,23 @@ dosnet_xmit(struct sk_buff *skb, struct device *dev)
                   /* Broadcast packet by dosemu. Duplicate and send to 
                      linux, and send to other dosemu's.
                   */
-            new_skb2 = alloc_skb(new_skb->len, GFP_ATOMIC);
-	    if (new_skb2 != NULL) {
-		     new_skb2->len = new_skb->len;
-		     new_skb2->dev = new_skb->dev;
-            	     memcpy(new_skb2->data, new_skb->data, new_skb->len);
+	    struct sk_buff *new_skb;
+	    new_skb = skb_clone(skb, GFP_ATOMIC);
+	    if (new_skb != NULL) {
                      /* It is broadcast packet with source=dosemu, so retain it as is. */
-                     netif_rx(new_skb2);  /* sent to linux side. */
+                     netif_rx(new_skb);  /* sent to linux side. */
             } else
 	          stats->tx_dropped++;
         }
         memcpy(eth->h_dest, DOSNET_BROADCAST_ADDRESS, 6 );
   }
-  netif_rx(new_skb);
-
+  netif_rx(skb);
+  if (unlock) skb_device_unlock(skb);
   stats->rx_packets++;
-
+  stats->tx_packets++;
   return (0);
 }
 
-/* Promiscuous mode: we are always in promiscus mode, so do nothing. ...! */
-static void set_multicast_list(struct device *dev, int num_addrs, void *addrs)
-{
-}
 
 static struct enet_statistics *
 get_stats(struct device *dev)
@@ -250,25 +258,18 @@ int
 dosnet_init(struct device *dev)
 {
   int i;
-  unsigned char broadcast[6]= { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+  ether_setup(dev);  
 
   dev->mtu		= 1500;			/* MTU			*/
   dev->tbusy		= 0;
   dev->hard_start_xmit	= dosnet_xmit;
-  dev->open		= dosnet_open;
-  for(i=0; i<6; i++) {
-    dev->broadcast[i]=broadcast[i];
-  }
-  ether_setup(dev);  
 
   /* dev->hard_header	= eth_header; */	/* done by ether_setup()! */
   dev->hard_header_len	= ETH_HLEN;		/* 14			*/
   dev->addr_len		= ETH_ALEN;		/* 6			*/
+  dev->tx_queue_len	= 50000;		/* No limit on loopback */
   dev->type		= ARPHRD_ETHER;		/* 0x0001		*/
-  _eth_type_trans	= dev->type;
-  dev->type		= dosnet_eth_type_trans;
   /* dev->rebuild_header	= eth_rebuild_header; */
-  dev->set_multicast_list = set_multicast_list ;
   dev->open		= dosnet_open;
   dev->stop		= dosnet_close;
 
@@ -282,8 +283,17 @@ dosnet_init(struct device *dev)
   dev->pa_alen		= 0;
 #endif  
   dev->priv = kmalloc(sizeof(struct enet_statistics), GFP_KERNEL);
+  if (dev->priv == NULL)
+  		return -ENOMEM;
   memset(dev->priv, 0, sizeof(struct enet_statistics));
   dev->get_stats = get_stats;
+
+  /*
+   *	Fill in the generic fields of the device structure. 
+   */
+  for (i = 0; i < DEV_NUMBUFFS; i++)
+		skb_queue_head_init(&dev->buffs[i]);
+  
 
   return(0);
 };

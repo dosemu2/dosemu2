@@ -1,3 +1,44 @@
+             A mini-HOWTO from Bart Hartgers <barth@stack.nl>
+           ( for the detailed original description see below )
+           ----------------------------------------------------
+
+The DOSNET virtual device.
+--------------------------
+
+Dosnet.o is a kernel module that implements a special virtual network
+device. In combination with pktdrv.c.multi and libpacket.c.multi, this will
+enable multiple dosemu sessions and the linux kernel to be on a virtual
+network. Each has it's own network device and ethernet address.
+
+This means that you can telnet or ftp from the dos-session to your
+telnetd/ftpd running in linux and, with IP forwarding enabled in the 
+kernel, connect to any host on your network.
+
+Setup for virtual TCP/IP
+------------------------
+
+Here dosemu is the base directory of your dosemu source.
+
+First replace dosemu/src/dosext/net/net/libpacket.c with libpacket.c.multi and
+dosemu/src/dosext/net/net/pktnew.c with pktnew.c.multi (the .multi-versions
+are also in dosemu/src/dosext/net/net). Now (re)build dosemu.
+
+Go to dosemu/src/dosext/net/v-net and make dosnet.o. As root, insmod
+dosnet.o. Now as root, configure the dsn0 interface (for example: 
+ifconfig dsn0 192.168.74.1 netmask 255.255.255.0), and add a route for it 
+(for example: route add -net 192.168.74.0 netmask 255.255.255.0 dsn0).
+
+Finally, start dosemu, and give your TCP/IP client and ip-address in the
+subnet you just configured. This address should be unique, i.e. no other
+dosemu, or the kernel, should have this address. For the example addresses
+given above, 192.168.74.2-192.168.74.254 would be good. Now you can use a
+dos telnet client to telnet to your own machine!
+
+
+===========================================================================
+Detailed original description of Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
+
+
 
           Allowing a program to have its own network protocol stacks. 
 

@@ -75,6 +75,7 @@ struct pkt_globs
     short type;				/* our type */
     short size;				/* current packet's size */
     long receiver;			/* current receive handler */
+    int  thishandle;			/* the handle for this sucker */
     int helpvec;			/* vector number for helper */
     unsigned char helper[72];		/* upcall helper */
 
@@ -158,12 +159,17 @@ pkt_init (int vec)
     *ptr++ = 0x2e; *ptr++ = 0x8b; *ptr++ = 0x0e; /* mov cx,cs:[pg->size] */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,size)) >> 8;
-    *ptr++ = 0xe3; *ptr++ = 0x31;	/* jcxz nothing */
+    *ptr++ = 0xe3; *ptr++ = 0x38;	/* jcxz nothing */
     *ptr++ = 0x31; *ptr++ = 0xc0;	/* xor ax,ax */
+    *ptr++ = 0x2e; *ptr++ = 0x8b; *ptr++=0x1e; /* mov bx,cs:[pg->thishandle] */
+    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,thishandle)) & 0xff;
+    *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,thishandle)) >> 8;
     *ptr++ = 0x51;			/* push cx */
+    *ptr++ = 0x53;			/* push bx */
     *ptr++ = 0x2e; *ptr++ = 0xff; *ptr++ = 0x1e; /* call cs:[pg->receiver] */
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) & 0xff;
     *ptr++ = (PKTDRV_OFF + offsetof(struct pkt_globs,receiver)) >> 8;
+    *ptr++ = 0x5b;			/* pop bx */
     *ptr++ = 0x59;			/* pop cx */
     *ptr++ = 0x8c; *ptr++ = 0xc0;	/* mov ax,es */
     *ptr++ = 0x09; *ptr++ = 0xf8;	/* or ax,di */
@@ -691,6 +697,7 @@ pkt_check_receive(int timeout)
 		    /* interrupt which will perform the upcall */
 	     pg->size = size;
 	     pg->receiver = hdlp->receiver;
+	     pg->thishandle = handle;
 #ifdef PICPKT
 	     do_irq();
 #else

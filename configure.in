@@ -133,6 +133,20 @@ dnl So I picked one at random, perhaps there is a better one?
 if test "$force_slang" = "no"; then
   AC_CHECK_LIB(slang, SLkm_define_key, , force_slang="yes")
 fi
+
+if test "$force_slang" = "no"; then
+  if test -d "$oldincludedir/slang"; then
+    SLANGINC="-I$oldincludedir/slang"
+  else
+    if test -f "$oldincludedir/slang.h"; then
+      SLANGINC=""
+    else
+      AC_CHECKING("no system supplied slang.h found -- forceing dosemu slang")
+      force_slang="yes"
+    fi
+  fi
+fi
+
 if test "$force_slang" = "no"; then
   SLANGLIB="-lslang -lm"
   AC_CHECKING("using system supplied libslang.a")
@@ -144,7 +158,6 @@ else
    SLANGLIB="-larch_${CONFIG_HOST}_slang"
    AC_CHECKING("using dosemu supplied libarch_${CONFIG_HOST}_slang.a")
  fi
- SLANGINC="include/slang"
 fi
 AC_SUBST(SLANGLIB)
 
@@ -292,7 +305,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="66"
-PATCHLEVEL="0.2"
+PATCHLEVEL="0.3"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -414,12 +427,8 @@ dnl Now CFLAGS and INCLUDES
 TOPDIR=`nolinks=1;pwd`
 AC_SUBST(TOPDIR)
 
-if test "$SLANGINC" != ""; then
-  SLANGINC="-I${SRCPATH}/${SLANGINC}"
-else
-  if test -d "$oldincludedir/slang"; then
-    SLANGINC="-I$oldincludedir/slang"
-  fi
+if test "$force_slang" != "no"; then
+ SLANGINC="-I${SRCPATH}/include/slang"
 fi
 
 # BIG NOTE: XINCLUDES _must_ come last, because some joker did preset
