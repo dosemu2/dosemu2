@@ -480,6 +480,11 @@ pkt_int ()
     return 1;
 }
 
+void
+pkt_check_receive_quick(void) {
+  pkt_check_receive(0);
+}
+
 int
 pkt_check_receive(timeout)
 int timeout;

@@ -558,6 +558,10 @@ Remove_Type(int handle)
   }
 }
 
+void
+pkt_check_receive_quick(void){
+  pkt_check_receive(0);
+}
 
 int
 pkt_check_receive(timeout)

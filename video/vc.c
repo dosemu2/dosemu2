@@ -192,13 +192,7 @@ parent_close_mouse (void)
 {
   if (mice->intdrv)
     {
-      DOS_SYSCALL (close (mice->fd));
-      if (use_sigio)
-	{
-	  FD_CLR (mice->fd, &fds_sigio);
-	}
-      else
-	FD_CLR (mice->fd, &fds_no_sigio);
+	remove_from_io_select(mice->fd, mice->add_to_io_select);
     }
   else
     child_close_mouse ();
@@ -211,15 +205,7 @@ parent_open_mouse (void)
     {
       static int old_mice_flags;
       mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
-      if (use_sigio)
-	{
-	  old_mice_flags = fcntl (mice->fd, F_GETFL);
-	  fcntl (mice->fd, F_SETOWN, getpid ());
-	  fcntl (mice->fd, F_SETFL, old_mice_flags | use_sigio);
-	  FD_SET (mice->fd, &fds_sigio);
-	}
-      else
-	FD_SET (mice->fd, &fds_no_sigio);
+	add_to_io_select(mice->fd, mice->add_to_io_select);
     }
   else
     child_open_mouse ();

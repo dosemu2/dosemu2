@@ -98,6 +98,16 @@ export NEW_PIC
 export PICOBJS
 endif
 
+# The next lines define the Lock file set up.  You must do a make clean
+# make config if change these lines
+# Uncomment the following if you still have your UUCP locks in /usr/spool/uucp
+PATH_LOCKD = -DPATH_LOCKD=\"/usr/spool/uucp\"
+# Uncomment the following if you your UUCP locks in /var/locks
+#PATH_LOCKD = -DPATH_LOCKD=\"/var/locks\"
+# First part of Lock file names, prepended to 'tty5' etc.
+NAME_LOCKF = -DNAME_LOCKF=\"LCK..\"
+
+
 # enable this target to make a different way
 # do_DEBUG=true
 ifdef ELF
@@ -118,7 +128,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   52
+PATCHL  =   53
 LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -231,10 +241,11 @@ OPT=  -O2 -funroll-loops # -fno-inline
 PIPE=-pipe
 export CFLAGS     = $(OPT) $(PIPE) $(USING_NET)
 CFLAGS+=$(NEW_PIC) $(DPMI) $(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
+CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
 
 # set for DPMI want windows
-# CFLAGS+=-DWANT_WINDOWS
+CFLAGS+=-DWANT_WINDOWS
 # set to use a simpler fork for unix command
 # CFLAGS+=-DSIMPLE_FORK
 # set to debug fork with environment

@@ -1491,10 +1491,11 @@ mouse_init(void)
       if (mice->fd == -1) {
  	mice->intdrv = FALSE;
  	mice->type = MOUSE_NONE;
+ 	mice->add_to_io_select = 0;
  	return;
       }
       /* want_sigio causes problems with internal mouse driver */
-      add_to_io_select(mice->fd, 0);
+      add_to_io_select(mice->fd, mice->add_to_io_select);
       DOSEMUSetupMouse();
       memcpy(p,mouse_ver,sizeof(mouse_ver));
       return;
@@ -1502,7 +1503,8 @@ mouse_init(void)
 
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
-      add_to_io_select(mice->fd, 0); 
+      mice->add_to_io_select = 0;
+      add_to_io_select(mice->fd, mice->add_to_io_select); 
       memcpy(p,mouse_ver,sizeof(mouse_ver));
     }
     else {
@@ -1522,9 +1524,10 @@ mouse_init(void)
     if (mice->fd == -1) {
       mice->intdrv = FALSE;
       mice->type = MOUSE_NONE;
+      mice->add_to_io_select = 1;
       return;
     }
-    add_to_io_select(mice->fd, 1);
+    add_to_io_select(mice->fd, mice->add_to_io_select);
     DOSEMUSetupMouse();
     memcpy(p,mouse_ver,sizeof(mouse_ver));
     return;

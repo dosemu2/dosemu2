@@ -54,6 +54,19 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
+
+/* the Lock file stuff.  Default user is uucp!
+ */
+#ifndef OWNER_LOCKS
+#define OWNER_LOCKS        "uucp"                  /* owns locks  */
+#endif
+#ifndef PATH_LOCKD
+#define PATH_LOCKD         "/var/locks"            /* lock files */
+#endif
+#ifndef NAME_LOCKF
+#define NAME_LOCKF         "LCK.."                 /* lock file name */
+#endif
+
 /* the UART definitions are quoted from linux/include/linux/serial.h, a work
  * by Theodore Ts'o
  */
@@ -220,6 +233,8 @@ typedef struct serial_struct {
   int interrupt;		/* IRQ line handled by device */
   int fd;			/* File descriptor of device */
   boolean mouse;		/* Flag to turn on mouse sharing features */
+  boolean dev_locked;           /* Flag to indicate wether device is locked */
+                                /* or not */
 
   u_char int_pend;		/* Interrupt Pending Flag */
   u_char int_type;		/* Interrupts Waiting Flags */

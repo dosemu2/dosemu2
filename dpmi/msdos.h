@@ -48,6 +48,8 @@ static inline void save_pm_regs();
 static inline void restore_pm_regs();
 static inline unsigned short AllocateDescriptors(int);
 
+/* We use static varialbes because DOS in non-reentrant, but maybe a */
+/* better way? */
 static unsigned short DS_MAPPED;
 static unsigned short ES_MAPPED;
 static char READ_DS_COPIED;
@@ -61,10 +63,25 @@ static inline int old_dos_terminate(struct sigcontext_struct *scp)
     REG(cs)  = CURRENT_PSP;
     REG(eip) = 0x100;
     if (in_win31) {
+	/* is seems that winos2 uses a PSP that not allocate via dos, */
+	/* so we can\'t let dos to free it. just restore some DOS int */
+	/* vectors and return. */
+
+	/* restore terminate address address */
+	((unsigned long *)0)[0x22] =
+	             *(unsigned long *)((char *)(CURRENT_PSP<<4) + 0xa);
+	/* restore Ctrl-Break address */
+	((unsigned long *)0)[0x23] =
+	             *(unsigned long *)((char *)(CURRENT_PSP<<4) + 0xe);
+	/* restore critical error  address */
+	((unsigned long *)0)[0x24] =
+	             *(unsigned long *)((char *)(CURRENT_PSP<<4) + 0x12);
+	return 1;
+
+#if 0
 	int i;
 	unsigned short parent_seg;
 	unsigned short parent_off;
-
 	parent_off = *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa);
 	parent_seg = *(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa+2);
 
@@ -88,6 +105,7 @@ static inline int old_dos_terminate(struct sigcontext_struct *scp)
 	/* no need for register translation */
 	*(unsigned short *)((char *)(CURRENT_PSP<<4) + 0xa) =
 	     DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
+#endif	
     }
     return 0;
 }
@@ -107,6 +125,15 @@ static inline int old_dos_terminate(struct sigcontext_struct *scp)
 static inline int
 msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
+    /* only consider DOS services */
+    switch (intr) {
+    case 0x20 ... 0x21:
+    case 0x25 ... 0x26:
+	break;
+    default:
+	return 0;
+    }
+    
     DS_MAPPED = 0;
     ES_MAPPED = 0;
     switch (intr) {
@@ -448,6 +475,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     case 0x25:			/* Absolute Disk Read */
     case 0x26:			/* Absolute Disk write */
 	DS_MAPPED = 1;
+	D_printf("DPMI: msdos Absolute Disk Read/Write called.\n");
 	break;
     default:
 	return 0;
@@ -516,6 +544,26 @@ msdos_post_exec()
 static inline void
 msdos_post_extender(int intr)
 {
+    switch (intr) {
+    case 0x15:
+      switch(S_HI(ax)) {
+        case 0xc0:      /* Get Configuartion */
+                if (REG(eflags)&CF)
+                        return;
+                if (!(dpmi_stack_frame[current_client].es =
+                         ConvertSegmentToDescriptor(REG(es))))
+                return;
+        default:
+                return;
+      }
+    /* only copy buffer for dos services */
+    case 0x21:
+    case 0x25 ... 0x26:
+	break;
+    default:
+	return;
+    }
+
     if (DS_MAPPED) {
 	unsigned short my_ds;
 	my_ds =   DPMI_private_data_segment+DPMI_private_paragraphs;
@@ -533,17 +581,6 @@ msdos_post_extender(int intr)
     ES_MAPPED = 0;
 	       
     switch (intr) {
-    case 0x15:
-      switch(S_HI(ax)) {
-        case 0xc0:      /* Get Configuartion */
-                if (REG(eflags)&CF)
-                        return;
-                if (!(dpmi_stack_frame[current_client].es =
-                         ConvertSegmentToDescriptor(REG(es))))
-                break;
-        default:
-                return;
-      }
     case 0x21:
 	switch (S_HI(ax)) {
 	case 0x29:		/* Parse a file name for FCB */
@@ -672,6 +709,22 @@ msdos_post_extender(int intr)
 	    return;
 	}
 	break;
+    case 0x25:			/* Absolute Disk Read */
+    case 0x26:			/* Absolute Disk Write */
+	/* the flags should be pushed to stack */
+	if (DPMIclient_is_32) {
+	    dpmi_stack_frame[current_client].esp -= 4;
+	    *(unsigned long *)(GetSegmentBaseAddress(
+		dpmi_stack_frame[current_client].ss) +
+	      dpmi_stack_frame[current_client].esp) = REG(eflags);
+	} else {
+	    dpmi_stack_frame[current_client].esp -= 2;
+	    *(unsigned short *)(GetSegmentBaseAddress(
+		dpmi_stack_frame[current_client].ss) +
+	      (dpmi_stack_frame[current_client].esp&0xffff)) =
+		 LWORD(eflags);
+	}
+	return;
     default:
 	return;
     }
@@ -1078,35 +1131,65 @@ static  inline int msdos_fault(struct sigcontext_struct *scp)
 	/* although dpmiload allocates data alias selector for every */
 	/* code selector, but it insists to write on code segment :=(.*/
 	char fix_alias = 0;
-
-	/* see if it is a cs prefix problem */
-	if (msdos_fix_cs_prefix(scp))
-	    return 1;
+	unsigned char *csp;
+#if 0
+	if (in_bcc) {
+	    /* see if it is a cs prefix problem */
+	    if (msdos_fix_cs_prefix(scp))
+		return 1;
 	
-	if ((Segments[_ds>>3].type & MODIFY_LDT_CONTENTS_CODE) &&
-	    (Segments[(_ds>>3)+1].base_addr == Segments[_ds>>3].base_addr)
-	    &&((Segments[(_ds>>3)+1].type & MODIFY_LDT_CONTENTS_CODE)==0)){
-	    _ds += 8;
-	    fix_alias=1;
+	    if ((Segments[_ds>>3].type & MODIFY_LDT_CONTENTS_CODE) &&
+		(Segments[(_ds>>3)+1].base_addr == Segments[_ds>>3].base_addr)
+		&&((Segments[(_ds>>3)+1].type & MODIFY_LDT_CONTENTS_CODE)==0)){
+		_ds += 8;
+		fix_alias=1;
+	    }
+	    if ((Segments[_es>>3].type & MODIFY_LDT_CONTENTS_CODE) &&
+		(Segments[(_es>>3)+1].base_addr == Segments[_es>>3].base_addr)
+		&&((Segments[(_es>>3)+1].type & MODIFY_LDT_CONTENTS_CODE)==0)){
+		_es += 8;
+		fix_alias=1;
+	    }
 	}
-	if ((Segments[_es>>3].type & MODIFY_LDT_CONTENTS_CODE) &&
-	    (Segments[(_es>>3)+1].base_addr == Segments[_es>>3].base_addr)
-	    &&((Segments[(_es>>3)+1].type & MODIFY_LDT_CONTENTS_CODE)==0)){
-	    _es += 8;
-	    fix_alias=1;
+#endif 	
+
+	csp = (unsigned char *) SEL_ADR(_cs, _eip);
+	switch (*csp) {
+	case 0x2e:		/* cs: */
+	    break;		/* do nothing */
+	case 0x36:		/* ss: */
+	    break;		/* do nothing */
+	case 0x26:		/* es: */
+	    if (_es == 0) {
+		D_printf("DPMI: client tries to use use gdt 0 as es\n");
+		_es = ConvertSegmentToDescriptor(0);
+		fix_alias = 1;
+	    }
+	    break;
+	case 0x64:		/* fs: */
+	    if (_fs == 0) {
+		D_printf("DPMI: client tries to use use gdt 0 as fs\n");
+		_fs = ConvertSegmentToDescriptor(0);
+		fix_alias = 1;
+	    }
+	    break;
+	case 0x65:		/* gs: */
+	    if (_gs == 0) {
+		D_printf("DPMI: client tries to use use gdt 0 as es\n");
+		_gs = ConvertSegmentToDescriptor(0);
+		fix_alias = 1;
+	    }
+	    break;
+	case 0x3e:		/* ds: */
+	default:		/* assmue default is using ds, but if the */
+				/* client sets ss to 0, it is totally broken */
+	    if (_ds == 0) {
+		D_printf("DPMI: client tries to use use gdt 0 as ds\n");
+		_ds = ConvertSegmentToDescriptor(0);
+		fix_alias = 1;
+	    }
+	    break;
 	}
-	/* see if bcc want use GDT 0 */
-	if (_ds == 0) {
-	    D_printf("BCC: try to use use gdt 0 as ds\n");
-	    _ds = ConvertSegmentToDescriptor(0);
-	    fix_alias = 1;
-	}
-	if (_es == 0) {
-	    D_printf("BCC: try to use use gdt 0 as es\n");
-	    _es = ConvertSegmentToDescriptor(0);
-	    fix_alias = 1;
-	}
-	    
 	return fix_alias;
     }
 
@@ -1119,16 +1202,23 @@ static  inline int msdos_fault(struct sigcontext_struct *scp)
 
     D_printf("DPMI: try mov to a invalid selector 0x%04x\n", segment);
 
+#if 1
+    /* olny allow using some special GTD\'s */
+    if ((segment != 0x0040) && (segment != 0xa000) &&
+	(segment != 0xb000) && (segment != 0xb800) &&
+	(segment != 0xc000) && (segment != 0xe000) && (segment != 0xf000))
+	return 0;
+
+    if (!(desc = ConvertSegmentToDescriptor(segment)))
+	return 0;
+    desc = desc >>3;
+
+#else						     
     base_addr = ((unsigned long)segment) << 4;
     for(desc=0; desc < MAX_SELECTORS; desc++)
 	if ((Segments[desc].base_addr == base_addr)&&
 	    Segments[desc].used)
 	    break;
-
-#if 0    
-    if (desc >= MAX_SELECTORS)
-	return 0;
-#else
     if (desc >= MAX_SELECTORS) {
 	if (!(desc = ConvertSegmentToDescriptor(segment)))
 	    return 0;

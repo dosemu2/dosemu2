@@ -64,7 +64,7 @@ void do_console_update_cursor() {
 
 void set_console_video(void)
 {
-  if (config.vga) {
+  if (config.console_video) {
     k_printf("KBD: Taking mouse control\n");
     ioctl(kbd_fd, KDSETMODE, KD_GRAPHICS);
   }

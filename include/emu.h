@@ -335,6 +335,7 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        int hdiskboot;
 
        /* for video */
+       boolean console;
        boolean console_video;
        boolean graphics;
        boolean vga;
@@ -412,6 +413,12 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        unsigned char *num_table;
        unsigned short detach;
        unsigned char *debugout;
+
+       /* Lock File business */
+       char *tty_lockdir;	/* The Lock directory  */
+       char *tty_lockfile;	/* Lock file pretext ie LCK.. */
+       boolean tty_lockbinary;	/* Binary lock files ? */
+
      }
 
 config_t;

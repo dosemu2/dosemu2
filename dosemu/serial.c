@@ -12,6 +12,21 @@
  *	mdrejhon@csclub.uwaterloo.ca
  *	ag115@freenet.carleton.ca
  *
+ *              Lock file stuff stolen from Taylor UUCP
+ *              Copyright (C) 1991, 1992 Ian Lance Taylor
+ *
+ *              Uri Blumenthal <uri@watson.ibm.com>
+ *              (C) 1994
+ *
+ *              Paul Cadach, <paul@paul.east.alma-ata.su>
+ *              (C) 1994
+ *
+ *              Lock file stuff is free software; you can redistribute it
+ *              and/or  modify it under  the terms of  the GNU General
+ *              Public  License as  published  by  the  Free  Software
+ *              Foundation;  either  version 2 of the License, or  (at
+ *              your option) any later version.
+ *
  *
  * $Date: 1995/02/25 22:38:01 $
  * $Source: /home/src/dosemu0.60/dosemu/RCS/serial.c,v $
@@ -134,6 +149,8 @@
 #include <termios.h>
 #include <signal.h>
 #include <sys/ioctl.h>
+#include <linux/fs.h>
+#include <pwd.h>
 
 #include "config.h"
 #include "cpu.h"
@@ -208,6 +225,9 @@ static void interrupt_engine(int num);
 void pic_serial_run(void);
 #endif
 
+static int tty_already_locked(char *nam);
+static int tty_lock(char *path, int mode);
+ 
 /*************************************************************************/
 /*                 MISCALLENOUS serial support functions                 */
 /*************************************************************************/
@@ -462,6 +482,166 @@ ser_termios(int num)
   com[num].newbaud = baud;
   tcsetattr(com[num].fd, TCSANOW, &com[num].newset);   /* DOS_SYSCALL */
 }
+/*  Determines if the tty is already locked.  Stolen from uri-dip-3.3.7k
+ *  Nice work Uri Blumenthal & Ian Lance Taylor!
+ *			[nam = lock file +path, return = locked (!=0) or not]
+ */
+static int
+tty_already_locked(char *nam) /* nam - complete path to lock file */
+{
+  int  i = 0, pid = 0;
+  FILE *fd = (FILE *)0;
+
+  /* Does the lock file on our device exist? */
+  if ((fd = fopen(nam, "r")) == (FILE *)0)
+    return 0; /* No, return perm to continue */
+
+  /* Yes, the lock is there.  Now let's make sure */
+  /* at least there's no active process that owns */
+  /* that lock.                                   */
+  if(config.tty_lockbinary){
+    i = read(fileno(fd), &pid, sizeof(pid)) == sizeof(pid);
+  }
+  else {
+    i = fscanf(fd, "%d", &pid);
+  }
+  (void) fclose(fd);
+
+  if (i != 1) /* Lock file format's wrong! Kill't */
+    return 0;
+
+  /* We got the pid, check if the process's alive */
+  if (kill(pid, 0) == 0)      /* it found process */
+      return 1;           /* Yup, it's running... */
+
+  /* Dead, we can proceed locking this device...  */
+  return 0;
+}
+
+
+/*  Locks or unlocks a terminal line Stolen from uri-dip-3.3.7k
+ *  Nice work Uri Blumenthal & Ian Lance Taylor!
+ * [path = device name, 
+ *  mode: 1 = lock, 2 = reaquire lock, anythingelse = unlock,
+ *  return = success (0) or failure (< 0)]
+ */
+/* Lock or unlock a terminal line. */
+static int
+tty_lock(char *path, int mode)
+{
+  static char saved_path[PATH_MAX];
+  static char nam_tmp[PATH_MAX];
+  static char dev_nam[20];
+  static int saved_lock = 0;
+  struct passwd *pw;
+  pid_t ime;
+  int cwrote;
+
+  bzero(nam_tmp, sizeof(nam_tmp));
+
+  /* Check that lockfiles can be created! */
+  if((mode == 1 || mode == 2) && geteuid() != (uid_t)0) {
+    s_printf("DOSEMU: Need to be suid root to create Lock Files!\n"
+	     "        Serial port on %s not configured!\n", path);
+    error("\nDOSEMU: Need to be suid root to create Lock Files!\n"
+	  "        Serial port on %s not configured!\n", path);
+    return(-1);
+  }
+
+  if (mode == 1) {      /* lock */
+    if (path == NULL) return(0);        /* standard input */
+    bzero(dev_nam, sizeof(dev_nam));
+    sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile, 
+	    (strrchr(path, '/')+1));
+    strcpy(dev_nam, path);
+    {
+      FILE *fd;
+      if (tty_already_locked(saved_path) == 1) {
+        s_printf("DOSEMU: attempt to use already locked tty %s\n",
+               saved_path);
+        error("\nDOSEMU: attempt to use already locked tty %s\n",
+                saved_path);
+        return (-1);
+      }
+      if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
+        s_printf("DOSEMU: lock: (%s): %s\n",
+               saved_path, strerror(errno));
+        error("\nDOSEMU: tty: lock: (%s): %s\n",
+                saved_path, strerror(errno));
+        return(-1);
+      }
+      ime = getpid();
+      if(config.tty_lockbinary) {
+	cwrote = write (fileno(fd), &ime, sizeof(ime));
+      }
+      else {
+	fprintf(fd, "%10d\n", (int)ime);
+      }
+      (void)fclose(fd);
+    }
+
+    /* Make sure UUCP owns the lockfile.  Required by some packages. */
+    if ((pw = getpwnam(OWNER_LOCKS)) == NULL) {
+      error("\nDOSEMU: tty: lock: UUCP user %s unknown!\n",
+              OWNER_LOCKS);
+      return(0);        /* keep the lock anyway */
+    }
+    (void) chown(saved_path, pw->pw_uid, pw->pw_gid);
+    (void) chmod(saved_path, 0644);
+    saved_lock = 1;
+  } else {
+    if (mode == 2) { /* re-acquire a lock after a fork() */
+      FILE *fd;
+
+      if (saved_lock != 1) {
+        s_printf("DOSEMU: tty_lock reaquire: lock was not saved!\n");
+        return (-1);
+      }
+      if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
+        s_printf("DOSEMU:tty_lock(%s) reaquire: %s\n",
+               saved_path, strerror(errno));
+        error("\nDOSEMU:tty_lock: reacquire (%s): %s\n",
+                saved_path, strerror(errno));
+        return(-1);
+      }
+      ime = getpid();
+      if(config.tty_lockbinary) {
+	cwrote = write (fileno(fd), &ime, sizeof(ime));
+      }
+      else {
+	fprintf(fd, "%10d\n", (int)ime);
+      }
+      (void)fclose(fd);
+      (void) chmod(saved_path, 0444);
+      (void) chown(saved_path, getuid(), getgid());
+      return(0);
+    } else {    /* unlock */
+      FILE *fd;
+
+      if (saved_lock != 1) {
+        s_printf("DOSEMU:tty_lock: lock was not saved?!\n");
+        return(0);
+      }
+      if ((fd = fopen(saved_path, "w")) == (FILE *)0) {
+        s_printf("DOSEMU:tty_lock: can't reopen to delete: %s\n",
+               strerror(errno));
+        return (-1);
+      }
+      if (unlink(saved_path) < 0) {
+        s_printf("DOSEMU: tty: unlock: (%s): %s\n", saved_path,
+               strerror(errno));
+        error("\nDOSEMU: tty: unlock: (%s): %s\n", saved_path,
+                strerror(errno));
+        saved_lock = 0;
+        return(-1);
+      }
+      saved_lock = 0;
+    }
+  }
+
+  return(0);
+}
+
 
 
 /* This function opens the serial port for DOSEMU.  Normally called only
@@ -525,6 +705,7 @@ do_ser_init(int num)
   **
   ** If COMx is unspecified, the next unused COMx port number is assigned.
   */
+
   if (com[num].real_comport == 0) {		/* Is comport number undef? */
     for (i = 1; i < 16; i++) if (com_port_used[i] != 1) break;
     com[num].real_comport = i;
@@ -547,6 +728,7 @@ do_ser_init(int num)
     default: com[num].base_port = 0x3F8; break;
     }
   }
+
   if (com[num].dev[0] == 0) {			/* Is the device file undef? */
     switch (com[num].real_comport) {		/* Define it using std devs */
     case 4:  strcpy(com[num].dev, "/dev/cua3"); break;
@@ -555,6 +737,17 @@ do_ser_init(int num)
     default: strcpy(com[num].dev, "/dev/cua0"); break;
     }
   }
+  
+  /* Insert lock file function here */
+  if ( !com[num].mouse ) {
+    if ( tty_lock( com[num].dev, 1) >= 0) {
+      com[num].dev_locked = TRUE;
+    }
+    else {
+      return;
+    }
+  }
+
 #if NEW_PIC==2
   /* convert irq number to pic_ilevel number and set up interrupt */
   /* if irq is invalid, no interrupt will be assigned */
@@ -683,6 +876,7 @@ serial_init(void)
   /* Do UART init here - Need to set up registers and init the lines. */
   for (i = 0; i < config.num_ser; i++) {
     com[i].fd = -1;
+    com[i].dev_locked = FALSE;
 #ifdef X_SUPPORT
     if ((!config.usesX && config.console_video ) || !com[i].mouse)   /* skip "mouse" ports in X mode */
 #else
@@ -706,6 +900,8 @@ serial_close(void)
     if ( ( ! config.usesX ) || ( ! com[i].mouse ) ){
       RPT_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
       ser_close(i);
+      if ( com[i].dev_locked ) 
+	tty_lock(com[i].dev, 0);
     }
   }
 }

@@ -368,8 +368,10 @@ video_config_init(void) {
   if ((config.console_keyb || config.console_video) && !config.usesX)
     set_process_control();
 
-  if (config.console_video)
+  if (config.console_video) {
     set_console_video();
+  }
+
   if (config.usesX)
     set_consoleX_video();
 

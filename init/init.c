@@ -21,6 +21,7 @@
 #include "int.h"
 #include "timers.h"
 #include "termio.h"
+#include "vc.h"
 #include "mouse.h"
 #ifdef USING_NET
 #include "ipx.h"
@@ -30,6 +31,7 @@
 #include "pic.h"
 #endif
 
+extern void pkt_check_receive_quick(void);
 
 #if 0
 static inline void dbug_dumpivec(void)
@@ -185,6 +187,10 @@ void hardware_setup(void)
     pic_seti(PIC_IRQ12, DOSEMUMouseEvents, 0);
     pic_unmaski(PIC_IRQ12);
   }
+#ifdef USING_NET
+  pic_seti(16, pkt_check_receive_quick, 0);
+  pic_unmaski(16);
+#endif
 #else 
   for (i = 0; i < 2; i++) {
     pics[i].OCW1 = 0;		/* no IRQ's serviced */
@@ -480,6 +486,7 @@ void low_mem_init(void)
  */
 void version_init(void) {
   struct new_utsname unames;
+
   uname(&unames);
   warn("DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);  
   warn("Built for %d\n", KERNEL_VERSION);
@@ -489,6 +496,7 @@ void version_init(void) {
       use_sigio=FASYNC;
     }
   }
+
   /* Next Check input */
   if (isatty(STDIN_FILENO)) {
     k_printf("STDIN is tty\n");
@@ -497,6 +505,7 @@ void version_init(void) {
     k_printf("STDIN not a tty\n");
     config.kbd_tty = 1;
   }
+
 }
 
 

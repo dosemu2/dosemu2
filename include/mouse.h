@@ -48,6 +48,7 @@ typedef struct  {
   int fd;
   int type;
   int flags;
+  boolean add_to_io_select;
   boolean intdrv;
   boolean emulate3buttons;
   boolean cleardtr;

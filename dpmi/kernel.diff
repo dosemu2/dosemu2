@@ -62,3 +62,17 @@ diff -ru linux/include/linux/ldt.h linux.new/include/linux/ldt.h
 +			 int limit_in_pages_flag, int seg_not_present_flag, int useable);
  
  #endif
+diff -ru linux/arch/i386/kernel/signal.c linux.new/arch/i386/kernel/signal.c
+--- linux/arch/i386/kernel/signal.c.pl12	Tue Mar 14 03:13:34 1995
++++ linux/arch/i386/kernel/signal.c	Tue Mar 14 04:08:31 1995
+@@ -47,7 +47,7 @@
+ {
+ #define COPY(x) regs->x = context.x
+ #define COPY_SEG(x) \
+-if ((context.x & 0xfffc) && (context.x & 3) != 3) goto badframe; COPY(x);
++if ((context.x & 0xfffc) && (context.x & 0x4) != 0x4 && (context.x & 3) != 3) goto badframe; COPY(x);
+ #define COPY_SEG_STRICT(x) \
+ if (!(context.x & 0xfffc) || (context.x & 3) != 3) goto badframe; COPY(x);
+ 	struct sigcontext_struct context;
+
+

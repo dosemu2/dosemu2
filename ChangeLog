@@ -1,3 +1,11 @@
+Sun Mar 19	1995
+
+-	Release pre0.53.53
+-	Latest DPMI from Dong
+-	Locking serial ttys from:
+		 Matthew Grant <grantma@ritz.equinox.gen.nz>
+-	Little work on ctrl-alt-del rebooting, but no success.
+
 Fri Mar 17	1995
 
 -	Release pre0.53.52

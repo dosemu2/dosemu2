@@ -282,7 +282,7 @@ static int dos_helper(void)
     break;
 #endif
     case 0x80:
-        LWORD(eax) = getcwd(SEG_ADR((char *), es, dx), (u_short *)LWORD(eax));
+        LWORD(eax) = getcwd(SEG_ADR((char *), es, dx), (u_short)LWORD(eax));
         break;
   case 0x81:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
@@ -957,8 +957,10 @@ static void int2f(u_char i)
     return;
 
   case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
+#if 0			/* it seens this confuse winos2 */
     if (in_dpmi && in_win31)
       LO(ax) = 3;	/* let's try enhaced mode :-))))))) */
+#endif    
     D_printf("DPMI: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
     return;
 

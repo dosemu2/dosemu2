@@ -471,12 +471,10 @@ io_select(fd_set fds)
 		m_printf("MOUSE: We have data\n");
 #ifdef NEW_PIC
 	  pic_request(PIC_IRQ12);
-	  m_printf("MOUSE: PIC will be requesting it\n");
 #else
 	  DOSEMUMouseEvents();
 #endif
 	}
-
       if (FD_ISSET(kbd_fd, &fds)) {
 	getKeys();
       }
@@ -487,6 +485,11 @@ io_select(fd_set fds)
 #endif
       break;
     }
+#if 0
+#ifdef USING_NET
+    pic_request(16);
+#endif
+#endif
 
 }
 

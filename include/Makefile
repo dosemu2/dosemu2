@@ -3,18 +3,18 @@
 
 
 ALL = bios.h cmos.h cpu.h disks.h dosio.h dosnet.h emu.h \
-	emusys.h hgc.h inifile.h ipx.h keymaps.h \
-	lpt.h machcompat.h memory.h mouse.h mutex.h port.h \
-	serial.h slang.h syscallmgr.h termio.h timers.h video.h xms.h \
-	macros86.h vc.h extern.h int.h shared.h pktdrvr.h dos2linux.h \
-	pic.h bitops.h
+emusys.h hgc.h inifile.h ipx.h keymaps.h \
+lpt.h machcompat.h memory.h mouse.h mutex.h port.h \
+serial.h slang.h syscallmgr.h termio.h timers.h video.h xms.h \
+macros86.h vc.h extern.h int.h shared.h pktdrvr.h dos2linux.h \
+                pic.h bitops.h
 
-OBJS = 
+                OBJS =
 
 all:
 
 .c.o:
-	$(CC) $(CFLAGS) $(INCDIR) -c $<
+	$(CC) $(CFLAGS) $(INCDIR) -c $ <
 
 checkin:
 	-ci $(ALL) Makefile
@@ -25,23 +25,16 @@ clean:
 	rm -f *.o
 	rm -f kversion.h
 
-realclean: clean
-	rm -f .depend
+realclean:clean
+	rm -f.depend
 
 install:
 
-dist: $(ALL) Makefile
+dist:$(ALL) Makefile
 	install -d $(DISTPATH)/include
 	install -m 0644 $(ALL) Makefile $(DISTPATH)/include
 
-depend dep: 
+depend dep:
 
 
 dummy:
-
-#
-# include a dependency file if one exists
-#
-ifeq (.depend,$(wildcard .depend))
-include .depend
-endif

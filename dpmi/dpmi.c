@@ -137,7 +137,7 @@
 #define RM_AFFECT_IF
 #endif
 
-#if 0
+#if 1
 #undef inline /*for gdb*/
 #define inline
 #endif
@@ -487,6 +487,7 @@ static inline int FreeDescriptor(unsigned short selector)
 {
   unsigned short ldt_entry = selector >> 3;
   unsigned long *lp;
+  struct modify_ldt_ldt_s ldt_info;
 
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
@@ -504,7 +505,12 @@ static inline int FreeDescriptor(unsigned short selector)
   lp = (unsigned long *) &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE];
   *lp = 0;
   *(lp+1) = 0;
-  return 0;
+
+  /* WinOS2 depends on freeed descrpitor really free */
+  memset((void *)&ldt_info, 0, sizeof(ldt_info));
+  ldt_info.entry_number = ldt_entry;
+  return modify_ldt(1, &ldt_info, sizeof(ldt_info));
+
 }
 
 static inline int ConvertSegmentToDescriptor(unsigned short segment)
@@ -794,7 +800,16 @@ static inline dpmi_pm_block *lookup_pm_block(unsigned long h)
 	    return tmp;
     return 0;
 }
-			 
+
+#define CHECK_SELECTOR(x) \
+{ if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
+      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
+	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
+      _LWORD(eax) = 0x8011; \
+      _eflags |= CF; \
+      break; \
+    } \
+}      
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
   _eflags &= ~CF;
@@ -806,10 +821,18 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     }
     break;
   case 0x0001:
+    CHECK_SELECTOR(_LWORD(ebx));
     if (FreeDescriptor(_LWORD(ebx))){
       _LWORD(eax) = 0x8011;
       _eflags |= CF;
     }
+#if 0    
+    /* do it dpmi 1.00 host\'s way */
+    if ( _ds == _LWORD(ebx)) _ds = 0;
+    if ( _es == _LWORD(ebx)) _es = 0;
+    if ( _fs == _LWORD(ebx)) _fs = 0;
+    if ( _gs == _LWORD(ebx)) _gs = 0;
+#endif    
     break;
   case 0x0002:
     if (!(_LWORD(eax)=ConvertSegmentToDescriptor(_LWORD(ebx)))) {
@@ -832,22 +855,21 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     }
     break;
   case 0x0007:
+    CHECK_SELECTOR(_LWORD(ebx));
     if (SetSegmentBaseAddress(_LWORD(ebx), (_LWORD(ecx))<<16 | (_LWORD(edx)))) {
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
     }
     break;
   case 0x0008:
+    CHECK_SELECTOR(_LWORD(ebx));
     if (SetSegmentLimit(_LWORD(ebx), ((unsigned long)(_LWORD(ecx))<<16) | (_LWORD(edx)))) {
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
     }
     break;
   case 0x0009:
-    if ((_LWORD(ebx) & 0x7 != 0x7) || (Segments[_LWORD(ebx)>>3].used == 0)) {
-      _eflags |= CF;
-      break;
-    }
+    CHECK_SELECTOR(_LWORD(ebx));
     if (SetDescriptorAccessRights(_LWORD(ebx), _ecx & (DPMIclient_is_32 ? 0xffff : 0x00ff))) {
       _eflags |= CF;
     }
@@ -857,29 +879,18 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       _eflags |= CF;
     break;
   case 0x000b:
-    if ((_LWORD(ebx) & 0x7 != 0x7) || (Segments[_LWORD(ebx)>>3].used == 0)) {
-      _eflags |= CF;
-      break;
-    }
     GetDescriptor(_LWORD(ebx),
 		(unsigned long *) (GetSegmentBaseAddress(_es) +
 			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) );
     break;
   case 0x000c:
-    if ((_LWORD(ebx) & 0x7 != 0x7) || (Segments[_LWORD(ebx)>>3].used == 0)) {
-      _eflags |= CF;
-      break;
-    }
+    CHECK_SELECTOR(_LWORD(ebx));
     if (SetDescriptor(_LWORD(ebx),
 		      (unsigned long *) (GetSegmentBaseAddress(_es) +
 			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) ))
       _eflags |= CF;
     break;
   case 0x000d:
-    if (_LWORD(ebx) & 0x7 != 0x7) {
-      _eflags |= CF;
-      break;
-    }
     if (AllocateSpecificDescriptor(_LWORD(ebx)))
       _eflags |= CF;
     break;
@@ -1630,7 +1641,6 @@ void dpmi_init()
   in_dpmi++;
   in_win31 = 0;
   in_dpmi_dos_int = 0;
-  in_sigsegv--;
   pm_block_root[current_client] = 0;
   memset((void *)(&realModeCallBack[current_client][0]), 0,
 	 sizeof(RealModeCallBack)*0x10);
@@ -1653,6 +1663,7 @@ void dpmi_init()
 
   if (in_dpmi>1) return; /* return immediately to the main loop */
 
+  in_sigsegv--;
   for (; (!fatalerr && in_dpmi) ;) {
     run_dpmi();
     run_irqs();
@@ -1914,7 +1925,7 @@ if ((_ss & 7) == 7) {
 #endif
 	return;
       }
-      if (_cs==DPMI_SEL)
+      if (_cs==DPMI_SEL) {
 	if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_raw_mode_switch)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
 	  REG(ds) = (long) _LWORD(eax);
@@ -2052,6 +2063,8 @@ if ((_ss & 7) == 7) {
 
 	} else
 	  return;
+      } else			/* in client\'s code, set back eip */
+	_eip -= 1;
       break;
     case 0xfa:			/* cli */
       _eip += 1;
