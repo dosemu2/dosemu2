@@ -388,10 +388,6 @@ config_t;
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
 
-#undef cli
-#undef sti
-EXTERN void cli(void);
-EXTERN void sti(void);
 EXTERN int port_readable(unsigned short);
 EXTERN int port_writeable(unsigned short);
 EXTERN unsigned char read_port(unsigned short);

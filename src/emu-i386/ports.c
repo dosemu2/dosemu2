@@ -875,27 +875,10 @@ int port_init(void)
    Maybe this server should wrap DOSEMU rather than be forked from
    it.
 */
-static void port_server(sigset_t *oldset)
+static void port_server(void)
 {
         struct portreq pr;
-	struct sigaction sa;
-	int i;
-	/* signals that the parent catches but we need to set back to default*/
-	int default_signals[] = 
-	  { SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGBUS, SIGFPE,
-	    SIGSEGV, SIGTERM, SIGCHLD };
-	/* signals we should ignore but the parent may not */
-	int ignore_signals[] = { SIG_RELEASE, SIG_ACQUIRE, SIGALRM, SIGIO };
 	_port_handler *ph;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	sa.sa_handler = SIG_DFL;
-	for (i = 0; i < sizeof(default_signals) / sizeof(int); i++)
-		sigaction(default_signals[i], &sa, NULL);
-	sa.sa_handler = SIG_IGN;
-	for (i = 0; i < sizeof(ignore_signals) / sizeof(int); i++)
-		sigaction(ignore_signals[i], &sa, NULL);
-	sigprocmask(SIG_SETMASK, oldset, NULL);
         priv_iopl(3);
 	priv_drop();
         close(port_fd_in[0]);
@@ -1019,18 +1002,13 @@ int extra_port_init(void)
 			    port_handle_table[i] >= HANDLE_STD_IO &&
                             port_handle_table[i] <= HANDLE_STD_WR)) {
                                 /* fork the privileged port server */
-                                /* first make sure signals are handled ok */
-                                sigset_t set, oldset;
-                                sigfillset(&set);
-                                sigprocmask(SIG_BLOCK, &set, &oldset);
                                 g_printf("starting port server\n");
                                 pipe(port_fd_out);
                                 pipe(port_fd_in);
                                 portserver_pid = fork();
                                 if (portserver_pid == 0) {
-                                        port_server(&oldset);
+                                        port_server();
                                 }
-                                sigprocmask(SIG_SETMASK, &oldset, NULL);
                                 close(port_fd_in[1]);
                                 close(port_fd_out[0]);
                                 break;

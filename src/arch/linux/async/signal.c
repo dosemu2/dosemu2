@@ -50,9 +50,6 @@ struct  SIGNAL_queue {
 static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 
 
-/* for use by cli() and sti() */
-static sigset_t oldset;
-
 #ifdef __linux__
 /*
  * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
@@ -192,14 +189,9 @@ void
 signal_init(void)
 {
   struct sigaction sa;
-  sigset_t trashset;
+  sigset_t set;
 
   save_eflags_fs_gs();
-
-  /* block no additional signals (i.e. get the current signal mask) */
-  sigemptyset(&trashset);
-  sigprocmask(SIG_BLOCK, &trashset, &oldset);
-  g_printf("Initialized all signals to NOT-BLOCK\n");
 
 #ifdef HAVE_SIGALTSTACK
   {
@@ -285,42 +277,12 @@ signal_init(void)
   NEWSETSIG(SIGSEGV, dosemu_fault);
   SETSIG(SIGCHLD, cleanup_child);
 
+  /* unblock SIGIO */
+  sigemptyset(&set);
+  sigaddset(&set, SIGIO);
+  sigprocmask(SIG_UNBLOCK, &set, NULL);
+
   SIG_init();			/* silly int generator support */
-}
-
-/* 
- * DANG_BEGIN_FUNCTION cli
- *
- * description:
- *  Stop additional signals from interrupting DOSEMU.
- *
- * DANG_END_FUNCTION
- */
-void
-cli(void)
-{
-  sigset_t blockset;
-
-  return; /* Should be OK now */
-  sigfillset(&blockset);
-  DOS_SYSCALL(sigprocmask(SIG_SETMASK, &blockset, &oldset));
-}
-
-/* 
- * DANG_BEGIN_FUNCTION sti
- *
- * description:
- *  Allow all signals to interrupt DOSEMU.
- *
- * DANG_END_FUNCTION
- */
-void
-sti(void)
-{
-  sigset_t blockset;
-
-  return; /* Should be OK now */
-  DOS_SYSCALL(sigprocmask(SIG_SETMASK, &oldset, &blockset));
 }
 
 /*
