@@ -1761,11 +1761,14 @@ err:
   case 0x0401:			/* Get DPMI Capabilities 1.0 */
       {
 	  char *buf = (char *)SEL_ADR(_es, _edi);
-	  /* report our capabilities include, exception */
-	  /* restartability, conventional memory mapping, demand zero */
-	  /* fill, write-protect client, write-protect host, is this */
-	  /* right? */
-	  _LWORD(eax) = 0x7a;
+	  /* Our capabilities include:
+	   * device mapping (can map LFB),
+	   * conventional memory mapping,
+	   * demand zero fill,
+	   * write-protect client,
+	   * write-protect host.
+	   */
+	  _LWORD(eax) = 0x7c;
 	  _LWORD(ecx) = 0;
 	  _LWORD(edx) = 0;
 	  *buf = DPMI_VERSION;
