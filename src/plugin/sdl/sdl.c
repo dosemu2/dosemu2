@@ -24,8 +24,6 @@
 #include "render.h"
 #include "sdl.h"
 
-extern void SDL_process_key(SDL_KeyboardEvent);
-
 static int SDL_init(void);
 static void SDL_close(void);
 static int SDL_set_videomode(int mode_class, int text_width, int text_height);
@@ -163,7 +161,10 @@ int SDL_init(void)
   evt.active.gain = 1;
   evt.active.state = SDL_APPINPUTFOCUS;
   SDL_PushEvent(&evt);
- 
+
+  /* enable repeat here (in the keyboard code it's too early) */
+  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+
   return 0;
 }
 
