@@ -2897,7 +2897,8 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 #if EXC_TO_PM_INT
     /* Route the exception to protected-mode interrupt handler or
      * terminate the client if the one is not installed. */
-    if (DPMI_CLIENT.Interrupt_Table[trapno].selector == DPMI_CLIENT.DPMI_SEL) {
+    if (trapno == 6 || trapno >= 8 ||
+        DPMI_CLIENT.Interrupt_Table[trapno].selector == DPMI_CLIENT.DPMI_SEL) {
       switch (trapno) {
         case 0x01: /* debug */
         case 0x03: /* int3 */
