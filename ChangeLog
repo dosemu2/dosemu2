@@ -1,3 +1,16 @@
+2000/05/23 ver. 1.0.0.4 unofficial pre-release
+	From Bart
+	- further work on PL4 stuff
+	- speeded up Logical_VGA_Write/Read
+	- font correction
+	- fixes for 5 bugs in instremu.c
+	From Steffen
+	- Mode X fixes (with hints from Eric)
+	- remap.c fixes
+	From Hans
+	- 'autohiding' of mouse cursor und X graphics mode
+	  (relying on the application calling INT33 function 1,
+	   when it doesn't display the cursor itself)
 2000/05/19 ver. 1.0.0.3 unofficial pre-release
 	From David Pinson <dpinson@materials.unsw.EDU.AU>
 	From David Hindman <dhindman@io.com>

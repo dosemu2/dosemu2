@@ -324,6 +324,7 @@ static void print_prot_map(void);
 static int vga_emu_setup_mode(vga_mode_info *, int, unsigned, unsigned, unsigned);
 static void vga_emu_setup_mode_table(void);
 
+static Bit32u rasterop(Bit32u value);
 static void vgaemu_reset_mapping(void);
 static unsigned vgaemu_xy2ofs(unsigned x, unsigned y);
 static void vgaemu_move_vga_mem(unsigned dst, unsigned src, unsigned len);
@@ -581,7 +582,6 @@ Bit8u VGA_emulate_inb(ioport_t port)
   return uc;
 }
 
-
 /* 
  * This routine emulates a logical VGA read (CPU read  within the
  * VGA memory range a0000-bffff).  This usually doesn't just read the
@@ -593,6 +593,11 @@ Bit8u VGA_emulate_inb(ioport_t port)
  * Bochs is Copyright (C) 2000 MandrakeSoft S.A. and distributed under LGPL.
  * Bochs was originally authored by Kevin Lawton.
  */
+/* converts a 4-bit color to an 8-pixels representation in PL-4 modes */
+static Bit32u color2pixels[16] = {0,0xff,0xff00,0xffff,0xff0000,0xff00ff,0xffff00,
+			0x00ffffff,0xff000000,0xff0000ff,0xff00ff00,0xff00ffff,
+			0xffff0000,0xffff00ff,0xffffff00,0xffffffff};
+
 #define SetReset	vga.gfx.set_reset
 #define EnableSetReset	vga.gfx.enable_set_reset
 #define ColorCompare	vga.gfx.color_compare
@@ -609,7 +614,6 @@ Bit8u VGA_emulate_inb(ioport_t port)
 
 unsigned char Logical_VGA_read(unsigned offset)
 {
-  unsigned b;
   
   switch (ReadMode) {
     case 0: /* read mode 0 */
@@ -622,30 +626,20 @@ unsigned char Logical_VGA_read(unsigned offset)
 
     case 1: /* read mode 1 */
       {
-      Bit8u color_compare, color_dont_care;
-      Bit8u latch0, latch1, latch2, latch3, retval, pixel_val;
+      Bit32u latch;
+      Bit8u retval;
 
-      color_compare   = ColorCompare & 0x0f;
-      color_dont_care = ColorDontCare & 0x0f;
-      latch0 = VGALatch[0] = vga.mem.base[          offset];
-      latch1 = VGALatch[1] = vga.mem.base[1*65536 + offset];
-      latch2 = VGALatch[2] = vga.mem.base[2*65536 + offset];
-      latch3 = VGALatch[3] = vga.mem.base[3*65536 + offset];
-      retval = 0;
-      for (b=0; b<8; b++) {
-        pixel_val =
-          ((latch0 << 0) & 0x01) |
-          ((latch1 << 1) & 0x02) |
-          ((latch2 << 2) & 0x04) |
-          ((latch3 << 3) & 0x08);
-        latch0 >>= 1;
-        latch1 >>= 1;
-        latch2 >>= 1;
-        latch3 >>= 1;
-        if ( (pixel_val & color_dont_care) ==
-             (color_compare & color_dont_care) )
-          retval |= (1 << b);
-        }
+      latch =  (((VGALatch[0] = vga.mem.base[          offset])        |
+                ((VGALatch[1] = vga.mem.base[1*65536 + offset]) <<  8) |
+                ((VGALatch[2] = vga.mem.base[2*65536 + offset]) << 16) |
+                ((VGALatch[3] = vga.mem.base[3*65536 + offset]) << 24) ) &
+		  color2pixels[ColorDontCare & 0xf]) ^
+                    color2pixels[ColorCompare & ColorDontCare & 0xf];
+	    /* XORing gives all bits that are different */
+	    /* after combining through OR the "equal" bits are zero, hence a NOT */
+
+      retval = ~((latch & 0xff) | ((latch>>8) & 0xff) | 
+                ((latch>>16) & 0xff) | ((latch>>24) & 0xff));
 #if 0
       vga_msg(
         "read mode 1: col_cmp 0x%x, col_dont 0x%x, latches = %02x %02x %02x %02x, read = 0x%02x\n",
@@ -676,170 +670,57 @@ unsigned char Logical_VGA_read(unsigned offset)
  * Bochs was originally authored by Kevin Lawton.
  */
  
+static Bit32u rasterop(Bit32u value)
+{
+  Bit32u bitmask = BitMask, vga_latch = *((unsigned *)VGALatch);
+
+  bitmask |= bitmask << 8;
+  bitmask |= bitmask << 16; /* bitmask extended over 4 bytes */
+  switch (RasterOp) {
+    case 0: /* replace */
+      return (value & bitmask) | (vga_latch & ~bitmask); 
+    case 1: /* AND with latch data */
+      return (value | ~bitmask) & vga_latch;
+    case 2: /* OR with latch data */
+      return (value & bitmask) | vga_latch;
+    case 3: /* XOR with latch data */
+      return (value & bitmask) ^ vga_latch;
+  }
+  return 0;
+}
+
 void Logical_VGA_write(unsigned offset, unsigned char value)
 {
   unsigned vga_page;
-  unsigned char new_bit, new_val[4], cpu_data_b[4];
-  unsigned char *p;
-  
-  /* addr between 0xA0000 and 0xAFFFF */
-  switch (WriteMode) {
-    Bit8u and_mask, bitmask;
-    Bit8u set_reset_b[4];
-    unsigned i, b;
+  Bit32u enable_set_reset, new_val = 0; 
+  Bit8u bitmask;
 
+  switch (WriteMode) {
     case 0: /* write mode 0 */
       /* perform rotate on CPU data in case its needed */
-      value = (value >> DataRotate) |
-              (value << (8 - DataRotate));
-      bitmask = BitMask;
-      for (i=0; i<4; i++ ) {
-        new_val[i] = 0;
-        }
-      set_reset_b[0] = (SetReset >> 0) & 0x01;
-      set_reset_b[1] = (SetReset >> 1) & 0x01;
-      set_reset_b[2] = (SetReset >> 2) & 0x01;
-      set_reset_b[3] = (SetReset >> 3) & 0x01;
-      and_mask = 1;
-      for (b=0; b<8; b++) {
-        if (bitmask & 0x01) { /* bit-mask bit set, perform op */
-          for (i=0; i<4; i++) {
-            /* derive bit from set/reset register */
-            if ( (EnableSetReset >> i) & 0x01 ) {
-              new_bit = (set_reset_b[i] << b);
-              }
-            /* derive bit from rotated CPU data */
-            else {
-              new_bit = (value & and_mask);
-              }
-            switch (RasterOp) {
-              case 0: /* replace */
-                new_val[i] |= new_bit;
-                break;
-              case 1: /* AND with latch data */
-                new_val[i] |=
-                  (new_bit & (VGALatch[i] & and_mask));
-                break;
-              case 2: /* OR with latch data */
-                new_val[i] |=
-                  (new_bit | (VGALatch[i] & and_mask));
-                break;
-              case 3: /* XOR with latch data */
-                new_val[i] |=
-                  (new_bit ^ (VGALatch[i] & and_mask));
-                break;
-              default:
-                break;
-              }
-            }
-          }
-        else { /* bit-mask bit clear, pass data thru from latch */
-          new_val[0] |= (VGALatch[0] & and_mask);
-          new_val[1] |= (VGALatch[1] & and_mask);
-          new_val[2] |= (VGALatch[2] & and_mask);
-          new_val[3] |= (VGALatch[3] & and_mask);
-          }
-        bitmask >>= 1;
-        and_mask <<= 1;
-        }
+      new_val = (value >> DataRotate) | (value << (8 - DataRotate));
+      new_val |= new_val<<8;
+      new_val |= new_val<<16; /* value extended over 4 bytes */
+      enable_set_reset = color2pixels[EnableSetReset];
+      new_val = rasterop((new_val & ~enable_set_reset) | 
+                         (color2pixels[SetReset] & enable_set_reset));
       break;
 
     case 1: /* write mode 1 */
-      for (i=0; i<4; i++ ) {
-        new_val[i] = VGALatch[i];
-        }
+      new_val = *((unsigned *)VGALatch);;
       break;
 
     case 2: /* write mode 2 */
-      bitmask = BitMask;
-      for (i=0; i<4; i++ ) {
-        new_val[i] = 0;
-        }
-      cpu_data_b[0] = (value >> 0) & 0x01;
-      cpu_data_b[1] = (value >> 1) & 0x01;
-      cpu_data_b[2] = (value >> 2) & 0x01;
-      cpu_data_b[3] = (value >> 3) & 0x01;
-      and_mask = 1;
-      for (b=0; b<8; b++) {
-        if (bitmask & 0x01) { /* bit-mask bit set, perform op */
-          switch (RasterOp) {
-            case 0: /* replace: write cpu data unmodified */
-              new_val[0] |= cpu_data_b[0] << b;
-              new_val[1] |= cpu_data_b[1] << b;
-              new_val[2] |= cpu_data_b[2] << b;
-              new_val[3] |= cpu_data_b[3] << b;
-              break;
-            case 1: /* AND */
-            case 2: /* OR */
-            case 3: /* XOR */
-            default:
-              break;
-            }
-          }
-        else { /* bit-mask bit clear, pass data thru from latch */
-          new_val[0] |= (VGALatch[0] & and_mask);
-          new_val[1] |= (VGALatch[1] & and_mask);
-          new_val[2] |= (VGALatch[2] & and_mask);
-          new_val[3] |= (VGALatch[3] & and_mask);
-          }
-        bitmask >>= 1;
-        and_mask <<= 1;
-        }
+      new_val = rasterop(color2pixels[value & 0xf]);
       break;
 
     case 3: /* write mode 3 */
+      bitmask = BitMask; 
       /* perform rotate on CPU data */
-      value = (value >> DataRotate) |
-              (value << (8 - DataRotate));
-      bitmask = (value & BitMask);
-      for (i=0; i<4; i++ ) {
-        new_val[i] = 0;
-        }
-      set_reset_b[0] = (SetReset >> 0) & 0x01;
-      set_reset_b[1] = (SetReset >> 1) & 0x01;
-      set_reset_b[2] = (SetReset >> 2) & 0x01;
-      set_reset_b[3] = (SetReset >> 3) & 0x01;
-      and_mask = 1;
-      for (b=0; b<8; b++) {
-        if (bitmask & 0x01) { /* bit-mask bit set, perform op */
-          for (i=0; i<4; i++) {
-            /* derive bit from set/reset register */
-            /* (mch) I can't find any justification for this... */
-	    if ( /* (mch) */ 1 || ((EnableSetReset >> i) & 0x01 )) {
-	      // (mch) My guess is that the function select logic should go here
-              switch (RasterOp) {
-                case 0: // write
-                        new_val[i] |= (set_reset_b[i] << b);
-                        break;
-                case 1: // AND
-                        new_val[i] |= (set_reset_b[i] << b) &
-                                      (VGALatch[i] & (1 << b));
-                        break;
-                case 2: // OR
-                        new_val[i] |= (set_reset_b[i] << b) | 
-                                      (VGALatch[i] & (1 << b));
-                        break;
-                case 3: // XOR
-                        new_val[i] |= (set_reset_b[i] << b) ^
-                                      (VGALatch[i] & (1 << b));
-                        break;
-                }
-              }
-            /* derive bit from rotated CPU data */
-            else {
-              new_val[i] |= (value & and_mask);
-              }
-            }
-          }
-        else { /* bit-mask bit clear, pass data thru from latch */
-          new_val[0] |= (VGALatch[0] & and_mask);
-          new_val[1] |= (VGALatch[1] & and_mask);
-          new_val[2] |= (VGALatch[2] & and_mask);
-          new_val[3] |= (VGALatch[3] & and_mask);
-          }
-        bitmask >>= 1;
-        and_mask <<= 1;
-        }
+      BitMask = ((value >> DataRotate) | (value << (8 - DataRotate))) & 
+                      bitmask; /* Set Bitmask temporarily */
+      new_val = rasterop(color2pixels[SetReset]);
+      BitMask = bitmask; /* get old bitmask back */
       break;
 
     default:
@@ -849,23 +730,19 @@ void Logical_VGA_write(unsigned offset, unsigned char value)
   vga_page = offset >> 12;
 
   if(MapMask & 0x01) {
-  p = vga.mem.base + offset;
-  *p = new_val[0];
+    *(vga.mem.base + offset) = new_val & 0xff;
   }
   
   if(MapMask & 0x02) {
-  p = vga.mem.base + offset + 0x10000;
-  *p = new_val[1];
+    *(vga.mem.base + offset + 0x10000) = (new_val >> 8) & 0xff;
   }
   
   if(MapMask & 0x04) {
-  p = vga.mem.base + offset + 0x20000;
-  *p = new_val[2];
+    *(vga.mem.base + offset + 0x20000) = (new_val >> 16) & 0xff;
   }
   
   if(MapMask & 0x08) {
-  p = vga.mem.base + offset + 0x30000;
-  *p = new_val[3];
+    *(vga.mem.base + offset + 0x30000) = new_val >> 24;
   }
 
   if(MapMask) {
@@ -2244,7 +2121,7 @@ int vga_emu_setmode(int mode, int width, int height)
   vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page = vmi->buffer_start >> 8;
   vgaemu_map_bank();
 
-  if(vga.color_bits >= 8 && vga.mem.lfb_base_page) {
+  if(vga.color_bits >= 8 && (vga.mode & 0xffff) >= 0x100 && vga.mem.lfb_base_page) {
     vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page = vga.mem.lfb_base_page;
     vga.mem.map[VGAEMU_MAP_LFB_MODE].first_page = 0;
     vga.mem.map[VGAEMU_MAP_LFB_MODE].pages = vga.mem.pages;

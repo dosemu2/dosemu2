@@ -1143,6 +1143,27 @@ int NewXErrorHandler(Display *dsp, XErrorEvent *xev)
 #endif
 }
 
+/*
+ * called by mouse INT33 functions 1 and 2 of src/base/mouse/mouse.c
+ */
+static int mouse_cursor_visible = 1;
+void X_show_mouse_cursor(int yes)
+{
+   if(vga.mode_class != GRAPH) {
+      mouse_cursor_visible = 1;
+      return;
+   }
+   if (yes) {
+      if (mouse_cursor_visible) return;
+      XDefineCursor(display, mainwindow, X_standard_cursor);
+      mouse_cursor_visible = 1;
+   }
+   else {
+      if (!mouse_cursor_visible) return;
+      XDefineCursor(display, mainwindow, X_mouse_nocursor);
+      mouse_cursor_visible = 0;
+   }
+}
 
 /*
  * DANG_BEGIN_FUNCTION X_handle_events
@@ -1187,6 +1208,7 @@ void X_handle_events()
      if(vga.mode_class == GRAPH) {
        if(! lastingraphics) {
          lastingraphics = 1;
+         mouse_cursor_visible = 0;
 #ifndef DEBUG_MOUSE_POS
          XDefineCursor(display, mainwindow, X_mouse_nocursor);
 #else
@@ -1197,6 +1219,7 @@ void X_handle_events()
      else {
        if(lastingraphics) {
          lastingraphics = 0;
+         mouse_cursor_visible = 1;
          XDefineCursor(display, mainwindow, X_standard_cursor);
        }
      }
@@ -1426,7 +1449,7 @@ void X_handle_events()
 	   * Do not trigger the win31 kludge in VGA mode 12h under X. 
 	   */
 	    
-	  if(!grab_active && vga.mode!=0x12) snap_X=3;
+//	  if(!grab_active && vga.mode!=0x12) snap_X=3;
 	  X_printf("X: Mouse entering window\n");
 	  set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	  set_mouse_buttons(e.xcrossing.state);

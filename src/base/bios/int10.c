@@ -334,7 +334,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
   case '\n':         /* Newline */
     /* Color newline */
-    newline_att = gfx_mode ? LO(bx) : ATTR(SCREEN_ADR(s) + ypos*co + xpos);
+    newline_att = gfx_mode ? 0 : ATTR(SCREEN_ADR(s) + ypos*co + xpos);
     ypos++;
     xpos = 0;                  /* EDLIN needs this behavior */
     break;
@@ -386,7 +386,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
     ypos--;
 #if X_GRAPHICS
     if(gfx_mode)
-      vgaemu_scroll(0, 0, co - 1, li - 1, 1, newline_att);
+      vgaemu_scroll(0, 0, co - 1, li - 1, 1, 0);
     else
 #endif
       bios_scroll(0,0,co-1,li-1,1,newline_att);
@@ -1599,14 +1599,15 @@ void int10_new()
           "tty put char: page %u, char 0x%02x '%c'\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' '
         );
+        char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
       }
       else {
         i10_deb(
           "tty put char: page %u, char 0x%02x '%c', attr 0x%02x\n",
           HI(bx), LO(ax), LO(ax) > ' ' && LO(ax) < 0x7f ? LO(ax) : ' ', LO(bx)
         );
+        tty_char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), LO(bx)); 
       }
-      char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
       break;
 
 

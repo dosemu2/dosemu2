@@ -27,10 +27,9 @@
  *
  * The emulator stays in emulation for a maximum of MASTERCOUNT
  * instructions, but gets out of it if COUNT instructions do not
- * access the VGA memory, or the instruction is not known. Intentionally
- * left out are (among others) any jump and loop instructions.
+ * access the VGA memory, or the instruction is not known. 
  * In future this may be merged with cpuemu.
- * 2000/05/18 Bart.Oldeman@bris.ac.uk
+ * 2000/05/22 Bart.Oldeman@bris.ac.uk
  */
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -78,7 +77,7 @@
 #endif
 
 #define COUNT  25         /* bail out when this #instructions were simulated
-                               after a VGA r/w access */
+                               after a VGA r/w access */			       
 #ifdef _EVIL_
 #define MASTERCOUNT 1000000 /* maximal #instructions to simulate */
 #else
@@ -850,6 +849,7 @@ int instr_sim(x86_regs *x86)
       EFLAGS |= CF;
     } else                  
       EFLAGS &= ~CF;
+    return inst_len + 1;  
     
   case 0x2f:  /* das */
     if (((AL & 0xf) > 9) || (EFLAGS&AF)) {
@@ -862,6 +862,7 @@ int instr_sim(x86_regs *x86)
       EFLAGS |= CF;
     } else                  
       EFLAGS &= ~CF;
+    return inst_len + 1;  
 
   case 0x37:  /* aaa */
     if (((AL & 0xf) > 9) || (EFLAGS&AF)) {
@@ -870,6 +871,7 @@ int instr_sim(x86_regs *x86)
       EFLAGS |= (CF|AF);
     } else                  
       EFLAGS &= ~(CF|AF);
+    return inst_len + 1;  
       
   case 0x3f:  /* aas */
     if (((AL & 0xf) > 9) || (EFLAGS&AF)) {
@@ -878,6 +880,7 @@ int instr_sim(x86_regs *x86)
       EFLAGS |= (CF|AF);
     } else                  
       EFLAGS &= ~(CF|AF);
+    return inst_len + 1;  
       
   case 0x40:
   case 0x41:
@@ -1279,7 +1282,7 @@ int instr_sim(x86_regs *x86)
     if ((cp[1]&0x38)==0x30) return 0;
     mem = modm(cp, x86, &inst_len);
     instr_write_byte(mem,instr_shift(cp[1]>>3, (signed char) instr_read_byte(mem),
-                                       cp[2+i-inst_len], 8, &EFLAGS));
+                                       cp[2+inst_len-i], 8, &EFLAGS));
     return inst_len + 3;
 
   case 0xc1: /* shift word, imm8 */
@@ -1287,7 +1290,7 @@ int instr_sim(x86_regs *x86)
     if ((cp[1]&0x38)==0x30) return 0;
     mem = modm(cp, x86, &inst_len);
     instr_write_word(mem, instr_shift(cp[1]>>3, (short) instr_read_word(mem),
-                                        cp[2+i-inst_len], 16, &EFLAGS));
+                                        cp[2+inst_len-i], 16, &EFLAGS));
     return inst_len + 3;
 
   case 0xc2:		/* ret imm16*/

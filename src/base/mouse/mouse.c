@@ -45,6 +45,7 @@ extern int release_perm ();
 
 #ifdef X_SUPPORT
 extern void X_change_mouse_cursor(void);
+extern void X_show_mouse_cursor(int yes);
 #endif
 
 /* This is included for video mode support. Please DO NOT remove !
@@ -252,10 +253,16 @@ mouse_int(void)
 
   case 0x01:			/* Show Mouse Cursor */
     mouse_cursor(1);
+#ifdef X_SUPPORT
+    if (config.X) X_show_mouse_cursor(1);
+#endif
     break;
 
   case 0x02:			/* Hide Mouse Cursor */
     mouse_cursor(-1);
+#ifdef X_SUPPORT
+    if (config.X) X_show_mouse_cursor(0);
+#endif
     break;
 
   case 0x03:			/* Get Mouse Position and Button Status */

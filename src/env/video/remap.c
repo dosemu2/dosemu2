@@ -3409,34 +3409,44 @@ void gen_8to16_lin(RemapObject *ro)
  * 4 bit pseudo color --> 8 bit pseudo color (private color map)
  * supports arbitrary scaling
  *
- * -- very basic and slow --
  */
 void gen_4to8p_all(RemapObject *ro)
 {
-  int d_x_len;
+  int d_x_len, s_x_len;
   int s_x, d_x, d_y;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char c0, c1, c2, c3;
-  int i;
 
-  unsigned char *src, *src0, *dst;
+  unsigned char *src, *src0, *dst, *src1, *src_last;
+  unsigned *dst1, *lut;
 
   src0 = ro->src_image;
   dst = ro->dst_image + ro->dst_offset;
   d_x_len = ro->dst_width;
+  s_x_len = ro->src_width >> 3;
+  src1 = ro->src_tmp_line;
+  dst1 = (unsigned *) src1;
+  lut = ro->bit_lut;
+  src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
+    if(src != src_last) {
+      src_last = src;
+      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
+                         lut[2 * src[s_x + 0x10000]     + 0x200] |
+                         lut[2 * src[s_x + 0x20000]     + 0x400] |
+                         lut[2 * src[s_x + 0x30000]     + 0x600];
+        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
+                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
+                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
+                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+      }
+    }
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x10000]; c2 = src[i + 0x20000]; c3 = src[i + 0x30000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i; c2 >>= i; c3 >>= i;
-      c0 &= 1; c1 &= 1; c2 &= 1; c3 &= 1;
-      c0 |= (c1 << 1) + (c2 << 2) + (c3 << 3);
-      dst[d_x++] = c0;
+      dst[d_x++] = src1[s_x];
       s_x += *(bre_x++);
     }
   }
@@ -3447,82 +3457,52 @@ void gen_4to8p_all(RemapObject *ro)
  * 4 bit pseudo color --> 8 bit true color (shared color map)
  * supports arbitrary scaling
  *
- * -- very basic and slow --
  */
 void gen_4to8_all(RemapObject *ro)
 {
   int k;
-  int d_x_len;
+  int d_x_len, s_x_len;
   int s_x, d_x, d_y;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char *src, *src0, *dst;
-  unsigned char *lut = (unsigned char*) ro->true_color_lut;
-  unsigned char c0, c1, c2, c3;
-  int i;
 
+  unsigned char *src, *src0, *dst, *src1, *src_last;
+  unsigned char *clut = (unsigned char*) ro->true_color_lut;
+  unsigned *dst1, *lut;
+  
   src0 = ro->src_image;
   dst = ro->dst_image + ro->dst_offset;
   d_x_len = ro->dst_width;
+  s_x_len = ro->src_width >> 3;
+  src1 = ro->src_tmp_line;
+  dst1 = (unsigned *) src1;
+  lut = ro->bit_lut;
+  src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
     k = (d_y & 1) << 1;
+    if(src != src_last) {
+      src_last = src;
+      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
+                         lut[2 * src[s_x + 0x10000]     + 0x200] |
+                         lut[2 * src[s_x + 0x20000]     + 0x400] |
+                         lut[2 * src[s_x + 0x30000]     + 0x600];
+        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
+                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
+                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
+                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+      }
+    }
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x10000]; c2 = src[i + 0x20000]; c3 = src[i + 0x30000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i; c2 >>= i; c3 >>= i;
-      c0 &= 1; c1 &= 1; c2 &= 1; c3 &= 1;
-      c0 |= (c1 << 1) + (c2 << 2) + (c3 << 3);
-      dst[d_x++] = lut[4 * c0 + (k ^= 1)];
+      dst[d_x++] = clut[4 * src1[s_x] + (k ^= 1)];
       s_x += *(bre_x++);
     }
   }
 }
 
-
-#if 0
-/*
- * 4 bit pseudo color --> 15/16 bit true color
- * supports arbitrary scaling
- *
- * -- very basic and slow --
- */
-void gen_4to16_all(RemapObject *ro)
-{
-  int d_x_len;
-  int s_x, d_x, d_y;
-  int d_scan_len = ro->dst_scan_len >> 1;
-  int *bre_x;
-  int *bre_y = ro->bre_y;
-  unsigned char c0, c1, c2, c3;
-  int i;
-
-  unsigned char *src, *src0;
-  unsigned short *dst;
-
-  src0 = ro->src_image;
-  dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
-  d_x_len = ro->dst_width;
-
-  for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
-    src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x10000]; c2 = src[i + 0x20000]; c3 = src[i + 0x30000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i; c2 >>= i; c3 >>= i;
-      c0 &= 1; c1 &= 1; c2 &= 1; c3 &= 1;
-      c0 |= (c1 << 1) + (c2 << 2) + (c3 << 3);
-      dst[d_x++] = ro->true_color_lut[c0];
-      s_x += *(bre_x++);
-    }
-  }
-}
-
-#else
 
 /*
  * 4 bit pseudo color --> 15/16 bit true color
@@ -3537,10 +3517,9 @@ void gen_4to16_all(RemapObject *ro)
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned *dst1;
-  unsigned char *src, *src0, *src1;
+  unsigned char *src, *src0, *src1, *src_last;
   unsigned short *dst;
-  unsigned *lut;
+  unsigned *dst1, *lut;
 
   src0 = ro->src_image;
   dst = (unsigned short *) (ro->dst_image + ro->dst_offset);
@@ -3549,18 +3528,22 @@ void gen_4to16_all(RemapObject *ro)
   src1 = ro->src_tmp_line;
   dst1 = (unsigned *) src1;
   lut = ro->bit_lut;
+  src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
-    for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-      dst1[d_x    ]  = lut[2 * src[s_x          ]            ];
-      dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ];
-      dst1[d_x    ] |= lut[2 * src[s_x + 0x10000]     + 0x200];
-      dst1[d_x + 1] |= lut[2 * src[s_x + 0x10000] + 1 + 0x200];
-      dst1[d_x    ] |= lut[2 * src[s_x + 0x20000]     + 0x400];
-      dst1[d_x + 1] |= lut[2 * src[s_x + 0x20000] + 1 + 0x400];
-      dst1[d_x    ] |= lut[2 * src[s_x + 0x30000]     + 0x600];
-      dst1[d_x + 1] |= lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+    if(src != src_last) {
+      src_last = src;
+      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
+                         lut[2 * src[s_x + 0x10000]     + 0x200] |
+                         lut[2 * src[s_x + 0x20000]     + 0x400] |
+                         lut[2 * src[s_x + 0x30000]     + 0x600];
+        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
+                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
+                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
+                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+      }
     }
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst[d_x++] = ro->true_color_lut[src1[s_x]];
@@ -3568,42 +3551,51 @@ void gen_4to16_all(RemapObject *ro)
     }
   }
 }
-#endif
+
 
 /*
  * 4 bit pseudo color --> 32 bit true color
  * supports arbitrary scaling
  *
- * -- very basic and slow --
  */
 void gen_4to32_all(RemapObject *ro)
 {
-  int d_x_len;
+  int d_x_len, s_x_len;
   int s_x, d_x, d_y;
   int d_scan_len = ro->dst_scan_len >> 2;
   int *bre_x;
   int *bre_y = ro->bre_y;
-  unsigned char c0, c1, c2, c3;
-  int i;
 
-
-  unsigned char *src, *src0;
+  unsigned *dst1, *lut;
+  unsigned char *src, *src0, *src1, *src_last;
   unsigned *dst;
 
   src0 = ro->src_image;
   dst = (unsigned *) (ro->dst_image + ro->dst_offset);
   d_x_len = ro->dst_width;
+  s_x_len = ro->src_width >> 3;
+  src1 = ro->src_tmp_line;
+  dst1 = (unsigned *) src1;
+  lut = ro->bit_lut;
+  src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
+    if(src != src_last) {
+      src_last = src;
+      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
+                         lut[2 * src[s_x + 0x10000]     + 0x200] |
+                         lut[2 * src[s_x + 0x20000]     + 0x400] |
+                         lut[2 * src[s_x + 0x30000]     + 0x600];
+        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
+                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
+                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
+                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+      }
+    }
     for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
-      i = s_x >> 3;
-      c0 = src[i]; c1 = src[i + 0x10000]; c2 = src[i + 0x20000]; c3 = src[i + 0x30000];
-      i = (s_x & 7) ^ 7;
-      c0 >>= i; c1 >>= i; c2 >>= i; c3 >>= i;
-      c0 &= 1; c1 &= 1; c2 &= 1; c3 &= 1;
-      c0 |= (c1 << 1) + (c2 << 2) + (c3 << 3);
-      dst[d_x++] = ro->true_color_lut[c0];
+      dst[d_x++] = ro->true_color_lut[src1[s_x]];
       s_x += *(bre_x++);
     }
   }

@@ -173,6 +173,12 @@ void CRTC_write_value(unsigned char data)
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 
+    case 0x13:          /* Number of bytes in a scanline */
+      vga.scan_len = data << (vga.crtc.addr_mode + 1);
+      vga.reconfig.re_init = 1;
+      crtc_deb("CRTC_write_value: scan_len = 0x%04x\n", vga.scan_len);
+      break;
+
     case 0x14:		/* Underline Location */
       if(NEWBITS(0x40)) {
         todo[todo_ind++] = CFG_CRTC_ADDR_MODE;
