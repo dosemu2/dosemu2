@@ -496,11 +496,6 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
                     {
 		      config.hdiskboot = 2;
 		    }
-		| TIMINT bool
-		    {
-		    config.timers = ($2!=0);
-		    c_printf("CONF: timint %s\n", ($2) ? "on" : "off");
-		    }
 		| TIMER expression
 		    {
 		    config.freq = $2;
@@ -1667,7 +1662,6 @@ static void start_video(void)
   config.cardtype = CARD_NONE;
   config.chipset = PLAINVGA;
   config.mapped_bios = 0;
-  config.graphics = 0;
   config.vga = 0;
   config.gfxmemsize = 256;
   config.fullrestore = 0;
@@ -1681,7 +1675,6 @@ static void stop_video(void)
     config.console_video = 0;
 
   if ((config.cardtype != CARD_VGA) || !config.console_video) {
-    config.graphics = 0;
     config.vga = 0;
   }
 
