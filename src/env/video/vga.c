@@ -414,7 +414,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
 
 int vga_initialize(void)
 {
-  Video_console.init();
+  Video_console.priv_init();
 
   linux_regs.mem = NULL;
   dosemu_regs.mem = NULL;
