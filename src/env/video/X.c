@@ -1545,8 +1545,9 @@ static void toggle_fullscreen_mode(void)
 static void X_handle_events(void)
 {
    static int busy = 0;
-   XEvent e;
+   XEvent e, rel_evt;
    unsigned resize_width = w_x_res, resize_height = w_y_res, resize_event = 0;
+   int keyrel_pending = 0;
 
    /*  struct timeval currenttime;
   struct timezone tz;*/
@@ -1696,16 +1697,22 @@ static void X_handle_events(void)
     /* Keyboard events */
 
 	case KeyPress:
-	case KeyRelease:
+	  /* Autorepeat generates the unwanted release events, we filter
+	   * them here. */
+	  if (keyrel_pending && e.xkey.keycode == rel_evt.xkey.keycode &&
+		e.xkey.time == rel_evt.xkey.time) {
+	    X_printf("X_KBD: Ignoring fake release event, keycode=%#x\n",
+		rel_evt.xkey.keycode);
+	    keyrel_pending = 0;
+	  }
+
           if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask)) {
             KeySym keysym = XKeycodeToKeysym(display, e.xkey.keycode, 0);
             if (keysym == grab_keysym) {
-              if (e.type == KeyRelease) break;
               force_grab = 0;
               toggle_mouse_grab();
               break;
             } else if (keysym == XK_p) {
-              if (e.type == KeyRelease) break;
               if (!dosemu_frozen) {
                 freeze_dosemu_manual();
               } else {
@@ -1713,7 +1720,6 @@ static void X_handle_events(void)
               }
               break;
             } else if (keysym == XK_f) {
-              if (e.type == KeyRelease) break;
               toggle_fullscreen_mode();
               break;
             }
@@ -1726,6 +1732,12 @@ static void X_handle_events(void)
 #endif
 	  X_process_key(&e.xkey);
 	  break;
+
+	case KeyRelease:
+	  rel_evt = e;
+	  keyrel_pending = 1;
+	  break;
+
 	case KeymapNotify:
           X_printf("X: KeymapNotify event\n");
           /* don't process keys when doing fullscreen switching (this generates
@@ -1852,6 +1864,14 @@ static void X_handle_events(void)
 #endif /* CONFIG_X_MOUSE */
 /* some weirder things... */
 	}
+    }
+
+    if (keyrel_pending) {
+#if CONFIG_X_SELECTION
+      clear_if_in_selection();
+#endif
+      X_process_key(&rel_evt.xkey);
+      keyrel_pending = 0;
     }
 
     if(ximage != NULL && resize_event) {
