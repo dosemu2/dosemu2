@@ -1915,6 +1915,8 @@ void X_handle_events()
     if(resize_event && mainwindow == normalwindow) {
       resize_ximage(resize_width, resize_height);
       dirty_all_video_pages();
+      if (vga.mode_class == TEXT)
+	vga.reconfig.mem = 1;
       X_update_screen();
     }
 
