@@ -1,5 +1,8 @@
 DOS EMULATOR for LINUX 0.98 or later versions
 
+(Some of this is obsolete. Where there is a conflict, trust README.first.
+ -Robert)
+
 This is a pre alpha version. This means there are some bugs and lots of things
 aren't implemented such as
 - some video interrupts
@@ -81,3 +84,7 @@ crashes the emulator (-:.
 Please mail any suggestions, bugs or fixes to me.
 
 Matthias	(lautner@informatik.uni-wuerzburg.de)
+
+(This address was often unreachable, and Matthias seems to have left
+ the university.  He seems to have no net access now.
+ -Robert)

@@ -1,13 +1,19 @@
 /* dos emulator, Matthias Lautner */
-
+#define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/01/28 02:19:16 $
+ * $Date: 1993/02/05 02:54:32 $
  * $Source: /usr/src/dos/RCS/termio.c,v $
- * $Revision: 1.11 $
+ * $Revision: 1.13 $
  * $State: Exp $
  *
  * $Log: termio.c,v $
+ * Revision 1.13  1993/02/05  02:54:32  root
+ * this is for 0.47.6
+ *
+ * Revision 1.12  1993/02/04  01:17:11  root
+ * version 0.47.5
+ *
  * Revision 1.11  1993/01/28  02:19:16  root
  * see emu.c 1.12.
  * THIS IS THE DOSEMU47 DISTRIBUTION TERMIO.C
@@ -60,6 +66,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
@@ -70,25 +77,28 @@
 #include <sys/mman.h>
 #include <linux/mm.h>
 #include <signal.h>
+#include <sys/stat.h>
+#include <linux/vt.h>
+#include <linux/kd.h>
 
 #include "emu.h"
 #include "termio.h"
-
-/*********** Robert's changes ************/
-#include <linux/vt.h>
-#include <linux/kd.h>
+#include "dosvga.h"
+#include "keymaps.c"
 
 /* imports from dos.c */
 extern int console_video,
            console_keyb,
   	   vga;
 
+extern int sizes;  /* this is DEBUGGING code */
+int in_readkeyboard=0;
+
 unsigned char old_modecr,
          new_modecr;  /* VGA mode control register */
 unsigned short int vga_start;  /* start of video mem */
 
 extern int ignore_segv;
-extern int dbug_printf(const char *, ...);
 struct sigaction sa;
 
 #define SETSIG(sig, fun)	sa.sa_handler = fun; \
@@ -98,6 +108,10 @@ struct sigaction sa;
 
 unsigned int convscanKey(unsigned char);
 unsigned int queue;
+
+#define KBUFLEN 16
+static unsigned short Kbuffer[KBUFLEN];
+static int Kbuff_next_free = 0, Kbuff_next_avail = 0;
 
 #define put_queue(psc) (queue = psc)
 
@@ -155,7 +169,7 @@ int vt_allow,      /* allow VC switches now? */
 
 /* the file descriptor for /dev/mem when mmap'ing the video mem */
 int mem_fd=-1; 
-int video_ram_mapped;   /* flag for whether the video ram is mapped */
+int video_ram_mapped=0;   /* flag for whether the video ram is mapped */
 
 typedef void (*fptr)(unsigned int);
 
@@ -226,9 +240,6 @@ static fptr key_table[] = {
 	none,none,none,none			/* FC-FF ? ? ? ? */
 };
 
-/********** end of Robert's changes *******/
-
-
 #define us unsigned short
 #define	KEYBOARD	"/dev/tty"
 
@@ -259,6 +270,9 @@ char tc[1024], termcap[1024],
      *ve,       /* return corsor to normal */
      *tp;
 int   li, co;   /* lines, columns */     
+
+/* this is DEBUGGING code! */
+int   li2, co2;
 
 struct funkeystruct {
 	char *esc;
@@ -294,7 +308,11 @@ static struct funkeystruct funkey[FUNKEYS] = {
 /* this table is used by convKey() to give the int16 functions the
    correct scancode in the high byte of the returned key (AH) */
 
-#ifndef OLD_SCAN_TABLE
+/* this might need changing per country, like the RAW keyboards, but I
+ * don't think so.  I think that it'll make every keyboard look like
+ * a U.S. keyboard to DOS
+ */
+
 unsigned char highscan[256] = {
 0,0x1e,0x30,0x2e,0x20,0x12,0x21,0x22,0xe,0x0f,0x24,0x25,0x2e,0x1c,  /* ASCII 0 - 0xd */
 0x31,0x18,0x19,0x10,0x13,0x1f,0x14,0x16,0x2f,0x11,0x2d,0x15,0x2c, /* -> 0x1a */
@@ -317,33 +335,10 @@ unsigned char highscan[256] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0xe0-0xef */
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  /* ASC 0xf0-0xff */
 };
-#else
-char highscan[256] = {
-0,0x1e,0x30,0x2e,0x20,0x12,0x21,0x22,0xe,0x0f,0,0,0,0x1c,  /* ASCII 0 - 0xd */
-0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,  /* ASCII 0xD-1F */
-0x39, 0,0,0,0,0,0,0,0,0,0,0, 0x33 /*2c*/, 0x0c, 0x34, 0x35,
-0x0b,2,3,4,5,6,7,8,9,0xa,    /* numbers 0, 1-9; ASCII 0x30-0x39 */
-0,0,0,0,0,0, 3 /* ASC0x40 shft-2 */,  /* ASCII 0x3A-0x40  */
-0x1e,0x30,0x2e,0x20,0x12,0x21,0x22,0x23,0x17,0x24,0x25,0x26,0x32,0x31, /* CAP LETERS A-N */
-0x18,0x19,0x10,0x13,0x1f,0x14,0x16,0x2f,0x11,0x2d,0x15,0x2c, /* CAP O-Z last ASCII 0x5a */
-0x1a,0x2b,0x1b,0,0x0c,0x29, /* ASCII 0x5b-0x60 */
-/* 0x61 - 0x7a on next 2 lines */
-0x1e,0x30,0x2e,0x20,0x12,0x21,0x22,0x23,0x17,0x24,0x25,0x26,0x32,0x31,0x18, /* lower a-o */
-0x19,0x10,0x13,0x1f,0x14,0x16,0x2f,0x11,0x2d,0x15,0x2c,   /* lowercase p-z */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0x7b-0x8f */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0x90-0x9f */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0xa0-0xaf */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0xb0-0xbf */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0xc0-0xcf */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0xd0-0xdf */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ASC 0xe0-0xef */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  /* ASC 0xf0-0xff */
-};
-#endif
 
 int outc(int c)
 {
-  write(2, (char *)&c, 1);
+  write(STDERR_FILENO, (char *)&c, 1);
   return 1;
 }
 
@@ -357,11 +352,23 @@ struct funkeystruct *fkp;
   if (ioctl(2, TIOCGWINSZ, &ws) >= 0) {
     li = ws.ws_row;
     co = ws.ws_col;
-    dbug_printf("SCREEN SIZE----CO: %d, LI: %d\n", co, li);
+    /* this is DEBUGGING code! */
+    if (sizes)
+      {
+	warn("using real found screen sizes!\n");
+	co2 = co;
+	li2 = li;
+      } else {
+	v_printf("using 80x25 screen size no matter what\n");
+	co2=80;
+	li2=25;
+      }
+    v_printf("SCREEN SIZE----co: %d, li: %d, CO: %d, LI: %d\n",
+	     co, li, co2, li2);
   }
   if(tgetent(termcap, getenv("TERM")) != 1)
   {
-    dbug_printf("ERROR: no termcap \n");
+    error("ERROR: no termcap \n");
     leavedos(1);
   }
   if (li == 0 || co == 0) {
@@ -388,12 +395,12 @@ struct funkeystruct *fkp;
   if (se == NULL) so = NULL;
   if (md == NULL || mr == NULL) me = NULL;
   if (li == 0 || co == 0) {
-    dbug_printf("ERROR: unknown window sizes \n");
+    error("ERROR: unknown window sizes \n");
     leavedos(1);
   }
   for (fkp=funkey; fkp < &funkey[FUNKEYS]; fkp++) {
 	fkp->esc = tgetstr(fkp->tce, &tp);
-	if (!fkp->esc) dbug_printf("ERROR: can't get termcap %s\n", fkp->tce);
+	if (!fkp->esc) error("ERROR: can't get termcap %s\n", fkp->tce);
   }
 }
 
@@ -409,9 +416,7 @@ static void CloseKeyboard(void)
       if (console_keyb || console_video)
 	clear_process_control();
 
-      printf("old keyboard flags on exit: 0x%x\n", old_kbd_flags);
       fcntl(kbd_fd, F_SETFL, old_kbd_flags);
-
       ioctl(kbd_fd, TCSETAF, &oldtermio);
 
       close(kbd_fd);
@@ -442,7 +447,7 @@ static int OpenKeyboard(void)
 	else
 	  {
 	    if (console_keyb || console_video) 
-	      dbug_printf("ERROR: STDIN not a console-can't do console modes!\n");
+	      error("ERROR: STDIN not a console-can't do console modes!\n");
 	    console_no=0;
 	    console_keyb=0;
 	    console_video=0;
@@ -482,11 +487,15 @@ static int OpenKeyboard(void)
 	  {
 	    int other_no=(console_no == 1 ? 2 : 1);
 
+#ifdef MDA_VIDEO
+	    dbug_printf("video = MDA\n");
+#endif
+
 	    set_console_video();
 	    ioctl(kbd_fd, VT_ACTIVATE, other_no);
 	    ioctl(kbd_fd, VT_ACTIVATE, console_no);
 	  }
-	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.11 1993/01/28 02:19:16 root Exp $\n");
+	dbug_printf("$Header: /usr/src/dos/RCS/termio.c,v 1.13 1993/02/05 02:54:32 root Exp root $\n");
 	return 0;
 }
 
@@ -497,14 +506,14 @@ forbid_switch()
 
 allow_switch()
 {
-  /* dbug_printf("allow_switch called\n"); */
+  /* v_printf("allow_switch called\n"); */
   vt_allow=1;
   if (vt_requested)
     {
-      dbug_printf("clearing old vt request\n");
+      v_printf("clearing old vt request\n");
       release_vt(0);
     }
-  /* else dbug_printf("allow_switch finished\n"); */
+  /* else v_printf("allow_switch finished\n"); */
 }
       
 void acquire_vt(int sig)
@@ -513,19 +522,19 @@ void acquire_vt(int sig)
 
   SETSIG(SIG_ACQUIRE, acquire_vt);
 
-  /* dbug_printf("acquire_vt() called!\n"); */
-  if (ioctl(kbd_fd, VT_RELDISP, VT_ACKACQ)) /* switch acknowledged */
+  /* v_printf("acquire_vt() called!\n"); */
+  if (do_ioctl(kbd_fd, VT_RELDISP, VT_ACKACQ)) /* switch acknowledged */
 #if 0
-    dbug_printf("VT_REL(ACQ)DISP failed!\n");
+    v_printf("VT_REL(ACQ)DISP failed!\n");
   else
-    dbug_printf("VT_REL(ACQ)DISP succeeded!\n");
+    v_printf("VT_REL(ACQ)DISP succeeded!\n");
 #else
   ;
 #endif
 
   if (console_video)
     {
-      get_video_ram();
+      get_video_ram(WAIT /*NOWAIT*/);
       if (vga) set_dos_video();
     }
 }
@@ -534,11 +543,12 @@ set_dos_video()
 {
   /* turn blinking attr bit -> a background color bit */
 
-  dbug_printf("Setting DOS video: modecr = 0x%x\n", new_modecr);
+  v_printf("Setting DOS video: gfx_mode: %d modecr = 0x%x\n", gfx_mode,
+	   new_modecr);
 
   if (ioperm(0x3da,1,1) || ioperm(0x3c0,1,1) || ioperm(0x3d4,2,1))
     {
-      dbug_printf("ERROR: Can't get I/O permissions!\n");
+      error("ERROR: Can't get I/O permissions!\n");
       return (-1);
     }
 
@@ -546,28 +556,28 @@ set_dos_video()
   port_out(0x10+32, 0x3c0);
   port_out(new_modecr, 0x3c0); 
 
-#if SET_ORIGIN
-  /* set screen origin to 0 */
-  port_out(0xc, 0x3d4);
-  port_out(0, 0x3d5);
-  port_out(0xd, 0x3d4);
-  port_out(0, 0x3d5);
-#endif
-
   ioperm(0x3da,1,0);
   ioperm(0x3c0,1,0);
   ioperm(0x3d4,2,0);
+
+#ifdef EXPERIMENTAL_GFX
+  if (gfx_mode != TEXT)
+    {
+      v_printf("VGA setmodeing gfx to %d\n", gfx_mode);      
+      vga_setmode(gfx_mode); 
+    }
+#endif
 }
 
 set_linux_video()
 {
   /* return vga card to Linux normal setup */
 
-  dbug_printf("Setting Linux video: modecr = 0x%x\n", old_modecr);
+  /* v_printf("Setting Linux video: modecr = 0x%x\n", old_modecr); */
 
   if (ioperm(0x3da,1,1) || ioperm(0x3c0,1,1) || ioperm(0x3d4,2,1))
     {
-      dbug_printf("ERROR: Can't get I/O permissions!\n");
+      error("ERROR: Can't get I/O permissions!\n");
       return (-1);
     }
 
@@ -575,105 +585,140 @@ set_linux_video()
   port_out(0x10+32, 0x3c0);
   port_out(old_modecr, 0x3c0); 
 
-#if SET_ORIGIN
-  /* set screen origin to vga_start */
-  port_out(0xc, 0x3d4);
-  port_out(vga_start >> 8, 0x3d5);
-  port_out(0xd, 0x3d4);
-  port_out(vga_start & 0xff, 0x3d5);
-#endif
-
   ioperm(0x3da,1,0);
   ioperm(0x3c0,1,0);
   ioperm(0x3d4,2,0);
+
+
+#ifdef EXPERIMENTAL_GFX
+  if (gfx_mode != TEXT)
+    {
+      v_printf("set_linux_video(): setmodeing back to TEXT\n");
+      vga_setmode(TEXT); 
+    }
+#endif
 }
 
 void release_vt(int sig)
 {
   SETSIG(SIG_RELEASE, release_vt);
-  /* dbug_printf("release_vt() called!\n"); */
+  /* v_printf("release_vt() called!\n"); */
 
   if (! vt_allow)
     {
-      dbug_printf("disallowed vt switch!\n");
+      v_printf("disallowed vt switch!\n");
       vt_requested=1;
       return;
     }
 
   if (console_video)
     {
-      put_video_ram();
       if (vga) set_linux_video();
+      put_video_ram();
     }
 
-  if (ioctl(kbd_fd, VT_RELDISP, 1))       /* switch ok by me */
-#if 0
-    dbug_printf("VT_RELDISP failed!\n");
+  if (do_ioctl(kbd_fd, VT_RELDISP, 1))       /* switch ok by me */
+    v_printf("VT_RELDISP failed!\n");
   else
-    dbug_printf("VT_RELDISP succeeded!\n");
-#else
-  ;
-#endif
+    v_printf("VT_RELDISP succeeded!\n");
 }
 
-
-
-get_video_ram()
+get_video_ram(int waitflag)
 {
   char *graph_mem;
   void (*oldhandler)();
   int tmp;
 
-  /* dbug_printf("get_video_ram called\n"); */
-
 #if 1
   console_video=0;
-
-  /* wait until our console is current */
-  oldhandler=signal(SIG_ACQUIRE, SIG_IGN);
-  do
+  if (waitflag == WAIT)
     {
-      if (tmp=ioctl(kbd_fd, VT_WAITACTIVE, console_no) < 0)
-	printf("WAITACTIVE gave %d. errno: %d\n", tmp,errno);
-      else break;
-    } while (errno == EINTR);
-
+      v_printf("get_video_ram WAITING\n");
+      /* wait until our console is current */
+      oldhandler=signal(SIG_ACQUIRE, SIG_IGN);
+      do
+	{
+	  if (tmp=do_ioctl(kbd_fd, VT_WAITACTIVE, console_no) < 0)
+	    printf("WAITACTIVE gave %d. errno: %d\n", tmp,errno);
+	  else break;
+	} while (errno == EINTR);
   SETSIG(SIG_ACQUIRE, acquire_vt);
+    }
   console_video=1;
 #endif
 
-  if (video_ram_mapped)
-    memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)VIRT_SCRN_BASE, SCRN_SIZE);
-
-  graph_mem =
-    (char *)mmap(
-		 (caddr_t)VIRT_SCRN_BASE, 
-		 SCRN_SIZE,
-		 PROT_READ|PROT_WRITE,
-		 MAP_SHARED|MAP_FIXED,
-		 mem_fd, 
-		 PHYS_SCRN_BASE
-		 );
-  
-  if ((long)graph_mem < 0) {
-    dbug_printf("ERROR: mmap error in get_video_ram\n");
-    return (1);
-  }
-  else dbug_printf("CONSOLE VIDEO address: 0x%x\n", graph_mem);
-
-  if (video_ram_mapped)
+  if (gfx_mode == TEXT)
     {
-      memcpy((caddr_t)VIRT_SCRN_BASE, (caddr_t)SCRN_BUF_ADDR, SCRN_SIZE);
+      if (video_ram_mapped)
+	memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)VIRT_TEXT_BASE, TEXT_SIZE);
+
+      v_printf("non-gfx mode get_video_mem\n");
+      graph_mem = (char *)mmap((caddr_t)VIRT_TEXT_BASE, 
+			       TEXT_SIZE,
+			       PROT_READ|PROT_WRITE,
+			       MAP_SHARED|MAP_FIXED,
+			       mem_fd, 
+			       PHYS_TEXT_BASE);
+  
+      if ((long)graph_mem < 0) {
+	error("ERROR: mmap error in get_video_ram (text)\n");
+	return (1);
+      }
+      else v_printf("CONSOLE VIDEO address: 0x%x 0x%x 0x%x\n", graph_mem,
+		    PHYS_TEXT_BASE, VIRT_TEXT_BASE);
+      if (video_ram_mapped)
+	memcpy((caddr_t)VIRT_TEXT_BASE, (caddr_t)SCRN_BUF_ADDR, TEXT_SIZE);
+      else video_ram_mapped=1;
     }
-  else video_ram_mapped=1;
+  else /* gfx_mode */ 
+    {
+#ifdef EXPERIMENTAL_GFX
+      v_printf("gfx mode get_video_ram\n");
+
+      /* memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)GRAPH_BASE, GRAPH_SIZE); */
+
+      v_printf("non-gfx mode get_video_mem\n");
+      graph_mem = (char *)mmap((caddr_t)GRAPH_BASE, 
+			       GRAPH_SIZE,
+			       PROT_READ|PROT_WRITE,
+			       MAP_SHARED|MAP_FIXED,
+			       mem_fd, 
+			       GRAPH_BASE);
+  
+      if ((long)graph_mem < 0) {
+	error("ERROR: mmap error in get_video_ram (gfx)\n");
+	return (1);
+      }
+      else v_printf("CONSOLE VGA address: 0x%x 0x%x\n", graph_mem,
+		    GRAPH_BASE);
+
+      /* memcpy((caddr_t)GRAPH_BASE, (caddr_t)SCRN_BUF_ADDR, GRAPH_SIZE); */
+      /* video_ram_mapped=1; */
+#else
+      error("graphics get_video_ram() without gfx support compiled in!\n");
+#endif
+    }
 }
 
 put_video_ram()
 {
-  /* dbug_printf("put_video_ram called\n"); */
-  memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)VIRT_SCRN_BASE, SCRN_SIZE);
-  munmap((caddr_t)VIRT_SCRN_BASE, SCRN_SIZE);
-  memcpy((caddr_t)VIRT_SCRN_BASE, (caddr_t)SCRN_BUF_ADDR, SCRN_SIZE);
+  if (gfx_mode == TEXT)
+    {
+      v_printf("put_video_ram (text mode) called\n"); 
+      memcpy((caddr_t)SCRN_BUF_ADDR, (caddr_t)VIRT_TEXT_BASE, TEXT_SIZE);
+      munmap((caddr_t)VIRT_TEXT_BASE, TEXT_SIZE);
+      memcpy((caddr_t)VIRT_TEXT_BASE, (caddr_t)SCRN_BUF_ADDR, TEXT_SIZE);
+    }
+  else 
+    {
+#ifdef EXPERIMENTAL_GFX
+      v_printf("put_video_ram (gfx mode) called\n");
+      munmap((caddr_t)GRAPH_BASE, GRAPH_SIZE);
+      v_printf("put_video_ram (gfx mode) finished\n");
+#else
+      error("graphics put_video_ram() w/out gfx support compiled in!\n");
+#endif
+    }
 }
 
 /* this puts the VC under process control */
@@ -693,11 +738,11 @@ set_process_control()
   SETSIG(SIG_RELEASE, release_vt);
   SETSIG(SIG_ACQUIRE, acquire_vt);
 
-  if (ioctl(kbd_fd, VT_SETMODE, &vt_mode))
+  if (do_ioctl(kbd_fd, VT_SETMODE, (int)&vt_mode))
 #if 0
-    dbug_printf("initial VT_SETMODE failed!\n");
+    v_printf("initial VT_SETMODE failed!\n");
   else
-    dbug_printf("initial VT_SETMODE to VT_PROCESS succeded!\n");
+    v_printf("initial VT_SETMODE to VT_PROCESS succeded!\n");
 #else
    ;
 #endif
@@ -708,7 +753,7 @@ clear_process_control()
  struct vt_mode vt_mode;
 
  vt_mode.mode = VT_AUTO;
- ioctl(kbd_fd, VT_SETMODE, &vt_mode);
+ do_ioctl(kbd_fd, VT_SETMODE, (int)&vt_mode);
  SETSIG(SIG_RELEASE, SIG_IGN);
  SETSIG(SIG_ACQUIRE, SIG_IGN);
 }
@@ -716,7 +761,7 @@ clear_process_control()
 open_kmem()
 {
     if ((mem_fd = open("/dev/mem", O_RDWR) ) < 0) {
-	dbug_printf("ERROR: can't open /dev/mem \n");
+	error("ERROR: can't open /dev/mem \n");
 	return (-1);
     }
 }
@@ -727,10 +772,10 @@ set_console_video()
 
     /* clear Linux's (unmapped) screen */
     tputs(cl, 1, outc);
-    dbug_printf("set_console_video called\n");
+    v_printf("set_console_video called\n");
    
     forbid_switch();
-    get_video_ram();
+    get_video_ram(WAIT);
 
     if (vga)
       {
@@ -742,7 +787,7 @@ set_console_video()
 
 	if (permtest)
 	  {
-	    dbug_printf("ERROR: can't get I/O permissions: vga disabled!\n");
+	    error("ERROR: can't get I/O permissions: vga disabled!\n");
 	    vga=0;  /* if i can't get permissions, forget -V mode */
 	  }
 	else
@@ -760,7 +805,7 @@ set_console_video()
 	    port_out(0xd, 0x3d4);
 	    vga_start |= (unsigned char)port_in(0x3d5);
 	    
-	    dbug_printf("MODECR: old=0x%x...ORIG: 0x%x\n",
+	    v_printf("MODECR: old=0x%x...ORIG: 0x%x\n",
 			old_modecr,vga_start);
 	    
 	    ioperm(0x3da,1,0);
@@ -788,23 +833,38 @@ set_console_video()
 
 clear_console_video()
 {
-  dbug_printf("clear_console_video called\n");
-  put_video_ram();		/* unmap the screen */
-  show_cursor();		/* restore the cursor */
+  v_printf("clear_console_video called\n");
   if (vga)
-    set_linux_video();
+    {
+#if 0
+      int tmp=gfx_mode;
+      gfx_mode=TEXT;
+      set_linux_video();
+      gfx_mode=tmp;
+      if (gfx_mode != TEXT)
+	{
+	  v_printf("clear_console_video restoring screen...\n");
+	  vga_setmode(TEXT);
+	}
+#else
+      set_linux_video();
+#endif
+    }
+  put_video_ram();		/* unmap the screen */
+
+  show_cursor();		/* restore the cursor */
 }
 
 clear_raw_mode()
 {
- ioctl(kbd_fd, KDSKBMODE, K_XLATE);
+ do_ioctl(kbd_fd, KDSKBMODE, K_XLATE);
 }
 
 set_raw_mode()
 {
-  dbug_printf("Setting keyboard to RAW mode\n");
+  k_printf("Setting keyboard to RAW mode\n");
   if (!console_video) fprintf(stderr, "\nEntering RAW mode for DOS!\n");
-  ioctl(kbd_fd, KDSKBMODE, K_RAW);
+  do_ioctl(kbd_fd, KDSKBMODE, K_RAW);
 }
 
 
@@ -812,7 +872,7 @@ void map_bios(void)
 {
   char *video_bios_mem, *system_bios_mem;
 
-  dbug_printf("map_bios called\n");
+  g_printf("map_bios called\n");
 
   video_bios_mem =
     (char *)mmap(
@@ -825,10 +885,10 @@ void map_bios(void)
 		 );
   
   if ((long)video_bios_mem < 0) {
-    dbug_printf("ERROR: mmap error in map_bios\n");
+    error("ERROR: mmap error in map_bios\n");
     return;
   }
-  else dbug_printf("VIDEO BIOS address: 0x%x\n", video_bios_mem);
+  else g_printf("VIDEO BIOS address: 0x%x\n", video_bios_mem);
 
   system_bios_mem =
     (char *)mmap(
@@ -841,10 +901,10 @@ void map_bios(void)
 		 );
   
   if ((long)system_bios_mem < 0) {
-    dbug_printf("ERROR: mmap error in map_bios\n");
+    error("ERROR: mmap error in map_bios\n");
     return;
   }
-  else dbug_printf("SYSTEM BIOS address: 0x%x\n", system_bios_mem);
+  else g_printf("SYSTEM BIOS address: 0x%x\n", system_bios_mem);
 }
 
 
@@ -891,6 +951,7 @@ static us alt_nums[] = { /* <ALT>-0 ... <ALT>-9 */
 static void getKeys(void)
 {
         int     cc;
+	int tmp;
 
         if (kbcount == 0) {
                 kbp = kbbuf;
@@ -916,35 +977,42 @@ static void getKeys(void)
 
 	if (kbcount == 0) return 0;
 
-	ioctl(kbd_fd, KDGKBMODE, &kbd_mode);   /* get kb mode */
+	if (console_keyb)
+	  {
+#if 0
+	    do_ioctl(kbd_fd, KDGKBMODE, &kbd_mode);   /* get kb mode */
 
-	if (kbd_mode == K_RAW) 
-	{
-	  unsigned char scancode = *kbp & 0xff;
-	  unsigned int tmpcode = 0;
+	    if (kbd_mode == K_RAW) 
+#endif
+	      if (console_keyb)
+	      {
+		unsigned char scancode = *kbp & 0xff;
+		unsigned int tmpcode = 0;
+		
+		if (rawcount == 0) 
+		  {
+		    if (!console_video)
+		      fprintf(stderr,"Going into RAW mode!\n");
+		    k_printf("Going into RAW mode!\n");
+		    get_leds();
+		    key_flags = 0; 
+		  }
+		
+		rawcount++;
 
-	  if (rawcount == 0) 
-	    {
-	      if (!console_video) fprintf(stderr,"Going into RAW mode!\n");
-	      dbug_printf("Going into RAW mode!\n");
-	      get_leds();
-	      key_flags = 0; 
-	    }
-
-	  rawcount++;
-
-	  tmpcode = convscanKey(scancode);
-	  kbp++;
-	  kbcount--;
-	  return tmpcode;
-	}
+		tmpcode = convscanKey(scancode);
+		kbp++;
+		kbcount--;
+		return tmpcode;
+	      }
+	    else goto xlate;
+	  }
 
 	xlate:
-	if (rawcount != 0)
+	if (console_keyb && (rawcount != 0))
 	  {
-	    dbug_printf("left RAW mode, I guess\n");
+	    k_printf("left RAW mode, I guess\n");
 	    if (!console_video) fprintf(stderr,"\nleft RAW mode, I guess\n");
-
 	    rawcount=0;
 	  }
 
@@ -967,7 +1035,7 @@ static void getKeys(void)
 #define LATIN1 1
 #define METAKEY 1
 #ifdef LATIN1
-		dbug_printf("latin1 extended keysensing\n");
+		k_printf("latin1 extended keysensing\n");
 		if (islower((unsigned char)kbp[1])) {
 			kbcount -= 2;
 			kbp++;
@@ -1034,6 +1102,43 @@ static void getKeys(void)
 	return (i); 
 }
 
+/* InsKeyboard
+   returns 1 if a character could be inserted into Kbuffer
+   */
+int InsKeyboard (unsigned short scancode)
+{
+	int n = (Kbuff_next_free+1) % KBUFLEN;
+	if (n == Kbuff_next_avail)
+		return 0;
+	Kbuffer[Kbuff_next_free] = scancode;
+	Kbuff_next_free = n;
+	return 1;
+}
+
+/* PollKeyboard
+   returns 1 if a character was found at poll
+   */
+int PollKeyboard (void)
+{
+  unsigned int key;
+  int count=0;
+
+  if (in_readkeyboard) error("ERROR: Polling while in_readkeyboard!!!!!\n");
+
+  while (ReadKeyboard(&key, POLL) && count < 5)
+  {
+    k_printf("found key in PollKeyboard: 0x%04x\n", key);
+    if (key == 0)
+      {
+	k_printf("Snatched scancode from me!\n");
+	return 0;
+      }
+    else
+      if (! InsKeyboard(key)) error("PollKeyboard could not insert key!\n");
+    count++;
+  }
+}
+
 /* ReadKeyboard
    returns 1 if a character could be read in buf 
    */
@@ -1043,18 +1148,43 @@ int ReadKeyboard(unsigned int *buf, int wait)
 	int r;
 	static unsigned int aktkey;
 
+	/* this if for PollKeyboard...it works like NOWAIT, except
+         * that the KeyBuffer is not to be consulted first (will cause
+         * an infinite loop, as PollKeyboard stuffs things into the 
+	 * buffer. This should be perhaps broken into 2 functions,
+         * one of which does the key-grabbing, and one of which calls
+         * the former and consults the buffer, too.
+         */
+
+	in_readkeyboard=1;
+
+	if ((wait != POLL) && (Kbuff_next_free != Kbuff_next_avail))
+	{
+	  *buf = (int) (Kbuffer[Kbuff_next_avail]);
+	  if (wait != TEST) 
+	      Kbuff_next_avail = (Kbuff_next_avail + 1) % KBUFLEN;
+	  in_readkeyboard=0;
+	  return 1;
+	}
+
 	while (!aktkey) {
 		if (kbcount == 0 && wait == WAIT) {
-			FD_ZERO(&fds);
+		        in_readkeyboard=1;
+		        FD_ZERO(&fds);
 			FD_SET(kbd_fd, &fds);
 			r = select(kbd_fd+1, &fds, NULL, NULL, NULL);
 		}
 		getKeys();
-		if (kbcount == 0 && wait != WAIT) return 0;
+		if (kbcount == 0 && wait != WAIT) 
+		  {
+		    in_readkeyboard=0;
+		    return 0;
+		  }
 		aktkey = convKey();
 	}
 	*buf = aktkey;
 	if (wait != TEST) aktkey = 0;
+	in_readkeyboard=0;
 	return 1;
 }
 
@@ -1068,6 +1198,7 @@ void ReadString(int max, char *buf)
 {
 	char ch, *cp = buf +1, *ce = buf + max;
 	unsigned int c;
+	int tmp;
 
 	for (;;) {
 		if (ReadKeyboard(&c, WAIT) != 1) continue;
@@ -1102,7 +1233,7 @@ static int fkcmp(const void *a, const void *b)
 void termioInit()
 {
 	if (OpenKeyboard() != 0) {
-		dbug_printf("ERROR: can't open keyboard\n");
+		error("ERROR: can't open keyboard\n");
 		leavedos(1);
 	}
 	gettermcap();
@@ -1238,14 +1369,27 @@ static void uncaps(unsigned int sc)
 
 static void sysreq(unsigned int sc)
 {
-  dbug_printf("Regs requested\n");
+  g_printf("Regs requested\n");
   show_regs();
 }
 
 static void scroll(unsigned int sc)
 {
-  chg_kbd_flag(KF_SCRLOCK);
-  set_leds();
+  if (key_flag(KKF_E0))
+    {
+      k_printf("ctrl-break!\n");
+      *(unsigned char *)0x471 = 0x80;  /* ctrl-break flag */
+      do_int(0x1b);
+      return;
+    }
+  if (kbd_flag(KF_CTRL))
+      show_ints(0x30);
+  else if (kbd_flag(KF_ALT))
+    show_regs();
+  else {
+    chg_kbd_flag(KF_SCRLOCK);
+    set_leds();
+  }
 }
 
 static void num(unsigned int sc)
@@ -1263,14 +1407,14 @@ set_leds()
   if (kbd_flag(KF_NUMLOCK)) led_state |= (1 << LED_NUMLOCK);
   if (kbd_flag(KF_CAPSLOCK)) led_state |= (1 << LED_CAPSLOCK);
 
-  ioctl(kbd_fd, KDSETLED, led_state);
+  do_ioctl(kbd_fd, KDSETLED, led_state);
 }
 
 get_leds()
 {
   unsigned int led_state=0;
 
-  ioctl(kbd_fd, KDGETLED, &led_state);
+  do_ioctl(kbd_fd, KDGETLED, (int)&led_state);
 
   if  (led_state & (1 << LED_SCRLOCK)) set_kbd_flag(KF_SCRLOCK);
        else clr_kbd_flag(KF_SCRLOCK);
@@ -1279,57 +1423,6 @@ get_leds()
   if  (led_state & (1 << LED_CAPSLOCK)) set_kbd_flag(KF_CAPSLOCK);
        else clr_kbd_flag(KF_CAPSLOCK);
 }
-
-/********* start of char maps for U.S. keyboard *********/
-static unsigned char key_map[] = {
-	  0,   27,  '1',  '2',  '3',  '4',  '5',  '6',
-	'7',  '8',  '9',  '0',  '-',  '=',  127,    9,
-	'q',  'w',  'e',  'r',  't',  'y',  'u',  'i',
-	'o',  'p',  '[',  ']',   13,    0,  'a',  's',
-	'd',  'f',  'g',  'h',  'j',  'k',  'l',  ';',
-	'\'', '`',    0, '\\',  'z',  'x',  'c',  'v',
-	'b',  'n',  'm',  ',',  '.',  '/',    0,  '*',
-	  0,   32,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,  '-',    0,    0,    0,  '+',    0,
-	  0,    0,    0,    0,    0,    0,  '<',    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0 };
-
-static unsigned char shift_map[] = {
-	  0,   27,  '!',  '@',  '#',  '$',  '%',  '^',
-	'&',  '*',  '(',  ')',  '_',  '+',  127,    9,
-	'Q',  'W',  'E',  'R',  'T',  'Y',  'U',  'I',
-	'O',  'P',  '{',  '}',   13,    0,  'A',  'S',
-	'D',  'F',  'G',  'H',  'J',  'K',  'L',  ':',
-	'"',  '~',  '0',  '|',  'Z',  'X',  'C',  'V',
-	'B',  'N',  'M',  '<',  '>',  '?',    0,  '*',
-	  0,   32,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,  '-',    0,    0,    0,  '+',    0,
-	  0,    0,    0,    0,    0,    0,  '>',    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0 };
-
-static unsigned char alt_map[] = {
-	  0,    0,    0,  '@',    0,  '$',    0,    0,
-	'{',   '[',  ']', '}', '\\',    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,  '~',   13,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0,    0,    0,    0,    0,    0,  '|',    0,
-	  0,    0,    0,    0,    0,    0,    0,    0,
-	  0 };
-
-unsigned char num_table[] = "789-456+1230.";
-/********* end of char maps for U.S. keyboard *********/
-
-
 
 static void do_self(unsigned int sc)
 {
@@ -1378,11 +1471,20 @@ static void cursor(unsigned int sc)
 
   if (sc < 0x47 || sc > 0x53)
     return;
-  sc -= 0x47;
-  if (sc == 12 && kbd_flag(KF_CTRL) && kbd_flag(KF_ALT)) {
-    dos_ctrl_alt_del();
-    return;
+
+  /* do dos_ctrl_alt_del on C-A-Del and C-A-PGUP */
+  if (kbd_flag(KF_CTRL) && kbd_flag(KF_ALT)) {
+    if (sc == 0x53 /*del*/ || sc == 0x49 /*pgup*/)
+      dos_ctrl_alt_del();
+    if (sc == 0x51) /*pgdn*/
+      {
+	dbug_printf("ctrl-alt-pgdn\n");
+	leavedos(1);
+      }
   }
+
+  sc -= 0x47;
+
   if (key_flag(KKF_E0)) {
     cur(old_sc);
     return;
@@ -1395,7 +1497,7 @@ static void cursor(unsigned int sc)
     cur(old_sc);
   
   /*  put_queue(sc << 8); */
-  dbug_printf("cursor2: 0x%04x\n", sc << 8);
+  k_printf("cursor2: 0x%04x\n", sc << 8);
 }
 
 
@@ -1443,7 +1545,13 @@ static void func(unsigned int sc)
       clr_kbd_flag(EKF_LALT);
       if (!kbd_flag(EKF_RALT))
 	clr_kbd_flag(KF_ALT); 
-      ioctl(kbd_fd, VT_ACTIVATE, sc-0x3a);
+
+      /* can't just do the ioctl() here, as PollKeyboard will probably have
+       * been called from a signal handler, and ioctl() is not reentrant.
+       * hence the delay until out of the signal handler...
+       */
+      activate(sc-0x3a);
+
       return;
     }
 
@@ -1455,6 +1563,76 @@ static void func(unsigned int sc)
     put_queue((sc + 0x2d) << 8);
   else
     put_queue(sc << 8);
+}
+
+int activate(int con_num)
+{
+  if (in_ioctl)
+    {
+      k_printf("can't ioctl for activate, in a signal handler\n");
+      /* queue_ioctl(kbd_fd, VT_ACTIVATE, con_num); */
+      do_ioctl(kbd_fd, VT_ACTIVATE, con_num); 
+    }
+  else 
+      do_ioctl(kbd_fd, VT_ACTIVATE, con_num); 
+}
+
+int do_ioctl(int fd, int req, int param3)
+{
+  int tmp;
+
+  if (in_sighandler && in_ioctl)
+    {
+      k_printf("do_ioctl(): in ioctl %d 0x%04x 0x%04x.\nqueuing: %d 0x%04x 0x%04x\n",
+	       curi.fd, curi.req, curi.param3, fd, req, param3);
+      queue_ioctl(fd,req,param3);
+      errno=EDEADLOCK;
+#ifdef SYNC_ALOT
+      fflush(stdout);
+      sync();  /* for safety */
+#endif
+      return -1;
+    }
+  else
+    {
+      in_ioctl=1;
+      curi.fd=fd;
+      curi.req=req;
+      curi.param3=param3;
+      tmp=ioctl(fd,req,param3);
+      in_ioctl=0;
+      if (iq.queued)
+	{
+	  k_printf("detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
+		   iq.fd, iq.req, iq.param3);
+	}
+      return tmp;
+    }
+}
+
+int queue_ioctl(int fd, int req, int param3)
+{
+  if (iq.queued)
+    {
+      error("ioctl already queued: %d 0x%04x 0x%04x\n", iq.fd, iq.req,
+	    iq.param3);
+      return 1;
+    }
+  iq.fd=fd;
+  iq.req=req;
+  iq.param3=param3;
+  iq.queued=1;
+
+  return 0; /* success */
+}
+
+void do_queued_ioctl(void)
+{
+  if (iq.queued)
+    {
+      iq.queued=0;
+      do_ioctl(iq.fd, iq.req, iq.param3);
+    }
 }
 
 static void slash(unsigned int sc)
@@ -1550,3 +1728,4 @@ static void none(unsigned int sc)
 	return ((key_flags >> flag) & 1);
 }
 /************* end of key-related functions *************/
+#undef TERMIO_C

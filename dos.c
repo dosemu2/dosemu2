@@ -1,12 +1,15 @@
 /* dos emulator, Matthias Lautner */
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/01/14 21:59:43 $
+ * $Date: 1993/02/05 02:54:02 $
  * $Source: /usr/src/dos/RCS/dos.c,v $
- * $Revision: 1.4 $
+ * $Revision: 1.5 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 1.5  1993/02/05  02:54:02  root
+ * this is for 0.47.6
+ *
  * Revision 1.4  1993/01/14  21:59:43  root
  * goes with 1.5 of termio.c and emu.c.  just changes for the
  * video save buffer (currently unimplemented) for the direct
@@ -26,13 +29,15 @@
  */
 
 #include <stdio.h>
+#include "termio.h"
 
 #define LIBSTART 	0x400000
 
 void (*dosemu)();
-char dummy[1088*1024 + 0x4000]; /* make sure that the lower 1MB+64K is unused */
+/* ensure that the lower 1MB+64K is unused */
+char dummy[1088*1024 + 4*GRAPH_SIZE]; 
 
-/* the +0x4000 reserves 16k video buffer */
+/* the "+ 64*1024" reserves 64k second video buffer */
 
 int main(int argc, char **argv)
 {

@@ -1,13 +1,20 @@
 /* dos emulator, Matthias Lautner */
-
+#ifndef TERMIO_H
+#define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/01/21 21:56:23 $
+ * $Date: 1993/02/05 02:54:41 $
  * $Source: /usr/src/dos/RCS/termio.h,v $
- * $Revision: 1.5 $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.7  1993/02/05  02:54:41  root
+ * this is for 0.47.6
+ *
+ * Revision 1.6  1993/02/04  01:17:23  root
+ * version 0.47.5
+ *
  * Revision 1.5  1993/01/21  21:56:23  root
  * changed SCRN_BASE to VIRT_... and PHYS_... to distinguish.  one day,
  * these might actually point to useful runtime-determined variables.
@@ -71,9 +78,23 @@
 extern unsigned int kbd_flags, key_flags;
 
 /* raw console stuff */
-#define PHYS_SCRN_BASE	0xB8000      /* this is NOT true for MDA! */
-#define VIRT_SCRN_BASE	0xB8000      /* the emulator is always in EGA */
+#ifdef MDA_VIDEO
+#define PHYS_TEXT_BASE  0xB0000
+#else
+#define PHYS_TEXT_BASE	0xB8000      /* this is NOT true for MDA! */
+#endif
 
-#define SCRN_SIZE	0x1000       /* 4K text mode mem */
-#define SCRN_BUF_ADDR	0x110000     /* buffer for storing screen */
-#define SCRN_BUF_SIZE	(64 * 1024)
+#define VIRT_TEXT_BASE	0xB8000      /* the emulator is always in "[V|E]GA" */
+#define TEXT_SIZE	0x2000       /* 8K text mode mem */
+
+#define GRAPH_BASE 0xA0000
+#define GRAPH_SIZE 0x10000
+
+#define SCRN_BUF_ADDR	0x110000     /* buffer for storing screen @ 1MB+64K*/
+#define SCRN_BUF_SIZE	(0x10000)    /* buffer of 64K */
+
+/* extern unsigned char shift_map[],
+  alt_map[],
+  key_map,
+  num_table[]; */
+#endif /* TERMIO_H */

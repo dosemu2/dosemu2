@@ -12,8 +12,8 @@
 #include <sys/time.h>
 #include "emu.h"
 
-const char prefix[] = "/usr/dos";
-char cwd[80] = "/usr/dos";
+const char prefix[] = PHANTOMDIR;
+char cwd[80] = PHANTOMDIR;
 int dos_open_modes[3] = {O_RDONLY, O_WRONLY, O_RDWR};
 char findpath[80];
 char findname[13];
@@ -53,7 +53,7 @@ void dos_time(time_t utime, short *time, short *date)
 
 	tp = localtime(&utime);
 	/*
-	printf("%d.%d.%d   %d:%02d\n", tp->tm_mday, tp->tm_mon+1, tp->tm_year,
+	d_printf("%d.%d.%d   %d:%02d\n", tp->tm_mday, tp->tm_mon+1, tp->tm_year,
 		tp->tm_hour, tp->tm_min);
 	*/
 	*time = (tp->tm_sec >>1) | (tp->tm_min <<5) | (tp->tm_hour <<11);
@@ -74,7 +74,7 @@ int dir_entry(int first, int s_mode, struct fentry *fptr)
 	struct dirent *dp;
 	struct stat stbuf;
 
-	printf("DIR %x, %s\n", s_mode, findname);
+	d_printf("DIR %x, %s\n", s_mode, findname);
 
 	if (s_mode == 0x08) return 18; /* no name */
 	if (first) {
@@ -87,7 +87,7 @@ int dir_entry(int first, int s_mode, struct fentry *fptr)
 			dirp = NULL;
 			return 18;
 		}
-		printf("dir: %s\n", dp->d_name);
+		d_printf("dir: %s\n", dp->d_name);
 		np = dp->d_name;
 		cp = findname;
 		while (*cp) {
@@ -102,7 +102,7 @@ int dir_entry(int first, int s_mode, struct fentry *fptr)
 		strcpy(name, findpath);
 		strcat(name, "/");
 		strcat(name, dp->d_name);
-		printf("matched %s\n", name);
+		d_printf("matched %s\n", name);
 		if (stat(name, &stbuf) < 0) continue;
 		/* matched */
 		if ((s_mode & 0x10) == 0 && S_ISDIR(stbuf.st_mode)) continue;
@@ -141,10 +141,10 @@ int delete(char *delpath)
 	while (*--cp != '/');
 	*cp++ = '\0';
 	strcpy(delname, cp);
-	printf("DEL <%s><%s>\n", delpath, delname);
+	d_printf("DEL <%s><%s>\n", delpath, delname);
 	if ((dirp = opendir(delpath)) == NULL) return 3;
 	while ((dp = readdir(dirp)) != NULL) { 
-		/* printf("dir: %s\n", dp->d_name); */
+		/* d_printf("dir: %s\n", dp->d_name); */
 		np = dp->d_name;
 		cp = delname;
 		while (*cp) {
@@ -165,7 +165,7 @@ int delete(char *delpath)
 		}
 		if (!S_ISREG(stbuf.st_mode)) continue;
 		/* matched */
-		printf("deleting %s\n", name);
+		d_printf("deleting %s\n", name);
 		if (unlink(name) == 0) c = 0;
 		else {
 			c = 5;
@@ -183,29 +183,29 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 	struct statfs fsbuf;
 	int r, m, a, f;
 
-	printf("EXT FS:\n");
+	d_printf("EXT FS:\n");
 	switch(nr) {
 		case 1: /* CD */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("CD %s --- %s\n", p1, name);
+			d_printf("CD %s --- %s\n", p1, name);
 			if (stat(name, &stbuf) < 0 || !S_ISDIR(stbuf.st_mode))
 				return 3;
 			strcpy(cwd, name);
 			return 0;
 		case 2: /* MD */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("MD %s --- %s\n", p1, name);
+			d_printf("MD %s --- %s\n", p1, name);
 			if (mkdir(name, 0755) < 0) {
 				return (errno == EPERM) ? 5 : 3;
 			}
 			return 0;
 		case 3: /* RD */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("RD %s --- %s\n", p1, name);
+			d_printf("RD %s --- %s\n", p1, name);
 			if (stat(name, &stbuf) < 0 || !S_ISDIR(stbuf.st_mode)) {
 				return 3;
 			}
-			printf("stat\n");
+			d_printf("stat\n");
 			if (rmdir(name) < 0) {
 				return (errno == EBUSY) ? 16 : 5;
 				break;
@@ -217,15 +217,15 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			while (*--cp != '/');
 			*cp++ = '\0';
 			strcpy(findname, cp);
-			printf("GET FIRST %s  %d --- %s, %s (%x)\n", p1, c, findpath, findname, p2-(char *)0);
+			d_printf("GET FIRST %s  %d --- %s, %s (%x)\n", p1, c, findpath, findname, p2-(char *)0);
 			return dir_entry(1, c, (struct fentry *)p2);
 		case 5: /* GET NEXT */
-			printf("GET NEXT  %d --- %s, %s\n", c, findpath, findname);
+			d_printf("GET NEXT  %d --- %s, %s\n", c, findpath, findname);
 			return dir_entry(0, c, (struct fentry *)p2);
 		case 6: /* OPEN */
 		case 7: /* CREAT */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("%s %d --- %s, %s\n", (nr==7) ? "CREAT" : "OPEN",
+			d_printf("%s %d --- %s, %s\n", (nr==7) ? "CREAT" : "OPEN",
 				c, p1, name);
 			for (f=19; f>= 0; f--) if (dos_files[f] < 0) break;
 			if (f < 0) return 4;
@@ -237,17 +237,17 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			if (fstat(dos_files[f], &stbuf) < 0) return 2;
 			if (S_ISDIR(stbuf.st_mode)) return 5;
 			if (nr == 6) {
-				printf("SZ=%d\n", stbuf.st_size);
+				d_printf("SZ=%d\n", stbuf.st_size);
 				*((int *)p2)++ = stbuf.st_size;
 			} 
 			*(short *)p2 = (short)f;
-			printf("__%d\n", f);
+			d_printf("__%d\n", f);
 			return 0;
 		case 8: /* SPECIAL OPEN */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("SPECIAL OPEN %x --- %s, %s\n", c, p1, name);
+			d_printf("SPECIAL OPEN %x --- %s, %s\n", c, p1, name);
 			r = (stat(name, &stbuf) == 0 && S_ISREG(stbuf.st_mode));
-			printf("r= %d\n", r);
+			d_printf("r= %d\n", r);
 			if (((c & 0xf00) == 0 && r) || ((c & 0xf000) == 0 && !r))
 				return 5;
 			m = c & 0x3;
@@ -264,56 +264,56 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			r = (a & (O_CREAT | O_TRUNC)) ? -1 : stbuf.st_size;
 			*((int *)p2) = r;
 			*(short *)(p2 + 4) = (short)f;
-			printf("__%d, SZ=%d\n", f, r);
+			d_printf("__%d, SZ=%d\n", f, r);
 			return 0;
 		case 9: /* CLOSE */
-			printf("CLOSE (%d) \n", c);
+			d_printf("CLOSE (%d) \n", c);
 			if (c >= 0 && c < 20)
 				dos_files[c] = -1;
 			return 0;
 		case 10: /* READ */
 		case 11: /* WRITE */
-			printf("%s (%d) sz=%d\n", (nr == 10) ? "READ" : "WRITE",
+			d_printf("%s (%d) sz=%d\n", (nr == 10) ? "READ" : "WRITE",
 						 c, *(unsigned short *)p2);
-			printf("%04x:%04x\n", _regs.fs, _regs.edi);
+			d_printf("%04x:%04x\n", _regs.fs, _regs.edi);
 			if (c < 0 || c >= 20 || dos_files[c] < 0) r = 0;
 			else {
 				a = *(int *)(p2+2);
-				printf ("... %d - (%d)  ", a, lseek(dos_files[c], 0, SEEK_CUR));
+				d_printf("... %d - (%d)  ", a, lseek(dos_files[c], 0, SEEK_CUR));
 				if (a != lseek(dos_files[c], a, SEEK_SET))
-					printf("SEEK OUT OF FILE\n");
+					d_printf("SEEK OUT OF FILE\n");
 				if (nr == 10)
 					r = read(dos_files[c], p1, *(unsigned short *)p2);
 				else
 					r = write(dos_files[c], p1, *(unsigned short *)p2);
-				printf("res:%d\n", r);
+				d_printf("res:%d\n", r);
 				if (r < 0) r = 0;
 			}
 			*(unsigned short *)p2 = (unsigned short)r;
 			return 0;
 		case 12: /* SEEK */
-			printf("SEEK (%d) %d\n", c, *(int *)p1);
+			d_printf("SEEK (%d) %d\n", c, *(int *)p1);
 			if (c < 0 || c >= 20 || dos_files[c] < 0) return 6;
 			r = lseek(dos_files[c], *(off_t *)p1, SEEK_END);
-			printf("pos = %d\n", r);
+			d_printf("pos = %d\n", r);
 			if (r < 0) return 5;
 			*(int *)p1 = r;
 			return 0;
 		case 13: /* DELETE */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("DELETE %s --- %s\n", p1, name);
+			d_printf("DELETE %s --- %s\n", p1, name);
 			return delete(name);
 		case 14: /* RENAME */
 			if (dos2unix(name, p1)) return 0xf;
 			if (dos2unix(name2, p2)) return 0xf;
-			printf("RENAME %s --- %s TO %s\n", p1, name, p2);
+			d_printf("RENAME %s --- %s TO %s\n", p1, name, p2);
 			if (rename(name, name2) < 0)
 				return 5;
 			return 0;
 		case 15: /* SPACE */
-			printf("SPACE %s\n", cwd);
+			d_printf("SPACE %s\n", cwd);
 			if (statfs(cwd, &fsbuf) >= 0) {
-				printf("f_bsize %d, f_blocks %d, f_bfree %d, f_bavail %d\n",
+				d_printf("f_bsize %d, f_blocks %d, f_bfree %d, f_bavail %d\n",
 				fsbuf.f_bsize, fsbuf.f_blocks, fsbuf.f_bfree, fsbuf.f_bavail);
 				r = fsbuf.f_bsize * fsbuf.f_bavail / 1024;
 				if (r > 0xffff) r = 0xffff;
@@ -322,19 +322,19 @@ int ext_fs(int nr, char *p1, char *p2, int c)
 			return 0;
 		case 16: /* SETATT */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("SETATT %s --- %s TO %x\n", p1, name, c);
+			d_printf("SETATT %s --- %s TO %x\n", p1, name, c);
 			return 0;
 		case 17: /* GETATT */
 			if (dos2unix(name, p1)) return 0xf;
-			printf("GETATT %s --- %s\n", p1, name);
+			d_printf("GETATT %s --- %s\n", p1, name);
 			if (stat(name, &stbuf) < 0)
 				return 2;
 			if (S_ISDIR(stbuf.st_mode)) m = 0x10; else m = 0;
-			printf(">>%x\n", m);
+			d_printf(">>%x\n", m);
 			*(unsigned short *)p2 = m;
 			return 0;
 		default:
-			printf("FN_%d not implemented\n", nr);
+			d_printf("FN_%d not implemented\n", nr);
 			show_regs();
 			error = 1;
 	}
