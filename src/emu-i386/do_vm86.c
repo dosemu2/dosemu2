@@ -444,10 +444,10 @@ run_vm86(void)
 	pic_iret();
 	break;
     case VM86_INTx:
+	do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
 	mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
 #endif
-	do_int(VM86_ARG(retval));
 	break;
 #ifdef USE_MHPDBG
     case VM86_TRAP:

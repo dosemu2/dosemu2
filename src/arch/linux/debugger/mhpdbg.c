@@ -372,6 +372,8 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	    else {
 	      if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload ) {
 	        mhpdbgc.stopped = 1;
+		vm86s.vm86plus.vm86dbg_active = 1;
+		vm86s.vm86plus.vm86dbg_TFpendig = 1;
 	        mhp_poll();
 	      }
 	    }

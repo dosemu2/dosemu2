@@ -753,11 +753,12 @@ int ConvertSegmentToCodeDescriptor(unsigned short segment)
   D_printf("DPMI: convert seg %#x to *code* desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit>=0xffff) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) && Segments[i].used) {
+	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) && Segments[i].used &&
+	(Segments[i].is_32==DPMI_CLIENT.is_32)) {
       D_printf("DPMI: found *code* descriptor at %#x\n", (i<<3) | 0x0007);
       return (i<<3) | 0x0007;
     }
-  D_printf("DPMI: SEG at base=%#lx not found, allocate a new one\n", baseaddr);
+  D_printf("DPMI: Code SEG at base=%#lx not found, allocate a new one\n", baseaddr);
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, limit, DPMI_CLIENT.is_32,
                   MODIFY_LDT_CONTENTS_CODE, 0, DPMI_CLIENT.is_32, 0, 0)) return 0;
@@ -1520,10 +1521,12 @@ err:
   case 0x0200:	/* Get Real Mode Interrupt Vector */
     _LWORD(ecx) = ((us *) 0)[(_LO(bx) << 1) + 1];
     _LWORD(edx) = ((us *) 0)[_LO(bx) << 1];
+    D_printf("DPMI: Getting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
   case 0x0201:	/* Set Real Mode Interrupt Vector */
     ((us *) 0)[(_LO(bx) << 1) + 1] = _LWORD(ecx);
     ((us *) 0)[_LO(bx) << 1] = (us) _LWORD(edx);
+    D_printf("DPMI: Setting RM vec %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_LWORD(edx));
     break;
   case 0x0202:	/* Get Processor Exception Handler Vector */
     _LWORD(ecx) = DPMI_CLIENT.Exception_Table[_LO(bx)].selector;
@@ -2129,7 +2132,8 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     return;
   }
   if ((i == 0x21) && (_HI(ax) == 0x4c)) {
-    D_printf("DPMI: leaving DPMI with error code 0x%02x\n",_LO(ax));
+    D_printf("DPMI: leaving DPMI with error code 0x%02x, in_dpmi=%i\n",
+      _LO(ax), in_dpmi);
     quit_dpmi(scp, _LO(ax));
   } else if (i == 0x31) {
     switch (_LWORD(eax)) {
@@ -2269,6 +2273,9 @@ void run_pm_int(int i)
   in_dpmi_pm_stack++;
   in_dpmi_dos_int = 0;
   dpmi_cli();
+#ifdef USE_MHPDBG
+  mhp_debug(DBG_INTx + (i << 8), 0, 0);
+#endif
 }
 
 void run_dpmi(void)
@@ -2373,10 +2380,10 @@ void run_dpmi(void)
 			  do_int(VM86_ARG(retval));
 			break;
 		  default:
+			do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
 			mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
 #endif
-			do_int(VM86_ARG(retval));
 		}
 		break;
 #ifdef USE_MHPDBG
@@ -2832,7 +2839,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
       leavedos(0x5046);
   }
 
-  if ((_trapno != 0xe)
+  if ((_trapno != 0xe && _trapno != 0x3 && _trapno != 0x1)
 #ifdef X86_EMULATOR
       || debug_level('e')
 #endif
@@ -3498,7 +3505,6 @@ if ((_ss & 4) == 4) {
 
     default:
       _eip = org_eip;
-      DPMI_show_state(scp);
       if (msdos_fault(scp))
 	  break;
 #ifdef __linux__
@@ -3673,8 +3679,8 @@ void dpmi_realmode_hlt(unsigned char * lina)
     unsigned short begin_selector, num_descs;
     int i;
     
-    D_printf("DPMI: Return from DOS memory service, CARRY=%d,ES=0x%04x\n",
-	     LWORD(eflags) & CF, REG(es));
+    D_printf("DPMI: Return from DOS memory service, CARRY=%d, AX=0x%04X, BX=0x%04x, DX=0x%04x\n",
+	     LWORD(eflags) & CF, LWORD(eax), LWORD(ebx), LWORD(edx));
 
     in_dpmi_dos_int = 0;
 
@@ -3898,6 +3904,7 @@ done:
     in_dpmi_pm_stack++;
     dpmi_cli();
     in_dpmi_dos_int = 0;
+
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_raw_mode_switch))) {
     D_printf("DPMI: switching from real to protected mode\n");
 #ifdef SHOWREGS
