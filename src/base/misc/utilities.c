@@ -5,6 +5,8 @@
  */
 #include <stdio.h>
 #include <stdarg.h>
+#include <malloc.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include "emu.h"
 #include "machcompat.h"
@@ -20,47 +22,43 @@ int
  log_printf(unsigned int flg, const char *fmt,...) {
   va_list args;
   int i;
-#ifdef SHOW_TIME
   static int first_time = 1;
-  static int show_time =  0;
+#ifdef SHOW_TIME
+  static int is_cr =  1;
 #endif
 
   if (!flg || !dbg_fd)
     return 0;
 
 
-#ifdef SHOW_TIME
   if(first_time)  {
-	if(getenv("SHOWTIME"))
-		show_time = 1;
 	first_time = 0;
-	logptr = logbuf;
   }
-#endif
 	
   va_start(args, fmt);
   i = vsprintf(logptr, fmt, args);
   va_end(args);
 
 #ifdef SHOW_TIME
-  if(show_time) {
+  if(is_cr) {
 	struct timeval tv;
 	int result;
-	char tmpbuf[1024];
+	static char tmpbuf[1024];
 	result = gettimeofday(&tv, NULL);
-	assert(0 == result);
-	sprintf(tmpbuf, "%d.%d: %s", tv.tv_sec, tv.tv_usec, logptr);
+	sprintf(tmpbuf, "[%05d%03d] %s", (tv.tv_sec%10000), (tv.tv_usec/1000), logptr);
 	strcpy(logptr, tmpbuf);
 	i = strlen(logptr);
   }
+  is_cr = (logptr[i-1]=='\n');
 #endif
 
   logptr += i;
-  if (((logptr-logbuf) > logbuf_size) || (flg == -1)) {
-    write(fileno(dbg_fd), logbuf, logptr-logbuf);
+  if ((dbg_fd==stderr) || ((logptr-logbuf) > logbuf_size) || (flg == -1)) {
+    int fsz = logptr-logbuf;
     if (terminal_pipe) {
-      write(terminal_fd, logptr, logptr-logbuf);
+      write(terminal_fd, logptr, fsz);
     }
+    write(fileno(dbg_fd), logbuf, fsz);
     logptr = logbuf;
   }
   return i;
@@ -71,7 +69,8 @@ int
 void
 p_dos_str(char *fmt,...) {
   va_list args;
-  char buf[1025], *s;
+  static char buf[1025];
+  char *s;
   int i;
 
   va_start(args, fmt);

@@ -41,6 +41,8 @@
 extern void scan_to_buffer(void);
 #endif
 
+#define DJGPP_HACK	/* AV Feb 97 */
+
 /*
    This flag will be set when doing video routines so that special
    access can be given
@@ -114,7 +116,11 @@ static int dos_helper(void)
   case 0:			/* Linux dosemu installation test */
     LWORD(eax) = 0xaa55;
     LWORD(ebx) = VERSION * 0x100 + SUBLEVEL; /* major version 0.49 -> 0049 */
-    LWORD(ecx) = PATCHLEVEL;
+    /* The patch level in the form n.n is a float...
+     * ...we let GCC at compiletime translate it to 0xHHLL, HH=major, LL=minor.
+     * This way we avoid usage of float instructions.
+     */
+    LWORD(ecx) = ((((int)(PATCHLEVEL * 100))/100) << 8) + (((int)(PATCHLEVEL * 100))%100);
     g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);
     break;
@@ -448,10 +454,6 @@ static void int15(u_char i)
     }
     CARRY;
     break;
-  case 0x24:			/* PS/2 A20 gate support */
-    HI(ax) = 0x86;
-    CARRY;
-    return;
   case 0x41:			/* wait on external event */
     break;
   case 0x4f:			/* Keyboard intercept */
@@ -562,7 +564,7 @@ static void int15(u_char i)
     m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
     if (!mice->intdrv)
       if (mice->type != MOUSE_PS2) {
-	REG(eax) = 0500;        /* No ps2 mouse device handler */
+	REG(eax) = 0x0500;        /* No ps2 mouse device handler */
 	CARRY;
 	return;
       }
@@ -651,6 +653,20 @@ static void int15(u_char i)
     /* no post */
     CARRY;
     return;
+  case 0xc9:
+    if (LO(ax) == 0x10) {
+	HI(ax) = 0;
+	HI(cx) = vm86s.cpu_type;
+	LO(cx) = 0x20;
+	return;
+    }
+  /* else fall through */
+  case 0x24:		/* PS/2 A20 gate support */
+  case 0xd8:		/* EISA - should be set in config? */
+  case 0xda:
+  case 0xdb:
+	HI(ax) = 0x86;
+	break;
   default:
     g_printf("int 15h error: ax=0x%04x\n", LWORD(eax));
     CARRY;
@@ -801,7 +817,7 @@ static void int1a(u_char i)
  */
 #define EMM_FILE_HANDLE 200
 
-/* lowercase and truncate to 3 letters the replacement extension */
+/* uppercase and truncate to 3 letters the replacement extension */
 #define ext_fix(s) { char *r=(s); \
 		     while (*r) { *r=toupper(*r); r++; } \
 		     if ((r - s) > 3) s[3]=0; }
@@ -933,32 +949,36 @@ int can_revector(int i)
   switch (i) {
   case 0: case 4: case 5: case 7:
 #if 1 /* temp fix for bug in kernel vm86plus code
-       * (fxing kernel patch will appear in 2.0.30 and 2.1.27, as Linus promised)
+       * (fixing kernel patch is in 2.1.27 and will appear in 2.0.30, as Linus promised)
        * we will remove this, when time goes by --Hans 970225
        */
     if (running_kversion > 2001026 || (running_kversion > 2000029 && running_kversion < 2000000) )
-      return 1;
+      return NO_REVECT;
 #endif
   case 0x21:			/* we want it first...then we'll pass it on */
+#ifdef DJGPP_HACK
+  case 0x23:			/* TMP FIX for ^C under DPMI */
+#endif
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
   case 0xe6:			/* for redirector and helper (was 0xfe) */
   case 0xe7:			/* for mfs FCB helper */
   case 0xe8:			/* for int_queue_run return */
-    return 0;
+    return REVECT;
 
   case 0x74:			/* needed for PS/2 Mouse */
     if ((mice->type == MOUSE_PS2) || (mice->intdrv))
-      return 0;
+      return REVECT;
     else
-      return 1;
+      return NO_REVECT;
 
   case 0x33:			/* Mouse. Wrapper for mouse-garrot as well*/
     if (mice->intdrv || config.hogthreshold)
-      return 0;
+      return REVECT;
     else
-      return 1;
+      return NO_REVECT;
 
+#if 0		/* no need to specify all */
   case 0x10:			/* BIOS video */
   case 0x13:			/* BIOS disk */
   case 0x15:
@@ -976,8 +996,9 @@ int can_revector(int i)
   case 0x62:
   case 0x67:			/* EMS */
   case 0xfe:			/* Turbo Debugger and others... */
+#endif
   default:
-    return 1;
+    return NO_REVECT;
   }
 }
 
@@ -989,16 +1010,16 @@ static int can_revector_int21(int i)
   case 0x3e:          /* dos handle close */
   case 0x44:          /* dos ioctl */
 #endif
-    return 0;
+    return REVECT;
 
   case 0x3d:          /* dos handle open */
     if (config.emusys || config.emubat)
-      return 0;
+      return REVECT;
     else
-      return 1;
+      return NO_REVECT;
 
   default:
-    return 1;      /* don't emulate most int 21h functions */
+    return NO_REVECT;      /* don't emulate most int 21h functions */
   }
 }
 
@@ -1055,6 +1076,22 @@ static void int21(u_char i) {
   if (!ms_dos(HI(ax)))
     default_interrupt(i);
 }
+
+#ifdef DJGPP_HACK
+/* Ctrl-C */
+static void int23(u_char i)
+{
+  /* Had to revector here int0x23 under DPMI to solve the obnoxious
+   * case of ^C under djgpp - actually my DOS (IBM 7.0) gets the ^C
+   * and shuts down the program without telling it to dosemu :( - AV
+   */
+  if (in_dpmi)
+	NOCARRY;
+  else
+	run_int(0x23);
+  return; 
+}
+#endif
 
 /* KEYBOARD BUSY LOOP */
 static void int28(u_char i) {
@@ -1114,27 +1151,56 @@ static void int2f(u_char i)
 
   case 0x1683:
     LWORD (ebx) = 0;		/* W95: number of virtual machine */
-  case 0x1681:
-  case 0x1682:
-    LWORD (eax) = 0;		/* W95: enter/exit critical section */
+  case 0x1681:		/* W95: enter critical section */
+    if (in_dpmi && in_win31) {
+	D_printf ("WIN: enter critical section\n");
+	/* LWORD(eax) = 0;	W95 DDK says no return value */
+	return;
+    }
+    break;
+  case 0x1682:		/* W95: exit critical section */
+    if (in_dpmi && in_win31) {
+	D_printf ("WIN: exit critical section\n");
+	/* LWORD(eax) = 0;	W95 DDK says no return value */
+	return;
+    }
+    break;
     return;
 
   case 0x1686:            /* Are we in protected mode? */
     D_printf("DPMI CPU mode check in real mode.\n");
+    LWORD(eax) = 0;	/* say ok */
     return;
 
   case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
-    D_printf("DPMI: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
 #if 1			/* it seens this confuse winos2 */
     if (in_dpmi && in_win31) {
+      D_printf("WIN: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
       LWORD(eax) = 0x0a03;	/* let's try enhaced mode 3.1 :-))))))) */
       return;
     } else
       break;
 #endif    
     break;
+  case 0x1605:		/* Win95 Initialization Notification */
+    LWORD(ecx) = 0xffff;	/* say it`s NOT ok to run under Win */
+  case 0x1606:		/* Win95 Termination Notification */
+  case 0x1607:		/* Win95 Device CallOut */
+  case 0x1608:		/* Win95 Init Complete Notification */
+  case 0x1609:		/* Win95 Begin Exit Notification */
+    return;
+  case 0x1684:		/* Win95 Get Device Entry Point */
+    LWORD(edi) = 0;
+    WRITE_SEG_REG(es, 0);	/* say NO to Win95 ;-) */
+    return;
+  case 0x1685:		/* Win95 Switch VM + Call Back */
+    CARRY;
+    LWORD(eax) = 1;
+    return;
+
   case 0x160a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
     if(in_dpmi && in_win31) {
+      D_printf ("WIN: WINDOWS VERSION AND TYPE\n");
       LWORD(eax) =0;
       LWORD(ebx) = 0x030a;	/* 3.10 */
 #if 1      
@@ -1313,7 +1379,7 @@ if (i== 0x2f) {
   caller_function = interrupt_function[i];
   caller_function(i);
 #if 1 
-  /* This is a kludge to avoid immediate respaning of dosemu
+  /* This is a kludge to avoid immediate respawning of dosemu
    * if we have cs:ip pointing to the BIOS stubs' IRET
    * We do the IRET ourselves, so we directly let the DOSapp
    * control.
@@ -1503,9 +1569,11 @@ void setup_interrupts(void) {
       continue;
 #endif
     interrupt_function[i] = default_interrupt;
-    if ((i & 0xf8) == 0x60)
-      continue;			/* user interrupts */
-    SETIVEC(i, BIOSSEG, 16 * i);
+    if ((i & 0xf8) == 0x60) { /* user interrupts */
+	SETIVEC(i, 0, 0);
+    } else {
+	SETIVEC(i, BIOSSEG, 16 * i);
+    }
   }
   
   interrupt_function[5] = int05;
@@ -1529,6 +1597,9 @@ void setup_interrupts(void) {
   interrupt_function[0x19] = int19;
   interrupt_function[0x1a] = int1a;
   interrupt_function[0x21] = int21;
+#ifdef DJGPP_HACK
+  interrupt_function[0x23] = int23;
+#endif
   interrupt_function[0x28] = int28;
   interrupt_function[0x29] = int29;
   interrupt_function[0x2f] = int2f;
@@ -1596,11 +1667,11 @@ void int_vector_setup(void)
   memset(&vm86s.int21_revectored, 0x00, sizeof(vm86s.int21_revectored));
 
   for (i=0; i<0x100; i++)
-    if (!can_revector(i) && i!=0x21)
+    if (can_revector(i)==REVECT && i!=0x21)
       set_revectored(i, &vm86s.int_revectored);
 
   for (i=0; i<0x100; i++)
-    if (!can_revector_int21(i))
+    if (can_revector_int21(i)==REVECT)
       set_revectored(i, &vm86s.int21_revectored);
 #endif
 #ifdef __NetBSD__
@@ -1608,11 +1679,11 @@ void int_vector_setup(void)
   memset(&vm86s.int21_byuser[0], 0x00, sizeof(vm86s.int21_byuser));
 
   for (i=0; i<0x100; i++)
-    if (!can_revector(i) && i!=0x21)
+    if (can_revector(i)==REVECT && i!=0x21)
       set_revectored(i, vm86s.int_byuser);
 
   for (i=0; i<0x100; i++)
-    if (!can_revector_int21(i))
+    if (can_revector_int21(i)==REVECT)
       set_revectored(i, vm86s.int21_byuser);
 #endif
 }

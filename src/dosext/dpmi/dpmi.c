@@ -1253,13 +1253,13 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	  if ((Interrupt_Table[_LO(bx)].selector==DPMI_SEL) &&
 		(Interrupt_Table[_LO(bx)].offset==DPMI_OFF + HLT_OFF(DPMI_interrupt) + _LO(bx)))
 #ifdef __linux__
-	    if (can_revector(_LO(bx)))
+	    if (can_revector(_LO(bx))==NO_REVECT)
 	      reset_revectored(_LO(bx),&vm86s.int_revectored);
 	  else
 	    set_revectored(_LO(bx),&vm86s.int_revectored);
 #endif
 #ifdef __NetBSD__
-	    if (can_revector(_LO(bx)))
+	    if (can_revector(_LO(bx))==NO_REVECT)
 	      reset_revectored(_LO(bx), vm86s.int_byuser);
 	  else
 	    set_revectored(_LO(bx), vm86s.int_byuser);
@@ -1840,7 +1840,10 @@ void run_pm_int(int i)
       REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
       in_dpmi_dos_int = 1;
     }
-    run_int(i);
+    if (can_revector(i)==REVECT)
+	do_int(i);
+    else
+	run_int(i);
     return;
   }
 
@@ -1883,18 +1886,26 @@ void run_pm_int(int i)
 
 void run_dpmi(void)
 {
+   static unsigned char *lastcsp;
    int retval;
+   unsigned char *csp;
 
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
    */
 
   if (int_queue_running || in_dpmi_dos_int) {
+
+   csp = SEG_ADR((unsigned char *), cs, ip);
+
    /* a little optimization - if we already know that next insn is a hlt
+    * and we are going to repeat it (same address as before)
     * there's no need to lose time calling vm86() again - AV
     */
-   if (*((unsigned char *)SEG_ADR((unsigned char *), cs, ip))==0xf4)
+   if ((csp==lastcsp) && (*csp == 0xf4)) {
+     D_printf("DPMI: skip 0xf4 at %p\n", csp);
      retval=VM86_UNKNOWN;
+   }
    else {
 #if 1 			/* <ESC> BUG FIXER (if 1) */
     #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
@@ -1922,6 +1933,8 @@ void run_dpmi(void)
         dpmi_cli();
     }
   } /* not an HLT insn */
+
+    lastcsp = SEG_ADR((unsigned char *), cs, ip);
 
     switch VM86_TYPE(retval) {
 	case VM86_UNKNOWN:
@@ -2229,11 +2242,14 @@ void dpmi_init()
 
   in_sigsegv--;
   for (; (!fatalerr && in_dpmi) ;) {
+    if (d.dpmi>6)
+	D_printf("------ DPMI: dpmi loop ---------------------\n");
     run_dpmi();
     serial_run();
     run_irqs();
     int_queue_run();
   }
+  if (d.dpmi>6) D_printf("DPMI: end dpmi loop\n");
   in_sigsegv++;
 }
 

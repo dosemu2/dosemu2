@@ -48,11 +48,11 @@ int str_checksum(char *s)
 }
 
 /****************************************************************************
-return True if a name is a special msdos reserved name
+check if a name is a special msdos reserved name
 ****************************************************************************/
-BOOL is_reserved_msdos(char *fname)
+char *is_reserved_msdos(char *fname)
 {
-  char upperFname[13];
+  static char upperFname[13];
   char *p;
 
   StrnCpy (upperFname, fname, 12);
@@ -74,9 +74,9 @@ BOOL is_reserved_msdos(char *fname)
     (strcmp(upperFname,"LPT3") == 0) ||
     (strcmp(upperFname,"NUL") == 0) ||
     (strcmp(upperFname,"PRN") == 0))
-      return (True) ;
+      return upperFname;
 
-  return (False);
+  return NULL;
 }
 
 

@@ -216,7 +216,7 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
 extern FILE *dbg_fd;
 
-#define ifprintf(flg,fmt,a...)	do{ if ((flg)&&(dbg_fd)) log_printf(flg,fmt,##a); }while(0)
+#define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(flg,fmt,##a); }while(0)
 
 /* Note: moved it at top of emu.h, we need to define 'error' for priv.h 
   #define error(f,a...)	 	fprintf(stderr, f, ##a) */
@@ -252,6 +252,7 @@ extern FILE *dbg_fd;
 #define r_printf(f,a...)        ifprintf(d.request,f,##a)
 #define warn(f,a...)     	ifprintf(d.warning,f,##a)
 #define S_printf(f,a...)     	ifprintf(d.sound,f,##a)
+#define ds_printf(f,a...)     	ifprintf(d.dos,f,##a)
 
 #else
 
@@ -279,6 +280,7 @@ extern FILE *dbg_fd;
 #define r_printf(f,a...)
 #define warn(f,a...)
 #define S_printf(f,a...)
+#define ds_printf(f,a...)
 
 #endif
 
@@ -686,7 +688,7 @@ EXTERN struct config_info config;
  * exit on the next return from vm86 mode.
  * DANG_END_REMARK
  */
-EXTERN int fatalerr;
+EXTERN int fatalerr INIT(0);
 
 #ifdef __NetBSD__
 #define iopl(value)			{ EXTERN int errno; if (i386_iopl(value) == -1) { g_printf("iopl failed: %s\n", strerror(errno)); leavedos(4);}}

@@ -636,6 +636,9 @@ void print_exception_info(struct sigcontext_struct *scp)
 	error("non-available page\n");
       break;
 
+   case 0x10:
+      error ("Coprocessor Error:\n");
+      break;
 
     default:
       error("Unknown exception\n");

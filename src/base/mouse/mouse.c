@@ -1380,7 +1380,7 @@ mouse_event()
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
     m_printf("MOUSE: "
-	     "should call %04x:%04x (actually %04x:%04x)\n"
+	     "should call %04x:%04x (actually %04x:%04x)"
 	     ".........jumping to %04x:%04x\n",
 	     mouse.cs, mouse.ip, *mouse.csp, *mouse.ipp,
 	     LWORD(cs), LWORD(eip));	

@@ -1,3 +1,25 @@
+97/03/07 ver. 0.65.99.15 unofficial pre-release
+	From Alberto
+	- cleanup for CFLAGS in configure(.in)
+	- corrections in etc/config.dist
+	- missing exception 16 handling in src/arch/linux/async/sigsegv.c
+	- various fixes in src/base/async/int.c, temp fix for Ctrl-C bug
+	  in Djgpp (int 23 revectored and caputered).
+	- changed 0/1 to REVECT/NO_REVECT
+	- cleanup of usage message in src/base/init/config.c
+	  and fix wrong cardtype number
+	- fixes to buffered debug out (log_printf).
+	- mouse fix (serial/int14.c)
+	- fixed 'hlt' optimization in run_dpmi()
+	- cleaned up 'case 1..2:' to 'case 1: case 2:' in various places
+	- in_dos_21 warnings fixed
+	- some mfs fixes.
+	From Thomas Winder <thomas.winder@sea.ericsson.se>
+	- struct sigaction fixes for glibc-2 in src/arch/linux/async/signal.c
+	From Hans
+	- fix for default-configure
+	- made 'irqpassing' a synonym for 'sillyint', because users
+	  apparently get confused. Also adapted config.dist
 97/03/07 ver. 0.65.99.14 unofficial pre-release
 	From Alberto
 	- Fix for the mouse garrot helper: using INT28_IDLE_USECS

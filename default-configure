@@ -6,6 +6,11 @@ if [ "$1" != "" ]; then
   CONF_FILE=$1
 fi
 
+if [ ! -f $CONF_FILE ]; then
+  echo "$CONF_FILE cannot be opened"
+  exit 1
+fi
+
 set `cut '-d{' -f2 $CONF_FILE |cut '-d}' -f1`
 
 #echo "$*"
@@ -17,7 +22,7 @@ while [ "$1" != "" ]; do
 
   case "$1" in
     novm86plus)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-nomitshm"; fi
+      if [ "$2" = "on" ]; then STRING="$STRING --enable-novm86plus"; fi
       ;;
     dodebug)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-dodebug"; fi

@@ -66,6 +66,7 @@ dpmi			return(L_DPMI);
 dosmem			return(DOSMEM);
 ports			return(PORTS);
 sillyint		return(SILLYINT);
+irqpassing		return(SILLYINT);
 hardware_ram		return(HARDWARE_RAM);
 disk			return(DISK);
 bootdisk		return(BOOTDISK);

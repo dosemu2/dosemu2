@@ -27,6 +27,7 @@
 #endif
 
 extern void keyb_server_run(void);
+extern void irq_select(void);
 
 #ifdef __NetBSD__
 extern int errno;
@@ -46,6 +47,40 @@ static struct SIGNAL_queue signal_queue[MAX_SIG_QUEUE_SIZE];
 static sigset_t oldset;
 
 #ifdef __linux__
+#if __GLIBC__ > 1		/* glibc-2 version */
+/*
+ * Thomas Winder <thomas.winder@sea.ericsson.se> wrote:
+ * glibc-2 uses a different struct sigaction type than the one used in
+ * the kernel. The function dosemu_sigaction (in
+ * src/arch/linux/async/signal.c) bypasses the glibc provided syscall
+ * by doint the int 0x80 by hand. This call expects struct sigaction
+ * types as defined by the kernel. The whole story ends up with an
+ * incorrect set sa_restorer field, which yields a wrong stack when
+ * handling signals occuring when dpmi is active, which eventually
+ * segfaults the program.
+ */
+int
+dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
+{
+  struct my_sigaction {
+    __sighandler_t sa_handler;
+    unsigned long sa_mask;
+    unsigned long sa_flags;
+    void (*sa_restorer)(void);
+  };
+
+  struct my_sigaction my_sa;
+
+  my_sa.sa_handler = new->sa_handler;
+  my_sa.sa_mask = *((unsigned long *) &(new->sa_mask));
+  my_sa.sa_flags = new->sa_flags;
+  my_sa.sa_restorer = new->sa_restorer;
+
+  return(syscall(SYS_sigaction, sig, &my_sa, NULL));
+}
+
+#else		/* libc5 version */
+
 /* Similar to the sigaction function in libc, except it leaves alone the
    restorer field
    stolen from the wine-project */
@@ -59,7 +94,8 @@ dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old)
   errno = -sig;
   return -1;
 }
-#endif
+#endif /* not __GLIBC__ */
+#endif /* __linux__ */
 
 /* DANG_BEGIN_FUNCTION signal_init
  *

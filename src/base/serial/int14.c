@@ -32,6 +32,7 @@
 #include "emu.h"
 #include "serial.h"
 #include "ser_defs.h"
+#include "mouse.h"
 
 /* These macros are shortcuts to access various serial port registers:
  *   read_char		Read character
@@ -88,6 +89,19 @@ void int14(u_char ii)
     if (com[num].real_comport == (LO(dx)+1)) break;
 
   if (num >= config.num_ser) return;	/* Exit if not on supported port */
+
+  /* Reinit the serial port if it is in use for a mouse, with
+   * the standard mouse parameters,
+   * maintaining BIOS data at 40:0 like in real DOS (special case of
+   * mouse on com1) - AV (hack!)
+   */
+  if ((com[num].mouse) && mice->intdrv) {
+    if ((com[num].mouse < 2) && (HI(ax)==0)) {
+	LO(ax)=0x82;	/* 1200 7N1 */
+	com[num].mouse++;
+    }
+    else return;
+  }
 
   /* If FOSSIL is active, call it! */
   if (com[num].fossil_active)

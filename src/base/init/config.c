@@ -379,7 +379,7 @@ config_init(int argc, char **argv)
 	    break;
 	case 'v':
 	    config.cardtype = atoi(optarg);
-	    if (config.cardtype > 4)
+	    if (config.cardtype > 7)	/* keep it updated when adding a new card! */
 		config.cardtype = 1;
 	    g_printf("Configuring cardtype as %d\n", config.cardtype);
 	    break;
@@ -640,39 +640,46 @@ int parse_debugflags(const char *s, unsigned char flag)
 static void
 usage(void)
 {
-    fprintf(stdout, "$Header: /usr/src/dosemu0.60/init/RCS/config.c,v 1.6 1995/05/06 16:26:13 root Exp root $\n");
+    fprintf(stdout, "dosemu 0.66\n");
     fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
+    fprintf(stdout, "    -2,3,4,5 choose 286, 386, 486 or 586 CPU\n");
     fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
     fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
+    fprintf(stdout, "    -b map BIOS into emulator RAM (%%)\n");
     fprintf(stdout, "    -C boot from first defined hard disk (C)\n");
     fprintf(stdout, "    -c use PC console video (!%%)\n");
-    fprintf(stdout, "    -k use PC console keyboard (!)\n");
+    fprintf(stdout, "    -d detach (?)\n");
 #ifdef X_SUPPORT
     fprintf(stdout, "    -X run in X Window (#)\n");
 /* seems no longer valid bo 18.7.95
-    fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
-    fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
+    fprintf(stdout, "    -Y NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
+    fprintf(stdout, "    -Z NAME use FIFO NAME for mouse (only with x2dos!)\n");
 */
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvXkism#pgcwhIExMnPrS01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWXcdghikmnprsvwx}\n");
 #else				/* X_SUPPORT */
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvkism#pgcwhIExMnPrS01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWcdghikmnprsvwx}\n");
 #endif				/* X_SUPPORT */
-    fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
-    fprintf(stdout, "    -P copy debugging output to FILE\n");
-    fprintf(stdout, "    -b map BIOS into emulator RAM (%%)\n");
-    fprintf(stdout, "    -F use config-file File\n");
-    fprintf(stdout, "    -V use BIOS-VGA video modes (!#%%)\n");
-    fprintf(stdout, "    -N No boot of DOS\n");
-    fprintf(stdout, "    -t try new timer code (#)\n");
-    fprintf(stdout, "    -s try new screen size code (#)\n");
-    fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
-    fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
+    fprintf(stdout, "       #=defint  C=cdrom    D=dos    E=ems       I=ipc     M=dpmi\n");
+    fprintf(stdout, "       P=packet  R=diskread S=sound  W=diskwrite c=config  d=disk\n");
+    fprintf(stdout, "       g=general h=hardware i=i/o    k=keyb      m=mouse   n=ipxnet\n");
+    fprintf(stdout, "       p=printer r=pic      s=serial v=video     w=warning x=xms\n");
+    fprintf(stdout, "    -E STRING pass DOS command on command line\n");
     fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
+    fprintf(stdout, "    -F use config-file File\n");
+    fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
+    fprintf(stdout, "    -K Do int9 (!#)\n");
+    fprintf(stdout, "    -k use PC console keyboard (!)\n");
+    fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
     fprintf(stdout, "    -m enable mouse support (!#)\n");
-    fprintf(stdout, "    -o FILE put debugmessages in file\n");
+    fprintf(stdout, "    -N No boot of DOS\n");
     fprintf(stdout, "    -O write debugmessages to stderr\n");
-    fprintf(stdout, "    -2,3,4,5 choose 286, 386, 486 or 586 CPU\n");
-    fprintf(stdout, "    -K Do int9 (!#)\n\n");
+    fprintf(stdout, "    -o FILE put debugmessages in file\n");
+    fprintf(stdout, "    -P copy debugging output to FILE\n");
+    fprintf(stdout, "    -T DIR set tmpdir\n");
+    fprintf(stdout, "    -t try new timer code (#)\n");
+    fprintf(stdout, "    -V use BIOS-VGA video modes (!#%%)\n");
+    fprintf(stdout, "    -v NUM force video card type\n");
+    fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
     fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");
     fprintf(stdout, "    (%%) require dos be run as root (i.e. suid)\n");
     fprintf(stdout, "    (#) options do not fully work yet\n");

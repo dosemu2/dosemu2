@@ -300,7 +300,7 @@ video { vga }          # Use this line, if you are using VGA
 #   Trident SVGA with 1 megabyte on board
 #video { vga  console  graphics  chipset trident  memsize 1024 }
 #
-#   Diamond SVGA
+#   Diamond SVGA (not S3 chip)
 #video { vga  console  graphics  chipset diamond }
 #
 #   Cirrus SVGA
@@ -332,7 +332,7 @@ video { vga }          # Use this line, if you are using VGA
 #    going, and during configuration of DOSEMU to recognize hard disks.
 #
 mathco on           # Math coprocessor valid values:  on  off
-cpu 80386           # CPU emulation valid values:  80286  80386  80486
+cpu 80386           # CPU emulation valid values:  80[345]86
 bootA               # Startup drive valid values:  bootA  bootC
 
 
@@ -344,9 +344,9 @@ bootA               # Startup drive valid values:  bootA  bootC
 #    reduce these values.  Also, DPMI is still somewhat unstable,
 #    (as of early April 1994) so be careful with DPMI parameters.
 #
-#    Also keep in mind, that DPMI clients are alowed to create selectors
+#    Also keep in mind, that DPMI clients are allowed to create selectors
 #    that span the whole user space, hence may hack into the dosemu code
-#    and (when dosemu runs root or is suif root) can be a security whole.
+#    and (when dosemu runs root or is suid root) can be a security hole.
 #    For the later you may want to turn "secure on", though this would
 #    very likely also disable some dos4gw games :(.
 #
@@ -382,21 +382,18 @@ ems 1024		# EMS size in K,  or "off"
 #*********************** IRQ ******************************************
 #
 # QuickStart:
-#    These are parameters needed for SIG, the Silly Interrupt Generator.
-#    To use this feature, you also must have the emumodule.o driver
-#    loaded. For more details see emumod/README.emumod.
 #
-#    The sillyint statement accepts IRQ values between 3..15,
+#    The irqpassing statement accepts IRQ values between 3..15,
 #    if using the { .. } syntax each value or range can be prefixed
 #    by the keyword use_sigio to monitor the IRQ via SIGIO.
 #    If this is missing the IRQ is monitored by SIGALRM.
 #
 
-sillyint off    # this disables IRQ monitoring
-#sillyint 15
-#sillyint { 15 }
-#sillyint { use_sigio 15 }
-#sillyint { 10  use_sigio range 3 5 }
+irqpassing off    # this disables IRQ monitoring
+#irqpassing 15
+#irqpassing { 15 }
+#irqpassing { use_sigio 15 }
+#irqpassing { 10  use_sigio range 3 5 }
 
 
 #********************** PORT ACCESS **************************************
@@ -550,7 +547,7 @@ floppy { device /dev/fd0 threeinch }
 #    Be sure to also add a port line to allow the application access to
 #    the port:
 #
-#ports { 0x3bc 0x3bd 0x3be }
+#ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
 #
 #    NOTE: applications that require this will not interfere with applications
 #    that continue to use the standard bios calls.  These applications will

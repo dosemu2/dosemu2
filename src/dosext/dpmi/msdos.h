@@ -78,6 +78,8 @@ static unsigned short CURRENT_ENV_SEL;
 static unsigned short PARENT_PSP;
 static unsigned short PARENT_ENV_SEL;
 static int in_dos_21 = 0;
+static int last_dos_21 = 0;
+
 static int old_dos_terminate(struct sigcontext_struct *scp)
 {
     REG(cs)  = CURRENT_PSP;
@@ -169,8 +171,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
     /* only consider DOS and some BIOS services */
     switch (intr) {
     case 0x10:
-    case 0x20 ... 0x21:
-    case 0x25 ... 0x26:
+    case 0x20: case 0x21:
+    case 0x25: case 0x26:
     case 0x33:			/* mouse function */
 	break;
     case 0x2f:
@@ -190,8 +192,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 
     if (DTA_over_1MB && intr == 0x21 ) {
 	switch (_HI(ax)) {	/* functions use DTA */
-	case 0x11 ... 0x12:	/* find first/next using FCB */
-	case 0x4e ... 0x4f:	/* find first/next */
+	case 0x11: case 0x12:	/* find first/next using FCB */
+	case 0x4e: case 0x4f:	/* find first/next */
 	    memmove(DTA_under_1MB, DTA_over_1MB, 0x80);
 	    break;
 	}
@@ -219,7 +221,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    switch (_LO(ax)) {
 	    case 0x0:		/* user character load */
 	    case 0x10:		/* user specified character definition table */
-	    case 0x20 ... 0x21:
+	    case 0x20: case 0x21:
 		ES_MAPPED = 1;
 		break;
 	    default:
@@ -245,10 +247,11 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	return old_dos_terminate(scp);
     case 0x21:
 	if (in_dos_21) 
-	    dbug_printf("DPMI: int 0x21 called recursively in_dos_21=%d.\n",in_dos_21);
-	if (_HI(ax) != 0x4b && _HI(ax) != 0x48 && _HI(ax) != 0x49 &&
-	    _HI(ax) != 0x4a && _HI(ax) != 0x25 && _HI(ax) != 0x35 )
-	    in_dos_21++;
+	dbug_printf("DPMI: int21 AX=%#04x called recursively "
+		    "from inside %#04x, in_dos_21=%d\n",
+		_LWORD(eax), last_dos_21, in_dos_21);
+	last_dos_21 = _LWORD(eax);
+
 	SAVED_REGS = REGS;
 	READ_DS_COPIED = 0;
 	switch (_HI(ax)) {
@@ -325,20 +328,20 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x19:		/* and segment register translation. */
 	case 0x2a ... 0x2e:
 	case 0x30 ... 0x34:
-	case 0x36 ... 0x37:
+	case 0x36: case 0x37:
 	case 0x3e:
 	case 0x42:
-	case 0x45 ... 0x46:
+	case 0x45: case 0x46:
 	case 0x4d:
 	case 0x4f:		/* find next */
 	case 0x54:
-	case 0x58 ... 0x59:
+	case 0x58: case 0x59:
 	case 0x5c:		/* lock */
 	case 0x66 ... 0x68:	
 	case 0xF8:		/* OEM SET vector */
+	    in_dos_21++;
 	    return 0;
 	case 0x00:		/* DOS terminate */
-	    in_dos_21--;
 	    return old_dos_terminate(scp);
 	case 0x09:		/* Print String */
 	    if ( !is_dos_selector(_ds)) {
@@ -355,6 +358,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			break;
 		}
 	    }
+	    in_dos_21++;
 	    return 0;
 	case 0x0a:		/* buffered keyboard input */
 	case 0x38:
@@ -376,28 +380,32 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		/*memmove(DTA_under_1MB, DTA_over_1MB, 0x80);*/
 	    } else
 		DTA_over_1MB = 0;
+		in_dos_21++;
 	    return 0;
 	case 0x2f:		/* GET DTA */
 	    if (DTA_over_1MB) {
 		_es = USER_DTA_SEL;
 		_ebx = USER_DTA_OFF;
 		return 1;
-	    } else
+	    } else {
+		in_dos_21++;
 		return 0;
+	    }
 	/* FCB functions */	    
-	case 0x0f ... 0x10:	/* These are not supported by */
-	case 0x14 ... 0x15:	/* dosx.exe, according to Ralf Brown */
+	case 0x0f: case 0x10:	/* These are not supported by */
+	case 0x14: case 0x15:	/* dosx.exe, according to Ralf Brown */
 	case 0x21 ... 0x24:
-	case 0x27 ... 0x28:
+	case 0x27: case 0x28:
 	    _HI(ax) = 0xff;
 	    return 1;
-	case 0x11 ... 0x12:	/* find first/next using FCB */
+	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x13:		/* Delete using FCB */
 	case 0x16:		/* Create usring FCB */
 	case 0x17:		/* rename using FCB */
 	    user_FCB = (void *)SEL_ADR(_ds, _edx);
 	    REG(ds) =	DPMI_private_data_segment+DPMI_private_paragraphs;
 	    memmove(SEG_ADR((void *), ds, dx), user_FCB, 0x50);
+	    in_dos_21++;
 	    return 0;
 	case 0x29:		/* Parse a file name for FCB */
 	    {
@@ -422,14 +430,16 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			    0x50);
 		}
 	    }
+	    in_dos_21++;
 	    return 0;
 	case 0x44:		/* IOCTL */
 	    switch (_LO(ax)) {
 	    case 0x02 ... 0x05:
-	    case 0x0c ... 0x0d:
+	    case 0x0c: case 0x0d:
 		DS_MAPPED = 1;
 		break;
 	    default:
+		in_dos_21++;
 		return 0;
 	    }
 	    break;
@@ -439,6 +449,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		READ_DS_COPIED = 1;
 		S_REG(ds) = _ds;
 	    }
+	    in_dos_21++;
 	    return 0;
 	case 0x4b:		/* EXEC */
 	    D_printf("BCC: call dos exec.\n");
@@ -530,6 +541,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    CURRENT_ENV_SEL = 0;
 	    }
 	    CURRENT_PSP = LWORD(ebx);
+	    in_dos_21++;
 	    return 0;
 	case 0x26:
 	case 0x55:		/* create PSP */
@@ -538,6 +550,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		Segments[LWORD(edx) >> 3].used &&
 		(Segments[LWORD(edx) >> 3].base_addr < 0xffff0))
 		REG(edx) = (long) GetSegmentBaseAddress(LWORD(edx)) >> 4;
+	    in_dos_21++;
 	    return 0;
 	case 0x39:		/* mkdir */
 	case 0x3a:		/* rmdir */
@@ -557,6 +570,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		       (void *)GetSegmentBaseAddress(_ds)+
 		       (DPMIclient_is_32 ? _edx : (_LWORD(edx))));
 	    }
+	    in_dos_21++;
 	    return 0;
 	case 0x3f:		/* dos read */
 	    if ( !is_dos_selector(_ds)) {
@@ -566,6 +580,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		READ_DS_COPIED = 1;
 	    } else
 		READ_DS_COPIED = 0;
+	    in_dos_21++;
 	    return 0;
 	case 0x40:		/* DOS Write */
 	    if ( !is_dos_selector(_ds)) {
@@ -579,6 +594,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		READ_DS_COPIED = 1;
 	    } else
 		READ_DS_COPIED = 0;
+	    in_dos_21++;
 	    return 0;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
@@ -603,6 +619,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			    0x60);
 		}
 	    }
+	    in_dos_21++;
 	    return 0;
 	case 0x56:		/* rename file */
 	    {
@@ -623,10 +640,13 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			    (DPMIclient_is_32 ? _edi : (_LWORD(edi))));
 		}
 	    }
+	    in_dos_21++;
 	    return 0;
 	case 0x57:		/* Get/Set File Date and Time Using Handle */
-	    if ((_LO(ax) == 0) || (_LO(ax) == 1))
+	    if ((_LO(ax) == 0) || (_LO(ax) == 1)) {
+		in_dos_21++;
 		return 0;
+	    }
 	    ES_MAPPED = 1;
 	    break;
 	case 0x5e:
@@ -637,7 +657,8 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    break;
 	case 0x5f:		/* redirection */
 	    switch (_LO(ax)) {
-	    case 0 ... 1:
+	    case 0: case 1:
+		in_dos_21++;
 		return 0;
 	    case 2 ... 6:
 		REG(ds) = DPMI_private_data_segment + DPMI_private_paragraphs;
@@ -655,6 +676,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 			(void *)GetSegmentBaseAddress(_es) +
 			(DPMIclient_is_32 ? _edi : (_LWORD(edi))),
 			0x100);
+		in_dos_21++;
 		return 0;
 	    }
 	case 0x60:		/* Get Fully Qualified File Name */
@@ -673,6 +695,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    (void *)GetSegmentBaseAddress(_es) +
 		    (DPMIclient_is_32 ? _edi : (_LWORD(edi))),
 		    0x100);
+	    in_dos_21++;
 	    return 0;
 	case 0x6c:		/*  Extended Open/Create */
 	    if ( !is_dos_selector(_ds)) {
@@ -682,6 +705,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		       (void *)GetSegmentBaseAddress(_ds)+
 		       (DPMIclient_is_32 ? _esi : (_LWORD(esi))));
 	    }
+	    in_dos_21++;
 	    return 0;
 	default:
 	    break;
@@ -755,6 +779,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	} else
 	    ES_MAPPED = 0;
     }
+    if (intr==0x21) in_dos_21++;
     return 0;
 }
 
@@ -818,7 +843,7 @@ msdos_post_extender(int intr)
       }
     /* only copy buffer for dos services */
     case 0x21:
-    case 0x25 ... 0x26:
+    case 0x25: case 0x26:
     case 0x33:			/* mouse */
 	break;
     default:
@@ -827,8 +852,8 @@ msdos_post_extender(int intr)
 
     if (DTA_over_1MB && intr == 0x21 ) {
 	switch (S_HI(ax)) {	/* functions use DTA */
-	case 0x11 ... 0x12:	/* find first/next using FCB */
-	case 0x4e ... 0x4f:	/* find first/next */
+	case 0x11: case 0x12:	/* find first/next using FCB */
+	case 0x4e: case 0x4f:	/* find first/next */
 	    memmove(DTA_over_1MB, DTA_under_1MB, 0x80);
 	    break;
 	}
@@ -872,7 +897,7 @@ msdos_post_extender(int intr)
 	case 0x1a:		/* set DTA */
 	    dpmi_stack_frame[current_client].edx = S_REG(edx);
 	    return;
-	case 0x11 ... 0x12:	/* findfirst/next using FCB */
+	case 0x11: case 0x12:	/* findfirst/next using FCB */
 	    memmove(user_FCB, SEG_ADR((void *), ds, dx), 0x50);
 	    return ;
 	case 0x29:		/* Parse a file name for FCB */
@@ -998,7 +1023,7 @@ msdos_post_extender(int intr)
 	    break;
 	case 0x5f:		/* redirection */
 	    switch (S_LO(ax)) {
-	    case 0 ... 1:
+	    case 0: case 1:
 		return ;
 	    case 2 ... 6:
 		dpmi_stack_frame[current_client].esi = S_REG(esi);
@@ -1514,6 +1539,8 @@ static int msdos_fault(struct sigcontext_struct *scp)
     unsigned short segment, desc;
     unsigned long len;
 
+    D_printf("DPMI: msdos_fault, err=%#lx\n",_err);
+
     if ((_err & 0xffff) == 0) {	/*  not a selector error */
 	char fixed = 0;
 	unsigned char * csp;
@@ -1552,8 +1579,8 @@ static int msdos_fault(struct sigcontext_struct *scp)
 	case 0xf3:		/* REP, REPE */
 	    /* this might be a string insn */
 	    switch (*(csp+1)) {
-	    case 0xaa ... 0xab:		/* stos */
-	    case 0xae ... 0xaf:	        /* scas */
+	    case 0xaa: case 0xab:		/* stos */
+	    case 0xae: case 0xaf:	        /* scas */
 		/* only use es */
 		if (_es == 0) {
 		    D_printf("DPMI: client tries to use use gdt 0 as es\n");
@@ -1561,8 +1588,8 @@ static int msdos_fault(struct sigcontext_struct *scp)
 		    fixed = 1;
 		}
 		break;
-	    case 0xa4 ... 0xa5:		/* movs */
-	    case 0xa6 ... 0xa7:         /* cmps */
+	    case 0xa4: case 0xa5:		/* movs */
+	    case 0xa6: case 0xa7:         /* cmps */
 		/* use both ds and es */
 		if (_es == 0) {
 		    D_printf("DPMI: client tries to use use gdt 0 as es\n");

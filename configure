@@ -3230,7 +3230,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="65"
-PATCHLEVEL="99.14"
+PATCHLEVEL="99.15"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 cat >> confdefs.h <<EOF
@@ -3415,12 +3415,16 @@ INCDIR="-I${SRCPATH}/include -I${SRCPATH}/base/dev/pic -I${SRCPATH}/dosext/dpmi 
 
 if test "$dodebug" = "yes"; then
   COPTFLAGS=" -g -Wall"
+  OPT="-O"
 else
   COPTFLAGS=" -Wall"
+  OPT="-O2"   # BIG NOTE: do _not_ use -O3,
+              # because in forces _inline_ at places where we don't want it !
+              # If we want _inline_, well then we 'code' it.
+  OPT="$OPT -fomit-frame-pointer"  # never omit the frame pointer when debugging!
 fi
 
 # -m486 is usually in the specs for the compiler
-OPT="-O2"
 case "$host_cpu" in
   i[456]86)
     OPT="$OPT -m486 -malign-loops=2 -malign-jumps=2 -malign-functions=2"
@@ -3432,9 +3436,7 @@ case "$host_cpu" in
     ;;
 esac
 
-if test "$dodebug" != "yes"; then
- OPT="$OPT -fomit-frame-pointer"
-fi
+OPT="$OPT -MD" # this should give painless dependencies
 
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then

@@ -342,6 +342,7 @@ struct direct *dos_readdir(DIR *);
 #endif
 
 void build_ufs_path(char *ufs, char *path);
+char *is_reserved_msdos (char *s);
 
 /* Try and work out if the current command is for any of my drives */
 static int
@@ -518,20 +519,6 @@ select_drive(state)
 	bs_pos = i;
     }
     free(nametmp);
-
-/*
- * DANG_BEGIN_REMARK
- * 	This code is to handle special files that should be reflected as
- *	devices. At this time, only PRN has been tested. Others like LPT[0-x]
- *	etc... should be added.
- * DANG_END_FUNCTION
- */
-    if (strcmp(fpath + bs_pos + 1, "prn") == 0) {
-	Debug0((dbg_fd, "Special File, so name changed to '%s'\n", fpath + bs_pos + 1));
-        strcpy(name, fpath + bs_pos + 1);
-	return(0);
-    }
-
   }
 
   /* for find next we will check the drive letter in the
@@ -1686,12 +1673,33 @@ build_ufs_path(ufs, path)
      char *ufs;
      char *path;
 {
-  strcpy(ufs, dos_root);
+  char *p, *s;
 
   Debug0((dbg_fd, "dos_fs: build_ufs_path for DOS path '%s'\n", path));
 
-  /* Skip over leading <drive>:\ */
-  path += cds_rootlen(cds);
+ if ((s=is_reserved_msdos(path))) {
+  Debug0((dbg_fd,"MFS: Special File, so name changed to '%s'\n", s));
+  strcpy (ufs, s);
+ }
+ else {
+  /* Set ufs to dos_roots[current_drive] */
+  strcpy(ufs, dos_root);
+  /* Skip over leading <drive>:\ in the path */
+  if (path[1]==':')
+      path += cds_rootlen(cds);
+
+  /* remove spaces */
+  s = path; p = NULL;
+  while (*s && (*s==' ')) *s++ = '_';
+  while (*s && (*s!='.')) {
+  	if ((*s==' ') && (p==NULL)) p=s;
+  	s++;
+  }
+  if (p) {	/* space found */
+  	if (*s=='.') { while (*s && (*s!=' ')) *p++=*s++; }
+  	*p = 0;
+  }
+  Debug0((dbg_fd,"MFS: dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path, dos_root_len));
 
   path_to_ufs(ufs + dos_root_len, path, 0);
 
@@ -1703,7 +1711,7 @@ build_ufs_path(ufs, path)
     else
       path++;
   }
-
+ }
   Debug0((dbg_fd, "dos_fs: build_ufs_path result is '%s'\n", ufs));
 }
 
@@ -1834,10 +1842,12 @@ _find_file(char *fpath, struct stat * st)
 	  strcat(slash1+1,remainder);
 	return (FALSE);
       }
-      *slash1 = '/';
-      if (slash2)
+      else {
+        *slash1 = '/';
+        if (slash2)
 	  strcat(slash1+1,remainder);
-      slash1 = strchr(slash1+1,'/');
+        slash1 = strchr(slash1+1,'/');
+      }
     }
   }
 
@@ -2231,6 +2241,7 @@ RedirectDevice(state_t * state)
   /* first, see if this is our resource to be redirected */
   resourceName = (u_char *) Addr(state, es, edi);
   deviceName = (u_char *) Addr(state, ds, esi);
+  path[0] = 0;
 
   Debug0((dbg_fd, "RedirectDevice %s to %s\n", deviceName, resourceName));
   if (strncmp(resourceName, LINUX_RESOURCE,
@@ -2957,6 +2968,7 @@ dos_fs_redirect(state)
 
     /* make it a byte - we thus ignore the new bit */
     attr &= 0xFF;
+    if (attr & DIRECTORY) return(REDIRECT);
 
     Debug0((dbg_fd, "Create truncate file %s attr=%x\n", filename1, attr));
 
