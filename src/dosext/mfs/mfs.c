@@ -993,6 +993,69 @@ static boolean_t exists(const char *name, const char *filename,
   return ret;
 }
 
+static void fill_entry(struct dir_ent *entry, const char *name, int drive)
+{
+  int slen;
+  char *sptr;
+  char buf[256];
+  struct stat sbuf;
+
+  entry->hidden = is_hidden(entry->d_name);
+
+  strcpy(buf, name);
+  slen = strlen(buf);
+  sptr = buf + slen + 1;
+  buf[slen] = '/';
+  strcpy(sptr, entry->d_name);
+
+  if (!find_file(buf, &sbuf, drive)) {
+    Debug0((dbg_fd, "Can't findfile %s\n", buf));
+    entry->mode = S_IFREG;
+    entry->size = 0;
+    entry->time = 0;
+  }
+  else {
+    entry->mode = sbuf.st_mode;
+    entry->size = sbuf.st_size;
+    entry->time = sbuf.st_mtime;
+  }
+} 
+
+/* converts d_name to DOS 8:3 and compares with the wildcard */
+static boolean_t convert_compare(char *d_name, char *fname, char *fext,
+				 char *mname, char *mext, boolean_t in_root)
+{
+  char tmpname[NAME_MAX + 1];
+  size_t namlen;
+
+  if (!name_convert(tmpname,d_name,MANGLE,NULL))
+    return FALSE;
+
+  namlen = strlen(tmpname);
+
+  if (tmpname[0] == '.') {
+    if (namlen > 2)
+      return FALSE;
+    if (in_root)
+      return FALSE;
+    if ((namlen == 2) &&
+	(tmpname[1] != '.'))
+      return FALSE;
+    memset(fname, ' ', 8);
+    memset(fext, ' ', 3);
+    fname[0] = '.';
+    if (namlen == 2)
+      fname[1] = '.';
+  }
+  else {
+    if (!extract_filename(tmpname, fname, fext))
+      return FALSE;
+    if (!compare(fname, fext, mname, mext))
+      return FALSE;
+  }
+  return TRUE;
+}
+
 /* get directory;
    name = UNIX directory name
    mname = DOS (uppercase) name to match (can have wildcards)
@@ -1006,9 +1069,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
   struct dir_list *dir_list;
   struct dir_ent *entry;
   struct stat sbuf;
-  int slen;
   char buf[256];
-  char *sptr;
   char fname[8];
   char fext[3];
 
@@ -1031,7 +1092,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
  * 
  * DANG_END_REMARK
  */
-  if (is_dos_device(mname)) {
+  if (mname && is_dos_device(mname)) {
     dir_list = make_dir_list(1);
     entry = make_entry(dir_list);
 
@@ -1046,7 +1107,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
     return (dir_list);
   }
   /* for efficiency we don't read everything if there are no wildcards */
-  else if (!memchr(mname, '?', 8) && !memchr(mname, '*', 8) &&
+  else if (mname && !memchr(mname, '?', 8) && !memchr(mname, '*', 8) &&
            !memchr(mext, '?', 3) && !memchr(mext, '*', 3))
   {
     dos83_to_ufs(buf, mname, mext);
@@ -1067,80 +1128,44 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext, int drive)
     return (dir_list);      
   }
   else {
+    boolean_t is_root = (strlen(name) == drives[drive].root_len);
     while ((cur_ent = dos_readdir(cur_dir))) {
-      char tmpname[100];
-      int namlen;
-      sigset_t mask;
+      if (mname) {
+	sigset_t mask;
 
-      /* this while loop can take a _long_ time ... better avoid signal queue
-       *overflows AV
-       */
-      sigpending(&mask);
-      if (sigismember(&mask, SIGALRM)) {
-	sigalarm_block(0);
-	/* the pending sigalrm must be delivered now */
-	sigalarm_block(1);
-      }
-      handle_signals();
+	/* this while loop can take a _long_ time ... better avoid signal queue
+	 *overflows AV
+	 */
+	sigpending(&mask);
+	if (sigismember(&mask, SIGALRM)) {
+	  sigalarm_block(0);
+	  /* the pending sigalrm must be delivered now */
+	  sigalarm_block(1);
+	}
+	handle_signals();
 
-      Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
-
-      if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
-	continue;
-
-      namlen = strlen(tmpname);
-	
-      if (tmpname[0] == '.') {
-	if (namlen > 2)
-	  continue;
-	if (strlen(name) == drives[drive].root_len)
-	  continue;
-	if ((namlen == 2) &&
-	    (tmpname[1] != '.'))
-	  continue;
-        memset(fname, ' ', 8);
-        memset(fext, ' ', 3);
-        fname[0] = '.';
-        if (namlen == 2)
-          fname[1] = '.';
-      }
-      else {
-	if (!extract_filename(tmpname, fname, fext))
-	  continue;
-	if (mname && mext && !compare(fname, fext, mname, mext))
+	Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
+      
+	/* this is the expensive part, done much later in findnext 
+	   if mname == NULL */
+	if (!convert_compare(cur_ent->d_name, fname, fext,
+			      mname, mext, is_root))
 	  continue;
       }
 
       if (dir_list == NULL) {
-        dir_list = make_dir_list(20);
+	dir_list = make_dir_list(20);
       }
       entry = make_entry(dir_list);
 
-      memcpy(entry->name, fname, 8);
-      memcpy(entry->ext, fext, 3);
       strcpy(entry->d_name, cur_ent->d_name);
-
-      entry->hidden = is_hidden(cur_ent->d_name);
-
-      strcpy(buf, name);
-      slen = strlen(buf);
-      sptr = buf + slen + 1;
-      buf[slen] = '/';
-      strcpy(sptr, cur_ent->d_name);
-
-      if (!find_file(buf, &sbuf, drive)) {
-	Debug0((dbg_fd, "Can't findfile %s\n", buf));
-	entry->mode = S_IFREG;
-	entry->size = 0;
-	entry->time = 0;
+      /* only fill these values if we don't search everything */
+      if (mname) {
+	memcpy(entry->name, fname, 8);
+	memcpy(entry->ext, fext, 3);
+	fill_entry(entry, name, drive);
       }
-      else {
-	entry->mode = sbuf.st_mode;
-	entry->size = sbuf.st_size;
-	entry->time = sbuf.st_mtime;
-      }
-
-    } 
+    }
   }
   dos_closedir(cur_dir);
   return (dir_list);
@@ -1785,7 +1810,6 @@ scan_dir(char *path, char *name, int drive)
 {
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
-  size_t len;
   int maybe_mangled, is_8_3;
   char dosname[strlen(name)+1];
 
@@ -1794,14 +1818,6 @@ scan_dir(char *path, char *name, int drive)
     path = "/";
 
   Debug0((dbg_fd,"scan_dir(%s,%s)\n",path,name));
-
-  /* open the directory */
-  if ((cur_dir = dos_opendir(path)) == NULL) {
-    Debug0((dbg_fd, "scan_dir(): failed to open dir: %s\n", path));
-    return (FALSE);
-  }
-
-  len = strlen(path);
 
   /* check if name is an LFN or not; if it's 8.3
      then dosname will contain the uppercased name, and
@@ -1816,6 +1832,17 @@ scan_dir(char *path, char *name, int drive)
     strupperDOS(dosname);
   }
 
+  /* ignore . and .. in root directories */
+  if (dosname[0] == '.' && strlen(path) == drives[drive].root_len &&
+      (dosname[1] == '\0' || strcmp(dosname, "..") == 0))
+    return (FALSE);
+
+  /* open the directory */
+  if ((cur_dir = dos_opendir(path)) == NULL) {
+    Debug0((dbg_fd, "scan_dir(): failed to open dir: %s\n", path));
+    return (FALSE);
+  }
+
   /* now scan for matching names */
   while ((cur_ent = dos_readdir(cur_dir))) {
     char tmpname[NAME_MAX + 1];
@@ -1828,9 +1855,6 @@ scan_dir(char *path, char *name, int drive)
 	continue;
       strupperDOS(tmpname);
     }
-
-    if (tmpname[0] == '.' && len == drives[drive].root_len)
-      continue;
 
     /* tmpname now contains the uppercased readdir name in the
        DOS character set */
@@ -3872,10 +3896,10 @@ dos_fs_redirect(state_t *state)
         !memchr(sdb_template_ext(sdb), '*', 3)) {
       hlist = get_dir(fpath, sdb_template_name(sdb),
                       sdb_template_ext(sdb), drive);
-      fpath[0] = '\0';
+      bs_pos = NULL;
     }
     else
-      hlist = get_dir(fpath, "????????", "???", drive);
+      hlist = get_dir(fpath, NULL, NULL, drive);
     if (hlist==NULL)  {
       SETWORD(&(state->eax), NO_MORE_FILES);
       return (FALSE);
@@ -3883,7 +3907,7 @@ dos_fs_redirect(state_t *state)
     if (long_path) {
       set_long_path_on_dirs(hlist);
     }
-    hlist_index = hlist_push(hlist, sda_cur_psp(sda), fpath);
+    hlist_index = hlist_push(hlist, sda_cur_psp(sda), bs_pos ? fpath : "");
     sdb_dir_entry(sdb) = 0;
     sdb_p_cluster(sdb) = hlist_index;
 
@@ -3921,13 +3945,17 @@ dos_fs_redirect(state_t *state)
     }
     
     {
+      boolean_t is_root = (strlen(fpath) == drives[drive].root_len);
       struct dir_ent *de = &hlist->de[sdb_dir_entry(sdb)];
+
       Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
       sdb_dir_entry(sdb)++;
 
-      if (!compare(de->name, de->ext, sdb_template_name(sdb), sdb_template_ext(sdb)))
+      if (!convert_compare(de->d_name, de->name, de->ext,
+	    sdb_template_name(sdb), sdb_template_ext(sdb), is_root))
         goto find_again;
-              
+
+      fill_entry(de, fpath, drive);
       sdb_file_attr(sdb) = get_dos_attr(de->mode,de->hidden);
 
       if (de->mode & S_IFDIR) {
@@ -3977,6 +4005,7 @@ dos_fs_redirect(state_t *state)
 
       Debug0((dbg_fd, "Find next seq=%d\n",hlists.stack[hlist_index].seq));
 
+      strcpy(fpath, hlists.stack[hlist_index].fpath);
       hlist = hlists.stack[hlist_index].hlist;
     }
 
