@@ -1651,6 +1651,9 @@ err:
 	                         (DPMI_CLIENT.is_32 ? _edi : _LWORD(edi)));
        _LWORD(ecx) = DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD;
        _LWORD(edx) = i;
+       /* Install the realmode callback, 0xf4=hlt */
+       WRITE_BYTE(SEGOFF2LINEAR(
+         DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD, i), 0xf4);
        D_printf("DPMI: Allocate realmode callback for %#04x:%#08lx use #%i callback address, %#4x:%#4x\n",
 		DPMI_CLIENT.realModeCallBack[i].selector,
 		DPMI_CLIENT.realModeCallBack[i].offset,i,
@@ -2544,9 +2547,6 @@ static void dpmi_init(void)
       DPMI_CLIENT.Exception_Table[i].selector = DPMI_CLIENT.DPMI_SEL;
     }
   }
-
-  /* Install the realmode callbacks, 0xf4=hlt */
-  MEMSET_DOS(SEG2LINEAR(DPMI_CLIENT.private_data_segment+RM_CB_Para_ADD), 0xf4, 0x10);
 
   ssp = (unsigned char *) (REG(ss) << 4);
   sp = (unsigned long) LWORD(esp);
