@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <asm/page.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include "vm86plus.h"
@@ -1241,21 +1242,18 @@ static void get_ext_API(struct sigcontext_struct *scp)
       char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMI_CLIENT.is_32 ? _esi : _LWORD(esi)));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
 #ifdef WANT_WINDOWS
-	if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr)))
-      {
-        if(_LWORD(eax) == 0x168a)
-	  _LO(ax) = 0;
+      if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
+	_LO(ax) = 0;
 	_es = DPMI_CLIENT.DPMI_SEL;
 	_edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
       } else
 #endif
-	if ((!strcmp("PHARLAP.HWINT_SUPPORT", ptr))||(!strcmp("PHARLAP.CE_SUPPORT", ptr)))
-      {
-        if(_LWORD(eax) == 0x168a)
-	  _LO(ax) = 0;
-	_LWORD(eax) = 0;
+      if (!strcmp("VIRTUAL SUPPORT", ptr)) {
+	_LO(ax) = 0;
       } else
-      {
+      if ((!strcmp("PHARLAP.HWINT_SUPPORT", ptr))||(!strcmp("PHARLAP.CE_SUPPORT", ptr))) {
+	_LO(ax) = 0;
+      } else {
 	if (!(_LWORD(eax)==0x168a))
 	  _eax = 0x8001;
 	_eflags |= CF;
@@ -1717,7 +1715,7 @@ err:
       dpmi_pm_block *block;
       unsigned long mem_required = (_LWORD(ebx))<<16 | (_LWORD(ecx));
 
-      if ((block = DPMImalloc(mem_required)) == NULL) {
+      if ((block = DPMImalloc(mem_required, 1)) == NULL) {
 	D_printf("DPMI: client allocate memory failed.\n");
 	_eflags |= CF;
 	break;
@@ -1778,9 +1776,9 @@ err:
 	      break;
 	  }
 	  if (!base_address)
-	      block = DPMImalloc(length);
+	      block = DPMImalloc(length, _edx);
 	  else
-	      block = DPMImallocFixed(base_address, length);
+	      block = DPMImallocFixed(base_address, length, _edx);
 	  if (block == NULL) {
 	      if (!base_address)
 		  _LWORD(eax) = 0x8013;	/* mem not available */
@@ -1791,8 +1789,8 @@ err:
 	  }
 	  _ebx = (unsigned long)block -> base;
 	  _esi = block -> handle;
-	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08lx at 0x%08lx\n",
-		   _ecx, base_address);
+	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08lx at 0x%08lx (%s)\n",
+		   _ecx, base_address, _edx ? "commited" : "uncommitted");
 	  D_printf("      malloc returns address %p\n", block->base);
 	  D_printf("                using handle 0x%08lx\n",block->handle);
 	  break;
@@ -2005,8 +2003,28 @@ err:
   case 0x0e01:	/* Set Coprocessor Emulation */
     break;
 
-  case 0x0506:			/* ??? */
-  case 0x0507:			/* ??? */
+  case 0x0506:			/* Get Page Attributes */
+    {
+      int i;
+      us *buf = (us *)SEL_ADR(_es, _edx);
+      for (i = 0; i < _ecx; i++)
+        buf[i] = DPMIGetPageAttributes(_esi, (_ebx >> PAGE_SHIFT) + i);
+      break;
+    }
+        
+  case 0x0507:			/* Set Page Attributes */
+    {
+      int i;
+      us *buf = (us *)SEL_ADR(_es, _edx);
+      D_printf("DPMI: Set Page Attributes for %li pages\n", _ecx);
+      for (i = 0; i < _ecx; i++) {
+        D_printf("%i\t", i);
+        DPMISetPageAttributes(_esi, (_ebx >> PAGE_SHIFT) + i, buf[i]);
+	D_printf("(0x%x)\n", buf[i]);
+      }
+      break;
+    }
+
   case 0x0508:			/* ??? */
 
   case 0x0700:	/* Reserved,MARK PAGES AS PAGING CANDIDATES, see intr. lst */

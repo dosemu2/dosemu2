@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>		/* for memcpy */
 #include <sys/types.h>
+#include <asm/page.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -83,14 +84,14 @@ unsigned long base2handle( void *base )
 }
 	 
 dpmi_pm_block *
-DPMImalloc(unsigned long size)
+DPMImalloc(unsigned long size, int committed)
 {
     dpmi_pm_block *block;
 
    /* aligned size to PAGE size */
     size = (size & 0xfffff000) + ((size & 0xfff)
 				      ? DPMI_page_size : 0);
-    if (size > dpmi_free_memory)
+    if (committed && size > dpmi_free_memory)
 	return NULL;
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
@@ -98,7 +99,16 @@ DPMImalloc(unsigned long size)
 //    { char buf[128]; FILE *fs=fopen("/proc/self/maps","r");
 //      while (fgets(buf,120,fs)) dbug_printf("%s",buf); fclose(fs); }
 //
-    block->base = alloc_mapping(MAPPING_DPMI, size, 0);
+    if (committed) {
+      block->base = alloc_mapping(MAPPING_DPMI, size, 0);
+      block->from_pool = 1;
+    } else {
+      block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
+        size, PROT_NONE, 0);
+      block->from_pool = 0;
+    }
+    block->attrs = malloc(size >> PAGE_SHIFT);
+    memset(block->attrs, committed ? 9 : 8, size >> PAGE_SHIFT);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;
@@ -116,7 +126,7 @@ DPMImalloc(unsigned long size)
 /* parse /proc/self/maps instead. This is a kluge! */
 
 dpmi_pm_block *
-DPMImallocFixed(unsigned long base, unsigned long size)
+DPMImallocFixed(unsigned long base, unsigned long size, int committed)
 {
     dpmi_pm_block *block;
     FILE *fp;
@@ -124,12 +134,12 @@ DPMImallocFixed(unsigned long base, unsigned long size)
     unsigned long beg, end;
     
     if (base == 0)		/* we choose an address to allocate */
-	return DPMImalloc(size);
+	return DPMImalloc(size, committed);
     
    /* aligned size to PAGE size */
     size = (size & 0xfffff000) + ((size & 0xfff)
 				      ? DPMI_page_size : 0);
-    if (size > dpmi_free_memory)
+    if (committed && size > dpmi_free_memory)
 	return NULL;
 
     /* find out whether the address request is available */
@@ -149,7 +159,16 @@ DPMImallocFixed(unsigned long base, unsigned long size)
     if ((block = alloc_pm_block()) == NULL)
 	return NULL;
 
-    block->base = alloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE, size, (void *)base);
+    if (committed) {
+      block->base = alloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE, size, (void *)base);
+      block->from_pool = 1;
+    } else {
+      block->base = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
+        size, PROT_NONE, 0);
+      block->from_pool = 0;
+    }
+    block->attrs = malloc(size >> PAGE_SHIFT);
+    memset(block->attrs, committed ? 9 : 8, size >> PAGE_SHIFT);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;
@@ -166,7 +185,11 @@ int DPMIfree(unsigned long handle)
 
     if ((block = lookup_pm_block(handle)) == NULL)
 	return -1;
-    free_mapping(MAPPING_DPMI, block->base, block->size);
+    if (block->from_pool)
+      free_mapping(MAPPING_DPMI, block->base, block->size);
+    else
+      munmap_mapping(MAPPING_DPMI, block->base, block->size);
+    free(block->attrs);
     dpmi_free_memory += block -> size;
     free_pm_block(block);
     return 0;
@@ -200,6 +223,7 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
      */
     ptr = realloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE,
 		 block->base, block->size, newsize);
+    realloc(block->attrs, newsize >> PAGE_SHIFT);
     if (!ptr)
 	return NULL;
 
@@ -218,7 +242,11 @@ DPMIfreeAll(void)
 	while(p) {
 	    dpmi_pm_block *tmp;
 	    if (p->base) {
-		free_mapping(MAPPING_DPMI, p->base, p->size);
+		if (p->from_pool)
+		  free_mapping(MAPPING_DPMI, p->base, p->size);
+		else
+		  munmap_mapping(MAPPING_DPMI, p->base, p->size);
+		free(p->attrs);
 		dpmi_free_memory += p -> size;
 	    }
 	    tmp = p->next;
@@ -262,4 +290,72 @@ DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
     dpmi_eflags |= IF;
     pic_sti();
     return 0;
+}
+
+int DPMISetPageAttributes(unsigned long handle, int page, us attr)
+{
+    dpmi_pm_block *block;
+    int prot = -1;
+
+    if ((block = lookup_pm_block(handle)) == NULL)
+	return -1;
+
+    switch (attr & 7) {
+      case 0:
+        D_printf("UnCom ");
+        break;
+      case 1:
+	D_printf("Com ");
+	break;
+      case 2:
+        D_printf("N/A-2 ");
+        break;
+      case 3:
+        D_printf("Att only ");
+        break;
+      default:
+        D_printf("N/A-%i ", attr & 7);
+        break;
+    }
+    if (attr & 8) {
+      D_printf("RW ");
+      prot = PROT_READ | PROT_WRITE;
+    } else {
+      D_printf("R/O ");
+      prot = PROT_READ;
+    }
+    if (attr & 16) D_printf("Set-ACC ");
+    else D_printf("Not-Set-ACC ");
+
+    if ((attr & 7) == 0) {
+      /* HACK: fake uncommitted pages by protection */
+      prot = PROT_NONE;
+    } else if ((attr & 7) == 1 && (block->attrs[page] & 7) == 0) {
+      if (mprotect_mapping(MAPPING_DPMI, block->base + (page << PAGE_SHIFT), 1,
+        PROT_READ | PROT_WRITE) == -1)
+        D_printf("mprotect() failed: %s\n", strerror(errno));
+//      memset(block->base + (page << PAGE_SHIFT), 0, PAGE_SIZE);
+    }
+
+    D_printf("Addr=%p ", block->base + (page << PAGE_SHIFT));
+
+    if (prot != -1) {
+      if (mprotect_mapping(MAPPING_DPMI, block->base + (page << PAGE_SHIFT), 1,
+        prot) == -1)
+        D_printf("mprotect() failed: %s\n", strerror(errno));
+    }
+
+    block->attrs[page] = attr;
+    return 0;
+}
+
+us DPMIGetPageAttributes(unsigned long handle, int page)
+{
+    dpmi_pm_block *block;
+
+    if ((block = lookup_pm_block(handle)) == NULL)
+	return -1;
+
+    D_printf("Addr=%p Attr=0x%x\n", block->base + (page << PAGE_SHIFT), block->attrs[page]);
+    return block->attrs[page];
 }

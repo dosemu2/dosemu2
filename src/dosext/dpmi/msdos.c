@@ -262,7 +262,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 1;
 	case 0x48:		/* allocate memory */
 	    {
-		dpmi_pm_block *bp = DPMImalloc(_LWORD(ebx)<<4);
+		dpmi_pm_block *bp = DPMImalloc(_LWORD(ebx)<<4, 1);
 		if (!bp) {
 		    _eflags |= CF;
 		    _LWORD(ebx) = dpmi_free_memory >> 4;

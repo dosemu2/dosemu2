@@ -126,6 +126,8 @@ typedef struct dpmi_pm_block_stuct {
   unsigned long handle;
   unsigned long size;
   char     *base;
+  char     *attrs;
+  char     from_pool;
 } dpmi_pm_block;
 
 struct DPMIclient_struct {
@@ -191,8 +193,8 @@ void dpmi_mhp_modify_eip(int delta);
 #endif
 
 void add_cli_to_blacklist(void);
-dpmi_pm_block* DPMImalloc(unsigned long size);
-dpmi_pm_block* DPMImallocFixed(unsigned long base, unsigned long size);
+dpmi_pm_block* DPMImalloc(unsigned long size, int committed);
+dpmi_pm_block* DPMImallocFixed(unsigned long base, unsigned long size, int committed);
 int DPMIfree(unsigned long handle);
 dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size);
 void DPMIfreeAll(void);
@@ -201,6 +203,8 @@ dpmi_pm_block *lookup_pm_block(unsigned long h);
 int
 DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
 			  unsigned long low_addr, unsigned long cnt);
+int DPMISetPageAttributes(unsigned long handle, int page, us attr);
+us DPMIGetPageAttributes(unsigned long handle, int page);
 unsigned long dpmi_GetSegmentBaseAddress(unsigned short selector);
 unsigned long GetSegmentBaseAddress(unsigned short);
 unsigned long GetSegmentLimit(unsigned short);
