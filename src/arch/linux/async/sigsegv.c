@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
-#include <asm/page.h>
 
 #include "emu.h"
 #include "int.h"

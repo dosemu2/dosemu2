@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <linux/serial.h>
+#include <Linux/serial.h>
 
 #include "config.h"
 #include "emu.h"

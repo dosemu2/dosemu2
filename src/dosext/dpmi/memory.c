@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>		/* for memcpy */
 #include <sys/types.h>
-#include <asm/page.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>		/* for MREMAP_MAYMOVE */
@@ -27,6 +26,10 @@
 #include "pic.h"
 #include "priv.h"
 #include "mapping.h"
+
+#ifndef PAGE_SHIFT
+#define PAGE_SHIFT		12
+#endif
 
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
 unsigned long pm_block_handle_used;       /* tracking handle */

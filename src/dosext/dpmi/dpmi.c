@@ -33,7 +33,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <asm/page.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include "vm86plus.h"
