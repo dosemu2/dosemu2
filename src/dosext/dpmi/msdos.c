@@ -54,7 +54,7 @@ static struct sigcontext INT15_SAVED_REGS;
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
 #define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + DTA_Para_ADD) << 4)
 
-#define MAX_DOS_PATH 128
+#define MAX_DOS_PATH 0x100
 
 /* We use static varialbes because DOS in non-reentrant, but maybe a */
 /* better way? */
@@ -838,8 +838,8 @@ void msdos_pre_exec(struct sigcontext_struct *scp)
     REG(ds) = segment;
     REG(edx) = 0;
     p = (char *)GetSegmentBaseAddress(_ds) + D_16_32(_edx);
-    snprintf((char *)(REG(ds)<<4), MAX_DOS_PATH, "%s", p);
-    segment += strlen((char *)(REG(ds)>>4)) + 1;
+    snprintf((char *)SEG2LINEAR(REG(ds)), MAX_DOS_PATH, "%s", p);
+    segment += (MAX_DOS_PATH + 0x0f) >> 4;
 
     /* must copy parameter block */
     REG(es) = segment;
@@ -868,9 +868,13 @@ void msdos_pre_exec(struct sigcontext_struct *scp)
 	   0x80);
     segment += 8;
 
-    /* make tow FCB\'s zero */
+    /* set the FCB pointers to something reasonable */
     WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+6), 0);
+    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+8), segment);
     WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+0xA), 0);
+    WRITE_WORD(SEGOFF2LINEAR(REG(es), LWORD(ebx)+0xC), segment);
+    memset((void *)SEG2LINEAR(segment), 0, 0x30);
+    segment += 3;
 
     /* then the enviroment seg */
     if (DPMI_CLIENT.CURRENT_ENV_SEL)
