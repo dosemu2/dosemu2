@@ -2876,13 +2876,82 @@ static boolean_t dos_would_allow(char *fpath, const char *op, boolean_t equal)
   return TRUE;
 }
 
+static boolean_t find_again(boolean_t firstfind, int drive, char *fpath,
+			    struct dir_list *hlist, state_t *state, sdb_t sdb)
+{
+  boolean_t is_root;
+  u_char attr;
+  int hlist_index = sdb_p_cluster(sdb);
+  struct dir_ent *de;
+
+  attr = sdb_attribute(sdb);
+  is_root = (strlen(fpath) == drives[drive].root_len);
+
+  while (hlist != NULL && sdb_dir_entry(sdb) < hlist->nr_entries) {
+
+    de = &hlist->de[sdb_dir_entry(sdb)];
+
+    Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
+    sdb_dir_entry(sdb)++;
+
+    if (!convert_compare(de->d_name, de->name, de->ext,
+			 sdb_template_name(sdb), sdb_template_ext(sdb), is_root))
+      continue;
+
+    fill_entry(de, fpath, drive);
+    sdb_file_attr(sdb) = get_dos_attr(de->mode,de->hidden);
+
+    if (de->mode & S_IFDIR) {
+      Debug0((dbg_fd, "Directory ---> YES 0x%x\n", de->mode));
+      if (!(attr & DIRECTORY)) {
+	continue;
+      }
+      if (de->long_path 
+	  && strncmp(de->name, ".       ", 8)
+	  && strncmp(de->name, "..      ", 8)) {
+	/* Path is long, so we do not allow subdirectories
+	   here. Instead return the entry as a regular file.
+	*/
+	sdb_file_attr(sdb) &= ~DIRECTORY;
+	de->size = 0; /* fake empty file */
+      }
+    }
+    time_to_dos(de->time,
+		&sdb_file_date(sdb),
+		&sdb_file_time(sdb));
+    sdb_file_size(sdb) = de->size;
+    strncpy(sdb_file_name(sdb), de->name, 8);
+    strncpy(sdb_file_ext(sdb), de->ext, 3);
+
+    Debug0((dbg_fd, "'%.8s'.'%.3s' hlist=%d\n",
+	    sdb_file_name(sdb),
+	    sdb_file_ext(sdb), hlist_index));
+
+    if (sdb_dir_entry(sdb) >= hlist->nr_entries)
+      hlist_pop(hlist_index, sda_cur_psp(sda));
+    return (TRUE);
+  }
+
+  /* no matches or empty directory */
+  Debug0((dbg_fd, "No more matches\n"));
+#if 0 /* Hardly any directory is really empty (there are always some vol.labels,
+         `.', or `..'), and NO_MORE_FILES is more convenient for this case.
+         Moreover, Volkov Commander doesn't like FILE_NOT_FOUND to be returned
+         as a result of findfirst, and keeps annoying me due to it. */
+  if (firstfind)
+    SETWORD(&(state->eax), FILE_NOT_FOUND);
+  else
+#endif
+    SETWORD(&(state->eax), NO_MORE_FILES);
+  return (FALSE);
+}
+
 static int
 dos_fs_redirect(state_t *state)
 {
   char *filename1;
   char *filename2;
   char *dta;
-  u_char firstfind = 0;
   long s_pos=0;
   unsigned long devptr;
   u_char attr;
@@ -3820,71 +3889,7 @@ dos_fs_redirect(state_t *state)
 
       return (TRUE);
     }
-
-    firstfind = 1;
-
-  find_again:
-
-    if (hlist == NULL || sdb_dir_entry(sdb) >= hlist->nr_entries) {
-      /* no matches or empty directory */
-      Debug0((dbg_fd, "No more matches\n"));
-#if 0 /* Hardly any directory is really empty (there are always some vol.labels,
-         `.', or `..'), and NO_MORE_FILES is more convenient for this case.
-         Moreover, Volkov Commander doesn't like FILE_NOT_FOUND to be returned
-         as a result of findfirst, and keeps annoying me due to it. */
-      if (firstfind)
-        SETWORD(&(state->eax), FILE_NOT_FOUND);
-      else
-#endif
-        SETWORD(&(state->eax), NO_MORE_FILES);
-      return (FALSE);
-    }
-    
-    {
-      boolean_t is_root = (strlen(fpath) == drives[drive].root_len);
-      struct dir_ent *de = &hlist->de[sdb_dir_entry(sdb)];
-
-      Debug0((dbg_fd, "find_again entered with %.8s.%.3s\n", de->name, de->ext));
-      sdb_dir_entry(sdb)++;
-
-      if (!convert_compare(de->d_name, de->name, de->ext,
-	    sdb_template_name(sdb), sdb_template_ext(sdb), is_root))
-        goto find_again;
-
-      fill_entry(de, fpath, drive);
-      sdb_file_attr(sdb) = get_dos_attr(de->mode,de->hidden);
-
-      if (de->mode & S_IFDIR) {
-	Debug0((dbg_fd, "Directory ---> YES 0x%x\n", de->mode));
-	if (!(attr & DIRECTORY)) {
-	  goto find_again;
-	}
-	if (de->long_path 
-	    && strncmp(de->name, ".       ", 8)
-	    && strncmp(de->name, "..      ", 8)) {
-	  /* Path is long, so we do not allow subdirectories
-	     here. Instead return the entry as a regular file.
-	  */
-	  sdb_file_attr(sdb) &= ~DIRECTORY;
-	  de->size = 0; /* fake empty file */
-	}
-      }
-      time_to_dos(de->time,
-		  &sdb_file_date(sdb),
-		  &sdb_file_time(sdb));
-      sdb_file_size(sdb) = de->size;
-      strncpy(sdb_file_name(sdb), de->name, 8);
-      strncpy(sdb_file_ext(sdb), de->ext, 3);
-
-      Debug0((dbg_fd, "'%.8s'.'%.3s' hlist=%d\n",
-	      sdb_file_name(sdb),
-	      sdb_file_ext(sdb), hlist_index));
-
-    }
-    firstfind = 0;
-    if (sdb_dir_entry(sdb) >= hlist->nr_entries)
-      hlist_pop(hlist_index, sda_cur_psp(sda));
-    return (TRUE);
+    return find_again(1, drive, fpath, hlist, state, sdb);
 
   case FIND_NEXT:		/* 0x1c */
     hlist_index = sdb_p_cluster(sdb);
@@ -3908,8 +3913,7 @@ dos_fs_redirect(state_t *state)
     Debug0((dbg_fd, "Find next %8.8s.%3.3s, pointer->hlist=%d\n",
 	    (char *) sdb_template_name(sdb),
 	    (char *) sdb_template_ext(sdb), (int)hlist));
-    attr = sdb_attribute(sdb);
-    goto find_again;
+    return find_again(0, drive, fpath, hlist, state, sdb);
   case CLOSE_ALL:		/* 0x1d */
     Debug0((dbg_fd, "Close All\n"));
     break;
