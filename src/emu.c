@@ -439,30 +439,8 @@ dos_ctrl_alt_del(void)
 }
 #endif
 
-static void
-ign_sigs(int sig)
-{
-    static int      timerints = 0;
-    static int      otherints = 0;
-
-    error("signal %d received in leavedos()\n", sig);
-    show_regs(__FILE__, __LINE__);
-    flush_log();
-    if (sig == SIGALRM)
-	timerints++;
-    else
-	otherints++;
-
-#define LEAVEDOS_TIMEOUT (3 * config.freq)
-#define LEAVEDOS_SIGOUT  5
-    if ((sig==11) || (timerints >= LEAVEDOS_TIMEOUT) || (otherints >= LEAVEDOS_SIGOUT)) {
-	error("timed/signalled out in leavedos()\n");
-	longjmp(NotJEnv, 0x11);
-    }
-}
 
 int leavedos_recurse_check = 0;
-
 
 /* "graceful" shutdown */
 void
@@ -500,15 +478,7 @@ leavedos(int sig)
     if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
 	g_printf("can't turn off timer at shutdown: %s\n", strerror(errno));
     }
-    SETSIG(SIGALRM, ign_sigs);
-#ifdef X86_EMULATOR
-    setitimer(ITIMER_PROF, &itv, NULL);
-    SETSIG(SIGPROF, ign_sigs);
-#endif
-    SETSIG(SIGSEGV, ign_sigs);
-    SETSIG(SIGILL, ign_sigs);
-    SETSIG(SIGFPE, ign_sigs);
-    SETSIG(SIGTRAP, ign_sigs);
+    SETSIG(SIGALRM, SIG_DFL);
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_close.h"
