@@ -1,7 +1,7 @@
   DOSEmu
   The DOSEmu team Edited by Alistair MacDonald  <alis-
   tair@slitesys.demon.co.uk>
-  For DOSEMU v0.67 pl5.0
+  For DOSEMU v0.97 pl3.0
 
   This document is the amalgamation of a series of README files which
   were created to deal with the lack of DOSEmu documentation.
@@ -15,7 +15,7 @@
 
   2.1.    Format of /etc/dosemu.conf
 
-  2.1.1.  Controling ammount of debug output
+  2.1.1.  Controling amount of debug output
 
   2.1.2.  Basic emulaton settings
 
@@ -254,7 +254,7 @@
 
   Hence a comma separated list of strings is concatenated.
 
-  22..11..11..  CCoonnttrroolliinngg aammmmoouunntt ooff ddeebbuugg oouuttppuutt
+  22..11..11..  CCoonnttrroolliinngg aammoouunntt ooff ddeebbuugg oouuttppuutt
 
   DOSEMU will help you finding problems, when you enable its debug
   messages.  These will go into the file, that you defined via the `-o

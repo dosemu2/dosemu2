@@ -24,6 +24,15 @@
 #define DBG_GPF  4
 #define DBG_INTxDPMI 5
 
+EXTERN unsigned long dosdebug_flags INIT(0);
+#define DBGF_WAIT_ON_STARTUP		0x001
+#define DBGF_INTERCEPT_LOG		0x002
+#define DBGF_DISABLE_LOG_TO_FILE	0x004
+#define DBGF_LOG_TO_DOSDEBUG		0x100
+#define DBGF_LOG_TO_BREAK		0x200
+
+
+
 unsigned int mhp_debug(unsigned int, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_input();
@@ -45,7 +54,6 @@ struct mhpdbg
 };
 
 EXTERN struct mhpdbg mhpdbg;
-
 
 #ifdef MHP_PRIVATE
 
@@ -97,6 +105,7 @@ struct mhpdbg_4bpar
 struct mhpdbgc
 {
    int stopped;
+   int want_to_stop;
    int currcode;
    int trapcmd;
    int bpload;

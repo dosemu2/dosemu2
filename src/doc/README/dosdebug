@@ -1,6 +1,6 @@
-<sect>DOSEMU debugger v0.4
+<sect>DOSEMU debugger v0.6
 <p>
-This section written on 7/10/96.
+This section written on 98/02/08.
 Send comments to Max Parke 
 <htmlurl url="mailto:mhp@light.lightlink.com"
 name="&lt;mhp@light.lightlink.com&gt;"> and to Hans Lermen 
@@ -8,7 +8,7 @@ name="&lt;mhp@light.lightlink.com&gt;"> and to Hans Lermen
 
 <sect1>Introduction
 <p>
-This is release v0.4 of the DOSEMU debugger, with the
+This is release v0.6 of the DOSEMU debugger, with the
 following features:
 <itemize>
 <item> interactive
@@ -17,52 +17,33 @@ following features:
 <item> display/disassembly memory (dosemu code and data)
 <itemize>
 <item>   read-only access to DOSEMU kernel via memory dump and disassembly
-<item>   uses /usr/src/dosemu/dosemu.map for above
+<item>   uses /usr/src/dosemu/dosemu.map for above (can be changed via
+         runtime configuration)
 </itemize>
 <item> breakpoints (int3-style, breakpoint on INT xx and DPMI-INT xx)
 <itemize>
 <item>   DPMI-INT breakpoints can have an AX value for matching.
    (e.g. 'bpintd 31 0203' will stop _before_ DPMI function 0x203)
 </itemize>
+<item> breakpoints via monitoring DOSEMU's logoutput using regular
+       expressions
+<item> on-the-fly changing amount of logoutput (-D debugflags)
+<item> (temporary) redirect logoutput to debugger terminal.
+<item> single stepping (traceing).
+<item> dump parts of DOS mem to file.
 <item> symbolic debugging via microsoft linker .MAP file support
 <item> access is via the 'dosdebug' client from another virtual console.
   So, you have a "debug window" and the DOS window/keyboard, etc. are
   undisturbed.	VM86 execution can be started, stopped, etc.
 <item> If dosemu 'hangs' you can use the 'kill' command from dosbugger to
   recover.
-<item> code base is on dosemu-0.63.1.50
+<item> code base is on dosemu-0.97.2.1
 </itemize>
-
-<sect1>Files
-<p>
-All changes are #ifdef'ed with USE_MHPDBG
-<p>
-<sect2>modules
-<p>
-<itemize>
-<item>./scr/arch/linux/debugger/mhpdbg.c
-<item>./scr/arch/linux/debugger/mhpdbgc.c
-<item>./scr/arch/linux/debugger/dis8086.c
-<item>./src/arch/linux/debugger/dosdebug.c
-<item>./src/include/mhpdbg.h
-</itemize>
-
-<Sect2>executable
-<p>
-<itemize>
-<item>./bin/dosdebug
-</itemize>
-
-<sect1>Installation
-<p>
-In order to use DOSEMU debugger you must also use EMUMODULE.
-<p>
-During ./configure be sure you have <em/NOT/ set --enable-noemumod
 
 <sect1>Usage
 <p>
 To run, start up DOSEMU.  Then switch to another virtual console
-(or remote login) and do:
+(or remote login or use another xterm) and do:
 <tscreen><verb>
   dosdebug
 </verb></tscreen>
@@ -80,6 +61,17 @@ If you type 'q', only the terminal client will terminate,
 if you type 'kill', both dosemu and the terminal client will be
 terminated.
 
+<p>
+It may be desirable to debug the DOS or its drivers itself during startup,
+to realize that you need to synchronize DOSEMU and your debugger terminal.
+This can be done using the -H1 command line option of DOSEMU:
+<tscreen><verb>
+  $ dos -H1
+</verb></tscreen>
+DOSEMU will then lock before jumping into the loaded bootsector waiting
+for dosdebug to connect. Once connected you are in `stopped' state
+and can set breakpoints or singlestep through the bootstrap code.
+
 <sect1>Commands
 <p>
 See mhpdbgc.c for code and cmd table.
@@ -95,7 +87,28 @@ See mhpdbgc.c for code and cmd table.
 <tag/r/		  list regs
 <tag/r reg val/         change contents of 'reg' to 'val'
                   (e.g: r AX 1234)
-<tag/e ADDR HEXSTR/     modify memory (0-1Mb)
+<tag/e ADDR valuelist/     modify memory (0-1Mb)
+   `ADDR' maybe just a `-' (minus), then last (incremented) address from
+   a previous `e' or `ed' command is used (this allowes consecutive writes).
+
+  `valuelist' is a blank separated list of
+  <descrip>
+    <tag/hexnumber/ such as 0F or C800
+    <tag/char/      enclosed in single quotes such as 'A' or 'b'
+    <tag/register/  any valid register symbol, in this case the current value
+                    (and size) of that registe is take (e.g AX is 2 bytes,
+                    EAX is 4 bytes)
+    <tag/string/    enclosed in double quotes such "this is a string"
+  </descrip>
+  The default size of each value is one byte (except registers), this
+  size can be overridden by suffixing a `W' (word, 2 bytes) or `L' (long, 4
+  bytes) such as C800w or F0008123L
+
+<tag/ed ADDR valuelist/     same as above `e' command, except that the
+    numbers are expected as <em/decimals/ per default. To write a hexvalue with
+    `ed' you may prefix it with `0x' as in C or write an octal value
+    prefixing  a `0'.
+
 <tag/d ADDR SIZE/	  dump memory (no limit)
 <tag/u ADDR SIZE/	  unassemble memory (no limit)
 <tag/g/		  go (if stopped)
@@ -103,7 +116,8 @@ See mhpdbgc.c for code and cmd table.
 <tag/mode 0|1|+d|-d/	  set mode (0=SEG16, 1=LIN32) for u and d commands
                   +d enables DPMI mode (default on startup),
                   -d disables DPMI mode.
-<tag/t/		  single step (not fully debugged!!!)
+<tag/t/		  single step (may jump over IRET or POPF)
+<tag/tc/          single step, loop forever until key pressed
 <tag/tf/                single step, force over IRET and POPF
                   <em/NOTE:/ the scope of 't' 'tf' or a 'come back for break'
                         is either 'in DPMI' or realmode, depending on
@@ -121,6 +135,17 @@ See mhpdbgc.c for code and cmd table.
 <tag/bpload/            set one shot breakpoint at entry point
                   of the next loaded DOS-program.
 <tag/bl/		  list active breakpoints
+<tag/bplog regex/  set a breakpoint on logoutput using regex. With this
+       the normal DOSEMU log output (enabled via the -D commandline option
+       or the dosdebug `log' command) is monitored via the regular
+       expression `regex' (look at GNU regex manual) and when a match is found
+       emulation is set into `stopped' mode. There may be 8 log breakpoint
+       active simultaneously. Without the `regex' given `bplog' such prints
+       the current active breakpoints.
+<tag/bpclog number/ clears a log break point.
+<tag/log [flags]/ get/set debug-log flags (e.g 'log +M-k')
+<tag/log on|off/  redirect dbug-log output to the dosdebug terminal
+
 <tag/ldt sel [lines]/   dump ldt starting at selector 'sel' for 'lines'
                   'sel' may be a symbolic register name.
 <tag/(rmapfile)/	  (internal command to read /usr/src/dosemu/dosemu.map
@@ -189,5 +214,5 @@ There must be some.
    fast and may result in stack overflow. We need to also stop the timer
    for dosemu.
 <item> When not stopped, setting break points doesn't work properly.
-   So, as a work around: Only set breakpoints while in stop.
+   So, as a work around: Setting breakpoints while not in stop is disabled.
 </itemize>

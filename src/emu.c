@@ -423,7 +423,6 @@ emulate(int argc, char **argv)
 #endif
     memory_init();		/* initialize the memory contents */
     boot();			/* read the boot sector & get moving */
-    timer_interrupt_init();	/* start sending int 8h int signals */
 
     if (not_use_sigio)
 	k_printf("Atleast 1 NON-SIGIO file handle in use.\n");
@@ -436,6 +435,7 @@ emulate(int argc, char **argv)
 #ifdef USE_MHPDBG  
     mhp_debug(DBG_INIT, 0, 0);
 #endif
+    timer_interrupt_init();	/* start sending int 8h int signals */
 
     while (!fatalerr) {
 	++pic_vm86_count;

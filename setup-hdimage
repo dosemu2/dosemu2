@@ -12,6 +12,7 @@
 #	- Move -C option of mdexe to the end of the command to avoid a shell
 #	  misunderstanding.
 
+HDIMAGE="hdimage.first"
 PROMPTMODE="-o confirm"
 COMCOM="command.com"
 FDISK=fdisk
@@ -53,10 +54,10 @@ if [ "$PARTS" = "" -a "$PARTS2" = "" ]; then
 else
  if [ "$PARTS" != "" ]; then
   echo "I've seen the following bootable DOS partitions:"
-  PARTS_=PARTS
+  PARTS_=$PARTS
  else
   echo "I've seen the following DOS partitions (perhaps non-bootable):"
-  PARTS_=PARTS2
+  PARTS_=$PARTS2
  fi
   echo ""
   for i in $PARTS_; do
@@ -144,7 +145,8 @@ fi
 
 echo "Starting ..."
 
-(cd ${DDIR}/dexe; ./mkdexe hdimage.first -b $DEVICE -i $IOSYS -m $MSDOSSYS -o noapp $PROMPTMODE -C $COMCOM)
+
+(cd ${DDIR}/dexe; ./mkdexe $HDIMAGE -b $DEVICE -i $IOSYS -m $MSDOSSYS -o noapp $PROMPTMODE -C $COMCOM)
 
 echo " ... done"
 

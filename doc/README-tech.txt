@@ -1,7 +1,7 @@
   DOSEmu Technical Guide
   The DOSEmu team, Edited by Alistair MacDonald  <alis-
   tair@slitesys.demon.co.uk>
-  For DOSEMU v0.67 pl5.0
+  For DOSEMU v0.97 pl3.0
 
   This document is the amalgamation of a series of technical README
   files which were created to deal with the lack of DOSEmu documenta-
@@ -272,19 +272,13 @@
 
   18.     Sound Code
 
-  18.1.   Current DOSEmu sound code Unfortunately I haven't documented
-  this yet. However, the current code has been completely rewritten and
-  has been designed to support multiple operating systems and sound
-  systems. For details of the internal interface and any available
-  patches see my WWW page at
+  18.1.   Current DOSEmu sound code
 
   18.2.   Original DOSEMU sound code
 
   19.     DMA Code
 
-  19.1.   Current DOSEmu DMA code Unfortunately I haven't documented
-  this yet. However, the current code has been completely rewritten from
-  this.
+  19.1.   Current DOSEmu DMA code
 
   19.2.   Original DOSEMU DMA code
 
@@ -306,29 +300,21 @@
 
   20.4.   A (very) little technical information for the curious
 
-  21.     DOSEMU debugger v0.4
+  21.     DOSEMU debugger v0.6
 
   21.1.   Introduction
 
-  21.2.   Files
+  21.2.   Usage
 
-  21.2.1. modules
+  21.3.   Commands
 
-  21.2.2. executable
+  21.4.   Performance
 
-  21.3.   Installation
+  21.5.   Wish List
 
-  21.4.   Usage
+  21.6.   BUGS
 
-  21.5.   Commands
-
-  21.6.   Performance
-
-  21.7.   Wish List
-
-  21.8.   BUGS
-
-  21.8.1. Known bugs
+  21.6.1. Known bugs
 
   22.     MARK REJHON'S 16550 UART EMULATOR
 
@@ -443,6 +429,7 @@
 
         cc__nniiccee
            allow `HogThreshold' setting
+
         cc__ffllooppppyy
            allow floppy access
 
@@ -619,7 +606,6 @@
          done
 
   but these behaves a bit different and are described later.
-
   The 'else' clause may be ommitted and 'ifndef' is the opposite to
   'ifdef'.  The <variable> can't be tested for its contents, only if it
   is set or not.  Clauses also may contain further if*def..endif clause
@@ -771,13 +757,13 @@
   be a variable. However, you can work around this with a macro (see
   next chapter) as shows the following example:
 
-         $file = $HOME, "/.my_dosrc_include"
-         shell("test -f ", $file)
-         if ( ! $DOSEMU_SHELL_RETURN)
-           # we can include
-           $INC = ' include "', $file, '"';
-           $$INC
-         endif
+    $file = $HOME, "/.my_dosrc_include"
+    shell("test -f ", $file)
+    if ( ! $DOSEMU_SHELL_RETURN)
+      # we can include
+      $INC = ' include "', $file, '"';
+      $$INC
+    endif
 
   22..22..44..  MMaaccrroo ssuubbssttiittuuttiioonn
 
@@ -802,20 +788,20 @@
   simple, it allows you to be lazy to write the same things more then
   once.
 
-    $loop = '
-      while ($xxx)
-        warn "loop in macro ",$xxx
-        $xxx = ($xxx -1)
-      done
-    ';
-    $xxx = (2); $$loop; $xxx = (3); $$loop;
+         $loop = '
+           while ($xxx)
+             warn "loop in macro ",$xxx
+             $xxx = ($xxx -1)
+           done
+         ';
+         $xxx = (2); $$loop; $xxx = (3); $$loop;
 
-    $_X_keycode = (off)
-    $_X_lin_filt = (on)
-    ...
-    if ($_X_keycode) $_X_keycode = "keycode" else $_X_keycode = "" endif
-    if ($_X_lin_filt) $_X_lin_filt = "lin_filt" else $_X_lin_filt = "" endif
-    X { icon_name "xdos" $$_X_keycode $$_X_lin_filt }
+         $_X_keycode = (off)
+         $_X_lin_filt = (on)
+         ...
+         if ($_X_keycode) $_X_keycode = "keycode" else $_X_keycode = "" endif
+         if ($_X_lin_filt) $_X_lin_filt = "lin_filt" else $_X_lin_filt = "" endif
+         X { icon_name "xdos" $$_X_keycode $$_X_lin_filt }
 
   You see, that in cases the variables are `false', the (parameterless)
   `keycode' and/or `lin_filt' keywords would not appear in the `X{}'
@@ -846,24 +832,24 @@
   those statements / terms which have a coma (instead of a blank) as
   delimiter:
 
-    ... winsize x , y ...
-    ... vesamode width , heigh ...
-    ... range from , to ...
+         ... winsize x , y ...
+         ... vesamode width , heigh ...
+         ... range from , to ...
 
   The old syntax is left for compatibility and is only parsed correcty,
   if pure numbers (integers) are used.
 
   Valid constant numbers (not only in expressions) are
 
-         123     decimal, integer
-         0x1a    hexadecimal, integer
-         0b10101 bitstream, integer
-         1.2     float number, real
-         0.5e3   exponential form, real
-         off     boolean false, integer
-         on      boolean true, integer
-         no      boolean false, integer
-         yes     boolean true, integer
+    123     decimal, integer
+    0x1a    hexadecimal, integer
+    0b10101 bitstream, integer
+    1.2     float number, real
+    0.5e3   exponential form, real
+    off     boolean false, integer
+    on      boolean true, integer
+    no      boolean false, integer
+    yes     boolean true, integer
 
   The following operator are recognized:
 
@@ -906,11 +892,11 @@
   fact the `$xxx =' statement accepts a complete coma separated list,
   which it will concatenate, examples:
 
-         $termnum = (1)
-         $MYTERM = "/dev/ttyp", $termnum       # results in "/dev/ttyp1"
-         $VER = (($DOSEMU_VERSION_CODE >> 24) & 255)
-         $MINOR = (($DOSEMU_VERSION_CODE >> 16) & 255)
-         $running_dosemu = "dosemu-", $VER, ".", $MINOR
+    $termnum = (1)
+    $MYTERM = "/dev/ttyp", $termnum       # results in "/dev/ttyp1"
+    $VER = (($DOSEMU_VERSION_CODE >> 24) & 255)
+    $MINOR = (($DOSEMU_VERSION_CODE >> 16) & 255)
+    $running_dosemu = "dosemu-", $VER, ".", $MINOR
 
   Several builtin functions, which can be used in expressions, are
   available:
@@ -3933,12 +3919,15 @@
 
   1188..  SSoouunndd CCooddee
 
-  1188..11..  UUnnffoorrttuunnaatteellyy II hhaavveenn''tt ddooccuummeenntteedd tthhiiss yyeett.. HHoowweevveerr,, tthhee ccuurr--
-  rreenntt ccooddee hhaass bbeeeenn ccoommpplleetteellyy rreewwrriitttteenn aanndd hhaass bbeeeenn ddeessiiggnneedd ttoo ssuupp--
-  ppoorrtt mmuullttiippllee ooppeerraattiinngg ssyysstteemmss aanndd ssoouunndd ssyysstteemmss..  FFoorr ddeettaaiillss ooff tthhee
-  iinntteerrnnaall iinntteerrffaaccee aanndd aannyy aavvaaiillaabbllee ppaattcchheess sseeee mmyy WWWWWW ppaaggee aatt
-  hhttttpp::////wwwwww..sslliitteessyyss..ddeemmoonn..ccoo..uukk//aa..mmaaccddoonnaalldd//ddoosseemmuu//ssoouunndd// CCuurrrreenntt
-  DDOOSSEEmmuu ssoouunndd ccooddee
+  1188..11..  CCuurrrreenntt DDOOSSEEmmuu ssoouunndd ccooddee
+
+  Unfortunately I haven't documented this yet. However, the current code
+  has been completely rewritten and has been designed to support
+  multiple operating systems and sound systems.
+
+  For details of the internal interface and any available patches see my
+  WWW page at http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/
+
   1188..22..  OOrriiggiinnaall DDOOSSEEMMUU ssoouunndd ccooddee
 
            Copyright (C) 1995  Joel N. Weber II
@@ -3996,7 +3985,6 @@
   and while I'm complaining, those mystery ports that SimEarth needs are
   for the FM synthesiser.  Watch it guys, you might generate interrupts
   with that....)
-
   Reference:
 
   PC Game Programers Encyclopedia
@@ -4008,9 +3996,10 @@
 
   1199..  DDMMAA CCooddee
 
-  1199..11..  UUnnffoorrttuunnaatteellyy II hhaavveenn''tt ddooccuummeenntteedd tthhiiss yyeett.. HHoowweevveerr,, tthhee ccuurr--
-  rreenntt ccooddee hhaass bbeeeenn ccoommpplleetteellyy rreewwrriitttteenn ffrroomm tthhiiss..  CCuurrrreenntt DDOOSSEEmmuu DDMMAA
-  ccooddee
+  1199..11..  CCuurrrreenntt DDOOSSEEmmuu DDMMAA ccooddee
+
+  Unfortunately I haven't documented this yet. However, the current code
+  has been completely rewritten from this.
 
   1199..22..  OOrriiggiinnaall DDOOSSEEMMUU DDMMAA ccooddee
 
@@ -4121,6 +4110,7 @@
 
      OOCCWW33    bbiittss 00,,11,,55,,66
         select read register, select special mask mode
+
   Reads of both PICs ports are supported completely.
 
   2200..11..  OOtthheerr ffeeaattuurreess
@@ -4338,14 +4328,14 @@
   has no effect on them.  The keyboard interrupts are re-scheduled if
   there is anything in the scan_queue.
 
-  2211..  DDOOSSEEMMUU ddeebbuuggggeerr vv00..44
+  2211..  DDOOSSEEMMUU ddeebbuuggggeerr vv00..66
 
-  This section written on 7/10/96.  Send comments to Max Parke
+  This section written on 98/02/08.  Send comments to Max Parke
   <mhp@light.lightlink.com> and to Hans Lermen <lermen@fgan.de>
 
   2211..11..  IInnttrroodduuccttiioonn
 
-  This is release v0.4 of the DOSEMU debugger, with the following
+  This is release v0.6 of the DOSEMU debugger, with the following
   features:
 
   +o  interactive
@@ -4358,12 +4348,24 @@
 
   +o  read-only access to DOSEMU kernel via memory dump and disassembly
 
-  +o  uses /usr/src/dosemu/dosemu.map for above
+  +o  uses /usr/src/dosemu/dosemu.map for above (can be changed via
+     runtime configuration)
 
   +o  breakpoints (int3-style, breakpoint on INT xx and DPMI-INT xx)
 
   +o  DPMI-INT breakpoints can have an AX value for matching.  (e.g.
      'bpintd 31 0203' will stop _before_ DPMI function 0x203)
+
+  +o  breakpoints via monitoring DOSEMU's logoutput using regular
+     expressions
+
+  +o  on-the-fly changing amount of logoutput (-D debugflags)
+
+  +o  (temporary) redirect logoutput to debugger terminal.
+
+  +o  single stepping (traceing).
+
+  +o  dump parts of DOS mem to file.
 
   +o  symbolic debugging via microsoft linker .MAP file support
 
@@ -4374,40 +4376,14 @@
   +o  If dosemu 'hangs' you can use the 'kill' command from dosbugger to
      recover.
 
-  +o  code base is on dosemu-0.63.1.50
+  +o  code base is on dosemu-0.97.2.1
 
-  2211..22..  FFiilleess
-
-  All changes are #ifdef'ed with USE_MHPDBG
-
-  2211..22..11..  mmoodduulleess
-
-  +o
-
-  +o
-
-  +o
-
-  +o
-
-  +o
-
-  2211..22..22..  eexxeeccuuttaabbllee
-
-  +o
-
-  2211..33..  IInnssttaallllaattiioonn
-
-  In order to use DOSEMU debugger you must also use EMUMODULE.
-
-  During ./configure be sure you have _N_O_T set --enable-noemumod
-
-  2211..44..  UUssaaggee
+  2211..22..  UUssaaggee
 
   To run, start up DOSEMU.  Then switch to another virtual console (or
-  remote login) and do:
+  remote login or use another xterm) and do:
 
-    dosdebug
+         dosdebug
 
   If there are more then one dosemu process running, you will need to
   pass the pid to dosdebug, e.g:
@@ -4420,7 +4396,18 @@
   the terminal client will terminate, if you type 'kill', both dosemu
   and the terminal client will be terminated.
 
-  2211..55..  CCoommmmaannddss
+  It may be desirable to debug the DOS or its drivers itself during
+  startup, to realize that you need to synchronize DOSEMU and your
+  debugger terminal.  This can be done using the -H1 command line option
+  of DOSEMU:
+
+         $ dos -H1
+
+  DOSEMU will then lock before jumping into the loaded bootsector wait-
+  ing for dosdebug to connect. Once connected you are in `stopped' state
+  and can set breakpoints or singlestep through the bootstrap code.
+
+  2211..33..  CCoommmmaannddss
 
   See mhpdbgc.c for code and cmd table.
 
@@ -4442,8 +4429,36 @@
      rr rreegg vvaall
         change contents of 'reg' to 'val' (e.g: r AX 1234)
 
-     ee AADDDDRR HHEEXXSSTTRR
-        modify memory (0-1Mb)
+     ee AADDDDRR vvaalluueelliisstt
+        modify memory (0-1Mb) `ADDR' maybe just a `-' (minus), then last
+        (incremented) address from a previous `e' or `ed' command is
+        used (this allowes consecutive writes).
+
+        `valuelist' is a blank separated list of
+
+        hheexxnnuummbbeerr
+           such as 0F or C800
+
+        cchhaarr
+           enclosed in single quotes such as 'A' or 'b'
+
+        rreeggiisstteerr
+           any valid register symbol, in this case the current value
+           (and size) of that registe is take (e.g AX is 2 bytes, EAX is
+           4 bytes)
+
+        ssttrriinngg
+           enclosed in double quotes such "this is a string"
+
+        The default size of each value is one byte (except registers),
+        this size can be overridden by suffixing a `W' (word, 2 bytes)
+        or `L' (long, 4 bytes) such as C800w or F0008123L
+
+     eedd AADDDDRR vvaalluueelliisstt
+        same as above `e' command, except that the numbers are expected
+        as _d_e_c_i_m_a_l_s per default. To write a hexvalue with `ed' you may
+        prefix it with `0x' as in C or write an octal value prefixing  a
+        `0'.
 
      dd AADDDDRR SSIIZZEE
         dump memory (no limit)
@@ -4460,7 +4475,9 @@
         set mode (0=SEG16, 1=LIN32) for u and d commands +d enables DPMI
         mode (default on startup), -d disables DPMI mode.
 
-     tt  single step (not fully debugged!!!)
+     tt  single step (may jump over IRET or POPF)
+
+     ttcc single step, loop forever until key pressed
 
      ttff single step, force over IRET and POPF _N_O_T_E_: the scope of 't'
         'tf' or a 'come back for break' is either 'in DPMI' or realmode,
@@ -4495,6 +4512,24 @@
 
      bbll list active breakpoints
 
+     bbpplloogg rreeggeexx
+        set a breakpoint on logoutput using regex. With this the normal
+        DOSEMU log output (enabled via the -D commandline option or the
+        dosdebug `log' command) is monitored via the regular expression
+        `regex' (look at GNU regex manual) and when a match is found
+        emulation is set into `stopped' mode. There may be 8 log
+        breakpoint active simultaneously. Without the `regex' given
+        `bplog' such prints the current active breakpoints.
+
+     bbppcclloogg nnuummbbeerr
+        clears a log break point.
+
+     lloogg ffllaaggss
+        get/set debug-log flags (e.g 'log +M-k')
+
+     lloogg oonn||ooffff
+        redirect dbug-log output to the dosdebug terminal
+
      llddtt sseell lliinneess
         dump ldt starting at selector 'sel' for 'lines'
 
@@ -4525,23 +4560,23 @@
 
   5. a dollar sign($): SS:SP  (ss:esp)
 
-  2211..66..  PPeerrffoorrmmaannccee
+  2211..44..  PPeerrffoorrmmaannccee
 
   If you have dosemu compiled with the debugger support, but the
   debugger is not active and/or the process is not stopped, you will not
   see any great performance penalty.
 
-  2211..77..  WWiisshh LLiisstt
+  2211..55..  WWiisshh LLiisstt
 
   Main wish is to add support for hardware debug registers (if someone
   would point me in the direction, what syscalls to use, etc.)  Then you
   could breakpoint on memory reads/writes, etc!
 
-  2211..88..  BBUUGGSS
+  2211..66..  BBUUGGSS
 
   There must be some.
 
-  2211..88..11..  KKnnoowwnn bbuuggss
+  2211..66..11..  KKnnoowwnn bbuuggss
 
   +o  Though you may set breakpoints and do singlestep in Windows31, this
      is a 'one shot': It will bomb _a_f_t_e_r you type 'g' again.  ( I
@@ -4566,7 +4601,8 @@
      timer for dosemu.
 
   +o  When not stopped, setting break points doesn't work properly.  So,
-     as a work around: Only set breakpoints while in stop.
+     as a work around: Setting breakpoints while not in stop is
+     disabled.
 
   2222..  MMAARRKK RREEJJHHOONN''SS 1166555500 UUAARRTT EEMMUULLAATTOORR
 
@@ -4747,15 +4783,15 @@
   In the worst case you will get the following output on your remote
   terminal:
 
-     ...oh dear, have to do kill SIGKILL
-     dosemu process (pid 1234) is killed
-     If you want to switch to an other console,
-     then enter a number between 1..8, else just type enter:
-     2      <========= this is what you enter
-     dosdebug terminated
-     NOTE: If you had a totally locked console,
-           you may have to blindly type in 'kbd -a; texmode
-           on the console you switched to.
+          ...oh dear, have to do kill SIGKILL
+          dosemu process (pid 1234) is killed
+          If you want to switch to an other console,
+          then enter a number between 1..8, else just type enter:
+          2      <========= this is what you enter
+          dosdebug terminated
+          NOTE: If you had a totally locked console,
+                you may have to blindly type in 'kbd -a; texmode
+                on the console you switched to.
 
   2233..11..  TThhee mmaaiill mmeessssaaggee
 

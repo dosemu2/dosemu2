@@ -9,12 +9,13 @@ and of course Pat's home site:
   ftp://ftp.iop.com/pub/freedos/
   http://www.iop.com/~patv
 
-The part of the DosC kernel from Pat Villani <patv@iop.com> that comes
-with DOSEMU has a little patch (dosc.patch), which fixes a bug when a
-*.com file was smaller then 256 bytes (which is normal for most dosemu
-suplied DOS tools). The rest of the original is untouched, so we hope
-not to violate the GPL, when we just only distribute this small patch
-as 'source part'. NOTE: the file COPYING is in the root dosemu directory.
+However, the current version in this dosemu distribution is the Beta#1
+test release from Pat (build1931) which we put here to support Pat
+in getting it tested. My first impression is _very_ good, it can much
+more then the (current official) FreeDos version. So please, give it
+a test.
+
+NOTE: the file COPYING is in the root dosemu directory.
 
 For FreeDos in DOSEMU you need not to do any special installation, all
 is done by the dosemu 'make' process. As a result you'll have in
@@ -22,5 +23,5 @@ is done by the dosemu 'make' process. As a result you'll have in
 the absolute minimum (just Pat's kernel) as a first step in supporting
 FreeDos, but we plan much more for future ;-)
 
-Hans Lermen, April 12. 1997
+Hans Lermen, February 8. 1998
 <lermen@fgan.de>

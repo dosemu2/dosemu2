@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "January, 1998" "Version ALPHA 0.97.2" "MS-DOS Emulation"
+.TH DOS 1 "February, 1998" "Version ALPHA 0.97.3" "MS-DOS Emulation"
 .SH NAME
 dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 .SH SYNOPSIS
@@ -67,6 +67,10 @@ dos, xdos, dosexec, dosdebug \- run MS-DOS and MS-DOS programs under Linux
 [
 .B \-h
 .I level
+]
+[
+.B \-H
+.I dflags
 ]
 [
 .B \-F
@@ -172,6 +176,10 @@ dexefile
 [
 .B \-h
 .I level
+]
+[
+.B \-H
+.I dflags
 ]
 [
 .B \-F
@@ -385,6 +393,17 @@ for debugging configuration files, you should use
 too to direct the +c type messages to stderr. `level' can be 0, 1 or 2
 and controls the amount of configuration parser debug output:
 No parser debug (0), parser loop debug (1), if_else_endif debug (2).
+.TP
+.I -H
+specify the dosdebug support flags, currently only `1' is is reasonable.
+with
+.I -H1
+you force dosemu to wait until the dosdebug terminal has connected. Hence to
+debug a DOS session from the very beginning you first start dosemu
+with -H1 and then start dosdebug.
+DOSEMU will then lock before jumping into the loaded bootsector waiting
+for dosdebug to connect. Once connected you are in `stopped' state
+and can set breakpoints or singlestep through the bootstrap code.
 .TP
 .I -O
 use stderr for output of Debugging messages

@@ -12,6 +12,7 @@
 #include "keymaps.h"
 #include "keyb_clients.h"
 #include "keyboard.h"
+#include "utilities.h"
 
 #define KBBUF_SIZE 80
 
@@ -574,7 +575,7 @@ static int define_key(const unsigned char *key, unsigned long scan,
   int ret;
 
 #if 0
-  k_printf("KBD: define '%s' %02x as %08x\n",key,key[0], (int)scan);
+  k_printf("KBD: define '%s' %02x as %08x\n",strprintable(key),key[0], (int)scan);
 #endif
 
   if (SLang_Error)
@@ -883,7 +884,7 @@ static void slang_send_scancode(unsigned long lscan, unsigned char ch)
   unsigned long flags = 0;
   unsigned long ls_flags = 0;
 
-  k_printf("KBD: slang_send_scancode(lscan=%08x, ch='%c')\n", (unsigned int)lscan, ch);
+  k_printf("KBD: slang_send_scancode(lscan=%08x, ch='%s')\n", (unsigned int)lscan, chrprintable(ch));
 
   ls_flags = (lscan & ~0xFFFF);
 
@@ -1067,7 +1068,7 @@ void do_slang_getkeys(void)
 #endif
 
     k_printf("KBD: scan=%08lx Shift_Flags=%08lx str[0]=%d str='%s' len=%d\n",
-             scan,Shift_Flags,key->str[0],key->str+1,Keystr_Len);
+             scan,Shift_Flags,key->str[0],strprintable(key->str+1),Keystr_Len);
     if (!(scan&0x80000000)) {
       slang_send_scancode(scan | Shift_Flags, (Keystr_Len==1)?key->str[1]:0);
       continue;

@@ -25,6 +25,8 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#include "mhpdbg.h"
+
 
 /*
  * XXX - the mem size of 734 is much more dangerous than 704. 704 is the
@@ -574,12 +576,17 @@ config_init(int argc, char **argv)
 
     opterr = 0;
     confname = CONFIG_SCRIPT;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:x:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
 	usedoptions[(unsigned char)c] = c;
 	switch (c) {
 	case 'h':
 	    config_check_only = atoi(optarg) + 1;
 	    break;
+	case 'H': {
+	    dosdebug_flags = strtoul(optarg,0,0) & 255;
+	    if (!dosdebug_flags) dosdebug_flags = DBGF_WAIT_ON_STARTUP;
+	    break;
+            }
 	case 'F':
 	    if (get_orig_uid()) {
 		FILE *f;
@@ -706,7 +713,7 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtT:sgh:x:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:v:VNtT:sgh:H:x:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
 	/* Note: /etc/dosemu.conf may have disallowed some options
 	 *	 ( by removing them from $DOSEMU_OPTIONS ).
 	 *	 We skip them by re-checking 'usedoptions'.
@@ -718,6 +725,7 @@ config_init(int argc, char **argv)
 	case 'F':		/* previously parsed config file argument */
 	case 'f':
 	case 'h':
+	case 'H':
 	case 'I':
 	case 'd':
 	case 'o':
@@ -1076,7 +1084,7 @@ usage(void)
     fprintf(stderr,
 	"dosemu-" VERSTR "\n\n"
 	"USAGE:\n"
-	"  dos  [-ABCckbVNtsgxKm23456ez] [-h{0|1|2}] \\\n"
+	"  dos  [-ABCckbVNtsgxKm23456ez] [-h{0|1|2}] [-H dflags \\\n"
 	"       [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] \\\n"
 	"       [-u confvar] [-f dosrcFile] [-o dbgfile] 2> vital_logs\n"
 	"  dos --version\n\n"
@@ -1110,6 +1118,7 @@ usage(void)
 	"    -g enable graphics modes (!%%#)\n"
 	"    -h dump configuration to stderr and exit (sets -D+c)\n"
 	"       0=no parser debug, 1=loop debug, 2=+if_else debug\n"
+	"    -H wait for dosdebug terminal at startup and pass dflags\n"
 	"    -K Do int9 (!#)\n"
 	"    -k use PC console keyboard (!)\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"

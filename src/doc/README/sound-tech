@@ -1,5 +1,7 @@
 <sect>Sound Code
+
 <sect1>Current DOSEmu sound code
+<p>
 Unfortunately I haven't documented this yet. However, the current code has been
 completely rewritten and has been designed to support multiple operating
 systems and sound systems.

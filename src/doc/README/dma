@@ -1,5 +1,7 @@
 <sect>DMA Code
+
 <sect1>Current DOSEmu DMA code
+<p>
 Unfortunately I haven't documented this yet. However, the current code has been
 completely rewritten from this.
 

@@ -1,6 +1,8 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
+char *strprintable(char *s);
+char *chrprintable(char c);
 void open_proc_scan(char *name);
 void close_proc_scan(void);
 char *get_proc_string_by_key(char *key);

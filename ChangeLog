@@ -1,3 +1,34 @@
+98/02/07 ver. 0.97.2.1 unofficial pre-release
+	From Hans
+	- some bug fixes to setup-hdimage (those bugs are in 0.66.7 too)
+	- mkdexe know will accept '/' as target name. I found '/', then
+	  'dirname path' replaces '/var/lib/dosemu'
+	- put in Pats new Dosc (Beta1 build 1931) for testing
+	- made some enhancements to dosdebug to easy further debugging of
+	  DosC:
+	  - with option -H1 dosemu now will wait for the dosdebug terminal
+	    to come up and then goes into 'stop' mode. This allows debugging
+	    from the point were we jump into the bootsector (7c00).
+	  - dosdebug command 'e' enhanced, now accepts a list of values
+	    of different type and lengh. 'ed' defaults to decimal input
+	    and registernames can be used as values. When the ADDR is a
+	    '-', the last used address is take (writing in consecutive
+	    locations
+	  - mhp_pars now handles quoting correctly ("aa bb" will go into
+	    _one_ arg)
+	  - logging can now redirected to the dosdebug terminal
+	    (command: 'log on' and 'log off' respectively.
+	  - introduced 'log break points', which listen on the debuglog
+	    output stream and put the emulation into 'stop state' when
+	    when a reg.expression matches (commands: 'bplog <regex>' and
+	    'bclog <number>')
+	  - break point settings are now refused when not in 'stopped' state
+	    because this leads to problems (was always so).
+	- fixed some logprints, which did print notprintable characters
+	  ( mainly in src/base/keyboard/keyb_slang.c )
+	  We have now the helpers 'strprintable()' and 'chrprintable()'
+	  in utilities.c.
+	- docs update are recompile (fixed some sgml typo's too)
 98/02/02 ver. 0.97.2 released
 	From Hans
 	- Due to arguments from Steffen, decided to rearange dosemu.conf

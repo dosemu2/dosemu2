@@ -8,6 +8,7 @@
  *   07Jul96 Hans Lermen <lermen@elserv.ffm.fgan.de>
  *   19May96 Max Parke <mhp@lightlink.com>
  *   16Sep95 Hans Lermen <lermen@elserv.ffm.fgan.de>
+ *   08Jan98 Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
 #include <stdio.h>
@@ -52,13 +53,14 @@ extern int mhp_getcsip_value();
 extern int mhp_modify_eip(int delta);
 
 static char mhp_banner[] = {
-  "\nDOSEMU Debugger V0.5 connected\n"
+  "\nDOSEMU Debugger V0.6 connected\n"
   "- type ? to get help on commands -\n"
 };
 struct mhpdbgc mhpdbgc ={0};
 
 extern int traceloop;
 extern char loopbuf[];
+static void vmhp_printf(const char *fmt, va_list args);
 
 /********/
 /* CODE */
@@ -122,6 +124,24 @@ void mhp_close(void)
    vm86s.vm86plus.vm86dbg_active = 0;
 }
 
+static int wait_for_debug_terminal = 1;
+
+int vmhp_log_intercept(int flg, const char *fmt, va_list args)
+{
+  if (mhpdbg.active <= 1) return 0;
+  if (flg) {
+    if (dosdebug_flags & DBGF_LOG_TO_DOSDEBUG) {
+      vmhp_printf(fmt, args);
+      mhp_send();
+    }
+    if (dosdebug_flags & DBGF_LOG_TO_BREAK){
+      extern void mhp_regex(const char *fmt, va_list args);
+      mhp_regex(fmt, args);
+    }
+  }
+  return 0;
+}
+
 static void mhp_init(void)
 {
   PRIV_SAVE_AREA
@@ -130,7 +150,7 @@ static void mhp_init(void)
   mhpdbg.fdin = mhpdbg.fdout = -1;
   mhpdbg.active = 0;
   mhpdbg.sendptr = 0;
-  
+
   vm86s.vm86plus.vm86dbg_active = 0;
   vm86s.vm86plus.vm86dbg_TFpendig = 0;
   memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
@@ -173,6 +193,15 @@ static void mhp_init(void)
     uid_t owner=get_orig_uid();
     fchown(mhpdbg.fdin,owner,-1);
     fchown(mhpdbg.fdout,owner,-1);
+    if (dosdebug_flags) {
+      /* don't fiddle with select, just poll until the terminal
+       * comes up to send the first input
+       */
+       mhpdbg.nbytes = -1;
+       do mhp_input(); while (mhpdbg.nbytes <= 0);
+       mhpdbgc.stopped = 1;
+       wait_for_debug_terminal = 1;
+    }
   }
 }
 
@@ -201,10 +230,15 @@ static void mhp_poll(void)
       
       mhp_printf ("%s", mhp_banner);
       mhp_cmd("rmapfile");
-      mhp_cmd("r0");
+      if (wait_for_debug_terminal) wait_for_debug_terminal =0;
+      else mhp_cmd("r0");
       mhp_send();
    }
 
+   if (mhpdbgc.want_to_stop) {
+      mhpdbgc.stopped = 1;
+      mhpdbgc.want_to_stop = 0;
+   }
    if (mhpdbgc.stopped) {
       mhp_cmd("r0");
       mhp_send();
@@ -365,14 +399,21 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
   return rtncd;
 }
 
-void mhp_printf(const char *fmt,...)
+static void vmhp_printf(const char *fmt, va_list args)
 {
-  va_list args;
   char frmtbuf[SRSIZE];
 
-  va_start(args, fmt);
   vsprintf(frmtbuf, fmt, args);
-  va_end(args);
 
   mhp_puts(frmtbuf);
 }
+
+void mhp_printf(const char *fmt,...)
+{
+  va_list args;
+
+  va_start(args, fmt);
+  vmhp_printf(fmt, args);
+  va_end(args);
+}
+

@@ -102,7 +102,7 @@ for a number expression. For numers you may have complete expressions
 
 Hence a comma separated list of strings is concatenated.
  
-<sect2>Controling ammount of debug output
+<sect2>Controling amount of debug output
 <p>
 
 DOSEMU will help you finding problems, when you enable its debug messages.

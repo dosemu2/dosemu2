@@ -140,9 +140,6 @@ else
   DOSEMUCONF=${DDIR}/etc/config.test
 fi
 
-TARGDIR="/var/lib/dosemu"
-install -d $TARGDIR
-
 EXITEMU="${DDIR}/commands/exitemu.com"
 COMMANDSDIR=${DDIR}/commands
 USE_FREE_DOS="1"
@@ -166,6 +163,15 @@ case $1 in
   *)  DOSAPP=$1; NOAPP="0"; shift;;
 esac
 
+if [ "${DOSAPP#/*}" != "$DOSAPP" ]; then
+  TARGDIR=`dirname $DOSAPP`
+  DOSAPP=`basename $DOSAPP`
+else
+  TARGDIR="/var/lib/dosemu"
+fi
+install -d $TARGDIR
+
+ 
 CONFIRM="noconfirm"
 
 badcase=0

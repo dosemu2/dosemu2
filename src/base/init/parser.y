@@ -1927,18 +1927,21 @@ static void stop_disk(int token)
   if (dptr->header)
     c_printf("header_size: %ld ", (long) dptr->header);
 
-  c_printf("h: %d  s: %d   t: %d\n", dptr->heads, dptr->sectors,
+  c_printf("h: %d  s: %d   t: %d", dptr->heads, dptr->sectors,
 	   dptr->tracks);
 
   if (token == BOOTDISK) {
     config.bootdisk = 1;
     use_bootdisk = 1;
+    c_printf(" bootdisk\n");
   }
   else if (token == L_FLOPPY) {
+    c_printf(" floppy %c:\n", 'A'+c_fdisks);
     c_fdisks++;
     config.fdisks = c_fdisks;
   }
   else {
+    c_printf(" drive %c:\n", 'C'+c_hdisks);
     c_hdisks++;
     config.hdisks = c_hdisks;
   }

@@ -47,6 +47,9 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <stdarg.h>
+#include <regex.h>
+
 #include "bitops.h"
 #include "config.h"
 #include "emu.h"
@@ -72,6 +75,7 @@ extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
 /* externs */
 extern struct mhpdbgc mhpdbgc;
 extern int a20;
+extern void mhp_send(void), mhp_close(void), mhp_putc(char c1);
 
 #if 0
 /* NOTE: the below is already defined with #include "emu.h"
@@ -114,6 +118,9 @@ static void mhp_enter   (int, char *[]);
 static void mhp_print_ldt       (int, char *[]);
 static void mhp_debuglog (int, char *[]);
 static void mhp_dump_to_file (int, char *[]);
+static void mhp_bplog   (int, char *[]);
+static void mhp_bclog   (int, char *[]);
+static void print_log_breakpoints(void);
 
 static unsigned int lookup(unsigned char *, unsigned int *, unsigned int *);
 static inline int get_ldt(void *);
@@ -148,6 +155,7 @@ static const struct cmd_db cmdtab[] = {
    {"r0",            mhp_r0},
    {"r" ,            mhp_regs},
    {"e",             mhp_enter},
+   {"ed",            mhp_enter},
    {"d",             mhp_dis},
    {"u",             mhp_disasm},
    {"g",             mhp_go},
@@ -165,6 +173,8 @@ static const struct cmd_db cmdtab[] = {
    {"bpintd",        mhp_bpintd},
    {"bcintd",        mhp_bcintd},
    {"bpload",        mhp_bpload},
+   {"bplog",         mhp_bplog},
+   {"bclog",         mhp_bclog},
    {"rmapfile",      mhp_rmapfile},
    {"rusermap",      mhp_rusermap},
    {"kill",          mhp_kill},
@@ -179,7 +189,14 @@ static const char help_page[]=
   "q                      Quit the debug session\n"
   "kill                   Kill the dosemu process\n"
   "r                      list regs\n"
-  "e ADDR HEXSTR          modify memory (0-1Mb)\n"
+  "e/ed ADDR val [val ..] modify memory (0-1Mb), previous addr for ADDR='-'\n"
+  /* val can be: a hex val (in case of 'e') or decimal (in case of 'ed')
+   * With 'ed' also a hexvalue in form of 0xFF is allowed and can be mixed,
+   * val can also be a character constant (e.g. 'a') or a string ("abcdef"),
+   * val can also be any register symbolic and has the size of that register.
+   * Except for strings and registers, val can be suffixed by
+   * W(word size) or L (long size), default size is byte.
+   */
   "d ADDR SIZE            dump memory (no limit)\n"
   "u ADDR SIZE            unassemble memory (no limit)\n"
   "g                      go (if stopped)\n"
@@ -194,6 +211,7 @@ static const char help_page[]=
   "bpintd/bcintd xx [ax]  set/clear breakpoint on DPMI INT xx [ax]\n"
   "bpload                 stop at start of next loaded DOS program\n"
   "bl                     list active breakpoints\n"
+  "bplog/bclog regex      set/clear breakpoint on logoutput using regex\n"
   "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
   "                       code origin = 'org'.\n"
   "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
@@ -413,6 +431,8 @@ enum {
   _EAXr,_EBXr,_ECXr,_EDXr,_ESIr,_EDIr,_EBPr,_ESPr,_EIPr
 };
 
+static int last_decode_symreg;
+
 static int decode_symreg(char *regn)
 {
   static char reg_syms[]="SS  CS  DS  ES  FS  GS  "
@@ -421,6 +441,7 @@ static int decode_symreg(char *regn)
   char rn[5], *s;
   int n;
 
+  last_decode_symreg = -1;
   if (!isalpha(*regn))
 	return -1;
   s=rn; n=0; rn[4]=0;
@@ -430,7 +451,8 @@ static int decode_symreg(char *regn)
   }
   if (!(s = strstr(reg_syms, rn)))
 	return -1;
-  return ((s-reg_syms) >> 2);
+  last_decode_symreg = ((s-reg_syms) >> 2);
+  return last_decode_symreg;
 }
 
 static unsigned long mhp_getreg(unsigned char * regn)
@@ -805,36 +827,98 @@ static void mhp_disasm(int argc, char * argv[])
       sprintf(lastu, "%lx", seekval + bytesdone);
    }
 }
+
+enum {
+  V_NONE=0, V_BYTE=1, V_WORD=2, V_DWORD=4, V_STRING=8
+};
+
+static int get_value(unsigned long *v, unsigned char *s, int base)
+{
+   int len = strlen(s);
+   int t;
+   char *tt;
+
+   if (!len) return V_NONE;
+   t = s[len-1];
+   if (len >2) {
+     /* check for string value */
+     if (t == '"' && s[0] == '"') {
+       s[len-1] = 0;
+       return V_STRING;
+     }
+   }
+   if ((tt = strchr(" wl", tolower(t))) !=0) {
+     len--;
+     s[len] = 0;
+     t = (int)(tt - " wl") << 1;
+   }
+   else t = V_NONE;
+   if (len >2) {
+     if (s[len-1] == '\'' && s[0] == '\'') {
+       *v = 0;
+       len -=2;
+       if (len > sizeof(*v)) len = sizeof(*v);
+       strncpy((char *)v, s+1, len);
+       if (t != V_NONE) return t;
+       if (len <  2) return V_BYTE;
+       if (len <  4) return V_WORD;
+       return V_DWORD;
+     }
+   }
+   *v = mhp_getreg(s);
+   if (last_decode_symreg >=0) {
+     if (last_decode_symreg < _EAXr) return V_WORD;
+     return V_DWORD;
+   }
+   *v = strtoul(s,0,base);
+   if (t == V_NONE) return V_BYTE;
+   return t;
+}
+
 static void mhp_enter(int argc, char * argv[])
 {
-   int i1;
-   unsigned char * zapaddr;
-   unsigned int seg;
-   unsigned int off;
+   int size;
+   static unsigned char * zapaddr = (char *)-1;
+   unsigned int seg, off;
+   unsigned long val;
    unsigned int limit;
-   unsigned char * inputptr;
-   unsigned char   c;
-   unsigned char   workchrs[4];
+   unsigned char *arg;
+   int base = 16;
 
    if (argc < 3)
       return;
 
-   zapaddr = (unsigned char*)mhp_getadr(argv[1], &seg, &off, &limit);
+   if (!strcmp(argv[1],"-")) {
+     if ((int)zapaddr == -1) {
+        mhp_printf("Address invalid, no previous 'e' command with address\n");
+        return;
+     }
+   }
+   else  zapaddr = (unsigned char*)mhp_getadr(argv[1], &seg, &off, &limit);
    if ((a20 ?0x10fff0 : 0x100000) < (unsigned long)zapaddr) {
       mhp_printf("Address invalid\n");
       return;
    }
-   inputptr = argv[2];
-   for (i1 = 0; ; i1++) {
-      workchrs[0] = *inputptr++;
-      if (!workchrs[0])
-         break;
-      workchrs[1] = *inputptr++;
-      workchrs[2] = 0x00;
-      sscanf(workchrs, "%02x", (unsigned int*)&c);
-      zapaddr[i1] = c;
-      if (!workchrs[1])
-         break;
+   if (!strcmp(argv[0], "ed")) base = 0;
+   argv += 2;
+   while ((arg = *argv) != 0) {
+      size = get_value(&val, arg, base);
+      switch (size) {
+        case V_BYTE:
+        case V_WORD:
+        case V_DWORD: {
+          memcpy(zapaddr, &val, size);
+          zapaddr += size;
+          break;
+        }
+        case V_STRING: {
+          size = strlen(arg+1);
+          memcpy(zapaddr, arg+1, size);
+          zapaddr += size;
+          break;
+        }
+      }
+      argv++;
    }
 }
 
@@ -949,7 +1033,6 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    return (void *) base_addr + off1;
 }
 
-
 int mhp_setbp(unsigned long seekval)
 {
    int i1;
@@ -984,6 +1067,15 @@ int mhp_clearbp(unsigned long seekval)
    return 0;
 }
 
+static int check_for_stopped(void)
+{
+   if (!mhpdbgc.stopped) {
+     mhp_printf("need to be in 'stopped' state for this command\n");
+     mhp_send();
+   }
+   return mhpdbgc.stopped;
+}
+
 static void mhp_bp(int argc, char * argv[])
 {
    unsigned long seekval;
@@ -991,6 +1083,7 @@ static void mhp_bp(int argc, char * argv[])
    unsigned int off;
    unsigned int limit;
 
+   if (!check_for_stopped()) return;
    if (argc < 2) {
       mhp_printf("location argument required\n");
       return;
@@ -1035,6 +1128,7 @@ static void mhp_bl(int argc, char * argv[])
    }
    mhp_printf( "\n");
    if (mhpdbgc.bpload) mhp_printf("bpload active\n");
+   print_log_breakpoints();
    return;
 }
 
@@ -1043,6 +1137,7 @@ static void mhp_bc(int argc, char * argv[])
    int i1;
 
    if (argc <2) return;
+   if (!check_for_stopped()) return;
    if (!sscanf(argv[1], "%d", &i1)) {
      mhp_printf( "Invalid breakpoint number\n");
      return;
@@ -1060,6 +1155,7 @@ static void mhp_bpint(int argc, char * argv[])
    int i1;
 
    if (argc <2) return;
+   if (!check_for_stopped()) return; 
    sscanf(argv[1], "%x", &i1);
    if (test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
          mhp_printf( "Duplicate BPINT %02x, nothing done\n", i1);
@@ -1075,6 +1171,7 @@ static void mhp_bcint(int argc, char * argv[])
    int i1;
 
    if (argc <2) return;
+   if (!check_for_stopped()) return; 
    sscanf(argv[1], "%x", &i1);
    if (!test_bit(i1, vm86s.vm86plus.vm86dbg_intxxtab)) {
          mhp_printf( "No BPINT %02x, nothing done\n", i1);
@@ -1090,6 +1187,7 @@ static void mhp_bpintd(int argc, char * argv[])
    int i1,v1=0;
 
    if (argc <2) return;
+   if (!check_for_stopped()) return; 
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {
@@ -1113,6 +1211,7 @@ static void mhp_bcintd(int argc, char * argv[])
    int i1,v1=0;
 
    if (argc <2) return;
+   if (!check_for_stopped()) return; 
    sscanf(argv[1], "%x", &i1);
    i1 &= 0xff;
    if (argc >2) {
@@ -1138,6 +1237,7 @@ static void mhp_bcintd(int argc, char * argv[])
 
 static void mhp_bpload(int argc, char * argv[])
 {
+   if (!check_for_stopped()) return; 
    if (mhpdbgc.bpload) {
      mhp_printf("load breakpoint already pending\n");
      return;
@@ -1155,22 +1255,32 @@ static int mhp_parse(char *s, char* argvx[])
 {
    int mode = 0;
    int argcx = 0;
+   char delim = 0;
 
    for ( ; *s; s++) {
       if (!mode) {
          if (*s > ' ') {
             mode = 1;
             argvx[argcx++] = s;
+            switch (*s) {
+              case '"':
+              case '\'':
+                delim = *s;
+                mode = 2;
+            }
             if (argcx >= MAXARG)
                break;
          }
-      } else {
+      } else if (mode == 1) {
          if (*s <= ' ') {
             mode = 0;
             *s = 0x00;
          }
+      } else {
+         if (*s == delim) mode = 1;
       }
    }
+   argvx[argcx] = 0;
    return(argcx);
 }
 
@@ -1261,7 +1371,6 @@ static void mhp_regs32(int argc, char * argv[])
 
 static void mhp_kill(int argc, char * argv[])
 {
-  extern void mhp_send(void), mhp_close(void), mhp_putc(char c1);
   mhp_cmd("r0");
   mhp_printf("\ndosemu killed via debug terminal\n");
   mhp_send();
@@ -1462,7 +1571,200 @@ static void mhp_print_ldt(int argc, char * argv[])
 static void mhp_debuglog(int argc, char * argv[])
 {
    char buf[256];
-   if (argc >1) SetDebugFlagsHelper(argv[1]);
-   GetDebugFlagsHelper(buf);
-   mhp_printf ("current Debug-log flags:\n%s\n", buf);
+   if (argc >1) {
+     if (!strcmp(argv[1], "on")) {
+       dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_DOSDEBUG;
+       return;
+     }
+     if (!strcmp(argv[1], "off")) {
+       dosdebug_flags &= ~DBGF_LOG_TO_DOSDEBUG;
+       if (!(dosdebug_flags & DBGF_LOG_TO_BREAK))
+         dosdebug_flags &= ~DBGF_INTERCEPT_LOG;
+       return;
+     }
+     SetDebugFlagsHelper(argv[1]);
+   }
+   if (argc <=1) {
+     GetDebugFlagsHelper(buf);
+     mhp_printf ("current Debug-log flags:\n%s\n", buf);
+   }
 }
+
+#define MAX_REGEX		8
+static regex_t *rxbuf[MAX_REGEX] = {0};
+static char *rxpatterns[MAX_REGEX] = {0};
+static int num_regex = 0;
+static int num_logbp = 0;
+
+static int get_free_regex_buf(void)
+{
+  int i;
+  for (i=0; i <num_regex; i++) {
+    if (!rxbuf[i]) return i;
+  }
+  if (num_regex >= MAX_REGEX) return -1;
+  i = num_regex;
+  num_regex++;
+  rxbuf[i] = 0;
+  rxpatterns[i] =0;
+  return i;
+}
+
+static void free_regex(int number)
+{
+  if ((unsigned)number >= MAX_REGEX) return;
+  if (!rxbuf[number]) return;
+  regfree(rxbuf[number]);
+  if (rxpatterns[number]) free(rxpatterns[number]);
+  free(rxbuf[number]);
+  rxbuf[number] = 0;
+  rxpatterns[number] = 0;
+}
+
+static char *trimm_string_arg(char *arg)
+{
+  int len;
+
+  if (!arg || !arg[0]) return 0;
+  len = strlen(arg);
+  if (     (arg[0] == '"' && arg[len-1] == '"')
+        || (arg[0] == '\'' && arg[len-1] == '\'')) {
+    arg[len-1] = 0;
+    return arg+1;
+  }
+  return arg;
+}
+
+static void print_log_breakpoints(void)
+{
+   int rx;
+
+   num_logbp = 0;
+   for (rx=0; rx <num_regex; rx++) {
+     if (rxbuf[rx]) {
+       mhp_printf("log break point %d: %s\n", rx, rxpatterns[rx]);
+       mhp_send();
+       num_logbp++;
+     }
+   }
+   if (!num_logbp) {
+     mhp_printf("no log break points aktiv\n");
+   }
+}
+
+
+static void mhp_bplog(int argc, char * argv[])
+{
+   int rx, errcode;
+   char buf[1024];
+   char *s;
+
+   if (argc >1) {
+     if (!check_for_stopped()) return; 
+     argv++;
+     buf[0] = 0;
+     while (*argv) {
+       s = trimm_string_arg(*argv);
+       if (s) strcat(buf, s);
+       argv++;
+     }
+     if (!buf[0]) {
+       mhp_printf ("no valid regular expression defined\n");
+       return;
+     }
+     rx = get_free_regex_buf();
+     if (rx <0) {
+       mhp_printf ("to many log breakpoints, use bclog to free one\n");
+       return;
+     }
+     rxpatterns[rx] = strdup(buf);
+     rxbuf[rx] = malloc(sizeof(regex_t));
+     if (!rxbuf[rx]) {
+       mhp_printf ("out of memory\n");
+       return;
+     }
+     errcode = regcomp(rxbuf[rx], rxpatterns[rx], REG_NOSUB);
+     if (errcode) {
+        regerror(errcode, rxbuf[rx], buf, sizeof(buf));
+        mhp_printf ("%s\n", buf);
+        free_regex(rx);
+        return;
+     }
+     /* ...puh, all that work just for generating a pattern :-)
+      * now we enable the 'break point' by intercepting the log
+      */
+     dosdebug_flags |= DBGF_INTERCEPT_LOG | DBGF_LOG_TO_BREAK;
+   }
+   /* atleast print all active brakepoints */
+   print_log_breakpoints();
+}
+
+static void mhp_bclog(int argc, char * argv[])
+{
+   int rx;
+
+   if (argc >1) {
+     if (!check_for_stopped()) return;
+     rx = atoi(argv[1]);
+     if (((unsigned)rx >= MAX_REGEX) || !rxbuf[rx]) {
+       mhp_printf("log break point not existing\n", rx);
+       return;
+     }
+     free_regex(rx);
+   }
+   print_log_breakpoints();
+   if (!num_logbp) {
+     dosdebug_flags &= ~DBGF_LOG_TO_BREAK;
+     if (!(dosdebug_flags & DBGF_LOG_TO_DOSDEBUG)) {
+       dosdebug_flags &= DBGF_INTERCEPT_LOG;
+     }
+   }
+}
+
+static int mhp_check_regex(char *line)
+{
+   int rx, hit;
+   if (!num_logbp) return 0;  /* we should not come here */
+   for (rx=0; rx <num_regex; rx++) {
+     if (rxbuf[rx]) {
+       hit = regexec(rxbuf[rx], line, 0, 0, 0) == 0;
+       if (hit) {
+         mhp_printf("log break point %d hit: >%s<\n",rx,line);
+         mhp_send();
+       }
+       if (hit) return 1;
+     }
+   }
+   return 0;
+}
+
+static char lbuf[1024];
+static int lbufi = 0;
+
+void mhp_regex(const char *fmt, va_list args)
+{
+  int i, hit;
+  char *s;
+  
+  if (!(dosdebug_flags & DBGF_LOG_TO_BREAK)) return;
+  lbufi += vsprintf(lbuf+lbufi, fmt, args);
+  hit = 0;
+  i = 0;
+  do {
+    s = strchr(lbuf+i, '\n');
+    if (s) {
+      *s = 0;
+      hit = mhp_check_regex(lbuf+i);
+      i = (s - lbuf)+1;
+      if (hit) break;
+    }
+  } while (s);
+  if (i) {
+    memcpy(lbuf, lbuf+i, lbufi-i+1);
+    lbufi -= i;
+    if (hit) {
+      mhpdbgc.want_to_stop = 1;
+    }
+  }
+}
+

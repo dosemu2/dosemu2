@@ -44,9 +44,10 @@ int logbuf_size = INITIAL_LOGBUFSIZE;
 int logfile_limit = INITIAL_LOGFILELIMIT;
 int log_written = 0;
 
+static char hxtab[16]="0123456789abcdef";
+
 static inline char *prhex8 (char *p, unsigned long v)
 {
-  static char hxtab[16]="0123456789abcdef";
   int i;
   for (i=7; i>=0; --i) { p[i]=hxtab[v&15]; v>>=4; }
   p[8]=' ';
@@ -95,11 +96,50 @@ static char *eipstamp (char *p)
 #define eipstamp(p)	(p)
 #endif
 
+char *strprintable(char *s)
+{
+  static char buf[8][128];
+  static bufi = 0;
+  char *t, c;
+
+  bufi = (bufi + 1) & 7;
+  t = buf[bufi];
+  while (*s) {
+    c = *s++;
+    if ((unsigned)c < ' ') {
+      *t++ = '^';
+      *t++ = c | 0x40;
+    }
+    else if ((unsigned)c > 126) {
+      *t++ = 'X';
+      *t++ = hxtab[(c >> 4) & 15];
+      *t++ = hxtab[c & 15];
+    }
+    else *t++ = c;
+  }
+  *t++ = 0;
+  return buf[bufi];
+}
+
+char *chrprintable(char c)
+{
+  char buf[2];
+  buf[0] = c;
+  buf[1] = 0;
+  return strprintable(buf);
+}
 
 int vlog_printf(int flg, const char *fmt, va_list args)
 {
   int i;
   static int is_cr = 1;
+
+  if (dosdebug_flags & DBGF_INTERCEPT_LOG) {
+    /* we give dosdebug a chance to interrupt on given logoutput */
+    extern int vmhp_log_intercept(int flg, const char *fmt, va_list args);
+    i = vmhp_log_intercept(flg, fmt, args);
+    if ((dosdebug_flags & DBGF_DISABLE_LOG_TO_FILE) || !dbg_fd) return i;
+  }
 
   if (!flg || !dbg_fd || 
 #ifdef USE_MHPDBG
@@ -153,8 +193,9 @@ int log_printf(int flg, const char *fmt, ...)
 	va_list args;
 	int ret;
 
-	if (!flg || !dbg_fd ) return 0;
-
+	if (!(dosdebug_flags & DBGF_INTERCEPT_LOG)) {
+		if (!flg || !dbg_fd ) return 0;
+	}
 	va_start(args, fmt);
 	ret = vlog_printf(flg, fmt, args);
 	va_end(args);
