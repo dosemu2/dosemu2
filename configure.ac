@@ -17,8 +17,8 @@ AC_CANONICAL_TARGET([])
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_GCC_TRADITIONAL
-dnl AC_PROG_AWK
-dnl AC_PROG_INSTALL
+AC_PROG_AWK
+AC_PROG_INSTALL
 AC_PROG_LEX
 if test -z "`echo $LEX | grep flex`" ; then
   AC_CHECK_PROG(lex_ok, $LEX, "yes", "no")
