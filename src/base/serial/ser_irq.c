@@ -225,18 +225,16 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   if (com[num].ms_timer > 0) return;
   com[num].ms_timer += MS_MIN_FREQ;
   
-  ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
   
-  if(com[num].pseudo)
-    newmsr = UART_MSR_CTS |
-             convert_bit(control, TIOCM_DSR, UART_MSR_DSR) |
-             convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
-             UART_MSR_DCD;
-  else
+  if(com[num].pseudo) {
+    newmsr = UART_MSR_CTS | UART_MSR_DSR | UART_MSR_DCD;
+  } else {
+    ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
     newmsr = convert_bit(control, TIOCM_CTS, UART_MSR_CTS) |
              convert_bit(control, TIOCM_DSR, UART_MSR_DSR) |
              convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
              convert_bit(control, TIOCM_CAR, UART_MSR_DCD);
+  }
            
   delta = msr_compute_delta_bits(com[num].MSR, newmsr);
   
