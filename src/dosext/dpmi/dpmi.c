@@ -85,6 +85,16 @@
 #include "vgaemu.h"
 #endif
 
+#define MPROT_LDT_ENTRY(ent) \
+  mprotect_mapping(MAPPING_DPMI, \
+    (void *)(((unsigned long)&ldt_buffer[(ent)*LDT_ENTRY_SIZE]) & PAGE_MASK), \
+    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ)
+#define MUNPROT_LDT_ENTRY(ent) \
+  mprotect_mapping(MAPPING_DPMI, \
+    (void *)(((unsigned long)&ldt_buffer[(ent)*LDT_ENTRY_SIZE]) & PAGE_MASK), \
+    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE)
+#define LDT_INIT_LIMIT 0x1fff
+
 int dpmi_eflags = 0;
 
 unsigned long RealModeContext;
@@ -117,10 +127,7 @@ int DPMI_rm_procedure_running = 0;
 struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
 int DPMI_pm_procedure_running = 0;
 
-char *ldt_buffer=0;
-/* Let Windows to use some descriptors by directly accessing LDT */
-#define WINDOWS_DESCRIPTORS_START 0x1000
-
+char *ldt_buffer;
 char *pm_stack; /* locked protected mode stack */
 static int in_dpmi_pm_stack = 0; /* locked protected mode stack in use */
 
@@ -214,19 +221,16 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
       seg_32bit_flag == 0 && limit_in_pages_flag == 0 &&
       seg_not_present == 1 && useable == 0) {
         if (in_win31)
-          mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-            PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+          MUNPROT_LDT_ENTRY(entry);
 	*lp = 0;
 	*(lp+1) = 0;
         if (in_win31)
-          mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-            PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
+          MPROT_LDT_ENTRY(entry);
 	return 0;
   }
 #ifdef __linux__
   if (in_win31)
-    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+    MUNPROT_LDT_ENTRY(entry);
   *lp =     ((ldt_info.base_addr & 0x0000ffff) << 16) |
             (ldt_info.limit & 0x0ffff);
   *(lp+1) = (ldt_info.base_addr & 0xff000000) |
@@ -240,8 +244,7 @@ static int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.useable << 20) |
             0x7000;
   if (in_win31)
-    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
+    MPROT_LDT_ENTRY(entry);
 #endif
   return 0;
 }
@@ -689,8 +692,19 @@ static unsigned short AllocateDescriptorsFrom(int first_ldt, int number_of_descr
 
 unsigned short AllocateDescriptors(int number_of_descriptors)
 {
+  int selector, ldt_entry, limit;
   /* first 0x10 descriptors are reserved */
-  return AllocateDescriptorsFrom(0x10, number_of_descriptors);
+  selector = AllocateDescriptorsFrom(0x10, number_of_descriptors);
+  if (selector && DPMI_CLIENT.LDT_ALIAS) {
+    ldt_entry = selector >> 3;
+    if ((limit = GetSegmentLimit(DPMI_CLIENT.LDT_ALIAS)) <
+        (ldt_entry + 1) * LDT_ENTRY_SIZE - 1) {
+      D_printf("DPMI: expanding LDT, old_lim=0x%x\n", limit);
+      SetSelector(DPMI_CLIENT.LDT_ALIAS, (unsigned long) ldt_buffer,
+        limit + 0x1000, 0, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
+    }
+  }
+  return selector;
 }
 
 void FreeSegRegs(struct sigcontext_struct *scp, unsigned short selector)
@@ -792,6 +806,8 @@ int ValidAndUsedSelector(unsigned short selector)
 
 int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
 {
+  D_printf("DPMI: cs=%#x, ss=%#x, ds=%#x, es=%#x, fs=%#x, gs=%#x ip=%#lx\n",
+    _cs,_ss,_ds,_es,_fs,_gs,_eip);
 /* NONCONFORMING-CODE-SEGMENT:
    RPL of destination selector must be <= CPL ELSE #GP(selector);
    Descriptor DPL must be = CPL ELSE #GP(selector);
@@ -800,9 +816,19 @@ int CheckSelectors(struct sigcontext_struct *scp, int in_dosemu)
 */
   if (!ValidAndUsedSelector(_cs) || Segments[_cs >> 3].not_present ||
     Segments[_cs >> 3].type != MODIFY_LDT_CONTENTS_CODE) {
-    if (in_dosemu)
+    if (in_dosemu) {
       error("CS selector invalid: 0x%04X, type=%x np=%i\n",
-      _cs, Segments[_cs >> 3].type, Segments[_cs >> 3].not_present);
+        _cs, Segments[_cs >> 3].type, Segments[_cs >> 3].not_present);
+      D_printf(DPMI_show_state(scp));
+    }
+    return 0;
+  }
+  if (D_16_32(_eip) > GetSegmentLimit(_cs)) {
+    if (in_dosemu) {
+      error("IP outside CS limit: ip=%#lx, cs=%#x, lim=%#x\n",
+        D_16_32(_eip), _cs, GetSegmentLimit(_cs));
+      D_printf(DPMI_show_state(scp));
+    }
     return 0;
   }
 
@@ -825,9 +851,11 @@ FI;
      Segments[_ss >> 3].readonly || Segments[_ss >> 3].not_present ||
      (Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
       Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_DATA)) {
-    if (in_dosemu)
+    if (in_dosemu) {
       error("SS selector invalid: 0x%04X, type=%x np=%i\n",
-      _ss, Segments[_ss >> 3].type, Segments[_ss >> 3].not_present);
+        _ss, Segments[_ss >> 3].type, Segments[_ss >> 3].not_present);
+      D_printf(DPMI_show_state(scp));
+    }
     return 0;
   }
 
@@ -854,27 +882,35 @@ THEN
 FI;
 */
   if (_ds && (!ValidAndUsedSelector(_ds) || Segments[_ds >> 3].not_present)) {
-    if (in_dosemu)
+    if (in_dosemu) {
       error("DS selector invalid: 0x%04X, type=%x np=%i\n",
-      _ds, Segments[_ds >> 3].type, Segments[_ds >> 3].not_present);
+        _ds, Segments[_ds >> 3].type, Segments[_ds >> 3].not_present);
+      D_printf(DPMI_show_state(scp));
+    }
     return 0;
   }
   if (_es && (!ValidAndUsedSelector(_es) || Segments[_es >> 3].not_present)) {
-    if (in_dosemu)
+    if (in_dosemu) {
       error("ES selector invalid: 0x%04X, type=%x np=%i\n",
-      _es, Segments[_es >> 3].type, Segments[_es >> 3].not_present);
+        _es, Segments[_es >> 3].type, Segments[_es >> 3].not_present);
+      D_printf(DPMI_show_state(scp));
+    }
     return 0;
   }
   if (_fs && (!ValidAndUsedSelector(_fs) || Segments[_fs >> 3].not_present)) {
-    if (in_dosemu)
+    if (in_dosemu) {
       error("FS selector invalid: 0x%04X, type=%x np=%i\n",
-      _fs, Segments[_fs >> 3].type, Segments[_fs >> 3].not_present);
+        _fs, Segments[_fs >> 3].type, Segments[_fs >> 3].not_present);
+      D_printf(DPMI_show_state(scp));
+    }
     return 0;
   }
   if (_gs && (!ValidAndUsedSelector(_gs) || Segments[_gs >> 3].not_present)) {
-    if (in_dosemu)
+    if (in_dosemu) {
       error("GS selector invalid: 0x%04X, type=%x np=%i\n",
-      _gs, Segments[_gs >> 3].type, Segments[_gs >> 3].not_present);
+        _gs, Segments[_gs >> 3].type, Segments[_gs >> 3].not_present);
+      D_printf(DPMI_show_state(scp));
+    }
     return 0;
   }
   return 1;
@@ -1025,12 +1061,10 @@ static void GetDescriptor(us selector, unsigned long *lp)
   if (typebyte != *type_ptr) {
 	D_printf("DPMI: change type only in local selector\n");
         if (in_win31)
-	  mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-	    PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+    	  MUNPROT_LDT_ENTRY(selector >> 3);
 	*type_ptr=typebyte;
         if (in_win31)
-	  mprotect_mapping(MAPPING_DPMI, ldt_buffer,
-	    PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
+          MPROT_LDT_ENTRY(selector >> 3);
   }
 #endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
@@ -1074,16 +1108,16 @@ void direct_ldt_write(int offset, int length, char *buffer)
   }
   memcpy(lp, &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
   memcpy(lp + ldt_offs, buffer, length);
-  SetDescriptor(selector, (unsigned long *)lp);
-#if 1
-  mprotect_mapping(MAPPING_DPMI,
-    (void *)(((unsigned long)&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE]) & PAGE_MASK),
-    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
+  if (lp[5] & 0x10) {
+    SetDescriptor(selector, (unsigned long *)lp);
+  } else {
+    D_printf("DPMI: Invalid descriptor, freeing\n");
+    FreeDescriptor(selector);
+    Segments[ldt_entry].used = 1;	/* Prevent of a reuse */
+  }
+  MUNPROT_LDT_ENTRY(ldt_entry);
   memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
-  mprotect_mapping(MAPPING_DPMI,
-    (void *)(((unsigned long)&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE]) & PAGE_MASK),
-    PAGE_ALIGN(LDT_ENTRY_SIZE), PROT_READ);
-#endif
+  MPROT_LDT_ENTRY(ldt_entry);
 }
 
 static void GetFreeMemoryInformation(unsigned int *lp)
@@ -1375,23 +1409,10 @@ static void do_int31(struct sigcontext_struct *scp)
 
   _eflags &= ~CF;
   switch (_LWORD(eax)) {
-  case 0x0000: {
-      int selector;
-      if (in_win31 == 2) {
-        selector = AllocateDescriptorsFrom(WINDOWS_DESCRIPTORS_START, _LWORD(ecx));
-	in_win31 = 1;
-        D_printf("Windows asks for descriptors available for LDT write. sel=0x%x\n",
-	  selector);
-      } else {
-        /* Normal allocation */
-        selector = AllocateDescriptors(_LWORD(ecx));
-      }
-      if (!selector) {
-        _LWORD(eax) = 0x8011;
-        _eflags |= CF;
-      } else {
-       _LWORD(eax) = selector;
-      }
+  case 0x0000:
+    if (!(_LWORD(eax) = AllocateDescriptors(_LWORD(ecx)))) {
+      _LWORD(eax) = 0x8011;
+      _eflags |= CF;
     }
     break;
   case 0x0001:
@@ -2528,7 +2549,8 @@ static void dpmi_init(void)
   if (!inherit_idt) {
     /* If we dont inherit IDT, we have to create a new aliases! */
     if (!(DPMI_CLIENT.LDT_ALIAS = AllocateDescriptors(1))) goto err;
-    if (SetSelector(DPMI_CLIENT.LDT_ALIAS, (unsigned long) ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE-1, DPMI_CLIENT.is_32,
+    if (SetSelector(DPMI_CLIENT.LDT_ALIAS, (unsigned long) ldt_buffer,
+		  LDT_INIT_LIMIT, 0,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) goto err;
     
     if (!(DPMI_CLIENT.PMSTACK_SEL = AllocateDescriptors(1))) goto err;
@@ -3139,7 +3161,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
           if (_LWORD(eax) == 0x0100) {
             _eax = DPMI_CLIENT.LDT_ALIAS;  /* simulate direct ldt access */
 	    _eflags &= ~CF;
-	    in_win31 = 2;
+	    in_win31 = 1;
 	    mprotect_mapping(MAPPING_DPMI, ldt_buffer,
 	      PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ);
 	  } else
