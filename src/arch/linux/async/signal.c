@@ -212,7 +212,7 @@ signal_init(void)
    SIGBUS		 7	N	dosemu_fault
    SIGFPE		 8	N	dosemu_fault
    SIGKILL		 9	na
-   SIGUSR1		10	?	threads
+   SIGUSR1		10	NQ	(SIG_RELEASE)
    SIGSEGV		11	N	dosemu_fault
    SIGUSR2		12	NQ	(SIG_ACQUIRE)
    SIGPIPE		13      S	SIG_IGN
@@ -230,7 +230,7 @@ signal_init(void)
    SIGXFSZ		25
    SIGVTALRM		26
    SIGPROF		27	N
-   SIGWINCH		28	NQ	(SIG_RELEASE)
+   SIGWINCH		28	S	sigwinch
    SIGIO		29	NQ	sigio
    SIGPWR		30
    SIGUNUSED		31	na
