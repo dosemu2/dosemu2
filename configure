@@ -271,7 +271,7 @@ PACKAGE_STRING=
 PACKAGE_BUGREPORT=
 
 ac_unique_file="DOSEMU"
-ac_unique_file="src/base/misc/dosio.c"
+ac_unique_file="src/dos.c"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
