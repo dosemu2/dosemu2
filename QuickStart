@@ -57,12 +57,12 @@ If you are new to DOSEMU:
 
 - Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
   diskette in your a: drive.  Run "sys a:" to transfer the system files
-  to the diskette.  Copy FDISK.EXE and SYS.COM from your DOS directory
+  to the diskette.  Copy SYS.COM from your DOS directory
   (usually C:\DOS) to the diskette.
 
 - Reboot Linux.  Run 'dos -A'.  After a short pause, the system should
   come up.  Try "dir c:" which should list the files on the harddrive
-  distribution image.  If that works, run: "fdisk /mbr" and "sys c:".
+  distribution image.  If that works, run: "sys c:".
   Exit dos by running "c:\exitemu".  If you have problems, hold down the
   <ctrl> and <alt> buttons simultaneously while pressing <pgdn>.
   (<ctrl><alt><pgdn> will automatically exit dosemu.)
@@ -75,7 +75,7 @@ If you already have a HDIMAGE file:
 
 If you don't know how to copy files from/to the hdimage:
        ----------------------------
-- Have a look at the recent mtools package (version 3.4 at time of writeing).
+- Have a look at the recent mtools package (version 3.5a at time of writeing).
   If you have the following line in /etc/mtools.conf
 
      drive g: file="/var/lib/dosemu/hdimage" partition=1 offset=128

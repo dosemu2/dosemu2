@@ -279,11 +279,9 @@ included in the distribution.
 
 7. Forget to edit your <bf>/etc/dosemu.conf</bf> file.
 
-8. Forget to run "<bf>FDISK /mbr</bf>" on your hdimage.
+8. Run DOSEMU with partition access while they are already mounted.
 
-9. Run DOSEMU with partition access while they are already mounted.
-
-10. Don't install dosemu with sufficient privileges (i.e., root).
+9. Don't install dosemu with sufficient privileges (i.e., root).
 (97/2/11)
 
 <sect1>How can I use dosemu on an older version of the Linux Kernel.

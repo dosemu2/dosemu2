@@ -250,13 +250,13 @@ int main(int argc, char *argv[])
   put_dword(&buffer[19], 128);
   fwrite(buffer, 1, 128, stdout);
 
-  /* Write master boot record (actually just the partition table). */
+  /* Write our master boot record */
   clear_buffer();
   buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
   buffer[1] = 0x3c;                     /* (jmp 62; nop) */
   buffer[2] = 0x90; 
-  buffer[62] = 0xb8;                    /* Exit dosemu. */
-  buffer[63] = 0xff;                    /* (mov ax,0xffff; int 0xe6) */
+  buffer[62] = 0xb8;                    /* Exec MBR. */
+  buffer[63] = 0xfe;                    /* (mov ax,0xfffe; int 0xe6) */
   buffer[64] = 0xff;
   buffer[65] = 0xcd;
   buffer[66] = 0xe6;

@@ -1,3 +1,8 @@
+97/04/04 ver. 0.66.1.1 unofficial pre-release
+        From Hans
+	- added a DOSEMU-special MBR to hdimage.
+	  This is the world premiere of MBR running in 32-bit protected mode;-)
+	  ( no need to use 'fdisk /MBR' any more )
 97/03/28 ver. 0.66.1 released
 	From Hans
 	- added a new commandline option: -I

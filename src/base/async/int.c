@@ -110,6 +110,73 @@ static void default_interrupt(u_char i) {
     run_int(i);
 }
 
+static void process_master_boot_record(void)
+{
+  /* Ok, _we_ do the MBR code in 32-bit C code,
+   * so this obviously is _not_ stolen from any DOS code ;-)
+   *
+   * Now, what _does_ the original MSDOS MBR?
+   * 1. It sets DS,ES,SS to zero
+   * 2. It sets the stack pinter to just below the loaded MBR (SP=0x7c00)
+   * 3. It moves itself down to 0:0x600
+   * 4. It searches for a partition having the bootflag set (=0x80)
+   * 5. It loads the bootsector of this partition to 0:0x7c00
+   * 6. It does a long jump to 0:0x7c00, with following registers set:
+   *    DS,ES,SS = 0
+   *    BP,SI pointing to the partition entry within 0:600 MBR
+   *    DI = 0x7dfe
+   */
+   struct partition {
+     unsigned char bootflag;
+     unsigned char start_head;
+     unsigned char start_sector;
+     unsigned char start_track;
+     unsigned char OS_type;
+     unsigned char end_head;
+     unsigned char end_sector;
+     unsigned char end_track;
+     unsigned long num_sect_preceding;
+     unsigned long num_sectors;
+   } __attribute__((packed));
+   struct mbr {
+     char code[0x1be];
+     struct partition partition[4];
+     unsigned short bootmagic;
+   } __attribute__((packed));
+   struct mbr *mbr = (struct mbr *)0x600;
+   struct mbr *bootrec = (struct mbr *)0x7c00;
+   int i;
+      
+   memcpy(mbr, bootrec, 0x200);	/* move the mbr down */
+
+   for (i=0; i<4; i++) {
+     if (mbr->partition[i].bootflag == 0x80) break;
+   }
+   if (i >=4) {
+     /* aiee... no bootflags sets */
+     p_dos_str("\n\rno bootflag set, Leaving DOS...\n\r");
+     leavedos(99);
+   }
+   LWORD(cs) = LWORD(ds) = LWORD(es) = LWORD(ss) =0;
+   LWORD(esp) = 0x7c00;
+   LO(dx) = 0x80;  /* drive C:, DOS boots only from C: */
+   HI(dx) = mbr->partition[i].start_head;
+   LO(cx) = mbr->partition[i].start_sector;
+   HI(cx) = mbr->partition[i].start_track;
+   LWORD(eax) = 0x0201;  /* read one sector */
+   LWORD(ebx) = 0x7c00;  /* target offset, ES is 0 */
+   int13(13); /* we simply call our INT13 routine, hence we will not have
+                 to worry about future changements to this code */
+   if ((REG(eflags) & CF) || (bootrec->bootmagic != 0xaa55)) {
+     /* error while booting */
+     p_dos_str("\n\rerror on reading bootsector, Leaving DOS...\n\r");
+     leavedos(99);
+   }
+   LWORD(edi)= 0x7dfe;
+   LWORD(eip) = 0x7c00;
+   LWORD(ebp) = LWORD(esi) = (unsigned)&mbr->partition[i];
+}
+
 /* returns 1 if dos_helper() handles it, 0 otherwise */
 static int dos_helper(void)
 {
@@ -393,6 +460,13 @@ static int dos_helper(void)
   case 0x81:
         LWORD(eax) = chdir(SEG_ADR((char *), es, dx));
         break;
+  case 0xfe:
+    if (LWORD(eax) == 0xfffe) {
+      process_master_boot_record();
+      break;
+    }
+    LWORD(eax) = 0xffff;
+    /* ... and fall through */
   case 0xff:
     if (LWORD(eax) == 0xffff) {
       /* terminate code is in bx */
@@ -424,6 +498,7 @@ static int dos_helper(void)
  * 0x8x   -- utility functions
  *	0x80 -- getcwd(ES:DX, size AX)
  *	0x81 -- chdir(ES:DX)
+ * 0xfe      - called from our MBR, emulate MBR-code.
  * 0xff      - Terminate DOSEMU
  *
  * There are (as yet) no guidelines on choosing areas for new functions.

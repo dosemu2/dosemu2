@@ -397,11 +397,9 @@
 
   7. Forget to edit your //eettcc//ddoosseemmuu..ccoonnff file.
 
-  8. Forget to run "FFDDIISSKK //mmbbrr" on your hdimage.
+  8. Run DOSEMU with partition access while they are already mounted.
 
-  9. Run DOSEMU with partition access while they are already mounted.
-
-  10. Don't install dosemu with sufficient privileges (i.e., root).
+  9. Don't install dosemu with sufficient privileges (i.e., root).
   (97/2/11)
 
   22..33..  HHooww ccaann II uussee ddoosseemmuu oonn aann oollddeerr vveerrssiioonn ooff tthhee LLiinnuuxx KKeerrnneell..
