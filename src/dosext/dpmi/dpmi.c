@@ -2121,67 +2121,79 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 
 static void do_dpmi_int(struct sigcontext_struct *scp, int i)
 {
+  int msdos_ret = 0;
 
-  if ((i == 0x2f) && (_LWORD(eax) == 0x168a))
-    return get_ext_API(scp);
-  if ((i == 0x2f) && (_LWORD(eax) == 0x1686)) {
-    _eax = 0;
-    D_printf("DPMI: CPU mode check in protected mode.\n");
-    return;
-  }
-  if ((i == 0x21) && (_HI(ax) == 0x4c)) {
-    D_printf("DPMI: leaving DPMI with error code 0x%02x, in_dpmi=%i\n",
-      _LO(ax), in_dpmi);
-    quit_dpmi(scp, _LO(ax));
-  } else if (i == 0x31) {
-    switch (_LWORD(eax)) {
-      case 0x0700:
-      case 0x0701: {
-        static int once=1;
-        if (once) once=0;
-        else {
-          _eflags &= ~CF;
-          return;
+  switch (i) {
+    case 0x2f:
+      switch (_LWORD(eax)) {
+        case 0x168a:
+        return get_ext_API(scp);
+	case 0x1686:
+         _eax = 0;
+         D_printf("DPMI: CPU mode check in protected mode.\n");
+         return;
+      }
+      break;
+    case 0x31:
+      switch (_LWORD(eax)) {
+        case 0x0700:
+        case 0x0701: {
+          static int once=1;
+          if (once) once=0;
+          else {
+            _eflags &= ~CF;
+            return;
+          }
         }
       }
+      return do_int31(scp);
+    case 0x21:
+      switch (_HI(ax)) {
+        case 0x4c:
+          D_printf("DPMI: leaving DPMI with error code 0x%02x, in_dpmi=%i\n",
+            _LO(ax), in_dpmi);
+	  quit_dpmi(scp, _LO(ax));
+	  return;
+      }
+      break;
+  }
+
+  save_rm_regs();
+  REG(eflags) = _eflags;
+  REG(eax) = _eax;
+  REG(ebx) = _ebx;
+  REG(ecx) = _ecx;
+  REG(edx) = _edx;
+  REG(esi) = _esi;
+  REG(edi) = _edi;
+  REG(ebp) = _ebp;
+  REG(cs) = DPMI_SEG;
+  REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
+
+  if (config.pm_dos_api)
+    msdos_ret = msdos_pre_extender(scp, i);
+
+  /* If the API Translator handled the request itself, return to PM */
+  if (msdos_ret & MSDOS_DONE) {
+    if (DPMI_CLIENT.ems_frame_mapped) {
+      error("BUG in pre_extender, int=%x ax=%x\n", i, LWORD(eax));
     }
-    return do_int31(scp);
-  } else {
-    save_rm_regs();
-    REG(eflags) = _eflags;
-    REG(eax) = _eax;
-    REG(ebx) = _ebx;
-    REG(ecx) = _ecx;
-    REG(edx) = _edx;
-    REG(esi) = _esi;
-    REG(edi) = _edi;
-    REG(ebp) = _ebp;
-    if (config.pm_dos_api && i == 0x21 && _HI(ax) == 0x4b) {
-	D_printf("BCC: call dos exec.\n");
-	REG(cs) = DPMI_SEG;
-	REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_exec);
-	msdos_pre_exec(scp);
-	/* fork a new client */
-	copy_context(&DPMI_CLIENT.stack_frame, scp);
-	in_dpmi++;
-	DPMI_CLIENT = PREV_DPMI_CLIENT;
-	DPMI_CLIENT.ems_frame_mapped = 0;
-    } else {
-	REG(cs) = DPMI_SEG;
-	REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
-	if (config.pm_dos_api) {
-	    if(msdos_pre_extender(scp, i)) {
-		if (DPMI_CLIENT.ems_frame_mapped) {
-		    error("BUG in pre_extender, int=%x ax=%x\n", i, LWORD(eax));
-		}
-		restore_rm_regs();
-		return;
-	    }
-	}
-    }
-    in_dpmi_dos_int = 1;
-    D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
-    return (void) do_int(i);
+    restore_rm_regs();
+    return;
+  }
+  /* If the API Translator needs fork, do it */
+  if (msdos_ret & MSDOS_NEED_FORK) {
+    copy_context(&DPMI_CLIENT.stack_frame, scp);
+    in_dpmi++;
+    DPMI_CLIENT = PREV_DPMI_CLIENT;
+    DPMI_CLIENT.ems_frame_mapped = 0;
+    D_printf("DPMI: fork, in_dpmi=%i\n", in_dpmi);
+  }
+  in_dpmi_dos_int = 1;
+  D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
+  /* If the API Translator didnt install the alt entry point, call interrupt */
+  if (!(msdos_ret & MSDOS_ALT_ENT)) {
+    do_int(i);
   }
 }
 

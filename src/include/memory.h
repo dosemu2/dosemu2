@@ -153,6 +153,11 @@
 #define DPMI_OFF	0x4800		/* need at least 512 bytes */
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
+#define DOS_LONG_READ_SEG ROMBIOSSEG
+#define DOS_LONG_READ_OFF 0x4B00
+#define DOS_LONG_WRITE_SEG ROMBIOSSEG
+#define DOS_LONG_WRITE_OFF 0x4BA0
+
 /* For int15 0xc0 */
 #define ROM_CONFIG_SEG  BIOSSEG
 #define ROM_CONFIG_OFF  0xe6f5

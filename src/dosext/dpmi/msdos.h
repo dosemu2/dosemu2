@@ -25,4 +25,7 @@ extern int msdos_fault(struct sigcontext_struct *scp);
 extern void msdos_pre_exec(struct sigcontext_struct *scp);
 extern void msdos_post_exec(void);
 
-
+#define MSDOS_DONE 1
+#define MSDOS_ALT_RET 2
+#define MSDOS_ALT_ENT 4
+#define MSDOS_NEED_FORK 8

@@ -700,6 +700,77 @@ CISH(DPMI_return_from_ext_exception):
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 
+/* ======================= Addr = F800:4B00 (FCB00) */
+	.org	((DOS_LONG_READ_SEG - BIOSSEG) << 4) + DOS_LONG_READ_OFF
+	pushl	%esi
+	pushl	%edi
+	pushl	%ecx
+	xorl	%edi, %edi
+start_read:
+	movl	%ecx, %esi
+	cmpl	$0x10000, %esi
+	jb	do_read
+	xorl	%ecx, %ecx
+	decw	%cx
+do_read:
+	movb	$0x3f, %ah
+	int	$0x21
+	jc	done_read
+	movzwl	%ax, %eax
+	pushl	%ecx
+	pushl	%eax
+	movl	%eax, %ecx
+	movb	$DOS_HELPER_PUT_DATA, %al
+	int	$DOS_HELPER_INT
+	popl	%eax
+	popl	%ecx
+	addl	%eax, %edi
+	cmpw	%ax, %cx
+	jnz	done_read
+	movl	%esi, %ecx
+	subl	%eax, %ecx
+	jz	done_read
+	jmp	start_read
+done_read:
+	movl	%edi, %eax
+	popl	%ecx
+	popl	%edi
+	popl	%esi
+	lret	$2
+
+/* ======================= Addr = F800:4BA0 (FCBA0) */
+	.org	((DOS_LONG_WRITE_SEG - BIOSSEG) << 4) + DOS_LONG_WRITE_OFF
+	pushl	%esi
+	pushl	%edi
+	pushl	%ecx
+	xorl	%edi, %edi
+start_write:
+	movl	%ecx, %esi
+	cmpl	$0x10000, %esi
+	jb	do_write
+	xorl	%ecx, %ecx
+	decw	%cx
+do_write:
+	movb	$DOS_HELPER_GET_DATA, %al
+	int	$DOS_HELPER_INT
+	movb	$0x40, %ah
+	int	$0x21
+	jc	done_write
+	movzwl	%ax, %eax
+	addl	%eax, %edi
+	cmpw	%ax, %cx
+	jnz	done_write
+	movl	%esi, %ecx
+	subl	%eax, %ecx
+	jz	done_write
+	jmp	start_write
+done_write:
+	movl	%edi, %eax
+	popl	%ecx
+	popl	%edi
+	popl	%esi
+	lret	$2
+
 /* COMPAS FE000-FE05A	reserved */
 /* COMPAS FE05B		jmp to POST */
 /* COMPAS FE05E-FE2C2	reserved */

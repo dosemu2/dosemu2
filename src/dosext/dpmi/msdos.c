@@ -19,10 +19,12 @@
  *
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "emu.h"
 #include "emu-ldt.h"
+#include "int.h"
 #include "bios.h"
 #include "emm.h"
 #include "dpmi.h"
@@ -54,7 +56,6 @@ static struct sigcontext INT15_SAVED_REGS;
 #define DTA_over_1MB (void*)(GetSegmentBaseAddress(DPMI_CLIENT.USER_DTA_SEL) + DPMI_CLIENT.USER_DTA_OFF)
 #define DTA_under_1MB (void*)((DPMI_CLIENT.private_data_segment + \
     DPMI_private_paragraphs + DTA_Para_ADD) << 4)
-#define READ_DS_COPIED (REG(ds) == TRANS_BUFFER_SEG)
 
 #define MAX_DOS_PATH 128
 
@@ -185,11 +186,11 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		     _LWORD(ebx));
 	    /* no entry point */
 	    _es = _edi = 0;
-	    return 1;
+	    return MSDOS_DONE;
 	}
 	return 0;
     case 0x41:			/* win debug */
-	return 1;
+	return MSDOS_DONE;
     default:
 	return 0;
     }
@@ -268,13 +269,13 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    DPMI_CLIENT.Interrupt_Table[_LO(ax)].offset = D_16_32(_edx);
 	    D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
 		     _LWORD(eax), _ds, _LWORD(edx));
-	    return 1;
+	    return MSDOS_DONE;
 	case 0x35:	/* Get Interrupt Vector */
 	    _es = DPMI_CLIENT.Interrupt_Table[_LO(ax)].selector;
 	    _ebx = DPMI_CLIENT.Interrupt_Table[_LO(ax)].offset;
 	    D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
 		     _LWORD(eax), _es, _LWORD(ebx));
-	    return 1;
+	    return MSDOS_DONE;
 	case 0x48:		/* allocate memory */
 	    {
 		dpmi_pm_block *bp = DPMImalloc(_LWORD(ebx)<<4, 1);
@@ -289,7 +290,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    _LWORD(eax) = sel;
 		    _eflags &= ~CF;
 		}
-		return 1;
+		return MSDOS_DONE;
 	    }
 	case 0x49:		/* free memory */
 	    {
@@ -303,7 +304,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    FreeDescriptor(_es);
 		    FreeSegRegs(scp, _es);
 		}
-		return 1;
+		return MSDOS_DONE;
 	    }
 	case 0x4a:		/* reallocate memory */
 	    {
@@ -313,7 +314,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		h = base2handle((void *)GetSegmentBaseAddress(_es));
 		if (!h) {
 		    _eflags |= CF;
-		    return 1;
+		    return MSDOS_DONE;
 		}
 		bp = DPMIrealloc(h, _LWORD(ebx)<<4);
 		if (!bp) {
@@ -325,7 +326,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    SetSegmentLimit(_es, bp -> size - 1);
 		    _eflags &= ~CF;
 		}
-		return 1;
+		return MSDOS_DONE;
 	    }
 	case 0x01 ... 0x08:	/* These are dos functions which */
 	case 0x0b ... 0x0e:	/* are not required memory copy, */
@@ -396,7 +397,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x27: case 0x28:
 	    error("MS-DOS: Unsupported function 0x%x\n", _HI(ax));
 	    _HI(ax) = 0xff;
-	    return 1;
+	    return MSDOS_DONE;
 	case 0x11: case 0x12:	/* find first/next using FCB */
 	case 0x13:		/* Delete using FCB */
 	case 0x16:		/* Create usring FCB */
@@ -444,6 +445,12 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    REG(esi) = 0;
 	    in_dos_21++;
 	    return 0;
+	case 0x4b:		/* EXEC */
+	    D_printf("BCC: call dos exec.\n");
+	    REG(cs) = DPMI_SEG;
+	    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_exec);
+	    msdos_pre_exec(scp);
+	    return MSDOS_ALT_RET | MSDOS_NEED_FORK;
 
 	case 0x50:		/* set PSP */
 	  {
@@ -516,20 +523,25 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    in_dos_21++;
 	    return 0;
 	case 0x3f:		/* dos read */
+	    set_io_buffer((char*)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
+		D_16_32(_ecx));
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
+	    REG(ecx) = D_16_32(_ecx);
 	    in_dos_21++;
-	    return 0;
+	    fake_int_to(DOS_LONG_READ_SEG, DOS_LONG_READ_OFF);
+	    return MSDOS_ALT_ENT;
 	case 0x40:		/* DOS Write */
+	    set_io_buffer((char*)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
+		D_16_32(_ecx));
 	    prepare_ems_frame();
 	    REG(ds) = TRANS_BUFFER_SEG;
 	    REG(edx) = 0;
-	    memmove((void *)(REG(ds) << 4),
-		       (void *)GetSegmentBaseAddress(_ds) + D_16_32(_edx),
-		       LWORD(ecx));
+	    REG(ecx) = D_16_32(_ecx);
 	    in_dos_21++;
-	    return 0;
+	    fake_int_to(DOS_LONG_WRITE_SEG, DOS_LONG_WRITE_OFF);
+	    return MSDOS_ALT_ENT;
 	case 0x53:		/* Generate Drive Parameter Table  */
 	    {
 		unsigned short seg = TRANS_BUFFER_SEG;
@@ -760,8 +772,6 @@ void msdos_pre_exec(struct sigcontext_struct *scp)
 
 void msdos_post_exec(void)
 {
-    restore_ems_frame();
-
     DPMI_CLIENT.stack_frame.eflags = 0x0202 | (0x0dd5 & REG(eflags));
     DPMI_CLIENT.stack_frame.eax = REG(eax);
     if (!(LWORD(eflags) & CF)) {
@@ -772,6 +782,8 @@ void msdos_post_exec(void)
     if (DPMI_CLIENT.CURRENT_ENV_SEL)
 	*(unsigned short *)((char *)(DPMI_CLIENT.CURRENT_PSP<<4) + 0x2c) =
 	                     DPMI_CLIENT.CURRENT_ENV_SEL;
+
+    restore_ems_frame();
 }
 
 /*
@@ -963,12 +975,10 @@ void msdos_post_extender(int intr)
 	case 0x47:		/* get CWD */
 	    if (LWORD(eflags) & CF)
 		break;
-	    if (READ_DS_COPIED) {
-		snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
+	    snprintf((char *)(GetSegmentBaseAddress(S_REG(ds)) +
 			D_16_32(S_REG(esi))), 0x40, "%s", 
 		        (char *)((REG(ds) << 4) + LWORD(esi)));
-		DPMI_CLIENT.stack_frame.esi = S_REG(esi);
-	    }
+	    DPMI_CLIENT.stack_frame.esi = S_REG(esi);
 	    break;
 #if 0	    
 	case 0x48:		/* allocate memory */
@@ -1016,17 +1026,14 @@ void msdos_post_extender(int intr)
 		DPMI_CLIENT.stack_frame.ds = ConvertSegmentToDescriptor(REG(ds));
 	    break;
 	case 0x3f:
-	    if (READ_DS_COPIED) {
-		DPMI_CLIENT.stack_frame.edx = S_REG(edx);
-		if (LWORD(eflags) & CF)
-		    break;
-		memmove((void *)(GetSegmentBaseAddress(S_REG(ds)) + D_16_32(S_REG(edx))),
-				(void *)(REG(ds) << 4), LWORD(eax));
-	    }
+	    unset_io_buffer();
+	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    DPMI_CLIENT.stack_frame.ecx = S_REG(ecx);
 	    break;
 	case 0x40:
-	    if (READ_DS_COPIED)
-		DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    unset_io_buffer();
+	    DPMI_CLIENT.stack_frame.edx = S_REG(edx);
+	    DPMI_CLIENT.stack_frame.ecx = S_REG(ecx);
 	    break;
 	case 0x5f:		/* redirection */
 	    switch (S_LO(ax)) {
