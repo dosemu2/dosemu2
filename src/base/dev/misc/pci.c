@@ -299,17 +299,21 @@ emureadPciCfg1(unsigned long reg)
 {
   unsigned long val;
   unsigned short bdf;
+  unsigned char num;
   pciRec *pci;
-
   if (!(reg & PCI_EN))
     return 0xffffffff;
   bdf = (reg >> 8) & 0xffff;
   pci = set_pcirec(bdf);
-  reg &= 0xfc;
-  if (pci == NULL || reg >= 0x40)
+  num = reg & 0xfc;
+  if (pci == NULL)
     return 0xffffffff;
-  val = pci->header[reg >> 2];
-  Z_printf("PCIEMU: reading 0x%lx from 0x%lx\n",val,reg);
+#if 0
+  if (num >= 0x40)
+    return readPciCfg1(reg);
+#endif
+  val = pci->header[num >> 2];
+  Z_printf("PCIEMU: reading 0x%lx from 0x%hhx\n",val,num);
   return val;
 }
 
@@ -317,23 +321,28 @@ static void
 emuwritePciCfg1(unsigned long reg, unsigned long val)
 {
   unsigned short bdf;
+  unsigned char num;
   pciRec *pci;
 
   if (!(reg & PCI_EN) || reg == PCI_EN)
     return;
   bdf = (reg >> 8) & 0xffff;
   pci = set_pcirec(bdf);
-  reg &= 0xfc;
-  if (pci == NULL || reg >= 0x40)
+  num = reg & 0xfc;
+  if (pci == NULL)
     return;
+#if 0
+  if (num >= 0x40)
+    writePciCfg1(reg, val);
+#endif
   if ((pci->header[3] & 0x007f0000) == 0) {
-    if (reg >= PCI_BASE_ADDRESS_0 && reg <= PCI_BASE_ADDRESS_5)
-      val &= pci->region[reg - PCI_BASE_ADDRESS_0].rawsize;
-    if (reg == PCI_ROM_ADDRESS) 
+    if (num >= PCI_BASE_ADDRESS_0 && num <= PCI_BASE_ADDRESS_5)
+      val &= pci->region[num - PCI_BASE_ADDRESS_0].rawsize;
+    if (num == PCI_ROM_ADDRESS) 
       val &= pci->region[6].rawsize;
   }
-  Z_printf("PCIEMU: writing 0x%lx to 0x%lx\n",val,reg);
-  pci->header[reg >> 2] = val;
+  Z_printf("PCIEMU: writing 0x%lx to 0x%hhx\n",val,num);
+  pci->header[num >> 2] = val;
 }
 
 static unsigned long current_pci_reg;
@@ -346,7 +355,7 @@ static Bit8u pciemu_port_inb(ioport_t port)
     return 0;
   if (port < PCI_CONF_DATA)
     return 0xff;
-  return readPci((port & 0xfffc) >> ((port & 0x3) << 3)) & 0xff;
+  return readPci(current_pci_reg) >> ((port & 0x3) << 3);
 }
 
 static void pciemu_port_outb(ioport_t port, Bit8u byte)
@@ -367,7 +376,7 @@ static Bit16u pciemu_port_inw(ioport_t port)
 {
   if (port < PCI_CONF_DATA)
     return 0xffff;
-  return readPci((port & 0xfffd) >> ((port & 0x2) << 3)) & 0xffff;
+  return readPci(current_pci_reg) >> ((port & 0x2) << 3);
 }
 
 static void pciemu_port_outw(ioport_t port, Bit16u value)

@@ -47,11 +47,6 @@ static int interpretCfgSpace(unsigned long *pciheader,unsigned long *pcibuses,
 			     int busidx, unsigned char dev,
 			     unsigned char func);
 
-static unsigned long readPciCfg1(unsigned long reg);
-static void writePciCfg1(unsigned long reg, unsigned long val);
-static unsigned long readPciCfg2(unsigned long reg);
-static void writePciCfg2(unsigned long reg, unsigned long val);
-
 unsigned long (*readPci)(unsigned long reg) = readPciCfg1;
 void (*writePci)(unsigned long reg, unsigned long val) = writePciCfg1;
 
@@ -168,7 +163,7 @@ int
 pcibios_init(void)
 {
     unsigned long pcibuses[16];
-    unsigned long pciheader[16];
+    unsigned long pciheader[64];
     int busidx = 0;
     int idx = 0;
     int func = 0;
@@ -286,8 +281,7 @@ findClass(unsigned long class,  int num)
     return (pci && pci->enabled) ? pci->bdf : 0xffff;
 }
 
-static unsigned long
-readPciCfg1(unsigned long reg)
+unsigned long readPciCfg1(unsigned long reg)
 {
     unsigned long val;
 
@@ -301,8 +295,7 @@ readPciCfg1(unsigned long reg)
     return val;
 }
 
-static void
-writePciCfg1(unsigned long reg, unsigned long val)
+void writePciCfg1(unsigned long reg, unsigned long val)
 {
     unsigned char bus = (reg >> 16) & 0xff;
     unsigned char dev = (reg >> 11) & 0x1f;
@@ -313,8 +306,7 @@ writePciCfg1(unsigned long reg, unsigned long val)
     pci_write_cfg1(bus, dev, fn, num, val);
 }
 
-static unsigned long
-readPciCfg2(unsigned long reg)
+unsigned long readPciCfg2(unsigned long reg)
 {
     unsigned long val;
 
@@ -328,8 +320,7 @@ readPciCfg2(unsigned long reg)
     return val;
 }
 
-static void
-writePciCfg2(unsigned long reg, unsigned long val)
+void writePciCfg2(unsigned long reg, unsigned long val)
 {
     unsigned char bus = (reg >> 16) & 0xff;
     unsigned char dev = (reg >> 11) & 0x1f;

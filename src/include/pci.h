@@ -61,7 +61,7 @@ typedef struct _pciRec {
         unsigned long size;
         unsigned long rawsize;
     } region[7];
-    unsigned long header[16];
+    unsigned long header[64];
     struct _pciRec *next;
 } pciRec, *pciPtr;
 
@@ -92,6 +92,10 @@ unsigned long pci_read_cfg2 (unsigned char bus, unsigned char device,
 			  unsigned char fn, unsigned long num);
 void pci_write_cfg2 (unsigned char bus, unsigned char device,
 		unsigned char fn, unsigned long num, unsigned long val);
+unsigned long readPciCfg1(unsigned long reg);
+void writePciCfg1(unsigned long reg, unsigned long val);
+unsigned long readPciCfg2(unsigned long reg);
+void writePciCfg2(unsigned long reg, unsigned long val);
 
 extern int (*pci_read_header) (unsigned char bus, unsigned char device,
 			       unsigned char fn, unsigned long *buf);
