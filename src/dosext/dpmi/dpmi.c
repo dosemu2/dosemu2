@@ -2591,7 +2591,7 @@ void run_dpmi(void)
 #endif
 }
 
-static void dpmi_init(void)
+void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
   unsigned short CS, DS, ES, SS;
@@ -3859,18 +3859,16 @@ void dpmi_fault(struct sigcontext_struct *scp)
 
 void dpmi_realmode_hlt(unsigned char * lina)
 {
+  if (!in_dpmi) {
+    g_printf("DPMI call while not in dpmi!\n");
+    LWORD(eip)++;
+    return;
+  }
 #ifdef TRACE_DPMI
   if ((debug_level('t')==0)||((int)lina!=0xfc80a))
 #endif
   D_printf("DPMI: realmode hlt: %p\n", lina);
-  if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
-    /* The hlt instruction is 6 bytes in from DPMI_ADD */
-    LWORD(eip) += 1;	/* skip halt to point to FAR RET */
-    CARRY;
-
-    dpmi_init();
-
-  } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos))) {
+  if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos))) {
 
 #ifdef TRACE_DPMI
     if ((debug_level('t')==0)||((int)lina!=0xfc80a))

@@ -247,5 +247,6 @@ extern void dpmi_realmode_callback(int rmcb_client, int num);
 extern int get_ldt(void *buffer);
 void dpmi_return_request(void);
 void dpmi_check_return(struct sigcontext_struct *scp);
+void dpmi_init(void);
 
 #endif /* DPMI_H */

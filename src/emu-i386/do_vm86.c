@@ -311,6 +311,13 @@ void vm86_GP_fault(void)
       xms_control();
     }
 
+    else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
+      /* The hlt instruction is 6 bytes in from DPMI_ADD */
+      LWORD(eip) += 1;	/* skip halt to point to FAR RET */
+      CARRY;
+      dpmi_init();
+    }
+
     else if ((lina >=(unsigned char *)DPMI_ADD) &&
 	(lina <(unsigned char *)(DPMI_ADD+(unsigned long)DPMI_dummy_end-(unsigned long)DPMI_dummy_start)))
     {
