@@ -98,7 +98,12 @@ char buf_targ[9], buf_net[9], buf_node[13], proc_net[9], proc_node[13], *proc_st
 	close_proc_scan();
 
 	if (strcmp(buf_net, proc_net) || strcmp(buf_node, proc_node)) {
-		open_proc_scan("/proc/net/ipx_interface");
+		if(access("/proc/net/ipx/interface",R_OK) == 0)
+			open_proc_scan("/proc/net/ipx/interface");
+		else if(access("/proc/net/ipx_interface",R_OK) == 0)
+			open_proc_scan("/proc/net/ipx_interface");
+		else
+			return 0;
 		proc_str = get_proc_string_by_key(buf_net);
 		if (!proc_str) {
 			close_proc_scan();
