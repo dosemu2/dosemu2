@@ -1364,9 +1364,8 @@ static void run_caller_func(int i, Boolean from_int)
 		set_FLAGS(popw(ssp, sp));
 	}
 	caller_function = interrupt_function[i];
-	if (caller_function) {
-		if (!caller_function() && revect == REVECT && from_int)
-		{
+	if ((!caller_function || !caller_function()) && revect == REVECT && from_int)
+	{
 			di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
 			if (!IS_REDIRECTED(i) || (!IVEC(i))) {
@@ -1376,7 +1375,6 @@ static void run_caller_func(int i, Boolean from_int)
 					g_printf("just an iret 0x%02x\n", i);
 			} else
 				real_run_int(i);
-		}
 	}
 	else
 	{
