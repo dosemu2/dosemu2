@@ -621,7 +621,7 @@ if (!(REG(eflags) & VIF)) return;
    "2:bsfl %%eax,%%ebx\n\t"                  /* 2: ebx=find_bit(int_request)*/
    "jz 3f\n\t"                                /* if(!int_request) goto 3     */
    "cmpl %%ebx,%%ecx\n\t"                     /* if(ebx > pic_ilevel)...     */
-   "jl 3f\n\t"                                /* ... goto 3                  */
+   "jle 3f\n\t"                               /* ... goto 3                  */
    "btrl %%ebx,"CISH_INLINE(pic_irr)"\n\t"    /* clear_bit(ebx,&pic_irr)     */
    "jnc 2b\n\t"                               /* if bit wasn't set, go to 2  */
    "movl "CISH_INLINE(pic_isr)",%%ecx\n\t"    /* get current pic_isr         */
@@ -678,6 +678,9 @@ int do_irq()
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
     {
 #if 1 /* BUG CATCHER (if 1) */
+/* outputting more then one character here will change dynamic behave such that
+ * that we mesure the wrong thing.
+ */
 g_printf("+%d",(int)pic_ilevel);
 #endif
      if(pic_ilevel < 16) pic_push(pic_ilevel);

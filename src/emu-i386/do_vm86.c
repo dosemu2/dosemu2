@@ -379,12 +379,18 @@ void vm86_GP_fault(void)
 
   case 0xf4:			/* hlt...I use it for various things,
 		  like trapping direct jumps into the XMS function */
-    if (lina == (unsigned char *) XMSTrap_ADD) {
-      LWORD(eip) += 2;		/* skip halt and info byte to point to FAR RET */
-      xms_control();
-    }
-    else if (lina == (unsigned char *) PIC_ADD) {
+       /* set VIF (only if necessary) */
+    if (REG(eflags) & IF_MASK) REG(eflags) |= VIF_MASK;
+          /* return with STI if VIP was set from run_dpmi; this happens
+           * if pic_count is >0 and the VIP flag in dpmi_eflags was on
+           */
+    if ((lina == (unsigned char *) PIC_ADD) || (pic_icount && (REG(eflags) & VIP_MASK))) {
       pic_iret();
+    }
+
+    else if (lina == (unsigned char *) XMSTrap_ADD) {
+      LWORD(eip) += 2;  /* skip halt and info byte to point to FAR RET */
+      xms_control();
     }
 
     else if ((lina >=(unsigned char *)DPMI_ADD) &&

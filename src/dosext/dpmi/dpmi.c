@@ -1886,34 +1886,8 @@ void run_pm_int(int i)
 
 void run_dpmi(void)
 {
-#if 1
-#define ALBERTO_KLUDGE 1
-#endif
-#ifdef ALBERTO_KLUDGE
-   /* NOTE:
-    * This works around a locking bug (not calling pic_iret).
-    * Alberto Vignani describes the bug as follows:
-    * 
-    * int2f/1680 is started. I assume it will clear IF.
-    * vm86() is entered at the start point of int8 and reaches the EOI out
-    * instruction (a). VIF is 0 and the IF in dpmi_eflags is clear.
-    *
-    *         mov     al,#0x20
-    * (a)     out     0x20,al
-    * (b)     pop     ax
-    *         pop     ds
-    *         iret
-    *
-    * vm86() is restarted at (b) with VIP=1, VIF=0. It goes over the iret
-    * without generating a fault because the IF doesn't change. Processing
-    * of int2f continues and eventually stops; vm86() returns with VIF=0
-    * _but_ dpmi_eflags.IF is now 1 (who sets it?).
-    */
-   static int prev_IF=-1;
-   int retval, current_IF=0;
-#else
    int retval;
-#endif
+
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
    */
@@ -1925,12 +1899,13 @@ void run_dpmi(void)
    if (*((unsigned char *)SEG_ADR((unsigned char *), cs, ip))==0xf4)
      retval=VM86_UNKNOWN;
    else {
-#if 1 && (!defined(ALBERTO_KLUDGE)) /* <ESC> BUG FIXER (if 1) */
+#if 1 			/* <ESC> BUG FIXER (if 1) */
     #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
     #define OVERLOAD_THRESHOULD1  238608 /* good average value */
     #define OVERLOAD_THRESHOULD0  100000 /* minum acceptable value */
-    if ((pic_icount||pic_dos_time<pic_sys_time)
-        && ((pic_sys_time - pic_dos_time) < OVERLOAD_THRESHOULD1) )
+    if ((pic_icount && (dpmi_eflags & VIP)) ||
+          ((pic_icount || (pic_dos_time<pic_sys_time))
+        && ((pic_sys_time - pic_dos_time) < OVERLOAD_THRESHOULD1)))
        REG(eflags) |= (VIP);
     else REG(eflags) &= ~(VIP);
 #else
@@ -1941,9 +1916,6 @@ void run_dpmi(void)
     in_vm86 = 1;
     retval=DO_VM86(&vm86s);
     in_vm86=0;
-#ifdef ALBERTO_KLUDGE
-    current_IF = dpmi_eflags & IF;
-#endif
 
     if (REG(eflags)&IF) {
       if (!(dpmi_eflags&IF))
@@ -1956,9 +1928,6 @@ void run_dpmi(void)
 
     switch VM86_TYPE(retval) {
 	case VM86_UNKNOWN:
-#ifdef ALBERTO_KLUDGE
-		if (!prev_IF && pic_icount && current_IF) pic_iret();
-#endif
 		vm86_GP_fault();
 		break;
 	case VM86_STI:
@@ -2002,9 +1971,6 @@ void run_dpmi(void)
 		error("DPMI: unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
 		fatalerr = 4;
     }
-#ifdef ALBERTO_KLUDGE
-    prev_IF = current_IF;
-#endif
   }
   else {
     int retcode;

@@ -1,3 +1,9 @@
+97/02/20 ver. 0.65.99.1 unofficial pre-release
+	From Alberto
+	- Fix PIC bug (replacment for old ALBERTO_KLUDGE)
+	From Hans
+	- fixed a small typo (yes, it was mine),
+	  ( did use close(f) instead of fclose(f) :((  )
 97/02/17 ver. 0.65.99 unofficial pre-release,
 			 first round targeting 0.66, 0.67
 	From Hans

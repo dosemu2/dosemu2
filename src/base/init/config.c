@@ -252,7 +252,7 @@ config_init(int argc, char **argv)
 		  fprintf(stderr, "Sorry, no access to configuration file %s\n", optarg);
 		  exit(1);
 		}
-		close(f);
+		fclose(f);
 	    }
 	    confname = optarg;	/* someone reassure me that this is *safe*? */
 	    break;
