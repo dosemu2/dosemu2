@@ -2897,12 +2897,22 @@ static void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
 #if EXC_TO_PM_INT
     /* Route the exception to protected-mode interrupt handler or
      * terminate the client if the one is not installed. */
-    if (trapno == 6 || trapno >= 8 ||
-      DPMI_CLIENT.Interrupt_Table[trapno].selector == DPMI_CLIENT.DPMI_SEL) {
-	p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
-	  "It is likely that dosemu is unstable now and should be rebooted\n",
-	  trapno);
-	quit_dpmi(scp, 0xff);
+    if (DPMI_CLIENT.Interrupt_Table[trapno].selector == DPMI_CLIENT.DPMI_SEL) {
+      switch (trapno) {
+        case 0x01: /* debug */
+        case 0x03: /* int3 */
+        case 0x04: /* overflow */
+	        save_rm_regs();
+	        REG(cs) = DPMI_SEG;
+	        REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
+	        in_dpmi_dos_int = 1;
+	        return (void) do_int(trapno);
+        default:
+		p_dos_str("DPMI: Unhandled Exception %02x - Terminating Client\n"
+		  "It is likely that dosemu is unstable now and should be rebooted\n",
+		  trapno);
+		quit_dpmi(scp, 0xff);
+      }
     }
     if (DPMI_CLIENT.is_32) {
       ssp -= 2, *((unsigned long *) ssp) = get_vFLAGS(_eflags);
