@@ -446,7 +446,6 @@ int leavedos_recurse_check = 0;
 void
 leavedos(int sig)
 {
-    struct sigaction sa;
     struct itimerval itv;
    
     if (leavedos_recurse_check)
