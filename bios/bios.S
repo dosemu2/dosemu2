@@ -76,12 +76,32 @@ irqnum	set	8
 irqnum	set	irqnum+1
 .ENDR
 
-			/* system-soft ints 0x10 .. 0x1b */
+			/* system-soft ints 0x10 .. 0x12 */
 irqnum	set	0x10
 	.org	irqnum*16
-.REPT (0x1c-0x10) .align 16
+.REPT (0x13-0x10) .align 16
+	int	irqnum
+	iret
+irqnum	set	irqnum+1
+.ENDR
+
+
+			/* system-soft ints 0x13 .. 0x16 */
+irqnum	set	0x13
+	.org	irqnum*16
+.REPT (0x17-0x13) .align 16
 	int	irqnum
 	retf	#2
+irqnum	set	irqnum+1
+.ENDR
+
+
+			/* system-soft ints 0x17 .. 0x1b */
+irqnum	set	0x17
+	.org	irqnum*16
+.REPT (0x1c-0x17) .align 16
+	int	irqnum
+	iret
 irqnum	set	irqnum+1
 .ENDR
 

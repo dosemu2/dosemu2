@@ -68,6 +68,7 @@ sillyint		return(SILLYINT);
 hardware_ram		return(HARDWARE_RAM);
 disk			return(DISK);
 bootdisk		return(BOOTDISK);
+bootfile		return(BOOTFILE);
 printer			return(PRINTER);
 emusys                  return(EMUSYS);
 emubat                  return(EMUBAT);

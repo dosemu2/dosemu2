@@ -152,7 +152,6 @@ static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
 #include "timers.h"
 #include "cmos.h"
 #include "memory.h"
-#include "cpu.h"
 #include "termio.h"
 #include "config.h"
 #include "port.h"
@@ -314,7 +313,7 @@ inb(int port)
     break;
     
   default:
-    r=0;
+    r=0xff;
     /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++)
       if ((port & ~7) == com[tmp].base_port) {
@@ -693,8 +692,8 @@ void vm86_GP_fault(void)
     break;
 
   case 0xe7:			/* outw xx */
-    outb((int) csp[1], LO(ax));
     outb((int) csp[1] + 1, HI(ax));
+    outb((int) csp[1], LO(ax));
     LWORD(eip) += 2;
     break;
   case 0xe6:			/* outb xx */
@@ -703,8 +702,8 @@ void vm86_GP_fault(void)
     break;
 
   case 0xef:			/* outw dx */
-    outb(REG(edx), LO(ax));
     outb(REG(edx) + 1, HI(ax));
+    outb(REG(edx), LO(ax));
     LWORD(eip) += 1;
     break;
   case 0xee:			/* outb dx */
@@ -848,7 +847,9 @@ dosemu_fault(int signal, struct sigcontext_struct context)
 		 return (void) do_int(_trapno);
       case 0x06: /* invalid_op */
 		 dbug_printf("SIGILL while in vm86()\n");
+#if 0
 		 show_regs(__FILE__, __LINE__);
+#endif
  		 csp = SEG_ADR((unsigned char *), cs, ip);
  		 /* Some db commands start with 2e (use cs segment) and thus is accounted
  		    for here */
@@ -865,7 +866,9 @@ dosemu_fault(int signal, struct sigcontext_struct context)
 	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
 	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,scp->err,
 	  	_eip, _esp, _eflags, _cs, _ds, _es, _ss);
-		perror("YUCK");
+#if 0
+		perror("dosemu_fault:");
+#endif
  		 show_regs(__FILE__, __LINE__);
  		 leavedos(4);
     }

@@ -56,8 +56,8 @@
 #include <malloc.h>
 
 #include "config.h"
-#include "memory.h"
 #include "emu.h"
+#include "memory.h"
 #include "bios.h"
 #include "port.h"
 #include "video.h"

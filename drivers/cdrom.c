@@ -1,14 +1,29 @@
+/* Author:        Karsten Rucker (rucker@astro.uni-bonn.de)
+
+   Installation:  see dosemu/doc/README.CDROM
+
+   History:       Modified to work with Mitsumi and Aztech/Orchid/Okano/Wear-
+                  nes CDROM-drives
+                  May 25, 95, Karsten Rucker (rucker@astro.uni-bonn.de)
+		  Minor Modifications in comments
+		  May 30, 95, Werner Zimmermann (zimmerma@rz.fht-esslingen.de)
+			
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <linux/cdrom.h>
 
-#include "cpu.h"
 #include "emu.h"
 
 int cdrom_fd = -1;
 int cdu33a = 0;
+int eject_allowed = 0;  /*change this to 1, if you want to change your cdrom
+                          by eject.com. Does not *work* with Mitsumi and
+                          Aztech/Orchid/Okano/Wearnes drives, may cause the 
+                          system to hang! */
 
 unsigned int device_status;
 struct audio_status { unsigned int status;
@@ -102,6 +117,8 @@ void cdrom_helper(void)
    struct cdrom_tocentry cdrom_tocentry;
    struct cdrom_volctrl cdrom_volctrl;
    int n,ioctlin;
+
+   cdrom_subchnl.cdsc_format = CDROM_MSF;
    
    if ((cdu33a) && (cdrom_fd < 0)) {
         priv_off();
@@ -151,11 +168,20 @@ void cdrom_helper(void)
                     cdu33a = 1;
                    }
                   else LO(ax) = 1; /* no cdrom drive installed */
+                  if (! eject_allowed) 
+                    LO(ax) = 1; /* no disk in drive */
                  }
-                else LO(ax) = 0;
+                else { 
+                       LO(ax) = 0;
+                       if (! eject_allowed) {
+                         if (ioctl (cdrom_fd, CDROMREADTOCHDR, &cdrom_tochdr))
+                           if (ioctl (cdrom_fd, CDROMREADTOCHDR, &cdrom_tochdr))
+                             LO(ax) = 1;
+                       }    
+                     }
                 break;
      case 0x02: /* read long */ 
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                if (eject_allowed && ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
                   audio_status.media_changed = 1;
                   if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
                     /* no disc in drive */
@@ -181,12 +207,15 @@ void cdrom_helper(void)
 
                 lseek (cdrom_fd, Sector*2048, SEEK_SET);
                 if (read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048) < 0) {
-                  /* cd must be in drive, reset drive and try again */ 
-                  cdrom_reset();
-                  lseek (cdrom_fd, Sector*2048, SEEK_SET);
-                  if (read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048) < 0)
-                    LO(ax) = 1; /* give up */
-                   else LO(ax) = 0;
+		  if (eject_allowed) {
+                    /* cd must be in drive, reset drive and try again */ 
+                    cdrom_reset();
+                    lseek (cdrom_fd, Sector*2048, SEEK_SET);
+                    if (read (cdrom_fd, transfer_buf, *CALC_PTR(req_buf,MSCD_READ_NUMSECTORS,u_short)*2048) < 0)
+                      LO(ax) = 1; /* give up */
+                     else LO(ax) = 0;
+                  }
+                  else LO(ax) = 1; 
                  }
                  else LO(ax) = 0;
 
@@ -295,27 +324,31 @@ void cdrom_helper(void)
                 /* this function will be called from MSCDEX before 
                    each new disk access !                         */
                 HI(ax) = 0; LO(ax) = 0; LO(bx) = 0;
-                if ((audio_status.media_changed) ||
-                      ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
-                  audio_status.media_changed = 0;
-                  LO(bx) = 1; /* media has been changed */
-                  ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl);
-                  if (! ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
-                    cdrom_reset(); /* disc in drive */
-                 }
-                 else /* media has not changed, check audio status */
-                      if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
-                        HI(ax) = 1; /* audio playing in progress */
+		if (eject_allowed) {
+                  if ((audio_status.media_changed) ||
+                        ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl)) {
+                    audio_status.media_changed = 0;
+                    LO(bx) = 1; /* media has been changed */
+                    ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl);
+                    if (! ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
+                      cdrom_reset(); /* disc in drive */
+                   }
+                   else /* media has not changed, check audio status */
+                        if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
+                          HI(ax) = 1; /* audio playing in progress */
+                }
                 break;
      case 0x0A: /* device status */
                 HI(ax) = 0; LO(ax) = 0;
-                if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
+                if (eject_allowed) {
                   if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
-                    { /* no disk in drive */
-                      LWORD(ebx) = audio_status.status | 0x800;
-                      break;
-                    }
-                   else cdrom_reset(); 
+                    if (ioctl (cdrom_fd, CDROMSUBCHNL, &cdrom_subchnl))
+                      { /* no disk in drive */
+                        LWORD(ebx) = audio_status.status | 0x800;
+                        break;
+                      }
+                     else cdrom_reset();
+                } 
                 /* disk in drive */
                 LWORD(ebx) = audio_status.status;
                 if (cdrom_subchnl.cdsc_audiostatus == CDROM_AUDIO_PLAY)
@@ -332,7 +365,7 @@ void cdrom_helper(void)
                 break;
      case 0x0D: /* eject */
                 LO(ax) = 0;
-                if (audio_status.status & 0x02) /* drive unlocked ? */
+                if ((eject_allowed) && (audio_status.status & 0x02)) /* drive unlocked ? */
                   if (ioctl (cdrom_fd, CDROMEJECT, NULL))
                     LO(ax) = 1;
                 break;

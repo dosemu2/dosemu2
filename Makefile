@@ -21,8 +21,17 @@
 # REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
 
 ifdef REQUIRES_EMUMODULE
+  export REQUIRES_EMUMODULE
 # uncomment this, if you want the extended vm86 support (vm86plus)
   USE_VM86PLUS= -DUSE_VM86PLUS
+  ifdef USE_VM86PLUS
+    export USE_VM86PLUS
+# uncomment this, if you want stack verifying in sys_vm86
+    USE_VM86_STACKVERIFY= -DUSE_VM86_STACKVERIFY
+    ifdef USE_VM86_STACKVERIFY
+      export USE_VM86_STACKVERIFY
+    endif
+  endif
 endif
 
 # Want to make elf Binaries.
@@ -85,7 +94,7 @@ X_SUPPORT  = 1
 X2_SUPPORT = 1
 #the -u forces the X11 shared library to be linked into ./dos
 ifdef ELF
-XLIBS = -Wl,-rpath,$(X11LIBDIR)/elf -lX11
+XLIBS = -Wl,-rpath,$(X11LIBDIR) -L$(X11LIBDIR) -lX11
 else
 XLIBS   = -L$(X11LIBDIR) -lX11 -u _XOpenDisplay
 endif
@@ -120,7 +129,7 @@ NAME_LOCKF = -DNAME_LOCKF=\"LCK..\"
 # enable this target to make a different way
 # do_DEBUG=true
 ifdef ELF
-export CC         = gcc-elf  # I use gcc-specific features (var-arg macros, fr'instance)
+export CC         = gcc # -elf I use gcc-specific features (var-arg macros, fr'instance)
 else
 export CC         = gcc  # I use gcc-specific features (var-arg macros, fr'instance)
 endif
@@ -136,7 +145,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 2
+PATCHLEVEL = 3
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -249,7 +258,7 @@ CFLAGS+=$(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
 ifdef REQUIRES_EMUMODULE
-   CFLAGS+=$(REQUIRES_EMUMODULE) $(USE_VM86PLUS)
+   CFLAGS+=$(REQUIRES_EMUMODULE) $(USE_VM86PLUS) $(USE_VM86_STACKVERIFY)
 endif
 
 # set for DPMI want windows
@@ -260,6 +269,8 @@ else
 endif
 ifeq ($(LDTPATCH),2)
   CFLAGS+=-DWANT_WINDOWS
+  WANT_WINDOWS= -DWANT_WINDOWS
+  export WANT_WINDOWS
   WIN31=1
 else
   WIN31=0
@@ -336,7 +347,11 @@ warning2:
 	 	echo "      DOSEMU will be compiled without X-window support."; \
 	 fi; \
 	 if [ "1" = "$(WIN31)" ]; then \
-	 	echo "    - Your kernel contains support for experimental use of Windows 3.1."; \
+		if [ "" = "$(REQUIRES_EMUMODULE)" ]; then \
+	 	  echo "    - Your kernel contains support for experimental use of Windows 3.1."; \
+		else \
+	 	  echo "    - Your kernel needs emumodule to support experimental use of Windows 3.1."; \
+		fi; \
 	 else \
 	 	echo "    - Kernel is not patched for experimental use of Windows 3.1."; \
 	 fi; \
@@ -517,13 +532,14 @@ ifdef X_SUPPORT
 	@install -m 0755 xtermdos /usr/bin
 	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
 	@echo ""
-	@if [ -w $(X11LIBDIR)/X11/fonts/misc ] && [ -d $(X11LIBDIR)/X11/fonts/misc ] ; then \
-		if [ ! -e "$(X11LIBDIR)/X11/fonts/misc/vga.pcf*" ]; then \
-			echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."; \
-			install -m 0644 vga.pcf $(X11LIBDIR)/X11/fonts/misc; \
-			cd $(X11LIBDIR)/X11/fonts/misc; \
-			mkfontdir; \
-		fi \
+	@if [ -w $(X11LIBDIR)/X11/fonts/misc ] && \
+	    [ -d $(X11LIBDIR)/X11/fonts/misc ] && \
+	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf ] && \
+	    [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf.Z ]; then \
+		echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."; \
+		install -m 0644 vga.pcf $(X11LIBDIR)/X11/fonts/misc; \
+		cd $(X11LIBDIR)/X11/fonts/misc; \
+		mkfontdir; \
 	fi
 endif
 	@echo ""; \
@@ -542,12 +558,19 @@ ifdef X_SUPPORT
 	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
 	 echo ""
 endif
-	@echo "  - Try the ./commands/mouse.com -r if your INTERNAL mouse won't work"; \
+	@echo "  - Try ./commands/emumouse.com -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
 	 echo ""
 ifdef REQUIRES_EMUMODULE
 	@echo "  - DO NOT FORGET TO LOAD EMUMODULE"; \
 	 echo "    use load_module.sh from this directory."; \
+	 echo ""
+else
+	@echo "  - It is _STRONGLY_ recommended that the modules"; \
+	@echo "    be used instead of the kernel's vm86() call at this"; \
+	@echo "    time due to possible register corruption of the"; \
+	@echo "    running DOS programs. To use the modules, enable"; \
+	@echo "    REQUIRES_EMUMODULE in this Makefile, and re-make."; \
 	 echo ""
 endif
 

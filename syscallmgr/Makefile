@@ -1,5 +1,5 @@
 #
-# This is the Makefile for the sig-subdirectory of the DOS-emulator
+# This is the Makefile for the sycallmgr-subdirectory of the DOS-emulator
 # for Linux.
 #
 
@@ -21,8 +21,9 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = syscallmgr.c insmod.c testsys.c testmain.c
-HFILES = 
+CFILES = syscallmgr.c insmod.c load_aout.c load_elf.c testsys.c \
+	 testmain.c error.c
+HFILES = insmod.h
 OFILES = 
 
 # Insert all source- and header-files here.
@@ -48,8 +49,12 @@ testsys.o:    testsys.c
 testmain:	testmain.c
 	$(CC) -m486 -Wall $(INCDIR) -O6 testmain.c -o testmain
 
-insmod:	insmod.c
-	$(CC) -m486 -Wall $(INCDIR) -O6 insmod.c -o insmod
+
+insmod: insmod.c load_aout.c load_elf.c insmod.h
+	$(CC) -m486 -O6 -pipe -fomit-frame-pointer -Wall -DHACKER_TOOL -DWITHIN_DOSEMU $(INCDIR) \
+	insmod.c load_aout.c load_elf.c error.c -o insmod
+	for i in rmmod ksyms; do ln -sf insmod $$i; done
+
 
 checkin:
 	-ci -l $(ALL) Makefile
@@ -58,7 +63,7 @@ checkout:
 	-co -M -l $(ALL) Makefile
 
 clean:
-	rm -f *.o insmod testmain
+	rm -f *.o insmod rmmod ksyms testmain *~
 
 realclean: clean
 	rm -f .depend

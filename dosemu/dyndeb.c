@@ -22,6 +22,9 @@ SetDebugFlagsHelper(char *debugStr)
     case 'D':
       d.dos = value;
       break;
+    case 'C':
+      d.cdrom = value;
+      break;
     case 'v':
       d.video = value;
       break;
@@ -78,6 +81,9 @@ SetDebugFlagsHelper(char *debugStr)
     case 'P':
       d.pd = value;
       break;
+    case 'r':
+      d.request = value;
+      break;
     default:
       /* unknown flag, return failure */
       return (1);
@@ -99,6 +105,7 @@ GetDebugFlagsHelper(char *debugStr)
   debugStr[i++] = (d.read)     ? '+' : '-'; debugStr[i++] = 'R';
   debugStr[i++] = (d.write)    ? '+' : '-'; debugStr[i++] = 'W';
   debugStr[i++] = (d.dos)      ? '+' : '-'; debugStr[i++] = 'D';
+  debugStr[i++] = (d.cdrom)    ? '+' : '-'; debugStr[i++] = 'C';
   debugStr[i++] = (d.video)    ? '+' : '-'; debugStr[i++] = 'v';
 #ifdef X_SUPPORT
   debugStr[i++] = (d.X)        ? '+' : '-'; debugStr[i++] = 'X';
@@ -119,6 +126,7 @@ GetDebugFlagsHelper(char *debugStr)
   debugStr[i++] = (d.dpmi)     ? '+' : '-'; debugStr[i++] = 'M';
   debugStr[i++] = (d.network)  ? '+' : '-'; debugStr[i++] = 'n';
   debugStr[i++] = (d.pd)       ? '+' : '-'; debugStr[i++] = 'P';
+  debugStr[i++] = (d.request)  ? '+' : '-'; debugStr[i++] = 'r';
 
   debugStr[i] = 0;
   dbug_printf("debugStr is %s\n", debugStr);

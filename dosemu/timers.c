@@ -449,7 +449,7 @@ void write_port61(int byte)
 
   switch (config.speaker) {
     case SPKR_NATIVE:
-      safe_port_out_byte(0x61, byte);
+      safe_port_out_byte(0x61, byte & 0x03);
       break;
 
     case SPKR_EMULATED:

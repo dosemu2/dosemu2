@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.60.1, the PC Emulator for Linux!
+The DOSEMU team is proud to announce DOSEMU 0.60.2, the PC Emulator for Linux!
 
 
 
@@ -18,9 +18,9 @@ many DOS applications.  These are capabilities of DOSEMU worth noting:
   - Runs Borland BCC.EXE / TCC.EXE version 3.x command line compilers!
   - Borlandc C++ 3.x IDE (with emumodule.o or kernel patch)
   - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
-     at the Linux console.  A partial list of successfully tested games 
+     at the Linux console.  A partial list of successfully tested games
      includes DOOM2, Heretic, Descent, MK2, OMF2097, ROTT, and WarCraft!
-  - Games runs *MUCH* faster in dosemu due to improved timer emulation
+  - Games run *MUCH* faster in dosemu due to improved timer emulation
   - NetBSD verison of DOSEMU under development, contact jtk@atria.com
   - CDROM support
 
@@ -28,8 +28,8 @@ many DOS applications.  These are capabilities of DOSEMU worth noting:
 
 REQUIREMENTS
 ~~~~~~~~~~~~
-  - Linux 1.1.31+ (with IPC support, IPX support optional)
-  - GCC 2.6.2 and LIBC 4.6.27 are recommended for best results.
+  - Linux 1.1.45+ (with IPC support, IPX support optional)
+  - GCC 2.5.8+ and LIBC 4.5.21+ are recommended for best results.
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
      of total memory to compile, depending on Makefile configuration.
 
@@ -60,13 +60,13 @@ of at least:
 WHERE TO GET IT:
 ~~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded from the following FTP sites
-when version 0.60.0 arrives on April the 1st:
+when version 0.60.2 arrives on May the 13th:
 
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.tgz
-  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.60.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.tgz
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.2.tgz
+  dspsun.eas.asu.edu:/pub/dosemu/dosemu0.60.2.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.2.tgz
 
-We expect to see DOSEMU being included as an extra with many Linux 
+We expect to see DOSEMU being included as an extra with many Linux
 Distribution packages.
 
 

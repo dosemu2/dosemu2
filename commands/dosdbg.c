@@ -1,6 +1,6 @@
 /***********************************************
  * File: DOSDBG.C
- *  Program for Linux DOSDBG
+ *  Program for DOSEMU
  * Written: 12/15/93 by Tim Bird
  *
  * NOTES:
@@ -17,6 +17,8 @@
  *  sync'd debug flags with pre0.53.49
  *  cosmetic changes
  *  03/27/95 minor changes
+ * Modified: 05/14/95
+ *  sync'd debug flags with 0.60.2+
  ***********************************************/
 
 /* comment out if dosemu is compiled without X support */
@@ -54,31 +56,36 @@ Usage(void)
     printf("Usage: DOSDBG [string|HELP]\n");
     printf("If no string is specified, then DOSDBG will show the current debug settings.\n");
     printf("  If HELP is specified, then this screen is displayed.  Otherwise <string>\n");
-    printf("  is parsed and used to change the current debug settings.\n");
-    printf("\n");
+    printf("  is parsed and used to change the current debug settings.\n\n");
     printf("<string> can contain letters, and the '+' and '-' characters.\n");
-    printf("  Letters denote message classes from the following list:\n");
-    printf("\n");
-    printf("d  disk         R  disk Reads   W  disk Writes  D  dos\n");
+    printf("  Letters denote message classes from the following list:\n\n");
+    printf("\
+d  disk         R  disk Reads   W  disk Writes  D  dos\n");
+
 #ifdef X_SUPPORT
-    printf("v  video        X  X support    k  keyboard     i  port I/O\n");
-    printf("s  serial       m  mouse        #  interrupt    p  printer\n");
-    printf("g  general      c  config       w  warnings     h  hardware\n");
-    printf("I  IPC          E  EMS          x  XMS          M  DPMI\n");
-    printf("n  network      P  pktdrv\n");
+
+    printf("\
+C  cdrom        v  video        X  X support    k  keyboard\n\
+i  port I/O     s  serial       m  mouse        #  interrupt\n\
+p  printer      g  general      c  config       w  warnings\n\
+h  hardware     I  IPC          E  EMS          x  XMS\n\
+M  DPMI         n  network      P  pktdrv       r  PIC\n");
+
 #else
-    printf("v  video        k  keyboard     i  port I/O     s  serial\n");
-    printf("m  mouse        #  interrupt    p  printer      g  general\n");
-    printf("c  config       w  warnings     h  hardware     I  IPC\n");
-    printf("E  EMS          x  XMS          M  DPMI         n  network\n");
-    printf("P  pktdrv\n");
+
+    printf("\
+C  cdrom        v  video        k  keyboard     i  port I/O\n\
+s  serial       m  mouse        #  interrupt    p  printer\n\
+g  general      c  config       w  warnings     h  hardware\n\
+I  IPC          E  EMS          x  XMS          M  DPMI\n\
+n  network      P  pktdrv       r  PIC\n");
+
 #endif
-    printf("a  all (shorthand for all of the above)\n");
-    printf("\n");
+
+    printf("a  all (shorthand for all of the above)\n\n");
     printf("Any classes following a '+', up until the end of string or a '-',\n");
     printf("  will be turned on.  Likewise, any classes following a '-', to the\n");
-    printf("  end of string or a '+' will be turned off.\n");
-    printf("\n");
+    printf("  end of string or a '+' will be turned off.\n\n");
     printf("The character 'a' acts like a string of all possible debugging classes,\n");
     printf("  so \"-a\" turns all message off, and \"+a-RW\" would turn all messages\n");
     printf("  on except for disk Read and Write messages.");
@@ -141,6 +148,10 @@ printDebugClass(char class, char value)
 
          case 'D':
               printf("D  dos        ");
+              break;
+
+         case 'C':
+              printf("C  cdrom      ");
               break;
 
          case 'v':
@@ -217,6 +228,10 @@ printDebugClass(char class, char value)
               printf("P  pktdrv     ");
               break;
 
+         case 'r':
+              printf("r  PIC        ");
+              break;
+
          default:
               printf("%c  unknown    ", class);
               break;
@@ -261,7 +276,10 @@ ShowDebugString(void)
               value = debugStr[i];
               class = debugStr[i + 1];
               printDebugClass(class, value);
-              printf("\n");
+              if (i % 6 == 4)
+                printf("\n");
+              else
+                printf("            ");
          }
     }
     else {
@@ -286,11 +304,11 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
     char class, value;
 
 #ifdef X_SUPPORT
-    const char debugOn[] =  "+d+R+W+D+v+X+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P";
-    const char debugOff[] = "-d-R-W-D-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P";
+    const char debugOn[] =  "+d+R+W+D+C+v+X+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P+r";
+    const char debugOff[] = "-d-R-W-D-C-v-X-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
 #else
-    const char debugOn[] =  "+d+R+W+D+v+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P";
-    const char debugOff[] = "-d-R-W-D-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P";
+    const char debugOn[] =  "+d+R+W+D+C+v+k+i+s+m+#+p+g+c+w+h+I+E+x+M+n+P+r";
+    const char debugOff[] = "-d-R-W-D-C-v-k-i-s-m-#-p-g-c-w-h-I-E-x-M-n-P-r";
 #endif
 
     //expand the user string to a canonical form
@@ -348,8 +366,8 @@ main(int argc, char **argv)
     ccode = CheckForDOSEMU();
 
     if (ccode == 0) {
-         printf("DOSEMU is not running.  This program is intended for use\n");
-         printf("only with the Linux DOS emulator.\n");
+         printf("DOSEMU is not running. This program is intended for use\n");
+         printf("only with Dosemu.\n");
          exit(1);
     }
 

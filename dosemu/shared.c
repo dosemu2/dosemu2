@@ -82,7 +82,7 @@ void shared_memory_init(void) {
  *
  */
 
- if(!config.X && !config.vga && !config.console_video) {
+ if(!config.dualmon && !config.X && !config.vga && !config.console_video) {
 
   if ((shm_video_id = shmget(IPC_PRIVATE, SHARED_VIDEO_AREA, 0755)) < 0) {
     E_printf("SHM: Initial Video IPC mapping unsuccessful: %s\n", strerror(errno));
@@ -117,7 +117,7 @@ E_printf("SHM: Client request area set to %04d\n", *(int *)(shared_qf_memory + C
   pid = getpid();
   sprintf(devname, "%s%d", TMPFILE, pid);
 
-  if ((tmpfile_fd = open(devname, O_WRONLY|O_CREAT)) < 1) {
+  if ((tmpfile_fd = open(devname, O_WRONLY|O_CREAT), 0666) < 1) {
     E_printf("SHM: Unable to open %s%d for sending client data: %s\n",TMPFILE, pid, strerror(errno));
   }
   sprintf(info, "dosemu-%s\n", VERSTR);

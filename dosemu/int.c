@@ -10,7 +10,6 @@
 #include <sys/wait.h>
 
 #include "config.h"
-#include "cpu.h"
 #include "emu.h"
 #include "memory.h"
 #include "timers.h"
@@ -345,7 +344,7 @@ static void int08(u_char i)
 {
   run_int(0x1c);
   /* REG(eflags) |= VIF; */
-  WRITE_FLAGS(READ_FLAGS() | VIF);
+  WRITE_FLAGSE(READ_FLAGSE() | VIF);
   return;
 }
 
@@ -356,8 +355,9 @@ static void int15(u_char i)
 
   if (HI(ax) != 0x4f)
     NOCARRY;
-  /* REG(eflags) |= VIF; */
-  WRITE_FLAGS(READ_FLAGS() | VIF);
+  /* REG(eflags) |= VIF;
+  WRITE_FLAGSE(READ_FLAGSE() | VIF);
+  */
 
   switch (HI(ax)) {
   case 0x10:			/* TopView/DESQview */
@@ -374,7 +374,7 @@ static void int15(u_char i)
   case 0x4f:			/* Keyboard intercept */
     HI(ax) = 0x86;
     /*k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));*/
-    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (WORD(READ_FLAGS()) & CF),LWORD(eax));
+    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (READ_FLAGS() & CF),LWORD(eax));
 /*
     CARRY;
     if (LO(ax) & 0x80 )
@@ -618,7 +618,7 @@ static void int1a(u_char i)
     HI(dx) |= tm->tm_sec << 4;
     /* LO(dx) = tm->tm_isdst; */
     /* REG(eflags) &= ~CF; */
-    WRITE_FLAGS(READ_FLAGS() & ~CF);
+    NOCARRY;
     break;
   case 4:			/* get date */
     time(&time_val);
@@ -644,7 +644,7 @@ static void int1a(u_char i)
     tm->tm_mon /= 10;
     HI(dx) |= tm->tm_mon << 4;
     /* REG(eflags) &= ~CF; */
-    WRITE_FLAGS(READ_FLAGS() & ~CF);
+    NOCARRY;
     break;
   case 3:			/* set time */
   case 5:			/* set date */
@@ -780,7 +780,11 @@ run_int(int i)
    * NT (nested task) bits of EFLAGS
    */
   /* REG(eflags) &= ~(VIF | TF | IF | NT); */
-  WRITE_FLAGS(READ_FLAGS() & ~(VIF | TF | IF | NT));
+#if 0
+  WRITE_FLAGSE(READ_FLAGSE() & ~(VIF | TF | IF | NT));
+#else
+  WRITE_FLAGSE(READ_FLAGSE() & ~(TF));
+#endif
 }
 
 int can_revector(int i)
@@ -1275,8 +1279,9 @@ void int_queue_run(void)
   /* clear TF (trap flag, singlestep), IF (interrupt flag), and
    * NT (nested task) bits of EFLAGS
    */
-
+#if 0
   REG(eflags) &= ~(VIF | TF | IF | NT);
+#endif
   if (int_queue[int_queue_start].callstart)
     REG(eflags) |= VIP;
 
@@ -1304,6 +1309,11 @@ void setup_interrupts(void) {
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
+#if 0 /* Rick's BUG FIXER */
+    /* Go figure? */
+    if (i == 115)
+      continue;
+#endif
     interrupt_function[i] = default_interrupt;
     if ((i & 0xf8) == 0x60)
       continue;			/* user interrupts */
@@ -1343,7 +1353,7 @@ void setup_interrupts(void) {
   interrupt_function[0xe8] = inte8;
 
   /* Let kernel handle this, no need to return to DOSEMU */
-  SETIVEC(0x1c, 0xf01c, 0);
+  SETIVEC(0x1c, 0xf010, 0xc0);
 
   /* show EMS as disabled */
   SETIVEC(0x67, 0, 0);

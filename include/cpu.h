@@ -50,8 +50,10 @@
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
 
-#define WRITE_FLAGS(val)    REG(eflags) = (val)
-#define READ_FLAGS()        REG(eflags)
+#define WRITE_FLAGS(val)    LWORD(eflags) = (val)
+#define WRITE_FLAGSE(val)    REG(eflags) = (val)
+#define READ_FLAGS()        LWORD(eflags)
+#define READ_FLAGSE()        REG(eflags)
 
 #endif /* #ifndef X86_EMULATOR */
 
@@ -128,7 +130,7 @@ static __inline__ void reset_revectored(int nr, struct revectored_struct * bitma
 #endif
 
 /*#define vflags ((REG(eflags) & VIF)? LWORD(eflags) | IF : LWORD(eflags) & ~IF)*/
-#define vflags ((READ_FLAGS() & VIF)? WORD(READ_FLAGS()) | IF : WORD(READ_FLAGS()) & ~IF)
+#define vflags ((READ_FLAGSE() & VIF)? READ_FLAGS() | IF : READ_FLAGS() & ~IF)
 
 #if 0
 /* this is the array of interrupt vectors */
@@ -161,12 +163,13 @@ EXTERN struct vec_t *ivecs;
 #define WORD(i) (unsigned short)(i)
 */
 
-/*
+#if 0
 #define CARRY (LWORD(eflags) |= CF)
 #define NOCARRY (LWORD(eflags) &= ~CF)
-*/
-#define CARRY   ( WRITE_FLAGS(WORD(READ_FLAGS()) | CF) )
-#define NOCARRY ( WRITE_FLAGS(WORD(READ_FLAGS()) & ~CF) )
+#else 
+#define CARRY   ( WRITE_FLAGS(READ_FLAGS() |  CF) )
+#define NOCARRY ( WRITE_FLAGS(READ_FLAGS() & ~CF) )
+#endif
 
 struct sigcontext_struct {
   unsigned short gs, __gsh;

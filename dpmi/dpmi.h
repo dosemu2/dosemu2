@@ -111,10 +111,15 @@ typedef struct dpmi_pm_block_stuct {
 } dpmi_pm_block;
 
 dpmi_pm_block* DPMImalloc(unsigned long size);
+dpmi_pm_block* DPMImallocFixed(unsigned long base, unsigned long size);
 int DPMIfree(unsigned long handle);
 dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size);
 void DPMIfreeAll(void);
 unsigned long base2handle(void *);
+dpmi_pm_block *lookup_pm_block(unsigned long h);
+int
+DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+			  unsigned long low_addr, unsigned long cnt);
 
 #define DPMI_show_state \
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \

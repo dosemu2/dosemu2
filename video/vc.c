@@ -353,8 +353,11 @@ wait_vc_active (void)
 {
   if (ioctl (kbd_fd, VT_WAITACTIVE, scr_state.console_no) < 0)
     {
-      error ("ERROR: VT_WAITACTIVE for %d gave %d: %s\n", scr_state.console_no,
-	     errno, strerror (errno));
+      if (errno != EINTR)
+		{
+			error ("ERROR: VT_WAITACTIVE for %d gave %d: %s\n", scr_state.console_no,
+			     errno, strerror (errno));
+	    }
       return -1;
     }
   else

@@ -23,7 +23,6 @@
 #include <sys/ioctl.h>
 
 #include "config.h"
-#include "cpu.h"
 #include "emu.h"
 #include "pic.h"
 #include "serial.h"

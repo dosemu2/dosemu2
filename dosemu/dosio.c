@@ -315,6 +315,7 @@ static caddr_t ipc_return;
 void HMA_MAP(int HMA)
 {
 
+  priv_on();
   E_printf("Entering HMA_MAP with HMA=%d\n", HMA);
   if (shmdt(HMAAREA) < 0) {
     E_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
@@ -332,6 +333,7 @@ void HMA_MAP(int HMA)
       leavedos(47);
     }
   }
+  priv_off();
 }
 
 void
@@ -415,6 +417,19 @@ void HMA_init(void)
 #endif
 }
 
+#if defined(SIG) && defined(REQUIRES_EMUMODULE)
+static int SillyG_pendind_irq_bits=0;
+int SillyG_do_irq(void)
+{
+  int irq=10, ret;
+  ret = do_irq();
+  SillyG_pendind_irq_bits &= ~(1 << irq);
+  get_and_reset_irq(irq);
+  return ret;
+}
+#endif
+
+
 void
 io_select(fd_set fds)
 {
@@ -426,10 +441,12 @@ io_select(fd_set fds)
 
 #if defined(SIG) && defined(REQUIRES_EMUMODULE)
   if (SillyG) {
-    if (get_irq_bits()) {
+    int irq_bits =get_irq_bits() & ~SillyG_pendind_irq_bits;
+    if (irq_bits) {
       SillyG_t *sg=SillyG;
       while (sg->fd) {
-        if (get_and_reset_irq(sg->irq)) {
+        if (irq_bits & (1 << sg->irq)) {
+          SillyG_pendind_irq_bits |= 1 << sg->irq;
           h_printf("SIG: We have an interrupt\n");
           process_interrupt(sg);
         }
@@ -438,6 +455,7 @@ io_select(fd_set fds)
     }
   }
 #endif
+
   while ( ((selrtn = select(25, &fds, NULL, NULL, &tvptr)) == -1)
         && (errno == EINTR)) {
     tvptr.tv_sec=0L;
@@ -456,8 +474,7 @@ io_select(fd_set fds)
 
     default:			/* has at least 1 descriptor ready */
 
-#ifdef SIG
-#ifndef REQUIRES_EMUMODULE
+#if defined(SIG) && (!defined(REQUIRES_EMUMODULE))
       if (SillyG) {
         SillyG_t *sg=SillyG;
         while (sg->fd) {
@@ -468,7 +485,6 @@ io_select(fd_set fds)
 	  sg++;
 	}
       }
-#endif
 #endif
       if (mice->intdrv || mice->type == MOUSE_PS2)
 	if (FD_ISSET(mice->fd, &fds)) {

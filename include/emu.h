@@ -48,6 +48,7 @@
 
 #include <sys/types.h>
 #include <signal.h> 
+#include "extern.h"
 #include "machcompat.h"
 #include "cpu.h"
 #include "vm86plus.h"
@@ -57,21 +58,6 @@
 #if 1 /* Set to 1 to use Silly Interrupt generator */
 #define SIG 1
 typedef struct { int fd; int irq; } SillyG_t;
-#endif
-
-#if 0 /* NOTE: This has been moved to the main Makefile */
-#if 0 
-  /* Set this to 1, if you you need the emumodules special features
-   * You also must load the modules as follows:
-   *   login in as root
-   *   cd /usr/src/dosemuXXX/syscallmgr
-   *   ./insmod syscallmgr.o
-   *   ./insmod -m ../emumod/emumodule.o
-   */
-  #define REQUIRES_EMUMODULE
-#else 
-  #undef REQUIRES_EMUMODULE
-#endif 
 #endif
 
 #define inline __inline__
@@ -113,7 +99,6 @@ extern int screen, screen_mode;
 
 /* number of highest vid page - 1 */
 EXTERN int max_page INIT(7);
-
 
 extern char *cl,		/* clear screen */
 *le,				/* cursor left */
@@ -164,19 +149,19 @@ extern void run_vm86(void);
 void getKeys(void);
 
 
-
 struct debug_flags {
   unsigned char
-   disk,		/* disk msgs,        "d" */
+   disk,		/* disk msgs         "d" */
    read,		/* disk read         "R" */
    write,		/* disk write        "W" */
    dos,			/* unparsed int 21h  "D" */
-   video,		/* video,            "v" */
-   X,			/* X support,        "X" */
-   keyb,		/* keyboard,         "k" */
-   io,			/* port I/O,         "i" */
-   serial,		/* serial,           "s" */
-   mouse,		/* mouse,            "m" */
+   cdrom,               /* cdrom             "C" */
+   video,		/* video             "v" */
+   X,			/* X support         "X" */
+   keyb,		/* keyboard          "k" */
+   io,			/* port I/O          "i" */
+   serial,		/* serial            "s" */
+   mouse,		/* mouse             "m" */
    defint,		/* default ints      "#" */
    printer,		/* printer           "p" */
    general,		/* general           "g" */
@@ -223,7 +208,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define i_printf(f,a...) 	ifprintf(d.io,f,##a)
 #define R_printf(f,a...) 	ifprintf(d.read,f,##a)
 #define W_printf(f,a...) 	ifprintf(d.write,f,##a)
-#define warn(f,a...)     	ifprintf(d.warning,f,##a)
+#define C_printf(f,a...)        ifprintf(d.cdrom,f,##a)
 #define g_printf(f,a...)	ifprintf(d.general,f,##a)
 #define x_printf(f,a...)	ifprintf(d.xms,f,##a)
 #define D_printf(f,a...)	ifprintf(d.dpmi,f,##a)
@@ -232,11 +217,12 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define E_printf(f,a...) 	ifprintf(d.EMS,f,##a)
 #define c_printf(f,a...) 	ifprintf(d.config,f,##a)
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
-#define n_printf(f,a...)        ifprintf(d.network,f,##a)	/* TRB */
-#define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	/* pktdrvr  */
+#define n_printf(f,a...)        ifprintf(d.network,f,##a)  /* TRB     */
+#define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	   /* pktdrvr */
 #define r_printf(f,a...)        ifprintf(d.request,f,##a)
+#define warn(f,a...)     	ifprintf(d.warning,f,##a)
 #define error(f,a...)	 	fprintf(stderr, f, ##a)
-#define hard_error(f, a...)	fprintf(stderr, f, ##a) 
+#define hard_error(f, a...)	fprintf(stderr, f, ##a)
 
 #else
 #define dbug_printf(f,a...)	ifprintf(2,f,##a)
@@ -285,16 +271,14 @@ EXTERN u_char in_ioctl INIT(0);
 EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 
 
-
-     /* int 11h config single bit tests
- */
+/* int 11h config single bit tests */
 #define CONF_FLOP	BIT(0)
 #define CONF_MATHCO	BIT(1)
 #define CONF_MOUSE	BIT(2)
 #define CONF_DMA	BIT(8)
 #define CONF_GAME	BIT(12)
 
-     /* don't use CONF_NSER with num > 4, CONF_NLPT with num > 3, CONF_NFLOP
+/* don't use CONF_NSER with num > 4, CONF_NLPT with num > 3, CONF_NFLOP
  * with num > 4
  */
 #define CONF_NSER(c,num)	{c&=~(BIT(9)|BIT(10)|BIT(11)); c|=(num<<9);}
@@ -302,7 +286,7 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 #define CONF_NFLOP(c,num) 	{c&=~(CONF_FLOP|BIT(6)|BIT(7)); \
 				   if (num) c|=((num-1)<<6)|CONF_FLOP;}
 
-     /* this macro can be safely wrapped around a system call with no side
+/* this macro can be safely wrapped around a system call with no side
  * effects; using a feature of GCC, it returns the same value as the
  * function call argument inside.
  *
@@ -369,13 +353,13 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        u_short cardtype;
        u_short chipset;
        u_short gfxmemsize;		/* for SVGA card, in K */
-       /* u_short term_method; */		/* Terminal method: ANSI or NCURSES */
+       /* u_short term_method; */	/* Terminal method: ANSI or NCURSES */
        u_short term_color;		/* Terminal color support on or off */
        /* u_short term_updatelines; */	/* Amount to update at a time */
        u_short term_updatefreq;		/* Terminal update frequency */
        u_short term_charset;		/* Terminal Character set */
-       u_short term_esc_char;	       /* ASCII value used to access slang help screen */
-       /* u_short term_corner; */             /* Update char at lower-right corner */
+       u_short term_esc_char;	        /* ASCII value used to access slang help screen */
+       /* u_short term_corner; */       /* Update char at lower-right corner */
        u_short X_updatelines;           /* Amount to update at a time */
        u_short X_updatefreq;            /* X update frequency */
        char    *X_display;              /* X server to use (":0") */
@@ -521,8 +505,10 @@ extern int priv_off(void);
 #endif
 #ifdef __linux__
 extern int exchange_uids(void);
+#if 0
 #define priv_on exchange_uids
 #define priv_off exchange_uids
+#endif
 #endif
 extern void disk_init(void);
 extern void serial_init(void);

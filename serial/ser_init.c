@@ -33,7 +33,6 @@
 #include <pwd.h>
 
 #include "config.h"
-#include "cpu.h"
 #include "emu.h"
 #include "mouse.h"
 #include "pic.h"

@@ -52,11 +52,38 @@ static void irq_handler(int intno, struct pt_regs * unused) {
 #endif
   int int_bit;
   cli();
+#if KERNEL_VERSION < 1001089
   intno= (-(((struct pt_regs *)intno)->orig_eax+2) & 0xf);
+#endif
   int_bit = 1 << intno;
   if (!(irqbits & int_bit)) {
     irqbits |= int_bit;
-    if (tasks[intno]) send_sig(SIGIO,tasks[intno], 1);
+    if (tasks[intno]) {
+      send_sig(SIGIO,tasks[intno], 1);
+#if 0
+      /* this temporary increases the priority of dosemu,
+       * resulting in less latency for the IRQs.
+       * ...but unfortunately it also pushes the rest 
+       * of Linux processes deep in the background.
+       * So be very carefully ! (not usable at this time)
+       */
+      if (tasks[intno] == current) { 
+        if (tasks[intno]->counter < 35 ) tasks[intno]->counter++;
+        need_resched = 0;
+      }
+      else {
+        struct task_struct *p;
+        for_each_task(p) {
+          if (p) {
+            if (p->counter > tasks[intno]->counter) tasks[intno]->counter = p->counter;
+          }
+        }
+        tasks[intno]->counter +=35;
+        tasks[intno]->counter <<=1;
+        need_resched = 1;
+      }
+#endif
+    }
   }
   sti();
   return;
@@ -121,7 +148,7 @@ static void remove_all_irqs()
  *         because this are the true register values of the user process.
  *     5.  return a function value in fast_syscall_regs.eax
  *     6.  avoid anything that can lead to a "security hole"
- *         (e.g. check current->uid for root)
+ *         (e.g. check current->euid for root)
  *     7.  NOT run dosemu under GDB, unless you also set
  *         #define HANDLE_DEBUG_REGISTERS 1 (in fastsys.S),
  *         see the comment there.
@@ -130,7 +157,7 @@ static void remove_all_irqs()
 
 void asmlinkage do_fast_syscall(struct fast_syscall_regs *regs)
 {
-  if (current->uid) {
+  if (!suser()) {
     /* some body other then root is calling us ! */
     regs->eax = -EACCES;
     return;

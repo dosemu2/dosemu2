@@ -28,7 +28,9 @@
 
 #include "config.h"
 #include "emu.h"
+#if 0
 #include "cpu.h"
+#endif /* WHY */
 #include "disks.h"
 #include "lpt.h"
 #include "video.h"
@@ -155,7 +157,7 @@ extern void yyrestart(FILE *input_file);
 	/* printer */
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
-%token L_PARTITION WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
+%token L_PARTITION BOOTFILE WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
 %token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE
@@ -595,6 +597,17 @@ printer_flag	: COMMAND STRING	{ pptr->prtcmd = $2; }
 
 	/* disks */
 
+optbootfile	: BOOTFILE STRING
+		  {
+                  if (priv_lvl)
+                    yyerror("Can not use BOOTFILE in the user config file\n");
+		  if (dptr->boot_name != NULL)
+		    yyerror("Two names for a boot-image file or device given.");
+		  dptr->boot_name = $2;
+                  }
+		| /* empty */
+		;
+
 disk_flags	: disk_flag
 		| disk_flags disk_flag
 		;
@@ -606,7 +619,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| TRACKS INTEGER	{ dptr->tracks = $2; }
 		| HEADS INTEGER		{ dptr->heads = $2; }
 		| OFFSET INTEGER	{ dptr->header = $2; }
-		| DEVICE STRING
+		| DEVICE STRING optbootfile
 		  {
                   if (priv_lvl)
                     yyerror("Can not use DISK/DEVICE in the user config file\n");
@@ -628,7 +641,7 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  dptr->header = HEADER_SIZE;
 		  dptr->dev_name = $2;
 		  }
-		| WHOLEDISK STRING
+		| WHOLEDISK STRING optbootfile
 		  {
                   if (priv_lvl)
                     yyerror("Can not use DISK/WHOLEDISK in the user config file\n");
@@ -646,14 +659,14 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  dptr->type = FLOPPY;
 		  dptr->dev_name = $2;
 		  }
-		| L_PARTITION STRING INTEGER
+		| L_PARTITION STRING INTEGER optbootfile
 		  {
                   yywarn("{ partition \"%s\" %d } the"
 			 " token '%d' is ignored and can be removed.",
 			 $2,$3,$3);
 		  do_part($2);
 		  }
-		| L_PARTITION STRING 
+		| L_PARTITION STRING optbootfile
 		  { do_part($2); }
 		| STRING
 		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
@@ -1049,6 +1062,7 @@ static void start_bootdisk(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
+  dptr->boot_name = NULL;
   dptr->wantrdonly = 0;
   dptr->header = 0;
 }
@@ -1073,6 +1087,7 @@ static void start_floppy(void)
   dptr->default_cmos = THREE_INCH_FLOPPY;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
+  dptr->boot_name = NULL;
   dptr->wantrdonly = 0;
   dptr->header = 0;
 }
@@ -1093,6 +1108,7 @@ static void start_disk(void)
   dptr->tracks  = -1;
   dptr->timeout = 0;
   dptr->dev_name = NULL;              /* default-values */
+  dptr->boot_name = NULL;
   dptr->wantrdonly = 0;
   dptr->header = 0;
 }

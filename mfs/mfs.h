@@ -43,8 +43,6 @@ typedef unsigned char boolean_t;
 typedef struct vm86_regs state_t;
 #endif
 
-#define uesp esp
-
 #define Addr_8086(x,y)	(( ((x) & 0xffff) << 4) + ((y) & 0xffff))
 #define Addr(s,x,y)	Addr_8086(((s)->x), ((s)->y))
 #define MASK8(x)	((x) & 0xff)
@@ -89,6 +87,9 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log: mfs.h,v $
+ * Revision 1.2  1995/05/23  06:04:49  root
+ * fix for redirector open existing file function
+ *
  * Revision 2.3  1995/04/08  22:33:34  root
  * Release dosemu0.60.0
  *

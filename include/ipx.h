@@ -11,7 +11,9 @@
 #define IPX 1
 #endif
 
+#if 0
 #include "cpu.h"
+#endif
 #include <sys/types.h>
 
 #define INT2F_DETECT_IPX		0x7A00

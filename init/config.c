@@ -10,7 +10,6 @@
 
 #include "config.h"
 #include "emu.h"
-#include "cpu.h"
 #include "video.h"
 #include "mouse.h"
 #include "serial.h"
@@ -29,8 +28,8 @@
 
 
 struct debug_flags d =
-{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
+{  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  };
+/* d  R  W  D  C  v  X  k  i  s  m  #  p  g  c  w  h  I  E  x  M  n  P  r */
 
 static void     check_for_env_autoexec_or_config(void);
 static void     parse_debugflags(const char *s);
@@ -71,13 +70,13 @@ config_defaults(void)
     config.hdisks = 0;
     config.bootdisk = 0;
     config.exitearly = 0;
-   config.term_esc_char = 30;	       /* Ctrl-^ */
+    config.term_esc_char = 30;	       /* Ctrl-^ */
     /* config.term_method = METHOD_FAST; */
     config.term_color = 1;
-   /* config.term_updatelines = 25; */
+    /* config.term_updatelines = 25; */
     config.term_updatefreq = 4;
     config.term_charset = CHARSET_LATIN;
-   /* config.term_corner = 1; */
+    /* config.term_corner = 1; */
     config.X_updatelines = 25;
     config.X_updatefreq = 8;
     config.X_display = NULL;	/* NULL means use DISPLAY variable */
@@ -109,7 +108,7 @@ config_defaults(void)
     /* Lock file stuff */
     config.tty_lockdir = PATH_LOCKD;    /* The Lock directory  */
     config.tty_lockfile = NAME_LOCKF;   /* Lock file pretext ie LCK.. */
-    config.tty_lockbinary = FALSE;        /* Binary lock files ? */
+    config.tty_lockbinary = FALSE;      /* Binary lock files ? */
 
     config.num_ser = 0;
     config.num_lpt = 0;
@@ -453,9 +452,9 @@ parse_debugflags(const char *s)
     unsigned char   flag = 1;
 
 #ifdef X_SUPPORT
-    const char      allopts[] = "dRWDvXkism#pgcwhIExMnP";
+    const char      allopts[] = "dRWDCvXkism#pgcwhIExMnPr";
 #else
-    const char      allopts[] = "dRWDvkism#pgcwhIExMnP";
+    const char      allopts[] = "dRWDCvkism#pgcwhIExMnPr";
 #endif
 
     /*
@@ -487,6 +486,9 @@ parse_debugflags(const char *s)
 	case 'D':		/* DOS int 21h */
 	    d.dos = flag;
 	    break;
+        case 'C':               /* CDROM */
+	    d.cdrom = flag;
+            break;
 	case 'v':		/* video */
 	    d.video = flag;
 	    break;
@@ -580,9 +582,9 @@ usage(void)
     fprintf(stdout, "    -X run in X Window (#)\n");
     fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
     fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvXkism#pgcwhIExMnPr01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvXkism#pgcwhIExMnPr01)\n");
 #else				/* X_SUPPORT */
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvkism#pgcwhIExMnPr01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDCvkism#pgcwhIExMnPr01)\n");
 #endif				/* X_SUPPORT */
     fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
     fprintf(stdout, "    -P copy debugging output to FILE\n");

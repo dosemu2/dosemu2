@@ -36,6 +36,7 @@ struct partition {
 
 struct disk {
   char *dev_name;		/* disk file */
+  char *boot_name;              /* boot image file */
   int wantrdonly;		/* user wants the disk to be read only */
   int rdonly;			/* The way we opened the disk (only filled in if the disk is open) */
   int sectors, heads, tracks;	/* geometry */

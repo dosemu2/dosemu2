@@ -374,6 +374,9 @@ void int10()
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
   static int last_equip=-1;
+
+k_printf("VID BEFOR: IF=%x:", REG(eflags) & IF);
+k_printf(" VIF=%x\n", REG(eflags) & VIF);
   
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
     extern struct video_system *Video_default;
@@ -722,5 +725,7 @@ void int10()
     CARRY;
     break;
   }
+k_printf("VID AFTER: IF=%x:", REG(eflags) & IF);
+k_printf(" VIF=%x\n", REG(eflags) & VIF);
 }
 

@@ -10,6 +10,7 @@
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
+
 #include "emu.h"
 #include "bios.h"
 #include "video.h"

@@ -405,9 +405,14 @@ speaker native         # or "off" or "emulated"
 #    "partition" specifies partition access, with device and partition number.
 #    "wholedisk" specifies full access to entire hard drive.
 #    "readonly" for read only access.  A good idea to set up with.
+#    "bootfile" to specify an image of a boot sector to boot from.
 #
 #disk { image "/var/lib/dosemu/hdimage" }      # use diskimage file.
 #disk { partition "/dev/hda1" readonly }       # 1st partition on 1st IDE.
+#disk { partition "/dev/hda1" bootfile "/var/lib/bootsect.dos" }
+                                               # 1st partition on 1st IDE
+                                               # booting from the specified
+                                               # file.
 #disk { partition "/dev/hda6" readonly }       # 6th logical partition.
 #disk { partition "/dev/sdb1" readonly }       # 1st partition on 2nd SCSI.
 #disk { wholedisk "/dev/hda" }                 # Entire disk drive unit

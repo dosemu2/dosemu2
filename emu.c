@@ -440,7 +440,6 @@ __asm__("___START___: jmp _emulate\n");
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"
 #include "keymaps.h"
-#include "cpu.h"
 #include "int.h"
 #include "bitops.h"
 #include "pic.h"
@@ -482,6 +481,7 @@ void
 run_vm86(void)
 {
     /* FIXME: why static *? */
+    static int      xxx=0;
     static int      retval;
     static u_short  next_signal = 0;
     /*
@@ -493,7 +493,27 @@ run_vm86(void)
 	REG(eflags) |= (VIP);
     /* FIXME: this needs to be clarified and rewritten */
 
+#if 1
+  g_printf("Before: EIP: %04x:%08lx", LWORD(cs), REG(eip));
+  g_printf(" ESP: %04x:%08lx\n", LWORD(ss), REG(esp));
+if(0 && (REG(eip) == 0x746 || REG(eip) == 0x7cb)) xxx=1;
+if (xxx)
+  show_regs(__FILE__,__LINE__);
+#if 0
+if (*(u_short *)((LWORD(cs) << 4) + LWORD(eip))==0x66)
+  show_regs(__FILE__,__LINE__);
+#endif
+#endif
+
     retval = DO_VM86(&vm86s);
+
+#if 1
+  g_printf("After : ");
+  g_printf("EIP: %04x:%08lx", LWORD(cs), REG(eip));
+  g_printf(" ESP: %04x:%08lx\n", LWORD(ss), REG(esp));
+if (xxx)
+  show_regs(__FILE__,__LINE__);
+#endif
     in_vm86 = 0;
     switch VM86_TYPE
 	(retval) {
@@ -573,6 +593,22 @@ boot(void)
 
     buffer = (char *) 0x7c00;
 
+    if (dp->boot_name) {/* Boot from the specified file */
+        int bfd;
+        d_printf ("Booting from bootfile=%s...\n",dp->boot_name);
+        bfd = open (dp->boot_name, O_RDONLY);
+        if (bfd == -1) {/* Abort with error */
+            error("ERROR: Boot file %s missing\n",dp->boot_name);
+            leavedos(16);
+        }
+        if (read(bfd, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
+            error("ERROR: Failed to read exactly %d bytes from %s\n",
+                  SECTOR_SIZE, dp->boot_name);
+            leavedos(16);
+        }
+        close(bfd);
+    }
+    else
     if (dp->type == PARTITION) {/* we boot partition boot record, not MBR! */
 	d_printf("Booting partition boot record from part=%s....\n", dp->dev_name);
 	if (RPT_SYSCALL(read(dp->fdesc, buffer, SECTOR_SIZE)) != SECTOR_SIZE) {
@@ -665,7 +701,13 @@ SIG_init()
 #endif				/* NOT REQUIRES_EMUMODULE */
 		    sg->irq = irq;
 		    g_printf("SIG: IRQ%d, enabling PIC-level %d\n", irq, pic_irq_list[irq]);
+#ifdef REQUIRES_EMUMODULE
+		    { extern int SillyG_do_irq(void);
+		    pic_seti(pic_irq_list[irq], SillyG_do_irq, 0);
+		    }
+#else
 		    pic_seti(pic_irq_list[irq], do_irq, 0);
+#endif
 		    pic_unmaski(pic_irq_list[irq]);
 		    sg++;
 		}
@@ -704,13 +746,12 @@ emumodule_init(void)
 #ifdef REQUIRES_EMUMODULE
     resolve_emusyscall();
     if (EMUSYS_AVAILABLE) {
-	if (emusyscall(EMUSYS_GETVERSION, 0) < EMUSYSVERSION) {
-	    fprintf(stderr, "emumodule not loaded or wrong version\n\r");
-	    fflush(stdout);
-	    fflush(stderr);
-	    _exit(1);
-	}
+	if (emusyscall(EMUSYS_GETVERSION, 0) >= EMUSYSVERSION) return;
     }
+    fprintf(stderr, "emumodule not loaded or wrong version\n\r");
+    fflush(stdout);
+    fflush(stderr);
+    _exit(1);
 #endif
 }
 
@@ -881,6 +922,12 @@ leavedos(int sig)
 {
     struct sigaction sa;
 
+#if 1 /* BUG CATCHER */
+    if (in_vm86) {
+      g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");
+      show_regs(__FILE__, __LINE__);
+    }
+#endif
     in_vm86 = 0;
 
     /* remove tmpdir */

@@ -439,7 +439,7 @@ void (*func);
 {
   if(level>=32) return;
   pic_iinfo[level].func = func;
-  if(level>16) pic_iinfo[level].ivec = ivec;
+  if(level>15) pic_iinfo[level].ivec = ivec;
   if(func == (void*)0) pic_maski(level);
 }
 
@@ -523,6 +523,14 @@ void run_irqs()
 void run_irqs()
 {
 
+#if 1 /* BUG FIXER (if 1), lets WIN31 run */
+if ((!(REG(eflags) & VIF)) && (!in_dpmi) ) {
+  g_printf("*");
+  return;
+}
+#else
+if (!(REG(eflags) & VIF)) return;
+#endif
 #warning using assembly run_irqs
   __asm__ __volatile__
   ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t" /* get old ilevel              */
@@ -584,30 +592,38 @@ int do_irq()
 {
  int intr;
  long int_ptr;
- unsigned short * tmp;
- 
-    intr=pic_iinfo[pic_ilevel].ivec;
-    if(!pic_ilevel) return;
+ unsigned char * ssp;
+ unsigned long sp;
 
-#ifndef PICTEST
+    if(pic_ilevel==32) return 0;
+    intr=pic_iinfo[pic_ilevel].ivec;
+
     if(pic_ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x1a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x1a;pic1_isr&= 0xffef;} /* & one EOI */
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
     {
+#if 1 /* BUG CATCHER (if 1) */
+g_printf("+%d",pic_ilevel);
 #endif
-     pic_push(pic_ilevel);
+     if(pic_ilevel < 16) pic_push(pic_ilevel);
      if (in_dpmi) {
       run_pm_int(intr);
      } else {
       pic_cli();
-      tmp = SEG_ADR((short *),ss,sp)-3;
-      tmp[2] = LWORD(eflags);
-      tmp[1] = REG(cs);
-      tmp[0] = LWORD(eip);
-      LWORD(esp) -= 6;
+      ssp = (unsigned char *)(LWORD(ss)<<4);
+      sp = (unsigned long) LWORD(esp);
+
+ /* save the real return address on the stack. Make iret return to
+  * PIC_SEG:PIC_OFF so we can catch it.
+  * change esp first to protect the stack we're about to use
+  */
+      LWORD(esp) = (LWORD(esp) - 4) & 0xffff;  
+      pushw(ssp, sp, REG(cs));
+      pushw(ssp, sp, LWORD(eip));
       REG(cs) = PIC_SEG;
       LWORD(eip) = PIC_OFF;
       
+ /* schedule the requested interrupt, then enter the vm86() loop */
       run_int(intr);
      }
       pic_icount++;
@@ -638,10 +654,8 @@ int do_irq()
       pic_sti();
       return(0);
 
-#ifndef PICTEST
     }   /* else */ 
     return(1);
-#endif
 }
 
 
@@ -721,7 +735,8 @@ static char buf[81];
 void
 pic_iret()
 {
-unsigned short * tmp;
+unsigned char * ssp;
+unsigned long sp;
 
   pic_db_icount=' ';
   if(in_dpmi) {
@@ -740,10 +755,12 @@ unsigned short * tmp;
   return;
   }
 
-/* if we've really come from an iret, cs:ip will have just been popped */
-tmp = SEG_ADR((short *),ss,sp)-3;
- if (tmp[1] == REG(cs)) 
-  if(tmp[0] == LWORD(eip)) {
+/* if we've really come from an irq, cs:ip will point to PIC_SEG:PIC_OFF */
+/* if we haven't come from an irq and cs:ip points as above, we're going to
+ * die anyway, since our next instruction is a hlt.
+ */ 
+ if(REG(cs) == PIC_SEG)
+   if(LWORD(eip) == PIC_OFF) {
     if(pic_icount) { 
     pic_db_icount='-';
       if(!(--pic_icount)) {
@@ -754,17 +771,13 @@ tmp = SEG_ADR((short *),ss,sp)-3;
         if(!pic_irr) REG(eflags)&=~(VIP);
       }
     }
-/* if return is to PIC_ADD, pop the real cs:ip */
-    if(tmp[0] == PIC_OFF && tmp[1] == PIC_SEG) {
      pic_print(2,"IRET in vm86, loops=",pic_vm86_count," ");
      pic_vm86_count=0;
-      LWORD(eip) = tmp[3];
-      REG(cs) = tmp[4];
-      LWORD(esp) += 6;
-      }
-    else {
-     pic_print(2,"Returned from iret not an irq",         0, (char*)0);
-      }
+      ssp = (unsigned char *)(LWORD(ss)<<4);
+      sp = (unsigned long) LWORD(esp);
+      LWORD(eip) = popw(ssp, sp);
+      REG(cs) = popw(ssp, sp);
+      LWORD(esp) = (LWORD(esp) + 4) & 0xffff;
     }
  return;
 }

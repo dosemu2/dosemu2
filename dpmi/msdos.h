@@ -270,7 +270,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		} else {
 		    unsigned short sel = AllocateDescriptors(1);
 		    SetSegmentBaseAddress(sel, (unsigned long)bp->base);
-		    SetSegmentLimit(sel, bp -> size);
+		    SetSegmentLimit(sel, bp -> size - 1);
 		    _LWORD(eax) = sel;
 		    _eflags &= ~CF;
 		}
@@ -307,7 +307,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 		    _LWORD(eax) = 0x08;
 		} else {
 		    SetSegmentBaseAddress(_es, (unsigned long)bp->base);
-		    SetSegmentLimit(_es, bp -> size);
+		    SetSegmentLimit(_es, bp -> size - 1);
 		    _eflags &= ~CF;
 		}
 		return 1;

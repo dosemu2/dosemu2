@@ -17,7 +17,6 @@
  */
 
 #include "pktdrvr.h"
-#include "cpu.h"
 #include "emu.h"
 #include "dosio.h"
 #include "memory.h"
@@ -26,6 +25,13 @@
 #include <string.h>
 #include <sys/time.h>
 #include <linux/if_ether.h>
+/* flag to activate use of pic by packet driver */
+#if 0
+#define PICPKT 1
+#endif
+#ifdef PICPKT
+#include "pic.h"
+#endif
 
 #define min(a,b)	((a) < (b)? (a) : (b))
 
@@ -386,7 +392,11 @@ pkt_int ()
 		    {
 			/* send was okay, check for a reply to speedup */
 			/* things (background poll is quite slow) */
+#ifdef PICPKT
+			pic_request(PIC_NET);
+#else
 			pkt_check_receive(50000);
+#endif
 			return 1;
 		    } else {
 			warn("NPKT: WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
@@ -557,7 +567,11 @@ int timeout;
 		    /* interrupt which will perform the upcall */
 		    pg->size = size;
 		    pg->receiver = hdlp->receiver;
+#ifdef PICPKT
+		    do_irq();
+#else
 		    run_int(pg->helpvec);
+#endif
 		    return 1;
 		} else
 		    pg->stats.packets_lost++;	/* not really lost... */

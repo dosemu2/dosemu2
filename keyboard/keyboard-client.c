@@ -256,7 +256,7 @@ keyboard_init(void)
 	config.console = 1;
     } else {
 	if (config.console_keyb || config.console_video)
-	    error("ERROR: STDIN not a console-can't do console modes!\n");
+	    k_printf("ERROR: STDIN not a console-can't do console modes!\n");
 	scr_state.console_no = 0;
 	config.console_keyb = 0;
 	config.console_video = 0;

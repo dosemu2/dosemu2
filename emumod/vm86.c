@@ -338,6 +338,10 @@ static inline unsigned long get_vflags(struct vm86_regs * regs)
 
 static inline int is_revectored(int nr, struct revectored_struct * bitmap)
 {
+#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */
+	if (verify_area(VERIFY_READ, bitmap, 256/8) < 0)
+		return 1;
+#endif
 	__asm__ __volatile__("btl %2,%%fs:%1\n\tsbbl %0,%0"
 		:"=r" (nr)
 		:"m" (*bitmap),"r" (nr));
@@ -417,32 +421,95 @@ __asm__ __volatile__( \
 	: "0" (ptr), "1" (base)); \
 __res; })
 
+#if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS) && defined(USE_VM86_STACKVERIFY)
+  /* NOTE: You may think that verifying CS:IP also may be needed,
+   *       but we rely on the fact that the faulting instruction
+   *       has been completely prefetched by the CPU, so it is
+   *       save to access it.
+   */
+  #define STACKVERIFY(x) {\
+     unsigned long off1=sp, off2=(sp+(x)) & 0xffff; \
+     if (off1 > off2) { off1=off2; off2=sp; } \
+     if ((off1 ^ off2) & 0x8000) {  /* wrap case */ \
+       if (off1 && off2) { \
+         if (verify_area(VERIFY_WRITE,ssp,off1)) return_to_32bit(regs, VM86_STACKVERIFY); \
+         off1=off2; \
+       } \
+       else if (!off1) off1=off2; \
+       off2=0x10000; \
+     } \
+     if (verify_area(VERIFY_WRITE,ssp+off1,off2-off1)) return_to_32bit(regs, VM86_STACKVERIFY); \
+   }
+#else
+  #define STACKVERIFY(x)
+#endif
+
 static inline void do_int(struct vm86_regs *regs, int i, unsigned char * ssp, unsigned long sp)
 {
+#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
+	unsigned short *intr_ptr, seg;
+#else
 	unsigned short seg = get_fs_word((void *) ((i<<2)+2));
+#endif
 
 #if KERNEL_VERSION >= 1001075
+  #if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
+	if (regs->cs == BIOSSEG)
+		goto cannot_handle;
+	if (is_revectored(i, &current->tss.vm86_info->int_revectored))
+		goto cannot_handle;
+	if (i==0x21 && is_revectored(AH(regs),&current->tss.vm86_info->int21_revectored))
+		goto cannot_handle;
+  #else
 	if (seg == BIOSSEG || regs->cs == BIOSSEG ||
 	    is_revectored(i, &current->tss.vm86_info->int_revectored))
 		return_to_32bit(regs, VM86_INTx + (i << 8));
 	if (i==0x21 && is_revectored(AH(regs),&current->tss.vm86_info->int21_revectored))
 		return_to_32bit(regs, VM86_INTx + (i << 8));
+  #endif
 #else
+  #if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
+	if (regs->cs == BIOSSEG)
+		goto cannot_handle;
+	if (is_revectored(i, &current->vm86_info->int_revectored))
+		goto cannot_handle;
+	if (i==0x21 && is_revectored(AH(regs),&current->vm86_info->int21_revectored))
+		goto cannot_handle;
+  #else
 	if (seg == BIOSSEG || regs->cs == BIOSSEG ||
 	    is_revectored(i, &current->vm86_info->int_revectored))
 		return_to_32bit(regs, VM86_INTx + (i << 8));
 	if (i==0x21 && is_revectored(AH(regs),&current->vm86_info->int21_revectored))
 		return_to_32bit(regs, VM86_INTx + (i << 8));
+  #endif
 #endif
+#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
+	intr_ptr = (unsigned short *) (i << 2);
+	if (verify_area(VERIFY_READ, intr_ptr, 4) < 0)
+		goto cannot_handle;
+	seg = get_fs_word(intr_ptr+1);
+	if (seg == BIOSSEG)
+		goto cannot_handle;
+#endif
+	STACKVERIFY(-6)
 	pushw(ssp, sp, get_vflags(regs));
 	pushw(ssp, sp, regs->cs);
 	pushw(ssp, sp, IP(regs));
 	regs->cs = seg;
 	SP(regs) -= 6;
+#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
+	IP(regs) = get_fs_word(intr_ptr+0);
+#else
 	IP(regs) = get_fs_word((void *) (i<<2));
+#endif
 	clear_TF(regs);
 	clear_IF(regs);
 	return;
+
+#if 1 /* KERNEL_VERSION >= 1003002 (BUGFIX) */                                 
+cannot_handle:
+	return_to_32bit(regs, VM86_INTx + (i << 8));
+#endif
 }
 
 void handle_vm86_fault(struct vm86_regs * regs, long error_code)
@@ -452,14 +519,14 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 #if defined(_LOADABLE_VM86_) && defined(USE_VM86PLUS)
   #if KERNEL_VERSION >= 1001075
-	struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
+    struct vm86plus_struct *vmp=(void *)(current->tss.vm86_info);
   #else
-	struct vm86plus_struct *vmp=(void *)(current->vm86_info);
+    struct vm86plus_struct *vmp=(void *)(current->vm86_info);
   #endif
-	int is_vm86plus=( get_fs_long(&vmp->vm86plus.vm86plus_magic) == VM86PLUS_MAGIC );
-	#define VM86_FAULT_RETURN   if (is_vm86plus) break; else return
+  int is_vm86plus=( get_fs_long(&vmp->vm86plus.vm86plus_magic) == VM86PLUS_MAGIC );
+  #define VM86_FAULT_RETURN   if (is_vm86plus) break; else return
 #else
-	#define VM86_FAULT_RETURN   return
+  #define VM86_FAULT_RETURN   return
 #endif
 
 #if defined(_LOADABLE_VM86_) && defined(_VM86_STATISTICS_)
@@ -467,6 +534,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 	extern int vm86_count_cli,vm86_count_sti;
 	vm86_fault_count++;
 #endif
+
 
 	csp = (unsigned char *) (regs->cs << 4);
 	ssp = (unsigned char *) (regs->ss << 4);
@@ -481,6 +549,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 		/* pushfd */
 		case 0x9c:
+			STACKVERIFY(-4)
 			SP(regs) -= 4;
 			IP(regs) += 2;
 			pushl(ssp, sp, get_vflags(regs));
@@ -488,6 +557,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 		/* popfd */
 		case 0x9d:
+			STACKVERIFY(+4)
 			SP(regs) += 4;
 			IP(regs) += 2;
 			set_vflags_long(popl(ssp, sp), regs);
@@ -497,16 +567,25 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
    The below is a bugfix (Dong Liu), we want it even for older kernels */
 		/* iretd */
 		case 0xcf:
+			STACKVERIFY(+12)
 			SP(regs) += 12;
 			IP(regs) = (unsigned short)popl(ssp, sp);
 			regs->cs = (unsigned short)popl(ssp, sp);
 			set_vflags_long(popl(ssp, sp), regs);
 			VM86_FAULT_RETURN;
 /* #endif */
+#if 1 /* need this to avoid a fallthrough */
+		default:
+			return_to_32bit(regs, VM86_UNKNOWN);
 		}
+		break;
+#else
+		}
+#endif
 
 	/* pushf */
 	case 0x9c:
+		STACKVERIFY(-2)
 		SP(regs) -= 2;
 		IP(regs)++;
 		pushw(ssp, sp, get_vflags(regs));
@@ -514,6 +593,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 	/* popf */
 	case 0x9d:
+		STACKVERIFY(+2)
 		SP(regs) += 2;
 		IP(regs)++;
 		set_vflags_short(popw(ssp, sp), regs);
@@ -536,6 +616,7 @@ void handle_vm86_fault(struct vm86_regs * regs, long error_code)
 
 	/* iret */
 	case 0xcf:
+		STACKVERIFY(+6)
 		SP(regs) += 6;
 		IP(regs) = popw(ssp, sp);
 		regs->cs = popw(ssp, sp);

@@ -3,6 +3,7 @@
    initialization/cleanup code.
 */
 
+#include <stdio.h>
 #include <malloc.h>
 #include <fcntl.h>
 #include <unistd.h>

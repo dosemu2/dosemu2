@@ -37,6 +37,9 @@
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.2  1995/05/23  06:05:13  root
+ * fix for redirector open existing file function
+ *
  * Revision 2.12  1995/04/08  22:33:34  root
  * Release dosemu0.60.0
  *
@@ -595,6 +598,35 @@ priv_off(void)
 }
 #endif
 #ifdef __linux__
+static rootaccess = 1; /* Dosemu starts with root access */
+__inline__ int
+priv_on(void)
+{
+  if (!rootaccess) {
+  if (setreuid(geteuid(), getuid()) ||
+      setregid(getegid(), getgid())) {
+    error("MFS: Cannot exchange real/effective uid or gid!\n");
+    return (0);
+  }
+  rootaccess = 1;
+  return (1);
+  }
+  else return (1);
+}
+__inline__ int
+priv_off(void)
+{
+  if (rootaccess) {
+  if (setreuid(geteuid(), getuid()) ||
+      setregid(getegid(), getgid())) {
+    error("MFS: Cannot exchange real/effective uid or gid!\n");
+    return (0);
+  }
+  rootaccess = 0;
+  return (1);
+  }
+  else return (1);
+}
 __inline__ int
 exchange_uids(void)
 {
@@ -1124,27 +1156,14 @@ extract_filename(filename, name, ext)
 	continue;
       }
     }
-    switch (ch) {
-    case '.':
-      dec_found = pos;
-      break;
-    case '"':
-    case '/':
-    case '\\':
-    case '[':
-    case ']':
-    case ':':
-    case '<':
-    case '>':
-    case '+':
-    case '=':
-    case ';':
-    case ',':
-      invalid = TRUE;
-      break;
-    default:
-      break;
-    }
+	if (ch == '.')
+	{
+	  dec_found = pos;
+	}
+	else if (strchr("\"/\\[]:<>+=;,", ch) != NULL)
+	{
+	  invalid = TRUE;
+	}
     pos++;
   }
   if (invalid)
@@ -1427,7 +1446,7 @@ auspr(filestring0, name, ext)
       ext[pos] = toupper(ch);
   }
 
-  Debug0((dbg_fd,"auspr(%s,%s,%s)\n",filestring0,name,ext));
+  Debug0((dbg_fd,"auspr(%s,%.8s,%.3s)\n",filestring0,name,ext));
 
 }
 
@@ -2550,8 +2569,8 @@ dos_fs_redirect(state)
   long s_pos=0;
   u_char attr;
   u_char subfunc;
-  int mode;
-  u_short FCBcall=0;
+  u_short dos_mode, unix_mode;
+  u_short FCBcall = 0;
   u_char create_file=0;
   int fd;
   int cnt;
@@ -2996,16 +3015,44 @@ dos_fs_redirect(state)
     }
 
   case OPEN_EXISTING_FILE:	/* 0x16 */
-    mode = sft_open_mode(sft);
-    FCBcall = mode & 0x8000;
-    Debug0((dbg_fd, "mode=0x%x\n", mode));
-    mode = sda_open_mode(sda) & 0x3;
-    attr = *(u_short *) Addr(state, ss, uesp);
+	/* according to the appendix in undoc dos 2 the top word on the
+       stack holds the open mode.  Other than the definition in the
+       appendix, I can find nothing else which supports this
+       statement. */
+
+    /* get the high byte */
+    dos_mode = *(u_char *) (Addr(state, ss, esp) + 1);
+    dos_mode <<= 8;
+
+    /* and the low one (isn't there a way to do this with one Addr ??) */
+    dos_mode |= *(u_char *)Addr(state, ss, esp);
+
+    /* check for a high bit set indicating an FCB call */
+    FCBcall = sft_open_mode(sft) & 0x8000;
+
+    Debug0((dbg_fd, "(mode = 0x%04x)\n", dos_mode));
+    Debug0((dbg_fd, "(sft_open_mode = 0x%04x)\n", sft_open_mode(sft)));
+
+    if (FCBcall) {
+	sft_open_mode(sft) |= 0x00f0;
+    }
+    else {
+	sft_open_mode(sft) = dos_mode & 0xF;
+    }
+    dos_mode &= 0xF;
+	
+	/*
+	   This method is ALSO in undoc dos.  They have the command
+	   defined differently in two different places.  The important
+	   thing is that this doesn't work under dr-dos 6.0
+
+    attr = *(u_short *) Addr(state, ss, esp) */
+
+
     Debug0((dbg_fd, "Open existing file %s\n", filename1));
-    Debug0((dbg_fd, "mode=0x%x, attr=0%o\n", mode, attr));
 
   do_open_existing:
-    if (read_only && mode != O_RDONLY) {
+    if (read_only && dos_mode != READ_ACC) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
@@ -3021,36 +3068,36 @@ dos_fs_redirect(state)
       SETWORD(&(state->eax), FILE_NOT_FOUND);
       return (FALSE);
     }
-    if (mode == READ_ACC) {
-      mode = O_RDONLY;
+    if (dos_mode == READ_ACC) {
+      unix_mode = O_RDONLY;
     }
-    else if (mode == WRITE_ACC) {
-      mode = O_WRONLY;
+    else if (dos_mode == WRITE_ACC) {
+      unix_mode = O_WRONLY;
     }
-    else if (mode == READ_WRITE_ACC) {
-      mode = O_RDWR;
+    else if (dos_mode == READ_WRITE_ACC) {
+      unix_mode = O_RDWR;
     }
-    else if (mode == 0x40) {
-      mode = O_RDWR;
+    else if (dos_mode == 0x40) { /* what's this mode ?? */
+      unix_mode = O_RDWR;
     }
     else {
-      Debug0((dbg_fd, "Illegal access_mode 0x%x\n", mode));
-      mode = O_RDONLY;
+      Debug0((dbg_fd, "Illegal access_mode 0x%x\n", dos_mode));
+      unix_mode = O_RDONLY;
     }
-    if (read_only && mode != O_RDONLY) {
+    if (read_only && unix_mode != O_RDONLY) {
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
 
     /* Handle DOS requests for drive:\patch\NUL */
     if (!strncmp((u_char *) (fpath + strlen(fpath) - 3), "nul", 3)) {
-      if ((fd = open("/dev/null", mode)) < 0) {
+      if ((fd = open("/dev/null", unix_mode)) < 0) {
 	Debug0((dbg_fd, "access denied:'%s'\n", fpath));
 	SETWORD(&(state->eax), ACCESS_DENIED);
 	return (FALSE);
       }
     }
-    else if ((fd = open(fpath, mode )) < 0) {
+    else if ((fd = open(fpath, unix_mode )) < 0) {
       Debug0((dbg_fd, "access denied:'%s'\n", fpath));
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
@@ -3061,13 +3108,12 @@ dos_fs_redirect(state)
 	bs_pos = i;
     }
 
-    auspr(fpath + bs_pos + 1,
-	  sft_name(sft),
-	  sft_ext(sft));
+    auspr(fpath + bs_pos + 1, sft_name(sft), sft_ext(sft));
+
+#if 0
     if (FCBcall)
-      sft_open_mode(sft) |= 0x00f0;
-    else
-      sft_open_mode(sft) = sda_open_mode(sda) & 0x7f;
+      sft_open_mode(sft) |= 0x00F0;
+#endif
 
     /* store the name for FILE_CLOSE */
     sft_dev_drive_ptr(sft) = (u_long)strdup(fpath);
@@ -3099,7 +3145,7 @@ dos_fs_redirect(state)
       pushw(ssp, sp, vflags);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
-      REG(esp) -= 6;
+      LWORD(esp) -= 6;
       REG(cs) = (us) INTE7_SEG;
       REG(eip) = (us) INTE7_OFF;
 
@@ -3118,9 +3164,9 @@ dos_fs_redirect(state)
     Debug0((dbg_fd, "FCBcall=0x%x\n", FCBcall));
 
     /* 01 in high byte = create new, 00 s just create truncate */
-    create_file = *(u_char *) (Addr(state, ss, uesp) + 1);
+    create_file = *(u_char *) (Addr(state, ss, esp) + 1);
 
-    attr = *(u_short *) Addr(state, ss, uesp);
+    attr = *(u_short *) Addr(state, ss, esp);
     Debug0((dbg_fd, "CHECK attr=0x%x, create=0x%x\n", attr, create_file));
 
     /* make it a byte - we thus ignore the new bit */
@@ -3203,7 +3249,7 @@ dos_fs_redirect(state)
       pushw(ssp, sp, vflags);
       pushw(ssp, sp, LWORD(cs));
       pushw(ssp, sp, LWORD(eip));
-      REG(esp) -= 6;
+      LWORD(esp) -= 6;
       REG(cs) = (us) INTE7_SEG;
       REG(eip) = (us) INTE7_OFF;
 
@@ -3464,8 +3510,62 @@ dos_fs_redirect(state)
     }
     break;
   case LOCK_FILE_REGION:	/* 0x0a */
-    Debug0((dbg_fd, "Lock file region\n"));
-    return (TRUE);
+	/* The following code only apply to DOS 4.0 and later */
+	/* It manage both LOCK and UNLOCK */
+	/* I don't know how to find out from here which DOS is running */
+	{
+		int is_lock = !(state->ebx & 1);
+		int fd = sft_fd(sft);
+		int ret;
+		struct LOCKREC{
+			long offset,size;
+		} *pt = (struct LOCKREC*) Addr (state,ds,edx);
+		struct flock larg;
+		unsigned long mask = 0xC0000000;
+
+		larg.l_type = is_lock ? F_WRLCK : F_UNLCK;
+		larg.l_whence = SEEK_SET;
+		larg.l_start = pt->offset;
+		larg.l_len = pt->size;
+		larg.l_pid = 0;
+
+		/*
+			This is a superdooper patch extract from the Samba project
+			We have no idea why this is there but it seem to work
+			So a program running in DOSEMU will successfully cooperate
+			with the same program running on a remote station and using
+			samba to access the same database.
+
+			After doing some experiment with a Clipper program
+			(database driver from SuccessWare (SAX)), we have wittness
+			unexpected large offset for small database. From this we
+			assume that some DOS program are playing game with lock/unlock.
+		*/
+
+		/* make sure the count is reasonable, we might kill the lockd otherwise */
+		larg.l_len &= ~mask;
+
+		/* the offset is often strange - remove 2 of its bits if either of
+			the top two bits are set. Shift the top ones by two bits. This
+			still allows OLE2 apps to operate, but should stop lockd from
+			dieing */
+		if ((larg.l_start & mask) != 0)
+			larg.l_start = (larg.l_start & ~mask) | ((larg.l_start & mask) >> 2);
+
+		ret = fcntl (fd,F_SETLK,&larg);
+		{
+			#if 0
+			FILE *fout = fopen ("/tmp/lock.log","a");
+			if (fout != NULL){
+				fprintf (fout,"lock(%d) %d %d %d %d %d\n",ret
+					,larg.l_type,larg.l_whence
+					,larg.l_start,larg.l_len);
+				fclose (fout);
+			}
+			#endif
+		}
+		return ret != -1 ? TRUE : FALSE;
+	}
     break;
   case UNLOCK_FILE_REGION:	/* 0x0b */
     Debug0((dbg_fd, "Unlock file region\n"));
@@ -3482,7 +3582,7 @@ dos_fs_redirect(state)
     return (REDIRECT);
   case CONTROL_REDIRECT:	/* 0x1e */
     /* get low word of parameter, should be one of 2, 3, 4, 5 */
-    subfunc = LOW(*(u_short *) Addr(state, ss, uesp));
+    subfunc = LOW(*(u_short *) Addr(state, ss, esp));
     Debug0((dbg_fd, "Control redirect, subfunction %d\n",
 	    subfunc));
     switch (subfunc) {
@@ -3510,9 +3610,10 @@ dos_fs_redirect(state)
     {
       boolean_t file_exists;
       u_short action = sda_ext_act(sda);
-
+	  u_short mode;
+	  
       mode = sda_ext_mode(sda) & 0x7f;
-      attr = *(u_short *) Addr(state, ss, uesp);
+      attr = *(u_short *) Addr(state, ss, esp);
       Debug0((dbg_fd, "Multipurpose open file: %s\n", filename1));
       Debug0((dbg_fd, "Mode, action, attr = %x, %x, %x\n",
 	      mode, action, attr));

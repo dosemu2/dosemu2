@@ -231,7 +231,6 @@
 
 #include "config.h"
 #include "memory.h"
-#include "cpu.h"
 #include "termio.h"
 #include "emu.h"
 #include "port.h"
@@ -292,7 +291,11 @@ void cpu_setup(void)
   REG(ds) = 0x40;		/* standard pc ds */
   REG(fs) = 0;
   REG(gs) = 0;
+#if 0
   REG(eflags) |= (IF | VIF | VIP);
+#else
+  REG(eflags) |= (VIF | VIP);
+#endif
 }
 
 void
@@ -302,7 +305,7 @@ show_regs(char *file, int line)
   unsigned char *sp;
   unsigned char *cp = SEG_ADR((unsigned char *), cs, ip);
   if (!cp) {
-    g_printf("Ain't gonna do it\n");
+    g_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",REG(cs),LWORD(eip));
     return;
   }
 
@@ -314,10 +317,17 @@ show_regs(char *file, int line)
   g_printf("\nProgram=%s, Line=%d\n", file, line);
   g_printf("EIP: %04x:%08lx", LWORD(cs), REG(eip));
   g_printf(" ESP: %04x:%08lx", LWORD(ss), REG(esp));
+#if 1 /* LERMEN */
+  g_printf("  VFLAGS(b): ");
+  for (i = (1 << 0x14); i > 0; i = (i >> 1)) {
+    g_printf((vflags & i) ? "1" : "0");
+    if (i & 0x10100) g_printf(" ");
+  }
+#else
   g_printf("         VFLAGS(b): ");
   for (i = (1 << 0x11); i > 0; i = (i >> 1))
     g_printf((vflags & i) ? "1" : "0");
-
+#endif
   g_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx VFLAGS(h): %08lx",
 	      REG(eax), REG(ebx), REG(ecx), REG(edx), (unsigned long)vflags);
   g_printf("\nESI: %08lx EDI: %08lx EBP: %08lx",

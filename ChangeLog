@@ -1,15 +1,53 @@
+Fri Jun 22	1995
+
+-	Patches to emumod/vm86.c by Hans to fix some real
+	odd register bugs.
+-	Update to READ/WRITE_FLAGS to remove bug of 
+	VIF being cleared when CARRY/NOCARRY used.
+-	Patches to pic.c from JL.
+-	Mods to the mfs.c code in an effort to get FCB callouts
+	working again.
+-	File locking implemented in mfs.c thanks to Jack.
+-	Allow booting from a sector image file
+
+Wed May 31	1995
+
+-	Mouse patches from Alan Hourihane
+-	Made priv_on/off into functions.
+-	CDrom addition for Aztech/Orchid/Okano/Wearnes by
+	Werner Zimmermann (zimmerma@rz.fht-esslingen.de)
+
+Mon May 29	1995
+
+-	JL's latest PIC overflow patch
+-	Kang-Jin Lee's latest help 
+
+Sat May 27	1995
+
+-	PIC enhancements.
+-	More support for CD-ROMs
+-	Dong's DPMI enhancements
+-	Change mouse.com to emumouse.com
+-	Mods to mfs.c for Novell compatibility
+-	Mods to emumodule by Hans
+
 Fri May 12	1995
 
 -	RELEASE of DOSEMU0.60.2.
 -	Xkeyb.c -> More patches.
--	Hans' latest for SIG and Emumod
--	JL's PIC enhancements
--	Dong's Mods for Pharlap extender capability. Please
-	not to use Emumod or once Linux 1.2.8 with all the other
-	patches. (The last patch in ./dpmi/kernel.diff has Dong's
-	patch which will bomb on kernels > 1.2.7)
 -	Xkeyb.c changes mostly from Ross Becker (many thanks for
 	following up on this).
+-	Hans' latest for SIG and Emumod
+-	JL's PIC enhancements
+-	Dong's Mods for Pharlap extender capability which includes an
+	additional patch in ./dpmi/kernel.diff. This patch
+	(./dpmi/kernel.diff) will bomb on kernels > 1.2.7 as Linus has
+	included part of it (the last patch - to vm86.c) into 1.2.8.
+	Having said that, please choose to either :
+	1) Use emumodule which makes this all redundant
+	2) Use this full patch to kernels < 1.2.8
+	3) Remove the last part of this patch to vm86.c
+	   if you are running a kernel > 1.2.7
 
 Sat Apr 22	1995
 

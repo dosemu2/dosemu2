@@ -33,7 +33,7 @@ realclean: clean
 
 dist: dosemu.texinfo dos.1 DPR EMUsuccess.txt
 	install -d $(DISTPATH)/doc
-	cp -a Makefile dosemu.info dosemu.texinfo dos.1 announce-$(EMUVER) DPR DANG EMUsuccess.txt dosemu.lsm $(DISTPATH)/doc
+	cp -a Makefile dosemu.texinfo dos.1 announce-$(EMUVER) DPR DANG EMUsuccess.txt dosemu.lsm $(DISTPATH)/doc
 	cp -a README.CDROM README.HOGTHRESHOLD README.X README.ibmset README.mgarrot README.video $(DISTPATH)/doc
 	cp -a DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml DOSEMU-HOWTO.txt $(DISTPATH)/doc
 	cp -a README.Windows Known-Bugs $(DISTPATH)/doc

@@ -1,3 +1,4 @@
+#!/bin/bash
 #DOSEMUPATH=/usr/src/dosemu
 DOSEMUPATH=.
 
@@ -7,6 +8,10 @@ if [ ! -d $DOSEMUPATH ]; then
 fi
 if [ ! -x ${DOSEMUPATH}/syscallmgr/insmod ]; then
   echo "${DOSEMUPATH}/syscallmgr/insmod not existing"
+  exit 1
+fi
+if [ ! -f ${DOSEMUPATH}/syscallmgr/rmmod ]; then
+  echo "${DOSEMUPATH}/syscallmgr/rmmod not existing"
   exit 1
 fi
 if [ ! -f ${DOSEMUPATH}/syscallmgr/syscallmgr.o ]; then
@@ -19,7 +24,7 @@ if [ ! -f ${DOSEMUPATH}/emumod/emumodule.o ]; then
 fi
 
 if [ "`lsmod|grep emumodule`" != "" ]; then
-  rmmod emumodule
+  ${DOSEMUPATH}/syscallmgr/rmmod emumodule
 fi
 if [ "`lsmod|grep syscallmgr`" = "" ]; then
   ${DOSEMUPATH}/syscallmgr/insmod ${DOSEMUPATH}/syscallmgr/syscallmgr.o

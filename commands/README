@@ -1,25 +1,27 @@
-This are some utitlies to assist in using dosemu.
+These are some utitlies to assist you in using Dosemu.
 
-bootoff.com  : ???
+bootoff.com  : switch off the bootfile to access disk
+               see examples/config.dist at bootdisk option
 
-booton.com   : ???
+booton.com   : switch on the bootfile to access bootfile
+               see examples/config.dist at bootdisk option
 
-chdir.exe    : change the Unix directory  for dosemu (use chdir(2))
+chdir.exe    : change the Unix directory for Dosemu (use chdir(2))
 
-dosdbg.com   : change the debug seeting from within dosemu
+dosdbg.com   : change the debug setting from within Dosemu
                dosdbg -- show current state
                dosdsb <string>
                dosdbg help -- show usage information
 
 dumpconf.exe : ???
 
-eject.com    : eject cdrom from drive
+eject.com    : eject CD-ROM from drive
 
 exitemu.com  : terminate Dosemu
 
-getcwd.exe   : get the Unix directory for dosemu (use getcwd(2))
+getcwd.exe   : get the Unix directory for Dosemu (use getcwd(2))
 
-isemu.com    : detects dosemu version and returns greater 0 if running under
+isemu.com    : detects Dosemu version and returns greater 0 if running under
                Dosemu
 
 lancheck.exe : ???
@@ -31,14 +33,14 @@ lredir.com   : redirect Linux directory to Dosemu
 
 mgarrot.com  : give up cpu time when Dosemu is idle
 
-mouse.com    : fine tune internal mousedriver of Dosemu
+emumouse.com : fine tune internal mousedriver of Dosemu
                mouse h -- display help screen
 
 speed.com    : set cpu usage (HogThreshold) from inside Dosemu
 
 system.exe   : interface to system(2)...
 
-unix.com     : execute Linux commands from Dosemu
+unix.com     : execute Unix commands from Dosemu
                unix -- display help screen
                unix ls -al -- list current Linux directory
                caution! try "unix" and read the help screen
@@ -49,10 +51,10 @@ vgaon.com    : enable vga option
 
 -----------------------------------------------------
 
-This are useful drivers for Dosemu
+These are useful drivers for Dosemu
 
-cdrom.sys    : allows to access cdrom drives from Dosemu
+cdrom.sys    : allow direct access to CD-ROM drives from Dosemu
 
-ems.sys      : enables EMM in dosemu
+ems.sys      : enable EMM in Dosemu
 
-emufs.sys    : redirect Linux directory to Dosemu
+emufs.sys    : redirect Unix directory to Dosemu

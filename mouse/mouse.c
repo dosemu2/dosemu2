@@ -303,18 +303,18 @@ mouse_helper(void)
     LO(dx) = mouse.ignorexy;
     break;
   case 4:				/* Set vertical speed */
-    if ((LO(cx) < 1) || (LO(cx) > 31)) {
+    if ((LO(cx) < 1) || (LO(cx) > 255)) {
       m_printf("MOUSE Vertical speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else 
-      mouse.speed_y = LO(cx) * 8;
+      mouse.speed_y = LO(cx);
     break;
   case 5:				/* Set horizontal speed */
-    if ((LO(cx) < 1) || (LO(cx) > 31)) {
+    if ((LO(cx) < 1) || (LO(cx) > 255)) {
       m_printf("MOUSE Horizontal speed out of range. ERROR!\n");
       LWORD(eax) = 1;
     } else
-      mouse.speed_x = LO(cx) * 8;
+      mouse.speed_x = LO(cx);
     break;
   case 6:				/* Ignore horz/vert selection */
     if (LO(cx) == 1) 
@@ -728,7 +728,9 @@ static void
 mouse_setsensitivity(void)
 {
   if (!mouse.ignorexy) {
+    if (mouse.speed_x != 0)	/* We don't set if speed_x = 0 */
     mouse.speed_x = LWORD(ebx);
+    if (mouse.speed_y != 0)	/* We don't set if speed_y = 0 */
     mouse.speed_y = LWORD(ecx);
   }
   mouse.threshold = LWORD(edx);
@@ -943,9 +945,11 @@ mouse_cursor(int flag)	/* 1=show, -1=hide */
   mouse.cursor_on = mouse.cursor_on + flag;
 
   /* update the cursor if we just turned it off or on */
-  if ((flag == -1 && mouse.cursor_on == -1) ||
+  if (!config.X) {
+    if ((flag == -1 && mouse.cursor_on == -1) ||
   		(flag == 1 && mouse.cursor_on == 0))
   	mouse_do_cur();
+  }
  
 #ifdef X_SUPPORT
   if (config.X)
@@ -1540,7 +1544,11 @@ mouse_init(void)
 {
   serial_t *sptr=NULL;
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
+#if 1 /* BUG CATCHER */
+  char p[32];
+#else
   char *p=(char *)0xefe00;
+#endif
 #if 0 /* Not sure why she's here? 94/09/19 */
   int old_mice_flags = -1;
 #endif

@@ -31,7 +31,7 @@ struct vm86plus_struct {
  *   VM86_STI		3	 sti/popf/iret instruction enabled virtual interrupts 
  */
 #define VM86_PICRETURN  4     /* return due to pending PIC request */
-
+#define VM86_STACKVERIFY 5    /* return due to failed stack verify_area */
 
 /*
  * This is how vm86() should be called, if using vm86plus

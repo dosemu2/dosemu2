@@ -18,8 +18,10 @@
 
 #include "emu.h"
 #include "pktdrvr.h"
-#include "cpu.h"
 #include "emu.h"
+#if 0
+#include "cpu.h"
+#endif /* WHY */
 #include "dosio.h"
 #include "memory.h"
 #include <stddef.h>
@@ -219,7 +221,7 @@ pkt_int ()
        the "real" handle or general default value.
      */
 
-    if ((LWORD(ebx) > 0) && (LWORD(ebx) < MAX_HANDLE)) {
+    if ((LWORD(ebx) < MAX_HANDLE)) {
 	hdlp = &pg->handle[LWORD(ebx)];
         hdlp_handle=LWORD(ebx);
     }
@@ -541,7 +543,7 @@ Insert_Type(int handle, int no_of_chars, char *pkt_type)
   memcpy(&pkt_type_array[max_pkt_type_array].pkt_type, pkt_type, no_of_chars);
   for(i=0; i<no_of_chars; i++) pd_printf(" --%.2x--", pkt_type_array[max_pkt_type_array].pkt_type[i]);
   pd_printf("\n");
-  pd_printf("Succeded: inserted at %d\n", max_pkt_type_array);
+  pd_printf("Succeeded: inserted at %d\n", max_pkt_type_array);
   max_pkt_type_array++;
 }
 

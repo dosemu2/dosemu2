@@ -14,14 +14,16 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include "emu.h"
-#include "cpu.h"
 #include "dpmi.h"
+#include "pic.h"
 
 unsigned long dpmi_free_memory;           /* how many bytes memory client */
 dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
 unsigned long pm_block_handle_used;       /* tracking handle */
 static int fd_zero = -1;
+static int fd_self_mem = -1;
 
 /* ultilities routines */
 
@@ -56,7 +58,7 @@ static int free_pm_block(dpmi_pm_block *p)
     return 0;
 }
 /* lookup_pm_block returns a dpmi_pm_block struct from its handle */
-static  dpmi_pm_block *lookup_pm_block(unsigned long h)
+dpmi_pm_block *lookup_pm_block(unsigned long h)
 {
     dpmi_pm_block *tmp;
     for(tmp = pm_block_root[current_client]; tmp; tmp = tmp -> next)
@@ -80,7 +82,7 @@ DPMImalloc(unsigned long size)
     dpmi_pm_block *block;
 
     if ( fd_zero == -1) {
-	if ((fd_zero = open("/dev/zero", O_RDONLY)) == -1 ) {
+	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
 	    error("DPMI: can't open /dev/zero\n");
 	    return NULL;
 	}
@@ -95,7 +97,65 @@ DPMImalloc(unsigned long size)
 	return NULL;
     block -> base = (void *) mmap((void *)0, size,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
-				  MAP_PRIVATE, fd_zero, MAP_FILE);
+				  MAP_PRIVATE|MAP_FILE, fd_zero, 0);
+    if ( block -> base == (void*)-1) {
+	free_pm_block(block);
+	return NULL;
+    }
+    block -> handle = pm_block_handle_used++;
+    block -> size = size;
+    dpmi_free_memory -= size;
+    return block;
+}
+
+/* DPMImallocFixed allocate a memory block at a fixed address, since */
+/* we can not allow memory blocks be overlapped, but linux kernel */
+/* doesn\'t support a way to find a block is mapped or not, so we */
+/* parse /proc/self/maps instead. This is a kluge! */
+
+dpmi_pm_block *
+DPMImallocFixed(unsigned long base, unsigned long size)
+{
+    dpmi_pm_block *block;
+    FILE *fp;
+    char line[100];
+    unsigned long beg, end;
+    
+    if (base == 0)		/* we choose an address to allocate */
+	return DPMImalloc(size);
+    
+    if ( fd_zero == -1) {
+	if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
+	    error("DPMI: can't open /dev/zero\n");
+	    return NULL;
+	}
+    }
+    
+   /* aligned size to PAGE size */
+    size = (size & 0xfffff000) + ((size & 0xfff)
+				      ? DPMI_page_size : 0);
+    if (size > dpmi_free_memory)
+	return NULL;
+
+    /* find out whether the address request is available */
+    if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
+	D_printf("DPMI: can't open /proc/self/maps\n");
+	return NULL;
+    }
+    
+    while(fgets(line, 100, fp)) {
+	sscanf(line, "%x-%x", &beg, &end);
+	if ((base + size) < beg ||  base >= end)
+	    continue;
+	else
+	    return NULL;	/* overlap */
+    }
+
+    if ((block = alloc_pm_block()) == NULL)
+	return NULL;
+    block -> base = (void *) mmap((void *)base, size,
+				  PROT_READ | PROT_WRITE | PROT_EXEC,
+				  MAP_SHARED|MAP_FILE|MAP_FIXED, fd_zero, 0);
     if ( block -> base == (void*)-1) {
 	free_pm_block(block);
 	return NULL;
@@ -143,11 +203,11 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
 	
 	ptr = (void *) mmap((void *)0, newsize,
 			                   PROT_READ | PROT_WRITE | PROT_EXEC,
-			                   MAP_PRIVATE, fd_zero, MAP_FILE);
+			                   MAP_PRIVATE|MAP_FILE, fd_zero, 0);
 	if ( ptr == (void *)-1)
 	    return NULL;
 	/* copy memory content to new block */
-	memcpy(ptr, block -> base, block -> size);
+	memmove(ptr, block -> base, block -> size);
 
 	/* unmap the old block */
 	munmap(block -> base, block -> size);
@@ -177,4 +237,36 @@ DPMIfreeAll(void)
 	    p = tmp;
 	}
     }
+}
+
+int
+DPMIMapConventionalMemory(dpmi_pm_block *block, unsigned long offset,
+			  unsigned long low_addr, unsigned long cnt)
+{
+    void *mapped_base;
+    if ( fd_self_mem == -1) {
+	if ((fd_self_mem = open("/proc/self/mem", O_RDWR)) == -1 ) {
+	    error("DPMI: can't open /proc/self/mem\n");
+	    return -1;
+	}
+    }
+
+    mapped_base = block->base + offset;
+    /* it seems we can\'t map low_addr to mapped_base, we must map */
+    /* mapped_base to low_addr, so first copy the content */
+    dpmi_eflags &= ~IF;
+    pic_cli();
+    memmove((void *)mapped_base, (void *)low_addr, cnt*DPMI_page_size);
+    if (mmap((void *)low_addr, cnt*DPMI_page_size,
+	     PROT_READ | PROT_WRITE | PROT_EXEC,
+	     MAP_SHARED|MAP_FILE|MAP_FIXED, fd_self_mem, (off_t)mapped_base) !=
+	     low_addr) {
+	D_printf("DPMI MapConventionalMemory mmap failed, errno = %d\n",errno);
+	dpmi_eflags |= IF;
+	pic_sti();
+	return -1;
+    }
+    dpmi_eflags |= IF;
+    pic_sti();
+    return 0;
 }

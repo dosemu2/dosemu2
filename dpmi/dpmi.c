@@ -115,6 +115,10 @@
 
 #define DPMI_C
 
+#if 0				/* Don't change this, it requires new */
+				/* kernel ldt-alias support */
+#define KERNEL_LDTALIAS
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -138,8 +142,6 @@
 #include "emu.h"
 #include "memory.h"
 #include "dosio.h"
-#include "machcompat.h"
-#include "cpu.h"
 
 #if 0
 #define SHOWREGS
@@ -195,9 +197,11 @@ int DPMI_pm_procedure_running = 0;
 
 static char *ldt_buffer;
 unsigned short LDT_ALIAS = 0;
+unsigned short KSPACE_LDT_ALIAS = 0;
 
 static char *pm_stack; /* locked protected mode stack */
 
+static unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */
 extern dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
@@ -219,10 +223,6 @@ extern int fatalerr;
 
 static struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
 static struct sigcontext_struct emu_stack_frame;  /* used to store emulator registers */
-
-/* define CLIENT_USE_GDT_40, to work around some bugy client */
-/* (like  dos4gw :=(. ) want to use gdt 0x40 to access bios area */
-#define CLIENT_USE_GDT_40
 
 #include "msdos.h"
 
@@ -284,6 +284,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   if (__retval=modify_ldt(1, &ldt_info, sizeof(ldt_info)))
 	return __retval;
 
+#ifndef KERNEL_LDTALIAS  
 /*
  * DANG_BEGIN_REMARK
  * 
@@ -322,7 +323,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             (ldt_info.useable << 20) |
 #endif
             0x7000;
-
+#endif /* KERNEL_LDTALIAS */
   return 0;
 }
 
@@ -494,6 +495,52 @@ static int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
   return 0;
 } 
 
+#ifdef KERNEL_LDTALIAS
+#include "kernel_space.h"
+
+#define MODIFY_LDT_CREATE_KERNEL_DESCRIPTOR 0x10
+
+static int SetLDTAliasSelector(unsigned short selector, unsigned char readonly)
+{
+  int ldt_entry = selector >> 3;
+  struct modify_ldt_ldt_s ldt_info;
+  int __retval;
+  unsigned long lp[2];
+
+  ldt_info.entry_number = ldt_entry;
+  ldt_info.base_addr = 0;
+  ldt_info.limit = 0;
+  ldt_info.seg_32bit = DPMIclient_is_32;
+  ldt_info.contents = MODIFY_LDT_CONTENTS_DATA;
+  ldt_info.read_exec_only = readonly;
+  ldt_info.limit_in_pages = 0;
+  ldt_info.seg_not_present = 0;
+
+  if (__retval=modify_ldt(MODIFY_LDT_CREATE_KERNEL_DESCRIPTOR,
+			  &ldt_info, sizeof(ldt_info)))
+	return __retval;
+
+  memcopy_from_huge((void *)lp, selector, (void *)(selector & ~7), 8);
+  Segments[ldt_entry].base_addr = (lp[0] >> 16)& 0x0000ffff |
+                                  (lp[1] & 0xff000000) |
+                                  ((lp[1] << 16) & 0x00ff0000);
+  Segments[ldt_entry].limit = (lp[0] & 0x0000ffff) | (lp[1] & 0x000f0000);
+  
+  Segments[ldt_entry].type = MODIFY_LDT_CONTENTS_DATA;
+  Segments[ldt_entry].is_32 = DPMIclient_is_32;
+  Segments[ldt_entry].readonly = readonly;
+  Segments[ldt_entry].is_big = 0;
+  Segments[ldt_entry].not_present = 0;
+  Segments[ldt_entry].useable = 0;
+  if (in_dpmi)
+    Segments[ldt_entry].used = in_dpmi;
+  else
+    Segments[ldt_entry].used = 1;
+
+  return 0;
+} 
+#endif /* KERNEL_LDTALIAS */
+
 static unsigned short AllocateDescriptors(int number_of_descriptors)
 {
   int next_ldt=0x10, i;		/* first 0x10 descriptors are reserved */
@@ -539,10 +586,12 @@ static int FreeDescriptor(unsigned short selector)
   Segments[ldt_entry].not_present = 1;
   Segments[ldt_entry].useable = 0;
 
+#ifndef KERNEL_LDTALIAS  
   lp = (unsigned long *) &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE];
   *lp = 0;
   *(lp+1) = 0;
-
+#endif /* KERNEL_LDTALIAS */
+  
   /* WinOS2 depends on freeed descrpitor really free */
   memset((void *)&ldt_info, 0, sizeof(ldt_info));
   ldt_info.entry_number = ldt_entry;
@@ -578,6 +627,12 @@ static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
 {
   if (selector >= (MAX_SELECTORS << 3))
     return 0;
+#ifdef KERNEL_LDTALIAS
+  if (selector == KSPACE_LDT_ALIAS) {
+      memcopy_from_huge(ldt_buffer, KSPACE_LDT_ALIAS, 0, 0xffff);
+      return (unsigned long)ldt_buffer;
+  }
+#endif  
   return Segments[selector >> 3].base_addr;
 }
 
@@ -675,10 +730,15 @@ static unsigned short CreateCSAlias(unsigned short selector)
 
 static void GetDescriptor(us selector, unsigned long *lp)
 {
-#if 0
+#ifdef KERNEL_LDTALIAS
+  memcopy_from_huge((void *)lp, KSPACE_LDT_ALIAS, (void *)(selector &
+							   ~7), 8);
+#else  
+#if 0    
   modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
-#endif
+#endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
+#endif /* KERNEL_LDTALIAS */  
   D_printf("DPMI: GetDescriptor[0x%04lx;0x%04lx]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
 }
 
@@ -740,8 +800,8 @@ static  void GetFreeMemoryInformation(unsigned int *lp)
   /*00h*/	*lp = dpmi_free_memory;
   /*04h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*08h*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*0ch*/	*++lp = dpmi_free_memory/DPMI_page_size;
-  /*10h*/	*++lp = 0xffffffff;
+  /*0ch*/	*++lp = dpmi_total_memory/DPMI_page_size;
+  /*10h*/	*++lp = dpmi_free_memory/DPMI_page_size;;
   /*14h*/	*++lp = dpmi_free_memory/DPMI_page_size;
   /*18h*/	*++lp = (unsigned int) (mi->total)/DPMI_page_size;
   /*1ch*/	*++lp = dpmi_free_memory/DPMI_page_size;
@@ -809,6 +869,17 @@ static __inline__ void dpmi_sti()
   pic_sti();
 }
 
+#ifdef KERNEL_LDTALIAS
+#define CHECK_SELECTOR(x) \
+{ if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
+      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
+	|| (((x) & 0xfffc ) == (KSPACE_LDT_ALIAS & 0xfffc))) { \
+      _LWORD(eax) = 0x8011; \
+      _eflags |= CF; \
+      break; \
+    } \
+}
+#else
 #define CHECK_SELECTOR(x) \
 { if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
       || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
@@ -817,7 +888,9 @@ static __inline__ void dpmi_sti()
       _eflags |= CF; \
       break; \
     } \
-}      
+}
+#endif /* KERNEL_LDTALIAS*/
+
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
   _eflags &= ~CF;
@@ -1101,6 +1174,22 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     _LO(cx) = vm86s.cpu_type;
     _LWORD(edx) = 0x0870; /* PIC base imaster/slave interrupt */
     break;
+  case 0x0401:			/* Get DPMI Capabilities 1.0 */
+      {
+	  char *buf = (char *)SEL_ADR(_es, _edi);
+	  /* report our capabilities include, exception */
+	  /* restartability, conventional memory mapping, demand zero */
+	  /* fill, write-protect client, write-protect host, is this */
+	  /* right? */
+	  _LWORD(eax) = 0x7a;
+	  _LWORD(ecx) = 0;
+	  _LWORD(edx) = 0;
+	  *buf = DPMI_VERSION;
+	  *(buf+1) = DPMI_DRIVER_VERSION;
+	  sprintf(buf+2, "Linux DOSEMU Version %d.%d.%d\n", VERSION,
+		  SUBLEVEL, PATCHLEVEL);
+      }
+	  
   case 0x0500:
     GetFreeMemoryInformation( (unsigned int *)
 	(GetSegmentBaseAddress(_es) + (DPMIclient_is_32 ? _edi : _LWORD(edi))));
@@ -1153,6 +1242,163 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	D_printf("      realloc returns address 0x%08lx\n", block -> base);
 	_LWORD(ecx) = (unsigned long)(block->base) & 0xffff;
 	_LWORD(ebx) = ((unsigned long)(block->base) >> 16) & 0xffff;
+    }
+    break;
+  case 0x0504:			/* Allocate linear mem, 1.0 */
+      {
+	  unsigned long base_address = _ebx;
+	  dpmi_pm_block *block;
+	  unsigned long length = _ecx;
+	  if (!length) {
+	      _eflags |= CF;
+	      _LWORD(eax) = 0x8021;
+	      break;
+	  }
+	  if (base_address & 0xfff) {
+	      _eflags |= CF;
+	      _LWORD(eax) = 0x8025; /* not page aligned */
+	      break;
+	  }
+	  if (!base_address)
+	      block = DPMImalloc(length);
+	  else
+	      block = DPMImallocFixed(base_address, length);
+	  if (block == NULL) {
+	      if (!base_address)
+		  _LWORD(eax) = 0x8013;	/* mem not available */
+	      else
+		  _LWORD(eax) = 0x8012;	/* linear mem not avail. */
+	      _eflags |= CF;
+	      break;
+	  }
+	  _ebx = (unsigned long)block -> base;
+	  _esi = block -> handle;
+	  D_printf("DPMI: allocate linear mem attemp for siz 0x%08lx at 0x%08lx\n",
+		   _ecx, base_address);
+	  D_printf("      malloc returns address 0x%08lx\n", block->base);
+	  D_printf("                using handle 0x%08lx\n",block->handle);
+	  break;
+      }
+  case 0x0505:			/* Resize memory block, 1.0 */
+    {
+	unsigned long newsize, handle;
+	dpmi_pm_block *block;
+	unsigned short *sel_array;
+	unsigned long old_base, old_len;
+	
+	handle = _esi;
+	newsize = _ecx;
+
+	if (!newsize) {
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8021; /* invalid value */
+	    break;
+	}
+
+	D_printf("DPMI: Resize linear mem to size %x\n", newsize);
+	D_printf("DPMI: For Mem Blk. for handle   0x%08lx\n", handle);
+	block = lookup_pm_block(handle);
+	if(block == NULL || block -> handle != handle) {
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8023; /* invalid handle */
+	    break;
+	}
+	old_base = (unsigned long)block -> base;
+	old_len = block -> size;
+	
+	if(_edx & 0x2) {		/* update descriptor required */
+	    sel_array = (unsigned short *)(GetSegmentBaseAddress(_es) +_ebx);
+	    D_printf("DPMI: update descriptor required\n");
+	    dpmi_cli();
+	}
+	if((block = DPMIrealloc(handle, newsize)) == NULL) {
+	    _LWORD(eax) = 0x8012;
+	    if(_edx & 0x2)
+		dpmi_sti();
+	    _eflags |= CF;
+	    break;
+	}
+	_ebx = (unsigned long)block->base;
+	_esi = block->handle;
+	if(_edx & 0x2)	{	/* update descriptor required */
+	    int i;
+	    unsigned short sel;
+	    unsigned long sel_base;
+	    for(i=0; i< _edi; i++) {
+		sel = sel_array[i];
+		if (Segments[sel >> 3].used == 0)
+		    continue;
+		if (Segments[sel >> 3].type & MODIFY_LDT_CONTENTS_STACK) {
+		    if(Segments[sel >> 3].is_big)
+			sel_base = Segments[sel>>3].base_addr +
+			    Segments[sel>>3].limit*DPMI_page_size-1;
+		    else
+			sel_base = Segments[sel>>3].base_addr + Segments[sel>>3].limit - 1;
+		}else
+		    sel_base = Segments[sel>>3].base_addr;
+		if ((old_base <= sel_base) &&
+		    ( sel_base < (old_base+old_len)))
+		    SetSegmentBaseAddress(sel,
+					  Segments[sel>>3].base_addr +
+					  (unsigned long)block->base -
+					  old_base);
+	    }
+	    dpmi_sti();
+	}
+    }
+    break;
+  case 0x0509:			/* Map convientional memory,1.0 */
+    {
+	unsigned long low_addr, handle, offset;
+	dpmi_pm_block *block;
+	
+	handle = _esi;
+	low_addr = _edx;
+	offset = _ebx;
+	
+	if (low_addr > 0xf0000) {
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8003; /* system integrity */
+	    break;
+	}
+	
+	if ((low_addr & 0xfff) || (offset & 0xfff)) {
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8025; /* invalid linear address */
+	    break;
+	}
+
+	D_printf("DPMI: Map convientional mem for handle %d, offset %x at low address %x\n", handle, offset, low_addr);
+	block = lookup_pm_block(handle);
+	if(block == NULL || block -> handle != handle) {
+	    _eflags |= CF;
+	    _LWORD(eax) = 0x8023; /* invalid handle */
+	    break;
+	}
+	if (DPMIMapConventionalMemory(block, offset, low_addr, _ecx))
+	{
+	    _LWORD(eax) = 0x8001;
+	    _eflags |= CF;
+	    break;
+	}
+    }
+    break;
+  case 0x050a:	/* Get mem block and base. 10 */
+    {
+	unsigned long handle;
+	dpmi_pm_block *block;
+	handle = (_LWORD(esi))<<16 | (_LWORD(edi));
+
+	if((block = lookup_pm_block(handle)) == NULL) {
+	    _LWORD(eax) = 0x8023;
+	    _eflags |= CF;
+	    break;
+	}
+
+	_LWORD(edi) = (block -> handle)&0xffff;
+	_LWORD(esi) = ((block -> handle) >> 16) & 0xffff;
+	_LWORD(ecx) = (unsigned long)block -> base & 0xffff;
+	_LWORD(ebx) = ((unsigned long)block -> base >> 16) & 0xffff;
     }
     break;
   case 0x0600:	/* Lock Linear Region */
@@ -1472,7 +1718,8 @@ void dpmi_init()
     dpmi_free_memory = (dpmi_free_memory & 0xfffff000) +
 	                              ((dpmi_free_memory & 0xfff)
 				      ? DPMI_page_size : 0);
-
+    dpmi_total_memory = dpmi_free_memory;
+    
     DPMI_rm_procedure_running = 0;
 
     DPMIclient_is_32 = LWORD(eax) ? 1 : 0;
@@ -1511,10 +1758,15 @@ void dpmi_init()
  * DANG_END_NEWIDEA
  */
 
+#ifdef KERNEL_LDTALIAS
+    if (!(KSPACE_LDT_ALIAS = AllocateDescriptors(1))) return;
+    if (SetLDTAliasSelector(KSPACE_LDT_ALIAS, 1)) return;
+#else
     if (!(LDT_ALIAS = AllocateDescriptors(1))) return;
     if (SetSelector(LDT_ALIAS, (unsigned long) ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE-1, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 1, 0, 0, 0)) return;
-
+#endif /* KERNEL_LDTALIAS */
+    
     if (!(PMSTACK_SEL = AllocateDescriptors(1))) return;
     if (SetSelector(PMSTACK_SEL, (unsigned long) pm_stack, DPMI_pm_stack_size-1, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
@@ -1740,7 +1992,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   /* My log file grows to 2MB, I have to turn off dpmi debugging,
      so this log excptions even dpmi debug is off */
   unsigned char dd = d.dpmi;
-/*  d.dpmi = 1;*/
+  d.dpmi = 1;
   D_printf("DPMI: do_cpu_exception(0x%02x) called\n",_trapno);
   DPMI_show_state;
   if ( _trapno == 0xe)
@@ -1946,7 +2198,12 @@ if ((_ss & 7) == 7) {
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
+#ifdef KERNEL_LDTALIAS	      
+	    _eax = KSPACE_LDT_ALIAS;  /* direct ldt access */
+#else
             _eax = LDT_ALIAS;  /* simulate direct ldt access */
+#endif
+	    _eflags &= ~CF;
 	    in_win31 = 1;
 	  } else
             _eflags |= CF;

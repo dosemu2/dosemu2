@@ -498,7 +498,10 @@ typedef struct i386_thread_state state_t;
 
 #else /* __linux__ */
 
+#if 0
 #include "cpu.h"
+#endif
+
 typedef struct vm86_regs state_t;
 typedef int boolean_t;
 typedef caddr_t vm_address_t;
@@ -528,6 +531,7 @@ typedef size_t vm_size_t;
 #define Fprintf(args)	reset_tty();fprintf args;set_tty()
 
 EXTERN FILE *dbg_fd INIT(NULL);
+
 #ifndef __linux__
 
 #define MAX_IO_PORTS	128

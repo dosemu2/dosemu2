@@ -39,9 +39,15 @@ exec_domain     = 60
 
 callers_CS = 52          
 
-.globl	_fast_syscall
+#ifdef __ELF__
+  #define CISH(x) x
+#else
+  #define CISH(x) _##x
+#endif
+
+.globl	CISH(fast_syscall)
 .align 4
-_fast_syscall:
+CISH(fast_syscall):
         cld
         push %gs
         push %fs
@@ -60,7 +66,7 @@ _fast_syscall:
         cmpw $(KERNEL_CS),callers_CS(%esp)
         je 1f             # oops, this should not happen 
 	pushl	%esp
-        call	_do_fast_syscall
+        call	CISH(do_fast_syscall)
 	leal	4(%esp),%esp
 #if HANDLE_DEBUG_REGISTERS
         movl _current,%eax

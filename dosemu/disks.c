@@ -607,7 +607,7 @@ disk_init(void)
 	d_printf("IMAGE: Using user permissions\n");
     }
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
-    if (dp->fdesc < 0) 
+    if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
@@ -621,8 +621,12 @@ disk_init(void)
         error("ERROR: can't open %s: #%d - %s\n", dp->dev_name, errno, strerror(errno));
         leavedos(26);
       }
+    }
     else dp->rdonly = dp->wantrdonly;
     dp->removeable = 0;
+
+    if(dp->type == IMAGE)
+	priv_on();
 
     /* HACK: if unspecified geometry (-1) then try to get it from kernel.
        May only work on WD compatible disks (MFM/RLL/ESDI/IDE). */
@@ -680,7 +684,6 @@ disk_init(void)
       /* leavedos(28); */
     }
 #endif
-    priv_on();
   }
 }
 

@@ -12,19 +12,21 @@ USRSRCDIR=/usr/src
 # If INCDIR exists, it was exported from the master Makefile.
 ifndef INCDIR
   INCDIR=-I/usr/include/ncurses -I../include -I..
-endif
-
-ifndef WANT_WINDOWS
-WANT_WINDOWS=-DWANT_WINDOWS
-endif
-
-ifndef USE_VM86PLUS
-USE_VM86PLUS=-DUSE_VM86PLUS
+  ifndef WANT_WINDOWS
+    WANT_WINDOWS=-DWANT_WINDOWS
+  endif
+  ifndef USE_VM86PLUS
+    USE_VM86PLUS=-DUSE_VM86PLUS
+  endif
+  ifndef USE_VM86_STACKVERIFY
+    USE_VM86_STACKVERIFY=-DUSE_VM86_STACKVERIFY
+  endif
 endif
 
 # let gcc do extended checking
 
-KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX $(WANT_WINDOWS) $(USE_VM86PLUS)
+KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer \
+ -D__KERNEL__ -DLINUX $(WANT_WINDOWS) $(USE_VM86PLUS) $(USE_VM86_STACKVERIFY)
  
 ifeq (/usr/include/linux/segment.h,$(wildcard /usr/include/linux/segment.h))
 EXTRA_HEADERS=-DEXTRA_HEADERS
@@ -33,7 +35,7 @@ endif
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c
+CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c ldttest.c
 SFILES = fastsys.S
 HFILES = emumod.h
 OFILES = vm86.o traps.o emumod.o emusys.o signal.o ldt.o
@@ -76,6 +78,11 @@ traps.o:  traps.c emumod.h ${KVFILE}
 fastsys.o: fastsys.S ${KVFILE}
 	$(CC) ${KCFLAGS} -c -D__ASSEMBLY__  fastsys.S -o fastsys.o
 
+
+ldttest: ldttest.c
+	$(CC) -O2 ldttest.c -o ldttest
+
+
 checkin:
 	-ci -l $(ALL) Makefile
 
@@ -83,7 +90,7 @@ checkout:
 	-co -M -l $(ALL) Makefile
 
 clean:
-	rm -f *.o
+	rm -f *.o ldttest
 
 realclean: clean
 	rm -f .depend
