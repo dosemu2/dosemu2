@@ -458,6 +458,33 @@
 
          cpu 80386
 
+  If you have a penium, DOSEMU can make use of the pentium cycle counter
+  to do better timing. DOSEMU detects the pentium and will use the RDTSC
+  instruction for get time per default. To disable this feature use
+
+         rtsc off
+
+  Also, to use the pentium cycle counter correctly DOSEMU needs to know
+  the CPU-clock which your chip is running. This per default is
+  calibrated automatically, however, that may be not exact enough. In
+  this case you have to set it yourself via
+
+         cpuspeed 180
+
+  or, for values like 166.6666 you may give two numbers such as
+
+         cpuspeed 500 3
+
+  which will be calculated as 'cpuspeed=500/3'
+
+  If you have a PCI board you may allow DOSEMU to access the PCI
+  configuration space by defining the below
+
+    pci on | off
+
+  PCI is assumed to be present on CPUs better then a pentium, otherwise
+  the default is 'pci off'
+
   For "bootA"/"bootC", set this to the bootup drive you want to use.  It
   is strongly recommended you start with "bootA" to get DOSEMU going,
   and during configuration of DOSEMU to recognize hard disks.
@@ -527,12 +554,12 @@
 
   or
 
-    keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
+         keyboard {  layout de-latin1  keybint on  rawkeyboard on  }
 
   If you want DOSEMU feed with keystrokes, that are typed in
   automagically, then you may define them such as
 
-         keystroke "cd c:\\mysource\r"
+    keystroke "cd c:\\mysource\r"
 
   You may have any number of 'keystroke' statements, they all will be
   concatenated.
@@ -707,7 +734,6 @@
         a frequency of about one per second, which is very slow.
         However, more CPU time is given to DOS applications when updates
         are less frequent.  The default is 8.
-
      ddiissppllaayy
         The X server to use. If this is not specified, dosemu will use
         the DISPLAY environment variable. (This is the normal case) The
@@ -805,7 +831,7 @@
 
   Recommended X statement:
 
-    X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
+         X { updatefreq 8 title "DOS in a BOX" icon_name "xdos" }
 
   22..22..99..  VViiddeeoo sseettttiinnggss (( ccoonnssoollee oonnllyy ))
 
@@ -919,6 +945,14 @@
 
          ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
 
+  Matrox millenium:
+
+         video { vga  console  graphics  chipset matrox }
+
+  VGA-cards with a WD(Paradise) chip:
+
+         video { vga  console  graphics  chipset wdvga }
+
   22..22..1100..  MMeemmoorryy sseettttiinnggss
 
   These are memory parameters, stated in number of kilobytes.  If you
@@ -963,7 +997,7 @@
 
   or
 
-    ems { ems_size 2048 ems_frame 0xd000 }
+         ems { ems_size 2048 ems_frame 0xd000 }
 
   If you have adapters, which have memory mapped IO, you may map those
   regions with hardware_ram { .. }. You can only map in entities of 4k,
@@ -1107,7 +1141,7 @@
 
   Recommended:
 
-    disk { image "/var/lib/dosemu/hdimage" }
+         disk { image "/var/lib/dosemu/hdimage" }
 
   22..22..1155..  DDOOSSEEMMUU bboooott
 

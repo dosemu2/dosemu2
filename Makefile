@@ -2,7 +2,7 @@
 #
 
 # defining some (development wise) temporary variables
-XXXCFLAGS = -DTEMP_DISABLED
+# XXXCFLAGS = -DTEMP_DISABLED
 
 # exporting some './configure-independend' variables
 #

@@ -56,6 +56,7 @@ config_defaults(void)
     char Line[256];
     int k = 386;
 
+    vm86s.cpu_type = CPU_386;
     /* defaults - used when /proc is missing, cpu!=x86 etc. */
     config.realcpu = CPU_386;
     config.pci = 0;
@@ -100,14 +101,7 @@ config_defaults(void)
 	}
 	fclose(fs);
     }
-    vm86s.cpu_type = config.realcpu;
-    fprintf(stderr,"Running on CPU=%ld86, FPU=%d\n",vm86s.cpu_type,config.mathco);
-#ifdef TEMP_DISABLED
-    if (config.realcpu > CPU_386) {
-      fprintf(stderr,"sorry, for now CPU forced down to 386\n");
-      vm86s.cpu_type = config.realcpu = CPU_386;
-    }
-#endif
+    fprintf(stderr,"Running on CPU=%d86, FPU=%d\n",config.realcpu,config.mathco);
 
     config.hdiskboot = 1;	/* default hard disk boot */
     config.mem_size = 640;
@@ -371,12 +365,10 @@ config_init(int argc, char **argv)
 	case '2':
 	    fprintf(stderr,"CPU set to 286\n");
 	    vm86s.cpu_type = CPU_286;
-	    config.rdtsc = 0;
 	    break;
 	case '3':
 	    fprintf(stderr,"CPU set to 386\n");
 	    vm86s.cpu_type = CPU_386;
-	    config.rdtsc = 0;
 	    break;
 	case '5': case '6':
 	    if (config.realcpu > CPU_486) {
@@ -428,6 +420,11 @@ config_init(int argc, char **argv)
 
     if (config.exitearly)
 	leavedos(0);
+
+    if (vm86s.cpu_type > config.realcpu) {
+    	vm86s.cpu_type = config.realcpu;
+    	fprintf(stderr, "CONF: emulated CPU forced down to real CPU: %ld86\n",vm86s.cpu_type);
+    }
 
 #ifdef __NetBSD__
     optreset = 1;

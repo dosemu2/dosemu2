@@ -260,6 +260,43 @@ For "cpu", set this to the CPU you want recognized during DOSEMU.
   cpu 80386
 </verb></tscreen>
 
+If you have a penium, DOSEMU can make use of the pentium cycle counter
+to do better timing. DOSEMU detects the pentium and will use the RDTSC
+instruction for get time per default. To disable this feature use
+
+<tscreen><verb>
+  rtsc off
+</verb></tscreen>
+
+Also, to use the pentium cycle counter correctly DOSEMU needs to know
+the CPU-clock which your chip is running. This per default is calibrated
+automatically, however, that may be not exact enough. In this case you
+have to set it yourself via
+
+<tscreen><verb>
+  cpuspeed 180
+</verb></tscreen>
+
+or, for values like 166.6666 you may give two numbers such as
+
+<tscreen><verb>  
+  cpuspeed 500 3
+</verb></tscreen>
+
+which will be calculated as 'cpuspeed=500/3'
+
+
+If you have a PCI board you may allow DOSEMU to access the PCI configuration
+space by defining the below
+
+<tscreen><verb>
+  pci on | off
+</verb></tscreen>
+
+PCI is assumed to be present on CPUs better then a pentium, otherwise
+the default is 'pci off'
+
+
 For "bootA"/"bootC", set this to the bootup drive you want to use.
 It is strongly recommended you start with "bootA" to get DOSEMU
 going, and during configuration of DOSEMU to recognize hard disks.
@@ -780,6 +817,22 @@ For ATI graphic mode
 <tscreen><verb>
   ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
 </verb></tscreen>
+
+
+Matrox millenium:
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset matrox }
+</verb></tscreen>
+
+
+
+VGA-cards with a WD(Paradise) chip:
+
+<tscreen><verb>
+  video { vga  console  graphics  chipset wdvga }
+</verb></tscreen>
+
 
 
 <sect2>Memory settings

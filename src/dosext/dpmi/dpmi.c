@@ -2641,7 +2641,11 @@ if ((_ss & 7) == 7) {
     }
   }
 #endif
-  if (_trapno == 13) {
+  if (_trapno == 17) {
+    _eflags &= ~AC;
+    REG(eflags) &= ~AC;
+  }
+  else if (_trapno == 13) {
     unsigned char *lina;
     Bit32u org_eip;
     int pref_seg;

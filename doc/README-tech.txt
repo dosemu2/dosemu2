@@ -1551,9 +1551,8 @@
   1122..22..  HHooww ttoo ccoommppiillee ffoorr ppeennttiiuumm
 
   There are no special options required to compile for pentium, the CPU
-  selection is done at runtime by parsing /proc/cpuinfo. You can
-  override the CPU selection only with the command-line switch -2345,
-  the 'cpu' statement in the config file is parsed but does nothing.
+  selection is done at runtime by parsing /proc/cpuinfo. You can't
+  override the CPU selection of the real CPU, only the emulated one.
 
   1122..33..  RRuunnttiimmee ccaalliibbrraattiioonn
 

@@ -1,3 +1,13 @@
+97/09/21 ver. 0.67.11.1 unofficial pre-release
+	From Alberto
+	- fix (workaround) for FoxPro
+	  clearing AC flag in dpmi.c (when trapno = 17)
+	From Hans
+	- 'cleaned' misleading usage of config.cpu_type and config.realcpu
+	  cpu_type is what we show to DOS, realcpu is the CPU dosemu works on
+	  Hence -3..-6 do _not_ change realcpu and can't be used to disable
+	  the pentium timer. For this config.rdtsc should be used.
+	- updated src/doc/README/config to reflect the latest changes.
 97/09/20 ver. 0.67.11 released
 	From Michael Karcher
 	- fixed bug in src/dosext/misc/xms.c allocating unlimited memory.

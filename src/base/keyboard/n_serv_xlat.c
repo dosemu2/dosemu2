@@ -598,7 +598,7 @@ static Boolean handle_dosemu_keys(t_keysym key) {
  */
 
 void putrawkey(t_rawkeycode code) {
-   Boolean make,is_shift,is_accent;
+   Boolean make,is_shift,is_accent=0;
    t_scancode scan;
    t_keysym key;
    Bit16u bios_key;

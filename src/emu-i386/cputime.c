@@ -165,7 +165,7 @@ hitimer_t GETusSYSTIME(void)
 
 void get_time_init (void)
 {
-  if ((vm86s.cpu_type>4) && config.rdtsc) {
+  if ((config.realcpu>4) && config.rdtsc) {
     RAWcpuTIME = rawP5time;
     GETcpuTIME = getP5time;
     g_printf("TIMER: using pentium timing\n");

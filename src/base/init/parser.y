@@ -291,7 +291,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 		| CPUSPEED INTEGER
 			{ 
-			if (vm86s.cpu_type >= CPU_586) {
+			if (config.realcpu >= CPU_586) {
 			  config.cpu_spd = LLF_US/$2;
 			  config.cpu_tick_spd = LLF_TICKS/$2;
 			  c_printf("CONF: CPU speed = %d\n", $2);
@@ -299,7 +299,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 		| CPUSPEED INTEGER INTEGER
 			{ 
-			if (vm86s.cpu_type >= CPU_586) {
+			if (config.realcpu >= CPU_586) {
 			  config.cpu_spd = (LLF_US*$3)/$2;
 			  config.cpu_tick_spd = (LLF_TICKS*$3)/$2;
 			  c_printf("CONF: CPU speed = %d/%d\n", $2, $3);
@@ -307,7 +307,7 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 		| RDTSC bool
 		    {
-		    config.rdtsc = (vm86s.cpu_type<CPU_586? 0:($2!=0));
+		    config.rdtsc = (config.realcpu<CPU_586? 0:($2!=0));
 		    }
 		| PCI bool
 		    {
