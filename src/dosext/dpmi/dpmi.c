@@ -49,6 +49,10 @@
 #include <asm/page.h>
 #endif
 
+#ifdef USE_SBEMU
+#include "sound.h"
+#endif
+
 #if 0
   /* well, I would like to get TASK_SIZE  out of the header files,
    * however, including them also defines stuff, that breaks compilation
@@ -2428,6 +2432,9 @@ void dpmi_init()
     run_irqs();
 #ifdef USE_INT_QUEUE
     int_queue_run();
+#endif
+#ifdef USE_SBEMU
+    run_sb(); /* Suggested Karcher */
 #endif
   }
   if (d.dpmi>6) D_printf("DPMI: end dpmi loop\n");

@@ -443,7 +443,7 @@ emulate(int argc, char **argv)
 	int_queue_run();
 #endif
 #ifdef USE_SBEMU
-	sound_run();
+	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
 #endif
     }
 

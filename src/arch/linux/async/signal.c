@@ -26,6 +26,10 @@
 #include "keyb_clients.h"
 #endif
 
+#ifdef USE_SBEMU
+#include "sound.h"
+#endif
+
 extern void keyb_server_run(void);
 extern void irq_select(void);
 extern int type_in_pre_strokes();
@@ -371,6 +375,11 @@ void SIGALRM_call(void){
   
   if (mice->intdrv)
     mouse_curtick();
+
+#ifdef USE_SBEMU
+  /* This is a macro */
+  run_sb();
+#endif
 
   /* TRB - perform processing for the IPX Asynchronous Event Service */
 #ifdef IPX

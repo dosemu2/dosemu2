@@ -12,6 +12,7 @@
  ***************************************************************************
  */
 
+#include "extern.h"
 #include "types.h"
 
 /*
@@ -24,11 +25,12 @@
  * The different SoundBlaster versions returned by the init function.
  */
 
-#define SB_NONE 0x000
-#define SB_OLD	0x105
-#define SB_20	0x201
-#define SB_PRO	0x300
-#define SB_16	0x405 /* Was 40D, but that is AWE32+ - AM */
+#define SB_NONE  0x000
+#define SB_OLD	 0x105
+#define SB_20	 0x201
+#define SB_PRO	 0x300
+#define SB_16	 0x404 /* Was 40D, but that is AWE32+ - AM */
+#define SB_AWE32 0x40C
 
 /*
  * Various Status values
@@ -55,9 +57,23 @@
  * SB information / states
  */
 
+struct sb_irq_t {
+  __u16 irq8;                  /* B-bit IRQ (internal PIC value) */
+  __u16 irq16;                 /* 16-bit IRQ (internal PIC value) */
+  __u16 midi;                  /* Midi IRQ (internal PIC value) */
+
+  __u8  active;                /* Currently active IRQs */
+
+  __u8  activating;            /* IRQs queued for activation */
+#define SB_IRQ_COUNTDOWN_AMOUNT 5
+  __u8  countdown;             /* Iterations until actual trigger */
+};
+
 EXTERN struct sb_information_t {
   __u8  mixer_index;           /* Which Mixer channel to work on */
-  __u16 irq;                   /* Internal IRQ (PIC) */
+
+  struct sb_irq_t irq;         /* IRQ information */
+
   __u8  speaker;               /* Speaker Status */
   __u16 version;               /* Version of the SB being emulated */
 } SB_info;
@@ -81,6 +97,7 @@ EXTERN struct DSP_information_t {
   __u16 last_block;            /* AM - Last block which triggered IRQ */
   __u8  dma_mode;              /* Information we need on the DMA transfer */
   __u8  command;               /* DSP command in progress */
+  __u8  sb16_playmode;         /* DSP command byte 2 - SB16+ */
 #define SB_NO_DSP_COMMAND 0
   __u8  parameter;             /* value of parameter */
   __u8  have_parameter;        /* Have we the parameter */
@@ -128,10 +145,13 @@ EXTERN struct SB_driver_t {
    * Miscellaneous Functions
    */
   void  (* set_speed)(__u16 speed, __u8 stereo);
+  void  (* play_buffer)(void *buffer, __u16 length);
 
 } SB_driver; 
 
-
+#define SB_IRQ_8BIT           1
+#define SB_IRQ_16BIT          2
+#define SB_IRQ_MIDI           4
 
 /*
  ***************************************************************************
@@ -199,7 +219,16 @@ EXTERN struct mpu401_info_t {
  ***************************************************************************
  */
 
-extern void sound_run(void);
+EXTERN __u8 sb_is_running; /* Do we need a tick ? */
+
+#define FM_TIMER_RUN   1
+#define DSP_OUTPUT_RUN 2
+#define SB_IRQ_RUN     4
+
+extern void sb_controller(void);
+
+/* This is the correct way to run an SB timer tick */
+#define run_sb()  if (sb_is_running) sb_controller()
 
 /*
  ***************************************************************************

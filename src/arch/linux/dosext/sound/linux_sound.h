@@ -8,8 +8,8 @@
  */
 
 /* #define SOUND_FRAG 0x0002000F */
-#define SOUND_FRAG 0x0002000c
-#define SOUND_SIZE 1<<0xc
+#define SOUND_FRAG 0x0002000A  /* Optimized for 44Khz Stereo - from Karcher */
+#define SOUND_SIZE 1<<0xA
 
 void linux_sb_mixer_write_setting (int ch, __u8 val);
 __u8 linux_sb_mixer_read_setting(int ch);

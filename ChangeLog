@@ -1,3 +1,24 @@
+97/07/25 ver. 0.67.8.2 unofficial pre-release
+	From Michael Karcher & Alistair
+	- second round sound&dma patches
+	  SB:
+	    reworked asynchronous handler ('run_sb')
+	    added 'run_sb' into DPMI loop
+	    added support for MIDI & 16-bit IRQs
+	    added missing function _call_ to sb_mixer_data_read
+	    added extra SB16 Mixer commands
+	    added SB16 DAC & ADC (stub)
+	    added driver call 'play_buffer' [linux]
+	    updated 'write_silence' to use 'play_buffer'
+	    updated 0x1C DSP handling (for broken software)
+	    added 'sb_set_rate' (some lengths are HI/LO, others LO/HI)
+	    added automatic downgrade to SB-PRO
+	  DMA:
+	    fixed FF clear (now does!)
+	    fixed Hi/Lo Byte swap (result of previous FF bug)
+	    uses '|' instead of '+' where possible (quicker ?)
+	    added 'dma_transfer_size' to alter handler's blocksize
+	    added underflow checking to transfers
 97/07/24 ver. 0.67.8.1 unofficial pre-release
 	From Alistair
 	- first round sound&dma&timer patches

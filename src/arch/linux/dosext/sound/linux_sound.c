@@ -13,6 +13,7 @@
  * maintainer:
  * Alistair MacDonald <alistair@slitesys.demon.co.uk>
  * David Brauman <crisk@netvision.net.il>
+ * Michael Karcher <karcher@dpk.berlin.fido.de>
  *
  * DANG_END_MODULE
  */
@@ -233,9 +234,23 @@ int linux_sb_get_version(void)
        * sample in with more than 13 kHz; however at least one version of
        * VoxWare didn't return this error (or is this fixed now?)
        * on the other site sampling in is not the question yet, so
-       * I return SB 1.5 (because have one)
+       * I return SB 1.5 (because have one) - Michael Beck
+       * -----
+       * But I need SB 2.0 for my MOD-Player to work on my soundcard!
+       * An important difference is the high-speed feature (DSP-command 0x9X)
+       * As you said, the SB 1.5 can sample slower than the SB 2.0, because the
+       * SB 2.0 is using the high-speed command (DSP: 0x99). BUT: the high-
+       * speed command is existing for playback, and without HS you can play
+       * back up to 22 kHz, and with HS you can play back up to 44 kHz (!)
+       *            (-Karch)       
        */
-      version = SB_OLD;
+
+       tmp=44100;
+       ioctl(dsp_fd, SNDCTL_DSP_SPEED,&tmp);
+       if(tmp < 44100)
+	 version = SB_OLD;
+       else
+	 version = SB_20;
     }
     else {
       /*
@@ -424,13 +439,15 @@ void start_dsp_dma(void)
 
 void linux_sb_set_speed (__u16 speed, __u8 stereo_mode)
 {
-  int rate, mode;
+  int rate, channels;
   rate = speed;
-  mode = stereo_mode;
+
+  /* stereo_mode is actually 2 is stereo is requested - Karcher */
+  channels = (stereo_mode != 0) +1; /* not happy with this constuct - AM */
 
   if (dsp_fd != -1)
   {
-    ioctl(dsp_fd, SNDCTL_DSP_STEREO, &mode);
+    ioctl(dsp_fd, SNDCTL_DSP_CHANNELS, &channels);
     ioctl(dsp_fd, SNDCTL_DSP_SPEED, &rate);
     
     S_printf ("SB:[Linux] (actual rate : %u)\n", rate);
@@ -480,6 +497,7 @@ int SB_driver_init (void) {
    
   /* Miscellaneous Functions */
   SB_driver.set_speed           = linux_sb_set_speed;
+  SB_driver.play_buffer         = NULL;
 
   /*
    * This determines a suitable value for the SB Version that we can 
@@ -496,7 +514,9 @@ void linux_mpu401_data_write(__u8 data)
 	   'open on demand' strategy. */
 	if (mpu_fd == -1) {
 	  	if (mpu_disabled) return;
-		mpu_fd = open("/var/run/dosemu-midi",O_WRONLY | O_CREAT, 0777);
+		/* Added NONBLOCK to prevent hanging - Karcher */
+		mpu_fd = open("/var/run/dosemu-midi", 
+			      O_WRONLY | O_CREAT | O_NONBLOCK, 0777);
 		if (mpu_fd == -1) {
 			mpu_disabled = TRUE;
 			S_printf("MPU401:[Linux] Failed to open file 'midi' (%s)\n",

@@ -41,6 +41,8 @@ void dma_assert_DACK(int channel);
 void dma_install_handler (int ch, int wfd, int rfd, 
 			  int (* handler) (int, Bit16u), int size);
 
+/* [Re-]Sets the preferred transfer size - Karcher */
+void dma_transfer_size (int ch, int size);
 
 /* From <asm/dma.h> */
 
