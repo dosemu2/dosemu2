@@ -15,8 +15,8 @@ DEPENDS=$(CFILES:.c=.d)
 
 IDIR=$(TOPDIR)/include
 
-CFLAGS += -I$(TOPDIR)/env/video
-export CFLAGS
+CPPFLAGS += -I$(TOPDIR)/env/video
+export CPPFLAGS
 
 # NOTE: currently we compile the following modules at other places:
 #      int10.c in src/env/video
@@ -28,7 +28,7 @@ all: lib
 #	      because we came into trouble with make dependencies recently
 
 bios.o: bios.S $(IDIR)/config.h $(IDIR)/macros86.h $(IDIR)/memory.h
-	$(CC) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,bios_f000 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
+	$(CC) $(CPPFLAGS) $(CFLAGS) -nostdlib -Wl,-Ttext,0,-e,bios_f000 -Wa,-a -traditional $< -o $@.tmp > $*.s.out
 	strip -N _edata -N __bss_start -N _end -N _etext -N blaBLA $@.tmp
 	mv -f $@.tmp $@
 

@@ -12,11 +12,11 @@
 #ifndef EMU_H
 #define EMU_H
 
+#include "config.h"
+
 #include <sys/types.h>
 #include <setjmp.h>
 #include <signal.h> 
-
-#include "config.h"
 
 #if defined(HAVE_KEYBOARD_V1) && (HAVE_KEYBOARD_V1 > 1)
   #error "Sorry, wrong keyboard code version for this DOSEMU version"
@@ -125,7 +125,7 @@ extern jmp_buf NotJEnv;
 
 EXTERN void run_vm86(void);
 EXTERN void loopstep_run_vm86(void);
-EXTERN void     vm86_GP_fault();
+EXTERN void vm86_GP_fault(void);
 
 EXTERN void do_call_back(Bit32u codefarptr);
 
@@ -438,6 +438,7 @@ EXTERN void sigquit(int);
 EXTERN void sigalrm(int, struct sigcontext_struct);
 EXTERN void sigio(int, struct sigcontext_struct);
 EXTERN int dosemu_sigaction(int sig, struct sigaction *new, struct sigaction *old);
+EXTERN void SIG_close(void);
 #endif
 
 /* signals for Linux's process control of consoles */
@@ -486,7 +487,7 @@ do { \
 			/* Point to the top of the stack, minus 4 \
 			   just in case, and make it aligned  */ \
 			sa.sa_restorer = \
-			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+			(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
 					sa.sa_flags = SA_RESTART ; \
 					sigemptyset(&sa.sa_mask); \
 					ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
@@ -503,7 +504,7 @@ do { \
 			/* Point to the top of the stack, minus 4 \
 			   just in case, and make it aligned  */ \
 			sa.sa_restorer = \
-			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+			(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
 			sa.sa_flags = SA_RESTART; \
 			sigemptyset(&sa.sa_mask); \
 			sigaddset(&sa.sa_mask, SIGALRM); \

@@ -781,8 +781,6 @@ erseg:
 
 void init_emu_cpu (void)
 {
-  extern void init_emu_npu();
-
   memset(&TheCPU, 0, sizeof(SynCPU));
   TheCPU.cr[0] = 0x13;	/* valid bits: 0xe005003f */
   TheCPU.dr[4] = 0xffff1ff0;

@@ -13,29 +13,16 @@ TMP = $(REALTOPDIR)/tmp
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
 
-PICOBJS = libpic.a
-export PICOBJS
-
 export LD=$(CC)
-OBJS	= dos.o
-DEPENDS = version dos.d emu.d dosstatic.d
 
-
-ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
-
-CFILES=emu.c dos.c $(X2CFILES) dosstatic.c
-
-export USING_NET = -DUSING_NET
-ifdef USING_NET
 export NET=dosext/net/net
-endif
 
 #
 # This is defined when the SB Emulation is required. You should re-configure,
 # rather than just change this.
 #
 ifdef USE_SBEMU
-export SBEMU=arch/linux/dosext/sound dosext/sound
+export SBEMU=dosext/sound arch/linux/dosext/sound
 export MIDID=arch/linux/dosext/sound/midid
 endif
 
@@ -66,9 +53,7 @@ LIBSUBDIRS=env/video base base/async \
 
 
 # call all libraries the name of the directory
-LIBS=$(LIBSUBDIRS)
-
-LIBS_ := $(subst /,_,$(LIBS))
+LIBS_ := $(subst /,_,$(LIBSUBDIRS))
 
 DOCS= $(REALTOPDIR)/man
 
@@ -98,24 +83,6 @@ OPTIONAL   = # -DDANGEROUS_CMOS=1
 CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
 DEBUG      = $(SYNC_ALOT)
 
-
-# CFLAGS+=-Werror
-# set to use a simpler fork for unix command
-# CFLAGS+=-DSIMPLE_FORK
-# set to debug fork with environment
-# CFLAGS+=-DFORK_DEBUG
-CFLAGS += -DDOSEMULIB_DEFAULT=$(dosemudir) -DDOSEMUHDIMAGE_DEFAULT=$(syshdimagedir)
-
-# We need to use the C_RUN_IRQS with -fno-inline (TBD why)
-# this is in pic/pic.c
-#CFLAGS+=-DC_RUN_IRQS
-
-# use fd3 for soft errors, stderr for hard error, don't ope
-# stderr to /dev/null
-# CFLAGS+=-DUSE_FD3_FOR_ERRORS
-
-export CFLAGS
-
 DISTBASE=/tmp
 DISTNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
@@ -140,7 +107,7 @@ endif
 # if they have not read the documentation, so therefore a 
 # keypress pause is a good idea and is included here.
 
-default: warning2 pausekey version doslibnew \
+default: warning2 pausekey version include/confpath.h doslibnew \
 	../etc/xtermdos ../etc/xinstallvgafont
 
 warning2: 
@@ -176,7 +143,7 @@ warning3:
 	 echo "Hopefully you have at least 16MB swap+RAM available during this compile."; \
 	 echo ""
 
-doeverything: warning2 pausedelay dep $(DOCS) $(X2CEXE) installnew
+doeverything: warning2 pausedelay dep $(DOCS) installnew
 
 most: warning2 pausedelay dep installnew
 
@@ -187,16 +154,6 @@ all:	dosemu
 debug:
 	rm $(BINPATH)/bin/$(DOSBIN)
 	$(MAKE) $(BINPATH)/bin/$(DOSBIN)
-
-dos.o: include/config.h
-
-DOSSTATICFILES = dosstatic.c emu.o base/data.o 
-
-dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
-	$(LD) $(LDFLAGS) -o $@ $(DOSSTATICFILES) \
-		$(addprefix -L,$(LIBPATH)) \
-		-L. $(addprefix -l, $(LIBS_)) \
-		$(PTHREADS) $(SVGALIB) $(SLANGLIB) $(XLIBSW)
 
 ../etc/xtermdos:	../etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos
@@ -212,11 +169,13 @@ dosstatic:	$(DOSSTATICFILES) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	@echo >> ../etc/xinstallvgafont
 	@cat ../etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
-$(BINPATH)/bin/$(DOSBIN): emu.o $(LIBSUBDIRS) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
-	$(LD) $(LDFLAGS) -o $@ \
-	   emu.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
-	-Wl,--whole-archive $(addprefix -l, $(LIBS_))  -Wl,--no-whole-archive \
-	    $(PTHREADS) $(SVGALIB) $(XLIBSW) $(SLANGLIB) -lc 
+#phony target for emu.o
+emu:
+	$(MAKE)
+
+$(BINPATH)/bin/$(DOSBIN): emu $(LIBSUBDIRS) ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
+	$(LD) $(LDFLAGS) -o $@ emu.o $(addprefix -L,$(LIBPATH)) \
+	   -Wl,--whole-archive $(addprefix -l, $(LIBS_)) -Wl,--no-whole-archive $(LIBS)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/dos
@@ -235,14 +194,15 @@ dosemu: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
 
 dosemu_script: $(BINPATH)/bin/dosemu
 
+DIRLIST=$(REQUIRED) $(DOCS) $(LIBSUBDIRS) $(OPTIONALSUBDIRS)
 .PHONY:	dossubdirs optionalsubdirs docsubdirs
-.PHONY: $(LIBSUBDIRS) $(OPTIONALSUBDIRS) $(DOCS) $(REQUIRED)
+.PHONY: $(DIRLIST)
 
 optionalsubdirs:	$(OPTIONALSUBDIRS)
 
 docsubdirs:	$(DOCS)
 
-$(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
+$(DIRLIST):
 	@(cd $(REALTOPDIR)/src/; $(MAKE) -C $@)
 
 version:	versetup
@@ -254,6 +214,11 @@ versetup:
 	@rm -f ../bin ../commands
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
+
+include/confpath.h: ../Makefile.conf
+	echo '#define  ALTERNATE_ETC      "$(sysconfdir)"' > $@
+	echo '#define  DOSEMULIB_DEFAULT  "$(dosemudir)"' >> $@
+	echo '#define  DOSEMUHDIMAGE_DEFAULT "$(syshdimagedir)"' >> $@
 
 doslibnew: doslib
 
@@ -420,42 +385,18 @@ newhd:  tools/periph/bootsect
 	tools/periph/mkhdimage -h 4 -s 17 -c 40 | cat - tools/periph/bootsect > newhd
 	@echo "You now have a hdimage file called 'newhd'"
 
-include $(REALTOPDIR)/src/Makefile.common
-
-checkin::
-	-ci -l -M $(CFILES) $(HFILES) $(SFILES) $(OFILES)
-	@for i in $(LIBS) ; do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
-
-checkout::
-	-co -M -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
-	@for i in $(LIBS) ; do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
-
-dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
-	install -d $(DISTPATH)
-	install -d $(DISTPATH)/lib
-	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
-	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
-	@for i in $(REQUIRED) $(LIBS) $(DOCS) ipxutils $(OPTIONALSUBDIRS); do \
-	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
-	done
-	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
-	rm -rf $(DISTPATH)
-	@echo "FINAL .tgz FILE:"
-	@ls -l $(DISTFILE)
-
 local_clean:
-	-rm -f $(OBJS) $(X2CEXE) $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/xdos \
+	-rm -f $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/xdos \
 	  $(BINPATH)/bin/dos $(BINPATH)/bin/libdosemu *.s core \
-	  dosstatic *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug
+	  *.tmp $(BINPATH)/bin/dosemu.map *.o $(BINPATH)/bin/dosdebug
 
 local_realclean:
-	-rm -f tools/tools86 .depend
+	-rm -f tools/tools86
 
-clean::	local_clean
+clean:: local_clean
 
 realclean::   local_realclean local_clean
 
-DIRLIST=$(REQUIRED) $(DOCS) $(LIBS) $(OPTIONALSUBDIRS)
 CLEANDIRS=$(addsuffix .clean, $(DIRLIST))
 REALCLEANDIRS=$(addsuffix .realclean, $(DIRLIST))
 
@@ -471,54 +412,8 @@ $(CLEANDIRS):
 $(REALCLEANDIRS):
 	-@$(MAKE) -C $(subst .realclean,,$@) realclean CLEANING=true
 
-
-
 pristine:	realclean
 	-rm -f lib/*
 	-rm -rf $(BINPATH) ../bin ../commands ../etc/xtermdos ../etc/xinstallvgafont
 	-rm -rf ../testboot
 
-# DEPENDS=dos.d emu.d 
-# this is to do make subdir.depend to make a dependency
-DEPENDDIRS=$(addsuffix .depend, $(LIBSUBDIRS) )
-
-depend_local:	$(DEPENDS)
-
-depend dep:  version $(DEPENDDIRS) depend_local
-	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend
-
-.PHONY:       size
-size:
-	size ./dosstatic  >>size
-	ls -l dosstatic  >>size
-
-.PHONY: $(DEPENDDIRS)
-
-$(DEPENDDIRS):
-	$(MAKE) -C $(subst .depend,,$@) depend
-
-
-.PHONY: help
-help:
-	@echo "The following targets will do make depends:"; \
-	 echo "     $(DEPENDDIRS)"; \
-	 echo "Each .c file has a corresponding .d file (the dependencies)"; \
-	 echo ""; \
-	 echo ""; \
-	 echo "'make dossubdirs' will make the follow targets:"; \
-	 echo "     $(LIBSUBDIRS)"; \
-	 echo ""; \
-	 echo "To clean a directory, do make -C <dirname> clean|realclean"
-
-echo::
-	@echo LIBS_=$(LIBS_)
-	for i in $(LIBSUBDIRS); do \
-		$(MAKE) -C $$i $@  || exit 1; \
-	done
-
-#
-# include a dependency file if one exists
-#
-ifeq (.depend,$(wildcard .depend))
-include .depend
-endif

@@ -151,7 +151,7 @@
 #undef us
 #define us unsigned
 void timer_tick(void);
-void pic_activate();
+void pic_activate(void);
 extern void timer_int_engine(void);
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
@@ -332,7 +332,7 @@ inline void pic_push(int val)
     }
 }
 
-inline int pic_pop()
+inline int pic_pop(void)
 {
     if(pic_sp) {
        return pic_stack[--pic_sp];
@@ -700,7 +700,7 @@ void run_irqs(void)
  *
  * DANG_END_FUNCTION
  */
-int do_irq()
+int do_irq(void)
 {
  int intr;
  unsigned long ilevel;
@@ -800,7 +800,7 @@ int do_irq()
  * DANG_END_FUNCTION
  */
 void
-pic_resched() 
+pic_resched(void) 
 {
 unsigned long pic_newirr, pic_last_ilevel;
     if(pic_icount) {
@@ -926,7 +926,7 @@ void pic_untrigger(int inum)
  * DANG_END_FUNCTION
  */
 void
-pic_iret()
+pic_iret(void)
 {
 unsigned char * ssp;
 unsigned long sp;
@@ -1055,7 +1055,7 @@ int pic_pending(int ilevel)
  * pic_dos_time is advanced to the earliest time scheduled.
  * DANG_END_FUNCTION
  */
-void pic_activate()
+void pic_activate(void)
 {
 hitimer_t earliest;
 int timer, count;

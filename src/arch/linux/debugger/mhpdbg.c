@@ -51,8 +51,6 @@ extern struct vm86_struct vm86s;
 static void mhp_poll(void);
 static void mhp_puts(char*);
 void mhp_putc(char);
-extern int mhp_getcsip_value();
-extern int mhp_modify_eip(int delta);
 
 static char mhp_banner[] = {
   "\nDOSEMU Debugger V0.6 connected\n"
@@ -314,7 +312,6 @@ void mhp_exit_intercept(int errcode)
 unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2)
 {
   int rtncd = 0;
-  extern void DBGload(), DBGload_CSIP(), DBGload_parblock();
 #if 0
   return rtncd;
 #endif

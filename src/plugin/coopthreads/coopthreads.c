@@ -1444,7 +1444,7 @@ char * strlower(char *s)
 /* ================================================================ */
 
 
-static void install_hook_vector()
+static void install_hook_vector(void)
 {
 	char template[] = {
 		0x2E, 0xA3, 0x08, 0x01,		/* movw	%ax, %cs:(0x108) */
@@ -1741,7 +1741,7 @@ int com_argparse(char *s, char **argvx, int maxarg)
     *    cd.. to cd ..
     */
    p = s + strcspn(s, "\\/. ");
-   if (*p && *p != ' ' && (*p != '.' || strchr("\\/.", p[1]))) {
+   if (*p && *p != ' ' && (*p != '.' || (p[1] && strchr("\\/.", p[1])))) {
       memmove(p+1, p, s [-1] - (p - s) + 1/*NUL*/);
       *p = ' ';
       s[-1]++; /* update length */

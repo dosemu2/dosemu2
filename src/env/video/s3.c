@@ -517,7 +517,7 @@ void s3OutBtReg(unsigned short reg, unsigned char mask, unsigned char data)
 	out_crt(0x55, tmp);
 }
 
-unsigned char s3InBtStatReg()
+unsigned char s3InBtStatReg(void)
 {
    unsigned char tmp, ret;
 

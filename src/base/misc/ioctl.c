@@ -102,7 +102,7 @@ inline int process_interrupt(SillyG_t *sg)
 
 
 #if defined(SIG)
-inline void irq_select()
+inline void irq_select(void)
 {
   if (SillyG) {
     int irq_bits =vm86_plus(VM86_GET_IRQ_BITS,0) & ~SillyG_pendind_irq_bits;

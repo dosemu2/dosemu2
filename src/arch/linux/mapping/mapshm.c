@@ -9,6 +9,7 @@
  *	Hans Lermen, lermen@fgan.de
  */
 
+#include "emu.h"
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -25,7 +26,6 @@
 #endif
 
 
-#include "emu.h"
 #include "priv.h"
 #include "mapping.h"
 
@@ -286,7 +286,6 @@ static void *realloc_mapping_shm(int cap, void *addr, int oldsize, int newsize)
 
 static void *mmap_mapping_shm(int cap, void *target, int mapsize, int protect, void *source)
 {
-  int fixed = (int)target == -1 ? 0 : MAP_FIXED;
   if (cap & MAPPING_ALIAS) {
     return (*alias_map)(target, mapsize, protect, source);
   }

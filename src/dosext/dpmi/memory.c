@@ -35,7 +35,7 @@ unsigned long pm_block_handle_used;       /* tracking handle */
 /* I don\'t think these function will ever become bottleneck, so just */
 /* keep it simple, --dong */
 /* alloc_pm_block: allocate a dpmi_pm_block struct and add it to the list */
-static dpmi_pm_block * alloc_pm_block()
+static dpmi_pm_block * alloc_pm_block(void)
 {
     dpmi_pm_block *p = malloc(sizeof(dpmi_pm_block));
     if(!p)

@@ -23,7 +23,7 @@ $(BINPATH)/bin/mkfatimage16: mkfatimage16
 	cp -p $< $@
 
 $(OBJ1): %: %.c bootsect.h
-	$(CC) $(CFLAGS) $(<F) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(<F) -o $@
 
 bootsect.h:	bootsect.S
 	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,--oformat,binary -nostdlib -s -o $@.tmp $< > $<.out

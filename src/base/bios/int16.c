@@ -80,7 +80,7 @@ static unsigned do_extended(unsigned key, int extended)
  *		and sets ax=key if a key is available, else
  *		returns -1
  */
-static unsigned get_key(extended)
+static unsigned get_key(int extended)
 {
   unsigned key = -1;
   

@@ -165,7 +165,7 @@ static int ali_memorydetect(void)
  * AvanceProbe -- 
  *      check up whether an Avance Logic based board is installed
  */
-static int AvanceProbe()
+static int AvanceProbe(void)
 {
 	if (ali_test()) {
 		config.gfxmemsize = ali_memorydetect();

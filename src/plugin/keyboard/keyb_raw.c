@@ -16,6 +16,7 @@
 #include "keyboard.h"
 #include "keyb_clients.h"
 #include "termio.h"
+#include "vc.h"
 
 #define KBBUF_SIZE (KEYB_QUEUE_LENGTH / 2)
 
@@ -23,9 +24,6 @@
 #define LED_SCRLOCK	0
 #define LED_NUMLOCK	1
 #define LED_CAPSLOCK	2
-
-extern void set_process_control();
-extern void clear_process_control();
 
 static int save_kbd_flags = -1;  	/* flags for STDIN before our fcntl */
 static struct termios save_termios;	/* original terminal modes */
@@ -53,7 +51,7 @@ static void set_kbd_leds(void)
 }
 
 
-static t_shiftstate get_kbd_flags()
+static t_shiftstate get_kbd_flags(void)
 {
   unsigned int led_state = 0;
   t_shiftstate s = 0;

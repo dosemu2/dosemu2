@@ -26,7 +26,6 @@ ALL = $(YFILES) $(LFILES) $(CFILES) $(HFILES)
 # All object-files are included here.
 
 OBJS=parser.o lex.yy.o $(CFILES:.c=.o)
-DEPENDS=$(CFILES:.c=.d)
 
 SUBDIR=init
 

@@ -66,7 +66,7 @@ struct image_header {
   long dexeflags;
 } __attribute__((packed)) ;
 
-static void viewconf()
+static void viewconf(void)
 {
   int fd, size;
   struct image_header hdr;

@@ -9,12 +9,9 @@
 /* Routines to modify INI files */
 /* by David V. Mortenson */
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
-#if 0
-#define __USE_GNU
-#define __USE_SVID
-#endif
 #include <string.h>
 #include <ctype.h>
 

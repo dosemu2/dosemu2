@@ -141,7 +141,7 @@ extern void	pcibios_init(void);
 extern void     shared_memory_exit(void);
 extern void     restore_vt(u_short);
 extern void     disallocate_vt(void);
-extern void     vm86_GP_fault();
+extern void     vm86_GP_fault(void);
 extern void     config_init(int argc, char **argv);
 extern void	timer_int_engine(void);
 extern void	disk_open(struct disk *dp);
@@ -492,7 +492,6 @@ leavedos(int sig)
 {
     struct sigaction sa;
     struct itimerval itv;
-    extern void SIG_close(); /* obsolete now; integrated into the kernel */
     extern void do_r3da_pending (void);	/* emuretrace stuff */
    
     if (leavedos_recurse_check)

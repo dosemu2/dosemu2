@@ -57,8 +57,8 @@ static int __active_i=1;
 int include_stack_ptr = 0;
 int last_include = 0;
 
-static void push__active();
-static void pop__active();
+static void push__active(void);
+static void pop__active(void);
 static void enter_includefile(char * fname);
 static void enter_macrofile(char *variable);
 extern char *get_config_variable(char *name);
@@ -142,11 +142,11 @@ char *yy_vbuffer=0;
 /*
  * We are intercepting the yylex() function calls from the parser
  */ 
-#define OUR_YY_DECL int yylex YY_PROTO(( YYSTYPE* yylval ))
+#define OUR_YY_DECL int yylex (YYSTYPE* yylval)
 OUR_YY_DECL;
 
 #undef YY_DECL
-#define YY_DECL static int real_yylex YY_PROTO(( YYSTYPE* yylval ))
+#define YY_DECL static int real_yylex ( YYSTYPE* yylval )
 
 
 /*
@@ -808,7 +808,7 @@ int yywrap(void)    /* this gets called at EOF of a parsed file */
 
 extern void yyerror(char* string, ...);
 
-static void push__active()
+static void push__active(void)
 {
   if (config_check_only>2)
     fprintf(stderr, "PUSH %d->%d %d >%s<\n", __active_i, __active_i+1, __active__, yytext);
@@ -819,7 +819,7 @@ static void push__active()
   }
 }
 
-static void pop__active()
+static void pop__active(void)
 {
   if (config_check_only>2)
     fprintf(stderr, "POP %d<-%d %d >%s< %d\n", __active_i-1, __active_i, __active__, yytext, __loop_handling__);

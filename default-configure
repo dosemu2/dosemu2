@@ -1,5 +1,9 @@
 #! /bin/bash
 
+if [ -n "$DOSEMU_DEFAULT_CONFIGURE" ] ; then
+  exit 0
+fi
+
 CONF_FILE="compiletime-settings"
 
 if [ "$1" != "" ]; then
@@ -91,9 +95,6 @@ done
 echo "mkpluginhooks enable $PLUGIN"
 ./mkpluginhooks enable $PLUGIN
 
-echo ". ./configure $STRING $SUFFIX"
+echo "exec ./configure $STRING $SUFFIX"
 export DOSEMU_DEFAULT_CONFIGURE=1
-if [ -f Makefile.conf ]; then
-  make distclean
-fi
 exec ./configure $STRING $SUFFIX

@@ -32,12 +32,6 @@
 #include "vc.h"
 #include "mapping.h"
 
-extern void open_kmem();      /* from vc.c */
-extern void set_process_control();
-extern void set_console_video();
-extern void clear_console_video();
-extern void set_consoleX_video();
-
 extern int
 dosemu_sigaction(int sig, struct sigaction *, struct sigaction *);
 
@@ -47,8 +41,8 @@ struct video_system *Video = NULL;
 /* I put Video_none here because I don't want to make a special file for such 
  * a simple task -- Goga
  */
-static int i_empty_void () {return 0;}
-static void v_empty_void () {}
+static int i_empty_void (void) {return 0;}
+static void v_empty_void (void) {}
 static int i_empty_3int (int type, int xsize, int ysize) {return 0;}
 
 struct video_system Video_none = {
@@ -69,7 +63,7 @@ struct video_system Video_none = {
  *
  * DANG_END_FUNCTION
  */
-int video_init()
+int video_init(void)
 {
   /* figure out which video front end we are to use */
   

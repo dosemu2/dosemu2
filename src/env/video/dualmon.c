@@ -126,7 +126,7 @@ static unsigned char dualmon_text_table[] =
 };
 
 
-static int map_MDA_for_dualmon()
+static int map_MDA_for_dualmon(void)
 {
   if (!config.dualmon) return 0;
   if ( (    _IS_VS(Video_term)
@@ -169,7 +169,7 @@ static int map_MDA_for_dualmon()
  * 
  * DANG_END_FUNCTION
  */
-static void MDA_init()
+static void MDA_init(void)
 {
   /* following code is from Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de (video/hgc.c) */
 
@@ -272,7 +272,7 @@ static void MDA_init()
   port_out(0x28,0x03b8);
 } 
 
-static void reinit_MDA_regs()
+static void reinit_MDA_regs(void)
 {
   /* some video BIOSes are disabling MDA after they were initialised
    * (such as on S3). We have to re-init some registers

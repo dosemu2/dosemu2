@@ -187,7 +187,7 @@ static unsigned char *recode(unsigned int *out, unsigned char *in)
   return in;
 }
 
-int type_in_pre_strokes()
+int type_in_pre_strokes(void)
 {
   if (config.pre_stroke) {
     unsigned int out[16], *o;

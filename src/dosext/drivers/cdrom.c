@@ -206,7 +206,7 @@ void dump_cd_sect (char *tb)
 #define ioctl logging_ioctl
 #endif
 
-void cdrom_reset()
+void cdrom_reset(void)
 {
   /* after a disk change a new read access will
      return an error. In order to unlock this condition

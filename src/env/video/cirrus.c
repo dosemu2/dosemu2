@@ -212,7 +212,7 @@ static void cirrusEnterLeave(char enter)
  * cirrusProbe -- 
  *      check up whether a cirrus based board is installed
  */
-static int cirrusProbe()
+static int cirrusProbe(void)
 {  
 /*     int cirrusClockNo; */
      unsigned char lockreg,IdentVal;

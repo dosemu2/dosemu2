@@ -72,7 +72,7 @@ void output_byte_8042(Bit8u value) {
       k_printf("8042: interrupt flag OFF!\n");
 }
 
-static void ack() {
+static void ack(void) {
    output_byte_8042(0xfa);
 }
 
@@ -359,7 +359,7 @@ void keyb_io_write(ioport_t port, Bit8u value)
  * if more scancode bytes are waiting in the queue.
  */
 
-void do_irq1() {
+void do_irq1(void) {
 
    /* k_printf("KBD: do_irq1() running!\n"); */
    

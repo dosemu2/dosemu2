@@ -278,6 +278,11 @@ EXTERN void X_blink_cursor(void);
 EXTERN void init_vga_card(void);
 EXTERN void scr_state_init(void);
 
+extern void set_console_video(void);
+extern void clear_console_video(void);
+extern void set_consoleX_video(void);
+extern inline void console_update_cursor (int, int, int, int);
+
 /* moved here from s3.c --AV  */
 #define BASE_8514_1	0x2e8
 #define BASE_8514_2	0x148

@@ -2323,7 +2323,7 @@ freeze_idle:
   }
 }
 
-void dpmi_init()
+void dpmi_init(void)
 {
   /* Holding spots for REGS and Return Code */
   unsigned short CS, DS, ES, SS;

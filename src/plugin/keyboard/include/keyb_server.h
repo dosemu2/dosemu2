@@ -34,7 +34,7 @@ extern Bit8u port60_buffer;
 extern Boolean int9_running;
 
 void output_byte_8042(Bit8u value);
-void int_check_queue();
+void int_check_queue(void);
 void copy_shift_state(Bit16u shift);
 
 static inline Bit16u get_bios_key(int dummy) {
@@ -47,13 +47,13 @@ static inline Bit16u get_bios_key(int dummy) {
 }
 
 
-int keyb_queuelevel();
-void clear_queue();
+int keyb_queuelevel(void);
+void clear_queue(void);
 void write_queue(Bit16u bios_key, t_shiftstate shift, Bit32u raw);
 void read_queue(Bit16u *bios_key, t_shiftstate *shift, t_rawkeycode *raw);
 
-void backend_run();
-void backend_reset();
+void backend_run(void);
+void backend_reset(void);
 
 #endif  /* not __ASM__ */
 

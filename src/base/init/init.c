@@ -390,7 +390,6 @@ void memory_init(void)
 
   {
     /* update boot drive in Banner-code */
-    extern void bios_f000_bootdrive(), bios_f000();
     u_char *ptr;
 
     ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_bootdrive - (long)bios_f000));

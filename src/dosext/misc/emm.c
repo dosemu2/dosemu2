@@ -356,8 +356,7 @@ static inline mach_port_t realloc_memory_object(mach_port_t object, size_t oldsi
 }
 
 static int
-allocate_handle(pages_needed)
-     int pages_needed;
+allocate_handle(int pages_needed)
 {
   int i, j;
   mach_port_t obj;
@@ -402,8 +401,7 @@ allocate_handle(pages_needed)
 }
 
 static boolean_t
-deallocate_handle(handle)
-     int handle;
+deallocate_handle(int handle)
 {
   int numpages, i;
   mach_port_t object;
@@ -442,8 +440,7 @@ static void _do_map_page(caddr_t base, caddr_t logical)
 }
 
 static boolean_t
-__map_page(physical_page)
-     int physical_page;
+__map_page(int physical_page)
 {
   int handle;
   caddr_t logical, base;
@@ -465,8 +462,7 @@ __map_page(physical_page)
 }
 
 static boolean_t
-__unmap_page(physical_page)
-     int physical_page;
+__unmap_page(int physical_page)
 {
   int handle;
   caddr_t logical, base;
@@ -491,8 +487,7 @@ __unmap_page(physical_page)
 }
 
 static inline boolean_t
-unmap_page(physical_page)
-     int physical_page;
+unmap_page(int physical_page)
 {
    E_printf("EMS: unmap_page(%d)\n",physical_page);
 
@@ -506,18 +501,14 @@ unmap_page(physical_page)
 }
 
 static inline boolean_t
-reunmap_page(physical_page)
-     int physical_page;
+reunmap_page(int physical_page)
 {
    E_printf("EMS: reunmap_page(%d)\n",physical_page);
    return __unmap_page(physical_page);
 }
 
 static boolean_t
-map_page(handle, physical_page, logical_page)
-     int handle;
-     int physical_page;
-     int logical_page;
+map_page(int handle, int physical_page, int logical_page)
 { 
   caddr_t base, logical;
 
@@ -550,8 +541,7 @@ map_page(handle, physical_page, logical_page)
 }
 
 static inline boolean_t
-remap_page(physical_page)
-     int physical_page;
+remap_page(int physical_page)
 {
   E_printf("EMS: remapping physical page 0x%01x\n", physical_page);
 
@@ -560,15 +550,13 @@ remap_page(physical_page)
 
 
 static inline int
-handle_pages(handle)
-     int handle;
+handle_pages(int handle)
 {
   return (handle_info[handle].numpages);
 }
 
 static int
-save_handle_state(handle)
-     int handle;
+save_handle_state(int handle)
 {
   int i;
 
@@ -587,8 +575,7 @@ save_handle_state(handle)
 }
 
 static int
-restore_handle_state(handle)
-     int handle;
+restore_handle_state(int handle)
 {
   int i;
 

@@ -113,6 +113,8 @@ extern void get_video_ram(int);
 extern void clear_screen(int, int);
 extern void set_linux_video(void);
 extern void put_video_ram(void);
+extern void clear_process_control(void);
+extern void set_process_control(void);
 
 extern int get_perm(void);
 extern int release_perm(void);

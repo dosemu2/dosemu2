@@ -19,9 +19,9 @@ extern const u_char latin1_to_dos[];
 extern const u_char latin2_to_dos[];
 extern const u_char koi8_to_dos[];
 
-int keyb_client_init();
-void keyb_client_close();
-void keyb_client_run();
+int keyb_client_init(void);
+void keyb_client_close(void);
+void keyb_client_run(void);
 
 int paste_text(const char *text, int len);
 

@@ -143,7 +143,7 @@ int paste_text(const char *text, int len) {
    return 1;
 }
 
-static void paste_run() 
+static void paste_run(void) 
 {
    uchar ch;
    int count=0;
@@ -196,7 +196,7 @@ static void paste_run()
 
 /* Figures out which keyboard client to use (raw,slang or X) and initialises it.
  */
-int keyb_client_init()  {
+int keyb_client_init(void)  {
    Boolean ok;
 
 #ifdef X_SUPPORT
@@ -229,12 +229,12 @@ int keyb_client_init()  {
 }
 
 
-void keyb_client_close() {
+void keyb_client_close(void) {
    if (Keyboard!=NULL && Keyboard->close!=NULL)
       Keyboard->close();
 }
 
-void keyb_client_run() {
+void keyb_client_run(void) {
    /* if a paste operation is currently running, give it priority over the keyboard
     * frontend, in case the user continues typing before pasting is finished.
     */

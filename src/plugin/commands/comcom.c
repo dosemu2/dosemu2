@@ -251,7 +251,7 @@ static void builtin_funct0a(char *buf)
 	int screenw, screenpage, posx, posy, leftmostx, linelen;
 	int dumbterm = config.cardtype == CARD_NONE;
 
-	void start_line()
+	void start_line(void)
 	{
 		screenw = com_biosvideo(0x0f00) >> 8;
 		if (dumbterm) screenw = 79;
@@ -1484,6 +1484,10 @@ static int cmd_cd(int argc, char **argv)
 	char *s = argv[1];
 	int ret;
 
+	/* cd. */
+	if (argv [0][2] == '.')
+		return 0;
+
 	if (!s) {
 		char buf[128];
 		/* just display the current curectory */
@@ -2028,7 +2032,7 @@ static int cmd_copy(int argc, char **argv)
 		return retcode;
 	}
 
-	void touch_all()
+	void touch_all(void)
 	{
 		int i, dlen, fd;
 		char dir[256];
@@ -2849,6 +2853,7 @@ extern int uchdir_main(int argc, char **argv);
 
 struct cmdlist intcmdlist[] = {
 	{"cd",		cmd_cd, 0},
+	{"cd.",		cmd_cd, 0},
 	{"chdir",	cmd_cd, 0},
 	{"goto",	cmd_goto, 0},
 	{"echo",	cmd_echo, 0},

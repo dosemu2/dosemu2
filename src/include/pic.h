@@ -106,8 +106,8 @@ EXTERN hitimer_t pic_sys_time INIT(NEVER);     /* system time set by pic_watch *
    changed by the ICW2 command from dos. (Some dos extenders do this.) */
    
 struct lvldef {
-       void (*func)();
-       void (*callback)();
+       void (*func)(void);
+       void (*callback)(void);
        int    ivec;
        };
 
@@ -122,9 +122,9 @@ void pic_unmaski(int level);                 /* clear dosemu's irq mask bit */
 void pic_maski(int level);                   /*  set  dosemu's irq mask bit */
 void pic_seti(unsigned int, void (*), unsigned int, void (*)); 
                                        /* set function and interrupt vector */
-void run_irqs();                                      /* run requested irqs */
+void run_irqs(void);                                  /* run requested irqs */
 #define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
-int do_irq();                                /* run dos portion of irq code */
+int do_irq(void);                            /* run dos portion of irq code */
 
 #define PIC_REQ_NOP	0
 #define PIC_REQ_OK	1
@@ -135,11 +135,11 @@ void pic_untrigger(int inum);                          /* interrupt untrigger */
 
 void pic_set_callback(Bit16u cs, Bit16u ip);
 
-void pic_iret();                             /* interrupt completion notify */
-void pic_resched();
-void pic_watch();		       /* interrupt pending watchdog timer */
-void do_irq0();						 /* timer interrupt */
-int  pic_pending();		   /* inform caller if interrupt is pending */
+void pic_iret(void);                         /* interrupt completion notify */
+void pic_resched(void);
+inline void pic_watch(hitimer_u *s_time);    /* interrupt pending watchdog timer */
+void do_irq0(void);				/* timer interrupt */
+int pic_pending(int ilevel);			/* inform caller if interrupt is pending */
 void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 

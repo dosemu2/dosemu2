@@ -67,7 +67,7 @@ console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
   oldx = xpos; oldy = ypos; oldblink = blinkflag;
 }
 
-void do_console_update_cursor() {
+void do_console_update_cursor(void) {
    console_update_cursor(cursor_col,cursor_row,cursor_blink,0);
 }
 

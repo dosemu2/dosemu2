@@ -97,7 +97,7 @@ OpenNetworkType(unsigned short netid)
 
 /* Return a socket opened in broadcast mode (only used for virtual net) */
 int
-OpenBroadcastNetworkType()
+OpenBroadcastNetworkType(void)
 {
 	PRIV_SAVE_AREA
 	int s;

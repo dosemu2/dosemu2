@@ -86,7 +86,7 @@ void memcheck_reserve(unsigned char map_char, int addr_start, int size)
   }
 }
 
-void memcheck_type_init()
+void memcheck_type_init(void)
 {
   static int once = 0;
   if (once) return;
@@ -96,7 +96,7 @@ void memcheck_type_init()
   memcheck_addtype('h', "Direct-mapped hardware page frame");
 }
 
-void memcheck_init()
+void memcheck_init(void)
 {
   memcheck_type_init();
   memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */

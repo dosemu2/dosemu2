@@ -103,7 +103,7 @@ static int sis_memorydetect(void)
  * SiSProbe -- 
  *      check up whether an SiS Logic based board is installed
  */
-static int SiSProbe()
+static int SiSProbe(void)
 {
 	if (sis_test()) {
 		config.gfxmemsize = sis_memorydetect();

@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 
-int main ()
+int main (void)
 {
   FILE *f;
   int i;

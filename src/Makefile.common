@@ -41,12 +41,6 @@ clean::
 realclean::	clean
 	rm -f *.d
 
-checkin::
-	-ci -l $(ALL) Makefile
-
-checkout::
-	-co -M -l $(ALL) Makefile
-
 dist:: $(ALL) Makefile
 	install -d $(DISTPATH)/$(SUBDIR)
 	cp -a $(ALL) Makefile $(DISTPATH)/$(SUBDIR)
@@ -55,19 +49,22 @@ depend dep: $(DEPENDS)
 
 
 %.o:	%.c
-	$(CC) -c $(CFLAGS) -o $@ $<
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+
+%.d:	%.c
+	$(CPP) -c $(CPPFLAGS) $< > /dev/null
 
 # Use -M for everything  or -MM for local
 TYPE_DEPEND=-MM
 
 ifdef notdef
-	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(CFLAGS) $< \
+	$(SHELL) -ec '$(CC) $(TYPE_DEPEND) $(CPPFLAGS) $< \
         | sed '\''s/$*\\.o[ :]*/& $@/g'\'' > $@'
 endif
 
-ifdef DEPENDS
+ifndef CLEANING
 ifneq "$(wildcard *.d)" ""
-include $(wildcard  *.d)
+-include $(wildcard  *.d)
 endif
 endif
 

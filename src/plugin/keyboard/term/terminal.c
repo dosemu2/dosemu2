@@ -201,7 +201,7 @@ static void set_char_set (int cs)
  * startup of DOSEMU if it's running in terminal mode.
  */ 
 int
-terminal_initialize()
+terminal_initialize(void)
 {
    SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
    int is_color = config.term_color;

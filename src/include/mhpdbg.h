@@ -43,10 +43,16 @@ EXTERN unsigned long dosdebug_flags INIT(0);
 
 unsigned int mhp_debug(unsigned int, unsigned int, unsigned int);
 void mhp_send(void);
-void mhp_input();
-void mhp_close();
+void mhp_input(void);
+void mhp_close(void);
 void mhp_printf(const char *,...);
 int mhp_getaxlist_value(int v, int mask);
+int mhp_getcsip_value(void);
+void mhp_modify_eip(int delta);
+
+void DBGload(void);
+void DBGload_CSIP(void);
+void DBGload_parblock(void);
 
 int vmhp_log_intercept(int flg, const char *fmt, va_list args);
  

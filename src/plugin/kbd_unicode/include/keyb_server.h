@@ -58,7 +58,7 @@ extern Bit8u port60_buffer;
 extern Boolean int9_running;
 
 void output_byte_8042(Bit8u value);
-void int_check_queue();
+void int_check_queue(void);
 void copy_shift_state(t_shiftstate shift);
 
 Bit16u get_bios_key(t_rawkeycode raw);
@@ -76,7 +76,7 @@ void clear_queue(struct keyboard_queue *q);
 void write_queue(struct keyboard_queue *q, t_rawkeycode raw);
 t_rawkeycode read_queue(struct keyboard_queue *q);
 
-void clear_bios_keybuf();
+void clear_bios_keybuf(void);
 
 int keyb_server_init(void);
 int keyb_server_reset(void);

@@ -689,14 +689,14 @@ void linux_mpu401_data_write(uint8_t data)
 }
 
 
-int FM_driver_init()
+int FM_driver_init(void)
 {
   S_printf ("SB:[Linux] FM Driver Initialisation Called\n");
 
   return ADLIB_NONE;
 }
 
-int MPU_driver_init()
+int MPU_driver_init(void)
 {
   S_printf("MPU:[Linux] MPU Driver Initialisation Called\n");
   mpu_disabled = FALSE;

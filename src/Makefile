@@ -22,6 +22,10 @@ default .DEFAULT:
 else
 # we are invoked via top Makefile
 
-  include $(REALTOPDIR)/src/arch/$(OS)/Makefile.main
+CFILES  = emu.c dos.c dosstatic.c
+OBJS    = emu.o
+
+default: $(OBJS)
+include Makefile.common
 
 endif

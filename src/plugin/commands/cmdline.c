@@ -25,7 +25,7 @@ int msetenv(char *,char *);
 
 #define CMDBUFFSIZE 256
 /* This program just reads stdin... */
-int cmdline_main()
+int cmdline_main(void)
 {
 	char *buff = malloc(CMDBUFFSIZE), *p, *q, *endb;
 

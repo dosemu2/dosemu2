@@ -208,7 +208,6 @@ InitIPXFarCallHelper(void)
   *ptr++ = 0xcf;		/* iret */
 #else
   {
-    extern void bios_IPX_PopRegistersReturn(), bios_IPX_PopRegistersIRet(), bios_IPX_FarCall();
     long i = (long)bios_IPX_PopRegistersReturn - (long)bios_f000;
     i += BIOSSEG << 4;
     ESRPopRegistersReturn.segment = i >> 4;

@@ -8,6 +8,8 @@
  * Various sundry utilites for dos emulator.
  *
  */
+#include "emu.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -22,7 +24,6 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 
-#include "emu.h"
 #include "machcompat.h"
 #include "bios.h"
 #include "timers.h"

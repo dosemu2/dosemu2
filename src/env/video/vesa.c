@@ -164,21 +164,6 @@ static int vbe_power_state(unsigned, unsigned);
 
 
 /*
- * The actual VGA/VBE BIOS is in vesabios.S and vesabios_pm.S. These are
- * some labels pointing to interesting code portions. They are used in
- * vbe_init() to setup the struct vgaemu_bios which holds all relevant
- * info about our BIOS.
- */
-
-extern void vgaemu_bios_start();
-extern void vgaemu_bios_prod_name();
-extern void vgaemu_bios_win_func();
-extern void vgaemu_bios_end();
-extern void vgaemu_bios_pm_interface();
-extern void vgaemu_bios_pm_interface_end();
-
-
-/*
  * DANG_BEGIN_FUNCTION vbe_init
  *
  * description:

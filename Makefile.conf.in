@@ -31,19 +31,14 @@ endif
 export INCDIR=@INCDIR@
 
 export CFLAGS=@CFLAGS@
+export CPPFLAGS=@CPPFLAGS@
 export LDFLAGS=@LDFLAGS@
+export LIBS=@LIBS@
 export CC=@CC@
-
-ifneq "@GCC_VERSION_CODE@" ""
-export GCC_VERSION_CODE=@GCC_VERSION_CODE@
-endif
+export CPP=@CPP@
 
 ifneq "@ASM_PEDANTIC@" ""
 export ASM_PEDANTIC=@ASM_PEDANTIC@
-endif
-
-ifneq "@GLIBCFLAGS@" ""
-export GLIBCFLAGS=@GLIBCFLAGS@
 endif
 
 export YACC=@YACC@
@@ -64,10 +59,10 @@ endif
 # use the debugger
 export DEBUGGER=@DEBUGGER@
 
-export X11LIBDIR=@x_libraries@
-export X2CFILES=@X2CFILES@
-export X2CEXE=@X2CEXE@
-export USE_MHPDBG=@USE_MHPDBG@
+@USE_MHPDBG@
+ifdef USE_MHPDBG
+  export USE_MHPDBG
+endif
 @USE_SBEMU@
 ifdef USE_SBEMU
   export USE_SBEMU
@@ -75,8 +70,6 @@ endif
 export OPTIONALSUBDIRS = @OPTIONALSUBDIRS@
 export PLUGINSUBDIRS = @PLUGINSUBDIRS@
 export REQUIRED=@REQUIRED@
-export SLANGLIB=@SLANGLIB@
-export XLIBSW=@XLIBSW@
 @USE_ULTRA@
 ifdef USE_ULTRA
   export USE_ULTRA
@@ -98,13 +91,11 @@ endif
 @USE_SVGALIB@
 ifdef USE_SVGALIB
   export USE_SVGALIB
-  export SVGALIB=-lvga
 endif
 
 @USE_PTHREADS@
 ifdef USE_PTHREADS
   export USE_PTHREADS
-  export PTHREADS=-lpthread
 endif
 
 @X86_EMULATOR@

@@ -15,19 +15,12 @@ SUBDIR=translate
 # as supplied by (the unicode organization) to a format usable
 # by dosemu.
 
-#include charsets/Makefile
-#CHARSET_CFILES=$(wildcard charsets/*.c)
-##CHARSET_CFILES=$(wildcard $(REALTOPDIR)/src/base/translate/charsets/*.c)
-
-#ifdef USE_UNICODE_TRANSLATION
 CFILES = $(CHARSET_CFILES) translate.c \
 	keysym_attributes.c keysym_dead_map.c \
 	keysym_approximations.c \
 	unicode_utils.c dosemu_charset.c translate_config.c
 
 EXTRA_CFILES = crunch_UnicodeData.c make_attributes.c 
-#endif
-
 
 DEPENDS= $(CFILES:.c=.d) $(EXTRA_CFILES:.c=.d)
 OBJS   = $(CFILES:.c=.o)
@@ -39,14 +32,9 @@ ALL = $(CFILES) $(HFILES) $(EXTRA_CFILES)
 
 all: lib
 
-install:
-
 clean::
-	-rm -f keysym_attributes.c make_attributes crunch_UnicodeData
+	-rm -f keysym_attributes.c make_attributes make_attributes.o crunch_UnicodeData
 
-ifndef REALTOPDIR
-REALTOPDIR=../../../..
-endif
 include $(REALTOPDIR)/src/Makefile.common
 
 crunch_UnicodeData: crunch_UnicodeData.o
@@ -54,8 +42,6 @@ crunch_UnicodeData: crunch_UnicodeData.o
 
 make_attributes: make_attributes.o
 	$(CC) $(CFLAGS) -o $@ $<
-
-#gcc -g -Wall make_attributes.c -o make_attributes -I ../../include
 
 keysym_attributes.c: make_attributes UnicodeCrunchedAttributes
 	./make_attributes < UnicodeCrunchedAttributes > $@

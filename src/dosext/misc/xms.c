@@ -137,9 +137,7 @@ static struct umb_record {
 /* #define dbg_fd stderr */
 
 static boolean_t
-umb_memory_empty(addr, size)
-     vm_address_t addr;
-     int size;
+umb_memory_empty(vm_address_t addr, int size)
 {
   int i;
   int *memory = (int *) addr;

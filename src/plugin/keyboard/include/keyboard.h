@@ -34,13 +34,13 @@ extern t_shiftstate shiftstate;
 void putrawkey(t_rawkeycode code);
 void putkey(Boolean make, t_keysym scan, unsigned char ascii);
 void set_shiftstate(t_shiftstate s);
-void clear_bios_keybuf();
-int keyb_queuelevel();
+void clear_bios_keybuf(void);
+int keyb_queuelevel(void);
 void append_pre_strokes(unsigned char *s);
 
-int keyb_server_init();
-int keyb_server_reset();
-void keyb_server_close();
+int keyb_server_init(void);
+int keyb_server_reset(void);
+void keyb_server_close(void);
 
 #define presskey(key,charcode)  putkey(PRESS,key,charcode)
 #define releasekey(key)         putkey(RELEASE,key,0)

@@ -674,5 +674,6 @@ void InvalidateSegs(void);
 void CollectStat(void);
 //
 /////////////////////////////////////////////////////////////////////////////
+void init_emu_npu(void);
 
 #endif // _EMU86_EMU86_H

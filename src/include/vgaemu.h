@@ -619,4 +619,19 @@ extern unsigned char vga_rom_16[256 * 16];
 extern unsigned char vga_rom_14_alt[1];
 extern unsigned char vga_rom_16_alt[1];
 
+/*
+ * The actual VGA/VBE BIOS is in vesabios.S and vesabios_pm.S. These are
+ * some labels pointing to interesting code portions. They are used in
+ * vbe_init() to setup the struct vgaemu_bios which holds all relevant
+ * info about our BIOS.
+ */
+
+extern void vgaemu_bios_start(void);
+extern void vgaemu_bios_prod_name(void);
+extern void vgaemu_bios_win_func(void);
+extern void vgaemu_bios_end(void);
+extern void vgaemu_bios_pm_interface(void);
+extern void vgaemu_bios_pm_interface_end(void);
+
+
 #endif	/* !defined __VGAEMU_H */

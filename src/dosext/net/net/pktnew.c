@@ -104,20 +104,6 @@ struct pkt_globs
 
 static char devname[10];		/* linux device name */
 
-/* various declarations for interfacing with the packet driver code in
-   bios.S */
-
-extern void PKTDRV_size();
-extern void PKTDRV_handle();
-extern void PKTDRV_receiver();
-extern void PKTDRV_buf();
-extern void PKTDRV_helper();
-extern void PKTDRV_signature();
-extern void PKTDRV_driver_name();
-extern void PKTDRV_param();
-extern void PKTDRV_stats();
-extern void PKTDRV_start();
-
 /* creates a pointer into the BIOS from the asm exported labels */
 #define MK_PTR(ofs) ( (void *)((long)(ofs)-(long)bios_f000+(BIOSSEG << 4)) )
 

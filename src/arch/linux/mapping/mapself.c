@@ -9,6 +9,7 @@
  *	Hans Lermen, lermen@fgan.de
  */
 
+#include "emu.h"
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -21,8 +22,6 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
-
-#include "emu.h"
 #include "mapping.h"
 
 #undef mmap

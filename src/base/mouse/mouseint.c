@@ -36,6 +36,7 @@
  *
  */
 
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -46,8 +47,7 @@
 #include "emu.h"
 #include "mouse.h"
 
-void mouse_move(void), mouse_lb(void), mouse_rb(void), mouse_mb(void);
-void DOSEMUSetMouseSpeed();
+static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag);
 
 /*
  * DOSEMUSetupMouse --
@@ -166,9 +166,7 @@ DOSEMUSetupMouse(void)
 }
  
 int
-DOSEMUMouseProtocol(rBuf, nBytes)
-     unsigned char *rBuf;
-     int nBytes;
+DOSEMUMouseProtocol(unsigned char *rBuf, int nBytes)
 {
   int                  i, buttons=0, dx=0, dy=0;
   mouse_t             *mice = &config.mouse;
@@ -365,7 +363,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
   return nBytes;
 }
 
-void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
+static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 {
 	struct termios tty;
 	char *c;

@@ -36,6 +36,7 @@
  *
  */
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,9 +79,11 @@ void remap_done(RemapObject *);
 
 static void do_base_init(void);
 
-static void do_nothing() {};
-static int do_nearly_nothing() { return 0; };
-static RectArea do_nearly_something() { RectArea ra = {0, 0, 0, 0}; return ra; };
+static void do_nothing(void) {};
+static void do_nothing_remap(struct RemapObjectStruct *a) {};
+static int do_nearly_nothing(RemapObject *a, unsigned b, unsigned c, unsigned d, unsigned e, unsigned f) { return 0; };
+static RectArea do_nearly_something_rect(RemapObject *ro, int x0, int y0, int width, int height) { RectArea ra = {0, 0, 0, 0}; return ra; };
+static RectArea do_nearly_something_mem(RemapObject *ro, int offset, int len) { RectArea ra = {0, 0, 0, 0}; return ra; };
 
 static unsigned u_pow(unsigned, unsigned);
 static unsigned gamma_fix(unsigned, unsigned);
@@ -159,7 +162,7 @@ void set_remap_debug_msg(FILE *_rdm) { rdm = _rdm; }
 /*
  * some basic intializations
  */
-static void do_base_init()
+static void do_base_init(void)
 {
   RemapFuncDesc *rfd0, *rfd;
   int i = 0;
@@ -191,8 +194,8 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   ro.palette_update = do_nearly_nothing;
   ro.src_resize = src_resize_update;
   ro.dst_resize = dst_resize_update;
-  ro.remap_rect = do_nearly_something;
-  ro.remap_mem = do_nearly_something;
+  ro.remap_rect = do_nearly_something_rect;
+  ro.remap_mem = do_nearly_something_mem;
   ro.state = 0;
   ro.src_mode = src_mode;
   ro.dst_mode = dst_mode;
@@ -780,7 +783,7 @@ static void resize_update(RemapObject *ro)
     ro->remap_func_init = ro->func_all->func_init;
   }
   else {
-    ro->remap_func = do_nothing;
+    ro->remap_func = do_nothing_remap;
     ro->remap_func_flags = 0;
     ro->remap_func_name = "do_nothing";
     ro->remap_func_init = NULL;
@@ -797,7 +800,7 @@ static void resize_update(RemapObject *ro)
     ro->remap_func_init(ro);
   }
 
-  if(ro->remap_func != NULL && ro->remap_func != do_nothing) { ro->state |= ROS_REMAP_FUNC_OK; }
+  if(ro->remap_func != NULL && ro->remap_func != do_nothing_remap) { ro->state |= ROS_REMAP_FUNC_OK; }
 
 #ifdef REMAP_RESIZE_DEBUG
   fprintf(rdm, "resize_update: using %s for remap %dx%d --> %dx%d\n",
@@ -2224,7 +2227,7 @@ static RemapFuncDesc remap_opt_list[] = {
 /*
  * returns chained list of modes
  */
-RemapFuncDesc *remap_opt()
+RemapFuncDesc *remap_opt(void)
 {
   int i;
 
@@ -3004,7 +3007,7 @@ static RemapFuncDesc remap_gen_list[] = {
 /*
  * returns chained list of modes
  */
-RemapFuncDesc *remap_gen()
+RemapFuncDesc *remap_gen(void)
 {
   int i;
 
@@ -4423,7 +4426,7 @@ static RemapFuncDesc remap_test_list[] = {
 /*
  * returns chained list of modes
  */
-RemapFuncDesc *remap_test()
+RemapFuncDesc *remap_test(void)
 {
   int i;
 

@@ -94,13 +94,15 @@ typedef struct {
   unsigned char *pixel_lut;
 } ColorSpaceDesc;
 
+struct RemapObjectStruct;
+
 typedef struct RemapFuncDescStruct {
   unsigned flags;
   unsigned src_mode;
   unsigned dst_mode;
-  void (*func)();
+  void (*func)(struct RemapObjectStruct *);
   char *func_name;
-  void (*func_init)();
+  void (*func_init)(struct RemapObjectStruct *);
   struct RemapFuncDescStruct *next;
 } RemapFuncDesc;
 
@@ -131,7 +133,7 @@ typedef struct RemapObjectStruct {
   char *remap_func_name;
   void (*remap_func_init)(struct RemapObjectStruct *);
   CodeObj *co;
-  void (*remap_line)();
+  void (*remap_line)(void);
   RemapFuncDesc *func_all;
   RemapFuncDesc *func_1;
   RemapFuncDesc *func_2;

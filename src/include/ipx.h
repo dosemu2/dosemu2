@@ -9,6 +9,7 @@
  * 		Tim Bird, tbird@novell.com
  */
 
+#include "config.h"
 #ifdef USING_NET
 #ifndef IPXDMU_H
 #define IPXDMU_H

@@ -29,6 +29,7 @@
 
 #define PARSER_VERSION_STRING "parser_version_3"
 
+#include "config.h"
 #include <stdlib.h>
 #include <termios.h>
 #include <sys/types.h>
@@ -50,7 +51,6 @@
 #include <mntent.h>
 #endif
 
-#include "config.h"
 #include "dosemu_config.h"
 #include "emu.h"
 #ifdef X86_EMULATOR
@@ -70,8 +70,6 @@
 #include "utilities.h"
 
 #include "parsglob.h"
-#include "lexer.h"
-
 
 #define USERVAR_PREF	"dosemu_"
 static int user_scope_level;
@@ -119,12 +117,8 @@ static int parser_version_3_style_used = 0;
 	/* external procedures */
 
 extern int exchange_uids(void);
-extern int yylex(); /* exact argument types depend on the way you call bison */
 extern void tell_lexer_if(int value);
 extern void tell_lexer_loop(int cfile, int value);
-extern int parse_debugflags(const char *s, unsigned char flag);
-extern void register_port_traceing(ioport_t firstport, ioport_t lastport);
-extern void clear_port_traceing(void);
 
 	/* local procedures */
 
@@ -207,6 +201,9 @@ extern void yyrestart(FILE *input_file);
 	ExprType t_value;
 };
 
+%{
+#include "lexer.h"
+%}
 
 %token <i_value> INTEGER L_OFF L_ON L_AUTO L_YES L_NO CHIPSET_TYPE
 %token <i_value> CHARSET_TYPE KEYB_LAYOUT
@@ -1612,7 +1609,6 @@ speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		;
 
 %%
-
 
 	/* features */
 

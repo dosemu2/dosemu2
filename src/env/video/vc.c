@@ -27,6 +27,8 @@
  *
  */
 
+#include "config.h"
+#undef __USE_BSD
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -66,10 +68,8 @@
 #include "mapping.h"
 #include "timers.h"
 
-extern void clear_screen (int, int);
-extern inline void console_update_cursor (int, int, int, int);
-static void set_dos_video ();
-void put_video_ram ();
+static void set_dos_video (void);
+void put_video_ram (void);
 
 extern int
   dosemu_sigaction (int sig, struct sigaction *, struct sigaction *);
@@ -94,14 +94,6 @@ static int  color_text;
 static void release_vt (int sig, struct sigcontext_struct context);
 static void acquire_vt (int sig, struct sigcontext_struct context);
 void get_video_ram (int);
-
-#if 1
-#undef SETSIG
-#define SETSIG(sa, sig, fun)	sa.sa_handler = fun; \
-				sa.sa_flags = 0; \
-				sa.sa_mask = 0; \
-				sigaction(sig, &sa, NULL);
-#endif
 
 static inline void
 forbid_switch (void)
@@ -525,8 +517,8 @@ clear_process_control (void)
 
   vt_mode.mode = VT_AUTO;
   ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
-  signal (SIG_RELEASE, SIG_IGN);
-  signal (SIG_ACQUIRE, SIG_IGN);
+  sysv_signal (SIG_RELEASE, SIG_IGN);
+  sysv_signal (SIG_ACQUIRE, SIG_IGN);
 }
 
 
@@ -1109,7 +1101,6 @@ install_int_10_handler (void)
   unsigned char *ptr;
   
   if (config.vbios_seg == 0xe000 && config.vbios_post) {
-    extern void bios_f000_int10ptr();
     ptr = (u_char *)((BIOSSEG << 4) + ((long)bios_f000_int10ptr - (long)bios_f000));
     *((long *)ptr) = 0xe0000003;
     v_printf("VID: new int10 handler at %p\n",ptr);

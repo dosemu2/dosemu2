@@ -886,7 +886,7 @@ void sb_do_reset (Bit8u value)
   }
 }
     
-static inline void dma_start()
+static inline void dma_start(void)
 {
   if (SB_dsp.dma_mode & SB_USES_DMA)
     SB_dsp.empty_state |= START_DMA_AT_EMPTY;

@@ -1925,7 +1925,6 @@ dosemu_mouse_init(void)
 
 void mouse_post_boot(void)
 {
-  extern void bios_f000_int10_old();
   us *ptr;
         
   if (!mice->intdrv) return;

@@ -6,7 +6,7 @@
 
 
 int OpenNetworkType(unsigned short);
-int OpenBroadcastNetworkType();
+int OpenBroadcastNetworkType(void);
 void CloseNetworkLink(int);
 int WriteToNetwork(int, const char *, const char *, int);
 int ReadFromNetwork(int, char *, char *, int);

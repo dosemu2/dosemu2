@@ -958,7 +958,7 @@ void set_shiftstate(t_shiftstate s) {
    }
 } 
 
-int keyb_server_reset() {
+int keyb_server_reset(void) {
 
    k_printf("KBD: keyb_server_reset()\n");
 
@@ -976,16 +976,16 @@ int keyb_server_reset() {
    return TRUE;
 }
 
-int keyb_server_init() {
+int keyb_server_init(void) {
    k_printf("KBD: keyb_server_init()\n");
    return keyb_server_reset();
 }
 
-void keyb_server_close() {
+void keyb_server_close(void) {
    k_printf("KBD: keyb_server_close()\n");
 }
 
-void keyb_server_run() {
+void keyb_server_run(void) {
    backend_run();
 }
  

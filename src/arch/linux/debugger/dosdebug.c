@@ -16,6 +16,7 @@
  * The switch-console code is from Kevin Buhr <buhr@stat.wisc.edu>
  */
 
+#include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>	/* for struct timeval */
@@ -32,10 +33,11 @@
 #include <sys/vt.h>
 #include <sys/ioctl.h>
 
+#undef     TMPFILE
 #define    TMPFILE_		"/var/run/dosemu."
 #define    TMPFILE_HOME		".dosemu/run/dosemu."
-#define    TMPFILE               dosemu_tmpfile_path 
-static char dosemu_tmpfile_path[256];
+#define    TMPFILE               dosemu_tmpfile_pat 
+static char dosemu_tmpfile_pat[256];
 
 #define MHP_BUFFERSIZE 8192
 

@@ -7,6 +7,7 @@
 #ifndef DOSEMU_TIMERS_H
 #define DOSEMU_TIMERS_H
 
+#include "config.h"
 #ifdef __linux__
 #include <sys/param.h>		/* for HZ */
 #endif

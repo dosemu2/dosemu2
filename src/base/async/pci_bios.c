@@ -173,7 +173,7 @@ static int numbus = 0;
 static int hostbridges = 0;
 
 int
-pcibios_init()
+pcibios_init(void)
 {
     unsigned long pcibuses[16];
     unsigned long pciheader[64];

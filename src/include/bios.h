@@ -12,12 +12,15 @@
 #include "config.h"
 #include "extern.h"
 
-extern void bios_f000();		/* BIOS start at 0xf0000 */
+extern void bios_f000(void);		/* BIOS start at 0xf0000 */
 /* these two addresses are needed to avoid overwriting e.g. font
  * tables copied from VBIOS */
-extern void bios_f000_endpart1();
-extern void bios_f000_part2();
-extern void bios_f000_end();		/* BIOS end at 0xfffff */
+extern void bios_f000_endpart1(void);
+extern void bios_f000_part2(void);
+extern void bios_f000_end(void);	/* BIOS end at 0xfffff */
+extern void bios_f000_int10ptr(void);
+extern void bios_f000_bootdrive(void);
+extern void bios_f000_int10_old(void);
 
 #define INT2F_IDLE_MAGIC	0x1680
 
@@ -240,35 +243,53 @@ void            setup_rom_bios(void);
 void            bios_configuration_init(void);	/* init BIOS-configuration */
 void            bios_data_init(void);	/* init BIOS-data-areas */
 
-void            INT16_dummy_start();
-void            INT16_dummy_end();
+void            INT16_dummy_start(void);
+void            INT16_dummy_end(void);
 #if 0
-void            INT09_dummy_start();
-void            INT09_dummy_end();
+void            INT09_dummy_start(void);
+void            INT09_dummy_end(void);
 #endif
-void            INT08_dummy_start();
-void            INT08_dummy_end();
-void            INT70_dummy_start();
-void            INT70_dummy_end();
-void            DPMI_dummy_start();
-void            DPMI_dummy_end();
-void            DPMI_dpmi_init();
-void            DPMI_return_from_dos();
-void            DPMI_return_from_dos_exec();
-void            DPMI_return_from_dosint();
-void            DPMI_return_from_realmode();
-void            DPMI_return_from_dos_memory();
-void            DPMI_realmode_callback();
-void            DPMI_mouse_callback();
-void            DPMI_raw_mode_switch();
-void            DPMI_save_restore();
-void            DPMI_API_extension();
-void            DPMI_return_from_pm();
-void            DPMI_return_from_exception();
-void            DPMI_return_from_rm_callback();
-void            DPMI_return_from_mouse_callback();
-void            DPMI_exception();
-void            DPMI_interrupt();
+void            INT08_dummy_start(void);
+void            INT08_dummy_end(void);
+void            INT70_dummy_start(void);
+void            INT70_dummy_end(void);
+void            DPMI_dummy_start(void);
+void            DPMI_dummy_end(void);
+void            DPMI_dpmi_init(void);
+void            DPMI_return_from_dos(void);
+void            DPMI_return_from_dos_exec(void);
+void            DPMI_return_from_dosint(void);
+void            DPMI_return_from_realmode(void);
+void            DPMI_return_from_dos_memory(void);
+void            DPMI_realmode_callback(void);
+void            DPMI_mouse_callback(void);
+void            DPMI_raw_mode_switch(void);
+void            DPMI_save_restore(void);
+void            DPMI_API_extension(void);
+void            DPMI_return_from_pm(void);
+void            DPMI_return_from_exception(void);
+void            DPMI_return_from_rm_callback(void);
+void            DPMI_return_from_mouse_callback(void);
+void            DPMI_exception(void);
+void            DPMI_interrupt(void);
+
+void		bios_IPX_PopRegistersReturn(void);
+void		bios_IPX_PopRegistersIRet(void);
+void		bios_IPX_FarCall(void);
+
+/* various declarations for interfacing with the packet driver code in
+   bios.S */
+
+void		PKTDRV_size(void);
+void		PKTDRV_handle(void);
+void		PKTDRV_receiver(void);
+void		PKTDRV_buf(void);
+void		PKTDRV_helper(void);
+void		PKTDRV_signature(void);
+void		PKTDRV_driver_name(void);
+void		PKTDRV_param(void);
+void		PKTDRV_stats(void);
+void		PKTDRV_start(void);
 
 /*
  * HLT block

@@ -34,7 +34,7 @@
 
 extern void keyb_server_run(void);
 extern void irq_select(void);
-extern int type_in_pre_strokes();
+extern int type_in_pre_strokes(void);
 
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -103,7 +103,7 @@ static SillyG_t SillyG_[16 + 1];
  * 
  * DANG_END_FUNCTION
  */
-void SIG_init()
+void SIG_init(void)
 {
 #if defined(SIG)
     PRIV_SAVE_AREA
@@ -141,7 +141,7 @@ void SIG_init()
 #endif
 }
 
-void SIG_close()
+void SIG_close(void)
 {
 #if defined(SIG)
     if (SillyG) {
@@ -539,7 +539,7 @@ void SIGALRM_call(void)
  * DANG_END_FUNCTION
  *
  */
-inline void SIGNAL_save( void (*signal_call)() ) {
+inline void SIGNAL_save( void (*signal_call)(void) ) {
   signal_queue[SIGNAL_tail].signal_handler=signal_call;
   SIGNAL_tail = (SIGNAL_tail + 1) % MAX_SIG_QUEUE_SIZE;
   signal_pending = 1;

@@ -4,6 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+#include "config.h"
 #include "mangle.h"
 
 int case_default=-1;

@@ -1,3 +1,27 @@
+2003/01/26 ver 1.1.4.9 unofficial pre-release
+	From Bart
+	- More makefile and autoconf fixes, cleanups and improvements:
+	  * use CPP and CPPFLAGS
+	  * check if dependency files are out of date
+	  * collect needed libraries in LIBS
+	  * use autoconf's X include/library findings instead of our own
+	  * fix problem with not defining ASPI_SUPPORT and WANT_WINDOWS
+	    (that broke some aspects of DPMI)
+	  * src/Makefile no longer includes Makefile.main, and
+	    Makefile.main no longer includes Makefile.common. That solved
+	    some problems with overlapping rules.
+	  * put "-D" variables in config.h to reduce the length of the gcc
+	    commands. Adjust some files so that they include "config.h".
+	    Compiletime paths are now stored in confpath.h.
+	- add -Wstrict-prototypes to the CFLAGS and fixed all new
+	  warnings. Also removed some related "extern" prototypes in C
+	  source files.
+	- clean up run_caller_func code so that it is as Eric intended 
+	  it to be ;) Solve the problem with default_interrupt.
+	- increase default DPMI memory limit to 20MB.
+	- start the port server if the speaker is in native mode.
+	From Clarence
+	- some more preliminary comcom space corrections
 2003/01/24 ver 1.1.4.8 unofficial pre-release
 	From Bart
 	- upgrade autoconf & friends + some top level makefile

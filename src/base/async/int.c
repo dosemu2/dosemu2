@@ -111,7 +111,7 @@ static void default_interrupt(u_char i) {
   di_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
 
   if (!IS_REDIRECTED(i) || (!IVEC(i)) ||
-      ((SEGOFF2LINEAR(BIOSSEG, INT_OFF(i)) +2) == SEGOFF2LINEAR(_CS, _IP))) {
+      can_revector(i) != REVECT) {
     g_printf("DEFIVEC: int 0x%02x @ 0x%04x:0x%04x\n", i, ISEG(i), IOFF(i));
 
     /* This is here for old SIGILL's that modify IP */
@@ -1263,6 +1263,8 @@ void real_run_int(int i)
  * much as if I could handle it the way I would like.
  * -- EB 30 Nov 1997
  *
+ * Trying to get it right now -- BO 25 Jan 2003
+ *
  * DANG_END_FUNCTION
  */
 
@@ -1271,37 +1273,18 @@ static void run_caller_func(int i, Boolean from_int)
 	void (*caller_function)(int i);
 	g_printf("Do INT0x%02x: Using caller_function()\n", i);
 
-#if 0	 /* This causes problems with default_interrupt disable this for now
-          * --EB 13 March 1997 
-	  */
-
 	if (!from_int) {
-		_IP = POPW(_SS, _SP);
-		_CS = POPW(_SS, _SP);
-		set_FLAGS(POPW(_SS, _SP));
-	}
-#else
-	/* Do to a misfeature I must leave retCS & retIP on the stack, but I
-	 * can still read retFlags.
-	 */
-	if (!from_int) {
-		unsigned char *ssp = (unsigned char *)(_SS<<4);
-		unsigned long sp = (Bit16u)(_SP +4);
+		unsigned char *ssp = (unsigned char *) (REG(ss) << 4);
+		unsigned long sp = (unsigned long) LWORD(esp);
+		_SP += 6;
+		_IP = popw(ssp, sp);
+		_CS = popw(ssp, sp);
 		set_FLAGS(popw(ssp, sp));
 	}
-#endif
 	caller_function = interrupt_function[i];
 	if (caller_function) {
 
 		caller_function(i);
-	}
-	if (!from_int) {
-		unsigned char *ssp = (unsigned char *)(_SS<<4);
-		unsigned long sp = _SP;
-		_SP += 6;
-		_IP = popw(ssp, sp);
-		_CS = popw(ssp, sp);
-		/* set_FLAGS(popw(ssp, sp)); */
 	}
 }
 
@@ -1385,7 +1368,7 @@ static int can_revector_int21(int i)
   }
 }
 
-static void do_print_screen() {
+static void do_print_screen(void) {
 int x_pos, y_pos;
 ushort *base=SCREEN_ADR(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
     g_printf("PrintScreen: base=%p, lines=%i columns=%i\n", base, li, co);
@@ -1439,7 +1422,7 @@ static void int19(u_char i) {
 /*
  * Turn all simulated FAT devices into network drives.
  */
-static void redirect_devices()
+static void redirect_devices(void)
 {
   static char s[256] = "\\\\LINUX\\FS", *t = s + 10;
   int i, j;
@@ -1461,7 +1444,7 @@ static void redirect_devices()
  * To use this feature, set redir_state = 1 and make sure int 21h is
  * revectored.
  */
-static int redir_it()
+static int redir_it(void)
 {
   /*
    * Declaring the following struct volatile works around an EGCS bug

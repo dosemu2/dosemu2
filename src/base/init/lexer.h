@@ -4,6 +4,7 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
+extern int yylex(YYSTYPE* yylval);
 extern int include_stack_ptr;
 extern char *include_fnames[];
 extern int include_lines[];

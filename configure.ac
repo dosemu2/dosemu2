@@ -156,13 +156,13 @@ dnl Do ELF if possible
 
 dnl Check for static and then also use it for tests
 
-LNKOPTS="-Wl,-warn-common"
+LDFLAGS="-Wl,-warn-common"
+LIBS=-lm
 
 AC_ARG_ENABLE(linkstatic,
               [  --enable-linkstatic     make statically linked binaries],
               [AS_MESSAGE(checking "Linking statically"...)
-               LNKOPTS="${LNKOPTS} -static"
-	       CFLAGS="-static $CFLAGS"],
+               LDFLAGS="${LDFLAGS} -static"],
 	      [AS_MESSAGE(checking "Linking for shared libraries"...)])
 
 dnl Do check wether we have svgalib and whether to use it
@@ -171,11 +171,11 @@ AC_ARG_ENABLE(use-svgalib,
 	[  --enable-use-svgalib    use svgalib if available],
 	[use_svgalib="yes"],[use_svgalib="no"])
 if test "$use_svgalib" = "yes"; then
-  AC_CHECK_LIB(vga, vga_simple_init, , use_svgalib="no", -lm)
+  AC_CHECK_LIB(vga, vga_simple_init, , use_svgalib="no")
 fi
 if test "$use_svgalib" = "yes"; then
   AS_MESSAGE(checking "compiling with svgalib support"...)
-  AC_DEFINE_UNQUOTED(USE_SVGALIB)
+  AC_DEFINE(USE_SVGALIB)
   USE_SVGALIB="USE_SVGALIB=1"
   AC_SUBST(USE_SVGALIB)
 else
@@ -187,7 +187,7 @@ dnl Do check wether we have pthreads and whether to use it
 AC_ARG_ENABLE(use-pthreads,,
 	[use_pthreads="yes"],[use_pthreads="no"])
 if test "$use_pthreads" = "yes"; then
-  AC_CHECK_LIB(pthread, pthread_create, , use_pthreads="no", -lm)
+  AC_CHECK_LIB(pthread, pthread_create, , use_pthreads="no")
 fi
 if test "$use_pthreads" = "yes"; then
   AS_MESSAGE(checking "compiling with pthreads support"...)
@@ -229,98 +229,32 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
       SLANGLIB="-L${withval}/lib"
     fi
   fi
-  CFLAGS="$CFLAGS $SLANGINC"
   dnl --- now that we've found it, check the link
-  AC_CHECK_LIB(slang, SLtt_get_terminfo,
-                [-lslang],
-                [AC_MSG_ERROR(unable to compile.  install slang-devel or check config.log)], -lm)
-  SLANGLIB="$SLANGLIB -lslang -lm"
-  AC_SUBST(SLANGLIB)
+  AC_CHECK_LIB(slang, SLtt_get_terminfo, ,
+                [AC_MSG_ERROR(unable to compile.  install slang-devel or check config.log)])
+  LDFLAGS="$LDFLAGS $SLANGLIB"
 )
 
-dnl check for X. This was reproduced from TKined
+AC_PATH_XTRA
+LDFLAGS="$LDFLAGS $X_LIBS"
+CPPFLAGS="$X_CFLAGS"
 
-AC_CHECK_PROG(x_ok, xmkmf, 1, 0)
-if test $x_ok = 1 -a "${with_x+set}" != set; then
-    AC_PATH_X
-fi
-if test "$XINCLUDE_DIR" != ""; then
-    x_includes="$XINCLUDE_DIR"
-fi
-if test "$x_includes" = /usr/include; then
-    XINCLUDES="# no special path needed"
-elif test "$x_includes" != "NONE"; then
-    XINCLUDES="-I$x_includes"
-fi
-if test "$XINCLUDES" = nope; then
-  AC_MSG_WARN([Couldn't find any X11 include files])
-  XINCLUDES="# no include files found"
-fi
-if test "$XINCLUDES" = "-I"; then
-  XINCLUDES=""
-fi
-AC_SUBST(XINCLUDES)
+AC_CHECK_LIB(X11, XOpenDisplay, , 
+   # sometimes statically linked binaries need libdl too ...
+   AC_CHECK_LIB(X11, XCloseDisplay, LIBS="$LIBS -lX11 -ldl", 
+     AC_CHECK_LIB(Xwindow, main, , no_x="yes" ),
+  -ldl))
 
-if test "$XLIBRARY_DIR" != ""; then
-    x_libraries="$XLIBRARY_DIR"
-fi
-if test "$x_libraries" = /usr/lib; then
-    XLIBSWD="#no special path needed"
-elif test "$x_libraries" != "NONE"; then
-    XLIBSWD="-L$x_libraries"
-else
-    AS_MESSAGE(checking for X11 library archive...)
-    AC_CHECK_LIB(X11, main, XLIBSWL="-lX11", XLIBSWL=nope)
-    if test "$XLIBSWL" = nope; then
-	dirs="/usr/unsupported/lib /usr/local/lib /usr/X386/lib /usr/lib/X11R4 /usr/X11R5/lib /usr/lib/X11R5 /usr/openwin/lib /usr/X11/lib"
-	for i in $dirs ; do
-	    if test -r $i/libX11.so; then
-		XLIBSWL="-lX11"
-		XLIBSWD="-L$i"
-	    fi
-	done
-    fi
-fi
-CFLAGS="$CFLAGS $XLIBSWD"
-AC_CHECK_LIB(X11, XOpenDisplay, XLIBSWL="-lX11", XLIBSWL=nope)
-dnl sometimes statically linked binaries need libdl too ...
-if test "$XLIBSWL" = nope ; then
-    AC_CHECK_LIB(X11, XCloseDisplay, XLIBSWL="-lX11 -ldl", XLIBSWL=nope, -ldl)
-fi
-if test "$XLIBSWL" = nope ; then
-    AC_CHECK_LIB(Xwindow, main, XLIBSWL=-lXwindow)
-fi
-if test "$with_x" = "no"; then
-  XLIBSWL=nope
-fi
-if test "$XLIBSWL" = nope ; then
-    AC_MSG_WARN([Couldn't find the X11 library archive.])
+if test "$no_x" = "yes" ; then
     AS_MESSAGE(checking Compiling without X support...)
-    XLIBSWL=""
-    XLIBSWD=""
-    AC_SUBST(X_SUPPORT)
-    X_GRAPHICS=""
-    AC_SUBST(X_GRAPHICS)
-    X2CFILES=""
-    AC_SUBST(X2CFILES)
-    X2CEXE=""
-    AC_SUBST(X2CEXE)
 else
     AS_MESSAGE(checking Compiling with X support...)
-    AC_DEFINE_UNQUOTED(X_SUPPORT) 
+    AC_DEFINE(X_SUPPORT) 
     X_SUPPORT="X_SUPPORT=1"
     AC_SUBST(X_SUPPORT)
-    AC_DEFINE_UNQUOTED(X_GRAPHICS)
+    AC_DEFINE(X_GRAPHICS)
     X_GRAPHICS="X_GRAPHICS=1"
     AC_SUBST(X_GRAPHICS)
-
-dnl All the X2 specs
-    AC_DEFINE_UNQUOTED(X2_SUPPORT) 
-    X2CFILES="x2dos.c"
-    AC_SUBST(X2CFILES)
-    X2CEXE="x2dos ../etc/xtermdos ../etc/xinstallvgafont"
-    AC_SUBST(X2CEXE)
-
 fi
 
 
@@ -334,34 +268,17 @@ AC_ARG_ENABLE(nomitshm,
               [  --enable-nomitshm       do NOT use the MITSHM X extension],
               [forced_nomitshm="yes"],[forced_nomitshm="no"])
 
-if test "$forced_mitshm" = "no" -a "$forced_nomitshm" = "no" ; then
-  AC_CHECK_HEADER(X11/extensions/XShm.h,have_mitshm="yes",have_mitshm="no",
-                  [#include <X11/Xlib.h>])
-else
-  if test "$forced_mitshm" = "yes" -a "$forced_nomitshm" = "no" ; then
-    have_mitshm="yes"
-  fi
-
-  if test "$forced_mitshm" = "no" -a "$forced_nomitshm" = "yes" ; then
-    have_mitshm="no"
-  fi
-
-  if test "$forced_mitshm" = "yes" -a "$forced_nomitshm" = "yes" ; then
-    AC_MSG_ERROR(Can't use --enable-mitshm and --enable-nomitshm at the same time)
-  fi
+if test "$forced_mitshm" = "yes" -a "$forced_nomitshm" = "yes" ; then
+  AC_MSG_ERROR(Can't use --enable-mitshm and --enable-nomitshm at the same time)
 fi
 
-if test "$have_mitshm" = "yes" -a "$X_SUPPORT" = "X_SUPPORT=1"; then
-  XLIBSWL="-lXext $XLIBSWL"
-  AC_DEFINE(HAVE_MITSHM,1)
+if test "$forced_nomitshm" != "yes" -a "$no_x" != "yes" ; then
+  AC_CHECK_HEADER(X11/extensions/XShm.h,
+         [AC_DEFINE(HAVE_MITSHM,1) LIBS="-lXext $LIBS"],
+         AS_MESSAGE(checking Compiling without the MITSHM X extension),
+         [#include <X11/Xlib.h>])
 fi
 
-XLIBSW="$XLIBSWD $XLIBSWL"
-
-AC_SUBST(XLIBSW)
-AC_SUBST(x_libraries)
-
-REALTOPDIR=`nolinks=1; pwd`
 PACKAGE_VERSION=`cat VERSION`
 VV=$PACKAGE_VERSION
 VERSION=${VV%%.*}
@@ -379,21 +296,10 @@ DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) +
 PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="$VERSION.$SUBLEVEL"
-RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
+RELEASE_DATE=`head -n1 $srcdir/ChangeLog | cut '-d ' -f1`
 
 AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
-AC_SUBST(EMUVER)
 CONFIG_TIME=`date`
-AC_SUBST(REALTOPDIR)
-AC_SUBST(SUBLEVEL)
-AC_SUBST(PATCHLEVEL)
-AC_SUBST(THISVERSION)
-AC_SUBST(VERSION)
-AC_SUBST(DOSEMU_VERSION_CODE)
-BINPATH="$REALTOPDIR/$THISVERSION"
-AC_SUBST(BINPATH)
-SRCPATH="$REALTOPDIR/src"
-AC_SUBST(SRCPATH)
 AC_DEFINE_UNQUOTED(CONFIG_HOST, "$CONFIG_HOST")
 AC_DEFINE_UNQUOTED(CONFIG_TIME, "$CONFIG_TIME")
 AC_DEFINE_UNQUOTED(VERSION, $VERSION)
@@ -404,9 +310,7 @@ AC_DEFINE_UNQUOTED(VERSTR, "$THISVERSION")
 AC_DEFINE_UNQUOTED(VERDATE, "$RELEASE_DATE")
 
 OPTIONALSUBDIRS="dosext/net/v-net"
-#OPTIONALSUBDIRS="dosext/net/v-net commands"
 REQUIRED="tools commands tools/periph"
-#REQUIRED="tools tools/periph"
 
 dnl enable EXPERIMENTAL stuff
  AC_ARG_ENABLE(experimental,
@@ -423,13 +327,11 @@ dnl Do vm86plus
 dnl Starting wth dosemu-1.0 we nolonger support the old vm86 interface
 dnl but only vm86plus
    AC_DEFINE_UNQUOTED(USE_MHPDBG)
-   USE_MHPDBG="-DUSE_MHPDBG"
+   USE_MHPDBG="USE_MHPDBG=1"
    AC_SUBST(USE_MHPDBG)
    DEBUGGER="arch/$CONFIG_HOST/debugger"
    OPTIONALSUBDIRS="dosext/net/v-net"
-#   OPTIONALSUBDIRS="dosext/net/v-net commands"
    REQUIRED="tools commands tools/periph"
-#   REQUIRED="tools tools/periph"
 fi
 AC_SUBST(DEBUGGER)
 
@@ -470,6 +372,7 @@ dnl Compile with ASPI support
 	       [aspi="yes"],[aspi="no"])
   if test "$aspi" = "yes"; then
    AS_MESSAGE(checking "Compiling with ASPI support"...);
+   AC_DEFINE(ASPI_SUPPORT)
    AC_SUBST(ASPI_SUPPORT,"ASPI_SUPPORT=1")
   else
    AS_MESSAGE(checking "Compiling without ASPI support"...);
@@ -492,7 +395,7 @@ dnl Do SB emulation
 
 dnl DPMI requirements
 
-AC_SUBST(WANT_WINDOWS,"WANT_WINDOWS=-DWANT_WINDOWS")
+AC_DEFINE(WANT_WINDOWS)
 
 AC_SUBST(OPTIONALSUBDIRS)
 AC_SUBST(REQUIRED)
@@ -500,22 +403,15 @@ AC_SUBST(PLUGINSUBDIRS)
 
 dnl Now CFLAGS and INCLUDES
 
-# does this work if you do make -C <some dir>
-TOPDIR=`nolinks=1;pwd`
-AC_SUBST(TOPDIR)
-
-# BIG NOTE: XINCLUDES _must_ come last, because some joker did preset
-# it with a comment line (such as: XINCLUDES="# no special path needed")
-# We need to fix this, because this is a time bomb. --HL
-
-INCDIR="${PLUGININC} -I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC} ${XINCLUDES}"
+INCDIR="${PLUGININC} -I\${SRCPATH}/include -I\${SRCPATH}/dosext/dpmi ${SLANGINC}"
 AC_SUBST(INCDIR)
 
+CFLAGS="-Wall -Wstrict-prototypes"
 if test "$dodebug" = "yes"; then
-  COPTFLAGS=" -g -Wall -D_DEBUG"
+  CFLAGS="$CFLAGS -g"
+  AC_DEFINE(_DEBUG)
   OPT="-O"
 else
-  COPTFLAGS=" -Wall"
   OPT="-O2"   # BIG NOTE: do _not_ use -O3,
               # because in forces _inline_ at places where we don't want it !
               # If we want _inline_, well then we 'code' it.
@@ -556,8 +452,6 @@ fi
 rm -f dummy.o
 AC_DEFINE_UNQUOTED(GASCODE16, $GASCODE16)
 
-OPT="$OPT -MMD" # this should give painless dependencies
-
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then
  AS_MESSAGE(checking "Linux Specific build options"...)
@@ -567,10 +461,9 @@ if test "$CONFIG_HOST" = "linux"; then
                [nonet="yes"],[nonet="no"])
   if test "$nonet" = "yes"; then
     AS_MESSAGE(checking "Compiling without network support"...);
-    USING_NET=""
   else
     AS_MESSAGE(checking "Compiling with network support"...);
-    USING_NET="-DUSING_NET"
+    AC_DEFINE(USING_NET)
   fi
  PIPE=-pipe
 fi
@@ -585,18 +478,21 @@ if test "$GCC" = "yes" ; then
   echo -n "checking need for pedantic asm constraints..."
   if test "$(( $GCC_VERSION_CODE >= 2008 ))" = "1"; then
      echo "yes"
-     ASM_PEDANTIC="-DASM_PEDANTIC"
+     AC_DEFINE(ASM_PEDANTIC)
      echo -n "checking for egcs..."
      if gcc -v 2>&1|grep 'egcs-' >/dev/null; then
        echo "yes, using -fno-gcse to work around bugs"
-       EGCSFLAGS="-fno-gcse"
+       OPT="$OPT -fno-gcse"
      else
        echo "no"
      fi
      echo -n "checking for gcc-2.95..."
      if test "$(( $GCC_VERSION_CODE >= 2095 ))" = "1"; then
        echo "yes, using -fno-strict-aliasing to work around bugs"
-       GCC295FLAGS="-fno-strict-aliasing"
+       OPT="$OPT -fno-strict-aliasing"
+       if test "$(( $GCC_VERSION_CODE >= 3000 ))" = "1"; then
+         CPPFLAGS="$CPPFLAGS -MP"
+       fi
      else
        echo "no"
      fi
@@ -631,7 +527,6 @@ if test "$GCC" = "yes" ; then
   elif test "$target_cpu" = "i486"; then
      OPT="$OPT -malign-loops=2 -malign-jumps=2 -malign-functions=2"
   fi
-  GCC_VERSION_CODE="-DGCC_VERSION_CODE=$GCC_VERSION_CODE"
 
   echo -n "checking for glibc..."
   set `echo -e '#include <features.h>\nXXAaZZ __GLIBC__ XXBbZZ __GLIBC_MINOR__'|gcc -E -|awk '/XXAaZZ/ {print $2 " " $4}'`
@@ -639,9 +534,6 @@ if test "$GCC" = "yes" ; then
   if test "$major" = "__GLIBC__"; then
     echo "no"
   else
-    if test "$(( $major > 1 ))" = "1"; then
-      GLIBCFLAGS="-D_XOPEN_SOURCE"
-    fi
     if test "$minor" = "__GLIBC_MINOR__"; then
       minor=0;
     fi
@@ -653,52 +545,18 @@ if test "$GCC" = "yes" ; then
     fi
   fi
 fi
-AC_SUBST(GCC_VERSION_CODE)
+AC_DEFINE_UNQUOTED(GCC_VERSION_CODE,$GCC_VERSION_CODE)
 AC_SUBST(ASM_PEDANTIC)
-AC_SUBST(GLIBCFLAGS)
+AC_DEFINE(_GNU_SOURCE)
 
-CFLAGS="-D_GNU_SOURCE ${OPT} ${EGCSFLAGS} ${GCC295FLAGS} ${GCC_VERSION_CODE} ${ASM_PEDANTIC} ${GLIBCFLAGS} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
-
-
-
-# set to use a simpler fork for unix command
-# CFLAGS+=-DSIMPLE_FORK
-# set to debug fork with environment
-# CFLAGS+=-DFORK_DEBUG
-
-# We need to use the C_RUN_IRQS with -fno-inline (TBD why)
-# this is in pic/pic.c
-#CFLAGS+=-DC_RUN_IRQS
-
-# use fd3 for soft errors, stderr for hard error, don't ope
-# stderr to /dev/null
-# CFLAGS+=-DUSE_FD3_FOR_ERRORS
-
-LDFLAGS="${LNKOPTS}" # exclude symbol information
+CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
+CPPFLAGS="${CPPFLAGS} -MMD ${INCDIR}"
 AC_SUBST(LDFLAGS)
+AC_SUBST(LIBS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
 AC_CONFIG_FILES([Makefile.conf])
-AC_OUTPUT
-
-dnl Print some warnings (if neccessary)
-
-if test "$GCC" != "yes" ; then
-  AC_MSG_WARN( )
-  AC_MSG_WARN(Your system doesn't seem to have the GNU C compiler (gcc).)
-  AC_MSG_WARN(Trying to compile with $CC.)
-  AC_MSG_WARN(If you are sure you have gcc, set the environment variable)
-  AC_MSG_WARN(CC to the complete name of gcc. Examples:)
-  AC_MSG_WARN(csh/tcsh: setenv CC /usr/local/bin/gcc)
-  AC_MSG_WARN(sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC)
-  AC_MSG_WARN(Of course you could also include the gcc bin directory in)
-  AC_MSG_WARN(your path.)
-fi
-
-echo ""
-echo "Configure finished. Do 'make' to compile Dosemu."
-echo ""
 
 dnl autoheader stuff
 AH_TOP([
@@ -730,7 +588,8 @@ AH_TOP([
 #ifndef __ASM__
 #include "extern.h"
 
-/* not overridable file/path constants */
+#include "confpath.h"
+/* not overridable file constants */
 #define  DOSEMU_RC          ".dosemurc"       /* per user config file */
 #define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
 #define  LOCALDIR_BASE_NAME ".dosemu"         /* base directory in $HOME */
@@ -738,7 +597,6 @@ AH_TOP([
 #define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
 #define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
 #define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
-#define  ALTERNATE_ETC      "/etc/dosemu"     /* alternate config. directory */
 #define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
 
 EXTERN char *config_file_path INIT("/etc/" DOSEMU_CONF);
@@ -752,17 +610,14 @@ EXTERN char *dosemu_tmpdir_process_path INIT("~/" LOCALDIR_BASE_NAME "/tmp/<pid>
 EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
 EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
 
-#define config_xstr(s) config_str(s)
-#define config_str(s) #s
-
-EXTERN char *dosemu_lib_dir_path INIT(config_xstr(DOSEMULIB_DEFAULT));
-EXTERN char *dosemu_hdimage_dir_path INIT(config_xstr(DOSEMUHDIMAGE_DEFAULT));
-EXTERN char *keymap_load_base_path INIT(config_xstr(DOSEMULIB_DEFAULT) "/");
+EXTERN char *dosemu_lib_dir_path INIT(DOSEMULIB_DEFAULT);
+EXTERN char *dosemu_hdimage_dir_path INIT(DOSEMUHDIMAGE_DEFAULT);
+EXTERN char *keymap_load_base_path INIT(DOSEMULIB_DEFAULT "/");
 EXTERN char *keymap_dir_path INIT("keymap/");
 EXTERN char *owner_tty_locks INIT("uucp");
 EXTERN char *tty_locks_dir_path INIT("/var/lock");
 EXTERN char *tty_locks_name_path INIT("LCK..");
-EXTERN char *dexe_load_path INIT(config_xstr(DOSEMUHDIMAGE_DEFAULT));
+EXTERN char *dexe_load_path INIT(DOSEMUHDIMAGE_DEFAULT);
 EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
 EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
@@ -845,7 +700,6 @@ AH_TEMPLATE([USE_MHPDBG],
 [ DEFINE this, if you want the dosdebugger (mhpdbg) ])
 
 AH_TEMPLATE([X_SUPPORT])
-AH_TEMPLATE([X2_SUPPORT])
 AH_TEMPLATE([X_GRAPHICS],
 [ Define these for X support ])
 
@@ -865,12 +719,53 @@ AH_TEMPLATE([ASPI_SUPPORT],
 AH_TEMPLATE([X86_EMULATOR],
 [ Define this to use the X86 CPU emulator ])
 
+AH_TEMPLATE([_DEBUG],
+[ Define this for DEBUG info ])
+
+AH_TEMPLATE([_GNU_SOURCE],
+[ Define this if the GNU_SOURCE macro is necessary ])
+
+AH_TEMPLATE([USING_NET],
+[ Define if compiling with network support ])
+
+AH_TEMPLATE([GCC_VERSION_CODE],
+[ Set to GCC version code ])
+
+AH_TEMPLATE([ASM_PEDANTIC],
+[ Set if pedantic ASM is needed ])
+
 AH_BOTTOM([
 #ifndef __ASM__
-EXTERN char *dosemu_map_file_name INIT(config_xstr(DOSEMULIB_DEFAULT) "/dosemu-" VERSTR ".map");
+EXTERN char *dosemu_map_file_name INIT(DOSEMULIB_DEFAULT "/dosemu-" VERSTR ".map");
 #endif
 
 #include "plugin_config.h"
 
 #endif /* CONFIG_H */
 ])
+
+AC_OUTPUT
+
+dnl Print some warnings (if neccessary)
+
+if test "$GCC" != "yes" ; then
+  AC_MSG_WARN( )
+  AC_MSG_WARN(Your system doesn't seem to have the GNU C compiler (gcc).)
+  AC_MSG_WARN(Trying to compile with $CC.)
+  AC_MSG_WARN(If you are sure you have gcc, set the environment variable)
+  AC_MSG_WARN(CC to the complete name of gcc. Examples:)
+  AC_MSG_WARN(csh/tcsh: setenv CC /usr/local/bin/gcc)
+  AC_MSG_WARN(sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC)
+  AC_MSG_WARN(Of course you could also include the gcc bin directory in)
+  AC_MSG_WARN(your path.)
+fi
+  
+if test "$no_x" = "yes" ; then
+  AC_MSG_WARN( )
+  AC_MSG_WARN(Compiling without X support.)
+  AC_MSG_WARN(Install the X development libraries if you want support for X.)
+fi
+echo ""
+echo "Configure finished. Do 'make' to compile Dosemu."
+echo ""
+

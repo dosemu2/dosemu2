@@ -790,7 +790,6 @@ init_drive(int dd, char *path, char *options)
 int
 mfs_redirector(void)
 {
-  int dos_fs_redirect();
   int ret;
   sigset_t blockset, oldset;
 
@@ -826,7 +825,6 @@ mfs_redirector(void)
 int
 mfs_inte6(void)
 {
-  boolean_t dos_fs_dev();
   boolean_t result;
   sigset_t blockset, oldset;
 
@@ -1004,8 +1002,6 @@ _get_dir(char *name, char *mname, char *mext)
     return NULL;
 
   if ((cur_dir = opendir(name)) == NULL) {
-    extern int errno;
-
     Debug0((dbg_fd, "get_dir(): couldn't open '%s' errno = %s\n", name, strerror(errno)));
     return (NULL);
   }
