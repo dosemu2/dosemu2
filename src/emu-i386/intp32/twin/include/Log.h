@@ -70,7 +70,7 @@ void logstr(unsigned long flg, ...);
  * 	There are 5 classes of debugging/tracing available, the type is
  *	passed as the first parameter to LOGSTR. The first class will be
  *	sent to stdout, or stderr, while the others will be logged to the
- *	'loggin' file, as defined by WIN_OPENLOG.
+ *	'logging' file, as defined by WIN_OPENLOG.
  *	
  * 	LF_DBGMASK
  *	0	Generic

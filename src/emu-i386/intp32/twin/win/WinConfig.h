@@ -63,31 +63,32 @@ char *GetEnv(const char *env);
 #define WCS_ENV      	4
 
 /* WinConfig Parameter definitions */
-#define	WCP_DISPLAY	1
+#define WCP_DISPLAY     1
+#define WCP_FATAL	2
+#define WCP_CONTROL	3
 #define	WCP_WINDOWS	4
 #define	WCP_TEMP	5
 #define	WCP_OPENPATH	6
 #define	WCP_TASKING	7
-#define WCP_FATAL	8
+#define	WCP_DBLCLICK	8
 
-#define	WCP_DBLCLICK	9
-#define	WCP_FONTFACE	10
-#define	WCP_FONTSIZE	11
-#define	WCP_FONTBOLD	12
+#define	WCP_FONTFACE	 10
+#define	WCP_FONTSIZE	 11
+#define	WCP_FONTBOLD	 12
+#define WCP_ICONFONTFACE 13
+#define WCP_ICONFONTSIZE 14
+#define WCP_MENUSIZE	 15
+#define WCP_MENUBOLD	 16
+#define WCP_DLGSIZE	 17
+#define WCP_DLGBOLD	 18
 
-#define	WCP_DOSMODE	13
-#define WCP_MEMORY	14
-#define WCP_EXTENDED	15
+#define	WCP_DOSMODE	20
+#define WCP_MEMORY	21
+#define WCP_EXTENDED	22
 
-#define WCP_ICONFONTFACE 16
-#define WCP_ICONFONTSIZE 17
-
-#define WCP_DOSDRIVES		18
-#define WCP_DRIVELETTERS	19
-#define WCP_PATHSASDRIVES	20
-#define WCP_CONTROL	21
-
-#define WCP_MAXIMUM     21
+#define WCP_DOSDRIVES		30
+#define WCP_DRIVELETTERS	31
+#define WCP_PATHSASDRIVES	32
 
 typedef struct twinrc {
 	int     parameter;
@@ -96,17 +97,5 @@ typedef struct twinrc {
 	char   *lpszkeyname;
 	char   *lpszdefault;
 	char   *lpszenviron;
-	long    lparam;
 	char   *lpszstring;
 } TWINRC, *LPTWINRC;
-
-/*
-**   MiD 03-JAN-1996   The first 3 fontmapper flags have been
-**                     moved from DrvText.h, plus added Scalable 
-**                     Only flag. 
-*/
-#define FM_HIRESFONT    0x10   /* use highest resolution fonts only        */
-#define FM_NOSCALABLE   0x20   /* do not allow scalable font mapping       */
-#define FM_SYSTEMFONT   0x40   /* use system font in dialog boxes w/ fonts */
-#define FM_SCALABLEONLY 0x80   /* skip bitmap fonts: overwrites FM_NOSCALABLE */
-

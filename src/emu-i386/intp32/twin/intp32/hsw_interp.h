@@ -40,12 +40,15 @@ The maintainer of the Willows TWIN Libraries may be reached (Email)
 at the address twin@willows.com	
 
 changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
+changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 
 *********************************************************************/
 
 #ifndef hsw_interp__h
 #define hsw_interp__h
 /* "@(#)hsw_interp.h	1.23 :/users/sccs/src/win/intp32/s.hsw_interp.h 1/23/97 17:25:08"  */
+
+#define P_VALIDATE
 
 #include "windows.h"
 #include "kerndef.h"
@@ -428,8 +431,11 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #endif	/* ] */
 
 #define CARRY_FLAG		0x0001
+/* reserved			0x0002 */
 #define PARITY_FLAG		0x0004
+/* reserved			0x0008 */
 #define AUX_CARRY_FLAG		0x0010
+/* reserved			0x0020 */
 #define ZERO_FLAG		0x0040
 #define SIGN_FLAG		0x0080
 #define TRAP_FLAG		0x0100
@@ -438,28 +444,63 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define OVERFLOW_FLAG		0x0800
 #define IOPL_FLAG_MASK		0x3000
 #define NESTED_FLAG		0x4000
-#define BYTE_FL			0x8000
+#define BYTE_FL			0x8000	/* Intel reserved! */
+/* RF				0x10000 */
+/* VM				0x20000 */
+/* AC				0x40000 */
+
+#define CPL	0x3000
+#define IOPL	(env->flags&IOPL_FLAG_MASK)
 
 #define BYTE_OP 0x45
 
-#define IS_AF_SET (BOOL)((int)((interp_var->flags_czsp.byte.byte_op==BYTE_OP)?\
-	(((interp_var->src1.byte.byte & 0xf) + (interp_var->src2.byte.byte & 0xf))\
-	& AUX_CARRY_FLAG):\
-	(((interp_var->src1.word16.word & 0xf) + (interp_var->src2.word16.word & 0xf))\
-	& AUX_CARRY_FLAG)) >> 4)
-#define IS_CF_SET (BOOL)(interp_var->flags_czsp.word16.carry & CARRY_FLAG)
-#define IS_OF_SET ((WORD)((~(interp_var->src1.word16.word ^ interp_var->src2.word16.word))&(interp_var->src1.word16.word ^ interp_var->flags_czsp.word16.res16))>>15)
-/* #define _IS_OF_SET (((interp_var->src1.word16.word>>15)==(interp_var->src2.word16.word>>15))&&((interp_var->src1.word16.word>>15)!=(interp_var->flags_czsp.word16.res16>>15))) */
-#define IS_ZF_SET (BOOL)(interp_var->flags_czsp.word16.res16 == 0)
-#define IS_SF_SET (BOOL)(interp_var->flags_czsp.byte.res8 >> 7)
-#define IS_PF_SET (parity[((interp_var->flags_czsp.byte.byte_op==BYTE_OP)?interp_var->flags_czsp.byte.res8:interp_var->flags_czsp.byte.parity16)]==PARITY_FLAG)
+/*
+ * Test condition uses:	RES	SRC1,SRC2
+ *	Z,NZ		 Y	    N
+ *	S,NS		 Y	    N
+ *	CY,NC		 Y	    N
+ *	P,NP		 Y	    N
+ *	OV,NO		 Y	    Y
+ *	AF		 N	    Y
+ *	CX,LOOP		 N	    N
+ *
+ */
 
-#define CLEAR_CF interp_var->flags_czsp.byte.carryb = 0
-#define CLEAR_AF { interp_var->src1.word16.word &= ~0x808; interp_var->src2.word16.word &= ~0x808; }
+/* quite tricky.... works because AUX_FLAG is 0x10 */
+/*
+ *		[                  ][------word--------] SRCn_16
+ *		[        ][        ][--byte--][--aux---]
+ *				      SRCn_8
+ */
+#define IS_AF_SET (BOOL)((int)((BYTE_FLAG==BYTE_OP)?\
+	(((SRC1_8 & 0xf) + (SRC2_8 & 0xf)) & AUX_CARRY_FLAG):\
+	(((SRC1_16 & 0xf) + (SRC2_16 & 0xf)) & AUX_CARRY_FLAG)) >> 4)
+
+#define IS_CF_SET (BOOL)(CARRY & CARRY_FLAG)
+
+/* overflow rule using bit15:
+ *	src1 src2  res	b15
+ *	  0    0    0    0
+ *	  0    0    1    1
+ *	  0    1    0    0
+ *	  0    1    1    0
+ *	  1    0    0    0
+ *	  1    0    1    0
+ *	  1    1    0    1
+ *	  1    1    1    0
+ */ 
+#define IS_OF_SET ((WORD)((~(SRC1_16 ^ SRC2_16))&(SRC1_16 ^ RES_16))>>15)
+
+#define IS_ZF_SET (BOOL)(RES_16 == 0)
+#define IS_SF_SET (BOOL)((RES_8 >> 7) & 1)
+#define IS_PF_SET (parity[((BYTE_FLAG==BYTE_OP)?RES_8:PAR_16)]==PARITY_FLAG)
+
+#define CLEAR_CF CARRYB=0
+#define CLEAR_AF { SRC1_16 &= ~0x808; SRC2_16 &= ~0x808; }
 #define CLEAR_DF env->flags &= (~ DIRECTION_FLAG)
 
-#define SET_CF interp_var->flags_czsp.byte.carryb = 1
-#define SET_AF { interp_var->src1.word16.word |= 0x808; interp_var->src2.word16.word |= 0x808; }
+#define SET_CF CARRYB=1
+#define SET_AF { SRC1_16 |= 0x808; SRC2_16 |= 0x808; }
 #define SET_DF env->flags |= DIRECTION_FLAG
 
 #define ROL	0
@@ -538,6 +579,12 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define LONG_SS interp_var->seg_regs[3]
 #define LONG_FS interp_var->seg_regs[4]
 #define LONG_GS interp_var->seg_regs[5]
+#define BIG_CS interp_var->bigseg[0]
+#define BIG_DS interp_var->bigseg[1]
+#define BIG_ES interp_var->bigseg[2]
+#define BIG_SS interp_var->bigseg[3]
+#define BIG_FS interp_var->bigseg[4]
+#define BIG_GS interp_var->bigseg[5]
 
 #define OVERRIDE interp_var->seg_regs[6]
 #define INVALID_OVR	((unsigned char *)(-1l))
@@ -561,7 +608,9 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define AT_READ		2
 #define AT_WRITE	3
 
+#ifndef DOSEMU
 #define ERRORLOG(s,o,m,r) fprintf(stderr,"Error accessing selector %x, offset %x, mode %x, errorcode %x\n",s,o,m,r)
+#endif
 
 #define UINT_86		2
 #define INT_86		2
@@ -570,14 +619,25 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define JUMP(lp)	PC = PC + 2 +(signed char)(*(lp)); 
 
 #if defined(DOSEMU) && defined(__i386__)
-#define PUSHWORD(w) {env->rsp.sp.sp-=2; \
+#define TOS_WORD	(BIG_SS? *((unsigned short *)(LONG_SS+env->rsp.esp)):\
+			*((unsigned short *)(LONG_SS+env->rsp.sp.sp)))
+
+#define PUSHWORD(w) if (BIG_SS) {env->rsp.esp-=2; \
+		*((unsigned short *)(LONG_SS+env->rsp.esp))=(w);} else \
+		{env->rsp.sp.sp-=2; \
 		*((unsigned short *)(LONG_SS+env->rsp.sp.sp))=(w);}
-#define PUSHQUAD(dw) {env->rsp.sp.sp-=4; \
+#define PUSHQUAD(dw) if (BIG_SS) {env->rsp.esp-=4; \
+		*((unsigned long *)(LONG_SS+env->rsp.esp))=(dw);} else \
+		{env->rsp.sp.sp-=4; \
 		*((unsigned long *)(LONG_SS+env->rsp.sp.sp))=(dw);}
 
-#define POPWORD(w)  {w=*((unsigned short *)(LONG_SS+env->rsp.sp.sp));\
+#define POPWORD(w)  if (BIG_SS) {w=*((unsigned short *)(LONG_SS+env->rsp.esp));\
+		env->rsp.esp+=2;} else \
+		{w=*((unsigned short *)(LONG_SS+env->rsp.sp.sp));\
 		env->rsp.sp.sp+=2;}
-#define POPQUAD(dw)  {dw=*((unsigned long *)(LONG_SS+env->rsp.sp.sp));\
+#define POPQUAD(dw)  if (BIG_SS) {dw=*((unsigned long *)(LONG_SS+env->rsp.esp));\
+		env->rsp.esp+=4;} else \
+		{dw=*((unsigned long *)(LONG_SS+env->rsp.sp.sp));\
 		env->rsp.sp.sp+=4;}
 #else
 #define PUSHWORD(w) {unsigned char *sp=interp_var->seg_regs[3]+env->rsp.sp.sp; \
@@ -604,24 +664,17 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define SELECTOR_PADDRESS(sel) GetPhysicalAddress(sel)
 
 #ifdef DOSEMU
-#define SET_SEGREG(lp,sel) { \
-	WORD wFlags; \
-	if (vm86f) lp = (unsigned char *)(sel<<4); \
-	else if ((sel >> 3) == 0) \
-	    lp = 0; \
-	else { \
-	    wFlags = GetSelectorFlags(sel); \
-	    if (!(wFlags & DF_PRESENT)) { \
-	        if (!LoadSegment(sel)) { \
-		    error("INTP32: failed to load selector %x\n",(int)sel); \
-		    FatalAppExit(0,NULL); \
-	        } \
-	    } \
-	    lp = GetPhysicalAddress(sel); \
-	} \
-}
+extern int SetSegreg(unsigned char **lp, unsigned char *big,
+	unsigned long csel);
+#ifdef P_VALIDATE
+extern void ValidateAddr(unsigned char *addr, unsigned short sel);
 #else
-#define SET_SEGREG(lp,sel) { \
+#define ValidateAddr(a,s)
+#endif
+#define SET_SEGREG(lp,big,mk,sel)	SetSegreg(&(lp),&(big),(mk|sel))
+
+#else
+#define SET_SEGREG(lp,big,mk,sel) ({ \
 	WORD wFlags; \
 	char prnt_buf[40]; \
 	if ((sel >> 3) == 0) \
@@ -631,26 +684,36 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 	    if (!(wFlags & DF_PRESENT)) { \
 	        if (!LoadSegment(sel)) { \
 		    sprintf(prnt_buf, \
-		        "INTP32: failed to load selector %x\n",sel); \
+		       "INTP32: failed to load selector %x\n",(unsigned int)sel); \
 		    printf("%s\n",prnt_buf); \
 		    FatalAppExit(0,prnt_buf); \
 	        } \
 	    } \
-	    lp = GetPhysicalAddress(sel); \
-	} \
-}
+	    lp = GetPhysicalAddress(sel), 0 \
+	} })
+
 #endif	/* DOSEMU */
 
 #endif	/* DOSEMU_TYPESONLY */
 
+/* ======================= target-specific stuff ====================== */
+
+#if defined(X386) 
+/* use true 80-bit registers on i386 */
+typedef	long double	Ldouble;
+#else
+/* use 64-bit doubles on other targets */
+typedef	double	Ldouble;
+#endif
+
 typedef struct tagENV87
-{   double          fpregs[8];  /* floating point register stack */
+{   	Ldouble         fpregs[8];  /* floating point register stack */
 	int             fpstt;      /* top of register stack */
 	unsigned short  fpus, fpuc;
 } ENV87;
 
 
-#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa)
+#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa) || defined(arm)
 typedef struct keyENV{
 	union {
 		unsigned int ds;
@@ -914,6 +977,9 @@ typedef struct keyENV{
 	} gs;
 	BINADDR		trans_addr;
 	BINADDR		return_addr;
+#ifdef DOSEMU
+	unsigned long	error_addr;
+#else
 	LPVOID		machine_stack;
 	struct ENV	*prev_env;
 	unsigned long   active;
@@ -921,6 +987,7 @@ typedef struct keyENV{
 	unsigned long   level;
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
+#endif
 } Interp_ENV;
 #endif
 
@@ -1075,10 +1142,15 @@ typedef struct keyENV{
 } Interp_ENV;
 #endif
 
-#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa)
-typedef struct {
-	unsigned char *seg_regs[7];
-	union {
+
+/* X386 layout:
+ *		[-----------------res------------------] RES_32
+ *	CARRY	[------carry-------][------res16-------] RES_16
+ *		[byte_op-][-carryb-][--res8--][parity16]
+ *		BYTE_FLAG	      RES_8
+ */
+#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa) || defined(arm)
+typedef	union {
 		unsigned long res;
 		struct {
 			unsigned short carry;
@@ -1090,7 +1162,43 @@ typedef struct {
 			unsigned char res8;
 			unsigned char parity16;
 		} byte;
-	} flags_czsp;
+	} Interp_VAR_flags_czsp;
+#elif defined(alpha)
+typedef	union {
+		unsigned long res;
+		struct {
+			unsigned short res16;
+			unsigned short carry;
+			unsigned int dummy1;
+		} word16;
+		struct {
+			unsigned char parity16;
+			unsigned char res8;
+			unsigned char carryb;
+			unsigned char byte_op;
+			unsigned int dummy1;
+		} byte;
+	} Interp_VAR_flags_czsp;
+#elif defined(X386) 
+typedef	union {
+		unsigned long res;
+		struct {
+			unsigned short res16;
+			unsigned short carry;
+		} word16;
+		struct {
+			unsigned char parity16;
+			unsigned char res8;
+			unsigned char carryb;
+			unsigned char byte_op;
+		} byte;
+	} Interp_VAR_flags_czsp;
+#endif
+
+#if defined(sparc) || defined(mips) || defined(ppc) || defined(hppa) || defined(arm)
+typedef struct {
+	unsigned char *seg_regs[7];
+	Interp_VAR_flags_czsp flags_czsp;
 	union {
 		unsigned long longword;
 		struct {
@@ -1126,19 +1234,13 @@ typedef struct {
 #if defined(X386) 
 typedef struct {
 	unsigned char *seg_regs[7];
-	union {
-		unsigned long res;
-		struct {
-			unsigned short res16;
-			unsigned short carry;
-		} word16;
-		struct {
-			unsigned char parity16;
-			unsigned char res8;
-			unsigned char carryb;
-			unsigned char byte_op;
-		} byte;
-	} flags_czsp;
+	Interp_VAR_flags_czsp flags_czsp;
+/*
+ *		[--------------longword----------------] SRC1_32
+ *		[                  ][------word--------] SRC1_16
+ *		[        ][        ][--byte--][--aux---]
+ *				      SRC1_8    AUX1_8
+ */
 	union {
 		unsigned long longword;
 		struct {
@@ -1152,6 +1254,12 @@ typedef struct {
 			unsigned char dummy1;
 		} byte;
 	} src1;
+/*
+ *		[--------------longword----------------] SRC2_32
+ *		[                  ][------word--------] SRC2_16
+ *		[        ][        ][--byte--][--aux---]
+ *				      SRC2_8    AUX2_8
+ */
 	union {
 		unsigned long longword;
 		struct {
@@ -1168,27 +1276,14 @@ typedef struct {
 	unsigned char *reg1;	/* from REG field of mod_rm */
 	unsigned char *mem_ref;	/* from RM field of mod_rm */
 	int mode_reg;
+	unsigned char bigseg[6];
 } Interp_VAR;
 #endif
 
 #if defined(alpha)
 typedef struct {
 	unsigned char *seg_regs[7];
-	union {
-		unsigned long res;
-		struct {
-			unsigned short res16;
-			unsigned short carry;
-			unsigned int dummy1;
-		} word16;
-		struct {
-			unsigned char parity16;
-			unsigned char res8;
-			unsigned char carryb;
-			unsigned char byte_op;
-			unsigned int dummy1;
-		} byte;
-	} flags_czsp;
+	Interp_VAR_flags_czsp flags_czsp;
 	union {
 		unsigned long longword;
 		struct {
@@ -1225,17 +1320,12 @@ typedef struct {
 } Interp_VAR;
 #endif
 
-typedef union {
-		int longw;
-		struct {
-			unsigned short snjr;
-			unsigned short jnr;
-		} word;
-} MULT;
-
 #ifndef DOSEMU_TYPESONLY
 
+/* CARRY is tricky, as it accesses also byte 3 (BYTE_OP); use with care
+ * when writing into it, if in doubt use CARRYB -- AV */
 #define CARRY interp_var->flags_czsp.word16.carry
+#define CARRYB interp_var->flags_czsp.byte.carryb
 #define RES_32 interp_var->flags_czsp.res
 #define RES_16 interp_var->flags_czsp.word16.res16
 #define RES_8 interp_var->flags_czsp.byte.res8
@@ -1256,20 +1346,139 @@ typedef union {
 
 #define IS_MODE_REG interp_var->mode_reg
 
-#define ALLOW_OVERRIDE(default) ((interp_var->seg_regs[6]!=INVALID_OVR)?interp_var->seg_regs[6]:default)
-#define FETCH_XREG(addr) *(unsigned short *)addr
-#define FETCH_EREG(addr) *(DWORD *)addr
-#define PUT_XREG(addr,data) *(unsigned short *)addr=data
-#define PUT_EREG(addr,data) *(DWORD *)addr=data
-#ifdef DOSEMU
-#define IS_CF_SETD ((((src1 ^ src2) & (src1 ^ res)) | (src1 & src2)) >> 31)
-#else	/* buggy version */
-#define IS_CF_SETD ((((src1 ^ src2 ) & ~res) | (src1 & src2)) >> 31)
+/* try to gain some speed/space/regs on a heavily-used macro... */
+#if defined(DOSEMU) && defined(__i686__)
+/* a bonus for Intel chips only ... never mind */
+#define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
+	__asm__ __volatile__ ("movl	%1,%%eax\n \
+	cmpl	$-1,%%eax\n \
+	cmove	%2,%0\n \
+	cmovne	%%eax,%0" \
+	: "=r"(_v) \
+	: "g"(OVERRIDE), "g"(default) \
+	: "%eax", "memory"); \
+	_v; })
+#elif defined(DOSEMU) && defined(__i586__)
+#define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
+	__asm__ __volatile__ ("movl	$-1,%%eax\n \
+	movl	%1,%0\n \
+	movl	%2,%%ecx\n \
+	cmpxchgl	%%ecx,%0" \
+	: "=&r"(_v) \
+	: "g"(OVERRIDE), "g"(default) \
+	: "%eax", "%ecx", "memory"); \
+	_v; })
+#else
+#define ALLOW_OVERRIDE(default) ((OVERRIDE!=INVALID_OVR)?OVERRIDE:default)
 #endif
-#define SETDFLAGS { DWORD res1=res;\
-RES_16 = ((res >> 24) << 8) | (res & 0xff); CARRY = IS_CF_SETD; BYTE_FLAG = 0; if(res1) RES_8 |= 0x1;\
-SRC1_16 = ((src1 >> 24) << 8) | (src1 & 0xff);\
-SRC2_16 = ((src2 >> 24) << 8) | (src2 & 0xff);}
+
+#define FETCH_XREG(addr)	*(WORD *)addr
+#define FETCH_EREG(addr)	*(DWORD *)addr
+#define PUT_XREG(addr,data)	*(WORD *)addr=data
+#define PUT_EREG(addr,data)	*(DWORD *)addr=data
+
+/* ========================== FLAG setting ============================ */
+/* Use similar macros to save the op state for later flag evaluation -
+ * this greatly clarifies the source and avoids mistakes -- AV */
+/*
+ *		[-----------------res------------------]
+ *	     	[----------0000000c][--res(0)-----00---]
+ *		[01000101][        ][        ][        ]
+ *
+ * The parameter s is for the SUB flags setting (1) vs the ADD case (0).
+ * s should always be a compile-time constant to make gcc skip the code
+ * we don't need.
+ */
+#define SETBFLAGS(s) { RES_32=((res&0x1ff)|(BYTE_OP<<16))<<8;\
+	SRC1_8=src1;\
+	if (s) SRC2_8=((src2&0xff)==0x80? 0:-src2); else SRC2_8=src2;}
+
+/*
+ *		[-----------------res------------------]
+ *	     	[----------0000000c][--res(1)---res(0)-]
+ *		[00000000][        ][        ][        ]
+ *
+ * The parameter s is for the SUB flags setting (1) vs the ADD case (0).
+ * s should always be a compile-time constant to make gcc skip the code
+ * we don't need.
+ */
+#define SETWFLAGS(s) { RES_32=res&0x1ffff;\
+	SRC1_16=src1;\
+	if (s) SRC2_16=((src2&0xffff)==0x8000? 0:-src2); else SRC2_16=src2;}
+
+/* add/sub rule for carry using bit31:
+ *	src1 src2  res	b31(a) b31(s)
+ *	  0    0    0    0	0
+ *	  0    0    1    0	1
+ *	  0    1    0    1	1
+ *	  0    1    1    0	1
+ *	  1    0    0    1	0
+ *	  1    0    1    0	0
+ *	  1    1    0    1	0
+ *	  1    1    1    1	1
+ *
+ * This add/sub flag evaluation is tricky too. In 16-bit mode, the carry
+ * flag is always at its correct position (bit 16), while in 32-bit mode
+ * it has to be calculated from src1,src2,res. The original Willows code
+ * had the correct definition for the ADD case, but totally failed in the
+ * SUB/CMP case. It turned out that there isn't any simple expression
+ * covering both cases, BUT that the sub carry is the inverse of what we
+ * get for ADD if src2 is inverted (NOT negated!); see for yourself.
+ */ 
+#define IS_CF_SETD ((unsigned)(((src1 ^ src2) & ~res) | (src1 & src2)) >> 31)
+
+/*
+ * for 32-bit ops we pack hi and lo bytes into a 16-bit value; this way
+ * we can use the same tests for sign (bit 15) and parity (lo byte). It
+ * is only necessary to add a case for the 32-bit zero condition; this is
+ * done by setting bit 8 if the original value was not zero, so that 16-bit
+ * zero test will give the correct answer -- AV
+ */
+#if defined(DOSEMU) && defined(__i386__)
+#define PACK32_16(sr,de)	__asm__ __volatile__ ("\
+	bswap	%0\n\
+	roll	$8,%0\n\
+	test	%2,%0\n\
+	je	1f\n\
+	orw	$0x100,%w0\n\
+1:	movw	%2,%w1"\
+	: "=r"(sr),"=g"(*((short *)&de))\
+	: "0"(sr)\
+	: "memory" )
+#else
+#define PACK32_16(sr,de)	de=((((sr) >> 24) << 8) | ((sr) & 0xff))
+#endif
+
+#if defined(DOSEMU) && defined(__i386__)
+/*
+ *		[-----------------res------------------]
+ *	     	[----------sssssssc][--res(3)---res(0)-]
+ *		[00000000][        ][-------1][        ]
+ *
+ * There are two parameters for the flag setting macros; c controls if
+ * carry-setting flag has to be compiled in, s is for the SUB flags
+ * setting (1) vs the ADD case (0). c ad s should always be compile-time
+ * constants to make gcc skip the code we don't need.
+ */
+#define SETDFLAGS(c,s) { register DWORD res1=res;\
+	PACK32_16(res1,RES_16);\
+	res1=src1; PACK32_16(res1,SRC1_16);\
+	if (s) {res1=(src2==0x80000000? 0:-src2); src2=~src2;}\
+	else res1=src2;	PACK32_16(res1,SRC2_16);\
+	if (c) CARRY = IS_CF_SETD ^ (s); else BYTE_FLAG=0;}
+
+#else	/* original */
+
+#define SETDFLAGS(c,s) { register DWORD res1=res;\
+	if (s) src2 = ((src2==0x80000000)? 0:-src2);\
+	if (d.emu>4) e_printf("S1=%#lx S2=%#lx R=%#lx\n",src1,src2,res);\
+	PACK32_16(res,RES_16);\
+	CARRY = IS_CF_SETD;\
+	BYTE_FLAG = 0;\
+	if (res1) RES_8 |= 0x1;\
+	PACK32_16(src1,SRC1_16);\
+	PACK32_16(src2,SRC2_16);}
+#endif
 
 #if defined(DOSEMU) && defined(__i386__)
 #define	GETWORD(p)	(unsigned short)*((unsigned short *)(p))
@@ -1285,6 +1494,18 @@ SRC2_16 = ((src2 >> 24) << 8) | (src2 & 0xff);}
 #define	PUT_WORD	PUTWORD
 #define	PUT_QUAD	PUTDWORD
 
+/* These are for multiply/divide. I ASSUME that every version of gcc on
+ * every 32-bit target has a 'long long' 64-bit type */
+typedef union {
+  long long sd;
+  struct { long sl,sh; } s;
+} s_i64_u;
+
+typedef union {
+  unsigned long long ud;
+  struct { long ul,uh; } u;
+} u_i64_u;
+
 #ifdef DOSEMU
 #include "cpu-emu.h"
 #include "dosemu_debug.h"
@@ -1294,28 +1515,31 @@ extern BOOL vm86f;
 #define error(s...)	fprintf(stderr,##s)
 extern void INT_handler(int, ENV *);
 #endif
-extern BOOL code32, data32;
-extern void FatalAppExit(UINT, LPCSTR);
 
 typedef void (*FUNCT_PTR)();
 
 #ifdef DEBUG
 extern void e_debug (Interp_ENV *env, unsigned char *P0, unsigned char *PC,
-  	Interp_VAR *interp_var);
+  	Interp_VAR *interp_var, int is32);
+extern void e_debug_fp (ENV87 *ef);
 #endif
+/* debug registers (DRs) emulation */
+extern int e_debug_check(unsigned char *PC);
 
 extern unsigned char *
-  hsw_interp_16_16 (Interp_ENV *env, unsigned char *P0, unsigned char *PC,
-  	Interp_VAR *interp_var, int *err);
+  hsw_interp_16_16 (register Interp_ENV *env, unsigned char *P0,
+	register unsigned char *PC, Interp_VAR *interp_var, int *err,
+	int cycmax);
 extern unsigned char *
-  hsw_interp_16_32 (Interp_ENV *env, unsigned char *P0, unsigned char *PC,
-  	Interp_VAR *interp_var, int *err);
+  hsw_interp_16_32 (register Interp_ENV *env, unsigned char *P0,
+	register unsigned char *PC, Interp_VAR *interp_var, int *err);
 extern unsigned char *
-  hsw_interp_32_16 (Interp_ENV *env, unsigned char *P0, unsigned char *PC,
-  	Interp_VAR *interp_var, int *err);
+  hsw_interp_32_16 (register Interp_ENV *env, unsigned char *P0,
+	register unsigned char *PC, Interp_VAR *interp_var, int *err);
 extern unsigned char *
-  hsw_interp_32_32 (Interp_ENV *env, unsigned char *P0, unsigned char *PC,
-  	Interp_VAR *interp_var, int *err);
+  hsw_interp_32_32 (register Interp_ENV *env, unsigned char *P0,
+	register unsigned char *PC, Interp_VAR *interp_var, int *err,
+	int cycmax);
 
 extern int
   hsw_modrm_16_byte (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
@@ -1329,6 +1553,13 @@ extern int
   hsw_modrm_32_word (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
 extern int
   hsw_modrm_32_quad (Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var);
+
+extern void invoke_data (Interp_ENV *env);
+
+extern void
+trans_flags_to_interp(Interp_ENV *env, Interp_VAR *interp_var, DWORD flags);
+extern DWORD
+trans_interp_flags(Interp_ENV *env, Interp_VAR *interp_var);
 
 #ifdef DOSEMU
 #define e_AL env->rax.x.x.h.l
@@ -1366,6 +1597,17 @@ extern int
 
 #endif	/* DOSEMU */
 #endif	/* DOSEMU_TYPESONLY */
+
+extern BOOL code32, data32;
+extern void FatalAppExit(UINT, LPCSTR);
+extern unsigned long long EMUtime;
+
+#define MK_CS	0x00000
+#define MK_DS	0x10000
+#define MK_ES	0x20000
+#define MK_SS	0x30000
+#define MK_FS	0x40000
+#define MK_GS	0x50000
 
 /*
  * INT 00 C  - CPU-generated - DIVIDE ERROR
@@ -1405,5 +1647,66 @@ extern int
 #define EXCP10_COPR	17
 #define EXCP11_ALGN	18
 #define EXCP12_MCHK	19
+
+#define EXCP_GOBACK	64
+#define EXCP_SIGNAL	65
+
+#ifdef TWIN
+
+extern void hsw_fp87_00m(), hsw_fp87_01m(), hsw_fp87_02m(), hsw_fp87_03m();
+extern void hsw_fp87_04m(), hsw_fp87_05m(), hsw_fp87_06m(), hsw_fp87_07m();
+extern void hsw_fp87_10m(), hsw_fp87_11m(), hsw_fp87_12m(), hsw_fp87_13m();
+extern void hsw_fp87_14m(), hsw_fp87_15m(), hsw_fp87_16m(), hsw_fp87_17m();
+extern void hsw_fp87_20m(), hsw_fp87_21m(), hsw_fp87_22m(), hsw_fp87_23m();
+extern void hsw_fp87_24m(), hsw_fp87_25m(), hsw_fp87_26m(), hsw_fp87_27m();
+extern void hsw_fp87_30m(), hsw_fp87_31m(), hsw_fp87_32m(), hsw_fp87_33m();
+extern void hsw_fp87_34m(), hsw_fp87_35m(), hsw_fp87_36m(), hsw_fp87_37m();
+extern void hsw_fp87_40m(), hsw_fp87_41m(), hsw_fp87_42m(), hsw_fp87_43m();
+extern void hsw_fp87_44m(), hsw_fp87_45m(), hsw_fp87_46m(), hsw_fp87_47m();
+extern void hsw_fp87_50m(), hsw_fp87_51m(), hsw_fp87_52m(), hsw_fp87_53m();
+extern void hsw_fp87_54m(), hsw_fp87_55m(), hsw_fp87_56m(), hsw_fp87_57m();
+extern void hsw_fp87_60m(), hsw_fp87_61m(), hsw_fp87_62m(), hsw_fp87_63m();
+extern void hsw_fp87_64m(), hsw_fp87_65m(), hsw_fp87_66m(), hsw_fp87_67m();
+extern void hsw_fp87_70m(), hsw_fp87_71m(), hsw_fp87_72m(), hsw_fp87_73m();
+extern void hsw_fp87_74m(), hsw_fp87_75m(), hsw_fp87_76m(), hsw_fp87_77m();
+extern void hsw_fp87_00r(), hsw_fp87_01r(), hsw_fp87_02r(), hsw_fp87_03r();
+extern void hsw_fp87_04r(), hsw_fp87_05r(), hsw_fp87_06r(), hsw_fp87_07r();
+extern void hsw_fp87_10r(), hsw_fp87_11r(), hsw_fp87_12r(), hsw_fp87_13r();
+extern void hsw_fp87_14r(), hsw_fp87_15r(), hsw_fp87_16r(), hsw_fp87_17r();
+extern void hsw_fp87_20r(), hsw_fp87_21r(), hsw_fp87_22r(), hsw_fp87_23r();
+extern void hsw_fp87_24r(), hsw_fp87_25r(), hsw_fp87_26r(), hsw_fp87_27r();
+extern void hsw_fp87_30r(), hsw_fp87_31r(), hsw_fp87_32r(), hsw_fp87_33r();
+extern void hsw_fp87_34r(), hsw_fp87_35r(), hsw_fp87_36r(), hsw_fp87_37r();
+extern void hsw_fp87_40r(), hsw_fp87_41r(), hsw_fp87_42r(), hsw_fp87_43r();
+extern void hsw_fp87_44r(), hsw_fp87_45r(), hsw_fp87_46r(), hsw_fp87_47r();
+extern void hsw_fp87_50r(), hsw_fp87_51r(), hsw_fp87_52r(), hsw_fp87_53r();
+extern void hsw_fp87_54r(), hsw_fp87_55r(), hsw_fp87_56r(), hsw_fp87_57r();
+extern void hsw_fp87_60r(), hsw_fp87_61r(), hsw_fp87_62r(), hsw_fp87_63r();
+extern void hsw_fp87_64r(), hsw_fp87_65r(), hsw_fp87_66r(), hsw_fp87_67r();
+extern void hsw_fp87_70r(), hsw_fp87_71r(), hsw_fp87_72r(), hsw_fp87_73r();
+extern void hsw_fp87_74r(), hsw_fp87_75r(), hsw_fp87_76r(), hsw_fp87_77r();
+
+extern FUNCT_PTR hsw_fp87_mem0[8];
+extern FUNCT_PTR hsw_fp87_mem1[8];
+extern FUNCT_PTR hsw_fp87_mem2[8];
+extern FUNCT_PTR hsw_fp87_mem3[8];
+extern FUNCT_PTR hsw_fp87_mem4[8];
+extern FUNCT_PTR hsw_fp87_mem5[8];
+extern FUNCT_PTR hsw_fp87_mem6[8];
+extern FUNCT_PTR hsw_fp87_mem7[8];
+extern FUNCT_PTR hsw_fp87_reg0[8];
+extern FUNCT_PTR hsw_fp87_reg1[8];
+extern FUNCT_PTR hsw_fp87_reg2[8];
+extern FUNCT_PTR hsw_fp87_reg3[8];
+extern FUNCT_PTR hsw_fp87_reg4[8];
+extern FUNCT_PTR hsw_fp87_reg5[8];
+extern FUNCT_PTR hsw_fp87_reg6[8];
+extern FUNCT_PTR hsw_fp87_reg7[8];
+
+extern BYTE parity[];
+extern char unknown_msg[], illegal_msg[], unsupp_msg[];
+extern ENV87 hsw_env87;
+
+#endif	/* TWIN */
 
 #endif /* hsw_interp__h */

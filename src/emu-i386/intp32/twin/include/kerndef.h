@@ -179,8 +179,10 @@ BOOL EnumClasses(UINT, CLASSENUMPROC, LPARAM);
 #define WM_SYSTIMER		0x0118
 
 /* undocumented functions */
+#ifndef NOAPIPROTO
 DWORD InquireSystem(WORD,WORD,BOOL);
 WORD Get80x87SaveSize(void);
+#endif
 
 WORD    InitApp(HINSTANCE);
 WORD    WaitEvent(HANDLE);
@@ -273,6 +275,7 @@ int OffsetVisRgn(HDC, int, int);
 #define	WFDIRTY			0x00080000L
 #define	WFCHILDDIRTY		0x00040000L
 #define WFINPAINT		0x00020000L
+#define WFNOREDRAW		0x00010000L
 
 /* These are the X-related state flags */
 #define	WFMAPPINGPENDING	0x00004000L

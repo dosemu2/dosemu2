@@ -236,6 +236,7 @@ ULONG lrotr(ULONG, int);
  */
 #if !defined(STAT_NOREMAP_FLAGS)
 
+#if 0
 #ifndef O_TEXT
 #define O_TEXT 0
 #endif
@@ -249,6 +250,7 @@ ULONG lrotr(ULONG, int);
 #define _O_EXCL         O_EXCL
 #define _O_TEXT         O_TEXT
 #define _O_BINARY       0
+#endif
 
 #endif
 

@@ -48,7 +48,6 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 
 #include "hsw_interp.h"
 #include "mod_rm.h"
-#include <stdio.h>
 #include <math.h>
 
 #define DPLOG10_2 log10(2.0)
@@ -57,13 +56,39 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define DPLOG2_E 1.4426950408889634074  /* 1.0/log(2.0) */
 #define DPLOG2_10 log(10.0)/log(2.0)
 #define MAXTAN pow(2.0,63.0)
+
+#if defined(DOSEMU) && defined(__i386__)
+#define DBLCOPY(d,s)		{*(long long *)(d)=*(long long *)(s);}
+#define TDBLCOPY(d,s)		{*(long long *)(d)=*(long long *)(s);\
+				((short *)(d))[4]=((short *)(s))[4];}
+#define STORE32INT(addr,i32)	*(long *)addr = (long)i32
+#define STORE16INT(addr,i16)	*(short *)addr = (short)i16
+#define STORE64INT(addr,i64)	*(long long *)addr = (long long)i64
+#define GET32INT(addr)		(*(long *)addr)
+#define GET16INT(addr)		(*(short *)addr)
+#define GET64INT(addr)		(*(long long *)addr)
+#define GET64REAL(dtmp,addr)	(*(long long *)&dtmp=*(long long *)addr, dtmp)
+#define STORE64REAL(addr,dtmp)	(*(long long *)addr=*(long long *)&dtmp)
+#define GET32REAL(dtmp,addr)	(*(long *)&dtmp=*(long *)addr, dtmp)
+#define STORE32REAL(addr,dtmp)	(*(long *)addr=*(long *)&dtmp)
+#define EXPONENT64(addr)	((((unsigned short *)addr)[3]&0x7ff0)>>4)
+#define EXPONENT80(addr)	(((unsigned short *)addr)[4]&0x7fff)
+#define BIASEXPONENT64(addr)	(((BYTE*)addr)[7] &= (~0x40),  \
+				 ((BYTE*)addr)[7] |= 0x3f,  \
+				 ((BYTE*)addr)[6] |= 0xf0)
+#define BIASEXPONENT80(addr)	(((BYTE*)addr)[9] &= (~0x40),  \
+				 ((BYTE*)addr)[9] |= 0x3f,  \
+				 ((BYTE*)addr)[8] |= 0xff)
+#define LD80R(fpreg,r80)	TDBLCOPY(fpreg,r80)
+#define ST80R(r80,fpreg)	TDBLCOPY(r80,fpreg)
+
+#else
 #define STORE32INT(addr,i32) ( (addr)[0] = (i32), (addr)[1] = (i32)>>8,  \
                                (addr)[2] = (i32)>>16, (addr)[3] = (i32)>>24 )
 #define STORE16INT(addr,i16) ( (addr)[0] = (i16), (addr)[1] = (i16)>>8 )
 #define GET32INT(addr) ((int) ( (((DWORD)(addr)[3])<<24) | (((DWORD)(addr)[2])<<16) |  \
 								   (((DWORD)(addr)[1])<<8) | (addr)[0]) )
 #define GET16INT(addr) ((signed short) ((((WORD)(addr)[1])<<8) | (addr)[0]))
-
 /* the following are given here in Big Endian (target) version only */
 #define GET64REAL(dtmp,addr) (  \
 		   ((BYTE*)&dtmp)[7] = (addr)[0], ((BYTE*)&dtmp)[6] = (addr)[1], \
@@ -83,9 +108,9 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define STORE32REAL(addr,ftmp) (  \
 		   (addr)[0] = ((BYTE*)&ftmp)[3], (addr)[1] = ((BYTE*)&ftmp)[2], \
 		   (addr)[2] = ((BYTE*)&ftmp)[1], (addr)[3] = ((BYTE*)&ftmp)[0] )
-#define EXPONENT(addr) ( ( (((BYTE*)addr)[0] & 0x7f) << 4 ) |  \
+#define EXPONENT64(addr) ( ( (((BYTE*)addr)[0] & 0x7f) << 4 ) |  \
 						 ( (((BYTE*)addr)[1] & 0xf0) >> 4 )     )
-#define BIASEXPONENT(addr) ( ((BYTE*)addr)[0] &= (~0x40),  \
+#define BIASEXPONENT64(addr) ( ((BYTE*)addr)[0] &= (~0x40),  \
                              ((BYTE*)addr)[0] |= 0x3f,  \
                              ((BYTE*)addr)[1] |= 0xf0 )
 #define LD80R(fpreg,r80)  {  \
@@ -132,17 +157,33 @@ if(!(*(r80+9)|*(r80+8)|*(r80+7)|*(r80+6)|*(r80+5)|*(r80+4)|*(r80+3)|*(r80+2)|\
         *(r80+1)  = *(((BYTE*)fpreg)+7) << 3;     \
         *(r80)   = 0x0;                           \
 		}
+#endif	/* DOSEMU on i386 */
 
 #define MUL10(iv) ( iv + iv + (iv << 3) )
+
+#define FPR_ST(r)	hsw_env87.fpregs[(hsw_env87.fpstt+(r))&0x7]
+#define FPR_ST0		hsw_env87.fpregs[hsw_env87.fpstt]
+#define POPFSP		hsw_env87.fpstt=(hsw_env87.fpstt+1)&0x7
+#define PUSHFSP		hsw_env87.fpstt=(hsw_env87.fpstt-1)&0x7
+
 
 ENV87 hsw_env87;
 
 extern Interp_ENV *envp_global;
 
-#ifdef DOSEMU
-#  define fprintf our_fprintf
-#  define our_fprintf(stream, args...) error(##args)
-#endif
+static void illegal_op (char *s)
+{
+	dbug_printf("illegal FP opcode: %s\n",s);
+	FatalAppExit(0, "FP");
+	exit(1);
+}
+
+static void not_implemented (char *s)
+{
+	dbug_printf("unimplemented FP opcode: %s\n",s);
+	FatalAppExit(0, "FP");
+	exit(1);
+}
 
 
 void
@@ -150,14 +191,14 @@ hsw_fp87_00m(unsigned char *mem_ref)
 {
 /* FADDm32r_sti */
 	float m32r;
-	hsw_env87.fpregs[hsw_env87.fpstt] += GET32REAL(m32r, mem_ref);
+	FPR_ST0 += GET32REAL(m32r, mem_ref);
 }
 
 void
 hsw_fp87_00r(int reg_num)
 {
 /* FADDm32r_sti */
-	hsw_env87.fpregs[hsw_env87.fpstt] += hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
+	FPR_ST0 += FPR_ST(reg_num);
 }
 
 void
@@ -165,30 +206,30 @@ hsw_fp87_01m(unsigned char *mem_ref)
 {
 /* FMULm32r_sti */
 	float m32r;
-	hsw_env87.fpregs[hsw_env87.fpstt] *= GET32REAL(m32r, mem_ref);
+	FPR_ST0 *= GET32REAL(m32r, mem_ref);
 }
 
 void
 hsw_fp87_01r(int reg_num)
 {
 /* FMULm32r_sti */
-	hsw_env87.fpregs[hsw_env87.fpstt] *= hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
+	FPR_ST0 *= FPR_ST(reg_num);
 }
 
 void
 hsw_fp87_02m(unsigned char *mem_ref)
 {
 /* FCOMm32r_sti */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	float m32r;
 
 	fpsrcop = GET32REAL(m32r,mem_ref);
-    hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
-        hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
-        hsw_env87.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+	hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+	if ( FPR_ST0 < fpsrcop )
+	    hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+	else if ( FPR_ST0 == fpsrcop )
+	    hsw_env87.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 }
 
@@ -196,14 +237,14 @@ void
 hsw_fp87_02r(int reg_num)
 {
 /* FCOMm32r_sti */
-	double fpsrcop;
-	fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-    hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
-        hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
-        hsw_env87.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+	Ldouble fpsrcop;
+	fpsrcop = FPR_ST(reg_num);
+	hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+	if ( FPR_ST0 < fpsrcop )
+	    hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+	else if ( FPR_ST0 == fpsrcop )
+	    hsw_env87.fpus |= 0x4000; /* (C3,C2,C0) <-- 100 */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 }
 
@@ -211,34 +252,34 @@ void
 hsw_fp87_03m(unsigned char *mem_ref)
 {
 /* FCOMPm32r_sti */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	float m32r;
 
-    fpsrcop = GET32REAL(m32r, mem_ref);
-    hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
-        hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
-        hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+	fpsrcop = GET32REAL(m32r, mem_ref);
+	hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+	if ( FPR_ST0 < fpsrcop )
+	    hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+	else if ( FPR_ST0 == fpsrcop )
+	    hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	POPFSP;
 }
 
 void
 hsw_fp87_03r(int reg_num)
 {
 /* FCOMPm32r_sti */
-	double fpsrcop;
-	fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-    hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
-        hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
-        hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+	Ldouble fpsrcop;
+	fpsrcop = FPR_ST(reg_num);
+	hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
+	if ( FPR_ST0 < fpsrcop )
+	    hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
+	else if ( FPR_ST0 == fpsrcop )
+	    hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	POPFSP;
 }
 
 void
@@ -247,44 +288,41 @@ hsw_fp87_04m(unsigned char *mem_ref)
 /* FSUBm32r_sti */
 	float m32r;
 
-	hsw_env87.fpregs[hsw_env87.fpstt] -= GET32REAL(m32r, mem_ref);
+	FPR_ST0 -= GET32REAL(m32r, mem_ref);
 }
 
 void
 hsw_fp87_04r(int reg_num)
 {
 /* FSUBm32r_sti */
-	hsw_env87.fpregs[hsw_env87.fpstt] -= hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
+	FPR_ST0 -= FPR_ST(reg_num);
 }
 
 void
 hsw_fp87_05m(unsigned char *mem_ref)
 {
 /* FSUBRm32r_sti */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	float m32r;
-
-    fpsrcop = GET32REAL(m32r, mem_ref);
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop - hsw_env87.fpregs[hsw_env87.fpstt];
+	fpsrcop = GET32REAL(m32r, mem_ref);
+	FPR_ST0 = fpsrcop - FPR_ST0;
 }
 
 void
 hsw_fp87_05r(int reg_num)
 {
 /* FSUBRm32r_sti */
-	double fpsrcop;
-	fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop - hsw_env87.fpregs[hsw_env87.fpstt];
+	FPR_ST0 = FPR_ST(reg_num) - FPR_ST0;
 }
 
 void
 hsw_fp87_06m(unsigned char *mem_ref)
 {
 /* FDIVm32r_sti */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	float m32r;
-    fpsrcop = GET32REAL(m32r, mem_ref);
-	hsw_env87.fpregs[hsw_env87.fpstt] /= fpsrcop;
+	fpsrcop = GET32REAL(m32r, mem_ref);
+	FPR_ST0 /= fpsrcop;
 	if(fpsrcop==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
 }
 
@@ -292,9 +330,9 @@ void
 hsw_fp87_06r(int reg_num)
 {
 /* FDIVm32r_sti */
-	double fpsrcop;
-	fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-	hsw_env87.fpregs[hsw_env87.fpstt] /= fpsrcop;
+	Ldouble fpsrcop;
+	fpsrcop = FPR_ST(reg_num);
+	FPR_ST0 /= fpsrcop;
 	if(fpsrcop==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
 }
 
@@ -302,59 +340,59 @@ void
 hsw_fp87_07m(unsigned char *mem_ref)
 {
 /* FDIVRm32r_sti */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	float m32r;
-    fpsrcop = GET32REAL(m32r, mem_ref);
-	if(hsw_env87.fpregs[hsw_env87.fpstt]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop / hsw_env87.fpregs[hsw_env87.fpstt];
+	fpsrcop = GET32REAL(m32r, mem_ref);
+	if(FPR_ST0==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST0 = fpsrcop / FPR_ST0;
 }
 
 void
 hsw_fp87_07r(int reg_num)
 {
 /* FDIVRm32r_sti */
-	double fpsrcop;
-	fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-	if(hsw_env87.fpregs[hsw_env87.fpstt]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop / hsw_env87.fpregs[hsw_env87.fpstt];
+	Ldouble fpsrcop;
+	fpsrcop = FPR_ST(reg_num);
+	if(FPR_ST0==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST0 = fpsrcop / FPR_ST0;
 }
 
 void
 hsw_fp87_10m(unsigned char *mem_ref)
 {
 /* FLDm32r_sti */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	float m32r;
 
-    fpsrcop = GET32REAL(m32r, mem_ref);
-	hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop;
+	fpsrcop = GET32REAL(m32r, mem_ref);
+	PUSHFSP;
+	TDBLCOPY(&FPR_ST0, &fpsrcop);
 }
 
 void
 hsw_fp87_10r(int reg_num)
 {
 /* FLDm32r_sti */
-	double fpsrcop;
-	fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-	hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop;
+	Ldouble fpsrcop;
+	fpsrcop = FPR_ST(reg_num);
+	PUSHFSP;
+	TDBLCOPY(&FPR_ST0, &fpsrcop);
 }
 
 void
 hsw_fp87_11m(unsigned char *mem_ref)
 {
-    fprintf(stderr,"illegal FP opcode: 011m\n");
+	illegal_op("011m");
 }
 
 void
 hsw_fp87_11r(int reg_num)
 {
 /* FXCH */
-	double fptemp;
-	fptemp = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] = hsw_env87.fpregs[hsw_env87.fpstt];
-	hsw_env87.fpregs[hsw_env87.fpstt] = fptemp;
+	Ldouble fptemp;
+	TDBLCOPY(&fptemp, &FPR_ST(reg_num));
+	TDBLCOPY(&FPR_ST(reg_num), &FPR_ST0);
+	TDBLCOPY(&FPR_ST0, &fptemp);
 }
 
 void
@@ -362,7 +400,7 @@ hsw_fp87_12m(unsigned char *mem_ref)
 {
 /* FSTm32r_FNOP */
 	float m32r;
-	m32r = hsw_env87.fpregs[hsw_env87.fpstt];
+	m32r = FPR_ST0;
 	STORE32REAL(mem_ref,m32r);
 }
 
@@ -371,6 +409,8 @@ hsw_fp87_12r(int reg_num)
 {
 /* FSTm32r_FNOP */
 /* FNOP do nothing */
+	if (reg_num>0)
+	    illegal_op("FPNOP r>0");
 }
 
 void
@@ -378,24 +418,33 @@ hsw_fp87_13m(unsigned char *mem_ref)
 {
 /* FSTPm32r */
 	float m32r;
-	m32r = hsw_env87.fpregs[hsw_env87.fpstt];
+	m32r = FPR_ST0;
 	STORE32REAL(mem_ref,m32r);
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	POPFSP;
 }
 
 void
 hsw_fp87_13r(int reg_num)
 {
-    fprintf(stderr,"illegal FP opcode: 013r\n");
+	illegal_op("013r");
 }
 
 void
 hsw_fp87_14m(unsigned char *mem_ref)
 {
 /* FLDENV */
-	hsw_env87.fpus = GET16INT(mem_ref + 2); /* 14-byte env-record */
-	hsw_env87.fpstt = (hsw_env87.fpus>>11) & 0x7;
-	hsw_env87.fpuc = GET16INT(mem_ref);
+	if (data32) {
+	    hsw_env87.fpuc = GET32INT(mem_ref); mem_ref+=4;
+	    hsw_env87.fpus = GET32INT(mem_ref); mem_ref+=4;
+	    hsw_env87.fpstt = GET32INT(mem_ref); mem_ref+=4;
+	    /* IP,OP,opcode: 8 long n.i. */
+	}
+	else {
+	    hsw_env87.fpuc = GET16INT(mem_ref); mem_ref+=2;
+	    hsw_env87.fpus = GET16INT(mem_ref); mem_ref+=2;
+	    hsw_env87.fpstt = GET16INT(mem_ref); mem_ref+=2;
+	    /* IP,OP,opcode: 8 word n.i. */
+	}
 }
 
 void
@@ -405,95 +454,91 @@ hsw_fp87_14r(int reg_num)
 
 	switch (reg_num) {
 		case 0: /* FCHS */
-			hsw_env87.fpregs[hsw_env87.fpstt] = -hsw_env87.fpregs[hsw_env87.fpstt];
+			FPR_ST0 = -FPR_ST0;
 			return;
 		case 1: /* FABS */
-			if ( hsw_env87.fpregs[hsw_env87.fpstt] < 0.0 )
-				hsw_env87.fpregs[hsw_env87.fpstt] = -hsw_env87.fpregs[hsw_env87.fpstt];
+			if ( FPR_ST0 < 0.0 )
+				FPR_ST0 = -FPR_ST0;
 			return;
 		case 2:
-			fprintf(stderr,"illegal FP opcode: 014r (reg=2)\n");
+			illegal_op("014r r=2"); return;
 		case 3:
-			fprintf(stderr,"illegal FP opcode: 014r (reg=3)\n");
-			return;
+			illegal_op("014r r=3"); return;
 		case 4: /* FTST */ {
-			double fpsrcop = 0.0;
+			Ldouble fpsrcop = 0.0;
 			hsw_env87.fpus &= (~0x4500);   /* (C3,C2,C0) <-- 000 */
-			if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+			if ( FPR_ST0 < fpsrcop )
 				hsw_env87.fpus |= 0x100;   /* (C3,C2,C0) <-- 001 */
-			else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+			else if ( FPR_ST0 == fpsrcop )
 				hsw_env87.fpus |= 0x4000;  /* (C3,C2,C0) <-- 100 */
-			/* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+			/* else if ( FPR_ST0 > fpsrcop )  do nothing */
 			/* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 			} return;
 		case 5: /* FXAM */ {
-			unsigned int i64lo, i64hi;
-            hsw_env87.fpus &= (~0x4700);  /* (C3,C2,C1,C0) <-- 0000 */
-            if ( hsw_env87.fpregs[hsw_env87.fpstt] < 0.0 )
-                 hsw_env87.fpus |= 0x200; /* C1 <-- 1 */
-            expdif = EXPONENT(&hsw_env87.fpregs[hsw_env87.fpstt]);
-            if ( expdif == 0x7ff ) {
-                i64hi = *((int *)&hsw_env87.fpregs[hsw_env87.fpstt]) & 0xfffff;
-                i64lo = *(((int *)&hsw_env87.fpregs[hsw_env87.fpstt]) + 1);
-                hsw_env87.fpus |= (i64hi == 0 && i64lo == 0)?
-                            0x500 /*Infinity*/: 0x100 /*NaN*/;
-            }
+			long long i64lh;
+			double fptemp;
+			hsw_env87.fpus &= (~0x4700);  /* (C3,C2,C1,C0) <-- 0000 */
+			if ( FPR_ST0 < 0.0 )
+			    hsw_env87.fpus |= 0x200; /* C1 <-- 1 */
+			fptemp = FPR_ST0;
+			expdif = EXPONENT64(&fptemp);
+			if ( expdif == 0x7ff ) {
+			    i64lh = *((long long *)&fptemp) & 0xfffffffffffffLL;
+			    hsw_env87.fpus |= (i64lh == 0?
+				0x500 /*Infinity*/: 0x100 /*NaN*/);
+			}
 			else if ( expdif == 0x0 ) {
-                i64hi = *((int *)&hsw_env87.fpregs[hsw_env87.fpstt]) & 0xfffff;
-                i64lo = *(((int *)&hsw_env87.fpregs[hsw_env87.fpstt]) + 1);
-                hsw_env87.fpus |= (i64hi == 0 && i64lo == 0)?
-                            0x4000 /*Zero*/: 0x4400 /*Denormal*/;
-            }
+			    i64lh = *((long long *)&fptemp) & 0xfffffffffffffLL;
+			    hsw_env87.fpus |= (i64lh == 0?
+				0x4000 /*Zero*/: 0x4400 /*Denormal*/);
+			}
 			else hsw_env87.fpus |= 0x400;
 			} return;
 		case 6:
-			fprintf(stderr,"illegal FP opcode: 014r (reg=6)\n");
-			return;
+			illegal_op("014r r=6"); return;
 		case 7:
-			fprintf(stderr,"illegal FP opcode: 014r (reg=7)\n");
-			return;
+			illegal_op("014r r=7"); return;
 	}
 }
 
 void
 hsw_fp87_15m(unsigned char *mem_ref)
 {
-/* FLDCONST */
 /* FLDCW */
 	hsw_env87.fpuc = GET16INT(mem_ref);
-	/* NOT FULLY IMPLEMENTED YET!!! (requires a sys call) */
+	/* NOT FULLY IMPLEMENTED YET!!! If an exception bit in the
+	   status word is set... see manuals */
 }
 
 void
 hsw_fp87_15r(int reg_num)
 {
 /* FLDCONST */
-	hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
+	PUSHFSP;
 	switch (reg_num) {
 		case 0: /* FLD1 */
-			hsw_env87.fpregs[hsw_env87.fpstt] = 1.0;
+			FPR_ST0 = 1.0;
 			return;
 		case 1: /* FLDL2T */
-			hsw_env87.fpregs[hsw_env87.fpstt] = DPLOG2_10;
+			FPR_ST0 = DPLOG2_10;
 			return;
 		case 2: /* FLDL2E */
-			hsw_env87.fpregs[hsw_env87.fpstt] = DPLOG2_E;
+			FPR_ST0 = DPLOG2_E;
 			return;
 		case 3: /* FLDPI */
-			hsw_env87.fpregs[hsw_env87.fpstt] = DPPI;
+			FPR_ST0 = DPPI;
 			return;
 		case 4: /* FLDLG2 */
-			hsw_env87.fpregs[hsw_env87.fpstt] = DPLOG10_2;
+			FPR_ST0 = DPLOG10_2;
 			return;
 		case 5: /* FLDLN2 */
-			hsw_env87.fpregs[hsw_env87.fpstt] = DPLOGE_2;
+			FPR_ST0 = DPLOGE_2;
 			return;
 		case 6: /* FLDZ */
-			hsw_env87.fpregs[hsw_env87.fpstt] = 0.0;
+			FPR_ST0 = 0.0;
 			return;
 		case 7:
-			fprintf(stderr,"illegal FP opcode: 015r (reg=7)\n");
-			return;
+			illegal_op("015r r=7"); return;
 	}
 }
 
@@ -501,23 +546,36 @@ void
 hsw_fp87_16m(unsigned char *mem_ref)
 {
 /* FSTENV */
-	hsw_env87.fpus &= (~0x3800);
-	hsw_env87.fpus |= (hsw_env87.fpstt&0x7)<<11;
-	STORE16INT( (mem_ref+2), hsw_env87.fpus);  /* 14-byte env-record */
-	STORE16INT( (mem_ref), hsw_env87.fpuc);
+	hsw_env87.fpus &= (~0x3800);	/* set TOP field to 0 */
+	if (data32) {
+	    STORE32INT( (mem_ref), hsw_env87.fpuc); mem_ref+=4;
+	    STORE32INT( (mem_ref), hsw_env87.fpus); mem_ref+=4;
+	    STORE32INT( (mem_ref), hsw_env87.fpstt); mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4; /* IP,OP,opcode: n.i. */
+	}
+	else {
+	    STORE16INT( (mem_ref), hsw_env87.fpuc); mem_ref+=2;
+	    STORE16INT( (mem_ref), hsw_env87.fpus); mem_ref+=2;
+	    STORE16INT( (mem_ref), hsw_env87.fpstt); mem_ref+=2;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4; /* IP,OP,opcode: n.i. */
+	}
 }
 
 void
 hsw_fp87_16r(int reg_num)
 {
-	double fptemp;
-	double fpsrcop;
+	Ldouble fptemp;
+	Ldouble fpsrcop;
 	switch (reg_num) {
 		case 0: /* F2XM1 */
-			hsw_env87.fpregs[hsw_env87.fpstt] = pow(2.0,hsw_env87.fpregs[hsw_env87.fpstt]) - 1.0;
+			FPR_ST0 = pow(2.0,FPR_ST0) - 1.0;
 			return;
 		case 1: /* FYL2X */
-			fptemp = hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp = FPR_ST0;
 			if(fptemp>0.0){
 			fptemp = log(fptemp)/log(2.0);	 /* log2(ST) */
 			hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7] *= fptemp;
@@ -527,45 +585,45 @@ hsw_fp87_16r(int reg_num)
 			}
 			return;
 		case 2: /* FPTAN */
-			fptemp = hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp = FPR_ST0;
 			if((fptemp > MAXTAN)||(fptemp < -MAXTAN))  hsw_env87.fpus |= 0x400;
 			else {
-			hsw_env87.fpregs[hsw_env87.fpstt] = tan(fptemp);
-			hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-			hsw_env87.fpregs[hsw_env87.fpstt] = 1.0;
+			FPR_ST0 = tan(fptemp);
+			PUSHFSP;
+			FPR_ST0 = 1.0;
 			hsw_env87.fpus &= (~0x400);  /* C2 <-- 0 */
 			/* the above code is for  |arg| < 2**52 only */
 			}
 			return;
 		case 3: /* FPATAN */
 			fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7];
-			fptemp = hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp = FPR_ST0;
 			hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7] = atan2(fpsrcop,fptemp);
 			hsw_env87.fpstt++; hsw_env87.fpstt &= 0x7;
 			return;
 		case 4: /* FXTRACT */ {
 			unsigned int expdif;
-			fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
-			expdif = EXPONENT(&hsw_env87.fpregs[hsw_env87.fpstt]) - 1023;
+			fpsrcop = FPR_ST0;
+			expdif = EXPONENT80(&FPR_ST0) - 16383;
 					/*DP exponent bias*/
-			hsw_env87.fpregs[hsw_env87.fpstt] = expdif;
-			hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-			BIASEXPONENT(&fpsrcop);
-			hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop;
+			FPR_ST0 = expdif;
+			PUSHFSP;
+			BIASEXPONENT80(&fpsrcop);
+			FPR_ST0 = fpsrcop;
 			}
 			return;
 		case 5: /* FPREM1 */ {
-			double dblq;
+			Ldouble dblq;
 			int expdif;
 			int q;
 
-			fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+			fpsrcop = FPR_ST0;
 			fptemp = hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7];
-			expdif = EXPONENT(&fpsrcop) - EXPONENT(&fptemp);
+			expdif = EXPONENT80(&fpsrcop) - EXPONENT80(&fptemp);
 			if ( expdif < 53 ) {
 				dblq = fpsrcop / fptemp;
 				dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
-				hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop - fptemp*dblq;
+				FPR_ST0 = fpsrcop - fptemp*dblq;
 				q = dblq; /* cutting off top bits is assumed here */
 				hsw_env87.fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
 				/* (C0,C1,C3) <-- (q2,q1,q0) */
@@ -575,20 +633,18 @@ hsw_fp87_16r(int reg_num)
 			}
 			else {
 				hsw_env87.fpus |= 0x400;  /* C2 <-- 1 */
-				fptemp = pow(2.0, ((double)(expdif-50)) );
-				fpsrcop = (hsw_env87.fpregs[hsw_env87.fpstt] /
+				fptemp = pow(2.0, ((Ldouble)(expdif-50)) );
+				fpsrcop = (FPR_ST0 /
 						hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7]) / fptemp;
 				/* fpsrcop = integer obtained by rounding to the nearest */
 				fpsrcop = (fpsrcop-floor(fpsrcop) < ceil(fpsrcop)-fpsrcop)?
 							floor(fpsrcop): ceil(fpsrcop);
-				hsw_env87.fpregs[hsw_env87.fpstt] =
-						hsw_env87.fpregs[hsw_env87.fpstt] -
-						hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7] * fpsrcop * fptemp;
+				FPR_ST0 -= (hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7] * fpsrcop * fptemp);
 			}
 			}
 			return;
 		case 6: /* FDECSTP */
-			hsw_env87.fpstt--; hsw_env87.fpstt &= 0x7;
+			PUSHFSP;
 			hsw_env87.fpus &= (~0x4700);
 			return;
 		case 7: /* FINCSTP */
@@ -601,7 +657,6 @@ hsw_fp87_16r(int reg_num)
 void
 hsw_fp87_17m(unsigned char *mem_ref)
 {
-/* FD9SLASH7 */
 /* FSTCW */
 	STORE16INT(mem_ref,hsw_env87.fpuc);
 }
@@ -610,105 +665,105 @@ void
 hsw_fp87_17r(int reg_num)
 {
 /* FD9SLASH7 */
-	double fptemp;
-	double fpsrcop;
+	Ldouble fptemp;
+	Ldouble fpsrcop;
 	switch (reg_num) {
 		case 0: /* FPREM */ {
-			double dblq;
+			Ldouble dblq;
 			int expdif;
 			int q;
 
-			fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+			fpsrcop = FPR_ST0;
 			fptemp = hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7];
-			expdif = EXPONENT(&fpsrcop) - EXPONENT(&fptemp);
+			expdif = EXPONENT80(&fpsrcop) - EXPONENT80(&fptemp);
 			if ( expdif < 53 ) {
 				dblq = fpsrcop / fptemp;
 				dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
-				hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop - fptemp*dblq;
+				FPR_ST0 = fpsrcop - fptemp*dblq;
 				q = dblq; /* cutting off top bits is assumed here */
 				hsw_env87.fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
 				/* (C0,C1,C3) <-- (q2,q1,q0) */
 				hsw_env87.fpus |= (q&0x4) << 6; /* (C0) <-- q2 */
 				hsw_env87.fpus |= (q&0x2) << 8; /* (C1) <-- q1 */
 				hsw_env87.fpus |= (q&0x1) << 14; /* (C3) <-- q0 */
-           	}
-            else {
-               	hsw_env87.fpus |= 0x400;  /* C2 <-- 1 */
-   	           	fptemp = pow(2.0, ((double)(expdif-50)) );
-   	           	fpsrcop = (hsw_env87.fpregs[hsw_env87.fpstt] /
-						hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7]) / fptemp;
-                /* fpsrcop = integer obtained by chopping */
-   	            fpsrcop = (fpsrcop < 0.0)?
-							-(floor(fabs(fpsrcop))): floor(fpsrcop);
-   	            hsw_env87.fpregs[hsw_env87.fpstt] =
-						hsw_env87.fpregs[hsw_env87.fpstt] - 
-						hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7] * fpsrcop * fptemp;
-	        }
-            }
-            return;
+			}
+			else {
+				hsw_env87.fpus |= 0x400;  /* C2 <-- 1 */
+	   	           	fptemp = pow(2.0, ((Ldouble)(expdif-50)) );
+   		           	fpsrcop = (FPR_ST0 /
+					hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7]) / fptemp;
+		                /* fpsrcop = integer obtained by chopping */
+   	        		fpsrcop = (fpsrcop < 0.0)?
+					-(floor(fabs(fpsrcop))): floor(fpsrcop);
+				FPR_ST0 -= (hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7] * fpsrcop * fptemp);
+			}
+			}
+	        	return;
 		case 1: /* FYL2XP1 */
-			fptemp = hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp = FPR_ST0;
 			if((fptemp+1.0)>0.0){
 			fptemp = log(fptemp+1.0) /
-						log(2.0); /* log2(ST+1.0) */
+				log(2.0); /* log2(ST+1.0) */
 			hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7] *= fptemp;
 			hsw_env87.fpstt++; hsw_env87.fpstt &= 0x7;}
 			else { hsw_env87.fpus &= (~0x4700);
 				hsw_env87.fpus |= 0x400;} 
 			return;
 		case 2: /* FSQRT */
-			fptemp = hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp = FPR_ST0;
 			if(fptemp<0.0){ hsw_env87.fpus &= (~0x4700);  /* (C3,C2,C1,C0) <-- 0000 */
 			hsw_env87.fpus |= 0x400;}
-			hsw_env87.fpregs[hsw_env87.fpstt] = sqrt(fptemp);
+			FPR_ST0 = sqrt(fptemp);
 			return;
 		case 3: /* FSINCOS */
-			fptemp=hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp=FPR_ST0;
 			if((fptemp > MAXTAN)||(fptemp < -MAXTAN))  hsw_env87.fpus |= 0x400;
 			else {
-			hsw_env87.fpregs[hsw_env87.fpstt] = sin(fptemp);
-			hsw_env87.fpstt--; hsw_env87.fpstt &= 0x7;
-			hsw_env87.fpregs[hsw_env87.fpstt] = cos(fptemp);
+			FPR_ST0 = sin(fptemp);
+			PUSHFSP;
+			FPR_ST0 = cos(fptemp);
 			hsw_env87.fpus &= (~0x400);  /* C2 <-- 0 */
 			/* the above code is for  |arg| < 2**63 only */
 			}
 			return;
 		case 4: /* FRNDINT */
-            fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
-            if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/ {
-                if ( fpsrcop < 0.0 )
-                     hsw_env87.fpregs[hsw_env87.fpstt] = -(floor(-fpsrcop));
-                else hsw_env87.fpregs[hsw_env87.fpstt] = floor(fpsrcop);
-            }
-            else if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/ {
-                if ( (fpsrcop-floor(fpsrcop)) < (ceil(fpsrcop)-fpsrcop) )
-                     hsw_env87.fpregs[hsw_env87.fpstt] = floor(fpsrcop);
-                else hsw_env87.fpregs[hsw_env87.fpstt] = ceil(fpsrcop);
-            }
-            else if ( (hsw_env87.fpuc&0xc00) == 0x400 ) /*Chop towards -INFI*/
-                hsw_env87.fpregs[hsw_env87.fpstt] = floor(fpsrcop);
-            else  /*Round towards +INFI*/
-                hsw_env87.fpregs[hsw_env87.fpstt] = ceil(fpsrcop);
+			fpsrcop = FPR_ST0;
+			if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/ {
+				if ( fpsrcop < 0.0 )
+					FPR_ST0 = -(floor(-fpsrcop));
+				else FPR_ST0 = floor(fpsrcop);
+			}
+			else
+			if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/ {
+				if ( (fpsrcop-floor(fpsrcop)) < (ceil(fpsrcop)-fpsrcop) )
+					FPR_ST0 = floor(fpsrcop);
+				else FPR_ST0 = ceil(fpsrcop);
+			}
+			else
+			if ( (hsw_env87.fpuc&0xc00) == 0x400 ) /*Chop towards -INFI*/
+				FPR_ST0 = floor(fpsrcop);
+			else  /*Round towards +INFI*/
+				FPR_ST0 = ceil(fpsrcop);
 			return;
 		case 5: /* FSCALE */
 			fpsrcop = 2.0;
 			fptemp = pow(fpsrcop,hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7]);
-			hsw_env87.fpregs[hsw_env87.fpstt] *= fptemp;
+			FPR_ST0 *= fptemp;
 			return;
 		case 6: /* FSIN */
-			fptemp=hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp=FPR_ST0;
 			if((fptemp > MAXTAN)||(fptemp < -MAXTAN))  hsw_env87.fpus |= 0x400;
 			else {
-			hsw_env87.fpregs[hsw_env87.fpstt] = sin(fptemp);
+			FPR_ST0 = sin(fptemp);
 			hsw_env87.fpus &= (~0x400);  /* C2 <-- 0 */
 			/* the above code is for  |arg| < 2**53 only */
 			}
 			return;
 		case 7: /* FCOS */
-			fptemp=hsw_env87.fpregs[hsw_env87.fpstt];
+			fptemp=FPR_ST0;
 			if((fptemp > MAXTAN)||(fptemp < -MAXTAN))  hsw_env87.fpus |= 0x400;
 			else {
-			hsw_env87.fpregs[hsw_env87.fpstt] = cos(fptemp);
+			FPR_ST0 = cos(fptemp);
 			hsw_env87.fpus &= (~0x400);  /* C2 <-- 0 */
 			/* the above code is for  |arg5 < 2**63 only */
 			}
@@ -720,112 +775,115 @@ void
 hsw_fp87_20m(unsigned char *mem_ref)
 {
 /* FADDm32i */
-	hsw_env87.fpregs[hsw_env87.fpstt] += GET32INT(mem_ref);
+	FPR_ST0 += GET32INT(mem_ref);
 }
 
 void
 hsw_fp87_20r(int reg_num)
 {
-/* FADDm32i */
-    fprintf(stderr,"illegal FP opcode: 020r\n");
+/* FCMOVB */
+    not_implemented("020r");
 }
 
 void
 hsw_fp87_21m(unsigned char *mem_ref)
 {
 /* FMULm32i */
-	hsw_env87.fpregs[hsw_env87.fpstt] *= GET32INT(mem_ref);
+	FPR_ST0 *= GET32INT(mem_ref);
 }
 
 void
 hsw_fp87_21r(int reg_num)
 {
-/* FMULm32i */
-    fprintf(stderr,"illegal FP opcode: 021r\n");
+/* FCMOVE */
+    not_implemented("021r");
 }
 
 void
 hsw_fp87_22m(unsigned char *mem_ref)
 {
 /* FICOMm32i */
-	double fpsrcop;
+	Ldouble fpsrcop;
     fpsrcop = GET32INT(mem_ref);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 }
 
 void
 hsw_fp87_22r(int reg_num)
 {
-/* FICOMm32i */
-    fprintf(stderr,"illegal FP opcode: 022r\n");
+/* FCMOVBE */
+    not_implemented("022r");
 }
 
 void
 hsw_fp87_23m(unsigned char *mem_ref)
 {
 /* FICOMPm32i */
-	double fpsrcop;
+	Ldouble fpsrcop;
     fpsrcop = GET32INT(mem_ref);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    POPFSP;
 }
 
 void
 hsw_fp87_23r(int reg_num)
 {
-/* FICOMPm32i */
-    fprintf(stderr,"illegal FP opcode: 023r\n");
+/* FCMOVU */
+    not_implemented("023r");
 }
 
 void
 hsw_fp87_24m(unsigned char *mem_ref)
 {
 /* FISUBm32i */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	fpsrcop = GET32INT(mem_ref);
-	hsw_env87.fpregs[hsw_env87.fpstt] -= fpsrcop;
+	FPR_ST0 -= fpsrcop;
 }
 
 void
 hsw_fp87_24r(int reg_num)
 {
 /* FISUBm32i */
-    fprintf(stderr,"illegal FP opcode: 024r\n");
+    illegal_op("024r");
 }
 
 void
 hsw_fp87_25m(unsigned char *mem_ref)
 {
 /* FISUBRm32i_FUCOMPPst1 */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	fpsrcop = GET32INT(mem_ref);
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop - hsw_env87.fpregs[hsw_env87.fpstt];
+	FPR_ST0 = fpsrcop - FPR_ST0;
 }
 
 void
 hsw_fp87_25r(int reg_num)
 {
 /* FISUBRm32i_FUCOMPPst1 */
-	double fpsrcop;
+    Ldouble fpsrcop;
+    if (reg_num!=1) {
+	illegal_op("025r r!=1"); return;
+    }
     fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7];
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
     hsw_env87.fpstt += 2;  hsw_env87.fpstt &= 0x7;
 }
@@ -834,9 +892,9 @@ void
 hsw_fp87_26m(unsigned char *mem_ref)
 {
 /* FIDIVm32i */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	fpsrcop = GET32INT(mem_ref);
-	hsw_env87.fpregs[hsw_env87.fpstt] /= fpsrcop;
+	FPR_ST0 /= fpsrcop;
 	if(fpsrcop==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
 }
 
@@ -844,60 +902,61 @@ void
 hsw_fp87_26r(int reg_num)
 {
 /* FIDIVm32i */
-    fprintf(stderr,"illegal FP opcode: 026r\n");
+    illegal_op("026r");
 }
 
 void
 hsw_fp87_27m(unsigned char *mem_ref)
 {
 /* FIDIVRm32i */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	fpsrcop = GET32INT(mem_ref);
-	if(hsw_env87.fpregs[hsw_env87.fpstt]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop / hsw_env87.fpregs[hsw_env87.fpstt];
+	if(FPR_ST0==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST0 = fpsrcop / FPR_ST0;
 }
 
 void
 hsw_fp87_27r(int reg_num)
 {
 /* FIDIVRm32i */
-    fprintf(stderr,"illegal FP opcode: 027r\n");
+    illegal_op("027r");
 }
 
 void
 hsw_fp87_30m(unsigned char *mem_ref)
 {
 /* FILDm32i */
-	hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-	hsw_env87.fpregs[hsw_env87.fpstt] = GET32INT(mem_ref);
+	PUSHFSP;
+	FPR_ST0 = GET32INT(mem_ref);
 }
 
 void
 hsw_fp87_30r(int reg_num)
 {
-/* FILDm32i */
-    fprintf(stderr,"illegal FP opcode: 030r\n");
+/* FCMOVNB */
+    not_implemented("030r");
 }
 
 void
 hsw_fp87_31m(unsigned char *mem_ref)
 {
-    fprintf(stderr,"illegal FP opcode: 031m\n");
+    illegal_op("031m");
 }
 
 void
 hsw_fp87_31r(int reg_num)
 {
-    fprintf(stderr,"illegal FP opcode: 031r\n");
+/* FCMOVNE */
+    not_implemented("031r");
 }
 
 void
 hsw_fp87_32m(unsigned char *mem_ref)
 {
 /* FISTm32i */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	int m32i;
-    fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+    fpsrcop = FPR_ST0;
     if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/
         fpsrcop = (fpsrcop<0.0)? -(floor(-fpsrcop)): floor(fpsrcop);
     else if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/
@@ -914,17 +973,17 @@ hsw_fp87_32m(unsigned char *mem_ref)
 void
 hsw_fp87_32r(int reg_num)
 {
-/* FISTm32i */
-    fprintf(stderr,"illegal FP opcode: 032r\n");
+/* FCMOVNBE */
+    not_implemented("032r");
 }
 
 void
 hsw_fp87_33m(unsigned char *mem_ref)
 {
 /* FISTPm32i */
-	double fpsrcop;
-	int m32i;
-    fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+    Ldouble fpsrcop;
+    int m32i;
+    fpsrcop = FPR_ST0;
     if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/
         fpsrcop = (fpsrcop<0.0)? -(floor(-fpsrcop)): floor(fpsrcop);
     else if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/
@@ -935,41 +994,44 @@ hsw_fp87_33m(unsigned char *mem_ref)
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
     m32i = fpsrcop;
+#ifdef DEBUG
+    e_printf("FP: storing %#x\n",m32i);
+#endif
     STORE32INT(mem_ref,m32i);
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    POPFSP;
 }
 
 void
 hsw_fp87_33r(int reg_num)
 {
-/* FISTPm32i */
-    fprintf(stderr,"illegal FP opcode: 033r\n");
+/* FCMOVNU */
+    not_implemented("033r");
 }
 
 void
 hsw_fp87_34m(unsigned char *mem_ref)
 {
-/* FRSTORm94B_FINIT_FCLEX */
-	signed short i16;
-	int expdif;
-	hsw_env87.fpuc = GET16INT(mem_ref);
-	hsw_env87.fpus = GET16INT(mem_ref + 2); /* 14-byte env-record */
-	hsw_env87.fpstt = (hsw_env87.fpus>>11) & 0x7;
-	for ( i16 = 0;  i16 < 8;  i16++ ) {
-		LD80R(&hsw_env87.fpregs[(hsw_env87.fpstt+i16)&0x7],(mem_ref+14+i16*10));
-	}
+    illegal_op("034m");
 }
 
 void
 hsw_fp87_34r(int reg_num)
 {
-/* FRSTORm94B_FINIT_FCLEX */
-	if (reg_num == 3) /* FINIT */ {
-		hsw_env87.fpus = 0;  hsw_env87.fpstt = 0; hsw_env87.fpuc = 0x37f;
+/* FINIT_FCLEX */
+	switch (reg_num) {
+	    case 0: case 1:	/* FNENI,FNDISI: 8087 */
+	    case 4: case 5:	/* FSETPM,FRSTPM: 80287 */
 		return;
-	} else if (reg_num == 2) /* FCLEX */ {
+	    case 3:		/* FINIT */
+		hsw_env87.fpus = 0;
+		hsw_env87.fpstt = 0;
+		hsw_env87.fpuc = 0x37f;
+		return;
+	    case 2:		/* FCLEX */
 		hsw_env87.fpus &= 0x7f00;
 		return;
+	    default:
+		illegal_op("034r d=6,7");
 	}
 }
 
@@ -977,46 +1039,50 @@ void
 hsw_fp87_35m(unsigned char *mem_ref)
 {
 /* FLDm80r */
+#if !defined(DOSEMU) || !defined(__i386__)
 	int expdif;
 	signed short i16;
-    hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-	LD80R(&hsw_env87.fpregs[hsw_env87.fpstt],(mem_ref));
+#endif
+	PUSHFSP;
+	LD80R(&FPR_ST0,(mem_ref));
 }
 
 void
 hsw_fp87_35r(int reg_num)
 {
-/* FLDm80r */
-    fprintf(stderr,"illegal FP opcode: 035r\n");
+/* FUCOMI */
+    not_implemented("035r");
 }
 
 void
 hsw_fp87_36m(unsigned char *mem_ref)
 {
-    fprintf(stderr,"illegal FP opcode: 036m\n");
+    illegal_op("036m");
 }
 
 void
 hsw_fp87_36r(int reg_num)
 {
-    fprintf(stderr,"illegal FP opcode: 036r\n");
+/* FCOMI */
+    not_implemented("036r");
 }
 
 void
 hsw_fp87_37m(unsigned char *mem_ref)
 {
 /* FSTPm80r */
+#if !defined(DOSEMU) || !defined(__i386__)
 	int expdif;
 	signed short i16;
-	ST80R((mem_ref),&hsw_env87.fpregs[hsw_env87.fpstt])
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+#endif
+	ST80R((mem_ref),&FPR_ST0)
+	POPFSP;
 }
 
 void
 hsw_fp87_37r(int reg_num)
 {
-/* FSTPm80r */
-    fprintf(stderr,"illegal FP opcode: 037r\n");
+    illegal_op("037r");
 }
 
 void
@@ -1024,14 +1090,14 @@ hsw_fp87_40m(unsigned char *mem_ref)
 {
 /* FADDm64r_tosti */
 	double fptemp;
-	hsw_env87.fpregs[hsw_env87.fpstt] += GET64REAL(fptemp,mem_ref);
+	FPR_ST0 += GET64REAL(fptemp,mem_ref);
 }
 
 void
 hsw_fp87_40r(int reg_num)
 {
 /* FADDm64r_tosti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] += hsw_env87.fpregs[hsw_env87.fpstt];
+	FPR_ST(reg_num) += FPR_ST0;
 }
 
 void
@@ -1039,14 +1105,14 @@ hsw_fp87_41m(unsigned char *mem_ref)
 {
 /* FMULm64r_tosti */
 	double fptemp;
-	hsw_env87.fpregs[hsw_env87.fpstt] *= GET64REAL(fptemp,mem_ref);
+	FPR_ST0 *= GET64REAL(fptemp,mem_ref);
 }
 
 void
 hsw_fp87_41r(int reg_num)
 {
 /* FMULm64r_tosti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] *= hsw_env87.fpregs[hsw_env87.fpstt];
+	FPR_ST(reg_num) *= FPR_ST0;
 }
 
 void
@@ -1054,22 +1120,21 @@ hsw_fp87_42m(unsigned char *mem_ref)
 {
 /* FCOMm64r */
 	double fptemp;
-	double fpsrcop;
+	Ldouble fpsrcop;
     fpsrcop = GET64REAL(fptemp,mem_ref);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 }
 
 void
 hsw_fp87_42r(int reg_num)
 {
-/* FCOMm64r */
-    fprintf(stderr,"illegal FP opcode: 042r\n");
+    illegal_op("042r");
 }
 
 void
@@ -1077,23 +1142,22 @@ hsw_fp87_43m(unsigned char *mem_ref)
 {
 /* FCOMPm64r */
 	double fptemp;
-	double fpsrcop;
+	Ldouble fpsrcop;
     fpsrcop = GET64REAL(fptemp,mem_ref);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    POPFSP;
 }
 
 void
 hsw_fp87_43r(int reg_num)
 {
-/* FCOMPm64r */
-    fprintf(stderr,"illegal FP opcode: 043r\n");
+    illegal_op("043r");
 }
 
 void
@@ -1101,14 +1165,14 @@ hsw_fp87_44m(unsigned char *mem_ref)
 {
 /* FSUBm64r_FSUBRfromsti */
 	double fptemp;
-	hsw_env87.fpregs[hsw_env87.fpstt] -= GET64REAL(fptemp,mem_ref);
+	FPR_ST0 -= GET64REAL(fptemp,mem_ref);
 }
 
 void
 hsw_fp87_44r(int reg_num)
 {
 /* FSUBm64r_FSUBRfromsti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] -= hsw_env87.fpregs[hsw_env87.fpstt];
+	FPR_ST(reg_num) = FPR_ST0 - FPR_ST(reg_num);
 }
 
 void
@@ -1116,14 +1180,23 @@ hsw_fp87_45m(unsigned char *mem_ref)
 {
 /* FSUBRm64r_FSUBfromsti */
 	double fptemp;
-	hsw_env87.fpregs[hsw_env87.fpstt] = GET64REAL(fptemp,mem_ref) - hsw_env87.fpregs[hsw_env87.fpstt];
+	FPR_ST0 = GET64REAL(fptemp,mem_ref) - FPR_ST0;
 }
 
 void
 hsw_fp87_45r(int reg_num)
 {
 /* FSUBRm64r_FSUBfromsti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] = hsw_env87.fpregs[hsw_env87.fpstt] - hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
+	FPR_ST(reg_num) = FPR_ST(reg_num) - FPR_ST0;
+}
+
+void
+hsw_fp87_46r(int reg_num)
+{
+/* FDIVRm64r_FDIVtosti */
+	if (FPR_ST(reg_num)==0.0)
+	    hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST(reg_num) = FPR_ST0 / FPR_ST(reg_num);
 }
 
 void
@@ -1131,16 +1204,18 @@ hsw_fp87_46m(unsigned char *mem_ref)
 {
 /* FDIVm64r_FDIVRtosti */
 	double fptemp;
-	hsw_env87.fpregs[hsw_env87.fpstt] /= GET64REAL(fptemp,mem_ref);
-	if(fptemp==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST0 /= GET64REAL(fptemp,mem_ref);
+	if (fptemp==0.0)
+	    hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
 }
 
 void
 hsw_fp87_47r(int reg_num)
 {
 /* FDIVm64r_FDIVRtosti */
-	if(hsw_env87.fpregs[hsw_env87.fpstt]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] /= hsw_env87.fpregs[hsw_env87.fpstt];
+	if (FPR_ST0==0.0)
+	    hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST(reg_num) /= FPR_ST0;
 }
 
 void
@@ -1148,44 +1223,37 @@ hsw_fp87_47m(unsigned char *mem_ref)
 {
 /* FDIVRm64r_FDIVtosti */
 	double fptemp;
-	if(hsw_env87.fpregs[hsw_env87.fpstt]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[hsw_env87.fpstt] = GET64REAL(fptemp,mem_ref) / hsw_env87.fpregs[hsw_env87.fpstt];
-}
-
-void
-hsw_fp87_46r(int reg_num)
-{
-/* FDIVRm64r_FDIVtosti */
-	if(hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] = hsw_env87.fpregs[hsw_env87.fpstt] / hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
+	if (FPR_ST0==0.0)
+	    hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST0 = GET64REAL(fptemp,mem_ref) / FPR_ST0;
 }
 
 void
 hsw_fp87_50m(unsigned char *mem_ref)
 {
-/* FLDm64r_FFREE */
+/* FLDm64r */
 	double fptemp;
-	hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-	hsw_env87.fpregs[hsw_env87.fpstt] = GET64REAL(fptemp,mem_ref);
+	PUSHFSP;
+	FPR_ST0 = GET64REAL(fptemp,mem_ref);
 }
 
 void
 hsw_fp87_50r(int reg_num)
 {
-/* FLDm64r_FFREE */
-/* else FFREE, do nothing */
+/* FFREE: only tag as empty */
+/* do nothing */
 }
 
 void
 hsw_fp87_51m(unsigned char *mem_ref)
 {
-    fprintf(stderr,"illegal FP opcode: 051m\n");
+    illegal_op("051m");
 }
 
 void
 hsw_fp87_51r(int reg_num)
 {
-    fprintf(stderr,"illegal FP opcode: 051r\n");
+    illegal_op("051r");
 }
 
 void
@@ -1193,7 +1261,7 @@ hsw_fp87_52m(unsigned char *mem_ref)
 {
 /* FSTm64r_sti */
 	double fptemp;
-	fptemp = hsw_env87.fpregs[hsw_env87.fpstt];
+	fptemp = FPR_ST0;
 	STORE64REAL(mem_ref,fptemp);
 }
 
@@ -1201,7 +1269,7 @@ void
 hsw_fp87_52r(int reg_num)
 {
 /* FSTm64r_sti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] = hsw_env87.fpregs[hsw_env87.fpstt];
+	TDBLCOPY(&FPR_ST(reg_num),&FPR_ST0);
 }
 
 void
@@ -1209,91 +1277,203 @@ hsw_fp87_53m(unsigned char *mem_ref)
 {
 /* FSTPm64r_sti */
 	double fptemp;
-	fptemp = hsw_env87.fpregs[hsw_env87.fpstt];
+	fptemp = FPR_ST0;
 	STORE64REAL(mem_ref,fptemp);
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	POPFSP;
 }
 
 void
 hsw_fp87_53r(int reg_num)
 {
 /* FSTPm64r_sti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] = hsw_env87.fpregs[hsw_env87.fpstt];
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	TDBLCOPY(&FPR_ST(reg_num),&FPR_ST0);
+	POPFSP;
 }
 
 void
 hsw_fp87_54m(unsigned char *mem_ref)
 {
-/* FUCOMsti */
-    fprintf(stderr,"illegal FP opcode: 054m\n");
+    int i;
+#if !defined(DOSEMU) || !defined(__i386__)
+    int expdif;
+#endif
+/* FRSTOR */
+    if (vm86f) {
+	if (data32) {
+	    hsw_env87.fpuc = GET32INT(mem_ref); mem_ref+=4;
+	    hsw_env87.fpus = GET32INT(mem_ref); mem_ref+=4;
+	    hsw_env87.fpstt = GET32INT(mem_ref); mem_ref+=4;
+	    mem_ref+=16;	/* IP,OP,opcode: n.i. */
+	}
+	else {
+	    hsw_env87.fpuc = GET16INT(mem_ref); mem_ref+=2;
+	    hsw_env87.fpus = GET16INT(mem_ref); mem_ref+=2;
+	    hsw_env87.fpstt = GET16INT(mem_ref); mem_ref+=2;
+	    mem_ref+=8;		/* IP,OP,opcode: n.i. */
+	}
+    } else {
+	if (data32) {
+	    hsw_env87.fpuc = GET32INT(mem_ref); mem_ref+=4;
+	    hsw_env87.fpus = GET32INT(mem_ref); mem_ref+=4;
+	    hsw_env87.fpstt = GET32INT(mem_ref); mem_ref+=4;
+	    mem_ref+=16;	/* IP,OP,opcode: n.i. */
+	}
+	else {
+	    hsw_env87.fpuc = GET16INT(mem_ref); mem_ref+=2;
+	    hsw_env87.fpus = GET16INT(mem_ref); mem_ref+=2;
+	    hsw_env87.fpstt = GET16INT(mem_ref); mem_ref+=2;
+	    mem_ref+=8;		/* IP,OP,opcode: n.i. */
+	}
+    }
+    for (i = 0; i < 8; i++ ) {
+	LD80R(&hsw_env87.fpregs[(hsw_env87.fpstt+i)&0x7],(mem_ref));
+	mem_ref += 10;
+    }
 }
 
 void
 hsw_fp87_54r(int reg_num)
 {
 /* FUCOMsti */
-	double fpsrcop;
-    fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
+	Ldouble fpsrcop;
+    fpsrcop = FPR_ST(reg_num);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 }
 
 void
 hsw_fp87_55m(unsigned char *mem_ref)
 {
-/* FUCOMPsti */
-    fprintf(stderr,"illegal FP opcode: 055m\n");
+    illegal_op("055m");
 }
 
 void
 hsw_fp87_55r(int reg_num)
 {
 /* FUCOMPsti */
-	double fpsrcop;
-    fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
+	Ldouble fpsrcop;
+    fpsrcop = FPR_ST(reg_num);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    POPFSP;
 }
 
+/*
+ * FSAVE: 4 modes - followed by FINIT
+ *
+ * A) 16-bit real (94 bytes)
+ *	(00-01)		Control Word
+ *	(02-03)		Status Word
+ *	(04-05)		Tag Word
+ *	(06-07)		IP 15..00
+ *	(08-09)		IP 19..16,0,Opc 10..00
+ *	(0a-0b)		OP 15..00
+ *	(0c-0d)		OP 19..16,0...
+ *	(0e-5d)		FP registers
+ *
+ * B) 16-bit protected (94 bytes)
+ *	(00-01)		Control Word
+ *	(02-03)		Status Word
+ *	(04-05)		Tag Word
+ *	(06-07)		IP offset
+ *	(08-09)		IP selector
+ *	(0a-0b)		OP offset
+ *	(0c-0d)		OP selector
+ *	(0e-5d)		FP registers
+ *
+ * C) 32-bit real (108 bytes)
+ *	(00-01)		Control Word		(02-03) reserved
+ *	(04-05)		Status Word		(06-07) reserved
+ *	(08-09)		Tag Word		(0a-0b) reserved
+ *	(0c-0d)		IP 15..00		(0e-0f) reserved
+ *	(10-13)		0,0,0,0,IP 31..16,0,Opc 10..00
+ *	(14-15)		OP 15..00		(16-17) reserved
+ *	(18-1b)		0,0,0,0,OP 31..16,0...
+ *	(1c-6b)		FP registers
+ *
+ * D) 32-bit protected (108 bytes)
+ *	(00-01)		Control Word		(02-03) reserved
+ *	(04-05)		Status Word		(06-07) reserved
+ *	(08-09)		Tag Word		(0a-0b) reserved
+ *	(0c-0d)		IP offset		(0e-0f) reserved
+ *	(10-13)		0,0,0,0,Opc 10..00,IP selector
+ *	(14-15)		OP offset		(16-17) reserved
+ *	(18-19)		OP selector		(1a-1b) reserved
+ *	(1c-6b)		FP registers
+ */
 void
 hsw_fp87_56m(unsigned char *mem_ref)
 {
-/* FSAVEm94B */
-	signed short i16;
-	int expdif;
-    STORE16INT( (mem_ref), hsw_env87.fpuc);
-    hsw_env87.fpus &= (~0x3800);
-	hsw_env87.fpus |= (hsw_env87.fpstt&0x7)<<11;
-    STORE16INT( (mem_ref+2), hsw_env87.fpus); /* 14-byte env-record */
-    for ( i16 = 0;  i16 < 8;  i16++ ) {
-        ST80R((mem_ref+14+i16*10),&hsw_env87.fpregs[(hsw_env87.fpstt+i16)&0x7]);
+    int i;
+#if !defined(DOSEMU) || !defined(__i386__)
+    int expdif;
+#endif
+/* FSAVE */
+    hsw_env87.fpus &= (~0x3800);	/* set TOP field to 0 */
+    if (vm86f) {
+	if (data32) {
+	    STORE32INT( (mem_ref), hsw_env87.fpuc); mem_ref+=4;
+	    STORE32INT( (mem_ref), hsw_env87.fpus); mem_ref+=4;
+	    STORE32INT( (mem_ref), hsw_env87.fpstt); mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4; /* IP,OP,opcode: n.i. */
+	}
+	else {
+	    STORE16INT( (mem_ref), hsw_env87.fpuc); mem_ref+=2;
+	    STORE16INT( (mem_ref), hsw_env87.fpus); mem_ref+=2;
+	    STORE16INT( (mem_ref), hsw_env87.fpstt); mem_ref+=2;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4; /* IP,OP,opcode: n.i. */
+	}
+    }
+    else {
+	if (data32) {
+	    STORE32INT( (mem_ref), hsw_env87.fpuc); mem_ref+=4;
+	    STORE32INT( (mem_ref), hsw_env87.fpus); mem_ref+=4;
+	    STORE32INT( (mem_ref), hsw_env87.fpstt); mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4; /* IP,OP,opcode: n.i. */
+	}
+	else {
+	    STORE16INT( (mem_ref), hsw_env87.fpuc); mem_ref+=2;
+	    STORE16INT( (mem_ref), hsw_env87.fpus); mem_ref+=2;
+	    STORE16INT( (mem_ref), hsw_env87.fpstt); mem_ref+=2;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4;
+	    *((long *)(mem_ref)) = 0; mem_ref+=4; /* IP,OP,opcode: n.i. */
+	}
+    }
+    for (i = 0; i < 8; i++) {
+        ST80R((mem_ref),&hsw_env87.fpregs[(hsw_env87.fpstt+i)&0x7]);
+        mem_ref+=10;
     };
+    hsw_env87.fpus = 0;  hsw_env87.fpstt = 0; hsw_env87.fpuc = 0x37f;
 }
 
 void
 hsw_fp87_56r(int reg_num)
 {
-/* FSAVEm94B */
-    fprintf(stderr,"illegal FP opcode: 056r\n");
+    illegal_op("056r");
 }
 
 void
 hsw_fp87_57m(unsigned char *mem_ref)
 {
 /* FSTSWm16i */
-    hsw_env87.fpus &= (~0x3800);
+	hsw_env87.fpus &= (~0x3800);
 	hsw_env87.fpus |= (hsw_env87.fpstt&0x7)<<11;
 	STORE16INT(mem_ref,hsw_env87.fpus);
 }
@@ -1301,90 +1481,91 @@ hsw_fp87_57m(unsigned char *mem_ref)
 void
 hsw_fp87_57r(int reg_num)
 {
-/* FSTSWm16i */
-    fprintf(stderr,"illegal FP opcode: 057r\n");
+    illegal_op("057r");
 }
 
 void
 hsw_fp87_60m(unsigned char *mem_ref)
 {
 /* FADDm16i_tostipop */
-	hsw_env87.fpregs[hsw_env87.fpstt] += GET16INT(mem_ref);
+	FPR_ST0 += GET16INT(mem_ref);
 }
 
 void
 hsw_fp87_60r(int reg_num)
 {
 /* FADDm16i_tostipop */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] += hsw_env87.fpregs[hsw_env87.fpstt];
-	hsw_env87.fpstt++; hsw_env87.fpstt &= 0x7;
+	FPR_ST(reg_num) += FPR_ST0;
+	POPFSP;
 }
 
 void
 hsw_fp87_61m(unsigned char *mem_ref)
 {
 /* FMULm16i_tostipop */
-	hsw_env87.fpregs[hsw_env87.fpstt] *= GET16INT(mem_ref);
+	FPR_ST0 *= GET16INT(mem_ref);
 }
 
 void
 hsw_fp87_61r(int reg_num)
 {
-/* FMULm16i_tostipop */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] *= hsw_env87.fpregs[hsw_env87.fpstt];
-	hsw_env87.fpstt++; hsw_env87.fpstt &= 0x7;
+/* FMULPm16i_tostipop */
+	FPR_ST(reg_num) *= FPR_ST0;
+	POPFSP;
 }
 
 void
 hsw_fp87_62m(unsigned char *mem_ref)
 {
 /* FICOMm16i */
-	double fpsrcop;
+	Ldouble fpsrcop;
     fpsrcop = GET16INT(mem_ref);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 }
 
 void
 hsw_fp87_62r(int reg_num)
 {
-/* FICOMm16i */
-    fprintf(stderr,"illegal FP opcode: 062r\n");
+    illegal_op("062r");
 }
 
 void
 hsw_fp87_63m(unsigned char *mem_ref)
 {
 /* FICOMPm16i_FCOMPPst1 */
-	double fpsrcop;
+	Ldouble fpsrcop;
     fpsrcop = GET16INT(mem_ref);
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    POPFSP;
 }
 
 void
 hsw_fp87_63r(int reg_num)
 {
 /* FICOMPm16i_FCOMPPst1 */
-	double fpsrcop;
+	Ldouble fpsrcop;
+    if (reg_num!=1) {
+	illegal_op("063r d!=1"); return;
+    }
     fpsrcop = hsw_env87.fpregs[(hsw_env87.fpstt+1)&0x7];
     hsw_env87.fpus &= (~0x4500);	/* (C3,C2,C0) <-- 000 */
-    if ( hsw_env87.fpregs[hsw_env87.fpstt] < fpsrcop )
+    if ( FPR_ST0 < fpsrcop )
         hsw_env87.fpus |= 0x100;	/* (C3,C2,C0) <-- 001 */
-    else if ( hsw_env87.fpregs[hsw_env87.fpstt] == fpsrcop )
+    else if ( FPR_ST0 == fpsrcop )
         hsw_env87.fpus |= 0x4000;	/* (C3,C2,C0) <-- 100 */
-    /* else if ( hsw_env87.fpregs[hsw_env87.fpstt] > fpsrcop )  do nothing */
+    /* else if ( FPR_ST0 > fpsrcop )  do nothing */
     /* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
     hsw_env87.fpstt += 2;  hsw_env87.fpstt &= 0x7;
 }
@@ -1393,102 +1574,101 @@ void
 hsw_fp87_64m(unsigned char *mem_ref)
 {
 /* FISUBm16i_FSUBRPfromsti */
-	hsw_env87.fpregs[hsw_env87.fpstt] -= GET16INT(mem_ref);
+	FPR_ST0 -= GET16INT(mem_ref);
 }
 
 void
-hsw_fp87_65r(int reg_num)
+hsw_fp87_64r(int reg_num)
 {
 /* FISUBm16i_FSUBRPfromsti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] -= hsw_env87.fpregs[hsw_env87.fpstt];
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	FPR_ST(reg_num) = FPR_ST0 - FPR_ST(reg_num);
+	POPFSP;
 }
 
 void
 hsw_fp87_65m(unsigned char *mem_ref)
 {
 /* FISUBRm16i_FSUBPfromsti */
-	hsw_env87.fpregs[hsw_env87.fpstt] = GET16INT(mem_ref) - hsw_env87.fpregs[hsw_env87.fpstt];
+	FPR_ST0 = GET16INT(mem_ref) - FPR_ST0;
 }
 
 void
-hsw_fp87_64r(int reg_num)
+hsw_fp87_65r(int reg_num)
 {
 /* FISUBRm16i_FSUBPfromsti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] = hsw_env87.fpregs[hsw_env87.fpstt] - hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	FPR_ST(reg_num) -= FPR_ST0;
+	POPFSP;
 }
 
 void
 hsw_fp87_66m(unsigned char *mem_ref)
 {
 /* FIDIVm16i_FDIVRPtosti */
-	double fptemp;
+	Ldouble fptemp;
 	fptemp=GET16INT(mem_ref);
-	hsw_env87.fpregs[hsw_env87.fpstt] /= fptemp;
+	FPR_ST0 /= fptemp;
 	if(fptemp==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
 }
 
 void
-hsw_fp87_67r(int reg_num)
+hsw_fp87_66r(int reg_num)
 {
 /* FIDIVm16i_FDIVRPtosti */
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] /= hsw_env87.fpregs[hsw_env87.fpstt];
-	if(hsw_env87.fpregs[hsw_env87.fpstt]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+	if(FPR_ST(reg_num)==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST(reg_num) = FPR_ST0 / FPR_ST(reg_num);
+	POPFSP;
 }
 
 void
 hsw_fp87_67m(unsigned char *mem_ref)
 {
 /* FIDIVRm16i_FDIVPtosti */
-	if(hsw_env87.fpregs[hsw_env87.fpstt]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[hsw_env87.fpstt] = GET16INT(mem_ref) / hsw_env87.fpregs[hsw_env87.fpstt];
+	if(FPR_ST0==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	FPR_ST0 = GET16INT(mem_ref) / FPR_ST0;
 }
 
 void
-hsw_fp87_66r(int reg_num)
+hsw_fp87_67r(int reg_num)
 {
-/* FIDIVRm16i_FDIVPtosti */
-	if(hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7]==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
-	hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7] = hsw_env87.fpregs[hsw_env87.fpstt] / hsw_env87.fpregs[(hsw_env87.fpstt+reg_num)&0x7];
-	hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+/* FIDIVm16i_FDIVPtosti */
+	FPR_ST(reg_num) /= FPR_ST0;
+	if(FPR_ST0==0.0)hsw_env87.fpus |= (0x4&(hsw_env87.fpuc&0x3f));
+	POPFSP;
 }
 
 void
 hsw_fp87_70m(unsigned char *mem_ref)
 {
 /* FILDm16i */
-	hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-	hsw_env87.fpregs[hsw_env87.fpstt] = GET16INT(mem_ref);
+	PUSHFSP;
+	FPR_ST0 = GET16INT(mem_ref);
 }
 
 void
 hsw_fp87_70r(int reg_num)
 {
-/* FILDm16i */
-    fprintf(stderr,"illegal FP opcode: 070r\n");
+    illegal_op("070r");
 }
 
 void
 hsw_fp87_71m(unsigned char *mem_ref)
 {
-    fprintf(stderr,"illegal FP opcode: 071m\n");
+    illegal_op("071m");
 }
 
 void
 hsw_fp87_71r(int reg_num)
 {
-    fprintf(stderr,"illegal FP opcode: 071r\n");
+    illegal_op("071r");
 }
 
 void
 hsw_fp87_72m(unsigned char *mem_ref)
 {
 /* FISTm16i */
-	double fpsrcop;
+	Ldouble fpsrcop;
 	signed short i16;
-    fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+    fpsrcop = FPR_ST0;
     if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/
         fpsrcop = (fpsrcop<0.0)? -(floor(-fpsrcop)): floor(fpsrcop);
     else if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/
@@ -1505,17 +1685,16 @@ hsw_fp87_72m(unsigned char *mem_ref)
 void
 hsw_fp87_72r(int reg_num)
 {
-/* FISTm16i */
-    fprintf(stderr,"illegal FP opcode: 072r\n");
+    illegal_op("072r");
 }
 
 void
 hsw_fp87_73m(unsigned char *mem_ref)
 {
 /* FISTPm16i */
-	double fpsrcop;
-	signed short i16;
-    fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+    Ldouble fpsrcop;
+    signed short i16;
+    fpsrcop = FPR_ST0;
     if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/
         fpsrcop = (fpsrcop<0.0)? -(floor(-fpsrcop)): floor(fpsrcop);
     else if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/
@@ -1526,15 +1705,17 @@ hsw_fp87_73m(unsigned char *mem_ref)
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
     i16 = fpsrcop;
+#ifdef DEBUG
+    e_printf("FP: storing %#x\n",i16);
+#endif
     STORE16INT(mem_ref,i16);
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    POPFSP;
 }
 
 void
 hsw_fp87_73r(int reg_num)
 {
-/* FISTPm16i */
-    fprintf(stderr,"illegal FP opcode: 073r\n");
+    illegal_op("073r");
 }
 
 void
@@ -1542,12 +1723,12 @@ hsw_fp87_74m(unsigned char *mem_ref)
 {
 /* FBLDm80dec_FSTSWax */
 	unsigned char * seg;
-	double fpsrcop;
+	Ldouble fpsrcop;
 	int m32i;
     /* in this code, seg/m32i will be used as temporary ptr/int */
     seg = mem_ref + 8;
     if ( *seg-- != 0 || (*seg & 0xf0) != 0 ) /* d15..d17 non-zero*/
-        fprintf(stderr,"This BCD number exceeds the range of DOUBLE REAL!\n");
+        e_printf("This BCD number exceeds the range of DOUBLE REAL!\n");
     m32i = *seg--;  /* <-- d14 */
     m32i = MUL10(m32i) + (*seg >> 4);  /* <-- val * 10 + d13 */
     m32i = MUL10(m32i) + (*seg & 0xf); /* <-- val * 10 + d12 */
@@ -1558,7 +1739,7 @@ hsw_fp87_74m(unsigned char *mem_ref)
     m32i = MUL10(m32i) + (*seg >> 4);  /* <-- val * 10 + d9 */
     m32i = MUL10(m32i) + (*seg & 0xf); /* <-- val * 10 + d8 */
     seg--;
-    fpsrcop = ((double)m32i) * 100000000.0;
+    fpsrcop = ((Ldouble)m32i) * 100000000.0;
     m32i = (*seg >> 4);  /* <-- d7 */
     m32i = MUL10(m32i) + (*seg & 0xf); /* <-- val * 10 + d6 */
     seg--;
@@ -1570,16 +1751,19 @@ hsw_fp87_74m(unsigned char *mem_ref)
     seg--;
     m32i = MUL10(m32i) + (*seg >> 4);  /* <-- val * 10 + d1 */
     m32i = MUL10(m32i) + (*seg & 0xf); /* <-- val * 10 + d0 */
-    fpsrcop += ((double)m32i);
+    fpsrcop += ((Ldouble)m32i);
     if ( *(seg+9) & 0x80 )  fpsrcop = -fpsrcop;
-    hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-    hsw_env87.fpregs[hsw_env87.fpstt] = fpsrcop;
+    PUSHFSP;
+    FPR_ST0 = fpsrcop;
 }
 
 void
 hsw_fp87_74r(int reg_num)
 {
 /* FBLDm80dec_FSTSWax */
+    if (reg_num>0) {
+	illegal_op("074r r>0"); return;
+    }
     hsw_env87.fpus &= (~0x3800);
 	hsw_env87.fpus |= (hsw_env87.fpstt&0x7)<<11;
 	envp_global->rax.x.x.x = hsw_env87.fpus;
@@ -1589,42 +1773,37 @@ void
 hsw_fp87_75m(unsigned char *mem_ref)
 {
 /* FILDm64i */
-	double fptemp;
-	long signed_temp;
-	unsigned int i64lo, i64hi;
-	i64lo = GET32INT((mem_ref));
-	i64hi = GET32INT((mem_ref+4));
-    hsw_env87.fpstt--;  hsw_env87.fpstt &= 0x7;
-	signed_temp = 0;
-	if ( i64hi & 0x80000000 ) {
-        signed_temp = -1;
-        i64lo = ~i64lo;
-        i64hi = ~i64hi;
-        if ( i64lo == 0xffffffff )  i64hi += 1;
-        i64lo += 1;
-    }
-	if ( i64hi & 0xffe00000 )
-	    fprintf(stderr,"This 64-bit INT exceeds range of DOUBLE REAL!\n"); 
-    fptemp = 4294967296.0 * ((double)i64hi) + ((double)i64lo);
-    if ( signed_temp < 0 )  fptemp = -fptemp;
-    hsw_env87.fpregs[hsw_env87.fpstt] = fptemp;
+    Ldouble fptemp;
+    long long i64lh;
+
+    i64lh = GET64INT((mem_ref));
+    PUSHFSP;
+#ifndef X386
+    /* check if significant digits can be loaded into a 53-bit mantissa */
+    { long long absi64l = (i64lh>0? i64lh:-i64lh);
+    if ((absi64l & 0xffe0000000000000LL) && (absi64l & 0x7ff)) {
+	e_printf("This 64-bit INT exceeds DOUBLE REAL mantissa!\n"); 
+    } }
+#endif
+    fptemp = i64lh;
+    FPR_ST0 = fptemp;
 }
 
 void
 hsw_fp87_75r(int reg_num)
 {
-/* FILDm64i */
-    fprintf(stderr,"illegal FP opcode: 075r\n");
+/* FUCOMIP */
+    not_implemented("075r");
 }
 
 void
 hsw_fp87_76m(unsigned char *mem_ref)
 {
 /* FBSTPm80dec */
-	double fptemp;
-	double fpsrcop;
-	signed short i16;
-    fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+    Ldouble fptemp;
+    Ldouble fpsrcop;
+    signed short i16;
+    fpsrcop = FPR_ST0;
     if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/
         fpsrcop = (fpsrcop<0.0)? -(floor(-fpsrcop)): floor(fpsrcop);
     else if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/
@@ -1649,24 +1828,24 @@ hsw_fp87_76m(unsigned char *mem_ref)
         *mem_ref = i16 | (((int)(fpsrcop - fptemp*10.0)) << 4);
         fpsrcop = fptemp;
     }
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    POPFSP;
 }
 
 void
 hsw_fp87_76r(int reg_num)
 {
-/* FBSTPm80dec */
-    fprintf(stderr,"illegal FP opcode: 076r\n");
+/* FCOMIP */
+    not_implemented("076r");
 }
 
 void
 hsw_fp87_77m(unsigned char *mem_ref)
 {
 /* FISTPm64i */
-	double fpsrcop;
-	long signed_temp;
-	unsigned int i64lo, i64hi;
-    fpsrcop = hsw_env87.fpregs[hsw_env87.fpstt];
+    Ldouble fpsrcop;
+    long long i64lh;
+
+    fpsrcop = FPR_ST0;
     if ( (hsw_env87.fpuc&0xc00) == 0xc00 ) /*Chop towards zero*/
         fpsrcop = (fpsrcop<0.0)? -(floor(-fpsrcop)): floor(fpsrcop);
     else if ( (hsw_env87.fpuc&0xc00) == 0x0 ) /*Round to the nearest*/
@@ -1676,27 +1855,16 @@ hsw_fp87_77m(unsigned char *mem_ref)
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
-    signed_temp = 0;
-    if ( fpsrcop < 0.0 ) {
-        signed_temp = -1;
-        fpsrcop = -fpsrcop;
-    }
-    i64lo = ((unsigned int)fmod(fpsrcop,4294967296.0));
-    i64hi = ((unsigned int)fpsrcop/4294967296.0);
-    if ( signed_temp < 0 ) {
-        i64lo = ~i64lo;
-        i64hi = ~i64hi;
-        if ( i64lo == 0xffffffff )  i64hi += 1;
-        i64lo += 1;
-    }
-    STORE32INT((mem_ref),i64lo);
-    STORE32INT((mem_ref+4),i64hi);
-    hsw_env87.fpstt++;  hsw_env87.fpstt &= 0x7;
+    i64lh = fpsrcop;
+#ifdef DEBUG
+    e_printf("FP: storing %#Lx\n",i64lh);
+#endif
+    STORE64INT((mem_ref),i64lh);
+    POPFSP;
 }
 
 void
 hsw_fp87_77r(int reg_num)
 {
-/* FISTPm64i */
-    fprintf(stderr,"illegal FP opcode: 077r\n");
+    illegal_op("077r");
 }

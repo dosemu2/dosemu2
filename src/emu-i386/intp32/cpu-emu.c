@@ -7,7 +7,7 @@
 
 /*
     CPU-EMU a Intel 80x86 cpu emulator
-    Copyright (C) 1997 Alberto Vignani, FIAT Research Center
+    Copyright (C) 1997,1998 Alberto Vignani, FIAT Research Center
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,10 +48,7 @@ Additional copyright notes:
 #define DOSEMU_TYPESONLY	/* needed by the following: */
 #include "hsw_interp.h"
 #include "cpu-emu.h"
-
-/* 4 cycles/instr is an empirical estimate of how my K6 system
- * really performs, including CPU, caches and main memory */
-#define CYCperINS	4
+#include "dpmi.h"
 
 #undef NEVER
 #define NEVER	(0x7fffffffffffffffULL)
@@ -59,28 +56,47 @@ Additional copyright notes:
 #define e_set_flags(X,new,mask) \
 	((X) = ((X) & ~(mask)) | ((new) & (mask)))
 
-#define SAFE_MASK	(0xDD5)
+/*
+ *  ID VIP VIF AC VM RF 0 NT IOPL OF DF IF TF SF ZF 0 AF 0 PF 1 CF
+ *                                 1  1  0  1  1  1 0  1 0  1 0  1
+ */
+#define SAFE_MASK	(0xDD5)		/* ~(reserved flags plus IF) */
 #define notSAFE_MASK	(~SAFE_MASK&0x3fffff)
-#define RETURN_MASK	(0xDFF)
+#define RETURN_MASK	(0xDFF)		/* ~IF */
 
 /* ======================================================================= */
 
 hitimer_t EMUtime = 0;
 extern hitimer_u ZeroTimeBase;
 
-hitimer_t dbgEMUstart = 0;
-int dbgEMUlevel = 0;
-unsigned long dbgEMUbreak = 0;
-
 static hitimer_t sigEMUtime = 0;
+static hitimer_t lastEMUsig = 0;
 static unsigned long sigEMUdelta = 0;
+static int last_emuretrace;
 int e_sig_pending = 0;
 
 Interp_ENV dosemu_env;
-extern Interp_ENV *envp_global;
+Interp_ENV *envp_global; /* the current global pointer to the x86 environment */
+
+DSCR baseldt[8] =
+{
+	{ NULL, 0, 0,
+#ifndef TWIN32
+	 0,
+#endif
+	 0, 0, 0 }
+};
 
 long instr_count;
+int emu_dpmi_retcode = -1;
+int emu_under_X = 0;
 
+#ifdef EMU_STAT
+long InsFreq[256];
+#ifdef EMU_PROFILE
+long long InsTimes[256];
+#endif
+#endif
 /*
  * --------------------------------------------------------------
  * 00	unsigned short gs, __gsh;
@@ -115,8 +131,7 @@ struct sigcontext_struct e_scp = {
 };
 
 extern void dosemu_fault1(int signal, struct sigcontext_struct *scp);
-
-extern void e_sigalrm(void);
+extern void e_sigalrm(struct sigcontext_struct *scp);
 
 unsigned long io_bitmap[IO_BITMAP_SIZE+1];
 
@@ -226,50 +241,19 @@ static void Reg2Env (struct vm86plus_struct *info, Interp_ENV *env)
   if (config.cpuemu>2) {
   /* a vm86 call switch has been detected. Save all the flags from
    * the real CPU into the emulator state, less the reserved bits */
-    env->flags   = info->regs.eflags&0x3f77f5;
+    env->flags = (info->regs.eflags&0x3f77d5) | 0x20002;
     config.cpuemu=2;
   }
   else {
   /*
-   * the flags calculated by the emulator can be quite different from
-   * those of a real CPU, because flags processing is done in a
-   * different way. As dosemu is not interested in PF,AF,ZF,SF flags,
-   * keep the previous emulator values. Also, the emulator can use
-   * reserved bits, keep them unchanged.
+   * the flags calculated by the emulator can be a bit different from
+   * those of a real CPU, because flags processing is done in a 'lazy'
+   * way. Restore BYTE_FLAG(0x8000) from the previous emu flags.
    */
-    env->flags   = (env->flags&0x88fe) | (info->regs.eflags&0x3f7701);
+    env->flags = ((env->flags&0x8000) | (info->regs.eflags&0x3d7fd5)) | 0x20002;
   }
-  if (d.emu>2) e_printf("EMU86: userflags %08lx -> cpuflags=%08lx\n",
+  if (d.emu>1) e_printf("EMU86: REG(eflags)=%08lx -> env.flags=%08lx\n",
   	info->regs.eflags, env->flags);
-}
-
-static void Scp2Env (struct sigcontext_struct *scp, Interp_ENV *env)
-{
-  env->rax.e   = scp->eax;
-  env->rbx.e   = scp->ebx;
-  env->rcx.e   = scp->ecx;
-  env->rdx.e   = scp->edx;
-  env->rsi.esi = scp->esi;
-  env->rdi.edi = scp->edi;
-  env->rbp.ebp = scp->ebp;
-  env->rsp.esp = scp->esp;
-  env->cs.cs   = scp->cs;
-  env->ds.ds   = scp->ds;
-  env->es.es   = scp->es;
-  env->ss.ss   = scp->ss;
-  env->fs.fs   = scp->fs;
-  env->gs.gs   = scp->gs;
-  env->trans_addr = ((scp->cs<<16) + scp->eip);
-
-  if (config.cpuemu>2) {
-    env->flags   = scp->eflags&0x3f77f5;
-    config.cpuemu=2;
-  }
-  else {
-    env->flags   = (env->flags&0x88fe) | (scp->eflags&0x3f7701);
-  }
-  if (d.emu>2) e_printf("EMU86: userflags %08lx -> cpuflags=%08lx\n",
-  	scp->eflags, env->flags);
 }
 
 static void Env2Reg (Interp_ENV *env, struct vm86plus_struct *info)
@@ -294,10 +278,67 @@ static void Env2Reg (Interp_ENV *env, struct vm86plus_struct *info)
    * AF are not passed back, as dosemu doesn't care about them. RF is
    * forced only for compatibility with the kernel syscall; it is not used.
    * VIP and VIF are reflected to the emu flags but belong to the eflags.
+   * BYTE_FLAG(0x8000) remains in the emu flags and is not passed back.
    */
-  info->regs.eflags = (info->regs.eflags&0x180000) |
-  		      (env->flags & 0x2677c1) | 0x10002;
+  info->regs.eflags = (info->regs.eflags & (VIP|VIF)) |
+  		      (env->flags & 0x247fd5) | 0x10002;  /* VM off */
 }
+
+static void Scp2Env (struct sigcontext_struct *scp, Interp_ENV *env)
+{
+  env->rax.e   = scp->eax;
+  env->rbx.e   = scp->ebx;
+  env->rcx.e   = scp->ecx;
+  env->rdx.e   = scp->edx;
+  env->rsi.esi = scp->esi;
+  env->rdi.edi = scp->edi;
+  env->rbp.ebp = scp->ebp;
+  env->rsp.esp = scp->esp;
+  env->cs.cs   = scp->cs;
+  env->ds.ds   = scp->ds;
+  env->es.es   = scp->es;
+  env->ss.ss   = scp->ss;
+  env->fs.fs   = scp->fs;
+  env->gs.gs   = scp->gs;
+  env->error_addr = 0;
+
+  if (in_dpmi) {
+    env->flags = ((env->flags&0x8000) | (scp->eflags&0x3d7fd5)) | 2;
+    env->trans_addr = scp->eip;
+  }
+  else {
+    env->flags = ((env->flags&0x8000) | (scp->eflags&0x3d7fd5)) | 0x20002;
+    env->trans_addr = ((scp->cs<<16) + scp->eip);
+/*
+    if (d.emu>1) e_printf("EMU86: scp.eflags=%08lx -> env.flags=%08lx\n",
+  	scp->eflags, env->flags);
+*/
+  }
+}
+
+#if 0
+static void Scp2Reg (struct sigcontext_struct *scp,
+		struct vm86plus_struct *info)
+{
+  info->regs.eax = scp->eax;
+  info->regs.ebx = scp->ebx;
+  info->regs.ecx = scp->ecx;
+  info->regs.edx = scp->edx;
+  info->regs.esi = scp->esi;
+  info->regs.edi = scp->edi;
+  info->regs.ebp = scp->ebp;
+  info->regs.esp = scp->esp;
+  info->regs.cs  = scp->cs;
+  info->regs.ds  = scp->ds;
+  info->regs.es  = scp->es;
+  info->regs.ss  = scp->ss;
+  info->regs.fs  = scp->fs;
+  info->regs.gs  = scp->gs;
+  info->regs.eip = scp->eip;
+  info->regs.eflags = (info->regs.eflags & (VIP|VIF)) |
+		(scp->eflags&0x247fd5) | 0x10002;  /* VM off */
+}
+#endif
 
 static void Env2Scp (Interp_ENV *env, struct sigcontext_struct *scp,
 	int trapno)
@@ -316,21 +357,54 @@ static void Env2Scp (Interp_ENV *env, struct sigcontext_struct *scp,
   scp->fs  = env->fs.fs;
   scp->gs  = env->gs.gs;
   scp->trapno = trapno;
-  scp->cs  = env->return_addr >> 16;
-  scp->eip = env->return_addr & 0xffff;
-  scp->eflags = (vm86s.regs.eflags&0x180000) |	/* ???? */
-  		      (env->flags & 0x2677c1) | 0x10002;
+  /* Error code format:
+   * b31-b16 = 0 (undef)
+   * b15-b0  = selector, where b2=LDT/GDT, b1=IDT, b0=EXT
+   * (b0-b1 are currently unimplemented here)
+   */
+  scp->err = env->error_addr;
+
+  if (in_dpmi) {
+    scp->cs = env->cs.cs;
+    scp->eip = env->return_addr;
+    scp->eflags = (dpmi_eflags & (VIP|VIF)) |
+  		      (env->flags & 0x247fd5) | 0x10202;
+  }
+  else {
+    scp->cs  = env->return_addr >> 16;
+    scp->eip = env->return_addr & 0xffff;
+    scp->eflags = (vm86s.regs.eflags & (VIP|VIF)) |
+  		      (env->flags & 0x247fd5) | 0x30002;
+  }
 }
+
+/* ======================================================================= */
+
+
+static void emu_DPMI_show_state (struct sigcontext_struct *scp)
+{
+    e_printf("----------------------------------------------\n");
+    e_printf("eip:%08lx  esp:%08lx  eflags:%08lx\n"
+	     "           trapno:%02lx  errorcode:%08lx  cr2: %08lx\n"
+	     "           cs:%04x  ds:%04x  es:%04x  ss:%04x  fs:%04x  gs:%04x\n",
+	     _eip, _esp, _eflags, _trapno, _err, _cr2, _cs, _ds, _es, _ss, _fs, _gs);
+    e_printf("EAX:%08lx  EBX:%08lx  ECX:%08lx  EDX:%08lx\n",
+	     _eax, _ebx, _ecx, _edx);
+    e_printf("ESI:%08lx  EDI:%08lx  EBP:%08lx  ESP:%08lx\n",
+	     _esi, _edi, _ebp, _esp);
+    e_printf("----------------------------------------------\n");
+}
+
 
 /* ======================================================================= */
 
 void init_cpu (void)
 {
-  char *p;
-  long v,v2;
-
+#ifdef EMU_STAT
+  memset(InsFreq,0,sizeof(InsFreq));
+#endif
+  memset(&dosemu_env, 0, sizeof(Interp_ENV));
   envp_global = &dosemu_env;
-  memset (io_bitmap, 0, sizeof(io_bitmap));
 
   envp_global->flags = IF;
   Reg2Env(&vm86s,envp_global);
@@ -351,50 +425,98 @@ void init_cpu (void)
   }
   e_printf("EMU86: tss mask=%08lx\n", eTSSMASK);
 
-  dbgEMUstart = NEVER;
-  dbgEMUlevel = 3;
-  dbgEMUbreak = 0;
-  if ((p=getenv("EMU_START"))!=NULL) {
-	if (sscanf(p,"%ld",&v)==1) {
-		if (v>=0) dbgEMUstart=((hitimer_t)v*1000*config.emuspeed);
+}
+
+/*
+ * Under cpuemu, SIGALRM is redirected here. We need a source of
+ * asynchronous signals because without it any badly-behaved pgm
+ * can stop us forever.
+ */
+static void e_gen_sigalrm(int sig, struct sigcontext_struct context)
+{
+	/* here we come from the kernel with cs==UCODESEL, as
+	 * the passed context is that of dosemu, NOT that of the
+	 * emulated CPU! */
+
+	if (EMUtime >= sigEMUtime) {
+		lastEMUsig = EMUtime;
+		sigEMUtime += sigEMUdelta;
+		/* we can't call sigalrm() because of the way the
+		 * context parameter is passed. */
+		e_sigalrm(&context);	/* -> signal_save */
 	}
-  }
-  if ((p=getenv("EMU_LEVEL"))!=NULL) {
-	if (sscanf(p,"%ld",&v)==1) {
-		if (v>=0) dbgEMUlevel=v;
-	}
-  }
-  if ((p=getenv("EMU_BREAK"))!=NULL) {
-	if (sscanf(p,"%lx:%lx",&v,&v2)==2) {
-		dbgEMUbreak = (v<<16)|(v2&0xffff);
-	}
-  }
+	/* here we return back to dosemu */
 }
 
 void enter_cpu_emu(void)
 {
-	struct itimerval itv;
+	struct sigaction sa;
 
+	if (config.rdtsc==0) {
+	  fprintf(stderr,"Cannot execute CPUEMU without TSC counter\n");
+	  leavedos(0);
+	}
 	config.cpuemu=3;	/* for saving CPU flags */
-	itv.it_interval.tv_sec = 0;
-	itv.it_interval.tv_usec = 0;
-	itv.it_value.tv_sec = 0;
-	itv.it_value.tv_usec = 0;
-	setitimer(TIMER_TIME, &itv, NULL);
+	emu_dpmi_retcode = -1;
+#ifdef X_SUPPORT
+	emu_under_X = (config.X != 0);
+#endif
+	e_printf("EMU86: turning emuretrace ON\n");
+	last_emuretrace = config.emuretrace;
+	config.emuretrace = 2;
+
+	e_printf("EMU86: switching SIGALRMs\n");
+	SETSIG(SIG_TIME, e_gen_sigalrm);
+	flush_log();
 	dbug_printf("======================= ENTER CPU-EMU ===============\n");
 }
 
 void leave_cpu_emu(void)
 {
-	struct itimerval itv;
-
+	struct sigaction sa;
+#ifdef EMU_STAT
+	struct _eops {
+	  unsigned char op;
+	  unsigned long n;
+#ifdef EMU_PROFILE
+	  long long time;
+#endif
+	} eops[256];
+	int i;
+	int ecmp(const void *a, const void *b)
+	  { return ((struct _eops *)b)->n - ((struct _eops *)a)->n; }
+#endif
 	config.cpuemu=1;
-	itv.it_interval.tv_sec = 0;
-	itv.it_interval.tv_usec = config.realdelta;
-	itv.it_value.tv_sec = 0;
-	itv.it_value.tv_usec = config.realdelta;
-	setitimer(TIMER_TIME, &itv, NULL);
+	e_printf("EMU86: turning emuretrace OFF\n");
+	config.emuretrace = last_emuretrace;
+
+	e_printf("EMU86: switching SIGALRMs\n");
+	NEWSETQSIG(SIG_TIME, sigalrm);
 	dbug_printf("======================= LEAVE CPU-EMU ===============\n");
+
+#ifdef EMU_STAT
+	if (d.emu==0) d.emu=1;
+	for (i=0; i<256; i++) {
+	  eops[i].op=i; eops[i].n=InsFreq[i];
+#ifdef EMU_PROFILE
+	  eops[i].time = (InsFreq[i]? InsTimes[i]/InsFreq[i] : 0);
+#endif
+	}
+	qsort(eops,256,sizeof(struct _eops),ecmp);
+	{ int j=0;
+	  for (i=0; i<64; i++) {
+	    e_printf(" [%02x]%10ld [%02x]%10ld [%02x]%10ld [%02x]%10ld\n",
+		eops[j].op,eops[j].n,eops[j+1].op,eops[j+1].n,
+		eops[j+2].op,eops[j+2].n,eops[j+3].op,eops[j+3].n);
+#ifdef EMU_PROFILE
+	    e_printf("   %12Ld   %12Ld   %12Ld   %12Ld\n",
+		eops[j].time,eops[j+1].time,eops[j+2].time,eops[j+3].time);
+#endif
+	    j += 4;
+	  }
+	}
+#endif
+	flush_log();
 }
 
 /* =======================================================================
@@ -402,8 +524,8 @@ void leave_cpu_emu(void)
  * from /linux/arch/i386/kernel/vm86.c
  * original code by Linus Torvalds and later enhancements by
  * Lutz Molgedey and Hans Lermen.
- * adapted to the dosemu/willows CPU emulator by AV 9/1997
- * all added bugs are (C) AV 1997 :-)
+ * adapted to the dosemu/willows CPU emulator by AV 9/1997-12/1998
+ * all added bugs are (C) AV 1997/98 :-)
  */
 static inline int e_set_IF(void)
 {
@@ -455,20 +577,6 @@ static inline int e_revectored(int nr, struct revectored_struct * bitmap)
 	return nr;
 }
 
-/* emulates only SIGALRM; the other asynchronous signals are caught
- * as usual */
-void e_gen_signals(void)
-{
-	if (!in_vm86) {
-		/* this is called, e.g. from sleep() */
-		EMUtime = GETusTIME(0)*config.emuspeed;
-	}
-	if ((long)(EMUtime - sigEMUtime) > sigEMUdelta) {
-		sigEMUtime += sigEMUdelta;
-		e_sigalrm();	/* -> signal_save */
-	}
-}
-
 static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
 {
 	unsigned long *intr_ptr, segoffs;
@@ -493,7 +601,6 @@ static int e_do_int(int i, unsigned char * ssp, unsigned long sp)
 	e_clear_IF();
 	if ((i!=0x16)&&((d.emu>1)||(d.dos)))
 		dbug_printf("EMU86: directly calling int %#x ax=%#x at %#x:%#x\n", i, _AX, _CS, _IP);
-	if (e_sig_pending) { e_sig_pending=0; return VM86_SIGNAL; }
 	return -1;
 
 cannot_handle:
@@ -501,6 +608,16 @@ cannot_handle:
 		dbug_printf("EMU86: calling revectored int %#x\n", i);
 	return (VM86_INTx + (i << 8));
 }
+
+
+static int handle_vm86_trap(long *error_code, int trapno)
+{
+	if ( (trapno==3) || (trapno==1) )
+		return (VM86_TRAP + (trapno << 8));
+	e_do_int(trapno, (unsigned char *) (_SS << 4), _SP);
+	return -1;
+}
+
 
 static int handle_vm86_fault(long *error_code)
 {
@@ -511,7 +628,6 @@ static int handle_vm86_fault(long *error_code)
 #define VM86_FAULT_RETURN \
 	if (vm86s.vm86plus.force_return_for_pic  && (eVEFLAGS & IF_MASK)) { \
 		return VM86_PICRETURN; } \
-	if (d.emu>2) e_printf("EMU86: VE=%08lx F=%08lx\n",eVEFLAGS,REG(eflags)); \
 	if (e_sig_pending) { e_sig_pending=0; return VM86_SIGNAL; } \
 	return -1;
 	                                   
@@ -520,7 +636,7 @@ static int handle_vm86_fault(long *error_code)
 	sp = _SP;
 	ip = _IP;
 	op = popb(csp, ip);
-	if (d.emu>1) e_printf("E_VM86: vm86 fault %#x at %#x:%#x cnt=%ld\n",
+	if (d.emu>1) e_printf("EMU86: vm86 fault %#x at %#x:%#x cnt=%ld\n",
 		op, _CS, _IP, instr_count);
 
 	switch (op) {
@@ -619,18 +735,30 @@ static int handle_vm86_fault(long *error_code)
 /*
  * =======================================================================
  */
-extern int invoke_code16(Interp_ENV *, int);
+extern int invoke_code16(Interp_ENV *, int, int);
+extern int invoke_code32(Interp_ENV *, int);
+
+static char *retdescs[] =
+{
+	"VM86_SIGNAL","VM86_UNKNOWN","VM86_INTx","VM86_STI",
+	"VM86_PICRET","???","VM86_TRAP","???"
+};
 
 int e_vm86(void)
 {
   static int first = 1;
-  hitimer_t entrytime, detime;
+  hitimer_t entrytime;
+  long long detime;
   int xval,retval;
   long errcode, totalcyc;
   unsigned long pmflags;
 
-  if (config.cpuemu<2) {
-	first = 1;
+  /* skip emulation of video BIOS, as it is too much timing-dependent */
+  if ((config.cpuemu<2)
+#ifdef SKIP_EMU_VBIOS
+   || ((REG(cs)&0xf000)==config.vbios_seg)
+#endif
+   ) {
 	return TRUE_VM86(&vm86s);
   }
 
@@ -643,16 +771,19 @@ int e_vm86(void)
 	:
 	: "memory");
 
-  entrytime = GETusTIME(0);	/* real time at vm86 entry, in us */
-  EMUtime = entrytime*config.emuspeed;
+  detime = 0;
+  totalcyc = 0;
+  EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;	/* stretched time */
   if (first) {
-	sigEMUtime = EMUtime;
 	sigEMUdelta = config.realdelta*config.emuspeed;
-	c_printf("EMU86: base time=%Ld delta alrm=%ld speed=%d\n",EMUtime,
+	sigEMUtime = EMUtime + sigEMUdelta;
+	e_printf("EMU86: base time=%Ld delta alrm=%ld speed=%d\n",EMUtime,
 		sigEMUdelta, config.emuspeed);
 	first=0;
   }
-  totalcyc = 0;
+  if (lastEMUsig && (d.emu>1))
+    e_printf("EMU86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
+    	EMUtime>>16,sigEMUtime>>16);
 
  /* This emulates VM86_ENTER only */
  /*
@@ -666,41 +797,78 @@ int e_vm86(void)
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
   do {
     Reg2Env (&vm86s, envp_global);
+    instr_count = 0;
 
     /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
     do {
-      if (dbgEMUlevel && ((EMUtime > dbgEMUstart) ||
-	         (dbgEMUbreak==envp_global->trans_addr)))
-      	d.emu=dbgEMUlevel;
+      long icyc;
       /* enter VM86 mode */
-      instr_count = 0;
-      xval = invoke_code16(envp_global, 1);
+      in_vm86_emu = 1;
+      xval = invoke_code16(envp_global, 1, -1);
+      in_vm86_emu = 0;
       /* 0 if ok, else exception code+1 or negative if dosemu err */
       if (xval < 0) {
-        error("E_VM86: error %d\n", -xval);
+        error("EMU86: error %d\n", -xval);
         in_vm86=0;
         leavedos(0);
       }
       envp_global->trans_addr = envp_global->return_addr;
-      EMUtime += (instr_count*CYCperINS);
-      totalcyc += (instr_count*CYCperINS);
+      icyc = instr_count * CYCperINS;
+      totalcyc += icyc;
     }
     while (xval==0);
     /* ---- INNER LOOP -- exit for exception ---------------------- */
 
-    if (d.emu>2) e_printf("EMU86: EXCP %#x cpuflags %08lx -> userflags=%08lx\n",
-	xval-1, envp_global->flags, REG(eflags));
+    if (d.emu>1) e_printf("EMU86: EXCP %#x cyc=%ld env.flags %08lx, REG(eflags) %08lx\n",
+	xval-1, totalcyc, envp_global->flags, REG(eflags));
 
-    if (xval==EXCP0D_GPF) {	/* to kernel vm86 */
-        Env2Reg (envp_global, &vm86s);
-	retval=handle_vm86_fault(&errcode);	/* kernel level */
-	e_gen_signals();
+    Env2Reg (envp_global, &vm86s);
+    retval = -1;
+
+    if (xval==EXCP_SIGNAL) {	/* coming here for async interruptions */
+	if (e_sig_pending) { e_sig_pending=0; retval=VM86_SIGNAL; }
     }
-    else {	/* signal, to dosemu_fault() - this doesn't yet work */
-	Env2Scp (envp_global, &e_scp, xval-1);
-        dosemu_fault1 (xval-1, &e_scp);
-	Scp2Env (&e_scp, envp_global);
-        retval = -1;
+    else if (xval!=EXCP_GOBACK) {
+	/*
+	 * this is very bad - what we calculate here is the time
+	 * spent in the emulator PLUS the time spent in other
+	 * processes and system activities unrelated to dosemu!!
+	 */
+	detime = (GETusTIME(0) - entrytime);	/* real us elapsed */
+	detime -= (totalcyc / config.emuspeed); if (detime < 0) detime = 0;
+	totalcyc = 0;
+	ZeroTimeBase.td += detime;	/* stretch system and emu time */
+#ifdef DBG_TIME
+	if (d.emu>1) e_printf("\tSHIFT base time by %Ld us\n", detime);
+#endif
+	switch (xval) {
+	    case EXCP0D_GPF: {	/* to kernel vm86 */
+		retval=handle_vm86_fault(&errcode);	/* kernel level */
+#ifdef SKIP_EMU_VBIOS
+		/* are we into the VBIOS? If so, exit and reenter e_vm86 */
+		if ((REG(cs)&0xf000)==config.vbios_seg) {
+		    if (retval<0) retval=0;  /* force exit even if handled */
+		}
+#endif
+	      }
+	      break;
+	    case EXCP03_INT3: {	/* to kernel vm86 */
+		retval=handle_vm86_trap(&errcode,xval-1); /* kernel level */
+	      }
+	      break;
+	    default: {
+		struct sigcontext_struct scp;
+		Env2Scp (envp_global, &scp, xval-1);
+		/* we go out of vm86 here */
+		dosemu_fault1(xval-1, &scp);
+		Scp2Env (&scp, envp_global);
+		in_vm86 = 1;
+		retval = -1;	/* reenter vm86 emu */
+	    }
+	}
+	if (retval < 0) {
+	   EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;
+	}
     }
   }
   while (retval < 0);
@@ -715,31 +883,222 @@ int e_vm86(void)
    */
   e_set_flags(REG(eflags), eVEFLAGS, VIF_MASK | eTSSMASK);
 
-  e_printf("EMU86: retval=%#x\n", retval);
+  e_printf("EMU86: retval=%s\n", retdescs[retval&7]);
 
-  detime = GETusTIME(0)-entrytime;	/* delta real time at vm86 exit */
-  ZeroTimeBase.td += (detime - (totalcyc/config.emuspeed));
+  if (totalcyc) {
+    detime = (GETusTIME(0) - entrytime);
+    detime -= (totalcyc / config.emuspeed); if (detime < 0) detime = 0;
+    ZeroTimeBase.td += detime;	/* stretch system and emu time */
+#ifdef DBG_TIME
+    if (d.emu>1) e_printf("\tdTIME = %Ld cyc\n", detime);
+#endif
+  }
 
   return retval;
 }
 
 /* ======================================================================= */
 
-int e_dpmi(void)
+
+int e_dpmi(struct sigcontext_struct *scp)
 {
   hitimer_t entrytime;
+  long long detime;
+  int xval,retval;
+  long totalcyc;
 
-  if (config.cpuemu<2) {
-	return 0;
+  detime = 0;
+  totalcyc = 0;
+  EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;	/* stretched time */
+
+  if (d.dpmi>6) {
+	long swa = (long)(LDTgetSelBase(_cs)+_eip);
+	D_printf("DPMI SWITCH to %08lx\n",swa);
   }
+  if (d.emu>8) emu_DPMI_show_state(scp);
+  if (lastEMUsig)
+    e_printf("DPM86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
+    	EMUtime>>16,sigEMUtime>>16);
 
-  entrytime = GETusTIME(0);	/* real time at vm86 entry, in us */
-  EMUtime = entrytime*config.emuspeed;
+  /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */
+  do {
+    Scp2Env (scp, envp_global);
+    instr_count = 0;
 
-  e_gen_signals();
+    /* ---- INNER LOOP: exit with error or code>0 (vm86 fault) ---- */
+    do {
+      long icyc;
+      /* switch to DPMI process */
+      xval = (LDT[scp->cs>>3].w86Flags & DF_32 ?
+      	(in_dpmi_emu=32, invoke_code32(envp_global, -1)) :
+      	(in_dpmi_emu=16, invoke_code16(envp_global, 0, -1))
+      );
+      in_dpmi_emu = 0;
+      /* 0 if ok, else exception code+1 or negative if dosemu err */
+      if (xval < 0) {
+        error("DPM86: error %d\n", -xval);
+        leavedos(0);
+      }
+      envp_global->trans_addr = envp_global->return_addr;
+      icyc = instr_count * CYCperINS;
+      totalcyc += icyc;
+    }
+    while (xval==0);
+    /* ---- INNER LOOP -- exit for exception ---------------------- */
 
-  return 0;
+    if (d.emu>1) e_printf("DPM86: EXCP %#x cyc=%ld eflags=%08lx\n",
+	xval-1, totalcyc, REG(eflags));
+
+/**/ envp_global->flags &= ~0x100;
+    Env2Scp (envp_global, scp, xval-1);
+    retval = -1;
+
+    if (xval==EXCP_SIGNAL) {
+	if (emu_dpmi_retcode >= 0) {
+	    retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
+	}
+    }
+    else if (xval!=EXCP_GOBACK) {
+	/*
+	 * this is very bad - what we calculate here is the time
+	 * spent in the emulator PLUS the time spent in other
+	 * processes and system activities unrelated to dosemu!!
+	 */
+	detime = (GETusTIME(0) - entrytime);	/* real us elapsed */
+	detime -= (totalcyc / config.emuspeed); if (detime < 0) detime = 0;
+	totalcyc = 0;
+	ZeroTimeBase.td += detime;	/* stretch system and emu time */
+#ifdef DBG_TIME
+	if (d.emu>1) e_printf("\tSHIFT base time by %Ld us\n", detime);
+#endif
+	dpmi_fault(scp);
+	if (emu_dpmi_retcode >= 0) {
+		retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
+	}
+	else switch (scp->trapno) {
+	  case 0x6c: case 0x6d: case 0x6e: case 0x6f:
+	  case 0xe4: case 0xe5: case 0xe6: case 0xe7:
+	  case 0xec: case 0xed: case 0xee: case 0xef:
+	  case 0xfa: case 0xfb: retval = -1; break;
+	  default: retval = 0; break;
+	}
+	scp->trapno = 0;
+	if (retval < 0) {
+	   EMUtime = (entrytime=GETusTIME(0))*config.emuspeed;
+	}
+    }
+  }
+  while (retval < 0);
+  /* ------ OUTER LOOP -- exit to user level ---------------------- */
+
+  e_printf("DPM86: retval=%#x\n", retval);
+
+  if (totalcyc) {
+    /* should never come here */
+    detime = (GETusTIME(0) - entrytime);
+    detime -= (totalcyc / config.emuspeed); if (detime < 0) detime = 0;
+    ZeroTimeBase.td += detime;	/* stretch system and emu time */
+#ifdef DBG_TIME
+    if (d.emu>1) e_printf("\tdTIME = %Ld cyc\n", detime);
+#endif
+  }
+  return retval;
 }
+
+
+/* ======================================================================= */
+/* file: src/cwsdpmi/exphdlr.c */
+
+void e_dpmi_b0x(int op,struct sigcontext_struct *scp)
+{
+  switch (op) {
+    case 0: {	/* set */
+	int enabled = DRs[7];
+	int i;
+	for (i=0; i<4; i++) {
+	  if ((~enabled >> (i*2)) & 3) {
+	    unsigned mask;
+	    DRs[i] = (_LWORD(ebx) << 16) | _LWORD(ecx);
+	    DRs[7] |= (3 << (i*2));
+	    mask = _HI(dx) & 3; if (mask==2) mask++;
+	    mask |= ((_LO(dx)-1) << 2) & 0x0c;
+	    DRs[7] |= mask << (i*4 + 16);
+	    _LWORD(ebx) = i;
+	    _eflags &= ~CF;
+	    break;
+	  }
+	}
+      }
+      break;
+    case 1: {	/* clear */
+        int i = _LWORD(ebx) & 3;
+        DRs[6] &= ~(1 << i);
+        DRs[7] &= ~(3 << (i*2));
+        DRs[7] &= ~(15 << (i*4+16));
+	_eflags &= ~CF;
+	break;
+      }
+    case 2: {	/* get */
+        int i = _LWORD(ebx) & 3;
+        _LWORD(eax) = (DRs[6] >> i);
+	_eflags &= ~CF;
+	break;
+      }
+    case 3: {	/* reset */
+        int i = _LWORD(ebx) & 3;
+        DRs[6] &= ~(1 << i);
+	_eflags &= ~CF;
+	break;
+      }
+    default:
+	_LWORD(eax) = 0x8016;
+	_eflags |= CF;
+	break;
+  }
+  e_printf("DR0=%08lx DR1=%08lx DR2=%08lx DR3=%08lx\n",DRs[0],DRs[1],DRs[2],DRs[3]);
+  e_printf("DR6=%08lx DR7=%08lx\n",DRs[6],DRs[7]);
+}
+
+
+int e_debug_check(unsigned char *PC)
+{
+    register unsigned long d7 = DRs[7];
+
+    if (d7&0x03) {
+	if (d7&0x30000) return 0;	/* only execute(00) bkp */
+	if ((long)PC==DRs[0]) {
+	    e_printf("DBRK: DR0 hit at %p\n",PC);
+	    DRs[6] |= 1;
+	    return 1;
+	}
+    }
+    if (d7&0x0c) {
+	if (d7&0x300000) return 0;
+	if ((long)PC==DRs[1]) {
+	    e_printf("DBRK: DR1 hit at %p\n",PC);
+	    DRs[6] |= 2;
+	    return 1;
+	}
+    }
+    if (d7&0x30) {
+	if (d7&0x3000000) return 0;
+	if ((long)PC==DRs[2]) {
+	    e_printf("DBRK: DR2 hit at %p\n",PC);
+	    DRs[6] |= 4;
+	    return 1;
+	}
+    }
+    if (d7&0xc0) {
+	if (d7&0x30000000) return 0;
+	if ((long)PC==DRs[3]) {
+	    e_printf("DBRK: DR3 hit at %p\n",PC);
+	    DRs[6] |= 8;
+	    return 1;
+	}
+    }
+    return 0;
+}
+
 
 /* ======================================================================= */
 

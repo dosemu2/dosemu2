@@ -1,3 +1,10 @@
+99/01/07 ver. 0.99.5.6 unofficial pre-release
+	From Alberto
+	- second round cpuemu patches
+	  (changes in the TWIN part)
+	  (Note from Hans: this is not yet working yet, some changes did not
+	  went in or were changed and have to be reworked by Alberto.
+	  This was just a too big patch;-)
 99/01/07 ver. 0.99.5.5 unofficial pre-release
 	From Alberto
 	- first round cpuemu patches

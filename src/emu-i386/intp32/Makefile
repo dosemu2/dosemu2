@@ -7,8 +7,9 @@
 TWINDIR=$(REALTOPDIR)/src/emu-i386/intp32/twin
 TWINFLG=-Dlinux -DX386 -DDOSEMU
 
-CFILES = cpu-emu.c emu-utils.c
+CFILES = cpu-emu.c emu-ldt.c emu-utils.c
 CFLAGS += -I$(TWINDIR)/include -I$(TWINDIR)/win	-I$(TWINDIR)/intp32 $(TWINFLG)
+#CFLAGS += -DDBG_TIME
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

@@ -51,9 +51,65 @@ To send email to the maintainer of the Willows Twin Libraries.
 #include "Segment.h"
 #ifdef DOSEMU
 BOOL LoadSegment(UINT);
+#include "emu-ldt.h"
 #else
 #include "LoadDLL.h"
 #endif	/* DOSEMU */
+
+/* Macros to access fields in LDT table		*/
+
+#ifdef DOSEMU
+
+#define LDTgetSelBase(w)	LDT[(w)>>3].lpSelBase
+#define LDTsetSelBase(w,d)	LDT[(w)>>3].lpSelBase=(d)
+#define LDTgetSelLimit(w)	LDT[(w)>>3].dwSelLimit
+#define LDTsetSelLimit(w,d)	LDT[(w)>>3].dwSelLimit=(d)
+#define LDTgetFlags(w)		LDT[(w)>>3].w86Flags
+#define LDTsetFlags(w,d)	LDT[(w)>>3].w86Flags=(d)
+#define GetFlagAccessed(w)	LDT[(w)>>3].w86Flags&1
+#define SetFlagAccessed(w)	LDT[(w)>>3].w86Flags|=1
+/* not in real LDT */
+#define LDTgetGlobal(w)		LDT[(w)>>3].hGlobal
+#define LDTsetGlobal(w,d)	LDT[(w)>>3].hGlobal=(d)
+#define LDTgetType(w)		LDT[(w)>>3].bSelType
+#define LDTsetType(w,d)		LDT[(w)>>3].bSelType=(d)
+#define LDTgetIndex(w)		LDT[(w)>>3].bModIndex
+#define LDTsetIndex(w,d)	LDT[(w)>>3].bModIndex=(d)
+
+#define GetSelectorAddress(w)	(vm86f? (LPBYTE)(w<<4):\
+				((LDT[w>>3].w86Flags & DF_PRESENT)? \
+				LDTgetSelBase(w):0))
+
+#define SetPhysicalAddress(w,l) { if (!vm86f) LDTsetSelBase(w,(LPBYTE)l); }
+
+#define	GetPhysicalAddress(w)	(vm86f? (LPBYTE)(w<<4):LDTgetSelBase(w))
+
+#define GetSelectorLimit(w)	(vm86f? 0xffff:LDTgetSelLimit(w))
+#define GetSelectorByteLimit(w)	(vm86f? 0xffff:\
+				 (LDTgetFlags(w)&DF_PAGES?\
+				  (LDTgetSelLimit(w)<<12)|0xfff :\
+				  LDTgetSelLimit(w)))
+#define GetSelectorAddrMax(w)	(GetSelectorAddress(w)+GetSelectorByteLimit(w))
+
+#define SetSelectorLimit(w,d)	{ if (!vm86f) LDTsetSelLimit(w,(DWORD)d); }
+
+/* unused
+#define GetSelectorHandle(w)	(vm86f? 1:LDTgetGlobal(w))
+#define SetSelectorHandle(w,h)	{ if (!vm86f) LDTsetGlobal(w,(HGLOBAL)h);}
+*/
+
+#define GetSelectorFlags(w)	(vm86f? 0x00f0:LDTgetFlags(w))
+#define SetSelectorFlags(w,wf)	{ if (!vm86f) LDTsetFlags(w,(WORD)wf); }
+
+#define GetSelectorType(w)	(vm86f? 0:LDTgetType(w))
+#define SetSelectorType(w,bt)	{ if (!vm86f) LDTsetFlags(w,Sel86Flags[bt]), \
+				  LDTsetType(w,(BYTE)bt); }
+/* unused
+#define GetModuleIndex(w)	(vm86f? 0:LDTgetIndex(w))
+#define SetModuleIndex(w,bi)	{ if (!vm86f) LDTsetIndex(w,(BYTE)bi); }
+*/
+
+#else	/* !DOSEMU */
 
 LPSTR GetAddress(WORD,WORD);
 WORD AssignSelector(LPBYTE,WORD,BYTE,DWORD);
@@ -66,33 +122,6 @@ int GetAHINCR(void);
 #define ASSIGNSEL(lp, sz)	AssignSelector((LPBYTE)lp,0,TRANSFER_DATA,sz)
 
 /* Macros to access fields in LDT table		*/
-
-#ifdef DOSEMU
-#define GetSelectorAddress(w)	(vm86f? (LPBYTE)(w<<4):((LDT[w>>3].w86Flags & DF_PRESENT)? \
-				LDT[w>>3].lpSelBase:(LoadSegment(w)? \
-				LDT[w>>3].lpSelBase:0)))
-
-#define SetPhysicalAddress(w,l) { if (!vm86f) LDT[w>>3].lpSelBase = (LPBYTE)l; }
-
-#define	GetPhysicalAddress(w)	(vm86f? (LPBYTE)(w<<4):LDT[w>>3].lpSelBase)
-
-#define GetSelectorLimit(w)	(vm86f? 0xffff:LDT[w>>3].dwSelLimit)
-#define SetSelectorLimit(w,d)	{ if (!vm86f) LDT[w>>3].dwSelLimit = (DWORD)d; }
-
-#define GetSelectorHandle(w)	(vm86f? 1:LDT[w>>3].hGlobal)
-#define SetSelectorHandle(w,h)	{ if (!vm86f) LDT[w>>3].hGlobal = (HGLOBAL)h;}
-
-#define GetSelectorFlags(w)	(vm86f? 0x00f0:LDT[w>>3].w86Flags)
-#define SetSelectorFlags(w,wf)	{ if (!vm86f) LDT[w>>3].w86Flags = (WORD)wf; }
-
-#define GetSelectorType(w)	(vm86f? 0:LDT[w>>3].bSelType)
-#define SetSelectorType(w,bt)	{ if (!vm86f) LDT[w>>3].w86Flags = Sel86Flags[bt], \
-				  LDT[w>>3].bSelType = (BYTE)bt; }
-
-#define GetModuleIndex(w)	(vm86f? 0:LDT[w>>3].bModIndex)
-#define SetModuleIndex(w,bi)	{ if (!vm86f) LDT[w>>3].bModIndex = (BYTE)bi; }
-
-#else	/* DOSEMU */
 
 #define GetSelectorAddress(w)	((LDT[w>>3].w86Flags & DF_PRESENT)? \
 				LDT[w>>3].lpSelBase:(LoadSegment(w)? \
@@ -130,6 +159,7 @@ BOOL DPMI_Notify(UINT,WORD);
 #define DN_FREE		2
 #define DN_INIT		3
 #define DN_MODIFY	4
+#define DN_EXIT		5
 
 /* descriptor byte 6 */
 #define	DF_PAGES	0x8000
@@ -144,6 +174,7 @@ BOOL DPMI_Notify(UINT,WORD);
 #define	DF_EXPANDDOWN	0x04
 #define	DF_CREADABLE	0x02
 #define	DF_DWRITEABLE	0x02
+#define DF_ACCESSED	0x01
 
 /* Segment types */
 				/* 0x00F2 */
@@ -161,9 +192,13 @@ BOOL DPMI_Notify(UINT,WORD);
 #define ST_STACK32	DF_32|DF_PRESENT|DF_DPL|DF_USER|DF_DATA|DF_EXPANDDOWN| \
 			DF_DWRITEABLE
 
+#define IS_GDT(sel)	(((sel)&4)==0)
+#define IS_LDT(sel)	(((sel)&4)!=0)
+
 /* Segment limit -- 64K */
 #define SL_DEFAULT	(LPARAM)0xFFFF
 
+#ifndef DOSEMU
 typedef struct {
 	LPBYTE lpSelBase;	/* unscrambled segment base */
 	DWORD  dwSelLimit;	/* unscrambled segment limit */
@@ -178,6 +213,7 @@ typedef struct {
 
 extern WORD Sel86Flags[];
 extern DSCR *LDT;
-extern int nLDTSize;
+extern int   nLDTSize;
+#endif
 
 #endif /* DPMI__h */

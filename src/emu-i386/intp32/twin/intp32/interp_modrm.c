@@ -44,282 +44,310 @@ To send email to the maintainer of the Willows Twin Libraries.
 	mailto:twin@willows.com 
 
 changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
+changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
  */
 
 #include "hsw_interp.h"
 #include "mod_rm.h"
 
-int
-hsw_modrm_sib(Interp_ENV *env, int sib)
+static int
+hsw_modrm_sibd(Interp_ENV *env, int sib, unsigned char *base)
 {
+	long v = FETCH_QUAD(base);
 	switch(sib) {
-		case 0: return (EAX + EAX);
-		case 1: return (ECX + EAX);
-		case 2: return (EDX + EAX);
-		case 3: return (EBX + EAX);
-		case 4: return (ESP + EAX);
-		case 5: return (EBP + EAX);
-		case 6: return (ESI + EAX);
-		case 7: return (EDI + EAX);
-		case 8: return (EAX + ECX);
-		case 9: return (ECX + ECX);
-		case 10: return (EDX + ECX);
-		case 11: return (EBX + ECX);
-		case 12: return (ESP + ECX);
-		case 13: return (EBP + ECX);
-		case 14: return (ESI + ECX);
-		case 15: return (EDI + ECX);
-		case 16: return (EAX + EDX);
-		case 17: return (ECX + EDX);
-		case 18: return (EDX + EDX);
-		case 19: return (EBX + EDX);
-		case 20: return (ESP + EDX);
-		case 21: return (EBP + EDX);
-		case 22: return (ESI + EDX);
-		case 23: return (EDI + EDX);
-		case 24: return (EAX + EBX);
-		case 25: return (ECX + EBX);
-		case 26: return (EDX + EBX);
-		case 27: return (EBX + EBX);
-		case 28: return (ESP + EBX);
-		case 29: return (EBP + EBX);
-		case 30: return (ESI + EBX);
-		case 31: return (EDI + EBX);
-		case 32: return (EAX);
-		case 33: return (ECX);
-		case 34: return (EDX);
-		case 35: return (EBX);
-		case 36: return (ESP);
-		case 37: return (EBP);
-		case 38: return (ESI);
-		case 39: return (EDI);
-		case 40: return (EAX + EBP);
-		case 41: return (ECX + EBP);
-		case 42: return (EDX + EBP);
-		case 43: return (EBX + EBP);
-		case 44: return (ESP + EBP);
-		case 45: return (EBP + EBP);
-		case 46: return (ESI + EBP);
-		case 47: return (EDI + EBP);
-		case 48: return (EAX + ESI);
-		case 49: return (ECX + ESI);
-		case 50: return (EDX + ESI);
-		case 51: return (EBX + ESI);
-		case 52: return (ESP + ESI);
-		case 53: return (EBP + ESI);
-		case 54: return (ESI + ESI);
-		case 55: return (EDI + ESI);
-		case 56: return (EAX + EDI);
-		case 57: return (ECX + EDI);
-		case 58: return (EDX + EDI);
-		case 59: return (EBX + EDI);
-		case 60: return (ESP + EDI);
-		case 61: return (EBP + EDI);
-		case 62: return (ESI + EDI);
-		case 63: return (EDI + EDI);
-		case 64: return (EAX + (EAX << 1));
-		case 65: return (ECX + (EAX << 1));
-		case 66: return (EDX + (EAX << 1));
-		case 67: return (EBX + (EAX << 1));
-		case 68: return (ESP + (EAX << 1));
-		case 69: return (EBP + (EAX << 1));
-		case 70: return (ESI + (EAX << 1));
-		case 71: return (EDI + (EAX << 1));
-		case 72: return (EAX + (ECX << 1));
-		case 73: return (ECX + (ECX << 1));
-		case 74: return (EDX + (ECX << 1));
-		case 75: return (EBX + (ECX << 1));
-		case 76: return (ESP + (ECX << 1));
-		case 77: return (EBP + (ECX << 1));
-		case 78: return (ESI + (ECX << 1));
-		case 79: return (EDI + (ECX << 1));
-		case 80: return (EAX + (EDX << 1));
-		case 81: return (ECX + (EDX << 1));
-		case 82: return (EDX + (EDX << 1));
-		case 83: return (EBX + (EDX << 1));
-		case 84: return (ESP + (EDX << 1));
-		case 85: return (EBP + (EDX << 1));
-		case 86: return (ESI + (EDX << 1));
-		case 87: return (EDI + (EDX << 1));
-		case 88: return (EAX + (EBX << 1));
-		case 89: return (ECX + (EBX << 1));
-		case 90: return (EDX + (EBX << 1));
-		case 91: return (EBX + (EBX << 1));
-		case 92: return (ESP + (EBX << 1));
-		case 93: return (EBP + (EBX << 1));
-		case 94: return (ESI + (EBX << 1));
-		case 95: return (EDI + (EBX << 1));
-		case 96: return (EAX);
-		case 97: return (ECX);
-		case 98: return (EDX);
-		case 99: return (EBX);
-		case 100: return (ESP);
-		case 101: return (EBP);
-		case 102: return (ESI);
-		case 103: return (EDI);
-		case 104: return (EAX + (EBP << 1));
-		case 105: return (ECX + (EBP << 1));
-		case 106: return (EDX + (EBP << 1));
-		case 107: return (EBX + (EBP << 1));
-		case 108: return (ESP + (EBP << 1));
-		case 109: return (EBP + (EBP << 1));
-		case 110: return (ESI + (EBP << 1));
-		case 111: return (EDI + (EBP << 1));
-		case 112: return (EAX + (ESI << 1));
-		case 113: return (ECX + (ESI << 1));
-		case 114: return (EDX + (ESI << 1));
-		case 115: return (EBX + (ESI << 1));
-		case 116: return (ESP + (ESI << 1));
-		case 117: return (EBP + (ESI << 1));
-		case 118: return (ESI + (ESI << 1));
-		case 119: return (EDI + (ESI << 1));
-		case 120: return (EAX + (EDI << 1));
-		case 121: return (ECX + (EDI << 1));
-		case 122: return (EDX + (EDI << 1));
-		case 123: return (EBX + (EDI << 1));
-		case 124: return (ESP + (EDI << 1));
-		case 125: return (EBP + (EDI << 1));
-		case 126: return (ESI + (EDI << 1));
-		case 127: return (EDI + (EDI << 1));
-		case 128: return (EAX + (EAX << 2));
-		case 129: return (ECX + (EAX << 2));
-		case 130: return (EDX + (EAX << 2));
-		case 131: return (EBX + (EAX << 2));
-		case 132: return (ESP + (EAX << 2));
-		case 133: return (EBP + (EAX << 2));
-		case 134: return (ESI + (EAX << 2));
-		case 135: return (EDI + (EAX << 2));
-		case 136: return (EAX + (ECX << 2));
-		case 137: return (ECX + (ECX << 2));
-		case 138: return (EDX + (ECX << 2));
-		case 139: return (EBX + (ECX << 2));
-		case 140: return (ESP + (ECX << 2));
-		case 141: return (EBP + (ECX << 2));
-		case 142: return (ESI + (ECX << 2));
-		case 143: return (EDI + (ECX << 2));
-		case 144: return (EAX + (EDX << 2));
-		case 145: return (ECX + (EDX << 2));
-		case 146: return (EDX + (EDX << 2));
-		case 147: return (EBX + (EDX << 2));
-		case 148: return (ESP + (EDX << 2));
-		case 149: return (EBP + (EDX << 2));
-		case 150: return (ESI + (EDX << 2));
-		case 151: return (EDI + (EDX << 2));
-		case 152: return (EAX + (EBX << 2));
-		case 153: return (ECX + (EBX << 2));
-		case 154: return (EDX + (EBX << 2));
-		case 155: return (EBX + (EBX << 2));
-		case 156: return (ESP + (EBX << 2));
-		case 157: return (EBP + (EBX << 2));
-		case 158: return (ESI + (EBX << 2));
-		case 159: return (EDI + (EBX << 2));
-		case 160: return (EAX);
-		case 161: return (ECX);
-		case 162: return (EDX);
-		case 163: return (EBX);
-		case 164: return (ESP);
-		case 165: return (EBP);
-		case 166: return (ESI);
-		case 167: return (EDI);
-		case 168: return (EAX + (EBP << 2));
-		case 169: return (ECX + (EBP << 2));
-		case 170: return (EDX + (EBP << 2));
-		case 171: return (EBX + (EBP << 2));
-		case 172: return (ESP + (EBP << 2));
-		case 173: return (EBP + (EBP << 2));
-		case 174: return (ESI + (EBP << 2));
-		case 175: return (EDI + (EBP << 2));
-		case 176: return (EAX + (ESI << 2));
-		case 177: return (ECX + (ESI << 2));
-		case 178: return (EDX + (ESI << 2));
-		case 179: return (EBX + (ESI << 2));
-		case 180: return (ESP + (ESI << 2));
-		case 181: return (EBP + (ESI << 2));
-		case 182: return (ESI + (ESI << 2));
-		case 183: return (EDI + (ESI << 2));
-		case 184: return (EAX + (EDI << 2));
-		case 185: return (ECX + (EDI << 2));
-		case 186: return (EDX + (EDI << 2));
-		case 187: return (EBX + (EDI << 2));
-		case 188: return (ESP + (EDI << 2));
-		case 189: return (EBP + (EDI << 2));
-		case 190: return (ESI + (EDI << 2));
-		case 191: return (EDI + (EDI << 2));
-		case 192: return (EAX + (EAX << 3));
-		case 193: return (ECX + (EAX << 3));
-		case 194: return (EDX + (EAX << 3));
-		case 195: return (EBX + (EAX << 3));
-		case 196: return (ESP + (EAX << 3));
-		case 197: return (EBP + (EAX << 3));
-		case 198: return (ESI + (EAX << 3));
-		case 199: return (EDI + (EAX << 3));
-		case 200: return (EAX + (ECX << 3));
-		case 201: return (ECX + (ECX << 3));
-		case 202: return (EDX + (ECX << 3));
-		case 203: return (EBX + (ECX << 3));
-		case 204: return (ESP + (ECX << 3));
-		case 205: return (EBP + (ECX << 3));
-		case 206: return (ESI + (ECX << 3));
-		case 207: return (EDI + (ECX << 3));
-		case 208: return (EAX + (EDX << 3));
-		case 209: return (ECX + (EDX << 3));
-		case 210: return (EDX + (EDX << 3));
-		case 211: return (EBX + (EDX << 3));
-		case 212: return (ESP + (EDX << 3));
-		case 213: return (EBP + (EDX << 3));
-		case 214: return (ESI + (EDX << 3));
-		case 215: return (EDI + (EDX << 3));
-		case 216: return (EAX + (EBX << 3));
-		case 217: return (ECX + (EBX << 3));
-		case 218: return (EDX + (EBX << 3));
-		case 219: return (EBX + (EBX << 3));
-		case 220: return (ESP + (EBX << 3));
-		case 221: return (EBP + (EBX << 3));
-		case 222: return (ESI + (EBX << 3));
-		case 223: return (EDI + (EBX << 3));
-		case 224: return (EAX);
-		case 225: return (ECX);
-		case 226: return (EDX);
-		case 227: return (EBX);
-		case 228: return (ESP);
-		case 229: return (EBP);
-		case 230: return (ESI);
-		case 231: return (EDI);
-		case 232: return (EAX + (EBP << 3));
-		case 233: return (ECX + (EBP << 3));
-		case 234: return (EDX + (EBP << 3));
-		case 235: return (EBX + (EBP << 3));
-		case 236: return (ESP + (EBP << 3));
-		case 237: return (EBP + (EBP << 3));
-		case 238: return (ESI + (EBP << 3));
-		case 239: return (EDI + (EBP << 3));
-		case 240: return (EAX + (ESI << 3));
-		case 241: return (ECX + (ESI << 3));
-		case 242: return (EDX + (ESI << 3));
-		case 243: return (EBX + (ESI << 3));
-		case 244: return (ESP + (ESI << 3));
-		case 245: return (EBP + (ESI << 3));
-		case 246: return (ESI + (ESI << 3));
-		case 247: return (EDI + (ESI << 3));
-		case 248: return (EAX + (EDI << 3));
-		case 249: return (ECX + (EDI << 3));
-		case 250: return (EDX + (EDI << 3));
-		case 251: return (EBX + (EDI << 3));
-		case 252: return (ESP + (EDI << 3));
-		case 253: return (EBP + (EDI << 3));
-		case 254: return (ESI + (EDI << 3));
-		case 255: return (EDI + (EDI << 3));
+		/* DS: d32 + (index<<0) */
+		case 0x05: return (v + EAX);
+		case 0x0d: return (v + ECX);
+		case 0x15: return (v + EDX);
+		case 0x1d: return (v + EBX);
+		case 0x25: return (v);
+		case 0x2d: return (v + EBP);
+		case 0x35: return (v + ESI);
+		case 0x3d: return (v + EDI);
+		/* DS: d32 + (index<<1) */
+		case 0x45: return (v + (EAX << 1));
+		case 0x4d: return (v + (ECX << 1));
+		case 0x55: return (v + (EDX << 1));
+		case 0x5d: return (v + (EBX << 1));
+		case 0x6d: return (v + (EBP << 1));
+		case 0x75: return (v + (ESI << 1));
+		case 0x7d: return (v + (EDI << 1));
+		/* DS: d32 + (index<<2) */
+		case 0x85: return (v + (EAX << 2));
+		case 0x8d: return (v + (ECX << 2));
+		case 0x95: return (v + (EDX << 2));
+		case 0x9d: return (v + (EBX << 2));
+		case 0xad: return (v + (EBP << 2));
+		case 0xb5: return (v + (ESI << 2));
+		case 0xbd: return (v + (EDI << 2));
+		/* DS: d32 + (index<<3) */
+		case 0xc5: return (v + (EAX << 3));
+		case 0xcd: return (v + (ECX << 3));
+		case 0xd5: return (v + (EDX << 3));
+		case 0xdd: return (v + (EBX << 3));
+		case 0xed: return (v + (EBP << 3));
+		case 0xf5: return (v + (ESI << 3));
+		case 0xfd: return (v + (EDI << 3));
+		default:   FatalAppExit(0, "SIBD"); return 1;
+	}
+	return 0;	/* because of gcc warning */
+}
+
+static int
+hsw_modrm_sib(Interp_ENV *env, Interp_VAR *interp_var, int sib, unsigned char **ovr)
+{
+	*ovr = LONG_DS;		/* default */
+	switch(sib) {
+		case 0x00: return (EAX + EAX);
+		case 0x01: return (ECX + EAX);
+		case 0x02: return (EDX + EAX);
+		case 0x03: return (EBX + EAX);
+		case 0x04: *ovr = LONG_SS; return (ESP + EAX);
+		case 0x05: *ovr = LONG_SS; return (EBP + EAX);
+		case 0x06: return (ESI + EAX);
+		case 0x07: return (EDI + EAX);
+		case 0x08: return (EAX + ECX);
+		case 0x09: return (ECX + ECX);
+		case 0x0a: return (EDX + ECX);
+		case 0x0b: return (EBX + ECX);
+		case 0x0c: *ovr = LONG_SS; return (ESP + ECX);
+		case 0x0d: *ovr = LONG_SS; return (EBP + ECX);
+		case 0x0e: return (ESI + ECX);
+		case 0x0f: return (EDI + ECX);
+		case 0x10: return (EAX + EDX);
+		case 0x11: return (ECX + EDX);
+		case 0x12: return (EDX + EDX);
+		case 0x13: return (EBX + EDX);
+		case 0x14: *ovr = LONG_SS; return (ESP + EDX);
+		case 0x15: *ovr = LONG_SS; return (EBP + EDX);
+		case 0x16: return (ESI + EDX);
+		case 0x17: return (EDI + EDX);
+		case 0x18: return (EAX + EBX);
+		case 0x19: return (ECX + EBX);
+		case 0x1a: return (EDX + EBX);
+		case 0x1b: return (EBX + EBX);
+		case 0x1c: *ovr = LONG_SS; return (ESP + EBX);
+		case 0x1d: *ovr = LONG_SS; return (EBP + EBX);
+		case 0x1e: return (ESI + EBX);
+		case 0x1f: return (EDI + EBX);
+		case 0x20: return (EAX);
+		case 0x21: return (ECX);
+		case 0x22: return (EDX);
+		case 0x23: return (EBX);
+		case 0x24: *ovr = LONG_SS; return (ESP);
+		case 0x25: *ovr = LONG_SS; return (EBP);
+		case 0x26: return (ESI);
+		case 0x27: return (EDI);
+		case 0x28: return (EAX + EBP);
+		case 0x29: return (ECX + EBP);
+		case 0x2a: return (EDX + EBP);
+		case 0x2b: return (EBX + EBP);
+		case 0x2c: *ovr = LONG_SS; return (ESP + EBP);
+		case 0x2d: *ovr = LONG_SS; return (EBP + EBP);
+		case 0x2e: return (ESI + EBP);
+		case 0x2f: return (EDI + EBP);
+		case 0x30: return (EAX + ESI);
+		case 0x31: return (ECX + ESI);
+		case 0x32: return (EDX + ESI);
+		case 0x33: return (EBX + ESI);
+		case 0x34: *ovr = LONG_SS; return (ESP + ESI);
+		case 0x35: *ovr = LONG_SS; return (EBP + ESI);
+		case 0x36: return (ESI + ESI);
+		case 0x37: return (EDI + ESI);
+		case 0x38: return (EAX + EDI);
+		case 0x39: return (ECX + EDI);
+		case 0x3a: return (EDX + EDI);
+		case 0x3b: return (EBX + EDI);
+		case 0x3c: *ovr = LONG_SS; return (ESP + EDI);
+		case 0x3d: *ovr = LONG_SS; return (EBP + EDI);
+		case 0x3e: return (ESI + EDI);
+		case 0x3f: return (EDI + EDI);
+		case 0x40: return (EAX + (EAX << 1));
+		case 0x41: return (ECX + (EAX << 1));
+		case 0x42: return (EDX + (EAX << 1));
+		case 0x43: return (EBX + (EAX << 1));
+		case 0x44: *ovr = LONG_SS; return (ESP + (EAX << 1));
+		case 0x45: *ovr = LONG_SS; return (EBP + (EAX << 1));
+		case 0x46: return (ESI + (EAX << 1));
+		case 0x47: return (EDI + (EAX << 1));
+		case 0x48: return (EAX + (ECX << 1));
+		case 0x49: return (ECX + (ECX << 1));
+		case 0x4a: return (EDX + (ECX << 1));
+		case 0x4b: return (EBX + (ECX << 1));
+		case 0x4c: *ovr = LONG_SS; return (ESP + (ECX << 1));
+		case 0x4d: *ovr = LONG_SS; return (EBP + (ECX << 1));
+		case 0x4e: return (ESI + (ECX << 1));
+		case 0x4f: return (EDI + (ECX << 1));
+		case 0x50: return (EAX + (EDX << 1));
+		case 0x51: return (ECX + (EDX << 1));
+		case 0x52: return (EDX + (EDX << 1));
+		case 0x53: return (EBX + (EDX << 1));
+		case 0x54: *ovr = LONG_SS; return (ESP + (EDX << 1));
+		case 0x55: *ovr = LONG_SS; return (EBP + (EDX << 1));
+		case 0x56: return (ESI + (EDX << 1));
+		case 0x57: return (EDI + (EDX << 1));
+		case 0x58: return (EAX + (EBX << 1));
+		case 0x59: return (ECX + (EBX << 1));
+		case 0x5a: return (EDX + (EBX << 1));
+		case 0x5b: return (EBX + (EBX << 1));
+		case 0x5c: *ovr = LONG_SS; return (ESP + (EBX << 1));
+		case 0x5d: *ovr = LONG_SS; return (EBP + (EBX << 1));
+		case 0x5e: return (ESI + (EBX << 1));
+		case 0x5f: return (EDI + (EBX << 1));
+/* 01-100-xxx undefined */
+		case 0x68: return (EAX + (EBP << 1));
+		case 0x69: return (ECX + (EBP << 1));
+		case 0x6a: return (EDX + (EBP << 1));
+		case 0x6b: return (EBX + (EBP << 1));
+		case 0x6c: *ovr = LONG_SS; return (ESP + (EBP << 1));
+		case 0x6d: *ovr = LONG_SS; return (EBP + (EBP << 1));
+		case 0x6e: return (ESI + (EBP << 1));
+		case 0x6f: return (EDI + (EBP << 1));
+		case 0x70: return (EAX + (ESI << 1));
+		case 0x71: return (ECX + (ESI << 1));
+		case 0x72: return (EDX + (ESI << 1));
+		case 0x73: return (EBX + (ESI << 1));
+		case 0x74: *ovr = LONG_SS; return (ESP + (ESI << 1));
+		case 0x75: *ovr = LONG_SS; return (EBP + (ESI << 1));
+		case 0x76: return (ESI + (ESI << 1));
+		case 0x77: return (EDI + (ESI << 1));
+		case 0x78: return (EAX + (EDI << 1));
+		case 0x79: return (ECX + (EDI << 1));
+		case 0x7a: return (EDX + (EDI << 1));
+		case 0x7b: return (EBX + (EDI << 1));
+		case 0x7c: *ovr = LONG_SS; return (ESP + (EDI << 1));
+		case 0x7d: *ovr = LONG_SS; return (EBP + (EDI << 1));
+		case 0x7e: return (ESI + (EDI << 1));
+		case 0x7f: return (EDI + (EDI << 1));
+		case 0x80: return (EAX + (EAX << 2));
+		case 0x81: return (ECX + (EAX << 2));
+		case 0x82: return (EDX + (EAX << 2));
+		case 0x83: return (EBX + (EAX << 2));
+		case 0x84: *ovr = LONG_SS; return (ESP + (EAX << 2));
+		case 0x85: *ovr = LONG_SS; return (EBP + (EAX << 2));
+		case 0x86: return (ESI + (EAX << 2));
+		case 0x87: return (EDI + (EAX << 2));
+		case 0x88: return (EAX + (ECX << 2));
+		case 0x89: return (ECX + (ECX << 2));
+		case 0x8a: return (EDX + (ECX << 2));
+		case 0x8b: return (EBX + (ECX << 2));
+		case 0x8c: *ovr = LONG_SS; return (ESP + (ECX << 2));
+		case 0x8d: *ovr = LONG_SS; return (EBP + (ECX << 2));
+		case 0x8e: return (ESI + (ECX << 2));
+		case 0x8f: return (EDI + (ECX << 2));
+		case 0x90: return (EAX + (EDX << 2));
+		case 0x91: return (ECX + (EDX << 2));
+		case 0x92: return (EDX + (EDX << 2));
+		case 0x93: return (EBX + (EDX << 2));
+		case 0x94: *ovr = LONG_SS; return (ESP + (EDX << 2));
+		case 0x95: *ovr = LONG_SS; return (EBP + (EDX << 2));
+		case 0x96: return (ESI + (EDX << 2));
+		case 0x97: return (EDI + (EDX << 2));
+		case 0x98: return (EAX + (EBX << 2));
+		case 0x99: return (ECX + (EBX << 2));
+		case 0x9a: return (EDX + (EBX << 2));
+		case 0x9b: return (EBX + (EBX << 2));
+		case 0x9c: *ovr = LONG_SS; return (ESP + (EBX << 2));
+		case 0x9d: *ovr = LONG_SS; return (EBP + (EBX << 2));
+		case 0x9e: return (ESI + (EBX << 2));
+		case 0x9f: return (EDI + (EBX << 2));
+/* 10-100-xxx undefined */
+		case 0xa8: return (EAX + (EBP << 2));
+		case 0xa9: return (ECX + (EBP << 2));
+		case 0xaa: return (EDX + (EBP << 2));
+		case 0xab: return (EBX + (EBP << 2));
+		case 0xac: *ovr = LONG_SS; return (ESP + (EBP << 2));
+		case 0xad: *ovr = LONG_SS; return (EBP + (EBP << 2));
+		case 0xae: return (ESI + (EBP << 2));
+		case 0xaf: return (EDI + (EBP << 2));
+		case 0xb0: return (EAX + (ESI << 2));
+		case 0xb1: return (ECX + (ESI << 2));
+		case 0xb2: return (EDX + (ESI << 2));
+		case 0xb3: return (EBX + (ESI << 2));
+		case 0xb4: *ovr = LONG_SS; return (ESP + (ESI << 2));
+		case 0xb5: *ovr = LONG_SS; return (EBP + (ESI << 2));
+		case 0xb6: return (ESI + (ESI << 2));
+		case 0xb7: return (EDI + (ESI << 2));
+		case 0xb8: return (EAX + (EDI << 2));
+		case 0xb9: return (ECX + (EDI << 2));
+		case 0xba: return (EDX + (EDI << 2));
+		case 0xbb: return (EBX + (EDI << 2));
+		case 0xbc: *ovr = LONG_SS; return (ESP + (EDI << 2));
+		case 0xbd: *ovr = LONG_SS; return (EBP + (EDI << 2));
+		case 0xbe: return (ESI + (EDI << 2));
+		case 0xbf: return (EDI + (EDI << 2));
+		case 0xc0: return (EAX + (EAX << 3));
+		case 0xc1: return (ECX + (EAX << 3));
+		case 0xc2: return (EDX + (EAX << 3));
+		case 0xc3: return (EBX + (EAX << 3));
+		case 0xc4: *ovr = LONG_SS; return (ESP + (EAX << 3));
+		case 0xc5: *ovr = LONG_SS; return (EBP + (EAX << 3));
+		case 0xc6: return (ESI + (EAX << 3));
+		case 0xc7: return (EDI + (EAX << 3));
+		case 0xc8: return (EAX + (ECX << 3));
+		case 0xc9: return (ECX + (ECX << 3));
+		case 0xca: return (EDX + (ECX << 3));
+		case 0xcb: return (EBX + (ECX << 3));
+		case 0xcc: *ovr = LONG_SS; return (ESP + (ECX << 3));
+		case 0xcd: *ovr = LONG_SS; return (EBP + (ECX << 3));
+		case 0xce: return (ESI + (ECX << 3));
+		case 0xcf: return (EDI + (ECX << 3));
+		case 0xd0: return (EAX + (EDX << 3));
+		case 0xd1: return (ECX + (EDX << 3));
+		case 0xd2: return (EDX + (EDX << 3));
+		case 0xd3: return (EBX + (EDX << 3));
+		case 0xd4: *ovr = LONG_SS; return (ESP + (EDX << 3));
+		case 0xd5: *ovr = LONG_SS; return (EBP + (EDX << 3));
+		case 0xd6: return (ESI + (EDX << 3));
+		case 0xd7: return (EDI + (EDX << 3));
+		case 0xd8: return (EAX + (EBX << 3));
+		case 0xd9: return (ECX + (EBX << 3));
+		case 0xda: return (EDX + (EBX << 3));
+		case 0xdb: return (EBX + (EBX << 3));
+		case 0xdc: *ovr = LONG_SS; return (ESP + (EBX << 3));
+		case 0xdd: *ovr = LONG_SS; return (EBP + (EBX << 3));
+		case 0xde: return (ESI + (EBX << 3));
+		case 0xdf: return (EDI + (EBX << 3));
+/* 11-100-xxx undefined */
+		case 0xe8: return (EAX + (EBP << 3));
+		case 0xe9: return (ECX + (EBP << 3));
+		case 0xea: return (EDX + (EBP << 3));
+		case 0xeb: return (EBX + (EBP << 3));
+		case 0xec: *ovr = LONG_SS; return (ESP + (EBP << 3));
+		case 0xed: *ovr = LONG_SS; return (EBP + (EBP << 3));
+		case 0xee: return (ESI + (EBP << 3));
+		case 0xef: return (EDI + (EBP << 3));
+		case 0xf0: return (EAX + (ESI << 3));
+		case 0xf1: return (ECX + (ESI << 3));
+		case 0xf2: return (EDX + (ESI << 3));
+		case 0xf3: return (EBX + (ESI << 3));
+		case 0xf4: *ovr = LONG_SS; return (ESP + (ESI << 3));
+		case 0xf5: *ovr = LONG_SS; return (EBP + (ESI << 3));
+		case 0xf6: return (ESI + (ESI << 3));
+		case 0xf7: return (EDI + (ESI << 3));
+		case 0xf8: return (EAX + (EDI << 3));
+		case 0xf9: return (ECX + (EDI << 3));
+		case 0xfa: return (EDX + (EDI << 3));
+		case 0xfb: return (EBX + (EDI << 3));
+		case 0xfc: *ovr = LONG_SS; return (ESP + (EDI << 3));
+		case 0xfd: *ovr = LONG_SS; return (EBP + (EDI << 3));
+		case 0xfe: return (ESI + (EDI << 3));
+		case 0xff: return (EDI + (EDI << 3));
+		default:   FatalAppExit(0, "SIB"); return 1;
 	}
 	return 0;	/* because of gcc warning */
 }
 
 
-#if defined(DOSEMU) && defined(DEBUG)
-  #define return(x) ret=(x);break
-  #define DEBUG_ENTRY int ret=0;
-  #define DEBUG_EXIT(args...) \
-	if (!IS_MODE_REG && TRACE_HIGH && (d.emu>2)) e_printf(##args); \
+#if defined(DOSEMU) && defined(MODRM_DEBUG)
+/* WARNING! */
+#define return(x) ret=(x);break
+#define DEBUG_ENTRY int ret=0;
+
+#define DEBUG_EXIT(args...) \
+	if (d.emu>4) e_printf(##args); \
 	return ret  /* NOTE: use 'return xx', _not_ 'return(xx)' !!! */
+
 #else
   #define DEBUG_ENTRY
   #define DEBUG_EXIT(args...) return 0
@@ -1355,7 +1383,7 @@ hsw_modrm_16_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 	}
-	DEBUG_EXIT("------- ref [%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
+	DEBUG_EXIT("------- [EA=%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
 }
 
 
@@ -2389,7 +2417,7 @@ hsw_modrm_16_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 	}
-	DEBUG_EXIT("------- ref [%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
+	DEBUG_EXIT("------- [EA=%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
 }
 
 
@@ -3423,13 +3451,15 @@ hsw_modrm_16_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 	}
-	DEBUG_EXIT("------- ref [%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));
+	DEBUG_EXIT("------- [EA=%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));
 }
 
 
 int
 hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 {
+	unsigned char *ovr;
+	int dsp;
 	DEBUG_ENTRY
 	switch(*(PC+1)) {
 		case MOD_AL_BXSI: 
@@ -3448,10 +3478,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(AL);
 			IS_MODE_REG = 0; return(2);
-		case MOD_AL_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_AL_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(AL);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(AL);
@@ -3480,10 +3518,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(CL);
 			IS_MODE_REG = 0; return(2);
-		case MOD_CL_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_CL_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(CL);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(CL);
@@ -3512,10 +3558,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(DL);
 			IS_MODE_REG = 0; return(2);
-		case MOD_DL_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_DL_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(DL);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(DL);
@@ -3544,10 +3598,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(BL);
 			IS_MODE_REG = 0; return(2);
-		case MOD_BL_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_BL_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(BL);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BL_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(BL);
@@ -3576,10 +3638,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(AH);
 			IS_MODE_REG = 0; return(2);
-		case MOD_AH_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_AH_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(AH);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(AH);
@@ -3608,10 +3678,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(CH);
 			IS_MODE_REG = 0; return(2);
-		case MOD_CH_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_CH_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(CH);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(CH);
@@ -3640,10 +3718,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(DH);
 			IS_MODE_REG = 0; return(2);
-		case MOD_DH_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_DH_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(DH);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(DH);
@@ -3672,10 +3758,18 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 0; return(2);
-		case MOD_BH_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_BH_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = &(BH);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BH_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = &(BH);
@@ -3705,11 +3799,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(AL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(AL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AL_BPimm8: 
@@ -3737,11 +3832,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(CL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(CL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CL_BPimm8: 
@@ -3769,11 +3865,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(DL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(DL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DL_BPimm8: 
@@ -3801,11 +3898,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(BL);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BL_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(BL);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BL_BPimm8: 
@@ -3833,11 +3931,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(AH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(AH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AH_BPimm8: 
@@ -3865,11 +3964,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(CH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(CH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CH_BPimm8: 
@@ -3897,11 +3997,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(DH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(DH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DH_BPimm8: 
@@ -3929,11 +4030,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BH_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BH_BPimm8: 
@@ -3961,11 +4063,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(AL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(AL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AL_BPimm16: 
@@ -3993,11 +4096,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(CL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(CL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CL_BPimm16: 
@@ -4025,11 +4129,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(DL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(DL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DL_BPimm16: 
@@ -4057,11 +4162,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(BL);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BL_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(BL);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BL_BPimm16: 
@@ -4089,11 +4195,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(AH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(AH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AH_BPimm16: 
@@ -4121,11 +4228,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(CH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(CH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CH_BPimm16: 
@@ -4153,11 +4261,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(DH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(DH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DH_BPimm16: 
@@ -4185,11 +4294,12 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BH_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BH_BPimm16: 
@@ -4457,13 +4567,15 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 	}
-	DEBUG_EXIT("------- ref [%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
+	DEBUG_EXIT("------- [EA=%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
 }
 
 
 int
 hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 {
+	unsigned char *ovr;
+	int dsp;
 	DEBUG_ENTRY
 	switch(*(PC+1)) {
 		case MOD_AX_BXSI: 
@@ -4482,10 +4594,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_AX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_AX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(AX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(AX);
@@ -4514,10 +4634,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_CX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_CX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(CX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(CX);
@@ -4546,10 +4674,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_DX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_DX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(DX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(DX);
@@ -4578,10 +4714,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_BX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_BX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(BX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(BX);
@@ -4610,10 +4754,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(2);
-		case MOD_SP_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_SP_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(SP);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(SP);
@@ -4642,10 +4794,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(2);
-		case MOD_BP_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_BP_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(BP);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(BP);
@@ -4674,10 +4834,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(2);
-		case MOD_SI_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_SI_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(SI);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(SI);
@@ -4706,10 +4874,18 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(2);
-		case MOD_DI_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_DI_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(DI);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(DI);
@@ -4739,11 +4915,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPimm8: 
@@ -4771,11 +4948,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPimm8: 
@@ -4803,11 +4981,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPimm8: 
@@ -4835,11 +5014,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPimm8: 
@@ -4867,11 +5047,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPimm8: 
@@ -4899,11 +5080,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPimm8: 
@@ -4931,11 +5113,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPimm8: 
@@ -4963,11 +5146,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPimm8: 
@@ -4995,11 +5179,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(AX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPimm16: 
@@ -5027,11 +5212,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(CX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPimm16: 
@@ -5059,11 +5245,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(DX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPimm16: 
@@ -5091,11 +5278,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(BX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPimm16: 
@@ -5123,11 +5311,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(SP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPimm16: 
@@ -5155,11 +5344,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(BP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPimm16: 
@@ -5187,11 +5377,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(SI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPimm16: 
@@ -5219,11 +5410,12 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPimm16: 
@@ -5491,13 +5683,15 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 	}
-	DEBUG_EXIT("------- ref [%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
+	DEBUG_EXIT("------- [EA=%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
 }
 
 
 int
 hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 {
+	unsigned char *ovr;
+	int dsp;
 	DEBUG_ENTRY
 	switch(*(PC+1)) {
 		case MOD_AX_BXSI: 
@@ -5516,10 +5710,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_AX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_AX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(EAX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_AX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(EAX);
@@ -5548,10 +5750,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_CX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_CX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(ECX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_CX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(ECX);
@@ -5580,10 +5790,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_DX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_DX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(EDX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(EDX);
@@ -5612,10 +5830,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(2);
-		case MOD_BX_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_BX_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(EBX);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BX_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(EBX);
@@ -5644,10 +5870,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(2);
-		case MOD_SP_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_SP_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(ESP);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(ESP);
@@ -5676,10 +5910,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(2);
-		case MOD_BP_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_BP_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(EBP);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_BP_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(EBP);
@@ -5708,10 +5950,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(2);
-		case MOD_SI_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_SI_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(ESI);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_SI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(ESI);
@@ -5740,10 +5990,18 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBX);
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(2);
-		case MOD_DI_SI: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2)));
+		case MOD_DI_SI: {
+			unsigned char sib = *(PC+2);
+			int incpc = 3;
+			if ((sib&7)==5) {
+			  dsp = hsw_modrm_sibd(env,sib,(PC+3));
+			  ovr = LONG_DS; incpc=7;
+			}
+			else
+			  dsp = hsw_modrm_sib(env,interp_var,sib,&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp);
 			interp_var->reg1 = (unsigned char *)&(EDI);
-			IS_MODE_REG = 0; return(3);
+			IS_MODE_REG = 0; return(incpc); }
 		case MOD_DI_DI: 
 			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(FETCH_QUAD((PC+2)));
 			interp_var->reg1 = (unsigned char *)&(EDI);
@@ -5773,11 +6031,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_AX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_AX_BPimm8: 
@@ -5805,11 +6064,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_CX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_CX_BPimm8: 
@@ -5837,11 +6097,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DX_BPimm8: 
@@ -5869,11 +6130,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BX_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BX_BPimm8: 
@@ -5901,11 +6163,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SP_BPimm8: 
@@ -5933,11 +6196,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(4);
 		case MOD_BP_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(3);
 		case MOD_BP_BPimm8: 
@@ -5965,11 +6229,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_SI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_SI_BPimm8: 
@@ -5997,11 +6262,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_SIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+(signed char)*(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+(signed char)*(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(4);
 		case MOD_DI_DIimm8: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+(signed char)*(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+(signed char)*(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(3);
 		case MOD_DI_BPimm8: 
@@ -6029,11 +6295,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_AX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EAX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_AX_BPimm16: 
@@ -6061,11 +6328,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_CX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(ECX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_CX_BPimm16: 
@@ -6093,11 +6361,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EDX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DX_BPimm16: 
@@ -6125,11 +6394,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BX_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EBX);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BX_BPimm16: 
@@ -6157,11 +6427,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(ESP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SP_BPimm16: 
@@ -6189,11 +6460,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(7);
 		case MOD_BP_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EBP);
 			IS_MODE_REG = 0; return(6);
 		case MOD_BP_BPimm16: 
@@ -6221,11 +6493,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_SI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(ESI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_SI_BPimm16: 
@@ -6253,11 +6526,12 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_SIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(hsw_modrm_sib(env,*(PC+2))+FETCH_QUAD(PC+3));
+			dsp = hsw_modrm_sib(env,interp_var,*(PC+2),&ovr);
+			MEM_REF = ALLOW_OVERRIDE(ovr) + (dsp+FETCH_QUAD(PC+3));
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(7);
 		case MOD_DI_DIimm16: 
-			MEM_REF = ALLOW_OVERRIDE(LONG_DS)+(EBP)+FETCH_QUAD(PC+2);
+			MEM_REF = ALLOW_OVERRIDE(LONG_SS)+(EBP)+FETCH_QUAD(PC+2);
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 0; return(6);
 		case MOD_DI_BPimm16: 
@@ -6525,5 +6799,5 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *PC, Interp_VAR *interp_var)
 			interp_var->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 	}
-	DEBUG_EXIT("------- ref [%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));
+	DEBUG_EXIT("------- [EA=%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));
 }

@@ -64,7 +64,7 @@ typedef struct keySEGIMAGE
 #define TRANSFER_CODE16		1	/* 16bit code segment */
 #define TRANSFER_DATA		2	/* 16bit data segment */
 #define TRANSFER_CODE32		3	/* 32bit code segment */
-#define TRANSFER_DATA32		4	/* 16bit data segment */
+#define TRANSFER_DATA32		4	/* 32bit data segment */
 
 /*
  *	this corresponds to a native code segment, which has an alias
