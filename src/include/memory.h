@@ -64,7 +64,7 @@
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
 
 #define LFN_HELPER_SEG	BIOSSEG
-#define LFN_HELPER_OFF	0x4000
+#define LFN_HELPER_OFF	0x3200
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
 /* don't change these for now, they're hardwired! */
@@ -78,14 +78,18 @@
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG
-#define DBGload_OFF (0x8000 - 128)
+#define DBGload_OFF 0x3300
+
+#define DOSEMU_LMHEAP_SEG  BIOSSEG
+#define DOSEMU_LMHEAP_OFF  0x4000
+#define DOSEMU_LMHEAP_SIZE 0x8000
 
 #ifndef ROMBIOSSEG
 #define ROMBIOSSEG	0xf800
 #endif
 
 #define XMSControl_SEG  ROMBIOSSEG
-#define XMSControl_OFF  0
+#define XMSControl_OFF  0x4150
 #define XMSControl_ADD  ((XMSControl_SEG << 4)+XMSControl_OFF)
 #define XMSTrap_ADD     ((XMSControl_SEG << 4)+XMSControl_OFF+5)
 
@@ -99,15 +103,15 @@
 
 
 #define Banner_SEG	ROMBIOSSEG
-#define Banner_OFF	0x2000
+#define Banner_OFF	0x4300
 #define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
 
 #define INT16_SEG	ROMBIOSSEG
-#define INT16_OFF	0x3500
+#define INT16_OFF	0x4400
 #define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
 
 #define IPX_SEG		ROMBIOSSEG
-#define IPX_OFF		0x3100
+#define IPX_OFF		0x4320
 #define IPX_ADD		((IPX_SEG << 4) + IPX_OFF)
 
 #define INT08_SEG	ROMBIOSSEG

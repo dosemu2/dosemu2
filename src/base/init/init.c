@@ -37,6 +37,7 @@
 #include "cmos.h"
 #include "dma.h"
 #include "xms.h"
+#include "lowmem.h"
 #include "iodev.h"
 #include "priv.h"
 #include "doshelpers.h"
@@ -320,6 +321,8 @@ static inline void map_custom_bios(void)
   n = (u_long)bios_f000_end - (u_long)bios_f000_part2;
   ptr = (u_char *) (BIOSSEG << 4) + ((u_long)bios_f000_part2 - (u_long)bios_f000);
   memcpy(ptr, bios_f000_part2, n);
+  /* Initialize the lowmem heap that resides in a custom bios */
+  lowmem_heap_init();
 }
 
 /* 

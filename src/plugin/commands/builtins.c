@@ -10,6 +10,7 @@
 #include "emu.h"
 #include "int.h"
 #include "utilities.h"
+#include "lowmem.h"
 #include "smalloc.h"
 
 /* hope 2K is enough */
@@ -259,35 +260,12 @@ int com_system(char *command, int quit)
 
 static char * com_dosallocmem(int size)
 {
-	/* size in bytes */
-	LWORD(ebx) = (size +15) >> 4;
-	HI(ax) = 0x48;
-	call_msdos();    /* call MSDOS */
-	if (LWORD(eflags) & CF) {
-		com_errno = LWORD(eax);
-		error("dos_alloc failed for %i\n", size);
-		return NULL;
-	}
-	return (char *)SEG2LINEAR(LWORD(eax));
+	return lowmem_heap_alloc(size);
 }
 
 static void com_dosfreemem(char *p)
 {
-	if (!p) {
-		error("Attempt to free NULL\n");
-		return;
-	}
-	if (FP_OFF32(p)) {
-		error("Attempt to free addr %p not from malloc\n", p);
-		return;
-	}
-	LWORD(es) = FP_SEG32(p);
-	HI(ax) = 0x49;
-	call_msdos();    /* call MSDOS */
-	if (LWORD(eflags) & CF) {
-		error("dos_free failed for %p\n", p);
-		com_errno = LWORD(eax);
-	}
+	lowmem_heap_free(p);
 	return;
 }
 

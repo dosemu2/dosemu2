@@ -244,7 +244,7 @@ CISH(PKTDRV_param):
 CISH(PKTDRV_stats):
 	.long	0,0,0,0,0,0,0
 
-/* ===== LFN helper f000:4000 */
+/* ===== LFN helper f000:3200 */
 	.org	((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF
 	pushw	%ds
         pushw	%dx
@@ -272,7 +272,7 @@ CISH(LFN_string):
 /* ----------------------------------------------------------------- */
 
 	.org	((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF
-/* ======================= Addr = F000:7F80 (F7F80) */
+/* ======================= Addr = F000:3300 (F3300) */
 /* we come here after we have intercepted INT21 AX=4B00
  * in order to get a breakpoint for the debugger
  * (wanting to debug a program from it's very beginning)
@@ -307,105 +307,12 @@ CISH(DBGload_parblock):	.word	0
 DBGload_SSSP:		.long	0
 CISH(DBGload_CSIP):	.long	0
 
-/* ----------------------------------------------------------------- */
-
-
-	/* XMS has it's handler just after the interrupt dummy segment */
-	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
-/* ======================= Addr = F800:0000 (F8000) */
-	jmp	(.+2+3)	/* jmp short forward 3 */
-	nop
-	nop
-	nop
-	hlt		/* HLT...the current emulator trap */
-	.byte	INT2F_XMS_MAGIC /* just an info byte. reserved for later */
-	lret
-
-/* ----------------------------------------------------------------- */
-	.org	((Banner_SEG - BIOSSEG) << 4) + Banner_OFF
-/* ======================= Addr = F800:2000 (FA000) */
-
-	movb	$DOS_HELPER_SHOW_BANNER,%al
-	int	$DOSHELPER_INT
-	.byte	0xb2          /* mov dl,#0   or mov dl,#0x80 */
-	.globl	CISH(bios_f000_bootdrive)
-CISH(bios_f000_bootdrive):
-	.byte	0
-	lret
-
-
-/* ----------------------------------------------------------------- */
-	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
-/* ======================= Addr = F800:3100 (FB100) */
-ipx_handler:
-	pushw	%ax	/* FarCallHandler removes this before returning */
-	movb	$DOS_HELPER_IPX_CALL,%al
-	int	$DOSHELPER_INT
-	lret
-
-	.globl	CISH(bios_IPX_FarCall)
-CISH(bios_IPX_FarCall):
-	pushw	%bx
-	movw	$0x0a,%bx
-	lcall   $IPX_SEG, $IPX_OFF
-	/*.byte	0x9a		Official JES hack for call far ipx_handler */
-	/*.long	0xf8003100	### This is address of bios_IPX_FarCall */
-        /* Of course I can only comment out an official hack, never remove - Bart */
-	popw	%bx
-	lret
-
-	.globl	CISH(bios_IPX_PopRegistersReturn)
-CISH(bios_IPX_PopRegistersReturn):
-	popw	%es
-	popw	%ds
-	popw	%bp
-	popw	%di
-	popw	%si
-	popw	%dx
-	popw	%cx
-	popw	%bx
-	movb	$DOS_HELPER_IPX_ENDCALL,%al	/* Allow IPX to know ESR completed */
-	int	$DOSHELPER_INT
-	popw	%ax
-	lret
-	.globl	CISH(bios_IPX_PopRegistersIRet)
-CISH(bios_IPX_PopRegistersIRet):
-	popw	%es
-	popw	%ds
-	popw	%bp
-	popw	%di
-	popw	%si
-	popw	%dx
-	popw	%cx
-	popw	%bx
-	movb	$DOS_HELPER_IPX_ENDCALL,%al
-	int	$DOSHELPER_INT
-	popw	%ax
-	iret
-
-
-/* ----------------------------------------------------------------- */
-
-	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF
-/* ======================= Addr = F800:3500 (FB000) */
-
-	.globl	CISH(INT16_dummy_start)
-CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
-        /* this is all handled by int16.c, except for ah=0/0x10:
-           for that special case we need to loop in vm86 while
-           waiting for the key */
-        sti
-        testb   $0xef, %ah
-        jz      readkey_loop
-        ljmp    $BIOSSEG, $INT_OFF(0x16)
-readkey_loop:
-        pushf
-        lcall   $BIOSSEG, $INT_OFF(0x16)
-        jz      readkey_loop
-        iret
-
-        .globl  CISH(INT16_dummy_end)
-CISH(INT16_dummy_end): 
+	.org	((DOSEMU_LMHEAP_SEG - BIOSSEG) << 4) + DOSEMU_LMHEAP_OFF
+/* ======================= Addr = F000:4000 (F4000) */
+	/* 32K Heap here for the dosemu internal needs */
+	.REPT DOSEMU_LMHEAP_SIZE
+	    .byte 0
+	.ENDR
 
 /* ----------------------------------------------------------------- */   
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF
@@ -466,6 +373,18 @@ CISH(INT70_dummy_start):		/* RTC INTERRUPT ROUTINE	*/
 	iret				/* return to interrupted code	*/
 	.globl  CISH(INT70_dummy_end)
 CISH(INT70_dummy_end):
+
+/* ----------------------------------------------------------------- */
+	/* XMS has it's handler just after the interrupt dummy segment */
+	.org	((XMSControl_SEG - BIOSSEG) << 4) + XMSControl_OFF
+/* ======================= Addr = F800:4150 (FC150) */
+	jmp	(.+2+3)	/* jmp short forward 3 */
+	nop
+	nop
+	nop
+	hlt		/* HLT...the current emulator trap */
+	.byte	INT2F_XMS_MAGIC /* just an info byte. reserved for later */
+	lret
 
 /* ----------------------------------------------------------------- */   
 /* This is for video init only - it calls in order:
@@ -574,6 +493,89 @@ CISH(bios_f000_int10_old):
 	hlt
 	lret	$2    /* keep current flags and avoid another GPF from iret */
 #endif
+
+/* ----------------------------------------------------------------- */
+	.org	((Banner_SEG - BIOSSEG) << 4) + Banner_OFF
+/* ======================= Addr = F800:4300 (FC300) */
+
+	movb	$DOS_HELPER_SHOW_BANNER,%al
+	int	$DOSHELPER_INT
+	.byte	0xb2          /* mov dl,#0   or mov dl,#0x80 */
+	.globl	CISH(bios_f000_bootdrive)
+CISH(bios_f000_bootdrive):
+	.byte	0
+	lret
+
+/* ----------------------------------------------------------------- */
+	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
+/* ======================= Addr = F800:4320 (FC320) */
+ipx_handler:
+	pushw	%ax	/* FarCallHandler removes this before returning */
+	movb	$DOS_HELPER_IPX_CALL,%al
+	int	$DOSHELPER_INT
+	lret
+
+	.globl	CISH(bios_IPX_FarCall)
+CISH(bios_IPX_FarCall):
+	pushw	%bx
+	movw	$0x0a,%bx
+	lcall   $IPX_SEG, $IPX_OFF
+	/*.byte	0x9a		Official JES hack for call far ipx_handler */
+	/*.long	0xf8003100	### This is address of bios_IPX_FarCall */
+        /* Of course I can only comment out an official hack, never remove - Bart */
+	popw	%bx
+	lret
+
+	.globl	CISH(bios_IPX_PopRegistersReturn)
+CISH(bios_IPX_PopRegistersReturn):
+	popw	%es
+	popw	%ds
+	popw	%bp
+	popw	%di
+	popw	%si
+	popw	%dx
+	popw	%cx
+	popw	%bx
+	movb	$DOS_HELPER_IPX_ENDCALL,%al	/* Allow IPX to know ESR completed */
+	int	$DOSHELPER_INT
+	popw	%ax
+	lret
+	.globl	CISH(bios_IPX_PopRegistersIRet)
+CISH(bios_IPX_PopRegistersIRet):
+	popw	%es
+	popw	%ds
+	popw	%bp
+	popw	%di
+	popw	%si
+	popw	%dx
+	popw	%cx
+	popw	%bx
+	movb	$DOS_HELPER_IPX_ENDCALL,%al
+	int	$DOSHELPER_INT
+	popw	%ax
+	iret
+
+/* ----------------------------------------------------------------- */
+	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF
+/* ======================= Addr = F800:4400 (FC400) */
+
+	.globl	CISH(INT16_dummy_start)
+CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
+        /* this is all handled by int16.c, except for ah=0/0x10:
+           for that special case we need to loop in vm86 while
+           waiting for the key */
+        sti
+        testb   $0xef, %ah
+        jz      readkey_loop
+        ljmp    $BIOSSEG, $INT_OFF(0x16)
+readkey_loop:
+        pushf
+        lcall   $BIOSSEG, $INT_OFF(0x16)
+        jz      readkey_loop
+        iret
+
+        .globl  CISH(INT16_dummy_end)
+CISH(INT16_dummy_end): 
 
 /* ----------------------------------------------------------------- */   
 		/* This is an int e7 used for FCB opens */
