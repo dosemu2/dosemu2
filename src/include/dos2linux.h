@@ -46,6 +46,13 @@ struct PSP {
 	unsigned char	cmdline[0x100-0x81];	/* 0x81 */
 } __attribute__((packed));
 
+struct param4a {
+    unsigned short envframe;
+    far_t cmdline;
+    far_t fcb1;
+    far_t fcb2;
+} __attribute__((packed));
+
 struct lowstring {
 	unsigned char len;
 	char s[0];

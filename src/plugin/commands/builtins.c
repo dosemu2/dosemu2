@@ -29,12 +29,6 @@ static char *lowmem_pool;
 static int pool_used = 0;
 #define current_builtin (pool_used - 1)
 
-struct param4a {
-    unsigned short envframe;
-    FAR_PTR cmdline;
-    FAR_PTR fcb1;
-    FAR_PTR fcb2;
-} __attribute__((packed));
 struct {
     char *cmd, *cmdl;
     struct param4a *pa4;
@@ -226,9 +220,9 @@ static int load_and_run_DOS_program(char *command, char *cmdline, int quit)
 
 	/* prepare param block */
 	BMEM(pa4)->envframe = 0; // ctcb->envir_frame;
-	BMEM(pa4)->cmdline = MK_FP(FP_SEG32(BMEM(cmdl)), FP_OFF32(BMEM(cmdl)));
-	BMEM(pa4)->fcb1 = MK_FP(FP_SEG32(psp->FCB1), FP_OFF32(psp->FCB1));
-	BMEM(pa4)->fcb2 = MK_FP(FP_SEG32(psp->FCB2), FP_OFF32(psp->FCB2));
+	BMEM(pa4)->cmdline = (far_t){FP_SEG32(BMEM(cmdl)), FP_OFF32(BMEM(cmdl))};
+	BMEM(pa4)->fcb1 = (far_t){FP_SEG32(psp->FCB1), FP_OFF32(psp->FCB1)};
+	BMEM(pa4)->fcb2 = (far_t){FP_SEG32(psp->FCB2), FP_OFF32(psp->FCB2)};
 	LWORD(es) = FP_SEG32(BMEM(pa4));
 	LWORD(ebx) = FP_OFF32(BMEM(pa4));
 
