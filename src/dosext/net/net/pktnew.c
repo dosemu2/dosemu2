@@ -133,7 +133,7 @@ void pkt_priv_init(void)
     }
 
     if (ret < 0) {
-      error("Cannot open raw sockets: %s\n", strerror(errno));
+      warn("PKT: Cannot open raw sockets: %s\n", strerror(errno));
       pktdrvr_installed = -1;
     }
 }
@@ -170,7 +170,7 @@ pkt_init(int vec)
           strcpy(devname, config.netdev);
         }
         if (Open_sockets(devname) < 0) {
-          error("Cannot allocate TAP device %s: %s\n",
+          warn("PKT: Cannot allocate TAP device %s: %s\n",
 	    strcmp(devname, TAP_DEVICE) ? devname : "(dynamic)",
 	    strerror(errno));
           goto fail;
