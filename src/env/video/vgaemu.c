@@ -2307,7 +2307,7 @@ void dirty_all_video_pages()
  * Set visible text page.
  *
  * `vga.display_start' is set to `page' * `page_size'.
- * This function works only in text modes.
+ * In graphics modes to 'page' * 'page_size' * 8 (quick workaround, FIXME!)
  *
  * arguments:
  * page      - Number of the text page.
@@ -2320,8 +2320,7 @@ void dirty_all_video_pages()
 int vga_emu_set_text_page(unsigned page, unsigned page_size)
 {
   if(vga.mode_class != TEXT) {
-    vga_msg("vga_emu_set_text_page: not in text mode\n");
-    return 1;
+    page_size *= 8;
   }
 
   if((page + 1) * page_size > vga.mem.size) {
