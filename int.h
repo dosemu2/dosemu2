@@ -3,12 +3,15 @@
 #include "ipx.h"
 
 /* 
- * $Date: 1994/05/26 23:15:01 $
+ * $Date: 1994/05/30 00:08:20 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 1.25 $
+ * $Revision: 1.26 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 1.26  1994/05/30  00:08:20  root
+ * Prep for pre51_22 and temp kludge fix for dir a: error.
+ *
  * Revision 1.25  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *
@@ -413,7 +416,7 @@ int1a(void)
     ticks = (elapsed * 182) / 10 + last_ticks;
     LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
     *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
-    LWORD(ecx) = ticks >> 16;
+    LWORD(ecx) = (ticks >> 16) & 0xffff;
     LWORD(edx) = ticks & 0xffff;
     /* dbug_printf("read timer st: %ud %ud t=%d\n",
 				    start_time, ticks, akt_time); */

@@ -3,11 +3,14 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/05/24 01:23:00 $
+ * $Date: 1994/05/30 00:08:20 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 1.35 $
+ * $Revision: 1.36 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 1.36  1994/05/30  00:08:20  root
+ * Prep for pre51_22 and temp kludge fix for dir a: error.
+ *
  * Revision 1.35  1994/05/24  01:23:00  root
  * Lutz's latest, int_queue_run() update.
  *
@@ -528,7 +531,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 1.35 1994/05/24 01:23:00 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 1.36 1994/05/30 00:08:20 root Exp root $\n");
 
   return 0;
 }
@@ -1579,12 +1582,12 @@ do_ioctl(int fd, int req, int param3)
     curi.fd = fd;
     curi.req = req;
     curi.param3 = param3;
-    tmp = ioctl(fd, req, param3);
-    in_ioctl = 0;
     if (iq.queued) {
       k_printf("detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
 	       iq.fd, iq.req, iq.param3);
     }
+    tmp = ioctl(fd, req, param3);
+    in_ioctl = 0;
     return tmp;
   }
 }

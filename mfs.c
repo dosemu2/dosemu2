@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.39  1994/05/30  00:08:20  root
+ * Prep for pre51_22 and temp kludge fix for dir a: error.
+ *
  * Revision 1.38  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *
@@ -726,7 +729,7 @@ get_dos_attr(int mode)
 {
   int attr = 0;
 
-  if (mode & S_IFDIR)
+  if (S_ISDIR(mode) && !S_ISCHR(mode) && !S_ISBLK(mode))
     attr |= DIRECTORY;
   if (!(mode & S_IWRITE))
     attr |= READ_ONLY_FILE;
@@ -3253,7 +3256,7 @@ dos_fs_redirect(state)
       sdb_file_attr(sdb) = get_dos_attr(hlist->mode);
 
       if (hlist->mode & S_IFDIR) {
-	Debug0((dbg_fd, "Directory ---> YES\n"));
+	Debug0((dbg_fd, "Directory ---> YES 0x%x\n", hlist->mode));
 	if (!(attr & DIRECTORY)) {
 	  tmp = hlist->next;
 	  free(hlist);

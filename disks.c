@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/05/26 23:15:01 $
+ * $Date: 1994/05/30 00:08:20 $
  * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
- * $Revision: 1.14 $
+ * $Revision: 1.15 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -398,9 +398,9 @@ disk_open(struct disk *dp)
 
   if (dp == NULL || dp->fdesc >= 0)
     return;
-  dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
+  dp->fdesc = DOS_SYSCALL(open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0));
   if (dp->fdesc < 0) {
-    error("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
+    d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
     fatalerr = 5;
     return;
   }
@@ -943,7 +943,7 @@ int13(void)
   }
 }
 
-#define FLUSH_DELAY 5
+#define FLUSH_DELAY 2
 
 /* flush disks every FLUSH_DELAY seconds
  * XXX - make this configurable later

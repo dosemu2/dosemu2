@@ -16,6 +16,7 @@
 #include "emu.h"
 #include "memory.h"
 #include "video.h"
+#include "../disks.h"
 
 unsigned char trans[] =		/* LATIN CHAR SET */
 {
@@ -477,7 +478,7 @@ char_out(unsigned char ch, int s, int advflag)
 void
 clear_screen(int s, int att)
 {
-  us *sadr, *p, blank = ' ' | (att << 8);
+  u_short *sadr, *p, blank = ' ' | (att << 8);
   int lx;
 
   update_screen = 0;
@@ -485,11 +486,14 @@ clear_screen(int s, int att)
   if (s > max_page)
     return;
   sadr = SCREEN_ADR(s);
+#if 0
+  scrbuf = malloc(CO * LI * 2);
+#endif
   cli();
 
   for (p = sadr, lx = 0; lx < (CO * LI); *(p++) = blank, lx++) ;
   if (!config.console_video) {
-    memcpy(scrbuf, sadr, CO * LI * 2);
+    memcpy(scrbuf, (u_char *)sadr, CO * LI * 2 );
     if (s == bios_current_screen_page) {
 #ifdef USE_NCURSES
       attrset(A_NORMAL);		/* should set attribute according to 'att' */

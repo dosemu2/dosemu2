@@ -1,3 +1,8 @@
+Sun May 29 1994 JES
+
+-	Stuck in a fix for DIR a: error. It's a KLUDGE  for now, but
+	I hope it will show where the error is.
+
 Thr May 26 1994 JES
 
 -	More mods to int_queue_run(). Changed where set_leds() is 

@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
 /* 
- * $Date: 1994/05/26 23:15:01 $
+ * $Date: 1994/05/30 00:08:20 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 1.13 $
+ * $Revision: 1.14 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 1.14  1994/05/30  00:08:20  root
+ * Prep for pre51_22 and temp kludge fix for dir a: error.
+ *
  * Revision 1.13  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *
@@ -262,7 +265,7 @@ outb(int port, int byte)
 #if 1 /* 94/05/11 */
     *OUTB_ADD=1;
 #endif
-    if (byte != 0x20)
+    if (port == 0x20 && byte != 0x20)
       set_leds();
     break;
   case 0x60:

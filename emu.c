@@ -1,12 +1,15 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/05/26 23:15:01 $
+ * $Date: 1994/05/30 00:08:20 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 1.86 $
+ * $Revision: 1.87 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 1.87  1994/05/30  00:08:20  root
+ * Prep for pre51_22 and temp kludge fix for dir a: error.
+ *
  * Revision 1.86  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *
@@ -479,7 +482,7 @@ struct int_queue_list_struct {
 #endif
 
 int scrtest_bitmap, update_screen;	/* Flags to test if screen to be updated */
-unsigned char *scrbuf;		/* the previously updated screen */
+unsigned char *scrbuf;	/* the previously updated screen */
 
 int card_init = 0;		/* VGAon exectuted flag */
 unsigned long precard_eip, precard_cs;	/* Save state at VGAon */
@@ -1015,18 +1018,19 @@ sigalrm(int sig, struct sigcontext_struct context)
   static int partials = 0;
   static u_char timals = 0;
 
-#ifdef DPMI
-  if (in_dpmi && !in_vm86)
-    dpmi_sigalrm(&context);
-#endif /* DPMI */
-
-  if (inalrm) {
-    error("ERROR: Reentering SIGALRM!\n");
+  if (inalrm || in_sighandler) {
+    error("ERROR: Reentering SIGALRM! alrm=%d, in_sig=%d\n", inalrm, in_sighandler);
+    setitimer(TIMER_TIME, &itv, NULL);
     return;
   }
 
   inalrm = 1;
   in_sighandler = 1;
+
+#ifdef DPMI
+  if (in_dpmi && !in_vm86)
+    dpmi_sigalrm(&context);
+#endif /* DPMI */
 
   if (((vm86s.screen_bitmap & scrtest_bitmap && !config.console_video) ||
        (update_screen && !config.console_video)) && !running) {
@@ -1036,7 +1040,9 @@ sigalrm(int sig, struct sigcontext_struct context)
     running = 0;
   }
 
+#if 0
   setitimer(TIMER_TIME, &itv, NULL);
+#endif
 
   if (mice->intdrv)
     mouse_curtick();
@@ -1070,7 +1076,7 @@ sigalrm(int sig, struct sigcontext_struct context)
     }
   }
   else
-    error("NOT CONFIG.TIMERS\n");
+    h_printf("NOT CONFIG.TIMERS\n");
 
   /* Call select to see if any I/O is ready on devices */
   io_select();
@@ -1079,10 +1085,6 @@ sigalrm(int sig, struct sigcontext_struct context)
   partials++;
   if (partials == FREQ) {
     partials = 0;
-#if 0 /* Try seting leds in ports.h outb 0x20 94/05/25 */
-    if (config.console_keyb)
-      set_leds();
-#endif
     printer_tick((u_long) 0);
     if (config.fastfloppy)
       floppy_tick();
@@ -1678,8 +1680,9 @@ void
   exchange_uids();
 
   /* allocate screen buffer for non-console video compare speedup */
-  scrbuf = malloc(CO * LI * 2);
-  v_printf("SCREEN saves at: %p\n", scrbuf);
+  scrbuf = (u_char *)malloc(CO * LI * 2);
+  scrbuf = (u_char *)malloc(CO * LI * 2);
+  v_printf("SCREEN saves at: %p of %d size\n", scrbuf, CO * LI * 2);
 
   /* setup DOS memory, whether shared or not */
   memory_setup();
@@ -1880,6 +1883,7 @@ ign_sigs(int sig) {
   static int otherints = 0;
 
   error("ERROR: signal %d received in leavedos()\n", sig);
+  show_regs();
   if (sig == SIG_TIME)
     timerints++;
   else
@@ -1906,6 +1910,7 @@ void
   /* remove tmpdir */
   rmdir(tmpdir);
 
+  setitimer(TIMER_TIME, NULL, NULL);
   SETSIG(SIG_TIME, ign_sigs);
   SETSIG(SIGSEGV, ign_sigs);
   SETSIG(SIGILL, ign_sigs);
@@ -1974,7 +1979,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.86 1994/05/26 23:15:01 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.87 1994/05/30 00:08:20 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2192,7 +2197,7 @@ int
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/05/26 23:15:01 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/05/30 00:08:20 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -2208,14 +2213,6 @@ int
     set_keyboard_bios();
     insert_into_keybuffer();
     break;
-
-#if 0				/* May 17 94 */
-  case 7:			/* Do int09 set_keyboard_bios() */
-    k_printf("Doing INT9 set_keyboard_bio() ax=0x%04x\n", LWORD(eax));
-    set_keyboard_bios();
-    LO(ax) = HI(ax);
-    break;
-#endif
 
   case 8:
     v_printf("Starting Video initialization\n");

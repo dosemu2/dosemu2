@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/05/26 23:15:01 $
+ * $Date: 1994/05/30 00:08:20 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 1.24 $
+ * $Revision: 1.25 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 1.25  1994/05/30  00:08:20  root
+ * Prep for pre51_22 and temp kludge fix for dir a: error.
+ *
  * Revision 1.24  1994/05/26  23:15:01  root
  * Prep. for pre51_21.
  *
@@ -401,7 +404,7 @@ io_select(void)
   if (mice->intdrv)
     FD_SET(mice->fd, &fds);
 
-  switch ((selrtn = select(10, &fds, NULL, NULL, &tvptr))) {
+  switch ((selrtn = select(15, &fds, NULL, NULL, &tvptr))) {
     case 0:			/* none ready, nothing to do :-) */
       return;
       break;
