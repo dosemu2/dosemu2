@@ -1,3 +1,12 @@
+98/05/31 ver. 0.97.8 released
+	From Alistair (+ Hans)
+	- new Tcl/Tk based runtime setup. We cuurently only support that
+	  and have disabled the dialog based stuff until we get that
+	  fixed/ported. Maybe we leave it in this state for 1.0.
+	  The main ./setup-dosemu wrapper will only start the Tcl/Tk stuff
+	  when available, else an informative message will be printed.
+	From Hans
+	- added dos.1 to ViewDocs
 98/05/28 ver. 0.97.7.1 unofficial pre-release
 	From Eric
 	- Fixed Ctrl-Alt-Fn for 'video {vga}' and raw keyboard.

@@ -3,13 +3,26 @@
 # Front end to the runtime & compile time scripts.
 #
 
+if hash wish >/dev/null 2>&1; then
+  if [ "$DISPLAY" != "" ]; then
+    echo "
+*** NOTE: setup-dosemu currently is only able to handle runtime setup
+***       via TclTk. Fortunately you have that installed ;-)
+"
+    cd setup
+    exec ./runtime_setup.tk
+  fi
+fi
+
 echo "
 *** NOTE: setup-dosemu isn't correctly updated to the recent changes
-***       in the configuration stuff. Don't use it at the moment !!
+***       in the configuration stuff. Though it can handle the runtime setup
+***       via TclTk, you either don't have that installed or are not running X.
+***       Hence, don't use setup-dosemu at the moment !!
 ***       We will fix this in the near future though.
 ***
 ***       In the meantime just do 'make' to compile DOSEMU and edit
-***       the /etc/dosemu.conf manually.              --Hans, 980424
+***       the /etc/dosemu.conf manually.              --Hans, 980531
 "
 exit 1
 

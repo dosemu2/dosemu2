@@ -107,6 +107,12 @@ function handle_menu () {
       handle_boolean()
     } else if (test == "input") {
       handle_input()
+    } else if (test == "string") {
+      handle_input()
+    } else if (test == "integer") {
+      handle_input()
+    } else if (test == "float") {
+      handle_input()
     } else if (test == "list") {
       handle_list()
     } else if (test == "text") {

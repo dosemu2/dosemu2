@@ -6,13 +6,17 @@ our users, so we just supply this script to help them ;-)
 
 What info do you want to be displayed ? (enter a number)
 "
-LIST="README.txt README-tech.txt configuration.txt bugreports.txt dosemu-HOWTO.txt "
+LIST="README.txt README-tech.txt manpage configuration.txt bugreports.txt dosemu-HOWTO.txt "
 CONF="dosemu.conf chapter"
 
 select file in "$CONF"  $LIST; do
   if [ "$file" = "$CONF" ]; then
     line=`col -b <doc/README.txt| grep -n 'Runtime Configuration Options'|tail -n1|cut -d: -f1`
     less +$line ./doc/README.txt
+    exit 0
+  fi
+  if [ "$file" = "manpage" ]; then
+    groff -s -p -t -e -Tascii -mandoc ./man/dos.1|less
     exit 0
   fi
   for i in $LIST; do

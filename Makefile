@@ -86,6 +86,7 @@ pristine:  docsclean mididclean
 	rm -f core `find . -name '*[\.]rej'`
 	rm -f core gen*.log `find . -size 0`
 	(cd setup/demudialog; make clean)
+	(cd setup/parser; make clean)
 	rm -rf ./bindist
 	rm -f Makefile.conf
 
