@@ -374,6 +374,7 @@ printer			RETURN(PRINTER);
 emusys                  RETURN(EMUSYS);
 emuini                  RETURN(EMUINI);
 full_file_locks		RETURN(FULL_FILE_LOCKS);
+lfn_support		RETURN(LFN_SUPPORT);
 ttylocks		RETURN(TTYLOCKS);
 sound_emu               RETURN(L_SOUND);
 oss_options             RETURN(L_SND_OSS);

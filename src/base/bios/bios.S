@@ -244,6 +244,30 @@ CISH(PKTDRV_param):
 CISH(PKTDRV_stats):
 	.long	0,0,0,0,0,0,0
 
+/* ===== LFN helper f000:4000 */
+	.org	((LFN_HELPER_SEG-BIOSSEG) << 4)+LFN_HELPER_OFF
+	pushw	%ds
+        pushw	%dx
+        pushw	%si
+        movw    %cs, %si
+        movw	%si, %ds
+        movw	$LFN_string, %si
+	cmpb	$0x6c, %ah
+        je	do_6c
+        movw	%si, %dx
+        jmp     do_int21
+do_6c:
+        testb   $0x10, %dl      /* created? */
+        jz      do_int21
+        movb    $1, %dl         /* then transform to open */
+do_int21:
+        int	$0x21
+        popw	%si
+        popw	%dx
+        popw	%ds
+        lret
+        .globl  CISH(LFN_string)
+CISH(LFN_string):
 
 /* ----------------------------------------------------------------- */
 

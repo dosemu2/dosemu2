@@ -320,6 +320,9 @@ typedef struct vesamode_type_struct {
        char *tty_lockfile;	/* Lock file pretext ie LCK.. */
        boolean tty_lockbinary;	/* Binary lock files ? */
 
+       /* LFN support */
+       boolean lfn;
+
        /* type of mapping driver */
        char *mappingdriver;
 
@@ -401,6 +404,7 @@ EXTERN void cpu_setup(void);
 EXTERN void real_run_int(int);
 #define run_int do_int
 EXTERN int mfs_redirector(void);
+EXTERN int mfs_lfn(void);
 EXTERN int int10(void);
 EXTERN int int13(void);
 EXTERN int int16(void);

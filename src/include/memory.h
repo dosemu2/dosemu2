@@ -63,6 +63,10 @@
 #define PKTDRV_OFF	0x3100
 #define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
 
+#define LFN_HELPER_SEG	BIOSSEG
+#define LFN_HELPER_OFF	0x4000
+#define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
+
 /* don't change these for now, they're hardwired! */
 #define Mouse_SEG       (BIOSSEG)
 #define Mouse_OFF       0x20f0

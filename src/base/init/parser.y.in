@@ -230,6 +230,7 @@ static int is_in_allowed_classes(int mask);
 %token ABORT WARN
 %token BOOTDISK L_FLOPPY EMUSYS EMUINI L_X
 %token DOSEMUMAP LOGBUFSIZE LOGFILESIZE MAPPINGDRIVER
+%token LFN_SUPPORT
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
@@ -417,6 +418,10 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| FULL_FILE_LOCKS bool
 		    {
 		    config.full_file_locks = ($2!=0);
+		    }
+		| LFN_SUPPORT bool
+		    {
+		    config.lfn = ($2!=0);
 		    }
 		| FASTFLOPPY floppy_bool
 			{

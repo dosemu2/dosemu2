@@ -22,6 +22,8 @@ extern void bios_f000_int10ptr(void);
 extern void bios_f000_bootdrive(void);
 extern void bios_f000_int10_old(void);
 
+extern char LFN_string[];
+
 #define INT2F_IDLE_MAGIC	0x1680
 
 /*

@@ -47,6 +47,9 @@
  *
  * HISTORY:
  * $Log$
+ * Revision 1.3  2003/07/15 18:28:23  bartoldeman
+ * Add support for Long File Names (default=off)
+ *
  * Revision 1.2  2003/07/15 16:58:08  bartoldeman
  * Small optimization.
  *
@@ -281,15 +284,13 @@ static u_char redirected_drives = 0;
 
 static int calculate_drive_pointers(int);
 static boolean_t dos_fs_dev(state_t *);
-static boolean_t find_file(char *, struct stat *);
 static boolean_t compare(char *, char *, char *, char *);
 static int dos_fs_redirect(state_t *);
-static int build_ufs_path(char *ufs, const char *path);
 static int is_long_path(const char *s);
 
 static boolean_t drives_initialized = FALSE;
-static char *dos_roots[MAX_DRIVE];
-static int dos_root_lens[MAX_DRIVE];
+char *dos_roots[MAX_DRIVE];
+int dos_root_lens[MAX_DRIVE];
 static boolean_t read_onlys[MAX_DRIVE];
 static boolean_t finds_in_progress[MAX_DRIVE];
 static struct file_fd open_files[256];
@@ -302,15 +303,15 @@ static boolean_t read_only = FALSE;
 
 lol_t lol = NULL;
 static far_t cdsfarptr;
-static cds_t cds_base;
-static cds_t cds;
-static sda_t sda;
+cds_t cds_base;
+cds_t cds;
+sda_t sda;
 
 static int dos_major;
 static int dos_minor;
 
-static char *dos_root = "";
-static int dos_root_len = 0;
+char *dos_root = "";
+int dos_root_len = 0;
 
 /* initialize 'em to 3.1 to 3.3 */
 
@@ -567,16 +568,14 @@ select_drive(state_t *state)
   return (1);
 }
 
-static boolean_t
-is_hidden(char *fname)
+boolean_t is_hidden(char *fname)
 {
   char *p = strrchr(fname,'/');
   if (p) fname = p+1;
   return(fname[0] == '.' && strcmpDOS(fname,"..") && fname[1]);
 }
 
-static int
-get_dos_attr(int mode,boolean_t hidden)
+int get_dos_attr(int mode,boolean_t hidden)
 {
   int attr = 0;
 
@@ -591,8 +590,7 @@ get_dos_attr(int mode,boolean_t hidden)
   return (attr);
 }
 
-static int
-get_unix_attr(int mode, int attr)
+int get_unix_attr(int mode, int attr)
 {
 	enum { S_IWRITEA = S_IWUSR | S_IWGRP | S_IWOTH };
 
@@ -1142,8 +1140,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
  * Another useless specialized parsing routine!
  * Assumes that a legal string is passed in.
  */
-static void
-auspr(char *filestring0, char *name, char *ext)
+void auspr(char *filestring0, char *name, char *ext)
 {
   char filestring[100];
 
@@ -1581,7 +1578,7 @@ dos_fs_dev(state_t *state)
   return (UNCHANGED);
 }
 
-static inline void time_to_dos(time_t clock, u_short *date, u_short *time)
+void time_to_dos(time_t clock, u_short *date, u_short *time)
 {
   struct tm *tm;
 
@@ -1596,7 +1593,7 @@ static inline void time_to_dos(time_t clock, u_short *date, u_short *time)
 	   ((tm->tm_sec>>1) & 0x1f));
 }
 
-static inline time_t time_to_unix(u_short dos_date, u_short dos_time) 
+time_t time_to_unix(u_short dos_date, u_short dos_time) 
 {
    struct tm T;
    T.tm_sec  = (dos_time & 0x1f) << 1;    dos_time >>= 5;
@@ -1620,7 +1617,6 @@ __inline__ static void
 path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar)
 {
   char ch;
-  int inenv = 0;
 
   if (ufs_offset < MAXPATHLEN) do {
     ch = *path++;
@@ -1628,10 +1624,8 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar)
       ch = EOS;
     switch (ch) {
     case BACKSLASH:
-      if (PreserveEnvVar && 	/* Check for environment variable */
-          path[0] == '$' && path[1] == '{')
-        inenv = 1;
-      else
+      if (!(PreserveEnvVar &&    /* Check for environment variable */
+            path[0] == '$' && path[1] == '{'))
 	ch = SLASH;
       /* fall through */
     case EOS:  
@@ -1641,11 +1635,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar)
       while(ufs_offset > 0 && ufs[ufs_offset - 1] == ' ')
         ufs_offset--;
       break;
-    case '}':
-      inenv = 0;
     default:
-      if (!inenv)
-	ch = tolowerDOS(ch);
       break;
     }
     ufs[ufs_offset++] = ch;
@@ -1654,7 +1644,7 @@ path_to_ufs(char *ufs, size_t ufs_offset, const char *path, int PreserveEnvVar)
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-static int build_ufs_path(char *ufs, const char *path)
+int build_ufs_path(char *ufs, const char *path)
 {
   int i;
 
@@ -1666,7 +1656,7 @@ static int build_ufs_path(char *ufs, const char *path)
   if (path[1]==':')
     path += cds_rootlen(cds);
   
-  Debug0((dbg_fd,"MFS: dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path, dos_root_len));
+  Debug0((dbg_fd,"dos_gen: ufs '%s', path '%s', l=%d\n", ufs, path, dos_root_len));
   
   path_to_ufs(ufs, dos_root_len, path, 0);
   
@@ -1707,18 +1697,21 @@ scan_dir(char *path, char *name)
   while ((cur_ent = dos_readdir(cur_dir))) {
     char tmpname[100];
 
-    if (cur_ent->d_ino == 0)
-      continue;
+    if (strcasecmpDOS(name, cur_ent->d_name) != 0) {
+            
+      if (cur_ent->d_ino == 0)
+        continue;
 
-    if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
-      continue;
+      if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
+        continue;
 
-    if (tmpname[0] == '.' &&
-	strncasecmpDOS(path, dos_root, strlen(path)) != 0)
-      continue;
+      if (tmpname[0] == '.' &&
+	  strncasecmpDOS(path, dos_root, strlen(path)) != 0)
+        continue;
 
-    if (strcasecmpDOS(name, tmpname) != 0)
-      continue;
+      if (strcasecmpDOS(name, tmpname) != 0)
+        continue;
+    }
 
     Debug0((dbg_fd, "scan_dir found %s\n",cur_ent->d_name));
 
@@ -1742,7 +1735,7 @@ scan_dir(char *path, char *name)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-static boolean_t find_file(char *fpath, struct stat * st)
+boolean_t find_file(char *fpath, struct stat * st)
 {
   char *slash1, *slash2;
 
@@ -1780,10 +1773,17 @@ static boolean_t find_file(char *fpath, struct stat * st)
   slash1 = fpath + dos_root_len - 1;
 
   /* maybe if we make it all lower case, this is a "best guess" */
-  for (slash2 = slash1; *slash2; ++slash2)
-    *slash2 = tolowerDOS(*slash2);
-  if (stat(fpath, st) == 0)
-    return (TRUE);
+  {
+    char remainder[MAXPATHLEN];
+    memcpy(remainder, fpath, slash1 - fpath);
+    for (slash2 = slash1; *slash2; ++slash2)
+      remainder[slash2-fpath] = tolowerDOS(*slash2);
+    remainder[slash2-fpath] = '\0';
+    if (stat(remainder, st) == 0) {
+      strcpy(fpath, remainder);
+      return (TRUE);
+    }
+  }
 
   /* now match each part of the path name separately, trying the names
      as is first, then tring to scan the directory for matching names */
@@ -2910,10 +2910,11 @@ dos_fs_redirect(state_t *state)
       SETWORD(&(state->eax), ACCESS_DENIED);
       return (FALSE);
     }
+    bs_pos = strrchr(fpath, '/');
+    if (bs_pos == NULL)
+      bs_pos = fpath;
+    strlowerDOS(bs_pos);
     if (mkdir(fpath, 0775) != 0) {
-      bs_pos = strrchr(fpath, '/');
-      if (bs_pos == NULL)
-        bs_pos = fpath;
       strcpy(buf, bs_pos);
       *bs_pos = EOS;
       find_file(fpath, &st);
@@ -3523,6 +3524,7 @@ dos_fs_redirect(state_t *state)
     bs_pos=strrchr(fpath, '/');
     if (bs_pos == NULL)
       bs_pos = fpath;
+    strlowerDOS(bs_pos);
     auspr(bs_pos + 1, fname, fext);
     if (find_file(fpath, &st)) {
       devptr = is_dos_device(fpath);

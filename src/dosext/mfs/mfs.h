@@ -11,6 +11,8 @@ emulator.
 Andrew.Tridgell@anu.edu.au 30th March 1993
 */
 
+#include <sys/stat.h>
+
 #ifdef DOSEMU
 /* definitions to make mach emu code compatible with dosemu */
 #include "emu.h"
@@ -97,8 +99,11 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log$
- * Revision 1.1  2003/06/23 00:02:08  bartoldeman
- * Initial revision
+ * Revision 1.2  2003/07/15 18:28:23  bartoldeman
+ * Add support for Long File Names (default=off)
+ *
+ * Revision 1.1.1.1  2003/06/23 00:02:08  bartoldeman
+ * Initial import (dosemu-1.1.5.2).
  *
  * Revision 1.2  1995/05/23  06:04:49  root
  * fix for redirector open existing file function
@@ -315,6 +320,12 @@ typedef u_char *sft_t;
 #define	sft_fd(sft)		(*(u_char *)&sft[sft_fd_off])
 
 typedef u_char *cds_t;
+extern cds_t cds_base;
+extern cds_t cds;
+extern int cds_current_path_off;
+extern int cds_rootlen_off;
+extern int cds_record_size;
+
 
 #define	cds_current_path(cds)	((char	   *)&cds[cds_current_path_off])
 #define	cds_flags(cds)		(*(u_short *)&cds[cds_flags_off])
@@ -337,8 +348,16 @@ typedef u_short *psp_t;
 #define PSPPTR(x) (Addr_8086(x, 0))
 
 typedef u_char *sda_t;
+extern sda_t sda;
+extern int sda_cur_drive_off;
+
+extern char *dos_roots[MAX_DRIVE];
+extern char *dos_root;
+extern int dos_root_lens[MAX_DRIVE];
+extern int dos_root_len;
 
 #define	sda_current_dta(sda)	((char *)(FARPTR((far_t *)&sda[sda_current_dta_off])))
+#define	sda_error_code(sda)		(*(u_short *)&sda[4])
 #define sda_cur_psp(sda)		(*(u_short *)&sda[sda_cur_psp_off])
 #define sda_cur_drive(sda)		(*(u_char *)&sda[sda_cur_drive_off])
 #define sda_filename1(sda)		((char  *)&sda[sda_filename1_off])
@@ -411,3 +430,15 @@ typedef struct lol_record {
 #define REDIRECT_DEVICE 3
 #define CANCEL_REDIRECTION 4
 #define EXTENDED_GET_REDIRECTION 5
+
+extern int build_ufs_path(char *ufs, const char *path);
+extern boolean_t find_file(char *fpath, struct stat *st);
+extern boolean_t is_hidden(char *fname);
+extern int get_dos_attr(int mode,boolean_t hidden);
+extern int get_unix_attr(int mode, int attr);
+extern void time_to_dos(time_t clock, u_short *date, u_short *time);
+extern time_t time_to_unix(u_short dos_date, u_short dos_time);
+extern void auspr(char *filestring0, char *name, char *ext);
+
+
+

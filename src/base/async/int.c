@@ -1195,6 +1195,10 @@ static int int21(void)
     }
     return 0;
 
+  case 0x71:
+    if (config.lfn)
+      return mfs_lfn();
+
   default:
     return 0;
   }
@@ -1396,6 +1400,12 @@ static int can_revector_int21(int i)
     else
       return NO_REVECT;
 
+  case 0x71:          /* LFN functions */
+    if (config.lfn)
+      return REVECT;
+    else
+      return NO_REVECT;
+          
   default:
     return NO_REVECT;      /* don't emulate most int 21h functions */
   }
