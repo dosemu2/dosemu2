@@ -462,27 +462,20 @@ run_vm86(void)
 	pic_iret();
 	break;
     case VM86_INTx:
-	if (in_dpmi) {
-	    switch (VM86_ARG(retval)) {
-		case 0x1c:	/* ROM BIOS timer tick interrupt */
-		case 0x23:	/* DOS Ctrl+C interrupt */
-		case 0x24:	/* DOS critical error interrupt */
-		    if (SEGOFF2LINEAR(BIOSSEG, INT_OFF(VM86_ARG(retval))) !=
- 			SEGOFF2LINEAR(_CS, _IP) -2)
-			run_pm_int(VM86_ARG(retval));
-		    else
-			do_int(VM86_ARG(retval));
-		    break;
-		default:
-		    do_int(VM86_ARG(retval));
-#ifdef USE_MHPDBG
-		    mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
-#endif
-	    }
+	if (
+	    in_dpmi &&
+	    (
+	     VM86_ARG(retval) == 0x1c || /* ROM BIOS timer tick interrupt */
+	     VM86_ARG(retval) == 0x23 || /* DOS Ctrl+C interrupt */
+	     VM86_ARG(retval) == 0x24    /* DOS critical error interrupt */
+	    ) &&
+	    SEGOFF2LINEAR(BIOSSEG, INT_OFF(VM86_ARG(retval))) !=
+ 		SEG_ADR((int), cs, ip) -2) {
+	  run_pm_int(VM86_ARG(retval));
 	} else {
-	    do_int(VM86_ARG(retval));
+	  do_int(VM86_ARG(retval));
 #ifdef USE_MHPDBG
-	    mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
+	  mhp_debug(DBG_INTx + (VM86_ARG(retval) << 8), 0, 0);
 #endif
 	}
 	break;
