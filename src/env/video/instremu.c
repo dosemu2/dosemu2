@@ -2381,7 +2381,7 @@ static void x86_regs_to_scp(x86_regs *x86, struct sigcontext_struct *scp, int pm
  * DANG_END_FUNCTION                        
  */
  
-void instr_emu(struct sigcontext_struct *scp, int pmode)
+void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt)
 {
 #if DEBUG_INSTR >= 1
   unsigned int ref;
@@ -2403,14 +2403,14 @@ void instr_emu(struct sigcontext_struct *scp, int pmode)
 }
 #endif
 
-  count = COUNT + 1;
+  count = cnt ? : COUNT + 1;
   vga_base = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page << 12;
   vga_end =  vga_base + (vga.mem.map[VGAEMU_MAP_BANK_MODE].pages << 12);
 
   x86.prefixes = 1;
   
   do {
-    if (signal_pending || !instr_sim(&x86, pmode))
+    if ((!cnt && signal_pending) || !instr_sim(&x86, pmode))
       break;
     i = 1;
   } while (--count > 0);

@@ -609,7 +609,7 @@ unsigned char Herc_get_mode_ctrl(void);
  */
 
 unsigned instr_len(unsigned char *);
-void instr_emu(struct sigcontext_struct *scp, int pmode);
+void instr_emu(struct sigcontext_struct *scp, int pmode, int cnt);
 
 /*
  * whether we emulate only writes to VGA memory or read & write

@@ -925,7 +925,7 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
-        instr_emu(scp, pmode);
+        instr_emu(scp, pmode, 0);
     }
   }
   return True;
