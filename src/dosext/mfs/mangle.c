@@ -304,7 +304,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
   for (i=0;i<mangled_stack_len;i++)
     {
       strcpy(tmpname,mangled_stack[i]);
-      mangle_name_83(tmpname, tmpname, MangledMap);
+      mangle_name_83(tmpname, MangledMap);
       if (strequal(tmpname,s))
 	{
 	  strcpy(s,mangled_stack[i]);
@@ -314,7 +314,7 @@ BOOL check_mangled_stack(char *s, char *MangledMap)
 	{
 	  strcpy(tmpname,mangled_stack[i]);
 	  strcat(tmpname,extension);
-	  mangle_name_83(tmpname, tmpname, MangledMap);
+	  mangle_name_83(tmpname, MangledMap);
 	  if (strequal(tmpname,s))
 	    {
 	      strcpy(s,mangled_stack[i]);
@@ -372,7 +372,7 @@ static char base36(int v)
 /****************************************************************************
 do the actual mangling to 8.3 format
 ****************************************************************************/
-void mangle_name_83(char *s, char *upcase_s, char *MangledMap)
+void mangle_name_83(char *s, char *MangledMap)
 {
   int csum = str_checksum(s);
   char *p;
@@ -399,10 +399,8 @@ void mangle_name_83(char *s, char *upcase_s, char *MangledMap)
 	  *p = '.';
 	}
     }
-      
-  strcpy(s, upcase_s);
+
   DEBUG(5,("Mangling name %s to ",s));
-  p = strrchr(s,'.');
 
   if (p)
     {
@@ -481,12 +479,10 @@ BOOL name_ufs_to_dos(char *dest, const char *src)
 #endif
 
 /****************************************************************************
-convert a filename to uppercase 8.3 format. return True if successful.
+convert a filename to 8.3 format. return True if successful.
 ****************************************************************************/
 BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
 {
-  char UOutName[strlen(InName) + 1];
-  
   /* initially just copy or convert it */
 #if defined KANJI
   strcpy(OutName, kj_dos_format (InName, False));
@@ -495,24 +491,19 @@ BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
 #else
   strcpy(OutName,InName);
 #endif
-  strcpy(UOutName, OutName);
-  strupperDOS(UOutName);
 
   /* check if it's already in 8.3 format */
-  if (is_8_3(UOutName)) {
-    strcpy(OutName, UOutName);
+  if (is_8_3(OutName))
     return(True);
-  }
 
-  if (!mangle) {
+  if (!mangle)
     return(False);
-  }
 
-  DEBUG(5,("Converted name %s (upcase %s)",OutName, UOutName));
+  DEBUG(5,("Converted name %s",OutName));
 
   /* mangle it into 8.3 */
   push_mangled_name(OutName);
-  mangle_name_83(OutName, UOutName, MangledMap);
+  mangle_name_83(OutName, MangledMap);
 
   DEBUG(5,("to %s\n",OutName));
   

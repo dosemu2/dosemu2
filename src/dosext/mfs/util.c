@@ -380,8 +380,17 @@ int strncasecmpDOS(char *s1, char *s2, int n)
 #endif
 
 #ifdef HAVE_UNICODE_TRANSLATION
-/* this is better called "strcasecmpUNIX" since it
-   operates on the UNIX charset; */
+/* case insensitive comparison of two DOS names */
+/* upname is always already uppercased          */
+BOOL strequalDOS(const char *name, const char *upname)
+{
+  const unsigned char *n, *un;
+  for (n = name, un = upname; *n || *un; n++, un++)
+    if (toupperDOS(*n) != *un)
+      return FALSE;
+  return TRUE;
+}
+
 BOOL strhasupperDOS(char *s)
 {
   struct char_set_state dos_state;

@@ -984,6 +984,7 @@ static boolean_t convert_compare(char *d_name, char *fname, char *fext,
       fname[1] = '.';
   }
   else {
+    strupperDOS(tmpname);
     extract_filename(tmpname, fname, fext);
   }
   return compare(fname, fext, mname, mext);
@@ -1715,8 +1716,6 @@ scan_dir(char *path, char *name, int drive)
     /* check if the name is, perhaps, mangled. If not then we don't
        need to mangle the readdir result as it can't be the same */
     maybe_mangled = is_mangled(dosname);
-  } else {
-    strupperDOS(dosname);
   }
 
   /* ignore . and .. in root directories */
@@ -1730,6 +1729,8 @@ scan_dir(char *path, char *name, int drive)
     return (FALSE);
   }
 
+  strupperDOS(dosname);
+
   /* now scan for matching names */
   while ((cur_ent = dos_readdir(cur_dir))) {
     char tmpname[NAME_MAX + 1];
@@ -1740,12 +1741,10 @@ scan_dir(char *path, char *name, int drive)
     } else {
       if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name))
 	continue;
-      strupperDOS(tmpname);
     }
 
-    /* tmpname now contains the uppercased readdir name in the
-       DOS character set */
-    if (strcmp(dosname, tmpname) != 0) {
+    /* tmpname now contains the readdir name in the DOS character set */
+    if (!strequalDOS(tmpname, dosname)) {
       if (!maybe_mangled || cur_ent->d_long_name == cur_ent->d_name)
 	continue;
 
@@ -1756,7 +1755,7 @@ scan_dir(char *path, char *name, int drive)
       if (name_ufs_to_dos(tmpname,cur_ent->d_long_name))
 	continue;
       name_convert(tmpname,cur_ent->d_long_name,MANGLE,NULL);
-      if (strcmp(dosname, tmpname) != 0)
+      if (!strequalDOS(tmpname, dosname))
 	continue;
     }
 

@@ -91,8 +91,10 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 		if ((strcasecmp(de->d_long_name, src) == 0) ||
 		    (strcasecmp(de->d_name, src) == 0)) {
 			char *name = alias ? de->d_name : de->d_long_name;
-			if (alias || !name_ufs_to_dos(dest, name))
+			if (alias || !name_ufs_to_dos(dest, name)) {
 				name_convert(dest, name, MANGLE, NULL);
+				strupperDOS(dest);
+			}
 			dos_closedir(dir);
 			return 1;
 		}
@@ -129,6 +131,7 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
 		} else if (!vfat_search(dest, src, fpath, alias)) {
 			if (alias || !name_ufs_to_dos(dest, src)) {
 				name_convert(dest, src, MANGLE, NULL);
+				strupperDOS(dest);
 			}
 		}
 		dest += strlen(dest);
@@ -593,8 +596,10 @@ static int wild_match(char *pattern, char *string)
 
 static int lfn_sfn_match(char *pattern, struct mfs_dirent *de, char *lfn, char *sfn)
 {
-	if (!name_ufs_to_dos(lfn, de->d_long_name))
+	if (!name_ufs_to_dos(lfn, de->d_long_name)) {
 		name_convert(lfn, de->d_long_name, MANGLE, NULL);
+		strupperDOS(lfn);
+	}
 	name_convert(sfn, de->d_name, MANGLE, NULL);
 	return wild_match(pattern, lfn) != 0 &&
 		wild_match(pattern, sfn) != 0;
@@ -659,6 +664,7 @@ static int getfindnext(struct mfs_dirent *de, struct lfndir *dir)
 	}
 	strcpy(dest + 0x2c, name_lfn);
 	dest[0x130] = '\0';
+	strupperDOS(name_8_3);
 	if (strcmp(name_8_3, name_lfn) != 0) {
 		strcpy(dest + 0x130, name_8_3);
 	}
@@ -1112,6 +1118,7 @@ int mfs_lfn(void)
 		src = (char *)SEGOFF2LINEAR(_DS, _SI);
 		build_ufs_path(fpath2, src, 0);
 		name_convert(fpath, strrchr(fpath2, '/') + 1, MANGLE, NULL);
+		strupperDOS(fpath);
 		auspr(fpath, name, ext);
 		if (_DH == 0) {
 			memcpy(dest, name, 8);
