@@ -30,7 +30,7 @@
 #define SLASH '/'
 
 struct lfndir {
-	DIR *dir;
+	struct mfs_dir *dir;
 	unsigned dirattr;
 	char pattern[PATH_MAX];
 	char dirbase[PATH_MAX];
@@ -52,7 +52,28 @@ static time_t win_to_unix_time(unsigned long long wt)
 	return (wt / 10000000) - (369 * 365 + 89)*24*60*60ULL;
 }
 
-static void make_dos_mangled_path(char *dest, char *fpath)
+static int vfat_search(char *dest, char *src, char *path, int alias)
+{
+	struct mfs_dir *dir = dos_opendir(path);
+	struct mfs_dirent *de;
+	if (dir->dir == NULL) while ((de = dos_readdir(dir)) != NULL) {
+		d_printf("LFN: vfat_search %s %s %s %s\n", de->d_name,
+			 de->d_long_name, src, path);
+		if ((strcasecmpDOS(de->d_long_name, src) == 0) ||
+		    (strcasecmpDOS(de->d_name, src) == 0)) {
+			if (alias)
+				strcpy(dest, de->d_name);
+			else
+				strcpy(dest, de->d_long_name);
+			dos_closedir(dir);
+			return 1;
+		}
+	}
+	dos_closedir(dir);	  
+	return 0;
+}      
+
+static void make_unmake_dos_mangled_path(char *dest, char *fpath, int alias)
 {
 	char *src;
 	*dest++ = current_drive + 'A';
@@ -63,18 +84,26 @@ static void make_dos_mangled_path(char *dest, char *fpath)
 	while (src != NULL && *src != '\0') {
 		char *src2 = strchr(src, '/');
 		if (src2 == src) break;
+		if (src - 1 > fpath)
+			src[-1] = '\0';
 		if (src2 != NULL)
 			*src2++ = '\0';
 		dest++;
 		d_printf("LFN: src=%s len=%d\n", src, strlen(src));
 		if (!strcmp(src, "..") || !strcmp(src, ".")) {
 			strcpy(dest, src);
-		} else {
-			name_convert(dest, src, MANGLE, NULL);
-			strupperDOS(dest);
+		} else if (!vfat_search(dest, src, fpath, alias)) {
+			if (alias) {
+				name_convert(dest, src, MANGLE, NULL);
+				strupperDOS(dest);
+			} else {
+				strcpy(dest, src);
+			}
 		}
 		dest += strlen(dest);
 		*dest = '\\';
+		if (src - 1 > fpath)
+			src[-1] = '/';
 		src = src2;
 	}
 	if (dest[-1] == ':') dest++;
@@ -115,15 +144,23 @@ static int build_posix_path(char *dest, const char *src)
 	return 1;
 }
 
-static int getfindnext(char *fpath)
+static int getfindnext(char *fpath, struct mfs_dirent *de, int attr)
 {
 	struct stat st;
 	char *dest = (char *)SEGOFF2LINEAR(_ES, _DI);
+	char *long_name;
 	
 	memset(dest, 0, 0x20);
 	d_printf("LFN: findnext %s\n", fpath);
 	if (!find_file(fpath, &st))
 		return 0;
+	if (st.st_mode & S_IFDIR) {
+		if ((attr & DIRECTORY) == 0)
+			return 0;
+	} else {
+		if ((attr >> 8) & DIRECTORY)
+			return 0;
+	}
 	*dest = get_dos_attr(st.st_mode,is_hidden(fpath));
 	*((unsigned *)(dest + 0x20)) = st.st_size;
 	if (_SI == 1) {
@@ -147,11 +184,28 @@ static int getfindnext(char *fpath)
 			unix_to_win_time(st.st_atime);
 	}
 
-	fpath = strrchr(fpath, '/') + 1;
-	strcpy(dest + 0x2c, fpath);
+	long_name = strrchr(fpath, '/') + 1;
+	strcpy(dest + 0x2c, long_name);
 	dest += 0x130;
-	name_convert(dest,fpath,MANGLE,NULL);
-	strupperDOS(dest);
+	if (de == NULL) {
+		long_name[-1] = '\0';
+		if (vfat_search(dest, long_name, fpath, 1)) {
+			long_name[-1] = '/';
+			return 1;
+		}
+		long_name[-1] = '/';		    
+	}
+	if (de && de->d_name != de->d_long_name) {
+		strcpy(dest, de->d_name);
+	} else {
+		char name_8_3[13];
+		dest[0] = '\0';
+		name_convert(name_8_3,long_name,MANGLE,NULL);
+		if (strcmp(name_8_3, long_name) != 0) {
+			strcpy(dest, name_8_3);
+			strupperDOS(dest);
+		}
+	}
 	return 1;
 }
 
@@ -199,7 +253,7 @@ int mfs_lfn(void)
 	struct stat st;
 	struct utimbuf utimbuf;
 	size_t size;
-	struct dirent *de;
+	struct mfs_dirent *de;
 	char *slash;
 	struct lfndir *dir = NULL;
 	
@@ -240,7 +294,7 @@ int mfs_lfn(void)
 			return 0;			 
 		if (!find_file(fpath, &st) || !S_ISDIR(st.st_mode))
 			return lfn_error(PATH_NOT_FOUND);
-		make_dos_mangled_path(dest, fpath);
+		make_unmake_dos_mangled_path(dest, fpath, 1);
 		d_printf("LFN: New CWD will be %s\n", dest);
 		call_dos_helper(0x3b00);
 		break;
@@ -323,11 +377,9 @@ int mfs_lfn(void)
 		d_printf("LFN: getcwd %s %s %s\n", cwd, fpath, dos_root);
 		find_file(fpath, &st);
 		d_printf("LFN: getcwd %s %s %s\n", cwd, fpath, dos_root);
-		for (cwd = fpath; *cwd; cwd++)
-			if (*cwd == '/')
-				*cwd = '\\';
 		d_printf("LFN: %p %d %p %s\n", cds, current_drive, dest, fpath+strlen(dos_root));
-		strcpy(dest, fpath+strlen(dos_root));
+		make_unmake_dos_mangled_path(dest, fpath, 0);
+		memmove(dest, dest + 3, strlen(dest + 3) + 1);
 		break;
 	case 0x4e: /* find first */
 	{
@@ -337,14 +389,6 @@ int mfs_lfn(void)
 			return 0;			 
 		slash = strrchr(fpath, '/');
 		d_printf("LFN: posix:%s\n", fpath);
-		if (!strchr(slash, '*') && !strchr(slash, '?')) {
-			if (getfindnext(fpath)) {
-				_AX = _CX = 0;
-				break;
-			} else {
-				return lfn_error(NO_MORE_FILES);
-			}
-		}
 		*slash++ = '\0';
 		if (slash - 3 > fpath && slash[-3] == '/' && slash[-2] == '.')
 			slash[-3] = '\0';
@@ -368,7 +412,7 @@ int mfs_lfn(void)
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			return lfn_error(NO_MORE_FILES);
 		}
-		dir->dir = opendir(fpath);
+		dir->dir = dos_opendir(fpath);
 		if (dir->dir == NULL) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));
 			free(dir);
@@ -388,26 +432,20 @@ int mfs_lfn(void)
 		if (dir == NULL)
 			return lfn_error(NO_MORE_FILES);
 		while (1) {
-			de = readdir(dir->dir);
+			de = dos_readdir(dir->dir);
 			if (de == NULL) {
-				closedir(dir->dir);
+				dos_closedir(dir->dir);
 				free(dir);
 				lfndirs[dirhandle] = NULL;
 				return lfn_error(NO_MORE_FILES);
 			}
-			d_printf("LFN: findnext %s %x\n", de->d_name, dir->dirattr);
-			if (de->d_type == DT_DIR) {
-				if ((dir->dirattr & DIRECTORY) == 0)
-					continue;
-			} else {
-				if (((dir->dirattr >> 8) & DIRECTORY))
-					continue;
-			}
-			if (fnmatch(dir->pattern, de->d_name, FNM_CASEFOLD) == 0) {
+			d_printf("LFN: findnext %s %x\n", de->d_long_name, dir->dirattr);
+			if (fnmatch(dir->pattern, de->d_long_name, FNM_CASEFOLD) == 0) {
 				strcpy(fpath, dir->dirbase);
 				strcat(fpath, "/");
-				strcat(fpath, de->d_name);
-				getfindnext(fpath);
+				strcat(fpath, de->d_long_name);
+				if (!getfindnext(fpath, de, dir->dirattr))
+					continue;
 				if (_AL != 0x4e)
 					_AX = 0x4f00 + dirhandle;
 				else
@@ -450,7 +488,9 @@ int mfs_lfn(void)
 		find_file(fpath, &st);
 		d_printf("LFN: %s %s\n", fpath, dos_root);
 		if (_CL == 1) {
-			make_dos_mangled_path(dest, fpath);
+			make_unmake_dos_mangled_path(dest, fpath, 1);
+		} else if (_CL == 2) {
+			make_unmake_dos_mangled_path(dest, fpath, 0);
 		} else {
 			dest[0] = current_drive + 'A';
 			dest[1] = ':';
@@ -490,7 +530,7 @@ int mfs_lfn(void)
 				d_printf("LFN: open: created %s\n", fpath);
 				close(fd);
 			}
-			make_dos_mangled_path(dest, fpath);
+			make_unmake_dos_mangled_path(dest, fpath, 1);
 		}
 		call_dos_helper(0x6c00);
 		break;
@@ -508,7 +548,7 @@ int mfs_lfn(void)
 	case 0xa1: /* findclose */
 		d_printf("LFN: findclose %x\n", _BX);
 		if (_BX < MAX_OPEN_DIRS && lfndirs[_BX]) {
-			closedir(lfndirs[_BX]->dir);
+			dos_closedir(lfndirs[_BX]->dir);
 			free(lfndirs[_BX]);
 			lfndirs[_BX] = NULL;
 		}

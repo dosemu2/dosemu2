@@ -45,17 +45,6 @@
  * Purpose:
  *	V86 DOS disk emulation routines
  *
- * HISTORY:
- * $Log$
- * Revision 1.3  2003/07/15 18:28:23  bartoldeman
- * Add support for Long File Names (default=off)
- *
- * Revision 1.2  2003/07/15 16:58:08  bartoldeman
- * Small optimization.
- *
- * Revision 1.1.1.1  2003/06/23 00:02:08  bartoldeman
- * Initial import (dosemu-1.1.5.2).
- *
 
 Work started by Tim Bird (tbird@novell.com) 28th October 1993
 
@@ -207,6 +196,17 @@ TODO:
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#endif
+
+#ifdef __linux__
+/* we need to use the kernel dirent structure for the VFAT ioctls */
+struct kernel_dirent {
+  long		  d_ino;
+  long		  d_off;
+  unsigned short  d_reclen;
+  char		  d_name[256]; /* We must not include limits.h! */
+};
+#define VFAT_IOCTL_READDIR_BOTH	 _IOR('r', 1, struct kernel_dirent [2])
 #endif
 
 #ifndef PAGE_SIZE
@@ -379,8 +379,6 @@ int sda_ext_mode_off = 0x2e1;
 
 /* here are the functions used to interface dosemu with the mach
    dos redirector code */
-
-struct direct *dos_readdir(DIR *);
 
 static int cds_drive(cds_t cds)
 {
@@ -999,8 +997,8 @@ static boolean_t exists(char *name, char *mname, char *mext, struct stat *st)
 
 static struct dir_list *get_dir(char *name, char *mname, char *mext)
 {
-  DIR *cur_dir;
-  struct direct *cur_ent;
+  struct mfs_dir *cur_dir;
+  struct mfs_dirent *cur_ent;
   struct dir_list *dir_list;
   struct dir_ent *entry;
   struct stat sbuf;
@@ -1013,7 +1011,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
   if(is_dos_device(name) || !find_file(name, &sbuf))
     return NULL;
 
-  if ((cur_dir = opendir(name)) == NULL) {
+  if ((cur_dir = dos_opendir(name)) == NULL) {
     Debug0((dbg_fd, "get_dir(): couldn't open '%s' errno = %s\n", name, strerror(errno)));
     return (NULL);
   }
@@ -1039,7 +1037,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
     entry->size = 0;
     entry->time = time(NULL);
 
-    closedir(cur_dir);
+    dos_closedir(cur_dir);
     return (dir_list);
   }
   /* for efficiency we don't read everything if there are no wildcards */
@@ -1058,7 +1056,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
       entry->size = sbuf.st_size;
       entry->time = sbuf.st_mtime;
     }
-    closedir(cur_dir);
+    dos_closedir(cur_dir);
     return (dir_list);      
   }
   else {
@@ -1071,10 +1069,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
        */
       handle_signals();
 
-      Debug0((dbg_fd, "get_dir(): `%s' (%d)\n", cur_ent->d_name,
-	       cur_ent->d_namlen));
-      if (cur_ent->d_ino == 0)
-	continue;
+      Debug0((dbg_fd, "get_dir(): `%s' \n", cur_ent->d_name));
 
       if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
 	continue;
@@ -1132,7 +1127,7 @@ static struct dir_list *get_dir(char *name, char *mname, char *mext)
 
     } 
   }
-  closedir(cur_dir);
+  dos_closedir(cur_dir);
   return (dir_list);
 }
 
@@ -1382,14 +1377,64 @@ init_dos_offsets(int ver)
   }
 }
 
-
-struct direct *
-dos_readdir(DIR *dir)
+struct mfs_dir *dos_opendir(const char *name)
 {
-  struct direct *ret;
+  struct mfs_dir *dir;
+  int fd;
+  DIR *d;
+  struct kernel_dirent de[2];
 
-  ret = (struct direct *)RPT_SYSCALL(readdir(dir));
+  fd = open(name, O_RDONLY|O_DIRECTORY);
+  if (fd == -1)
+    return NULL;
+  if (ioctl(fd, VFAT_IOCTL_READDIR_BOTH, (long)&de) == -1) {
+    /* not a VFAT filesystem */
+    close(fd);
+    d = opendir(name);
+    if (d == NULL)
+      return NULL;
+  } else {
+    d = NULL;
+    lseek(fd, 0, SEEK_SET);
+  }
+  dir = malloc(sizeof *dir);
+  dir->fd = fd;
+  dir->dir = d;
+  return (dir);
+}
 
+struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
+{
+  if (dir->dir) {
+    struct direct *de = (struct direct *)RPT_SYSCALL(readdir(dir->dir));
+    if (de == NULL)
+      return NULL;
+    dir->de.d_name = dir->de.d_long_name = de->d_name;
+  } else {
+    static struct kernel_dirent de[2];
+    int ret = (int)RPT_SYSCALL(
+            ioctl(dir->fd, VFAT_IOCTL_READDIR_BOTH, (long)&de));
+    if (ret == -1 || de[0].d_reclen == 0)
+      return NULL;
+    dir->de.d_name = de[0].d_name;
+    dir->de.d_long_name = de[1].d_name;
+    strupperDOS(dir->de.d_name);
+    if (dir->de.d_long_name[0] == '\0') {
+        dir->de.d_long_name = dir->de.d_name;
+    }
+  }
+  return (&dir->de);
+}
+
+int dos_closedir(struct mfs_dir *dir)
+{
+  int ret;
+
+  if (dir->dir)
+    ret = closedir(dir->dir);
+  else
+    ret = close(dir->fd);
+  free(dir);
   return (ret);
 }
 
@@ -1678,8 +1723,8 @@ int build_ufs_path(char *ufs, const char *path)
 static boolean_t
 scan_dir(char *path, char *name)
 {
-  DIR *cur_dir;
-  struct direct *cur_ent;
+  struct mfs_dir *cur_dir;
+  struct mfs_dirent *cur_ent;
 
   /* handle null paths */
   if (*path == 0)
@@ -1688,8 +1733,14 @@ scan_dir(char *path, char *name)
   Debug0((dbg_fd,"scan_dir(%s,%s)\n",path,name));
 
   /* open the directory */
-  if ((cur_dir = opendir(path)) == NULL) {
+  if ((cur_dir = dos_opendir(path)) == NULL) {
     Debug0((dbg_fd, "scan_dir(): failed to open dir: %s\n", path));
+    return (FALSE);
+  }
+
+  if (cur_dir->dir == NULL) {
+    /* we're on VFAT: no need to scan since "stat" would have
+       found it before */
     return (FALSE);
   }
 
@@ -1699,9 +1750,6 @@ scan_dir(char *path, char *name)
 
     if (strcasecmpDOS(name, cur_ent->d_name) != 0) {
             
-      if (cur_ent->d_ino == 0)
-        continue;
-
       if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
         continue;
 
@@ -1717,11 +1765,11 @@ scan_dir(char *path, char *name)
 
     /* we've found the file, change it's name and return */
     strcpy(name, cur_ent->d_name);
-    closedir(cur_dir);
+    dos_closedir(cur_dir);
     return (TRUE);
   }
 
-  closedir(cur_dir);
+  dos_closedir(cur_dir);
 
   if (MANGLE && is_mangled(name))
     check_mangled_stack(name,NULL);

@@ -12,6 +12,7 @@ Andrew.Tridgell@anu.edu.au 30th March 1993
 */
 
 #include <sys/stat.h>
+#include <dirent.h>
 
 #ifdef DOSEMU
 /* definitions to make mach emu code compatible with dosemu */
@@ -99,6 +100,13 @@ typedef struct vm86_regs state_t;
  *
  * HISTORY:
  * $Log$
+ * Revision 1.3  2003/07/18 22:42:41  bartoldeman
+ * Fix LFN's for VFAT.
+ * Make use of the VFAT_IOCTL_READDIR_BOTH ioctl to obtain the short
+ * aliases for long filenames (Wine provided a good example).
+ * Remove unnecessary scan_dir usage on VFAT (because stat is already case-
+ * insensitive)
+ *
  * Revision 1.2  2003/07/15 18:28:23  bartoldeman
  * Add support for Long File Names (default=off)
  *
@@ -277,6 +285,19 @@ typedef struct far_record {
   u_short segment;
 } far_t;
 
+struct mfs_dirent
+{
+  char *d_name;
+  char *d_long_name;
+};
+
+struct mfs_dir
+{
+  DIR *dir;
+  struct mfs_dirent de;
+  int fd;
+};
+
 #define DOSVER_31_33	1
 #define DOSVER_41	2
 #define DOSVER_50	3
@@ -439,6 +460,10 @@ extern int get_unix_attr(int mode, int attr);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
 extern time_t time_to_unix(u_short dos_date, u_short dos_time);
 extern void auspr(char *filestring0, char *name, char *ext);
+extern struct mfs_dir *dos_opendir(const char *name);
+extern struct mfs_dirent *dos_readdir(struct mfs_dir *);
+extern int dos_closedir(struct mfs_dir *dir);
+
 
 
 
