@@ -2559,7 +2559,6 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
       vga_msg("vgaemu_adj_cfg: vertical_display_end = %d\n", vertical_display_end);
       vga_msg("vgaemu_adj_cfg: vertical_multiplier = %d\n", vertical_multiplier);
       vga_msg("vgaemu_adj_cfg: height = %d\n", height);
-      vga.line_compare = vga.crtc.line_compare/vertical_multiplier;
       if (vga.line_compare != vga.crtc.line_compare / vertical_multiplier) {
         vga.line_compare = vga.crtc.line_compare / vertical_multiplier;
         vga.reconfig.display = 1;
