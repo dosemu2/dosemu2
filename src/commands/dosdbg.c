@@ -23,17 +23,21 @@
  *  added support for debug levels (they're used by PIC emulation)
  * Modified: 11/02/95 by Kang-Jin Lee
  *  safer dosemu detection
- * Modified; 11/05/95 by Michael Beck
+ * Modified: 11/05/95 by Michael Beck
  *  sync'd debug flags with 0.60.4.4
+ * Modified: 12/27/95 by Kang-Jin Lee
+ *  dosemu detection moved to emulib.c
  ***********************************************/
+
 
 /* comment out if dosemu is compiled without X support */
 #define X_SUPPORT
 
+#include <dos.h>      /* geninterrupt and MK_FP */
 #include <stdio.h>    /* printf                 */
 #include <stdlib.h>   /* exit                   */
-#include <dos.h>      /* geninterrupt and MK_FP */
 #include <string.h>
+#include "emulib.h"
 
 typedef unsigned char uint8;
 typedef unsigned int uint16;
@@ -55,8 +59,6 @@ typedef unsigned int uint16;
 #define DOS_HELPER_EMS_BIOS       0x22
 #define DOS_HELPER_GET_DEBUG_STRING 0x10
 #define DOS_HELPER_SET_DEBUG_STRING 0x11
-
-#define DOSEMU_BIOS_DATE          "02/25/93"
 
 
 void
@@ -99,35 +101,6 @@ n  network      P  pktdrv       r  PIC          S  sound\n");
     printf("The character 'a' acts like a string of all possible debugging classes,\n");
     printf("  so \"-a\" turns all message off, and \"+a-RW\" would turn all messages\n");
     printf("  on except for disk Read and Write messages.");
-}
-
-
-/* returns non-zero major version number if DOSEMU is loaded */
-uint16 CheckForDOSEMU(void)
-{
-    int i;
-    unsigned char far *pos;
-    unsigned char b_date[8];
-
-    pos = MK_FP(0xF000, 0xFFF5);
-
-    for (i = 0; i < 8; i++)
-         b_date[i] = pos[i];
-
-    if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0)
-         return (0);
-
-    _AL = DOS_HELPER_DOSEMU_CHECK;
-
-    geninterrupt(DOS_HELPER_INT);
-
-    /* check for signature in AX */
-    if (_AX == 0xaa55) {
-         return (_BX);
-    }
-    else {
-         return (0);
-    }
 }
 
 
@@ -391,19 +364,15 @@ uint16 ParseAndSetDebugString(char *userDebugStr)
 }
 
 
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
-
     uint16 ccode;
 
-    ccode = CheckForDOSEMU();
-
-    if (ccode == 0) {
+    if (check_emu() == 0) {
          printf("DOSEMU is not running. This program is intended for use\n");
          printf("only with Dosemu.\n");
          exit(1);
     }
-
 
     /* need to parse the command line */
     /* if no parameters, then just show current mappings */

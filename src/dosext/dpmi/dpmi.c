@@ -20,12 +20,12 @@
 
 #define DPMI_C
 
+#ifdef __linux__                  
+#define DIRECT_DPMI_CONTEXT_SWITCH
+#endif
+
 #include "config.h"
 #include "kversion.h"
-#if defined(REQUIRES_EMUMODULE)	/* Don't change this, it requires new */
-				/* kernel ldt-alias support */
-#define KERNEL_LDTALIAS
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -150,7 +150,7 @@ int DPMI_rm_procedure_running = 0;
 struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
 int DPMI_pm_procedure_running = 0;
 
-static char *ldt_buffer;
+char *ldt_buffer=0;
 unsigned short LDT_ALIAS = 0;
 unsigned short KSPACE_LDT_ALIAS = 0;
 
@@ -174,7 +174,8 @@ unsigned short DPMI_SEL = 0;
 extern int fatalerr;
 
 static struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
-static struct sigcontext_struct emu_stack_frame;  /* used to store emulator registers */
+static struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
+static struct sigcontext_struct *emu_stack_frame=&_emu_stack_frame;
 
 #ifdef __NetBSD__
 #undef vm86_regs
@@ -237,12 +238,11 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 #endif
 )
 {
+  unsigned long *lp;
 #ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
   unsigned long base2, limit2;
   int __retval;
-  unsigned long *lp;
-
   ldt_info.entry_number = entry;
   ldt_info.base_addr = base;
   ldt_info.limit = limit;
@@ -347,7 +347,6 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 #endif
 
 
-#ifndef KERNEL_LDTALIAS  
 /*
  * DANG_BEGIN_REMARK
  * 
@@ -392,7 +391,6 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   *lp = ((u_long *)sd)[0];
   *(lp+1) = ((u_long *)sd)[1];
 #endif
-#endif /* KERNEL_LDTALIAS */
   return 0;
 }
 
@@ -475,6 +473,72 @@ unsigned long inline client_esp(struct sigcontext_struct *scp)
     }
 }
 	
+
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
+{
+  register int ret;
+  __asm__ volatile ("
+      leal   -12(%%esp),%%esp "/* dummy, cr2,oldmask,fpstate */"
+      push   %%ss
+      pushl  %%esp   "/* dummy, esp_at_signal */"
+      pushfl
+      push   %%cs
+      pushl  $dpmi_switch_return
+      xorl   %0,%0   "/* preset return code with 0 */"
+      push   %%eax   "/* dummy, err */"
+      push   %%eax   "/* dummy, trapno */"
+      pushal
+      addl   $10*4,12(%%esp)   "/* adjust esp */"
+      push   %%ds
+      push   %%es
+      push   %%fs
+      push   %%gs
+      movl   %%esp,"CISH_INLINE(emu_stack_frame)"
+
+      "/* now we load the new context
+          we move it on our stack, and then pop it */"
+
+      movl   (14*4)(%1),%%eax   "/* p->eip */"
+      movl   %%eax,__neweip
+      movw   (15*4)(%1),%%ax   "/* p->cs */"
+      movw   %%eax,__newcs
+      pushl  18*4 (%1)        "/* p->ss */"
+      pushl  7*4 (%1)         "/* p->esp */"    
+      pushl  16*4 (%1)
+      movl   $12,%%ecx
+      subl   $12*4,%%esp      "/* make room on the stack */"
+      cld
+      movl   %%esp,%%edi
+      movl   %1,%%esi
+      rep; movsl
+      pop    %%gs
+      pop    %%fs
+      pop    %%es
+      pop    %%ds
+      popal
+      popfl
+      lss    (%%esp),%%esp  "/* this is: pop ss; pop esp */"
+      jmp    __dpmi_switch_jmp   
+
+      "/* NOTE: we are putting the ljmp into .data (needing this kludge),
+                because we can't write to code space (Hans) */"
+      .data
+  __dpmi_switch_jmp:
+      .byte  0xEA    "/* ljmp */"
+  __neweip:
+      .long  0x12345678
+  __newcs:
+      .short 0xabcd
+      .text
+  dpmi_switch_return:
+  ":"=a" (ret): "d" (dpmi_context)
+  );
+  return ret;
+}
+#endif
+
+
 /*
  * DANG_BEGIN_FUNCTION dpmi_control
  *
@@ -484,7 +548,7 @@ unsigned long inline client_esp(struct sigcontext_struct *scp)
  * DANG_END_FUNCTION
  */
 
-static void dpmi_control(void)
+static int dpmi_control(void)
 {
 /*
  * DANG_BEGIN_REMARK
@@ -499,10 +563,47 @@ static void dpmi_control(void)
  * will later (with version 0.9 or similar :-)) start with it to
  * get a really fast dos emulator...............
  *
+ * NOTE: Using DIRECT_DPMI_CONTEXT_SWITCH we avoid these 4  taskswitches
+ *       actually doing 0. We don't need a 'physical' taskswitch
+ *       (not having different TSS for us and DPMI), we only need a complete
+ *       register (context) replacement. For back-switching, however, we need
+ *       the sigcontext technique, so we build a proper sigcontext structure
+ *       even for 'hand made taskswitch'. (Hans Lermen, June 1996)
+ *
+ *
  * DANG_END_REMARK
  */
 
-  asm("hlt");
+  register int ret;
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+  struct sigcontext_struct *scp=&dpmi_stack_frame[current_client];
+  if (!(_eflags & TF)) return direct_dpmi_switch(scp);
+  else {
+    /* Note: we can't set TF with our speedup code */
+#ifdef USE_MHPDBG
+    if (mhpdbg.active) {
+      static force_early=0;
+      unsigned char *cp=(void *)SEL_ADR(_cs,_eip);
+      usleep(1); /* NOTE: We need a syscall (maybe any) to force scheduling.
+                  *       ( ... don't know why ... )
+                  *       If we do not, the below kludge doesn't work
+                  *       and we may loose 1 single step after an INTx.
+                  */
+      if (*((unsigned char *)SEL_ADR(_cs,_eip))==0xcd) force_early=1;
+      else if (force_early) {
+        force_early=0;
+        return 1; /* we are simulating SIGTRAP after INTx */
+      }
+    }
+#endif
+    emu_stack_frame=&_emu_stack_frame;
+    asm("xorl %0,%0; hlt":"=a" (ret));
+    return ret;
+  }
+#else
+  asm("xorl %0,%0; hlt":"=a" (ret));
+  return ret;
+#endif
 }
 
 void dpmi_get_entry_point(void)
@@ -563,51 +664,6 @@ static int SetSelector(unsigned short selector, unsigned long base_addr, unsigne
   return 0;
 } 
 
-#ifdef KERNEL_LDTALIAS
-#include "kernel_space.h"
-
-#define MODIFY_LDT_CREATE_KERNEL_DESCRIPTOR 0x10
-
-static int SetLDTAliasSelector(unsigned short selector, unsigned char readonly)
-{
-  int ldt_entry = selector >> 3;
-  struct modify_ldt_ldt_s ldt_info;
-  int __retval;
-  unsigned long lp[2];
-
-  ldt_info.entry_number = ldt_entry;
-  ldt_info.base_addr = 0;
-  ldt_info.limit = 0;
-  ldt_info.seg_32bit = DPMIclient_is_32;
-  ldt_info.contents = MODIFY_LDT_CONTENTS_DATA;
-  ldt_info.read_exec_only = readonly;
-  ldt_info.limit_in_pages = 0;
-  ldt_info.seg_not_present = 0;
-
-  if ((__retval=modify_ldt(MODIFY_LDT_CREATE_KERNEL_DESCRIPTOR,
-			  &ldt_info, sizeof(ldt_info))))
-	return __retval;
-
-  memcopy_from_huge((void *)lp, selector, (void *)(selector & ~7), 8);
-  Segments[ldt_entry].base_addr = ((lp[0] >> 16)& 0x0000ffff) |
-                                  (lp[1] & 0xff000000) |
-                                  ((lp[1] << 16) & 0x00ff0000);
-  Segments[ldt_entry].limit = (lp[0] & 0x0000ffff) | (lp[1] & 0x000f0000);
-  
-  Segments[ldt_entry].type = MODIFY_LDT_CONTENTS_DATA;
-  Segments[ldt_entry].is_32 = DPMIclient_is_32;
-  Segments[ldt_entry].readonly = readonly;
-  Segments[ldt_entry].is_big = 0;
-  Segments[ldt_entry].not_present = 0;
-  Segments[ldt_entry].useable = 0;
-  if (in_dpmi)
-    Segments[ldt_entry].used = in_dpmi;
-  else
-    Segments[ldt_entry].used = 1;
-
-  return 0;
-} 
-#endif /* KERNEL_LDTALIAS */
 
 static unsigned short AllocateDescriptors(int number_of_descriptors)
 {
@@ -639,11 +695,6 @@ static int FreeDescriptor(unsigned short selector)
 {
   unsigned short ldt_entry = selector >> 3;
 
-#ifdef KERNEL_LDTALIAS
-  unsigned long *lp;
-#endif
-  struct modify_ldt_ldt_s ldt_info;
-
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
 
@@ -656,39 +707,7 @@ static int FreeDescriptor(unsigned short selector)
   Segments[ldt_entry].is_big = 0;
   Segments[ldt_entry].not_present = 1;
   Segments[ldt_entry].useable = 0;
-
-#ifdef KERNEL_LDTALIAS
-  lp = (unsigned long *) &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE];
-#ifdef __linux__
-  *lp = 0;
-  *(lp+1) = 0;
-  
-  /* WinOS2 depends on freeed descrpitor really free */
-  memset((void *)&ldt_info, 0, sizeof(ldt_info));
-  ldt_info.entry_number = ldt_entry;
-#ifdef WANT_WINDOWS
-  ldt_info.read_exec_only = 1;
-  ldt_info.seg_not_present = 1;
-#endif  
-  return modify_ldt(1, &ldt_info, sizeof(ldt_info));
-#endif
-#ifdef __NetBSD__
-  i386_get_ldt(ldt_entry, (union descriptor *)lp, 1);
-  D_printf("freeing descriptor %d: %x %x\n", ldt_entry, lp[0], lp[1]);
-#ifdef WANT_WINDOWS
-  lp[0] = lp[1] = 0;
-#else
-  lp[0] = 0;
-  lp[1] = (1 << 9) |			/* writable */
-      (1 << 15);			/* Present */
-#endif  
-  if (i386_set_ldt(ldt_entry, (union descriptor *)lp, 1) == -1)
-      return errno;
-  else
-      return 0;
-#endif
-#endif /* KERNEL_LDTALIAS */
-
+  return 0;
 }
 
 static inline int ConvertSegmentToDescriptor(unsigned short segment)
@@ -715,12 +734,6 @@ static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
 {
   if (selector >= (MAX_SELECTORS << 3))
     return 0;
-#ifdef KERNEL_LDTALIAS
-  if (selector == KSPACE_LDT_ALIAS) {
-      memcopy_from_huge(ldt_buffer, KSPACE_LDT_ALIAS, 0, 0xffff);
-      return (unsigned long)ldt_buffer;
-  }
-#endif  
   return Segments[selector >> 3].base_addr;
 }
 
@@ -779,7 +792,7 @@ static int SetDescriptorAccessRights(unsigned short selector, unsigned short typ
     return -1; /* invalid value 8021 */
   /* Only allow conforming Codesegments if Segment is not present */
   if ( ((type_byte>>2)&3) == 3 && ((type_byte >> 7) & 1) == 1)
-    return -1; /* invalid selector 8022 */
+    return -2; /* invalid selector 8022 */
 
   Segments[ldt_entry].type = (type_byte >> 2) & 7;
   Segments[ldt_entry].is_32 = (type_byte >> 14) & 1;
@@ -811,22 +824,45 @@ static unsigned short CreateCSAlias(unsigned short selector)
   ds_selector = AllocateDescriptors(1);
   if (SetSelector(ds_selector, Segments[cs_ldt].base_addr, Segments[cs_ldt].limit,
 			Segments[cs_ldt].is_32, MODIFY_LDT_CONTENTS_DATA,
-			0, Segments[cs_ldt].is_big, 0, 0))
+			Segments[cs_ldt].readonly, Segments[cs_ldt].is_big,
+			Segments[cs_ldt].not_present, Segments[cs_ldt].useable))
     return 0;
   return ds_selector;
 }
 
+static int inline do_LAR(us selector)
+{
+  __asm__ ("
+    movzwl  %%ax,%%eax
+    larw %%ax,%%ax
+    jz   1f
+    xorl %%eax,%%eax
+   1:
+    shrl $8,%%eax
+  ":"=a" (selector)
+  );
+  return selector;
+}
+
 static void GetDescriptor(us selector, unsigned long *lp)
 {
-#ifdef KERNEL_LDTALIAS
-  memcopy_from_huge((void *)lp, KSPACE_LDT_ALIAS, (void *)(selector &
-							   ~7), 8);
-#else  
 #if 0    
   modify_ldt(0, ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE);
+#else
+  /* DANG_BEGIN_REMARK
+   * Hopefully the below LAR can serve as a replacement for the KERNEL_LDT,
+   * which we are abandoning now. Especially the 'accessed-bit' will get
+   * updated in the ldt-cache with the code below.
+   * Most DPMI-clients fortunately _are_ using LAR also to get this info,
+   * however, some do not. Some of those which do _not_, atleast use the
+   * DPMI-GetDescriptor function, so this may solve the problem.
+   *                      (Hans Lermen, July 1996)
+   * DANG_END_REMARK
+   */
+  int typebyte=do_LAR(selector);
+  if (typebyte) ((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
 #endif  
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
-#endif /* KERNEL_LDTALIAS */  
   D_printf("DPMI: GetDescriptor[0x%04x;0x%04x]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
 }
 
@@ -902,7 +938,7 @@ static  void GetFreeMemoryInformation(unsigned int *lp)
 static inline void save_rm_context()
 {
   if (RealModeContext_Running >= DPMI_max_rec_rm_func) {
-    error("DPMI: RealModeContext_Running = 0x%4x\n",RealModeContext_Running++);
+    error("DPMI: RealModeContext_Running = 0x%4lx\n",RealModeContext_Running++);
     return;
   }
   RealModeContext_Stack[RealModeContext_Running++] = RealModeContext;
@@ -982,27 +1018,26 @@ static __inline__ void dpmi_sti()
   pic_sti();
 }
 
-#ifdef KERNEL_LDTALIAS
 #define CHECK_SELECTOR(x) \
-{ if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
+{ if ( (((x) >> 3) >= MAX_SELECTORS) || (!Segments[((x) >> 3)].used) \
+      || (((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
       || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
-	|| (((x) & 0xfffc ) == (KSPACE_LDT_ALIAS & 0xfffc))) { \
-      _LWORD(eax) = 0x8011; \
+	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
+      _LWORD(eax) = 0x8022; \
       _eflags |= CF; \
       break; \
     } \
 }
-#else
-#define CHECK_SELECTOR(x) \
+#define CHECK_SELECTOR_ALLOC(x) \
 { if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
       || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
 	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
-      _LWORD(eax) = 0x8011; \
+      _LWORD(eax) = 0x8022; \
       _eflags |= CF; \
       break; \
     } \
 }
-#endif /* KERNEL_LDTALIAS*/
+
 
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
@@ -1017,7 +1052,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0001:
     CHECK_SELECTOR(_LWORD(ebx));
     if (FreeDescriptor(_LWORD(ebx))){
-      _LWORD(eax) = 0x8011;
+      _LWORD(eax) = 0x8022;
       _eflags |= CF;
     }
 #if 1    
@@ -1041,6 +1076,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0005:	/* Reserved unlock selector, see interrupt list */
     break;
   case 0x0006:
+    CHECK_SELECTOR(_LWORD(ebx));
     {
       unsigned long baddress = GetSegmentBaseAddress(_LWORD(ebx));
       _LWORD(edx) = (us)(baddress & 0xffff);
@@ -1063,13 +1099,20 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     break;
   case 0x0009:
     CHECK_SELECTOR(_LWORD(ebx));
-    if (SetDescriptorAccessRights(_LWORD(ebx), _ecx & (DPMIclient_is_32 ? 0xffff : 0x00ff))) {
-      _eflags |= CF;
+    { int x;
+      if ((x=SetDescriptorAccessRights(_LWORD(ebx), _ecx & (DPMIclient_is_32 ? 0xffff : 0x00ff))) !=0) {
+        if (x == -2) _LWORD(eax) = 0x8021;
+        else _LWORD(eax) = 0x8025;
+        _eflags |= CF;
+      }
     }
     break;
   case 0x000a:
-    if (!(_LWORD(eax) = CreateCSAlias(_LWORD(ebx))))
+    CHECK_SELECTOR(_LWORD(ebx));
+    if (!(_LWORD(eax) = CreateCSAlias(_LWORD(ebx)))) {
+       _LWORD(eax) = 0x8011;
       _eflags |= CF;
+    }
     break;
   case 0x000b:
     GetDescriptor(_LWORD(ebx),
@@ -1077,15 +1120,19 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) );
     break;
   case 0x000c:
-    CHECK_SELECTOR(_LWORD(ebx));
+    CHECK_SELECTOR_ALLOC(_LWORD(ebx));
     if (SetDescriptor(_LWORD(ebx),
 		      (unsigned long *) (GetSegmentBaseAddress(_es) +
-			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) ))
+			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) )) {
+      _LWORD(eax) = 0x8022;
       _eflags |= CF;
+    }
     break;
   case 0x000d:
-    if (AllocateSpecificDescriptor(_LWORD(ebx)))
+    if (AllocateSpecificDescriptor(_LWORD(ebx))) {
+      _LWORD(eax) = 0x8022;
       _eflags |= CF;
+    }
     break;
   case 0x0100:			/* Dos allocate memory */
   case 0x0101:			/* Dos resize memory */
@@ -1593,6 +1640,35 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+
+static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
+{
+  memcpy(d, s, ((int)(&s->eax) - (int)(s))+ sizeof(s->eax));
+  d->eip = s->eip;
+  *((long *)(&d->cs)) = *((long *)(&s->cs));
+  d->eflags = s->eflags;
+  *((long *)(&d->ss)) = *((long *)(&s->ss));
+}
+
+static inline void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
+{
+  copy_context(&dpmi_stack_frame[current_client],scp);
+  copy_context(scp, emu_stack_frame);
+  _eax = retcode;
+}
+
+#else
+
+static inline void Return_to_dosemu_code(struct sigcontext_struct *scp, int retcode)
+{
+  memcpy(&dpmi_stack_frame[current_client], scp, sizeof(dpmi_stack_frame[0]));
+  memcpy(scp, emu_stack_frame, sizeof(*emu_stack_frame));
+  _eax = retcode;
+}
+
+#endif /* DIRECT_DPMI_CONTEXT_SWITCH */
+
 static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
 {
   if (in_dpmi == 1) { /* Restore enviornment, must before FreeDescriptor */
@@ -1619,7 +1695,11 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   in_dpmi_dos_int = 1;
   in_dpmi--;
   in_win31 = 0;
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+  copy_context(scp, &dpmi_stack_frame[current_client]);
+#else
   memcpy(scp, &dpmi_stack_frame[current_client], sizeof(dpmi_stack_frame[0]));
+#endif
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   HI(ax) = 0x4c;
@@ -1641,6 +1721,17 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     D_printf("DPMI: leaving DPMI with error code 0x%02x\n",_LO(ax));
     quit_dpmi(scp, _LO(ax));
   } else if (i == 0x31) {
+    switch (_LWORD(eax)) {
+      case 0x0700:
+      case 0x0701: {
+        static int once=1;
+        if (once) once=0;
+        else {
+          _eflags &= ~CF;
+          return;
+        }
+      }
+    }
     D_printf("DPMI: int31, ax=%04x ,ebx=%08lx ,ecx=%08lx ,edx=%08lx\n",
 	     _LWORD(eax),_ebx,_ecx,_edx);
     D_printf("             edi=%08lx ,esi=%08lx\n",_edi,_esi);
@@ -1738,13 +1829,40 @@ void run_pm_int(int i)
 
 void run_dpmi(void)
 {
-   static int retval;
+#if 1
+#define ALBERTO_KLUDGE 1
+#endif
+#ifdef ALBERTO_KLUDGE
+   /* NOTE:
+    * This works around a locking bug (not calling pic_iret).
+    * Alberto Vignani describes the bug as follows:
+    * 
+    * int2f/1680 is started. I assume it will clear IF.
+    * vm86() is entered at the start point of int8 and reaches the EOI out
+    * instruction (a). VIF is 0 and the IF in dpmi_eflags is clear.
+    *
+    *         mov     al,#0x20
+    * (a)     out     0x20,al
+    * (b)     pop     ax
+    *         pop     ds
+    *         iret
+    *
+    * vm86() is restarted at (b) with VIP=1, VIF=0. It goes over the iret
+    * without generating a fault because the IF doesn't change. Processing
+    * of int2f continues and eventually stops; vm86() returns with VIF=0
+    * _but_ dpmi_eflags.IF is now 1 (who sets it?).
+    */
+   static int prev_IF=-1;
+   int retval, current_IF;
+#else
+   int retval;
+#endif
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
    */
 
   if (int_queue_running || in_dpmi_dos_int) {
-#if 1 /* <ESC> BUG FIXER (if 1) */
+#if 1 && (!defined(ALBERTO_KLUDGE)) /* <ESC> BUG FIXER (if 1) */
     #define OVERLOAD_THRESHOULD2  600000 /* maximum acceptable value */
     #define OVERLOAD_THRESHOULD1  238608 /* good average value */
     #define OVERLOAD_THRESHOULD0  100000 /* minum acceptable value */
@@ -1760,6 +1878,9 @@ void run_dpmi(void)
     in_vm86 = 1;
     retval=DO_VM86(&vm86s);
     in_vm86=0;
+#ifdef ALBERTO_KLUDGE
+    current_IF = dpmi_eflags & IF;
+#endif
 
     if (REG(eflags)&IF) {
       if (!(dpmi_eflags&IF))
@@ -1771,6 +1892,9 @@ void run_dpmi(void)
 
     switch VM86_TYPE(retval) {
 	case VM86_UNKNOWN:
+#ifdef ALBERTO_KLUDGE
+		if (!prev_IF && pic_icount && current_IF) pic_iret();
+#endif
 		vm86_GP_fault();
 		break;
 	case VM86_STI:
@@ -1814,11 +1938,20 @@ void run_dpmi(void)
 		error("DPMI: unknown return value from vm86()=%x,%d-%x\n", VM86_TYPE(retval), VM86_TYPE(retval), VM86_ARG(retval));
 		fatalerr = 4;
     }
+#ifdef ALBERTO_KLUDGE
+    prev_IF = current_IF;
+#endif
   }
   else {
-    if(pic_icount)
-      dpmi_eflags |= VIP;
-    dpmi_control();
+    int retcode;
+    if(pic_icount) dpmi_eflags |= VIP;
+    retcode = dpmi_control();
+#ifdef USE_MHPDBG
+    if (retcode && mhpdbg.active) {
+      if ((retcode ==1) || (retcode ==3)) mhp_debug(DBG_TRAP + (retcode << 8), 0, 0);
+      else mhp_debug(DBG_INTxDPMI + (retcode << 8), 0, 0);
+    }
+#endif
   }
     handle_signals();
 
@@ -1898,8 +2031,17 @@ void dpmi_init()
 	fsync(fileno(dbg_fd));
     }
 
+#if 0
     /* all selectors are used */
     memset(ldt_buffer,0xff,LDT_ENTRIES*LDT_ENTRY_SIZE);
+#else
+    /* Note: when get_ldt() is called _before_ any descriptor allocation
+     * (e.g. when no modify_ldt(WRITE, ...) was called), then we get
+     * _not_ the whole LDT, but only the DEFAULT static one.
+     * So better to clear the ldt_buffer with ZERO
+     */
+    memset(ldt_buffer,0,LDT_ENTRIES*LDT_ENTRY_SIZE);
+#endif
     get_ldt(ldt_buffer);
 
     pm_block_handle_used = 1;
@@ -1916,14 +2058,9 @@ void dpmi_init()
  * DANG_END_NEWIDEA
  */
 
-#ifdef KERNEL_LDTALIAS
-    if (!(KSPACE_LDT_ALIAS = AllocateDescriptors(1))) return;
-    if (SetLDTAliasSelector(KSPACE_LDT_ALIAS, 1)) return;
-#else
     if (!(LDT_ALIAS = AllocateDescriptors(1))) return;
     if (SetSelector(LDT_ALIAS, (unsigned long) ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE-1, DPMIclient_is_32,
                   MODIFY_LDT_CONTENTS_DATA, 1, 0, 0, 0)) return;
-#endif /* KERNEL_LDTALIAS */
     
     if (!(PMSTACK_SEL = AllocateDescriptors(1))) return;
     if (SetSelector(PMSTACK_SEL, (unsigned long) pm_stack, DPMI_pm_stack_size-1, DPMIclient_is_32,
@@ -2076,24 +2213,18 @@ void dpmi_init()
   in_sigsegv++;
 }
 
-static inline void Return_to_dosemu_code(struct sigcontext_struct *scp)
-{
-  memcpy(&dpmi_stack_frame[current_client], scp, sizeof(dpmi_stack_frame[0]));
-  memcpy(scp, &emu_stack_frame, sizeof(emu_stack_frame));
-}
-
 void dpmi_sigio(struct sigcontext_struct *scp)
 {
   if (_cs != UCODESEL){
 #if 0
     if (dpmi_eflags & IF) {
       D_printf("DPMI: return to dosemu code for handling signals\n");
-      Return_to_dosemu_code(scp);
+      Return_to_dosemu_code(scp,0);
     } else dpmi_eflags |= VIP;
 #else
 /* DANG_FIXTHIS We shouldn't return to dosemu code if IF=0, but it helps - WHY? */
     D_printf("DPMI: return to dosemu code for handling signals\n");
-    Return_to_dosemu_code(scp);
+    Return_to_dosemu_code(scp,0);
 #endif
   }
 }
@@ -2258,6 +2389,20 @@ if ((_ss & 7) == 7) {
 }
 #endif /* 1 */
   
+#ifdef USE_MHPDBG
+  if (mhpdbg.active) {
+    if (_trapno == 3) {
+       Return_to_dosemu_code(scp,3);
+       return;
+    }
+    if (dpmi_mhp_TF && (_trapno == 1)) {
+      _eflags &= ~TF;
+      dpmi_mhp_TF=0;
+      Return_to_dosemu_code(scp,1);
+      return;
+    }
+  }
+#endif
   if (_trapno == 13) {
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
     ssp = (us *) SEL_ADR(_ss, _esp);
@@ -2265,6 +2410,18 @@ if ((_ss & 7) == 7) {
     switch (*csp++) {
 
     case 0xcd:			/* int xx */
+#ifdef USE_MHPDBG
+      if (mhpdbg.active) {
+        if (dpmi_mhp_intxxtab[*csp]) {
+          static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno);
+          int ret=dpmi_mhp_intxx_check(scp, *csp);
+          if (ret) {
+            Return_to_dosemu_code(scp,ret);
+            return;
+          }
+        }
+      }
+#endif
       /* Bypass the int instruction */
       _eip += 2;
       if (Interrupt_Table[*csp].selector == DPMI_SEL)
@@ -2303,8 +2460,17 @@ if ((_ss & 7) == 7) {
 
       if (_cs==UCODESEL) {
 	/* HLT in dosemu code - must in dpmi_control() */
-	memcpy(&emu_stack_frame, scp, sizeof(emu_stack_frame)); /* backup the registers */
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+        /* Note: when using DIRECT_DPMI_CONTEXT_SWITCH, we only come
+         * here if we have set the trap-flags (TF)
+         * ( needed for dosdebug only )
+         */
+	copy_context(emu_stack_frame, scp); /* backup the registers */
+	copy_context(scp, &dpmi_stack_frame[current_client]); /* switch the stack */
+#else
+	memcpy(emu_stack_frame, scp, sizeof(*emu_stack_frame)); /* backup the registers */
 	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(dpmi_stack_frame[0])); /* switch the stack */
+#endif
 #if 0
 	D_printf("DPMI: now jumping to dpmi client code\n");
 #ifdef SHOWREGS
@@ -2366,11 +2532,7 @@ if ((_ss & 7) == 7) {
         } else if (_eip==DPMI_OFF+1+HLT_OFF(DPMI_API_extension)) {
           D_printf("DPMI: extension API call: 0x%04x\n", _LWORD(eax));
           if (_LWORD(eax) == 0x0100) {
-#ifdef KERNEL_LDTALIAS	      
-	    _eax = KSPACE_LDT_ALIAS;  /* direct ldt access */
-#else
             _eax = LDT_ALIAS;  /* simulate direct ldt access */
-#endif
 	    _eflags &= ~CF;
 	    in_win31 = 1;
 	  } else
@@ -2699,7 +2861,7 @@ if ((_ss & 7) == 7) {
 
   if (in_dpmi_dos_int || int_queue_running || ((dpmi_eflags&(VIP|IF))==(VIP|IF)) ) {
     dpmi_eflags &= ~VIP;
-    Return_to_dosemu_code(scp);
+    Return_to_dosemu_code(scp,0);
   }
 }
 
@@ -3128,4 +3290,174 @@ done:
   } else
     error("DPMI: unhandled HLT: lina=%p!\n", lina);
 }
+
+#ifdef USE_MHPDBG   /* dosdebug support */
+
+int dpmi_mhp_regs(void)
+{
+  struct sigcontext_struct *scp;
+  if (!in_dpmi) return 0;
+  scp=&dpmi_stack_frame[current_client];
+  mhp_printf("\nEAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx eflags: %08lx",
+     _eax, _ebx, _ecx, _edx, _eflags);
+  mhp_printf("\nESI: %08lx EDI: %08lx EBP: %08lx", _esi, _edi, _ebp);
+  mhp_printf(" DS: %04x ES: %04x FS: %04x GS: %04x\n", _ds, _es, _fs, _gs);
+  mhp_printf(" CS:EIP= %04x:%08x SS:ESP= %04x:%08x\n", _cs, _eip, _ss, _esp);
+  return 1;
+}
+
+void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off)
+{
+  *seg = dpmi_stack_frame[current_client].cs;
+  *off = dpmi_stack_frame[current_client].eip;
+}
+
+void dpmi_mhp_modify_eip(int delta)
+{
+  dpmi_stack_frame[current_client].eip +=delta;
+}
+
+void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off)
+{
+  *seg = dpmi_stack_frame[current_client].ss;
+  *off = dpmi_stack_frame[current_client].esp;
+}
+
+int dpmi_mhp_get_selector_size(int sel)
+{
+  return (Segments[sel >> 3].is_32);
+}
+
+int dpmi_mhp_getcsdefault(void)
+{
+  return dpmi_mhp_get_selector_size(dpmi_stack_frame[current_client].cs);
+}
+
+void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp)
+{
+  int typebyte=do_LAR(selector);
+  if (typebyte) ((unsigned char *)(&ldt_buffer[selector & 0xfff8]))[5]=typebyte;
+  memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
+}
+
+int dpmi_mhp_getselbase(unsigned short selector)
+{
+  unsigned long d[2];
+  dpmi_mhp_GetDescriptor(selector, d);
+  return (d[0] >> 16) | ((d[1] & 0xff) <<16) | (d[1] & 0xff000000);
+}
+
+enum {
+   _SSr, _CSr, _DSr, _ESr, _FSr, _GSr,
+   _AXr, _BXr, _CXr, _DXr, _SIr, _DIr, _BPr, _SPr, _IPr, _FLr,
+  _EAXr,_EBXr,_ECXr,_EDXr,_ESIr,_EDIr,_EBPr,_ESPr,_EIPr
+};
+
+unsigned long dpmi_mhp_getreg(int regnum)
+{
+  struct sigcontext_struct *scp;
+  if (!in_dpmi) return 0;
+  scp=&dpmi_stack_frame[current_client];
+  switch (regnum) {
+    case _SSr: return _ss;
+    case _CSr: return _cs;
+    case _DSr: return _ds;
+    case _ESr: return _es;
+    case _FSr: return _fs;
+    case _GSr: return _gs;
+    case _AXr: return _eax;
+    case _BXr: return _ebx;
+    case _CXr: return _ecx;
+    case _DXr: return _edx;
+    case _SIr: return _esi;
+    case _DIr: return _edi;
+    case _BPr: return _ebp;
+    case _SPr: return _esp;
+    case _IPr: return _eip;
+    case _FLr: return _eflags;
+    case _EAXr: return _eax;
+    case _EBXr: return _ebx;
+    case _ECXr: return _ecx;
+    case _EDXr: return _edx;
+    case _ESIr: return _esi;
+    case _EDIr: return _edi;
+    case _EBPr: return _ebp;
+    case _ESPr: return _esp;
+    case _EIPr: return _eip;
+  }
+  return -1;
+}
+
+void dpmi_mhp_setreg(int regnum, unsigned long val)
+{
+  struct sigcontext_struct *scp;
+  if (!in_dpmi) return;
+  scp=&dpmi_stack_frame[current_client];
+  switch (regnum) {
+    case _SSr: _ss = val; break;
+    case _CSr: _cs = val; break;
+    case _DSr: _ds = val; break;
+    case _ESr: _es = val; break;
+    case _FSr: _fs = val; break;
+    case _GSr: _gs = val; break;
+    case _AXr: _eax = val; break;
+    case _BXr: _ebx = val; break;
+    case _CXr: _ecx = val; break;
+    case _DXr: _edx = val; break;
+    case _SIr: _esi = val; break;
+    case _DIr: _edi = val; break;
+    case _BPr: _ebp = val; break;
+    case _SPr: _esp = val; break;
+    case _IPr: _eip = val; break;
+    case _FLr: _eflags = (_eflags & ~0x0cd5) | (val & 0x0cd5); break;
+    case _EAXr: _eax = val; break;
+    case _EBXr: _ebx = val; break;
+    case _ECXr: _ecx = val; break;
+    case _EDXr: _edx = val; break;
+    case _ESIr: _esi = val; break;
+    case _EDIr: _edi = val; break;
+    case _EBPr: _ebp = val; break;
+    case _ESPr: _esp = val; break;
+    case _EIPr: _eip = val; break;
+  }
+}
+
+static int dpmi_mhp_intxx_pending(struct sigcontext_struct *scp, int intno)
+{
+  if (dpmi_mhp_intxxtab[intno] & 1) {
+    if (dpmi_mhp_intxxtab[intno] & 0x80) {
+      if (mhp_getaxlist_value( (_eax & 0xFFFF) | (intno<<16), -1) <0) return -1;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+static int dpmi_mhp_intxx_check(struct sigcontext_struct *scp, int intno)
+{
+  switch (dpmi_mhp_intxx_pending(scp,intno)) {
+    case -1: return 0;
+    case 1:
+      dpmi_mhp_intxxtab[intno] &=~1;
+      return 0x100+intno;
+    default:
+      if (!(dpmi_mhp_intxxtab[intno] & 2)) dpmi_mhp_intxxtab[intno] |=3;
+      return 0;
+  }
+}
+
+int dpmi_mhp_setTF(int on)
+{
+  struct sigcontext_struct *scp;
+  if (!in_dpmi) return 0;
+  scp=&dpmi_stack_frame[current_client];
+  if (on) _eflags |=TF;
+  else _eflags &=~TF;
+  dpmi_mhp_TF = _eflags & TF;
+  return 1;
+}
+
+
+#endif /* dosdebug support */
+
 #undef DPMI_C

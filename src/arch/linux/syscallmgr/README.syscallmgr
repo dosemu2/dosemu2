@@ -3,7 +3,7 @@ syscallmgr,
 A manager for embedding system calls
 by means of loadable modules
 
-(C) 1994,1995 under GPL, Hans Lermen <lermen@elserv.ffm.fgan.de>
+(C) 1994..1996 under GPL, Hans Lermen <lermen@elserv.ffm.fgan.de>
 ================================================================
 
 NOTE: This packet was originally develloped for the DOSEMU-team
@@ -120,30 +120,33 @@ The package mainly consists of
      without kernel patches !
 
    This insmod can be used as a replacement for the ./insmod contained
-   in the official modules-1.2.8.tar.gz from Bjorn Ekwall and Jacques Gelinas.
+   in the official modules-2.0.0.tar.gz from Bjorn Ekwall and Jacques Gelinas.
    It can replace the official one, because the special features are switched
    on by command line options. Usage is (special features marked with *) :
 
 
-   insmod [-f] [-x] [-o name] [-msvwipl] [-z | -Z mapfile] module [[sym=value]...]
+  insmod [-fkmopsvVxX] [-o name] module [[sym=value]...]
+* insmod [-fkmopsvVxXwl] [-o name] [-z | -Z mapfile] module [[sym=value]...]
 
-     module     Filename of a loadable kernel module (*.o)
-     -o name    Set internal modulname to name
-     -x         do *not* export externs
-     -m         generate loadmap (so crashes can be traced down)
-     -v         verbose output
-     -s         set insmod syslogging
-   * -w         print warnings
-     -f         Force loading under wrong kernel version
-                (together with -z also disables mapfile check)
-   * -z         At last use /usr/src/linux/zSystem.map to resolve
-                (on Linux > 1.1.76:  System.map)
-   * -Z mapfile As -z, but use mapfile
-   * -l         Together with -z, -Z, also take local symbols from map
-                (But note, local symbols can be multiple defined, last one is taken)
-   * -p         silent poll mode, just check if the module matches the kernel
-   * -i         ignore missing underscores in ksyms when resolving
-
+  module     Filename of a loadable kernel module (*.o)
+  -f         Force loading under wrong kernel version
+             (together with -z also disables mapfile check)
+  -k         Make module (autoclean)-able
+  -m         Generate loadmap (so crashes can be traced)
+  -o name    Set internal modulname to name
+  -p         Poll mode, just check if the module matches the kernel
+  -s         Report errors via syslog
+  -v         Verbose output
+  -V         Show version
+  -x         do *not* export externs
+  -X         *do* export externs
+* -w         print warnings
+* -z         At last use /usr/src/linux/zSystem.map to resolve
+             (on Linux > 1.1.76:  System.map)
+* -Z mapfile As -z, but use mapfile
+* -l         Together with -z, -Z, also take local symbols from map
+             First all global symbols, then the (remaining) locals are resolved.
+             But note, local symbols can be multiple defined, last one is taken
 
   NOTE:
 
@@ -160,15 +163,17 @@ The package mainly consists of
  
   B.    You may wonder why the dosemu team did not take effort to get
         this feature part of the official modutils release ?
-        In fact, we did (at state of Linux 1.1.83)! 
-        Bjorn Ekwall, because he saw that the dosemu team needs this,
-        put the HACKER_TOOL stuff into modutils-1.1.85, but on protest
-        of Linus he had to remove it later for modutils-1.1.87.
-        So, we have the ugly state to always repatch the modules stuff
-        whenever a a new release comes up, ... sorry.
+        In fact, we did (at state of Linux 1.1.83)!
+        However, the official interface for modules are the symbols
+        that are exported by 'ksyms' and Linus decided to tholerate
+        binary-only modules that only use these Symbols. Because
+        resolving _all_ Symbols via System.map would break this policy
+        Linus did refuse to allow this for the 'official' version
+        modules.
+        So, we have the unconfortable state to always repatch the modules
+        stuff whenever a a new release comes up, ... sorry but we accept this.
         To make this as easy as possible, the HACKER_TOOL routines are
-        programmed as isolated as possible (the integrated stuff from
-        modutils-1.1.85 was faster).
+        programmed as isolated as possible.
 
 
 

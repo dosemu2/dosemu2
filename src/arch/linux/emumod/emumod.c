@@ -71,10 +71,6 @@ extern sys_sigreturn(), _TRANSIENT_sys_sigreturn();
 extern sys_modify_ldt(), _TRANSIENT_sys_modify_ldt();
 extern /*handle_vm86_fault(),*/  _TRANSIENT_handle_vm86_fault();
 
-#if (KERNEL_VERSION  >= 1003004) && defined(REPAIR_ODD_MSDOS_FS)
-extern void *msdos_dir_inode_operations[], *_TRANSIENT_msdos_dir_operations;
-#endif
-
 static struct redirect_db redirect_list[] = {
   { save_v86_state,
     _TRANSIENT_save_v86_state },
@@ -98,10 +94,6 @@ static struct redirect_db redirect_list[] = {
     _TRANSIENT_sys_sigreturn }
   , { sys_modify_ldt,
     _TRANSIENT_sys_modify_ldt }
-#if (KERNEL_VERSION  >= 1003004) && (KERNEL_VERSION  < 1003040) && defined(REPAIR_ODD_MSDOS_FS)
-  , { msdos_dir_inode_operations,
-    &_TRANSIENT_msdos_dir_operations, 1 }
-#endif
 };
 
 
@@ -199,7 +191,6 @@ void cleanup_module( void) {
   printk("\n" ID_STRING ": statistics vm86_faults= %d\n",vm86_fault_count);
   printk( ID_STRING ": statistics vm86_count_cli= %d vm86_count_sti= %d\n",  vm86_count_cli, vm86_count_sti);
   printk( ID_STRING ": statistics signalret_count= %d\n",  signalret_count);
-  printk( ID_STRING ": statistics sys_ldt_count= %d\n",  sys_ldt_count);
 #endif
 
   /* wait arround to be sure no process is still in the module */

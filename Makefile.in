@@ -6,17 +6,17 @@ export WAIT=yes
 
 @SET_MAKE@
 
-default:
+default install clean realclean echo help depend:
 	@$(MAKE) -C src $@
 
 all:
 	@$(MAKE) -C src default
 
-install:
-	@$(MAKE) -C src $@
-
-clean:
-	@$(MAKE) -C src $@
-
 pristine:
 	@$(MAKE) -C src $@
+	rm -f config.cache config.status config.log src/include/config.h
+	rm -f src/Makefile.common src/arch/linux/Makefile.main
+	rm -f `find . -name Makefile`
+	rm -f `find . -name '*~'`
+	rm -f `find . -name '*[\.]orig'`
+	rm -vf `find . -size 0`

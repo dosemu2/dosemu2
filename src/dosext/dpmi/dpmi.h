@@ -33,6 +33,8 @@ EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
 EXTERN int dpmi_eflags INIT(0);    /* used for virtuell interruptflag and pending interrupts */
 EXTERN int in_dpmi_dos_int INIT(0);
+EXTERN int dpmi_mhp_TF INIT(0);
+EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 
 void dpmi_get_entry_point();
 
@@ -45,6 +47,20 @@ void dpmi_fault(struct sigcontext *, int);
 void dpmi_realmode_hlt(unsigned char *);
 void run_pm_int(int);
 void run_pm_mouse();
+void fake_pm_int(void);
+
+#ifdef __linux__
+int dpmi_mhp_regs(void);
+void dpmi_mhp_getcseip(unsigned int *seg, unsigned int *off);
+void dpmi_mhp_getssesp(unsigned int *seg, unsigned int *off);
+int dpmi_mhp_get_selector_size(int sel);
+int dpmi_mhp_getcsdefault(void);
+int dpmi_mhp_setTF(int on);
+void dpmi_mhp_GetDescriptor(unsigned short selector, unsigned long *lp);
+int dpmi_mhp_getselbase(unsigned short selector);
+unsigned long dpmi_mhp_getreg(int regnum);
+void dpmi_mhp_setreg(int regnum, unsigned long val);
+#endif
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \

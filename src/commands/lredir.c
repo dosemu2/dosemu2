@@ -11,6 +11,9 @@
  *  Usage information is more verbose
  * Changes: 11/02/95
  *  Safer dosemu detection
+ * Changes: 12/27/95
+ *  Dosemu detection moved to emulib.c
+ *
  *
  * NOTES:
  *  LREDIR supports the following commands:
@@ -26,11 +29,13 @@
  *    show usage information for LREDIR
  ***********************************************/
 
+
 #include <ctype.h>    /* toupper */
+#include <dos.h>      /* geninterrupt and MK_FP */
 #include <stdio.h>    /* printf  */
 #include <stdlib.h>   /* exit    */
-#include <dos.h>      /* geninterrupt and MK_FP */
 #include <string.h>
+#include "emulib.h"
 
 typedef unsigned char uint8;
 typedef unsigned int uint16;
@@ -59,35 +64,7 @@ typedef unsigned int uint16;
 #define DEFAULT_REDIR_PARAM   0
 
 #define DOS_HELPER_INT          0xE6
-#define DOS_HELPER_DOSEMU_CHECK 0x00
-#define DOSEMU_BIOS_DATE        "02/25/93"
 
-/* returns non-zero major version number if DOSEMU is loaded */
-uint16 CheckForDOSEMU(void)
-{
-    int i;
-    unsigned char far *pos;
-    unsigned char b_date[8];
-
-    pos = MK_FP(0xF000, 0xFFF5);
-
-    for (i = 0; i < 8; i++)
-      b_date[i] = pos[i];
-
-    if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0)
-      return (0);
-
-    _AL = DOS_HELPER_DOSEMU_CHECK;
-    geninterrupt(DOS_HELPER_INT);
-
-    /* check for signature in AX */
-    if (_AX == 0xaa55) {
-      return (_BX);
-    }
-    else {
-      return (0);
-    }
-}
 
 char far *
 GetListOfLists(void)
@@ -386,10 +363,9 @@ main(int argc, char **argv)
     char deviceStr[MAX_DEVICE_STRING_LENGTH];
     char resourceStr[MAX_RESOURCE_PATH_LENGTH];
 
-    ccode = CheckForDOSEMU();
-    if (ccode == 0) {
+    if (check_emu() == 0) {
       printf("DOSEMU is not running.  This program is intended for use\n");
-      printf("only with the Linux DOS emulator.\n");
+      printf("only with DOSEMU.\n");
       exit(1);
     }
 

@@ -4,6 +4,10 @@
 #include <unistd.h>
 #include "../include/slang.h"
 
+#ifndef SLANG_VERSION
+# define SLANG_VERSION 1
+#endif
+
 /* unsigned char DOSemu_Slang_Escape_Character = 30; */
 
 char *DOSemu_Keyboard_Keymap_Prompt = NULL;
@@ -241,6 +245,10 @@ static Keymap_Scan_Type Normal_Map [] =
 };
 
 static SLKeyMap_List_Type *The_Normal_KeyMap;
+
+#if SLANG_VERSION > 9929
+# define SLang_define_key1(s,f,t,m) SLkm_define_key((s), (FVOID_STAR)(f), (m))
+#endif
 
 static unsigned char Esc_Char;
 int define_key (unsigned char *key, unsigned long scan, SLKeyMap_List_Type *m)
@@ -604,7 +612,11 @@ void do_slang_getkeys (void)
 	     continue;
 	  }
 	     
-	scan = (unsigned long) key->f;
+#if SLANG_VERSION < 9930
+        scan = (unsigned long) key->f;
+#else
+	scan = (unsigned long) key->f.f;
+#endif
 	
 	if (scan < ALT_KEY_SCAN_CODE)
 	  {

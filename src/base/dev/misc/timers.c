@@ -35,13 +35,14 @@
 #include "emu.h"
 #include "port.h"
 #include "timers.h"
+#include "iodev.h"
 #include "port.h"
 #include "int.h"
 #include "pic.h"
 
 #define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
 
-pit_latch_struct pit[3];   /* values of 3 PIT counters */
+pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
@@ -208,7 +209,7 @@ static void pit_latch(int latch)
 #endif
 }
 
-u_char pit_inp(u_int port)
+Bit8u pit_inp(Bit32u port)
 {
   int ret = 0;
   port -= 0x40;
@@ -248,7 +249,7 @@ u_char pit_inp(u_int port)
   return ret;
 }
 
-void pit_outp(u_int port, u_char val)
+void pit_outp(Bit32u port, Bit8u val)
 {
 
   port -= 0x40;
@@ -306,12 +307,12 @@ void pit_outp(u_int port, u_char val)
   }
 }
 
-u_char pit_control_inp(u_int port)
+Bit8u pit_control_inp(Bit32u port)
 {
   return 0;
 }
 
-void pit_control_outp(u_int port, u_char val)
+void pit_control_outp(Bit32u port, Bit8u val)
 {
   int latch = (val >> 6) & 0x03;
 

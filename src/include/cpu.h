@@ -278,6 +278,7 @@ EXTERN struct vec_t *ivecs;
 #define NOCARRY ( WRITE_FLAGS(READ_FLAGS() & ~CF) )
 #endif
 
+#if 0
 struct sigcontext_struct {
   unsigned short gs, __gsh;
   unsigned short fs, __fsh;
@@ -302,7 +303,9 @@ struct sigcontext_struct {
   unsigned long oldmask;
   unsigned long cr2;
 };
-
+#else
+#include <asm/sigcontext.h>
+#endif
 
 #ifdef __NetBSD__
 #define _gs     (scp->sc_gs)

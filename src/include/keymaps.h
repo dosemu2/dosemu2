@@ -64,6 +64,10 @@ extern unsigned char key_map_no[];
 extern unsigned char shift_map_no[];
 extern unsigned char alt_map_no[];
 
+extern unsigned char key_map_no_latin1[];
+extern unsigned char shift_map_no_latin1[];
+extern unsigned char alt_map_no_latin1[];
+
 extern unsigned char key_map_sf[];
 extern unsigned char shift_map_sf[];
 extern unsigned char alt_map_sf[];

@@ -9,7 +9,7 @@ if [ "`lsmod|grep emumodule`" != "" ]; then
   ${BINDIR}/rmmod emumodule
 fi
 if [ "`lsmod|grep syscallmgr`" != "" ]; then
-  echo "are you shure to unload syscallmgr ? (y)"
+  echo "are you sure to unload syscallmgr ? (y)"
   read x
   if [ "$x" = "y" ]; then
     ${BINDIR}/rmmod syscallmgr

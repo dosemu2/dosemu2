@@ -272,8 +272,8 @@ static int ser_close(int num)
 #define XCASE 0
 #endif
 
-unsigned char 
-com_readb(unsigned int port) {
+Bit8u
+com_readb(Bit32u port) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {
@@ -284,7 +284,7 @@ com_readb(unsigned int port) {
 }
 
 void
-com_writeb(unsigned int port, unsigned char value) {
+com_writeb(Bit32u port, Bit8u value) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {

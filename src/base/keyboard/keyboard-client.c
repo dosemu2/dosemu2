@@ -30,6 +30,9 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <errno.h>
+#ifndef EDEADLOCK
+  #define EDEADLOCK EDEADLK
+#endif
 #ifdef __linux__
 #include <linux/vt.h>
 #include <linux/kd.h>
@@ -251,8 +254,11 @@ keyboard_init(void)
     if (config.usesX) {
 	kbd_fd = dup(keypipe);
 	if (kbd_fd < 0) {
-	    error("ERROR: Couldn't duplicate STDIN !\n");
+	    k_printf("ERROR: Couldn't duplicate STDIN !\n");
+	    memset(&oldtermios, 0x0, sizeof(oldtermios));
+#if 0
 	    leavedos(66);
+#endif
 	}
     } else {
 	kbd_fd = STDIN_FILENO;
@@ -302,8 +308,11 @@ keyboard_init(void)
     }
 
     if (tcgetattr(kbd_fd, &oldtermios) < 0) {
-	error("ERROR: Couldn't tcgetattr(STDIN,...) !\n");
+	k_printf("ERROR: Couldn't tcgetattr(STDIN,...) !\n");
+	memset(&oldtermios, 0x0, sizeof(oldtermios));
+#if 0
 	leavedos(66);
+#endif
     }
     /*
      * DANG_BEGIN_REMARK
@@ -328,7 +337,7 @@ keyboard_init(void)
     cfgetispeed(&newtermio);
     cfgetospeed(&newtermio);
     if (tcsetattr(kbd_fd, TCSANOW, &newtermio) < 0) {
-	error("ERROR: Couldn't tcsetattr(STDIN,TCSANOW,...) !\n");
+	k_printf("ERROR: Couldn't tcsetattr(STDIN,TCSANOW,...) !\n");
     }
     child_kbd_flags = 0;
     scr_state.current = 1;

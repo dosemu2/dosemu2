@@ -45,6 +45,7 @@
 #include "dma.h"
 #include "xms.h"
 #include "shared.h"
+#include "iodev.h"
 
 extern void pkt_check_receive_quick(void);
 /* flag to activate use of pic by packet driver */

@@ -25,6 +25,7 @@
 
 #include "emu.h" /* for h_printf */
 
+#include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -374,7 +375,7 @@ inline void dma_write_addr (int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].address[channel].data[dma[dma_c].ff] = value;
 
-  h_printf ("DMA: Wrote %u into Channel %d Address (Byte %d)\n", value,
+  h_printf ("DMA: Wrote 0x%x into Channel %d Address (Byte %d)\n", value,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
   dma_toggle_ff (dma_c);
@@ -384,7 +385,7 @@ inline void dma_write_count (int dma_c, int channel, Bit8u value)
 {
   dma[dma_c].length[channel].data[dma[dma_c].ff] = value;
 
-  h_printf ("DMA: Wrote %u into Channel %d Length (Byte %d)\n", value,
+  h_printf ("DMA: Wrote 0x%x into Channel %d Length (Byte %d)\n", value,
 	    (dma_c *4) + channel, dma[dma_c].ff);
 
   dma_toggle_ff (dma_c);

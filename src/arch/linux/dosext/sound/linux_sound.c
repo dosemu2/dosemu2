@@ -23,6 +23,7 @@
 
 #include "emu.h" /* For S_printf */
 
+#include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/soundcard.h>
@@ -278,7 +279,7 @@ void linux_sb_dma_start_init(__u32 command)
     S_printf ("SB:[Linux] 8-bit DMA (High Speed, Auto-Init) starting\n");
     break;
   default:
-    S_printf ("SB:[Linux] Unsupported DMA type (%lx)\n", command);
+    S_printf ("SB:[Linux] Unsupported DMA type (%x)\n", command);
     return;
     break;
   };

@@ -9,8 +9,8 @@
 
 extern void timer_tick(void);
 extern void set_ticks(unsigned long);
-extern u_char pit_inp(u_int);
-extern void pit_outp(u_int, u_char);
+extern Bit8u pit_inp(Bit32u);
+extern void pit_outp(Bit32u, Bit8u);
 extern int  inport_43();
 extern void outport_43(int);
 
@@ -41,10 +41,10 @@ extern void outport_43(int);
 #define INT28_IDLE_USECS	0
 #endif
 
-extern u_char pit_control_inp(u_int);
-extern void pit_control_outp(u_int port, u_char val);
+extern Bit8u pit_control_inp(Bit32u);
+extern void pit_control_outp(Bit32u port, Bit8u val);
 extern void initialize_timers(void);
-
+#if 0
 typedef struct {
   short          read_state;
   short          write_state;
@@ -54,5 +54,5 @@ typedef struct {
   long           cntr;
   struct timeval time;
 } pit_latch_struct;
-
+#endif
 #endif /* TIMERS_H */

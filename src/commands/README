@@ -6,7 +6,7 @@ bootoff.com  : switch off the bootfile to access disk
 booton.com   : switch on the bootfile to access bootfile
                see examples/config.dist at bootdisk option
 
-chdir.exe    : change the Unix directory for Dosemu (use chdir(2))
+chdir.com    : change the Unix directory for Dosemu (use chdir(2))
 
 dosdbg.com   : change the debug setting from within Dosemu
                dosdbg -- show current state
@@ -22,7 +22,7 @@ emumouse.com : fine tune internal mousedriver of Dosemu
 
 exitemu.com  : terminate Dosemu
 
-getcwd.exe   : get the Unix directory for Dosemu (use getcwd(2))
+getcwd.com   : get the Unix directory for Dosemu (use getcwd(2))
 
 isemu.com    : detects Dosemu version and returns greater 0 if running under
                Dosemu
@@ -38,7 +38,7 @@ mgarrot.com  : give up cpu time when Dosemu is idle
 
 speed.com    : set cpu usage (HogThreshold) from inside Dosemu
 
-system.exe   : interface to system(2)...
+system.com   : interface to system(2)...
 
 unix.com     : execute Unix commands from Dosemu
                unix -- display help screen

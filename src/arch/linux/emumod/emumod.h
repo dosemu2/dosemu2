@@ -15,7 +15,6 @@ int vm86_trap_count[8]={0};
 int vm86_count_sti=0;
 int vm86_count_cli=0;  
 int signalret_count=0;
-int sys_ldt_count=0;
 #endif
 
 #else  /* NOT _EMUMOD_itself */

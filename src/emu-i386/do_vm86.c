@@ -102,7 +102,8 @@ extern void     vm86_GP_fault();
 void vm86_GP_fault(void)
 {
 
-  unsigned char *csp, *lina, org_eip;
+  unsigned char *csp, *lina;
+  unsigned long org_eip;
   int pref_seg;
   int done,is_rep,is_32bit;
 

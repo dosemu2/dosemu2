@@ -90,3 +90,4 @@ extern unsigned long addr;
 void insmod_setsyslog (const char *name);
 void insmod_error (const char *ctl, ...);
 void insmod_debug (const char *ctl, ...);
+void insmod_printf (const char *ctl, ...);

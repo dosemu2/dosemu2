@@ -124,6 +124,9 @@ fr-latin1		{ yylval->i_value = KEYB_FR_LATIN1;
 dk			{ yylval->i_value = KEYB_DK; return(KEYB_LAYOUT); }
 dk-latin1		{ yylval->i_value = KEYB_DK_LATIN1;
 			  return(KEYB_LAYOUT); }
+no			{ yylval->i_value = KEYB_NO; return(KEYB_LAYOUT); }
+no-latin1		{ yylval->i_value = KEYB_NO_LATIN1;
+			  return(KEYB_LAYOUT); }
 dvorak			{ yylval->i_value = KEYB_DVORAK; return(KEYB_LAYOUT); }
 sg			{ yylval->i_value = KEYB_SG; return(KEYB_LAYOUT); }
 sg-latin1		{ yylval->i_value = KEYB_SG_LATIN1;

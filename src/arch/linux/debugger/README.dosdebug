@@ -1,54 +1,46 @@
-README file for DOSEMU debugger  v0.3	9/27/95
+README file for DOSEMU debugger  v0.4	7/10/96
 send comments to Max Parke     <mhp@light.lightlink.com>
        and    to Hans Lermen   <lermen@elserv.ffm.fgan.de>
 ================================================================
 
-This is a second preliminary release of the DOSEMU debugger, with the
+This is release v0.4 of the DOSEMU debugger, with the
 following features:
 * interactive
-* display/disassembly/modify of registers and memory(0-1Mb)
-* breakpoints (int3-style, and breakpoint on INT xx)
+* DPMI-support
+* display/disassembly/modify of registers and memory (DOS and DPMI)
+* display/disassembly memory (dosemu code and data)
+*   read-only access to DOSEMU kernel via memory dump and disassembly
+*   uses /usr/src/dosemu/dosemu.map for above
+* breakpoints (int3-style, breakpoint on INT xx and DPMI-INT xx)
+*   DPMI-INT breakpoints can have an AX value for matching.
+*   (e.g. 'bpintd 31 0203' will stop _before_ DPMI function 0x203)
 * symbolic debugging via microsoft linker .MAP file support
-* read-only access to DOSEMU kernel via memory dump and disassembly
-* uses /usr/src/dosemu/dosemu.map for above
 * access is via the 'dosdebug' client from another virtual console.
   So, you have a "debug window" and the DOS window/keyboard, etc. are
   undisturbed.	VM86 execution can be started, stopped, etc.
 * If dosemu 'hangs' you can use the 'kill' command from dosbugger to
   recover.
-* code base is on DOSEMU pre-0.60.4.2
+* code base is on dosemu-0.63.1.50
 
 ================================================================
-Changes were added to these modules in the source tree:
-./emu.c
-./dosemu/sigsegv.c
-./dosemu/dosio.c
-./emumod/vm86.c
-./include/vm86plus.h
-./dpmi/dpmi.c
-./bios/bios.S
 All changes are #ifdef'ed with USE_MHPDBG
 
-New modules:
-./debugger/mhpdbg.c
-./debugger/mhpdbgc.c
-./debugger/dis8086.c
-./include/mhpdbg.h
+modules:
+./scr/arch/linux/debugger/mhpdbg.c
+./scr/arch/linux/debugger/mhpdbgc.c
+./scr/arch/linux/debugger/dis8086.c
+./src/arch/linux/debugger/dosdebug.c
+./src/include/mhpdbg.h
 
-New executable:
-./dosdebug.c
+executable:
+./bin/dosdebug
 
 ================================================================
 INSTALLATION:
 
 In order to use DOSEMU debugger you must also use EMUMODULE.
-In the main Makefile uncomment:
 
-  REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
-  USE_VM86PLUS= -DUSE_VM86PLUS
-  USE_MHPDBG= -DUSE_MHPDBG
-
-and then do a 'make realclean' and recompile dosemu.
+During ./configure be sure you have _NOT_ set --enable-noemumod
 
   
 ================================================================
@@ -89,29 +81,52 @@ d ADDR SIZE	  dump memory (no limit)
 u ADDR SIZE	  unassemble memory (no limit)
 g		  go (if stopped)
 stop		  stop (if running)
-mode 0|1	  set mode (0=SEG16, 1=LIN32) for u and d commands
+mode 0|1|+d|-d	  set mode (0=SEG16, 1=LIN32) for u and d commands
+                  +d enables DPMI mode (default on startup),
+                  -d disables DPMI mode.
 t		  single step (not fully debugged!!!)
 tf                single step, force over IRET and POPF
+                  NOTE: the scope of 't' 'tf' or a 'come back for break'
+                        is either 'in DPMI' or realmode, depending on
+                        wether a DPMI-client is active (in_dpmi).
 r32		  dump regs in 32 bit format
 bp addr 	  set int3 style breakpoint
+                  NOTE: the scope is defined wether a DPMI-client is active
+                        (in_dpmi). The resulting 'come back' will force
+                        the mode that was when you defined the breakpoint.
+bc breakp.No.     Clear a breakpoint.
 bpint xx	  set breakpoint on INT xx
 bcint xx	  clr breakpoint on INT xx
+bpintd xx [ax]    set breakpoint on DPMI INT xx optionaly matching ax.
+bcintd xx [ax]    clear  breakpoint on DPMI INT xx.
 bpload            set one shot breakpoint at entry point
                   of the next loaded DOS-program.
 bl		  list active breakpoints
+ldt sel [lines]   dump ldt starting at selector 'sel' for 'lines'
+                  'sel' may be a symbolic register name.
 (rmapfile)	  (internal command to read /usr/src/dosemu/dosemu.map
 		  at startup time)
 rusermap org fn   read microsoft linker format .MAP file "fn"
 		  code origin = "org".
 		  for example if your code is at 1234:0, org would
 		  be 12340.
+
 Addresses may be specified as:
 1) a linear address.  Allows 'd' and 'u' commands to look at both
    DOSEMU kernel and DOS box memory (0-1Mb).
 2) a seg:off address (0-1Mb)
+   seg as well as off can be a symbolic registers name (e.g cs:eip)
+   'seg' under DPMI is resolved via LDT, if so a numeric 'seg' value
+   is prefixed by # (e.g. #00af:0000.
+   You may force a seg to treaten as LDT selector by prefixing the '#'.
+   Accordingly to the default address mode 'off' under DPMI is 16 or
+   32 bit.
+   When in DPMI mode, and you want to address/display realmode
+   stuff, then you must switch off DPMI mode ('mode -d')
 3) a symbolic address.	usermap is searched first, then dosemu map.
-4) an asterisk(*): CS:IP
-5) a dollar sign($): SS:SP
+   ( not for DPMI programms )
+4) an asterisk(*): CS:IP    (cs:eip)
+5) a dollar sign($): SS:SP  (ss:esp)
 
 ================================================================
 PERFORMANCE
@@ -135,8 +150,19 @@ There must be some.
 
 Known bugs:
 
+ - Though you may set breakpoints and do singlestep in Windows31,
+   this is a 'one shot': It will bomb _after_ you type 'g' again.
+   ( I suspect this is a timer problem, we _really_ should freeze
+   the timer and all hardware/mouse IRQs while the program is in 'stop').
+   Debugging and singlestepping through DJGPP code doesn't have any
+   problems.
+ - INT3 type breakpoints in DPMI code are _very_ tricky, because you
+   never know when the client has remapped/freed the piece of code
+   that is patched with 0xCC ( the one byte INT3 instruction ).
+   Use that with caution !!
  - Single stepping doesn't work correctly on call's. May be the
    trap-flag is lost.
+   However, when in DPMI the problems are minor.
  - popf sometime clears the trap-flag, so single stepping
    results in a 'go' command.
    'tf' works around, but we should do it better.

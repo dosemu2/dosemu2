@@ -64,6 +64,9 @@ __asm__("___START___: jmp _emulate\n");
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
+#ifndef EDEADLOCK
+  #define EDEADLOCK EDEADLK
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>

@@ -1,17 +1,23 @@
-#include <string.h>
-#include <stdio.h>
+/************************************************
+ * unix.c
+ * Run unix commands from inside Dosemu
+ *
+ * Written by ???
+ *
+ * 12/27/95 Kang-Jin Lee
+ *  - Dosemu detection moved to emulib.c
+ ************************************************/
+
+
 #include <dos.h>
-
-
-/* AM - Needed by TC to compile ... */
+#include <stdio.h>
 #include <stdlib.h>
-#include <process.h>
+#include <string.h>
+#include "emulib.h"
 
-#define DOSEMU_BIOS_DATE  "02/25/93"
 
-int check_for_DOSEMU(void);
 void usage (void);
-send_command(char **argv);
+int send_command (char **argv);
 void do_execute_dos (int argc, char **argv);
 void do_set_dosenv (int agrc, char **argv);
 
@@ -22,7 +28,7 @@ int main(int argc, char **argv)
     usage();
   }
 
-  if (!check_for_DOSEMU ()) {
+  if (!check_emu()) {
     printf ("This Command can only be used under DOSEMU.\n");
     exit (-1);
   }
@@ -68,7 +74,8 @@ void usage (void)
   exit(-1);
 }
 
-send_command(char **argv)
+
+int send_command(char **argv)
 {
     static char command_line[256] = "";
     struct REGPACK preg;
@@ -92,32 +99,6 @@ send_command(char **argv)
     return(0);
 }
 
-int check_for_DOSEMU()
-{
-    int i;
-    unsigned char far *pos;
-    unsigned char b_date[8];
-    struct REGPACK preg;
-
-    pos = MK_FP(0xF000, 0xFFF5);
-
-    for (i = 0; i < 8; i++)
-      b_date[i] = pos[i];
-
-    if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0)
-      return (0);
-
-    preg.r_ax = 0x00;
-    intr(0xe6, &preg);
-
-    if (preg.r_ax == 0xAA55) {
-      /* In DOSEMU - MAJOR number in BX */
-      return (preg.r_bx);
-    } else {
-      /* NOT in DOSEMU */
-      return (0);
-    }
-}
 
 void do_execute_dos (int argc, char **argv)
 {
@@ -164,6 +145,7 @@ void do_execute_dos (int argc, char **argv)
   }
 
 }
+
 
 void do_set_dosenv (int argc, char **argv)
 {

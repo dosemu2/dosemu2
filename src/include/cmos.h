@@ -48,8 +48,8 @@
 #define CMOS_INFO	0x33
 #define CMOS_RESV4	0x34	/* 12 bytes reserved */
 
-void cmos_write(int, int), cmos_init(void), cmos_reset(void);
-int cmos_read(int);
+void cmos_write(Bit32u, Bit8u), cmos_init(void), cmos_reset(void);
+Bit8u cmos_read(Bit32u);
 int cmos_date(int);
 
 struct CMOS {

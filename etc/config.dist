@@ -1,4 +1,4 @@
-# Linux dosemu 0.60 configuration file.
+# Linux dosemu 0.63 configuration file.
 # Updated to include QuickStart documentation 5/10/94 by Mark Rejhon
 # James MacLean, macleajb@ednet.ns.ca, 12/31/93
 # Robert Sanders, gt8134b@prism.gatech.edu, 5/16/93
@@ -6,14 +6,20 @@
 # NOTICE:
 #    - Although QuickStart information is included in this file, you
 #       should refer to the documentation in the "doc" subdirectory of the
-#       DOSEMU distribution, wherever possible. 
+#       DOSEMU distribution, wherever possible.
 #    - This configuration file is designed to be used as a base to make
 #       it easier for you to set up DOSEMU for your specific system.
 #    - Configuration options between lace brackets { } can be split onto
 #       multiple lines.
 #    - Comments start with # or ; in column 1. (beginning of a line)
+#    - If you have problems installing DOSEMU and think it might be useful
+#       to mail or post your /etc/dosemu.conf, please consider to do:
+#
+#         grep ^[^#] /etc/dosemu.conf > /tmp/dosemu.conf-stripped
+#
+#       and mail or post /tmp/dosemu.conf-stripped instead.
+#       This will prove that you actually read the documentation. :-)
 #    - Send Email to the jmaclean address above if you find any errors.
-
 
 #************************* DEBUG ******************************************
 #
@@ -43,7 +49,7 @@ timint on
 
 
 #************************** KEYBOARD ************************************
-# 
+#
 # QuickStart:
 #    With the "layout" keyword, you can specify your country's keyboard
 #    layout.  The following layouts are implemented:
@@ -59,13 +65,13 @@ timint on
 #    It is a bit unstable, but makes keyboard work better when set to "on".
 #
 #    The keyword "rawkeyboard" allows for accurate keyboard emulation for
-#    DOS programs, and is only activated when DOSEMU starts up at the 
-#    console.  It only becomes a problem when DOSEMU prematurely exits 
+#    DOS programs, and is only activated when DOSEMU starts up at the
+#    console.  It only becomes a problem when DOSEMU prematurely exits
 #    with a "Segmentation Fault" fatal error, because the keyboard would
-#    have not been reset properly.  In that case, you would have to run 
-#    kbd_mode -a remotely, or use the RESET button.  In reality, 
-#    this should never happen.  But if it does, please do report to the 
-#    dosemu development team, of the problem and detailed circumstances, 
+#    have not been reset properly.  In that case, you would have to run
+#    kbd_mode -a remotely, or use the RESET button.  In reality,
+#    this should never happen.  But if it does, please do report to the
+#    dosemu development team, of the problem and detailed circumstances,
 #    we're trying our best!  If you don't need near complete keyboard
 #    emulation (needed by major software package), set it to "off"
 #
@@ -84,24 +90,24 @@ HogThreshold 10
 #**************************** SERIAL ************************************
 #
 # QuickStart:
-#    You can specify up to 4 simultaneous serial ports here.  
+#    You can specify up to 4 simultaneous serial ports here.
 #    If more than one ports have the same IRQ, only one of those ports
 #    can be used at the same time.  Also, you can specify the com port,
 #    base address, irq, and device path!  The defaults are:
 #        COM1 default is base 0x03F8, irq 4, and device /dev/cua0
-#        COM2 default is base 0x02F8, irq 3, and device /dev/cua1 
+#        COM2 default is base 0x02F8, irq 3, and device /dev/cua1
 #        COM3 default is base 0x03E8, irq 4, and device /dev/cua2
 #        COM4 default is base 0x02E8, irq 3, and device /dev/cua3
 #    If the "com" keyword is omitted, the next unused COM port is assigned.
 #    Also, remember, these are only how you want the ports to be emulated
-#    in DOSEMU.  That means what is COM3 on IRQ 5 in real DOS, can become 
+#    in DOSEMU.  That means what is COM3 on IRQ 5 in real DOS, can become
 #    COM1 on IRQ 4 in DOSEMU!
 #
 #    Also, as an example of defaults, these two lines are functionally equal:
 #    serial { com 1  mouse }
 #    serial { com 1  mouse  base 0x03F8  irq 4  device /dev/cua0 }
 #
-#    If you want to use a serial mouse with DOSEMU, the "mouse" keyword 
+#    If you want to use a serial mouse with DOSEMU, the "mouse" keyword
 #    should be specified in only one of the serial lines.  (For PS/2
 #    mice, it is not necessary, and device path is in mouse line instead)
 #
@@ -149,26 +155,26 @@ ipxsupport off
 #************************** TERMINALS *************************************
 #
 # This section applies whenever you run DOSEMU remotely or in an xterm.
-# Color terminal support is now built into DOSEMU.  Skip this section for 
+# Color terminal support is now built into DOSEMU.  Skip this section for
 # now to use terminal defaults, until you get DOSEMU to work.
 #
-# QuickStart: 
+# QuickStart:
 #       There is a number of keywords for the terminal { } configuration line.
 #    "charset" latin, ibm                                  (default latin)
-#       Select the character set to use with DOSEMU. 
+#       Select the character set to use with DOSEMU.
 #    "color" off, on                                       (default on)
 #       Enable or disable color terminal support.
 #    "updatefreq" value                                    (default 4)
-#       A number indicating the frequency of terminal updates of the screen.  
-#       The smaller the number, the more frequent.  A value of 20 gives a 
+#       A number indicating the frequency of terminal updates of the screen.
+#       The smaller the number, the more frequent.  A value of 20 gives a
 #       frequency of about one per second, which is very slow.  However, more
 #       CPU time is given to DOS applications when updates are less frequent.
 #       A value of 4 is recommended in most cases, but if you have a fast
-#       system or link, you can decrease this to 0. 
+#       system or link, you can decrease this to 0.
 #    "escchar"  value                                      (default 30)
-#       A number that specifies the control character used as a prefix 
+#       A number that specifies the control character used as a prefix
 #       character for sending alt, shift, ctrl, and function keycodes.  The
-#       default value is 30 which is Ctrl-^.  So, for example, F1 is 
+#       default value is 30 which is Ctrl-^.  So, for example, F1 is
 #       'Ctrl-^ 1', Alt-F7 is 'Ctrl-^ a Ctrl-^ 7'.  For online help, press
 #       'Ctrl-^ h'.
 #
@@ -189,8 +195,8 @@ terminal { charset latin  updatefreq 4  color on }
 # valid keywords for the X { } config line:
 #
 #    "updatefreq" value                                    (default 8)
-#       A number indicating the frequency of X updates of the screen.  
-#       The smaller the number, the more frequent.  A value of 20 gives a 
+#       A number indicating the frequency of X updates of the screen.
+#       The smaller the number, the more frequent.  A value of 20 gives a
 #       frequency of about one per second, which is very slow.  However, more
 #       CPU time is given to DOS applications when updates are less frequent.
 #
@@ -244,9 +250,9 @@ video { vga }          # Use this line, if you are using VGA
 #     you then gain some space for UMB or hardware ram locations.
 #   - Set "allowvideoportaccess on" earlier in this configuration file
 #     if DOSEMU won't boot properly, such as hanging with a blank screen,
-#     beeping, leaving Linux video in a bad state, or the video card 
+#     beeping, leaving Linux video in a bad state, or the video card
 #     bootup message seems to stick.
-#   - Video BIOS shadowing (in your CMOS setup) at C000-CFFF must be disabled. 
+#   - Video BIOS shadowing (in your CMOS setup) at C000-CFFF must be disabled.
 #
 #     *> CAUTION <*: TURN OFF VIDEO BIOS SHADOWING BEFORE ENABLING GRAPHICS!
 #                    This is not always necessary, but a word to the wise
@@ -260,12 +266,12 @@ video { vga }          # Use this line, if you are using VGA
 #     This feature can be enabled by the switch "dualmon" like this:
 #       video { vga  console  graphics dualmon }
 #     and can be used on a xterm and the console, but of course not, if you
-#     have the MDA as your primary display. 
+#     have the MDA as your primary display.
 #     You also must set USE_DUALMON 1 in include/video.h.
 #     NOTE: Make sure no more then one process is using this feature !
-#           ( you will get funny garbage on your MDA display. ) 
+#           ( you will get funny garbage on your MDA display. )
 #           Also, you must NOT have the dualmon-patches for kernel applied
-#           ( having the MDA as Linux console ) 
+#           ( having the MDA as Linux console )
 #   - If you want to run dosemu in situations when human doesn't sit at console
 #     (for instance to run it by cron) and want console option be enabled
 #     you should use option forcevtswitch.
@@ -275,8 +281,8 @@ video { vga }          # Use this line, if you are using VGA
 #     With this option dosemu perform the switch itself.
 #     Be careful with this option because with it user sat at console
 #     may face with unexpected switch.
-#    
-#    
+#
+#
 #   It may be necessary to set this to "on" if DOSEMU can't boot up properly
 #   on your system when it's set "off" and when graphics are enabled.
 #   Note: May interfere with serial ports when using certain video boards.
@@ -324,7 +330,7 @@ bootA               # Startup drive valid values:  bootA  bootC
 #
 # QuickStart:
 #    These are memory parameters, stated in number of kilobytes.
-#    If you get lots of disk swapping while DOSEMU runs, you should 
+#    If you get lots of disk swapping while DOSEMU runs, you should
 #    reduce these values.  Also, DPMI is still somewhat unstable,
 #    (as of early April 1994) so be careful with DPMI parameters.
 #
@@ -337,7 +343,7 @@ bootA               # Startup drive valid values:  bootA  bootC
 #    umb_max is a new parameter which tells DOSEMU to be more aggressive
 #    about finding upper memory blocks.  The default is 'off'.
 #
- 
+
 #umb_max on		# be more aggressive about finding XMS UMB blocks
 
 dpmi 4086               # DPMI size in K, or "off"
@@ -360,8 +366,8 @@ ems 1024		# EMS size in K,  or "off"
 #
 #    The sillyint statement accepts IRQ values between 3..15,
 #    if using the { .. } syntax each value or range can be prefixed
-#    by the keyword use_sigio to monitor the IRQ via SIGIO. 
-#    If this is missing the IRQ is monitored by SIGALRM. 
+#    by the keyword use_sigio to monitor the IRQ via SIGIO.
+#    If this is missing the IRQ is monitored by SIGALRM.
 #
 
 sillyint off    # this disables IRQ monitoring
@@ -381,22 +387,22 @@ sillyint off    # this disables IRQ monitoring
 #	fast (*=not fast)	put port(s) in the ioperm bitmap (only
 #				valid for ports below 0x400)
 #				An access doesn't trap and isn't logged, but
-#				as vm86() isn't interrupted, it's much faster. 
+#				as vm86() isn't interrupted, it's much faster.
 #	device <name>		if ports are registered, open device to block
 #				access. Open must be successfull or access to
 #				ports will be denied. If you know what you are
 #				doing, use /dev/null to fake a device to block
-#				
+#
 # !!WARNING!!: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND
-# SOME PORTS ARE DANGEROUS TO USE.  PLEASE SKIP THIS SECTION, AND 
+# SOME PORTS ARE DANGEROUS TO USE.  PLEASE SKIP THIS SECTION, AND
 # DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.
 #
 # ports { 0x388 0x389 }  # for SimEarth
 # ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
- 
+
 
 #******************* SPEAKER *********************************************
-# 
+#
 # These keywords are allowable on the "speaker" line:
 #   native      Enable DOSEMU direct access to the speaker ports.
 #   emulated    Enable simple beeps at the terminal.
@@ -412,17 +418,17 @@ speaker native         # or "off" or "emulated"
 #
 # QuickStart:
 #    The best way to get started is to start with a boot floppy, and set
-#    "bootA" above in the configuration.  Keep using the boot floppy 
+#    "bootA" above in the configuration.  Keep using the boot floppy
 #    while you are setting this hard disk configuration up for DOSEMU,
 #    and testing by using DIR C: or something like that.
-#    If you want DOSEMU to be able to access a DOS partition, the 
-#    safer type of access is "partition" access, because "wholedisk" 
-#    access gives DOSEMU write access to a whole physical disk, 
+#    If you want DOSEMU to be able to access a DOS partition, the
+#    safer type of access is "partition" access, because "wholedisk"
+#    access gives DOSEMU write access to a whole physical disk,
 #    including any vulnerable Linux partitions on that drive!
 #
 #    !!! IMPORTANT !!!
-#    You must not have LILO installed on the partition for dosemu to boot off. 
-#    As of 04/26/94, doublespace and stacker 3.1 will work with wholedisk 
+#    You must not have LILO installed on the partition for dosemu to boot off.
+#    As of 04/26/94, doublespace and stacker 3.1 will work with wholedisk
 #    or partition only access.  Stacker 4.0 has been reported to work with
 #    wholedisk access.
 #
@@ -458,7 +464,7 @@ speaker native         # or "off" or "emulated"
 #    Specify extensions for the CONFIG and AUTOEXEC files.  If the below
 #    are uncommented, the extensions become CONFIG.EMU and AUTOEXEC.EMU.
 #    NOTE: this feature may affect file naming even after boot time.
-#    If you use MSDOS 6+, you may want to use a CONFIG.SYS menu instead. 
+#    If you use MSDOS 6+, you may want to use a CONFIG.SYS menu instead.
 #
 #EmuSys EMU
 #EmuBat EMU
@@ -471,16 +477,16 @@ speaker native         # or "off" or "emulated"
 #    second (/dev/fd1) floppy drives are of the correct size, "threeinch"
 #    and/or "fiveinch".  A floppy disk image can be used instead, however.
 #
-#    FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE 
+#    FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE
 #    STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!
 #
-floppy { device /dev/fd0 threeinch }  
-# floppy { device /dev/fd1 fiveinch }  
-#floppy { heads 2  sectors 18  tracks 80  
+floppy { device /dev/fd0 threeinch }
+# floppy { device /dev/fd1 fiveinch }
+#floppy { heads 2  sectors 18  tracks 80
 #         threeinch  file /var/lib/dosemu/diskimage }
 #
 #    If floppy disk speed is very important, uncomment the following
-#    line.  However, this makes the floppy drive a bit unstable.  This 
+#    line.  However, this makes the floppy drive a bit unstable.  This
 #    is best used if the floppies are write-protected.
 #    Use an integer value to set the time between floppy updates.
 #
@@ -514,7 +520,7 @@ floppy { device /dev/fd0 threeinch }
 #printer { file "lpt3" }
 #
 #    If you have a DOS application that is looking to access the printer
-#    port directly, and uses the bios LPT: setting to find out the port to use, 
+#    port directly, and uses the bios LPT: setting to find out the port to use,
 #    you can modify the base port the bios will report with the following:
 #
 #printer { options "%s"  command "lpr"  base 0x3bc }

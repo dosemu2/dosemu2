@@ -22,11 +22,14 @@
 #define DBG_TRAP 2
 #define DBG_POLL 3
 #define DBG_GPF  4
+#define DBG_INTxDPMI 5
 
 unsigned int mhp_debug(unsigned int, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_input();
 void mhp_close();
+void mhp_printf(const char *,...);
+int mhp_getaxlist_value(int v, int mask);
  
 #define MHP_BUFFERSIZE 8192
 struct mhpdbg
@@ -55,7 +58,6 @@ EXTERN struct mhpdbg mhpdbg;
 #define MAXBP 64
 #define MAXSYM 3500
 
-void mhp_printf(const char *,...);
 void mhp_cmd(const char *);
 void mhp_bpset(void);
 void mhp_bpclr(void);
@@ -66,6 +68,7 @@ int mhp_clearbp(unsigned long seekval);
 struct brkentry {
    unsigned char * brkaddr;
    unsigned char opcode;
+   char is_dpmi;
 };
 
 struct cmd_db {

@@ -17,15 +17,20 @@
  *   - Added argument h for help screen
  * Modified: 11/02/95 by Kang-Jin Lee
  *   - Safer dosemu detection
+ * Modified: 12/27/95
+ *   - Moved dosemu detection to emulib.c
  ********************************************/
+
 
 #include <dos.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "emulib.h"
+
 
 #define MHLP(rin, rout) int86(0xe6, &rin, &rout)
-#define DOSEMU_BIOS_DATE         "02/25/93"
+
 
 union REGS regs;
 
@@ -53,30 +58,6 @@ void usage(void)
   exit(1);
 }
 
-/* Are we running under DOSEMU? */
-void isEmu(void)
-{
-  int i;
-  unsigned char far *pos;
-  unsigned char b_date[8];
-
-  pos = MK_FP(0xF000, 0xFFF5);
-
-  for (i = 0; i < 8; i++)
-    b_date[i] = pos[i];
-
-  if (strncmp(b_date, DOSEMU_BIOS_DATE, 8) != 0) {
-    printf("Dosemu BIOS signature not detected.\n");
-    exit(1);
-  }
-
-  regs.x.ax = 0x0000;
-  MHLP(regs, regs);
-  if (regs.x.ax != 0xaa55) {
-    printf("This program requires Linux DOSEMU.\n");
-    exit(1);
-  }
-}
 
 /* Detect internal mouse driver of Linux */
 void detectInternalMouse(void)
@@ -91,7 +72,8 @@ void detectInternalMouse(void)
   }
 }
 
-main(int argc, char **argv)
+
+int main(int argc, char *argv[])
 {
   int i, value;
 
@@ -108,7 +90,12 @@ main(int argc, char **argv)
       break;
   }
 
-  isEmu();
+  if (check_emu() == 0)
+  {
+    printf("Dosemu not detected. This program requires Dosemu, exiting.\n");
+    exit (1);
+  }
+
   detectInternalMouse();
 
   i = 1;
@@ -223,11 +210,7 @@ main(int argc, char **argv)
 	break;
 
     } /* switch */
-
     i++;
-
   } /* while */
-
   return (0);
-
 }

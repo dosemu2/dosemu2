@@ -107,8 +107,23 @@ Scroll(us *sadr, int x0, int y0, int x1, int y1, int l, int att)
       blank = ' ' | ((att | 7) << 8);
     }
 
+
+  if (x1 >= co || y1 >= li)
+    {
+      v_printf("VID: Scroll parameters out of bounds, in Scroll!\n");
+      v_printf("VID: Attempting to fix with clipping!\n");
+    /* kludge for ansi.sys' clear screen - we'd better do real clipping */
+    /* Also a cludge to fix list, but in the other dimension */
+      if (x1 >= co) x1 = co -1;
+      if (y1 >= li) y1 = li -1;
+      dx = x1 - x0 +1;
+      dy = y1 - x0 +1;
+    }
   if (dx <= 0 || dy <= 0 || x0 < 0 || x1 >= co || y0 < 0 || y1 >= li)
+    {
+      v_printf("VID: Scroll parameters impossibly out of bounds, giving up!\n");
     return;
+    }
 
   /* make a blank line */
   for (x = 0; x < dx; x++)
@@ -307,13 +322,39 @@ clear_screen(int s, int att)
 */
 
 boolean set_video_mode(int mode) {
-  static int gfx_flag = 0;
   int type=0;
+  int old_video_mode,oldco;
+
   v_printf("set_video_mode: mode = 0x%02x\n",mode);
   
+  oldco = co;
+  old_video_mode = video_mode;
   video_mode=mode&0x7f;
-  
+
+  if (Video->setmode == 0)
+    { 
+      v_printf("video: no setmode handler!");
+      goto error;
+    }
+
+
   switch (mode&0x7f) {
+  case 0x50:
+  case 0x51:
+  case 0x52:
+    co=80;
+    goto do_text_mode;
+  case 0x53:
+  case 0x54:
+  case 0x55:
+  case 0x56:
+  case 0x57:
+  case 0x58:
+  case 0x59:
+  case 0x5a:
+    co=132;
+    goto do_text_mode;
+  
   case 0:
   case 1:
     /* 40 column modes... */
@@ -329,7 +370,6 @@ boolean set_video_mode(int mode) {
      * and then let the BIOS say, if it can ?!?!)
      * If we have config.dualmon, this happens legaly.
      */
-    if (!Video->setmode) goto Default;
 #if USE_DUALMON
     if (config.dualmon) {
       type=7;
@@ -349,8 +389,7 @@ boolean set_video_mode(int mode) {
 #endif
     
 do_text_mode:
-    gfx_flag = 0;		/* we're in a text mode now */
-    gfx_mode = TEXT;
+    gfx_mode = TEXT;	        /* we're in a text mode now */
     clear_scroll_queue();
 
     li=text_scanlines/vga_font_height;
@@ -358,13 +397,7 @@ do_text_mode:
     WRITE_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1, li-1);
     WRITE_WORD(BIOS_FONT_HEIGHT, vga_font_height);
     WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
-    if (Video->setmode) {
-      Video->setmode(type,co,li);
-    }
-    else {
-       v_printf("video: no setmode handler!");
-       /* return 0; */
-    }
+    Video->setmode(type,co,li);
     /* mode change clears screen unless bit7 of AL set */
     if (!(mode & 0x80))
        clear_screen(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), 7);
@@ -380,25 +413,23 @@ case 0x5c:
 case 0x5d:
 case 0x5e:
 case 0x62:
-    if (Video->setmode) {
-      /* 0x01 == GRAPH for us, but now it's sure! */
-      Video->setmode(0x01,0,0);
-    }
-    else {
-       v_printf("video: no setmode handler!");
-       /* return 0; */
-    }
-
+  /* 0x01 == GRAPH for us, but now it's sure! */
+  Video->setmode(0x01,0,0);
   break;
 
-
-  Default:
   default:
     /* handle graphics modes here */
     v_printf("undefined video mode 0x%x\n", mode);
-    return 0;
+  goto error;
   }
+  if (oldco != co)
+    WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   return 1;
+
+error:
+  /* don't change any state on failure */
+  video_mode = old_video_mode;
+  return 0;
 }    
 
 /******************************************************************/
@@ -520,20 +551,13 @@ void int10()
     }
 
   case 0x6:			/* scroll up */
-    v_printf("scroll up %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
-    /* kludge for ansi.sys' clear screen - we'd better do real clipping */
-    if (HI(dx)>=li) HI(dx)=li-1;  
+    v_printf("scroll up %d %d, %d %d, %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
     bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-
-/*  scrollup(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-*/
     break;
 
   case 0x7:			/* scroll down */
-    v_printf("scroll dn %d %d %d %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax));
+    v_printf("scroll dn %d %d, %d %d, %d, %d\n", LO(cx), HI(cx), LO(dx), HI(dx), LO(ax),HI(bx));
     bios_scroll(LO(cx), HI(cx), LO(dx), HI(dx), -LO(ax), HI(bx));
-/*    scrolldn(LO(cx), HI(cx), LO(dx), HI(dx), LO(ax), HI(bx));
-*/
     break;
 
   case 0x8:			/* read character at x,y + attr */
@@ -622,7 +646,7 @@ void int10()
     break;
 
   case 0xe:			/* print char */
-    char_out(*(char *) &REG(eax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
+    char_out(LO(ax), READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)); 
     break;
 
   case 0x0f:			/* get video mode */
@@ -721,32 +745,62 @@ void int10()
     break;
 
   case 0x11:                    /* character generator functions */
-    v_printf("video character generator functions ax=0x%04x bx=0x%04x\n",
-	     LWORD(eax), LWORD(ebx));
-    switch (LO(ax)) {
-    case 0x01:                  /* load 8x14 charset */
-    case 0x11:
-      vga_font_height = 14;
-      set_video_mode(0x83);
+    {
+      int old_li = li;           /* preserve the state in case of error */
+      int old_font_height = vga_font_height;
+
+      v_printf("video character generator functions ax=0x%04x bx=0x%04x\n",
+	       LWORD(eax), LWORD(ebx));
+      switch (LO(ax)) {
+      case 0x01:                  /* load 8x14 charset */
+      case 0x11:
+	vga_font_height = 14;
+	goto more_lines;
+	
+      case 0x02:
+      case 0x12:
+	vga_font_height = 8;
+	goto more_lines;
+	
+      case 0x04:
+      case 0x14:
+	vga_font_height = 16;
+	goto more_lines;
+	
+	/* load a custom font */
+	/* for now just ust it's size to set things */
+      case 0x00:
+      case 0x10:
+	vga_font_height = HI(bx);
+	v_printf("loaded font completely ignored except size!\n");
+	/* the rest is ignored for now */
+	goto more_lines;
+	
+      more_lines:
+	{
+	  if (!set_video_mode(video_mode | 0x80)) 
+	    {
+	      li = old_li; /* not that it changed */
+	      vga_font_height = old_font_height;
+	      CARRY;
+	    }
+	  else if (old_li < li) 
+	    {
+	      /* The attribute is just like my Bios, weird! */
+	      bios_scroll(0,old_li,co-1,li-1,0,07);
+	    }
+	  break;
+	}
+	
+      case 0x30:     /* get current character generator info */
+	LWORD(ecx)=vga_font_height;
+	LO(dx)= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
+	/* LWORD(es)=LWORD(ebp)=0;*/  /* return NULL pointer */
+	WRITE_SEG_REG(es, 0);   /* return NULL pointer */
+	LWORD(ebp)= 0;        /* return NULL pointer */
+      }
       break;
-    case 0x02:
-    case 0x12:
-      vga_font_height = 8;
-      set_video_mode(0x83);
-      break;
-    case 0x14:
-    case 0x04:
-      vga_font_height = 16;
-      set_video_mode(0x83);
-      break;
-    case 0x30:     /* get current character generator info */
-      LWORD(ecx)=vga_font_height;
-      LO(dx)= READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
-      /* LWORD(es)=LWORD(ebp)=0;*/  /* return NULL pointer */
-      WRITE_SEG_REG(es, 0);   /* return NULL pointer */
-      LWORD(ebp)= 0;        /* return NULL pointer */
     }
-    break;
       
   case 0x12:			/* video subsystem config */
     v_printf("video subsystem config ax=0x%04x bx=0x%04x\n",
@@ -783,7 +837,17 @@ void int10()
       cursor_emulation = LO(ax);
       LO(ax)=0x12;
       break;
-#endif      
+#endif
+    case 0x36:          /* video screen ON/OFF */
+      if (LO(ax) == 0)
+	v_printf("turn video screen off!\n");
+      else
+	v_printf("turn video screen on!\n");
+#if 0
+      LO(ax)=0x12;  
+#endif
+      break;
+      
     default:
       error("ERROR: unrecognized video subsys config!!\n");
       show_regs(__FILE__, __LINE__);
@@ -793,6 +857,11 @@ void int10()
   case 0xfe:			/* get shadow buffer..return unchanged */
   case 0xff:			/* update shadow buffer...do nothing */
     break;
+
+#if 0
+  case 0x1b:                    /* return state */
+  case 0x1c:                    /* return save/restore */
+#endif
 
 #if X_GRAPHICS
 #ifdef VESA /* root@zaphod */

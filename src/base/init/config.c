@@ -292,7 +292,7 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:E:o:O")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km2345e:dXY:Z:E:o:O")) != EOF) {
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'd':
@@ -425,6 +425,11 @@ config_init(int argc, char **argv)
 	case '4':
 	    g_printf("CPU set to 486\n");
 	    vm86s.cpu_type = CPU_486;
+	    break;
+
+	case '5':
+	    g_printf("CPU set to 586\n");
+	    vm86s.cpu_type = CPU_586;
 	    break;
 
 	case 'E':
@@ -656,7 +661,7 @@ usage(void)
     fprintf(stdout, "    -m enable mouse support (!#)\n");
     fprintf(stdout, "    -o FILE put debugmessages in file\n");
     fprintf(stdout, "    -O write debugmessages to stderr\n");
-    fprintf(stdout, "    -2,3,4 choose 286, 386 or 486 CPU\n");
+    fprintf(stdout, "    -2,3,4,5 choose 286, 386, 486 or 586 CPU\n");
     fprintf(stdout, "    -K Do int9 (!#)\n\n");
     fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");
     fprintf(stdout, "    (%%) require dos be run as root (i.e. suid)\n");

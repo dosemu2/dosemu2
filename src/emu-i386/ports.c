@@ -71,7 +71,6 @@
 extern void set_leds(void);
 /* FIXME -- move to common header */
 extern int s3_8514_base;
-static u_short microsoft_port_check = 0;
 
 /*
  * DANG_BEGIN_FUNCTION inb
@@ -89,7 +88,7 @@ inb(unsigned int port)
 {
 
   static unsigned int cga_r = 0;
-  static unsigned int r;
+  static unsigned char r;
   static unsigned int tmp = 0;
 
 /* it is a fact of (hardware) life that unused locations return all
@@ -98,6 +97,7 @@ inb(unsigned int port)
   r = 0xff;
 
   port &= 0xffff;
+  if (port == 0x80) return 0; /* used by linux, djgpp.. NOP */
   if (port_readable((u_int)port))
     r = (read_port((u_int)port) & 0xFF);
 #if X_GRAPHICS
@@ -182,6 +182,22 @@ inb(unsigned int port)
   case 0x3db:			/* light pen strobe reset, 0 by default */
     break;
     
+#ifdef GUSPNP
+  case 0x203:
+  case 0x207:
+  case 0x20b:
+  case 0x220...0x22f:
+  case 0x320...0x32f:
+  case 0x279:
+    r = safe_port_in_byte (port);
+    break;
+
+  case 0xa79:
+    iopl (3);
+    r = port_in (port);
+    iopl (0);
+    break;
+#endif
   default:
     /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++)
@@ -192,15 +208,19 @@ inb(unsigned int port)
 
 #ifdef USE_SBEMU
     /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == config.sb_base) {r=sb_io_read(port);};
+    if ((port & SOUND_IO_MASK) == config.sb_base) {
+      r=sb_io_read(port);
+      break;
+    }
     /* It seems that we might need 388, but this is write-only, at least in the
        older chip... */
 #endif /* USE_SBEMU */
 
     /* DMA I/O */
-    if ((port & ~15) == 0) {r=dma_io_read(port);};
-    if ((port & ~15) == 0x80) {r=dma_io_read(port);};
-    if ((port & ~31) == 0xC0) {r=dma_io_read(port);};
+    if ( ((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0) ) {
+       r=dma_io_read(port);
+       break;
+    };
 
     /* The diamond bug */
     if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
@@ -220,6 +240,8 @@ inb(unsigned int port)
 #if PORT_DEBUG > 0
 #if PORT_DEBUG == 1
   if (port < 0x100)
+#elif PORT_DEBUG == 3
+  if (port >= 0x100)
 #endif
     i_printf("PORT: Rd 0x%04x -> 0x%02x\n",port,r);
 #endif
@@ -256,11 +278,14 @@ outb(unsigned int port, unsigned int byte)
   static unsigned int tmp = 0;
 
   port &= 0xffff;
+  if (port == 0x80) return;   /* used by linux, djgpp.. NOP */
   byte &= 0xff;
 
 #if PORT_DEBUG > 0
 #if PORT_DEBUG == 1
   if (port < 0x100)
+#elif PORT_DEBUG == 3
+  if (port >= 0x100)
 #endif
     i_printf("PORT: Wr 0x%04x <- 0x%02x\n",port,byte);
 #endif
@@ -423,6 +448,26 @@ outb(unsigned int port, unsigned int byte)
   case 0x43:
     pit_control_outp(port, byte);
     break;
+
+#ifdef GUSPNP
+  case 0x203:
+  case 0x207:
+  case 0x20b:
+  case 0x220...0x22f:
+  case 0x320...0x32f:
+  case 0x279:
+    set_ioperm (port, 1, 1);
+    port_out (byte, port);
+    set_ioperm (port, 1, 0);
+    break;
+
+  case 0xa79:
+    iopl (3);
+    port_out (byte, port);
+    iopl (0);
+  break;
+#endif
+
   default:
     /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
     /* The base serial port must be a multiple of 8. */
@@ -435,14 +480,21 @@ outb(unsigned int port, unsigned int byte)
     }
 #ifdef USE_SBEMU
     /* Sound I/O */
-    if ((port & SOUND_IO_MASK) == config.sb_base) {sb_io_write(port, byte);};
-    if ((port & ~3) == 388) {adlib_io_write(port, byte);};
+    if ((port & SOUND_IO_MASK) == config.sb_base) {
+      sb_io_write(port, byte);
+      break;
+    }
+    if ((port & ~3) == 388) {
+      adlib_io_write(port, byte);
+      break;
+    }
 #endif /* USE_SBEMU */
 
     /* DMA I/O */
-    if ((port & ~15) == 0) {dma_io_write(port, byte);};
-    if ((port & ~15) == 0x80) {dma_io_write(port, byte);};
-    if ((port & ~31) == 0xC0) {dma_io_write(port, byte);};
+    if (((port & ~15) == 0) || ((port & ~15) == 0x80) || ((port & ~31) == 0xC0)) {
+      dma_io_write(port, byte);
+      break;
+    }
 
     i_printf("default outb [0x%x] 0x%02x\n", port, byte);
     h_printf("write port 0x%x denied value %02x at %04x:%04x",

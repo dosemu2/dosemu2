@@ -21,6 +21,8 @@
 #include "ipx.h"
 #include "pktdrvr.h"
 
+void IPXRelinquishControl(void);
+
 #ifdef __NetBSD__
 extern int errno;
 #endif
@@ -301,6 +303,10 @@ void SIGALRM_call(void){
   /* this is for per-second activities */
   partials++;
   if (partials == FREQ) {
+#ifdef IPX
+  if (config.ipxsup)
+    IPXRelinquishControl();
+#endif
     partials = 0;
     printer_tick((u_long) 0);
     if (config.fastfloppy)

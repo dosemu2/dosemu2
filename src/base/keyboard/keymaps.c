@@ -706,6 +706,54 @@ CONST unsigned char alt_map_no[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0};
 
+CONST unsigned char key_map_no_latin1[] =
+{
+  0, 27, '1', '2', '3', '4', '5', '6',
+  '7', '8', '9', '0', '+', '\\', 127, 9,
+  'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
+  'o', 'p', 134, DEAD_DIAERESIS, 13, 0, 'a', 's',
+  'd', 'f', 'g', 'h', 'j', 'k', 'l', 155,
+  145, '|', 0, '\'', 'z', 'x', 'c', 'v',
+  'b', 'n', 'm', ',', '.', '-', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '<', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char shift_map_no_latin1[] =
+{
+  0, 27, '!', '\"', '#', '$', '%', '&',
+  '/', '(', ')', '=', '?', DEAD_GRAVE, 127, 9,
+  'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I',
+  'O', 'P', 143, DEAD_CIRCUMFLEX, 13, 0, 'A', 'S',
+  'D', 'F', 'G', 'H', 'J', 'K', 'L', 157,
+  146, 245, 0, '*', 'Z', 'X', 'C', 'V',
+  'B', 'N', 'M', ';', ':', '_', 0, '*',
+  0, 32, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, '-', 0, 0, 0, '+', 0,
+  0, 0, 0, 0, 0, 0, '>', 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
+CONST unsigned char alt_map_no_latin1[] =
+{
+  0, 0, 0, '@', 156, 207, 0, 0,
+  '{', '[', ']', '}', 0, DEAD_ACUTE, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, DEAD_TILDE, 13, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0};
+
 CONST unsigned char key_map_sf[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
@@ -1133,8 +1181,8 @@ struct dos_dead_key dos850_dead_map[] = {
 	{DEAD_GRAVE, 'O', 227},	{DEAD_GRAVE, 'o', 149},
 	{DEAD_GRAVE, 'U', 235},	{DEAD_GRAVE, 'u', 151},
 
-  	{DEAD_CIRCUMFLEX, 'A', 182},	{DEAD_CIRCUMFLEX, 'a', 160},
-	{DEAD_CIRCUMFLEX, 'E', 210},	{DEAD_CIRCUMFLEX, 'e', 210},
+  	{DEAD_CIRCUMFLEX, 'A', 182},	{DEAD_CIRCUMFLEX, 'a', 131},
+	{DEAD_CIRCUMFLEX, 'E', 210},	{DEAD_CIRCUMFLEX, 'e', 136},
 	{DEAD_CIRCUMFLEX, 'I', 215},	{DEAD_CIRCUMFLEX, 'i', 140},
 	{DEAD_CIRCUMFLEX, 'O', 226},	{DEAD_CIRCUMFLEX, 'o', 147},
 	{DEAD_CIRCUMFLEX, 'U', 234},	{DEAD_CIRCUMFLEX, 'u', 150},
@@ -1147,4 +1195,3 @@ struct dos_dead_key dos850_dead_map[] = {
 
         {0, 0, 0}
 };
-

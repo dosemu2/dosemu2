@@ -1005,6 +1005,13 @@ static void int2f(u_char i)
     dpmi_get_entry_point();
     return;
 
+  case 0x1683:
+    LWORD (ebx) = 0;		/* W95: number of virtual machine */
+  case 0x1681:
+  case 0x1682:
+    LWORD (eax) = 0;		/* W95: enter/exit critical section */
+    return;
+
   case 0x1686:            /* Are we in protected mode? */
     D_printf("DPMI CPU mode check in real mode.\n");
     return;

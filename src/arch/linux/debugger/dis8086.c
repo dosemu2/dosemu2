@@ -330,7 +330,8 @@ int  dis_8086(unsigned int org,
 	      unsigned char *outbuf,
 	      int def_size,
 	      unsigned int * refseg,
-	      unsigned int * refoff)
+	      unsigned int * refoff,
+	      int refsegbase)
 {
   const unsigned char *code0 = code;
   FILE *out = 0;
@@ -343,7 +344,8 @@ int  dis_8086(unsigned int org,
   linebuf = outbuf;
   memset(linebuf, 0x00, IBUFS);
 
-  #define SEG16REL(x) ((x)-(*refseg<<4))
+  #define SEG16REL(x) ((x)- ( refsegbase ? refsegbase : (*refseg<<4) ) )
+  #define SEG32REL(x) ((x)- refsegbase)
   refaddr = refoff;
   *refaddr = 0;
 
@@ -870,7 +872,7 @@ int  dis_8086(unsigned int org,
 	case 0x7e:
 	case 0x7f:
 	  if (addr32) d86_printf("j%s %08x", conditions[opcode & 15],
-		  resolva((code-code0)+org + (signed char)*code + 1));
+		  SEG32REL(resolva((code-code0)+org + (signed char)*code + 1)));
 	  else d86_printf("j%s %04x", conditions[opcode & 15],
 	          SEG16REL(resolva((code-code0)+org + (signed char)*code + 1)));
 	  code++;
@@ -1315,7 +1317,7 @@ int  dis_8086(unsigned int org,
 	case 0xe1:
 	case 0xe2:
 	case 0xe3:
-	  if (addr32) d86_printf("%s %08x", loop_codes[opcode & 3], (code-code0)+org + (signed char)*code + 1);
+	  if (addr32) d86_printf("%s %08x", loop_codes[opcode & 3], SEG32REL((code-code0)+org + (signed char)*code + 1));
 	  else d86_printf("%s %04x", loop_codes[opcode & 3], SEG16REL((code-code0)+org + (signed char)*code + 1));
 	  code++;
 	  break;
@@ -1339,7 +1341,7 @@ int  dis_8086(unsigned int org,
 	case 0xe8:
 	  if (addr32) {
 	    d86_printf("call %08x",
-		    resolva((code-code0)+org + 4 + IMMED32I(code)));
+		    SEG32REL(resolva((code-code0)+org + 4 + IMMED32I(code))));
 	    code += 4;
 	  } else {
 	    d86_printf("call %04hx",
@@ -1351,7 +1353,7 @@ int  dis_8086(unsigned int org,
 	case 0xe9:
 	  if (addr32) {
 	    d86_printf("jmp %08x",
-		    resolva((code-code0)+org + 4 + IMMED32I(code)));
+		    SEG32REL(resolva((code-code0)+org + 4 + IMMED32I(code))));
 	    code += 4;
 	  } else {
 	    d86_printf("jmp %04hx",
@@ -1374,7 +1376,7 @@ int  dis_8086(unsigned int org,
 	  break;
 
 	case 0xeb:
-	  if (addr32) d86_printf("jmp %08x", resolva((code-code0)+org + (signed char)*code + 1));
+	  if (addr32) d86_printf("jmp %08x", SEG32REL(resolva((code-code0)+org + (signed char)*code + 1)));
 	  else d86_printf("jmp %04x", SEG16REL(resolva((code-code0)+org + (signed char)*code + 1)));
 	  code++;
 	  break;
@@ -1495,5 +1497,6 @@ int  dis_8086(unsigned int org,
     }	/* end of while() */
     return ( (int) (code-code0) );
   #undef SEG16REL
+  #undef SEG32REL
 }   /* end of dis_8086 */
 

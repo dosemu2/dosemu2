@@ -100,8 +100,8 @@ cmos_chksum(void)
   return sum;
 }
 
-int
-cmos_read(int port)
+Bit8u
+cmos_read(Bit32u port)
 {
   unsigned char holder = 0;
 
@@ -156,7 +156,7 @@ cmos_read(int port)
 }
 
 void
-cmos_write(int port, int byte)
+cmos_write(Bit32u port, Bit8u byte)
 {
   if (port == 0x70)
     cmos.address = byte & ~0xc0;/* get true address */

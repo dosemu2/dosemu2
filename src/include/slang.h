@@ -1,35 +1,87 @@
 #ifndef DAVIS_SLANG_H_
 #define DAVIS_SLANG_H_
-/* 
- * Copyright (c) 1992, 1994 John E. Davis 
+/* Copyright (c) 1992, 1995 John E. Davis
  * All rights reserved.
- *
- * Permission is hereby granted, without written agreement and without
- * license or royalty fees, to use, copy, and distribute this
- * software and its documentation for any purpose, provided that the
- * above copyright notice and the following two paragraphs appear in
- * all copies of this software.   Permission is not granted to modify this
- * software for any purpose without written agreement from John E. Davis.
- *
- * IN NO EVENT SHALL JOHN E. DAVIS BE LIABLE TO ANY PARTY FOR DIRECT,
- * INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF
- * THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF JOHN E. DAVIS
- * HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * JOHN E. DAVIS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS IS"
- * BASIS, AND JOHN E. DAVIS HAS NO OBLIGATION TO PROVIDE MAINTENANCE,
- * SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+ * 
+ * You may distribute under the terms of either the GNU General Public
+ * License or the Perl Artistic License.
  */
-#if defined(__WATCOMC__)
-#include <slconfig.h>
+#define SLANG_VERSION 9933
+
+#if defined(__WATCOMC__) && !defined(__QNX__)
+#  ifndef msdos
+#    define msdos
+#  endif
+#  ifndef  DOS386
+#    define  DOS386
+#  endif
+#  ifndef FLOAT_TYPE
+#    define FLOAT_TYPE
+#  endif
+#  ifndef pc_system
+#    define pc_system
+#  endif
+#endif /* __watcomc__ */
+
+#ifndef __GO32__
+# ifdef unix
+#  define REAL_UNIX_SYSTEM
+# endif
 #endif
 
-#ifdef FLOAT_TYPE
-#ifndef USE_DOUBLE
-#define USE_DOUBLE
+/* Set of the various defines for pc systems.  This includes OS/2 */
+#ifdef __MSDOS__
+# ifndef msdos
+#   define msdos
+# endif
+# ifndef pc_system
+#   define pc_system
+# endif
 #endif
+
+#ifdef __GO32__
+# ifndef pc_system
+#   define pc_system
+# endif
+# ifdef REAL_UNIX_SYSTEM
+#   undef REAL_UNIX_SYSTEM
+# endif
+#endif
+
+#if defined(__EMX__) && defined(OS2)
+# ifndef pc_system
+#   define pc_system
+# endif
+# ifndef __os2__
+#   define __os2__
+# endif
+#endif
+
+#ifdef pc_system
+#  ifndef  HAVE_MEMCPY
+#    define  HAVE_MEMCPY
+#  endif
+#  ifndef  HAVE_MEMCMP
+#    define  HAVE_MEMCMP
+#  endif
+#  ifndef  HAVE_MEMSET
+#    define  HAVE_MEMSET
+#  endif
+#  ifndef  HAVE_MEMCHR
+#    define  HAVE_MEMCHR
+#  endif
+#endif
+
+#ifdef VMS
+#  ifndef  HAVE_MEMCPY
+#    define  HAVE_MEMCPY
+#  endif
+#  ifndef  HAVE_MEMCMP
+#    define  HAVE_MEMCMP
+#  endif
+#  ifndef  HAVE_MEMSET
+#    define  HAVE_MEMSET
+#  endif
 #endif
 
 
@@ -46,35 +98,55 @@ extern "C" {
 #undef VOID
 #endif
 
-#if defined(msdos) && !defined(DOS386)
+#if defined(msdos) && !defined(DOS386) & !defined(__WIN32__) && !defined(__GO32__)
 #  ifdef __SC__
 #    include <dos.h>
 #  endif
+   typedef void *VOID_STAR;
 #  define VOID void
-#  include <alloc.h>
-# else
-#  ifndef NO_STDLIB_H
+#    include <alloc.h>
+#else
+#  ifdef HAVE_STDLIB_H
 #    include <stdlib.h>
 #  endif
-#  define VOID unsigned char
+#  ifdef HAVE_MALLOC_H
+#   include <malloc.h>
+#  endif
+#  if defined (__cplusplus) || defined(__STDC__)
+     typedef void *VOID_STAR;
+#    define VOID void
+#  else
+     typedef unsigned char *VOID_STAR;
+#    define VOID unsigned char
+#  endif
+#endif
+
+#if 1
+typedef int (*FVOID_STAR)(void);
+#else
+# define FVOID_STAR VOID_STAR
 #endif
    
 #ifndef MALLOC_DEBUG
-#if defined(msdos) && !defined(DOS386)
+#if defined(msdos) && !defined(DOS386) && !defined(__GO32__)
 #  define SLFREE(buf)  farfree((void far *)(buf))
 #  define SLMALLOC(x) farmalloc((unsigned long) (x))
 #  define SLREALLOC(buf, n) farrealloc((void far *) (buf), (unsigned long) (n))
 #  define SLCALLOC(n, m) farcalloc((unsigned long) (n), (unsigned long) (m))
 #else
-#  ifdef VMS
+#  if defined(VMS) && !defined(__DECC)
 #    define SLFREE VAXC$FREE_OPT
 #    define SLMALLOC VAXC$MALLOC_OPT
 #    define SLREALLOC VAXC$REALLOC_OPT
 #    define SLCALLOC VAXC$CALLOC_OPT
 #  else
-#    define SLFREE(p) free((VOID *)(p))
+#    define SLFREE(x) free((char *)(x))
 #    define SLMALLOC malloc
+#ifdef __cplusplus
+#    define SLREALLOC(p,n) realloc((malloc_t) (p), n)
+#else
 #    define SLREALLOC realloc
+#endif
 #    define SLCALLOC calloc
 #  endif
 #endif
@@ -95,32 +167,32 @@ extern "C" {
 #endif /* MALLOC_DEBUG */
 
 /* If your compiler does not have memory.h, ignore this line */
-#if !defined(VMS) && !defined(__WATCOMC__)
-#include <memory.h>
+#ifdef HAVE_MEMORY_H
+# include <memory.h>
 #endif 
 
-#ifdef HAS_MEMSET
+#ifdef HAVE_MEMSET
 #define MEMSET memset
 #else 
 #define MEMSET jed_memset
 extern void jed_memset(char *, char, int);
 #endif
 
-#ifdef HAS_MEMCHR
+#ifdef HAVE_MEMCHR
 #define MEMCHR memchr
 #else 
 #define MEMCHR jed_memchr
 extern char *jed_memchr(register char *, register char, register int);
 #endif
 
-#ifdef HAS_MEMCPY
+#ifdef HAVE_MEMCPY
 #define MEMCPY memcpy
 #else
 #define MEMCPY jed_memcpy
 extern char *jed_memcpy(char *, char *, int);
 #endif
 
-#ifdef HAS_MEMCMP
+#ifdef HAVE_MEMCMP
 #define MEMCMP memcmp
 #else
 #define MEMCMP jed_memcmp
@@ -128,14 +200,24 @@ extern int jed_memcmp(char *, char *, int);
 #endif
 
 /* -------------------  S-Lang Stuff -------------------------------*/
-
-#define FLOAT double
-
+#ifdef float64
+# undef float64
+#endif
+   
+#ifndef FLOAT64_TYPEDEFED
+# define FLOAT64_TYPEDEFED
+  typedef double float64;
+#endif
 
 #define SLANG_MAX_NAME_LEN 30
 /* maximum length of an identifier */
 /* first char in identifiers is the hash */
 
+   /* Note that long is used for addresses instead of void *.  The reason for
+    * this is that I have a gut feeling that sizeof (long) > sizeof(void *)
+    * on some machines.  This is certainly the case for MSDOS where addresses
+    * can be 16 bit.
+    */
 typedef struct SLang_Name_Type
   {
 #ifdef SLANG_STATS
@@ -170,6 +252,12 @@ typedef struct SLang_Load_Type
    int top_level;		       /* 1 if at top level of parsing */
 } SLang_Load_Type;
 
+#if defined(ultrix) && !defined(__GNUC__)
+# ifndef NO_PROTOTYPES
+#  define NO_PROTOTYPES
+# endif
+#endif
+   
 #ifndef NO_PROTOTYPES 
 # define _PROTO(x) x
 #else
@@ -187,7 +275,7 @@ typedef struct SL_OOBinary_Type
     * return zero if the operation is not defined.
     */
    int (*binary_function)_PROTO((int, unsigned char, unsigned char, 
-				  VOID *, VOID *));
+				  VOID_STAR, VOID_STAR));
 
    struct SL_OOBinary_Type *next;
 }
@@ -196,15 +284,21 @@ SL_OOBinary_Type;
 typedef struct
 {
    /* Methods */
-   void (*destroy)_PROTO((VOID *));
-   char *(*string)_PROTO((VOID *));
-   int (*unary_function)_PROTO((int, unsigned char, VOID *));
+   void (*destroy)_PROTO((VOID_STAR));
+   /* called to delete/free the object */
+   char *(*string)_PROTO((VOID_STAR));
+   /* returns a string representation of the object */
+   int (*unary_function)_PROTO((int, unsigned char, VOID_STAR));
+   /* unary operation function */
    SL_OOBinary_Type *binary_ops;
+   
+   int (*copy_function)_PROTO((unsigned char, VOID_STAR));
+   /* This function is called do make a copy of the object */
 } SLang_Class_Type;
 
 extern SLang_Class_Type *SLang_Registered_Types[256];
    
-typedef struct SLuser_Object_Type
+typedef struct
 {
    unsigned char main_type;	       /* SLANG_RVARIABLE, etc.. */
    unsigned char sub_type;	       /* int, string, etc... */
@@ -225,7 +319,7 @@ SLuser_Object_Type;
 
   extern char *SLang_User_Prompt;
   /* Prompt to use when reading from stdin */
-  extern char SLang_Version[];
+  extern int SLang_Version;
 
   extern void (*SLang_Error_Routine)(char *);
   /* Pointer to application dependent error messaging routine.  By default,
@@ -272,6 +366,7 @@ SLuser_Object_Type;
     *  than 32 characters must also be supplied.      
     * Returns 0 upon failure or 1 upon success. */
 
+   extern int SLang_add_global_variable (char *);
    extern int SLang_load_object(SLang_Load_Type *);
    extern int SLang_load_file(char *);
    /* Load a file of S-Lang code for interpreting.  If the parameter is
@@ -311,7 +406,7 @@ SLuser_Object_Type;
     * freed after its use.  DO NOT FREE p0 if *p1 IS ZERO! Returns 0 upon
     * success */
       
-   extern int SLang_pop_float(FLOAT *, int *, int *);
+   extern int SLang_pop_float(float64 *, int *, int *);
    /* Pops float *p1 from stack.  If *p3 is non-zero, *p1 was derived
       from the integer *p2. Returns zero upon success. */
       
@@ -320,16 +415,17 @@ SLuser_Object_Type;
    extern void SLang_push_user_object (SLuser_Object_Type *);
    extern SLuser_Object_Type *SLang_create_user_object (unsigned char);
    
-   extern int SLang_add_unary_op (unsigned char, VOID *);
-   extern int SLang_add_binary_op (unsigned char, unsigned char, VOID *);
-   extern int SLang_register_class (unsigned char, VOID *, VOID *);
+   extern int SLang_add_unary_op (unsigned char, FVOID_STAR);
+   extern int SLang_add_binary_op (unsigned char, unsigned char, FVOID_STAR);
+   extern int SLang_register_class (unsigned char, FVOID_STAR, FVOID_STAR);
+   extern int SLang_add_copy_operation (unsigned char, FVOID_STAR);
 
    extern long *SLang_pop_pointer(unsigned char *, unsigned char *, int *);
    /* Returns a pointer to object of type *p1,*p2 on top of stack. 
       If *p3 is non-zero, the Object must be freed after use. */
 
 
-   extern void SLang_push_float(FLOAT);
+   extern void SLang_push_float(float64);
    /* Push Float onto stack */
 
    extern void SLang_push_string(char *);
@@ -342,10 +438,6 @@ SLuser_Object_Type;
    /* The normal SLang_push_string mallocs space for the string.  This one
       does not.  DO NOT FREE IT IF YOU USE THIS ROUTINE */
 
-   extern int SLdefine_for_ifdef (char *);
-   /* Adds a string to the SLang #ifdef preparsing defines. SLang already
-      defines MSDOS, UNIX, and VMS on the appropriate system. */
-      
    extern int SLang_is_defined(char *);
    /* Return non-zero is p1 is defined otherwise returns 0. */
    
@@ -419,36 +511,54 @@ extern void SLexecute_function(SLang_Name_Type *);
  * the C program.  The parameter must be non-NULL and must have been 
  * previously obtained by a call to 'SLang_get_function'.
  */
+extern void SLroll_stack (int *);
+/* If argument *p is positive, the top |*p| objects on the stack are rolled
+ * up.  If negative, the stack is rolled down.
+ */
 
-extern char *SLmake_nstring (char *, int);
+extern char *SLmake_string (char *);
+extern char *SLmake_nstring (char *, unsigned int);
 /* Returns a null terminated string made from the first n characters of the
  * string.
  */
+extern void SLmake_lut (unsigned char *, unsigned char *, unsigned char);
 
+   extern int SLang_guess_type (char *);
 /* SLang tty interface */
-extern SLtt_Baud_Rate;
-extern SLang_TT_Baud_Rate;
-
+extern int SLtt_Baud_Rate;
+extern unsigned long SLtt_Num_Chars_Output;
+   
+#ifdef REAL_UNIX_SYSTEM
+extern int SLang_TT_Baud_Rate;
+extern int SLang_TT_Read_FD;
+#endif
+   
 extern int SLang_init_tty (int, int, int);
-/* Initializes the tty for single character input.  The first parameter *p1
- * is the value 0-255 to be used for the abort character.  If the second
- * parameter p2 is non-zero, flow control is enabled.  If the last 
- * parmeter p3 is zero, output processing is NOT turned on.  A value of 
- * zero is required for the screen management routines.
- * Returns 0 upon success.
- * In addition, if SLang_TT_Baud_Rate == 0 when this function is called, 
- * SLang will attempt to determine  the terminals baud rate.  As far as 
- * the SLang library is concerned, if SLang_TT_Baud_Rate is less than or 
- * equal to zero, the baud rate is effectively infinite.
+/* Initializes the tty for single character input.  If the first parameter *p1
+ * is in the range 0-255, it will be used for the abort character;
+ * otherwise, (unix only) if it is -1, the abort character will be the one
+ * used by the terminal.  If the second parameter p2 is non-zero, flow
+ * control is enabled.  If the last parmeter p3 is zero, output processing
+ * is NOT turned on.  A value of zero is required for the screen management
+ * routines. Returns 0 upon success. In addition, if SLang_TT_Baud_Rate ==
+ * 0 when this function is called, SLang will attempt to determine the
+ * terminals baud rate.  As far as the SLang library is concerned, if
+ * SLang_TT_Baud_Rate is less than or equal to zero, the baud rate is
+ * effectively infinite.
  */
 
 extern void SLang_reset_tty (void);
 /* Resets tty to what it was prior to a call to SLang_init_tty */
-
+#ifdef REAL_UNIX_SYSTEM
+extern void SLtty_set_suspend_state (int);
+   /* If non-zero argument, terminal driver will be told to react to the
+    * suspend character.  If 0, it will not.
+    */
+#endif
 extern unsigned int SLang_getkey (void);
 /* reads a single key from the tty.  If the read fails, 0xFFFF is returned. */
-extern void SLang_ungetkey_string (unsigned char *, int);
-extern void SLang_buffer_keystring (unsigned char *, int);
+extern void SLang_ungetkey_string (unsigned char *, unsigned int);
+extern void SLang_buffer_keystring (unsigned char *, unsigned int);
 extern void SLang_ungetkey (unsigned char);
 extern void SLang_flush_input (void);
 extern int SLang_input_pending (int);
@@ -477,8 +587,19 @@ SLKeymap_Function_Type;
 typedef struct SLang_Key_Type
   {
      unsigned char str[13];	       /* key sequence */
-     VOID *f;			       /* function to invoke */
+#define SLKEY_F_INTERPRET 0x01
+#define SLKEY_F_INTRINSIC 0x02
      unsigned char type;	       /* type of function */
+#ifdef SLKEYMAP_OBSOLETE
+     VOID_STAR f;			       /* function to invoke */
+#else
+     union
+       {
+	  char *s;
+	  FVOID_STAR f;
+       }
+     f;
+#endif
      struct SLang_Key_Type *next;      /* */
   }
 SLang_Key_Type;
@@ -501,17 +622,20 @@ SLKeyMap_List_Type;
 
 extern SLKeyMap_List_Type SLKeyMap_List[SLANG_MAX_KEYMAPS];   /* these better be inited to 0! */
 
-#define SLKEY_F_INTERPRET 0x01
-#define SLKEY_F_INTRINSIC 0x02
 
 extern char *SLang_process_keystring(char *);
-extern int SLang_define_key1(char *, VOID *, unsigned char, SLKeyMap_List_Type *);
+
+#ifdef SLKEYMAP_OBSOLETE   
+extern int SLang_define_key1(char *, VOID_STAR, unsigned int, SLKeyMap_List_Type *);
 /* define key p1 in keymap p4 to invoke function p2.  If type p3 is given by
  * SLKEY_F_INTRINSIC, p2 is an intrinsic function, else it is a string to be
  * passed to the interpreter for evaluation.  The return value is important.
  * It returns 0 upon success, -1 upon malloc error, and -2 if the key is 
  * inconsistent.  SLang_Error is set upon error. */
-
+#else
+extern int SLkm_define_key (char *, FVOID_STAR, SLKeyMap_List_Type *);
+#endif
+   
 extern int SLang_define_key(char *, char *, SLKeyMap_List_Type *);
 /* Like define_key1 except that p2 is a string that is to be associated with 
  * a function in the functions field of p3.  This routine calls define_key1.
@@ -530,12 +654,20 @@ extern char *SLang_make_keystring(unsigned char *);
 extern SLang_Key_Type *SLang_do_key(SLKeyMap_List_Type *, int (*)(void));
 /* read a key using keymap p1 with getkey function p2 */
 
-extern VOID *SLang_find_key_function(char *, SLKeyMap_List_Type *);
+extern
+#ifdef SLKEYMAP_OBSOLETE
+     VOID_STAR
+#else
+     FVOID_STAR
+#endif
+     SLang_find_key_function(char *, SLKeyMap_List_Type *);
+
 extern SLKeyMap_List_Type *SLang_find_keymap(char *);
 
 extern int SLang_Last_Key_Char;
 extern int SLang_Key_TimeOut_Flag;
 
+extern char *SLcurrent_time_string (void);
 /* --------------- SLang_read_line interface ----------------------- */
 
 typedef struct SLang_Read_Line_Type
@@ -548,7 +680,7 @@ typedef struct SLang_Read_Line_Type
 } SLang_Read_Line_Type;
 
 /* Maximum size of display */
-#define SLRL_DISPLAY_BUFFER_SIZE 156
+#define SLRL_DISPLAY_BUFFER_SIZE 256
 
 typedef struct 
 {
@@ -566,7 +698,7 @@ typedef struct
    int dhscroll;		       /* amount to use for horiz scroll */
    char *prompt;
    
-   VOID *last_fun;		       /* last function executed by rl */
+   FVOID_STAR last_fun;		       /* last function executed by rl */
 
    /* These two contain an image of what is on the display */
    unsigned char upd_buf1[SLRL_DISPLAY_BUFFER_SIZE];
@@ -596,9 +728,11 @@ extern SLang_Read_Line_Type * SLang_rline_save_line (SLang_RLine_Info_Type *);
 extern int SLang_init_readline (SLang_RLine_Info_Type *);
 extern int SLang_read_line (SLang_RLine_Info_Type *);
 extern int SLang_rline_insert (char *);
-
+extern void SLrline_redraw (SLang_RLine_Info_Type *);   
+extern int SLang_Rline_Quit;
 /* ---------------------------------------------------------------------- */
 
+extern int SLatoi(unsigned char *);
 
 extern int SLang_extract_token(char **, char *, int);
 /* returns 0 upon failure and non-zero upon success.  The first parameter 
@@ -625,23 +759,35 @@ extern int SLtt_Term_Cannot_Insert;
 extern int SLtt_Term_Cannot_Scroll;
 extern int SLtt_Use_Ansi_Colors;
 extern int SLtt_Ignore_Beep;
-#if defined(VMS) || defined(unix)
+
+   
+#ifndef __GO32__
+#if defined(VMS) || defined(REAL_UNIX_SYSTEM)
 extern int SLtt_Blink_Mode;
 extern int SLtt_Use_Blink_For_ACS;
 extern int SLtt_Newline_Ok;
+extern int SLtt_Has_Alt_Charset;
+extern int SLtt_Has_Status_Line;       /* if 0, NO.  If > 0, YES, IF -1, ?? */
+# ifndef VMS
+extern int SLtt_Try_Termcap;
+# endif
+#endif
 #endif
 
 #ifdef msdos
 extern int SLtt_Msdos_Cheap_Video;
 #endif
+   
+   
 extern int SLtt_flush_output (void);
 extern void SLtt_set_scroll_region(int, int);
 extern void SLtt_reset_scroll_region(void);
+extern void SLtt_reverse_video (int);
 extern void SLtt_bold_video (void);
-extern void SLtt_goto_rc(int, int);
 extern void SLtt_begin_insert(void);
 extern void SLtt_end_insert(void);
 extern void SLtt_del_eol(void);
+extern void SLtt_goto_rc (int, int);
 extern void SLtt_delete_nlines(int);
 extern void SLtt_delete_char(void);
 extern void SLtt_erase_line(void);
@@ -655,17 +801,59 @@ extern void SLtt_putchar(char);
 extern void SLtt_init_video (void);
 extern void SLtt_reset_video (void);
 extern void SLtt_get_terminfo(void);
-#if defined(VMS) || defined(unix) 
+extern void SLtt_get_screen_size (void);
+extern int SLtt_set_cursor_visibility (int);
+   
+#if defined(VMS) || defined(REAL_UNIX_SYSTEM)
 extern void SLtt_enable_cursor_keys(void);
 extern void SLtt_set_term_vtxxx(int *);
 extern void SLtt_set_color_esc (int, char *);
 extern void SLtt_wide_width(void);
 extern void SLtt_narrow_width(void);
+extern int SLtt_set_mouse_mode (int, int);
+extern void SLtt_set_alt_char_set (int);
+extern int SLtt_write_to_status_line (char *, int);
+extern void SLtt_disable_status_line (void);
+# ifdef REAL_UNIX_SYSTEM
+   extern char *SLtt_tgetstr (char *);
+   extern int SLtt_tgetnum (char *);
+   extern int SLtt_tgetflag (char *);
+   extern char *SLtt_tigetent (char *);
+   extern char *SLtt_tigetstr (char *, char **);
+   extern int SLtt_tigetnum (char *, char **);
+# endif
 #endif
+   
+extern SLtt_Char_Type SLtt_get_color_object (int);
 extern void SLtt_set_color_object (int, SLtt_Char_Type);
 extern void SLtt_set_color (int, char *, char *, char *);
 extern void SLtt_set_mono (int, char *, SLtt_Char_Type);
+extern void SLtt_add_color_attribute (int, SLtt_Char_Type);
+extern void SLtt_set_color_fgbg (int, SLtt_Char_Type, SLtt_Char_Type);
+     
+/*-------------------------------------------------------------------------
+ * Preprocessor
+ */
+typedef struct 
+{
+   int this_level;
+   int exec_level;
+   int prev_exec_level;
+   char preprocess_char;
+   char comment_char;
+}
+SLPreprocess_Type;
 
+extern int SLprep_open_prep (SLPreprocess_Type *);
+extern void SLprep_close_prep (SLPreprocess_Type *);
+extern int SLprep_line_ok (char *, SLPreprocess_Type *);
+   extern int SLdefine_for_ifdef (char *);
+   /* Adds a string to the SLang #ifdef preparsing defines. SLang already
+      defines MSDOS, UNIX, and VMS on the appropriate system. */
+extern int (*SLprep_exists_hook) (char *, char);
+      
+   
+   
 /* ----------------------------------------------------------------------- */
 /* Screen management functions */
 
@@ -673,7 +861,10 @@ extern void SLtt_set_mono (int, char *, SLtt_Char_Type);
 extern void SLsmg_fill_region (int, int, int, int, unsigned char);
 #ifndef pc_system
 extern void SLsmg_set_char_set (int);
+extern int SLsmg_Scroll_Hash_Border;
 #endif
+extern void SLsmg_suspend_smg (void);
+extern void SLsmg_resume_smg (void);
 extern void SLsmg_erase_eol (void);
 extern void SLsmg_gotorc (int, int);
 extern void SLsmg_erase_eos (void);
@@ -683,8 +874,10 @@ extern void SLsmg_normal_video (void);
 extern void SLsmg_printf (char *, ...);
 extern void SLsmg_vprintf (char *, va_list);
 extern void SLsmg_write_string (char *);
+extern void SLsmg_write_nstring (char *, int);
 extern void SLsmg_write_char (char);
 extern void SLsmg_write_nchars (char *, int);
+extern void SLsmg_write_wrapped_string (char *, int, int, int, int, int);
 extern void SLsmg_cls (void);
 extern void SLsmg_refresh (void);
 extern void SLsmg_touch_lines (int, int);
@@ -696,9 +889,15 @@ extern void SLsmg_draw_hline (int);
 extern void SLsmg_draw_vline (int);
 extern void SLsmg_draw_object (int, int, unsigned char);
 extern void SLsmg_draw_box (int, int, int, int);
-
+extern int SLsmg_get_column(void);
+extern int SLsmg_get_row(void);
+extern void SLsmg_forward (int);
+extern void SLsmg_write_color_chars (unsigned short *, unsigned int);
+   
 extern int SLsmg_Display_Eight_Bit;
 extern int SLsmg_Tab_Width;
+extern int SLsmg_Newline_Moves;
+extern int SLsmg_Backspace_Moves;
 
 #ifdef pc_system
 # define SLSMG_HLINE_CHAR	0xC4
@@ -707,6 +906,11 @@ extern int SLsmg_Tab_Width;
 # define SLSMG_URCORN_CHAR	0xBF
 # define SLSMG_LLCORN_CHAR	0xC0
 # define SLSMG_LRCORN_CHAR	0xD9
+# define SLSMG_RTEE_CHAR	0xB4
+# define SLSMG_LTEE_CHAR	0xC3
+# define SLSMG_UTEE_CHAR	0xC2
+# define SLSMG_DTEE_CHAR	0xC1
+# define SLSMG_PLUS_CHAR	0xC5
 /* There are several to choose from: 0xB0, 0xB1, and 0xB2 */
 # define SLSMG_CKBRD_CHAR	0xB0
 #else
@@ -717,6 +921,28 @@ extern int SLsmg_Tab_Width;
 # define SLSMG_LLCORN_CHAR	'm'
 # define SLSMG_LRCORN_CHAR	'j'
 # define SLSMG_CKBRD_CHAR	'a'
+# define SLSMG_RTEE_CHAR	'u'
+# define SLSMG_LTEE_CHAR	't'
+# define SLSMG_UTEE_CHAR	'w'
+# define SLSMG_DTEE_CHAR	'v'
+# define SLSMG_PLUS_CHAR	'n'
+   
+# define SLSMG_COLOR_BLACK		0x000000
+# define SLSMG_COLOR_RED		0x000001
+# define SLSMG_COLOR_GREEN		0x000002
+# define SLSMG_COLOR_BROWN		0x000003
+# define SLSMG_COLOR_BLUE		0x000004
+# define SLSMG_COLOR_CYAN		0x000005
+# define SLSMG_COLOR_MAGENTA		0x000006
+# define SLSMG_COLOR_LGRAY		0x000007
+# define SLSMG_COLOR_GRAY		0x000008
+# define SLSMG_COLOR_BRIGHT_RED		0x000009
+# define SLSMG_COLOR_BRIGHT_GREEN	0x00000A
+# define SLSMG_COLOR_BRIGHT_BROWN	0x00000B
+# define SLSMG_COLOR_BRIGHT_BLUE	0x00000C
+# define SLSMG_COLOR_BRIGHT_CYAN	0x00000D
+# define SLSMG_COLOR_BRIGHT_MAGENTA	0x00000E
+# define SLSMG_COLOR_BRIGHT_WHITE	0x00000F
 #endif
 /* ----------------------------------------------------------------------- */
 
@@ -731,6 +957,11 @@ extern int SLsmg_Tab_Width;
 #define INTP_TYPE	5
 #define SLANG_OBJ_TYPE	6
 
+#if 0
+/* This is not ready yet.  */
+# define SLANG_NOOP	9
+#endif
+   
 /* Everything above string should correspond to a pointer in the object 
  * structure.  See do_binary (slang.c) for exploitation of this fact.
  */
@@ -751,7 +982,7 @@ extern int SLsmg_Tab_Width;
 #define SLANG_FUNCTION  	0x07
 #define SLANG_LITERAL	0x08           /* constant objects */
 #define SLANG_BLOCK      0x09
-#define SLANG_DIRECTIVE	0x0A
+#define SLANG_EQS	0x0A
 #define SLANG_UNARY	0x0B
 #define SLANG_LUNARY	0x0C
 
@@ -779,7 +1010,10 @@ extern int SLsmg_Tab_Width;
 #define SLANG_X_USER3	0x1B
 #define SLANG_X_USER4	0x1C
 
-
+#ifdef SLANG_NOOP
+# define SLANG_NOOP_DIRECTIVE 0x2F
+#endif
+   
 #define SLANG_DATA	0x30           /* real objects which may be destroyed */
 
 
@@ -827,6 +1061,7 @@ extern int SLsmg_Tab_Width;
 extern char *SLang_Error_Message;
 
 extern void SLadd_name(char *, long, unsigned char, unsigned char);
+extern void SLadd_at_handler (long *, char *);
 
 #define SLANG_MAKE_ARGS(out, in) ((unsigned char)(out) | ((unsigned short) (in) << 4))
 
@@ -836,7 +1071,7 @@ extern void SLadd_name(char *, long, unsigned char, unsigned char);
     {0, n, (out | (in << 4)), SLANG_INTRINSIC, (long) f}
        
 #define MAKE_VARIABLE(n, v, t, r)     \
-    {0, n, t, (SLANG_IVARIABLE + r, (long) v}
+    {0, n, t, (SLANG_IVARIABLE + r), (long) v}
 
 #else
 #define MAKE_INTRINSIC(n, f, out, in)        \
@@ -864,22 +1099,26 @@ typedef struct
 {
    unsigned char *pat;		       /* regular expression pattern */
    unsigned char *buf;		       /* buffer for compiled regexp */
-   int buf_len;			       /* length of buffer */
+   unsigned int buf_len;	       /* length of buffer */
    int case_sensitive;		       /* 1 if match is case sensitive  */
    int must_match;		       /* 1 if line must contain substring */
    int must_match_bol;		       /* true if it must match beginning of line */
    unsigned char must_match_str[16];   /* 15 char null term substring */
    int osearch;			       /* 1 if ordinary search suffices */
+   unsigned int min_length;	       /* minimum length the match must be */
    int beg_matches[10];		       /* offset of start of \( */
-   int end_matches[10];		       /* length of nth submatch
+   unsigned int end_matches[10];       /* length of nth submatch
 					* Note that the entire match corresponds
 					* to \0 
 					*/
    int offset;			       /* offset to be added to beg_matches */
 } SLRegexp_Type;
 
-extern unsigned char *SLang_regexp_match(unsigned char *, int, SLRegexp_Type *);
+extern unsigned char *SLang_regexp_match(unsigned char *, 
+					 unsigned int, 
+					 SLRegexp_Type *);
 extern int SLang_regexp_compile (SLRegexp_Type *);
+extern char *SLregexp_quote_string (char *, char *, unsigned int);
 
 #ifdef SLKEYMAPS
 /* Keymap routines and definitions */
@@ -905,7 +1144,8 @@ typedef struct SLcmd_Cmd_Table_Type
    int argc;
    char *string_args[SLCMD_MAX_ARGS];
    int int_args[SLCMD_MAX_ARGS];
-   FLOAT float_args[SLCMD_MAX_ARGS];
+   float64 float_args[SLCMD_MAX_ARGS];
+   unsigned char arg_type[SLCMD_MAX_ARGS];
 } SLcmd_Cmd_Table_Type;
 
 
@@ -952,8 +1192,6 @@ unsigned char *SLsearch (unsigned char *, unsigned char *, SLsearch_Type *);
 #ifdef __cplusplus
 }
 #endif
-
-extern int init_slang_keymaps (void);
 
 /* _davis_slang_h_ */
 #endif 

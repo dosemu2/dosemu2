@@ -787,6 +787,15 @@ int vgaemu_switch_page(unsigned int pagenumber)
 }
 
 
+/*
+ * Only used by set_vgaemu_mode
+ */
+
+inline static unsigned mode_area(unsigned mode_index)
+{
+  return vga_mode_table[mode_index].x_char *
+         vga_mode_table[mode_index].y_char;
+}
 
 int set_vgaemu_mode(int mode, int width, int height)
 {
@@ -800,7 +809,7 @@ int set_vgaemu_mode(int mode, int width, int height)
   /* Search for the first valid mode */
   for(i=0; (vga_mode_table[i].mode!=-1) && (found==False); i++)
     {
-      if(vga_mode_table[i].mode==mode)
+      if(vga_mode_table[i].mode==(mode&0x7F))
         {
           if(vga_mode_table[i].type==TEXT)
             {
@@ -826,19 +835,30 @@ int set_vgaemu_mode(int mode, int width, int height)
 
   if(found==True)
     v_printf("VGAemu: set_vgaemu_mode(): mode found in first run!\n");
-    
+
+
   /* Play it again, Sam!
    * This is when we can't find the textmode with the appropriate sizes.
-   * Use the first possible mode available.
+   * Use the best matching text mode
    */
   if(found==False)
     {
-      for(i=0; (vga_mode_table[i].mode!=-1) && (found==False); i++)	
+      for(i=0; (vga_mode_table[i].mode!=-1); i++)	
         {
-          if(vga_mode_table[i].mode==mode)
+          if(vga_mode_table[i].mode==(mode&0x7f) &&
+	     /* make sure everything is visible! */
+             (vga_mode_table[i].x_char>=width) &&
+             (vga_mode_table[i].y_char>=height) )
             {
-              found=True;
-              index=i;
+	      if ((found == True) && (mode_area(i) >= mode_area(index))) 
+		{
+		  continue;
+		}
+	      else 
+		{
+		  found=True;
+		  index=i;
+		}
             }
         }
         
@@ -867,7 +887,19 @@ int set_vgaemu_mode(int mode, int width, int height)
       /* Does the BIOS clear all of video memory, or just enough
        for the viewport?  This clears all of it... */
 
-      if (vga_mode_table[index].mode < 0x80)
+
+      /* Actually if the bios has any sense it clears fills the screen
+       * with spaces (Background Black, Foreground White).  This
+       * happens to be the same as all zeros in graphics mode.
+       * I've patched the bios end of it to handle the text mode case
+       * so don't do that here.  There are no real video modes >= 0x80
+       * so test the incoming mode number instead of the name after
+       * the stripping.
+       */
+      /* FIXME: the interface between the bios setmode and this
+	 setmode are weird!! */
+
+      if (vga_mode_table[index].type != TEXT && mode < 0x80)
 	memset((void*)vga_emu_memory, 0, 
 	       (size_t)VGAEMU_BANK_SIZE*VGAEMU_BANKS);
 

@@ -49,10 +49,10 @@ endif
 
 # ANSI isn't possible right now, because some header-file aren't ANSI
 
-CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c ldttest.c dir.c
+CFILES = vm86.c traps.c emumod.c emusys.c signal.c ldt.c
 SFILES = fastsys.S
 HFILES = emumod.h
-OFILES = vm86.o traps.o emumod.o emusys.o signal.o ldt.o dir.o
+OFILES = vm86.o traps.o emumod.o emusys.o signal.o ldt.o
 KVFILE = ../../../include/kversion.h
 
 # Insert all source- and header-files here.
@@ -61,7 +61,7 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 # All object-files are included here.
 
-OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o signal.o ldt.o dir.o
+OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o signal.o ldt.o
  
 all: $(OBJS) $(BINPATH)/modules/emumodule.o
 
@@ -91,13 +91,6 @@ traps.o:  traps.c emumod.h ${KVFILE}
 
 fastsys.o: fastsys.S ${KVFILE}
 	$(CC) ${KCFLAGS} -c -D__ASSEMBLY__  fastsys.S -o fastsys.o
-
-dir.o:     dir.c ${KVFILE}
-	$(CC)  ${KCFLAGS} -I$(FSMSDOSDIR) $(REPAIR_ODD_MSDOS_FS)  -c dir.c -o dir.o
-
-ldttest: ldttest.c
-	$(CC) -O2 ldttest.c -o ldttest
-
 
 checkin:
 	-ci -l $(ALL) Makefile

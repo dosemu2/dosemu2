@@ -8,6 +8,8 @@
  * See the file "COPYING" for your rights.
  *
  * Fixed major bug in a.out bss variable handling: March '95, Bas.
+ * sparc additions:
+ *      Eddie C. Dost <ecd@skynet.be>
  */
 
 #include "insmod.h"
@@ -16,24 +18,28 @@ static char *dataseg;
 static char *bss1seg;
 static char *bss2seg;
 
-
 static void
 aout_relocate(char *seg, int segsize, int relinfo_size, FILE *fp)
 {
 	struct relocation_info rel;
 	unsigned long val;
 	struct symbol *sp;
+#ifdef __sparc__
+	unsigned int symbol_addr;
+	unsigned int real_reloc_addr;
+#endif
 
 	while ((relinfo_size -= sizeof rel) >= 0) {
 		fread(&rel, sizeof rel, 1, fp);
 #ifdef DEBUG
-		printf("relocate %s:%u\n", seg == textseg? "text" : "data",
+		printf("relocate %s:%u ", seg == textseg? "text" : "data",
 			rel.r_address);
 #endif
 		if (rel.r_address < 0 || rel.r_address >= segsize) {
 			insmod_error ("Bad relocation");
 			exit(2);
 		}
+#ifndef __sparc__
 		if (rel.r_length != 2) {
 			insmod_error ("Unimplemented relocation:  r_length = %d", rel.r_length);
 			exit(2);
@@ -57,6 +63,134 @@ aout_relocate(char *seg, int segsize, int relinfo_size, FILE *fp)
 		} else if (rel.r_symbolnum != N_ABS) {
 			val += addr;
 		}
+#else /* __sparc__ */
+		val = * (long *) (seg + rel.r_address);
+		symbol_addr = 0;
+		real_reloc_addr = (int)seg + rel.r_address - (int)textseg + addr;
+		if (rel.r_extern) {
+			if (rel.r_index >= nsymbols) {
+				insmod_error ("Bad relocation");
+				exit(2);
+			}
+			sp = symtab + rel.r_index;
+			symbol_addr = sp->u.n.n_value;
+			if ((sp->u.n.n_type &~ N_EXT) != N_ABS)
+				symbol_addr += addr;
+		} else if (rel.r_index != N_ABS) {
+			symbol_addr = addr;
+		}
+
+		switch (rel.r_type) {
+			case RELOC_8:
+				val &= ~(0xff);
+				val |= (symbol_addr + rel.r_addend) & 0xff;
+				break;
+
+			case RELOC_16:
+				val &= ~(0xffff);
+				val |= (symbol_addr + rel.r_addend) & 0xffff;
+				break;
+
+			case RELOC_32:
+				val = symbol_addr + rel.r_addend;
+				break;
+
+			case RELOC_DISP8:
+				insmod_error("unhandled reloc RELOC_DISP8, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_DISP16:
+				insmod_error("unhandled reloc RELOC_DISP16, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_DISP32:
+				insmod_error("unhandled reloc RELOC_DISP32, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+
+			case RELOC_WDISP30:
+				val &= ~(0x3fffffff);
+				val |= (symbol_addr - real_reloc_addr) >> 2;
+				break;
+
+			case RELOC_WDISP22:
+				insmod_error("unhandled reloc RELOC_WDISP22, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+
+			case RELOC_HI22:
+				val &= ~(0x3fffff);
+				val |= (symbol_addr + rel.r_addend) >> 10;
+				break;
+
+			case RELOC_22:
+				insmod_error("unhandled reloc RELOC_22, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_13:
+				insmod_error("unhandled reloc RELOC_13, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+
+			case RELOC_LO10:
+				val &= ~(0x3ff);
+				val |= (symbol_addr + rel.r_addend) & 0x3ff;
+				break;
+
+			case RELOC_SFA_BASE:
+				insmod_error("unhandled reloc RELOC_SFA_BASE, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_SFA_OFF13:
+				insmod_error("unhandled reloc RELOC_SFA_OFF13, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_BASE10:
+				insmod_error("unhandled reloc RELOC_BASE10, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_BASE13:
+				insmod_error("unhandled reloc RELOC_BASE13, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_BASE22:
+				insmod_error("unhandled reloc RELOC_BASE22, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_PC10:
+				insmod_error("unhandled reloc RELOC_PC10, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_PC22:
+				insmod_error("unhandled reloc RELOC_PC22, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_JMP_TBL:
+				insmod_error("unhandled reloc RELOC_JMP_TBL, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_SEGOFF16:
+				insmod_error("unhandled reloc RELOC_SEGOFF16, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_JMP_SLOT:
+				insmod_error("unhandled reloc RELOC_JMP_SLOT, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+			case RELOC_RELATIVE:
+				insmod_error("unhandled reloc RELOC_RELATIVE, ");
+				insmod_error("mail to ecd@skynet.be\n");
+				exit (1);
+
+			default:
+				insmod_error ("Unable to handle reloc type %d",
+					      rel.r_type);
+				exit(1);
+		}
+#endif /* __sparc__ */
+#ifdef DEBUG
+		printf("val= 0x%lx\n", val);
+#endif
 		* (long *) (seg + rel.r_address) = val;
 	}
 }

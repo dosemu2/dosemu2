@@ -13,6 +13,8 @@
  *	Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>
  *
  * More fixes (ELF SHN_UNDEF et al) by  Andreas Schwab in February 1996
+ * sparc additions:
+ *	Eddie C. Dost <ecd@skynet.be>
  */
 #include "insmod.h"
 
@@ -96,7 +98,7 @@ elf_relocate(unsigned int loadaddr, void *secpnt, int n_rel)
 	int got_addr = (int)got - (int)textseg + addr;
 	Elf32_Rel *rpnt = (Elf32_Rel *) secpnt;
 #endif
-#ifdef __mc68000__
+#if defined(__mc68000__) || defined(__sparc__)
 	Elf32_Rela *rpnt = (Elf32_Rela *) secpnt;
 #endif
 
@@ -226,6 +228,111 @@ elf_relocate(unsigned int loadaddr, void *secpnt, int n_rel)
 					+ rpnt->r_addend);
 			break;
 #endif
+#ifdef __sparc__
+		case R_SPARC_NONE:
+			break;
+
+		case R_SPARC_8:
+			*reloc_addr &= ~(0xff);
+			*reloc_addr |= (symbol_addr + rpnt->r_addend) & 0xff;
+			break;
+
+		case R_SPARC_16:
+			*reloc_addr &= ~(0xffff);
+			*reloc_addr |= (symbol_addr + rpnt->r_addend) & 0xffff;
+			break;
+
+		case R_SPARC_32:
+			*reloc_addr = symbol_addr + rpnt->r_addend;
+			break;
+
+		case R_SPARC_DISP8:
+			insmod_error("unhandled reloc SPARC_DISP8, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_DISP16:
+			insmod_error("unhandled reloc SPARC_DISP16, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_DISP32:
+			insmod_error("unhandled reloc SPARC_DISP32, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+
+		case R_SPARC_WDISP30:
+			*reloc_addr &= ~(0x3fffffff);
+			*reloc_addr |= (symbol_addr - real_reloc_addr) >> 2;
+			break;
+
+		case R_SPARC_WDISP22:
+			insmod_error("unhandled reloc SPARC_WDISP22, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+
+		case R_SPARC_HI22:
+			*reloc_addr &= ~(0x3fffff);
+			*reloc_addr |= (symbol_addr + rpnt->r_addend) >> 10;
+			break;
+
+		case R_SPARC_22:
+			insmod_error("unhandled reloc SPARC_22, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_13:
+			insmod_error("unhandled reloc SPARC_13, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+
+		case R_SPARC_LO10:
+			*reloc_addr &= ~(0x3ff);
+			*reloc_addr |= (symbol_addr + rpnt->r_addend) & 0x3ff;
+			break;
+
+		case R_SPARC_GOT10:
+			insmod_error("unhandled reloc SPARC_GOT10, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_GOT13:
+			insmod_error("unhandled reloc SPARC_GOT13, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_GOT22:
+			insmod_error("unhandled reloc SPARC_GOT22, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_PC10:
+			insmod_error("unhandled reloc SPARC_PC10, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_PC22:
+			insmod_error("unhandled reloc SPARC_PC22, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_WPLT30:
+			insmod_error("unhandled reloc SPARC_WPLT30, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_COPY:
+			insmod_error("unhandled reloc SPARC_COPY, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_GLOB_DAT:
+			insmod_error("unhandled reloc SPARC_GLOB_DAT, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_JMP_SLOT:
+			insmod_error("unhandled reloc SPARC_JMP_SLOT, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_RELATIVE:
+			insmod_error("unhandled reloc SPARC_RELATIVE, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+		case R_SPARC_UA32:
+			insmod_error("unhandled reloc SPARC_UA32, ");
+			insmod_error("mail to ecd@skynet.be\n");
+			exit (1);
+#endif
 
 		default:
 			insmod_error ("Unable to handle reloc type %d",
@@ -267,7 +374,7 @@ relocate_elf(FILE *fp, long offset)
 			elf_relocate(loadaddr, (void *) secref[i], n_rel);
 		}
 #endif
-#ifdef __mc68000__
+#if defined(__mc68000__) || defined(__sparc__)
 		if (spnt->sh_type == SHT_RELA) {
 			loadaddr = (unsigned int)secref[spnt->sh_info];
 			n_rel= sections[i].sh_size / sections[i].sh_entsize;
@@ -421,7 +528,7 @@ load_elf(FILE *fp)
 #endif
 
 		case SHT_RELA:
-#ifdef __mc68000__
+#if defined(__mc68000__) || defined(__sparc__)
 			secref[i] = (char *)ckalloc(spnt->sh_size);
 
 			fseek(fp, spnt->sh_offset, SEEK_SET);

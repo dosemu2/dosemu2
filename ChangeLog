@@ -1,3 +1,35 @@
+
+96/09/15 ******** Release 0.64.0 - Made from 0.63.50
+
+96/07/10 11:26:50 From Hans: Dosdebug goes DPMI (+some minor DPMI-fixes)
+96/07/07 16:13:11 From : JES - Allow stdin to be non-tty
+- NO this is not the do-all-end-all to allow remote control access of DOSEmu.
+  It is only a stop gap to allow some next steps in testing.
+96/07/07 13:27:10 From : JES - Replacment to WatchDog.com TSR for IPX
+96/07/07 13:20:14 Cleanup and doc updates
+96/07/06 14:19:39 From : John Davis - Proper changes to SLang
+96/07/06 11:54:06 From : Peter Wainwright (prw@wainpr.demon.co.uk) - Fix init of IPXOpenSocket
+96/07/04 22:03:59 From : Kang-Lee - Misc. patches to dosemu/src/commands
+After much effort and many thanks to Kang-Lee I can understand him when he says:
+"Well, this patch really deserves the award of most_complicated_patch_story. :-)"
+Thanks Kang-Lee ;-)
+96/07/04 21:56:58 From Alberto: some goodies for DPMI, DJGPP, GUSPNP, port fixes, e.t.c.
+96/07/04 08:26:55 From Hans: upgrade to Linux-2.0.1, fixing LAR
+96/07/02 22:08:27 Patches to DOSEmu
+96/07/02 12:57:14 From Hans: 1st round towards 2.1.x (DPMI, LDT, emumodule, insmod)
+96/06/30 12:45:11 From : Eric W. Biederman  <ebiederm@cse.unl.edu> - fixups to video, etc...
+96/06/29 18:47:14 From Heiko : Reduce compiler warnings
+96/06/21 13:41:27 From : Johann Friedrich Heinrichmeyer <Fritz.Heinrichmeyer@FernUni-Hagen.de> - Update SLANG
+Thu Jun 27 20:11:35 1996  Eric W. Biederman  <ebiederm@cse.unl.edu>
+
+	* Cleaned up mainy tiny things regarding font loading, screen
+	resizing, and updating bios variables.  Now everything under X
+	should work under X except font loading and it punts that.
+
+	* Fixed a tiny bug where in emu-i386 where EIP was stored in a
+	character.  Only important to dosdebug
+	All fixes against 0.63.36
+	
 96/06/20 22:26:21 From : Markus Kossmann <mk@emil.inka.de> - Fix to configure.in
 96/06/18 19:25:53 From : JES - Allow DOSEmu to compile without EMUmod support
 96/06/18 09:17:36 From Marc Nijweide (M.Nijweide@et.tudelft.nl): empty ports should return 0xff

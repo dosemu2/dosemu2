@@ -645,7 +645,7 @@ DEPENDDIRS=$(addsuffix .depend, $(LIBSUBDIRS) )
 
 depend_local:	$(DEPENDS)
 
-depend dep:  $(DEPENDDIRS) depend_local
+depend dep:  version $(DEPENDDIRS) depend_local
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend
 	cd clients;$(CPP) -MM -I../ -I../include $(CFLAGS) *.c > .depend
 

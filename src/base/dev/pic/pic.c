@@ -304,8 +304,8 @@ unsigned char int_num;
  * DANG_END_FUNCTION
  */
 void write_pic0(port,value)
-unsigned int port;
-unsigned char value;
+Bit32u port;
+Bit8u value;
 {
 
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3
@@ -371,8 +371,8 @@ else                              /* icw2, icw3, icw4, or mask register */
 
 
 void write_pic1(port,value)
-unsigned int port;
-unsigned char value;
+Bit32u port;
+Bit8u value;
 {
 /* if port == 0 this must be either an ICW1, OCW2, or OCW3 */
 /* if port == 1 this must be either ICW2, ICW3, ICW4, or load IMR */
@@ -441,8 +441,8 @@ else                         /* icw2, icw3, icw4, or mask register */
  *
  * DANG_END_FUNCTION
  */
-unsigned char read_pic0(port)
-unsigned int port;
+Bit8u read_pic0(port)
+Bit32u port;
 {
   port -= 0x20;
   if(port)		return((unsigned char)get_pic0_imr());
@@ -451,8 +451,8 @@ unsigned int port;
 }
 
 
-unsigned char read_pic1(port)
-unsigned int port;
+Bit8u read_pic1(port)
+Bit32u port;
 {
   port -= 0xa0;
   if(port)		return((unsigned char)get_pic1_imr());

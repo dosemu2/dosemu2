@@ -1412,6 +1412,14 @@ static void keyb_layout(int layout)
     config.alt_map   = alt_map_no;
     config.num_table = num_table_comma;
     break;
+  case KEYB_NO_LATIN1:
+    c_printf("CONF: Keyboard-layout no-latin1\n");
+    config.keyboard  = KEYB_NO_LATIN1;
+    config.key_map   = key_map_no_latin1;  /* pointer to the keyboard-map */
+    config.shift_map = shift_map_no_latin1;
+    config.alt_map   = alt_map_no_latin1;
+    config.num_table = num_table_comma;
+    break;
   case KEYB_SF:
     c_printf("CONF: Keyboard-layout sf\n");
     config.keyboard  = KEYB_SF;

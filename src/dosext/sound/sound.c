@@ -157,7 +157,7 @@ __u8 dsp_read_output(void)
  * =======================
  */
 
-__u8 sb_io_read(__u32 port)
+Bit8u sb_io_read(Bit32u port)
 {
   __u32 addr;
   __u8 value;
@@ -247,7 +247,7 @@ __u8 sb_io_read(__u32 port)
    return 0xFF;
 }
 
-__u8 adlib_io_read(__u32 port)
+Bit8u adlib_io_read(Bit32u port)
 {
   /* Adlib Base Port is 0x388 */
   /* Adv. Adlib Base Port is 0x38A */
@@ -264,7 +264,7 @@ __u8 adlib_io_read(__u32 port)
   return 0;
 }
 
-__u8 fm_io_read (__u32 port)
+Bit8u fm_io_read (Bit32u port)
 {
   switch (port){
   case ADLIB_STATUS:
@@ -280,13 +280,13 @@ __u8 fm_io_read (__u32 port)
   return 0;
 }
 
-__u8 mpu401_io_read(__u32 port)
+Bit8u mpu401_io_read(Bit32u port)
 {
   __u32 addr;
   
   addr = port - config.mpu401_base;
   
-  S_printf ("SB: Read from MPU-401 port (%lu)\n", addr);
+  S_printf ("SB: Read from MPU-401 port (%u)\n", addr);
   
   switch (addr){
   default: S_printf ("SB: %lx is an unhandled read port\n", port);
@@ -300,7 +300,7 @@ __u8 mpu401_io_read(__u32 port)
  * ========================
  */
 
-void sb_io_write(__u32 port, __u8 value)
+void sb_io_write(Bit32u port, Bit8u value)
 {
   __u32 addr;
   
@@ -313,41 +313,41 @@ void sb_io_write(__u32 port, __u8 value)
   case 0x00: /* C/MS Data Port (1-6) - SB Only */
     /* FM Music Left Register Port - SBPro */
     if (SB_info.version >= SB_PRO) {
-      S_printf ("SB: Write 0x%x to 0x%lx (FM Left Register)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (FM Left Register)\n", value, addr);
       fm_io_write (FM_LEFT_REGISTER, value);
     }
     else {
-      S_printf ("SB: Write 0x%x to 0x%lx (C/MS 1-6 Data)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (C/MS 1-6 Data)\n", value, addr);
     }
     break;
   case 0x01: /* C/MS Register Port (1-6) - SB Only */
     /* FM Music Left Data Register - SBPro */
     if (SB_info.version >= SB_PRO) {
-      S_printf ("SB: Write 0x%x to 0x%lx (FM Left Data)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (FM Left Data)\n", value, addr);
       fm_io_write (FM_LEFT_DATA, value);
     }
     else {
-      S_printf ("SB: Write 0x%x to 0x%lx (C/MS 1-6 Register)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (C/MS 1-6 Register)\n", value, addr);
     }
     break;
   case 0x02: /* C/MS Data Port (7-12) - SB Only */
     /* FM Music Right Register Port - SBPro */
     if (SB_info.version >= SB_PRO) {
-      S_printf ("SB: Write 0x%x to 0x%lx (FM Right Register)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (FM Right Register)\n", value, addr);
       fm_io_write (FM_RIGHT_REGISTER, value);
     }
     else {
-      S_printf ("SB: Write 0x%x to 0x%lx (C/MS 7-12 Data)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (C/MS 7-12 Data)\n", value, addr);
     }
     break;
   case 0x03: /* C/MS Register Port (7-12) - SB Only */
     /* FM Music Right Data Register - SBPro */
     if (SB_info.version >= SB_PRO) {
-      S_printf ("SB: Write 0x%x to 0x%lx (FM Right Data)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (FM Right Data)\n", value, addr);
       fm_io_write (FM_RIGHT_DATA, value);
     }
     else {
-      S_printf ("SB: Write 0x%x to 0x%lx (C/MS 7-12 Register)\n", value, addr);
+      S_printf ("SB: Write 0x%x to 0x%x (C/MS 7-12 Register)\n", value, addr);
     }
     break;
     
@@ -403,7 +403,7 @@ void sb_io_write(__u32 port, __u8 value)
     /* Alias for 0x00 - SBPro */
   case 0x09: /* FM Music Data Port - SB */
     /* Alias for 0x01 - SBPro */
-    S_printf ("SB: Write 0x%x to 0x%lx (FM Music Port)\n", value, addr);
+    S_printf ("SB: Write 0x%x to 0x%x (FM Music Port)\n", value, addr);
     /* FIXME: Unimplemented */
     break;
     
@@ -735,11 +735,11 @@ void sb_io_write(__u32 port, __u8 value)
     /* 0x0D: Timer Interrupt Clear - SB16 */
     /* 0x10 - 0x13: CD-ROM - SBPro ***IGNORED*** */
     
-  default:   S_printf ("SB: %lx is an unhandled write port\n", addr);
+  default:   S_printf ("SB: %x is an unhandled write port\n", addr);
   };
 }
 
-void adlib_io_write(__u32 port, __u8 value)
+void adlib_io_write(Bit32u port, Bit8u value)
 {
   /* Base Port for Adlib is 0x388 */
   /* Base Port for Adv. Adlib is 0x38a */
@@ -765,7 +765,7 @@ void adlib_io_write(__u32 port, __u8 value)
   };
 }
 
-void fm_io_write (__u32 port, __u8 value)
+void fm_io_write (Bit32u port, Bit8u value)
 {
   switch (port){
   case ADLIB_REGISTER:
@@ -784,13 +784,13 @@ void fm_io_write (__u32 port, __u8 value)
 }
 
 
-void mpu401_io_write(__u32 port, __u8 value)
+void mpu401_io_write(Bit32u port, Bit8u value)
 {
   __u32 addr;
 
   addr = port - config.mpu401_base;
 
-  S_printf ("SB: Write %u to MPU-401 port %lu\n", value, addr);
+  S_printf ("SB: Write %u to MPU-401 port %u\n", value, addr);
 
   switch (addr){
     default: S_printf ("SB: %lx is an unhandled MPU-401 write port\n", port);
@@ -878,7 +878,7 @@ void start_dsp_dma(__u32 command)
     S_printf ("SB: 8-bit DMA (High Speed, Auto-Init) starting\n");
     break;
   default:
-    S_printf ("SB: Unsupported DMA type (%lx)\n", command);
+    S_printf ("SB: Unsupported DMA type (%x)\n", command);
     return;
     break;
   };

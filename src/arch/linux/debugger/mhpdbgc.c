@@ -8,6 +8,17 @@
  *
  * changes:
  *
+ *   10Jul96 Hans Lermen <lermen@elserv.ffm.fgan.de>
+ *           next round of DPMI support:
+ *           - new modes for mode command: +d, -d
+ *             ( defaults to having DPMI enabled )
+ *           - now can single step through DPMI-client
+ *           - now can set breakpoints in DPMI-client
+ *           - now has DPMI-INTx type breakpoints with matching for AX
+ *           - fixed disassembler and addresses to reflect
+ *             segmented protected mode (linear mode wasn't useable for DPMI)
+ *           - ldt commando now skips NULL-entries.
+ *
  *   19May96 Max Parke <mhp@lightlink.com>
  *           - added a little support for DPMI:
  *               - new 'ldt' command
@@ -37,6 +48,7 @@
 #include "config.h"
 #include "emu.h"
 #include "cpu.h"
+#include "dpmi.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -46,6 +58,7 @@
 #if 0 /* modify_ldt already defined in dpmi.c */
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 #endif
+extern int modify_ldt(int func, void *ptr, unsigned long bytecount);
 
 /* externs */
 extern struct mhpdbgc mhpdbgc;
@@ -59,12 +72,13 @@ extern struct vm86_struct vm86s;
 #endif
 
 extern int  dis_8086(unsigned int, const unsigned char *,
-                     unsigned char *, int, unsigned int *, unsigned int *);
+                     unsigned char *, int, unsigned int *, unsigned int *, unsigned int);
 
 /* prototypes */
 static void* mhp_getadr(unsigned char *, unsigned int *, unsigned int *, unsigned int *);
 static int mhp_parse(char*, char *[]);
 static void mhp_regs  (int, char *[]);
+static void mhp_r0    (int, char *[]);
 static void mhp_dis   (int, char *[]);
 static void mhp_disasm  (int, char *[]);
 static void mhp_go      (int, char *[]);
@@ -77,6 +91,8 @@ static void mhp_bc      (int, char *[]);
 static void mhp_bl      (int, char *[]);
 static void mhp_bpint   (int, char *[]);
 static void mhp_bcint   (int, char *[]);
+static void mhp_bpintd  (int, char *[]);
+static void mhp_bcintd  (int, char *[]);
 static void mhp_bpload  (int, char *[]);
 static void mhp_rmapfile(int, char *[]);
 static void mhp_mode    (int, char *[]);
@@ -92,6 +108,9 @@ static inline int get_ldt(void *);
 static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
 
+static unsigned int dpmimode=1, saved_dpmimode=1;
+#define IN_DPMI  (in_dpmi && dpmimode)
+
 static char lastd[32];
 static char lastu[32];
 static char lastldt[32];
@@ -105,58 +124,99 @@ static unsigned int last_symbol2 = 0;
 static unsigned int symbl2_org = 0;
 /* static unsigned int symbl2_end = 0; */
 
+static int trapped_bp=-1, trapped_bp_;
+
 /* constants */
 static const struct cmd_db cmdtab[] = {
-   "r",             mhp_regs,
-   "e",             mhp_enter,
-   "d",             mhp_dis,
-   "u",             mhp_disasm,
-   "g",             mhp_go,
-   "stop",          mhp_stop,
-   "mode",          mhp_mode,
-   "t",             mhp_trace,
-   "tf",            mhp_trace_force,
-   "r32",           mhp_regs32,
-   "bp",            mhp_bp,
-   "bc",            mhp_bc,
-   "bl",            mhp_bl,
-   "bpint",         mhp_bpint,
-   "bcint",         mhp_bcint,
-   "bpload",        mhp_bpload,
-   "rmapfile",      mhp_rmapfile,
-   "rusermap",      mhp_rusermap,
-   "kill",          mhp_kill,
-   "?",             mhp_help,
-   "ldt",           mhp_print_ldt,
-   "",              NULL
+   {"r0",            mhp_r0},
+   {"r" ,            mhp_regs},
+   {"e",             mhp_enter},
+   {"d",             mhp_dis},
+   {"u",             mhp_disasm},
+   {"g",             mhp_go},
+   {"stop",          mhp_stop},
+   {"mode",          mhp_mode},
+   {"t",             mhp_trace},
+   {"tf",            mhp_trace_force},
+   {"r32",           mhp_regs32},
+   {"bp",            mhp_bp},
+   {"bc",            mhp_bc},
+   {"bl",            mhp_bl},
+   {"bpint",         mhp_bpint},
+   {"bcint",         mhp_bcint},
+   {"bpintd",        mhp_bpintd},
+   {"bcintd",        mhp_bcintd},
+   {"bpload",        mhp_bpload},
+   {"rmapfile",      mhp_rmapfile},
+   {"rusermap",      mhp_rusermap},
+   {"kill",          mhp_kill},
+   {"?",             mhp_help},
+   {"ldt",           mhp_print_ldt},
+   {"",              NULL}
 };
 
 static const char help_page[]=
-  "q                 Quit the debug session\n"
-  "kill              Kill the dosemu process\n"
-  "r                 list regs\n"
-  "e ADDR HEXSTR     modify memory (0-1Mb)\n"
-  "d ADDR SIZE       dump memory (no limit)\n"
-  "u ADDR SIZE       unassemble memory (no limit)\n"
-  "g                 go (if stopped)\n"
-  "stop              stop (if running)\n"
-  "mode 0|1          set mode (0=SEG16, 1=LIN32) for u and d commands\n"
-  "t                 single step (not fully debugged!!!)\n"
-  "tf                single step, force over IRET\n"
-  "r32               dump regs in 32 bit format\n"
-  "bp addr           set int3 style breakpoint\n"
-  "bpint xx          set breakpoint on INT xx\n"
-  "bcint xx          clr breakpoint on INT xx\n"
-  "bpload            stop at start of next loaded a DOS program\n"
-  "bl                list active breakpoints\n"
-  "rusermap org fn   read microsoft linker format .MAP file 'fn'\n"
-  "                  code origin = 'org'.\n"
-  "ldt sel lines     dump ldt starting at selector 'sel' for 'lines'\n"
-  "<ENTER>           repeats previous command\n";
+  "q                      Quit the debug session\n"
+  "kill                   Kill the dosemu process\n"
+  "r                      list regs\n"
+  "e ADDR HEXSTR          modify memory (0-1Mb)\n"
+  "d ADDR SIZE            dump memory (no limit)\n"
+  "u ADDR SIZE            unassemble memory (no limit)\n"
+  "g                      go (if stopped)\n"
+  "stop                   stop (if running)\n"
+  "mode 0|1|+d|-d         set mode (0=SEG16, 1=LIN32) for u and d commands\n"
+  "t                      single step (not fully debugged!!!)\n"
+  "tf                     single step, force over IRET\n"
+  "r32                    dump regs in 32 bit format\n"
+  "bp addr                set int3 style breakpoint\n"
+  "bpint/bcint xx         set/clear breakpoint on INT xx\n"
+  "bpintd/bcintd xx [ax]  set/clear breakpoint on DPMI INT xx [ax]\n"
+  "bpload                 stop at start of next loaded a DOS program\n"
+  "bl                     list active breakpoints\n"
+  "rusermap org fn        read microsoft linker format .MAP file 'fn'\n"
+  "                       code origin = 'org'.\n"
+  "ldt sel lines          dump ldt starting at selector 'sel' for 'lines'\n"
+  "<ENTER>                repeats previous command\n";
 
 /********/
 /* CODE */
 /********/
+
+#define AXLIST_SIZE  32
+static unsigned long mhp_axlist[AXLIST_SIZE];
+static int axlist_count=0;
+
+int mhp_getaxlist_value(int v, int mask)
+{
+  int i;
+  for (i=0; i < axlist_count; i++) {
+    if (!((v ^ mhp_axlist[i]) & mask)) return i;
+  }
+  return -1;
+}
+
+static void mhp_delaxlist_value(int v, int mask)
+{
+  int i,j;
+  
+  for (i=0,j=0; i < axlist_count; i++) {
+    if (((v ^ mhp_axlist[i]) & mask)) {
+      mhp_axlist[j] = mhp_axlist[i];
+      j++;
+    }
+  }
+  axlist_count = j;
+}
+
+static int mhp_addaxlist_value(int v)
+{
+  if (mhp_getaxlist_value(v, -1) >= 0) return 1;
+  if (axlist_count < (AXLIST_SIZE-1)) {
+    mhp_axlist[axlist_count++]=v;
+    return 1;
+  }
+  return 0;
+}
 
 static inline int get_ldt(void *buffer)
 {
@@ -336,6 +396,7 @@ static int decode_symreg(char *regn)
   strncpy(rn,regn,4);
   if (isalpha(rn[2])) rn[3]=0;
   else rn[2]=0;
+  { char *c=rn; while (*c) *c++ = toupper(*c); }
   if (!(s=strstr(reg_syms,rn))) return -1;
   n=s-reg_syms;
   return (n >> 2) + ((n & 1) ? (16-5) : 0);
@@ -343,7 +404,8 @@ static int decode_symreg(char *regn)
 
 static unsigned long mhp_getreg(unsigned char * regn)
 {
-  switch (decode_symreg(regn)) {
+  if (IN_DPMI) return dpmi_mhp_getreg(decode_symreg(regn));
+  else switch (decode_symreg(regn)) {
     case _SSr: return LWORD(ss);
     case _CSr: return LWORD(cs);
     case _DSr: return LWORD(ds);
@@ -376,7 +438,11 @@ static unsigned long mhp_getreg(unsigned char * regn)
 
 static void mhp_setreg(unsigned char * regn, unsigned long val)
 {
-  switch (decode_symreg(regn)) {
+  if (IN_DPMI) {
+    dpmi_mhp_setreg(decode_symreg(regn),val);
+    return;
+  }
+  else switch (decode_symreg(regn)) {
     case _SSr: LWORD(ss) = val; break;
     case _CSr: LWORD(cs) = val; break;
     case _DSr: LWORD(ds) = val; break;
@@ -411,10 +477,18 @@ static void mhp_go(int argc, char * argv[])
    if (!mhpdbgc.stopped) {
       mhp_printf("already in running state\n");
    } else {
+      dpmi_mhp_setTF(0);
       WRITE_FLAGS(READ_FLAGS() & ~TF);
       vm86s.vm86plus.mhpdbg_TFpendig=0;
       mhpdbgc.stopped = 0;
    }
+}
+
+static void mhp_r0(int argc, char * argv[])
+{
+   if (trapped_bp == -2) trapped_bp=trapped_bp_;
+   else trapped_bp=-1;
+   mhp_regs(argc,argv);
 }
 
 static void mhp_stop(int argc, char * argv[])
@@ -423,7 +497,7 @@ static void mhp_stop(int argc, char * argv[])
       mhp_printf("already in stopped state\n");
    } else {
       mhpdbgc.stopped = 1;
-      mhp_cmd("r");
+      mhp_cmd("r0");
    }
 }
 
@@ -432,12 +506,12 @@ static void mhp_trace(int argc, char * argv[])
    if (!mhpdbgc.stopped) {
       mhp_printf("must be in stopped state\n");
    } else {
-      WRITE_FLAGS(READ_FLAGS() | TF);
-#if 0
-      vm86s.vm86plus.mhpdbg_TFpendig=1; */
-#endif
-      mhpdbgc.trapcmd = 1;
       mhpdbgc.stopped = 0;
+      if (IN_DPMI) {
+        if (!dpmi_mhp_setTF(1)) return;
+      }
+      else WRITE_FLAGS(READ_FLAGS() | TF);
+      mhpdbgc.trapcmd = 1;
    }
 }
 
@@ -446,10 +520,13 @@ static void mhp_trace_force(int argc, char * argv[])
    if (!mhpdbgc.stopped) {
       mhp_printf("must be in stopped state\n");
    } else {
-      WRITE_FLAGS(READ_FLAGS() | TF);
+      mhpdbgc.stopped = 0;
+      if (IN_DPMI) {
+        if (!dpmi_mhp_setTF(1)) return;
+      }
+      else WRITE_FLAGS(READ_FLAGS() | TF);
       vm86s.vm86plus.mhpdbg_TFpendig=1;
       mhpdbgc.trapcmd = 1;
-      mhpdbgc.stopped = 0;
    }
 }
 
@@ -462,6 +539,7 @@ static void mhp_dis(int argc, char * argv[])
    unsigned int seg;
    unsigned int off;
    unsigned int limit;
+   int data32=0;
 
    if (argc > 1) {
       seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off, &limit);
@@ -488,10 +566,12 @@ static void mhp_dis(int argc, char * argv[])
 #else
    mhp_printf( "\n");
 #endif
+   if (IN_DPMI && seg) data32=dpmi_mhp_get_selector_size(seg);
    for (i=0; i<nbytes; i++) {
       if ((i&0x0f) == 0x00) {
          if (seg|off)
-            mhp_printf("%04x:%04x ", seg, off+i);
+            if (data32) mhp_printf("%s%04x:%08x ", IN_DPMI?"#":"" ,seg, off+i);
+            else mhp_printf("%s%04x:%04x ", IN_DPMI?"#":"" ,seg, off+i);
          else
             mhp_printf( "%08lX ", (unsigned long)seekval+i);
       }
@@ -510,7 +590,7 @@ static void mhp_dis(int argc, char * argv[])
    }
 
    if (seg|off) {
-      if (lastd[0] == '#') {
+      if ((lastd[0] == '#') || (IN_DPMI)) {
          sprintf(lastd, "#%x:%x", seg, off+i);
       } else {
          sprintf(lastd, "%x:%x", seg, off+i);
@@ -522,15 +602,15 @@ static void mhp_dis(int argc, char * argv[])
 
 static void mhp_mode(int argc, char * argv[])
 {
-   if (argc < 2) {
-      mhp_printf ("current mode: %s\n", linmode?"lin32":"seg16");
-      return;
+   if (argc >=2) {
+     if (argv[1][0] == '0') linmode = 0;
+     if (argv[1][0] == '1') linmode = 1;
+     if (!strcmp(argv[1],"+d")) dpmimode=saved_dpmimode=1;
+     if (!strcmp(argv[1],"-d")) dpmimode=saved_dpmimode=0;
    }
-   if (argv[1][0] == '0')
-      linmode = 0;
-   if (argv[1][0] == '1')
-      linmode = 1;
-   mhp_printf ("current mode: %s\n", linmode?"lin32":"seg16");
+   mhp_printf ("current mode: %s, dpmi %s%s\n",
+     linmode?"lin32":"seg16", dpmimode?"enabled":"disabled",
+     dpmimode!=saved_dpmimode ? (saved_dpmimode?"[default enabled]":"[default disabled]"):"");
    return;
 }
 
@@ -552,6 +632,7 @@ static void mhp_disasm(int argc, char * argv[])
    unsigned int refseg;
    unsigned int ref;
    unsigned int limit;
+   int segmented = (linmode == 0);
 
    if (argc > 1) {
       seekval = (unsigned long)mhp_getadr(argv[1], &seg, &off, &limit);
@@ -581,16 +662,23 @@ static void mhp_disasm(int argc, char * argv[])
 #else
    mhp_printf( "\n");
 #endif
-   if (seekval < (a20 ? 0x10fff0 : 0x100000)) def_size = linmode;
-   else if (lastu[0] == '#')
-      def_size = 0;
-   else def_size = 1;
+
+   if (IN_DPMI) {
+     def_size = dpmi_mhp_get_selector_size(seg);
+     segmented =1;
+   }
+   else {
+     if (seekval < (a20 ? 0x10fff0 : 0x100000)) def_size = linmode;
+     else if (lastu[0] == '#')
+        def_size = 0;
+     else def_size = 1;
+   }
    rc=0;
    buf = (unsigned char *) seekval;
    org = codeorg ? codeorg : seekval;
 
    for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
-       if (linmode) {
+       if (!segmented) {
           if (getname(org+bytesdone))
              mhp_printf ("%s:\n", getname(org+bytesdone));
        } else {
@@ -598,13 +686,18 @@ static void mhp_disasm(int argc, char * argv[])
              mhp_printf ("%s:\n", getname2(seg,off));
        }
        refseg = seg;
-       rc = dis_8086(org+bytesdone, buf+bytesdone, frmtbuf, def_size, &refseg, &ref);
+       rc = dis_8086(org+bytesdone, buf+bytesdone, frmtbuf, def_size,
+                  &refseg, &ref, (IN_DPMI ? dpmi_mhp_getselbase(refseg) : 0));
        for (i=0;i<rc;i++) {
            sprintf(&bytebuf[i*2], "%02X", *(buf+bytesdone+i) );
            bytebuf[(i*2)+2] = 0x00;
        }
-       if (!linmode) {
-          mhp_printf( "%04x:%04x %-16s %s", seg, off+bytesdone, bytebuf, frmtbuf);
+       if (segmented) {
+          char *x=(IN_DPMI ? "#" : "");
+          if (def_size) {
+            mhp_printf( "%s%04x:%08x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
+          }
+          else mhp_printf( "%s%04x:%04x %-16s %s", x, seg, off+bytesdone, bytebuf, frmtbuf);
           if ((ref) && (getname2u(ref)))
              mhp_printf ("(%s)", getname2u(ref));
        } else {
@@ -615,8 +708,8 @@ static void mhp_disasm(int argc, char * argv[])
        mhp_printf( "\n");
    }
 
-   if (!linmode) {
-      if (lastu[0] == '#') {
+   if (segmented) {
+      if ((lastu[0] == '#') || (IN_DPMI)) {
          sprintf(lastu, "#%x:%x", seg, off+bytesdone);
       } else {
          sprintf(lastu, "%x:%x", seg, off+bytesdone);
@@ -657,6 +750,7 @@ static void mhp_enter(int argc, char * argv[])
          break;
    }
 }
+
 static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1, unsigned int *lim)
 {
    unsigned char * srchp;
@@ -664,48 +758,68 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    unsigned int off1;
    unsigned long ul1;
    int selector = 0;
+   int use_ldt = IN_DPMI;
    unsigned long * lp;
    unsigned long base_addr, limit;
    char buffer[0x10000];
 
    *lim = 0xFFFFFFFF;
 
+   if (use_ldt) selector = 1;
    if (*a1 == '#') {
       selector = 1;
       *lim = 0;
       a1 ++;
    }
    if(*a1 == '*') {
-      *s1 = LWORD(cs);
-      *o1 = LWORD(eip);
-      return (void*) makeaddr(LWORD(cs), LWORD(eip));
+      if (use_ldt) {
+        dpmi_mhp_getcseip(&seg1,&off1);
+        *lim = 0;
+        selector=2;
+      }
+      else {
+        *s1 = LWORD(cs);
+        *o1 = LWORD(eip);
+        return (void*) makeaddr(LWORD(cs), LWORD(eip));
+      }
    }
-   if(*a1 == '$') {
-      *s1 = LWORD(ss);
-      *o1 = LWORD(esp);
-      return (void*) makeaddr(LWORD(ss), LWORD(esp));
-   }
-   if ((ul1 = lookup(a1, s1, o1))) {
-      return (void*)ul1;
-   }
-   if ((ul1 = getaddr(a1))) {
-      *s1 = 0;
-      *o1 = 0;
-      return (void*)ul1;
-   }
-   if (!(srchp = (unsigned char *)strchr(a1, ':'))) {
-      sscanf(a1, "%lx", &ul1);
-      *s1 = 0;
-      *o1 = 0;
-      return (void*)ul1;
-   }
-   if ( (seg1 = mhp_getreg(a1)) == -1) {
-           *srchp = ' ';
-           sscanf(a1, "%x", &seg1);
-           *srchp = ':';
-   }
-   if ( (off1 = mhp_getreg(srchp+1)) == -1) {
-           sscanf(srchp+1, "%x", &off1);
+   if (selector != 2) {
+     if(*a1 == '$') {
+        if (use_ldt) {
+          dpmi_mhp_getssesp(&seg1,&off1);
+          *lim = 0;
+          selector=2;
+        }
+        else {
+          *s1 = LWORD(ss);
+          *o1 = LWORD(esp);
+          return (void*) makeaddr(LWORD(ss), LWORD(esp));
+        }
+     }
+     if (selector != 2) {
+       if ((ul1 = lookup(a1, s1, o1))) {
+          return (void*)ul1;
+       }
+       if ((ul1 = getaddr(a1))) {
+          *s1 = 0;
+          *o1 = 0;
+          return (void*)ul1;
+       }
+       if (!(srchp = (unsigned char *)strchr(a1, ':'))) {
+          sscanf(a1, "%lx", &ul1);
+          *s1 = 0;
+          *o1 = 0;
+          return (void*)ul1;
+       }
+       if ( (seg1 = mhp_getreg(a1)) == -1) {
+               *srchp = ' ';
+               sscanf(a1, "%x", &seg1);
+               *srchp = ':';
+       }
+       if ( (off1 = mhp_getreg(srchp+1)) == -1) {
+               sscanf(srchp+1, "%x", &off1);
+       }
+     }
    }
    *s1 = seg1;
    *o1 = off1;
@@ -759,7 +873,9 @@ int mhp_setbp(unsigned long seekval)
    }
    for (i1=0; i1 < MAXBP; i1++) {
       if (!mhpdbgc.brktab[i1].brkaddr) {
+         if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = (unsigned char *)seekval;
+         mhpdbgc.brktab[i1].is_dpmi = IN_DPMI;
          return 1;
       }
    }
@@ -772,6 +888,7 @@ int mhp_clearbp(unsigned long seekval)
    int i1;
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].brkaddr == (unsigned char *)seekval) {
+         if (i1==trapped_bp) trapped_bp=-1;
          mhpdbgc.brktab[i1].brkaddr = 0;
          return 1;
       }
@@ -810,6 +927,24 @@ static void mhp_bl(int argc, char * argv[])
          mhp_printf( "%02x ", i1);
       }
    }
+   mhp_printf( "\nDPMI Interrupts:");
+   for (i1=0; i1 < 256; i1++) {
+     if (dpmi_mhp_intxxtab[i1]) {
+       mhp_printf( " %02x", i1);
+       if (dpmi_mhp_intxxtab[i1] & 0x80) {
+         int i,j=0;
+         mhp_printf("[");
+         for (i=0; i < axlist_count; i++) {
+           if ((mhp_axlist[i] >>16) == i1) {
+             if (j)  mhp_printf(",");
+             mhp_printf("%x",mhp_axlist[i] & 0xffff);
+             j++;
+           }
+         }
+         mhp_printf("]");
+       }
+     }
+   }
    mhp_printf( "\n");
    if (mhpdbgc.bpload) mhp_printf("bpload active\n");
    return;
@@ -819,7 +954,11 @@ static void mhp_bc(int argc, char * argv[])
 {
    int i1;
 
-   sscanf(argv[1], "%d", &i1);
+   if (argc <2) return;
+   if (!sscanf(argv[1], "%d", &i1)) {
+     mhp_printf( "Invalid breakpoint number\n");
+     return;
+   }
    if (!mhpdbgc.brktab[i1].brkaddr) {
          mhp_printf( "No breakpoint %d, nothing done\n", i1);
          return;
@@ -832,6 +971,7 @@ static void mhp_bpint(int argc, char * argv[])
 {
    int i1;
 
+   if (argc <2) return;
    sscanf(argv[1], "%x", &i1);
    if (test_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab)) {
          mhp_printf( "Duplicate BPINT %02x, nothing done\n", i1);
@@ -846,6 +986,7 @@ static void mhp_bcint(int argc, char * argv[])
 {
    int i1;
 
+   if (argc <2) return;
    sscanf(argv[1], "%x", &i1);
    if (!test_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab)) {
          mhp_printf( "No BPINT %02x, nothing done\n", i1);
@@ -853,6 +994,57 @@ static void mhp_bcint(int argc, char * argv[])
    }
    clear_bit(i1, vm86s.vm86plus.mhpdbg_intxxtab);
    if (i1 == 0x21) mhpdbgc.int21_count--;
+   return;
+}
+
+static void mhp_bpintd(int argc, char * argv[])
+{
+   int i1,v1=0;
+
+   if (argc <2) return;
+   sscanf(argv[1], "%x", &i1);
+   i1 &= 0xff;
+   if (argc >2) {
+     sscanf(argv[2], "%x", &v1);
+     v1 = (v1 &0xffff) | (i1<<16);
+   }
+   if ((!v1 && dpmi_mhp_intxxtab[i1]) || (mhp_getaxlist_value(v1,-1) >=0)) {
+     if (v1)  mhp_printf( "Duplicate BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
+     else mhp_printf( "Duplicate BPINTD %02x, nothing done\n", i1);
+     return;
+   }
+   if (!dpmi_mhp_intxxtab[i1]) dpmi_mhp_intxxtab[i1]=7;
+   if (v1) {
+     if (mhp_addaxlist_value(v1)) dpmi_mhp_intxxtab[i1] |= 0x80;
+   }
+   return;
+}
+
+static void mhp_bcintd(int argc, char * argv[])
+{
+   int i1,v1=0;
+
+   if (argc <2) return;
+   sscanf(argv[1], "%x", &i1);
+   i1 &= 0xff;
+   if (argc >2) {
+     sscanf(argv[2], "%x", &v1);
+     v1 = (v1 &0xffff) | (i1<<16);
+   }
+
+   if ((!dpmi_mhp_intxxtab[i1]) || (v1 && (mhp_getaxlist_value(v1,-1) <0))) {
+     if (v1)  mhp_printf( "No BPINTD %02x %04x, nothing done\n", i1, v1 & 0xffff);
+     else mhp_printf( "No BPINTD %02x, nothing done\n", i1);
+     return;
+   }
+   if (v1) {
+     mhp_delaxlist_value(v1,-1);
+     if (mhp_getaxlist_value(i1<<16,0xff0000) <0) dpmi_mhp_intxxtab[i1]=0;
+   }
+   else {
+     mhp_delaxlist_value(i1<<16,0xff0000);
+     dpmi_mhp_intxxtab[i1]=0;
+   }
    return;
 }
 
@@ -913,6 +1105,8 @@ static void mhp_regs(int argc, char * argv[])
   }
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
      mhp_printf( "INT 0x%02X, ", DBG_ARG(mhpdbgc.currcode));
+  if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTxDPMI)
+     mhp_printf( "INT 0x%02X in DPMI, ", DBG_ARG(mhpdbgc.currcode) & 0xff);
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_TRAP) {
      if (DBG_ARG(mhpdbgc.currcode)==1) mhp_printf( "Trap %d, ", DBG_ARG(mhpdbgc.currcode));
      else {
@@ -931,22 +1125,22 @@ static void mhp_regs(int argc, char * argv[])
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
      mhp_printf( "General Protection Fault, ");
 
-  mhp_printf( "system state: %s\n", mhpdbgc.stopped ? "stopped" : "running");
+  mhp_printf( "system state: %s%s%s\n",
+       mhpdbgc.stopped ? "stopped" : "running",
+       IN_DPMI ? " in DPMI" : (in_dpmi?" in real mode while in DPMI":""),
+       IN_DPMI ?(dpmi_mhp_getcsdefault()?"-32bit":"-16bit") : "");
 
-  mhp_printf("AX=%04x  BX=%04x  CX=%04x  DX=%04x",
-              LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
-
-  mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
-              LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
-
-  mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%04x",
-              LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), LWORD(eflags));
-
-  mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
-              LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
-
+  if (!dpmi_mhp_regs()) {
+    mhp_printf("AX=%04x  BX=%04x  CX=%04x  DX=%04x",
+                LWORD(eax), LWORD(ebx), LWORD(ecx), LWORD(edx));
+    mhp_printf("  SI=%04x  DI=%04x  SP=%04x  BP=%04x",
+                LWORD(esi), LWORD(edi), LWORD(esp), LWORD(ebp));
+    mhp_printf("\nDS=%04x  ES=%04x  FS=%04x  GS=%04x  FL=%04x",
+                LWORD(ds), LWORD(es), LWORD(fs), LWORD(gs), LWORD(eflags));
+    mhp_printf("\nCS:IP=%04x:%04x       SS:SP=%04x:%04x\n",
+                LWORD(cs), LWORD(eip), LWORD(ss), LWORD(esp));
+  }
   mhp_cmd("u * 1");
-
 }
 
 static void mhp_regs32(int argc, char * argv[])
@@ -974,7 +1168,7 @@ static void mhp_regs32(int argc, char * argv[])
 static void mhp_kill(int argc, char * argv[])
 {
   extern void mhp_send(void), mhp_close(void), mhp_putc(char c1);
-  mhp_cmd("r");
+  mhp_cmd("r0");
   mhp_printf("\ndosemu killed via debug terminal\n");
   mhp_send();
 #if 0
@@ -993,11 +1187,17 @@ static void mhp_help(int argc, char * argv[])
 void mhp_bpset(void)
 {
    int i1;
+   dpmimode=saved_dpmimode;
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].brkaddr) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+           mhpdbgc.brktab[i1].brkaddr = 0;
+           mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
+           continue;
+         }
          mhpdbgc.brktab[i1].opcode = *mhpdbgc.brktab[i1].brkaddr;
-         *mhpdbgc.brktab[i1].brkaddr = 0xCC;
+         if (i1!=trapped_bp) *mhpdbgc.brktab[i1].brkaddr = 0xCC;
       }
    }
    return;
@@ -1009,26 +1209,52 @@ void mhp_bpclr(void)
 
    for (i1=0; i1 < MAXBP; i1++) {
       if (mhpdbgc.brktab[i1].brkaddr) {
+         if (mhpdbgc.brktab[i1].is_dpmi && !in_dpmi) {
+           mhpdbgc.brktab[i1].brkaddr = 0;
+           mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n",i1);
+           continue;
+         }
          if( (*mhpdbgc.brktab[i1].brkaddr) != 0xCC) {
-            mhpdbgc.brktab[i1].brkaddr = 0;
+            if (i1!=trapped_bp) mhpdbgc.brktab[i1].brkaddr = 0;
             continue;
          }
          *mhpdbgc.brktab[i1].brkaddr = mhpdbgc.brktab[i1].opcode;
       }
    }
+   saved_dpmimode=dpmimode;
    return;
 }
+
 
 int mhp_bpchk(unsigned char * a1)
 {
    int i1;
 
    for (i1=0; i1 < MAXBP; i1++) {
-      if (mhpdbgc.brktab[i1].brkaddr == a1)
-         return 1;
+      if (mhpdbgc.brktab[i1].brkaddr == a1) {
+        dpmimode=mhpdbgc.brktab[i1].is_dpmi;
+        trapped_bp_=i1;
+        trapped_bp=-2;
+        return 1;
+      }
    }
    return 0;
 }
+
+int mhp_getcsip_value()
+{
+  int  seg, off, limit;
+  if (IN_DPMI) return (int)mhp_getadr("cs:eip", &seg, &off, &limit);
+  else return (LWORD(cs) << 4) + LWORD(eip);
+}
+
+void mhp_modify_eip(int delta)
+{
+  extern dpmi_mhp_modify_eip(int delta);
+  if (IN_DPMI) dpmi_mhp_modify_eip(delta);
+  else LWORD(eip) +=delta;
+}
+
 
 void mhp_cmd(const char * cmd)
 {
@@ -1058,11 +1284,13 @@ void mhp_cmd(const char * cmd)
 static void mhp_print_ldt(int argc, char * argv[])
 {
   char buffer[0x10000];
-  unsigned long *lp;
+  extern unsigned long *ldt_buffer;
+  unsigned long *lp, *lp_=ldt_buffer;
   unsigned long base_addr, limit;
   int type, type2, i;
   unsigned int seg;
-  int lines;
+  int lines=0, cache_mismatch;
+  enum{Abit=0x100};
 
   if (get_ldt(buffer) < 0) {
     mhp_printf("error getting ldt\n");
@@ -1070,25 +1298,39 @@ static void mhp_print_ldt(int argc, char * argv[])
   }
 
   if (argc > 1) {
-     sscanf (argv[1], "%x", &seg);
-     strcpy(lastldt, argv[1]);
+     if (IN_DPMI && isalpha(argv[1][0])) {
+       int rnum=decode_symreg(argv[1]);
+       if (rnum <0) {
+         mhp_printf("wrong register name\n");
+         return;
+       }
+       seg=dpmi_mhp_getreg(rnum);
+       sprintf(lastldt, "%x", seg);
+       lines=1;
+     }
+     else {
+       sscanf (argv[1], "%x", &seg);
+       strcpy(lastldt, argv[1]);
+     }
   } else {
      if (!strlen(lastldt)) {
-        mhp_printf("No previous \'ldt\' command\n");
-        return;
+        seg=0;
      }
      sscanf (lastldt, "%x", &seg);
   }
-
-  if (argc > 2)
-     sscanf (argv[2], "%d", &lines);
-  else
-     lines = 16;
+  if (!lines || (argc > 2) ) {
+    if (argc > 2) sscanf (argv[2], "%d", &lines);
+    else lines = 16;
+  }
 
   lp = (unsigned long *) buffer;
   lp += (seg & 0xFFF8) >> 2;
-
-  for (i=0; i< lines; i++,lp++) {
+  lp_ += (seg & 0xFFF8) >> 2;
+  
+  for (i=(seg & 0xFFF8); i< 0x10000; i+=8,lp++, lp_+=2) {
+    cache_mismatch = (lp[0] != lp_[0]) || ((lp[1]|Abit) != (lp_[1]|Abit));
+    if ((lp[0] && lp[1]) ||  cache_mismatch) {
+        if (--lines <0) break;
         base_addr = (*lp >> 16) & 0x0000FFFF;
         limit = *lp & 0x0000FFFF;
         lp++;
@@ -1100,17 +1342,26 @@ static void mhp_print_ldt(int argc, char * argv[])
         if (type2 & 0x08)
            limit *= 4096;
         if (type & 0x10)
-           mhp_printf ("%04x: %08lx %08lx %s%d %d %c\n",
-              (seg + (i << 3)) | 0x07,
+           mhp_printf ("%04x: %08lx %08lx %s%d %d %c%c%c%c%c%s\n",
+              i | 0x07,
               base_addr,
               limit,
               (type & 0x08) ? "Code" : "Data",
               (type2 & 0x04) ? 32 : 16,
               (type >> 5) & 0x03,
-              (type >> 7) ? 'P' : ' ');
+              (type >> 7) ? 'P' : ' ',
+              (type & 4)?((type & 8)?'C':'E'):' ',
+              (type & 2)?((type & 8)?'R':'W'):' ',
+              (type & 1)?'A':' ',
+              (lp_[1] &Abit)?'a':' ',
+              cache_mismatch ?" (cache mismatch)":"");
         else
-           mhp_printf ("%04x: %08lx %08lx System(%02x)\n", seg + (i << 3), base_addr, limit, type);
+           mhp_printf ("%04x: %08lx %08lx System(%02x)%s\n",
+              i, base_addr, limit, type,
+              cache_mismatch ?" (cache mismatch)":"");
+    }
+    else lp++;
   }
-  sprintf (lastldt, "%x", seg + (i << 3));
+  sprintf (lastldt, "%x", i);
 }
 

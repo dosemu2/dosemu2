@@ -280,8 +280,9 @@ unsigned char Attr_get_input_status_1(void)
 #ifdef HAVE_GETTIMEOFDAY
   struct timeval currenttime;
   struct timezone tz;
-#endif
+#else
   static unsigned int cga_r=0;
+#endif
   unsigned char retval;
 
 #ifdef DEBUG_ATTR

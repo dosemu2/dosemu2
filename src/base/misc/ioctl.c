@@ -4,11 +4,15 @@
 
 
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
+#ifndef EDEADLOCK
+  #define EDEADLOCK EDEADLK
+#endif
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
@@ -86,7 +90,9 @@ __len));
 extern SillyG_t *SillyG;
 #endif
 
+#ifndef PAGE_SIZE
 #define PAGE_SIZE       4096
+#endif
 
 inline int process_interrupt(SillyG_t *sg);
 

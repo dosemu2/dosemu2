@@ -1,28 +1,27 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.60.4, the PC Emulator for Linux.
-Please remember to consider this as ALPHA software.
+The DOSEMU team is proud to announce DOSEMU 0.63.2, the PC Emulator for
+x86 based *nix. Please remember to consider this as ALPHA software.
 
 
 WHAT IS DOSEMU?
 ~~~~~~~~~~~~~~~
 DOSEMU is a PC Emulator application that allows Linux to run a DOS
-operating system in a virtual x86 machine.  This allows you to run
-many DOS applications.  These are capabilities of DOSEMU worth noting:
+operating system in a virtual x86 machine. This allows you to run
+many DOS applications. These are capabilities of DOSEMU worth noting:
 
-  - Color text and full keyboard emulation (via hotkeys) via terminal
+  - Color text and full keyboard emulation (via hotkeys) via terminal.
   - Built-in X-Windows support, includes IBM character set font!
   - Graphics capability at the console with most compatible video cards.
   - Much-improved DPMI support.
-  - Runs Borland BCC.EXE / TCC.EXE version 3.x command line compilers!
-  - Borlandc C++ 3.x IDE (with emumodule.o or kernel patch)
+  - Runs Borland BCC.EXE/TCC.EXE version 3.x command line compilers!
+  - Runs Borlandc C++ 3.x IDE (with emumodule.o)
   - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
-     at the Linux console.  A partial list of successfully tested games
-     includes DOOM2, Heretic, Descent, MK2, OMF2097, ROTT, and WarCraft!
-  - NetBSD verison of DOSEMU appreciating a growing success, 
-     contact jtk@atria.com
-  - CDROM support
+     at the Linux console.
+  - NetBSD verison of DOSEMU appreciating a growing success,
+     contact jtk@atria.com.
+  - CDROM support.
   - NetWare and other network connectivity via builtin IPX and pktdrvr
      support.
 
@@ -33,7 +32,7 @@ REQUIREMENTS
   - Linux 1.1.45+ (with IPC support, IPX support optional)
   - GCC 2.5.8+ and LIBC 4.5.21+ are recommended for best results.
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
-     of total memory to compile, depending on Makefile configuration.
+     of total memory to compile, depending on configuration.
 
 
 
@@ -54,38 +53,38 @@ of at least:
   Amit Margalt 		Marty Leisner 		Dong Liu
   Scott Buchholz 	Tim Van der Linden 	John Davis
   Kang-Jin Lee 		Matthew Grant 		David Hansen
-  John Kohl 		Kevin P Lawton 		Rod May	
+  John Kohl 		Kevin P Lawton 		Rod May
   Wayne P Meissner 	Vinod G Kulkarni 	Andries
   David Etherton
 
-  and others too important to mention ;-).
+  and others too important to mention.
 
 
 WHERE TO GET IT:
 ~~~~~~~~~~~~~~~~
-The DOSEMU PC Emulator can be downloaded from the following FTP sites
-when version 0.60.4:
+The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.60.4.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.60.4.tgz
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.63.2.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.63.2.tgz
 
 
 TO BE NOTED:
 ~~~~~~~~~~~~
-This release will be considered as the stepping stone for the team
-to finally cut off using the old developement directory structure and
-begin working towards a new and hopefully improved layout. This will
-likely be noticed by us being away from civilization as work progresses
-to the new format. Please have patience for approximately the next
-month.
+This release is considered as the stepping stone for the team to cut
+off using the old developement directory structure and working towards
+this new and improved layout. This was likely noticed by us being away
+from civilization as work progressed to the new format. The work isn't
+fully done yet, but since the demand for a new release grew after
+Linux 2.0 came out, we decided to make this interim release.
+Please have patience for approximately the next month.
 
 
 HELPING US
 ~~~~~~~~~~
 Many thanks to all who have helped with this release, by sending bug
-reports, patches, comments and/or ideas for DOSEMU!  Our apologies for
+reports, patches, comments and/or ideas for DOSEMU! Our apologies for
 not having answered every letter, and possibly missing some important
-information.  If you know something you think we should know,
-contact us, PLEASE!  We can be reached at:
+information. If you know something you think we should know, contact
+us, PLEASE! We can be reached at:
 
 linux-msdos@vger.rutgers.edu (The DOSEMU team)

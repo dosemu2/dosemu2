@@ -597,7 +597,7 @@ static int X_init(void)
       }
   
   /* HACK!!! Don't konw is video_mode is already set */
-  X_setmode(TEXT, 0, 0);
+  X_setmode(TEXT, co, li);
             
   return(0);                        
 }
@@ -688,7 +688,8 @@ static int X_setmode(int type, int xsize, int ysize)
   unsigned int width, heigth, border_width, depth;
   
   /* tell vgaemu we're going to another mode */
-  set_vgaemu_mode(video_mode, xsize, ysize);
+  if(!set_vgaemu_mode(video_mode, xsize, ysize))
+    return 0;  /* if it can't fail! */
                                 
   X_printf("X_setmode() type=%d, xsize=%d, ysize=%d info: x=%d y=%d\n",
          type,xsize,ysize,get_vgaemu_width(),get_vgaemu_heigth());

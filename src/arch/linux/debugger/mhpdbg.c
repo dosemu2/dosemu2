@@ -3,8 +3,10 @@
  *
  * This is file mhpdbg.c
  *
- * changes:
+ * changes: ( for details see top of file mhpdbgc.c )
  *
+ *   07Jul96 Hans Lermen <lermen@elserv.ffm.fgan.de>
+ *   19May96 Max Parke <mhp@lightlink.com>
  *   16Sep95 Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
@@ -28,6 +30,7 @@
 #include "emu.h"
 #include "cpu.h"
 #include "shared.h"
+#include "dpmi.h"
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -44,9 +47,11 @@ extern struct vm86_struct vm86s;
 static void mhp_poll(void);
 static void mhp_puts(char*);
 void mhp_putc(char);
+extern int mhp_getcsip_value();
+extern mhp_modify_eip(int delta);
 
 static char mhp_banner[] = {
-  "\nDOSEMU Debugger V0.3 connected\n"
+  "\nDOSEMU Debugger V0.4 connected\n"
   "- type ? to get help on commands -\n"
 };
 struct mhpdbgc mhpdbgc ={0};
@@ -172,12 +177,12 @@ static void mhp_poll(void)
       
       mhp_printf ("%s", mhp_banner);
       mhp_cmd("rmapfile");
-      mhp_cmd("r");
+      mhp_cmd("r0");
       mhp_send();
    }
 
    if (mhpdbgc.stopped) {
-      mhp_cmd("r");
+      mhp_cmd("r0");
       mhp_send();
    }
 
@@ -252,6 +257,12 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	    }
 	  }
 	  break;
+  case DBG_INTxDPMI:
+	  if (!mhpdbg.active) break;
+          mhpdbgc.stopped = 1;
+          mhp_poll();
+          dpmi_mhp_intxxtab[DBG_ARG(mhpdbgc.currcode) & 0xff] &= ~2;
+	  break;
   case DBG_TRAP:
 	  if (!mhpdbg.active)
 	     break;
@@ -265,7 +276,7 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 	  }
 	  if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
 		  int ok=0;
-		  int csip=(LWORD(cs) << 4) + LWORD(eip) - 1;
+		  int csip=mhp_getcsip_value() - 1;
 		  if (mhpdbgc.bpload_bp == csip ) {
 		    mhp_clearbp(mhpdbgc.bpload_bp);
 		    LWORD(eip)--;
@@ -286,14 +297,14 @@ unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2
 		  }
 		  else {
 		    if ((ok=mhp_bpchk( (unsigned char *) csip))) {
-			  LWORD(eip) --;
+			  mhp_modify_eip(-1);
 		    }
 		    else {
 		      if ((ok=test_bit(3, vm86s.vm86plus.mhpdbg_intxxtab))) {
 		        /* software programmed INT3 */
-		        LWORD(eip) --;
+		        mhp_modify_eip(-1);
 		        mhp_cmd("r");
-		        LWORD(eip) ++;
+		        mhp_modify_eip(+1);
 		      }
 		    }
 		  }

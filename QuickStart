@@ -4,15 +4,16 @@ QuickStart: Instructions on how to quickly get DOSEMU up and running.
 1. Compile
 --------------------------------------------------------------------------
 
-- ./configure	in the dosemu subdir
-- make 		in the src subdir (not the dosemu subdir)
-		this will also install (i.e. must be root)
+- ./configure
+- make
+- su
+- make install
 
 --------------------------------------------------------------------------
 1a. Load modules
 --------------------------------------------------------------------------
 
-The default behaviour when compiling dosemu is to require emumodule. 
+The default behaviour when compiling dosemu is to require emumodule.
 To run dosemu,  emumodule must be loaded. This has to be redone once
 after every boot of Linux.
 
@@ -29,7 +30,7 @@ after every boot of Linux.
   privileged to use dosemu.  The user "all" will allow anyone to run
   dosemu.
 
-- Copy etc/hdimage.dist as /var/lib/dosemu/hdimage.  The first disk 
+- Copy etc/hdimage.dist as /var/lib/dosemu/hdimage.  The first disk
   statement in your /etc/dosemu.conf should point to this file.
 
 --------------------------------------------------------------------------
@@ -102,7 +103,7 @@ If you already have a HDIMAGE file:
 
 - If no luck, please send a debug report by typing 'dos -D+a -o debug'
   and send the file 'debug' to linux-msdos@vger.rutgers.edu
-  Also, send your /etc/dosemu.conf file and a description of the 
+  Also, send your /etc/dosemu.conf file and a description of the
   system you're running on.  (Video card, linux version, CPU, memory)
   Please gzip and uuencode these files if they are large.
 
@@ -117,9 +118,9 @@ If you already have a HDIMAGE file:
 	This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
 	but still very helpful.  (Read this file first, however.)
 ./ChangeLog
-	This is a log file of progress that have been done on 
+	This is a log file of progress that have been done on
 	DOSEMU since previous versions.
-./doc/DANG 
+./doc/DANG
 	The Dosemu Alterning Novice's Guide, for interested hackers
 	and programmers alike, if they want to look at the internals
 	of DOSEMU and how it works.
@@ -178,7 +179,7 @@ Changes from 0.40 through 0.52:
   (mkpartition, putrom, etc)
 
 - The format of the mkpartition datafiles have changed, and are in
-  /var/lib/dosemu/partition.*  (These are needed if you run 
+  /var/lib/dosemu/partition.*  (These are needed if you run
   STACKER or DOUBLESPACE using 'partition' access)
 
 --------------------------------------------------------------------------
@@ -189,9 +190,9 @@ Changes from 0.40 through 0.52:
 
 The ./doc/DPR and ./doc/DANG documents are great places to start
 looking if you are interested in looking inside DOSEMU code.
-	  
-The Linux MS-DOS Emulator is one of the best _FREE_ DOS emulator 
-programs available in the world.  The DOSEMU development team 
+
+The Linux MS-DOS Emulator is one of the best _FREE_ DOS emulator
+programs available in the world.  The DOSEMU development team
 includes university students and young adults, so lack of time
 can be a problem when it comes to DOSEMU when it comes to jobs
 an exams!  AAAAUUGGH! :-)
@@ -201,14 +202,14 @@ DOSEMU is not as complicated to work with, as you may think,
 and we are happy to even receive a line or few, of code that
 fixes or improves DOSEMU in one way or the other!  Come on
 aboard with the DOSEMU development team!  All you need is
-your Linux system, your programming skills, and access to 
+your Linux system, your programming skills, and access to
 Internet Email.  :-)
 
 On the other hand, if you're really brilliant, we would also
 love to hear from people who can help DOSEMU get to work with
-video games like DOOM to run, and stuff like Microsoft Windoze 
-3.1.  Competition for WABI and WINE! ;-) 
-	
+video games like DOOM to run, and stuff like Microsoft Windoze
+3.1.  Competition for WABI and WINE! ;-)
+
 --------------------------------------------------------------------------
 10.  Other Notes
 --------------------------------------------------------------------------
@@ -220,13 +221,13 @@ LREDIR allows you to redirect any drive, including one that is
 currently a physical drive, meaning that you can replace a drive with a
 redirected one.  When you delete the redirection, the physical drive is
 again visible.  I am currently using this so that the boot diskimage
-disappears, and is replaced by the mounted MSDOS file system in Linux, 
-with the drive letter and root the same as when I just boot DOS.  
-People who use LREDIR in this way should be careful when they use 
+disappears, and is replaced by the mounted MSDOS file system in Linux,
+with the drive letter and root the same as when I just boot DOS.
+People who use LREDIR in this way should be careful when they use
 LREDIR in the autoexec, because COMMAND.COM will continue parsing
 the autoexec.bat from the redirected drive as the same file offset
-where it left off in the autoexec.bat on the physical drive. For 
-this reason, it is safest to have the autoexec.bat on the 
+where it left off in the autoexec.bat on the physical drive. For
+this reason, it is safest to have the autoexec.bat on the
 redirected drive and the physical drive (diskimage) be the same.
 
 A suggestion from H. Peter Anvin (Peter.Anvin@linux.org):

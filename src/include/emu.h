@@ -81,7 +81,7 @@ typedef struct { int fd; int irq; } SillyG_t;
 
 #ifdef USE_VM86PLUS
   EXTERN struct vm86plus_struct vm86s INIT ( {
-   {0},0,0,0,{0},{0}, {VM86PLUS_MAGIC}
+   {0},0,0,0,{{0}},{{0}}, {VM86PLUS_MAGIC}
   } );
 #else
   EXTERN struct vm86_struct vm86s;
@@ -490,6 +490,7 @@ config_t;
 #define KEYB_SG               11
 #define KEYB_SG_LATIN1        12
 #define KEYB_NO               13
+#define KEYB_NO_LATIN1        14
 #define KEYB_SF               15
 #define KEYB_SF_LATIN1        16
 #define KEYB_ES               17

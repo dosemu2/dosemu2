@@ -48,7 +48,8 @@
 #include "emu.h"
 #include "port.h"
 #include "keyboard.h"
-#include "timers.h"
+/*#include "timers.h"*/
+#include "iodev.h"
 #include "memory.h"
 #include "termio.h"
 #include "shared.h"
@@ -58,7 +59,6 @@
 #include "pic.h"
 
 int    port61 = 0x0e;
-extern pit_latch_struct pit[3];
 static u_short microsoft_port_check = 0;
 
 static unsigned int convscanKey (unsigned char);
@@ -1092,7 +1092,7 @@ read_next_scancode_from_queue (void)
   k_printf ("start=%d, end=%d, LASTSCAN=%x\n", *scan_queue_start, *scan_queue_end, READ_WORD (LASTSCAN_ADD));
 }
 
-u_char keyb_io_read(u_int port)
+Bit8u keyb_io_read(Bit32u port)
 {
   int r=0;
   switch (port) {
@@ -1117,15 +1117,15 @@ u_char keyb_io_read(u_int port)
       keys_ready, microsoft_port_check);
     break;
   default: 
-    k_printf("KBD: Unsupported read from port 0x%x\n", port); 
+    k_printf("KBD: Unsupported read from port 0x%lx\n", port); 
   }
-  k_printf("KBD: 0x%x inb = 0x%x\n", port, r);
+  k_printf("KBD: 0x%lx inb = 0x%x\n", port, r);
   return r;
 }
 
-void keyb_io_write(u_int port, u_char byte)
+void keyb_io_write(Bit32u port, Bit8u byte)
 {
-  k_printf("KBD: 0x%x outb = 0x%x\n", port, byte);
+  k_printf("KBD: 0x%lx outb = 0x%x\n", port, byte);
   switch (port) {
   case 0x60:
     microsoft_port_check = 1;
@@ -1153,7 +1153,7 @@ void keyb_io_write(u_int port, u_char byte)
     k_printf("KBD: No action for port 0x64\n");
     break;
   default: 
-    k_printf("KBD: Unsupported write from to port 0x%x of 0x%x\n",
+    k_printf("KBD: Unsupported write from to port 0x%lx of 0x%x\n",
 	port, byte); 
   }
 }

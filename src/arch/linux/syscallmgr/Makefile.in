@@ -72,7 +72,7 @@ checkout:
 	-co -M -l $(ALL) Makefile
 
 clean:
-	rm -f *.o $(BINPATH)/modules/insmod $(BINPATH)/modules/rmmod $(BINPATH)/modules/ksyms testmain *~
+	rm -f *.o $(BINPATH)/bin/insmod $(BINPATH)/bin/rmmod $(BINPATH)/bin/ksyms testmain *~
 
 realclean: clean
 	rm -f .depend

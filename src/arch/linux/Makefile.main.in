@@ -41,7 +41,7 @@ endif
 
 export LD=$(CC)
 OBJS	= dos.o
-DEPENDS = dos.d emu.d
+DEPENDS = version dos.d emu.d
 
 
 # dosemu version
@@ -49,7 +49,7 @@ LIBDOSEMU = $(BINPATH)/bin/libdosemu
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-CFILES=emu.c dos.c @X2CFILES@ data.c dosstatic.c
+CFILES=emu.c dos.c @X2CFILES@ base/data.c dosstatic.c
 
 export USING_NET = -DUSING_NET
 ifdef USING_NET
@@ -533,7 +533,7 @@ DEPENDDIRS=$(addsuffix .depend, $(LIBSUBDIRS) )
 
 depend_local:	$(DEPENDS)
 
-depend dep:  $(DEPENDDIRS) depend_local
+depend dep:  version $(DEPENDDIRS) depend_local
 	$(CPP) -MM $(CFLAGS) $(CFILES) > .depend
 
 .PHONY:       size

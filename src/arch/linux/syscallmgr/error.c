@@ -11,29 +11,27 @@ void insmod_setsyslog (const char *name)
 }
 
 /*
-	Generate an error message either on stderr or the syslog facility
-*/
+ *	Generate an error message either on stderr or the syslog facility
+ */
 void insmod_error (const char *ctl, ...)
 {
+	extern int silent_poll;
 	char buf[1000];
 	va_list list;
 	va_start (list,ctl);
-	vsprintf (buf,ctl,list);
-#ifdef HACKER_TOOL
-	{
-	  extern int silent_poll_mode;
-	  if (silent_poll_mode) return;
-	}
-#endif
-	if (insmod_syslog){
-		syslog (LOG_ERR,"%s",buf);
-	}else{
-		fprintf (stderr,"%s\n",buf);
+
+	if (!silent_poll) {
+		vsprintf (buf,ctl,list);
+		if (insmod_syslog)
+			syslog(LOG_ERR, "%s", buf);
+		else
+			fprintf(stderr, "%s\n", buf);
 	}
 }
+
 /*
-	Generate debug message either on stderr or the syslog facility
-*/
+ *	Generate debug message either on stderr or the syslog facility
+ */
 void insmod_debug (const char *ctl, ...)
 {
 	char buf[1000];
@@ -44,5 +42,21 @@ void insmod_debug (const char *ctl, ...)
 		syslog (LOG_DEBUG,"%s",buf);
 	}else{
 		fprintf (stderr,"%s\n",buf);
+	}
+}
+
+/*
+ *	Generate debug message either on stdout or the syslog facility
+ */
+void insmod_printf (const char *ctl, ...)
+{
+	char buf[1000];
+	va_list list;
+	va_start (list,ctl);
+	vsprintf (buf,ctl,list);
+	if (insmod_syslog){
+		syslog (LOG_DEBUG,"%s",buf);
+	}else{
+		fprintf (stdout,"%s\n",buf);
 	}
 }

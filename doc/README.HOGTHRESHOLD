@@ -85,13 +85,13 @@ Simply use 'top'. It displays cpu and memory usage.
 
 ----------------------------------------------------------------------
 
-P.S.  If some brave soul is up for it, to change the HogThreshold value
-during execution, simply call int e6h w/al=12h & bx=the new value.
-Hint.  Hint.
+P.S.  If you want to change the HogThreshold value during execution,
+simply call int e6h w/al=12h & bx=the new value.
+This is what speed.com does. If you are interested, please take a look
+at speed.c.
 
 Notes:  If your application is unkind enough to do waits using an int16h
 fcn 1h loop without calling the keyboard idle interrupt (int 28h), this
 code is not going to help much.  If someone runs into a program like this,
 let me (scottb@eecs.nwu.edu) know and I'll rewrite something into the
 int16 bios.
-
