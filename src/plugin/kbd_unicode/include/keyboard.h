@@ -300,7 +300,7 @@ the current display character set.  For places where I need such a thing.
 #define KEY_MOUSE_BUTTON_RIGHT		0xE323
 #define KEY_MOUSE_GRAB			0xE324
 #define KEY_DOSEMU_X86EMU_DEBUG		0xE325
-
+#define KEY_MOUSE			0xE326
 
 /* keys that X has and dosemu doesn't */
 #define KEY_DOSEMU_CLEAR		KEY_VOID

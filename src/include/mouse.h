@@ -30,6 +30,7 @@
 #define MOUSE_HITACHI 8
 #define MOUSE_X 9
 #define MOUSE_IMPS2 10
+#define MOUSE_XTERM 11
 
 /* types of mouse events */
 #define DELTA_CURSOR		1

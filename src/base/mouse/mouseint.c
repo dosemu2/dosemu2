@@ -453,7 +453,7 @@ void DOSEMUMouseEvents(void)
         
 	int nBytes, nBytesProc;
 
-	if (!config.X)
+	if (!config.X && mice->type != MOUSE_XTERM)
 	  nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
 	    sizeof(rBuf)-qEnd));
 	else

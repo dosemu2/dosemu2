@@ -1203,7 +1203,7 @@ mouse_set_gcur(void)
   memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  if (mice->type != MOUSE_X) {
+  if (mice->type != MOUSE_X && mice->type != MOUSE_XTERM) {
     define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
   }
 }
@@ -1693,6 +1693,10 @@ mouse_do_cur(void)
     return;
   }
 #endif
+  /* It seems better to avoid next code for XTERM MOUSE */
+  if (mice->type == MOUSE_XTERM)
+    return;
+
   if (!scr_state.current) 
   	return;
 
@@ -1850,7 +1854,20 @@ dosemu_mouse_init(void)
   else 
 #endif
   {
-    if (mice->intdrv) {
+    char *term = getenv("TERM");
+    if( term && !strncmp("xterm", term, 5) ) {
+      mice->fd = -1;
+      mice->intdrv = TRUE;
+      mice->type = MOUSE_XTERM;
+      memcpy(p,mouse_ver,sizeof(mouse_ver));
+      /* save old highlight mouse tracking */
+      printf("\033[?1001s");
+      /* enable mouse tracking */
+      printf("\033[?1002h");	
+      fflush (stdout);
+      m_printf("XTERM MOUSE: Remote terminal mouse tracking enabled\n");
+    }
+    else if (mice->intdrv) {
       struct stat buf;
       m_printf("Opening internal mouse: %s\n", mice->dev);
       if (!parent_open_mouse())
@@ -1983,6 +2000,15 @@ dosemu_mouse_close(void)
   int result;
 
   if (mice->type == MOUSE_X) return;   
+  if (mice->type == MOUSE_XTERM) {
+    /* disable mouse tracking */
+    printf("\033[?1002l");
+    /* restore old highlight mouse tracking */
+    printf("\033[?1001r");
+
+    m_printf("XTERM MOUSE: Mouse tracking deinitialized\n");
+    return;
+  }
   
   if (mice->intdrv && mice->fd != -1 ) {
     if (mice->oldset) {
@@ -2009,3 +2035,4 @@ dosemu_mouse_close(void)
 		into account, also ignores hotspot
 	- play with acceleration profiles more
 */
+
