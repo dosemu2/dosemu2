@@ -880,13 +880,14 @@ done_write:
 /* ======================= Addr = FE6F5 */
 	/* from Alan Cox's mods */
 	/* we need somewhere for the bios equipment. */
-	.word	9	/* 9 byte table */
+	.word	8	/* 8 bytes follow */
 	.byte	0xfc	/* PC AT */
-	.word	0x401	/* bios revision 4 */
+	.byte	0x01	/* submodel - DOSEMU */
+	.byte	0x04	/* bios revision 4 */
 	.byte	0x70	/* no mca, no ebios, no wat, keybint,
 			   rtc, slave 8259, no dma 3 */
-	.long	0
-
+	.byte	0x40	/* extended keyboard */
+	.byte	0,0,0	/* nothing more is supported */
 
 /* COMPAS FE710-FE728	reserved */
 /* COMPAS FE729		baud rate init table */
