@@ -93,8 +93,10 @@ static hitimer_t rawC4time(void)
 {
 #ifdef HAVE_GETTIMEOFDAY
   struct timeval tv;
-  gettimeofday(&tv, NULL);	/* takes 30us on a P5-150 */
-  return ((hitimer_t)tv.tv_sec*1000000 + (hitimer_t)tv.tv_usec);
+  gettimeofday(&tv, NULL);	/* took 30us on a P5-150 in 1997, now
+  				 * takes 1-2us on a K6-300 under 2.1.126 */
+  /* unsigned is necessary to tell gcc not to sign extend the tv_ fields */
+  return ((hitimer_t)((unsigned)tv.tv_sec) * 1000000 + (unsigned)tv.tv_usec);
 #else
 #error Cannot get time
 #endif
@@ -185,7 +187,11 @@ void get_time_init (void)
      * 'rdtsc off' into config file */
     RAWcpuTIME = rawC4time;
     GETcpuTIME = getC4time;
+#if LX_KERNEL_VERSION < 2001126
     g_printf("TIMER: using gettimeofday\n");
+#else
+    g_printf("TIMER: using new gettimeofday with microsecond resolution\n");
+#endif
   }
   ZeroTimeBase.td = RAWcpuTIME();
 }
@@ -217,18 +223,17 @@ int restart_cputime (void)
 
 /* --------------------------------------------------------------------- */
 
-int getmhz(void)
+static int getmhz(void)
 {
 	struct timeval tv1,tv2;
 	hitimer_t a,b;
-	int i, rawspeed;
-	volatile int j;
 
 	gettimeofday(&tv1, NULL);
 	__asm__ __volatile__ ("rdtsc"
 		:"=a" (((unsigned long*)&a)[0]),
 		 "=d" (((unsigned long*)&a)[1]));
-	for (j=0; j<10000000; j++);	/* 500ms on a P5-100 */
+/*	for (j=0; j<10000000; j++);*/	/* 500ms on a P5-100 */
+	usleep(50000);
 	gettimeofday(&tv2, NULL);
 	__asm__ __volatile__ ("rdtsc"
 		:"=a" (((unsigned long*)&b)[0]),
@@ -236,23 +241,7 @@ int getmhz(void)
 	b -= a;
 	a = (tv2.tv_sec*1000000 + tv2.tv_usec) - 
 	    (tv1.tv_sec*1000000 + tv1.tv_usec);
-	/* how to round? standard clock speeds are usually the
-	 * multiples of 30 and 33.333, plus 75. Some people
-	 * use non-standard clock values (like 208) by fiddling with
-	 * the motherboard jumpers: but we hope they are smart enough
-	 * to read the READMEs and set their right speed in dosemu.conf.
-	 * OTOH, I'm not smart enough to come up with a better
-	 * algorithm  --AV
-	 */
-	rawspeed = (int)(b/a);
-	for (i=67; i<=300; i+=33) {
-	  if ((i%10)==6) i++;	/* 133,167,200... */
-	  if (abs(rawspeed-i)<3) return i;
-	}
-	for (i=60; i<=300; i+=(i>=90? 30:15)) {
-	  if (abs(rawspeed-i)<3) return i;
-	}
-	return rawspeed;
+	return (int)((b*4096)/a);
 }
 
 /*
@@ -264,7 +253,7 @@ int getmhz(void)
 int bogospeed(unsigned long *spus, unsigned long *sptick)
 {
 	boolean first=1;
-	int mlt=0, dvs=0;
+	int mlt, dvs;
 
 	if (config.realcpu < CPU_586) {
 		fprintf(stderr,"You can't access 586 features on CPU=%d\n",
@@ -272,22 +261,8 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 		exit(1);
 	}
 	if (!first) return 0;
-#if 0
-	{ char *p;
-	/* user-defined speed */
-	if ((p=getenv("CPUSPEED"))!=NULL) {
-	  int v1;
-	  if (sscanf(p,"%d",&v1)==1) {
-	    if ((v1>60) && (v1<=300)) {
-	      mlt = 1; dvs = v1;
-	    }
-	  }
-	}}
-#endif
-	if (!mlt) {
-	/* last resort - do it yourself */
-	  mlt = 1; dvs = getmhz();
-	}
+
+	mlt = 4096; dvs = getmhz();
 
 	/* speed division factor to get 1us from CPU clocks - for
 	 * details on fast division see timers.h */
@@ -299,7 +274,8 @@ int bogospeed(unsigned long *spus, unsigned long *sptick)
 #ifdef X86_EMULATOR
 	config.emuspeed = dvs/mlt;
 #endif
-	fprintf (stderr,"CPU speed set to %d/%d MHz\n",dvs,mlt);
+	fprintf (stderr,"CPU speed set to %d MHz\n",(dvs/mlt));
+/*	fprintf (stderr,"CPU speed factors %ld,%ld\n",*spus,*sptick); */
 	first = 0;
 	return 0;
 }

@@ -176,7 +176,7 @@ static struct tm *sys_time_calib (void)
 {
   struct tm *tm;
   time_t this_time;
-  unsigned long long k;
+  unsigned long long k=0;	/* gcc warning? */
 
   time(&this_time);
   tm = localtime(&this_time);

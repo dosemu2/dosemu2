@@ -52,9 +52,10 @@
 
 #include "keyb_server.h"
 
+#undef  DEBUG_PIT
 
 #ifdef MONOTON_MICRO_TIMING
-extern long   pic_itime[33];
+extern hitimer_t pic_itime[33];
 #endif /* MONOTON_MICRO_TIMING */
 
 pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
@@ -213,7 +214,7 @@ void do_sound(Bit16u period)
 static void pit_latch(int latch)
 {
   hitimer_u cur_time;
-  u_long         ticks;
+  u_long ticks=0;
   pit_latch_struct *p = &pit[latch];
 
   /* check for special 'read latch status' mode */
@@ -291,23 +292,26 @@ static void pit_latch(int latch)
     /* mode 6 -- ??? */
     /* mode 3 -- square-wave generator, countdown by 2 */
     /* mode 7 -- ??? */
-      pic_sys_time = cur_time.t.tl;	/* modulo 2^32 */
+      pic_sys_time = cur_time.td;	/* full counter */
+    /* NEVER is a special invalid value... skip it if found */
       pic_sys_time += (pic_sys_time == NEVER);
 
       if (latch == 0) {
 	/* when current time is greater than irq time, call pic_request
 	   which will then point pic_itime to next interrupt */
 
-	if (((pic_itime[PIC_IRQ0]-pic_sys_time) < 0) && ((p->mode&0x40)==0)) {
-	  r_printf("PIT: pit_latch, pic_request IRQ0 mode 2/3\n");
-	  pic_request(PIC_IRQ0);
+	if (((p->mode&0x40)==0) && (pic_sys_time > pic_itime[PIC_IRQ0])) {
+	  if (pic_request(PIC_IRQ0)==PIC_REQ_OK)
+	   { r_printf("PIT: pit_latch, pic_request IRQ0 mode 2/3\n"); }
 	}
 	/* while current time is less than next irq time, ticks decrease;
-	   we need no modulo operation */
-	ticks = pic_itime[PIC_IRQ0] - pic_sys_time;
+         * ticks can go out of bounds or negative when the interrupt
+         * is lost or pending */
+	ticks = (pic_itime[PIC_IRQ0] - pic_sys_time) % p->cntr;
       } else {
 	ticks = p->cntr - (pic_sys_time % p->cntr);
       }
+
       if ((p->mode & 3)==3) {
         /* ticks is now a value which decreases from cntr to 0, and
            is greater than cntr/2 in the first half of the cycle */
@@ -328,9 +332,9 @@ static void pit_latch(int latch)
   if (p->mode & 0x40)
     p->mode = (p->mode & 7) | 0x80;
 
-#if 0 /* for debugging */
-  i_printf("pit_latch:  latched value 0x%4.4x for timer %d\n",
-	   p->read_latch, latch);
+#ifdef DEBUG_PIT
+  i_printf("PIT%d: ticks=%lx latch=%x pin=%d\n",latch,ticks,
+	p->read_latch,(p->outpin!=0));
 #endif
 }
 
@@ -374,7 +378,7 @@ Bit8u pit_inp(ioport_t port)
       pit[port].read_latch = -1;
       break;
   }
-#if 0
+#ifdef DEBUG_PIT
   i_printf("PORT: pit_inp(0x%x) = 0x%x\n", port+0x40, ret);
 #endif
   return ret;
@@ -407,7 +411,7 @@ void pit_outp(ioport_t port, Bit8u val)
       pit[port].write_latch = (val & 0xff) << 8;
       break;
     }
-#if 0
+#ifdef DEBUG_PIT
   i_printf("PORT: pit_outp(0x%x, 0x%x)\n", port+0x40, val);
 #endif
 
@@ -444,7 +448,7 @@ void pit_control_outp(ioport_t port, Bit8u val)
 {
   int latch = (val >> 6) & 0x03;
 
-#if 0
+#ifdef DEBUG_PIT
   i_printf("PORT: outp(0x43, 0x%x)\n",val);
 #endif
 
@@ -477,25 +481,22 @@ void pit_control_outp(ioport_t port, Bit8u val)
       /* nobreak; */
     case 0:
     case 1:
-#ifdef MONOTON_MICRO_TIMING
-      pit[latch].mode        = (val >> 1) & 0x07;
-      if ((val & 4)==0) {      /* modes 0,1,4,5 */
-      /* set the time base for the counter - safety code for programs
-       * which use a non-periodical mode without reloading the counter
-       */
-       pit[latch].time.td = GETtickTIME(0);
-      }
-#endif
       if ((val & 0x30) == 0)
 	pit_latch(latch);
       else {
 	pit[latch].read_state  = (val >> 4) & 0x03;
 	pit[latch].write_state = (val >> 4) & 0x03;
-#ifndef MONOTON_MICRO_TIMING
 	pit[latch].mode        = (val >> 1) & 0x07;
+#ifdef MONOTON_MICRO_TIMING
+        if ((val & 4)==0) {      /* modes 0,1,4,5 */
+          /* set the time base for the counter - safety code for programs
+           * which use a non-periodical mode without reloading the counter
+           */
+          pit[latch].time.td = GETtickTIME(0);
+        }
 #endif
       }
-#if 0
+#ifdef DEBUG_PIT
       i_printf("PORT: writing outp(0x43, 0x%x)\n", val);
 #endif
       break;

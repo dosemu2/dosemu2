@@ -249,6 +249,8 @@ static inline void map_video_bios(void)
 {
   extern int load_file(char *name, int foffset, char *mstart, int msize);
 
+  v_printf("Mapping VBIOS = %d\n",config.mapped_bios);
+
   if (config.mapped_bios) {
     if (config.vbios_file) {
       warn("WARN: loading VBIOS %s into mem at 0x%X (0x%X bytes)\n",
@@ -320,17 +322,23 @@ static inline void map_hardware_ram(void)
  * DANG_BEGIN_FUNCTION map_custom_bios
  *
  * description:
- *  Setup the dosemu amazing custom BIOS
+ *  Setup the dosemu amazing custom BIOS, quietly overwriting anything
+ *  was copied there before. Do not overwrite graphic fonts!
  * 
  * DANG_END_FUNCTION
  */
 static inline void map_custom_bios(void)
 {
-  extern void bios_f000(), bios_f000_end();
   u_char *ptr;
+  u_long n;
 
+  n = (u_long)bios_f000_endpart1 - (u_long)bios_f000;
   ptr = (u_char *) (BIOSSEG << 4);
-  memcpy(ptr, bios_f000, (u_long)bios_f000_end - (u_long)bios_f000);
+  memcpy(ptr, bios_f000, n);
+
+  n = (u_long)bios_f000_end - (u_long)bios_f000_part2;
+  ptr = (u_char *) (BIOSSEG << 4) + ((u_long)bios_f000_part2 - (u_long)bios_f000);
+  memcpy(ptr, bios_f000_part2, n);
 }
 
 /* 
@@ -447,8 +455,12 @@ void memory_init(void)
 #if 0
   /* make interrupts vector read-only */
   mprotect((void *)(BIOSSEG<<4), 0x1000, PROT_READ|PROT_EXEC);
-  /* make memory area 0xf8000 to 0xfffff read only */
-  mprotect((void *)(ROMBIOSSEG<<4), 0x8000, PROT_READ|PROT_EXEC);
+  /* Thou shall not write protect location 0xfc26d, as the video code
+   * needs to write its vector there */
+  /* make memory area 0xf8000 to 0xfbfff read only */
+  mprotect((void *)(ROMBIOSSEG<<4), 0x4000, PROT_READ|PROT_EXEC);
+  /* make memory area 0xfc500 to 0xfffff read only */
+  mprotect((void *)(ROMBIOSSEG<<4) + 0x5000, 0x3000, PROT_READ|PROT_EXEC);
 #endif
 }
 

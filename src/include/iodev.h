@@ -85,8 +85,8 @@ extern void  rtc_update (void);
 
 #include "cmos.h"
 
-extern long  last_ticks;		/* for int1a */
-extern long  sys_base_ticks;
+extern unsigned long last_ticks;		/* for int1a */
+extern long  sys_base_ticks;		/* signed, could go negative */
 extern long  usr_delta_ticks;
 
 

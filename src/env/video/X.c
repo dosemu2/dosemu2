@@ -357,7 +357,7 @@ static Boolean doing_selection = FALSE, visible_selection = FALSE;
 static Boolean have_focus = FALSE;
 static Boolean is_mapped = FALSE;
 
-static cmap_colors = 0;			/* entries in colormaps: {text,graphics}_cmap */
+static int cmap_colors = 0;		/* entries in colormaps: {text,graphics}_cmap */
 static Colormap text_cmap = 0, graphics_cmap = 0;
 static Boolean have_shmap = FALSE;
 static unsigned long text_colors[16];

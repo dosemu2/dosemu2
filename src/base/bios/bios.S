@@ -852,11 +852,19 @@ CISH(DPMI_interrupt):
 	.globl	CISH(DPMI_dummy_end)
 CISH(DPMI_dummy_end):
 
-
+/* COMPAS FE000-FE05A	reserved */
+/* COMPAS FE05B		jmp to POST */
+/* COMPAS FE05E-FE2C2	reserved */
+/* COMPAS FE2C3		jmp to NMI */
+/* COMPAS FE2C6-FE3FD	reserved */
+/* COMPAS FE3FE		jmp to INT13 HD */
+/* COMPAS FE401-FE6F0	HD parameter table */
+/* COMPAS FE6F1		reserved */
+/* COMPAS FE6F2		jmp to INT19 */
 /* ----------------------------------------------------------------- */   
 	.org	ROM_CONFIG_OFF /* for int15 */
 
-/* ======================= Addr = E6F5 */
+/* ======================= Addr = FE6F5 */
 	/* from Alan Cox's mods */
 	/* we need somewhere for the bios equipment. */
 	dw	9	/* 9 byte table */
@@ -867,10 +875,17 @@ CISH(DPMI_dummy_end):
 	dd	0
 
 
-
+/* COMPAS FE710-FE728	reserved */
+/* COMPAS FE729		baud rate init table */
+/* COMPAS FE73C-FE82D	reserved */
+/* COMPAS FE82E		jmp to INT16 */
+/* COMPAS FE831-FE986	reserved */
 /* ----------------------------------------------------------------- */   
 	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
 	.globl	CISH(INT09_dummy_start)
+/* ======================= Addr = FE987 */
+/* COMPAS FE987		jmp to INT09 */
+/* COMPAS FE98A-FEC58	reserved */
 	push	ax
 	push	bx
 	push	ds
@@ -971,9 +986,18 @@ kbd_do_sysrq_break:			/* ALT-SYSRQ released		*/
 CISH(INT09_dummy_end):
 
 
-
+/* COMPAS FEC59		jmp to INT13 FDD */
+/* COMPAS FEC5C-FEF56	reserved */
+/* COMPAS FEF57		jmp to INT0E */
+/* COMPAS FEF5A-FEFC6	reserved */
+/* COMPAS FEFC7		FDD param table */
+/* COMPAS FEFD2		jmp to INT17 */
+/* COMPAS FEFD5-FF064	reserved */
 /* ----------------------------------------------------------------- */
 	.org	0xf065
+/* ======================= Addr = FF065 */
+/* COMPAS FF065		jmp to INT10 */
+/* COMPAS FF068-FF0A3	reserved */
 	/* relocated video handler (interrupt 0x42) */
 #ifndef USE_NEW_INT
 	int	0x42  /* this will be overwritten with iret, if no dualmon */
@@ -985,25 +1009,56 @@ CISH(INT09_dummy_end):
        JMPL(INT_OFF(0x42))  /* redirect this back to our magic location */
 #endif /* USE_NEW_INT */
 
+	.globl  CISH(bios_f000_endpart1)
+CISH(bios_f000_endpart1):
 
-	.globl  CISH(bios_f000_end)
+/* COMPAS FF0A4		video param table */
+/* COMPAS FF0FC-FF840	reserved */
+/* COMPAS FF841		jmp to INT12 */
+/* COMPAS FF844-FF84C	reserved */
+/* COMPAS FF84D		jmp to INT11 */
+/* COMPAS FF850-FF858	reserved */
+/* COMPAS FF859		jmp to INT15 */
+/* COMPAS FF85C-FFA6D	reserved */
+/* COMPAS FFA6E		font tables */
+/* COMPAS FFE6E		jmp to INT1A */
+/* COMPAS FFE71-FFEA4	reserved */
+/* COMPAS FFEA5		jmp to INT08 */
+/* COMPAS FFEA8-FFEF2	reserved */
+/* COMPAS FFEF3		vector table for INT08-INT1F */
+/* COMPAS FFF23		vector table for INT70-INT77 */
+/* COMPAS FFF33-FFF53	reserved */
+/* COMPAS FFF54		jmp to INT05 */
+/* COMPAS FFF57-FFFD8	reserved */
+/* COMPAS FFFD9		EISA ident string */
+/* COMPAS FFFDD-FFFEF	reserved */
 
 /* ----------------------------------------------------------------- */
 	.org	0xffe0
+
+	.globl	CISH(bios_f000_part2)
+CISH(bios_f000_part2):
+
 	/* DOSEMU magic and version field */
 	.ascii	"$DOSEMU$"
 	.long	DOSEMU_VERSION_CODE
 
 /* ----------------------------------------------------------------- */
 	.org	0xfff0
+/* COMPAS FFFF0		jmp to powerup */
 	/* set up BIOS exit routine (we have *just* enough room for this) */
 	mov	ax,#0xffff
 	int	DOSHELPER_INT
+/* COMPAS FFFF5		ROM BIOS date */
 	.ascii	"02/25/93"  /* our bios date */
+/* COMPAS FFFFD		unused */
 	hlt
+/* COMPAS FFFFE		system model ID */
 	db	0xfc   /* model byte = IBM AT */
+/* COMPAS FFFFF		unused */
 	hlt
 
+	.globl  CISH(bios_f000_end)
 CISH(bios_f000_end):
 
 /*--------------------------------------------------------------------------*/

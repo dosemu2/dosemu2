@@ -44,7 +44,7 @@
 
 #include "extern.h"
 #include "types.h"
-#define NEVER 0x80000000
+#define NEVER 0x8000000000000000ULL
 #define PIC_NMI   0        /*  non-maskable interrupt 0x02 */
 #define PIC_IRQ0  1        /*  timer -    usually int 0x08 */
 #define PIC_IRQ1  2        /*  keyboard - usually int 0x09 */
@@ -98,8 +98,9 @@ EXTERN unsigned long pic_sp INIT(0);	       /* pointer to pic_stack */
 EXTERN unsigned long pic_rflag;        /* flag to control pic_watch */
 EXTERN unsigned long pic_vm86_count INIT(0);   /* count of times 'round the vm86 loop*/
 EXTERN unsigned long pic_dpmi_count INIT(0);   /* count of times 'round the dpmi loop*/
-EXTERN long pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
-EXTERN long pic_sys_time INIT(NEVER);     /* system time set by pic_watch */
+
+EXTERN hitimer_t pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
+EXTERN hitimer_t pic_sys_time INIT(NEVER);     /* system time set by pic_watch */
 /* IRQ definitions.  Each entry specifies the emulator routine to call, and
    the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
    as are the interrupt vectors for all but [1] through [15], which  may be
@@ -124,8 +125,13 @@ void pic_seti(unsigned int level, void (*func), unsigned int ivec);
 void run_irqs();                                      /* run requested irqs */
 #define pic_run() if(pic_irr)run_irqs()   /* the right way to call run_irqs */
 int do_irq();                                /* run dos portion of irq code */
+
+#define PIC_REQ_NOP	0
+#define PIC_REQ_OK	1
+#define PIC_REQ_LOST	(-2)
+#define PIC_REQ_PEND	(-1)
 int pic_request(int inum);                            /* interrupt trigger */
-void pic_creq(int inum);                   /* conditional interrupt trigger */
+
 void pic_iret();                             /* interrupt completion notify */
 void pic_watch();		       /* interrupt pending watchdog timer */
 void do_irq0();						 /* timer interrupt */

@@ -12,6 +12,13 @@
 #include "config.h"
 #include "extern.h"
 
+extern void bios_f000();		/* BIOS start at 0xf0000 */
+/* these two addresses are needed to avoid overwriting e.g. font
+ * tables copied from VBIOS */
+extern void bios_f000_endpart1();
+extern void bios_f000_part2();
+extern void bios_f000_end();		/* BIOS end at 0xfffff */
+
 #define INT2F_IDLE_MAGIC	0x1680
 
 /*

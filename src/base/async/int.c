@@ -45,6 +45,7 @@
 #include "keyb_server.h"
 
 #define DJGPP_HACK	/* AV Feb 97 */
+#undef  DEBUG_INT1A
 
 #if X_GRAPHICS
 /* prototype is in X.h -- 1998/03/08 sw */
@@ -784,7 +785,6 @@ void set_ticks(unsigned long new)
 
 static void int1a(u_char i)
 {
-  long t;
   time_t time_val;
   struct timeval;
   struct timezone;
@@ -808,20 +808,43 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 ->	  midnight flag and will fail to advance the date
 */
   case 0:			/* read time counter */
-    /* it works because pic_sys_time has a zero reference. It doesn't
-     * account for timer speedups, but any decent DOS program should
-     * call back the original int8 at the 18.2 Hz rate... */
-    last_ticks = sys_base_ticks + usr_delta_ticks + (pic_sys_time >> 16);
+    /* pic_sys_time is a zero-based tick(1.19MHz) counter. As such, if we
+     * shift it right by 16 we get the number of PIT0 overflows, that is,
+     * the number of 18.2ms timer ticks elapsed since starting dosemu. This
+     * is independent of any int8 speedup a program can set, since the PIT0
+     * counting frequency is fixed. The count overflows after 7 1/2 years.
+     * usr_delta_ticks is 0 as long as nobody sets a new time (B-1A01)
+     */
+#ifdef DEBUG_INT1A
+    g_printf("TIMER: sys_base_ticks=%ld usr_delta_ticks=%ld pic_sys_time=%#Lx\n",
+    	sys_base_ticks, usr_delta_ticks, pic_sys_time);
+#endif
+    last_ticks = (unsigned long)(pic_sys_time >> 16);
+    last_ticks += (sys_base_ticks + usr_delta_ticks);
 
     /* has the midnight passed? */
-    if (last_ticks > 1573040) {
-      *(u_char *) (TICK_OVERFLOW_ADDR) += 0x1;
-      last_ticks -= 1573040;
+    if (last_ticks > TICKS_IN_A_DAY) {
+      *((u_char *)(TICK_OVERFLOW_ADDR)) |= 0x1;
+      last_ticks -= TICKS_IN_A_DAY;
+      /* since pic_sys_time continues to increase, avoid further midnight
+       * overflows */
+      sys_base_ticks -= TICKS_IN_A_DAY;
     }
-    LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
+    LO(ax) = *((u_char *)(TICK_OVERFLOW_ADDR));
     LWORD(ecx) = (last_ticks >> 16) & 0xffff;
     LWORD(edx) = last_ticks & 0xffff;
-    g_printf("TIMER: read timer = %lu\n", last_ticks);
+
+#ifdef DEBUG_INT1A
+    if (d.general) {
+      long k = last_ticks/18.2065;	/* sorry */
+      time(&time_val);
+      g_printf("INT1A: read timer = %ld (%ld:%ld:%ld) %s\n", last_ticks,
+      	k/3600, (k%3600)/60, (k%60), ctime(&time_val));
+    }
+#else
+    g_printf("INT1A: read timer=%ld, midnight=%d\n", last_ticks, LO(ax));
+#endif
+
     set_ticks(last_ticks);	/* set_ticks is in rtc.c */
     break;
 
@@ -837,13 +860,28 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 SeeAlso: AH=00h,AH=03h,INT 21/AH=2Dh
 */
   case 1:			/* write time counter */
-    t = sys_base_ticks + (pic_sys_time >> 16);
-    last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
-    usr_delta_ticks = last_ticks - t;
-    set_ticks(last_ticks);
-    g_printf("INT1A: set timer to %#lx\n", last_ticks);
-    break;
+    {
+      /* get current system time and check it (previous usr_delta could
+       * be != 0) */
+      long t;
+      do {
+        t = (pic_sys_time >> 16) + sys_base_ticks;
+        if (t < 0) sys_base_ticks += TICKS_IN_A_DAY;
+      } while (t < 0);
 
+      /* get user-requested time */
+      last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
+
+      usr_delta_ticks = last_ticks - t;
+      *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
+#ifdef DEBUG_INT1A
+      g_printf("TIMER: sys_base_ticks=%ld usr_delta_ticks=%ld pic_sys_time=%#Lx\n",
+    	sys_base_ticks, usr_delta_ticks, pic_sys_time);
+#endif
+      set_ticks(last_ticks);
+      g_printf("INT1A: set timer to %ld\n", last_ticks);
+      break;
+    }
 /*
 --------B-1A02-------------------------------
 INT 1A - TIME - GET REAL-TIME CLOCK TIME (AT,XT286,PS)
@@ -1420,7 +1458,7 @@ static void int23(u_char i)
 
 static void mouse_post_boot(void)
 {
-	void bios_f000(), bios_f000_int10_old();
+	extern void bios_f000_int10_old();
 	us *ptr;
 	/* This is needed here to revectoring the interrupt, after dos
 	 * has revectored it. --EB 1 Nov 1997 */

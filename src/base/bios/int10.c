@@ -627,6 +627,49 @@ error:
   return 0;
 }    
 
+/* get the active and alternate display combination code */
+void get_dcc(int *active_dcc, int *alternate_dcc)
+{
+#if USE_DUALMON
+  if (config.dualmon) {
+    if (IS_SCREENMODE_MDA) {
+      *active_dcc = MDA_VIDEO_COMBO;  /* active display */
+      *alternate_dcc = video_combo;
+    }
+    else {
+      *active_dcc = video_combo;     /* active display */
+      *alternate_dcc = MDA_VIDEO_COMBO;
+    }
+    return;
+  }
+#endif
+  *active_dcc = video_combo;	/* active display */
+  *alternate_dcc = 0;		/* no inactive display */
+}
+
+/* INT 10 AH=1B - FUNCTIONALITY/STATE INFORMATION (PS,VGA/MCGA) */
+void return_state(Bit8u *statebuf) {
+	int active_dcc, alternate_dcc;
+	
+	memset(statebuf, 0, 4); /* XXX pointer to static functionality table */
+	/* store bios 0:449-0:466 at ofs 0x04 */
+	memcpy(statebuf + 0x04, (char *)0x449, 0x466 - 0x449 + 1);
+	/* store bios 0:484-0:486 at ofs 0x22 */
+	memcpy(statebuf + 0x22, (char *)0x484, 0x486 - 0x484 + 1);
+	get_dcc(&active_dcc, &alternate_dcc);
+	statebuf[0x25] = active_dcc;
+	statebuf[0x26] = alternate_dcc;
+	statebuf[0x27] = 16;/* XXX number of colors, low byte */
+	statebuf[0x28] = 0; /* XXX number of colors, high byte */
+	statebuf[0x29] = 8; /* XXX number of pages supported */
+	statebuf[0x2a] = 2; /* XXX number of scanlines 0-3=200,350,400,480 */
+	statebuf[0x2b] = 0; /* XXX primary character block */
+	statebuf[0x2c] = 0; /* XXX secondary character block */
+	statebuf[0x31] = 3; /* video memory: 3 = 256K */
+	statebuf[0x32] = 0; /* XXX save pointer state flags */
+	memset(statebuf + 0x33, 0, 13);
+}
+
 
 /******************************************************************/
 
@@ -1012,23 +1055,12 @@ void int10()
 
   case 0x1a:			/* get display combo */
     if (LO(ax) == 0) {
+      int active_dcc, alternate_dcc;
       v_printf("get display combo!\n");
       LO(ax) = 0x1a;		/* valid function=0x1a */
-#if USE_DUALMON
-      if (config.dualmon) {
-        if (IS_SCREENMODE_MDA) {
-          LO(bx) = MDA_VIDEO_COMBO;  /* active display */
-          HI(bx) = video_combo;
-        }
-        else {
-          LO(bx) = video_combo;     /* active display */
-          HI(bx) = MDA_VIDEO_COMBO;
-        }
-        break;
-      }
-#endif
-      LO(bx) = video_combo;	/* active display */
-      HI(bx) = 0;		/* no inactive display */
+      get_dcc(&active_dcc, &alternate_dcc);
+      LO(bx) = active_dcc;
+      HI(bx) = alternate_dcc;
     }
     else {
       v_printf("set display combo not supported\n");
@@ -1153,8 +1185,15 @@ void int10()
   case 0xff:			/* update shadow buffer...do nothing */
     break;
 
+  case 0x1b:                    /* functionality/state information */
+    if (LWORD(ebx) == 0) {
+      v_printf("return functionality/state information");
+      return_state(SEG_ADR((Bit8u *), es, di));
+      LO(ax) = 0x1b;
+    } else
+      v_printf("unknown functionality/state request: %d", LWORD(ebx));
+    break;
 #if 0
-  case 0x1b:                    /* return state */
   case 0x1c:                    /* return save/restore */
 #endif
 

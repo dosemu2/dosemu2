@@ -36,6 +36,7 @@
 #include "memory.h"
 #include "emu.h"
 #include "cpu.h"
+#include "bios.h"
 #include "inifile.h"
 #include "doshelpers.h"
 
@@ -211,7 +212,7 @@ InitIPXFarCallHelper(void)
   *ptr++ = 0xcf;		/* iret */
 #else
   {
-    extern void bios_f000(), bios_IPX_PopRegistersReturn(), bios_IPX_PopRegistersIRet(), bios_IPX_FarCall();
+    extern void bios_IPX_PopRegistersReturn(), bios_IPX_PopRegistersIRet(), bios_IPX_FarCall();
     long i = (long)bios_IPX_PopRegistersReturn - (long)bios_f000;
     i += BIOSSEG << 4;
     ESRPopRegistersReturn.segment = i >> 4;

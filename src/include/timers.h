@@ -50,6 +50,9 @@ extern void pit_outp(ioport_t, Bit8u);
 #define PIT_TICK_RATE_M		1.193182
 #define PIT_TICK_RATE_f		0.193182
 
+/* number of 18.2Hz ticks = 86400*PIT_TICK_RATE/65536 = 1573042.6756 */
+#define TICKS_IN_A_DAY		1573042
+
 /*
  * Tick<->us conversion formulas:
  *	611/512		= 1.1933594	+150ppm
@@ -205,7 +208,6 @@ extern hitimer_t GETtickTIME(int sc);
 int stop_cputime (void);
 int restart_cputime (void);
 extern int cpu_time_stop;	/* for dosdebug */
-int getmhz(void);		/* for init/config.c */
 int bogospeed(unsigned long *spus, unsigned long *sptick);
 
 /* --------------------------------------------------------------------- */

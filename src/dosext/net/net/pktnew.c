@@ -36,6 +36,7 @@
 #include "dosio.h"
 #include "memory.h"
 #include "int.h"
+#include "bios.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,7 +114,6 @@ static char devname[10] = "eth0";   /* linux device name */
 /* various declarations for interfacing with the packet driver code in
    bios.S */
 
-extern void bios_f000();
 extern void PKTDRV_size();
 extern void PKTDRV_handle();
 extern void PKTDRV_receiver();

@@ -70,7 +70,7 @@ static char *timestamp (char *p)
 #ifdef X86_EMULATOR
   if ((config.cpuemu>1) && in_vm86) t=0; else
 #endif
-  t = GETusTIME(0)/1000;
+  t = pic_sys_time/1193;
   /* [12345678]s - SYS time */
 #ifdef X86_EMULATOR
     if ((config.cpuemu>1) && in_vm86) strcpy(p,"[********] "); else

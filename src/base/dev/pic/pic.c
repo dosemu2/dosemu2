@@ -200,15 +200,15 @@ unsigned long   pic_stack[32];      /* stack of interrupt levels */
 unsigned long   pic_sp = 0;         /* pointer to stack */
 unsigned long   pic_vm86_count=0;   /* counter for trips around vm86 loop */
 unsigned long   pic_dpmi_count=0;   /* counter for trips around dpmi loop */
-         long   pic_sys_time=NEVER; /* system time for scheduling interrupts */
+         hitimer_t pic_sys_time=NEVER; /* system time for scheduling interrupts */
 #endif
-         long   pic_ltime[33] =     /* timeof last pic request honored */
+static   hitimer_t pic_ltime[33] =     /* timeof last pic request honored */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER};
-         long   pic_itime[33] =     /* time to trigger next interrupt */
+         hitimer_t pic_itime[33] =     /* time to trigger next interrupt */
                 {NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
                  NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER, NEVER,
@@ -780,9 +780,9 @@ int do_irq()
     if(IS_REDIRECTED(intr)||pic_ilevel<=PIC_IRQ1||in_dpmi)
 #endif /* not USE_NEW_INT */
     {
-#if 1 /* BUG CATCHER (if 1) */
-/* outputting more then one character here will change dynamic behave such that
- * that we mesure the wrong thing.
+#if 0 /* BUG CATCHER (if 1) */
+/* outputting more then one character here will change dynamic behave such
+ * that we measure the wrong thing.
  */
 g_printf("+%d",(int)pic_ilevel);
 #endif
@@ -869,7 +869,7 @@ int pic_request(inum)
 int inum;
 {
 static char buf[81];
-  int ret=0;
+  int ret=PIC_REQ_NOP;
 
   if (pic_iinfo[inum].func == (void *)0)
     return ret; 
@@ -882,9 +882,11 @@ static char buf[81];
 #endif
     {
     if (pic_pirr&(1<<inum)){
+     ret=PIC_REQ_LOST;
      pic_print(2,"Requested irq lvl ",    inum, " lost     ");
       }
     else {
+     ret=PIC_REQ_PEND;
      pic_print(2,"Requested irq lvl ",    inum, " pending  ");
       }
     pic_pirr|=(1<<inum);
@@ -893,13 +895,13 @@ static char buf[81];
        pic_itime[inum] = pic_itime[32];
     }
     pic_ltime[inum] = pic_itime[inum];
- }
+  }
   else {
     pic_print(2,"Requested irq lvl ",    inum, " successfully");
     pic_irr|=(1<<inum);
     if(pic_itime[inum] == pic_ltime[inum]) pic_itime[inum] = pic_itime[32];
     pic_ltime[inum] = pic_itime[inum];
-    ret=1;
+    ret=PIC_REQ_OK;
   }
   if (d.request&2) {
     /* avoid going through sprintf for non-debugging */
@@ -997,7 +999,7 @@ hitimer_u *s_time;	/* time in us, 64-bit unsigned */
 #ifndef MONOTON_MICRO_TIMING
 int timer;
 #endif
-int t_time;
+hitimer_t t_time;
 unsigned long pic_newirr;
 
   pic_newirr=pic_wirr&~pic_irr&~pic_isr;
@@ -1040,7 +1042,6 @@ unsigned long pic_newirr;
   }
   pic_sys_time=t_time;
 #else  /* MONOTON_MICRO_TIMING */
-  /* wraparound now is smoothly at 1h interval */
   pic_sys_time=t_time + (t_time == NEVER);
 #endif /* MONOTON_MICRO_TIMING */
   pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
@@ -1079,31 +1080,23 @@ int pic_pending(int ilevel)
  */
 void pic_activate()
 {
-int earliest, timer, count;
+hitimer_t earliest;
+int timer, count;
+
 /*if(pic_irr&~pic_imr) return;*/
    earliest = pic_sys_time;
    count = 0;
    for (timer=0; timer<32; ++timer) { 
-#ifndef MONOTON_MICRO_TIMING
-      if ((pic_itime[timer] < pic_sys_time) && (pic_itime[timer] != NEVER)) {
-#else /* MONOTON_MICRO_TIMING */
-      if (((int)(pic_itime[timer] - pic_sys_time) < 0) &&
-	  (pic_itime[timer] != NEVER)) {
-#endif /* MONOTON_MICRO_TIMING */
-         if( pic_itime[timer] != pic_ltime[timer]) {
-#ifndef MONOTON_MICRO_TIMING
-               if ((pic_itime[timer] < earliest) || (earliest == NEVER))
-#else /* MONOTON_MICRO_TIMING */
-               if (((int)(pic_itime[timer] - earliest) < 0) ||
-		   (earliest == NEVER))
-#endif /* MONOTON_MICRO_TIMING */
+      if ((pic_itime[timer] != NEVER) && (pic_itime[timer] < pic_sys_time)) {
+         if (pic_itime[timer] != pic_ltime[timer]) {
+               if ((earliest == NEVER) || (pic_itime[timer] < earliest))
                     earliest = pic_itime[timer];
                pic_request(timer);
                ++count;
          }
       }
    }
-   if(count) pic_print(2,"Activated ",count, "interrupts.");
+   if(count) pic_print(2,"Activated ",count, " interrupts.");
    pic_print(2,"Activate ++ dos time to ",earliest, " ");
    /*if(!pic_icount)*/ pic_dos_time = pic_itime[32] = earliest;
 }

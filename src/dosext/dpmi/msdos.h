@@ -1177,7 +1177,10 @@ check_prefix (struct sigcontext_struct *scp)
 	use_prefix = 1;
 	break;
     default:
-    	D_printf("DPMI: check_prefix not covered for *csp=%x, return=NULL\n", *csp);
+	break;
+    }
+    if (use_prefix) {
+    	D_printf("DPMI: check_prefix covered for *csp=%x\n", *csp);
     }
     return prefix;
 }
@@ -1194,8 +1197,6 @@ decode_8e(struct sigcontext_struct *scp, unsigned short *src,
     unsigned char mod, rm, reg;
     int len = 0;
 
-    if (!decode_use_16bit)	/*  32bit decode not implemented yet */
-	return 0;
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
 
     prefix = check_prefix(scp);
@@ -1279,8 +1280,6 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
     unsigned offset;
     int len = 0;
 
-    if (!decode_use_16bit)	/*  32bit decode not implmented yet*/
-	return 0;
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
 
     prefix = check_prefix(scp);
@@ -1399,15 +1398,17 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 	    decode_use_16bit = 1;
     }
 	
-    /* first try mov sreg, .. */
-    if ((len = decode_8e(scp, segment, sreg))) {
+    if (decode_use_16bit) {	/*  32bit decode not implemented yet */
+      /* first try mov sreg, .. */
+      if ((len = decode_8e(scp, segment, sreg))) {
 	_eip = old_eip;
 	return len + size_prfix;
-    }
-    /* then try lds, les ... */
-    if ((len = decode_load_descriptor(scp, segment, sreg))) {
+      }
+      /* then try lds, les ... */
+      if ((len = decode_load_descriptor(scp, segment, sreg))) {
 	_eip = old_eip;
 	return len+size_prfix;
+      }
     }
 
     /* then try pop sreg */

@@ -1,3 +1,19 @@
+98/10/31 ver. 0.99.3 released
+	From Alberto
+	- pentium timing: rdtsc is now off by default
+	- timers and PIC: introduced 64-bit variables,  Add return values to
+	  pic_request. Added DEBUG_PIT macro. Removed obsolete definition of
+	  pic_creq.
+	- int1a: corrected backward time jumps (30 minutes bug) and
+	  midnight transition.
+	- fixes to (wrongly) zeroed BIOS font tables. Mainly the wrong
+	  placed bios_f000_end label (bios.S). Moved bios_f000_* definitions
+	  into bios.h and deleted them at all other places.
+	- fixed pic_sys_time calibration
+	- some optimizations in msdos.h
+	From Arne
+	- implemeted int 10h, ah=1bh (src/base/bios/int10.c)
+	- fix for wrong  PIT latch command in src/base/dev/misc/timers.c
 98/10/30 ver. 0.99.2.3 unofficial pre-release
 	From Steffen
 	- faster palette updates

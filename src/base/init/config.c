@@ -127,9 +127,37 @@ config_defaults(void)
         if (strstr(cpuflags, "tsc")) {
           /* bogospeed currently returns 0; should it deny
            * pentium features, fall back into 486 case */
-          if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
-              config.rdtsc = 1;
+#ifdef HAS_CPUINFO_PATCH
+	  if ((cpuflags = get_proc_string_by_key("cpu MHz"))) {
+	    int di,df;
+	    if (sscanf(cpuflags,"%d.%d",&di,&df)==2) {
+		/* speed division factor to get 1us from CPU clocks - for
+		 * details on fast division see timers.h */
+		long long chz = 0;		/* strange gcc warning */
+		chz = (di * 1000000) + df;
+		config.cpu_spd = (LLF_US*1000000)/chz;
+
+		/* speed division factor to get 838ns from CPU clocks */
+		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
+
+#ifdef X86_EMULATOR
+		config.emuspeed = di;
+#endif
+		fprintf (stderr,"kernel CPU speed is %Ld Hz\n",chz);
+/*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
+			config.cpu_spd, config.cpu_tick_spd); */
+		break;
+	    }
+	    else
+	      cpuflags=NULL;
+	  }
+	  if (!cpuflags) {
+#else
+	  if (1) {
+#endif
+            if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
               break;
+            }
           }
         }
         /* fall thru */
@@ -146,13 +174,11 @@ config_defaults(void)
       advance_proc_bufferptr();
     }
     if (k > 1) {
-      fprintf(stderr,"Denying use of pentium timer on SMP machine\n");
       config.smp = 1;		/* for checking overrides, later */
-      config.rdtsc = 0;
     }
     close_proc_scan();
-    fprintf(stderr,"Running on CPU=%d86, FPU=%d, rdtsc=%d\n",
-      config.realcpu, config.mathco, config.rdtsc);
+    fprintf(stderr,"Running on CPU=%d86, FPU=%d\n",
+      config.realcpu, config.mathco);
 
     config.hdiskboot = 1;	/* default hard disk boot */
 #ifdef X86_EMULATOR
