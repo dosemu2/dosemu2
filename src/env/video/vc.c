@@ -324,14 +324,14 @@ static void unmap_video_ram(int copyback)
 {
   char *base = (char *)GRAPH_BASE;
   size_t size = GRAPH_SIZE;
-  int cap = MAPPING_VC | MAPPING_KMEM;
+  int cap = MAPPING_VC | MAPPING_LOWMEM;
 
   if (!config.vga) {
     size = TEXT_SIZE;
     base = scr_state.virt_address;
   }
   if (copyback) cap |= MAPPING_COPYBACK;
-  munmap_mapping(cap, base, size);
+  mmap_mapping(cap, base, size, PROT_READ | PROT_WRITE, base);
   scr_state.mapped = 0;
 }
 

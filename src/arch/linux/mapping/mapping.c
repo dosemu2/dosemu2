@@ -180,13 +180,22 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
 	return MAP_FAILED;
       }
       kmem_map[i].dst = target;
+      if (cap & MAPPING_COPYBACK) {
+        memcpy(kmem_map[i].base, target, mapsize);
+      }
       kmem_map_single(cap, i);
     }
-    if (cap & MAPPING_COPYBACK)
-      /* copy from low shared memory to the /dev/mem memory */
-      memcpy(target, lowmem_base + (size_t)target, mapsize);
     mprotect_mapping(cap, target, mapsize, protect);
     return target;
+  }
+
+  if (cap & MAPPING_COPYBACK) {
+    if (cap & (MAPPING_LOWMEM | MAPPING_HMA)) {
+      memcpy(lowmem_base + (size_t)source, target, mapsize);
+    } else {
+      error("COPYBACK is not supported for mapping type %#x\n", cap);
+      return MAP_FAILED;
+    }
   }
 
   kmem_unmap_mapping(MAPPING_OTHER, target, mapsize);
@@ -396,32 +405,7 @@ void *realloc_mapping(int cap, void *addr, int oldsize, int newsize)
 
 int munmap_mapping(int cap, void *addr, int mapsize)
 {
-  if (cap & MAPPING_KMEM) {
-    int i;
-    if (cap & MAPPING_COPYBACK)
-      /* save memory contents to the shared low memory */
-      memcpy(lowmem_base + (size_t)addr, addr, mapsize);
-#ifndef HAVE_MREMAP_FIXED
-    if (!have_mremap_fixed) {
-      if (!can_do_root_stuff && mem_fd == -1) return -1;
-    } else
-#endif
-    {
-      i = map_find_idx(kmem_map, kmem_mappings, addr, 1);
-      if (i == -1 || !kmem_map[i].mapped) {
-        error("KMEM mapping for %p was not mapped!\n", addr);
-        return -1;
-      }
-      if (kmem_map[i].len != mapsize) {
-        error("KMEM mapping for %p allocated for size %#x, but %#x requested\n",
-             addr, kmem_map[i].len, mapsize);
-        return -1;
-      }
-      kmem_unmap_single(cap, i);
-    }
-    mmap_mapping(MAPPING_LOWMEM, addr, mapsize, PROT_READ | PROT_WRITE, addr);
-    return 0;
-  }
+  /* First of all remap the kmem mappings */
   kmem_unmap_mapping(MAPPING_OTHER, addr, mapsize);
 
 #ifndef HAVE_MREMAP_FIXED
