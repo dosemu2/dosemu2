@@ -6,8 +6,7 @@
  *		interface as the means of communication with the user level.
  *
  *		Pseudo-driver for the dosnet interface.
- *
- * Version:	@(#)dosnet.c	1.0.4b	08/16/93
+ *              Based on loopback.c
  *
  * Authors:	Ross Biro, <bir7@leland.Stanford.Edu>
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
@@ -17,6 +16,8 @@
  *
  * Changes for dosemu:
  *		Bart Hartgers <barth@stack.nl> : adapt. to Linux-2.0.x
+ *              Marcus Better <Marcus.Better@abc.se> :
+ *                                      adapted to Linux 2.1.x
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -24,39 +25,27 @@
  *		2 of the License, or (at your option) any later version.
  *
  */
-#include <linux/config.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/types.h>
-#include <linux/string.h>
+
+#include <linux/module.h>
+
 #include <linux/socket.h>
-#include <linux/errno.h>
-#include <linux/fcntl.h>
 #include <linux/in.h>
-
-#include <asm/system.h>
-#include <asm/segment.h>
-#include <asm/io.h>
-
-#include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+
+/* We need this file from the kernel include/net directory
+   for the sock structure, unfortunately. */
 #include <net/sock.h>
-#include <linux/if_ether.h>	/* For the statistics structure. */
-#include <linux/if_arp.h>	/* For ARPHRD_ETHER */
-
-#define MODULE
-
-#ifdef MODULE
-#include <linux/module.h>
-#include "linux/version.h"
-#include "linux/if_arp.h"
-#endif
 
 #include "dosnet.h"
+#include "kversion.h"
+
+#if KERNEL_VERSION >= 2001000
+typedef struct net_device_stats stats_t; /* for Linux 2.1 */
+#else
+typedef struct enet_statistics stats_t;  /* for earlier kernels */
+#endif
 
 unsigned char *dsn_eth_address=DOSNET_DEVICE_ETH_ADDRESS;
 unsigned char *dosnet_generic_address=DOSNET_FAKED_ETH_ADDRESS ;
@@ -146,108 +135,97 @@ unsigned short int dosnet_eth_type_trans(struct sk_buff *skb, struct device *dev
         return( htons(DOSNET_INVALID_TYPE) );
 }
 
-/*
- * The higher levels take care of making this non-reentrant (it's
- * called with bh's disabled).
- */
-
 static int
 dosnet_xmit(struct sk_buff *skb, struct device *dev)
 {
-  struct enet_statistics *stats = (struct enet_statistics *)dev->priv;
-  struct ethhdr *eth; 
-  int unlock=1;
-
-  if (skb == NULL || dev == NULL) return(0);
-
-   /*
-    *	Optimise so buffers with skb->free=1 are not copied but
-    *	instead are lobbed from tx queue to rx queue 
-    */
-   
-  if(skb->free==0) {
+	stats_t *stats = (stats_t *)dev->priv;
+	struct ethhdr *eth; 
 	struct sk_buff *skb2=skb;
-	skb=skb_clone(skb, GFP_ATOMIC);		/* Clone the buffer */
-	dev_kfree_skb(skb2, FREE_WRITE);
-	if(skb==NULL)  return 0;
-	unlock=0;
-  }
-  else if(skb->sk) {
-	/*
-	 *	Packet sent but looped back around. Cease to charge
-	 *	the socket for the frame.
-	 */
-	atomic_sub(skb->truesize, &skb->sk->wmem_alloc);
-	skb->sk->write_space(skb->sk);
-  }
-  skb->protocol=dosnet_eth_type_trans(skb,dev);
-  skb->dev=dev;
-  eth=skb->mac.ethernet;
+	
+	/* Probably unnecessary */
+	if (skb == NULL || dev == NULL) return 0;
+	
+#if KERNEL_VERSION >= 2001000
+	if(atomic_read(&skb->users) != 1 && skb->sk) {
+#else
+        if(skb->free == 0 && skb->sk) {
+#endif
+	        /*
+		 *	Packet sent but looped back around. Cease to charge
+		 *	the socket for the frame.
+		 */
+		atomic_sub(skb->truesize, &skb->sk->wmem_alloc);
+		skb->sk->write_space(skb->sk);
+	}
+		
+	/* Clone the buffer */
+	skb=skb_clone(skb, GFP_ATOMIC);		
+#ifdef FREE_WRITE /* kernel <= 2.1.85 */
+	kfree_skb(skb2, FREE_WRITE);
+#else
+	kfree_skb(skb2);
+#endif
+	if(skb==NULL)
+	    return 0;
 
-  /* When it is a broadcast packet, we need to 
-         duplicate this packet under one special case - case 6. 
-         And ignore it under case 5. 
-     When dosemu broadcasts, it should be sent to all other dosemu's 
-     AND  linux. 
-     Duplicated packet -> no change in dest address. 
-     Original broadcast packet: change dest. address.
-  */
-  if (  (eth->h_dest[0] == 0xff) && (eth->h_dest[1] == 0xff) ) {
-        /* broadcast packet. */
-        /* Two cases: from dosemu OR from linux(i.e. dsn0). 
-           The dosemu is identified by first three bytes of ethernet 
-           address as follows.
-         */
-        if( (eth->h_source[0] == dosnet_generic_address[0]) &&
-            (eth->h_source[1] == dosnet_generic_address[1]) &&
-            (eth->h_source[3] == dosnet_generic_address[3]) 
-            ) {
+	skb->protocol=dosnet_eth_type_trans(skb,dev);
+	skb->dev=dev;
+	eth=skb->mac.ethernet;
+
+	/* When it is a broadcast packet, we need to 
+	   duplicate this packet under one special case - case 6. 
+	   And ignore it under case 5. 
+	   When dosemu broadcasts, it should be sent to all other dosemu's 
+	   AND  linux. 
+	   Duplicated packet -> no change in dest address. 
+	   Original broadcast packet: change dest. address.
+	   */
+	if (  (eth->h_dest[0] == 0xff) && (eth->h_dest[1] == 0xff) ) {
+		/* broadcast packet. */
+		/* Two cases: from dosemu OR from linux(i.e. dsn0). 
+		   The dosemu is identified by first three bytes of ethernet 
+		   address as follows.
+		   */
+		if( (eth->h_source[0] == dosnet_generic_address[0]) &&
+		    (eth->h_source[1] == dosnet_generic_address[1]) &&
+		    (eth->h_source[3] == dosnet_generic_address[3]) ) {
                   /* Broadcast packet by dosemu. Duplicate and send to 
                      linux, and send to other dosemu's.
-                  */
-	    struct sk_buff *new_skb;
-	    new_skb = skb_clone(skb, GFP_ATOMIC);
-	    if (new_skb != NULL) {
-                     /* It is broadcast packet with source=dosemu, so retain it as is. */
-                     netif_rx(new_skb);  /* sent to linux side. */
-            } else
-	          stats->tx_dropped++;
-        }
-        memcpy(eth->h_dest, DOSNET_BROADCAST_ADDRESS, 6 );
-  }
-  netif_rx(skb);
-  if (unlock) skb_device_unlock(skb);
-  stats->rx_packets++;
-  stats->tx_packets++;
-  return (0);
+		     */
+			struct sk_buff *new_skb;
+			new_skb = skb_clone(skb, GFP_ATOMIC);
+			if (new_skb != NULL) {
+				/* It is broadcast packet with 
+				   source=dosemu, so retain it as is. */
+				netif_rx(new_skb);  /* sent to linux side. */
+			} else
+				stats->tx_dropped++;
+		}
+		memcpy(eth->h_dest, DOSNET_BROADCAST_ADDRESS, 6 );
+	}
+	netif_rx(skb);
+	stats->rx_packets++;
+	stats->tx_packets++;
+	return 0;
 }
 
-
-static struct enet_statistics *
-get_stats(struct device *dev)
+static stats_t * get_stats(struct device *dev)
 {
-    return (struct enet_statistics *)dev->priv;
+	return (stats_t *)dev->priv;
 }
 
 static int dosnet_open(struct device *dev)
 {
-/*	dev->flags|=IFF_LOOPBACK; */
-  int i;
-  unsigned char dummyethaddr[6]= { 0x00, 0x00, 'U', 'M', 'M', 'Y' };
-  for(i=0; i<6; i++) {
-/*    dev->dev_addr[i]=dummyethaddr[i]; */
-    dev->dev_addr[i]=DOSNET_DEVICE_ETH_ADDRESS[i];
-  }
-#ifdef MODULE
-  MOD_INC_USE_COUNT;
-#endif       
+	int i;
+	for(i=0; i<6; i++) {
+		dev->dev_addr[i]=DOSNET_DEVICE_ETH_ADDRESS[i];
+	}
+	MOD_INC_USE_COUNT;
 	return 0;
 }
 static int dosnet_close(struct device *dev)
 {
-#ifdef MODULE
-    MOD_DEC_USE_COUNT;
-#endif    
+	MOD_DEC_USE_COUNT;
         return 0;
 }
 
@@ -264,46 +242,23 @@ static void dosnet_set_multicast_list( struct device *dev )
 int
 dosnet_init(struct device *dev)
 {
-  int i;
-  ether_setup(dev);  
+	ether_setup(dev);  
 
-  dev->mtu		= 1500;			/* MTU			*/
-  dev->tbusy		= 0;
-  dev->hard_start_xmit	= dosnet_xmit;
+	dev->tbusy		= 0;
+	dev->hard_start_xmit	= dosnet_xmit;
+	dev->tx_queue_len	= 0;
 
-  /* dev->hard_header	= eth_header; */	/* done by ether_setup()! */
-  dev->hard_header_len	= ETH_HLEN;		/* 14			*/
-  dev->addr_len		= ETH_ALEN;		/* 6			*/
-  dev->tx_queue_len	= 50000;		/* No limit on loopback */
-  dev->type		= ARPHRD_ETHER;		/* 0x0001		*/
-  /* dev->rebuild_header	= eth_rebuild_header; */
-  dev->open		= dosnet_open;
-  dev->stop		= dosnet_close;
-  dev->set_multicast_list = dosnet_set_multicast_list;
+	dev->open		= dosnet_open;
+	dev->stop		= dosnet_close;
+	dev->set_multicast_list = dosnet_set_multicast_list;
 
-  /* New-style flags. */
-  dev->flags		= IFF_BROADCAST;
-  dev->family		= AF_INET;
-#ifdef CONFIG_INET    
-  dev->pa_addr		= 0; 
-  dev->pa_brdaddr	= 0;
-  dev->pa_mask		= 0;
-  dev->pa_alen		= 0;
-#endif  
-  dev->priv = kmalloc(sizeof(struct enet_statistics), GFP_KERNEL);
-  if (dev->priv == NULL)
+	dev->priv = kmalloc(sizeof(stats_t), GFP_KERNEL);
+	if (dev->priv == NULL)
   		return -ENOMEM;
-  memset(dev->priv, 0, sizeof(struct enet_statistics));
-  dev->get_stats = get_stats;
+	memset(dev->priv, 0, sizeof(stats_t));
+	dev->get_stats = get_stats;
 
-  /*
-   *	Fill in the generic fields of the device structure. 
-   */
-  for (i = 0; i < DEV_NUMBUFFS; i++)
-		skb_queue_head_init(&dev->buffs[i]);
-  
-
-  return(0);
+	return(0);
 };
 
 
@@ -312,11 +267,7 @@ dosnet_init(struct device *dev)
 #ifdef MODULE
 static char *devicename=DOSNET_DEVICE;
 static struct device *dev_dosnet = NULL;
-/*  {	"      " , 
-		0, 0, 0, 0,
-	 	0x280, 5,
-	 	0, 0, 0, NULL, &dosnet_init };  */
-	
+
 int
 init_module(void)
 {
@@ -338,16 +289,6 @@ cleanup_module(void)
 	if (MOD_IN_USE)
 		printk("dosnet: device busy, remove delayed\n");
 	else
-	{
 		unregister_netdev(dev_dosnet);
-	}
 }
 #endif /* MODULE */
-
-
-/*
- * Local variables:
- *  compile-command: "gcc -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -fomit-frame-pointer  -m486 -c -o 3c501.o 3c501.c"
- *  kept-new-versions: 5
- * End:
- */

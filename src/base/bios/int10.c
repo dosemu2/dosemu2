@@ -402,7 +402,6 @@ do_text_mode:
     if ( config.cardtype == CARD_MDA )
       mode = 7;
        
-    WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
     break;
 
 #ifdef NEW_X_CODE
@@ -426,6 +425,9 @@ case 0x62:
     v_printf("undefined video mode 0x%x\n", mode);
   goto error;
   }
+
+  WRITE_BYTE(BIOS_VIDEO_MODE, video_mode=mode&0x7f);
+
   if (oldco != co)
     WRITE_WORD(BIOS_SCREEN_COLUMNS, co);
   return 1;

@@ -18,6 +18,7 @@
 #include "memory.h"
 #include "bios.h"
 #include "kversion.h"
+#include "lpt.h"
 
 #include "dos2linux.h"
 #include "priv.h"
@@ -403,6 +404,11 @@ void dump_config_status(void)
     fprintf(out, "debugout \"%s\"\n",
         (config.debugout ? config.debugout : (unsigned char *)""));
     {
+	char buf[256];
+	GetDebugFlagsHelper(buf, 0);
+	fprintf(out, "debug_flags \"%s\"\n", buf);
+    }
+    {
       extern void dump_keytable(FILE *f, struct keytable_entry *kt);
       dump_keytable(out, config.keytable);
     }
@@ -440,6 +446,16 @@ void dump_config_status(void)
     }
     fprintf(out, "ipxsup %d\nvnet %d\npktflags 0x%x\n",
 	config.ipxsup, config.vnet, config.pktflags);
+    
+    {
+	int i;
+	struct printer *pptr;
+	extern struct printer lpt[NUM_PRINTERS];
+	for (i = 0, pptr = lpt; i < config.num_lpt; i++, pptr++) {
+	  fprintf(out, "LPT%d command \"%s  %s\"  timeout %d  device \"%s\"  baseport 0x%03x\n",
+	  i+1, pptr->prtcmd, pptr->prtopt, pptr->delay, (pptr->dev ? pptr->dev : ""), pptr->base_port); 
+	}
+    }
 
     fprintf(out, "\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
         config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
@@ -1059,7 +1075,7 @@ int parse_debugflags(const char *s, unsigned char flag)
 		newopts[0] = flag ? '+' : '-';
 		newopts[1] = 0;
 		strcat(newopts, allopts);
-#ifdef X86_EMULATOR
+#if 1 /* we need to _allways_ remove that flag here !!! #ifdef X86_EMULATOR */
 		/* hack-do not set 'e' flag if not explicitly specified */
 		{char *p=newopts; while (*p) {if (*p=='e') *p='g'; p++;}}
 #endif

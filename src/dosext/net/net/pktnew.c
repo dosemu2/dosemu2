@@ -53,6 +53,7 @@
 static int Open_sockets(void);
 static int Insert_Type(int, int, char *);
 static int Remove_Type(int);
+int Find_Handle(u_char *buf);
 static void printbuf(char *, struct ethhdr *);
 
 int pkt_fd=-1, pkt_broadcast_fd=-1, max_pkt_fd;
@@ -406,12 +407,8 @@ pkt_int (void)
 	    break;
 	}
 
-	if (config.vnet) {
+	if (config.vnet)
 	    Remove_Type(hdlp_handle);
-
-	    if (hdlp->in_use)
-		hdlp->in_use = 0;	/* no longer in use */
-	}
 	else {
 	    if (hdlp->in_use) {
 		int i, n;
@@ -425,98 +422,79 @@ pkt_int (void)
 		for (i = 0; i < n; i++)
 		    if (FD_ISSET(i,&pg->sockset))
 			pg->nfds = i + 1;
-		hdlp->in_use = 0;	/* no longer in use */
 	    }
 	}
+	if (hdlp->in_use)
+	    hdlp->in_use = 0;	/* no longer in use */
 	return 1;
 
-    case F_SEND_PKT:
-	pg->stats.packets_out++;
-	pg->stats.bytes_out += LWORD(ecx);
-
+    case F_SEND_PKT: {
 	/* unfortunately, a handle is not passed as a parameter for the */
 	/* SEND_PKT call.  so, we will have to scan the handle table to */
 	/* find a handle which is in use, and use its socket for the send */
-	{
-	    int handle;
-            char *p;
+	int handle, socket;
 
-	    for (handle = 0; handle < MAX_HANDLE; handle++) {
-		hdlp = &pg->handle[handle];
+	pg->stats.packets_out++;
+	pg->stats.bytes_out += LWORD(ecx);
 
-		if (hdlp->in_use) {
-		    if (pg->flags & N_OPTION)	/* Novell hack? */
-		    {
-			char *p;
-			short len;
+	for (handle = 0; handle < MAX_HANDLE; handle++) {
+	    hdlp = &pg->handle[handle];
 
-			p = SEG_ADR((char *),ds,si);
-			p += 2 * ETH_ALEN;	/* point to protocol type */
-
-			if (p[0] == (char)(ETH_P_IPX >> 8) &&
-			    p[1] == (char)ETH_P_IPX &&
-			    p[2] == (char)0xff && p[3] == (char)0xff)
-			{
-			    /* it is a Novell Ethernet-II packet, make it */
-			    /* "raw 802.3" by overwriting type with length */
-
-			    len = (p[4] << 8) | (unsigned char)p[5];
-			    len = (len + 1) & ~1; /* make length even */
-			    p[0] = len >> 8;
-			    p[1] = (char)len;
-			}
-		    }
-		    if (config.vnet) {
-			/* Now we have to write to network. 
-			   We need to check if it is broadcast, and if so, 
-			   use the corresponding socket. */
-			p = SEG_ADR((char *),ds,si);
+	    if (hdlp->in_use) {
+		if (pg->flags & N_OPTION)	/* Novell hack? */
+		{
+		    char *p;
+		    short len;
 		    
-			if (WriteToNetwork(pkt_fd, devname, 
-					   SEG_ADR((char *),ds,si),
-					   LWORD(ecx)) >= 0) {
-			    pd_printf("NPKT: Write to net was ok ...\n");
-			    /* send was okay, check for a reply to speedup */
-			    /* things (background poll is quite slow) */
-#ifdef PICPKT
-			    pic_request(PIC_NET);
-#else
-			    pkt_check_receive(50000);
-#endif
-			    return 1;
-			} else {
-			    warn("NPKT: WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
-				 pkt_fd,devname,LWORD(ecx),errno);
-			    break;
-			}
-		    } 
-		    else { /* !config.vnet */
-			if (WriteToNetwork(hdlp->sock, devname,
-					   SEG_ADR((char *),ds,si),
-					   LWORD(ecx)) >= 0)
-			{
-			    /* send was okay, check for a reply to speedup */
-			    /* things (background poll is quite slow) */
-#ifdef PICPKT
-			    pic_request(PIC_NET);
-#else
-			    pkt_check_receive(50000);
-#endif
-			    return 1;
-			} else {
-			    warn("NPKT: WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
-				 hdlp->sock,devname,LWORD(ecx),errno);
-			    break;
-			}
+		    p = SEG_ADR((char *),ds,si);
+		    p += 2 * ETH_ALEN;	/* point to protocol type */
+		    
+		    if (p[0] == (char)(ETH_P_IPX >> 8) &&
+			p[1] == (char)ETH_P_IPX &&
+			p[2] == (char)0xff && p[3] == (char)0xff)
+		    {
+			/* it is a Novell Ethernet-II packet, make it */
+			/* "raw 802.3" by overwriting type with length */
+			
+			len = (p[4] << 8) | (unsigned char)p[5];
+			len = (len + 1) & ~1; /* make length even */
+			p[0] = len >> 8;
+			p[1] = (char)len;
 		    }
 		}
+		/* TODO: For dosnet, we need to check if it is broadcast, 
+		   and if so, use the corresponding socket. ??? */
+		if (config.vnet)
+		    socket = pkt_fd;
+		else
+		    socket = hdlp->sock;
+
+		if (WriteToNetwork(socket, devname, 
+				   SEG_ADR((char *), ds, si),
+				   LWORD(ecx)) >= 0) {
+		    pd_printf("Write to net was ok\n");
+		    /* check for a reply to speedup things 
+		       (background poll is quite slow) */
+#ifdef PICPKT
+		    pic_request(PIC_NET);
+#else
+		    pkt_check_receive(50000);
+#endif
+		    return 1;
+		} 
+		else {
+		    warn("WriteToNetwork(%d,\"%s\",buffer,%u): error %d\n",
+			 socket, devname, LWORD(ecx), errno);
+		    break;
+		}
 	    }
-
-	    pg->stats.errors_out++;
-	    HI(dx) = E_CANT_SEND;
 	}
-	break;
-
+	
+	pg->stats.errors_out++;
+	HI(dx) = E_CANT_SEND;
+    }
+    break;
+    
     case F_TERMINATE:
 	if (hdlp == NULL || !hdlp->in_use)
 	    HI(dx) = E_BAD_HANDLE;
@@ -729,35 +707,11 @@ pkt_check_receive(int timeout)
 	}
    
 	pd_printf("========Processing New packet======\n");
-	/* if( (handle = Find_Handle(pg->buf))== -1) return 0; */
-	/* Code for Find_Handle.  */
-	{
-	    int i, nchars;
-	    struct ethhdr *eth;
-	    u_char *p;
+	handle = Find_Handle(pg->buf);
+	if (handle == -1) 
+	    return -1;
+	pd_printf("Found handle %d\n", handle);
 
-	    eth=(struct ethhdr *)pg->buf;
-	    /* find this packet's frame type, and hence position 
-	       to compare the type. */
-	    if (ntohs(eth->h_proto) >= 1536)
-		p = pg->buf + 2 * ETH_ALEN;  /* Ethernet-II */
-	    else /* All the other frame types. */
-		p = pg->buf + 2 * ETH_ALEN + 2;
-	    pd_printf("Received packet type: %.2x\n", ntohs(eth->h_proto));
-
-	    handle=-1;
-	    for( i=0; i<max_pkt_type_array; i++) {
-		nchars = pkt_type_array[i].no_of_chars;
-		if ( /* (nchars < 2)   ||                 */
-		    !memcmp(&pkt_type_array[i].pkt_type, p, nchars) ) {
-		    handle = pkt_type_array[i].handle;
-		    break; 
-		}
-	    }
-	    pd_printf("Found handle %d\n", handle);
-	    if(handle == -1) 
-		return -1;
-	}   
 	hdlp = &pg->handle[handle];
 	if (hdlp->in_use) {
 	    printbuf("received packet:", (struct ethhdr *)pg->buf); 
@@ -898,12 +852,13 @@ Find_Handle(u_char *buf)
 	p = buf + 2 * ETH_ALEN;		/* Ethernet-II */
     else 
 	p = buf + 2 * ETH_ALEN + 2;     /* All the rest frame types. */
+    pd_printf("Received packet type: %.2x\n", ntohs(eth->h_proto));
 
     for(i=0; i<max_pkt_type_array; i++) {
 	nchars = pkt_type_array[i].no_of_chars;
-	if ( (nchars < 2) ||                 
+	if ( /* nchars < 2 || */
 	     !memcmp(&pkt_type_array[i].pkt_type, p, nchars) )
-	    return i;
+	    return pkt_type_array[i].handle;
     }
     return -1;
 }

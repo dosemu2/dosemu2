@@ -414,7 +414,7 @@ EXTERN int mfs_inte6(void);
 EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void ems_init(void);
-EXTERN int GetDebugFlagsHelper(char *);
+EXTERN int GetDebugFlagsHelper(char *, int);
 EXTERN int SetDebugFlagsHelper(char *);
 EXTERN void leavedos(int) NORETURN;
 EXTERN void add_to_io_select(int, unsigned char);

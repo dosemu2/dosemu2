@@ -351,7 +351,7 @@ static int dos_helper(void)
   case DOS_HELPER_GET_DEBUG_STRING:
     /* TRB - handle dynamic debug flags in dos_helper() */
     LWORD(eax) = GetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) +
-					       (_regs.edi & 0xffff)));
+					       (_regs.edi & 0xffff)), 1);
     g_printf("DBG: Get flags\n");
     break;
 

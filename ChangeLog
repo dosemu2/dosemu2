@@ -1,3 +1,20 @@
+98/02/27 ver. 0.97.3.3 unofficial pre-release
+	From Steffen
+	- fix for doom not restoring video mode (BIOS_VIDEO_MODE not set
+	  correctly, src/base/bios/int10.c)
+	From Marcus
+	- fixes for libpacket.c, pktnew.c, dosnet.c
+	(... removal of some 'facelifting' hunks by Hans;-)
+	From Eric
+	- trying to work around glibc2 header 'philosopy' (again):
+	  libpacket.c, ipxglt.c, ipx.c
+	From Kenneth
+	- enhancements to dump_config_status (printers, debug_flags)
+	From Hans
+	- made GetDebugFlagsHelper usable for general purpose and
+	  used it for Kenneth's 'debug_flags' ouput.
+	- fixed '-D+a' also setting CpuEmu's 'e' flag, even when not
+	  configured in.
 98/02/27 ver. 0.97.3.2 unofficial pre-release
 	From Eric
 	- udaptation to Slang-1.0

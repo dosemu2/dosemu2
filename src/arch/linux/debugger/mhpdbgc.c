@@ -1586,7 +1586,7 @@ static void mhp_debuglog(int argc, char * argv[])
      SetDebugFlagsHelper(argv[1]);
    }
    if (argc <=1) {
-     GetDebugFlagsHelper(buf);
+     GetDebugFlagsHelper(buf, 0);
      mhp_printf ("current Debug-log flags:\n%s\n", buf);
    }
 }

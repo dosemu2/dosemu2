@@ -23,12 +23,12 @@ DebugFlag(int f)
 }
 
 int
-GetDebugFlagsHelper(char *debugStr)
+GetDebugFlagsHelper(char *debugStr, int print)
 {
   int i;
 
-  dbug_printf("GetDebugFlagsHelper\n");
-  dbug_printf("debugStr at %x\n", (int)debugStr);
+  if (print) dbug_printf("GetDebugFlagsHelper\n");
+  if (print) dbug_printf("debugStr at %x\n", (int)debugStr);
   i = 0;
 
   debugStr[i++] = DebugFlag(d.disk);     debugStr[i++] = 'd';
@@ -64,7 +64,7 @@ GetDebugFlagsHelper(char *debugStr)
 #endif
 
   debugStr[i] = 0;
-  dbug_printf("debugStr is %s\n", debugStr);
+  if (print) dbug_printf("debugStr is %s\n", debugStr);
 
   return (0);
 }

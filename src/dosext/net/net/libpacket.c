@@ -16,26 +16,15 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <linux/major.h>
-#include <asm/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#if __GLIBC__ > 1
-  #include <asm/sockios.h>
-  #include <net/if.h>
-#else
-  #include <linux/sockios.h>
-  #include <linux/if.h>
-#endif
+#include <net/if.h>
 #include <netinet/in.h>
-#if __GLIBC__ > 1
-  #if 0 /* not sure what's about that, can any check what _realy_ is needed
-         * --Hans 98/02/08
-         */
-    #include <netinet/if.h>
-  #endif
+#if defined(__GLIBC__) && __GLIBC__ >= 2
   #include <netinet/if_ether.h>
 #else
+  #include <linux/sockios.h>
   #include <linux/if_ether.h>
 #endif
 
@@ -108,11 +97,11 @@ OpenNetworkType(unsigned short netid)
 	if (!config.secure) enter_priv_on();
 #ifdef AF_PACKET
 	if (running_kversion >= 2001000)
-		s = socket(AF_PACKET, SOCK_PACKET, htons(GetDosnetID()));
+		s = socket(AF_PACKET, SOCK_PACKET, proto);
 	else
-		s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));
+		s = socket(AF_INET, SOCK_PACKET, proto);
 #else
-	s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));
+	s = socket(AF_INET, SOCK_PACKET, proto);
 #endif
 	if (!config.secure) leave_priv_setting();
 	if (s < 0) {
@@ -179,8 +168,8 @@ WriteToNetwork(int sock, const char *device, const char *data, int len)
 #ifdef AF_PACKET
 	if (running_kversion >= 2001000)
 		sa.sa_family = AF_PACKET;
-  else
-	  sa.sa_family = AF_INET;
+        else	
+		sa.sa_family = AF_INET;
 #else
 	sa.sa_family = AF_INET;
 #endif
@@ -225,6 +214,13 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
  */
 
 /*
+ *	NET2 or NET3 - work for both.
+ */
+#if defined(OLD_SIOCGIFHWADDR) || (KERNEL_VERSION >= 1003038)
+#define NET3
+#endif
+
+/*
  *	Obtain the hardware address of an interface.
  *	addr should be a buffer of 8 bytes or more.
  *
@@ -232,13 +228,6 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
  *	0	Success, buffer holds data.
  *	-1	Error.
  */
-
-/*
- *	NET2 or NET3 - work for both.
- */
-#if defined(OLD_SIOCGIFHWADDR) || (KERNEL_VERSION >= 1003038)
-#define NET3
-#endif
 
 int 
 GetDeviceHardwareAddress(char *device, char *addr)
