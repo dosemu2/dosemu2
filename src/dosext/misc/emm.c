@@ -431,8 +431,9 @@ static void _do_unmap_page(caddr_t base, int size)
   E_printf("EMS: unmmap()ing from 0x%x\n", (int)base);
 
   munmap_mapping(MAPPING_EMS, base, size);
-  mapscratch_mapping(MAPPING_EMS, base, size,
-	PROT_EXEC | PROT_READ | PROT_WRITE);
+  /* MAPPING_LOWMEM is magic, mapping base->base does the correct thing here */
+  mmap_mapping(MAPPING_LOWMEM | MAPPING_ALIAS, base, size,
+	PROT_READ | PROT_WRITE | PROT_EXEC, base);
 }
 
 void emm_unmap_all()

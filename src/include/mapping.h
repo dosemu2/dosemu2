@@ -73,7 +73,6 @@ typedef int munmap_mapping_type(int cap, void *addr, int mapsize);
 int munmap_mapping (int cap, void *addr, int mapsize);
 
 int mprotect_mapping(int cap, void *addr, int mapsize, int protect);
-void *mapscratch_mapping(int cap, void *target, int mapsize, int protect);
 
 struct mappingdrivers {
   char *key;

@@ -87,11 +87,6 @@ void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source
   return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
 }        
 
-void *mapscratch_mapping(int cap, void *target, int mapsize, int protect)
-{
-  return mmap_mapping(cap|MAPPING_SCRATCH, target, mapsize, protect, 0);
-}
-
 void *mremap_mapping(int cap, void *source, int old_size, int new_size,
   unsigned long flags, void *target)
 {
