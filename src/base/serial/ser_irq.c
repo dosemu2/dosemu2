@@ -56,6 +56,10 @@ static int into_irq = 0;
  * In short, the serial timer ensures that the serial emulation runs
  * more smoothly, and does not put a heavy load on the system.
  */
+/* NOTE: with the async notifications we dont need that any more.
+ * Disabled  -- stsp
+ */
+#if 0
 void serial_timer_update(void)
 {
   static hitimer_t oldtp = 0;	/* Timer value from last call */
@@ -96,7 +100,7 @@ void serial_timer_update(void)
       com[i].rx_timer = 0;
   }
 }
-
+#endif
 
 /* This function does housekeeping for serial receive operations.  Duties 
  * of this function include keeping the UART FIFO/RBR register filled,
@@ -141,19 +145,11 @@ void transmit_engine(int num) /* Internal 16550 Transmission emulation */
 {
   int rtrn;
   int control;
-
-  #if 0
-    /* This is for transmit timer debugging in case it screws up
-     * com[].tx_timer is number of 115200ths of a second worth of chars
-     * that have been transmitted, and com[].tx_char_time is 115200ths
-     * of a second per character. 
-     */
-    s_printf("SER%d: tx_timer = %d, tx_char_time = %d\n",num,com[num].tx_timer,com[num].tx_char_time);
-  #endif
-
+#if 0
   /* Give system time to transmit */
+  /* Disabled timer stuff, not needed any more  -- stsp */
   if (com[num].tx_timer > TX_BUF_THRESHOLD) return;
-  
+#endif
   /* If Linux is handling flow control, then check the CTS state.
    * If the CTS state is low, then don't start new transmit interrupt!
    */
@@ -564,10 +560,10 @@ pic_serial_run(void)
    * before the code reaches here!?
    */
   if(s2_printf) s_printf("SER%d: ---END INTERRUPT---\n",num);
-
+#if 0
   /* Update the internal serial timers */
   serial_timer_update();
-
+#endif
   /* The following chains the next serial interrupt, if necessary.
    * Warning: Running the following code causes stack overflows sometimes 
    * but is necessary to chain the next serial interrupt because there can
@@ -605,10 +601,10 @@ void
 serial_run(void)	
 {
   int i;
-
+#if 0
   /* Update the internal serial timers */
   serial_timer_update();
-  
+#endif
   /* Do the necessary interrupt checksing in a logically efficient manner.  
    * All the engines have built-in code to prevent loading the
    * system if they are called 100x's per second.

@@ -517,11 +517,11 @@ static void do_ser_init(int num)
   s_printf("SER%d: COM%d, intlevel=%d, base=0x%x, device=%s\n", 
         num, com[num].real_comport, com[num].interrupt, 
         com[num].base_port, com[num].dev);
-
+#if 0
   /* first call to serial timer update func to initialize the timer */
   /* value, before the com[num] structure is initialized */
   serial_timer_update();
-
+#endif
   /* Set file descriptor as unused, then attempt to open serial port */
   com[num].fd = -1;  
 }

@@ -85,7 +85,9 @@ static inline void flow_control_update(int num)
   else {						/* Buffer has chars */
     control = TIOCM_RTS;
     ioctl(com[num].fd, TIOCMBIC, &control);		/* Lower RTS */
+#if 0
     com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
+#endif
   }
 }
 
@@ -134,8 +136,9 @@ void uart_fill(int num)
    * The receive buffer is a sliding buffer.
    */
   if (com[num].rx_buf_bytes < com[num].rx_fifo_size) {
+#if 0
     if (com[num].rx_timer == 0) {
-    
+#endif    
       /* Slide the buffer contents to the bottom */
       rx_buffer_slide(num);
     
@@ -145,15 +148,19 @@ void uart_fill(int num)
       size = RPT_SYSCALL(read(com[num].fd, 
                               &com[num].rx_buf[com[num].rx_buf_end],
                               RX_BUFFER_SIZE - com[num].rx_buf_end));
-    
+#if 0    
       if (size == 0) { 				/* No characters read? */
         com[num].rx_timer = RX_READ_FREQ;	/* Reset rcv read() timer */
       }
-      else if (size > 0) {		/* Note that size is -1 if error */
+      else
+#endif
+      if (size > 0) {		/* Note that size is -1 if error */
         com[num].rx_timeout = TIMEOUT_RX;	/* Reset timeout counter */
         com[num].rx_buf_bytes += size;		/* No. of chars in buffer */
       }
+#if 0
     }
+#endif
   }
   
   if (com[num].rx_buf_bytes) {		/* Is data waiting in the buffer? */
@@ -602,10 +609,10 @@ get_lsr(int num)
 static void put_tx(int num, int val)
 {
   int rtrn;
-  
+#if 0  
   /* Update the transmit timer */
   com[num].tx_timer += com[num].tx_char_time;
-
+#endif
   com[num].TX = val;			/* Mainly used in overflow cases */
   com[num].tx_trigger = 1;		/* Time to trigger next tx int */
   com[num].int_condition &= ~TX_INTR;	/* TX interrupt condition satisifed */
