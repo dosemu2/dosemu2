@@ -150,12 +150,12 @@ struct DPMIclient_struct {
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
-EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
-EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
-EXTERN int in_dpmi_dos_int INIT(0);
-EXTERN int dpmi_mhp_TF INIT(0);
+EXTERN volatile int in_dpmi INIT(0);/* Set to 1 when running under DPMI */
+EXTERN volatile int in_win31 INIT(0); /* Set to 1 when running Windows 3.1 */
+EXTERN volatile int in_dpmi_dos_int INIT(0);
+EXTERN volatile int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
-EXTERN int is_cli INIT(0);
+EXTERN volatile int is_cli INIT(0);
 
 extern unsigned short DPMI_private_data_segment;
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
