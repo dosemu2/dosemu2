@@ -95,6 +95,8 @@ char *decode_mapping_cap(int cap);
 extern struct mappingdrivers mappingdriver_file;
 extern struct mappingdrivers mappingdriver_shm;
 
+extern int have_mremap_fixed;
+
 void mapping_init(void);
 void mapping_close(void);
 

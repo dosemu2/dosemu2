@@ -51,7 +51,7 @@ static struct mem_map_struct kmem_map[MAX_KMEM_MAPPINGS];
 static int init_done = 0;
 static char *lowmem_base = NULL;
 #ifndef HAVE_MREMAP_FIXED
-static int have_mremap_fixed = 1;
+int have_mremap_fixed = 1;
 #endif
 
 static struct mappingdrivers *mappingdrv[] = {
