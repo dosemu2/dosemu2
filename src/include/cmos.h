@@ -1,10 +1,6 @@
 /* cmos.h, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/06/12 23:15:37 $
- * $Source: /usr/src/dosemu0.60/include/RCS/cmos.h,v $
- * $Revision: 2.1 $
- * $State: Exp $
  */
 
 #ifndef CMOS_H

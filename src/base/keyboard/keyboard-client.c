@@ -14,12 +14,6 @@
  * DANG_END_MODULE
  * 
  * 
- * DANG_BEGIN_CHANGELOG
- * 
- * $Date: 1995/04/08 22:34:30 $ $Source: /usr/src/dosemu0.60/keyboard/RCS/keyboard-client.c,v $ $Revision: 1.1 $ $State: Exp $ $Log: keyboard-client.c,v $
- *
- * Initial revision
- * DANG_END_CHANGELOG
  */
 
 #include <string.h>

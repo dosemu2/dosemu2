@@ -1,6 +1,3 @@
-/* 
- * $Id: init.c,v 1.4 1995/05/06 16:26:13 root Exp root $
- */
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
@@ -226,7 +223,7 @@ void hardware_setup(void)
   /* DMA Init */
   /* dma_init(); - Currently in dev_list */
 
-  g_printf("Hardware initialized\n");
+  g_printf("PIC,mouse,IPX,DMA initialized\n");
 }
 
 /*

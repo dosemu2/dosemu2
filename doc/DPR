@@ -44,13 +44,8 @@ by allowing DOSEMU to properly access the specified partitions and
 not allow concurrent access to file systems via partition access
 and Linux mounts.
 
-Emumodule support, SIG, bios tools: - Hans Lermen
+Kernel related stuff, bios tools: - Hans Lermen
 
-	Considered to be the team member with the most experience ;-),
-Hans has taken the concept of modules to places never thought of 
-before. DOSEMU can make use of Hans' loadable module to automagically
-change system calls at the kernel level, removing any need for
-kernel patches for DOSEMU activities.
 
 General fix up and updating of dos executables: - Kang-Jin Lee
 
@@ -86,11 +81,11 @@ helped to start removing the I86 dependancies that DOSEMU is
 peppered with. On top of that, John has ported DOSEMU to 
 the NetBSD OS. Two men with some very crazy dreams :-).
 
-Bug fix collection & distribution: - James B. MacLean
+Bug fix collection & distribution: - Hans Lermen
 
-        James assembles varios bug fixes & other patches into a
+        Hans assembles various bug fixes & other patches into a
 distribution for all to use.  If you have a bug fix or a patch, send
-it to james and it will probably get into the next version of DOSEMU
+it to Hans and it will probably get into the next version of DOSEMU
 (assuming it's a usefull patch :)
 
 Networking made powerfull :- Rob Jenneson, Vinod G Kulkarni
@@ -470,7 +465,6 @@ version out, as long as they claim responsibility for using it :-)
 
 List of dosemu contributors addresses(in no paticular order):
 
-Hans Lermen		- lermen@elserv.ffm.fgan.de
 Andrew.Tridgell		- tridge@arvidsjaur.anu.edu.au
 Jochen Hein		- Hein@Informatik.TU-Clausthal.de
 Jason E Gorden          - gorden@jegnixa.hsc.missouri.edu
@@ -482,6 +476,7 @@ Ronnie                  - ronnie@epact.se
 Mark Rejhon             - marky@magmacom.com
 Michael E. Deisher      - deisher@enws99.EAS.ASU.EDU
 James Maclean           - macleajb@ednet.ns.ca
+Hans Lermen		- lermen@elserv.ffm.fgan.de
 Larry Stephan           - jlarry@ssnet.com
 Lutz Molgedey           - lutz@summa.physik.hu-berlin.de
 Amit Margalt            - amit@tavis.enet.dec.com
@@ -499,6 +494,8 @@ Rod May			- stoke@melbourne.DIALix.oz.au
 WAYNE P MEISSNER	- n1046128@student.fit.qut.edu.au
 David Etherton		- etherton@megatek.com
 Vinod G Kulkarni
-
-Corey Sweeney
-corey@bbs.xnet.com
+Steffen Winterfeld	- wfeldt@itp.uni-leipzig.de
+Corey Sweeney		- corey@bbs.xnet.com
+Rainer Zimmermann	- zimmerm@Informatik.Uni-Marburg.de
+Alberto Vignani		- alberto.vignani@torino.alpcom.it
+Erik Mouw		- (currently no net connection)

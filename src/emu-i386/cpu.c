@@ -5,20 +5,9 @@
  *
  * DANG_END_MODULE
  *
- * DANG_BEGIN_CHANGELOG
- *
  * much of this code originally written by Matthias Lautner
  * taken over by:
  *          Robert Sanders, gt8134b@prism.gatech.edu
- *
- * $Date: 1995/04/08 22:30:40 $
- * $Source: /usr/src/dosemu0.60/dosemu/RCS/cpu.c,v $
- * $Revision: 2.14 $
- * $State: Exp $
- *
- * $Log: cpu.c,v $
- *
- * DANG_END_CHANGELOG
  *
  */
 

@@ -1,12 +1,3 @@
-/*
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
- *
- * $Log: $
- */
-
 #ifndef _EMU_HLT_H
 #define _EMU_HLT_H
 

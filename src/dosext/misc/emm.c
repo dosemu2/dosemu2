@@ -45,10 +45,6 @@
  * Purpose:
  *	Mach EMM Memory Manager
  *
- * HISTORY: (DANG_BEGIN_CHANGELOG
- * $Log: emm.c,v $
- *
- * DANG_END_CHANGELOG)
  */
 
 #if defined(__linux__) || defined(__NetBSD__)

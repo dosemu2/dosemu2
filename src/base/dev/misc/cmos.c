@@ -1,10 +1,6 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/05/06 16:25:30 $
- * $Source: /usr/src/dosemu0.60/dosemu/RCS/cmos.c,v $
- * $Revision: 2.7 $
- * $State: Exp $
  */
 
 #include <time.h>

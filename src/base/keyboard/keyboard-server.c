@@ -13,20 +13,6 @@
  * DANG_END_MODULE
  *
  *
- * DANG_BEGIN_CHANGELOG
- *
- * $$
- * $Source: /usr/src/dosemu0.60/keyboard/RCS/keyboard-server.c,v $
- * $Revision: 1.2 $
- * $State: Exp $
- * $Log: keyboard-server.c,v $
- * Revision 1.2  1995/05/06  16:27:36  root
- * Prep for 0.60.2.
- *
- * Revision 1.1  1995/04/08  22:34:30  root
- * Initial revision
- *
- * DANG_END_CHANGELOG
  */
 
 #include <unistd.h>
@@ -1043,7 +1029,7 @@ set_keyboard_bios (void)
   else
     next_scancode = convscanKey(next_scancode);
   keys_ready = 0;		/* flag character as read	*/
-  k_printf ("set keybaord bios next_scancode = 0x%04x\n", next_scancode);
+  k_printf ("set keyboard bios next_scancode = 0x%04x\n", next_scancode);
 }
 
 void

@@ -1,7 +1,3 @@
-/*
- * $Id: netbsd_vm86.h,v 1.6 1995/03/15 06:19:13 jtk Exp $
- */
-
 #ifndef _NETBSD_VM86_H_
 #define  _NETBSD_VM86_H_
 

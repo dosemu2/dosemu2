@@ -1,12 +1,3 @@
-/*
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
- *
- * $Log: $
- */
-
 #ifndef _EMU_IODEV_H
 #define _EMU_IODEV_H
 

@@ -19,12 +19,6 @@
  * 
  * DANG_END_MODULE
  * 
- * DANG_BEGIN_CHANGELOG 
- * $Date: 1995/05/06 16:25:14 $ $Source: /home/src/dosemu0.60/RCS/emu.c,v $ $Revision: 2.38 $ $State: Exp $
- * 
- * $Log: emu.c,v $
- * 
- * DANG_END_CHANGELOG
  */
 
 

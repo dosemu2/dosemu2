@@ -13,12 +13,6 @@
  * 
  * DANG_END_MODULE
  *
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
- *
- * $Log: $
  */
 
 #include "config.h"

@@ -206,9 +206,11 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    }
 		| DOSEMUMAP STRING
 		    {
+#ifdef USE_MHPDBG
 		    extern char dosemu_map_file_name[];
 		    strcpy(dosemu_map_file_name, $2);
 		    c_printf("CONF: dosemu.map path = '%s'\n", $2);
+#endif
 		    free($2);
 		    }
  		| EMUBAT STRING
@@ -1645,7 +1647,7 @@ static void mail_to_root(char *subject, char *message)
  * - worked on the privs more.  Since priv_on are intialized already I
  *   just call priv_off and then the euid is definentially the
  *   privelige to check.  I'm trying to make everytime we need
- *   root/user privelege specifically to use 
+ *   root/user privilege specifically to use 
  *   priv_on / priv_off / priv_default so we don't get strange bugs
  *   along one line of code path if someone somewhere messes up.
  */

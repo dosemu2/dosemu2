@@ -17,14 +17,6 @@
  * vc.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * DANG_BEGIN_CHANGELOG
- *
- * $Date: 1995/04/08 22:30:27 $
- * $Source: /usr/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.14 $
- * $State: Exp $
- *
- * DANG_END_CHANGELOG
  */
 
 

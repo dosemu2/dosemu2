@@ -1,13 +1,6 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/05/06 16:27:42 $
- * $Source: /usr/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.20 $
- * $State: Exp $
- *
- * $Log: mouse.c,v $
- *
  */
 
 #include <stdio.h>

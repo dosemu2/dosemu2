@@ -107,7 +107,7 @@ heads			return(HEADS);
 offset			return(OFFSET);
 floppy			return(L_FLOPPY);
 
-	/* keyboard */
+	/* keyboard - !!conflict between 'no' and boolean 'no' */
 
 layout			return(LAYOUT);
 keybint			return(KEYBINT);

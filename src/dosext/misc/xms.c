@@ -11,16 +11,6 @@
  * "/etc/dosemu.conf" via the XMS paramter.
  *
  * DANG_END_MODULE
- * DANG_BEGIN_CHANGELOG
- *
- * $Date: 1995/05/06 16:25:30 $
- * $Source: /usr/src/dosemu0.60/dosemu/RCS/xms.c,v $
- * $Revision: 2.11 $
- * $State: Exp $
- *
- * $Log: xms.c,v $
- *
- * DANG_END_CHANGELOG
  *
  * NOTE: I keep the BYTE size of EMB's in a field called "size" in the EMB
  *    structure.  Most XMS calls specify/expect size in KILOBYTES.

@@ -9,13 +9,6 @@
  *
  * First Attempted by Dong Liu,  dliu@rice.njit.edu
  *
- * $Log: msdos.h,v $
- * Revision 1.2  1995/05/06  16:25:48  root
- * Prep for 0.60.2.
- *
- * Revision 1.1  1995/04/08  22:31:40  root
- * Initial revision
- *
  */
 
 #ifndef lint
@@ -810,8 +803,8 @@ msdos_post_exec()
 /*
  * DANG_BEGIN_FUNCTION msdos_post_extender
  *
- * This function is called after retrun from real mode DOS service
- * All real mode segment register is changed to protected mode selector
+ * This function is called after return from real mode DOS service
+ * All real mode segment registers are changed to protected mode selectors
  * And if client\'s data buffer is above 1MB, necessary buffer copying
  * is performed.
  *
@@ -1178,8 +1171,8 @@ check_prefix (struct sigcontext_struct *scp)
     return prefix;
 }
 /*
- * this function try to decode opcode 0x8e (mov Sreg,m/r16), return
- * the length of the instructon.
+ * this function tries to decode opcode 0x8e (mov Sreg,m/r16), returns
+ * the length of the instruction.
  */
 
 static int
@@ -1190,7 +1183,7 @@ decode_8e(struct sigcontext_struct *scp, unsigned short *src,
     unsigned char mod, rm, reg;
     int len = 0;
 
-    if (!decode_use_16bit)	/*  32bit decode not implmented yet*/
+    if (!decode_use_16bit)	/*  32bit decode not implemented yet */
 	return 0;
     csp = (unsigned char *) SEL_ADR(_cs, _eip);
 
@@ -1363,7 +1356,7 @@ decode_load_descriptor(struct sigcontext_struct *scp, unsigned short
 
 /*
  * decode_modify_segreg_insn tries to decode instructions which would modify a
- * segment register, return the length of the insn.
+ * segment register, returns the length of the insn.
  */
 static  int
 decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
@@ -1627,7 +1620,7 @@ static int msdos_fault(struct sigcontext_struct *scp)
     D_printf("DPMI: try mov to a invalid selector 0x%04x\n", segment);
 
 #if 1
-    /* olny allow using some special GTD\'s */
+    /* only allow using some special GTD\'s */
     if ((segment != 0x0040) && (segment != 0xa000) &&
 	(segment != 0xb000) && (segment != 0xb800) &&
 	(segment != 0xc000) && (segment != 0xe000) && (segment != 0xf000))

@@ -202,11 +202,13 @@ static unsigned char pic1_cmd;
 #ifdef NO_DEBUGPRINT_AT_ALL
 #define pic_print(code,s1,v1,s2)
 #else
-void pic_print( char code, char* s1, int v1, char* s2)
+#define pic_print(code,s1,v1,s2)	if (d.request>code){p_pic_print(s1,v1,s2);}
+
+static void p_pic_print(char *s1, int v1, char *s2)
 {
 static int oldi=0, oldc=0, header_count=0;
 char ci,cc;
-if(d.request&code){
+
   if (pic_icount > oldc) cc='+';
   else if(pic_icount < oldc) cc='-';
   else cc=' ';
@@ -217,16 +219,16 @@ if(d.request&code){
   else ci=' ';
   oldi = pic_ilevel;
   if (!header_count++)
-    ifprintf(d.request,"PIC: cnt lvl pic_isr  pic_imr  pic_irr (column headers)\n");
+    log_printf(1, "PIC: cnt lvl pic_isr  pic_imr  pic_irr (column headers)\n");
   if(header_count>15) header_count=0;
   
   if(s2)
-  ifprintf(d.request,"PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s%02d%s\n",
+  log_printf(1, "PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s%02d%s\n",
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1, v1, s2);
   else
-  ifprintf(d.request,"PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s\n",
+  log_printf(1, "PIC: %c%2ld %c%2ld %08lx %08lx %08lx %s\n",
      cc, pic_icount, ci, pic_ilevel, pic_isr, pic_imr, pic_irr, s1);
-  }
+
 }
 #endif
 
@@ -607,7 +609,7 @@ if ((!(REG(eflags) & VIF)) && (!in_dpmi) ) {
 #else
 if (!(REG(eflags) & VIF)) return;
 #endif
-#warning using assembly run_irqs
+#warning using assembly run_irqs,expect pic1_mask not used
   __asm__ __volatile__
   ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t" /* get old ilevel              */
    "pushl %%ecx\n\t"                          /* save old ilevel             */
@@ -706,15 +708,16 @@ g_printf("+%d",(int)pic_ilevel);
      }
       pic_icount++;
       pic_wcount++;
-     pic_print(2,"Initiating irq lvl ",pic_ilevel, " in do_irq");
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
 	if (in_dpmi ) {
           ++pic_dpmi_count;
+	  pic_print(2, "Initiating DPMI irq lvl ", pic_ilevel, " in do_irq");
 	  run_dpmi();
 	  }
 	else {
 	  ++pic_vm86_count;
+	  pic_print(2, "Initiating VM86 irq lvl ", pic_ilevel, " in do_irq");
           run_vm86();
           }
         pic_isr &= PIC_IRQALL;    /*  levels 0 and 16-31 are Auto-EOI  */
@@ -763,7 +766,7 @@ static char buf[81];
 
 #if 1		/* use this result mouse slowdown in winos2 */
   if (((pic_irr|pic_isr)&(1<<inum)) || (pic_icount>pic_icount_od))
-#else          /* this make mouse work under winos2, but sometime */
+#else          /* this makes mouse work under winos2, but sometimes */
 	       /* results in internal stack overflow  */
   if(pic_isr&(1<<inum) || pic_irr&(1<<inum))
 #endif
@@ -989,7 +992,7 @@ int earliest, timer, count;
 /* DANG_BEGIN_FUNCTION pic_sched
  * pic_sched schedules an interrupt for activation after a designated
  * time interval.  The time measurement is in unis of 1193047/second,
- * ( or if using MONOTON_MICRO_TIMING in unis of PIT_TICK_RATE/second )
+ * ( or if using MONOTON_MICRO_TIMING in units of PIT_TICK_RATE/second )
  * the same rate as the pit counters.  This is convenient for timer
  * emulation, but can also be used for pacing other functions, such as
  * serial emulation, incoming keystrokes, or video updates.  Some sample 
@@ -1011,9 +1014,7 @@ int earliest, timer, count;
  * DANG_END_FUNCTION
  */
  
-void pic_sched(ilevel,interval)
-int ilevel;
-int interval;
+void pic_sched(int ilevel, int interval)
 {
   char mesg[35];
   if(interval > 0 && interval < 0x3fffffff) {
@@ -1023,7 +1024,7 @@ int interval;
 	pic_itime[ilevel] = pic_itime[ilevel] + interval;
      }
   }
-  if (d.request&2) {
+  if (d.request > 2) {
     /* avoid going through sprintf for non-debugging */
     sprintf(mesg,", delay= %d.",interval);
     pic_print(2,"Scheduling lvl= ",ilevel,mesg);

@@ -12,12 +12,6 @@
  *
  * DANG_END_MODULE
  *
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
- *
- * $Log: $
  */
 
 #include "emu.h"

@@ -179,7 +179,7 @@ void vm86_GP_fault(void)
 
   do {
     switch (*(csp++)) {
-       case 0x66:      /* operant prefix */  is_32bit=1; break;
+       case 0x66:      /* operand prefix */  is_32bit=1; break;
        case 0x2e:      /* CS */              pref_seg=REG(cs); break;
        case 0x3e:      /* DS */              pref_seg=REG(ds); break;
        case 0x26:      /* ES */              pref_seg=REG(es); break;

@@ -2,13 +2,6 @@
  *
  * cheesy program to create an hdimage header
  *
- * $Date: 1995/02/25 22:38:27 $
- * $Source: /home/src/dosemu0.60/periph/RCS/mkhdimage.c,v $
- * $Revision: 2.3 $
- * $State: Exp $
- *
- * $Log: mkhdimage.c,v $
- *
  */
 
 #include <unistd.h>

@@ -104,7 +104,7 @@
 /* Define this if you want to use MITSHM */
 #undef HAVE_MITSHM
 
-/* Define this if you want to use a monoton micro timeing (Bernd Paysan) */
+/* Define this if you want to use a monoton micro timing (Bernd Paysan) */
 #undef MONOTON_MICRO_TIMING
 
 @BOTTOM@

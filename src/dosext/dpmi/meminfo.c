@@ -23,7 +23,6 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <errno.h>
-#define boolean_t xxx_t
 #endif
 #include "meminfo.h"
 #include "emu.h"

@@ -71,9 +71,9 @@ void set_speed(int num, int speed)
 /**************************************************************************/
 
 /* DANG_BEGIN_FUNCTION int14
- * The following function exeuctes a BIOS interrupt 0x14 function.
+ * The following function executes a BIOS interrupt 0x14 function.
  * This code by Mark Rejhon replaced some very buggy, old int14 interface
- * a while back.  Tese routines are not flawless since it does not wait
+ * a while back.  These routines are not flawless since it does not wait
  * for a character during receive, and this may confuse some programs.
  * DANG_END_FUNCTION
  */

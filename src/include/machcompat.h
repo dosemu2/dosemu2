@@ -23,120 +23,6 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  */
-/*
- * File: $Source: /usr/src/dosemu0.60/include/RCS/machcompat.h,v $
- *
- * Purpose:
- *
- * HISTORY:
- * $Log: machcompat.h,v $
- * Revision 2.4  1995/04/08  22:35:19  root
- * Release dosemu0.60.0
- *
- * Revision 2.4  1995/04/08  22:35:19  root
- * Release dosemu0.60.0
- *
- * Revision 2.3  1995/02/25  22:38:43  root
- * *** empty log message ***
- *
- * Revision 2.2  1995/02/05  16:54:16  root
- * Prep for Scotts patches.
- *
- * Revision 2.2  1995/02/05  16:54:16  root
- * Prep for Scotts patches.
- *
- * Revision 2.1  1994/06/12  23:15:37  root
- * Wrapping up prior to release of DOSEMU0.52.
- *
- * Revision 1.7  1994/04/27  21:34:15  root
- * Jochen's Latest.
- *
- * Revision 1.6  1994/04/16  01:28:47  root
- * Prep for pre51_6.
- *
- * Revision 1.5  1994/03/23  23:24:51  root
- * Prepare to split out do_int.
- *
- * Revision 1.4  1994/03/04  15:23:54  root
- * Run through indent.
- *
- * Revision 1.3  1994/01/25  20:02:44  root
- * Exchange stderr <-> stdout.
- *
- * Revision 1.2  1994/01/20  21:14:24  root
- * Indent.
- *
- * Revision 1.1  1993/11/12  12:32:17  root
- * Initial revision
- *
- * Revision 1.1  1993/07/07  00:49:06  root
- * Initial revision
- *
- * Revision 1.2  1993/05/04  05:29:22  root
- * added console switching, new parse commands, and serial emulation
- *
- * Revision 1.1  1993/04/07  21:04:26  root
- * Initial revision
- *
- * Revision 1.1  1993/04/05  17:25:13  root
- * Initial revision
- *
- * Revision 2.5  92/02/14  17:44:27  grm
- * 	Changed the exit(1) in MACH_CALL to exit_dos().
- * 	[92/02/11            grm]
- *
- * Revision 2.4  92/02/03  14:24:29  rvb
- * 	Clean Up
- *
- * Revision 2.3  91/12/05  16:39:31  grm
- * 	New copyright notice.
- * 	[91/05/28  08:26:05  grm]
- *
- * 	Changes <mach_3.h> to "mach_3.h".  Nitpick.
- * 	[91/05/02  13:28:50  grm]
- *
- * 	Redirect constant added
- * 	[91/03/26  19:28:46  grm]
- *
- * 	Added separate debugging macros.
- * 	[90/11/09  21:02:16  grm]
- *
- * 	added UNCHANGED
- * 	[90/10/04  20:56:47  grm]
- *
- * 	Fixed up the SETxxx's.
- * 	[90/04/30  15:41:56  grm]
- *
- * 	Added onoff_t, MASK16 and WORD.
- * 	[90/04/05  21:25:12  grm]
- *
- * 	Started using as grm.  Moved into v86 branch.
- * 	[90/03/28  18:33:32  grm]
- *
- * Revision 2.1.1.6  90/03/22  21:40:57  dorr
- * 	no changes.
- *
- * Revision 2.1.1.5  90/03/19  17:33:06  orr
- * 	Removed device structure and the devices array, put it
- *	in bios.h.
- *
- * Revision 2.1.1.4  90/03/14  16:58:58  orr
- * 	add device stuff.
- *
- * Revision 2.1.1.3  90/03/13  15:34:50  orr
- * 	Version that gives an A:> prompt and does a DIR.
- * 	Removed DEBUG.  Added the support for the DebugX's
- * 	run time debugging.
- *
- * Revision 2.1.1.2  90/03/12  02:16:29  orr
- * 	try it without debug output.
- *
- * Revision 2.1.1.1  90/03/12  01:17:39  orr
- *
- * Revision 1.1  90/03/09  11:57:04  orr
- * Initial revision
- *
- */
 
 #ifndef	_BASE_H
 #define	_BASE_H
@@ -391,7 +277,7 @@ typedef int onoff_t;
  * 	Fixed port_ok.  Added dd_fd and dd_stream, removed dosdevice.
  * 	[90/04/30  15:42:41  grm]
  *
- * 	Added PORT_foo marcos and dbg_fd.
+ * 	Added PORT_foo macros and dbg_fd.
  * 	[90/04/17  22:44:08  grm]
  *
  * 	Added trace and vga consts.  Put extern iopl_fd.

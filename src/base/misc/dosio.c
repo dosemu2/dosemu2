@@ -4,12 +4,6 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1995/05/06 16:25:30 $
- * $Source: /usr/src/dosemu0.60/dosemu/RCS/dosio.c,v $
- * $Revision: 2.17 $
- * $State: Exp $
- *
- * $Log: dosio.c,v $
  *
  */
 #define DBGTIME(x) {\

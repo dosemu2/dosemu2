@@ -16,7 +16,6 @@
 /**                                                                     **/
 /** NOTE: be careful with overlapping ".org",                           **/
 /**       or ld86 will then reach your disk quotas !                    **/
-/* $Id: bios.S,v 1.2 1995/03/10 12:59:53 jtk Exp $
 /*************************************************************************/
 
 #define __ASM__
@@ -266,7 +265,7 @@ PKTDRV_buf:
 	.org	((DBGload_SEG - BIOSSEG) << 4) + DBGload_OFF
 /* we come here after we have intercepted INT21 AX=4B00
  * in order to get a breakpoint for the debugger
- * (wanting to debugg a program from it's very beginning
+ * (wanting to debug a program from it's very beginning)
  */
 	.globl	CISH(DBGload)
 	.globl	CISH(DBGload_CSIP)

@@ -2226,7 +2226,7 @@ static void extend_selection(int x, int y)
 /* Start extending the selection (mouse button 3 pressed). */
 static void start_extend_selection(int x, int y)
 {
-  /* Try to extend selection, visiblity is handled by extend_selection*/
+  /* Try to extend selection, visibility is handled by extend_selection*/
     doing_selection =  visible_selection = TRUE;  
     extend_selection(x, y);
   

@@ -16,11 +16,6 @@
  *   is said to start 1 sector earlier than it actually does (and therefore
  *   512 bytes earlier).
  *
- * $Date: 1995/02/25 22:38:25 $
- * $Source: /home/src/dosemu0.60/periph/RCS/hdinfo.c,v $
- * $Revision: 2.3 $
- * $State: Exp $
- *
  */
 
 #include <string.h>

@@ -1,7 +1,3 @@
-/*
- * $Id: netbsd_cdio.h,v 1.2 1995/07/13 02:09:59 jtk Exp $
- */
-
 #ifndef _NETBSD_CDIO_H_
 #define  _NETBSD_CDIO_H_
 

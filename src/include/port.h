@@ -1,12 +1,6 @@
 /*
  * include/port.h - contains INLINE-Functions for port access
  * 
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
- *
- * $Log: $
  */
 
 #ifndef _PORT_H

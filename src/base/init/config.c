@@ -1,6 +1,3 @@
-/*
- * $Id: config.c,v 1.6 1995/05/06 16:26:13 root Exp root $
- */
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>

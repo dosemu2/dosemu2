@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOS 1 "Feb 7, 1997" "Version ALPHA 0.64.4" "MS-DOS Emulation"
+.TH DOS 1 "Mars 15, 1997" "Version ALPHA 0.66.0" "MS-DOS Emulation"
 .SH NAME
 dos, dosdebug, xdos \- run MS-DOS and MS-DOS programs under Linux and NetBSD
 .SH SYNOPSIS
@@ -169,7 +169,7 @@ DR-DOS 6.0 has also been reported to work.)
 See the files 
 .I QuickStart,
 .I ChangeLog, 
-.I doc/announce-0.64, 
+.I doc/announce, 
 and the
 .B Makefile
 contained in the source distribution
@@ -479,7 +479,7 @@ should
 have saner UMB support.
 .PP
 .B DOSEMU
-0.64 also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).
+0.66 also supports EMS 4.0 and implements DPMI 0.9 (1.0 partially).
 
 .SH LOGGING 
 .B DOSEMU
@@ -504,8 +504,12 @@ and
 Robert Sanders <gt8134b@prism.gatech.edu> was maintaining and enhancing 
 the incarnation of 
 .B DOSEMU 
-with which this man page was originally distributed. Now
-James B. MacLean <macleajb@ednet.ns.ca> is maintaining this funny software.
+with which this man page was originally distributed. During about 4 years
+James B. MacLean <macleajb@ednet.ns.ca> was the restless leader of the
+dosemu team, implementation of DPMI (which made Windows-3.1, dos4gw, djgpp,
+e.t.c running) happened during his 'governement' and brought the project
+near to Beta-state.
+Now Hans Lermen <lermen@fgan.de> is maintaining this funny software.
 
 .SH BUGS
 There are too many to count, much less list.  

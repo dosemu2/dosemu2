@@ -154,51 +154,7 @@ If you already have a HDIMAGE file:
 	Specials of vm86plus (kernel patches and emumodule)
 
 --------------------------------------------------------------------------
-8.  Changes from previous versions of DOSEMU
---------------------------------------------------------------------------
-
->>>> Ignore this section if you have never used DOSEMU before.
-
-Changes from 0.52:
-
-- Debug information is redirected to the file specified by the -o <file>
-  option when DOSEMU is started.
-
-- You should replace all the *.sys, *.com, and *.exe files that came with
-  DOSEMU (i.e.  emufs.sys, lredir.exe, exitemu.com, etc.)  Some of these
-  files have changed.
-
-- There is a list of privileged users now located in /etc/dosemu.users
-  Any user not listed will not be able to run dosemu.
-
-- You may now have simultaneous /etc/dosemu.conf and ~/.dosrc files.  Note
-  that some of the options are limited in the ~/.dosrc file (in an effort
-  to ensure security.)
-
-- You may now specify a file to boot from instead of a raw boot sector.
-  This is required if you have NT on the same parition as your DOS
-  partition and you want to boot from the raw HD. Copy NT's bootsect.dos
-  to a suitable file and make the required changes in dosemu.conf.
-  See the config.dist file for details on the bootfile option.
-
-Changes from 0.40 through 0.52:
-
-- The directory /etc/dosemu becomes /var/lib/dosemu
-
-- The file /etc/dosemu/config now becomes /etc/dosemu.conf
-  Its format has changed so you will need to reconfigure DOSEMU.
-
-- The DOSEMU run time library is now /usr/lib/libdosemu
-
-- The DOSEMU maintainence files are now in directory /usr/lib/dosemu
-  (mkpartition, putrom, etc)
-
-- The format of the mkpartition datafiles have changed, and are in
-  /var/lib/dosemu/partition.*  (These are needed if you run
-  STACKER or DOUBLESPACE using 'partition' access)
-
---------------------------------------------------------------------------
-9.  DOSEMU code browsers
+8.  DOSEMU code browsers
 --------------------------------------------------------------------------
 
 >>>> Skip this section if you don't know how to program.
@@ -272,12 +228,12 @@ on the  redirected drive and the physical drive (diskimage) be the same.
 Many thanks to all involved, including all those who submitted debug
 output for our viewing pleasure, keep it coming.
 
-James B. MacLean
 
-Department of Education
-Student Assistance Division
-2021 Brunswick Street
-Halifax, N.S., Canada
-B3M 4B2
+       Hans Lermen
 
-Email: macleajb@ednet.ns.ca
+SnailMail:
+       Am Muehlenweg 38
+       D53424 REMAGEN-Unkelbach
+       Germany
+
+Email: lermen@fgan.de

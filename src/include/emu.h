@@ -1,46 +1,6 @@
 /* dos emulator, Matthias Lautner 
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/05/06 16:28:14 $
- * $Source: /usr/src/dosemu0.60/include/RCS/emu.h,v $
- * $Revision: 2.27 $
- * $State: Exp $
- *
- * $Log: emu.h,v $
- * Revision 2.27  1995/05/06  16:28:14  root
- * Prep for 0.60.2.
- *
- * Revision 2.26  1995/04/08  22:35:19  root
- * Release dosemu0.60.0
- *
- * Revision 2.25  1995/02/25  22:38:41  root
- * *** empty log message ***
- *
- * Revision 2.24  1995/02/25  21:54:46  root
- * *** empty log message ***
- *
- * Revision 2.23  1995/02/05  16:54:16  root
- * Prep for Scotts patches.
- *
- * Revision 2.22  1995/01/14  15:31:55  root
- * New Year checkin.
- *
- * Revision 2.21  1994/11/13  00:40:45  root
- * Prep for Hans's latest.
- *
- * Revision 2.20  1994/11/03  11:43:26  root
- * Checkin Prior to Jochen's Latest.
- *
- * Revision 2.19  1994/10/14  17:58:38  root
- * Prep for pre53_27.tgz
- *
- * Revision 2.18  1994/10/03  00:24:25  root
- * Checkin prior to pre53_25.tgz
- *
- * Revision 2.17  1994/09/26  23:10:13  root
- * Prep for pre53_22.
- *
- *
  */
 
 #ifndef EMU_H

@@ -23,13 +23,6 @@
  *
  * DANG_END_MODULE
  *
- * $Date: 1995/05/06 16:25:30 $
- * $Source: /usr/src/dosemu0.60/dosemu/RCS/timers.c,v $
- * $Revision: 2.6 $
- * $State: Exp $
- *
- * $Log: timers.c,v $
- *
  */
 
 #include <sys/time.h>

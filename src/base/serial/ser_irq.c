@@ -264,7 +264,7 @@ static inline void flag_IIR_linestat(int num)
 }
 
 
-/* This function updates the IIR for Recieve.  [num = port] */
+/* This function updates the IIR for Receive.  [num = port] */
 static inline void flag_IIR_receive(int num)
 {
   /* Update the IIR for RDI status */
@@ -312,8 +312,8 @@ static inline int check_and_update_uart_status(int num)
     com[num].int_condition &= ~LS_INTR;
   }  
 
-  /* Check and updated queued Recieve condition. */
-  /* Safety check, avoid recieve interrupt while DLAB is set high */
+  /* Check and updated queued Receive condition. */
+  /* Safety check, avoid receive interrupt while DLAB is set high */
   if ((com[num].LSRqueued & UART_LSR_DR) && !com[num].DLAB) {
     com[num].rx_timeout = 0;
     com[num].LSR |= UART_LSR_DR;
@@ -369,7 +369,7 @@ void serial_int_engine(int num, int int_requested)
 {
   static u_char tmp;
   
-  /* Safety code to avoid recieve and transmit while DLAB is set high */
+  /* Safety code to avoid receive and transmit while DLAB is set high */
   if (com[num].DLAB) int_requested &= ~(RX_INTR | TX_INTR);
 
   /* At this point, we don't much care which function is requested; that  

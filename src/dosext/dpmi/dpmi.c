@@ -9,13 +9,6 @@
  *
  * First Attempted by James B. MacLean macleajb@ednet.ns.ca
  *
- * $Date: 1995/05/06 16:25:48 $
- * $Source: /usr/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 1.2 $
- * $State: Exp $
- *
- * $Log: dpmi.c,v $
- *
  */
 
 #define DPMI_C
@@ -1049,7 +1042,7 @@ void fake_pm_int(void)
 }
 
 /* DANG_BEGIN_REMARK
- * Handling of the virtuell interruptflag is still not correct and there
+ * Handling of the virtual interrupt flag is still not correct and there
  * are many open questions since DPMI specifications are unclear in this
  * point.
  * An example: If IF=1 in protected mode and real mode code is called
@@ -1498,7 +1491,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	  }
 	  _ebx = (unsigned long)block -> base;
 	  _esi = block -> handle;
-	  D_printf("DPMI: allocate linear mem attemp for siz 0x%08lx at 0x%08lx\n",
+	  D_printf("DPMI: allocate linear mem attempt for siz 0x%08lx at 0x%08lx\n",
 		   _ecx, base_address);
 	  D_printf("      malloc returns address 0x%p\n", block->base);
 	  D_printf("                using handle 0x%08lx\n",block->handle);
@@ -2030,7 +2023,7 @@ void dpmi_init()
     struct meminfo *mi;
 
  /* DANG_FIXTHIS Should we really care for the Memory info? 
-    After the next task switch evrything may have changed substantial
+    After the next task switch everything may have changed substantially
     bon@elektron.ikp.physik.th-darmstadt.de 2/16/97 */
     mi = readMeminfo();
     if (mi)
@@ -2390,7 +2383,7 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
  * This is the brain of DPMI. All CPU exceptions are first
  * reflected (from the signal handlers) to this code.
  *
- * Exception from nonpriveleged instructions INT XX, STI, CLI, HLT
+ * Exception from nonprivileged instructions INT XX, STI, CLI, HLT
  * and from WINDOWS 3.1 are handled here.
  *
  * All here unhandled exceptions are reflected to do_cpu_exception()
@@ -2708,7 +2701,7 @@ if ((_ss & 7) == 7) {
 	  PMSTACK_ESP = client_esp(scp);
 
 	  /* dpmi_stack_frame[current_client], will be saved in */
-	  /* Returo_To_Dosemu */
+	  /* Return_To_Dosemu */
 	  restore_pm_regs();
 	  *scp = dpmi_stack_frame[current_client];
 
@@ -2757,7 +2750,7 @@ if ((_ss & 7) == 7) {
 	     }
 	     PMSTACK_ESP = client_esp(scp);
 	     /* dpmi_stack_frame[current_client], will be saved in */
-	     /* Returo_To_Dosemu                                   */
+	     /* Return_To_Dosemu                                   */
 	     restore_pm_regs();
 	     *scp = dpmi_stack_frame[current_client];
 	     /*in_dpmi_dos_int = 1;*/
@@ -3030,7 +3023,7 @@ void run_pm_mouse()
      * It seems that both serial and internal mouse driver are not
      * reliable to deliver mouse event. Missing events are inserted
      * here. These code should be deleted when mouse driver becomes
-     * reliabe.
+     * reliable.
      */
     press = release = 0;
     insert = (LastMouse.bx & 0x7) ^ (LO(bx) & 0x7);
@@ -3047,7 +3040,7 @@ void run_pm_mouse()
     if ((LastMouse.bx & 4) && LO(ax) & 0x20)
 	release |= 0x40;
     if (insert && LO(ax) == 1)	{ /* buttons changes but only a motion */
-				  /* event, some envent is missed      */
+				  /* event, some event is missed       */
 	if (insert & 1) {
 	    if (LastMouse.bx & 1)
 		release |= 0x4;

@@ -22,7 +22,6 @@
    is simulated in the PIC code if IRQ9 points to the bios segment.)  For
    this reason there is no PIC_IRQ2.
   
-   $Id: pic.h,v 1.3 1995/05/06 16:28:14 root Exp root $
 */
    
 /* Valuse from 16 - 31 are available for assignment if not already 
@@ -119,7 +118,7 @@ int do_irq();                                /* run dos portion of irq code */
 int pic_request(int inum);                            /* interrupt trigger */
 void pic_creq(int inum);                   /* conditional interrupt trigger */
 void pic_iret();                             /* interrupt completion notify */
-void pic_watch();		       /* interrupt pendiong watchdog timer */
+void pic_watch();		       /* interrupt pending watchdog timer */
 void do_irq0();						 /* timer interrupt */
 int  pic_pending();		   /* inform caller if interrupt is pending */
 void pic_sched(int ilevel, int interval);          /* schedule an interrupt */

@@ -1,10 +1,6 @@
 ! exitemu.S, to generate exitemu.com, for dosemu 0.49, 4/9/93
 ! Robert Sanders, gt8134b@prism.gatech.edu
 !
-! $Date: 1994/06/12 23:16:59 $
-! $Source: /home/src/dosemu0.60/commands/RCS/exitemu.S,v $
-! $Revision: 2.1 $
-! $State: Exp $
 
 .text
 .data

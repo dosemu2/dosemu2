@@ -44,11 +44,6 @@
 !
 ! copied from emufs.S to make ems.S  -  7/19/93
 !
-! $Date: 1995/01/14 15:32:57 $
-! $Source: /home/src/dosemu0.60/commands/RCS/ems.S,v $
-! $Revision: 1.1 $
-! $State: Exp $
-!
 
 use16
 

@@ -33,7 +33,7 @@ int internal_priv_on(void)
     {
       if (setreuid(uid,euid) || setregid(gid,egid))
 	{
-	  error("Cannont turn privs on!\n");
+	  error("Cannot turn privs on!\n");
 	  return 0;
 	}
     }
@@ -46,7 +46,7 @@ int internal_priv_off(void)
     {
       if (setreuid(euid,uid) || setregid(egid,gid))
 	{
-	  error("Cannont turn privs off!\n");
+	  error("Cannot turn privs off!\n");
 	  return 0;
 	}
     }

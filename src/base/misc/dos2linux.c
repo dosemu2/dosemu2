@@ -23,7 +23,6 @@
  *
  * DANG_END_CHANGELOG
  *
- * $Id: dos2linux.c,v 1.1 1995/04/08 22:30:40 root Exp $
  */
 
 

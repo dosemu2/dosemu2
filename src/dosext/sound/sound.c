@@ -11,14 +11,6 @@
  *
  * DANG_END_MODULE
  *
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
- *
- * $Log: $
- *
- *
  * History:
  * ========
  * The original code was written by Joel N. Weber II. See README.sound
@@ -221,7 +213,7 @@ Bit8u sb_io_read(Bit32u port)
 
    case 0x06: /* Reset ? */
      S_printf("SB: read from Reset address\n");
-     return 0; /* Some programms read this whilst resetting */
+     return 0; /* Some programs read this whilst resetting */
 
      /* Alias to 0x00 ? */
 

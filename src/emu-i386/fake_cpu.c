@@ -5,16 +5,6 @@
  *
  * DANG_END_MODULE
  *
- * DANG_BEGIN_CHANGELOG
- *
- * $Date: $
- * $Source: $
- * $Revision: $
- * $State: $
- *
- * $Log: $
- *
- * DANG_END_CHANGELOG
  */
 
 #include "emu.h"

@@ -809,9 +809,8 @@ static void int1a(u_char i)
     break;
 
   default:
-    g_printf("WARNING: unsupported timer call 0x%04x\n", LWORD(eax));
-    /* show_regs(__FILE__, __LINE__); */
-    /* fatalerr = 9; */
+    g_printf("WARNING: unsupported INT0x1a call 0x%02x\n", HI(ax));
+    CARRY;
     return;
   }
 }
@@ -830,6 +829,7 @@ static void int1a(u_char i)
 #define EMM_FILE_HANDLE 200
 
 /* uppercase and truncate to 3 letters the replacement extension */
+/* pay attention to writable strings! */
 #define ext_fix(s) { char *r=(s); \
 		     while (*r) { *r=toupper(*r); r++; } \
 		     if ((r - s) > 3) s[3]=0; }
@@ -1113,7 +1113,7 @@ static void int28(u_char i) {
     if (!config.keybint && config.console_keyb) {
       /* revector int9, so dos doesn't play with the keybuffer */
       k_printf("revectoring int9 away from dos\n");
-      SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);	/* point to IRET */
+      SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);  /* point to the IRET before INT9 */
     }
     if (mice->intdrv) {
       /* This code is dupped for now in base/mouse/mouse.c - JES 96/10/20 */
@@ -1492,7 +1492,7 @@ void int_queue_run(void)
 #ifndef NEW_KBD_CODE
   if (current_interrupt == 0x09) {
     k_printf("Int9 set\n");
-    /* If another program does a keybaord read on port 0x60, we'll know */
+    /* If another program does a keyboard read on port 0x60, we'll know */
     read_next_scancode_from_queue();
   }
 #endif

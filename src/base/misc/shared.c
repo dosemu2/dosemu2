@@ -6,14 +6,6 @@
  *
  * DANG_END_MODULE
  *
- * DANG_BEGIN_CHANGELOG
- *
- * $Date: 1995/04/08 22:30:40 $
- * $Source: /usr/src/dosemu0.60/dosemu/RCS/shared.c,v $
- * $Revision: 1.4 $
- * $State: Exp $
- *
- * DANG_END_CHANGELOG
  *
  */
 #include <sys/types.h>

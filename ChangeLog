@@ -1,3 +1,16 @@
+97/03/14 ver. 0.65.99.20 unofficial pre-release
+	=== CLEANUP-Release ===
+	From Hans
+	- first round 'JES --> Hans' doc changes
+	- new README.batch
+	- preparation for 0.66 (version changes in docs)
+	- check DPR a bit, but the rest is to Alistair ;-)
+	- removed all RCS headers (not using any more)
+	- well, and found that compiling without VM86PLUS was broken,
+	  fixed it in parser.y
+	From Alberto
+	- lots of typos fixed (collected cleanups)
+	- some more debug prints in pic.c
 97/03/14 ver. 0.65.99.19 unofficial pre-release
 	From Alberto
 	- 1st arg of log_printf becomes 'int'

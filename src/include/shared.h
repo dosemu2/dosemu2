@@ -1,12 +1,3 @@
-/* 
- *
- * $Date: 1995/04/08 22:35:19 $
- * $Source: /usr/src/dosemu0.60/include/RCS/shared.h,v $
- * $Revision: 1.3 $
- * $State: Exp $
- *
- */
-
 #ifndef _SHARED_H
 #define _SHARED_H
 
