@@ -393,23 +393,14 @@ ems_init(void)
 static mach_port_t
 new_memory_object(size_t bytes)
 {
-#if 0
+  /* NOTE: bytes has to be a multiple of PAGE-SIZE,
+   * else we go into trouble with mmap()-ing under Linux >= 1.3.78
+   * We use valloc(), because this is the correct way to get page-aligned
+   * chunks of memory ( malloc() of libc >5.3 won't do the job ).
+   */
   mach_port_t addr = (mach_port_t) valloc(bytes);
 
-  char *ptr;
-#else
-  mach_port_t addr = (mach_port_t) malloc(bytes);
-
-#endif
-
   E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *) addr);
-
-#if 0
-  /* touch memory */
-  for (ptr = addr; ptr < (addr + bytes); ptr += 4096)
-    *ptr = *ptr;
-#endif
-
   return (addr);		/* allocate on a PAGE boundary */
 }
 
@@ -638,6 +629,12 @@ map_page(handle, physical_page, logical_page)
   logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
    
   if (ems_mmap) {
+    int i;
+    /* Touch all pages before mmap()-ing,
+     * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
+     */
+    for (i=EMM_PAGE_SIZE-4096; i>=0 ; i-=4096) *((volatile char *)(logical+i));
+
     E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
     
     if ((caddr_t)base != mmap(base,

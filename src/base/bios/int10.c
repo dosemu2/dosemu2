@@ -10,20 +10,13 @@
 
 #include "config.h"
 
-/* Do we want graphics in X? (of course :-) */
-/* WARNING: This may not work in BSD! It's written for Linux! */
-
-#ifdef X_SUPPORT
-#define XG
-#endif
-
 #include "emu.h"
 #include "video.h"
 #include "memory.h"
 #include "bios.h"
 #include "vc.h"
 
-#ifdef XG
+#if X_GRAPHICS
 #include "X.h"
 #include "vgaemu.h"
 #ifdef VESA /* root@zaphod */
@@ -294,7 +287,7 @@ clear_screen(int s, int att)
   int virt_text_base = BIOS_SCREEN_BASE;
 #endif
 
-  v_printf("VID: cleared screen\n");
+  v_printf("VID: cleared screen: %d %d %p\n", s, att, SCREEN_ADR(s));
   if (s > max_page) return;
   
   for (schar = SCREEN_ADR(s), 
@@ -512,7 +505,7 @@ void int10()
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
-#ifdef XG
+#if X_GRAPHICS
       if (config.X) set_vgaemu_page(page);      /*root@sjoerd*/
 #endif
 
@@ -649,7 +642,7 @@ void int10()
     if (LO(ax) == 3) {      
       char_blink = LO(bx) & 1;
     }
-#ifdef XG
+#if X_GRAPHICS
     /* root@zaphod */
     /* Palette register stuff. Only for the VGA emulator used by X */
     if(config.X)
@@ -801,7 +794,7 @@ void int10()
   case 0xff:			/* update shadow buffer...do nothing */
     break;
 
-#ifdef XG
+#if X_GRAPHICS
 #ifdef VESA /* root@zaphod */
   case 0x4f:                    /* vesa interrupt */
     if(config.X)

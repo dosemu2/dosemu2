@@ -3,7 +3,7 @@
 REALTOPDIR=@REALTOPDIR@
 TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
-LDFAGS=@LDFLAGS@
+LDFLAGS=@LDFLAGS@
 CC=@CC@
 
 CFILES=cpu.c ports.c do_vm86.c portss.c fake_cpu.c

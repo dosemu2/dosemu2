@@ -101,6 +101,16 @@
 #define vm86_regs sigcontext
 #endif
 unsigned long RealModeContext;
+/*
+ * With this stack nested PM programs like DJ200's make/compiler work fine
+ * (maybe Borkland's protected mode make/compiler too).
+ * For do_int31
+ * 	0x0300:	Simulate Real Mode Interrupt
+ * 	0x0301:	Call Real Mode Procedure With Far Return Frame
+ * 	0x0302:	Call Real Mode Procedure With Iret Frame
+ */
+unsigned long RealModeContext_Stack[DPMI_max_rec_rm_func];
+unsigned long RealModeContext_Running = 0;
 
 static INTDESC Interrupt_Table[0x100];
 static INTDESC Exception_Table[0x20];
@@ -278,7 +288,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   unsigned long base2, limit2;
   int __retval;
     struct segment_descriptor *sd;
-    int ret;
+
     
   ifprintf(d.dpmi, "DPMI: entry=%x base=%x limit=%x%s %s-bit contents=%d %s"
 #ifdef WANT_WINDOWS
@@ -308,7 +318,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
       D_printf("DPMI: WARNING: set segment[0x%04x] to NOT PRESENT\n",entry);
     } else {
       if (limit_in_pages_flag)
-        limit = (0xC0000000 - base2)>>12 - 1;
+        limit = ((0xC0000000 - base2)>>12) - 1;
       else
         limit = 0xC0000000 - base2 - 1;
       D_printf("DPMI: WARNING: reducing limit of segment[0x%04x]\n",entry);
@@ -621,10 +631,11 @@ static unsigned short AllocateDescriptors(int number_of_descriptors)
 static int FreeDescriptor(unsigned short selector)
 {
   unsigned short ldt_entry = selector >> 3;
+
+#ifdef KERNEL_LDTALIAS
   unsigned long *lp;
-#ifdef __linux__
-  struct modify_ldt_ldt_s ldt_info;
 #endif
+  struct modify_ldt_ldt_s ldt_info;
 
   if (ldt_entry >= MAX_SELECTORS)
     return -1;
@@ -640,9 +651,6 @@ static int FreeDescriptor(unsigned short selector)
   Segments[ldt_entry].useable = 0;
 
 #ifdef KERNEL_LDTALIAS
-#ifdef __NetBSD__
-#error need to figure this out
-#else
   lp = (unsigned long *) &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE];
 #ifdef __linux__
   *lp = 0;
@@ -658,10 +666,8 @@ static int FreeDescriptor(unsigned short selector)
   return modify_ldt(1, &ldt_info, sizeof(ldt_info));
 #endif
 #ifdef __NetBSD__
-#if 0
   i386_get_ldt(ldt_entry, (union descriptor *)lp, 1);
   D_printf("freeing descriptor %d: %x %x\n", ldt_entry, lp[0], lp[1]);
-#endif
 #ifdef WANT_WINDOWS
   lp[0] = lp[1] = 0;
 #else
@@ -673,7 +679,6 @@ static int FreeDescriptor(unsigned short selector)
       return errno;
   else
       return 0;
-#endif
 #endif
 #endif /* KERNEL_LDTALIAS */
 
@@ -886,6 +891,23 @@ static  void GetFreeMemoryInformation(unsigned int *lp)
   /*28h*/	*++lp = 0xffffffff;
   /*2ch*/	*++lp = 0xffffffff;
 }
+
+static inline void save_rm_context()
+{
+  if (RealModeContext_Running >= DPMI_max_rec_rm_func) {
+    error("DPMI: RealModeContext_Running = 0x%4x\n",RealModeContext_Running++);
+    return;
+  }
+  RealModeContext_Stack[RealModeContext_Running++] = RealModeContext;
+}
+
+static inline void restore_rm_context()
+{
+  if (RealModeContext_Running-- > DPMI_max_rec_rm_func)
+    return;
+  RealModeContext = RealModeContext_Stack[RealModeContext_Running];
+}
+
 
 static inline void save_rm_regs()
 {
@@ -1136,6 +1158,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
   case 0x0301:	/* Call Real Mode Procedure With Far Return Frame */
   case 0x0302:	/* Call Real Mode Procedure With Iret Frame */
     save_rm_regs();
+    save_rm_context();
     RealModeContext = GetSegmentBaseAddress(_es) + (DPMIclient_is_32 ? _edi : _LWORD(edi));
     {
       struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *) RealModeContext;
@@ -1996,7 +2019,9 @@ void dpmi_init()
   my_sp = LWORD(esp);
   NOCARRY;
 
-  save_rm_regs();
+  if(!in_dpmi) { /* Don't eat rm regs if already in dpmi */
+    save_rm_regs();
+  }
 
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -2849,6 +2874,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_realmode))) {
     struct RealModeCallStructure *rmreg = (struct RealModeCallStructure *) RealModeContext;
+    restore_rm_context();
 
     D_printf("DPMI: Return from Real Mode Procedure\n");
 #ifdef SHOWREGS

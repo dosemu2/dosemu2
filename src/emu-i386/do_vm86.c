@@ -6,9 +6,6 @@
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
-#ifdef X_SUPPORT
-#define XG
-#endif
 
 #include <stdio.h>
 #include <termios.h>
@@ -32,7 +29,7 @@
 #include <assert.h>
 
 
-#ifdef XG
+#if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
 #endif
 #ifdef __NetBSD__
@@ -69,7 +66,7 @@
 #include "bitops.h"
 
 #include "video.h"
-#ifdef XG
+#if X_GRAPHICS
 #include "vgaemu.h" /* root@zaphod */
 #endif
 

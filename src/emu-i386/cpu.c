@@ -126,7 +126,7 @@ static u_char video_port_io = 0;
 
 /* find a matching entry in the ports array */
 static int
-find_port(unsigned int port, int permission)
+find_port(unsigned short port, int permission)
 {
   static int last_found = 0;
   unsigned int i;
@@ -227,21 +227,21 @@ allow_io(unsigned int start, int size, int permission, int ormask, int andmask)
 }
 
 int
-port_readable(unsigned int port)
+port_readable(unsigned short port)
 {
   return (find_port(port, IO_READ) != -1);
 }
 
 int
-port_writeable(unsigned int port)
+port_writeable(unsigned short port)
 {
   return (find_port(port, IO_WRITE) != -1);
 }
 
-unsigned int
-read_port(unsigned int port)
+unsigned char
+read_port(unsigned short port)
 {
-  unsigned int r;
+  unsigned char r;
   int i = find_port(port, IO_READ);
 
   if (i == -1)
@@ -272,7 +272,7 @@ read_port(unsigned int port)
 }
 
 unsigned int
-read_port_w(unsigned int port)
+read_port_w(unsigned short port)
 {
   unsigned int r;
   int i = find_port(port,IO_READ);
@@ -317,7 +317,7 @@ read_port_w(unsigned int port)
 }
 
 int
-write_port(unsigned int value, unsigned int port)
+write_port(unsigned int value, unsigned short port)
 {
   int i = find_port(port, IO_WRITE);
 
@@ -332,7 +332,7 @@ write_port(unsigned int value, unsigned int port)
     video_port_io = 0;
 
   h_printf("write port 0x%x value %02x at %04x:%04x\n",
-	   port, value, LWORD(cs), LWORD(eip));
+	   port, (value & 0xff), LWORD(cs), LWORD(eip));
 
   if (port <= 0x3ff)
     set_ioperm(port, 1, 1);
@@ -350,7 +350,7 @@ write_port(unsigned int value, unsigned int port)
 }
 
 int
-write_port_w(unsigned int value,unsigned int port)
+write_port_w(unsigned int value,unsigned short port)
 {
   int i = find_port(port, IO_WRITE);
   int j = find_port(port + 1, IO_WRITE);
@@ -369,7 +369,7 @@ write_port_w(unsigned int value,unsigned int port)
     video_port_io = 0;
 
   i_printf("write 16 bit port 0x%x value %04x at %04x:%04x\n",
-           port, value, LWORD(cs), LWORD(eip));
+           port, (value & 0xffff), LWORD(cs), LWORD(eip));
 
   if (port <= 0x3fe) {
     set_ioperm(port  ,2,1);

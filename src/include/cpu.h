@@ -380,7 +380,7 @@ void dosemu_fault(int, struct sigcontext_struct);
 void show_regs(char *, int), show_ints(int, int);
 __inline__ int do_hard_int(int), do_soft_int(int);
 
-extern unsigned int read_port_w(unsigned int port);
-extern int write_port_w(unsigned int value,unsigned int port);
+extern unsigned int read_port_w(unsigned short port);
+extern int write_port_w(unsigned int value,unsigned short port);
 
 #endif /* CPU_H */

@@ -30,6 +30,10 @@
 #ifdef __NetBSD__
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #endif
 #include "config.h"
 #include "types.h"
@@ -55,6 +59,9 @@ static void (*dosemu) (int argc, char **argv);
 
 static char buf [1088 * 1024];	/* ensure that the lower 1MB+64K is unused */
 
+#ifdef __NetBSD__
+int uselib(const char *path);
+#endif
 
 int
 main(int argc, char **argv)
@@ -116,7 +123,7 @@ main(int argc, char **argv)
 #include <nlist.h>
 
 struct nlist nl[] = {
-    {"curbrk" },
+    { "curbrk" },
 #define X_CURBRK 0
     {"_environ" },
 #define X_ENVIRON 1
@@ -145,7 +152,6 @@ uselib(const char *path)
     int		fd;
     caddr_t		addr, raddr;
     struct exec	hdr;
-    int		usehints = 0;
     extern char **environ;
 
     if ((fd = open(path, O_RDONLY, 0)) == -1) {

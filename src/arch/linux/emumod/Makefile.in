@@ -6,7 +6,7 @@
 REALTOPDIR=@REALTOPDIR@
 TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@ @USE_MHPDBG@
-LDFAGS=@LDFLAGS@
+LDFLAGS=@LDFLAGS@
 CC=@CC@
 
 # The following variables may go into the Makfile in the parent-directory

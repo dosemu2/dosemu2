@@ -81,7 +81,14 @@ typedef struct
 
 void VGA_emulate_outb(int port, unsigned char value);
 unsigned char VGA_emulate_inb(int port);
+#ifdef __linux__
 int vga_emu_fault(struct sigcontext_struct *scp);
+#define VGA_EMU_FAULT(scp,code) vga_emu_fault(&context)
+#endif
+#ifdef __NetBSD__
+int vga_emu_fault(struct sigcontext *scp, int code);
+#define VGA_EMU_FAULT vga_emu_fault
+#endif
 
 int vgaemu_switch_page(unsigned int pagenumber);
 

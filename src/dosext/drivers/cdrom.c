@@ -26,6 +26,7 @@
 #endif
 #ifdef __NetBSD__
 #include "netbsd_cdio.h"
+#include <string.h>
 #endif
 
 #include "emu.h"
@@ -166,11 +167,11 @@ void cdrom_helper(void)
    struct cd_toc_entry toc_entry;
    struct cd_sub_channel_info scinfo;
 
-   bzero(&cdrom_subchnl, sizeof(cdrom_subchnl));
-   bzero(&scinfo, sizeof(scinfo));
+   memset(&cdrom_subchnl, 0, sizeof(cdrom_subchnl));
+   memset(&scinfo, 0, sizeof(scinfo));
 
-   bzero(&cdrom_tocentry, sizeof(cdrom_tocentry));
-   bzero(&toc_entry, sizeof(toc_entry));
+   memset(&cdrom_tocentry, 0, sizeof(cdrom_tocentry));
+   memset(&toc_entry, 0, sizeof(toc_entry));
 
    cdrom_subchnl.data = &scinfo;
    cdrom_subchnl.data_len = sizeof(scinfo);

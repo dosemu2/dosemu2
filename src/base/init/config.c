@@ -224,7 +224,7 @@ config_init(int argc, char **argv)
 
     opterr = 0;
     confname = CONFIG_FILE;
-    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:O")) != EOF) {
 	switch (c) {
 	case 'F':
 	    confname = optarg;	/* someone reassure me that this is *safe*? */
@@ -237,8 +237,29 @@ config_init(int argc, char **argv)
 	case 'D':
 	    parse_debugflags(optarg);
 	    break;
+	case 'O':
+	    fprintf(stderr, "using stderr for debug-output\n");
+	    dbg_fd = stderr;
+	    break;
+	case 'o':
+	    priv_off();
+	    config.debugout = strdup(optarg);
+	    dbg_fd = fopen(config.debugout, "w");
+	    if (!dbg_fd) {
+		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
+		exit(1);
+	    }
+	    priv_on();
+	    break;
 	}
     }
+
+#if defined(__NetBSD__) && defined(X_SUPPORT) && defined(X_GRAPHICS)
+    { extern int selfmem_fd;
+    /* do this before any set*id functions are called */
+    selfmem_fd = open("/proc/curproc/mem", O_RDWR);
+    }
+#endif
 
     priv_off();
 
@@ -261,6 +282,8 @@ config_init(int argc, char **argv)
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'd':
+	case 'o':
+	case 'O':
 	    break;
 	case 'A':
 	    config.hdiskboot = 0;
@@ -316,20 +339,6 @@ config_init(int argc, char **argv)
 	    }
 	case 'D':
 	    parse_debugflags(optarg);
-	    break;
-	case 'O':
-	    fprintf(stderr, "using stderr for debug-output\n");
-	    dbg_fd = stderr;
-	    break;
-	case 'o':
-	    priv_off();
-	    config.debugout = strdup(optarg);
-	    dbg_fd = fopen(config.debugout, "w");
-	    if (!dbg_fd) {
-		fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
-		exit(1);
-	    }
-	    priv_on();
 	    break;
 	case 'P':
 	    if (terminal_fd == -1) {

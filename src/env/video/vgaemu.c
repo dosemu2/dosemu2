@@ -1035,6 +1035,16 @@ int vga_emu_fault(struct sigcontext_struct *scp)
   return False;
 }
  
+static inline caddr_t vga_mmap(caddr_t  addr,  size_t  len,
+                        int prot , int flags, int fd, off_t offset )
+{
+  int i;
+  /* Touch all pages before mmap()-ing,
+   * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
+   */
+  for (i=0; i < len; i+=4096) *((volatile char *)(offset+i));
+  return mmap(addr, len, prot, flags, fd, offset);
+}
  
  
 /*
@@ -1058,7 +1068,7 @@ unsigned char* vga_emu_init(void)
   if(vga_emu_memory==NULL)
     v_printf("vga_emu_init:Alocated memory is NULL\n");
 
-  vga_emu_memory_scratch=(unsigned char*)malloc(VGAEMU_BANK_SIZE);
+  vga_emu_memory_scratch=(unsigned char*)valloc(VGAEMU_BANK_SIZE);
   if(vga_emu_memory_scratch==NULL)
     v_printf("vga_emu_init:Alocated memory is NULL\n");
 
@@ -1071,7 +1081,7 @@ unsigned char* vga_emu_init(void)
   *vga_emu_memory_scratch=0; /* */
  
 
-  if(mmap((caddr_t)0xA0000, VGAEMU_BANK_SIZE, PROT_READ|PROT_WRITE,
+  if(vga_mmap((caddr_t)0xA0000, VGAEMU_BANK_SIZE, PROT_READ|PROT_WRITE,
           MAP_SHARED | MAP_FIXED,selfmem_fd,(off_t)vga_emu_memory )<0)
     v_printf("Mapping failed\n");
 
@@ -1416,7 +1426,7 @@ int vgaemu_switch_page(unsigned int pagenumber)
  /* Is this < or <= ? -- Erik */
   if(pagenumber<=VGAEMU_BANKS)
     {
-      if(mmap((caddr_t)0xA0000, VGAEMU_BANK_SIZE, PROT_READ|PROT_WRITE,
+      if(vga_mmap((caddr_t)0xA0000, VGAEMU_BANK_SIZE, PROT_READ|PROT_WRITE,
 	      MAP_SHARED | MAP_FIXED,selfmem_fd,
 	      (off_t)(vga_emu_memory+pagenumber*VGAEMU_BANK_SIZE) )<0)
 	{

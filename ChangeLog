@@ -1,3 +1,48 @@
+96/04/17 20:07:22 From Mike Castle <mcastle@umr.edu>: fix for insmod + binutils 2.6.0.12
+96/04/16 20:50:15 From : Hans - FIX for dosdebug, small -Wall cleanup
+96/04/16 19:04:11 From : Hans - As promised: FIX for vgaemu, and new patch for EMS
+96/04/09 06:29:47 From Hans: invalidate => flush_tlb (adapt emumodule to Linux-1.3.83)
+96/04/08 22:45:19 From : JES - Recovering RDDC from HD Crash
+96/04/08 0x:2x:xx TESTING RDDC
+96/03/25 05:26:56 From Hans: closeing 'expand down seg' security hole in ldt.c
+96/03/18 06:43:03 From Erik: extra manpages & sigsegv enhancement
+96/03/16 16:14:36 From : JES - temporarily turn of port array call of portss.c
+	- From some timing investigations it has been discovered that the
+	  portss.c array calling code seems to be considerable slower
+	  in it's present state. To that end as an interim measure, we
+	  will turn it off and use the older single case statement.
+96/03/13 19:50:26 From : Alberto Vignani - Change non-existant port read to 0xff again
+96/03/13 18:35:53 From : Michael Leodolter <michael@lab1.psy.univie.ac.at> - DPMI work
+	- With this stack nested PM programs like DJ200's make/compiler work fine
+	  (maybe Borkland's protected mode make/compiler too).
+96/03/11 18:59:26 From : alberto.vignani@torino.alpcom.it (Alberto Vignani) - LDFAGS fix
+96/03/11 18:30:52 From JES/Uwe - Config fixes and more vga_emu_fault stuff
+96/03/11 17:59:51 From JES, John - Add in VGA_EMU_FAULT() function
+96/03/10 19:46:58 From : JES - Get Xdos with graphics working again
+	- Thanks to Uwe for pointing to a problem with Xdos not getting
+	  configured with the latest X_GRAPHICS in config.h
+	- If 0'd out the VGA_EMU_FAULT() because it is not defined
+96/03/07 23:39:37 From: John Kohl: turn on X_GRAPHICS for NetBSD
+- turn on X_GRAPHICS support for NetBSD, it seems to work well enough
+96/03/07 21:00:17 From : JES - Creating proper behavior in dpmi.c KERNEL_LDTALIAS
+	- with these diffs, Windows runs again. Need that DPMI guru :-)
+96/03/07 20:13:38 From : JES - Supply new configure.in against John's diffs
+96/03/07 19:10:38 From : John Kohl - NetBSD diffs for 0.63.1.2
+From: John Kohl <jtk@kolvir.arlington.ma.us>
+- Anyway, there's a system bug tickled by these changes on NetBSD but it
+pretty much works.  
+- I haven't tried X graphics support yet, but I made
+it easy to configure in or out now.
+- I think I found a bug with KERNEL_LDTALIAS in the dpmi code, plus a
+questionable missing () stuff there.  Look inside dpmi.c
+Thanks!
+==John
+96/03/05 22:20:22 From : JES - Up version to 0.63.1.2
+96/03/05 22:02:23 From : (Alberto) a.vignani@crf.it - Change cpu.c ports to size short
+I was tracing a DOS program accessing a peripheral card and found dosemu
+tried to access ports > 64k. After looking at the generated assembly, I
+changed 'int' to 'short' for all port addresses in cpu.c.
+Alberto
 96/03/04 20:56:24 From: Hans, adapt insmod-HACKER_TOOL to modules-1.3.69
 96/03/04 18:16:54 From : JES - Add config.h to emu.h to force its inclusion
 96/03/03 17:34:02 From : Uwe - Add debug to dpmi.c

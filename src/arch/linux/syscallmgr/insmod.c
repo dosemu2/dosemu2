@@ -363,7 +363,7 @@ static struct zSystem_entry *build_zSystem_syms(char *name, struct kernel_sym *k
   while (!feof(f) && n[0]) {
     n[0]=0;
     p=0;
-    fscanf(f, "%08x %c %s\n", &i, &c, n);
+    fscanf(f, "%x %c %s\n", &i, &c, n);
     switch (c) {
       case 't': case 'd': case 'b': case 'r': 
         if (!use_zSystem_local) break;

@@ -141,17 +141,45 @@ static void unprotect_vmarea(unsigned long address, unsigned long size)
 #if KERNEL_VERSION < 1003047
   invalidate();
 #else
+#if KERNEL_VERSION < 1003083
   invalidate_all();
+#else
+  flush_tlb();
+#endif
 #endif
 }
 #endif
 
 
+static inline int limits_ok(struct modify_ldt_ldt_s *ldt_info)
+{
+	unsigned long base, limit;
+	/* linear address of first and last accessible byte */
+	unsigned long first, last;
+
+	base = ldt_info->base_addr;
+	limit = ldt_info->limit;
+	if (ldt_info->limit_in_pages)
+		limit = limit * PAGE_SIZE + PAGE_SIZE - 1;
+
+	first = base;
+	last = limit + base;
+
+	/* segment grows down? */
+	if (ldt_info->contents == 1) {
+		/* data segment grows down */
+		first = base+limit+1;
+		last = base+65535;
+		if (ldt_info->seg_32bit)
+			last = base-1;
+	}
+	return (last >= first && last < TASK_SIZE);
+}
+
 static int write_ldt(void * ptr, unsigned long bytecount)
 {
 	struct modify_ldt_ldt_s ldt_info;
 	unsigned long *lp;
-	unsigned long base, limit;
 	int error, i, userspace =bytecount;
 
 #if defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS)
@@ -186,27 +214,12 @@ static int write_ldt(void * ptr, unsigned long bytecount)
 #endif
 		return -EINVAL;
 
-	limit = ldt_info.limit;
-	base = ldt_info.base_addr;
 #if defined(_LOADABLE_VM86_) && defined(WANT_WINDOWS)
-	if (ldt_info.limit_in_pages) {
-		limit *= PAGE_SIZE;
-		limit += PAGE_SIZE-1; 
-	}
-	limit += base;
-	if (!userspace) {
-	  if (limit < base ) return -EINVAL;
-	}
-	else if (ptr && (limit < base || limit >= 0xC0000000) && ldt_info.seg_not_present == 0)
-		return -EINVAL;
+	if (userspace && !limits_ok(&ldt_info) && ldt_info.seg_not_present == 0)
 #else
-	if (ldt_info.limit_in_pages)
-		limit *= PAGE_SIZE;
-
-	limit += base;
-	if (limit < base || limit >= 0xC0000000)
-		return -EINVAL;
+	if (!limits_ok(&ldt_info))
 #endif
+		return -EINVAL;
 
 	if (!current->ldt) {
 		for (i=1 ; i<NR_TASKS ; i++) {

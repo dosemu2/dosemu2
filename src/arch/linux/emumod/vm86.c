@@ -8,6 +8,7 @@
  */
 #ifdef _LOADABLE_VM86_
   #include "kversion.h"
+  #include "config.h"
 #else
   #define KERNEL_VERSION 1003028 /* last verified kernel version */
 #endif
@@ -189,7 +190,11 @@ static void mark_screen_rdonly(struct task_struct * tsk)
 #if KERNEL_VERSION < 1003047
 	invalidate();
 #else
+  #if KERNEL_VERSION < 1003083
 	invalidate_all();
+  #else
+	flush_tlb();
+  #endif
 #endif
   #endif
 #endif

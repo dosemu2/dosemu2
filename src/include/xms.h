@@ -23,10 +23,10 @@ EXTERN int xms_grab_int15 INIT(0);
 struct EMM {
    unsigned long Length;
    unsigned short SourceHandle;
-   unsigned long SourceOffset;
-   unsigned short DestHandle;
-   unsigned long DestOffset;
-} __attribute__((packed));
+   unsigned long SourceOffset __attribute__((packed));
+   unsigned short DestHandle __attribute__((packed));
+   unsigned long DestOffset __attribute__((packed));
+} ;
 
 struct Handle {
   unsigned short int num;

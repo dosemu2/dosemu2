@@ -158,7 +158,7 @@ extern void yyrestart(FILE *input_file);
 %token L_DISPLAY L_TITLE ICON_NAME X_KEYCODE X_BLINKRATE X_FONT
 	/* video */
 %token VGA MGA CGA EGA CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
-%token MEMSIZE VBIOS_SIZE VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
+%token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VBIOS_FILE VBIOS_COPY VBIOS_MMAP DUALMON
 	/* terminal */
 %token UPDATEFREQ UPDATELINES COLOR ESCCHAR
 /* %token UPDATEFREQ UPDATELINES COLOR CORNER METHOD NORMAL XTERM NCURSES FAST */
@@ -420,7 +420,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		      c_printf("CONF: VGA-BIOS-Segment set to 0xc000\n");
 		      }
 		   }
-		| VBIOS_SIZE INTEGER
+		| VBIOS_SIZE_TOK INTEGER
 		   {
 		   config.vbios_size = $2;
 		   c_printf("CONF: VGA-BIOS-Size %x\n", $2);
@@ -1157,8 +1157,8 @@ static void do_part(char *dev)
 
 static void stop_disk(int token)
 {
-  FILE   *f;
 #ifdef __linux__
+  FILE   *f;
   struct mntent *mtab;
 #endif
 #ifdef __NetBSD__

@@ -505,10 +505,10 @@ config_t;
 #undef sti
 EXTERN void cli(void);
 EXTERN void sti(void);
-EXTERN int port_readable(unsigned int);
-EXTERN int port_writeable(unsigned int);
-EXTERN unsigned int read_port(unsigned int);
-EXTERN int write_port(unsigned int, unsigned int);
+EXTERN int port_readable(unsigned short);
+EXTERN int port_writeable(unsigned short);
+EXTERN unsigned char read_port(unsigned short);
+EXTERN int write_port(unsigned int, unsigned short);
 EXTERN __inline__ void parent_nextscan(void);
 EXTERN __inline__ void disk_close(void);
 EXTERN void cpu_setup(void);

@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 
 #ifdef __linux__
 #include <syscall.h>
@@ -71,7 +72,7 @@ signal_init(void)
 
   /* Point to the top of the stack, minus 4
      just in case, and make it aligned  */ 
-  salt.ss_base = (char *)cstack;
+  salt.ss_sp = (char *)cstack;
   salt.ss_size = sizeof(cstack);
   salt.ss_flags = 0;
   if (sigaltstack(&salt, 0) != 0) {

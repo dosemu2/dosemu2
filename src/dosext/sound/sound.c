@@ -24,6 +24,7 @@
 #include <linux/soundcard.h>
 #endif
 #ifdef __NetBSD__
+#include <string.h>
 #include <sys/audioio.h>
 #endif
 #include "pic.h"

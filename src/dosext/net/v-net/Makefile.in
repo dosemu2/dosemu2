@@ -6,7 +6,7 @@
 REALTOPDIR=@REALTOPDIR@
 TOPDIR=@SRCPATH@
 CFLAGS=@CFLAGS@
-LDFAGS=@LDFLAGS@
+LDFLAGS=@LDFLAGS@
 CC=@CC@
 
 # If INCDIR exists, it was exported from the master Makefile.

@@ -60,7 +60,7 @@ AC_SUBST(CONFIG_HOST)
 
 dnl Do ELF if possible
 
- if grep __ELF__ `gcc -v 2>&1|head -n1|cut -d' ' -f4` 1>/dev/null 2>&1; then 
+ if grep __ELF__ `gcc -v 2>&1|head -n1|cut -d' ' -f4` /dev/null 1>/dev/null 2>&1; then 
   SLANGLIB="-larch_${CONFIG_HOST}_slang-elf -lm"
   ELF="ELF=1"
  else
@@ -135,6 +135,10 @@ else
     X_SUPPORT="X_SUPPORT=1"
     AC_DEFINE_UNQUOTED(X_SUPPORT) 
     AC_SUBST(X_SUPPORT)
+    X_GRAPHICS="X_GRAPHICS=1"
+    AC_DEFINE_UNQUOTED(X_GRAPHICS)
+    AC_SUBST(X_GRAPHICS)
+    
 
 dnl All the X2 specs
     AC_DEFINE_UNQUOTED(X2_SUPPORT) 
@@ -148,7 +152,7 @@ dnl the -u forces the X11 shared library to be linked into ./dos
     if test "$ELF" != "" ; then
       XLIBSW="-Wl,-rpath,$x_libraries -L$x_libraries -lX11"
     else
-      XLIBSW="-L$x_libraries -lX11 -u _XOpenDisplay"
+      XLIBSW="-L$x_libraries -u _XOpenDisplay -lX11"
     fi
 fi
 AC_SUBST(XLIBSW)
@@ -157,7 +161,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="63"
-PATCHLEVEL="1.1"
+PATCHLEVEL="1.8"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
@@ -224,7 +228,7 @@ dnl Now CFLAGS and INCLUDES
 
 #Change the following line if the right kernel includes reside elsewhere
 # LINUX_KERNEL = /usr/src/linux
-LINUX_KERNEL=`sh $SRCPATH/arch/$CONFIG_HOST/kversion.sh -find -print`
+LINUX_KERNEL=`$SRCPATH/arch/$CONFIG_HOST/kversion.sh -find -print`
 LINUX_INCLUDE="$LINUX_KERNEL/include"
 AC_SUBST(LINUX_KERNEL)
 AC_SUBST(LINUX_INCLUDE)
@@ -245,8 +249,11 @@ COPTFLAGS="-Wall"
 # -m486 is usually in the specs for the compiler
 OPT="-O3 -m486 -fomit-frame-pointer"
 # OPT=-fno-inline
-PIPE=-pipe
-USING_NET="-DUSING_NET"
+if test "$CONFIG_HOST" = "linux"; then
+ AC_CHECKING("Linux Specific build options")
+ PIPE=-pipe
+ USING_NET="-DUSING_NET"
+fi
 
 CFLAGS="${OPT} ${PIPE} ${USING_NET} ${CDEBUGOPTS} ${COPTFLAGS} ${INCDIR}"
 
@@ -286,4 +293,4 @@ AC_SUBST(LDFLAGS)
 AC_SUBST(AS86)
 AC_SUBST(LD86)
 
-AC_OUTPUT(doc/Makefile src/emu-i386/Makefile src/base/init/Makefile src/dosext/drivers/Makefile src/dosext/net/v-net/Makefile src/tools/periph/Makefile src/arch/linux/async/Makefile src/base/serial/Makefile src/arch/linux/syscallmgr/Makefile src/env/video/Makefile src/dosext/sound/Makefile src/dosext/dpmi/Makefile src/arch/linux/debugger/Makefile src/commands/Makefile src/base/keyboard/Makefile doc/Makefile src/dosext/net/net/Makefile src/base/dev/misc/Makefile src/include/Makefile src/base/async/Makefile src/env/Makefile src/base/dev/dma/Makefile src/dosext/mfs/Makefile src/tools/Makefile src/dosext/misc/Makefile src/base/mouse/Makefile src/arch/linux/emumod/Makefile src/base/dev/pic/Makefile src/base/misc/Makefile src/base/bios/Makefile src/arch/linux/Makefile.main src/Makefile Makefile)
+AC_OUTPUT(doc/Makefile src/emu-i386/Makefile src/base/init/Makefile src/dosext/drivers/Makefile src/dosext/net/v-net/Makefile src/tools/periph/Makefile src/arch/${CONFIG_HOST}/async/Makefile src/base/serial/Makefile src/arch/${CONFIG_HOST}/syscallmgr/Makefile src/env/video/Makefile src/dosext/sound/Makefile src/dosext/dpmi/Makefile src/arch/${CONFIG_HOST}/debugger/Makefile src/commands/Makefile src/base/keyboard/Makefile doc/Makefile src/dosext/net/net/Makefile src/base/dev/misc/Makefile src/include/Makefile src/base/async/Makefile src/env/Makefile src/base/dev/dma/Makefile src/dosext/mfs/Makefile src/tools/Makefile src/dosext/misc/Makefile src/base/mouse/Makefile src/arch/${CONFIG_HOST}/emumod/Makefile src/base/dev/pic/Makefile src/base/misc/Makefile src/base/bios/Makefile src/arch/${CONFIG_HOST}/Makefile.main src/Makefile Makefile)

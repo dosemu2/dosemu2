@@ -232,11 +232,11 @@ int
 keyboard_init(void)
 {
     struct termios  newtermio;	/* new terminal modes */
-    struct stat     chkbuf;
 #ifdef __NetBSD__
     struct screeninfo info;
 #endif
 #ifdef __linux__
+    struct stat     chkbuf;
     int             major,
                     minor;
 #endif

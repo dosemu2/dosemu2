@@ -2,9 +2,6 @@
 
 /* Define if we want graphics in X (of course we want :-) (root@zaphod) */
 /* WARNING: This may not work in BSD, because it was written for Linux! */
-#ifdef X_SUPPORT
-#define XG
-#endif
 
 #include <stdio.h>
 #include <termios.h>
@@ -17,7 +14,10 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/times.h>
-#ifdef XG
+#ifdef __NetBSD__
+#include <errno.h>
+#endif
+#if X_GRAPHICS
 #include <sys/mman.h>           /* root@sjoerd*/
 #endif
 
@@ -39,7 +39,7 @@
 #include "timers.h"
 
 #include "video.h"
-#ifdef XG
+#if X_GRAPHICS
 #include "vgaemu.h" /* root@zaphod */
 #endif
 
@@ -69,6 +69,7 @@
 extern void set_leds(void);
 /* FIXME -- move to common header */
 extern int s3_8514_base;
+static u_short microsoft_port_check = 0;
 
 /*
  * DANG_BEGIN_FUNCTION inb
@@ -87,69 +88,83 @@ inb(unsigned int port)
 
   static unsigned int cga_r = 0;
   static unsigned int r;
+  static unsigned int tmp = 0;
 
-  r = 0;
+/* it is a fact of (hardware) life that unused locations return all
+   (or almost all) the bits at 1; some software can try to detect a
+   card basing on this fact and fail if it reads 0x00 - AV */
+  r = 0xff;
+
   port &= 0xffff;
-  if (port_readable(port))
-    r = (read_port(port) & 0xFF);
-#ifdef XG
+  if (port_readable((u_int)port))
+    r = (read_port((u_int)port) & 0xFF);
+#if X_GRAPHICS
   else if ( (config.X) &&
             ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
               ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
               ((port>=0x3D0) && (port<=0x3DD)) ) )
     {
-        r=VGA_emulate_inb(port);
+        r=VGA_emulate_inb((u_int)port);
     }
 #endif
   else if (config.usesX) {
     v_printf("HGC Portread: %d\n", (int) port);
-    switch (port) {
+    switch ((u_int)port) {
     case 0x03b8:		/* mode-reg */
-	r = safe_port_in_byte(port);
+	r = safe_port_in_byte((u_int)port);
       r = (r & 0x7f) | (hgc_Mode & 0x80);
       break;
     case 0x03ba:		/* status-reg */
-	r = safe_port_in_byte(port);
+	r = safe_port_in_byte((u_int)port);
       break;
     case 0x03bf:		/* conf-reg */
       set_ioperm(port, 1, 1);
-      r = port_in(port);
+      r = port_in((u_int)port);
       set_ioperm(port, 1, 0);
       r = (r & 0xfd) | (hgc_Konv & 0x02);
       break;
     case 0x03b4:		/* adr-reg */
     case 0x03b5:		/* data-reg */
-	r = safe_port_in_byte(port);
+	r = safe_port_in_byte((u_int)port);
       break;
     }
   }
 #if 1
   else if (config.chipset && port > 0x3b3 && port < 0x3df && config.mapped_bios)
-    r = (video_port_in(port));
+    r = (video_port_in((u_int)port));
   else if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
     iopl(3);
-    r = port_in(port) & 0xff;
+    r = port_in((u_int)port) & 0xff;
     iopl(0);
     v_printf("S3 inb [0x%04x] = 0x%02x\n", port, r);
   }
 #endif
-  else switch (port) {
+  else switch ((u_int)port) {
   case 0x20:
   case 0x21:
+    r = read_pic0((u_int)port);
+    break;
   case 0xa0:
   case 0xa1:
+    r = read_pic1((u_int)port);
+    break;
   case 0x60:
   case 0x61:
   case 0x64:
+    r = keyb_io_read((u_int)port);
+    break;
   case 0x70:
   case 0x71:
+    r = cmos_read((u_int)port);
+    break;
   case 0x40:
   case 0x41:
   case 0x42:
+    r = pit_inp((u_int)port);
+    break;
   case 0x43:
     r = port_inb((u_int)port);
     break;
-
   case 0x3ba:
   case 0x3da:
     /* graphic status - many programs will use this port to sync with
@@ -165,41 +180,13 @@ inb(unsigned int port)
   case 0x3db:			/* light pen strobe reset, 0 by default */
     break;
     
-  case 0x2e8:
-  case 0x2e9:
-  case 0x2ea:
-  case 0x2eb:
-  case 0x2ec:
-  case 0x2ed:
-  case 0x2ee:
-  case 0x2ef:
-  case 0x3e8:
-  case 0x3e9:
-  case 0x3ea:
-  case 0x3eb:
-  case 0x3ec:
-  case 0x3ed:
-  case 0x3ee:
-  case 0x3ef:
-  case 0x2f8:
-  case 0x2f9:
-  case 0x2fa:
-  case 0x2fb:
-  case 0x2fc:
-  case 0x2fd:
-  case 0x2fe:
-  case 0x2ff:
-  case 0x3f8:
-  case 0x3f9:
-  case 0x3fa:
-  case 0x3fb:
-  case 0x3fc:
-  case 0x3fd:
-  case 0x3fe:
-  case 0x3ff:
-    r = port_inb((u_int)port);
-    break;
   default:
+    /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
+    for (tmp = 0; tmp < config.num_ser; tmp++)
+      if ((port & ~7) == com[tmp].base_port) {
+        r = do_serial_in(tmp, port);
+        break;
+      }
 
     /* Sound I/O */
     if ((port & SOUND_IO_MASK) == SOUND_BASE) {r=sb_read(port & SOUND_IO_MASK2);};
@@ -259,6 +246,7 @@ void
 outb(unsigned int port, unsigned int byte)
 {
   static int lastport = 0;
+  static unsigned int tmp = 0;
 
   port &= 0xffff;
   byte &= 0xff;
@@ -340,7 +328,7 @@ outb(unsigned int port, unsigned int byte)
     return;
   }
   else {
-#ifdef XG
+#if X_GRAPHICS
     if ( (config.X) &&
          ( ((port>=0x3c0) && (port<=0x3c1)) || /* root@zaphod attr ctrl */
            ((port>=0x3c6) && (port<=0x3c9)) || /* root@zaphod */
@@ -405,53 +393,39 @@ outb(unsigned int port, unsigned int byte)
   switch (port) {
   case 0x20:
   case 0x21:
+    write_pic0(port, byte);
+    break;
   case 0x60:
   case 0x64:
   case 0x61:
+    keyb_io_write((u_int)port, byte);
+    break;
   case 0x70:
   case 0x71:
+    cmos_write(port, byte);
+    break;
   case 0xa0:
   case 0xa1:
+    write_pic1(port,byte);
+    break;
   case 0x40:
   case 0x41:
   case 0x42:
+    pit_outp(port, byte);
+    break;
   case 0x43:
-  case 0x2e8:
-  case 0x2e9:
-  case 0x2ea:
-  case 0x2eb:
-  case 0x2ec:
-  case 0x2ed:
-  case 0x2ee:
-  case 0x2ef:
-  case 0x3e8:
-  case 0x3e9:
-  case 0x3ea:
-  case 0x3eb:
-  case 0x3ec:
-  case 0x3ed:
-  case 0x3ee:
-  case 0x3ef:
-  case 0x2f8:
-  case 0x2f9:
-  case 0x2fa:
-  case 0x2fb:
-  case 0x2fc:
-  case 0x2fd:
-  case 0x2fe:
-  case 0x2ff:
-  case 0x3f8:
-  case 0x3f9:
-  case 0x3fa:
-  case 0x3fb:
-  case 0x3fc:
-  case 0x3fd:
-  case 0x3fe:
-  case 0x3ff:
-    port_outb((u_int)port, (u_char)byte);
-    lastport = port;
+    pit_control_outp(port, byte);
     break;
   default:
+    /* SERIAL PORT I/O.  Avoids port==0 for safety.  */
+    /* The base serial port must be a multiple of 8. */
+    for (tmp = 0; tmp < config.num_ser; tmp++) {
+      if ((port & ~7) == com[tmp].base_port) {
+      do_serial_out(tmp, port, byte);
+      lastport = port;
+      return;
+      }
+    }
     /* Sound I/O */
     if ((port & SOUND_IO_MASK) == SOUND_BASE) {sb_write(port & SOUND_IO_MASK2, byte);};
     if ((port & ~3) == 388) {fm_write(port & 3, byte);};
@@ -563,7 +537,7 @@ ioperm(unsigned int startport, unsigned int howmany, int onoff)
     if (startport + howmany > NIOPORTS)
 	return ERANGE;
 
-    if (err = i386_get_ioperm(bitmap))
+    if ((err = i386_get_ioperm(bitmap)) != 0)
 	return err;
     i_printf("%sabling %x->%x\n", onoff ? "en" : "dis", startport, startport+howmany);
     /* now diddle the current bitmap with the request */

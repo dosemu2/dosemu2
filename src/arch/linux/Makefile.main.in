@@ -12,6 +12,7 @@
 # use the debugger
 DEBUGGER=@DEBUGGER@
 @X_SUPPORT@
+@X_GRAPHICS@
 X11LIBDIR=@x_libraries@
 
 #Change the following line if the right kernel includes reside elsewhere
