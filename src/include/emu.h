@@ -167,16 +167,11 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
 
 #define SILENT_DOS_SYSCALL(sc) sc
 
-#if 0
+#if 1
 #define RPT_SYSCALL(sc) ({ int s_tmp, s_err; \
    do { \
 	  s_tmp = sc; \
 	  s_err = errno; \
-	  if (errno == EINTR) {\
-	    g_printf("Recursive run_irqs() RPT_SYSCALL()\n"); \
-	    handle_signals(); \
-	/*    run_irqs(); */ \
-	  } \
       } while ((s_tmp == -1) && (s_err == EINTR)); \
   s_tmp; })
 #else
