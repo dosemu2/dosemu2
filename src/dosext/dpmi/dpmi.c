@@ -1116,7 +1116,7 @@ void direct_ldt_write(int offset, int length, char *buffer)
   } else {
     D_printf("DPMI: Invalid descriptor, freeing\n");
     FreeDescriptor(selector);
-    Segments[ldt_entry].used = 1;	/* Prevent of a reuse */
+    Segments[ldt_entry].used = in_dpmi;	/* Prevent of a reuse */
   }
   MUNPROT_LDT_ENTRY(ldt_entry);
   memcpy(&ldt_buffer[ldt_entry*LDT_ENTRY_SIZE], lp, LDT_ENTRY_SIZE);
@@ -3610,7 +3610,7 @@ void dpmi_fault(struct sigcontext_struct *scp)
 	  D_printf("DPMI: Return from int24 callback, in_dpmi_pm_stack=%i\n",
 	    in_dpmi_pm_stack);
 
-	  pm_to_rm_regs(scp, ~0);
+	  pm_to_rm_regs(scp, ~(1 << ebp_INDEX));
 	  restore_pm_regs(scp);
 	  in_dpmi_dos_int = 1;
 
@@ -4307,7 +4307,7 @@ done:
       *buffer++ = DPMI_CLIENT.stack_frame.fs;
       *buffer++ = DPMI_CLIENT.stack_frame.gs;  
     } else {
-      D_printf("DPMI: restore protect mode registers\n");
+      D_printf("DPMI: restore protected mode registers\n");
       DPMI_CLIENT.stack_frame.eax = *buffer++;
       DPMI_CLIENT.stack_frame.ebx = *buffer++;
       DPMI_CLIENT.stack_frame.ecx = *buffer++;
