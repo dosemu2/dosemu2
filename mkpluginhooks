@@ -2,9 +2,11 @@
 
 HEADERS="config init close inte6 poll"
 
+TOP=`dirname $0`
 PLUG=plugin
-DIR=src/$PLUG
-INC=$DIR/include
+SRCDIR=$TOP/src/$PLUG
+DESTDIR=src/$PLUG
+INC=$DESTDIR/include
 PREF=plugin_
 CONF=config
 CONFIGURE=configure
@@ -13,7 +15,7 @@ PINC=plugin_incdirs
 PCONF=plugin_configure
 PARSDIR=src/base/init
 
-PDIRS=`cd $DIR; find ./ -maxdepth 1 ! -name include -type d -printf ' %f'`
+PDIRS=`cd $SRCDIR; find ./ -maxdepth 1 ! -name include -type d -printf ' %f'`
 
 function gendummy {
   for i in $HEADERS; do
@@ -28,9 +30,9 @@ function gendummy {
 function restore_enable {
   if [ "$PDIRS" != " " ]; then
     for d in $PDIRS; do
-      if [ -f $DIR/$d/$CONF/${PREF}enable ]; then
-        if [ "`cat $DIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
-          echo "yes" >$DIR/$d/$CONF/${PREF}enable
+      if [ -f $SRCDIR/$d/$CONF/${PREF}enable ]; then
+        if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "replaced" ]; then
+          echo "yes" >$DESTDIR/$d/$CONF/${PREF}enable
         fi
       fi
     done
@@ -44,9 +46,9 @@ if [ "$1" = 'enable' ]; then
 		on=$2
 		shift
 		shift
-		if test -d src/plugin/$dir ; then
-			mkdir -p src/plugin/$dir/config
-			echo $on > src/plugin/$dir/config/plugin_enable
+		if test -d $SRCDIR/$dir ; then
+			mkdir -p $DESTDIR/$dir/config
+			echo $on > $DESTDIR/$dir/config/plugin_enable
 		fi
 	done
 	exit 0
@@ -60,17 +62,18 @@ if [ "$1" = "" -o "$1" = "clean" ]; then
 fi
 
 if [ "$1" = "clean" ]; then
-  rm -f src/plugin/*/config/plugin_enable
+  rm -f $DESTDIR/*/config/plugin_enable
   exit 0
 fi
 
 mkdir -p $INC
 
 if [ "$1" = "" ]; then gendummy; fi
-if [ "$1" = "" -o "$1" = "parser" ]; then cp -fp $PARSDIR/parser.y.in $PARSDIR/parser.y; fi
-if [ "$1" = "" -o "$1" = "lexer" ]; then cp -fp $PARSDIR/lexer.l.in $PARSDIR/lexer.l; fi
+mkdir -p $PARSDIR
+if [ "$1" = "" -o "$1" = "parser" ]; then cp -fp $TOP/$PARSDIR/parser.y.in $PARSDIR/parser.y; fi
+if [ "$1" = "" -o "$1" = "lexer" ]; then cp -fp $TOP/$PARSDIR/lexer.l.in $PARSDIR/lexer.l; fi
 
-if [ ! -d $DIR ]; then
+if [ ! -d $SRCDIR ]; then
   exit 1
 fi
 
@@ -80,14 +83,14 @@ if [ "$PDIRS" != " " ]; then
   # Check for plugins which override default ones.
   # Overriding plugins will disable the clashing plugin
   if [ "$1" = "" ]; then for d in $PDIRS; do
-    if [ -f $DIR/$d/$CONF/${PREF}enable ]; then
-     if [ "`cat $DIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
-      if [ -f $DIR/$d/$CONF/${PREF}override ]; then
-        for oplugin in `cat $DIR/$d/$CONF/${PREF}override`; do
-          if [ "$oplugin" != "" -a -d $DIR/$oplugin ]; then
-            if [ -f $DIR/$oplugin/$CONF/${PREF}enable ]; then
-              if [ "`cat $DIR/$oplugin/$CONF/${PREF}enable`" = "yes" ]; then
-                echo "replaced" >$DIR/$oplugin/$CONF/${PREF}enable
+    if [ -f $DESTDIR/$d/$CONF/${PREF}enable ]; then
+     if [ "`cat $DESTDIR/$d/$CONF/${PREF}enable`" = "yes" ]; then
+      if [ -f $SRCDIR/$d/$CONF/${PREF}override ]; then
+        for oplugin in `cat $SRCDIR/$d/$CONF/${PREF}override`; do
+          if [ "$oplugin" != "" -a -d $DESTDIR/$oplugin ]; then
+            if [ -f $DESTDIR/$oplugin/$CONF/${PREF}enable ]; then
+              if [ "`cat $DESTDIR/$oplugin/$CONF/${PREF}enable`" = "yes" ]; then
+                echo "replaced" >$DESTDIR/$oplugin/$CONF/${PREF}enable
               fi
             fi
           fi
@@ -102,16 +105,16 @@ if [ "$PDIRS" != " " ]; then
   if [ "$1" = "" ]; then rm -f $LIB; fi
   for d in $PDIRS; do
     # Test if this plugin is enabled
-    if [ -f $DIR/$d/$CONF/${PREF}enable ]; then
-      enable=`cat $DIR/$d/$CONF/${PREF}enable`
+    if [ -f $DESTDIR/$d/$CONF/${PREF}enable ]; then
+      enable=`cat $DESTDIR/$d/$CONF/${PREF}enable`
     else
       enable=no
     fi
     if [ "$enable" = "yes" ]; then
       if [ "$1" = "" ]; then
         # Plugin library direcories
-        if [ -f $DIR/$d/$CONF/${PREF}dirs ]; then
-          for i in `cat $DIR/$d/$CONF/${PREF}dirs`; do
+        if [ -f $SRCDIR/$d/$CONF/${PREF}dirs ]; then
+          for i in `cat $SRCDIR/$d/$CONF/${PREF}dirs`; do
             if [ "$i" = "./" ]; then
               echo -n " $PLUG/$d" >>$LIB
             else
@@ -122,8 +125,8 @@ if [ "$PDIRS" != " " ]; then
           echo -n " $PLUG/$d" >>$LIB
         fi
         # Plugin include directories
-        if [ -f $DIR/$d/$CONF/${PREF}incdirs ]; then
-          for i in `cat $DIR/$d/$CONF/${PREF}incdirs`; do
+        if [ -f $SRCDIR/$d/$CONF/${PREF}incdirs ]; then
+          for i in `cat $SRCDIR/$d/$CONF/${PREF}incdirs`; do
             if [ "$i" = "./" ]; then
               echo -n " $PLUG/$d" >>$PINC
             else
@@ -132,27 +135,27 @@ if [ "$PDIRS" != " " ]; then
           done
         fi
         # Plugin configure directories
-        if [ -f $DIR/$d/$CONFIGURE ]; then
-          echo -n " $DIR/$d" >> $PCONF
+        if [ -f $SRCDIR/$d/$CONFIGURE ]; then
+          echo -n " $DESTDIR/$d" >> $PCONF
         fi
         # Plugin special headers...
         for h in $HEADERS; do
-          if [ -f $DIR/$d/$CONF/$PREF$h.h ]; then
+          if [ -f $SRCDIR/$d/$CONF/$PREF$h.h ]; then
             echo -E "#include \"../$PLUG/$d/$CONF/$PREF$h.h\"" >>$INC/$PREF$h.h
           fi
         done
       fi
       # Plugin parsers parts
       if [ "$1" = "" -o "$1" = "parser" ]; then
-        if [ -f $DIR/$d/$CONF/${PREF}parser ]; then
-          ./bisonpp.pl -y $PARSDIR/parser.y $DIR/$d/$CONF/${PREF}parser >$PARSDIR/parser.y.tmp
+        if [ -f $SRCDIR/$d/$CONF/${PREF}parser ]; then
+          $TOP/bisonpp.pl -y $PARSDIR/parser.y $SRCDIR/$d/$CONF/${PREF}parser >$PARSDIR/parser.y.tmp
           mv -f $PARSDIR/parser.y.tmp $PARSDIR/parser.y
         fi
       fi
       # Plugin lexer parts
       if [ "$1" = "" -o "$1" = "lexer" ]; then
-        if [ -f $DIR/$d/$CONF/${PREF}lexer ]; then
-          ./bisonpp.pl -l $PARSDIR/lexer.l $DIR/$d/$CONF/${PREF}lexer >$PARSDIR/lexer.l.tmp
+        if [ -f $SRCDIR/$d/$CONF/${PREF}lexer ]; then
+          $TOP/bisonpp.pl -l $PARSDIR/lexer.l $SRCDIR/$d/$CONF/${PREF}lexer >$PARSDIR/lexer.l.tmp
           mv -f $PARSDIR/lexer.l.tmp $PARSDIR/lexer.l
         fi
       fi

@@ -3,6 +3,10 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
 #
 # This is a stripped down Makefile for the S-Lang library
 

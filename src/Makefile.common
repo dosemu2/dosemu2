@@ -4,16 +4,14 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-SHELL=/bin/bash
-
-SUBDIR := $(subst $(addsuffix /,$(TOPDIR)),,$(shell pwd -P))
+SUBDIR := $(subst $(abs_top_builddir)/src/,,$(shell pwd -P))
 LIBNAME := $(shell echo $(SUBDIR) |tr / _)
 
 ifndef OBJS
 ifdef CFILES
 OBJS=$(CFILES:.c=.o)
 else
-OBJS=$($(wildcard *.c):.c=.o)
+OBJS=$($(notdir $(wildcard $(srcdir)/*.c)):.c=.o)
 endif
 endif
 
@@ -22,7 +20,7 @@ DEPENDS=$(OBJS:.o=.d)
 endif
 
 
-LIB=$(TOPDIR)/lib/lib$(LIBNAME).a
+LIB=$(top_builddir)/src/lib/lib$(LIBNAME).a
 
 AR=ar
 

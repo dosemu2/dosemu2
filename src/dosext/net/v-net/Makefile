@@ -3,6 +3,10 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+top_builddir=../../../..
+include $(top_builddir)/Makefile.conf
+
 #
 # This is the Makefile for the v-net - subdirectory of the DOS-emulator
 # for Linux.

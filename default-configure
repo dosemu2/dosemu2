@@ -4,13 +4,13 @@ if [ -n "$DOSEMU_DEFAULT_CONFIGURE" ] ; then
   exit 0
 fi
 
-CONF_FILE="compiletime-settings"
+CONF_FILE=`dirname $0`/compiletime-settings
 
 if [ "$1" != "" ]; then
   if [ "${1#--}" = "$1" ]; then
     CONF_FILE=$1
     if [ "$CONF_FILE" = "-d" ]; then
-      CONF_FILE=compiletime-settings.devel
+      CONF_FILE=`dirname $0`/compiletime-settings.devel
     fi
     shift
   fi
@@ -107,10 +107,10 @@ while [ "$1" != "" ]; do
   shift; shift;
 done
 
-echo "mkpluginhooks enable $PLUGIN"
-./mkpluginhooks enable $PLUGIN
+echo `dirname $0`/mkpluginhooks enable $PLUGIN
+`dirname $0`/mkpluginhooks enable $PLUGIN
 
 eval "set -- $SUFFIX"
 export DOSEMU_DEFAULT_CONFIGURE=1
-echo exec ./configure $STRING "$@"
-exec ./configure $STRING "$@"
+echo exec `dirname $0`/configure $STRING "$@"
+exec `dirname $0`/configure $STRING "$@"

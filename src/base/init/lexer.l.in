@@ -13,6 +13,9 @@
 #if USE_LOOP_HANDLING
   #define YY_NEVER_INTERACTIVE 1 /* need this to avoid access to yyin within
 				    lexer code, even if yyin != NULL */
+  /* however, flex 2.5.31 no longer respects this #define so we work
+     around it by opening /dev/null if a cachefile or a macrofile is
+     accessed. */
   #define LOOP_LIMIT		1000 /* this to avoid infinite loops,
   					if the user has errors in his
   					config file */
@@ -96,7 +99,16 @@ char *yy_vbuffer=0;
 #if USE_LOOP_HANDLING
 
 #define CACHEFILES_MAX  32
-#define MACROFILE	(CACHEFILES_MAX+1)
+#define MACROFILE	CACHEFILES_MAX
+FILE *dev_null_files[MACROFILE+1];
+
+static int cachefile_nr(FILE *f)
+{
+	int i;
+	for (i = 0; i < CACHEFILES_MAX; i++)
+		if (dev_null_files[i] == f) return i;
+	return CACHEFILES_MAX+1;
+}
 
 #define YY_INPUT(buf,result,max_size) \
   if (!yyin) { \
@@ -115,17 +127,18 @@ char *yy_vbuffer=0;
     else result=0; \
   } \
   else { \
-    if ( yy_current_buffer->yy_is_interactive ) { \
+    if ( YY_CURRENT_BUFFER->yy_is_interactive ) { \
       int c = getc( yyin ); \
       result = c == EOF ? 0 : 1; \
       buf[0] = (char) c; \
     } \
     else { \
-      if ((unsigned int)yyin <= CACHEFILES_MAX) { \
-        result = cachefile_read(buf, max_size, (unsigned int)yyin - 1 ); \
+      int cfile = cachefile_nr(yyin); \
+      if (cfile < CACHEFILES_MAX) { \
+        result = cachefile_read(buf, max_size, cfile); \
       } \
       else { \
-	if ((unsigned int)yyin == MACROFILE) { \
+	if (yyin == dev_null_files[MACROFILE]) { \
 	  result = macrofile_read(buf, max_size); \
 	} \
         else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) && ferror( yyin ) ) \
@@ -176,7 +189,7 @@ static int macrofile_wrap(void);
     else result=0; \
   } \
   else { \
-    if ( yy_current_buffer->yy_is_interactive ) { \
+    if ( YY_CURRENT_BUFFER->yy_is_interactive ) { \
       int c = getc( yyin ); \
       result = c == EOF ? 0 : 1; \
       buf[0] = (char) c; \
@@ -782,8 +795,8 @@ int yywrap(void)    /* this gets called at EOF of a parsed file */
   if (include_stack_ptr <= 0 ) return(1);
 #if USE_LOOP_HANDLING
 #if 1
-  if ((unsigned int)yyin <= CACHEFILES_MAX) return cachefile_wrap();
-  if ((unsigned int)yyin == MACROFILE) return macrofile_wrap();
+  if (cachefile_nr(yyin) < CACHEFILES_MAX) return cachefile_wrap();
+  if (yyin == dev_null_files[MACROFILE]) return macrofile_wrap();
 #else
   if (macrobuffer) return macrofile_wrap();
   if (__loop_handling__ < 0) return cachefile_wrap();
@@ -1012,7 +1025,7 @@ static void enter_cachefile(int cfile)
 		include_fnames[include_stack_ptr] = strdup(cf->origfname);
 	else	include_fnames[include_stack_ptr] = 0;
 	line_count = cf->firstline;
-	(int)yyin = cachefilecurrent +1;
+	dev_null_files[cachefilecurrent] = yyin = fopen("/dev/null", "r");
 	include_stack[include_stack_ptr] = yy_create_buffer( yyin, cf->stop - cf->start +2);
 	yy_switch_to_buffer(include_stack[include_stack_ptr]);
 }
@@ -1041,13 +1054,15 @@ static int cachefile_wrap(void)
 	}
 	cachefilecurrent = cf->parent;
 	yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
+	fclose(include_stack[include_stack_ptr]->yy_input_file);
+	dev_null_files[cfile] = NULL;
 	yy_delete_buffer(include_stack[include_stack_ptr]);
 	free(include_fnames[include_stack_ptr]);
 	if (config_check_only>1)
 		c_printf("CONF: closed cache file %d\n", cfile);
 	include_stack_ptr--;
 	line_count=include_lines[include_stack_ptr];
-	if (cfile > 0) {
+	if (cfile >= 0) {
 		/* when in inner loop, we have been executed from
 		 * the copy, but the main cache file still is positioned
 		 * directly behind the 'while__ ()' in the original.
@@ -1165,7 +1180,7 @@ static void enter_macrofile(char *variable)
 	include_stack_ptr++;
 	include_macbuf[include_stack_ptr] =
 		include_fnames[include_stack_ptr] = strdup(macrobuffer);
-	(int)yyin = MACROFILE;
+	dev_null_files[MACROFILE] = yyin = fopen("/dev/null", "r");
 	include_stack[include_stack_ptr] = yy_create_buffer( yyin, strlen(macrobuffer) +2);
 	yy_switch_to_buffer(include_stack[include_stack_ptr]);
 }
@@ -1176,6 +1191,8 @@ static int macrofile_wrap(void)
 	
 	if (include_stack_ptr <= 0) return 0;
 	yy_switch_to_buffer(include_stack[include_stack_ptr-1] );
+	fclose(include_stack[include_stack_ptr]->yy_input_file);
+	dev_null_files[MACROFILE] = NULL;
 	yy_delete_buffer(include_stack[include_stack_ptr]);
 	free(include_macbuf[include_stack_ptr]);
 	if (config_check_only>1)

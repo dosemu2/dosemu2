@@ -4,6 +4,10 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+
 #  src/base/misc/dyndeb.c -> ../async/dyndeb.c
 #  src/base/misc/int.c -> ../async/int.c
 

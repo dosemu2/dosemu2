@@ -9,23 +9,10 @@
 # install DOSEMU.
 #
 
-ifndef REALTOPDIR
-# user did 'make'  from ./dosemu/src directory (here)
-
-ifndef WAIT
-  export WAIT=no
-endif
-
-default .DEFAULT:
-	@$(MAKE) -C ../ $@
-
-else
-# we are invoked via top Makefile
-
 CFILES  = emu.c dos.c dosstatic.c
 OBJS    = emu.o
 
-default: $(OBJS)
-include Makefile.common
-
-endif
+top_builddir=..
+include $(top_builddir)/Makefile.conf
+include $(REALTOPDIR)/src/Makefile.common
+include $(REALTOPDIR)/src/arch/$(OS)/Makefile.main

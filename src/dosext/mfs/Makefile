@@ -4,6 +4,10 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+
 SUBDIR=mfs
 
 CFILES=mfs.c mangle.c util.c dosc.c

@@ -3,21 +3,25 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
-DOCSOURCES := $(wildcard *.sgml)
+
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+DOCSOURCES := $(notdir $(wildcard $(srcdir)/*.sgml))
 TXT = $(DOCSOURCES:.sgml=.txt)
 HTML = $(DOCSOURCES:.sgml=.html)
 
 all:    $(TXT) $(HTML)
 
 $(TXT): %.txt: %.sgml
-	../tools/doSgmlTools.pl -t $<
+	$(srcdir)/../tools/doSgmlTools.pl -t $<
 
 $(HTML): %.html: %.sgml
-	../tools/doSgmlTools.pl -h $<
+	$(srcdir)/../tools/doSgmlTools.pl -h $<
 
 
 clean:
 	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps
 
 install:
-	mv *.txt ../../../doc
+	mv *.txt $(REALTOPDIR)/doc

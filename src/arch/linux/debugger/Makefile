@@ -3,6 +3,10 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+top_builddir=../../../..
+include $(top_builddir)/Makefile.conf
+
 # This is the Makefile for the debugger-subdirectory of DOSEMU.
 # Please send comments and bug-reports to Max Parke <mhp@light.lightlink.com>
 # Please read the code in this directory for more information.
@@ -24,7 +28,7 @@ OBJS =  mhpdbg.o mhpdbgc.o dis8086.o
 all: lib $(BINPATH)/bin/dosdebug
 
 $(BINPATH)/bin/dosdebug: dosdebug.c
-	$(CC) -O2 $(LDFLAGS) $(CPPFLAGS) dosdebug.c -o $(BINPATH)/bin/dosdebug
+	$(CC) -O2 $(LDFLAGS) $(CPPFLAGS) $< -o $@
 
 
 install:

@@ -4,7 +4,11 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
-CFILES=$(wildcard *.c)
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+
+CFILES=$(notdir $(wildcard $(srcdir)/*.c))
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

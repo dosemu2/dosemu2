@@ -4,11 +4,16 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+
 
 
 #DEFINES=-DYYDEBUG=1 -DYYERROR_VERBOSE -DYYPURE -DTESTING
 
 CFLAGS+=-DYYPURE $(DEFINES)
+CPPFLAGS+=-I$(srcdir)
 
 # CFLAGS=-O2 -Wall -Wmissing-prototypes \
        -Wstrict-prototypes -ansi -pedantic -Wid-clash-31 -Wcast-qual
@@ -49,7 +54,7 @@ global_c.c : ../../../etc/global.conf
 	echo ';' >> $@
 
 parser.y: parser.y.in
-	cd ../../..; ./mkpluginhooks parser
+	cd ../../..; $(REALTOPDIR)/mkpluginhooks parser
 
 parser.h: parser.c
 
@@ -57,7 +62,7 @@ parser.c : parser.y
 	$(YACC) -v -do $@  $<
 
 lexer.l: lexer.l.in
-	cd ../../..; ./mkpluginhooks lexer
+	cd ../../..; $(REALTOPDIR)/mkpluginhooks lexer
 
 lex.yy.c : lexer.l parser.y parser.h
 	$(LEX) -i $< 

@@ -3,6 +3,10 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
 DOCSOURCES := README.sgml README-tech.sgml configuration.sgml sound-usage.sgml
 TXT = $(DOCSOURCES:.sgml=.txt)
 DVI = $(DOCSOURCES:.sgml=.dvi)
@@ -29,26 +33,26 @@ dvi:    $(DVI)
 
 $(TXT): %.txt: %.sgml
 #	sgml2txt 2>/dev/null $<
-	../tools/doSgmlTools.pl -t $<
+	$(srcdir)/../tools/doSgmlTools.pl -t $<
 
 $(DVI): %.dvi: %.sgml
 	sgmltools -b dvi $<
 
 $(HTMLS):
-	../tools/doSgmlTools.pl -s $<
+	$(srcdir)../tools/doSgmlTools.pl -s $<
 
 $(HTML): %.html: %.sgml
-	../tools/doSgmlTools.pl -h $<
+	$(srcdir)/../tools/doSgmlTools.pl -h $<
 
 README.sgml: header $(SECTIONS) footer
-	cat header $(SECTIONS) footer > README.sgml
+	cat $^ > $@
 
 README-tech.sgml: header-tech $(TECHSECTIONS) footer
-	cat header-tech $(TECHSECTIONS) footer > README-tech.sgml
+	cat $^ > $@
 
 clean:
 	rm -f *.txt *.html *~ *.tex *.log *.aux *.toc *.dvi *.ps \
 		README.sgml README-tech.sgml 
 
 install: txt
-	mv *.txt ../../../doc
+	mv *.txt $(REALTOPDIR)/doc

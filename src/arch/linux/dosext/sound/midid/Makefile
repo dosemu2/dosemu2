@@ -3,6 +3,10 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+top_builddir=../../../../../..
+include $(top_builddir)/Makefile.conf
+
 ######################################################################
 # MIDID
 
@@ -26,7 +30,7 @@ ifdef USE_ULTRA
  OBJECTS += gus.o
 endif
 
-all:		$(REALTOPDIR)/bin/midid
+all:		$(BINPATH)/bin/midid
 
 install:
 	@echo ""
@@ -35,12 +39,12 @@ clean:
 		rm -f *.o *.d
 
 cleanall:	clean
-		rm -f $(REALTOPDIR)/bin/midid
+		rm -f $(MIDID)
 
 realclean:	cleanall
 
-$(REALTOPDIR)/bin/midid:	$(OBJECTS)
-	$(CC) -o $(REALTOPDIR)/bin/midid $(OBJECTS) $(LDFLAGS)
+$(BINPATH)/bin/midid:	$(OBJECTS)
+	$(CC) -o $@ $(OBJECTS) $(LDFLAGS)
 
 events.o:	events.c events.h io.h stats.h
 

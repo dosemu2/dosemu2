@@ -3,6 +3,10 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+top_builddir=../../../..
+include $(top_builddir)/Makefile.conf
+
 #  src/base/misc/cmos.c -> ../dev/misc/cmos.c
 #  src/base/misc/lpt.c -> ../dev/misc/lpt.c
 #  src/base/misc/timers.c -> ../dev/misc/timers.c

@@ -4,6 +4,9 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+top_builddir=../../../../..
+include $(top_builddir)/Makefile.conf
+
 CFILES = linux_sound.c
 HFILES = linux_sound.h $(REALTOPDIR)/include/sound.h
 DEPENDS=$(CFILES:.c=.d)

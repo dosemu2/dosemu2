@@ -4,6 +4,10 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+
 # CC   = gcc
 # INCDIR is exported from ..
 #INCDIR = -I../ -I../include/

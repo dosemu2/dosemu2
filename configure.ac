@@ -7,7 +7,7 @@ AC_PREREQ(2.57)
 # first check if we are called from default-configure and if not,
 # execute that to parse compiletime settings
 if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
-  exec ./default-configure "$@"
+  exec $srcdir/default-configure "$@"
 fi
 
 AC_CONFIG_HEADER(src/include/config.h)
@@ -223,11 +223,11 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
   AC_CHECK_LIB(slang, SLsmg_write_nwchars,
     AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang.])
     buggy_slang=yes
-    ./mkpluginhooks enable slang yes,
+    $srcdir/mkpluginhooks enable slang yes,
    AC_CHECK_LIB(slang, SLtt_get_terminfo, 
                 LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB",
                 [AC_MSG_WARN([No S-Lang library found. Using supplied S-Lang.])]
-		./mkpluginhooks enable slang yes,
+		$srcdir/mkpluginhooks enable slang yes,
    -lm -ldl), -lm -ldl)
 )
 
@@ -285,7 +285,7 @@ if test "$no_x" != "yes" ; then
                  [#include <X11/Xlib.h>]))
 fi
 
-PACKAGE_VERSION=`cat VERSION`
+PACKAGE_VERSION=`cat ${srcdir}/VERSION`
 VV=$PACKAGE_VERSION
 VERSION=${VV%%.*}
 VV=${VV#*.}
@@ -342,17 +342,23 @@ fi
 AC_SUBST(DEBUGGER)
 
 dnl try to hook in available plug-ins
-if test -x ./mkpluginhooks; then
-  ./mkpluginhooks
-  if test -f ./plugin_libdirs; then
-    PLUGINSUBDIRS=`cat ./plugin_libdirs`
+if test -x $srcdir/mkpluginhooks; then
+  $srcdir/mkpluginhooks
+  if test -f plugin_libdirs; then
+    PLUGINSUBDIRS=`cat plugin_libdirs`
     AC_MSG_NOTICE(Including plugins: $PLUGINSUBDIRS...);
-    if test -f ./plugin_incdirs; then
+    if test -f plugin_incdirs; then
       cd src
       for i in `cat ../plugin_incdirs`; do
-        for j in $i/*; do
-          ln -sf ../../$j plugin/include/`basename $j`
-        done 
+        if test -f ../configure.ac; then
+          for j in $i/*; do
+            ln -sf ../../$j plugin/include/`basename $j`
+          done
+        else
+          for j in $srcdir/src/$i/*; do
+            ln -sf $j plugin/include/`basename $j`
+          done 
+        fi
       done
       cd ..
     fi
@@ -422,7 +428,7 @@ AC_SUBST(PLUGINSUBDIRS)
 
 dnl Now CFLAGS and INCLUDES
 
-INCDIR="-I\${SRCPATH}/plugin/include -I\${SRCPATH}/include ${SLANGINC}"
+INCDIR="-I\${top_builddir}/src/include -I\${top_builddir}/src/plugin/include ${SLANGINC}"
 AC_SUBST(INCDIR)
 
 CFLAGS="-Wall -Wstrict-prototypes -Wmissing-declarations -Wnested-externs"
@@ -568,13 +574,24 @@ AC_SUBST(ASM_PEDANTIC)
 AC_DEFINE(_GNU_SOURCE)
 
 CFLAGS="${CFLAGS} ${OPT} ${PIPE}"
-CPPFLAGS="${CPPFLAGS} -MMD ${INCDIR}"
+CPPFLAGS="${CPPFLAGS} -MMD \${INCDIR}"
 AC_SUBST(LDFLAGS)
 AC_SUBST(LIBS)
 
 dnl Create output files. If you add new ones, please do it in order.
 
 AC_CONFIG_FILES([Makefile.conf])
+
+AC_CONFIG_COMMANDS([Makefile], 
+[ if ! test -f configure.ac; then 
+    mkdir -p `(cd $srcdir; find . -type d)`
+    mkdir -p src/lib
+    for i in `(cd $srcdir; find . -name Makefile)`; do
+      echo  ln -sf $srcdir/$i $i
+      ln -sf $srcdir/$i $i
+    done
+  fi
+])
 
 dnl autoheader stuff
 AH_TOP([

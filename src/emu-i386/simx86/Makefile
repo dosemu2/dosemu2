@@ -4,6 +4,10 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+
 EM86DIR=$(REALTOPDIR)/src/emu-i386/simx86
 EM86FLG=-Dlinux -DDOSEMU -fgcse -fforce-addr
 

@@ -3,6 +3,10 @@
 #
 # for details see file COPYING in the DOSEMU distribution
 #
+
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
 #
 # This is the Makefile for the keyboard-subdirectory of the DOS-emulator
 # for Linux.
@@ -43,6 +47,6 @@ crunch_UnicodeData: crunch_UnicodeData.o
 make_attributes: make_attributes.o
 	$(CC) $(CFLAGS) -o $@ $<
 
-keysym_attributes.c: make_attributes UnicodeCrunchedAttributes
-	./make_attributes < UnicodeCrunchedAttributes > $@
+keysym_attributes.c: UnicodeCrunchedAttributes make_attributes
+	./make_attributes < $< > $@
 

@@ -1,3 +1,14 @@
+2003/06/14 ver 1.1.5.2 unofficial pre-release
+	From Bart
+	- enable building in a separate object directory
+	- enable small test sub-builds (e.g. "make" in src/env/video)
+	- use relative paths if possible (so you can rename your
+	  build directory on the fly)
+	- fix lexer.l.in to work with newer versions of flex. We can
+	  no longer fake flex by setting YY_NEVER_INTERACTIVE,
+	  but a workaround using "/dev/null" files was possible.
+	- fix buglet in doscoopthreads com_dosrenamefile
+	- remove obsolete file kversion.sh
 2003/06/12 ver 1.1.5.1 unofficial pre-release
 	From Ben Davis
 	- Implemented SB16 support.

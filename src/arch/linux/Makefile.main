@@ -8,8 +8,7 @@
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 
-export INSTALL = install -c
-TMP = $(REALTOPDIR)/tmp
+TMP = $(abs_top_builddir)/tmp
 SYS = ../commands
 dosemudir = $(datadir)/dosemu
 
@@ -65,27 +64,25 @@ debug:
 	rm $(BINPATH)/bin/$(DOSBIN)
 	$(MAKE) $(BINPATH)/bin/$(DOSBIN)
 
-../etc/xtermdos:	../etc/xtermdos.sh
+../etc/xtermdos:	$(REALTOPDIR)/etc/xtermdos.sh
 	@echo "#!/bin/sh" > ../etc/xtermdos
 	@echo >> ../etc/xtermdos
 	@echo X11ROOTDIR=$(X11ROOTDIR) >> ../etc/xtermdos
 	@echo >> ../etc/xtermdos
-	@cat ../etc/xtermdos.sh >> ../etc/xtermdos
+	@cat $(REALTOPDIR)/etc/xtermdos.sh >> ../etc/xtermdos
 
-../etc/xinstallvgafont:	../etc/xinstallvgafont.sh
+../etc/xinstallvgafont:	$(REALTOPDIR)/etc/xinstallvgafont.sh
 	@echo "#!/bin/sh" > ../etc/xinstallvgafont
 	@echo >> ../etc/xinstallvgafont
 	@echo X11ROOTDIR=$(X11ROOTDIR) >> ../etc/xinstallvgafont
 	@echo >> ../etc/xinstallvgafont
-	@cat ../etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
-
-#phony target for emu.o
-emu:
-	$(MAKE)
+	@cat $(REALTOPDIR)/etc/xinstallvgafont.sh >> ../etc/xinstallvgafont
 
 ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}: $(LIBSUBDIRS)
 
-$(BINPATH)/bin/$(DOSBIN): emu ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
+emu.o: emu.c
+
+$(BINPATH)/bin/$(DOSBIN): emu.o ${addsuffix .a,${addprefix lib/lib,$(LIBS_)}}
 	$(LD) $(LDFLAGS) -o $@ emu.o $(addprefix -L,$(LIBPATH)) \
 	   -Wl,--whole-archive $(addprefix -l, $(LIBS_)) -Wl,--no-whole-archive $(LIBS)
 	@nm $(BINPATH)/bin/$(DOSBIN) | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
@@ -95,11 +92,11 @@ ifdef X_SUPPORT
 	@ln -sf $(DOSBIN) $(BINPATH)/bin/xdos
 endif
 
-$(BINPATH)/bin/dosemu: ../dist/dosemu
+$(BINPATH)/bin/dosemu: $(REALTOPDIR)/dist/dosemu
 	sed -e "s|SYSTEM_INSTALL_PATH=NOT_SYSTEM_WIDE|SYSTEM_INSTALL_PATH=$(dosemudir)|" \
 	    -e "s|SYSTEM_CONF_PATH=NOT_SYSTEM_WIDE|SYSTEM_CONF_PATH=$(sysconfdir)|" \
 	    -e "s|SYSTEM_XFONTS_PATH=NOT_SYSTEM_WIDE|SYSTEM_XFONTS_PATH=$(x11fontdir)|" \
-	              ../dist/dosemu > $(BINPATH)/bin/dosemu
+	              $(REALTOPDIR)/dist/dosemu > $(BINPATH)/bin/dosemu
 	chmod +x $(BINPATH)/bin/dosemu
 
 dosemu: $(BINPATH)/bin/$(DOSBIN) $(BINPATH)/bin/dosemu
@@ -115,7 +112,7 @@ optionalsubdirs:	$(OPTIONALSUBDIRS)
 docsubdirs:	$(DOCS)
 
 $(DIRLIST):
-	@(cd $(REALTOPDIR)/src/; $(MAKE) -C $@)
+	@($(MAKE) -C $@)
 
 version:	versetup
 
@@ -191,11 +188,11 @@ install:
 	fi
 	$(INSTALL) -d $(DESTDIR)$(sysconfdir)
 	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
-	  $(INSTALL) -m 0644 ../etc/dosemu.conf ../etc/dosemu.users.example $(DESTDIR)$(sysconfdir); \
-	  $(INSTALL) -m 0644 ../etc/global.conf $(DESTDIR)$(sysconfdir)/global.conf.example; \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.conf $(REALTOPDIR)/etc/dosemu.users.example $(DESTDIR)$(sysconfdir); \
+	  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/global.conf $(DESTDIR)$(sysconfdir)/global.conf.example; \
 	fi
 	$(INSTALL) -d $(DESTDIR)$(dosemudir)/keymap
-	$(INSTALL) -m 0644 ../etc/keymap/* $(DESTDIR)$(dosemudir)/keymap
+	$(INSTALL) -m 0644 $(REALTOPDIR)/etc/keymap/* $(DESTDIR)$(dosemudir)/keymap
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
 	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
@@ -208,9 +205,9 @@ ifdef  USE_MHPDBG
 	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 endif
 	$(INSTALL) -d $(DESTDIR)$(docdir)
-	$(INSTALL) -m 0644 ../README.bindist $(DESTDIR)$(docdir)
-	$(INSTALL) -m 0644 ../doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
-	   ../doc/announce $(DESTDIR)$(docdir)
+	$(INSTALL) -m 0644 $(REALTOPDIR)/README.bindist $(DESTDIR)$(docdir)
+	$(INSTALL) -m 0644 $(REALTOPDIR)/doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
+	   $(REALTOPDIR)/doc/announce $(DESTDIR)$(docdir)
 ifdef X_SUPPORT
 	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi
 	$(INSTALL) -d $(DESTDIR)$(x11fontdir)
@@ -219,16 +216,16 @@ ifdef X_SUPPORT
 	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.Z ] && \
 	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.gz ]; then \
 		echo "-> Main DOSEMU files installation done. Installing the X PC fonts..."; \
-		bdftopcf ../etc/vga.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga.pcf.gz; \
-		bdftopcf ../etc/vga11x19.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz; \
-		bdftopcf ../etc/vga-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz; \
-		bdftopcf ../etc/vga10x20-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \
+		bdftopcf $(REALTOPDIR)/etc/vga.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga.pcf.gz; \
+		bdftopcf $(REALTOPDIR)/etc/vga11x19.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz; \
+		bdftopcf $(REALTOPDIR)/etc/vga-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz; \
+		bdftopcf $(REALTOPDIR)/etc/vga10x20-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \
 		chmod 0644 $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz \
           $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \
 		if [ ! -f $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
-		  $(INSTALL) -m 0644 ../etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
+		  $(INSTALL) -m 0644 $(REALTOPDIR)/etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
 		elif [ grep ^vga $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
-	          cat ../etc/dosemu.alias >> $(DESTDIR)$(x11fontdir)/fonts.alias; \
+	          cat $(REALTOPDIR)/etc/dosemu.alias >> $(DESTDIR)$(x11fontdir)/fonts.alias; \
 		fi; \
 		cd $(DESTDIR)$(x11fontdir); \
 		mkfontdir; \

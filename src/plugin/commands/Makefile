@@ -4,6 +4,10 @@
 # for details see file COPYING in the DOSEMU distribution
 #
 
+top_builddir=../../..
+include $(top_builddir)/Makefile.conf
+
+
 CFILES=commands.c lredir.c xmode.c emumouse.c dosdbg.c msetenv.c \
        unix.c cmdline.c comcom.c
 
@@ -15,7 +19,7 @@ DEPENDS=$(CFILES:.c=.d)
 
 SUBDIR=commands_plugin         # just to make Makefile.common happy
 
-D=$(REALTOPDIR)/$(THISVERSION)/commands
+D=$(BINPATH)/commands
 
 COM = $(D)/generic.com
 STUBSYMLINK = $(D)/bootoff.com $(D)/booton.com $(D)/ecpuon.com $(D)/ecpuoff.com $(D)/eject.com \

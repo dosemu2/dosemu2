@@ -5,96 +5,94 @@
 #
 # Makefile.conf.in for DOSEMU
 #
-# This is the only Makefile getting substituted by ./configure
-# It is included by the top Makefile and exports all needed variables
-# to the slave-Makefiles.
+# This file is included by all Makefiles
 
-export DOSBIN = dosemu.bin
+SHELL = /bin/bash
 
-export prefix=@prefix@
-export bindir=@bindir@
-export sysconfdir=@sysconfdir@
-export datadir=@datadir@
-export mandir=@mandir@
-export docdir=@docdir@
-export syshdimagedir=@syshdimagedir@
-export x11fontdir=@x11fontdir@
-export fdtarball=@fdtarball@
-export srcdir=@srcdir@
-export PACKAGE_VERSION=@PACKAGE_VERSION@
+DOSBIN = dosemu.bin
+
+prefix=@prefix@
+bindir=@bindir@
+sysconfdir=@sysconfdir@
+datadir=@datadir@
+mandir=@mandir@
+docdir=@docdir@
+syshdimagedir=@syshdimagedir@
+x11fontdir=@x11fontdir@
+fdtarball=@fdtarball@
+abs_top_srcdir=@abs_top_srcdir@
+abs_top_builddir:=$(shell cd $(top_builddir) && pwd -P)
+PACKAGE_VERSION=@PACKAGE_VERSION@
 
 @SET_MAKE@
-ifdef MAKE
-  export MAKE
+
+INCDIR=@INCDIR@
+ifeq ("$(wildcard $(top_builddir)/*.ac)","$(top_builddir)/configure.ac")
+  top_srcdir=$(top_builddir)
+  srcdir=.
+else
+  top_srcdir=$(abs_top_srcdir)
+  srcdir:=$(abs_top_srcdir)$(subst $(abs_top_builddir),,$(shell pwd -P))
+  INCDIR += -I${top_srcdir}/src/include 
 endif
 
-export INCDIR=@INCDIR@
-
-export CFLAGS=@CFLAGS@
-export CPPFLAGS=@CPPFLAGS@
-export LDFLAGS=@LDFLAGS@
-export LIBS=@LIBS@
-export CC=@CC@
-export CPP=@CPP@
+CFLAGS=@CFLAGS@
+CPPFLAGS=@CPPFLAGS@
+LDFLAGS=@LDFLAGS@
+LIBS=@LIBS@
+CC=@CC@
+CPP=@CPP@
 
 ifneq "@ASM_PEDANTIC@" ""
-export ASM_PEDANTIC=@ASM_PEDANTIC@
+ASM_PEDANTIC=@ASM_PEDANTIC@
 endif
 
-export YACC=@YACC@
+YACC=@YACC@
 # NOTE: we really need bison, yacc won't work any more
-#export YACC=bison -y
-export LEX=@LEX@
+#YACC=bison -y
+LEX=@LEX@
 
 @X_SUPPORT@
-ifdef X_SUPPORT
-  export X_SUPPORT
-endif
 @X_GRAPHICS@
-ifdef X_GRAPHICS
-  export X_GRAPHICS
-endif
 
 # This gets defined even if we chose via ./include/config.h NOT to
 # use the debugger
-export DEBUGGER=@DEBUGGER@
+DEBUGGER=@DEBUGGER@
 
 @USE_MHPDBG@
-ifdef USE_MHPDBG
-  export USE_MHPDBG
-endif
 @USE_SBEMU@
-ifdef USE_SBEMU
-  export USE_SBEMU
-endif
-export OPTIONALSUBDIRS = @OPTIONALSUBDIRS@
-export PLUGINSUBDIRS = @PLUGINSUBDIRS@
-export REQUIRED=@REQUIRED@
+OPTIONALSUBDIRS = @OPTIONALSUBDIRS@
+PLUGINSUBDIRS = @PLUGINSUBDIRS@
+REQUIRED=@REQUIRED@
 @USE_ULTRA@
-ifdef USE_ULTRA
-  export USE_ULTRA
-endif
 
-export OS=@CONFIG_HOST@
-export RANLIB=@RANLIB@
+OS=@CONFIG_HOST@
+RANLIB=@RANLIB@
 
 @ASPI_SUPPORT@
-ifdef ASPI_SUPPORT
-  export ASPI_SUPPORT
-endif
-
 @USE_SVGALIB@
-ifdef USE_SVGALIB
-  export USE_SVGALIB
-endif
-
 @USE_PTHREADS@
-ifdef USE_PTHREADS
-  export USE_PTHREADS
-endif
-
 @X86_EMULATOR@
-ifdef X86_EMULATOR
-  export X86_EMULATOR
+
+INSTALL=install -c
+VPATH=$(srcdir)
+REALTOPDIR=$(top_srcdir)
+SRCPATH=$(top_srcdir)/src
+BINPATH=$(top_builddir)/$(THISVERSION)
+VERSION=$(shell echo $(PACKAGE_VERSION) | cut -d. -f1)
+SUBLEVEL=$(shell echo $(PACKAGE_VERSION) | cut -d. -f2)
+PATCHLEVEL1=$(shell echo $(PACKAGE_VERSION) | cut -d. -f3)
+PATCHLEVEL2=$(shell echo $(PACKAGE_VERSION) | cut -d. -f4)
+ifeq "$(PATCHLEVEL2)" ""
+  PATCHLEVEL2=0
+  PATCHLEVEL=$(PATCHLEVEL1).0
+  PACKETNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL1)
+else
+  PATCHLEVEL=$(PATCHLEVEL1).$(PATCHLEVEL2)
+  PACKETNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 endif
+THISVERSION=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
+EMUVER=$(VERSION).$(SUBLEVEL)
+
+CFLAGS += $(XXXCFLAGS)
 

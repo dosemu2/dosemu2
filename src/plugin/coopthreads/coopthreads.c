@@ -728,7 +728,7 @@ int com_dosrenamefile(char *old, char *new)
 	n = com_strdup(new);
 	if (!n) return -1;
 	HI(ax) = 0x56;
-	LWORD(ds) = COM_SEG;
+	LWORD(ds) = LWORD(es) = COM_SEG;
 	LWORD(edx) = COM_OFFS_OF(o);
 	LWORD(edi) = COM_OFFS_OF(n);
 	call_msdos();    /* call MSDOS */
