@@ -19,6 +19,7 @@ typedef struct { byte end, start; } cshape;
 #define NO_CURSOR 0x0100
 
 #define MAX_COLUMNS 132
+#define MAX_LINES 60
 
 #if 0
 #define SCREEN_ADR(s)	((ushort *)(virt_text_base + (s*TEXT_SIZE)))
@@ -35,6 +36,38 @@ typedef struct { byte end, start; } cshape;
 #define ATTR_FG(attr) (attr & 0x0F)
 #define ATTR_BG(attr) (attr >> 4)
 
+/**********************************************************************/
+/* scroll queue */
+
+#define USE_SCROLL_QUEUE 0
+
+#if USE_SCROLL_QUEUE
+
+struct scroll_entry {
+   short x0,y0,x1,y1;
+   short n;
+   byte attr;
+};
+
+#define SQ_MAXLENGTH 5
+
+struct scroll_entry scroll_queue[SQ_MAXLENGTH+1];
+int sq_head,sq_tail;
+
+struct scroll_entry *get_scroll_queue();
+void clear_scroll_queue();
+
+extern int video_update_lock;
+
+#define VIDEO_UPDATE_LOCK() video_update_lock++;
+#define VIDEO_UPDATE_UNLOCK() video_update_lock--;
+
+#else
+#define video_update_lock 0
+#define VIDEO_UPDATE_LOCK()
+#define VIDEO_UPDATE_UNLOCK()
+#define clear_scroll_queue()
+#endif
 
 /***********************************************************************/
 
@@ -90,14 +123,23 @@ extern int video_mode, video_page, char_blink;
 extern int co,li;
 extern int cursor_col, cursor_row, cursor_blink;
 extern ushort cursor_shape;
-extern int font_height;
 extern unsigned int screen_mask;
+extern int font_height;
 
+extern int vga_font_height;  /* current EMULATED setting for vga font height */
+extern int std_font_height;  /* font height set by int10,0 mode 3 */
+extern int text_scanlines;   /* # of scan lines in textmodes */
+                             /* these have effect only on video mode sets! */
 
 extern unsigned char video_initialized;
 extern int vga_initialize(void);
+extern void mda_initialize(void);
 extern void install_int_10_handler(void);
 extern void clear_screen(int s,int att);
+
+extern void Scroll(us *sadr,int x0,int y0,int x1,int y1,int n,int attr);
+#define scrollup(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,l,att)
+#define scrolldn(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,-(l),att)
 
 /* Values are set by video_config_init depending on video-card defined in config */
 
@@ -139,7 +181,7 @@ extern int video_subsys;
 /* Defines for Color Graphics Adapter */
 
 #define CGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
-#define CGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
+#define CGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define CGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
 #define CGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
@@ -147,7 +189,7 @@ extern int video_subsys;
 /* Defines for Enhanched Graphics Adapter, same as CGA */
 
 #define EGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
-#define EGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
+#define EGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
 #define EGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
 #define EGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
@@ -155,8 +197,8 @@ extern int video_subsys;
 /* Defines for Video Graphic Array, same as CGA */
 
 #define VGA_INIT_SCREEN_MODE   3 /* 80x25 VGA color */
-#define VGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA, 0=EGA/VGA */
-#define VGA_VIDEO_COMBO        4 /* 4=EGA (ok), 8=VGA (not ok?) */
+#define VGA_CONF_SCREEN_MODE   (2<<4)	/* (2<<4)=80x25 color CGA/EGA/VGA */
+#define VGA_VIDEO_COMBO        8 /* 4=EGA (ok), 8=VGA (not ok?) */
 #define VGA_VIDEO_SUBSYS       0 /* 0=color */
 /* #define BASE_CRTC               0x3d4  currently not used */
 

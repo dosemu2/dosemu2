@@ -10,7 +10,7 @@ LD   = ld
 CFLAGS=-O2 -Wall -Wmissing-prototypes \
 	-Wstrict-prototypes  # -ansi -pedantic
 
-ALL = bios.h keymaps.h port.h video.h ipx.h mouse.h inifile.h
+ALL = bios.h keymaps.h port.h video.h ipx.h mouse.h inifile.h hgc.h
 
 OBJS = 
 

@@ -6,7 +6,8 @@ for dosemu.
     
 ******************************************************************
   
-Part of this code is taken from pcemu and is
+Part of this code is taken from pcemu written by David Hedley 
+(hedley@cs.bris.ac.uk) and is
 
   Copyright (C) 1994 University of Bristol, England
 

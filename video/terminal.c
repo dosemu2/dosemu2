@@ -91,7 +91,7 @@ terminal_initialize()
   }
 
   raw();
-  if (config.console_video) {
+  if (config.console_video || config.usesX) {
     config.term_method = METHOD_FAST;
     config.term_color = 0;
     return 0;
@@ -204,7 +204,7 @@ terminal_close()
 void
 v_write(int fd, unsigned char *ch, int len)
 {
-  if (!config.console_video)
+  if (!config.console_video && !config.usesX)
     DOS_SYSCALL(write(fd, ch, len));
   else
     error("ERROR: (video) v_write deferred for console_video\n");

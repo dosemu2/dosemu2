@@ -159,6 +159,7 @@ inline void child_set_flags(int );
 
 void clear_raw_mode();
 extern void clear_console_video();
+extern void clear_consoleX_video();
 extern void clear_process_control();
 void set_raw_mode();
 void get_leds();
@@ -191,7 +192,7 @@ static void gettermcap(void),
  sysreq(unsigned int), ctrl(unsigned int),
  alt(unsigned int), Unctrl(unsigned int), unalt(unsigned int), lshift(unsigned int),
  unlshift(unsigned int), rshift(unsigned int), unrshift(unsigned int),
- caps(unsigned int), uncaps(unsigned int), Scroll(unsigned int), unscroll(unsigned int),
+ caps(unsigned int), uncaps(unsigned int), ScrollLock(unsigned int), unscroll(unsigned int),
  num(unsigned int), unnum(unsigned int), unins(unsigned int), do_self(unsigned int),
  cursor(unsigned int), func(unsigned int), slash(unsigned int), star(unsigned int),
  enter(unsigned int), minus(unsigned int), plus(unsigned int), backspace(unsigned int),
@@ -234,7 +235,7 @@ static fptr key_table[] =
   alt, spacebar, caps, func,	/* 38-3B alt sp caps f1 */
   func, func, func, func,	/* 3C-3F f2 f3 f4 f5 */
   func, func, func, func,	/* 40-43 f6 f7 f8 f9 */
-  func, num, Scroll, cursor,	/* 44-47 f10 num scr home */
+  func, num, ScrollLock, cursor,	/* 44-47 f10 num scr home */
   cursor, cursor, minus, cursor,/* 48-4B up pgup - left */
   cursor, cursor, plus, cursor,	/* 4C-4F n5 right + end */
   cursor, cursor, cursor, cursor,	/* 50-53 dn pgdn ins del */
@@ -586,8 +587,12 @@ keyboard_close(void)
       k_printf("KBD: keyboard_close:clear console video\n");
       clear_console_video();
     }
+    if (config.usesX) {
+      v_printf("CloseKeyboard:clear console video\n");
+      clear_consoleX_video();
+    }
 
-    if (config.console_keyb || config.console_video) {
+    if ( (config.console_keyb || config.console_video) && !config.usesX ) {
       k_printf("KBD: keyboard_close: clear process control\n");
       clear_process_control();
     }
@@ -619,8 +624,14 @@ keyboard_init(void)
   int major, minor;
   struct new_utsname unames;
 
-  kbd_fd = dup(STDIN_FILENO);
-  ioc_fd = dup(STDIN_FILENO);
+  if ( ( config.usesX ) /* && ( config.usesX != 2) */ ){
+    kbd_fd = dup( keypipe );
+    ioc_fd = dup( keypipe );
+  }
+  else {
+    kbd_fd = dup(STDIN_FILENO);
+    ioc_fd = dup(STDIN_FILENO);
+  }
 
   uname(&unames);
   fprintf(stderr, "DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);
@@ -659,20 +670,25 @@ keyboard_init(void)
   major = chkbuf.st_rdev >> 8;
   minor = chkbuf.st_rdev & 0xff;
 
-  /* console major num is 4, minor 64 is the first serial line */
-  if ((major == 4) && (minor < 64))
-    scr_state.console_no = minor;	/* get minor number */
+  if ( !(config.usesX) ) {
+    /* console major num is 4, minor 64 is the first serial line */
+    if ((major == 4) && (minor < 64))
+      scr_state.console_no = minor; /* get minor number */
+    else {
+      if (config.console_keyb || config.console_video)
+        error("ERROR: STDIN not a console-can't do console modes!\n");
+      scr_state.console_no = 0;
+      config.console_keyb = 0;
+      config.console_video = 0;
+      config.mapped_bios = 0;
+      config.vga = 0;
+      config.graphics = 0;
+      if (config.speaker == SPKR_NATIVE)
+        config.speaker = SPKR_EMULATED;
+    }
+  }
   else {
-    if (config.console_keyb || config.console_video)
-      error("ERROR: STDIN not a console-can't do console modes!\n");
-    scr_state.console_no = 0;
-    config.console_keyb = 0;
-    config.console_video = 0;
-    config.mapped_bios = 0;
-    config.vga = 0;
-    config.graphics = 0;
-    if (config.speaker == SPKR_NATIVE)
-      config.speaker = SPKR_EMULATED;
+    scr_state.console_no =0;
   }
 
   if (ioctl(kbd_fd, TCGETA, &oldtermio) < 0) {
@@ -776,6 +792,7 @@ getKeys(void)
     if (cc > 0) {
       int i;
       for (i = 0; i < cc; i++) {
+        k_printf("KEY: readcode: %d \n", kbp[kbcount + i]);
         child_set_flags(kbp[kbcount + i]);
         DOS_setscan(kbp[kbcount + i]);
         k_printf("KBD: cc pushing %d'th character\n", i);
@@ -1300,7 +1317,7 @@ sysreq(unsigned int sc)
 }
 
 static void
-Scroll(unsigned int sc)
+ScrollLock(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
     k_printf("KBD: ctrl-break!\n");

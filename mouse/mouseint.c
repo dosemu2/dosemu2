@@ -48,6 +48,7 @@ void DOSEMUSetMouseSpeed();
 void
 DOSEMUSetupMouse()
 {
+  if ( ! config.usesX ){
       if (mice->type == MOUSE_MOUSEMAN)
         {
           DOSEMUSetMouseSpeed(1200, 1200, mice->flags);
@@ -125,6 +126,7 @@ DOSEMUSetupMouse()
         }
 #endif
 #endif
+    }
   m_printf("MOUSE: INIT complete\n");
 }
  
@@ -150,6 +152,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
     {	0xe0,	0x80,	0x80,	0x00,	3	},  /* MM_HitTablet */
   };
   
+  if ( ! config.usesX  ){
   for ( i=0; i < nBytes; i++) {
     if (pBufP != 0 && mice->type != MOUSE_PS2 &&
 	((rBuf[i] & proto[mice->type][2]) != proto[mice->type][3]
@@ -257,6 +260,32 @@ DOSEMUMouseProtocol(rBuf, nBytes)
     mouse_rb();   
 
     pBufP = 0;
+  }
+}
+  else {
+    dx = ((int *) rBuf)[0] - mouse.x;
+    dy = ((int *) rBuf)[1] - mouse.y;
+    buttons = ((int *) rBuf)[2];
+    mouse.x = mouse.x + dx;
+    mouse.y = mouse.y + dy;
+    mouse.cx = mouse.x / 8;
+    mouse.cy = mouse.y / 8;
+    if (dx || dy) mouse_move();
+    mouse.oldlbutton = mouse.lbutton;
+    mouse.oldrbutton = mouse.rbutton;
+    mouse.lbutton = buttons & 0x04;
+    mouse.mbutton = buttons & 0x02;
+    mouse.rbutton = buttons & 0x01;
+    if (mouse.oldlbutton != mouse.lbutton)
+      mouse_lb();
+    /*
+    if (mouse.oldmbutton != mouse.mbutton)
+      mouse_mb();
+     *  mouse_mb();         When we have 3 button support
+     */
+    if (mouse.oldrbutton != mouse.rbutton)
+      mouse_rb();
+
   }
 }
 

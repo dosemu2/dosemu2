@@ -134,6 +134,8 @@ int in_vm86 = 0;
 
 extern struct config_info config;
 
+#include "hgc.h"
+
 #if 0 /* 94/05/26 */
 #include "int.h"
 #endif

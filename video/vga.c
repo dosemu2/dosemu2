@@ -17,6 +17,9 @@
 #include "et4000.h"
 #include "s3.h"
 #include "trident.h"
+#if 0
+#include "hgc.h"
+#endif
 
 /* Here are the REGS values for valid dos int10 call */
 

@@ -227,7 +227,8 @@ close_all_printers(void)
 
   for (loop = 0; loop < NUM_PRINTERS; loop++) {
     p_printf("LPT: closing printer %d (%s)\n", loop, lpt[loop].dev);
-    (lpt[loop].fops.close) (loop);
+    if (lpt[loop].fops.close)
+       (lpt[loop].fops.close) (loop);
   }
 }
 

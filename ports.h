@@ -112,10 +112,46 @@ inb(int port)
 
   static unsigned int cga_r = 0;
   static unsigned int tmp = 0;
+  static unsigned int r = 0;
 
   port &= 0xffff;
   if (port_readable(port))
     return (read_port(port) & 0xFF);
+
+  if ( config.usesX ){
+    v_printf("HGC Portread: %d\n",(int) port );
+    switch ( port ){
+    case 0x03b8: /* mode-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      r = ( r & 0x7f ) | ( hgc_Mode & 0x80 );
+      break;
+    case 0x03ba: /* status-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      break;
+    case 0x03bf: /* conf-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      r = ( r & 0xfd ) | ( hgc_Konv & 0x02 );
+      break;
+    case 0x03b4: /* adr-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      break;
+    case 0x03b5: /* data-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      break;
+    }
+    return r;
+  }
+
 #if 1
   if (config.chipset && port > 0x3b3 && port < 0x3df && config.mapped_bios)
     return (video_port_in(port));
@@ -259,6 +295,7 @@ outb(int port, int byte)
       static int hi = 0, lo = 0;
       int pos;
       v_printf("Video Port outb [0x%04x]\n", port);
+      if ( ! config.usesX ){
       if ( (port == bios_video_port+1) && (last_port == bios_video_port) )
 	{
 	  /* We only take care of cursor positioning for now. */
@@ -272,6 +309,9 @@ outb(int port, int byte)
 	      pos = (hi << 8) | lo;
 	      cursor_col = pos%80;
 	      cursor_row = pos/80;
+       if ( config.usesX )
+  poshgacur(cursor_col,
+     cursor_row);
 	    }
 	  else if ( last_byte == 15 )
 	    {
@@ -279,12 +319,52 @@ outb(int port, int byte)
 	      pos = (hi << 8) | lo;
 	      cursor_col = pos%80;
 	      cursor_row = pos/80;
+       if ( config.usesX )
+  poshgacur(cursor_col,
+     cursor_row);
 	    }
 	}
       last_port = port; 
       last_byte = byte;
+      }
+      else {
+ set_ioperm(port, 1, 1);
+ port_out(byte , port);
+ set_ioperm(port, 1, 0);
+      }
       return;
     }
+  else {
+    if ( config.usesX ){
+      v_printf("HGC Portwrite: %d %d\n",(int) port, (int )byte );
+      switch ( port ){
+      case 0x03b8: /* mode-reg */
+ if ( byte & 0x80 )
+   set_hgc_page( 1 );
+ else
+   set_hgc_page( 0 );
+ set_ioperm(port, 1, 1);
+ port_out(byte & 0x7f, port);
+ set_ioperm(port, 1, 0);
+ break;
+      case 0x03ba: /* status-reg */
+ set_ioperm(port, 1, 1);
+ port_out(byte, port);
+ set_ioperm(port, 1, 0);
+ break;
+      case 0x03bf: /* conf-reg */
+ if ( byte & 0x02 )
+   map_hgc_page( 1 );
+ else
+   map_hgc_page( 0 );
+ set_ioperm(port, 1, 1);
+ port_out(byte & 0xFD, port);
+ set_ioperm(port, 1, 0);
+ break;
+      }
+    }
+    return;
+  }
 
 #if 1
   if (port > 0x3b3 && port < 0x3df && config.chipset && config.mapped_bios)

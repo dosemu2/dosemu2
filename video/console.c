@@ -141,6 +141,15 @@ void clear_console_video(void)
   }
 }
 
+void set_consoleX_video(void)
+{
+  clear_screen(0, 7);
+}
+
+void clear_consoleX_video(void)
+{
+
+}
 extern int terminal_initialize(void);
 extern void terminal_close(void);
  

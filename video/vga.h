@@ -26,6 +26,9 @@ int restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[]);
 void save_vga_state(struct video_save_struct *save_regs);
 void restore_vga_state(struct video_save_struct *save_regs);
 int vga_initialize(void);
+#if 0
+void mda_initialize(void);
+#endif
 void dump_video_regs(void);
 void save_ext_regs_dummy(u_char xregs[], u_short xregs16[]);
 void restore_ext_regs_dummy(u_char xregs[], u_short xregs16[]);

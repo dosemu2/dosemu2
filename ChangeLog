@@ -1,3 +1,69 @@
+Mon Sep 05 1994 Jmaclean
+
+-	From Rain:
+
+I guess I let this stuff rust on my harddisk long enough, so here's 
+another patch ;)
+
+It includes:
+
+- support for 28/43/50 line modes
+- make xdos exit properly when it fails to open the X server
+  (!includes a change to the printer code!)
+- a color (xpm) icon :-)
+- auto-detection of readonly floppies, which newer kernels require.
+
+It also includes my attempts to make bios scrolls scroll the X window
+directly, in the hope that it would make things faster. 
+However, I found that it's at least as often slower as it's faster...
+
+I disabled the code and left it in just because Mark might be interested
+to use it for the terminal modes.
+
+bye,
+Rainer
+
+-	From Martin Ludwig :
+
+Hello James!
+
+Here is my diff of dosemu pre53_12 to use a second (HGA) monitor for
+dosemu while using X. I hope it will patch against pre53_15, too.
+
+Changes against pre53_12:
+* new switches -Y and -Z: giving the names of the keyboard and mouse pipe
+* keyboard input from pipe instead of STDIN
+* mouse input from pipe instead of asking a mouse port
+* doesn't  install video-bios, uses int10.h instead
+* watches port I/O of HGA-card and remapps video-memory if the second
+  page is used
+* uses an own cursor position routine (the one in dosemu 0.52 was removed...)
+* new X-prog (xdos) which sends mouse and keyboard events from X
+  to dosemu, emulating a raw keyboard
+
+Bugs:
+* no semaphore for the HGA-memory
+* no mouse in graphics mode
+* no test if HGA-card is there
+* it leaves rxvt or xterm disturbed if started from there
+* problems with msherc-programs and the second page
+* large xdos-window
+* some others, I think
+
+Future plans:
+* remove the bugs
+* data exchange with X-progs
+* perhaps an CGA or EGA emulator for HGA
+
+
+Copyright:
+* the same conditions as for dosemu
+
+I hope that's all, here is the diff
+
+Martin
+Martin.Ludwig@ruba.rz.ruhr-uni-bochum.de
+
 Tue Aug 30 1994 Jmaclean
 
 -	Added dosconfig script by Jan Vandenberghe. Requires DIALOG. I like

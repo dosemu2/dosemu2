@@ -224,7 +224,7 @@ ipxsupport off
 #    "icon_name" string                                (default "dosemu")
 #       Used when the dosemu window is iconified.
 #
-X { updatefreq 8 updatelines 25 title "DOS in a BOX" icon_name "dosemu" }
+X { updatefreq 8 updatelines 25 title "DOS in a BOX" icon_name "xdos" }
 
 
 

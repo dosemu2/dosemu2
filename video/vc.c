@@ -131,7 +131,6 @@ extern void child_open_mouse();
 extern struct config_info config;
 extern void clear_screen(int, int);
 extern inline void console_update_cursor(int, int, int, int);
-extern void Scroll(int, int, int, int, int, int);
 void set_dos_video();
 void put_video_ram();
 
@@ -729,31 +728,42 @@ get_perm()
   if (permissions > 1) {
     return 0;
   }
-  /* get I/O permissions for VGA registers */
-  if (ioperm(0x3b0, 0x3df - 0x3b0 + 1, 1)) {
-    v_printf("VGA: can't get I/O permissions \n");
-    exit(-1);
-  }
-  if (config.chipset == S3 && (ioperm(0x102, 1, 1) || ioperm(0x2ea, 4, 1))) {
-    v_printf("S3: can't get I/O permissions \n");
-    exit(-1);
-  }
+  if ( config.vga ){ /* hope this will not lead to problems with ega/cga */
+    /* get I/O permissions for VGA registers */
+    if (ioperm(0x3b0, 0x3df - 0x3b0 + 1, 1)) {
+      v_printf("VGA: can't get I/O permissions \n");
+      exit(-1);
+    }
+    if (config.chipset == S3 && (ioperm(0x102, 1, 1) || ioperm(0x2ea, 4, 1))) {
+      v_printf("S3: can't get I/O permissions \n");
+      exit(-1);
+    }
+    /* color or monochrome text emulation? */
+    color_text = port_in(MIS_R) & 0x01;
 
-  /* color or monochrome text emulation? */
-  color_text = port_in(MIS_R) & 0x01;
-
-  /* chose registers for color/monochrome emulation */
-  if (color_text) {
-    CRT_I = CRT_IC;
-    CRT_D = CRT_DC;
-    IS1_R = IS1_RC;
-    FCR_W = FCR_WC;
-  }
+    /* chose registers for color/monochrome emulation */
+    if (color_text) {
+      CRT_I = CRT_IC;
+      CRT_D = CRT_DC;
+      IS1_R = IS1_RC;
+      FCR_W = FCR_WC;
+    }
   else {
     CRT_I = CRT_IM;
     CRT_D = CRT_DM;
     IS1_R = IS1_RM;
     FCR_W = FCR_WM;
+  }
+  }
+  else if ( config.usesX ){
+    if ( ioperm(0x3b4, 1, 1) ||
+ ioperm(0x3b5, 1, 1) ||
+ ioperm(0x3b8, 1, 1) ||
+ ioperm(0x3ba, 1, 1) ||
+ ioperm(0x3bf, 1, 1) ) {
+      v_printf("HGC: can't get I/O permissions \n");
+      exit(-1);
+    }
   }
   v_printf("Permission allowed\n");
   return 0;
@@ -768,14 +778,27 @@ release_perm()
     if (permissions > 0) {
       return 0;
     }
-    /* release I/O permissions for VGA registers */
-    if (ioperm(0x3b0, 0x3df - 0x3b0 + 1, 0)) {
-      v_printf("VGA: can't release I/O permissions \n");
-      leavedos(-1);
+    if ( config.vga ){ /* hope this will not lead to problems with ega/cga */
+      /* get I/O permissions for VGA registers */
+      /* release I/O permissions for VGA registers */
+      if (ioperm(0x3b0, 0x3df - 0x3b0 + 1, 0)) {
+ v_printf("VGA: can't release I/O permissions \n");
+ leavedos(-1);
+      }
+      if (config.chipset == S3 && (ioperm(0x102, 1, 0) || ioperm(0x2ea, 4, 0))) {
+ v_printf("S3: can't release I/O permissions\n");
+ leavedos(-1);
+      }
     }
-    if (config.chipset == S3 && (ioperm(0x102, 1, 0) || ioperm(0x2ea, 4, 0))) {
-      v_printf("S3: can't release I/O permissions\n");
-      leavedos(-1);
+    else if ( config.usesX ){
+      if ( ioperm(0x3b4, 1, 0) ||
+   ioperm(0x3b5, 1, 0) ||
+   ioperm(0x3b8, 1, 0) ||
+   ioperm(0x3ba, 1, 0) ||
+   ioperm(0x3bf, 1, 0) ) {
+ v_printf("HGC: can't release I/O permissions \n");
+ exit(-1);
+      }
     }
     v_printf("Permission disallowed\n");
   }
@@ -1113,12 +1136,19 @@ dump_video_linux(void)
  * install_int_10_handler - install a handler for the video-interrupt (int 10)
  *                          at address INT10_SEG:INT10_OFFS. Currently
  *                          it's f100:4100.
+ *                          The new handler is only installed, if the bios
+ *                          handler at f100:4100 is not the appropriate on
+ *                          that means, if we use not mda with X
+ *                          The new handler is only installed, if the bios
+ *                          handler at f100:4100 is not the appropriate on
+ *                          that means, if we use not mda with X
  */
 
 void install_int_10_handler(void)
 {
   unsigned char *ptr;
 
+ if ( !config.usesX ) {
   /* Wrapper around call to video init c000:0003 */
   ptr = (u_char *) INT10_ADD;
 
@@ -1156,6 +1186,7 @@ void install_int_10_handler(void)
   *ptr++ = 0x58;           /* pop ax           */
   *ptr++ = 0xfb;           /* start interrupts STI  */
   *ptr++ = 0xcb;           /* retf             */
+ }
 }
 
 #undef VC_C

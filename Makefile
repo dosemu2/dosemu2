@@ -18,6 +18,7 @@
 
 # Set X_SUPPORT to 0 if you don't have X windows installed.
 X_SUPPORT = 1
+X2_SUPPORT = 1
 
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include
@@ -32,6 +33,10 @@ XOBJS   = Xkeyb.o
 #the -u forces the X11 shared library to be linked into ./dos
 XLIBS   = -L/usr/X386/lib -lX11 -u _XOpenDisplay
 XDEFS   = -DX_SUPPORT
+endif
+ifdef X2_SUPPORT
+X2CFILES = x2dos.c
+X2DEFS   = -DX_SUPPORT
 endif
 
 export X_SUPPORT
@@ -57,7 +62,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   17
+PATCHL  =   18
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -101,7 +106,7 @@ DOCS= doc
 
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
 	timers.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
-        serial.c dyndeb.c sigsegv.c detach.c $(XCFILES)
+        serial.c dyndeb.c sigsegv.c detach.c $(XCFILES) $(X2CFILES)
 
 HFILES=cmos.h emu.h termio.h timers.h xms.h dosio.h \
         cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
@@ -193,7 +198,7 @@ doeverything: warning2 config dep installnew docsubdirs
 
 most: warning2 config dep installnew
 
-all:	warnconf dos dossubdirs warning3 libdosemu
+all:	warnconf x2dos dos dossubdirs warning3 libdosemu
 
 .EXPORT_ALL_VARIABLES:
 
@@ -216,10 +221,18 @@ warnconf: config.h
 dos.o: config.h dos.c
 	$(CC) -DSTATIC=$(STATIC) -c dos.c
 
+x2dos.o: config.h x2dos.c
+	$(CC) -I/usr/openwin/include -DSTATIC=$(STATIC) -c x2dos.c
+
 dos:	dos.c $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
 	$(CC) $(DOSLNK) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) \
               $(XLIBS)
+
+x2dos: x2dos.c
+	@echo "Including x2dos.o "
+	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) \
+	  -o $@ $< -lXaw -lXt -lX11
 
 libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \
@@ -315,7 +328,7 @@ dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	@ls -l $(DISTFILE) 
 
 clean:
-	rm -f $(OBJS) dos libdosemu *.s core config.h .depend \
+	rm -f $(OBJS) x2dos dos libdosemu *.s core config.h .depend \
 	      dosconfig dosconfig.o *.tmp
 	@for i in $(SUBDIRS); do \
              (cd $$i && echo $$i && $(MAKE) clean) || exit; \

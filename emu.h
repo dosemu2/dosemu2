@@ -226,6 +226,10 @@ extern char *cl,		/* clear screen */
 extern int kbd_fd, mem_fd, ioc_fd;
 extern int in_readkeyboard;
 
+/* X-pipes */
+extern int keypipe;
+extern int mousepipe;
+
 extern int in_vm86;
 
 extern int li, co;	/* lines, columns */
@@ -434,6 +438,8 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        char    *X_icon_name;
        boolean fullrestore;
 
+       u_short usesX;  /* !=0 if dosemu owns an X window */
+
        boolean console_keyb;
        boolean exitearly;
        boolean mathco;
@@ -503,11 +509,6 @@ extern config_t config;
 #define KEYB_ES               17
 #define KEYB_ES_LATIN1        18
 #define KEYB_BE               19
-
-#ifndef OLD_SCROLL
-#define scrollup(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,l,att)
-#define scrolldn(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,-(l),att)
-#endif
 
 /*
  * Right now, dosemu only supports two serial ports.

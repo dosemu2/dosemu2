@@ -69,10 +69,18 @@
 #define bios_keyboard_buffer_end        (*(unsigned short *) 0x482)
  
 #define bios_rows_on_screen_minus_1     (*(unsigned char  *) 0x484)
+#define bios_font_height                (*(unsigned short *) 0x485)
+
+#define bios_video_info_0               (*(unsigned char  *) 0x487)
+#define bios_video_info_1               (*(unsigned char  *) 0x488)
+#define bios_video_info_2               (*(unsigned char  *) 0x489)
+#define bios_video_combo                (*(unsigned char  *) 0x48a)
+
 #define bios_keyboard_flags2            (*(unsigned short *) 0x496)
 #define bios_print_screen_flag          (*(unsigned short *) 0x500)
 
-
+#define bios_video_saveptr              (*(unsigned long  *) 0x4a8)
+    
 #define BIT(x)  	(1<<x)
 
 /* int 11h config single bit tests

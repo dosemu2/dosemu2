@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <malloc.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -31,13 +32,14 @@ int scr;
 Window root,W;
 static Cursor X_stnd_cursor, X_mouse_cursor;
 GC gc;
+Font vga_font;
 Atom proto_atom = None, delete_atom = None;
 
 static int font_width=8, font_height=16, font_shift=12;
 int prev_cursor_row=-1, prev_cursor_col=-1;
 ushort prev_cursor_shape=-1;
 
-boolean have_focus=1, is_mapped=1;
+boolean have_focus=0, is_mapped=0;
 
 /* from Xkeyb.c */
 void X_process_key(XKeyEvent *);
@@ -61,7 +63,8 @@ inline void get_vga_colors()
 
         X_printf("X: getting VGA colors\n");
         
-	xcol.flags = DoRed | DoGreen | DoBlue;
+	/*xcol.flags = DoRed | DoGreen | DoBlue;
+	*/
 	for(i=0;i<16;i++) {
 	   xcol.red   = crgb[i].r<<8;
 	   xcol.green = crgb[i].g<<8;
@@ -74,16 +77,23 @@ inline void get_vga_colors()
 	}
 }
 
+  
+ void set_sizehints(int xsize,int ysize) {
+    XSizeHints sh;
+    sh.max_width=(xsize+1)*font_width;  /* why +1 ??? */
+    sh.max_height=(ysize+1)*font_height;
+    sh.width_inc=font_width;
+    sh.height_inc=font_height;
+    sh.flags = PMaxSize|PResizeInc;
+    XSetNormalHints(dpy,W,&sh);
+ }
 
 int X_init() {
    XGCValues gcv;
    XSetWindowAttributes attr;
-	XColor bg, fg;
-	Font   cfont;
-	int    cmap;
-#if 0 /* Not used ... yet */
-   XWMHints wmhints;
-#endif
+   XColor fg,bg;
+   Font cfont,decfont;
+   int cmap;
    
 
    X_printf("X_init()\n");
@@ -104,41 +114,40 @@ int X_init() {
                            vga_colors[0]                   /* background */
                            );
    
+   set_sizehints(co,li);
+
+   /* Create the mouse cursor shapes */
+   /* Use a white on black cursor as the background is normally dark */
+
+   cmap=DefaultColormap(dpy,scr);
+   /* Use a white on black cursor as the background is normally dark */
+   XParseColor(dpy,cmap,"white",&fg);
+   XParseColor(dpy,cmap,"black",&bg);
+
+   cfont=XLoadFont(dpy, "cursor");
+   X_stnd_cursor = XCreateGlyphCursor(dpy,cfont,cfont,XC_top_left_arrow,
+                                      XC_top_left_arrow+1,&fg,&bg);
+   decfont=XLoadFont(dpy,"decw$cursor");
+   if (!decfont) {
+      /* IMHO, the DEC cursor font looks nicer, but if it is not there, 
+      use the standard cursor font */
+      X_mouse_cursor = XCreateGlyphCursor(dpy,cfont,cfont,XC_hand2,
+                                          XC_hand2+1,&bg,&fg);
+   } else {
+      X_mouse_cursor = XCreateGlyphCursor(dpy,decfont,cfont,2,3,&fg,&bg);
+   }
+   XUnloadFont(dpy,cfont);
+   XUnloadFont(dpy,decfont);
+   /*XDefineCursor(dpy,W,X_stnd_cursor);*/
+
    attr.event_mask=KeyPressMask|KeyReleaseMask|
                    ButtonPressMask|ButtonReleaseMask|
                    EnterWindowMask|LeaveWindowMask|PointerMotionMask|
                    ExposureMask|StructureNotifyMask|FocusChangeMask;
+   attr.cursor=X_stnd_cursor;
+      
+   XChangeWindowAttributes(dpy,W,CWEventMask|CWCursor,&attr);
 
-   XChangeWindowAttributes(dpy,W,CWEventMask,&attr);
-
-	/* Create the mouse cursor shapes */
-	cmap=DefaultColormap(dpy,scr);
-	/* Use a white on black cursor as the background is normally dark */
-	XParseColor(dpy,cmap,"white",&fg);
-	XParseColor(dpy,cmap,"black",&bg);
-	cfont=XLoadFont(dpy, "cursor");
-	X_stnd_cursor = XCreateGlyphCursor(dpy,cfont,cfont,XC_top_left_arrow,
-												  XC_top_left_arrow+1,&fg,&bg);
-	XUnloadFont(dpy,cfont);
-	cfont=XLoadFont(dpy,"decw$cursor");
-	if (!cfont) {
-		/* IMHO, the DEC cursor font looks nicer, but if it is not there, 
-			use the standard cursor font */
-		cfont=XLoadFont(dpy,"cursor");
-		X_mouse_cursor = XCreateGlyphCursor(dpy,cfont,cfont,XC_hand2,
-														XC_hand2+1,&bg,&fg);
-	} else {
-		X_mouse_cursor = XCreateGlyphCursor(dpy,cfont,cfont,2,3,&fg,&bg);
-	}
-	XUnloadFont(dpy,cfont);
-	XDefineCursor(dpy,W,X_stnd_cursor);
-
-/*
-   wmhints.icon_pixmap=...
-   wmhints.icon_mask=...
-   wmhints.flags = IconPixmapHint|IconMaskHint;
-   XSetWMHints(dpy,W,&wmhints);
-*/
    XStoreName(dpy,W,config.X_title);
    XSetIconName(dpy,W,config.X_icon_name);
 
@@ -149,19 +158,20 @@ int X_init() {
       XChangeProperty(dpy, W, proto_atom, XA_ATOM, 32,
                       PropModePrepend, (char*)&delete_atom, 1);
                                     
-   
    XMapWindow(dpy,W);
 
-   gcv.foreground=1;
-   gcv.background=0;
-   gcv.font=XLoadFont(dpy,"vga");
+/*
+   gcv.foreground=white;
+   gcv.background=black;
+*/
+   gcv.font=vga_font=XLoadFont(dpy,"vga");
    if (!gcv.font) {
       printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
 	     "Please read QuickStart and DOSEMU-HOWTO.* for more information.\n");
       leavedos(99);
    }
 
-   gc=XCreateGC(dpy,W,GCForeground|GCBackground|GCFont,&gcv);
+   gc=XCreateGC(dpy,W,/*GCForeground|GCBackground|*/GCFont,&gcv);
 
 /*
    prev_cursor_row=prev_cursor_col=-1;
@@ -176,13 +186,18 @@ int X_init() {
 
 void X_close() {
    X_printf("X_close()\n");
+   if (dpy==NULL) return;
+   XUnloadFont(dpy,vga_font);
    XDestroyWindow(dpy,W);
    XFreeGC(dpy,gc);
    XCloseDisplay(dpy);
 }
 
 int X_setmode(int type, int xsize, int ysize) {
-   /* unimplemented... */
+   if (type==0) { /* text mode */
+      XResizeWindow(dpy,W,xsize*font_width,ysize*font_height);
+      set_sizehints(xsize,ysize);
+   }
    return 0;
 }
 
@@ -250,29 +265,6 @@ void X_update_cursor() {
    }
 }
 
-
-void X_scroll(int x,int y,int width,int height,int n,byte attr) {
-  
-  x*=font_width;
-  y*=font_height;
-  width*=font_width;
-  height*=font_height;
-  n*=font_height;
-  
-  X_setattr(attr);
-  
-  if (n>0) {       /* scroll up */
-     height-=n;
-     XCopyArea(dpy,W,W,gc,x,y+n,width,height,x,y);
-     XClearArea(dpy,W,x,y+height,width,n,FALSE);
-  }
-  else if (n<0) {  /* scroll down */
-     height+=n;
-     XCopyArea(dpy,W,W,gc,x,y,width,height,x,y-n);
-     XClearArea(dpy,W,x,y,width,-n,FALSE);
-  }
-}
-
 /* redraw the entire screen. Used for expose events etc. */
  
 void X_redraw_screen() 
@@ -284,12 +276,12 @@ void X_redraw_screen()
 
    if (!is_mapped) return;
    
-   X_printf("X_redraw_screen entered; CO=%d LI=%d screen_adr=%x\n",
-            CO,LI,(int)screen_adr);
+   X_printf("X_redraw_screen entered; co=%d li=%d screen_adr=%x\n",
+            co,li,(int)screen_adr);
 
    sp=screen_adr;
 
-   for(y=0;y<co;y++) {
+   for(y=0;y<li;y++) {
       x=0;
       do {
          /* scan in a string of chars of the same attribute. */
@@ -319,12 +311,71 @@ void X_redraw_screen()
    XFlush(dpy);
 
    memcpy(prev_screen,screen_adr,co*li*2);
+   clear_scroll_queue();
    
    X_printf("X_redraw_screen done\n");
 }
 
+#if USE_SCROLL_QUEUE
 
-#define Y_INC(y) if (++yloop==li) yloop=0
+
+void X_scroll(int x,int y,int width,int height,int n,byte attr) {
+  
+  x*=font_width;
+  y*=font_height;
+  width*=font_width;
+  height*=font_height;
+  n*=font_height;
+  
+  XSetForeground(dpy,gc,vga_colors[attr>>4]);
+  
+  if (n>0) {       /* scroll up */
+     if (n>=height) {
+        n=height;
+     }
+     else {
+        height-=n;
+        XCopyArea(dpy,W,W,gc,x,y+n,width,height,x,y);
+     }
+     /*
+     XFillRectangle(dpy,W,gc,x,y+height,width,n);
+     */
+  }
+  else if (n<0) {  /* scroll down */
+     if (-n>=height) {
+        n=-height;
+     }
+     else {
+        height+=n;
+        XCopyArea(dpy,W,W,gc,x,y,width,height,x,y-n);
+     }
+     /*
+     XFillRectangle(dpy,W,gc,x,y,width,-n);
+     */
+  }
+}
+
+
+/* process the scroll queue */
+void do_scroll() {
+   struct scroll_entry *s;
+
+   while((s=get_scroll_queue())) {
+      if (s->n!=0) {
+         X_scroll(s->x0,s->y0,s->x1-s->x0+1,s->y1-s->y0+1,s->n,s->attr);
+         Scroll(prev_screen,s->x0,s->y0,s->x1,s->y1,s->n,0xff);
+         if (prev_cursor_col>=s->x0 && prev_cursor_col<=s->x1 &&
+            prev_cursor_row>=s->y0 && prev_cursor_row<=s->y1)
+         {
+	    prev_cursor_shape=NO_CURSOR;  /* cursor was overwritten */
+         }
+      }
+   }
+}
+#endif   /* USE_SCROLL_QUEUE */
+
+
+#define Y_INC(y) if (++y>=li) y=0
 
 /* this is derived from ansi_update but heavily modified 
 */
@@ -346,6 +397,10 @@ int X_update_screen()
 
   if (!is_mapped) return 0;       /* no need to do anything... */
 
+#if USE_SCROLL_QUEUE
+  do_scroll();
+#endif
+  
   /* The following determines how many lines it should scan at once,
    * since this routine is being called by sig_alrm.  If the entire
    * screen changes, it often incurs considerable delay when this
@@ -445,7 +500,7 @@ int X_update_screen()
         {
            prev_cursor_shape=NO_CURSOR;  /* old cursor was overwritten */
         }
-
+	
 #if !COPY_WHOLE_LINE
         memcpy(oldsrow+start_x,srow+start_x,len*2);
 #endif
@@ -524,15 +579,8 @@ void X_handle_events()
       switch(e.type) {
        case Expose:  
                      X_printf("X: expose event\n");
-#if 0
-                     /*if (running<0) break; ??*/
-                     running=-1;
-#endif
-                     if (e.xexpose.count==0)   /* pcemu does this check... what's it good for ?? */
+                     if (e.xexpose.count==0)   /* avoid redundant redraws */
                         X_redraw_screen();
-#if 0
-                     running=config.X_updatefreq;
-#endif
                      break;
 
        case UnmapNotify:

@@ -13,10 +13,14 @@
 #include "bios.h"
 #include "memory.h"
 #include "video.h"
+#if 0
+#include "hgc.h"
+#endif
 
 extern void open_kmem();      /* from vc.c */
 extern void set_process_control();
 extern void set_console_video();
+extern void set_consoleX_video();
 
 
 int video_mode = 0;		/* Init Screen Mode in emu.c     */
@@ -36,6 +40,9 @@ ushort cursor_shape=0x0E0F;
 
 unsigned int screen_mask;  /* bit mask for testing vm86s.screen_bitmap */    
 
+int vga_font_height = 16;  /* current font height */
+int std_font_height = 16;  /* font height set by int10,0 mode 3 */
+int text_scanlines = 400;
 
 int video_init()
 {
@@ -66,7 +73,7 @@ int video_init()
 
   if (!Video->is_mapped) {
      /* allocate screen buffer for non-console video compare speedup */
-     prev_screen = (ushort *)malloc(CO * LI * 2);
+     prev_screen = (ushort *)malloc(CO * MAX_LINES * 2);
      if (prev_screen==NULL) {
         error("could not malloc prev_screen\n");
         leavedos(99);
@@ -75,9 +82,7 @@ int video_init()
      vm86s.flags |= VM86_SCREEN_BITMAP;
   }
   
-#if 0
-  if (config.vga) vga_initialize();
-#endif
+  if (config.usesX) mda_initialize();
   clear_screen(video_page, 7);
 
   return 0;
@@ -185,6 +190,25 @@ void
   else
     bios_video_port = 0x3d4;	/* base port of CRTC - IMPORTANT! */
 
+  bios_vdu_control = 9;		/* current 3x8 (x=b or d) value */
+
+  bios_video_mode = video_mode; /* video mode */
+  bios_screen_columns = CO;     /* chars per line */
+  bios_rows_on_screen_minus_1 = LI - 1; /* lines on screen - 1 */
+  bios_video_memory_used = TEXT_SIZE;   /* size of video regen area in bytes */
+  bios_video_memory_address = 0;/* offset of current page in buffer */
+
+  bios_font_height = 16;
+  
+  /* XXX - these are the values for VGA color!
+     should reflect the real display hardware. */
+  bios_video_info_0 = 0x60;
+  bios_video_info_1 = 0xF9;
+  bios_video_info_2 = 0x51;
+  bios_video_combo = video_combo;
+
+  bios_video_saveptr = 0;		/* pointer to video table */
+
   if (config.mapped_bios) {
     if (config.vbios_file) {
       warn("WARN: loading VBIOS %s into mem at 0x%X (0x%X bytes)\n",
@@ -206,16 +230,17 @@ void
   load_file("/dev/kmem", GFX_CHARS, (char *) GFX_CHARS, GFXCHAR_SIZE);
 
 
-  if (config.console_keyb || config.console_video)
+  if ((config.console_keyb || config.console_video) && !config.usesX)
     set_process_control();
 
   if (config.console_video)
     set_console_video();
+  if (config.usesX)
+    set_consoleX_video();
 
   video_init();
 
 }
-
 #define graphics_init vga_initialize
 #define graphics_close NULL
 #define graphics_setmode NULL

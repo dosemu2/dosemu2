@@ -755,12 +755,22 @@ mouse_do_cur(void)
   } else if (!config.X) {
     unsigned short *p = SCREEN_ADR(bios_current_screen_page);
 
+#if 0 /* Replaced 94/08/31 */
     p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
+#else
+   if ( ( p[mouse.hidx + mouse.hidy * 80] ) ==
+	( mouse.hidchar & 0x00ff ) | /* char-code */
+	( ( ~( ( mouse.hidchar & 0xff00 ) & 0x7000 ) ) & 0x7000 ) )
+	/* restore only if char isn't modified
+	   by something other! */
+      p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
+#endif
+
 
     /* save old char/attr pair */
     mouse.hidx = mouse.cx;
     mouse.hidy = mouse.cy;
-	 i=mouse.cx + mouse.cy * 80;
+    i=mouse.cx + mouse.cy * 80;
     mouse.hidchar = p[i];
 
     p[i] &= mousetextscreen;
@@ -804,8 +814,31 @@ mouse_init(void)
   }
 #endif
   
-  if (mice->intdrv) {
-    mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+  if ( ! config.usesX ){
+    if (mice->intdrv) {
+      mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+      if (mice->fd == -1) {
+ mice->intdrv = FALSE;
+ mice->type = MOUSE_NONE;
+ return;
+      }
+      DOSEMUSetupMouse();
+      return;
+    }
+
+    if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
+      mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+    }
+    else {
+      sptr = &com[config.num_ser];
+      if (!(sptr->mouse)) {
+ m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
+ mice->intdrv = FALSE;
+      }
+    }
+  }
+  else {
+    mice->fd = mousepipe;
     if (mice->fd == -1) {
       mice->intdrv = FALSE;
       mice->type = MOUSE_NONE;
@@ -849,7 +882,7 @@ void
 mouse_close(void)
 {
 #ifdef X_SUPPORT
-  if (config.X) return;
+  if (config.X || config.usesX) return;
 #endif
   
   if (mice->intdrv) {

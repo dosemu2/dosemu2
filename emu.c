@@ -461,6 +461,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "dosio.h"
 #include "disks.h"
 #include "xms.h"
+#include "hgc.h"
 #include "timers.h"
 #ifdef DPMI
 #include "dpmi/dpmi.h"
@@ -489,6 +490,10 @@ unsigned int use_sigio=0;
 unsigned int not_use_sigio=0;
 
 char *cstack[16384];
+
+/* X-pipes */
+int keypipe;
+int mousepipe;
 
 int int_queue_running = 0;
 inline void int_queue_run();
@@ -997,11 +1002,6 @@ boot(void)
   bios_address_lpt2 = 0x278;
   bios_configuration = configuration;
   bios_memory_size = config.mem_size;	/* size of memory */
-  bios_video_mode = video_mode; /* video mode */
-  bios_screen_columns = CO;	/* chars per line */
-  bios_rows_on_screen_minus_1 = LI - 1;	/* lines on screen - 1 */
-  bios_video_memory_used = TEXT_SIZE;	/* size of video regen area in bytes */
-  bios_video_memory_address = 0;/* offset of current page in buffer */
 
   /* The default 16-word BIOS key buffer starts at 0x41e */
   KBD_Head =			/* key buf start ofs */
@@ -1011,15 +1011,8 @@ boot(void)
 
   keybuf_clear();
 
-  bios_vdu_control = 9;		/* current 3x8 (x=b or d) value */
   bios_ctrl_alt_del_flag = 0x0000;
-  *(char *) 0x487 = 0x61;
-  *(char *) 0x488 = 0x81;	/* video display data */
-
-  *(char *) 0x48a = video_combo;/* video type */
-
   *(char *) 0x496 = 16;		/* 102-key keyboard */
-  *(long *) 0x4a8 = 0;		/* pointer to video table */
 
   /* from Alan Cox's mods */
   /* we need somewhere for the bios equipment. */
@@ -1092,8 +1085,8 @@ boot(void)
 void
 sigalrm(int sig, struct sigcontext_struct context)
 {
-  static int running = 0;
-  static inalrm = 0;
+  static volatile int running = 0;
+  static volatile inalrm = 0;
   static int partials = 0;
   static u_char timals = 0;
 #if VIDEO_CHECK_DIRTY
@@ -1150,7 +1143,7 @@ sigalrm(int sig, struct sigcontext_struct context)
     * note that update_screen also updates the cursor.
     */
 
-  if (!running) {
+  if (!running && !video_update_lock) {
     if (Video->update_screen 
 #if VIDEO_CHECK_DIRTY
        && (update_pending || vm86s.screen_bitmap&screen_mask)
@@ -1159,7 +1152,9 @@ sigalrm(int sig, struct sigcontext_struct context)
     {
        running = -1;
        retval = Video->update_screen();
+#if 0
        v_printf("update_screen returned %d\n",retval);
+#endif
 #ifdef X_SUPPORT
        running = retval ? (config.X?config.X_updatefreq:config.term_updatefreq) 
                         : 0;
@@ -1217,7 +1212,7 @@ sigalrm(int sig, struct sigcontext_struct context)
       h_printf("NOT CONFIG.TIMERS\n");
   }
 
-#if 1 /* Old way 94/08/30 */
+#if 1 /* New way 94/08/30 */
   if (not_use_sigio)
     io_select(fds_no_sigio);
 #else
@@ -1312,6 +1307,30 @@ open_terminal_pipe(char *path)
   }
   else
     terminal_pipe = 1;
+}
+
+void
+open_Xkeyboard_pipe(char *path)
+{
+  keypipe = DOS_SYSCALL(open(path, O_RDWR));
+  if (keypipe == -1) {
+    keypipe = 0;
+    error("ERROR: open_Xkeyboard_pipe failed - cannot open %s!\n", path);
+    return;
+  }
+  return;
+}
+
+void
+open_Xmouse_pipe(char *path)
+{
+  mousepipe = DOS_SYSCALL(open(path, O_RDWR));
+  if (mousepipe == -1) {
+    mousepipe = 0;
+    error("ERROR: open_Xmouse_pipe failed - cannot open %s!\n", path);
+    return;
+  }
+  return;
 }
 
 /* this part is fairly flexible...you specify the debugging flags you wish
@@ -1457,9 +1476,11 @@ config_defaults(void)
   config.term_corner = 1;
   config.X_updatelines = 25;
   config.X_updatefreq  = 8;
-  config.X_display     = ":0";
+  config.X_display     = NULL;     /* NULL means use DISPLAY variable */
   config.X_title       = "dosemu";
   config.X_icon_name   = "dosemu";
+  config.usesX   = 0;
+  config.X   = 0;
   config.hogthreshold = 5000;	/* in usecs */
   config.chipset = PLAINVGA;
   config.cardtype = CARD_VGA;
@@ -1708,12 +1729,14 @@ void
         config.X=1;               /* activate X mode if dosemu was */ 
                                   /* called as 'xdos'              */
   }
+#if 0
   config.X_display = getenv("DISPLAY");
+#endif
 #endif
      
   opterr = 0;
   confname = NULL;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:dX")) != EOF) {
+  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtsgx:Km234e:dXY:Z:")) != EOF) {
     switch (c) {
     case 'F':
       confname = optarg;
@@ -1732,7 +1755,7 @@ void
 
   optind = 0;
   opterr = 0;
-  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtT:sgx:Km234e:dX")) != EOF) {
+  while ((c = getopt(argc, argv, "ABC:cF:kM:D:P:VNtT:sgx:Km234e:dXY:Z:")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
     case 'd':
@@ -1758,6 +1781,25 @@ void
 #else
       error("X support not compiled in\n");
 #endif
+      break;
+    case 'Y':
+      open_Xkeyboard_pipe(optarg);
+      config.cardtype = CARD_MDA;
+      config.mapped_bios = 0;
+      config.vbios_file = NULL;
+      config.vbios_copy = 0;
+      config.vbios_seg = 0xc000;
+      config.console_video = 0;
+      config.chipset = 0;
+      config.fullrestore = 0;
+      config.graphics = 0;
+      config.vga = 0;  /* this flags BIOS graphics */
+      config.usesX = 1;
+      config.console_keyb = 1;
+      break;
+    case 'Z':
+      open_Xmouse_pipe(optarg);
+      config.usesX = 1;
       break;
     case 'K':
       warn("Keyboard interrupt enabled...this is still buggy!\n");
@@ -1972,6 +2014,9 @@ void
      get graphics chars
   */
   video_config_init();
+  if ( config.usesX )
+    hgc_meminit();
+
 #ifdef SIG
   SIG_init();
 #endif
@@ -2055,19 +2100,28 @@ void
   SETSIG(SIGTRAP, ign_sigs);
   error("leavedos(%d) called - shutting down\n", sig );
 
+  g_printf("calling close_all_printers\n");
   close_all_printers();
 
+  g_printf("calling serial_close\n");
   serial_close();
+  g_printf("calling mouse_close\n");
   mouse_close();
 
 #ifdef SIG
+  g_printf("calling SIG_close\n");
   SIG_close();
 #endif
 
   show_ints(0, 0x33);
-  show_regs();
+#if 0
+  show_regs();   /* seems to cause sigsegv's sometimes */
+#endif
+  g_printf("calling disk_close_all\n");
   disk_close_all();
+  g_printf("calling video_close\n");
   video_close();
+  g_printf("calling keyboard_close\n");
   keyboard_close();
   fflush(stderr);
   fflush(stdout);
@@ -2129,6 +2183,8 @@ void
 #ifdef X_SUPPORT
   fprintf(stdout, "    -X run in X Window (#)\n");
 #endif
+  fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!\n");
+  fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!\n");
   fprintf(stdout, "    -D set debug-msg mask to flags (+-)(vsdDRWkpiwghxmIEc01)\n");
   fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
   fprintf(stdout, "    -P copy debugging output to FILE\n");

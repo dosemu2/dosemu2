@@ -596,7 +596,9 @@ serial_init(void)
   for (i = 0; i < config.num_ser; i++) {
     com[i].fd = -1;
 #ifdef X_SUPPORT
-    if (!config.X || !com[i].mouse)   /* skip "mouse" ports in X mode */
+    if ((config.usesX && config.console_video ) || !com[i].mouse)   /* skip "mouse" ports in X mode */
+#else
+    if ( config.console_video || com[i].mouse) 
 #endif
       do_ser_init(i);
   }
@@ -613,8 +615,10 @@ serial_close(void)
   static int i;
   s_printf("SER: Running serial_close\n");
   for (i = 0; i < config.num_ser; i++) {
-    DOS_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
-    ser_close(i);
+    if ( ( ! config.usesX ) || ( ! com[i].mouse ) ){
+      DOS_SYSCALL(tcsetattr(com[i].fd, TCSANOW, &com[i].oldset));
+      ser_close(i);
+    }
   }
 }
 
@@ -628,6 +632,7 @@ void
 child_close_mouse()
 {
   static u_char i, rtrn;
+  if ( !config.usesX ){
   s_printf("MOUSE: CLOSE function starting.\n");
   for (i = 0; i < config.num_ser; i++) {
     s_printf("MOUSE: CLOSE port=%d, dev=%s, fd=%d, valid=%d\n", 
@@ -642,7 +647,7 @@ child_close_mouse()
     }
   }
 }
-
+}
 
 /* The following initializes the mouse on the serial port that the mouse
  * has been enabled on.  For mouse sharing purposes, this is the function
@@ -653,6 +658,7 @@ void
 child_open_mouse()
 {
   static u_char i;
+  if ( ! config.usesX ){
   s_printf("MOUSE: OPEN function starting.\n");
   for (i = 0; i < config.num_ser; i++) {
     s_printf("MOUSE: OPEN port=%d, type=%d, dev=%s, valid=%d\n",
@@ -663,6 +669,7 @@ child_open_mouse()
       tcgetattr(com[i].fd, &com[i].newset);
     }
   }
+}
 }
 
 
