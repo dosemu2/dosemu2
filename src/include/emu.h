@@ -92,6 +92,7 @@ EXTERN unsigned int use_sigio INIT(0);
 EXTERN unsigned int not_use_sigio INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
+EXTERN int running_kversion INIT(0);
 
 /* set to one if runing setuid as root */
 EXTERN int i_am_root INIT(0);

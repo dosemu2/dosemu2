@@ -568,6 +568,7 @@ void low_mem_init(void)
  */
 void version_init(void) {
   struct new_utsname unames;
+  char version[80];
 
   uname((struct utsname *)&unames);
   warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
@@ -577,12 +578,27 @@ void version_init(void) {
 #ifdef __NetBSD__
   warn("Built for %d\n", NETBSD_VERSION);
 #endif
+
+#ifdef __linux__
+  strcpy(version,unames.release);
+  running_kversion = atoi(strtok(version,".")) *1000000;
+  running_kversion += atoi(strtok(NULL,".")) *1000;
+  running_kversion += atoi(strtok(NULL,"."));
+  use_sigio=FASYNC;
+#endif
+  
+
+#if 0 /* hmm, the below _allway_ has been hit in the past,
+       * because: unames.release[2] > 1 always is true
+       * (unames.release is a string like "2.0.28") --Hans
+       */
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
          unames.release[2] > 1 ) {
       use_sigio=FASYNC;
     }
   }
+#endif
 
 #ifndef NEW_KBD_CODE
   /* Next Check input */

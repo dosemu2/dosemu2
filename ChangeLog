@@ -1,3 +1,10 @@
+97/02/25 ver. 0.65.99.6 unofficial pre-release
+	From Alberto & Hans
+	- workaround for bug in kernel vm86plus that Alberto found
+          (fixing kernel patch did reach Linus already;-)
+          We will remove the workaround when time goes by
+	- added runtime kernel version check ( currently only used
+	  by the above workaround)
 97/02/23 ver. 0.65.99.5 unofficial pre-release
 	From Alistair & Rutger
 	- Updated SB DSP code and fixed some bugs in detection - Alistair

@@ -930,6 +930,14 @@ int can_revector(int i)
  */
 
   switch (i) {
+  case 0: case 4: case 5: case 7:
+#if 1 /* temp fix for bug in kernel vm86plus code
+       * (fxing kernel patch will appear in 2.0.30 and 2.1.27, as Linus promised)
+       * we will remove this, when time goes by --Hans 970225
+       */
+    if (running_kversion > 2001026 || (running_kversion > 2000029 && running_kversion < 2000000) )
+      return 1;
+#endif
   case 0x21:			/* we want it first...then we'll pass it on */
   case 0x28:                    /* keyboard idle interrupt */
   case 0x2f:			/* needed for XMS, redirector, and idling */
