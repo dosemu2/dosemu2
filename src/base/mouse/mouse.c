@@ -734,9 +734,9 @@ mouse_setcurspeed(void)
 }
 
 /*
- * Note that under X X_setmode() is called instead. The two setmodes are
- * indipendent, and this does not help very much :(
- * Moreover, Win31 does not reset the mouse in the normal way, and
+ * Because the mouse hook finally works all video sets that pass
+ * through the video bios eventually pass through here.
+ * Win31 does not reset the mouse in the normal way, and
  * the only clue we have is the video mode (0x62 and 0x06 for 1024x768)
  */
 void
@@ -763,45 +763,81 @@ mouse_reset_to_current_video_mode(void)
    * -- EB 25 May 1998
    */
 
+/* DANG_BEGIN_REMARK
+ * Whoever wrote the dos mouse driver spec was brain dead...
+ * For some video modes the mouse driver appears to randomly
+ * pick a shift factor, possibly to keep at least a 640x200 resolution.
+ *
+ * The general programming documentation doesn't make this clear.
+ * And says that in text modes it is safe to divide the resolution by 
+ * 8 to get the coordinates in characters.
+ *
+ * The only safe way to handle the mouse driver is to call function
+ * 0x26 Get max x & max y coordinates and scale whatever the driver 
+ * returns yourself.
+ *
+ * To handle programs written by programmers who weren't so cautious a
+ * doctrine of least suprise has been implemented.
+ *
+ * As much as possible do the same as a standard dos mouse driver in the
+ * original vga modes 0,1,2,3,4,5,6,7,13,14,15,16,17,18,19. 
+ *
+ * For other text modes allow the divide by 8 technique to work.
+ * For other graphics modes return x & y in screen coordinates.
+ * Except when those modes are either 40x?? or 320x???
+ * and then handle the x resolution as in 40x25 and 320x200 modes.
+ *
+ * 320x200 modes are slightly controversial as I have indications that
+ * not all mouse drivers do the same thing. So I have taken the
+ * simplest, and most common route, which is also long standing dosemu
+ * practice of always shifting by 1.
+ *
+ * -- Eric Biederman 19 August 1998
+ * DANG_END_REMARK
+ */
 
   if (current_video.textgraph == 'T') {
+    mouse.xshift = 3;
+    mouse.yshift = 3;
+    if (current_video.width == 40) {
+	    mouse.xshift = 4;
+    }
     mouse.gfx_cursor = FALSE;
   } else {
     mouse.gfx_cursor = TRUE;
+    mouse.xshift = 0;    
+    mouse.yshift = 0;
+    if (current_video.width == 320) {
+	    mouse.yshift = 1;
+	    /* Every working example I can find picks a yshift of 1 in
+	     * 320x200 mode.  Unless some real prominent mouse driver
+	     * handles this mode differently this should be fine.
+	     * -- Eric Biederman 19 August 1998
+	     */
+    }
     define_graphics_cursor(default_graphscreenmask,default_graphcursormask);
   }
 
-  /* virtual resolution is always at least 640x200 */
-  if (mouse.maxx < 640) {
-	mouse.maxx = 640;
-        mouse.maxy = current_video.height;
-  }
-  if (mouse.maxy < 200) {
-  	mouse.maxy = 200;
-  	mouse.yshift = 3;
-	mouse.maxy = current_video.height << mouse.yshift;
-  }
-  else
-  	mouse.yshift = 0;
+  /* Set the maximum sizes */
+  mouse.maxx = current_video.width << mouse.xshift;
+  mouse.maxy = current_video.height << mouse.yshift;
 
+  /* Find the center of the screen */
   mouse.x = (mouse.minx + mouse.maxx) / 2;
   mouse.y = (mouse.miny + mouse.maxy) / 2;
 
   /* force update first time after reset */
   mouse.oldrx = -1;
-
-  /* determine shift compensation factors between physical and
-  	virtual resolution */
-  switch (current_video.width) {
-  	case 40: mouse.xshift = 4; break;
-  	case 80: mouse.xshift = 3; break;
-  	case 320: mouse.xshift = 1; break;
-  	default: mouse.xshift = 0; break;
-  }
-
+  
+  /* Change mouse.maxx & mouse.maxy from ranges to maximums */
   mouse.maxx = mouse_roundx(mouse.maxx - 1);
   mouse.maxy = mouse_roundy(mouse.maxy - 1);
-  m_printf("maxx=%i, maxy=%i\n", mouse.maxx, mouse.maxy);
+  mouse.maxx += (1 << mouse.xshift) -1;
+  mouse.maxy += (1 << mouse.yshift) -1;
+
+  m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n", 
+	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y, mouse.ignorexy,
+	   mice->type);
 }
 
 
@@ -849,8 +885,14 @@ mouse_reset(int flag)
   mouse.lrcount = mouse.mrcount = mouse.rrcount = 0;
 
   if (!mouse.ignorexy) {
-    mouse.speed_x = 8;
-    mouse.speed_y = 16;
+    if (mice->type != MOUSE_X) {
+	    mouse.speed_x = 8;
+	    mouse.speed_y = 16;
+    } else {
+	    /* default to 1 to 1 scaling for apps tha read mickeys */
+	    mouse.speed_x = 8;
+	    mouse.speed_y = 8;
+    }
   }
 
   mouse.exc_lx = mouse.exc_ux = 0;
@@ -1020,6 +1062,7 @@ mouse_setxminmax(void)
   mouse.maxx = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
   mouse.minx = mouse_roundx(mouse.minx);
   mouse.maxx = mouse_roundx(mouse.maxx);
+  mouse.maxx += (1 << mouse.xshift) -1;
 }
 
 void 
@@ -1032,6 +1075,7 @@ mouse_setyminmax(void)
   mouse.maxy = (LWORD(ecx) > LWORD(edx)) ? LWORD(ecx) : LWORD(edx);
   mouse.miny = mouse_roundy(mouse.miny);
   mouse.maxy = mouse_roundy(mouse.maxy);
+  mouse.maxy += (1 << mouse.yshift) -1;
 }
 
 void 
@@ -1205,41 +1249,10 @@ mouse_round_coords()
 void 
 mouse_move(void)
 {
- if (config.X) {
-  get_current_video_mode();
-  if (current_video.textgraph == 'T') {
-    mouse.gfx_cursor = FALSE;
-  } else {
-    mouse.gfx_cursor = TRUE;
-  }
-
-  /* virtual resolution is always at least 640x200 */
-  mouse.maxx = current_video.width;
-  if (mouse.maxx < 640) {
-        mouse.maxx = 640;
-  }
-  mouse.maxy = current_video.height;
-  if (mouse.maxy < 200) {
-        mouse.maxy = 200;
-  }
-  switch (current_video.width) {
-        case 40: mouse.xshift = 4; break;
-        case 80: mouse.xshift = 3; break;
-        case 320: mouse.xshift = 1; break;
-        default: mouse.xshift = 0; break;
-  }
-
-#ifdef NEW_X_MOUSE
-  /*
-   * it looks as if mouse.yshift is not set otherwise -- 1998/02/22 sw
-   */
-  if(current_video.textgraph != 'T') mouse.yshift = 0;
-#endif /* NEW_X_MOUSE */
-
-  mouse.maxx = mouse_roundx(mouse.maxx - 1);
-  mouse.maxy = mouse_roundy(mouse.maxy - 1);
-  m_printf("maxx=%i, maxy=%i\n", mouse.maxx, mouse.maxy);
- }
+#if !defined(USE_NEW_INT) && (INT10_WATCHER_SEG == BIOSSEG)
+   /* With the mouse watcher can do this only on mode resets */ 
+   mouse_reset_to_current_video_mode();
+#endif
   if (mouse.x <= mouse.minx) mouse.x = mouse.minx;
   if (mouse.y <= mouse.miny) mouse.y = mouse.miny;
   if (mouse.x >= mouse.maxx) mouse.x = mouse.maxx;
@@ -1257,7 +1270,7 @@ mouse_move(void)
 	mouse_cursor(-1);
   }
 
-  m_printf("MOUSE: move: x=%x,y=%x\n", mouse.x, mouse.y);
+  m_printf("MOUSE: move: x=%d,y=%d\n", mouse.x, mouse.y);
    
   mouse_delta(DELTA_CURSOR);
 }
@@ -1314,6 +1327,83 @@ mouse_rb(void)
     mouse.rpy = mouse.ry;
     mouse_delta(DELTA_RIGHTBDOWN);
   }
+}
+
+void mouse_move_buttons(int lbutton, int mbutton, int rbutton)
+{
+	/* Provide 3 button emulation on 2 button mice,
+	   But only when PC Mouse Mode is set, otherwise
+	   Microsoft Mode = 2 buttons.
+	   Middle press if left/right pressed together. 
+	   Middle release done for us by the above routines. 
+	   This bit also resets the left/right button, because
+	   we can't have all three buttons pressed at once. 
+	   Well, we could, but not under emulation on 2 button mice. 
+	   Alan Hourihane */
+
+	if (mice->emulate3buttons && mouse.threebuttons) {
+		if (lbutton && rbutton) {
+			mbutton = 1;  /* Set middle button */
+		}
+	}
+	mouse.oldlbutton = mouse.lbutton;
+	mouse.oldmbutton = mouse.mbutton;
+	mouse.oldrbutton = mouse.rbutton;
+	mouse.lbutton = !!lbutton;
+	mouse.mbutton = !!mbutton;
+	mouse.rbutton = !!rbutton;
+	/*
+	 * update the event mask
+	 */
+	if (mouse.oldlbutton != mouse.lbutton)
+	   mouse_lb();
+        if (mouse.threebuttons && mouse.oldmbutton != mouse.mbutton)
+	   mouse_mb();
+	if (mouse.oldrbutton != mouse.rbutton)
+	   mouse_rb();
+}
+
+void mouse_move_relative(int dx, int dy)
+{
+	/* according to the interrupt list, the speed setting is in
+		mickeys per eight pixels. */
+	/* IDEA: running dx and dy through a filter which dampens
+		values near zero and amplifies larger values might
+		give us a cheap acceleration profile. */
+	mouse.x += ((dx << 3) / mouse.speed_x);
+	mouse.y += ((dy << 3) / mouse.speed_y);
+	mouse.mickeyx += dx;
+	mouse.mickeyy += dy;
+	/*
+	 * update the event mask
+	 */
+	if (dx || dy)
+	   mouse_move();
+}
+
+void mouse_move_absolute(int x, int y, int x_range, int y_range)
+{
+	int dx, dy, new_x, new_y, mx_range, my_range;
+	mx_range = mouse.maxx - mouse.minx +1;
+	my_range = mouse.maxy - mouse.miny +1;
+	new_x = (x*mx_range)/x_range + mouse.minx;
+	new_y = (y*my_range)/y_range + mouse.miny;
+	dx = (((new_x - mouse.x) * mouse.speed_x) >> 3);
+	dy = (((new_y - mouse.y) * mouse.speed_y) >> 3);
+	mouse.mickeyx += dx;
+	mouse.mickeyy += dy;
+	mouse.x = new_x;
+	mouse.y = new_y;
+
+	m_printf("mouse_move_absolute(%d, %d, %d, %d) -> %d %d \n",
+		 x, y, x_range, y_range, mouse.x, mouse.y);
+	m_printf("mouse_move_absolute dx:%d dy%d mickeyx%d mickeyy%d\n", 
+		 dx, dy, mouse.mickeyx, mouse.mickeyy);
+	/*
+	 * update the event mask
+	 */
+	if (dx || dy || mouse.x != new_x || mouse.y != new_y) 
+	   mouse_move();
 }
 
 void 
@@ -1587,16 +1677,14 @@ mouse_init(void)
   else
   	mouse.threebuttons = FALSE;
 
-  mouse_reset(1);		/* Let's set defaults now ! */
-
 #ifdef X_SUPPORT
   if (config.X) {
     mice->intdrv = TRUE;
     mice->type = MOUSE_X;
     memcpy(p,mouse_ver,sizeof(mouse_ver));
     m_printf("MOUSE: X Mouse being set\n");
-    return;
   }
+  else 
 #endif
   
   if ( ! config.usesX ){
@@ -1615,10 +1703,8 @@ mouse_init(void)
       add_to_io_select(mice->fd, mice->add_to_io_select);
       DOSEMUSetupMouse();
       memcpy(p,mouse_ver,sizeof(mouse_ver));
-      return;
     }
-
-    if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
+    else if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
       enter_priv_on();
       mice->fd = open(mice->dev, O_RDWR | O_NONBLOCK);
       leave_priv_setting();
@@ -1658,9 +1744,10 @@ mouse_init(void)
     add_to_io_select(mice->fd, mice->add_to_io_select);
     DOSEMUSetupMouse();
     memcpy(p,mouse_ver,sizeof(mouse_ver));
-    return;
   }
-
+  
+  /* We set the defaults at the end so that we can test the mouse type */
+  mouse_reset(1);		/* Let's set defaults now ! */
 }
 
 void

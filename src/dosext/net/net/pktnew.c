@@ -68,7 +68,7 @@ static int pktdrvr_installed;
 struct pkt_type {
     int handle;
     int pkt_type_len;
-    char pkt_type[MAX_PKT_TYPE_SIZE];
+    unsigned char pkt_type[MAX_PKT_TYPE_SIZE];
     int count;       /* To sort the array based on counts of packet type */
 } pkt_type_array[MAX_HANDLE]; 
 int max_pkt_type_array=0;
@@ -157,7 +157,7 @@ pkt_init(int vec)
 
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(vec, PKTDRV_SEG, PKTDRV_OFF);
-    memcpy(MK_PTR(PKTDRV_signature), "PKT DRVR", 8);
+    strcpy(MK_PTR(PKTDRV_signature), "PKT DRVR");
     
     /* fill other global data */
 
@@ -571,7 +571,7 @@ Insert_Type(int handle, int pkt_type_len, char *pkt_type)
     memcpy(&pkt_type_array[max_pkt_type_array].pkt_type, 
 	   pkt_type, pkt_type_len);
     for(i=0; i<pkt_type_len; i++) 
-	pd_printf(" --%.2x--", pkt_type_array[max_pkt_type_array].pkt_type[i]);
+	pd_printf(" %.2x", pkt_type_array[max_pkt_type_array].pkt_type[i]);
     pd_printf("\n");
     pd_printf("Succeeded: inserted at %d\n", max_pkt_type_array);
     max_pkt_type_array++;
@@ -645,7 +645,6 @@ pkt_check_receive(int timeout)
 	/* anything ready? */
 	if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
 	    return 0;
-	pd_printf("select returned\n");
 	if(FD_ISSET(pkt_fd, &readset)) 
 	    fd = pkt_fd;
 	else if(FD_ISSET(pkt_broadcast_fd, &readset)) 

@@ -55,7 +55,7 @@ endif
 export do_DEBUG=no
 
 
-default install clean realclean echo help depend:
+default install clean realclean echo help depend version:
 	@$(MAKE) -C src $@
 
 all:

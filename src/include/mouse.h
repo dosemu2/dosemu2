@@ -149,4 +149,8 @@ extern void DOSEMUMouseEvents(void);
 
 extern void mouse_event(void);
 
+extern void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
+extern void mouse_move_relative(int dx, int dy);
+extern void mouse_move_absolute(int x, int y, int x_range, int y_range);
+
 #endif /* MOUSE_H */

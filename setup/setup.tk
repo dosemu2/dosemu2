@@ -28,11 +28,11 @@ if you didn't yet compile this version of DOSEMU.
     pack .run -side top -padx 10
 
     button .compiletime -text $comptx \
-	-command { start_tk compiletime_setup.tk }
+	-command { start_tk ./compiletime_setup.tk }
     pack .compiletime -fill x -padx 10
 
     button .runtime -text "Runtime configuration" \
-	-command { start_tk runtime_setup.tk }
+	-command { start_tk ./runtime_setup.tk }
     pack .runtime -fill x -padx 10
 
     button .cancel -text "Cancel" \

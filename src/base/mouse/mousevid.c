@@ -25,13 +25,9 @@ struct mousevideoinfo videomodes[] =  {
 	{ 1,'T',40,25,160,ORG_TEXT,CGA_OFFS },
 	{ 2,'T',80,25,160,ORG_TEXT,CGA_OFFS },
 	{ 3,'T',80,25,160,ORG_TEXT,CGA_OFFS },
-	{ 4,'G',320,200,80,ORG_CGA4,CGA_OFFS },
-	{ 5,'G',320,200,80,ORG_CGA4,CGA_OFFS },
-#if 0
-	{ 6,'G',640,200,80,ORG_CGA2,CGA_OFFS },
-#else
-	{ 6,'G',6400,4800,800,ORG_VGA,EGA_OFFS },
-#endif
+	{ 4,'G',320,200,40,ORG_CGA4,CGA_OFFS },
+	{ 5,'G',320,200,40,ORG_CGA4,CGA_OFFS },
+	{ 6,'G',640,200,40,ORG_CGA2,CGA_OFFS },
 	{ 7,'T',80,25,160,ORG_TEXT,MDA_OFFS },
 	{ 8 },		/* don't think any PCjr's will run linux */
 	{ 9 },		/* don't think any PCjr's will run linux */

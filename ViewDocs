@@ -20,7 +20,7 @@ select file in "$CONF"  $LIST; do
     exit 0
   fi
   for i in $LIST; do
-     if [ $file = $i ]; then
+     if [ "$file" = "$i" ]; then
         less ./doc/$i
         exit 0
      fi

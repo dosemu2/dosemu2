@@ -1,3 +1,17 @@
+98/08/05 ver. 0.97.10.1 unofficial pre-release
+	From Eric
+	- some X-mouse changes from 0.97.8.x4, which seem to solve
+	  the >25 row problem (BC in 43 line mode) and some games were
+	  the mouse couldn't pass below the middle of the screen.
+	- fixes to x4 concerning w31 mousesnapping
+	- mouse fixes along ideas/reports of Josef Pavlik <jetset@ibm.net>
+	  (gnats misc 121)
+	From Markus & Michael
+	- fix for pdether
+	From Tamminen Eero <t150315@students.cc.tut.fi>
+	- small fix for ./ViewDocs
+	From Hans
+	- made newint the default
 98/06/27 ver. 0.97.10 released
 	From George K.Bronnikov <goga@goga.mainet.msk.su>
 	- First step for 'DOSEMU in batch mode', atleast the output side.

@@ -13,6 +13,6 @@ config {
   newxmouse on
   newport on
   newcmos on
-  newint off
+  newint on
   cpuemu off
 }

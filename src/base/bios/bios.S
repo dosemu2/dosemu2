@@ -208,7 +208,7 @@ mouse_handler:
 /* The packet driver signature will be written here when the packet
    driver is initialized. */
 CISH(PKTDRV_signature):
-		db	0,0,0,0,0,0,0,0
+		db	0,0,0,0,0,0,0,0,0
 
 CISH(PKTDRV_driver_name):
 	.ascii	"Linux$\0\0"

@@ -114,6 +114,8 @@
  * 1998/04/05: We are using backing store now in text modes.
  * -- sw
  *
+ * 1998/05/28: some re-arangements of the mouse code.
+ * -- EB
  *
  * DANG_END_CHANGELOG
  */
@@ -2275,69 +2277,33 @@ static void set_mouse_position(int x, int y)
    }
 
 #else /* NEW_X_MOUSE */
-
-  int dx = 0, dy = 0, x0 = x, y0 = y;
-  int center_x = w_x_res >> 1, center_y = w_y_res >> 1;
-  int move_it = 0;
-
-  if(grab_active && vga.mode_class == GRAPH) {
-    if(x == center_x && y == center_y) return;	/* assume pointer warp event */
-    x = x - center_x + mouse_x;
-    y = y - center_y + mouse_y;
-    x0 = x; y0 = y;
-    XWarpPointer(display, None, mainwindow, 0, 0, 0, 0, center_x, center_y);
+  int x0 = x, y0 = y;
+  if (grab_active) {
+	  int center_x = w_x_res >> 1, center_y = w_y_res >> 1;
+	  int dx = 0, dy = 0;
+	  if (x == center_x && y == center_y) return;  /* assume pointer warp event */
+	  x = x - center_x + mouse_x;
+	  y = y - center_y + mouse_y;
+	  x0 = x;
+	  y0 = y;
+	  XWarpPointer(display, None, mainwindow, 0, 0, 0, 0, center_x, center_y);
+	  dx = x - mouse_x;
+	  dy = y - mouse_y;
+	  mouse_move_relative(dx, dy);
+  } else if (snap_X) {
+	  /*
+	   * win31 cursor snap kludge, we temporary force the DOS cursor to the
+	   * upper left corner (0,0). If we after that release snapping,
+	   * normal X-events will move the cursor to the exact position. (Hans)
+	   */
+	  int dx = 0, dy = 0;
+	  x0 = y0 = 0;
+	  dx = -3 * x_res; dy = -3 * y_res;		/* enough ??? -- sw */
+	  mouse_move_relative(dx, dy);
+	  snap_X--;
+  } else {
+	  mouse_move_absolute(x, y, w_x_res, w_y_res);
   }
-
-  if(vga.mode_class == TEXT) {
-    dx = ((x - mouse_x) * font_width) >> 3;
-    dy = ((y - mouse_y) * font_height) >> 3;
-    x = x * 8 / font_width;
-    y = y * 8 / font_height;
-    if(mouse.x != x || mouse.y != y || dx || dy) move_it = 1;
-    mouse.x = x;
-    mouse.y = y;
-    mouse.mickeyx += dx;
-    mouse.mickeyy += dy;
-  }
-  
-  if(vga.mode_class == GRAPH) {
-
-    if(grab_active) {
-      dx = x - mouse_x;
-      dy = y - mouse_y;
-      mouse.x += dx; mouse.y += dy;
-    }
-    else {
-      if(snap_X) {
-        /*
-         * win31 cursor snap kludge, we temporary force the DOS cursor to the
-         * upper left corner (0,0). If we after that release snapping,
-         * normal X-events will move the cursor to the exact position. (Hans)
-         */
-        mouse.x = mouse.y = 0;
-        x0 = y0 = 0;
-        dx = -3 * x_res; dy = -3 * y_res;		// enough ??? -- sw
-        snap_X--;
-      }
-      else {
-        x = (x * x_res) / w_x_res;
-        y = (y * y_res) / w_y_res;
-        dx = x - (mouse_x * x_res) / w_x_res;
-        dy = y - (mouse_y * y_res) / w_y_res;
-        if(x_res == 320) x <<= 1;		/* 320 -> 640 cf. mouse.c -- 1998/02/22 sw */
-        if(mouse.x != x || mouse.y != y) move_it = 1;
-        mouse.x = x; mouse.y = y;
-      }
-    }
-
-    mouse.mickeyx += dx;
-    mouse.mickeyy += dy;
-    if(dx || dy) move_it = 1;
-    /* fprintf(stderr, "X: mouse.x = %d(X %d), mouse.y = %d(X %d), dx = %d, dy = %d\n", mouse.x, x, mouse.y, y, dx, dy); */
-  }
-
-  if(move_it) mouse_move();
-
   mouse_x = x0;
   mouse_y = y0;
 #endif /* NEW_X_MOUSE */
@@ -2345,20 +2311,7 @@ static void set_mouse_position(int x, int y)
 
 static void set_mouse_buttons(int state) 
 {
-   mouse.oldlbutton=mouse.lbutton;
-   mouse.oldmbutton=mouse.mbutton;
-   mouse.oldrbutton=mouse.rbutton;
-   mouse.lbutton = ((state & Button1Mask) != 0);
-   mouse.mbutton = ((state & Button2Mask) != 0);
-   mouse.rbutton = ((state & Button3Mask) != 0);
-  if (mouse.lbutton != mouse.oldlbutton) 
-    mouse_lb();
-
-  if (mouse.threebuttons && mouse.mbutton!=mouse.oldmbutton) 
-    mouse_mb();
-
-  if (mouse.rbutton != mouse.oldrbutton) 
-    mouse_rb();
+   mouse_move_buttons(state&Button1Mask, state&Button2Mask, state&Button3Mask);
 }
 #endif /* CONFIG_X_MOUSE */
 

@@ -335,55 +335,12 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   break;
 	}
 
-	/* Provide 3 button emulation on 2 button mice,
-	   But only when PC Mouse Mode is set, otherwise
-	   Microsoft Mode = 2 buttons.
-	   Middle press if left/right pressed together. 
-	   Middle release done for us by the above routines. 
-	   This bit also resets the left/right button, because
-	   we can't have all three buttons pressed at once. 
-	   Well, we could, but not under emulation on 2 button mice. 
-	   Alan Hourihane */
-
-	if (mice->emulate3buttons == TRUE) {
-	  if (mouse.threebuttons) {	/* PC Mouse Mode 3 button emulation */
-	    if ((buttons & 0x04) && (buttons & 0x01)) 
-	      buttons = 0x02;	/* Set middle button */
-	  }
-	}
-	  
 	/*
 	 * calculate the new values for buttons, dx and dy
   	 * Ensuring that speed is calculated from current values.
 	 */
-	/* according to the interrupt list, the speed setting is in
-		mickeys per eight pixels. */
-	/* IDEA: running dx and dy through a filter which dampens
-		values near zero and amplifies larger values might
-		give us a cheap acceleration profile. */
-	mouse.x += ((dx << 3) / mouse.speed_x);
-	mouse.y += ((dy << 3) / mouse.speed_y);
-	mouse.mickeyx += dx;
-	mouse.mickeyy += dy;
-	mouse.oldlbutton = mouse.lbutton;
-	mouse.oldmbutton = mouse.mbutton;
-	mouse.oldrbutton = mouse.rbutton;
-	mouse.lbutton = buttons & 0x04;
-	mouse.mbutton = buttons & 0x02;
-	mouse.rbutton = buttons & 0x01;
-	/*
-	 * update the event mask
-	 */
-	if (dx || dy)
-	   mouse_move();
-	if (mouse.oldlbutton != mouse.lbutton)
-	   mouse_lb();
-        if (mouse.threebuttons == FALSE) {
-	  if (mouse.oldmbutton != mouse.mbutton)
-	     mouse_mb();
-        }
-	if (mouse.oldrbutton != mouse.rbutton)
-	   mouse_rb();
+	mouse_move_buttons(buttons & 0x04, buttons & 0x02, buttons & 0x01);
+	mouse_move_relative(dx, dy);
 	/*
 	 * check if user events need to be processed
 	 */
