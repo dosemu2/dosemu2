@@ -9,18 +9,18 @@ LIBNAME := $(shell echo $(SUBDIR) |tr / _)
 
 ifndef OBJS
 ifdef CFILES
-OBJS=$(CFILES:.c=.o)
+OBJS:=$(CFILES:.c=.o)
 else
-OBJS=$($(notdir $(wildcard $(srcdir)/*.c)):.c=.o)
+OBJS:=$($(notdir $(wildcard $(srcdir)/*.c)):.c=.o)
 endif
 endif
 
 ifndef DEPENDS
-DEPENDS=$(OBJS:.o=.d)
+DEPENDS:=$(OBJS:.o=.d)
 endif
 
 
-LIB=$(top_builddir)/src/lib/lib$(LIBNAME).a
+LIB:=$(top_builddir)/src/lib/lib$(LIBNAME).a
 
 AR=ar
 
@@ -31,7 +31,7 @@ $(LIB):	$(OBJS)
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 
-.PHONY:	clean realclean 
+.PHONY:	clean realclean dist lib echo all install default
 
 clean::
 	-rm -f $(OBJS) $(LIB) *~

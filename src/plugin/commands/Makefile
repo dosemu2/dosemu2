@@ -19,7 +19,7 @@ DEPENDS=$(CFILES:.c=.d)
 
 SUBDIR=commands_plugin         # just to make Makefile.common happy
 
-D=$(BINPATH)/commands
+D:=$(BINPATH)/commands
 
 COM = $(D)/generic.com
 STUBSYMLINK = $(D)/bootoff.com $(D)/booton.com $(D)/ecpuon.com $(D)/ecpuoff.com $(D)/eject.com \

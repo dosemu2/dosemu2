@@ -11,7 +11,7 @@ include $(top_builddir)/Makefile.conf
 
 export LD=$(CC)
 
-D=$(BINPATH)/commands
+D:=$(BINPATH)/commands
 
 COM1=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
 	$(D)/bootoff.com $(D)/booton.com \
