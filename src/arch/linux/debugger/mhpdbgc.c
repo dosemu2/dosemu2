@@ -919,6 +919,7 @@ static void mhp_enter(int argc, char * argv[])
 
 static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1, unsigned int *lim)
 {
+   static char buffer[0x10000];
    unsigned char * srchp;
    unsigned int seg1;
    unsigned int off1;
@@ -927,7 +928,6 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    int use_ldt = IN_DPMI;
    unsigned long * lp;
    unsigned long base_addr, limit;
-   char buffer[0x10000];
 
    *lim = 0xFFFFFFFF;
 
@@ -1428,7 +1428,7 @@ void mhp_cmd(const char * cmd)
 
 static void mhp_print_ldt(int argc, char * argv[])
 {
-  char buffer[0x10000];
+  static char buffer[0x10000];
   unsigned long *lp, *lp_=(unsigned long *)ldt_buffer;
   unsigned long base_addr, limit;
   int type, type2, i;
