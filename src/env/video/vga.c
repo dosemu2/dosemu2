@@ -34,13 +34,12 @@
 #ifdef USE_SVGALIB
 #include "svgalib.h"
 #endif
-#if 0
-#include "hgc.h"
-#endif
+
+#define PLANE_SIZE (64*1024)
 
 /* Here are the REGS values for valid dos int10 call */
 
-unsigned char vregs[60] =
+static unsigned char vregs[60] =
 {
 /* BIOS mode 0x12 */
   0x5F, 0x4F, 0x50, 0x82, 0x54, 0x80, 0x0B, 0x3E, 0x00, 0x40, 0x00, 0x00,
@@ -53,38 +52,38 @@ unsigned char vregs[60] =
 };
 
 /* These are dummy calls */
-void save_ext_regs_dummy(u_char xregs[], u_short xregs16[])
+static void save_ext_regs_dummy(u_char xregs[], u_short xregs16[])
 {
   return;
 }
 
-void restore_ext_regs_dummy(u_char xregs[], u_short xregs16[])
+static void restore_ext_regs_dummy(u_char xregs[], u_short xregs16[])
 {
   return;
 }
 
-void set_bank_read_dummy(u_char bank)
+static void set_bank_read_dummy(u_char bank)
 {
   return;
 }
 
-void set_bank_write_dummy(u_char bank)
+static void set_bank_write_dummy(u_char bank)
 {
   return;
 }
 
-u_char dummy_ext_video_port_in(ioport_t port)
+static u_char dummy_ext_video_port_in(ioport_t port)
 {
   v_printf("Bad Read on port 0x%04x\n", port);
   return (0);
 }
 
-void dummy_ext_video_port_out(ioport_t port, u_char value)
+static void dummy_ext_video_port_out(ioport_t port, u_char value)
 {
   v_printf("Bad Write on port 0x%04x with value 0x%02x\n", port, value);
 }
 
-int dosemu_vga_screenoff(void)
+static void dosemu_vga_screenoff(void)
 {
   v_printf("vga_screenoff\n");
   /* synchronous reset on */
@@ -98,11 +97,9 @@ int dosemu_vga_screenoff(void)
   /* synchronous reset off */
   port_out(0x00, SEQ_I);
   port_out(0x03, SEQ_D);
-
-  return 0;
 }
 
-int dosemu_vga_screenon(void)
+static void dosemu_vga_screenon(void)
 {
   v_printf("vga_screenon\n");
 
@@ -117,11 +114,9 @@ int dosemu_vga_screenon(void)
   /* synchronous reset off */
   port_out(0x00, SEQ_I);
   port_out(0x03, SEQ_D);
-
-  return 0;
 }
 
-int dosemu_vga_setpalvec(int start, int num, u_char * pal)
+static int dosemu_vga_setpalvec(int start, int num, u_char * pal)
 {
   int i, j;
 
@@ -144,7 +139,7 @@ int dosemu_vga_setpalvec(int start, int num, u_char * pal)
   return j;
 }
 
-int dosemu_vga_getpalvec(int start, int num, u_char * pal)
+static void dosemu_vga_getpalvec(int start, int num, u_char * pal)
 {
   int i, j;
 
@@ -167,10 +162,10 @@ int dosemu_vga_getpalvec(int start, int num, u_char * pal)
   /* Put Palette regs back */
   /* port_out(dosemu_regs.regs[PELIW], PEL_IW);
   port_out(dosemu_regs.regs[PELIR], PEL_IR); */
-  return 0;
 }
+
 /* Prepare to do business with the EGA/VGA card */
-__inline__ void disable_vga_card(void)
+static inline void disable_vga_card(void)
 {
   /* enable video */
   emu_video_retrace_off();
@@ -179,7 +174,7 @@ __inline__ void disable_vga_card(void)
 }
 
 /* Finish doing business with the EGA/VGA card */
-__inline__ void enable_vga_card(void)
+static inline void enable_vga_card(void)
 {
   emu_video_retrace_off();
   port_in(IS1_R);
@@ -188,7 +183,7 @@ __inline__ void enable_vga_card(void)
   /* disable video */
 }
 /* Store current EGA/VGA regs */
-int store_vga_regs(char regs[])
+static void store_vga_regs(char regs[])
 {
   int i;
 
@@ -229,21 +224,13 @@ int store_vga_regs(char regs[])
   port_out(regs[SEQI], SEQ_I);
   v_printf("Store regs complete!\n");
   emu_video_retrace_on();
-  return 0;
 }
 
 /* Store EGA/VGA display planes (4) */
-void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
+static void store_vga_mem(u_char * mem, int banks)
 {
+  int cbank, plane, planar;
 
-  int p[4], bsize, position;
-  u_char cbank, plane, planar;
-
-  p[0] = mem_size[0] * 1024;
-  p[1] = mem_size[1] * 1024;
-  p[2] = mem_size[2] * 1024;
-  p[3] = mem_size[3] * 1024;
-  bsize = p[0] + p[1] + p[2] + p[3];
 #if 0
   dump_video_regs();
 #endif
@@ -266,7 +253,6 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
   planar = !(port_in(SEQ_D) & 8) || banks == 1;
   if (banks == 1) set_regs((u_char *) vregs, 1);
   for (cbank = 0; cbank < banks; cbank++) {
-    position = 0;
     if (planar) set_bank_read(cbank);
     for (plane = 0; plane < 4; plane++) {
       if (planar) {
@@ -275,10 +261,9 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
         port_out(plane, GRA_D);
       } else
 	set_bank_read(cbank * 4 + plane);
-      /* memcpy((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]); */
-      MEMCPY_2UNIX((caddr_t) (mem + (bsize * cbank) + position), (caddr_t) GRAPH_BASE, p[plane]);
-      position += p[plane];
+      MEMCPY_2UNIX(mem, GRAPH_BASE, PLANE_SIZE);
       v_printf("BANK READ Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) GRAPH_BASE);
+      mem += PLANE_SIZE;
     }
   }
   v_printf("GRAPH_BASE to mem complete!\n");
@@ -288,16 +273,9 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 }
 
 /* Restore EGA/VGA display planes (4) */
-void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
+static void restore_vga_mem(u_char * mem, int banks)
 {
-  int p[4], bsize, position, plane;
-  u_char cbank, planar;
-
-  p[0] = mem_size[0] * 1024;
-  p[1] = mem_size[1] * 1024;
-  p[2] = mem_size[2] * 1024;
-  p[3] = mem_size[3] * 1024;
-  bsize = p[0] + p[1] + p[2] + p[3];
+  int plane, cbank, planar;
 
 #if 0
   dump_video_regs();
@@ -316,7 +294,6 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
       port_out(0x00, GRA_D);
   }
   for (cbank = 0; cbank < banks; cbank++) {
-    position = 0;
     if (planar) set_bank_write(cbank);
     for (plane = 0; plane < 4; plane++) {
       if (planar) {
@@ -325,22 +302,20 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
         port_out(1 << plane, SEQ_D);
       } else
 	set_bank_write((cbank * 4) + plane);
-      /* memcpy((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]); */
-      MEMCPY_2DOS((caddr_t) GRAPH_BASE, (caddr_t) (mem + (bsize * cbank) + position), p[plane]);
-      position += p[plane];
-      v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *) (mem + (bsize * cbank)));
+      MEMCPY_2DOS(GRAPH_BASE, mem, PLANE_SIZE);
+      v_printf("BANK WRITE Bank=%d, plane=0x%02x, mem=%08x\n", cbank, plane, *(int *)mem);
+      mem += PLANE_SIZE;
     }
   }
   v_printf("mem to GRAPH_BASE complete!\n");
 }
 
 /* Restore EGA/VGA regs */
-int restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[])
+static void restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[])
 {
   set_regs(regs, 0);
   restore_ext_regs(xregs, xregs16);
   v_printf("Restore_vga_regs completed!\n");
-  return 0;
 }
 
 /* Save all necessary info to allow switching vt's */
@@ -353,37 +328,23 @@ void save_vga_state(struct video_save_struct *save_regs)
   store_vga_regs(save_regs->regs);
   save_ext_regs(save_regs->xregs, save_regs->xregs16);
   v_printf("ALPHA mode save being attempted\n");
+  save_regs->banks = 1;
   port_out(0x06, GRA_I);
   if (!(port_in(GRA_D) & 0x01)) {
-    save_regs->save_mem_size[0] = 8;
-    save_regs->save_mem_size[1] = 8;
-    save_regs->save_mem_size[2] = 8;
-    save_regs->save_mem_size[3] = 8;
-    save_regs->banks = 1;
+    /* text mode */
     v_printf("ALPHA mode save being performed\n");
   }
-  else {
-    save_regs->save_mem_size[0] = 64;
-    save_regs->save_mem_size[1] = 64;
-    save_regs->save_mem_size[2] = 64;
-    save_regs->save_mem_size[3] = 64;
-    save_regs->banks = 
-	(save_regs->video_mode <= 0x13 || !config.chipset
-            /*standard VGA modes*/      /* plainvga */
-			? 1 : (config.gfxmemsize + 255) / 256);
-  }
+  else if (save_regs->video_mode > 0x13 && config.chipset)
+        /*not standard VGA modes*/      /* not plainvga */
+    save_regs->banks = (config.gfxmemsize + (4 * PLANE_SIZE / 1024) - 1) /
+      (4 * PLANE_SIZE / 1024);
   v_printf("Mode  == %d\n", save_regs->video_mode);
   v_printf("Banks == %d\n", save_regs->banks);
   if (!save_regs->mem) {
-    save_regs->mem = malloc((save_regs->save_mem_size[0] +
-			     save_regs->save_mem_size[1] +
-			     save_regs->save_mem_size[2] +
-			     save_regs->save_mem_size[3]) * 1024 *
-			    save_regs->banks
-      );
-   }
+    save_regs->mem = malloc(save_regs->banks * 4 * PLANE_SIZE);
+  }
 
-  store_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
+  store_vga_mem(save_regs->mem, save_regs->banks);
   dosemu_vga_getpalvec(0, 256, save_regs->pal);
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
   enable_vga_card();
@@ -399,7 +360,7 @@ void restore_vga_state(struct video_save_struct *save_regs)
   dosemu_vga_screenoff();
   disable_vga_card();
   restore_vga_regs(save_regs->regs, save_regs->xregs, save_regs->xregs16);
-  restore_vga_mem(save_regs->mem, save_regs->save_mem_size, save_regs->banks);
+  restore_vga_mem(save_regs->mem, save_regs->banks);
   if (save_regs->release_video) {
     v_printf("Releasing video memory\n");
     free(save_regs->mem);
@@ -484,6 +445,10 @@ int vga_initialize(void)
     pcivga_init();
 
   switch (config.chipset) {
+  case PLAINVGA:
+    v_printf("Plain VGA in use\n");
+    /* no special init here */
+    break;
   case TRIDENT:
     vga_init_trident();
     v_printf("Trident CARD in use\n");
@@ -520,32 +485,26 @@ int vga_initialize(void)
     vga_init_sis();
     v_printf("SIS CARD in use\n");
     break;
-#ifdef USE_SVGALIB
   case SVGALIB:
+#ifdef USE_SVGALIB
     vga_init_svgalib();
     v_printf("svgalib handles the graphics\n");
-    break;
+#else
+    error("svgalib support is not compiled in, \"plainvga\" will be used.\n");
 #endif
+    break;
 
   default:
     v_printf("Unspecific VIDEO selected = 0x%04x\n", config.chipset);
   }
 
   linux_regs.video_name = "Linux Regs";
-  linux_regs.save_mem_size[0] = 8;
-  linux_regs.save_mem_size[1] = 8;
-  linux_regs.save_mem_size[2] = 8;
-  linux_regs.save_mem_size[3] = 8;
-  linux_regs.banks = 1;
-  linux_regs.video_mode = 0x14; /* doesn't _need_ to be a textmode */
+  /* just pretend it's text; we simply restore the wrong video memory
+     for fbdev but fbdev can redraw itself */
+  linux_regs.video_mode = 3;
   linux_regs.release_video = 0;
 
   dosemu_regs.video_name = "Dosemu Regs";
-  dosemu_regs.save_mem_size[0] = 8;
-  dosemu_regs.save_mem_size[1] = 8;
-  dosemu_regs.save_mem_size[2] = 8;
-  dosemu_regs.save_mem_size[3] = 8;
-  dosemu_regs.banks = (config.gfxmemsize + 255) / 256;
   dosemu_regs.video_mode = 3;
   dosemu_regs.regs[CRTI] = 0;
   dosemu_regs.regs[SEQI] = 0;
@@ -559,8 +518,9 @@ int vga_initialize(void)
   return 0;
 }
 
+#if 0
 /* Store current actuall EGA/VGA regs */
-void dump_video_regs()
+static void dump_video_regs(void)
 {
   int i;
 
@@ -652,8 +612,9 @@ void dump_video_regs()
   }
   emu_video_retrace_on();
 }
+#endif
 
-/* init_vga_card - Inititalize a VGA-card */
+/* init_vga_card - Initialize a VGA-card */
 
 void init_vga_card(void)
 {
@@ -665,8 +626,13 @@ void init_vga_card(void)
     error("CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
     return;
   }
+  save_vga_state(&linux_regs);
+  dosemu_vga_screenon();
+  dump_video_linux();
+
   config.vga = 1;
   set_vc_screen_page(READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  video_initialized = 1;
 
   ssp = (unsigned char *)(READ_SEG_REG(ss)<<4);
   sp = (unsigned long) LWORD(esp);

@@ -384,6 +384,8 @@ void init_get_video_ram(int waitflag)
   if (waitflag == WAIT)
     wait_for_active_vc();
   alloc_mapping(MAPPING_VC | MAPPING_KMEM, size, base);
+  scr_state.pageno = 0;
+  scr_state.virt_address = PAGE_ADDR(scr_state.pageno);
   map_video_ram();
 }
 

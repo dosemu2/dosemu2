@@ -437,15 +437,6 @@ static int vga_post_init(void)
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
   WRITE_BYTE(BIOS_VIDEO_MODE, video_mode);
   Video_console.init();
-  save_vga_state(&linux_regs);
-#if 0
-  save_vga_state(&dosemu_regs);
-  restore_vga_state(&dosemu_regs);
-#endif
-  dosemu_vga_screenon();
-  memset((caddr_t) linux_regs.mem, ' ', 8 * 1024);
-  dump_video_linux();
-  video_initialized = 1;
   /* release_perm(); */
   return 0;
 }

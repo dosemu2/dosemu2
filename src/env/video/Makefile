@@ -37,10 +37,6 @@ CFILES = miscemu.c text.c render.c video.c vc.c vga.c et4000.c s3.c trident.c av
 	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) hgc.c dualmon.c $(ASOBJS) vesabios.o \
          vgaemu.c vesa.c dacemu.c attremu.c seqemu.c crtcemu.c gfxemu.c hercemu.c instremu.c remap.c vgafonts.c
 HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h $(VHDRS) remap.h $(XHDRS)
-OFILES = miscemu.o text.o render.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
-	 matrox.o wdvga.o sis.o $(VOBJS) console.o $(XOBJS) hgc.o dualmon.o \
-         vgaemu.o vesa.o dacemu.o attremu.o seqemu.o crtcemu.o gfxemu.o hercemu.o instremu.o remap.o vgafonts.o
-#OBJS = $(OFILES)
 
 ALL = $(CFILES) $(HFILES) #$(SFILES)
 

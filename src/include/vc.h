@@ -140,12 +140,10 @@ struct video_save_struct {
   unsigned short xregs16[MAX_X_REGS16]; /* These are 16-bit EXT regs */
   unsigned char *mem;
   unsigned char pal[3 * 256];
-  unsigned char save_mem_size[4];
   unsigned char banks;
   unsigned char video_mode;
   unsigned char *video_name;	/* Debugging only */
   unsigned char release_video;
-  unsigned char *textmem;	/* for saving page 0 memory */
   unsigned char xregs[MAX_X_REGS];      /* These are EXT regs */
 };
 EXTERN struct video_save_struct linux_regs, dosemu_regs;
