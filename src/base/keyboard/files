@@ -1,0 +1,31 @@
+
+
+* New keyboard code *
+
+server:
+
+n_serv_xlat.c      Translation part of keyboard server (`queue frontend')
+n_serv_backend.c   `Queue backend': interface to bios/dos
+n_serv_8042.c      8042 keyboard controller emulation
+n_keyb_server.h    header file for keyboard server code (private definitions)
+
+clients:
+
+n_keyb_X.c         X keyboard client
+n_keyb_raw.c       raw mode keyboard client
+n_keyb_slang.c     SLANG (terminal) keyboard client
+n_keyb_clients.c   client selection/initialisation code, paste routine
+
+* old keyboard code *
+
+Xkeyb.c
+keyboard-client.c
+keyboard-server.c
+slang-keyboard.c
+
+* common for old and new code *
+
+keymaps.c          Translation tables
+keymaps.h          ...
+keyboard.h         definition of the public keyboard client/server interface
+

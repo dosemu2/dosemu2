@@ -3,6 +3,7 @@
 #ifndef BIOS_H
 #define BIOS_H
 
+#include "config.h"
 #include "extern.h"
 
 #define INT2F_IDLE_MAGIC	0x1680
@@ -115,8 +116,14 @@ typedef unsigned long udword_t;
 #define MEMCPY_DOS2DOS(dos_addr, unix_addr, n) \
 	memcpy((Bit8u *)(dos_addr), (Bit8u *)(unix_addr), (n))
 
+#define MEMMOVE_DOS2DOS(dos_addr1, dos_addr2, n) \
+        memmove((Bit8u *)(dos_addr1), (Bit8u *)(dos_addr2), (n))
+
 #define MEMCMP_DOS_VS_UNIX(dos_addr, unix_addr, n) \
 	memcmp((Bit8u *)(dos_addr), (Bit8u *)(unix_addr), (n))
+
+#define MEMSET_DOS(dos_addr, val, n) \
+        memset((Bit8u *)(dos_addr), (val), (n))
 
 #endif
 
@@ -134,11 +141,17 @@ typedef unsigned long udword_t;
 #define BIOS_MEMORY_SIZE                0x413
 /* #define bios_expansion_memory_size      (*(unsigned int   *) 0x415) */
 #define BIOS_KEYBOARD_STATE             0x417
+#define BIOS_KEYBOARD_FLAGS1            BIOS_KEYBOARD_STATE
+#ifdef NEW_KBD_CODE
+#define BIOS_KEYBOARD_FLAGS2            0x418
+#else
 #define BIOS_KEYBOARD_LEDS              0x418
+#endif
 #define BIOS_KEYBOARD_TOKEN             0x419
 /* used for keyboard input with Alt-Number */
 #define BIOS_KEYBOARD_BUFFER_HEAD       0x41a
 #define BIOS_KEYBOARD_BUFFER_TAIL       0x41c
+#define BIOS_KEYBOARD_BUFFER            0x41e
 /* #define bios_keyboard_buffer            (*(unsigned int   *) 0x41e) */
 #define BIOS_DRIVE_ACTIVE               0x43e
 #define BIOS_DRIVE_RUNNING              0x43f
@@ -194,7 +207,12 @@ typedef unsigned long udword_t;
 #define BIOS_VIDEO_INFO_2               0x489
 #define BIOS_VIDEO_COMBO                0x48a
 
+#ifdef NEW_KBD_CODE
+#define BIOS_KEYBOARD_FLAGS3            0x496
+#define BIOS_KEYBOARD_LEDS              0x497
+#else
 #define BIOS_KEYBOARD_FLAGS2            0x496
+#endif
 #define BIOS_PRINT_SCREEN_FLAG          0x500
 
 #define BIOS_VIDEO_SAVEPTR              0x4a8

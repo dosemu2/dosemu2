@@ -19,6 +19,8 @@
  * per second at the moment.  Too bad that would probably overflow all
  * internal queues really fast. :)
  *
+ * Speaker emulation, now including port 61h, is also in here. [rz]
+ *
  * DANG_END_MODULE
  *
  * $Date: 1995/05/06 16:25:30 $
@@ -31,6 +33,7 @@
  */
 
 #include <sys/time.h>
+#include <linux/kd.h>
 #include "config.h"
 #include "emu.h"
 #include "port.h"
@@ -39,6 +42,11 @@
 #include "port.h"
 #include "int.h"
 #include "pic.h"
+
+#ifdef NEW_KBD_CODE
+#include "keyb_server.h"
+#endif
+
 
 #ifndef MONOTON_MICRO_TIMING
 #define CLOCK_TICK_RATE   1193180     /* underlying clock rate in HZ */
@@ -51,7 +59,12 @@ pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
 static u_long timer_div;          /* used by timer int code */
 static u_long ticks_accum;        /* For timer_tick function, 100usec ticks */
 
+#ifdef NEW_KBD_CODE
+static Bit8u port61 = 0x0e;
+#else
 extern int    port61;
+#endif
+
 
 /*
  * DANG_BEGIN_FUNCTION initialize_timers
@@ -99,6 +112,8 @@ void initialize_timers(void)
 #endif /* MONOTON_MICRO_TIMING */
 
   timer_tick();  /* a starting tick! */
+
+  port61 = 0x0e;
 }
 
 /*
@@ -143,6 +158,27 @@ void timer_tick(void)
 }
 
 
+#ifdef NEW_KBD_CODE
+/* this does the EMULATED mode speaker emulation */
+void do_sound(Bit16u period) {
+  if ((port61 & 3) == 3 && (pit[2].mode == 2 || pit[2].mode == 3)) {
+     if (config.console && !config.X) {
+        i_printf("SPEAKER: on, period=%d\n",pit[2].write_latch);
+        do_ioctl(console_fd,KIOCSOUND,pit[2].write_latch & 0xffff);
+     }
+     else {
+        i_printf("SPEAKER: Dumb emulated beep\n");
+        putchar('\007');
+     }
+  }
+  else if (config.console && !config.X) {
+     i_printf("SPEAKER: sound OFF!\n");
+     do_ioctl(console_fd,KIOCSOUND,0);
+  }
+}
+#endif
+
+ 
 static void pit_latch(int latch)
 {
   struct timeval cur_time;
@@ -349,10 +385,14 @@ void pit_outp(Bit32u port, Bit8u val)
 #endif
     }
     else if (port == 2 && config.speaker == SPKR_EMULATED) {
+#ifdef NEW_KBD_CODE
+      do_sound(pit[2].write_latch & 0xffff);
+#else
       if ((port61 & 3) == 3) {
 	i_printf("PORT: Emulated beep!");
 	putchar('\007');
       }
+#endif
     }
   }
 }
@@ -428,7 +468,7 @@ void pit_control_outp(Bit32u port, Bit8u val)
  *
  * DANG_END_FUNCTION
  */
-#if 0
+#if 0  /* =0, if old engine */
 void timer_int_engine(void)
 {
   static continuous = 0;
@@ -457,12 +497,45 @@ void timer_int_engine(void)
     if (ticks_accum > 250) ticks_accum -= 250;
   }
 }
-#else
+#else /* new engine */
 void timer_int_engine(void)
 {
  pic_sched(PIC_IRQ0,pit[0].cntr);
  do_irq();
 }
+
+#ifdef NEW_KBD_CODE
+/* reads/writes to the speaker control port (0x61)
+ */
+Bit8u spkr_io_read(Bit32u port) {
+   if (port==0x61)  {
+      if (config.speaker == SPKR_NATIVE)
+         return port_safe_inb(0x61);
+      else
+         return port61;
+   }
+   return 0xff;
+}
+
+void spkr_io_write(Bit32u port, Bit8u value) {
+   if (port==0x61) {
+      switch (config.speaker) {
+       case SPKR_NATIVE:
+          port_safe_outb(0x61, value & 0x03);
+          break;
+      
+       case SPKR_EMULATED:
+	  port61 = value & 0x0f;
+          do_sound(pit[2].write_latch & 0xffff);
+	  break;
+
+       case SPKR_OFF:
+          port61 = value & 0x0f;
+          break;
+      }
+   }
+}
+#endif
 
 void pit_init(void)
 {
@@ -478,14 +551,26 @@ void pit_init(void)
   io_device.end_addr     = 0x0042;
   io_device.irq          = 0;
   port_register_handler(io_device);
+
   io_device.read_portb   = pit_control_inp;
   io_device.write_portb  = pit_control_outp;
   io_device.start_addr   = 0x0043;
   io_device.end_addr     = 0x0043;
   port_register_handler(io_device);
+
 #if 0
   io_device.start_addr   = 0x0047;
   io_device.end_addr     = 0x0047;
+  port_register_handler(io_device);
+#endif
+
+#ifdef NEW_KBD_CODE /* This code conflicts with the old keyboard code! 16 Sept 96*/
+  io_device.read_portb   = spkr_io_read;
+  io_device.write_portb  = spkr_io_write;
+  io_device.handler_name = "Speaker port";
+  io_device.start_addr   = 0x0061;
+  io_device.end_addr     = 0x0061;
+  io_device.irq          = EMU_NO_IRQ;
   port_register_handler(io_device);
 #endif
 }
@@ -531,5 +616,9 @@ void pit_reset(void)
 #if 0
   timer_handle = timer_create(pit_timer_func, NULL, pit_timer_usecs(0x10000));
 #endif
-}
+#ifdef NEW_KBD_CODE
+  port61 = 0;
+  do_ioctl(console_fd,KIOCSOUND,0);    /* sound off */
 #endif
+}
+#endif /* new engine */

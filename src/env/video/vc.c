@@ -125,6 +125,54 @@ forbid_switch (void)
   scr_state.vt_allow = 0;
 }
 
+/* check whether we are running on the console; initialise
+ * config.console, console_fd and scr_state.console_no
+ */
+void check_console() {
+
+#ifdef __NetBSD__
+    struct screeninfo info;
+    int result;
+
+    config.console=0;
+    console_fd = STDIN_FILENO;     /* not STDOUT_FILENO */
+
+    if (ioctl(console_fd, VGAGETSCREEN, &info)==0) {
+	/* it's zero-based, we use 1-based */
+	scr_state.console_no = info.screen_no + 1;
+        config.console=1;
+    }
+#endif
+
+#ifdef __linux__
+    struct stat chkbuf;
+    int major, minor;
+
+    config.console=0;
+    console_fd = STDIN_FILENO;
+
+    fstat(console_fd, &chkbuf);
+    major = chkbuf.st_rdev >> 8;
+    minor = chkbuf.st_rdev & 0xff;
+
+    /* console major num is 4, minor 64 is the first serial line */
+    if ((major == 4) && (minor < 64)) {
+       scr_state.console_no = minor;
+       config.console=1;
+    }
+#endif
+}
+
+void
+vt_activate(int con_num)
+{
+    if (in_ioctl) {
+	k_printf("KBD: can't ioctl for activate, in a signal handler\n");
+	do_ioctl(console_fd, VT_ACTIVATE, con_num);
+    } else
+	do_ioctl(console_fd, VT_ACTIVATE, con_num);
+}
+
 void
 allow_switch (void)
 {
@@ -188,7 +236,7 @@ acquire_vt (int sig, struct sigcontext_struct context)
   if (config.console_keyb)
       set_raw_mode();
 #endif
-  if (ioctl (kbd_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
+  if (ioctl (console_fd, VT_RELDISP, VT_ACKACQ))	/* switch acknowledged */
     v_printf ("VT_RELDISP failed (or was queued)!\n");
   allow_switch ();
   SIGNAL_save (SIGACQUIRE_call);
@@ -306,14 +354,14 @@ SIGRELEASE_call (void)
     }
 
   scr_state.current = 0;	/* our console is no longer current */
-  if (do_ioctl (kbd_fd, VT_RELDISP, 1))	/* switch ok by me */
+  if (do_ioctl (console_fd, VT_RELDISP, 1))	/* switch ok by me */
     v_printf ("VT_RELDISP failed!\n");
 }
 
 int
 wait_vc_active (void)
 {
-  if (ioctl (kbd_fd, VT_WAITACTIVE, scr_state.console_no) < 0)
+  if (ioctl (console_fd, VT_WAITACTIVE, scr_state.console_no) < 0)
     {
       if (errno != EINTR)
 		{
@@ -558,7 +606,7 @@ set_process_control (void)
   NEWSETQSIG (SIG_RELEASE, release_vt);
   NEWSETQSIG (SIG_ACQUIRE, acquire_vt);
 
-  if (do_ioctl (kbd_fd, VT_SETMODE, (int) &vt_mode))
+  if (do_ioctl (console_fd, VT_SETMODE, (int) &vt_mode))
     v_printf ("initial VT_SETMODE failed!\n");
   v_printf ("VID: Set process control\n");
 }
@@ -569,7 +617,7 @@ clear_process_control (void)
   struct vt_mode vt_mode;
 
   vt_mode.mode = VT_AUTO;
-  ioctl (kbd_fd, VT_SETMODE, (int) &vt_mode);
+  ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
   signal (SIG_RELEASE, SIG_IGN);
   signal (SIG_ACQUIRE, SIG_IGN);
 }
@@ -631,7 +679,7 @@ vc_active (void)
   struct vt_stat vtstat;
 
   g_printf ("VC_ACTIVE!\n");
-  ioctl (kbd_fd, VT_GETSTATE, &vtstat);
+  ioctl (console_fd, VT_GETSTATE, &vtstat);
   g_printf ("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, vtstat.v_active);
   return ((vtstat.v_active == scr_state.console_no));
 #endif
@@ -640,7 +688,7 @@ vc_active (void)
   int active;
 
   g_printf ("VC_ACTIVE!\n");
-  ioctl (kbd_fd, VT_GETACTIVE, &active);
+  ioctl (console_fd, VT_GETACTIVE, &active);
   g_printf ("VC_ACTIVE: ours: %d, active: %d\n", scr_state.console_no, active);
   return ((active == scr_state.console_no));
 #endif

@@ -75,10 +75,10 @@ void set_console_video(void)
   if (config.console_video) {
     k_printf("KBD: Taking mouse control\n");
     if ( config.cardtype == CARD_MDA )
-      ioctl(kbd_fd, KDSETMODE, KD_TEXT);  /* The kernel doesn't support
+      ioctl(console_fd, KDSETMODE, KD_TEXT);  /* The kernel doesn't support
 					     HGA graphics */
     else
-      ioctl(kbd_fd, KDSETMODE, KD_GRAPHICS);
+      ioctl(console_fd, KDSETMODE, KD_GRAPHICS);
   }
 
   /* Clear the Linux console screen. The console recognizes these codes: 
@@ -119,7 +119,7 @@ void set_console_video(void)
   */
   
   if (config.console_video && config.force_vt_switch && !vc_active()) {
-    if (ioctl(kbd_fd, VT_ACTIVATE, scr_state.console_no)<0)
+    if (ioctl(console_fd, VT_ACTIVATE, scr_state.console_no)<0)
       v_printf("VID: error VT switching %s\n", strerror(errno));
   }
 
@@ -137,13 +137,13 @@ void set_console_video(void)
     scr_state.mapped = 1;
 #endif
     if (!config.vga) {
-      ioctl(kbd_fd, VT_ACTIVATE, other_no);
+      ioctl(console_fd, VT_ACTIVATE, other_no);
 /*
  *    Fake running signal_handler() engine to process release/acquire
  *    vt's.
  */
       while(vc_active())handle_signals();
-      ioctl(kbd_fd, VT_ACTIVATE, scr_state.console_no);
+      ioctl(console_fd, VT_ACTIVATE, scr_state.console_no);
       while(!vc_active())handle_signals();
     }
   }
@@ -164,13 +164,13 @@ void clear_console_video(void)
   /* XXX - must be current console! */
 
   if (config.vga) 
-    ioctl(kbd_fd, KIOCSOUND, 0);	/* turn off any sound */
+    ioctl(console_fd, KIOCSOUND, 0);	/* turn off any sound */
   else
     fprintf(stdout,"\033[?25h");        /* Turn on the cursor */
 
   if (config.console_video) {
     k_printf("KBD: Release mouse control\n");
-    ioctl(kbd_fd, KDSETMODE, KD_TEXT);
+    ioctl(console_fd, KDSETMODE, KD_TEXT);
   }
 }
 

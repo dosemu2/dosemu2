@@ -47,6 +47,10 @@
 #include "shared.h"
 #include "iodev.h"
 
+#ifdef NEW_KBD_CODE
+#include "keyb_clients.h"
+#endif
+
 #ifdef USING_NET
 extern void pkt_check_receive_quick(void);
 /* flag to activate use of pic by packet driver */
@@ -193,7 +197,7 @@ void timer_interrupt_init(void)
  */
 void hardware_setup(void)
 {
-
+  extern void  do_irq1(void);
   /* PIC init */
   pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
@@ -372,6 +376,7 @@ static inline void bios_mem_setup(void)
   bios_configuration = configuration;
   bios_memory_size   = config.mem_size;	/* size of memory */
 
+#ifndef NEW_KBD_CODE
   /* The default 16-word BIOS key buffer starts at 0x41e */
 #if 0
   KBD_Head =			/* key buf start ofs */
@@ -392,6 +397,7 @@ static inline void bios_mem_setup(void)
 
   *OUTB_ADD = 1;                /* Set OUTB_ADD to 1 */
   *LASTSCAN_ADD = 1;
+#endif
 }
 
 /* 
@@ -469,7 +475,9 @@ void memory_init(void)
     ems_init();                /* initialize ems */
     xms_init();                /* initialize xms */
     shared_memory_init();
+#ifndef NEW_KBD_CODE
     shared_keyboard_init();
+#endif
   }
   first_call = 0;
 #if 0
@@ -492,11 +500,27 @@ void memory_init(void)
 void device_init(void)
 {
   port_init();
+
+#ifdef NEW_KBD_CODE
+  /* check whether we are running on the console */
+  check_console();
+
+  if (!keyb_server_init()) {
+    error("ERROR: can't init keyboard server\n");
+    leavedos(19);
+  }
+  if (!keyb_client_init()) {
+    error("ERROR: can't open keyboard client\n");
+    leavedos(19);
+  }
+#else
   if (keyboard_init() != 0) {
     error("ERROR: can't open keyboard\n");
     leavedos(19);
   }
   keyboard_flags_init();
+#endif
+   
   if (!config.vga)
     config.allowvideoportaccess = 0;
  
@@ -559,6 +583,7 @@ void version_init(void) {
     }
   }
 
+#ifndef NEW_KBD_CODE
   /* Next Check input */
   if (isatty(STDIN_FILENO)) {
     k_printf("STDIN is tty\n");
@@ -567,7 +592,8 @@ void version_init(void) {
     k_printf("STDIN not a tty\n");
     config.kbd_tty = 1;
   }
-
+#endif
+   
 }
 
 

@@ -39,7 +39,6 @@
 #include "mouse.h"
 #include "serial.h"
 #include "xms.h"
-#include "keyboard.h"
 #include "timers.h"
 #include "cmos.h"
 #include "memory.h"
@@ -70,7 +69,40 @@
 #include "sound.h"
 #endif
 
+#ifdef NEW_KBD_CODE
+#include "keyb_server.h"
+#endif
+#include "keyboard.h"
+
 #include "dma.h"
+
+extern Bit8u spkr_io_read(Bit32u port);
+extern void spkr_io_write(Bit32u port, Bit8u value);
+
+/* ====================================================================== */
+
+static long nyb2bin[16] = {
+	0x30303030, 0x31303030, 0x30313030, 0x31313030,
+	0x30303130, 0x31303130, 0x30313130, 0x31313130,
+	0x30303031, 0x31303031, 0x30313031, 0x31313031,
+	0x30303131, 0x31303131, 0x30313131, 0x31313131
+};
+
+static char *
+p2bin (unsigned char c)
+{
+  static char s[16] = "   [00000000]";
+
+  ((long *)s)[1]=nyb2bin[(c>>4)&15];
+  ((long *)s)[2]=nyb2bin[c&15];
+  
+  return s+3;
+}
+
+#ifndef USE_MRP_JOYSTICK
+static int fake201 = 50;	/* for diagnostic loops, do not run games
+				   with THIS on */
+#endif
 
 /* ====================================================================== */
 /*  */

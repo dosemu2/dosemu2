@@ -1083,8 +1083,10 @@ void pic_reset(void)
   pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
   pic_request(PIC_IRQ0);                    /* start timer */
+#ifndef NEW_KBD_CODE   
   pic_seti(PIC_IRQ1, do_irq1, 0);           /* do_irq1 in dosio.c   */
   pic_unmaski(PIC_IRQ1);
+#endif   
   if (mice->intdrv || mice->type == MOUSE_PS2) {
     pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0);
     pic_unmaski(PIC_IMOUSE);

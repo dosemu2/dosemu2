@@ -3,10 +3,37 @@
  *                     implemented keyboard-layouts.
  */
 
-#ifndef KEYMAPS_H
-#define KEYMAPS_H
+#ifndef _EMU_KEYMAPS_H
+#define _EMU_KEYMAPS_H
+
+#include "emu.h"
 
 /* Keyboard-Layout for the alphanumeric part of the keyboard */
+
+#define KEYB_FINNISH           0
+#define KEYB_FINNISH_LATIN1    1
+#define KEYB_US                2
+#define KEYB_UK                3
+#define KEYB_DE                4
+#define KEYB_DE_LATIN1         5
+#define KEYB_FR                6
+#define KEYB_FR_LATIN1         7
+#define KEYB_DK                8
+#define KEYB_DK_LATIN1         9
+#define KEYB_DVORAK           10
+#define KEYB_SG               11
+#define KEYB_SG_LATIN1        12
+#define KEYB_NO               13
+#define KEYB_SF               15
+#define KEYB_SF_LATIN1        16
+#define KEYB_ES               17
+#define KEYB_ES_LATIN1        18
+#define KEYB_BE               19
+#define KEYB_PO               20
+#define KEYB_IT               21
+#define KEYB_SW		      22
+
+#define CONST
 
 extern unsigned char key_map_finnish[];
 extern unsigned char shift_map_finnish[];
@@ -105,5 +132,31 @@ extern unsigned char alt_map_sw[];
 extern unsigned char num_table_comma[];
 extern unsigned char num_table_dot[];
 
+extern struct dos_dead_key dos850_dead_map[];
+extern unsigned char dead_key_table[];
+ 
+
+#ifdef NEW_KBD_CODE
+
+/*  dead keys for accents */
+#define DEAD_GRAVE         1
+#define DEAD_ACUTE         2
+#define DEAD_CIRCUMFLEX    3
+#define DEAD_TILDE         4
+#define DEAD_BREVE         5
+#define DEAD_ABOVEDOT      6
+#define DEAD_DIAERESIS     7
+#define DEAD_ABOVERING     8
+#define DEAD_DOUBLEACUTE   10
+#define DEAD_CEDILLA       11
+#define DEAD_IOTA          12
+
+struct dos_dead_key {
+  unsigned char d_key;
+  unsigned char in_key;
+  unsigned char out_key;
+};
+
 #endif
-/* End of include/keymaps.h */
+
+#endif /* _EMU_KEYMAPS_H */

@@ -73,13 +73,16 @@ __len));
 #include "hgc.h"
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"
-#include "keymaps.h"
 #include "int.h"
 #include "bitops.h"
 #include "pic.h"
 #include "dpmi.h"
 #ifdef __NetBSD__
 #include <setjmp.h>
+#endif
+
+#ifdef NEW_KBD_CODE
+#include "keyb_clients.h"
 #endif
 
 #ifdef USE_MHPDBG
@@ -184,7 +187,11 @@ io_select(fd_set fds)
 	  pic_request(PIC_IMOUSE);
 	}
       if (FD_ISSET(kbd_fd, &fds)) {
-	getKeys();
+#ifdef NEW_KBD_CODE
+	 keyb_client_run();
+#else
+	 getKeys();
+#endif
       }
 #ifdef USE_MHPDBG
       if (mhpdbg.fdin != -1) if (FD_ISSET(mhpdbg.fdin, &fds)) mhp_input();

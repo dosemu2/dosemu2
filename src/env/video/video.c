@@ -375,8 +375,36 @@ video_config_init(void) {
 
   WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
 
+#ifdef NEW_KBD_CODE
+  if (!config.console) {
+     /* NOTE: BIG FAT WARNING !!!
+      *       without this you will reproduceable KILL LINUX
+      *       (seen with Linux-2.0.28)            ^^^^^^^^^^
+      *       This happens in xterm, not console and not xdos.
+      *       I was unable to trace it down, because directly at
+      *       startup you get a black screen and no logs are left
+      *       once you repaired your files system :(
+      *       Though this is a userspace bug, it should not
+      *       kill the kernel IMHO. -- Hans
+      */
+     v_printf("VID: not running on console - resetting to terminal mode\n");
+     config.console_video=0;
+     scr_state.console_no = 0;
+     config.console_keyb = 0;
+     config.console_video = 0;
+     config.mapped_bios = 0;
+     config.vga = 0;
+     config.graphics = 0;
+     config.console = 0;
+     if (config.speaker == SPKR_NATIVE)
+        config.speaker = SPKR_EMULATED;
+  }
+  if (config.console_video && !config.usesX)
+    set_process_control();
+#else
   if ((config.console_keyb || config.console_video) && !config.usesX)
     set_process_control();
+#endif
 
   if (config.console_video) {
     set_console_video();

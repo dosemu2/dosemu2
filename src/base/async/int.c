@@ -34,7 +34,11 @@
 
 #include "dpmi.h"
 
+#ifdef NEW_KBD_CODE
+#include "keyb_server.h"
+#else
 extern void scan_to_buffer(void);
+#endif
 
 /*
    This flag will be set when doing video routines so that special
@@ -186,11 +190,22 @@ static int dos_helper(void)
       p_dos_str("DPMI-Server Version 0.9 installed\n\n");
     break;
 
-  case 6:			/* Do inline int09 insert_into_keybuffer() */
-    k_printf("Doing INT9 insert_into_keybuffer() bx=0x%04x\n", LWORD(ebx));
+#ifdef NEW_KBD_CODE
+   case 6:
+      k_printf("KBD: WARNING: outdated keyboard helper fn 6 was called!\n");
+      break;
+
+   case 7:                       /* INT 09 "get bios key" helper */
+      _AX=get_bios_key();
+      k_printf("HELPER: get_bios_key() returned %04x\n",_AX);
+      break;
+#else
+   case 6:			/* Do inline int09 insert_into_keybuffer() */
+    k_printf("KBD: Doing INT9 insert_into_keybuffer() bx=0x%04x\n", LWORD(ebx));
     scan_to_buffer();
     break;
-
+#endif
+     
   case 8:
     v_printf("Starting Video initialization\n");
     if (config.allowvideoportaccess) {
@@ -1387,12 +1402,14 @@ void int_queue_run(void)
   ssp = (unsigned char *) (REG(ss) << 4);
   sp = (unsigned long) LWORD(esp);
 
+#ifndef NEW_KBD_CODE
   if (current_interrupt == 0x09) {
     k_printf("Int9 set\n");
     /* If another program does a keybaord read on port 0x60, we'll know */
     read_next_scancode_from_queue();
   }
-
+#endif
+   
   /* call user startup function...don't run interrupt if returns -1 */
   if (int_queue[int_queue_start].callstart) {
     if (int_queue[int_queue_start].callstart(current_interrupt) == -1) {

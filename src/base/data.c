@@ -28,3 +28,7 @@ static char *id= "$Id: data.c,v 1.4 1995/04/08 22:29:37 root Exp $";
 #include "priv.h"
 #include "dma.h"
 #include "sound.h"
+#ifdef NEW_KBD_CODE
+#include "keyb_server.h"
+#include "keyb_clients.h"
+#endif

@@ -1,6 +1,8 @@
-#include <sys/types.h>
 #include "config.h"
+#include "keymaps.h"
+#ifndef NEW_KBD_CODE
 #include "termio.h"
+#endif
 
 /* DANG_BEGIN_MODULE
  * 
@@ -13,8 +15,14 @@
  * DANG_END_MODULE
  */
 
-#define CONST
 
+#ifdef NEW_KBD_CODE
+  #define _DEAD_ACUTE_ DEAD_ACUTE
+  #define _DEAD_GRAVE_ DEAD_GRAVE
+#else
+  #define _DEAD_ACUTE_ 39
+  #define _DEAD_GRAVE_ '`'
+#endif
 
 CONST unsigned char key_map_finnish[] =
 {
@@ -229,11 +237,11 @@ CONST unsigned char alt_map_uk[] =
 CONST unsigned char key_map_de[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
-  '7', '8', '9', '0', '·', '\'', 127, 9,
+  '7', '8', '9', '0', 0xe1, '\'', 127, 9,
   'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
-  'o', 'p', 'Å', '+', 13, 0, 'a', 's',
-  'd', 'f', 'g', 'h', 'j', 'k', 'l', 'î',
-  'Ñ', '^', 0, '#', 'y', 'x', 'c', 'v',
+  'o', 'p', 0x81, '+', 13, 0, 'a', 's',
+  'd', 'f', 'g', 'h', 'j', 'k', 'l', 0x94,
+  0x84, '^', 0, '#', 'y', 'x', 'c', 'v',
   'b', 'n', 'm', ',', '.', '-', 0, '*',
   0, 32, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -244,12 +252,12 @@ CONST unsigned char key_map_de[] =
 
 CONST unsigned char shift_map_de[] =
 {
-  0, 27, '!', '"', 'ú', '$', '%', '&',
+  0, 27, '!', '"', 0x9c, '$', '%', '&',
   '/', '(', ')', '=', '?', '`', 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
-  'O', 'P', 'ö', '*', 13, 0, 'A', 'S',
-  'D', 'F', 'G', 'H', 'J', 'K', 'L', 'ô',
-  'é', '¯', 0, '\'', 'Y', 'X', 'C', 'V',
+  'O', 'P', 0x9A, '*', 13, 0, 'A', 'S',
+  'D', 'F', 'G', 'H', 'J', 'K', 'L', 0x99,
+  0x8e, 0xf8, 0, '\'', 'Y', 'X', 'C', 'V',
   'B', 'N', 'M', ';', ':', '_', 0, '*',
   0, 32, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -260,13 +268,13 @@ CONST unsigned char shift_map_de[] =
 
 CONST unsigned char alt_map_de[] =
 {
-  0, 0, 0, '˝', '¸', 0, 0, 0,
+  0, 0, 0, 0xfd, 0xfc, 0, 0, 0,
   '{', '[', ']', '}', '\\', 0, 0, 0,
   '@', 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, '~', 13, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 'Ê', 0, 0, 0, 0, 0,
+  0, 0, 0xe6, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -277,7 +285,7 @@ CONST unsigned char alt_map_de[] =
 CONST unsigned char key_map_de_latin1[] =
 {
   0, 27, '1', '2', '3', '4', '5', '6',
-  '7', '8', '9', '0', 225, 39, 127, 9,
+  '7', '8', '9', '0', 225, _DEAD_ACUTE_, 127, 9,
   'q', 'w', 'e', 'r', 't', 'z', 'u', 'i',
   'o', 'p', 129, '+', 13, 0, 'a', 's',
   'd', 'f', 'g', 'h', 'j', 'k', 'l', 148,
@@ -293,7 +301,7 @@ CONST unsigned char key_map_de_latin1[] =
 CONST unsigned char shift_map_de_latin1[] =
 {
   0, 27, '!', '"', 21, '$', '%', '&',
-  '/', '(', ')', '=', '?', '`', 127, 9,
+  '/', '(', ')', '=', '?', _DEAD_GRAVE_, 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
   'O', 'P', 154, '*', 13, 0, 'A', 'S',
   'D', 'F', 'G', 'H', 'J', 'K', 'L', 153,
@@ -1162,7 +1170,7 @@ DEAD_DOUBLEACUTE,DEAD_CEDILLA,DEAD_IOTA, 0};
  * DANG_END_REMARK
  */
 
-struct dos_dead_key dos850_dead_map[] = {
+CONST struct dos_dead_key dos850_dead_map[] = {
         {DEAD_GRAVE, DEAD_GRAVE, '`'},  {DEAD_ACUTE, DEAD_ACUTE, '\''},
         {DEAD_CIRCUMFLEX, DEAD_CIRCUMFLEX, '^'}, {DEAD_DIAERESIS, DEAD_DIAERESIS, '"'},
 	{DEAD_TILDE, DEAD_TILDE, '~'},
@@ -1193,6 +1201,6 @@ struct dos_dead_key dos850_dead_map[] = {
 	{DEAD_DIAERESIS, 'O', 153},	{DEAD_DIAERESIS, 'o', 148},
 	{DEAD_DIAERESIS, 'U', 154},	{DEAD_DIAERESIS, 'u', 129},
 	{DEAD_DIAERESIS, 'y', 0x98},
-
         {0, 0, 0}
 };
+

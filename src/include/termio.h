@@ -119,6 +119,8 @@
 
 #include "extern.h"
 
+#ifndef NEW_KBD_CODE
+
 #define KF_RSHIFT	0
 #define KF_LSHIFT	1
 #define KF_CTRL		2	/* either one */
@@ -186,11 +188,28 @@ extern unsigned char dead_key_table[];
 #define key_flags READ_WORD(KEYFLAG_ADDR)
 #define kbd_flags READ_WORD(KBDFLAG_ADDR)
 
+#define KBBUF_SIZE	80	/* dosemu read buffer for keyboard */
+
+extern void set_leds(void);
+
+/* int15 fn=4f will clear CF if scan code should not be used,
+   I set keepkey to reflect CF */
+EXTERN u_char keepkey INIT(1);
+
+EXTERN void insert_into_keybuffer(void);
+EXTERN void set_keyboard_bios(void);
+EXTERN void do_irq1(void);
+EXTERN int keyboard_init(void);
+EXTERN void add_scancode_to_queue (u_short scan);
+EXTERN void child_set_flags(int sc);
+EXTERN int kbd_flag (int flag);
+
+
+#endif /* not NEW_KBD_CODE */
+
 extern void set_screen_origin(int), set_vc_screen_page(int);
 
 extern int vc_active(void);
-
-#define KBBUF_SIZE	80	/* dosemu read buffer for keyboard */
 
 struct screen_stat {
   int console_no,		/* our console number */
@@ -214,19 +233,5 @@ struct screen_stat {
 
   int old_modecr, new_modecr;
 };
-
-extern void set_leds(void);
-
-/* int15 fn=4f will clear CF if scan code should not be used,
-   I set keepkey to reflect CF */
-EXTERN u_char keepkey INIT(1);
-
-EXTERN void insert_into_keybuffer(void);
-EXTERN void set_keyboard_bios(void);
-EXTERN void do_irq1(void);
-EXTERN int keyboard_init(void);
-EXTERN void add_scancode_to_queue (u_short scan);
-EXTERN void child_set_flags(int sc);
-EXTERN int kbd_flag (int flag);
 
 #endif /* TERMIO_H */

@@ -1,3 +1,20 @@
+97/02/17 ver. 0.65.99 unofficial pre-release,
+			 first round targeting 0.66, 0.67
+	From Hans
+	- Collected the keyboard patches from 0.63.1.56 .. 0.63.1.98
+	  ( from Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de> )
+	  and adapted them on top of 0.64.4.
+	  Fixed some bugs (which very likely also bothered 0.65.0),
+	  added the recent Slang and codetable changes, restored the
+	  original filenames for the old files (patch now readable),
+          and got it finaly working.
+	  The old keyboard stuff remains active per default.
+	  The new stuff (--enable-new-kbd) also runs fine (atleast on the 3
+          machines I have tested), except that ESC on Slangkeyboard has
+	  to be typed twiced (result of 'dead keys for accents' ?).
+
+--------------
+
 97/02/04 ver. 0.64.4 released
 	From Hans
 	- Adapted Steffen Winterfeld's (graphics) true color patch from

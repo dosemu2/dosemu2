@@ -61,7 +61,7 @@ void		set_raw_mode();
 void            set_leds();
 extern void     set_leds_area();
 extern void     add_scancode_to_queue(u_short);
-extern void     activate(int);
+extern void     vt_activate(int);
 extern int      terminal_initialize();
 extern void     terminal_close();
 void            convascii(int *);
@@ -147,7 +147,7 @@ do_queued_ioctl(void)
 }
 
 void
-activate(int con_num)
+vt_activate(int con_num)
 {
     if (in_ioctl) {
 	k_printf("KBD: can't ioctl for activate, in a signal handler\n");
@@ -534,7 +534,7 @@ child_set_flags(int sc)
 	     */
 	    child_clr_kbd_flag(3);
 	    child_clr_kbd_flag(2);
-	    activate(fnum);
+	    vt_activate(fnum);
 	    return;
 	}
 	return;

@@ -86,6 +86,9 @@
 /* Add if you have X-Keycode problems */
 #undef NEW_KEYCODES
 
+/* Define this to use the new keyboard code */
+#undef NEW_KBD_CODE
+
 /*
  *  DEFINE this, if you have joystick support in the kernel
  *  or have the joystick module loaded (needing <linux/joystick.h>)

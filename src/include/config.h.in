@@ -150,7 +150,7 @@
 #undef REQUIRES_VM86PLUS
 
 /* DEFINE this, if you have vm86plus built into the kernel */
-#undef BUILTIN_VMP86PLUS
+#undef BUILTIN_VM86PLUS
 
 /* DPMI test windows */
 #undef WANT_WINDOWS
@@ -164,6 +164,9 @@
 #undef X_GRAPHICS
 /* Add if you have X-Keycode problems */
 #undef NEW_KEYCODES
+
+/* Define this to use the new keyboard code */
+#undef NEW_KBD_CODE
 
 /*
  * This is DEFINED when SB emulation is required. Just changing this is not
@@ -260,5 +263,8 @@
 
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H
+
+/* Define if you have the slang library (-lslang).  */
+#undef HAVE_LIBSLANG
 
 #endif /* CONFIG_H */

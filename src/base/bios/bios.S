@@ -20,11 +20,17 @@
 /*************************************************************************/
 
 #define __ASM__
+#include "config.h"
 #include "memory.h"
 #include "macros86.h"
 #ifdef __linux__
 #include <linux/linkage.h>
 #endif
+
+#ifdef NEW_KBD_CODE
+#include "keyb_server.h"
+#endif
+
 
 /* some other usefull definitions */
 
@@ -331,11 +337,39 @@ CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
 	mov	ds,bx
 
 #if 1 /* new */
+#ifdef NEW_KBD_CODE
+	cmp	ah,#0
+	je	INT16_0			/* read key */
+	cmp	ah,#1
+	je	INT16_1			/* check key available */
+	cmp	ah,#2
+	je	INT16_2			/* get shift flags */
+#if 0
+	cmp	ah,#3
+	je	INT16_3			/* set typematic rate */
+	cmp	ah,#4
+	je	INT16_4			/* adjust keyclick */
+#endif
+	cmp	ah,#5
+	je	INT16_5			/* store key in buffer */
+	cmp	ah,#0x10
+	je	INT16_10		/* read key extended */
+	cmp	ah,#0x11
+	je	INT16_11		/* check key extended */
+	cmp	ah,#0x12
+	je	INT16_12		/* get shift flags extended */
+
+INT16_ex:
+	pop     bx			/* do nothing and return	*/
+	pop     ds
+	iret   
+#else
 	cmp	ah,#2
 	ja	INT16_3			/* >2 */
 	je	INT16_2			/* 2 => retn. shift flag stat. */
 	jp	INT16_1			/* 1 => return keyboard status */
 	jmp	INT16_0			/* 0 => read keyboard */
+#endif
 
 INT16_0_idle:
 	sti
@@ -344,6 +378,9 @@ INT16_0_idle:
 	int     0x2f
 	pop	ax
 INT16_0:				/* 0 => read keyboard */
+#ifdef NEW_KBD_CODE
+INT16_10:				/* 0x10 => extended read        */
+#endif
 	cli				/* READ KEYBOARD		*/
 	mov	bx,[KEYBUF_READ_PTR]    /* get address of next char	*/
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* is buffer empty?		*/
@@ -352,6 +389,14 @@ INT16_0_a:
 	mov	ax,[bx]			/* get last key	*/
 	inc     bx			/* advance buffer pointer 2 bytes*/
 	inc     bx
+#ifdef NEW_KBD_CODE
+ 	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
+	jne	INT16_0_nowrap		/* no wrap - go return to caller*/
+	mov	bx,[KEYBUFFER_START]	/* wrap - get buffer start	*/
+INT16_0_nowrap:
+	mov     [KEYBUF_READ_PTR],bx	/* save it as new pointer	*/
+	sti
+#else
 	mov	[KEYBUF_READ_PTR],bx	/* save new pointer		*/
 	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
 	jne	INT16_ex		/* no wrap - go return to caller*/
@@ -359,9 +404,13 @@ INT16_0_a:
 	mov	bx,[KEYBUFFER_START]
 					/* save it as new pointer	*/
 	mov     [KEYBUF_READ_PTR],bx
+#endif
 	jmp	INT16_ex		/* return to caller		*/
 
-INT16_1:
+INT16_1:				/* 0x01 => check for key        */
+#ifdef NEW_KBD_CODE
+INT16_11:				/* 0x11 => extended check       */
+#endif
 	cli
 	mov	bx,[KEYBUF_READ_PTR]	/* get address of next char	*/
 	cmp	bx,[KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
@@ -372,12 +421,50 @@ INT16_1:
 	retf    #2		/* can't do iret, it would change flags	*/
 
 INT16_2:				/* RETURN SHIFT FLAG STATUS     */
+#ifdef NEW_KBD_CODE
+INT16_12:
+#endif
 	mov	ax,[KEYSHIFT_FLAGS]	/* get shift flags (ah=extended)*/
 	and     ah,#0xf3		/* disallow bits 2 & 3		*/
 	mov	bh,[KEYBOARD_STATUS_3]	/* bits 2 & 3 come from here	*/
 	and     bh,#0xc			/* isolate those bits		*/
 	or      ah,bh			/* merge them with flags in ax	*/
 	jmp	INT16_ex		/* return to caller		*/
+
+#ifdef NEW_KBD_CODE
+INT16_5:				/* STORE KEY INTO BUFFER	*/
+	mov	ax,cx
+	cli
+	call	store_key
+	sti
+	jc	INT16_5_full
+	mov	al,#0			/* return al=0 (success)	*/
+	jmp	INT16_ex
+INT16_5_full:
+	mov	al,#1			/* return al=1 (buffer full)	*/
+ 	jmp	INT16_ex
+
+/* SUBROUTINE: store keycode in AX in the BIOS keyboard buffer, 
+ * return CF=1 if buffer is full.
+ */
+store_key:
+	mov	bx,[KEYBUF_WRITE_PTR]
+	inc	bx
+	inc	bx
+	cmp	bx,[KEYBUFFER_END]
+	jne	no_wrap
+	mov	bx,[KEYBUFFER_START]
+no_wrap:
+	cmp	bx,[KEYBUF_READ_PTR]
+	stc
+	je	keybuffer_full
+	xchg	bx,[KEYBUF_WRITE_PTR]	/* ok, update write pointer	*/
+	mov	[bx],ax			/* and store key in buffer	*/
+	clc
+keybuffer_full:
+	ret
+
+#else   /* not NEW_KBD_CODE */
 
 INT16_3:
 	cmp	ah,#5
@@ -419,7 +506,7 @@ INT16_5_b:
 	mov	[KEYBUF_WRITE_PTR],bx	/* save it in bios data area	*/
 	sti
 	jmp	INT16_ex		/* return to caller		*/
-
+#endif /* not NEW_KBD_CODE */
 #else /* old */
 	/* ------------------------------------ */
  	cmp     ah,#0			/*   0 => read keyboard		*/
@@ -765,6 +852,96 @@ CISH(DPMI_dummy_end):
 
 
 /* ----------------------------------------------------------------- */   
+#ifdef NEW_KBD_CODE
+	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
+	.globl	CISH(INT09_dummy_start)
+	push	ax
+	push	bx
+	push	ds
+	CSEG
+	mov	ax,#BIOS_DATA
+	mov	ds,ax
+
+/* BIOS keyboard intercept */
+
+/* get the RAW scancode (used only for int15,4f) */
+	in	al,0x60
+	
+	mov	al,ah
+	mov	ah,#0x4f
+	stc
+	int	#0x15
+	
+	/* ignore the returned keycode, only skip the pre-translated
+	   bios keycode if CF=0.
+	   this is not completely accurate but hard to improve while
+	   keeping a clean keyboard server design.
+	 */
+	jnc	kbd_done
+
+        /* get the pre-translated bios key. */
+	
+	mov	al,#7
+	int	0xe6			/* call get_bios_key helper       */
+					/* returns ax=keycode or 0,       */
+					/* also copies new shift state to */
+					/* seg 0x40                       */
+
+	test	ax,ax
+	jz	kbd_done		/* no keycode returned */
+
+/* check for "special action" codes
+ */
+	cmp	ax, #SP_PAUSE
+	je	kbd_do_pause
+	cmp	ax, #SP_BREAK
+	je	kbd_do_break
+	cmp	ax, #SP_PRTSCR
+	je	kbd_do_prtscr
+	cmp	ax, #SP_SYSRQ_MAKE
+	je	kbd_do_sysrq_make
+	cmp	ax, #SP_SYSRQ_BREAK
+	je	kbd_do_sysrq_break
+
+	call	store_key
+
+kbd_done:
+	mov    	al,#0x20
+	out     0x20,al			/* tell pic we're done 		*/
+	pop	ds
+	pop	bx
+	pop	ax			/* restore registers		*/
+	iret
+
+kbd_do_pause:
+	jmp	kbd_done
+
+kbd_do_break:				/* CTRL-BREAK pressed		*/
+	xor	ax,ax
+	call	store_key		/* put null word into buffer	*/
+	int	0x1b			/* call BREAK interrupt		*/
+	jmp	kbd_done
+
+kbd_do_prtscr:				/* PRINT SCREEN pressed		*/
+	int	0x05
+	jmp	kbd_done
+
+kbd_do_sysrq_make:			/* Alt-SYSRQ pressed		*/
+	mov	ax,0x8500
+	int	0x15
+	jmp	kbd_done
+
+kbd_do_sysrq_break:			/* ALT-SYSRQ released		*/
+	mov	ax,0x8501
+	int	0x15
+	jmp	kbd_done
+
+	.globl  CISH(INT09_dummy_end)
+CISH(INT09_dummy_end):
+
+
+#else /* not NEW_KBD_CODE */
+
 	.org	((INT09_SEG-BIOSSEG) << 4)+INT09_OFF
 	.globl	CISH(INT09_dummy_start)
 CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
@@ -798,7 +975,7 @@ CISH(INT09_dummy_start):		/* KEYBOARD INTERRUPT ROUTINE	*/
 	.globl  CISH(INT09_dummy_end)
 CISH(INT09_dummy_end):
 
-
+#endif /* not NEW_KBD_CODE */
 
 /* ----------------------------------------------------------------- */
 	.org	0xf065

@@ -284,8 +284,8 @@ AC_SUBST(x_libraries)
 
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
-SUBLEVEL="64"
-PATCHLEVEL="4.0"
+SUBLEVEL="65"
+PATCHLEVEL="99.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
@@ -356,6 +356,19 @@ dnl Do compilation for GDB
    AC_CHECKING("Compiling without debug info");
   fi
 
+dnl Use new keyboard code
+ AC_ARG_ENABLE(new-kbd,
+               [  --enable-new-kbd        use the new keyboard code],
+	       [newkeyboard="yes"],[newkeyboard="no"])
+  if test "$newkeyboard" = "yes"; then
+   AC_CHECKING("Compiling with new keyboard code");
+   NEW_KBD_CODE="NEW_KBD_CODE=1"
+   AC_DEFINE_UNQUOTED(NEW_KBD_CODE)
+   AC_SUBST(NEW_KBD_CODE)
+  else
+   AC_CHECKING("Compiling with old keyboard code");
+  fi
+ 
 dnl Do SB emulation
  AC_ARG_ENABLE(nosbemu,
                [  --enable-nosbemu        do NOT use SoundBlaster emulator],

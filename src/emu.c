@@ -88,6 +88,7 @@ __asm__("___START___: jmp _emulate\n");
 #include <linux/vt.h>
 #include <linux/fd.h>
 #include <linux/hdreg.h>
+#include <linux/kd.h>
 #include <sys/vm86.h>
 #include <syscall.h>
 #endif
@@ -117,13 +118,17 @@ __asm__("___START___: jmp _emulate\n");
 #include "hgc.h"
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"
-#include "keymaps.h"
 #include "int.h"
 #include "bitops.h"
 #include "pic.h"
 #include "dpmi.h"
+#include "priv.h"   /* for priv_init */
 #ifdef __NetBSD__
 #include <setjmp.h>
+#endif
+
+#ifdef NEW_KBD_CODE
+#include "keyb_clients.h"
 #endif
 
 extern void     stdio_init(void);
@@ -134,7 +139,6 @@ extern void     low_mem_init(void);
 extern void     shared_memory_exit(void);
 extern void     restore_vt(u_short);
 extern void     disallocate_vt(void);
-extern void     keyboard_close(void);
 extern void     vm86_GP_fault();
 extern void     config_init(int argc, char **argv);
 extern void	timer_int_engine(void);
@@ -143,6 +147,11 @@ extern void	disk_open(struct disk *dp);
 extern void io_select_init(void);
 
 static int      special_nowait = 0;
+
+#ifndef NEW_KBD_CODE
+extern void     keyboard_close(void);
+#endif
+
 
 void 
 boot(void)
@@ -445,7 +454,11 @@ dos_ctrl_alt_del(void)
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
     HMA_MAP(1);
     time_setting_init();
+#ifdef NEW_KBD_CODE   
+    keyb_server_reset();
+#else   
     keyboard_flags_init();
+#endif
     video_config_init();
     serial_init();
     mouse_init();
@@ -465,6 +478,7 @@ dos_ctrl_alt_del(void)
     timer_interrupt_init();	/* start sending int 8h int signals */
 }
 
+#if 0    /* this appears to be unused. */
 void
 dos_ctrlc(void)
 {
@@ -474,6 +488,7 @@ dos_ctrlc(void)
 
     do_soft_int(0x23);
 }
+#endif
 
 static void
 ign_sigs(int sig)
@@ -531,6 +546,13 @@ leavedos(int sig)
     SETSIG(SIGTRAP, ign_sigs);
     warn("leavedos(%d) called - shutting down\n", sig);
 
+    if (config.speaker==SPKR_NATIVE ||
+       (config.speaker==SPKR_EMULATED && config.console && !config.X))
+    {
+       g_printf("SPEAKER: sound off\n");
+       do_ioctl(console_fd, KIOCSOUND, 0);	       /* turn off any sound */
+    }
+
     g_printf("calling close_all_printers\n");
     close_all_printers();
 
@@ -552,11 +574,19 @@ leavedos(int sig)
     disk_close_all();
     g_printf("calling video_close\n");
     video_close();
+   
     g_printf("calling keyboard_close\n");
+#ifdef NEW_KBD_CODE 
+    keyb_server_close();
+    keyb_client_close();
+
+
+#else
     fflush(stderr);
     fflush(stdout);
     keyboard_close();
-
+#endif
+   
     g_printf("calling shared memory exit\n");
     shared_memory_exit();
     g_printf("calling HMA exit\n");
