@@ -54,26 +54,7 @@ extern void pit_outp(ioport_t, Bit8u);
 /* number of 18.2Hz ticks = 86400*PIT_TICK_RATE/65536 = 1573042.6756 */
 #define TICKS_IN_A_DAY		1573042
 
-/*
- * Tick<->us conversion formulas:
- *	611/512		= 1.1933594	+150ppm
- *	19549/16384	= 1.1931763	-5ppm
- *	59659/50000	= 1.1931800	almost exact
- */
-
 #define PIT_TIMERS      4            /* 4 timers (w/opt. at 0x44)   */
-
-#ifdef i386
-#   define PIT_MS2TICKS(n) ({ \
-			       int res; \
-			       __asm__ ("imull %%edx\n\tidivl %%ecx" \
-					: "=a" (res) \
-					: "a" (n), "d" (59659), "c" (50000)); \
-			       res; \
-			   })
-#else
-#   define PIT_MS2TICKS(n) ((int)(((long long)(n)*59659)/50000))
-#endif
 
 /* --------------------------------------------------------------------- */
 
@@ -104,38 +85,13 @@ int idle(int threshold1, int threshold, int usec, const char *who);
  *	output =	     edx:eax
  *
  * all operations unsigned, it really shines on K6 where mul=3 cycles!
+ *
+ * GCC also generates 2 mul instructions, no need to use asm here (BO).
  */
 static __inline__ hitimer_t _mul64x32_(hitimer_t v, unsigned long f)
 {
-	hitimer_u t;
-	unsigned long v0 = v & 0xffffffff;
-	unsigned long v1 = v >> 32;
-
-
-#ifdef ASM_PEDANTIC
-	unsigned long int d0;
-#endif
-	__asm__ __volatile__ (
-#ifndef ASM_PEDANTIC
-		"movl	%2,%%eax\n\t"
-#endif
-		"mull	%%ebx\n\t"
-		"movl	%%edx,%%ecx\n\t"
-		"movl	%3,%%eax\n\t"
-		"mull	%%ebx\n\t"
-		"addl	%%ecx,%%eax\n\t"
-		"adcl	$0,%%edx"
-#ifndef ASM_PEDANTIC
-		: "=a"(t.t.tl),"=d"(t.t.th)
-		: "g"(v0),"g"(v1),\
-		  "b"(f)
-		: "%eax","%edx","%ecx","%ebx","memory" );
-#else
-		:"=&a"(t.t.tl),"=&d"(t.t.th), "=&b"(d0)
-		:"g"(v1),"2"(f),"0"(v0)
-		:"%ecx","memory" );
-#endif
-	return t.td;
+	return (unsigned long)(v >> 32) * (unsigned long long)f + 
+	  (((unsigned long)(v & 0xffffffff) * (unsigned long long)f) >> 32);
 }
 
 #define LLF_US		(unsigned long long)0x100000000LL
@@ -165,131 +121,11 @@ static inline hitimer_t GETTSC(void) {
 	return d;
 }
 
-#ifndef ASM_PEDANTIC
-
-#define CPUtoUS() \
-({ \
-	hitimer_u t; \
-	__asm__ __volatile__ (" \
-		rdtsc\n \
-		movl	%%edx,%%ebx\n \
-		mull	%2\n \
-		movl	%%edx,%%ecx\n \
-		movl	%%ebx,%%eax\n \
-		mull	%2\n \
-		addl	%%ecx,%%eax\n \
-		adcl	$0,%%edx\n \
-		" \
-		: "=a"(t.t.tl),"=d"(t.t.th) \
-		: "m"(config.cpu_spd) \
-		: "%eax","%edx","%ecx","%ebx","memory" ); \
-	t.td; \
-})
-
-#define CPUtoUS_Z() \
-({ \
-	hitimer_u t; \
-	__asm__ __volatile__ (" \
-		rdtsc\n \
-		subl	%3,%%eax\n \
-		sbbl	%4,%%edx\n \
-		movl	%%edx,%%ebx\n \
-		mull	%2\n \
-		movl	%%edx,%%ecx\n \
-		movl	%%ebx,%%eax\n \
-		mull	%2\n \
-		addl	%%ecx,%%eax\n \
-		adcl	$0,%%edx\n \
-		" \
-		: "=a"(t.t.tl),"=d"(t.t.th) \
-		: "m"(config.cpu_spd), \
-		  "m"(ZeroTimeBase.t.tl),"m"(ZeroTimeBase.t.th) \
-		: "%eax","%edx","%ecx","%ebx","memory" ); \
-	t.td; \
-})
+#define CPUtoUS() _mul64x32_(GETTSC(), config.cpu_spd)
 
 static inline hitimer_t TSCtoUS(register hitimer_t t) {
-	unsigned long __low, __high;
-	__asm__ ("":"=a"(__low),"=d"(__high):"A"(t));
-	__asm__ __volatile__ (" \
-		movl	%1,%%ebx\n \
-		mull	%2\n \
-		movl	%1,%%ecx\n \
-		movl	%%ebx,%0\n \
-		mull	%2\n \
-		addl	%%ecx,%0\n \
-		adcl	$0,%1\n \
-		" \
-		: "=a"(__low), "=d"(__high) \
-		: "m"(config.cpu_spd) \
-		: "%eax","%edx","%ecx","%ebx","memory" );
-	__asm__ ("":"=A"(t):"a"(__low),"d"(__high));
-	return t;
+	return _mul64x32_(t, config.cpu_spd);
 }
-
-#else /* ASM_PEDANTIC */
-
-#define CPUtoUS() \
-({ \
-	hitimer_u t; \
-	__asm__ __volatile__ (" \
-		rdtsc\n \
-		movl	%%edx,%%ebx\n \
-		mull	%2\n \
-		movl	%%edx,%%ecx\n \
-		movl	%%ebx,%%eax\n \
-		mull	%2\n \
-		addl	%%ecx,%%eax\n \
-		adcl	$0,%%edx\n \
-		" \
-		: "=&a"(t.t.tl),"=&d"(t.t.th) \
-		: "m"(config.cpu_spd) \
-		: "%ecx","%ebx","memory" ); \
-	t.td; \
-})
-
-#define CPUtoUS_Z() \
-({ \
-	hitimer_u t; \
-	__asm__ __volatile__ (" \
-		rdtsc\n \
-		subl	%3,%%eax\n \
-		sbbl	%4,%%edx\n \
-		movl	%%edx,%%ebx\n \
-		mull	%2\n \
-		movl	%%edx,%%ecx\n \
-		movl	%%ebx,%%eax\n \
-		mull	%2\n \
-		addl	%%ecx,%%eax\n \
-		adcl	$0,%%edx\n \
-		" \
-		: "=&a"(t.t.tl),"=&d"(t.t.th) \
-		: "m"(config.cpu_spd), \
-		  "m"(ZeroTimeBase.t.tl),"m"(ZeroTimeBase.t.th) \
-		: "%ecx","%ebx","memory" ); \
-	t.td; \
-})
-
-static inline hitimer_t TSCtoUS(register hitimer_t t) {
-	unsigned long __low, __high;
-	__asm__ ("":"=a"(__low),"=d"(__high):"A"(t));
-	__asm__ __volatile__ (" \
-		movl	%1,%%ebx\n \
-		mull	%2\n \
-		movl	%1,%%ecx\n \
-		movl	%%ebx,%0\n \
-		mull	%2\n \
-		addl	%%ecx,%0\n \
-		adcl	$0,%1\n \
-		" \
-		: "=&a"(__low), "=&d"(__high) \
-		: "m"(config.cpu_spd) \
-		: "%ecx","%ebx","memory" );
-	__asm__ ("":"=A"(t):"a"(__low),"d"(__high));
-	return t;
-}
-
-#endif /* ASM_PEDANTIC */
 
 /* 1 us granularity */
 extern hitimer_t GETusTIME(int sc);
