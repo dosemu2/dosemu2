@@ -18,6 +18,7 @@
 #include "termio.h"
 #include "video.h"
 #include "vc.h"
+#include "mapping.h"
 
 inline void
 console_update_cursor(int xpos, int ypos, int blinkflag, int forceflag)
@@ -203,6 +204,7 @@ void clear_console_video(void)
 
 static int console_init(void)
 {
+  register_hardware_ram('v', phys_text_base, TEXT_SIZE);
   return 0;
 }
 

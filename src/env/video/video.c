@@ -190,6 +190,8 @@ load_file(char *name, int foffset, char *mstart, int msize)
 static inline void
 reserve_video_memory(void)
 {
+  int graph_base = GRAPH_BASE, graph_size = GRAPH_SIZE;
+
   memcheck_addtype('v', "Video memory");
 
 /* 
@@ -212,12 +214,10 @@ reserve_video_memory(void)
       c_printf("CONF: Unable to maximize UMB's due to dual monitor setup\n");
     if (config.mem_size > 640) {
       int addr_start = config.mem_size * 1024;
-      register_hardware_ram('v', addr_start, 0xC0000 - addr_start);
+      graph_base = addr_start;
+      graph_size = 0xC0000 - addr_start;
     }
-    else
-      register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
   } else {
-    int graph_base, graph_size;
 
     /* Okay, the usual procedure would be to reserve 128K of memory for
        video unconditionally.  Clearly this is insane.  If you're running
@@ -266,8 +266,9 @@ reserve_video_memory(void)
       }
     }
 
-    register_hardware_ram('v', graph_base, graph_size);
   }
+  register_hardware_ram(0, graph_base, graph_size);
+  memcheck_reserve('v', graph_base, graph_size);
 }
 
 void 

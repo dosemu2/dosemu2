@@ -498,7 +498,7 @@ static void pcivga_init(void)
       io_device.start_addr = base;
       io_device.end_addr = base + size;
       port_register_handler(io_device, PORT_FAST);
-    } else {
+    } else if (base >= LOWMEM_SIZE + HMASIZE) {
       v_printf("PCIVGA: found MEM region at %#lx [%#lx]\n", base, size);
       register_hardware_ram('v', base, size);
     }
@@ -507,7 +507,7 @@ static void pcivga_init(void)
 
 int vga_initialize(void)
 {
-  Video_console.priv_init();
+  register_hardware_ram('v', GRAPH_BASE, GRAPH_SIZE);
 
   linux_regs.mem = NULL;
   dosemu_regs.mem = NULL;

@@ -488,12 +488,11 @@ int register_hardware_ram(int type, size_t base, size_t size)
   hw->base = base;
   hw->vbase = (void *)base;
   hw->size = size;
-  /* use a virtual type for virtual video memory */
-  hw->type = (type == 'v' && !config.console_video) ? 0 : type;
+  hw->type = type;
   hw->next = hardware_ram;
   hardware_ram = hw;
-  if ((size_t)base < LOWMEM_SIZE)
-    memcheck_reserve(type, base, size);
+  if ((size_t)base < LOWMEM_SIZE && type == 'h')
+    memcheck_reserve('h', base, size);
   return 1;
 }
 
