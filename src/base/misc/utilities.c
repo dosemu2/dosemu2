@@ -538,12 +538,12 @@ void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
 
    tmpcmd = strdup(cmd);
    if (!tmpcmd) {
-      (*printf)("out of memory\n");
+      if (printf) (*printf)("out of memory\n");
       return;
    }
-   argv1 = malloc(maxargs);
+   argv1 = malloc(maxargs * sizeof(char *));
    if (!argv1) {
-      (*printf)("out of memory\n");
+      if (printf) (*printf)("out of memory\n");
       free(tmpcmd);
       return;
    };
@@ -560,7 +560,7 @@ void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
       }
    }
    if (!cmdproc) {
-      (*printf)("Command %s not found\n", argv1[0]);
+      if (printf) (*printf)("Command %s not found\n", argv1[0]);
    }
    else (*cmdproc)(argc1, argv1);
    free(tmpcmd);
@@ -569,15 +569,16 @@ void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,
 
 void sigalarm_onoff(int on)
 {
-  static struct itimerval itv_old_;
-  static struct itimerval *itv_old = &itv_old_;
+  static struct itimerval itv_old;
   static struct itimerval itv;
-  if (on) setitimer(TIMER_TIME, &itv_old_, NULL);
-  else {
+  static int is_off = 0;
+  if (on) {
+    if (is_off--) setitimer(TIMER_TIME, &itv_old, NULL);
+  }
+  else if (!is_off++) {
     itv.it_interval.tv_sec = itv.it_interval.tv_usec = 0;
     itv.it_value = itv.it_interval;
-    setitimer(TIMER_TIME, &itv, itv_old);
-    itv_old = NULL;
+    setitimer(TIMER_TIME, &itv, &itv_old);
   }
 }
 

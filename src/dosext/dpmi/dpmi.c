@@ -502,15 +502,15 @@ void print_ldt(void ) /* stolen from WINE */
     limit |= (*lp & 0x000F0000);
     type = (*lp >> 10) & 7;
     if ((base_addr > 0) || (limit > 0 ) || Segments[i].used) {
-      if (*lp & 1000)  {
-	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d\n",
-	       i, base_addr, limit, type);
+      if (*lp & 0x1000)  {
+	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d (desc %#x)\n",
+	       i, base_addr, limit, type, (i<<3)|7);
 	D_printf("              ");
 	if (*lp & 0x100)
 	  D_printf("Accessed, ");
 	if (!(*lp & 0x200))
-	  D_printf("Read/Excecute only, ");
-	if (*lp & 8000)
+	  D_printf("Read/Execute only, ");
+	if (*lp & 0x8000)
 	  D_printf("Present, ");
 	if (*lp & 0x100000)
 	  D_printf("User, ");
@@ -528,8 +528,8 @@ void print_ldt(void ) /* stolen from WINE */
 	D_printf("              %08lx %08lx\n", *(lp), *(lp-1));
       }
       else {
-	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d\n",
-	       i, base_addr, limit, type);
+	D_printf("Entry 0x%04x: Base %08lx, Limit %05lx, Type %d (desc %#x)\n",
+	       i, base_addr, limit, type, (i<<3)|7);
 	D_printf("              SYSTEM: %08lx %08lx\n", *lp, *(lp - 1));
       }
       lp2 = (unsigned long *) &ldt_buffer[i*LDT_ENTRY_SIZE];

@@ -26,12 +26,14 @@ enum { ES_INDEX = 0, CS_INDEX = 1, SS_INDEX = 2,  DS_INDEX = 3,
 static struct vm86_regs SAVED_REGS;
 static struct vm86_regs MOUSE_SAVED_REGS;
 static struct vm86_regs VIDEO_SAVED_REGS;
+static struct vm86_regs INT15_SAVED_REGS;
 #define S_REG(reg) (SAVED_REGS.##reg)
 #endif
 #ifdef __NetBSD__
 static struct sigcontext SAVED_REGS;
 static struct sigcontext MOUSE_SAVED_REGS;
 static struct sigcontext VIDEO_SAVED_REGS;
+static struct sigcontext INT15_SAVED_REGS;
 #define S_REG(reg) (SAVED_REGS.##reg)
 #endif
 
@@ -171,7 +173,7 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
     /* only consider DOS and some BIOS services */
     switch (intr) {
-    case 0x10:
+    case 0x10: case 0x15:
     case 0x20: case 0x21:
     case 0x25: case 0x26:
     case 0x33:			/* mouse function */
@@ -244,6 +246,9 @@ msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 0;
 	}
 	break;
+    case 0x15:			/* misc */
+	INT15_SAVED_REGS = REGS;
+	return 0;
     case 0x20:			/* DOS terminate */
 	return old_dos_terminate(scp);
     case 0x21:
@@ -846,16 +851,16 @@ msdos_post_extender(int intr)
 	} else
 	    break;
     case 0x15:
-      switch(HI(ax)) {
-        case 0xc0:      /* Get Configuartion */
+	/* we need to save regs at int15 because AH has the return value */
+	if ((INT15_SAVED_REGS.eax & 0xff00) == 0xc000) { /* Get Configuration */
                 if (REG(eflags)&CF)
                         return;
                 if (!(dpmi_stack_frame[current_client].es =
-                         ConvertSegmentToDescriptor(REG(es))))
-                return;
-        default:
-                return;
+                         ConvertSegmentToDescriptor(REG(es)))) return;
+                break;
       }
+        else
+                return;
     /* only copy buffer for dos services */
     case 0x21:
     case 0x25: case 0x26:

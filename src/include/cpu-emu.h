@@ -41,16 +41,6 @@ extern void e_priv_iopl(int);
 #endif
 
 /*
- * other settings for intp32:
- *  EMU_GLOBAL_VAR - let's try to use absolute memory references to free
- *	some more registers. Cpuemu will run a bit slower but we should
- *	avoid gcc register allocation problems.
- */
-#if 0
-#define	EMU_GLOBAL_VAR
-#endif
-
-/*
  * Reserve a specific register globally for the CPU interpreter's
  * Program Counter. This is a __i386__ only thing and reserves EBP
  * so don't remove -fomit-frame-pointer from the CFLAGS !!

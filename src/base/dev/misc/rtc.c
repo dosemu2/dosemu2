@@ -76,6 +76,9 @@ int cmos_date(int reg)
     else
       return BCD(tm->tm_year);
 
+  case CMOS_CENTURY:
+    return BCD(tm->tm_year/100 + 19);
+
   default:
     h_printf("CMOS: cmos_time() register 0x%02x defaulted to 0\n", reg);
     return 0;

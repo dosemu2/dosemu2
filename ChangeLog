@@ -1,3 +1,34 @@
+99/05/21 ver. 0.99.11.1 unofficial pre-release
+	From Alberto
+	- fixed bug in mouse.c checking linaddr instaed of DOSish address
+	  (run_pm_int never was called). src/base/mouse/mouse.c
+	- Some missing 0x before hex constants in print_ldt()
+	- EMU_GLOBAL_VAR had no benefit, removed
+	- (again) some header fiddling for glibc (src/tools/periph/dosctrl.c)
+	- fixed bug in src/dosext/dpmi/msdos.h, which became obvious
+	  after correction of INT15,AH=C0 (see patch from Jiuming Luo)
+	From Grant R. Guenther
+	- added -T debuglog trace for 'rep' IO (src/emu-i386/ports.c)
+	From Nick Duffek <nsd@bosbc.com>
+	- fix for mfs.c and INT21 function 3CH together with SHARE.EXE
+	  succeeding though it should not (MS-DOS INT21/3CH would fail if
+	  the file exists and is currently opened by another program).
+	  The fix is: replace "open(O_TRUNC)" with
+	                      "open(); check sharing; ftruncate()" 
+	From Dave Coffin <Dave_Coffin@unicore.com>
+	- y2k fix for CMOS byte 0x32 to report the correct century
+	  ( src/base/dev/misc/{cmos,rtc}.c )
+	From Michael Klein <michael.klein@puffin.lb.shuttle.de>
+	- An other y2k bug fix (in mfs.c), though it will hurt us
+	  only after 2012, we have to be correct.
+	  ( I bet there will by some oldfashioned poeple like me
+	    in 2012, who would complain otherwise --Hans ;-)
+	From Hans
+	- fixed bug in src/base/misc/utilities.c malloc'ing wrong size
+	  and not checking for valid function pointer.
+	- fixed (again) a bug in the famous sigalarm_onoff() of
+	  utilities.c (dos -A wasn't working). Hopefully this was the last
+	  one :-(
 99/04/22 ver. 0.99.11 released
 	From Alberto
 	- major cpuemu cleanup, bugfixes

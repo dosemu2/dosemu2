@@ -60,6 +60,7 @@ cmos_read(ioport_t port)
   case CMOS_DOM:		/* day of month */
   case CMOS_MONTH:
   case CMOS_YEAR:
+  case CMOS_CENTURY:
     holder = cmos_date(cmos.address); goto quit;
 
   case CMOS_CHKSUML:

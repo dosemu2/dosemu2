@@ -1586,7 +1586,7 @@ time_to_dos(clock, date, time)
 
   tm = localtime(clock);
 
-  *date = ((((tm->tm_year - 80) & 0x1f) << 9) |
+  *date = ((((tm->tm_year - 80) & 0x7f) << 9) |
 	   (((tm->tm_mon + 1) & 0xf) << 5) |
 	   (tm->tm_mday & 0x1f));
 
@@ -2531,6 +2531,59 @@ CancelRedirection(state_t * state)
   return (TRUE);
 }
 
+static boolean_t
+share(int fd, boolean_t writing, sft_t sft)
+{
+  /*
+   * Return whether FD doesn't break any sharing rules.  FD was opened for
+   * writing if WRITING and for reading otherwise.
+   *
+   * Written by Maxim Ruchko, and moved into a separate function by Nick
+   * Duffek <nsd@bbc.com>.  Here are Maxim's original comments:
+   *
+   * IMHO, to handle sharing modes at this moment,
+   * it's impossible to know wether an other process already
+   * has been opened this file in shared mode.
+   * But DOS programs (FoxPro 2.6 for example) need ACCESS_DENIED
+   * as return code _at_ _this_ _point_, if they are opening
+   * the file exclusively and the file has been opened elsewhere.
+   * I place a lock in a predefined place at max possible lock length
+   * in order to emulate the exclusive lock feature of DOS.
+   * This lock is 'invisible' to DOS programs because the code
+   * (extracted from the Samba project) in mfs lock requires that the
+   * handler wrapps the locks below or equal 0x3fffffff (mask=0xC0000000)
+   * So, 0x3fffffff + 0x3fffffff = 0x7ffffffe 
+   * and 0x7fffffff is my start position.  --Maxim Ruchko
+   */
+  struct flock fl;
+  int share_mode = ( sft_open_mode( sft ) >> 4 ) & 0x7;
+  fl.l_whence = SEEK_SET;
+  fl.l_start  = 0x7fffffff;
+  fl.l_len = 1;
+  fl.l_pid = 0;
+  switch ( share_mode ) {
+  case COMPAT_MODE:
+  case DENY_ALL:
+  case DENY_WRITE:
+  case DENY_READ:
+    fl.l_type = !writing ? F_RDLCK : F_WRLCK;
+    break;
+  case DENY_ANY:
+    fl.l_type = F_RDLCK;
+    break;
+  default:
+    fl.l_type = F_WRLCK;
+    Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x\n",
+	    share_mode));
+    break;
+  }
+  if ( fcntl( fd, F_SETLK, &fl ) == 0 )
+    return (TRUE);
+
+  Debug0((dbg_fd, "internal SHARE: access denied by locks fd=%x\n", fd));
+  return (FALSE);
+}
+
 static int
 dos_fs_redirect(state)
      state_t *state;
@@ -3103,49 +3156,10 @@ dos_fs_redirect(state)
         SETWORD(&(state->eax), ACCESS_DENIED);
         return (FALSE);
       }
-      {
-        /* IMHO, to handle sharing modes at this moment,
-         * it's impossible to know wether an other process already
-         * has been opened this file in shared mode.
-         * But DOS programs (FoxPro 2.6 for example) need ACCESS_DENIED
-         * as return code _at_ _this_ _point_, if they are opening
-         * the file exclusively and the file has been opened elsewhere.
-         * I place a lock in a predefined place at max possible lock length
-         * in order to emulate the exclusive lock feature of DOS.
-         * This lock is 'invisible' to DOS programs because the code
-         * (extracted from the Samba project) in mfs lock requires that the
-         * handler wrapps the locks below or equal 0x3fffffff (mask=0xC0000000)
-         * So, 0x3fffffff + 0x3fffffff = 0x7ffffffe 
-         * and 0x7fffffff is my start position.  --Maxim Ruchko
-         */
-        struct flock fl;
-        int share_mode = ( sft_open_mode( sft ) >> 4 ) & 0x7;
-        fl.l_whence = SEEK_SET;
-        fl.l_start  = 0x7fffffff;
-        fl.l_len = 1;
-        fl.l_pid = 0;
-        switch ( share_mode ) {
-          case COMPAT_MODE:
-          case DENY_ALL:
-          case DENY_WRITE:
-          case DENY_READ:
-            fl.l_type = ( unix_mode == O_RDONLY ) ? F_RDLCK : F_WRLCK;
-            break;
-          case DENY_ANY:
-            fl.l_type = F_RDLCK;
-            break;
-          default:
-            fl.l_type = F_WRLCK;
-            Debug0((dbg_fd, "internal SHARE: unknown sharing mode %x opening %s\n",
-                   share_mode, fpath));
-            break;
-        }
-        if ( fcntl( fd, F_SETLK, &fl ) ) {
-         close( fd );
-         Debug0((dbg_fd, "internal SHARE: access denied by locks fd=%x\n", fd));
-         SETWORD(&(state->eax), ACCESS_DENIED);
-         return (FALSE);
-        }
+      if (!share(fd, unix_mode != O_RDONLY, sft)) {
+	close( fd );
+	SETWORD(&(state->eax), ACCESS_DENIED);
+	return (FALSE);
       }
     }
 
@@ -3243,14 +3257,14 @@ dos_fs_redirect(state)
 	bs_pos = i;
     }
 
-    if ((fd = open(fpath, (O_RDWR | O_CREAT | O_TRUNC),
+    if ((fd = open(fpath, (O_RDWR | O_CREAT),
 		   get_unix_attr(0664, attr))) < 0) {
       strncpy(buf, fpath, bs_pos);
       buf[bs_pos] = EOS;
       find_file(buf, &st);
       strncpy(fpath, buf, bs_pos);
       Debug0((dbg_fd, "trying '%s'\n", fpath));
-      if ((fd = open(fpath, (O_RDWR | O_CREAT | O_TRUNC),
+      if ((fd = open(fpath, (O_RDWR | O_CREAT),
 		     get_unix_attr(0664, attr))) < 0) {
 	Debug0((dbg_fd, "can't open %s: %s (%d)\n",
 		fpath, strerror(errno), errno));
@@ -3261,6 +3275,14 @@ dos_fs_redirect(state)
 #endif
 	return (FALSE);
       }
+    }
+
+    if (!share(fd, TRUE, sft) || ftruncate(fd, 0) != 0) {
+      Debug0((dbg_fd, "unable to truncate %s: %s (%d)\n",
+	      fpath, strerror(errno), errno));
+      close(fd);
+      SETWORD(&(state->eax), ACCESS_DENIED);
+      return FALSE;
     }
 
     if (can_do_root_stuff) {

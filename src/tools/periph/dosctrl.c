@@ -21,6 +21,7 @@
   #define __need_timeval
   #if __GLIBC__== 2 && __GLIBC_MINOR__ < 1
     #include <timebits.h>
+    #include <sys/time.h>
   #else
     #include <bits/time.h>
   #endif

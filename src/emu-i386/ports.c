@@ -457,6 +457,7 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 {
 	register int incr = df? -1: 1;
 	Bit8u *dest = base;
+	int count_ = count;
 
 	if (count==0) return 0;
 	i_printf("Doing REP insb(%#x) %d bytes at %p, DF %d\n", port,
@@ -475,6 +476,13 @@ int port_rep_inb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
+	if (d.io_trace) {
+		dest = base;
+		while (count_--) {
+			LOG_PORT_READ(port, *dest);
+			dest += incr;
+		}
+	}
 	return dest-base;
 }
 
@@ -482,6 +490,7 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 {
 	register int incr = df? -1: 1;
 	Bit8u *dest = base;
+	int count_ = count;
 
 	if (count==0) return 0;
 	i_printf("Doing REP outsb(%#x) %d bytes at %p, DF %d\n", port,
@@ -500,6 +509,13 @@ int port_rep_outb(ioport_t port, Bit8u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
+	if (d.io_trace) {
+		dest = base;
+		while (count_--) {
+			LOG_PORT_WRITE(port, *dest);
+			dest += incr;
+		}
+	}
 	return dest-base;
 }
 
@@ -507,6 +523,7 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 {
 	register int incr = df? -1: 1;
 	Bit16u *dest = base;
+	int count_ = count;
 
 	if (count==0) return 0;
 	i_printf("Doing REP insw(%#x) %d words at %p, DF %d\n", port,
@@ -533,6 +550,13 @@ int port_rep_inw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
+	if (d.io_trace) {
+		dest = base;
+		while (count_--) {
+			LOG_PORT_READ_W(port, *dest);
+			dest += incr;
+		}
+	}
 	return (Bit8u *)dest-(Bit8u *)base;
 }
 
@@ -540,6 +564,7 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 {
 	register int incr = df? -1: 1;
 	Bit16u *dest = base;
+	int count_ = count;
 
 	if (count==0) return 0;
 	i_printf("Doing REP outsw(%#x) %d words at %p, DF %d\n", port,
@@ -566,6 +591,13 @@ int port_rep_outw(ioport_t port, Bit16u *base, int df, Bit32u count)
 	    dest += incr;
 	  }
 	}
+	if (d.io_trace) {
+		dest = base;
+		while (count_--) {
+			LOG_PORT_WRITE_W(port, *dest);
+			dest += incr;
+		}
+	}
 	return (Bit8u *)dest-(Bit8u *)base;
 }
 
@@ -577,6 +609,7 @@ int port_rep_ind(ioport_t port, Bit32u *base, int df, Bit32u count)
 	if (count==0) return 0;
 	while (count--) {
 	  *dest = port_ind(port);
+	  LOG_PORT_READ_D(port, *dest);
 	  dest += incr;
 	}
 	return (Bit8u *)dest-(Bit8u *)base;
@@ -590,6 +623,7 @@ int port_rep_outd(ioport_t port, Bit32u *base, int df, Bit32u count)
 	if (count==0) return 0;
 	while (count--) {
 	  port_outd(port, *dest);
+	  LOG_PORT_WRITE_D(port, *dest);
 	  dest += incr;
 	}
 	return (Bit8u *)dest-(Bit8u *)base;
