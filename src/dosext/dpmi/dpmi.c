@@ -2396,6 +2396,7 @@ static void dpmi_cleanup(struct sigcontext_struct *scp)
       PAGE_ALIGN(LDT_ENTRIES*LDT_ENTRY_SIZE), PROT_READ | PROT_WRITE);
   }
   FreeAllDescriptors();
+  free(DPMI_CLIENT.pm_stack);
   cli_blacklisted = 0;
   in_dpmi--;
   if (in_dpmi) {
