@@ -36,10 +36,10 @@ SFILES = vesabios.S
 ASFILES = remap_asm.S vesabios_pm.S
 ASOBJS  = remap_asm.o vesabios_pm.o
 
-CFILES = miscemu.c video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
+CFILES = miscemu.c text.c video.c vc.c vga.c et4000.c s3.c trident.c avance.c ati.c cirrus.c \
 	 matrox.c wdvga.c sis.c $(VCFILES) console.c $(XCFILES) hgc.c dualmon.c $(ASOBJS) vesabios.o
 HFILES = vga.h et4000.h s3.h trident.h avance.h ati.h cirrus.h matrox.h wdvga.h sis.h $(VHDRS) terminal.h $(XHDRS)
-OFILES = miscemu.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
+OFILES = miscemu.o text.o video.o vc.o vga.o et4000.o s3.o avance.o trident.o ati.o cirrus.o \
 	 matrox.o wdvga.o sis.o $(VOBJS) console.o $(XOBJS) hgc.o dualmon.o terminal.o
 #OBJS = $(OFILES)
 
