@@ -488,7 +488,6 @@ void dir_setup(struct disk *dp)
 void
 partition_setup(struct disk *dp)
 {
-  PRIV_SAVE_AREA
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
   char *hd_name;
@@ -509,19 +508,19 @@ partition_setup(struct disk *dp)
   hd_name[8] = '\0';			/* i.e.  /dev/hda6 -> /dev/hda */
 #endif
 
-  enter_priv_on();
   part_fd = SILENT_DOS_SYSCALL(open(hd_name, O_RDONLY));
-  leave_priv_setting();
   if (part_fd == -1) {
     if (dp->removeable) return;
-    error("opening device %s to read MBR for PARTITION %s\n",
-	  hd_name, dp->dev_name);
-    leavedos(22);
+    PNUM = 1;
+    set_part_ent(dp, tmp_mbr);
+    tmp_mbr[0x1fe] = 0x55;
+    tmp_mbr[0x1ff] = 0xaa;
+  } else {
+    RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
+    close(part_fd);
+    d_printf("Using MBR from %s for PARTITION %s (part#=%d).\n",
+             hd_name, dp->dev_name, PNUM);
   }
-  RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
-  close(part_fd);
-  d_printf("Using MBR from %s for PARTITION %s (part#=%d).\n",
-           hd_name, dp->dev_name, PNUM);
   free(hd_name);
 
   /* check for logical partition, if so simulate as primary part#1 */
@@ -618,16 +617,26 @@ set_part_ent(struct disk *dp, char *tmp_mbr)
 	HEAD(end), SECT(end), CYL(end));
 
   /* get address of where to put new part table entry */
-  p = tmp_mbr + PART_INFO_START + (PART_INFO_LEN * (dp->part_info.number-1)); 
+  p = tmp_mbr + PART_INFO_START + (PART_INFO_LEN * (dp->part_info.number-1));
 
+  /* initialize with LBA values */
+  p[1] = p[5] = 254;
+  p[2] = p[6] = 255;
+  p[3] = p[7] = 255;
+  p[4] = 0xe;
+    
   p[0] = PART_BOOT;						/* bootable  */
-  p[1] = HEAD(dp->start);					/* beg head  */
-  p[2] = SECT(dp->start) | ((CYL(dp->start) >> 2) & 0xC0);	/* beg sect  */
-  p[3] = CYL(dp->start) & 0xFF;					/* beg cyl   */
-  p[4] = (length < 32*1024*1024/SECTOR_SIZE)? 0x04 : 0x06;	/* dos sysid */
-  p[5] = HEAD(end);						/* end head  */
-  p[6] = SECT(end) | ((CYL(end) >> 2) & 0xC0);			/* end sect  */
-  p[7] = CYL(end) & 0xFF;					/* end cyl   */
+  if (CYL(dp->start) <= 1023) {
+    p[1] = HEAD(dp->start);					/* beg head  */
+    p[2] = SECT(dp->start) | ((CYL(dp->start) >> 2) & 0xC0);	/* beg sect  */
+    p[3] = CYL(dp->start) & 0xFF;				/* beg cyl   */
+  }
+  if (CYL(end) <= 1023) {
+    p[4] = (length < 32*1024*1024/SECTOR_SIZE)? 0x04 : 0x06;	/* dos sysid */
+    p[5] = HEAD(end);						/* end head  */
+    p[6] = SECT(end) | ((CYL(end) >> 2) & 0xC0);		/* end sect  */
+    p[7] = CYL(end) & 0xFF;					/* end cyl   */
+  }
   *((long *)(p+8)) = dp->start;					/* pre sects */
   *((long *)(p+12)) = length;					/* len sects */
 }
@@ -661,15 +670,12 @@ disk_close(void)
 void
 disk_open(struct disk *dp)
 {
-  PRIV_SAVE_AREA
   struct floppy_struct fl;
 
   if (dp == NULL || dp->fdesc >= 0)
     return;
     
-  enter_priv_on();
   dp->fdesc = SILENT_DOS_SYSCALL(open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->wantrdonly ? O_RDONLY : O_RDWR, 0));
-  leave_priv_setting();
 
   /* FIXME:
    * Why the hell was the below handling restricted to non-removeable disks?
@@ -678,25 +684,18 @@ disk_open(struct disk *dp)
    */
   if ( /*!dp->removeable &&*/ (dp->fdesc < 0)) {
     if (errno == EROFS || errno == ENODEV) {
-      enter_priv_on();
       dp->fdesc = DOS_SYSCALL(open(dp->dev_name, O_RDONLY, 0));
-      leave_priv_setting();
       if (dp->fdesc < 0) {
-        d_printf("ERROR: (disk) can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+        error("ERROR: (disk) can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
         /* In case we DO get more clever, we want to share that code */
-        goto fail;
+        leavedos(22);
       } else {
         dp->rdonly = 1;
         d_printf("(disk) can't open %s for read/write. Readonly used.\n", dp->dev_name);
       }
     } else {
       d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
-    fail:
-#if 0
-      /* We really should be more clever here */
-      fatalerr = 5;
-#endif
-      return;
+      leavedos(22);
     }
   }
   else dp->rdonly = dp->wantrdonly;
@@ -798,7 +797,6 @@ disk_close_all(void)
 void
 disk_init(void)
 {
-  PRIV_SAVE_AREA
   struct disk *dp=NULL;
   struct stat stbuf;
 
@@ -810,17 +808,13 @@ disk_init(void)
 
   disks_initiated = 1;  /* disk_init has been called */
   if (config.bootdisk) {
-    enter_priv_on();
     bootdisk.fdesc = open(bootdisk.dev_name,
 			  bootdisk.rdonly ? O_RDONLY : O_RDWR, 0);
-    leave_priv_setting();
     if (bootdisk.fdesc < 0) {
       if (errno == EROFS) {
-        enter_priv_on();
         bootdisk.fdesc = open(bootdisk.dev_name, O_RDONLY, 0);
-        leave_priv_setting();
         if (bootdisk.fdesc < 0) {
-          error("can't open bootdisk %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          error("can't open bootdisk %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           leavedos(23);
         } else {
           bootdisk.rdonly = 1;
@@ -859,16 +853,12 @@ disk_init(void)
       continue;
     }
 #endif
-    enter_priv_on();
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
-    leave_priv_setting();
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        enter_priv_on();
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
-        leave_priv_setting();
         if (dp->fdesc < 0) {
-          error("can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           leavedos(25);
         } else {
           dp->rdonly = 1;
@@ -896,23 +886,17 @@ disk_init(void)
     if(dp->type == IMAGE)  {
 	if (dp->dexeflags & DISK_DEXE_RDWR) {
 	  d_printf("IMAGE: dexe, RDWR access allowed for %s\n",dp->dev_name);
-	  enter_priv_on();
 	}
 	else {
 	  d_printf("IMAGE: Using user permissions\n");
-	  enter_priv_off();
 	}
     }
-    else enter_priv_on();
     dp->fdesc = open(dp->type == DIR_TYPE ? "/dev/null" : dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
-    leave_priv_setting();
     if (dp->fdesc < 0) {
       if (errno == EROFS || errno == EACCES) {
-        if (dp->type == IMAGE) enter_priv_off(); else enter_priv_on();
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
-        leave_priv_setting();
         if (dp->fdesc < 0) {
-          error("can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
+          error("can't open %s for read nor write: %s\n", dp->dev_name, strerror(errno));
           leavedos(26);
         } else {
           dp->rdonly = 1;

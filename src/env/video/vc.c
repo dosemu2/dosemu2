@@ -521,13 +521,10 @@ set_process_control (void)
 void
 clear_process_control (void)
 {
-  PRIV_SAVE_AREA
   struct vt_mode vt_mode;
 
   vt_mode.mode = VT_AUTO;
-  enter_priv_on();
   ioctl (console_fd, VT_SETMODE, (int) &vt_mode);
-  leave_priv_setting();
   signal (SIG_RELEASE, SIG_IGN);
   signal (SIG_ACQUIRE, SIG_IGN);
 }

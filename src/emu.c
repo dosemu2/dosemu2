@@ -128,6 +128,9 @@ __asm__("___START___: jmp _emulate\n");
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#ifdef X_SUPPORT
+#include "../env/video/X.h"
+#endif
 
 extern void     stdio_init(void);
 extern void     time_setting_init(void);
@@ -363,7 +366,6 @@ emulate(int argc, char **argv)
 #endif
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
-    mapping_init();		/* initialize mapping drivers */
     print_version();            /* log version information */
     module_init();
     low_mem_init();		/* initialize the lower 1Meg */
@@ -375,7 +377,8 @@ emulate(int argc, char **argv)
     pci_setup();
     hardware_setup();		/* setup any hardware */
     extra_port_init();		/* setup ports dependent on config */
-    memory_init();		/* initialize the memory contents */
+    map_video_bios();           /* map the video bios */
+    map_hardware_ram();         /* map the direct hardware ram */
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_init.h"
@@ -385,6 +388,20 @@ emulate(int argc, char **argv)
       leavedos(0);
     }
 
+    if (can_do_root_stuff && !under_root_login) {
+        g_printf("dropping root privileges\n");
+    }
+    priv_drop();
+    
+    mapping_init();		/* initialize mapping drivers */
+    HMA_init();			/* HMA can only be done now after mapping
+                                   is initialized*/
+#ifdef X_SUPPORT
+    if (config.X)		/* and the same is true for vgaemu */
+      X_init_videomode();
+#endif
+    
+    memory_init();		/* initialize the memory contents */
     boot();			/* read the boot sector & get moving */
 
     if (not_use_sigio)
@@ -400,10 +417,6 @@ emulate(int argc, char **argv)
 #endif
     timer_interrupt_init();	/* start sending int 8h int signals */
 
-    if (can_do_root_stuff && !under_root_login) {
-        g_printf("dropping root privileges\n");
-    }
-    priv_drop();
     while (!fatalerr) {
 	loopstep_run_vm86();
     }

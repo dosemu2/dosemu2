@@ -963,33 +963,19 @@ int extra_port_init(void)
 		SET_HANDLE_COND(0x3b5,HANDLE_STD_IO);
 		SET_HANDLE_COND(0x3ba,HANDLE_STD_IO);
 	}
-	SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
-	SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
-#endif
-#if X_GRAPHICS
-	/* DANG_FIXTHIS this code needs to be removed - it collides with vgaemu
-	 */
-	if (config.X) {
-#if 0
-		for (i=0x3c0; i<0x3c1; i++)
-			SET_HANDLE_COND(i,HANDLE_STD_IO);
-		for (i=0x3c4; i<0x3c9; i++)
-			SET_HANDLE_COND(i,HANDLE_STD_IO);
-#endif
-		for (i=0x3ce; i<0x3dd; i++)
-			SET_HANDLE_COND(i,HANDLE_STD_IO);
-	}
 #endif
 
 	if (!config.X) {
+ 	  SET_HANDLE_COND(0x3b8,HANDLE_SPECIAL);
+	  SET_HANDLE_COND(0x3bf,HANDLE_SPECIAL);
 	  SET_HANDLE_COND(0x3c0,HANDLE_SPECIAL);	/* W */
+  	  SET_HANDLE_COND(0x3ba,HANDLE_SPECIAL);		/* R */
+	  SET_HANDLE_COND(0x3da,HANDLE_SPECIAL);		/* R */
+	  SET_HANDLE_COND(0x3db,HANDLE_SPECIAL);		/* R */
 	}
-	SET_HANDLE_COND(0x3ba,HANDLE_SPECIAL);		/* R */
-	SET_HANDLE_COND(0x3da,HANDLE_SPECIAL);		/* R */
-	SET_HANDLE_COND(0x3db,HANDLE_SPECIAL);		/* R */
 
 	i = READ_WORD(BIOS_VIDEO_PORT);
-	if (i) {	/* !config.vga */
+	if (i && !config.X) {	/* !config.vga */
 	    SET_HANDLE_COND(i,HANDLE_SPECIAL);		/* W */
 	    SET_HANDLE_COND(i+1,HANDLE_SPECIAL);	/* W */
 	}
@@ -1151,6 +1137,9 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 	char *devrname;
 	int fd, usemasks = 0;
 
+        if (!can_do_root_stuff)
+                return FALSE;
+
 	i_printf("PORT: allow_io for port 0x%04x:%d perm=%x or=%x and=%x\n",
 		 start, size, permission, ormask, andmask);
 
@@ -1210,7 +1199,6 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 		 * port access was granted.
 		 * SIDOC_END_REMARK
 		 */
-		PRIV_SAVE_AREA
 		int devperm;
 
 		devrname=strrchr(device,'/');
@@ -1227,9 +1215,7 @@ Boolean port_allow_io(ioport_t start, Bit16u size, int permission, Bit8u ormask,
 			default:	devperm = O_RDWR;
 					flags |= (PORT_DEV_RD|PORT_DEV_WR);
 		}
-		enter_priv_on();
 		io_device.fd = open(device, devperm);
-		leave_priv_setting();
 		if (io_device.fd == -1) {
 			switch (errno) {
 			case EBUSY:

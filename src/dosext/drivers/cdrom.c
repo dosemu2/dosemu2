@@ -208,17 +208,14 @@ void dump_cd_sect (char *tb)
 
 void cdrom_reset()
 {
-  PRIV_SAVE_AREA
   /* after a disk change a new read access will
      return an error. In order to unlock this condition
      the drive must be reopened.
      Does someone know a better way?                   */
    C_printf("CDROM: cdrom reset\n");
    close (cdrom_fd);
-   enter_priv_off();
    cdrom_fd = open (path_cdrom, O_RDONLY);
    if (cdrom_fd >= 0) ioctl (cdrom_fd, CDROMRESET, NULL);
-   leave_priv_setting();
 }
 
 #define MSCD_AUDCHAN_VOLUME0       2
@@ -228,7 +225,6 @@ void cdrom_reset()
 
 void cdrom_helper(void)
 {
-   PRIV_SAVE_AREA
    unsigned char *req_buf,*transfer_buf;
    unsigned int Sector_plus_150,Sector;
    struct cdrom_msf cdrom_msf;
@@ -244,9 +240,7 @@ void cdrom_helper(void)
    HI(ax) = HI(ax) & 0x3F;
 
    if ((cdu33a) && (cdrom_fd < 0)) {
-        enter_priv_off();
         cdrom_fd = open (path_cdrom, O_RDONLY);
-        leave_priv_setting();
 
         if (cdrom_fd < 0) {
           switch (HI(ax)) {
@@ -294,9 +288,7 @@ void cdrom_helper(void)
                 audio_status.outchan2 = 2;
                 audio_status.outchan3 = 3;
 
-                enter_priv_off();
                 cdrom_fd = open (path_cdrom, O_RDONLY);
-                leave_priv_setting();
 		error = errno;
 
                 if (cdrom_fd < 0) {

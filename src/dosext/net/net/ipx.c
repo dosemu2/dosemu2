@@ -407,7 +407,6 @@ printIPXHeader(IPXPacket_t * IPXHeader)
 u_char
 IPXOpenSocket(u_short port, u_short * newPort)
 {
-  PRIV_SAVE_AREA
   int sock;			/* sock here means Linux socket handle */
   int opt;
   struct sockaddr_ipx ipxs;
@@ -459,15 +458,12 @@ IPXOpenSocket(u_short port, u_short * newPort)
   ipxs.sipx_port = htons(port);
 
   /* now bind to this port */
-  enter_priv_on();
   if (bind(sock, (struct sockaddr *) &ipxs, sizeof(ipxs)) == -1) {
     /* I can't think of anything else to return */
     n_printf("IPX: could not bind socket to address: %s\n", strerror(errno));
     close( sock );
-    leave_priv_setting();
     return (RCODE_SOCKET_TABLE_FULL);
   }
-  leave_priv_setting();
   
   if( port==0 ) {
     len = sizeof(ipxs2);

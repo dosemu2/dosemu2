@@ -11,8 +11,8 @@ experimental	"enable experimental stuff"
 		Global switch to prevent experimental stuff from compile.
 		There are experimental parts in the source, that may do harm to
 		your system if you use them without care / knowledge.
-		In order to protect you, those are normally disbaled
-		in ./base-configure. Even if you enable discrete switches
+		In order to protect you, those are normally disabled
+		in ./configure. Even if you enable discrete switches
 		in ./compiletime-settings, those will not have effect
 		without the global switch also set.
 

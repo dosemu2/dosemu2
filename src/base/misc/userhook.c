@@ -26,7 +26,6 @@
 
 #include "config.h"
 #include "emu.h"
-#include "priv.h"
 #include "utilities.h"
 #include "disks.h"
 #if X_GRAPHICS
@@ -464,7 +463,6 @@ void uhook_poll(void)
 
 void init_uhook(char *pipes)
 {
-	PRIV_SAVE_AREA
 	if (!pipes || !pipes[0]) return;
 	inpipename = strdup(pipes);
 	outpipename = strchr(inpipename, ':');
@@ -472,13 +470,11 @@ void init_uhook(char *pipes)
 		outpipename[0] = 0;
 		outpipename++;
 	}
-	enter_priv_off();
 	/* NOTE: need to open the pipe read/write here, else if the sending side
 	 * closes the pipe, we would get endless 0-byte reads
 	 * after this (select will trigger again and again)
 	 */
 	fdin = open(inpipename, O_RDWR | O_NONBLOCK);
-	leave_priv_setting();
 	if (fdin != -1) {
 		recvbuf = malloc(UHOOK_BUFSIZE);
 		if (!recvbuf) {
@@ -490,9 +486,7 @@ void init_uhook(char *pipes)
 		if (outpipename) {
 			/* NOTE: need to open read/write
 			 * else O_NONBLOCK would fail to open */
-			enter_priv_off();
 			fdout = open(outpipename, O_RDWR | O_NONBLOCK);
-			leave_priv_setting();
 			if (fdout != -1) {
 				sendbuf = malloc(UHOOK_BUFSIZE);
 				if (!sendbuf) {

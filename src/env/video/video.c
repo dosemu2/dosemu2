@@ -334,8 +334,6 @@ void
 video_config_init(void) {
   gettermcap(0);
 
-  open_mapping(MAPPING_VIDEO);
-
   switch (config.cardtype) {
   case CARD_MDA:
     {

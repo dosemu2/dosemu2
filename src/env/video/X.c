@@ -825,10 +825,6 @@ int X_init()
   X_screen.r_bits = X_csd.r_bits;
   X_screen.g_bits = X_csd.g_bits;
   X_screen.b_bits = X_csd.b_bits;
-  if(vga_emu_init(&X_screen)) {
-    error("X: X_init: VGAEmu init failed!\n");
-    leavedos(99);
-  }
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
   if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
@@ -840,9 +836,6 @@ int X_init()
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
 
-  /* start with some standard text mode */
-  X_set_videomode(TEXT, co, li);
-
 #if CONFIG_X_SPEAKER
   register_speaker(display, X_speaker_on, X_speaker_off);
 #endif
@@ -850,6 +843,15 @@ int X_init()
   return 0;
 }
 
+void X_init_videomode(void)
+{
+  if(vga_emu_init(&X_screen)) {
+    error("X: X_init: VGAEmu init failed!\n");
+    leavedos(99);
+  }
+  /* start with some standard text mode */
+  X_set_videomode(TEXT, co, li);
+}
 
 /*
  * DANG_BEGIN_FUNCTION X_close

@@ -23,56 +23,18 @@
 
 
 #include "emu.h"
-#include "priv.h"
 #include "mapping.h"
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE	4096
-#endif
-#define EMM_PAGE_SIZE	(16*1024)
-
-/* NOTE: Do not optimize higher then  -O2, else GCC will optimize away what we
-         expect to be on the stack */
-static caddr_t libless_mmap(caddr_t addr, size_t len,
-		int prot, int flags, int fd, off_t off) {
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)90), "b" ((int)&addr));
-	if (((unsigned)__res) > ((unsigned)-4096)) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno = 0;
-	return (caddr_t)__res;
-}
 #undef mmap
 #define mmap libless_mmap
-
-static int libless_munmap(caddr_t addr, size_t len)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)91), "b" ((int)addr), "c" ((int)len));
-	if (__res < 0) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno =0;
-	return __res;
-}
 #undef munmap
 #define munmap libless_munmap
 
 /* ------------------------------------------------------------ */
 
-#define Q__printf(f,cap,a...) ({\
-  Q_printf(f,decode_mapping_cap(cap),##a); \
-})
-
 static int selfmem_fd = -1;
 static int open_mapping_self(int cap)
 {
-  PRIV_SAVE_AREA
   extern int kernel_version_code;
 
   if (cap) Q_printf("MAPPING: open, cap=%s\n",
@@ -94,9 +56,7 @@ static int open_mapping_self(int cap)
      * running part, thus restricting /proc/self/mem is reasonable.
      *                        -- Hans May 26 1998
      */
-    enter_priv_on();
     selfmem_fd = open("/proc/self/mem", O_RDWR);
-    leave_priv_setting();
     if (selfmem_fd < 0) {
       error("MAPPING: cannot open /proc/self/mem\n",strerror(errno));
       if (!cap)return 0;
@@ -180,7 +140,6 @@ static int shmtab_count = 0;
 
 static void *alloc_ipc_shm(int mapsize)
 {
-  PRIV_SAVE_AREA
   void *addr;
   int i=shmtab_count;
   int id;
@@ -190,20 +149,12 @@ static void *alloc_ipc_shm(int mapsize)
     if (i >= MAXSHM) return 0;
   }
 
-  enter_priv_on();  /* The IPC share needs root ownership and perm 700 if
-  		     * running suid root, else we have a security problem.
-		     * When running non-suid-root it gets user ownership,
-		     * but this one doesn't hurt;-)
-		     */
   id = shmget(IPC_PRIVATE, mapsize, 0755);
-  leave_priv_setting();
   if (id < 0) return 0;
 
-  enter_priv_on();
   addr = shmat(id, 0, 0);
   if ((int)addr == -1) addr = 0;
   if (shmctl(id, IPC_RMID, 0) <0) addr = 0;
-  leave_priv_setting();
 
   if (addr) {
     shmtab[i].id = id;
@@ -324,8 +275,6 @@ static void *realloc_mapping_self(int cap, void *addr, int oldsize, int newsize)
 static void *mmap_mapping_self(int cap, void *target, int mapsize, int protect, void *source)
 {
   int fixed = (int)target == -1 ? 0 : MAP_FIXED;
-  Q__printf("MAPPING: map, cap=%s, target=%p, size=%x, protect=%x, source=%p\n",
-	cap, target, mapsize, protect, source);
   if (cap & MAPPING_ALIAS) {
     /* Touch all pages before mmap()-ing,
      * else Linux >= 1.3.78 will return -EINVAL. (Hans, 96/04/16)
@@ -353,27 +302,11 @@ static void *mmap_mapping_self(int cap, void *target, int mapsize, int protect, 
       return (void *) -1;
     }
   }
-  if (cap & MAPPING_KMEM) {
-    void *addr_;
-    open_kmem();
-    if (!fixed) target = 0;
-    addr_ = mmap(target, mapsize, protect, MAP_SHARED | fixed,
-				mem_fd, (off_t) source);
-    close_kmem();
-    return addr_;
-  }
-  if (cap & MAPPING_SCRATCH) {
-    if (!fixed) target = 0;
-    return mmap(target, mapsize, protect,
-		MAP_PRIVATE | fixed | MAP_ANON, -1, 0);
-  }
   if (cap & MAPPING_SHM) {
-    PRIV_SAVE_AREA
     void *ret;
     struct shm_table *p = get_alloced_shm(source);
     if (!p) return (void *)-1;
     if (protect) protect = SHM_RDONLY;
-    enter_priv_on();
     if (fixed) {
       /* we need to make 'target' non zero and use SHM_RND,
        * else we would not be able to map fixed to address 0
@@ -383,17 +316,10 @@ static void *mmap_mapping_self(int cap, void *target, int mapsize, int protect, 
     else {
       ret = shmat(p->id, 0, protect);
     }
-    leave_priv_setting();
     return ret;
   }
   return (void *)-1;
 }
-
-void *mmap_scratch_mem(int cap, void *target, int mapsize, int protect)
-{
-  return mmap_mapping_self(cap|MAPPING_SCRATCH, target, mapsize, protect, 0);
-}
-
 
 static int munmap_mapping_self(int cap, void *addr, int mapsize)
 {
@@ -405,13 +331,6 @@ static int munmap_mapping_self(int cap, void *addr, int mapsize)
   return munmap(addr, mapsize);
 }
 
-static int mprotect_mapping_self(int cap, void *addr, int mapsize, int protect)
-{
-  Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%x, protect=%x\n",
-	cap, addr, mapsize, protect);
-  return mprotect(addr, mapsize, protect);
-}
-
 struct mappingdrivers mappingdriver_self = {
   "mapself",
   "/proc/self/mem-mapping",
@@ -421,7 +340,5 @@ struct mappingdrivers mappingdriver_self = {
   free_mapping_self,
   realloc_mapping_self,
   mmap_mapping_self,
-  munmap_mapping_self,
-  mmap_scratch_mem,
-  mprotect_mapping_self
+  munmap_mapping_self
 };

@@ -1740,9 +1740,8 @@ int com_argparse(char *s, char **argvx, int maxarg)
     *    cd\ to cd \
     *    cd.. to cd ..
     */
-   p = s;
-   while (isalnum(*p)) p++;
-   if (*p == '\\' || *p == '/' || (*p == '.' && p[1] == '.')) {
+   p = s + strcspn(s, "\\/. ");
+   if (*p && *p != ' ') {
       memmove(p+1, p, s [-1] - (p - s) + 1/*NUL*/);
       *p = ' ';
       s[-1]++; /* update length */

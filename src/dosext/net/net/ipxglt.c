@@ -45,7 +45,6 @@ typedef struct
 int AddRoute( unsigned long targetNet, unsigned network,
         unsigned char node[] )
 {
-	PRIV_SAVE_AREA
 	struct rtentry rt;
 	struct sockaddr_ipx	*st = (struct sockaddr_ipx *)&rt.rt_dst;
 	struct sockaddr_ipx	*sr = (struct sockaddr_ipx *)&rt.rt_gateway;
@@ -62,15 +61,12 @@ int AddRoute( unsigned long targetNet, unsigned network,
 		return( -1 );
 	}
 
-	enter_priv_on();
 	if(ioctl(sock,SIOCADDRT,(void *)&rt) < 0) {
                 if( errno != EEXIST ) {
-			leave_priv_setting();
                         close( sock );
                         return( -2 );
                 }
 	}
-	leave_priv_setting();
         close( sock );
         return(0);
 }

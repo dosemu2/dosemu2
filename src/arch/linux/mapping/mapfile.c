@@ -24,51 +24,14 @@
 
 
 #include "emu.h"
-#include "priv.h"
 #include "mapping.h"
 
-#ifndef PAGE_SIZE
-#define PAGE_SIZE	4096
-#endif
-#define EMM_PAGE_SIZE	(16*1024)
-
-/* NOTE: Do not optimize higher then  -O2, else GCC will optimize away what we
-         expect to be on the stack */
-static caddr_t libless_mmap(caddr_t addr, size_t len,
-		int prot, int flags, int fd, off_t off) {
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)90), "b" ((int)&addr));
-	if (((unsigned)__res) > ((unsigned)-4096)) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno = 0;
-	return (caddr_t)__res;
-}
 #undef mmap
 #define mmap libless_mmap
-
-static int libless_munmap(caddr_t addr, size_t len)
-{
-	int __res;
-	__asm__ __volatile__("int $0x80\n"
-	:"=a" (__res):"a" ((int)91), "b" ((int)addr), "c" ((int)len));
-	if (__res < 0) {
-		errno = -__res;
-		__res=-1;
-	}
-	else errno =0;
-	return __res;
-}
 #undef munmap
 #define munmap libless_munmap
 
 /* ------------------------------------------------------------ */
-
-#define Q__printf(f,cap,a...) ({\
-  Q_printf(f,decode_mapping_cap(cap),##a); \
-})
 
 extern int pgmalloc_init(int numpages, int lowater, void *pool);
 extern void *pgmalloc(int size);
@@ -116,7 +79,6 @@ static int open_mapping_file(int cap)
 	  decode_mapping_cap(cap));
 
   if (tmpfile_fd == -1) {
-    PRIV_SAVE_AREA
     int mapsize, estsize, padsize = 4*1024;
 
     /* first estimate the needed size of the mapfile */
@@ -132,16 +94,13 @@ static int open_mapping_file(int cap)
     mapsize = mpool_numpages * PAGE_SIZE; /* make sure we are page aligned */
 
     snprintf(tmp_mapfile_name, 256, "%smapfile.%d", TMPFILE, getpid());
-    enter_priv_on();	/* file needs root ownership
-    			 * else we have a security problem */
     tmpfile_fd = open(tmp_mapfile_name, O_RDWR | O_CREAT, S_IRWXU);
     if (tmpfile_fd == -1) {
-      leave_priv_setting();
       error("MAPPING: cannot open mapfile %s\n", tmp_mapfile_name);
       if (!cap)return 0;
       leavedos(2);
     }
-    if (can_do_root_stuff) {
+    if (under_root_login) {
       /* We need to check wether we really created a file under root
        * ownership, else we have a security hole.
        * If $HOME is NFS mounted without root_squash, we can't put
@@ -152,14 +111,12 @@ static int open_mapping_file(int cap)
        ret = fchown(tmpfile_fd, 0, 0);	/* force root.root ownership */
        if (!ret) ret = fstat(tmpfile_fd, &s);
        if (ret || s.st_uid || s.st_gid) {
-         leave_priv_setting();
          error("MAPPING: cannot open mapfile %s with root rights\n", tmp_mapfile_name);
          discardtempfile();
          if (!cap)return 0;
          leavedos(2);
        }
     }
-    leave_priv_setting();
     ftruncate(tmpfile_fd, 0);
     if (ftruncate(tmpfile_fd, mapsize) == -1) {
       error("MAPPING: cannot size temp file pool, %s\n",strerror(errno));
@@ -304,24 +261,8 @@ static void *realloc_mapping_file(int cap, void *addr, int oldsize, int newsize)
 static void *mmap_mapping_file(int cap, void *target, int mapsize, int protect, void *source)
 {
   int fixed = (int)target == -1 ? 0 : MAP_FIXED;
-  Q__printf("MAPPING: map, cap=%s, target=%p, size=%x, protect=%x, source=%p\n",
-	cap, target, mapsize, protect, source);
   if (cap & MAPPING_ALIAS) {
     return alias_map(target, mapsize, protect, source);
-  }
-  if (cap & MAPPING_KMEM) {
-    void *addr_;
-    open_kmem();
-    if (!fixed) target = 0;
-    addr_ = mmap(target, mapsize, protect, MAP_SHARED | fixed,
-				mem_fd, (off_t) source);
-    close_kmem();
-    return addr_;
-  }
-  if (cap & MAPPING_SCRATCH) {
-    if (!fixed) target = 0;
-    return mmap(target, mapsize, protect,
-		MAP_PRIVATE | fixed | MAP_ANON, -1, 0);
   }
   if (cap & MAPPING_SHM) {
     int size = get_pgareasize(source);
@@ -333,27 +274,12 @@ static void *mmap_mapping_file(int cap, void *target, int mapsize, int protect, 
   return (void *)-1;
 }
 
-static void *scratch_mapping_file(int cap, void *target, int mapsize, int protect)
-{
-  return mmap_mapping_file(cap|MAPPING_SCRATCH, target, mapsize, protect, 0);
-}
-
-
 static int munmap_mapping_file(int cap, void *addr, int mapsize)
 {
   Q__printf("MAPPING: unmap, cap=%s, addr=%p, size=%x\n",
 	cap, addr, mapsize);
   return munmap(addr, mapsize);
 }
-
-static int mprotect_mapping_file(int cap, void *addr, int mapsize, int protect)
-{
-  Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%x, protect=%x\n",
-	cap, addr, mapsize, protect);
-  return mprotect(addr, mapsize, protect);
-}
-
-
 
 struct mappingdrivers mappingdriver_file = {
   "mapfile",
@@ -364,7 +290,5 @@ struct mappingdrivers mappingdriver_file = {
   free_mapping_file,
   realloc_mapping_file,
   mmap_mapping_file,
-  munmap_mapping_file,
-  scratch_mapping_file,
-  mprotect_mapping_file
+  munmap_mapping_file
 };

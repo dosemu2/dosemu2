@@ -1,9 +1,7 @@
 # This is a sample /etc/dosemu.users file
-# Here you can restrict access to dosemu
+# Here you can allow certain privileged things to happen in a suid
+# DOSEMU.
 #
-# However, THIS ONE DOES ALLOW ALL WEIRD THINGS !!!
-# For a more secure one look at ./etc/dosemu.users.secure
-# 
 # Format:
 #
 #   [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
@@ -18,5 +16,8 @@
 default_lib_dir= /usr/local/share/dosemu
 #config_script= builtin # (or e.g. /etc/dosemu/global.conf)
 log_level= 0
-root c_all  
-all c_all
+#carol is allowed to do do all weird things
+#carol c_all
+#joe is a restricted user and is only allowed to use console graphics
+#(this is the default setting)
+#joe restricted

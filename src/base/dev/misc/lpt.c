@@ -22,7 +22,6 @@
 #include "emu.h"
 #include "dosio.h"
 #include "lpt.h"
-#include "priv.h"
 #include "utilities.h"
 
 extern config_t config;
@@ -88,23 +87,18 @@ int17(u_char ii)
 int
 printer_open(int prnum)
 {
-  PRIV_SAVE_AREA
   int um;
 
   um = umask(026);
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
       lpt[prnum].dev = assemble_path(TMPDIR, "lptXXXXXX", 0);
-      enter_priv_off();
       lpt[prnum].file = fdopen(mkstemp(lpt[prnum].dev),"a+");
       chmod(lpt[prnum].dev, 0600);
-      leave_priv_setting();
       p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
     }
     else {
-      enter_priv_off();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
-      leave_priv_setting();
     }
   }
   umask(um);

@@ -273,11 +273,11 @@ installnew: doslib
 install:
 	rm -rf $(TMP)
 	mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
-	if [ ! -d $(dosemudir) ]; then \
-	  $(INSTALL) -d $(dosemudir); \
+	if [ ! -d $(DESTDIR)$(dosemudir) ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(dosemudir); \
 	fi
-	if [ ! -d $(syshdimagedir) ]; then \
-	  $(INSTALL) -d $(syshdimagedir); \
+	if [ ! -d $(DESTDIR)$(syshdimagedir) ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(syshdimagedir); \
 	fi
 	for i in `find $(SYS)/* -type f`; do \
 	  $(INSTALL) -m 0644 $$i $(TMP)/dosemu/freedos/dosemu; \
@@ -285,87 +285,93 @@ install:
 	cd $(SYS); for i in `find * -type l`; do \
 	  ln -sf generic.com $(TMP)/dosemu/freedos/dosemu/$$i; \
 	done
-	cp -a $(TMP)/dosemu/freedos $(dosemudir)
+	cp -a $(TMP)/dosemu/freedos $(DESTDIR)$(dosemudir)
 	cd $(TMP)/dosemu; \
 	for i in `find freedos -type f` ; do \
 	  ln -snf $(dosemudir)/$$i $$i; \
 	done
 	tar -cf- -C $(TMP) dosemu/freedos | gzip -9 > $(TMP)/dosemu/dosemu-bin.tgz
-	$(INSTALL) -m 0644 $(TMP)/dosemu/dosemu-bin.tgz $(dosemudir)
+	$(INSTALL) -m 0644 $(TMP)/dosemu/dosemu-bin.tgz $(DESTDIR)$(dosemudir)
 	rm -rf $(TMP)
 	mkdir -p -m 0755 $(TMP)/dosemu/freedos/dosemu
 	cd $(REALTOPDIR); if [ -f $(fdtarball) ]; then \
-	  tar -C $(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
+	  tar -C $(DESTDIR)$(dosemudir)/.. --no-same-owner -xpzf $(fdtarball); \
 	  tar -C $(TMP) --no-same-owner -xpzf $(fdtarball); \
 	  cd $(TMP)/dosemu; \
-	  rm -f FDchange.log $(dosemudir)/FDchange.log; \
-	  rm -f README.bindist $(dosemudir)/README.bindist; \
+	  rm -f FDchange.log $(DESTDIR)$(dosemudir)/FDchange.log; \
+	  rm -f README.bindist $(DESTDIR)$(dosemudir)/README.bindist; \
 	  for i in `find freedos -type f | grep -v autoexec.bat | grep -v config.sys` ; do \
 	    ln -snf $(dosemudir)/$$i $$i; \
 	  done; \
-	  $(INSTALL) $(dosemudir)/freedos/config.sys freedos; \
-	  $(INSTALL) $(dosemudir)/freedos/autoexec.bat freedos; \
-	  cd .. ; tar -cf- dosemu |gzip -9 >$(dosemudir)/dosemu-freedos-bin.tgz; \
+	  $(INSTALL) $(DESTDIR)$(dosemudir)/freedos/config.sys freedos; \
+	  $(INSTALL) $(DESTDIR)$(dosemudir)/freedos/autoexec.bat freedos; \
+	  cd .. ; tar -cf- dosemu |gzip -9 >$(DESTDIR)$(dosemudir)/dosemu-freedos-bin.tgz; \
 	fi
-	if [ ! -d $(sysconfdir) ]; then \
-	  $(INSTALL) -d $(sysconfdir); \
+	if [ ! -d $(DESTDIR)$(sysconfdir) ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(sysconfdir); \
 	fi
-	if [ ! -f $(sysconfdir)/dosemu.conf ]; then \
-	  $(INSTALL) -m 0644 ../etc/dosemu.conf ../etc/dosemu.users.easy ../etc/dosemu.users.secure $(sysconfdir); \
-	  $(INSTALL) -m 0644 ../etc/global.conf $(sysconfdir)/global.conf.example; \
+	if [ ! -f $(DESTDIR)$(sysconfdir)/dosemu.conf ]; then \
+	  $(INSTALL) -m 0644 ../etc/dosemu.conf ../etc/dosemu.users.example $(DESTDIR)$(sysconfdir); \
+	  $(INSTALL) -m 0644 ../etc/global.conf $(DESTDIR)$(sysconfdir)/global.conf.example; \
 	fi
-	if [ ! -d $(dosemudir)/keymap ]; then \
-	  $(INSTALL) -d $(dosemudir)/keymap; \
+	if [ ! -d $(DESTDIR)$(dosemudir)/keymap ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(dosemudir)/keymap; \
 	fi
-	$(INSTALL) -m 0644 ../etc/keymap/* $(dosemudir)/keymap; \
-	if [ ! -d $(bindir) ]; then \
-	  $(INSTALL) -d $(bindir); \
+	$(INSTALL) -m 0644 ../etc/keymap/* $(DESTDIR)$(dosemudir)/keymap; \
+	if [ ! -d $(DESTDIR)$(bindir) ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(bindir); \
 	fi
-	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(bindir)
-	$(INSTALL) -m 0755 ../bin/dosemu $(bindir)
-	$(INSTALL) -m 0644 ../bin/dosemu.map $(dosemudir)/dosemu-$(THISVERSION).map
-	$(INSTALL) -m 0755 ../bin/mkfatimage $(bindir)
-	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(bindir)
+	$(INSTALL) -m 0755 ../bin/$(DOSBIN) $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 ../bin/dosemu $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0644 ../bin/dosemu.map $(DESTDIR)$(dosemudir)/dosemu-$(THISVERSION).map
+	$(INSTALL) -m 0755 ../bin/mkfatimage $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 ../bin/mkfatimage16 $(DESTDIR)$(bindir)
 ifdef USE_SBEMU
-	$(INSTALL) -m 0755 ../bin/midid $(bindir)
+	$(INSTALL) -m 0755 ../bin/midid $(DESTDIR)$(bindir)
 endif
 ifdef  USE_MHPDBG
-	$(INSTALL) -m 0755 ../bin/dosdebug $(bindir)
+	$(INSTALL) -m 0755 ../bin/dosdebug $(DESTDIR)$(bindir)
 endif
-	if [ ! -d $(docdir) ]; then \
-	  $(INSTALL) -d $(docdir); \
+	if [ ! -d $(DESTDIR)$(docdir) ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(docdir); \
 	fi
-	$(INSTALL) -m 0644 ../README.bindist $(docdir)
+	$(INSTALL) -m 0644 ../README.bindist $(DESTDIR)$(docdir)
 	$(INSTALL) -m 0644 ../doc/{README,README-tech,dosemu-HOWTO,sound-usage}.txt \
-	   ../doc/announce $(docdir)
-	if [ ! -d $(mandir)/man1 ]; then \
-	  $(INSTALL) -d $(mandir)/man1; \
+	   ../doc/announce $(DESTDIR)$(docdir)
+	if [ ! -d $(DESTDIR)$(mandir)/man1 ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(mandir)/man1; \
 	fi
 	$(INSTALL) -m 0644 ../man/{mkfatimage16,dosemu,dosemu.bin,dosdebug}.1 \
-	   $(mandir)/man1
-	ln -sf dosemu.1 $(mandir)/man1/xdosemu.1
-ifdef X_SUPPORT
-	if [ ! -e $(bindir)/xdosemu ]; then ln -s dosemu $(bindir)/xdosemu; fi
-	if [ ! -d $(x11fontdir) ]; then \
-	  $(INSTALL) -d $(x11fontdir); \
+	   $(DESTDIR)$(mandir)/man1
+	if [ ! -d $(DESTDIR)$(mandir)/ru/man1 ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(mandir)/ru/man1; \
 	fi
-	if [ -w $(x11fontdir) ] && \
-	    [ ! -e $(x11fontdir)/vga.pcf ] && \
-	    [ ! -e $(x11fontdir)/vga.pcf.Z ] && \
-	    [ ! -e $(x11fontdir)/vga.pcf.gz ]; then \
+	$(INSTALL) -m 0644 ../man/ru/{mkfatimage16,dosemu,dosemu.bin,dosdebug}.1 \
+	   $(DESTDIR)$(mandir)/ru/man1
+	ln -sf dosemu.1 $(DESTDIR)$(mandir)/man1/xdosemu.1
+ifdef X_SUPPORT
+	if [ ! -e $(DESTDIR)$(bindir)/xdosemu ]; then ln -s dosemu $(DESTDIR)$(bindir)/xdosemu; fi
+	if [ ! -d $(DESTDIR)$(x11fontdir) ]; then \
+	  $(INSTALL) -d $(DESTDIR)$(x11fontdir); \
+	fi
+	if [ -w $(DESTDIR)$(x11fontdir) ] && \
+	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf ] && \
+	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.Z ] && \
+	    [ ! -e $(DESTDIR)$(x11fontdir)/vga.pcf.gz ]; then \
 		echo "-> Main DOSEMU files installation done. Installing the X PC fonts..."; \
-		$(INSTALL) -m 0644 ../etc/vga.pcf $(x11fontdir); \
-		gzip -9 $(x11fontdir)/vga.pcf; \
-		bdftopcf ../etc/vga11x19.bdf | gzip -c -9 > $(x11fontdir)/vga11x19.pcf.gz; \
-		bdftopcf ../etc/vga-cp866.bdf | gzip -c -9 > $(x11fontdir)/vga-cp866.pcf.gz; \
-		bdftopcf ../etc/vga10x20-cp866.bdf | gzip -c -9 > $(x11fontdir)/vga10x20-cp866.pcf.gz; \
-		chmod 0644 $(x11fontdir)/vga11x19.pcf.gz $(x11fontdir)/vga-cp866.pcf.gz $(x11fontdir)/vga10x20-cp866.pcf.gz; \
-		if [ ! -f $(x11fontdir)/fonts.alias ]; then \
-		  $(INSTALL) -m 0644 ../etc/dosemu.alias $(x11fontdir)/fonts.alias; \
-		elif [ grep ^vga $(x11fontdir)/fonts.alias ]; then \
-	          cat ../etc/dosemu.alias >> $(x11fontdir)/fonts.alias; \
+		$(INSTALL) -m 0644 ../etc/vga.pcf $(DESTDIR)$(x11fontdir); \
+		gzip -9 $(DESTDIR)$(x11fontdir)/vga.pcf; \
+		bdftopcf ../etc/vga11x19.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz; \
+		bdftopcf ../etc/vga-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz; \
+		bdftopcf ../etc/vga10x20-cp866.bdf | gzip -c -9 > $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \
+		chmod 0644 $(DESTDIR)$(x11fontdir)/vga11x19.pcf.gz $(DESTDIR)$(x11fontdir)/vga-cp866.pcf.gz \
+          $(DESTDIR)$(x11fontdir)/vga10x20-cp866.pcf.gz; \
+		if [ ! -f $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
+		  $(INSTALL) -m 0644 ../etc/dosemu.alias $(DESTDIR)$(x11fontdir)/fonts.alias; \
+		elif [ grep ^vga $(DESTDIR)$(x11fontdir)/fonts.alias ]; then \
+	          cat ../etc/dosemu.alias >> $(DESTDIR)$(x11fontdir)/fonts.alias; \
 		fi; \
-		cd $(x11fontdir); \
+		cd $(DESTDIR)$(x11fontdir); \
 		mkfontdir; \
 	fi;
 endif

@@ -48,18 +48,6 @@ Within dosemu.users the general permissions are set:
 <listitem>
 
 <para>
- which users are allowed to use DOSEMU.
-</para>
-</listitem>
-<listitem>
-
-<para>
- which users are allowed to use DOSEMU suid root.
-</para>
-</listitem>
-<listitem>
-
-<para>
  which users are allowed to have a private lib dir.
 </para>
 </listitem>
@@ -164,31 +152,6 @@ any user not mentioned in previous lines.
 </para>
 </listitem></varlistentry>
 <varlistentry>
-<term>nosuidroot</term>
-<listitem>
-<para>
- Do not allow execution of a suid dosemu binary. The user
-may, howver, use a non-suid root copy of DOSEMU
-(reasonable sysadmins will supply it)
-For more information on this look at chapter 11.1
-(`Priveleges and Running as User')
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_strict</term>
-<listitem>
-<para>
- Do not allow -F option (global.conf can't be replaced)
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_dexeonly</term>
-<listitem>
-<para>
- Only allow execution of DEXE files, forbid any other use.
-</para>
-</listitem></varlistentry>
-<varlistentry>
 <term>classes</term>
 <listitem>
 <para>
@@ -207,7 +170,7 @@ For more information on this look at chapter 11.1
 <listitem>
 <para>
  normal restrictions, all but the following classes:
-c_var, c_boot, c_vport, c_secure, c_irq, c_hardram.
+c_var, c_vport, c_irq, c_hardram, c_pci, c_net.
 </para>
 </listitem></varlistentry>
 <varlistentry>
@@ -219,52 +182,10 @@ environment variables
 </para>
 </listitem></varlistentry>
 <varlistentry>
-<term>c_nice</term>
-<listitem>
-<para>
-    allow `HogThreshold' setting
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_floppy</term>
-<listitem>
-<para>
-  allow floppy access
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_boot</term>
-<listitem>
-<para>
-    allow definition of boot file/device
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_secure</term>
-<listitem>
-<para>
-  allow setting of 'secure off'
-</para>
-</listitem></varlistentry>
-<varlistentry>
 <term>c_vport</term>
 <listitem>
 <para>
-   allow setting of 'allowvideoportaccess'
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_dpmi</term>
-<listitem>
-<para>
-    allow DPMI setting
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_video</term>
-<listitem>
-<para>
-   allow `video' setting
+   allow setting of 'emuretrace'
 </para>
 </listitem></varlistentry>
 <varlistentry>
@@ -275,45 +196,10 @@ environment variables
 </para>
 </listitem></varlistentry>
 <varlistentry>
-<term>c_disk</term>
-<listitem>
-<para>
-    allow `disk'  settings
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_x</term>
-<listitem>
-<para>
-       allow X support settings
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_sound</term>
-<listitem>
-<para>
-   allow sound settings
-</para>
-</listitem></varlistentry>
-<varlistentry>
 <term>c_irq</term>
 <listitem>
 <para>
      allow `irqpassing' statement
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_dexe</term>
-<listitem>
-<para>
-    allow `dexe' settings
-</para>
-</listitem></varlistentry>
-<varlistentry>
-<term>c_printer</term>
-<listitem>
-<para>
- allow printer settings
 </para>
 </listitem></varlistentry>
 <varlistentry>
@@ -324,13 +210,19 @@ environment variables
 </para>
 </listitem></varlistentry>
 <varlistentry>
-<term>c_shell</term>
+<term>c_pci</term>
 <listitem>
 <para>
-   allow the parser's `shell()' function
+ allow 'PCI' settings
 </para>
-</listitem>
-</varlistentry>
+</listitem></varlistentry>
+<varlistentry>
+<term>c_net</term>
+<listitem>
+<para>
+ allow direct net and dosnet settings (TUN/TAP is always allowed).
+</para>
+</listitem></varlistentry>
 </variablelist>
 </para>
 </listitem></varlistentry>
@@ -386,11 +278,6 @@ assumed:
   else       c_normal
 </screen>
 
-</para>
-
-<para>
-Other than with previous DOSEMU versions, the /etc/dosemu.users now is
-mandatory. Also note, that you may restrict 'root' doing something silly ;-)
 </para>
 
 <para>

@@ -31,7 +31,6 @@
 #include "lpt.h"
 
 #include "dos2linux.h"
-#include "priv.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -148,8 +147,8 @@ void dump_config_status(void *printfunc)
     if (config_check_only) mapping_close();
     (*print)("hdiskboot %d\nmem_size %d\n",
         config.hdiskboot, config.mem_size);
-    (*print)("ems_size 0x%x\nems_frame 0x%x\nsecure %d\n",
-        config.ems_size, config.ems_frame, config.secure);
+    (*print)("ems_size 0x%x\nems_frame 0x%x\n",
+        config.ems_size, config.ems_frame);
     (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\n",
         config.xms_size, config.max_umb, config.dpmi);
     (*print)("mouse_flag %d\nmapped_bios %d\nvbios_file %s\n",
@@ -306,7 +305,7 @@ void dump_config_status(void *printfunc)
     (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
         config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
     (*print)("\ncli_timeout %d\n", config.cli_timeout);
-    (*print)("\npic_force_count %d\n", config.pic_force_count);
+    (*print)("\npic_watchdog %d\n", config.pic_watchdog);
     (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
         config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
 
@@ -319,10 +318,7 @@ void dump_config_status(void *printfunc)
 static void 
 open_terminal_pipe(char *path)
 {
-    PRIV_SAVE_AREA
-    enter_priv_off();
     terminal_fd = DOS_SYSCALL(open(path, O_RDWR));
-    leave_priv_setting();
     if (terminal_fd == -1) {
 	terminal_pipe = 0;
 	error("open_terminal_pipe failed - cannot open %s!\n", path);
@@ -425,7 +421,6 @@ static int option_delete(int option, int *argc, char **argv)
 
 void secure_option_preparse(int *argc, char **argv)
 {
-  PRIV_SAVE_AREA
   char *opt;
   int runningsuid = get_orig_uid() != get_orig_euid();
 
@@ -453,8 +448,7 @@ void secure_option_preparse(int *argc, char **argv)
   else setenv("DOSEMU_LAX_CHECKING", "on", 1);
 
   if (*argc <=1 ) return;
-  enter_priv_off();
-                                                  
+ 
   opt = get_option("--Fusers", 1);
   if (opt && opt[0]) {
     if (runningsuid) {
@@ -481,8 +475,6 @@ void secure_option_preparse(int *argc, char **argv)
     }
     DOSEMU_HDIMAGE_DIR = opt;
   }
-
-  leave_priv_setting();
 }
 
 static void config_pre_process(void)
@@ -723,7 +715,6 @@ static void config_scrub(void)
 void 
 config_init(int argc, char **argv)
 {
-    PRIV_SAVE_AREA
     extern char *commandline_statements;
     extern int dexe_running;
     int             c=0;
@@ -786,9 +777,7 @@ config_init(int argc, char **argv)
 		    fprintf(stderr, "Sorry, -F option not allowed here\n");
 		    exit(1);
 		}
-		enter_priv_off();
 		f=fopen(optarg, "r");
-		leave_priv_setting();
 		if (!f) {
 		  fprintf(stderr, "Sorry, no access to configuration script %s\n", optarg);
 		  exit(1);
@@ -800,9 +789,7 @@ config_init(int argc, char **argv)
 	case 'f':
 	    {
 		FILE *f;
-		enter_priv_off();
 		f=fopen(optarg, "r");
-		leave_priv_setting();
 		if (!f) {
 		  fprintf(stderr, "Sorry, no access to user configuration file %s\n", optarg);
 		  exit(1);
@@ -873,9 +860,7 @@ config_init(int argc, char **argv)
             }
         }
         if (config.debugout != NULL) {
-            enter_priv_off();
             dbg_fd = fopen(config.debugout, "w");
-            leave_priv_setting();
             if (!dbg_fd) {
                 fprintf(stderr, "can't open \"%s\" for writing\n", config.debugout);
                 leavedos(1);

@@ -388,7 +388,6 @@ static void mhp_rusermap(int argc, char *argv[])
 
 static void mhp_rmapfile(int argc, char *argv[])
 {
-  PRIV_SAVE_AREA
   FILE * ifp;
   unsigned char bytebuf[IBUFS];
   unsigned long a1;
@@ -397,9 +396,7 @@ static void mhp_rmapfile(int argc, char *argv[])
   if (argc >= 2) {
     map_fname = argv[1];
   }
-  enter_priv_off();
   ifp = fopen(map_fname, "r");
-  leave_priv_setting();
   if (!ifp) {
      mhp_printf("unable to open map file %s\n", map_fname);
      return;
@@ -678,7 +675,6 @@ static void mhp_dis(int argc, char * argv[])
 
 static void mhp_dump_to_file(int argc, char * argv[])
 {
-   PRIV_SAVE_AREA
    unsigned int nbytes;
    unsigned long seekval;
    unsigned char * buf = 0;
@@ -701,14 +697,7 @@ static void mhp_dump_to_file(int argc, char * argv[])
       return;
    }
 
-   if (config.secure && ((seekval+nbytes) >0x10ffff)) {
-      mhp_printf("secure is ON, can\'t access above 1MEG\n");
-      return;
-   }
-
-   enter_priv_off();
    fd = open(argv[3], O_WRONLY | O_CREAT | O_TRUNC, 00775);
-   leave_priv_setting();
 
    if (fd < 0) {
       mhp_printf("cannot open/create file %s\n%s\n", argv[3], strerror(errno));

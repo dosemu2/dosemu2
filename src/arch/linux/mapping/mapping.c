@@ -19,9 +19,38 @@
  */
 
 #include <string.h>
+#include <errno.h>
 
 #include "emu.h"
 #include "mapping.h"
+
+/* NOTE: Do not optimize higher then  -O2, else GCC will optimize away what we
+         expect to be on the stack */
+caddr_t libless_mmap(caddr_t addr, size_t len,
+		int prot, int flags, int fd, off_t off) {
+	int __res;
+	__asm__ __volatile__("int $0x80\n"
+	:"=a" (__res):"a" ((int)90), "b" ((int)&addr));
+	if (((unsigned)__res) > ((unsigned)-4096)) {
+		errno = -__res;
+		__res=-1;
+	}
+	else errno = 0;
+	return (caddr_t)__res;
+}
+
+int libless_munmap(caddr_t addr, size_t len)
+{
+	int __res;
+	__asm__ __volatile__("int $0x80\n"
+	:"=a" (__res):"a" ((int)91), "b" ((int)addr), "c" ((int)len));
+	if (__res < 0) {
+		errno = -__res;
+		__res=-1;
+	}
+	else errno =0;
+	return __res;
+}
 
 static int init_done = 0;
 
@@ -43,6 +72,39 @@ static struct mappingdrivers *mappingdrv[] = {
   0
 };
 
+void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source)
+{
+  int fixed = (int)target == -1 ? 0 : MAP_FIXED;
+  Q__printf("MAPPING: map, cap=%s, target=%p, size=%x, protect=%x, source=%p\n",
+	cap, target, mapsize, protect, source);
+  if (cap & MAPPING_KMEM) {
+    void *addr_;
+    open_kmem();
+    if (!fixed) target = 0;
+    addr_ = mmap(target, mapsize, protect, MAP_SHARED | fixed,
+				mem_fd, (off_t) source);
+    close_kmem();
+    return addr_;
+  }
+  if (cap & MAPPING_SCRATCH) {
+    if (!fixed) target = 0;
+    return mmap(target, mapsize, protect,
+		MAP_PRIVATE | fixed | MAP_ANON, -1, 0);
+  }
+  return (*mappingdriver.mmap)(cap, target, mapsize, protect, source);
+}        
+
+void *mapscratch_mapping(int cap, void *target, int mapsize, int protect)
+{
+  return mmap_mapping(cap|MAPPING_SCRATCH, target, mapsize, protect, 0);
+}
+
+int mprotect_mapping(int cap, void *addr, int mapsize, int protect)
+{
+  Q__printf("MAPPING: mprotect, cap=%s, addr=%p, size=%x, protect=%x\n",
+	cap, addr, mapsize, protect);
+  return mprotect(addr, mapsize, protect);
+}
 
 /*
  * This gets called on DOSEMU startup to determine the kind of mapping

@@ -237,8 +237,6 @@ Alistair MacDonald
    have to configuration stuff in a separate directory under /etc. Within
    dosemu.users the general permissions are set:
 
-     * which users are allowed to use DOSEMU.
-     * which users are allowed to use DOSEMU suid root.
      * which users are allowed to have a private lib dir.
      * what kind of access class the user belongs to.
      * what special configuration stuff the users needs
@@ -287,18 +285,6 @@ Alistair MacDonald
           valid login name (root also is one) or 'all'. The later means
           any user not mentioned in previous lines.
 
-   nosuidroot
-          Do not allow execution of a suid dosemu binary. The user may,
-          howver, use a non-suid root copy of DOSEMU (reasonable
-          sysadmins will supply it) For more information on this look at
-          chapter 11.1 (`Priveleges and Running as User')
-
-   c_strict
-          Do not allow -F option (global.conf can't be replaced)
-
-   c_dexeonly
-          Only allow execution of DEXE files, forbid any other use.
-
    classes
           One or more of the following:
 
@@ -307,59 +293,30 @@ Alistair MacDonald
 
         c_normal
                 normal restrictions, all but the following classes:
-                c_var, c_boot, c_vport, c_secure, c_irq, c_hardram.
+                c_var, c_vport, c_irq, c_hardram, c_pci, c_net.
 
         c_var
                 allow (un)setting of configuration- and environment
                 variables
 
-        c_nice
-                allow `HogThreshold' setting
-
-        c_floppy
-                allow floppy access
-
-        c_boot
-                allow definition of boot file/device
-
-        c_secure
-                allow setting of 'secure off'
-
         c_vport
-                allow setting of 'allowvideoportaccess'
-
-        c_dpmi
-                allow DPMI setting
-
-        c_video
-                allow `video' setting
+                allow setting of 'emuretrace'
 
         c_port
                 allow `port' setting
 
-        c_disk
-                allow `disk' settings
-
-        c_x
-                allow X support settings
-
-        c_sound
-                allow sound settings
-
         c_irq
                 allow `irqpassing' statement
-
-        c_dexe
-                allow `dexe' settings
-
-        c_printer
-                allow printer settings
 
         c_hardram
                 allow 'hardware_ram' settings
 
-        c_shell
-                allow the parser's `shell()' function
+        c_pci
+                allow 'PCI' settings
+
+        c_net
+                allow direct net and dosnet settings (TUN/TAP is always
+                allowed).
 
    other
           Here you may define any configuration variable, that you want
@@ -389,10 +346,6 @@ Alistair MacDonald
 
       if 'root'  c_all
       else       c_normal
-
-   Other than with previous DOSEMU versions, the /etc/dosemu.users now is
-   mandatory. Also note, that you may restrict 'root' doing something
-   silly ;-)
 
    In addition, dosemu.users can be used to define some global settings,
    which must be known before any other file is accessed, such as:

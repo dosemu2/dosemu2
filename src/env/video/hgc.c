@@ -80,7 +80,6 @@ void hgc_meminit(void)
 {
   char *maperr;
 
-  open_mapping(MAPPING_HGC);
   hgc_ctrl = 1;
 
   if ( ( phgcp0 = malloc( 32*1024 ) ) == NULL ) /* memory for page 0 */

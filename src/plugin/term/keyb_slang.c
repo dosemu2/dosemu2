@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include "slang.h"
+#include <slang.h>
 #include "emu.h"
 #include "timers.h"
 #include "keymaps.h"

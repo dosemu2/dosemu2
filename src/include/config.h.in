@@ -1,4 +1,6 @@
-/* src/include/config.h.in.  Generated automatically from configure.in by autoheader.  */
+/* src/include/config.h.in.  Generated automatically from configure.ac by autoheader.  */
+
+
 /* 
  * (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
  *
@@ -8,13 +10,13 @@
 /*
  * BIG FAT WARNING:
  *
- * This file (this is acconfig.h, _NOT_ config.h.in) is the only place 
- * where you can add #defines. If you edit config.h.in, your efforts
- * will become useless the next time you run autoheader.
+ * These #defines come from configure.ac.
+ * If you edit config.h.in, your efforts will become useless the next 
+ * time you run autoheader or autoreconf.
  *
- * All lines before the TOP macro or after the BOTTOM macro are copied
- * unchanged into config.h.in. Read the GNU autoconf documentation
- * to learn more about configure & friends.
+ * All lines within AH_TOP and AH_BOTTOM are copied unchanged into 
+ * config.h.in. Read the GNU autoconf documentation to learn more 
+ * xabout configure & friends.
  *
  */
 
@@ -86,93 +88,14 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #endif /* not __ASM__ */
 
 
+/* Define this for ASPI (generic SCSI) support */
+#undef ASPI_SUPPORT
 
 /* Define the host for which Dosemu is configured */
 #undef CONFIG_HOST
 
 /* Define the configure time */
 #undef CONFIG_TIME
-
-/* Define the Dosemu version */
-#undef VERSION
-
-/* Define the Dosemu version code  */
-#undef DOSEMU_VERSION_CODE
-
-/* Define the Dosemu version release date */
-#undef VERDATE
-
-/* Define the Dosemu sublevel */
-#undef SUBLEVEL
-
-/* Define the Dosemu patchlevel */
-#undef PATCHLEVEL
-
-/* Define the version string */
-#undef VERSTR
-
-/* Define the EMU version */
-#undef EMUVER
-
-/* Define the stepping of gas code16 functionality */
-#undef GASCODE16
-
-/* 
- * Define if the compiler doesn't have __FUNCTION__ macro
- * This is very gcc specific (and very useful!). It is defined
- * as "" if the compiler doesn't have it.
- */
-#undef __FUNCTION__
-
-/* 
- * Define if the compiler doesn't have __FILE__ macro
- * Most compilers have this one, but just to be sure...
- */
-#undef __FILE__
-
-/* 
- * Define if the compiler doesn't have __LINE__ macro
- * Most compilers have this one, but just to be sure...
- */
-#undef __LINE__
-
-/* DPMI test windows */
-#undef WANT_WINDOWS
-
-/* DEFINE this, if you want svgalib support */
-#undef USE_SVGALIB
-
-/* DEFINE this, if you want pthreads support */
-#undef USE_PTHREADS
-
-/* DEFINE this, if you want the dosdebugger (mhpdbg) */
-#undef USE_MHPDBG
-
-/* Define these for X support */
-#undef X_SUPPORT
-#undef X2_SUPPORT
-#undef X_GRAPHICS
-
-/*
- * This is DEFINED when SB emulation is required. Just changing this is not
- * enough - you must reconfigure.
- */
-#undef USE_SBEMU
-
-/*
- * This is DEFINED when the Ultra libraries are available
- */
-#undef USE_ULTRA
-
-/* Define this if you want to use MITSHM */
-#undef HAVE_MITSHM
-
-/* Define this for ASPI (generic SCSI) support */
-#undef ASPI_SUPPORT
-
-/* Define this to use the X86 CPU emulator */
-#undef X86_EMULATOR
-
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
@@ -181,6 +104,15 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
 /* Define if using `alloca.c'. */
 #undef C_ALLOCA
+
+/* Define the Dosemu version code */
+#undef DOSEMU_VERSION_CODE
+
+/* Define the EMU version */
+#undef EMUVER
+
+/* Define the stepping of gas code16 functionality */
+#undef GASCODE16
 
 /* Define if you have `alloca', as a function or macro. */
 #undef HAVE_ALLOCA
@@ -217,6 +149,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 
 /* Define if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define this if you want to use MITSHM */
+#undef HAVE_MITSHM
 
 /* Define if you have a working `mmap' system call. */
 #undef HAVE_MMAP
@@ -285,6 +220,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define if `major', `minor', and `makedev' are declared in <sysmacros.h>. */
 #undef MAJOR_IN_SYSMACROS
 
+/* Define the Dosemu patchlevel */
+#undef PATCHLEVEL
+
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
@@ -299,15 +237,71 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Define the Dosemu sublevel */
+#undef SUBLEVEL
+
 /* Define if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
 
 /* Define if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
 
+/* DEFINE this, if you want the dosdebugger (mhpdbg) */
+#undef USE_MHPDBG
+
+/* DEFINE this, if you want pthreads support */
+#undef USE_PTHREADS
+
+/* This is DEFINED when SB emulation is required. Just changing this is not
+   enough - you must reconfigure. */
+#undef USE_SBEMU
+
+/* DEFINE this, if you want svgalib support */
+#undef USE_SVGALIB
+
+/* This is DEFINED when the Ultra libraries are available */
+#undef USE_ULTRA
+
+/* Define the Dosemu version release date */
+#undef VERDATE
+
+/* Define the Dosemu version */
+#undef VERSION
+
+/* Define the version string */
+#undef VERSTR
+
+/* DPMI test windows */
+#undef WANT_WINDOWS
+
+/* */
+#undef X2_SUPPORT
+
+/* Define this to use the X86 CPU emulator */
+#undef X86_EMULATOR
+
+/* Define these for X support */
+#undef X_GRAPHICS
+
+/* */
+#undef X_SUPPORT
+
 /* Define if `lex' declares `yytext' as a `char *' by default, not a `char[]'.
    */
 #undef YYTEXT_POINTER
+
+/* Define if the compiler doesn't have __FILE__ macro. Most compilers have
+   this one, but just to be sure... */
+#undef __FILE__
+
+/* Define if the compiler doesn't have __FUNCTION__ macro This is very gcc
+   specific (and very useful!). It is defined as "" if the compiler doesn't
+   have it. */
+#undef __FUNCTION__
+
+/* Define if the compiler doesn't have __LINE__ macro. Most compilers have
+   this one, but just to be sure... */
+#undef __LINE__
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
@@ -331,6 +325,7 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef uid_t
 
+
 #ifndef __ASM__
 EXTERN char *dosemu_map_file_name INIT(config_xstr(DOSEMULIB_DEFAULT) "/dosemu-" VERSTR ".map");
 #endif
@@ -338,3 +333,4 @@ EXTERN char *dosemu_map_file_name INIT(config_xstr(DOSEMULIB_DEFAULT) "/dosemu-"
 #include "plugin_config.h"
 
 #endif /* CONFIG_H */
+

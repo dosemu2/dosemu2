@@ -55,7 +55,6 @@
 #include "pic.h"
 #include "serial.h"
 #include "ser_defs.h"
-#include "priv.h"
 #include "utilities.h"	/* due to getpwnam */
 #include "iodev.h"
 
@@ -110,24 +109,11 @@ static int tty_already_locked(char *nam)
  */
 static int tty_lock(char *path, int mode)
 {
-  PRIV_SAVE_AREA
   char saved_path[PATH_MAX];
   char dev_nam[20];
   struct passwd *pw;
   pid_t ime;
   int cwrote;
-
-#if 0
-  /* you don't NEED to be root to create lock files! */
-  /* Check that lockfiles can be created! */  
-  if((mode == 1 || mode == 2) && get_orig_euid() != (uid_t)0) {
-    s_printf("Need to be suid root to create Lock Files!\n"
-	     "        Serial port on %s not configured!\n", path);
-    error("Need to be suid root to create Lock Files!\n"
-	  "        Serial port on %s not configured!\n", path);
-    return(-1);
-  }
-#endif  
 
   bzero(dev_nam, sizeof(dev_nam));
   sprintf(saved_path, "%s/%s%s", config.tty_lockdir, config.tty_lockfile, 
@@ -143,9 +129,7 @@ static int tty_lock(char *path, int mode)
         error("attempt to use already locked tty %s\n", saved_path);
         return (-1);
       }
-      enter_priv_on();
       fd = fopen(saved_path, "w");
-      leave_priv_setting();
       if (fd == (FILE *)0) {
         s_printf("lock: (%s): %s\n", saved_path, strerror(errno));
         error("tty: lock: (%s): %s\n", saved_path, strerror(errno));
@@ -173,9 +157,7 @@ static int tty_lock(char *path, int mode)
   else if (mode == 2) { /* re-acquire a lock after a fork() */
     FILE *fd;
 
-     enter_priv_on();
      fd = fopen(saved_path,"w");
-     leave_priv_setting();
      if (fd == (FILE *)0) {
      s_printf("tty_lock(%s) reaquire: %s\n", 
               saved_path, strerror(errno));
@@ -192,25 +174,20 @@ static int tty_lock(char *path, int mode)
 
     (void) fclose(fd);
     (void) chmod(saved_path, 0444);
-    (void) chown(saved_path, get_orig_uid(), get_orig_gid());
     return(0);
   } 
   else {    /* unlock */
     FILE *fd;
     int retval;
 
-    enter_priv_on();
     fd = fopen(saved_path,"w");
-    leave_priv_setting();
     if (fd == (FILE *)0) {
       s_printf("DOSEMU: tty_lock: can't reopen to delete: %s\n",
              strerror(errno));
       return (-1);
     }
       
-    enter_priv_on();
     retval = unlink(saved_path);
-    leave_priv_setting();
     if (retval < 0) {
       s_printf("tty: unlock: (%s): %s\n", saved_path,
              strerror(errno));

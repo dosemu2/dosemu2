@@ -91,5 +91,6 @@ done
 echo "mkpluginhooks enable $PLUGIN"
 ./mkpluginhooks enable $PLUGIN
 
-echo ". ./base-configure $STRING $SUFFIX"
-. ./base-configure $STRING $SUFFIX
+echo ". ./configure $STRING $SUFFIX"
+export DOSEMU_DEFAULT_CONFIGURE=1
+exec ./configure $STRING $SUFFIX

@@ -20,12 +20,9 @@ int my_plugin_fd = -1;
 
 void demo_plugin_init(void)
 {
-	PRIV_SAVE_AREA
 	fprintf(stderr, "PLUGIN: demo_plugin_init called, conf=%d\n", my_plugin_conf);
 	if (!my_plugin_conf) return;
-	enter_priv_off();
 	my_plugin_fd = open("/tmp/plugin_test_pipe", O_RDWR | O_NONBLOCK);
-	leave_priv_setting();
 	if (my_plugin_fd != -1) {
 		add_to_io_select(my_plugin_fd, 0);
 		fprintf(stderr, "PLUGIN: test_pipe listening\n");

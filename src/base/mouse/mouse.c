@@ -39,7 +39,6 @@
 
 #include "keyboard.h"
 
-#include "priv.h"
 #include "iodev.h"
 
 #ifdef X_SUPPORT
@@ -1809,7 +1808,6 @@ void mouse_sethandler(void)
 void
 dosemu_mouse_init(void)
 {
-  PRIV_SAVE_AREA
   serial_t *sptr=NULL;
   char mouse_ver[]={2,3,4,5,0x14,0x7,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f};
 #if 1 /* BUG CATCHER */
@@ -1852,9 +1850,7 @@ dosemu_mouse_init(void)
   if ( mice->type != MOUSE_X ){
     if (mice->intdrv) {
       m_printf("Opening internal mouse: %s\n", mice->dev);
-      enter_priv_on();  /* The mouse might need special permisions to open (esp r/w). */
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
-      leave_priv_setting();
       if (mice->fd == -1) {
 	error("Cannot open internal mouse device %s\n",mice->dev);
  	mice->intdrv = FALSE;
@@ -1957,12 +1953,9 @@ void parent_close_mouse (void)
 
 void parent_open_mouse (void)
 {
-  PRIV_SAVE_AREA
   if (mice->intdrv)
     {
-      enter_priv_on(); /* The mouse may not be a resource everyone can open. */
       mice->fd = DOS_SYSCALL (open (mice->dev, O_RDWR | O_NONBLOCK));
-      leave_priv_setting();
       if (mice->fd > 0)
 	add_to_io_select(mice->fd, mice->add_to_io_select);
     }

@@ -309,7 +309,6 @@ typedef struct vesamode_type_struct {
        unsigned int hogthreshold;
 
        int mem_size, xms_size, ems_size, dpmi, max_umb;
-       int secure;
        unsigned int ems_frame;
        char must_spare_hardware_ram;
        char hardware_pages[ ((HARDWARE_RAM_STOP-HARDWARE_RAM_START) >> 12)+1 ];
@@ -371,7 +370,7 @@ typedef struct vesamode_type_struct {
        int joy_latency;		/* delay between nonblocking linux joystick reads */
 
        int cli_timeout;		/* cli timeout hack */
-       int pic_force_count;     /* pic watchdog reschedule hack */      
+       int pic_watchdog;        /* pic watchdog reschedule hack */      
      }
 
 config_t;
@@ -549,6 +548,8 @@ EXTERN void signal_init(void);
 EXTERN void device_init(void);
 EXTERN void hardware_setup(void);
 EXTERN void memory_init(void);
+EXTERN void map_hardware_ram(void);
+EXTERN void map_video_bios(void);
 EXTERN void timer_interrupt_init(void);
 EXTERN void keyboard_flags_init(void);
 EXTERN void video_config_init(void);

@@ -124,6 +124,7 @@ void HMA_init(void)
 
   /* attach regions: page 0 (idt) at address 0 and code space.
    */
+  memcpy(shm_wrap, 0, 0x10000);
   ipc_return = mmap_mapping(MAPPING_HMA | MAPPING_SHM, (void *)0, HMASIZE, 0, shm_wrap);
   if ((int)ipc_return == -1) {
     E_printf("HMA: Mapping to 0 unsuccessful: %s\n", strerror(errno));

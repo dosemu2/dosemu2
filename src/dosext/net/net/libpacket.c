@@ -76,7 +76,7 @@ OpenNetworkType(unsigned short netid)
 	else
 		proto = htons(netid);
 
-	if (!config.secure) enter_priv_on();
+	enter_priv_on();
 
 #ifdef AF_PACKET
 	if (running_kversion >= 2001000)
@@ -86,7 +86,7 @@ OpenNetworkType(unsigned short netid)
 #else
 	s = socket(AF_INET, SOCK_PACKET, proto);
 #endif
-	if (!config.secure) leave_priv_setting();
+	leave_priv_setting();
 	if (s < 0) {
 		if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");
 		return -1;
@@ -101,7 +101,7 @@ OpenBroadcastNetworkType()
 {
 	PRIV_SAVE_AREA
 	int s;
-	if (!config.secure) enter_priv_on();
+	enter_priv_on();
 #ifdef AF_PACKET
 	if (running_kversion >= 2001000)
 		s = socket(AF_PACKET, SOCK_PACKET, 
@@ -111,7 +111,7 @@ OpenBroadcastNetworkType()
 #else
 	s = socket(AF_INET, SOCK_PACKET, htons(DOSNET_BROADCAST_TYPE));  
 #endif
-	if (!config.secure) leave_priv_setting();
+	leave_priv_setting();
 	if (s < 0) {
 		pd_printf("OpenBroadcast: could not open socket\n");
 		if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");

@@ -38,7 +38,7 @@
 #include "memory.h"
 #include "video.h" 
 #include "terminal.h"
-#include "slang.h"
+#include <slang.h>
 
 /* The interpretation of the DOS attributes depend upon if the adapter is 
  * color or not.

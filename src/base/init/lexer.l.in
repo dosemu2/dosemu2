@@ -354,7 +354,6 @@ bootA			RETURN(BOOTA);
 bootC			RETURN(BOOTC);
 xms			RETURN(L_XMS);
 umb_max			RETURN(L_UMB);
-secure			RETURN(L_SECURE);
 ems			RETURN(L_EMS);
 dpmi			RETURN(L_DPMI);
 dosmem			RETURN(DOSMEM);
@@ -668,7 +667,7 @@ target			RETURN(TARGET);
 
 	/* hacks */
 cli_timeout		RETURN(CLI_TIMEOUT);
-pic_force_count		RETURN(PIC_FORCE_COUNT);
+pic_watchdog		RETURN(PIC_WATCHDOG);
 
 	/* strings */
 
@@ -737,7 +736,6 @@ int include_lines[MAX_INCLUDE_DEPTH] = {0};
 
 static void enter_includefile(char * fname)
 {
-  PRIV_SAVE_AREA
   FILE * new_yyin;
   char fname_[256];
   if ( include_stack_ptr >= MAX_INCLUDE_DEPTH ) {
@@ -762,10 +760,7 @@ static void enter_includefile(char * fname)
       fname=fname_;
     }
   }
-  if (get_config_variable("c_system")) enter_priv_on();
-  else enter_priv_off();
   new_yyin = fopen( fname, "r" );
-  leave_priv_setting();
   if ( ! new_yyin ) {
     yyerror("cannot open includefile %s", fname);
     return;

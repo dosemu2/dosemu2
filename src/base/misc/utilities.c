@@ -635,7 +635,9 @@ int is_console(int fd)
    * of an VT. ... simple;-)
    */
   int nextvt;
+  struct vt_mode vtm;
   if( ioctl( fd, VT_OPENQRY, &nextvt ) ) return 0;
+  if( ioctl( fd, VT_GETMODE, &vtm ) ) return 0;
   return 1;
 }
 

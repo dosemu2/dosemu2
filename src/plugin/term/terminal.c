@@ -38,7 +38,7 @@
 #include "memory.h"
 #include "video.h" 
 #include "keyboard.h"
-#include "slang.h"
+#include <slang.h>
 #include "env_term.h"
 #include "translate.h"
 

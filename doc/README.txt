@@ -1068,11 +1068,11 @@ is,
        /etc/dosemu.users to forbid some (or all) users execution of a
        suid root running dosemu (they may use a non-suid root copy of the
        binary though) or let them use DOSEMU though "sudo". DOSEMU now
-       drops it root privileges just before booting; however there may
-       still be security problems in the initialization code, and by
-       making DOSEMU suid-root you can give users direct access to
-       resources they don't normally have access too, such as selected
-       I/O ports, hardware IRQs and hardware RAM.
+       drops it root privileges before booting; however there may still
+       be security problems in the initialization code, and by making
+       DOSEMU suid-root you can give users direct access to resources
+       they don't normally have access too, such as selected I/O ports,
+       hardware IRQs and hardware RAM.
        If DOSEMU is invoked via "sudo" then it will automatically switch
        to the user who invoked "sudo". An example /etc/sudoers entry is
        this:
@@ -1245,29 +1245,26 @@ is,
 6. Running dosemu as a normal user
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on June 16, 1997.
+   on Jan 21, 2003.
 
-    1. You have to copy 'dosemu.bin to 'dosemu.suidbin' and make it suid
-       root, if you want a fullfeature DOSEMU. But as of dosemu-0.97.10,
-       you need not if you don't access to ports, external DOSish
-       hardware and won't use the console other then in normal terminal
-       mode
-    2. For older DOSEMU system wide installations, you can restrict
-       access to the suid root binary via /etc/dosemu.user. by specifying
-       `nosuidroot' for a given user (or all).
-    3. Have the users that are allow to execute dosemu in
-       /etc/dosemu.user. The format is:
+    1. In the default setup, DOSEMU does not have root privileges. This
+       means it will not have direct access to ports, external DOSish
+       hardware and won't use the console other than in normal terminal
+       mode, but is fully capable to do anything else. See the previous
+       section on how to enable privileged operation if you really need
+       to.
+    2. If a user needs access to privileged resources other than console
+       graphics, then you need to explicitly allow the user to do so by
+       editing the file /etc/dosemu.users (or /etc/dosemu/dosemu.users).
+       The format is:
 
-         loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
+         loginname [ c_strict ] [ classes ...] [ other ]
 
-       For details see Section 2. For a first time easy installation you
-       may set it as follows (but don't forget to enhance it later !!!):
+       For example, to allow joeuser full access you can use
 
-         root c_all
-         lermen c_all
-         all nosuidroot c_all
+         joeuser c_all
 
-    4. The msdos partitions, that you want to be accessable through
+    3. The msdos partitions, that you want to be accessable through
        Section 5 should be mounted with proper permissions. I recommend
        doing this via 'group's, not via user ownership. Given you have a
        group 'dosemu' for this and want to give the user 'lermen' access,
@@ -1301,7 +1298,7 @@ is,
 
        Of course normal lredir'ed unix directories should have the same
        permissions.
-    5. Make sure you have read/write permissions of the devices you
+    4. Make sure you have read/write permissions of the devices you
        configured (in /etc/dosemu.conf) for serial and mouse.
 
    Starting with dosemu-0.66.1.4 there should be no reason against

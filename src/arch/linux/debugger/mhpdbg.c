@@ -27,12 +27,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#if 0
-#include <sys/socket.h>
-#include <netinet/in.h>
-#endif
 #include "bitops.h"
-
 #include "config.h"
 #include "emu.h"
 #include "cpu.h"
@@ -43,7 +38,6 @@
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
-#include "priv.h"
 
 extern void handle_signals(void);
 
@@ -117,16 +111,13 @@ static  char pipename_in[128], pipename_out[128];
 
 void mhp_close(void)
 {
-   PRIV_SAVE_AREA
    if (mhpdbg.fdin == -1) return;
    if (mhpdbg.active) {
      mhp_putc(1); /* tell debugger terminal to also quit */
      mhp_send();
    }
-   enter_priv_on();
    unlink(pipename_in);
    unlink(pipename_out);   
-   leave_priv_setting();
    mhpdbg.fdin = mhpdbg.fdout = -1;
    mhpdbg.active = 0;
    vm86s.vm86plus.vm86dbg_active = 0;
@@ -152,7 +143,6 @@ int vmhp_log_intercept(int flg, const char *fmt, va_list args)
 
 static void mhp_init(void)
 {
-  PRIV_SAVE_AREA
   int retval;
 
   mhpdbg.fdin = mhpdbg.fdout = -1;
@@ -164,25 +154,15 @@ static void mhp_init(void)
   memset(&vm86s.vm86plus.vm86dbg_intxxtab, 0, sizeof(vm86s.vm86plus.vm86dbg_intxxtab));
 
   sprintf(pipename_in, "%sdbgin.%d", TMPFILE, getpid());
-  enter_priv_on();
   retval = mkfifo(pipename_in, S_IFIFO | 0600);
-  leave_priv_setting();
   if (!retval) {
     sprintf(pipename_out, "%sdbgout.%d", TMPFILE, getpid());
-    enter_priv_on();
-    chown(pipename_in, get_orig_uid(), get_orig_gid());
     retval = mkfifo(pipename_out, S_IFIFO | 0600);
-    leave_priv_setting();
     if (!retval) {
-      enter_priv_on();
-      chown(pipename_out, get_orig_uid(), get_orig_gid());
       mhpdbg.fdin = open(pipename_in, O_RDONLY | O_NONBLOCK);
-      leave_priv_setting();
       if (mhpdbg.fdin != -1) {
         /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
-        enter_priv_on();
         mhpdbg.fdout = open(pipename_out, O_RDWR | O_NONBLOCK);
-        leave_priv_setting();
         if (mhpdbg.fdout != -1) {
           add_to_io_select(mhpdbg.fdin,0);
         }
@@ -197,15 +177,10 @@ static void mhp_init(void)
     fprintf(stderr, "Can't create debugger pipes, dosdebug not available\n");
   }
   if (mhpdbg.fdin == -1) {
-    enter_priv_on();
     unlink(pipename_in);
     unlink(pipename_out);
-    leave_priv_setting();
   }
   else {
-    uid_t owner=get_orig_uid();
-    fchown(mhpdbg.fdin,owner,-1);
-    fchown(mhpdbg.fdout,owner,-1);
     if (dosdebug_flags) {
       /* don't fiddle with select, just poll until the terminal
        * comes up to send the first input

@@ -1,5 +1,13 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(src/base/misc/dosio.c)
+AC_INIT(DOSEMU, `cat VERSION`, http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse)
+AC_CONFIG_SRCDIR(src/base/misc/dosio.c)
+AC_PREREQ(2.52)
+
+# first check if we are called from default-configure and if not,
+# execute that to parse compiletime settings
+if test -z "$DOSEMU_DEFAULT_CONFIGURE" ; then
+  exec ./default-configure $@
+fi
 
 AC_CONFIG_HEADER(src/include/config.h)
 
@@ -230,7 +238,7 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
   dnl --- now that we've found it, check the link
   AC_CHECK_LIB(slang, SLtt_get_terminfo,
                 [SLANGLIB="$SLANGLIB -lslang -lm"],
-                [AC_MSG_ERROR(unable to compile.  check config.log)], -lm)
+                [AC_MSG_ERROR(unable to compile.  install slang-devel or check config.log)], -lm)
 )
 
 AC_SUBST(SLANGLIB)
@@ -699,3 +707,178 @@ fi
 echo ""
 echo "Configure finished. Do 'make' to compile Dosemu."
 echo ""
+
+dnl autoheader stuff
+AH_TOP([
+/* 
+ * (C) Copyright 1992, ..., 2003 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/*
+ * BIG FAT WARNING:
+ *
+ * These #defines come from configure.ac.
+ * If you edit config.h.in, your efforts will become useless the next 
+ * time you run autoheader or autoreconf.
+ *
+ * All lines within AH_TOP and AH_BOTTOM are copied unchanged into 
+ * config.h.in. Read the GNU autoconf documentation to learn more 
+ * xabout configure & friends.
+ *
+ */
+
+#ifndef CONFIG_H
+#define CONFIG_H 1
+
+#define VERSION_OF(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+#define IS_DEVEL_RELEASE (DOSEMU_VERSION_CODE && 65536)
+
+#ifndef __ASM__
+#include "extern.h"
+
+/* not overridable file/path constants */
+#define  DOSEMU_RC          ".dosemurc"       /* per user config file */
+#define  OLD_DOS_RC         ".dosrc"          /* old, obsolete user config file */
+#define  LOCALDIR_BASE_NAME ".dosemu"         /* base directory in $HOME */
+#define  DOSEMU_CONF        "dosemu.conf"     /* standard configuration file */
+#define  DOSEMU_USERS       "dosemu.users"    /* access right configuration file */
+#define  DEFAULT_CONFIG_SCRIPT "builtin"      /* main configuration script */
+#define  DOSEMU_LOGLEVEL    "dosemu.loglevel" /* logging configuration file */
+#define  ALTERNATE_ETC      "/etc/dosemu"     /* alternate config. directory */
+#define  DOSEMU_MIDI        "dosemu-midi"     /* fifo for midi daemon */
+
+EXTERN char *config_file_path INIT("/etc/" DOSEMU_CONF);
+EXTERN char *config_script_name INIT(DEFAULT_CONFIG_SCRIPT);
+EXTERN char *config_script_path INIT(0);
+EXTERN char *dosemu_users_file_path INIT("/etc/" DOSEMU_USERS);
+EXTERN char *dosemu_loglevel_file_path INIT("/etc/" DOSEMU_LOGLEVEL);
+EXTERN char *dosemu_tmpfile_path INIT("~/" LOCALDIR_BASE_NAME "/run/dosemu.");
+EXTERN char *dosemu_tmpdir_path INIT("~/" LOCALDIR_BASE_NAME "/tmp");
+EXTERN char *dosemu_tmpdir_process_path INIT("~/" LOCALDIR_BASE_NAME "/tmp/<pid>");
+EXTERN char *dosemu_rundir_path INIT("~/" LOCALDIR_BASE_NAME "/run");
+EXTERN char *dosemu_localdir_path INIT("~/" LOCALDIR_BASE_NAME);
+
+#define config_xstr(s) config_str(s)
+#define config_str(s) #s
+
+EXTERN char *dosemu_lib_dir_path INIT(config_xstr(DOSEMULIB_DEFAULT));
+EXTERN char *dosemu_hdimage_dir_path INIT(config_xstr(DOSEMUHDIMAGE_DEFAULT));
+EXTERN char *keymap_load_base_path INIT(config_xstr(DOSEMULIB_DEFAULT) "/");
+EXTERN char *keymap_dir_path INIT("keymap/");
+EXTERN char *owner_tty_locks INIT("uucp");
+EXTERN char *tty_locks_dir_path INIT("/var/lock");
+EXTERN char *tty_locks_name_path INIT("LCK..");
+EXTERN char *dexe_load_path INIT(config_xstr(DOSEMUHDIMAGE_DEFAULT));
+EXTERN char *ipx_dos_ini_path INIT(ALTERNATE_ETC "/dos.ini");
+EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
+
+#define    CONFIG_FILE           config_file_path
+#define    DOSEMU_USERS_FILE     dosemu_users_file_path
+#define    DOSEMU_LOGLEVEL_FILE  dosemu_loglevel_file_path
+#define    TMPFILE               dosemu_tmpfile_path
+#define    TMPDIR                dosemu_tmpdir_path
+#define    TMPDIR_PROCESS        dosemu_tmpdir_process_path
+#define    RUNDIR                dosemu_rundir_path
+#define    LOCALDIR              dosemu_localdir_path
+#define    DOSEMU_LIB_DIR        dosemu_lib_dir_path
+#define    DOSEMU_HDIMAGE_DIR    dosemu_hdimage_dir_path
+#define    KEYMAP_LOAD_BASE_PATH keymap_load_base_path
+#define    KEYMAP_DIR            keymap_dir_path
+#define    OWNER_LOCKS           owner_tty_locks
+#define    PATH_LOCKD            tty_locks_dir_path
+#define    NAME_LOCKF            tty_locks_name_path
+#define    DEXE_LOAD_PATH        dexe_load_path
+#define    IPX_DOS_INI_PATH      ipx_dos_ini_path
+#define    DOSEMU_MAP_PATH       dosemu_map_file_name
+#define    DOSEMU_MIDI_PATH      dosemu_midi_path
+
+#endif /* not __ASM__ */
+])
+
+AH_TEMPLATE([CONFIG_HOST],
+[ Define the host for which Dosemu is configured ])
+
+AH_TEMPLATE([CONFIG_TIME],
+[ Define the configure time ])
+
+AH_TEMPLATE([VERSION],
+[ Define the Dosemu version ])
+
+AH_TEMPLATE([DOSEMU_VERSION_CODE],
+[ Define the Dosemu version code ])
+
+AH_TEMPLATE([VERDATE],
+[ Define the Dosemu version release date ])
+
+AH_TEMPLATE([SUBLEVEL],
+[ Define the Dosemu sublevel ])
+
+AH_TEMPLATE([PATCHLEVEL],
+[ Define the Dosemu patchlevel ])
+
+AH_TEMPLATE([VERSTR],
+[ Define the version string ])
+
+AH_TEMPLATE([EMUVER],
+[ Define the EMU version ])
+
+AH_TEMPLATE([GASCODE16],
+[ Define the stepping of gas code16 functionality ])
+
+AH_TEMPLATE([__FUNCTION__],
+[Define if the compiler doesn't have __FUNCTION__ macro
+ This is very gcc specific (and very useful!). It is defined
+ as "" if the compiler doesn't have it. ])
+
+AH_TEMPLATE([__FILE__],
+[ Define if the compiler doesn't have __FILE__ macro.
+Most compilers have this one, but just to be sure...])
+
+AH_TEMPLATE([__LINE__],
+[ Define if the compiler doesn't have __LINE__ macro.
+Most compilers have this one, but just to be sure...])
+
+AH_TEMPLATE([WANT_WINDOWS],
+[ DPMI test windows ])
+
+AH_TEMPLATE([USE_SVGALIB],
+[ DEFINE this, if you want svgalib support ])
+
+AH_TEMPLATE([USE_PTHREADS],
+[ DEFINE this, if you want pthreads support ])
+
+AH_TEMPLATE([USE_MHPDBG],
+[ DEFINE this, if you want the dosdebugger (mhpdbg) ])
+
+AH_TEMPLATE([X_SUPPORT])
+AH_TEMPLATE([X2_SUPPORT])
+AH_TEMPLATE([X_GRAPHICS],
+[ Define these for X support ])
+
+AH_TEMPLATE([USE_SBEMU],
+[ This is DEFINED when SB emulation is required. Just changing this is not
+  enough - you must reconfigure. ])
+
+AH_TEMPLATE([USE_ULTRA],
+[This is DEFINED when the Ultra libraries are available ])
+
+AH_TEMPLATE([HAVE_MITSHM],
+[ Define this if you want to use MITSHM ])
+
+AH_TEMPLATE([ASPI_SUPPORT],
+[ Define this for ASPI (generic SCSI) support ])
+
+AH_TEMPLATE([X86_EMULATOR],
+[ Define this to use the X86 CPU emulator ])
+
+AH_BOTTOM([
+#ifndef __ASM__
+EXTERN char *dosemu_map_file_name INIT(config_xstr(DOSEMULIB_DEFAULT) "/dosemu-" VERSTR ".map");
+#endif
+
+#include "plugin_config.h"
+
+#endif /* CONFIG_H */
+])

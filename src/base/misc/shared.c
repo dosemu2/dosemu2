@@ -33,7 +33,6 @@
 #include "config.h"
 #include "emu.h"
 #include "shared.h"
-#include "priv.h"
 #include "mapping.h"
 
 
@@ -49,7 +48,6 @@ static char devname_[30];
  */
 void shared_memory_init(void)
 {
-  PRIV_SAVE_AREA
   int        pid;
   char info[81];
   int tmpfile_fd;
@@ -91,9 +89,7 @@ void shared_memory_init(void)
   pid = getpid();
   sprintf(devname_, "%s%d", TMPFILE, pid);
 
-  enter_priv_off();
   tmpfile_fd = open(devname_, O_WRONLY|O_CREAT, 0600);
-  leave_priv_setting();
   if (tmpfile_fd < 1) {
     E_printf("SHM: Unable to open %s%d for sending client data: %s\n",TMPFILE, pid, strerror(errno));
   }
@@ -106,10 +102,6 @@ void shared_memory_init(void)
 
 void shared_memory_exit(void)
 {
-
-  PRIV_SAVE_AREA
-  enter_priv_on();
   unlink(devname_);
-  leave_priv_setting();
   close_mapping(MAPPING_SHARED);
 }

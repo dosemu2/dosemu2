@@ -20,7 +20,7 @@
  * DANG_END_CHANGELOG
  */
 
-#include "slang.h" 
+#include <slang.h>
 #include "dosemu_debug.h"
 #include "emu.h"
 

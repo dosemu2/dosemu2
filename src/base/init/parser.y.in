@@ -89,7 +89,6 @@ static int c_fdisks = 0;
 
 int dexe_running = 0;
 static int dexe_forbid_disk = 1;
-static int dexe_secure = 1;
 char own_hostname[128];
 
 extern int no_local_video;
@@ -141,7 +140,6 @@ static void stop_video(void);
 static void set_vesamodes(int width, int height, int color_bits);
 static int detect_vbios_seg(void);
 static int detect_vbios_size(void);
-static void start_ttylocks(void);
 static void stop_ttylocks(void);
 static void start_serial(void);
 static void stop_serial(void);
@@ -181,25 +179,13 @@ static void set_joy_device(char *devstring);
 #define IFCLASS(m) if (is_in_allowed_classes(m))
 
 #define CL_ALL			-1
-#define CL_NICE		    0x100
 #define CL_VAR		    0x200
-#define CL_FILEEXT	    0x400
-#define CL_FLOPPY	    0x800
-#define CL_BOOT		   0x1000
 #define CL_VPORT	   0x2000
-#define CL_SECURE	   0x4000
-#define CL_DPMI		   0x8000
-#define CL_VIDEO	  0x10000
 #define CL_PORT		  0x20000
-#define CL_DISK		  0x40000
-#define CL_X		  0x80000
-#define CL_SOUND	 0x100000
+#define CL_PCI		  0x40000
 #define CL_IRQ		 0x200000
-#define CL_DEXE		 0x400000
-#define CL_PRINTER	 0x800000
 #define CL_HARDRAM	0x1000000
-#define CL_SHELL	0x2000000
-#define CL_JOYSTICK	0x4000000
+#define CL_NET		0x2000000
 
 static int is_in_allowed_classes(int mask);
 
@@ -319,7 +305,7 @@ extern void yyrestart(FILE *input_file);
 	/* joystick */
 %token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
 	/* Hacks */
-%token CLI_TIMEOUT PIC_FORCE_COUNT
+%token CLI_TIMEOUT PIC_WATCHDOG
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -338,7 +324,7 @@ optdelim	: ';'
 		| optdelim ';'
 		;
 
-line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
+line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		| DEFINE STRING		{ IFCLASS(CL_VAR){ define_config_variable($2);} free($2); }
 		| UNDEF STRING		{ IFCLASS(CL_VAR){ undefine_config_variable($2);} free($2); }
 		| IFSTATEMENT '(' expression ')' {
@@ -371,13 +357,8 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			free($4); free($6); free($8);
 		}
 		| SHELL '(' strarglist ')' {
-			IFCLASS(CL_SHELL) {
-				char *s = run_shell($3);
-				if (s) free(s);
-			}
-			else {
-				yyerror("not in allowed class to execute SHELL(%s)",$3);
-			}
+			char *s = run_shell($3);
+			if (s) free(s);
 			free($3);
 		}
 		| ENTER_USER_SPACE { enter_user_scope($1); }
@@ -419,15 +400,15 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| WARN strarglist	{ c_printf("CONF: %s\n", $2); free($2); }
  		| EMUSYS string_expr
-		    { IFCLASS(CL_FILEEXT){
+		    {
 		    config.emusys = $2;
 		    c_printf("CONF: config.emusys = '%s'\n", $2);
-		    }}
+		    }
 		| EMUSYS '{' string_expr '}'
-		    { IFCLASS(CL_FILEEXT){
+		    {
 		    config.emusys = $3;
 		    c_printf("CONF: config.emusys = '%s'\n", $3);
-		    }}
+		    }
 		| DOSEMUMAP string_expr
 		    {
 #ifdef USE_MHPDBG
@@ -443,20 +424,20 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    c_printf("CONF: mapping driver = '%s'\n", $2);
 		    }
                 | EMUINI string_expr
-                    { IFCLASS(CL_FILEEXT){
+                    {
                     config.emuini = $2;
                     c_printf("CONF: config.emuini = '%s'\n", $2);
-                    }}
+                    }
                 | EMUINI '{' string_expr '}'
-                    { IFCLASS(CL_FILEEXT){
+                    {
                     config.emuini = $3;
                     c_printf("CONF: config.emuini = '%s'\n", $3);
-		    }}
+		    }
 		| FASTFLOPPY floppy_bool
-			{ IFCLASS(CL_FLOPPY){ 
+			{
 			config.fastfloppy = ($2!=0);
 			c_printf("CONF: fastfloppy = %d\n", config.fastfloppy);
-			}}
+			}
 		| CPU expression
 			{
 			extern int cpu_override(int);
@@ -515,25 +496,23 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    else
 			c_printf("CONF: Ignoring 'rdtsc' statement\n");
 		    }
-		| PCI bool	    { config.pci = ($2!=0); }
+		| PCI bool 
+		    { 
+		      IFCLASS(CL_PCI);
+		      config.pci = ($2!=0); 
+		    }
 		| BOOTA
-                    { IFCLASS(CL_BOOT){
-		      if (priv_lvl)
-			yyerror("bootA is illegal in user config file");
+                    {
 		      config.hdiskboot = 0;
-		    }}
+		    }
 		| BOOTC
-                    { IFCLASS(CL_BOOT){
-		      if (priv_lvl)
-			yyerror("bootC is illegal in user config file");
+                    {
 		      config.hdiskboot = 1;
-		    }}
+		    }
 		| BOOTB
-                    { IFCLASS(CL_BOOT){
-		      if (priv_lvl)
-			yyerror("bootB is illegal in user config file\n");
+                    {
 		      config.hdiskboot = 2;
-		    }}
+		    }
 		| TIMINT bool
 		    {
 		    config.timers = ($2!=0);
@@ -597,18 +576,11 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    config.max_umb = ($2!=0);
 		    if ($2 > 0) c_printf("CONF: maximize umb's %s\n", ($2) ? "on" : "off");
 		    }
-		| L_SECURE bool
-		    { IFCLASS(CL_SECURE){
-		    if (priv_lvl && config.secure && ($2==0))
-			yyerror("secure option is illegal in user config file");
-		    config.secure = ($2!=0);
-		    if (config.secure > 0) c_printf("CONF: security %s\n", ($2) ? "on" : "off");
-		    }}
 		| L_DPMI int_bool
-		    { IFCLASS(CL_DPMI){
+		    {
 		    if ($2>=0) config.dpmi = $2;
 		    c_printf("CONF: DPMI-Server %s\n", ($2) ? "on" : "off");
-		    }}
+		    }
 		| DOSMEM int_bool	{ if ($2>=0) config.mem_size = $2; }
 		| MATHCO bool		{ config.mathco = ($2!=0); }
 		| IPXSUPPORT bool
@@ -618,8 +590,11 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| PKTDRIVER bool
 		    {
-			if ((config.pktdrv = ($2!=0)))
-				c_printf("CONF: Packet Driver enabled.\n");
+		      if (config.vnet == 2 || $2 == 0 || is_in_allowed_classes(CL_NET)) {
+			config.pktdrv = ($2!=0);
+			c_printf("CONF: Packet Driver %s.\n", 
+				($2) ? "enabled" : "disabled");
+		      }
 		    }
 		| NETDEV string_expr	{ config.netdev = $2; }
 		| NOVELLHACK bool	{ config.pktflags = ($2!=0); }
@@ -639,7 +614,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    config.speaker = $2;
 		    }
 		| VIDEO
-		    { IFCLASS(CL_VIDEO) start_video(); }
+		    { start_video(); }
 		  '{' video_flags '}'
 		    { stop_video(); }
 		| CHARSET CHARSET_TYPE	{ config.term_charset = $2; }
@@ -658,7 +633,6 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		  '{' mouse_flags '}'
 		    { stop_mouse(); }
                 | TTYLOCKS
-                    { start_ttylocks(); }
                   '{' ttylocks_flags '}'
                     { stop_ttylocks(); }
 		| SERIAL
@@ -687,19 +661,19 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		  '{' port_flags '}'
 		| TRACE PORTS '{' trace_port_flags '}'
 		| DISK
-		    { IFCLASS(CL_DISK) start_disk(); }
+		    { start_disk(); }
 		  '{' disk_flags '}'
 		    { stop_disk(DISK); }
 		| BOOTDISK
-		    { IFCLASS(CL_BOOT) start_bootdisk(); }
+		    { start_bootdisk(); }
 		  '{' disk_flags '}'
 		    { stop_disk(BOOTDISK); }
 		| L_FLOPPY
-		    { IFCLASS(CL_FLOPPY) start_floppy(); }
+		    { start_floppy(); }
 		  '{' disk_flags '}'
 		    { stop_disk(L_FLOPPY); }
                 | CDROM '{' string_expr '}'
-                    { IFCLASS(CL_DISK){
+                    {
 		    static int which = 0;
 		    if (which >= 3) {
 			c_printf("CONF: too many cdrom drives defined\n");
@@ -710,9 +684,9 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			c_printf("CONF: cdrom MSCD000%d on %s\n", which+1 ,$3);
 			which++;
 		    }
-		    }}
+		    }
                 | ASPI '{' string_expr DEVICETYPE string_expr TARGET expression '}'
-                    { IFCLASS(CL_DISK){
+                    {
 #ifdef ASPI_SUPPORT
 		    extern char *aspi_add_device(char *name, char *devtype, int);
 		    char *s = aspi_add_device($3, $5, $7);
@@ -724,16 +698,16 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 #endif
 		    free($3);
 		    free($5);
-		    }}
+		    }
 		| PRINTER
-		    { IFCLASS(CL_PRINTER) start_printer(); }
+		    { start_printer(); }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
-		| L_X { IFCLASS(CL_X); } '{' x_flags '}'
+		| L_X '{' x_flags '}'
 		| L_SOUND bool	{ if (! $2) config.sound = $2; }
-                | L_SOUND { IFCLASS(CL_SOUND); config.sound = 1; } '{' sound_flags '}'
+                | L_SOUND { config.sound = 1; } '{' sound_flags '}'
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = ""; } }
-                | L_JOYSTICK { IFCLASS(CL_JOYSTICK); } '{' joystick_flags '}'
+                | L_JOYSTICK '{' joystick_flags '}'
 		| SILLYINT
                     { IFCLASS(CL_IRQ) config.sillyint=0; }
                   '{' sillyint_flags '}'
@@ -743,7 +717,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		        c_printf("CONF: IRQ %d for irqpassing\n", $2);
 		      }
 		    }
-		| DEXE { IFCLASS(CL_DEXE); } '{' dexeflags '}'
+		| DEXE '{' dexeflags '}'
 		| HARDWARE_RAM
                     { IFCLASS(CL_HARDRAM);
 		    if (priv_lvl)
@@ -756,8 +730,8 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    }
 		| CLI_TIMEOUT int_bool
 		    { config.cli_timeout = $2; }
-		| PIC_FORCE_COUNT int_bool
-		    { config.pic_force_count = $2; }
+		| PIC_WATCHDOG int_bool
+		    { config.pic_watchdog = $2; }
 		| STRING
 		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
@@ -938,13 +912,7 @@ string_expr:	STRING {S_VAL($$) = $1;}
 			S_VAL($$) = s;
 		}
 		| SHELL '(' strarglist ')' {
-			IFCLASS(CL_SHELL) {
-				S_VAL($$) = run_shell($3);
-			}
-			else {
-				S_VAL($$) = strdup("");
-				yyerror("not in allowed class to execute SHELL(%s)",$3);
-			}
+			S_VAL($$) = run_shell($3);
 			free($3);
 		}
 		| variable_content {ALL($$) = ALL($1);}
@@ -1030,7 +998,6 @@ dexeflags	: dexeflag
 		;
 
 dexeflag	: ALLOWDISK	{ if (!priv_lvl) dexe_forbid_disk = 0; }
-		| L_SECURE	{ dexe_secure = 1; }
 		| FORCEXDOS	{
 			char *env = getenv("DISPLAY");
 			if (env && env[0] && dexe_running) config.X = 1;
@@ -1361,8 +1328,6 @@ printer_flag	: COMMAND string_expr	{ pptr->prtcmd = $2; }
 
 optbootfile	: BOOTFILE string_expr
 		  {
-                  if (priv_lvl)
-                    yyerror("Can not use BOOTFILE in the user config file\n");
 		  if (dptr->boot_name != NULL)
 		    yyerror("Two names for a boot-image file or device given.");
 		  dptr->boot_name = $2;
@@ -1385,8 +1350,6 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		| OFFSET expression	{ dptr->header = $2; }
 		| DEVICE string_expr optbootfile
 		  {
-                  if (priv_lvl)
-                    yyerror("Can not use DISK/DEVICE in the user config file\n");
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
 		  dptr->dev_name = $2;
@@ -1416,8 +1379,6 @@ disk_flag	: READONLY		{ dptr->wantrdonly = 1; }
 		  }
 		| L_FLOPPY string_expr
 		  {
-                  if (priv_lvl)
-                    yyerror("Can not use DISK/FLOPPY in the user config file\n");
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a floppy-device given.");
 		  dptr->type = FLOPPY;
@@ -1722,7 +1683,7 @@ static void start_video(void)
   config.vbios_seg  = 0xc000;
   config.vbios_size = 0x10000;
   config.console_video = 0;
-  config.cardtype = CARD_VGA;
+  config.cardtype = CARD_NONE;
   config.chipset = PLAINVGA;
   config.mapped_bios = 0;
   config.graphics = 0;
@@ -1735,6 +1696,9 @@ static void start_video(void)
 
 static void stop_video(void)
 {
+  if (priv_lvl)
+    config.console_video = 0;
+
   if ((config.cardtype != CARD_VGA) || !config.console_video) {
     config.graphics = 0;
     config.vga = 0;
@@ -1793,14 +1757,6 @@ static int detect_vbios_size(void)
   detect_vbios();
   return auto_vbios_size;
 }
-
-        /* tty lock files */
-static void start_ttylocks(void)
-{
-  if (priv_lvl)
-    yyerror("Can not change lock file settings in user config file");
-}
-
 
 static void stop_ttylocks(void)
 {
@@ -1897,9 +1853,6 @@ static void stop_printer(void)
 
 static void start_bootdisk(void)
 {
-  if (priv_lvl)
-    yyerror("Can not change disk settings in user config file");
-
   if (config.bootdisk)           /* Already a bootdisk configured ? */
     yyerror("There is already a bootdisk configured");
       
@@ -1920,9 +1873,6 @@ static void start_bootdisk(void)
 
 static void start_floppy(void)
 {
-  if (priv_lvl)
-    yyerror("Can not change disk settings in user config file");
-
   if (c_fdisks >= MAX_FDISKS)
     {
     yyerror("There are too many floppy disks defined");
@@ -1966,23 +1916,23 @@ static void start_disk(void)
 }
 
 static void start_vnet(char *mode) {
+  if (strcmp(mode, "tap") == 0) {
+    config.vnet = 2;
+    return;
+  }
+  IFCLASS(CL_NET);
   if (strlen(mode) == 0)
     config.vnet = 0;
-  else if (strcasecmp(mode, "dosnet") == 0)
+  else if (strcmp(mode, "dosnet") == 0)
     config.vnet = 1;
-  else if (strcasecmp(mode, "TAP") == 0)
-    config.vnet = 2;
   else {
     error("Unknown vnet mode %s\n", mode);
     config.vnet = 0;
-  }
+  } 
 }
 
 static void do_part(char *dev)
 {
-  if (priv_lvl)
-    yyerror("Can not use DISK/PARTITION in the user config file\n");
-
   if (dptr->dev_name != NULL)
     yyerror("Two names for a partition given.");
   dptr->type = PARTITION;
@@ -2123,13 +2073,10 @@ static void keytable_stop(void)
 
 static void dump_keytables_to_file(char *name)
 {
-  PRIV_SAVE_AREA
   FILE * f;
   struct keytable_entry *kt = keytable_list;
 
-  enter_priv_off();
   f = fopen(name, "w");
-  leave_priv_setting();
   if (!f) {
     error("cannot create keytable file %s\n", name);
     exit(1);
@@ -2270,15 +2217,9 @@ static void move_dosemu_lib_dir(char *path)
 
 static FILE *open_dosemu_users(void)
 {
-  PRIV_SAVE_AREA
   FILE *fp;
-  static char *tx = "Cannot open %s, Please check installation via System Admin.\n";
-  enter_priv_off();
   fp = open_file(DOSEMU_USERS_FILE);
-  leave_priv_setting();
   if (fp) return fp;
-  fprintf(stderr, tx, DOSEMU_USERS_FILE);
-  fprintf(stdout, tx, DOSEMU_USERS_FILE);
   return 0;
 }
 
@@ -2362,15 +2303,11 @@ parse_dosemu_users(void)
    *  - global.conf includes $DOSEMU_CONF_DIR/dosemu.conf
    *    (which could be changed by the owner of global.conf).
    */
+
   if (!exists_file(DOSEMU_USERS_FILE)) {
     DOSEMU_USERS_FILE = ALTERNATE_ETC "/" DOSEMU_USERS;
     if (!exists_file(DOSEMU_USERS_FILE)) {
-      if (can_do_root_stuff && !under_root_login) {
-        static char *tx = "neither /etc nor " ALTERNATE_ETC " do contain " DOSEMU_USERS "\n";
-        fprintf(stderr, tx);
-        fprintf(stdout, tx);
-        exit(1);
-      } else {
+      if (!can_do_root_stuff || under_root_login) {
         /* simply ignore -- we're not suid-root */
         lax_user_checking();
         after_secure_check = 1;
@@ -2381,14 +2318,14 @@ parse_dosemu_users(void)
     setenv("DOSEMU_CONF_DIR", ALTERNATE_ETC, 1);
   }
   else setenv("DOSEMU_CONF_DIR", "/etc", 1);
-
+	
   /* we check for some vital global settings
    * which we need before proceeding
    */
   setenv("DOSEMU_LIB_DIR", xstr(DOSEMULIB_DEFAULT), 1);
+
   fp = open_dosemu_users();
-  if (!fp) exit(1);
-  while (fgets(buf, PBUFLEN, fp) != NULL) {
+  if (fp) while (fgets(buf, PBUFLEN, fp) != NULL) {
     int l = strlen(buf);
     if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
     ustr = strtok(buf, " \t\n=,;:");
@@ -2430,8 +2367,7 @@ parse_dosemu_users(void)
       }
     }
   }
-  fclose(fp);
-
+  if (fp) fclose(fp);
 
   /* get our own hostname and define it as 'h_hostname'
    * and in $DOSEMU_HOST
@@ -2477,7 +2413,19 @@ parse_dosemu_users(void)
   {
        int can_have_privsetup = 0;
        fp = open_dosemu_users();
-       if (fp) {
+       if (!fp) {
+	   if (!is_console(0)) {
+             fprintf(stderr, "Dropping root privileges: restricted user not on console.\n");
+	     priv_drop();
+	     lax_user_checking();
+             after_secure_check = 1;
+	     return;
+	   }
+	   userok = 1;
+	   have_vars = 1;
+	   define_config_variable("c_all");
+	   define_config_variable("restricted");
+       } else {
 	   for(userok=0; fgets(buf, PBUFLEN, fp) != NULL && !userok; ) {
 	     int l = strlen(buf);
 	     if (l && (buf[l-1] == '\n')) buf[l-1] = 0;
@@ -2493,19 +2441,22 @@ parse_dosemu_users(void)
 		   if (ustr[0] == '#') break;
 		   define_config_variable(ustr);
 		   have_vars = 1;
-                   if (!under_root_login && can_do_root_stuff && !strcmp(ustr,"nosuidroot")) {
-                     fprintf(stderr,
-                       "\nSorry, you are not allowed to run this suid root binary\n"
-                       "but you may run a non-suid root copy of it\n\n");
-                     exit(1);
-                   }
                    if (!strcmp(ustr,"private_setup")) {
                      can_have_privsetup = 1;
                    }
 		 }
 		 if (!have_vars) {
-		   if (uid) define_config_variable("c_normal");
-		   else define_config_variable("c_all");
+		   define_config_variable("c_all");
+		   if (uid) {
+		     if (!is_console(0)) {
+		       fprintf(stderr, "Dropping root privileges: restricted user not on console.\n");
+	     	       priv_drop();
+	     	       lax_user_checking();
+             	       after_secure_check = 1;
+		       return;
+	   	     }
+		     define_config_variable("restricted");
+		   }
 		   have_vars = 1;
 		 }
 	       }
@@ -2569,11 +2520,8 @@ char *commandline_statements=0;
 
 static int has_dexe_magic(char *name)
 {
-  PRIV_SAVE_AREA
   int fd, magic, ret;
-  enter_priv_off();
   fd = open(name, O_RDONLY);
-  leave_priv_setting();
   if (fd <0) return 0;
   ret = (read(fd, &magic, 4) == 4) && (magic == DEXE_MAGIC);
   close(fd);
@@ -2636,22 +2584,18 @@ static char *resolve_exec_path(char *dexename, char *ext)
 
 void prepare_dexe_load(char *name)
 {
-  PRIV_SAVE_AREA
   char *n, *cbuf;
   int fd, csize;
   struct image_header ihdr;
 
-  enter_priv_on(); /* we need search rights for 'stat' */
   n = resolve_exec_path(name, ".dexe");
   if (!n) {
     n = resolve_exec_path(name, 0);
     if (!n) {
-      leave_priv_setting();
       error("DEXE file not found or not executable\n");
       exit(1);
     }
   }
-  leave_priv_setting();
 
   /* now we extract the configuration file and the access flags */
   fd = open(n, O_RDONLY);
@@ -2729,8 +2673,6 @@ int parse_config(char *confname, char *dosrcname)
   /* If that doesn't exist we will default to CONFIG_FILE */
 
   { 
-    PRIV_SAVE_AREA
-
     char *name;
     int skip_dosrc = 0;
 
@@ -2767,9 +2709,7 @@ int parse_config(char *confname, char *dosrcname)
     do_parse(NULL, "built-in global.conf", "error in built-in global.conf");
     if (confname) {
       yy_vbuffer = NULL;
-      enter_priv_on();
       fd = open_file(confname);
-      leave_priv_setting();
       if (!fd) {
         if (!dexe_running) {
           fprintf(stderr, "Cannot open base config file %s, Aborting DOSEMU.\n",confname);
@@ -2820,8 +2760,6 @@ int parse_config(char *confname, char *dosrcname)
    */
 
   if (dexe_running) {
-    if (dexe_secure && get_orig_uid())
-      config.secure = 1;
     /* force a BootC,
      * regardless what ever was set in the config files
      */
@@ -2865,27 +2803,15 @@ struct config_classes {
 	int mask;
 } config_classes[] = {
 	{"c_all", CL_ALL},
-	{"c_normal", CL_ALL & (~(CL_SHELL | CL_VAR | CL_BOOT | CL_VPORT | CL_SECURE | CL_IRQ | CL_HARDRAM))},
-	{"c_fileext", CL_FILEEXT},
+	{"c_normal", CL_ALL & (~(CL_VAR | CL_VPORT | CL_IRQ | CL_HARDRAM | CL_PCI | CL_NET))},
 	{"c_var", CL_VAR},
 	{"c_system", CL_ALL},
-	{"c_nice", CL_NICE},
-	{"c_floppy", CL_FLOPPY},
-	{"c_boot", CL_BOOT},
-	{"c_secure", CL_SECURE},
 	{"c_vport", CL_VPORT},
-	{"c_dpmi", CL_DPMI},
-	{"c_video", CL_VIDEO},
 	{"c_port", CL_PORT},
-	{"c_disk", CL_DISK},
-	{"c_x", CL_X},
-	{"c_sound", CL_SOUND},
 	{"c_irq", CL_IRQ},
-	{"c_dexe", CL_DEXE},
-	{"c_printer", CL_PRINTER},
+	{"c_pci", CL_PCI},
 	{"c_hardram", CL_HARDRAM},
-	{"c_shell", CL_SHELL},
-	{"c_joystick", CL_JOYSTICK},
+	{"c_net", CL_NET},
 	{0,0}
 };
 

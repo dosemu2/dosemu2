@@ -28,7 +28,7 @@ for some of your users, just use the keyword `nosuidroot' in
 /etc/dosemu.users to forbid some (or all) users execution of
 a suid root running dosemu (they may use a non-suid root copy of
 the binary though) or let them use DOSEMU though "sudo".
-DOSEMU now drops it root privileges just before booting; however
+DOSEMU now drops it root privileges before booting; however
 there may still be security problems in the initialization code,
 and by making DOSEMU suid-root you can give users direct access to
 resources they don't normally have access too, such as selected I/O

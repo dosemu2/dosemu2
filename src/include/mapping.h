@@ -15,6 +15,15 @@
 #include <sys/mman.h>
 #include "extern.h"
 
+#ifndef PAGE_SIZE
+#define PAGE_SIZE	4096
+#endif
+#define EMM_PAGE_SIZE	(16*1024)
+
+#define Q__printf(f,cap,a...) ({\
+  Q_printf(f,decode_mapping_cap(cap),##a); \
+})
+
 /* used by(where): (e.g. MAPPING_<cfilename>, name of DOSEMU code part */
 #define MAPPING_ALL		0x00ffff
 #define MAPPING_PROBE		0
@@ -55,16 +64,13 @@ typedef void *realloc_mapping_type(int cap, void *addr, int oldsize, int newsize
 #define realloc_mapping (*mappingdriver.realloc)
 
 typedef void *mmap_mapping_type(int cap, void *target, int mapsize, int protect, void *source);
-#define mmap_mapping (*mappingdriver.mmap)
+void *mmap_mapping(int cap, void *target, int mapsize, int protect, void *source);
 
 typedef int munmap_mapping_type(int cap, void *addr, int mapsize);
 #define munmap_mapping (*mappingdriver.munmap)
 
-typedef int mprotect_mapping_type(int cap, void *addr, int mapsize, int protect);
-#define mprotect_mapping (*mappingdriver.mprotect)
-
-typedef void *mapscratch_mapping_type(int cap, void *target, int mapsize, int protect);
-#define mapscratch_mapping (*mappingdriver.mapscratch)
+int mprotect_mapping(int cap, void *addr, int mapsize, int protect);
+void *mapscratch_mapping(int cap, void *target, int mapsize, int protect);
 
 struct mappingdrivers {
   char *key;
@@ -76,10 +82,12 @@ struct mappingdrivers {
   realloc_mapping_type *realloc;
   mmap_mapping_type *mmap;
   munmap_mapping_type *munmap;
-  mapscratch_mapping_type *mapscratch;
-  mprotect_mapping_type *mprotect;
 };
 EXTERN struct mappingdrivers mappingdriver INIT({0});
 char *decode_mapping_cap(int cap);
+
+caddr_t libless_mmap(caddr_t addr, size_t len,
+                     int prot, int flags, int fd, off_t off);
+int libless_munmap(caddr_t addr, size_t len);
 
 #endif /* _MAPPING_H_ */

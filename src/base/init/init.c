@@ -219,7 +219,7 @@ void hardware_setup(void)
  * 
  * DANG_END_FUNCTION
  */
-static inline void map_video_bios(void)
+void map_video_bios(void)
 {
   extern int load_file(char *name, int foffset, char *mstart, int msize);
   uint32_t int_area[256];
@@ -277,12 +277,11 @@ static inline void map_video_bios(void)
  * 
  * DANG_END_FUNCTION
  */
-static inline void map_hardware_ram(void)
+void map_hardware_ram(void)
 {
   int i, j;
   unsigned int addr, size;
 
-  open_mapping(MAPPING_INIT_HWRAM);
   if (!config.must_spare_hardware_ram)
     return;
   if (!can_do_root_stuff) {
@@ -386,9 +385,6 @@ void memory_init(void)
   /* first_call is a truly awful hack to keep some of these procedures from
      being called twice.  It should be fixed sometime. */
 
-  map_video_bios();            /* map the video bios */
-  if (first_call)
-    map_hardware_ram();        /* map the direct hardware ram */
   map_custom_bios();           /* map the DOSEMU bios */
   setup_interrupts();          /* setup interrupts */
 
@@ -464,7 +460,7 @@ void device_init(void)
    
   if (!config.vga)
     config.vbios_post = 0;
- 
+
   video_config_init();
   if (config.console && (config.speaker == SPKR_EMULATED)) {
     register_speaker((void *)console_fd,
@@ -487,7 +483,6 @@ void low_mem_init(void)
 {
   char *result;
 
-  open_mapping(MAPPING_INIT_LOWRAM);
   g_printf ("DOS memory area being mapped in\n");
   result = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_SCRATCH, 0,
   		0x100000, PROT_EXEC | PROT_READ | PROT_WRITE, 0);
@@ -496,8 +491,6 @@ void low_mem_init(void)
       perror ("anonymous mmap");
       leavedos (1);
     }
-
-  HMA_init();
 }
 
 /*

@@ -382,12 +382,6 @@ int sda_ext_mode_off = 0x2e1;
 
 struct direct *dos_readdir(DIR *);
 
-#if DOSEMU
-#include "priv.h"
-
-
-#endif
-
 static int cds_drive(cds_t cds)
 {
   ptrdiff_t cds_offset = cds - cds_base;
@@ -796,23 +790,17 @@ init_drive(int dd, char *path, char *options)
 int
 mfs_redirector(void)
 {
-  PRIV_SAVE_AREA
   int dos_fs_redirect();
   int ret;
   sigset_t blockset, oldset;
 
   PS(MFS);
-  if (!enter_priv_off()) {
-    leave_priv_setting();
-    return 0;
-  }
 
   sigemptyset (&blockset);
   sigaddset(&blockset, SIGALRM);
   sigprocmask(SIG_BLOCK, &blockset, &oldset);
   ret = dos_fs_redirect(&REGS);
   sigprocmask(SIG_SETMASK, &oldset, NULL);
-  leave_priv_setting();
   PE(MFS);
 
   Debug0((dbg_fd, "Finished dos_fs_redirect\n"));
@@ -838,21 +826,15 @@ mfs_redirector(void)
 int
 mfs_inte6(void)
 {
-  PRIV_SAVE_AREA
   boolean_t dos_fs_dev();
   boolean_t result;
   sigset_t blockset, oldset;
 
-  if (!enter_priv_off()) {
-    leave_priv_setting();
-    return 0;
-  }
   sigemptyset (&blockset);
   sigaddset(&blockset, SIGALRM);
   sigprocmask(SIG_BLOCK, &blockset, &oldset);
   result = dos_fs_dev(&REGS);
   sigprocmask(SIG_SETMASK, &oldset, NULL);
-  leave_priv_setting();
   return (result);
 }
 
@@ -2771,7 +2753,6 @@ static void open_device(unsigned long devptr, char *fname, sft_t sft)
 static int
 dos_fs_redirect(state_t *state)
 {
-  PRIV_SAVE_AREA
   char *filename1;
   char *filename2;
   char *dta;
@@ -3539,12 +3520,6 @@ dos_fs_redirect(state_t *state)
       close(fd);
       SETWORD(&(state->eax), ACCESS_DENIED);
       return FALSE;
-    }
-
-    if (can_do_root_stuff) {
-      enter_priv_on();
-      fchown(fd, get_orig_uid(), get_orig_gid());
-      leave_priv_setting();
     }
 
     memcpy(sft_name(sft), fname, 8);

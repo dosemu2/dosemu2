@@ -1014,9 +1014,9 @@ unsigned long pic_newirr;
   pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];
   if(pic_icount<=pic_icount_od) pic_activate();
-  if(config.pic_force_count > 0) {
+  if(config.pic_watchdog > 0) {
     if(pic_icount && !pic_isr) {
-      if(++pic_wcount >= config.pic_force_count) {
+      if(++pic_wcount >= config.pic_watchdog) {
         error("PIC: force reschedule\n");
         pic_resched();
       }

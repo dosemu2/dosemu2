@@ -7,7 +7,7 @@ This section of the document by Hans,
 url="mailto:lermen@fgan.de"
 >&#60;lermen@fgan.de&#62;</ulink
 >. Last
-updated on June 16, 1997.
+updated on Jan 21, 2003.
 </para>
 
 <para>
@@ -16,50 +16,37 @@ updated on June 16, 1997.
 <listitem>
 
 <para>
- You have to copy 'dosemu.bin to 'dosemu.suidbin' and make it suid root,
-if you want a fullfeature DOSEMU.
-But as of dosemu-0.97.10, you need not if you don't access to ports,
-external DOSish hardware and won't use the console other then
-in normal terminal mode
-</para>
-</listitem>
-<listitem>
-
-<para>
-  For older DOSEMU system wide installations,
-you can restrict access to the suid root binary via /etc/dosemu.user.
-by specifying `nosuidroot' for a given user (or all).
+In the default setup, DOSEMU does not have root privileges. This means it
+will not have direct access to ports, external DOSish hardware and won't 
+use the console other than in normal terminal mode, but is fully capable
+to do anything else. See the previous section on how to enable privileged
+operation if you really need to.
 </para>
 </listitem>
 <listitem>
 <para>
- Have the users that are allow to execute dosemu in /etc/dosemu.user.
+If a user needs access to privileged resources other than console graphics,
+then you need to explicitly allow the user to do so by editing the file
+/etc/dosemu.users (or /etc/dosemu/dosemu.users).
 The format is:
 </para>
 
 <para>
 
 <screen>
-     loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
+     loginname [ c_strict ] [ classes ...] [ other ]
 </screen>
 
 </para>
 
 <para>
-For details see <xref linkend="config">. For a first 
-time <emphasis>easy</emphasis> installation you may set it as follows (but don't 
-forget to enhance it later !!!):
-</para>
-
-<para>
+For example, to allow joeuser full access you can use
 
 <screen>
-     root c_all
-     lermen c_all
-     all nosuidroot c_all
+     joeuser c_all
 </screen>
-
 </para>
+
 </listitem>
 <listitem>
 <para>

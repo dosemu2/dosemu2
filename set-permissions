@@ -5,10 +5,10 @@
 
 chmod 755 set-permissions # myself ;-)
 chmod 755 ViewDocs
-chmod 755 config.guess config.sub default-configure mkconfscript mkkeytables
+chmod 755 config.guess config.sub default-configure mkkeytables
 chmod 755 mknewyear mkpluginhooks
 chmod 755 bisonpp.pl
-chmod 644 base-configure
+chmod 755 configure
 chmod 755 setup-dosemu submit-bug-report gnats/send-pr gnats/send-pr.sh
 chmod 755 gnats/get-email.sh
 chmod 755 setup/compiletime_setup.sh setup/runtime_setup.sh
