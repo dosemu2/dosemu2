@@ -394,10 +394,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   D_printf("DPMI: setldt %x %x\n",
 	   ((unsigned long *)sd)[1],
 	   ((unsigned long *)sd)[0]);
-  if (dbg_fd) {
-      fflush(dbg_fd);
-      fsync(fileno(dbg_fd));
-  }
+  flush_log();
   if ((__retval = i386_set_ldt(entry, (union descriptor *)sd, 1)) == -1)
       return errno;
   D_printf("DPMI: setldt succeeded\n");
@@ -2056,10 +2053,7 @@ void dpmi_init()
 /*	D_printf("%d freed\n", i);*/
     }
     D_printf("Descriptors freed\n");
-    if (dbg_fd) {
-	fflush(dbg_fd);
-	fsync(fileno(dbg_fd));
-    }
+    flush_log();
 
 #if 0
     /* all selectors are used */

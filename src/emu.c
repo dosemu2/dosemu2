@@ -517,6 +517,7 @@ leavedos(int sig)
     if (recurse_check)
       {
        error("leavedos called recursively, forgetting the graceful exit!\n");
+       flush_log();
        _exit(sig);
       }
     recurse_check = 1;
@@ -599,6 +600,7 @@ leavedos(int sig)
 	restore_vt(config.detach);
 	disallocate_vt();
     }
+    flush_log();
     _exit(sig);
 }
 

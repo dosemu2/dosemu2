@@ -1,3 +1,12 @@
+97/02/28 ver. 0.65.99.10 unofficial pre-release
+	From Alberto
+	- Use a big buffer for debug messages, this doesn't slow down
+	  dosemu, when debugging.
+	From Hans
+	- Made the above 'big buffer' an item in /etc/dosemu.conf:
+          'logbufsize <SIZE>', default is _no_ buffering.
+	- Fixed ./configure.in, so it now doesn't use -fomit-frame-pointer
+	  when configured for debugging.
 97/02/27 ver. 0.65.99.9 unofficial pre-release
 	From Adrian Sun <asun@zoology.washington.edu>
 	- Make dosemu compile under glibc 2.0.1

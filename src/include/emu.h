@@ -223,6 +223,7 @@ extern FILE *dbg_fd;
 
 #define hard_error(f, a...)	fprintf(stderr, f, ##a)
 #define dbug_printf(f,a...)	ifprintf(2,f,##a)
+#define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
 
 #ifndef NO_DEBUGPRINT_AT_ALL
 

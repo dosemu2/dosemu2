@@ -144,7 +144,7 @@ extern void yyrestart(FILE *input_file);
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
 %token L_SECURE
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
-%token DOSEMUMAP
+%token DOSEMUMAP LOGBUFSIZE
 	/* speaker */
 %token EMULATED NATIVE
 	/* keyboard */
@@ -264,6 +264,20 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    {
 		    config.freq = $2;
 		    config.update = 1000000 / $2;
+		    }
+		| LOGBUFSIZE INTEGER
+		    {
+		      extern int logbuf_size;
+		      extern char *logbuf, *logptr;
+		      char *b;
+		      flush_log();
+		      b = malloc($2+1024);
+		      if (!b) {
+			error("cannot get logbuffer\n");
+			exit(1);
+		      }
+		      logptr = logbuf = b;
+		      logbuf_size = $2;
 		    }
 		| DOSBANNER bool
 		    {

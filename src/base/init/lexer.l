@@ -77,6 +77,7 @@ emuini                  return(EMUINI);
 ttylocks		return(TTYLOCKS);
 sound_emu               return(L_SOUND);
 dosemumap               return(DOSEMUMAP);
+logbufsize              return(LOGBUFSIZE);
 
 	/* sillyint values */
 use_sigio		return(USE_SIGIO);

@@ -3230,7 +3230,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="65"
-PATCHLEVEL="99.9"
+PATCHLEVEL="99.10"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 cat >> confdefs.h <<EOF
@@ -3431,7 +3431,10 @@ case "$host_cpu" in
   *)
     ;;
 esac
-OPT="$OPT -fomit-frame-pointer"
+
+if test "$dodebug" != "yes"; then
+ OPT="$OPT -fomit-frame-pointer"
+fi
 
 # OPT=-fno-inline
 if test "$CONFIG_HOST" = "linux"; then

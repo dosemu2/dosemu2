@@ -10,12 +10,16 @@
 #include "machcompat.h"
 #include "bios.h"
 
+#define INITIAL_LOGBUFSIZE      0
+static char logbuf_[INITIAL_LOGBUFSIZE+1025];
+char *logptr=logbuf_;
+char *logbuf=logbuf_;
+int logbuf_size = INITIAL_LOGBUFSIZE;
+
 int
  log_printf(unsigned int flg, const char *fmt,...) {
   va_list args;
-  static char buf[1025];
   int i;
-  int error_fd;
 #ifdef SHOW_TIME
   static int first_time = 1;
   static int show_time =  0;
@@ -24,18 +28,18 @@ int
   if (!flg || !dbg_fd)
     return 0;
 
-  error_fd = fileno(dbg_fd);
 
 #ifdef SHOW_TIME
   if(first_time)  {
 	if(getenv("SHOWTIME"))
 		show_time = 1;
 	first_time = 0;
+	logptr = logbuf;
   }
 #endif
 	
   va_start(args, fmt);
-  i = vsprintf(buf, fmt, args);
+  i = vsprintf(logptr, fmt, args);
   va_end(args);
 
 #ifdef SHOW_TIME
@@ -45,15 +49,19 @@ int
 	char tmpbuf[1024];
 	result = gettimeofday(&tv, NULL);
 	assert(0 == result);
-	sprintf(tmpbuf, "%d.%d: %s", tv.tv_sec, tv.tv_usec, buf);
-	strcpy(buf, tmpbuf);
-	i = strlen(buf);
+	sprintf(tmpbuf, "%d.%d: %s", tv.tv_sec, tv.tv_usec, logptr);
+	strcpy(logptr, tmpbuf);
+	i = strlen(logptr);
   }
 #endif
 
-  write(error_fd, buf, i);
-  if (terminal_pipe) {
-    write(terminal_fd, buf, i);
+  logptr += i;
+  if (((logptr-logbuf) > logbuf_size) || (flg == -1)) {
+    write(fileno(dbg_fd), logbuf, logptr-logbuf);
+    if (terminal_pipe) {
+      write(terminal_fd, logptr, logptr-logbuf);
+    }
+    logptr = logbuf;
   }
   return i;
 }

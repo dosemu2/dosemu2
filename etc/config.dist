@@ -581,3 +581,4 @@ floppy { device /dev/fd0 threeinch }
 # misc setting for dosemu
 
 #dosemumap /var/lib/dosemu/dosemu.map  # for dosdebug to find the map
+#logbufsize 0x20000                    # set buffersize for logging
