@@ -49,6 +49,7 @@ void mhp_printf(const char *,...);
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);
 void mhp_modify_eip(int delta);
+void mhp_intercept(char *msg);
 void mhp_exit_intercept(int errcode);
 
 void DBGload(void);

@@ -265,18 +265,15 @@ static void mhp_poll(void)
    }
 }
 
-void mhp_exit_intercept(int errcode)
+void mhp_intercept(char *msg)
 {
-
-   if (!errcode || !mhpdbg.active || (mhpdbg.fdin == -1) ) return;
-
-   mhp_printf("\n****\nleavedos(%d) called, at termination point of DOSEMU\n****\n\n", errcode);
-   mhp_send();
+   if (!mhpdbg.active || (mhpdbg.fdin == -1)) return;
    mhpdbgc.stopped = 1;
    mhpdbgc.want_to_stop = 0;
+   mhp_printf(msg);
+   mhp_send();
    mhp_cmd("r0");
    mhp_send();
-   dosdebug_flags |= DBGF_IN_LEAVEDOS;
    for (;;) {
       mhp_input();
       if (mhpdbg.nbytes <= 0) {
@@ -308,6 +305,16 @@ void mhp_exit_intercept(int errcode)
       mhpdbg.nbytes = 0;
       if (!(dosdebug_flags & DBGF_IN_LEAVEDOS)) return;
    }
+}
+
+void mhp_exit_intercept(int errcode)
+{
+   char buf[255];
+   if (!errcode || !mhpdbg.active || (mhpdbg.fdin == -1) ) return;
+
+   sprintf(buf, "\n****\nleavedos(%d) called, at termination point of DOSEMU\n****\n\n", errcode);
+   dosdebug_flags |= DBGF_IN_LEAVEDOS;
+   mhp_intercept(buf);
 }
 
 unsigned int mhp_debug(unsigned int code, unsigned int parm1, unsigned int parm2)
