@@ -8,6 +8,7 @@
 #ifndef DPMI_H
 #define DPMI_H
 
+#include "emu-ldt.h"
 #include "emm.h"
 
 #define DPMI_VERSION   		0x00	/* major version 0 */
@@ -170,6 +171,7 @@ EXTERN volatile int dpmi_mhp_TF INIT(0);
 EXTERN unsigned char dpmi_mhp_intxxtab[256] INIT({0});
 EXTERN volatile int is_cli INIT(0);
 
+extern SEGDESC Segments[MAX_SELECTORS];
 extern unsigned long dpmi_total_memory; /* total memory  of this session */
 extern unsigned long dpmi_free_memory; /* how many bytes memory client */
 				       /* can allocate */

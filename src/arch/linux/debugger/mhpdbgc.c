@@ -37,10 +37,6 @@
  *   16Sep95 Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
-#define LDT_ENTRIES 8192
-#define LDT_ENTRY_SIZE 8
-#define MAX_SELECTORS 8192
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

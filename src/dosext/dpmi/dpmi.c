@@ -612,7 +612,8 @@ static int SystemSelector(unsigned short selector)
        (((selector) & 0xfffc) == (UCODESEL & 0xfffc)) ||
        (((selector) & 0xfffc) == (UDATASEL & 0xfffc)) ||
        (((selector) & 0xfffc) == (_emu_stack_frame.fs & 0xfffc)) ||
-       (((selector) & 0xfffc) == (_emu_stack_frame.gs & 0xfffc))
+       (((selector) & 0xfffc) == (_emu_stack_frame.gs & 0xfffc)) ||
+       (Segments[selector >> 3].used == 0xff)
      )
     return 1;
   return 0;
@@ -703,6 +704,10 @@ int FreeDescriptor(unsigned short selector)
 {
   int ret;
   D_printf("DPMI: Free descriptor, selector=0x%x\n", selector);
+  if (SystemSelector(selector)) {
+    D_printf("DPMI: Cannot free system descriptor.\n");
+    return -1;
+  }
   ret = SetSelector(selector, 0, 0, 0, MODIFY_LDT_CONTENTS_DATA, 1, 0, 1, 0);
   Segments[selector >> 3].used = 0;
   return ret;

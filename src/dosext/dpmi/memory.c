@@ -36,7 +36,6 @@
 #include <sys/param.h>
 #include <errno.h>
 #include "dpmi.h"
-#include "emu-ldt.h"
 #include "pic.h"
 #include "mapping.h"
 #include "smalloc.h"
@@ -124,8 +123,9 @@ unsigned long base2handle( void *base )
 
 void dpmi_memory_init(void)
 {
-    int num_pages, mpool_numpages, memsize;
+    int num_pages, mpool_numpages, memsize, type, i;
     void *mpool;
+    unsigned long base_addr, limit, *lp;
 
     /* Create DPMI pool */
     num_pages = config.dpmi >> 2;
@@ -158,14 +158,20 @@ void dpmi_memory_init(void)
     }
 
     get_ldt(ldt_buffer);
-    D_printf("Freeing descriptors\n");
-    { int i, dd=debug_level('M'); set_debug_level('M', 0); /* don't be unnecessarily verbose */
-      for (i=0;i<MAX_SELECTORS;i++) {
-	  FreeDescriptor((i << 3) | 7);
+    memset(Segments, 0, sizeof(Segments));
+    for (i = 0; i < MAX_SELECTORS; i++) {
+      lp = (unsigned long *)&ldt_buffer[i * LDT_ENTRY_SIZE];
+      base_addr = (*lp >> 16) & 0x0000FFFF;
+      limit = *lp & 0x0000FFFF;
+      lp++;
+      base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
+      limit |= (*lp & 0x000F0000);
+      type = (*lp >> 10) & 3;
+      if (base_addr || limit || type) {
+        D_printf("LDT entry 0x%x used: b=0x%lx l=0x%lx t=%i\n",i,base_addr,limit,type);
+        Segments[i].used = 0xff;
       }
-      set_debug_level('M', dd);
     }
-    D_printf("Descriptors freed\n");
 }
 
 static int SetAttribsForPage(char *ptr, us attr, us old_attr)
