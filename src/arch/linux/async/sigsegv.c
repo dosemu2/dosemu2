@@ -336,6 +336,7 @@ int signal, int code, struct sigcontext *scp
 
       default:	
 
+#if 0
 		 error("ERROR: unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
 	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"
 	  	"cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n", _trapno,
@@ -344,10 +345,21 @@ int signal, int code, struct sigcontext *scp
 
 
 		 print_exception_info(scp);
+#else
+		 error("ERROR: unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86 (DOS)\n",
+	  	 _trapno, _err);
+		{
+		  extern FILE *dbg_fd;
+		  int auxg = d.general;
+		  FILE *aux = dbg_fd;
+		  dbg_fd = stderr;
+		  d.general =1;
+		  show_regs(__FILE__, __LINE__);
+		  d.general = auxg;
+		  dbg_fd = aux;
+		}
+#endif
 
-#if 0
-		perror("dosemu_fault:");
-#endif /* 0 */
  		 show_regs(__FILE__, __LINE__);
 		 if (d.network)		/* XXX */
 		     abort();

@@ -16,9 +16,11 @@ CC=@CC@
 # vgaemu_inside.h, vesabios.S and vesabios.o
 # you should also delete the #define XG in int10.c and sigsegv.c
 ifdef X_SUPPORT
-XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c
-XHDRS	= X.h vgaemu_inside.h vesa.h screen.h
-XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o
+XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c \
+	  XModeRemapGeneric.c XModeRemap_i386.c
+XHDRS	= X.h vgaemu_inside.h vesa.h screen.h XModeRemap.h
+XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o \
+	  XModeRemapGeneric.o XModeRemap_i386.o
 endif
 
 # This is to assemble the VESA compatible video BIOS. Shamelessly copied
@@ -32,10 +34,10 @@ AS86=@AS86@
 
 TOPDIR=@SRCPATH@
 
-CFILES = video.c vc.c vga.c et4000.c s3.c trident.c console.c \
+CFILES = video.c vc.c vga.c et4000.c s3.c trident.c avance.c console.c \
          $(XCFILES) hgc.c dualmon.c terminal.c
-HFILES = vga.h et4000.h s3.h trident.h terminal.h $(XHDRS)
-OFILES = video.o vc.o vga.o et4000.o s3.o trident.o console.o \
+HFILES = vga.h et4000.h s3.h trident.h avance.h terminal.h $(XHDRS)
+OFILES = video.o vc.o vga.o et4000.o s3.o avance.o trident.o console.o \
          int10.o $(XOBJS) hgc.o dualmon.o terminal.o
 #OBJS = $(OFILES)
 

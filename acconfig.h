@@ -71,7 +71,7 @@
 #undef REQUIRES_VM86PLUS
 
 /* DEFINE this, if you have vm86plus built into the kernel */
-#undef BUILTIN_VMP86PLUS
+#undef BUILTIN_VM86PLUS
 
 /* DPMI test windows */
 #undef WANT_WINDOWS
@@ -101,6 +101,8 @@
 /* Define this if you want to use MITSHM */
 #undef HAVE_MITSHM
 
+/* Define this if you want to use a monoton micro timeing (Bernd Paysan) */
+#undef MONOTON_MICRO_TIMING
 
 @BOTTOM@
 

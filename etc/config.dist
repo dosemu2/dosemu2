@@ -84,7 +84,7 @@ keyboard {  layout us  keybint on  rawkeyboard off  }
 #    degrade Dosemu performance, but significantly increase overall
 #    system idle time.  A zero value runs Dosemu at full tilt.
 #
-HogThreshold 10
+HogThreshold 0
 
 
 #**************************** SERIAL ************************************
@@ -310,6 +310,10 @@ video { vga }          # Use this line, if you are using VGA
 #
 #   S3-based SVGA video card with 1 megabyte on board:
 #video { vga  console  graphics  chipset s3  memsize 1024 }
+#
+#   Avance Logic (ALI) 230x SVGA
+#video { vga  console  graphics  chipset avance }
+#
 # For ATI graphic mode
 #ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
 
@@ -337,6 +341,12 @@ bootA               # Startup drive valid values:  bootA  bootC
 #    reduce these values.  Also, DPMI is still somewhat unstable,
 #    (as of early April 1994) so be careful with DPMI parameters.
 #
+#    Also keep in mind, that DPMI clients are alowed to create selectors
+#    that span the whole user space, hence may hack into the dosemu code
+#    and (when dosemu runs root or is suif root) can be a security whole.
+#    For the later you may want to turn "secure on", though this would
+#    very likely also disable some dos4gw games :(.
+#
 #    For ems, you now can set the frame to any 16K between 0xc800..0xe000
 #
 #    If you have adapters, which have memory mapped IO, you may now
@@ -348,6 +358,12 @@ bootA               # Startup drive valid values:  bootA  bootC
 #
 
 #umb_max on		# be more aggressive about finding XMS UMB blocks
+
+secure off              # "on" or "off"
+                        # if "on", then it disables DPMI access to dosemu code
+                        # and also disables execution of dosemu supplied
+                        # 'unix' and 'system' commands, which may execute
+                        # arbitrary Linux-commands otherwise.
 
 dpmi 4086               # DPMI size in K, or "off"
 xms 1024		# XMS size in K,  or "off"

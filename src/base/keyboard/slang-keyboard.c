@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../include/slang.h"
+#include "slang.h"
 
 #ifndef SLANG_VERSION
 # define SLANG_VERSION 1
@@ -241,6 +241,30 @@ static Keymap_Scan_Type Normal_Map [] =
    {"\033[32~",	0x5B00 | SHIFT_MASK},	       /* Shift F8 */
    {"\033[33~",	0x5C00 | SHIFT_MASK},	       /* Shift F9 */
    {"\033[34~",	0x5D00 | SHIFT_MASK},	       /* Shift F10 */
+
+#if SLANG_VERSION > 9934
+   {"^(k1)",	0x3b00},	       /* F1 */
+   {"^(k2)",	0x3c00},	       /* F2 */
+   {"^(k3)",	0x3d00},	       /* F3 */
+   {"^(k4)",	0x3e00},	       /* F4 */
+   {"^(k5)",	0x3f00},	       /* F5 */
+   {"^(k6)",	0x4000},	       /* F6 */
+   {"^(k7)",	0x4100},	       /* F7 */
+   {"^(k8)",	0x4200},	       /* F8 */
+   {"^(k9)",	0x4300},	       /* F9 */
+   {"^(k;)",	0x4400},	       /* F10 */
+   {"^(kI)",	0x52E0},	       /* Ins */
+   {"^(kD)",	0x53E0},	       /* Del    Another keyscan is 0x007F */
+   {"^(kh)",	0x47E0},	       /* Ho */
+   {"^(@7)",	0x4fE0},	       /* End */
+   {"^(kP)",	0x49E0},	       /* PgUp */
+   {"^(kN)",	0x51E0},	       /* PgDn */
+   {"^(ku)",	0x48E0},	       /* Up */
+   {"^(kd)",	0x50E0},	       /* Dn */
+   {"^(kr)",	0x4dE0},	       /* Ri */
+   {"^(kl)",	0x4bE0},	       /* Le */
+#endif
+
    {"",	0}
 };
 
@@ -478,7 +502,11 @@ static int sltermio_input_pending (void)
    fd_set fds;
    long t_dif;
 
-#define THE_TIMEOUT 750000L
+#if 0
+#define	THE_TIMEOUT 750000L
+#else
+#define THE_TIMEOUT 250000L
+#endif
    FD_ZERO(&fds);
    FD_SET(kbd_fd, &fds);
    scr_tv.tv_sec = 0L;

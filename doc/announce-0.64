@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.64.3, the PC Emulator for
+The DOSEMU team is proud to announce DOSEMU 0.64.4, the PC Emulator for
 x86 based *nix. Please remember to consider this as ALPHA software.
 
 
@@ -15,6 +15,7 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
   - Built-in X-Windows support, includes IBM character set font!
   - Graphics capability at the console with most compatible video cards.
   - Graphics emulation in X for 256 color modes.
+    (X-server may be in true color mode)
   - Much-improved DPMI support
   - able to run (handicapped) Windows-3.1 either on console or in X.
     (you need the os2win31.zip package, and licenses for both,
@@ -70,8 +71,9 @@ WHERE TO GET IT:
 ~~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
-  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.64.1.tgz
-  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.64.1.tgz
+  tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.64.4.tgz
+  sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.64.4.tgz
+  ftp.suse.com:/pub/dosemu/dosemu0.64.4.tgz
 
 
 HELPING US

@@ -482,7 +482,7 @@ void int10()
     /* set appropriate font height for 25 lines */
     vga_font_height=text_scanlines/25;
     if (!set_video_mode(LO(ax))) {
-       error("int10,0: set_video_mode failed\n");
+       v_printf("int10,0: set_video_mode failed\n");
        CARRY;
     }
     break;
@@ -498,7 +498,7 @@ void int10()
     x = LO(dx);
     y = HI(dx);
     if (page > 7) {
-      error("ERROR: video error (setcur/page>7: %d)\n", page);
+      v_printf("ERROR: video error (setcur/page>7: %d)\n", page);
       CARRY;
       return;
     }
@@ -514,7 +514,7 @@ void int10()
   case 0x3:			/* get cursor pos/shape */
     page = HI(bx);
     if (page > 7) {
-      error("ERROR: video error(0x3 page>7: %d)\n", page);
+      v_printf("ERROR: video error(0x3 page>7: %d)\n", page);
       CARRY;
       return;
     }
@@ -531,7 +531,7 @@ void int10()
       page = LO(ax);
       v_printf("VID: change page from %d to %d!\n", READ_BYTE(BIOS_CURRENT_SCREEN_PAGE), page);
       if (page > max_page) {
-	error("ERROR: video error: set bad page %d\n", page);
+	v_printf("ERROR: video error: set bad page %d\n", page);
 	CARRY;
 	break;
       }
@@ -563,7 +563,7 @@ void int10()
   case 0x8:			/* read character at x,y + attr */
     page = HI(bx);
     if (page > max_page) {
-      error("ERROR: read char from bad page %d\n", page);
+      v_printf("ERROR: read char from bad page %d\n", page);
       CARRY;
       break;
     }
@@ -710,7 +710,7 @@ void int10()
 #endif
 
   case 0x4:			/* get light pen */
-    error("ERROR: video error(no light pen)\n");
+    v_printf("ERROR: video error(no light pen)\n");
 #if 0
     CARRY;
 #else
@@ -849,7 +849,7 @@ void int10()
       break;
       
     default:
-      error("ERROR: unrecognized video subsys config!!\n");
+      v_printf("ERROR: unrecognized video subsys config!!\n");
       show_regs(__FILE__, __LINE__);
     }
     break;

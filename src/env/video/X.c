@@ -68,27 +68,26 @@
  * 1996/08/18: Make xdos work with TrueColor displays (again?) -- Thomas Pundt
  * (pundtt@math.uni-muenster.de)
  *
+ * 1997/01/19: Made mouse functionable for win31-in-xdos (hiding X-cursor,
+ * calibrating win31 cursor) -- Hans
+ *
+ * 1997/02/03: Adapted Steffen Winterfeld's (graphics) true color patch from
+ * 0.63.1.98 to 0.64.3.2.
+ * The code now looks a bit kludgy, because it was written for for the .98,
+ * but it works. Scaling x2 is only set for 320x200.  -- Hans
+ *
  * DANG_END_CHANGELOG
  */
 
-/* The different methods you can use to remap to a shared colourmap */
-#define REMAP_TYPE_FAST   0  /* Fastest; simple remap, often looks poor */
-#define REMAP_TYPE_MEDIUM 1  /* Slower, does simple dithering */
-#define REMAP_TYPE_SLOW   2  /* Slower, does slightly better dithering */
-#define REMAP_TYPE_SLOWER 3  /* Slowest, does pretty good dithering */
-
-/* So, what sort of shared colourmap support would you like? */
-#if 0
-#define REMAP_TYPE      REMAP_TYPE_MEDIUM     /* Default: REMAP_TYPE_MEDIUM    --adm */
-#else
-#define REMAP_TYPE	REMAP_TYPE_FAST
-#endif
+/* define this if you want faster color mapping together with shmap.
+ * NOTE: this has _no_ effect for normal (non-shmap).
+ *       Un-defining it makes only sense for 8 bpp, but not for true color.
+ * -- Hans */
+#define SHM_REMAP_TYPE_FAST
 
 /*#define OLD_X_TEXT*/		/* do you want to use the old X_textmode's */
 #define CONFIG_X_SELECTION 1
 #define CONFIG_X_MOUSE 1
-#define DOSEMU060 1
-#define DOSEMU061 0
 
 /* Comment out if you wish to have a visual indication of the area
    being updated */
@@ -118,32 +117,26 @@
 #include <unistd.h>
 
 
-#if DOSEMU060
 #include "emu.h"
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
+
+#include "XModeRemap.h"   /* true color stuff */
+
 #if CONFIG_X_MOUSE
 #include "mouse.h"
 #include <time.h>
 #endif
+
 #if CONFIG_X_SELECTION
 #include "screen.h"
 #endif
+
 #define Bit8u byte
 #define Bit16u us
 #define Boolean boolean
-#endif
 
-#if DOSEMU061
-#include "dosemu.h"
-#include "base/bios.h"
-#include "env/video.h"
-#include "base/memory.h"
-#include "base/mouse.h"
-#include "env/setup.h"
-#include "X.h"
-#endif
 
 #include "vgaemu.h"
 #include "vgaemu_inside.h"
@@ -246,6 +239,53 @@ static unsigned char lut[256]; /* lookup table for remapping colours */
 static unsigned char lut2[256]; /* another one... I like them. */
 static unsigned long pixelval[256]; /* ...and another one.  Trust me. --adm */
 unsigned char redshades,blueshades,greenshades;
+
+/* true color stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+#define TEST_SCALE 1		/* for easier testing ... sw */
+#undef REMAP_DEBUG_SHOW		/* produces loads of text... -- sw */
+
+typedef struct X_vars {
+
+  int x_res, y_res;             /* size in pixels */
+
+  /* the following is needed redundant info, backwards compat to .63.98 */
+  Boolean have_shmap;
+
+  /* the following are needed to adapt to various X displays -- sw */
+  XModeInfoType XModeInfo;
+  XModeRemapRecord *XModeRemapList;	/* chained list of remap functions */
+  unsigned XRemapMode;
+  unsigned VGAScreenDepthBits;
+  unsigned VGAScreenDepthChars;
+  unsigned XDefaultDepth;		/* eg 24 */
+  unsigned XScreenDepthBits;		/* eg 32 */
+  unsigned XScreenDepthChars;
+  Boolean HaveTrueColor;
+  unsigned RedMask, GreenMask, BlueMask;
+  unsigned RedShift, GreenShift, BlueShift;
+  unsigned RedBits, GreenBits, BlueBits;
+  unsigned DACBits;	/* the bits visible to the dosemu app, not the real number */
+  unsigned Color8Lut[256];
+}X_vars;
+
+static X_vars X_state = {0};
+
+static Boolean X_InstallRemapFunc(unsigned, X_vars *);
+static void InitDACTable(X_vars *);
+static int UpdateDACTable(unsigned, unsigned char, unsigned char, unsigned char, X_vars *);
+static void RemapXImage(unsigned mode, int *xx, int *yy, int *ww, int *hh,
+                        unsigned char *base, int offset, int len, int modewidth);
+static void EXPutImageUnscaled(Display *display, Drawable d, GC gc, XImage *image, 
+		       int src_x,  int src_y, int dest_x, int dest_y,
+		       unsigned  width, unsigned height);
+static void EXPutImage(Display *display, Drawable d, GC gc, XImage *image, 
+		       int src_x,  int src_y, int dest_x, int dest_y,
+		       unsigned  width, unsigned height);
+static void refresh_truecolor_from_DAC(X_vars *state);
+static void X_partial_redraw_screen(void);
+
+/* true color stuff <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 
 /**************************************************************************/
 /*                         INITIALIZATION                                 */
@@ -531,6 +571,307 @@ static void load_cursor_shapes(void)
   XUnloadFont(display, cfont);
 }
 
+/* true color stuff >>>>>>>>>>>>>>>>>>>> */
+
+#ifdef REMAP_DEBUG_SHOW
+void RemapDebug(XModeInfoType *xmi)
+{
+#ifdef REMAP_FUNC_SHOW
+  X_printf("[%s]\n", xmi->RemapFuncName);
+#else
+  X_printf("[RemapFunc]\n");
+#endif
+
+  X_printf("  VGAOffset %d\n  VGAX0 %d, VGAY0 %d, VGAX1 %d, VGAY1 %d, VGAScanlen %d\n",
+    xmi->VGAOffset, xmi->VGAX0, xmi->VGAY0, xmi->VGAX1, xmi->VGAY1, xmi->VGAScanLen
+  );
+  X_printf("  XX0 %d, XY0 %d, XX1 %d, XY1 %d, XScanLen %d\n",
+    xmi->XX0, xmi->XY0, xmi->XX1, xmi->XY1, xmi->XScanLen
+  );
+}
+#define REMAP_DEBUG(xmi) RemapDebug(xmi)
+#else
+#define REMAP_DEBUG(xmi)
+#endif /* REMAP_DEBUG_SHOW */
+
+
+/*
+ * the next 2 functions update state->Color8Lut[], a table that maps DAC entries
+ * to TrueColor pixel values
+ * -- sw
+ */
+void InitDACTable(X_vars *state)
+{
+  DAC_entry dac;
+  int i;
+
+  for(i = 0; i < 256; i++) {
+    DAC_get_entry(&dac, (unsigned char) i);
+    UpdateDACTable(i, dac.r, dac.g, dac.b, state);
+  }
+}
+
+int UpdateDACTable(unsigned ind, unsigned char r, unsigned char g, unsigned char b, X_vars *state)
+{
+  unsigned ui = 0, oui;
+  unsigned nr = r, ng = g, nb = b;
+
+  nr = state->RedBits >= state->DACBits ? nr << (state->RedBits - state->DACBits) : nr >> (state->DACBits - state->RedBits);
+  nr <<= state->RedShift;
+  ng = state->GreenBits >= state->DACBits ? ng << (state->GreenBits - state->DACBits) : ng >> (state->DACBits - state->GreenBits);
+  ng <<= state->GreenShift;
+  nb = state->BlueBits >= state->DACBits ? nb << (state->BlueBits - state->DACBits) : nb >> (state->DACBits - state->BlueBits);
+  nb <<= state->BlueShift;
+
+  ui = nr | ng | nb;
+
+  if(state->XScreenDepthChars == 1) ui |= ui << 8;
+  if(state->XScreenDepthChars <= 2) ui |= ui << 16;
+
+/*
+  X_printf("X::UpdateDACTable: DAC[%u] = (0x%x, 0x%x, 0x%x) = 0x%08x\n", ind, (unsigned) r, (unsigned) g, (unsigned) b, ui);
+*/
+
+  if(ind < 256) {
+    oui = state->Color8Lut[ind];
+    state->Color8Lut[ind] = ui;
+    return oui == ui ? 0 : 1;
+  }
+  
+  return 0;
+}
+
+static void refresh_truecolor_from_DAC(X_vars *state)
+{
+  DAC_entry color;
+  Boolean colchanged = False;
+  int i;
+
+  while((i = DAC_get_dirty_entry(&color)) != -1) {
+    colchanged |= UpdateDACTable(i, color.r, color.g, color.b, state);
+  }
+  if(colchanged) dirty_all_video_pages();
+}
+
+static Boolean X_InstallRemapFunc(unsigned vga_mode, X_vars *state)
+{
+  XModeRemapRecord *xmrr = state->XModeRemapList;
+
+  while(xmrr != NULL) {
+    if(xmrr->ScaleX == state->XModeInfo.ScaleX &&
+       xmrr->ScaleY == state->XModeInfo.ScaleY &&
+       (xmrr->VGAMode & vga_mode) &&
+       (xmrr->XMode & state->XRemapMode)
+      ) break;
+    xmrr = xmrr->Next;
+  }
+  if(xmrr == NULL) {
+    X_printf("X_InstallRemapFunc: no support for mode 0x%03x on 0x%03x, scaled %dx%d\n",
+              vga_mode, state->XRemapMode,
+              state->XModeInfo.ScaleX, state->XModeInfo.ScaleY
+            );
+    return False;
+  }
+
+  state->XModeInfo.RemapFunc = xmrr->RemapFunc;
+  #ifdef REMAP_FUNC_SHOW
+    X_printf("X_InstallRemapFunc: using %s for remapping\n", xmrr->RemapFuncName);
+    state->XModeInfo.RemapFuncName = xmrr->RemapFuncName;
+  #endif
+  return True;
+}
+
+static void X_init_ModeRemap(void)
+{
+  static X_vars *state = &X_state;
+  XModeRemapRecord *xmrr, *xmrr0;
+  /*
+   * XModeRemapList holds a chained list of remap function
+   * descriptions; when a remap function is requested during
+   * X_set_mode, the first suitable is taken.
+   *
+   * So always put the fastest first into the list.
+   * -- sw
+   */
+
+  state->XModeRemapList = XModeRemapGeneric();
+
+  xmrr0 = xmrr =
+#if 1
+		XModeRemap_i386();
+#else
+		NULL;
+#endif
+  if(xmrr != NULL) {
+    while(xmrr->Next != NULL) xmrr = xmrr->Next;
+    xmrr->Next = state->XModeRemapList;
+    state->XModeRemapList = xmrr0;
+  }
+  /* add other lists here... */
+
+  state->XModeInfo.RemapFunc = NULL;
+
+  if(state->HaveTrueColor == True) {
+    switch(state->XScreenDepthBits) {
+      case  1: state->XRemapMode = X_TRUE_1; break;
+      case 15: state->XRemapMode = X_TRUE_15; break;
+      case 16: state->XRemapMode = X_TRUE_16; break;
+      case 32: state->XRemapMode = X_TRUE_32; break;
+      default: state->XRemapMode = X_UNSUP;
+    }
+  }
+  else {
+    switch(state->XScreenDepthBits) {
+      case  8: state->XRemapMode = state->have_shmap ? X_PSEUDO_8S : X_PSEUDO_8P; break;
+      default: state->XRemapMode = X_UNSUP;
+    }
+  }
+}
+
+static void X_init_X_info(void) {
+  static X_vars *state = &X_state;
+  Visual *XDefaultVisual;
+  unsigned ui;
+
+  state->have_shmap = have_shmap;  /* redundant, but neede */
+  /*
+   * The following info should probably better derived via XGetWindowAttributes()
+   * from the window actually created. -- sw
+   */
+  state->XScreenDepthBits = state->XDefaultDepth = DefaultDepth(display, screen);
+
+  /* I don't know the canonical way to do it... -- sw */
+  if(state->XScreenDepthBits == 24) state->XScreenDepthBits = 32;
+
+  state->XScreenDepthChars = (state->XScreenDepthBits + 7) >> 3;
+
+  XDefaultVisual = DefaultVisual(display, screen);
+
+  state->HaveTrueColor = XDefaultVisual->class == TrueColor || XDefaultVisual->class == DirectColor ? True : False;
+
+  state->RedMask = XDefaultVisual->red_mask;
+  state->GreenMask = XDefaultVisual->green_mask;
+  state->BlueMask = XDefaultVisual->blue_mask;
+
+  state->RedBits = state->GreenBits = state->BlueBits = 
+  state->RedShift = state->GreenShift = state->BlueShift = 0;
+
+  if ((ui = state->RedMask)) for(; !(ui & 1); ui >>= 1, state->RedShift++);
+  if (ui) for(; ui; ui >>= 1, state->RedBits++);
+  if ((ui = state->GreenMask)) for(; !(ui & 1); ui >>= 1, state->GreenShift++);
+  if (ui) for(; ui; ui >>= 1, state->GreenBits++);
+  if ((ui = state->BlueMask)) for(; !(ui & 1); ui >>= 1, state->BlueShift++);
+  if (ui) for(; ui; ui >>= 1, state->BlueBits++);
+  
+}
+
+static void RemapXImage(unsigned mode, int *xx, int *yy, int *ww, int *hh,
+                        unsigned char *base, int offset, int len, int modewidth)
+{
+  static X_vars *state = &X_state;
+  int i1, i2, j1, j2;
+  XModeInfoType *xmi = &(state->XModeInfo);
+
+  /*
+   * -- sw
+   */
+
+  *xx = *yy = *ww = *hh = 0;
+  if(state->XModeInfo.RemapFunc == NULL) {
+    X_printf("X::RemapXImage: no support for mode %d\n", mode);
+    return;
+  }
+
+  switch(mode) {
+    case VGA_PSEUDO_8: {
+      xmi->VGAScreen = base;
+      *ww = xmi->VGAScanLen = modewidth;	/* should already be set, but anyway... -- sw */
+
+      i1 = offset / modewidth;
+      i2 = offset % modewidth;
+      j1 = (offset + len) / modewidth;
+      j2 = (offset + len) % modewidth;
+
+      /* make sure it's all visible */
+      if(i1 >= xmi->XHeight) return;
+      if(j1 >= xmi->XHeight) {
+        j1 = xmi->XHeight;
+        j2 = 0;
+      }
+
+      *yy = i1; *hh = j1 - i1;
+
+      if(i2) {
+        xmi->VGAOffset = offset;
+        offset += modewidth - i2;
+        xmi->VGAX0 = xmi->XX0 = i2;
+        xmi->VGAY0 = xmi->XY0 = i1;
+        xmi->VGAY1 = xmi->VGAY0 + 1;
+        xmi->XY1 = xmi->XY0 + 1;
+        xmi->VGAX1 = xmi->XX1 = xmi->VGAWidth;
+        REMAP_DEBUG(xmi);
+        xmi->RemapFunc(xmi);
+        i2 = 0;
+        i1++;
+      }
+      if(i1 < j1) {
+        xmi->VGAOffset = offset;
+        offset += modewidth * (j1 - i1);
+        xmi->VGAX0 = xmi->XX0 = 0;
+        xmi->VGAX1 = xmi->XX1 = xmi->VGAWidth;
+        xmi->VGAY0 = xmi->XY0 = i1;
+        xmi->VGAY1 = xmi->XY1 = j1;
+        REMAP_DEBUG(xmi);
+        xmi->RemapFunc(xmi);
+      }
+      if(j2) {
+        xmi->VGAOffset = offset;
+        xmi->VGAX0 = xmi->XX0 = 0;
+        xmi->VGAY0 = xmi->XY0 = j1;
+        xmi->VGAY1 = xmi->VGAY0 + 1;
+        xmi->XY1 = xmi->XY0 + 1;
+        xmi->VGAX1 = xmi->XX1 = j2;
+        REMAP_DEBUG(xmi);
+        xmi->RemapFunc(xmi);
+      }
+
+    } break;
+    default:
+      X_printf("X::RemapXImage: mode %d not implemented\n", mode);
+  }
+}
+
+static void EXPutImageUnscaled(Display *display, Drawable d, GC gc, XImage *image, 
+		       int src_x,  int src_y, int dest_x, int dest_y,
+		       unsigned  width, unsigned height)
+{
+#ifdef HAVE_MITSHM
+  if (have_shmap)
+    {
+      XShmPutImage(display, d, gc, image, src_x, src_y, dest_x, dest_y, width, height, True);
+    }
+  else
+#endif /* HAVE_MITSHM */
+    {
+         XPutImage(display, d, gc, image, src_x, src_y, dest_x, dest_y, width, height);
+    }
+}
+
+static void EXPutImage(Display *display, Drawable d, GC gc, XImage *image, 
+		       int src_x,  int src_y, int dest_x, int dest_y,
+		       unsigned  width, unsigned height)
+{
+  static X_vars *state = &X_state;
+  EXPutImageUnscaled(display, d, gc, image,
+    src_x * state->XModeInfo.ScaleX, src_y * state->XModeInfo.ScaleY,
+    dest_x * state->XModeInfo.ScaleX, dest_y * state->XModeInfo.ScaleY,
+    width * state->XModeInfo.ScaleX, height * state->XModeInfo.ScaleY
+  );
+}
+
+
+/* true color stuff <<<<<<<<<<<<<<<<<<<< */
+
 
 /* Initialize everything X-related. */
 static int X_init(void)
@@ -540,14 +881,9 @@ static int X_init(void)
    XSetWindowAttributes attr;
    
   X_printf("X: X_init\n");
-#if DOSEMU061
-  fake_video_port_init();
-#endif
    co = 80;
    li = 25;
-#if DOSEMU060  
   set_video_bios_size();		/* make it stick */
-#endif  
   
   /* Open X connection. */
   display=XOpenDisplay(config.X_display);
@@ -570,6 +906,9 @@ static int X_init(void)
   rootwindow=RootWindow(display,screen);
   get_vga_colors();
   get_vga256_colors();
+
+  X_init_X_info();       /* true color support */
+
   load_text_font();
 
   mainwindow = XCreateSimpleWindow(display, rootwindow,
@@ -595,6 +934,8 @@ static int X_init(void)
   xch.res_name  = "XDosEmu";
   xch.res_class = "XDosEmu";
   XSetClassHint(display,mainwindow,&xch);
+
+  X_init_ModeRemap();     /* true color support */
 
 #if CONFIG_X_SELECTION
   /* Get atom for COMPOUND_TEXT type. */
@@ -703,6 +1044,7 @@ static void set_sizehints(int xsize, int ysize)
  */
 static int X_setmode(int type, int xsize, int ysize) 
 {
+  static X_vars *state = &X_state;
   static int previous_video_type=TEXT;
   XSetWindowAttributes win_attr;
   XSizeHints sh;
@@ -714,11 +1056,14 @@ static int X_setmode(int type, int xsize, int ysize)
   if(!set_vgaemu_mode(video_mode, xsize, ysize))
     return 0;  /* if it can't fail! */
                                 
+
   X_printf("X_setmode() type=%d, xsize=%d, ysize=%d info: x=%d y=%d\n",
          type,xsize,ysize,get_vgaemu_width(),get_vgaemu_heigth());
   
   X_printf("X_setmode(), video_mode = 0x%02x\n",video_mode);
-  
+
+  state->XModeInfo.RemapFunc = NULL;
+
   switch(previous_video_type)
     {
     case GRAPH:
@@ -729,6 +1074,19 @@ static int X_setmode(int type, int xsize, int ysize)
       
       if(ximage_p!=NULL)
 	{
+	  if(state->HaveTrueColor == True) {
+            if (previous_video_type == type) {
+              /* this is the code from Steffen, however, it doesn't not work
+                 under all conditions, especially when a scaled 320x200 leaves
+                 graphics mode. -- Hans
+               */
+  	      memset(ximage_p->data, 0, ximage_p->width * ximage_p->height * state->XScreenDepthChars);
+              EXPutImage(display, mainwindow, gc,
+              	ximage_p, 0, 0, 0, 0,
+              	state->x_res, state->y_res);
+            }
+            else X_partial_redraw_screen();
+	  }
 #ifdef HAVE_MITSHM
 	  XShmDetach(display, &shminfo);
 #endif
@@ -766,7 +1124,7 @@ static int X_setmode(int type, int xsize, int ysize)
     {
     case TEXT:
       XSetWindowColormap(display, mainwindow, text_cmap);
-          
+
       X_printf("X: Going to textmode...\n");
       XResizeWindow(display,mainwindow,
 	            get_vgaemu_tekens_x()*font_width,
@@ -826,20 +1184,33 @@ static int X_setmode(int type, int xsize, int ysize)
                                 get_vgaemu_tekens_x()*font_width,
                                 get_vgaemu_tekens_y()*font_height, 8, 0);
 #endif
-      /*      memset((void *)ximage_p->data, 0, get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height);*/
+       /*     memset((void *)ximage_p->data, 0, get_vgaemu_tekens_x()*get_vgaemu_tekens_y()*font_width*font_height);*/
       break;
                   
 
     case GRAPH:
+    {
+      int ScaleX=1, ScaleY=1, chars_ppixel=1;
       XSetWindowColormap(display, mainwindow, vga256_cmap);
-
+      
       X_printf("X: Going to graphics mode with fingers crossed...\n");
+
+
+      if (state->HaveTrueColor) {
+        state->x_res  = get_vgaemu_width();
+        state->y_res = get_vgaemu_heigth();
+        ScaleY = ScaleX = 1;
+        if (state->x_res == 320) ScaleY = ScaleX = 2;
+        state->XModeInfo.ScaleX = ScaleX;
+        state->XModeInfo.ScaleY = ScaleY;
+	chars_ppixel = state->XScreenDepthChars;
+      }
       XResizeWindow(display,mainwindow,
-	            get_vgaemu_width(), get_vgaemu_heigth());
+	            get_vgaemu_width() * ScaleX, get_vgaemu_heigth() * ScaleY);
 
       /*setsizehints()*/
-      sh.max_width=get_vgaemu_width();
-      sh.max_height=get_vgaemu_heigth();
+      sh.max_width=get_vgaemu_width()*ScaleX;
+      sh.max_height=get_vgaemu_heigth()*ScaleY;
       sh.width_inc=1;
       sh.height_inc=1;
       sh.flags = PMaxSize|PResizeInc;
@@ -853,14 +1224,14 @@ static int X_setmode(int type, int xsize, int ysize)
 			       DefaultVisual(display,DefaultScreen(display)),
 			       depth,ZPixmap,NULL,
 			       &shminfo,
-			       get_vgaemu_width(),
-			       get_vgaemu_heigth());
+			       get_vgaemu_width() * ScaleX,
+			       get_vgaemu_heigth() * ScaleY);
       if (ximage_p==NULL)
 	{
 	  fprintf(stderr, "Warning: XShmCreateImage() failed\n");
 	}
       shminfo.shmid = shmget(IPC_PRIVATE, 
-			     get_vgaemu_width()*get_vgaemu_heigth(),
+			     get_vgaemu_width()*ScaleX *get_vgaemu_heigth()*ScaleY *chars_ppixel,
 			     IPC_CREAT | 0777);
       if (shminfo.shmid<0)
 	{
@@ -881,12 +1252,33 @@ static int X_setmode(int type, int xsize, int ysize)
       XSync(display, False);
 #else
       ximage_p=XCreateImage(display,DefaultVisual(display,DefaultScreen(display)),
-                            depth,ZPixmap,0,(unsigned char*)malloc(get_vgaemu_width()*get_vgaemu_heigth()),
-                            get_vgaemu_width(),get_vgaemu_heigth(),8,0  );
+                            depth,ZPixmap,0,
+                            (unsigned char*)malloc(get_vgaemu_width()*ScaleX *get_vgaemu_heigth()*ScaleX *chars_ppixel),
+                            get_vgaemu_width() * ScaleX,
+                            get_vgaemu_heigth() * ScaleY,8,0  );
 #endif
       /*      memset((void *)ximage_p->data, 0, get_vgaemu_width()*get_vgaemu_heigth());*/
       /* set colormap */
       /*get_vga256_colors();*/
+      if (state->HaveTrueColor) {
+	if(!X_InstallRemapFunc(VGA_PSEUDO_8, state)) {
+          X_printf("X_setmode: mode type P8 not supported\n");
+	}
+	state->DACBits = 6;	/* true on most cards -- sw */
+	InitDACTable(state);
+	/* fill out most of XModeInfo, so we don't have to do it later -- sw */
+	state->XModeInfo.VGAWidth = state->x_res;
+	state->XModeInfo.VGAHeight = state->y_res;
+	state->XModeInfo.VGAScanLen = state->x_res;	/* set it again later in RemapXImage ? -- sw */
+	state->XModeInfo.XWidth = state->x_res;
+	state->XModeInfo.XHeight = state->y_res;
+	state->XModeInfo.XScanLen = state->x_res;	/* put the unscaled values here -- sw */
+        state->XModeInfo.XScreen = ximage_p->data;
+        state->XModeInfo.lut = lut;
+        state->XModeInfo.lut2 = lut2;
+        state->XModeInfo.Color8Lut = state->Color8Lut;
+      }
+    }
       break;
   
     default:
@@ -1031,7 +1423,20 @@ void X_blink_cursor(void)
    }
 }
 
- 
+static void X_partial_redraw_screen(void)
+{
+  if (!is_mapped)
+    return;
+  prev_cursor_shape = NO_CURSOR;   /* was overwritten */
+  redraw_cursor();
+  clear_scroll_queue();
+   
+  XFlush(display);
+
+  MEMCPY_2UNIX(prev_screen,screen_adr,co*li*2);
+  clear_scroll_queue();
+}
+
 /* 
  * DANG_BEGIN_FUNCTION X_redraw_screen
  *
@@ -1109,47 +1514,6 @@ static void X_redraw_screen(void)
 	}
       break;
 
-#if 0 /* wordt eigenlijk niet meer gebruikt */
-    case 0x13:	/* graphics 320x200 256*/
-      {
-        unsigned int counter;
-	DAC_entry color;
-	int i;
-        X_printf("In total redraw!\n");
-
-	/* first update the colormap */
-	while ((i=DAC_get_dirty_entry(&color))!=-1)
-	  {
-	    X_printf("X: X_redraw_screen(): DAC_get_dirty_entry()=%i\n", i);
-	    xcol.pixel=i;
-	    xcol.red  =color.r<<10;
-	    xcol.green=color.g<<10;
-	    xcol.blue =color.b<<10;
-
-	    XStoreColor(display, vga256_cmap, &xcol);
-	  }
-	while(i!=-1);
-
-    	  {
-            int x, y, left=320, top=200, right=0, bottom=0;
-            unsigned int changed=0;
-            unsigned char *real_vid_mem_p;
-            unsigned char *image_data_p=NULL;
-            
-            for(y=0, counter=0; y<200; y++)
-              {
-              real_vid_mem_p=(unsigned char*)(0xA0000+(0+320*(y)));
-              image_data_p=(unsigned char*)(ximage_p->data+(0+320*(y)));
-              for(x=0; x<320; x++)
-                {
-		  XPutPixel(ximage_p,x,y,*real_vid_mem_p++);
-                }
-   }
-  	  XPutImage(display,mainwindow,gc,ximage_p,0,0,0,0,320,200);
-          }
-      }
-      break;
-#endif
      
     default:
       X_printf("X_redraw_screen:No valid video mode\n");
@@ -1268,6 +1632,8 @@ static void do_scroll(void)
 static int X_update_screen(void)
 /*called from ../dosemu/signal.c:SIGALRM_call() */
 {
+  static X_vars *state = &X_state;
+  
   switch(get_vgaemu_type())
     {
     case TEXT:
@@ -1440,8 +1806,11 @@ chk_cursor:
 	  return 0;       /* no need to do anything... */
 
 	/* first update the colormap */
-	do
-	  {
+	if (state->HaveTrueColor) {
+	  refresh_truecolor_from_DAC(state);
+	}
+	else {
+	  do {
 	    i=DAC_get_dirty_entry(&color);
 	    if(i!=-1)
 	      {
@@ -1462,7 +1831,7 @@ chk_cursor:
 			lut[i]=tmppix;
 			colchanged=1;
 		      }
-#if REMAP_TYPE!=REMAP_TYPE_FAST
+#ifndef SHM_REMAP_TYPE_FAST
 		    /* Use the error from the first lookup table to help
 		       calculate a better value for the second lookup
 		       table, for dithering */
@@ -1483,7 +1852,7 @@ chk_cursor:
 			lut2[i]=tmppix;
 			colchanged=1;
 		      }
-#endif /* REMAP_TYPE!=REMAP_TYPE_FAST */
+#endif /* not SHM_REMAP_TYPE_FAST */
 		  }
 		else
 		  {
@@ -1503,6 +1872,8 @@ chk_cursor:
 	      dirty_all_video_pages();
 	  }
 
+        } /* not true color */
+
 	/* ! */
     	 {
 #ifdef DEBUG_SHOW_UPDATE_AREA
@@ -1519,54 +1890,22 @@ chk_cursor:
 			       VGAEMU_UPDATE_METHOD_GET_CHANGES,
 			       &modewidth)==True)
 	     {
+	       if (state->HaveTrueColor) {
+	         RemapXImage(VGA_PSEUDO_8, &xx, &yy, &ww, &hh, base, offset, len, modewidth);
+  	         changed++;
+
+  	         EXPutImage(display, mainwindow, gc,
+  			  ximage_p, xx, yy, xx, yy, ww, hh);
+
+                 X_printf("X_update_screen: %i: ofs %u, len %u, win (%i,%i),(%i,%i)\n",
+                   changed, (unsigned) offset, (unsigned) len, xx, yy, ww, hh
+                 );
+	         continue;
+	       }
 	       /*	       printf("Dirty: %7ld %7ld\t",offset,len);*/
 
 	       if (have_shmap)
 		 {
-#if REMAP_TYPE==REMAP_TYPE_SLOWXXXXXXXXXXX
-		   int linectr = len/modewidth;
-		   int lineoff;
-		   /* Quick remap & copy of all changed pixels */
-		   dataplusoffset = &ximage_p->data[offset];
-		   baseplusoffset = &base[offset];
-		   /* Assuming that the number of pixels to be remapped is an
-		      even number... this is a good assumption at the
-		      moment... */
-		   loop=len;
-		   while (linectr--)
-		     {
-		       lineoff=loop<modewidth?loop:modewidth;
-		       while (lineoff--)
-			 {
-			   dataplusoffset[loop]=lut[baseplusoffset[loop--]];
-			   dataplusoffset[loop]=lut2[baseplusoffset[loop--]];
-			 }
-		       if (linectr--)
-			 {
-			   lineoff=modewidth;
-			   while (lineoff--)
-			     {
-			       dataplusoffset[loop]=lut2[baseplusoffset[loop--]];
-			       dataplusoffset[loop]=lut[baseplusoffset[loop--]];
-			     }
-			 }
-		       else break;
-		     }
-#else
-#if REMAP_TYPE==REMAP_TYPE_MEDIUM
-		   /* Quick remap & copy of all changed pixels */
-		   dataplusoffset = &ximage_p->data[offset];
-		   baseplusoffset = &base[offset];
-		   loop=len;
-		   /* Assuming that the number of pixels to be remapped is an
-		      even number... this is a good assumption at the moment... */
-		   while (loop--)
-		     {
-		       dataplusoffset[loop]=lut[baseplusoffset[loop--]];
-		       dataplusoffset[loop]=lut2[baseplusoffset[loop]];
-		     }
-#else
-#if REMAP_TYPE==REMAP_TYPE_FAST
 		   /* Quick remap & copy of all changed pixels */
 		   dataplusoffset = &ximage_p->data[offset];
 		   baseplusoffset = &base[offset];
@@ -1576,11 +1915,6 @@ chk_cursor:
 		     {
 		       dataplusoffset[loop]=lut[baseplusoffset[loop]];
 		     }
-#else
-#error REMAP_TYPE specified is not implemented yet.		   
-#endif /* REMAP_TYPE==REMAP_TYPE_FAST */	   
-#endif /* REMAP_TYPE==REMAP_TYPE_MEDIUM */   
-#endif /* REMAP_TYPE==REMAP_TYPE_SLOW */
 		 }
 	       else
 		 {

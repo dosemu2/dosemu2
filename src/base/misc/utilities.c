@@ -11,9 +11,9 @@
 #include "bios.h"
 
 int
- ifprintf(unsigned int flg, const char *fmt,...) {
+ log_printf(unsigned int flg, const char *fmt,...) {
   va_list args;
-  char buf[1025];
+  static char buf[1025];
   int i;
   int error_fd;
 #ifdef SHOW_TIME

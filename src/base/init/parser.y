@@ -142,6 +142,7 @@ extern void yyrestart(FILE *input_file);
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
+%token L_SECURE
 %token BOOTDISK L_FLOPPY EMUSYS EMUBAT EMUINI L_X
 	/* speaker */
 %token EMULATED NATIVE
@@ -283,6 +284,11 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		    {
 		    config.max_umb = $2;
 		    if ($2 > 0) c_printf("CONF: maximize umb's %s\n", ($2) ? "on" : "off");
+		    }
+		| L_SECURE bool
+		    {
+		    config.secure = $2;
+		    if ($2 > 0) c_printf("CONF: security %s\n", ($2) ? "on" : "off");
 		    }
 		| L_DPMI mem_bool
 		    {

@@ -59,6 +59,7 @@ config_defaults(void)
     config.xms_size = 0;
     config.max_umb = 0;
     config.dpmi = 0;
+    config.secure = 0;
     config.mathco = 1;
     config.mouse_flag = 0;
     config.mapped_bios = 0;

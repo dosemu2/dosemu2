@@ -87,11 +87,11 @@ CISH(vgaemu_VESA_BIOS_label_start):
 		.byte	0x00
 		
 		.org VGAEMU_BIOS_WINDOWFUNCTION
-		mov	ax,0x4f05	/* This function is the same as
+		mov	ax,#0x4f05	/* This function is the same as
 					 * int 0x10, ax=0x4f05, so we just
 					 * call it.
 					 */
-		int	0x10
+		int	#0x10
 		retf
 		nop
 

@@ -43,21 +43,19 @@ DOSEMU DEVELOPERS WITH "MS Word 6.0 doesn't run!!!" MESSAGES...
 
 1.  Get DOSEMU & the Linux source distributions.
 2.  Unpack DOSEMU.
-3.  Uncomment the toplevel Makefile around line 21 so that it
-    sets REQUIRES_VM86PLUS = -DREQUIRES_VM86PLUS.
-4.  Compile DOSEMU typing 'make itall'.
-5.  Load the emumodule using the included load_module.sh script.
-6.  Get the OS2WIN31.ZIP distribution from .... ????
+3.  Configure DOSEMU typing './configure' and do _not_ disable vm86plus.
+4.  Compile DOSEMU typing 'make'.
+5.  Get the OS2WIN31.ZIP distribution from .... ????
     .... oh well, and now you have the first problem.
     It _was_ on ibm.com sometime ago, but has vanished from that site, and
     as long as it was there, we could mirror it. .... you see the problem?
     However, use 'archie' to find it, it will be around somewhere on the net
     ... for some time ;-)
-7.  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
+5.  Unpack the OS2WIN31 files into your WINDOWS\SYSTEM directory.
     (Infact you only need WINDOWS/SYSTEM/os2k386.exe and the mouse driver)
-8.  Startup dosemu (make certain that DPMI is set to a value such as 4096)
-9.  Copy the file winemu.bat to your c: drive.
-11. Cross your fingers.
+7.  Startup dosemu (make certain that DPMI is set to a value such as 4096)
+8.  Copy the file winemu.bat to your c: drive.
+9.  Cross your fingers.
 
 Good luck!
 

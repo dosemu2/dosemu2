@@ -222,6 +222,8 @@ keyboard_X_init(void)
 
 #endif
 
+int init_slang_keymaps(void); /* defined in slang-keyboard.c */
+
 /*
  * DANG_BEGIN_FUNCTION keyboard_init
  * 

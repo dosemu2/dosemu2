@@ -211,7 +211,17 @@ terminal_initialize()
    for (attr = 0; attr < 256; attr++)
      {
 	BW_Attribute_Map[attr] = Color_Attribute_Map[attr] = attr;
+#if 1   /* As Jim Powers <powers@dtedi.wpafb.af.mil> reported,
+	 * this leads to pure "black and white" on dumb terminals.
+	 * Commenting out the below statement results in getting visual
+	 * attributes on dumb terminal, but produces an invers screen image.
+	 * Forcing a configuration for a monochrome video adapter
+	 * (config.cardtype = CARD_MDA) solves this problem, but leads to
+	 * other problems.
+	 * ... have think more deeply about this.  --Hans
+	 */
 	BW_Attribute_Map[attr] = 0;
+#endif
 	
 	sltt_attr = 0;
 	if (attr & 0x80) sltt_attr |= SLTT_BLINK_MASK;

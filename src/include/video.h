@@ -244,6 +244,7 @@ EXTERN int video_subsys;
 #define ET4000		2
 #define DIAMOND		3
 #define S3		4
+#define AVANCE		5
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);

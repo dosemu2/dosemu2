@@ -17,6 +17,7 @@
 #include "et4000.h"
 #include "s3.h"
 #include "trident.h"
+#include "avance.h"
 #if 0
 #include "hgc.h"
 #endif
@@ -475,6 +476,10 @@ int vga_initialize(void)
   case S3:
     vga_init_s3();
     v_printf("S3 CARD in use\n");
+    break;
+  case AVANCE:
+    vga_init_avance();
+    v_printf("Avance Logic CARD in use\n");
     break;
   default:
     save_ext_regs = save_ext_regs_dummy;

@@ -1,3 +1,54 @@
+97/02/04 ver. 0.64.4 released
+	From Hans
+	- Adapted Steffen Winterfeld's (graphics) true color patch from
+	  0.63.1.98 (not his newest from .65) to 0.64.x.
+          The code now looks a bit kludgy, because it was written for .98,
+          but works great. Scaling (x2) is set for 320x200, so you may miss
+          the 'mini window' ;-) also win31 is happy.
+	- Added optimized XModeRemap functions for 15/16 bit true color.
+	- Upgraded to Slang0.99-38 and fix the odd situation when the
+	  system supplied libslang was included, but the headerfiles were
+	  taken from dosemu (showing the wrong slang version).
+	  Now it uses _completely_ the dosemu or the system supplied files.
+	  There is a new ./configure option to force use of the dosemu
+	  supplied slanglib: --enable-force-slang
+	  BTW: slang.h is now in src/include/slang/*
+	- Removed and disabled use of a.out (deleted slang-a.out-lib)
+	  for arch-linux.
+	- fixed compile warning keyboard-client.c. and changed some
+	  'error()' to 'v_printf()' in int10.c
+	- made the 'unexpected CPU exception 0x06' error show the correct
+	  registers.
+	- Fixed the wrong prefix handling in dpmi.c (dpmi_fault),
+	  Thanks to Alberto who pointed this out.
+	- Added 'secure' option in /etc/dosemu.conf, which disables
+          generation of 'whole userspace' descriptors. A DPMI client
+          otherwise can modify (a suid root running) dosemu, such that it
+          may execute arbitrary commands.
+          This option also disables the use of the 'unix' and 'system'
+          commands (dos-helper functions 0x50...0x53).
+	From John Davis
+	- Slang needs -lm with newer libc.
+	- If the function and arrow key definitions are in the
+	  terminfo library, it will use those
+	- Lower the TIMEOUT value for the ESC character from 3/4
+	  of a second to 1/4 of a seconds.
+	From Andreas Arens <andras@cww.de>
+	- New support for Avance Logic VGA cards, needs this in dosemu.conf:
+	  video { vga  console  graphics  chipset avance }
+	From Alberto
+	- Patch for makeing debug print checks faster
+	  (ifprintf -> log_printf)
+	- Makefile.main patch to fix odds in newer binutils.
+97/01/22 ver. 0.64.3.1 released
+	From Hans (final fixes)
+	- Removed rest of 'history' in include/vm86plus
+	- reinstalled include/linux/vm86.h (to avoid compile errors
+	  when using libc < 5.4.7)
+	- corrected VM86P* typo
+	- fixed wrong message on 'make install'
+	- made Bernd's timer patch a configure option, because apparently
+	  some games don't like it. (--enable-monoton-timing)
 97/01/19 ver. 0.64.3 released
 	From Hans
 	- removed emumodule (don't need it any more;-)

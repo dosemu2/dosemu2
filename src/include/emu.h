@@ -201,13 +201,17 @@ struct debug_flags {
 
 EXTERN void saytime(char *m_str);
 
-int ifprintf(unsigned int, const char *,...) FORMAT(printf, 2, 3);
+int log_printf(unsigned int, const char *,...) FORMAT(printf, 2, 3);
 
 void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
 #if 0  /* set this to 0, if you want dosemu to honor the -D flags */
  #define NO_DEBUGPRINT_AT_ALL
 #endif
+
+extern FILE *dbg_fd;
+
+#define ifprintf(flg,fmt,a...)	do{ if ((flg)&&(dbg_fd)) log_printf(flg,fmt,##a); }while(0)
 
 /* Note: moved it at top of emu.h, we need to define 'error' for priv.h 
   #define error(f,a...)	 	fprintf(stderr, f, ##a) */
@@ -217,7 +221,7 @@ void p_dos_str(char *,...) FORMAT(printf, 1, 2);
 
 #ifndef NO_DEBUGPRINT_AT_ALL
 
-#define k_printf(f,a...) 	(d.keyb?ifprintf(d.keyb,f,##a):0)
+#define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
 #define h_printf(f,a...) 	ifprintf(d.hardware,f,##a)
 #define v_printf(f,a...) 	ifprintf(d.video,f,##a)
 #define X_printf(f,a...)        ifprintf(d.X,f,##a)
@@ -442,6 +446,7 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        unsigned int hogthreshold;
 
        int mem_size, xms_size, ems_size, dpmi, max_umb;
+       int secure;
        unsigned int ems_frame;
        char must_spare_hardware_ram;
        char hardware_pages[ ((HARDWARE_RAM_STOP-HARDWARE_RAM_START) >> 12)+1 ];

@@ -183,7 +183,7 @@ warning2:
 	 echo '    - Linux >= 2.0.28, 2.1.x >= 2.1.15'; \
 	 echo "    - 16 megabytes total memory+swap"; \
 	 echo ""; \
-	 if [ "" = "$(REQUIRES_VM86PLUS)" ]; then \
+	 if [ "" != "$(REQUIRES_VM86PLUS)" ]; then \
 	 	echo "    - Full feature dosemu, compiled with vm86plus"; \
 	 else \
 		echo "    - Low feature dosemu compiled, will use old vm86 interface"; \
@@ -260,13 +260,18 @@ x2dos: x2dos.o
 # Therefor: $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_))
 #           is NOT a typo !!!
 # (Hans Lermen, at state of 0.63.0.1)
+# the -Wl,-b commands are there to correct a bug in binutils 2.7.0.7,
+# but they can be left just to make clear that a couple of files are
+# actually a.out hacks made by tools86 - AV
 
 ifdef ELF
 $(BINPATH)/bin/dos: 	emu.o base/data.o dossubdirs
 	$(LD) $(LDFLAGS) -o $@ \
 	   emu.o base/data.o $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
-	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) base/bios/bios.o env/video/vesabios.o \
-            @XLIBSW@ @SLANGLIB@ -lc 
+	    $(addprefix -l, $(LIBS_)) $(addprefix -l, $(LIBS_)) \
+	    -Wl,-b,a.out-i386-linux base/bios/bios.o env/video/vesabios.o \
+	    -Wl,-b,elf32-i386 \
+	    @XLIBSW@ @SLANGLIB@ -lc 
 	@nm $(BINPATH)/bin/dos | grep -v '\(compiled\)\|\(\.o$$\)\|\( a \)' | \
 		sort > $(BINPATH)/bin/dosemu.map
 

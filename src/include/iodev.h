@@ -33,6 +33,9 @@ extern void iodev_term(void);
  *******************************************************************/
 
 #define PIT_TICK_RATE   1193180      /* underlying clock rate in HZ */
+#ifndef MONOTON_MICRO_TIMING
+#define PIT_TICK_1000   1193         /* PIT tick rate / 1000        */
+#else /* MONOTON_MICRO_TIMING */
 #ifdef i386
 #   define PIT_MS2TICKS(n) ({ \
 			       int res; \
@@ -44,6 +47,7 @@ extern void iodev_term(void);
 #else
 #   define PIT_MS2TICKS(n) ((int)(((long long)(n)*59659)/50000))
 #endif
+#endif /* MONOTON_MICRO_TIMING */
 
 #define PIT_TIMERS      4            /* 4 timers (w/opt. at 0x44)   */
 

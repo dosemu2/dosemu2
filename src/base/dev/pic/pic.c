@@ -52,7 +52,9 @@
 #include "bitops.h"
 #endif
 #include "pic.h"
+#ifdef MONOTON_MICRO_TIMING
 #include "iodev.h"
+#endif /* MONOTON_MICRO_TIMING */
 #include "memory.h"
 #ifdef __linux__
 #include <linux/linkage.h>
@@ -886,29 +888,34 @@ unsigned long pic_newirr;
 /*  pic_activate(); */
 
   /*  calculate new sys_time */
+#ifndef MONOTON_MICRO_TIMING
+  t_time = (s_time->tv_sec%900)*1193047 
+           + (s_time->tv_usec*1193)/1000  /* This is usec * 1.193047 split */
+           + s_time->tv_usec/21277;        /* up to fit in 32 bit integer math */
+#else /* MONOTON_MICRO_TIMING */
   t_time = s_time->tv_sec*PIT_TICK_RATE 
            + PIT_MS2TICKS(s_time->tv_usec);
 
+#endif /* MONOTON_MICRO_TIMING */
   /* check for any freshly initiated timers, and sync them to s_time */
-/*  for(timer=1;timer<32;++timer) {
-      if(pic_itime[timer] < (-900*PIT_TICK_RATE) && pic_itime[timer] != NEVER)
-         pic_itime[timer] += t_time - NEVER;
-  } */
   pic_print(2,"pic_itime[1]= ",pic_itime[1]," ");
-#if 0 /* wraparound now is smoothly at 1h interval */
+#ifndef MONOTON_MICRO_TIMING
   /* Now check for wrap-around, and adjust all counters if needed.  Adjustment
-     value is 900*PIT_TICK_RATE, or total counts in 15 min. */
+     value is 900*1193047, or total counts in 15 min. */
   if(t_time<pic_sys_time) {
      for (timer=0;timer<33;++timer) { 
        if(pic_itime[timer]>=pic_dos_time) {
-          pic_itime[timer] -= 900*PIT_TICK_RATE;
-          pic_ltime[timer] -= 900*PIT_TICK_RATE;
+          pic_itime[timer] -= 900*1193047;
+          pic_ltime[timer] -= 900*1193047;
           }
        else pic_ltime[timer] = pic_itime[timer] = NEVER;
      }
   }
-#endif
+  pic_sys_time=t_time;
+#else  /* MONOTON_MICRO_TIMING */
+  /* wraparound now is smoothly at 1h interval */
   pic_sys_time=t_time + (t_time == -1);
+#endif /* MONOTON_MICRO_TIMING */
   pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];
   if(pic_icount<=pic_icount_od) pic_activate();
@@ -950,16 +957,22 @@ int earliest, timer, count;
    earliest = pic_sys_time;
    count = 0;
    for (timer=0; timer<32; ++timer) { 
+#ifndef MONOTON_MICRO_TIMING
+      if ((pic_itime[timer] < pic_sys_time) && (pic_itime[timer] != NEVER)) {
+#else /* MONOTON_MICRO_TIMING */
       if (((int)(pic_itime[timer] - pic_sys_time) < 0) &&
 	  (pic_itime[timer] != NEVER)) {
+#endif /* MONOTON_MICRO_TIMING */
          if( pic_itime[timer] != pic_ltime[timer]) {
-           /* if( pic_itime[timer] > pic_itime[32]) {*/
+#ifndef MONOTON_MICRO_TIMING
+               if ((pic_itime[timer] < earliest) || (earliest == NEVER))
+#else /* MONOTON_MICRO_TIMING */
                if (((int)(pic_itime[timer] - earliest) < 0) ||
 		   (earliest == NEVER))
+#endif /* MONOTON_MICRO_TIMING */
                     earliest = pic_itime[timer];
                pic_request(timer);
                ++count;
-          /*  }*/
          }
       }
    }
@@ -970,7 +983,8 @@ int earliest, timer, count;
 
 /* DANG_BEGIN_FUNCTION pic_sched
  * pic_sched schedules an interrupt for activation after a designated
- * time interval.  The time measurement is in unis of PIT_TICK_RATE/second,
+ * time interval.  The time measurement is in unis of 1193047/second,
+ * ( or if using MONOTON_MICRO_TIMING in unis of PIT_TICK_RATE/second )
  * the same rate as the pit counters.  This is convenient for timer
  * emulation, but can also be used for pacing other functions, such as
  * serial emulation, incoming keystrokes, or video updates.  Some sample 

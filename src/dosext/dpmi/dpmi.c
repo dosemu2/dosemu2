@@ -244,7 +244,7 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   unsigned long *lp;
 #ifdef __linux__
   struct modify_ldt_ldt_s ldt_info;
-  unsigned long first, last;
+  unsigned long first, last, bottom, top;
   int __retval;
   ldt_info.entry_number = entry;
   ldt_info.base_addr = base;
@@ -263,18 +263,22 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 #endif
 
   last = ldt_info.limit;
-  first = ldt_info.base_addr;
+  bottom = first = ldt_info.base_addr;
   if (ldt_info.limit_in_pages) {
   	last = last * PAGE_SIZE + PAGE_SIZE - 1;
   }
   if (contents == 1) {
 	first += last +1;
+	bottom = first;
 	last = ldt_info.base_addr+65535;
 	if (ldt_info.seg_32bit)
 		last = first-1;
   }
   else last += first;
-  
+  top=last;
+    
+#define OUR_STACK 16*4096  /* for config.secure */
+
   if (contents == 1) {
     if (ldt_info.seg_32bit) {
       if (last < first) {
@@ -288,12 +292,20 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
          * However, most clients won't do, as we know from the days as
          * expand-downs weren't handled by the kernel. (Hans 961220)
          */
-        if (ldt_info.base_addr >= TASK_SIZE)
+	top = TASK_SIZE-1;
+        if (ldt_info.base_addr >= TASK_SIZE) {
+		bottom =0;
 		last = 1 - ldt_info.base_addr;
+	}
 	else {
 	  /* we force an expand-up */
 	  ldt_info.contents = 0;
-	  last = TASK_SIZE - base;
+	  if (config.secure) {
+	  	last = TASK_SIZE - OUR_STACK - base;
+	  	top = TASK_SIZE - OUR_STACK -1;
+	  }
+	  else last = TASK_SIZE - base;
+	  bottom = base;
 	}
         ldt_info.limit_in_pages = 1;
         last = (last - (PAGE_SIZE - 1)) / PAGE_SIZE;
@@ -316,6 +328,17 @@ __inline__ int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
         limit = ldt_info.limit = TASK_SIZE - first - 1;
       D_printf("DPMI: WARNING: reducing limit of segment[0x%04x]\n",entry);
     }
+  }
+
+  if (config.secure) {
+	extern void _start();
+	extern char _end;
+	if ( (top > (TASK_SIZE - OUR_STACK)) /* we protect our stack */
+	  || ((bottom >= ((unsigned long)&_start)) && ( bottom < (unsigned long)&_end))
+	  || ((bottom < ((unsigned long)&_start)) && ( top >= (unsigned long)&_start)) ) {
+		errno = EINVAL;
+		return -1;
+	}
   }
 
   if ((__retval=modify_ldt(LDT_WRITE, &ldt_info, sizeof(ldt_info))))
@@ -2400,6 +2423,9 @@ void dpmi_fault(struct sigcontext_struct *scp)
 void dpmi_fault(struct sigcontext *scp, int code)
 #endif
 {
+
+#define LWORD32(x) (DPMIclient_is_32 ? (unsigned long) _##x : _LWORD(x))
+
   us *ssp;
   unsigned char *csp;
 
@@ -2447,8 +2473,49 @@ if ((_ss & 7) == 7) {
   }
 #endif
   if (_trapno == 13) {
-    csp = (unsigned char *) SEL_ADR(_cs, _eip);
+    unsigned char *lina;
+    Bit32u org_eip;
+    int pref_seg;
+    int done,is_rep,prefix66;
+    
+    csp = lina = (unsigned char *) SEL_ADR(_cs, _eip);
     ssp = (us *) SEL_ADR(_ss, _esp);
+
+    /* DANG_BEGIN_REMARK
+     * Here we handle all prefixes prior switching to the appropriate routines
+     * The exception CS:EIP will point to the first prefix that effects the
+     * the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
+     * So we collect all prefixes and remember them.
+     * - Hans Lermen
+     * DANG_END_REMARK
+     */
+
+    done=0;
+    is_rep=0;
+    prefix66=0;
+    pref_seg=-1;
+
+    do {
+      switch (*(csp++)) {
+         case 0x66:      /* operant prefix */  prefix66=1; break;
+         case 0x2e:      /* CS */              pref_seg=_cs; break;
+         case 0x3e:      /* DS */              pref_seg=_ds; break;
+         case 0x26:      /* ES */              pref_seg=_es; break;
+         case 0x36:      /* SS */              pref_seg=_ss; break;
+         case 0x65:      /* GS */              pref_seg=_gs; break;
+         case 0x64:      /* FS */              pref_seg=_fs; break;
+         case 0xf3:      /* rep */             is_rep=1; break;
+  #if 0
+         case 0xf2:      /* repnz */
+  #endif
+         default: done=1;
+      }
+    } while (!done);
+    csp--;
+    org_eip = _eip;
+    _eip += (csp-lina);
+
+
 
     switch (*csp++) {
 
@@ -2751,138 +2818,189 @@ if ((_ss & 7) == 7) {
       dpmi_sti();
       break;
     case 0x6c:                    /* insb */
-      *((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
-      D_printf("DPMI: insb(0x%04x) value %02x\n",
-	       _LWORD(edx),*((unsigned char *)SEL_ADR(_es,_edi)));   
-      if(LWORD(eflags) & DF) _LWORD(edi)--;
-      else _LWORD(edi)++;
-      _eip++;
+
+      /* NOTE: insb uses ES, and ES can't be overwritten by prefix */
+      if (is_rep) {
+        int delta = 1;
+        if(_LWORD(eflags) &DF ) delta = -1;
+        D_printf("DPMI: Doing REP F3 6C (rep insb) %lx bytes, DELTA %d\n",
+                LWORD32(ecx),delta);
+        if (DPMIclient_is_32) {
+          while (_ecx)  {
+             *((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
+             _edi += delta;
+             _ecx--;
+          }
+        }
+        else {
+          while (_LWORD(ecx))  {
+             *((unsigned char *)SEL_ADR(_es,_LWORD(edi))) = inb((int) _LWORD(edx));
+             _LWORD(edi) += delta;
+             _LWORD(ecx)--;
+          }
+        }
+      }
+      else {
+        *((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
+        D_printf("DPMI: insb(0x%04x) value %02x\n",
+  	       _LWORD(edx),*((unsigned char *)SEL_ADR(_es,_edi)));   
+        if(LWORD(eflags) & DF) LWORD32(edi)--;
+        else LWORD32(edi)++;
+      }
+      LWORD32(eip)++;
       break;
-    case 0x6d:			/* insw */
-      *((unsigned short *)SEL_ADR(_es,_edi)) = inw((int) _LWORD(edx));
-      D_printf("DPMI: insw(0x%04x) value %04x \n",
-	       _LWORD(edx),*((unsigned short *)SEL_ADR(_es,_edi)));
-      if(_LWORD(eflags) & DF) _LWORD(edi) -= 2;
-      else _LWORD(edi) +=2;
-      _eip++;
+    case 0x6d:			/* [rep] insw/d */
+      /* NOTE: insw/d uses ES, and ES can't be overwritten by prefix */
+      if (is_rep) {
+        #define ___LOCALAUX(typ,iotyp,incr,x) \
+          int delta =incr; \
+          if(_LWORD(eflags) & DF) delta = -incr; \
+          D_printf("DPMI: rep ins%c %lx words, DELTA %d\n", x, \
+                  LWORD32(ecx),delta); \
+          while(LWORD32(ecx)) { \
+            *(typ SEL_ADR(_es, _edi))=iotyp(_LWORD(edx)); \
+            LWORD32(edi) += delta; \
+            LWORD32(ecx)--; \
+          }
+
+        if (prefix66 ^ DPMIclient_is_32) {
+                                  /* rep insd */
+          ___LOCALAUX((unsigned long *),ind,4,'d')
+        }
+        else {
+                                  /* rep insw */
+          ___LOCALAUX((unsigned short *),inw,2,'w')
+        }
+        #undef  ___LOCALAUX
+      }
+      else {
+        #define ___LOCALAUX(typ,iotyp,incr,x) \
+          *(typ SEL_ADR(_es, _edi))=iotyp(_LWORD(edx)); \
+          D_printf("DPMI: ins%c(0x%lx) value %lx \n", x, \
+                  LWORD32(edx),(unsigned long)*(typ SEL_ADR(_es, _edi)) ); \
+          if(_LWORD(eflags) & DF) LWORD32(edi) -= incr; \
+          else LWORD32(edi) +=incr;
+        
+        if (prefix66 ^ DPMIclient_is_32) {
+                                  /* insd */
+          ___LOCALAUX((unsigned long *),ind,4,'d')
+        }
+        else {
+                                  /* insw */
+          ___LOCALAUX((unsigned short *),inw,2,'w')
+        }
+        #undef  ___LOCALAUX
+      }
+      LWORD32(eip)++;
       break;
-    case 0x6e:			/* outsb */
-      D_printf("DPMI: untested: outsb port 0x%04x value %02x\n",
-            _LWORD(edx),*((unsigned char *)SEL_ADR(_ds,_esi)));
-      outb(_LWORD(edx), *((unsigned char *)SEL_ADR(_ds,_esi)));
-      if(_LWORD(eflags) & DF) _LWORD(esi)--;
-      else _LWORD(esi)++;
-      _eip++;
+
+    case 0x6e:			/* [rep] outsb */
+      if (pref_seg < 0) pref_seg = _ds;
+      if (is_rep) {
+        int delta = 1;
+        D_printf("DPMI: rep outsb\n");
+        if(LWORD(eflags) & DF) delta = -1;
+        while(LWORD32(ecx)) {
+          outb(_LWORD(edx), *((unsigned char *)SEL_ADR(pref_seg,_esi)));
+          LWORD32(esi) += delta;
+          LWORD32(ecx)--;
+        }
+      }
+      else {
+        D_printf("DPMI: outsb port 0x%04x value %02x\n",
+              _LWORD(edx),*((unsigned char *)SEL_ADR(pref_seg,_esi)));
+        outb(_LWORD(edx), *((unsigned char *)SEL_ADR(pref_seg,_esi)));
+        if(_LWORD(eflags) & DF) LWORD32(esi)--;
+        else LWORD32(esi)++;
+      }
+      LWORD32(eip)++;
       break;
-    case 0x6f:			/* outsw */
-      D_printf("DPMI: untested: outsw port 0x%04x value %04x\n",
-	      _LWORD(edx), *((unsigned short *)SEL_ADR(_ds,_esi)));
-      outw(_LWORD(edx), *((unsigned short *)SEL_ADR(_ds,_esi)));
-      if(_LWORD(eflags) & DF ) _LWORD(esi) -= 2;
-      else _LWORD(esi) +=2; 
-      _eip++;
+
+    case 0x6f:			/* [re] outsw/d */
+      if (pref_seg < 0) pref_seg = _ds;
+      if (is_rep) {
+        #define ___LOCALAUX(typ,iotyp,incr,x) \
+          int delta = incr; \
+          D_printf("DPMI:  rep outs%c\n", x); \
+          if(_LWORD(eflags) & DF) delta = -incr; \
+          while(LWORD32(ecx)) { \
+            iotyp(LWORD32(edx), *(typ SEL_ADR(pref_seg,_esi))); \
+            LWORD32(esi) += delta; \
+            LWORD32(ecx)--; \
+          }
+        
+        if (prefix66 ^ DPMIclient_is_32) {
+                                  /* rep outsd */
+          ___LOCALAUX((unsigned long *),outd,4,'d')
+        }
+        else {
+                                  /* rep outsw */
+          ___LOCALAUX((unsigned short *),outw,2,'w')
+        }
+        #undef  ___LOCALAUX
+      }
+      else {
+        #define ___LOCALAUX(typ,iotyp,incr,x) \
+          D_printf("DPMI: outs%c port 0x%04x value %x\n", x, \
+                  _LWORD(edx), (unsigned int) *(typ SEL_ADR(pref_seg,_esi))); \
+          iotyp(_LWORD(edx), *(typ SEL_ADR(pref_seg,_esi))); \
+          if(_LWORD(eflags) & DF ) LWORD32(esi) -= incr; \
+          else LWORD32(esi) +=incr;
+        
+        if (prefix66 ^ DPMIclient_is_32) {
+                                  /* outsd */
+          ___LOCALAUX((unsigned long *),outd,4,'d')
+        }
+        else {
+                                  /* outsw */
+          ___LOCALAUX((unsigned short *),outw,2,'w')
+        }
+        #undef  ___LOCALAUX
+      } 
+      LWORD32(eip)++;
       break;
-    case 0xe5:			/* inw xx */
-      _LWORD(eax) = inw((int) csp[0]);
-      _eip += 2;
+
+    case 0xe5:			/* inw xx, ind xx */
+      if (prefix66 ^ DPMIclient_is_32) _eax = ind((int) csp[0]);
+      else _LWORD(eax) = inw((int) csp[0]);
+      LWORD32(eip) += 2;
       break;
     case 0xe4:			/* inb xx */
       _LWORD(eax) &= ~0xff;
       _LWORD(eax) |= inb((int) csp[0]);
-      _eip += 2;
+      LWORD32(eip) += 2;
       break;
     case 0xed:			/* inw dx */
-      _LWORD(eax) = inw(_LWORD(edx));
-      _eip++;
+      if (prefix66 ^ DPMIclient_is_32) _eax = ind(_LWORD(edx));
+      else _LWORD(eax) = inw(_LWORD(edx));
+      LWORD32(eip)++;
       break;
     case 0xec:			/* inb dx */
       _LWORD(eax) &= ~0xff;
       _LWORD(eax) |= inb(_LWORD(edx));
-      _eip += 1;
+      LWORD32(eip) += 1;
       break;
     case 0xe7:			/* outw xx */
-      outb((int) csp[0], _LO(ax));
-      outb((int) csp[0] + 1, _HI(ax));
-      _eip += 2;
+      if (prefix66 ^ DPMIclient_is_32) outd((int)csp[0], _eax);
+      else outw((int)csp[0], _LWORD(eax));
+      LWORD32(eip) += 2;
       break;
     case 0xe6:			/* outb xx */
       outb((int) csp[0], _LO(ax));
-      _eip += 2;
+      LWORD32(eip) += 2;
       break;
     case 0xef:			/* outw dx */
-      outb(_edx, _LO(ax));
-      outb(_edx + 1, _HI(ax));
-      _eip += 1;
+      if (prefix66 ^ DPMIclient_is_32) outd(_LWORD(edx), _eax);
+      else outw(_LWORD(edx), _LWORD(eax));
+      LWORD32(eip) += 1;
       break;
     case 0xee:			/* outb dx */
       outb(_LWORD(edx), _LO(ax));
-      _eip += 1;
+      LWORD32(eip) += 1;
       break;
-    case 0xf3:                    /* rep */
-	switch(csp[0] & 0xff) {                
-        case 0x6c: {             /* rep insb */
-	    int delta = 1;
-	    if(_LWORD(eflags) &DF ) delta = -1;
-	    D_printf("DPMI: Doing REP F3 6C (rep insb) %04x bytes, DELTA %d\n",
-		     _LWORD(ecx),delta);
-	    while (_LWORD(ecx))  {
-		*((unsigned char *)SEL_ADR(_es,_edi)) = inb((int) _LWORD(edx));
-		_LWORD(edi) += delta;
-		_LWORD(ecx)--;
-	    }
-	    _eip+=2;
-	    break;
-	}
-	case  0x6d: {           /* rep insw */
-	    int delta =2;
-	    if(_LWORD(eflags) & DF) delta = -2;
-	    D_printf("DPMI: REP F3 6D (rep insw) %04x words, DELTA %d\n",
-		     _LWORD(ecx),delta);
-	    while(_LWORD(ecx)) {
-		*((unsigned short *)SEL_ADR(_es,_edi))=inw(_LWORD(edx));
-		_LWORD(edi) += delta;
-		_LWORD(ecx)--;
-	    }
-	    _eip +=2;
-	    break;
-	}
-	case 0x6e: {           /* rep outsb */
-	    int delta = 1;
-	    D_printf("DPMI: untested: rep outsb\n");
-	    if(_LWORD(eflags) & DF) delta = -1;
-	    while(_LWORD(ecx)) {
-		outb(_LWORD(edx), *((unsigned char *)SEL_ADR(_ds,_esi)));
-		_esi += delta;
-		_LWORD(ecx)--;
-	    }
-	    _eip +=2;
-	    break;
-	}
-	case 0x6f: { 
-	    int delta = 2;
-	    D_printf("DPMI: untested: rep outsw\n");
-	    if(_LWORD(eflags) & DF) delta = -2;
-	    while(_LWORD(ecx)) {
-		outw(_LWORD(edx), *((unsigned short *)SEL_ADR(_ds,_esi)));
-		_esi += delta;
-		_LWORD(ecx)--;
-	    }
-	    _eip+=2;
-	    break;
-	}
-	default:
-	    D_printf("DPMI: Nope REP F3,CSP[0..1] = 0x%02x%02x\n",
-		     csp[0], csp[1]);
-#ifdef __linux__
-	    do_cpu_exception(scp);
-#endif
-#ifdef __NetBSD__
-	    do_cpu_exception(scp, code);
-#endif
-      }
-      break;        
-    default:
 
+    default:
+      _eip = org_eip;
       if (msdos_fault(scp))
 	  return;
 #ifdef __linux__
