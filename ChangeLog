@@ -1,3 +1,10 @@
+97/05/05 ver. 0.67.1.2 unofficial pre-release
+	From Alberto
+	- fix for inconsistent (EMU_)MAX_IO_DEVICES
+	- Microsoft mouse protocol fixes. It was erroneously merged with
+	  the MouseMan 3-4 byte variable length protocol, while Microsoft
+	  has a 3-byte fixed protocol (A.Rubini confirmed).
+	- some comments & small fixes (continued)
 97/05/05 ver. 0.67.1.1 unofficial pre-release
 	From Alberto
 	- fixes for typos

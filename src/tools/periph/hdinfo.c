@@ -90,7 +90,7 @@ print_part(struct partition *part, size_t offset, int sect_off, int ext)
   }
 }
 
-void
+int
 main(int argc, char **argv)
 {
   int i, hdimage_off = 0;
@@ -136,5 +136,5 @@ main(int argc, char **argv)
   for (i = 0; i < 4; i++)
     print_part((struct partition *) (mbr + 0x1be + hdimage_off + i * 16),
 	       hdimage_off, 0, 0);
-  exit(0);
+  return 0;
 }

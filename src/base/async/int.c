@@ -1693,7 +1693,12 @@ void setup_interrupts(void) {
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
 
-  install_int_10_handler();	/* Install the handler for video-interrupt */
+  /* Install new handler for video-interrupt into bios_f000_int10ptr,
+   * for video initialization at f800:4200
+   * If config_vbios_seg=0xe000 -> e000:3, else c000:3
+   * Next will be the call to int0xe6,al=8 which starts video BIOS init
+   */
+  install_int_10_handler();
 
   /* This is an int e7 used for FCB opens */
   SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);

@@ -275,6 +275,7 @@ fullibm			MAY_BE { yylval->i_value = CHARSET_FULLIBM;
 	/* mouse types */
 
 microsoft		RETURN(MICROSOFT);
+ms3button		RETURN(MS3BUTTON);
 logitech		RETURN(LOGITECH);
 mmseries		RETURN(MMSERIES);
 mouseman		RETURN(MOUSEMAN);

@@ -27,7 +27,7 @@
 #define __min(x,y)   (((x)<(y))?(x):(y))
 #endif
 
-#define MAX_IO_DEVICES  32
+#define MAX_IO_DEVICES  EMU_MAX_IO_DEVICES
 
 static struct {
   Bit8u      (*read_portb)(Bit32u port_addr);

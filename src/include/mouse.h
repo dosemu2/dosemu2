@@ -13,14 +13,15 @@
 
 #define MOUSE_NONE -1
 #define MOUSE_MICROSOFT 0
-#define MOUSE_MOUSESYSTEMS 1
-#define MOUSE_MMSERIES 2
-#define MOUSE_LOGITECH 3
-#define MOUSE_BUSMOUSE 4
-#define MOUSE_MOUSEMAN 5
-#define MOUSE_PS2 6
-#define MOUSE_HITACHI 7
-#define MOUSE_X 8
+#define MOUSE_MS3BUTTON 1
+#define MOUSE_MOUSESYSTEMS 2
+#define MOUSE_MMSERIES 3
+#define MOUSE_LOGITECH 4
+#define MOUSE_BUSMOUSE 5
+#define MOUSE_MOUSEMAN 6
+#define MOUSE_PS2 7
+#define MOUSE_HITACHI 8
+#define MOUSE_X 9
 
 /* types of mouse events */
 #define DELTA_CURSOR		1
@@ -59,7 +60,8 @@ typedef struct  {
 
 /* this entire structure gets saved on a driver state save */
 /* therefore we try to keep it small where appropriate */
-EXTERN struct  {
+/* the 'volatile' is there to cover some bug in gcc -O -g3 */
+EXTERN volatile struct  {
   unsigned char lbutton, mbutton, rbutton;
   unsigned char oldlbutton, oldmbutton, oldrbutton;
 

@@ -18,7 +18,7 @@
  * you can increase this to anything below 256 since an 8-bit handle
  * is used for each device
  */
-#define EMU_MAX_IO_DEVICES 20
+#define EMU_MAX_IO_DEVICES 0x20
 
 /*
  * number of IRQ lines supported.  In an ISA PC there are two

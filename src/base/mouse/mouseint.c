@@ -48,7 +48,7 @@ void DOSEMUSetMouseSpeed();
  */
 
 void
-DOSEMUSetupMouse()
+DOSEMUSetupMouse(void)
 {
   m_printf("MOUSE: DOSEMUSetupMouse called\n");
   if ( ! config.usesX ){
@@ -145,8 +145,8 @@ DOSEMUSetupMouse()
 #endif
     /* this is only to try to get the initial internal driver two/three
     	button mode state correct; user can override it later. */
-    if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_BUSMOUSE ||
-		mice->type == MOUSE_PS2)
+    if (mice->type == MOUSE_MICROSOFT || mice->type == MOUSE_MS3BUTTON ||
+    	mice->type == MOUSE_BUSMOUSE ||	mice->type == MOUSE_PS2)
 	mice->has3buttons = FALSE;
     else
     	mice->has3buttons = TRUE;
@@ -163,9 +163,10 @@ DOSEMUMouseProtocol(rBuf, nBytes)
   static int           pBufP = 0;
   static unsigned char pBuf[8];
 
-  static unsigned char proto[8][5] = {
+  static unsigned char proto[9][5] = {
     /*  hd_mask hd_id   dp_mask dp_id   nobytes */
     {	0x40,	0x40,	0x40,	0x00,	3 	},  /* MicroSoft */
+    {	0x40,	0x40,	0x40,	0x00,	3 	},  /* MicroSoft-3Bext */
     {	0xf8,	0x80,	0x00,	0x00,	5	},  /* MouseSystems */
     {	0xe0,	0x80,	0x80,	0x00,	3	},  /* MMSeries */
     {	0xe0,	0x80,	0x80,	0x00,	3	},  /* Logitech */
@@ -200,13 +201,38 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	
 	pBuf[pBufP++] = rBuf[i];
 	if (pBufP != proto[mice->type][4]) continue;
+	m_printf("MOUSEINT: package %02x %02x %02x\n",pBuf[0],pBuf[1],pBuf[2]);
 	/*
 	 * assembly full package
 	 */
 	switch(mice->type) {
 	   
+	case MOUSE_MICROSOFT:	    /* The ms protocol, unextended. */
+	   buttons = ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
+	   dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
+	   dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
+	   break;
+
+	case MOUSE_MS3BUTTON:       /* Microsoft */
+	{
+	   /* The original micro$oft protocol, with a middle-button extension */
+	   /*
+	    * some devices report a change of middle-button state by
+	    * repeating the current button state  (patch by Mark Lord)
+	    */
+	   static unsigned char prev=0;
+
+	   if (pBuf[0]==0x40 && !(prev|pBuf[1]|pBuf[2]))
+	     buttons = 2;           /* third button on MS compatible mouse */
+	   else
+	     buttons= ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
+	     prev = buttons;
+	   dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
+	   dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
+	}
+	break;
+
 	case MOUSE_MOUSEMAN:	    /* MouseMan / TrackMan   [CHRIS-211092] */
-	case MOUSE_MICROSOFT:       /* Microsoft */
 	/*
 	 * the damned MouseMan has 3/4 bytes packets. The extra byte 
 	 * is only there if the middle button is active.
@@ -221,6 +247,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   else {
 	      buttons = ((pBuf[0] & 0x20) >> 3) | ((pBuf[0] & 0x10) >> 4);
 	      m_printf("MOUSEINT: buttons=%02x\n",buttons);
+
 	      /*
 	       * if the middle button was pressed or released
 	       * we get a fourth byte. Check if it is in the buffer
@@ -242,7 +269,8 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 		 clock_t c;
 		 int     n;
 		 /*
-		  * Wait .02s for the data to arrive
+		  * Wait from 10 to 20ms for the data to arrive
+		  * (8.3ms for a byte at 1200 baud)
 		  */
 		 c = clock() + 3;
 		 n=0;
@@ -266,7 +294,7 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 		    }
 		 }
 	      }
-	   }
+	   }	/* chordMiddle */
 	   dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
 	   dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
 	   break;
@@ -361,14 +389,11 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	 */
 	mouse_event();
 	pBufP = 0;
-     }
-  }
+     }	/* assembly full package */
+  }	/* !config.usesX */
 }
 
-void DOSEMUSetMouseSpeed(old, new, cflag)
-int old;
-int new;
-unsigned cflag;
+void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag)
 {
 	struct termios tty;
 	char *c;
@@ -442,9 +467,6 @@ unsigned cflag;
 	{
 		m_printf("MOUSE: Unable to write to mouse fd. Mouse may not function properly.\n");
 	}
-#if 0 /* 94/11/29 This causes DOSEMU to lock when debug is turned on */
-	usleep(100000);
-#endif
 
         m_printf("MOUSE: calling tcsetattr\n");
 	if (tcsetattr(mice->fd, TCSADRAIN, &tty) < 0)
@@ -453,7 +475,7 @@ unsigned cflag;
 	}
 }
 
-void DOSEMUMouseEvents()
+void DOSEMUMouseEvents(void)
 {
 /* We define a large buffer, because of high overheads with other processes */
 #define MOUSE_BUFFER 1024
@@ -461,6 +483,8 @@ void DOSEMUMouseEvents()
 	int nBytes;
 
 	nBytes = RPT_SYSCALL(read(mice->fd, (char *)rBuf, sizeof(rBuf)));
-	DOSEMUMouseProtocol(rBuf, nBytes);
-	m_printf("MOUSE: Read %d bytes\n", nBytes);
+	if (nBytes>0 && !config.usesX) {
+	  m_printf("MOUSE: Read %d bytes\n", nBytes);
+	  DOSEMUMouseProtocol(rBuf, nBytes);
+	}
 }

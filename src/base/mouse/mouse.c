@@ -621,11 +621,11 @@ mouse_restorestate(void)
   	mouse_cursor(-1);
   }
 
-  memcpy(&mouse, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
+  memcpy((void *)&mouse, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
 
   /* regenerate mouse graphics cursor from masks; they take less
   	space than the "compiled" version. */
-  define_graphics_cursor(mouse.graphscreenmask,mouse.graphcursormask);
+  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
 
   /* we turned off the mouse cursor prior to saving, so turn it
   	back on again at the restore. */
@@ -650,7 +650,7 @@ mouse_storestate(void)
   	mouse_cursor(-1);
   }
 
-  memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), &mouse, sizeof(mouse));
+  memcpy((u_char *)(LWORD(es) << 4)+LWORD(edx), (void *)&mouse, sizeof(mouse));
 
   /* now turn it back on */
   if (mouse.cursor_on >= 0) {
@@ -833,8 +833,8 @@ mouse_reset(int flag)
 
   mouse.textscreenmask = 0xffff;
   mouse.textcursormask = 0x7f00;
-  memcpy(mouse.graphscreenmask,default_graphscreenmask,32);
-  memcpy(mouse.graphcursormask,default_graphcursormask,32);
+  memcpy((void *)mouse.graphscreenmask,default_graphscreenmask,32);
+  memcpy((void *)mouse.graphcursormask,default_graphcursormask,32);
   mouse.hotx = mouse.hoty = -1;
 }
 
@@ -1015,11 +1015,11 @@ mouse_set_gcur(void)
   mouse.hoty = LWORD(ecx);
 
   /* remember mask definition */
-  memcpy(mouse.graphscreenmask,ptr,32);
-  memcpy(mouse.graphcursormask,ptr+16,32);
+  memcpy((void *)mouse.graphscreenmask,ptr,32);
+  memcpy((void *)mouse.graphcursormask,ptr+16,32);
 
   /* compile it so that it can acutally be drawn. */
-  define_graphics_cursor(mouse.graphscreenmask,mouse.graphcursormask);
+  define_graphics_cursor((short *)mouse.graphscreenmask,(short *)mouse.graphcursormask);
 }
 
 void 

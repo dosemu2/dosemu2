@@ -17,6 +17,7 @@
  * DANG_END_MODULE
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <termios.h>
