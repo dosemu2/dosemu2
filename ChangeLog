@@ -1,3 +1,21 @@
+98/11/06 ver. 0.99.3.1 unofficial pre-release
+	From Michael
+	- small 'more then one' printer fix (lpt.c)
+	- fix for memory leak in lpt.c
+	From Hans
+	- fixed bug in aspi.c: did malloc() one entry too few
+	- removed not needed '#include <scsi/scsi.h> in both scsicheck.c
+	  and aspi.c
+	- copied a cutdown version of linux/include/scsi/sg.h into
+	  our src/include/scsi/*. Now ASPI should compile regardless wether
+	  /usr/include/scsi is missing (glibc?).
+	- added "host/channel/ID/LUN" construct to search for the right
+	  sgX device (aspi.c, scsicheck)
+	- fix (in fact a kludge) for dosemu not running in a cronjob
+	  (base/keyboard/keyb_slang.c). In case of not being able to tcgetattr()
+	  we examine TERM for 'dumb', 'none' or 'config.cardtype==CARD_NONE'.
+	  In this case we set TERM and TERMCAP and ignore the rest.
+	- updated doc/README/batch to reflect the 'cron kludge'.
 98/10/31 ver. 0.99.3 released
 	From Alberto
 	- pentium timing: rdtsc is now off by default

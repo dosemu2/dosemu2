@@ -55,7 +55,6 @@
 #include <memory.h>
 #include <unistd.h>
 
-#include <scsi/scsi.h>
 #include <scsi/sg.h>
 #include <asm/param.h>  /* for HZ */
 
@@ -346,6 +345,20 @@ static int init_sg_device_list(void) {
   return 0;
 }
 
+static int search_for_sg(int hostId, int channel, int target, int lun)
+{
+  int i, sgminor;
+  for (i=0, sgminor=-1; i <num_sg_devices; i++) {
+    if (   (hostId == sg_devices[i].hostId)
+        && (channel == sg_devices[i].channel)
+        && (target == sg_devices[i].target)
+        && (lun == sg_devices[i].lun) ) {
+      return sg_devices[i].sgminor;
+    }
+  }
+  return -1;
+}
+
 char *aspi_add_device(char *name, char *devtype, int target)
 {
   int sgminor, i;
@@ -353,13 +366,21 @@ char *aspi_add_device(char *name, char *devtype, int target)
   struct scsi_device_info *si;
 
   if (!init_sg_device_list()) return 0;
-  if (!name || !name[0] || strncmp(name, "sg", 2)) return 0;
-  if (name[2] > '9') {
-    if (strlen(name) >3) return 0;
-    sgminor = name[2] - 'a';
+  if (!name || !name[0]) return 0;
+  if (isdigit(name[0]) && isdigit(name[2]) && isdigit(name[4]) && isdigit(name[6])
+      && (name[1] == '/') && (name[3] == '/') && (name[5] == '/')) {
+    sgminor = search_for_sg(name[0] -'0', name[2] -'0', name[4] -'0', name[6] -'0');
+    if (sgminor <0) return 0;
   }
   else {
-    sgminor = strtoul(name+2, 0, 10);
+    if (strncmp(name, "sg", 2)) return 0;
+    if (name[2] > '9') {
+      if (strlen(name) >3) return 0;
+      sgminor = name[2] - 'a';
+    }
+    else {
+      sgminor = strtoul(name+2, 0, 10);
+    }
   }
   if (sgminor < 0 || sgminor >= num_sg_devices) return 0;
   if (!devtype || !devtype[0]) {
@@ -376,7 +397,7 @@ char *aspi_add_device(char *name, char *devtype, int target)
       if (configured_devices[i]->sgminor == sgminor) return 0;
     }
     configured_devices[num_configured_devices] = si;
-    configured_devices = realloc(configured_devices, sizeof(void *) * (num_configured_devices+1));
+    configured_devices = realloc(configured_devices, sizeof(void *) * (num_configured_devices+2));
     configured_devices[num_configured_devices+1] = 0;
   }
   else {

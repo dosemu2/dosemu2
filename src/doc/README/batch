@@ -96,6 +96,18 @@ ESC-sequences from Slang.
 You may elaborate this technique by writing a script, which gets the
 dos-command to execute from the commandline and generate 'FILE' for you.
 
+<sect1>Running DOSEMU within a cron job
+<p>
 When you try to use one of the above to start dosemu out of a crontab,
 then you have to asure, that the process has a proper environement set up
 ( especially the TERM and/or TERMCAP variable ).
+
+Normally cron would setup TERM=dumb, this is fine because DOSEMU recognizes
+it and internally sets it's own TERMCAP entry and TERM to `dosemu-none'.
+You may also configure your video to
+<tscreen><verb>
+   # dos ... -I 'video { none }'
+</verb></tscreen>
+or have a TERM=none to force the same setting.
+In all other crontab run cases you may get nasty error messages either
+from DOSEMU or from Slang.

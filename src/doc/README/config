@@ -750,15 +750,15 @@ a lot to get the configuration right:
 <tscreen><verb>
 $ scsicheck
 sg0 scsi0 ch0 ID0 Lun0 ansi2 Direct-Access(0) IBM DCAS-34330 S61A
-    $_aspi = "sg0:Direct-Access:0"
+    $_aspi = "sg0:Direct-Access:0" (or "0/0/0/0:Direct-Access:0")
 sg1 scsi0 ch0 ID5 Lun0 ansi2 Direct-Access(0) IOMEGA ZIP 100 D.08
-    $_aspi = "sg1:Direct-Access:5"
+    $_aspi = "sg1:Direct-Access:5" (or "0/0/5/0:Direct-Access:5")
 sg2 scsi0 ch0 ID6 Lun0 ansi2 CD-ROM(5) TOSHIBA CD-ROM XM-5701TA 0167
-    $_aspi = "sg2:CD-ROM:6" <=== ATTENTION: multiple target ID
+    $_aspi = "sg2:CD-ROM:6" (or "0/0/6/0:CD-ROM:6") <== multiple IDs
 sg3 scsi1 ch0 ID4 Lun0 ansi2 Sequential-Access(1) HP C1533A 9503
-    $_aspi = "sg3:Sequential-Access:4"
+    $_aspi = "sg3:Sequential-Access:4" (or "1/0/4/0:Sequential-Access:4")
 sg4 scsi1 ch0 ID6 Lun0 ansi1 WORM(4) IMS CDD522/10 1.07
-    $_aspi = "sg4:WORM:6" <=== ATTENTION: multiple target ID
+    $_aspi = "sg4:WORM:6" (or "1/0/6/0:WORM:6") <== multiple IDs
 </verb></tscreen>
 
 In the above example there are two scsi hostadapters (scsi0 and scsi1) and
@@ -770,9 +770,31 @@ $_aspi = "sg2:CD-ROM:5 sg4:WORM"
 </verb></tscreen>
 and all would be fine. From the DOS side the CD-ROM appears as target 5
 and the WORM (CD writer) as target 6.
+Also from the above scsicheck output, you can see, that you can opt
+to use a `host/channel/ID/LUN' construct in place of `sgX' such as
+<tscreen><verb>
+$_aspi = "0/0/6/0:CD-ROM:5 1/0/6/0:WORM"
+</verb></tscreen>
+which is exactly the same as the above example, exept it will assign
+the right device, even if for some reasons you have changed the order
+in which sgX device are assigned by the kernel. Those changes happen, if
+you turned off power of one device `between' or if you play with dynamic
+allocation of scsi devices via the /proc/scsi interface such as
+<tscreen><verb>
+echo "scsi remove-single-device 0 0 5 0" >/proc/scsi/scsi
+</verb></tscreen>
+to delete a device and
+<tscreen><verb>
+echo "scsi add-single-device 0 0 5 0" >/proc/scsi/scsi
+</verb></tscreen>
+to add a device. HOWEVER, we <em/strongly/ discourage
+you to use these kernel feature for temporaryly switching off
+power of connected devices or even unplugging them: normal SCSI busses
+are <em/not/ hotpluggable. Damage may happen and uncontroled voltage
+bursts during power off/on may lock your system !!!
 
-However, <em/one/ big problem remains, the (hard coded) buffersize for the
-sg devices in the Linux kernel (default 32k) may be to small for DOS
+Coming so far, <em/one/ big problem remains: the (hard coded) buffersize for
+the sg devices in the Linux kernel (default 32k) may be to small for DOS
 applications and, if your distributor yet didn't it, you may need to
 recompile your kernel with a bigger buffer. The buffer size is defined
 in linux/include/scsi/sg.h and to be on the secure side you may define

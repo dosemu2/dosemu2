@@ -92,7 +92,7 @@ printer_open(int prnum)
   um = umask(026);
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
-      lpt[prnum].dev = tmpnam(NULL);
+      lpt[prnum].dev = strdup(tmpnam(NULL));
       enter_priv_off();
       lpt[prnum].file = fopen(lpt[prnum].dev, "a");
       leave_priv_setting();
@@ -123,6 +123,7 @@ printer_close(int prnum)
   /* delete any temporary files */
   if (lpt[prnum].prtcmd && lpt[prnum].dev) {
     unlink(lpt[prnum].dev);
+    free(lpt[prnum].dev);
     lpt[prnum].dev = NULL;
   }
 

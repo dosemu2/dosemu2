@@ -19,6 +19,7 @@
 #include "keyb_clients.h"
 #include "keyboard.h"
 #include "utilities.h"
+#include "video.h"
 
 #ifndef VOID
 #  define VOID void
@@ -1328,8 +1329,33 @@ int slang_keyb_init(void) {
   fcntl(kbd_fd, F_SETFL, O_RDONLY | O_NONBLOCK);
    
   if (tcgetattr(kbd_fd, &save_termios) < 0) {
-    error("slang_keyb_init(): Couldn't tcgetattr(kbd_fd,...) !\n");
-    leavedos(66);
+    int ignore = 0;
+    if (errno == EINVAL) {
+      if ( (config.cardtype == CARD_NONE)
+          || !strcmp(getenv("TERM"),"dumb")        /* most cron's have this */
+          || !strcmp(getenv("TERM"),"none")        /* ... some have this */
+          || !strcmp(getenv("TERM"),"dosemu-none") /* ... when called recursivly */
+                                                ) {
+        /*
+         * We assume we are running without a terminal (e.g. in a cronjob).
+         * Hence, we setup the TERM variable to "dosemu-none",
+         * set a suitable TERMCAP entry ... and ignore the rest
+         */
+        setenv("TERM", "dosemu-none", 1);
+        setenv("TERMCAP",
+          "dosemu-none|for running DOSEMU without real terminal:"
+          ":am::co#80:it#8:li#25:"
+          ":ce=\\E[K:cl=\\E[H\\E[2J:cm=\\E[%i%d;%dH:do=\\E[B:ho=\\E[H:"
+          ":le=\\E[D:nd=\\E[C:ta=^I:up=\\E[A:",
+          1
+        );
+        ignore = 1;
+      }
+    }
+    if (!ignore) {
+      error("slang_keyb_init(): Couldn't tcgetattr(kbd_fd,...) errno=%d\n", errno);
+      leavedos(66);
+    }
   }
 
   buf = save_termios;
@@ -1346,7 +1372,7 @@ int slang_keyb_init(void) {
   cfgetispeed(&buf);
   cfgetospeed(&buf);
 #endif
-  if (tcsetattr(kbd_fd, TCSANOW, &buf) < 0) {
+  if (tcsetattr(kbd_fd, TCSANOW, &buf) < 0 && errno != EINVAL) {
     error("slang_keyb_init(): Couldn't tcsetattr(kbd_fd,TCSANOW,...) !\n");
   }
 
@@ -1386,7 +1412,7 @@ int slang_keyb_init(void) {
 }
 
 void slang_keyb_close(void)  {
-   if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) == -1) {
+   if (tcsetattr(kbd_fd, TCSAFLUSH, &save_termios) == -1  && errno != EINVAL) {
       error("slang_keyb_close(): failed to restore keyboard termios settings!\n");
    }
    if (save_kbd_flags != -1) {

@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <scsi/scsi.h>
 #include <errno.h>
 #include <ctype.h>
 #include <string.h>
@@ -139,9 +138,10 @@ void print_scsi_devices(struct scsi_device_info *devs)
       devs[i].ansirev, s, devs[i].devtype,
       devs[i].vendor, devs[i].model, devs[i].modelrev
     );
-    printf("    $_aspi = \"sg%d:%s:%d\"%s\n",
+    printf("    $_aspi = \"sg%d:%s:%d\" (or \"%d/%d/%d/%d:%s:%d\")%s\n",
       devs[i].sgminor, s, devs[i].target,
-      idcount[devs[i].target &15] > 1 ? " <=== ATTENTION: multiple target ID" : ""
+      devs[i].hostId, devs[i].channel, devs[i].target, devs[i].lun, s, devs[i].target,
+      idcount[devs[i].target &15] > 1 ? " <== multiple IDs" : ""
    );
   }
 }  
