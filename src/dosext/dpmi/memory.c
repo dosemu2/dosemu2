@@ -123,11 +123,12 @@ unsigned long base2handle( void *base )
 
 void dpmi_memory_init(void)
 {
-    int mpool_numpages, memsize;
+    int num_pages, mpool_numpages, memsize;
     void *mpool;
 
     /* Create DPMI pool */
-    mpool_numpages = config.dpmi >> 2;
+    num_pages = config.dpmi >> 2;
+    mpool_numpages = num_pages + 5;  /* 5 extra pages */
     memsize = mpool_numpages << PAGE_SHIFT;
 
     mpool = mmap_mapping(MAPPING_DPMI | MAPPING_SCRATCH, (void*)-1,
@@ -141,7 +142,7 @@ void dpmi_memory_init(void)
       error("DPMI: cannot get table mem for pgmalloc_init\n");
       leavedos(2);
     }
-    dpmi_total_memory = memsize;
+    dpmi_total_memory = num_pages << PAGE_SHIFT;
 }
 
 static int SetAttribsForPage(char *ptr, us attr, us old_attr)
