@@ -165,12 +165,18 @@ hitimer_t GETusSYSTIME(void)
 
 void get_time_init (void)
 {
-  if ((config.realcpu>4) && config.rdtsc) {
+  if ((config.realcpu > CPU_486) && config.rdtsc) {
+    /* we are here if: a 586/686 was detected at startup, we are not
+     * on a SMP machine and the user didn't say 'rdtsc off'. But
+     * we could have an emulated CPU < 586, this doesn't affect timing
+     * but only flags processing (& other features) */
     RAWcpuTIME = rawP5time;
     GETcpuTIME = getP5time;
     g_printf("TIMER: using pentium timing\n");
   }
   else {
+    /* we are here on all other cases: real CPU < 586, SMP machines,
+     * 'rdtsc off' into config file */
     RAWcpuTIME = rawC4time;
     GETcpuTIME = getC4time;
     g_printf("TIMER: using gettimeofday\n");

@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.67.11
+  version dosemu-0.67.11.2
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -78,11 +78,13 @@
 
   3.5.    Functions in base/init/config.c
 
-  3.5.1.  config_defaults
+  3.5.1.  cpu_override
 
-  3.5.2.  config_init
+  3.5.2.  config_defaults
 
-  3.5.3.  parse_debugflags
+  3.5.3.  config_init
+
+  3.5.4.  parse_debugflags
 
   3.6.    Remarks in base/init/config.c
 
@@ -915,16 +917,22 @@
 
   These are the functions defined in base/init/config.c.
 
-  33..55..11..  ccoonnffiigg__ddeeffaauullttss
+  33..55..11..  ccppuu__oovveerrrriiddee
+
+  Process user CPU override from the config file ('cpu xxx') or from the
+  command line. Returns the selected CPU identifier or -1 on error.
+  'config.realcpu' should have already been defined.
+
+  33..55..22..  ccoonnffiigg__ddeeffaauullttss
 
   Set all values in the `config` structure to their default value. These
   will be modified by the config parser.
 
-  33..55..22..  ccoonnffiigg__iinniitt
+  33..55..33..  ccoonnffiigg__iinniitt
 
   This is called to parse the command-line arguments and config files.
 
-  33..55..33..  ppaarrssee__ddeebbuuggffllaaggss
+  33..55..44..  ppaarrssee__ddeebbuuggffllaaggss
 
   Arguments are:
 
@@ -965,7 +973,6 @@
   far as we are concerned, since it will allow us to run so many more
   programs and, most importantly, bcc. This is the one thing that the
   WINE developers want that we haven't been able to give them.
-
   If you think you can help .... "Away you Go!" (Sorry to those non-UK
   folks ...  Thats a reference to a UK kids sports programme from my
   youth ... anyway ...  enough of this banter. You'll be wanting to know
@@ -1066,7 +1073,6 @@
   routines The exception CS:EIP will point to the first prefix that
   effects the the faulting instruction, hence, 0x65 0x66 is same as 0x66
   0x65.  So we collect all prefixes and remember them.  - Hans Lermen
-
   44..44..  IItteemmss ffoorr FFiixxiinngg iinn ddoosseexxtt//ddppmmii//ddppmmii..cc
 
   Should we really care for the Memory info?
@@ -1215,7 +1221,6 @@
   was returned, depending somewhat on various config options as e.g.
   config.X_updatefreq and VIDEO_CHECK_DIRTY.  At least it is supposed to
   do that.
-
   Arguments are:
 
   +o  none

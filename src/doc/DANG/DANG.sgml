@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.67.11
+<date> version dosemu-0.67.11.2
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -365,6 +365,18 @@ These are the functions defined in base/init/init.c.
 
 <p>
 These are the functions defined in base/init/config.c.
+
+<sect2>cpu_override
+
+
+<p>
+ 
+ Process user CPU override from the config file ('cpu xxx') or
+ from the command line. Returns the selected CPU identifier or
+ -1 on error. 'config.realcpu' should have already been defined.
+ 
+ 
+
 
 <sect2>config_defaults
 

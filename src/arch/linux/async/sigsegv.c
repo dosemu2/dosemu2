@@ -174,6 +174,24 @@ int signal, int code, struct sigcontext *scp
 		 pic_request(PIC_IRQ13); /* this is the 386 way of signalling this */
 		 return;
 
+      case 0x11: /* alignment check */
+		 /*
+		  * FIRST thing to do - to avoid being trapped into int0x11
+		  * forever, we must clear AC before doing anything else!
+		  */
+		 __asm__ __volatile__ ("
+			pushfl
+			popl	%%eax
+			andl	$0xfffbffff,%%eax
+			pushl	%%eax
+			popfl"
+			: : : "%eax");
+		 /* we are now safe; nevertheless, fall into the default
+		  * case and exit dosemu, as an AC fault in vm86 is(?) a
+		  * catastrophic failure.
+		  */
+		 goto sgleave;
+
       case 0x06: /* invalid_op */
 		 dbug_printf("SIGILL while in vm86()\n");
 #if 0
@@ -212,7 +230,7 @@ int signal, int code, struct sigcontext *scp
 #endif /* X_GRAPHICS */
 
       default:	
-
+sgleave:
 #if 0
 		 error("ERROR: unexpected CPU exception 0x%02lx errorcode: 0x%08lx while in vm86()\n"
 	  	"eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n"

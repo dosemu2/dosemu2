@@ -40,6 +40,34 @@ int     parse_debugflags(const char *s, unsigned char flag);
 static void     usage(void);
 
 /*
+ * DANG_BEGIN_FUNCTION cpu_override
+ * 
+ * description: 
+ * Process user CPU override from the config file ('cpu xxx') or
+ * from the command line. Returns the selected CPU identifier or
+ * -1 on error. 'config.realcpu' should have already been defined.
+ * 
+ * DANG_END_FUNCTION
+ * 
+ */
+int cpu_override (int cpu)
+{
+    switch (cpu) {
+	case 2:
+	    return CPU_286;
+	case 5: case 6:
+	    if (config.realcpu > CPU_486) return CPU_586;
+	/* fall thru */
+	case 4:
+	    if (config.realcpu > CPU_386) return CPU_486;
+	/* fall thru */
+	case 3:
+	    return CPU_386;
+    }
+    return -1;
+}
+
+/*
  * DANG_BEGIN_FUNCTION config_defaults
  * 
  * description: 
@@ -62,19 +90,25 @@ config_defaults(void)
     config.pci = 0;
     config.rdtsc = 0;
     config.mathco = 0;
+    config.smp = 0;
 
     fs=fopen("/proc/cpuinfo","r");
     if (fs) {
 	while (fgets(Line,250,fs)) {
+	  /* get the CPU (processor#0) info */
 	  if (!strncmp(Line,"cpu",3) && isspace(Line[3])) {
 	    char *p = Line+4;
 	    while (*p && (*p!=':')) p++;
+
+	    /* if it's an x86, check which one */
 	    if ((sscanf(p+1,"%d",&k)==1) && ((k%100)==86)) {
 	      switch ((k/100)%10) {
 	        case 3: config.realcpu = CPU_386;	/* redundant */
 	        	break;
 	        case 5:
 	        case 6: config.realcpu = CPU_586;
+			/* bogospeed currently returns 0; should it deny
+			 * pentium features, fall back into 486 case */
 			if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
 			    config.pci = 1;	/* fair guess */
 			    config.rdtsc = 1;
@@ -90,12 +124,29 @@ config_defaults(void)
 	    }
 	  }
 	  else if (!strncmp(Line,"fpu",3) && isspace(Line[3])) {
+	    /* get the fpu info. this is currently unused. */
 	    char *p = Line+4;
 	    while (*p && (*p!=':')) p++;
 	    if (*p) {
 	      p++; while (*p && isspace(*p)) p++;
 	      config.mathco = (*p=='y');
-	      break;
+	    }
+	  }
+	  else if (!strncmp(Line,"processor",9)) {
+	    /* if a 'processor:n' statement is found with n>0, meaning we
+	     * are on a SMP machine, deny use of pentium timer, force
+	     * use of kernel timing and stop parsing the file.
+	     */
+	    char *p = Line+9;
+	    while (*p && (*p!=':')) p++;
+	    if (*p) {
+	      p++; while (*p && isspace(*p)) p++;
+	      if (isdigit(*p) && (*p>'0') && config.rdtsc) {
+	  	fprintf(stderr,"Denying use of pentium timer on SMP machine\n");
+		config.smp = 1;		/* for checking overrides, later */
+	      	config.rdtsc = 0;
+	      	break;
+	      }
 	    }
 	  }
 	}
@@ -298,8 +349,12 @@ config_init(int argc, char **argv)
     char           *basename;
     char           *dexe_name = 0;
 
-    config_defaults();
+    if (argv[1] && !strcmp("--version",argv[1])) {
+      usage();
+      exit(0);
+    }
 
+    config_defaults();
     basename = strrchr(argv[0], '/');	/* parse the program name */
     basename = basename ? basename + 1 : argv[0];
 
@@ -362,30 +417,18 @@ config_init(int argc, char **argv)
 		exit(1);
 	    }
 	    break;
-	case '2':
-	    fprintf(stderr,"CPU set to 286\n");
-	    vm86s.cpu_type = CPU_286;
-	    break;
-	case '3':
-	    fprintf(stderr,"CPU set to 386\n");
-	    vm86s.cpu_type = CPU_386;
-	    break;
-	case '5': case '6':
-	    if (config.realcpu > CPU_486) {
-	      if (!bogospeed(&config.cpu_spd, &config.cpu_tick_spd)) {
-	        vm86s.cpu_type = CPU_586;
-	        config.rdtsc = 1;
-	        fprintf(stderr,"CPU set to 586 and up\n");
-	        break;
-	      }
+	case '2': case '3': case '4': case '5': case '6':
+#if 1
+	    {
+		int cpu = cpu_override (c-'0');
+		if (cpu > 0) {
+			fprintf(stderr,"CPU set to %d86\n",cpu);
+			vm86s.cpu_type = cpu;
+		}
+		else
+			fprintf(stderr,"error in CPU user override\n");
 	    }
-	/* fall thru */
-	case '4':
-	    if (config.realcpu > CPU_386) {
-	      fprintf(stderr,"CPU set to 486\n");
-	      vm86s.cpu_type = CPU_486;
-	      config.rdtsc = 0;
-	    }
+#endif
 	    break;
 
 	case 'u': {
@@ -434,7 +477,7 @@ config_init(int argc, char **argv)
     optind = 0;
 #endif
     opterr = 0;
-    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:KLm2345e:dXY:Z:E:o:Ou:")) != EOF) {
+    while ((c = getopt(argc, argv, "ABCcF:I:kM:D:P:v:VNtT:sgx:KLm23456e:dXY:Z:E:o:Ou:")) != EOF) {
 	switch (c) {
 	case 'F':		/* previously parsed config file argument */
 	case 'I':
@@ -519,7 +562,7 @@ config_init(int argc, char **argv)
 	    break;
 	case 'v':
 	    config.cardtype = atoi(optarg);
-	    if (config.cardtype > 7)	/* keep it updated when adding a new card! */
+	    if (config.cardtype > MAX_CARDTYPE)	/* keep it updated when adding a new card! */
 		config.cardtype = 1;
 	    g_printf("Configuring cardtype as %d\n", config.cardtype);
 	    break;
@@ -777,51 +820,58 @@ int parse_debugflags(const char *s, unsigned char flag)
 static void
 usage(void)
 {
-    fprintf(stdout, "dosemu 0.66\n");
-    fprintf(stdout, "USAGE:\n dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] 2> dosdbg\n");
-    fprintf(stdout, "    -2,3,4,5 choose 286, 386, 486 or 586 CPU\n");
-    fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
-    fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
-    fprintf(stdout, "    -b map BIOS into emulator RAM (%%)\n");
-    fprintf(stdout, "    -C boot from first defined hard disk (C)\n");
-    fprintf(stdout, "    -c use PC console video (!%%)\n");
-    fprintf(stdout, "    -d detach (?)\n");
+    fprintf(stdout,
+	"dosemu-" VERSTR "\n\n"
+	"USAGE:\n"
+	"  dos  [-ABCckbVNtsgxKm23456e] \\\n"
+	"       [-D flags] [-M SIZE] [-P FILE] [ {-F|-L} File ] \\\n"
+	"       [-o dbgfile] 2> vital_logs\n"
+	"  dos --version\n\n"
+	"    -2,3,4,5,6 choose 286, 386, 486 or 586 or 686 CPU\n"
+	"    -A boot from first defined floppy disk (A)\n"
+	"    -B boot from second defined floppy disk (B) (#)\n"
+	"    -b map BIOS into emulator RAM (%%)\n"
+	"    -C boot from first defined hard disk (C)\n"
+	"    -c use PC console video (!%%)\n"
+	"    -d detach (?)\n"
 #ifdef X_SUPPORT
-    fprintf(stdout, "    -X run in X Window (#)\n");
+	"    -X run in X Window (#)\n"
 /* seems no longer valid bo 18.7.95
-    fprintf(stdout, "    -Y NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
-    fprintf(stdout, "    -Z NAME use FIFO NAME for mouse (only with x2dos!)\n");
+	"    -Y NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n"
+	"    -Z NAME use FIFO NAME for mouse (only with x2dos!)\n"
 */
-    fprintf(stdout, "    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWXcdghikmnprsvwx}\n");
+	"    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWXcdghikmnprsvwx}\n"
 #else				/* X_SUPPORT */
-    fprintf(stdout, "    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWcdghikmnprsvwx}\n");
+	"    -D set debug-msg mask to flags {+-}{0-9}{#CDEIMPRSWcdghikmnprsvwx}\n"
 #endif				/* X_SUPPORT */
-    fprintf(stdout, "       #=defint  C=cdrom    D=dos    E=ems       I=ipc     M=dpmi\n");
-    fprintf(stdout, "       P=packet  R=diskread S=sound  W=diskwrite c=config  d=disk\n");
-    fprintf(stdout, "       g=general h=hardware i=i/o    k=keyb      m=mouse   n=ipxnet\n");
-    fprintf(stdout, "       p=printer r=pic      s=serial v=video     w=warning x=xms\n");
-    fprintf(stdout, "    -E STRING pass DOS command on command line\n");
-    fprintf(stdout, "    -e SIZE enable SIZE K EMS RAM\n");
-    fprintf(stdout, "    -F use config-file File\n");
-    fprintf(stdout, "    -L load and execute DEXE File\n");
-    fprintf(stdout, "    -I insert config statements (on commandline)\n");
-    fprintf(stdout, "    -g enable graphics modes (!%%#)\n");
-    fprintf(stdout, "    -K Do int9 (!#)\n");
-    fprintf(stdout, "    -k use PC console keyboard (!)\n");
-    fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
-    fprintf(stdout, "    -m enable mouse support (!#)\n");
-    fprintf(stdout, "    -N No boot of DOS\n");
-    fprintf(stdout, "    -O write debugmessages to stderr\n");
-    fprintf(stdout, "    -o FILE put debugmessages in file\n");
-    fprintf(stdout, "    -P copy debugging output to FILE\n");
-    fprintf(stdout, "    -T DIR set tmpdir\n");
-    fprintf(stdout, "    -t try new timer code (#)\n");
-    fprintf(stdout, "    -V use BIOS-VGA video modes (!#%%)\n");
-    fprintf(stdout, "    -v NUM force video card type\n");
-    fprintf(stdout, "    -x SIZE enable SIZE K XMS RAM\n");
-    fprintf(stdout, "    (!) BE CAREFUL! READ THE DOCS FIRST!\n");
-    fprintf(stdout, "    (%%) require dos be run as root (i.e. suid)\n");
-    fprintf(stdout, "    (#) options do not fully work yet\n\n");
-    fprintf(stdout, "xdos [options]           == dos [options] -X\n");
-    fprintf(stdout, "dosexec [options] <file> == dos [options] -L <file>\n");
+	"       #=defint  C=cdrom    D=dos    E=ems       I=ipc     M=dpmi\n"
+	"       P=packet  R=diskread S=sound  W=diskwrite c=config  d=disk\n"
+	"       g=general h=hardware i=i/o    k=keyb      m=mouse   n=ipxnet\n"
+	"       p=printer r=pic      s=serial v=video     w=warning x=xms\n"
+	"    -E STRING pass DOS command on command line\n"
+	"    -e SIZE enable SIZE K EMS RAM\n"
+	"    -F use config-file File\n"
+	"    -L load and execute DEXE File\n"
+	"    -I insert config statements (on commandline)\n"
+	"    -g enable graphics modes (!%%#)\n"
+	"    -K Do int9 (!#)\n"
+	"    -k use PC console keyboard (!)\n"
+	"    -M set memory size to SIZE kilobytes (!)\n"
+	"    -m enable mouse support (!#)\n"
+	"    -N No boot of DOS\n"
+	"    -O write debugmessages to stderr\n"
+	"    -o FILE put debugmessages in file\n"
+	"    -P copy debugging output to FILE\n"
+	"    -T DIR set tmpdir\n"
+	"    -t try new timer code (#)\n"
+	"    -V use BIOS-VGA video modes (!#%%)\n"
+	"    -v NUM force video card type\n"
+	"    -x SIZE enable SIZE K XMS RAM\n"
+	"    --version, print version of dosemu\n"
+	"    (!) BE CAREFUL! READ THE DOCS FIRST!\n"
+	"    (%%) require dos be run as root (i.e. suid)\n"
+	"    (#) options do not fully work yet\n\n"
+	"xdos [options]           == dos [options] -X\n"
+	"dosexec [options] <file> == dos [options] -L <file>\n"
+    );
 }

@@ -2602,6 +2602,28 @@ void dpmi_fault(struct sigcontext *scp, int code)
 #ifdef SHOWREGS
   unsigned char *csp2, *ssp2;
   int i;
+
+  /*
+   * FIRST thing to do - to avoid being trapped into int0x11 forever
+   * we must clear AC everywhere before doing anything else!
+   */
+  if (_trapno == 0x11) {
+    unsigned long olf;
+    __asm__ __volatile__ ("
+	pushfl
+	popl	%%eax
+	movl	%%eax,%0
+	andl	$0xfffbffff,%%eax
+	pushl	%%eax
+	popfl"
+	:"=g"(olf) : : "%eax");
+    /* we are now safe */
+    D_printf("DPMI: fault 0x11, flags u=%08lx R=%08lx D=%08lx\n",olf,REG(eflags),_eflags);
+    _eflags &= ~AC;
+    REG(eflags) &= ~AC;
+    return;
+  }
+
 #if 1
   if (!(_cs==UCODESEL))
 #endif
@@ -2641,11 +2663,14 @@ if ((_ss & 7) == 7) {
     }
   }
 #endif
+#if 0 /* absolete because of ALberto's global AC handling (0.67.11.2) */
   if (_trapno == 17) {
     _eflags &= ~AC;
     REG(eflags) &= ~AC;
   }
-  else if (_trapno == 13) {
+  else 
+#endif
+  if (_trapno == 13) {
     unsigned char *lina;
     Bit32u org_eip;
     int pref_seg;

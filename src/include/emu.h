@@ -416,7 +416,7 @@ typedef struct vesamode_type_struct {
        boolean X_keycode;	/* use keycode field of event structure */
        boolean exitearly;
        int     realcpu;
-       boolean mathco;
+       boolean mathco, smp;
        boolean ipxsup;
        boolean keybint;
        boolean dosbanner;

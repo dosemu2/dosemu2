@@ -1,3 +1,13 @@
+97/09/23 ver. 0.67.11.2 unofficial pre-release
+	From Alberto,
+	- final fixes for CPU detection, SMP now switches off RDTSC timing.
+	- final AC-flags fixes (make the FoxPro fix obsolete)
+	From Hans
+	- disabled FoxPro fix from 0.67.11.1.
+	- cleared up usage() in config.c.
+	- max cardtype now in src/include/video.h (MAX_CARDTYPE),
+	  so no need to take care of the constant in config.c ;-)
+	- DANG recompile
 97/09/21 ver. 0.67.11.1 unofficial pre-release
 	From Alberto
 	- fix (workaround) for FoxPro

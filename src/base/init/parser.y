@@ -287,7 +287,14 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}}
 		| CPU INTEGER
 			{
-			/* obsolete - use command line switch */
+			extern int cpu_override(int);
+			int cpu = cpu_override (($2%100)==86?($2/100)%10:0);
+			if (cpu > 0) {
+				c_printf("CONF: CPU set to %d86\n",cpu);
+				vm86s.cpu_type = cpu;
+			}
+			else
+				yyerror("error in CPU user override\n");
 			}
 		| CPUSPEED INTEGER
 			{ 
@@ -307,7 +314,17 @@ line		: HOGTHRESH INTEGER	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 			}
 		| RDTSC bool
 		    {
-		    config.rdtsc = (config.realcpu<CPU_586? 0:($2!=0));
+		    if (config.smp && ($2!=0)) {
+			c_printf("CONF: Denying use of pentium timer on SMP machine\n");
+			config.rdtsc = 0;
+		    }
+		    else if (config.realcpu>=CPU_586) {
+			config.rdtsc = ($2!=0);
+			c_printf("CONF: %sabling use of pentium timer\n",
+				(config.rdtsc?"En":"Dis"));
+		    }
+		    else
+			c_printf("CONF: Ignoring 'rdtsc' statement\n");
 		    }
 		| PCI bool
 		    {

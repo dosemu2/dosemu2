@@ -558,6 +558,11 @@ run_vm86(void)
   PFLAG(VIP);
   k_printf(" IOPL: %u\n", (unsigned) ((vflags & IOPL_MASK) >> 12));
 #endif
+    /* This will protect us from Mr.Norton's bugs */
+    if (_EFLAGS & (AC|ID)) {
+      g_printf("BUG: flags changed to %08lx\n",_EFLAGS);
+      _EFLAGS &= ~(AC|ID);
+    }
 
     in_vm86 = 0;
     switch VM86_TYPE
