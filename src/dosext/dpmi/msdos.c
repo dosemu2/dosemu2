@@ -705,7 +705,7 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	    struct pmaddr_s old_callback = DPMI_CLIENT.mouseCallBack;
 	    DPMI_CLIENT.mouseCallBack.selector = _es;
 	    DPMI_CLIENT.mouseCallBack.offset = D_16_32(_edx);
-	    if ( _es && D_16_32(_edx) ) {
+	    if (_es) {
 		D_printf("DPMI: set mouse callback\n");
 		REG(es) = DPMI_SEG;
 		REG(edx) = DPMI_OFF + HLT_OFF(DPMI_mouse_callback);
