@@ -867,7 +867,7 @@ void emulate(int argc, char **argv)
   vm86s.flags = 0;
 
   if(0 == geteuid()) {
-	fprintf(stderr, "I am root\n");
+	warn(stderr, "I am root\n");
 	i_am_root = 1;
   } else {
 	if(getuid() != geteuid()) {
@@ -876,8 +876,20 @@ void emulate(int argc, char **argv)
 	}
   }
 
-  stdio_init();                /* initialize stdio & stderr */
+#ifdef RUN_AS_USER
+  /* start running as real, not effective user.  This is moved from */
+  /* stdio_init, as that and config_init have now changed places and */
+  /* allowing reading arbitrary files while being root is not smart */
+
+  exchange_uids();	
+#endif
+
+  /* the transposal of (config_|stdio_)init allows the addition of -o */
+  /* to specify a debug out filename, if you're wondering */
+
   config_init(argc, argv);     /* parse the commands & config file(s) */
+  stdio_init();                /* initialize stdio & open debug file */
+
   module_init();
   low_mem_init();              /* initialize the lower 1Meg */
   time_setting_init();         /* get the startup time */
@@ -982,7 +994,7 @@ void
   SETSIG(SIGILL, ign_sigs);
   SETSIG(SIGFPE, ign_sigs);
   SETSIG(SIGTRAP, ign_sigs);
-  hard_error("leavedos(%d) called - shutting down\n", sig );
+  warn("leavedos(%d) called - shutting down\n", sig );
 
   g_printf("calling close_all_printers\n");
   close_all_printers();

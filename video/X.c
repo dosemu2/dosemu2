@@ -15,6 +15,8 @@
 #include "memory.h"
 #include "mouse.h"
 
+extern char *getenv();
+
 /* "fine tuning" options for X_update_screen */
 
 #define MAX_UNCHANGED	3

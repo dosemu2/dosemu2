@@ -209,7 +209,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
 #define n_printf(f,a...)        ifprintf(d.network,f,##a)	/* TRB */
 #define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	/* pktdrvr  */
-#define error(f,a...)	 	ifprintf(1,f,##a)
+#define error(f,a...)	 	fprintf(stderr, f, ##a)
 #define hard_error(f, a...)	fprintf(stderr, f, ##a) 
 
 #else
@@ -411,6 +411,7 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        unsigned char *alt_map;
        unsigned char *num_table;
        unsigned short detach;
+       unsigned char *debugout;
      }
 
 config_t;

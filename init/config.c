@@ -17,7 +17,7 @@
 #include "bios.h"
 #include "kversion.h"
 
-#include "../dos2linux/dos2linux.h"
+#include "dos2linux.h"
 
 /* XXX - the mem size of 734 is much more dangerous than 704.
  * 704 is the bottom of 0xb0000 memory.  use that instead?
@@ -125,7 +125,7 @@ config_defaults(void)
   config.alt_map = alt_map_us;	/* And the Alt-map              */
   config.num_table = num_table_dot;	/* Numeric keypad has a dot     */
   config.detach = 0; /* Don't detach from current tty and open new VT. */
-
+  config.debugout=NULL;		/* default to no debug output file */
   config.sillyint = 0;
   config.must_spare_hardware_ram =0;
   memset(config.hardware_pages,0,sizeof(config.hardware_pages));
@@ -209,20 +209,20 @@ void config_init(int argc, char **argv)
      
   opterr = 0;
   confname = CONFIG_FILE;
-  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:E:dXY:Z:")) != EOF) {
-	  switch (c) {
-	  case 'F':
-		  confname = optarg;
-		  break;
-	  case 'd':
-		  if (config.detach)
-			  break;
-		  config.detach = (unsigned short)detach();
-		  break;
-	  case 'D':
-	     parse_debugflags(optarg);
-	     break;
-	  }
+  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:VNtsgx:Km234e:E:dXY:Z:o:")) != EOF) {
+    switch (c) {
+    case 'F':
+      confname = optarg;	/* someone reassure me that this is *safe*? */
+      break;
+    case 'd':
+      if (config.detach)
+	break;
+      config.detach = (unsigned short)detach();
+      break;
+    case 'D':
+      parse_debugflags(optarg);
+      break;
+    }
   }
 
   parse_config(confname);
@@ -232,7 +232,7 @@ void config_init(int argc, char **argv)
 
   optind = 0;
   opterr = 0;
-  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:E:")) != EOF) {
+  while ((c = getopt(argc, argv, "ABCcF:kM:D:P:v:VNtT:sgx:Km234e:dXY:Z:E:o:")) != EOF) {
     switch (c) {
     case 'F':			/* previously parsed config file argument */
     case 'd':
@@ -292,6 +292,14 @@ void config_init(int argc, char **argv)
       }
     case 'D':
       parse_debugflags(optarg);
+      break;
+    case 'o':
+      config.debugout = strdup(optarg);
+      dbg_fd=fopen(config.debugout,"w");
+      if(!dbg_fd) {
+	fprintf(stderr, "can't open \"%s\" for writing\n",config.debugout);
+	exit(1);
+      }
       break;
     case 'P':
       if (terminal_fd == -1)

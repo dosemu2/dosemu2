@@ -17,10 +17,10 @@ video: video.c get_info.o
 .PHONY:	clean realclean 
 
 realclean clean::
-	-rm $(OBJS) keyboard video
+	rm -f $(OBJS) keyboard video
 
 realclean::
-	-rm *.d
+	rm -f *.d
 
 checkin::
 	-ci $(ALL) Makefile

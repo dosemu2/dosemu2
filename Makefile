@@ -124,8 +124,8 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   49
-LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
+PATCHL  =   50
+LIBDOSEMU = libdosemu$(EMUVER).$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -266,12 +266,12 @@ AS86 = as86
 LD86 = ld86 -0
 
 DISTBASE=/tmp
-DISTNAME=dosemu$(EMUVER)pl$(PATCHL)
+DISTNAME=dosemu$(EMUVER).$(PATCHL)
 DISTPATH=$(DISTBASE)/$(DISTNAME)
 ifdef RELEASE
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 else
-DISTFILE=$(DISTBASE)/pre$(EMUVER)_$(PATCHL).tgz
+DISTFILE=$(DISTBASE)/pre$(EMUVER).$(PATCHL).tgz
 endif
 export DISTBASE DISTNAME DISTPATH DISTFILE
 
@@ -289,10 +289,12 @@ simple:	dossubdirs dosstatic # libdosemu dos
 endif
 endif
 
-warning: warning2
-	@echo "To compile DOSEMU, type 'make doeverything'"
-	@echo "To compile DOSEMU if you dont want to use TeX, type 'make most'"
-	@echo ""
+default: warning2 config dep doslibnew
+
+# warning: warning2
+#	@echo "To compile DOSEMU, type 'make doeverything'"
+#	@echo "To compile DOSEMU if you dont want to use TeX, type 'make most'"
+#	@echo ""
 	
 warning2: 
 	@echo ""
@@ -300,7 +302,7 @@ warning2:
 	@echo "  -> Please read the new 'QuickStart' file before compiling DOSEMU!"
 	@echo "  -> The location and format of DOSEMU files have changed since 0.50pl1 release!"
 	@echo "  -> This package requires at least the following:"
-	@echo "     gcc 2.4.5, lib 4.4.4, Linux 1.1.12 (or patch to Linux 1.0.9),"
+	@echo "     gcc 2.4.5, lib 4.4.4, Linux 1.1.30,"
 	@echo "     and 16MB total swap+RAM.  (you may actually need up to 20MB total)"
 	@if [ "1" = "$(X_SUPPORT)" ]; then \
 		echo "  -> I guess, you'll compile DOSEMU with X11-support." ; \
@@ -326,9 +328,9 @@ warning3:
 
 doeverything: warning2 config dep $(DOCS) installnew
 
-itall: warning2 config dep optionalsubdirs $(DOCS) installnew
-
 most: warning2 config dep installnew
+
+itall: warning2 config dep optionalsubdirs $(DOCS) installnew
 
 ifdef ELF
 all:	warnconf warning3 dos $(X2CEXE)
@@ -393,7 +395,7 @@ dos:	dos.o
 	$(LD) $(LDFLAGS) -N -o $@ $^ $(addprefix -L,$(LIBPATH)) -L. \
 		$(TCNTRL) $(XLIBS)
 
-$(LIBDOSEMU): 	emu.o data.o dos2linux/dos2linux.o # dossubdirs
+$(LIBDOSEMU): 	emu.o data.o # dossubdirs
 	$(LD) $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $(LIBDOSEMU) \
 	   -nostdlib $^ $(addprefix -L,$(LIBPATH)) -L. $(SHLIBS) \
 	    $(addprefix -l, $(LIBS)) bios/bios.o $(XLIBS) $(TCNTRL) -lc 
@@ -423,11 +425,22 @@ include/kversion.h:
 config: include/config.h include/kversion.h
 #	./dosconfig $(CONFIGINFO) > include/config.h
 
-installnew: 
+doslibnew: 
+	$(MAKE) doslib
+
+doslib: $(REQUIRED) all
+	@echo ""
+	@echo "---------------------------------DONE compiling-------------------------------"
+	@echo ""
+	@echo " Now you must install DOSEMU. Make sure you are root and:"
+	@echo " make install"
+	@echo ""
+	@echo ""
+
+installnew: lib
 	$(MAKE) install
 
-
-install: $(REQUIRED) all
+install:
 	@install -d /var/lib/dosemu
 	@install -d /var/run
 ifdef ELF
@@ -467,7 +480,7 @@ ifdef X_SUPPORT
 	fi
 endif
 	@echo ""
-	@echo "---------------------------------DONE compiling-------------------------------"
+	@echo "---------------------------------DONE Installing-------------------------------"
 	@echo ""
 	@echo "  - You need to configure DOSEMU. Read 'config.dist' in the 'examples' dir."
 	@echo "  - Update your /etc/dosemu.conf by editing a copy of './examples/config.dist'"
@@ -508,8 +521,6 @@ checkout::
 dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)
 	install -d $(DISTPATH)/lib
-	install -d $(DISTPATH)/dos2linux
-	cp -a dos2linux/*.[ch] $(DISTPATH)/dos2linux
 	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp -a TODO $(DISTPATH)/.todo
 	cp -a TODO.JES $(DISTPATH)/.todo.jes

@@ -238,7 +238,7 @@ static struct umb_record {
 #define Debug0(args)		x_Stub args
 #define Debug1(args)		x_Stub args
 #define Debug2(args)		x_Stub args
-#define dbg_fd stderr
+/* #define dbg_fd stderr */
 
 static boolean_t
 umb_memory_empty(addr, size)

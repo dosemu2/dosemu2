@@ -10,6 +10,7 @@
 #include "machcompat.h"
 #include "bios.h"
 
+FILE *dbg_fd=0;			/* referenced in a billion other places */
 
 int
  ifprintf(unsigned char flg, const char *fmt,...) {
@@ -22,14 +23,10 @@ int
   static int show_time =  0;
 #endif
 
-  if (!flg)
+  if (!flg || !dbg_fd)
     return 0;
 
-#ifdef USE_FD3_FOR_ERRORS
   error_fd = fileno(dbg_fd);
-#else
-  error_fd = STDERR_FILENO;
-#endif
 
 #ifdef SHOW_TIME
   if(first_time)  {

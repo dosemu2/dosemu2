@@ -75,7 +75,7 @@ dosemu_banner(void)
  * DANG_BEGIN_FUNCTION stdio_init
  *
  * description:
- *  Initialize stderr & stdio
+ *  Initialize stdio, open debugging output file if user specified one
  * 
  * DANG_END_FUNCTION
  */
@@ -83,40 +83,20 @@ void stdio_init(void)
 {
   struct stat statout, staterr;
 
-#ifdef RUN_AS_USER
-  /* start running as real, not effecitve user */
-  exchange_uids();	
-#endif
-
-#if USE_FD3_FOR_ERRORS
-  /* try to go to fd-3 -- if its there, do an fdopen to it, 
-   * otherwise use /dev/null for fd3 
-   */
-  if(!fstat(3, &statout)) {
-	dbg_fd = fdopen(3, "w");
-  } else {
-	dbg_fd = fopen("/dev/null", "w");
-  }
-  if(!dbg_fd) {
-	fprintf(stderr, "can't open fd3\n");
-	exit(1);
-   }
-#else
- /* DANG_BEGIN_REMARK
-  * If DOSEMU starts up with stderr == stdout, then stderr gets 
-  * redirected to '/dev/null'.
-  * DANG_END_REMARK
-  */
-  fstat(STDOUT_FILENO, &statout);
-  fstat(STDERR_FILENO, &staterr);
-  if (staterr.st_ino == statout.st_ino) {
-    if (freopen("/dev/null", "ab", stderr) == (FILE *) - 1) {
-      fprintf(stdout, "ERROR: Could not redirect STDERR to /dev/null!\n");
-      exit(-1);
+  if(config.debugout)
+  {
+    dbg_fd=fopen(config.debugout,"w");
+    if(!dbg_fd) {
+      error("can't open \"%s\" for writing debug file\n",
+	      config.debugout);
+      exit(1);
     }
   }
-#endif
-
+  else
+  {
+    dbg_fd=0;
+    warn("No debug output file specified, debugging information will not be printed");
+  }
   sync();  /* for safety */
   setbuf(stdout, NULL);
 }
@@ -504,8 +484,8 @@ void low_mem_init(void)
 void version_init(void) {
   struct new_utsname unames;
   uname(&unames);
-  fprintf(stderr, "DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);  
-  fprintf(stderr, "Built for %d\n", KERNEL_VERSION);
+  warn("DOSEMU%spl%s is coming up on %s version %s\n", VERSTR, PATCHSTR, unames.sysname, unames.release);  
+  warn("Built for %d\n", KERNEL_VERSION);
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
          unames.release[2] > 1 ) {

@@ -60,18 +60,17 @@ typedef struct interrupt_descriptor_s
 typedef struct segment_descriptor_s
 {
     unsigned long	base_addr;	/* Pointer to segment in flat memory */
-    unsigned long	limit;		/* Limit of Segment */
-    unsigned char	type;
-    unsigned char	is_32;		/* one for is 32-bit Segment */
-    unsigned char	readonly;	/* one for read only Segments */	
-    unsigned char	is_big;		/* Granularity */
+    unsigned int	limit;		/* Limit of Segment */
+    unsigned int	type:2;
+    unsigned int	is_32:1;	/* one for is 32-bit Segment */
+    unsigned int	readonly:1;	/* one for read only Segments */	
+    unsigned int	is_big:1;	/* Granularity */
+    unsigned int	not_present:1;		
+    unsigned int	useable:1;		
     unsigned int	used;		/* Segment in use by client # */
 } SEGDESC;
 
 #define MAX_SELECTORS	0x0800
-#define MODIFY_LDT_CONTENTS_DATA        0
-#define MODIFY_LDT_CONTENTS_STACK       1
-#define MODIFY_LDT_CONTENTS_CODE        2
 
 extern SEGDESC Segments[];
 

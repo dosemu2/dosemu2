@@ -119,13 +119,10 @@
 #include <linux/head.h>
 #include <linux/ldt.h>
 #include "kversion.h"
-#if KERNEL_VERSION < 1001067
-#include <linux/segment.h>
-#else
 #include <asm/segment.h>
-#endif
 #include <string.h>
 #include <errno.h>
+#include <asm/page.h>
 #include "emu.h"
 #include "memory.h"
 #include "dosio.h"
@@ -140,12 +137,9 @@
 #define RM_AFFECT_IF
 #endif
 
-#if 1
-#define SET_DESCRIPTOR_CANT_FAIL
-#endif
-
-#if 1
-#define BCC_HACK
+#if 0
+#undef inline /*for gdb*/
+#define inline
 #endif
 
 #include "dpmi.h"
@@ -172,6 +166,9 @@ int DPMI_rm_procedure_running = 0;
 struct sigcontext_struct DPMI_pm_stack[DPMI_max_rec_pm_func];
 int DPMI_pm_procedure_running = 0;
 
+static char *ldt_buffer;
+unsigned short LDT_ALIAS = 0;
+
 static char *pm_stack; /* locked protected mode stack */
 
 static dpmi_pm_block *pm_block_root[DPMI_MAX_CLIENTS];
@@ -180,6 +177,10 @@ static unsigned long pm_block_handle_used; /* tracking handle */
 static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 2.11 1995/02/25 21:54:02 root Exp $";
 
 int in_dpmi = 0;		/* Set to 1 when running under DPMI */
+int in_win31 = 0;		/* Set to 1 when running Windows 3.1 */
+int in_bcc = 0;			/* Set to 1 when running dpmiload */
+int in_dpmires = 0;             /* set 1 when dpmires is loaded */
+
 int dpmi_eflags = 0;		/* used for virtuell interruptflag and pending interrupts */
 static int DPMIclient_is_32 = 0;
 static unsigned short DPMI_private_data_segment;
@@ -192,15 +193,11 @@ extern int fatalerr;
 static struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
 static struct sigcontext_struct emu_stack_frame;  /* used to store emulator registers */
 
-#include "win31.h"
-
-#if defined(BCC_HACK) || defined(CLIENT_USE_GDT_40)
-#include "bcc.h"
-#endif /* BCC_HACK */
-
 /* define CLIENT_USE_GDT_40, to work around some bugy client */
 /* (like  dos4gw :=(. ) want to use gdt 0x40 to access bios area */
 #define CLIENT_USE_GDT_40
+
+#include "msdos.h"
 
 _syscall3(int, modify_ldt, int, func, void *, ptr, unsigned long, bytecount)
 
@@ -211,10 +208,16 @@ inline int get_ldt(void *buffer)
 
 inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 	      int seg_32bit_flag, int contents, int read_only_flag,
-	      int limit_in_pages_flag)
+	      int limit_in_pages_flag
+#ifdef WANT_WINDOWS
+, int seg_not_present, int useable
+#endif
+)
 {
   struct modify_ldt_ldt_s ldt_info;
   unsigned long *lp;
+  unsigned long base2, limit2;
+  int __retval;
 
   ldt_info.entry_number = entry;
   ldt_info.base_addr = base;
@@ -223,7 +226,34 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
   ldt_info.contents = contents;
   ldt_info.read_exec_only = read_only_flag;
   ldt_info.limit_in_pages = limit_in_pages_flag;
-  ldt_info.seg_not_present = 0;
+#ifdef WANT_WINDOWS
+  ldt_info.seg_not_present = seg_not_present;
+  ldt_info.useable = useable;
+#endif
+
+  limit2 = ldt_info.limit;
+  base2 = ldt_info.base_addr;
+  if (ldt_info.limit_in_pages) {
+  	limit2 *= PAGE_SIZE;
+  	limit2 += PAGE_SIZE-1;
+  }
+
+  limit2 += base2;
+  if ((limit2 < base2 || limit2 >= 0xC0000000) && ldt_info.seg_not_present == 0) {
+    if (base2 >= 0xC0000000) {
+      ldt_info.seg_not_present = 1;
+      D_printf("DPMI: WARNING: set segment[0x%04x] to NOT PRESENT\n",entry);
+    } else {
+      if (ldt_info.limit_in_pages)
+        ldt_info.limit = (0xC0000000 - base2)>>12 - 1;
+      else
+        ldt_info.limit = 0xC0000000 - base2 - 1;
+      D_printf("DPMI: WARNING: reducing limit of segment[0x%04x]\n",entry);
+    }
+  }
+
+  if (__retval=modify_ldt(1, &ldt_info, sizeof(ldt_info)))
+	return __retval;
 
 /*
  * DANG_BEGIN_REMARK
@@ -238,6 +268,17 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
 
   lp = (unsigned long *) &ldt_buffer[ldt_info.entry_number*LDT_ENTRY_SIZE];
 
+  if (ldt_info.base_addr == 0 && ldt_info.limit == 0 &&
+      ldt_info.contents == 0 && ldt_info.read_exec_only == 1 &&
+      ldt_info.seg_32bit == 0 && ldt_info.limit_in_pages == 0
+#ifdef WANT_WINDOWS
+      && ldt_info.seg_not_present == 1 && ldt_info.useable == 0
+#endif
+      ) {
+	*lp = 0;
+	*(lp+1) = 0;
+	return 0;
+  }
   *lp =     ((ldt_info.base_addr & 0x0000ffff) << 16) |
             (ldt_info.limit & 0x0ffff);
   *(lp+1) = (ldt_info.base_addr & 0xff000000) |
@@ -247,36 +288,13 @@ inline int set_ldt_entry(int entry, unsigned long base, unsigned int limit,
             ((ldt_info.read_exec_only ^ 1) << 9) |
             (ldt_info.seg_32bit << 22) |
             (ldt_info.limit_in_pages << 23) |
+#ifdef WANT_WINDOWS
             ((ldt_info.seg_not_present ^1) << 15) |
+            (ldt_info.useable << 20) |
+#endif
             0x7000;
 
-  if (ldt_info.base_addr == 0 && ldt_info.limit == 0) {
-    /* the kernel would clear then LDT entry - But we don't like */
-    ldt_info.base_addr = 1;
-  }
-#ifdef SET_DESCRIPTOR_CANT_FAIL
-  modify_ldt(1, &ldt_info, sizeof(ldt_info));
   return 0;
-#else
-  return modify_ldt(1, &ldt_info, sizeof(ldt_info));
-#endif
-}
-
-inline int clear_ldt_entry(int entry)
-{
-  struct modify_ldt_ldt_s ldt_info;
-  unsigned long *lp;
-
-  ldt_info.entry_number = entry;
-  ldt_info.base_addr = 0;
-  ldt_info.limit = 0;
-
-  lp = (unsigned long *) &ldt_buffer[ldt_info.entry_number*LDT_ENTRY_SIZE];
-
-  *lp = 0;
-  *(lp+1) = 0;
-
-  return modify_ldt(1, &ldt_info, sizeof(ldt_info));
 }
 
 static void print_ldt(void ) /* stolen from WINE */
@@ -285,7 +303,7 @@ static void print_ldt(void ) /* stolen from WINE */
   static char buffer[0x10000];
   unsigned long *lp, *lp2;
   unsigned long base_addr, limit;
-  int type, dpl, i;
+  int type, i;
 
   if (get_ldt(buffer) < 0)
     exit(1);
@@ -302,12 +320,11 @@ static void print_ldt(void ) /* stolen from WINE */
     base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
     limit |= (*lp & 0x000F0000);
     type = (*lp >> 10) & 7;
-    dpl = (*lp >> 13) & 3;
     if ((base_addr > 0) || (limit > 0 ) || Segments[i].used) {
       if (*lp & 1000)  {
-	D_printf("Entry %2d: Base %08.8x, Limit %05.5x, DPL %d, Type %d\n",
-	       i, base_addr, limit, dpl, type);
-	D_printf("          ");
+	D_printf("Entry 0x%04x: Base %08.8x, Limit %05.5x, Type %d\n",
+	       i, base_addr, limit, type);
+	D_printf("              ");
 	if (*lp & 0x100)
 	  D_printf("Accessed, ");
 	if (!(*lp & 0x200))
@@ -327,16 +344,16 @@ static void print_ldt(void ) /* stolen from WINE */
 	else
 	  D_printf("byte limit, ");
 	D_printf("\n");
-	D_printf("          %08.8x %08.8x\n", *(lp), *(lp-1));
+	D_printf("              %08.8x %08.8x\n", *(lp), *(lp-1));
       }
       else {
-	D_printf("Entry %2d: Base %08.8x, Limit %05.5x, DPL %d, Type %d\n",
-	       i, base_addr, limit, dpl, type);
-	D_printf("          SYSTEM: %08.8x %08.8x\n", *lp, *(lp - 1));
+	D_printf("Entry 0x%04x: Base %08.8x, Limit %05.5x, Type %d\n",
+	       i, base_addr, limit, type);
+	D_printf("              SYSTEM: %08.8x %08.8x\n", *lp, *(lp - 1));
       }
       lp2 = (unsigned long *) &ldt_buffer[i*LDT_ENTRY_SIZE];
-      D_printf("   cache: %08.8x %08.8x\n", *(lp2+1), *(lp2)); 
-      D_printf("     seg: Base %08.8x, Limit %05.5x, Type %d, Big %d\n",
+      D_printf("       cache: %08.8x %08.8x\n", *(lp2+1), *(lp2)); 
+      D_printf("         seg: Base %08.8x, Limit %05.5x, Type %d, Big %d\n",
 	     Segments[i].base_addr, Segments[i].limit, Segments[i].type, Segments[i].is_big); 
     }
   }
@@ -399,26 +416,25 @@ void dpmi_get_entry_point(void)
     if (in_dpmi)
       LWORD(esi) = 0;
     else
-      LWORD(esi) = DPMI_private_paragraphs;
+      LWORD(esi) = DPMI_private_paragraphs + 0x2008;
 
-#ifdef BCC_HACK
-   if (bcc_check_dpmiload(old_es)) {
-     in_bcc = 1;
-     D_printf("DPMI: we are running Borland DOS extender\n");
-     LWORD(esi) += 0x2008;
-   } 
+    if (bcc_check_dpmiload(old_es)) {
+      in_bcc = 1;
+      D_printf("DPMI: we are running Borland DOS extender\n");
+    }
 
-#endif /* BCC_HACK */
 }
 
-static inline int SetSelector(unsigned short selector, unsigned long base_addr, unsigned long limit,
+static inline int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int limit,
                        unsigned char is_32, unsigned char type, unsigned char readonly,
-                       unsigned char is_big)
+                       unsigned char is_big, unsigned char seg_not_present, unsigned char useable)
 {
   int ldt_entry = selector >> 3;
-  base_addr &= 0x0ffffffff;
-  limit &= 0x0fffff;
-  if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big)) {
+  if (set_ldt_entry(ldt_entry, base_addr, limit, is_32, type, readonly, is_big
+#ifdef WANT_WINDOWS
+  , seg_not_present, useable
+#endif
+  )) {
     D_printf("DPMI: set_ldt_entry() failed\n");
     return -1;
   }
@@ -428,6 +444,8 @@ static inline int SetSelector(unsigned short selector, unsigned long base_addr, 
   Segments[ldt_entry].is_32 = is_32;
   Segments[ldt_entry].readonly = readonly;
   Segments[ldt_entry].is_big = is_big;
+  Segments[ldt_entry].not_present = seg_not_present;
+  Segments[ldt_entry].useable = useable;
   if (in_dpmi)
     Segments[ldt_entry].used = in_dpmi;
   else
@@ -457,15 +475,31 @@ static inline unsigned short AllocateDescriptors(int number_of_descriptors)
   /* base and limit set to 0 */
   for (i = 0 ; i< number_of_descriptors; i++)
       if (SetSelector(((next_ldt+i)<<3) | 0x0007, 0, 0, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0)) return 0;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   return (next_ldt<<3) | 0x0007;
 }
 
 static inline int FreeDescriptor(unsigned short selector)
 {
-  if (clear_ldt_entry(selector>>3))
+  unsigned short ldt_entry = selector >> 3;
+  unsigned long *lp;
+
+  if (ldt_entry >= MAX_SELECTORS)
     return -1;
-  Segments[selector>>3].used = 0;
+
+  Segments[ldt_entry].used = 0;
+  Segments[ldt_entry].base_addr = 0;
+  Segments[ldt_entry].limit = 0;
+  Segments[ldt_entry].type = 0;
+  Segments[ldt_entry].is_32 = 0;
+  Segments[ldt_entry].readonly = 1;
+  Segments[ldt_entry].is_big = 0;
+  Segments[ldt_entry].not_present = 1;
+  Segments[ldt_entry].useable = 0;
+
+  lp = (unsigned long *) &ldt_buffer[ldt_entry*LDT_ENTRY_SIZE];
+  *lp = 0;
+  *(lp+1) = 0;
   return 0;
 }
 
@@ -480,7 +514,7 @@ static inline int ConvertSegmentToDescriptor(unsigned short segment)
       return (i<<3) | 0x0007;
   if (!(selector = AllocateDescriptors(1))) return 0;
   if (SetSelector(selector, baseaddr, 0xffff, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0)) return 0;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return 0;
   return selector;
 }
 
@@ -491,28 +525,38 @@ static inline unsigned short GetNextSelectorIncrementValue(void)
 
 static inline unsigned long GetSegmentBaseAddress(unsigned short selector)
 {
+  if (selector >= (MAX_SELECTORS << 3))
+    return 0;
   return Segments[selector >> 3].base_addr;
 }
 
 static inline int SetSegmentBaseAddress(unsigned short selector, unsigned long baseaddr)
 {
   unsigned short ldt_entry = selector >> 3;
+  D_printf("DPMI: SetSegmentBaseAddress[0x%04lx;0x%04lx] 0x%08lx\n", ldt_entry, selector, baseaddr);
+  if (ldt_entry >= MAX_SELECTORS)
+    return -1;
   if (!Segments[ldt_entry].used)
     return -1;
   Segments[ldt_entry].base_addr = baseaddr;
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
-	Segments[ldt_entry].type, Segments[ldt_entry].readonly, Segments[ldt_entry].is_big);
+	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
+	Segments[ldt_entry].is_big
+#ifdef WANT_WINDOWS
+	, Segments[ldt_entry].not_present, Segments[ldt_entry].useable
+#endif
+);
 }
 
-static inline int SetSegmentLimit(unsigned short selector, unsigned long limit)
+static inline int SetSegmentLimit(unsigned short selector, unsigned int limit)
 {
   unsigned short ldt_entry = selector >> 3;
+  D_printf("DPMI: SetSegmentLimit[0x%04lx;0x%04lx] 0x%08lx\n", ldt_entry, selector, limit);
+  if (ldt_entry >= MAX_SELECTORS)
+    return -1;
   if (!Segments[ldt_entry].used)
     return -1;
-  if (((Segments[ldt_entry].base_addr+limit) < Segments[ldt_entry].base_addr)||
-       ((Segments[ldt_entry].base_addr+limit) >= 0xC0000000))
-      limit = 0xC0000000 - Segments[ldt_entry].base_addr - 0x400;
   if (limit > 0x0fffff) {
     Segments[ldt_entry].limit = (limit>>12) & 0xfffff;
     Segments[ldt_entry].is_big = 1;
@@ -522,26 +566,47 @@ static inline int SetSegmentLimit(unsigned short selector, unsigned long limit)
   }
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr,
 	Segments[ldt_entry].limit, Segments[ldt_entry].is_32,
-	Segments[ldt_entry].type, Segments[ldt_entry].readonly, Segments[ldt_entry].is_big);
+	Segments[ldt_entry].type, Segments[ldt_entry].readonly,
+	Segments[ldt_entry].is_big
+#ifdef WANT_WINDOWS
+	, Segments[ldt_entry].not_present, Segments[ldt_entry].useable
+#endif
+);
 }
 
 static inline int SetDescriptorAccessRights(unsigned short selector, unsigned short type_byte)
 {
   unsigned short ldt_entry = selector >> 3;
-  if (!Segments[ldt_entry].used)
+  D_printf("DPMI: SetDescriptorAccessRights[0x%04lx;0x%04lx] 0x%04lx\n", ldt_entry, selector, type_byte);
+
+  if (ldt_entry >= MAX_SELECTORS)
     return -1;
+  if (!Segments[ldt_entry].used)
+    return -1; /* invalid value 8021 */
+  /* Only allow conforming Codesegments if Segment is not present */
+  if ( ((type_byte>>2)&3) == 3 && ((type_byte >> 7) & 1) == 1)
+    return -1; /* invalid selector 8022 */
+
   Segments[ldt_entry].type = (type_byte >> 2) & 7;
   Segments[ldt_entry].is_32 = (type_byte >> 14) & 1;
+
   /* This is a bug in some clients, hence we only allow
      to set the big bit if the limit is not yet set */
 #if 1
   if (Segments[ldt_entry].limit == 0)
 #endif
     Segments[ldt_entry].is_big = (type_byte >> 15) & 1;
+
   Segments[ldt_entry].readonly = ((type_byte >> 1) & 1) ? 0 : 1;
+  Segments[ldt_entry].not_present = ((type_byte >> 7) & 1) ? 0 : 1;
+  Segments[ldt_entry].useable = (type_byte >> 12) & 1;
   return set_ldt_entry(ldt_entry , Segments[ldt_entry].base_addr, Segments[ldt_entry].limit,
 			Segments[ldt_entry].is_32, Segments[ldt_entry].type,
-			Segments[ldt_entry].readonly, Segments[ldt_entry].is_big);
+			Segments[ldt_entry].readonly, Segments[ldt_entry].is_big
+#ifdef WANT_WINDOWS
+			, Segments[ldt_entry].not_present, Segments[ldt_entry].useable
+#endif
+);
 }
 
 static inline unsigned short CreateCSAlias(unsigned short selector)
@@ -552,7 +617,7 @@ static inline unsigned short CreateCSAlias(unsigned short selector)
   ds_selector = AllocateDescriptors(1);
   if (SetSelector(ds_selector, Segments[cs_ldt].base_addr, Segments[cs_ldt].limit,
 			Segments[cs_ldt].is_32, MODIFY_LDT_CONTENTS_DATA,
-			0, Segments[cs_ldt].is_big))
+			0, Segments[cs_ldt].is_big, 0, 0))
     return 0;
   return ds_selector;
 }
@@ -560,36 +625,35 @@ static inline unsigned short CreateCSAlias(unsigned short selector)
 static inline void GetDescriptor(us selector, unsigned long *lp)
 {
   memcpy(lp, &ldt_buffer[selector & 0xfff8], 8);
-  D_printf("DPMI: GetDescriptor[0x%04lx]: 0x%08lx%08lx\n", selector>>3, *(lp+1), *lp);
+  D_printf("DPMI: GetDescriptor[0x%04lx;0x%04lx]: 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
 }
 
 static inline int SetDescriptor(unsigned short selector, unsigned long *lp)
 {
   unsigned long base_addr, limit;
-  D_printf("DPMI: SetDescriptor[0x%04lx] 0x%08lx%08lx\n", selector>>3, *(lp+1), *lp);
+  D_printf("DPMI: SetDescriptor[0x%04lx;0x%04lx] 0x%08lx%08lx\n", selector>>3, selector, *(lp+1), *lp);
   if (selector >= (MAX_SELECTORS << 3))
     return -1;
+  if (!Segments[selector >> 3].used)
+    return -1; /* invalid value 8021 */
   base_addr = (*lp >> 16) & 0x0000FFFF;
   limit = *lp & 0x0000FFFF;
   lp++;
   base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
   limit |= (*lp & 0x000F0000);
-  if (SetSelector(selector, base_addr, limit, (*lp >> 22) & 1,
-			(*lp >> 10) & 7, ((*lp >> 9) & 1) ? 0 : 1, (*lp >> 23) & 1))
-    return -1;
-  {
-    unsigned long *lp2 = (unsigned long *) &ldt_buffer[(selector>>3)*LDT_ENTRY_SIZE];
-     *(lp2++) = *(lp-1);
-     *lp2 = *lp;
-  }
-  return 0;
+
+  return SetSelector(selector, base_addr, limit, (*lp >> 22) & 1,
+			(*lp >> 10) & 7, ((*lp >> 9) & 1) ^1,
+			(*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1);
 }
 
 static inline int AllocateSpecificDescriptor(us selector)
 {
   int ldt_entry = selector >> 3;
+  if (ldt_entry >= MAX_SELECTORS)
+    return -1;
   if (Segments[ldt_entry].used)
-    return 1;
+    return -1;
   if (in_dpmi)
     Segments[ldt_entry].used = in_dpmi;
   else
@@ -738,14 +802,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     }
     break;
   case 0x0001:
-    if ((_cs==_LWORD(ebx))||(_ds==_LWORD(ebx))||(_es==_LWORD(ebx))||
-        (_ss==_LWORD(ebx))||(_fs==_LWORD(ebx))||(_gs==_LWORD(ebx))) {
-      /* selector in use - can't free */
-      _LWORD(eax) = 0x8022;
-      _eflags |= CF;
-    } else
-    if (FreeDescriptor(_LWORD(ebx))) {
-      _LWORD(eax) = 0x8022;
+    if (FreeDescriptor(_LWORD(ebx))){
+      _LWORD(eax) = 0x8011;
       _eflags |= CF;
     }
     break;
@@ -757,6 +815,10 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     break;
   case 0x0003:
     _LWORD(eax) = GetNextSelectorIncrementValue();
+    break;
+  case 0x0004:	/* Reserved */
+  case 0x0005:	/* Reserved */
+    _eflags |= CF;
     break;
   case 0x0006:
     {
@@ -770,11 +832,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
     }
-    D_printf("DPMI: SetSegmentBaseAddress successfull\n");
     break;
   case 0x0008:
-    D_printf("DPMI: SetSegmentLimit(0x%04x): 0x%08x\n",
-				_LWORD(ebx), ((unsigned long)(_LWORD(ecx)))<<16 | (_LWORD(edx)));
     if (SetSegmentLimit(_LWORD(ebx), ((unsigned long)(_LWORD(ecx))<<16) | (_LWORD(edx)))) {
       _eflags |= CF;
       _LWORD(eax) = 0x8025;
@@ -787,7 +846,6 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     }
     if (SetDescriptorAccessRights(_LWORD(ebx), _ecx & (DPMIclient_is_32 ? 0xffff : 0x00ff))) {
       _eflags |= CF;
-      D_printf("DPMI: SetDescriptorAccessRights unsuccessfull\n");
     }
     break;
   case 0x000a:
@@ -808,16 +866,15 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
       _eflags |= CF;
       break;
     }
-#ifdef BCC_HACK
     if (in_bcc) {
-	if (bcc_SetDescriptor(scp))
-	    _eflags |= CF;
-    } else 	
-#endif /* BCC_HACK */
-    if (SetDescriptor(_LWORD(ebx),
+      if (bcc_SetDescriptor(scp))
+        _eflags |= CF;
+    } else {
+      if (SetDescriptor(_LWORD(ebx),
 		(unsigned long *) (GetSegmentBaseAddress(_es) +
 			(DPMIclient_is_32 ? _edi : _LWORD(edi)) ) ))
       _eflags |= CF;
+    }
     break;
   case 0x000d:
     if (_LWORD(ebx) & 0x7 != 0x7) {
@@ -1095,10 +1152,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 	    D_printf("DPMI: realloc failed\n");
 	    break;
 	}
-#ifdef BCC_HACK
-	if (in_bcc)
-	    bcc_fixed_realloc_descriptor(old_base, block, newsize);
-#endif /* BCC_HACK */
+	msdos_fixed_realloc_descriptor(old_base, block, newsize);
 	_LWORD(ecx) = (unsigned long)(block->base) & 0xffff;
 	_LWORD(ebx) = ((unsigned long)(block->base) >> 16) & 0xffff;
     }
@@ -1112,6 +1166,8 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     _LWORD(ebx) = 0;
     _LWORD(ecx) = DPMI_page_size;
     break;
+  case 0x0700:	/* Reserved */
+  case 0x0701:	/* Reserved */
   case 0x0702:	/* Mark Page as Demand Paging Candidate */
   case 0x0703:	/* Discard Page Contents */
    break;
@@ -1130,11 +1186,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     {
       char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMIclient_is_32 ? _esi : _LWORD(esi)));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
-#ifdef genuine_WIN31
 	if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr)))
-#else
-	if (!strcmp("WINOS2", ptr))
-#endif
       {
 	_LWORD(eax) = 0;
 	_es = DPMI_SEL;
@@ -1163,16 +1215,13 @@ inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   if (in_dpmi==1) {
     if (ldt_buffer) free(ldt_buffer);
     if (pm_stack) free(pm_stack);
-#ifdef BCC_HACK
-    in_bcc = 0;
-#endif /* BCC_HACK */
   }
   { 
   /* We can't free selectors here, may be a kernel problem? */
     int i;
     for (i=0;i<MAX_SELECTORS;i++) {
-      if (Segments[i>>3].used==in_dpmi)
-        Segments[i>>3].used = 0;
+      if (Segments[i].used==in_dpmi)
+        FreeDescriptor(i<<3);
     }
   }
   if (pm_block_root[current_client]) {
@@ -1189,9 +1238,8 @@ inline void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
   in_dpmi_dos_int = 1;
   in_dpmi--;
   in_win31 = 0;
-#if 0
-  dpmi_cli();
-#endif
+  in_bcc = 0;
+  in_dpmires = 0;
   memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct));
   REG(cs) = DPMI_SEG;
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
@@ -1213,9 +1261,6 @@ inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
     D_printf("DPMI: int31, ax=%04x\n", _LWORD(eax));
     return do_int31(scp, _LWORD(eax));
   } else {
-    if (in_win31)
-      if (win31_pre_extender(scp, i))
-        return;
     save_rm_regs();
     REG(eflags) = _eflags;
     REG(eax) = _eax;
@@ -1229,14 +1274,10 @@ inline void do_dpmi_int(struct sigcontext_struct *scp, int i)
     REG(es) = (long) GetSegmentBaseAddress(_es) >> 4;
     REG(cs) = DPMI_SEG;
     REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
-#ifdef BCC_HACK
-    if (in_bcc) {
-	if(bcc_pre_extender(scp, i)) {
+    if(msdos_pre_extender(scp, i)) {
 	    restore_rm_regs();
 	    return;
-	}
     }
-#endif /* BCC_HACK */
     in_dpmi_dos_int = 1;
     D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
     return (void) do_int(i);
@@ -1414,7 +1455,6 @@ void dpmi_init()
       return;
     }
 
-    /* should be in dpmi_quit() */
     for (i=0;i<MAX_SELECTORS;i++) FreeDescriptor(i<<3);
 
     /* all selectors are used */
@@ -1433,16 +1473,16 @@ void dpmi_init()
 
     if (!(LDT_ALIAS = AllocateDescriptors(1))) return;
     if (SetSelector(LDT_ALIAS, (unsigned long) ldt_buffer, MAX_SELECTORS*LDT_ENTRY_SIZE-1, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 1, 0)) return;
+                  MODIFY_LDT_CONTENTS_DATA, 1, 0, 0, 0)) return;
 
     if (!(PMSTACK_SEL = AllocateDescriptors(1))) return;
     if (SetSelector(PMSTACK_SEL, (unsigned long) pm_stack, DPMI_pm_stack_size-1, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0)) return;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
     PMSTACK_ESP = DPMI_pm_stack_size;
 
     if (!(DPMI_SEL = AllocateDescriptors(1))) return;
     if (SetSelector(DPMI_SEL, (unsigned long) (DPMI_SEG << 4), 0xffff, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_CODE, 0, 0 )) return;
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) return;
 
     dpmi_eflags = IF;
 
@@ -1497,23 +1537,23 @@ void dpmi_init()
 
   if (!(CS = AllocateDescriptors(1))) return;
   if (SetSelector(CS, (unsigned long) (my_cs << 4), 0xffff, 0,
-                  MODIFY_LDT_CONTENTS_CODE, 0, 0 )) return;
+                  MODIFY_LDT_CONTENTS_CODE, 0, 0, 0, 0)) return;
 
   if (!(SS = AllocateDescriptors(1))) return;
   if (SetSelector(SS, (unsigned long) (LWORD(ss) << 4), 0xffff, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0 )) return;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
 
   if (LWORD(ss) == LWORD(ds))
     DS=SS;
   else {
     if (!(DS = AllocateDescriptors(1))) return;
     if (SetSelector(DS, (unsigned long) (LWORD(ds) << 4), 0xffff, DPMIclient_is_32,
-                    MODIFY_LDT_CONTENTS_DATA, 0, 0 )) return;
+                    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
   }
 
   if (!(ES = AllocateDescriptors(1))) return;
   if (SetSelector(ES, (unsigned long) (psp << 4), 0x00ff, DPMIclient_is_32,
-                  MODIFY_LDT_CONTENTS_DATA, 0, 0 )) return;
+                  MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
 
   {/* convert environment pointer to a descriptor*/
      unsigned short envp, envpd;
@@ -1526,9 +1566,12 @@ void dpmi_init()
 	/* windows is accessing envp:0x0400 */
 	if (SetSelector(envpd, (unsigned long) (envp << 4), 0x0ffff,
 #endif
-			DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0,
-			0 )) return;
+			DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) return;
 	*(unsigned short *)(((char *)(psp<<4))+0x2c) = envpd;
+
+        CURRENT_ENV = (unsigned short *)(((char *)(psp<<4))+0x2c);
+        CURRENT_ENV_SEL = envpd;
+
 	D_printf("DPMI: env segement %X converted to descriptor %X\n",
 		envp,envpd);
      }
@@ -1578,13 +1621,6 @@ void dpmi_init()
     serial_run();
     int_queue_run();
   }
-/*
-  I don't understand why I can't free the LDT here. If I do I get an Segment
-  not present fault - is this a kernel bug????????
-*/
-/*
-  for (i=0;i<MAX_SELECTORS;i++) FreeDescriptor(i<<3);
-*/
   in_sigsegv++;
 }
 
@@ -1660,15 +1696,6 @@ static inline void do_cpu_exception(struct sigcontext_struct *scp)
   us *ssp;
   unsigned char *csp2, *ssp2;
   int i;
-
-#if KERNEL_VERSION < 1001090
-  /*
-   * This is a bug in the kernel, trap 0x01 (debug) always occurs
-   * twice in a row, the second time with TF cleared.
-   */
-  if (_trapno == 1 && !(_eflags & TF))
-    return;
-#endif
 
   D_printf("DPMI: do_cpu_exception(0x%02x) called\n",_trapno);
   DPMI_show_state;
@@ -1827,12 +1854,10 @@ if ((_ss & 7) == 7) {
 	_cs = Interrupt_Table[current_client][*csp].selector;
 	_eip = Interrupt_Table[current_client][*csp].offset;
 	D_printf("DPMI: calling interrupthandler 0x%02x at 0x%04x:0x%08lx\n", *csp, _cs, _eip);
-#ifdef BCC_HACK
 	if ((*csp == 0x2f)&&((_LWORD(eax)==
 			      0xfb42)||(_LWORD(eax)==0xfb43)))
 	    D_printf("DPMI: dpmiload function called, ax=0x%04x,bx=0x%04x\n"
 		     ,_LWORD(eax), _LWORD(ebx));
-#endif	
       }
       break;
 
@@ -1843,7 +1868,7 @@ if ((_ss & 7) == 7) {
 	/* HLT in dosemu code - must in dpmi_control() */
 	memcpy(&emu_stack_frame, scp, sizeof(struct sigcontext_struct)); /* backup the registers */
 	memcpy(scp, &dpmi_stack_frame[current_client], sizeof(struct sigcontext_struct)); /* switch the stack */
-#if 1
+#if 0
 	D_printf("DPMI: now jumping to dpmi client code\n");
 #ifdef SHOWREGS
 	DPMI_show_state;
@@ -1879,9 +1904,6 @@ if ((_ss & 7) == 7) {
           if (_LWORD(eax) == 0x0100) {
             _eax = LDT_ALIAS;  /* simulate direct ldt access */
 	    in_win31 = 1;
-#ifdef genuine_WIN31
-            *ssp += (us) 7; /* jump over writeaccess test of the LDT in krnl386.exe! */
-#endif
 	  } else
             _eflags |= CF;
 
@@ -2129,16 +2151,9 @@ if ((_ss & 7) == 7) {
       }
       break;        
     default:
-#ifdef genuine_WIN31
-      /* Simulate direct LDT access for MS-Windows 3.1 */
-      if (win31ldt(scp, --csp))
-      return;
-#endif
 
-#ifdef BCC_HACK
-      if (in_bcc && bcc_fault(scp))
+      if (msdos_fault(scp))
 	  return;
-#endif	      
       do_cpu_exception(scp);
 
     } /* switch */
@@ -2169,16 +2184,14 @@ void dpmi_realmode_hlt(unsigned char * lina)
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
-#ifdef BCC_HACK    
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_exec))) {
 
-    D_printf("BCC: Return from DOS exec\n");
-    bcc_post_exec();
+    D_printf("DPMI: Return from DOS exec\n");
+    msdos_post_exec();
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;
 
-#endif
   } else if ((lina>=(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint))) &&
 	     (lina <(unsigned char *)(DPMI_ADD + HLT_OFF(DPMI_return_from_dosint)+256)) ) {
     int intr = (int)(lina) - DPMI_ADD-HLT_OFF(DPMI_return_from_dosint);
@@ -2195,12 +2208,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
     dpmi_stack_frame[current_client].edi = REG(edi);
     dpmi_stack_frame[current_client].ebp = REG(ebp);
 
-    if (in_win31)
-      win31_post_extender(intr);
-#ifdef BCC_HACK
-    if(in_bcc && !(in_win31))
-      bcc_post_extender(intr);
-#endif /* BCC_HACK */
+    msdos_post_extender(intr);
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;
@@ -2284,7 +2292,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
 	while (length > 0xffff) {
 	    if (SetSelector(begin_selector + (i<<3), base+i*0x10000,
 			    0xffff, DPMIclient_is_32,
-			    MODIFY_LDT_CONTENTS_DATA, 0, 0 )) {
+			    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0)) {
 		error =1;
 		goto done;
 	    }
@@ -2294,7 +2302,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
 	if (length)
 	    if (SetSelector(begin_selector + (i<<3), base+i*0x10000,
 			    length, DPMIclient_is_32,
-			    MODIFY_LDT_CONTENTS_DATA, 0, 0 ))
+			    MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0))
 		error = 1;
     }
 done:
@@ -2359,7 +2367,7 @@ done:
     dpmi_stack_frame[current_client].esp = PMSTACK_ESP;
     SetSelector(realModeCallBack[current_client][num].rm_ss_selector,
 		(REG(ss)<<4), 0xffff, DPMIclient_is_32,
-		MODIFY_LDT_CONTENTS_DATA, 0, 0);
+		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
     dpmi_stack_frame[current_client].ds =
 	realModeCallBack[current_client][num].rm_ss_selector;
     dpmi_stack_frame[current_client].esi = REG(esp);

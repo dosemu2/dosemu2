@@ -508,7 +508,7 @@ CISH(DPMI_dpmi_init):
 	.globl	CISH(DPMI_return_from_dos)
 CISH(DPMI_return_from_dos):
 	hlt
-	.globl	CISH(DPMI_return_from_dos_exec) /* for bcc.h */
+	.globl	CISH(DPMI_return_from_dos_exec)
 CISH(DPMI_return_from_dos_exec):
 	hlt
 	.globl	CISH(DPMI_return_from_dosint)

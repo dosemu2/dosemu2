@@ -94,6 +94,7 @@ int do_irq();                                /* run dos portion of irq code */
 void pic_request(int inum);                            /* interrupt trigger */
 void pic_creq(int inum);                   /* conditional interrupt trigger */
 void pic_iret();                             /* interrupt completion notify */
+void pic_return();			     /* interrupt completion notify */
 void pic_watch();		       /* interrupt pendiong watchdog timer */
 void do_irq0();						 /* timer interrupt */
 

@@ -1,23 +1,3 @@
-/* bcc.h      -- Dong Liu <dliu@rice.njit.edu> Sat Feb 11 1995
- *
- * Special hacks for running Borland\'s C++ compiler.
- *
- * $Log: bcc.h,v $
- * Revision 1.1  1995/02/25  21:54:01  root
- * Initial revision
- *
- * Revision 1.1  1995/02/25  21:54:01  root
- * Initial revision
- *
- */
-
-#ifndef lint
-static char *rcsid = "$Header: /home/src/dosemu0.60/dpmi/RCS/bcc.h,v 1.1 1995/02/25 21:54:01 root Exp $";
-#endif
-
-int in_bcc = 0;       /* Set to 1 when running DPMILOAD */
-int in_dpmires = 0;		/* set 1 when dpmires is loaded */
-
 enum { ES_INDEX = 0, CS_INDEX = 1, SS_INDEX = 2,  DS_INDEX = 3,
        FS_INDEX = 4, GS_INDEX = 5 };
 
@@ -51,20 +31,18 @@ typedef struct {
 #define SEGMENT_PRELOAD     0x40
 #define SEGMENT_DISCARDABLE 0x1000
 
-/* used when bcc passing a DTA higher than 1MB */
+/* used when passing a DTA higher than 1MB */
 static void * DTA_over_1MB;
 static void * DTA_under_1MB;
-
-#undef inline /*for gdb*/
-#define inline
 
 static inline unsigned long GetSegmentBaseAddress(unsigned short seg);
 static inline int ConvertSegmentToDescriptor(unsigned short seg);
 static inline int SetSegmentBaseAddress(unsigned short selector,
 					unsigned long baseaddr);
-static inline int SetSegmentLimit(unsigned short, unsigned long);
+static inline int SetSegmentLimit(unsigned short, unsigned int);
 static inline int SetSelector(unsigned short, unsigned long,
-                              unsigned long, unsigned char, unsigned char,
+                              unsigned int, unsigned char, unsigned char,
+                              unsigned char, unsigned char,
                               unsigned char, unsigned char);
 static inline void save_pm_regs();
 static inline void restore_pm_regs();
@@ -80,27 +58,27 @@ static inline int bcc_check_dpmiload(unsigned short old_es)
 
     env = (char *)(((unsigned long)old_es)<<4);
     if ( *(unsigned short *)env != 0x20cd /* int 0x20 */)
-	return 0;
+        return 0;
     env = (char *)(((unsigned long)
-		   (*(unsigned short *)(env+0x2c)))<<4); /* get envr. */
+                   (*(unsigned short *)(env+0x2c)))<<4); /* get envr. */
     /* scan for 0 0 */
     while (*(unsigned short *)env != 0)
-	env++;
-    env += 4;			/* now env points to the exe file */
+        env++;
+    env += 4;                   /* now env points to the exe file */
 
     if (strlen(env)> strlen(dpmires)) {
-	if (strcasecmp(env + strlen(env)-strlen(dpmires), dpmires) == 0)
-	    in_dpmires = 1;
+        if (strcasecmp(env + strlen(env)-strlen(dpmires), dpmires) == 0)
+            in_dpmires = 1;
     }
     if (strlen(env)> strlen(dpmiload)) {
-	env += strlen(env)-strlen(dpmiload);
-	if (strcasecmp(env, dpmiload) == 0)
-	    return 1;
+        env += strlen(env)-strlen(dpmiload);
+        if (strcasecmp(env, dpmiload) == 0)
+            return 1;
     }
     return 0;
 }
 
-/* when BCC call real mode interrupt, its ds and/or es segments may be */
+/* when client calls real mode interrupt, its ds and/or es segments may be */
 /* on the area over 1MB, we first copy them to memory under 1MB, then */
 /* copy them back when back from real mode interrupt. Should consider */
 /* use mmap for speed, but how =(? */
@@ -108,8 +86,13 @@ static inline int bcc_check_dpmiload(unsigned short old_es)
 static unsigned short DS_MAPPED;
 static unsigned short ES_MAPPED;
 static char READ_DS_COPIED;
+static unsigned short *CURRENT_ENV;
+static unsigned short CURRENT_ENV_SEL;
+static unsigned short *PARENT_ENV;
+static unsigned short PARENT_ENV_SEL;
 static inline int
-bcc_pre_extender(struct sigcontext_struct *scp, int intr)
+
+msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 {
     DS_MAPPED = 0;
     ES_MAPPED = 0;
@@ -120,19 +103,22 @@ bcc_pre_extender(struct sigcontext_struct *scp, int intr)
 	switch (_HI(ax)) {
 	case 0x25:		/* set vector */
 	    Interrupt_Table[current_client][_LO(ax)].selector = _ds;
-	    Interrupt_Table[current_client][_LO(ax)].offset = _edx;
-	    D_printf("BCC: int 21,ax=0x%04x, ds=0x%04x. dx=0x%04x\n",
-		     _LWORD(eax), _ds, _LWORD(edx));
+	    if (DPMIclient_is_32)
+	      Interrupt_Table[current_client][_LO(ax)].offset = _edx;
+            else
+	      Interrupt_Table[current_client][_LO(ax)].offset = _LWORD(edx);
+	    D_printf("DPMI: int 21,ax=0x%04x, ds=0x%04x. edx=0x%08lx\n",
+		     _LWORD(eax), _ds, _edx);
 	    return 1;
 	case 0x35:	/* Get Interrupt Vector */
 	    _es = Interrupt_Table[current_client][_LO(ax)].selector;
 	    _ebx = Interrupt_Table[current_client][_LO(ax)].offset;
-	    D_printf("BCC: int 21,ax=0x%04x, es=0x%04x. bx=0x%04x\n",
-		     _LWORD(eax), _es, _LWORD(ebx));
+	    D_printf("DPMI: int 21,ax=0x%04x, es=0x%04x. ebx=0x%08lx\n",
+		     _LWORD(eax), _es, _ebx);
 	    return 1;
 	case 0x1a:		/* set DTA */
 	    if ( Segments[ _ds >> 3].base_addr > 0xffff0) {
-		D_printf("DPMI: bcc passing pointer > 1MB to dos set DTA\n"); 
+		D_printf("DPMI: passing pointer > 1MB to dos set DTA\n"); 
 		
 		DTA_over_1MB = (void *)GetSegmentBaseAddress(_ds)
 		                                   + _LWORD(edx); 
@@ -201,6 +187,15 @@ bcc_pre_extender(struct sigcontext_struct *scp, int intr)
 		*(unsigned long *)((REG(es)<<4)+LWORD(ebx)+6) = 0;
 		*(unsigned long *)((REG(es)<<4)+LWORD(ebx)+0xA) = 0;
 	    }
+	    /* then the enviroment seg */
+            if (CURRENT_ENV_SEL) {
+                *CURRENT_ENV =
+                    (unsigned long)(GetSegmentBaseAddress(CURRENT_ENV_SEL))
+                                >> 4;
+                PARENT_ENV_SEL = CURRENT_ENV_SEL;
+                PARENT_ENV = CURRENT_ENV;
+            } else
+                PARENT_ENV = 0;
 	    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_exec);
 	    /* save context for child exits */
 	    memcpy(&dpmi_stack_frame[current_client], scp,
@@ -209,19 +204,32 @@ bcc_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 0;
 	case 0x50:		/* set PSP */
 	    if (((LWORD(ebx) & 0x7) == 0x7) &&
-		((LWORD(ebx) >> 3) < MAX_SELECTORS) &&
-		Segments[LWORD(ebx) >> 3].used) {
+		Segments[LWORD(ebx) >> 3].used &&
+		(Segments[LWORD(ebx) >> 3].base_addr < 0xffff0)) {
 		unsigned short envp;
 
 		REG(ebx) = (long) GetSegmentBaseAddress(LWORD(ebx)) >> 4;
 		envp = *(unsigned short *)(((char *)(LWORD(ebx)<<4)) + 0x2c);
-		if (((envp & 0x7 == 0x7) &&
-		     ((envp >> 3) < MAX_SELECTORS) &&
-		     Segments[envp >> 3].used))
-		    *(unsigned short *)(((char *)(LWORD(ebx)<<4))+0x2c) =
-			(long) GetSegmentBaseAddress(envp) >> 4;
+		if (((envp & 0x7) == 0x7) &&
+		    ((envp >> 3) < MAX_SELECTORS) &&
+		    Segments[envp >> 3].used && 
+		    (Segments[envp >> 3].base_addr < 0xffff0)) {
+		    CURRENT_ENV = (unsigned short *)((LWORD(ebx)<<4) + 0x2c);
+		    CURRENT_ENV_SEL = envp;
+		} else {
+		    CURRENT_ENV = (unsigned short *)((LWORD(ebx)<<4) + 0x2c);
+		    CURRENT_ENV_SEL = 0;
+		}
 	    }
 	    return 0;
+        case 0x26:
+        case 0x55:              /* create PSP */
+            if (((LWORD(edx) & 0x7) == 0x7) &&
+                ((LWORD(edx) >> 3) < MAX_SELECTORS) &&
+                Segments[LWORD(edx) >> 3].used &&
+                (Segments[LWORD(edx) >> 3].base_addr < 0xffff0))
+                REG(edx) = (long) GetSegmentBaseAddress(LWORD(edx)) >> 4;
+            return 0;
 	case 0x39:		/* mkdir */
 	case 0x3a:		/* rmdir */
 	case 0x3b:		/* chdir */
@@ -232,7 +240,7 @@ bcc_pre_extender(struct sigcontext_struct *scp, int intr)
 	case 0x4e:		/* find first */
 	case 0x4f:		/* find next */
 	    if ( Segments[ _ds >> 3].base_addr > 0xffff0) {
-		D_printf("DPMI: bcc passing ASCIIZ > 1MB to dos\n"); 
+		D_printf("DPMI: passing ASCIIZ > 1MB to dos\n"); 
 		REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs;
 		strcpy((void *)((REG(ds) << 4)+LWORD(edx)),
 		       (void *)GetSegmentBaseAddress(_ds)+_LWORD(edx));
@@ -242,7 +250,7 @@ bcc_pre_extender(struct sigcontext_struct *scp, int intr)
 	    /* bcc sometime pass address > 1MB to dos to read, so */
 	    /* frist read to our buffer, then copy it to client */
 	    if ( Segments[ _ds >> 3].base_addr > 0xffff0) {
-		D_printf("DPMI: bcc passing pointer > 1MB to dos read\n"); 
+		D_printf("DPMI: passing pointer > 1MB to dos read\n"); 
 		S_REG(ds) = _ds;
 		REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs;
 		REG(edx) = 0;
@@ -252,7 +260,7 @@ bcc_pre_extender(struct sigcontext_struct *scp, int intr)
 	    return 0;
 	case 0x40:		/* DOS Write */
 	    if ( Segments[ _ds >> 3].base_addr > 0xffff0)
-		D_printf("DPMI: bcc passing pointer > 1MB to dos write\n"); 
+		D_printf("DPMI: passing pointer > 1MB to dos write\n"); 
 	    S_REG(ds) = _ds;
 	    REG(ds) = DPMI_private_data_segment+DPMI_private_paragraphs;
 	    REG(edx) = 0;
@@ -329,7 +337,7 @@ bcc_pre_extender(struct sigcontext_struct *scp, int intr)
 }
 
 static inline
-bcc_post_exec()
+msdos_post_exec()
 {
     /* restore parent\'s context */
     restore_pm_regs();
@@ -346,11 +354,13 @@ bcc_post_exec()
 	dpmi_stack_frame[current_client].edx = S_REG(edx);
 	dpmi_stack_frame[current_client].ebx = S_REG(ebx);
     }
+    if (PARENT_ENV)
+        *PARENT_ENV = PARENT_ENV_SEL;
     return;
 }
 
-static inline
-bcc_post_extender(int intr)
+static inline void
+msdos_post_extender(int intr)
 {
     if (DS_MAPPED) {
 	unsigned short my_ds;
@@ -370,10 +380,24 @@ bcc_post_extender(int intr)
     ES_MAPPED = 0;
 	       
     switch (intr) {
+    case 0x15:
+      switch(S_HI(ax)) {
+        case 0xc0:      /* Get Configuartion */
+                if (REG(eflags)&CF)
+                        return;
+                if (!(dpmi_stack_frame[current_client].es =
+                         ConvertSegmentToDescriptor(REG(es))))
+                break;
+        default:
+                return;
+      }
     case 0x21:
 	switch (S_HI(ax)) {
 	case 0x2f:		/* GET DTA */
+	case 0x34:		/* Get Address of InDOS Flag */
 	case 0x35:		/* GET Vector */
+	case 0x52:		/* Get List of List */
+        case 0x59:		/* Get EXTENDED ERROR INFORMATION */
 	    dpmi_stack_frame[current_client].es =
 	               ConvertSegmentToDescriptor(REG(es));
 	    break;
@@ -408,11 +432,6 @@ bcc_post_extender(int intr)
 #endif 		
 		dpmi_stack_frame[current_client].ebx = ConvertSegmentToDescriptor(psp);
 	    }
-	    return;
-	case 0x34:	/* Get Address of InDOS Flag */
-	    if (!(dpmi_stack_frame[current_client].es =
-		  ConvertSegmentToDescriptor(REG(es))))
-		D_printf("DPMI: can't allocate descriptor for InDOS pointer\n");
 	    return;
 	case 0x5d:
 	    if (S_LO(ax) == 0x06) /* get address of DOS swappable area */
@@ -454,7 +473,7 @@ bcc_SetDescriptor(struct sigcontext_struct *scp)
     lp = (unsigned long *)(GetSegmentBaseAddress(_es) +
 			   (DPMIclient_is_32 ? _edi : _LWORD(edi)));
 
-    D_printf("DPMI: bcc_SetDescriptor[0x%04lx] 0x%08lx%08lx\n", selector>>3, *(lp+1), *lp);
+    D_printf("DPMI: msdos_SetDescriptor[0x%04lx] 0x%08lx%08lx\n", selector>>3, *(lp+1), *lp);
 
     if (selector >= (MAX_SELECTORS << 3))
 	return -1;
@@ -479,8 +498,13 @@ bcc_SetDescriptor(struct sigcontext_struct *scp)
 	/* we make all segments fixed, preload and non-discardable */
 	D_printf("DPMI: bcc uses ds:si as base address flags 0x%04x\n", info->flags);
 	/* make sure it is a valid memory block info struct */
+
+        if(info->code_selector == selector) {
+            if (info->flags & SEGMENT_DOS)
+                info->flags &= ~SEGMENT_DOS;
+        }
+
 	if(((info->flags & SEGMENT_DOS) == 0)
-	   /*   && ((info->flags & SEGMENT_DATA) == 0)*/
 	   && (info->code_selector == selector)) {
 	    /* make all segment fixed, preload and non-discardable, */
 	    /* because memory is not the issue here :=) */
@@ -491,12 +515,15 @@ bcc_SetDescriptor(struct sigcontext_struct *scp)
 	    if (info -> flags & SEGMENT_DISCARDABLE)
 		info -> flags &= ~SEGMENT_DISCARDABLE;
 	}
-
 	base_addr = GetSegmentBaseAddress(_ds);
+	/* make this segment present */
+	if (!(*lp & 0x8000))
+	    *lp |= 0x8000;
     }
 #endif    
     if (SetSelector(selector, base_addr, limit, (*lp >> 22) & 1,
-		    (*lp >> 10) & 7, ((*lp >> 9) & 1) ? 0 : 1, (*lp >> 23) & 1))
+		    (*lp >> 10) & 7, ((*lp >> 9) & 1) ^1,
+                    (*lp >> 23) & 1, ((*lp >> 15) & 1) ^1, (*lp >> 20) & 1))
 	return -1;
     if (fix_code_alias) {
 	dpmiload_mem_info *info = (dpmiload_mem_info *)(
@@ -524,7 +551,7 @@ bcc_SetDescriptor(struct sigcontext_struct *scp)
 }
 
 static void inline
-bcc_fixed_realloc_descriptor(void *old_base, dpmi_pm_block *block,
+msdos_fixed_realloc_descriptor(void *old_base, dpmi_pm_block *block,
 			     unsigned long new_size)
 {
     unsigned desc;
@@ -910,7 +937,7 @@ decode_modify_segreg_insn(struct sigcontext_struct *scp, unsigned
 }
 	
     
-static inline int bcc_fix_cs_prefix (struct sigcontext_struct *scp)
+static inline int msdos_fix_cs_prefix (struct sigcontext_struct *scp)
 {
     unsigned char *csp;
 
@@ -931,7 +958,7 @@ static inline int bcc_fix_cs_prefix (struct sigcontext_struct *scp)
     return 0;
 }
 
-static  inline int bcc_fault(struct sigcontext_struct *scp)
+static  inline int msdos_fault(struct sigcontext_struct *scp)
 {
     unsigned char reg;
     unsigned short segment, desc;
@@ -943,7 +970,7 @@ static  inline int bcc_fault(struct sigcontext_struct *scp)
 	char fix_alias = 0;
 
 	/* see if it is a cs prefix problem */
-	if (bcc_fix_cs_prefix(scp))
+	if (msdos_fix_cs_prefix(scp))
 	    return 1;
 	
 	if ((Segments[_ds>>3].type & MODIFY_LDT_CONTENTS_CODE) &&
@@ -980,7 +1007,7 @@ static  inline int bcc_fault(struct sigcontext_struct *scp)
     if (len == 0) 
 	return 0;
 
-    D_printf("DPMI: bcc try mov to a invalid selector 0x%04x\n", segment);
+    D_printf("DPMI: try mov to a invalid selector 0x%04x\n", segment);
 
     base_addr = ((unsigned long)segment) << 4;
     for(desc=0; desc < MAX_SELECTORS; desc++)

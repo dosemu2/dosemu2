@@ -129,6 +129,10 @@ static int fork_debug(void)
 
 /*
  * 2/9/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
+ *  - initial version
+ * 3/10/1995, Erik Mouw (j.a.k.mouw@et.tudelft.nl):
+ *  - fixed securety hole
+ *  - stderr output also to dosemu screen
  *
  * DANG_BEGIN_FUNCTION run_unix_command
  *
@@ -137,7 +141,8 @@ static int fork_debug(void)
  * returns: nothing
  *
  * description:
- *  Runs a command and prints the (stdout) output on the dosemu screen.
+ *  Runs a command and prints the (stdout and stderr) output on the dosemu 
+ *  screen.
  *
  * DANG_END_FUNCTION
  *
@@ -166,21 +171,49 @@ static int fork_debug(void)
  */
 void run_unix_command(char *buffer)
 {
-      /* DANG_FIXME Calls to "system" are unsafe when setuid .... - AM */
+    /* unix command is in a null terminate buffer pointed to by ES:DX. */
 
 #ifdef SIMPLE_FORK
-	/* unix command is in a null terminate buffer pointed to by ES:DX. */
-      system(buffer);
+#warning Using SIMPLE_FORK
+    /* Who made this old version avaliable again and why? The #else variant 
+     * is much more elegant in my opinion, because you get the output *in* 
+     * dosemu.  --  Erik Mouw
+     *
+     * I made this option safe, too, but I didn't test it, so I am not
+     * sure. When accidents happen, don't say I didn't warn you!
+     */
+     
+     /* DANG_FIXTHIS Remove the "SIMPLE_FORK" stuff if it is not really necessary */
+     
+    uid_t uid, gid;
+    
+    uid=geteuid();
+    gid=geteuid();
+    setuid(getuid());
+    setgid(getgid());
+    
+    system(buffer);
+    
+    setuid(uid);
+    setgid(gid);
 
 #else
     int p[2];
+    int q[2];
     int pid, status, retval;
     char buf;
     
-    /* create a pipe */
+    /* create a pipe... */
     if(pipe(p)!=0)
     {
-        g_printf("run_unix_command(): pipe() failed\n");
+        g_printf("run_unix_command(): pipe(p) failed\n");
+        return;
+    }
+    
+    /* ...or two */
+    if(pipe(q)!=0)
+    {
+        g_printf("run_unix_command(): pipe(q) failed\n");
         return;
     }
     
@@ -193,27 +226,51 @@ void run_unix_command(char *buffer)
     }
     else if(pid==0) /* child */
     {
-        close(p[0]);		/* close read side of the pipe */
+        close(p[0]);		/* close read side of the stdout pipe */
+        close(q[0]);		/* and the stderr pipe */
         close(1);		/* close stdout */
+        close(2);		/* close stderr */
         if(dup(p[1])!=1)	/* copy write side of the pipe to stdout */
         {
             /* hmm, I wonder if the next line works ok... */
-            g_printf("run_unix_command() (child): dup() failed\n");
+            g_printf("run_unix_command() (child): dup(p) failed\n");
             _exit(-1);
         }
-            
+        
+        if(dup(q[1])!=2)	/* copy write side of the pipe to stderr */
+        {
+            g_printf("run_unix_command() (child): dup(q) failed\n");
+            _exit(-1);
+        }
+        
+        /* DOSEMU runs setuid(root). go back to the real uid/gid for
+         * safety reasons.
+         */
+        setuid(getuid());
+        setgid(getgid());
+        
+#if 0
+        g_printf("run_unix_command() (child): uid/gid=%i/%i\n", getuid(), getgid());
+        g_printf("run_unix_command() (child): euid/egid=%i/%i\n", geteuid(), getegid());
+#endif
+        
         retval=system(buffer);	/* execute command */
-        close(p[1]);		/* close write side of the pipe */
+        close(p[1]);		/* close write side of the stdout pipe */
+        close(q[1]);		/* and stderr pipe */
         _exit(retval);
     }
     else /* parent */
     {
         close(p[1]);		/* close write side of the pipe */
+        close(q[1]);		/* and stderr pipe */
         
-        /* read bytes until an error occurs */
-        /* no big buffer here, because speed is not important */
-        /* if speed *is* important, switch to another virtual console! */
-        while(read(p[0], &buf, 1)==1)
+        /* read bytes until an error occurs 
+         * no big buffer here, because speed is not important
+         * if speed *is* important, switch to another virtual console!
+         * first read stdout, then stderr. if both stdout and stderr produce
+         * output, only the stderr output is printed.
+         */
+        while((read(p[0], &buf, 1)==1) || (read(q[0], &buf, 1)==1))
         {
             p_dos_str("%c", buf);	/* print character */
         }
@@ -222,11 +279,16 @@ void run_unix_command(char *buffer)
         if(kill(pid, SIGTERM)!=0)
             kill(pid, SIGKILL);
             
-        close(p[0]);		/* close read side of the pipe */
+        close(p[0]);		/* close read side of the stdout pipe */
+        close(q[1]);		/* and the stderr pipe */
+        
+        /* anti-zombie code */
         waitpid(pid, &status, WUNTRACED);
+        
         /* print child exitcode. not perfect */
         g_printf("run_unix_command() (parent): child exit code: %i\n",
             WEXITSTATUS(&status));
     }
 #endif
 }
+

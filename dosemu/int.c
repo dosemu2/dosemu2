@@ -18,7 +18,7 @@
 #include "bios.h"
 #include "xms.h"
 #include "int.h"
-#include "../dos2linux/dos2linux.h"
+#include "dos2linux.h"
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -77,7 +77,7 @@ static int dos_helper(void)
   case 0:			/* Linux dosemu installation test */
     LWORD(eax) = 0xaa55;
     LWORD(ebx) = VERNUM;	/* major version 0.49 -> 0x0049 */
-    warn("WARNING: dosemu installation check\n");
+    g_printf("WARNING: dosemu installation check\n");
     show_regs(__FILE__, __LINE__);
     break;
 

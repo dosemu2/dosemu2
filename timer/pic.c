@@ -43,7 +43,7 @@
 #endif
 #undef us
 #define us unsigned
-
+void timer_tick(void);
 
 
 static unsigned long pic1_isr;         /* second isr for pic1 irqs */
@@ -430,6 +430,10 @@ void run_irqs()
  *  returns, since no outb20 will come.
  *  Returns: 0 = complete, 1 = interrupt not run because it directly
  *  calls our "bios"   See run_timer_tick() in timer.c for an example
+ *  To assure notification when the irq completes, we push flags, ip, and cs
+ *  here and fake cs:ip to INTE8_[SEG,OFF].  This makes the irq call
+ *  interrupt e8 (which calls pic_return) when it completes.  int e8
+ *  then pops the real cs:ip from the stack.
  *  This routine is RE-ENTRANT - it calls run_irqs, which
  *  which may call an interrupt routine,
  *  which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!! 
@@ -441,6 +445,7 @@ int do_irq()
 {
  int intr;
  long int_ptr;
+ unsigned short * tmp;
  
     intr=pic_iinfo[pic_ilevel].ivec;
     if(!pic_ilevel) return;
@@ -456,13 +461,23 @@ int do_irq()
     {
 #endif
 
-     pic_cli();
 #ifdef DPMI
      if (in_dpmi) {
       run_pm_int(intr);
      } else
 #endif
-        run_int(intr);
+     {
+      pic_cli();
+      tmp = SEG_ADR((short *),ss,sp)-3;
+      tmp[2] = LWORD(eflags);
+      tmp[1] = REG(cs);
+      tmp[0] = LWORD(eip);
+      LWORD(esp) -= 6;
+      REG(cs) = INTE8_SEG;
+      LWORD(eip) = INTE8_OFF;
+      
+      run_int(intr);
+     }
       pic_icount++;
       while(!fatalerr && test_bit(pic_ilevel,&pic_isr))
       {
@@ -575,16 +590,59 @@ unsigned short * tmp;
 /* if we've really come from an iret, cs:ip will have just been popped */
 tmp = SEG_ADR((short *),ss,sp)-3;
  if (tmp[1] == REG(cs)) 
-  if(tmp[0] == LWORD(eip))
+  if(tmp[0] == LWORD(eip)) {
     if(pic_icount) 
       if(!(--pic_icount)) {
         pic_irr|=(pic_pirr&~pic_isr);
         pic_pirr&=~pic_irr;
         pic_wirr&=~pic_irr;		/* clear watchdog timer */
         REG(eflags)&=~(VIP);
-   } 
+    }
+/* if return is to int 0xe8, pop the real cs:ip */
+    if(tmp[0] == INTE8_SEG && tmp[1] == INTE8_OFF) {
+      LWORD(eip) == tmp[3];
+      REG(cs) == tmp[4];
+      LWORD(esp) += 6;
+      }
+    }
  return;
 }
+
+/* DANG_BEGIN_FUNCTION pic_return
+ * pic_return is called by interrupt e8.  It does the same thing as pic_iret,
+ * but expects cs:ip pointing to INTE8_ [SEG,OFF] instead.  
+ * DPMI never calls this function since it uses his own stackframe to indicate
+ * an iret.
+ */
+void
+pic_return()
+{
+unsigned short * tmp;
+
+/* if we've come from the right place, cs:ip will point to the BIOS */
+tmp = SEG_ADR((short *),ss,sp)-3;
+ if (INTE8_SEG == REG(cs)) 
+  if(INTE8_OFF+2 == LWORD(eip)) {
+    if(pic_icount) 
+      if(!(--pic_icount)) {
+        pic_irr|=(pic_pirr&~pic_isr);
+        pic_pirr&=~pic_irr;
+        pic_wirr&=~pic_irr;		/* clear watchdog timer */
+        REG(eflags)&=~(VIP);
+    }
+/* simulate an iret (without the flags - they should be OK) */
+/* Note that this stuff was pushed on the stack before the irq began */
+    if(tmp[0] == INTE8_SEG && tmp[1] == INTE8_OFF) {
+      LWORD(eip) == tmp[3];
+      REG(cs) == tmp[4];
+      LWORD(esp) += 6;
+      }
+   }     
+ return;
+}
+
+
+ 
 /* DANG_BEGIN_FUNCTION pic_watch
  *
  * pic_watch is a watchdog timer for pending interrupts.  If pic_iret

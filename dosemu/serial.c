@@ -200,10 +200,10 @@ static inline int TRAIL_EDGE(int old, int new, int inbit,  int outbit)
 }
 #endif
 	
-int get_msr(int num);
-void transmit_engine(int num);
-void receive_engine(int num);
-void interrupt_engine(int num);
+static int get_msr(int num);
+static void transmit_engine(int num);
+static void receive_engine(int num);
+static void interrupt_engine(int num);
 #if NEW_PIC==2
 void pic_serial_run(void);
 #endif
@@ -671,7 +671,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/dosemu/RCS/serial.c,v 2.9 1995/02/25 22:38:01 root Exp root $\n");
+  warn("SERIAL $Header: /home/src/dosemu0.60/dosemu/RCS/serial.c,v 2.9 1995/02/25 22:38:01 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */
@@ -1713,7 +1713,7 @@ receive_engine(int num)		/* Internal 16550 Receive emulation */
  * 10 bits/character, this will be br_divisor times chars/second.
  * If I ever get ambitious, I'll get this to adapt to other character sizes.
  */
-static void
+void
 age_transmit_queues(void)
 {
   s_printf("SER: ageing serial transmit queues\n");

@@ -19,7 +19,7 @@
 		     config.ems_size)
 #define SET_CMOS(byte,val)  do { cmos.subst[byte] = (val); cmos.flag[byte] = 1; } while(0)
 
-int cmos_date(int);
+static int cmos_date(int);
 static struct CMOS cmos;
 
 void

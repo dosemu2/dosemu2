@@ -334,7 +334,7 @@ void
 set_a20(int enableHMA)
 {
   if (sharedmem.hmastate == enableHMA)
-    error("ERROR: redundant %s of A20!\n", enableHMA ? "enabling" :
+    g_printf("WARNING: redundant %s of A20!\n", enableHMA ? "enabling" :
 	  "disabling");
 
   /* to turn the A20 on, one must unmap the "wrapped" low page, and
@@ -438,7 +438,7 @@ io_select(fd_set fds)
         && (errno == EINTR)) {
     tvptr.tv_sec=0L;
     tvptr.tv_usec=0L;
-    error("ERROR: interrupted io_select: %s\n", strerror(errno));
+    g_printf("WARNING: interrupted io_select: %s\n", strerror(errno));
   }
 
   switch (selrtn) {

@@ -33,7 +33,7 @@ debug { config  off	disk    off	warning off	hardware off
       }
 
 
-#************************ MISCALLENOUS ************************************
+#************************ MISCELLANEOUS ************************************
 #
 #   Want startup DOSEMU banner messages?  Of course :-)
 dosbanner on
@@ -313,7 +313,7 @@ video { vga }          # Use this line, if you are using VGA
 #ports { 0x1ce 0x1cf 0x238 0x23b 0x23c 0x23f 0x9ae8 0x9ae9 0x9aee 0x9aef }
 
 
-#************************** MISCALLENOUS **********************************
+#************************** MISCELLANEOUS **********************************
 #
 # QuickStart:
 #    For "mathco", set this to "on" to enable the coprocessor during DOSEMU.

@@ -25,18 +25,17 @@ RANLIB=ranlib
 lib:	$(LIB)
 
 $(LIB):	$(OBJS)
-	-rm $@
+	rm -f $@
 	$(AR) cr $@ $^
 	$(RANLIB) $@
 
 .PHONY:	clean realclean 
 
 clean::
-	-rm $(OBJS)
-	-rm $(LIB)
+	rm -f $(OBJS) $(LIB) *~
 
 realclean::	clean
-	-rm *.d
+	rm -f *.d
 
 checkin::
 	-ci $(ALL) Makefile
@@ -71,7 +70,7 @@ ifndef CLEANING
 
 %.d:  %.depend.tmp
 	sh -c 'sed '\''s/$*\\.o[ :]*/& $@/g'\'' <$^ > $@'
-	@rm $^
+	@rm -f $^
 endif
 
 ifdef notdef

@@ -16,6 +16,7 @@
 #include "lpt.h"
 #include "video.h"
 #include "mouse.h"
+#undef ECHO
 #include "serial.h"
 #include "timers.h"
 #include "keymaps.h"

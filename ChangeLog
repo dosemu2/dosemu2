@@ -1,3 +1,19 @@
+Tue Mar 14	1995
+
+-	Changed Makefile to make;make install
+-	Replaced 2>debug with -o debug
+-	New libslang.a (also on tsx.../Incoming)
+-	Patches from Lutz. At this time we'll leave it at that :-)
+-	Changes from Marty
+-	JL's latest PIC enhancements.
+
+Sun Mar 11	1995
+
+-	2 patches from Lutz
+-	John's latest SLANG. Now does ctrl-alt-del :-)
+-	Moved to keyboard-{server/client}.c
+-	Added Daniel's redirection via -o patches.
+
 Thr Mar 08	1995
 
 -	Added keyboard fix. Much more to go :-(
