@@ -18,7 +18,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/time.h>
+#include <sys/time.h>	/* for struct timeval */
+#include <time.h>	/* for CLOCKS_PER_SEC */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

@@ -325,7 +325,7 @@ install:
 	  install -m 0744 ../etc/keymap/* $(INSTROOT)/var/lib/dosemu/keymap; \
 	fi
 	@if [ -f $(INSTROOT)/lib/libemu ]; then rm -f $(INSTROOT)/lib/libemu ; fi
-	@install -c -o root -m 04755 $(BINPATH)/bin/dos $(INSTROOT)/usr/bin
+	@install -c -o root -m 0755 $(BINPATH)/bin/dos $(INSTROOT)/usr/bin
 ifdef  USE_MHPDBG
 	@install -c -o root -m 0755 $(BINPATH)/bin/dosdebug $(INSTROOT)/usr/bin
 endif
@@ -376,6 +376,8 @@ ifdef X_SUPPORT
 endif
 	@echo "  - Try ./commands/emumouse.exe -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"; \
+	 echo -e "\n  NOTE: DOSEMU no longer is installed suid-root by default!"; \
+	 echo -e   "        If you need it, do a \'chmod u+s $(INSTROOT)/usr/bin/dos\'"; \
 	 echo ""
 
 

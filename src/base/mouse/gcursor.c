@@ -128,18 +128,22 @@ void write_ega_reg(int port,int index,unsigned char value)
 #define SAVE_EGA_STATE \
 	unsigned char orig_seqmask = read_ega_reg(SEQ_I,0x2); \
 	unsigned char orig_esr = read_ega_reg(GRA_I,0x1); \
+	unsigned char orig_dr = read_ega_reg(GRA_I,0x3); \
 	unsigned char orig_readmap = read_ega_reg(GRA_I,0x4); \
 	unsigned char orig_mode = read_ega_reg(GRA_I,0x5); \
 	unsigned char orig_bitm = read_ega_reg(GRA_I,0x8); \
 	write_ega_reg(GRA_I,0x1,0x00);	/* Disable all Set/Reset */ \
-	write_ega_reg(GRA_I,0x5,0x00);	/* Read/write mode 0, replace */
+	write_ega_reg(GRA_I,0x3,0x00);  /* No rotating */ \
+	write_ega_reg(GRA_I,0x5,0x00);  /* Read/write mode 0, replace */ \
+	write_ega_reg(GRA_I,0x8,0xff);  /* Set bit mask to 0xff */
 
 #define RESTORE_EGA_STATE \
 	write_ega_reg(SEQ_I,0x2,orig_seqmask); \
 	write_ega_reg(GRA_I,0x1,orig_esr); \
-	write_ega_reg(GRA_I,0x2,orig_readmap); \
+	write_ega_reg(GRA_I,0x3,orig_dr); \
+	write_ega_reg(GRA_I,0x4,orig_readmap); \
 	write_ega_reg(GRA_I,0x5,orig_mode); \
-	write_ega_reg(GRA_I,0x7,orig_bitm);
+	write_ega_reg(GRA_I,0x8,orig_bitm);
 
 /* all CGA modes have 80 bytes per line */
 
@@ -440,11 +444,8 @@ get_current_graphics_video_mode(void)
 void
 erase_graphics_cursor(mouse_erase_t *erase)
 {
-	if (!get_current_graphics_video_mode())
-		return;
-
 	/* erase old graphics cursor */
-	if (erase->drawn) {
+	if (erase->drawn && get_current_graphics_video_mode()) {
 		mouse_blitters[current_video.organization](
 			erase->x,erase->y,
 			erase->width,erase->height,

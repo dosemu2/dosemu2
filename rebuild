@@ -1,20 +1,40 @@
-#!/bin/sh
+#!/bin/bash
 #
-#  rebuild - properly clean source tree, configure and recompile dosemu
+# properly clean source tree, configure and recompile dosemu
+# (this is here just for developer's convenience, not for general usage)
+#
+# USAGE:
+#
+#   rebuild [all] [inst]
+#
+#      all   force a complete rebuild, don't rely on previous make
+#      inst  test install of the binary (if running root) suid-root in $TGT
+#
 #
 TGT=/usr/bin
 #
-if [ $1 -a $1 == "all" -o ! -f Makefile ]; then
-  if [ -f Makefile.conf ]; then
-    make pristine
-    rm -f gen.log
-  fi
 
-  ./default-configure 2>&1 | tee gen.log
+ALL=0
+INST=0
+
+while [ -n "$1" ]; do
+  case $1 in
+    all)   ALL=1 ;;
+    inst)  INST=1 ;;
+    *) ;;
+  esac
+  shift
+done
+
+if [ $ALL = 1 -o ! -f Makefile ]; then
+  if [ -f Makefile.conf ]; then
+    make distclean
+  fi
 fi
 make 'WAIT=' 2>&1 | tee -a gen.log
+grep 'warning' gen.log
 
-if [ "$UID" = "0" ]; then
+if [ "$UID" = "0" -a $INST = 1 ]; then
   #
   # special installs
   #

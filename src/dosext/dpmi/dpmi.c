@@ -2252,11 +2252,13 @@ void dpmi_init()
     After the next task switch everything may have changed substantially
     bon@elektron.ikp.physik.th-darmstadt.de 2/16/97 */
     mi = readMeminfo();
-    if (mi)
-      dpmi_free_memory = ((mi->free + mi->swapfree)<
+    if (mi) {
+      unsigned long maxmem = mi->free + mi->swapfree + mi->buffers + mi->cached;
+      dpmi_free_memory = (maxmem <
 			  (((unsigned long)config.dpmi)*1024))?
-                   	  (mi->free + mi->swapfree):
+                   	  maxmem:
                 	  ((unsigned long)config.dpmi)*1024;
+    }
     else
      dpmi_free_memory = ((unsigned long)config.dpmi)*1024;
 

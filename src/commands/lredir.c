@@ -26,6 +26,10 @@
  *  Checking for DosC and exiting with error, if not redirector capable.
  *  Printing DOS errors in clear text.
  *
+ * Changes: 010211 Bart Oldeman
+ *   Make it possible to "reredirect": LREDIR drive filepath
+ *   can overwrite the direction for the drive.
+ *
  * NOTES:
  *  LREDIR supports the following commands:
  *  LREDIR drive filepath
@@ -535,6 +539,13 @@ main(int argc, char **argv)
     /* now actually redirect the drive */
     ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
                            deviceParam);
+
+    /* duplicate redirection: try to reredirect */
+    if (ccode == 0x55) {
+      DeleteDriveRedirection(deviceStr);     
+      ccode = RedirectDevice(deviceStr, resourceStr, REDIR_DISK_TYPE,
+                             deviceParam);
+    }
 
     if (ccode) {
       printf("Error %x (%s)\nwhile redirecting drive %s to %s\n",

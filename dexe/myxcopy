@@ -37,8 +37,13 @@ esac
 
 case $to in
   [a-zA-Z]:*)
+	      if mmd --help 2>&1|grep clash_option >/dev/null; then
+	        MMDFLAG=-DsX
+	      else
+		MMDFLAG=-sX
+	      fi
 	      Target=Dos
-	      sed -e "s#^$from#$to#" -e "s#//#/#g" -e 's#\([^:]\)/$#\1#g' $TMP | xargs mmd -sX
+	      sed -e "s#^$from#$to#" -e "s#//#/#g" -e 's#\([^:]\)/$#\1#g' $TMP | xargs mmd $MMDFLAG
 	      ;;
   *)
      Target=Unix

@@ -37,9 +37,9 @@ fi
 cd $DDIR
 
 echo "checking your partitions, wait..."
-PARTS=`$FDISK -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1 " " $2}'|tr '* ' 'B:'| grep ':B'`
+PARTS=`$FDISK -l 2>&1| awk '/(DOS (16|12)|FAT)/ {print $1 " " $2}'|tr '* ' 'B:'| grep ':B'`
 if [ "$PARTS" = "" ]; then
-  PARTS2=`$FDISK -l 2>&1| awk '/DOS 16/ || /DOS 12/ {print $1}'`
+  PARTS2=`$FDISK -l 2>&1| awk '/(DOS (16|12)|FAT)/ {print $1}'`
 fi
 
 echo "...done"

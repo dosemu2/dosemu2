@@ -41,12 +41,17 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
+#include "dosnet.h"
+#include "kversion.h"
+
+
+#if LX_KERNEL_VERSION >= 2004000
+#define device net_device
+#else
 /* We need this file from the kernel include/net directory
    for the sock structure, unfortunately. */
 #include <net/sock.h>
-
-#include "dosnet.h"
-#include "kversion.h"
+#endif
 
 #if LX_KERNEL_VERSION >= 2001000
 typedef struct net_device_stats stats_t; /* for Linux 2.1 */
@@ -278,7 +283,9 @@ dosnet_init(struct device *dev)
 {
 	ether_setup(dev);  
 
+#if LX_KERNEL_VERSION < 2004000
 	dev->tbusy		= 0;
+#endif  
 	dev->hard_start_xmit	= dosnet_xmit;
 	dev->tx_queue_len	= 0;
 
@@ -299,7 +306,9 @@ dosnet_init(struct device *dev)
 
 
 #ifdef MODULE
+#if LX_KERNEL_VERSION < 2004000
 static char *devicename=DOSNET_DEVICE;
+#endif  
 static struct device *dev_dosnet = NULL;
 
 int
@@ -307,7 +316,11 @@ init_module(void)
 {
 	dev_dosnet = (struct device *)kmalloc(sizeof(struct device), GFP_KERNEL);
         memset(dev_dosnet, 0, sizeof(struct device));
+#if LX_KERNEL_VERSION >= 2004000
+        strcpy(dev_dosnet->name, DOSNET_DEVICE);
+#else
         dev_dosnet->name=devicename;
+#endif 
         dev_dosnet->init=&dosnet_init;
         dev_dosnet->next=(struct device *)NULL;
 

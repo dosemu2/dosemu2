@@ -151,7 +151,7 @@ BOOL isalnumDOS(int c)
 
 BOOL is_valid_DOS_char(int c)
 { unsigned char u=(unsigned char)c; /* convert to ascii */
-  if(isalnumDOS) return(True);
+  if(isalnumDOS(c)) return(True);
 
   /* now we add some extra special chars  */
   if(strchr("._^$~!#%&-{}()@'`",c)!=0) return(True); /* general for

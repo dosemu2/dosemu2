@@ -1714,6 +1714,7 @@ build_ufs_path(ufs, path)
 
  if ((s=is_reserved_msdos(path))) {
   Debug0((dbg_fd,"MFS: Special File, so name changed to '%s'\n", s));
+  strcpy (path, s);
   strcpy (ufs, s);
  }
  else {

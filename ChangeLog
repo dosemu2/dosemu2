@@ -1,3 +1,37 @@
+2001/10/28 ver. 1.1.1.4 unofficial pre-release
+	From Herbert Xu <herbert@gondor.apana.org.au>
+	- fixed typo in mfs mangling, src/dosext/mfs/util.c
+	- changed /dev/cuaX to /dev/ttySX in etc/dosemu.conf
+	- Fixed incorrect partition type sensing (setup-{hdimage,bootdir})
+	- glibc-2.2.2 needs (additionally) included <time.h> in dosdebug.c
+	From DJ Delorie <dj@delorie.com>
+	- fixed DPMI memory available (dpmi.c)
+	From Bernd Schueler <B.Schueler@gmx.de>
+	- allow file names, which have a DOS reserved basename together
+	  with an extension (e.g. LPTx.PRN as used by CLIPPER programs
+	  for internal spooling purposes). Involved file: mangle.c
+	From Rob Clark <rclark@list-clark.com>
+	- fix for mfs.c and mangle.c to proper detect reserved DOS file names,
+	  even if prefixed by full pathes. (patch rework by Hans)
+	From Bart
+	- lpt.c printer security patch
+	- lredir enhancement to "reredirect a drive', such that an
+	  existing redirection is replaced with the new one instead of
+	  returning an error.
+	- adapt dosnet.c to linux 2.4.x
+	- fix for internal mouse driver on the console in graphics mode:
+	  sometimes the mouse cursor left a trace behind. Involved file:
+	  src/base/mouse/gcursor.c
+	From Hans
+	- removed obsolete (old parser style) etc/config.dist
+	- fixed dexe/check-mtools to detect version correctly
+	- adapted dexe/myxcopy to newer mtools (modified fix from Herbert Xu)
+	- fixed compiler warning in keyb_X_keycode.c (unused variable),
+	  which stemms from the Xu caps/num lock fix
+	- 'tuned' ./rebuild for my convenience;-)
+	- removed suid-bit from default install, involved file:
+	  src/arch/linux/Makefile.main
+	- recompiled lredir.exe due to Bart's "reredirect" patch.
 2001/02/25 ver. 1.1.1.3 unofficial pre-release
 	From Adam J. Richter <adam@yggdrasil.com>
 	- some glibc-2.2.2 fix (to include time.h instead of sys/time.h)

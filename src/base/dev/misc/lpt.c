@@ -22,6 +22,7 @@
 #include "dosio.h"
 #include "lpt.h"
 #include "priv.h"
+#include "utilities.h"
 
 extern config_t config;
 extern int fatalerr;
@@ -92,9 +93,10 @@ printer_open(int prnum)
   um = umask(026);
   if (lpt[prnum].file == NULL) {
     if (!lpt[prnum].dev) {
-      lpt[prnum].dev = strdup(tmpnam(NULL));
+      lpt[prnum].dev = assemble_path(TMPDIR, "lptXXXXXX", 0);
       enter_priv_off();
-      lpt[prnum].file = fopen(lpt[prnum].dev, "a");
+      lpt[prnum].file = fdopen(mkstemp(lpt[prnum].dev),"a+");
+      chmod(lpt[prnum].dev, 0600);
       leave_priv_setting();
       p_printf("LPT: opened tmpfile %s\n", lpt[prnum].dev);
     }
@@ -142,7 +144,19 @@ printer_flush(int prnum)
   fflush(lpt[prnum].file);
 
   if (lpt[prnum].prtcmd) {
-    char cmdbuf[500];		/* XXX - nasty hard coded limit */
+    extern int run_system_command(char *);
+    size_t cmdbuflen;
+    char *cmdbuf;
+    
+    cmdbuflen = strlen(lpt[prnum].prtcmd) + 1 +
+		strlen(lpt[prnum].prtopt) + 
+		strlen(lpt[prnum].dev) + 1;
+
+    cmdbuf = malloc(cmdbuflen);
+    if (!cmdbuf) {
+      fprintf(stderr, "out of memory, giving up\n");
+      longjmp(NotJEnv, 0x4d);
+    }
 
     strcpy(cmdbuf, lpt[prnum].prtcmd);
     strcat(cmdbuf, " ");
@@ -150,7 +164,8 @@ printer_flush(int prnum)
     p_printf("LPT: doing printer command ..%s..\n",
 	     cmdbuf);
 
-    returnstat = system(cmdbuf);
+    returnstat = run_system_command(cmdbuf);
+    free(cmdbuf);
 
     if ((returnstat == -1) || (WIFEXITED(returnstat) == 127))
       error("system(\"%s\") in lpt.c failed, cannot print!\

@@ -70,12 +70,32 @@ char *is_reserved_msdos(char *fname)
   static char upperFname[13];
   char *p;
 
+  /*
+   * LPTx e.t.c. is reserved no matter the path (e.g. .\LPT1 _is_ reserved),
+   * but mfs.c sends an entire path.
+   *             -- Rob Clark <rclark@list-clark.com> 2000/05/09
+   */
+  p = strrchr(fname,'\\');
+  if (p) fname = p+1;	/* strip the directory part */
+
   StrnCpy (upperFname, fname, 12);
+
+#if 0
+  /*
+   * The below (now #ifdef'ed out) code strips the extension off for checking.
+   * But the assumption, that file names with a reserved basename remain
+   * reserved even if they have an extension, seems not to be true.
+   * For example CLIPPER-programs _are_ using file names such as
+   * 'LPTx.PRN' for internal spooling purposes.
+   *             -- Bernd Schueler b.schueler@gmx.de 2001/02/23
+   */
 
   /* lpt1.txt and con.txt etc are also illegal */
   p=strchr(upperFname,'.');
   if (p)
    *p='\0';
+#endif
+
   strupperDOS (upperFname);
   if ((strcmp(upperFname,"CLOCK$") == 0) ||
     (strcmp(upperFname,"CON") == 0) ||
