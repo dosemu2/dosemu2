@@ -611,6 +611,7 @@ init_all_drives(void)
   if (!drives_initialized) {
     Debug0((dbg_fd, "Inside initialization\n"));
     drives_initialized = TRUE;
+    init_all_DOS_tables();
     for (dd = 0; dd < MAX_DRIVE; dd++) {
       drives[dd].root = NULL;
       drives[dd].root_len = 0;
@@ -1785,7 +1786,7 @@ scan_dir(char *path, char *name, int drive)
   struct mfs_dir *cur_dir;
   struct mfs_dirent *cur_ent;
   size_t len;
-  int maybe_mangled;
+  int maybe_mangled, is_8_3;
   char dosname[strlen(name)+1];
 
   /* handle null paths */
@@ -1802,55 +1803,50 @@ scan_dir(char *path, char *name, int drive)
 
   len = strlen(path);
 
-  /* check if the name is, perhaps, mangled. If not then we don't
-     need to mangle the readdir result as it can't be the same */
-  maybe_mangled = 0;
-  if (is_mangled(name)) {
-    /* check if the maybe mangled name is an LFN or not; if it's 8.3
-       then dosname will contain the uppercased name;
-       if it's not 8.3 then it's not mangled after all.
-    */
-    if (name_convert(dosname, name, 0, NULL) && is_mangled(dosname))
-      maybe_mangled = MANGLE;
+  /* check if name is an LFN or not; if it's 8.3
+     then dosname will contain the uppercased name, and
+     otherwise the name in the DOS character set */
+  is_8_3 = maybe_mangled = 0;
+  if (name_convert(dosname, name, 0, NULL)) {
+    is_8_3 = 1;
+    /* check if the name is, perhaps, mangled. If not then we don't
+       need to mangle the readdir result as it can't be the same */
+    maybe_mangled = is_mangled(dosname);
+  } else {
+    strupperDOS(dosname);
   }
-
-  /* VFAT is already case insensitive: the kernel did the hard
-     work for us already */
-  if (!maybe_mangled && !cur_dir->dir)
-    goto out;
-
-  /* no . and .. in the root directory */
-  if (len == drives[drive].root_len &&
-      (strcmp(name, ".") == 0 || strcmp(name, "..") == 0))
-    goto out;
 
   /* now scan for matching names */
   while ((cur_ent = dos_readdir(cur_dir))) {
     char tmpname[NAME_MAX + 1];
- 
-    if (maybe_mangled) {
-      if (!name_convert(tmpname,cur_ent->d_name,MANGLE,NULL))
+
+    if (is_8_3) {
+      if (!name_convert(tmpname,cur_ent->d_name,maybe_mangled,NULL))
+	continue;
+    } else {
+      if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name))
+	continue;
+      strupperDOS(tmpname);
+    }
+
+    if (tmpname[0] == '.' && len == drives[drive].root_len)
+      continue;
+
+    /* tmpname now contains the uppercased readdir name in the
+       DOS character set */
+    if (strcmp(dosname, tmpname) != 0) {
+      if (!maybe_mangled || cur_ent->d_long_name == cur_ent->d_name)
 	continue;
 
-      if (strcmp(dosname, tmpname) != 0) {
-	if (cur_ent->d_long_name == cur_ent->d_name)
-	  continue;
-
-	/* check if the long name variety of the current name
-	   can be represented in DOS; otherwise it is mangled.
-	   only used for the LFN code on VFAT partitions.
-	*/
-	if (!name_ufs_to_dos(tmpname,cur_ent->d_long_name,0)) {
-	  if (!name_convert(tmpname,cur_ent->d_long_name,MANGLE,NULL))
-	    continue;
-	  if (strcmp(dosname, tmpname) != 0)
-	    continue;
-	}
-      }
-    } else if (strcasecmp(name, cur_ent->d_name) != 0) {
-      /* here name is certainly not mangled and d_name == d_long_name
-	 because on VFAT we already left before the loop */
-      continue;
+      /* check if the long name variety of the current name
+	 can be represented in DOS; otherwise it is mangled.
+	 only used for the LFN code on VFAT partitions.
+      */
+      if (name_ufs_to_dos(tmpname,cur_ent->d_long_name))
+	continue;
+      name_convert(tmpname,cur_ent->d_long_name,MANGLE,NULL);
+      if (strcmp(dosname, tmpname) != 0)
+	continue;
     }
 
     Debug0((dbg_fd, "scan_dir found %s\n",cur_ent->d_name));
@@ -1861,7 +1857,6 @@ scan_dir(char *path, char *name, int drive)
     return (TRUE);
   }
 
- out:
   dos_closedir(cur_dir);
 
   if (MANGLE && is_mangled(name))

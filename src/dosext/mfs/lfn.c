@@ -20,7 +20,6 @@
 #include <errno.h>
 #include <wctype.h>
 
-#include "translate.h"
 #include "emu.h"
 #include "mfs.h"
 #include "mangle.h"
@@ -92,7 +91,7 @@ static int vfat_search(char *dest, char *src, char *path, int alias)
 		if ((strcasecmp(de->d_long_name, src) == 0) ||
 		    (strcasecmp(de->d_name, src) == 0)) {
 			char *name = alias ? de->d_name : de->d_long_name;
-			if (!name_ufs_to_dos(dest, name, 0))
+			if (alias || !name_ufs_to_dos(dest, name));
 				name_convert(dest, name, MANGLE, NULL);
 			dos_closedir(dir);
 			return 1;
@@ -128,7 +127,7 @@ void make_unmake_dos_mangled_path(char *dest, char *fpath,
 		if (!strcmp(src, "..") || !strcmp(src, ".")) {
 			strcpy(dest, src);
 		} else if (!vfat_search(dest, src, fpath, alias)) {
-			if (alias || !name_ufs_to_dos(dest, src, 0)) {
+			if (alias || !name_ufs_to_dos(dest, src)) {
 				name_convert(dest, src, MANGLE, NULL);
 			}
 		}
@@ -541,10 +540,7 @@ static int build_posix_path(char *dest, const char *src, int allowwildcards)
 
 /* wildcard match routine, losely based upon the GLIBC fnmatch
    routine */
-static int recur_match(const char *pattern, const char *string,
-		      struct char_set_state *patternstate,
-		      struct char_set_state *strstate,
-		      char *endp, char *ends)
+static int recur_match(const char *pattern, const char *string)
 {
 	unsigned char c;
 	while ((c = *pattern++) != '\0') {
@@ -559,9 +555,7 @@ static int recur_match(const char *pattern, const char *string,
 			for (pattern--; *string != '\0'; string++) {
 				/* recursive search if rest of pattern
 				   matches a string part */
-				if (recur_match(pattern, string, 
-						patternstate, strstate,
-						endp, ends) == 0)
+				if (recur_match(pattern, string) == 0)
 					return 0;
 			}
 			/* no match, failure... */
@@ -570,22 +564,8 @@ static int recur_match(const char *pattern, const char *string,
 			if (*string++ == '\0')
 				return 1;
 		} else {
-			t_unicode symbol1, symbol2;
-			int result;
-
-			pattern--;
-			result = charset_to_unicode(patternstate, &symbol1, 
-						    pattern, endp - pattern);
-			if (result == -1)
+			if ((unsigned char)pattern[-1] != toupperDOS(*string++))
 				return 1;
-			pattern += result;
-			result = charset_to_unicode(strstate, &symbol2, 
-						    string, ends - string);
-			if (result == -1)
-				return 1;
-			if (towupper(symbol1) != towupper(symbol2))
-				return 1;
-			string += result;
 		}
 	}
 	/* at end of string, then no differences, success == 0 */
@@ -596,13 +576,8 @@ static int recur_match(const char *pattern, const char *string,
 static int wild_match(char *pattern, char *string)
 {
 	char *dotpos;
-	struct char_set_state patternstate;
-	struct char_set_state strstate;
 	int rc;
 	size_t slen = strlen(string);
-
-	init_charset_state(&patternstate, trconfig.dos_charset);
-	init_charset_state(&strstate, trconfig.dos_charset);
 
 	/* add a trailing period if there is no period, so that *.* matches */
 	dotpos = NULL;
@@ -611,20 +586,17 @@ static int wild_match(char *pattern, char *string)
 		strcpy(dotpos, ".");
 		slen++;
 	}
-	rc = recur_match(pattern, string, &patternstate, &strstate,
-			pattern + strlen(pattern), string + slen);
+	rc = recur_match(pattern, string);
 	if (dotpos) *dotpos = '\0';
-	cleanup_charset_state(&patternstate);
-	cleanup_charset_state(&strstate);
 	return rc;
 }
 
 static int lfn_sfn_match(char *pattern, struct mfs_dirent *de, char *lfn, char *sfn)
 {
-	if (!name_ufs_to_dos(lfn, de->d_long_name, 0))
+	if (!name_ufs_to_dos(lfn, de->d_long_name))
 		name_convert(lfn, de->d_long_name, MANGLE, NULL);
 	name_convert(sfn, de->d_name, MANGLE, NULL);
-	return wild_match(pattern, de->d_long_name) != 0 &&
+	return wild_match(pattern, lfn) != 0 &&
 		wild_match(pattern, sfn) != 0;
 }
 
@@ -734,7 +706,10 @@ static int wildcard_delete(char *fpath, int drive)
 		free(dir);
 		return lfn_error(PATH_NOT_FOUND);
 	}
-	pattern = strdup(slash + 1);
+	pattern = malloc(strlen(slash + 1));
+	name_ufs_to_dos(pattern, slash + 1);
+	strupperDOS(pattern);
+
 	d_printf("LFN: wildcard delete %s %s %x\n", pattern, fpath, dirattr);
 	while ((de = dos_readdir(dir))) {
 		char name_8_3[PATH_MAX];
@@ -957,7 +932,8 @@ int mfs_lfn(void)
 		dir->dirattr = _CX;
 		dir->drive = drive;
 		dir->psp = sda_cur_psp(sda);
-		strcpy(dir->pattern, slash);
+		name_ufs_to_dos(dir->pattern, slash);
+		strupperDOS(dir->pattern);
 		/* XXX check for device (special dir entry) */
 		if (!find_file(dir->dirbase, &st, drive) || is_dos_device(fpath)) {
 			Debug0((dbg_fd, "Get failed: '%s'\n", fpath));

@@ -5,15 +5,93 @@
  */
 
 #include "config.h"
+#include "emu.h"
 #include "mangle.h"
 #include "translate.h"
 #include <wctype.h>
+#include <errno.h>
 
 int case_default=-1;
 BOOL case_mangle=False;
 int DEBUGLEVEL=0;
 
-#ifndef HAVE_UNICODE_TRANSLATION
+/****************************************************************************
+initialise the valid dos char array
+****************************************************************************/
+BOOL valid_dos_char[256];
+static void valid_initialise(void)
+{
+  int i;
+
+  for (i=0;i<256;i++)
+    valid_dos_char[i] = is_valid_DOS_char(i);
+}
+
+#ifdef HAVE_UNICODE_TRANSLATION
+
+/* this is the fast table for single byte DOS character sets,
+   used to avoid expensive translate calls */
+unsigned char unicode_to_dos_table[0x10000];
+static void init_unicode_to_dos_table(void)
+{
+  static int initialized;
+
+  struct char_set_state dos_state;
+  unsigned char *dest;
+  t_unicode symbol;
+  int result;
+
+  if (initialized) return;
+  initialized = 1;
+
+  dest = unicode_to_dos_table;
+
+  /* these are either invalid or ascii: no replacement '_' ! */
+  for (symbol = 0; symbol <= 0x7f; symbol++)
+    *dest++ = symbol;
+
+  for (symbol = 0x80; symbol <= 0xffff; symbol++) {
+    init_charset_state(&dos_state, trconfig.dos_charset);
+    result = unicode_to_charset(&dos_state, symbol, dest, 1);
+    if (result == -1 && errno == -E2BIG)
+      error("BUG: Internal multibyte character sets can't happen\n");
+    if (result != 1 || *dest == '?')
+      *dest = '_';
+    cleanup_charset_state(&dos_state);
+    dest++;
+  }
+}
+
+/* uppercase table for DOS characters */
+unsigned char upperDOS_table[256];
+static void init_upperDOS_table(void)
+{
+  struct char_set_state dos_state;
+  t_unicode symbol;
+  int i, result;
+
+  for (i = 0; i < 256; i++) {
+    upperDOS_table[i] = i;
+    init_charset_state(&dos_state, trconfig.dos_charset);
+    result = charset_to_unicode(&dos_state, &symbol, &upperDOS_table[i], 1);
+    if (result == 1) {
+      symbol = towupper(symbol);
+      result = unicode_to_charset(&dos_state, symbol, &upperDOS_table[i], 1);
+      if (result != 1)
+	upperDOS_table[i] = i;
+    }
+    cleanup_charset_state(&dos_state);
+  }
+}
+
+void init_all_DOS_tables(void)
+{
+  valid_initialise();
+  init_unicode_to_dos_table();
+  init_upperDOS_table();
+}
+
+#else
 
 int codepage=CODEPAGE;
 
@@ -310,32 +388,8 @@ BOOL strhasupperDOS(char *s)
 
 void strupperDOS(char *src)
 {
-  struct char_set_state dos_state;
-  t_unicode symbol;
-  char *d, *s = src, *dest;
-  size_t len = strlen(s), dlen = 4 * len;
-  int result = -1;
-
-  dest = d = malloc(dlen);
-  init_charset_state(&dos_state, trconfig.dos_charset);
-
-  while (*s) {
-    result = charset_to_unicode(&dos_state, &symbol, s, len);
-    if (result == -1)
-      break;
-    len -= result;
-    s += result;
-    symbol = towupper(symbol);
-    result = unicode_to_charset(&dos_state, symbol, d, dlen);
-    if (result == -1)
-      break;
-    dlen -= result;
-    d += result;
-  }
-  cleanup_charset_state(&dos_state);
-  *d = '\0';
-  strcpy(src, dest);
-  free(dest);
+  for (; *src; src++)
+    *src = toupperDOS(*src);
 }
 #else
 int strcasecmpDOS(char *s1, char *s2)

@@ -41,7 +41,6 @@ Modified by O.V.Zhirov, July 1998
 #ifdef HAVE_UNICODE_TRANSLATION
 #include "translate.h"
 #include <wctype.h>
-#include <errno.h>
 #endif
 #else
 #include "includes.h"
@@ -139,25 +138,6 @@ unsigned long is_dos_device(const char *fname)
 }
 
 
-BOOL valid_dos_char[256];
-
-/****************************************************************************
-initialise the valid dos char array
-****************************************************************************/
-static void valid_initialise(void)
-{
-  static BOOL initialised = False;    
-  int i;
-
-  if (initialised)
-    return;
-
-  for (i=0;i<256;i++)
-    valid_dos_char[i] = is_valid_DOS_char(i);
-
-  initialised = True;
-}
-
 /****************************************************************************
 return True if a name is in 8.3 dos format
 ****************************************************************************/
@@ -184,7 +164,6 @@ static BOOL is_8_3(char *fname)
 
   {
     char *p = fname;
-    valid_initialise();
 
 #ifdef KANJI
     dot_pos = 0;
@@ -402,8 +381,6 @@ void mangle_name_83(char *s, char *upcase_s, char *MangledMap)
   int baselen = 0;
   int extlen = 0;
 
-  valid_initialise();
-
 #ifndef DOSEMU
   if (MangledMap && *MangledMap) {
     if (do_fwd_mangled_map(s, MangledMap))
@@ -471,41 +448,8 @@ void mangle_name_83(char *s, char *upcase_s, char *MangledMap)
 convert a filename from a UNIX to a DOS character set.
 ****************************************************************************/
 #ifdef HAVE_UNICODE_TRANSLATION
-/* this is the fast table for single byte DOS character sets,
-   used to avoid expensive translate calls
-*/
-static unsigned char unicode_to_dos_table[0x10000];
-static void init_unicode_to_dos_table(void)
-{
-  static int initialized;
 
-  struct char_set_state dos_state;
-  unsigned char *dest;
-  t_unicode symbol;
-  int result;
-
-  if (initialized) return;
-  initialized = 1;
-
-  dest = unicode_to_dos_table;
-
-  /* these are either invalid or ascii: no replacement '_' ! */
-  for (symbol = 0; symbol <= 0x7f; symbol++)
-    *dest++ = symbol;
-
-  for (symbol = 0x80; symbol <= 0xffff; symbol++) {
-    init_charset_state(&dos_state, trconfig.dos_charset);
-    result = unicode_to_charset(&dos_state, symbol, dest, 1);
-    if (result == -1 && errno == -E2BIG)
-      error("BUG: Internal multibyte character sets can't happen\n");
-    if (result != 1 || *dest == '?')
-      *dest = '_';
-    cleanup_charset_state(&dos_state);
-    dest++;
-  }
-}
-
-BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
+BOOL name_ufs_to_dos(char *dest, const char *src)
 {
   mbstate_t unix_state;
 
@@ -515,7 +459,6 @@ BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
   size_t slen = strlen(src), result;
   wchar_t wdst[slen + 1], *wdest = wdst;
 
-  init_unicode_to_dos_table();
   memset(&unix_state, 0, sizeof unix_state);
 
   *dest = '\0';
@@ -528,23 +471,11 @@ BOOL name_ufs_to_dos(char *dest, const char *src, char *udest)
     if (symbol > 0xffff)
       symbol = '_';
     *dest = unicode_to_dos_table[symbol];
-    if (udest) {
-      symbol = towupper(symbol);
-      if (symbol > 0xffff)
-	*udest = '_';
-      else
-	*udest = unicode_to_dos_table[symbol];
-      udest++;
-      /* with udest != NULL set we never care about the retval */
-    } else if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0) {
+    if (!VALID_DOS_PCHAR(dest) && strchr(" +,;=[]",*dest)==0)
       retval = 0;
-    }
     dest++;
   }
   *dest = '\0';
-  if (udest) {
-    *udest = '\0';
-  }
   return retval;
 }
 #endif
@@ -559,15 +490,13 @@ BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
   /* initially just copy or convert it */
 #if defined KANJI
   strcpy(OutName, kj_dos_format (InName, False));
-  strcpy(UOutName, OutName);
-  strupperDOS(UOutName);
 #elif defined HAVE_UNICODE_TRANSLATION
-  name_ufs_to_dos(OutName,InName,UOutName);
+  name_ufs_to_dos(OutName,InName);
 #else
   strcpy(OutName,InName);
+#endif
   strcpy(UOutName, OutName);
   strupperDOS(UOutName);
-#endif
 
   /* check if it's already in 8.3 format */
   if (is_8_3(UOutName)) {

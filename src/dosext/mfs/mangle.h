@@ -62,15 +62,23 @@ typedef char pstring[1024];
 /* prototypes */
 extern unsigned long is_dos_device(const char *fname);
 extern void mangle_name_83(char *s, char *upcase_s, char *MangledMap);
-extern BOOL name_ufs_to_dos(char *dest, const char *src, char *updest);
+extern BOOL name_ufs_to_dos(char *dest, const char *src);
 extern BOOL do_fwd_mangled_map(char *s, char *MangledMap);
 extern BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap);
 extern BOOL is_mangled(char *s);
 extern BOOL check_mangled_stack(char *s, char *MangledMap);
 
 /* prototypes, found in util.c */
+void init_all_DOS_tables(void);
+extern unsigned char unicode_to_dos_table[0x10000];
+extern unsigned char upperDOS_table[0x100];
+
 BOOL isupperDOS(int c);
+#ifdef HAVE_UNICODE_TRANSLATION
+#define toupperDOS(c) (upperDOS_table[(unsigned char)(c)])
+#else
 int  toupperDOS(int c);
+#endif
 BOOL islowerDOS(int c);
 int  tolowerDOS(int c);
 void strupperDOS(char *s);
