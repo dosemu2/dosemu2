@@ -10,6 +10,7 @@
  *
  * maintainer:
  * Alistair MacDonald <alistair@slitesys.demon.co.uk>
+ * David Brauman <crisk@netvision.net.il>
  *
  * DANG_END_MODULE
  *
@@ -23,7 +24,11 @@
  *
  * CHANGELOG
  * 23/2/97 - AM - Finally removed the old DMA code, and re-organised the
- *          code to make it easier to read now it has been indented.
+ *          code to make it easier to read now it has been indented. Added
+ *	    in the fixes from David.
+ * 17/3/97 - AM - Added in support for the handler to reject the completion.
+ * 	    which allows the SB driver to work better, and better handling
+ *	    when files "disappear" (EBADF) in some functions.
  * END_CHANGELOG
  */
 
@@ -59,7 +64,7 @@ typedef struct {
   int     run;           /* Running */
   int     eop;           /* End Of Process */
   int     size;          /* Preferred Transfer Size */
-  void    (* handler)(int);  /* Handler Function */
+  int     (* handler)(int);  /* Handler Function */
 } internal_t;
 
 typedef struct {
@@ -629,7 +634,7 @@ void dma_io_write(Bit32u port, Bit8u value)
 
 
 
-void dma_install_handler (int ch, int wfd, int rfd, void (* handler) (int), 
+void dma_install_handler (int ch, int wfd, int rfd, int (* handler) (int), 
 			  int size)
 {
   int channel, dma_c;
@@ -1082,18 +1087,23 @@ void dma_process_single_mode_read (int controller, int channel)
 	if (!get_value (dma[controller].length[channel])) {
 	    /* Transfer is complete */
 		h_printf("DMA: [crisk] Transfer is complete\n");    
-	    dma[controller].status |= (1 << channel);
-
-
-		is_dma &= ~mask;
-				
 		if (dma[controller].i[channel].handler != NULL) {
 			/* The handler is expected to close any descriptors */
-			dma[controller].i[channel].handler(DMA_HANDLER_DONE);
+			if ((*dma[controller].i[channel].handler)(DMA_HANDLER_DONE) 
+			    != DMA_HANDLER_OK) {
+			  h_printf ("DMA: Handler indicates incomplete.\n");
+			  return;
+			} else {
+			  h_printf ("DMA: Handler indicates complete.\n");
+			}
 		} else {
 			close (dma[controller].i[channel].rfd);
 	  }
 
+	    dma[controller].status |= (1 << channel);
+
+		is_dma &= ~mask;
+				
 		dma[controller].i[channel].rfd = -1;
 				
 		return;

@@ -1,3 +1,13 @@
+97/03/20 ver. 0.65.99.25 unofficial pre-release
+	From Alistair & Rutger
+        - For 0.66 we have updated many areas and re-organised others to
+	  make it easier to maintain.
+          Many thanks to David Brauman <crisk@netvision.net.il> for finding so
+          many bugs
+	- new sound stuff. 'midid' reworked,
+          goes into directory src/arch/linux/dosext/sound/midid
+	  Compile it with 'make midid'
+	- Added in support for the handler to reject the completion.
 97/03/19 ver. 0.65.99.24 unofficial pre-release
 	From Alberto
 	- fix for 'partitions >500M' part 2 (wrong sector rounding)

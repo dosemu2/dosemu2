@@ -30,9 +30,12 @@ void dma_assert_DACK(int channel);
 
 #define DMA_HANDLER_DONE   100
 
+#define DMA_HANDLER_OK     1
+#define DMA_HANDLER_NOT_OK 0
+
 #define DMA_HANDLER_ERROR  -1
 
-void dma_install_handler (int ch, int wfd, int rfd, void (* handler) (int),
+void dma_install_handler (int ch, int wfd, int rfd, int (* handler) (int),
 			  int size);
 
 

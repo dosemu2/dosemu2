@@ -1,0 +1,34 @@
+REALTOPDIR=@REALTOPDIR@
+######################################################################
+# MIDID
+
+# Define USEULTRA if you've got the UltraDriver 2.60a installed
+USEULTRA=OK
+
+
+######################################################################
+# No servicable parts below
+
+CC=gcc
+CFLAGS=-Wall -pipe -O2
+LDFLAGS=-Wall
+OBJECTS=midid.o null.o events.o io.o stats.o emulation.o oss.o
+
+ifdef USEULTRA
+ CFLAGS += -DUSEULTRA
+ LDFLAGS += -lgus
+ OBJECTS += gus.o
+endif
+
+all:		$(REALTOPDIR)/bin/midid
+
+clean:
+		rm -f *.o
+
+cleanall:	clean
+		rm -f $(REALTOPDIR)/bin/midid
+
+$(REALTOPDIR)/bin/midid:	$(OBJECTS)
+
+events.o:	events.c events.h io.h stats.h
+

@@ -286,7 +286,7 @@ AC_SUBST(x_libraries)
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="65"
-PATCHLEVEL="99.24"
+PATCHLEVEL="99.25"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
@@ -486,6 +486,7 @@ src/arch/linux/Makefile.main
 src/arch/linux/async/Makefile
 src/arch/linux/debugger/Makefile
 src/arch/linux/dosext/sound/Makefile
+src/arch/linux/dosext/sound/midid/Makefile
 src/base/async/Makefile
 src/base/bios/Makefile
 src/base/dev/dma/Makefile

@@ -22,7 +22,13 @@ docsinstall:
 docsclean:
 	@$(MAKE) -C src/doc clean
 
-pristine:  docsclean
+midid:
+	@$(MAKE) -C src/arch/linux/dosext/sound/midid
+
+mididclean:
+	@$(MAKE) -C src/arch/linux/dosext/sound/midid cleanall
+
+pristine:  docsclean mididclean
 	@$(MAKE) -C src $@
 	rm -f config.cache config.status config.log src/include/config.h
 	rm -f src/Makefile.common src/arch/linux/Makefile.main

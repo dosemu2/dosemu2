@@ -115,6 +115,7 @@ EXTERN struct SB_driver_t {
   void  (* DMA_pause)(void);
   void  (* DMA_resume)(void);
   void  (* DMA_stop)(void);
+  int   (* DMA_complete_test)(void);
   void  (* DMA_complete)(void);
 
   /*
@@ -210,7 +211,7 @@ EXTERN struct SB_queue_t {
  */
 
 extern void adlib_io_write  (Bit32u addr, Bit8u value); /* Stray */
-extern void sb_dma_handler (int status); /* Stray */
+extern int sb_dma_handler (int status); /* Stray */
 
 extern void sb_io_write     (Bit32u addr, Bit8u value);
 extern void fm_io_write     (Bit32u addr, Bit8u value);

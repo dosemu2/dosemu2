@@ -322,9 +322,33 @@ void linux_sb_dma_start_complete (void) {
   dma_install_handler(config.sb_dma, -1, dsp_fd, sb_dma_handler, SOUND_SIZE);
 }
 
+int linux_sb_dma_complete_test(void)
+{
+  audio_buf_info data;
+
+  if (ioctl(dsp_fd, SNDCTL_DSP_GETOSPACE, &data) != -1) {
+    S_printf ("SB:[Linux] DMA completion test (%d, %d)\n", 
+	      data.fragstotal, data.fragments);
+
+    if (data.fragstotal == data.fragments) {
+      return DMA_HANDLER_OK;
+    }
+
+  } else {
+    if (errno == EBADF) {
+      return DMA_HANDLER_OK;
+    } else {
+      S_printf ("SB:[Linux] DMA completion test IOCTL error (%s)\n", 
+		strerror(errno));
+    }
+  }
+
+  return DMA_HANDLER_NOT_OK;
+}
+
 void linux_sb_dma_complete(void)
 {
-	S_printf ("SB: [Linux] DMA Completed\n");
+	S_printf ("SB:[Linux] DMA Completed\n");
 }
 
 #ifdef 0
@@ -409,6 +433,7 @@ int SB_driver_init (void) {
   SB_driver.DMA_pause           = NULL;
   SB_driver.DMA_resume          = NULL;
   SB_driver.DMA_stop            = NULL;
+  SB_driver.DMA_complete_test   = linux_sb_dma_complete_test;
   SB_driver.DMA_complete        = linux_sb_dma_complete;
 
   /* Miscellaneous Functions */

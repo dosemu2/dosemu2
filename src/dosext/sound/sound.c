@@ -5,6 +5,7 @@
  * 
  * maintainer: 
  *   Alistair MacDonald <alistair@slitesys.demon.co.uk>
+ *   David Brauman <crisk@netvision.net.il>
  *   Rutger Nijlunsing <rutger@null.net>
  *
  * DANG_END_MODULE
@@ -23,6 +24,9 @@
  * my 0.61 code, brought back into mainstream DOSEmu (0.63), but with
  * Michael's code where I thought it was better than mine. I also separated
  * out the NetBSD & Linux specific driver code. - Alistair
+ *
+ * For 0.66 we have updated many areas and re-organised others to make it 
+ * easier to maintain. Many thanks for David for finding so many bugs ....
  *
  * Original Copyright Notice:
  * ==========================
@@ -71,7 +75,7 @@ static void start_dsp_dma(void);
 static void restart_dsp_dma(void);
 static void pause_dsp_dma(void);
 
-void sb_dma_handler(int status);
+int sb_dma_handler(int status);
 void sb_irq_trigger (void);
 
 void sb_set_speed (void);
@@ -184,6 +188,20 @@ __u8 dsp_read_output(void)
 /*
  * Main IO Routines - Read
  * =======================
+ */
+
+/*
+ * DANG_BEGIN_FUNCTION sb_io_read
+ *
+ * arguments:
+ * port - The I/O port being read from.
+ *
+ * description:
+ * This handles all of the reads for the SB emulation. The value read is
+ * returned. The value of 0xFF indicates an invalid read. (assumes the ports
+ * float high when not pulled low by the hardware.)
+ *
+ * DANG_END_FUNCTION
  */
 
 Bit8u sb_io_read(Bit32u port)
@@ -336,6 +354,22 @@ Bit8u sb_mixer_data_read (void)
 }
 
 
+/*
+ * DANG_BEGIN_FUNCTION adlib_io_read
+ *
+ * arguments:
+ * port - The I/O port being read from.
+ *
+ * description:
+ * This handles all of the reads for the adlib (FM) emulation. The value read 
+ * is returned. The value of 0xFF indicates an invalid read. (assumes the ports
+ * float high when not pulled low by the hardware.)
+ * The FM emulation is not written yet. The current plan is to use the midi
+ * emulation where available as this is the most common use for the FM sound.
+ *
+ * DANG_END_FUNCTION
+ */
+
 Bit8u adlib_io_read(Bit32u port)
 {
   /* Adlib Base Port is 0x388 */
@@ -358,17 +392,30 @@ Bit8u fm_io_read (Bit32u port)
 {
   switch (port){
   case ADLIB_STATUS:
-		/* DANG_FIXTHIS Unimplemented */
+		/* DANG_FIXTHIS Adlib status reads are unimplemented */
     return 31;
     break;
   case ADV_ADLIB_STATUS:
-		/* DANG_FIXTHIS Unimplemented */
+		/* DANG_FIXTHIS Advanced adlib reads are unimplemented */
     return 31;
     break;
   };
   
   return 0;
 }
+
+/*
+ * DANG_BEGIN_FUNCTION mpu401_io_read
+ *
+ * arguments:
+ * port - The I/O port being read from.
+ *
+ * description:
+ * The MPU-401 functionality is primarily provided by 'midid' - a standalone
+ * program. This makes most of the MPU-401 code simply a pass-through driver.
+ *
+ * DANG_END_FUNCTION
+ */
 
 Bit8u mpu401_io_read(Bit32u port)
 {
@@ -400,13 +447,32 @@ Bit8u mpu401_io_read(Bit32u port)
  * ========================
  */
 
+/*
+ * DANG_BEGIN_FUNCTION sb_io_write
+ *
+ * arguments:
+ * port - The I/O port being written to.
+ * value - The value being output.
+ *
+ * description:
+ * This handles the writes for the SB emulation. Very little of the processing
+ * is performed in this function as it basically consists of a very large
+ * switch() statement. The processing here is limited to trivial (1 line) items
+ * and distinguishing between the different actions and responses that the
+ * different revisions of the SB series give.
+ *
+ * DANG_END_FUNCTION
+ */
+
 void sb_io_write(Bit32u port, Bit8u value)
 {
   __u32 addr;
   
   addr = port - config.sb_base;
-  
+
+#ifdef EXCESSIVE_DEBUG  
   S_printf("SB: [crisk] port 0x%04x value 0x%02x\n", (Bit16u)port, value);
+#endif /* EXCESSIVE_DEBUG */
   
   switch (addr) {
     
@@ -593,6 +659,26 @@ void sb_do_reset (Bit8u value)
 }
     
     
+/*
+ * DANG_BEGIN_FUNCTION sb_dsp_write
+ *
+ * arguments:
+ * value - The value being written to the DSP.
+ *
+ * description:
+ * The SB DSP is a complete I/O system in itself controlled via a number of
+ * data bytes. The number of bytes depends upon the function. The function
+ * to be executed is determined by the first byte.
+ * If there is no existing command then the command is stored. This then used
+ * in the switch to identify the action to be taken. When the command has 
+ * supplied all of its arguments, or failed, then the command storage is 
+ * cleared. Each DSP function is responsible for clearing this itself.
+ * Again, this function relies on other functions to do the real work, and
+ * apart from storing details of the command and parameters is basically a
+ * large switch statement.
+ *
+ * DANG_END_FUNCTION
+ */
     
 void sb_dsp_write ( Bit8u value ) 
 {
@@ -944,7 +1030,7 @@ void sb_dsp_write ( Bit8u value )
 
 
 /* 
- * DANG_FIXTHIS DSP Status Unimplemented 
+ * DANG_FIXTHIS DSP Status is unimplemented 
  */
 void sb_dsp_get_status (void) 
 {
@@ -1072,19 +1158,19 @@ void fm_io_write(Bit32u port, Bit8u value)
 {
     switch (port) {
 	case ADLIB_REGISTER:
-		/* DANG_FIXTHIS Unimplemented */
+		/* DANG_FIXTHIS Adlib register writes are unimplemented */
 	break;
 
 	case ADLIB_DATA:
-		/* DANG_FIXTHIS Unimplemented */
+		/* DANG_FIXTHIS Adlib data writes are unimplemented */
 		break;
 	
 	case ADV_ADLIB_REGISTER:
-		/* DANG_FIXTHIS Unimplemented */
+		/* DANG_FIXTHIS Advanced Adlib register writes are unimplemented */
 		break;
 
 	case ADV_ADLIB_DATA:
-		/* DANG_FIXTHIS Unimplemented */
+		/* DANG_FIXTHIS Advanced Adlib data writes are unimplemented */
 		break;
 	
     };
@@ -1648,13 +1734,17 @@ void set_dma_blocksize(void)
 	SB_dsp.command = SB_NO_DSP_COMMAND;
 }
 
-void sb_dma_handler (int status)
+int sb_dma_handler (int status)
 {
+  int result;
+
+  result = DMA_HANDLER_OK;
+
 #ifdef EXCESSIVE_DEBUG
   S_printf ("SB: In DMA Handler\n");
 #endif /* EXCESSIVE_DEBUG */
 
-	switch (status) {
+  switch (status) {
   case DMA_HANDLER_READ:
 #ifdef EXCESSIVE_DEBUG
     S_printf ("SB: Asserting DACK\n");
@@ -1664,26 +1754,48 @@ void sb_dma_handler (int status)
 /* AM - Never starts up if we do this! */
 /*		S_printf("SB: [crisk] ... and dropping DREQ\n"); */
 /*		dma_drop_DREQ(config.sb_dma); */
+    return DMA_HANDLER_OK;
     break;
 
   case DMA_HANDLER_WRITE:
     S_printf ("SB: Handled WRITE response (!) INVALID !!!!\n");
+    return DMA_HANDLER_NOT_OK;
     break;
 
   case DMA_HANDLER_ERROR:
     S_printf ("SB: Error in DMA\n");
+    return DMA_HANDLER_NOT_OK;
     break;
 
   case DMA_HANDLER_DONE:
-#ifdef EXCESSIVE_DEBUG
-    S_printf ("SB: Asserting DACK & triggering Interrupt\n");
-#endif /* EXCESSIVE_DEBUG */
-    dma_assert_DACK(config.sb_dma);
+    if (SB_driver.DMA_complete_test != NULL) {
+      result = (*SB_driver.DMA_complete_test)();
+      /*      result = linux_sb_dma_complete_test();*/
+    }
+#ifdef FUSSY_SBEMU
+    else {
+      S_printf ("SB: Optional function 'DMA_complete_test' not provided.\n");
+    }
+#endif /* FUSSY_SBEMU */
 
-    /* Finally, trigger the interrupt */
-    pic_request(SB_info.irq);    
+S_printf ("SB: Returned from completion test.\n");
+
+    if (result == DMA_HANDLER_OK) {
+#ifdef EXCESSIVE_DEBUG
+      S_printf ("SB: Asserting DACK & triggering Interrupt\n");
+#endif /* EXCESSIVE_DEBUG */
+      dma_assert_DACK(config.sb_dma);
+
+      /* Finally, trigger the interrupt */
+      pic_request(SB_info.irq);    
+
+      return DMA_HANDLER_OK;
+    } else {
+      return DMA_HANDLER_NOT_OK;
+    }
   };
 
+  return DMA_HANDLER_NOT_OK;
 }
 
 void sb_irq_trigger (void)
