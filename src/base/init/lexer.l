@@ -560,7 +560,8 @@ mpu_base                RETURN(MPU_BASE);
 
 	/* packet driver */
 novell_hack		RETURN(NOVELLHACK);
-
+	/* Vinod's dosnet stuff (when to use former libpacket.c.multi */
+vnet			RETURN(VNET);
 	/* debug flags */
 
 io			RETURN(IO);

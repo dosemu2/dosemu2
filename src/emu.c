@@ -147,6 +147,7 @@ extern void     vm86_GP_fault();
 extern void     config_init(int argc, char **argv);
 extern void	timer_int_engine(void);
 extern void	disk_open(struct disk *dp);
+extern void     print_version(void);
 
 extern void io_select_init(void);
 
@@ -320,7 +321,6 @@ vm86plus_init(void)
 static inline void
 module_init(void)
 {
-    version_init();		/* Check the OS version */
     vm86plus_init();		/* emumodule support */
     SIG_init();			/* silly int generator support */
     memcheck_init();		/* lower 1M memory map support */
@@ -405,9 +405,11 @@ emulate(int argc, char **argv)
     get_time_init();		/* debug can use CPUtime */
     io_select_init();
     port_init();		/* setup port structures, before config! */
+    version_init();		/* Check the OS version */
     config_init(argc, argv);	/* parse the commands & config file(s) */
     get_time_init();
     stdio_init();		/* initialize stdio & open debug file */
+    print_version();            /* log version information */
     module_init();
     low_mem_init();		/* initialize the lower 1Meg */
     time_setting_init();	/* get the startup time */

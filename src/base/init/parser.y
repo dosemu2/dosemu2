@@ -232,6 +232,7 @@ extern void yyrestart(FILE *input_file);
 
 	/* main options */
 %token DOSBANNER FASTFLOPPY TIMINT HOGTHRESH SPEAKER IPXSUPPORT NOVELLHACK
+%token VNET
 %token DEBUG MOUSE SERIAL COM KEYBOARD TERMINAL VIDEO ALLOWVIDEOPORT TIMER
 %token MATHCO CPU CPUSPEED RDTSC BOOTA BOOTB BOOTC L_XMS L_DPMI PORTS DISK DOSMEM PRINTER
 %token L_EMS L_UMB EMS_SIZE EMS_FRAME TTYLOCKS L_SOUND
@@ -560,6 +561,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    c_printf("CONF: IPX support %s\n", ($2) ? "on" : "off");
 		    }
 		| PKTDRIVER NOVELLHACK	{ config.pktflags = 1; }
+		| VNET bool	{ config.vnet = $2; }
 		| SPEAKER speaker
 		    {
 		    if ($2 == SPKR_NATIVE) {

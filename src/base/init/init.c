@@ -568,14 +568,6 @@ void version_init(void) {
   char version[80];
 
   uname((struct utsname *)&unames);
-  warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
-#ifdef __linux__
-  warn("Built for %d\n", KERNEL_VERSION);
-#endif
-#ifdef __NetBSD__
-  warn("Built for %d\n", NETBSD_VERSION);
-#endif
-
 #ifdef __linux__
   strcpy(version,unames.release);
   running_kversion = atoi(strtok(version,".")) *1000000;
@@ -600,4 +592,16 @@ void version_init(void) {
    
 }
 
-
+void print_version(void)
+{
+  struct new_utsname unames;
+    
+  uname((struct utsname *)&unames);
+  warn("DOSEMU-%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
+#ifdef __linux__
+  warn("Built for %d\n", KERNEL_VERSION);
+#endif
+#ifdef __NetBSD__
+  warn("Built for %d\n", NETBSD_VERSION);
+#endif
+}

@@ -1,7 +1,8 @@
 
-extern int OpenNetworkType(unsigned short);
-extern void CloseNetworkLink(int);
-extern int WriteToNetwork(int, const char *, const char *, int);
-extern int ReadFromNetwork(int, char *, char *, int);
-extern int GetDeviceHardwareAddress(char *, char *);
-extern int GetDeviceMTU(char *);
+int OpenNetworkType(unsigned short);
+int OpenBroadcastNetworkType();
+void CloseNetworkLink(int);
+int WriteToNetwork(int, const char *, const char *, int);
+int ReadFromNetwork(int, char *, char *, int);
+int GetDeviceHardwareAddress(char *, char *);
+int GetDeviceMTU(char *);

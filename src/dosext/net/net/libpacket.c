@@ -7,16 +7,18 @@
  *
  *	(c) 1994 Alan Cox	iiitac@pyr.swan.ac.uk	GW4PTS@GB7SWN
  */
-
-#include "kversion.h"
+#include <stdio.h>
 #include <features.h>
+#include "kversion.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <linux/major.h>
 #include <asm/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #if __GLIBC__ > 1
   #include <asm/sockios.h>
   #include <net/if.h>
@@ -25,10 +27,53 @@
   #include <linux/if.h>
 #endif
 #include <netinet/in.h>
+#if __GLIBC__ > 1
+  #include <netinet/if.h>
+  #include <netinet/if_ether.h>
+#else
+  #include <linux/if_ether.h>
+#endif
 
-#include "libpacket.h"
 #include "emu.h"
 #include "priv.h"
+#include "libpacket.h"
+#include "dosnet.h"
+
+static int GetDosnetID(void);
+
+static unsigned short int DosnetID = 0xffff;
+char local_eth_addr[6] = {0,0,0,0,0,0};
+
+/* Should return an unique ID (< 255) corresponding to this invocation 
+   of DOSEMU not clashing with other DOSEMU's. 
+   We use tty number.  If someone invokes dosemu in background, we 
+   are in trouble ... ;-(. 
+*/
+
+static int 
+GetDosnetID(void)
+{  
+	struct stat chkbuf;
+	int major, minor;
+
+	if (DosnetID != 0xffff) return DosnetID;
+
+	fstat(STDOUT_FILENO, &chkbuf);
+	major = chkbuf.st_rdev >> 8;
+	minor = chkbuf.st_rdev & 0xff;
+
+	if (major != TTY_MAJOR && major != PTY_SLAVE_MAJOR) {
+		/* Not running on tty/ttyp/ttyS. 
+		   I really don't know what to do. */
+		pd_printf("GetDosnetID: Can't work without a tty/pty/ttyS, "
+			  "assigning an odd one...");
+		minor=241;
+	}
+  
+	DosnetID = (unsigned short int)DOSNET_TYPE_BASE + minor;
+	pd_printf("Assigned DosnetID=%x\n", DosnetID );
+	return DosnetID;
+}
 
 /*
  *	Obtain a file handle on a raw ethernet type. In actual fact
@@ -39,23 +84,64 @@
  *
  *	WARNING: It is ok to listen to a service the system is using (eg arp)
  *	but don't try and run a user mode stack on the same service or all
- *	hell will break loose.
+ *	hell will break loose - unless you use virtual TCP/IP (dosnet).
  */
 
 int 
 OpenNetworkType(unsigned short netid)
 {
-  PRIV_SAVE_AREA
-  int s;
+	PRIV_SAVE_AREA
+	int s, proto;
 
-  if (!config.secure) enter_priv_on();
-  s = socket(AF_INET, SOCK_PACKET, htons(netid));
-  if (!config.secure) leave_priv_setting();
+	if (config.vnet)
+		/* netid is ignored, and we use a special netid for the 
+		   dosnet session */
+		proto = htons(GetDosnetID());
+	else
+		proto = htons(netid);
 
-  if (s == -1)
-    return -1;
-  fcntl(s, F_SETFL, O_NDELAY);
-  return s;
+	if (!config.secure) enter_priv_on();
+#ifdef AF_PACKET
+	if (running_kversion >= 2001000)
+		s = socket(AF_PACKET, SOCK_PACKET, htons(GetDosnetID()));
+	else
+		s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));
+#else
+	s = socket(AF_INET, SOCK_PACKET, htons(GetDosnetID()));
+#endif
+	if (!config.secure) leave_priv_setting();
+	if (s < 0) {
+		if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");
+		return -1;
+	}
+	fcntl(s, F_SETFL, O_NDELAY);
+	return s;
+}
+
+/* Return a socket opened in broadcast mode (only used for virtual net) */
+int
+OpenBroadcastNetworkType()
+{
+	PRIV_SAVE_AREA
+	int s;
+	if (!config.secure) enter_priv_on();
+#ifdef AF_PACKET
+	if (running_kversion >= 2001000)
+		s = socket(AF_PACKET, SOCK_PACKET, 
+			   htons(DOSNET_BROADCAST_TYPE)); 
+	else
+		s = socket(AF_INET, SOCK_PACKET, htons(DOSNET_BROADCAST_TYPE));
+#else
+	s = socket(AF_INET, SOCK_PACKET, htons(DOSNET_BROADCAST_TYPE));  
+#endif
+	if (!config.secure) leave_priv_setting();
+	if (s < 0) {
+		pd_printf("OpenBroadcast: could not open socket\n");
+		if (errno == EPERM) warn("Must be root for virtual TCP/IP\n");
+		return -1;
+	}
+	fcntl(s, F_SETFL, O_NDELAY);
+	return s;
 }
 
 /*
@@ -65,14 +151,16 @@ OpenNetworkType(unsigned short netid)
 void 
 CloseNetworkLink(int sock)
 {
-  close(sock);
+	close(sock);
 }
 
 /*
  *	Write a packet to the network. You have to give a device to
  *	this function. This is a device name (eg 'eth0' for the first
- *	ethernet card). Please don't assume eth0, make it configurable
- *	- plip is ethernet like but not eth0, ditto for the de600's.
+ *	ethernet card).
+ *
+ *      For virtual TCP/IP, the device name is ignored and we write
+ *      to the dosnet device instead (usually 'dsn0')
  *
  *	Return: -1 is an error
  *		otherwise bytes written.
@@ -81,12 +169,22 @@ CloseNetworkLink(int sock)
 int 
 WriteToNetwork(int sock, const char *device, const char *data, int len)
 {
-  struct sockaddr sa;
+	struct sockaddr sa;
 
-  sa.sa_family = AF_INET;
-  strcpy(sa.sa_data, device);
-
-  return (sendto(sock, data, len, 0, &sa, sizeof(sa)));
+#ifdef AF_PACKET
+	if (running_kversion >= 2001000)
+		sa.sa_family = AF_PACKET;
+  else
+	  sa.sa_family = AF_INET;
+#else
+	sa.sa_family = AF_INET;
+#endif
+	if (config.vnet)
+		strcpy(sa.sa_data, DOSNET_DEVICE);
+	else
+		strcpy(sa.sa_data, device);
+	
+	return sendto(sock, data, len, 0, &sa, sizeof(sa));
 }
 
 /*
@@ -104,17 +202,17 @@ WriteToNetwork(int sock, const char *device, const char *data, int len)
 int 
 ReadFromNetwork(int sock, char *device, char *data, int len)
 {
-  struct sockaddr sa;
-  int sz = sizeof(sa);
-  int error;
+	struct sockaddr sa;
+	int sz = sizeof(sa);
+	int error;
 
-  error = recvfrom(sock, data, len, 0, &sa, &sz);
+	error = recvfrom(sock, data, len, 0, &sa, &sz);
 
-  if (error == -1)
-    return -1;
+	if (error == -1)
+		return -1;
 
-  strcpy(device, sa.sa_data);
-  return error;			/* Actually size of received packet */
+	strcpy(device, sa.sa_data);
+	return error;		/* Actually size of received packet */
 }
 
 /*
@@ -139,23 +237,40 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
 
 int 
 GetDeviceHardwareAddress(char *device, char *addr)
-{
-  int s = socket(AF_INET, SOCK_DGRAM, 0);
-  struct ifreq req;
-  int err;
+{  
+	if (config.vnet) {
+		/* This routine is totally local; doesn't make 
+		   request to actual device. */
+		int i;
+		memcpy(local_eth_addr, DOSNET_FAKED_ETH_ADDRESS, 6);
+		GetDosnetID();
+		*(unsigned short int *)&(local_eth_addr[2]) = DosnetID;
 
-  strcpy(req.ifr_name, device);
+		memcpy(addr, local_eth_addr, 6);
 
-  err = ioctl(s, SIOCGIFHWADDR, &req);  
-  close(s);	/* Thanks Rob. for noticing this */
-  if (err == -1)
-    return err;
+		pd_printf("Assigned Ethernet Address = ");
+		for (i=0; i < 6; i++)
+			pd_printf("%02x:", local_eth_addr[i] & 0xff);
+		pd_printf("\n");
+       	}
+	else {
+		int s = socket(AF_INET, SOCK_DGRAM, 0);
+		struct ifreq req;
+		int err;
+
+		strcpy(req.ifr_name, device);
+
+		err = ioctl(s, SIOCGIFHWADDR, &req);  
+		close(s);
+		if (err == -1)
+			return err;
 #ifdef NET3    
-  memcpy(addr, req.ifr_hwaddr.sa_data,8);
+		memcpy(addr, req.ifr_hwaddr.sa_data,8);
 #else
-  memcpy(addr, req.ifr_hwaddr, 8);
+		memcpy(addr, req.ifr_hwaddr, 8);
 #endif  
-  return 0;
+	}
+	return 0;
 }
 
 /*
@@ -169,15 +284,15 @@ GetDeviceHardwareAddress(char *device, char *addr)
 int 
 GetDeviceMTU(char *device)
 {
-  int s = socket(AF_INET, SOCK_DGRAM, 0);
-  struct ifreq req;
-  int err;
+	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	struct ifreq req;
+	int err;
 
-  strcpy(req.ifr_name, device);
+	strcpy(req.ifr_name, device);
 
-  err = ioctl(s, SIOCGIFMTU, &req);
-  close(s);	/* So I'll add this one as well.  Ok Alan? - Rob */
-  if (err == -1)
-    return err;
-  return req.ifr_mtu;
+	err = ioctl(s, SIOCGIFMTU, &req);
+	close(s);
+	if (err < 0)
+		return -1;
+	return req.ifr_mtu;
 }

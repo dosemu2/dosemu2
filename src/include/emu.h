@@ -303,6 +303,7 @@ typedef struct vesamode_type_struct {
        int     realcpu;
        boolean mathco, smp;
        boolean ipxsup;
+       boolean vnet;
        boolean keybint;
        boolean dosbanner;
        boolean allowvideoportaccess;

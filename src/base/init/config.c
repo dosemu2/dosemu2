@@ -276,6 +276,8 @@ config_defaults(void)
     config.sb_mixer = "/dev/mixer";
 #endif /* !__NetBSD__ */
     config.mpu401_base = 0x330;
+
+    config.vnet = 1;
 }
 
 void dump_config_status(void)
