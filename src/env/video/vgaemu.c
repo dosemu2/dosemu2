@@ -2577,6 +2577,8 @@ void vgaemu_adj_cfg(unsigned what, unsigned msg)
 	      vga.crtc.data[0x16] & 0x7F;
       char_height = (vga.crtc.data[0x9] & 0x1f) + 1;
       vertical_multiplier = char_height << ((vga.crtc.data[0x9] & 0x80) >> 7);
+      /* see VGADOC: CGA is special for reg 9 */
+      if(vga.mode_type == CGA) vertical_multiplier = char_height;
       height = (vertical_display_end +1) / vertical_multiplier;
       vga_msg("vgaemu_adj_cfg: vertical_total = %d\n", vertical_total);
       vga_msg("vgaemu_adj_cfg: vertical_retrace_start = %d\n", vertical_retrace_start);
