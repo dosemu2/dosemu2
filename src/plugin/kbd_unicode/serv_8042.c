@@ -166,11 +166,6 @@ static void write_port60(Bit8u value)
       switch (value) {
         case 0xdf:	/* enable A20 */
 	  h_printf("8042: enable A20 line\n");
-	  if (config.xms_size < 64) {
-	    error("Your booted DOS and/or application wants A20 enabled,\n"
-		  "but you have not (enough) XMS configured in dosemu.conf\n");
-	    leavedos(99);
-	  }
 	  set_a20(1);
 	  break;
         case 0xdd:	/* disable A20) */
