@@ -402,10 +402,13 @@ void get_video_ram (int waitflag)
   page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
   if (!scr_state.mapped && config.vga
       && READ_BYTE(BIOS_VIDEO_MODE) == 3 && page < 8) {
+    size_t size;
     li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
     co = READ_WORD(BIOS_SCREEN_COLUMNS);
+    size = TEXT_SIZE * 8;
+    if (size > 32768) size = 32768;
     if (dosemu_regs.mem)
-      memcpy (dosemu_regs.mem, PAGE_ADDR(0), TEXT_SIZE * 8);
+      memcpy (dosemu_regs.mem, PAGE_ADDR(0), size);
     /* else error("ERROR: no dosemu_regs.mem!\n"); */
   }
 
@@ -423,11 +426,14 @@ void put_video_ram (void)
     v_printf ("put_video_ram called\n");
     unmap_video_ram(!config.vga);
     if (!scr_state.mapped && config.vga) {
+      size_t size;
       li = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1);
       co = READ_WORD(BIOS_SCREEN_COLUMNS);
+      size = TEXT_SIZE * 8;
+      if (size > 32768) size = 32768;
       if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 &&
 	  READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
-	memcpy (PAGE_ADDR(0), dosemu_regs.mem, TEXT_SIZE * 8);
+	memcpy (PAGE_ADDR(0), dosemu_regs.mem, size);
     }
   }
   else
