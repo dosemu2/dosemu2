@@ -7,17 +7,30 @@
 #
 
 # tempory file
-TEMP=/tmp/answer
+TEMP=/tmp/Configure.answers
 
 # config file
 CONFIG=/etc/dosemu.conf
+
+
+check_status() {
+
+if [ "$?" != 0 ]
+then
+   clear
+   echo -e "\nDosconfig canceled! Exiting to shell \n"
+   exit
+fi
+
+}
+
 
 select_debug() {
 
 echo "## DEBUG ##" >> $CONFIG
 
 dialog  --title "DEBUG" --checklist "choose one or more options" 24 60 17 \
-   1 config   off \
+   1 config   on \
    2 disk     off \
    3 warning  off \
    4 hardware off \
@@ -34,6 +47,8 @@ dialog  --title "DEBUG" --checklist "choose one or more options" 24 60 17 \
    f dpmi     off \
    g printer  off \
    h mouse    off 2>$TEMP
+
+check_status
 
 choice=`cat $TEMP`
 echo "debug {" >> $CONFIG
@@ -70,10 +85,13 @@ select_miscallenous() {
 
 echo "## MISCALLENOUS ##" >> $CONFIG
 
-# radiolist
- dialog  --title "MISCALLENOUS" --checklist "choose one option" 9 30 2\
+dialog  --title "MISCALLENOUS" --checklist "DOSBANNER : Want startup DOSEMU \
+banner messages?  Of course :-)\nTIMEINT   : is necessary for many programs to \
+work." 10 70 2\
    1 dosbanner on \
    2 timint on 2> $TEMP
+
+check_status
 
 choice=`cat $TEMP`
 
@@ -94,7 +112,7 @@ select_keyboard() {
 echo "## KEYBOARD ##" >> $CONFIG
 
 # radiolist
-dialog --title "KEYBOARD" --checklist "select a keyboard layout" 24 60 19 \
+dialog --title "KEYBOARD" --radiolist "select a keyboard layout" 24 60 17 \
   1 us off \
   2 uk off \
   3 dvorak off \
@@ -115,35 +133,41 @@ dialog --title "KEYBOARD" --checklist "select a keyboard layout" 24 60 19 \
   i be on \
   j no off 2> $TEMP
 
+check_status
+
 echo -n "keyboard {  " >> $CONFIG
 
-choice=`cut -c -3 $TEMP`
-
+choice=`cat $TEMP`
 case $choice in 
-     \"1\") echo -n "layout us  " >> $CONFIG;;
-     \"2\") echo -n "layout uk  " >> $CONFIG;;
-     \"3\") echo -n "layout dvorak  " >> $CONFIG;;
-     \"4\") echo -n "layout sf  " >> $CONFIG;;
-     \"5\") echo -n "layout sf_latin1  " >> $CONFIG;;
-     \"6\") echo -n "layout finnish  " >> $CONFIG;;
-     \"7\") echo -n "layout finnish-latin1  " >> $CONFIG;;
-     \"8\") echo -n "layout sg  " >> $CONFIG;;
-     \"9\") echo -n "layout sg_latin1  " >> $CONFIG;;
-     \"a\") echo -n "layout gr  " >> $CONFIG;;
-     \"b\") echo -n "layout gr_latin1  " >> $CONFIG;;
-     \"c\") echo -n "layout dk  " >> $CONFIG;;
-     \"d\") echo -n "layout dk_latin1  " >> $CONFIG;;
-     \"e\") echo -n "layout es  " >> $CONFIG;;
-     \"f\") echo -n "layout es_latin1  " >> $CONFIG;;
-     \"g\") echo -n "layout fr  " >> $CONFIG;;
-     \"h\") echo -n "layout fr_latin1  " >> $CONFIG;;
-     \"i\") echo -n "layout be  " >> $CONFIG;;
-     \"j\") echo -n"layout no  " >> $CONFIG;;
+     1) echo -n "layout us  " >> $CONFIG;;
+     2) echo -n "layout uk  " >> $CONFIG;;
+     3) echo -n "layout dvorak  " >> $CONFIG;;
+     4) echo -n "layout sf  " >> $CONFIG;;
+     5) echo -n "layout sf_latin1  " >> $CONFIG;;
+     6) echo -n "layout finnish  " >> $CONFIG;;
+     7) echo -n "layout finnish-latin1  " >> $CONFIG;;
+     8) echo -n "layout sg  " >> $CONFIG;;
+     9) echo -n "layout sg_latin1  " >> $CONFIG;;
+     a) echo -n "layout gr  " >> $CONFIG;;
+     b) echo -n "layout gr_latin1  " >> $CONFIG;;
+     c) echo -n "layout dk  " >> $CONFIG;;
+     d) echo -n "layout dk_latin1  " >> $CONFIG;;
+     e) echo -n "layout es  " >> $CONFIG;;
+     f) echo -n "layout es_latin1  " >> $CONFIG;;
+     g) echo -n "layout fr  " >> $CONFIG;;
+     h) echo -n "layout fr_latin1  " >> $CONFIG;;
+     i) echo -n "layout be  " >> $CONFIG;;
+     j) echo -n"layout no  " >> $CONFIG;;
 esac  
 
-dialog  --title "KEYBOARD" --checklist "leave these on for optimal use" 9 40 2\
+dialog  --title "KEYBOARD" --checklist "KEYBINT : allows more accurate of \
+keyboard interrupts.\nIt is a bit unstable, but makes keyboard work better \
+when set to \"on\".\nRAWKEYBOARD : allows for accurate keyboard emulation for \
+DOS programs." 11 75 2\
    1 keybint on \
    2 rawkeyboard on 2> $TEMP
+
+check_status
 
 choice=`cat $TEMP`
 for option in $choice
@@ -156,7 +180,14 @@ done
 
 echo "}" >> $CONFIG
 
-dialog --title "HOGTHRESHOLD" --inputbox "give hogthreshold :" 8 30 2>$TEMP
+dialog --title "HOGTHRESHOLD" --inputbox "If DOSEMU speed is unimportant, \
+and CPU time is very valuable to you,\n\
+you may want to set HogThreshold to a non-zero value.  This means\n\
+the number of keypress requests in a row before CPU time is given\n\
+away from DOSEMU.  A good value to use could be 10000.\n\
+A zero disables CPU hogging detection via keyboard requests." 12 75 2>$TEMP
+
+check_status
 
 choice=`cat $TEMP`
 
@@ -170,38 +201,44 @@ select_miscallenous2() {
 echo "## MISCALLENOUS ##" >> $CONFIG
 
 # radiolist
-dialog  --title "MISCALLENOUS" --checklist "select cpu-type to emulate" 10 40 3\
+dialog  --title "MISCALLENOUS" --radiolist "select cpu-type to emulate" 10 40 3\
    1 80286 off\
    2 80386 off \
    3 80486 on 2>$TEMP
 
-choice=`cut -c -3 $TEMP`
+check_status
+
+choice=`cat $TEMP`
 case $choice in
-   \"1\") echo "cpu 80286" >> $CONFIG;;
-   \"2\") echo "cpu 80386" >> $CONFIG;;
-   \"3\") echo "cpu 80486" >> $CONFIG;;
+   1) echo "cpu 80286" >> $CONFIG;;
+   2) echo "cpu 80386" >> $CONFIG;;
+   3) echo "cpu 80486" >> $CONFIG;;
 esac
 
 # radiolist
-dialog  --title "MISCALLENOUS" --checklist "mathco : " 9 30 2 \
-   1 "mathco on" on\
-   2 "mathco off" off 2> $TEMP
+dialog  --title "MISCALLENOUS" --checklist "mathcoprocessor on durin DOSEMU\
+? : " 8 50 1 \
+   1 "mathcoprocessor on" on 2> $TEMP
+
+check_status
 
 choice=`cut -c -3 $TEMP`
 case $choice in
    \"1\") echo "mathco on" >> $CONFIG;;
-   \"2\") echo "mathco off" >> $CONFIG;;
+   "") echo "mathco off" >> $CONFIG;;
 esac
 
 # radiolist
-dialog  --title "MISCALLENOUS" --checklist "boot from" 9 30 2\
-   1 "boot A" off\
-   2 "boot C" on 2> $TEMP
+dialog  --title "MISCALLENOUS" --radiolist "boot from" 9 30 2\
+   1 "boot from A" off\
+   2 "boot from C" on 2> $TEMP
 
-choice=`cut -c -3 $TEMP`
+check_status
+
+choice=`cat $TEMP`
 case $choice in
-   \"1\") echo "bootA" >> $CONFIG;;
-   \"2\") echo "bootC" >> $CONFIG;;
+   1) echo "bootA" >> $CONFIG;;
+   2) echo "bootC" >> $CONFIG;;
 esac
 
 echo "" >> $CONFIG  
@@ -212,15 +249,22 @@ select_memory() {
 
 echo "## MEMORY ##" >> $CONFIG
 
-dialog --title "MEMORY" --inputbox "give size 'XMS' in Kb or 'off' :" 8 40 2>$TEMP
+dialog --title "MEMORY" --inputbox "give size 'XMS' in Kb or type 'off'\
+to disable memory." 8 70 2>$TEMP
+check_status
 choice=`cat $TEMP`
 echo "xms $choice" >> $CONFIG
 
-dialog --title "MEMORY" --inputbox "give size 'EMS' in Kb or 'off' :" 8 40 2>$TEMP
+dialog --title "MEMORY" --inputbox "give size 'EMS' in Kb or type 'off'\
+to disable memory." 8 70 2>$TEMP
+check_status
 choice=`cat $TEMP`
 echo "ems $choice" >> $CONFIG
 
-dialog --title "MEMORY" --inputbox "give size 'DPMI' in Kb or 'off' :" 8 40 2>$TEMP
+dialog --title "MEMORY" --inputbox "give size 'DPMI' in Kb or type 'off'\
+to disable memory.\nDPMI is still unstable, \
+so be careful with DPMI paramters." 9 70 2>$TEMP
+check_status
 choice=`cat $TEMP`
 echo "dpmi $choice" >> $CONFIG
 
@@ -233,16 +277,21 @@ select_speaker() {
 echo "## SPEAKER ##" >> $CONFIG
 
 # radiolist
-dialog  --title "SPEAKER" --checklist "select speaker" 10 30 3\
+dialog  --title "SPEAKER" --radiolist "select an option :\n\
+  native      Enable DOSEMU direct access to the speaker ports.\n\
+  emulated    Enable simple beeps at the terminal.\n\
+  off         Disable speaker emulation." 13 70 3\
    1 "native" on\
    2 "emulated" off \
    3 "off" off  2> $TEMP
 
-choice=`cut -c -3 $TEMP`
+check_status
+
+choice=`cat $TEMP`
 case $choice in
-  \"1\") echo "speaker native" >> $CONFIG;;
-  \"2\") echo "speaker emulated" >> $CONFIG;;
-  \"3\") echo "speaker off" >> $CONFIG;;
+  1) echo "speaker native" >> $CONFIG;;
+  2) echo "speaker emulated" >> $CONFIG;;
+  3) echo "speaker off" >> $CONFIG;;
 esac
 
 echo "" >> $CONFIG
@@ -251,29 +300,29 @@ echo "" >> $CONFIG
 
 select_mouse() {
 
-echo "## SERIAL ##" >> $CONFIG
-
 # radiolist
-dialog  --title "MOUSE" --checklist "select mouseport" 14 30 4 \
+dialog  --title "MOUSE" --radiolist "select mouseport" 11 30 4 \
    1 "com 1" on\
    2 "com 2" off \
    3 "com 3" off \
    4 "com 4" off 2> $TEMP
 
+check_status
+
 echo -n "serial { mouse  " >> $CONFIG
 
-choice=`cut -c -3 $TEMP`
+choice=`cat $TEMP`
 case $choice in
-  \"1\") echo -n "com 1  " >> $CONFIG;;
-  \"2\") echo -n "com 2  " >> $CONFIG;;
-  \"3\") echo -n "com 3  " >> $CONFIG;;
-  \"4\") echo -n "com 4  " >> $CONFIG;;
+  1) echo -n "com 1  " >> $CONFIG;;
+  2) echo -n "com 2  " >> $CONFIG;;
+  3) echo -n "com 3  " >> $CONFIG;;
+  4) echo -n "com 4  " >> $CONFIG;;
 esac
 
 echo  "device /dev/mouse }" >> $CONFIG
 
 # radiolist
-dialog  --title "MOUSE" --checklist "select mousetype" 18 30 8 \
+dialog  --title "MOUSE" --radiolist "select mousetype" 15 30 8 \
    1 "microsoft" on\
    2 "logitech" off \
    3 "mmseries" off \
@@ -283,93 +332,312 @@ dialog  --title "MOUSE" --checklist "select mousetype" 18 30 8 \
    7 "busmouse" off \
    8 "ps2" off  2> $TEMP
 
+
+check_status
 echo -n "mouse { " >> $CONFIG
 
-choice=`cut -c -3 $TEMP`
+choice=`cat $TEMP`
 
 case $choice in
-  \"1\") echo -n "microsoft" >> $CONFIG;;
-  \"2\") echo -n "logitech" >> $CONFIG;;
-  \"3\") echo -n "mmseries" >> $CONFIG;;
-  \"4\") echo -n "mouseman" >> $CONFIG;;
-  \"5\") echo -n "hitachi" >> $CONFIG;;
-  \"6\") echo -n "mousesystems " >> $CONFIG;;
-  \"7\") echo -n "busmouse  device /dev/mouse internaldriver" >> $CONFIG;;
-  \"8\") echo -n "ps2 device /dev/mouse internaldriver" >> $CONFIG;;
+  1) echo -n "microsoft" >> $CONFIG;;
+  2) echo -n "logitech" >> $CONFIG;;
+  3) echo -n "mmseries" >> $CONFIG;;
+  4) echo -n "mouseman" >> $CONFIG;;
+  5) echo -n "hitachi" >> $CONFIG;;
+  6) echo -n "mousesystems " >> $CONFIG;;
+  7) echo -n "busmouse  device /dev/mouse internaldriver" >> $CONFIG;;
+  8) echo -n "ps2 device /dev/mouse internaldriver" >> $CONFIG;;
 esac
 
 echo " }" >> $CONFIG
-echo "" >> $CONFIG
+
 }
 
+
+select_modem() {
+
+# radiolist
+dialog  --title "MODEM" --radiolist "select modemport" 11 30 4 \
+   1 "com 1" on\
+   2 "com 2" off \
+   3 "com 3" off \
+   4 "com 4" off 2> $TEMP
+
+check_status
+echo -n "serial { " >> $CONFIG
+
+choice=`cat $TEMP`
+case $choice in
+  1) echo -n "com 1  " >> $CONFIG;;
+  2) echo -n "com 2  " >> $CONFIG;;
+  3) echo -n "com 3  " >> $CONFIG;;
+  4) echo -n "com 4  " >> $CONFIG;;
+esac
+
+echo  "device /dev/modem }" >> $CONFIG
+
+}
+
+
+select_serial() {
+
+echo "## SERIAL ##" >> $CONFIG
+
+dialog --title "SERIAL" --yesno "Do you want to install a mouse ?" 5 40
+
+if [ "$?" = "0" ]
+then 
+   select_mouse
+fi
+
+dialog --title "SERIAL" --yesno "Do you want to install a modem ?" 5 40
+
+if [ "$?" = "0" ]
+then 
+   select_modem
+fi
+
+echo "" >> $CONFIG
+
+}
+
+
+select_network() {
+
+echo "## NETWORKING SUPPORT ##" >> $CONFIG
+
+dialog  --title "NETWORK" --checklist "Turn the following option 'on' \
+if you require IPX/SPX emulation.\n\
+Therefore, there is no need to load IPX.COM within the DOS session.\n\
+The following option does not emulate LSL.COM, IPXODI.COM, etc.\n\
+NOTE: MUST HAVE IPX PROTOCOL ENABLED IN KERNEL !!" 12 72 1\
+   1 "IPX on" off 2> $TEMP
+
+check_status
+choice=`cut -c -3 $TEMP`
+
+case $choice in
+   \"1\") echo  "ipxsupport on" >> $CONFIG;;
+      "") echo  "ipxsupport off " >> $CONFIG;;
+esac
+
+dialog  --title "NETWORK" --checklist "Enable Novell 8137->raw 802.3\
+translation hack in new packet driver." 8 72 1\
+   1 "Novell hack on" off 2> $TEMP
+
+
+check_status
+choice=`cut -c -3 $TEMP`
+
+case $choice in 
+   \"1\") echo  "pktdriver novell_hack" >> $CONFIG;;
+esac
+
+echo "" >> $CONFIG 
+}
 
 select_video() {
 
 echo "## VIDEO ##" >> $CONFIG
 
 # radiolist
-dialog  --title "VIDEO" --checklist "select videomode" 10 30 4\
+dialog  --title "VIDEO" --radiolist "select videomode" 11 30 4\
    1 "vga" on\
    2 "ega" off \
    3 "cga" off \
    4 "mda" off  2> $TEMP
 
+
+check_status
 echo -n "video { " >> $CONFIG
 
-choice=`cut -c -3 $TEMP`
+choice=`cat $TEMP`
 
 case $choice in
-  \"1\") echo -n "vga  " >> $CONFIG;;
-  \"2\") echo -n "ega  " >> $CONFIG;;
-  \"3\") echo -n "cga  " >> $CONFIG;;
-  \"4\") echo -n "mda  " >> $CONFIG;;
+  1) echo -n "vga  " >> $CONFIG;;
+  2) echo -n "ega  " >> $CONFIG;;
+  3) echo -n "cga  " >> $CONFIG;;
+  4) echo -n "mda  " >> $CONFIG;;
 esac
 
 echo -n "console  "  >> $CONFIG
 
 # radiolist
-dialog  --title "VIDEO" --checklist "graphics ?" 9 30 2\
-   1 "graphics on" on \
-   2 "graphics off" off 2> $TEMP
+dialog  --title "VIDEO" --checklist "graphics ?" 8 30 1\
+   1 "graphics on" on 2> $TEMP
 
+
+check_status
 choice=`cut -c -3 $TEMP`
 case $choice in
-  \"1\") echo -n "graphics " >> $CONFIG;;
+   \"1\") echo -n "graphics " >> $CONFIG;;
 esac
 
 # radiolist
-dialog  --title "VIDEO" --checklist "select chipset" 12 30 5\
+dialog  --title "VIDEO" --radiolist "select chipset" 12 30 5\
    1 "standard" on\
    2 "trident" off \
    3 "diamond" off \
    4 "ET4000" off  \
    5 "S3" off 2> $TEMP
 
-choice=`cut -c -3 $TEMP`
+
+check_status
+choice=`cat $TEMP`
 
 case $choice in
-  \"2\") echo -n "chipset trident  " >> $CONFIG;;
-  \"3\") echo -n "chipset diamond  " >> $CONFIG;;
-  \"4\") echo -n "chipset et4000  " >> $CONFIG;;
-  \"5\") echo -n "chipset s3  " >> $CONFIG;;
+  2) echo -n "chipset trident  " >> $CONFIG;;
+  3) echo -n "chipset diamond  " >> $CONFIG;;
+  4) echo -n "chipset et4000  " >> $CONFIG;;
+  5) echo -n "chipset s3  " >> $CONFIG;;
 esac
 
-dialog --title "VIDEO" --inputbox "give videomemory in Kb :" 8 60 2> $TEMP
+dialog --title "VIDEO" --inputbox "give videomemory in Kb :" 8 40 2> $TEMP
+
+check_status
 choice=`cat $TEMP`
 echo -n "memsize $choice" >> $CONFIG
 
 echo " }" >> $CONFIG
 
 # radiolist
-dialog  --title "VIDEO" --checklist "allow videoport access on ?" 10 30 2\
-   1 "access on" on\
-   2 "access off" off 2> $TEMP
+dialog  --title "VIDEO" --checklist "allow videoport access on ?" 8 35 1\
+   1 "port access on" on 2> $TEMP
 
+check_status
 choice=`cut -c -3 $TEMP`
-case $choice in
-  \"1\") echo -n "allowvideoportaccess on " >> $CONFIG;;
-  \"2\") echo -n "allowvideoportaccess off" >> $CONFIG;;
+case $choice in 
+   \"1\") echo  "allowvideoportaccess on " >> $CONFIG;;
 esac
+
+echo "" >> $CONFIG
+
+}
+
+select_floppy() {
+
+echo "## FLOPPY DISKS ##" >> $CONFIG
+
+# radiolist
+dialog  --title "FLOPPY DISKS" --radiolist "                 floppy drive A:\n\
+FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE\n\
+STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!" 12 70 3\
+   1 "three inch" on \
+   2 "five inch" off \
+   3 "no floppy drive" off 2> $TEMP
+
+check_status
+choice=`cat $TEMP`
+
+if [ $choice != "3" ]
+then
+   echo -n "floppy { device /dev/fd0 " >> $CONFIG
+   case $choice in
+     1) echo  "threeinch }" >> $CONFIG;;
+     2) echo  "fiveinch }" >> $CONFIG;;
+   esac
+fi
+
+# radiolist
+dialog  --title "FLOPPY DISKS" --radiolist "                 floppy drive B:\n\
+FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE\n\
+STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!" 12 70 3\
+   1 "three inch" off \
+   2 "five inch" off \
+   3 "no floppy drive" on 2> $TEMP
+
+check_status
+choice=`cat $TEMP`
+if [ $choice != "3" ]
+then
+   echo -n "floppy { device /dev/fd1 " >> $CONFIG
+   case $choice in
+     1) echo  "threeinch }" >> $CONFIG;;
+     2) echo  "fiveinch }" >> $CONFIG;;
+   esac
+fi
+
+dialog  --title "FLOPPY DISKS" --checklist "If floppy disk speed is very \
+important, set this option 'ON'\n\
+However, this makes the floppy drive a bit unstable.  This \n\
+is best used if the floppies are write-protected." 10 70 1\
+   1 "fast access on" off 2> $TEMP
+
+check_status
+choice=`cut -c -3 $TEMP`
+case $choice in 
+   \"1\") echo "FastFloppy on" >> $CONFIG;;
+esac
+
+echo "" >> $CONFIG
+}
+
+
+select_partition() {
+
+dialog --title "HARD DISKS"  --inputbox "which disk ?" 8 40 2> $TEMP
+
+choice=`cat $TEMP`
+echo "$choice" > tmp
+echo -n "partition \"$choice\" " >> $CONFIG
+dialog --title "HARD DISKS"  --inputbox "which partition ?" 8 40 2> $TEMP  
+choice=`cat $TEMP`
+echo -n "$choice "  >> $CONFIG
+
+dialog --title "HARD DISKS" --yesno "readonly ?" 5 50 
+if [ "$?" = "0" ]
+then
+   echo "readonly }" >> $CONFIG
+else
+   echo "}" >> $CONFIG
+fi 
+
+}
+
+select_wholedisk()  {
+
+dialog --title "HARD DISKS"  --inputbox "which disk ?" 8 40 2> $TEMP
+
+choice=`cat $TEMP`
+echo  "wholedisk \"$choice\" }" >> $CONFIG
+
+}
+
+
+select_harddisk() {
+
+echo "## HARD DISK ##" >> $CONFIG
+
+dialog --title "HARD DISKS" --yesno "Do you want to use a DISKIMAGE file ?"\
+ 5 50 
+
+if [ "$?" = "0" ]
+then
+   dialog --title "HARD DISKS" --msgbox "Dream on !!!!!" 5 20
+else
+   echo -n "disk { " >> $CONFIG
+   dialog --title "HARD DISKS" --radiolist "Do you want to use a partion \
+or a whole disk ?"  9 55 2 \
+     1 "partition" on\
+     2 "while disk" off 2> $TEMP
+   check_status
+   choice=`cat $TEMP`
+   case $choice in
+      1) select_partition;;
+      2) select_wholedisk;;
+   esac
+fi
+ 
+echo "" >> $CONFIG
+
+}
+
+
+
+select_printers() {
+
+echo "## PRINTERS ##" >> $CONFIG
+
 
 echo "" >> $CONFIG
 
@@ -383,11 +651,13 @@ select_keyboard
 select_miscallenous2
 select_memory
 select_speaker
-select_mouse
+select_serial
+select_network
 select_video
+select_floppy
+select_printers
+select_harddisk
 
-# not yet possible to select from Configure
-echo "disk { partition "/dev/sda1" 1 }" >> $CONFIG
 
 }
 

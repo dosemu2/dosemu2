@@ -9,6 +9,7 @@
 #include <sys/stat.h>                    /* structure stat       */
 #include <unistd.h>                      /* prototype for stat() */
 #include <stdarg.h>
+#include <pwd.h>
 
 #include "config.h"
 #include "emu.h"
@@ -75,6 +76,7 @@ void start_floppy(void);
 void stop_disk(int token);
 FILE* open_file(char* filename);
 void close_file(FILE* file);
+void parse_dosemu_users();
 
 	/* variables in lexer.l */
 
@@ -1085,6 +1087,42 @@ void close_file(FILE * file)
     }
 }
 
+/* Parse Users for DOSEMU, by Alan Hourihane, alanh@fairlite.demon.co.uk */
+void
+parse_dosemu_users()
+{
+  FILE *volatile fp;
+  struct passwd *pwd;
+  char buf[80];
+  int userok = 0;
+
+  /* Sanity Check, Shouldn't be anyone logged in without a userid */
+  if ((pwd = getpwuid(getuid())) == (struct passwd *)0) {
+    fprintf(stderr, "Illegal User!!!\n");
+    exit(1);
+  }
+
+  if (getuid() != 0) {
+        if (fp = open_file(DOSEMU_USERS_FILE)) {
+                while(fgets(buf, 79, fp) != NULL && !userok) {
+			if (!(strncmp(buf, pwd->pw_name, strlen(buf)-1))) userok = 1;
+                }
+        } else {
+		fprintf(stderr,
+   "Cannot open %s, Please check installation via System Admin.\n",
+				DOSEMU_USERS_FILE);
+		exit(1);
+        }
+        fclose(fp);
+        if (userok == 0) {
+           	fprintf(stderr,
+   "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
+                                pwd->pw_name);
+		exit(1);
+        }
+   } 
+}
+
 int
 parse_config(char *confname)
 {
@@ -1098,35 +1136,34 @@ parse_config(char *confname)
   c_hdisks = 0;
   c_fdisks = 0;
 
-  if (/* !fd && */ !(fd = open_file(CONFIG_FILE))) {
-    die("cannot open standard configuration file!");
-  }
+  /* Parse valid users who can execute DOSEMU */
+  parse_dosemu_users();
 
-  yyin = fd;
-  line_count = 1;
-  if (yyparse())
-    yyerror("error in configuration file");
-  close_file(fd);
+  /* Let's first try the user's own .dosrc */
+  /* If that doesn't exist we will default to CONFIG_FILE */
 
-  if (!exchange_uids()) die("Cannot exchange uids\n");
-  if (confname)
-    fd = open_file(confname);
-  else {
+  { 
     char *home = getenv("HOME");
     char *name = malloc(strlen(home) + 20);
-
     sprintf(name, "%s/.dosrc", home);
-    fd = open_file(name);
-fprintf(stderr, "PARSE:  opening '%s'\n", name);
-    free(name);
-  }
-  if (!exchange_uids()) die("Cannot changeback uids\n");
 
-  if (fd) {
+    if (getuid() != 0) {
+      if (!exchange_uids()) die("Cannot exchange uids\n");
+      if (!exchange_uids()) die("Cannot changeback uids\n");
+    }
+
+    if (!(fd = open_file(name))) {
+         fprintf(stderr, "Cannot open user config file %s, Trying default.\n",name);
+         if (!(fd = open_file(CONFIG_FILE))) {
+           fprintf(stderr, "Cannot open default config file %s, Aborting DOSEMU.\n",CONFIG_FILE);
+           exit(1);
+         }
+    }
+
     yyin = fd;
     line_count = 1;
     if (yyparse())
-      yyerror("error in configuration file");
+      yyerror("error in user's configuration file");
     close_file(fd);
   }
 

@@ -20,11 +20,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/25 00:49:34 $
+ * $Date: 1994/09/11 01:01:23 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.12 $
+ * $Revision: 2.13 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.13  1994/09/11  01:01:23  root
+ * Prep for pre53_19.
+ *
  * Revision 2.12  1994/08/25  00:49:34  root
  * Lutz's STI patches and prep for pre53_16.
  *
@@ -719,7 +722,7 @@ keyboard_init(void)
   child_kbd_flags = 0;
   key_flags = 0;
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.12 1994/08/25 00:49:34 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.13 1994/09/11 01:01:23 root Exp root $\n");
 
   return 0;
 }

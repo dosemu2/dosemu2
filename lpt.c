@@ -1,11 +1,14 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1994/07/04 23:59:23 $
+ * $Date: 1994/09/11 01:01:23 $
  * $Source: /home/src/dosemu0.60/RCS/lpt.c,v $
- * $Revision: 2.2 $
+ * $Revision: 2.3 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 2.3  1994/09/11  01:01:23  root
+ * Prep for pre53_19.
+ *
  * Revision 2.2  1994/07/04  23:59:23  root
  * Prep for Markkk's NCURSES patches.
  *

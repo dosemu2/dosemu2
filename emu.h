@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/25 00:49:34 $
+ * $Date: 1994/09/11 01:01:23 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.13 $
+ * $Revision: 2.14 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.14  1994/09/11  01:01:23  root
+ * Prep for pre53_19.
+ *
  * Revision 2.13  1994/08/25  00:49:34  root
  * prep for pre53_16
  *
@@ -194,6 +197,10 @@
 #include "machcompat.h"
 #include "cpu.h"
 #include <sys/types.h>
+
+#if 0 /* Set to 1 to use Silly Interrupt generator */
+#define SIG 1
+#endif
 
 #define inline __inline__
 

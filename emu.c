@@ -12,12 +12,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/08/25 00:49:34 $
+ * $Date: 1994/09/11 01:01:23 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.21 $
+ * $Revision: 2.22 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.22  1994/09/11  01:01:23  root
+ * Prep for pre53_19.
+ *
  * Revision 2.21  1994/08/25  00:49:34  root
  * Lutz's STI patches and prep for pre53_16.
  *
@@ -1675,15 +1678,15 @@ void
 SIG_init()
 {
   /* Get in touch with my Silly Interupt Driver */
-  if ((SillyG = open("/dev/int/12", O_RDWR)) < 1) {
+  if ((SillyG = open("/dev/int/4", O_RDWR)) < 1) {
     fprintf(stderr, "Not gonna touch INT you requested!\n");
     SillyG = 0;
   }
   else {
     /* Reset interupt incase it went off already */
     write(SillyG, NULL, (int) NULL);
-    fprintf(stderr, "Gonna monitor the INT you requested, Return=0x%02x\n", Sill
-    FD_SET(SillyG, &fds_no_sigio)
+    fprintf(stderr, "Gonna monitor the INT you requested, Return=0x%02x\n", SillyG);
+    FD_SET(SillyG, &fds_no_sigio);
     not_use_sigio++;
   }
 }
@@ -2173,7 +2176,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.21 1994/08/25 00:49:34 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.22 1994/09/11 01:01:23 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -2871,7 +2874,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/08/25 00:49:34 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/09/11 01:01:23 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

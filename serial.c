@@ -13,11 +13,14 @@
  *	ag115@freenet.carleton.ca
  *
  *
- * $Date: 1994/08/14 02:52:04 $
+ * $Date: 1994/09/11 01:01:23 $
  * $Source: /home/src/dosemu0.60/RCS/serial.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  * $Log: serial.c,v $
+ * Revision 2.4  1994/09/11  01:01:23  root
+ * Prep for pre53_19.
+ *
  * Revision 2.3  1994/08/14  02:52:04  root
  * Rain's latest CLEANUP and MOUSE for X additions.
  *
@@ -102,7 +105,7 @@
  *
  * You must recompile everytime this constant is modified.
  */
-#define SUPER_DBG 0
+#define SUPER_DBG 2
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -583,7 +586,7 @@ void
 serial_init(void)
 {
   int i;
-  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.3 1994/08/14 02:52:04 root Exp root $\n");
+  fprintf(stderr, "SERIAL $Header: /home/src/dosemu0.60/RCS/serial.c,v 2.4 1994/09/11 01:01:23 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */
@@ -596,9 +599,9 @@ serial_init(void)
   for (i = 0; i < config.num_ser; i++) {
     com[i].fd = -1;
 #ifdef X_SUPPORT
-    if ((config.usesX && config.console_video ) || !com[i].mouse)   /* skip "mouse" ports in X mode */
+    if ((!config.usesX && config.console_video ) || !com[i].mouse)   /* skip "mouse" ports in X mode */
 #else
-    if ( config.console_video || com[i].mouse) 
+    if ( config.console_video || !com[i].mouse) 
 #endif
       do_ser_init(i);
   }
@@ -1577,7 +1580,8 @@ inline void
 receive_engine(int num)		/* Internal 16550 Receive emulation */ 
 {
   /* Occasional stack overflows occured when "uart_fill" done inside intr */
-  if (!com[num].int_pend) uart_fill(num);
+  if (!com[num].int_pend) 
+    uart_fill(num);
 
   if (com[num].LSR & UART_LSR_DR) {	/* Is data waiting? */
     if (com[num].fifo_enable) {		/* Is it in FIFO mode? */

@@ -1,0 +1,56 @@
+Intructions for Silly Interrupt Generator:
+
+1) Move the generator file int.c into the directory of drivers/char
+    under the Linux root source dir.
+
+2) Modify the mem.c file in the same directory to include the
+   initialization of this driver. The included SIG.gz has a mem.c
+   already updated for a recent 1.1.X kernel, look at the very end of the 
+   file, it's only a one liner and a declaration at the top.
+
+3) Modify the Makefile in the chr_drv directory to include int.o in
+   the OBJS's  and SRCS's listings. Again the included drivers.gz has a
+   1.1.X Makefile already modified.
+
+4) Go into your /dev directory and create a subdirectory called int. Change
+   into this directory and add a node for the interrupt you wish to use.
+   Bare in mind that in the future if you use another interrupt, you'll have
+   to come to /dev/int and add it too. To MaKe this NODe, type:
+   mknod <x> c 19 <x>
+   where <x> is the interrupt number you wish to use. I will add at this time
+   that SIG will not open an interrupt up that is already in use. This will
+   mean that some applications that access their interrupts from boot up
+   like ethernet cards, must not be configured into the kernel. Serial
+   does not suffer this problem, but doesn't work well anyway :-).
+
+5) In your DOSEMU directory of goodies, Uncomment the #define SIG 1 
+   statement to your emu.h file around line 198.
+
+6) Edit emu.c around line 1678, changing the opened file to be that of the
+   device created in step 5 above.
+
+7) Edit your /etc/dosemu/config file to add a port{ccccccc} statement(s) to
+   allow access to all ports used by your device. For example my
+   Accton card needs the following:
+   ports { range 0x300 0x320 }
+   to operate.
+
+8) Make a new Linux kernel, and boot it verifying that you see the line:
+   Silly Interrupt Generator installed
+   go by. At this time I am using MAJOR 19 and honestly don't know if this
+   conflicts with anything. If you get an error saying it can't
+   grab 19, you'll have to edit int.c and change it to a different MAJOR.
+   Of course it may also not be able to install because you err'ed in your
+   mknod command.
+
+10) In your DOSEMU directory, make install a new dos. I would strongly
+    suggest having keybint on, and timmer on. I have noticed that network
+    programs I have tried, use the keybint at least. Also the HogThreshold
+    setting should be 0 to start.
+
+11) Boot your dos, and load up a driver for the interrupt. At this point
+    you ARE on your own, as I have not done much testing of this stage.
+
+Let me know how it goes,
+JES (jmaclean@fox.nstn.ns.ca)
+---

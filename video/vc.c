@@ -21,9 +21,9 @@
  *
  * DANG_BEGIN_CHANGELOG
  *
- * $Date: 1994/08/25 00:52:10 $
+ * $Date: 1994/09/11 01:02:53 $
  * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
- * $Revision: 1.3 $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root

@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/08/14 02:52:04 $
+ * $Date: 1994/09/11 01:01:23 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.5 $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.6  1994/09/11  01:01:23  root
+ * Prep for pre53_19.
+ *
  * Revision 2.5  1994/08/14  02:52:04  root
  * Rain's latest CLEANUP and MOUSE for X additions.
  *
@@ -230,7 +233,6 @@
 
 extern void DOSEMUMouseEvents(void);
 
-/* #define SIG 1 */
 inline void scan_to_buffer(void);
 extern void bios_emm_init(void);
 extern void xms_init(void);
@@ -240,6 +242,9 @@ extern int_count[];
 extern struct config_info config;
 extern int in_readkeyboard, keybint;
 extern int ignore_segv;
+#ifdef SIG
+extern int SillyG;
+#endif
 
 #define PAGE_SIZE	4096
 
@@ -428,6 +433,7 @@ io_select(fd_set fds)
 #ifdef SIG
       if (SillyG)
 	if (FD_ISSET(SillyG, &fds)) {
+	  k_printf("SIG: We have an interrupt\n");
 	  process_interrupt(SillyG);
 	}
 #endif

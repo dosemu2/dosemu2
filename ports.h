@@ -1,12 +1,15 @@
 #define PORTS_H 1
 
-/* 
- * $Date: 1994/08/14 02:52:04 $
+/*
+ * $Date: 1994/09/11 01:01:23 $
  * $Source: /home/src/dosemu0.60/RCS/ports.h,v $
- * $Revision: 2.10 $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: ports.h,v $
+ * Revision 2.11  1994/09/11  01:01:23  root
+ * Prep for pre53_19.
+ *
  * Revision 2.10  1994/08/14  02:52:04  root
  * Rain's latest CLEANUP and MOUSE for X additions.
  *
@@ -88,8 +91,9 @@
    Allow checks via inport 0x64 for available scan codes
 */
 extern u_char keys_ready;
+
 /* int port61 = 0xd0;           the pseudo-8255 device on AT's */
-int port61 = 0x0e;              /* the pseudo-8255 device on AT's */
+int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
 extern int fatalerr;
 struct pit pit;
 extern void set_leds(void);
@@ -118,32 +122,32 @@ inb(int port)
   if (port_readable(port))
     return (read_port(port) & 0xFF);
 
-  if ( config.usesX ){
-    v_printf("HGC Portread: %d\n",(int) port );
-    switch ( port ){
-    case 0x03b8: /* mode-reg */
+  if (config.usesX) {
+    v_printf("HGC Portread: %d\n", (int) port);
+    switch (port) {
+    case 0x03b8:		/* mode-reg */
       set_ioperm(port, 1, 1);
       r = port_in(port);
       set_ioperm(port, 1, 0);
-      r = ( r & 0x7f ) | ( hgc_Mode & 0x80 );
+      r = (r & 0x7f) | (hgc_Mode & 0x80);
       break;
-    case 0x03ba: /* status-reg */
-      set_ioperm(port, 1, 1);
-      r = port_in(port);
-      set_ioperm(port, 1, 0);
-      break;
-    case 0x03bf: /* conf-reg */
-      set_ioperm(port, 1, 1);
-      r = port_in(port);
-      set_ioperm(port, 1, 0);
-      r = ( r & 0xfd ) | ( hgc_Konv & 0x02 );
-      break;
-    case 0x03b4: /* adr-reg */
+    case 0x03ba:		/* status-reg */
       set_ioperm(port, 1, 1);
       r = port_in(port);
       set_ioperm(port, 1, 0);
       break;
-    case 0x03b5: /* data-reg */
+    case 0x03bf:		/* conf-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      r = (r & 0xfd) | (hgc_Konv & 0x02);
+      break;
+    case 0x03b4:		/* adr-reg */
+      set_ioperm(port, 1, 1);
+      r = port_in(port);
+      set_ioperm(port, 1, 0);
+      break;
+    case 0x03b5:		/* data-reg */
       set_ioperm(port, 1, 1);
       r = port_in(port);
       set_ioperm(port, 1, 0);
@@ -155,9 +159,9 @@ inb(int port)
 #if 1
   if (config.chipset && port > 0x3b3 && port < 0x3df && config.mapped_bios)
     return (video_port_in(port));
-  if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00))
-  {
+  if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
     int _v;
+
     iopl(3);
     _v = port_in(port) & 0xff;
     iopl(0);
@@ -175,7 +179,7 @@ inb(int port)
       return microsoft_port_check;
     else
       return *LASTSCAN_ADD;
-    
+
   case 0x61:
     k_printf("inb [0x61] =  0x%02x (8255 chip)\n", port61);
     return port61;
@@ -221,7 +225,8 @@ inb(int port)
   default:
     /* SERIAL PORT I/O.  The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++)
-      if ((port & ~7) == com[tmp].base_port) return (do_serial_in(tmp, port));
+      if ((port & ~7) == com[tmp].base_port)
+	return (do_serial_in(tmp, port));
 
     /* The diamond bug */
     if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
@@ -240,9 +245,9 @@ inb(int port)
 inline int
 inw(int port)
 {
-  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00))
-  {
+  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
     int value;
+
     iopl(3);
     value = port_in_w(port) & 0xffff;
     iopl(0);
@@ -251,7 +256,6 @@ inw(int port)
   }
   return ((inb(port + 1) << 8) + inb(port));
 }
-
 
 inline void
 outb(int port, int byte)
@@ -269,7 +273,7 @@ outb(int port, int byte)
   }
 
   /* Port writes for enable/disable blinking character mode */
-  if ( port == 0x03C0 ) {
+  if (port == 0x03C0) {
     static int last_byte = -1;
     static int last_index = -1;
     static int flip_flop = 1;
@@ -277,7 +281,7 @@ outb(int port, int byte)
     flip_flop = !flip_flop;
     if (flip_flop) {
       if (last_index = 0x10)
-        char_blink = (byte & 8) ? 1 : 0;
+	char_blink = (byte & 8) ? 1 : 0;
       last_byte = byte;
     }
     else {
@@ -287,90 +291,86 @@ outb(int port, int byte)
   }
 
   /* Port writes for cursor position */
-  if ( (port & 0xfffe) == bios_video_port )
-    {
-      /* Writing to the 6845 */
-      static int last_port;
-      static int last_byte;
-      static int hi = 0, lo = 0;
-      int pos;
-      v_printf("Video Port outb [0x%04x]\n", port);
-      if ( ! config.usesX ){
-      if ( (port == bios_video_port+1) && (last_port == bios_video_port) )
-	{
-	  /* We only take care of cursor positioning for now. */
-	  /* This code should work most of the time, but can
+  if ((port & 0xfffe) == bios_video_port) {
+    /* Writing to the 6845 */
+    static int last_port;
+    static int last_byte;
+    static int hi = 0, lo = 0;
+    int pos;
+
+    v_printf("Video Port outb [0x%04x]\n", port);
+    if (!config.usesX) {
+      if ((port == bios_video_port + 1) && (last_port == bios_video_port)) {
+	/* We only take care of cursor positioning for now. */
+	/* This code should work most of the time, but can
 	     be defeated if i/o permissions change (e.g. by a vt
 	     switch) while a new cursor location is being written
 	     to the 6845. */
-	  if ( last_byte == 14 )
-	    {
-	      hi = (unsigned char)byte;
-	      pos = (hi << 8) | lo;
-	      cursor_col = pos%80;
-	      cursor_row = pos/80;
-       if ( config.usesX )
-  poshgacur(cursor_col,
-     cursor_row);
-	    }
-	  else if ( last_byte == 15 )
-	    {
-	      lo = (unsigned char)byte;
-	      pos = (hi << 8) | lo;
-	      cursor_col = pos%80;
-	      cursor_row = pos/80;
-       if ( config.usesX )
-  poshgacur(cursor_col,
-     cursor_row);
-	    }
+	if (last_byte == 14) {
+	  hi = (unsigned char) byte;
+	  pos = (hi << 8) | lo;
+	  cursor_col = pos % 80;
+	  cursor_row = pos / 80;
+	  if (config.usesX)
+	    poshgacur(cursor_col,
+		      cursor_row);
 	}
-      last_port = port; 
-      last_byte = byte;
+	else if (last_byte == 15) {
+	  lo = (unsigned char) byte;
+	  pos = (hi << 8) | lo;
+	  cursor_col = pos % 80;
+	  cursor_row = pos / 80;
+	  if (config.usesX)
+	    poshgacur(cursor_col,
+		      cursor_row);
+	}
       }
-      else {
- set_ioperm(port, 1, 1);
- port_out(byte , port);
- set_ioperm(port, 1, 0);
+      last_port = port;
+      last_byte = byte;
+    }
+    else {
+      set_ioperm(port, 1, 1);
+      port_out(byte, port);
+      set_ioperm(port, 1, 0);
+    }
+    return;
+  }
+  else {
+    if (config.usesX) {
+      v_printf("HGC Portwrite: %d %d\n", (int) port, (int) byte);
+      switch (port) {
+      case 0x03b8:		/* mode-reg */
+	if (byte & 0x80)
+	  set_hgc_page(1);
+	else
+	  set_hgc_page(0);
+	set_ioperm(port, 1, 1);
+	port_out(byte & 0x7f, port);
+	set_ioperm(port, 1, 0);
+	break;
+      case 0x03ba:		/* status-reg */
+	set_ioperm(port, 1, 1);
+	port_out(byte, port);
+	set_ioperm(port, 1, 0);
+	break;
+      case 0x03bf:		/* conf-reg */
+	if (byte & 0x02)
+	  map_hgc_page(1);
+	else
+	  map_hgc_page(0);
+	set_ioperm(port, 1, 1);
+	port_out(byte & 0xFD, port);
+	set_ioperm(port, 1, 0);
+	break;
       }
       return;
     }
-  else {
-    if ( config.usesX ){
-      v_printf("HGC Portwrite: %d %d\n",(int) port, (int )byte );
-      switch ( port ){
-      case 0x03b8: /* mode-reg */
- if ( byte & 0x80 )
-   set_hgc_page( 1 );
- else
-   set_hgc_page( 0 );
- set_ioperm(port, 1, 1);
- port_out(byte & 0x7f, port);
- set_ioperm(port, 1, 0);
- break;
-      case 0x03ba: /* status-reg */
- set_ioperm(port, 1, 1);
- port_out(byte, port);
- set_ioperm(port, 1, 0);
- break;
-      case 0x03bf: /* conf-reg */
- if ( byte & 0x02 )
-   map_hgc_page( 1 );
- else
-   map_hgc_page( 0 );
- set_ioperm(port, 1, 1);
- port_out(byte & 0xFD, port);
- set_ioperm(port, 1, 0);
- break;
-      }
-    }
-    return;
   }
 
 #if 1
   if (port > 0x3b3 && port < 0x3df && config.chipset && config.mapped_bios)
     video_port_out(byte, port);
-  if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00))
-  {
+  if ((config.chipset == S3) && ((port & 0x03fe) == s3_8514_base) && (port & 0xfc00)) {
     iopl(3);
     port_out(byte, port);
     iopl(0);
@@ -392,11 +392,11 @@ outb(int port, int byte)
   case 0x20:
   case 0x21:
     k_printf("OUTB 0x%x to byte=%x\n", port, byte);
-#if 0 /* 94/04/30 */
+#if 0				/* 94/04/30 */
     REG(eflags) |= VIF;
 #endif
-#if 1 /* 94/05/11 */
-    *OUTB_ADD=1;
+#if 1				/* 94/05/11 */
+    *OUTB_ADD = 1;
 #endif
     if (port == 0x20 && byte != 0x20)
       set_leds();
@@ -455,9 +455,9 @@ outb(int port, int byte)
     /* The base serial port must be a multiple of 8. */
     for (tmp = 0; tmp < config.num_ser; tmp++) {
       if ((port & ~7) == com[tmp].base_port) {
-        do_serial_out(tmp, port, byte);
-        lastport = port;
-        return;
+	do_serial_out(tmp, port, byte);
+	lastport = port;
+	return;
       }
     }
     i_printf("outb [0x%x] 0x%02x\n", port, byte);
@@ -468,8 +468,7 @@ outb(int port, int byte)
 inline void
 outw(int port, int value)
 {
-  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00))
-  {
+  if ((config.chipset == S3) && ((port & 0x03ff) == s3_8514_base) && (port & 0xfc00)) {
     iopl(3);
     port_out_w(value, port);
     iopl(0);

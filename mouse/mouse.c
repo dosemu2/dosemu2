@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/08/25 00:52:24 $
+ * $Date: 1994/09/11 01:03:30 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.10 $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.11  1994/09/11  01:03:30  root
+ * Prep for pre53_19.
+ *
  * Revision 2.10  1994/08/25  00:52:24  root
  * Prep for pre53_16.
  *
@@ -490,9 +493,7 @@ mouse_set_gcur(void)
 {
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
-#if 0
   gfx_cursor = TRUE;
-#endif
 }
 
 void 
@@ -500,9 +501,7 @@ mouse_set_tcur(void)
 {
   m_printf("MOUSE: set text cursor...type: %d, start: 0x%04x, end: 0x%04x\n",
 	   LWORD(ebx), LWORD(ecx), LWORD(edx));
-#if 0
   gfx_cursor = FALSE;
-#endif
   if (LWORD(ebx)==0) {
 	  mousetextscreen = LWORD(ecx);
 	  mousetextcursor = LWORD(edx);
@@ -752,10 +751,10 @@ mouse_do_cur(void)
     for (i = 0; i < HEIGHT; i++)
       graph_mem[mouse.x / 8 +((mouse.y + i - 4) * 80)] = (long)mousecursormask[i];
 
-  } else if (!config.X) {
+  } else {
     unsigned short *p = SCREEN_ADR(bios_current_screen_page);
 
-#if 0 /* Replaced 94/08/31 */
+#if 1 /* Replaced 94/08/31  put back 94/09/11 */
     p[mouse.hidx + mouse.hidy * 80] = mouse.hidchar;
 #else
    if ( ( p[mouse.hidx + mouse.hidy * 80] ) ==
@@ -785,6 +784,7 @@ mouse_curtick(void)
     return;
 
   m_printf("MOUSE: curtick x: %d  y:%d\n", mouse.cx, mouse.cy);
+  if (!config.X)
   mouse_do_cur();
 }
 
@@ -818,9 +818,18 @@ mouse_init(void)
     if (mice->intdrv) {
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
       if (mice->fd == -1) {
- mice->intdrv = FALSE;
- mice->type = MOUSE_NONE;
- return;
+ 	mice->intdrv = FALSE;
+ 	mice->type = MOUSE_NONE;
+ 	return;
+      }
+      if (use_sigio) {
+        old_mice_flags = fcntl(mice->fd, F_GETFL);
+        fcntl(mice->fd, F_SETOWN,  getpid());
+        fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
+        FD_SET(mice->fd, &fds_sigio);
+      } else  {
+        FD_SET(mice->fd, &fds_no_sigio);
+        not_use_sigio++;
       }
       DOSEMUSetupMouse();
       return;
@@ -828,12 +837,21 @@ mouse_init(void)
 
     if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
+      if (use_sigio) {
+        old_mice_flags = fcntl(mice->fd, F_GETFL);
+        fcntl(mice->fd, F_SETOWN,  getpid());
+        fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
+        FD_SET(mice->fd, &fds_sigio);
+      } else  {
+        FD_SET(mice->fd, &fds_no_sigio);
+        not_use_sigio++;
+      }
     }
     else {
       sptr = &com[config.num_ser];
       if (!(sptr->mouse)) {
- m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
- mice->intdrv = FALSE;
+ 	m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
+ 	mice->intdrv = FALSE;
       }
     }
   }
@@ -857,25 +875,6 @@ mouse_init(void)
     return;
   }
 
-  if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE)) {
-    mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK)); 
-    if (use_sigio) {
-      old_mice_flags = fcntl(mice->fd, F_GETFL);
-      fcntl(mice->fd, F_SETOWN,  getpid());
-      fcntl(mice->fd, F_SETFL, old_mice_flags | use_sigio);
-      FD_SET(mice->fd, &fds_sigio);
-    } else  {
-      FD_SET(mice->fd, &fds_no_sigio);
-      not_use_sigio++;
-    }
-  }
-  else {
-    sptr = &com[config.num_ser];
-    if (!(sptr->mouse)) {
-      m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
-      mice->intdrv = FALSE;
-    }
-  }
 }
 
 void

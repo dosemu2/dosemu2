@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/08/25 00:49:34 $
+# $Date: 1994/09/11 01:01:23 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.26 $
+# $Revision: 2.27 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
@@ -22,6 +22,7 @@ X2_SUPPORT = 1
 
 #Change the following line if the right kernel includes reside elsewhere
 LINUX_INCLUDE = /usr/src/linux/include
+X11LIBDIR = /usr/X386/lib
 
 #Change the following line to point to your ncurses include
 NCURSES_INC = /usr/include/ncurses
@@ -31,7 +32,7 @@ ifdef X_SUPPORT
 XCFILES = Xkeyb.c
 XOBJS   = Xkeyb.o
 #the -u forces the X11 shared library to be linked into ./dos
-XLIBS   = -L/usr/X386/lib -lX11 -u _XOpenDisplay
+XLIBS   = -L$(X11LIBDIR) -lX11 -u _XOpenDisplay
 XDEFS   = -DX_SUPPORT
 endif
 ifdef X2_SUPPORT
@@ -62,7 +63,7 @@ DOSLNK=
 # dosemu version
 EMUVER  =   0.53
 VERNUM  =   0x53
-PATCHL  =   18
+PATCHL  =   19
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -81,6 +82,7 @@ DPMIOBJS = dpmi/dpmi.o dpmi/call.o
 #SYNC_ALOT = -DSYNC_ALOT=1
 
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu.conf\"
+DOSEMU_USERS_FILE = -DDOSEMU_USERS_FILE=\"/etc/dosemu.users\"
 
 ###################################################################
 
@@ -100,7 +102,7 @@ CLIENTSSUB=clients
 
 SUBDIRS= periph video mouse include boot commands drivers \
 	$(DPMISUB) $(CLIENTSSUB) timer init net $(IPX) kernel \
-	examples
+	examples sig
 
 DOCS= doc
 
@@ -136,7 +138,7 @@ OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o \
      serial.o dyndeb.o sigsegv.o video.o bios.o init.o net.o detach.o $(XOBJS)
 
 OPTIONAL   = # -DDANGEROUS_CMOS=1
-CONFIGS    = $(CONFIG_FILE)
+CONFIGS    = $(CONFIG_FILE) $(DOSEMU_USERS_FILE)
 DEBUG      = $(SYNC_ALOT)
 CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
 	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
@@ -232,7 +234,7 @@ dos:	dos.c $(DOSOBJS)
 x2dos: x2dos.c
 	@echo "Including x2dos.o "
 	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) \
-	  -o $@ $< -lXaw -lXt -lX11
+	  -o $@ $< -L$(X11LIBDIR) -lXaw -lXt -lX11
 
 libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
 	ld $(LDFLAGS) $(MAGIC) -Ttext $(LIBSTART) -o $@ \

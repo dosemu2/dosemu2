@@ -1,5 +1,5 @@
 /* Modified for DOSEMU's internal mouse driver support
- * by Alan Hourihane (alanh@metro.co.uk, alanh@sound.demon.co.uk)
+ * by Alan Hourihane (alanh@fairlite.demon.co.uk)
  * (29/4/94)
  */
 

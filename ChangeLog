@@ -1,3 +1,57 @@
+Sat Sep 10 1994 Jmaclean
+
+-	Added new dialog script from Jan Vandenburge.
+
+-	Fixed internal Mouse driver not setting up for new SIGIO calls. 
+	Thanks to Alan for providing a fix... But  I  did  it ...
+	my  way  :-). Hope you don't mind Alan.
+
+-	Fixed SERIAL not working. Martin's code was returning in
+	outb before anything was done :-(.
+
+-	And now a little from Alan...:
+
+Hi James..
+
+	Not my usual stuff but I had to fix it.
+
+	The parser seemed to be screwed up for me, in that it parsed two
+files, both the local .dosrc and the /etc/dosemu.conf, this resulted in
+the first linux drive becoming f:. All because the system though I had two
+hard disks and one floppy image due to the parsing twice of the configs.
+
+	Anyway attached is a fix so that it parses the local .dosrc first...
+If it doesn't find one it takes the /etc/dosemu.conf.
+
+	Secondly, I've implemented an /etc/dosemu.users file, similar to
+minicom's way of working. This allows only selected users to execute dosemu.
+Create the /etc/dosemu.users file with, on each line, the name of the user
+allowed to execute DOSEMU.
+	This approach could be later expanded to specifying devices in the
+dosemu.users file, so that only selected users are able to open specific
+devices.
+	Thirdly, I had to fix up the Makefile a little for ease of use.
+Notice I've defined an X11LIBDIR now too.
+
+Cheers.
+
+Alan.
+
+-	Also:
+
+James,
+	For some reason the gfx_cursor for the mouse was commented out.
+I checked the docs and someone commented it out because it was crashing the X
+stuff. Well, This fix should get rid of that. As it only call mouse_do_cur()
+if we are not running X. Before it was trying to mmap even when X was running.
+Bad idea .....
+
+Tue Sep 06 1994 Jmaclean
+
+-	Added sig subdir with Silly Interrupt Generator in toe. Did
+	some preliminary testing with SIG to get it working with
+	1.1.x kernels.
+
 Mon Sep 05 1994 Jmaclean
 
 -	From Rain:
