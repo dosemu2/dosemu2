@@ -1310,8 +1310,6 @@ static int int21(void)
       char cmdname[256];
       char *str = SEG_ADR((char*), ds, dx);
 
-      dos_post_boot();
-
 #if WINDOWS_HACKS
       if ((ptr = strstr(str, "\\system\\dosx.exe")) ||
 	  (ptr = strstr(str, "\\system\\win386.exe"))) {
@@ -1770,7 +1768,6 @@ static void dos_post_boot(void)
 
 /* KEYBOARD BUSY LOOP */
 static int int28(void) {
-  dos_post_boot();
   idle(0, 50, 0, INT28_IDLE_USECS, "int28");
   return 0;
 }
@@ -1812,6 +1809,9 @@ static int int2f(void)
       struct MCB *mcb;
       int len;
       char *ptr, *tmp_ptr;
+
+      dos_post_boot();
+
       if (!Video->change_config)
         break;
       if (!sda)
