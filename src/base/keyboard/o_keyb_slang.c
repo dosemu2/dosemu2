@@ -12,6 +12,10 @@
 #include "keyb_clients.h"
 #include "keyboard.h"
 
+#ifndef VOID
+#  define VOID void
+#endif
+
 #define KBBUF_SIZE 80
 
 static int kbcount = 0;

@@ -202,12 +202,10 @@ int log_printf(int flg, const char *fmt, ...)
 	return ret;
 }
 
-void error(const char *fmt, ...)
+void verror(const char *fmt, va_list args) 
 {
-	va_list args;
 	char fmtbuf[1025];
 
-	va_start(args, fmt);
 	if (fmt[0] == '@') {
 		vlog_printf(10, fmt+1, args);
 		vfprintf(stderr, fmt+1, args);
@@ -217,6 +215,14 @@ void error(const char *fmt, ...)
 		vlog_printf(10, fmtbuf, args);
 		vfprintf(stderr, fmtbuf, args);
 	}
+	
+}
+
+void error(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	verror(fmt, args);
 	va_end(args);
 }
 

@@ -1763,6 +1763,13 @@ void do_int(int i)
   }
 #else /* USE_NEW_INT */
  	unsigned long magic_address;
+	if (in_dpmi) {
+		if (dpmi_eflags & IF) {
+			set_IF();
+		} else {
+			clear_IF();
+		}
+	}
 	
  	if ((d.defint > 2) && (((i != 0x28) && (i != 0x2f)) || in_dpmi)) {
  		di_printf("Do INT0x%02x eax=0x%08x ebx=0x%08x ss=0x%08x esp=0x%08x\n"

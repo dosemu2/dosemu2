@@ -85,7 +85,8 @@ int paste_text(const char *text, int len) {
    return 1;
 }
 
-static void paste_run() {
+static void paste_run() 
+{
    uchar ch;
    int count=0;
    t_keysym keysym;
@@ -112,7 +113,7 @@ static void paste_run() {
 
 	 shift=0;
 	 if (shift) presskey(KEY_L_SHIFT, 0);
-         presskey(keysym, paste_buffer[paste_idx]);
+         presskey(keysym, ch);
 	 releasekey(keysym);
 	 if (shift) releasekey(KEY_L_SHIFT);
 

@@ -80,12 +80,20 @@ static int Use_IBM_Codes = 0;
 static int Rows = 25;
 static int Columns = 80;
 
+#if SLANG_VERSION < 10000
 static void sl_exit_error (char *err)
 {
    error("%s\n", err);
    leavedos (32);
 }
-
+#else
+#include <stdarg.h>
+static void sl_exit_error (char *fmt, va_list args)
+{
+   verror (fmt, args);
+   leavedos (32);
+}
+#endif
 
 void get_screen_size (void)
 {
@@ -212,9 +220,16 @@ terminal_initialize()
    
    if (is_color) Attribute_Map = Color_Attribute_Map;
    else Attribute_Map = BW_Attribute_Map;
-     
+
+#if SLANG_VERSION < 10000
    if (!SLsmg_init_smg ())
-     sl_exit_error ("Unable to initialze SMG routines.");
+#else
+   if (SLsmg_init_smg() == -1) 
+#endif
+     {
+       error ("Unable to initialze SMG routines.");
+       leavedos(32);
+     }
    
    for (attr = 0; attr < 256; attr++)
      {

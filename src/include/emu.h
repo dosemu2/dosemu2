@@ -454,14 +454,20 @@ EXTERN void sigio(int, int, struct sigcontext *);
  * description:
  *  All signals that wish to be handled properly in context with the
  * execution of vm86() mode, and signals that wish to use non-reentrant
- * functions should add themselves to the SIGNALS_THAT_QUEUE define and
- * use SETQSIG(). To that end they will also need to be set up in an
+ * functions should add themselves to the ADDSET_SIGNALS_THAT_QUEUE define
+ * and use SETQSIG(). To that end they will also need to be set up in an
  * order such as SIGIO.
  *
  * DANG_END_FUNCTION
  *
  */
-#define SIGNALS_THAT_QUEUE SIGIO|SIGALRM|SIG_RELEASE|SIG_ACQUIRE
+#define ADDSET_SIGNALS_THAT_QUEUE(x) \
+do { \
+       sigaddset(x, SIGIO); \
+       sigaddset(x, SIG_TIME); \
+       sigaddset(x, SIG_RELEASE); \
+       sigaddset(x, SIG_ACQUIRE); \
+} while(0)
 
 #ifdef __NetBSD__
 #define SignalHandler sig_t
@@ -470,7 +476,7 @@ EXTERN void sigio(int, int, struct sigcontext *);
 #define NEWSETQSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
 					sa.sa_flags = SA_RESTART|SA_ONSTACK ; \
 					sigemptyset(&sa.sa_mask); \
-					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
+					ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
 					sigaction(sig, &sa, NULL);
 
 #define SETSIG(sig, fun)	sa.sa_handler = (__sighandler_t)fun; \
@@ -497,7 +503,7 @@ EXTERN void sigio(int, int, struct sigcontext *);
 			(void (*)()) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
 					sa.sa_flags = SA_RESTART ; \
 					sigemptyset(&sa.sa_mask); \
-					sigaddset(&sa.sa_mask, SIGNALS_THAT_QUEUE); \
+					ADDSET_SIGNALS_THAT_QUEUE(&sa.sa_mask); \
 					dosemu_sigaction(sig, &sa, NULL);
 
 #define SETSIG(sig, fun)	sa.sa_handler = (SignalHandler)fun; \

@@ -327,159 +327,6 @@ CISH(bios_f000_bootdrive):
 
 
 /* ----------------------------------------------------------------- */
-
-	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF
-/* ======================= Addr = F800:3000 (FB000) */
-
-	.globl	CISH(INT16_dummy_start)
-CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
-	push	dx		/* dx needed for extended calls */
-	push    ds			/* save ds and bx               */
-	push    bx		/* next 2 lines set ds to bios data seg	*/
-    mov     bx,#BIOS_DATA
-	mov	ds,bx
-	mov dl,#0x00        /* clear mask for extended calls */
-
-	cmp	ah,#0
-	je	INT16_0			/* read key */
-	cmp	ah,#1
-	je	INT16_1			/* check key available */
-	cmp	ah,#2
-	je	INT16_2			/* get shift flags */
-#if 0
-	cmp	ah,#3
-	je	INT16_3			/* set typematic rate */
-	cmp	ah,#4
-	je	INT16_4			/* adjust keyclick */
-#endif
-	cmp	ah,#5
-	je	INT16_5X		/* store key in buffer */
-	not	dl				/* set mask for extended calls */
-	cmp	ah,#0x10
-	je	INT16_10		/* read key extended */
-	cmp	ah,#0x11
-	je	INT16_11		/* check key extended */
-	cmp	ah,#0x12
-	je	INT16_12		/* get shift flags extended */
-
-INT16_ex:
-	pop     bx			/* do nothing and return	*/
-	pop     ds
-	pop	dx
-	iret   
-INT16_5X:
-	jmp INT16_5
-
-INT16_0_idle:
-	sti
-	push	ax			/* buffer empty - 		*/
-	mov     ax,#0x1680		/* magic machine idle function  */
-	int     0x2f
-	pop	ax
-
-INT16_0:				/* 0 => read keyboard */
-INT16_10:				/* 0x10 => extended read        */
-	cli				/* READ KEYBOARD		*/
-	mov	bx,[KEYBUF_READ_PTR]    /* get address of next char	*/
-	cmp	bx,[KEYBUF_WRITE_PTR]	/* is buffer empty?		*/
-	je      INT16_0_idle		/* jump if not empty		*/
-INT16_0_a:
-	mov	ax,[bx]			/* get last key	*/
-	call	do_extended /* for non-extend calls remove 0xE0 from AL */
-	inc     bx			/* advance buffer pointer 2 bytes*/
-	inc     bx
- 	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
-	jne	INT16_0_nowrap		/* no wrap - go return to caller*/
-	mov	bx,[KEYBUFFER_START]	/* wrap - get buffer start	*/
-INT16_0_nowrap:
-	mov     [KEYBUF_READ_PTR],bx	/* save it as new pointer	*/
-	sti
-	jmp	INT16_ex		/* return to caller		*/
-
-INT16_1:				/* 0x01 => check for key        */
-INT16_11:				/* 0x11 => extended check       */
-	cli
-	mov	bx,[KEYBUF_READ_PTR]	/* get address of next char	*/
-	cmp	bx,[KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
-	mov	ax,[bx]        		/* put char into ax             */ 
-	sti
- 	je	INT16_1_a		/* buffer empty			*/
-	call 	do_extended		/* differences for extended calls */
-INT16_1_a:
-	pop     bx
-	pop     ds
-	pop		dx
-	retf    #2		/* can't do iret, it would change flags	*/
-
-INT16_2:				/* RETURN SHIFT FLAG STATUS     */
-INT16_12:
-	mov	ax,[KEYSHIFT_FLAGS]	/* get shift flags (ah=extended)*/
-	and		ah,#0x7f	/* clear insert status */
-	test	ah,#0x04	/* test sys_request status */
-	jz	NO_SYS_REQ		/* sys_request not set
-	or		ah,#0x80	/* set sys_request status */
-NO_SYS_REQ:
-	and     ah,#0xf3		/* disallow bits 2 & 3		*/
-	mov	bh,[KEYBOARD_STATUS_3]	/* bits 2 & 3 come from here	*/
-	and     bh,#0xc			/* isolate those bits		*/
-	or      ah,bh			/* merge them with flags in ax	*/
-	jmp	INT16_ex		/* return to caller		*/
-
-do_extended:				/* remove 0xE0 from AL for nonextended calls */
-	pushf				/* save Flags for CALL with AX = 1 or 11 */
-	or	dl,dl			/* don't do specials, if extended call */
-	jnz	DONT_MASK
-	cmp	ax,#0xe02f		/* keypad-slash scancode? */
-	jne	NO_SLASH
-	mov	ah,#0x35		/* transform to normal slash */
-NO_SLASH:
-	cmp	al,#0xe0		/* is character 0xE0 ? */
-	jne	DONT_MASK		/* no, done */
-	and	al,dl			/* yes, mask with 0x00 */
-DONT_MASK:
-	popf
-	ret
-
-INT16_5:				/* STORE KEY INTO BUFFER	*/
-	mov	ax,cx
-	cli
-	call	store_key
-	sti
-	jc	INT16_5_full
-	mov	al,#0			/* return al=0 (success)	*/
-	JMPL	(INT16_ex)
-INT16_5_full:
-	mov	al,#1			/* return al=1 (buffer full)	*/
- 	JMPL	(INT16_ex)
-
-
-/* SUBROUTINE: store keycode in AX in the BIOS keyboard buffer, 
- * return CF=1 if buffer is full.
- */
-store_key:
-	mov	bx,[KEYBUF_WRITE_PTR]
-	inc	bx
-	inc	bx
-	cmp	bx,[KEYBUFFER_END]
-	jne	no_wrap
-	mov	bx,[KEYBUFFER_START]
-no_wrap:
-	cmp	bx,[KEYBUF_READ_PTR]
-	stc
-	je	keybuffer_full
-	xchg	bx,[KEYBUF_WRITE_PTR]	/* ok, update write pointer	*/
-	mov	[bx],ax			/* and store key in buffer	*/
-	clc
-keybuffer_full:
-	ret
-
-
-	.globl  CISH(INT16_dummy_end)
-CISH(INT16_dummy_end):
-
-
-
-/* ----------------------------------------------------------------- */
 	.org	((IPX_SEG - BIOSSEG) << 4) + IPX_OFF
 /* ======================= Addr = F800:3100 (FB100) */
 ipx_handler:
@@ -526,6 +373,224 @@ CISH(bios_IPX_PopRegistersIRet):
 	pop	ax
 	iret
 
+
+/* ----------------------------------------------------------------- */
+
+	.org	((INT16_SEG-BIOSSEG) << 4)+INT16_OFF
+/* ======================= Addr = F800:3500 (FB000) */
+
+	.globl	CISH(INT16_dummy_start)
+CISH(INT16_dummy_start):			/* KEYBOARD BIOS ROUTINE        */
+	push	dx		/* dx needed for extended calls */
+	push    ds			/* save ds and bx               */
+	push    bx		/* next 2 lines set ds to bios data seg	*/
+    mov     bx,#BIOS_DATA
+	mov	ds,bx
+	mov dl,#0x00        /* clear mask for extended calls */
+
+	cmp	ah,#0
+	je	INT16_0			/* read key */
+	cmp	ah,#1
+	je	INT16_1			/* check key available */
+	cmp	ah,#2
+	je	INT16_2			/* get shift flags */
+#if 0
+	cmp	ah,#3
+	je	INT16_3			/* set typematic rate */
+	cmp	ah,#4
+	je	INT16_4			/* adjust keyclick */
+#endif
+	cmp	ah,#5
+	je	INT16_5			/* store key in buffer */
+	not	dl				/* set mask for extended calls */
+	cmp	ah,#0x10
+	je	INT16_10		/* read key extended */
+	cmp	ah,#0x11
+	je	INT16_11		/* check key extended */
+	cmp	ah,#0x12
+	je	INT16_12		/* get shift flags extended */
+
+INT16_ex:
+	pop     bx			/* do nothing and return	*/
+	pop     ds
+	pop	dx
+	iret   
+
+INT16_0_idle:
+	sti
+	push	ax			/* buffer empty - 		*/
+	mov     ax,#0x1680		/* magic machine idle function  */
+	int     0x2f
+	pop	ax
+
+INT16_0:				/* 0 => read keyboard */
+INT16_10:				/* 0x10 => extended read        */
+	cli				/* READ KEYBOARD		*/
+	call get_key			/* get last key */
+	je      INT16_0_idle		/* jump if empty		*/
+	inc     bx			/* advance buffer pointer 2 bytes*/
+	inc     bx
+ 	cmp	bx,[KEYBUFFER_END]	/* check for wrap around        */
+	jne	INT16_0_nowrap		/* no wrap - go return to caller*/
+	mov	bx,[KEYBUFFER_START]	/* wrap - get buffer start	*/
+INT16_0_nowrap:
+	mov     [KEYBUF_READ_PTR],bx	/* save it as new pointer	*/
+	sti
+	jmp	INT16_ex		/* return to caller		*/
+
+INT16_1:				/* 0x01 => check for key        */
+INT16_11:				/* 0x11 => extended check       */
+	cli
+	call	get_key			/* READ KEYBOARD		*/
+	sti
+	pop     bx			/* return to caller		*/
+	pop     ds
+	pop	dx
+	retf    #2		/* can't do iret, it would change flags	*/
+
+INT16_2:				/* RETURN SHIFT FLAG STATUS     */
+INT16_12:
+	mov	ax,[KEYSHIFT_FLAGS]	/* get shift flags (ah=extended)*/
+	mov	bl,ah			/* get a copy to play with	*/
+	and	ah,#0x73		/* disallow bits 2, 3, & 7 	*/
+	and	bl,#0x04		/* clear everything but sysreq  */
+	shl	bl,5			/* move it to the correct bit   */
+	or	ah,bl			/* set sysreq			*/
+	mov	bh,[KEYBOARD_STATUS_3]	/* bits 2 & 3 come from here	*/
+	and     bh,#0xc			/* isolate those bits		*/
+	or      ah,bh			/* merge them with flags in ax	*/
+	jmp	INT16_ex		/* return to caller		*/
+
+INT16_5:				/* STORE KEY INTO BUFFER	*/
+	mov	ax,cx
+	cli
+	call	store_key
+	sti
+	jc	INT16_5_full
+	mov	al,#0			/* return al=0 (success)	*/
+	jmp	INT16_ex
+INT16_5_full:
+	mov	al,#1			/* return al=1 (buffer full)	*/
+ 	jmp	INT16_ex
+
+/* SUBROUTINE:	Get a key from the buffer if there is one.
+ * Translate that key if we aren't an extended key service.
+ * on call:	dl = 0 nonextended, dl=0xFF extended
+ *		Assumes interrups are disabeld
+ * on return:	zf=set no key, zf=clear key
+ *              key in ax, bx trashed, flags trashed, dh trashed
+ *		bx current value of KEYBUF_READ_PTR
+ *		Interupt flag untouched
+ */
+get_key:
+	mov	bx, [KEYBUF_READ_PTR]	/* get address of next char	*/
+get_key_restart:	
+	cmp	bx, [KEYBUF_WRITE_PTR]	/* set flag if buffer empty	*/
+	je	get_key_ret		/* buffer empty			*/
+	mov	ax, [bx]		/* put char into ax		*/
+	call	do_extended		/* differences for extended calls */
+	jne	get_key_ret
+	inc	bx
+	inc	bx
+	cmp	bx, [KEYBUFFER_END]	/* check for wrap around	*/
+	jne	get_key_nowrap
+	mov	bx,[KEYBUFFER_START]	/* wrap - get buffer start	*/
+get_key_nowrap:	
+	mov	[KEYBUF_READ_PTR],bx	/* save it as new pointer	*/
+	jmp	get_key_restart
+get_key_ret:	
+	ret	
+
+/* SUBROUTINE:	Dumb down a key for nonextend keyboards
+ * on call:	dl = 0 nonextended, dl=0xFF extended,
+ *		key in ax
+ * on return:	key in ax, dh trashed, flags trashed
+ * 		zf=set ignore/ditch key, zf=clear keep key
+ */
+do_extended:				/* remove 0xE0 from AL for nonextended calls */
+	mov	dh,#0xab		/* Move a value not equal to dl into dh */
+	cmp	dl,#0			/* Ensure we actually need to do something */
+	jne	do_extended_done
+	cmp	al,#0xe0		/* is character 0xE0 ? */
+	jne	do_extended_alt		/* no, continue */
+	and	al,dl			/* yes, mask with 0xFF or 0x00 */
+	jmp	do_extended_scan
+do_extended_alt:			/* Not always alt keys but nearly */
+	cmp	al,#0x00
+	jne	do_extended_slash
+	cmp	ah,#0x01
+	je	do_extended_hide
+	cmp	ah,#0x0e
+	je	do_extended_hide
+	cmp	ah,#0x1a
+	jb	do_extended_slash
+	cmp	ah,#0x1c
+	jbe	do_extended_hide
+	cmp	ah,#0x27
+	jb	do_extended_slash
+	cmp	ah,#0x29
+	jbe	do_extended_hide
+	cmp	ah,#0x2b
+	je	do_extended_hide
+	cmp	ah,#0x33
+	jb	do_extended_slash
+	cmp	ah,#0x35
+	jbe	do_extended_hide
+	cmp	ah,#0x37
+	je	do_extended_hide
+	cmp	ah,#0x4a
+	je	do_extended_hide
+	cmp	ah,#0x4c
+	je	do_extended_hide
+	cmp	ah,#0x4e
+	je	do_extended_hide
+do_extended_slash:			/* Handle special cases */
+	cmp	ax, #0xe02f		/* KEY_PAD_SLASH */
+	jne	do_extended_enter
+	mov	ah, #0x35
+	jmp	do_extended_done
+do_extended_enter:
+	cmp	ax, #0xe00d		/* KEY_PAD_ENTER */
+	jne	do_extended_newline
+	mov	ah, #0x1c
+	jmp	do_extended_done
+do_extended_newline:
+	cmp	ax, #0xe00a		/* CTRL KEY_PAD_ENTER */
+	jne	do_extended_scan
+	mov	ah, #0x1c
+	jmp	do_extended_done
+do_extended_scan:			/* Hide new scan codes */
+	cmp	ah,#0x85
+	jb	do_extended_done
+do_extended_hide:			/* Hide the rest of the extended keys */
+	mov	dh,#0x00		/* return with zero flag set */
+do_extended_done:
+	cmp	dh,dl			/* return zero flag clear, normally */
+	ret
+
+/* SUBROUTINE: store keycode in AX in the BIOS keyboard buffer, 
+ * return CF=1 if buffer is full.
+ */
+store_key:
+	mov	bx,[KEYBUF_WRITE_PTR]
+	inc	bx
+	inc	bx
+	cmp	bx,[KEYBUFFER_END]
+	jne	no_wrap
+	mov	bx,[KEYBUFFER_START]
+no_wrap:
+	cmp	bx,[KEYBUF_READ_PTR]
+	stc
+	je	keybuffer_full
+	xchg	bx,[KEYBUF_WRITE_PTR]	/* ok, update write pointer	*/
+	mov	[bx],ax			/* and store key in buffer	*/
+	clc
+keybuffer_full:
+	ret
+
+
+	.globl  CISH(INT16_dummy_end)
+CISH(INT16_dummy_end):
 
 /* ----------------------------------------------------------------- */   
 	.org	((INT08_SEG-BIOSSEG) << 4)+INT08_OFF

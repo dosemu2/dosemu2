@@ -607,10 +607,12 @@ static Bit8u special_port_inb(ioport_t port)
 		return ((res & 0xfd) | (hgc_Konv & 0x02));
 	    }
 	}
+#if X_GRAPHICS
 	if ((port==0x3ba)||(port==0x3da)) {
 		res = Attr_get_input_status_1();
 	}
 	else
+#endif
 	if (port==0x3db)	/* light pen strobe reset */
 		res = 0;
 	return res;

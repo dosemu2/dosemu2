@@ -14,6 +14,10 @@
 #include "keyboard.h"
 #include "utilities.h"
 
+#ifndef VOID
+#  define VOID void
+#endif
+
 #define KBBUF_SIZE 80
 
 static int kbcount = 0;
@@ -1255,11 +1259,20 @@ static char * keymap_prompts[] = {
 #endif
 }
 
+#if SLANG_VERSION < 10000
 static void sl_exit_error (char *err)
 {
    error ("%s\n", err);
    leavedos (32);
 }
+#else
+#include <stdarg.h>
+static void sl_exit_error (char *fmt, va_list args)
+{
+   verror (fmt, args);
+   leavedos (32);
+}
+#endif
 
 static void sl_print_error(char *str)
 {
@@ -1318,7 +1331,11 @@ int slang_keyb_init(void) {
        SLtt_get_terminfo ();
        DOSemu_Slang_Got_Terminfo = 1;
     }
+#if SLANG_VERSION < 10000
   SLang_Error_Routine = sl_print_error;
+#else
+  SLang_Error_Hook = sl_print_error;
+#endif
 
   if (-1 == init_slang_keymaps()) {
     error("Unable to initialize S-Lang keymaps.\n");

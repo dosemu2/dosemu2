@@ -86,8 +86,8 @@ static Bit8u bios_alt_scancodes[128] =
    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,    /* 10-17 */
    0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x00, 0x1e, 0x1f,    /* 18-1F */
    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,    /* 20-27 */
-   0x00, 0x00, 0x00, 0x26, 0x2c, 0x2d, 0x2e, 0x2f,    /* 28-2F */
-   0x30, 0x31, 0x32, 0x00, 0x00, 0x00, 0x00, 0x37,    /* 30-37 */
+   0x28, 0x29, 0x00, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,    /* 28-2F */
+   0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x00, 0x37,    /* 30-37 */
    0x00, 0x39, 0x00, 0x68, 0x69, 0x6a, 0x6b, 0x6c,    /* 38-3F */
    0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x00, 0x00, 0x97,    /* 40-47 */
    0x98, 0x99, 0x4a, 0x9b, 0x00, 0x9d, 0x4e, 0x9f,    /* 48-4F */
@@ -147,7 +147,8 @@ static uchar uppercase_table[37] =
  * generated (well, that's the way it oughta be, at least).
  */
 
-static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
+static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) 
+{
    Bit8u bios_scan = 0;
    Bit16u special = 0;
 
@@ -195,27 +196,43 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
             bios_scan=0x0e; ascii=0; break;
           case KEY_PAD_ENTER:
             bios_scan=0xa6; ascii=0; break;
+          case KEY_PAD_DECIMAL:
+            bios_scan=0; ascii=0; break; /* Turn this key off! */
           case E0_MINIDX ... E0_MAXIDX:
             bios_scan=bios_alt_e0_scancodes[key-E0_MINIDX];
             ascii=0;
             break;
 
-          case 0x47:                   /* alt-keypad */
-          case 0x48:
-          case 0x49:
-          case 0x4b:
-          case 0x4c:
-          case 0x4d:
-          case 0x4f:
-          case 0x50:
-          case 0x51:
-          case 0x52:
-            if (ascii>='0' && ascii<='9')
-               alt_num_buffer = alt_num_buffer*10 + (ascii-'0');
+          case KEY_PAD_7:                   /* alt-keypad */
+          case KEY_PAD_8:
+          case KEY_PAD_9:
+          case KEY_PAD_4:
+          case KEY_PAD_5:
+          case KEY_PAD_6:
+          case KEY_PAD_1:
+          case KEY_PAD_2:
+          case KEY_PAD_3:
+          case KEY_PAD_0:
+	  {
+	    int val = 0;
+	    switch(key) {
+	    case KEY_PAD_7: val = 7; break;
+	    case KEY_PAD_8: val = 8; break;
+	    case KEY_PAD_9: val = 9; break;
+	    case KEY_PAD_4: val = 4; break;
+	    case KEY_PAD_5: val = 5; break;
+	    case KEY_PAD_6: val = 6; break;
+	    case KEY_PAD_1: val = 1; break;
+	    case KEY_PAD_2: val = 2; break;
+	    case KEY_PAD_3: val = 3; break;
+	    case KEY_PAD_0: val = 0; break;
+	    }
+	    alt_num_buffer = (alt_num_buffer*10 + val) & 0xff;
             k_printf("KBD: alt-keypad key=%08d ascii=%c buffer=%d\n",key,ascii,alt_num_buffer);
             ascii=0;
             bios_scan=0;
             break;
+	  }
             
           default:
             if (key&0xff00)  {
@@ -238,7 +255,7 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
          else if (key&0xff00) {
             if (key>=E0_MINIDX && key<=E0_MAXIDX) {
                bios_scan=bios_ctrl_e0_scancodes[key-E0_MINIDX];
-			   ascii=0xE0;
+			   ascii=0xe0;
 			}
          }
          else {
@@ -250,8 +267,8 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
             that were passed.
           */
          if (bios_scan) {
-            if (ascii&~0x1f && ascii != 0xE0)
-								 ascii=0;  /* allow control keys to be passed */
+            if (ascii&~0x1f && ascii != 0xe0) 
+	       ascii=0;  /* allow control keys to be passed */
             if (bios_scan) {
                switch(key) {
                   case KEY_BKSP:       ascii=0x7f; break;
@@ -261,12 +278,21 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
                   case KEY_ESC:        ascii=0x1b; break;
                   case KEY_6:          ascii=0x1e; break;
                   case KEY_PAD_SLASH:  ascii=0;    break;
+                  case KEY_PAD_MINUS:  ascii=0;    break;
                }
             }
          }
          else {
             ascii=0;
          }
+	 switch (key) {  /* The cursor block */
+	 case KEY_INS:	 case KEY_DEL:
+	 case KEY_HOME:	 case KEY_END:
+	 case KEY_PGUP:	 case KEY_PGDN:
+	 case KEY_UP:	 case KEY_DOWN:
+	 case KEY_LEFT:	 case KEY_RIGHT:
+	   ascii = 0xe0; break;
+	 }
       }
       else if (shiftstate&SHIFT) {
          switch(key) {
@@ -284,13 +310,14 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
                   bios_scan=0x87; break;
           case KEY_F12:
                   bios_scan=0x88; break;
+	  case KEY_PAD_ENTER:
+		  bios_scan=0xe0; break;
           case KEY_PRTSCR:
-          case KEY_PAD_AST:
-                  bios_scan=0; break;
-		  case KEY_PAD_SLASH:
-				  bios_scan=0xe0; ascii=0x2f; break;
-		  case 0xe047 ... 0xe053:
-				  ascii=0xe0; bios_scan=key&0x7f; break;
+		  bios_scan=0; break;
+	  case 0xe047 ... 0xe053:
+		  bios_scan=key&0x7f; ascii=0xe0; break;
+	  case KEY_PAD_SLASH:
+		  bios_scan=0xe0; ascii='/'; break;
           default:
                   bios_scan=key&0x7f; break;
          }
@@ -311,17 +338,16 @@ static Bit16u make_bios_code(Boolean make, t_keysym key, uchar ascii) {
                   bios_scan=0xe0; break;
           case KEY_PRTSCR:
                   bios_scan=0; break;
-          case KEY_PAD_SLASH:
-                  bios_scan=0xe0; ascii=0x2f; break;
           case 0xe047 ... 0xe053:
-                  ascii=0xe0;
+                  bios_scan=key&0x7f; ascii=0xe0; break;
+	  case KEY_PAD_SLASH:
+		  bios_scan=0xe0; ascii='/'; break;
           default:
                   bios_scan=key&0x7f; break;
          }
       }
       /* all shiftstates */
       if (key==KEY_SPACE) ascii=' ';
-      if (key==KEY_DEL) ascii=0;
    }
    else { /* !make */
       if (key==KEY_SYSRQ) {
@@ -677,6 +703,76 @@ void putrawkey(t_rawkeycode code) {
    backend_run();
 }
 
+static void put_ascii_key(Boolean make, uchar ascii)
+{
+	int old_alt_num_buffer;
+	int amount_to_add, one,two,three;
+	t_shiftstate alt_shiftstate;
+	
+	static const t_keysym num_key[] = 
+	{ KEY_PAD_0, KEY_PAD_1, KEY_PAD_2, KEY_PAD_3, KEY_PAD_4, 
+	  KEY_PAD_5, KEY_PAD_6, KEY_PAD_7, KEY_PAD_8, KEY_PAD_9 };
+
+	k_printf("KBD: put_ascii_key(%s, %04x, '%c') called\n",
+		 make?"PRESS":"RELEASE", ascii, ascii?ascii:' ');
+	if (!make) {
+		return;
+	}
+	/* insert these keys as alt number combinations,
+	 * after appropriately setting the shift state.
+	 */
+	alt_shiftstate = shiftstate &ALT;
+	if (alt_shiftstate & ALT) {
+		old_alt_num_buffer = alt_num_buffer;
+	} else {
+		old_alt_num_buffer = 0;
+		putkey(PRESS, KEY_L_ALT, 0);
+	}
+	amount_to_add = (ascii - old_alt_num_buffer) & 0xff;
+	three = amount_to_add %10; amount_to_add /= 10;
+	two = amount_to_add %10;  amount_to_add /= 10;
+	one = amount_to_add %10;
+
+	putkey(PRESS, num_key[one], one + '0');
+	putkey(RELEASE, num_key[one], 0);
+	putkey(PRESS, num_key[two], two + '0');
+	putkey(RELEASE, num_key[two], 0);
+	putkey(PRESS, num_key[three], three + '0');
+	putkey(RELEASE, num_key[three], 0);
+
+	if (!(alt_shiftstate & ALT)) {
+		putkey(RELEASE, KEY_L_ALT, 0);
+		return;  /* LEAVE */
+	}
+	/* release the alt keys to force the ascii code to appear */
+	if (alt_shiftstate &L_ALT) {
+		putkey(RELEASE, KEY_L_ALT, 0);
+	}
+	if (alt_shiftstate &R_ALT) {
+		putkey(RELEASE, KEY_R_ALT, 0);
+	}
+	/* press the alt keys again */
+	if (alt_shiftstate &L_ALT) {
+		putkey(PRESS, KEY_L_ALT, 0);
+	}
+	if (alt_shiftstate &R_ALT) {
+		putkey(PRESS, KEY_R_ALT, 0);
+	}
+	
+	/* press keys to restore the old alt_num_buffer */
+	amount_to_add = old_alt_num_buffer;
+	three = amount_to_add %10; amount_to_add /= 10;
+	two = amount_to_add %10;  amount_to_add /= 10;
+	one = amount_to_add %10;
+
+	putkey(PRESS, num_key[one], one + '0');
+	putkey(RELEASE, num_key[one], 0);
+	putkey(PRESS, num_key[two], two + '0');
+	putkey(RELEASE, num_key[two], 0);
+	putkey(PRESS, num_key[three], three + '0');
+	putkey(RELEASE, num_key[three], 0);
+
+}
 
 /* 
  * DANG_BEGIN_FUNCTION putkey
@@ -701,7 +797,8 @@ void putrawkey(t_rawkeycode code) {
  * DANG_END_FUNCTION
  */
 
-void putkey(Boolean make, t_keysym key, uchar ascii) {
+void putkey(Boolean make, t_keysym key, uchar ascii) 
+{
    Boolean is_shift;
    Bit16u shiftprefix;
    t_scancode scan;
@@ -717,9 +814,13 @@ void putkey(Boolean make, t_keysym key, uchar ascii) {
    if (make)
       if (handle_dosemu_keys(key)) return;
 
+   if (key == 0) { /* Use an alt nnn combination for the key */
+      put_ascii_key(make, ascii); 
+      return;
+   }
+
    /* process the shift keys */
    is_shift = do_shift_keys(make,key);
-
    /*
     * now create an emulated string of hardware scancodes, which
     * will go into the raw_queue. As our 'keysyms' are defined to

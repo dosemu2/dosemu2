@@ -436,7 +436,7 @@ error:
   return 0;
 }    
 
-#ifdef NEW_X_CODE
+#if defined(NEW_X_CODE) && X_GRAPHICS
 /*
  * new_set_video_mode() is called to set a VESA mode as set_video_mode()
  * really has problems getting its job done.

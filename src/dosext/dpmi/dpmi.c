@@ -1803,7 +1803,7 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     D_printf("DPMI: unimplemented int31 func %#x\n",inumber);
     break;
 
-#ifdef NEW_X_CODE
+#if defined(NEW_X_CODE) && X_GRAPHICS
   case 0x0800: {
       unsigned addr, size, lfb;
 

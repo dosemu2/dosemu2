@@ -1,3 +1,16 @@
+98/02/27 ver. 0.97.3.2 unofficial pre-release
+	From Eric
+	- udaptation to Slang-1.0
+	- 'error' from utilities.c now goes over 'verror' to simplify
+	  passing of arglists. (used by sl_exit_error);
+	- made more room for INT16 code in bios.S (now starts at 0x3500
+	  behind the IPX code).
+	- fix for new do_int together with dpmi (src/base/async/int.c)
+	- fixed a stupid bug in signal handling, (sigaddset expects _one_ SIG
+	  to be added, not a bitmask of signals).
+	- fixed compiling without X support.
+	From Eric & Reinhard
+	- divers fixes to (hopefully) get extended keybord keys right
 98/02/15 ver. 0.97.3.1 unofficial pre-release
 	From Eric
 	- fix for kernels < 2.0.32 not having ENOMEDIUM in errno.h (cdrom.c)

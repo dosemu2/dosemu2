@@ -93,7 +93,7 @@
 #define Banner_ADD	((Banner_SEG << 4) + Banner_OFF)
 
 #define INT16_SEG	ROMBIOSSEG
-#define INT16_OFF	0x3000
+#define INT16_OFF	0x3500
 #define INT16_ADD	((INT16_SEG << 4) + INT16_OFF)
 
 #define IPX_SEG		ROMBIOSSEG
