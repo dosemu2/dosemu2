@@ -2215,6 +2215,7 @@ static void setup_home_directories(void)
   LOCALDIR = get_dosemu_local_home();
   RUNDIR = mkdir_under(LOCALDIR, "run", 0);
   DOSEMU_MIDI_PATH = assemble_path(RUNDIR, DOSEMU_MIDI, 0);
+  DOSEMU_MIDI_IN_PATH = assemble_path(RUNDIR, DOSEMU_MIDI_IN, 0);
 }
 
 static void lax_user_checking(void)

@@ -347,7 +347,6 @@ Bit8u sb_io_read(ioport_t port)
      /* DSP 8-bit IRQ Ack - SB */
      S_printf("SB: 8-bit IRQ Ack: %x\n", SB_dsp.data);
      sb_deactivate_irq(SB_IRQ_8BIT);
-     SB_info.irq.active &= ~SB_IRQ_8BIT; /* may mean it never triggers! */
      SB_dsp.ready = 0x7f;
      if(SB_dsp.empty_state & DREQ_AT_EOI)
      {
@@ -361,7 +360,6 @@ Bit8u sb_io_read(ioport_t port)
    case 0x0F: /* 0x0F: DSP 16-bit IRQ - SB16 */
      S_printf("SB: 16-bit IRQ Ack: %x\n", SB_dsp.data);
      sb_deactivate_irq(SB_IRQ_16BIT);
-     SB_info.irq.active &= ~SB_IRQ_16BIT; /* may mean it never triggers! */
      SB_dsp.ready = 0x7f;
      if(SB_dsp.empty_state & DREQ_AT_EOI)
      {
@@ -648,7 +646,8 @@ Bit8u mpu401_io_read(ioport_t port)
   case 0:
     /* Read data port */
     r=Q_GET(mpu401_info.data);
-    S_printf("MPU401: Read data port = 0x%02x\n",r);
+    S_printf("MPU401: Read data port = 0x%02x, %i bytes still in queue\n",
+      r,Q_HOLDS(mpu401_info.data));
     sb_deactivate_irq(SB_IRQ_MIDI);
     break;
   case 1:
@@ -661,6 +660,17 @@ Bit8u mpu401_io_read(ioport_t port)
   return r;
 }
 
+static void mpu401_io_callback(void)
+{
+  char buf[QUEUE_SIZE];
+  int n;
+  n = mpu401_info.data_read(buf, QUEUE_SIZE);
+  if (n <= 0)
+    return;
+  S_printf("MPU401: Processing IO callback, %i bytes\n", n);
+  Q_ADD(mpu401_info.data, buf, n);
+  sb_activate_irq(SB_IRQ_MIDI);
+}
 
 /*
  * Main IO Routines - Write
@@ -1824,6 +1834,7 @@ void mpu401_io_write(ioport_t port, Bit8u value)
 	case 1:
 		/* Write command port */
 		S_printf("MPU401: Write 0x%02x to command port\n",value);
+		Q_CLEAR(mpu401_info.data);
 		Q_PUT(mpu401_info.data, 0xfe); /* A command is sent: MPU_ACK it next time */
 		sb_activate_irq(SB_IRQ_MIDI);
 		switch (value) {
@@ -2596,7 +2607,7 @@ static void fm_init(void)
     SB_info.version = SB_NONE;
   }
 
-  (void) FM_driver_init();
+  FM_driver_init();
 }
 
 static void mpu401_init(void)
@@ -2627,7 +2638,9 @@ static void mpu401_init(void)
 
   Q_CLEAR(mpu401_info.data);
 
-  (void) MPU_driver_init();
+  MPU_driver_init();
+
+  mpu401_info.register_io_callback(mpu401_io_callback);
 }
 
 
@@ -2912,6 +2925,7 @@ static void sb_deactivate_irq (int type)
       S_printf("SB: Untriggering scheduled IRQ\n");
       SB_dsp.empty_state &= ~IRQ_AT_EMPTY;
     }
+    SB_info.irq.active &= ~type;
     if(!(SB_info.irq.pending & type)) {
       return;
     }

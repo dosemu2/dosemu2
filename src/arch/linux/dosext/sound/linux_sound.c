@@ -65,6 +65,7 @@ static int oss_block_size = 0;
 
 /* MPU static vars */
 static int mpu_fd = -1;	             /* -1 = closed */
+static int mpu_in_fd = -1;	             /* -1 = closed */
 static boolean mpu_disabled = FALSE; /* TRUE if MIDI output disabled */
 
 static void linux_sb_dma_set_blocksize(int blocksize, int fragsize)
@@ -653,9 +654,6 @@ int SB_driver_init () {
   SB_driver.DMA_complete        = linux_sb_dma_complete;
   SB_driver.DMA_set_blocksize   = linux_sb_dma_set_blocksize;
    
-  /* MPU-401 Functions */
-  mpu401_info.data_write = linux_mpu401_data_write;
-
   /* Miscellaneous Functions */
   SB_driver.set_speed           = linux_sb_set_speed;
   SB_driver.play_buffer         = NULL;
@@ -701,6 +699,11 @@ int SB_driver_init () {
   return linux_sb_get_version();
 }
 
+void linux_mpu401_register_callback(void (*io_callback)(void))
+{
+  if (mpu_in_fd == -1) return;
+  add_to_io_select(mpu_in_fd, 1, io_callback);
+}
 
 void linux_mpu401_data_write(uint8_t data)
 {
@@ -724,6 +727,17 @@ void linux_mpu401_data_write(uint8_t data)
 	}
 }
 
+int linux_mpu401_data_read(uint8_t data[], int max_len)
+{
+	int ret;
+	if (mpu_in_fd == -1) return 0;
+	if ((ret = read(mpu_in_fd,data,max_len)) == -1) {
+			S_printf("MPU401:[Linux] Failed to write to file 'midi' (%s)\n",
+			strerror(errno));
+	}
+	return ret;
+}
+
 
 int FM_driver_init(void)
 {
@@ -735,6 +749,14 @@ int FM_driver_init(void)
 int MPU_driver_init(void)
 {
   S_printf("MPU:[Linux] MPU Driver Initialisation Called\n");
+
+  /* MPU-401 Functions */
+  mpu401_info.data_write = linux_mpu401_data_write;
+  mpu401_info.data_read = linux_mpu401_data_read;
+  mpu401_info.register_io_callback = linux_mpu401_register_callback;
+
+  mpu_in_fd = RPT_SYSCALL(open(DOSEMU_MIDI_IN_PATH, O_RDONLY | O_NONBLOCK, 0777));
+
   mpu_disabled = FALSE;
   /* Output a MIDI byte to an external file */
   /* Added NONBLOCK to prevent hanging - Karcher */

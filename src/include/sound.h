@@ -227,12 +227,19 @@ EXTERN struct adlib_info_t {
 
 #define QUEUE_SIZE  64
 #define Q_HOLDS(q) (q.end - q.start)
+#define Q_AVAIL(q) (QUEUE_SIZE - q.end)
 #define Q_CLEAR(q) (q.start = q.end = 0)
 #define Q_PUT(q, v) { if (q.end < QUEUE_SIZE) q.output[q.end++] = v; }
 #define Q_GET(q) ({ \
     Bit8u __ret = Q_HOLDS(q) ? q.output[q.start++] : 0xff; \
     if (!Q_HOLDS(q)) Q_CLEAR(q); \
     __ret; \
+})
+#define Q_ADD(q, buf, len) ({ \
+    int __len = len; \
+    int __to_copy = MIN(__len, Q_AVAIL(q)); \
+    memcpy(q.output + q.end, buf, __to_copy); \
+    q.end += __to_copy; \
 })
 
 typedef struct {
@@ -256,6 +263,8 @@ EXTERN struct mpu401_info_t {
 	queue_t data;
 	/* Architecture specific procedures */
 	void (*data_write)(uint8_t data); /* process 1 MIDI byte */
+	int (*data_read)(uint8_t data[], int max_size);
+	void (*register_io_callback)(void (*io_callback)(void));
 } mpu401_info;
 
 /*
