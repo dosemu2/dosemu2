@@ -920,13 +920,10 @@ static void dos83_to_ufs(char *name, const char *mname, const char *mext)
 static boolean_t exists(const char *name, const char *filename,
                         struct stat *st, int drive)
 {
-  boolean_t ret;
-  char *fullname;
-  asprintf(&fullname, "%s/%s", name, filename);
+  char fullname[strlen(name) + 1 + NAME_MAX + 1];
+  snprintf(fullname, sizeof(fullname), "%s/%s", name, filename);
   Debug0((dbg_fd, "exists() result = %s\n", fullname));
-  ret = find_file(fullname, st, drive);
-  free(fullname);
-  return ret;
+  return find_file(fullname, st, drive);
 }
 
 static void fill_entry(struct dir_ent *entry, const char *name, int drive)
