@@ -65,6 +65,7 @@ GetDebugFlagsHelper(char *debugStr, int print)
   debugStr[i++] = DebugFlag(d.pd);       debugStr[i++] = 'P';
   debugStr[i++] = DebugFlag(d.request);  debugStr[i++] = 'r';
   debugStr[i++] = DebugFlag(d.sound);    debugStr[i++] = 'S';
+  debugStr[i++] = DebugFlag(d.aspi);     debugStr[i++] = 'A';
 #ifdef X86_EMULATOR
   debugStr[i++] = DebugFlag(d.emu);      debugStr[i++] = 'e';
 #endif

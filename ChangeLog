@@ -1,3 +1,41 @@
+98/10/25 ver. 0.99.2.1 unofficial pre-release
+	( ... well, this is the ASPI release ;-)
+	From Karl Kiniger <ki@kretz.co.at>
+	- ASPI driver for DOSEMU, consists of a DOS stubb aspi.sys and
+	  dosemu builtin ASPI helper. Works on any /dev/sgX.
+	  The code was originally taken out of the Wine project but
+	  is wildly hacked to fit our purposes.
+	  ( Many kodos to Karl, who did a good job ;-)
+	From Hans
+	- introduced A debugflag for ASPI
+	- changed Karl's solution such that ASPI doesn't need any special
+	  kernel patch. The only remaining 'patch' for the kernel should
+	  be a bigger SG_BIG_BUF in include/scsi/sg.h if needed (Karl's
+	  CD-burner needed atleast 64k and I for my scanner have
+          #define SG_BIG_BUFF (128*1024-512) in my kernel).
+	- changed aspy.sys such that it doesn't load, when no SCSI
+	  is available or not configured.
+	- made ASPI configurable, we only allow those /dev/sgX, which
+	  are explicitely configured (anything else is inherently dangerous
+	  for naiv users;-). Look at src/doc/README/config for details.
+	  In compile-time-settings its 'aspi on/off' _and_ currently its
+	  protected via 'experimental'.
+	- tested the ASPI with my JAZ drive, works flawless;-)
+	- updated src/doc/README/config to reflect the ASPI driver
+	- updated setup-dosemu stuff to reflect the ASPI driver
+	- uodated DANG, but did not (yet) recompile the docs
+	  (avoiding the patch becoming too big)
+	- added src/tools/peripher/scsicheck, which prints /proc/scsi/scsi
+	  showing the needed $_aspi entries for /etc/dosemu.conf
+	- replaced error() print with  d_printf() in src/base/misc/disks.c
+	  as it turns out some DOS-apps are doing installation checks
+	  by just calling their (normally hooked) int13 functions and
+	  just expect CARRY if not installed.
+	- made show_regs dummy, when d.general (g debugflag) isn't set.
+          (in src/base/misc/dump.c). It turns out, we don't print anything
+	  anyway in this case.
+	- fixed a bug in the parser's 'foreach': on stacked foreach loops,
+	  the first run of the loop body was skipped (src/base/init/parser.y).
 98/10/04 ver. 0.99.2 released
 	From Rob Clark <clarkc2@rpi.edu>
 	- fixed src/base/speaker/Makefile such that is compiles

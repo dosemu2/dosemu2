@@ -300,6 +300,7 @@ menu "Miscellaneous Items" {
 
   submenu "File Extensions"
   submenu "CPU Details"
+  submenu "ASPI driver"
   boolean "Force use of PCI instructions" pci
   boolean "Emulate INT08 Timer Interrupts" timint
   boolean "Use Pentium Cycle counter if possible" rdtsc
@@ -326,6 +327,11 @@ description "Select the CPU details to modify"
     "80486" 80486
   }
   integer "Speed of CPU - calculated if set to 0" cpuspeed
+}
+
+menu "ASPI driver" {
+description "Configure the ASPI driver"
+  string "List of sg devices (/dev/sgX) to map to DOS" aspi
 }
 
 menu "Security settings" {

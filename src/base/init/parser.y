@@ -304,6 +304,8 @@ extern void yyrestart(FILE *input_file);
 %token SB_BASE SB_IRQ SB_DMA SB_MIXER SB_DSP MPU_BASE
 	/* CD-ROM */
 %token CDROM
+	/* ASPI driver */
+%token ASPI DEVICETYPE TARGET
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -676,6 +678,20 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
                     { IFCLASS(CL_DISK){
 		    strncpy(path_cdrom, $3, 30);
                     c_printf("CONF: cdrom on %s\n", $3);
+		    }}
+                | ASPI '{' string_expr DEVICETYPE string_expr TARGET expression '}'
+                    { IFCLASS(CL_DISK){
+#ifdef ASPI_SUPPORT
+		    extern char *aspi_add_device(char *name, char *devtype, int);
+		    char *s = aspi_add_device($3, $5, $7);
+		    if (s) {
+			c_printf("CONF: aspi available for %s\n", s);
+			free(s);
+		    }
+		    else c_printf("CONF: aspi device %s not available\n", $3);
+#endif
+		    free($3);
+		    free($5);
 		    }}
 		| PRINTER
 		    { IFCLASS(CL_PRINTER) start_printer(); }
@@ -3086,6 +3102,7 @@ static char *run_shell(char *command)
 struct for_each_entry {
 	char *list;
 	char *ptr;
+	int skip_restart;
 };
 
 #define FOR_EACH_DEPTH	16
@@ -3109,6 +3126,17 @@ static int for_each_handling(int loopid, char *varname, char *delim, char *list)
 	if (!fe->list) {
 		/* starting the loop */
 		fe->ptr = fe->list = strdup(list);
+		fe->skip_restart = 0;
+		if (loopid) {
+			/* in inner loops we need to skip the restart */
+			fe->skip_restart = 1;
+		}
+	}
+	else {
+		if (fe->skip_restart) {
+			fe->skip_restart = 0;
+			return 1;
+		}
 	}
 	while (fe->ptr[0] && strchr(delim,fe->ptr[0])) fe->ptr++;
 	/* subsequent call */

@@ -1509,7 +1509,7 @@ int13(u_char i)
     NOCARRY;
     break;
   default:
-    error("disk error, unknown command: int13, ax=0x%x\n",
+    d_printf("disk error, unknown command: int13, ax=0x%x\n",
 	  LWORD(eax));
     show_regs(__FILE__, __LINE__);
     CARRY;

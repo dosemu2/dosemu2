@@ -5,8 +5,11 @@
 #
 # any misc. drivers (e.g. cdrom helper)
 
+ifdef ASPI_SUPPORT
+ASPI=aspi.c
+endif
 
-CFILES=cdrom.c
+CFILES=cdrom.c $(ASPI)
 SFILES=
 ALL=$(CFILES) $(SFILES)
 

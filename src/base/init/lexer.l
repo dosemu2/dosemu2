@@ -630,6 +630,11 @@ allowdisk		RETURN(ALLOWDISK);
 forcexdos		RETURN(FORCEXDOS);
 xdosonly		RETURN(XDOSONLY);
 
+	/* ASPI driver */
+aspi			RETURN(ASPI);
+devicetype		RETURN(DEVICETYPE);
+target			RETURN(TARGET);
+
 	/* strings */
 
 \'[^\']*\'		{

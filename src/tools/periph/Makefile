@@ -10,8 +10,10 @@ LD86 = $(_LD86_) -0
 D=$(REALTOPDIR)/etc
 DOSC=$(REALTOPDIR)/contrib/dosC/dist
 
-SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c dexeconfig.c
-OBJ=hdinfo bootsect mkhdimage putrom mkfatimage mkfatimage16 dexeconfig $(D)/hdimage.dist $(D)/hdimage.test
+SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
+    dexeconfig.c scsicheck.c
+OBJ=hdinfo bootsect mkhdimage putrom mkfatimage mkfatimage16 dexeconfig \
+    scsicheck $(D)/hdimage.dist $(D)/hdimage.test
 SCRIPT=getrom
 
 all: $(OBJ)

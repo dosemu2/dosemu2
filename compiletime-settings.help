@@ -116,4 +116,15 @@ cpuemu		"EXPERIMENTAL, enable CPU emulator" cpuemu
 		This is in _no_ case ready for production, this switch is
 		here just for the developers ;-)
 
+aspi		"EXPERIMENTAL, compile with ASPI support" aspi
 
+		This enables the dosemu builtin ASPI driver, which also
+		need the DOS driver ./commands/aspi.sys in config.sys.
+		You then may be able to use DOS software that accesses
+		SCSI devices such as CD-burners, Scanners e.t.c.
+		However, not all SCSI devices available in Linux are
+		offered to the driver, because this is inherently dangerous.
+		Instead you define in /etc/dosemu.conf which 'sg' device
+		you want give to dosemu and you also specify the device
+		type which the ASPI driver then check to avoid you accessing
+		a mounted disk.

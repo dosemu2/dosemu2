@@ -53,7 +53,8 @@ struct debug_flags {
    network,		/* IPX network       "n" */
    pd,			/* Packet driver     "P" */
    request,		/* PIC               "r" */
-   sound 		/* SOUND	     "S" */
+   sound, 		/* SOUND	     "S" */
+   aspi			/* ASPI interface    "A" */
 #ifdef X86_EMULATOR
    ,emu			/* CPU emulation     "e" */
 #endif
@@ -119,6 +120,7 @@ void verror(const char *fmt, va_list args);
 #define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	   /* pktdrvr */
 #define r_printf(f,a...)        ifprintf(d.request,f,##a)
 #define S_printf(f,a...)     	ifprintf(d.sound,f,##a)
+#define A_printf(f,a...)     	ifprintf(d.aspi,f,##a)
 #ifdef X86_EMULATOR
 #define e_printf(f,a...)     	ifprintf(d.emu,f,##a)
 #endif
@@ -154,6 +156,7 @@ void verror(const char *fmt, va_list args);
 #define pd_printf(f,a...)
 #define r_printf(f,a...)
 #define S_printf(f,a...)
+#define A_printf(f,a...)
 #define e_printf(f,a...)
 
 #define ALL_DEBUG_ON

@@ -16,7 +16,7 @@ COM=$(D)/exitemu.com $(D)/vgaoff.com $(D)/vgaon.com $(D)/eject.com \
 	$(D)/ecpuon.com $(D)/ecpuoff.com \
 	$(D)/uchdir.com $(D)/speed.com $(D)/isemu.com $(D)/ugetcwd.com \
 	$(D)/system.com $(D)/mgarrot.com
-SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys
+SYS=$(D)/emufs.sys $(D)/ems.sys $(D)/cdrom.sys $(D)/dumpconf.sys $(D)/aspi.sys
 
 # --------------- begin 'tcc via dosemu' --------------------
 # The below are settings to compile the stuff in 'precompiled'

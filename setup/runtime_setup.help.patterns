@@ -25,5 +25,6 @@ set hlp(Miscellaneous_Items) {Basic emulaton settings}
 set hlp(File_Extensions) {If you want mixed operation}
 set hlp(CPU_Details) {Wether a numeric processor}
 set hlp(Security_settings) {There are some features in DOSEMU}
+set hlp(ASPI_driver) {^  2\.1\.13}
 #set hlp(Output_File) {}
 #set hlp(New_File) {}

@@ -106,6 +106,7 @@ if [ "$DOMAKE" = "1" ]; then
   strip ./bin/dosdebug
   strip ./src/tools/periph/dexeconfig
   strip ./src/tools/periph/mkfatimage16
+  strip ./src/tools/periph/scsicheck
   rm -f ${TMP}
 fi
 
@@ -128,6 +129,7 @@ else
 fi
 install -m 0755 src/tools/periph/mkfatimage16 ${DIR}/usr/bin
 install -m 0755 src/tools/periph/dexeconfig ${DIR}/usr/bin
+install -m 0755 src/tools/periph/scsicheck ${DIR}/usr/bin
 
 if [ -d ${DIR}/var/lib/dosemu/dexe ]; then cp -fp ./dexe/* ${DIR}/var/lib/dosemu/dexe
 else cp -ap ./dexe  ${DIR}/var/lib/dosemu; fi

@@ -181,6 +181,9 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define this to use the new interrupt handling code */
 #undef USE_NEW_INT
 
+/* Define this for ASPI (generic SCSI) support */
+#undef ASPI_SUPPORT
+
 /* Define this to use the X86 CPU emulator */
 #undef X86_EMULATOR
 

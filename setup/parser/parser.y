@@ -38,6 +38,7 @@ static char *dosemurc_varlist[] = {
 	"_ipxsupport", "_novell_hack", "_vnet",
 	"_sound", "_sb_base", "_sb_irq", "_sb_dma", "_sb_dsp", "_sb_mixer", "_mpu_base",
 	"_hogthreshold", "_dpmi", "_vbootfloppy", "_hdimage", "_ttylocks",
+	"_aspi",
 	NULL
 };
 

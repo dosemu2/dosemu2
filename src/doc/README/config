@@ -700,3 +700,85 @@ $_mpu_base = "0x330"      # base address for the MPU-401 chip (HEX)
                           # (not yet implemented)
 </verb></tscreen>
 
+<sect2>Builtin ASPI SCSI Driver
+<p>
+
+The builtin ASPI driver (a SCSI interface protocol defined by Adaptec) can be
+used to run DOS based SCSI drivers that use this standard (most SCSI devices
+ship with such a DOS driver). This enables you to run hardware on Linux, that
+normally isn't supported otherwise, such as CD writers, Scanners e.t.c.
+The driver was successfully tested with Dat-streamers, EXABYTE tapedrives,
+JAZ drives (from iomega) and CD writers. To make it work under DOSEMU
+you need
+<itemize>
+  <item> to configure $_aspi in /etc/dosemu.conf to define which
+         of the /dev/sgX devices you want to show up in DOSEMU.
+  <item> to load the DOSEMU aspi.sys stub driver within config.sys
+         (e.g. DEVICE=ASPI.SYS) <em/before/ any ASPI using driver.
+</itemize>
+
+The $_aspi variable in dosemu.conf takes strings listing all generic SCSI
+devices, that you want give to DOSEMU. NOTE: You should make sure,
+that they are <em/not/ used by Linux elsewere, else you would come into
+<em/much/ trouble. To help you not doing the wrong thing, DOSEMU can
+check the devicetype of the SCSI device such as
+<tscreen><verb>
+$_aspi = "sg2:WORM"
+</verb></tscreen>
+in which case you define /dev/sg2 beeing a CD writer device. If you omit
+the type,
+<tscreen><verb>                                                    
+$_aspi = "sg2 sg3 sg4"
+</verb></tscreen>
+DOSEMU will refuse any device that is a disk drive (imagine, what would happen
+if you try to map a CD writer to the disk which contains a mounted Linux FS?).
+If you <em/want/ to map a disk drive to DOSEMU's ASPI driver, you need to
+tell it explicitely
+<tscreen><verb>
+$_aspi = "sg1:Direct-Access"
+or
+$_aspi = "sg1:0"
+</verb></tscreen>
+and as you can see, `Direct-Access' is the devicetype reported by
+<tscreen><verb>
+$ cat /proc/scsi/scsi
+</verb></tscreen>
+which will list all SCSI devices in the order they are assigned to
+the /dev/sgX devices (the first being /dev/sg0). You may also use the
+DOSEMU supplied tool `scsicheck' (in src/tools/peripher), which helps
+a lot to get the configuration right:
+<tscreen><verb>
+$ scsicheck
+sg0 scsi0 ch0 ID0 Lun0 ansi2 Direct-Access(0) IBM DCAS-34330 S61A
+    $_aspi = "sg0:Direct-Access:0"
+sg1 scsi0 ch0 ID5 Lun0 ansi2 Direct-Access(0) IOMEGA ZIP 100 D.08
+    $_aspi = "sg1:Direct-Access:5"
+sg2 scsi0 ch0 ID6 Lun0 ansi2 CD-ROM(5) TOSHIBA CD-ROM XM-5701TA 0167
+    $_aspi = "sg2:CD-ROM:6" <=== ATTENTION: multiple target ID
+sg3 scsi1 ch0 ID4 Lun0 ansi2 Sequential-Access(1) HP C1533A 9503
+    $_aspi = "sg3:Sequential-Access:4"
+sg4 scsi1 ch0 ID6 Lun0 ansi1 WORM(4) IMS CDD522/10 1.07
+    $_aspi = "sg4:WORM:6" <=== ATTENTION: multiple target ID
+</verb></tscreen>
+
+In the above example there are two scsi hostadapters (scsi0 and scsi1) and
+DOSEMU will not show more than <em/one/ hostadapter to DOS (mapping them
+all into one), hence you would get problems accessing sg2 and sg4. For this
+you may remap a different targetID such as
+<tscreen><verb>
+$_aspi = "sg2:CD-ROM:5 sg4:WORM"
+</verb></tscreen>
+and all would be fine. From the DOS side the CD-ROM appears as target 5
+and the WORM (CD writer) as target 6.
+
+However, <em/one/ big problem remains, the (hard coded) buffersize for the
+sg devices in the Linux kernel (default 32k) may be to small for DOS
+applications and, if your distributor yet didn't it, you may need to
+recompile your kernel with a bigger buffer. The buffer size is defined
+in linux/include/scsi/sg.h and to be on the secure side you may define
+<tscreen><verb>
+#define SG_BIG_BUFF (128*1024-512)  /* 128 Kb buffer size */
+</verb></tscreen>
+though, CD writers are reported to work with 64Kb and the `Iomega guest'
+driver happily works with the default size of 32k.
+

@@ -64,7 +64,12 @@ show_regs(char *file, int line)
 {
   int i;
   unsigned char *sp;
-  unsigned char *cp = SEG_ADR((unsigned char *), cs, ip);
+  unsigned char *cp;
+
+  if (!d.general)
+    return;
+
+  cp = SEG_ADR((unsigned char *), cs, ip);
   if (!cp) {
     g_printf("Ain't gonna do it, cs=0x%x, eip=0x%x\n",REG(cs),LWORD(eip));
     return;
