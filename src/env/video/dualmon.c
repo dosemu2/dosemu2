@@ -311,13 +311,13 @@ static int dualmon_setmode(int type, int xsize,int ysize)
 {
   if (type==7) {
     if (config.dualmon == 2) reinit_MDA_regs();
-    Video->is_mapped = 1;
+    Video->update_screen = NULL;
     WRITE_WORD(BIOS_CONFIGURATION, READ_WORD(BIOS_CONFIGURATION) | 0x30);
     WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0b0d);
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3b4);
   }
   else {
-    Video->is_mapped = Video_default->is_mapped;
+    Video->update_screen = Video_default->update_screen;
     WRITE_WORD(BIOS_CONFIGURATION, READ_WORD(BIOS_CONFIGURATION) & ~0x30);
     WRITE_WORD(BIOS_CURSOR_SHAPE, 0x0607);
     WRITE_WORD(BIOS_VIDEO_PORT, 0x3d4);
@@ -350,27 +350,13 @@ if (old != READ_WORD(BIOS_CONFIGURATION)) {
   }
 }
 
-
-static int dualmon_update_screen(void)
-{
-static int old=-1;
-if (old != Video->is_mapped) {
-  v_printf("VID: update_screen, Video->is_mapped=%d\n",Video->is_mapped);
-  old=Video->is_mapped;
-}
-  if ((!Video->is_mapped) && Video_default->update_screen) return Video_default->update_screen();
-  if ((READ_WORD(BIOS_CONFIGURATION) & 0x30) == 0x30) dualmon_update_cursor();
-  return 1;
-}
-
 struct video_system Video_dualmon = {
-   1,                /* is_mapped, will be overwritten by parent Video system */
    dualmon_init,
    NULL,
    dualmon_close,
    dualmon_setmode,
-   dualmon_update_screen,             /* update_screen */
-   dualmon_update_cursor
+   NULL,                  /* will be overwritten by parent Video system */
+   dualmon_update_cursor,
 };
 
 void init_dualmon(void)
@@ -381,7 +367,7 @@ void init_dualmon(void)
       Video_default=Video;
       /* virt_text_base = MDA_VIRT_TEXT_BASE; */
       Video=&Video_dualmon;
-      Video->is_mapped=Video_default->is_mapped;
+      Video->update_screen=Video_default->update_screen;
       if (config.dualmon == 2) {
         /* we are on a graphics console, need neither screen- nor cursor-update  */
         Video->update_screen=0;

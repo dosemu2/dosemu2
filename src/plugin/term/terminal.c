@@ -111,6 +111,7 @@ void get_screen_size (void)
    Rows = SLtt_Screen_Rows;
    Columns = SLtt_Screen_Cols;
    if (Rows < 25) Rows = 25;
+   vga.scan_len = 2 * Columns;
 }
 
 static void set_char_set (void)
@@ -257,6 +258,7 @@ static int terminal_initialize(void)
      error("X: X_init: VGAEmu init failed!\n");
      leavedos(99);
    }
+   vga.scan_len = 2 * Columns;
    register_text_system(&Text_term);
    vga_emu_setmode(video_mode, Columns, Rows);
 
@@ -607,13 +609,13 @@ static void term_resize_text_screen(void)
 #define term_update_cursor NULL
 
 struct video_system Video_term = {
-   0,                /* is_mapped */
    NULL,
    terminal_initialize, 
    terminal_close,      
    term_setmode,      
    slang_update,
    term_update_cursor,
+   NULL,
    NULL
 };
 

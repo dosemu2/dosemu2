@@ -203,12 +203,13 @@ static void console_close(void)
 #define console_setmode NULL
 
 struct video_system Video_console = {
-   1,                /* is_mapped */
    console_init,
    console_post_init,
    console_close,
    console_setmode,
    NULL,             /* update_screen */
-   do_console_update_cursor
+   do_console_update_cursor,
+   NULL,
+   NULL              /* handle_events */
 };
 

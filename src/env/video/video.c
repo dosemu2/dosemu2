@@ -43,13 +43,14 @@ static void v_empty_void (void) {}
 static int i_empty_3int (int type, int xsize, int ysize) {return 0;}
 
 struct video_system Video_none = {
-  0,		/* is_mapped */
   i_empty_void,	/* priv_init */
   i_empty_void,	/* init */
   v_empty_void,	/* close */
   i_empty_3int,	/* setmode */
-  i_empty_void,	/* update_screen */
-  v_empty_void	/* update_cursor */
+  NULL,	        /* update_screen */
+  v_empty_void,	/* update_cursor */
+  NULL,         /* change_config */
+  NULL          /* handle_events */
 };
 
 /* 
@@ -103,7 +104,7 @@ static int video_init(void)
   if (Video->priv_init)
       Video->priv_init();          /* call the specific init routine */
 
-  if (!Video->is_mapped) {
+  if (Video->update_screen) {
      /* allocate screen buffer for non-console video compare speedup */
      int co_ = co;
      if (co_ < MAX_COLUMNS) co_ = MAX_COLUMNS; /* sanity check */
@@ -460,12 +461,13 @@ void video_post_init(void)
 }
 
 struct video_system Video_graphics = {
-   1,                /* is_mapped */
    vga_initialize,
    vga_post_init,
    NULL,
    NULL,
    NULL,             /* update_screen */
+   NULL,
+   NULL,
    NULL
 };
 

@@ -96,9 +96,6 @@ void init_dualmon(void);
 
 
 struct video_system {
-   boolean is_mapped;          /* if true, video ram is directly mapped and
-                                  update_screen is not needed. */
-
    int (*priv_init)(void);     /* does setup which needs root privileges */
    int (*init)(void);              /* does all frontend-specific setup,
                                   like mapping video memory, opening XWindow,
@@ -115,6 +112,8 @@ struct video_system {
                                   or is not done because the video mem is clean */
    int (*change_config)(unsigned item, void *buf); /* change configuration
                                   e.g. window title (optional) */
+   void (*handle_events)(void);    /* event handler (not strictly video but
+                                  related, optional) */
 };
 
 extern struct video_system *Video;
@@ -260,7 +259,6 @@ EXTERN int v_8514_base INIT(0);
 
 EXTERN void get_screen_size (void);
 EXTERN void set_video_bios_size(void);
-EXTERN void X_handle_events(void);
 EXTERN void X_blink_cursor(void);
 EXTERN void init_vga_card(void);
 EXTERN void scr_state_init(void);

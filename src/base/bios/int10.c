@@ -266,7 +266,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
-  if (config.X) virt_text_base = (int)vga.mem.base;
+  if (Video->update_screen) virt_text_base = (int)vga.mem.base;
 #endif
 
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
@@ -283,7 +283,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
   ypos = get_bios_cursor_y_position(s);
 
   /* check for gfx mode */
-  if(config.X && !using_text_mode()) gfx_mode = 1;
+  if(Video->update_screen && !using_text_mode()) gfx_mode = 1;
 
   switch (ch) {
   case '\r':         /* Carriage return */
@@ -355,7 +355,7 @@ clear_screen(int s, int att)
   int lx, co, li;
 #if USE_DUALMON
   int virt_text_base = BIOS_SCREEN_BASE;
-  if (config.X) virt_text_base = (int)vga.mem.base;
+  if (Video->update_screen) virt_text_base = (int)vga.mem.base;
 #endif
 
   if (config.cardtype == CARD_NONE)
@@ -417,6 +417,10 @@ static boolean X_set_video_mode(int mode) {
   }
 
   if(Video->setmode == NULL) {
+    vga.display_start = 0;
+    virt_text_base = (int)vga.mem.base;
+    screen_adr = (void *)vga.mem.base;
+    WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
     i10_msg("set_video_mode: no setmode handler!\n");
     return 0;
   }
@@ -562,7 +566,7 @@ boolean set_video_mode(int mode) {
   int type=0;
   int old_video_mode,oldco;
 
-  if (config.X) return X_set_video_mode(mode);
+  if (Video->update_screen) return X_set_video_mode(mode);
   i10_msg("set_video_mode: mode 0x%02x\n",mode);
   
   oldco = co;
@@ -696,7 +700,7 @@ static void get_dcc(int *active_dcc, int *alternate_dcc)
 static void return_state(Bit8u *statebuf) {
 	int active_dcc, alternate_dcc;
 	
-        if(!config.dualmon && config.X) {
+        if(!config.dualmon && Video->update_screen) {
 	   WRITE_WORD(statebuf, vgaemu_bios.functionality - 0xc0000);
 	   WRITE_WORD(statebuf + 2, 0xc000);
         } else
@@ -775,7 +779,7 @@ static void vga_ROM_to_RAM(unsigned height, int bank)
 
 int int10(void)
 {
-  if(!config.dualmon && config.X) {
+  if(!config.dualmon && Video->update_screen) {
     int10_new();
   } else
     int10_old();
@@ -798,8 +802,8 @@ void int10_old(void) /* with dualmon */
   if (config.dualmon && (last_equip != BIOS_CONFIG_SCREEN_MODE)) {
     v_printf("VID: int10 entry, equip-flags=0x%04x\n",READ_WORD(BIOS_CONFIGURATION));
     last_equip = BIOS_CONFIG_SCREEN_MODE;
-    if (IS_SCREENMODE_MDA) Video->is_mapped = 1;
-    else Video->is_mapped = Video_default->is_mapped;
+    if (IS_SCREENMODE_MDA) Video->update_screen = NULL;
+    else Video->update_screen = Video_default->update_screen;
   }
 #endif
 
@@ -887,7 +891,7 @@ void int10_old(void) /* with dualmon */
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
-      if (config.X) vga_emu_set_text_page(page, TEXT_SIZE);
+      if (Video->update_screen) vga_emu_set_text_page(page, TEXT_SIZE);
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
@@ -1040,7 +1044,7 @@ void int10_old(void) /* with dualmon */
     {
       unsigned m = video_mode & 0xff;
 
-      if(config.X) {
+      if(Video->update_screen) {
         if(vga.mode & ~0xff) {
           /*
            * For VESA modes we look for an equivalent VGA mode number
@@ -1066,8 +1070,8 @@ void int10_old(void) /* with dualmon */
     if(LO(ax) == 3) char_blink = LO(bx) & 1;
 
     /* root@zaphod */
-    /* Palette register stuff. Only for the VGA emulator used by X */
-    if(config.X) {
+    /* Palette register stuff. Only for the VGA emulator */
+    if(Video->update_screen) {
        int i, count;
        unsigned char *src;
        unsigned char index, m;
@@ -1338,7 +1342,7 @@ void int10_old(void) /* with dualmon */
 #endif
 
   case 0x4f:                    /* vesa interrupt */
-    if(config.X)
+    if(Video->update_screen)
       do_vesa_int();
     break;
 
@@ -1452,7 +1456,7 @@ void int10_new(void) /* with X but without dualmon */
 	break;
       }
       if (config.console_video) set_vc_screen_page(page);
-      if (config.X) vga_emu_set_text_page(page, TEXT_SIZE);
+      if (Video->update_screen) vga_emu_set_text_page(page, TEXT_SIZE);
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);
       WRITE_WORD(BIOS_VIDEO_MEMORY_ADDRESS, TEXT_SIZE * page);
@@ -1650,8 +1654,8 @@ void int10_new(void) /* with X but without dualmon */
       if(LO(ax) == 3) char_blink = LO(bx) & 1;
 
       /* root@zaphod */
-      /* Palette register stuff. Only for the VGA emulator used by X */
-      if(config.X) {
+      /* Palette register stuff. Only for the VGA emulator */
+      if(Video->update_screen) {
          int i, count;
          unsigned char *src;
          unsigned char index, m;
@@ -2113,7 +2117,7 @@ void int10_new(void) /* with X but without dualmon */
 
 
     case 0x4f:		/* vesa interrupt */
-      if(config.X) do_vesa_int();
+      if(Video->update_screen) do_vesa_int();
       break;
 
 

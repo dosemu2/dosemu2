@@ -491,6 +491,7 @@ static void X_keymap_init(void);
 
 /* error/event handler */
 static int NewXErrorHandler(Display *, XErrorEvent *);
+static void X_handle_events(void);
 
 /* interface to xmode.exe */
 static char X_title_emuname [X_TITLE_EMUNAME_MAXLEN] = {0};
@@ -571,14 +572,14 @@ void kdos_close_msg(void);
  */
 struct video_system Video_X = 
 {
-   0,                /* is_mapped */
-   0,
+   NULL,
    X_init,         
    X_close,      
    X_set_videomode,      
    X_update_screen,
    X_update_cursor,
-   X_change_config
+   X_change_config,
+   X_handle_events
 };
 
 static void X_update(void);
@@ -1584,7 +1585,7 @@ static void toggle_fullscreen_mode(void)
  *
  * DANG_END_FUNCTION
  */
-void X_handle_events()
+static void X_handle_events(void)
 {
    static int busy = 0;
    XEvent e;

@@ -370,18 +370,14 @@ static void SIGALRM_call(void)
     first = 1;
   }
 
-#ifdef X_SUPPORT
-  if (config.X) {
-     X_handle_events();
-     /* although actually the event handler handles the keyboard in X, keyb_client_run
-      * still needs to be called in order to handle pasting.
-      */
-     keyb_client_run();
-  }
-  else
-#endif
+  if (Video->handle_events)
+     Video->handle_events();
+
   /* for the SLang terminal we'll delay the release of shift, ctrl, ...
      keystrokes a bit */
+  /* although actually the event handler handles the keyboard in X, keyb_client_run
+   * still needs to be called in order to handle pasting.
+   */
   if (!config.console_keyb)
     keyb_client_run();
 
