@@ -1235,14 +1235,14 @@ static int int21(void)
 
       if (!Video->change_config)
         return 0;
-      if (!strlen(title_hint) || strcmp(title_current, title_hint) != 0)
+      if (!title_hint[0] || strcmp(title_current, title_hint) != 0)
         return 0;
 
       ptr = strrchr(str, '\\');
       if (!ptr) ptr = str;
       else ptr++;
       ptr += strspn(ptr, " \t");
-      if (!strlen(ptr))
+      if (!ptr[0])
         return 0;
       tmp_ptr = ptr;
       while (*tmp_ptr) {	/* Check whether the name is valid */
@@ -1699,20 +1699,27 @@ static int int2f(void)
       char cmdname[TITLE_APPNAME_MAXLEN];
       char appname[TITLE_APPNAME_MAXLEN];
       struct lowstring *str = SEG_ADR((struct lowstring *), ds, si);
-      u_short psp_seg = sda_cur_psp(sda);
-      struct MCB *mcb = (struct MCB *)SEG2LINEAR(psp_seg - 1);
+      u_short psp_seg;
+      struct MCB *mcb;
       int len;
       char *ptr, *tmp_ptr;
       if (!Video->change_config)
         break;
-
+      if (!sda)
+        break;
+      psp_seg = sda_cur_psp(sda);
+      if (!psp_seg)
+        break;
+      mcb = (struct MCB *)SEG2LINEAR(psp_seg - 1);
+      if (!mcb)
+        break;
       strncpy(title_hint, mcb->name, 8);
       title_hint[8] = 0;
       len = MIN(str->len, TITLE_APPNAME_MAXLEN - 1);
       memcpy(cmdname, str->s, len);
       cmdname[len] = 0;
       ptr = cmdname + strspn(cmdname, " \t");
-      if (!strlen(ptr))
+      if (!ptr[0])
 	return 0;
       tmp_ptr = ptr;
       while (*tmp_ptr) {	/* Check whether the name is valid */
@@ -2232,8 +2239,12 @@ static void update_xtitle(void)
   if (!sda)
     return;
   psp_seg = sda_cur_psp(sda);
+  if (!psp_seg)
+    return;
   mcb = (struct MCB *)SEG2LINEAR(psp_seg - 1);
-  force_update = !strlen(title_hint);
+  if (!mcb)
+    return;
+  force_update = !title_hint[0];
 
   strncpy(cmdname, mcb->name, 8);
   cmdname[8] = 0;
