@@ -54,7 +54,7 @@ OPTIONALSUBDIRS += $(MIDID)
 
 LIBSUBDIRS=env/video base/async arch/linux/async base/misc base/dev/misc\
 	$(THREADS)\
-	emu-i386 env\
+	emu-i386 env base/speaker \
 	base/dev/pic dosext/dpmi dosext/mfs dosext/misc\
 	base/init base/serial base/keyboard base/mouse\
 	base/dev/dma \

@@ -98,6 +98,7 @@
 /*#define OLD_X_TEXT*/		/* do you want to use the old X_textmode's */
 #define CONFIG_X_SELECTION 1
 #define CONFIG_X_MOUSE 1
+#define CONFIG_X_SPEAKER 1		/* do you want speaker support in X? */
 
 /* Comment out if you wish to have a visual indication of the area
    being updated */
@@ -141,6 +142,10 @@
 
 #if CONFIG_X_SELECTION
 #include "screen.h"
+#endif
+
+#if CONFIG_X_SPEAKER
+#include "speaker.h"
 #endif
 
 #define Bit8u byte
@@ -1028,6 +1033,10 @@ static int X_init(void)
   
   /* HACK!!! Don't konw is video_mode is already set */
   X_setmode(TEXT, co, li);
+
+#ifdef CONFIG_X_SPEAKER
+  register_speaker(display, X_speaker_on, X_speaker_off);
+#endif
             
   return(0);                        
 }
@@ -1046,6 +1055,13 @@ static void X_close(void)
   X_printf("X_close()\n");
   if (display==NULL)
     return;
+
+#ifdef CONFIG_X_SPEAKER
+  /* turn off the sound, and */
+  speaker_off();
+  /* reset the speaker to it's default */
+  register_speaker(NULL, NULL, NULL);
+#endif
 
   XUnloadFont(display,vga_font);
   XDestroyWindow(display,mainwindow);

@@ -125,6 +125,7 @@ __asm__("___START___: jmp _emulate\n");
 #ifdef __NetBSD__
 #include <setjmp.h>
 #endif
+#include "speaker.h"
 
 #ifdef NEW_KBD_CODE
 #include "keyb_clients.h"
@@ -558,11 +559,19 @@ leavedos(int sig)
     SETSIG(SIGTRAP, ign_sigs);
     warn("leavedos(%d) called - shutting down\n", sig);
 
-    if (config.speaker==SPKR_NATIVE ||
-       (config.speaker==SPKR_EMULATED && config.console && !config.X))
-    {
+    if (config.speaker == SPKR_EMULATED) {
+      g_printf("SPEAKER: sound off\n");
+      speaker_off();		/* turn off any sound */
+    }
+    if (config.speaker==SPKR_NATIVE) {
        g_printf("SPEAKER: sound off\n");
-       do_ioctl(console_fd, KIOCSOUND, 0);	       /* turn off any sound */
+       /* Since the speaker is native hardware use port manipulation,
+	* we don't know what is actually implementing the kernel's
+	* ioctls.
+	* My port logic is acutally stolen from kd_nosound in the kernel.
+	* 		--EB 21 September 1997
+	*/
+       port_safe_outb(0x61, port_safe_inb(0x61)&0xFC); /* turn off any sound */
     }
 
     g_printf("calling close_all_printers\n");

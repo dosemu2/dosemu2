@@ -1,3 +1,10 @@
+97/09/26 ver. 0.67.12 released
+	From Eric
+	- new speaker code. Changes against old code:
+	  Xsupport, variable sound duration (limited to 990ms),
+	  turn-off on leavedos.
+	From Hans
+	- DANG update/recompile
 97/09/23 ver. 0.67.11.2 unofficial pre-release
 	From Alberto,
 	- final fixes for CPU detection, SMP now switches off RDTSC timing.

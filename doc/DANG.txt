@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair@slitesys.demon.co.uk
-  version dosemu-0.67.11.2
+  version dosemu-0.67.12
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -386,53 +386,57 @@
 
   7.17.2. timer_tick
 
-  7.17.3. timer_int_engine
+  7.17.3. do_sound
 
-  7.18.   base/misc/shared.c Information
+  7.17.4. timer_int_engine
 
-  7.19.   Functions in base/misc/shared.c
+  7.18.   base/speaker/speaker.c Information
 
-  7.19.1. shared_qf_memory_init
+  7.19.   base/misc/shared.c Information
 
-  7.20.   Remarks in base/misc/shared.c
+  7.20.   Functions in base/misc/shared.c
 
-  7.21.   base/misc/dos2linux.c Information
+  7.20.1. shared_qf_memory_init
 
-  7.22.   Functions in base/misc/dos2linux.c
+  7.21.   Remarks in base/misc/shared.c
 
-  7.22.1. run_unix_command
+  7.22.   base/misc/dos2linux.c Information
 
-  7.23.   base/misc/ioctl.c Information
+  7.23.   Functions in base/misc/dos2linux.c
 
-  7.24.   Functions in base/misc/ioctl.c
+  7.23.1. run_unix_command
 
-  7.24.1. io_select_init
+  7.24.   base/misc/ioctl.c Information
 
-  7.24.2. add_to_io_select
+  7.25.   Functions in base/misc/ioctl.c
 
-  7.24.3. remove_from_io_select
+  7.25.1. io_select_init
 
-  7.25.   base/dev/misc/cmos.c Information
+  7.25.2. add_to_io_select
 
-  7.26.   base/dev/misc/lpt.c Information
+  7.25.3. remove_from_io_select
 
-  7.27.   Functions in base/dev/misc/lpt.c
+  7.26.   base/dev/misc/cmos.c Information
 
-  7.27.1. printer_init
+  7.27.   base/dev/misc/lpt.c Information
 
-  7.28.   base/dev/misc/pci.c Information
+  7.28.   Functions in base/dev/misc/lpt.c
 
-  7.29.   Functions in base/dev/misc/pci.c
+  7.28.1. printer_init
 
-  7.29.1. pci_read_header
+  7.29.   base/dev/misc/pci.c Information
 
-  7.29.2. pci_read_header
+  7.30.   Functions in base/dev/misc/pci.c
 
-  7.29.3. pci_read_header
+  7.30.1. pci_read_header
 
-  7.30.   include/doshelpers.h Information
+  7.30.2. pci_read_header
 
-  7.31.   Remarks in include/doshelpers.h
+  7.30.3. pci_read_header
+
+  7.31.   include/doshelpers.h Information
+
+  7.32.   Remarks in include/doshelpers.h
 
   8.      The CPU_Intel group of Modules
 
@@ -2051,7 +2055,30 @@
   It checks to see if we should queue a timer interrupt based on the
   current values.
 
-  77..1177..33..  ttiimmeerr__iinntt__eennggiinnee
+  77..1177..33..  ddoo__ssoouunndd
+
+  do_sound handles the _emulated_ mode pc-speaker emulation.
+
+  As far as I can determine all cases of the pc-speaker are now
+  emulated.  But I am not sure where Rainer Zimmerman got his
+  (pit[2].mode == 2) || (pit[2].mode == 3) test in the original
+  implementation, it doesn't seem to cause problems though.
+
+  The implementation of speaker_on & speaker_off can be found in
+  src/base/speaker.c
+
+  Major Changes from version written by Rainter Zimmerman.
+
+  o Added support for programs that control the directly through bit 1
+  of port61.
+
+  o Added a generic interface to allow multiple speaker backends.
+
+  o Implemented X speaker code so the emulated speaker now works in X.
+
+  --EB 21 September 1997
+
+  77..1177..44..  ttiimmeerr__iinntt__eennggiinnee
 
   This is experimental TIMER-IRQ CHAIN code!  This is a function to
   determine whether it is time to invoke a new timer irq 0 event.
@@ -2070,20 +2097,70 @@
   result is that we simply call pic_sched and run the dos interrupt.  If
   the new code causes no problems, I'll revise this section permanently.
 
-  77..1188..  bbaassee//mmiisscc//sshhaarreedd..cc IInnffoorrmmaattiioonn
+  77..1188..  bbaassee//ssppeeaakkeerr//ssppeeaakkeerr..cc IInnffoorrmmaattiioonn
+
+  The pc-speaker emulator for Dosemu.
+
+  This file contains functions to make a pc speaker beep for dosemu.
+
+  Actuall emulation is done in src/base/dev/misc/timers.c in do_sound.
+
+  Currenly emulation is only done when the new keyboard is enabled but
+  with a little extra work it should be possible to enable it for the
+  old keyboard code if necessary.
+
+  For parts of dosemu that want to beep the pc-speaker (say the video
+  bios) #include "speaker.h" Use 'speaker_on(ms, period)' to turn the
+  pc-speaker on for 'ms' milliseconds with period 'period'.  The
+  function returns immediately.
+
+  Use 'speaker_off()' To turn the pc-speaker definentily off.  This is
+  mostly useful when exiting the program to ensure you aren't killy
+  someones ears :)
+
+  given.  No mixing happens.
+
+  For code that wants to implement speaker emulation.  The recommeded
+  method is to add a file in src/base/speaker with the necessary code.
+  Declare it's methods in speaker.h (or somewhere accessible to your
+  code).  And call
+
+  when your speaker code is ready to function.
+
+  gp may be any void pointer value.
+
+  gp is passed as the first argument to the functions arguments 'on' and
+  'off' when global functions 'speaker_on' and 'speaker_off' are called.
+  This allows important state information to be passed to the functions.
+  And reduces reliance on global variables.
+
+  The functions 'on' and 'off' besides the extra parameter are called
+  just as the global functions 'speaker_on' and 'speaker_off' are called
+  respectively.
+
+  Before the registered function is no longer valid call to it's default
+  speaker functions, which will always work.
+
+  --EB 20 Sept 1997
+
+  Maintainers:
+
+  Eric W. Biederman  <ebiederm+eric@npwt.net>
+
+  77..1199..  bbaassee//mmiisscc//sshhaarreedd..cc IInnffoorrmmaattiioonn
 
   Memory areas needed to be shared between the DOSEMU process and other
   clients.
 
-  77..1199..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//sshhaarreedd..cc
+  77..2200..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//sshhaarreedd..cc
 
   These are the functions defined in base/misc/shared.c.
 
-  77..1199..11..  sshhaarreedd__qqff__mmeemmoorryy__iinniitt
+  77..2200..11..  sshhaarreedd__qqff__mmeemmoorryy__iinniitt
 
   Setup all memory areas to be shared with clients.
 
-  77..2200..  RReemmaarrkkss iinn bbaassee//mmiisscc//sshhaarreedd..cc
+  77..2211..  RReemmaarrkkss iinn bbaassee//mmiisscc//sshhaarreedd..cc
 
   Set to 0 all client request area
 
@@ -2091,7 +2168,7 @@
 
   Output info required for client activity
 
-  77..2211..  bbaassee//mmiisscc//ddooss22lliinnuuxx..cc IInnffoorrmmaattiioonn
+  77..2222..  bbaassee//mmiisscc//ddooss22lliinnuuxx..cc IInnffoorrmmaattiioonn
 
   This file contains a simple system for passing information through to
   DOSEMU from the Linux side. It does not allow dynamic message passing,
@@ -2106,11 +2183,11 @@
   GET_USER_ENVVAR the string also contains the name of the environment
   variable to interrogate.  (The string is overwritten with the reply).
 
-  77..2222..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddooss22lliinnuuxx..cc
+  77..2233..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//ddooss22lliinnuuxx..cc
 
   These are the functions defined in base/misc/dos2linux.c.
 
-  77..2222..11..  rruunn__uunniixx__ccoommmmaanndd
+  77..2233..11..  rruunn__uunniixx__ccoommmmaanndd
 
   Runs a command and prints the (stdout and stderr) output on the dosemu
   screen.
@@ -2121,17 +2198,17 @@
 
   +o  buffer - string with command to execute
 
-  77..2233..  bbaassee//mmiisscc//iiooccttll..cc IInnffoorrmmaattiioonn
+  77..2244..  bbaassee//mmiisscc//iiooccttll..cc IInnffoorrmmaattiioonn
 
-  77..2244..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//iiooccttll..cc
+  77..2255..  FFuunnccttiioonnss iinn bbaassee//mmiisscc//iiooccttll..cc
 
   These are the functions defined in base/misc/ioctl.c.
 
-  77..2244..11..  iioo__sseelleecctt__iinniitt
+  77..2255..11..  iioo__sseelleecctt__iinniitt
 
   Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
 
-  77..2244..22..  aadddd__ttoo__iioo__sseelleecctt
+  77..2255..22..  aadddd__ttoo__iioo__sseelleecctt
 
   Arguments are:
 
@@ -2141,8 +2218,7 @@
 
      Add file handle to one of 2 select FDS_SET's depending on whether
      the kernel can handle SIGIO.
-
-  77..2244..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
+  77..2255..33..  rreemmoovvee__ffrroomm__iioo__sseelleecctt
 
   Arguments are:
 
@@ -2153,30 +2229,30 @@
      Remove a file handle from one of 2 select FDS_SET's depending on
      whether the kernel can handle SIGIO.
 
-  77..2255..  bbaassee//ddeevv//mmiisscc//ccmmooss..cc IInnffoorrmmaattiioonn
+  77..2266..  bbaassee//ddeevv//mmiisscc//ccmmooss..cc IInnffoorrmmaattiioonn
 
-  77..2266..  bbaassee//ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
+  77..2277..  bbaassee//ddeevv//mmiisscc//llpptt..cc IInnffoorrmmaattiioonn
 
-  77..2277..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//llpptt..cc
+  77..2288..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//llpptt..cc
 
   These are the functions defined in base/dev/misc/lpt.c.
 
-  77..2277..11..  pprriinntteerr__iinniitt
+  77..2288..11..  pprriinntteerr__iinniitt
 
   Initialize printer control structures
 
-  77..2288..  bbaassee//ddeevv//mmiisscc//ppccii..cc IInnffoorrmmaattiioonn
+  77..2299..  bbaassee//ddeevv//mmiisscc//ppccii..cc IInnffoorrmmaattiioonn
 
-  77..2299..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//ppccii..cc
+  77..3300..  FFuunnccttiioonnss iinn bbaassee//ddeevv//mmiisscc//ppccii..cc
 
   These are the functions defined in base/dev/misc/pci.c.
 
-  77..2299..11..  ppccii__rreeaadd__hheeaaddeerr
+  77..3300..11..  ppccii__rreeaadd__hheeaaddeerr
 
   Use standard 32-bit (type 1) access method to read PCI configuration
   space data
 
-  77..2299..22..  ppccii__rreeaadd__hheeaaddeerr
+  77..3300..22..  ppccii__rreeaadd__hheeaaddeerr
 
   32-bit I/O port output on PCI ports (0xcf8=addr,0xcfc=data)
   Optimization: trap the config writes (outd 0xcf8 with bit31=1).  Since
@@ -2184,13 +2260,13 @@
   0xcfc, we can just set it as pending and merge it with the following
   operation, saving two calls to priv_iopl().
 
-  77..2299..33..  ppccii__rreeaadd__hheeaaddeerr
+  77..3300..33..  ppccii__rreeaadd__hheeaaddeerr
 
   Register standard PCI ports 0xcf8-0xcff
 
-  77..3300..  iinncclluuddee//ddoosshheellppeerrss..hh IInnffoorrmmaattiioonn
+  77..3311..  iinncclluuddee//ddoosshheellppeerrss..hh IInnffoorrmmaattiioonn
 
-  77..3311..  RReemmaarrkkss iinn iinncclluuddee//ddoosshheellppeerrss..hh
+  77..3322..  RReemmaarrkkss iinn iinncclluuddee//ddoosshheellppeerrss..hh
 
   The Helper Interrupt uses the following groups:
 
@@ -2593,6 +2669,7 @@
 
   Please read pic_serial_run() for more information about interrupts.
   [num = port, int_requested = the requested serial interrupt]
+
   99..1100..22..  ppiicc__sseerriiaall__rruunn
 
   This function is called by the priority iunterrupt controller when a
@@ -2784,7 +2861,6 @@
   flag (+, -, or blank) current interrupt level interrupt in-service
   register interrupt mask register interrupt request register message
   part one decimal data value message part two
-
   If the message part 2 pointer is a null pointer, then only message
   part one (without the data value) is printed.
 
@@ -2892,6 +2968,7 @@
   will remain queued.  Also, some programs fake an iret, so that it is
   possible for pic_iret to fail.  See pic_watch for the watchdog timer
   that catches and fixes this event.
+
   1122..22..1100..  ppiicc__wwaattcchh
 
   pic_watch is a watchdog timer for pending interrupts.  If pic_iret
@@ -2946,6 +3023,7 @@
   To assure proper repeat scheduling, pic_sched should be called from
   within the interrupt handler for the same interrupt.  The maximum
   interval is 15 minutes (0x3fffffff).
+
   1122..33..  RReemmaarrkkss iinn bbaassee//ddeevv//ppiicc//ppiicc..cc
 
   pic_push,pic_pop
@@ -3556,7 +3634,6 @@
   It may be necessary to scan data of all running threads or doing
   something special like notifying e.t.c. To acomplish this you should
   use the macro FOR_ALL_TCB such as
-
    struct tcb *tcb;
    int id;
    FOR_ALL_TCB(id,tcb) {

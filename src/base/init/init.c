@@ -53,6 +53,7 @@
 #include "iodev.h"
 #include "priv.h"
 #include "doshelpers.h"
+#include "speaker.h"
 
 #ifdef NEW_KBD_CODE
 #include "keyb_clients.h"
@@ -549,6 +550,10 @@ void device_init(void)
  
   scr_state_init();
   video_config_init();
+  if (config.console) {
+    register_speaker((void *)console_fd,
+		     console_speaker_on, console_speaker_off);
+  }
   iodev_init();
   mouse_init();
   printer_init();

@@ -157,24 +157,60 @@ void timer_tick(void)
 
 
 #ifdef NEW_KBD_CODE
-/* this does the EMULATED mode speaker emulation */
-void do_sound(Bit16u period) {
-  if ((port61 & 3) == 3 && (pit[2].mode == 2 || pit[2].mode == 3)) {
-     if (config.console && !config.X) {
-        i_printf("SPEAKER: on, period=%d\n",pit[2].write_latch);
-        do_ioctl(console_fd,KIOCSOUND,pit[2].write_latch & 0xffff);
-     }
-     else {
-        i_printf("SPEAKER: Dumb emulated beep\n");
-        putchar('\007');
-     }
-  }
-  else if (config.console && !config.X) {
-     i_printf("SPEAKER: sound OFF!\n");
-     do_ioctl(console_fd,KIOCSOUND,0);
-  }
+#include "speaker.h"
+
+/* DANG_BEGIN_FUNCTION do_sound
+ *
+ * do_sound handles the _emulated_ mode pc-speaker emulation.  
+ *
+ * As far as I can determine all cases of the pc-speaker are now
+ * emulated.  But I am not sure where Rainer Zimmerman got his
+ * (pit[2].mode == 2) || (pit[2].mode == 3) test in the original
+ * implementation, it doesn't seem to cause problems though.
+ *
+ * The implementation of speaker_on & speaker_off can be found in 
+ * src/base/speaker.c
+ *
+ * Major Changes from version written by Rainter Zimmerman.
+ *
+ * o Added support for programs that control the directly through bit 1
+ *   of port61. 
+ *
+ * o Added a generic interface to allow multiple speaker backends.
+ *
+ * o Implemented X speaker code so the emulated speaker now works in X.
+ *
+ * --EB 21 September 1997
+ * DANG_END_FUNCTION
+ */
+void do_sound(Bit16u period)
+{
+	/* Note I assume that a sound before after another will kill
+	 * the previous sound I had a hard time getting X to do that.
+	 * If it becomes a problem possibly tuning sound_duration is
+	 * the answer.  I suggest 200ms but as I don't have that
+	 * problem now I'm not worring about it.
+	 */
+	static const unsigned sound_duration = 990;  /* in miliseconds */
+	switch (port61 & 3) {
+	case 3:		/* speaker on & speaker control through timer channel 2 */
+		if ((pit[2].mode == 2) || (pit[2].mode == 3)) {		/* is this test needed? */
+			speaker_on(sound_duration,period);
+		}
+		else {
+			speaker_off();	/* is this correct? */
+		}
+		break;
+	case 2:		/* speaker on & direct speaker through bit 1 */
+		speaker_on(sound_duration, 0xfff); /* on as long as possible */
+		break;
+	case 1:		/* speaker off & speaker control through timer channel 2 */
+	case 0:		/* speaker off & direct speaker through bit 1 */
+		speaker_off();
+		break;
+	}
 }
-#endif
+#endif /* NEW_KBD_CODE */
 
  
 static void pit_latch(int latch)

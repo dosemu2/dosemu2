@@ -49,6 +49,7 @@ GROUP:		Misc doc/DANG/summary_Misc dosext/misc/emm.c
 			include/ports.h base/misc/dosio.c base/misc/disks.c 
 			dev/misc/lpt.c 
 			base/dev/misc/timers.c
+			base/speaker/speaker.c
 			base/misc/shared.c
 			base/misc/dos2linux.c
 			base/misc/ioctl.c

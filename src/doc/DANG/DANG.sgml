@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.67.11.2
+<date> version dosemu-0.67.12
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -2047,6 +2047,34 @@ These are the functions defined in base/dev/misc/timers.c.
  
 
 
+<sect2>do_sound
+
+
+<p>
+ 
+ do_sound handles the _emulated_ mode pc-speaker emulation.  
+
+ As far as I can determine all cases of the pc-speaker are now
+ emulated.  But I am not sure where Rainer Zimmerman got his
+ (pit&lsqb;2&rsqb;.mode == 2) || (pit&lsqb;2&rsqb;.mode == 3) test in the original
+ implementation, it doesn't seem to cause problems though.
+
+ The implementation of speaker_on &amp; speaker_off can be found in 
+ src/base/speaker.c
+
+ Major Changes from version written by Rainter Zimmerman.
+
+ o Added support for programs that control the directly through bit 1
+   of port61. 
+
+ o Added a generic interface to allow multiple speaker backends.
+
+ o Implemented X speaker code so the emulated speaker now works in X.
+
+ --EB 21 September 1997
+ 
+
+
 <sect2>timer_int_engine
 
 
@@ -2073,6 +2101,59 @@ These are the functions defined in base/dev/misc/timers.c.
  
 
 
+<sect1>base/speaker/speaker.c Information
+
+<p>
+ 
+ The pc-speaker emulator for Dosemu.
+
+ This file contains functions to make a pc speaker beep for dosemu.  
+
+ Actuall emulation is done in src/base/dev/misc/timers.c in do_sound.
+
+ Currenly emulation is only done when the new keyboard is enabled but with a
+ little extra work it should be possible to enable it for the old keyboard
+ code if necessary. 
+
+ For parts of dosemu that want to beep the pc-speaker (say the video bios)
+ &num;include &dquot;speaker.h&dquot;
+ Use 'speaker_on(ms, period)'
+ to turn the pc-speaker on for 'ms' milliseconds with period 'period'.
+ The function returns immediately.
+
+ Use 'speaker_off()'
+ To turn the pc-speaker definentily off.  This is mostly useful when exiting
+ the program to ensure you aren't killy someones ears :)
+
+ 'speaker_on' always overrides whatever previous speaker sound was previously
+ given.  No mixing happens.
+
+ For code that wants to implement speaker emulation.  The recommeded method
+ is to add a file in src/base/speaker with the necessary code.  Declare it's
+ methods in speaker.h (or somewhere accessible to your code).  And call
+
+ 'register_speaker(gp, on, off)'
+ when your speaker code is ready to function.
+
+  gp may be any void pointer value.
+
+  gp is passed as the first argument to the functions arguments 'on'
+  and 'off' when global functions 'speaker_on' and 'speaker_off' are called.
+  This allows important state information to be passed to the functions.  And
+  reduces reliance on global variables.  
+
+ The functions 'on' and 'off' besides the extra parameter are called just as
+ the global functions 'speaker_on' and 'speaker_off' are called respectively.
+ 
+ Before the registered function is no longer valid call 
+ 'register_speaker(NULL, NULL, NULL)' this will reset the speaker code
+ to it's default speaker functions, which will always work.
+
+ --EB 20 Sept 1997
+
+<P>Maintainers:
+<p>
+Eric W. Biederman  <htmlurl url="mailto:ebiederm+eric@npwt.net" name="&lt;ebiederm+eric@npwt.net&gt;">&nl;
 <sect1>base/misc/shared.c Information
 
 <p>
