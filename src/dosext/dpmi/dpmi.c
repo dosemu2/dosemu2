@@ -2227,7 +2227,7 @@ void run_pm_int(int i)
   DPMI_CLIENT.stack_frame.eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
   DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
-  DPMI_CLIENT.stack_frame.eflags &= ~(TF | NT);
+  DPMI_CLIENT.stack_frame.eflags &= ~(TF | NT | AC);
   in_dpmi_pm_stack++;
   in_dpmi_dos_int = 0;
   dpmi_cli();
@@ -2865,7 +2865,7 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   _esp = PMSTACK_ESP;
   in_dpmi_pm_stack++;
   dpmi_cli();
-  _eflags &= ~TF;
+  _eflags &= ~(TF | NT | AC);
 }
 
 /*
@@ -3028,7 +3028,7 @@ if ((_ss & 4) == 4) {
 	if (*csp<=7) {
 	  dpmi_cli();
 	}
-	_eflags &= ~(TF | NT);
+	_eflags &= ~(TF | NT | AC);
 	_cs = DPMI_CLIENT.Interrupt_Table[*csp].selector;
 	_eip = DPMI_CLIENT.Interrupt_Table[*csp].offset;
 	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08lx\n\t\tret=%#04x:%#08lx\n",
@@ -3854,6 +3854,7 @@ done:
 	*--ssp = DPMI_OFF + HLT_OFF(DPMI_return_from_mouse_callback);
 	PMSTACK_ESP -= 4;
     }
+    DPMI_CLIENT.stack_frame.eflags &= ~(AC|TF|NT);
     DPMI_CLIENT.stack_frame.ss = CLIENT_PMSTACK_SEL;
     DPMI_CLIENT.stack_frame.esp = PMSTACK_ESP;
     in_dpmi_pm_stack++;
