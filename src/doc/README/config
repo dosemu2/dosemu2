@@ -43,8 +43,7 @@ url="ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz"
 <para>
  A tarball containing a collection of suitable FreeDos binaries,
  eventually patched to fit DOSEMU needs together with some GNU tools
- you may find usefull and the Bourne shell like command line interpreter
- from Terry R. McConnell, which is configured per default.
+ you may find usefull.
 </para>
 </listitem>
 

@@ -12,16 +12,14 @@ BIG-FAT_NOTE:
 INSTALL
 -------
 
-The most easiest way to get DOSEMU working on your maschine is to use
+The most easiest way to get DOSEMU working on your machine is to use
 the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
 
   - ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
 
       A tarball containing a collection of suitable FreeDos binaries,
       eventually patched to fit DOSEMU needs, together with some GNU
-      tools you may find usefull and the Bourne shell like command line
-      interpreter from Terry R. McConnell, which is configured per
-      default.
+      tools you may find usefull.
 
   - ftp://ftp.dosemu.org/dosemu/dosemu-<version>-bin.tgz
 
@@ -73,34 +71,11 @@ Remember, that you can't use <Ctrl>-C _within_ DOS to exit _from_ DOS.
 For this you need to execute 'exitemu' or, when using xdosemu,
 <Ctrl><Alt><PgDn>.
 
-The shell installed by default is command.com, however, this one at time
-of writing is _very_ memory hungry, so for larger programs (or if you
-prefer Unix like shells) you may use Terry's Bourne shell like commandline
-interpreter. This one gives you more DOS memory below 640K, such that you
-can run larger DOS applications upto 616K. You get it by starting DOSEMU with
+If you want to have your Linux $HOME available as DOS drive D: type
 
-  $ ./dosemu -shell
+  $ ./dosemu -home
 or
-  $ ./xdosemu -shell
-
-Once having booted DOS this way you can, however, switch between 'shell'
-and 'command.com' at any time by typeing
-
-  shell C:\> command
-
-or you just execute _one_ program or a command.com-builtin with
-
-  shell C:\> call myprog
-
-Note, that the 'autoexec.bat' of Terry's shell is 'shell.rc'. Additional
-documentation about it can be found with the C:\doc\shell directory.
-Second note: Terry's shell may convert your a slash '/' to backslash '\'
-and interprete '\' as escape for special characters. If you are in doubt,
-just quote your arguments such as in
-
-  shell C:\> lredir d: "linux\fs/tmp"
-
-
+  $ ./xdosemu -home
 
 SOURCES
 -------
@@ -111,7 +86,6 @@ The sources of the here included binaries can befound at
   http://www.freedos.org/
   http://freedos.sourceforge.net/download/
   http://www.gnu.org/
-  ftp://barnyard.syr.edu/pub/mcconnell/IBM/shell21.zip
 
 
 POLICIES
@@ -123,4 +97,4 @@ POLICIES
 
 
                                   -- Hans <lermen@fgan.de>
-				     2001/03/24
+				     2001/04/21

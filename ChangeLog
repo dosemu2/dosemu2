@@ -1,3 +1,48 @@
+2001/10/28 ver. 1.1.1.7 unofficial pre-release
+	From Hans
+	- introduced coopthreads plugin, which supplies non-scheduled (active)
+	  'task' switching between plain green threads (no new process created).
+	  This has the advantage that _none_ resource locking is needed,
+	  minimal systemoverhead happens and neither DOSEMU nor libc have to
+	  be thread aware.
+	  On init the DOSEMU mainloop becomes 'thread0' with enough stack (1M)
+	  to run as usual. Child-threads are created (256K stack) by stub .com
+	  files from within DOS, have their code in 32-bit DOSEMU and can
+	  (recursively)  call DOS and BIOS functions themselves.
+	  Even hooking of interrupt handler (such as INT23/24) is possible
+	  and on start of a stub .com in fact INT23/24 are directed to own
+	  default handlers.
+	  NOTE that except the new doshelper function DOS_HELPER_COOP (0xc0)
+	  there is _no_ hook within the main code, all is handled within
+	  the plugins themselves and you may just copy the plugin directories
+	  to any DOSEMU > 1.0.1 to take over this new code.
+	  Involved files: src/plugin/coopthreads/*
+	- Ported most of the src/commands/* DOS support programs to
+	  coopthreads, which are: bootoff/on, cmdline, dosdbg, ecpuoff/on,
+	  eject, emumouse, exitemu, lredir, speed, system, uchdir, ugetcwd,
+	  unix, vgaoff/on, xmode. Involved files: src/plugin/commands/*
+	- Wrote (from scratch) a DOSEMU built-in COMMAND.COM using coopthreads.
+	  Involved file: src/plugin/comcom.com ;-)
+	  This COMCOM only needs 2K lowmem per instance (plus env, of course)
+	  and claims to be as compatible as reasonable, but some
+	  incompatibilities still exist (though I don't think they hurt).
+	  The following DOS internal commands are implemented:
+	  cd, chdir, goto, echo, @echo, pause, rem, if, for, shift, call,
+	  type, del, erase, set, path, prompt, break, mkdir, md, rmdir, rd,
+	  verify, ver, ren, date, time, dir.
+	  "copy" and "choice" are not implemented, because those exist as
+	  external freedos commands.
+	  The following DOSEMU support programs are being invoked internally
+	  (if not present in the PATH), so they are always available:
+	  exitemu, speed, bootoff, booton, ecpuoff, ecpuon, eject, emumouse,
+	  ugetcwd, vgaoff, vgaon.
+	  The following ones eat additional lowmem heap, so its better to
+	  leave them external: lredir, unix, dosdbg, xmode, system, uchdir.
+	  Of course COMCOM has a builtin commandline editor with history
+	  buffer, else who of us would like to work the stupid old DOS way;-)
+	- updated README.bindist and src/docs/README/config to reflect the
+	  latest changes
+	- recompiled docs
 2001/10/28 ver. 1.1.1.6 unofficial pre-release
 	From Stas Sergeev <stas_orel@yahoo.com>
 	- fix for emusys/emubat/emuini file extension substitution not

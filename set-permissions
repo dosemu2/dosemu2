@@ -19,3 +19,4 @@ chmod 755 src/tools/periph/getrom
 chmod 755 src/doc/DANG/DANG_c.pl src/doc/DANG/make_DANG
 chmod 755 src/doc/tools/fixupSGML.pl
 chmod 755 src/doc/tools/doSgmlTools.pl
+chmod 755 src/plugin/commands/mkcomstub

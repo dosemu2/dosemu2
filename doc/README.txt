@@ -173,9 +173,7 @@ Alistair MacDonald
      * ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
        A tarball containing a collection of suitable FreeDos binaries,
        eventually patched to fit DOSEMU needs together with some GNU
-       tools you may find usefull and the Bourne shell like command line
-       interpreter from Terry R. McConnell, which is configured per
-       default.
+       tools you may find usefull.
        
    You have to unpack both tarballs (as normal user, NOT as root) into
    the same directory , `cd' into the directory `dosemu' and excute

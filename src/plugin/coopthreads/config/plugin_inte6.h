@@ -1,0 +1,30 @@
+/* 
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/*
+ * This is file plugin_inte6.h for use within the src/plugin/<name>/
+ *
+ * It should contain a valid call to a DOSEMU_HELPER service function of
+ * the plug-in such as
+ *
+ *    case (DOS_HELPER_PLUGIN+MYFUNCTION_OFFSET): {
+ *       extern int my_plugin_inte6(void);
+ *       if ( ! my_plugin_inte6()) return 0;
+ *       break;
+ *    }
+ * 
+ * Don't forget the curly brackets around your statement.
+ */
+
+
+#define DOS_HELPER_COOP         0xc0
+
+
+case (DOS_HELPER_COOP): {
+	extern int coopthreads_plugin_inte6(void);
+	if ( ! coopthreads_plugin_inte6() ) return 0;
+	break;
+}

@@ -1,0 +1,51 @@
+#! /usr/bin/perl
+
+if ($ARGV[0] eq "") {
+  print "USAGE
+  mkcomstub filename buildin_progname [stacksize [heapsize [flags]]]
+
+where is
+
+  filename     the name of the file to be generated with .com extension
+  buildin_progname   name of the builtin program to make a stub for.
+                     (the file generated will get .com extension)
+  stacksize    Number, space between top of stack and heapend
+               (default MIN_STACK_HEAP_PADDING = 1024)
+  heapsize     Number, size of the lowmem heap
+               (default: what's left in 64K)
+               granularity is LOWMEM_HEAP_GRAN = 128
+  flags        Number, will be copied to ctcb->mode_flags
+               (1 = print some debug info via -D+c dosemu debugging)
+
+";
+  exit 1
+}
+
+sub read_file{
+# USAGE: read_file("filename", \$buffer, $size, $offset);
+  local($file, $buf, $size, $offset) = @_;
+  open(FIN, "<$file") || return 0;
+  sysseek(FIN, $offset, SEEK_SET);
+  sysread(FIN, $$buf, $size);
+  close(FIN);
+  return 1;
+}
+
+sub write_file{
+# USAGE: write_file("filename", ">", \$buffer, $size);
+  local($file, $mode, $buf, $size) = @_;
+  open(FOUT, "$mode$file") || return 0;
+  syswrite(FOUT, $$buf, $size);
+  close(FOUT);
+  return 1;
+}
+
+$template = "generic.com";
+read_file("generic.com", \$x, 2, 6) || die "unable to read $template\n";
+$fsize = unpack("v", $x) - 256;
+
+$args="$ARGV[2],$ARGV[3],$ARGV[4],$ARGV[1]\0";
+$buf = "";
+read_file("generic.com", \$buf, $fsize, 0) || die "unable to read $template\n";
+write_file("$ARGV[0]", ">", \$buf, $fsize) || die "unable to write $ARGV[0]\n";
+write_file("$ARGV[0]", ">>", \$args, 256);
