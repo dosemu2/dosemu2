@@ -2534,8 +2534,8 @@ static void X_vidmode(int w, int h, int *new_width, int *new_height)
     for (i=0; i<modecount; i++) {
       if ((vidmode_modes[i]->hdisplay >= w) && 
           (vidmode_modes[i]->vdisplay >= h) &&
-          (vidmode_modes[i]->hdisplay < nw) &&
-          (vidmode_modes[i]->vdisplay < nh)) {
+          (vidmode_modes[i]->hdisplay <= nw) &&
+          (vidmode_modes[i]->vdisplay <= nh)) {
         nw = vidmode_modes[i]->hdisplay;
         nh = vidmode_modes[i]->vdisplay;
         j = i;
