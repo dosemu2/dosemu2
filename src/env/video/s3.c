@@ -371,10 +371,10 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 		port_out_w(xregs16[3], 0x8c00 | s3_8514_base);
 		priv_iopl(0);
 	} else {
-		std_port_outw(xregs16[0], 0x8000 | s3_8514_base);
-		std_port_outw(xregs16[1], 0x8400 | s3_8514_base);
-		std_port_outw(xregs16[2], 0x8800 | s3_8514_base);
-		std_port_outw(xregs16[3], 0x8c00 | s3_8514_base);
+		std_port_outw(0x8000 | s3_8514_base, xregs16[0]);
+		std_port_outw(0x8400 | s3_8514_base, xregs16[1]);
+		std_port_outw(0x8800 | s3_8514_base, xregs16[2]);
+		std_port_outw(0x8c00 | s3_8514_base, xregs16[3]);
 	}
 	port_out(xregs[2], 0x102);
 	emu_video_retrace_on();
