@@ -985,10 +985,8 @@ static boolean_t convert_compare(char *d_name, char *fname, char *fext,
   }
   else {
     extract_filename(tmpname, fname, fext);
-    if (!compare(fname, fext, mname, mext))
-      return FALSE;
   }
-  return TRUE;
+  return compare(fname, fext, mname, mext);
 }
 
 /* get directory;
