@@ -107,16 +107,16 @@ DPMImalloc(unsigned long size, int committed)
         size, PROT_NONE, 0);
       block->from_pool = 0;
     }
-    block->attrs = malloc(size >> PAGE_SHIFT);
-    memset(block->attrs, committed ? 9 : 8, size >> PAGE_SHIFT);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;
     }
-
+    block->attrs = malloc(size >> PAGE_SHIFT);
+    memset(block->attrs, committed ? 9 : 8, size >> PAGE_SHIFT);
     block -> handle = pm_block_handle_used++;
     block -> size = size;
-    dpmi_free_memory -= size;
+    if (committed)
+	dpmi_free_memory -= size;
     return block;
 }
 
@@ -167,15 +167,16 @@ DPMImallocFixed(unsigned long base, unsigned long size, int committed)
         size, PROT_NONE, 0);
       block->from_pool = 0;
     }
-    block->attrs = malloc(size >> PAGE_SHIFT);
-    memset(block->attrs, committed ? 9 : 8, size >> PAGE_SHIFT);
     if (!block->base) {
 	free_pm_block(block);
 	return NULL;
     }
+    block->attrs = malloc(size >> PAGE_SHIFT);
+    memset(block->attrs, committed ? 9 : 8, size >> PAGE_SHIFT);
     block -> handle = pm_block_handle_used++;
     block -> size = size;
-    dpmi_free_memory -= size;
+    if (committed)
+	dpmi_free_memory -= size;
     return block;
 }
     
@@ -185,12 +186,13 @@ int DPMIfree(unsigned long handle)
 
     if ((block = lookup_pm_block(handle)) == NULL)
 	return -1;
-    if (block->from_pool)
+    if (block->from_pool) {
       free_mapping(MAPPING_DPMI, block->base, block->size);
-    else
+      dpmi_free_memory += block -> size;
+    } else {
       munmap_mapping(MAPPING_DPMI, block->base, block->size);
+    }
     free(block->attrs);
-    dpmi_free_memory += block -> size;
     free_pm_block(block);
     return 0;
 }
@@ -221,15 +223,25 @@ DPMIrealloc(unsigned long handle, unsigned long newsize)
     /* NOTE: we rely on realloc_mapping() _not_ changing the address,
      *       when shrinking the memory region.
      */
-    ptr = realloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE,
+    if (block->from_pool) {
+	ptr = realloc_mapping(MAPPING_DPMI | MAPPING_MAYSHARE,
 		 block->base, block->size, newsize);
-    realloc(block->attrs, newsize >> PAGE_SHIFT);
+	dpmi_free_memory += block -> size;
+	dpmi_free_memory -= newsize;
+    } else {
+	ptr = mremap(block->base, block->size, newsize, 0);
+	if (ptr == (void *)-1)		/* man says it returns -1 on error... */
+	    ptr = NULL;
+    }
     if (!ptr)
 	return NULL;
 
+    block->attrs = realloc(block->attrs, newsize >> PAGE_SHIFT);
+    if (newsize > block->size) {
+	memset(block->attrs + (block->size >> PAGE_SHIFT),
+	    block->from_pool ? 9 : 8, (newsize - block->size) >> PAGE_SHIFT);
+    }
     block->base = ptr;
-    dpmi_free_memory += block -> size;
-    dpmi_free_memory -= newsize;
     block -> size = newsize;
     return block;
 }
@@ -242,12 +254,13 @@ DPMIfreeAll(void)
 	while(p) {
 	    dpmi_pm_block *tmp;
 	    if (p->base) {
-		if (p->from_pool)
+		if (p->from_pool) {
 		  free_mapping(MAPPING_DPMI, p->base, p->size);
-		else
+		  dpmi_free_memory += p -> size;
+		} else {
 		  munmap_mapping(MAPPING_DPMI, p->base, p->size);
+		}
 		free(p->attrs);
-		dpmi_free_memory += p -> size;
 	    }
 	    tmp = p->next;
 	    free(p);

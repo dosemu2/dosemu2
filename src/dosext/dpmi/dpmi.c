@@ -753,8 +753,7 @@ int ConvertSegmentToCodeDescriptor(unsigned short segment)
   D_printf("DPMI: convert seg %#x to *code* desc\n", segment);
   for (i=1;i<MAX_SELECTORS;i++)
     if ((Segments[i].base_addr==baseaddr) && (Segments[i].limit>=0xffff) &&
-	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) && Segments[i].used &&
-	 !Segments[i].is_32) {
+	(Segments[i].type==MODIFY_LDT_CONTENTS_CODE) && Segments[i].used) {
       D_printf("DPMI: found *code* descriptor at %#x\n", (i<<3) | 0x0007);
       return (i<<3) | 0x0007;
     }
