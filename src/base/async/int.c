@@ -1218,7 +1218,7 @@ static int int21(void)
       char *str = SEG_ADR((char*), ds, dx);
       if (!config.X && config.mouse.type != MOUSE_XTERM)
         return 0;
-      if (strlen(x_title_hint) && strcmp(x_title_current, x_title_hint) != 0)
+      if (!strlen(x_title_hint) || strcmp(x_title_current, x_title_hint) != 0)
         return 0;
 
       ptr = strrchr(str, '\\');
