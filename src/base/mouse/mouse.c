@@ -259,7 +259,7 @@ mouse_helper(void)
 void mouse_ps2bios(void)
 {        
   m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
-  if (!mouse_is_ps2()) {
+  if (!mice->intdrv) {
     REG(eax) = 0x0500;        /* No ps2 mouse device handler */
     CARRY;
     return;
@@ -341,18 +341,12 @@ void mouse_ps2bios(void)
   }
 }
 
-int mouse_is_ps2(void)
-{
-  return mice->intdrv || mice->type == MOUSE_PS2 || mice->type == MOUSE_IMPS2;
-}
-
 int
 mouse_int(void)
 {
   /* delayed mouse init for xterms; should be done cleaner in 1.3.x */
   if (mice->type == MOUSE_XTERM) {
     /* save old highlight mouse tracking */
-    mice->intdrv = TRUE;
     printf("\033[?1001s");
     /* enable mouse tracking */
     printf("\033[?9h\033[?1000h\033[?1002h\033[?1003h");	
@@ -1884,10 +1878,8 @@ dosemu_mouse_init(void)
 
   mouse_client_init();
 
-  if (mice->intdrv)
+  if (mice->intdrv) {
     memcpy(p,mouse_ver,sizeof(mouse_ver));
-
-  if (mouse_is_ps2()) {
     pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0, do_mouse_irq);
     pic_unmaski(PIC_IMOUSE);
   }
@@ -1921,7 +1913,7 @@ void mouse_post_boot(void)
 
 void mouse_io_callback(void)
 {
-  if (mouse_is_ps2() && mice->fd >= 0) {
+  if (mice->intdrv && mice->fd >= 0) {
     m_printf("MOUSE: We have data\n");
     pic_request(PIC_IMOUSE);
   }

@@ -50,7 +50,7 @@ static int gpm_init(void)
 	mouse_t *mice = &config.mouse;
 	Gpm_Connect conn;
 
-	if (config.vga || !is_console( 0 ))
+	if (config.vga || !mice->intdrv || !is_console( 0 ))
 		return FALSE;
 	
 	conn.eventMask	 = ~0;
@@ -64,7 +64,6 @@ static int gpm_init(void)
 
 	mice->fd = fd;
 	mice->type = MOUSE_GPM;
-	mice->intdrv = TRUE;
 	mice->use_absolute = 1;
 	fcntl(mice->fd, F_SETFL, fcntl(mice->fd, F_GETFL) | O_NONBLOCK);
 	add_to_io_select(mice->fd, 1, mouse_io_callback);

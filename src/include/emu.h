@@ -271,7 +271,6 @@ typedef struct vesamode_type_struct {
        boolean dosbanner;
        boolean emuretrace;
        boolean rdtsc;
-       boolean mouse_flag;
        boolean mapped_bios;	/* video BIOS */
        char *vbios_file;	/* loaded VBIOS file */
        boolean vbios_copy;

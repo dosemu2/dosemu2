@@ -340,7 +340,7 @@ static inline void bios_mem_setup(void)
   CONF_NFLOP(configuration, config.fdisks);
   CONF_NSER(configuration, config.num_ser);
   CONF_NLPT(configuration, config.num_lpt);
-  if (mouse_is_ps2())
+  if (config.mouse.intdrv)
     configuration |= CONF_MOUSE;
 
   /* 

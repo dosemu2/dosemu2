@@ -86,10 +86,9 @@ static int xterm_mouse_init(void)
 {
 	mouse_t *mice = &config.mouse;
 
-	if (!has_xterm_mouse_support())
+	if (!has_xterm_mouse_support() || !mice->intdrv)
 		return FALSE;
 
-	mice->intdrv = TRUE;
 	mice->type = MOUSE_XTERM;
 	mice->use_absolute = 1;
 

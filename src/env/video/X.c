@@ -3699,9 +3699,8 @@ void set_mouse_buttons(int state)
 static int X_mouse_init(void)
 {
   mouse_t *mice = &config.mouse;
-  if (!config.X)
+  if (!config.X || !mice->intdrv)
     return FALSE;
-  mice->intdrv = TRUE;
   mice->type = MOUSE_X;
   mice->use_absolute = 1;
   m_printf("MOUSE: X Mouse being set\n");

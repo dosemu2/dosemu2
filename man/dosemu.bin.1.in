@@ -261,7 +261,7 @@ use this file for output of Debugging messages
 set base memory to SIZE Kilobytes
 .TP
 .I -m
-enable internal mouse-support
+toggle internal mouse-support
 .TP
 .I -P
 copy debugging output to FILE

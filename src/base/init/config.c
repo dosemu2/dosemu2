@@ -156,8 +156,8 @@ void dump_config_status(void *printfunc)
         config.ems_size, config.ems_frame);
     (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\n",
         config.xms_size, config.max_umb, config.dpmi);
-    (*print)("mouse_flag %d\nmapped_bios %d\nvbios_file %s\n",
-        config.mouse_flag, config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
+    (*print)("mapped_bios %d\nvbios_file %s\n",
+        config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
         config.vbios_copy, config.vbios_seg, config.vbios_size);
     (*print)("console %d\nconsole_keyb %d\nconsole_video %d\n",
@@ -998,8 +998,9 @@ config_init(int argc, char **argv)
 	    break;
 
 	case 'm':
-	    g_printf("turning MOUSE support on\n");
-	    config.mouse_flag = 1;
+	    g_printf("turning internal MOUSE driver %s\n",
+		     config.mouse.intdrv ? "off" : "on");
+	    config.mouse.intdrv = !config.mouse.intdrv;
 	    break;
 
 	case 'E':
@@ -1089,7 +1090,7 @@ usage(char *basename)
 	"    -K no effect, left for compatibility\n"
 	"    -k use PC console keyboard (!)\n"
 	"    -M set memory size to SIZE kilobytes (!)\n"
-	"    -m enable mouse support (!#)\n"
+	"    -m toggle internal mouse driver\n"
 	"    -N No boot of DOS\n"
 	"    -O write debug messages to stderr\n"
 	"    -o FILE put debug messages in file\n"
