@@ -48,10 +48,7 @@
  */
 
 /* Define to debug the Attribute controller */
-/*#define DEBUG_ATTR*/
-
-
-
+#undef DEBUG_ATTR
 
 #if !defined True
 #define False 0

@@ -73,6 +73,15 @@ int set_video_mode(int mode);  /* root@sjoerd from int10.c,dangerous*/
 #include "vgaemu_inside.h"
 #include "vesa.h"
 
+#ifdef NEW_X_CODE          
+/* to be removed soon -- sw */
+#define VGAEMU_BANK_SIZE 0x10000
+#define VGAEMU_GRANULARITY     0x10000   /* granularity-size */
+#else
+  #define vga_emu_setmode set_vgaemu_mode
+  #define vga_emu_switch_bank vgaemu_switch_page
+#endif
+
 /*extern struct vga_info vga_mode_info[];
 */
 /* **************** Data **************** */
@@ -508,7 +517,11 @@ int vesa_get_SVGA_info(void)
  
   /* amount of video memory in 64K blocks */
   word_p=(unsigned int*)(table+0x12);
+#ifdef NEW_X_CODE          
+  *word_p=(vga.mem.pages >> 4);			/* VGA_EMU_BANKS */
+#else
   *word_p=VGAEMU_BANKS;			/* VGA_EMU_BANKS * 64= ? Kb */
+#endif
  
   /* All OK */
   LWORD(eax)=0x004f;
@@ -729,7 +742,7 @@ int vesa_get_SVGA_mode_info(void )
 int vesa_set_SVGA_mode(void)
 {
 #if 0
-  if( (set_vgaemu_mode(LWORD(ebx))==True) &&    /* vgaemu.c */
+  if( (vga_emu_setmode(LWORD(ebx))==True) &&    /* vgaemu.c */
      (set_video_mode(LWORD(ebx))==1) )          /* int10.c */
     {
       v_printf("EBX=vesa_mode= 0x%03x\n",LWORD(ebx));
@@ -785,10 +798,10 @@ int vesa_SVGA_memory_control(void)
   switch(sub)
     {
     case 0x00:  /* set */
-      if(vgaemu_switch_page(LWORD(edx))==True)
+      if(vga_emu_switch_bank(LWORD(edx))==True)
         {
 	  window_addressA=LWORD(edx);
-	  vgaemu_switch_page(LWORD(edx));
+	  vga_emu_switch_bank(LWORD(edx));
 	  return(True);
 	}
       break;

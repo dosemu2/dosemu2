@@ -1,8 +1,11 @@
 /*
- * vgaemu.h
+ * DANG_BEGIN_MODULE
  *
- * Header file for the VGA emulator for dosemu.
- * This file is describes the interface to the VGA emulator.
+ * Header file for the VGA emulator for DOSEmu.
+ * This file describes the interface to the VGA emulator.
+ * Have a look at env/video/vgaemu.c for details.
+ *
+ * DANG_END_MODULE
  *
  *
  * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
@@ -25,16 +28,68 @@
  *
  * email: J.A.K.Mouw@et.tudelft.nl, I.A.Filius@et.tudelft.nl
  *
- * Read vgaemu.c for details
  *
  */
- 
- 
+
+
 #if !defined __VGAEMU_H
 #define __VGAEMU_H
 
+#ifdef NEW_X_CODE          
 
 
+#define VESA				/* switch on VESA emulation */
+#define VGAEMU_ROM_SIZE		0x1000	/* 4 kbyte */
+
+
+typedef struct {
+  unsigned char r, g, b;	/* red, green, blue */
+} DAC_entry;
+
+
+/*
+ * Functions defined in env/video/vgaemu.c
+ */
+
+void VGA_emulate_outb(Bit32u, Bit8u);
+Bit8u VGA_emulate_inb(Bit32u);
+#ifdef __linux__
+int vga_emu_fault(struct sigcontext_struct *);
+#define VGA_EMU_FAULT(scp,code) vga_emu_fault(&context)
+#endif
+#ifdef __NetBSD__
+int vga_emu_fault(struct sigcontext *, int);
+#define VGA_EMU_FAULT vga_emu_fault
+#endif
+
+int vga_emu_init(void);
+/*
+ * vga_emu_update() is not declared here, but in env/video/vgaemu_inside.h
+ * as its argument type is not available at this point.
+ */
+int vga_emu_switch_bank(unsigned);
+int vga_emu_setmode(int, int, int);
+/*
+ * get_vgaemu_mode_info() is not declared here, but in env/video/vgaemu_inside.h
+ * as its argument type is not available at this point.
+ */
+void dirty_all_video_pages(void);
+int vga_emu_set_text_page(unsigned, unsigned);
+
+
+/*
+ * Functions defined in env/video/dacemu.c
+ */
+
+void DAC_init(void);
+void DAC_get_entry(DAC_entry *, unsigned char);
+void DAC_read_entry(DAC_entry *, unsigned char);
+int DAC_get_dirty_entry(DAC_entry *);
+void DAC_set_entry(unsigned char, unsigned char, unsigned char, unsigned char);
+unsigned char DAC_get_pel_mask(void);
+unsigned char DAC_get_state(void);
+
+#else  /* not NEW_X_CODE */
 
 /* **************** definitions *************** */
 
@@ -119,5 +174,9 @@ int get_vgaemu_type(void);
 
 /*int vgaemu_update(unsigned char *data, int method, int *x, int *y, int *width, int *heigth);*/
 int vgaemu_update(unsigned char **base, unsigned long int *offset, unsigned long int *len, int method, int *modewidth);
+
+
+#endif /* not NEW_X_CODE */
+
 
 #endif

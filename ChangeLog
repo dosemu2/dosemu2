@@ -1,3 +1,11 @@
+97/06/19 ver. 0.67.4.2 unofficial pre-release
+	From Steffen
+	- new X-update code
+	- gamma correction ( X {gamma 100 } )
+	- virtual memsize for vgaemu configurable ( X {vgaemu_memsize 1024} )
+	- updating DANG for X and vgaemu
+	From (multiple sources on linux-msdos ;-)
+	- fix typo in src/include/linux/vm86.h (missing #endif)
 97/06/15 ver. 0.67.4.1 unofficial pre-release
 	From Steffen
 	- fix for mitshm autodetect (src/env/video/X.c, .../n_X.c)

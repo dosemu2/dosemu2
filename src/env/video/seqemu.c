@@ -106,12 +106,6 @@ static indexed_register Seq_data[0x11]=
 static int Seq_mode = NEW_MODE;
 static int Seq_index = 0;
 
-#ifdef NEW_X_CODE
-unsigned Seq_map_mask = 0;
-unsigned Seq_write_plane = 0;
-unsigned Seq_chain4 = 1;
-#endif
-
 void Seq_init(void)
 {
   int i;
@@ -170,19 +164,27 @@ void Seq_write_value(unsigned char data)
 #ifdef NEW_X_CODE
     case 0x02: /* map mask */
       Seq_data[Seq_index].write = Seq_data[Seq_index].read = data;
-      u = Seq_map_mask = data & 0xf;
-      Seq_write_plane = 0;
+      u = vga.seq.map_mask = data & 0xf;
+      vga.mem.write_plane = 0;
       if(u) {
-        while(!(u & 1)) u >>= 1, Seq_write_plane++;
+        while(!(u & 1)) u >>= 1, vga.mem.write_plane++;
       }
-      v_printf("VGAemu: Seq_write_value: map mask = 0x%x, write plane = %u\n", Seq_map_mask, Seq_write_plane);
-      vgaemu_switch_page(Seq_write_plane);
+      v_printf("VGAemu: Seq_write_value: map mask = 0x%x, write plane = %u\n",
+        (unsigned) vga.seq.map_mask, vga.mem.write_plane
+      );
+      vga_emu_switch_bank(vga.mem.write_plane);
       break;
 
     case 0x04: /* memory mode */
       Seq_data[Seq_index].write = Seq_data[Seq_index].read = data;
-      Seq_chain4 = (data & 8) ? 1 : 0;
-      v_printf("VGAemu: Seq_write_value: chain4 = %u\n", Seq_chain4);
+      vga.seq.chain4 = (data & 8) ? 1 : 0;
+      u = vga.seq.chain4 ? 1 : 4;
+      vga.scan_len = (vga.scan_len * vga.mem.planes) / u;
+      if(u != vga.mem.planes) {
+        vga.mem.planes = u;
+        vga.mem.reconfigured = 1;
+      }
+      v_printf("VGAemu: Seq_write_value: chain4 = %u\n", (unsigned) vga.seq.chain4);
       break;
 #endif
 
@@ -212,7 +214,11 @@ void Seq_write_value(unsigned char data)
 	  Seq_data[Seq_index].read = (data & 0xf0) | (unsigned char)newpage;
 
 	  /* switch videopage */
+#ifdef NEW_X_CODE          
+	  vga_emu_switch_bank(newpage);
+#else
 	  vgaemu_switch_page(newpage);
+#endif
 	}
       else /* Seq_mode == OLD_MODE */
 	{

@@ -1,30 +1,28 @@
 /*
- * crtcemu.c 
+ * DANG_BEGIN_MODULE
  *
- * VGA crt controller emulator for VGAemu
- *
- * (c) 1997, sw
+ * The VGA CRT controller emulator for VGAEmu.
  *
  * This emulates a very basic CRT controller. Just
  * the start address registers (0xc, 0xd).
  *
- * DANG_BEGIN_MODULE
- *
- * The VGA crt controller for VGAemu.
- *
- * DAND_END_MODULE
+ * DANG_END_MODULE
  *
  */
 
+
 /*
- * Defines to debug the crtc
+ * defines to debug the CRTC
  */
-/* #define DEBUG_CRTC */
+#undef DEBUG_CRTC
+
 
 #include "config.h"
 #include "emu.h"
 #include "vgaemu.h"
 #include "vgaemu_inside.h"
+
+#ifndef NEW_X_CODE          
 
 #define CRTC_MAX_INDEX 24
 
@@ -32,6 +30,14 @@ static indexed_register CRTC_data[CRTC_MAX_INDEX + 1];
 static unsigned CRTC_index = 0;
 
 unsigned CRTC_start_addr = 0;
+
+#else  /* NEW_X_CODE */
+
+  #define CRTC_data	vga.crtc.data
+  #define CRTC_index	vga.crtc.index
+  #define CRTC_start_addr vga.display_start
+
+#endif /* NEW_X_CODE */
 
 void CRTC_init()
 {

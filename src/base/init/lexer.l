@@ -334,6 +334,8 @@ lin_filt		RETURN(X_LIN_FILT);
 bilin_filt		RETURN(X_BILIN_FILT);
 mode13fact		RETURN(X_MODE13FACT);
 winsize			RETURN(X_WINSIZE);
+gamma			RETURN(X_GAMMA);
+vgaemu_memsize		RETURN(VGAEMU_MEMSIZE);
 
         /* Sound stuff */
 

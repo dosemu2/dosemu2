@@ -10,3 +10,4 @@
 #include <sys/vm86.h>
 #else
 #include <asm/vm86.h>
+#endif

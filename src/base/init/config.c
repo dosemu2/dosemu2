@@ -97,6 +97,8 @@ config_defaults(void)
     config.X_mode13fact = 2;
     config.X_winsize_x = 0;
     config.X_winsize_y = 0;
+    config.X_gamma = 1.0;
+    config.vgaemu_memsize = 0;
     config.X_keycode = 0;
     config.X_font = "vga";
     config.usesX = 0;

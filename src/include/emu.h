@@ -393,6 +393,8 @@ EXTERN struct ioctlq curi INIT({0, 0, 0, 0});
        int     X_winsize_x;             /* initial window width */
        int     X_mode13fact;            /* initial size factor for mode 0x13 */
        int     X_winsize_y;             /* initial window height */
+       double  X_gamma;			/* gamma correction value */
+       u_short vgaemu_memsize;		/* for VGA emulation */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;

@@ -105,6 +105,8 @@ typedef struct RemapObjectStruct {
   int state;
   int src_mode, dst_mode;
   ColorSpaceDesc *src_color_space, *dst_color_space;
+  float gamma;		/* 4 byte !! */
+  unsigned char *gamma_lut;
   unsigned char *src_image, *dst_image;
   unsigned src_width, src_height, src_scan_len;
   unsigned dst_width, dst_height, dst_scan_len;
@@ -138,6 +140,8 @@ void remap_done(RemapObject *);
 unsigned rgb_color_2int(ColorSpaceDesc *, unsigned, RGBColor);
 RGBColor int_2rgb_color(ColorSpaceDesc *, unsigned, unsigned);
 void color_space_complete(ColorSpaceDesc *);
+void adjust_gamma(RemapObject *, double);
+void gamma_correct(RemapObject *, RGBColor *, unsigned *);
 
 CodeObj code_init(void);
 void code_done(CodeObj *);
@@ -162,6 +166,8 @@ void code_append_ins(CodeObj *, int, void *);
 		RO_Struct ro_src_mode
 		RO_Struct ro_src_color_space
 		RO_Struct ro_dst_color_space
+		RO_Struct ro_gamma
+		RO_Struct ro_gamma_lut
 		RO_Struct ro_src_image
 		RO_Struct ro_dst_image
 		RO_Struct ro_src_width

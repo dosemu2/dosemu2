@@ -17,6 +17,7 @@ GROUP:		Video doc/DANG/summary_Video env/video/vc.c
 			env/video/dualmon.c env/video/et4000.c env/video/hgc.c
 			base/bios/int10.c env/video/s3.c env/video/terminal.c
 			env/video/trident.c env/video/vga.c 
+			env/video/vgaemu.c
 GROUP:		Keyboard doc/DANG/summary_Keyboard 
 			base/keyboard/Xkeyb.c base/keyboard/keymaps.c
 			base/keyboard/slang-termio.c

@@ -19,6 +19,7 @@
 #if X_GRAPHICS
 #include "X.h"
 #include "vgaemu.h"
+#include "vgaemu_inside.h"
 #ifdef VESA /* root@zaphod */
 #include "vesa.h"
 #endif
@@ -544,7 +545,11 @@ void int10()
       }
       if (config.console_video) set_vc_screen_page(page);
 #if X_GRAPHICS
+#ifdef NEW_X_CODE
+      if (config.X) vga_emu_set_text_page(page, TEXT_SIZE);
+#else
       if (config.X) set_vgaemu_page(page);      /*root@sjoerd*/
+#endif
 #endif
 
       WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, video_page = page);

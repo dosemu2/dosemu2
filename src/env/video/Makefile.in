@@ -18,13 +18,13 @@ CC=@CC@
 # you should also delete the #define XG in int10.c and sigsegv.c
 ifdef X_SUPPORT
  ifdef NEW_X_CODE
-XCFILES	= n_X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c remap.c
-XHDRS	= X.h vgaemu_inside.h vesa.h screen.h remap.h
-XOBJS	= n_X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o remap.o
+XCFILES	= n_X.c n_vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c crtcemu.c remap.c
+XHDRS	= X.h vgaemu_inside.h n_vgaemu_inside.h vesa.h screen.h remap.h
+XOBJS	= n_X.o n_vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o crtcemu.o remap.o
  else
 XCFILES	= X.c vgaemu.c vesa.c screen.c dacemu.c attremu.c seqemu.c \
 	  XModeRemapGeneric.c XModeRemap_i386.c
-XHDRS	= X.h vgaemu_inside.h vesa.h screen.h XModeRemap.h
+XHDRS	= X.h vgaemu_inside.h o_vgaemu_inside.h vesa.h screen.h XModeRemap.h
 XOBJS	= X.o vgaemu.o vesa.o screen.o dacemu.o attremu.o seqemu.o \
 	  XModeRemapGeneric.o XModeRemap_i386.o
  endif

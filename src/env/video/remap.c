@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>	/* pow() */
 #include <string.h>
 #include <sys/mman.h>	/* mprotect() */
 #include <sys/param.h>	/* EXEC_PAGESIZE */
@@ -179,6 +180,8 @@ RemapObject remap_init(int src_mode, int dst_mode, int features)
   ro.src_offset = ro.dst_offset = 0;
   ro.bre_x = ro.bre_y = NULL;
   ro.true_color_lut = NULL;
+  ro.gamma_lut = NULL;
+  adjust_gamma(&ro, 1.0);
   ro.remap_func = ro.remap_func_init = NULL;
   ro.remap_func_flags = 0;
   ro.remap_func_name = "no_func";
@@ -262,6 +265,7 @@ void remap_done(RemapObject *ro)
 {
   FreeIt(ro->src_color_space)
   FreeIt(ro->dst_color_space)
+  FreeIt(ro->gamma_lut)
   FreeIt(ro->bre_x)
   FreeIt(ro->bre_y)
   FreeIt(ro->true_color_lut)
@@ -275,6 +279,60 @@ void remap_done(RemapObject *ro)
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+void adjust_gamma(RemapObject *ro, double gamma)
+{
+  int i, g;
+  double ig;
+
+  g = gamma * 100.0 + 0.5;
+
+  if(g == 100 || g <= 0) {
+    g = 100;
+    if(ro->gamma_lut != NULL) { free(ro->gamma_lut); ro->gamma_lut = NULL; }
+  }
+  else {
+    if(ro->gamma_lut == NULL) {
+      ro->gamma_lut = malloc(256 * (sizeof *ro->gamma_lut));
+      if(ro->gamma_lut == NULL) {
+        ro->state |= ROS_MALLOC_FAIL;
+        g = 100;
+      }
+    }
+  }
+
+  if(g != 100) {
+    ig = 100.0 / g;
+    for(i = 0; i < 256; i++) {
+      ro->gamma_lut[i] = 256. * pow((double) i / 256., ig);
+    }
+  }
+
+  ro->gamma = g / 100.0;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+void gamma_correct(RemapObject *ro, RGBColor *c, unsigned *bits)
+{
+  int i;
+
+  if(*bits <= 1) return;
+  if(ro->gamma_lut == NULL) return;
+  i = *bits - 8;
+  if(i > 0) {
+    c->r >>= i; c->g >>= i; c->b >>= i;
+  }
+  if(i < 0) {
+    i = -i;
+    c->r <<= i; c->g <<= i; c->b <<= i;
+  }
+  c->r &= 255; c->g &= 255; c->b &= 255;
+  c->r = ro->gamma_lut[c->r];
+  c->g = ro->gamma_lut[c->g];
+  c->b = ro->gamma_lut[c->b];
+  *bits = 8;
+}
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
                                    unsigned r, unsigned g, unsigned b)
 {
@@ -282,6 +340,8 @@ static int true_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
   unsigned u, u0, uo;
 
   if(i >= 256) return 0;
+
+  gamma_correct(ro, &c, &bits);
 
   u0 = u = rgb_color_2int(ro->dst_color_space, bits, c);
 
@@ -333,6 +393,8 @@ static int pseudo_col_palette_update(RemapObject *ro, unsigned i, unsigned bits,
 {
   RGBColor c = {r, g, b};
   unsigned u, uo;
+
+  gamma_correct(ro, &c, &bits);
 
   u = rgb_color_2int(ro->dst_color_space, bits, c);
 
@@ -652,7 +714,6 @@ int bre_d_0(int s, int s_len, int d_len)
 void bre_update(RemapObject *ro)
 {
   int i, l, *ii;
-  int sl;
 
   if(ro->bre_x != NULL) free(ro->bre_x);
   if(ro->bre_y != NULL) free(ro->bre_y);
@@ -680,11 +741,8 @@ void bre_update(RemapObject *ro)
     ro->state |= ROS_MALLOC_FAIL;
   }
   else {
-    sl = ro->src_scan_len;
-    if(ro->src_mode == MODE_VGA_X) sl >>= 2;
-
     for(i = 0; i < l; i++) {
-      ii[i] = bre_s(i, ro->src_height, l) * sl;
+      ii[i] = bre_s(i, ro->src_height, l) * ro->src_scan_len;
     }
   }
 
@@ -835,7 +893,6 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   if(ro->remap_func_flags & RFF_REMAP_RECT) {
     if(i2) {
       ro->src_offset = offset;
-      if(ro->src_mode == MODE_VGA_X) ro->src_offset >>= 2;
       offset += ro->src_scan_len - i2;
       ro->src_x0 = i2;
       ro->src_x1 = ro->src_width;
@@ -857,7 +914,6 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     }
     if(i1 < j1) {
       ro->src_offset = offset;
-      if(ro->src_mode == MODE_VGA_X) ro->src_offset >>= 2;
       offset += ro->src_scan_len * (j1 - i1);
       ro->src_x0 = ro->dst_x0 = 0;
       ro->src_x1 = ro->src_width;
@@ -876,7 +932,6 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
     }
     if(j2) {
       ro->src_offset = offset;
-      if(ro->src_mode == MODE_VGA_X) ro->src_offset >>= 2;
       ro->src_x0 = 0;
       ro->src_x1 = j2;
       ro->src_y0 = j1;
@@ -895,7 +950,6 @@ static RectArea remap_mem_1(RemapObject *ro, int offset, int len)
   }
   else if(ro->remap_func_flags & RFF_REMAP_LINES) {
     ro->src_offset = i1 * ro->src_scan_len;
-    if(ro->src_mode == MODE_VGA_X) ro->src_offset >>= 2;
     ro->src_x0 = ro->dst_x0 = 0;
     ro->src_x1 = ro->src_width; ro->dst_x1 = ro->dst_width;
     ro->src_y0 = i1;
@@ -974,7 +1028,6 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
     ro->src_y0 = y0;
     ro->src_y1 = y1;
     ro->src_offset = ro->src_y0 * ro->src_scan_len + ro->src_x0;
-    if(ro->src_mode == MODE_VGA_X) ro->src_offset >>= 2;
     ro->dst_x0 = ra.x;
     ro->dst_x1 = ra.x + ra.width;
     ro->dst_y0 = ra.y;
@@ -989,7 +1042,6 @@ static RectArea remap_rect_1(RemapObject *ro, int x0, int y0, int width, int hei
     ro->src_y0 = y0;
     ro->src_y1 = y1;
     ro->src_offset = ro->src_y0 * ro->src_scan_len;
-    if(ro->src_mode == MODE_VGA_X) ro->src_offset >>= 2;
     ro->dst_x0 = 0;
     ro->dst_x1 = ro->dst_width;
     ro->dst_y0 = ra.y;
