@@ -56,6 +56,7 @@
 #include "disks.h"
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "keymaps.h"
+#include "keyb_server.h"
 #include "bitops.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -533,6 +534,7 @@ void loopstep_run_vm86(void)
 #ifdef USE_SBEMU
 	run_sb(); /* Beat Karcher to this one .. 8-) - AM */
 #endif
+	keyb_server_run();
 	pic_run();		/* trigger any hardware interrupts requested */
 }
 

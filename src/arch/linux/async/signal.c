@@ -372,13 +372,6 @@ static void SIGALRM_call(void)
   if (!config.console_keyb)
     keyb_client_run();
 
-  /* for other front-ends, keyb_client_run() is called from ioctl.c if data is
-   * available, so we don't need to do it here.
-   */
-  
-  keyb_server_run();
-   
-
   /* If it is running in termcap mode, then update the screen.
    * First it sets a running flag, so as to avoid re-entrancy of 
    * update_screen while it is in use.  After update_screen is done,

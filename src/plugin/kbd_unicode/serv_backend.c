@@ -309,14 +309,12 @@ void int_check_queue(void)
 
    if (queue_empty(&keyb_queue))
       return;
-#if 0
-   /* This causes problems, apparently some programs forget to ACK the IRQ
-      by the bit7 of port0x61 */
+   
    if (int9_running) {
       k_printf("KBD: int9 running\n");
       return;
    }
-#endif
+   
 #if 1
    if (port60_ready) {
       k_printf("KBD: port60 still has data\n");

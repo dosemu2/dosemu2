@@ -318,6 +318,7 @@ Bit8u keyb_io_read(ioport_t port)
       if (!port60_ready)
          pic_untrigger(PIC_IRQ1);
 #endif
+      int9_running = 0;
      
       k_printf("8042: read port 0x60 read=0x%02x\n",r);
     break;
