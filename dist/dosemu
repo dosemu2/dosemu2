@@ -372,11 +372,6 @@ if [ -n "$USE_SUDO" ] ; then
   SUDO=sudo
 fi
 
-# for now we need this as a workaround for NPTL
-# and shouldn't hurt if NPTL is not available
-LD_ASSUME_KERNEL=2.2.5
-export LD_ASSUME_KERNEL
-
 eval "set -- $SUFFIX"
 if [ -n "$STRING_I" ] ; then
   exec $SUDO $BINARY $XFLAG "-I $STRING_I" "$@"

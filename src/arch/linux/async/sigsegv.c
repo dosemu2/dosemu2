@@ -324,16 +324,21 @@ void dosemu_fault(int signal, struct sigcontext_struct context)
 {
  /*
   * FIRST thing to do - to avoid being trapped into int0x11
-  * forever, we must clear AC before doing anything else!
-  * Clear also ID for some reasons?
+  * forever, we must restore the eflags.
+  * Also restore the %fs and %gs for compatibility with NPTL.
   */
- __asm__ __volatile__ (" \
-	pushfl\n \
-	popl	%%eax\n \
-	andl	%0,%%eax\n \
-	pushl	%%eax\n \
-	popfl" \
-	: : "i"(~(AC|ID)) : "%eax");
+  if (in_dpmi && !in_vm86 && context.cs != UCODESEL) {
+    __asm__ __volatile__ (" \
+	pushl	%0\n \
+	popfl\n \
+	movw	%1, %%fs\n \
+	movw	%2, %%gs\n \
+	" \
+	: :
+	"m"(emu_stack_frame->eflags),
+	"m"(emu_stack_frame->fs),
+	"m"(emu_stack_frame->gs));
+  }
 
   fault_cnt++;
 

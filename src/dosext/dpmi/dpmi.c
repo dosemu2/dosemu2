@@ -142,8 +142,8 @@ unsigned long PMSTACK_ESP = 0;	/* protected mode stack descriptor */
 unsigned short DPMI_SEL = 0;
 
 struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS]; /* used to store the dpmi client registers */
-static struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
-static struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
+struct sigcontext_struct _emu_stack_frame;  /* used to store emulator registers */
+struct sigcontext_struct *emu_stack_frame = &_emu_stack_frame;
 
 #define CHECK_SELECTOR(x) \
 { if (!ValidAndUsedSelector(x) || SystemSelector(x)) { \

@@ -142,6 +142,7 @@ extern unsigned long pm_block_handle_used;       /* tracking handle */
 extern INTDESC Interrupt_Table[0x100];
 extern SEGDESC Segments[];
 extern struct sigcontext_struct dpmi_stack_frame[DPMI_MAX_CLIENTS];
+extern struct sigcontext_struct *emu_stack_frame;
 /* used to store the dpmi client registers */
 extern RealModeCallBack mouseCallBack; /* user\'s mouse routine */
 extern char *ldt_buffer;
