@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT([DOSEMU], [],
 [http://sourceforge.net/tracker/?atid=457447&group_id=49784&func=browse],dosemu)
-AC_CONFIG_SRCDIR(src/base/misc/dosio.c)
+AC_CONFIG_SRCDIR(src/dos.c)
 AC_PREREQ(2.53)
 
 # first check if we are called from default-configure and if not,
