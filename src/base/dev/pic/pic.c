@@ -768,6 +768,7 @@ void do_irq(int ilevel)
  /* schedule the requested interrupt, then enter the vm86() loop */
          run_int(intr);
        }
+     }
 
  /* enter PIC loop - we can continue only when pic_isr has been cleared */
       while(!fatalerr && test_bit(ilevel,&pic_isr))
@@ -785,9 +786,6 @@ void do_irq(int ilevel)
       }
       pic_sti();
       return;
-
-    }   /* else */ 
-    return;
 }
 
 /* DANG_BEGIN_FUNCTION pic_resched
