@@ -122,7 +122,7 @@ extern void set_process_control(void);
 
 extern int get_perm(void);
 extern int release_perm(void);
-extern int set_regs(unsigned char regs[]);
+extern int set_regs(unsigned char regs[], int seq_gfx_only);
 extern void open_vga_mem(void);
 extern void close_vga_mem(void);
 

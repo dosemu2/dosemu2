@@ -262,7 +262,7 @@ void store_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
    /* check whether we are using packed or planar mode;
     for standard VGA modes we set 640x480x16 colors  */
   planar = !(port_in(SEQ_D) & 8) || banks == 1;
-  if (banks == 1) set_regs((u_char *) vregs);
+  if (banks == 1) set_regs((u_char *) vregs, 1);
   for (cbank = 0; cbank < banks; cbank++) {
     position = 0;
     if (planar) set_bank_read(cbank);
@@ -307,7 +307,7 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
      /* check whether we are using packed or planar mode;
     for standard VGA modes we set 640x480x16 colors  */
   planar = !(port_in(SEQ_D) & 8) || banks == 1;
-  if (banks == 1) set_regs((u_char *) vregs);
+  if (banks == 1) set_regs((u_char *) vregs, 1);
   if (planar) {
       /* disable Set/Reset Register */
       port_out(0x01, GRA_I);
@@ -335,7 +335,7 @@ void restore_vga_mem(u_char * mem, u_char mem_size[], u_char banks)
 /* Restore EGA/VGA regs */
 int restore_vga_regs(char regs[], u_char xregs[], u_short xregs16[])
 {
-  set_regs(regs);
+  set_regs(regs, 0);
   restore_ext_regs(xregs, xregs16);
   v_printf("Restore_vga_regs completed!\n");
   return 0;

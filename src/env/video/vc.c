@@ -696,14 +696,15 @@ release_perm (void)
 }
 
 int
-set_regs (u_char regs[])
+set_regs (u_char regs[], int seq_gfx_only)
 {
   int i;
 
   emu_video_retrace_off();
   /* port_out(dosemu_regs.regs[FCR], FCR_W); */
   /* update misc output register */
-  port_out (regs[MIS], MIS_W);
+  if (!seq_gfx_only)
+    port_out (regs[MIS], MIS_W);
 
   /* write sequencer registers */
   /* synchronous reset on */
@@ -720,16 +721,18 @@ set_regs (u_char regs[])
       port_out (regs[SEQ + i], SEQ_D);
     }
 
-  /* deprotect CRT registers 0-7 */
-  port_out (0x11, CRT_I);
-  port_out (port_in (CRT_D) & 0x7F, CRT_D);
+  if (!seq_gfx_only) {
+    /* deprotect CRT registers 0-7 */
+    port_out (0x11, CRT_I);
+    port_out (port_in (CRT_D) & 0x7F, CRT_D);
 
-  /* write CRT registers */
-  for (i = 0; i < CRT_C; i++)
-    {
-      port_out (i, CRT_I);
-      port_out (regs[CRT + i], CRT_D);
-    }
+    /* write CRT registers */
+    for (i = 0; i < CRT_C; i++)
+      {
+	port_out (i, CRT_I);
+	port_out (regs[CRT + i], CRT_D);
+      }
+  }
 
   /* write graphics controller registers */
   for (i = 0; i < GRA_C; i++)
@@ -739,7 +742,7 @@ set_regs (u_char regs[])
     }
 
   /* write attribute controller registers */
-  for (i = 0; i < ATT_C; i++)
+  if (!seq_gfx_only) for (i = 0; i < ATT_C; i++)
     {
       port_in (IS1_R);		/* reset flip-flop */
       port_out (i, ATT_IW);
