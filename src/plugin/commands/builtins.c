@@ -14,8 +14,8 @@
 /* hope this will be removed soon */
 #include "coop_compat.h"
 
-/* hope 10K is enough */
-#define LOWMEM_POOL_SIZE 0x2800
+/* hope 2K is enough */
+#define LOWMEM_POOL_SIZE 0x800
 #define BUF_SIZE LOWMEM_POOL_SIZE
 
 static char scratch[BUF_SIZE];

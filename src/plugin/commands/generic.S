@@ -22,6 +22,9 @@ _start16:
 #define far_sp			0x10c
 #define far_ss			0x10e
 #define saved_sp		0x110
+#define stack_size		0x100
+#define stack			(heap_end + stack_size)
+#define psp_size		0x100
 
 	jmp	start
 	.align  4,0
@@ -30,21 +33,22 @@ _start16:
 
 	.align	128,0
 start:
+	movw	$stack, %sp
 	pushw	%ds
 	pushw	%es
 	movw	%ax, %cs:(saved_ax)
-				# first get the real psp, in case we
+				# first deallocate the unused memory, ES=PSP now
+	movb	$0x4a, %ah
+	movw	$(stack - _start16 + psp_size), %bx
+	shrw	$4, %bx
+	incw	%bx
+	int	$0x21
+				# get the real psp, in case we
 				# were loaded by an .exe
 	movb	$0x62, %ah
 	int	$0x21
 	movw	%bx, %cs:(real_psp)
 				# are we 'far' called by an .exe ?
-	movw	%bx, %es
-	movb	$0x4a, %ah
-	movw	$0x1000, %bx
-	int	$0x21
-
-	movw	%cs:(real_psp), %bx
 	movw	%cs,%ax
 	cmp	%ax,%bx
 	je	normal_start
@@ -103,3 +107,5 @@ heap:
 	.ascii	",0x700,1,test"
 #endif
 	.byte	0
+
+heap_end:
