@@ -779,7 +779,7 @@ SeeAlso: AH=8Ah"Phoenix",AX=E802h,AX=E820h,AX=E881h"Phoenix"
 	Bit32u mem = ((config.xms_size > config.ems_size) ?
 			 config.xms_size : config.ems_size);
 	LWORD(eax) = mem;
-	LWORD(ebx) = mem >>16;
+	LWORD(ebx) = mem >>6;
 	NOCARRY;
 	break;
     }
