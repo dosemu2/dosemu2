@@ -155,6 +155,7 @@ printer_flush(int prnum)
     if (pipe == NULL)
       error("system(\"%s\") in lpt.c failed, cannot print!\
   Command returned error %s\n", cmdbuf, strerror(errno));
+    free(cmdbuf);
 
     bufsize = ftell(lpt[prnum].file);
     buf = malloc(bufsize);
