@@ -261,13 +261,16 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
   static int sound_frag = 0x0200007;
   static uint8_t buffer[BUF_LEN];
   static size_t buffer_count = 0;
+  static int overflow_flag = 0;
   int result;
 
   buffer[buffer_count] = value;
-  if (buffer_count < BUF_LEN - 1)
+  if (buffer_count < BUF_LEN - 1) {
     buffer_count ++;
-  else
+  } else if (!overflow_flag) {
     error("SB: direct write buffer overflowed!\n");
+    overflow_flag = 1;
+  }
 
   if (buffer_count >= 128)
   {
@@ -305,6 +308,8 @@ static void linux_sb_DAC_write (int bits, uint8_t value)
     buffer_count -= write (dsp_fd, buffer, buffer_count);
     if (config.oss_do_post)
       ioctl (dsp_fd, SNDCTL_DSP_POST);
+  } else {
+    overflow_flag = 0;
   }
 }
 
