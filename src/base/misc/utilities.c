@@ -706,14 +706,14 @@ char * strlower(char *s)
 int check_memory_range(unsigned long base, unsigned long size)
 {
     FILE *fp;
-    char line[100];
+    char line[1024];
     unsigned long beg, end;
     /* find out whether the address request is available */
     if ((fp = fopen("/proc/self/maps", "r")) == NULL) {
 	error("can't open /proc/self/maps\n");
 	return 0;
     }
-    while(fgets(line, 100, fp)) {
+    while(fgets(line, sizeof(line) - 1, fp)) {
 	sscanf(line, "%lx-%lx", &beg, &end);
 	if ((base + size) < beg ||  base >= end) {
 	    continue;
