@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 typedef struct {
 	int x, y, width, height;
 	boolean drawn;

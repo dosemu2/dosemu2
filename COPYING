@@ -1,14 +1,49 @@
 
-  NOTE! This copyright does not cover all parts of the DOSEMU code!
-        Parts of the code not covered by the GPL are marked explicitly
-        within the code, the rest of the code _is_ GPL.
+             Copyright of DOSEMU, September 1998
+             ===================================
 
-  NOTE2 Some code, that was covered by GNU LIBRARY GENERAL PUBLIC LICENSE
-        (GLGPL) has been transformed to GPL as is allowed by the GLGPL
-        section 3. This code is marked with an appropriate text at the
-        beginning of each file involved.
+1.   All sources in the official distribution of DOSEMU are
+     (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team"
+     unless explicitly stated otherwise.
 
-----------------------------------------------------------------------
+     The DOSEMU-Development-Team is legaly represented by its
+     current co-ordinator:
+
+       1992          Matthias Lautner
+       1993          Robert Sanders <gt8134b@prism.gatech.edu>
+       1994 .. 1996  James MacLean <macleajb@ednet.ns.ca>
+       1997 .. now   Hans Lermen <lermen@fgan.de>
+
+     Every co-ordinator passes the right to represent to his successor.
+
+2.   This copyright does not cover all parts of the DOSEMU code!
+     Parts of the code not covered by the GPL are marked explicitly
+     within the code, the rest of the code _is_ GPL.
+
+3.   Some code, that was covered by GNU LIBRARY GENERAL PUBLIC LICENSE
+     (GLGPL) has been transformed to GPL as is allowed by the GLGPL
+     section 3. This code is marked with an appropriate text at the
+     beginning of each file involved.
+
+4.   The nature of DOSEMU requires the use of (ie "booting") a DOS, which 
+     may be proprietary. This could be interpreted as 'library linking'
+     the DOS functions to DOSEMU (this view comes from interpreting more
+     into the current version (2) of the GPL than is actually defined).
+
+     However, recent discussions about the scope of 'library linking' with
+     GPL code and the possibility that future versions of the GPL may
+     define this issue in a more restrictive manner make it necessary to 
+     restrict the DOSEMU copyright explicitely to version 2 of the GPL.
+                                               ============        ===
+
+     We grant the right to use a proprietary DOS together with DOSEMU.
+
+5.   This file (COPYING) has to be distributed unchanged together with
+     the DOSEMU distribution or any derivative work. This prefix and
+     the following appended GPL must not be separated.
+
+
+----------------------------------------------------------------------
 
 		    GNU GENERAL PUBLIC LICENSE
 		       Version 2, June 1991

@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 # Makefile.conf.in for DOSEMU
 #
 # This is the only Makefile getting substituted by ./configure
@@ -68,7 +73,3 @@ ifdef X86_EMULATOR
   export X86_EMULATOR
 endif
 
-@USE_OLD_SLANG_KBD@
-ifdef USE_OLD_SLANG_KBD
-  export USE_OLD_SLANG_KBD
-endif

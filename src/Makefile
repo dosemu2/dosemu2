@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 # Makefile for DOSEMU
 #
 # You should do a "make" to compile and a "make install" as root to

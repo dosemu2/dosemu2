@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* miscellaneous BIOS stuff */
 
 #ifndef BIOS_H
@@ -233,10 +239,8 @@ void            INT09_dummy_start();
 void            INT09_dummy_end();
 void            INT08_dummy_start();
 void            INT08_dummy_end();
-#ifdef NEW_CMOS
 void            INT70_dummy_start();
 void            INT70_dummy_end();
-#endif
 void            DPMI_dummy_start();
 void            DPMI_dummy_end();
 void            DPMI_dpmi_init();

@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 #ifndef _NETBSD_VM86_H_
 #define  _NETBSD_VM86_H_
 

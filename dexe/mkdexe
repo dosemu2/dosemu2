@@ -227,7 +227,7 @@ else
 fi
 
 # we make a temp dir
-TMP="~/.dosemu/tmp/mkdexe.$$"
+TMP=~/.dosemu/tmp/mkdexe.$$
 mkdir -p $TMP
 
 

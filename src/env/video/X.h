@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 #define X_CHG_TITLE	1
 #define X_CHG_FONT	2
 #define X_CHG_MAP	3

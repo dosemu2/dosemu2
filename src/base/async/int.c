@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 
 #include <stdio.h>
 #include <string.h>
@@ -20,10 +26,8 @@
 #include "mouse.h"
 #include "disks.h"
 #include "bios.h"
-#ifdef NEW_CMOS
 #include "iodev.h"
 #include "bitops.h"
-#endif
 #include "xms.h"
 #include "int.h"
 #include "dos2linux.h"
@@ -760,7 +764,6 @@ static void int15(u_char i)
   }
 }
 
-#ifdef NEW_CMOS
 void set_ticks(unsigned long new)
 {
   volatile unsigned long *ticks = BIOS_TICK_ADDR;
@@ -773,13 +776,10 @@ void set_ticks(unsigned long new)
   ignore_segv--;
   h_printf("TICKS: update ticks to %ld\n", new);
 }
-#endif
 
 static void int1a(u_char i)
 {
-#ifdef NEW_CMOS
   long t;
-#endif
   time_t time_val;
   struct timeval;
   struct timezone;
@@ -803,7 +803,6 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 ->	  midnight flag and will fail to advance the date
 */
   case 0:			/* read time counter */
-#ifdef NEW_CMOS
     /* it works because pic_sys_time has a zero reference. It doesn't
      * account for timer speedups, but any decent DOS program should
      * call back the original int8 at the 18.2 Hz rate... */
@@ -819,15 +818,6 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
     LWORD(edx) = last_ticks & 0xffff;
     g_printf("TIMER: read timer = %lu\n", last_ticks);
     set_ticks(last_ticks);	/* set_ticks is in rtc.c */
-#else
-    ignore_segv++;
-    last_ticks = *((unsigned long *)(BIOS_TICK_ADDR));
-    LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
-    *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
-    ignore_segv--;
-    LWORD(ecx) = (last_ticks >> 16) & 0xffff;
-    LWORD(edx) = last_ticks & 0xffff;
-#endif
     break;
 
 /*
@@ -842,17 +832,11 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 SeeAlso: AH=00h,AH=03h,INT 21/AH=2Dh
 */
   case 1:			/* write time counter */
-#ifdef NEW_CMOS
     t = sys_base_ticks + (pic_sys_time >> 16);
     last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
     usr_delta_ticks = last_ticks - t;
     set_ticks(last_ticks);
     g_printf("INT1A: set timer to %#lx\n", last_ticks);
-#else
-    last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
-    set_ticks(last_ticks);
-    g_printf("set timer to %lu \n", last_ticks);
-#endif
     break;
 
 /*
@@ -871,33 +855,12 @@ Note:	this function is also supported by the Sperry PC, which predates the
 SeeAlso: AH=00h,AH=03h,AH=04h,INT 21/AH=2Ch
 */
   case 2:			/* get time */
-#ifdef NEW_CMOS
     LOCK_CMOS;
     HI(cx) = BCD(GET_CMOS(CMOS_HOUR));
     LO(cx) = BCD(GET_CMOS(CMOS_MIN));
     HI(dx) = BCD(GET_CMOS(CMOS_SEC));
     UNLOCK_CMOS;
     g_printf("INT1A: RTC time %02x:%02x:%02x\n",HI(cx),LO(cx),HI(dx));
-#else
-    time(&time_val);
-    tm = localtime((time_t *) &time_val);
-    g_printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec);
-#if 0
-    gettimeofday(&tp, &tzp);
-    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-#endif
-    HI(cx) = tm->tm_hour % 10;
-    tm->tm_hour /= 10;
-    HI(cx) |= tm->tm_hour << 4;
-    LO(cx) = tm->tm_min % 10;
-    tm->tm_min /= 10;
-    LO(cx) |= tm->tm_min << 4;
-    HI(dx) = tm->tm_sec % 10;
-    tm->tm_sec /= 10;
-    HI(dx) |= tm->tm_sec << 4;
-    /* LO(dx) = tm->tm_isdst; */
-    /* REG(eflags) &= ~CF; */
-#endif
     NOCARRY;
     break;
 
@@ -962,7 +925,6 @@ Return: nothing
     g_printf("INT1A: RTC: can't set time/date\n");
     break;
 
-#ifdef NEW_CMOS
   /* Notes: the alarm occurs every 24 hours until turned off, invoking INT 4A
   	each time the BIOS does not check for invalid values for the time, so
   	the CMOS clock chip's "don't care" setting (any values between C0h
@@ -1010,7 +972,6 @@ Return: nothing
     pic_untrigger(PIC_IRQ8);
 #endif
     break;
-#endif
  
   case 0xb1:			/* Intel PCI BIOS v 2.0c */
     switch (LO(ax)) {
@@ -2088,9 +2049,7 @@ void setup_interrupts(void) {
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
   SETIVEC(0x08, INT08_SEG, INT08_OFF);
-#ifdef NEW_CMOS
   SETIVEC(0x70, INT70_SEG, INT70_OFF);
-#endif
 
   /* Install new handler for video-interrupt into bios_f000_int10ptr,
    * for video initialization at f800:4200

@@ -1,4 +1,10 @@
 /* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/* 
  * Various sundry utilites for dos emulator.
  *
  */

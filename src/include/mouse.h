@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* mouse support for dosemu 0.48p2+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  */

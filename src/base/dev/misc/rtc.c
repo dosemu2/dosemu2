@@ -1,4 +1,10 @@
 /* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/* 
  * SIDOC_BEGIN_MODULE
  *
  * Description: CMOS handling and RTC emulation
@@ -18,31 +24,10 @@
 #include "timers.h"
 #include "int.h"
 
-#ifdef NEW_CMOS
 struct timezone tz;
 long   sys_base_ticks = 0;
 long   usr_delta_ticks = 0;
 long   last_ticks = 0;
-#else
-/*  */
-/* BCD,cmos_date @@@  32768 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/base/dev/misc/cmos.c --> src/base/dev/misc/rtc.c  */
-static u_short
-BCD(int binval)
-{
-  unsigned short tmp1, tmp2;
-
-  /* bit 2 of register 0xb set=binary mode, clear=BCD mode */
-  if (cmos.subst[CMOS_STATUSB] & 4)
-    return binval;
-
-  if (binval > 99)
-    binval = 99;
-
-  tmp1 = binval / 10;
-  tmp2 = binval % 10;
-  return ((tmp1 << 4) | tmp2);
-}
-#endif
 
 
 int cmos_date(int reg)
@@ -51,27 +36,13 @@ int cmos_date(int reg)
   int tmp;
   time_t this_time;
 
-#ifndef NEW_CMOS
-  /* get the time */
-  time(&this_time);
-  tm = localtime((time_t *) &this_time);
-#endif
 
   switch (reg) {
-#ifdef NEW_CMOS
   case CMOS_SEC:
   case CMOS_MIN:
     return BCD(GET_CMOS(reg));
-#else
-  case CMOS_SEC:
-    return BCD(tm->tm_sec);
-
-  case CMOS_MIN:
-    return BCD(tm->tm_min);
-#endif
 
   case CMOS_HOUR:		/* RTC hour...bit 1 of 0xb set=24 hour mode, clear 12 hour */
-#ifdef NEW_CMOS
     tmp = GET_CMOS(reg);	/* bin */
     if (!(GET_CMOS(CMOS_STATUSB) & 2)) {
       if (tmp == 0)
@@ -79,17 +50,7 @@ int cmos_date(int reg)
       else if (tmp > 12)
 	return BCD(tmp-12);
     }
-#else
-    tmp = BCD(tm->tm_hour);
-    if (!(cmos.subst[CMOS_STATUSB] & 2)) {
-      if (tmp == 0)
-	return 12;		/* can stay wrong in old code */
-      else if (tmp > 12)
-	return tmp - 12;
-    }
-#endif
     return tmp;
-#ifdef NEW_CMOS
   }
 
   /* get the time */
@@ -97,7 +58,6 @@ int cmos_date(int reg)
   tm = localtime((time_t *) &this_time);
 
   switch (reg) {
-#endif
   case CMOS_DOW:
     return BCD(tm->tm_wday);
 
@@ -106,21 +66,13 @@ int cmos_date(int reg)
 
   case CMOS_MONTH:
     if (cmos.flag[CMOS_MONTH])
-#ifdef NEW_CMOS
       return GET_CMOS(CMOS_MONTH);
-#else
-      return cmos.subst[CMOS_MONTH];
-#endif
     else
       return BCD(1 + tm->tm_mon);
 
   case CMOS_YEAR:
     if (cmos.flag[CMOS_YEAR])
-#ifdef NEW_CMOS
       return GET_CMOS(CMOS_YEAR);
-#else
-      return cmos.subst[CMOS_YEAR];
-#endif
     else
       return BCD(tm->tm_year);
 
@@ -142,7 +94,6 @@ int cmos_date(int reg)
 /* @@@ MOVE_END @@@ 32768 */
 
 
-#ifdef NEW_CMOS
 void rtc_int8 (void)	/* int70 */
 {
   r_printf("RTC: interrupt\n");
@@ -304,23 +255,4 @@ void background_onesec_thread(int start)
 
 #endif	/*USE_THREADS*/
 
-#else
- 
-/*  */
-/* set_ticks @@@  49152 MOVED_CODE_BEGIN @@@ 01/23/96, ./src/base/dev/misc/timers.c --> src/base/dev/misc/rtc.c  */
-void set_ticks(unsigned long new)
-{
-  volatile unsigned long *ticks = BIOS_TICK_ADDR;
-  volatile unsigned char *overflow = TICK_OVERFLOW_ADDR;
-
-  ignore_segv++;
-  *ticks = new;
-  *overflow = 0;
-  ignore_segv--;
-  /* warn("TIMER: update value of %d\n", (40 / config.freq)); */
-}
-
-/* @@@ MOVE_END @@@ 49152 */
-
-#endif
 

@@ -30,7 +30,7 @@ To install the binary package of DOSEMU do the following (in this order)
 - become root
 - do the following
     # cd /
-    # tar -xzf dosemu-0.97.10-bin.tgz
+    # tar -xzf dosemu-x.y.z-bin.tgz     # x.y.z beeing the current version
     # cd /var/lib/dosemu
     # sh ./doinstall.sh
 
@@ -40,7 +40,7 @@ To install the binary package of DOSEMU do the following (in this order)
 
 - cd to /var/lib/dosemu
 
-- Copy ./etc/config.dist to /etc/dosemu.conf if you are installing for
+- Copy ./etc/dosemu.conf to /etc/dosemu.conf if you are installing for
   the first time.
   Modify it by using the info in the file DOCDIR/README.txt chapter 2
 
@@ -64,7 +64,7 @@ To install the binary package of DOSEMU do the following (in this order)
 --------------------------------------------------------------------------
 
 There is a new tool to help you generating a bootable hdimage (the old
-method is described in DOCDIR/README-tech.txt, chapter 6).
+method is described in DOCDIR/README-tech.txt, chapter 7).
 It doesn't require to boot native DOS, nor do you need to fiddle with a
 floppy any more:
 
@@ -104,7 +104,7 @@ If you don't know how to copy files from/to the hdimage:
     # mcopy g:autoexec.bat -
     Copying autoexec.bat
     @echo off
-    echo "Welcome to dosemu 0.97!"
+    echo "Welcome to dosemu 0.98!"
 
   ... all clear ? ;-)
 
@@ -140,7 +140,7 @@ If you don't know how to copy files from/to the hdimage:
   rawkeyboard options sometimes cause problems.
 
 - If the video support does not work, ensure that the video BIOS address
-  in the /etc/dosemu.conf file is correct.
+  in the /etc/dosemu.conf (variable $_vbios_seg) file is correct.
 
 - Read all documentation files carefully, and try to get some help from
   others who have used DOSEMU.
@@ -148,7 +148,12 @@ If you don't know how to copy files from/to the hdimage:
 - Read the dosemu-HOWTO for Q&A's.
 
 - If no luck, please send us a debug report by typing 'dos -D+a -o debug'
-  and sending us this file along with your configuration files.
+  and prepare this mail via the tool we supply:
+
+    ./submit-bug-report
+
+  The tool will either send directly or save the mail to a file.
+  For more on this please read the file ./doc/bugreports.txt
 
   For general discussion on dosemu use the mailing list
   linux-msdos@vger.rutgers.edu
@@ -174,14 +179,18 @@ DOCDIR/DPR
 	The Dosemu Project Registry, an outdated document keeping
 	track of who's doing what kind of programming for DOSEMU.
 /usr/man/man1/dos.1
-	This is the DOSEMU man page. It is now up to date with 0.64.
+	This is the DOSEMU man page. It is now up to date with 0.98.
 	This normally goes into the /usr/man/man1 directory.
-DOCDIR/announce0.66
-	The announcement textfile for DOSEMU 0.64.
+DOCDIR/announce
+	The announcement textfile for DOSEMU.
 DOCDIR/README.txt
 	Readme file for various applications and general purpose settings.
 DOCDIR/README-tech.txt
 	Readme file for various technical details and settings.
+DOCDIR/bugreports.txt
+        How to report bug via gnats
+DOCDIR/configuration.txt
+        How to use the menu driven configuration tools
 /var/lib/dosemu/dosC/readme.dosemu
 	Usage of FreeDos kernel within DOSEMU
 /var/lib/dosemu/dexe/*

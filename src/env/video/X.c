@@ -1,4 +1,10 @@
 /* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/* 
  * DANG_BEGIN_MODULE
  *
  * REMARK
@@ -100,7 +106,7 @@
  *
  * 1998/02/22: Rework of mouse support in graphics modes; put in some
  * code to enable mouse grabbing. Can be activated via Ctrl+Alt+<some configurable key>;
- * default is "Home". (the code needs to be enabled via NEW_X_MOUSE)
+ * default is "Home".
  * -- sw
  *
  * 1998/03/08: Further work at mouse support in graphics modes.
@@ -132,15 +138,7 @@
 
 #undef DEBUG_MOUSE_POS			/* show X mouse in graphics modes */
 
-#ifndef NEW_X_MOUSE
-  #undef ENABLE_POINTER_GRAB		/* when defined, F12 toggles grabbing of all key & mouse events */
-  #ifdef ENABLE_POINTER_GRAB
-  #define MOUSE_SCALE_X 2			/* scale mouse movements reported to dosemu; */
-  #define MOUSE_SCALE_Y 2			/* undefine MOUSE_SCALE_X to restore old behavior */
-  #endif
-#else /* NEW_X_MOUSE */
-  #undef ENABLE_KEYBOARD_GRAB		/* when grabbing all mouse events, grab keyboard too */
-#endif /* NEW_X_MOUSE */
+#undef ENABLE_KEYBOARD_GRAB		/* when grabbing all mouse events, grab keyboard too */
 
 /* define if you wish to have a visual indication of the area being updated */
 #undef DEBUG_SHOW_UPDATE_AREA
@@ -157,9 +155,7 @@
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
-#ifdef NEW_X_MOUSE
 #include <X11/keysym.h>
-#endif /* NEW_X_MOUSE */
 #include <sys/mman.h>           /* root@sjoerd:for mprotect*/
 
 #include "emu.h"
@@ -361,16 +357,10 @@ static vga_emu_update_type veut;
 static int remap_src_modes = 0;
 static vgaemu_display_type X_screen;
 
-#ifndef NEW_X_MOUSE
-#ifdef ENABLE_POINTER_GRAB
-static int grab_active = 0;
-#endif
-#else /* NEW_X_MOUSE */
 static int grab_active = 0;
 static char *grab_keystring = "Home";
 static int grab_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;
-#endif /* NEW_X_MOUSE */
 
 static int X_map_mode = -1;
 static int X_unmap_mode = -1;
@@ -1272,7 +1262,6 @@ int X_init(void)
     leavedos(99);
   }
 
-#ifdef NEW_X_MOUSE
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
   if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
   if(grab_keysym != NoSymbol) {
@@ -1281,7 +1270,6 @@ int X_init(void)
   else {
     X_printf("X: X_init: mouse grabbing disabled\n");
   }
-#endif /* NEW_X_MOUSE */
 
   /* HACK!!! Don't konw is video_mode is already set */
   X_setmode(TEXT, co, li);
@@ -1400,9 +1388,7 @@ static int X_setmode(int mode_class, int text_width, int text_height)
 
   destroy_ximage();
 
-#ifdef NEW_X_MOUSE
   mouse_x = mouse_y = 0;
-#endif /* NEW_X_MOUSE */
 
   switch(vga.mode_class) {
 
@@ -2252,69 +2238,6 @@ void X_change_mouse_cursor(void)
  */ 
 static void set_mouse_position(int x, int y)
 {
-#ifndef NEW_X_MOUSE
-  int dx = x - mouse.x;
-  int dy = y - mouse.y;
-  
-  switch(video_mode)	/* only a conversion when in text-mode*/
-    {
-    case 0x00:
-    case 0x01:
-    case 0x02:
-    case 0x03:
-      /* XXX - this works in text mode only */
-      x = x*8/font_width;
-      y = y*8/font_height;
-      dx = ((x-mouse.x)*font_width)>>3;
-      dy = ((y-mouse.y)*font_height)>>3;
-      break;
-    case 0x0d:
-    case 0x0e:
-    case 0x10:
-    case 0x12:
-    case 0x13:
-    case 0x5c: /* 8bpp SVGA graphics modes */
-    case 0x5d:
-    case 0x5e:
-    case 0x62:
-      if (snap_X) {
-        /* win31 cursor snap kludge, we temporary force the DOS cursor to the
-         * upper left corner (0,0). If we after that release snapping,
-         * normal X-events will move the cursor to the exact position. (Hans)
-         */
-        x=-127;
-        y=-127;
-        snap_X--;
-      }
-#ifndef MOUSE_SCALE_X
-      x *= 8;  /* these scalings make DeluxePaintIIe operation perfect - */
-      y *= 8;  /*  I don't know about anything else... */
-      dx = (x - mouse.x) >> 3;
-      dy = (y - mouse.y) >> 3;
-#else
-      /* Dos expects 640x200 mouse coordinates! only in this videomode */
-      /* Some games don't... */
-      x = (MOUSE_SCALE_X * x * x_res) / w_x_res;
-      y = (MOUSE_SCALE_Y * y * y_res) / w_y_res;
-      dx = x - mouse.x;
-      dy = y - mouse.y;
-#endif
-      break;
-
-    default:
-      X_printf("set_mouse_position: Invalid video mode 0x%02x\n",video_mode);
-    }
-
-  if (dx || dy)
-    {
-      mouse.mickeyx += dx;
-      mouse.mickeyy += dy;
-      mouse.x=x; 
-      mouse.y=y;
-      mouse_move();
-   }
-
-#else /* NEW_X_MOUSE */
   int x0 = x, y0 = y;
   if (grab_active) {
 	  int center_x = w_x_res >> 1, center_y = w_y_res >> 1;
@@ -2344,7 +2267,6 @@ static void set_mouse_position(int x, int y)
   }
   mouse_x = x0;
   mouse_y = y0;
-#endif /* NEW_X_MOUSE */
 }
 
 static void set_mouse_buttons(int state) 
@@ -2766,24 +2688,6 @@ void X_handle_events(void)
     /* Keyboard events */
 
 	case KeyPress:
-#ifndef NEW_X_MOUSE
-#ifdef ENABLE_POINTER_GRAB
-          if(e.xkey.keycode == 96) { /* terrible hack, is F12 -- sw */
-            if(grab_active ^= 1) {
-              X_printf("X: grab activated\n");
-              XGrabKeyboard(display, mainwindow, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-              XGrabPointer(display, mainwindow, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                GrabModeAsync, GrabModeAsync, None,  None, CurrentTime);
-            }
-            else {
-              X_printf("X: grab released\n");
-              XUngrabPointer(display, CurrentTime);
-              XUngrabKeyboard(display, CurrentTime);
-            }
-            break;
-          }
-#endif
-#else /* NEW_X_MOUSE */
           if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask) && grab_keysym != NoSymbol)
             if(XKeycodeToKeysym(display, e.xkey.keycode, 0) == grab_keysym) {
               if(grab_active ^= 1) {
@@ -2803,7 +2707,6 @@ void X_handle_events(void)
               }
               break;
             }
-#endif /* NEW_X_MOUSE */
 
 	case KeyRelease:
 /* 
@@ -2869,14 +2772,7 @@ void X_handle_events(void)
 	   * drawn by win31 and align it with the X-cursor.
 	   * (Hans)
 	   */
-#ifndef NEW_X_MOUSE
-#ifdef ENABLE_POINTER_GRAB
-	  if(!grab_active)
-#endif
-	    snap_X=3;
-#else /* NEW_X_MOUSE */
 	  if(!grab_active) snap_X=3;
-#endif /* NEW_X_MOUSE */
 	  X_printf("X: Mouse entering window\n");
 	  set_mouse_position(e.xcrossing.x, e.xcrossing.y);
 	  set_mouse_buttons(e.xcrossing.state);

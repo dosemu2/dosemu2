@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*
  * BIOS video modes
  * This file provides the basis to implement a VGA/EGA/CGA/MDA BIOS emulator.

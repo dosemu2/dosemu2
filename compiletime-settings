@@ -10,8 +10,6 @@ config {
   tmonoton on
   runasroot off
   linkstatic off
-  newxmouse on
-  newcmos on
   newint on
   cpuemu off
 }

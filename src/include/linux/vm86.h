@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* Kludge for wrong <sys/vm86.h> in older libc headers:
  * in case of missing <linux/vm86.h> GCC falls back to this file
  * (we have -Isrc/include in all makefiles).

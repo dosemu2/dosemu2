@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*
  *
  * DANG_BEGIN_CHANGELOG
@@ -12,9 +18,7 @@
  */
 
 #include "mousevid.h"
-#ifdef NEW_X_MOUSE
 #include "vgaemu.h"
-#endif /* NEW_X_MOUSE */
 
 #define MDA_OFFS	0x10000
 #define CGA_OFFS	0x18000
@@ -48,18 +52,6 @@ struct mousevideoinfo current_video;
 int
 get_current_video_mode(void)
 {
-#ifndef NEW_X_MOUSE
-  int i;
-
-  i = READ_BYTE(BIOS_VIDEO_MODE);
-  m_printf("MOUSE: video mode found 0x%x.\n",i);
-
-  if (((i | 3) == 0x5F) || (i == 0x62)) i = 6;
-  /* invalid video mode */
-  if (i < 0 || i > 0x13 || !videomodes[i].textgraph) {
-	m_printf("MOUSE: Unknown video mode %x, no mouse cursor.\n",i);
-  	return i;
-#else /* NEW_X_MOUSE */
 #if X_GRAPHICS
   if(config.X) {
     current_video.mode = vga.mode;
@@ -97,24 +89,14 @@ get_current_video_mode(void)
 	    current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
 	    current_video.bytesperline = current_video.width *2;
     }
-#endif /* NEW_X_MOUSE */
   }
 
-#ifndef NEW_X_MOUSE
-  current_video = videomodes[i];
-  if (current_video.textgraph == 'T') { /* read the size from the bios data area */
-	  current_video.width = READ_WORD(BIOS_SCREEN_COLUMNS);
-	  current_video.height = READ_BYTE(BIOS_ROWS_ON_SCREEN_MINUS_1) +1;
-	  current_video.bytesperline = current_video.width *2;
-  }
-#else /* NEW_X_MOUSE */
   m_printf(
     "MOUSE: video mode 0x%02x found (%c%dx%d at 0x%04x).\n",
     current_video.mode, current_video.textgraph,
     current_video.width, current_video.height,
     current_video.offset + 0xa0000
   );
-#endif /* NEW_X_MOUSE */
 
   /* valid video mode */
   return 0;

@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* dynamic debug handlers - by Tim Bird */
 /* modified to support debug levels -- peak */
 #include "config.h"

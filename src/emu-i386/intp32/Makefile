@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 TWINDIR=$(REALTOPDIR)/src/emu-i386/intp32/twin
 TWINFLG=-Dlinux -DX386 -DDOSEMU

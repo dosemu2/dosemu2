@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 # This is the file ./include/Makefile for the Linux DOS-emulator.
 #
 

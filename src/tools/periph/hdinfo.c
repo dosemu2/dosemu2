@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* hdinfo.c
  *
  * 6/2/93, gt8134b@prism.gatech.edu, Robert Sanders

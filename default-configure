@@ -69,17 +69,11 @@ while [ "$1" != "" ]; do
     linkstatic)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-linkstatic"; fi
       ;;
-    newxmouse)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-X-mouse"; fi
-      ;;
     cpuemu)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-cpuemu"; fi
       ;;
     newint)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-new-intcode"; fi
-      ;;
-    newcmos)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-new-cmos"; fi
       ;;
     *)
       ;;

@@ -10,7 +10,7 @@ from=$1/
 to=$2
 
 mkdir -p ~/.dosemu/tmp
-TMP="~/.dosemu/tmp/xcopy.$$"
+TMP=~/.dosemu/tmp/xcopy.$$
 rm -f $TMP
 
 case $from in

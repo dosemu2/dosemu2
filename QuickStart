@@ -105,7 +105,7 @@ or
 --------------------------------------------------------------------------
 
 There is a new tool to help you generating a bootable hdimage (the old
-method is described in ./doc/README-tech.txt, chapter 6).
+method is described in ./doc/README-tech.txt, chapter 7).
 It doesn't require to boot native DOS, nor do you need to fiddle with
 a floppy any more:
 
@@ -218,12 +218,12 @@ If you don't know how to copy files from/to the hdimage:
 	The Dosemu Project Registry, an outdated document keeping
 	track of who's doing what kind of programming for DOSEMU.
 ./man/dos.1
-	This is the DOSEMU man page. It is now up to date with 0.64.
+	This is the DOSEMU man page. It is now up to date with 0.98.
 	This normally goes into the /usr/man/man1 directory.
 ./man/mkfatimage16.1
 	This discribes how to create (empty) hdimages of various sizes.
 ./doc/announce
-	The announcement textfile for DOSEMU 0.66.
+	The announcement textfile for DOSEMU.
 ./doc/README.txt
 	Readme file for various applications and general purpose settings.
 ./doc/README-tech.txt

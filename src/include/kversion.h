@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 #ifndef LX_KERNEL_VERSION
 #include <linux/version.h>
 #define LX_KERNEL_VERSION  (((LINUX_VERSION_CODE >> 16)*1000000) + \

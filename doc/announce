@@ -9,11 +9,12 @@ WHAT IS DOSEMU?
 ~~~~~~~~~~~~~~~
 DOSEMU is a PC Emulator application that allows Linux to run a DOS
 operating system in a virtual x86 machine. This allows you to run
-many DOS applications. These are capabilities of DOSEMU worth noting:
+many DOS applications. These are the capabilities of DOSEMU that are
+worth noting:
 
-  - Color text and full keyboard emulation (via hotkeys) via terminal.
-  - Built-in X-Windows support, includes IBM character set font!
-  - Graphics capability at the console with most compatible video cards.
+  - Color text and full keyboard emulation (via hotkeys) even on terminal.
+  - Built-in X-Windows support (includes IBM character set font)
+  - Graphics capability at the console (most compatible video cards).
   - Graphics emulation in X for 256 color modes.
     (X-server may be in true color mode)
   - DPMI support
@@ -21,14 +22,38 @@ many DOS applications. These are capabilities of DOSEMU worth noting:
     (you need the os2win31.zip package, and licenses for both,
     Windows-3.1 and OS/2. see doc/README.Windows)
   - Runs Borland BCC.EXE/TCC.EXE version 3.x command line compilers!
-  - Runs Borlandc C++ 3.x IDE
-  - Runs several 32-bit DPMI-compilant video games, including DOS/4GW,
-     at the Linux console.
+  - Runs Borland C++ 3.x IDE
+  - Runs several 32-bit DPMI-compliant video games (including those based
+    on DOS/4GW) at the Linux console.
   - CDROM support.
-  - Sound support (including emulated sound DMA)
+  - Sound support (including sound DMA)
   - NetWare and other network connectivity via builtin IPX and pktdrvr
      support.
+  - runs on any Linux kernel >= 2.0.28 (last tested was 2.1.120)
 
+WHAT IS NEW against version 0.66.7?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  - simpler and more user friendly configuration (a lot of former
+    dosemu.conf stuff is auto-detected by the new configuration script
+    global.conf, however, people with deeper knowledge of DOSEMU can fine
+    tune this script to fit their special private needs).
+    The new Tcl/Tk based configuration tool makes configuration quicker.
+  - all security problems now can be solved via appropriate configuration
+    and DOSEMU now can run non-suid-root (some features will be unavailable).
+  - support for per user DOSEMU directories.
+  - Improved graphics capability under X (including mouse support,
+    LFB and VESA support, resizing, e.t.c).
+  - Better handling of non-US keyboards, both in X and on terminal,
+    loadable key-tables. More national key-tables.
+  - more supported graphic cards under raw console mode.
+  - more precise timer emulation (using the pentium cycle counter where 
+    available)
+  - better sound support
+  - more features for the builtin debugger (dosdebug).
+  - major portions of the code have been rewritten and cleaned up.
+  - glibc adaptation (though, we haven't checked today's changes yet;-).
+  - ... and finally, lots of bugs are fixed and more DOS-applications
+    are running than ever before.
 
 
 REQUIREMENTS
@@ -41,6 +66,13 @@ When compiling dosemu yourself:
   - Plenty of swap, since DOSEMU requires between 12 and 25 megabytes
      of total memory to compile, depending on configuration.
 
+
+COPYRIGHT
+~~~~~~~~~
+DOSEMU is set under GPL version 2 (see file COPYING in the distribution).
+                        ~~~~~~~~~
+The DOS processed (booted) by DOSEMU may have any other policy and is
+explicitly allowed to be proprietary.
 
 
 CREDITS
@@ -76,12 +108,12 @@ WHERE TO GET IT:
 ~~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
+  ftp.dosemu.org:/dosemu/...
   tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/...
-  ftp.suse.com:/pub/dosemu/...
                                      .../dosemu-0.98.0-bin.tgz
                                      .../dosemu-0.98.0.tgz
 
-The binary distribution is statically linked against libc-5.4.23 and libX*
+The binary distribution is statically linked against libc-5.4.33 and libX*
 from XFree-3.3. It should run on all current Linux distributions.
 
 
@@ -94,4 +126,4 @@ information. If you know something you think we should know, contact
 us, PLEASE! We can be reached at:
 
 "The DOSEMU team" <linux-msdos@vger.rutgers.edu>
-http://www.suse.com/~dosemu/
+http://www.dosemu.org

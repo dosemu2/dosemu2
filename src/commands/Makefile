@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 AS86 = $(_AS86_) -l
 LD86 = $(_LD86_) -0

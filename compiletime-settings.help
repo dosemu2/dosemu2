@@ -102,21 +102,6 @@ linkstatic	"make static binaries"
 		version, no (g)libc incompatibilities). The official DOSEMU
 		binary distribution always is statically linked.
 
-newxmouse	"use the new X mouse code"
-
-		This code has some enhancents to the mouse handling
-		under X (mouse grabbing, better absolute positioning, e.t.c.)
-		If you encounter problems with it on your X-server,
-		only then set this switch off.
-
-newcmos		"use the new CMS code"
-
-		This handles the access to the PC CMOS memory, they old
-		code missed some handling, so in principal the new one
-		should be better. Though, if you have a DOS application
-		that can only run with some of the old kludges, then
-		you may set this switch off.
-
 newint		"use the new INT code"
 
 		The new interrupt code hooks at different places as the

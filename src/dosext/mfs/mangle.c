@@ -1,4 +1,11 @@
 /* 
+ * All modifications in this file to the original code are
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/* 
    Unix SMB/Netbios implementation.
    Version 1.9.
    Copyright (C) Andrew Tridgell 1992,1993,1994

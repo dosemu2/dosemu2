@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 #  src/base/misc/dyndeb.c -> ../async/dyndeb.c
 #  src/base/misc/int.c -> ../async/int.c

@@ -1,3 +1,10 @@
+/* 
+ * All modifications in this file to the original code are
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* $XConsortium: mga_driver.c /main/12 1996/10/28 05:13:26 kaleb $ */
 /*
  * MGA Millennium (MGA2064W) with Ti3026 RAMDAC driver v.1.1

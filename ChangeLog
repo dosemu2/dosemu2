@@ -1,3 +1,20 @@
+98/09/07 ver. 0.99.0 FORK-POINT released
+	NOTE: This is the 0.98/0.99 forkpoint
+	      0.99 will continue unchanged to form the new Hacker version.
+	      0.98, the stable version, will be 0.99 with the experimental
+	      stuff removed.
+	From Hans
+	- removed old X-mouse stuff
+	- removed old CMOS stuff
+	- removed old Slang code
+	- fixed mkbindist
+	- removed creation of /var/run for 'make install'
+	- fixed some tool scripts ("~/" wasn't expanded because quoted)
+	- fixed src/tools/mkbindist
+	- more precisely copyright definition (prefix to COPYING)
+          Prefixed all source files with the proper copyright notice.
+          (copyright laws are requiring this)
+	- finally made referred to dosemu.org (docs udapted)
 98/09/06 ver. 0.97.10.6 unofficial pre-release
 	From Daniel Skarda <0rfelyus@atrey.karlin.mff.cuni.cz>
 	- use of XSetWMProperties() instead of XSetClassHint() in X.c

@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* memory.h - general constants/functions for memory, addresses, etc.
  *    for Linux DOS emulator, Robert Sanders, gt8134b@prism.gatech.edu
  */
@@ -104,11 +110,9 @@
 #define INT08_OFF	0x4000
 #define INT08_ADD	((INT08_SEG << 4) + INT08_OFF)
 
-#ifdef NEW_CMOS
 #define INT70_SEG	ROMBIOSSEG
 #define INT70_OFF	0x4100
 #define INT70_ADD	((INT70_SEG << 4) + INT70_OFF)
-#endif
 
 #define INT10_SEG	ROMBIOSSEG
 #define INT10_OFF	0x4200

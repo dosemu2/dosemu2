@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 #include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -22,9 +28,7 @@
 #include "pic.h"
 #include "ipx.h"
 #include "pktdrvr.h"
-#ifdef NEW_CMOS
 #include "iodev.h"
-#endif
 
 #include "keyb_clients.h"
 
@@ -311,7 +315,7 @@ void SIGALRM_call(void)
 {
   static int first = 0;
   static hitimer_t cnt200 = 0;
-#if defined(NEW_CMOS) && !defined(USE_THREADS)
+#if !defined(USE_THREADS)
   static hitimer_t cnt1000 = 0;
 #endif
   static volatile int running = 0;
@@ -322,7 +326,7 @@ void SIGALRM_call(void)
   
   if (first==0) {
     cnt200 =
-#if defined(NEW_CMOS) && !defined(USE_THREADS)
+#if !defined(USE_THREADS)
     cnt1000 =
 #endif
     pic_sys_time;	/* initialize */
@@ -482,7 +486,7 @@ void SIGALRM_call(void)
 
 /* We update the RTC from here if it has not been defined as a thread */
 
-#if defined(NEW_CMOS) && !defined(USE_THREADS)
+#if !defined(USE_THREADS)
   /* this is for EXACT per-second activities (can produce bursts) */
   if ((pic_sys_time-cnt1000) >= PIT_TICK_RATE) {
     cnt1000 += PIT_TICK_RATE;

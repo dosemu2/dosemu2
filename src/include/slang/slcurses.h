@@ -1,3 +1,10 @@
+/* 
+ * All modifications in this file to the original code are
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* Copyright (c) 1998 John E. Davis
  * This file is part of the S-Lang library.
  *

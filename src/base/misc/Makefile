@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 
 CFILES=dosio.c ioctl.c shared.c disks.c utilities.c dos2linux.c dump.c priv.c
 

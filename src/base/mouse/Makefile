@@ -1,4 +1,9 @@
 #
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
+#
 # This is the Makefile for the mouse-subdirectory of the DOS-emulator
 # for Linux.
 # $Id: Makefile,v 2.11 1995/05/06 16:27:42 root Exp root $

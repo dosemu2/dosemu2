@@ -1,4 +1,10 @@
 /*
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/*
  * This is file detect.h
  * Used for DOSEMU supplied DOS-tools to detect DOSEMU
  * For as86 code also some rudimentary runtime system is supported

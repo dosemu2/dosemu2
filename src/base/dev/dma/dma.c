@@ -1,4 +1,10 @@
 /* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
+/* 
  ******** OLD_DMA_CODE COPYRIGHT
  * dma.c--dma controller emulater--Joel N. Weber II
  * Copyright (C) 1995  Joel N. Weber II

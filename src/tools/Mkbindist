@@ -1,0 +1,11 @@
+#! /bin/bash
+#
+# (C) 1997 under GPL, Hans Lermen <lermen@fgan.de>
+#
+# NOTE: you normally do not need this, its just a tool for the developers.
+
+if [ "`basename $PWD`" = "tools" ]; then
+  cd ../../
+fi
+echo ./src/tools/mkbindist -m -s -d usr/doc/dosemu
+exec ./src/tools/mkbindist -m -s -d usr/doc/dosemu

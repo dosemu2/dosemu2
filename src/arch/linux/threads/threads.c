@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 #include "config.h"
 
 #ifdef USE_THREADS
@@ -9,15 +15,11 @@
 
 #define THREAD_STACK_SIZE	0x10000	/* 64 K granulation */
 extern void background_ioctl_thread(void *);
-#ifdef NEW_CMOS
 extern void background_onesec_thread(void *);
-#endif
 
 static thread_function_type *list_of_threads[] = {
 	background_ioctl_thread,
-#ifdef NEW_CMOS
 	background_onesec_thread,
-#endif
 	0
 };
 

@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 # Makefile for Linux DOSEMU
 #
 # You should do a "make" to compile and a "make install" as root to
@@ -334,7 +339,6 @@ install:
 	  install -d $(INSTROOT)/var/lib/dosemu/keymap; \
 	  install -m 0744 ../etc/keymap/* $(INSTROOT)/var/lib/dosemu/keymap; \
 	fi
-	@install -d $(INSTROOT)/var/run
 	@if [ -f $(INSTROOT)/lib/libemu ]; then rm -f $(INSTROOT)/lib/libemu ; fi
 	@install -c -o root -m 04755 $(BINPATH)/bin/dos $(INSTROOT)/usr/bin
 ifdef  USE_MHPDBG

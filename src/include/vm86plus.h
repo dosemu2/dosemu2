@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 #ifndef _LINUX_VM86PLUS_H
 #define _LINUX_VM86PLUS_H
 

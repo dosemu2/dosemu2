@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 extern void vga_init_et4000(void);
 
 extern u_char et4000_ext_video_port_in(ioport_t port);

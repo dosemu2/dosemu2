@@ -1,3 +1,8 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
 
 /*
  * BIG FAT WARNING:
@@ -140,9 +145,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 #undef X2_SUPPORT
 #undef X_GRAPHICS
 
-/* Define this to use the new CMOS code */
-#undef NEW_CMOS
-
 /*
  *  DEFINE this, if you have joystick support in the kernel
  *  or have the joystick module loaded (needing <linux/joystick.h>)
@@ -173,17 +175,11 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
  */
 #undef RUN_AS_ROOT
 
-/* Define this to use the new X mouse code */
-#undef NEW_X_MOUSE
-
 /* Define this to use threading code */
 #undef USE_THREADS
 
 /* Define this to use the new interrupt handling code */
 #undef USE_NEW_INT
-
-/* Define this to use the old Slang keyboard code */
-#undef USE_OLD_SLANG_KBD
 
 /* Define this to use the X86 CPU emulator */
 #undef X86_EMULATOR

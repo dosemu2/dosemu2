@@ -518,7 +518,7 @@
         Keyword, this makes dosemu to accept a private DOSEMU lib under
         $HOME/.dosemu/lib. If this directory is existing, DOSEMU will
         expect all normally under /var/lib/dosemu within that
-        directory,including `lobal.conf'. As this would be a security
+        directory,including `global.conf'. As this would be a security
         risc, it only will be allowed, if the used DOSEMU binary is non-
         suid-root. If you realy trust a user you may additionally give
         the keyword `unrestricted', which will allow this user to

@@ -1,3 +1,10 @@
+/* 
+ * All modifications in this file to the original code are
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* Copyright 1995  Joel N. Weber II
    See the file README.sound in this directory for more information */
 

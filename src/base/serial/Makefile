@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 # This is the Makefile for the serial-subdirectory of DOSEMU.
 # Please send comments and bug-reports to marky@magmacom.com
 # Please read the code in this directory for more information.

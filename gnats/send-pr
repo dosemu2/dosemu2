@@ -31,7 +31,8 @@ SUBMITTER=net
 GNATS_ROOT=.
 
 # The default mail address for PR submissions. 
-GNATS_ADDR=dosemu-bugs@slitesys.demon.co.uk
+#GNATS_ADDR=dosemu-bugs@slitesys.demon.co.uk
+GNATS_ADDR=dosemu-bugs@dosemu.org
 
 # Where the gnats category tree lives.
 DATADIR=.

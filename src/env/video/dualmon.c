@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*
  * dualmon.c
  *
@@ -6,6 +12,7 @@
  * /REMARK
  *
  * (C) 1994 under GPL, Hans Lermen (lermen@elserv.ffm.fgan.de)
+ * (put under DOSEMU-policy 1998, --Hans)
  *
  *          HGC-port-IO code is taken from hgc.c
  *          hgc.c is

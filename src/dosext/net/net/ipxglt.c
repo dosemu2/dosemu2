@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*
  *	Perform IPX Get Local Target - resolve a network address to
  *              its immediate address (and add the route to the local

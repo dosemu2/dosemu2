@@ -1,3 +1,10 @@
+/* 
+ * All modifications in this file to the original code are
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*
  * video/cirrus.c
  * $XConsortium: cir_driver.c,v 1.5 95/01/23 15:35:14 kaleb Exp $ *

@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* cmos.h, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
@@ -56,7 +62,6 @@ struct CMOS {
 
 EXTERN struct CMOS cmos;
 
-#ifdef NEW_CMOS
 #define SET_CMOS(byte,val)  do { cmos.subst[byte&63] = (val); cmos.flag[byte&63] = 1; } while(0)
 #define GET_CMOS(byte)		 (cmos.subst[byte&63])
 
@@ -83,6 +88,5 @@ extern struct lock_struct *resource_cmos;
 #define LOCK_CMOS
 #define UNLOCK_CMOS
 #endif
-#endif	/* NEW_CMOS */
 
 #endif

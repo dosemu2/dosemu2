@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* This file contains code on the keyboard client side which is common to all frontends.
  * In particular, the client initialisation and the paste routine.
  */

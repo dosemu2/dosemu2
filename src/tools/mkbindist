@@ -38,7 +38,7 @@ fi
 
 TAKESETUP="1"
 
-TMPDIR="~/.dosemu/tmp"
+TMPDIR=~/.dosemu/tmp
 mkdir -p $TMPDIR
 VER=`basename $PWD`
 DIR="$TMPDIR/${VER}"
@@ -70,7 +70,6 @@ while [ "$1" != "" ]; do
   shift
 done
 
-
 if [ "$COMPILE" != "1" ]; then
   MANDIR=${DIR}/usr/man/man1
 
@@ -85,7 +84,6 @@ if [ "$COMPILE" != "1" ]; then
   install -d  ${DIR}/etc
   install -d  ${DIR}/usr/bin
   install -d  ${DIR}/var/lib/dosemu
-  install -d  ${DIR}/var/run
   install -d  ${DIR}/usr/X11R6/lib/X11/fonts/misc
 fi
 
@@ -101,8 +99,6 @@ if [ "$DOMAKE" = "1" ]; then
   ./default-configure ${TMP} ${SUFFIX}
   make 'WAIT='
   if [ "$TAKESETUP" = "1" ]; then
-#    (cd setup/demudialog; make 'STATIC=-static')
-#    strip setup/demudialog/demudialog
      (cd setup/parser; make 'STATIC=-static')
      strip setup/parser/parser
   fi
@@ -171,9 +167,6 @@ else
   if [ ! -f /etc/dosemu.users ]; then
     cp -p /var/lib/dosemu/etc/dosemu.users.easy /etc
   fi
-  if [ ! -f /etc/dosemu.loglevel ]; then
-    cp -p /var/lib/dosemu/etc/dosemu.loglevel /etc
-  fi
 fi
 EOF
 popd >/dev/null
@@ -212,20 +205,14 @@ if hash wish >/dev/null 2>&1; then
 *** NOTE: setup-dosemu currently is only able to handle setup
 ***       via TclTk. Fortunately you have that installed ;-)
 "
+    mkdir -p ~/.dosemu/tmp
     cd setup
-    exec ./setup.tk
+    exec ./runtime_setup.tk
   fi
 fi
 
 echo "
-*** NOTE: setup-dosemu isn't correctly updated to the recent changes
-***       in the configuration stuff. Though it can handle the runtime setup
-***       via TclTk, you either don't have that installed or are not running X.
-***       Hence, don't use setup-dosemu at the moment !!
-***       We will fix this in the near future though.
-***
-***       In the meantime just do 'make' to compile DOSEMU and edit
-***       the /etc/dosemu.conf manually.              --Hans, 980531
+*** NOTE: setup-dosemu needs TclTk, you don't have it.
 "
 exit 1
 EOF

@@ -50,7 +50,7 @@ function do_mtool {
   mcommand=$2
   shift; shift
   params="$*"
-  tmprc="~/.dosemu/tmp/mtoolrc.$$"
+  tmprc=~/.dosemu/tmp/mtoolrc.$$
   partition=""
   offset=""
   if is_hdimage $device; then
@@ -90,7 +90,7 @@ function get_bootsect {
 
 function check_bootsect {
 # $1  =  device or hdimage
-  tmp="~/tmp/bootsect.$$"
+  tmp=~/.dosemu/tmp/bootsect.$$
   if is_hdimage $1; then
     dd if=$1 of=$tmp bs=128 count=4 skip=69 >/dev/null 2>&1
   else
@@ -172,4 +172,3 @@ echo "System type is $TYPE. sysfiles: ${IOSYS}, ${MSDOS}, $COMCOM"
 mkdir -p $TARGDIR
 get_bootsect $DEVICE ${TARGDIR}/boot.bin
 do_mtool $DEVICE mcopy -an w:/${IOSYS} w:/${MSDOS} w:/${COMCOM} $TARGDIR
-

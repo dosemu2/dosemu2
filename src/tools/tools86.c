@@ -1,9 +1,16 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*
  * file: tools86.c
  *
  * Toolbox to make as86/ld86 usable for DOSEMU
  *
  * (C) 1994 under GPL:  Hans Lermen <lermen@elserv.ffm.fgan.de>
+ * (put under DOSEMU policy 1998, --Hans)
  *  
  * Tools86 has two operation modes:
  * 

@@ -1,3 +1,10 @@
+/* 
+ * All modifications in this file to the original code are
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /* 80x86 disassembler for real mode and 16 bit segments.
  * 32 bit address and data prefixes are partially supported; there
  * may be some missing cases.

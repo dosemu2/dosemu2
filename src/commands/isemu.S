@@ -1,3 +1,9 @@
+! 
+! (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+!
+! for details see file COPYING in the DOSEMU distribution
+!
+
 ! isemu.S, to generate isemu.com, for dosemu 0.67.16, 97/11/22
 ! Display current DOSEMU-version
 !                                            Hans Lermen@fgan.de

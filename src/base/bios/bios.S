@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*************************************************************************/
 /**                                                                     **/
 /** This is the virtual PC's Bios (F000:0 .. F000:FFFF)                 **/
@@ -652,7 +658,6 @@ CISH(INT08_L2):
 CISH(INT08_dummy_end):
 
 /* ----------------------------------------------------------------- */   
-#ifdef NEW_CMOS
 	.org	((INT70_SEG-BIOSSEG) << 4)+INT70_OFF
 
 	.globl	CISH(INT70_dummy_start)
@@ -668,7 +673,6 @@ CISH(INT70_dummy_start):		/* RTC INTERRUPT ROUTINE	*/
 	iret				/* return to interrupted code	*/
 	.globl  CISH(INT70_dummy_end)
 CISH(INT70_dummy_end):
-#endif
 
 /* ----------------------------------------------------------------- */   
 /* This is for video init only - it calls in order:

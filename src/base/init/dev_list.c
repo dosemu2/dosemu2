@@ -1,3 +1,9 @@
+/* 
+ * (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+ *
+ * for details see file COPYING in the DOSEMU distribution
+ */
+
 /*
  * DANG_BEGIN_MODULE
  *
@@ -44,7 +50,7 @@ struct io_dev_struct {
 
 static struct io_dev_struct io_devices[] = {
   { "pit",     pit_init,     pit_reset,     NULL },
-#if !defined(NEW_CMOS) || !defined(USE_THREADS)
+#if !defined(USE_THREADS)
   { "cmos",    cmos_init,    cmos_reset,    NULL },
 #endif
   { "serial",  serial_init,  NULL,          serial_close },

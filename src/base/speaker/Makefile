@@ -1,3 +1,8 @@
+#
+# (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+#
+# for details see file COPYING in the DOSEMU distribution
+#
 # Makefile for speaker code.
 
 CFILES=speaker.c X_speaker.c console_speaker.c

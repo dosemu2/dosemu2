@@ -1,3 +1,9 @@
+! 
+! (C) Copyright 1992, ..., 1998 the "DOSEMU-Development-Team".
+!
+! for details see file COPYING in the DOSEMU distribution
+!
+
 ! exitemu.S, to generate exitemu.com, for dosemu 0.49, 4/9/93
 ! Robert Sanders, gt8134b@prism.gatech.edu
 !
