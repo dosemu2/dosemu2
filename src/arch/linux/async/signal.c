@@ -571,6 +571,10 @@ static void SIGALRM_call(void)
  }
 #endif
 
+  io_select(fds_sigio);	/* we need this in order to catch lost SIGIOs */
+  if (not_use_sigio)
+    io_select(fds_no_sigio);
+
   /* Here we 'type in' prestrokes from commandline, as long as there are any
    * Were won't overkill dosemu, hence we type at a speed of 14cps
    */
