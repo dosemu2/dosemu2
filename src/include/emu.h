@@ -570,6 +570,6 @@ EXTERN void read_next_scancode_from_queue (void);
 EXTERN unsigned short detach (void);
 EXTERN void HMA_init(void);
 
-extern char path_cdrom[];
+extern char *Path_cdrom[];
 
 #endif /* EMU_H */

@@ -1,3 +1,22 @@
+98/12/04 ver. 0.99.5 released
+	From Manuel Villegas Marin <manolo@espanet.com>
+	- Support for up to 4 cdrom drives. You need to load the cdrom.sys
+	  with different args for each drive you want, such as
+	    device=cdrom.sys
+	    device=cdrom.sys 2
+	  The DOS device names then are MSCD0001, MSCD0002, ...
+	  The preconfigured devices are /dev/cdrom, /dev/cdrom2 ...
+	From Hans
+	- updated the parser to reflext Manuel's changes:
+	  Just do cdrom { /dev/xxx } multiple times for each device,
+	  First one means MSCD0001, the second MSCD0002 e.t.c.
+	- wrote some tiny documentation to reflect the cdrom.sys changes.
+	- changed the semantic of the 'fast' attribute for ports{} slighly,
+	  The problem was that it was cleared strangely within ports{..}, such
+	  that ports{ fast 0x11 0x22 0x33 range 0x44 0c66 0x66} put the fast
+	  attrib on all above ports except 0x66, because only after 'range'
+	  portspeed was cleared. Now it needs a 'fast' again in front of
+	  'range' to make the 'range' fast.
 98/12/02 ver. 0.99.4.2 unofficial pre-release
 	From Hans
 	- re-applied the old slangcode :-(

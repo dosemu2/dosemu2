@@ -49,6 +49,31 @@ top of the file). With the mcd.c and aztcd.c Linux drivers this may cause your
 system to hang for some 30 seconds (or even indefinitely), so don't change the
 default value 'eject_allowed = 0'.
 
+Support for up to 4 drives:
+
+If you have more then one cdrom, you have to use the cdrom statement
+in global.conf multiple times such as
+<tscreen><verb>
+  cdrom { /dev/cdrom }
+  cdrom { /dev/cdrom2 }
+</verb></tscreen>
+and have multiple instancies of the DOS driver too:
+<tscreen><verb>
+  device=cdrom.sys
+  device=cdrom.sys 2
+</verb></tscreen>
+
+The one and only parameter to the device driver is a digit between 1 and 4,
+(if its missing then 1 is assumed)
+for the DOS devices MSCD0001, MSCD0002 ... MSCD0004 respectively. You then
+also need to tell MSCDEX about these drivers such as
+<tscreen><verb>   
+    mscdex /d:mscd0001 /d:mscd0002 /l:driveletter
+</verb></tscreen>
+In this case the /l: argument defines the driveletter of the first /d:,
+the others will get assigned successive driveletters.
+
+
 
 History: Release with dosemu.0.60.0
          Karsten Rucker (rucker@astro.uni-bonn.de)
@@ -57,3 +82,8 @@ History: Release with dosemu.0.60.0
          Additional remarks for mcd.c and aztcd.c
          Werner Zimmermann (zimmerma@rz.fht-esslingen.de)
          May 30, 1995
+
+         Release with dosemu-0.99.5
+         Manuel Villegas Marin <manolo@espanet.com>
+         Support for up to 4 drives
+         December 4, 1998

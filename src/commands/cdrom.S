@@ -31,7 +31,8 @@ ConDev:
 	.word	0xc800		! driver attributes
         .word	Strategy        ! pointer to strategy routine
         .word   Entry		! pointer to service routine
-        .ascii  "MSCD0001"	! logical device name
+        .ascii  "MSCD000"	! logical device name
+Index:	.ascii	"1"
 	.word	0		! reserved
         .byte   0
         .byte   1		! number of units supported by driver
@@ -69,6 +70,8 @@ MscdTbl:
         .word   resume          ! resume playing audio
 
 ptrsav:	.long	0		! saved pointer to request header
+arg:	.byte	0		! Number of CDROM drive 0 ... 3
+
 
 ! structure of command block header (13 bytes)
 CmdLen	= 	0		! length of header
@@ -175,6 +178,8 @@ input_flush:
 play:
 	movb	al, #Helper
 	movb	ah, #0x04
+	seg 	cs
+	orb	ah, arg
 	int	LinuxCD
 	cmp	al, #0
 	jne	play_fail
@@ -190,6 +195,8 @@ play_fail:
 stop:
 	movb	al, #Helper
 	movb	ah, #0x05
+	seg	cs
+	orb	ah, arg
 	int	LinuxCD
  	mov	ax,#0
 	br	exit
@@ -197,6 +204,8 @@ stop:
 resume:
 	movb	al, #Helper
 	movb	ah, #0x06
+	seg	cs
+	orb	ah, arg
 	int	LinuxCD
 	cmp	al, #0
 	jne	resume_fail
@@ -216,6 +225,8 @@ resume_fail:
 seek:
 	movb	al, #Helper
 	movb	ah, #0x03
+	seg	cs
+	orb	ah, arg
 	int	LinuxCD
 	mov	ax,#0
 	br	exit
@@ -225,6 +236,8 @@ READLONG_TRANSFER = 14
 read_long:
 	movb	al, #Helper
 	movb	ah, #0x02
+	seg 	cs
+        orb	ah, arg
         seg es
 	lds	si, [di+READLONG_TRANSFER]
 	int	LinuxCD
@@ -289,6 +302,8 @@ eject:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x0D
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	mov	ax,#0
@@ -301,6 +316,8 @@ lockunlock:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x0C
+	seg	cs
+        orb	ah,arg
         movb	bl,[si+1]
 	int	LinuxCD
 
@@ -313,6 +330,8 @@ resetdrive:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x0B
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	mov	ax,#0
@@ -324,6 +343,8 @@ closetray:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x0E
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	mov	ax,#0
@@ -335,6 +356,8 @@ audio_ctrl:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x0F
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	br 	check_busy
@@ -414,6 +437,8 @@ devstatus:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x0A
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	mov	[si+DEVICE_PARMS+0],bx
@@ -429,6 +454,8 @@ ret_sectorsize:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x08
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	mov	[si+RET_SECTORSIZE_SIZE+0],bx
@@ -441,6 +468,8 @@ ret_volumesize:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x12
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	mov	ax,#0
@@ -454,6 +483,8 @@ media_changed:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x09
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	cmp	bl,#0
@@ -472,6 +503,8 @@ lochead:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x07
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	br	check_busy
@@ -482,6 +515,8 @@ audiostatus:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x14
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	br	check_busy
@@ -492,6 +527,8 @@ qchannel:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x13
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	br	check_busy
@@ -502,6 +539,8 @@ trackinfo:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x11
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	br	check_busy
@@ -512,6 +551,8 @@ diskinfo:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x10
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	br	check_busy
@@ -522,6 +563,8 @@ getchaninfo:
 	les	di,[ptrsav]
 	movb	al,#Helper
 	movb	ah,#0x15
+	seg	cs
+	orb	ah,arg
 	int	LinuxCD
 
 	br	check_busy
@@ -570,11 +613,14 @@ FailMsg:
 	.byte	cr,lf,lf,eom
 
 coninit:
-	mov	dx, #Message
+	jmp 	ParseArgs
+cont:	mov	dx, #Message
 	movb	ah, #0x09
 	int	0x21
 
  	movb	ah, #0x01
+	seg	cs
+	orb	ah, arg
 	movb	al, #Helper
 	int	LinuxCD
 	cmp	al, #0
@@ -593,3 +639,58 @@ InitEnde:
 
 	mov	ax, #0
 	br      exit
+
+ParseArgs:
+	push 	ds 		!On entry es:di points to the command line
+	push 	si		!the relevant data start at offset 0x12
+	push	ax		!If we have _no_ parameter, the default
+				!will be drive 0 and name MSCD0001
+	push 	es
+	pop	ds
+	lds 	si,[di+0x012]	!ds:si now pointing to our paramter
+	
+	jmp IniParse
+
+EndParseArgs:
+	pop	ax
+	pop	si
+	pop	ds
+	jmp 	cont
+
+IniParse:
+	cmpb	[si],#0x0d
+	jz	EndParseArgs
+	cmpb	[si],#0x20
+	jz	Label
+	inc	si
+	jmp	IniParse
+
+
+Label:	inc 	si
+
+StartParse:
+	cmpb 	[si],#0x0d	
+	jz 	EndParseArgs
+	cmpb 	[si],#0x20
+	jz 	NextChar
+
+	cmpb	[si],#0x31		!lowest allowed value is '1'
+	jb	NextChar		!if not get next character
+	cmpb	[si],#0x34		!highest allowed value is '4'
+	ja	NextChar		!if higher get next character
+					!if lower all OK
+	movb	al,[si]
+	seg	cs
+	movb	Index,al		!modify the device name ('1'...'4')
+	sub 	al,#0x31		!calculate the index 0..3
+	shl	al,6
+	seg	cs
+	mov	arg,al	
+
+	jmp	EndParseArgs
+
+NextChar:
+	inc 	si
+	jmp	StartParse
+
+

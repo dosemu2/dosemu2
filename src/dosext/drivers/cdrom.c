@@ -53,7 +53,10 @@
 
 #undef CDROM_DEBUG
 
-int cdrom_fd = -1;
+static int CdromFd[4] = {-1,-1,-1,-1};
+static int IndexCd = -1;
+#define cdrom_fd CdromFd[IndexCd]
+
 int cdu33a = 0;
 
 /* eject_allowed = 0
@@ -155,11 +158,12 @@ struct audio_status { unsigned int status;
 #define MSCD_CTRL_VOLUME3          8
 
 #ifdef __linux__
-char path_cdrom[32]="/dev/cdrom";
+char *Path_cdrom[]={"/dev/cdrom","/dev/cdrom2","/dev/cdrom3","/dev/cdrom4"};
 #endif
 #ifdef __NetBSD__
-char path_cdrom[32]="/dev/rcd0a";
+char *Path_cdrom[]={"/dev/rcd0a","/dev/rcd0a","/dev/rcd0a","/dev/rcd0a"};
 #endif
+#define path_cdrom Path_cdrom[IndexCd]
 
 #ifdef CDROM_DEBUG
 int logging_ioctl(int fd, unsigned int cmd, void *arg)
@@ -260,6 +264,9 @@ void cdrom_helper(void)
    cdrom_tocentry.data_len =  sizeof(toc_entry);
 #endif
    cdrom_subchnl.cdsc_format = CDROM_MSF;
+
+   IndexCd=(int)((HI(ax) & 0xC0)>>6);
+   HI(ax) = HI(ax) & 0x3F;
 
    if ((cdu33a) && (cdrom_fd < 0)) {
         enter_priv_off();

@@ -927,8 +927,29 @@ When you want to use the CDrom driver and the Linux device is other
 then /dev/cdrom you may define
 
 <tscreen><verb>
-  cdrom /dev/xxx
+  cdrom { /dev/xxx }
 </verb></tscreen>
+
+However, you need to include the DOSEMU supplied cdrom.sys into your config.sys
+such as
+<tscreen><verb>
+  device=cdrom.sys
+</verb></tscreen>
+
+If you have more then one cdrom, you have to use the cdrom statement
+multiple times such as
+<tscreen><verb>
+  cdrom { /dev/cdrom }
+  cdrom { /dev/cdrom2 }
+</verb></tscreen>
+and have multiple instancies of the DOS driver too:
+<tscreen><verb>
+  device=cdrom.sys
+  device=cdrom.sys 2
+</verb></tscreen>
+
+In any case you will need MSCDEX.EXE in your autoexe.bat refer to the
+DOS devices MSCD0001, MSCD0002 respectively.
 
 <sect2>Code page and character set
 <p>

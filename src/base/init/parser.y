@@ -686,8 +686,16 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		    { stop_disk(L_FLOPPY); }
                 | CDROM '{' string_expr '}'
                     { IFCLASS(CL_DISK){
-		    strncpy(path_cdrom, $3, 30);
-                    c_printf("CONF: cdrom on %s\n", $3);
+		    static int which = 0;
+		    if (which >= 3) {
+			c_printf("CONF: too many cdrom drives defined\n");
+			free($3);
+		    }
+		    else {
+			Path_cdrom[which] = $3;
+			c_printf("CONF: cdrom MSCD000%d on %s\n", which+1 ,$3);
+			which++;
+		    }
 		    }}
                 | ASPI '{' string_expr DEVICETYPE string_expr TARGET expression '}'
                     { IFCLASS(CL_DISK){
@@ -1412,28 +1420,32 @@ port_flags	: port_flag
 port_flag	: INTEGER
 	           {
 	           allow_io($1, 1, ports_permission, ports_ormask,
-	                    ports_andmask,portspeed, (char*)dev_name);
+	                    ports_andmask,portspeed?1:0, (char*)dev_name);
+		   if (portspeed) portspeed++;
 	           }
 		| '(' expression ')'
 	           {
 	           allow_io($2, 1, ports_permission, ports_ormask,
-	                    ports_andmask,portspeed, (char*)dev_name);
+	                    ports_andmask,portspeed?1:0, (char*)dev_name);
+		   if (portspeed) portspeed++;
 	           }
 		| RANGE INTEGER INTEGER
 		   {
+		   if (portspeed > 1) portspeed=0;
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$3);
 		   allow_io($2, $3 - $2 + 1, ports_permission, ports_ormask,
-			    ports_andmask, portspeed, (char*)dev_name);
+			    ports_andmask, portspeed?1:0, (char*)dev_name);
 		   portspeed=0;
 		   strcpy(dev_name,"");
 		   }
 		| RANGE expression ',' expression
 		   {
+		   if (portspeed > 1) portspeed=0;
 		   c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
 			    (unsigned short)$2, (unsigned short)$4);
 		   allow_io($2, $4 - $2 + 1, ports_permission, ports_ormask,
-			    ports_andmask, portspeed, (char*)dev_name);
+			    ports_andmask, portspeed?1:0, (char*)dev_name);
 		   portspeed=0;
 		   strcpy(dev_name,"");
 		   }
