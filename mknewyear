@@ -1,0 +1,39 @@
+#! /usr/bin/perl
+
+$newyear = "1999";
+
+print "building file list ...\n";
+@files = `grep -l '(C) Copyright 1992,' \`find -type f\``;
+print "...Ok, now processing\n";
+
+$total = 0;
+
+#foreach $i (@files) {print "$i";} exit;
+
+foreach $i (@files) {
+  chop $i;
+  $total++;
+  print "processing $i\n";
+  open(FIN, "<$i") || die "Can't open $i";
+  open(FOUT, ">$i.new") || die "Can't open $i.new";
+  $changed_it = 0;
+  LINE: while (<FIN>) {
+     $line = $_;
+     if (/\(C\) Copyright 1992,[^0-9]+([0-9]+)\s+the\s+\"DOSEMU/) {
+       $line =~ s/$1/$newyear/;
+       $changed_it = 1;
+     }
+     print FOUT "$line";
+  }
+  close(FOUT);
+  close(FIN);
+  if ($changed_it) {
+    `mv $i.new $i`;
+  }
+  else {
+    `rm -f $i.new`;
+     $total--;
+  }
+}
+
+print "$total files converted\n";
