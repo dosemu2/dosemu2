@@ -16,7 +16,7 @@
  *
  * 1999/01/05: Correct initial values; memory mapping regs are emulated
  * (as far as possible).
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * DANG_END_CHANGELOG
  *

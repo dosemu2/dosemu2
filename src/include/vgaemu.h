@@ -43,7 +43,7 @@
  *
  * 1997/06/15: Added quit a few definitions related to the new global
  * variable `vga' and the rewrite of vgaemu.c.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1997/07/08: Integrated vgaemu_inside.h; there was no file that included
  * only either of vgaemu.h/vgaemu_inside.h anyway.

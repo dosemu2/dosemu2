@@ -79,7 +79,7 @@
  * The update function now works for all types of modes except for
  * Hercules modes.
  * The VGA memory is now always executable.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1997/07/07: Added linear frame buffer (LFB) support, simplified and
  * generalized video mode definitions (now possible via dosemu.conf).

@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.99.8
+<date> version dosemu-0.99.12
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -2699,10 +2699,13 @@ These are the functions defined in base/dev/misc/pci.c.
  0x30      - Whether to use the BOOTDISK predicate
  0x33      - Mouse Functions
  0x40      - CD-ROM functions
- 0x50-0x52 - DOSEMU/Linux communications
+ 0x50-0x5f - DOSEMU/Linux communications
       50 -- run unix command in ES:DX
       51,52?
       53 -- do system(ES:DX)
+	54 -- get CPU speed
+	55 -- get terminal type
+ 0x60-0x6f - reserved for plug-ins
  0x7a      - IPX functions
  0x8x   -- utility functions
 	0x80 -- getcwd(ES:DX, size AX)
@@ -2930,16 +2933,6 @@ These are the functions defined in emu-i386/ports.c.
 <sect1>Remarks in emu-i386/ports.c
 
 <p>
-<p><verb>
- PORT_DEBUG is to specify whether to record port writes to debug output.
-   0 means disabled.
-   1 means record all port accesses to 0x00 to 0xFF
-   2 means record ANY port accesses!  (big fat debugfile!)
-   3 means record all port accesses >= 0x100
-</verb>
- 
------
-
  The following port_{in|out}{bwd} functions are the main entry points to
  the port code. They look into the port_handle_table and call the
  appropriate code, usually the std_port_ functions, but each device is

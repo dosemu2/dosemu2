@@ -1,6 +1,6 @@
   The DOSEMU Alterer Novices Guide
   Author: Alistair MacDonald, alistair\@slitesys.demon.co.uk
-  version dosemu-0.99.8
+  version dosemu-0.99.12
 
   This Document is the DOSEMU Alterer Novices Guide. It is known as the
   DANG.
@@ -3055,8 +3055,9 @@
   functions 0x21-0x22 - EMS functions 0x28      - Garrot Functions for
   use with the mouse 0x29      - Serial functions 0x30      - Whether to
   use the BOOTDISK predicate 0x33      - Mouse Functions 0x40      - CD-
-  ROM functions 0x50-0x52 - DOSEMU/Linux communications 50 -- run unix
-  command in ES:DX 51,52?  53 -- do system(ES:DX) 0x7a      - IPX
+  ROM functions 0x50-0x5f - DOSEMU/Linux communications 50 -- run unix
+  command in ES:DX 51,52?  53 -- do system(ES:DX) 54 -- get CPU speed 55
+  -- get terminal type 0x60-0x6f - reserved for plug-ins 0x7a      - IPX
   functions 0x8x   -- utility functions 0x80 -- getcwd(ES:DX, size AX)
   0x81 -- chdir(ES:DX) 0xfe      - called from our MBR, emulate MBR-
   code.  0xff      - Terminate DOSEMU
@@ -3096,7 +3097,6 @@
      but the targetID can be mapped differently.
    - LUNs have to be equal for real and DOS seen ones, because we
      don't translate the LUNs in the CDB.
-
 
 
 
@@ -3271,18 +3271,6 @@
 
   88..55..  RReemmaarrkkss iinn eemmuu--ii338866//ppoorrttss..cc
 
-
-
-   PORT_DEBUG is to specify whether to record port writes to debug output.
-     0 means disabled.
-     1 means record all port accesses to 0x00 to 0xFF
-     2 means record ANY port accesses!  (big fat debugfile!)
-     3 means record all port accesses >= 0x100
-
-
-
-  -----
-
   The following port_{in|out}{bwd} functions are the main entry points
   to the port code. They look into the port_handle_table and call the
   appropriate code, usually the std_port_ functions, but each device is
@@ -3361,9 +3349,6 @@
 
 
 
-
-
-
   88..88..22..  rruunn__vvmm8866
 
 
@@ -3371,6 +3356,9 @@
   has the registers that it will be called with. It will stop vm86 mode
   for many reasons, like trying to execute an interrupt, doing port I/O
   to ports not opened for I/O, etc ...
+
+
+
 
 
 
@@ -3442,11 +3430,6 @@
   GETtickTIME returns the DOS (stretched) time with 838ns resolution
   using GETcpuTIME to get the implementation-dependent CPU time.  The
   'sc' parameter works like in GETusTIME.
-
-
-
-
-
   88..1133..44..  GGEETTuussSSYYSSTTIIMMEE(())
 
 
@@ -3507,6 +3490,9 @@
   and more easily comparable debug log files, and also because only
   int0x1a and BIOS timer require knowledge of the actual time, PIT and
   PIC are not sensitive.
+
+
+
 
 
 
@@ -3575,8 +3561,6 @@
 
   for (i = 0; i < config.numser; i++) s_printf("COM port number %d has a
   base address of %x", com[i].real_comport, com[i].base_port);
-
-
 
   99..33..  bbaassee//sseerriiaall//sseerr__iinniitt..cc IInnffoorrmmaattiioonn
 
@@ -3773,6 +3757,9 @@
   Perhaps this can be modified to limit max chain length?
 
 
+
+
+
   99..1133..  bbaassee//sseerriiaall//iinntt1144..cc IInnffoorrmmaattiioonn
 
   int14.c: Serial BIOS services for DOSEMU.  Please read the
@@ -3823,9 +3810,6 @@
   License, or (at your option) any later version.
 
 
-
-
-
   99..1177..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//sseerriiaall//ffoossssiill..cc
 
   This really should be write-with-wait. */
@@ -3841,7 +3825,6 @@
 
   Why does a RX_BUFFER_SIZE of 256 cause slower performance than a size
   of 128?
-
 
   1100..  TThhee MMoouussee ggrroouupp ooff MMoodduulleess
 
@@ -3908,6 +3891,7 @@
   and most common route, which is also long standing dosemu practice of
   always shifting by 1.
 
+
   -- Eric Biederman 19 August 1998
 
 
@@ -3956,13 +3940,21 @@
 
 
 
-
-
   1122..11..  bbaassee//ddeevv//ppiicc//ppiicc..cc IInnffoorrmmaattiioonn
 
   pic.c is a fairly complete emulation of both 8259 Priority Interrupt
   Controllers.  It also includes provision for 16 lower level
   interrupts.  This implementation supports the following i/o commands:
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4024,6 +4016,7 @@
 
   The change flags are there to facilitate grepping for changes in
   pic_ilevel and pic_icount
+
   To avoid line wrap, the first seven values are printed without labels.
   Instead, a header line is printed every 15 messages.
 
@@ -4082,9 +4075,6 @@
   DOS interruptis really to be activated.  If there is no special dosemu
   code to call, the second parameter can specify do_irq(), but see that
   description for some special considerations.
-
-
-
 
 
 
@@ -4166,11 +4156,6 @@
   will remain queued.  Also, some programs fake an iret, so that it is
   possible for pic_iret to fail.  See pic_watch for the watchdog timer
   that catches and fixes this event.
-
-
-
-
-
   1122..22..1100..  ppiicc__wwaattcchh
 
 
@@ -4237,10 +4222,6 @@
   To assure proper repeat scheduling, pic_sched should be called from
   within the interrupt handler for the same interrupt.  The maximum
   interval is 15 minutes (0x3fffffff).
-
-
-
-
   1122..33..  RReemmaarrkkss iinn bbaassee//ddeevv//ppiicc//ppiicc..cc
 
   pic_push,pic_pop
@@ -4286,8 +4267,6 @@
   These are the functions defined in dosext/sound/sound.c.
 
 
-
-
   1133..22..11..  ssbb__iioo__rreeaadd
 
 
@@ -4305,6 +4284,7 @@
 
 
   1133..22..22..  aaddlliibb__iioo__rreeaadd
+
 
 
 
@@ -4419,7 +4399,6 @@
 
   -----
 
-
   Advanced Adlib data writes are unimplemented */
 
   -----
@@ -4439,6 +4418,7 @@
   Stero Input is no implemented
 
   -----
+
 
   ADC is Unimplemented
 
@@ -4485,7 +4465,6 @@
   reading portion.
 
 
-
   1133..88..  IItteemmss ffoorr FFiixxiinngg iinn bbaassee//ddeevv//ddmmaa//ddmmaa..cc
 
   : Pipe Creation failed. Lets hope that it times out !
@@ -4506,8 +4485,6 @@
   1144..  TThhee FFiilleeAAcccceessss ggrroouupp ooff MMoodduulleess
 
   This hold all kind of accessing files on a Unix filesysten from DOS.
-
-
 
   1144..11..  ddoosseexxtt//mmffss//mmffss..cc IInnffoorrmmaattiioonn
 
@@ -4617,7 +4594,6 @@
           that use huge arrays (data bases, matrices).
 
 
-
   We trick out the kernel by expanding the stack vma to a given value
   (setting ESP to the bottom and thouching it).  ( look at do_page_fault
   in arch/i386/mm/fault.c how it treats growing down of stack )
@@ -4683,7 +4659,6 @@
   know _when_ we come into trouble with libc, the faster (and IMHO)
   better solution is to to take care of this at application level.
 
-
   For this to accomplish we have to put a
   (un)lock_resource(resource_libc) bracket around those involved libc
   functions. The most frequently used ones are offered by the threads
@@ -4709,8 +4684,6 @@
   valloc().  However, you can't free that memory later. For this purpose
   you may use the below functions, which are put on top of
   malloc()/free().
-
-
   void *page_malloc(size_t size)
 
 
@@ -4733,21 +4706,6 @@
 
   The global structures used for building namelists (as defined in lt-
   threads.h) are:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
   struct name_list_entry {
@@ -4791,6 +4749,7 @@
 
 
 
+
   int insert_name_list_entry(struct name_list *list, char *name, void *value)
 
 
@@ -4811,7 +4770,6 @@
 
 
   void exit_thread(struct tcb *tcb)
-
 
 
 
@@ -4852,6 +4810,7 @@
 
 
   void thread_usleep(int useconds)
+
 
 
 
@@ -5013,7 +4972,6 @@
 
 
 
-
   void print_tcb(struct tcb *tcb)
 
 
@@ -5080,6 +5038,8 @@
   be solved by putting all this data into a private structure and
   starting the thread by passing it a pointer to this structure. Now,
   within scope of the thread one has access to this pointer via.
+
+
    OWN_TCB->params;
 
 
@@ -5211,7 +5171,6 @@
 
   +o  int tcb_id;
 
-
   +o  int threadflags;
 
   +o  struct tcb *parent;
@@ -5277,7 +5236,6 @@
   generations can laugh at or code the ideas ..... These bracket the
   idea description.
 
-
   DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG Changelogs - very useful for
   bug fixing, and avvailable for use with DPR (or that's the theory)
 
@@ -5298,30 +5256,6 @@
 
   SKIP ... /SKIP This is only valid within *_FUNCTION and skips
   formatting until either PROTO or /SKIP is seen.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

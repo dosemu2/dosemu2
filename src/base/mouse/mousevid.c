@@ -11,7 +11,7 @@
  * 1998/02/22: Video mode information is now derived directly from VGAEmu, if
  * X is active.
  *
- *  -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ *  -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * DANG_END_CHANGELOG
  *

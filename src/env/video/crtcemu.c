@@ -15,7 +15,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1999/01/05: Correct initial values for standard VGA modes.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * DANG_END_CHANGELOG
  *

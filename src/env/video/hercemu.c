@@ -17,7 +17,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1999/01/05: We emulate just the basics for the moment.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw ()
  *
  * DANG_END_CHANGELOG
  */

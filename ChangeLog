@@ -1,3 +1,10 @@
+99/05/22 ver. 0.99.12 released
+	From David Hodges <dave@router.econz.co.nz>
+	- reworked dosemu HOWTO
+	From Hans
+	- changed Steffen's E-mail address in all sources
+	- DANG recompile
+	- docs recompile
 99/05/21 ver. 0.99.11.2 unofficial pre-release
 	From Alberto
 	- Make several int15 functions that deal with protected mode

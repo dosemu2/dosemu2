@@ -62,7 +62,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1998/09/20: Added proper init values for all graphics modes.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1998/10/25: Restructured code, removed unnecessary parts, added some code.
  * The emulation is now (as far as I could test) identical to my VGA chip's

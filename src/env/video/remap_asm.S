@@ -23,7 +23,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1997/08/07: Fixed some bugs when remapping very narrow images.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * DANG_END_CHANGELOG
  *

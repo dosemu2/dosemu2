@@ -49,7 +49,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1998/09/20: Added proper DAC init values for all graphics modes.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1998/10/25: Cleaned up the interface, removed unnecessary parts.
  * Working PEL mask support.

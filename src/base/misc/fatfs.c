@@ -15,7 +15,7 @@
  *
  * Copyright (c) 1997 Steffen Winterfeldt
  *
- * email: Steffen.Winterfeldt@itp.uni-leipzig.de
+ * email: Steffen Winterfeldt <wfeldt@suse.de>
  *
  */
 

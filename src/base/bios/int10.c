@@ -27,7 +27,7 @@
  * 1998/04/05: Put some work into set_video_mode() (made it
  * more VGA comaptible) and removed new_set_video_mode().
  * Removed (useless) global variable "gfx_mode".
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  * 
  * Readded new_set_video_mode, its needed for non-X compiles.
  * -- EB 3 June 1998

@@ -55,7 +55,7 @@
  * 1997/07/07: Did some cleaning up and removed lots of #define's. Some
  * parts are now dynamically configurable; they are set up in vbe_init()
  * in env/video/vesa.c.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * DANG_END_CHANGELOG
  *

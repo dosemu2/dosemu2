@@ -23,7 +23,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * 1997/07/08: Gamma correction now uses only integer operations.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1998/11/01: Added so far unsupported video modes. We now
  * support all but the Hercules mode.

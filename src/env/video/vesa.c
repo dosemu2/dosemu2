@@ -26,7 +26,7 @@
  * 1997/07/07: Nearly full rewrite. We now support full VBE 2.0
  * functionality, including power management functions (although
  * our only frontend, X, doesn't use this info yet).
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1998/12/12: Changed (fixed?) VBE set/get palette function.
  * -- sw

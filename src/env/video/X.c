@@ -84,7 +84,7 @@
  * but it works. Scaling x2 is only set for 320x200.  -- Hans
  *
  * 1997/03/03: Added code to turn off MIT-SHM for network connections.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1997/04/21: Changed the interface to vgaemu - basically we do
  * all image conversions in remap.c now. Added & enhanced support
@@ -93,12 +93,12 @@
  * Palette updates in text-modes work; the code is not
  * perfect yet (no screen update is done), so the change will
  * take effect only after some time...
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * 1997/06/06: Fixed the code that was supposed to turn off MIT-SHM for
  * network connections. Thanks to Leonid V. Kalmankin <leonid@cs.msu.su>
  * for finding the bug and testing the fix.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *              
  * 1997/06/15: Added gamma correction for graphics modes.
  * -- sw

@@ -26,7 +26,7 @@
  * 1998/01/05: Moved Misc_get_input_status_1() from attr.c into a separate
  * file (this one). Added emulation for the VGA regs which have their own
  * port addresses.
- * -- sw (Steffen.Winterfeldt@itp.uni-leipzig.de)
+ * -- sw (Steffen Winterfeldt <wfeldt@suse.de>)
  *
  * DANG_END_CHANGELOG
  */
