@@ -178,6 +178,12 @@
 #define vga_deb_bank(x...)
 #endif
 
+#if DEBUG_BANK >= 2
+#define vga_deb2_bank(x...) v_printf("VGAEmu: " x)
+#else
+#define vga_deb2_bank(x...)
+#endif
+
 #if DEBUG_COL >= 1
 #define vga_deb_col(x...) v_printf("VGAEmu: " x)
 #else
@@ -200,6 +206,7 @@
 
 #include "cpu.h"		/* root@sjoerd: for context structure */
 #include "emu.h"
+#include "dpmi.h"
 #include "port.h"
 #include "video.h"
 #include "remap.h"
@@ -219,6 +226,7 @@ static int vga_emu_protect_page(unsigned, int);
 static int vga_emu_protect(unsigned, unsigned, int);
 static int vga_emu_adjust_protection(unsigned, unsigned);
 static int vga_emu_map(unsigned, unsigned);
+static int vgaemu_unmap(unsigned);
 #if DEBUG_UPDATE >= 1
 static void print_dirty_map(void);
 #endif
@@ -231,6 +239,12 @@ static void vga_emu_setup_mode_table(void);
  * holds all VGA data
  */
 vga_type vga;
+
+/*
+ * the structure of our VGA BIOS;
+ * initialized by vbe_init()
+ */
+vgaemu_bios_type vgaemu_bios;
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -478,9 +492,14 @@ Bit8u VGA_emulate_inb(ioport_t port)
 int vga_emu_fault(struct sigcontext_struct *scp)
 {
   int i, j;
-  unsigned page_fault, vga_page = 0;
+  unsigned page_fault, vga_page = 0, u, access_type, lin_addr;
+#if DEBUG_MAP >= 1
+  unsigned char *cs_ip = SEG_ADR((unsigned char *), cs, ip);
+  static char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
+#endif
 
-  page_fault = ((unsigned) scp->cr2) >> 12;
+  page_fault = (lin_addr = (unsigned) scp->cr2) >> 12;
+  access_type = (scp->err >> 1) & 1; 
 
   for(i = 0; i < VGAEMU_MAX_MAPPINGS; i++) {
     j = page_fault - vga.mem.map[i].base_page;
@@ -490,34 +509,57 @@ int vga_emu_fault(struct sigcontext_struct *scp)
     }
   }
 
-  if(i == VGAEMU_MAX_MAPPINGS) {			/* not in mapped VGA memory */
-    if(page_fault >= 0xa0 && page_fault < 0xc0) {	/* ...  but somewhere nearby */
-      vga_deb_map("vga_emu_fault: outside mapped region; address = 0x%lx, page = 0x%x\n",
-        scp->cr2, page_fault
-      );
-      vga_emu_protect_page(page_fault, RW);
+  vga_deb_map("vga_emu_fault: %s%s access to %s region, address 0x%05x, page 0x%x, vga page 0x%x\n",
+    in_dpmi ? "dpmi " : "", access_type ? "write" : "read",
+    txt1[i], lin_addr, page_fault, vga_page
+  );
+
+  vga_deb2_map(
+    "vga_emu_fault: in_dpmi %d, err 0x%x, scp->cs:eip %04x:%04x, vm86s->cs:eip %04x:%04x\n",
+    in_dpmi, (unsigned) scp->err, (unsigned) _cs, (unsigned) _eip,
+    (unsigned) REG(cs), (unsigned) REG(eip)
+  );
+
+  vga_deb_map(
+    "vga_emu_fault: cs:eip = %04x:%04x, instr: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+    (unsigned) REG(cs), (unsigned) REG(eip),
+    cs_ip[ 0], cs_ip[ 1], cs_ip[ 2], cs_ip[ 3], cs_ip[ 4], cs_ip[ 5], cs_ip[ 6], cs_ip[ 7],
+    cs_ip[ 8], cs_ip[ 9], cs_ip[10], cs_ip[11], cs_ip[12], cs_ip[13], cs_ip[14], cs_ip[15]
+  );
+
+  if(i == VGAEMU_MAX_MAPPINGS) {
+    if(page_fault >= 0xa0 && page_fault < 0xc0) {	/* unmapped VGA area */
+      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+      LWORD(eip) += u;
+      if(!in_dpmi && u) {
+        vga_msg("vga_emu_fault: attempted write to unmapped area (cs:ip += %u)\n", u);
+      }
+      else {
+        vga_msg("vga_emu_fault: unknown instruction, page at 0x%05x now writable\n", page_fault << 12);
+        vga_emu_protect_page(page_fault, RW);
+      }
       return True;
     }
-    if(vesa_emu_fault(scp) == True) {
-      vga_deb_map("vga_emu_fault: VESA fault; address = 0x%lx, page = 0x%x\n",
-        scp->cr2, page_fault
-      );
+    else if(page_fault >= 0xc0 && page_fault < (0xc0 + vgaemu_bios.pages)) {	/* ROM area */
+      u = instr_len(SEG_ADR((unsigned char *), cs, ip));
+      LWORD(eip) += u;
+      if(!in_dpmi && u) {
+        vga_msg("vga_emu_fault: attempted write to ROM area (cs:ip += %u)\n", u);
+      }
+      else {
+        vga_msg("vga_emu_fault: unknown instruction, converting ROM to RAM at 0x%05x\n", page_fault << 12);
+        vga_emu_protect_page(page_fault, RW);
+      }
       return True;
     }
     else {
       vga_msg(
-        "vga_emu_fault: not in 0xa0000 - 0x%05x range; page = 0x%02x, address = 0x%lx\n",
-        0xc0000 + (vgaemu_bios.pages << 12),
-        page_fault,
-        scp->cr2
+        "vga_emu_fault: unhandled page fault (not in 0xa0000 - 0x%05x range)\n",
+        (0xc0 + vgaemu_bios.pages) << 12
       );
       return False;
     }
   }
-
-  vga_deb_map("vga_emu_fault: region = %d, address = 0x%lx, page = 0x%x, vga page = 0x%x\n",
-    i, scp->cr2, page_fault, vga_page
-  );
 
   if(vga_page < vga.mem.pages) {
     vga.mem.dirty_map[vga_page] = 1;
@@ -580,7 +622,7 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
         if(vga.mem.map[i].base_page + j == mapped_page) map_ok = 1;
         err = vga_emu_protect_page(vga.mem.map[i].base_page + j, prot);
         if(!err_1) err_1 = err;
-        vga_deb_map(
+        vga_deb2_map(
           "vga_emu_protect: error = %d, region = %d, page = 0x%x --> map_addr = 0x%x, prot = %s\n",
           err, i, page, vga.mem.map[i].base_page + j, prot & PROT_WRITE ? "RW" : "RO"
         );
@@ -762,6 +804,34 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
 
 
 /*
+ * Unmap the VGA memory.
+ */
+
+static int vgaemu_unmap(unsigned page)
+{
+  int i;
+
+  if(
+    page < 0xa0 ||
+    page >= 0xc0 ||
+    (!vga.config.mono_support && page >= 0xb0 && page < 0xb8)
+  ) return 1;
+
+  *((volatile char *)(vga.mem.scratch_page << 12));
+
+  i = (int) mmap(
+    (caddr_t) (page << 12), 1 << 12,
+    VGA_EMU_RW_PROT, MAP_SHARED | MAP_FIXED,
+    vga.mem.fd, (off_t) (vga.mem.scratch_page  << 12)
+  );
+
+  if(i == -1) return 3;
+
+  return vga_emu_protect_page(page, RO);
+}
+
+
+/*
  * DANG_BEGIN_FUNCTION vga_emu_init
  *
  * description:
@@ -793,21 +863,26 @@ int vga_emu_init(vgaemu_display_type *vedt)
 
   vga.mode = vga.VGA_mode = vga.VESA_mode = 0;
 
+  vga.config.mono_support = config.dualmon ? 0 : 1;
+
   if(config.vgaemu_memsize)
     vga.mem.size = config.vgaemu_memsize << 10;
   else
     vga.mem.size = 1024 << 10;
 
-  /* force 256k granularity to prevent possible problems (with nonchain4
-   * (4 planes) addressing, to be precise)
+  /* force 256k granularity to prevent possible problems
+   * (with 4-plane-modes, to be precise)
    */
   vga.mem.size = (vga.mem.size + ~(-1 << 18)) & (-1 << 18);
   vga.mem.pages = vga.mem.size >> 12;
 
-  if((vga.mem.base = (unsigned char *) valloc(vga.mem.size)) == NULL) {
+  if((vga.mem.base = (unsigned char *) valloc(vga.mem.size + (1 << 12))) == NULL) {
     vga_msg("vga_emu_init: not enough memory (%u k)\n", vga.mem.size >> 10);
     return 1;
   }
+  vga.mem.scratch_page = (unsigned) (vga.mem.base + vga.mem.size) >> 12;
+  memset((void *) (vga.mem.scratch_page << 12), 0xff, 1 << 12);
+  vga_msg("vga_emu_init: scratch_page at 0x%08x\n", vga.mem.scratch_page << 12);
 
   if(config.X_lfb) {
     if((lfb_base = (unsigned char *) valloc(vga.mem.size)) == NULL) {
@@ -855,6 +930,14 @@ int vga_emu_init(vgaemu_display_type *vedt)
   vbe_init(vedt);
 
   /*
+   * Make the VGA-BIOS ROM read-only; some dirty programs try to write to the ROM!
+   *
+   * Note: Unknown instructions will cause the write protection to be removed.
+   */
+  vga_msg("vga_emu_init: protecting ROM area 0xc0000 - 0x%05x\n", (0xc0 + vgaemu_bios.pages) << 12);
+  for(i = 0; i < vgaemu_bios.pages; i++) vga_emu_protect_page(0xc0 + i, RO);
+
+  /*
    * Set some mode; this initializes the DAC, CRTC, etc. as well.
    */
   vga_emu_setmode(3, 80, 25);		/* initialize some mode */
@@ -891,14 +974,18 @@ int vga_emu_init(vgaemu_display_type *vedt)
    * Instead of single ports, we take them all - this way we can see
    * if something is missing. -- sw
    */
-  io_device.handler_name = "VGAEmu Mono/Hercules Card";
-  io_device.start_addr = 0x3b0;
-  io_device.end_addr = 0x3bf;
-  port_register_handler(io_device, 0);
+  if(vga.config.mono_support) {
+    io_device.handler_name = "VGAEmu Mono/Hercules Card";
+    io_device.start_addr = 0x3b0;
+    io_device.end_addr = 0x3bf;
+    port_register_handler(io_device, 0);
+  }
 
   vga_msg(
-    "vga_emu_init: memory = %u kbyte at 0x%x, lfb = 0x%x\n",
-    vga.mem.size >> 10, (unsigned) vga.mem.base, vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page << 12
+    "vga_emu_init: memory: %u kbyte at 0x%x (lfb at 0x%x); %ssupport for mono modes\n",
+    vga.mem.size >> 10, (unsigned) vga.mem.base,
+    vga.mem.map[VGAEMU_MAP_LFB_MODE].base_page << 12,
+    vga.config.mono_support ? "" : "no "
   );
 
   return 0;
@@ -1426,6 +1513,7 @@ int vga_emu_setmode(int mode, int width, int height)
   vga_msg("vga_emu_setmode: scan_len = %d\n", vga.scan_len);
   i = vga.scan_len;
 
+  vga.config.standard = vga.VGA_mode >= 0 && vga.VGA_mode <= 0x13 ? 1 : 0;
   vga.config.mono_port =
   vga.config.video_off = 0;
 
@@ -1499,6 +1587,8 @@ int vga_emu_setmode(int mode, int width, int height)
     vga_emu_map(VGAEMU_MAP_LFB_MODE, 0);	/* map the VGA memory to LFB */
   }
 
+  vga_msg("vga_emu_setmode: setting up components...\n");
+
   DAC_init();
   Attr_init();
   Seq_init();
@@ -1507,6 +1597,8 @@ int vga_emu_setmode(int mode, int width, int height)
   Misc_init();
   Herc_init();
 
+  vga_msg("vga_emu_setmode: mode initialized\n");
+
   return True;
 }
 
@@ -1514,6 +1606,9 @@ int vga_emu_setmode(int mode, int width, int height)
 int vgaemu_map_bank()
 {
   int i, first;
+#if 0
+  int j, k0, k1;
+#endif
 
   if((vga.mem.bank + 1) * vga.mem.bank_pages > vga.mem.pages) {
     vga_msg("vgaemu_map_bank: invalid bank %d\n", vga.mem.bank);
@@ -1533,6 +1628,25 @@ int vgaemu_map_bank()
   else {
     first = vga.mem.bank_pages * vga.mem.bank;
   }
+
+#if 0
+  /*
+   * this is too slow !!! -- sw
+   */
+  k0 = vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page;
+  k1 = k0 + vga.mem.map[VGAEMU_MAP_BANK_MODE].pages;
+  for(j = 0xa0; j < 0xc0; j++) {
+    if(j < k0 || j >= k1) {
+      i = vgaemu_unmap(j);
+      if(i) {
+        vga_msg("vgaemu_map_bank: failed to unmap page at 0x%x; reason: %d\n", j << 12, i);
+      }
+      else {
+        vga_deb2_bank("vgaemu_map_bank: page at 0x%x unmapped\n", j << 12);
+      }
+    }
+  }
+#endif
 
   i = vga_emu_map(VGAEMU_MAP_BANK_MODE, first);
 
@@ -1761,6 +1875,55 @@ int changed_vga_colors(DAC_entry *de)
   }
 
   return j;
+}
+
+
+/*
+ * DANG_BEGIN_FUNCTION vgaemu_adj_cfg
+ *
+ * description:
+ * Adjust VGAEmu according to VGA register changes.
+ *
+ * DANG_END_FUNCTION
+ *
+ */     
+
+void vgaemu_adj_cfg(unsigned what, unsigned msg)
+{
+  unsigned u, u0, u1;
+  static char *txt1[] = { "byte", "odd/even (word)", "chain4 (dword)" };
+  static char *txt2[] = { "byte", "word", "dword" };
+
+  if(!vga.config.standard) return;
+
+  switch(what) {
+    case CFG_SEQ_ADDR_MODE:
+      u0 = vga.seq.addr_mode;
+      u = vga.seq.data[4] & 4 ? 0 : 1;
+      u = vga.seq.data[4] & 8 ? 2 : u;
+      vga.seq.addr_mode = u;
+      if(u != u0 && vga.mode_type == P8) {	/* ++HACK++ */
+        u1 = vga.seq.addr_mode == 0 ? 4 : 1;
+        vga.scan_len = (vga.scan_len * vga.mem.planes) / u1;
+        if(u1 != vga.mem.planes) {
+          vga.mem.planes = u1; vga.reconfig.mem = 1;   
+          vga_msg("vgaemu_adj_cfg: mem reconfig (%u planes)\n", u1);
+        }
+      }
+      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: seq.addr_mode = %s\n", txt1[u]);
+    break;
+
+    case CFG_CRTC_ADDR_MODE:
+      u0 = vga.crtc.addr_mode;
+      u = vga.crtc.data[0x17] & 0x40 ? 0 : 1;
+      u = vga.crtc.data[0x14] & 0x40 ? 2 : u;
+      vga.crtc.addr_mode = u;
+      if(msg || u != u0) vga_msg("vgaemu_adj_cfg: crtc.addr_mode = %s\n", txt2[u]);
+    break;
+
+    default:
+      vga_msg("vgaemu_adj_cfg: unknown item %u\n", what);
+  }
 }
 
 

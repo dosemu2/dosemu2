@@ -1,3 +1,19 @@
+99/01/28 ver. 0.99.7 released
+	From Steffen
+	- hercules emulation in vgaemu only when dualmon not set
+	- further reworks on vgaemu
+	- changes in mapping strategie.
+	- vesa_emu_fault in vesa.c removed, now vesa.c is completely replaced
+	  and doesn't contain any old code piece.
+	From Florian La Roche <florian@suse.de>
+	- further adaption to newer egcs versions :-(
+	  (src/include/dosemu_select.h)
+	From Hans
+	- trying to solve the midnight flag thing correctly
+	  (base/async/int.c, INT1A,AH0), ... though, I may be wrong.
+	  Lets see if it solves the problem.
+	- removed SMP check from base-configure, obsolete nowerdays
+	  and gets wrong under linux-2.2
 99/01/09 ver. 0.99.6.1 unofficial pre-release
 	From Alberto
 	- further cpuemu patches (sync with dose9961.dff)

@@ -53,6 +53,8 @@
 #define crtc_deb2(x...)
 #endif
 
+#define NEWBITS(a) ((vga.crtc.data[ind] ^ data) & (a))
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "config.h"
@@ -107,6 +109,8 @@ void CRTC_init()
 
   vga.crtc.index = 0;
 
+  vgaemu_adj_cfg(CFG_CRTC_ADDR_MODE, 1);
+
   crtc_msg("CRTC_init done\n");
 }
 
@@ -134,6 +138,7 @@ unsigned char CRTC_get_index()
 void CRTC_write_value(unsigned char data)
 {
   unsigned u = data, u1, ind = vga.crtc.index;
+  unsigned todo_ind, todo[4];
 
   if(ind > CRTC_MAX_INDEX) {
     crtc_deb("CRTC_write_value: data (0x%02x) ignored\n", u);
@@ -143,6 +148,9 @@ void CRTC_write_value(unsigned char data)
   crtc_deb2("CRTC_write_value: crtc[0x%02x] = 0x%02x\n", ind, u);
 
   if(vga.crtc.data[ind] == data) return;
+
+  for(todo_ind = 0; todo_ind < sizeof todo / sizeof *todo; todo_ind++) todo[todo_ind] = 0;
+  todo_ind = 0;
 
   switch(ind) {
     case 0x0c:		/* Start Address High */
@@ -165,8 +173,17 @@ void CRTC_write_value(unsigned char data)
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 
+    case 0x14:		/* Underline Location */
+      if(NEWBITS(0x40)) {
+        todo[todo_ind++] = CFG_CRTC_ADDR_MODE;
+      }
+      break;
+
     case 0x17:		/* Mode Control */
-      if(((vga.crtc.data[ind] ^ data) & 0x80)) {
+      if(NEWBITS(0x40)) {
+        todo[todo_ind++] = CFG_CRTC_ADDR_MODE;
+      }
+      if(NEWBITS(0x80)) {
         crtc_deb("CRTC_write_value: %svideo access\n", (data & 0x80) ? "" : "no ");
 
         u1 = vga.config.video_off;
@@ -182,6 +199,10 @@ void CRTC_write_value(unsigned char data)
   }
 
   vga.crtc.data[ind] = data;
+
+  for(todo_ind = 0; todo_ind < sizeof todo / sizeof *todo; todo_ind++) {
+    if(todo[todo_ind]) vgaemu_adj_cfg(todo[todo_ind], 0);
+  }
 }
 
 

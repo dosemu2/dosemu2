@@ -17,29 +17,11 @@
  * /REMARK
  * DANG_END_MODULE
  *
- *
- * Copyright (C) 1995 1996, Erik Mouw and Arjan Filius
  * Copyright (c) 1997 Steffen Winterfeldt
  *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
- * email: J.A.K.Mouw@et.tudelft.nl, I.A.Filius@et.tudelft.nl
- *
  * DANG_BEGIN_CHANGELOG
+ *
+ * 1995/1996: Initial version by Erik Mouw and Arjan Filius
  *
  * 1997/07/07: Nearly full rewrite. We now support full VBE 2.0
  * functionality, including power management functions (although
@@ -53,6 +35,9 @@
  * VBE set palette function.
  * -- sw
  *
+ * 1999/01/11: Removed vesa_emu_fault(), the last remaining old code piece.
+ * -- sw
+ *
  * DANG_END_CHANGELOG
  *
  */
@@ -62,18 +47,12 @@
  * define to enable some debug information
  */
 
-#undef	DEBUG_TRAP		/* page faults (write accesses to our video BIOS */
 #define	DEBUG_VBE		/* general info */
 
 
 #include <features.h>
-#if GLIBC_VERSION_CODE == 2000
-#include <sigcontext.h>
-#endif
 #include <string.h>
-#include <sys/mman.h>
-#include "cpu.h"        /* root@sjoerd: for context structure */
-
+#include "cpu.h"
 #include "emu.h"
 #include "video.h"
 #include "remap.h"
@@ -154,13 +133,6 @@ unsigned long dpmi_GetSegmentBaseAddress(unsigned short);
 #define VBE_W(a) *((unsigned *) (VBE_BUFFER + a))
 
 #define VBE_SEG_OFS(a, b)	(((a) << 16) + ((b) & 0xffff))
-
-
-/*
- * the structure of our VGA BIOS
- */
-
-vgaemu_bios_type vgaemu_bios;
 
 
 /*
@@ -264,12 +236,6 @@ void vbe_init(vgaemu_display_type *vedt)
   dos_vga_bios[2] = (bios_ptr + ((1 << 9) - 1)) >> 9;
   vgaemu_bios.pages = (bios_ptr + ((1 << 12) - 1)) >> 12;
 
-  /*
-   * Make it readonly (it is a ROM); this will need an exception_handler:
-   * some dirty programs try to write to the ROM!
-   */
-  mprotect(dos_vga_bios, vgaemu_bios.pages << 12, PROT_READ);
-
   if(!config.X_pm_interface) {
     v_printf("VBE: vbe_init: protected mode interface disabled\n");
   }
@@ -285,208 +251,6 @@ void vbe_init(vgaemu_display_type *vedt)
   );
 
   v_printf("VBE: vbe_init: supported VBE mode types = 0x%x\n", vbe_screen.src_modes);
-}
- 
-
-/* 
- * DANG_BEGIN_FUNCTION vesa_emu_fault
- *
- * description:
- * vesa_emu_fault() is used to handle video ROM accesses.
- * This function is called from env/video/vgaemu.c:vga_emu_fault().
- * The sigcontext_struct is defined in include/cpu.h
- * It just jumps over the instruction (LWORD (eip) += instr-len)
- * which caused the write exception to the video ROM. It is needed for
- * some dirty programs that try to write to a ROM (dos=high,umb seems
- * to do this, but not on all PC's). We're sure now, nobody can write to
- * the ROM and we don't crash on it, just ignore as it should be!
- *
- * arguments:
- * scp - A pointer to a struct sigcontext_struct holding some relevant data.
- *
- * DANG_END_FUNCTION
- *
- */
-
-int vesa_emu_fault(struct sigcontext_struct *scp)
-{
-  unsigned char *csp;
-  int page_fault_number = (scp->cr2 - 0xc0000) >> 12;
-#ifdef DEBUG_TRAP
-      v_printf("vesa: vesa_emu_fault():\n"
-	       "  trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n"
-	       "  eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n"
-	       "  cs: 0x%04x  ds: 0x%04x  es: 0x%04x  ss: 0x%04x\n",
-	       _trapno, scp->err, scp->cr2,
-	       _eip, _esp, _eflags, _cs, _ds, _es, _ss);
-#endif
-  if((page_fault_number >= 0) && (page_fault_number < vgaemu_bios.pages) )	/* only one page */
-    {
-#ifdef DEBUG_TRAP
-      v_printf("Writing to ROM:");
-#endif /* DEBUG_TRAP */
-      csp = SEG_ADR ((unsigned char *), cs, ip);
-
-      switch(csp[0])  /* catch prefix */
-        {
-        case 0x26 :
-#ifdef DEBUG_TRAP
-          v_printf("prefix 0x%x ",csp[0]);
-#endif
-          csp++;
-          break;
-	  
-        case 0xf3 :
-#ifdef DEBUG_TRAP
-          v_printf("REP(E): ");
-#endif
-          csp++;
-          break;
-
-	default:
-	  break;
-        }
-
-      switch(csp[0])
-        {
-        case 0x6c :
-#ifdef DEBUG_TRAP
-          v_printf("insb,     Yb, indirDX\n");
-#endif
-          break;
-	  
-        case 0x88 :
-#ifdef DEBUG_TRAP
-          v_printf("movb,     Eb, Gb \n");
-#endif
-          LWORD (eip)++;
-          break;
-	  
-        case 0x89 :
-#ifdef DEBUG_TRAP
-          v_printf("movS,     Ev, Gv \n");
-#endif
-          LWORD (eip)++;
-          break;
-
-        case 0x8a :
-#ifdef DEBUG_TRAP
-          v_printf("movb,     Gb, Eb \n");
-#endif
-          break;
-
-        case 0x8b :
-#ifdef DEBUG_TRAP
-          v_printf("movS,     Gv, Ev \n");
-#endif
-          LWORD (eip)++;
-          break;
-
-        case 0x8c :
-#ifdef DEBUG_TRAP
-          v_printf("movw,     Ew, Sw \n");
-#endif
-          break;
-
-        case 0x8d :
-#ifdef DEBUG_TRAP
-          v_printf("leaS,     Gv, M \n");
-#endif
-          break;
-
-        case 0x8e :
-#ifdef DEBUG_TRAP
-          v_printf("movw,     Sw, Ew \n");
-#endif
-          break;
-
-        case 0x8f :
-#ifdef DEBUG_TRAP
-          v_printf("popS,     Ev \n");
-#endif
-          break;
-
-        case 0xa4 :
-#ifdef DEBUG_TRAP
-          v_printf("movsb,    Yb, Xb \n");
-#endif
-          LWORD (eip)++;
-          break;
-
-        case 0xa5 :
-#ifdef DEBUG_TRAP
-          v_printf("movsS,    Yv, Xv \n");
-#endif
-          LWORD (eip)++;
-          break;
-
-        case 0xaa :
-#ifdef DEBUG_TRAP
-          v_printf("stosb,    Yb, AL \n");
-#endif
-          LWORD (eip)++;
-          break;
-
-        case 0xab :
-#ifdef DEBUG_TRAP
-          v_printf("stosS,    Yv, eAX \n");
-#endif
-          LWORD (eip)++;
-          break;
-
-        case 0xac :
-#ifdef DEBUG_TRAP
-          v_printf("lodsb,    AL, Xb \n");
-#endif
-          break;
-
-        case 0xad :
-#ifdef DEBUG_TRAP
-          v_printf("lodsS,    eAX, Xv \n");
-#endif
-          break;
-
-        case 0xae :
-#ifdef DEBUG_TRAP
-          v_printf("scasb,    AL, Yb \n");
-#endif
-          break;
-
-        case 0xaf :
-#ifdef DEBUG_TRAP
-          v_printf("scasS,    eAX, Yv \n");
-#endif
-          break;
-
-        case 0xc6 :
-#ifdef DEBUG_TRAP
-          v_printf("movb,     Eb, Ib \n");
-#endif
-          LWORD (eip)++;
-          break;
-
-        case 0xc7 :
-#ifdef DEBUG_TRAP
-          v_printf("movS,     Ev, Iv \n");
-#endif
-          LWORD (eip)++;
-
-          break;
-
-        default :
-          v_printf("vesa: vesa_emu_fault(): unknown instruction, "
-		   "csp= 0x%02x 0x%02x 0x%02x 0x%02x\n",
-		   csp[0],csp[1],csp[2],csp[3]);
-          break;
-        }
-     
-      return 1;
-    }
-  else
-    v_printf("vesa: vesa_emu_fault(): Not in ROM range\n page= 0x%02x"
-	     " adress: 0x%lx\n",page_fault_number,scp->cr2);
-  
-  return 0;
 }
 
 

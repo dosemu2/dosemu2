@@ -141,6 +141,14 @@
 
 
 /*
+ *
+ */
+
+#define CFG_SEQ_ADDR_MODE	1
+#define CFG_CRTC_ADDR_MODE	2
+
+
+/*
  * A DAC entry. Note that r, g, b may be 6 or 8 bit values,
  * depending on the current DAC width (stored in vga.dac.bits).
  *
@@ -247,6 +255,7 @@ typedef struct {
   unsigned size;			/* size of memory in bytes */
   unsigned pages;			/* dto in pages */
   int fd;				/* file descriptor for "/proc/self/mem" */
+  unsigned scratch_page;		/* for unmapped areas */
   vga_mapping_type map[VGAEMU_MAX_MAPPINGS];	/* all the mappings */
   unsigned bank_pages;			/* size of a bank in pages */
   unsigned bank;			/* selected bank */
@@ -295,6 +304,7 @@ typedef struct {
 #define CRTC_MAX_INDEX 0x18		/* 25 registers */
 
 typedef struct {
+  unsigned addr_mode;
   unsigned cursor_location;
   unsigned char index;
   unsigned char data[CRTC_MAX_INDEX + 1];
@@ -309,7 +319,7 @@ typedef struct {
 #define SEQ_MAX_INDEX 0x0f		/* 16 registers */
 
 typedef struct {
-  unsigned char chain4;
+  unsigned addr_mode;
   unsigned char map_mask;
   unsigned char mode_ctrl_1_bak, mode_ctrl_2_bak;
   unsigned char mode;
@@ -353,6 +363,8 @@ typedef struct {
  */
 
 typedef struct {
+  unsigned mono_support		: 1;	/* set if we support mono modes */
+  unsigned standard		: 1;	/* set for modes that are register compatible */
   unsigned mono_port		: 1;	/* set if we use 0x3b0... instead of 0x3d0... */
   unsigned video_off		: 4;	/* != 0 if no video signal is generated;
   					 * bit 0-3: due to attr/seq/crtc/herc
@@ -456,7 +468,7 @@ void dirty_all_video_pages(void);
 int vga_emu_set_text_page(unsigned, unsigned);
 void dirty_all_vga_colors(void);
 int changed_vga_colors(DAC_entry *);
-
+void vgaemu_adj_cfg(unsigned, unsigned);
 
 /*
  * Functions defined in env/video/vesa.c.
@@ -464,7 +476,6 @@ int changed_vga_colors(DAC_entry *);
 
 void vbe_init(vgaemu_display_type *);
 void do_vesa_int(void);
-int vesa_emu_fault(struct sigcontext_struct *scp);
 
 
 /*
@@ -557,6 +568,13 @@ void Herc_init(void);
 void Herc_set_cfg_switch(unsigned char);
 void Herc_set_mode_ctrl(unsigned char);
 unsigned char Herc_get_mode_ctrl(void);
+
+
+/*
+ * Functions defined in env/video/instremu.c.
+ */
+
+unsigned instr_len(unsigned char *);
 
 
 #endif	/* !defined __VGAEMU_H */

@@ -813,6 +813,35 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 ->	  midnight flag and will fail to advance the date
 */
   case 0:			/* read time counter */
+
+#define BIOSTIMER_ONLY_VIEW
+#ifdef BIOSTIMER_ONLY_VIEW
+
+    /* We rely on the INT8 routine doing the right thing,
+     * DOS apps too rely on the relationship between INT1A and 0x46c timer.
+     * We already do all appropriate things to trigger the simulated INT8
+     * correctly (well, sometimes faking it), so the 0x46c timer incremented
+     * by the (realmode) INT8 handler should be always in sync.
+     * Therefore, we keep INT1A,AH0 simple instead of trying to be too clever;-)
+     */
+    {
+      static first = 1;
+      if (first) {
+        /* take over the correct value _once_ only */
+        *((unsigned long *)(BIOS_TICK_ADDR)) =
+               (unsigned long)(pic_sys_time >> 16)
+             + (sys_base_ticks + usr_delta_ticks);
+        first = 0;
+      }
+    }
+    last_ticks = *((unsigned long *)(BIOS_TICK_ADDR));
+    LO(ax) = *((u_char *)(TICK_OVERFLOW_ADDR));
+    LWORD(ecx) = (last_ticks >> 16) & 0xffff;
+    LWORD(edx) = last_ticks & 0xffff;
+    *((u_char *)(TICK_OVERFLOW_ADDR)) = 0; /* clear the midnight flag */
+
+#else /* not BIOSTIMER_ONLY_VIEW */
+
     /* pic_sys_time is a zero-based tick(1.19MHz) counter. As such, if we
      * shift it right by 16 we get the number of PIT0 overflows, that is,
      * the number of 18.2ms timer ticks elapsed since starting dosemu. This
@@ -851,6 +880,7 @@ Notes:	there are approximately 18.2 clock ticks per second, 1800B0h per 24 hrs
 #endif
 
     set_ticks(last_ticks);	/* set_ticks is in rtc.c */
+#endif /* not BIOSTIMER_ONLY_VIEW */
     break;
 
 /*

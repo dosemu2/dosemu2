@@ -54,6 +54,8 @@
 #define gfx_deb2(x...)
 #endif
 
+#define NEWBITS(a) ((vga.gfx.data[ind] ^ data) & (a))
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "config.h"
@@ -158,7 +160,7 @@ void GFX_write_value(unsigned char data)
 
   switch(ind) {
     case 0x04:		/* Read Map Select */
-      if(((vga.gfx.data[ind] ^ data) & 3)) {
+      if(NEWBITS(0x03)) {
         u1 = data & 3;
         gfx_deb("GFX_write_value: read plane = %u\n", u1);
         vgaemu_switch_plane(u1);
@@ -166,31 +168,31 @@ void GFX_write_value(unsigned char data)
       break;
 
     case 0x05:		/* Mode */
-      if(((vga.gfx.data[ind] ^ data) & 3)) {
+      if(NEWBITS(0x03)) {
         gfx_deb("GFX_write_value: write mode = %u (ignored)\n", data & 3);
       }
-      if(((vga.gfx.data[ind] ^ data) & 8)) {
+      if(NEWBITS(0x08)) {
         gfx_deb("GFX_write_value: read mode = %u (ignored)\n", (data >> 3) & 1);
       }
-      if(((vga.gfx.data[ind] ^ data) & 0x10)) {
+      if(NEWBITS(0x10)) {
         gfx_deb("GFX_write_value: odd/even = %s (ignored)\n", (data & 0x10) ? "on" : "off");
       }
-      if(((vga.gfx.data[ind] ^ data) & 0x20)) {
+      if(NEWBITS(0x20)) {
         gfx_deb("GFX_write_value: CGA 4 color mode = %s (ignored)\n", (data & 0x20) ? "on" : "off");
       }
-      if(((vga.gfx.data[ind] ^ data) & 0x40)) {
+      if(NEWBITS(0x40)) {
         gfx_deb("GFX_write_value: VGA 256 color mode = %s (ignored)\n", (data & 0x40) ? "on" : "off");
       }
       break;
 
     case 0x06:		/* Miscellaneous */
-      if(((vga.gfx.data[ind] ^ data) & 1)) {
+      if(NEWBITS(0x01)) {
         gfx_deb("GFX_write_value: %s mode (ignored)\n", (data & 1) ? "text" : "graphics");
       }
-      if(((vga.gfx.data[ind] ^ data) & 2)) {
+      if(NEWBITS(0x02)) {
         gfx_deb("GFX_write_value: odd/even address mode = %s (ignored)\n", (data & 2) ? "on" : "off");
       }
-      if(((vga.gfx.data[ind] ^ data) & 0x0c)) {
+      if(NEWBITS(0x0c)) {
         vga.mem.bank = 0;	/* reset this? */
         switch((data >> 2) & 3) {
           case 0:

@@ -4504,20 +4504,6 @@ if test -z "`echo $YACC | grep bison`" ; then
   echo "configure: warning: " 1>&2
 fi
 
-if test "$SMPmodules" = "yes" ; then
-  if ! grep cpu_data /proc/ksyms >/dev/null 2>&1; then
-    echo "configure: warning: " 1>&2
-    echo "configure: warning: You choose to compile for SMP" 1>&2
-    echo "configure: warning: " 1>&2
-  fi
-else
-  if grep cpu_data /proc/ksyms >/dev/null 2>&1; then
-    echo "configure: warning: " 1>&2
-    echo "configure: warning: Your kernel is SMP" 1>&2
-    echo "configure: warning: " 1>&2
-  fi
-fi
-
 echo ""
 echo "Configure finished. Do 'make' to compile Dosemu."
 echo ""

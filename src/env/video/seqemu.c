@@ -115,6 +115,8 @@
 #define seq_deb2(x...)
 #endif
 
+#define NEWBITS(a) ((vga.seq.data[ind] ^ data) & (a))
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #include "config.h"
@@ -176,7 +178,7 @@ void Seq_init()
 
   vga.seq.index = 0;
 
-  vga.seq.chain4 = (vga.seq.data[4] >> 3) & 1;
+  vgaemu_adj_cfg(CFG_SEQ_ADDR_MODE, 1);
   vga.seq.map_mask = vga.seq.data[2] & 0xf;
 
   seq_msg("Seq_init done\n");
@@ -207,6 +209,7 @@ void Seq_write_value(unsigned char data)
 {
   unsigned u, u1, ind = vga.seq.index;
   unsigned char uc1;
+  unsigned todo_ind, todo[4];
 
   if(ind > SEQ_MAX_INDEX) {
     seq_deb("Seq_write_value: data (0x%02x) ignored\n", (unsigned) data);
@@ -236,12 +239,15 @@ void Seq_write_value(unsigned char data)
     if(vga.seq.data[ind] == data) return;
   }
 
+  for(todo_ind = 0; todo_ind < sizeof todo / sizeof *todo; todo_ind++) todo[todo_ind] = 0;
+  todo_ind = 0;
+
   switch(ind) {
     case 0x00:		/* Reset */
       break;
 
     case 0x01:		/* Clocking Mode */
-      if(((vga.seq.data[ind] ^ data) & 0x20)) {
+      if(NEWBITS(0x20)) {
         seq_deb("Seq_write_value: %svideo access\n", (data & 0x20) ? "no " : "");
 
         u1 = vga.config.video_off;
@@ -265,20 +271,10 @@ void Seq_write_value(unsigned char data)
     case 0x03:		/* Character Map Select */
       break;
 
+
     case 0x04:		/* Memory Mode */
-      if(((vga.seq.data[ind] ^ data) & 4)) {
-        seq_deb("Seq_write_value: odd/even = %s (ignored)\n", (data & 4) ? "off" : "on");
-      }
-      if(((vga.seq.data[ind] ^ data) & 8)) {
-        vga.seq.chain4 = (data >> 3) & 1;
-        u = vga.seq.chain4 ? 1 : 4;
-        vga.scan_len = (vga.scan_len * vga.mem.planes) / u;
-        if(u != vga.mem.planes) {
-          vga.mem.planes = u;
-          vga.reconfig.mem = 1;
-          seq_deb("Seq_write_value: mem reconfig\n");
-        }
-        seq_deb("Seq_write_value: chain4 = %s\n", vga.seq.chain4 ? "on" : "off");
+      if(NEWBITS(0x0c)) {
+        todo[todo_ind++] = CFG_SEQ_ADDR_MODE;
       }
       break;
 
@@ -308,6 +304,10 @@ void Seq_write_value(unsigned char data)
   }
 
   vga.seq.data[ind] = data;
+
+  for(todo_ind = 0; todo_ind < sizeof todo / sizeof *todo; todo_ind++) {
+    if(todo[todo_ind]) vgaemu_adj_cfg(todo[todo_ind], 0);
+  }
 }
 
 

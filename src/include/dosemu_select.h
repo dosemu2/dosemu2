@@ -47,7 +47,7 @@
 		int __d0, __d1;						\
 		__asm__ __volatile__("cld ; rep ; stosl"		\
 			:"=m" (*(__kernel_fd_set *) (fdsetp)),		\
-			 "=&c" (__d0), "=&D" (__d1)			\
+			 "=c" (__d0), "=D" (__d1)			\
 			:"a" (0), "1" (__FDSET_LONGS),			\
 			 "2" ((__kernel_fd_set *) (fdsetp))		\
 			: "memory");					\
@@ -62,7 +62,7 @@
 	int __d0, __d1;							\
 	__asm__ __volatile__("cld ; rep ; stosl"			\
 		:"=m" ((fdsetp)->fds_bits[__FDELT (__FD_SETSIZE)]),	\
-		 "=&c" (__d0), "=&D" (__d1)				\
+		 "=c" (__d0), "=D" (__d1)				\
 		:"a" (0), "1" (sizeof (__fd_set) / sizeof (__fd_mask)),	\
 		 "2" (&(fdsetp)->fds_bits[0])				\
 		: "memory");						\
