@@ -504,7 +504,9 @@ int parent_open_mouse (void)
     {
       struct stat buf;
       int mode = O_RDWR | O_NONBLOCK;
-  
+
+      if (!mice->dev || !strlen(mice->dev))
+        return 0;
       stat(mice->dev, &buf);
       if (S_ISFIFO(buf.st_mode) || mice->type == MOUSE_BUSMOUSE || mice->type == MOUSE_PS2) {
 	/* no write permission is necessary for FIFO's (eg., gpm) */
