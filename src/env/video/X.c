@@ -2964,10 +2964,10 @@ void X_redraw_text_screen()
   }
   x_msg("X_redraw_text_screen: all\n");
 
-  if (font == NULL) {
-    if ((co != vga.text_width) || (li != vga.text_height))
-      X_resize_text_screen(); /* assume vgaemu already knew that */
-  /* otherwise we would do vga_emu_set_textsize(x,y) */
+  if(vga.reconfig.display || vga.reconfig.mem) {
+    if(vga.reconfig.display)
+      X_resize_text_screen();
+    vga.reconfig.display = vga.reconfig.mem = 0;
     co = vga.text_width;
     li = vga.text_height;
   }
@@ -2998,7 +2998,9 @@ void X_redraw_text_screen()
       } while(XATTR(sp) == attr && x < co);
 
       X_draw_string(start_x, y, charbuff, x - start_x, attr);
-
+      if (font == NULL && co * 2 < vga.scan_len) {
+        sp += vga.scan_len / 2 - co;
+      }
     } while(x < co);
   }
 
@@ -3121,6 +3123,10 @@ int X_update_text_screen()
 	    
 	    sp = screen_adr + y*co;
 	    oldsp = prev_screen + y*co;
+	    if (font == NULL) {
+	      sp = screen_adr + y * vga.scan_len / 2;
+	      oldsp = prev_screen + y * vga.scan_len / 2;
+	    }
 
 	    x=0;
 	    do 
@@ -3374,13 +3380,13 @@ void X_draw_string(int x, int y, char *text, int len, Bit8u attr)
     if ( ((y+1) * height) > vga.height ) {
       v_printf("Tried to print below scanline %d (row %d)\n",
           remap_obj.src_height, y);
-      len = vga.width / font_width - x;
+      return;
     }
     if ( ((x+len) * font_width) > vga.width ) {
       v_printf("Tried to print past right margin\n");
       v_printf("x=%d len=%d font_width=%d width=%d\n",
                x, len, font_width, remap_obj.src_width);
-      return;
+      len = vga.width / font_width - x;
     }
     
     /* would use vgaemu_xy2ofs, but not useable for US, NOW! */
@@ -3642,7 +3648,7 @@ inline void restore_cell(int x, int y)
 
   if (font == NULL) {
     li = vga.text_height;
-    co = vga.text_width;
+    co = vga.scan_len / 2;
   }
   
   sp = screen_adr + y * co + x;
@@ -3783,7 +3789,7 @@ void calculate_selection()
 {
   if (font == NULL) {
     li = vga.text_height;
-    co = vga.text_width;
+    co = vga.scan_len / 2;
   }
   if ((sel_end_row < sel_start_row) || 
     ((sel_end_row == sel_start_row) && (sel_end_col < sel_start_col)))
@@ -3900,7 +3906,7 @@ static void save_selection(int col1, int row1, int col2, int row2)
 
   if (font == NULL) {
     li = vga.text_height;
-    co = vga.text_width;
+    co = vga.scan_len / 2;
   }
 
   sel_text_latin = sel_text = malloc((row2-row1+1)*(co+1)+2);
