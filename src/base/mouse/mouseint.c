@@ -54,6 +54,8 @@
 
 static void DOSEMUSetMouseSpeed(int old, int new, unsigned cflag);
 
+static int mouse_frozen = 0;
+
 /*
  * DOSEMUSetupMouse --
  *	Sets up the mouse parameters
@@ -479,7 +481,7 @@ static void raw_mouse_getevent(void)
 	}
 }
 
-void parent_close_mouse (void)
+static void parent_close_mouse (void)
 {
   mouse_t *mice = &config.mouse;
   if (mice->intdrv && (mice->type == MOUSE_GPM ||
@@ -497,7 +499,7 @@ void parent_close_mouse (void)
     child_close_mouse ();
 }
 
-int parent_open_mouse (void)
+static int parent_open_mouse (void)
 {
   mouse_t *mice = &config.mouse;
   if (mice->intdrv && (mice->type == MOUSE_GPM ||
@@ -535,6 +537,24 @@ int parent_open_mouse (void)
   else
     child_open_mouse ();
   return 1;
+}
+
+void freeze_mouse(void)
+{
+  mouse_t *mice = &config.mouse;
+  if (mouse_frozen)
+    return;
+  remove_from_io_select(mice->fd, 1);
+  mouse_frozen = 1;
+}
+
+void unfreeze_mouse(void)
+{
+  mouse_t *mice = &config.mouse;
+  if (!mouse_frozen)
+    return;
+  add_to_io_select(mice->fd, 1, mouse_io_callback);
+  mouse_frozen = 0;
 }
 
 static int raw_mouse_init(void)
@@ -580,7 +600,7 @@ static void raw_mouse_close(void)
       m_printf("mouse_close: tcsetattr failed: %s\n",strerror(errno));
   }
   m_printf("mouse_close: closing mouse device, fd=%d\n",mice->fd);
-  close(mice->fd);
+  parent_close_mouse();
   m_printf("mouse_close: ok\n");
 }
 

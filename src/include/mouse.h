@@ -177,8 +177,8 @@ extern void dosemu_mouse_reset(void);
 extern void mouse_ps2bios(void);
 extern int mouse_int(void);
 extern void dosemu_mouse_close(void);
-extern void parent_close_mouse(void);
-extern int parent_open_mouse(void);
+extern void freeze_mouse(void);
+extern void unfreeze_mouse(void);
 extern void mouse_post_boot(void);
 extern void int74(void);
 
