@@ -150,6 +150,9 @@ void timer_tick(void)
    reasonable delay. This will allow Doom to work with sound one day.
    $_features="0:10" is recommended.
 */
+    if (isset_IF()) {
+      is_cli = 0;
+    } else
     if (is_cli++ >= config.cli_timeout) {
       D_printf("DPMI: Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");

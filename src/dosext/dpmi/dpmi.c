@@ -1284,6 +1284,12 @@ static void save_rm_regs(void)
     error("DPMI: DPMI_rm_procedure_running = 0x%x\n",DPMI_rm_procedure_running);
     leavedos(25);
   }
+  /* we dont need the IF flag, we use VIF instead. So the IF bit can
+   * be used for something else, like, say, storing the is_cli hack. */
+  if (is_cli)
+    REG(eflags) &= ~IF;
+  else
+    REG(eflags) |= IF;
   DPMI_rm_stack[DPMI_rm_procedure_running++] = REGS;
   if (DPMI_CLIENT.in_dpmi_rm_stack++ < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
@@ -1305,6 +1311,9 @@ static void restore_rm_regs(void)
   }
   REGS = DPMI_rm_stack[--DPMI_rm_procedure_running];
   DPMI_CLIENT.in_dpmi_rm_stack--;
+  if (!(REG(eflags) & IF) && !is_cli) {
+    is_cli = 1;
+  }
 }
 
 void save_pm_regs(struct sigcontext_struct *scp)
@@ -1429,8 +1438,8 @@ static void do_int31(struct sigcontext_struct *scp)
   if (debug_level('M')) {
     D_printf("DPMI: int31, ax=%04x, ebx=%08lx, ecx=%08lx, edx=%08lx\n",
 	_LWORD(eax),_ebx,_ecx,_edx);
-    D_printf("        edi=%08lx, esi=%08lx, ebp=%08lx, esp=%08lx\n",
-	_edi,_esi,_ebp,_esp);
+    D_printf("        edi=%08lx, esi=%08lx, ebp=%08lx, esp=%08lx, eflags=%08lx\n",
+	_edi,_esi,_ebp,_esp,eflags_VIF(_eflags));
     D_printf("        cs=%04x, ds=%04x, ss=%04x, es=%04x, fs=%04x, gs=%04x\n",
 	_cs,_ds,_ss,_es,_fs,_gs);
   }
