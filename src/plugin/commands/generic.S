@@ -95,7 +95,5 @@ heap:
 
 #ifdef TEST
 	.ascii	",0x700,1,test"
-#else
-	.ascii	"512,0x400"
 #endif
 	.byte	0

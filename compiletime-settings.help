@@ -62,18 +62,6 @@ slangforce	"force use of dosemu supplied Slang-lib"
 		and may have problems in terminal mode if your Slanglib
 		isn't suiteable. Normal this switch is enabled per default.
 
-tmonoton	"use monoton micro timing"
-
-		To emulate the timer chip of the PC is a very difficult
-		thing, because DOSEMU doesn't own the CPU completely.
-		DOS application, however, _do_ expect this. As a work around
-		we have two strategies:
-			a) keep the time mostly correct
-			b) keep the timer values strict monoton, such that
-			   never the same value is delivered.
-			   ( which results in not so correct absolute time )
-		With this switch you enable strategie b)
-
 runasroot	"run as root mostly"
 
 		DOSEMU is suid root, but when started from a user account

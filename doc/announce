@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 1.0,
+The DOSEMU team is proud to announce DOSEMU 1.1.2,
 the PC Emulator for x86 based *nix.
 
 
@@ -15,7 +15,7 @@ worth noting:
   - Color text and full keyboard emulation (via hotkeys) even on terminal.
   - Built-in X-Windows support (includes IBM character set font)
   - Graphics capability at the console (most compatible video cards).
-  - Graphics emulation in X for 256 color modes.
+  - Graphics emulation in X for 256 and 16 color modes.
     (X-server may be in true color mode)
   - DPMI support
   - Runs several 32-bit DPMI-compliant video games (including those based
@@ -33,14 +33,18 @@ worth noting:
   - Sound support (including sound DMA)
   - NetWare and other network connectivity via builtin IPX and pktdrvr
      support.
-  - runs on any Linux kernel >= 2.0.28 (last tested was 2.3.40)
+  - integrated COMMAND.COM (running 32bit to spare valuable DOS memory)
+    with lot of DOSEMU support builtin commands.
+  - dosemu-freedos packaged binary distribution installs directly into any
+    normal user's $HOME and runs 'out-of-the-box' without any further
+    configuration (no root rights needed).
+  - runs on any Linux kernel >= 2.0.28 (last tested was 2.4.3)
 
 
 
 REQUIREMENTS
 ~~~~~~~~~~~~
   - Linux >= 2.0.28 (with IPC support, IPX support optional)
-  - mtools ( > 3.8) (for creating hdimages and DEXEs)
 
 When compiling dosemu yourself:
   - GCC 2.7.2+ and LIBC 5.4.46+ are recommended for best results.
@@ -64,32 +68,34 @@ This release could not have gotten out the door without the work of
 our relentless development team, friends and contributors, consisting of
 at least (sorted by first name):
 
-  Aaron			Alan Cox		Alberto Vignani
-  Alessandro Rubini	Alexander R.Adams	Alexander V. Lukyanov
-  Alistair MacDonald	Amit Margalt 		Andrew.Tridgell
-  Andries		Antonio Larrosa		Arjan Filius
-  Arne de Bruijn	Bernd Paysan		Christoph Niemann
+  Aaron			Adam J. Richter		Alan Cox
+  Alberto Vignani	Alessandro Rubini	Alexander R.Adams
+  Alexander V. Lukyanov	Alistair MacDonald	Amit Margalt
+  Andrew.Tridgell	Andries			Antonio Larrosa
+  Arjan Filius		Arne de Bruijn		Bart Oldeman
+  Bernd Paysan		Bernd Schueler		Christoph Niemann
   Corey Sweeney		Daniel R. Barrlow	David Brauman
-  David Etherton 	David Hansen		David Hodges
-  Derek Fawcus		Dong Liu		Egbert Eich
+  David Etherton 	David Hansen		David Hindman
+  David Hodges		David Pinson		Derek Fawcus
+  DJ Delorie		Dong Liu		Egbert Eich
   Eric W. Biederman	Erik Mouw		Florian La Roche
   George K.Bronnikov	Grant R. Guenther	Hans Lermen
   James Maclean		Jason E Gorden		Jochen Hein
   John Davis		John Kohl 		Jon Tombs            
-  Josef Pavlik		Kang-Jin Lee 		Karl Kiniger
-  Karl-Max Wagner	Kenneth Corbin		Kevin P Lawton 
-  Lam Lai Yin, Savio	Larry Stephan		Lawrence K Mao
-  Linus Torvalds	Lutz Molgedey		Marcus Better
-  Mark Rejhon		Marty Leisner 		Matthew Grant 
-  Maxim Ruchko		Michael E. Deisher	Michael Karcher
-  Oleg V. Zhirov	Pablo Saratxaga		Pasi Eronen
-  Rainer Zimmermann	Reinhard Karcher	Rob Clark
-  Robert de Bath	Rod May			Ronnie
-  Rutger Nijlunsing	Scott Buchholz 		Steffen Winterfeld
-  Theodore T'so		Tim Van der Linden 	Ulrich Weigand
-  Uwe Bonnes		Vinod G Kulkarni 	Wayne P Meissner 
+  Josef Pavlik		Julia A. Case		Kang-Jin Lee
+  Karl Kiniger		Karl-Max Wagner		Kenneth Corbin
+  Kevin P Lawton 	Lam Lai Yin, Savio	Larry Stephan
+  Lawrence K Mao	Linus Torvalds		Lutz Molgedey
+  Marcus Better		Mark Rejhon		Marty Leisner
+  Matthew Grant 	Maxim Ruchko		Michael E. Deisher
+  Michael Karcher	Oleg V. Zhirov		Pablo Saratxaga
+  Pasi Eronen		Rainer Zimmermann	Reinhard Karcher
+  Rob Clark		Robert de Bath		Rod May
+  Ronnie		Rutger Nijlunsing	Scott Buchholz
+  Stas Sergeev		Steffen Winterfeld	Theodore T'so
+  Tim Van der Linden 	Ulrich Weigand		Uwe Bonnes
+  Urban Widmark		Vinod G Kulkarni 	Wayne P Meissner 
   Wojtek Pilorz
-
 
   ... and others too important to mention.
 
@@ -98,10 +104,12 @@ WHERE TO GET IT:
 ~~~~~~~~~~~~~~~~
 The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
-  ftp.dosemu.org:/dosemu/...
-  ftp://metalab.unc.edu/pub/Linux/system/emulators/dosemu/...
-                                     .../dosemu-1.0.0-1.i386.rpm
-                                     .../dosemu-1.0.0.tgz
+  ftp.dosemu.org://dosemu/...
+  ftp://ibiblio.unc.edu/pub/Linux/system/emulators/dosemu/...
+                                     .../README.bindist
+                                     .../dosemu-freedos-bin.tgz
+                                     .../dosemu-1.0.2-bin.tgz
+                                     .../dosemu-1.0.2.tgz
 
 The binary distribution is statically linked against libc-5.4.46 and libX*
 from XFree-3.3. It should run on all current Linux distributions.

@@ -186,11 +186,15 @@ void CRTC_write_value(unsigned char data)
 
     case 0x0e:		/* Cursor Location High */
       vga.crtc.cursor_location = (vga.crtc.cursor_location & 0xff) | (u << 8);
+      cursor_row = vga.crtc.cursor_location / (vga.scan_len/2);
+      cursor_col = vga.crtc.cursor_location % (vga.scan_len/2);
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 
     case 0x0f:		/* Cursor Location  Low */
       vga.crtc.cursor_location = (vga.crtc.cursor_location & 0xff00) | u;
+      cursor_row = vga.crtc.cursor_location / (vga.scan_len/2);
+      cursor_col = vga.crtc.cursor_location % (vga.scan_len/2);
       crtc_deb("CRTC_write_value: Cursor Location = 0x%04x\n", vga.crtc.cursor_location);
       break;
 

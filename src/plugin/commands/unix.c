@@ -16,7 +16,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "config.h"
 #include "emu.h"
@@ -31,6 +30,7 @@
 #define puts	com_puts
 #define intr    com_intr
 #define system	com_system
+#define errno	com_errno
 #define FP_OFF(x) FP_OFF32(x)
 #define FP_SEG(x) FP_SEG32(x)
 
@@ -149,7 +149,7 @@ static int do_execute_dos (int argc, char **argv)
 
 	if (system (data)) {
 		/* SYSTEM failed ... */
-		fprintf (stderr, "SYSTEM failed ....(%d)", errno);
+		fprintf (stderr, "SYSTEM failed ....(%d)\n", errno);
 		return (1);
 	}
 

@@ -2905,17 +2905,20 @@ void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr)
 
   switch(vga.mode_type) {
       case CGA:
-        if(vga.color_bits == 1)
-          v = (attr & 1) << (7 - (x & 7));
+        if(vga.color_bits == 1) {
+          col = (attr & 1) << (7 - (x & 7));
+	   v = 1 << (7 - (x & 7));
+        }
         else {	/* vga.color_bits == 2 */
-          v = (attr & 3) << (2 * (3 - (x & 3)));
+          col = (attr & 3) << (2 * (3 - (x & 3)));
+	   v = 3 << (2 * (3 - (x & 3)));
         }
         if((attr & 0x80)) {
-          vga.mem.base[ofs] ^= v;
+          vga.mem.base[ofs] ^= col;
         }
         else {
           vga.mem.base[ofs] &= ~v;
-          vga.mem.base[ofs] |= v;
+          vga.mem.base[ofs] |= col;
         }
         break;
 
@@ -2928,15 +2931,15 @@ void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr)
         v = 1 << (7 - (x & 7));
         v |= v<<8;
         v |= v<<16;
-        v &= color2pixels[col]; 
+        col = v & color2pixels[col];
         for (u = 0; u < 4; u++) {
           if((attr & 0x80)) {
-            vga.mem.base[ofs] ^= v;
+            vga.mem.base[ofs] ^= col;
           } else {
             vga.mem.base[ofs] &= ~v;
-            vga.mem.base[ofs] |= v;
+            vga.mem.base[ofs] |= col;
           }
-          v >>= 8;
+          col >>= 8;
           ofs += 0x10000;
         }
         break;

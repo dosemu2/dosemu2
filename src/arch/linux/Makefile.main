@@ -287,6 +287,8 @@ doslibnew: doslib
 
 
 doslib: $(REQUIRED) all
+
+notusedanymore:
 	@echo ""
 	@echo "---------------------------------DONE compiling-------------------------------"
 	@echo ""
@@ -299,6 +301,12 @@ installnew: doslib
 	$(MAKE) install
 
 install:
+	@echo "***"
+	@echo "There is no support anymore for a systemwide DOSEMU installation, period."
+	@echo "Just copy ./bin/{dos,dosdebug} to ./bin of an installed dosemu-freedos tree."
+	@echo "***"
+
+systemwide_install_no_longer_supported:
 	@if [ "$(INSTROOT)" != "" ]; then \
 	  install -d $(INSTROOT)/usr/bin; \
 	fi

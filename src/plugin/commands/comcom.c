@@ -21,6 +21,7 @@
 #include "config.h"
 #include "emu.h"
 #include "memory.h"
+#include "video.h"	/* for CARD_NONE */
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
 
@@ -49,8 +50,18 @@
  * rely on running as separate programs) and don't free lowmem.
  * So before you enable this option, check the code of those built-ins ;-)
  */
-#undef USE_HEAP_EATING_BULTINS
+#undef USE_HEAP_EATING_BUILTINS
 
+
+/* define here the max number of args possible, including the terminating NULL
+ * NOTE: the _whole_ commandline must fit and in the worst case,
+ *	 if one arg is just a blank plus one character, this computes as
+ *
+ *	    MAXARGS = 126 / 2
+ *
+ *	 However, 48 should be enough for reasonable usage
+ */
+#define MAXARGS	48
 
 /* ============== end of configurable options ========= */
 
@@ -70,6 +81,9 @@ struct batchdata {
 			 */
 	int argc;	/* number of positional parameters ($0 ... $9) */
 	char **argv;	/* content of positional parameters */
+	int argcsub;	/* argc to use in child batches */
+	char **argvsub;	/* argv to use in child batches */
+	int argshift;	/* for use by cmd_shift */
 	int stdoutredir;	/* STDOUT is redirected */
 	long nextline;		/* fileposition from which to read next line */
 	char filename[128];	/* fullqualified filename of batchfile */
@@ -96,7 +110,7 @@ struct res_dta {
 
 
 extern int com_msetenv(char *, char *, int);
-static int command_inter_preter_loop(int batchmode, int argc, char **argv);
+static int command_inter_preter_loop(int, char *, int, char **);
 static void print_prompt(int fd);
 static int com_exist_file(char *file);
 static int dopath_exec(int argc, char **argv);
@@ -117,27 +131,93 @@ static int dopath_exec(int argc, char **argv);
 #define EXITCODE (rdta->exitcode)
 #define ECHO_ON (rdta->echo_on)
 #define CLEAR_EXITCODE EXITCODE = 0
+#define SET_CHILD_ARGS(i) ({if (bdta) { \
+		bdta->argvsub = argv+i; \
+		bdta->argcsub = argc-i; \
+		bdta->argshift = 0; \
+	}})
+#define BREAK_PENDING ( \
+	rdta->break_pending ? rdta->break_pending = 0, 1 : 0 )
 
 
 #ifndef USE_PLAIN_DOS_FUNCT0A
 
+#define HISTMAX	32
+static char history[HISTMAX][128];
+static int histi = -1;
+static int history_empty = 1;
+
+void save_comcom_history(char *fname)
+{
+	FILE *f;
+	int i;
+
+	if (!fname || histi <0 || history_empty) return;
+	f = fopen(fname, "w");
+	if (!f) return;
+	i = (histi + 1) & ~(-HISTMAX);
+	while (i != histi) {
+		if (history[i][0] != -1) {
+			fwrite(history[i]+1, history[i][0], 1, f);
+			fputc('\n', f);
+		}
+		i = (i + 1) & ~(-HISTMAX);
+	}
+	fwrite(history[i]+1, history[i][0], 1, f);
+	fputc('\n', f);
+	fclose(f);
+}
+
+
+void load_comcom_history(char *fname)
+{
+	FILE *f;
+	int i, len;
+	char buf[1024];
+
+	if (!fname) return;
+	f = fopen(fname, "r");
+	if (!f) return;
+
+	for (i=0; i < HISTMAX; i++) history[i][0] = -1;
+	i = 0;
+	history_empty = 1;
+	while (1) {
+		if (!fgets(buf, sizeof(buf), f)) {
+			fclose(f);
+			if (history_empty) histi = -1;
+			else histi = (i - 1) & ~(-HISTMAX);
+			break;
+		}
+		len = strlen(buf) -1;
+		if (len > 126) len = 126;
+		memcpy(history[i]+1, buf, len);
+		history[i][0] = len;
+		history[i][len+1] = '\r';
+		i = (i + 1) & ~(-HISTMAX);
+		history_empty = 0;
+	}
+	fclose(f);
+}
+
+
 static void builtin_funct0a(char *buf)
 {
 	struct com_starter_seg  *ctcb = CTCB;
-	#define HISTMAX	32
-	static char history[HISTMAX][128];
-	static int histi = -1;
-	static int history_empty = 1;
 	int histl = -1;
 	char *p, *b;
+	char lastb[128] = "";
+	int lastblen = 0;
 	char *saved_line = 0;
 	int i, lastkey = 0;
 	int count, cursor, winstart, attrib;
 	int screenw, screenpage, posx, posy, leftmostx, linelen;
+	int dumbterm = config.cardtype == CARD_NONE;
 	
 	void start_line()
 	{
 		screenw = com_biosvideo(0x0f00) >> 8;
+		if (dumbterm) screenw = 79;
 		screenpage = HI(bx);
 		com_biosvideo(0x0300);
 		posy = HI(dx);
@@ -169,6 +249,33 @@ static void builtin_funct0a(char *buf)
 		LO(dx) = posx + x;
 		HI(bx) = screenpage;
 		com_biosvideo(0x200);
+	}
+
+	void refresh_dumb(int len)
+	{
+		static char bspaces[128] = "";
+		int commonlen, i;
+		if (!bspaces[0]) for (i=0; i<128; i++) bspaces[i] = '\b';
+		if (len < lastblen) {
+			/* clear the tail */
+			for (i=len; i < lastblen; i++) {
+				com_doswrite(2, "\b \b", 3);
+			}
+			commonlen = len;
+		}
+		else commonlen = lastblen;
+		if (memcmp(lastb, b, commonlen)) {
+			/* no common contents */
+			com_doswrite(2, bspaces, commonlen);
+			com_doswrite(2, b, len);
+		}
+		else {
+			if (len > lastblen) {
+				com_doswrite(2, b+lastblen, len - lastblen);
+			}
+		}
+		memcpy(lastb, b, len);
+		lastblen = len;
 	}
 
 	void update_display(int forcerefresh)
@@ -207,6 +314,11 @@ static void builtin_funct0a(char *buf)
 		if (len > linelen) len = linelen;
 		memcpy(b, p+winstart, len);
 		memset(b+len, ' ', linelen - len);
+		if (dumbterm) {
+			refresh_dumb(len);
+			setcursorpos(cursor);
+			return;
+		}
 		HI(bx) = screenpage;
 		LO(bx) = attrib;
 		LWORD(ecx) = linelen;
@@ -288,10 +400,6 @@ static void builtin_funct0a(char *buf)
 		while (1) {
 		    c = getkey();
 		    switch (c) {
-			case 0x014B:	/* left arrow key */
-			    cursor--;
-			    update_display(0);
-			    break;
 			case 0x014D:	/* right arrow key */
 			    cursor++;
 			    update_display(0);
@@ -304,6 +412,13 @@ static void builtin_funct0a(char *buf)
 			    from_history(-1);
 			    update_display(1);
 			    break;
+			case 0x014B:	/* left arrow key */
+			    if (!dumbterm) {
+				cursor--;
+				update_display(0);
+				break;
+			    }
+			    /* else fall through */
 			case 8:		/* backspace */
 			    if (count > 0) {
 				delete(-1);
@@ -524,20 +639,22 @@ static char *skipwhite(char *s)
 static int read_next_command(void)
 {
 	CMD_LINKAGE3;
-	int ret;
+	int ret, this_echo;
 	char *p;
 
 	void substitute_positional(char **t_, char **s_)
 	{
 		struct batchdata *pd = bdta->parent;
-		char *s = *s_, *t = *t_;
+		char *s = *s_, *t = *t_, *p;
 		int i = s[0] - '0';
 		int len;
 
 		if (pd) {
-			if (i < pd->argc) {
-				len = strlen(pd->argv[i]);
-				memcpy(t, pd->argv[i], len);
+			i += pd->argshift;
+			if (i < pd->argcsub) {
+				p = pd->argvsub[i];
+				len = strlen(p);
+				memcpy(t, p, len);
 				*t_ = t + len;
 			}
 		}
@@ -553,6 +670,13 @@ static int read_next_command(void)
 		int len;
 
 		*p = 0;
+		if (strpbrk(s, " \t")) {
+			/* ignore it, '%' belongs to a subsequen arg */
+			**t = '%';
+			*t +=1;
+			*p = '%';
+			return;
+		}
 		if (!strcasecmp(s, "_exitcode_")) {
 			s = buf;
 			sprintf(s, "%d", EXITCODE);
@@ -570,11 +694,11 @@ static int read_next_command(void)
 	void variable_substitution(void)
 	{
 		char buf[1024];	/* big enough to catch overflows */
-		char *s = STR0A, *s_, *p, *t;
+		char *s = STR0A, *p, *t;
 		int len = LEN0A;
 		
 		s[len] = 0;
-		p = strchr(s, '%');
+		p = strpbrk(s, "%|<>");
 		if (!p || ((p - s) > 126)) {
 			/* usual case */
 			s[len] = '\r';
@@ -583,10 +707,17 @@ static int read_next_command(void)
 
 		memcpy(buf, s, (p - s));
 		t = buf + (p - s);
-		s_ = s;
 		s = p;
 		while (*s) {
-			if (s[0] == '%') {
+		    switch(*s) {
+			case '|':  case '<': case '>':
+			    if ((s != buf) && (s[-1] != ' ')) {
+			    	*t++ = ' '; 
+			    }
+			    *t++ = *s++;
+			    if (*s == '>') *t++ = *s++;
+			    break;
+			case '%': {
 			    if (isdigit(s[1])) {
 				s++;
 				substitute_positional(&t, &s);
@@ -603,8 +734,12 @@ static int read_next_command(void)
 				}
 				else *t++ = *s++;
 			    }
+			    break;
 			}
-			else *t++ = *s++;
+			default:
+			    *t++ = *s++;
+			    break;
+		    }
 		}
 		len = (t - buf);
 		if (len > 126) len = 126;
@@ -613,26 +748,32 @@ static int read_next_command(void)
 		LEN0A = len;
 	}
 
+	void echo_handling(void)
+	{
+		this_echo = STR0A[0] != '@';
+		if (!this_echo) {
+			memcpy(STR0A, STR0A+1, LEN0A);
+			LEN0A--;
+		}
+	}
+
 	while (1) {
 		ret = lowlevel_read_next_command();
 		if (ret <= 0) return ret;
+		echo_handling();
 		variable_substitution();
 		if (!bdta->mode) return ret;
 
-		if (STR0A[0] != '@' && ECHO_ON) {
-			print_prompt(1);
-			com_doswrite(1, STR0A, LEN0A);
-			com_doswrite(1, "\r\n", 2);
-		}
 		p = skipwhite(STR0A);
-		if (*p != ':') return ret;
-
-		/* have to remove label */
-		p = skipwhite(skip2nonwhite(p));
-		if (*p == '\r') continue;
-
-		LEN0A -= p - STR0A;
-		memcpy(STR0A, p, LEN0A + 1);
+		if (p[0] == ':') continue;	/* ignore all label lines
+						 * NOTE: some people use
+						 * this as comment lines
+						 */
+		if (this_echo && ECHO_ON) {
+			print_prompt(2);
+			com_doswrite(2, STR0A, LEN0A);
+			com_doswrite(2, "\r\n", 2);
+		}
 		return ret;
 	}
 }
@@ -833,27 +974,43 @@ static void setexitcode(int code, int printfd)
 	rdta->need_errprinting = 0;
 }
 
+static char *basename_of(char *fname, int *baselen)
+{
+	int len = strlen(fname);
+	char *p = fname + len;
+	char c;
+
+	if (!len) return fname;
+	while (p != fname) {
+		c = *--p;
+		if ((c == '\\') || (c == '/') || (c == ':')) {
+			p++;
+			break;
+		}
+	}
+	if (baselen) {
+		*baselen = len - (p - fname);
+	}
+	return p;
+}
+
 static int mkstemm(char *buf, char *path, int expand)
 {
-	int len;
 	char *p;
 
 	if (!expand || (expand && com_doscanonicalize(buf, path)))
 							strcpy(buf, path);
-	len  = strlen(buf);
-	p = buf + len;
-	while (p != buf && !(*p == '\\' || *p == '/' || *p == ':')) p--;
-	if (p != buf) p++;
+	p = basename_of(buf,0);
 	*p = 0;
 	return p - buf;
 }
 
-static int kdbask(char *answerlist, char *fmt, ...)
+static int kbdask(char *answerlist, char *fmt, ...)
 {
 	va_list ap;
 	int i, len;
 	char s[128], alist[128];
-	unsigned char key, c, dfltkey;
+	unsigned char key, c, dfltkey = 0;
 	va_start(ap, fmt);
 
 	if (!answerlist || !answerlist[0]) return 0;
@@ -871,6 +1028,7 @@ static int kdbask(char *answerlist, char *fmt, ...)
 	while (1) {
 		key = com_bioskbd(0);
 		if (key == 3) return -1;
+		if (dfltkey && key == 13) return dfltkey;
 		for (i=0; i < len; i++) {
 			if (tolower(key) == alist[i]) return key;
 		}
@@ -885,10 +1043,23 @@ static int cmd_echo(int argc, char **argv) {
 	char buf[256] = "";
 	int fd = 2;
 
-	if (argv[0][0] == '@') {
-		if (!strcasecmp(argv[1], "off")) ECHO_ON = 0;
-		else if (!strcasecmp(argv[1], "on")) ECHO_ON = 1;
+	if (argv[0][4]) {
+		if (ECHO_ON) com_printf("\n");
 		return 0;
+	}
+	if (argc == 1) {
+		com_printf("ECHO is %s\n", ECHO_ON ? "ON" : "OFF");
+		return 0;
+	}
+	if (argc == 2) {
+		if (!strcasecmp(argv[1], "off")) {
+			ECHO_ON = 0;
+			return 0;
+		}
+		if (!strcasecmp(argv[1], "on")) {
+			ECHO_ON = 1;
+			return 0;
+		}
 	}
 	if (argc > 1) concat_args(buf, 1, argc-1, argv);
 	if (bdta && bdta->stdoutredir) fd = 1;
@@ -897,10 +1068,16 @@ static int cmd_echo(int argc, char **argv) {
 }
 
 static int cmd_pause(int argc, char **argv) {
+	CMD_LINKAGE;
 	char tx[] = "Press any key to continue ...";
+	int c;
 
 	com_doswrite(2, tx, sizeof(tx)-1);
-	com_bioskbd(0);
+	c = com_bioskbd(0);
+	if ((c &255) == ('C' & ~0x40)) {
+		rdta->break_pending++;
+		com_doswrite(2, "^C", 2);
+	}
 	com_doswrite(2, "\r\n", 2);
 	return 0;
 }
@@ -909,7 +1086,7 @@ static int cmd_rem(int argc, char **argv) {
 	CMD_LINKAGE2;
 	char buf[256];
 
-	if (!bdta->mode) return 0;
+	if (!bdta->mode || !ECHO_ON) return 0;
 	concat_args(buf, 0, argc-1, argv);
 	com_printf("%s\n", buf);
 	return 0;
@@ -949,26 +1126,41 @@ static int cmd_goto(int argc, char **argv) {
 
 static int cmd_for(int argc, char **argv)
 {
-	CMD_LINKAGE;
+	CMD_LINKAGE2;
 	struct findfirstnext_dta *dta = (void *)CTCB;
 	char s[256], *p;
 	char *vname;
+	int vnamelen;
 	int i, g1, gn, arg0_new, len;
-	int repl[32], repli;
-
+	char *repl[32];
+	int repli, replen;
+	char replbuf[256], callbuf[256];
 
 	void do_command(char *varcontents)
 	{
-		int i;
-		char saved_dta[128];
+		int i, j, vlen = strlen(varcontents);
+		anyDTA saved_dta;
+		char *p = callbuf+1;
+		char *s = replbuf;
+		
 		for (i=0; i <repli; i++) {
-			argv[repl[i]] = varcontents;
+			j = repl[i] - s;
+			memcpy(p, s, j);
+			p += j;
+			memcpy(p, varcontents, vlen);
+			p += vlen;
+			s = repl[i] + vnamelen;
 		}
-		memcpy(saved_dta, ((char *)dta)+128, 128);
-		dopath_exec(argc-arg0_new, argv+arg0_new);
-		memcpy(((char *)dta)+128, saved_dta, 128);
+		i = replen - (s - replbuf);
+		memcpy(p, s, i+1);
+		callbuf[0] = p - (callbuf+1) + i;
+		j = com_argparse(callbuf, argv+arg0_new, MAXARGS - (argc-arg0_new) -1);
+		saved_dta = PSP_DTA;
+		SET_CHILD_ARGS(arg0_new);
+		bdta->argcsub = j;	/* this may have more args then before */
+		dopath_exec(j, argv+arg0_new);
+		PSP_DTA = saved_dta;
 	}
-
 
 
 	CLEAR_EXITCODE;
@@ -976,6 +1168,7 @@ static int cmd_for(int argc, char **argv)
 	if (strcasecmp(argv[2], "in")) return DOS_EINVAL;
 	vname = argv[1];
 	if (vname[0] != '%') return DOS_EINVAL;
+	vnamelen = strlen(vname);
 
 	/* find the range 'group' */
 	g1 = 3;
@@ -998,14 +1191,23 @@ static int cmd_for(int argc, char **argv)
 	if (g1 > gn) return DOS_EINVAL;
 
 	/* find all instances of 'variable' in the command tail */
+	replen = concat_args(replbuf, arg0_new, argc-1, argv);
 	repli = 0;
-	for (i=arg0_new; i < argc; i++) {
-		if (!strcasecmp(argv[i], vname)) repl[repli++] = i;
-	}
+	p = replbuf;
+	do {
+		p = strstr(p, vname);
+		if (p) {
+			repl[repli++] = p;
+			p += vnamelen;
+		}
+	} while (p);
+
 
 	/* Ok, now for the real work */
 	for (i=g1; i <= gn; i++) {
-		if (!com_dosfindfirst(argv[i], DOS_ATTR_ALL)) {
+		if (strpbrk(argv[i], "*?")) {
+		    /* wildcard, may result in empty entry */
+		    if (!com_dosfindfirst(argv[i], DOS_ATTR_ALL)) {
 			/* this is a file entry, may be wild card */
 			len = mkstemm(s, argv[i], 0);
 			strcpy(s+len, dta->name);
@@ -1014,6 +1216,7 @@ static int cmd_for(int argc, char **argv)
 				strcpy(s+len, dta->name);
 				do_command(s);
 			}
+		    }
 		}
 		else {
 			/* this is plain text */
@@ -1026,7 +1229,7 @@ static int cmd_for(int argc, char **argv)
 
 static int cmd_if(int argc, char **argv)
 {
-	CMD_LINKAGE;
+	CMD_LINKAGE2;
 	int invers = 0;
 	int argi = 1, argex, level;
 	char *p;
@@ -1040,9 +1243,11 @@ static int cmd_if(int argc, char **argv)
 		if (argi+2 >= argc) return DOS_EINVAL;
 		if ( (com_exist_file(argv[argi+1]) ? 1 : 0) ^ invers ) {
 			argi += 2;
+			SET_CHILD_ARGS(argi);
 			dopath_exec(argc-argi, argv+argi);
+			return EXITCODE; /* do NOT change exitcode */
 		}
-		return EXITCODE; /* do NOT change exitcode */
+		return 0;
 	}
 
 	if (!strcasecmp(argv[argi], "errorlevel")) {
@@ -1050,9 +1255,11 @@ static int cmd_if(int argc, char **argv)
 		level = strtoul(argv[argi+1], 0, 10);
 		if (((EXITCODE >= level) ? 1 : 0) ^ invers) {
 			argi += 2;
+			SET_CHILD_ARGS(argi);
 			dopath_exec(argc-argi, argv+argi);
+			return EXITCODE; /* do NOT change exitcode */
 		}
-		return EXITCODE; /* do NOT change exitcode */
+		return 0;
 	}
 
 	/* we come here on string compare */
@@ -1070,11 +1277,16 @@ static int cmd_if(int argc, char **argv)
 		p = argv[argi+2];
 		argex = argi + 3;
 	}
-	if (((strcasecmp(argv[argi], p)) ? 0 : 1) ^ invers) {
+	/* NOTE 'if xxx == XXX' does case sensitive compare on MSDOS
+	 * so we do a normal strcpy()
+	 */
+	if (((strcmp(argv[argi], p)) ? 0 : 1) ^ invers) {
 		argi = argex;
+		SET_CHILD_ARGS(argi);
 		dopath_exec(argc-argi, argv+argi);
+		return EXITCODE; /* do NOT change exitcode */
 	}
-	return EXITCODE; /* do NOT change exitcode */
+	return 0;
 }
 
 
@@ -1082,9 +1294,7 @@ static int cmd_shift(int argc, char **argv)
 {
 	CMD_LINKAGE2;
 	struct batchdata *pd = bdta->parent;
-	if (!pd || (pd->argc <=0)) return 0;
-	pd->argc--;
-	pd->argv++;
+	if (pd && (pd->argcsub > pd->argshift)) pd->argshift++;
 	return 0;
 }
 
@@ -1115,7 +1325,7 @@ static int cmd_cd(int argc, char **argv)
 
 static int cmd_type(int argc, char **argv)
 {
-	int fd, ret, bsize = 128;
+	int fd, ret, err, bsize = 128;
 
 	if (!argv[1]) {
 		return DOS_EINVAL;
@@ -1125,11 +1335,12 @@ static int cmd_type(int argc, char **argv)
 		return com_errno & 255;
 	}
 	do {
-		ret = com_doscopy(1, fd, bsize);
+		ret = com_doscopy(1, fd, bsize, 1);
 	} while (ret == bsize);
+	err = com_errno;
 	com_dosclose(fd);
 	if (ret == -1) {
-		return com_errno & 255;
+		return err & 255;
 	}
 	return 0;
 }
@@ -1145,7 +1356,7 @@ static int cmd_del(int argc, char **argv)
 		if (dta->attrib & DOS_ATTR_PROTECTED) return 0;
 		strcpy(s+len, dta->name);
 		if (opt_p) {
-			int c = kdbask("yN", "%s, delete?", s);
+			int c = kbdask("yN", "%s, delete?", s);
 			if (c < 0) {
 				com_fprintf(2, "^C\n");
 				return 1;
@@ -1363,19 +1574,651 @@ static int cmd_dir(int argc, char **argv)
 	return 0;
 }
 
+static int rename_wild(char *buf, char *fname, char *w1, char *w2)
+{
+	char *b = buf;
+	char *p = w2;
+	char *s = fname;
+	char *w;
+	int i, j;
+
+	int next_wild(void)
+	{
+		int i;
+		if (*s && *w1) {
+			i = strcspn(w1, "?*"); /* jump over non-wild */
+			s += i; w1 += i;
+			i = strspn(w1, "?*"); /* number of wild characters */
+			if (!i) return 0;
+			if (*w1 == '?') {
+				w = s++;
+				w1 +=1;
+				return 1;
+			}
+			w = s;
+			w1 += i;
+			if (*w1) {
+				i = strcspn(w1, "?*"); /* jump over non-wild */
+				while (*s && strncasecmp(s, w1, i)) s++;
+				return s-w;
+			}
+			return strlen(w);
+		}
+		return 0;
+	}
+
+	while (*p) {
+		i = strcspn(p, "?*");	/* head until wild */
+		if (i) {
+			memcpy(b, p, i);
+			b += i; p += i;
+		}
+		i = strspn(p, "?*"); /* number of wild characters */
+		if (i) {
+			j = next_wild();
+			if (j) memcpy(b, w, j);
+			b += j;
+			if (*p == '?') p += 1;
+			else p += i;
+		}
+	}
+	*b = 0;
+	return b-buf;
+}
+
 static int cmd_ren(int argc, char **argv)
 {
+	struct findfirstnext_dta *dta = (void *)CTCB;
+	static char wcard[] = "?*";
+	char s1[256], s2[256];
+	char *p1, *p2, *b1, *b2;
+	int len1, len2, blen1, blen2;
+	int ret;
+
+	int rename_it(void)
+	{
+		char b[256];
+		int l = rename_wild(b, dta->name, b1, b2);
+		if (!l) return DOS_EINVAL;
+		strcpy(s1+len1, dta->name);
+		memcpy(s2+len2, b, l+1);
+		if (com_dosrenamefile(s1, s2)) return com_errno;
+		return 0;
+	}
+
 	if (argc < 3) {
 		return DOS_EINVAL;
 	}
-	if (!com_dosrenamefile(argv[1], argv[2])) return 0;
-	return com_errno & 255;
+
+	len1 = mkstemm(s1, argv[1], 1);
+	len2 = mkstemm(s2, argv[2], 1);
+
+	if (strcmp(s1,s2)) {
+		/* names not in the same directory or on different drives */
+		return DOS_EINVAL;
+	}
+
+	b1 = basename_of(argv[1], &blen1);
+	b2 = basename_of(argv[2], &blen2);
+	p1 = strpbrk(b1, wcard);
+	p2 = strpbrk(b2, wcard);
+	if (!p1 && !p2) {
+		/* simple case, only one file involved */
+		if (!com_dosrenamefile(argv[1], argv[2])) return 0;
+		return com_errno & 255;
+	}
+
+	/* renaming file group, check further */
+
+	if (!p1 || !p2) {
+		/* wrong case, both must be wilcards */
+		return DOS_EINVAL;
+	}
+
+	/* OK, now to the hard part. We could do wildcard handling
+	 * by simply calling INT21,AH=56 via INT21,AX-5D00 (service call)
+	 * because then INT21,AH=56 will accept wildcards.
+	 *
+	 * However, this is pretty dangerous on non-MS DOSses and even
+	 * under MSDOS not all works as expected on lredir'ed drives.
+	 * So we do it 'the hard way' to be save.
+	 */
+
+	if (com_dosfindfirst(argv[1], DOS_ATTR_FILE)) return com_errno;
+	if ((ret=rename_it())!=0) return ret;
+	while (!com_dosfindnext()) if ((ret=rename_it())!=0) return ret;
+	return 0;
+}
+
+
+static int cmd_copy(int argc, char **argv)
+{
+	CMD_LINKAGE2;
+	struct findfirstnext_dta *dta = (void *)CTCB;
+	struct src {
+		unsigned istext:1;
+		unsigned isappend:1;
+		unsigned iswild:1;
+		char name[128];
+	};
+	#define SRCMAX	32
+	int srci = 0, targi = 0;
+	struct src src[SRCMAX];
+	int prompt_overwrite = 1;
+	int refused_overwrite = 0;
+	int same_file_ok = 0;
+	int istext = -1;
+	int truncate_to_text = 0;
+	int append = 0, numappends = 0, numwilds = 0;
+	int i, fcount = 0;
+	int targ_is_wild, targ_is_dir, target_given = 0;
+	int targlen, targdlen;
+	char targd[256], targ[128];
+	char buf[256], *s;
+
+	int appendbslash(char *b)
+	{
+		int l = strlen(b);
+		if (!l || (b[l-1] != '\\')) {
+			b[l++] = '\\';
+			b[l] = 0;
+		}
+		return l;
+	}
+
+	int exist_dir(char *b)
+	{
+		if (isalpha(b[0]) && (b[1]==':') && (b[2]=='\\') && !b[3]) {
+			char dummy[256];
+			return com_dosgetcurrentdir(toupper(b[0])-'A'+1, dummy) == 0;
+		}
+		return com_exist_dir(b);
+	}
+
+	int expand_drive(char *b)
+	{
+		if (isalpha(b[0]) && (b[1]==':') && !b[2]) {
+			if (com_getdriveandpath(toupper(b[0]) -'A' +1, b))
+				return -1;
+			return 1;
+		}
+		return 0;
+	}
+
+	int set_target_to_CWD(void)
+	{
+		if (com_getdriveandpath(0, targd)) return com_errno;
+		targdlen = appendbslash(targd);
+		targ_is_dir = 1;
+		targ_is_wild = 0;
+		targ[0] = 0;
+		targlen = 0;
+		targi = 0;
+		target_given = 0;
+		return 0;
+	}
+
+	int print_summary(int retcode)
+	{
+		if (!fcount) return retcode;
+		com_fprintf(2,
+		"% 9d file(s) copied\n", fcount);
+		return retcode;
+	}
+
+	void touch_all()
+	{
+		int i, dlen, fd;
+		char dir[256];
+		unsigned t = com_dosgettime();
+		unsigned d = com_dosgetdate();
+		d = (((d >> 16) - 1980) <<9)
+			| ((d >> (8-5)) & 0x1e0) | (d & 31);
+		t = ((t >> (24-11)) & 0xf800)
+			| ((t >> (16-5)) & 0x7e0) | ((t >> 8) & 0x1f);
+		t = (d << 16) | t;
+		for (i=0; i < srci; i++) {
+			dlen = mkstemm(dir, src[i].name, 1);
+			if (com_dosfindfirst(src[i].name, DOS_ATTR_FILE)) continue;
+			strcpy(dir+dlen, dta->name);
+			fd = com_dosopen(dir, 0);
+			com_dosgetsetfilestamp(fd, t);
+			com_dosclose(fd);
+			while (!com_dosfindnext()) {
+				strcpy(dir+dlen, dta->name);
+				fd = com_dosopen(dir, 0);
+				com_dosgetsetfilestamp(fd, t);
+				com_dosclose(fd);
+			}
+		}
+	}
+
+	int overwrite_check(char *name)
+	{
+		/* NOTE: destroyes DTA */
+		int c;
+		refused_overwrite = 0;
+		if (!prompt_overwrite) return 0;
+		if (com_exist_file(name)) {
+			c = kbdask("yNa", "file %s exists, overwrite?", name);
+			if (c < 0) {
+				 com_fprintf(2, "^C\n");
+				 return -1;
+			}
+			com_fprintf(2, "%c\n", c);
+			switch(c) {
+				case 'a': return prompt_overwrite = 0;
+				case 'y': return 0;
+				default: return refused_overwrite = 1;
+			}
+		}
+		return 0;
+	}
+
+	int same_file(char *a, char *b)
+	{
+		int ret;
+		char n1[256], n2[256];
+		com_doscanonicalize(n1, a);
+		com_doscanonicalize(n2, b);
+		ret = strcmp(n1, n2) == 0;
+		if (ret && !same_file_ok)
+			com_fprintf(2, "attempt to copy %s to itself\n", a);
+		return ret;
+	}
+
+	int single_copy(char *a, char *b, int textmode)
+	{
+		anyDTA saved_dta = PSP_DTA;
+		int fdi, fdo;
+		int ret, err, bsize = 128;
+
+		truncate_to_text = 0;
+		if (!same_file_ok && same_file(a, b))
+				return com_errno = DOS_EINVAL;
+		switch (overwrite_check(targd)) {
+			case -1: com_errno = 0; return -1; /* ^C */
+			case  1: com_errno = 0;
+				PSP_DTA = saved_dta;
+				return 0;  /* skipped */
+		}
+		if (same_file_ok) {
+			if (same_file(a, b)) {
+				char *p = basename_of(b,0);
+				com_fprintf(2, "%s\n", p);
+				fcount++;
+				same_file_ok = 0;
+				truncate_to_text = textmode;
+				PSP_DTA = saved_dta;
+				return com_errno = 0;
+			}
+			same_file_ok = 0;
+		}
+
+		fdi = com_dosopen(b, 0);
+		if (fdi <0) {
+			return com_errno;
+		}
+		fdo = com_dosopen(a, DOS_ACCESS_CREATE);
+		if (fdo <0) {
+			err = com_errno;
+			com_dosclose(fdi);
+			return com_errno = err;
+		}
+		do {
+			ret = com_doscopy(fdo, fdi, bsize, textmode);
+		} while (ret >0);
+		err = com_errno;
+		if (ret != -1) com_dosgetsetfilestamp(fdo,
+					com_dosgetsetfilestamp(fdi,0));
+		com_dosclose(fdi);
+		com_dosclose(fdo);
+		PSP_DTA = saved_dta;
+		if (!ret) {
+			char *p = basename_of(b,0);
+			com_fprintf(2, "%s\n", p);
+			fcount++;
+		}
+		if (ret == -1) return com_errno = err;
+		return com_errno = 0;
+	}
+
+
+	int single_append(char *t, char *s, int textmode)
+	{
+		anyDTA saved_dta = PSP_DTA;
+		int ret, err, fdo, fdi;
+		fdo = com_dosopen(t, 2);
+		if (fdo < 0) return -1;
+		if (truncate_to_text) {
+			com_seektotextend(fdo);
+			truncate_to_text = 0;
+		}
+		else com_dosseek(fdo, 0, 2);
+		fdi = com_dosopen(s, 0);
+		if (fdi < 0) {
+			err = com_errno;
+			com_dosclose(fdo);
+			com_errno = err;
+			return -1;
+		}
+		while ((ret=com_doscopy(fdo, fdi, 128, textmode))>0);
+		err = com_errno;
+		com_dosclose(fdi);
+		com_dosclose(fdo);
+		PSP_DTA = saved_dta;
+		if (!ret) {
+			char *p = basename_of(s,0);
+			com_fprintf(2, "%s\n", p);
+		}
+		com_errno = err;
+		return ret;
+	}
+
+	int copy_wild(int matched)
+	{
+		char *w1, *w2;
+		char s[256];
+		int slen;
+		int (*docopy)(void);
+		int (*initialcombine)(void);
+
+		int matchcopy(void)
+		{
+			char b[256];
+			int l = rename_wild(b, dta->name, w1, w2);
+			if (!l) return com_errno = DOS_EINVAL;
+			strcpy(s+slen, dta->name);
+			memcpy(targd+targdlen, b, l+1);
+			return single_copy(targd, s, src[0].istext);
+		}
+
+		int dircopy(void)
+		{
+			strcpy(s+slen, dta->name);
+			strcpy(targd+targdlen, dta->name);
+			return single_copy(targd, s, src[0].istext);
+		}
+
+
+		int combine(void)
+		{
+			int i, l;
+			char s2[256], b[256];
+			char *w2;
+			int s2len;
+
+			same_file_ok = 1;
+			if ((*initialcombine)()) return com_errno;
+			if (refused_overwrite) return 0;
+			for (i=1; i< srci; i++) {
+				s2len = mkstemm(s2, src[i].name, 1);
+				w2 = basename_of(src[i].name,0);
+				l = rename_wild(b, dta->name, w1, w2);
+				memcpy(s2+s2len, b, l+1);
+				if (single_append(targd, s2, src[i].istext)) return com_errno;
+			}
+			return 0;
+		}
+
+		switch (matched) {
+			default: docopy = dircopy; break;
+			case 1: docopy = matchcopy; break;
+			case 2: docopy = combine;
+				initialcombine = dircopy;
+				break;
+			case 3: docopy = combine;
+				initialcombine = matchcopy;
+				break;
+		}
+
+		w1 = basename_of(src[0].name, 0);
+		slen = mkstemm(s, src[0].name, 1);
+		w2 = targ;
+
+		if (com_dosfindfirst(src[0].name, DOS_ATTR_FILE)) return com_errno;
+		if ((*docopy)()) return com_errno;
+		while (!com_dosfindnext()) {
+			if ((*docopy)()) return com_errno;
+		}
+		return com_errno = 0;
+	}
+
+	int combine_to_single(void)
+	{
+		int i;
+		int slen;
+		char s[256];
+
+		for (i=0; i < srci; i++) {
+			slen = mkstemm(s, src[i].name, 1);
+			if (com_dosfindfirst(src[i].name, DOS_ATTR_FILE)) continue;
+			strcpy(s+slen, dta->name);
+			if (!targd[targdlen]) {
+				memcpy(targd+targdlen, targ, targlen+1);
+				same_file_ok = 1;
+				if (single_copy(targd, s, src[0].istext))
+						return com_errno;
+				if (refused_overwrite) return 0;
+			}
+			else if (single_append(targd, s, src[i].istext))
+						return com_errno;
+			while (!com_dosfindnext()) {
+				strcpy(s+slen, dta->name);
+				if (single_append(targd, s, src[i].istext))
+						return com_errno;
+			}
+		}
+		return com_errno = 0;
+	}
+
+
+	/* first set prompt_overwrite and the defaults from COPYCMD env */
+	prompt_overwrite = bdta->mode == 0;
+	s = com_getenv("COPYCMD");
+	if (s) {
+		s = strpbrk(s, "yY");
+		if (s) prompt_overwrite = s[-1] == '-';
+	}
+
+	/* The MSDOS copy command's commandline syntax and functionality
+	 * is too sick to fit into any otherwise used standards,
+	 * we have to handle it specially. This syntax is:
+	 *
+  COPY [/Y|/-Y] [/A|/B] src [/A|/B] [+src[/A|/B] [+ ...]][target [/A|/B]] [/V]
+	 *
+	 * with the additional complication, that trailing /A|/B mean the
+	 * 'src' mentioned _before_ /A|/B, but nevertheless setting the default
+	 * for all _following_ +src up to the next /A|/B.
+	 */
+
+	/* first restore a single line out of argv[] */
+	concat_args(buf, 1, argc-1, argv);
+
+	s = buf;
+	while (*s) {
+	    switch (*s++) {
+		case '/': {
+		    switch (tolower(*s)) {
+			case '-':
+				if (tolower(s[1]) != 'y') return DOS_EINVAL;
+				prompt_overwrite = 1;
+				s++;
+				break;
+			case 'y': prompt_overwrite = 0; break;
+			case 'v': /* ignored, not applicable and needed
+				   * on Linux filesystems
+				   */
+				break;
+			case 'a':
+				istext = 1;
+				if (srci) src[srci-1].istext = 1;
+				break;
+			case 'b':
+				istext = 0;
+				if (srci) src[srci-1].istext = 0;
+				break;
+			default:
+				return DOS_EINVAL;
+		    }
+		    s++;
+		    break;
+		}
+		case ' ': case '\t':
+		    s += strspn(s, " \t");
+		    break;
+		case '+':
+		    if (!srci) return DOS_EINVAL;
+		    if (istext<0) {
+			istext = 1;
+			src[srci-1].istext = 1;
+		    }
+		    append = 1;
+		    numappends++;
+		    break;
+		default: {
+		    src[srci].name[0] = s[-1];
+		    i = strcspn(s, " \t+/");
+		    memcpy(src[srci].name, s-1, i+1);
+		    src[srci].name[i+1] = 0;
+		    s += i;
+		    src[srci].istext = (istext <0) ? 0 : istext;
+		    src[srci].isappend = append;
+		    src[srci].iswild = strpbrk(src[srci].name, "?*") != 0;
+		    if (src[srci].iswild) numwilds++;
+		    if (srci>1 && !src[srci-1].isappend) return DOS_EINVAL;
+		    if (srci>0 && !append) target_given = 1;
+		    append = 0;
+		    srci += 1;
+		    if (srci >= SRCMAX) return DOS_EINVAL;
+		    break;
+		}
+	    }
+	}
+
+
+	/* what's the target? */
+
+	if (!srci) return DOS_EINVAL;
+	if (srci == 1) {
+		/* no target given, copying to default drive/path*/
+		if (set_target_to_CWD()) return com_errno;
+	}
+	else {
+		srci -= 1;
+		targi = srci;
+		if (!strcmp(src[targi].name, ",,")) {
+		   /*
+		    * if there is _no_ target atall (targetname ",,"),
+		    * _and_ this (phantom) has to be combined ("+,,"),
+		    * just 'touch' the source file with the current date/time.
+		    * (what the hell did the M$ programmer have in mind, when
+		    * he 'invented' this stupid 'touch' method?)
+		    */
+			target_given = 0;
+			if (!src[targi].isappend) return DOS_EINVAL;
+			/* the M$ 'touch' case ;-) */
+			touch_all();
+			return 0;
+		}
+		if (src[targi].isappend) {
+			/* there was no target given, the first file
+			 * is the target all others shall be appended to */
+			target_given = 0;
+			targi = 0;
+			srci++;
+		}
+		strcpy(targd, src[targi].name);
+		if (expand_drive(targd) < 0) return com_errno;
+		/* try to canonicalize, if we cannot, the target
+		 * is not accessable
+		 */
+		if (com_doscanonicalize(targd, targd)) return com_errno;
+		targ_is_wild = src[targi].iswild;
+		targ_is_dir = !targ_is_wild && exist_dir(targd);
+		if (targ_is_dir) {
+			targdlen = appendbslash(targd);
+			targlen = 0;
+			targ[0] = 0;
+		}
+		else {
+			char *p = basename_of(src[targi].name, &targlen);
+			/* take the orig wildcard, because canonicalize
+			 * did expand '*' to '???' */
+			memcpy(targ, p, targlen+1);
+			/* check existence os the stemm */
+			p = basename_of(targd,0);
+			if (p[-2] != ':') p--;
+			*p = 0;
+			if (!exist_dir(targd)) return com_errno;
+			targdlen = appendbslash(targd);
+		}
+	}
+
+
+	if (!numwilds && (srci==1) && target_given) {
+		/* simple case: one file to copy */
+		char *p;
+		if (!targ_is_dir) memcpy(targd+targdlen, targ, targlen+1);
+		else {
+			p = basename_of(src[0].name, &i);
+			memcpy(targd+targdlen, p, i+1);
+		}
+		single_copy(targd, src[0].name, src[0].istext);
+		return print_summary(com_errno);
+	}
+
+	if (srci==1 && targ_is_dir && !targ_is_wild) {
+		/* yet a simple case:
+		 * copy a bunch of files in to one directory */
+		return print_summary(copy_wild(0));
+	}
+
+	if (srci==1 && src[0].iswild && target_given && targ_is_wild) {
+		/* a bit complex case:
+		 * copy a bunch of files while matching wildcards */
+		return print_summary(copy_wild(1));
+	}
+
+	if (numappends && (targ_is_dir || !target_given) && (numwilds == srci)) {
+		/* complex combine case:
+		 * combine groups while matching wilds into directory
+		 */
+		if (!target_given) {
+			if (set_target_to_CWD()) return com_errno;
+		}
+		return print_summary(copy_wild(2));
+	}
+
+	if (numappends && target_given && !targ_is_dir && (numwilds == srci+1)) {
+		/* more complex combine case:
+		 * combine groups while matching wilds of sources _and_ target
+		 */
+		return print_summary(copy_wild(3));
+	}
+
+	if ((numappends || target_given) && !targ_is_dir && (!targi || !targ_is_wild)) {
+		/* simple combine case:
+		 * all files go into one single file
+		 */
+		if (!numappends && istext<0) src[0].istext = 1;
+		i = combine_to_single();
+		if (fcount) {
+			fcount = 1;
+			print_summary(i);
+		}
+		return i;
+	}
+
+	/* Ok, what falls through here isn't handled by us */
+	return com_errno = DOS_EINVAL;
 }
 
 static int cmd_set(int argc, char **argv)
 {
 	char *env = SEG2LINEAR(CTCB->envir_frame);
 	char *p;
+	char buf[256];
 
 	if (!argv[1]) {
 		while (*env) {
@@ -1384,10 +2227,29 @@ static int cmd_set(int argc, char **argv)
 		}
 		return 0;
 	}
-	p = strchr(argv[1], '=');
-	if (p) *p++=0;
-	else p = "";
-	if (!com_msetenv(argv[1], p, 1)) return 0;
+
+	/* Well, I _hate_ to duplicate stupidness, but to be 'compatible'
+	 * we here just are forced to :-(
+	 *
+	 * MSDOS command.com does the following stupid things when putting
+	 * variables onto the environment:
+	 *
+	 *    set aa bb cc = dd ee ff
+	 *
+	 * creates a variable "AA BB CC " with the content " dd ee ff"
+	 * NOTE: with all blanks included in the name _and_ the content.
+         * And of course the variable "AA BB CC " is different from "AA BB CC"
+	 *
+         * ... no further comment, this speaks for itself :-(
+	 */
+
+	concat_args(buf, 1, argc-1, argv);
+	p = strchr(buf, '=');
+	if (!p) {
+		return DOS_EINVAL;
+	}
+	*p = 0;
+	if (!com_msetenv(buf, p+1, 1)) return 0;
 	return DOS_ENOMEM;
 }
 
@@ -1638,6 +2500,17 @@ static int cmd_ver(int argc, char **argv)
 	return EXITCODE;	/* ... don't change */
 }
 
+static int cmd_which(int argc, char **argv)
+{
+	CMD_LINKAGE;
+	char buf[256];
+
+	if (scan_path_env(buf, argv+1)) {
+		com_printf("%s\n", buf);
+	}
+	return EXITCODE;	/* ... don't change */
+}
+
 struct cmdlist {
 	char *name;
 	com_program_type *cmd;
@@ -1656,7 +2529,7 @@ extern int emumouse_main(int argc, char **argv);
 extern int ugetcwd_main(int argc, char **argv);
 extern int vgaoff_main(int argc, char **argv);
 extern int vgaon_main(int argc, char **argv);
-#ifdef USE_HEAP_EATING_BULTINS
+#ifdef USE_HEAP_EATING_BUILTINS
 extern int lredir_main(int argc, char **argv);
 extern int unix_main(int argc, char **argv);
 extern int dosdbg_main(int argc, char **argv);
@@ -1671,7 +2544,7 @@ struct cmdlist intcmdlist[] = {
 	{"chdir",	cmd_cd, 0},
 	{"goto",	cmd_goto, 0},
 	{"echo",	cmd_echo, 0},
-	{"@echo",	cmd_echo, 0},
+	{"echo.",	cmd_echo, 0},
 	{"pause",	cmd_pause, 0},
 	{"rem",		cmd_rem, 0},
 	{"if",		cmd_if, 0},
@@ -1695,10 +2568,11 @@ struct cmdlist intcmdlist[] = {
 	{"date",	cmd_date, 0},
 	{"time",	cmd_time, 0},
 	{"dir",		cmd_dir, 0},
+	{"copy",	cmd_copy, 0},
+	{"which",	cmd_which, 0},
 
 #if 0
 /* not yet implemented, but available as standalone programs:  */
-	{"copy",	cmd_copy, 0},
 	{"choice",	cmd_choice, 0},
 #endif
 
@@ -1716,7 +2590,7 @@ struct cmdlist intcmdlist[] = {
 	{"vgaoff",	vgaoff_main, 1},
 	{"vgaon",	vgaon_main, 1},
 
-#ifdef USE_HEAP_EATING_BULTINS
+#ifdef USE_HEAP_EATING_BUILTINS
 	{"lredir",	lredir_main, 1},
 	{"unix",	unix_main, 1},
 	{"dosdbg",	dosdbg_main, 1},
@@ -1727,15 +2601,13 @@ struct cmdlist intcmdlist[] = {
 	{0,0}
 };
 
-
 static int do_internal_command(int argc, char **argv)
 {
 	CMD_LINKAGE;
 	struct cmdlist *cmd = intcmdlist;
 	char *arg0 = argv[0];
 	int ret;
-
-	if (isalpha(arg0[0]) && arg0[1] && arg0[1] == ':') {
+	if (isalpha(arg0[0]) && arg0[1] && !arg0[2] && arg0[1] == ':') {
 		com_dossetdrive(toupper(arg0[0]) -'A');
 		return 0;
 	}
@@ -1803,7 +2675,7 @@ static int launch_child_program(char *name, char *cmdline)
 
 static int dopath_exec(int argc, char **argv)
 {
-	CMD_LINKAGE;
+	CMD_LINKAGE2;
 	char cmdline[128];
 	char name[128];
 	char tmpname[128] = "";
@@ -1900,19 +2772,21 @@ static int dopath_exec(int argc, char **argv)
 	    }
 	}	
 
-	switch (scan_path_env(name, argv)) {
+	ret = do_internal_command(argc, argv);
+	if (ret == -2) switch (scan_path_env(name, argv)) {
 	    case 1:
-		argv[0] = name;
-		ret = command_inter_preter_loop(1, argc, argv);
+		ret = command_inter_preter_loop(1, name, argc, argv);
 		break;
 	    case 11:
-		argv[1] = name;
-		ret = command_inter_preter_loop(2, argc-1, argv+1);
+		SET_CHILD_ARGS(1);
+		ret = command_inter_preter_loop(2, name, argc-1, argv+1);
 		break;
+#if 0
 	    case 0:
 		ret = do_internal_command(argc, argv);
 		if (ret != -2) break;
 		/* else fallthrough */
+#endif
 	    default: {
 		cmdline[0] = 0;
 		if (argv[1]) {
@@ -1987,7 +2861,8 @@ static void print_prompt(int fd)
 }
 
 
-static int command_inter_preter_loop(int batchmode, int argc, char **argv)
+static int command_inter_preter_loop(int batchmode, char *batchfname,
+	int argc, char **argv)
 {
 	CMD_LINKAGE;
 	struct batchdata bdta;	/* resident here for inner recursion */
@@ -1995,6 +2870,7 @@ static int command_inter_preter_loop(int batchmode, int argc, char **argv)
 
 	char argbuf[256];	/* need this to keep argv[] over recursion */
 	int ret = 0;
+	int saved_echo_on = ECHO_ON;
 
 	bdta.parent = rdta->current_bdta;
 	rdta->current_bdta = &bdta;
@@ -2003,7 +2879,7 @@ static int command_inter_preter_loop(int batchmode, int argc, char **argv)
 
 	if (argc) {
 		/* batchmode */
-		com_doscanonicalize(bdta.filename, argv[0]);
+		com_doscanonicalize(bdta.filename, batchfname);
 		if (!com_exist_file(bdta.filename)) {
 			rdta->current_bdta = bdta.parent;
 			rdta->exitcode = DOS_ENOENT;
@@ -2023,21 +2899,29 @@ static int command_inter_preter_loop(int batchmode, int argc, char **argv)
 	}
 
 	while (1) {
-		char *argv[32];
+		char *argv[MAXARGS];
 		int argc;
 
 		if (!bdta.mode) print_prompt(2);
 		ret = read_next_command();
+		if (BREAK_PENDING) {
+		    if (bdta.parent && bdta.parent->mode) {
+			bdta.parent->nextline = 99999; /* force EOF */
+		    }
+		    rdta->exitcode = 0;
+		    break;
+		}
 		if (ret <= 0) {
 			rdta->exitcode = 0;
 			break;
 		}
 		if (!bdta.mode) com_doswrite(2, "\r\n", 2);
 
-		memcpy(argbuf, &LEN0A, LEN0A+1); /* save contents */
-		argc = com_argparse(argbuf, argv, 31);
-		bdta.argc = argc;	/* save positional variables */
-		bdta.argv = argv;
+		memcpy(argbuf, &LEN0A, LEN0A+2); /* save contents */
+		argc = com_argparse(argbuf, argv, MAXARGS -1);
+		bdta.argcsub = bdta.argc = argc; /* save positional variables */
+		bdta.argvsub = bdta.argv = argv;
+		bdta.argshift = 0;
 		if (!bdta.mode && !rdta->cannotexit
 				&& !strcasecmp(argv[0], "exit")) {
 			rdta->exitcode = 0;
@@ -2046,7 +2930,8 @@ static int command_inter_preter_loop(int batchmode, int argc, char **argv)
 		}
 		ret = dopath_exec(argc, argv);
 	};
-
+	ECHO_ON = saved_echo_on;
+	
 	if (bdta.mode == 1) {
 		/* stupid old not-return DOS batching */
 		if (bdta.parent && bdta.parent->mode) {
@@ -2391,7 +3276,7 @@ int comcom_main(int argc, char **argv)
 	printf("\nDOSEMU built-in command.com version %4.2g\n\n",comcomversion);
 
 	CLEAR_EXITCODE;
-	if (command_inter_preter_loop(1, 0, argvX+1 /*pointer to NULL*/)) {
+	if (command_inter_preter_loop(1, 0, 0, argvX+1 /*pointer to NULL*/)) {
 		com_fprintf(1, "%s\n", decode_DOS_error(rdta->exitcode));
 	}
 

@@ -1,3 +1,26 @@
+2001/10/28 ver. 1.1.1.8 unofficial pre-release
+	From Bart & Eric
+	- final mouse fix for applications, which do 'mousing' only
+	  by reading mickeys and drawing their own cursors (WP Office).
+	  (replacing 'temp fix' of 1.0.1.5)
+	From Bart
+	- fixes to vgaemu: putpixel and hardware cursor
+	- fixes for dosnet not working under linux-2.4.x
+	From Hans
+	- fixed some strange behave when video{none} together with -o/-O
+	  is set ((FILE *)stdout clobbered). In fact this is a workaround,
+	  the real reason is unknown until now. Involved file:  bios/int10.c
+	- a lot of fixes and further enhancements to comcom, such as
+	  implementing missing copy/which command, commandline editor with
+	   history (will be saved/loaded to/from ~/.dosemu/comcom.history),
+	  compatibility should be much better. e.t.c. ...
+	- updates to README.bindist
+	- prepared doc/announce for 1.0.2
+	- wrote README.distributors
+	- disabled systemwide installation in Makefiles,
+	  no longer supported.
+	- removed non-monoton timing stuff, obsolete now, tmonoton has
+	  stabilized
 2001/10/28 ver. 1.1.1.7 unofficial pre-release
 	From Hans
 	- introduced coopthreads plugin, which supplies non-scheduled (active)

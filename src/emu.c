@@ -323,7 +323,7 @@ static void do_liability_disclaimer_prompt(void)
   char buf[32];
   char disclaimer_file_name[256];
   static char text[] ="
-  The Linux DOSEMU, Copyright (C) 2000 the 'DOSEMU-Development-Team'.
+  The Linux DOSEMU, Copyright (C) 2001 the 'DOSEMU-Development-Team'.
   This program is  distributed  in  the  hope that it will be useful,
   but  WITHOUT  ANY  WARRANTY;   without even the implied warranty of
   MERCHANTABILITY  or  FITNESS FOR A PARTICULAR PURPOSE. See the file

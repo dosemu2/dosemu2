@@ -449,13 +449,6 @@ dnl Do SB emulation
                 AC_SUBST(USE_SBEMU)])
 
 
-AC_ARG_ENABLE(monoton-timing,
-              [  --enable-monoton-timing use monoton micro timing, some games don't like that],
-              [AC_CHECKING("Compiling with monoton micro timing")
-               AC_DEFINE(MONOTON_MICRO_TIMING)
-	       AC_SUBST(MONOTON_MICRO_TIMING)],
-	      [AC_CHECKING("Compiling with normal timing code")])
-
 AC_ARG_ENABLE(runasroot,
               [  --enable-runasroot      dosemu should run as root mostly],
               [AC_CHECKING("Compiling for dosemu mostly running as root")

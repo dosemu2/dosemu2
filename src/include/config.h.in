@@ -239,9 +239,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define this if you want to use MITSHM */
 #undef HAVE_MITSHM
 
-/* Define this if you want to use a monoton micro timing (Bernd Paysan) */
-#undef MONOTON_MICRO_TIMING
-
 /* Define this if you want dosemu permanently run as (suid) root and only gain
  * user privileges, when accessing secure relevant resources.
  * Otherwise dosemu will permanently run as user and only temporary take over

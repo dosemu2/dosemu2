@@ -21,6 +21,7 @@
 
 #include "config.h"
 #include "emu.h"
+#include "utilities.h"
 #include "memory.h"
 #include "doshelpers.h"
 #include "../coopthreads/coopthreads.h"
@@ -291,6 +292,8 @@ static function_call_type *program_functions[] = {
 };
 
 
+static char *chistname = 0;
+
 void commands_plugin_init(void)
 {
 	static int done = 0;
@@ -310,7 +313,7 @@ void commands_plugin_init(void)
 	coopthreads_plugin_init();
 
 	register_com_program("test",
-		test_program, program_functions);
+		test_program, "f", program_functions);
 
 	/* old xxx.S files */
 	register_com_program("bootoff", bootoff_main, 0);
@@ -328,17 +331,38 @@ void commands_plugin_init(void)
 
 
 	/* old xxx.c files */
-	register_com_program("lredir", lredir_main, 0);
+	register_com_program("lredir", lredir_main, "h", 0x500);
 	register_com_program("xmode", xmode_main, 0);
 	register_com_program("emumouse", emumouse_main, 0);
 	register_com_program("dosdbg", dosdbg_main, 0);
-	register_com_program("unix", unix_main, 0);
+	register_com_program("unix", unix_main, "h", 0x500);
 	register_com_program("cmdline", cmdline_main, 0);
 
 	/* command.com replacement */
 	 register_com_program("comcom", comcom_main, 0);
 
+
+	/* try to load old history file for comcom */
+	chistname = get_path_in_HOME(".dosemu/comcom.history");
+	if (exists_file(chistname)) {
+		extern void load_comcom_history(char *fname);
+		load_comcom_history(chistname);
+	}
 #if 0
 	fprintf(stderr, "PLUGIN: commands_plugin_init called\n");
 #endif
 }
+
+void commands_plugin_close(void)
+{
+	extern void save_comcom_history(char *fname);
+	if (!tcb0) return;
+
+	save_comcom_history(chistname);
+
+#if 0
+	fprintf(stderr, "PLUGIN: commands_plugin_close called\n");
+#endif
+}
+
+

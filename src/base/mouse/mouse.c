@@ -102,6 +102,11 @@ void graph_plane(int);
 /* called when mouse changes */
 static void mouse_delta(int);
 
+/* Internal mouse helper functions */
+static void mouse_round_coords(void);
+static void mouse_hide_on_exclusion(void);
+static int last_mouse_call_read_mickeys = 0;
+
 static int mouse_events = 0;
 static mouse_erase_t mouse_erase;
 
@@ -899,6 +904,7 @@ mouse_reset_to_current_video_mode(void)
   m_printf("maxx=%i, maxy=%i speed_x=%i speed_y=%i ignorexy=%i type=%d\n", 
 	   mouse.maxx, mouse.maxy, mouse.speed_x, mouse.speed_y, mouse.ignorexy,
 	   mice->type);
+  last_mouse_call_read_mickeys = 0;
 }
 
 
@@ -997,20 +1003,28 @@ mouse_pos(void)
   LWORD(ebx) = (mouse.rbutton ? 2 : 0) | (mouse.lbutton ? 1 : 0);
   if (mouse.threebuttons)
      LWORD(ebx) |= (mouse.mbutton ? 4 : 0);
+  last_mouse_call_read_mickeys = 0;
 }
 
 /* Set mouse position */
 void 
 mouse_setpos(void)
 {
+#if X_SUPPORT
   extern int grab_active;
-  if (config.X && !grab_active) {
+  /* WP reads mickeys, and then sets the cursor position to make certain
+   * it doesn't loose any mickeys.  This will catch that case, and keeps
+   * us from breaking all apps under X that set the mouse position.
+   */
+  if (last_mouse_call_read_mickeys && config.X && !grab_active) {
     m_printf("MOUSE: ignoring 'set cursor pos' in X with no grab active\n");
     return;
   }
+#endif  
   mouse.x = LWORD(ecx);
   mouse.y = LWORD(edx);
-  mouse_move();
+  mouse_round_coords();
+  mouse_hide_on_exclusion();
   m_printf("MOUSE: set cursor pos x:%d, y:%d\n", mouse.x, mouse.y);
 }
 
@@ -1185,6 +1199,7 @@ mouse_mickeys(void)
 
   /* counters get reset after read */
   mouse.mickeyx = mouse.mickeyy = 0;
+  last_mouse_call_read_mickeys = 1;
 }
 
 void 
@@ -1259,9 +1274,20 @@ void mouse_keyboard(int sc)
 }
 
 
-static void
-mouse_round_coords()
+static void mouse_round_coords(void)
 {
+	/* Make certain we have the correct screen boundaries */
+#if !defined(USE_NEW_INT) && (INT10_WATCHER_SEG == BIOSSEG)
+	/* With the mouse watcher can do this only on mode resets */ 
+	mouse_reset_to_current_video_mode();
+#endif
+
+	/* put the mouse coordinate in bounds */
+	if (mouse.x <= mouse.virtual_minx) mouse.x = mouse.virtual_minx;
+	if (mouse.y <= mouse.virtual_miny) mouse.y = mouse.virtual_miny;
+	if (mouse.x >= mouse.virtual_maxx) mouse.x = mouse.virtual_maxx;
+	if (mouse.y >= mouse.virtual_maxy) mouse.y = mouse.virtual_maxy;
+
 	/* we round these down depending on the granularity of the
 		screen mode; text mode has all coordinates multiplied
 		by eight; 320 pixel-wide graphics modes have x coordinates
@@ -1275,20 +1301,8 @@ mouse_round_coords()
 		mouse.minx,mouse.miny,mouse.maxx,mouse.maxy);
 }
 
-void 
-mouse_move(void)
+static void mouse_hide_on_exclusion(void)
 {
-#if !defined(USE_NEW_INT) && (INT10_WATCHER_SEG == BIOSSEG)
-   /* With the mouse watcher can do this only on mode resets */ 
-   mouse_reset_to_current_video_mode();
-#endif
-  if (mouse.x <= mouse.virtual_minx) mouse.x = mouse.virtual_minx;
-  if (mouse.y <= mouse.virtual_miny) mouse.y = mouse.virtual_miny;
-  if (mouse.x >= mouse.virtual_maxx) mouse.x = mouse.virtual_maxx;
-  if (mouse.y >= mouse.virtual_maxy) mouse.y = mouse.virtual_maxy;
-
-  mouse_round_coords();
-
   /* Check exclusion zone, then turn off cursor if necessary */
   /* !!! doesn't get graphics cursor or hotspot right !!! */
   if (mouse.exc_lx || mouse.exc_uy) {
@@ -1298,6 +1312,13 @@ mouse_move(void)
         (mouse.y < mouse.exc_ly))
 	mouse_cursor(-1);
   }
+}
+
+void 
+mouse_move(void)
+{
+  mouse_round_coords();
+  mouse_hide_on_exclusion();
 
   m_printf("MOUSE: move: x=%d,y=%d\n", mouse.x, mouse.y);
    
@@ -1403,6 +1424,10 @@ void mouse_move_relative(int dx, int dy)
 	mouse.y += ((dy << 3) / mouse.speed_y);
 	mouse.mickeyx += dx;
 	mouse.mickeyy += dy;
+
+	m_printf("mouse_move_relative(%d, %d) -> %d %d \n",
+		 dx, dy, mouse.x, mouse.y);
+
 	/*
 	 * update the event mask
 	 */

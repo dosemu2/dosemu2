@@ -48,8 +48,8 @@ typedef void thread_function_type(void *params);
 typedef void com_hook_call_type(int param);
 
 struct tcb {
-	thread_function_type *thread_code;
 	void *params;
+	thread_function_type *thread_code;
 	char *stack;
 	unsigned long stack_size;
 	jmp_buf context;
@@ -87,6 +87,8 @@ struct com_program_entry {
 	struct com_program_entry *next;
 	char * name;
 	com_program_type *program;
+	int stacksize;
+	int heapsize;
 	function_call_type **functions;
 	int num_functions;
 };
@@ -169,8 +171,8 @@ struct com_starter_seg {
 #define FP_SEG32(void_ptr)	(((unsigned int)void_ptr >> 4) & 0xffff)
 #define rFAR_PTR(type,far_ptr) ((type)((FP_SEG16(far_ptr) << 4)+(FP_OFF16(far_ptr))))
 
-void register_com_program(char *name,
-	com_program_type *program, function_call_type **functions);
+void register_com_program(char *name, com_program_type *program,
+							char *flags, ...);
 void call_vm86_from_com_thread(int seg, int offs);
 void com_delete_other_thread(struct com_starter_seg *other);
 void call_msdos(void);
@@ -240,6 +242,14 @@ struct findfirstnext_dta {
 	char		name[13];	/* 0x9e */
 } __attribute__((packed));
 
+/* use anyDTA and PSP_DTA _only_ for save/restore purposes,
+ * but for nothing else.
+ */
+typedef struct {
+	char DTA[128];
+} anyDTA;
+#define PSP_DTA (*((anyDTA *)(&CTCB->DTA)))
+
 void com_intr(int intno, struct REGPACK *regpack);
 int com_int86(int intno, union com_REGS *inregs, union com_REGS *outregs);
 int com_int86x(int intno, union com_REGS *inregs, union com_REGS *outregs,
@@ -266,8 +276,9 @@ int com_dosdeletefile(char *file);
 int com_doswrite(int dosfilefd, char *buf32, int size);
 int com_doswriteconsole(char *string);
 int com_dosread(int dosfilefd, char *buf32, int size);
-int com_doscopy(int writefd, int readfd, int size);
+int com_doscopy(int writefd, int readfd, int size, int textmode);
 long com_dosseek(int dosfilefd, unsigned long offset, int whence);
+long com_seektotextend(int fd);
 int com_dosreadtextline(int fd, char * buf, int bsize, long *lastseek);
 int com_dosfindfirst(char *path, int attr);
 int com_dosfindnext(void);
@@ -276,7 +287,9 @@ int com_dossetdrive(int drive);
 int com_dosgetfreediskspace(int drive, unsigned result[]);
 int com_dosgetcurrentdir(int drive, char *buf);
 int com_dossetcurrentdir(char *path);
+int com_dosgetsetfilestamp(int fd, int ftime);
 int com_doscanonicalize(char *buf, char *path);
+int com_getdriveandpath(int drive, char *buf);
 int com_dosmkrmdir(char *path, int remove);
 int com_dosduphandle(int fd);
 int com_dosforceduphandle(int open_fd, int new_fd);

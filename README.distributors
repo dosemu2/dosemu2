@@ -1,0 +1,73 @@
+
+Linux Distributors, listen to this !
+====================================
+
+This Information is not intended for 'Joe User' but for Linux distributors
+making the big money by collecting OpenSource and building/selling
+ready-to-use Linux systems;-)
+
+As of DOSEMU-1.0.2 there will be no further efforts by the DOSEMU-team
+to support a systemwide DOSEMU installation, hence "/var/lib/dosemu"
+and "/etc/dosemu*" are 'dead'. Running DOSEMU suid-root is (and ever was)
+not recommended on net-connected machines, hence, who really wants to
+do it should fiddle with the problems himself.
+
+DOSEMU now will _always_ install directly into the users $HOME, every
+user will have its own copy/instance 'somewhere' (no recommended path).
+There are no good reasons to share hdimages, boot directories and other
+DOSish resources, because you need write access to them anyway.
+
+As 'installing' the DOSEMU distributed binary release reduces to just
+untarring two tarballs to some place the user likes, there is no need
+for RPM'ing such simple thing and therefore the DOSEMU team will not
+support or supply .spec files. You (the distributors) were/are cooking
+your own soup anyway.
+
+Ok, having said that I'll give some short hints how you may offer
+DOSEMU to your customers:
+
+  - make a rpm that just contains the two tarballs and installs them
+    somewhere under /opt/dosemu/*. You may add the ./doc directory
+    from the dosemu source distribution, of course.
+
+  - make a script 'dosemu', that checks wether the user already has
+    its private copy installed. If not, let the script untar the two
+    tarballs to a place the user wants it. The recommended default path
+    is $HOME/dosemu and the (fixed) runtime work path is $HOME/.dosemu.
+
+If you don't want to use the binaries supplied (and compiled) by the
+DOSEMU-team, then just replace the (Linux) binaries in ./bin of the
+dosemu-<version>-bin.tgz tarball, but don't touch anything else.
+
+As usual you can compile dosemu with a 'make', however, 'make install'
+won't work anymore. After compilation the binaries are in ./bin
+of the dosemu source tree.
+
+It is strongly recommended to link static. Keep in mind, that DOSEMU
+runs _much_ better when linked statically, this (among other) has to do
+with the more compact address space spanned by statically linked binaries
+(more TLB hits, less reloads) and the enormous number of kernel-/user-
+space transitions DOSEMU needs to do. Hence, even if statical binaries
+under glibc >= 2.2 are no longer strictly portable between systems,
+you'll get a far better performing DOSEMU. You may argue performance
+not to be important, maybe, but DOSEMU's dynamic behave can change
+dramatically when missing to 'hit the slot', resulting in malfunction
+of the DOS application, which expects to 'own' the whole machine'.
+
+
+The DOS binaries within src/commands are not compiled by default
+anymore, you need a 'make dosbin' for this. However, you won't need
+most of them, because the old DOSEMU support commands are now built-in
+(running 32bit) and ony need identical stubs (symlinked to generic.com)
+You'll find those stubs within src/plugin/commands. Only the following
+DOS binaries need to be taken from ./commands:
+
+  *.sys
+  mgarrot.com
+  fossil.com
+
+If unsure look at ./freedos/dosemu of the dosemu-freedos-bin.tgz
+tarball what is symlinked and what not.
+
+
+			--Hans <lermen@fgan.de>, 2001/05/04

@@ -42,7 +42,7 @@ $(STUBL): generic.com Makefile ./mkcomstub
 	./mkcomstub $@ $(basename $@) 512 0x400
 
 $(STUBM): generic.com Makefile ./mkcomstub
-	./mkcomstub $@ $(basename $@) 512 0x400
+	./mkcomstub $@ $(basename $@)
 
 $(STUBSYMLINK): generic.com Makefile
 	ln -sf $< $@

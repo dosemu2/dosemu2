@@ -77,16 +77,30 @@ If you want to have your Linux $HOME available as DOS drive D: type
 or
   $ ./xdosemu -home
 
+For DOS applications which only read/write from/to STDIN/STDOUT,
+you may prefer to invoke DOSEMU such as
+
+  $ ./dosemu -dumb
+
+this has the advantage that (A) the output of the DOS application stacks
+up in your xterm scroll buffer and (B) you can redirect it to a file such as
+
+  $ ./dosemu -dumb -E dir > listing
+
+Note that DOSEMU command.com's commandline editor/history will also work
+here, however, editing is restricted to BACKSPACE'ing.
+
 SOURCES
 -------
 
-The sources of the here included binaries can befound at
+The sources of the here included GPL'ed binaries can befound at
 
   http://www.dosemu.org/
   http://www.freedos.org/
   http://freedos.sourceforge.net/download/
   http://www.gnu.org/
 
+Some applications are public domain with no sources published.
 
 POLICIES
 --------
@@ -97,4 +111,4 @@ POLICIES
 
 
                                   -- Hans <lermen@fgan.de>
-				     2001/04/21
+				     2001/05/04

@@ -6,7 +6,6 @@ config {
   net on
   dodebug off
   slangforce on
-  tmonoton on
   runasroot off
   linkstatic off
   newint on

@@ -285,6 +285,8 @@ dosnet_init(struct device *dev)
 
 #if LX_KERNEL_VERSION < 2004000
 	dev->tbusy		= 0;
+#else
+	netif_start_queue(dev);
 #endif  
 	dev->hard_start_xmit	= dosnet_xmit;
 	dev->tx_queue_len	= 0;

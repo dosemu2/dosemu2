@@ -18,6 +18,7 @@
 #include <setjmp.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 #include "config.h"
 #include "emu.h"
@@ -507,7 +508,7 @@ void com_free_unused_dosmem(void)
 {
 	struct com_starter_seg  *ctcb = owntcb->params;
 #if 1
-	 LWORD(ebx) = (ctcb->brkpoint+15) >> 4;
+	LWORD(ebx) = ctcb->brkpoint ? (ctcb->brkpoint+15) >> 4 : 0x1000;
 #else
 	int brk_point = ((int)((char *)ctcb + ctcb->oldsp + 128)) >> 4;
 	LWORD(ebx) = brk_point - ctcb->real_psp;
@@ -862,10 +863,10 @@ int com_dosread(int dosfilefd, char *buf32, int size)
 	return  LWORD(eax);
 }
 
-int com_doscopy(int writefd, int readfd, int size)
+int com_doscopy(int writefd, int readfd, int size, int textmode)
 {
 	struct com_starter_seg  *ctcb = owntcb->params;
-	char *s;
+	char *s, *p;
 
 	if (!size) return 0;
 	s = lowmem_alloc(size);
@@ -880,7 +881,16 @@ int com_doscopy(int writefd, int readfd, int size)
 	if (LWORD(eflags) & CF || !LWORD(eax)) {
 		com_errno = LWORD(eax);
 		lowmem_free(s, size);
-		return -1;
+		if (LWORD(eax)) return -1;
+		return 0;
+	}
+	if (textmode) {
+		p = memchr(s, 0x1a, LWORD(eax));
+		if (p) LWORD(eax) = p - s;
+		if (!LWORD(eax)) {
+			lowmem_free(s, size);
+			return 0;
+		}
 	}
 	LWORD(ecx) = LWORD(eax);
 	LWORD(ebx) = writefd;
@@ -907,6 +917,41 @@ long com_dosseek(int dosfilefd, unsigned long offset, int whence)
 }
 
 
+long com_seektotextend(int fd)
+{
+	struct com_starter_seg  *ctcb = owntcb->params;
+	char *s, *p;
+	long pos = 0;
+
+	s = lowmem_alloc(128);
+	com_errno = 8;
+	if (!s) return -1;
+
+	do {
+		LWORD(ecx) = 128;
+		LWORD(ebx) = fd;
+		LWORD(ds) = COM_SEG;
+		LWORD(edx) = COM_OFFS_OF(s);
+		LWORD(eax) = 0x3f00;	/* read handle */
+		call_msdos();	/* call MSDOS */
+		if (LWORD(eflags) & CF) {
+			com_errno = LWORD(eax);
+			lowmem_free(s, 128);
+			return -1;
+		}
+		p = memchr(s, 0x1a, LWORD(eax));
+		if (p) {
+			pos += p - s;
+			com_dosseek(fd, pos, 0);
+			lowmem_free(s, 128);
+			return pos;
+		}
+		pos += LWORD(eax);
+	} while (LWORD(eax));
+	lowmem_free(s, 128);
+	return pos;
+}
+
 int com_dosreadtextline(int fd, char * buf, int bsize, long *lastseek)
 {
 	static char eolpattern[] = {'\r', '\n', 0x1a, 0};
@@ -925,15 +970,14 @@ int com_dosreadtextline(int fd, char * buf, int bsize, long *lastseek)
 		return -1;
 	}
 	p = strpbrk(s, eolpattern);
-	if (p && (p - s) < bsize) {
+	if (p && (p - s) < size) {
 		size = (p - s);
 		if (*p == '\r') p +=2;
 		else if (*p != 0x1a) p++;
 		newseek += p - s;
 	}
 	else {
-		size = bsize;
-		newseek += bsize;
+		newseek += size;
 	}
 	newseek =  com_dosseek(fd, newseek, 0);
 	if (lastseek) *lastseek = newseek;
@@ -1008,7 +1052,8 @@ int com_dosgetcurrentdir(int drive, char *buf)
 	call_msdos();    /* call MSDOS */
 	if (LWORD(eflags) & CF) {
 		lowmem_free(s, 128);
-		return LWORD(eax);
+		com_errno = LWORD(eax);
+		return -1;
 	}
 	strcpy(buf, s);
 	lowmem_free(s, 128);
@@ -1029,6 +1074,25 @@ int com_dossetcurrentdir(char *path)
 	com_strfree(s);
 	if (LWORD(eflags) & CF) return -1;
 	return 0;
+}
+
+int com_dosgetsetfilestamp(int fd, int ftime)
+{
+	if (ftime) {
+		/* set file stamp */
+		LO(ax) = 1;
+		LWORD(ecx) = ftime;		/* time */
+		LWORD(edx) = ftime >> 16;	/* date */
+	}
+	HI(ax) = 0x57;
+	LWORD(ebx) = fd;
+	call_msdos();
+	if (LWORD(eflags) & CF) {
+		com_errno = LWORD(eax);
+		return -1;
+	}
+	if (!ftime) ftime = ((unsigned)LWORD(edx) << 16) | LWORD(ecx);
+	return ftime;
 }
 
 int com_dosgetfreediskspace(int drive, unsigned result[])
@@ -1058,12 +1122,20 @@ int com_doscanonicalize(char *buf, char *path)
 	LWORD(edi) = COM_OFFS_OF(s+128);
 	call_msdos();    /* call MSDOS */
 	if (LWORD(eflags) & CF) {
+		com_errno = LWORD(eax);
 		lowmem_free(s, 256);
 		return -1;
 	}
 	strcpy(buf, s+128);
 	lowmem_free(s, 256);
 	return 0;
+}
+
+int com_getdriveandpath(int drive, char *buf)
+{
+	if (!drive) drive = com_dosgetdrive() +1;
+	sprintf(buf, "%c:\\", 'A' + drive -1);
+	return com_dosgetcurrentdir(drive, buf+3);
 }
 
 int com_dosmkrmdir(char *path, int remove)
@@ -1242,8 +1314,11 @@ unsigned short com_peek(int seg, int off)
 
 int com_bioskbd(int ax_value)
 {
+	int oldhog = config.hogthreshold;
+	if (!ax_value) config.hogthreshold = 1;
 	LWORD(eax) = ax_value;
 	call_vm86_from_com_thread(-1, 0x16);    /* call BIOS */
+	config.hogthreshold = oldhog;
 	return LWORD(eax);
 }
 
@@ -1553,10 +1628,25 @@ FAR_PTR register_com_hook_function(int intnum,
 
 
 
-void register_com_program(char *name,
-	com_program_type *program, function_call_type **functions)
+void register_com_program(char *name, com_program_type *program,
+						char * flags, ...)
 {
+	va_list ap;
 	struct com_program_entry *com;
+	function_call_type **functions = 0;
+	int stacksize = 512;
+	int heapsize = 0x400;
+
+	va_start(ap, flags);
+	while (flags && *flags) switch (*flags++) {
+	    case 'f':
+		functions = va_arg(ap, function_call_type **); break;
+	    case 's':
+		stacksize = va_arg(ap, int); break;
+	    case 'h':
+		heapsize = va_arg(ap, int); break;
+	}
+	va_end(ap);
 
 	if ((com = find_com_program(name)) == 0) {
 		com = malloc(sizeof(struct com_program_entry));
@@ -1567,6 +1657,8 @@ void register_com_program(char *name,
 	com->name = name;
 	com->program = program;
 	com->functions = functions;
+	com->stacksize = stacksize;
+	com->heapsize = heapsize;
 	com->num_functions = 0;
 	if (functions) while (*(functions++)) com->num_functions++;
 }
@@ -1828,11 +1920,14 @@ static void create_com_thread(void)
 	ctcb->tcb->pent = find_com_program(pname);
 	if (!ctcb->tcb->pent) ctcb->tcb->pent = find_com_program("default_com_program");
 
+	if (!stacksize) stacksize = ctcb->tcb->pent->stacksize;
+	if (!heapsize)  heapsize = ctcb->tcb->pent->heapsize;
+
 	ctcb->heapstart = roundup_lowmem_heap_size(ctcb->heapstart);
 	if (stacksize < MIN_STACK_HEAP_PADDING)
 		stacksize = MIN_STACK_HEAP_PADDING;
 	if (!heapsize) {
-		ctcb->brkpoint = (LWORD(esp) + 15) & ~16;
+		ctcb->brkpoint = (LWORD(esp) + 15) & -16;
 		ctcb->heapend = (ctcb->brkpoint-stacksize) & -LOWMEM_HEAP_GRAN;
 	}
 	else {
@@ -1921,7 +2016,7 @@ void coopthreads_plugin_init(void)
 	tcb0 = init_zero_thread(0x100000);
 	if (!tcb0) return;
 	register_com_program("default_com_program",
-		default_com_program, default_com_program_functions);
+		default_com_program, "f", default_com_program_functions);
 
 #if 0
 	fprintf(stderr, "PLUGIN: coopthreads_plugin_init called\n");

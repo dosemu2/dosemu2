@@ -1001,9 +1001,6 @@ unsigned long pic_newirr;
 inline void pic_watch(s_time)
 hitimer_u *s_time;	/* time in us, 64-bit unsigned */
 {
-#ifndef MONOTON_MICRO_TIMING
-int timer;
-#endif
 hitimer_t t_time;
 unsigned long pic_newirr;
 
@@ -1018,37 +1015,11 @@ unsigned long pic_newirr;
  *  non-monoton: values are kept modulo (tick_rate*15min)
  *  monoton:     values are kept modulo 2^32 (exactly 1 hour)
  */
-#ifndef MONOTON_MICRO_TIMING
-#if 0	/* original code, see comments in timers.h */
-  t_time = (s_time->tv_sec%900)*1193047 
-           + (s_time->tv_usec*1193)/1000  /* This is usec * 1.193047 split */
-           + s_time->tv_usec/21277;        /* up to fit in 32 bit integer math */
-#endif
-  t_time = nmUStoTICK(s_time->td % 900000000);
-#else /* MONOTON_MICRO_TIMING */
   t_time = UStoTICK(s_time->td);
-#endif /* MONOTON_MICRO_TIMING */
 
   /* check for any freshly initiated timers, and sync them to s_time */
   pic_print(2,"pic_itime[1]= ",pic_itime[1]," ");
-#ifndef MONOTON_MICRO_TIMING
-  /* Now check for wrap-around, and adjust all counters if needed.  Adjustment
-     value is 900*1193047, or total counts in 15 min. */
-  if(t_time<pic_sys_time) {
-     for (timer=0;timer<33;++timer) { 
-       if(pic_itime[timer]>=pic_dos_time) {
-	 if (pic_itime[timer] != NEVER)
-          pic_itime[timer] -= 900*PIC_TICK_RATE;
-         if (pic_ltime[timer] != NEVER)
-          pic_ltime[timer] -= 900*PIC_TICK_RATE;
-          }
-       else pic_ltime[timer] = pic_itime[timer] = NEVER;
-     }
-  }
-  pic_sys_time=t_time;
-#else  /* MONOTON_MICRO_TIMING */
   pic_sys_time=t_time + (t_time == NEVER);
-#endif /* MONOTON_MICRO_TIMING */
   pic_print(2,"pic_sys_time set to ",pic_sys_time," ");
   pic_dos_time = pic_itime[32];
   if(pic_icount<=pic_icount_od) pic_activate();
@@ -1109,7 +1080,6 @@ int timer, count;
 /* DANG_BEGIN_FUNCTION pic_sched
  * pic_sched schedules an interrupt for activation after a designated
  * time interval.  The time measurement is in unis of 1193047/second,
- * ( or if using MONOTON_MICRO_TIMING in units of PIT_TICK_RATE/second )
  * the same rate as the pit counters.  This is convenient for timer
  * emulation, but can also be used for pacing other functions, such as
  * serial emulation, incoming keystrokes, or video updates.  Some sample 

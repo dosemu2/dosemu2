@@ -50,9 +50,7 @@
 
 #undef  DEBUG_PIT
 
-#ifdef MONOTON_MICRO_TIMING
 extern hitimer_t pic_itime[33];
-#endif /* MONOTON_MICRO_TIMING */
 
 extern hitimer_t t_vretrace;	/* see env/video/miscemu.c */
 
@@ -265,26 +263,6 @@ static void pit_latch(int latch)
 	p->outpin = (p->mode&4? 0x00: 0x80);
       }
   }
-#ifndef MONOTON_MICRO_TIMING
-  /* mode 2 -- rate generator */
-  /* mode 6 -- ??? */
-  else if ((p->mode & 3)==2) {
-      ticks = p->cntr - (pic_dos_time % p->cntr);
-      p->read_latch = p->cntr - ticks % p->cntr;
-      p->outpin = (p->read_latch? 0x80: 0x00);
-  }
-  /* mode 3 -- square-wave generator */
-  /* mode 7 -- ??? */
-  else {
-      /* no more fancy calculations to avoid overflow */
-      ticks = (cur_time.td - p->time.td) % p->cntr;
-      /* ticks is now a value which increases from 0 to cntr, and
-         is greater than cntr/2 in the second half of the cycle */
-      ticks = 2 * (ticks % p->cntr);
-      p->outpin = (ticks >= p->cntr? 0x80: 0x00);
-      p->read_latch = p->cntr - ticks % p->cntr;
-  }
-#else /* MONOTON_MICRO_TIMING */
   else {
     /* mode 2 -- rate generator */
     /* mode 6 -- ??? */
@@ -326,7 +304,6 @@ static void pit_latch(int latch)
         p->outpin = (p->read_latch? 0x80: 0x00);
       }
   }
-#endif /* MONOTON_MICRO_TIMING */
   if (p->mode & 0x40)
     p->mode = (p->mode & 7) | 0x80;
 
@@ -498,14 +475,12 @@ void pit_control_outp(ioport_t port, Bit8u val)
 	pit[latch].read_state  = (val >> 4) & 0x03;
 	pit[latch].write_state = (val >> 4) & 0x03;
 	pit[latch].mode        = (val >> 1) & 0x07;
-#ifdef MONOTON_MICRO_TIMING
         if ((val & 4)==0) {      /* modes 0,1,4,5 */
           /* set the time base for the counter - safety code for programs
            * which use a non-periodical mode without reloading the counter
            */
           pit[latch].time.td = GETtickTIME(0);
         }
-#endif
       }
 #ifdef DEBUG_PIT
       i_printf("PORT: writing outp(0x43, 0x%x)\n", val);

@@ -57,9 +57,6 @@ while [ "$1" != "" ]; do
     slangforce)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-force-slang"; fi
       ;;
-    tmonoton)
-      if [ "$2" = "on" ]; then STRING="$STRING --enable-monoton-timing"; fi
-      ;;
     runasroot)
       if [ "$2" = "on" ]; then STRING="$STRING --enable-runasroot"; fi
       ;;
