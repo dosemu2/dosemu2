@@ -8,8 +8,9 @@
   GUS device
  ***********************************************************************/
 
-#include"midid.h"
-#include<libgus.h>
+#include "midid.h"
+#include <libgus.h>
+#include <assert.h>
 
 int gusdevice;
 

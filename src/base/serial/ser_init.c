@@ -60,6 +60,7 @@
 #include "ser_defs.h"
 #include "priv.h"
 #include "utilities.h"	/* due to getpwnam */
+#include "iodev.h"
 
 int no_local_video = 0;
 
@@ -464,6 +465,7 @@ static void do_ser_init(int num)
     default: strcpy(com[num].dev, "/dev/ttyS0"); break;
     }
   }
+  iodev_add_device(com[num].dev);
 
   /* FOSSIL emulation is inactive at startup. */
   com[num].fossil_active = FALSE;

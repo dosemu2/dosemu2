@@ -55,6 +55,21 @@ For a more detailed description have a look at README.bindist.
 - su -		(become root)
 - make install
 
+You can now start DOSEMU using "dosemu" or "xdosemu". By default, when you
+start it the first time it will ask you if you want to create a FreeDOS C: 
+drive in the directory ~/dosemu/freedos. This is accomplished by creating 
+symbolic links to files in the system-wide DOSEMU tree. You can replace 
+those symbolic links by real files if you wish to do so. The boot 
+directory location and other runtime configuration variables are stored 
+in the file ~/.dosemurc. This file overrides the dosemu.conf file which 
+is usually either in /etc or /etc/dosemu. By default, most error and debug 
+messages are logged to the file ~/.dosemu/boot.log.
+
+If you do not want to use the FreeDOS C: drive in $HOME/dosemu/freedos, 
+then you will have to adjust dosemu.conf or ~/.dosemurc yourself and point
+$_hdimage to the right boot directory or hdimage (which can be a symbolic
+link).
+
 --------------------------------------------------------------------------
 3.  Want to use a non-standard configuration ?
 --------------------------------------------------------------------------
@@ -98,11 +113,11 @@ the appropriate action ...
   ./doc/README.txt chapter 2.
 
   For a more detailed description on 'running as user' have a look
-  at ./doc/README.txt 'Running dosemu as a normal user' (chapter 7).
+  at ./doc/README.txt 'Running dosemu as a normal user' (chapter 6).
 
-- The dosemu boot directory or hard disk image (specified by $_hdimage) is 
-  relative to /var/lib/dosemu instead of $HOME/dosemu. Symbolic links are
-  also allowed.
+- For users without enough privileges to change $_hdimage, the dosemu boot 
+  directory or hard disk image and several other variables can only be set
+  in the system-wide dosemu.conf and not in ~/.dosemurc.
 
 --------------------------------------------------------------------------
 5.  Something's not right!!!

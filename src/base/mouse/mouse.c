@@ -40,6 +40,7 @@
 #include "keyboard.h"
 
 #include "priv.h"
+#include "iodev.h"
 
 extern int get_perm ();
 extern int release_perm ();
@@ -1790,6 +1791,7 @@ dosemu_mouse_init(void)
       mice->fd = DOS_SYSCALL(open(mice->dev, O_RDWR | O_NONBLOCK));
       leave_priv_setting();
       if (mice->fd == -1) {
+	error("Cannot open internal mouse device %s\n",mice->dev);
  	mice->intdrv = FALSE;
  	mice->type = MOUSE_NONE;
  	mice->add_to_io_select = 0;
@@ -1799,21 +1801,7 @@ dosemu_mouse_init(void)
       add_to_io_select(mice->fd, mice->add_to_io_select);
       DOSEMUSetupMouse();
       memcpy(p,mouse_ver,sizeof(mouse_ver));
-    }
-    else if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_IMPS2) ||
-	     (mice->type == MOUSE_BUSMOUSE)) {
-      enter_priv_on();
-      mice->fd = open(mice->dev, O_RDWR | O_NONBLOCK);
-      leave_priv_setting();
-      mice->add_to_io_select = 0;
-      if (mice->fd == -1) {
-	  error("Cannot open internal mouse device %s\n",mice->dev);
-	  mice->intdrv = FALSE;
-	  mice->type = MOUSE_NONE;
-	  return;
-      }
-      add_to_io_select(mice->fd, mice->add_to_io_select); 
-      memcpy(p,mouse_ver,sizeof(mouse_ver));
+      iodev_add_device(mice->dev);
     }
     else {
       int x;

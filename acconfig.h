@@ -180,10 +180,6 @@ EXTERN char *dosemu_midi_path INIT("~/" LOCALDIR_BASE_NAME "/run/" DOSEMU_MIDI);
 /* Define this to use the X86 CPU emulator */
 #undef X86_EMULATOR
 
-/* Define this on glibc >= 2.1,
- * because though it has llseek in the library, it doesn't prototype it */
-#undef NEED_LLSEEK_PROTOTYPE
-
 @BOTTOM@
 
 #ifndef __ASM__

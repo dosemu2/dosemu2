@@ -6,8 +6,6 @@
 
 /* Interface to device driver */
 
-#include"midid.h"
-
 void do_noteoff(int chn);
 void do_noteon(int chn);
 void do_notepressure(int chn);

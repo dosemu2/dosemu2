@@ -424,9 +424,9 @@ void scan_dir(fatfs_t *f, unsigned oi)
   DIR *dir;
   struct dirent* dent;
   struct stat sb;
-  char *s, *name;
+  char *s, *name, *buf, *buf_ptr;
   unsigned u, scans = 1;
-  int i, j, fd;
+  int i, j, fd, size;
   char *sf[3] = { NULL, NULL, NULL };
 
   // just checking...
@@ -493,7 +493,30 @@ void scan_dir(fatfs_t *f, unsigned oi)
       while((dent = readdir(dir))) {
         if(!strcasecmp(dent->d_name, "io.sys")) f->sys_type |= 1;
         if(!strcasecmp(dent->d_name, "msdos.sys")) f->sys_type |= 2;
-        if(!strcasecmp(dent->d_name, "ibmbio.com")) f->sys_type |= 4;
+        if(!strcasecmp(dent->d_name, "ibmbio.com")) {
+	  f->sys_type |= 4;
+          if((s = full_name(f, oi, dent->d_name))) {
+            if(!stat(s, &sb)) {
+              if(S_ISREG(sb.st_mode)) {
+                if((fd = open(s, O_RDONLY)) != -1) {
+                  buf = malloc(sb.st_size + 1);
+		  size = read(fd, buf, sb.st_size);
+		  if (size > 0) {
+		    buf[size] = 0;
+		    buf_ptr = buf;
+		    while (!strstr(buf_ptr, "PC DOS") && buf_ptr < buf + size) {
+		      buf_ptr += strlen(buf_ptr) + 1;
+		    }
+		    if (buf_ptr < buf + size)
+		      f->sys_type |= 0x40;
+		  }
+                  free(buf);
+                  close(fd);
+                }
+              }
+            }
+          }
+	}
         if(!strcasecmp(dent->d_name, "ibmdos.com")) f->sys_type |= 8;
         if(!strcasecmp(dent->d_name, "ipl.sys")) f->sys_type |= 0x10;
         if(!strcasecmp(dent->d_name, "kernel.sys")) f->sys_type |= 0x20;
@@ -507,8 +530,14 @@ void scan_dir(fatfs_t *f, unsigned oi)
       sf[1] = "msdos.sys";
       scans = 3;
     }
+    if(f->sys_type & 0x40) {
+      f->sys_type = 0x40;		/* PC-DOS */
+      sf[0] = "ibmbio.com";
+      sf[1] = "ibmdos.com";
+      scans = 3;
+    }
     if((f->sys_type & 0x0c) == 0x0c) {
-      f->sys_type = 0x0c;	/* PC-DOS */
+      f->sys_type = 0x0c;	/* DR-DOS */
       sf[0] = "ibmbio.com";
       sf[1] = "ibmdos.com";
       scans = 3;
@@ -1098,6 +1127,7 @@ void build_boot_blk(fatfs_t *f)
 
   switch(f->sys_type) {
     case 0x03:
+    case 0x40:
       i = read_data(f, 0);
       if(i || f->sec[0] != 'M' || f->sec[1] != 'Z') {
         /* for IO.SYS, MS-DOS version < 7 */

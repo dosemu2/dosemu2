@@ -8,7 +8,8 @@
   Statistics
  ***********************************************************************/
 
-#include"stats.h"
+#include "stats.h"
+#include <stdio.h>
 
 typedef struct Stats {
 	int command[256];	/* # of calls to this command */

@@ -841,7 +841,7 @@ Find_Handle(u_char *buf)
 	p = buf + 2 * ETH_ALEN;		/* Ethernet-II */
     else 
 	p = buf + 2 * ETH_ALEN + 2;     /* All the rest frame types. */
-    pd_printf("Received packet type: %.2x\n", ntohs(eth->h_proto));
+    pd_printf("Received packet type: 0x%x\n", ntohs(eth->h_proto));
 
     for(i=0; i<max_pkt_type_array; i++) {
 	nchars = pkt_type_array[i].pkt_type_len;
@@ -857,7 +857,7 @@ printbuf(char *mesg, struct ethhdr *buf)
 { int i;
   pd_printf( "%s :\n Dest.=", mesg);
   for (i=0;i<6;i++) pd_printf("%x:",buf->h_dest[i]);
-  pd_printf( " Source=") ;
+  pd_printf( " Source=");
   for (i=0;i<6;i++) pd_printf("%x:",buf->h_source[i]);
-  pd_printf( " Type= %x \n", buf->h_proto) ;
+  pd_printf( " Type= 0x%x \n", ntohs(buf->h_proto));
 }

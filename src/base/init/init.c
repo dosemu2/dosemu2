@@ -412,11 +412,6 @@ void memory_init(void)
     init_vga_card();
   }
 
-  if (config.exitearly) {
-    dbug_printf("Leaving DOS before booting\n");
-    exit(0);
-  }
-
   if (first_call) {
     ems_init();                /* initialize ems */
     xms_init();                /* initialize xms */
@@ -461,7 +456,6 @@ void device_init(void)
 		     console_speaker_on, console_speaker_off);
   }
   iodev_init();
-  dosemu_mouse_init();
   printer_init();
   disk_init();
 }

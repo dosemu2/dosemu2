@@ -192,8 +192,10 @@ void do_sound(Bit16u period)
 	 * If it becomes a problem possibly tuning sound_duration is
 	 * the answer.  I suggest 200ms but as I don't have that
 	 * problem now I'm not worring about it.
+	 *
+	 * But if you set it too low, then sounds can be cut off - clarence
 	 */
-	static const unsigned sound_duration = 990;  /* in miliseconds */
+	static const unsigned sound_duration = 30000;  /* in miliseconds */
 	switch (port61 & 3) {
 	case 3:		/* speaker on & speaker control through timer channel 2 */
 		if ((pit[2].mode == 2) || (pit[2].mode == 3)) {		/* is this test needed? */

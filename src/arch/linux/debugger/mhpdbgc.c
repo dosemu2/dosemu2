@@ -570,9 +570,9 @@ static void mhp_trace(int argc, char * argv[])
    } else {
       mhpdbgc.stopped = 0;
       if (in_dpmi) {
-        if (!dpmi_mhp_setTF(1)) return;
+        dpmi_mhp_setTF(1);
       }
-      else WRITE_FLAGS(READ_FLAGS() | TF);
+      WRITE_FLAGS(READ_FLAGS() | TF);
       mhpdbgc.trapcmd = 1;
    }
 }
@@ -595,9 +595,9 @@ static void mhp_trace_force(int argc, char * argv[])
    } else {
       mhpdbgc.stopped = 0;
       if (in_dpmi) {
-        if (!dpmi_mhp_setTF(1)) return;
+        dpmi_mhp_setTF(1);
       }
-      else WRITE_FLAGS(READ_FLAGS() | TF);
+      WRITE_FLAGS(READ_FLAGS() | TF);
       vm86s.vm86plus.vm86dbg_TFpendig=1;
       mhpdbgc.trapcmd = 1;
       /* disable PIC: we want to trace the program, not the HW int handlers */

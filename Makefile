@@ -26,7 +26,7 @@ else
   export PACKETNAME=dosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 endif
 export THISVERSION=$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
-export EMUVER=VERSION.$(SUBLEVEL)
+export EMUVER=$(VERSION).$(SUBLEVEL)
 
 export REALTOPDIR=$(shell pwd -P)
 export SRCPATH=$(REALTOPDIR)/src

@@ -8,6 +8,9 @@
   OSS Lite device
  ***********************************************************************/
 
+#include <stdio.h>
+#include <stdlib.h>
+
 /* You shouldn't have to change this since it's pretty standard */
 #define SEQUENCER_DEV   "/dev/sequencer"  /* Used device */
 #define PATH_FM_DEFAULT "/etc/"           /* Location of FM instrument files */
@@ -17,8 +20,6 @@
 #define SBDRUMS         "drums.sb"        /* OPL3 drums file */
 
 #include "midid.h"
-#include "io.h"
-#include <sys/soundcard.h>
 #include <sys/types.h>     /* for open(2) */
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -26,7 +27,10 @@
 #include <string.h>
 #include <sys/ioctl.h>
 
-SEQ_DEFINEBUF(1024);
+#define seqbuf_dump oss_seqbuf_dump
+#include <sys/soundcard.h>
+
+SEQ_USE_EXTBUF();
 
 int seqfd;               /* Sequencer file handle */
 char *path_fm;           /* Location of FM instrument files */
@@ -44,7 +48,7 @@ typedef struct Voice {
 Voice *voices;
 int chn2prg[16];         /* The program on each channel */
 
-void seqbuf_dump (void)
+void oss_seqbuf_dump (void)
 {
   if (_seqbufptr) {
     if (write (seqfd, _seqbuf, _seqbufptr) == -1) {
@@ -227,6 +231,13 @@ void oss_flush(void)
   SEQ_DUMPBUF();
 }
 
+bool oss_setmode(Emumode new_mode)
+{
+  if (new_mode == EMUMODE_GM)
+    return TRUE;
+  return FALSE;
+}
+
 void oss_noteon(int chn, int note, int vel)
 {
   int i;
@@ -287,6 +298,7 @@ void register_oss(Device * dev)
 	dev->channelpressure = oss_channelpressure;
 	dev->bender = oss_bender;
 	dev->program = oss_program;
+	dev->setmode = oss_setmode;
 }
 
 

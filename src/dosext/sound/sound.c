@@ -2229,8 +2229,7 @@ static void sb_check_complete (void)
 
 void sound_init(void)
 {
-  /* sb_irq == 0 means that $_sound = (off) */
-  if (config.sb_irq) {
+  if (config.sound) {
     sb_init();
     fm_init();
     mpu401_init();
@@ -2360,7 +2359,7 @@ static void mpu401_init(void)
   S_printf ("MPU401: MPU-401 Initialisation - Base 0x%03x \n", 
 	    config.mpu401_base);
 
-  mpu401_info.isdata = TRUE;
+  mpu401_info.isdata = 0;
 
   (void) MPU_driver_init();
 }
@@ -2373,9 +2372,11 @@ static void mpu401_init(void)
 
 void sound_reset(void)
 {
-  sb_reset();
-  fm_reset();
-  mpu401_reset();
+  if (config.sound) {
+    sb_reset();
+    fm_reset();
+    mpu401_reset();
+  }
 }
 
 static void sb_reset (void)

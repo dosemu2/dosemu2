@@ -172,8 +172,7 @@ fi
 
 dnl Do check wether we have pthreads and whether to use it
 
-AC_ARG_ENABLE(use-pthreads,
-	,
+AC_ARG_ENABLE(use-pthreads,,
 	[use_pthreads="yes"],[use_pthreads="no"])
 if test "$use_pthreads" = "yes"; then
   AC_CHECK_LIB(pthread, pthread_create, , use_pthreads="no", -lm)
@@ -183,8 +182,9 @@ if test "$use_pthreads" = "yes"; then
   AC_DEFINE(USE_PTHREADS)
   USE_PTHREADS="USE_PTHREADS=1"
   AC_SUBST(USE_PTHREADS)
-else
-  AC_CHECKING("compiling without pthreads support")
+# pthreads causes stability problems so ordinary users shouldn't know about it
+#else
+#  AC_CHECKING("compiling without pthreads support")
 fi
 
 dnl Do check wether we we shall force use of supplied Slanglib.
@@ -383,7 +383,7 @@ fi
 DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL * 256 ) + $PATCHLEVEL_ ))"`
 PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
-EMUVER="VERSION.$SUBLEVEL"
+EMUVER="$VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
 
 AC_DEFINE_UNQUOTED(EMUVER, "$EMUVER")
@@ -442,8 +442,8 @@ dnl try to hook in available plug-ins
 if test -x ./mkpluginhooks; then
   ./mkpluginhooks
   if test -f ./plugin_libdirs; then
-    AC_CHECKING("Including plugins: `cat ./plugin_libdirs`");
     PLUGINSUBDIRS=`cat ./plugin_libdirs`
+    AC_CHECKING("Including plugins: $PLUGINSUBDIRS");
     if test -f ./plugin_incdirs; then
       for i in `cat ./plugin_incdirs`; do
         PLUGININC="$PLUGININC -I\${SRCPATH}/${i}"
@@ -668,13 +668,6 @@ if test "$GCC" = "yes" ; then
     GLIBC_VERSION_CODE=$((($major * 1000) + $minor))
     echo "yes, version code $GLIBC_VERSION_CODE"
     GLIBC_VERSION_CODE="-DGLIBC_VERSION_CODE=$GLIBC_VERSION_CODE"
-    echo "checking for llseek prototype ..."
-    if echo "#include <unistd.h>" |${CC-cc} -E - |grep '[ \t]llseek[ \t(]' >/dev/null; then
-      echo "yes"
-    else
-      echo 'no, have to add one :-('
-      AC_DEFINE_UNQUOTED(NEED_LLSEEK_PROTOTYPE)
-    fi
   fi
 fi
 AC_SUBST(GCC_VERSION_CODE)

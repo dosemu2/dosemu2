@@ -1,4 +1,4 @@
-/* 
+/*
  * (C) Copyright 1992, ..., 2002 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
@@ -114,6 +114,7 @@ config_defaults(void)
     struct printer *pptr;
     extern struct printer lpt[NUM_PRINTERS];
 
+    parse_debugflags("+cw", 1);
     vm86s.cpu_type = CPU_386;
     /* defaults - used when /proc is missing, cpu!=x86 etc. */
     config.realcpu = CPU_386;
@@ -219,9 +220,9 @@ config_defaults(void)
     config.mem_size = 640;
     config.ems_size = 2048;
     config.ems_frame = 0xe000;
-    config.xms_size = 1024;
+    config.xms_size = 8192;
     config.max_umb = 0;
-    config.dpmi = (!under_root_login && can_do_root_stuff) ? 0 : 0x2000;
+    config.dpmi = (!under_root_login && can_do_root_stuff) ? 0 : 16384;
     config.secure = 0;
     config.mouse_flag = 0;
     config.mapped_bios = 0;
@@ -291,7 +292,7 @@ config_defaults(void)
     config.vesamode_list = NULL;
     config.X_lfb = 1;
     config.X_pm_interface = 1;
-    config.X_keycode = 0;
+    config.X_keycode = 2;
     config.X_font = "vga";
     config.usesX = 0;
     config.X = 0;
@@ -336,7 +337,7 @@ config_defaults(void)
     config.allowvideoportaccess = 1;
     config.emuretrace = 0;
 
-    config.keytable = &keytable_list[KEYB_AUTO]; /* What's the current keyboard  */
+    keyb_layout(-1); /* What's the current keyboard  */
 		config.altkeytable = NULL;
 		config.toggle_mask = 0;
 
@@ -371,12 +372,20 @@ config_defaults(void)
     pptr->remaining = -1;
     pptr->delay = 20;
 
+    config.sound = 1;
     config.sb_base = 0x220;
     config.sb_dma = 1;
     config.sb_irq = 5;
     config.sb_dsp = "/dev/dsp";
     config.sb_mixer = "";
     config.mpu401_base = 0x330;
+
+    config.joy_device[0] = "/dev/js0";
+    config.joy_device[1] = "/dev/js1";
+    config.joy_dos_min = 1;
+    config.joy_dos_max = 150;
+    config.joy_granularity = 1;
+    config.joy_latency = 0;
 
     config.netdev = "eth0";
     config.vnet = 0;
@@ -594,6 +603,9 @@ void dump_config_status(void *printfunc)
 
     (*print)("\nSOUND:\nsb_base 0x%x\nsb_dma %d\nsb_irq %d\nmpu401_base 0x%x\nsb_dsp \"%s\"\nsb_mixer \"%s\"\n",
         config.sb_base, config.sb_dma, config.sb_irq, config.mpu401_base, config.sb_dsp, config.sb_mixer);
+    (*print)("\nJOYSTICK:\njoy_device0 \"%s\"\njoy_device1 \"%s\"\njoy_dos_min %i\njoy_dos_max %i\njoy_granularity %i\njoy_latency %i\n",
+        config.joy_device[0], config.joy_device[1], config.joy_dos_min, config.joy_dos_max, config.joy_granularity, config.joy_latency);
+
     if (!printfunc) {
       (*print)("\n--------------end of runtime configuration dump -------------\n");
       (*print)(  "-------------------------------------------------------------\n\n");

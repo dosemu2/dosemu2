@@ -39,12 +39,7 @@
 #include "cpu-emu.h"
 #endif
 
-#ifdef NEED_LLSEEK_PROTOTYPE
-  /* well, if we don't have llseek prototype,
-   * we most likely won't have __loff_t too, hence using long long
-   */
-  #define llseek libless_llseek
-#endif
+#define llseek libless_llseek
 
 static int disks_initiated = 0;
 
@@ -1422,7 +1417,7 @@ int13(u_char i)
     diskaddr->blocks = 0;
 
     if (checkdp(dp) || track >= dp->tracks) {
-      error("ERROR: Sector not found, AH=0x42!\n");
+      error("Sector not found, AH=0x42!\n");
       d_printf("DISK %d ext read [h:%d,s:%d,t:%d](%d)->%p\n",
 	       disk, head, sect, track, number, (void *) buffer);
       if (dp) {
@@ -1446,7 +1441,7 @@ int13(u_char i)
       break;
     }
     else if (res & 511) {	/* must read multiple of 512 bytes */
-      error("ERROR: sector_corrupt 1, return = %d!\n", res);
+      error("sector_corrupt 1, return = %d!\n", res);
       HI(ax) = DERR_BADSEC;	/* sector corrrupt */
       CARRY;
       break;
@@ -1474,7 +1469,7 @@ int13(u_char i)
     diskaddr->blocks = 0;
 
     if (checkdp(dp) || track >= dp->tracks) {
-      error("ERROR: Sector not found, AH=0x42!\n");
+      error("Sector not found, AH=0x42!\n");
       d_printf("DISK %d ext write [h:%d,s:%d,t:%d](%d)->%p\n",
 	       disk, head, sect, track, number, (void *) buffer);
       if (dp) {
@@ -1511,7 +1506,7 @@ int13(u_char i)
       break;
     }
     else if (res & 511) {	/* must read multiple of 512 bytes */
-      error("ERROR: sector_corrupt 1, return = %d!\n", res);
+      error("sector_corrupt 1, return = %d!\n", res);
       HI(ax) = DERR_BADSEC;	/* sector corrrupt */
       CARRY;
       break;
@@ -1544,7 +1539,7 @@ int13(u_char i)
     params = SEG_ADR((struct ibm_ms_drive_params *), ds, si);
 
     if (checkdp(dp)) {
-      error("ERROR: Invalid drive, AH=0x48!\n");
+      error("Invalid drive, AH=0x48!\n");
       if (dp) {
 	  d_printf("DISK dev %s GEOM %d heads %d sects %d trk\n",
 		   dp->dev_name, dp->heads, dp->sectors, dp->tracks);

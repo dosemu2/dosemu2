@@ -60,133 +60,140 @@ Alistair MacDonald
 
         5.1. Whats New
         5.2. Status
-        5.3. Keyboard server interface
-        5.4. Keyboard server structure
+        5.3. Known bugs & incompatibilites
+        5.4. TODO
 
-              5.4.1. queue handling functions
-              5.4.2. The Front End
-              5.4.3. The Back End
+   6. Old Keyboard Code
 
-        5.5. Known bugs & incompatibilites
-        5.6. Changes from 0.61.10
-        5.7. TODO
+        6.1. Whats New
+        6.2. Status
+        6.3. Keyboard server interface
+        6.4. Keyboard server structure
 
-   6. Setting HogThreshold
-   7. Privileges and Running as User
+              6.4.1. queue handling functions
+              6.4.2. The Front End
+              6.4.3. The Back End
 
-        7.1. What we were suffering from
-        7.2. The new 'priv stuff'
+        6.5. Known bugs & incompatibilites
+        6.6. Changes from 0.61.10
+        6.7. TODO
 
-   8. Timing issues in dosemu
+   7. Setting HogThreshold
+   8. Privileges and Running as User
 
-        8.1. The 64-bit timers
-        8.2. DOS 'view of time' and time stretching
-        8.3. Non-periodic timer modes in PIT
-        8.4. Fast timing
-        8.5. PIC/PIT synchronization and interrupt delay
-        8.6. The RTC emulation
-        8.7. General warnings
+        8.1. What we were suffering from
+        8.2. The new 'priv stuff'
 
-   9. Pentium-specific issues in dosemu
+   9. Timing issues in dosemu
 
-        9.1. The pentium cycle counter
-        9.2. How to compile for pentium
-        9.3. Runtime calibration
-        9.4. Timer precision
-        9.5. Additional points
+        9.1. The 64-bit timers
+        9.2. DOS 'view of time' and time stretching
+        9.3. Non-periodic timer modes in PIT
+        9.4. Fast timing
+        9.5. PIC/PIT synchronization and interrupt delay
+        9.6. The RTC emulation
+        9.7. General warnings
 
-   10. The DANG system
+   10. Pentium-specific issues in dosemu
 
-        10.1. Description
-        10.2. Changes from last compiler release
-        10.3. Using DANG in your code
-        10.4. DANG Markers
+        10.1. The pentium cycle counter
+        10.2. How to compile for pentium
+        10.3. Runtime calibration
+        10.4. Timer precision
+        10.5. Additional points
 
-              10.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
-              10.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
-              10.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
-              10.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
-              10.4.5. DANG_FIXTHIS
-              10.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+   11. The DANG system
 
-        10.5. Usage
-        10.6. Future
+        11.1. Description
+        11.2. Changes from last compiler release
+        11.3. Using DANG in your code
+        11.4. DANG Markers
 
-   11. mkfatimage -- Make a FAT hdimage pre-loaded with files
-   12. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
-   13. Documenting DOSEMU
+              11.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
+              11.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+              11.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
+              11.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+              11.4.5. DANG_FIXTHIS
+              11.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
 
-        13.1. Sections
-        13.2. Emphasising text
-        13.3. Lists
-        13.4. Quoting stuff
-        13.5. Special Characters
-        13.6. Cross-References & URLs
+        11.5. Usage
+        11.6. Future
 
-              13.6.1. Cross-References
-              13.6.2. URLs
-              13.6.3. Email addresses
+   12. mkfatimage -- Make a FAT hdimage pre-loaded with files
+   13. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
+   14. Documenting DOSEMU
 
-        13.7. References
+        14.1. Sections
+        14.2. Emphasising text
+        14.3. Lists
+        14.4. Quoting stuff
+        14.5. Special Characters
+        14.6. Cross-References & URLs
 
-   14. Sound Code
+              14.6.1. Cross-References
+              14.6.2. URLs
+              14.6.3. Email addresses
 
-        14.1. Current DOSEMU sound code
-        14.2. Original DOSEMU sound code
+        14.7. References
 
-              14.2.1. Reference
+   15. Sound Code
 
-   15. DMA Code
+        15.1. Current DOSEMU sound code
+        15.2. Original DOSEMU sound code
 
-        15.1. Current DOSEMU DMA code
-        15.2. Original DOSEMU DMA code
+              15.2.1. Reference
 
-              15.2.1. Adding DMA devices to DOSEMU
-              15.2.2. References
+   16. DMA Code
 
-   16. DOSEMU Programmable Interrupt Controller
+        16.1. Current DOSEMU DMA code
+        16.2. Original DOSEMU DMA code
 
-        16.1. Other features
-        16.2. Caveats
-        16.3. Notes on theory of operation:
+              16.2.1. Adding DMA devices to DOSEMU
+              16.2.2. References
 
-              16.3.1. Functions supported from DOSEMU side
-              16.3.2. Other Functions
+   17. DOSEMU Programmable Interrupt Controller
 
-        16.4. A (very) little technical information for the curious
+        17.1. Other features
+        17.2. Caveats
+        17.3. Notes on theory of operation:
 
-   17. DOSEMU debugger v0.6
+              17.3.1. Functions supported from DOSEMU side
+              17.3.2. Other Functions
 
-        17.1. Introduction
-        17.2. Usage
-        17.3. Commands
-        17.4. Performance
-        17.5. Wish List
-        17.6. BUGS
+        17.4. A (very) little technical information for the curious
 
-              17.6.1. Known bugs
+   18. DOSEMU debugger v0.6
 
-   18. MARK REJHON'S 16550 UART EMULATOR
+        18.1. Introduction
+        18.2. Usage
+        18.3. Commands
+        18.4. Performance
+        18.5. Wish List
+        18.6. BUGS
 
-        18.1. PROGRAMMING INFORMATION
-        18.2. DEBUGGING HELP
-        18.3. FOSSIL EMULATION
-        18.4. COPYRIGHTS
+              18.6.1. Known bugs
 
-   19. Recovering the console after a crash
+   19. MARK REJHON'S 16550 UART EMULATOR
 
-        19.1. The mail message
+        19.1. PROGRAMMING INFORMATION
+        19.2. DEBUGGING HELP
+        19.3. FOSSIL EMULATION
+        19.4. COPYRIGHTS
 
-   20. Net code
-   21. Software X386 emulation
+   20. Recovering the console after a crash
 
-        21.1. The CPU emulator
+        20.1. The mail message
 
-   22. MFS and National Language Support
+   21. Net code
+   22. Software X386 emulation
 
-        22.1. MFS and National Language Support
-        22.2. Patching of MFS
-        22.3. TODO:
+        22.1. The CPU emulator
+
+   23. MFS and National Language Support
+
+        23.1. MFS and National Language Support
+        23.2. Patching of MFS
+        23.3. TODO:
 
 1. Introduction
 
@@ -1137,9 +1144,16 @@ d)
    where XXX is one of
 
    ibm
-          the text is taken whithout translation, it is to the user to
-          load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on
-          the console).
+          With the new (default) unicode keyboard plugin, the text is
+          processed using cp437->cp437 for the display, so the font used
+          must be cp437 (eq cp437.f16 on the console). This is no longer
+          a passthrough to the local character set, it never really was,
+          but it acted like it. When reading characters they are assumed
+          to be in iso-8859-1 from the terminal.
+
+          With the old keyboard code, the text is taken whithout
+          translation, it is to the user to load a proper DOS font
+          (cp437.f16, cp850.f16 or cp852.f16 on the console).
 
    latin
           the text is processed using cp437->iso-8859-1 translation, so
@@ -1164,6 +1178,36 @@ d)
    need to know the correct code page your DOS is configured for in order
    to get the correct results. For most western european countries
    'latin' should be the correct setting.
+
+   With the advent of handling all characters internally to dosemu things
+   have gotten more flexible, and more interesting. The following form of
+   the charset option has been added.
+         charset { external "iso8859_1" internal "cp437" }
+
+   For external character set the allowable character sets are:
+    "cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+    "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874",
+    "iso8859-1", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5",
+    "iso8859-6", "iso8859-7", "iso8859-8", "iso8859-9", "iso8859-14",
+    "iso8859-15"
+
+   For the internal character set the allowable character sets are:
+    "cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+    "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874"
+
+   The external character set is used to:
+
+     * compute the unicode values of characters coming in from the
+       terminal
+     * compute the character set index of unicode characters output to a
+       terminal display screen.
+     * compute the unicode values of characters pasted into dosemu.
+
+   The internal character set is used to:
+
+     * compute the unicode value of characters of video memory
+     * compute the character set index of unicode characters returned by
+       bios keyboard translation services.
      _________________________________________________________________
 
 2.2.11. Keyboard settings
@@ -1200,7 +1244,7 @@ d)
    machine when you hit the key, its the index into the keytable. "value"
    may be any integer between 0...255, a string, or one of the following
    keywords for "dead keys" (NOTE: deadkeys have a value below 32, so be
-   carefull).
+   careful).
 
       dgrave        (dead grave)
       dacute        (dead acute)
@@ -1215,6 +1259,37 @@ d)
       dogonek       (dead ogonek)
       dcaron        (dead caron)
 
+   With the addition of internal unicode support "value" may be any
+   integer between 0..65535 (specifying a unicode value), a hexadecimal
+   integer in the form \uFFFF all 4 hexadecimal digits are mandatory, a
+   string interpreted in the internal character set.
+
+   The implementation of dead keys has changed, and values of the unicode
+   combining characters are used for dead key character caps. In
+   particular:
+    0x0300          U_COMBINING_GRAVE_ACCENT        dgrave
+    0x0301          U_COMBINING_ACUTE_ACCENT        dacute
+    0x0302          U_COMBINING_CIRCUMFLEX_ACCENT   dcircum
+    0x0303          U_COMBINING_TILDE               dtilde
+    0x0306          U_COMBINING_BREVE               dbreve
+    0x0307          U_COMBINING_DOT_ABOVE           daboved
+    0x0308          U_COMBINING_DIAERESIS           ddiares
+    0x030A          U_COMBINING_RING_ABOVE          dabover
+    0x030B          U_COMBINING_DOUBLE_ACUTE_ACCENT ddacute
+    0x0327          U_COMBINING_CEDILLA             dcedilla
+    0x0328          U_COMBINING_OGONEK              dogonek
+    0x030C          U_COMBINING_CARON               dcaron
+
+   In unicode there is a private range of characters 0xE000 - 0xEFFF that
+   an application can use as it wishes. In dosemu the exact usage of this
+   range is defined in src/include/keyboard.h. Current this range is
+   broke up as follows:
+    0xEF00 - 0xEFFF is defined as a pass through to whatever
+                    character set is being displayed.
+    0xE100 - 0xE1FF are used for special keycaps
+    0xE200 - 0xE2FF are used for any extra dead keys we may need to make up
+    0xE300 - 0xE3FF are used for special dosemu function keys
+
    After a "key_number =" there may be any number of comma separated
    values, which will go into the table starting with "key_number", hence
    all below examples are equivalent
@@ -1227,9 +1302,14 @@ d)
    "submap" tells in about something about the shift state for which the
    definition is to use or wether we mean the numpad:
 
-      shift  16="Q"      (means key 16 + SHIFT pressed)
-      alt    16="@"      (means key 16 + right ALT pressed (so called AltGr))
-      numpad 12=","      (means numpad index 12)
+      shift     16="Q"      (means key 16 + SHIFT pressed)
+      alt       16="@"      (means key 16 + right ALT pressed (so called AltGr)
+)
+      numpad    12=","      (means numpad index 12 (depricated))
+      ctrl      16=\u0011   (means key 16 +  ctrl pressed)
+      shift-alt 16=\u02A0   (means key 16 + AltGR pressed and shift pressed)
+      ctrl-alt  209=\uE30A  (means key 209 (PGDN) + ctrl pressed and alt presse
+d)
 
    You may even replace the whole table with a comma/blank separated list
    of values. In order to make it easy for you, you may use dosemu to
@@ -1336,9 +1416,8 @@ d)
    in DOSEMU. That means what is COM3 on IRQ 5 in real DOS, can become
    COM1 on IRQ 4 in DOSEMU!
 
-   NOTE: You must have /usr/spool/uucp for LCK-file generation ! You may
-   change this path and the lockfile name via the below 'ttylocks'
-   statement.
+   NOTE: You must have /var/lock for LCK-file generation ! You may change
+   this path and the lockfile name via the below 'ttylocks' statement.
 
    Also, as an example of defaults, these two lines are functionally
    equal:
@@ -1384,10 +1463,8 @@ d)
    The serial lines are locked by dosemu via usual lock file technique,
    which is compatible with most other unix apps (such as mgetty, dip,
    e.t.c). However, you carefully need to check _where_ those other apps
-   expect the lock files. The most common used (old) place is
-   /usr/spool/uucp, but newer distributions following the FSSTND will
-   have it in /var/lock. The dosemu default one is /usr/spool/uucp. The
-   below defines /var/lock
+   expect the lock files. The most common used place is /var/lock. The
+   dosemu default one is /var/lock. The below defines /var/lock
 
          ttylocks { directory /var/lock }
 
@@ -2229,7 +2306,102 @@ isk }
 
 5. New Keyboard Code
 
-   This file describes the new keyboard code which was written in late
+   This file describes the keyboard code which was written in 1999
+
+   It was last updated by Eric Biederman <ebiederm@xmission.com> on 22
+   April 2000
+     _________________________________________________________________
+
+5.1. Whats New
+
+   What's new in the new keyboard code?
+
+   Virtually all of the interface code gets keystrokes has been
+   rewritten. While the actual emulation of the hardware has been fairly
+   static.
+
+   To the user:
+
+     * The terminal interface has been internationalized.
+     * Keymaps can now be written in unicode making them character set
+       independant.
+     * On non-us keyboard layouts the scan codes should always be correct
+       now.
+     * The X { keycode } option is now fully supported and portable, to
+       any X server that implements the X keyboard extension.
+
+   To the dosemu hacker:
+
+     * There is a compile-time option USE_UNICODE_KEYB (on by default) to
+       active the While the old code already claimed to be
+       "client-server" (and was, to some extent), the new code introduces
+       a clean, well-defined interface between the `server', which is the
+       interface to DOS (int9, bios etc.), and the `clients', which are
+       the interfaces to the user frontends supported by dosemu.
+       Currently, clients are `raw', `slang' (i.e. terminal), and `X'.
+       Clients send keystrokes to the server through the interface
+       mentioned above (which is defined in "keyboard.h"), the most
+       important functions being `putkey()' and `putrawkey()'.
+     * The keyboard server was rewritten from scratch, the clients were
+       heavily modified.
+     * There is now general and efficient support for pasting large text
+       objects. Simply call paste_text().
+     * The keyboard-related code is now largely confined to
+       base/keyboard, rather than scattered around in various files.
+
+   There is a compile-time option NEW_KBD_CODE (on by default) to
+   activate the new keyboard code. Once the new code is reasonably well
+   tested I'll remove it.
+
+   Just like the old keyboard code, we still have the rawkeyboard=on/off
+   modes. The keybint=on/off modes have gone away.
+     _________________________________________________________________
+
+5.2. Status
+
+   Almost everything seems to work well now.
+
+   The keyboard server should now quite accurately emulate all key
+   combinations described the `MAKE CODES' & `SCAN CODES' tables of
+   HelpPC 2.1, which I used as a reference.
+
+   See below for a list of known bugs.
+
+   What I need now is YOUR beta-testing... please go ahead and try if all
+   your application's wierd key combinations work, and let me know if
+   they don't.
+     _________________________________________________________________
+
+5.3. Known bugs & incompatibilites
+
+     * behaviour wrt. cli/sti is inaccurate, because the PIC code
+       currently doesn't allow un-requesting if IRQ's.
+     * emulation of special 8042 and keyboard commands is incomplete and
+       probably still somewhat faulty.
+     * the 'internal' keyboard flags in seg 0x40, like E0 prefix received
+       etc. are never set. This shouldn't hurt, for all but the most
+       braindead TSRs.
+     * the Pause key works in terms of raw scancodes, however it's
+       function is not implemented (i.e. it doesn't actually halt DOS
+       execution.)
+     * If the interrupt is not acknowledged and the keyboard port is read
+       we don't eventually give up like a real keyboard and deliver the
+       next byte in the keyboard buffer.
+     _________________________________________________________________
+
+5.4. TODO
+
+     * Implement better multinational cut/paste in X
+     * Implement timeouts on the length of type a byte is available in
+       the keyboard data port.
+     * implement pause key
+     * once everything is proved to work, remove the old keyboard code
+     * impelemnt utf8 and possibly iso2022 terminal support
+     _________________________________________________________________
+
+6. Old Keyboard Code
+
+   This file describes the old keyboard code which was written in late
    '95 for scottb's dosemu-0.61, and adapted to the mainstream 0.63 in
    mid-'96.
 
@@ -2238,7 +2410,7 @@ isk }
    <lermen@fgan.de> on 17 Jan 97. ( correction notes marked *HH -- Hans )
      _________________________________________________________________
 
-5.1. Whats New
+6.1. Whats New
 
    What's new in the new keyboard code? A lot.
 
@@ -2277,12 +2449,9 @@ isk }
    old code is made workeable and remains ON per default, it will stay
    maintained for a while, so we can easily check where the bugs come
    from )
-
-   Just like the old keyboard code, we still have the rawkeyboard=on/off
-   and keybint=on/off modes.
      _________________________________________________________________
 
-5.2. Status
+6.2. Status
 
    Almost everything seems to work well now.
 
@@ -2297,7 +2466,7 @@ isk }
    they don't.
      _________________________________________________________________
 
-5.3. Keyboard server interface
+6.3. Keyboard server interface
 
    This is all you should need to know if you just want to send
    keystrokes to DOS.
@@ -2324,7 +2493,7 @@ isk }
    which runs on top of the server.
      _________________________________________________________________
 
-5.4. Keyboard server structure
+6.4. Keyboard server structure
 
    [NOTE: you won't need to read this unless you actually want to modify
    the keyboard server code. In that case, however, you MUST read it!]
@@ -2354,7 +2523,7 @@ isk }
    should always contain something.
      _________________________________________________________________
 
-5.4.1. queue handling functions
+6.4.1. queue handling functions
 
      * static inline Boolean queue_empty(void);
      * static inline void clear_queue(void);
@@ -2371,7 +2540,7 @@ isk }
        keycodes to DOS
      _________________________________________________________________
 
-5.4.2. The Front End
+6.4.2. The Front End
 
 
      putrawkey() -------->----+
@@ -2395,7 +2564,7 @@ isk }
     ,,,,,,,,,>  calls
      _________________________________________________________________
 
-5.4.2.1. Functions in serv_xlat.c
+6.4.2.1. Functions in serv_xlat.c
 
      * static Boolean do_shift_keys(Boolean make, t_keysym key);
      * static Bit16u make_bios_code(Boolean make, t_keysym key, uchar
@@ -2412,21 +2581,21 @@ isk }
    putkey, and putkey_shift.
      _________________________________________________________________
 
-5.4.2.1.1. putrawkey
+6.4.2.1.1. putrawkey
 
    is called with a single raw scancode byte. Scancodes from subsequent
    calls are assembled into complete keyboard events, translated and
    placed into the queue.
      _________________________________________________________________
 
-5.4.2.1.2. putkey & others
+6.4.2.1.2. putkey & others
 
    ,,,to be documented.
      _________________________________________________________________
 
-5.4.3. The Back End
+6.4.3. The Back End
 
-5.4.3.1. Queue Back End in keybint=on mode
+6.4.3.1. Queue Back End
 
 
                        EMULATOR SIDE        |    x86 SIDE
@@ -2454,22 +2623,7 @@ er
     out_b_8042() = output_byte_8042()
      _________________________________________________________________
 
-5.4.3.2. Queue Back End in keybint=off mode
-
-                      EMULATOR SIDE         |    x86 SIDE
-                                            |
-                 kbd_process()              |
-                      :     :               |
-                      :     v               |
-     QUEUE -----------:--> put_keybuf() ----+-------------> bios keyb buffer
-         \            v                     |
-          \--------> copy_shift_state() ----+-------------> bios shiftstate
-                                            |
-                                            |
-                                            |
-     _________________________________________________________________
-
-5.4.3.3. Functions in newkbd-server.c
+6.4.3.2. Functions in newkbd-server.c
 
      * void do_irq1();
      * void clear_keybuf();
@@ -2479,62 +2633,51 @@ er
      * static void kbd_process(void);
 
    Transfer of the keyboard events from the dosemu queue to DOS is done
-   in two completely different ways, depending on the keybint setting in
-   dosemu.conf:
+   as follows:
 
-   keybint=off
-          kbd_process() simply reads the queue until it finds a bios
-          keycode (as we're not interested in raw scancodes without int9
-          emulation), which it stores in the bios keyboard buffer, while
-          also copying the shift state to the appropriate bios variables.
+   As soon as a key is stored into the empty queue, kbd_process()
+   triggers IRQ1 through the PIC emulation, which some time later will
+   call do_irq1().
 
-   keybint=on
-          As soon as a key is stored into the empty queue, kbd_process()
-          triggers IRQ1 through the PIC emulation, which some time later
-          will call do_irq1().
+   do_irq1() will prepare for the interrupt execution by reading from the
+   queue and storing the values in the variables raw_buffer,
+   shiftstate_buffer, and bios_buffer, and then call run_irq() to run the
+   actual DOS interrupt handler.
 
-          do_irq1() will prepare for the interrupt execution by reading
-          from the queue and storing the values in the variables
-          raw_buffer, shiftstate_buffer, and bios_buffer, and then call
-          run_irq() to run the actual DOS interrupt handler.
+   There are two cases:
 
-          again, there are two cases:
-
-          + the default int09 handler in the dosemu bios
-            (base/bios_emu.S) will call the helper function
-            get_bios_key(), which returns the translated bios keycode
-            from bios_buffer and copies the shiftstate from
-            shiftstate_buffer. The raw keycodes are not used.
-            get_bios_key() may also return 0 if no translated keycode is
-            ready.
-            The int9 handler will also call the `keyboard hook' int15h,
-            ax=????.
-          + if a dos application or TSR has redirected the keyboard
-            interrupt, its handler might read from port 60h to get raw
-            scancodes. Port 60h is of course virtualized, and the read
-            returns the value from raw_buffer.
-            Note that a mix between the two cases is also possible, e.g.
-            a TSR's int9 handler first reads port 60h to check if a
-            particular key was pressed, then gives over to the default
-            int9 handler. Even these cases should be (and are, I think)
-            handled properly.
-            Note also that in any case, int9 is called once for each raw
-            scancode byte. Eg.,suppose the user pressed the PgDn key,
-            whose raw scancode is E0 51:
-               o first call to int9: read port 60h = 0xe0 read port 60h =
-                 0xe0 (**) call get_bios_key() = 0 iret do_irq1()
-                 reschedules IRQ1 because further scancodes are in the
-                 queue
-               o second call to int9 read port 60h = 0x51 call
-                 get_bios_key() = 0x5100 (bios scancode of PgDn) iret
-            (** multiple port 60h reads during the same interrupt yield
-            the same result.)
+     * the default int09 handler in the dosemu bios (base/bios_emu.S)
+       will call the helper function get_bios_key(), which returns the
+       translated bios keycode from bios_buffer and copies the shiftstate
+       from shiftstate_buffer. The raw keycodes are not used.
+       get_bios_key() may also return 0 if no translated keycode is
+       ready.
+       The int9 handler will also call the `keyboard hook' int15h,
+       ax=????.
+     * if a dos application or TSR has redirected the keyboard interrupt,
+       its handler might read from port 60h to get raw scancodes. Port
+       60h is of course virtualized, and the read returns the value from
+       raw_buffer.
+       Note that a mix between the two cases is also possible, e.g. a
+       TSR's int9 handler first reads port 60h to check if a particular
+       key was pressed, then gives over to the default int9 handler. Even
+       these cases should be (and are, I think) handled properly.
+       Note also that in any case, int9 is called once for each raw
+       scancode byte. Eg.,suppose the user pressed the PgDn key, whose
+       raw scancode is E0 51:
+          + first call to int9: read port 60h = 0xe0 read port 60h = 0xe0
+            (**) call get_bios_key() = 0 iret do_irq1() reschedules IRQ1
+            because further scancodes are in the queue
+          + second call to int9 read port 60h = 0x51 call get_bios_key()
+            = 0x5100 (bios scancode of PgDn) iret
+       (** multiple port 60h reads during the same interrupt yield the
+       same result.)
 
    This is not a complete documentation. If you actually want to hack the
    keyboard server, you can't avoid reading the code, I'm afraid ;-)
      _________________________________________________________________
 
-5.5. Known bugs & incompatibilites
+6.5. Known bugs & incompatibilites
 
      * behaviour wrt. cli/sti is inaccurate, because the PIC code
        currently doesn't allow un-requesting if IRQ's.
@@ -2563,7 +2706,7 @@ er
        above.
      _________________________________________________________________
 
-5.6. Changes from 0.61.10
+6.6. Changes from 0.61.10
 
      * adapted to 0.63.55
      * adapted to 0.63.33
@@ -2575,7 +2718,7 @@ er
        initialisation and paste support.
      _________________________________________________________________
 
-5.7. TODO
+6.7. TODO
 
      * find what's wrong with TC++ 1.0
      * implement pause key
@@ -2584,7 +2727,7 @@ er
      * once everything is proved to work, remove the old keyboard code
      _________________________________________________________________
 
-6. Setting HogThreshold
+7. Setting HogThreshold
 
    Greetings DOSEMU fans,
 
@@ -2670,13 +2813,13 @@ er
    rewrite something into the int16 bios.
      _________________________________________________________________
 
-7. Privileges and Running as User
+8. Privileges and Running as User
 
    This section written by Hans Lermen <lermen@fgan.de> , Apr 6, 1997.
    And updated by Eric Biederman <ebiederm+eric@npwt.net> 30 Nov 1997.
      _________________________________________________________________
 
-7.1. What we were suffering from
+8.1. What we were suffering from
 
    Well, I got sick with the complaints about 'have problems running as
    user' and did much effort to 'learn' about what we were doing with
@@ -2752,7 +2895,7 @@ er
    so the above thread related arguments too.
      _________________________________________________________________
 
-7.2. The new 'priv stuff'
+8.2. The new 'priv stuff'
 
    This works as follows
 
@@ -2861,13 +3004,13 @@ er
    is ~/.dosemu/* and dosdebug was adapted to support that.
      _________________________________________________________________
 
-8. Timing issues in dosemu
+9. Timing issues in dosemu
 
    This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
    10, 1997
      _________________________________________________________________
 
-8.1. The 64-bit timers
+9.1. The 64-bit timers
 
    The idea for the 64-bit timers came, of course, from using the pentium
    cycle counter, and has been extended in dosemu to the whole timing
@@ -2895,7 +3038,7 @@ er
    DANG notes about emu-i386/cputime.c for details.
      _________________________________________________________________
 
-8.2. DOS 'view of time' and time stretching
+9.2. DOS 'view of time' and time stretching
 
    The time stretcher implements DOS 'view of time', as opposed to the
    system time. It would be very easy to just give DOS its time, by
@@ -2915,7 +3058,7 @@ er
    kernel resources.
      _________________________________________________________________
 
-8.3. Non-periodic timer modes in PIT
+9.3. Non-periodic timer modes in PIT
 
    Normally, PIT timer 0 runs in a periodic mode (mode 2 or 3), it counts
    down to 0 then it issues an int8 and reinitializes itself. But many
@@ -2938,7 +3081,7 @@ er
    that do not run under Win95 actually run under dosemu.
      _________________________________________________________________
 
-8.4. Fast timing
+9.4. Fast timing
 
    By "fast timing", I define a timer 0 period less than half of the
    Linux "jiffie" time (10ms). This is empirically determined - programs
@@ -2959,7 +3102,7 @@ er
    slow machines (386,486) - but it will maybe never work for all cases.
      _________________________________________________________________
 
-8.5. PIC/PIT synchronization and interrupt delay
+9.5. PIC/PIT synchronization and interrupt delay
 
    Another tricky issue... There are actually two timing systems for
    int8, the one connected to the interrupt in PIC, the other to port
@@ -2976,7 +3119,7 @@ er
    is restarted, the PIT must be reset too. And so on.
      _________________________________________________________________
 
-8.6. The RTC emulation
+9.6. The RTC emulation
 
    There is a totally new emulation of the CMOS Real Time Clock, complete
    with alarm interrupt. A process ticks at exactly 1sec, always in real
@@ -2987,7 +3130,7 @@ er
    CMOS and time-stretching features.
      _________________________________________________________________
 
-8.7. General warnings
+9.7. General warnings
 
    Do not try to use games or programs with hi-freq timers while running
    heavy tasks in the background. I tried to make dosemu quite robust in
@@ -2995,13 +3138,13 @@ er
    unplayable, the game could behave in unpredictable ways.
      _________________________________________________________________
 
-9. Pentium-specific issues in dosemu
+10. Pentium-specific issues in dosemu
 
    This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
    10, 1997
      _________________________________________________________________
 
-9.1. The pentium cycle counter
+10.1. The pentium cycle counter
 
    On 586 and higher CPUs the 'rdtsc' instruction allows access to an
    internal 64-bit TimeStamp Counter (TSC) which increments at the CPU
@@ -3023,14 +3166,14 @@ er
    486-style code).
      _________________________________________________________________
 
-9.2. How to compile for pentium
+10.2. How to compile for pentium
 
    There are no special options required to compile for pentium, the CPU
    selection is done at runtime by parsing /proc/cpuinfo. You can't
    override the CPU selection of the real CPU, only the emulated one.
      _________________________________________________________________
 
-9.3. Runtime calibration
+10.3. Runtime calibration
 
    At the very start of dosemu the bogospeed() function in
    base/init/config.c is called. This function first looks for the CPUID
@@ -3063,7 +3206,7 @@ er
    clock.
      _________________________________________________________________
 
-9.4. Timer precision
+10.4. Timer precision
 
    I found no info about this issue. It is reasonable to assume that if
    your CPU is specified to run at 100MHz, it should run at that exact
@@ -3076,7 +3219,7 @@ er
    the TSC.
      _________________________________________________________________
 
-9.5. Additional points
+10.5. Additional points
 
    The experimental 'time stretching' algorithm is only enabled when
    using the pentium (with or without TSC). I found that it is a bit
@@ -3091,9 +3234,9 @@ er
    in your configuration file.
      _________________________________________________________________
 
-10. The DANG system
+11. The DANG system
 
-10.1. Description
+11.1. Description
 
    The DANG compiler is a perl script which produces a linuxdoc-sgml
    document from special comments embedded in the DOSEMU source code.
@@ -3101,14 +3244,14 @@ er
    the benefit of hackers.
      _________________________________________________________________
 
-10.2. Changes from last compiler release
+11.2. Changes from last compiler release
 
      * Recognizes 'maintainer:' information.
      * '-i' (irritating) flag.
      * Corrections to sgml special character protection.
      _________________________________________________________________
 
-10.3. Using DANG in your code
+11.3. Using DANG in your code
 
    THE FOLLOWING MAY NOT SOUND VERY NICE, BUT IS INTENDED TO KEEP DANG AS
    IT WAS DESIGNED TO BE - A GUIDE FOR NOVICES.
@@ -3125,7 +3268,7 @@ er
    work. The comments are the responsibility of all of us.)
      _________________________________________________________________
 
-10.4. DANG Markers
+11.4. DANG Markers
 
    Some initial comments:
 
@@ -3145,7 +3288,7 @@ er
        users who are actually reading the SOURCE file.
      _________________________________________________________________
 
-10.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
+11.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
 
    These should enclose a piece of summary text at the start of a file.
    It should explain the purpose of the file. Anything on the same line
@@ -3177,7 +3320,7 @@ re
      */
      _________________________________________________________________
 
-10.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+11.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
 
    This is used to describe functions. Ideally this should only be
    complicated or important functions as this avoids cluttering DANG with
@@ -3209,7 +3352,7 @@ re
      */
      _________________________________________________________________
 
-10.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
+11.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
 
    This is used to provide in-context comments within the code. They can
    be used to describe some particularly interesting or complex code. It
@@ -3229,7 +3372,7 @@ pe
      */
      _________________________________________________________________
 
-10.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+11.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
 
    This is used to make a note of a new idea which we would like to have
    implemented, or an alternative way of coding something. This can be
@@ -3249,7 +3392,7 @@ pe
      */
      _________________________________________________________________
 
-10.4.5. DANG_FIXTHIS
+11.4.5. DANG_FIXTHIS
 
    This is for single line comments on an area which needs fixing. This
    should say where the fix is required. This may become a multi-line
@@ -3260,7 +3403,7 @@ pe
 b */
      _________________________________________________________________
 
-10.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+11.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
 
    This is not currently used. It should be placed around the CHANGES
    section in the code. It was intended to be used along with the DPR.
@@ -3268,7 +3411,7 @@ b */
    * No Example *
      _________________________________________________________________
 
-10.5. Usage
+11.5. Usage
 
    The current version of the configuration file resides in
    './src/doc/DANG'. The program needs to be told where to find this
@@ -3287,7 +3430,7 @@ b */
    markers, etc.
      _________________________________________________________________
 
-10.6. Future
+11.6. Future
 
    I have vaguelly started writing the successor of this program. This
    will be a more general program with a more flexible configuration
@@ -3296,7 +3439,7 @@ b */
    structure, as well as providing feedback on errors.
      _________________________________________________________________
 
-11. mkfatimage -- Make a FAT hdimage pre-loaded with files
+12. mkfatimage -- Make a FAT hdimage pre-loaded with files
 
    This section from Pasi Eronen <pe@iki.fi> (1995-08-28)
 
@@ -3314,7 +3457,7 @@ b */
    As always, comments, suggestions, etc. are welcome.
      _________________________________________________________________
 
-12. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
+13. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
 
    I have also attached (gzipped in MIME format) mkfatimage16.c, a
    modified version of mkfatimage which takes an additional switch [-t
@@ -3324,7 +3467,7 @@ b */
    DOS system within a big hdimage!
      _________________________________________________________________
 
-13. Documenting DOSEMU
+14. Documenting DOSEMU
 
    Effective from dosemu-1.0.1 the documentation format for DOSEMU is
    DocBook. Currently this is DocBook 3.0, but formatted in lower case
@@ -3338,7 +3481,7 @@ b */
    is the file ./src/doc/README/doc)
      _________________________________________________________________
 
-13.1. Sections
+14.1. Sections
 
    There are 5 section levels you can use. They are all automatically
    numbered. Your choices are:
@@ -3367,7 +3510,7 @@ b */
      * Each paragraph of text must be enclosed within <para>...</para>.
      _________________________________________________________________
 
-13.2. Emphasising text
+14.2. Emphasising text
 
    There is only one way to do this.
 
@@ -3375,7 +3518,7 @@ b */
           Emphasises text like this.
      _________________________________________________________________
 
-13.3. Lists
+14.3. Lists
 
    Here we have 3 useful types:
 
@@ -3407,7 +3550,7 @@ b */
     </variableList>
      _________________________________________________________________
 
-13.4. Quoting stuff
+14.4. Quoting stuff
 
    If you want to quote a small amount use <literal>...</literal>. eg:
        This is <literal>./src/doc/README/doc</literal>
@@ -3422,7 +3565,7 @@ b */
      most other characters should be OK.
      _________________________________________________________________
 
-13.5. Special Characters
+14.5. Special Characters
 
    Obviously some characters are going to need to be quoted. In general
    these are the same ones as HTML. The most common ones are:
@@ -3437,13 +3580,13 @@ b */
           &amp;
      _________________________________________________________________
 
-13.6. Cross-References & URLs
+14.6. Cross-References & URLs
 
    One of the extra feature that this lets us do is include URLs and
    cross-references.
      _________________________________________________________________
 
-13.6.1. Cross-References
+14.6.1. Cross-References
 
    These have 2 parts: a label, and a reference.
 
@@ -3456,7 +3599,7 @@ b */
    inserted automatically at site of the <xref>.
      _________________________________________________________________
 
-13.6.2. URLs
+14.6.2. URLs
 
    This is <ulink url="...">...</ulink>. The url will be active only for
    HTML. The text will be used at all times. eg:
@@ -3466,7 +3609,7 @@ b */
    Which will appear as See the DOSEMU website.
      _________________________________________________________________
 
-13.6.3. Email addresses
+14.6.3. Email addresses
 
    Whilst it is possible to do insert email addresses as URLs there is a
    better way. Simply enclose the address in <email>...</email>. eg:
@@ -3474,7 +3617,7 @@ b */
        <email>alistair@slitesys.demon.co.uk</email>
      _________________________________________________________________
 
-13.7. References
+14.7. References
 
    Here are a few other places to find information about writing using
    DocBook.
@@ -3492,9 +3635,9 @@ b */
           as this is now the preferred MarkUp for the LDP.
      _________________________________________________________________
 
-14. Sound Code
+15. Sound Code
 
-14.1. Current DOSEMU sound code
+15.1. Current DOSEMU sound code
 
    Unfortunately I haven't documented this yet. However, the current code
    has been completely rewritten and has been designed to support
@@ -3511,7 +3654,7 @@ b */
    cases).
      _________________________________________________________________
 
-14.2. Original DOSEMU sound code
+15.2. Original DOSEMU sound code
 
         Copyright (C) 1995  Joel N. Weber II
 
@@ -3569,7 +3712,7 @@ b */
    that....)
      _________________________________________________________________
 
-14.2.1. Reference
+15.2.1. Reference
 
    PC Game Programers Encyclopedia
    ftp://teeri.oulu.fi/pub/msdos/programming/gpe/
@@ -3579,15 +3722,15 @@ b */
    July 17, 1995
      _________________________________________________________________
 
-15. DMA Code
+16. DMA Code
 
-15.1. Current DOSEMU DMA code
+16.1. Current DOSEMU DMA code
 
    Unfortunately I haven't documented this yet. However, the current code
    has been completely rewritten from this.
      _________________________________________________________________
 
-15.2. Original DOSEMU DMA code
+16.2. Original DOSEMU DMA code
 
         DOSEMU DMA code
         Copyright (C) 1995  Joel N. Weber II
@@ -3642,7 +3785,7 @@ b */
    Pascal before that.
      _________________________________________________________________
 
-15.2.1. Adding DMA devices to DOSEMU
+16.2.1. Adding DMA devices to DOSEMU
 
    Read include/dma.h. In the dma_ch[] struct, you'll find some fields
    that don't exist on the real DMA controller itself. Those are for you
@@ -3653,7 +3796,7 @@ b */
    background, open the file with O_NONBLOCK.
      _________________________________________________________________
 
-15.2.2. References
+16.2.2. References
 
    PC Game Programers Encyclopedia
    ftp://teeri.oulu.fi/pub/msdos/programming/gpe/
@@ -3665,7 +3808,7 @@ b */
    like it that I can find in the Hawaii State Library System :-)
      _________________________________________________________________
 
-16. DOSEMU Programmable Interrupt Controller
+17. DOSEMU Programmable Interrupt Controller
 
    This emulation, in files picu.c and picu.h, emulates all of the useful
    features of the two 8259 programmable interrupt controllers. Support
@@ -3695,7 +3838,7 @@ b */
    Reads of both PICs ports are supported completely.
      _________________________________________________________________
 
-16.1. Other features
+17.1. Other features
 
      * Support for 16 additional lower priority interrupts. Interrupts
        are run in a fully nested fashion. All interrupts call dosemu
@@ -3720,7 +3863,7 @@ b */
        trigger an interrupt.
      _________________________________________________________________
 
-16.2. Caveats
+17.2. Caveats
 
    OCW2 support is not exactly correct for IRQs 8 - 15. The correct
    sequence is that an OCW2 to PIC0 enables IRQs 0, 1, 3, 4, 5, 6, and 7;
@@ -3748,7 +3891,7 @@ b */
    this way.
      _________________________________________________________________
 
-16.3. Notes on theory of operation:
+17.3. Notes on theory of operation:
 
    The documentation refers to levels. These are priority levels, the
    lowest (0) having highest priority. Priority zero is reserved for use
@@ -3772,9 +3915,9 @@ b */
    quite common.
      _________________________________________________________________
 
-16.3.1. Functions supported from DOSEMU side
+17.3.1. Functions supported from DOSEMU side
 
-16.3.1.1. Functions that Interface with DOS:
+17.3.1.1. Functions that Interface with DOS:
 
    unsigned char read_picu0(port), unsigned char read_picu1(port)
           should be called by the i/o handler whenever a read of the PIC
@@ -3839,7 +3982,7 @@ b */
           situation, and pops the real flags, cs, and ip.
      _________________________________________________________________
 
-16.3.2. Other Functions
+17.3.2. Other Functions
 
    void run_irqs()
           causes the PIC code to run all requested interrupts, in
@@ -3890,7 +4033,7 @@ b */
           activated.
      _________________________________________________________________
 
-16.4. A (very) little technical information for the curious
+17.4. A (very) little technical information for the curious
 
    There are two big differences when using pic. First, interrupts are
    not queued beyond a depth of 1 for each interrupt. It is up to the
@@ -3904,13 +4047,13 @@ b */
    there is anything in the scan_queue.
      _________________________________________________________________
 
-17. DOSEMU debugger v0.6
+18. DOSEMU debugger v0.6
 
    This section written on 98/02/08. Send comments to Max Parke
    <mhp@light.lightlink.com> and to Hans Lermen <lermen@fgan.de>
      _________________________________________________________________
 
-17.1. Introduction
+18.1. Introduction
 
    This is release v0.6 of the DOSEMU debugger, with the following
    features:
@@ -3941,7 +4084,7 @@ b */
      * code base is on dosemu-0.97.2.1
      _________________________________________________________________
 
-17.2. Usage
+18.2. Usage
 
    To run, start up DOSEMU. Then switch to another virtual console (or
    remote login or use another xterm) and do:
@@ -3970,7 +4113,7 @@ b */
    code.
      _________________________________________________________________
 
-17.3. Commands
+18.3. Commands
 
    See mhpdbgc.c for code and cmd table.
 
@@ -3984,7 +4127,7 @@ b */
 
    kill
           Kill the dosemu process (this may take a while, so be patient)
-          See also Section 19
+          See also Section 20
 
    console n
           Switch to console n
@@ -4132,26 +4275,26 @@ b */
     5. a dollar sign($): SS:SP (ss:esp)
      _________________________________________________________________
 
-17.4. Performance
+18.4. Performance
 
    If you have dosemu compiled with the debugger support, but the
    debugger is not active and/or the process is not stopped, you will not
    see any great performance penalty.
      _________________________________________________________________
 
-17.5. Wish List
+18.5. Wish List
 
    Main wish is to add support for hardware debug registers (if someone
    would point me in the direction, what syscalls to use, etc.) Then you
    could breakpoint on memory reads/writes, etc!
      _________________________________________________________________
 
-17.6. BUGS
+18.6. BUGS
 
    There must be some.
      _________________________________________________________________
 
-17.6.1. Known bugs
+18.6.1. Known bugs
 
      * Though you may set breakpoints and do singlestep in Windows31,
        this is a 'one shot': It will bomb after you type 'g' again. ( I
@@ -4175,7 +4318,7 @@ b */
        disabled.
      _________________________________________________________________
 
-18. MARK REJHON'S 16550 UART EMULATOR
+19. MARK REJHON'S 16550 UART EMULATOR
 
    The ./src/base/serial directory contains Mark Rejhon's 16550A UART
    emulation code.
@@ -4216,7 +4359,7 @@ b */
    Public License (GPL). See end of this file for more information.
      _________________________________________________________________
 
-18.1. PROGRAMMING INFORMATION
+19.1. PROGRAMMING INFORMATION
 
    Information on a 16550 is based on information from HELPPC.EXE 2.1 and
    results from National Semiconductor's COMTEST.EXE diagnostics program.
@@ -4274,7 +4417,7 @@ b */
                      com[i].real_comport, com[i].base_port);
      _________________________________________________________________
 
-18.2. DEBUGGING HELP
+19.2. DEBUGGING HELP
 
    If you require heavy debugging output for serial operations, please
    take a look in ./ser_defs.h for the following defines:
@@ -4297,7 +4440,7 @@ b */
           super-heavy FOSSIL debug output, including all status checks.
      _________________________________________________________________
 
-18.3. FOSSIL EMULATION
+19.3. FOSSIL EMULATION
 
    The FOSSIL emulation requires a memory-resident DOS module,
    FOSSIL.COM. If you don't load it, the code in fossil.c does nothing,
@@ -4315,7 +4458,7 @@ b */
    sender with flow control (I'm not sure why).
      _________________________________________________________________
 
-18.4. COPYRIGHTS
+19.4. COPYRIGHTS
 
    Most of the code in the DOSEMU 'serial' subdirectory is: Copyright (C)
    1995 by Mark D. Rejhon <marky@magmacom.com> with the following
@@ -4337,7 +4480,7 @@ b */
    License, or (at your option) any later version.
      _________________________________________________________________
 
-19. Recovering the console after a crash
+20. Recovering the console after a crash
 
    The below is a mail from Kevin Buhr <buhr@stat.wisc.edu> , that was
    posted on linux-msdos some time ago. Because it describes a way to
@@ -4370,7 +4513,7 @@ b */
              on the console you switched to.
      _________________________________________________________________
 
-19.1. The mail message
+20.1. The mail message
 
     Date: Fri, 21 Apr 95 14:16 CDT
     To: tegla@katalin.csoma.elte.hu
@@ -4468,7 +4611,7 @@ b */
     }
      _________________________________________________________________
 
-20. Net code
+21. Net code
 
      * Added support for multiple type handling. So it does type
        demultiplexing within dosemu.
@@ -4503,13 +4646,13 @@ b */
    Vinod <vinod@cse.iitb.ernet.in>
      _________________________________________________________________
 
-21. Software X386 emulation
+22. Software X386 emulation
 
    This section written in a hurry by Alberto Vignani
    <vignani@mbox.vol.it> , Oct 20, 1997
      _________________________________________________________________
 
-21.1. The CPU emulator
+22.1. The CPU emulator
 
    The CPU emulator has been derived from <the Twin Willows libraries>.
    Only the relevant parts of the library, namely the /intp32
@@ -4589,13 +4732,13 @@ b */
    reached, it truncates the file to zero and continues writing to it.
      _________________________________________________________________
 
-22. MFS and National Language Support
+23. MFS and National Language Support
 
    This section written by Oleg V. Zhirov <O.V.Zhirov@inp.nsk.su> , Aug
    3, 1998
      _________________________________________________________________
 
-22.1. MFS and National Language Support
+23.1. MFS and National Language Support
 
    Main problem is that *nix and DOS uses codesets, which can differ. So,
    in Russia the most popular codeset for *nix is koi8-r, while DOS
@@ -4645,7 +4788,7 @@ b */
        shortnames.
      _________________________________________________________________
 
-22.2. Patching of MFS
+23.2. Patching of MFS
 
    Presented patch of MFS cures problem (3) only. Summary of
    modification:
@@ -4718,7 +4861,7 @@ b */
    long filenames, and files with long filenames are irrelevant.
      _________________________________________________________________
 
-22.3. TODO:
+23.3. TODO:
 
     1. In Linux kernel: Cure in VFAT module upper/lowercase bugs for
        ascii>127.

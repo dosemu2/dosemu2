@@ -15,6 +15,15 @@ SCRIPT=getrom
 
 all: $(OBJ)
 
+$(SRC):	bootsect.h
+
+bootsect.h:	bootsect.S
+	$(LD) -x assembler -Wa,-a -Wl,-Ttext,7c40,-e,_start16,--oformat,binary -nostdlib -s -o $@.tmp $< > $<.out
+	hexdump -v -e '"\n" 8/1 " 0x%02x,"' $@.tmp | sed -e 's/ 0x  ,//g' >$@.tmp2
+	echo "XXX" >>$@.tmp2
+	sed -e 's/,XXX//' <$@.tmp2 >$@
+	rm -f $@.tmp $@.tmp2
+
 bootsect: bootsect.S
 	$(LD) -traditional -nostdlib -Wl,-Ttext,0,-e,_start16,--oformat,binary -s -o $@ $< # -Wa,-a > bootsect.lst
 
@@ -37,6 +46,7 @@ checkout:
 
 clean:
 	rm -f $(OBJ) *.o
+	rm -f *.out bootsect.h
 
 realclean: clean
 

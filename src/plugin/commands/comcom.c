@@ -6,7 +6,7 @@
  */
 
 /*
- * DOSEMU build-in COMMAND>COM
+ * DOSEMU built-in COMMAND.COM
  *
  * Copyright (c) 2001 Hans Lermen <lermen@fgan.de>
  *
@@ -111,6 +111,7 @@ struct res_dta {
 	int envsize;	/* size of enlarged enviroment */
 	int option_p;	/* 1 = this command.com is primary */
 	int cannotexit;	/* 1 = this command.com cannot exit safely */
+	char toplevel;	/* 1 = toplevel command.com */
 	int break_pending;
 	int fatal_handler_return_possible;
 	struct vm86_regs fatal_handler_return_regs;
@@ -222,8 +223,11 @@ void load_comcom_history(char *fname)
 			else histi = (i - 1) & ~(-HISTMAX);
 			break;
 		}
-		len = strlen(buf) -1;
+
+		len = strlen(buf) - 1;
+		if (len < 0) continue;
 		if (len > 126) len = 126;
+
 		memcpy(history[i]+1, buf, len);
 		history[i][0] = len;
 		history[i][len+1] = '\r';
@@ -246,7 +250,7 @@ static void builtin_funct0a(char *buf)
 	int count, cursor, winstart, attrib;
 	int screenw, screenpage, posx, posy, leftmostx, linelen;
 	int dumbterm = config.cardtype == CARD_NONE;
-	
+
 	void start_line()
 	{
 		screenw = com_biosvideo(0x0f00) >> 8;
@@ -311,7 +315,12 @@ static void builtin_funct0a(char *buf)
 		if (count > linelen) {
 			if (cursor >= linelen) { /* shift right */
 				if ((count - winstart) > linelen) {
-					winstart++;
+					int currentchar = winstart + cursor;
+
+					if (currentchar > count)
+						currentchar = count;
+					winstart = currentchar - linelen;
+
 					forcerefresh = 1;
 				}
 				cursor = linelen;
@@ -332,14 +341,17 @@ static void builtin_funct0a(char *buf)
 				return;
 			}
 		}
+
 		if (!forcerefresh) {
 			setcursorpos(cursor);
 			return;
 		}
 		len = count - winstart;
 		if (len > linelen) len = linelen;
+
 		memcpy(b, p+winstart, len);
 		memset(b+len, ' ', linelen - len);
+
 		if (dumbterm) {
 			refresh_dumb(len);
 			setcursorpos(cursor);
@@ -358,21 +370,34 @@ static void builtin_funct0a(char *buf)
 
 	void insert(int c)
 	{
-		int i, j = cursor+winstart;
-		for (i=count; i > j; i--) p[i] = p[i-1];
+		int i, j = winstart + cursor;
+		for (i = count; i > j; i--) p[i] = p[i-1];
 		p[j] = c;
 		count++;
 		cursor++;
+	}
+
+	void insertstring(const char *s, const int len)
+	{
+		int i, j = winstart + cursor;
+
+		for (i = count - 1; i >= j; i--)
+			p [i + len] = p [i];
+		memcpy (p + j, s, len);
+
+		count += len;
+		cursor += len;
 	}
 
 	void delete(int pos)
 	{
 		int i, j = cursor+pos+winstart;
 		if (j < 0) return;
-		for (i=j; i <= count; i++) p[i] = p[i+1];
+		for (i=j; i < count - 1; i++) p[i] = p[i+1];
 		count--;
 		cursor = cursor+pos;
 		if (cursor < 0) cursor = 0;
+		if (winstart + cursor > count) cursor = count - winstart;
 		if (count >= linelen && winstart > 0) {
 			winstart--;
 			cursor++;
@@ -419,13 +444,120 @@ static void builtin_funct0a(char *buf)
 
 	int readline(char *buf)
 	{
-		int c;
+		int c, d;
+
+		/* note: not a true implementation of the "template"-based command-line completion keys... */
+		int h = histi & ~(-HISTMAX);
+		char *template_len = NULL, *template = NULL;
+		if (!history_empty)
+		{
+			template_len = history [h] + 0;
+			template = history [h] + 1;
+		}
+
 		p = buf+1;
 		start_line();
 		count = cursor = 0;
 		while (1) {
-		    c = getkey();
-		    switch (c) {
+			c = getkey();
+			switch (c) {
+			case 0x013B:	/* F1 */
+				if (!history_empty) {
+					int l = winstart + cursor;
+
+					if (count > 126) break;
+
+					if (l < *template_len) {
+						insert (template [l]);
+						update_display (1);
+					}
+				}
+				break;
+
+#define minimum(a,b) ((a)<(b)?(a):(b))
+
+			case 0x013C:	/* F2 */
+				d = getkey();
+
+				if (!history_empty) {
+					int l = winstart + cursor;
+
+					if (l < *template_len) {
+						char *start = template + l;
+						char *loc;
+						if ((loc = strchr (start, d)) != NULL) {
+							/* copy up to the character specified in the template
+								(but not including that character) */
+							int len = minimum (loc - start, 127 - count);
+							insertstring (template + l, len);
+							update_display(1);
+						}
+					}
+				}
+				break;
+
+			case 0x013D:	/* F3 */
+				if (!history_empty) {
+					int l = winstart + cursor;
+
+					if (l < *template_len) {
+						int len = minimum (*template_len - l, 127 - count);
+						insertstring (template + l, len);
+						update_display(1);
+					}
+				}
+				break;
+
+#undef minimum
+
+		/* can't implement this because Del is already used for comcom history */
+		#if 0
+			case 0x0153:		/* Del */
+				if (!history_empty) {
+					int l = winstart + cursor;
+
+					if (l < *template_len) {
+						int i;
+
+						for (i = l + 1; i <= *template_len	/* +NUL */; i++)
+							template [i - 1] = template [i];
+
+						(*template_len)--;
+					}
+				}
+				break;
+		#endif
+
+			case 0x013E:	/* F4 */
+				d = getkey();
+
+				if (!history_empty) {
+					int l = winstart + cursor;
+
+					if (l < *template_len) {
+						char *start = template + l;
+						char *loc;
+						if ((loc = strchr (start, d)) != NULL) {
+							char *left = start, *right = loc;
+
+							/* delete up to the character specified in the template
+								(but not including that character) */
+							for (; *right; left++, right++)
+								*left = *right;
+							*left = '\0';
+
+							(*template_len) -= (loc - start);
+						}
+					}
+				}
+				break;
+
+			/* any volunteers? */
+			case 0x013F:		/* F5 */
+			case 0x0140:		/* F6 */
+			case 0x0152:		/* INS */
+				break;
+
 			case 0x014D:	/* right arrow key */
 			    cursor++;
 			    update_display(0);
@@ -451,12 +583,14 @@ static void builtin_funct0a(char *buf)
 				update_display(1);
 			    }
 			    break;
+		#if 1
 			case 0x0153:		/* Del */
-			    if (count > 0) {
+			    if (count > 0 && winstart + cursor < count) {
 				delete(0);
 				update_display(1);
 			    }
 			    break;
+		#endif
 			case 0x0147:		/* Home key */
 			case 'A' & ~0x40:	/* ^A */
 			    cursor = 0;
@@ -478,10 +612,14 @@ static void builtin_funct0a(char *buf)
 			    putkey('^'); putkey('C');
 			    buf[0] = p[0] = 0;
 			    return 0;
+			case 'Z' & ~0x40:	/* ^Z */
+			    putkey('^'); putkey('Z');
+				 update_display(1);
+				 break;
 			case 32 ... 126:
 			case 128 ... 255:
 			    if (count > 126) break;
-			    if (cursor < linelen) {
+			    if (winstart + cursor < count) {
 				insert(c);
 			    }
 			    else {
@@ -869,8 +1007,9 @@ static int com_exist_dir(char *dir)
 
 static int com_exist_executable(char *buf, char *file)
 {
+	/* now, _this_ is the correct order of execution! */
 	char *extlist[] = {
-		"bat", "com", "exe"
+		"com", "exe", "bat"
 	};
 	int len = strlen(file);
 	char *p = strcpy(buf, file) +len;
@@ -905,7 +1044,7 @@ static int scan_path_env(char *buf, char **argv)
 	i = com_exist_executable(buf, program);
 	if (i) {
 		if (!argi) return i;
-		if (i == 1) return 11;
+		if (i == 3) return 11;
 	}
 	if (!path) return 0;	/* no chance to find it elsewhere */
 	path = strcpy(buf_, path);
@@ -916,7 +1055,7 @@ static int scan_path_env(char *buf, char **argv)
 		i = com_exist_executable(buf, buf);
 		if (i) {
 			if (!argi) return i;
-			if (i == 1) return 11;
+			if (i == 3) return 11;
 		}
 		if (!p) break;
 		path = p+1;
@@ -1050,7 +1189,7 @@ static int kbdask(char *answerlist, char *fmt, ...)
 	}
 	len = i;
 	s[(i<<1)-1] = 0;
-	com_fprintf(2, " (%s)", s);
+	com_fprintf(2, " (%s)?", s);
 	while (1) {
 		key = getkey();
 		if (key == 3) return -1;
@@ -1061,7 +1200,7 @@ static int kbdask(char *answerlist, char *fmt, ...)
 	}
 }
 
-/* ---------------- internal command --------------------- */
+/* ---------------- internal commands --------------------- */
 
 
 static int cmd_echo(int argc, char **argv) {
@@ -1069,14 +1208,13 @@ static int cmd_echo(int argc, char **argv) {
 	char buf[256] = "";
 	int fd = 2;
 
-	if (argv[0][4]) {
-		if (ECHO_ON) com_printf("\n");
+	/* "echo" */
+	if (argc == 1 && argv[0][4] != '.') {
+		com_printf("ECHO is %s\n", ECHO_ON ? "on" : "off");
 		return 0;
 	}
-	if (argc == 1) {
-		com_printf("ECHO is %s\n", ECHO_ON ? "ON" : "OFF");
-		return 0;
-	}
+
+	/* "echo on" or "echo off" */
 	if (argc == 2) {
 		if (!strcasecmp(argv[1], "off")) {
 			ECHO_ON = 0;
@@ -1089,22 +1227,28 @@ static int cmd_echo(int argc, char **argv) {
 	}
 	if (argc > 1) concat_args(buf, 1, argc-1, argv);
 	if (bdta && bdta->stdoutredir) fd = 1;
+
+	/* "echo." --> "" and "echo. message" --> " message" */
+	if (argv[0][4] == '.' && argc > 1) com_fprintf (fd, " ");
+
+	/* "message" */
 	com_fprintf(fd, "%s\n", buf);
+
 	return 0;
 }
 
 static int cmd_pause(int argc, char **argv) {
 	CMD_LINKAGE;
-	char tx[] = "Press any key to continue ...";
+	char tx[] = "Press any key to continue ...\n";
 	int c;
 
-	com_doswrite(2, tx, sizeof(tx)-1);
+	com_printf (tx);
 	c = getkey();
 	if ((c &255) == ('C' & ~0x40)) {
-		rdta->break_pending++;
-		com_doswrite(2, "^C", 2);
+		/*rdta->break_pending++;*/
+		com_printf ("^C");
 	}
-	com_doswrite(2, "\r\n", 2);
+	com_printf("\r\n");
 	return 0;
 }
 
@@ -1228,15 +1372,6 @@ static int cmd_for(int argc, char **argv)
 		}
 	} while (p);
 
-	/* transform dir/p to dir /p and cd\ to cd \ */
-	printf("\n%s\n", replbuf);
-	p = replbuf;
-	while (isalnum(*p)) p++;
-	if (*p == '\\' || *p == '/') {
-		memmove(p+1, p, sizeof(replbuf) - (p - replbuf) - 1);
-		*p = ' ';
-	}
-
 	/* Ok, now for the real work */
 	for (i=g1; i <= gn; i++) {
 		if (strpbrk(argv[i], "*?")) {
@@ -1346,7 +1481,11 @@ static int cmd_cd(int argc, char **argv)
 		return 0;
 	}
 	if (s[1] && s[1] == ':') {
-		com_dossetdrive(toupper(s[0]) -'A');
+		int d = toupper(s[0]) - 'A';
+		com_dossetdrive(d);
+		if (com_dosgetdrive () != d)
+			return 0x0F; 	/* invalid drive */
+		
 		s += 2;
 	}
 	ret = com_dossetcurrentdir(s);
@@ -1390,7 +1529,7 @@ static int cmd_del(int argc, char **argv)
 		if (dta->attrib & DOS_ATTR_PROTECTED) return 0;
 		strcpy(s+len, dta->name);
 		if (opt_p) {
-			int c = kbdask("yN", "%s, delete?", s);
+			int c = kbdask("yN", "%s,    Delete", s);
 			if (c < 0) {
 				com_fprintf(2, "^C\n");
 				return 1;
@@ -1402,7 +1541,7 @@ static int cmd_del(int argc, char **argv)
 		return 0;
 	}
 
-	opt_p = findoption("/p", argc-1, argv+1);
+	opt_p = findoption_remove("/p", &argc, argv);
 
 	if (!argv[1] || com_exist_dir(argv[1])) {
 		return DOS_EINVAL;
@@ -1412,6 +1551,8 @@ static int cmd_del(int argc, char **argv)
 		if (delit()) return 0;
 		while (!com_dosfindnext()) if (delit()) return 0;
 	}
+	else
+		return DOS_ENOENT;
 	return 0;
 }
 
@@ -1442,12 +1583,13 @@ static int cmd_dir(int argc, char **argv)
 	int cachei = 0;
 	char dirname[128];
 	int dirnamelen;
-	unsigned num_files=0, num_bytes=0;
+	unsigned num_files=0, num_dirs=0, num_bytes=0;
 	char *p, wildcard[256] = "*.*";
 	int i, c;
 	int opt_p, opt_w, opt_l, opt_b, opt_a;
 	int incmask = DOS_ATTR_ALL | 0x80;
 	int excmask = DOS_ATTR_HIDDEN | DOS_ATTR_SYSTEM;
+	char commastring [100];
 
 	int expand_wild(char *b)
 	{
@@ -1479,8 +1621,16 @@ static int cmd_dir(int argc, char **argv)
 		if (!dta->attrib) dta->attrib = 0x80;
 		if (excmask & dta->attrib) return;
 		if (!(incmask & dta->attrib)) return;
-		num_files++;
-		num_bytes += dta->filesize;
+
+		if (dta->attrib & DOS_ATTR_DIR) {
+			/* directories do not have a size in DOS */
+			num_dirs++;
+		}
+		else {
+			num_files++;
+			num_bytes += dta->filesize;
+		}
+
 		memcpy(cache+(cachei++), &dta->attrib, sizeof(struct tiny_dta));
 	}
 
@@ -1488,6 +1638,32 @@ static int cmd_dir(int argc, char **argv)
 	{
 		if (!cachei) return;
 		qsort(cache, cachei, sizeof(struct tiny_dta), qsort_dircmp);
+	}
+
+	/* returns num as a string, with commas separating groups of 3 digits */
+	char *get_comma_string (const unsigned num)
+	{
+		int i;
+		char *s;
+		int modres;
+		
+		char number [100];	/* "10^(100-1) bytes ought to be enough for anybody" :) */
+		int number_len;
+		
+		sprintf (number, "%u", num);
+		number_len = strlen (number);
+		
+		modres = number_len % 3;
+
+		s = commastring;
+		for (i = 0; i < number_len; i++)
+		{
+			if (i && i % 3 == modres) *s++ = ',';
+			*s++ = number [i];
+		}
+		*s++ = '\0';
+
+		return commastring;
 	}
 
 	void displ_b(int i)
@@ -1504,7 +1680,7 @@ static int cmd_dir(int argc, char **argv)
 			sprintf(b, "[%s]", f);
 			f = b;
 		}
-		if ((i % 5) == 4) com_printf("%s\n", f);
+		if (i % 5 == 4) com_printf("%s\n", f);
 		else com_printf("%-16s", f);
 	}
 
@@ -1514,15 +1690,23 @@ static int cmd_dir(int argc, char **argv)
 		int d = e->filedate;
 		int t = e->filetime;
 		char *p = strchr(e->name, '.');
-		if (p) *p++ = 0;
+		if (e->name [0] != '.' && p) *p++ = 0;
 		else p = "";
-		com_printf("%-9s%-4s%-5s%8d %02d-%02d-%02d   %2d:%02d\n",
-			e->name, p,
-			(e->attrib & DOS_ATTR_DIR) ? "<DIR>" : "",
-			e->filesize,
-			(d>>5) & 15, d & 31,
+
+		/* <DIR> sizes are not displayed among other things */
+		if (e->attrib & DOS_ATTR_DIR)
+			com_printf("%-9s%-4s  <DIR>        ", e->name, p);
+		else
+			com_printf("%-9s%-3s%14s  ", e->name, p, get_comma_string (e->filesize));
+
+		/* display date and time */
+		com_printf ("%02d-%02d-%02d %2d:%02d%c\n",
+					(d>>5) & 15,
+					d & 31,
 			(d>>9) < 20 ? (d>>9) + 80 : (d>>9) - 20,
-			(t>>11), (t>>5) & 63
+					((t>>11) % 12) + (((t>>11) % 12) ? 0 : 12),
+					(t>>5) & 63,
+					(t>>11) >= 12 ? 'p' : 'a'
 		);
 	}
 
@@ -1550,10 +1734,11 @@ static int cmd_dir(int argc, char **argv)
 		int ret;
 		if (opt_b) return;
 		ret = com_dosgetfreediskspace(toupper((dirname[0])-'A')+1, info);
-		com_printf("\n  %10d file(s)   %10ld bytes\n",
-			num_files, num_bytes);
-		com_printf("                       %10lu bytes free\n\n",
-			info[0] * info[1] * info[2]);
+
+		com_printf("%10d file(s) %14s bytes\n",
+						num_files, get_comma_string (num_bytes));
+		com_printf("%10d dir(s)  %14s bytes free",
+						num_dirs, get_comma_string (info[0] * info[1] * info[2]));
 	}
 
 	void display_it(void)
@@ -1570,6 +1755,8 @@ static int cmd_dir(int argc, char **argv)
 			if (opt_l) strlower(cache[i].name);
 			(*(xx))(i);
 		}
+		if (xx == displ_w && --i % 5 < 4)
+			printf ("\n");
 		displ_footer();
 	}
 
@@ -1623,12 +1810,15 @@ static int cmd_dir(int argc, char **argv)
 	i = expand_wild(wildcard);
 	if (i) return i;
 	dirnamelen = mkstemm(dirname, wildcard, 1);
+	/* strip trailing \ if not root */
+	if (dirname [dirnamelen - 1] == '\\' && dirnamelen != 3)
+		dirname [--dirnamelen] = '\0';
 
 	if (!com_dosfindfirst(wildcard, incmask & 0x7f)) {
 		cache_it();
 		while (!com_dosfindnext()) cache_it();
 	}
-	if (!num_files) return DOS_ENOENT;
+	if (!num_files && !num_dirs) return DOS_ENOENT;
 	sort_it();
 	display_it();
 	flush_it();
@@ -1861,7 +2051,7 @@ static int cmd_copy(int argc, char **argv)
 		refused_overwrite = 0;
 		if (!prompt_overwrite) return 0;
 		if (com_exist_file(name)) {
-			c = kbdask("yNa", "file %s exists, overwrite?", name);
+			c = kbdask("yNa", "file %s exists, overwrite", name);
 			if (c < 0) {
 				 com_fprintf(2, "^C\n");
 				 return -1;
@@ -2395,7 +2585,7 @@ static int cmd_rmdir(int argc, char **argv)
 static int cmd_date(int argc, char **argv)
 {
 	static char *dtable[] = {
-		"Sun", "Mon", "Tus", "Wed", "Thu", "Fri", "Sat", "Oooch?"
+		"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Oooch?"
 	};
 	char buf[128];
 	int ret, option_q = 0;
@@ -2431,7 +2621,7 @@ static int cmd_date(int argc, char **argv)
 	if (argc == 1 || option_q) {
 		int date = com_dosgetdate(); /* 0x0YYYWMDD */
 		com_printf(
-		  "Current date is %s %d-%d-%d\n",
+		  "Current date is %s %02d-%02d-%d\n",
 		  dtable[ (date>>12) & 7],
 		  (date>>8) & 15, date & 255, date >> 16
 		);
@@ -2439,13 +2629,11 @@ static int cmd_date(int argc, char **argv)
 		com_printf("Enter date (mm-dd-yy): ");
 		buf[0] = 0;
 		ret = changedate(buf);
-		com_printf("\n");
 		if (!ret) return 0;
 		return DOS_EINVAL;
 	}
 
 	if (argc == 2) {
-		com_printf("\n");
 		ret = changedate(argv[1]);
 		if (!ret) return 0;
 	}
@@ -2488,8 +2676,12 @@ static int cmd_time(int argc, char **argv)
 	if (argc == 1 || option_q) {
 		int time = com_dosgettime(); /* format: 0xHHMMSSss */
 		com_printf(
-		  "Current time is %02d:%02d:%02d.%02d\n",
-		  time>>24, (time>>16) & 255, (time>>8) & 255, time & 255
+		  "Current time is %2d:%02d:%02d.%02d%c\n",
+		  ((time>>24) % 12) + (((time>>24) % 12) ? 0 : 12),
+		  (time>>16) & 255,
+		  (time>>8) & 255,
+		  time & 255,
+		(time>>24) >= 12 ? 'p' : 'a'
 		);
 		if (option_q) return 0;
 		com_printf("Enter new time: ");
@@ -2572,8 +2764,6 @@ static int cmd_which(int argc, char **argv)
 	return EXITCODE;	/* ... don't change */
 }
 
-
-
 static int cmd_cls(int argc, char **argv)
 {
 	int cols, page;
@@ -2591,6 +2781,28 @@ static int cmd_cls(int argc, char **argv)
 	LWORD(edx) = 0;
 	HI(bx) = page;
 	com_biosvideo(0x200);	/* set cursor to 0:0 */
+	return 0;
+}
+
+static int cmd_truename(int argc, char **argv)
+{
+	char buf [256];
+
+	/* too many parameters.. */
+	if (argc > 2) {
+		com_fprintf (2, "Too many parameters - %s\n", argv[2]);
+		return 0;
+	}
+
+	/* this is what the real command does :) */
+	if (!strcmp (argv [1], "/?")) {
+		com_printf ("Reserved command name\n");
+		return 0;
+	}
+
+	com_doscanonicalize (buf, argc == 1 ? "" : argv [1]);
+	com_printf ("\n%s\n", buf);
+
 	return 0;
 }
 
@@ -2654,13 +2866,9 @@ struct cmdlist intcmdlist[] = {
 	{"time",	cmd_time, 0},
 	{"dir",		cmd_dir, 0},
 	{"copy",	cmd_copy, 0},
-	{"which",	cmd_which, 0},
+	{"which",	cmd_which, 0},	/* strictly speaking, this is not a DOS command */
 	{"cls",		cmd_cls, 0},
-
-#if 0
-/* not yet implemented, but available as standalone programs:  */
-	{"choice",	cmd_choice, 0},
-#endif
+	{"truename",	cmd_truename, 0},
 
 	/* DOSEMU special support commands */
 
@@ -2694,8 +2902,20 @@ static int do_internal_command(int argc, char **argv)
 	char *arg0 = argv[0];
 	int ret;
 	if (isalpha(arg0[0]) && arg0[1] && !arg0[2] && arg0[1] == ':') {
-		com_dossetdrive(toupper(arg0[0]) -'A');
-		return 0;
+		int d = toupper(arg0[0]) - 'A';
+		com_dossetdrive(d);
+		if (com_dosgetdrive () != d) {
+#if 1
+			/* messages like 'm:: invalid drive' look rather strange so we fake a message instead :) */
+			com_fprintf(2, "Invalid drive specification\n");
+			return 0;
+#else
+			setexitcode (0x0F, -2);	/* invalid drive */
+			return -1;
+#endif
+		}
+		else
+			return 0;
 	}
 	for (; cmd->name; cmd++) {
 		if (strcasecmp(arg0,cmd->name)) continue;
@@ -2829,16 +3049,14 @@ static int dopath_exec(int argc, char **argv)
 	    }
 	}
 
-
-	/* check for explicite redirections and remove them from argv */
+	/* check for explicit redirections and remove them from argv */
 	for (i=1; i <argc; i++) {
 	    switch (argv[i][0]) {
 		case '>':
-			if (argv[i][1]) argv[i]++;
-			if (argv[i][0] == '>') {
+			if (argv [i][1] == '>')
 				redir_out_append = 1;
-				argv[i]++;
-			}
+			argv [i] += (redir_out_append + 1);
+			
 			if (!argv[i][0]) argc = remove_arg(i, argc, argv);
 			if (redir_out || !argv[i]) {
 				redir_out_append = 0;
@@ -2851,7 +3069,7 @@ static int dopath_exec(int argc, char **argv)
 			redir_out_append = 0;
 			break;
 		case '<':
-			if (argv[i][1]) argv[i]++;
+			argv[i]++;	/* skip past '<' */
 			if (!argv[i][0]) argc = remove_arg(i, argc, argv);
 			if (!redir_in) redir_in =
 				com_redirect_stdxx(argv[i], &redir_stdin, 0);
@@ -2904,7 +3122,7 @@ static int dopath_exec(int argc, char **argv)
 #endif
 
 	switch (scan_path_env(name, argv)) {
-	    case 1:
+	    case 3:
 		ret = command_inter_preter_loop(1, name, argc, argv);
 		break;
 	    case 11:
@@ -2941,8 +3159,11 @@ static int dopath_exec(int argc, char **argv)
 		);
 		rdta->need_errprinting = 0;
 	}
+
 	com_restore_redirect(&redir_stdin);
 	com_restore_redirect(&redir_stdout);
+
+	if (ECHO_ON) com_fprintf (2, "\n");
 	return ret;
 }
 
@@ -3039,7 +3260,7 @@ static int command_inter_preter_loop(int batchmode, char *batchfname,
 		char *argv[MAXARGS];
 		int argc;
 
-		if (!bdta.mode) print_prompt(2);
+		if (!bdta.mode && ECHO_ON) print_prompt(2);
 		ret = read_next_command();
 		if (BREAK_PENDING) {
 		    if (bdta.parent && bdta.parent->mode) {
@@ -3059,14 +3280,22 @@ static int command_inter_preter_loop(int batchmode, char *batchfname,
 		bdta.argcsub = bdta.argc = argc; /* save positional variables */
 		bdta.argvsub = bdta.argv = argv;
 		bdta.argshift = 0;
-		if (!bdta.mode && !rdta->cannotexit
-				&& !strcasecmp(argv[0], "exit")) {
-			rdta->exitcode = 0;
-			ret = 0;
-			break;
+		if (!strcasecmp (argv [0], "exit")) {
+			if (!bdta.mode && !rdta->cannotexit) {
+				rdta->exitcode = 0;
+				ret = 0;
+				
+				if (rdta->toplevel)
+					leavedos (0);
+				else
+					break;
+			}
+			if (ECHO_ON) com_fprintf (2, "\n");
 		}
-		ret = dopath_exec(argc, argv);
+		else
+			ret = dopath_exec(argc, argv);
 	};
+
 	ECHO_ON = saved_echo_on;
 	
 	if (bdta.mode == 1) {
@@ -3307,13 +3536,15 @@ int comcom_main(int argc, char **argv)
 	int argcX;
 	char *argvX[] = {0,0};
 	int i;
-        int option_k = 0;
+	static int toplevel = 1;
+	int option_k = 0;
 
 	UDATAPTR = rdta;
 	rdta->current_bdta = 0;
 	rdta->break_pending = 0;
 	rdta->fatal_handler_return_possible = 0;
 	rdta->cannotexit = 0;
+	rdta->toplevel = 0;
 	rdta->option_p = 0;
 	rdta->need_errprinting = 0;
 
@@ -3358,7 +3589,10 @@ int comcom_main(int argc, char **argv)
 		char buf[128];
 
 		rdta->option_p = 1;
-		rdta->cannotexit =1;
+		rdta->toplevel = toplevel;
+		if (!toplevel)
+			rdta->cannotexit = 1;
+		toplevel = 0;
 
 		/* force the int23/24 entry in PSP to point
 		 * to our own routines, so we are sure we inherit it.

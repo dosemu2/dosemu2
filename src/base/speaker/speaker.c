@@ -72,6 +72,8 @@
 
 #include "emu.h"
 #include "speaker.h"
+#include "port.h"
+#include "iodev.h"
 
 /*
  * Speaker info structure.
@@ -144,3 +146,35 @@ void speaker_off(void)
 	speaker.off(speaker.gp);
 }
 
+static int saved_port_val;
+void speaker_pause (void)
+{
+	switch (config.speaker)
+	{
+	case SPKR_NATIVE:
+		saved_port_val = port_safe_inb (0x61);
+	 	port_safe_outb (0x61, saved_port_val & 0xFC);	/* clear timer & speaker bits */
+		break;
+	case SPKR_EMULATED:
+		speaker_off ();
+		break;
+	case SPKR_OFF:
+		break;
+	}
+}
+
+void do_sound (Bit16u period);	/* from timers.c */
+void speaker_resume (void)
+{
+	switch (config.speaker)
+	{
+	case SPKR_NATIVE:
+		port_safe_outb (0x61, saved_port_val);	/* restore timer & speaker bits */
+		break;
+	case SPKR_EMULATED:
+		do_sound (pit [2].write_latch & 0xffff);
+		break;
+	case SPKR_OFF:
+		break;
+	}
+}

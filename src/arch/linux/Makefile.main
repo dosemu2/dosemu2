@@ -149,7 +149,7 @@ default: warning2 pausekey version doslibnew \
 
 warning2: 
 	@echo ""; \
-	 echo "Starting DOSEMU "$(EMUVER)" compile..."; \
+	 echo "Starting DOSEMU "$(THISVERSION)" compile..."; \
 	 echo ""; \
 	 echo "-> IMPORTANT!"; \
 	 echo "    - Please read 'QuickStart' file before compiling DOSEMU!"; \
@@ -302,9 +302,9 @@ install:
 	  $(INSTALL) $(dosemudir)/freedos/config.sys freedos; \
 	  $(INSTALL) $(dosemudir)/freedos/autoexec.bat freedos; \
 	  cd .. ; tar -cf- dosemu |gzip -9 >$(dosemudir)/dosemu-freedos-bin.tgz; \
-	elif test $(fdtarball) -ne none; then \
+	elif test $(fdtarball) != none; then \
 	  echo No $(fdtarball) found. Please download one from http://www.dosemu.org; \
-	  echo or set fdtarball to none in compiletime-settings and use another DOS, \
+	  echo or set fdtarball to none in compiletime-settings and use another DOS,; \
           echo which can be installed using dosemu -install or referred to; \
 	  echo using $_hdimage in your dosemu.conf or .dosemurc.; \
 	fi

@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU 1 "October, 2001" "Version 1.1.2" "DOS Emulation"
+.TH DOSEMU 1 "December, 2002" "Version 1.1.4" "DOS Emulation"
 .SH NAME
 dosemu, xdosemu \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
@@ -127,40 +127,34 @@ Now Hans Lermen <lermen@fgan.de> is maintaining this funny software.
 .SH FILES
 .PD 0
 .TP
-.I $HOME/.dosemu/bindist_path
-Contains the path to the current per user
-.B DOSEMU
-local directory. This will be created silently, if not existing.
+.I $HOME/.dosemurc
+per-user configuration file
+.TP
+.I /etc/dosemu/dosemu.conf
+or
+.TP
+.I /etc/dosemu.conf
+systemwide configuration file
+.TP
+.I $HOME/.dosemu/boot.log
+default file for debug and log messages
 .TP
 .I $HOME/dosemu/bin/
-.TP
-.I $HOME/dosemu/conf/
 .TP
 .I $HOME/dosemu/freedos/
 .TP
 .I $HOME/dosemu/Xfonts/
 default directories of the local per user DOSEMU instance
 .TP   
-.I /opt/dosemu/bin/
+.I /usr/local/bin/
 .TP   
-.I /opt/dosemu/doc/
+.I /usr/local/share/dosemu/
 .TP   
-.I /opt/dosemu/man/
+.I /usr/local/share/dosemu/dosemu-bin.tgz
 .TP   
-.I /opt/dosemu/dosemu-bin.tgz
-.TP   
-.I /opt/dosemu/dosemu-freedos-bin.tgz
+.I /usr/local/share/dosemu/dosemu-freedos-bin.tgz
 default systemwide installation, containing binaries and templates
-(path /opt/dosemu can be changed during creation of the systemwide installation).
-.TP   
-.I /usr/bin/dosemu
-.TP           
-.I /usr/bin/xdosemu
-symlinks to
-.I /opt/dosemu/bin/dosemu
-(path /usr/bin can be changed during creation of the systemwide installation).
- 
-
+(The paths can be changed during creation of the systemwide installation).
 
 .SH "SEE ALSO"
 .BR dosemu.bin "(1)

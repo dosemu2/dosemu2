@@ -15,9 +15,10 @@
 # No servicable parts below
 
 CC=gcc
-CFLAGS=-Wall -pipe -O2
+CFLAGS=-Wall -pipe -O -g
 LDFLAGS += -Wall
-OBJECTS=midid.o null.o events.o io.o stats.o emulation.o oss.o
+OBJECTS=midid.o events.o io.o stats.o emulation.o device.o \
+oss.o midout.o timid.o null.o
 
 ifdef USE_ULTRA
  CFLAGS += -DUSE_ULTRA

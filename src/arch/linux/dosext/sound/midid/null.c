@@ -8,7 +8,7 @@
   null (flush) device -- mainly for testing
  ***********************************************************************/
 
-#include"midid.h"
+#include "midid.h"
 
 bool null_detect(void)
 {
@@ -53,5 +53,6 @@ void register_null(Device * dev)
 	dev->channelpressure = null_doall2;
 	dev->bender = null_doall2;
 	dev->program = null_doall2;
+	dev->setmode = null_setmode;
 }
 

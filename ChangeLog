@@ -1,3 +1,85 @@
+2002/12/15 ver 1.1.3.9 unofficial pre-release
+	From Stas
+	- protect against stack overflows in dpmi.c.
+	- improve the boot sector for mkfatimage[16].
+	- use ntohs() to correct packet driver debug messages.
+	- keep track of subsystems and devices they used to avoid clashes.
+	- fix the PSP and DTA translation for src/dosext/dpmi/msdos.h
+	- fix MPU-401 initialisation.
+	- avoid pthreads DoS
+	- adjust fatfs.c to support PC-DOS
+	- dosdebug fix to make the "normal" trace mode to step the real mode
+	  in DPMI
+	- limit transfer buffer for ASCIIZ strings in msdos.h. (Bart: use 
+	  snprintf instead of strncpy).
+	- do segment register translation only when necessary in msdos.h and
+	  dpmi.c -- the DOS DPMI client translator and not the server is 
+	  supposed to be in charge of them.
+	- don't allow HW interrupts in the dosdebug force trace mode.
+	- config update for sound (Bart: organized a little differently).
+	- Check for a tty before using virtual comports.
+	- Another fix for the Insert key.
+	From Bart
+	- Some more global.conf adjustments to get the terminal and keyboard
+	  working correctly by default.
+	- Based on an idea of Clarence: use Ctrl+Alt+Pause to freeze and
+	  unfreeze xdosemu (he wanted it as a dosemu.conf option to always
+	  do it when switching to the background but I think a keystroke 
+	  is more flexible)
+	- remove llseek check: just use the libless one.
+	From Reinhard Karcher
+	- correct the German keyboard.
+	From Clarence Dang
+	- comcom fixes: 
+	  * fix the < in "more < file"
+	  * fix buffer overrun if the history file is corrupted
+	  * fix buggy execution order (now: .com, .exe, .bat) 
+	  * fix bug where it was impossible to overwrite a file with >
+	    because > actually appends (>>) instead of overwrites
+	  * fix bug where pressing DEL key at the end of the line deleted
+	    the character but did not update the display
+	  * fixed a little overrun in delete()
+	  * fix bug where scrolling to the right will scroll one too many 
+	    characters
+	  * fix bug where inserting a character actually adds a character 
+	    to the end of the string.
+	  * allow "DEL /P FILE", not just "DEL FILE /P"
+	  * also, print an error if the file to be deleted doesn't
+	     actually exist
+	  * fix bug where the prompt was shown even when ECHO_OFF
+	  * EXIT in the toplevel comcom.com calls leavedos()
+	  * implemented TRUENAME
+	  * partially implemented "template"-based command line completion 
+	    keys such as F1 and F3
+	  * print "Invalid drive specification" when changing to an
+	    invalid drive
+	  * allow redirection of PAUSE's output
+	  * DIR now looks like a Win98 DOS DIR
+	    (changed spacing, dirs do not have sizes in DOS,
+	    12-hour times instead of 24-hour, comma-separated file sizes)
+	  * make TIME, DATE, kbdask() look more like they do in DOS
+	  * newline displayed after every command if ECHO_ON
+	  * make "echo. something" work
+	  * CHOICE is an external command in DOS so the reference to it has been
+	    removed
+	- joystick fixes and cleanups
+	  * fix bug where joystick axis values from different points in time 
+	    are returned, in a single joystick position query from a DOS app
+	  * introduces a "joy_latency" variable which substantially improves
+	    joystick performance by reading less often from linux;
+	  * fix some missing config stuff e.g. in config_defaults()
+	  * fix port word read/write behaviour, code cleanup and doc fixes
+	- fix EMUVER="VERSION.1" problem
+	- fix "ERROR: ERROR:" messages in src/base/misc/disks.c 
+	- allow emulated pc speaker sounds to go for longer than 990ms,
+	  but for 30s.
+	- get freeze_dosemu to "pause" any pc speaker sounds
+	- don't turn off the speaker in X before generating a new sound
+	  (unnecessary and causes "clickyness")
+	- ViewDocs: get manpage help working (./man/dos.1 no longer exists)
+	- Fixed some shell problems for make install.
+	From Robert Komar and Stas
+	- major midid update
 2002/12/14 ver 1.1.3.8 unofficial pre-release
 	From Bart
 	- revive "make install" - this uses a private boot directory setup
@@ -48,9 +130,9 @@
 	  same thing in config.c).
 	- vm86_GP_fault() is no longer a signal handler so the relevant 
 	  code could be removed.
-	- remove the LDT-mangling to allow expand-ups. This allows a lot of 
-	  DPMI programs to run in DOSEMU that didn't before (such as PharLap,
-	  X32 (Zortech/Symantec/Digital Mars), and some others).  Note that 
+	- remove the LDT-mangling to allow expand-downs. This allows a lot of 
+	  DPMI programs to run in DOSEMU that didn't before (such as 
+	  X32 (Zortech/Symantec/Digital Mars) and some others).  Note that 
 	  "secure on" already disabled DPMI completely for suid-root DOSEMU.
 	- Fix three bugs in dpmi.c:
 	  * access to dpmi_stack_frame[-1];

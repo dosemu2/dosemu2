@@ -319,7 +319,7 @@ extern void yyrestart(FILE *input_file);
 	/* features */
 %token FEATURE
 	/* joystick */
-%token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY
+%token JOYSTICK JOY_DEVICE JOY_DOS_MIN JOY_DOS_MAX JOY_GRANULARITY JOY_LATENCY
 
 	/* we know we have 1 shift/reduce conflict :-( 
 	 * and tell the parser to ignore that */
@@ -733,7 +733,7 @@ line		: HOGTHRESH expression	{ IFCLASS(CL_NICE) config.hogthreshold = $2; }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
 		| L_X { IFCLASS(CL_X); } '{' x_flags '}'
-		| L_SOUND bool	{ if (! $2) config.sb_irq = 0; }
+		| L_SOUND bool	{ if (! $2) config.sound = 0; }
                 | L_SOUND { IFCLASS(CL_SOUND); } '{' sound_flags '}'
 		| L_JOYSTICK bool { if (! $2) { config.joy_device[0] = config.joy_device[1] = ""; } }
                 | L_JOYSTICK { IFCLASS(CL_JOYSTICK); } '{' joystick_flags '}'
@@ -991,8 +991,7 @@ x_flag		: UPDATELINES expression	{ config.X_updatelines = $2; }
 		| L_DISPLAY string_expr	{ config.X_display = $2; }
 		| L_TITLE string_expr	{ config.X_title = $2; }
 		| ICON_NAME string_expr	{ config.X_icon_name = $2; }
-		| X_KEYCODE		{ config.X_keycode = 1; }
-		| X_KEYCODE_AUTO	{ config.X_keycode = 2; }
+		| X_KEYCODE expression	{ config.X_keycode = $2; }
 		| X_BLINKRATE expression	{ config.X_blinkrate = $2; }
 		| X_SHARECMAP		{ config.X_sharecmap = 1; }
 		| X_MITSHM              { config.X_mitshm = 1; }
@@ -1066,7 +1065,8 @@ joystick_flags	: joystick_flag
 joystick_flag	: JOY_DEVICE string_expr      	{ set_joy_device($2); }
 		| JOY_DOS_MIN expression	{ config.joy_dos_min = $2; }
 		| JOY_DOS_MAX expression	{ config.joy_dos_max = $2; }
-                | JOY_GRANULARITY expression	{ config.joy_granularity = $2; }
+		| JOY_GRANULARITY expression	{ config.joy_granularity = $2; }
+		| JOY_LATENCY expression	{ config.joy_latency = $2; }
 		;
 
 	/* video */
@@ -1337,9 +1337,17 @@ serial_flags	: serial_flag
 serial_flag	: DEVICE string_expr		{ strcpy(sptr->dev, $2);
 					  if (!strcmp("/dev/mouse",sptr->dev)) sptr->mouse=1;
 					  free($2); }
-		| VIRTUAL		  {sptr->virtual = TRUE;
-					   no_local_video = 1;
-					   strcpy(sptr->dev, ttyname(0));}
+		| VIRTUAL		  {
+					   if (isatty(0)) {
+					     sptr->virtual = TRUE;
+					     no_local_video = 1;
+					     strcpy(sptr->dev, ttyname(0));
+					   } else {
+					     error("FD 0 is not a tty, can't "
+					           "use a virtual com port\n");
+					     exit(1);
+					   }
+					  }
 		| COM expression		{ sptr->real_comport = $2;
 					  com_port_used[$2] = 1; }
 		| BASE expression		{ sptr->base_port = $2; }
@@ -2426,7 +2434,7 @@ parse_dosemu_users(void)
         ustr=strtok(0, " \t\n=,;:");
         if (ustr) {
           if (!exists_dir(ustr)) {
-            char *tx = "default_lib_dir does not %s exist\n";
+            char *tx = "default_lib_dir %s does not exist\n";
             fprintf(stderr, tx, ustr);
             fprintf(stdout, tx, ustr);
             exit(1);
@@ -2449,7 +2457,7 @@ parse_dosemu_users(void)
         if (ustr && strcmp(ustr, DEFAULT_CONFIG_SCRIPT)) {
           config_script_path = strdup(ustr);
           if (!exists_file(config_script_path)) {
-            char *tx = "config_script does not %s exist\n";
+            char *tx = "config_script %s does not exist\n";
             fprintf(stderr, tx, ustr);
             fprintf(stdout, tx, ustr);
             exit(1);

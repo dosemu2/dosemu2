@@ -25,6 +25,7 @@
 #include "emu.h"
 #include "timers.h"
 #include "pic.h"
+#include "speaker.h"
 
 /* --------------------------------------------------------------------- */
 /*
@@ -231,11 +232,13 @@ void freeze_dosemu(void)
   stop_cputime(0);
   dbug_printf("*** dosemu frozen\n");
   dosemu_frozen = 1;
+  speaker_pause();
 }
 
 void unfreeze_dosemu(void)
 {
   if (!dosemu_frozen) return;
+  speaker_resume ();
   restart_cputime(0);
   dbug_printf("*** dosemu unfrozen\n");
   dosemu_frozen = 0;

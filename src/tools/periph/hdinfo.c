@@ -36,7 +36,6 @@
 #endif
 
 #include "config.h"
-#ifdef NEED_LLSEEK_PROTOTYPE
   /* well, if we don't have llseek prototype,
    * we most likely won't have __loff_t too, hence using long long
    */
@@ -60,7 +59,6 @@ long long libless_llseek(int fd, long long offset, int origin)
   return result;
 }
 #define llseek libless_llseek
-#endif
 
 #define SECTOR_SIZE	512
 #define EXT_MAGIC	5	/* sys_ind for an extended partition */

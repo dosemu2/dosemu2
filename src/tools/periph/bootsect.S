@@ -21,7 +21,8 @@ head:
 # actually, this will all be overwritten when you fdisk & format, but
 # I thought it educational (and I used it in an earlier version)
 
-      jmp   begin           # EB 2A 90 as per normal
+      jmp   begin           # EB 2A
+      nop                   # 90 as per normal
       .ascii  " DOSEMU "    # 8-byte system id
       .word   512           # sector size in bytes
       .byte   8             # sectors per cluster
@@ -78,7 +79,7 @@ cont1:
 
       # exit dosemu
       movw    $0xffff, %ax
-      int     $0x21
+      int     $0xe6
 
 beg_message:
       .byte    0xd,0xa           # carriage return, line feed
@@ -96,7 +97,7 @@ beg_message:
       .ascii   "    See README.first for instructions"
       .byte    0xd,0xa
       .byte    0xd,0xa
-      .ascii   "    press any key to return to Linux ... "
+      .ascii   "    press any key to return to Linux...\r\n"
 end_message:
 
 message_offset    =      beg_message - head

@@ -15,6 +15,8 @@
  */
 void speaker_on(unsigned ms, unsigned short period);
 void speaker_off(void);
+void speaker_pause(void);
+void speaker_resume(void);
 
 /*
  * Time length converions

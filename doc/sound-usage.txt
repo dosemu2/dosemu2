@@ -14,12 +14,8 @@ Alistair MacDonald,
    2. What to (and what not to!) expect
 
         2.1. FM
-
-              2.1.1. Technical Explanation
-
         2.2. MPU-401
         2.3. SB (Digital)
-        2.4. DMA
 
    3. Using SBEMU
 
@@ -50,11 +46,6 @@ Alistair MacDonald,
    see the WWW pages at
    http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/.
 
-   It should be pointed out that not all of this information comes from
-   my own knowledge and that parts come from the other developers and
-   from users who have contributed code & comments. Unfortunately I tend
-   to forget names and lose emails, so their names are not included.
-
    Note that the SB and DMA emulation has been extensively reworked by
    Stas Sergeev now, and DOSEMU can emulate an SB Pro quite well.
      _________________________________________________________________
@@ -73,56 +64,32 @@ Alistair MacDonald,
    but if the audio needs/uses FM you will hear nothing.
      _________________________________________________________________
 
-2.1.1. Technical Explanation
-
-   There are a number of problems with the FM emulation:
-
-    1. Any FM output will have to be translated to appropriate OSS
-       sequencer calls. These vary according to the SoundCard family
-       (mainly between the cards with real FM synthesis and those with
-       wavetable synthesis) You actually need to detect the card type and
-       program it accordingly.
-    2. The OSS sequencer doesn't allow you to change the parameters
-       whilst a note is playing. Many games do this to provide their
-       sound.
-     _________________________________________________________________
-
 2.2. MPU-401
 
-   This is the MIDI emulation. This should be fairly complete, but relies
-   on the external daemon 'midid'. This is supplied and can be built
-   easily.
+   This is the MIDI emulation. This should be fairly complete. For using
+   with OSS you need either an external daemon 'midid' (this is supplied
+   and can be built easily), or your sound card must have a Wave Table
+   synthesizer and /dev/midi configured and working. Note that if you use
+   ALSA, you don't need a Wave Table. It is possible to use TiMidity++
+   instead.
      _________________________________________________________________
 
 2.3. SB (Digital)
 
-   This is the digital aspect of the audio output. It is the most mature,
-   and also the buggiest aspect (because it is the most complex!) Most of
-   the functionality up to SB-16 is implemented, although some things
-   don't work. Note that SB (DSP) MIDI is not implemented, although
-   MPU-401 emulation (above) is.
-     _________________________________________________________________
-
-2.4. DMA
-
-   Whilst technically not part of the Sound System, the DMA emulation
-   routines where developed primarily for SBEMU. These routines may have
-   their own problems which may well impact on the running of SBEMU. As
-   far as we know the only limitation is that they don't interface with
-   the real DMA controller.
+   This is the digital aspect of the audio output. It is the most mature.
+   Most of the functionality up to SB-16 is implemented. Note that SB
+   MIDI is not implemented, although MPU-401 emulation (above) is.
      _________________________________________________________________
 
 3. Using SBEMU
 
-   SBEMU needs to be compiled into DOSEMU, AND turned on at run-time.
-   Then your DOS applications need to be configured to use the emulation.
-   (Just as they need to be configured to use your real sound card). The
-   basic steps are given below.
+   SBEMU needs to be turned on at run-time. Then your DOS applications
+   need to be configured to use the emulation. (Just as they need to be
+   configured to use the real Sound Blaster card). The basic steps are
+   given below.
      _________________________________________________________________
 
 3.1. DOSEMU Compile-time Configuration
-
-   By default, DOSEMU is built with SBEMU support.
      _________________________________________________________________
 
 3.2. DOSEMU Run-time Configuration
@@ -146,13 +113,16 @@ Alistair MacDonald,
     $_sb_irq = (5)
     $_sb_dma = (1)
     $_sb_dsp = "/dev/dsp"
-    $_sb_mixer = "/dev/mixer"
+    $_sb_mixer = ""
     $_mpu_base = "0x330"
 
    Note that these are the default values. $_sb_dsp and $_sb_mixer are
    pre-configured to work with the standard OSS-Free driver. You are
    unlikely to need to change these values unless you have multiple
-   drivers in your kernel.( eg such as the Ultra project drivers).
+   drivers in your kernel.( eg such as the Ultra project drivers). Note:
+   $_sb_mixer can be set to "/dev/mixer" if you want dosemu to be able to
+   change the volume on your sound card, but most people don't like that,
+   so it is disabled by default.
      _________________________________________________________________
 
 3.2.2. Configuring Midi
@@ -185,29 +155,18 @@ Alistair MacDonald,
 
    Finally, you need to start the midid program:
 
-       % midid < ~/.dosemu/run/dosemu-midi &
+       % midid ~/.dosemu/run/dosemu-midi &
 
    This will run the driver in the background, giving you your prompt
    back.You should now run DOSEMU. Midid will terminate when DOSEMU
    terminates.
-
-   Note that midid currently only supports the Ultra driver (autodetected
-   when DOSEMU is configured), OSS/Free (partially) and a NULL driver
-   (which just outputs the data stream as text). Midid should detect
-   which is applicable. Running midid with the argument -h will list the
-   options.
      _________________________________________________________________
 
 3.2.2.2. Sending Midi direct to a device
 
-   This will ONLY work if your Midi device accepts raw midi data and you
-   have either preloaded instruments patches, or it has hardware patches.
-   Use this method ONLY if you cannot use the previous method, and do not
-   EXPECT support.
-
-   To use this method you simply need to link the SBEMU midi output file
-   to the input of your MIDI device. The simplest method of doing this
-   is:
+   To use this method with OSS, you simply need to link the SBEMU midi
+   output file to the input of your MIDI device. The simplest method of
+   doing this is:
 
     % mkdir -p ~/.dosemu/run
     % rm -f ~/.dosemu/run/dosemu-midi
@@ -216,6 +175,75 @@ Alistair MacDonald,
    Where /dev/MyMidiDevice is the path to your midi device. If you
    already have a ~/.dosemu/run directory then the mkdir will fail. This
    is not a problem.
+
+   For ALSA the things are a bit trickier. Here is an explanation from
+   Robert Komar:
+
+   The kernel-side basics for getting it working are described at
+   www.midi-howto.com. For ALSA, I load the snd-seq-oss and snd-virmidi
+   kernel modules along with the usual ones started by alsasound. I then
+   start timidity as a daemon as follows
+
+
+    % timidity -iA -A100 -B2,8 -Os -EFreverb=0 -EFchorus=0 > /dev/null 2>&1 &
+
+   Note, that you have to get a recent development version of Timidity++
+   (I use TiMidity++-2.12.0-pre1), and you have to specify support for
+   the server when running configure before building Timidity++.
+
+   At this point, you should be able to use `pmidi' to list the various
+   midi ports and to play music on them. Check to see that you can play
+   midi music via the Timidity++ server.
+
+   I then connect the timidity server to a virtual midi device so that I
+   can access it through the /dev/snd/ interface (rather than only
+   through an ALSA-aware program like pmidi):
+
+
+    % /usr/local/bin/aconnect 75:0 128:1
+
+   The addresses would probably be different in your case, but the
+   midi-howto site covers these details fairly well.
+
+   Listing the midi ports with aconnect on my machine shows (I have a
+   SoundBlaster Live! Value card):
+
+    # aconnect -o -l
+    client 65: 'Emu10k1 WaveTable' [type=kernel]
+        0 'Emu10k1 Port 0  '
+        1 'Emu10k1 Port 1  '
+        2 'Emu10k1 Port 2  '
+        3 'Emu10k1 Port 3  '
+            Connected From: 74:0
+    client 72: 'Virtual Raw MIDI 1-0' [type=kernel]
+        0 'VirMIDI 1-0     '
+    client 73: 'Virtual Raw MIDI 1-1' [type=kernel]
+        0 'VirMIDI 1-1     '
+    client 74: 'Virtual Raw MIDI 1-2' [type=kernel]
+        0 'VirMIDI 1-2     '
+            Connecting To: 65:3
+    client 75: 'Virtual Raw MIDI 1-3' [type=kernel]
+        0 'VirMIDI 1-3     '
+            Connecting To: 128:1
+    client 128: 'Client-128' [type=user]
+        0 'TiMidity port 0 '
+        1 'TiMidity port 1 '
+            Connected From: 75:0
+
+   Before running dosemu, I go to the .dosemu/run directory and redirect
+   the output from dosemu-midi to the virtual midi device connected to
+   the timidity daemon:
+
+    % cd ~/.dosemu/run
+    % cat dosemu-midi > /dev/snd/midiC1D3
+
+   [ note that the permanent symlink should also work, see above --SS ]
+
+   Note that midid isn't required in this case. In another terminal, I
+   start up dosemu and run the games with music playing via General Midi.
+   Et Voila! I get sound effects and music while playing Duke3d! (and
+   just in time, since my version of Win2K won't play these old DOS games
+   with sound and VESA video modes).
      _________________________________________________________________
 
 3.3. Configuring DOS
@@ -225,11 +253,20 @@ Alistair MacDonald,
    card. For a base SB with the values above, use the following DOS
    command:
 
-       set BLASTER=A220 I5 D1 T1
+       set BLASTER=A220 I5 D1 T4
 
-   The T1 identifies this as a Type 1 SB device eg old! The precise
-   version of 'SB' is up to you, but the lower the model, the more likely
-   it is to work.
+   The T4 identifies this as a Type 4 SB device eg SB Pro 2.0. Here is a
+   table of SB types:
+
+    1. Legacy SB
+    2. SB Pro
+    3. SB 2.0
+    4. SB Pro 2.0
+    5. SB Pro MCV
+    6. SB 16
+
+   SB16 (Type 6) and newer won't work in most cases, other types should
+   work well.
      _________________________________________________________________
 
 3.4. Configuring the Applications
@@ -243,7 +280,8 @@ Alistair MacDonald,
 3.4.1. Midi with Digital Audio
 
    Configure the applications to use 'General Midi' for Music, and 'SB'
-   for Digital Audio.
+   for Digital Audio. This will work if your card have a Wave Table
+   (/dev/midi) or hardware mixing ability (TiMidity++).
      _________________________________________________________________
 
 3.4.2. SB Music with SB Audio

@@ -4,7 +4,13 @@
  * for details see file COPYING in the DOSEMU distribution
  */
 
-#include"io.h"
+#include "io.h"
+#include "midid.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
 /***********************************************************************
   Output
@@ -25,11 +31,21 @@ int getbyte_buffer=MAGIC_EOF;
 void getbyte_next(void)
 /* Read next symbol into buffer */
 {
-	byte ch;
-	bool is_eof;
-	is_eof=(!read(fd, &ch, 1));
-	getbyte_buffer=ch;
-	if (is_eof) getbyte_buffer=MAGIC_EOF;
+fd_set rfds;
+struct timeval tv;
+byte ch;
+bool is_eof;
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+        tv.tv_sec = config.timeout;
+        tv.tv_usec = 0;
+	if (select(fd + 1, &rfds, NULL, NULL, config.timeout ? &tv : NULL)) {
+		is_eof=(!read(fd, &ch, 1));
+		getbyte_buffer=ch;
+		if (is_eof) getbyte_buffer=MAGIC_EOF;
+	} else {
+		getbyte_buffer=MAGIC_TIMEOUT;
+	}
 	if (debugall) fprintf(stderr,"getbyte_next=0x%02x (%i)\n",
 			      getbyte_buffer,getbyte_buffer);
 }

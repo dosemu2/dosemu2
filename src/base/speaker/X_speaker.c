@@ -17,11 +17,13 @@ void X_speaker_on(void *gp, unsigned ms, unsigned short period)
 	XKeyboardControl new_state;
 	Display *display = gp;
 
+#if 0
 	/* Turn off the previos sound, I hope */
 	new_state.bell_pitch = 0;  
 	new_state.bell_duration = 0;
 	XChangeKeyboardControl(display, KBBellDuration | KBBellPitch, &new_state);
 	XBell(display, -100);
+#endif
 
 	/* Make the sound I want */
 	new_state.bell_pitch = speaker_period_to_Hz(period);

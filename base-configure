@@ -4938,9 +4938,9 @@ EOF
 
   USE_PTHREADS="USE_PTHREADS=1"
 
-else
-  { echo "$as_me:4942: checking \"compiling without pthreads support\"..." >&5
-echo "$as_me: checking \"compiling without pthreads support\"..." >&6;}
+# pthreads causes stability problems so ordinary users shouldn't know about it
+#else
+#  AC_CHECKING("compiling without pthreads support")
 fi
 
  # Check whether --enable-force-slang or --disable-force-slang was given.
@@ -5727,7 +5727,7 @@ fi
 DOSEMU_VERSION_CODE=`echo "$(( ( $VERSION * 16777216 ) + ( $SUBLEVEL * 65536 ) + ( $PATCHLEVEL * 256 ) + $PATCHLEVEL_ ))"`
 PATCHLEVEL="${PATCHLEVEL}.${PATCHLEVEL_}"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
-EMUVER="VERSION.$SUBLEVEL"
+EMUVER="$VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`
 
 cat >>confdefs.h <<EOF
@@ -5809,9 +5809,9 @@ fi
 if test -x ./mkpluginhooks; then
   ./mkpluginhooks
   if test -f ./plugin_libdirs; then
-    { echo "$as_me:5812: checking \"Including plugins: \`cat ./plugin_libdirs\`\"..." >&5
-echo "$as_me: checking \"Including plugins: \`cat ./plugin_libdirs\`\"..." >&6;};
     PLUGINSUBDIRS=`cat ./plugin_libdirs`
+    { echo "$as_me:5813: checking \"Including plugins: $PLUGINSUBDIRS\"..." >&5
+echo "$as_me: checking \"Including plugins: $PLUGINSUBDIRS\"..." >&6;};
     if test -f ./plugin_incdirs; then
       for i in `cat ./plugin_incdirs`; do
         PLUGININC="$PLUGININC -I\${SRCPATH}/${i}"
@@ -6117,16 +6117,6 @@ if test "$GCC" = "yes" ; then
     GLIBC_VERSION_CODE=$((($major * 1000) + $minor))
     echo "yes, version code $GLIBC_VERSION_CODE"
     GLIBC_VERSION_CODE="-DGLIBC_VERSION_CODE=$GLIBC_VERSION_CODE"
-    echo "checking for llseek prototype ..."
-    if echo "#include <unistd.h>" |${CC-cc} -E - |grep '[ \t]llseek[ \t(]' >/dev/null; then
-      echo "yes"
-    else
-      echo 'no, have to add one :-('
-      cat >>confdefs.h <<EOF
-#define NEED_LLSEEK_PROTOTYPE 1
-EOF
-
-    fi
   fi
 fi
 
@@ -6227,7 +6217,7 @@ DEFS=-DHAVE_CONFIG_H
 : ${CONFIG_STATUS=./config.status}
 ac_clean_files_save=$ac_clean_files
 ac_clean_files="$ac_clean_files $CONFIG_STATUS"
-{ echo "$as_me:6230: creating $CONFIG_STATUS" >&5
+{ echo "$as_me:6220: creating $CONFIG_STATUS" >&5
 echo "$as_me: creating $CONFIG_STATUS" >&6;}
 cat >$CONFIG_STATUS <<_ACEOF
 #! $SHELL
@@ -6399,7 +6389,7 @@ cat >>$CONFIG_STATUS <<\EOF
     echo "$ac_cs_version"; exit 0 ;;
   --he | --h)
     # Conflict between --help and --header
-    { { echo "$as_me:6402: error: ambiguous option: $1
+    { { echo "$as_me:6392: error: ambiguous option: $1
 Try \`$0 --help' for more information." >&5
 echo "$as_me: error: ambiguous option: $1
 Try \`$0 --help' for more information." >&2;}
@@ -6418,7 +6408,7 @@ Try \`$0 --help' for more information." >&2;}
     ac_need_defaults=false;;
 
   # This is an error.
-  -*) { { echo "$as_me:6421: error: unrecognized option: $1
+  -*) { { echo "$as_me:6411: error: unrecognized option: $1
 Try \`$0 --help' for more information." >&5
 echo "$as_me: error: unrecognized option: $1
 Try \`$0 --help' for more information." >&2;}
@@ -6455,7 +6445,7 @@ do
   # Handling of arguments.
   "Makefile.conf" ) CONFIG_FILES="$CONFIG_FILES Makefile.conf" ;;
   "src/include/config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS src/include/config.h" ;;
-  *) { { echo "$as_me:6458: error: invalid argument: $ac_config_target" >&5
+  *) { { echo "$as_me:6448: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
    { (exit 1); exit 1; }; };;
   esac
@@ -6721,7 +6711,7 @@ done; }
   esac
 
   if test x"$ac_file" != x-; then
-    { echo "$as_me:6724: creating $ac_file" >&5
+    { echo "$as_me:6714: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
     rm -f "$ac_file"
   fi
@@ -6739,7 +6729,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:6742: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:6732: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -6752,7 +6742,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:6755: error: cannot find input file: $f" >&5
+           { { echo "$as_me:6745: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -6812,7 +6802,7 @@ for ac_file in : $CONFIG_HEADERS; do test "x$ac_file" = x: && continue
   * )   ac_file_in=$ac_file.in ;;
   esac
 
-  test x"$ac_file" != x- && { echo "$as_me:6815: creating $ac_file" >&5
+  test x"$ac_file" != x- && { echo "$as_me:6805: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
 
   # First look for the input files in the build tree, otherwise in the
@@ -6823,7 +6813,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:6826: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:6816: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -6836,7 +6826,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:6839: error: cannot find input file: $f" >&5
+           { { echo "$as_me:6829: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -6953,7 +6943,7 @@ cat >>$CONFIG_STATUS <<\EOF
   rm -f $tmp/in
   if test x"$ac_file" != x-; then
     if cmp -s $ac_file $tmp/config.h 2>/dev/null; then
-      { echo "$as_me:6956: $ac_file is unchanged" >&5
+      { echo "$as_me:6946: $ac_file is unchanged" >&5
 echo "$as_me: $ac_file is unchanged" >&6;}
     else
       ac_dir=`$as_expr X"$ac_file" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
@@ -7057,7 +7047,7 @@ if test "$no_recursion" != yes; then
     # parts of a large source tree are present.
     test -d $srcdir/$ac_subdir || continue
 
-    { echo "$as_me:7060: configuring in $ac_subdir" >&5
+    { echo "$as_me:7050: configuring in $ac_subdir" >&5
 echo "$as_me: configuring in $ac_subdir" >&6;}
     case $srcdir in
     .) ;;
@@ -7079,7 +7069,7 @@ done; }
 
        if test -d ./$ac_subdir; then :;
        else
-         { { echo "$as_me:7082: error: cannot create \`pwd\`/$ac_subdir" >&5
+         { { echo "$as_me:7072: error: cannot create \`pwd\`/$ac_subdir" >&5
 echo "$as_me: error: cannot create \`pwd\`/$ac_subdir" >&2;}
    { (exit 1); exit 1; }; }
        fi
@@ -7110,7 +7100,7 @@ echo "$as_me: error: cannot create \`pwd\`/$ac_subdir" >&2;}
     elif test -f $ac_sub_srcdir/configure.in; then
       ac_sub_configure=$ac_configure
     else
-      { echo "$as_me:7113: WARNING: no configuration information is in $ac_subdir" >&5
+      { echo "$as_me:7103: WARNING: no configuration information is in $ac_subdir" >&5
 echo "$as_me: WARNING: no configuration information is in $ac_subdir" >&2;}
       ac_sub_configure=
     fi
@@ -7124,12 +7114,12 @@ echo "$as_me: WARNING: no configuration information is in $ac_subdir" >&2;}
         ac_sub_cache_file=$ac_dots$cache_file ;;
       esac
 
-      { echo "$as_me:7127: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&5
+      { echo "$as_me:7117: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&5
 echo "$as_me: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&6;}
       # The eval makes quoting arguments work.
       eval $ac_sub_configure $ac_sub_configure_args \
            --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir ||
-        { { echo "$as_me:7132: error: $ac_sub_configure failed for $ac_subdir" >&5
+        { { echo "$as_me:7122: error: $ac_sub_configure failed for $ac_subdir" >&5
 echo "$as_me: error: $ac_sub_configure failed for $ac_subdir" >&2;}
    { (exit 1); exit 1; }; }
     fi
@@ -7139,32 +7129,32 @@ echo "$as_me: error: $ac_sub_configure failed for $ac_subdir" >&2;}
 fi
 
 if test "$GCC" != "yes" ; then
-  { echo "$as_me:7142: WARNING: " >&5
+  { echo "$as_me:7132: WARNING: " >&5
 echo "$as_me: WARNING: " >&2;}
-  { echo "$as_me:7144: WARNING: Your system doesn't seem to have the GNU C compiler (gcc)." >&5
+  { echo "$as_me:7134: WARNING: Your system doesn't seem to have the GNU C compiler (gcc)." >&5
 echo "$as_me: WARNING: Your system doesn't seem to have the GNU C compiler (gcc)." >&2;}
-  { echo "$as_me:7146: WARNING: Trying to compile with $CC." >&5
+  { echo "$as_me:7136: WARNING: Trying to compile with $CC." >&5
 echo "$as_me: WARNING: Trying to compile with $CC." >&2;}
-  { echo "$as_me:7148: WARNING: If you are sure you have gcc" >&5
+  { echo "$as_me:7138: WARNING: If you are sure you have gcc" >&5
 echo "$as_me: WARNING: If you are sure you have gcc" >&2;}
-  { echo "$as_me:7150: WARNING: CC to the complete name of gcc. Examples:" >&5
+  { echo "$as_me:7140: WARNING: CC to the complete name of gcc. Examples:" >&5
 echo "$as_me: WARNING: CC to the complete name of gcc. Examples:" >&2;}
-  { echo "$as_me:7152: WARNING: csh/tcsh: setenv CC /usr/local/bin/gcc" >&5
+  { echo "$as_me:7142: WARNING: csh/tcsh: setenv CC /usr/local/bin/gcc" >&5
 echo "$as_me: WARNING: csh/tcsh: setenv CC /usr/local/bin/gcc" >&2;}
-  { echo "$as_me:7154: WARNING: sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC" >&5
+  { echo "$as_me:7144: WARNING: sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC" >&5
 echo "$as_me: WARNING: sh/ksh/bash: CC=/usr/local/bin/gcc ; export CC" >&2;}
-  { echo "$as_me:7156: WARNING: Of course you could also include the gcc bin directory in" >&5
+  { echo "$as_me:7146: WARNING: Of course you could also include the gcc bin directory in" >&5
 echo "$as_me: WARNING: Of course you could also include the gcc bin directory in" >&2;}
-  { echo "$as_me:7158: WARNING: your path." >&5
+  { echo "$as_me:7148: WARNING: your path." >&5
 echo "$as_me: WARNING: your path." >&2;}
 fi
 
 if test -z "`echo $YACC | grep bison`" ; then
-  { echo "$as_me:7163: WARNING: " >&5
+  { echo "$as_me:7153: WARNING: " >&5
 echo "$as_me: WARNING: " >&2;}
-  { echo "$as_me:7165: WARNING: Your system doesn't seem to have bison available." >&5
+  { echo "$as_me:7155: WARNING: Your system doesn't seem to have bison available." >&5
 echo "$as_me: WARNING: Your system doesn't seem to have bison available." >&2;}
-  { { echo "$as_me:7167: error: Install bison and retry." >&5
+  { { echo "$as_me:7157: error: Install bison and retry." >&5
 echo "$as_me: error: Install bison and retry." >&2;}
    { (exit 1); exit 1; }; }
 fi

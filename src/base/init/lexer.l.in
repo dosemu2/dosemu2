@@ -619,6 +619,7 @@ joy_device              RETURN(JOY_DEVICE);
 joy_dos_min             RETURN(JOY_DOS_MIN);
 joy_dos_max             RETURN(JOY_DOS_MAX);
 joy_granularity         RETURN(JOY_GRANULARITY);
+joy_latency             RETURN(JOY_LATENCY);
 
 	/* packet driver */
 novell_hack		RETURN(NOVELLHACK);

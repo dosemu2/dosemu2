@@ -10,7 +10,7 @@
 <FirstName> Alistair MacDonald, &lt;alistair@slitesys.demon.co.uk&gt; </FirstName>
 </AUTHOR
 >
-<PubDate> version dosemu-1.1.3.7 </PubDate>
+<PubDate> version dosemu-1.1.3.9 </PubDate>
 
 <Abstract>
 
@@ -721,6 +721,15 @@ is performed.
 </Para>
 
 </Sect3>
+
+</Sect2>
+
+<Sect2>
+<Title>Items for Fixing in dosext/dpmi/msdos.h</Title>
+
+<Para>
+: Please implement the ENV translation! */
+</Para>
 
 </Sect2>
 
@@ -3539,11 +3548,35 @@ These are the functions defined in base/dev/misc/joystick.c.
 </Para>
 
 <Sect3>
-<Title>joy_reader_set</Title>
+<Title>joy_latency_over</Title>
 
 <Para>
-Assigns the Linux joystick reader to the one specified.
-Sets the Linux axis ranges based on what joystick API is being used.
+Tells DOSEMU whether or not it is time to update its internal status
+of the joystick (for nonblocking reads only).
+</Para>
+
+<Para>
+DOS programs read/poll from the joystick port hundreds of thousands of
+times per second so the idea is that we really don't need to read from
+Linux for every such query (increasing performance by about 40%) because:
+</Para>
+
+<Para>
+1. humans are incapable of changing the status of the joystick
+(moving, pressing buttons) more than about 10 times per second
+</Para>
+
+<Para>
+2. no one will not notice a delay in DOS registering the joystick status
+(if it is in the order of a few milliseconds)
+</Para>
+
+<Para>
+Of course, this means that you should not set joy_latency in dosemu.conf
+to more than 1000/(#times I can press a button/move joy per second * 2),
+unless you want DOSEMU to miss quick axis/button changes and want to
+wait a ridiculous amount of time before DOSEMU registers any changes at
+all.
 </Para>
 
 </Sect3>
@@ -3559,8 +3592,14 @@ Update the button status for each joystick.
 We must perform "button mapping" if only the first joystick is enabled
 ie. we are required to map the "excessive" buttons (&gt;2) from the first
 joystick onto the second:
--- 3rd button of 1st joy --&gt; 1st button of 2nd joy
--- 4th button of 1st joy --&gt; 2nd button of 2nd joy
+</Para>
+
+<Para>
+a) 3rd button of 1st joy --&gt; 1st button of 2nd joy
+</Para>
+
+<Para>
+b) 4th button of 1st joy --&gt; 2nd button of 2nd joy
 </Para>
 
 </Sect3>
@@ -3576,8 +3615,14 @@ Update the axis status for each joystick.
 We must perform "axis mapping" if only the first joystick is enabled
 ie. we are required to map the "excessive" axes (&gt;2) from the first
 joystick onto the second:
--- 3rd axis of 1st joy --&gt; 2st axis of 2nd joy
--- 4th axis of 1st joy --&gt; 1st axis of 2nd joy
+</Para>
+
+<Para>
+a) 3rd axis of 1st joy --&gt; 2st axis of 2nd joy
+</Para>
+
+<Para>
+b) 4th axis of 1st joy --&gt; 1st axis of 2nd joy
 (yes, these are reversed deliberately because it's what happens in DOS)
 </Para>
 
@@ -3587,15 +3632,15 @@ joystick onto the second:
 <Title>joy_emu_axis_conv</Title>
 
 <Para>
-Convert a Linux joystick reading to a DOS one by making use of the
-differences in the allowable ranges of joystick readings.
+Convert a Linux joystick axis reading to a DOS one by making use of
+the differences in the allowable range of axis values.
 </Para>
 
 <Para>
-NOTE: I don't know whether or not Linux returns exponential readings for
-the joystick but (apparently) DOS programs expect the reading to be
-exponential and so if this is to be fixed, it should probably be done in
-this function.
+NOTE: I don't know whether or not Linux returns exponential values
+for the joystick but (apparently) DOS programs expect the values to
+be exponential and so if this is to be fixed, it should probably be
+done in this function.
 </Para>
 
 </Sect3>
@@ -3613,16 +3658,28 @@ Update global joystick status variables given a Linux joystick event.
 <Title>joy_linux_read_events</Title>
 
 <Para>
-Process the event queue for _both_ linux joysticks using nonblocking reads
-with the new joystick API (joy_reader_new).
+Process the event queue for _both_ linux joysticks using nonblocking
+reads with the new joystick API (joy_driver_new).
 </Para>
 
 <Para>
-This must be done before any joystick status is given to DOS as all events
-are queued until they are processed and we want to return the current
-state of the joystick -- not what it was some time ago.  _Both_ joysticks
-are processed here because of axis/button mapping affecting the status of
-the emulated joysticks (what DOS sees).
+This should be done before (well, actually, not before _every_
+single read -- see joy_latency_over()) the joystick status is returned
+to DOS as all Linux joystick events are queued until they are processed
+and we want to return a reasonably current state of the joystick
+-- not what it was a long time ago.  _Both_ joysticks are processed
+here because of axis/button mapping affecting the status of both emulated
+joysticks (what DOS sees).
+</Para>
+
+</Sect3>
+
+<Sect3>
+<Title>joy_linux_read_status</Title>
+
+<Para>
+Read both the current position and current button status of the joystick
+from Linux (joy_driver_old).
 </Para>
 
 </Sect3>
@@ -3631,10 +3688,9 @@ the emulated joysticks (what DOS sees).
 <Title>joy_linux_read_buttons_(family)</Title>
 
 <Para>
-Eventually called from DOS to get the button status of joysticks.
-The threaded version will simply get the readings from global variables.
-The unthreaded versions will perform non-blocking reads using the old
-joystick API.
+Eventually called from DOS to get the button status of the joysticks.
+The threaded version will simply get the status from global variables.
+The unthreaded versions will perform non-blocking reads.
 </Para>
 
 </Sect3>
@@ -3643,15 +3699,49 @@ joystick API.
 <Title>joy_linux_read_axis_(family)</Title>
 
 <Para>
-Eventually called from DOS to get the axis status of joysticks.
-The threaded version will simply get the readings from global variables.
-The unthreaded versions will perform non-blocking reads using the old
-joystick API.
+Eventually called from DOS to get the axis status of the joysticks.
+The threaded version will simply get the values from global variables.
+The unthreaded versions will perform non-blocking reads.
 </Para>
 
 <Para>
-The @param invalid_val is the value to return to signify a non-existent
-axis.
+Arguments are:
+
+
+<ItemizedList>
+<ListItem>
+
+<Para>
+   invalid_val - value to return to signify a non-existent axis
+</Para>
+</ListItem>
+<ListItem>
+
+<Para>
+   update - whether DOSEMU should update its internal axis values from Linux
+</Para>
+</ListItem>
+<ListItem>
+
+<Para>
+            (for each read of the joystick position, set this flag _only_
+</Para>
+</ListItem>
+<ListItem>
+
+<Para>
+             on the first of the 4 calls to this function unless you want
+</Para>
+</ListItem>
+<ListItem>
+
+<Para>
+             the axis positions to be from different points in time :)
+</Para>
+</ListItem>
+
+</ItemizedList>
+
 </Para>
 
 </Sect3>
@@ -3666,15 +3756,14 @@ called from src/base/async/int.c.
 
 <Para>
 The real BIOS actually reads its values straight from the joystick port
-(0x201) but we don't bother because we can read it from globals faster :)
+(0x201) but we don't bother because we can do it faster :)
 </Para>
 
 <Para>
-Because of this, it returns the joystick axis readings with the same range
-as port 0x201 BUT for some reason, a real BIOS has a different range of
-joystick readings than direct port access (anyone know why?).  No
-programs seem to expect a certain range of values except for Alley Cat
-which seems to want a range of about 1-50 but only from port 0x201.
+Because of this, it returns the joystick axis values with the same
+range as port 0x201 BUT the range for a real BIOS varies between
+computers as it is dependant on how it reads from the port
+(hopefully this won't cause any problems).
 </Para>
 
 </Sect3>
@@ -3683,15 +3772,27 @@ which seems to want a range of about 1-50 but only from port 0x201.
 <Title>joy_port_inb</Title>
 
 <Para>
-This function emulates reads from the joystick port (0x201) -- this is the
-most common way of detecting and reading the joystick.
+This function emulates reads from the joystick port (0x201) -- this is
+the most common way of detecting and reading the joystick.
 </Para>
 
 <Para>
-The real implementation of this port actually times out and resets the
-equivalent of the joy_port_x and joy_port_y axis counters if the time
-between 2 reads is too great (how great?) but no programs, I have seen,
-make use of this behaviour.
+The real implementation of this port sets a bit for each axis for a
+certain period of time, corresponding to analog measurements of the
+position of each axis (so "if you count the analog values in software,
+a faster machine yields different values from a slow machine [unless
+you use a timer]" - DOS 6: A Developer's Guide).
+</Para>
+
+<Para>
+In contrast, this implementation sets the bits high for a certain number
+of port reads, corresponding to the position of each axis (independent
+of time).  This means that, for most programs, the axis range will be
+that specified in dosemu.conf (which is rather convenient) and avoids
+the issue of super-fast computers causing DOS program axis counters to
+overflow (e.g. in a real system, if the program used an 8-bit variable
+for storing the position of an axis and the system was fast enough to
+read from the port more than 127 or 255 times, there would be trouble).
 </Para>
 
 </Sect3>
@@ -3702,19 +3803,35 @@ make use of this behaviour.
 <Title>Remarks in base/dev/misc/joystick.c</Title>
 
 <Para>
-Linux joystick readers:
+We make a runtime decision based on the detected joystick API version
+and #ifdef USE_PTHREADS, on the way in which we obtain the joystick
+status from Linux (a "driver"):
 </Para>
 
 <Para>
-We make a runtime decision based on the detected joystick API version (and #ifdef USE_PTHREADS)
-on which reader to use.  We can select from the following readers:
+1. joy_driver_nojoy: simply tells DOS programs that you have no
+joystick(s)
 </Para>
 
 <Para>
-1. joy_reader_nojoy: simply tells DOS programs that you have no joystick
-2. joy_reader_old: uses old, non-blocking joystick API (&lt;1.0.0); limited to 2 axes
-3. joy_reader_new: uses new, non-blocking joystick API (&gt;=1.0.0); a (little) slower than joy_reader_new_threaded
-4. joy_reader_new_threaded: uses new, BLOCKING joystick API (&gt;=1.0.0); efficient but requires pthreads
+2. joy_driver_old: uses old, non-blocking joystick API (&lt;1.0.0);
+limited to 2 axes; supported because DOSEMU
+supports old kernels
+</Para>
+
+<Para>
+3. joy_driver_new: uses new, non-blocking joystick API (&gt;=1.0.0);
+a (little) slower than joy_driver_new_threaded
+</Para>
+
+<Para>
+4. joy_driver_new_threaded: uses new, BLOCKING joystick API (&gt;=1.0.0);
+efficient but requires pthreads (which
+is known to make DOSEMU unstable!)
+</Para>
+
+<Para>
+The same driver is used for both joysticks.
 </Para>
 
 <Para>
@@ -3751,21 +3868,6 @@ overwrite its axes; if it's the 2nd, it would be out of range)
 </Para>
 
 <Para>
- Here we set the range of possible axis readings for Linux.
-You should _not_ change these values unless you know what you are doing.
-</Para>
-
-<Para>
-They are later used in joy_emu_axis_conv() as part of a calculation to
-compress axis readings to an acceptable range for DOS programs
-(usually somewhere between 5 and 150).
-</Para>
-
-<Para>
------
-</Para>
-
-<Para>
  Apparently, the Carry Flag is cleared if int15 function 0x84 exists
 and it is set if it doesn't exist.
 </Para>
@@ -3779,10 +3881,10 @@ whether or not you have a joystick?
 
 <Para>
 I have never seen a real BIOS set the Carry Flag on this call, even
-on a computer without a joystick -- so to mimick what happens in the real
-world, I just clear the Carry Flag regardless of whether the user has a
-joystick or not.  This could be incorrect behaviour so it may have to be
-changed in the future.
+on a computer without a joystick -- so to mimick what happens in the
+real world, I just clear the Carry Flag regardless of whether the user
+has a joystick or not.  This could be incorrect behaviour so it may
+have to be changed in the future.
 </Para>
 
 <Para>
@@ -3811,7 +3913,7 @@ port first so the Linux read must be done _here_) and return it.
 <Title>Items for Fixing in base/dev/misc/joystick.c</Title>
 
 <Para>
-does this code work for ports other than 0x201? */
+does this code work for ports other than 0x201?
 </Para>
 
 <Para>
@@ -3819,7 +3921,7 @@ does this code work for ports other than 0x201? */
 </Para>
 
 <Para>
- joy_reset() is called immediately after joy_init(), which is rather inconvenient (anyone heard of a port_unregister_handler()?) so we don't bother resetting at all but in the future this could cause problems */
+ joy_reset() is called immediately after joy_init(), which is rather inconvenient (anyone heard of a port_unregister_handler()?) so we don't bother resetting at all but in the future this could cause problems
 </Para>
 
 <Para>
@@ -3827,7 +3929,7 @@ does this code work for ports other than 0x201? */
 </Para>
 
 <Para>
- I've lost my joystick Y-cable (lets you connect two joysticks to one gameport) so the code to handle two joysticks is totally untested! */
+ I've lost my joystick Y-cable (lets you connect two joysticks to one gameport) so the code to handle two joysticks is totally untested!
 </Para>
 
 <Para>
@@ -3835,15 +3937,7 @@ does this code work for ports other than 0x201? */
 </Para>
 
 <Para>
- What happens if you read a word from the joystick port?  Analysis of a real DOS system shows that it reads a byte and doubles it up but I don't know if this is the correct behaviour... */
-</Para>
-
-<Para>
------
-</Para>
-
-<Para>
- joy_port_outw is not exactly correct at all but what would you do? */
+ perhaps we should not have been called to start with?
 </Para>
 
 </Sect2>

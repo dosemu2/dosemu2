@@ -1,5 +1,5 @@
 .\" -*- nroff -*-  (This is for Emacs)
-.TH DOSEMU.BIN 1 "May, 2001" "Version 1.0.2" "DOS Emulation"
+.TH DOSEMU.BIN 1 "Dec, 2002" "Version 1.1.4" "DOS Emulation"
 .SH NAME
 dosemu.bin, dosdebug \- run DOS and DOS programs under Linux
 .SH SYNOPSIS
@@ -563,8 +563,8 @@ what doesn't, etc.
 .SH AVAILABILITY
 The most recent public version of 
 .B DOSEMU
-can be ftp'ed from ftp.dosemu.org in the /pub/dosemu directory, a fast
-mirror for this is ibiblio.unc.edu:/pub/Linux/system/emulators/dosemu/.
+can be obtained from www.dosemu.org; a fast mirror is at
+ibiblio.unc.edu:/pub/Linux/system/emulators/dosemu/.
 If you want to keep up on private developer pre-releases, join the
 .B DOSEMU
 developer team - even just good detailed debug reports are all you need!
@@ -572,13 +572,13 @@ developer team - even just good detailed debug reports are all you need!
 .SH FILES
 .PD 0
 .TP
-.I /usr/bin/dosemu.bin
+.I /usr/local/bin/dosemu.bin
 The binary
 .TP
-.I /usr/bin/dosemu
-The wrapper script, its recommended not to invoke dosemu.bin directly.
+.I /usr/local/bin/dosemu
+The wrapper script, it is recommended not to invoke dosemu.bin directly.
 .TP
-.I /usr/bin/xdosemu
+.I /usr/local/bin/xdosemu
 Same, but invoking DOS in an X window.
 .TP
 .I $HOME/.dosemu
@@ -599,18 +599,6 @@ Various files used by
 including debugger pipes.
 .TP
 .TP
-.I $HOME/dosemu/conf
-.TP
-.I $HOME/dosemu/bin
-Various files used by the
-.B DOSEMU
-per-user instance. This directory also holds the global,conf configuration script
-.I global.conf
-for
-.B DOSEMU
-which then includes
-.I dosemu.conf
-.TP
 .I $HOME/dosemu/freedos
 Bootdirectory containig the FreeDos part.
 .TP
@@ -619,6 +607,7 @@ Main configuration file for
 .BR DOSEMU .
 which is included by
 .I global.conf
+(global.conf is included in dosemu.bin by default).
 .TP
 .I /etc/dosemu.users
 or
@@ -681,7 +670,7 @@ installations of
 .TP
 .I MSDOS mailing list
 For more information, mail to
-.IP linux-msdos@vger.rutgers.edu
+.IP linux-msdos@vger.kernel.org
 
 
 

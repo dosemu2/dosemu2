@@ -265,9 +265,12 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
   int n, m;
+  char boot_sect[] = {
+  #include "bootsect.h"
+  };
   int kbytes = -1;
   outfile = stdout;
-  
+
   /* Parse command line. */
   if ((argc <= 1) && isatty(STDOUT_FILENO))
   {
@@ -422,18 +425,9 @@ int main(int argc, char *argv[])
       fclose(f);
       memset(buffer+11, 0, 51);
     }
-  }
-  if (!bootsect_file) {
+  } else {
     clear_buffer();
-    buffer[0] = 0xeb;                     /* Jump to dosemu exit code. */
-    buffer[1] = 0x3c;                     /* (jmp 62; nop) */
-    buffer[2] = 0x90; 
-    buffer[62] = 0xb8;                    /* Exit dosemu. */
-    buffer[63] = 0xff;                    /* (mov ax,0xffff; int 0xe6) */
-    buffer[64] = 0xff;
-    buffer[65] = 0xcd;
-    buffer[66] = 0xe6;
-    memmove(buffer + 3, "DOSEMU  ", 8);
+    memcpy(buffer, boot_sect, sizeof(boot_sect));
   }
   put_word(&buffer[11], BYTES_PER_SECTOR);
   buffer[13] = sectors_per_cluster;

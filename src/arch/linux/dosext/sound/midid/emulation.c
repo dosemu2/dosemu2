@@ -8,8 +8,12 @@
   Set emulation type
  ***********************************************************************/
 
-#include"emulation.h"
- 
+#include "emulation.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+int *imap;
+
 /* default instrument mapping */
 int imap_default[128] =
 {
@@ -40,14 +44,26 @@ int imap_mt2gm[128] =
 };
 
 /* Sets emulation mode to new_mode */
-void emulation_set(Emumode new_mode)
+void emulation_set(Device *dev, Emumode new_mode)
 {
   if (dev->setmode(new_mode)) {
     /* Driver can handle out new mode; no need for a new map */
     imap=imap_default;
   } else {
     /* Driver can't handle new mode; find correct mapping */
-    /* FIXME: only MT32 -> GM mapping implemented */
-    imap=imap_mt2gm;
+    switch (new_mode) {
+      case EMUMODE_MT32:
+        /* We can map this to GM */
+	imap=imap_mt2gm;
+	break;
+      default:
+        /* FIXME: GS is not implemented */
+	imap=imap_default;
+    }
+    /* Mapping to GM installed, driver must handle this */
+    if (! dev->setmode(EMUMODE_GM)) {
+      fprintf(stderr, "Driver %s doesn't support GM mode!\n", dev->name);
+      exit(1);
+    }
   }
 }

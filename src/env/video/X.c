@@ -225,6 +225,7 @@
 #include <sys/mman.h>           /* root@sjoerd:for mprotect*/
 
 #include "emu.h"
+#include "timers.h"
 #include "bios.h"
 #include "video.h"
 #include "memory.h"
@@ -461,9 +462,11 @@ static int remap_src_modes = 0;
 static vgaemu_display_type X_screen;
 
 int grab_active = 0;
+int freeze_active = 0;
 #if CONFIG_X_MOUSE
 static char *grab_keystring = "Home";
-static int grab_keysym = NoSymbol;
+static KeySym grab_keysym = NoSymbol;
+static KeySym freeze_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;
 #endif
 
@@ -822,6 +825,7 @@ int X_init()
 
   if(config.X_mgrab_key) grab_keystring = config.X_mgrab_key;
   if(*grab_keystring) grab_keysym = XStringToKeysym(grab_keystring);
+  freeze_keysym = XStringToKeysym("Pause");
   if(grab_keysym != NoSymbol) {
     X_printf("X: X_init: mouse grabbing enabled, use Ctrl+Mod1+%s to activate\n", grab_keystring);
   }
@@ -1530,8 +1534,9 @@ void X_handle_events()
     /* Keyboard events */
 
 	case KeyPress:
-          if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask) && grab_keysym != NoSymbol)
-            if(XKeycodeToKeysym(display, e.xkey.keycode, 0) == grab_keysym) {
+          if((e.xkey.state & ControlMask) && (e.xkey.state & Mod1Mask) && grab_keysym != NoSymbol) {
+            KeySym keysym = XKeycodeToKeysym(display, e.xkey.keycode, 0);
+            if(keysym == grab_keysym) {
               if(grab_active ^= 1) {
                 X_printf("X: mouse grab activated\n");
 #ifdef ENABLE_KEYBOARD_GRAB
@@ -1550,8 +1555,15 @@ void X_handle_events()
                 X_set_mouse_cursor(mouse_cursor_visible, mouse_x, mouse_y, w_x_res, w_y_res);
               }
               break;
+            } else if (keysym == freeze_keysym) {
+              if (freeze_active ^= 1) {
+                freeze_dosemu();
+              } else {
+                unfreeze_dosemu();
+              }
+              break;
             }
-
+          }
 	case KeyRelease:
 /* 
       Clears the visible selection if the cursor is inside the selection

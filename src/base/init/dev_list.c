@@ -26,6 +26,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include "config.h"
 
 #include "emu.h"
@@ -34,12 +35,11 @@
 #include "port.h"
 #include "pic.h"
 #include "serial.h"
+#include "mouse.h"
 #include "keyb_server.h"     /* for keyb_8042_{init,reset} */
 #include "lpt.h"
 #include "disks.h"
 #include "dosemu_debug.h"
-
-#include <string.h>
 
 #ifdef USE_SBEMU
 #include "sound.h"
@@ -55,10 +55,19 @@ struct io_dev_struct {
 };
 #define MAX_IO_DEVICES 30
 
+#define MAX_DEVICES_OWNED 5
+struct owned_devices_struct {
+  char * dev_names[MAX_DEVICES_OWNED];
+  int devs_owned;
+} owned_devices[MAX_IO_DEVICES];
+
+static int current_device = -1;
+
 static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "pit",     pit_init,     pit_reset,     NULL },
   { "cmos",    cmos_init,    cmos_reset,    NULL },
   { "serial",  serial_init,  NULL,          serial_close },
+  { "internal_mouse",  dosemu_mouse_init,  NULL, dosemu_mouse_close },
   { "pic",     pic_init,     pic_reset,     NULL },
 #ifdef HAVE_KEYBOARD_V1
   { "keyb",    keyb_8042_init, keyb_8042_reset, NULL },
@@ -67,14 +76,14 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "pos",     pos_init,     pos_reset,     NULL },
   { "lpt",     lpt_init,     lpt_reset,     lpt_term },
 #endif
-  { "dma",     dma_init,     dma_reset,     NULL },   
+  { "dma",     dma_init,     dma_reset,     NULL },
 #if 0
   { "floppy",  floppy_init,  floppy_reset,  NULL },
   { "hdisk",   hdisk_init,   hdisk_reset,   NULL },
   { "disks",   disk_init,    disk_reset,    disk_term },
 #endif
 #ifdef USE_SBEMU
-  { "sound",   sound_init,   sound_reset,   NULL }, 
+  { "sound",   sound_init,   sound_reset,   NULL },
 #endif
   { "joystick", joy_init,    joy_reset,     joy_term },
   { NULL,      NULL,         NULL,          NULL }
@@ -83,15 +92,19 @@ static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
 
 void iodev_init(void)        /* called at startup */
 {
-  struct io_dev_struct *ptr;
+  int i;
 
-  for (ptr = io_devices; ptr < &io_devices[MAX_IO_DEVICES]; ptr++)
-    if (ptr->init_func)
-      ptr->init_func();
+  for (i = 0; i < MAX_IO_DEVICES; i++)
+    if (io_devices[i].init_func) {
+      current_device = i;
+      io_devices[i].init_func();
+    }
 
-  for (ptr = io_devices; ptr->name; ptr++)
-    if (ptr->reset_func)
-      ptr->reset_func();
+  current_device = -1;
+
+  for (i = 0; i < MAX_IO_DEVICES; i++)
+    if (io_devices[i].reset_func)
+      io_devices[i].reset_func();
 }
 
 void iodev_reset(void)        /* called at reboot */
@@ -150,4 +163,36 @@ void iodev_unregiseter(char *name)
 		ptr->reset_func = 0;
 		ptr->term_func = 0;
 	}
+}
+
+static int find_device_owner(char *dev_name)
+{
+	int i, j;
+	for(i = 0; i < MAX_IO_DEVICES - 1; i++) {
+	    for(j = 0; j < owned_devices[i].devs_owned; j++)
+		if (strcmp(dev_name, owned_devices[i].dev_names[j]) == 0)
+		    return i;
+	}
+	return -1;
+}
+
+void iodev_add_device(char *dev_name)
+{
+	int dev_own;
+	if (current_device == -1) {
+	    error("add_device() is called not during the init stage!\n");
+	    leavedos(10);
+	}
+	dev_own = find_device_owner(dev_name);
+	if (dev_own != -1) {
+	    error("Device conflict: Attempt to use %s for %s and %s\n",
+		dev_name, io_devices[dev_own].name, io_devices[current_device].name);
+	    config.exitearly = 1;
+	}
+	if (owned_devices[current_device].devs_owned >= MAX_DEVICES_OWNED) {
+	    error("No free slot for device %s\n", dev_name);
+	    config.exitearly = 1;
+	}
+	c_printf("registering %s for %s\n",dev_name,io_devices[current_device].name);
+	owned_devices[current_device].dev_names[owned_devices[current_device].devs_owned++] = dev_name;
 }

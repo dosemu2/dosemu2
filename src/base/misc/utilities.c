@@ -641,7 +641,6 @@ int is_console(int fd)
 }
 
 
-#ifdef NEED_LLSEEK_PROTOTYPE
 /*
  * getting tired of needless 'llseek() versus lseek64()' war
  * ... calling the kernel directly  --Hans 2000/03/26
@@ -665,7 +664,6 @@ long long libless_llseek(int fd, long long offset, int origin)
   }
   return result;
 }
-#endif
 
 
 #if (GLIBC_VERSION_CODE >= 2000) && defined(PORTABLE_BINARY)

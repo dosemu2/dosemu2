@@ -53,7 +53,7 @@ Alistair MacDonald
    8. Using X
 
         8.1. Latest Info
-        8.2. Slightly older information
+        8.2. Older information
         8.3. The appearance of Graphics modes (November 13, 1995)
 
               8.3.1. vgaemu
@@ -192,7 +192,7 @@ Alistair MacDonald
 
    and further more:
 
-     * wether the lib dir (DOSEMU_LIB_DIR) resides elsewhere.
+     * whether the lib dir (DOSEMU_LIB_DIR) resides elsewhere.
      * setting the loglevel.
 
    Except for lines starting with `xxx=' (explanation below), each line
@@ -331,12 +331,11 @@ Alistair MacDonald
    mesurement you may overide it such as
          $_cpuspeed = (166.666)  # 0 = let DOSEMU calibrate
 
-   NOTE: `$_rdtsc' and `$_cpuspeed' can not be overwritten by
-   ~/.dosemurc.
-
    If you have a PCI board you may allow DOSEMU to access the PCI
    configuration space by defining the below
          $_pci = (on)    # or off
+
+   NOTE: `$_pci' can not be overwritten by ~/.dosemurc.
 
    Starting with dosemu-1.0 there is a flexible way to handle the mapping
    strategy used by DOSEMU, which is needed by video emulation, EMS, DPMI
@@ -474,9 +473,17 @@ Alistair MacDonald
    where XXX is one of
 
    ibm
-          the text is taken whithout translation, it is to the user to
-          load a proper DOS font (cp437.f16, cp850.f16 or cp852.f16 on
-          the console).
+          With the kbd_unicode plugin (the default), the text is
+          processed using cp437->cp437 for the display, so the font used
+          must be cp437 (eg cp437.f16 on the console). The text is no
+          longer taken without translation. It never really was but it
+          was close enough it apparently was used that way. When reading
+          characters they are assumed to be in iso-8859-1 from the
+          terminal.
+
+          If the old keyboard code is used, then the text is taken
+          whithout translation. It is to the user to load a proper DOS
+          font (cp437.f16, cp850.f16 or cp852.f16 on the console).
 
    latin
           the text is processed using cp437->iso-8859-1 translation, so
@@ -501,6 +508,35 @@ Alistair MacDonald
    need to know the correct code page your DOS is configured for in order
    to get the correct results. For most western european countries
    'latin' should be the correct setting.
+
+         $_external_char_set = "XXX"
+
+   where XXX is one of
+    "cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+    "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874",
+    "iso8859-1", "iso8859-2", "iso8859-3", "iso8859-4", "iso8859-5",
+    "iso8859-6", "iso8859-7", "iso8859-8", "iso8859-9", "iso8859-14",
+    "iso8859-15"
+
+   The external character set is used to:
+
+     * compute the unicode values of characters coming in from the
+       terminal
+     * compute the character set index of unicode characters output to a
+       terminal display screen.
+     * compute the unicode values of characters pasted into dosemu.
+
+         $_internal_char_set = "XXX"
+
+   where XXX is one of:
+    "cp437", "cp737", "cp775", "cp850", "cp852", "cp857", "cp860","cp861",
+    "cp862", "cp863", "cp864", "cp865", "cp866", "cp869", "cp874"
+
+   The internal character set is used to:
+
+     * compute the unicode value of characters of video memory
+     * compute the character set index of unicode characters returned by
+       bios keyboard translation services.
      _________________________________________________________________
 
 2.1.4. Terminals
@@ -563,7 +599,7 @@ Alistair MacDonald
    setting
          $_X_keycode = (auto)
 
-   which checks for existence of a XFree/Xaccel-Server and if yes, it
+   which checks for existence of the X keyboard extension and if yes, it
    sets $_X_keycode to 'on', that means the DOSEMU keytables are active.
    The second part (which is independent from $_X_keycode) can be set by
          $_layout = "auto"
@@ -585,12 +621,6 @@ Alistair MacDonald
    to switch your console and recover from this. For details on
    recovering look at README-tech.txt (Recovering the console after a
    crash).
-
-   NOTE: `$_rawkeyboard' can not be overwritten by ~/.dosemurc.
-
-   The `keybint (on)' allows more accurate of keyboard interrupts, It is
-   a bit unstable, but makes keyboard work better when set to "on".
-         $_keybint = (on)     # emulate PCish keyboard interrupt
      _________________________________________________________________
 
 2.1.6. X Support settings
@@ -1348,53 +1378,9 @@ s
    latin characters, even when you run xdosemu from a remote X-terminal.
    It also is capable to handle PL4 color modes in addition to 256 color
    modes, so bgidemo from Borland runs fine.
-
-   If it doesn't work for you as expected, please check out the
-   following:
-
-     * Specify "keycode" for X-support only for local X-servers, in most
-       cases it should work without it. The keycode-option is something
-       specific for a special X-server, here XFree86, and so isn't
-       portable and I disencourage its use.
-     * Check out whether your key sends a sensible ksym, with e.g."xev".
-       If it sends something sensible which you think should be mapped by
-       xdosemu, please let me know details.
-     * If you are running xdosemu on XFree86, version 3.1.1 and newer and
-       the keys of the keypad-area don't work, you have two options:
-          + Comment out the line " ServerNumLock " in
-            /usr/X11R6/lib/X11/XFConfig
-          + Feed the following file to xmodmap. From what I understand
-            from the docs, XFree-3.1.1 should do that intrinsicly, but
-            for me it didn't. This is a part of the file
-            /usr/X11R6/lib/X11/etc/xmodmap.std
-
-    ! When using ServerNumLock in your XF86Config, the following codes/symbols
-    ! are available in place of 79-81, 83-85, 87-91
-    keycode  136 = KP_7
-    keycode  137 = KP_8
-    keycode  138 = KP_9
-    keycode  139 = KP_4
-    keycode  140 = KP_5
-    keycode  141 = KP_6
-    keycode  142 = KP_1
-    keycode  143 = KP_2
-    keycode  144 = KP_3
-    keycode  145 = KP_0
-    keycode  146 = KP_Decimal
-    keycode  147 = Home
-    keycode  148 = Up
-    keycode  149 = Prior
-    keycode  150 = Left
-    keycode  151 = Begin
-    keycode  152 = Right
-    keycode  153 = End
-    keycode  154 = Down
-    keycode  155 = Next
-    keycode  156 = Insert
-    keycode  157 = Delete
      _________________________________________________________________
 
-8.2. Slightly older information
+8.2. Older information
 
    From Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de>
 
@@ -1403,10 +1389,9 @@ s
 
    What you should take care of:
 
-     * Do a 'xmodmap -e "keycode 22 = 0xff08"' to get use of your
-       backspace key.
-     * Do a 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete
-       key.
+     * If backspace and delete do not work, you can try 'xmodmap -e
+       "keycode 22 = 0xff08"' to get use of your backspace key, and
+     * 'xmodmap -e "keycode 107 = 0xffff"' to get use of your delete key.
      * Make sure DOSEMU has X support compiled in. (X_SUPPORT = 1 in the
        Makefile)
      * you should have the vga font installed. See README.ncurses.
@@ -1421,12 +1406,6 @@ s
        See ./etc/dosemu.conf for details.
      * starting xdosemu in the background (like from a window manager
        menu) appears not to work for some reason.
-     * Keyboard support in the DOSEMU window isn't perfect yet. It
-       probably could be faster, some key combos still don't work (e.g.
-       Ctrl-Fn), etc. However, input through the terminal window (i.e.
-       the window you started DOSEMU from) is still supported. If you
-       have problems, you *might* be better off putting your focus in
-       there.
      * Keyboard support of course depends on your X keyboard mappings
        (xmodmap). If certain keys don't work (like Pause, Backspace,...),
        it *might* be because you haven't defined them in your xmodmap, or

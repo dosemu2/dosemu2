@@ -376,6 +376,7 @@ typedef struct vesamode_type_struct {
        int features[1];
 
        /* Sound emulation */
+       int sound; 
        __u16 sb_base;
        __u8 sb_dma;
        __u8 sb_irq;
@@ -385,12 +386,13 @@ typedef struct vesamode_type_struct {
 
        /* joystick */
        char *joy_device[2];
-       /* # range for joystick axis readings */
-       int joy_dos_min; /* must be > 0 */
-       int joy_dos_max; /* avoid setting this to > 250 */
-       /* # the higher, the less sensitive -
-          useful if you have a wobbly joystick */
-       int joy_granularity;
+       
+       /* range for joystick axis values */
+       int joy_dos_min;		/* must be > 0 */
+       int joy_dos_max;		/* avoid setting this to > 250 */
+       
+       int joy_granularity;	/* the higher, the less sensitive - for wobbly joysticks */
+       int joy_latency;		/* delay between nonblocking linux joystick reads */
      }
 
 config_t;

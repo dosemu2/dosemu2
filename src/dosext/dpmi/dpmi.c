@@ -1904,8 +1904,6 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     REG(esi) = _esi;
     REG(edi) = _edi;
     REG(ebp) = _ebp;
-    REG(ds) = (long) GetSegmentBaseAddress(_ds) >> 4;
-    REG(es) = (long) GetSegmentBaseAddress(_es) >> 4;
     REG(cs) = DPMI_SEG;
     REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
     if(msdos_pre_extender(scp, i)) {
@@ -1966,6 +1964,11 @@ void run_pm_int(int i)
     PMSTACK_ESP = client_esp(0);
   else
     PMSTACK_ESP = DPMI_pm_stack_size;
+
+  if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+  }
 
   ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
@@ -2300,7 +2303,8 @@ void dpmi_init()
     flush_log();
 
     pm_block_handle_used = 1;
-    DTA_over_1MB = 0;		/* from msdos.h */
+    USER_DTA_SEL = 0;		/* from msdos.h */
+    USER_PSP_SEL = 0;		/* from msdos.h */
 /*
  * DANG_BEGIN_NEWIDEA
  * Simulate Local Descriptor Table for MS-Windows 3.1
@@ -2631,6 +2635,11 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
     PMSTACK_ESP = client_esp(scp);
   else
     PMSTACK_ESP = DPMI_pm_stack_size;
+
+  if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+  }
 
   ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
@@ -3477,6 +3486,11 @@ done:
     else
       PMSTACK_ESP = DPMI_pm_stack_size;
 
+    if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+    }
+
     ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));
 /* ---------------------------------------------------
@@ -3553,6 +3567,11 @@ done:
       PMSTACK_ESP = client_esp(0);
     else
       PMSTACK_ESP = DPMI_pm_stack_size;
+
+    if (PMSTACK_ESP < 100) {
+      error("PM stack overflowed: in_dpmi_pm_stack=%i\n", in_dpmi_pm_stack);
+      leavedos(25);
+    }
 
     ssp = (us *) (GetSegmentBaseAddress(CLIENT_PMSTACK_SEL) +
 		(DPMIclient_is_32 ? PMSTACK_ESP : (PMSTACK_ESP&0xffff)));

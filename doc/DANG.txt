@@ -3,7 +3,7 @@ The DOSEMU Alterer Novices Guide
 
 Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
-   version dosemu-1.1.3.7
+   version dosemu-1.1.3.9
 
    This Document is the DOSEMU Alterer Novices Guide. It is known as the
    DANG.
@@ -76,6 +76,8 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
               4.5.1. msdos_pre_extender
               4.5.2. msdos_post_extender
+
+        4.6. Items for Fixing in dosext/dpmi/msdos.h
 
    5. The Video group of Modules
 
@@ -298,16 +300,17 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
         8.14. Functions in base/dev/misc/joystick.c
 
-              8.14.1. joy_reader_set
+              8.14.1. joy_latency_over
               8.14.2. joy_emu_button_set
               8.14.3. joy_emu_axis_set
               8.14.4. joy_emu_axis_conv
               8.14.5. joy_linux_process_event
               8.14.6. joy_linux_read_events
-              8.14.7. joy_linux_read_buttons_(family)
-              8.14.8. joy_linux_read_axis_(family)
-              8.14.9. joy_bios_read
-              8.14.10. joy_port_inb
+              8.14.7. joy_linux_read_status
+              8.14.8. joy_linux_read_buttons_(family)
+              8.14.9. joy_linux_read_axis_(family)
+              8.14.10. joy_bios_read
+              8.14.11. joy_port_inb
 
         8.15. Remarks in base/dev/misc/joystick.c
         8.16. Items for Fixing in base/dev/misc/joystick.c
@@ -847,6 +850,11 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    real mode segment registers are changed to protected mode selectors
    And if client\'s data buffer is above 1MB, necessary buffer copying is
    performed.
+     _________________________________________________________________
+
+4.6. Items for Fixing in dosext/dpmi/msdos.h
+
+   : Please implement the ENV translation! */
      _________________________________________________________________
 
 5. The Video group of Modules
@@ -2339,10 +2347,27 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    These are the functions defined in base/dev/misc/joystick.c.
      _________________________________________________________________
 
-8.14.1. joy_reader_set
+8.14.1. joy_latency_over
 
-   Assigns the Linux joystick reader to the one specified. Sets the Linux
-   axis ranges based on what joystick API is being used.
+   Tells DOSEMU whether or not it is time to update its internal status
+   of the joystick (for nonblocking reads only).
+
+   DOS programs read/poll from the joystick port hundreds of thousands of
+   times per second so the idea is that we really don't need to read from
+   Linux for every such query (increasing performance by about 40%)
+   because:
+
+   1. humans are incapable of changing the status of the joystick
+   (moving, pressing buttons) more than about 10 times per second
+
+   2. no one will not notice a delay in DOS registering the joystick
+   status (if it is in the order of a few milliseconds)
+
+   Of course, this means that you should not set joy_latency in
+   dosemu.conf to more than 1000/(#times I can press a button/move joy
+   per second * 2), unless you want DOSEMU to miss quick axis/button
+   changes and want to wait a ridiculous amount of time before DOSEMU
+   registers any changes at all.
      _________________________________________________________________
 
 8.14.2. joy_emu_button_set
@@ -2351,8 +2376,11 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
    We must perform "button mapping" if only the first joystick is enabled
    ie. we are required to map the "excessive" buttons (>2) from the first
-   joystick onto the second: -- 3rd button of 1st joy --> 1st button of
-   2nd joy -- 4th button of 1st joy --> 2nd button of 2nd joy
+   joystick onto the second:
+
+   a) 3rd button of 1st joy --> 1st button of 2nd joy
+
+   b) 4th button of 1st joy --> 2nd button of 2nd joy
      _________________________________________________________________
 
 8.14.3. joy_emu_axis_set
@@ -2361,20 +2389,23 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
    We must perform "axis mapping" if only the first joystick is enabled
    ie. we are required to map the "excessive" axes (>2) from the first
-   joystick onto the second: -- 3rd axis of 1st joy --> 2st axis of 2nd
-   joy -- 4th axis of 1st joy --> 1st axis of 2nd joy (yes, these are
+   joystick onto the second:
+
+   a) 3rd axis of 1st joy --> 2st axis of 2nd joy
+
+   b) 4th axis of 1st joy --> 1st axis of 2nd joy (yes, these are
    reversed deliberately because it's what happens in DOS)
      _________________________________________________________________
 
 8.14.4. joy_emu_axis_conv
 
-   Convert a Linux joystick reading to a DOS one by making use of the
-   differences in the allowable ranges of joystick readings.
+   Convert a Linux joystick axis reading to a DOS one by making use of
+   the differences in the allowable range of axis values.
 
-   NOTE: I don't know whether or not Linux returns exponential readings
-   for the joystick but (apparently) DOS programs expect the reading to
-   be exponential and so if this is to be fixed, it should probably be
-   done in this function.
+   NOTE: I don't know whether or not Linux returns exponential values for
+   the joystick but (apparently) DOS programs expect the values to be
+   exponential and so if this is to be fixed, it should probably be done
+   in this function.
      _________________________________________________________________
 
 8.14.5. joy_linux_process_event
@@ -2385,76 +2416,102 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 8.14.6. joy_linux_read_events
 
    Process the event queue for _both_ linux joysticks using nonblocking
-   reads with the new joystick API (joy_reader_new).
+   reads with the new joystick API (joy_driver_new).
 
-   This must be done before any joystick status is given to DOS as all
-   events are queued until they are processed and we want to return the
-   current state of the joystick -- not what it was some time ago. _Both_
-   joysticks are processed here because of axis/button mapping affecting
-   the status of the emulated joysticks (what DOS sees).
+   This should be done before (well, actually, not before _every_ single
+   read -- see joy_latency_over()) the joystick status is returned to DOS
+   as all Linux joystick events are queued until they are processed and
+   we want to return a reasonably current state of the joystick -- not
+   what it was a long time ago. _Both_ joysticks are processed here
+   because of axis/button mapping affecting the status of both emulated
+   joysticks (what DOS sees).
      _________________________________________________________________
 
-8.14.7. joy_linux_read_buttons_(family)
+8.14.7. joy_linux_read_status
 
-   Eventually called from DOS to get the button status of joysticks. The
-   threaded version will simply get the readings from global variables.
-   The unthreaded versions will perform non-blocking reads using the old
-   joystick API.
+   Read both the current position and current button status of the
+   joystick from Linux (joy_driver_old).
      _________________________________________________________________
 
-8.14.8. joy_linux_read_axis_(family)
+8.14.8. joy_linux_read_buttons_(family)
 
-   Eventually called from DOS to get the axis status of joysticks. The
-   threaded version will simply get the readings from global variables.
-   The unthreaded versions will perform non-blocking reads using the old
-   joystick API.
-
-   The @param invalid_val is the value to return to signify a
-   non-existent axis.
+   Eventually called from DOS to get the button status of the joysticks.
+   The threaded version will simply get the status from global variables.
+   The unthreaded versions will perform non-blocking reads.
      _________________________________________________________________
 
-8.14.9. joy_bios_read
+8.14.9. joy_linux_read_axis_(family)
+
+   Eventually called from DOS to get the axis status of the joysticks.
+   The threaded version will simply get the values from global variables.
+   The unthreaded versions will perform non-blocking reads.
+
+   Arguments are:
+
+     * invalid_val - value to return to signify a non-existent axis
+     * update - whether DOSEMU should update its internal axis values
+       from Linux
+     * (for each read of the joystick position, set this flag _only_
+     * on the first of the 4 calls to this function unless you want
+     * the axis positions to be from different points in time :)
+     _________________________________________________________________
+
+8.14.10. joy_bios_read
 
    This is the int15 function 0x84 handler (ie. BIOS joystick emulation),
    called from src/base/async/int.c.
 
    The real BIOS actually reads its values straight from the joystick
-   port (0x201) but we don't bother because we can read it from globals
-   faster :)
+   port (0x201) but we don't bother because we can do it faster :)
 
-   Because of this, it returns the joystick axis readings with the same
-   range as port 0x201 BUT for some reason, a real BIOS has a different
-   range of joystick readings than direct port access (anyone know why?).
-   No programs seem to expect a certain range of values except for Alley
-   Cat which seems to want a range of about 1-50 but only from port
-   0x201.
+   Because of this, it returns the joystick axis values with the same
+   range as port 0x201 BUT the range for a real BIOS varies between
+   computers as it is dependant on how it reads from the port (hopefully
+   this won't cause any problems).
      _________________________________________________________________
 
-8.14.10. joy_port_inb
+8.14.11. joy_port_inb
 
    This function emulates reads from the joystick port (0x201) -- this is
    the most common way of detecting and reading the joystick.
 
-   The real implementation of this port actually times out and resets the
-   equivalent of the joy_port_x and joy_port_y axis counters if the time
-   between 2 reads is too great (how great?) but no programs, I have
-   seen, make use of this behaviour.
+   The real implementation of this port sets a bit for each axis for a
+   certain period of time, corresponding to analog measurements of the
+   position of each axis (so "if you count the analog values in software,
+   a faster machine yields different values from a slow machine [unless
+   you use a timer]" - DOS 6: A Developer's Guide).
+
+   In contrast, this implementation sets the bits high for a certain
+   number of port reads, corresponding to the position of each axis
+   (independent of time). This means that, for most programs, the axis
+   range will be that specified in dosemu.conf (which is rather
+   convenient) and avoids the issue of super-fast computers causing DOS
+   program axis counters to overflow (e.g. in a real system, if the
+   program used an 8-bit variable for storing the position of an axis and
+   the system was fast enough to read from the port more than 127 or 255
+   times, there would be trouble).
      _________________________________________________________________
 
 8.15. Remarks in base/dev/misc/joystick.c
 
-   Linux joystick readers:
-
    We make a runtime decision based on the detected joystick API version
-   (and #ifdef USE_PTHREADS) on which reader to use. We can select from
-   the following readers:
+   and #ifdef USE_PTHREADS, on the way in which we obtain the joystick
+   status from Linux (a "driver"):
 
-   1. joy_reader_nojoy: simply tells DOS programs that you have no
-   joystick 2. joy_reader_old: uses old, non-blocking joystick API
-   (<1.0.0); limited to 2 axes 3. joy_reader_new: uses new, non-blocking
-   joystick API (>=1.0.0); a (little) slower than joy_reader_new_threaded
-   4. joy_reader_new_threaded: uses new, BLOCKING joystick API (>=1.0.0);
-   efficient but requires pthreads
+   1. joy_driver_nojoy: simply tells DOS programs that you have no
+   joystick(s)
+
+   2. joy_driver_old: uses old, non-blocking joystick API (<1.0.0);
+   limited to 2 axes; supported because DOSEMU supports old kernels
+
+   3. joy_driver_new: uses new, non-blocking joystick API (>=1.0.0); a
+   (little) slower than joy_driver_new_threaded
+
+   4. joy_driver_new_threaded: uses new, BLOCKING joystick API (>=1.0.0);
+   efficient but requires pthreads (which is known to make DOSEMU
+   unstable!)
+
+   The same driver is used for both joysticks.
 
    -----
 
@@ -2472,15 +2529,6 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
    if the 2nd joystick is enabled, we ignore any axis >= 2 regardless of
    which joystick it is (if it's the 1st, the 2nd joystick would
    overwrite its axes; if it's the 2nd, it would be out of range)
-
-   -----
-
-   Here we set the range of possible axis readings for Linux. You should
-   _not_ change these values unless you know what you are doing.
-
-   They are later used in joy_emu_axis_conv() as part of a calculation to
-   compress axis readings to an acceptable range for DOS programs
-   (usually somewhere between 5 and 150).
 
    -----
 
@@ -2513,29 +2561,23 @@ Alistair MacDonald, <alistair@slitesys.demon.co.uk>
 
 8.16. Items for Fixing in base/dev/misc/joystick.c
 
-   does this code work for ports other than 0x201? */
+   does this code work for ports other than 0x201?
 
    -----
 
    joy_reset() is called immediately after joy_init(), which is rather
    inconvenient (anyone heard of a port_unregister_handler()?) so we
    don't bother resetting at all but in the future this could cause
-   problems */
+   problems
 
    -----
 
    I've lost my joystick Y-cable (lets you connect two joysticks to one
-   gameport) so the code to handle two joysticks is totally untested! */
+   gameport) so the code to handle two joysticks is totally untested!
 
    -----
 
-   What happens if you read a word from the joystick port? Analysis of a
-   real DOS system shows that it reads a byte and doubles it up but I
-   don't know if this is the correct behaviour... */
-
-   -----
-
-   joy_port_outw is not exactly correct at all but what would you do? */
+   perhaps we should not have been called to start with?
      _________________________________________________________________
 
 8.17. Remarks in include/doshelpers.h

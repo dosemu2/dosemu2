@@ -651,6 +651,10 @@ void run_irqs(void)
        int old_ilevel;
        int int_request;
        int priority;
+
+       /* don't allow HW interrupts in force trace mode */
+       if (vm86s.vm86plus.vm86dbg_TFpendig) return;
+
        /* Old hack, to be removed */
        if (in_dpmi && in_dpmi_timer_int) return;
 

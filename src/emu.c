@@ -123,6 +123,7 @@ __asm__("___START___: jmp _emulate\n");
 #include "utilities.h"
 #include "dos2linux.h"
 #include "iodev.h"
+#include "dosemu_config.h"
 
 #include "keyb_clients.h"
 
@@ -309,8 +310,6 @@ int
 emulate(int argc, char **argv)
 #endif
 {
-    extern void parse_dosemu_users(void);
-    extern void secure_option_preparse(int *argc, char **argv);
     int e;
 
     srand(time(NULL));
@@ -385,6 +384,11 @@ emulate(int argc, char **argv)
 
     /* here we include the hooks to possible plug-ins */
     #include "plugin_init.h"
+
+    if (config.exitearly) {
+      dbug_printf("Leaving DOS before booting\n");
+      leavedos(0);
+    }
 
     boot();			/* read the boot sector & get moving */
 
@@ -611,9 +615,8 @@ leavedos(int sig)
     if (rmdir(TMPDIR_PROCESS) != 0) {
        char *command = strcatdup("/bin/rm -rf >/dev/null 2>&1 ", TMPDIR_PROCESS);
        if (command == NULL || system(command) != 0) {
-          g_printf("Failed to remove ");
-          g_printf(TMPDIR_PROCESS);
-          g_printf(" you'll have to clean it up yourself.\n");
+          g_printf("Failed to remove %s, you'll have to clean it up yourself.\n", 
+         TMPDIR_PROCESS);
        }
     }
 
