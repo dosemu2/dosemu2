@@ -1,12 +1,15 @@
 /* dos emulator, Matthias Lautner */
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50pl1/RCS/dos.c,v $
- * $Revision: 1.5 $
+ * $Date: 1994/04/13 00:07:09 $
+ * $Source: /home/src/dosemu0.60/RCS/dos.c,v $
+ * $Revision: 1.6 $
  * $State: Exp $
  *
  * $Log: dos.c,v $
+ * Revision 1.6  1994/04/13  00:07:09  root
+ * Jochen's patches.
+ *
  * Revision 1.5  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -49,7 +52,7 @@ main(int argc, char **argv)
   emulate(argc, argv);
 #else
   if (uselib("/usr/lib/libdosemu") != 0) {
-    fprintf(stderr, "cannot load shared library /usr/lib/libemu!\n");
+    fprintf(stderr, "cannot load shared library /usr/lib/libdosemu!\n");
     exit(1);
   }
   dosemu = (void *) LIBSTART;

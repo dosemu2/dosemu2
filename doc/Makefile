@@ -19,9 +19,15 @@ install:
 
 checkin:
 	-ci dosemu.texinfo
+	-ci DPR
+	-ci DANG
+	-ci EMUsuccess.txt
 
 checkout:
 	-co -l dosemu.texinfo
+	-co -l DPR
+	-co -l DANG
+	-co -l EMUsuccess.txt
 
 clean:
 	rm -f dosemu.dvi dosemu.cp dosemu.aux dosemu.cps dosemu.fn dosemu.fns 
@@ -29,6 +35,6 @@ clean:
 	rm -f dosemu.ky dosemu.kys dosemu.log dosemu.pg dosemu.pgs dosemu.toc 
 	rm -f dosemu.tp dosemu.tps dosemu.vr dosemu.vrs
 
-dist: dosemu.texinfo dosemu.info dos.1
+dist: dosemu.texinfo dosemu.info dos.1 DPR DANG EMUsuccess.txt
 	install -d $(DISTPATH)/doc
-	install -m 0644 Makefile dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) $(DISTPATH)/doc
+	install -m 0644 Makefile dosemu.texinfo dosemu.info dos.1 announce$(EMUVER) DPR DANG EMUsuccess.txt $(DISTPATH)/doc

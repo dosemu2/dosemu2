@@ -5,12 +5,30 @@
  *
  * First Attempted by James B. MacLean jmaclean@fox.nstn.ns.ca
  *
- * $Date: 1994/03/15 01:38:57 $
+ * $Date: 1994/04/27 23:58:51 $
  * $Source: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v $
- * $Revision: 1.7 $
+ * $Revision: 1.14 $
  * $State: Exp $
  *
  * $Log: dpmi.c,v $
+ * Revision 1.14  1994/04/27  23:58:51  root
+ * Lutz's patches.
+ *
+ * Revision 1.12  1994/04/16  01:33:52  root
+ * Lutz's updates.
+ *
+ * Revision 1.11  1994/04/13  00:11:50  root
+ * Lutz's patches
+ *
+ * Revision 1.10  1994/04/09  18:47:20  root
+ * Lutz's latest.
+ *
+ * Revision 1.9  1994/04/07  00:19:50  root
+ * Lutz's latest.
+ *
+ * Revision 1.8  1994/03/23  23:26:31  root
+ * Diffs from Lutz
+ *
  * Revision 1.7  1994/03/15  01:38:57  root
  * DPMI updates
  *
@@ -54,18 +72,20 @@
 #include "machcompat.h"
 #include "cpu.h"
 #include "dpmi.h"
+#include "config.h"
 
-extern struct CPU cpu;
 extern struct config_info config;
 extern struct sigcontext_struct *scp;
 extern unsigned long RealModeContext;
 
 extern print_ldt();
 
+INTDESC Interrupt_Table[0x100];
+INTDESC Exception_Table[0x20];
 SEGDESC Segments[MAX_SELECTORS];
 static char ldt_buffer[LDT_ENTRIES*LDT_ENTRY_SIZE];
 
-static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 1.7 1994/03/15 01:38:57 root Exp root $";
+static char RCSdpmi[] = "$Header: /home/src/dosemu0.60/dpmi/RCS/dpmi.c,v 1.14 1994/04/27 23:58:51 root Exp root $";
 
 #define MODIFY_LDT_CONTENTS_DATA        0
 #define MODIFY_LDT_CONTENTS_STACK       1
@@ -84,11 +104,15 @@ void
 dpmi_get_entry_point()
 {
     D_printf("Request for DPMI entry\n");
+
+    if (!config.dpmi_size)
+      return;
+
     REG(eax) = 0; /* no error */
 
     /* 32 bit programs are O.K. */
     LWORD(ebx) = 1;
-    LO(cx) = cpu.type;
+    LO(cx) = vm86s.cpu_type;
 
     /* Version 0.9 */
     HI(dx) = DPMI_VERSION;
@@ -111,7 +135,9 @@ dpmi_init()
   us CS, DS, ES, SS;
   us *ssp = SEG_ADR((us *), ss, sp);
   int my_ip, my_cs, my_sp, i;
-  unsigned char *cp;
+  unsigned char *cp, *ssp2;
+
+  CARRY;
 
   DPMIclient_is_32 = LWORD(eax) ? 1 : 0;
   DPMI_private_data_segment = REG(es);
@@ -120,8 +146,9 @@ dpmi_init()
   my_cs = *ssp++;
   cp = (unsigned char *) ((my_cs << 4) +  my_ip);
 
-  D_printf("Going protected with fingers crossed 32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x\n",
-		LO(ax), my_cs, LWORD(ss), LWORD(ds), LWORD(ebx));
+  D_printf("Going protected with fingers crossed\n"
+		"32bit=%d, CS=%04x SS=%04x DS=%04x PSP=%04x ip=%04x sp=%04x\n",
+		LO(ax), my_cs, LWORD(ss), LWORD(ds), LWORD(ebx), my_ip, REG(esp));
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
@@ -133,6 +160,18 @@ dpmi_init()
   for (i = 0; i < 10; i++)
     D_printf("%02x ", *cp++);
   D_printf("\n");
+
+  D_printf("STACK: ");
+  ssp2 = (unsigned char *)ssp - 10;
+  for (i = 0; i < 10; i++)
+    D_printf("%02x ", *ssp2++);
+  D_printf("-> ");
+  for (i = 0; i < 10; i++)
+    D_printf("%02x ", *ssp2++);
+  D_printf("\n");
+
+  if (!config.dpmi_size)
+    return;
 
   /* should be in dpmi_quit() */
   for (i=0;i<MAX_SELECTORS;i++) FreeDescriptor(i<<3);
@@ -165,6 +204,15 @@ dpmi_init()
   else {
     D_printf("DPMI_SEL=%x\n", DPMI_SEL);
     return;
+  }
+
+  for (i=0;i<0x100;i++) {
+    Interrupt_Table[i].offset = DPMI_OFF + 16;
+    Interrupt_Table[i].selector = DPMI_SEL;
+  }
+  for (i=0;i<0x20;i++) {
+    Exception_Table[i].offset = DPMI_OFF + 15;
+    Exception_Table[i].selector = DPMI_SEL;
   }
 
   if (CS = AllocateDescriptors(1)) {
@@ -211,9 +259,9 @@ dpmi_init()
 
   if (ES = AllocateDescriptors(1)) {
     if ( set_ldt_entry( (int)(ES>>3), (unsigned long) (LWORD(ebx) << 4),
-	 0x00ff, DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0 )) return;
+	 0xffff, DPMIclient_is_32, MODIFY_LDT_CONTENTS_DATA, 0, 0 )) return;
     Segments[ES>>3].base_addr = (unsigned long) (LWORD(ebx) << 4);
-    Segments[ES>>3].limit = 0x00ff;
+    Segments[ES>>3].limit = 0xffff;
     Segments[ES>>3].type = MODIFY_LDT_CONTENTS_DATA;
     Segments[ES>>3].is_32 = DPMIclient_is_32;
   }
@@ -240,7 +288,49 @@ dpmi_init()
   in_dpmi=1;
   in_dpmi_dos_int = 0;
   CallToInit(my_ip, CS, my_sp, SS, DS, ES);
-  D_printf("ReturnFrom16\n");
+  if (Segments[DPMI_SavedDOS_ss>>3].is_32)
+    ssp = (us *) (GetSegmentBaseAddress(DPMI_SavedDOS_ss) + DPMI_SavedDOS_esp);
+  else
+    ssp = (us *) (GetSegmentBaseAddress(DPMI_SavedDOS_ss) + (DPMI_SavedDOS_esp & 0xffff));
+  {
+    struct pm86 *dpmir = (struct pm86 *) ssp;
+    dpmir->eflags &= ~0x00000cd5;
+    dpmir->eflags |= 0x00000cd5 & REG(eflags);
+    dpmir->eax = REG(eax);
+    dpmir->ebx = REG(ebx);
+    dpmir->ecx = REG(ecx);
+    dpmir->edx = REG(edx);
+    dpmir->esi = REG(esi);
+    dpmir->edi = REG(edi);
+    dpmir->ebp = REG(ebp);
+  }
+}
+
+inline void do_dpmi_int(int i)
+{
+  us *ssp;
+
+  if ((i == 0x2f) && (_LWORD(eax) == 0x168a))
+    do_int31(0x0a00);
+  else if (i == 0x31) {
+    D_printf("DPMI: int31, eax=%04x\n",(int)_eax);
+    do_int31(_LWORD(eax));
+  } else {
+    REG(eflags) = _eflags;
+    REG(eax) = _eax;
+    REG(ebx) = _ebx;
+    REG(ecx) = _ecx;
+    REG(edx) = _edx;
+    REG(esi) = _esi;
+    REG(edi) = _edi;
+    REG(ebp) = _ebp;
+    REG(ds) = (long) GetSegmentBaseAddress(_ds) >> 4;
+    REG(es) = (long) GetSegmentBaseAddress(_es) >> 4;
+    REG(cs) = DPMI_SEG;
+    REG(eip) = DPMI_OFF + 8;
+    in_dpmi_dos_int = 1;
+    do_int(i);
+  }
 }
 
 /* Simulate direct LDT access for MS-Windows 3.1 */
@@ -358,7 +448,20 @@ void do_int31(int inumber)
     ((us *) 0)[_LO(bx) << 1] = (us) _LWORD(edx);
     break;
   case 0x0202:	/* Get Processor Exception Handler Vector */
-    _eflags |= CF;
+    _LWORD(ecx) = Exception_Table[_LO(bx)].selector;
+    _edx = Exception_Table[_LO(bx)].offset;
+    break;
+  case 0x0203:	/* Set Processor Exception Handler Vector */
+    Exception_Table[_LO(bx)].selector = _LWORD(ecx);
+    Exception_Table[_LO(bx)].offset = (DPMIclient_is_32 ? _edx : _LWORD(edx));
+    break;
+  case 0x0204:	/* Get Protected Mode Interrupt vector */
+    _LWORD(ecx) = Interrupt_Table[_LO(bx)].selector;
+    _edx = Interrupt_Table[_LO(bx)].offset;
+    break;
+  case 0x0205:	/* Set Protected Mode Interrupt vector */
+    Interrupt_Table[_LO(bx)].selector = _LWORD(ecx);
+    Interrupt_Table[_LO(bx)].offset = (DPMIclient_is_32 ? _edx : _LWORD(edx));
     break;
   case 0x0300:	/* Simulate Real Mode Interrupt */
   case 0x0301:	/* Call Real Mode Procedure With Far Return Frame */
@@ -432,7 +535,7 @@ void do_int31(int inumber)
       _LWORD(ecx) = DPMI_OFF + 11;
       _LWORD(esi) = DPMI_SEL;
       _edi = DPMI_OFF + 11;
-      _LWORD(eax) = 0; /* We don't need to save our states ??? */
+      _LWORD(eax) = sizeof(struct vm86_regs);
     break;
   case 0x0306:	/* Get Raw Mode Switch Adresses */
       _LWORD(ebx) = DPMI_SEG;
@@ -443,7 +546,7 @@ void do_int31(int inumber)
   case 0x0400:	/* Get Version */
     _LWORD(eax) = DPMI_VERSION << 8 | DPMI_DRIVER_VERSION;
     _LO(bx) = 1;
-    _LO(cx) = cpu.type;
+    _LO(cx) = vm86s.cpu_type;
     _LWORD(edx) = 0; /* PIC base interrupt ???????? */
     break;
   case 0x0500:
@@ -485,11 +588,17 @@ void do_int31(int inumber)
     _LWORD(ecx) = 0x1000; /* 4 KByte */
     break;
   case 0x0900:	/* Get and Disable Virtual Interrupt State */
-  case 0x0901:	/* Get and Enable Virtual Interrupt State */
-  case 0x0902:	/* Get Virtual Interrupt State */
-    _eax = 0;
+    _LO(ax) = (REG(eflags) & IF) ? 1 : 0;
+    REG(eflags) &= ~IF;
     break;
-  case 0x0a00:
+  case 0x0901:	/* Get and Enable Virtual Interrupt State */
+    _LO(ax) = (REG(eflags) & IF) ? 1 : 0;
+    REG(eflags) |= IF;
+    break;
+  case 0x0902:	/* Get Virtual Interrupt State */
+    _LO(ax) = (REG(eflags) & IF) ? 1 : 0;
+    break;
+  case 0x0a00:	/* Get Vendor Specific API Entry Point */
     {
       char *ptr = (char *) (GetSegmentBaseAddress(_ds) + (DPMIclient_is_32 ? _esi : _LWORD(esi)));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
@@ -503,6 +612,11 @@ void do_int31(int inumber)
 	_eflags |= CF;
       }
     }
+    break;
+  case 0x0e00:	/* Get Coprocessor Status */
+    _LWORD(eax) = 0x4d;
+    break;
+  case 0x0e01:	/* Set Coprocessor Emulation */
     break;
   default:
     _eflags |= CF;

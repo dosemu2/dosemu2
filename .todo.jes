@@ -7,8 +7,6 @@ CleanUP
 		Finally started.
 Timing
 	-	Get the timing code to work more like timing code :-).
-Serial
-	-	Should be enhanced to provide atleast 9600 baud.
 Network
 	-	Want to connect to network existing already in Linux.
 		Be able to support both TCP/IP and IPX/SPX protocols.

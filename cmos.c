@@ -1,16 +1,16 @@
 /* cmos.c, for DOSEMU
  *   by Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/04 15:23:54 $
- * $Source: /home/src/dosemu0.50pl1/RCS/cmos.c,v $
- * $Revision: 1.4 $
+ * $Date: 1994/03/23 23:24:51 $
+ * $Source: /home/src/dosemu0.60/RCS/cmos.c,v $
+ * $Revision: 1.5 $
  * $State: Exp $
  */
 
 #define CMOS_C
 #include <time.h>
 #include <sys/time.h>
-#include "config.h"
+
 #include "emu.h"
 #include "cmos.h"
 #include "disks.h"
@@ -77,7 +77,7 @@ cmos_init(void)
   /* information flags...my CMOS returns this */
   SET_CMOS(CMOS_INFO, 0xe1);
 
-  warn("CMOS initialized: \n$Header: /home/src/dosemu0.50pl1/RCS/cmos.c,v 1.4 1994/03/04 15:23:54 root Exp root $\n");
+  warn("CMOS initialized: \n$Header: /home/src/dosemu0.60/RCS/cmos.c,v 1.5 1994/03/23 23:24:51 root Exp root $\n");
 }
 
 int

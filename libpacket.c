@@ -115,6 +115,13 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
  *	-1	Error.
  */
 
+/*
+ *	NET2 or NET3 - work for both.
+ */
+#ifdef OLD_SIOCGIFHWADDR
+#define NET3
+#endif
+
 int 
 GetDeviceHardwareAddress(char *device, char *addr)
 {
@@ -124,10 +131,15 @@ GetDeviceHardwareAddress(char *device, char *addr)
 
   strcpy(req.ifr_name, device);
 
-  err = ioctl(s, SIOCGIFHWADDR, &req);
+  err = ioctl(s, SIOCGIFHWADDR, &req);  
+  close(s);	/* Thanks Rob. for noticing this */
   if (err == -1)
     return err;
+#ifdef NET3    
+  memcpy(addr, req.ifr_hwaddr.sa_data,8);
+#else
   memcpy(addr, req.ifr_hwaddr, 8);
+#endif  
   return 0;
 }
 

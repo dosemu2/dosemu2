@@ -1,113 +1,302 @@
-# Linux dosemu 0.49pl4 configuration file
+# Linux dosemu 0.51 configuration file. 
+# Updated to include QuickStart documentation 4/26/94 by Mark Rejhon
 # James MacLean, jmaclean@fox.nstn.ns.ca, 12/31/93
 # Robert Sanders, gt8134b@prism.gatech.edu, 5/16/93
- 
-# Comments start with # or ; in column 1;
+# 
+#
+# NOTICE:
+#    Although QuickStart information is included in this file, you
+#    should refer to the documentation in the "doc" subdirectory of the
+#    DOSEMU distribution, wherever possible.  Please send Email to James
+#    if you find errors in this sample configuration file.
+#
+#    This configuration file is designed to be used as a base to make
+#    it easier for you to set up DOSEMU for your specific system.
+#
+#    Comments start with # or ; in column 1 (absolute beginning of a line)
 
-#******************* DEBUG ************************************
 
-# Some flags:
-# v - video
-# d - disk activity
-# k - keyboard
-# Examples :
-# debug +Idv-kmx
-# debug +gIvk-dmx    
-# Having "debug -a" turns all debug messages off
-debug -a
+#************************* DEBUG ******************************************
+#
+# QuickStart:
+#    This section is of interest mainly to programmers.  This is useful if
+#    you are having problems with DOSEMU and you want to enclose debug info
+#    when you make bug reports to a member of the DOSEMU development team.
+#    Simply set desired flags to "on" or "off", then redirect stderr of
+#    DOSEMU to a file using "dos 2>debug" to record the debug information
+#    if desired.  Skip this section if you're only starting to set up.
+#
+debug { config off	disk    off	warning off	hardware off
+        port   off	read    off	general off	IPC      off
+        video  off	write   off	xms     off	ems      off
+        serial off	keyb    off	dpmi    off
+        config off	printer off	mouse   off
+      }
 
-# Want startup DOSEMU banner messages ofcourse :-)
+
+#************************ MISCALLENOUS ************************************
+#
+#   Want startup DOSEMU banner messages?  Of course :-)
 dosbanner on
 
-# If you are using a video card in graphics mode, this will 
-# allow it access to any ports it needs while doing its routines.
-# In the other modes it doesn't affect anything.
+#   If you are using a video card in graphics mode, this line will allow it 
+#   access to any ports it needs while doing its routines.  In text-only 
+#   modes, it doesn't affect anything.  For now, concentrate on getting 
+#   DOSEMU to start up in text-modes. 
 allowvideoportaccess on
 
-# These two are set to on.  keybint is slightly unstable,
-# and timint is necessary for many programs.
-
-keybint on
+#   timint is necessary for many programs to work.
 timint on
 
-#******************* SERIAL ************************************
-# known mice :
-#    "microsoft"(default), "mousesystems3", "mousesystems5",
-#    "mmseries" or "logitech".
-serial { mouse microsoft device /dev/cua0 }
 
-# The first active serial statement will always go to COM1 and the 
-# second will map to COM2.
-#serial { mouse device /dev/cua0 }
-#serial { mouse device /dev/cua1 }
+#************************** KEYBOARD ************************************
+# 
+# QuickStart:
+#    With the "layout" keyword, you can specify your country's keyboard
+#    layout.  The following layouts are implemented:
+#        finnish           us           dvorak       sf
+#        finnish_latin1    uk           sg           sf_latin1
+#        gr                dk           sg_latin1    es
+#        gr_latin1         dk_latin1    fr           es_latin1
+#        be                no           fr_latin1
+#    The us-layout is selected by default if the "layout" keyword is omitted.
+#
+#    The keyword "keybint" allows more accurate of keyboard interrupts,
+#    It is a bit unstable, but makes keyboard work better when set to "on".
+#
+#    The keyword "rawkeyboard" allows for accurate keyboard emulation for
+#    DOS programs, and is only activated when DOSEMU starts up at the 
+#    console.  It only becomes a problem when DOSEMU prematurely exits 
+#    with a "Segmentation Fault" fatal error, because the keyboard would
+#    have not been reset properly.  In that case, you would have to reboot 
+#    your Linux system remotely, or using the RESET button.  In reality, 
+#    this should never happen.  But if it does, please do report to the 
+#    dosemu development team, of the problem and detailed circumstances, 
+#    we're trying our best!  If you don't need near complete keyboard
+#    emulation (needed by major software package), set it to "off"
+#
+keyboard {  layout us  keybint on  rawkeyboard on  }
+# keyboard {  layout gr-latin1  keybint on  rawkeyboard on  }
+#
+#    If DOSEMU speed is unimportant, and CPU time is very valuable to you,
+#    you may want to set HogThreshold to a non-zero value.  This means
+#    the number of keypress requests in a row before CPU time is given
+#    away from DOSEMU.  A good value to use could be 10000.  
+#    A zero disables CPU hogging detection via keyboard requests. 
+#
+HogThreshold 0
 
-# Are we testing IPX
+ 
+#**************************** SERIAL ************************************
+#
+# QuickStart Notes:
+#    You can specify up to 4 simultaneous serial ports here.  
+#    If more than one ports have the same IRQ, only one of those ports
+#    can be used at the same time.  Also, you can specify the com port,
+#    base address, irq, and device path!  The defaults are:
+#        COM1 default is base 0x03F8, irq 4, and device /dev/cua0
+#        COM2 default is base 0x02F8, irq 3, and device /dev/cua1 
+#        COM3 default is base 0x03E8, irq 4, and device /dev/cua2
+#        COM4 default is base 0x02E8, irq 3, and device /dev/cua3
+#    If the "com" keyword is omitted, the next unused COM port is assigned.
+#    Also, remember, these are only how you want the ports to be emulated
+#    in DOSEMU.  That means what is COM3 on IRQ 5 in real DOS, can become 
+#    COM1 on IRQ 4 in DOSEMU!
+#
+#    Also, as an example of defaults, these two lines are functionally equal:
+#    serial { com 1  mouse }
+#    serial { com 1  mouse  base 0x03F8  irq 4  device /dev/cua0 }
+#
+#    If you want to use a serial mouse with DOSEMU, the "mouse" keyword 
+#    should be specified in only one of the serial lines.  (For PS/2
+#    mice, it is not necessary, and device path is in mouse line instead)
+#
+#    Uncomment/modify any of the following if you want to support a modem:
+#    (or any other serial device.)
+#serial { com 1  device /dev/modem }
+#serial { com 2  device /dev/modem }
+#serial { com 3  device /dev/modem }
+#serial { com 4  device /dev/modem }
+#serial { com 3  base 0x03E8  irq 5  device /dev/cua2 }
+#
+#    If you have a non-PS/2 mouse, uncomment/modify one of the following. 
+#serial { mouse  com 1  device /dev/mouse }
+#serial { mouse  com 2  device /dev/mouse }
+#
+#    What type is your mouse?  Uncomment one of the following.
+#mouse { microsoft }
+#mouse { logitech }
+#mouse { mousesystems3 }
+#mouse { mousesystems5 }
+#mouse { mmseries }
+#mouse { ps2  device /dev/mouse }
+
+
+#************************* NETWORKING SUPPORT *****************************
+#
+# (Comment: Someone needs to give me more information about the networking
+# support in DOSEMU, to add here)  Are we testing IPX support?
 ipxsupport off
 
-#******************* VIDEO ************************************
 
-# Start with just this to get going, then experiment with others
-# below.
-video { vga console }
+#************************* VIDEO ******************************************
+#
+# !!WARNING!!: A LOT OF THIS VIDEO CODE IS ALPHA!  IF YOU ENABLE GRAPHICS
+# ON AN INCOMPATIBLE ADAPTOR, YOU COULD GET A BLANK SCREEN OR MESSY SCREEN
+# EVEN AFTER EXITING DOSEMU.  JUST REBOOT (BLINDLY) AND THEN MODIFY CONFIG.
+#
+# QuickStart:
+#    Start with only text video using the following line, to get started.
+#    then when DOSEMU is running, you can set up a better video configuration.
+#
+video { vga  console }
 
-# Trident with 1 meg on board
-#video { vga console graphics chipset trident memsize 1024 }
+# QuickStart Second Step Notes:
+#   - To get graphics up and running, TURN OFF VIDEO BIOS SHADOWING!
+#     In most cases, this means to reboot, go into your CMOS setup, 
+#     turn off Shadow RAM for the address ranges C000-CFFF 
+#   - Set "allowvideoportaccess on" earlier in this configuration file
+#     if DOSEMU wont boot properly, such as hanging with a blank screen
+#     or the video card bootup message.
+#
+#   Any 100% compatible standard VGA card _MAY_ work with this:
+#video { vga  console  graphics }
+#
+#   Trident SVGA with 1 megabyte on board
+#video { vga  console  graphics  chipset trident  memsize 1024 }
+#
+#   Diamond SVGA
+#video { vga  console  graphics  chipset diamond }
+#
+#   ET4000 SVGA card with 1 megabyte on board:
+#video { vga  console  graphics  chipset et4000  memsize 1024 }
+#
+#   S3-based SVGA video card with 1 megabyte on board:
+#video { vga  console  graphics  chipset s3  memsize 1024 }
 
-# Diamond 
-#video { vga console graphics chipset diamond }
+#************************** MISCALLENOUS **********************************
+#
+# QuickStart:
+#    For "mathco", set this to "on" to enable the coprocessor during DOSEMU.
+#    This really only has an effect on kernels prior to 1.0.3.
+#    For "cpu", set this to the CPU you want recognized during DOSEMU.
+#    For "bootA"/"bootC", set this to the bootup drive you want to use.
+#    It is strongly recommended you start with "bootA" to get DOSEMU
+#    going, and during configuration of DOSEMU to recognize hard disks.
+#
+mathco on           # Math coprocessor valid values:  on  off
+cpu 80386           # CPU emulation valid values:  80286  80386  80486
+bootA               # Startup drive valid values:  bootA  bootC
 
-# Any conforming VGA card not specifically supported may work with this
-#video { vga console graphics }
+#*********************** MEMORY ******************************************
+#
+# QuickStart:
+#    These are memory parameters, stated in number of kilobytes.
+#    If you get lots of disk swapping while DOSEMU runs, you should 
+#    reduce these values.  Also, DPMI is still somewhat unstable,
+#    (as of early April 1994) so be careful with DPMI paramters.
+#
+xms 1024            # XMS size in K,  or "off"
+ems 1024            # EMS size in K,  or "off"
+dpmi off            # DPMI size in K, or "off"  Be careful with DPMI!
 
-# ET4000 card with a meg on board
-#video { vga console graphics chipset et4000 memsize 1024 }
 
-# Rawkeyboard allows the closest keyboard emulation for DOS programs
-# and is useful only at the console
-RawKeyboard         # Allows for best DOS keybaord emulation
-
-mathco off          # on or off
-cpu 80386           # or 80286 or 80386
-bootc               # or bootA, Which do you want to boot from default
-xms 1024            # XMS size in K, or off
-ems 1024            # EMS size in K, or off
-
+#********************** PORT ACCESS **************************************
+#
+# !!WARNING!!: GIVING ACCESS TO PORTS IS BOTH A SECURITY CONCERN AND
+# SOME PORTS ARE DANGEROUS TO USE.  PLEASE SKIP THIS SECTION, AND 
+# DON'T FIDDLE WITH THIS SECTION UNLESS YOU KNOW WHAT YOU'RE DOING.
+#
 # ports { 0x388 0x389 }  # for SimEarth
-
-# Various port statements with are used to gain access to I/O ports
-# in your DOS session.
-# ports { 0x2f8 0x2f9 0x2fa 0x2fb 0x2fc 0x2fd 0x2fe }
-# ports { 0x3f8 0x3f9 0x3fa 0x3fb 0x3fc 0x3fd 0x3fe }
 # ports { 0x21e 0x22e 0x23e 0x24e 0x25e 0x26e 0x27e 0x28e 0x29e } # for jill
  
-#******************* SPEAKER ************************************
- 
-# Speaker modes
-speaker native         # also off or emulated
 
-#******************* HARD DISKS ******************************* 
+#******************* SPEAKER *********************************************
+# 
+# These keywoards are allowable on the "speaker" line:
+#   native      Enable DOSEMU direct access to the speaker ports.
+#   emulated    Enable simple beeps at the terminal.
+#   off         Disable speaker emulation.
+#
+speaker native         # or "off" or "emulated"
 
-disk { image "hdimage" }
-#disk { partition "/dev/hda1" 1 readonly }        # 1st partition on 1st disk
-#disk { partition "/dev/sda2" 1 readonly }        # 1st partition on 1st disk
-#disk { wholedisk "/dev/hda" }        # 1st partition on 1st disk
 
-#******************* BOOT DISK *****************************
+#******************* HARD DISKS ******************************************
+#
+# !!WARNING!!: DAMAGE MIGHT RESULT TO YOUR HARD DISK (LINUX AND/OR DOS)
+# IF YOU FIDDLE WITH THIS SECTION WITHOUT KNOWING WHAT YOU'RE DOING!
+#
+# QuickStart Notes:
+#    The best way to get started is to start with a boot floppy, and set
+#    "bootA" above in the configuration.  Keep using the boot floppy 
+#    while you are setting this hard disk configuration up for DOSEMU,
+#    and testing by using DIR C: or something like that.
+#    If you want DOSEMU to be able to access a DOS partition, the 
+#    safer type of access is "partition" access, because "wholedisk" 
+#    access gives DOSEMU write access to a whole physical disk, 
+#    including any vulnerable Linux partitions on that drive!
+#
+#    !!! IMPORTANT !!!
+#    You must not have LILO installed on the partition for dosemu to boot off. 
+#    As of 04/26/94, doublespace and stacker 3.1 will work with wholedisk 
+#    or partition only access.  Stacker 4.0 has been reported to work with
+#    wholedisk access.  If you want to use disk compression using partition
+#    access, you will need to use the "mkpartition" command included with
+#    dosemu to create a partition table datafile for dosemu.
+#
+#    Please read the documentation in the "doc" subdirectory for info
+#    on how to set up access to real hard disk.
+#
+#    "image" specifies a hard disk image file.
+#    "partition" specifies partition access, with device and partition number.
+#    "wholedisk" specifies full access to entire hard drive.
+#    "readonly" for read only access.  A good idea to set up with.
+#
+#disk { image "hdimage" }                    # use diskimage file.
+#disk { partition "/dev/hda1" 1 readonly }   # 1st partition on 1st IDE.
+#disk { partition "/dev/sda2" 1 readonly }   # 1st partition on 2nd SCSI.
+#disk { wholedisk "/dev/hda" }               # Entire disk drive unit
 
+
+#******************* BOOT DISK *******************************************
+#
 # Use the following option to boot from the specified file, and then
 #  once booted, have bootoff execute in autoexec.bat. Thanks Ted :-).
 # Notice it follows a typical floppy spec. To create this file use
-#  dd if=/dev/fd0 of=bdisk bs=16k
-#bootdisk { heads 2 sectors 18 tracks 80 threeinch file bdisk }
+#  dd if=/dev/fd0 of=/etc/dosemu/bdisk bs=16k
+#
+#bootdisk { heads 2 sectors 18 tracks 80 threeinch file /etc/dosemu/bdisk }
 
-#******************* FLOPPY DISKS *****************************
 
+#******************* FLOPPY DISKS ****************************************
+#
+# QuickStart:
+#    This part is fairly easy.  Make sure that the first (/dev/fd0) and
+#    second (/dev/fd1) floppy drives are of the correct size, "threeinch"
+#    and/or "fiveinch".  A floppy disk image can be used instead, however.
+#
+#    FOR SAFETY, UNMOUNT ALL FLOPPY DRIVES FROM YOUR FILESYSTEM BEFORE 
+#    STARTING UP DOSEMU!  DAMAGE TO THE FLOPPY MAY RESULT OTHERWISE!
+#
 floppy { device /dev/fd0 threeinch }  
 floppy { device /dev/fd1 fiveinch }  
-#floppy { heads 2 sectors 18 tracks 80 threeinch file diskimage }  
+#floppy { heads 2  sectors 18  tracks 80  threeinch  file diskimage }  
+#
+#    If floppy disk speed is very important, uncomment the following
+#    line.  However, this makes the floppy drive a bit unstable.  This 
+#    is best used if the floppies are write-protected.
+#
+#FastFloppy on
 
-#printer { options "%s" command "lpr" timeout 20 }
-#printer { options "-p %s" command "lpr" timeout 10 }    # pr format it
+
+#******************* PRINTERS ********************************************
+#
+# QuickStart Notes:
+#    Printer is emulated by piping printer data to a file or via a unix
+#    command such as "lpr".  Don't bother fiddling with this configuration
+#    until you've got DOSEMU up and running already.
+#
+#printer { options "%s"  command "lpr"  timeout 20 }
+#printer { options "-p %s"  command "lpr"  timeout 10 }    # pr format it
 #printer { file "lpt3" }
-
 

@@ -3,11 +3,32 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/18 23:17:51 $
- * $Source: /home/src/dosemu0.50pl1/RCS/termio.c,v $
- * $Revision: 1.22 $
+ * $Date: 1994/04/27 23:39:57 $
+ * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
+ * $Revision: 1.29 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 1.29  1994/04/27  23:39:57  root
+ * Lutz's patches to get dosemu up under 1.1.9.
+ *
+ * Revision 1.28  1994/04/23  20:51:40  root
+ * Get new stack over/underflow working in VM86 mode.
+ *
+ * Revision 1.27  1994/04/20  23:43:35  root
+ * pre51_8 out the door.
+ *
+ * Revision 1.26  1994/04/18  22:52:19  root
+ * Ready pre51_7.
+ *
+ * Revision 1.25  1994/04/13  00:07:09  root
+ * Multiple patches from various sources.
+ *
+ * Revision 1.24  1994/04/07  20:50:59  root
+ * More updates.
+ *
+ * Revision 1.23  1994/04/04  22:51:55  root
+ * Patches for PS/2 mice.
+ *
  * Revision 1.22  1994/03/18  23:17:51  root
  * Prep for 0.50pl1
  *
@@ -44,7 +65,6 @@
 #include <termcap.h>
 #endif
 #include <sys/mman.h>
-#include <linux/mm.h>
 #include <signal.h>
 #include <sys/stat.h>
 #include <linux/vt.h>
@@ -58,6 +78,7 @@
 #include "mouse.h"
 #include "dosio.h"
 #include "cpu.h"
+#include "keymaps.h"
 
 /* int15 fn=4f will clear CF if scan code should not be used,
    I set keepkey to reflect CF */
@@ -79,7 +100,12 @@ void convascii(int *);
 u_char ins_stat = 0, scroll_stat = 0, num_stat = 0, caps_stat = 0;
 
 /* these are the structures in keymaps.c */
-extern unsigned char shift_map[97], alt_map[97], key_map[97], num_table[15];
+/* extern unsigned char shift_map[97], alt_map[97], key_map[97], num_table[15]; */
+
+#define key_map config.key_map
+#define shift_map config.shift_map
+#define alt_map config.alt_map
+#define num_table config.num_table
 
 extern struct config_info config;
 
@@ -305,7 +331,12 @@ unsigned char highscan[256] =
 int
 outch(int c)
 {
+#ifdef USE_NCURSES
+  addch((u_char)c);
+  refresh();
+#else
   write(STDOUT_FILENO, (char *) &c, 1);
+#endif
   return 1;
 }
 
@@ -437,6 +468,7 @@ OpenKeyboard(void)
     scr_state.console_no = 0;
     config.console_keyb = 0;
     config.console_video = 0;
+    config.mapped_bios = 0;
     config.vga = 0;
     config.graphics = 0;
     if (config.speaker == SPKR_NATIVE)
@@ -458,7 +490,7 @@ OpenKeyboard(void)
   newtermio.c_cc[VTIME] = 0;
   erasekey = newtermio.c_cc[VERASE];
   if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
-    error("ERROR: Couldn't ioctl(STDIN,TCGETA,...) !\n");
+    error("ERROR: Couldn't ioctl(STDIN,TCSETAF,...) !\n");
 /*    close(kbd_fd);
     kbd_fd = -1;
     return -1;  */
@@ -467,20 +499,20 @@ OpenKeyboard(void)
   if (config.console_keyb || config.console_video)
     set_process_control();
 
+  kbd_flags = 0;
+  child_kbd_flags = 0;
+  key_flags = 0;
+
   if (config.console_keyb) {
     set_raw_mode();
     get_leds();
     set_key_flag(KKF_KBD102);
   }
 
-  kbd_flags = 0;
-  child_kbd_flags = 0;
-  key_flags = 0;
-
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.50pl1/RCS/termio.c,v 1.22 1994/03/18 23:17:51 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 1.29 1994/04/27 23:39:57 root Exp root $\n");
 
   return 0;
 }
@@ -558,9 +590,9 @@ getKeys(void)
   }
 
   /* IPC change here!...was read(kbd_fd... */
-  cc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE);
+  cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE);
 
-  k_printf(" cc found %d characters\n", cc);
+  k_printf("KEY: cc found %d characters\n", cc);
 
   if (cc > 0 && config.console_keyb) {
     int i;
@@ -568,6 +600,7 @@ getKeys(void)
     for (i = 0; i < cc; i++) {
       child_set_flags(kbp[kbcount + i]);
       DOS_setscan(kbp[kbcount + i]);
+      k_printf("KEY: cc pushing %d'th character\n", i);
     }
   }
   else {
@@ -593,33 +626,36 @@ child_set_flags(int sc)
     child_set_kbd_flag(4);
     return;
   case 0x2a:
-    if (child_kbd_flag(4))
-      child_clr_kbd_flag(4);
-    else
+    if (!child_kbd_flag(4))
       child_set_kbd_flag(1);
+    child_clr_kbd_flag(4);
     return;
   case 0x36:
     child_set_kbd_flag(1);
+    child_clr_kbd_flag(4);
     return;
   case 0x1d:
   case 0x10:
     child_set_kbd_flag(2);
+    child_clr_kbd_flag(4);
     return;
   case 0x38:
     if (!child_kbd_flag(4))
       child_set_kbd_flag(3);
+    child_clr_kbd_flag(4);
     return;
   case 0xaa:
-    if (child_kbd_flag(4))
-      child_clr_kbd_flag(4);
-    else
+    if (!child_kbd_flag(4))
       child_clr_kbd_flag(1);
+    child_clr_kbd_flag(4);
     return;
   case 0xb6:
+    child_clr_kbd_flag(4);
     child_clr_kbd_flag(1);
     return;
   case 0x9d:
   case 0x90:
+    child_clr_kbd_flag(4);
     child_clr_kbd_flag(2);
     return;
   case 0xb8:
@@ -638,6 +674,7 @@ child_set_flags(int sc)
   case 0x44:
   case 0x57:
   case 0x58:
+    child_clr_kbd_flag(4);
     if (
 	 child_kbd_flag(3) &&
 	 child_kbd_flag(2) &&
@@ -666,7 +703,9 @@ child_set_flags(int sc)
 	 !child_kbd_flag(1)
       ) {
       dbug_printf("ctrl-alt-pgdn\n");
+      leavedos(42);
     }
+    child_clr_kbd_flag(4);
     return;
   default:
     child_clr_kbd_flag(4);
@@ -1286,12 +1325,15 @@ do_self(unsigned int sc)
              Pressed with the Left-Alt-Key they return the normal symbol
              with the alt-modifier. I've tested this with the 4DOS-Alias-
              Command.                  hein@tlaloc.in.tu-clausthal.de       */
-#ifdef KBD_GR_LATIN1		/* Only valid for GR_LATIN1-keyboard */
-    if (kbd_flag(EKF_LALT))	/* Left-Alt-Key pressed ?            */
-      ch = alt_map[0];		/* Return Key with Alt-modifier      */
-    else			/* otherwise (this is Alt-Gr)        */
-#  endif			/* or no GR_LATIN1-keyboard          */
-      ch = alt_map[sc];		/* Return key from alt_map           */
+    if (config.keyboard == KEYB_GR_LATIN1) {
+      if (kbd_flag(EKF_LALT))	/* Left-Alt-Key pressed ?            */
+	ch = alt_map[0];	/* Return Key with Alt-modifier      */
+      else			/* otherwise (this is Alt-Gr)        */
+	ch = alt_map[sc];	/* Return key from alt_map           */    
+    }
+    else                        /* or no GR_LATIN1-keyboard          */
+      ch = alt_map[sc];		/* Return key from alt_map           */    
+
     if ((sc >= 2) && (sc <= 0xb))	/* numbers */
       sc += 0x76;
     else if (sc == 0xd)
@@ -1461,12 +1503,11 @@ func(unsigned int sc)
 
   /* this checks for the VC-switch key sequence */
   if (kbd_flag(EKF_LALT) && !key_flag(KKF_RALT) && !kbd_flag(KF_RSHIFT)
-      && !kbd_flag(KF_LSHIFT) && kbd_flag(KF_CTRL)) {
+      && !kbd_flag(KF_LSHIFT) && kbd_flag(EKF_LCTRL)) {
     clr_kbd_flag(EKF_LALT);
+    clr_kbd_flag(KF_ALT);
+    clr_kbd_flag(EKF_LCTRL);
     clr_kbd_flag(KF_CTRL);
-    if (!key_flag(KKF_RALT))
-      clr_kbd_flag(KF_ALT);
-
     return;
   }
 

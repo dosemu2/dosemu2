@@ -2,7 +2,7 @@
 ! Robert Sanders, gt8134b@prism.gatech.edu
 !
 ! $Date: 1994/01/30 12:34:02 $
-! $Source: /home/src/dosemu0.50pl1/commands/RCS/exitemu.S,v $
+! $Source: /home/src/dosemu0.60/commands/RCS/exitemu.S,v $
 ! $Revision: 1.2 $
 ! $State: Exp $
 

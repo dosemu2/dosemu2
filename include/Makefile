@@ -1,0 +1,45 @@
+# This is the file ./include/Makefile for the Linux DOS-emulator.
+#
+
+CC   = gcc                         
+LD   = ld
+
+INCDIR= -I../include -I../
+
+CFLAGS=-O2 -Wall -Wmissing-prototypes \
+	-Wstrict-prototypes  # -ansi -pedantic
+
+ALL = bios.h keymaps.h port.h video.h
+
+OBJS = 
+
+all:
+
+.c.o:
+	$(CC) $(CFLAGS) $(INCDIR) -c $<
+
+checkin:
+	-ci $(ALL) Makefile
+checkout:
+	-co -l $(ALL) Makefile
+
+clean:
+	rm -f *.o .depend
+
+install:
+
+dist: $(ALL) Makefile
+	install -d $(DISTPATH)/include
+	install -m 0644 $(ALL) Makefile $(DISTPATH)/include
+
+depend dep: 
+
+
+dummy:
+
+#
+# include a dependency file if one exists
+#
+ifeq (.depend,$(wildcard .depend))
+include .depend
+endif

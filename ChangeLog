@@ -1,3 +1,217 @@
+April 27, 1994  JES
+
+-	If your kernel is of the 1.0.x nature, patch with 
+	kernel.1.0.x.diff. If your kernel is 1.1.x where x is less
+	than 9, patch with kernel.1.1.9.diff. If your kernel is
+	1.1.9 patch with kernel.post.1.1.9.diff. Have fun :-)
+
+-	Make keyboard stop dupping. Poor kludge until JLarry's 
+	PIC code.
+
+-	Jochen's continuing cleanup code.
+
+-	Lutz's Patches to allow DOSEMU to run in 1.1.9.
+
+April 23, 1994  JES
+
+-	modified code in DOSEMU to prevent errors due to stack 
+	over/underflow when computations are done on offsets.
+
+-	Lutz's latest kernel diffs to avoid under/overflow in stack
+	computations
+
+-	Rob Janssen patches to fix int2f returns and understand
+	deskview giveup timeslices.
+
+April 19, 1994  JES
+
+-	Rob's pktdrvr enhancements. Ready for testing.
+	rnzll3!pe1chl!rob@relay.NL.net. Should be possible 
+	to run different stacks on this one. Doesnot require 
+	loading linpkt.
+
+-	Lutz's latest kernel.diff + patches.
+
+-	Lutz's changed inline code back to assembler that's copied in.
+
+-	Only do set_leds() when in RawKeybaord.
+
+-	Moved DPR, DANG, EMUSuccess.txt to ./doc
+
+April 17, 1994  Hein@Student.TU-Clausthal.De (Jochen Hein)
+
+-       Cleanup continues
+        * [Makefile]
+	-ansi -pedantic as a comment :-(
+	Updated depend-target. Should be done for clients/dpmi also
+
+	* [cpu.c termio.c video.c]
+	removed unused include linux/mm.h
+
+	* [emu.c video/terminal.c video/Makefile]
+	moved terminal-video-functions to video/terminal.c
+
+	* [emu.h]
+	removed warnings for keyboard-layout-pointers.
+	added some external variables, should be moved later
+
+	* [include/video.h video/video.c emu.c]
+	moved the installation of the inline int10-handler from emu.c
+	to video.c
+
+	* [mouse.h mouse.c]
+	moved mouse-cursor-define from .h to .c
+
+	* [emu.c video/vga.c]
+	moved some more vga-functions to video/vga.c
+
+April 16, 1993  JES
+
+-	First draft of JLarry's timer/PIC code. See ./timer/README.pic
+
+April 14, 1993  Hein@Student.TU-Clausthal.De (Jochen Hein)
+
+-	Major cleanup in video.c
+	* [Makefile]
+	changed to reflect other changes, removed unnessecary comments
+        and other old stuff. 
+	added ./include to the list of include-paths and subdirectories.
+	added the ./video subdirectory
+
+        * [include/* video/*]
+	created subdirectories for better code-structure.
+
+	* [include/port.h]
+	moved inline-port-function from emu.h (smaller emu.h)
+
+	* [video.c video.h s3.c modes.h]
+	moved to include and video.
+
+	* [cpu.c]
+	added port.h to the include-files
+
+	* [cpu.h]
+	made it compile with -ansi -pedantic
+
+	* [emu.h]
+	made it compile with -ansi -pedantic
+	moved port funtions to ./include/port.h
+
+	* [emu.c]
+	keep up with emu.h
+
+	* [machcompat.h]
+	made it compile with -ansi -pedantic
+
+	* [modes.h]
+	removed; content moved into video/vga.c
+
+	* [periph/mkpartition]
+	better error checking and messages.
+
+	* [sigsegv.c]
+	moved port funtions to ./include/port.h
+
+	* [termio.h]
+	made it compile with -ansi -pedantic
+
+	* [include/Makefile]
+	Makefile to do a make dist. All new files compile clean with
+	-ansi -pedantic, old files not.
+
+	* [include/keymaps.h]
+	New file: Prototypes for keyboard layouts
+
+	* [include/port.h]
+	New file: inline-port-functions moved from emu.h
+	made them compile with -ansi -pedantic
+
+	* [include/video.h]
+	moved from ./video.h, modified to fit in and compile with -ansi
+
+	* [video/Makefile]
+	Makefile to do a make dist. All new files compile clean with
+	-ansi -pedantic, old files not.
+
+	* [s3.c, s3.h]
+	moved to video/, slightly modified.
+
+	* [video/et4000.[ch] video/trident.[ch] video/vga.[ch] video/console.c]
+	New files, extracted from video.c and modified to compile with
+	-ansi -pedantic.
+
+	* [video/video.c]
+	remainder of splitting video.c, didn't compile with -ansi :-(
+
+Thu Apr 14 1994, Jochen Hein (Hein@Student.TU-Clausthal.de
+
+	* [periph/mkpartition]
+	added error-checking and some help-messages.
+
+April 12, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Lutz kernel patches to make ROCKET DOS :-)
+-	Mark's serial code almost better than the real thing.
+-	Jochen's 4 miles of patches :-).
+	- debug is configurable using meaningfull words
+	- keyboard is configured in /etc/dosemu/config
+	- work on making more than the first partition accessable
+	  using partition access.
+	Look in examples/config.dist
+
+April 07, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Minor updates to bios_emm.c
+-	Modified HMA_MAP to use IPC so that proper mapping takes place
+-	Marks latest serial.
+-	Modified OUTBUFSIZE to 80 thanks to Vinod.
+-	Modified CHOUT thanks to Vinod.
+-	Fixed 'stick-ctrl-key' after VC switches
+
+April 06, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Added niemann@swt.ruhr-uni-bochum.de S3 code update and fix to
+	Errors beeping to stdout, not stderr.
+-	Added Marks latest serial changes. Now we can properly define
+	particular COM ports and more. Read examples/config.dist for
+	details.
+-	Latest enhancements from Lutz.
+-	Added Spanish keyboard support by jon@gtex02.us.es (Jon Tombs)
+
+April 04, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Added Bill's changes for better MDA support
+-	Added Alan Hourihane's patches for PS/2 mice, now for 
+	describing mice in /etc/dosemu/config, first spec the port
+	serial { device /dev/cua0 } then describe the mouse,
+	mouse { device /dev/cua0 microsoft }.
+-	Added latest serial from Mark, he's approaching true 16550 :-).
+-	Added check for video mapped when emulating ports.
+-	Added more specific checks for allowvideoportaccess.
+
+March 26, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Latest serial from Mark.
+-	Added Belgium Keyboard thanks to :
+	jvdbergh@wins.uia.ac.be (Jan.Vandenberghe)
+
+March 24, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Concluded that E000 video bios'es are now working, many thanks
+	to danpop@cernapo.cern.ch (Dan Pop)
+-	Broke sigsegv() out of cpu.c into just sigsegv.c as to compile
+	do_int(), inb/outb(), et al inline now needs a 6meg swap on
+	my 4 meg system at work :-(
+
+March 23, 1994	jmaclean@fox.nstn.ns.ca
+
+-	Added #def's for E000 video bios testing.
+-	Added more DPMI from Lutz.
+-	Added new mouse.c from Alan Hourihane, this should become very
+	usefull in NCURSES mouse Client implementation.
+-	Seperated emu.c -> emu.c,ports.c,int.c and moved int.h & ports.h
+	into cpu.c in first attempt at bringing do_int and inb/outb inline.
+
 March 12, 1994	jmaclean@fox.nstn.ns.ca
 
 -	S3 video code started by niemann@swt.ruhr-uni-bochum.de 

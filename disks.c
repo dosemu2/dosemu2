@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/13 01:07:31 $
- * $Source: /home/src/dosemu0.50pl1/RCS/disks.c,v $
- * $Revision: 1.7 $
+ * $Date: 1994/04/13 00:07:09 $
+ * $Source: /home/src/dosemu0.60/RCS/disks.c,v $
+ * $Revision: 1.9 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -20,7 +20,6 @@
 #include <linux/fd.h>
 #include <sys/stat.h>
 
-#include "config.h"
 #include "emu.h"
 #include "disks.h"
 
@@ -296,6 +295,7 @@ partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
+  char *partition_file;                /* Name of the current partition-file */
 
 #define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
 			  (PART_INFO_LEN * (p-1)) + b)
@@ -307,11 +307,24 @@ partition_setup(struct disk *dp)
 
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
-  if ((part_fd = DOS_SYSCALL(open(PARTITION_PATH, O_RDONLY))) == -1) {
+  /* This is a really bad hack. Does anybody know how to do this right ? */
+  /* Take the (constant) beginning of the partition-description file and
+   * append the current partition name. So we can access more than one
+   * partition on one disk. 
+   */
+  partition_file = (char *)malloc(255);
+  partition_file = strcpy(partition_file,PARTITION_PATH "."); /*start with /etc/dosemu/partition*/
+
+  partition_file = strcat(partition_file,dp->dev_name+5); /* append part */
+
+  c_printf("CONFIG: Using partion file %s\n", partition_file);
+
+  if ((part_fd = DOS_SYSCALL(open(partition_file, O_RDONLY))) == -1) {
     error("ERROR: cannot open file %s for PARTITION %s\n",
-	  PARTITION_PATH, dp->dev_name);
+	  partition_file, dp->dev_name);
     leavedos(1);
   }
+  free(partition_file);
 
   RPT_SYSCALL(read(part_fd, tmp_mbr, SECTOR_SIZE));
 

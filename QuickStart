@@ -1,6 +1,11 @@
 
 How to quickly get dosemu up and running:
 
+Patch the kernel FIRST!!!
+kernel.1.0.x.diff for 1.0.x kernels
+kernel.1.1.9.diff for 1.1.x kernels prior to 1.1.9
+kernel.post.1.1.9.diff for 1.1.9 kernels 
+
 *** Note: This release redirects stderr, not stdout as before, therefore
 	attempts to redirect the debug output should be done on stderr.
 	This has been in preparation for a future release including
@@ -85,6 +90,17 @@ step 3) to:
         - From the dosemu0.50 directory, type dos -D-a 2>/dev/null
         - Copy the above files to c:/.
 -----------------------------------------------------------------------
+
+Where Is It? :
+
+- DOSEMU Project Registry is in ./doc
+  - All folks currently working on things in DOSEMU are listed here.
+
+- DANG is in ./doc
+  Trying to understand DOSEMU, try reading this one.
+
+- EMUsuccess.txt is in ./doc
+  - Should your program work? Look it up here.
 
   Some notes from Tim Bird (Tim_R_Bird@Novell.COM) on lredir found
 in the commands subdir :

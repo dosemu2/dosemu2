@@ -32,7 +32,11 @@ pkt_helper(void)
 
   switch (LO(dx)) {
   case F_ACCESS_TYPE:
+#if 1
+    pd_sock = OpenNetworkType(ETH_P_IPX);
+#else
     pd_sock = OpenNetworkType(ETH_P_802_3);
+#endif
     pd_printf("PD: Access type.\n");
     pd_printf("receiver is at ES:DI %04X:%04X\n", (unsigned short) REG(es),
 	      (unsigned short) REG(edi));

@@ -40,6 +40,15 @@ u_char SetDescriptor(us, unsigned long *);
 u_char AllocateSpecificDescriptor(us);
 void GetFreeMemoryInformation(unsigned long *);
 
+typedef struct interrupt_descriptor_s
+{
+    unsigned long	offset;
+    unsigned short	selector, __selectorh;
+} INTDESC;
+
+extern INTDESC Interrupt_Table[];
+extern INTDESC Exception_Table[];
+
 typedef struct segment_descriptor_s
 {
     unsigned long	base_addr;	/* Pointer to segment in flat memory */

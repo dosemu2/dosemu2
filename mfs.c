@@ -104,7 +104,7 @@ TODO:
 
 */
 
-#ifdef linux
+#ifdef __linux__
 #define DOSEMU 1		/* this is a port to dosemu */
 #endif
 
@@ -146,6 +146,24 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.34  1994/04/27  23:39:57  root
+ * Lutz's patches to get dosemu up under 1.1.9.
+ *
+ * Revision 1.33  1994/04/23  20:51:40  root
+ * Get new stack over/underflow working in VM86 mode.
+ *
+ * Revision 1.32  1994/04/20  23:59:12  root
+ * Quick change all fnxs() to inline.
+ *
+ * Revision 1.31  1994/04/20  23:43:35  root
+ * pre51_8 out the door.
+ *
+ * Revision 1.30  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.29  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.28  1994/03/13  01:07:31  root
  * Poor attempts to optimize.
  *
@@ -480,7 +498,7 @@ dos redirector code */
 struct direct *dos_readdir(DIR *);
 
 #if DOSEMU
-int
+__inline__ int
 exchange_uids(void)
 {
   if (setreuid(geteuid(), getuid()) ||
@@ -494,7 +512,7 @@ exchange_uids(void)
 #endif
 
 /* Try and work out if the current command is for any of my drives */
-int
+__inline__ int
 select_drive(state)
      state_t *state;
 {
@@ -691,7 +709,7 @@ select_drive(state)
   return (1);
 }
 
-int
+__inline__ int
 get_dos_attr(int mode)
 {
   int attr = 0;
@@ -705,7 +723,7 @@ get_dos_attr(int mode)
   return (attr);
 }
 
-int
+__inline__ int
 get_unix_attr(int mode, int attr)
 {
 #define S_IWRITEA (S_IWUSR | S_IWGRP | S_IWOTH)
@@ -724,7 +742,7 @@ get_unix_attr(int mode, int attr)
   return (mode);
 }
 
-int
+__inline__ int
 get_disk_space(char *cwd, int *free, int *total)
 {
   struct statfs fsbuf;
@@ -738,7 +756,7 @@ get_disk_space(char *cwd, int *free, int *total)
     return (0);
 }
 
-void
+__inline__ void
 init_all_drives()
 {
   int dd;
@@ -765,7 +783,7 @@ init_all_drives()
   * \T -> current tmp directory
   *
   */
-void
+__inline__ void
 get_unix_path(char *new_path, char *path)
 {
   char str[MAXPATHLEN];
@@ -842,7 +860,7 @@ get_unix_path(char *new_path, char *path)
   return;
 }
 
-int
+__inline__ int
 init_drive(int dd, char *path, char *options)
 {
   struct stat st;
@@ -898,7 +916,7 @@ init_drive(int dd, char *path, char *options)
  * 	returns 0 if call was not handled, and should be passed on.
  * notes:
  ***************************/
-int
+__inline__ int
 mfs_redirector(void)
 {
   int dos_fs_redirect();
@@ -937,7 +955,7 @@ mfs_redirector(void)
   return 0;
 }
 
-int
+__inline__ int
 mfs_inte6(void)
 {
   boolean_t dos_fs_dev();
@@ -957,7 +975,7 @@ mfs_inte6(void)
 
 /* include a few necessary functions from dos_disk.c in the mach
    code as well */
-boolean_t
+__inline__ boolean_t
 extract_filename(filename, name, ext)
      char *filename;
      char *name;
@@ -1074,7 +1092,7 @@ extract_filename(filename, name, ext)
   return (TRUE);
 }
 
-struct dir_ent *
+__inline__ struct dir_ent *
 make_entry()
 {
   struct dir_ent *entry;
@@ -1086,7 +1104,7 @@ make_entry()
   return (entry);
 }
 
-void
+__inline__ void
 free_list(list)
      struct dir_ent *list;
 {
@@ -1103,7 +1121,7 @@ free_list(list)
   free(list);
 }
 
-struct dir_ent *
+__inline__ struct dir_ent *
 _get_dir(char *name, char *mname, char *mext)
 {
   DIR *cur_dir;
@@ -1213,7 +1231,7 @@ _get_dir(char *name, char *mname, char *mext)
   return (dir_list);
 }
 
-struct dir_ent *
+__inline__ struct dir_ent *
 get_dir(char *name, char *fname, char *fext)
 {
   struct dir_ent *r;
@@ -1228,7 +1246,7 @@ get_dir(char *name, char *fname, char *fext)
  * Another useless specialized parsing routine!
  * Assumes that a legal string is passed in.
  */
-void
+__inline__ void
 auspr(filestring, name, ext)
      char *filestring;
      char *name;
@@ -1279,7 +1297,7 @@ auspr(filestring, name, ext)
   }
 }
 
-void
+__inline__ void
 init_dos_offsets(ver)
      int ver;
 {
@@ -1462,7 +1480,7 @@ init_dos_offsets(ver)
   }
 }
 
-void
+__inline__ void
 init_dos_side()
 {
   mach_fs_enabled = TRUE;
@@ -1492,7 +1510,7 @@ dos_readdir(dir)
   return (ret);
 }
 
-int
+__inline__ int
 dos_read(fd, data, cnt)
      int fd;
      char *data;
@@ -1521,7 +1539,7 @@ dos_read(fd, data, cnt)
   return (ret);
 }
 
-int
+__inline__ int
 dos_write(fd, data, cnt)
      int fd;
      char *data;
@@ -1589,7 +1607,7 @@ calculate_drive_pointers(int dd)
   return (1);
 }
 
-boolean_t
+__inline__ boolean_t
 dos_fs_dev(state)
      state_t *state;
 {
@@ -1697,7 +1715,7 @@ dos_fs_dev(state)
   return (UNCHANGED);
 }
 
-void
+__inline__ void
 time_to_dos(clock, date, time)
      time_t *clock;
      u_short *date;
@@ -1715,7 +1733,7 @@ time_to_dos(clock, date, time)
 	   ((tm->tm_min & 0x3f) << 5));
 }
 
-int
+__inline__ int
 strip_char(ptr, ch)
      char *ptr;
      char ch;
@@ -1744,7 +1762,7 @@ strip_char(ptr, ch)
   return (len);
 }
 
-static void
+__inline__ static void
 path_to_ufs(char *ufs, char *path, int PreserveEnvVar)
 {
   char ch;
@@ -1789,7 +1807,7 @@ path_to_ufs(char *ufs, char *path, int PreserveEnvVar)
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-void
+__inline__ void
 build_ufs_path(ufs, path)
      char *ufs;
      char *path;
@@ -1818,7 +1836,7 @@ build_ufs_path(ufs, path)
 /*
  * scan a directory for a matching filename
  */
-boolean_t
+__inline__ boolean_t
 scan_dir(char *path, char *name)
 {
   DIR *cur_dir;
@@ -1859,7 +1877,7 @@ scan_dir(char *path, char *name)
  * a new find_file that will do complete upper/lower case matching for the
  * whole path
  */
-boolean_t
+__inline__ boolean_t
 _find_file(char *fpath, struct stat * st)
 {
   char *slash1, *slash2;
@@ -1950,7 +1968,7 @@ _find_file(char *fpath, struct stat * st)
  * the string to the matching case or to uppercase if there
  * is no match.
  */
-boolean_t
+__inline__ boolean_t
 _find_file(fpath, st)
      char *fpath;
      struct stat *st;
@@ -1999,7 +2017,7 @@ _find_file(fpath, st)
 }
 
 #endif
-boolean_t
+__inline__ boolean_t
 find_file(fpath, st)
      char *fpath;
      struct stat *st;
@@ -2012,7 +2030,7 @@ find_file(fpath, st)
   return (r);
 }
 
-boolean_t
+__inline__ boolean_t
 compare(fname, fext, mname, mext)
      char *fname;
      char *fext;
@@ -2089,7 +2107,7 @@ compare(fname, fext, mname, mext)
   return (TRUE);
 }
 
-struct dir_ent *
+__inline__ struct dir_ent *
 _match_filename_prune_list(list, name, ext)
      struct dir_ent *list;
      char *name;
@@ -2131,7 +2149,7 @@ _match_filename_prune_list(list, name, ext)
   return (first_ptr);
 }
 
-struct dir_ent *
+__inline__ struct dir_ent *
 match_filename_prune_list(list, name, ext)
      struct dir_ent *list;
      char *name;
@@ -2150,7 +2168,7 @@ int hlist_stack_indx = 0;
 struct dir_ent *hlist = NULL;
 struct dir_ent *hlist_stack[HLIST_STACK_SIZE];
 
-boolean_t
+__inline__ boolean_t
 hlist_push(hlist)
      struct dir_ent *hlist;
 {
@@ -2165,7 +2183,7 @@ hlist_push(hlist)
   return (TRUE);
 }
 
-struct dir_ent *
+__inline__ struct dir_ent *
 hlist_pop()
 {
   Debug0((dbg_fd, "hlist_pop: %x\n", hlist_stack_indx));
@@ -2175,7 +2193,7 @@ hlist_pop()
   return (hlist_stack[hlist_stack_indx]);
 }
 
-void
+__inline__ void
 debug_dump_sft(handle)
      char handle;
 {
@@ -2240,7 +2258,7 @@ debug_dump_sft(handle)
 
 /* convert forward slashes to back slashes for DOS */
 
-void
+__inline__ void
 path_to_dos(char *path)
 {
   char *s;
@@ -2249,7 +2267,7 @@ path_to_dos(char *path)
     *s = '\\';
 }
 
-int
+__inline__ int
 GetRedirection(state, index)
      state_t *state;
      u_short index;
@@ -2326,7 +2344,7 @@ GetRedirection(state, index)
  * on exit:
  * notes:
  *****************************/
-int
+__inline__ int
 RedirectDevice(state_t * state)
 {
   char *resourceName;
@@ -2389,7 +2407,7 @@ RedirectDevice(state_t * state)
  * on exit:
  * notes:
  *****************************/
-int
+__inline__ int
 CancelRedirection(state_t * state)
 {
   char *deviceName;
@@ -2447,7 +2465,7 @@ CancelRedirection(state_t * state)
   return (TRUE);
 }
 
-int
+__inline__ int
 dos_fs_redirect(state)
      state_t *state;
 {
@@ -2966,16 +2984,16 @@ dos_fs_redirect(state)
 
     /* If FCB open requested, we need to call int2f 0x120c */
     if (FCBcall) {
-      u_short *ssp;
+      unsigned char *ssp;
+      unsigned long sp;
+  
+      ssp = (unsigned char *)(REG(ss)<<4);
+      sp = (unsigned long) LWORD(esp);
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      if (!LWORD(esp))
-	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
-      else
-	ssp = SEG_ADR((us *), ss, sp);
-      *--ssp = REG(eflags);
-      *--ssp = REG(cs);
-      *--ssp = REG(eip);
+      pushw(ssp, sp, LWORD(eflags));
+      pushw(ssp, sp, LWORD(cs));
+      pushw(ssp, sp, LWORD(eip));
       REG(esp) -= 6;
       REG(cs) = (us) INTE7_SEG;
       REG(eip) = (us) INTE7_OFF;
@@ -3071,16 +3089,16 @@ dos_fs_redirect(state)
 
     /* If FCB open requested, we need to call int2f 0x120c */
     if (FCBcall) {
-      u_short *ssp;
+      unsigned char *ssp;
+      unsigned long sp;
+  
+      ssp = (unsigned char *)(REG(ss)<<4);
+      sp = (unsigned long) LWORD(esp);
 
       Debug0((dbg_fd, "FCB Open calling int2f 0x120c\n"));
-      if (!LWORD(esp))
-	ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
-      else
-	ssp = SEG_ADR((us *), ss, sp);
-      *--ssp = REG(eflags);
-      *--ssp = REG(cs);
-      *--ssp = REG(eip);
+      pushw(ssp, sp, LWORD(eflags));
+      pushw(ssp, sp, LWORD(cs));
+      pushw(ssp, sp, LWORD(eip));
       REG(esp) -= 6;
       REG(cs) = (us) INTE7_SEG;
       REG(eip) = (us) INTE7_OFF;

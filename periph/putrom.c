@@ -1,11 +1,14 @@
 /* putrom.c; put VBIOS ROM image into /dev/mem (should fail except for weird caches!)
  *
- * $Date: 1994/03/13 01:08:52 $
- * $Source: /home/src/dosemu0.50pl1/periph/RCS/putrom.c,v $
- * $Revision: 1.4 $
+ * $Date: 1994/03/23 23:26:14 $
+ * $Source: /home/src/dosemu0.60/periph/RCS/putrom.c,v $
+ * $Revision: 1.5 $
  * $State: Exp $
  *
  * $Log: putrom.c,v $
+ * Revision 1.5  1994/03/23  23:26:14  root
+ * Add support for Video Bios at E000
+ *
  * Revision 1.4  1994/03/13  01:08:52  root
  * Poor attempt to optimize.
  *
@@ -32,7 +35,11 @@
 #include <errno.h>
 
 #define ROM_SIZE	(64*1024)
+#ifndef VIDEO_E000
 #define ROM_ADDR	(0xc0000)
+#else
+#define ROM_ADDR	(0xe0000)
+#endif
 
 #define die(s) do { fprintf(stderr,"putrom: %s\n", s); exit(1); } while(0)
 #define diee(s) do { fprintf(stderr,"putrom: error %s while %s\n", \

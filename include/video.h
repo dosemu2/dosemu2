@@ -1,4 +1,4 @@
-/* VGAlib version 1.1 - (c) 1992 Tommy Frandsen 		   */
+/* VGAlib version 1.1 - Copyright 1992 Tommy Frandsen 		   */
 /*								   */
 /* This library is free software; you can redistribute it and/or   */
 /* modify it without any restrictions. This library is distributed */
@@ -7,8 +7,8 @@
 /* for a particular purpose.					   */
 /* $Log:                  */
 
-#ifndef VGA_H
-#define VGA_H
+#ifndef VIDEO_H
+#define VIDEO_H
 
 #define uchar unsigned char
 #define TEXT 	     0
@@ -92,14 +92,22 @@
 #define MAX_REGS 100
 #define TEXT       0
 
-extern int get_perm();
-extern int release_perm();
+extern __inline__ void allow_switch(void);
+extern void dump_video_linux(void);
+extern void set_vc_screen_page(int);
+extern void get_video_ram(int);
+extern void clear_screen(int, int);
+extern void set_linux_video(void);
+extern void put_video_ram(void);
+
+extern int get_perm(void);
+extern int release_perm(void);
 extern int set_regs(unsigned char regs[]);
-extern void open_vga_mem();
-extern void close_vga_mem();
+extern void open_vga_mem(void);
+extern void close_vga_mem(void);
 
 extern unsigned char video_initialized;
-extern void vga_initialize();
+extern void vga_initialize(void);
 
 #define MAX_S_REGS	71
 #define MAX_X_REGS	30
@@ -147,23 +155,23 @@ extern struct dinfo cur_info;
 extern int vga_setmode(int mode);
 extern int vga_hasmode(int mode);
 
-extern int vga_clear();
-extern int vga_newscreen();
+extern int vga_clear(void);
+extern int vga_newscreen(void);
 
-extern int save_vga_setmode();
-extern int restore_vga_setmode();
+extern int save_vga_setmode(void);
+extern int restore_vga_setmode(void);
 
-extern int vga_getxdim();
-extern int vga_getydim();
-extern int vga_getcolors();
+extern int vga_getxdim(void);
+extern int vga_getydim(void);
+extern int vga_getcolors(void);
 
 extern int vga_setpalette(int index, int red, int green, int blue);
 extern int vga_getpalette(int index, int *red, int *green, int *blue);
 extern int vga_setpalvec(int start, int num, uchar * pal);
 extern int vga_getpalvec(int start, int num, uchar * pal);
 
-extern int vga_screenoff();
-extern int vga_screenon();
+extern int vga_screenoff(void);
+extern int vga_screenon(void);
 
 extern int vga_setcolor(int color);
 extern int vga_drawpixel(int x, int y);
@@ -171,7 +179,7 @@ extern int vga_drawline(int x1, int y1, int x2, int y2);
 extern int vga_drawscanline(int line, unsigned char *colors);
 extern int vga_drawscansegment(unsigned char *colors, int x, int y, int length);
 
-extern int vga_dumpregs();
+extern int vga_dumpregs(void);
 
 /* Various defines for all common video adapters */
 
@@ -228,4 +236,12 @@ extern int video_subsys;
 extern u_char video_port_in(int port);
 extern void video_port_out(u_char value, int port);
 
-#endif /* VGA_H */
+extern void install_int_10_handler(void);
+
+extern int CRT_I, CRT_D, IS1_R, FCR_W, color_text;
+extern u_char att_d_index;
+extern u_char permissions;
+extern struct screen_stat scr_state;
+
+#endif 
+/* End of include/video.h */

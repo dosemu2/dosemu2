@@ -1,18 +1,22 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/18 23:17:51 $
- * $Source: /home/src/dosemu0.50pl1/RCS/cpu.h,v $
- * $Revision: 1.11 $
+ * $Date: 1994/04/27 23:39:57 $
+ * $Source: /home/src/dosemu0.60/RCS/cpu.h,v $
+ * $Revision: 1.17 $
  * $State: Exp $
  */
 
 #ifndef CPU_H
 #define CPU_H
-
+#ifdef BIOSSEG
+#undef BIOSSEG
+#endif
 #include <linux/vm86.h>
+#ifndef BIOSSEG
+#define BIOSSEG 0xf000
+#endif
 #define _regs vm86s.regs
-#define _regs	vm86s.regs
 
 #ifndef CPU_C
 #define CPU_EXTERN extern
@@ -43,6 +47,31 @@
 /* this is used like: SEG_ADR((char *), es, bx) */
 #define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
 
+/*
+ * nearly directly stolen from Linus : linux/kernel/vm86.c
+ *
+ * Boy are these ugly, but we need to do the correct 16-bit arithmetic.
+ * Gcc makes a mess of it, so we do it inline and use non-obvious calling
+ * conventions..
+ */
+#define pushw(base, ptr, val) \
+__asm__ __volatile__( \
+	"decw %w0\n\t" \
+	"movb %h2,(%1,%0)\n\t" \
+	"decw %w0\n\t" \
+	"movb %b2,(%1,%0)" \
+	: "=r" (ptr) \
+	: "r" (base), "q" (val), "0" (ptr))
+
+#define popb(base, ptr) \
+({ unsigned long __res; \
+__asm__ __volatile__( \
+	"movb (%1,%0),%b2\n\t" \
+	"incw %w0" \
+	: "=r" (ptr), "=r" (base), "=r" (__res) \
+	: "0" (ptr), "1" (base), "2" (0)); \
+__res; })
+
 /* flags */
 #define CF  (1 <<  0)
 #define PF  (1 <<  2)
@@ -58,17 +87,14 @@
 #define VM  (1 << 17)
 #define AC  (1 << 18)
 
+#ifndef IOPL_MASK
 #define IOPL_MASK  (3 << 12)
+#endif
 
-/* for cpu.type */
+/* for cpu_type */
 #define CPU_286   2
 #define CPU_386	  3
 #define CPU_486	  4
-
-struct CPU {
-  int iflag, iopl, nt, ac, bit15;
-  int type, sti;
-};
 
 /* this is the array of interrupt vectors */
 struct vec_t {
@@ -109,8 +135,6 @@ typedef struct {
 }
 
 interrupt_stack_frame;
-
-inline void update_cpu(long), update_flags(long *);
 
 struct sigcontext_struct {
   unsigned short sc_gs, __gsh;
@@ -169,8 +193,8 @@ struct pm86 {
   unsigned long ecx;
   unsigned long eax;
   unsigned long eflags;
-  unsigned short cs, __csh;
   unsigned long eip;
+  unsigned short cs, __csh;
 };
 
 struct RealModeCallStructure {
@@ -200,7 +224,7 @@ void sigfpe(int);
 void sigsegv(int, struct sigcontext_struct);
 
 void show_regs(void), show_ints(int, int);
-inline int do_hard_int(int), do_soft_int(int);
+__inline__ int do_hard_int(int), do_soft_int(int);
 
 char pop_byte(struct vm86_regs *);
 short pop_short(struct vm86_regs *);
@@ -212,5 +236,54 @@ void push_byte(struct vm86_regs *, char);
 
 void push_isf(struct vm86_regs *, interrupt_stack_frame);
 interrupt_stack_frame pop_isf(struct vm86_regs *);
+
+#ifdef DPMI
+#define DPMI_show_state \
+    D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%lx\n" \
+	     "cs: 0x%04lx  ds: 0x%04lx  es: 0x%04lx  ss: 0x%04lx\n", \
+	     (long)_eip, (long)_esp, (long)_eflags, (long)_cs, (long)_ds, (long)_es, (long)_ss); \
+    D_printf("EAX: %08lx  EBX: %08lx  ECX: %08lx  EDX: %08lx  EFLAG: %08lx\n", \
+	     (long)_eax, (long)_ebx, (long)_ecx, (long)_edx, (long)_eflags); \
+    D_printf("ESI: %08lx  EDI: %08lx  EBP: %08lx\n", \
+	     (long)_esi, (long)_edi, (long)_ebp); \
+    D_printf("CS: %04lx  DS: %04lx  ES: %04lx  FS: %04lx  GS: %04lx\n", \
+	     (long)_cs, (long)_ds, (long)_es, (long)_fs, (long)_gs); \
+    /* display the 10 bytes before and after CS:EIP.  the -> points \
+     * to the byte at address CS:EIP \
+     */ \
+    if (!((_cs) & 0x0004)) { \
+      /* GTD */ \
+      csp2 = (unsigned char *) _eip - 10; \
+    } \
+    else { \
+      /* LDT */ \
+      csp2 = (unsigned char *) (GetSegmentBaseAddress(_cs) + _eip) - 10; \
+    } \
+    D_printf("OPS  : "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *csp2++); \
+    D_printf("-> "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *csp2++); \
+    D_printf("\n"); \
+    if (!((_ss) & 0x0004)) { \
+      /* GTD */ \
+      ssp2 = (unsigned char *) _esp - 10; \
+    } \
+    else { \
+      /* LDT */ \
+      if (Segments[_ss>>3].is_32) \
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _esp ) - 10; \
+      else \
+	ssp2 = (unsigned char *) (GetSegmentBaseAddress(_ss) + _LWORD(esp) ) - 10; \
+    } \
+    D_printf("STACK: "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *ssp2++); \
+    D_printf("-> "); \
+    for (i = 0; i < 10; i++) \
+      D_printf("%02x ", *ssp2++); \
+    D_printf("\n");
+#endif /*DPMI*/
 
 #endif /* CPU_H */

@@ -18,7 +18,7 @@ struct pit {
 pit;
 
 void timer_tick(void), set_ticks(unsigned long);
-inline int int28(void);
+extern inline int int28(void);
 
 #define BIOS_TICK_ADDR		(void *)0x46c
 #define TICK_OVERFLOW_ADDR	(void *)0x470
@@ -35,8 +35,10 @@ inline int int28(void);
 /* this specifies how many microseconds int 0x2f, ax=0x1680, will usleep().
  * we don't really have a "give up time slice" primitive, but something
  * like this works okay...thanks to Andrew Tridgell.
+ * same for int 0x15, ax=0x1000 (TopView/DESQview).
  */
 #define INT2F_IDLE_USECS	80000
+#define INT15_IDLE_USECS	80000
 #define INT28_IDLE_USECS	5000
 
 #endif /* TIMERS_H */

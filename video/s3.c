@@ -14,7 +14,7 @@
 /*
  * This is ALPHA-quality software.
  *
- * Using this software could be dangerous for You, you hardware or
+ * Using this software could be dangerous for You, your hardware or
  * anything near your hardware.
  */
 
@@ -22,22 +22,21 @@
 
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "emu.h"
+#include "port.h"
 #include "video.h"
-
-extern int CRT_I, CRT_D;
-
-void (*save_ext_regs) ();
-void (*restore_ext_regs) ();
-void (*set_bank_read) (u_char bank);
-void (*set_bank_write) (u_char bank);
-void (*ext_video_port_out) (u_char value, int port);
-u_char(*ext_video_port_in) (int port);
+#include "vga.h"
+#include "s3.h"
 
 static int s3_type = 0;
+static int s3_memsize = 0;
+int s3_8514_base = 0;
 
+#define BASE_8514_1	0x2e8
+#define BASE_8514_2	0x148
 
 #define DEB(x) x
 
@@ -53,6 +52,19 @@ static int in_crt(const int index)
 	return (port_in(CRT_D) & 0xff);
 }
 
+#define S + 256
+
+static short s3_crt_regs[0x60] = {
+/*	 0   1   2   3   4   5   6   7   8   9   a   b   c   d   e   f */
+/* 0 */	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+/* 1 */	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+/* 2 */	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+/* 3 */	-1,  4, -1, -1,  5,  6, -1, -1,  0,  1,  7, -1,  8, -1, -1, -1,
+/* 4 */	 9, 10, 11, 12, -1, 13, 14, 15, 16, 17, -1, -1, 18, 19, 20, 21,
+/* 5 */	24 S,25 S, -1,26 S, -1, 22, -1, -1, 23,27 S,28 S, -1, -1, -1,29 S, -1 };
+
+#undef S
+
 static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 {
 	DEB(fprintf(stderr, "s3_save_ext_regs(): start.\n");)
@@ -67,9 +79,6 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 	 */
 	out_crt(0x38, 0x48);
 	out_crt(0x39, 0xa5);
-
-	xregs[2] = in_crt(0x0e);	/* hardware cursor fg color */
-	xregs[3] = in_crt(0x0f);	/* hardware cursor bg color */
 
 	xregs[4] = in_crt(0x31);	/* display start */
 
@@ -115,13 +124,23 @@ static void s3_save_ext_regs(u_char xregs[], u_short xregs16[])
 
 		xregs[29] = in_crt(0x5e);
 	}
-
 	/*
 	 * restore the status of the extensions
 	 */
 
 	out_crt(0x38, xregs[0]);
 	out_crt(0x39, xregs[1]);
+
+	xregs[2] = port_in(0x102);
+	port_out(1, 0x102);
+	iopl(3);
+	xregs16[0] = port_in_w(0x8000 | s3_8514_base);	/* CUR_Y */
+	xregs16[1] = port_in_w(0x8400 | s3_8514_base);	/* CUR_X */
+	xregs16[2] = port_in_w(0x8800 | s3_8514_base);
+	xregs16[3] = port_in_w(0x8c00 | s3_8514_base);
+	iopl(0);
+	port_out(xregs[2], 0x102);
+
 }
 
 static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
@@ -133,9 +152,6 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
          */
         out_crt(0x38, 0x48);
         out_crt(0x39, 0xa5);
-
-	out_crt(0x0e, xregs[2]);
-	out_crt(0x0f, xregs[3]);
 
 	out_crt(0x31, xregs[4]);
 
@@ -187,6 +203,15 @@ static void s3_restore_ext_regs(u_char xregs[], u_short xregs16[])
 	 */
 	out_crt(0x38, xregs[0]);
 	out_crt(0x39, xregs[1]);
+
+	port_out(1, 0x102);
+	iopl(3);
+	port_out_w(xregs16[0], 0x8000 | s3_8514_base);
+	port_out_w(xregs16[1], 0x8400 | s3_8514_base);
+	port_out_w(xregs16[2], 0x8800 | s3_8514_base);
+	port_out_w(xregs16[3], 0x8c00 | s3_8514_base);
+	iopl(0);
+	port_out(xregs[2], 0x102);
 }
 
 static void s3_set_bank(u_char bank)
@@ -219,18 +244,92 @@ static void s3_set_bank(u_char bank)
 
 static u_char s3_ext_video_port_in(int port)
 {
-	return (port_in(port) & 0xff);
+	int x_reg;
+
+	switch(port)
+	{
+	case CRT_DC:
+	case CRT_DM:
+		if (dosemu_regs.regs[CRTI] < 0x60 &&
+				(x_reg = s3_crt_regs[dosemu_regs.regs[CRTI]]) != -1)
+		{
+			/*
+			 * some registers are available only on `advanced'
+			 * s3 cards.
+			 */
+			if ((x_reg & 0xff) && !s3_type)
+				break;
+			x_reg &= 0xff;
+			v_printf("S3: Read on CRT_D 0x%02x got 0x%02x\n",
+					dosemu_regs.regs[CRTI],
+					dosemu_regs.xregs[x_reg]);
+			return dosemu_regs.xregs[x_reg];
+		}
+		break;
+	}
+	v_printf("S3: Bad Read on port 0x%04x\n", port);
+	return 0;
 }
 
 static void s3_ext_video_port_out(u_char value, int port)
 {
-	port_out(value, port);
+	int x_reg;
+
+	switch(port & 0x02ff)
+	{
+	case CRT_DC:
+	case CRT_DM:
+		if (dosemu_regs.regs[CRTI] < 0x60 &&
+				(x_reg = s3_crt_regs[dosemu_regs.regs[CRTI]]) != -1)
+		{
+			/*
+			 * some registers are available only on `advanced'
+			 * s3 cards.
+			 */
+			if ((x_reg & 0xff) && !s3_type)
+				break;
+			x_reg &= 0xff;
+			v_printf("S3: Write on CRT_D 0x%02x of 0x%02x\n",
+					dosemu_regs.regs[CRTI], value);
+			dosemu_regs.xregs[x_reg] = value;
+			return;
+		}
+		break;
+	case BASE_8514_1:
+	case BASE_8514_2:
+		break;
+		switch(port & 0xfc00)
+		{
+			case 0x8000:	*((unsigned char *) (dosemu_regs.xregs16)) = value;
+					v_printf("S3: Write on 8514 reg 0x%04x of 0x%02x\n",
+							port, value);
+					break;
+			case 0x8400:	*((unsigned char *) (&dosemu_regs.xregs16[1])) = value;
+					v_printf("S3: Write on 8514 reg 0x%04x of 0x%02x\n",
+							port, value);
+					break;
+			case 0x8800:	*((unsigned char *) (&dosemu_regs.xregs16[2])) = value;
+					v_printf("S3: Write on 8514 reg 0x%04x of 0x%02x\n",
+							port, value);
+					break;
+			case 0x8c00:	*((unsigned char *) (&dosemu_regs.xregs16[3])) = value;
+					v_printf("S3: Write on 8514 reg 0x%04x of 0x%02x\n",
+							port, value);
+					break;
+		}
+		break;
+	case BASE_8514_1 + 1:
+	case BASE_8514_2 + 1:
+		break;
+	}
+	v_printf("S3: Bad Write on port 0x%04x with value 0x%02x\n", port, value);
 }
 
 void vga_init_s3(void)
 {
-	int mode, chip;
+	int mode, mode2, chip;
 	char *name = NULL;
+
 	save_ext_regs = s3_save_ext_regs;
 	restore_ext_regs = s3_restore_ext_regs;
 	set_bank_read = s3_set_bank;
@@ -241,7 +340,6 @@ void vga_init_s3(void)
 	mode = in_crt(0x38);
 	out_crt(0x38, 0x48);
 	chip = in_crt(0x30);
-	out_crt(0x38, mode);
 
 	switch(chip)
 	{
@@ -262,6 +360,34 @@ void vga_init_s3(void)
 
 	if (name)
 		fprintf(stderr, "S3 chip 86c%s detected.\n", name);
+
+	mode2 = in_crt(0x39);
+        out_crt(0x39, 0xa5);
+	if (in_crt(0x43) & 0x10)
+		s3_8514_base = BASE_8514_2;
+	else
+		s3_8514_base = BASE_8514_1;
+	out_crt(0x39, mode2);
+
+	if (in_crt(0x36) & 0x20)
+		s3_memsize = 512;
+	else
+	{
+		if (s3_type) switch((in_crt(0x36) & 0xc0) >> 6)
+		{
+			case 0:	s3_memsize = 4096; break;
+			case 1: s3_memsize = 3072; break;
+			case 2: s3_memsize = 2048; break;
+			case 3: s3_memsize = 1024; break;
+		}
+		else
+			s3_memsize = 1024;
+	}
+
+	fprintf(stderr, "S3 base address: 0x%x\n", s3_8514_base);
+	fprintf(stderr, "S3 memory size : %d kbyte\n", s3_memsize);
+
+	out_crt(0x38, mode);
 }
 
 #undef S3_C

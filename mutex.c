@@ -2,7 +2,7 @@
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
  * $Date: 1994/03/13 01:07:31 $
- * $Source: /home/src/dosemu0.50pl1/RCS/mutex.c,v $
+ * $Source: /home/src/dosemu0.60/RCS/mutex.c,v $
  * $Revision: 1.3 $
  * $State: Exp $
  *

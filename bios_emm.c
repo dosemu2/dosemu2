@@ -30,6 +30,24 @@
  *
  * HISTORY:
  * $Log: bios_emm.c,v $
+ * Revision 1.19  1994/04/23  20:51:40  root
+ * Get new stack over/underflow working in VM86 mode.
+ *
+ * Revision 1.18  1994/04/13  00:07:09  root
+ * More work on going to IPC, still unsuccessfull.
+ *
+ * Revision 1.17  1994/04/09  18:41:52  root
+ * Prior to Lutz's kernel enhancements.
+ *
+ * Revision 1.16  1994/04/07  20:50:59  root
+ * More updates.
+ *
+ * Revision 1.15  1994/03/30  22:12:30  root
+ * Started switching more code to inline.
+ *
+ * Revision 1.14  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.13  1994/03/13  01:07:31  root
  * Poor attempts to optimize.
  *
@@ -114,13 +132,13 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include "config.h"
+
 #include "emu.h"
 #include "machcompat.h"
 
 extern struct config_info config;
 
-boolean_t unmap_page(int);
+inline boolean_t unmap_page(int);
 
 #else
 #include "base.h"
@@ -344,34 +362,60 @@ probe_mmap()
 
 #endif /* __linux__ */
 
+int shmid[EMM_MAX_PHYS];
+
+#define PRINT_EMS  { \
+  struct shmid_ds buf; \
+  int logical = shmctl(shmid[sh_base], IPC_STAT, &buf); \
+  E_printf("EMS: Shared memory stats:\n     size=0x%x,\n     attach_cnt=%d,\n     shmid=%x\n", \
+    buf.shm_segsz, buf.shm_nattch, shmid[sh_base]); }
+
 void
 bios_emm_init()
 {
-  int i;
+  int sh_base;
+
+#if 0
+#define IPC_EMS 1
+#endif
+
+#ifdef IPC_EMS
+  caddr_t base;
+#endif
 
 #ifdef __linux__
 
   if (!config.ems_size)
     return;
 
-  /* check that the kernel can mmap /proc/self/mem */
-#if 0
-  if (!probe_mmap()) {
-    config.ems_size = 0;
-    return;
-  }
-#endif
 #endif
 
   E_printf("EMS: initializing memory\n");
 
-  for (i = 0; i < EMM_MAX_PHYS; i++) {
-    emm_map[i].handle = NULL_HANDLE;
+  for (sh_base = 0; sh_base < EMM_MAX_PHYS; sh_base++) {
+    emm_map[sh_base].handle = NULL_HANDLE;
+#ifdef IPC_EMS
+    base = (caddr_t)(EMM_BASE_ADDRESS + (EMM_PAGE_SIZE * sh_base));
+    if ((shmid[sh_base] = shmget(IPC_PRIVATE, EMM_PAGE_SIZE, 0755)) == (int)-1) {
+      E_printf("EMS: shmget unsuccessful: %s\n", strerror(errno));
+      leavedos(2);
+    }
+    if ((base = (caddr_t) shmat(shmid[sh_base], base, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+      E_printf("EMS: shmat %x base 0x%x unsuccessful: %s\n", shmid[sh_base], base, strerror(errno));
+      leavedos(3);
+    }
+    E_printf("EMS: shmat %d base 0x%x successful\n", shmid[sh_base], base);
+    if (shmctl(shmid[sh_base], IPC_RMID, (struct shmid_ds *) 0) < 0) {
+      E_printf("EMS: shmctl unsuccessful: %s\n", strerror(errno));
+      leavedos(4);
+    }
+    PRINT_EMS;
+#endif
   }
 
-  for (i = 0; i < MAX_HANDLES; i++) {
-    handle_info[i].numpages = 0;
-    handle_info[i].active = 0;
+  for (sh_base = 0; sh_base < MAX_HANDLES; sh_base++) {
+    handle_info[sh_base].numpages = 0;
+    handle_info[sh_base].active = 0;
   }
 
   /* should set up OS handle here */
@@ -424,7 +468,7 @@ destroy_memory_object(mach_port_t object)
 
 #endif /* __linux__ */
 
-int
+inline int
 allocate_handle(pages_needed)
      int pages_needed;
 {
@@ -485,69 +529,59 @@ deallocate_handle(handle)
   return (TRUE);
 }
 
-int shmid[EMM_MAX_PHYS];
 
-caddr_t
+inline caddr_t
 v_munmap(caddr_t base, int size, caddr_t logical)
 {
 
-#if 0
+#ifdef IPC_EMS
   int sh_base = ((int) base - EMM_BASE_ADDRESS) / (EMM_PAGE_SIZE);
 
-  E_printf("EMS: UNMAP l=0x%08x, bs=0x%04x, sz=%x, d=0x%02x, 
-	   s = 0x % 02 x, sh_base = %d \ n ", logical, base, size, *(u_short *)logical, 
-	   * (u_short *) base, sh_base);
+  E_printf("EMS: UNMAP l=0x%08x, bs=0x%04x, sz=%x, d=0x%02x, s=0x%02x, sh_base=%d\n",
+	logical, base, size, *(u_short *)logical, 
+	* (u_short *) base, sh_base);
 
-  if (shmdt(base) < 0) {
-    E_printf("EMS: v_unmmap base unsuccessful: %s\n", strerror(errno));
-    leavedos();
-  }
-  if (shmdt(logical) < 0) {
+  if (shmdt((caddr_t)logical) < 0) {
     E_printf("EMS: v_unmmap logical unsuccessful: %s\n", strerror(errno));
-    leavedos();
+    leavedos(1);
   }
+  PRINT_EMS;
 #else
+  E_printf("EMS: UNMAP l=0x%08x, bs=0x%04x, sz=%x, d=0x%02x, s=0x%02x\n",
+        (int)logical, (int)base, size, *(u_short *)logical, * (u_short *) base);
   memmove((u_char *) logical, (u_char *) base, size);
-  return logical;
 #endif
+  return logical;
 
 }
 
-caddr_t
+inline caddr_t
 v_mmap(caddr_t base, int size, u_char access, u_char share, int fd, caddr_t logical)
 {
 
-#if 0
-  u_char sh_base = ((int) base - EMM_BASE_ADDRESS) / (EMM_PAGE_SIZE);
+#ifdef IPC_EMS
+  int sh_base = ((int) base - EMM_BASE_ADDRESS) / (EMM_PAGE_SIZE);
 
-  E_printf("EMS: MAP l=0x%08x, bs=0x%04x, sz=%x, d=0x%02x, s=0x%02x\n", logical, base, size, *(u_short *) base, *(u_short *) logical);
-  if ((shmid[sh_base] = shmget(IPC_PRIVATE, size, 0600 | IPC_CREAT)) < 0) {
-    E_printf("EMS: v_mmap unsuccessful: %s\n", strerror(errno));
-    leavedos();
-  }
-  if ((base = (caddr_t) shmat(shmid[sh_base], base, SHM_REMAP)) == (caddr_t) 0xffffffff) {
-    E_printf("EMS: v_mmap shmat base unsuccessful: %s\n", strerror(errno));
-    leavedos();
-  }
-  if ((logical = (caddr_t) shmat(shmid[sh_base], logical, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+  E_printf("EMS: MAP l=0x%x, bs=0x%x, sz=%x, d=0x%02x, s=0x%02x sh_base=%d, shmid[sh_base]=%x\n", 
+    logical, base, size, *(u_short *)base, *(u_short *) logical, sh_base, shmid[sh_base]);
+
+  if ((logical = (caddr_t) shmat(shmid[sh_base], (caddr_t)logical, SHM_REMAP)) == (caddr_t) 0xffffffff) {
     E_printf("EMS: v_mmap shmat logical unsuccessful: %s\n", strerror(errno));
-    leavedos();
+    PRINT_EMS;
+    leavedos(2);
   }
   E_printf("EMS: v_mmap base=%x, logical=%x\n", base, logical);
-  if (shmctl(shmid[sh_base], IPC_RMID, (struct shmid_ds *) 0) < 0) {
-    E_printf("EMS: v_unmmap shmctl unsuccessful: %s\n", strerror(errno));
-    /*
-	leavedos();
-*/
-  }
+  PRINT_EMS;
 #else
+  E_printf("EMS: MAP l=0x%x, bs=0x%x, sz=%x, d=0x%02x, s=0x%02x\n", 
+    (int)logical, (int)base, size, *(u_short *)base, *(u_short *) logical);
   memmove((u_char *) base, (u_char *) logical, size);
-  return base;
 #endif
+  return base;
 
 }
 
-boolean_t
+inline boolean_t
 reunmap_page(physical_page)
      int physical_page;
 {
@@ -558,10 +592,10 @@ reunmap_page(physical_page)
 
 #ifdef __linux__
   E_printf("EMS: reunmaping physical page 0x%08x\n", physical_page);
-  DOS_SYSCALL(v_munmap((caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
+  v_munmap((caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
 		       EMM_PAGE_SIZE,
 	       (caddr_t) handle_info[emm_map[physical_page].handle].object +
-		(int) emm_map[physical_page].logical_page * EMM_PAGE_SIZE));
+		(int) emm_map[physical_page].logical_page * EMM_PAGE_SIZE);
 #else
   MACH_CALL((vm_deallocate(mach_task_self(),
 			 EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
@@ -571,7 +605,7 @@ reunmap_page(physical_page)
   return (TRUE);
 }
 
-boolean_t
+inline boolean_t
 unmap_page(physical_page)
      int physical_page;
 {
@@ -581,11 +615,11 @@ unmap_page(physical_page)
     return (FALSE);
 
 #ifdef __linux__
-  E_printf("EMS: umunmap()ing physical page 0x%01x\n", physical_page);
-  DOS_SYSCALL(v_munmap((caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
+  E_printf("EMS: unmap()ing physical page 0x%01x\n", physical_page);
+  v_munmap((caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
 		       EMM_PAGE_SIZE,
 	       (caddr_t) handle_info[emm_map[physical_page].handle].object +
-		(int) emm_map[physical_page].logical_page * EMM_PAGE_SIZE));
+		(int) emm_map[physical_page].logical_page * EMM_PAGE_SIZE);
 #else
   MACH_CALL((vm_deallocate(mach_task_self(),
 			 EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
@@ -597,7 +631,7 @@ unmap_page(physical_page)
   return (TRUE);
 }
 
-boolean_t
+inline boolean_t
 remap_page(physical_page)
      int physical_page;
 {
@@ -616,7 +650,7 @@ remap_page(physical_page)
   sync();
 #endif
   E_printf("EMS: remaping physical page 0x%08x\n", physical_page);
-  map_add = (caddr_t) DOS_SYSCALL(
+  map_add = (caddr_t) 
 	v_mmap((caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
 	       EMM_PAGE_SIZE,
 	       PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -624,7 +658,7 @@ remap_page(physical_page)
 	       selfmem_fd,
 	       (caddr_t) handle_info[emm_map[physical_page].handle].object +
 	       emm_map[physical_page].logical_page * EMM_PAGE_SIZE
-				   ));
+				   );
 
 #else
   memory_object_remap(
@@ -638,7 +672,7 @@ remap_page(physical_page)
   return (TRUE);
 }
 
-boolean_t
+inline boolean_t
 map_page(handle, physical_page, logical_page)
      int handle;
      int physical_page;
@@ -663,14 +697,14 @@ map_page(handle, physical_page, logical_page)
 #endif
   if (emm_map[physical_page].handle != NULL_HANDLE)
     unmap_page(physical_page);
-  map_add = (caddr_t) DOS_SYSCALL(
+  map_add = (caddr_t)
 	v_mmap((caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE),
 	       EMM_PAGE_SIZE,
 	       PROT_READ | PROT_WRITE | PROT_EXEC,
 	       MAP_SHARED | MAP_FIXED,
 	       selfmem_fd,
 	 (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE
-				   ));
+				   );
 
 #else
   memory_object_remap(
@@ -693,7 +727,7 @@ handle_pages(handle)
   return (handle_info[handle].numpages);
 }
 
-int
+inline int
 save_handle_state(handle)
      int handle;
 {
@@ -725,7 +759,7 @@ save_handle_state(handle)
   return 0;
 }
 
-int
+inline int
 restore_handle_state(handle)
      int handle;
 {
@@ -766,7 +800,7 @@ test_handle(handle, numpages)
   }
 }
 
-int
+inline int
 do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
 {
 
@@ -806,7 +840,7 @@ do_map_unmap(state_t * state, int handle, int physical_page, int logical_page)
   return (TRUE);
 }
 
-int
+inline int
 SEG_TO_PHYS(int segaddr)
 {
   Kdebug0((dbg_fd, "SEG_TO_PHYS: segment: %x\n", segaddr));
@@ -832,7 +866,7 @@ partial_map_registers(state_t * state)
   return 0;
 }
 
-void
+inline void
 map_unmap_multiple(state_t * state)
 {
 
@@ -903,7 +937,7 @@ map_unmap_multiple(state_t * state)
   }
 }
 
-void
+inline void
 reallocate_pages(state_t * state)
 {
   u_char i;
@@ -912,7 +946,7 @@ reallocate_pages(state_t * state)
 
   /* Make sure extended pages have correct data */
 
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < EMM_MAX_PHYS; i++)
     reunmap_page(i);
 
   if ((handle < 0) || (handle > MAX_HANDLES)) {
@@ -940,7 +974,7 @@ reallocate_pages(state_t * state)
   Kdebug0((dbg_fd, "reallocate_pages handle %d num %d called objest=%p\n",
 	   handle, newcount, handle_info[handle].object));
 
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < EMM_MAX_PHYS; i++) {
     if (newcount == 0 && emm_map[i].handle == handle) {
       emm_map[i].handle = NULL_HANDLE;
       emm_map[i].logical_page = NULL_PAGE;
@@ -1139,7 +1173,7 @@ show_move_struct(struct mem_move_struct *mem_move)
 
 }
 
-void
+inline void
 load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
 {
 
@@ -1173,15 +1207,17 @@ load_move_mem(u_char * mem, struct mem_move_struct *mem_move)
   mem_move->dest_segment = *(u_short *) mem;
 }
 
-int
+inline int
 move_memory_region(state_t * state)
 {
   struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem;
   u_char i;
 
-  for (i = 0; i < 4; i++)
+#if 1
+  for (i = 0; i < EMM_MAX_PHYS; i++)
     reunmap_page(i);
+#endif
 
   (u_char *) mem = (u_char *) Addr(state, ds, esi);
   load_move_mem(mem, mem_move);
@@ -1234,8 +1270,10 @@ move_memory_region(state_t * state)
   E_printf("EMS: Move Memory Region from 0x%x -> 0x%x\n", (int)source, (int)dest);
   memmove((u_char *) dest, (u_char *) source, mem_move->size);
 
-  for (i = 0; i < 4; i++)
+#if 1
+  for (i = 0; i < EMM_MAX_PHYS; i++)
     remap_page(i);
+#endif
 
   if (source < dest) {
     if (source + mem_move->size >= dest) {
@@ -1252,14 +1290,14 @@ move_memory_region(state_t * state)
   return (0);
 }
 
-int
+inline int
 exchange_memory_region(state_t * state)
 {
   struct mem_move_struct *mem_move=NULL;
   caddr_t dest, source, mem, tmp;
   u_char i;
 
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < EMM_MAX_PHYS; i++)
     reunmap_page(i);
 
   (u_char *) mem = (u_char *) Addr(state, ds, esi);
@@ -1302,7 +1340,7 @@ exchange_memory_region(state_t * state)
   memmove(dest, tmp, mem_move->size);
   free(tmp);
 
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < EMM_MAX_PHYS; i++)
     remap_page(i);
 
   return (0);

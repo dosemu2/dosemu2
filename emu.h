@@ -3,12 +3,33 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/15 01:38:20 $
- * $Source: /home/src/dosemu0.50pl1/RCS/emu.h,v $
- * $Revision: 1.19 $
+ * $Date: 1994/04/27 21:34:15 $
+ * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
+ * $Revision: 1.26 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.26  1994/04/27  21:34:15  root
+ * Jochen's Latest.
+ *
+ * Revision 1.25  1994/04/23  20:51:40  root
+ * Get new stack over/underflow working in VM86 mode.
+ *
+ * Revision 1.24  1994/04/18  22:52:19  root
+ * Ready pre51_7.
+ *
+ * Revision 1.23  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.22  1994/04/13  00:07:09  root
+ * Lutz's patches
+ *
+ * Revision 1.21  1994/04/07  00:18:41  root
+ * Pack up for pre52_4.
+ *
+ * Revision 1.20  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.19  1994/03/15  01:38:20  root
  * DPMI,serial, other changes.
  *
@@ -39,7 +60,7 @@
  *
  * Revision 1.10  1994/02/01  20:57:31  root
  * With unlimited thanks to gorden@jegnixa.hsc.missouri.edu (Jason Gorden),
- * here's a packet driver to compliment Tim_R_Bird@Novell.COM's IPX work.[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[his packet driver  to compliment Tim_R_Bird@Novell.COM's IPX work.
+ * here's a packet driver to compliment Tim_R_Bird@Novell.COM's IPX work.
  *
  * Revision 1.9  1994/01/31  18:27:21  root
  * Mods for first round of terminfo intergration.
@@ -120,6 +141,8 @@
 #include "cpu.h"
 #include <sys/types.h>
 
+#define inline __inline__
+
 #define BIT(x)  	(1<<x)
 
 #define us unsigned short
@@ -170,34 +193,19 @@ void show_regs(void);
 int ext_fs(int, char *, char *, int);
 void char_out_att(u_char, u_char, int, int);
 int outch(int c);
-void termioInit();
-void termioClose();
-inline void run_vm86(void);
+void termioInit(void);
+void termioClose(void);
+__inline__ void run_vm86(void);
 
 #define NOWAIT  0
 #define WAIT    1
 #define TEST    2
 #define POLL    3
 
-void getKeys();
+void getKeys(void);
 int InsKeyboard(unsigned short scancode);
 
-inline static void
-port_out(char value, unsigned short port)
-{
-  __asm__ volatile ("outb %0,%1"
-		    ::"a" ((char) value), "d"((unsigned short) port));
-}
 
-inline static char
-port_in(unsigned short port)
-{
-  char _v;
-  __asm__ volatile ("inb %1,%0"
-		    :"=a" (_v):"d"((unsigned short) port));
-
-  return _v;
-}
 
 struct debug_flags {
   unsigned char
@@ -220,7 +228,7 @@ struct debug_flags {
 # define FORMAT(T,A,B)
 #endif
 
-extern void saytime();
+extern void saytime(char *m_str);
 
 int
 ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
@@ -382,41 +390,59 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
        u_short fdisks, hdisks;
        u_short num_lpt;
        u_short num_ser;
+       u_short num_mice;
 
        unsigned int update, freq;	/* temp timer magic */
 
        unsigned int hogthreshold;
 
        int mem_size, xms_size, ems_size, dpmi_size;
+
+       int keyboard;
+       unsigned char *key_map;     /* pointer to the correct keyboard-map */
+       unsigned char *shift_map;
+       unsigned char *alt_map;
+       unsigned char *num_table;
      }
 
 config_t;
+
+extern config_t config;
+
+extern unsigned char *scrbuf;		/* the previously updated screen */
 
 #define SPKR_OFF	0
 #define SPKR_NATIVE	1
 #define SPKR_EMULATED	2
 
-#define XPOS(s)		(*(u_char *)(0x450 + 2*(s)))
-#define YPOS(s)		(*(u_char *)(0x451 + 2*(s)))
-#define VIDMODE		(*(u_char *)0x449)
-#define SCREEN		(*(u_char *)0x462)
-#define COLS		(*(u_short *)0x44a)
-#define PAGE_OFFSET	(*(u_short *)0x44e)
-#define CUR_START	(*(u_short *)0x461)
-#define CUR_END		(*(u_short *)0x461)
-#define ROWSM1		(*(u_char *)0x484)	/* rows on screen minus 1 */
-#define REGEN_SIZE	(*(u_short *)0x44c)
+#define KEYB_FINNISH           0
+#define KEYB_FINNISH_LATIN1    1
+#define KEYB_US                2
+#define KEYB_UK                3
+#define KEYB_GR                4
+#define KEYB_GR_LATIN1         5
+#define KEYB_FR                6
+#define KEYB_FR_LATIN1         7
+#define KEYB_DK                8
+#define KEYB_DK_LATIN1         9
+#define KEYB_DVORAK           10
+#define KEYB_SG               11
+#define KEYB_SG_LATIN1        12
+#define KEYB_NO               13
+#define KEYB_SF               15
+#define KEYB_SF_LATIN1        16
+#define KEYB_ES               17
+#define KEYB_ES_LATIN1        18
+#define KEYB_BE               19
 
 #ifndef OLD_SCROLL
 #define scrollup(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,l,att)
 #define scrolldn(x0,y0,x1,y1,l,att) Scroll(x0,y0,x1,y1,-(l),att)
 #endif
 
-     /*
+/*
  * Right now, dosemu only supports two serial ports.
  */
-#define MAX_SER 2
-
 #define SIG_SER		SIGTTIN
 
 #define SIG_TIME	SIGALRM
@@ -426,18 +452,17 @@ config_t;
 #define IO_WRITE 2
 #define IO_RDWR	 (IO_READ | IO_WRITE)
 
+extern void cli(void);
+extern void sti(void);
 extern int port_readable(int);
 extern int port_writeable(int);
 extern int read_port(int);
 extern int write_port(int, int);
-extern inline void parent_nextscan(void);
-extern int do_serial_in(int, int);
-extern int do_serial_out(int, int, int);
-extern void serial_run(void);
-extern inline void disk_close(void);
+extern __inline__ void parent_nextscan(void);
+extern __inline__ void disk_close(void);
 extern void show_cursor(void);
 extern void cpu_init(void);
-extern inline void run_int(int);
+extern __inline__ void run_int(int);
 extern int mfs_redirector(void);
 extern void int10(void);
 extern void int13(void);

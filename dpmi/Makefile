@@ -1,6 +1,7 @@
 CC   = gcc
 AS86 = as86 -0 -a
 LD86 = ld86 -0
+INCDIR = -I../ -I../include/
 
 %.com: %.S
 	$(AS86) -0 -j -o $*.o $<
@@ -14,13 +15,13 @@ ALL = dpmi.c ldtlib.c dpmi.h \
 all: dpmi.o ldtlib.o ldt.o call.o testdpmi.com
 
 dpmi.o:
-	$(CC) -DDPMI -I../ -N -O6 -c -o $@ $<
+	$(CC) -DDPMI $(INCDIR) -N -O6 -c -o $@ $<
 
 ldtlib.o:
-	$(CC) -I../ -N -O6 -c -o $@ $<
+	$(CC) $(INCDIR) -N -O6 -c -o $@ $<
 
 ldt.o:
-	$(CC) -I../ -N -O6 -c -o $@ $<
+	$(CC) $(INCDIR) -N -O6 -c -o $@ $<
 
 call.o:
 	$(CC) -N -O6 -c -o $@ call.S
@@ -40,7 +41,7 @@ dist: $(ALL) Makefile
 	install -m 0644 $(ALL) Makefile $(DISTPATH)/dpmi
 
 depend dep: $(CFILES) $(HFILES)
-	$(CPP) -MM $(CFLAGS) *.c -I../> .depend
+	$(CPP) -MM $(CFLAGS) *.c $(INCDIR) > .depend
 	echo "call.o : call.S" >>.depend
 
 dummy:

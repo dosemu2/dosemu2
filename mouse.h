@@ -9,6 +9,14 @@
 /* this is the version returned to DOS programs */
 #define MOUSE_VERSION	  (MOUSE_BASE_VERSION + MOUSE_EMU_VERSION)
 
+#define MOUSE_MICROSOFT 0
+#define MOUSE_MOUSESYSTEMS 1
+#define MOUSE_MMSERIES 2
+#define MOUSE_LOGITECH 3
+#define MOUSE_BUSMOUSE 4
+#define MOUSE_MOUSEMAN 5
+#define MOUSE_PS2 6
+
 /* types of mouse events */
 #define DELTA_CURSOR		1
 #define DELTA_LEFTBDOWN		2	/* pressed  */
@@ -23,6 +31,17 @@
 #define Mouse_SEG  BIOSSEG
 #define Mouse_OFF  0x1500
 #define Mouse_ADD  ((Mouse_SEG << 4)+Mouse_OFF)
+
+#define MAX_MOUSE 1
+#define HEIGHT 16
+
+typedef struct mouse_structure {
+  char dev[255];
+  int fd;
+  int type;
+  int flags;
+  boolean intdrv;
+} mouse_t;
 
 struct mouse_struct {
   unsigned char lbutton, mbutton, rbutton;
@@ -40,6 +59,10 @@ struct mouse_struct {
   /* these are for CURSOR position */
   int cx, cy;
 
+  /* these are for sensitivity options */
+  int horzsen, vertsen, threshold;
+  int language;
+
   signed short mickeyx, mickeyy;
 
   int ratio;
@@ -53,12 +76,11 @@ struct mouse_struct {
 
   unsigned short hidchar;
   unsigned int hidx, hidy;
-}
+} mouse;
 
-mouse;
-
-int mouse_int(void);
 void mouse_keyboard(int), mouse_curtick(void), mouse_sethandler(void *, unsigned short *, unsigned short *);
+
+extern mouse_t mice[MAX_MOUSE];
 
 #ifndef MOUSE_C
 #define MEX extern
@@ -66,5 +88,10 @@ void mouse_keyboard(int), mouse_curtick(void), mouse_sethandler(void *, unsigned
 #define MEX
 #endif
 MEX int keyboard_mouse;
+
+extern void mouse_init(void);
+extern void mouse_int(void);
+extern void mouse_close(void);
+extern void int74(void);
 
 #endif /* MOUSE_H */

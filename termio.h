@@ -3,12 +3,15 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/10 02:49:27 $
- * $Source: /home/src/dosemu0.50pl1/RCS/termio.h,v $
- * $Revision: 1.6 $
+ * $Date: 1994/04/16 01:28:47 $
+ * $Source: /home/src/dosemu0.60/RCS/termio.h,v $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.7  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
  * Revision 1.6  1994/03/10  02:49:27  root
  * Back to 1 process.
  *
@@ -157,6 +160,6 @@ struct screen_stat {
   int old_modecr, new_modecr;
 };
 
-void set_leds();
+void set_leds(void);
 
 #endif /* TERMIO_H */

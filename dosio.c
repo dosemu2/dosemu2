@@ -1,13 +1,42 @@
-/* first baby steps for removing SYSV IPC from dosemu 0.48p1+
- *
+#if 0
+#define NCU
+#endif
+/*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/03/15 02:08:20 $
- * $Source: /home/src/dosemu0.50pl1/RCS/dosio.c,v $
- * $Revision: 1.7 $
+ * $Date: 1994/04/27 21:34:15 $
+ * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
+ * $Revision: 1.16 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 1.16  1994/04/27  21:34:15  root
+ * Jochen's Latest.
+ *
+ * Revision 1.15  1994/04/20  23:43:35  root
+ * pre51_8 out the door.
+ *
+ * Revision 1.14  1994/04/20  21:05:01  root
+ * Prep for Rob's patches to linpkt...
+ *
+ * Revision 1.13  1994/04/18  22:52:19  root
+ * Ready pre51_7.
+ *
+ * Revision 1.12  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.11  1994/04/13  00:07:09  root
+ * Modifications to io_select().
+ *
+ * Revision 1.10  1994/04/07  20:50:59  root
+ * More updates.
+ *
+ * Revision 1.9  1994/04/07  00:18:41  root
+ * Pack up for pre52_4.
+ *
+ * Revision 1.8  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.7  1994/03/15  02:08:20  root
  * Testing
  *
@@ -49,7 +78,7 @@
  *
  * Revision 1.20  1994/02/01  20:57:31  root
  * With unlimited thanks to gorden@jegnixa.hsc.missouri.edu (Jason Gorden),
- * here's a packet driver to compliment Tim_R_Bird@Novell.COM's IPX work.[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[his packet driver  to compliment Tim_R_Bird@Novell.COM's IPX work.
+ * here's a packet driver to compliment Tim_R_Bird@Novell.COM's IPX work.
  *
  * Revision 1.19  1994/02/01  19:25:49  root
  * Fix to allow multiple graphics DOS sessions with my Trident card.
@@ -129,6 +158,8 @@
 #define DOS_IO
 
 #include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -143,11 +174,12 @@
 #include <time.h>
 #include <string.h>
 
-#include "config.h"
 #include "memory.h"
 #include "emu.h"
 #include "termio.h"
 #include "dosio.h"
+#include "mouse.h"
+#include "video.h"
 
 /* #define SIG 1 */
 
@@ -159,50 +191,51 @@ extern int_count[];
 extern struct config_info config;
 extern int in_readkeyboard, keybint;
 extern int ignore_segv;
-extern struct CPU cpu;
 extern int pd_sock;
 
 #define PAGE_SIZE	4096
-
-/* when first started, dosemu should do a start_dosipc().
- * before leaving for good, dosemu should do a stop_dosipc().
- *
- */
-
-#ifndef SA_RESTART
-#define SA_RESTART 0
-#endif
-
-/* For the packet driver */
-us *cur_pd_size = (us *) 0xCFFFE;
-char *cur_pd_buf;
-int cpd_sock = 0;
 
 u_long secno = 0;
 
 inline void dokey(int);
 inline void process_interrupt(int);
-inline void child_packet(int);
 
 /* my test shared memory IDs */
 struct {
-
   int 			/* normal mem if idt not attached at 0x100000 */
-   hmastate;		/* 1 if HMA mapped in, 0 if idt mapped in */
+  hmastate;		/* 1 if HMA mapped in, 0 if idt mapped in */
 }
 sharedmem;
 
-u_char *HMAmemory;
+#define HMASIZE (64*1024 - 16)
+#define HMAAREA (u_char *)0x100000
+
+/* Used for all IPC HMA activity */
+u_char *HMAkeepalive; /* Use this to keep shm_hma_alive */
+int shm_hma_id;
+int shm_wrap_id;
+int shm_video_id;
+caddr_t ipc_return;
 
 void HMA_MAP(int HMA)
 {
-k_printf("Entering HMA_MAP with HMA=%d\n", HMA);
+
+  E_printf("Entering HMA_MAP with HMA=%d\n", HMA);
+  if (shmdt(HMAAREA) < 0) {
+    E_printf("HMA: Detaching HMAAREA unsuccessful: %s\n", strerror(errno));
+    leavedos(48);
+  }
   if (HMA){
-    memmove((u_char *)0x100000,(u_char *)HMAmemory , (64*1024 - 16) );
+    if ((ipc_return = (caddr_t) shmat(shm_hma_id, HMAAREA, SHM_REMAP )) == (caddr_t) 0xffffffff) {
+      E_printf("HMA: Mapping HMA to HMAAREA unsuccessful: %s\n", strerror(errno));
+      leavedos(47);
+    }
   }
   else {
-    memmove((u_char *)HMAmemory, (u_char *)0x100000, (64*1024 - 16) );
-    memmove((u_char *)0x100000,(u_char *)0x0 , (64*1024 - 16) );
+    if ((ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, 0 )) == (caddr_t) 0xffffffff) {
+      E_printf("HMA: Mapping WRAP to HMAAREA unsuccessful: %s\n", strerror(errno));
+      leavedos(47);
+    }
   }
 }
 
@@ -231,7 +264,70 @@ set_a20(int enableHMA)
 void
 memory_setup(void)
 {
-  unsigned char *ptr;
+  u_char *ptr;
+
+  /* initially, no HMA */
+  HMAkeepalive = malloc(HMASIZE); /* This is used only so that shmdt stays going */
+  sharedmem.hmastate = 0;
+
+  if ((shm_hma_id = shmget(IPC_PRIVATE, HMASIZE, 0755)) < 0) {
+    E_printf("HMA: Initial HMA mapping unsuccessful: %s\n", strerror(errno));
+    leavedos(43);
+  }
+  if ((shm_wrap_id = shmget(IPC_PRIVATE, HMASIZE, 0755)) < 0) {
+    E_printf("HMA: Initial WRAP at 0x0 mapping unsuccessful: %s\n", strerror(errno));
+    leavedos(43);
+  }
+
+#ifdef NCU
+/* Here is an IPC shm area for looking at DOS's video area */
+  if ((shm_video_id = shmget(IPC_PRIVATE, GRAPH_SIZE, 0755)) < 0) {
+    E_printf("VIDEO: Initial IPC GET mapping unsuccessful: %s\n", strerror(errno));
+    leavedos(43);
+  }
+  else
+    v_printf("VIDEO: SHM_VIDEO_ID = 0x%x\n", shm_video_id);
+#endif
+
+  /* attach regions: page 0 (idt) at address 0 (must be specified as 1 and
+   * SHM_RND, and must specify new SHM_REMAP flag to overwrite existing
+   * memory (cannot munmap() it!) and code space.
+   */
+
+  if ((ipc_return = (caddr_t) shmat(shm_wrap_id, (u_char *)0x1, SHM_REMAP|SHM_RND)) == (caddr_t) 0xffffffff) {
+    E_printf("HMA: Mapping to 0 unsuccessful: %s\n", strerror(errno));
+    leavedos(44);
+  }
+  if ((ipc_return = (caddr_t) shmat(shm_wrap_id, HMAAREA, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+    E_printf("HMA: Adding mapping to 0x100000 unsuccessful: %s\n", strerror(errno));
+    leavedos(44);
+  }
+  if ((ipc_return = (caddr_t) shmat(shm_hma_id, HMAkeepalive, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+    E_printf("HMA: Adding mapping to HMAkeepalive unsuccessful: %s\n", strerror(errno));
+    leavedos(45);
+  }
+#ifdef NCU
+  if ((ipc_return = (caddr_t) shmat(shm_video_id, (caddr_t)0xb0000, SHM_REMAP)) == (caddr_t) 0xffffffff) {
+    E_printf("VIDEO: Adding mapping to video memory unsuccessful: %s\n", strerror(errno));
+    leavedos(45);
+  }
+  else
+    v_printf("VIDEO: Video attached\n");
+#endif
+  if (shmctl(shm_hma_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
+    E_printf("HMA: Shmctl HMA unsuccessful: %s\n", strerror(errno));
+  }
+  if (shmctl(shm_wrap_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
+    E_printf("HMA: Shmctl WRAP unsuccessful: %s\n", strerror(errno));
+  }
+#ifdef NCU
+  if (shmctl(shm_video_id, IPC_RMID, (struct shmid_ds *) 0) < 0) {
+    E_printf("VIDEO: Shmctl VIDEO unsuccessful: %s\n", strerror(errno));
+  }
+#endif
+
+  /* for EMS */
+  bios_emm_init();
 
   /* dirty all pages */
   ignore_segv++;
@@ -239,17 +335,11 @@ memory_setup(void)
     *ptr = *ptr;
   ignore_segv--;
 
-  /* initially, no HMA */
-  sharedmem.hmastate = 0;
-  HMAmemory=(u_char *)malloc(64*1024);
-
 #if 1
   /* zero the DOS address space... is this really necessary? */
   memset(NULL, 0, 640 * 1024);
 #endif
 
-  /* for EMS */
-  bios_emm_init();
   xms_init();
 }
 
@@ -270,7 +360,8 @@ io_select(void)
   int selrtn;
   struct timeval tvptr;
 
-  tvptr.tv_sec=tvptr.tv_usec=0L;
+  tvptr.tv_sec=0L;
+  tvptr.tv_usec=0L;
   FD_ZERO(&fds);
   FD_SET(kbd_fd, &fds);
 
@@ -278,6 +369,9 @@ io_select(void)
   if (SillyG)
     FD_SET(SillyG, &fds);
 #endif
+  
+  if (mice->type == MOUSE_PS2)
+    FD_SET(mice->fd, &fds);
 
   switch ((selrtn = select(10, &fds, NULL, NULL, &tvptr))) {
     case 0:			/* none ready, nothing to do :-) */
@@ -296,6 +390,10 @@ io_select(void)
 	  process_interrupt(SillyG);
 	}
 #endif
+      if (mice->type == MOUSE_PS2) 
+	if (FD_ISSET(mice->fd, &fds)) {
+ 	  do_soft_int(0x74);
+	}
 
       if (FD_ISSET(kbd_fd, &fds)) {
 	dokey(kbd_fd);
@@ -350,7 +448,7 @@ set_keyboard_bios(void)
     inschr = lastchr;
 #if 0
   if ((inschr & 0xff) == 0x3 && kbd_flag(KF_CTRL)) {
-    _regs.eflags &= ~0x40;
+    _regs.regs.eflags &= ~0x40;
     do_int(0x1b);
   }
 #endif

@@ -24,12 +24,21 @@
  * the rights to redistribute these changes.
  */
 /*
- * File: $Source: /home/src/dosemu0.50pl1/RCS/machcompat.h,v $
+ * File: $Source: /home/src/dosemu0.60/RCS/machcompat.h,v $
  *
  * Purpose:
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 1.7  1994/04/27  21:34:15  root
+ * Jochen's Latest.
+ *
+ * Revision 1.6  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.5  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.4  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -114,7 +123,7 @@
 #ifndef	_BASE_H
 #define	_BASE_H
 
-#ifndef linux
+#ifndef __linux__
 
 #include <mach.h>
 #include <mach_error.h>
@@ -177,7 +186,7 @@ extern int disk_debug_level;
 	if (us_debug_level > Debug_Level_2)			\
 		fprintf args
 
-#endif /* linux */
+#endif /* __linux__ */
 
 /*
  * Space allocator.
@@ -229,7 +238,7 @@ typedef int onoff_t;
 #define	private static
 #endif /* _DEBUG_ */
 
-extern char *malloc();
+/* extern char *malloc(); */
 
 #endif /* _BASE_H */
 
@@ -265,6 +274,15 @@ extern char *malloc();
  *
  * HISTORY:
  * $Log: machcompat.h,v $
+ * Revision 1.7  1994/04/27  21:34:15  root
+ * Jochen's Latest.
+ *
+ * Revision 1.6  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.5  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.4  1994/03/04  15:23:54  root
  * Run through indent.
  *
@@ -379,7 +397,7 @@ extern char *malloc();
 #define VGA_ENABLED		1
 #define VGA_DISABLED		2
 
-#ifndef linux
+#ifndef __linux__
 #include <mach/thread_status.h>
 #include <machine/psl.h>
 #include <i386/pio.h>
@@ -442,7 +460,7 @@ extern struct vga_state ega_vga_old_state;
 
 typedef struct i386_thread_state state_t;
 
-#else /* linux */
+#else /* __linux__ */
 
 #include "cpu.h"
 typedef struct vm86_regs state_t;
@@ -455,13 +473,15 @@ typedef size_t vm_size_t;
 /* this is used for memory objects (pointer to malloc()ed memory */
 #define mach_port_t caddr_t
 
+#ifndef FALSE
 #define FALSE 0
 #define TRUE  1
+#endif
 #define MACH_PORT_NULL NULL;
 
 #define exit_dos leavedos
 
-#endif /* linux */
+#endif /* __linux__ */
 
 #define Addr_8086(x,y)	(( ((x) & 0xffff) << 4) + ((y) & 0xffff))
 #define Addr(s,x,y)	Addr_8086(((s)->x), ((s)->y))
@@ -472,7 +492,7 @@ typedef size_t vm_size_t;
 
 #define Fprintf(args)	reset_tty();fprintf args;set_tty()
 
-#ifndef linux
+#ifndef __linux__
 
 #define MAX_IO_PORTS	128
 extern u_char io_ports[MAX_IO_PORTS];
@@ -560,6 +580,6 @@ extern mutex_t cs_lock;
 		}					\
 	}
 #endif /* IDLE_WORK_IN_PROGRESS */
-#endif /* linux */
+#endif /* __linux__ */
 
 #endif /* _bios_ */

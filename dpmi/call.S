@@ -7,7 +7,7 @@
 	.data
 
 /**********************************************************************
- *	Places to keep info about the current 32-bit (Emul;ator) stack frame.
+ *	Places to keep info about the current 32-bit (Emulator) stack frame.
  */
 	.globl	_DPMI_SavedEMU_esp,_DPMI_SavedEMU_ebp,_DPMI_SavedEMU_ss
 _DPMI_SavedEMU_esp:
@@ -20,10 +20,8 @@ _DPMI_SavedEMU_ss:
 /**********************************************************************
  *	Places to keep info about the current 16/32-bit (DOS/DPMI) stack frame.
  */
-	.globl	_DPMI_SavedDOS_esp,_DPMI_SavedDOS_ebp,_DPMI_SavedDOS_ss
+	.globl	_DPMI_SavedDOS_esp,_DPMI_SavedDOS_ss
 _DPMI_SavedDOS_esp:
-	.long	0
-_DPMI_SavedDOS_ebp:
 	.long	0
 _DPMI_SavedDOS_ss:
 	.word	0
@@ -117,14 +115,9 @@ _ReturnFrom_dpmi_control:
 	movw	%ax,%gs
 	movw	%ss,_DPMI_SavedDOS_ss
 	movl	%esp,_DPMI_SavedDOS_esp
-	movl	%ebp,_DPMI_SavedDOS_ebp
 	movw	_DPMI_SavedEMU_ss,%ss
 	movl	_DPMI_SavedEMU_esp,%esp
 	movl	_DPMI_SavedEMU_ebp,%ebp
-
-	/*
- 	 * Restore registers, but do not destroy return value.
-	 */
 	popal
 	.align	2,0x90
 	leave
@@ -153,7 +146,6 @@ _dpmi_control:
 
 	movw	_DPMI_SavedDOS_ss,%ss
 	movl	_DPMI_SavedDOS_esp,%esp
-	movl	_DPMI_SavedDOS_ebp,%ebp
 
 	popw	%gs
 	popw	%fs

@@ -3,12 +3,60 @@
 #define EMU_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/03/18 23:17:51 $
- * $Source: /home/src/dosemu0.50pl1/RCS/emu.c,v $
- * $Revision: 1.53 $
+ * $Date: 1994/04/27 23:39:57 $
+ * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
+ * $Revision: 1.69 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 1.69  1994/04/27  23:39:57  root
+ * Lutz's patches to get dosemu up under 1.1.9.
+ *
+ * Revision 1.68  1994/04/27  21:34:15  root
+ * Jochen's Latest.
+ *
+ * Revision 1.67  1994/04/23  20:51:40  root
+ * Get new stack over/underflow working in VM86 mode.
+ *
+ * Revision 1.66  1994/04/23  20:10:38  root
+ * Updated again for SP over/under flow.
+ *
+ * Revision 1.65  1994/04/20  23:43:35  root
+ * pre51_8 out the door.
+ *
+ * Revision 1.64  1994/04/20  21:05:01  root
+ * Prep for Rob's patches to linpkt...
+ *
+ * Revision 1.63  1994/04/18  22:52:19  root
+ * Ready pre51_7.
+ *
+ * Revision 1.62  1994/04/18  20:57:34  root
+ * Checkin prior to Jochen's latest patches.
+ *
+ * Revision 1.61  1994/04/16  14:41:41  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.60  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.59  1994/04/13  00:07:09  root
+ * Multiple patches from various sources.
+ *
+ * Revision 1.58  1994/04/09  18:41:52  root
+ * Prior to Lutz's kernel enhancements.
+ *
+ * Revision 1.57  1994/04/07  20:50:59  root
+ * More updates.
+ *
+ * Revision 1.56  1994/04/04  22:51:55  root
+ * Patches for PS/2 mice.
+ *
+ * Revision 1.55  1994/03/30  22:12:30  root
+ * Prep for 0.51 pre 2.
+ *
+ * Revision 1.54  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.53  1994/03/18  23:17:51  root
  * Prep for 0.50pl1
  *
@@ -289,9 +337,16 @@ __asm__("___START___: jmp _emulate\n");
 #endif
 #include "ipx.h"		/* TRB - add support for ipx */
 #include "serial.h"
+#include "keymaps.h"
+#include "cpu.h"
 
 extern inline void disk_open(struct disk *);
-void saytime(char *);
+extern inline void vm86_sigsegv();
+
+extern void INT16_dummy_start();
+extern void INT16_dummy_end();
+extern void INT09_dummy_start();
+extern void INT09_dummy_end();
 
 char *segv_stack[4096];
 char *alrm_stack[4096];
@@ -306,49 +361,20 @@ inline void int_queue_run();
                         fprintf(stderr,"%c %06d:%06d\n",x,(int)tv.tv_sec,(int)tv.tv_usec);\
                    }
 
-/*
-   Allow checks via inport 0x64 for available scan codes
-*/
-extern u_char keys_ready;
-
+/* Time structures for translating UNIX <-> DOS times */
+struct timeval scr_tv;
+struct itimerval itv;
+ 
+long start_time;                /* Keep track of times for DOS calls */
+unsigned long last_ticks;
+ 
 void video_config_init();
-
-/*
-   In normal keybaord mode (XLATE), some concerns are delt with to
-   efficiently write characters to the STDOUT output. These macros
-   attempt to speed up this screen updating
-*/
-/* thanks to Andrew Haylett (ajh@gec-mrc.co.uk) for catching character loss
- * in CHOUT */
-#define OUTBUFSIZE	3000
-#define CHOUT(c)   if (outp == &outbuf[OUTBUFSIZE-2]) { CHFLUSH } \
-			*(outp++) = (c);
-#define CHFLUSH    if (outp - outbuf) { v_write(1, outbuf, outp - outbuf); \
-						outp = outbuf; }
-unsigned char outbuf[OUTBUFSIZE], *outp = outbuf;
-
-/* Need some way to kill hard interrupt calls that wish to look
-   like they end before returning to previous code, so I'll take
-   the outb 0x20 ack interrupt port output to be O.K. */
-u_char outb20 = 1;
-
-/*
-   This flag will be set when doing video routines so that special
-   access can be given
-*/
-u_char in_video = 0;
-
-/* Video write */
-void v_write(int, unsigned char *, int);
 
 /*
    Tables that hold information of currently specified storage
    devices.
 */
 extern struct disk disktab[], hdisktab[];
-
-/* Used to keep track of when xms calls are made */
-extern int xms_grab_int15;
 
 /* If -N option used at start up, allow DOSEMU to quit before starting */
 int exitearly = 0;
@@ -362,15 +388,8 @@ struct config_info config;
 */
 extern struct vm86_struct vm86s;
 
-/* Small structure of CPU related params (like 80386) */
-extern struct CPU cpu;
-
 /* Keep track of error that causes DOSEMU to exit */
 int fatalerr;
-
-/* Time structures for translating UNIX <-> DOS times */
-struct timeval scr_tv;
-struct itimerval itv;
 
 /*
    Do to timing problems, scanned lets keyboard port reads know
@@ -401,7 +420,7 @@ int_queue[IQUEUE_LEN];
    This is here to allow multiple hard_int's to be running concurrently.
    Needed for programs that steal INT9 away from DOSEMU.
 */
-#define NUM_INT_QUEUE 30
+#define NUM_INT_QUEUE 64
 struct int_queue_list_struct {
   struct int_queue_struct int_queue_ptr;
   int int_queue_return_addr;
@@ -411,9 +430,6 @@ struct int_queue_list_struct {
 
 int scrtest_bitmap, update_screen;	/* Flags to test if screen to be updated */
 unsigned char *scrbuf;		/* the previously updated screen */
-
-long start_time;		/* Keep track of times for DOS calls */
-unsigned long last_ticks;
 
 int card_init = 0;		/* VGAon exectuted flag */
 unsigned long precard_eip, precard_cs;	/* Save state at VGAon */
@@ -428,7 +444,7 @@ unsigned long precard_eip, precard_cs;	/* Save state at VGAon */
 #endif
 
 /* this holds all the configuration information, set in config_init() */
-unsigned int configuration;
+unsigned int configuration = 0;
 void config_init(void);
 
 /* Function to set up all memory area for DOS, as well as load boot block */
@@ -443,7 +459,6 @@ extern int pd_sock;
 void leavedos(int),		/* function to stop DOSEMU */
  usage(void),			/* Print parameters of DOSEMU */
  hardware_init(void);		/* Initialize info on hardware */
-inline void do_int(int);	/* Called by sigsegv() in cpu.c to handle ints */
 
 int dos_helper(void);		/* handle int's created especially for DOSEMU */
 void init_vga_card(void);	/* Function to set VM86 regs to run VGA initialation */
@@ -462,9 +477,6 @@ struct pic {
 }
 
 pics[2];
-
-/* int port61 = 0xd0;		the pseudo-8255 device on AT's */
-int port61 = 0x0e;		/* the pseudo-8255 device on AT's */
 
 int special_nowait = 0;
 
@@ -489,30 +501,16 @@ u_char in_sigsegv = 0;
 int terminal_pipe;
 int terminal_fd = -1;
 
+/*
+   This flag will be set when doing video routines so that special
+   access can be given
+*/
+u_char in_video = 0;
+
 extern move_kbd_key_flags;
 
 /* for use by cli() and sti() */
 sigset_t oldset;
-
-unsigned char trans[] =		/* LATIN CHAR SET */
-{
-  "\0\0\0\0\0\0\0\0\00\00\00\00\00\00\00\00"
-  "\0\0\0\0\266\247\0\0\0\0\0\0\0\0\0\0"
-  " !\"#$%&'()*+,-./"
-  "0123456789:;<=>?"
-  "@ABCDEFGHIJKLMNO"
-  "PQRSTUVWXYZ[\\]^_"
-  "`abcdefghijklmno"
-  "pqrstuvwxyz{|}~ "
-  "\307\374\351\342\344\340\345\347\352\353\350\357\356\354\304\305"
-  "\311\346\306\364\366\362\373\371\377\326\334\242\243\245\0\0"
-  "\341\355\363\372\361\321\252\272\277\0\254\275\274\241\253\273"
-  "\0\0\0|++++++|+++++"
-  "++++-++++++++-++"
-  "+++++++++++\0\0\0\0\0"
-  "\0\337\0\0\0\0\265\0\0\0\0\0\0\0\0\0"
-  "\0\261\0\0\0\0\367\0\260\267\0\0\0\262\244\0"
-};
 
 /* Similar to the sigaction function in libc, except it leaves alone the
    restorer field
@@ -567,6 +565,7 @@ sti(void)
 inline void
 run_vm86(void)
 {
+  int retval;
   /* always invoke vm86() with this call.  all the messy stuff will
    * be in here.
    */
@@ -574,7 +573,23 @@ run_vm86(void)
   if (!in_dpmi || int_queue_running || in_dpmi_dos_int) {
 #endif
     in_vm86 = 1;
-    (void) vm86(&vm86s);
+    switch VM86_TYPE(retval = vm86(&vm86s)) {
+	case VM86_UNKNOWN:
+		vm86_sigsegv();
+		break;
+	case VM86_STI:
+		I_printf("Return from vm86() for timeout\n");
+		break;
+	case VM86_INTx:
+		do_int(VM86_ARG(retval));
+		if (VM86_ARG(retval) == 3)
+			REG(eflags) |= (TF | IF);
+		break;
+	case VM86_SIGNAL:
+		break;
+	default:
+		error("unknown return value from vm86()\n");
+    }
     in_vm86 = 0;
 #ifdef DPMI
   }
@@ -594,877 +609,10 @@ run_vm86(void)
     do_queued_ioctl();
 }
 
-/* Put a character on the output fd of this DOSEMU */
-int
-outcbuf(int c)
-{
-  CHOUT(c);
-  return 1;
-}
-
-#ifndef USE_NCURSES
-/* Put a string on the output fd */
-void
-dostputs(char *a, int b, int (*c) (int) /* outfuntype c */ )
-{
-  /* discard c right now */
-  /* CHFLUSH; */
-  /* was "CHFLUSH; tputs(a,b,outcbuf);" */
-  tputs(a, b, c);
-}
-
-#endif
-
-/* position the cursor on the output fd */
-inline void
-poscur(int x, int y)
-{
-#ifdef USE_NCURSES
-  move(y, x);
-  refresh();			/* may not be necessary */
-#else
-  /* were "co" and "li" */
-  if ((unsigned) x >= CO || (unsigned) y >= LI)
-    return;
-  tputs(tgoto(cm, x, y), 1, outch);
-#endif
-}
-
-#ifndef OLD_SCROLL
-/*
-This is a better scroll routine, mostly for aesthetic reasons. It was
-just too horrible to contemplate a scroll that worked 1 character at a
-time :-)
-
-It may give some performance improvement on some systems (it does
-on mine)
-(Andrew Tridgell)
-*/
-
-void
-Scroll(int x0, int y0, int x1, int y1, int l, int att)
-{
-  int dx = x1 - x0 + 1;
-  int dy = y1 - y0 + 1;
-  int x, y;
-  us *sadr, blank = ' ' | (att << 8);
-  us *tbuf;
-
-  if (dx <= 0 || dy <= 0 || x0 < 0 || x1 >= CO || y0 < 0 || y1 >= LI)
-    return;
-
-  update_screen = 0;
-
-  /* make a blank line */
-  tbuf = (us *) malloc(sizeof(us) * dx);
-  if (!tbuf) {
-    error("failed to malloc temp buf in scroll!");
-    return;
-  }
-  for (x = 0; x < dx; x++)
-    tbuf[x] = blank;
-
-  sadr = SCREEN_ADR(SCREEN);
-
-  if (l >= dy || l <= -dy)
-    l = 0;
-
-  if (l == 0) {			/* Wipe mode */
-    for (y = y0; y <= y1; y++)
-      memcpy(&sadr[y * CO + x0], tbuf, dx * sizeof(us));
-    free(tbuf);
-    return;
-  }
-
-  if (l > 0) {
-    if (dx == CO)
-      memcpy(&sadr[y0 * CO],
-	     &sadr[(y0 + l) * CO],
-	     (dy - l) * dx * sizeof(us));
-    else
-      for (y = y0; y <= (y1 - l); y++)
-	memcpy(&sadr[y * CO + x0], &sadr[(y + l) * CO + x0], dx * sizeof(us));
-
-    for (y = y1 - l + 1; y <= y1; y++)
-      memcpy(&sadr[y * CO + x0], tbuf, dx * sizeof(us));
-  }
-  else {
-    for (y = y1; y >= (y0 - l); y--)
-      memcpy(&sadr[y * CO + x0], &sadr[(y + l) * CO + x0], dx * sizeof(us));
-
-    for (y = y0 - l - 1; y >= y0; y--)
-      memcpy(&sadr[y * CO + x0], tbuf, dx * sizeof(us));
-  }
-
-  update_screen = 0;
-  memcpy(scrbuf, sadr, CO * LI * 2);
-  free(tbuf);
-}
-
-#else
-
-void
-scrollup(int x0, int y0, int x1, int y1, int l, int att)
-{
-  int dx, dy, x, y, ofs;
-  us *sadr, *p, *q, blank = ' ' | (att << 8);
-
-  if (l == 0) {			/* Wipe mode */
-    sadr = SCREEN_ADR(SCREEN);
-    for (dy = y0; dy <= y1; dy++)
-      for (dx = x0; dx <= x1; dx++)
-	sadr[dy * CO + dx] = blank;
-    return;
-  }
-
-  sadr = SCREEN_ADR(SCREEN);
-  sadr += x0 + CO * (y0 + l);
-
-  dx = x1 - x0 + 1;
-  dy = y1 - y0 - l + 1;
-  ofs = -CO * l;
-  for (y = 0; y < dy; y++) {
-    p = sadr;
-    if (l != 0)
-      for (x = 0; x < dx; x++, p++)
-	p[ofs] = p[0];
-    else
-      for (x = 0; x < dx; x++, p++)
-	p[0] = blank;
-    sadr += CO;
-  }
-  for (y = 0; y < l; y++) {
-    sadr -= CO;
-    p = sadr;
-    for (x = 0; x < dx; x++, p++)
-      *p = blank;
-  }
-
-  update_screen = 1;
-}
-
-void
-scrolldn(int x0, int y0, int x1, int y1, int l, int att)
-{
-  int dx, dy, x, y, ofs;
-  us *sadr, *p, blank = ' ' | (att << 8);
-
-  if (l == 0) {
-    l = LI - 1;			/* Clear whole if l=0 */
-  }
-
-  sadr = SCREEN_ADR(SCREEN);
-  sadr += x0 + CO * (y1 - l);
-
-  dx = x1 - x0 + 1;
-  dy = y1 - y0 - l + 1;
-  ofs = CO * l;
-  for (y = 0; y < dy; y++) {
-    p = sadr;
-    if (l != 0)
-      for (x = 0; x < dx; x++, p++)
-	p[ofs] = p[0];
-    else
-      for (x = 0; x < dx; x++, p++)
-	p[0] = blank;
-    sadr -= CO;
-  }
-  for (y = 0; y < l; y++) {
-    sadr += CO;
-    p = sadr;
-    for (x = 0; x < dx; x++, p++)
-      *p = blank;
-  }
-
-  update_screen = 1;
-}
-
-#endif /* OLD_SCROLL */
-
-void
-v_write(int fd, unsigned char *ch, int len)
-{
-  if (!config.console_video)
-    DOS_SYSCALL(write(fd, ch, len));
-  else
-    error("ERROR: (video) v_write deferred for console_video\n");
-}
-
-#ifdef USE_NCURSES
-void 
-char_out(unsigned char ch, int s, int advflag)
-{
-  addch(ch);
-  refresh();
-}
-
-#else
-void
-char_out_att(unsigned char ch, unsigned char att, int s, int advflag)
-{
-  u_short *sadr;
-  int xpos = XPOS(s), ypos = YPOS(s);
-
-  /*	if (s > max_page) return; */
-
-  if (config.console_video) {
-    if (ch >= ' ') {
-      sadr = SCREEN_ADR(s);
-      sadr[YPOS(s) * CO + XPOS(s)++] = ch | (att << 8);
-    }
-    else if (ch == '\r') {
-      XPOS(s) = 0;
-    }
-    else if (ch == '\n') {
-      YPOS(s)++;
-      XPOS(s) = 0;		/* EDLIN needs this behavior */
-    }
-    else if (ch == '\010' && XPOS(s) > 0) {
-      XPOS(s)--;
-    }
-    else if (ch == '\t') {
-      v_printf("tab\n");
-      do {
-	char_out(' ', s, advflag);
-      } while (XPOS(s) % 8 != 0);
-    }
-
-    if (!advflag) {
-      XPOS(s) = xpos;
-      YPOS(s) = ypos;
-    }
-    else
-      poscur(XPOS(s), YPOS(s));
-  }
-
-  else {
-    unsigned short *wscrbuf = (unsigned short *) scrbuf;
-
-    /* update_screen not set to 1 because we do the outputting
-	   * ourselves...scrollup() and scrolldn() should also work
-	   * this way, when I get around to it.
-	   */
-    update_screen = 0;
-
-    /* this will need some fixing to work with advflag, so that extra
-	   * characters won't cause wraparound...
-	   */
-
-    if (ch >= ' ') {
-      sadr = SCREEN_ADR(s);
-      sadr[YPOS(s) * CO + XPOS(s)] = ch | (att << 8);
-      wscrbuf[YPOS(s) * CO + XPOS(s)] = ch | (att << 8);
-      XPOS(s)++;
-      if (s == SCREEN)
-	outch(trans[ch]);
-    }
-    else if (ch == '\r') {
-      XPOS(s) = 0;
-      if (s == SCREEN)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-    else if (ch == '\n') {
-      YPOS(s)++;
-      XPOS(s) = 0;		/* EDLIN needs this behavior */
-      if (s == SCREEN)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-    else if (ch == '\010' && XPOS(s) > 0) {
-      XPOS(s)--;
-      if ((s == SCREEN) && advflag)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-    else if (ch == '\t') {
-      do {
-	char_out(' ', s, advflag);
-      } while (XPOS(s) % 8 != 0);
-    }
-    else if (ch == '\010' && XPOS(s) > 0) {
-      XPOS(s)--;
-      if ((s == SCREEN) && advflag)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-  }
-
-  if (advflag) {
-    if (XPOS(s) == CO) {
-      XPOS(s) = 0;
-      YPOS(s)++;
-    }
-    if (YPOS(s) == LI) {
-      YPOS(s)--;
-      scrollup(0, 0, CO - 1, LI - 1, 1, 7);
-      update_screen = 0 /* 1 */ ;
-    }
-  }
-}
-
-/* temporary hack... we'll merge this back into char_out_att later.
- * right now, I need to play with it.
- */
-void
-char_out(unsigned char ch, int s, int advflag)
-{
-  us *sadr;
-  int xpos = XPOS(s), ypos = YPOS(s);
-  int newline_att = 7;
-
-  if (config.console_video) {
-    if (ch >= ' ') {
-      sadr = SCREEN_ADR(s);
-      sadr[YPOS(s) * CO + XPOS(s)] &= 0xff00;
-      sadr[YPOS(s) * CO + XPOS(s)++] |= ch;
-    }
-    else if (ch == '\r') {
-      XPOS(s) = 0;
-    }
-    else if (ch == '\n') {
-      YPOS(s)++;
-      XPOS(s) = 0;		/* EDLIN needs this behavior */
-
-      /* color new line */
-      sadr = SCREEN_ADR(s);
-      newline_att = sadr[YPOS(s) * CO + XPOS(s) - 1] >> 8;
-
-    }
-    else if (ch == '\010' && XPOS(s) > 0) {
-      XPOS(s)--;
-    }
-    else if (ch == '\t') {
-      v_printf("tab\n");
-      do {
-	char_out(' ', s, advflag);
-      } while (XPOS(s) % 8 != 0);
-    }
-
-    if (!advflag) {
-      XPOS(s) = xpos;
-      YPOS(s) = ypos;
-    }
-    else
-      poscur(XPOS(s), YPOS(s));
-  }
-
-  else {
-    unsigned short *wscrbuf = (unsigned short *) scrbuf;
-
-    /* this will need some fixing to work with advflag, so that extra
-	   * characters won't cause wraparound...
-	   */
-
-    update_screen = 0;
-
-    if (ch >= ' ') {
-      sadr = SCREEN_ADR(s);
-      sadr[YPOS(s) * CO + XPOS(s)] &= 0xff00;
-      sadr[YPOS(s) * CO + XPOS(s)] |= ch;
-      wscrbuf[YPOS(s) * CO + XPOS(s)] &= 0xff00;
-      wscrbuf[YPOS(s) * CO + XPOS(s)] |= ch;
-      XPOS(s)++;
-      if (s == SCREEN)
-	outch(trans[ch]);
-    }
-    else if (ch == '\r') {
-      XPOS(s) = 0;
-      if (s == SCREEN)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-    else if (ch == '\n') {
-      YPOS(s)++;
-      XPOS(s) = 0;		/* EDLIN needs this behavior */
-      if (s == SCREEN)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-    else if (ch == '\010' && XPOS(s) > 0) {
-      XPOS(s)--;
-      if ((s == SCREEN) && advflag)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-    else if (ch == '\t') {
-      do {
-	char_out(' ', s, advflag);
-      } while (XPOS(s) % 8 != 0);
-    }
-    else if (ch == '\010' && XPOS(s) > 0) {
-      XPOS(s)--;
-      if ((s == SCREEN) && advflag)
-	write(STDOUT_FILENO, &ch, 1);
-    }
-  }
-
-  if (advflag) {
-    if (XPOS(s) == CO) {
-      XPOS(s) = 0;
-      YPOS(s)++;
-    }
-    if (YPOS(s) == LI) {
-      YPOS(s)--;
-      scrollup(0, 0, CO - 1, LI - 1, 1, newline_att);
-      update_screen = 0 /* 1 */ ;
-    }
-  }
-}
-
-#endif /* USE_NCURSES */
-
-void
-clear_screen(int s, int att)
-{
-#ifdef USE_NCURSES
-  attrset(A_NORMAL);		/* should set attribute according to 'att' */
-  clear();
-  move(0, 0);
-  refresh();
-#else
-  us *sadr, *p, blank = ' ' | (att << 8);
-  int lx;
-
-  update_screen = 0;
-  v_printf("VID: cleared screen\n");
-  if (s > max_page)
-    return;
-  sadr = SCREEN_ADR(s);
-  cli();
-
-  for (p = sadr, lx = 0; lx < (CO * LI); *(p++) = blank, lx++) ;
-  if (!config.console_video) {
-    memcpy(scrbuf, sadr, CO * LI * 2);
-    if (s == SCREEN)
-      tputs(cl, 1, outch);
-  }
-
-  XPOS(s) = YPOS(s) = 0;
-  poscur(0, 0);
-  sti();
-  update_screen = 0;
-#endif
-}
-
-#ifdef USE_NCURSES
-void 
-restore_screen()
-{
-  refresh();
-}
-
-#else
-
-/* there's a bug in here somewhere */
-#define CHUNKY_RESTORE 1
-#ifdef CHUNKY_RESTORE
-/*
-This version of restore_screen works in chunks across the screen,
-instead of only with whole lines. This can be MUCH faster in some
-cases, like when running across a 2400 baud modem :-)
-Andrew Tridgell
-*/
-void
-restore_screen(void)
-{
-  us *sadr, *p;
-  unsigned char c, a;
-  int x, y, oa;
-  int Xchunk = CO / config.redraw_chunks;
-  int Xstart;
-
-  v_printf("RESTORE SCREEN: scrbuf at %p\n", scrbuf);
-
-  if (config.console_video) {
-    v_printf("restore cancelled for console_video\n");
-    return;
-  }
-
-  update_screen = 0;
-  CHFLUSH;
-
-  sadr = SCREEN_ADR(SCREEN);
-  v_printf("SADR: %p\n", sadr);
-  v_printf("virt_text_base: %p\n", (u_char *)virt_text_base);
-  v_printf("SCREEN: %x\n", SCREEN);
-  oa = 7;
-  p = sadr;
-  for (y = 0; y < LI; y++)
-    for (Xstart = 0; Xstart < CO; Xstart += Xchunk) {
-      int chunk = ((Xstart + Xchunk) > CO) ? (CO - Xstart) : Xchunk;
-
-      /* only update if this chunk of line has changed
-	 * ..note that sadr is an unsigned
-	 * short ptr, so CO is not multiplied by 2...I'll clean this up
-	 * later.
-	 */
-      if (!memcmp(scrbuf + y * CO * 2 + Xstart * 2, sadr + y * CO + Xstart,
-		  chunk * 2)) {
-	p += chunk;		/* p is an unsigned short pointer */
-	continue;		/* go to the next chunk */
-      }
-      else
-	memcpy(scrbuf + y * CO * 2 + Xstart * 2, p, chunk * 2);
-
-      /* This chunk must have changed - we'll have to redraw it */
-
-      /* go to the start of the chunk */
-      dostputs(tgoto(cm, Xstart, y), 1, outcbuf);
-
-      /* do chars one at a time */
-      for (x = Xstart; x < Xstart + chunk; x++) {
-	c = *(unsigned char *) p;
-	if ((a = ((unsigned char *) p)[1]) != oa) {
-	  /* do fore/back-ground colors */
-	  if (!(a & 7) || (a & 0x70))
-	    dostputs(mr, 1, outcbuf);
-	  else
-	    dostputs(me, 1, outcbuf);
-
-	  /* do high intensity */
-	  if (a & 0x8)
-	    dostputs(md, 1, outcbuf);
-	  else if (oa & 0x8) {
-	    dostputs(me, 1, outcbuf);
-	    if (!(a & 7) || (a & 0x70))
-	      dostputs(mr, 1, outcbuf);
-	  }
-
-	  /* do underline/blink */
-	  if (a & 0x80)
-	    dostputs(so, 1, outcbuf);
-	  else if (oa & 0x80)
-	    dostputs(se, 1, outcbuf);
-
-	  oa = a;		/* save old attr as current */
-	}
-	CHOUT(trans[c] ? trans[c] : '_');
-	p++;
-      }
-    }
-
-  dostputs(me, 1, outcbuf);
-  CHFLUSH;
-  poscur(XPOS(SCREEN), YPOS(SCREEN));
-}
-
-#else
-
-void
-restore_screen(void)
-{
-  us *sadr, *p;
-  unsigned char c, a;
-  int x, y, oa;
-
-  update_screen = 0;
-
-  v_printf("RESTORE SCREEN: scrbuf at 0x%08x\n", scrbuf);
-
-  if (config.console_video) {
-    v_printf("restore cancelled for console_video\n");
-    return;
-  }
-
-  sadr = SCREEN_ADR(SCREEN);
-  oa = 7;
-  p = sadr;
-  for (y = 0; y < LI; y++) {
-    dostputs(tgoto(cm, 0, y), 1, outcbuf);
-    for (x = 0; x < CO; x++) {
-      c = *(unsigned char *) p;
-      if ((a = ((unsigned char *) p)[1]) != oa) {
-#ifndef OLD_RESTORE
-	/* do fore/back-ground colors */
-	if (!(a & 7) || (a & 0x70))
-	  dostputs(mr, 1, outcbuf);
-	else
-	  dostputs(me, 1, outcbuf);
-
-	/* do high intensity */
-	if (a & 0x8)
-	  dostputs(md, 1, outcbuf);
-	else if (oa & 0x8) {
-	  dostputs(me, 1, outcbuf);
-	  if (!(a & 7) || (a & 0x70))
-	    dostputs(mr, 1, outcbuf);
-	}
-
-	/* do underline/blink */
-	if (a & 0x80)
-	  dostputs(so, 1, outcbuf);
-	else if (oa & 0x80)
-	  dostputs(se, 1, outcbuf);
-
-	oa = a;			/* save old attr as current */
-#else
-	if ((a & 7) == 0)
-	  dostputs(mr, 1, outcbuf);
-	else
-	  dostputs(me, 1, outcbuf);
-	if ((a & 0x88))
-	  dostputs(md, 1, outcbuf);
-	oa = a;
-#endif
-      }
-      CHOUT(trans[c] ? trans[c] : '_');
-      p++;
-    }
-  }
-
-  dostputs(me, 1, outcbuf);
-  CHFLUSH;
-  poscur(XPOS(SCREEN), YPOS(SCREEN));
-}
-
-#endif /* CHUNKY_RESTORE */
-#endif /* USE_NCURSES */
-
-u_short microsoft_port_check = 0;
-
-int
-inb(int port)
-{
-  /* for scanseq */
-#define NEWCODE      1
-#define BREAKCODE    2
-
-  static unsigned int cga_r = 0;
-  static unsigned int tmp = 0;
-
-  port &= 0xffff;
-  if (port_readable(port))
-    return (read_port(port) & 0xFF);
-#if 1
-  if (config.chipset && port > 0x3b3 && port < 0x3df)
-    return (video_port_in(port));
-#endif
-
-  switch (port) {
-  case 0x60:
-    k_printf("direct 8042 about to read1: 0x%02x\n", lastscan);
-    parent_nextscan();
-    if (keys_ready)
-      microsoft_port_check = 0;
-    k_printf("direct 8042 read1: 0x%02x microsoft=%d\n", lastscan, microsoft_port_check);
-    /*	      tmp=lastscan;
-	      lastscan=0; */
-    if (microsoft_port_check)
-      return microsoft_port_check;
-    else
-      return lastscan;
-  case 0x64:{
-      parent_nextscan();
-      tmp = 0x1c | (keys_ready || microsoft_port_check ? 1 : 0);	/* low bit set = sc ready */
-      /* lastscan=0; */
-      k_printf("direct 8042 0x64 status check: 0x%02x keys_ready=%d, microsoft=%d\n", tmp, keys_ready, microsoft_port_check);
-      return tmp;
-    }
-
-  case 0x61:
-    k_printf("inb [0x61] =  0x%02x (8255 chip)\n", port61);
-    return port61;
-
-  case 0x70:
-  case 0x71:
-    return cmos_read(port);
-
-  case 0x40:
-    i_printf("inb [0x40] = 0x%02x  1st timer inb\n",
-	     pit.CNTR0 -= 20);
-    return pit.CNTR0;
-  case 0x41:
-    i_printf("inb [0x41] = 0x%02x  2nd timer inb\n",
-	     pit.CNTR1--);
-    return pit.CNTR1;
-  case 0x42:
-    i_printf("inb [0x42] = 0x%02x  3rd timer inb\n",
-	     pit.CNTR2--);
-    return pit.CNTR2;
-  case 0x2f8:			/* serial port */
-  case 0x2f9:
-  case 0x2fa:
-  case 0x2fb:
-  case 0x2fc:
-  case 0x2fd:
-  case 0x2fe:
-  case 0x2ff:
-    if (com[0].base_port == 0x2f8)
-      return (do_serial_in(0, port));
-    if (com[1].base_port == 0x2f8)
-      return (do_serial_in(1, port));
-    i_printf("Ser inb [0x%x] = 0x%02x\n",
-	     port, (LWORD(eax) & 0xFF));
-    return (0);
-  case 0x3ba:
-  case 0x3da:
-    /* graphic status - many programs will use this port to sync with
-     * the vert & horz retrace so as not to cause CGA snow */
-    return (cga_r ^= 1) ? 0xcf : 0xc6;
-  case 0x3bc:
-    i_printf("printer port inb [0x3bc] = 0\n");
-    return 0;
-  case 0x3db:			/* light pen strobe reset */
-    return 0;
-  case 0x3f8:
-  case 0x3f9:
-  case 0x3fa:
-  case 0x3fb:
-  case 0x3fc:
-  case 0x3fd:
-  case 0x3fe:
-  case 0x3ff:			/* serial port */
-    if (com[0].base_port == 0x3f8)
-      return (do_serial_in(0, port));
-    if (com[1].base_port == 0x3f8)
-      return (do_serial_in(1, port));
-    i_printf("Ser inb [0x%x] = 0x%02x\n",
-	     port, (LWORD(eax) & 0xFF));
-    return (0);
-
-  default:{
-
-      /* The diamond bug */
-      if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
-	iopl(3);
-	tmp = port_in(port);
-	iopl(0);
-	i_printf(" Diamond inb [0x%x] = 0x%x\n", port, tmp);
-	return (tmp);
-      }
-
-      i_printf("default inb [0x%x] = 0x%02x\n",
-	       port, (LWORD(eax) & 0xFF));
-      return 0;
-    }
-  }
-  return 0;
-}
-
-void
-outb(int port, int byte)
-{
-  static int timer_beep = 0;
-  static int lastport = 0;
-
-  port &= 0xffff;
-  byte &= 0xff;
-
-  if (port_writeable(port)) {
-    write_port(byte, port);
-    return;
-  }
-
-#if 1
-  if (config.chipset && port > 0x3b3 && port < 0x3df)
-    video_port_out(byte, port);
-#endif
-
-  /* The diamond bug */
-  if (config.chipset == DIAMOND && (port >= 0x23c0) && (port <= 0x23cf)) {
-    iopl(3);
-    port_out(byte, port);
-    iopl(0);
-    i_printf(" Diamond outb [0x%x] = 0x%x\n", port, byte);
-    return;
-  }
-
-  switch (port) {
-  case 0x20:
-    outb20 = 1;
-    k_printf("OUTB resetting hard int! byte=%x\n", byte);
-    break;
-  case 0x60:
-    k_printf("keyboard 0x60 outb = 0x%x\n", byte);
-    microsoft_port_check = 1;
-    if (byte < 0xf0) {
-      microsoft_port_check = 0xfe;
-    }
-    else {
-      microsoft_port_check = 0xfa;
-    }
-    break;
-  case 0x64:
-    k_printf("keyboard 0x64 outb = 0x%x\n", byte);
-    break;
-  case 0x61:
-    port61 = byte & 0x0f;
-    k_printf("8255 0x61 outb = 0x%x\n", byte);
-    if (((byte & 3) == 3) && (timer_beep == 1) &&
-	(config.speaker == SPKR_EMULATED)) {
-      i_printf("beep!\n");
-      fprintf(stderr, "\007");
-      timer_beep = 0;
-    }
-    else {
-      timer_beep = 1;
-    }
-    break;
-  case 0x70:
-  case 0x71:
-    cmos_write(port, byte);
-    break;
-  case 0x40:
-  case 0x41:
-  case 0x42:
-  case 0x43:
-    /*      i_printf("timer outb 0x%02x\n", byte); */
-    if ((port == 0x42) && (lastport == 0x42)) {
-      if ((timer_beep == 1) &&
-	  (config.speaker == SPKR_EMULATED)) {
-	fprintf(stderr, "\007");
-	timer_beep = 0;
-      }
-      else {
-	timer_beep = 1;
-      }
-    }
-    break;
-  case 0x2f8:			/* serial port */
-  case 0x2f9:
-  case 0x2fa:
-  case 0x2fb:
-  case 0x2fc:
-  case 0x2fd:
-  case 0x2fe:
-  case 0x2ff:
-    if (com[0].base_port == 0x2f8) {
-      do_serial_out(0, port, byte);
-      break;
-    }
-    if (com[1].base_port == 0x2f8) {
-      do_serial_out(1, port, byte);
-      break;
-    }
-    i_printf("Ser outb [0x%x] = 0x%02x\n",
-	     port, (LWORD(eax) & 0xFF));
-    break;
-  case 0x3f8:			/* serial port */
-  case 0x3f9:
-  case 0x3fa:
-  case 0x3fb:
-  case 0x3fc:
-  case 0x3fd:
-  case 0x3fe:
-  case 0x3ff:
-    if (com[0].base_port == 0x3f8) {
-      do_serial_out(0, port, byte);
-      break;
-    }
-    if (com[1].base_port == 0x3f8) {
-      do_serial_out(1, port, byte);
-      break;
-    }
-    i_printf("Ser outb [0x%x] = 0x%02x\n",
-	     port, (LWORD(eax) & 0xFF));
-    break;
-  default:
-    i_printf("outb [0x%x] 0x%02x\n", port, byte);
-  }
-
-  lastport = port;
-}
-
 void
 config_init(void)
 {
   int b;
-
-  configuration = 0;
 
   /* show 0 serial ports and 3 parallel ports, maybe a mouse, and the
    * configured number of floppy disks
@@ -1472,8 +620,8 @@ config_init(void)
   CONF_NFLOP(configuration, config.fdisks);
   CONF_NSER(configuration, config.num_ser);
   CONF_NLPT(configuration, config.num_lpt);
-  if (config.mouse_flag)
-    configuration |= CONF_MOUSE;/* XXX - is this PS/2 only? */
+  if (mice->type == MOUSE_PS2)
+    configuration |= CONF_MOUSE;
 
   if (config.mathco)
     configuration |= CONF_MATHCO;
@@ -1491,7 +639,7 @@ dos_ctrl_alt_del(void)
 {
   dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
   disk_close();
-  clear_screen(SCREEN, 7);
+  clear_screen(bios_current_screen_page, 7);
   show_cursor();
   special_nowait = 0;
   p_dos_str("Rebooting DOS.  Be careful...this is partially implemented\r\n");
@@ -1511,10 +659,14 @@ dos_ctrlc(void)
 void
 dosemu_banner(void)
 {
-  u_short *ssp = SEG_ADR((u_short *), ss, sp);
+  unsigned char *ssp;
+  unsigned long sp;
 
-  *--ssp = LWORD(cs);
-  *--ssp = LWORD(eip);
+  ssp = (unsigned char *)(REG(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
+
+  pushw(ssp, sp, LWORD(cs));
+  pushw(ssp, sp, LWORD(eip));
   LWORD(esp) -= 4;
   LWORD(cs) = Banner_SEG;
   LWORD(eip) = Banner_OFF;
@@ -1545,8 +697,9 @@ boot()
   unsigned int i;
   unsigned char *ptr;
   struct disk *dp=NULL;
+  ushort *seg, *off;
 
-  switch (config.hdiskboot) {
+ switch (config.hdiskboot) {
   case 0:
     if (config.bootdisk)
       dp = &bootdisk;
@@ -1618,10 +771,8 @@ boot()
   /* show EMS as disabled */
   SETIVEC(0x67, 0, 0);
 
+if (mice->intdrv == TRUE) {
   /* this is the mouse handler */
-  if (config.mouse_flag) {
-    u_short *seg, *off;
-
     ptr = (unsigned char *) (Mouse_ADD);
 
     /* mouse routine simulates the stack frame of an int, then does a
@@ -1643,11 +794,9 @@ boot()
 
     /* tell the mouse driver where we are...exec add, seg, offset */
     mouse_sethandler(ptr, seg, off);
-  }
-#if 0
-  else
+}
+else
     *(unsigned char *) (BIOSSEG * 16 + 16 * 0x33) = 0xcf;	/* IRET */
-#endif
 
   ptr = (u_char *) Banner_ADD;
   *ptr++ = 0xb0;		/* mov al, 5 */
@@ -1660,265 +809,15 @@ boot()
 
   /* Welcome to an -inline- int16 routine - ask for details :-) */
   ptr = (u_char *) INT16_ADD;
-  *ptr++ = 0xFB;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x53;
-  *ptr++ = 0xBB;
-  *ptr++ = 0x40;
-  *ptr++ = 0x00;
-  *ptr++ = 0x8E;
-  *ptr++ = 0xDB;
-  *ptr++ = 0x0A;
-  *ptr++ = 0xE4;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x00;
-  *ptr++ = 0x74;
-  *ptr++ = 0x2B;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x10;
-  *ptr++ = 0x74;
-  *ptr++ = 0x26;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x01;
-  *ptr++ = 0x74;
-  *ptr++ = 0x47;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x11;
-  *ptr++ = 0x74;
-  *ptr++ = 0x42;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x02;
-  *ptr++ = 0x74;
-  *ptr++ = 0x4E;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x03;
-  *ptr++ = 0x74;
-  *ptr++ = 0x0F;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x04;
-  *ptr++ = 0x74;
-  *ptr++ = 0x0A;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x05;
-  *ptr++ = 0x74;
-  *ptr++ = 0x56;
-  *ptr++ = 0x80;
-  *ptr++ = 0xFC;
-  *ptr++ = 0x12;
-  *ptr++ = 0x74;
-  *ptr++ = 0x3A;
-  *ptr++ = 0x5B;
-  *ptr++ = 0x1F;
-  *ptr++ = 0xCF;
-  *ptr++ = 0xFA;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1A;
-  *ptr++ = 0x00;
-  *ptr++ = 0x3B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1C;
-  *ptr++ = 0x00;
-  *ptr++ = 0x75;
-  *ptr++ = 0x03;
-  *ptr++ = 0xFB;
-  *ptr++ = 0xEB;
-  *ptr++ = 0xF2;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x07;
-  *ptr++ = 0x43;
-  *ptr++ = 0x43;
-  *ptr++ = 0x89;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1A;
-  *ptr++ = 0x00;
-  *ptr++ = 0x3B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x82;
-  *ptr++ = 0x00;
-  *ptr++ = 0x75;
-  *ptr++ = 0xE1;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x80;
-  *ptr++ = 0x00;
-  *ptr++ = 0x89;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1A;
-  *ptr++ = 0x00;
-  *ptr++ = 0xEB;
-  *ptr++ = 0xD7;
-  *ptr++ = 0xFA;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1A;
-  *ptr++ = 0x00;
-  *ptr++ = 0x3B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1C;
-  *ptr++ = 0x00;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x07;
-  *ptr++ = 0xFB;
-  *ptr++ = 0x5B;
-  *ptr++ = 0x1F;
-  *ptr++ = 0xCA;
-  *ptr++ = 0x02;
-  *ptr++ = 0x00;
-  *ptr++ = 0xA0;
-  *ptr++ = 0x17;
-  *ptr++ = 0x00;
-  *ptr++ = 0x8A;
-  *ptr++ = 0x26;
-  *ptr++ = 0x18;
-  *ptr++ = 0x00;
-  *ptr++ = 0x80;
-  *ptr++ = 0xE4;
-  *ptr++ = 0xF3;
-  *ptr++ = 0x33;
-  *ptr++ = 0xDB;
-  *ptr++ = 0x8A;
-  *ptr++ = 0x3E;
-  *ptr++ = 0x96;
-  *ptr++ = 0x00;
-  *ptr++ = 0x80;
-  *ptr++ = 0xE7;
-  *ptr++ = 0x0C;
-  *ptr++ = 0x0B;
-  *ptr++ = 0xC3;
-  *ptr++ = 0xEB;
-  *ptr++ = 0xAF;
-  *ptr++ = 0xFA;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1C;
-  *ptr++ = 0x00;
-  *ptr++ = 0x43;
-  *ptr++ = 0x43;
-  *ptr++ = 0x3B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x82;
-  *ptr++ = 0x00;
-  *ptr++ = 0x75;
-  *ptr++ = 0x04;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x80;
-  *ptr++ = 0x00;
-  *ptr++ = 0x3B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1A;
-  *ptr++ = 0x00;
-  *ptr++ = 0x75;
-  *ptr++ = 0x05;
-  *ptr++ = 0xB0;
-  *ptr++ = 0x01;
-  *ptr++ = 0xFB;
-  *ptr++ = 0xEB;
-  *ptr++ = 0x93;
-  *ptr++ = 0x53;
-  *ptr++ = 0x8B;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1C;
-  *ptr++ = 0x00;
-  *ptr++ = 0x89;
-  *ptr++ = 0x0F;
-  *ptr++ = 0xB0;
-  *ptr++ = 0x00;
-  *ptr++ = 0x5B;
-  *ptr++ = 0x89;
-  *ptr++ = 0x1E;
-  *ptr++ = 0x1C;
-  *ptr++ = 0x00;
-  *ptr++ = 0xFB;
-  *ptr++ = 0xEB;
-  *ptr++ = 0x82;
+  memcpy(ptr, INT16_dummy_start, (unsigned long)INT16_dummy_end-(unsigned long)INT16_dummy_start);
   SETIVEC(0x16, INT16_SEG, INT16_OFF);
-  /* End of REAL MODE interrupt 16 */
 
   /* Welcome to an -inline- int09 routine - ask for details :-) */
   ptr = (u_char *) INT09_ADD;
-  *ptr++ = 0xFA;
-
-  *ptr++ = 0x9c;
-
-  *ptr++ = 0x1E;
-  *ptr++ = 0x53;
-  *ptr++ = 0x50;
-
-  *ptr++ = 0xE4;
-  *ptr++ = 0x60;
-
-  *ptr++ = 0x8a;
-  *ptr++ = 0xe0;
-  *ptr++ = 0xb0;
-  *ptr++ = 0x07;
-  *ptr++ = 0xcd;
-  *ptr++ = 0xe6;
-
-  *ptr++ = 0xB4;
-  *ptr++ = 0x4F;
-  *ptr++ = 0xF8;
-  *ptr++ = 0xF5;
-  *ptr++ = 0xCD;
-  *ptr++ = 0x15;
-
-  *ptr++ = 0x9c;
-
-  *ptr++ = 0x50;
-  *ptr++ = 0x5b;
-
-  *ptr++ = 0x8A;
-  *ptr++ = 0xE0;
-  *ptr++ = 0xB0;
-  *ptr++ = 0x06;
-
-  *ptr++ = 0x9d;
-
-  *ptr++ = 0xCD;
-  *ptr++ = 0xE6;
-  *ptr++ = 0x58;
-  *ptr++ = 0x5B;
-  *ptr++ = 0x1F;
-
-  *ptr++ = 0x9d;
-
-  *ptr++ = 0xFB;
-  *ptr++ = 0xCF;
+  memcpy(ptr, INT09_dummy_start, (unsigned long)INT09_dummy_end-(unsigned long)INT09_dummy_start);
   SETIVEC(0x09, INT09_SEG, INT09_OFF);
-  /* End of REAL MODE interrupt 9 */
 
-  /* Wrapper around call to video init c000:0013 */
-  ptr = (u_char *) INT10_ADD;
-
-  *ptr++ = 0x50;
-
-  *ptr++ = 0xb0;
-  *ptr++ = 0x08;
-  *ptr++ = 0xcd;
-  *ptr++ = 0xe6;
-
-  *ptr++ = 0x9a;
-  *ptr++ = 0x03;
-  *ptr++ = 0x00;
-  *ptr++ = 0x00;
-  *ptr++ = 0xc0;
-
-  *ptr++ = 0xb0;
-  *ptr++ = 0x09;
-  *ptr++ = 0xcd;
-  *ptr++ = 0xe6;
-
-  *ptr++ = 0x58;
-  *ptr++ = 0xcb;
+  install_int_10_handler();    /* Install the handler for video-interrupt */
 
   /* This is an int e7 used for FCB opens */
   ptr = (u_char *) INTE7_ADD;
@@ -1954,7 +853,8 @@ boot()
   *ptr++ = 0xcb;	/*12*/	/* FAR RET */
   *ptr++ = 0xF4;	/*13*/	/* hlt *//* MS-DOS extension API entry point */
   *ptr++ = 0xcb;	/*14*/	/* FAR RET */
-  *ptr++ = 0xF4;	/*15*/	/* hlt *//* Protected Mode Interrupt */
+  *ptr++ = 0xF4;	/*15*/	/* hlt *//* Exception Handler*/
+  *ptr++ = 0xF4;	/*16*/	/* hlt *//* Protected Mode Interrupt */
 
   /* set up BIOS exit routine (we have *just* enough room for this) */
   ptr = (u_char *) 0xffff0;
@@ -1973,25 +873,33 @@ boot()
     InitIPXFarCallHelper();
 #endif
 
-  *(us *) 0x410 = configuration;
-  *(us *) 0x413 = config.mem_size;	/* size of memory */
-  VIDMODE = screen_mode;	/* screen mode */
-  COLS = CO;			/* chars per line */
-  ROWSM1 = LI - 1;		/* lines on screen - 1 */
-  REGEN_SIZE = TEXT_SIZE;	/* XXX - size of video regen area in bytes */
-  PAGE_OFFSET = 0;		/* offset of current page in buffer */
+  /* Install the new packet driver interface */
+  pkt_init(0x62);
+
+  bios_address_lpt1  = 0x378;
+  bios_address_lpt2  = 0x278;
+  bios_configuration = configuration;
+  bios_memory_size   = config.mem_size;	/* size of memory */
+  bios_video_mode    = screen_mode;	/* screen mode */
+  bios_screen_columns = CO;		/* chars per line */
+  bios_rows_on_screen_minus_1 = LI - 1;	/* lines on screen - 1 */
+  bios_video_memory_used = TEXT_SIZE;	/* size of video regen area in bytes */
+  bios_video_memory_address = 0;	/* offset of current page in buffer */
 
   /* The default 16-word BIOS key buffer starts at 0x41e */
-  KBD_Head =			/* key buf start ofs */
-    KBD_Tail =			/* key buf end ofs */
-    KBD_Start = 0x1e;		/* keyboard queue start... */
-  KBD_End = 0x3e;		/* ...and end offsets from 0x400 */
+  KBD_Head =                    /* key buf start ofs */
+    KBD_Tail =                  /* key buf end ofs */
+    KBD_Start = 0x1e;           /* keyboard queue start... */
+  KBD_End = 0x3e;               /* ...and end offsets from 0x400 */
 
   keybuf_clear();
 
-  *(us *) 0x463 = 0x3d4;	/* base port of CRTC - IMPORTANT! */
-  *(char *) 0x465 = 9;		/* current 3x8 (x=b or d) value */
-  *(u_short *) 0x472 = 0x1234;
+  if ( (configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE )
+    bios_video_port = 0x3b4;	/* base port of CRTC - IMPORTANT! */
+  else
+    bios_video_port = 0x3d4;    /* base port of CRTC - IMPORTANT! */
+  bios_vdu_control  = 9;        /* current 3x8 (x=b or d) value */
+  bios_ctrl_alt_del_flag = 0x0000;
   *(char *) 0x487 = 0x61;
   *(char *) 0x488 = 0x81;	/* video display data */
 
@@ -2042,8 +950,6 @@ boot()
   REG(fs) = 0;
   REG(gs) = 0;
 
-  update_flags(&REG(eflags));
-
   /* the banner helper actually get called *after* the VGA card
    * is initialized (if it is) because we set up a return chain:
    *      init_vga_card -> dosemu_banner -> 7c00:0000 (boot block)
@@ -2064,757 +970,24 @@ boot()
   ignore_segv--;
 }
 
-/* Once every 18 let's update leds */
-u_char leds = 0;
-
-void
-int08(void)
-{
-#if 1
-  if (++leds >= 18) {
-    set_leds();
-    leds = 0;
-  }
-#endif
-  run_int(0x1c);
-  /*	printf("Run 0x1c\n"); */
-  outb20 = 1;
-  return;
-}
-
-void
-int15(void)
-{
-  struct timeval wait_time;
-  int num;
-
-  if (HI(ax) != 0x4f)
-    NOCARRY;
-
-  switch (HI(ax)) {
-  case 0x41:			/* wait on external event */
-    break;
-  case 0x4f:			/* Keyboard intercept */
-    HI(ax) = 0x86;
-    k_printf("INT15 0x4f CARRY=%x AX=%x\n", (LWORD(eflags) & CF),LWORD(eax));
-    CARRY;
-    /*
-    if (LO(ax) & 0x80 )
-      if (1 || !(LO(ax)&0x80) ){
-	fprintf(stderr, "Carrying it out\n");
-        CARRY;
-      }
-      else
-	NOCARRY;
-*/
-    break;
-  case 0x80:			/* default BIOS device open event */
-    LWORD(eax) &= 0x00FF;
-    return;
-  case 0x81:
-    LWORD(eax) &= 0x00FF;
-    return;
-  case 0x82:
-    LWORD(eax) &= 0x00FF;
-    return;
-  case 0x83:
-    h_printf("int 15h event wait:\n");
-    show_regs();
-    CARRY;
-    return;			/* no event wait */
-  case 0x84:
-    CARRY;
-    return;			/* no joystick */
-  case 0x85:
-    num = LWORD(eax) & 0xFF;	/* default bios handler for sysreq key */
-    if (num == 0 || num == 1) {
-      LWORD(eax) &= 0x00FF;
-      return;
-    }
-    LWORD(eax) &= 0xFF00;
-    LWORD(eax) |= 1;
-    CARRY;
-    return;
-  case 0x86:
-    /* wait...cx:dx=time in usecs */
-    g_printf("doing int15 wait...ah=0x86\n");
-    show_regs();
-    wait_time.tv_sec = 0;
-    wait_time.tv_usec = (LWORD(ecx) << 16) | LWORD(edx);
-    RPT_SYSCALL(select(STDIN_FILENO, NULL, NULL, NULL, &scr_tv));
-    NOCARRY;
-    return;
-
-  case 0x87:
-    if (config.xms_size)
-      xms_int15();
-    else {
-      LWORD(eax) &= 0xFF;
-      LWORD(eax) |= 0x0300;	/* say A20 gate failed - a lie but enough */
-      CARRY;
-    }
-    return;
-
-  case 0x88:
-    if (config.xms_size) {
-      xms_int15();
-    }
-    else {
-      LWORD(eax) &= ~0xffff;	/* we don't have extended ram if it's not XMS */
-      NOCARRY;
-    }
-    return;
-
-  case 0x89:			/* enter protected mode : kind of tricky! */
-    LWORD(eax) |= 0xFF00;		/* failed */
-    CARRY;
-    return;
-  case 0x90:			/* no device post/wait stuff */
-    CARRY;
-    return;
-  case 0x91:
-    CARRY;
-    return;
-  case 0xc0:
-    LWORD(es) = ROM_CONFIG_SEG;
-    LWORD(ebx) = ROM_CONFIG_OFF;
-    LO(ax) = 0;
-    return;
-  case 0xc1:
-    CARRY;
-    return;			/* no ebios area */
-  case 0xc2:
-    LWORD(eax) &= 0x00FF;
-    LWORD(eax) |= 0x0300;		/* interface error if use a ps2 mouse */
-    CARRY;
-    return;
-  case 0xc3:
-    /* no watchdog */
-    CARRY;
-    return;
-  case 0xc4:
-    /* no post */
-    CARRY;
-    return;
-  default:
-    g_printf("int 15h error: ax=0x%04x\n", LWORD(eax));
-    CARRY;
-    return;
-  }
-}
-
-/* the famous interrupt 0x2f
- *     returns 1 if handled by dosemu, else 0
- *
- * note that it switches upon both AH and AX
- */
-inline int
-int2f(void)
-{
-  /* TRB - catch interrupt 2F to detect IPX in int2f() */
-#ifdef IPX
-  if (config.ipxsup) {
-    if (LWORD(eax) == INT2F_DETECT_IPX) {
-      return (IPXInt2FHandler());
-    }
-  }
-#endif
-
-  /* this is the DOS give up time slice call...*/
-  if (LWORD(eax) == INT2F_IDLE_MAGIC) {
-    usleep(INT2F_IDLE_USECS);
-    return 1;
-  }
-
-  /* is it a redirector call ? */
-  else if (HI(ax) == 0x11 && mfs_redirector())
-    return 1;
-
-  else if (HI(ax) == INT2F_XMS_MAGIC) {
-    if (!config.xms_size)
-      return 0;
-    switch (LO(ax)) {
-    case 0:			/* check for XMS */
-      x_printf("Check for XMS\n");
-      xms_grab_int15 = 0;
-      LO(ax) = 0x80;
-      break;
-    case 0x10:
-      x_printf("Get XMSControl address\n");
-      REG(es) = XMSControl_SEG;
-      LWORD(ebx) = XMSControl_OFF;
-      break;
-    default:
-      x_printf("BAD int 0x2f XMS function:0x%02x\n", LO(ax));
-    }
-    return 1;
-  }
-
-#ifdef DPMI
-  /* Call for getting DPMI entry point */
-  else if (LWORD(eax) == 0x1687) {
-
-    dpmi_get_entry_point();
-    return 1;
-
-  }
-  /* Are we in protected mode ? */
-  else if (LWORD(eax) == 0x1686) {
-
-    if (in_dpmi)
-      REG(eax) = 0;
-    D_printf("DPMI 1686 returns %x\n", (int)REG(eax));
-    return 1;
-
-  }
-#endif
-
-  return 0;
-}
-
-void
-int1a(void)
-{
-  unsigned long ticks;
-  long akt_time, elapsed;
-  struct timeval tp;
-  struct timezone tzp;
-  struct tm *tm;
-
-  switch (HI(ax)) {
-
-    /* A timer read should reset the overflow flag */
-  case 0:			/* read time counter */
-    time(&akt_time);
-    elapsed = akt_time - start_time;
-    ticks = (elapsed * 182) / 10 + last_ticks;
-    LO(ax) = *(u_char *) (TICK_OVERFLOW_ADDR);
-    *(u_char *) (TICK_OVERFLOW_ADDR) = 0;
-    LWORD(ecx) = ticks >> 16;
-    LWORD(edx) = ticks & 0xffff;
-    /* dbug_printf("read timer st: %ud %ud t=%d\n",
-				    start_time, ticks, akt_time); */
-    break;
-  case 1:			/* write time counter */
-    last_ticks = (LWORD(ecx) << 16) | (LWORD(edx) & 0xffff);
-    set_ticks(last_ticks);
-    time(&start_time);
-    g_printf("set timer to %lu \n", last_ticks);
-    break;
-  case 2:			/* get time */
-    gettimeofday(&tp, &tzp);
-    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-    tm = localtime((time_t *) & ticks);
-    /* g_printf("get time %d:%02d:%02d\n", tm->tm_hour, tm->tm_min, tm->tm_sec); */
-    HI(cx) = tm->tm_hour % 10;
-    tm->tm_hour /= 10;
-    HI(cx) |= tm->tm_hour << 4;
-    LO(cx) = tm->tm_min % 10;
-    tm->tm_min /= 10;
-    LO(cx) |= tm->tm_min << 4;
-    HI(dx) = tm->tm_sec % 10;
-    tm->tm_sec /= 10;
-    HI(dx) |= tm->tm_sec << 4;
-    /* LO(dx) = tm->tm_isdst; */
-    REG(eflags) &= ~CF;
-    break;
-  case 4:			/* get date */
-    gettimeofday(&tp, &tzp);
-    ticks = tp.tv_sec - (tzp.tz_minuteswest * 60);
-    tm = localtime((time_t *) & ticks);
-    tm->tm_year += 1900;
-    tm->tm_mon++;
-    /* g_printf("get date %d.%d.%d\n", tm->tm_mday, tm->tm_mon, tm->tm_year); */
-    LWORD(ecx) = tm->tm_year % 10;
-    tm->tm_year /= 10;
-    LWORD(ecx) |= (tm->tm_year % 10) << 4;
-    tm->tm_year /= 10;
-    LWORD(ecx) |= (tm->tm_year % 10) << 8;
-    tm->tm_year /= 10;
-    LWORD(ecx) |= (tm->tm_year) << 12;
-    LO(dx) = tm->tm_mday % 10;
-    tm->tm_mday /= 10;
-    LO(dx) |= tm->tm_mday << 4;
-    HI(dx) = tm->tm_mon % 10;
-    tm->tm_mon /= 10;
-    HI(dx) |= tm->tm_mon << 4;
-    REG(eflags) &= ~CF;
-    break;
-  case 3:			/* set time */
-  case 5:			/* set date */
-    error("ERROR: timer: can't set time/date\n");
-    break;
-  default:
-    error("ERROR: timer error AX=0x%04x\n", LWORD(eax));
-    /* show_regs(); */
-    /* fatalerr = 9; */
-    return;
-  }
-}
-
-/* note that the emulation herein may cause problems with programs
- * that like to take control of certain int 21h functions, or that
- * change functions that the true int 21h functions use.  An example
- * of the latter is ANSI.SYS, which changes int 10h, and int 21h
- * uses int 10h.  for the moment, ANSI.SYS won't work anyway, so it's
- * no problem.
- */
-int
-ms_dos(int nr)
-{				/* returns 1 if emulated, 0 if internal handling */
-
-  /* int 21, ah=1,7,or 8:  return 0 for an extended keystroke, but the
-   next call returns the scancode */
-  /* if I press and hold a key like page down, it causes the emulator to
-   exit! */
-
-Restart:
-  /* dbug_printf("DOSINT 0x%02x\n", nr); */
-  /* emulate keyboard io to avoid DOS' busy wait */
-
-  switch (nr) {
-
-  case 12:			/* clear key buffer, do int AL */
-    keybuf_clear();
-    nr = LO(ax);
-    if (nr == 0)
-      break;			/* thanx to R Michael McMahon for the hint */
-    HI(ax) = LO(ax);
-    NOCARRY;
-    goto Restart;
-
-#define DOS_HANDLE_OPEN		0x3d
-#define DOS_HANDLE_CLOSE	0x3e
-#define DOS_IOCTL		0x44
-#define IOCTL_GET_DEV_INFO	0
-#define IOCTL_CHECK_OUTPUT_STS	7
-
-    /* XXX - MAJOR HACK!!! this is bad bad wrong.  But it'll probably work, unless
- * someone puts "files=200" in his/her config.sys
- */
-#define EMM_FILE_HANDLE 200
-
-#ifndef USE_NCURSES
-#define FALSE 0
-#define TRUE 1
-#endif
-
-    /* lowercase and truncate to 3 letters the replacement extension */
-#define ext_fix(s) { char *r=(s); \
-		     while (*r) { *r=toupper(*r); r++; } \
-		     if ((r - s) > 3) s[3]=0; }
-
-    /* we trap this for two functions: simulating the EMMXXXX0
-	 * device, and fudging the CONFIG.XXX and AUTOEXEC.XXX
-	 * bootup files
-	 */
-  case DOS_HANDLE_OPEN:{
-      char *ptr = SEG_ADR((char *), ds, dx);
-
-#ifdef INTERNAL_EMS
-      if (!strncmp(ptr, "EMMXXXX0", 8) && config.ems_size) {
-	E_printf("EMS: opened EMM file!\n");
-	LWORD(eax) = EMM_FILE_HANDLE;
-	NOCARRY;
-	show_regs();
-	return (1);
-      }
-      else
-#endif
-      if (!strncmp(ptr, "\\CONFIG.SYS", 11) && config.emusys) {
-	ext_fix(config.emusys);
-	sprintf(ptr, "\\CONFIG.%-3s", config.emusys);
-	d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
-      }
-      /* ignore explicitly selected drive by incrementing ptr by 1 */
-      else if (!strncmp(ptr + 1, ":\\AUTOEXEC.BAT", 14) && config.emubat) {
-	ext_fix(config.emubat);
-	sprintf(ptr + 1, ":\\AUTOEXEC.%-3s", config.emubat);
-	d_printf("DISK: Substituted %s for AUTOEXEC.BAT\n", ptr + 1);
-      }
-
-      return (0);
-    }
-
-#ifdef INTERNAL_EMS
-  case DOS_HANDLE_CLOSE:
-    if ((LWORD(ebx) != EMM_FILE_HANDLE) || !config.ems_size)
-      return (0);
-    else {
-      E_printf("EMS: closed EMM file!\n");
-      NOCARRY;
-      show_regs();
-      return (1);
-    }
-
-  case DOS_IOCTL:
-    {
-
-      if ((LWORD(ebx) != EMM_FILE_HANDLE) || !config.ems_size)
-	return (FALSE);
-
-      switch (LO(ax)) {
-      case IOCTL_GET_DEV_INFO:
-	E_printf("EMS: dos_ioctl getdevinfo emm.\n");
-	LWORD(edx) = 0x80;
-	NOCARRY;
-	show_regs();
-	return (TRUE);
-	break;
-      case IOCTL_CHECK_OUTPUT_STS:
-	E_printf("EMS: dos_ioctl chkoutsts emm.\n");
-	LO(ax) = 0xff;
-	NOCARRY;
-	show_regs();
-	return (TRUE);
-	break;
-      }
-      error("ERROR: dos_ioctl shouldn't get here. XXX\n");
-      return (FALSE);
-    }
-#endif
-
-#ifdef DPMI
-    /* DPMI must leave protected mode with an int21 4c call */
-  case 0x4c:
-    if (in_dpmi) {
-      D_printf("Leaving DPMI with err of 0x%02x\n", LO(ax));
-      /* in_dpmi_dos_int = 0; */
-      in_dpmi = 0;
-    }
-    return 0;
-#endif
-
-  default:
-#if 0
-    /* taking this if/printf out will speed things up a bit...*/
-    if (d.dos)
-      dbug_printf(" dos interrupt 0x%02x, ax=0x%04x, bx=0x%04x\n",
-		  nr, LWORD(eax), LWORD(ebx));
-#endif
-    return 0;
-  }
-  return 1;
-}
-
-inline void
-run_int(int i)
-{
-  us *ssp;
-
-  if (i == 0x16 && KBD_Head == KBD_Start ) {
-    static struct timeval tp1;
-    static struct timeval tp2;
-    static int time_count = 0;
-    if (time_count == 0)
-      gettimeofday(&tp1, NULL);
-    else {
-      gettimeofday(&tp2, NULL);
-      if ((tp2.tv_sec - tp1.tv_sec) * 1000000 +
-	  ((int) tp2.tv_usec - (int) tp1.tv_usec) < config.hogthreshold){
-	usleep(100);
-        k_printf("Waiting on a friend!\n");
-      }
-    }
-    time_count = (time_count + 1) % 10;
-  }
-
-#if 0
-  /* XXX bootstrap cs is now 0 */
-  if (!(REG(eip) && REG(cs))) {
-    error("run_int: not running NULL interrupt 0x%04x handler\n", i);
-    show_regs();
-    return 0;
-  }
-#endif
-
-  /* make sure that the pushed flags match out "virtual" flags */
-  update_flags(&REG(eflags));
-
-  if (!LWORD(esp))
-    ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
-  else
-    ssp = SEG_ADR((us *), ss, sp);
-  *--ssp = LWORD(eflags);
-  *--ssp = LWORD(cs);
-  *--ssp = LWORD(eip);
-  LWORD(esp) -= 6;
-  LWORD(cs) = ((us *) 0)[(i << 1) + 1];
-  LWORD(eip) = ((us *) 0)[i << 1];
-
-  /* clear TF (trap flag, singlestep), IF (interrupt flag), and
-   * NT (nested task) bits of EFLAGS
-   */
-  REG(eflags) &= ~(TF | IF | NT);
-}
-
-inline int
-can_revector(int i)
-{
-  /* here's sort of a guideline:
- * if we emulate it completely, but there is a good reason to stick
- * something in front of it, and it seems to work, by all means revector it.
- * if we emulate none of it, say yes, as that is a little bit faster.
- * if we emulate it, but things don't seem to work when it's revectored,
- * then don't let it be revectored.
- *
- */
-
-  if (i < 0x21 || i > 0xe6 ) return 1;
-
-  switch (i) {
-
-    /* some things, like 0x29, need to be unrevectored if the vectors
-       * are the DOS vectors...but revectored otherwise
-       */
-  case 0x21:			/* we want it first...then we'll pass it on */
-  case 0x28:			/* same here */
-#undef FAST_BUT_WRONG29
-#ifdef FAST_BUT_WRONG29
-  case 0x29:			/* DOS fast char output... */
-#endif
-  case 0x2f:			/* needed for XMS, redirector, and idle interrupt */
-#if MOUSE
-  case 0x33:			/* mouse...we're testing */
-#endif
-  case 0xe6:			/* for redirector and helper (was 0xfe) */
-    return 0;
-
-  case 0:
-  case 1:
-  case 2:
-  case 3:
-  case 4:
-  case 0x15:
-  case 0x25:			/* absolute disk read, calls int 13h */
-  case 0x26:			/* absolute disk write, calls int 13h */
-  case 0x1b:			/* ctrl-break handler */
-  case 0x1c:			/* user timer tick */
-  case 0x16:			/* BIOS keyboard */
-  case 0x17:			/* BIOS printer */
-  case 0x10:			/* BIOS video */
-  case 0x13:			/* BIOS disk */
-  case 0x27:			/* TSR */
-  case 0x20:			/* exit program */
-#ifndef FAST_BUT_WRONG29
-  case 0x29:
-#endif
-  case 0x2a:
-#if !MOUSE
-  case 0x33:
-#endif
-  case 0x67:			/* EMS */
-  case 0xfe:			/* Turbo Debugger and others... */
-    return 1;
-  default:
-    g_printf("revectoring 0x%02x\n", i);
-    return 1;
-  }
-}
-
-inline void
-do_int(int i)
-{
-  u_char highint = 0;
-
-#if 0
-  saytime("do_int");
-#endif
-
-#if 0
-  v_printf("Do INT0x%02x, eax=0x%04x, ebx=0x%04x ss=0x%04x esp=0x%04x cs=0x%04x ip=0x%04x CF=%d \n", i, LWORD(eax), LWORD(ebx), LWORD(ss), LWORD(esp), LWORD(cs), LWORD(eip), (int)REG(eflags) & CF);
-#endif
-
-  if ((LWORD(cs)) == BIOSSEG)
-    highint = 1;
-  else
-    if (IS_REDIRECTED(i) && can_revector(i)){
-      run_int(i);
-      return;
-    }
-
-  switch (i) {
-  case 0x5:
-    g_printf("BOUNDS exception\n");
-    goto default_handling;
-    return;
-  case 0x0a:
-  case 0x0b:			/* com2 interrupt */
-  case 0x0c:			/* com1 interrupt */
-  case 0x0d:
-  case 0x0e:
-  case 0x0f:
-    g_printf("IRQ->interrupt %x\n", i);
-    goto default_handling;
-  case 0x09:			/* IRQ1, keyb data ready */
-    fprintf(stderr, "IRQ->interrupt %x\n", i);
-    run_int(0x09);
-    return;
-  case 0x08:
-    int08();
-    return;
-  case 0x10:			/* VIDEO */
-    int10();
-    return;
-  case 0x11:			/* CONFIGURATION */
-    LWORD(eax) = configuration;
-    return;
-  case 0x12:			/* MEMORY */
-    LWORD(eax) = config.mem_size;
-    return;
-  case 0x13:			/* DISK IO */
-    int13();
-    return;
-  case 0x14:			/* COM IO */
-    int14();
-    return;
-  case 0x15:			/* Cassette */
-    int15();
-    return;
-  case 0x16:			/* KEYBOARD */
-
-#if 0
-    fprintf(stderr, "Goinf IN\n");
-    fprintf(stderr, "*DS:1A=0x%05x\n", *(us *) ((0x40 << 4) + 0x1a));
-    fprintf(stderr, "*DS:1C=0x%05x\n", *(us *) ((0x40 << 4) + 0x1c));
-    fprintf(stderr, "*DS:82=0x%05x\n", *(us *) ((0x40 << 4) + 0x82));
-    fprintf(stderr, "*DS:80=0x%05x\n", *(us *) ((0x40 << 4) + 0x80));
-#endif
-
-    run_int(0x16);
-    return;
-  case 0x17:			/* PRINTER */
-    int17();
-    return;
-  case 0x18:			/* BASIC */
-    break;
-  case 0x19:			/* LOAD SYSTEM */
-    boot();
-    return;
-  case 0x1a:			/* CLOCK */
-    int1a();
-    return;
-#if 0
-  case 0x1b:			/* BREAK */
-  case 0x1c:			/* TIMER */
-  case 0x1d:			/* SCREEN INIT */
-  case 0x1e:			/* DEF DISK PARMS */
-  case 0x1f:			/* DEF GRAPHIC */
-  case 0x20:			/* EXIT */
-  case 0x27:			/* TSR */
-#endif
-
-  case 0x21:			/* MS-DOS */
-    if (ms_dos(HI(ax)))
-      return;
-    /* else do default handling in vm86 mode */
-    goto default_handling;
-
-  case 0x28:			/* KEYBOARD BUSY LOOP */
-    {
-      static int first = 1;
-
-      if (first && !config.keybint && config.console_keyb) {
-	first = 0;
-	/* revector int9, so dos doesn't play with the keybuffer */
-	k_printf("revectoring int9 away from dos\n");
-	SETIVEC(0x9, BIOSSEG, 16 * 0x8 + 2);	/* point to IRET */
-      }
-    }
-    if (int28())
-      return;
-    goto default_handling;
-    return;
-
-  case 0x29:			/* FAST CONSOLE OUTPUT */
-    char_out(*(char *) &REG(eax), SCREEN, ADVANCE);	/* char in AL */
-    return;
-
-  case 0x2a:			/* CRITICAL SECTION */
-    goto default_handling;
-
-  case 0x2f:			/* Multiplex */
-    if (int2f())
-      return;
-    goto default_handling;
-
-  case 0x33:			/* mouse */
-#if MOUSE
-    warning("doing dosemu's mouse interrupt!\n");
-    if (config.mouse_flag)
-      mouse_int();
-#else
-    goto default_handling;
-#endif
-    return;
-    break;
-
-  case 0x67:			/* EMS */
-    goto default_handling;
-
-  case 0xe6:			/* dos helper and mfs startup (was 0xfe) */
-    if (dos_helper())
-      return;
-    goto default_handling;
-    return;
-
-  case 0xe7:			/* dos helper and mfs startup (was 0xfe) */
-    SETIVEC(0xe7, INTE7_SEG, INTE7_OFF);
-    run_int(0xe7);
-    return;
-
-  default:
-    if (d.defint)
-      dbug_printf("int 0x%02x, ax=0x%04x\n", i, LWORD(eax));
-    /* fall through */
-
-  default_handling:
-
-    if (highint) {
-      return;
-    }
-
-    if (!IS_REDIRECTED(i)) {
-      g_printf("DEFIVEC: int 0x%02x  SG: 0x%04x  OF: 0x%04x\n",
-	       i, ISEG(i), IOFF(i));
-      return;
-    }
-
-    if (IS_IRET(i)) {
-      if ((i != 0x2a) && (i != 0x28))
-	g_printf("just an iret 0x%02x\n", i);
-      return;
-    }
-
-    run_int(i);
-
-    return;
-  }
-  error("\nERROR: int 0x%02x not implemented\n", i);
-  show_regs();
-  fatalerr = 1;
-  return;
-}
-
 void
 sigalrm(int sig, struct sigcontext_struct context)
 {
   static int running = 0;
   static inalrm = 0;
   static int partials = 0;
+
 #ifdef DPMI
   struct sigcontext_struct *scp = &context;
   us *ssp;
 
-#ifdef DPMI
   if (_cs != UCODESEL){
-    D_printf("DPMI: sigalarm\n");
+    D_printf("DPMI: sigalrm\n");
     if (!((_ss) & 0x0004)) {
       /* GTD */
       D_printf("ss in GTD: this should never happen\n");
       ssp = (us *) _esp;
-    }
-    else {
+    } else {
       /* LDT */
       if (Segments[_ss>>3].is_32)
         ssp = (us *) (GetSegmentBaseAddress(_ss) + _esp );
@@ -2823,23 +996,17 @@ sigalrm(int sig, struct sigcontext_struct context)
     }
     *--ssp = (us) 0;
     *--ssp = (us) _cs;
-    *--ssp = (us) _HWORD(eip);
-    *--ssp = (us) _LWORD(eip);
+    *(--((unsigned long *) ssp)) = _eip;
     _esp -= 8;
     _cs = UCODESEL;
     _eip = (unsigned long) ReturnFrom_dpmi_control;
   }
 #endif
 
-#if 0
-  in_vm86 = 0;
-#endif
-
   if (inalrm) {
     error("ERROR: Reentering SIGALRM!\n");
     return;
   }
-#endif
 
   inalrm = 1;
   in_sighandler = 1;
@@ -2854,11 +1021,8 @@ sigalrm(int sig, struct sigcontext_struct context)
 
   setitimer(TIMER_TIME, &itv, NULL);
 
-  /* if (config.mouse_flag) mouse_curtick(); */
-
-  /* update the Bios Data Area timer dword if interrupts enabled */
-  if (cpu.iflag)
-    timer_tick();
+  if (mice->intdrv == TRUE)
+    mouse_curtick(); 
 
   /* TRB - perform processing for the IPX Asynchronous Event Service */
 #ifdef IPX
@@ -2870,15 +1034,17 @@ sigalrm(int sig, struct sigcontext_struct context)
   if (pd_sock)
     pd_receive_packet();
 
-  /* this is severely broken */
+  /* check for available packets on the packet driver interface */
+  pkt_check_receive();
+
+    /* update the Bios Data Area timer dword if interrupts enabled */
+  if (REG(eflags) & IF)
+    timer_tick();
+
   if (config.timers) {
     h_printf("starting timer int 8...\n");
-#if 1
     if (!do_hard_int(8))
       h_printf("CAN'T DO TIMER INT 8...IF CLEAR\n");
-#else
-    run_int(8);
-#endif
   }
   else
     error("NOT CONFIG.TIMERS\n");
@@ -2887,6 +1053,8 @@ sigalrm(int sig, struct sigcontext_struct context)
   partials++;
   if (partials == FREQ) {
     partials = 0;
+    if (config.console_keyb)
+      set_leds();
     printer_tick((u_long) 0);
     if (config.fastfloppy)
       floppy_tick();
@@ -3124,7 +1292,7 @@ config_defaults(void)
 
   config.num_ser = 0;
   config.num_lpt = 0;
-  cpu.type = CPU_386;
+  vm86s.cpu_type = CPU_386;
   config.fastfloppy = 1;
 
   config.emusys = (char *) NULL;
@@ -3132,6 +1300,13 @@ config_defaults(void)
   tmpdir = tempnam("/tmp", "dosemu");
   config.dosbanner = 1;
   config.allowvideoportaccess = 0;
+  
+  config.keyboard  = KEYB_US;
+  config.key_map   = key_map_us;  /* pointer to the keyboard-map */
+  config.shift_map = shift_map_us;
+  config.alt_map   = alt_map_us;
+  config.num_table = num_table_dot;
+
 }
 
 /*
@@ -3159,8 +1334,6 @@ queue_hard_int(int i, void (*callstart), void (*callend))
   sti();
 }
 
-/*int int_queue_running = 0;*/
-
 /* Called by vm86() loop to handle queueing of interrupts */
 inline void
 int_queue_run()
@@ -3168,20 +1341,13 @@ int_queue_run()
 
   int current_interrupt;
   static int int_count=0;
-  us *ssp;
+  unsigned char *ssp;
+  unsigned long sp;
 
-#if 0
-  v_printf(" num=%d int_queue_head[int_queue_running].int_queue_return_addr=%x\n",int_queue_running, int_queue_head[int_queue_running].int_queue_return_addr);
-#endif
   if (int_queue_running) {
     /* check if current int is finished */
     if ((int) (SEG_ADR((us *), cs, ip)) != int_queue_head[int_queue_running].int_queue_return_addr) {
-      /* outb20 is our override so more than 1 int can stack here */
-      if (!outb20) {
-	return;
-      }
-      else
-        int_count &= ~(1<<int_queue_head[int_queue_running].int_queue_ptr.interrupt);
+      return;
     }
     else {
       /* if it's finished - clean up */
@@ -3196,23 +1362,28 @@ int_queue_run()
 
       h_printf("int_queue: finished %x\n", int_queue_head[int_queue_running].int_queue_return_addr);
       --int_queue_running;
-#if 0
-      while(--int_queue_running && int_queue_head[int_queue_running].in_use==0 );
-#endif
 
     }
 
   }
 
-  if (int_queue_start == int_queue_end || !(REG(eflags) & IF))
+  if (int_queue_start == int_queue_end)
     return;
+
+  if (!(REG(eflags) & IF)) {
+    REG(eflags) |= VIP_MASK;
+    I_printf("interrupts disabled while int_qeueu_run()\n");
+    return;
+  }
 
   current_interrupt = int_queue[int_queue_start].interrupt;
 
+/*
   if (int_count & (1<<current_interrupt)){
-    k_printf("outb20=%d, int_queue_running=%d, int_count=0x%x\n", outb20, int_queue_running, int_count);
+    k_printf("Not piling int's: int_queue_running=%d, int_count=0x%x\n", int_queue_running, int_count);
     return;
   }
+*/
 
   /* call user startup function...don't run interrupt if returns -1 */
   if (int_queue[int_queue_start].callstart)
@@ -3234,29 +1405,25 @@ int_queue_run()
     /* If another program does a keybaord read on port 0x60, we'll know */
     scanned = 0;
   }
-
-  /* We'll allow int's to end if an outb 0x20 happens */
-  outb20 = 0;
-
   cli();
 
   /* save our regs */
   int_queue_head[int_queue_running].saved_regs = REGS;
 
-  if (!LWORD(esp))
-    ssp = (SEG_ADR((us *), ss, sp)) + 0x8000;
-  else
-    ssp = SEG_ADR((us *), ss, sp);
+  ssp = (unsigned char *)(REG(ss)<<4);
+  sp = (unsigned long) LWORD(esp);
 
   /* push an illegal instruction onto the stack */
-  *--ssp = 0xffff;
+  pushw(ssp, sp, 0xffff);
 
   /* this is where we're going to return to */
-  int_queue_head[int_queue_running].int_queue_return_addr = (int) ssp;
+  int_queue_head[int_queue_running].int_queue_return_addr = (unsigned long)ssp + sp;
 
-  *--ssp = LWORD(eflags);
-  *--ssp = (int_queue_head[int_queue_running].int_queue_return_addr >> 4);	/* the code segment of our illegal opcode */
-  *--ssp = (int_queue_head[int_queue_running].int_queue_return_addr & 0xf);	/* and the instruction pointer */
+  pushw(ssp, sp, LWORD(eflags));
+  /* the code segment of our illegal opcode */
+  pushw(ssp, sp, int_queue_head[int_queue_running].int_queue_return_addr >> 4);
+  /* and the instruction pointer */
+  pushw(ssp, sp, int_queue_head[int_queue_running].int_queue_return_addr & 0xf);
   LWORD(esp) -= 8;
   LWORD(cs) = ((us *) 0)[(current_interrupt << 1) + 1];
   LWORD(eip) = ((us *) 0)[current_interrupt << 1];
@@ -3458,17 +1625,17 @@ emulate(int argc, char **argv)
 
     case '2':
       g_printf("CPU set to 286\n");
-      cpu.type = CPU_286;
+      vm86s.cpu_type = CPU_286;
       break;
 
     case '3':
       g_printf("CPU set to 386\n");
-      cpu.type = CPU_386;
+      vm86s.cpu_type = CPU_386;
       break;
 
     case '4':
       g_printf("CPU set to 486\n");
-      cpu.type = CPU_486;
+      vm86s.cpu_type = CPU_486;
       break;
 
     case '?':
@@ -3500,9 +1667,6 @@ emulate(int argc, char **argv)
 }
 
   setbuf(stdout, NULL);
-#if 0
-  setbuf(stderr, NULL);
-#endif
 
   /* create tmpdir */
   exchange_uids();
@@ -3511,12 +1675,14 @@ emulate(int argc, char **argv)
 
   /* setup DOS memory, whether shared or not */
   memory_setup();
+
   video_config_init();
 
-#if 0
-  if (config.mapped_bios || config.console_video)
-    open_kmem();
-#endif
+  /* This is needed in the video stuff. Grabbed from boot(). */
+  if ( (configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE )
+    *(us *) 0x463 = 0x3b4;	/* base port of CRTC - IMPORTANT! */
+  else
+    *(us *) 0x463 = 0x3d4;	/* base port of CRTC - IMPORTANT! */
 
   if (config.mapped_bios) {
     if (config.vbios_file) {
@@ -3529,14 +1695,8 @@ emulate(int argc, char **argv)
       load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
     }
     else {
-#if 1
       warn("WARN: copying VBIOS file from /dev/kmem\n");
       load_file("/dev/kmem", VBIOS_START, (char *) VBIOS_START, VBIOS_SIZE);
-#else
-      /* No direct mapping as this leaves memory busy for running more than
-   one DOSEMU session */
-      map_bios();
-#endif
     }
   }
 
@@ -3599,17 +1759,18 @@ emulate(int argc, char **argv)
     set_ticks(last_ticks);
   };
 
+  mouse_init();
   disk_init();
   termioInit();
   DPMISETSIG(SIGSEGV, sigsegv, segv_stack);
   hardware_init();
   if (config.vga)
     vga_initialize();
-  clear_screen(SCREEN, 7);
+  clear_screen(bios_current_screen_page, 7);
 
   boot();
 
-  /*
+/*
   boot(config.hdiskboot ? hdisktab : disktab);
 */
 
@@ -3619,18 +1780,16 @@ emulate(int argc, char **argv)
   itv.it_value.tv_sec = 0;
   itv.it_value.tv_usec = UPDATE;
   setitimer(TIMER_TIME, &itv, NULL);
+  k_printf("Used %d for update\n", UPDATE / 5);
 
   if (!config.console_video)
     vm86s.flags = VM86_SCREEN_BITMAP;
   else
     vm86s.flags = 0;
   vm86s.screen_bitmap = 0;
-  scrtest_bitmap = 1 << (24 + SCREEN);
+  scrtest_bitmap = 1 << (24 + bios_current_screen_page);
   update_screen = 1;
 
-#if 0
-  dbug_dumpivec();
-#endif
   serial_init();
 #ifdef SIG
   SIG_init();
@@ -3638,9 +1797,7 @@ emulate(int argc, char **argv)
 
   for (; !fatalerr;) {
     run_vm86();
-#if 1
     serial_run();
-#endif
     int_queue_run();
   }
 
@@ -3749,14 +1906,12 @@ leavedos(int sig)
   SETSIG(SIGILL, ign_sigs);
   SETSIG(SIGFPE, ign_sigs);
   SETSIG(SIGTRAP, ign_sigs);
-#if 0
-  p_dos_str("\n\rDOS killed!\n\r");
-#endif
   error("leavedos(%d) called - shutting down\n", sig);
 
   close_all_printers();
 
   serial_close();
+    mouse_close();
 
 #ifdef SIG
   SIG_close();
@@ -3819,7 +1974,7 @@ d_ready(int fd)
 void
 usage(void)
 {
-  fprintf(stdout, "$Header: /home/src/dosemu0.50pl1/RCS/emu.c,v 1.53 1994/03/18 23:17:51 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 1.69 1994/04/27 23:39:57 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [-H|F #disks] [-f FLIPSTR] > doserr\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -3875,26 +2030,9 @@ ifprintf(unsigned char flg, const char *fmt,...)
   i = vsprintf(buf, fmt, args);
   va_end(args);
 
-#if 0
-  fprintf(stderr, buf);
-  if (terminal_pipe)
-    fprintf(terminal, buf);
-#else
-#if 0
-  {
-  clock_t m_clock;
-  struct tms l_time;
-  long clktck = sysconf(_SC_CLK_TCK);
-
-  m_clock = times(&l_time);
-  fprintf(stderr, "%7.2f : ", 
-    m_clock * 1.00 / clktck );
-  }
-#endif
   write(STDERR_FILENO, buf, strlen(buf));
   if (terminal_pipe)
     write(terminal_fd, buf, strlen(buf));
-#endif
   return i;
 }
 
@@ -3911,72 +2049,9 @@ p_dos_str(char *fmt,...)
 
   s = buf;
   while (*s)
-    char_out(*s++, SCREEN, ADVANCE);
+    char_out(*s++, bios_current_screen_page, ADVANCE);
 }
 
-void
-init_vga_card(void)
-{
-
-  u_short *ssp;
-
-#if 0
-#define ADDR 0x0000
-  u_char *bios_mem, buffer[0x1000];
-
-#endif
-
-  if (!config.mapped_bios) {
-    error("ERROR: CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
-    return;
-  }
-  if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
-    warn("couldn't get range!\n");
-  config.vga = 1;
-  set_vc_screen_page(SCREEN);
-
-#if 0
-  open_kmem();
-  bios_mem =
-    (char *) mmap(
-		   (caddr_t) (0x0),
-		   (size_t) 0x1000,
-		   PROT_READ,
-		   MAP_SHARED /* | MAP_FIXED */ ,
-		   mem_fd,
-		   (off_t) (ADDR)
-    );
-  if ((caddr_t) bios_mem == (caddr_t) (-1)) {
-    perror("OOPS");
-    leavedos(0);
-  }
-
-  v_printf("Video interrupt is at %04x, mode=0x%02x\n",
-	   *(unsigned int *) (bios_mem + 0x40),
-	   (u_char) bios_mem[0x449]);
-
-  memmove(buffer, bios_mem, 0x1000);
-  munmap((caddr_t) bios_mem, 0x1000);
-
-  close_kmem();
-  v_printf("SEG=0x%02x, OFF=0x%02x\n", *(u_short *) (buffer + 0x42), *(u_short *) (buffer + 0x40));
-  SETIVEC(0x10, *(u_short *) (buffer + 0x42), *(u_short *) (buffer + 0x40));
-  memmove((caddr_t) 0x449, (caddr_t) (buffer + 0x449), 0x25);
-
-#else
-  ssp = SEG_ADR((us *), ss, sp);
-  *--ssp = LWORD(cs);
-  *--ssp = LWORD(eip);
-  LWORD(esp) -= 4;
-#if 0
-  LWORD(cs) = 0xc000;
-  LWORD(eip) = 3;
-#else
-  LWORD(cs) = INT10_SEG;
-  LWORD(eip) = INT10_OFF;
-#endif
-#endif
-}
 
 void
 ems_helper(void)
@@ -4022,8 +2097,6 @@ ems_helper(void)
 int
 dos_helper(void)
 {
-  us *ssp;
-
   switch (LO(ax)) {
   case 0x20:
     mfs_inte6();
@@ -4097,6 +2170,9 @@ dos_helper(void)
       config.vga = 0;
     }
     else {
+      unsigned char *ssp;
+      unsigned long sp;
+
       if (!config.mapped_bios) {
 	error("ERROR: CAN'T DO VIDEO INIT, BIOS NOT MAPPED!\n");
 	return 1;
@@ -4104,28 +2180,31 @@ dos_helper(void)
       if (set_ioperm(0x3b0, 0x3db - 0x3b0, 1))
 	warn("couldn't get range!\n");
       config.vga = 1;
-      set_vc_screen_page(SCREEN);
-      warn("WARNING: jumping to 0c000:0003\n");
-      ssp = SEG_ADR((us *), ss, sp);
-      *--ssp = LWORD(cs);
-      *--ssp = LWORD(eip);
+      set_vc_screen_page(bios_current_screen_page);
+      warn("WARNING: jumping to 0[c/e]000:0003\n");
+
+      ssp = (unsigned char *)(REG(ss)<<4);
+      sp = (unsigned long) LWORD(esp);
+      pushw(ssp, sp, LWORD(cs));
+      pushw(ssp, sp, LWORD(eip));
       precard_eip = LWORD(eip);
       precard_cs = LWORD(cs);
       LWORD(esp) -= 4;
-      LWORD(cs) = 0xc000;
+      LWORD(cs) = VBIOS_SEG;
       LWORD(eip) = 3;
       show_regs();
       card_init = 1;
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/03/18 23:17:51 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1994/04/27 23:39:57 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /*      p_dos_str("maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
     p_dos_str("Bugs & Patches to James MacLean, jmaclean@fox.nstn.ns.ca\n\n");
 #ifdef DPMI
-    p_dos_str("DPMI Version 0.9 not fully inplemented, BE CARFULLY!\n\n");
+    if (config.dpmi_size)
+      p_dos_str("DPMI Version 0.9 not fully inplemented, BE CAREFUL!\n\n");
 #endif
     break;
 
@@ -4168,6 +2247,26 @@ dos_helper(void)
     break;
   case 0x11:
     LWORD(eax) = SetDebugFlagsHelper((char *) (((_regs.es & 0xffff) << 4) + (_regs.edi & 0xffff)));
+    break;
+
+  case 0x16:
+    /* polling keyboard - needed by INT16 bios inline rotine */
+#if 0 
+    if (!int_queue_running) {
+      int i;
+      fd_set fds;
+
+      FD_ZERO(&fds);
+      FD_SET(kbd_fd, &fds);
+      FD_SET(ioc_fd, &fds);
+      for (i=0;i<MAX_SER;i++)
+	if (com[i].fd!=-1)
+	  FD_SET(com[i].fd, &fds);
+      if (select(255, &fds, NULL, NULL, NULL)<0)
+	error("select error\n");
+    }
+#endif
+    REG(eflags) |= IF;
     break;
 
   case 0x30:			/* set/reset use bootdisk flag */

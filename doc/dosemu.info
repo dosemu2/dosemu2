@@ -12,7 +12,7 @@ preserved on all copies (see the GNU General Public License).
 Indirect:
 dosemu.info-1: 398
 dosemu.info-2: 49391
-dosemu.info-3: 97392
+dosemu.info-3: 97555
 
 Tag Table:
 (Indirect)
@@ -39,30 +39,30 @@ Node: Keyboard38601
 Node: Console Video43186
 Node: VGA45909
 Node: Video Configuration49393
-Node: Peripherals53835
-Node: Serial Ports54061
-Node: Printers57631
-Node: Disk Redirector61884
-Node: Hard Disks66974
-Node: Whole Disk Access69536
-Node: Single Partition Access70786
-Node: Disk Images72828
-Node: Creating hdimage73250
-Node: Creating diskimage75130
-Node: Disk Configuration76510
-Node: Memory78812
-Node: DOS memory79106
-Node: XMS79817
-Node: EMS80961
-Node: Memory Configuration82133
-Node: Miscellaneous82947
-Node: BIOS83235
-Node: CPU type84305
-Node: TTY copy85789
-Node: Programs That Work86212
-Node: Bugs88503
-Node: Changes91526
-Node: Concept Index97394
-Node: Program/File Index102316
+Node: Peripherals53995
+Node: Serial Ports54221
+Node: Printers57791
+Node: Disk Redirector62044
+Node: Hard Disks67134
+Node: Whole Disk Access69696
+Node: Single Partition Access70946
+Node: Disk Images72988
+Node: Creating hdimage73410
+Node: Creating diskimage75290
+Node: Disk Configuration76670
+Node: Memory78972
+Node: DOS memory79266
+Node: XMS79977
+Node: EMS81121
+Node: Memory Configuration82293
+Node: Miscellaneous83107
+Node: BIOS83395
+Node: CPU type84465
+Node: TTY copy85949
+Node: Programs That Work86372
+Node: Bugs88663
+Node: Changes91689
+Node: Concept Index97557
+Node: Program/File Index102479
 
 End Tag Table

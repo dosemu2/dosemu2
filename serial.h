@@ -1,3 +1,38 @@
+/*
+ * $Log: serial.h,v $
+ * Revision 1.19  1994/04/09  18:41:52  root
+ * Prior to Lutz's kernel enhancements.
+ *
+ * Revision 2.9.0.6  1994/04/08  00:20:39  root
+ * Corressponds to serial.c 2.9.0.6
+ *
+ * Revision 2.9.0.5  1994/04/07  06:42:44  root
+ * This got into pre0.51 release 4.
+ *
+ * Revision 2.9  1994/04/06  00:55:51  root
+ * Made serial config more flexible, and up to 4 ports.
+ *
+ * Revision 1.16  1994/04/04  22:51:55  root
+ * Patches for PS/2 mouse.
+ *
+ * Revision 2.8  1994/03/31  22:57:34  root
+ * Corresponds to 2.8 of serial.c
+ *
+ * Revision 2.7  1994/03/30  08:07:51  root
+ * New variables for 2.7
+ *
+ * Revision 2.5.1.1  1994/03/26  09:59:00  root
+ * This is what got into pre0.51 (with a minor modification)
+ *
+ * Revision 2.5  1994/03/24  07:15:48  root
+ * CHECKPOINT: This may go into the 0.51 release.
+ *
+ * Revision 2.2  1994/03/23  07:14:52  root
+ * Survived interrupts overhaul.  From now on, I correspond serial.h
+ * as closely as possible to serial.c
+ *
+ */
+
 #ifndef SERIAL_H
 #define SERIAL_H
 
@@ -78,7 +113,7 @@
 #define UART_IIR_RDI	0x04	/* Receiver data interrupt */
 #define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
 #define UART_IIR_CTI    0x0c	/* Character timeout indication */
-#define UART_IIR_ID	0x0e	/* Mask for the interrupt ID */
+#define UART_IIR_ID	0x06	/* Mask for the interrupt ID */
 #define UART_IIR_FIFO_ENABLE_1 0x40
 #define UART_IIR_FIFO_ENABLE_2 0x80
 #define UART_IIR_FIFO (UART_IIR_FIFO_ENABLE_1|UART_IIR_FIFO_ENABLE_2)
@@ -99,6 +134,7 @@
 #define UART_MCR_OUT1	0x04	/* Out1 complement */
 #define UART_MCR_RTS	0x02	/* RTS complement */
 #define UART_MCR_DTR	0x01	/* DTR complement */
+#define UART_MCR_VALID	0x1F	/* The valid registers of the MCR */
 
 /*
  * These are the definitions for the Modem Status Register
@@ -135,81 +171,75 @@
 #define	DIV_57600   0x002
 #define	DIV_115200  0x001
 
-/* different types of mice */
-#define MOUSE_MICROSOFT     0
-#define MOUSE_MOUSESYSTEMS3 1
-#define MOUSE_MOUSESYSTEMS5 2
-#define MOUSE_MMSERIES      3
-#define MOUSE_LOGITECH      4
+/* Interrupts pending flag bits for com[num].int_type */
+#define MS_INTR    1
+#define TX_INTR    2
+#define RX_INTR    4
+#define LS_INTR    8
 
+/* The following sets the size of receive and transmit FIFOs.        */
+/* They MUST be a power of 2 in order to work.  Bigger FIFOs can     */
+/* speed throughput in certain cases, but may not be as compatible.  */
+/* Don't exceed 512 bytes, to prevent DOS "Stack Overflow" stupdity. */
+#define RX_FIFO_SIZE            16
+#define TX_FIFO_SIZE            16
+
+int stage;			/* Stage counter for serial interrupts */
+u_char irq_source_num[16];	/* Index to map from IRQ no. to serial port */
+u_char com_port_used[17];       /* Used for auto-assign comport config */
 typedef struct serial_struct {
-  char dev[255];
-  int base_port;
-  int interrupt;
+  char dev[255];		/* String to hold path to device file */
+  int real_comport;		/* The actual COMx port number. 0 for invalid */
+  int base_port;		/* Base port address handled by device */
+  int interrupt;		/* IRQ line handled by device */
+  int fd;			/* File descriptor of device */
+  boolean mouse;		/* Flag to turn on mouse sharing features */
 
-  int fd;
+  u_char int_pend;		/* Interrupt Pending Flag */
+  u_char int_type;		/* Interrupts Waiting Flags */
+  u_char int_enab;		/* Interrupts Enable = OUT2 of MCR */
+  u_char tx_timeout;		/* Receive Interrupt timeout counter */
+  u_char rx_timeout;		/* Transmit Interrupt timeout counter */
+  u_char uart_full;		/* UART full flag */
+  u_char fifo_enable;		/* FIFO enabled flag */
+  u_char tx_overflow;		/* Full outgoing buffer flag. */
 
-  int dready;
-  u_char in_rxinterrupt;	/* Receive interrupt flag */
-  u_char in_txinterrupt;	/* Transmit interrupt flag */
-  u_char in_msinterrupt;	/* Modem status interrupt flag */
-  u_char in_lsinterrupt;        /* Line status interrupt flag */
+  int dll, dlm;		/* Baudrate divisor LSB and MSB */
+  u_char TX;		/* Transmit Holding Register */
+  u_char RX;		/* Received Data Register */
+  u_char IER;		/* Interrupt Enable Register */
+  u_char IIR;		/* Interrupt Identification Register */
+  u_char LCR;		/* Line Control Register */
+  u_char FCReg;		/* Fifo Control Register (name conflict) */
+  u_char MCR;		/* Modem Control Register */
+  u_char LSR;		/* Line Status Register */
+  u_char MSR;		/* Modem Status Register */
+  u_char SCR;		/* Scratch Pad Register */
 
-  boolean mouse;		/* set if mouse sharing activated */
-  int mtype;			/* type of mouse */
-  boolean modem;		/* modem */
+  u_char RX_FIFO[RX_FIFO_SIZE];		/* Receive Receive Fifo */
+  u_char RX_FIFO_START;			/* Receive Fifo queue start */
+  u_char RX_FIFO_END;			/* Receive Fifo queue end */
+  u_char RX_FIFO_TRIGGER;		/* Receive Fifo trigger value */
+  u_char RX_FIFO_BYTES;			/* # of bytes in Receive Fifo */
+  u_char TX_SHIFT;			/* Transmit shift register */
+  u_char TX_FIFO[TX_FIFO_SIZE];		/* Transmit Fifo */
+  u_char TX_FIFO_START;			/* Transmit Fifo queue start */
+  u_char TX_FIFO_END;			/* Transmit Fifo queue end */
+  u_char TX_FIFO_BYTES;			/* # of bytes in Transmit Fifo */
+  u_char DLAB;				/* Divisor Latch enabled */
 
-  /* UART info */
-  int dll, dlm;
-  u_char TX;
-  u_char RX;
-  u_char IER;
-  u_char IIR;
-  u_char LCR;
-  u_char FCReg;		/* "FCR" exists somewhere else, so I use "FCReg" */
-  u_char MCR;
-  u_char LSR;
-  u_char MSR;
-  u_char SCR;
-
-  struct termios oldsettings;
-  u_char RX_FIFO[16];
-  u_char RX_FIFO_START;
-  u_char RX_FIFO_END;
-  u_char RX_FIFO_TRIGGER_VAL;
-  u_char RX_BYTES_IN_FIFO;
-  u_char TX_SHIFT;
-  u_char TX_FIFO[16];
-  u_char TX_FIFO_START;
-  u_char TX_FIFO_END;
-  u_char TX_BYTES_IN_FIFO;
-  u_char DLAB;
-  struct termios newsettings;
+  struct termios oldset;
+  struct termios newset;
   speed_t newbaud;
-
 } serial_t;
 
-/*#define DLAB(num) (com[num].LCR & UART_LCR_DLAB)*/
+int debug1,debug2;			/* Global debugging variables */
+int count1,count2;			/* Used only by programmers   */
 
+#define MAX_SER 4
 extern serial_t com[MAX_SER];
-
-#define MAX_SER 2
-
-/* SER_QUEUE_LEN *MUST* be a power of 2 minus one. */
-#define SER_QUEUE_LEN   (1024)
-#define SER_QUEUE_LOOP  (SER_QUEUE_LEN - 1)       /* For speed's sake */
- 
-struct ser_param {
-  volatile char queue[SER_QUEUE_LEN];
-  volatile int start, end;
-  volatile int num_ints;
-  volatile u_char dready;
-};
-
-typedef struct param_struct {
-  volatile struct ser_param ser[MAX_SER];
-} param_t;
-
-param_t serial_parm, *param;
+extern inline void serial_run(void);
+extern inline int do_serial_in(int, int);
+extern inline int do_serial_out(int, int, int);
 
 #endif /* SERIAL_H */

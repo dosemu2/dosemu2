@@ -1,12 +1,18 @@
 /* xms.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/03/13 01:07:31 $
- * $Source: /home/src/dosemu0.50pl1/RCS/xms.c,v $
- * $Revision: 1.11 $
+ * $Date: 1994/03/30 22:12:30 $
+ * $Source: /home/src/dosemu0.60/RCS/xms.c,v $
+ * $Revision: 1.13 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.13  1994/03/30  22:12:30  root
+ * Prep for 0.51 pre 2.
+ *
+ * Revision 1.12  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.11  1994/03/13  01:07:31  root
  * Poor attempts to optimize.
  *
@@ -90,7 +96,7 @@ int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[] = "$Header: /home/src/dosemu0.50pl1/RCS/xms.c,v 1.11 1994/03/13 01:07:31 root Exp root $";
+static char RCSxms[] = "$Header: /home/src/dosemu0.60/RCS/xms.c,v 1.13 1994/03/30 22:12:30 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -219,8 +225,18 @@ umb_setup()
 
     umbs[umb].in_use = TRUE;
     umbs[umb].free = FALSE;
+    umbs[umb].addr = (caddr_t) VBIOS_START;
+    umbs[umb].size = 0x8000;
+
+#ifdef VIDEO_E000
+    Debug0((dbg_fd, "Fixing UMB for E000\n"));
+    umb = umb_find_unused();
+    umbs[umb].in_use = TRUE;
+    umbs[umb].free = FALSE;
     umbs[umb].addr = (caddr_t) 0xc0000;
     umbs[umb].size = 0x8000;
+#endif
+
   }
 
   for (addr = UMB_BASE; addr < (vm_address_t) (UMB_BASE + UMB_SIZE);

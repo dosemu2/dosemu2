@@ -4,7 +4,9 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#ifndef BIOSSEG
 #define BIOSSEG		0xf000
+#endif
 
 #define XMSControl_SEG  BIOSSEG
 #define XMSControl_OFF  0x1000
@@ -45,13 +47,27 @@
 #define DPMI_OFF	0x5000
 #define DPMI_ADD	((DPMI_SEG << 4) + DPMI_OFF)
 
+/* The packet driver has some code in this segment which needs to be */
+/* at BIOSSEG.  therefore use BIOSSEG and compensate for the offset. */
+/* Memory required is about 2000 bytes, beware! */
+#define PKTDRV_SEG	BIOSSEG
+#define PKTDRV_OFF	(0x5100 + (0x100 << 4))
+#define PKTDRV_ADD	((PKTDRV_SEG << 4) + PKTDRV_OFF)
+
 /* For int15 0xc0 */
 #define ROM_CONFIG_SEG  BIOSSEG
 #define ROM_CONFIG_OFF  0xe6f5
 #define ROM_CONFIG_ADD	((ROM_CONFIG_SEG << 4) + ROM_CONFIG_OFF)
 
+#ifndef VIDEO_E000
+#define VBIOS_SEG	0xc000
 #define VBIOS_START	0xc0000
 #define VBIOS_SIZE	(64*1024)
+#else
+#define VBIOS_SEG	0xe000
+#define VBIOS_START	0xe0000
+#define VBIOS_SIZE	(64*1024)
+#endif
 
 #define GFX_CHARS	0xffa6e
 #define GFXCHAR_SIZE	1400

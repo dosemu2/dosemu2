@@ -3,12 +3,42 @@
  *
  * rudimentary attempt at config file parsing for dosemu
  *
- * $Date: 1994/03/18 23:17:51 $
- * $Source: /home/src/dosemu0.50pl1/RCS/parse.c,v $
- * $Revision: 1.13 $
+ * $Date: 1994/04/25 21:06:39 $
+ * $Source: /home/src/dosemu0.60/init/RCS/parse.c,v $
+ * $Revision: 1.1 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.1  1994/04/25  21:06:39  root
+ * Initial revision
+ *
+ * Revision 1.21  1994/04/18  22:52:19  root
+ * Ready pre51_7.
+ *
+ * Revision 1.20  1994/04/16  01:28:47  root
+ * Prep for pre51_6.
+ *
+ * Revision 1.19  1994/04/13  00:07:09  root
+ * Jochen Patches.
+ *
+ * Revision 1.18  1994/04/07  20:50:59  root
+ * More updates.
+ *
+ * Revision 2.9  1994/04/06  00:56:04  root
+ * Made serial config more flexible, and up to 4 ports.
+ *
+ * Revision 1.1  1994/04/05  16:24:20  root
+ * Initial revision
+ *
+ * Revision 1.16  1994/04/04  22:51:55  root
+ * Patches for PS/2 mice.
+ *
+ * Revision 1.15  1994/03/30  22:12:30  root
+ * Prep for 0.51 pre 2.
+ *
+ * Revision 1.14  1994/03/23  23:24:51  root
+ * Prepare to split out do_int.
+ *
  * Revision 1.13  1994/03/18  23:17:51  root
  * Prep for 0.50pl1.
  *
@@ -80,18 +110,24 @@
 #include "disks.h"
 #include "lpt.h"
 #include "video.h"
+#include "mouse.h"
 #include "serial.h"
+#include "timers.h"
+#include "keymaps.h"
+
+extern char* strdup(const char *); /* Not defined in string.h :-( */
 
 extern int allow_io(int, int, int, int, int);
 extern struct config_info config;
-extern struct CPU cpu;
-extern void parse_debugflags(const char *);
 
 jmp_buf exitpar;
 
 serial_t *sptr;
 serial_t nullser;
+mouse_t *mptr;
+mouse_t nullmouse;
 int c_ser = 0;
+int c_mouse = 0;
 
 struct disk *dptr;
 struct disk nulldisk;
@@ -110,17 +146,24 @@ typedef enum {
   SEC_DISK, D_HEADS, D_SECTORS, D_CYLINDERS, D_FLOPPY, D_HARD,
   D_PARTITION, D_WHOLEDISK, D_OFFSET, D_FILE, D_FIVEINCH,
   D_READONLY, D_HDIMAGE, D_THREEINCH, VAL_FASTFLOPPY, VAL_CPU,
-  SEC_VIDEO, VAL_XMS, VAL_EMS, VAL_DOSMEM, PRED_RAWKEY,
+  SEC_VIDEO, VAL_XMS, VAL_EMS, VAL_DOSMEM, 
   SEC_PRINTER, VAL_MATHCO, VAL_IPXSUP, LCCOM, PRED_BOOTA, PRED_BOOTC,
-  VAL_DEBUG, EOL_COMMENT, P_COMMAND, P_OPTIONS, P_TIMEOUT,
+  SEC_DEBUG, DBG_IO, DBG_VIDEO, DBG_SERIAL, DBG_CONFIG, DBG_DISK,
+             DBG_READ, DBG_WRITE, DBG_KEYB, DBG_PRINTER, DBG_WARNING,
+             DBG_GENERAL, DBG_XMS, DBG_DPMI, DBG_MOUSE, DBG_HARDWARE,
+             DBG_IPC, DBG_EMS,
+  SEC_KEYBOARD, KEYB_RAWKEYBOARD, KEYB_LAYOUT, KEYB_KEYBINT,
+  EOL_COMMENT, P_COMMAND, P_OPTIONS, P_TIMEOUT,
   P_FILE, SEC_PORTS, PRT_RANGE, PRT_RDONLY, PRT_WRONLY,
   PRT_RDWR, PRT_ANDMASK, PRT_ORMASK, VAL_SPEAKER,
   V_CHUNKS, V_CHIPSET, V_MDA, V_VGA, V_CGA, V_EGA, V_VBIOSF,
   V_VBIOSC, V_CONSOLE, V_FULLREST, V_PARTIALREST, V_GRAPHICS,
   V_MEMSIZE, V_VBIOSM, VAL_HOGTHRESHOLD, VAL_TIMER,
-  SEC_SERIAL, S_DEVICE, S_BASE, S_INTERRUPT, S_MODEM, S_MOUSE,
+  SEC_SERIAL, S_DEVICE, S_PORT, S_BASE, S_IRQ, S_MODEM, S_MOUSE,
   S_MICROSOFT, S_MOUSESYSTEMS3, S_MOUSESYSTEMS5, S_MMSERIES, S_LOGITECH,
-  VAL_KEYBINT, VAL_DOSBANNER, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS,
+  SEC_MOUSE, M_INTDRV, M_DEVICE, M_MICROSOFT, M_PS2, M_MOUSESYSTEMS, M_MMSERIES, 
+  M_LOGITECH, M_BUSMOUSE, M_MOUSEMAN,
+  VAL_DOSBANNER, VAL_TIMINT, VAL_EMUBAT, VAL_EMUSYS,
   SEC_BOOTDISK, VAL_DPMI, VAL_ALLOWVIDEOPORTACCESS
 } tok_t;
 
@@ -171,6 +214,18 @@ int do_serial(word_t *, arg_t, arg_t);
 void start_serial(word_t *, arg_t, arg_t);
 void stop_serial(word_t *, arg_t, arg_t);
 
+int do_mouse(word_t *, arg_t, arg_t);
+void start_mouse(word_t *, arg_t, arg_t);
+void stop_mouse(word_t *, arg_t, arg_t);
+
+int do_debug(word_t *, arg_t, arg_t);
+void start_debug(word_t *, arg_t, arg_t);
+void stop_debug(word_t *, arg_t, arg_t);
+
+int do_keyboard(word_t *, arg_t, arg_t);
+void start_keyboard(word_t *, arg_t, arg_t);
+void stop_keyboard(word_t *, arg_t, arg_t);
+
 int do_ports(word_t *, arg_t, arg_t);
 
 int glob_bad(word_t *, arg_t, arg_t);
@@ -214,16 +269,67 @@ word_t serial_words[] =
   NULL_WORD,
   {"{", LBRACE, ODELIM, do_serial},
   {"}", RBRACE, CDELIM, do_serial},
-  {"device", S_DEVICE, VALUE, do_serial},
-  {"base", S_BASE, VALUE, do_serial},
-  {"interrupt", S_INTERRUPT, VALUE, do_serial},
-  {"modem", S_MODEM, PRED, do_serial},
-  {"mouse", S_MOUSE, PRED, do_serial},
-  {"microsoft", S_MICROSOFT, PRED, do_serial},
-  {"mousesystems3", S_MOUSESYSTEMS3, PRED, do_serial},
-  {"mousesystems5", S_MOUSESYSTEMS5, PRED, do_serial},
-  {"mmseries", S_MMSERIES, PRED, do_serial},
-  {"logitech", S_LOGITECH, PRED, do_serial},
+  {"mouse", S_MOUSE, PRED, do_serial},	 		/* Mouse flag */
+  {"device", S_DEVICE, VALUE, do_serial}, 		/* Device file */
+  {"com", S_PORT, VALUE, do_serial}, 			/* COM port number */
+  {"base", S_BASE, VALUE, do_serial},			/* Base port address */
+  {"irq", S_IRQ, VALUE, do_serial}, 			/* IRQ line */
+  {"interrupt", S_IRQ, VALUE, do_serial}, 		/* XXXXX obsolete */
+  NULL_WORD
+};
+
+word_t mouse_words[] =
+{
+  NULL_WORD,
+  {"{", LBRACE, ODELIM, do_mouse},
+  {"}", RBRACE, CDELIM, do_mouse},
+  {"internaldriver", M_INTDRV, PRED, do_mouse},
+  {"device", M_DEVICE, VALUE, do_mouse},
+  {"microsoft", M_MICROSOFT, PRED, do_mouse},
+  {"ps2", M_PS2, PRED, do_mouse},
+  {"mousesystems", M_MOUSESYSTEMS, PRED, do_mouse},
+  {"mmseries", M_MMSERIES, PRED, do_mouse},
+  {"logitech", M_LOGITECH, PRED, do_mouse},
+  {"busmouse", M_BUSMOUSE, PRED, do_mouse},
+  {"mouseman", M_MOUSEMAN, PRED, do_mouse},
+  NULL_WORD
+};
+
+word_t debug_words[] =
+{
+  NULL_WORD,
+  {"{", LBRACE, ODELIM, do_debug},
+  {"}", RBRACE, CDELIM, do_debug},
+  {"io", DBG_IO, VALUE, do_debug},
+  {"port", DBG_IO, VALUE, do_debug},
+  {"video", DBG_VIDEO, VALUE, do_debug},
+  {"serial", DBG_SERIAL, VALUE, do_debug},
+  {"config", DBG_CONFIG, VALUE, do_debug},
+  {"disk", DBG_DISK, VALUE, do_debug},
+  {"read", DBG_READ, VALUE, do_debug},
+  {"write", DBG_WRITE, VALUE, do_debug},
+  {"keyboard", DBG_KEYB, VALUE, do_debug},
+  {"keyb", DBG_KEYB, VALUE, do_debug},
+  {"printer", DBG_PRINTER, VALUE, do_debug},
+  {"warning", DBG_WARNING, VALUE, do_debug},
+  {"general", DBG_GENERAL, VALUE, do_debug},
+  {"xms", DBG_XMS, VALUE, do_debug},
+  {"dpmi", DBG_DPMI, VALUE, do_debug},
+  {"mouse", DBG_MOUSE, VALUE, do_debug},
+  {"hardware", DBG_HARDWARE, VALUE, do_debug},
+  {"ipc", DBG_IPC, VALUE, do_debug},
+  {"ems", DBG_EMS, VALUE, do_debug},
+  NULL_WORD
+};
+
+word_t keyboard_words[] =
+{
+  {NULL, NULLTOK, NULLFORM, porttok},
+  {"{", LBRACE, ODELIM, do_ports,},
+  {"}", RBRACE, CDELIM, do_ports},
+  {"rawkeyboard", KEYB_RAWKEYBOARD, VALUE, do_keyboard},
+  {"layout", KEYB_LAYOUT, VALUE, do_keyboard},
+  {"keybint", KEYB_KEYBINT, VALUE, do_keyboard},
   NULL_WORD
 };
 
@@ -298,6 +404,7 @@ word_t top_words[] =
   {"bootdisk", SEC_BOOTDISK, SECTION, do_top, start_disk, stop_disk, disk_words},
   {"video", SEC_VIDEO, SECTION, do_top, 0, stop_video, video_words},
   {"serial", SEC_SERIAL, SECTION, do_top, start_serial, stop_serial, serial_words},
+  {"mouse", SEC_MOUSE, SECTION, do_top, start_mouse, stop_mouse, mouse_words},
   {"xms", VAL_XMS, VALUE, do_num, 0, 0, null_words},
   {"ems", VAL_EMS, VALUE, do_num, 0, 0, null_words},
   {"dpmi", VAL_DPMI, VALUE, do_num, 0, 0, null_words},
@@ -307,16 +414,15 @@ word_t top_words[] =
   {"mathco", VAL_MATHCO, VALUE, do_num, 0, 0, null_words},
   {"ipxsupport", VAL_IPXSUP, VALUE, do_num, 0, 0, null_words},
   {"speaker", VAL_SPEAKER, VALUE, do_num, 0, 0, null_words},
-  {"rawkeyboard", PRED_RAWKEY, PRED, do_num, 0, 0, null_words},
   {"boota", PRED_BOOTA, PRED, do_num, 0, 0, null_words},
   {"bootc", PRED_BOOTC, PRED, do_num, 0, 0, null_words},
   {"cpu", VAL_CPU, VALUE, do_num, 0, 0, null_words},
   {"ports", SEC_PORTS, SECTION, do_top, 0, 0, port_words},
-  {"debug", VAL_DEBUG, VALUE, do_num, 0, 0, null_words},
-  {"messages", VAL_DEBUG, VALUE, do_num, 0, 0, null_words},
+  {"debug", SEC_DEBUG, SECTION, do_top, start_debug, stop_debug, debug_words},
+  {"messages", SEC_DEBUG, SECTION, do_num, start_debug, stop_debug, debug_words},
+  {"keyboard", SEC_KEYBOARD, SECTION, do_top, start_keyboard, stop_keyboard, keyboard_words},
   {"hogthreshold", VAL_HOGTHRESHOLD, VALUE, do_num, 0, 0, null_words},
   {"timer", VAL_TIMER, VALUE, do_num, 0, 0, null_words},
-  {"keybint", VAL_KEYBINT, VALUE, do_num, 0, 0, null_words},
   {"dosbanner", VAL_DOSBANNER, VALUE, do_num, 0, 0, null_words},
   {"timint", VAL_TIMINT, VALUE, do_num, 0, 0, null_words},
   {"fastfloppy", VAL_FASTFLOPPY, VALUE, do_num, 0, 0, null_words},
@@ -346,6 +452,27 @@ syn_t global_syns[] =
   {"et4000", "2"},
   {"trident", "1"},
   {"plainvga", "0"},
+
+  {"finnish",       "0" },
+  {"finnish-latin1","1" },
+  {"us",            "2" },
+  {"uk",            "3" },
+  {"gr",            "4" },
+  {"gr-latin1",     "5" },
+  {"fr",            "6" },
+  {"fr-latin1",     "7" },
+  {"dk",            "8" },
+  {"dk-latin1",     "9" },
+  {"dvorak",        "10" },
+  {"sg",            "11" },
+  {"sg-latin1",     "12" },
+  {"no",            "13" },
+  {"sf",            "15" },
+  {"sf-latin1",     "16" },
+  {"es",            "17" },
+  {"es-latin1",     "18" },
+  {"be",            "19" },
+
   NULL_SYN
 };
 
@@ -614,9 +741,6 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
     case PRED_BOOTC:
       config.hdiskboot = 1;
       break;
-    case PRED_RAWKEY:
-      config.console_keyb = 1;
-      break;
     default:
       c_printf("PAR: set pred %s\n", word->name);
       break;
@@ -636,11 +760,8 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
     case VAL_FASTFLOPPY:
       config.fastfloppy = atoi(arg);
       break;
-    case VAL_DEBUG:
-      parse_debugflags(arg);
-      break;
     case VAL_CPU:
-      cpu.type = atoi(arg);
+      vm86s.cpu_type = atoi(arg);
       break;
     case VAL_HOGTHRESHOLD:
       config.hogthreshold = atoi(arg);
@@ -648,10 +769,6 @@ do_num(word_t * word, arg_t farg1, arg_t farg2)
     case VAL_TIMINT:
       config.timers = atoi(arg);
       c_printf("CONF: timers %s!\n", config.timers ? "on" : "off");
-      break;
-    case VAL_KEYBINT:
-      config.keybint = atoi(arg);
-      c_printf("CONF: keybint %s!\n", config.keybint ? "on" : "off");
       break;
     case VAL_DOSBANNER:
       config.dosbanner = atoi(arg);
@@ -728,7 +845,7 @@ do_video(word_t * word, arg_t farg1, arg_t farg2)
 {
   char *arg = NULL;
 
-  /* c_printf("do_printer: %s %d\n", word->name, word->token, farg1, farg2); */
+  /* c_printf("do_video: %s %d\n", word->name, word->token, farg1, farg2); */
 
   switch (word->form) {
   case VALUE:
@@ -802,29 +919,107 @@ do_video(word_t * word, arg_t farg1, arg_t farg2)
 }
 
 void
+start_mouse(word_t * word, arg_t farg1, arg_t farg2)
+{
+  if (c_mouse >= MAX_MOUSE)
+    mptr = &nullmouse;
+  else {
+    mptr = &mice[c_mouse];
+    mptr->fd = -1;
+  }
+}
+
+/*
+ * Initialize the debug-configuration variables
+ */
+
+void
+start_debug(word_t * word, arg_t farg1, arg_t farg2)
+{
+  int flag = 0;                 /* Default is no debugging output at all */
+
+  c_printf("CONF: start_debug\n");
+  d.video = flag;               /* For all options */
+  d.serial = flag;
+  d.config = flag;
+  d.disk = flag;
+  d.read = flag;
+  d.write = flag;
+  d.keyb = flag;
+  d.printer = flag;
+  d.io = flag;
+  d.warning = flag;
+  d.general = flag;
+  d.xms = flag;
+  d.dpmi = flag;
+  d.mouse = flag;
+  d.hardware = flag;
+  d.IPC = flag;
+  d.EMS = flag;
+}
+
+/*
+ * Initialize the keyboard-configuration variables
+ */
+
+void
+start_keyboard(word_t * word, arg_t farg1, arg_t farg2)
+{
+  /* Nothing special to do */
+  c_printf("CONF: start_keyboard\n");
+}
+
+void
 start_serial(word_t * word, arg_t farg1, arg_t farg2)
 {
   if (c_ser >= MAX_SER)
     sptr = &nullser;
   else {
+    /* The defaults for interrupt, base_port, real_comport and dev are 
+    ** automatically filled in inside the do_ser_init routine of serial.c
+    */
     sptr = &com[c_ser];
+    sptr->dev[0] = 0;
+    sptr->interrupt = 0; 
+    sptr->base_port = 0;
+    sptr->real_comport = 0;
+    sptr->fd = -1;
     sptr->mouse = 0;
-    sptr->mtype = MOUSE_MICROSOFT;
-    sptr->modem = 0;
-    /* default first port */
-    if (c_ser == 0) {
-      strcpy(sptr->dev, "/dev/cua0");
-      sptr->base_port = 0x3f8;
-      sptr->interrupt = 0xc;
-      sptr->fd = -1;
-    }
-    else {
-      strcpy(sptr->dev, "/dev/cua1");
-      sptr->base_port = 0x2f8;
-      sptr->interrupt = 0xb;
-      sptr->fd = -1;
-    }
   }
+}
+
+void
+stop_mouse(word_t * word, arg_t farg1, arg_t farg2)
+{
+  if (c_mouse >= MAX_MOUSE) {
+    c_printf("MOUSE: too many mice, ignoring %s\n", mptr->dev);
+    return;
+  }
+  c_mouse++;
+  config.num_mice = c_mouse;
+  c_printf("MOUSE: %s type %x using internaldriver: %s\n", mptr->dev, mptr->type, mptr->intdrv ? "yes" : "no");
+}
+
+/*
+ * End of debugging configuration 
+ */
+
+void
+stop_debug(word_t * word, arg_t farg1, arg_t farg2)
+{
+  c_printf("CONF: stop_debug\n");
+  /* Nothing to do for now */
+}
+
+/*
+ * End of keyboard configuration 
+ */
+
+void
+stop_keyboard(word_t * word, arg_t farg1, arg_t farg2)
+{
+  c_printf("CONF: stop_keyboard\n");
+  /* Nothing to do for now */
 }
 
 void
@@ -838,6 +1033,365 @@ stop_serial(word_t * word, arg_t farg1, arg_t farg2)
   config.num_ser = c_ser;
   c_printf("SER: %s port %x int %x\n", sptr->dev, sptr->base_port,
 	   sptr->interrupt);
+}
+
+int
+do_mouse(word_t * word, arg_t farg1, arg_t farg2)
+{
+  char *arg = NULL;
+
+  switch (word->form) {
+  case VALUE:
+    arg = get_name(globl_file);
+    break;
+  case PRED:
+    break;
+  default:
+    break;
+  }
+
+  switch (word->token) {
+  case RBRACE:
+  case LBRACE:
+    break;
+  case M_INTDRV:
+    mptr->intdrv = TRUE;
+    break;
+  case M_DEVICE:
+    strcpy(mptr->dev, arg);   
+    break;
+  case M_MICROSOFT:
+    mptr->type = MOUSE_MICROSOFT;
+    mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
+    break;
+  case M_MOUSESYSTEMS:
+    mptr->type = MOUSE_MOUSESYSTEMS;
+    mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL;
+    break;
+  case M_MMSERIES:
+    mptr->type = MOUSE_MMSERIES;
+    mptr->flags = CS8 | PARENB | PARODD | CREAD | CLOCAL | HUPCL;
+    break;
+  case M_LOGITECH:
+    mptr->type = MOUSE_LOGITECH;
+    mptr->flags = CS8 | CSTOPB | CREAD | CLOCAL | HUPCL;
+    break;
+  case M_PS2:
+    mptr->type = MOUSE_PS2;
+    mptr->flags = 0;
+    break;
+  case M_MOUSEMAN:
+    mptr->type = MOUSE_MOUSEMAN;
+    mptr->flags = CS7 | CREAD | CLOCAL | HUPCL;
+    break;
+  case M_BUSMOUSE:
+    mptr->type = MOUSE_BUSMOUSE;
+    mptr->flags = 0;
+  default:
+    error("CONF: Unknown mouse token: %s", word->name);
+    break;
+  }
+
+  if (arg)
+    free(arg);
+  return (word->token);
+}
+
+int
+do_debug(word_t * word, arg_t farg1, arg_t farg2)
+{
+  char *arg = NULL;
+
+  c_printf("CONF: do_debug\n");
+
+  switch (word->form) {
+  case VALUE:
+    arg = get_arg(globl_file);
+    break;
+  case PRED:
+    break;
+  default:
+    break;
+  }
+
+  switch (word->token) {
+  case RBRACE:
+  case LBRACE:
+    break;
+  case DBG_IO:
+    d.io = (atoi(arg) != 0);
+    c_printf("DEBUG: IO-Port %s!\n", d.io ? "on" : "off");
+    break;
+  case DBG_VIDEO:
+    d.video = atoi(arg); 
+    c_printf("DEBUG: Video %s!\n", d.video ? "on" : "off");
+    break;
+  case DBG_SERIAL:
+    d.serial = atoi(arg); 
+    c_printf("DEBUG: Serial %s!\n", d.serial ? "on" : "off");
+    break;
+  case DBG_CONFIG:
+    d.config = atoi(arg); 
+    c_printf("DEBUG: Config %s!\n", d.config ? "on" : "off");
+    break;
+  case DBG_DISK:
+    d.disk = atoi(arg); 
+    c_printf("DEBUG: Disk %s!\n", d.disk ? "on" : "off");
+    break;
+  case DBG_READ:
+    d.read = atoi(arg); 
+    c_printf("DEBUG: Read %s!\n", d.read ? "on" : "off");
+    break;
+  case DBG_WRITE:
+    d.write = atoi(arg); 
+    c_printf("DEBUG: Write %s!\n", d.write ? "on" : "off");
+    break;
+  case DBG_KEYB:
+    d.keyb = atoi(arg); 
+    c_printf("DEBUG: Keyboard %s!\n", d.keyb ? "on" : "off");
+    break;
+  case DBG_PRINTER:
+    d.printer = atoi(arg); 
+    c_printf("DEBUG: Printer %s!\n", d.printer ? "on" : "off");
+    break;
+  case DBG_WARNING:
+    d.warning = atoi(arg); 
+    c_printf("DEBUG: Warning %s!\n", d.warning ? "on" : "off");
+    break;
+  case DBG_GENERAL:
+    d.general = atoi(arg); 
+    c_printf("DEBUG: General %s!\n", d.general ? "on" : "off");
+    break;
+  case DBG_XMS:
+    d.xms = atoi(arg); 
+    c_printf("DEBUG: XMS %s!\n", d.xms ? "on" : "off");
+    break;
+  case DBG_DPMI:
+    d.dpmi = atoi(arg); 
+    c_printf("DEBUG: DPMI %s!\n", d.dpmi ? "on" : "off");
+    break;
+  case DBG_MOUSE:
+    d.mouse = atoi(arg); 
+    c_printf("DEBUG: Mouse %s!\n", d.mouse ? "on" : "off");
+    break;
+  case DBG_HARDWARE:
+    d.hardware = atoi(arg); 
+    c_printf("DEBUG: Hardware %s!\n", d.hardware ? "on" : "off");
+    break;
+  case DBG_IPC:
+    d.IPC = atoi(arg); 
+    c_printf("DEBUG: IPC %s!\n", d.IPC ? "on" : "off");
+    break;
+  case DBG_EMS:
+    d.EMS = atoi(arg); 
+    c_printf("DEBUG: EMS %s!\n", d.EMS ? "on" : "off");
+    break;
+  
+  default:
+    error("CONF: unknown debug token: %s\n", word->name);
+    break;
+    break;
+  }
+  if (arg)
+    free(arg);
+  return (word->token);
+}
+
+int
+do_keyboard(word_t * word, arg_t farg1, arg_t farg2)
+{
+  char *arg = NULL;
+
+  c_printf("CONF: do_keyboard\n");
+
+  switch (word->form) {
+  case VALUE:
+    arg = get_arg(globl_file);
+    break;
+  case PRED:
+    break;
+  default:
+    break;
+  }
+
+  switch (word->token) {
+  case RBRACE:
+  case LBRACE:
+    break;
+  case KEYB_LAYOUT:
+    switch (atoi(arg)) {
+    case KEYB_FINNISH:
+      c_printf("CONF: Keyboard-layout finnish\n");
+      config.keyboard  = KEYB_FINNISH;
+      config.key_map   = key_map_finnish;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_finnish;
+      config.alt_map   = alt_map_finnish;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_FINNISH_LATIN1:
+      c_printf("CONF: Keyboard-layout finnish-latin1\n");
+      config.keyboard  = KEYB_FINNISH_LATIN1;
+      config.key_map   = key_map_finnish_latin1;
+      config.shift_map = shift_map_finnish_latin1;
+      config.alt_map   = alt_map_finnish_latin1;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_US:
+      c_printf("CONF: Keyboard-layout us\n");
+      config.keyboard  = KEYB_US;
+      config.key_map   = key_map_us;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_us;
+      config.alt_map   = alt_map_us;
+      config.num_table = num_table_dot;
+      break;
+    case KEYB_UK:
+      c_printf("CONF: Keyboard-layout uk\n");
+      config.keyboard  = KEYB_UK;
+      config.key_map   = key_map_uk;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_uk;
+      config.alt_map   = alt_map_uk;
+      config.num_table = num_table_dot;
+      break;
+    case KEYB_GR:
+      c_printf("CONF: Keyboard-layout gr\n");
+      config.keyboard  = KEYB_GR;
+      config.key_map   = key_map_gr;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_gr;
+      config.alt_map   = alt_map_gr;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_GR_LATIN1:
+      c_printf("CONF: Keyboard-layout gr-latin1\n");
+      config.keyboard  = KEYB_GR_LATIN1;
+      config.key_map   = key_map_gr_latin1;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_gr_latin1;
+      config.alt_map   = alt_map_gr_latin1;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_FR:
+      c_printf("CONF: Keyboard-layout fr\n");
+      config.keyboard  = KEYB_FR;
+      config.key_map   = key_map_fr;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_fr;
+      config.alt_map   = alt_map_fr;
+      config.num_table = num_table_dot;
+      break;
+    case KEYB_FR_LATIN1:
+      c_printf("CONF: Keyboard-layout fr-latin1\n");
+      config.keyboard  = KEYB_FR_LATIN1;
+      config.key_map   = key_map_fr_latin1;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_fr_latin1;
+      config.alt_map   = alt_map_fr_latin1;
+      config.num_table = num_table_dot;
+      break;
+    case KEYB_DK:
+      c_printf("CONF: Keyboard-layout dk\n");
+      config.keyboard  = KEYB_DK;
+      config.key_map   = key_map_dk;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_dk;
+      config.alt_map   = alt_map_dk;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_DK_LATIN1:
+      c_printf("CONF: Keyboard-layout dk-latin1\n");
+      config.keyboard  = KEYB_DK_LATIN1;
+      config.key_map   = key_map_dk_latin1;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_dk_latin1;
+      config.alt_map   = alt_map_dk_latin1;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_DVORAK:
+      c_printf("CONF: Keyboard-layout dvorak\n");
+      config.keyboard  = KEYB_DVORAK;
+      config.key_map   = key_map_dvorak;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_dvorak;
+      config.alt_map   = alt_map_dvorak;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_SG:
+      c_printf("CONF: Keyboard-layout sg\n");
+      config.keyboard  = KEYB_SG;
+      config.key_map   = key_map_sg;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_sg;
+      config.alt_map   = alt_map_sg;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_SG_LATIN1:
+      c_printf("CONF: Keyboard-layout sg-latin1\n");
+      config.keyboard  = KEYB_SG_LATIN1;
+      config.key_map   = key_map_sg_latin1;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_sg_latin1;
+      config.alt_map   = alt_map_sg_latin1;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_NO:
+      c_printf("CONF: Keyboard-layout no\n");
+      config.keyboard  = KEYB_NO;
+      config.key_map   = key_map_no;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_no;
+      config.alt_map   = alt_map_no;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_SF:
+      c_printf("CONF: Keyboard-layout sf\n");
+      config.keyboard  = KEYB_SF;
+      config.key_map   = key_map_sf;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_sf;
+      config.alt_map   = alt_map_sf;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_SF_LATIN1:
+      c_printf("CONF: Keyboard-layout sf-latin1\n");
+      config.keyboard  = KEYB_SF_LATIN1;
+      config.key_map   = key_map_sf_latin1;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_sf_latin1;
+      config.alt_map   = alt_map_sf_latin1;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_ES:
+      c_printf("CONF: Keyboard-layout es\n");
+      config.keyboard  = KEYB_ES;
+      config.key_map   = key_map_es;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_es;
+      config.alt_map   = alt_map_es;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_ES_LATIN1:
+      c_printf("CONF: Keyboard-layout es-latin1\n");
+      config.keyboard  = KEYB_ES_LATIN1;
+      config.key_map   = key_map_es_latin1;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_es_latin1;
+      config.alt_map   = alt_map_es_latin1;
+      config.num_table = num_table_comma;
+      break;
+    case KEYB_BE:
+      c_printf("CONF: Keyboard-layout be\n");
+      config.keyboard  = KEYB_BE;
+      config.key_map   = key_map_be;  /* pointer to the keyboard-map */
+      config.shift_map = shift_map_be;
+      config.alt_map   = alt_map_be;
+      config.num_table = num_table_dot;
+      break;
+    default:
+      error("CONF: unknown keyboard layout: %s\n", word->name);
+      break;
+    }
+    break;
+  case KEYB_RAWKEYBOARD:
+    config.console_keyb = (atoi(arg) != 0);
+    c_printf("CONF: RawKeyboard %s!\n", config.console_keyb ? "on" : "off");
+    break;
+  case KEYB_KEYBINT:
+    config.keybint = atoi(arg);
+    c_printf("CONF: keybint %s!\n", config.keybint ? "on" : "off");
+    break;
+  default:
+    error("CONF: unknown debug token: %s\n", word->name);
+    break;
+  }
+  if (arg)
+    free(arg);
+  return (word->token);
 }
 
 int
@@ -863,50 +1417,23 @@ do_serial(word_t * word, arg_t farg1, arg_t farg2)
   case S_DEVICE:
     strcpy(sptr->dev, arg);
     break;
+  case S_PORT:
+    sptr->real_comport = strtol(arg, &end, 0);
+    com_port_used[sptr->real_comport] = 1;
+    break;
   case S_BASE:
     sptr->base_port = strtol(arg, &end, 0);
     break;
-  case S_INTERRUPT:
+  case S_IRQ:
     sptr->interrupt = strtol(arg, &end, 0);
-    break;
-  case S_MODEM:
-    sptr->mouse = 0;
-    sptr->modem = 1;
     break;
   case S_MOUSE:
     sptr->mouse = 1;
-    sptr->modem = 0;
-    break;
-  case S_MICROSOFT:
-    sptr->mouse = 1;
-    sptr->mtype = MOUSE_MICROSOFT;
-    sptr->modem = 0;
-    break;
-  case S_MOUSESYSTEMS3:
-    sptr->mouse = 1;
-    sptr->mtype = MOUSE_MOUSESYSTEMS3;
-    sptr->modem = 0;
-    break;
-  case S_MOUSESYSTEMS5:
-    sptr->mouse = 1;
-    sptr->mtype = MOUSE_MOUSESYSTEMS5;
-    sptr->modem = 0;
-    break;
-  case S_MMSERIES:
-    sptr->mouse = 1;
-    sptr->mtype = MOUSE_MMSERIES;
-    sptr->modem = 0;
-    break;
-  case S_LOGITECH:
-    sptr->mouse = 1;
-    sptr->mtype = MOUSE_LOGITECH;
-    sptr->modem = 0;
     break;
   default:
     error("CONF: unknown serial token: %s\n", word->name);
     break;
   }
-
   if (arg)
     free(arg);
   return (word->token);
@@ -1011,6 +1538,9 @@ do_top(word_t * word, arg_t arg1, arg_t arg2)
     case SEC_PRINTER:
     case SEC_VIDEO:
     case SEC_SERIAL:
+    case SEC_MOUSE:
+    case SEC_DEBUG:
+    case SEC_KEYBOARD:
       if (word->start)
 	(word->start) (word, 0, 0);
       parse_file(word->sub_words, globl_file);

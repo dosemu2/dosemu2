@@ -1,14 +1,13 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/03/18 23:17:51 $
-# $Source: /home/src/dosemu0.50pl1/RCS/Makefile,v $
-# $Revision: 1.32 $
+# $Date: 1994/04/28 00:09:34 $
+# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
+# $Revision: 1.49 $
 # $State: Exp $
 #
-# WARNING!  You'll have to do a 'make config' after changing the
-#           configuration settings in the Makefile.  You should also
-#           do a make dep, make clean if you're doing the first compile. 
-#
+
+# You should do a make config, make dep, make clean if you're doing
+# the first compile. 
 
 #ifdef DEBUG
 #STATIC=1
@@ -23,11 +22,12 @@ DOSOBJS=
 SHLIBOBJS=$(OBJS)
 #CDEBUGOPTS=-DUSE_NCURSES
 LNKOPTS=-s
+#MAGIC=-zmagic
 #endif
 
 # dosemu version
-EMUVER  =   0.50pl1
-VERNUM  =   0x50
+EMUVER  =   0.51
+VERNUM  =   0x51
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
 # should be okay at...0x20000000 for .5 GB mark.
@@ -35,41 +35,14 @@ LIBSTART = 0x20000000
 
 ENDOFDOSMEM = 0x110000     # 1024+64 Kilobytes
 
-# KEYBOARD
-#   choose the proper RAW-mode keyboard
-#   nationality...foreign keyboards are probably not
-#   well-supported because of lack of dead-key/diacritical code
-#
+# VIDEO_E000 = -DVIDEO_E000
 
-  KEYBOARD = -DKBD_US -DKBDFLAGS=0
-# KEYBOARD = -DKBD_FINNISH -DKBDFLAGS=0
-# KEYBOARD = -DKBD_FINNISH_LATIN1 -DKBDFLAGS=0x9F
-# KEYBOARD = -DKBD_GR -DKBDFLAGS=0
-# KEYBOARD = -DKBD_GR_LATIN1 -DKBDFLAGS=0x9F
-# KEYBOARD = -DKBD_FR -DKBDFLAGS=0
-# KEYBOARD = -DKBD_FR_LATIN1 -DKBDFLAGS=0x9F
-# KEYBOARD = -DKBD_UK -DKBDFLAGS=0
-# KEYBOARD = -DKBD_DK -DKBDFLAGS=0
-# KEYBOARD = -DKBD_DK_LATIN1 -DKBDFLAGS=0x9F
-# KEYBOARD = -DKBD_DVORAK -DKBDFLAGS=0
-# KEYBOARD = -DKBD_SG -DKBDFLAGS=0
-# KEYBOARD = -DKBD_SG_LATIN1 -DKBDFLAGS=0x9F
-# KEYBOARD = -DKBD_SF -DKBDFLAGS=0
-# KEYBOARD = -DKBD_SF_LATIN1 -DKBDFLAGS=0x9F
-# KEYBOARD = -DKBD_NO -DKBDFLAGS=0
-#
-
-XMS     = -DXMS=1
-XMSOBJS  = xms.o
-# DPMIOBJS = dpmi/dpmi.o dpmi/ldtlib.o \
-#	dpmi/call.o dpmi/ldt.o
+DPMIOBJS = dpmi/dpmi.o dpmi/ldtlib.o dpmi/call.o dpmi/ldt.o
 #
 # SYNC_ALOT
 #  uncomment this if the emulator is crashing your machine and some debug info
 # isn't being sync'd to the debug file (stdout). shouldn't happen. :-)
 # SYNC_ALOT = -DSYNC_ALOT=1
-
-GFX = -DCHEAP_GFX=1
 
 CONFIG_FILE = -DCONFIG_FILE=\"/etc/dosemu/config\"
 
@@ -80,17 +53,33 @@ else
 DPMISUB=
 endif
 
-SUBDIRS= boot commands doc drivers examples parse periph $(DPMISUB)
+###################################################################
+#
+#  Section for Client areas (why not?)
+#
+###################################################################
+
+CLIENTSSUB=clients
+# NCURSES_OBJS=$(CLIENTSSUB)/ncurses.o
+
+SUBDIRS= boot commands doc drivers examples periph video include $(DPMISUB) \
+	$(CLIENTSSUB) timer init
 
 CFILES=cmos.c dos.c emu.c termio.c xms.c disks.c keymaps.c mutex.c \
-	timers.c mouse.c dosio.c cpu.c video.c mfs.c bios_emm.c lpt.c \
-        parse.c serial.c ipx.c dyndeb.c libpacket.c pktdrvr.c s3.c
+	timers.c mouse.c dosio.c cpu.c  mfs.c bios_emm.c lpt.c \
+        serial.c ipx.c dyndeb.c libpacket.c pktdrvr.c \
+	sigsegv.c pktnew.c
 
-HFILES=cmos.h video.h emu.h termio.h timers.h xms.h mouse.h dosio.h \
-        cpu.h bios.h mfs.h disks.h memory.h machcompat.h lpt.h \
-        serial.h modes.h ipx.h libpacket.h pktdrvr.h mutex.h
-OFILES= Makefile ChangeLog dosconfig.c QuickStart DANG EMUsuccess.txt \
-	dosemu-HOWTO DPR
+HFILES=cmos.h emu.h termio.h timers.h xms.h mouse.h dosio.h \
+        cpu.h mfs.h disks.h memory.h machcompat.h lpt.h \
+        serial.h ipx.h libpacket.h pktdrvr.h mutex.h \
+	int.h ports.h
+
+SFILES=bios.S
+
+OFILES= Makefile ChangeLog dosconfig.c QuickStart \
+	dosemu-HOWTO kernel.1.0.x.diff kernel.1.1.9.diff \
+	kernel.post.1.1.9.diff
 BFILES=
 
 F_DOC=dosemu.texinfo Makefile dos.1 wp50
@@ -98,33 +87,33 @@ F_DRIVERS=emufs.S emufs.sys
 F_COMMANDS=exitemu.S exitemu.com vgaon.S vgaon.com vgaoff.S vgaoff.com \
             lredir.exe lredir.c makefile.mak dosdbg.exe dosdbg.c
 F_EXAMPLES=config.dist
-F_PARSE=parse.y scan.l parse.c scan.c parse.tab.h
 F_PERIPH=debugobj.S getrom hdinfo.c mkhdimage.c mkpartition putrom.c 
  
 
 ###################################################################
 
-OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o parse.o \
-     dosio.o cpu.o video.o $(GFXOBJS) $(XMSOBJS) mfs.o bios_emm.o lpt.o \
-     serial.o ipx.o dyndeb.o libpacket.o pktdrvr.o s3.o
+OBJS=emu.o termio.o disks.o keymaps.o timers.o cmos.o mouse.o \
+     dosio.o cpu.o xms.o mfs.o bios_emm.o lpt.o \
+     serial.o ipx.o dyndeb.o libpacket.o pktdrvr.o sigsegv.o \
+     video.o bios.o pktnew.o init.o
 
-DEFINES    = -Dlinux=1 
-OPTIONAL   = $(GFX)  # -DDANGEROUS_CMOS=1
-MEMORY     = $(XMS) 
-CONFIGS    = $(KEYBOARD) $(CONFIG_FILE)
+OPTIONAL   = # -DDANGEROUS_CMOS=1
+CONFIGS    = $(CONFIG_FILE)
 DEBUG      = $(SYNC_ALOT)
-CONFIGINFO = $(DEFINES) $(CONFIGS) $(OPTIONAL) $(DEBUG) \
-	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" \
-	     $(MEMORY)
+CONFIGINFO = $(CONFIGS) $(OPTIONAL) $(DEBUG) \
+	     -DLIBSTART=$(LIBSTART) -DVERNUM=$(VERNUM) -DVERSTR=\"$(EMUVER)\" 
 
 CC         =   gcc # I use gcc-specific features (var-arg macros, fr'instance)
-COPTFLAGS  = -N -O2 -m486 # -Wall # -funroll-loops
+COPTFLAGS  = -N -s -O2 -m486 # -Wall -fomit-frame-pointer # -ansi -pedantic -Wmissing-prototypes -Wstrict-prototypes
+ 
 ifdef DPMIOBJS
 DPMI = -DDPMI
 else
 DPMI = 
 endif
-CFLAGS     = $(DPMI) $(CDEBUGOPTS) $(COPTFLAGS) # -Wall
+
+INCDIR     = -I./include
+CFLAGS     = $(DPMI) $(VIDEO_E000) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
 LD86 = ld86 -0 -s
@@ -135,6 +124,10 @@ DISTPATH=$(DISTBASE)/$(DISTNAME)
 DISTFILE=$(DISTBASE)/$(DISTNAME).tgz
 
 all:	warnconf dos dossubdirs libdosemu
+
+liball: libdosemu
+	cp libdosemu /usr/lib
+	sync
 
 doeverything: clean config dep install
 
@@ -162,18 +155,15 @@ dos:	dos.c $(DOSOBJS)
 	@echo "Including dos.o " $(DOSOBJS)
 	$(CC) -DSTATIC=$(STATIC) $(LDFLAGS) -N -o $@ $< $(DOSOBJS) $(DOSLNK)
 
-libdosemu:	$(SHLIBOBJS) $(DPMIOBJS)
-	ld $(LDFLAGS) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(DPMIOBJS) $(SHLIBS) -ltermcap -lc
+libdosemu:	$(SHLIBOBJS) $(DPMIOBJS) $(NCURSES_OBJS)
+	ld $(LDFLAGS) $(MAGIC) -T $(LIBSTART) -o $@ $(SHLIBOBJS) $(DPMIOBJS) $(NCURSES_OBJS) $(SHLIBS) -ltermcap -lc
 # -lncurses
-
-map:
-	(cd debug; make map)
 
 dossubdirs: dummy
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE)) || exit; done
 
 clean:
-	rm -f $(OBJS) $(GFXOBJS) $(XMSOBJS) dos libdosemu *.s core config.h .depend dosconfig dosconfig.o *.tmp
+	rm -f $(OBJS) dos libdosemu *.s core config.h .depend dosconfig dosconfig.o *.tmp
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) clean) || exit; done
 
 config: dosconfig
@@ -190,46 +180,39 @@ install: all /usr/bin/dos
 /usr/bin/dos: dos
 	install -m 04755 dos /usr/bin
 
-# this should produce a 512 byte file that ends with 0x55 0xaa
-# this is a MS-DOS boot sector and partition table (empty).
-# (the dd is necessary to strip off the 32 byte Minix executable header)
-
 testlib:  libdosemu /usr/bin/dos 
 	cp libdosemu /usr/lib
 
 converthd: hdimage
 	mv hdimage hdimage.preconvert
 	periph/mkhdimage -h 4 -s 17 -c 40 | cat - hdimage.preconvert > hdimage
-	@echo "Your hdimage is now converted and ready to use with 0.49!"
+	@echo "Your hdimage is now converted and ready to use with 0.60!"
 
 newhd: periph/bootsect
 	periph/mkhdimage -h 4 -s 17 -c 40 | cat - periph/bootsect > newhd
 	@echo "You now have a hdimage file called 'newhd'"
 
 checkin:
-	ci $(CFILES) $(HFILES) $(OFILES)
+	ci $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkin) || exit; done
 
 checkout:
-	co -l $(CFILES) $(HFILES) $(OFILES)
+	co -l $(CFILES) $(HFILES) $(SFILES) $(OFILES)
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
-dist: $(CFILES) $(HFILES) $(OFILES) $(BFILES)
+dist: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES)
 	install -d $(DISTPATH)
-	install -m 0644 $(CFILES) $(HFILES) $(OFILES) $(BFILES) .depend \
-	       $(DISTPATH)
-	mkdir -p $(DISTPATH)/debug
+	install -m 0644 $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) .depend $(DISTPATH)
 	cp TODO $(DISTPATH)/.todo
 	cp TODO.JES $(DISTPATH)/.todo.jes
-	cp .indent.pro $(DISTPATH)/INDENT.PRO
+	cp .indent.pro $(DISTPATH)/.indent.pro
 	install -m 0644 hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
 ifdef DPMIOBJS
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) dist) || exit; done
 else
 	@for i in $(SUBDIRS) dpmi; do (cd $$i && echo $$i && $(MAKE) dist) || exit; done
 endif
-	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 > \
-	     $(DISTFILE))
+	(cd $(DISTBASE); tar cf - $(DISTNAME) | gzip -9 >$(DISTFILE))
 	rm -rf $(DISTPATH)
 	@echo "FINAL .tgz FILE:"
 	@ls -l $(DISTFILE) 
@@ -238,7 +221,11 @@ depend dep:
 ifdef DPMIOBJS
 	cd dpmi;$(CPP) -MM -I../ $(CFLAGS) *.c > .depend;echo "call.o : call.S" >>.depend
 endif
-	$(CPP) -MM $(CFLAGS) *.c > .depend
+	cd clients;$(CPP) -MM -I../ $(CFLAGS) *.c > .depend
+	cd video; make depend
+	cd timer; make depend
+	cd init; make depend
+	$(CPP) -MM $(CFLAGS) $(INCDIR) *.c > .depend;echo "bios.o : bios.S" >>.depend
 
 dummy:
 

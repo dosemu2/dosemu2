@@ -7,6 +7,7 @@ c* GENERAL ================================
 1) hardware timers. (and with them, ints 8 and 1c, and better sound emulation)
 2) find out why INT 0x15 CANNOT be revectored or it makes LINUX.EXE fail.
 3) find out how to use FPU emulation!
+*** done.
 4) make BOUND exception handling correct
 5) get the ctrl-alt-pgup reboot to correctly reinitialize XMS, EMS, MFS, 
    kbd, VGA.
