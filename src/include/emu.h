@@ -26,7 +26,7 @@
   #error "Sorry, wrong keyboard code version for this DOSEMU version"
 #endif
 
-#if defined(HAVE_KBD_UNICODE) && (HAVE_KBD_UNICODE > 1)
+#if defined(HAVE_UNICODE_KEYB) && (HAVE_UNICODE_KEYB != 2)
   #error "Sorry, wrong unicode keyboard code version for this DOSEMU version"
 #endif
 

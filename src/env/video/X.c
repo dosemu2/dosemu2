@@ -232,6 +232,10 @@
 #include "vgaemu.h"
 #include "X.h"
 
+#ifdef HAVE_UNICODE_TRANSLATION
+#include "translate.h"
+#endif
+
 #ifdef HAVE_MITSHM
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -240,6 +244,10 @@
 
 #ifdef HAVE_DGA
 #include <X11/extensions/xf86dga.h>
+#endif
+
+#ifdef HAVE_XKB
+#include <X11/XKBlib.h>
 #endif
 
 #if CONFIG_X_MOUSE
@@ -283,7 +291,12 @@ extern char **dosemu_argv;
 
 /* base/keyboard/keyb_X.c */
 extern void X_process_key(XKeyEvent *);
+extern void X_process_keys(XKeymapEvent *);
+#ifndef HAVE_UNICODE_KEYB
+inline void X_process_keys(XKeymapEvent *event) { return; }
+#endif
 
+#ifndef HAVE_UNICODE_TRANSLATION
 static const u_char dos_to_latin[] = {
    0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,  /* 80-87 */ 
    0xea, 0xeb, 0xe8, 0xef, 0xee, 0xec, 0xc4, 0xc5,  /* 88-8F */
@@ -341,7 +354,15 @@ static const u_char dos_to_latin2[] = {
    0xb0, 0xa8, 0xff, 0xfb, 0xd8, 0xf8, 0x00, 0xa0   /* F8-FF */
 };
 
+#endif /* HAVE_UNICODE_TRANSLATION */
+
 static int (*OldXErrorHandler)(Display *, XErrorEvent *) = NULL;
+
+#ifdef HAVE_XKB
+int using_xkb = FALSE;
+int xkb_event_base = 0;
+int xkb_error_base = 0;
+#endif
 
 #ifdef HAVE_MITSHM
 static int shm_ok = 0;
@@ -552,11 +573,60 @@ struct video_system Video_X =
    X_update_cursor
 };
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* utility function for opening a connection and making certain
+ * I am either using or not using the X keyboard Extension.
+ */
+Display *XKBOpenDisplay(char *display_name)
+{
+	Display *dpy;
+#ifndef HAVE_XKB
+	{
+		PRIV_SAVE_AREA
+		enter_priv_on();	
+		dpy = XOpenDisplay(display_name);
+		leave_priv_setting();
+	}
+#else /* HAVE_XKB */
+	int use_xkb;
+	int major_version, minor_version;
+	
+	using_xkb = FALSE;
+
+	major_version = XkbMajorVersion;
+	minor_version = XkbMinorVersion;
+	use_xkb = XkbLibraryVersion(&major_version, &minor_version);
+	/* If I can't use the keyboard extension make
+	 * sure the library doesn't either.
+	 */
+	XkbIgnoreExtension(!use_xkb);
+	{
+		PRIV_SAVE_AREA
+		enter_priv_on();
+		dpy = XOpenDisplay(display_name);
+		leave_priv_setting();
+	}
+	if (dpy == NULL) {
+		return NULL;
+	}
+	if (!use_xkb) {
+		return dpy;
+	}
+	if (!XkbQueryExtension(dpy, NULL, 
+			       &xkb_event_base, &xkb_error_base,
+			       &major_version, &minor_version)) {
+		return dpy;
+	}
+	using_xkb = TRUE;
+#endif
+	return dpy;
+}
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
- * DANG_BEGIN_FUNCTION X_close
+ * DANG_BEGIN_FUNCTION X_init
  *
  * description:
  * Initialize everything X-related.
@@ -579,14 +649,7 @@ int X_init()
 
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
-  {
-    PRIV_SAVE_AREA
-
-    enter_priv_on();
-    display = XOpenDisplay(display_name);
-    leave_priv_setting();
-  }
-
+  display = XKBOpenDisplay(display_name);
   if(display == NULL) {
     error("X: Can't open display \"%s\"\n", display_name ? display_name : "");
     leavedos(99);
@@ -1027,6 +1090,10 @@ static void X_keymap_init()
 
   if(s) X_printf("X: X_keymap_init: X server vendor is \"%s\"\n", s);
   if(config.X_keycode == 2 && s) {	/* auto */
+#if defined(HAVE_UNICODE_KEYB) && defined(HAVE_XKB)
+    /* All I need to know is that I'm using the X keyboard extension */
+    config.X_keycode = using_xkb;
+#else
     config.X_keycode = 0;
 
     /*
@@ -1038,14 +1105,17 @@ static void X_keymap_init()
       strstr(s, "The XFree86 Project") ||
       strstr(s, "Xi Graphics")
     ) config.X_keycode = 1;
+#endif /* HAVE_UNICODE_KEYB && HAVE_XKB */
   }
   X_printf(
     "X: X_keymap_init: %susing DOSEMU's internal keycode translation\n",
     config.X_keycode ? "" : "we are not "
   );
+#ifndef HAVE_UNICODE_KEYB
   if(config.X_keycode == 0) {
     X_printf("X: X_keymap_init: '$_layout'-entry will have no effect\n");
   }
+#endif /* ! HAVE_UNICODE_KEYB */
 }
 
 
@@ -1423,6 +1493,10 @@ void X_handle_events()
 #endif
 	  X_process_key(&e.xkey);
 	  break;
+	case KeymapNotify:
+	  X_process_keys(&e.xkeymap);
+	  break;
+
     /* A keyboard mapping has been changed (e.g., with xmodmap). */
 	case MappingNotify:  
 	  X_printf("X: MappingNotify event\n");
@@ -3184,6 +3258,7 @@ void end_selection()
 }
 
 
+#ifndef HAVE_UNICODE_TRANSLATION
 /*
  * Send selection data to other window.
  */
@@ -3248,6 +3323,76 @@ void send_selection(Time time, Window requestor, Atom target, Atom property)
   }
   XSendEvent(display, requestor, False, 0, &e);
 }
+#else /* HAVE_UNICODE_TRANSLATION */
+void send_selection(Time time, Window requestor, Atom target, Atom property)
+{
+	size_t sel_text_bytes, sel_text_latin_bytes, sel_text_latin_space;
+	u_char *sel_text_ptr, *sel_text_latin, *sel_text_latin_ptr;
+	struct char_set_state paste_state;
+	struct char_set_state video_state; /* must not have any... */
+	
+	struct char_set *paste_charset = trconfig.paste_charset;
+	struct char_set *video_charset = trconfig.video_mem_charset;
+	XEvent e;
+
+	init_charset_state(&video_state, video_charset);
+	init_charset_state(&paste_state, paste_charset);
+	
+	e.xselection.type = SelectionNotify;
+	e.xselection.selection = XA_PRIMARY;
+	e.xselection.requestor = requestor;
+	e.xselection.time = time;
+	if (sel_text == NULL) {
+		X_printf("X: Window 0x%lx requested selection, but it's empty!\n",   
+			(unsigned long) requestor);
+		e.xselection.property = None;
+	}
+	else if ((target == XA_STRING) || (target == compound_text_atom)) {
+		X_printf("X: selection (dos): %s\n",sel_text);   
+		e.xselection.target = target;
+		sel_text_bytes = strlen(sel_text);
+		sel_text_latin_bytes = sel_text_bytes + 100;
+		sel_text_latin_space = sel_text_latin_bytes;
+		sel_text_latin = malloc(sel_text_latin_bytes);
+		sel_text_ptr = sel_text;
+		sel_text_latin_ptr = sel_text_latin;
+		while(sel_text_bytes) {
+			t_unicode symbol;
+			size_t result;
+			/* If we hit any run with what we have */
+			result = charset_to_unicode(&video_state, &symbol,
+				sel_text_ptr, sel_text_bytes);
+			if (result == -1) break;
+			sel_text_bytes -= result;
+			sel_text_ptr += result;
+			result = unicode_to_charset(&paste_state, 
+				symbol,
+				sel_text_latin_ptr, sel_text_latin_space);
+			if (result == -1) break;
+			sel_text_latin_ptr += result;
+			sel_text_latin_space -= result;
+		}
+		*sel_text_latin_ptr = '\0';
+		X_printf("X: selection (latin): %s\n",sel_text_latin);  
+		XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
+			sel_text_latin, strlen(sel_text_latin));
+		e.xselection.property = property;
+		X_printf("X: Selection sent to window 0x%lx as %s\n", 
+			(unsigned long) requestor, (target==XA_STRING)?"string":"compound_text");
+		free(sel_text_latin);
+	}
+	else
+	{
+		e.xselection.property = None;
+		X_printf("X: Window 0x%lx requested unknown selection format %ld\n",
+			(unsigned long) requestor, (unsigned long) target);
+	}
+	cleanup_charset_state(&video_state);
+	cleanup_charset_state(&paste_state);
+	XSendEvent(display, requestor, False, 0, &e);
+}
+#endif /* HAVE_UNICODE_TRANSLATION */
+
 #endif /* CONFIG_X_SELECTION */
 
 

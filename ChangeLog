@@ -1,3 +1,17 @@
+2002/01/06 ver 1.1.2.5 unofficial pre-release
+	From Eric   
+	- compiletime-settings, compiletime-settings.devel 
+	  - explictly enables/disables the plugins
+	- dosemu.conf Added $_external_char_set & $_internal_char_set
+	- global.conf Added code for $_external_char_set & $_internal_char_set
+	- wyse60-pckb Added terminfo entry example that uses scancodes
+	- mouse.c Made mouse_keyboard() update conditional on HAVE_UNICODE_KEYB
+	- X.c 
+	  - Added tests for the XKB extension.
+	  - Made new translation code conditional on HAVE_UNICODE_TRANSLATION
+	- emu.h Changed HAVE_KBD_UNICODE -> HAVE_UNICODE_KEYB
+	- video.c Move the remaining video init & cleanup calls from
+	  keyb_raw.c here.
 2002/01/06 ver 1.1.2.4 unofficial pre-release
 	From Eric   
 	- Makefile.main Always link in all of the dosemu .o files

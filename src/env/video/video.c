@@ -35,6 +35,7 @@
 extern void open_kmem();      /* from vc.c */
 extern void set_process_control();
 extern void set_console_video();
+extern void clear_console_video();
 extern void set_consoleX_video();
 
 extern int
@@ -162,6 +163,8 @@ scr_state_init(void){
   scr_state.mapped = 0;
   scr_state.pageno = 0;
   scr_state.virt_address = PAGE_ADDR(0);
+  /* Assume the screen is initially mapped. */
+  scr_state.current = 1;
 }
 
 void video_close(void) {
@@ -169,6 +172,10 @@ void video_close(void) {
   if (Video && Video->close) {
     Video->close();
     v_printf("VID: video_close()->Video->close() called\n");
+  }
+  if (config.console_video /* && config.vga */) {
+    v_printf("VID: video_close():clear console video\n");
+    clear_console_video();
   }
 }
 

@@ -4,7 +4,7 @@ config {
   mitshm on
   x on
   net on
-  dodebug off
+  dodebug on
   slangforce on
   runasroot off
   linkstatic on
@@ -12,4 +12,10 @@ config {
   cpuemu on
   aspi on
   svgalib on
+  plugin_keyboard on
+  plugin_kbd_unicode off
+  plugin_extra_charsets off
+  plugin_term off
+  plugin_translate off
+  plugin_demo off
 }

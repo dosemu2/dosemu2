@@ -10,6 +10,7 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
+#include "config.h"
 #include <termios.h>
 
 #define MOUSE_BASE_VERSION	0x0700	/* minimum driver version 7.00 */
@@ -139,7 +140,12 @@ EXTERN volatile struct  {
   } ps2;
 } mouse;
 
+#ifdef HAVE_UNICODE_KEYB
+#include "keyboard.h"
+void mouse_keyboard(Boolean make, t_keysym key);
+#else
 void mouse_keyboard(int);
+#endif
 void mouse_curtick(void);
 void mouse_sethandler(void *, unsigned short *, unsigned short *);
 

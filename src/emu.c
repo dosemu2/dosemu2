@@ -424,7 +424,9 @@ dos_ctrl_alt_del(void)
     dbug_printf("DOS ctrl-alt-del requested.  Rebooting!\n");
     HMA_MAP(1);
     time_setting_init();
+#ifdef HAVE_KEYBOARD_V1
     keyb_server_reset();
+#endif
     iodev_reset();
     video_config_init();
     serial_init();
@@ -543,8 +545,10 @@ leavedos(int sig)
 
     /* try to regain control of keyboard and video first */
     g_printf("calling keyboard_close\n");
+#ifdef HAVE_KEYBOARD_V1
     keyb_server_close();
     keyb_client_close();
+#endif
     iodev_term();
 
 #if defined(X86_EMULATOR)

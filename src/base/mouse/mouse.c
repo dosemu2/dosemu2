@@ -1240,7 +1240,87 @@ mouse_enable_internaldriver()
 }
 
 
-
+#ifdef HAVE_UNICODE_KEYB
+/* Keyboard mouse control :)  */
+void mouse_keyboard(Boolean make, t_keysym key)
+{
+	static struct keyboard_mouse_state {
+		int l, r, u, d;
+		int ul, ur, dl, dr;
+		int lbutton, mbutton, rbutton; 
+	} state;
+	int dx, dy;
+	switch (key) {
+	case KEY_MOUSE_DOWN:
+		state.d = !!make;
+		break;
+	case KEY_MOUSE_LEFT:
+		state.l = !!make;
+		break;
+	case KEY_MOUSE_RIGHT:
+		state.r = !!make;
+		break;
+	case KEY_MOUSE_UP:
+		state.u = !!make;
+		break;
+	case KEY_MOUSE_UP_AND_LEFT:
+		state.ul = make;
+		break;
+	case KEY_MOUSE_UP_AND_RIGHT:
+		state.ur = make;
+		break;
+	case KEY_MOUSE_DOWN_AND_LEFT:
+		state.dl = make;
+		break;
+	case KEY_MOUSE_DOWN_AND_RIGHT:
+		state.dr = make;
+		break;
+	case KEY_MOUSE_BUTTON_LEFT:
+		state.lbutton = make;
+		break;
+	case KEY_MOUSE_BUTTON_RIGHT:
+		state.rbutton = make;
+		break;
+	case KEY_MOUSE_BUTTON_MIDDLE:
+		state.mbutton = make;
+		break;
+	default:
+		m_printf("MOUSE: keyboard_mouse(), key 0x%02x unknown!\n", key);
+		break;
+	}
+	dx = dy = 0;
+	if (state.d) {
+		dy += 1;
+	}
+	if (state.dl) {
+		dy += 1;
+		dx -= 1;
+	}
+	if (state.dr) {
+		dy += 1;
+		dx += 1;
+	}
+	if (state.u) {
+		dy -= 1;
+	}
+	if (state.ul) {
+		dy -= 1;
+		dx -= 1;
+	}
+	if (state.ur) {
+		dy -= 1;
+		dx += 1;
+	}
+	if (state.r) {
+		dx += 1;
+	}
+	if (state.l) {
+		dx -= 1;
+	}
+	mouse_move_relative(dx, dy);
+	mouse_move_buttons(state.lbutton, state.mbutton, state.rbutton);
+}
+#else
 /* XXX - something's wrong here. Shouldn't the first 4 cases move the cursor?
  */
 void mouse_keyboard(int sc)
@@ -1272,6 +1352,7 @@ void mouse_keyboard(int sc)
     m_printf("MOUSE: keyboard_mouse(), sc 0x%02x unknown!\n", sc);
   }
 }
+#endif
 
 
 static void mouse_round_coords(void)

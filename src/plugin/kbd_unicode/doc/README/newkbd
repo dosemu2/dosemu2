@@ -1,0 +1,213 @@
+<sect1>
+<title>New Keyboard Code</title>
+
+<para>
+This file describes the keyboard code which was written in 1999
+</para>
+
+<para>
+It was last updated by Eric Biederman
+<ulink
+url="mailto:ebiederm@xmission.com"
+>&#60;ebiederm@xmission.com&#62;</ulink
+> 
+on 22 April 2000
+</para>
+
+<sect2>
+<title>Whats New</title>
+
+<para>
+What's new in the new keyboard code?
+</para>
+
+<para>
+Virtually all of the interface code gets keystrokes
+has been rewritten.  While the actual emulation of the hardware
+has been fairly static.
+</para>
+
+<para>
+To the user:
+
+<itemizedlist>
+<listitem>  <para>
+       The terminal interface has been internationalized.
+       </para> </listitem>
+<listitem> <para>
+       Keymaps can now be written in unicode making them
+       character set independant.
+       </para> </listitem>
+<listitem> <para>
+       On non-us keyboard layouts the scan codes should always be
+       correct now.
+       </para> </listitem>
+<listitem> <para>
+       The X { keycode } option is now fully supported and portable,
+       to any X server that implements the X keyboard extension.
+       </para> </listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+To the dosemu hacker:
+
+<itemizedlist>
+<listitem>
+<para>
+There is a compile-time option USE_UNICODE_KEYB (on by default) to active the
+
+ While the old code already claimed to be "client-server" (and was, to
+some extent), the new code introduces a clean, well-defined interface
+between the `server', which is the interface to DOS (int9, bios etc.),
+and the `clients', which are the interfaces to the user frontends supported
+by dosemu. Currently, clients are `raw', `slang' (i.e. terminal), and `X'.
+</para>
+
+<para>
+   
+Clients send keystrokes to the server through the interface mentioned
+above (which is defined in "keyboard.h"), the most important functions being
+`putkey()' and `putrawkey()'.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The keyboard server was rewritten from scratch, the clients were heavily
+modified.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ There is now general and efficient support for pasting large text objects.
+Simply call paste_text().
+</para>
+</listitem>
+<listitem>
+
+<para>
+ The keyboard-related code is now largely confined to base/keyboard,
+rather than scattered around in various files.
+</para>
+</listitem>
+
+</itemizedlist>
+
+</para>
+
+<para>
+There is a compile-time option NEW_KBD_CODE (on by default) to activate the
+new keyboard code. Once the new code is reasonably well tested I'll remove it.
+</para>
+
+<para>
+Just like the old keyboard code, we still have the rawkeyboard=on/off modes.
+The keybint=on/off modes have gone away.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Status</title>
+
+<para>
+Almost everything seems to work well now.
+</para>
+
+<para>
+The keyboard server should now quite accurately emulate all key combinations
+described the `MAKE CODES' &#38; `SCAN CODES' tables of HelpPC 2.1, which I
+used as a reference.
+</para>
+
+<para>
+See below for a list of known bugs.
+</para>
+
+<para>
+What I need now is YOUR beta-testing... please go ahead and try if all your
+application's wierd key combinations work, and let me know if they don't.
+</para>
+
+</sect2>
+
+<sect2>
+<title>Known bugs &#38; incompatibilites</title>
+
+<para>
+
+<itemizedlist>
+<listitem>
+
+<para>
+ behaviour wrt. cli/sti is inaccurate, because the PIC code currently
+doesn't allow un-requesting if IRQ's.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ emulation of special 8042 and keyboard commands is incomplete and
+probably still somewhat faulty.
+</para>
+</listitem>
+<listitem>
+
+<para>
+ the 'internal' keyboard flags in seg 0x40, like E0 prefix received etc.
+are never set. This shouldn't hurt, for all but the most braindead
+TSRs.
+</para>
+</listitem>
+
+<listitem> <para>
+ the Pause key works in terms of raw scancodes, however it's function
+is not implemented (i.e. it doesn't actually halt DOS execution.)
+</para> </listitem>
+
+<listitem> <para>
+ If the interrupt is not acknowledged and the keyboard port is 
+ read we don't eventually give up like a real keyboard and deliver
+ the next byte in the keyboard buffer.
+</para> </listitem>
+
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+<sect2>
+<title>TODO</title>
+
+<para>
+
+<itemizedlist>
+<listitem> <para>
+       Implement better multinational cut/paste in X
+</para> </listitem>
+<listitem> <para>
+       Implement timeouts on the length of type a byte is available in
+       the keyboard data port.
+</para> </listitem>
+<listitem> <para>
+       implement pause key
+</para> </listitem>
+<listitem> <para>
+      once everything is proved to work, remove the old keyboard code
+</para> </listitem>
+<listitem> <para>
+      impelemnt utf8 and possibly iso2022 terminal support
+</para> </listitem>
+</itemizedlist>
+
+</para>
+
+</sect2>
+
+</sect1>
+
