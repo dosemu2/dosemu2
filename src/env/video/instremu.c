@@ -653,15 +653,17 @@ unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned
   unsigned width = size * 8;
   unsigned mask = wordmask[size];
   unsigned smask = (mask >> 1) + 1;
-  op2 &= (width-1);
+  op2 &= 31;
         
   switch (op&0x7){
   case 0: /* rol */
+    op2 &= width-1;
     result = (((op1 << op2) | ((op1&mask) >> (width-op2)))) & mask;
     *eflags &= ~(CF|OF);
     *eflags |= (result & CF) | ((((result >> (width-1)) ^ result) << 11) & OF);
     return result;
   case 1:/* ror */
+    op2 &= width-1;
     result = ((((op1&mask) >> op2) | (op1 << (width-op2)))) & mask;
     *eflags &= ~(CF|OF);
     carry = (result >> (width-1)) & CF;
@@ -669,12 +671,14 @@ unsigned instr_shift(unsigned op, int op1, unsigned op2, unsigned size, unsigned
       (((carry ^ (result >> (width-2))) << 11) & OF);
     return result;
   case 2: /* rcl */
+    op2 %= width+1;
     carry = (op1>>(width-op2))&CF;
     result = (((op1 << op2) | ((op1&mask) >> (width+1-op2))) | ((*eflags&CF) << (op2-1))) & mask;
     *eflags &= ~(CF|OF);
     *eflags |= carry | ((((result >> (width-1)) ^ carry) << 11) & OF);
     return result;
   case 3:/* rcr */
+    op2 %= width+1;
     carry = (op1>>(op2-1))&CF;
     result = ((((op1&mask) >> op2) | (op1 << (width+1-op2))) | ((*eflags&CF) << (width-op2))) & mask;
     *eflags &= ~(CF|OF);
