@@ -939,6 +939,12 @@ check_special:
 	je	kbd_do_sysrq_break
         call    store_key
 kbd_done:
+	inb	$0x61,%al		/* KBD IRQ ACK code from the */
+	movb	%al,%ah			/* Lukach & Sibiriakov book */
+	orb	$0x80,%al
+	outb	%al,$0x61
+	xchgb	%al,%ah
+	outb	%al,$0x61
 	movb   	$0x20,%al
 	outb    %al,$0x20		/* tell pic we're done 		*/
 	popw	%ds

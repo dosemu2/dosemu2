@@ -322,6 +322,11 @@ Bit8u keyb_io_read(ioport_t port)
       k_printf("8042: read port 0x60 read=0x%02x\n",r);
     break;
 
+  case 0x61:
+    /* Handle only PC-Speaker right now */
+    r = spkr_io_read(port);
+    break;
+
   case 0x64:
     r= 0x1c | (port60_ready ? 0x01 : 0x00);
     k_printf("8042: read port 0x64 status check=0x%02x, port60_ready=%d\n",
@@ -338,6 +343,15 @@ void keyb_io_write(ioport_t port, Bit8u value)
 #if KEYB_CMD
      write_port60(value);
 #endif
+    break;
+
+  case 0x61:
+    if (value & 0x80) {
+      k_printf("8042: IRQ ACK, %i\n", int9_running);
+      int9_running = 0;
+      int_check_queue();   /* reschedule irq1 if appropriate */
+    }
+    spkr_io_write(port, value);
     break;
 
   case 0x64:
@@ -362,14 +376,7 @@ void do_irq1(int ilevel) {
 	    (REG(eflags)|VIF)!=0);
 
    int9_running++;
-   
    do_irq(ilevel);            /* run the int09 handler */
-
-   int9_running--;
-   
-   int_check_queue();   /* reschedule irq1 if appropriate */
-
-   /* k_printf("8042: do_irq1() finished\n"); */
 }
 
 
@@ -397,9 +404,7 @@ void keyb_8042_init(void)
   io_device.irq 	 = EMU_NO_IRQ;
   port_register_handler(io_device, 0);
 
-  io_device.read_portb   = spkr_io_read;
-  io_device.write_portb  = spkr_io_write;
-  io_device.handler_name = "Speaker port";
+  io_device.handler_name = "Keyboard controller port B";
   io_device.start_addr   = 0x0061;
   io_device.end_addr     = 0x0061;
   port_register_handler(io_device, config.speaker==SPKR_NATIVE? PORT_FAST:0);
