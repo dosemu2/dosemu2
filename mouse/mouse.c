@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1995/04/08 22:34:58 $
- * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.19 $
+ * $Date: 1995/05/06 16:27:42 $
+ * $Source: /usr/src/dosemu0.60/mouse/RCS/mouse.c,v $
+ * $Revision: 2.20 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.20  1995/05/06  16:27:42  root
+ * Prep for 0.60.2.
+ *
  * Revision 2.19  1995/04/08  22:34:58  root
  * Release dosemu0.60.0
  *
@@ -161,9 +164,7 @@
 #include "port.h"
 #include "termio.h"
 
-#ifdef DPMI
 #include "dpmi.h"
-#endif
 
 #include "vc.h"
 #include "port.h"
@@ -891,8 +892,10 @@ mouse_reset(int flag)
   	mouse_cursor(-1);
 
   mouse.cursor_on = -1;
+#ifdef X_SUPPORT
   if (config.X)
      X_change_mouse_cursor();
+#endif
   mouse.lbutton = mouse.mbutton = mouse.rbutton = 0;
   mouse.oldlbutton = mouse.oldmbutton = mouse.oldrbutton = 1;
   mouse.lpcount = mouse.mpcount = mouse.rpcount = 0;
@@ -1401,10 +1404,8 @@ mouse_event()
 
     REG(ds) = *mouse.csp;	/* put DS in user routine */
 
-#ifdef DPMI    
     if (in_dpmi && REG(cs) == DPMI_SEG && REG(eip) == DPMI_mouse_callback)
 	run_pm_mouse();
-#endif
     
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
@@ -1452,9 +1453,14 @@ mouse_update_cursor(void)
 void
 text_cursor(void)
 {
-  unsigned short *p = SCREEN_ADR(mouse.display_page);
-  int offset = mouse_erase.x;
-  int cx = mouse.rx >> mouse.xshift, cy = mouse.ry >> mouse.yshift;
+  unsigned short *p;
+  int offset;
+  int cx, cy;
+  co = READ_WORD(BIOS_SCREEN_COLUMNS);
+  p = SCREEN_ADR(mouse.display_page);
+  offset = mouse_erase.x;
+  cx = mouse.rx >> mouse.xshift;
+  cy = mouse.ry >> mouse.yshift;
 
   if (mouse_erase.drawn) {
   	/* only erase the mouse cursor if it's the same thing we

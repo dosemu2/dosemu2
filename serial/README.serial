@@ -29,7 +29,7 @@ PROGRAMMING INFORMATION
 	HELPPC.EXE 2.1 and results from National Semiconductor's
 	COMTEST.EXE diagnostics program.  This code aims to emulate 
 	a 16550A as accurately as possible, using just reasonably 
-	POSIX.2 compilant code.  In some cases, this code does a 
+	POSIX.2 compliant code.  In some cases, this code does a 
 	better job than OS/2 serial emulation (in non-direct mode) 
 	done by its COM.SYS driver!  There may be about 100 kilobytes
 	of source code, but nearly 50% of this size are comments!

@@ -1,10 +1,13 @@
 /* 
  * $Date: 1995/04/08 22:30:40 $
- * $Source: /home/src/dosemu0.60/dosemu/RCS/sigsegv.c,v $
+ * $Source: /usr/src/dosemu0.60/dosemu/RCS/sigsegv.c,v $
  * $Revision: 2.20 $
  * $State: Exp $
  *
  * $Log: sigsegv.c,v $
+ * Revision 2.20  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.20  1995/04/08  22:30:40  root
  * Release dosemu0.60.0
  *
@@ -128,7 +131,7 @@
  */
 
 
-static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp root $";
+static char rcsid[]="$Id: sigsegv.c,v 2.20 1995/04/08 22:30:40 root Exp $";
 
 #include <stdio.h>
 #include <termios.h>

@@ -56,10 +56,7 @@ typedef unsigned char byte;
 typedef unsigned short ushort;
 */
 
-#if 1    /* use highscan in termio.c now, which is essentially the same */
-byte highscan[];
 
-#else
 /* ASCII 0x20..0x7E */
 
 static byte ascii_scan[] =
@@ -77,7 +74,6 @@ static byte ascii_scan[] =
     0x19, 0x10, 0x13, 0x1f, 0x14, 0x16, 0x2f, 0x11,
     0x2d, 0x15, 0x2c, 0x1a, 0x2b, 0x1b, 0x29
 };
-#endif
 
 static const u_char latin1_to_dos[] = {
     0,    0xad, 0x9b, 0x9c, 0,    0x9d, 0x7c, 0x15,  /* A0-A7 */
@@ -148,6 +144,56 @@ static const struct
  * matching from keycode to scan code
  * codes are processed low-byte to high-byte
  */
+#ifdef NEW_KEYCODES
+static const int X_scan[] = {
+   0x37E0,      /*  92  Print Screen */
+   0x5000,      /*  93  Down */
+   0x4B00,      /*  94  Left */
+   0x8500,      /*  95  F11 */
+   0x8600,      /*  96  F12 */
+   0x0,         /*  97  */
+   0x0,         /*  98  */
+   0x0,         /*  99  */
+   0x0,         /* 100  */
+   0x0,         /* 101  */
+   0x0,         /* 102  */
+   0x0,         /* 103  */
+   0x0,         /* 104  */
+   0x0,         /* 105  */
+   0x0,         /* 106  */
+   0x0,         /* 107  */
+   0x0,         /* 108  */
+   0x0,         /* 109  */
+   0x0,         /* 110  */
+   0x0,         /* 111  */
+   0x0,         /* 112  */
+   0x0,         /* 113  */
+   0x0,         /* 114  */   
+   0x0,         /* 115  */
+   0x0,         /* 116  */
+   0x0,         /* 117  */
+   0x0,         /* 118  */
+   0x4900,      /* 119  Page Up */
+   0x0,         /* 120  */
+   0x0,         /* 121  */
+   0x0,         /* 122  */
+   0x0,         /* 123  */
+   0x1C,        /* 124  KP enter */
+   0x35,        /* 125  KP divide */
+   0x0,         /* 126  */
+   0x451DE1,    /* 127  Pause*/
+   0x4800,      /* 128  Up */
+   0x5300,      /* 129  Delete */
+   0x4F00,      /* 130  End */
+   0x5200,      /* 131  Insert */
+   0x0,         /* 132  */
+   0x4D00,      /* 133  Right */
+   0x5100,      /* 134  Page Down */
+   0x4700,      /* 135  Home */
+   0x46E0,      /* 136  Break */
+   0x0,         /* 137  */
+};
+#else
 static const int X_scan[] = {
    0x47e0,      /*  97  Home   */
    0x48e0,      /*  98  Up     */
@@ -168,6 +214,7 @@ static const int X_scan[] = {
    0x38e0,      /* 113  Alt-R  */
    0x46e0,      /* 114  Break  */   
 };
+#endif /* NEW_KEYCODES */
 
 
 /* This is a very quick'n dirty put_key...  */
@@ -210,8 +257,9 @@ static ushort translate(KeySym key)
     int i;
 
     /* ascii keys */
-    if (key <= 0x7e)
-      return highscan[key];
+    if ((key <= 0x7e) && (key >= 0x20))
+      return ascii_scan[key - 0x20];
+
 
     /* function keys:
        note that shift-F1..F8 actually give shift-F13..F20
@@ -271,10 +319,18 @@ void X_process_key(XKeyEvent *e)
 	* for the keycode, for the keys new on the AT keyboard, we have to
 	* translate them via the keypad table
 	*/
+#ifdef NEW_KEYCODES       
+       if (scan < 92)
+#else
        if (scan < 97)
+#endif
 	  scan -= 8;
        else
+#ifdef NEW_KEYCODES       
+	  scan = X_scan[scan-92];
+#else
 	  scan = X_scan[scan-97];
+#endif
        X_printf("X_process_key: keycode=%d, scancode=%d, %s\n",
 		e->keycode,scan,(e->type==KeyRelease)?"released":"pressed");
        if (scan == 0x3a || scan == 0x45) {
@@ -296,72 +352,75 @@ void X_process_key(XKeyEvent *e)
              (int)key,(e->type==KeyPress)?"pressed":"released",
              e->state,ch);
 
-    /* handle special things first */
-    
+   if (key <= 0x7e) {
+      scan = ascii_scan[key-0x20];
+      put_keycode(scan, (e->type==KeyRelease));
+      
+   } else  {
     /* caps&num lock are special in X: press/release means
        turning lock on/off, not pressing/releasing the key.
        Therefore we have to generate both make & break code
        here.
     */
-    if (key == XK_Caps_Lock) {
-       put_key(0x3A,-1);
-       put_key(0xba,-1);
-       return;
-    }
-    if (key == XK_Num_Lock) {
-       put_key(0x45,-1);
-       put_key(0xc5,-1);
-       return;
-    }
-    if (key == XK_Pause || key == XK_Break) {
-       if (e->state & ControlMask) {
-	  put_key(0xe046,-1);   /* Ctrl-Break */
-          put_key(0xe0c6,-1);
-       }
-       else {
+      if (key == XK_Caps_Lock) {
+       	  put_key(0x3A,-1);
+       	  put_key(0xba,-1);
+       	  return;
+      }
+      if (key == XK_Num_Lock) {
+         put_key(0x45,-1);
+         put_key(0xc5,-1);
+         return;
+      }
+      if (key == XK_Pause || key == XK_Break) {
+         if (e->state & ControlMask) {
+	    put_key(0xe046,-1);   /* Ctrl-Break */
+            put_key(0xe0c6,-1);
+         }
+      else {
 	  put_key(0xe11d,-1);   /* Pause */
 	  put_key(0x45,-1);
 	  put_key(0xe19d,-1);
 	  put_key(0xc5,-1);
-       }
-       return;
-    }
+      }
+      return;
+      }
 
-    if (key == XK_Print) {
-       if (e->state & AltMask)
-          scan = 0x54;       /* Alt-SysReq */
-       else
-          scan = 0xe037;     /* PrintScr */
-    }
-    else if (key == XK_X386_SysReq)
-       scan = 0x54;
-    else if (key == XK_BackSpace) {
-       scan = 0x0e;
-       ch = 8;
-    } else if (key == XK_Delete) {
-       scan = 0x53;
-       ch = 0;
-    } else if (key == XK_Return)  {
-       if ((e->state & ControlMask))
-         ch = 0x0a;
-       else
-         ch = 0x0d;
-       scan = 0x1c;
-    } else if (key == XK_Tab) {
-       scan = 0x0f;
-       if ((e->state & (ShiftMask | ControlMask | AltMask)))
-	  ch = 0;
-    } else {
-       scan = translate(key);
-       if ((e->state & AltMask)) {
-	  ch=0;
-       }
-    }
-
+      if (key == XK_Print) {
+         if (e->state & AltMask)
+            scan = 0x54;       /* Alt-SysReq */
+         else
+            scan = 0xe037;     /* PrintScr */
+      }
+      else if (key == XK_X386_SysReq)
+         scan = 0x54;
+      else if (key == XK_BackSpace) {
+         scan = 0x0e;
+         ch = 8;
+      } else if (key == XK_Delete) {
+         scan = 0x53;
+         ch = 0;
+      } else if (key == XK_Return)  {
+         if ((e->state & ControlMask))
+           ch = 0x0a;
+         else
+           ch = 0x0d;
+         scan = 0x1c;
+      } else if (key == XK_Tab) {
+         scan = 0x0f;
+         if ((e->state & (ShiftMask | ControlMask | AltMask)))
+	    ch = 0;
+      } else {
+         scan = translate(key);
+         if ((e->state & AltMask)) {
+	    ch=0;
+         }
+      }
     /* do latin1 translation */
     if (ch>=0xa0) ch=latin1_to_dos[ch-0xa0];
     
     if (scan || ch)
        put_key((e->type==KeyPress) ? scan : scan|0x80, ch);
+   }
 }
 

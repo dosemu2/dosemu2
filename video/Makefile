@@ -2,7 +2,7 @@
 # This is the Makefile for the video-subdirectory of the DOS-emulator
 # for Linux.
 #
-# $Id: Makefile,v 2.15 1995/04/08 22:30:27 root Exp root $
+# $Id: Makefile,v 2.15 1995/04/08 22:30:27 root Exp $
 
 ifdef X_SUPPORT
 XCFILES	= X.c

@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1995/04/08 22:30:40 $
- * $Source: /home/src/dosemu0.60/dosemu/RCS/dosio.c,v $
- * $Revision: 2.16 $
+ * $Date: 1995/05/06 16:25:30 $
+ * $Source: /usr/src/dosemu0.60/dosemu/RCS/dosio.c,v $
+ * $Revision: 2.17 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.17  1995/05/06  16:25:30  root
+ * Prep for 0.60.2.
+ *
  * Revision 2.16  1995/04/08  22:30:40  root
  * Release dosemu0.60.0
  *
@@ -470,7 +473,7 @@ io_select(fd_set fds)
       if (mice->intdrv || mice->type == MOUSE_PS2)
 	if (FD_ISSET(mice->fd, &fds)) {
 		m_printf("MOUSE: We have data\n");
-	  pic_request(PIC_IRQ12);
+	  pic_request(PIC_IMOUSE);
 	}
       if (FD_ISSET(kbd_fd, &fds)) {
 	getKeys();
@@ -498,6 +501,6 @@ process_interrupt(SillyG_t *sg)
 
   if ((irq = sg->irq) != 0) {
     h_printf("INTERRUPT: 0x%02x\n", irq);
-    pic_request(irq);
+    pic_request(pic_irq_list[irq]);
   }
 }

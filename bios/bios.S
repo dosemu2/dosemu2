@@ -152,6 +152,8 @@ mouse_handler:
 	dd	0x1c810227
 	.org	((Mouse_SEG - BIOSSEG) << 4)+Mouse_ROUTINE_OFF
 	push	ax
+        mov     al,#0x20
+        out     0x20,al			/* flag interrupt complete	*/
 	pop	ax
 	iret
 

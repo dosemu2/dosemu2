@@ -19,10 +19,13 @@
  * 
  * DANG_END_MODULE
  * 
- * DANG_BEGIN_CHANGELOG $Date: 1995/04/08 22:29:37 $ $Source:
- * /home/src/dosemu0.60/RCS/emu.c,v $ $Revision: 2.37 $ $State: Exp $
+ * DANG_BEGIN_CHANGELOG $Date: 1995/05/06 16:25:14 $ $Source:
+ * /home/src/dosemu0.60/RCS/emu.c,v $ $Revision: 2.38 $ $State: Exp $
  * 
  * $Log: emu.c,v $
+ * Revision 2.38  1995/05/06  16:25:14  root
+ * Prep for 0.60.2.
+ *
  * Revision 2.37  1995/04/08  22:29:37  root
  * Release dosemu0.60.0
  * Revision 2.36  1995/02/25  22:38:10  root *** empty log
@@ -486,11 +489,11 @@ run_vm86(void)
      * in here.
      */
     in_vm86 = 1;
-    if (pic_icount)
+    if (pic_icount||pic_dos_time<pic_sys_time)
 	REG(eflags) |= (VIP);
     /* FIXME: this needs to be clarified and rewritten */
 
-    retval = vm86(&vm86s);
+    retval = DO_VM86(&vm86s);
     in_vm86 = 0;
     switch VM86_TYPE
 	(retval) {
@@ -504,6 +507,11 @@ run_vm86(void)
     case VM86_INTx:
 	do_int(VM86_ARG(retval));
 	break;
+#ifdef USE_VM86PLUS
+    case VM86_PICRETURN:
+        I_printf("Return for FORCE_PIC\n");
+        break;
+#endif
     case VM86_SIGNAL:
 	I_printf("Return for SIGNAL\n");
 	break;
@@ -655,10 +663,10 @@ SIG_init()
 		    }
 		    sg->fd = fd;
 #endif				/* NOT REQUIRES_EMUMODULE */
-		    sg->irq = pic_irq_list[irq];
-		    g_printf("SIG %x: enabling interrupt %x\n", irq, sg->irq);
-		    pic_seti(sg->irq, do_irq, 0);
-		    pic_unmaski(sg->irq);
+		    sg->irq = irq;
+		    g_printf("SIG: IRQ%d, enabling PIC-level %d\n", irq, pic_irq_list[irq]);
+		    pic_seti(pic_irq_list[irq], do_irq, 0);
+		    pic_unmaski(pic_irq_list[irq]);
 		    sg++;
 		}
 	    }
@@ -782,6 +790,7 @@ emulate(int argc, char **argv)
     fflush(stdout);
 
     while (!fatalerr) {
+	++pic_vm86_count;
 	run_vm86();
 #if 0
 	timer_int_engine();

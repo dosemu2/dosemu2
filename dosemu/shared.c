@@ -9,7 +9,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * $Date: 1995/04/08 22:30:40 $
- * $Source: /home/src/dosemu0.60/dosemu/RCS/shared.c,v $
+ * $Source: /usr/src/dosemu0.60/dosemu/RCS/shared.c,v $
  * $Revision: 1.4 $
  * $State: Exp $
  *

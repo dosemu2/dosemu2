@@ -21,12 +21,15 @@
  *
  * DANG_END_MODULE
  *
- * $Date: 1995/04/08 22:30:40 $
- * $Source: /home/src/dosemu0.60/dosemu/RCS/timers.c,v $
- * $Revision: 2.5 $
+ * $Date: 1995/05/06 16:25:30 $
+ * $Source: /usr/src/dosemu0.60/dosemu/RCS/timers.c,v $
+ * $Revision: 2.6 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 2.6  1995/05/06  16:25:30  root
+ * Prep for 0.60.2.
+ *
  * Revision 2.5  1995/04/08  22:30:40  root
  * Release dosemu0.60.0
  *
@@ -195,9 +198,9 @@ void timer_tick(void)
   
   /* Save old value of the timer */
   time_old = time_curr;
-
-  /* Execute timer interrupt emulator handler */
-  timer_int_engine();
+  
+  /* test for stuck interrupts, trigger any scheduled interrupts */
+  pic_watch(&tp);
 }
 
 void set_ticks(unsigned long new)
@@ -259,11 +262,14 @@ static void pit_latch(int latch)
 
     case 0x02:  /* mode 2,6 -- countdown, reload */
     case 0x06:
+#if 0
       gettimeofday(&cur_time, NULL);
       /* fancy calculations to avoid overflow */
       ticks = (cur_time.tv_sec - pit[latch].time.tv_sec) % pit[latch].cntr;
       ticks = ticks * (CLOCK_TICK_RATE % pit[latch].cntr) +
 	      ((cur_time.tv_usec - pit[latch].time.tv_usec) * 1193) / 1000;
+#endif
+      ticks = pit[latch].cntr - (pic_dos_time % pit[latch].cntr);
       pit[latch].read_latch = pit[latch].cntr - ticks % pit[latch].cntr;
       break;
 
@@ -469,8 +475,15 @@ void write_port61(int byte)
  * This would speed up high frequency timer interrupts if this code
  * can be converted into an assembly macro equivalent!
  *
+ * PLEASE NOTE
+ *
+ * This code has been replaced by interrupt scheduling code in pic.
+ * The result is that we simply call pic_sched and run the dos interrupt.
+ * If the new code causes no problems, I'll revise this section permanently. 
+ *
  * DANG_END_FUNCTION
  */
+#if 0
 void timer_int_engine(void)
 {
   static continuous = 0;
@@ -499,3 +512,11 @@ void timer_int_engine(void)
     if (ticks_accum > 250) ticks_accum -= 250;
   }
 }
+#else
+void timer_int_engine(void)
+{
+ do_irq();
+ pic_sched(PIC_IRQ0,pit[0].cntr);
+}
+
+#endif

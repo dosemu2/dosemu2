@@ -16,7 +16,10 @@
  * 
  * DANG_BEGIN_CHANGELOG
  * 
- * $Date: 1995/04/08 22:34:30 $ $Source: /home/src/dosemu0.60/keyboard/RCS/keyboard-client.c,v $ $Revision: 1.1 $ $State: Exp $ $Log: keyboard-client.c,v $
+ * $Date: 1995/04/08 22:34:30 $ $Source: /usr/src/dosemu0.60/keyboard/RCS/keyboard-client.c,v $ $Revision: 1.1 $ $State: Exp $ $Log: keyboard-client.c,v $
+ * Revision 1.1  1995/04/08  22:34:30  root
+ * Initial revision
+ *
  * Revision 1.1  1995/04/08  22:34:30  root
  * Initial revision
  * DANG_END_CHANGELOG
@@ -314,7 +317,7 @@ keyboard_init(void)
 	error("ERROR: Unable to initialize S-Lang keymaps.\n");
 	leavedos(31);
     }
-    dbug_printf("TERMIO: $Header: /home/src/dosemu0.60/keyboard/RCS/keyboard-client.c,v 1.1 1995/04/08 22:34:30 root Exp root $\n");
+    dbug_printf("TERMIO: $Header: /usr/src/dosemu0.60/keyboard/RCS/keyboard-client.c,v 1.1 1995/04/08 22:34:30 root Exp $\n");
     return 0;
 }
 

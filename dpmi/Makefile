@@ -3,12 +3,12 @@
 #INCDIR = -I../ -I../include/
 CFLAGS+= $(KERNEL) # -DWANT_WINDOWS
 
-ALL = dpmi.c dpmi.h meminfo.c meminfo.h msdos.h bcc.h kernel.diff winemu.bat
+ALL = dpmi.c dpmi.h meminfo.c meminfo.h memory.c msdos.h kernel.diff winemu.bat
 
 SUBDIR=dpmi
 
-OBJS = dpmi.o meminfo.o
-DEPENDS=dpmi.d meminfo.d
+OBJS = dpmi.o meminfo.o memory.o
+DEPENDS=dpmi.d meminfo.d memory.d
 
 all:  lib
 

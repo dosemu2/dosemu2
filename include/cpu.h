@@ -2,7 +2,7 @@
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
  * $Date: 1995/02/05 16:54:16 $
- * $Source: /home/src/dosemu0.60/include/RCS/cpu.h,v $
+ * $Source: /usr/src/dosemu0.60/include/RCS/cpu.h,v $
  * $Revision: 2.7 $
  * $State: Exp $
  */

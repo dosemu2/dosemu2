@@ -1,12 +1,15 @@
 /* dos emulator, Matthias Lautner 
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/04/08 22:35:19 $
- * $Source: /home/src/dosemu0.60/include/RCS/emu.h,v $
- * $Revision: 2.26 $
+ * $Date: 1995/05/06 16:28:14 $
+ * $Source: /usr/src/dosemu0.60/include/RCS/emu.h,v $
+ * $Revision: 2.27 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.27  1995/05/06  16:28:14  root
+ * Prep for 0.60.2.
+ *
  * Revision 2.26  1995/04/08  22:35:19  root
  * Release dosemu0.60.0
  *
@@ -47,6 +50,7 @@
 #include <signal.h> 
 #include "machcompat.h"
 #include "cpu.h"
+#include "vm86plus.h"
 
 #include "extern.h"
 
@@ -82,7 +86,14 @@ typedef struct { int fd; int irq; } SillyG_t;
    DOSEMU when running in vm86 mode.
  * DANG_END_REMARK
 */ 
-EXTERN struct vm86_struct vm86s;
+#ifdef USE_VM86PLUS
+  EXTERN struct vm86plus_struct vm86s INIT ( {
+   {0},0,0,0,{0},{0}, {VM86PLUS_MAGIC}
+  } );
+#else
+  EXTERN struct vm86_struct vm86s;
+#endif
+
 EXTERN fd_set fds_sigio, fds_no_sigio;
 EXTERN unsigned int use_sigio INIT(0);
 EXTERN unsigned int not_use_sigio INIT(0);
@@ -177,7 +188,8 @@ struct debug_flags {
    xms,			/* xms               "x" */
    dpmi,		/* dpmi              "M" */
    network,		/* IPX network       "n" */
-   pd;			/* Packet driver     "P" */
+   pd,			/* Packet driver     "P" */
+   request;		/* PIC               "r" */
 };
 
 #if __GNUC__ >= 2
@@ -222,6 +234,7 @@ ifprintf(unsigned char, const char *,...) FORMAT(printf, 2, 3);
 #define e_printf(f,a...) 	ifprintf(1,f,##a)
 #define n_printf(f,a...)        ifprintf(d.network,f,##a)	/* TRB */
 #define pd_printf(f,a...)       ifprintf(d.pd,f,##a)	/* pktdrvr  */
+#define r_printf(f,a...)        ifprintf(d.request,f,##a)
 #define error(f,a...)	 	fprintf(stderr, f, ##a)
 #define hard_error(f, a...)	fprintf(stderr, f, ##a) 
 

@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1995/04/08 22:29:17 $
-# $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.40 $
+# $Date: 1995/05/06 16:24:53 $
+# $Source: /usr/src/dosemu0.60/RCS/Makefile,v $
+# $Revision: 2.41 $
 # $State: Exp $
 #
 # You should do a "make" to compile and a "make install" as root to
@@ -19,6 +19,11 @@
 #       if you have not loaded emumodule.o !
 #
 # REQUIRES_EMUMODULE= -DREQUIRES_EMUMODULE
+
+ifdef REQUIRES_EMUMODULE
+# uncomment this, if you want the extended vm86 support (vm86plus)
+  USE_VM86PLUS= -DUSE_VM86PLUS
+endif
 
 # Want to make elf Binaries.
 # ELF=1
@@ -84,6 +89,9 @@ XLIBS = -Wl,-rpath,$(X11LIBDIR)/elf -lX11
 else
 XLIBS   = -L$(X11LIBDIR) -lX11 -u _XOpenDisplay
 endif
+
+# If you want have a problem with you Xdos keycodes,
+# Add -DNEW_KEYCODES to the following
 XDEFS   = -DX_SUPPORT
 endif
 
@@ -128,7 +136,7 @@ DEPENDS = dos.d emu.d
 # dosemu version
 VERSION = 0
 SUBLEVEL = 60
-PATCHLEVEL = 1
+PATCHLEVEL = 2
 LIBDOSEMU = libdosemu-$(VERSION).$(SUBLEVEL).$(PATCHLEVEL)
 
 EMUVER = $(VERSION).$(SUBLEVEL)
@@ -188,7 +196,7 @@ endif
 LIBS=$(LIBSUBDIRS)
 
 
-DOCS= doc
+DOCS= doc dosemu.keys
 
 
 OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
@@ -241,7 +249,7 @@ CFLAGS+=$(XDEFS) $(CDEBUGOPTS) $(COPTFLAGS) $(INCDIR)
 CFLAGS+=$(PATH_LOCKD) $(NAME_LOCKF)
 CFLAGS+=$(X86_EMULATOR_FLAGS)
 ifdef REQUIRES_EMUMODULE
-   CFLAGS+=$(REQUIRES_EMUMODULE)
+   CFLAGS+=$(REQUIRES_EMUMODULE) $(USE_VM86PLUS)
 endif
 
 # set for DPMI want windows
@@ -509,9 +517,9 @@ ifdef X_SUPPORT
 	@install -m 0755 xtermdos /usr/bin
 	@if [ ! -e /usr/bin/xdos ]; then ln -s dos /usr/bin/xdos; fi
 	@echo ""
-	@echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."
-	@if [ -w $(X11LIBDIR)/X11/fonts/misc ] && [ -d $(X11LIBDIR)/X11/fonts/misc ]; then \
-		if [ ! -e $(X11LIBDIR)/X11/fonts/misc/vga.pcf* ]; then \
+	@if [ -w $(X11LIBDIR)/X11/fonts/misc ] && [ -d $(X11LIBDIR)/X11/fonts/misc ] ; then \
+		if [ ! -e "$(X11LIBDIR)/X11/fonts/misc/vga.pcf*" ]; then \
+			echo "-> Main DOSEMU files installation done. Installing the Xwindows PC-8 font..."; \
 			install -m 0644 vga.pcf $(X11LIBDIR)/X11/fonts/misc; \
 			cd $(X11LIBDIR)/X11/fonts/misc; \
 			mkfontdir; \
@@ -534,7 +542,7 @@ ifdef X_SUPPORT
 	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
 	 echo ""
 endif
-	@echo "  - Try the ./commands/mouse.com if your INTERNAL mouse won't work"; \
+	@echo "  - Try the ./commands/mouse.com -r if your INTERNAL mouse won't work"; \
 	 echo "  - Try ./commands/unix.com to run a Unix command under DOSEMU"; \
 	 echo ""
 ifdef REQUIRES_EMUMODULE

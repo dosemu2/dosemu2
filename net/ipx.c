@@ -22,7 +22,12 @@
 
 #define MAX_PACKET_DATA		1500
 
+#if 0
+/* NOTE: the below is already defined with #include "emu.h"
+ *       Must NOT redefine it, else USE_VM86PLUS won't work !!!
+ */
 extern struct vm86_struct vm86s;
+#endif
 
 /* declare some function prototypes */
 extern u_char IPXCancelEvent(far_t ECBPtr);

@@ -1,5 +1,5 @@
 /*
- * $Id: config.c,v 1.5 1995/04/08 22:34:19 root Exp root $
+ * $Id: config.c,v 1.6 1995/05/06 16:26:13 root Exp root $
  */
 #include <stdio.h>
 #include <termios.h>
@@ -29,7 +29,7 @@
 
 
 struct debug_flags d =
-{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 
 static void     check_for_env_autoexec_or_config(void);
@@ -413,11 +413,17 @@ check_for_env_autoexec_or_config(void)
 	config.emusys = cp;
 
 
+     /*
+      * The below is already reported in the conf. It is in no way an error
+      * so why the messages?
+      */
+
+#if 0
     if (config.emubat)
 	fprintf(stderr, "autoexec extension = %s\n", config.emubat);
     if (config.emusys)
 	fprintf(stderr, "config extension = %s\n", config.emusys);
-
+#endif
 }
 
 /*
@@ -537,6 +543,9 @@ parse_debugflags(const char *s)
 	case 'P':		/* Packet driver */
 	    d.pd = flag;
 	    break;
+	case 'r':		/* PIC */
+	    d.request = flag;
+	    break;
 	case 'a':{		/* turn all on/off depending on flag */
 		char           *newopts = (char *) malloc(strlen(allopts) + 2);
 
@@ -560,7 +569,7 @@ parse_debugflags(const char *s)
 static void
 usage(void)
 {
-    fprintf(stdout, "$Header: /home/src/dosemu0.60/init/RCS/config.c,v 1.5 1995/04/08 22:34:19 root Exp root $\n");
+    fprintf(stdout, "$Header: /usr/src/dosemu0.60/init/RCS/config.c,v 1.6 1995/05/06 16:26:13 root Exp root $\n");
     fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
     fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
     fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -571,9 +580,9 @@ usage(void)
     fprintf(stdout, "    -X run in X Window (#)\n");
     fprintf(stdout, "    -X NAME use MDA direct and FIFO NAME for keyboard (only with x2dos!)\n");
     fprintf(stdout, "    -Y NAME use FIFO NAME for mouse (only with x2dos!)\n");
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvXkism#pgcwhIExMnP01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvXkism#pgcwhIExMnPr01)\n");
 #else				/* X_SUPPORT */
-    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvkism#pgcwhIExMnP01)\n");
+    fprintf(stdout, "    -D set debug-msg mask to flags (+-)(dRWDvkism#pgcwhIExMnPr01)\n");
 #endif				/* X_SUPPORT */
     fprintf(stdout, "    -M set memory size to SIZE kilobytes (!)\n");
     fprintf(stdout, "    -P copy debugging output to FILE\n");

@@ -144,7 +144,7 @@ static int dos_helper(void)
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1995/04/08 22:30:40 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: 1995/05/06 16:25:30 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
@@ -953,7 +953,7 @@ static void int2f(u_char i)
       return;
     break;
 #endif
-
+      
   case 0x1687:            /* Call for getting DPMI entry point */
     dpmi_get_entry_point();
     return;
@@ -964,15 +964,26 @@ static void int2f(u_char i)
 
   case 0x1600:		/* WINDOWS ENHANCED MODE INSTALLATION CHECK */
     D_printf("DPMI: WINDOWS ENHANCED MODE INSTALLATION CHECK\n");
-#if 0			/* it seens this confuse winos2 */
+#if 1			/* it seens this confuse winos2 */
     if (in_dpmi && in_win31) {
-      LO(ax) = 3;	/* let's try enhaced mode :-))))))) */
+      LWORD(eax) = 0x0a03;	/* let's try enhaced mode 3.1 :-))))))) */
       return;
     } else
       break;
 #endif    
     break;
-
+  case 0x160a:			/* IDENTIFY WINDOWS VERSION AND TYPE */
+    if(in_dpmi && in_win31) {
+      LWORD(eax) =0;
+      LWORD(ebx) = 0x030a;	/* 3.10 */
+#if 1      
+      LWORD(ecx) = 0x0003;	/* let\'s try enhaced mode */
+#else
+      LWORD(ecx) = 0x0002;	/* standard mode */
+#endif      
+      return;
+    } else
+      break;
   }
 
   switch (HI(ax)) {

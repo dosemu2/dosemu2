@@ -22,7 +22,7 @@
    is simulated in the PIC code if IRQ9 points to the bios segment.)  For
    this reason there is no PIC_IRQ2.
   
-   $Id: pic.h,v 1.2 1995/04/08 22:35:19 root Exp root $
+   $Id: pic.h,v 1.3 1995/05/06 16:28:14 root Exp root $
 */
    
 /* Valuse from 16 - 31 are available for assignment if not already 
@@ -53,6 +53,7 @@
 #define PIC_IRQ6  14       /*  floppy     usually int 0x0e */
 #define PIC_IRQ7  15       /*  LPT 1      usually int 0x0f */
 #define PIC_NET   16       /*  packet receive check - no dos equivalent */
+#define PIC_IMOUSE 17      /*  internal mouse driver       */
 
 #define PIC_IRQALL 0xfffe  /*  bits for all IRQs set. This never changes  */
 /* pic_irq_list translates irq numbers to pic_ilevels.  This is not used
@@ -68,13 +69,20 @@ EXTERN unsigned long pic_irq_list[] INIT({PIC_IRQ0,  PIC_IRQ1,  PIC_IRQ9,  PIC_I
 EXTERN unsigned long pic_irr;          /* interrupt request register */
 EXTERN unsigned long pic_isr;          /* interrupt in-service register */
 EXTERN unsigned long pic_iflag;        /* interrupt enable flag: en-/dis- =0/0xfffe */
-EXTERN unsigned long              pic_icount;       /* iret counter (to avoid filling stack) */
-EXTERN unsigned long              pic_ilevel INIT(32);    /* current interrupt level */
+EXTERN unsigned long pic_icount;       /* iret counter (to avoid filling stack) */
+EXTERN unsigned long pic_ilevel INIT(32);    /* current interrupt level */
 
 EXTERN unsigned long pic0_imr;         /* interrupt mask register, pic0 */
 EXTERN unsigned long pic1_imr;         /* interrupt mask register, pic1 */
 EXTERN unsigned long pic_imr;          /* interrupt mask register */
 EXTERN unsigned long pice_imr;         /* interrupt mask register, dos emulator */  
+EXTERN unsigned long pic_stack[32];     /* list of active irqd */
+EXTERN unsigned long pic_sp;	       /* pointer to pic_stack */ 
+EXTERN unsigned long pic_rflag;        /* flag to control pic_watch */
+EXTERN unsigned long pic_vm86_count;   /* count of times 'round the vm86 loop*/
+EXTERN unsigned long pic_dpmi_count;   /* count of times 'round the dpmi loop*/
+EXTERN long pic_dos_time;     /* dos time of last interrupt,1193047/sec.*/
+EXTERN long pic_sys_time;     /* system time set by pic_watch */
 /* IRQ definitions.  Each entry specifies the emulator routine to call, and
    the dos interrupt vector to use.  pic_iinfo.func is set by pic_seti(),
    as are the interrupt vectors for all but [1] through [15], which  may be
@@ -104,7 +112,8 @@ void pic_creq(int inum);                   /* conditional interrupt trigger */
 void pic_iret();                             /* interrupt completion notify */
 void pic_watch();		       /* interrupt pendiong watchdog timer */
 void do_irq0();						 /* timer interrupt */
-
+int  pic_pending();		   /* inform caller if interrupt is pending */
+void pic_sched(int ilevel, int interval);          /* schedule an interrupt */
 /* The following are too simple to be anything but in-line */
 
 #define pic_set_mask pic_imr=(pic0_imr|pic1_imr|pice_imr|pic_iflag)

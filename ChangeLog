@@ -1,3 +1,23 @@
+Fri May 12	1995
+
+-	RELEASE of DOSEMU0.60.2.
+-	Xkeyb.c -> More patches.
+-	Hans' latest for SIG and Emumod
+-	JL's PIC enhancements
+-	Dong's Mods for Pharlap extender capability. Please
+	not to use Emumod or once Linux 1.2.8 with all the other
+	patches. (The last patch in ./dpmi/kernel.diff has Dong's
+	patch which will bomb on kernels > 1.2.7)
+-	Xkeyb.c changes mostly from Ross Becker (many thanks for
+	following up on this).
+
+Sat Apr 22	1995
+
+-	Changed disk_init() in ./dosemu/disks.c to allow 'hdimage'
+	being opened readonly.
+-	Added Dong's DPMI patches.
+-	Small patch to mouse.c for non-X compiles
+
 Fri Apr 14	1995
 
 -	RELEASE of DOSEMU0.60.1.

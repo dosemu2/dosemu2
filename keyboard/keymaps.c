@@ -1,4 +1,6 @@
+#include <sys/types.h>
 #include "config.h"
+#include "termio.h"
 
 /* DANG_BEGIN_MODULE
  * 
@@ -12,6 +14,7 @@
  */
 
 #define CONST
+
 
 CONST unsigned char key_map_finnish[] =
 {
@@ -214,7 +217,7 @@ CONST unsigned char alt_map_uk[] =
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, '~', 13, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
+  DEAD_ACUTE, DEAD_GRAVE, 0, DEAD_TILDE, 0, 0, 0, 0, /*dead keys for testing */
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
@@ -848,9 +851,9 @@ CONST unsigned char key_map_es_latin1[] = {
       0,   27,  '1',  '2',  '3',  '4',  '5',  '6',
     '7',  '8',  '9',  '0', '\'',  173,  127,    9,
     'q',  'w',  'e',  'r',  't',  'y',  'u',  'i',
-    'o',  'p',  '`',  '+',   13,    0,  'a',  's',
+    'o',  'p',  DEAD_GRAVE,  '+',   13,    0,  'a',  's',
     'd',  'f',  'g',  'h',  'j',  'k',  'l',  164,
-    '\'',  167,    0,  135,  'z',  'x',  'c',  'v',
+    DEAD_ACUTE,  167,    0,  135,  'z',  'x',  'c',  'v',
     'b',  'n',  'm',  ',',  '.',  '-',    0,  '*',
       0,   32,    0,    0,    0,    0,    0,    0,
       0,    0,    0,    0,    0,    0,    0,    0,
@@ -863,9 +866,9 @@ CONST unsigned char shift_map_es_latin1[] = {
       0,   27,  '!',  '"',  250,  '$',  '%',  '&',
     '/',  '(',  ')',  '=',  '?',  168,  127,    9, 
     'Q',  'W',  'E',  'R',  'T',  'Y',  'U',  'I',
-    'O',  'P',  '^',  '*',   13,    0,  'A',  'S',
+    'O',  'P',  DEAD_DIAERESIS,  '*',   13,    0,  'A',  'S',
     'D',  'F',  'G',  'H',  'J',  'K',  'L',  165,
-    '"',  166,    0,  128,  'Z',  'X',  'C',  'V',
+    DEAD_DIAERESIS,  166,    0,  128,  'Z',  'X',  'C',  'V',
     'B',  'N',  'M',  ';',  ':',  '_',    0,  '*',
       0,   32,    0,    0,    0,    0,    0,    0,
       0,    0,    0,    0,    0,    0,    0,    0,
@@ -1085,4 +1088,63 @@ CONST unsigned char alt_map_sw[] =
 
 CONST unsigned char num_table_dot[]   = "789-456+1230.";
 CONST unsigned char num_table_comma[] = "789-456+1230,";
+
+
+/* DANG_BEGIN_REMARK
+ *
+ * The DEAD codes must refer to keys that don't exist on any language
+ * keyboard. I hope nobody has a smily face key :-)
+ * dead_key_table is a list of the dead keys supported. They must
+ * be placed on the correct key in the keymaps above. See key_map_es_latin1.
+ *
+ * DANG_END_REMARK
+ */
+
+CONST unsigned char dead_key_table[] = {DEAD_GRAVE,DEAD_ACUTE,DEAD_CIRCUMFLEX,
+DEAD_TILDE,DEAD_BREVE,DEAD_ABOVEDOT,DEAD_DIAERESIS,DEAD_ABOVERING,
+DEAD_DOUBLEACUTE,DEAD_CEDILLA,DEAD_IOTA, 0};
+
+/* DANG_BEGIN_REMARK
+ *
+ * dos850_dead_map consists of the triple, {deadkey, letter, result}.
+ * It should be correct for all the code page 850 users (Western Europe).
+ * If you uses a different code page, please create a map!
+ * Jon Tombs jon@gtex02.us.es
+ *
+ * DANG_END_REMARK
+ */
+
+struct dos_dead_key dos850_dead_map[] = {
+        {DEAD_GRAVE, DEAD_GRAVE, '`'},  {DEAD_ACUTE, DEAD_ACUTE, '\''},
+        {DEAD_CIRCUMFLEX, DEAD_CIRCUMFLEX, '^'}, {DEAD_DIAERESIS, DEAD_DIAERESIS, '"'},
+	{DEAD_TILDE, DEAD_TILDE, '~'},
+
+	{DEAD_TILDE, 'n', 164}, {DEAD_TILDE, 'N', 165},
+	
+	{DEAD_ACUTE, 'A', 181},	{DEAD_ACUTE, 'a', 160},
+	{DEAD_ACUTE, 'E', 144},	{DEAD_ACUTE, 'e', 130},
+	{DEAD_ACUTE, 'I', 214},	{DEAD_ACUTE, 'i', 161},
+	{DEAD_ACUTE, 'O', 224},	{DEAD_ACUTE, 'o', 162},
+	{DEAD_ACUTE, 'U', 233},	{DEAD_ACUTE, 'u', 163},
+
+	{DEAD_GRAVE, 'A', 183},	{DEAD_GRAVE, 'a', 133},
+	{DEAD_GRAVE, 'E', 212},	{DEAD_GRAVE, 'e', 138},
+	{DEAD_GRAVE, 'I', 222},	{DEAD_GRAVE, 'i', 141},
+	{DEAD_GRAVE, 'O', 227},	{DEAD_GRAVE, 'o', 149},
+	{DEAD_GRAVE, 'U', 235},	{DEAD_GRAVE, 'u', 151},
+
+  	{DEAD_CIRCUMFLEX, 'A', 182},	{DEAD_CIRCUMFLEX, 'a', 160},
+	{DEAD_CIRCUMFLEX, 'E', 210},	{DEAD_CIRCUMFLEX, 'e', 210},
+	{DEAD_CIRCUMFLEX, 'I', 215},	{DEAD_CIRCUMFLEX, 'i', 140},
+	{DEAD_CIRCUMFLEX, 'O', 226},	{DEAD_CIRCUMFLEX, 'o', 147},
+	{DEAD_CIRCUMFLEX, 'U', 234},	{DEAD_CIRCUMFLEX, 'u', 150},
+
+	{DEAD_DIAERESIS, 'A', 142},	{DEAD_DIAERESIS, 'a', 132},
+	{DEAD_DIAERESIS, 'E', 211},	{DEAD_DIAERESIS, 'e', 137},
+	{DEAD_DIAERESIS, 'I', 216},	{DEAD_DIAERESIS, 'i', 139},
+	{DEAD_DIAERESIS, 'O', 153},	{DEAD_DIAERESIS, 'o', 148},
+	{DEAD_DIAERESIS, 'U', 154},	{DEAD_DIAERESIS, 'u', 129},
+
+        {0, 0, 0}
+};
 

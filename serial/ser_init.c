@@ -432,7 +432,7 @@ static void do_ser_init(int num)
 void serial_init(void)
 {
   int i;
-  warn("SERIAL $Header: /home/src/dosemu0.60/dosemu/RCS/serial.c,v 2.9 1995/02/25 22:38:01 root Exp root $\n");
+  warn("SERIAL $Header: /usr/src/dosemu0.60/serial/RCS/ser_init.c,v 1.1 1995/05/06 16:26:19 root Exp root $\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
 
   /* Clean the BIOS data area at 0040:0000 for serial ports */

@@ -4,11 +4,14 @@
 /* Extensions by Robert Sanders, 1992-93
  *
  * $Date: 1995/04/08 22:35:19 $
- * $Source: /home/src/dosemu0.60/include/RCS/termio.h,v $
+ * $Source: /usr/src/dosemu0.60/include/RCS/termio.h,v $
  * $Revision: 1.5 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.5  1995/04/08  22:35:19  root
+ * Release dosemu0.60.0
+ *
  * Revision 1.5  1995/04/08  22:35:19  root
  * Release dosemu0.60.0
  *
@@ -132,6 +135,31 @@
 #define EKF_NUMLOCK	13	/* NumLock PRESSED */
 #define EKF_CAPSLOCK	14	/* CapsLock PRESSED */
 #define EKF_INSERT	15	/* SysRq PRESSED */
+
+
+/*  dead keys for accents */
+#define DEAD_GRAVE         1
+#define DEAD_ACUTE         2
+#define DEAD_CIRCUMFLEX    3
+#define DEAD_TILDE         4
+#define DEAD_BREVE         5
+#define DEAD_ABOVEDOT      6
+#define DEAD_DIAERESIS     7
+#define DEAD_ABOVERING     8
+#define DEAD_DOUBLEACUTE   10
+#define DEAD_CEDILLA       11
+#define DEAD_IOTA          12
+
+
+
+struct dos_dead_key {
+   unsigned char d_key;
+   unsigned char in_key;
+   unsigned char out_key;
+};
+
+extern struct dos_dead_key dos850_dead_map[];
+extern unsigned char dead_key_table[];
 
 /* KEY FLAGS */
 #define KKF_E1		0

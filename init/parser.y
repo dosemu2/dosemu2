@@ -1,6 +1,9 @@
-/* $Id: parser.y,v 1.12 1995/04/08 22:34:19 root Exp root $ 
+/* $Id: parser.y,v 1.13 1995/05/06 16:26:13 root Exp root $ 
  *
  * $Log: parser.y,v $
+ * Revision 1.13  1995/05/06  16:26:13  root
+ * Prep for 0.60.2.
+ *
  * Revision 1.12  1995/04/08  22:34:19  root
  * Release dosemu0.60.0
  *

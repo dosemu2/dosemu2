@@ -1,5 +1,5 @@
 /* 
- * $Id: X.c,v 1.12 1995/04/08 22:30:27 root Exp root $
+ * $Id: X.c,v 1.13 1995/05/06 16:25:24 root Exp root $
  */
 
 #include <stdio.h>
@@ -138,8 +138,8 @@ static int X_init(void) {
 	  || font->min_bounds.width!=font->max_bounds.width ) {
 	   printf("ERROR: Could not find the vga font - did you run `xinstallvgafont' ?\n"
 		"Please read QuickStart and DOSEMU-HOWTO.* for more information.\n"
-		"Will attempt to load 9x16\n");
-        if ((font=XLoadQueryFont(dpy, "9x16"))==NULL
+		"Will attempt to load 9x15\n");
+        if ((font=XLoadQueryFont(dpy, "9x15"))==NULL
 	  || font->min_bounds.width!=font->max_bounds.width ) {
 	   printf("ERROR: Could not find the alternate 9x16 font ?\n"
 		"Please read QuickStart and DOSEMU-HOWTO.* for more information.\n");

@@ -18,9 +18,13 @@ ifndef WANT_WINDOWS
 WANT_WINDOWS=-DWANT_WINDOWS
 endif
 
+ifndef USE_VM86PLUS
+USE_VM86PLUS=-DUSE_VM86PLUS
+endif
+
 # let gcc do extended checking
 
-KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX $(WANT_WINDOWS)
+KCFLAGS=-Wall -I$(USRSRCDIR) $(INCDIR)  -O2 -fomit-frame-pointer  -D__KERNEL__ -DLINUX $(WANT_WINDOWS) $(USE_VM86PLUS)
  
 ifeq (/usr/include/linux/segment.h,$(wildcard /usr/include/linux/segment.h))
 EXTRA_HEADERS=-DEXTRA_HEADERS
@@ -52,8 +56,7 @@ emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
 vm86.o:  vm86.c emumod.h ${KVFILE}
-#	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
-	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_ -DJONS_VM86_TIME -c vm86.c -o vm86.o
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
 
 signal.o:  signal.c emumod.h ${KVFILE}
 	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c signal.c -o signal.o

@@ -20,7 +20,7 @@
  * DANG_BEGIN_CHANGELOG
  *
  * $Date: 1995/04/08 22:30:27 $
- * $Source: /home/src/dosemu0.60/video/RCS/vc.c,v $
+ * $Source: /usr/src/dosemu0.60/video/RCS/vc.c,v $
  * $Revision: 1.14 $
  * $State: Exp $
  *

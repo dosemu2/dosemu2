@@ -110,6 +110,12 @@ typedef struct dpmi_pm_block_stuct {
   void     *base;
 } dpmi_pm_block;
 
+dpmi_pm_block* DPMImalloc(unsigned long size);
+int DPMIfree(unsigned long handle);
+dpmi_pm_block *DPMIrealloc(unsigned long handle, unsigned long size);
+void DPMIfreeAll(void);
+unsigned long base2handle(void *);
+
 #define DPMI_show_state \
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \
 	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n" \

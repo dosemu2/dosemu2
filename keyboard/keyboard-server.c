@@ -16,10 +16,13 @@
  * DANG_BEGIN_CHANGELOG
  *
  * $$
- * $Source: /home/src/dosemu0.60/keyboard/RCS/keyboard-server.c,v $
- * $Revision: 1.1 $
+ * $Source: /usr/src/dosemu0.60/keyboard/RCS/keyboard-server.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  * $Log: keyboard-server.c,v $
+ * Revision 1.2  1995/05/06  16:27:36  root
+ * Prep for 0.60.2.
+ *
  * Revision 1.1  1995/04/08  22:34:30  root
  * Initial revision
  *
@@ -581,6 +584,8 @@ static void
 do_self (unsigned int sc)
 {
   unsigned char ch;
+  static char accent = 0;
+  int i;
 
   if (kbd_flag (KF_ALT))
     {
@@ -614,6 +619,30 @@ do_self (unsigned int sc)
   else
     ch = config.key_map[sc];
 
+
+  /* check for a dead key */
+  for (i = 0; dead_key_table[i] != 0; i++) {
+     if (ch == dead_key_table[i]) {
+	if (accent != ch) {
+	   accent=ch;
+	   return;
+	}
+     }
+  }
+
+
+  if (accent) {   /* translate dead keys */
+     for (i = 0; dos850_dead_map[i].d_key != 0; i++) {
+	if (accent == dos850_dead_map[i].d_key &&
+	    dos850_dead_map[i].in_key == ch) {
+
+	    ch = dos850_dead_map[i].out_key;
+	    sc = 0; /* keyb.exe uses 0 for dead keys */
+            break;
+	}
+     }
+     accent = 0;
+  }
   if (kbd_flag (KF_CTRL) || kbd_flag (KF_CAPSLOCK))
     if ((ch >= 'a' && ch <= 'z') || (ch >= 224 && ch <= 254))
       ch -= 32;
@@ -933,9 +962,11 @@ do_irq1 (void)
       k_printf ("KBD: Requesting next keyboard interrupt startstop %d:%d\n",
 		*scan_queue_start, *scan_queue_end);
       pic_request (PIC_IRQ1);
+#if 0
       keys_ready = 0;
+#endif
     }
-  do_irq ();			/* do dos interrupt */
+  if (keys_ready) do_irq ();			/* do dos interrupt */
   keys_ready = 0;
 }
 
@@ -986,6 +1017,7 @@ void
 add_scancode_to_queue (u_short scan)
 {
   k_printf ("KBD: Adding scancode to scan_queue: scan %04x, startq=%d, endq=%d\n", scan, *scan_queue_start, *scan_queue_end);
+
   scan_queue[*scan_queue_end] = scan;
   *scan_queue_end = (*scan_queue_end + 1) % SCANQ_LEN;
   if (config.keybint)

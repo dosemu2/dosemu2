@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1995/04/08 22:30:40 $
- * $Source: /home/src/dosemu0.60/dosemu/RCS/disks.c,v $
- * $Revision: 2.10 $
+ * $Date: 1995/05/06 16:25:30 $
+ * $Source: /usr/src/dosemu0.60/dosemu/RCS/disks.c,v $
+ * $Revision: 2.11 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -473,7 +473,7 @@ disk_open(struct disk *dp)
         goto fail;
       } else {
         dp->rdonly = 1;
-        d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
+        d_printf("(disk) can't open %s for read/write. Readonly used.\n", dp->dev_name);
       }
     } else {
       d_printf("ERROR: (disk) can't open %s: %s\n", dp->dev_name, strerror(errno));
@@ -602,9 +602,13 @@ disk_init(void)
     else dp->rdonly = dp->wantrdonly;
   }
   for (dp = hdisktab; dp < &hdisktab[HDISKS]; dp++) {
+    if(dp->type == IMAGE)  {
+	priv_off();
+	d_printf("IMAGE: Using user permissions\n");
+    }
     dp->fdesc = open(dp->dev_name, dp->rdonly ? O_RDONLY : O_RDWR, 0);
     if (dp->fdesc < 0) 
-      if (errno == EROFS) {
+      if (errno == EROFS || errno == EACCES) {
         dp->fdesc = open(dp->dev_name, O_RDONLY, 0);
         if (dp->fdesc < 0) {
           error("ERROR: can't open %s for read nor write: %s (you should never see this message)\n", dp->dev_name, strerror(errno));
@@ -614,7 +618,7 @@ disk_init(void)
           d_printf("(disk) can't open %s for read/write. Readonly did work though\n", dp->dev_name);
         }
       } else {
-        error("ERROR: can't open %s: %s\n", dp->dev_name, strerror(errno));
+        error("ERROR: can't open %s: #%d - %s\n", dp->dev_name, errno, strerror(errno));
         leavedos(26);
       }
     else dp->rdonly = dp->wantrdonly;
@@ -640,6 +644,7 @@ disk_init(void)
 #ifdef SILLY_GET_GEOMETRY
     if (RPT_SYSCALL(read(dp->fdesc, buf, 512)) != 512) {
       error("ERROR: can't read disk info of %s\n", dp->dev_name);
+      priv_on();
       leavedos(27);
     }
 
@@ -671,9 +676,11 @@ disk_init(void)
 
     if (s % (dp->sectors * dp->heads) != 0) {
       error("ERROR: incorrect track number of %s\n", dp->dev_name);
+      priv_on();
       /* leavedos(28); */
     }
 #endif
+    priv_on();
   }
 }
 

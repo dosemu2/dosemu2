@@ -1,6 +1,6 @@
 /* for Linux DOS emulator
  *   Robert Sanders, gt8134b@prism.gatech.edu
- * $Id: disks.h,v 2.4 1995/04/08 22:35:19 root Exp root $
+ * $Id: disks.h,v 2.4 1995/04/08 22:35:19 root Exp $
  *
  */
 #ifndef DISKS_H

@@ -113,7 +113,8 @@ HogThreshold 10
 #serial { com 4  device /dev/modem }
 #serial { com 3  base 0x03E8  irq 5  device /dev/cua2 }
 #
-#    If you have a non-PS/2 mouse, uncomment/modify one of the following.
+#    If you are going to load a msdos mouse driver for mouse support
+#      uncomment/modify one of the following
 #serial { mouse  com 1  device /dev/mouse }
 #serial { mouse  com 2  device /dev/mouse }
 #

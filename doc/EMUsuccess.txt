@@ -1,27 +1,19 @@
-From popserver Wed Oct 18 18:34:40 GMT 1994
-Received: from asuvax.eas.asu.edu (asuvax.ASU.EDU [129.219.30.5]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id PAA24528 for <jmaclean@fox.nstn.ns.ca>; Tue, 18 Oct 1994 15:30:30 -0300
-Received: from dspsun (enws261.eas.asu.edu) by asuvax.eas.asu.edu with SMTP id AA21553
-  (5.65c/IDA-1.4.4 for jmaclean@fox.nstn.ns.ca); Tue, 18 Oct 1994 11:29:57 -0700
+From popserver Wed Apr 18 23:40:14 GMT 1995
+Received: from asuvax.eas.asu.edu (asuvax.EAS.ASU.EDU [129.219.30.5]) by Fox.NSTN.Ca (8.6.10/8.6.10) with SMTP id SAA07883 for <jmaclean@fox.nstn.ns.ca>; Tue, 18 Apr 1995 18:22:36 -0300
+Received: from dspsun (enws261.EAS.ASU.EDU) by asuvax.eas.asu.edu with SMTP id AA00376
+  (5.65c/IDA-1.4.4 for jmaclean@fox.nstn.ns.ca); Tue, 18 Apr 1995 14:21:47 -0700
 Received: by dspsun.eas.asu.edu (4.1/SMI-4.1)
-	id AA07613; Tue, 18 Oct 94 11:31:53 MST
-Date: Tue, 18 Oct 94 11:31:53 MST
-From: deisher@enws261.eas.asu.edu (Michael E. Deisher)
-Message-Id: <9410181831.AA07613@dspsun.eas.asu.edu>
+	id AA06480; Tue, 18 Apr 95 14:24:39 MST
+Date: Tue, 18 Apr 95 14:24:39 MST
+From: deisher@enws261.EAS.ASU.EDU (Michael E. Deisher)
+Message-Id: <9504182124.AA06480@dspsun.eas.asu.edu>
 To: jmaclean@fox.nstn.ns.ca
-Subject: new EMUsuccess.txt
-
-James,
-
-Someone just pointed out that the EMUsuccess file in pre0.53.27.tgz is
-really old and has errors.  Here's the latest.
-
---Mike
-
+Subject: EMUsuccess.txt
 
 
 File:            EMUsuccess.txt
-Last modified:   October 18, 1994
-Dosemu version:  0.52 (and possibly earlier versions)
+Last modified:   April 10, 1995
+Dosemu version:  0.60 (and possibly earlier versions)
 
 The most up-to-date version of this file is may be found on
 
@@ -39,88 +31,117 @@ Name                   Function          Success Story Posted by
 4desc                  4dos desc editor  piola@di.unito.it
 4DOS 4.2               command interp.   rideau@clipper.ens.fr
 4dos 5.0c              command interp.   J1MCPHER@VAXC.STEVENS-TECH.EDU
+AcidWarp               graphics demo     tiensivu@cps.msu.edu
 ack3d                  3D engine         martin5@trgcorp.solucorp.qc.ca
 ACU-COBOL              compiler          fjh@munta.cs.mu.OZ.AU
 Alite 1.10                               ph99jh42@uwrf.edu
+Amipro 2.0 for Windows word processor    hj000up@fire4-bb.uni-duisburg.de
 AmTax 93 & 94          tax software      root@bobspc.canisius.edu
+angband 4.2_frog_knows game              paul@blake.wadham.ox.ac.uk
 ansi.sys               screen/kbd drvr   ag173@cleveland.Freenet.Edu
  (display functions)
 Apple ][ emulator      emulator          rideau@clipper.ens.fr
  (problems terminating)
 arj v2.41a	       [un]archiver	 tanner@winternet.mpls.mn.us
-As Easy As 5.01        spreadsheet       ph99jh42@uwrf.edu
+As Easy As 5.5         spreadsheet       100542.3163@compuserve.com
 Authorin	       Genbank Subm prep Sebastian.Bunka@vu-wien.ac.at
 Autoroute Plus         route planner     hsw1@papa.attmail.com
 Axum                   sci. graphics     miguel@pinon.ccu.uniovi.es
+Babble!                text game         tiensivu@cps.msu.edu
+Bards Tale             game              100542.3163@compuserve.com
 battle chess           chess game        jvdbergh@wins.uia.ac.be
+bibdb v1.3b            bibliograph dbase chris@lynx.astri.uni.torun.pl
 Binkley 2.50eebd       Fidomailer        stub@linux.rz.tu-clausthal.de
 Blake Stone...         game              owaddell@cs.indiana.edu
 Blinker 2.01           Overlay Linker    jc@sis.ucm.es
+Blockout               tetris in 3D      Andre.Koster@cv.ruu.nl
 bnu 1.70               Fossil (Fido)     stub@linux.rz.tu-clausthal.de
+Boppin (sw ver 1.0)    game              kjahds@kjahds.com
 Borland C++ 2.0        86/286 C/C++ IDE  rideau@clipper.ens.fr
+Borland C++ 3.0        86/286 C/C++ IDE  mdrejhon@magi.com
 Boston Business EDT+                     keegstra@csdr2.fsfc.nasa.gov
+Brett Hull Hockey      game              fbingha@ultrix5.cs.csubak.edu
 Brief 3.1              editor            jyanowit@orixa.mtholyoke.edu
 Cardbox Plus           database          hsw1@papa.attmail.com
 Castle Wolfenstein 3-D game              gt8134b@prism.gatech.EDU
-Checkit                diagnostics
-ChiWriter 3.02                           Lodewijk.Voge@p21.f534.n281.z2.gds.nl
-CIM v2.1.1             CServe Info Mgr   eko@isar.muc.de
-clipper 5.1            dbase compiler    jvdbergh@wins.uia.ac.be
-COMPRESS               FAT FS defrag'er  rideau@clipper.ens.fr
-CPM86                                    jan@gondor.gun.de
 CCM (Crosstalk)        modem program     
 ccmail 4.01A           e-mail            p86884@tcville.ES.HAC.COM
+Checkit                diagnostics
+ChiWriter 3.02         editor            lodewijk@reddwarf.xs4all.nl
+CIM v2.1.1             CServe Info Mgr   eko@isar.muc.de
+clipper 5.1            dbase compiler    jvdbergh@wins.uia.ac.be
+COMIT                  Communication     Peter@skel.demon.co.uk
+COMPRESS               FAT FS defrag'er  rideau@clipper.ens.fr
+Contex 4.0             word processor    100542.3163@compuserve.com
+Correct Grammar 2.0    grammar checker   ian@ilm.mech.unsw.edu.au
+CPM86                                    jan@gondor.gun.de
 cshow 8.61             picture viewer    jvdbergh@wins.uia.ac.be
+Curse of Azure Bonds   game???           corey@gollum.kendeco.com
 cview                  picture viewer    iotov@avarice.ugcs.caltech.edu
 d86/a86
 DataPerfect 2.1        database          fbennett@uk.ac.ulcc.clus1
+DARK FORCES            game              night@halcyon.com
+dBASE III Plus v1.1    database          rpao@paonet.org
 Dbase IV v4.0          database          corey@bbs.xnet.com
 Dbase IV v4.1          database          corey@bbs.xnet.com
  (reindexing bug)
 Derive 1.2             math package      miguel@pinon.ccu.uniovi.es
-Derive 2.01            math package      Lodewijk.Voge@p21.f534.n281.z2.gds.nl
+Derive 2.01            math package      lodewijk@reddwarf.xs4all.nl
+DESCENT                game              xpour@sun.felk.cvut.cz
 DesignCad              cad packag        mike@strauss.udel.edu
 Disk Freedom 4.6       disk utility
 diet 1.45f             file compression  stub@linux.rz.tu-clausthal.de
+DOOM v1.9              game              mdrejhon@magi.com
+DOOM2 v1.666           game              mdrejhon@magi.com
+Dos Command Center     NC clone          100542.3163@compuserve.com
 doskey
 dosnix 2.0             unix utils        miguel@pinon.ccu.uniovi.es
 Dosshell task swapper                    jmaclean@fox.nstn.ns.ca
+druid                  game              paul@blake.wadham.ox.ac.uk
 dtmm                   molecular models  miguel@pinon.ccu.uniovi.es
 Dune 2                 game              COLIN@fs1.in.umist.ac.uk
 dviscr                 EMTEX dvi preview ub9x@rz.uni-karlsruhe.de
 Easytrax               layout editor     maehler@wrcd1.urz.uni-wuppertal.de
 econfig                pdipx cfg-util    truemper@MI.Uni-Koeln.DE
 Edit (MSDOS 6.0)       editor            jyanowit@orixa.mtholyoke.edu
+Electronics Workbench  ???               hirsch@emba.uvm.edu
 Elvis                  vi clone          miguel@pinon.ccu.uniovi.es
 Epic Pinball           game              krismon@quack.kfu.com
 Epsilon 6.0            Emacs-like        miguel@roxanne.nuclecu.unam.mx
 ETen 3.1               Chinese terminal  tyuan!root@mp.cs.niu.edu
 Eureka 1.0             math package      miguel@pinon.ccu.uniovi.es
-Eye of the Beholder 1                    Lodewijk.Voge@p21.f534.n281.z2.gds.nl
+Executor v1.2          Mac emulator      tiensivu@cps.msu.edu
+Eye of the Beholder 1  game              lodewijk@reddwarf.xs4all.nl
+F-14 Tomcat            game              100542.3163@compuserve.com
 F-PROT                 antivirus         bvernier@cln.etc.bc.ca
  (except VIRSTOP command)
 Falcon 3.0             Fighter simulator rapatel@rockypc.rutgers.edu
-FastEcho 1.41g                           Lodewijk.Voge@p21.f534.n281.z2.gds.nl
+fangband               game              paul@blake.wadham.ox.ac.uk
+FastEcho 1.41g         fido tosser       lodewijk@reddwarf.xs4all.nl
 FastLST 1.03           FidoNdlstcompiler stub@linux.rz.tu-clausthal.de
+Fishtro                game?             tiensivu@cps.msu.edu
 MS Flight Simulator 5  game              newcombe@aa.csc.peachnet.edu
  (runs SLOW!!!)
-Foxpro 2.0             database
+Foxpro 2.5             database          wtho@HK.Super.NET
 FormGen II                               root@bobspc.canisius.edu
+Fractint 17.1          graphics toy      ralf@ark.franken.de
 FrameWork3 Runtime     spreadsheet, etc. Sebastian.Bunka@vu-wien.ac.at
 Framework 4                              corey@amiganet.xnet.com
 Freelance Graphics 2.1 graph/drawing app jwest@jwest.ecen.okstate.edu
 freemacs 1.6d          editor            ph99jh42@uwrf.edu
 Fritz2,Fritz3          chess             hahndel@informatik.tu-muenchen.de
-Frontdoor 2.20c.mL                       Lodewijk.Voge@p21.f534.n281.z2.gds.nl
+Frontdoor 2.20c.mL     fido mailer       lodewijk@reddwarf.xs4all.nl
 Frontier (Elite II)    game              COLIN@fs1.in.umist.ac.uk
 FW3                                      Sebastian.Bunka@vu-wien.ac.at
 GEM/3                  GUI               jan@janhh.hanse.de
 GEM Draw               GEM drawing app   jan@janhh.hanse.de
 GEM Paint              GEM painting app  jan@janhh.hanse.de
+GFABasic               32bit BASIC intrp tiensivu@cps.msu.edu
 gmouse                 mouse driver      tk@pssparc2.oc.com
 GNUish/MKS UNIX utils
+Gnuplot DOS ver. 3.5   graph util        huhtala@kyy08.jyu.fi
 God of Thunder         game              ensor@cs.utk.edu
-GoldEd 2.42G.0614                        Lodewijk.Voge@p21.f534.n281.z2.gds.nl
+GoldEd 2.50G1006       fido editor       lodewijk@reddwarf.xs4all.nl
 Gravity                simulation pkg    miguel@pinon.ccu.uniovi.es
 GWS for DOS            graphic file conv bchow@bchow.slip
 Gzip 1.1.2             file compression  miguel@pinon.ccu.uniovi.es
@@ -128,6 +149,7 @@ Gzip 1.2.4             file compression  rideau@clipper.ens.fr
 Harpoon                game              wielinga@physics.uq.oz.au
 Harvard Graphics 3.0   graph/drawing pkg miguel@pinon.ccu.uniovi.es
 HelpPC 2.1
+HERETIC v1.1           3D DOOMstyle game mdrejhon@magi.com
 Hero's Quest I         game              lam836@cs.cuhk.hk
 Hijaak 2.0             graphic file conv bchow@bchow.slip
 hocus pocus            Apogee Game       kooper@dutiws.TWI.TUDelft.NL
@@ -139,35 +161,53 @@ Incredible Machine     game              sdh@po.cwru.edu
  (slow)
 Indianapolis 500                         root@henslelf.student.rose-hulman.edu
 Intervue
+IronSeed               game              tiensivu@cps.msu.edu
+JCL-Plasma             graphics demo     tiensivu@cps.msu.edu
+jorj (ver Nov/94)      dict./spell chkr  chris@lynx.astri.uni.torun.pl
 Jove                   editor            jaakola@cc.helsinki.fi
 Key Spreadsheet Plus   spreadsheet       jwest@jwest.ecen.okstate.edu
  (on non-doublespaced disks)
 Lemmings                                 sdh@po.cwru.edu
 less 1.7.7             more than more    miguel@pinon.ccu.uniovi.es
 LHA                    file compression
+LORA                   Dos BBS           Peter@skel.demon.co.uk
 Lotus 123 ver. 2.01    spreadsheet       lars@larski.dseg.ti.com
 Lotus 1-2-3 ver 2.2    spreadsheet       p86884@tcville.ES.HAC.COM
 Lotus Manuscript       word processor    miguel@pinon.ccu.uniovi.es
+Major Stryker          game              100542.3163@compuserve.com
 Managing Your Money    financial         newcombe@aa.csc.peachnet.edu
-Manifest                                 hsw1@papa.attmail.com
- (dies during memory timings)
+Manifest v3.0          diagnostics       rpao@paonet.org
+Master of Orion        game              bcr@physics.purdue.edu
 Mathcad 2.01           math package      root@bobspc.canisius.edu
 MathCad 2.06           math package      miguel@pinon.ccu.uniovi.es
 mcafee 9.23  v112      virus scanner     jvdbergh@wins.uia.ac.be
 Microemacs 3.12cd      editor            brian@lantz.cftnet.com
 MicroLink Yaht 2.1                       root@bobspc.canisius.edu
-Microsoft C 6.0        compiler          ronnie@epact.se
 Microsoft Assembler5.0 assembler         ronnie@epact.se
+Microsoft Assembler6.0 assembler         rpao@paonet.org
+Microsoft C 6.0        compiler          ronnie@epact.se
+MS Diagnostics v2.01   diagnostics       rpao@paonet.org
 Microsoft Library 2.0                    root@bobspc.canisius.edu
+Microsoft Mail         e-mail            heidt@mickey.jsc.nasa.gov
 Microsoft Make         make              ronnie@epact.se
 MicrosoftMouse Drv 8.2 mouse driver      hsw1@papa.attmail.com
+MicrosoftMouse Drv 9.0 mouse driver      rpao@paonet.org
+MicrosoftWord5.0 (DOS) word processor    rpao@paonet.org
+ (No graphics modes detected)
 MoneyCounts 7.0        accounting pkg    raeburn@cygnus.com
+moria 5.52             game              paul@blake.wadham.ox.ac.uk
+Morph3d                graphics demo     tiensivu@cps.msu.edu
+Mortal Kombat          game              mdrejhon@magi.com
+Mortal Kombat 2        game              mdrejhon@magi.com
 mpeg.exe               mpeg viewer       zxmgv07@studserv.zdv.uni-tuebingen.de
 mscmouse               mouse driver      tk@pssparc2.oc.com
 Musician I             music package     cirigara@nova.umd.edu
+nce.com                Norton Editor     chris@lynx.astri.uni.torun.pl
 NDMAKE 4.51            make utility      jc@sis.ucm.es
+nethack 3.13 pc        game              paul@blake.wadham.ox.ac.uk
 Netzplan               GEM project mgr   jan@janhh.hanse.de
 NHL Hockey             game              krismon@quack.kfu.com
+NightBird              flying bird demo  tiensivu@cps.msu.edu
 NJStar 2.1             Chinese word proc aab2@cornell.edu
 nnansi.com             ANSI driver       mdrejhon@undergrad.math.uwaterloo.ca
 Norton Commander 3     User shell        miguel@roxanne.nuclecu.unam.mx
@@ -175,17 +215,31 @@ Norton Commander 4.0   user shell        kmg@barco.be
 Norton Utils 4.5       disk utils        rideau@clipper.ens.fr
 Norton Utils 7.0       disk utils        rideau@clipper.ens.fr
 Noteworthy Music ROEG2 music editor???   dplatt@3do.com
+Novell PCONSOLE        Lan Admin util    JCusick@wpgate.clpccd.cc.ca.us
+Novell RCONSOLE        Lan Admin util    JCusick@wpgate.clpccd.cc.ca.us
+Novell SYSCON          Lan Admin util    JCusick@wpgate.clpccd.cc.ca.us
+NS Reisplanner         Train timetbl mgr Andre.Koster@cv.ruu.nl
+Nyet                   Tetris clone      tiensivu@cps.msu.edu
+Off-line 3.10          bankacct comm pgm Andre.Koster@cv.ruu.nl
+Reflex 2.0             database          Andre.Koster@cv.ruu.nl
+Olxtd                  .qwk reader       corey@gollum.kendeco.com
+OMF 2097               game              mdrejhon@magi.com
 OPTINET (IPX-version)  CD-ROM-server     truemper@MI.Uni-Koeln.DE
 Orcad SDT 4.10         schematic editor  kmg@barco.be
+OrCAD ESP/SDT v4.20    schematic editor  a.vignani@crf.it
+ (w/ dongle by defining ports { 0x378 0x37b})
 PAF                    geneology package geek+@CMU.EDU
 PagasusMail 3.1	       mail(for Netware) Sebastian.Bunka@vu-wien.ac.at
+Panic                  game?             tiensivu@cps.msu.edu
+Plasmatic              graphics demo     tiensivu@cps.msu.edu
 Paradox                database          hp@vmars.tuwien.ac.at
 pcAnywhere 4.5 Remote  comm package      Bill Cattell
+PC-Calc+               spreadsheet???    ian@ilm.mech.unsw.edu.au
 PC Paintbrush IV       paint program     bchow@bchow.slip
 PCtools 4.20           disk utils        rideau@clipper.ens.fr
  (only on hdimage's)
 pcwdemo                                  vinod@cse.iitb.ernet.in
-PC-Write 3.0           word processor    
+PC-Write 4.15          word processor    ian@ilm.mech.unsw.edu.au
 pcxlab 1.03            PCX viewer        miguel@pinon.ccu.uniovi.es
 peachtree complete6.0  accounting        stjeanp@math.enmu.edu
 Personal Editor 2      text editor       jc@sis.ucm.es
@@ -200,25 +254,32 @@ Procomm Plus 2.0       communication     newcombe@aa.csc.peachnet.edu
 Procomm 2.4.3          communication     hsw1@papa.attmail.com
 Pspice 5.0             circuit sim.      root@bobspc.canisius.edu
 Q&A                    Word Proc/Databas newcombe@aa.csc.peachnet.edu
-Qbasic/edit            interpreter
- (from DOS 5.0)
+QBASIC 4.0             interpreter       rpao@paonet.org
 Qedit                  editor
 Qmodem 4.52            communication     brian@lantz.cftnet.com
+Quattro Pro 5          spreadsheet       cschle@silmaril.paradigm.co.za
 QuickC                 compiler          martin@trcsun3.eas.asu.edu
 Quicken 4.0 for DOS    accounting pkg    juphoff@nrao.edu
 Quicken 6.0 for DOS    accounting pkg
 Quicken 7.0 for DOS    accounting pkg    juphoff@astro.phys.vt.edu
 Railroad Tycoon                          juphoff@astro.phys.vt.edu
 ramdrive.sys
+Raptor                 game              mdrejhon@magi.com
+ (pre0.53pl48)
 Red Baron              game              wielinga@physics.uq.oz.au
+Renegade BBS           bbs               tiensivu@cps.msu.edu
+Rise of the Triad      game              mdrejhon@magi.com
 RM/COBOL               compiler          fjh@munta.cs.mu.OZ.AU
 Rpro 1.6                                 root@bobspc.canisius.edu
+SC5.1a                 Speadsheet        Peter@skel.demon.co.uk
 scan109                antivirus         miguel@pinon.ccu.uniovi.es
 scan112                antivirus         piola@di.unito.it
 Scorch                 tank game         geek+@CMU.EDU
 Shez94                 Arcer-Shell       stub@linux.rz.tu-clausthal.de
 sled                   editor            piola@di.unito.it
 Space Quest IV         game              lam836@cs.cuhk.hk
+Spear of Destiny       ID game           Peter@skel.demon.co.uk
+MS Space Simulator     game              wlee@clubX.anu.edu.au
 Spanish Assist.Tools 5 dictionary, etc.  jc@sis.ucm.es
 Spell Casting 301                        mancini@phantom.com
 SPIRS                  info. retrieval   Sebastian.Bunka@vu-wien.ac.at
@@ -234,10 +295,12 @@ Stunts                 game?             gt8134b@prism.gatech.EDU
 Superstor              compressed fs     rideau@clipper.ens.fr
 TAG 2.02               Polish word proc  rzm@oso.chalmers.se
 TASM 2.51              MACRO assembler   rideau@clipper.ens.fr
-TASM 3.2                                 Lodewijk.Voge@p21.f534.n281.z2.gds.nl
+TASM 3.2                                 lodewijk@reddwarf.xs4all.nl
 TELEREPLICA            modem program     bvernier@cln.etc.bc.ca
 Telix		       modem program   	 jou@nematic.ep.nctu.edu.tw
 THelp from BC++2.0     Popup help        rideau@clipper.ens.fr
+Ted                    text editor       tiensivu@cps.msu.edu
+Tie Fighter            game              tiensivu@cps.msu.edu
 TimED/beta             Fido MSGeditor    stub@linux.rz.tu-clausthal.de
 TLINK 4.0              LINKER	         rideau@clipper.ens.fr
 Topspeed Modula-2      compiler          mayersn@hermes.informatik.uni-stuttgart.de
@@ -247,22 +310,33 @@ Turbo Pascal 6.0       compiler          marc.eberhard@physik.tu-muenchen.de
 Turbo Pascal 7.0       compiler          mdrejhon@undergrad.math.uwaterloo.ca
 Turb-opoly 1.43                          root@bobspc.canisius.edu
 Ultima 6               game              msphil@birds.wm.edu
+Unreal                 game?             tiensivu@cps.msu.edu
 Ventura Publisher 3.0  desktop pub.      niemann@swt.ruhr-uni-bochum.de
+Ventura Publisher 3.1  desktop pub.      arnd@informatik.rwth-aachen.de
 Vines                                    nikw@astro.ocis.temple.edu
 Visual Basic for DOS   interpreter       brian@lantz.cftnet.com
 VoiceConnect 2.1       phone ans. mach.  hahndel@informatik.tu-muenchen.de
 Vpic 6.1                                 root@bobspc.canisius.edu
+Wall Street Raider     stock/bonds game  tiensivu@cps.msu.edu
+WarCraft               game              morlok@abyss.apana.org.au
 warlords II            game              buckel@cip.informatik.uni-wuerzburg.de
 Warrior of Destiny     game              msphil@birds.wm.edu
+Wacky Wheels           game              mdrejhon@magi.com
 WITWI Carmen Sandiego  game              tillemaj@cae.wisc.edu
 Windows 3.0            windows           cjw1@ukc.ac.uk
  (real mode)
+Windows 3.1            windows           jmaclean@fox.nstn.ns.ca
+WIN-OS/2 (from OS/2 2.x Std Edition)     jmaclean@fox.nstn.ns.ca
 Word 5.5               word processor    p86884@tcville.ES.HAC.COM
 WordPerfect 5.1        word processor    sdh@po.cwru.edu
 WordPerfect 6.0        word processor    lujian@texmd.minmet.mcgill.ca
  (needs >1M ram)
+WordPerf office 3.1    email & calendar  JCusick@wpgate.clpccd.cc.ca.us
+WordPerf office 4.0a   email & calendar  JCusick@wpgate.clpccd.cc.ca.us
+XOO                    Fossil driver     Peter@skel.demon.co.uk
 Xtgold                 disk util         Peter@skel.demon.co.uk
-Xtpro 1.1              disk util         root@bobspc.canisius.edu
+Xtpro 1.1              disk util         root@bobspc.canisius.ed
+XU                     Fossil drv util   Peter@skel.demon.co.uk
 XWing                  game              ronnie@lysator.liu.se
  (very slow)
 Z80 Spectrum emulator  emulator          cirigara@nova.umd.edu
@@ -275,13 +349,16 @@ Programs that DO NOT work with the emulator (yet):
 Name                   Function             Posted by
 ====                   ========             =========
 4D-box                 boxing game          jvdbergh@wins.uia.ac.be
+Aladdin                offline mail reader  hirsch@emba.uvm.edu
+Blinker 3.0            linker/dos extender  liam@epo.gov.on.ca
+ (actually, programs LINKED with blinker won't run)
 Borland C++ 3.1 IDE    compiler             juphoff@uppieland.async.vt.edu
 Chuck Yeager Aircombat flight simulator     jvdbergh@wins.uia.ac.be
 CIVILIZATION           game                 miguel@pinon.ccu.uniovi.es
 Dbase IV v4.2          database             marc.eberhard@physik.tu-muenchen.de
 DesqView 2.51                               hsw1@papa.attmail.com
  (ALT key doesn't work)
-doom                   game                 rideau@clipper.ens.fr
+DisDoc Pro V5.0        disassembler         rpao@paonet.org
 dpms from Stacker 4.0                       J1MCPHER@VAXC.STEVENS-TECH.EDU
 dxma0mod.sys           token-ring driver    adjihc4@cti.ecp.fr
 dxmc0mod.sys           token-ring driver    adjihc4@cti.ecp.fr
@@ -292,11 +369,10 @@ Howitzer               tank game            geek+@CMU.EDU
 Lahey Fortran          Fortran Compiler     hjstein@math.huji.ac.il
 Maple V2               math package         ralf@ark.btbg.sub.de
 matlab386              math package         milind@basant.ee.iitb.ernet.in
-Quattro Pro 4.0        spreadsheet          jwest@jwest.ecen.okstate.edu
-Raptor                 game                 ensor@cs.utk.edu
+Railraod Tycoon Deluxe game                 root@yacc.central.de
+RCFS PC v4             flight simulator     rpao@paonet.org
 Silent Service II      submarine game       jvdbergh@wins.uia.ac.be
+SYSTEM SHOCK DEMO      game                 mdrejhon@magi.com
 thunderByte scan       virus scanner        jvdbergh@wins.uia.ac.be
 Ventura Publisher 3.0  desktop pub          niemann@swt.ruhr-uni-bochum.de
 wildunix               wildcards            miguel@pinon.ccu.uniovi.es
-Windows 3.1                                 juphoff@uppieland.async.vt.edu
-WIN-OS/2 (from OS/2 2.x Standard Edition)   jmaclean@fox.nstn.ns.ca

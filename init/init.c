@@ -1,5 +1,5 @@
 /* 
- * $Id: init.c,v 1.3 1995/04/08 22:34:19 root Exp root $
+ * $Id: init.c,v 1.4 1995/05/06 16:26:13 root Exp root $
  */
 #include <stdio.h>
 #include <termios.h>
@@ -182,13 +182,14 @@ void hardware_setup(void)
   int i;
 
   /* PIC init */
-  pic_seti(PIC_IRQ0, do_irq0, 0);  /* do_irq0 in pic.c */
+  pic_seti(PIC_IRQ0, timer_int_engine, 0);  /* do_irq0 in pic.c */
   pic_unmaski(PIC_IRQ0);
+  pic_request(PIC_IRQ0);  /* start timer */
   pic_seti(PIC_IRQ1, do_irq1, 0); /* do_irq1 in dosio.c   */
   pic_unmaski(PIC_IRQ1);
   if (mice->intdrv || mice->type == MOUSE_PS2) {
-    pic_seti(PIC_IRQ12, DOSEMUMouseEvents, 0);
-    pic_unmaski(PIC_IRQ12);
+    pic_seti(PIC_IMOUSE, DOSEMUMouseEvents, 0);
+    pic_unmaski(PIC_IMOUSE);
   }
 #ifdef USING_NET
   pic_seti(PIC_NET, pkt_check_receive_quick, 0);

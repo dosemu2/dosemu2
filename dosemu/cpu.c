@@ -12,11 +12,14 @@
  *          Robert Sanders, gt8134b@prism.gatech.edu
  *
  * $Date: 1995/04/08 22:30:40 $
- * $Source: /home/src/dosemu0.60/dosemu/RCS/cpu.c,v $
+ * $Source: /usr/src/dosemu0.60/dosemu/RCS/cpu.c,v $
  * $Revision: 2.14 $
  * $State: Exp $
  *
  * $Log: cpu.c,v $
+ * Revision 2.14  1995/04/08  22:30:40  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.14  1995/04/08  22:30:40  root
  * Release dosemu0.60.0
  *

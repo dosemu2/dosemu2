@@ -75,4 +75,22 @@ diff -ru linux/arch/i386/kernel/signal.c linux.new/arch/i386/kernel/signal.c
  if (!(context.x & 0xfffc) || (context.x & 3) != 3) goto badframe; COPY(x);
  	struct sigcontext_struct context;
 
+diff -u linux/arch/i386/kernel/vm86.c.save linux/arch/i386/kernel/vm86.c
+--- linux/arch/i386/kernel/vm86.c.save	Sun Apr 30 17:11:45 1995
++++ linux/arch/i386/kernel/vm86.c	Sun Apr 30 17:40:03 1995
+@@ -358,6 +358,14 @@
+ 			IP(regs) += 2;
+ 			set_vflags_long(popl(ssp, sp), regs);
+ 			return;
++
++		/* iretd */
++		case 0xcf:
++			SP(regs) += 12;
++			IP(regs) = (unsigned short)popl(ssp, sp);
++			regs->cs = (unsigned short)popl(ssp, sp);
++			set_vflags_long(popl(ssp, sp), regs);
++			return;
+ 		}
+ 
+ 	/* pushf */
 

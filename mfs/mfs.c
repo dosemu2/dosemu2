@@ -40,6 +40,9 @@
  * Revision 2.12  1995/04/08  22:33:34  root
  * Release dosemu0.60.0
  *
+ * Revision 2.12  1995/04/08  22:33:34  root
+ * Release dosemu0.60.0
+ *
  * Revision 2.11  1995/02/25  21:53:27  root
  * *** empty log message ***
  *
