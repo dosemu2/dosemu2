@@ -418,8 +418,7 @@ static uchar translate(t_keysym key, Boolean *is_accent) {
    }
    else if (key>=0x47 && key<=0x53)  {          /* keypad keys */
 
-      if ((shiftstate&(NUM_LOCK|SHIFT))==SHIFT || 
-          (shiftstate&(NUM_LOCK|SHIFT))==NUM_LOCK ||
+      if (((!!(shiftstate & NUM_LOCK)) ^ (!!(shiftstate & SHIFT))) ||
           (shiftstate&ALT))
       {
         ch = config.num_table[key-0x47];
