@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -313,8 +314,10 @@ void timid_program(int chn, int pgm)
 
 void timid_sysex(char buf[], int len)
 {
+  int i;
   timid_timestamp();
-  SEQ_SYSEX(0, buf, len);
+  for (i = 0; i < len; i += 6)
+    SEQ_SYSEX(0, buf + i, MIN(len - i, 6));
 }
 
 void timid_flush(void)
