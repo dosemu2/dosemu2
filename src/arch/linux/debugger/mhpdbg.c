@@ -182,9 +182,9 @@ static void mhp_init(void)
        * comes up to send the first input
        */
        mhpdbg.nbytes = -1;
-       do mhp_input(); while (mhpdbg.nbytes <= 0);
        mhpdbgc.stopped = 1;
        wait_for_debug_terminal = 1;
+       mhp_input();
     }
   }
 }
@@ -194,7 +194,7 @@ void mhp_input()
   if (mhpdbg.fdin == -1) return;
   mhpdbg.nbytes = read(mhpdbg.fdin, mhpdbg.recvbuf, SRSIZE);
   if (mhpdbg.nbytes == -1) return;
-  if (mhpdbg.nbytes == 0) {
+  if (mhpdbg.nbytes == 0 && !wait_for_debug_terminal) {
     if (mhpdbgc.stopped) {
       mhp_cmd("g");
       mhp_send();
@@ -252,7 +252,7 @@ static void mhp_poll_loop(void)
 static void mhp_poll(void)
 {
 
-   if (!mhpdbg.active) {
+   if (!mhpdbg.active && !wait_for_debug_terminal) {
      mhpdbg.nbytes = 0;
      return;
    }
