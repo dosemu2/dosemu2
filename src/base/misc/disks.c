@@ -141,7 +141,7 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
   d_printf("DISK: %s: Trying to read %ld sectors at T/S/H %ld/%ld/%ld",
 	   dp->dev_name,count,track,sector,head);
 #ifdef __linux__
-  d_printf("%+Ld at pos %Ld\n", dp->header, pos);
+  d_printf("%+lld at pos %lld\n", dp->header, pos);
 #else
   d_printf(" at pos %ld\n", pos);
 #endif
@@ -253,7 +253,7 @@ write_sectors(struct disk *dp, char *buffer, long head, long sector,
   d_printf("DISK: %s: Trying to write %ld sectors T/S/H %ld/%ld/%ld",
 	   dp->dev_name,count,track,sector,head);
 #ifdef __linux__
-  d_printf(" at pos %Ld\n", pos);
+  d_printf(" at pos %lld\n", pos);
 #else
   d_printf(" at pos %ld\n", pos);
 #endif

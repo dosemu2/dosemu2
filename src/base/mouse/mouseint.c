@@ -453,8 +453,11 @@ void DOSEMUMouseEvents(void)
         
 	int nBytes, nBytesProc;
 
-	nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
+	if (!config.X)
+	  nBytes = RPT_SYSCALL(read(mice->fd, (char *)(rBuf+qEnd),
 	    sizeof(rBuf)-qEnd));
+	else
+	  nBytes = 0;
 	if (nBytes>0)
 	  qEnd += nBytes;
 	if (qBeg < qEnd) {

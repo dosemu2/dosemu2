@@ -1,10 +1,37 @@
 2003/03/15 ver 1.1.4.15 unofficial pre-release
+	From Stas
+	- fix race in do_irq(): see if the pic_ilevel is in sync
+	  with pic_isr and it appears that it is not.
+	- cputime.c: correctly take idle periods into account for TSC.
+	- Fix serial delayed-open.
+	- Fix keyboard delay problem.
+	- Don't read the mouse device in X.
+	- (with Herbert Xu) enable use of a pseudo-tty as a serial device.
+	- Rewrite bios part of the packet driver in C
+	- Fix do_call_back() and get it to work for DPMI
+	- VIP related: sigsegv.c: solve kryptegg lockups under X
+	- Remove the ST3 hack since it doesn't help anymore.
+	- Use async I/O: async I/O speeds up the I/O dramatically.
+	  Performance of the packet driver is doubled.
+	  This also removes the need for the plugin_ioselect hook since
+	  callbacks can be used instead now.
+	- Fix SLang keyboard 8-bit handling (Russian capitals in xterm)
+	From Grigory Batalov (with some help from Andy Shevchenko)
+	- add Ukranian codepage support (cp1125.c, koi8-u.c, koi8-ru.c)
+	- add codepage 1251 (cp1251.c)
+	- adjustments to cp866.c and the Cyrillic BDF files.
+	From Bart
+	- (initially suggested by Stas) replace %Ld by the more standard 
+	  %lld.
+	- enable disabling of the X vidmode extension at compiletime
+	- warn more prominently about a buggy system SLang library.
+2003/03/15 ver 1.1.4.14 unofficial pre-release
 	From Witold
 	- fix configure.ac for people without X support (changed a
 	  little by Bart)
 	From Stas
 	- VIP fixes
-	- sound code: fix unexpected beep when exiting the Alladin game.
+	- sound code: make sure dsp is closed before detecting SB
 	From Clarence
 	- fix compilation problem if one disables CONFIG_X_SPEAKER
 	- allow ctrl-alt-p to be used to freeze DOSEMU

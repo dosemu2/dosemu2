@@ -47,7 +47,6 @@ Nevertheless, we now have it and here is how it works:
      plugin_init.h
      plugin_close.h
      plugin_inte6.h
-     plugin_ioselect.h
      plugin_poll.h
 
    (I'll describe their meaning below). If some (or all) doesn't exist
@@ -284,23 +283,6 @@ The plugin_*.h files
       You are responsible for assigments within this scope yourself, there
       is no mechanisme for allocation of unused AL values. The AH can be
       used for subfunctioning, so you don't need more then _one_ AL value.
-
-    - plugin_ioselect.h, which hooks within io_select(). This hook
-      should look such as
-
-          if (my_plugin_fd != -1)
-               if (FD_ISSET(my_plugin_fd, &fds)) my_plugin_ioselect();
-
-
-      You _must_ have add the fd within my_plugin_init() to the ioselect
-      mechanisme such as
-
-        add_to_io_select(my_plugin_fd, 0);
-
-      Within your my_plugin_ioselect() you have to do the proper
-      file operation and return as fast as possible or, when needed,
-      issue a callback to DOS (using do_call_back(farptr)), as this
-      also would give control back to the vm86.
 
     - plugin_poll.h, which hooks within run_vm86() of do_vm86.c
       and run_dpmi() of dpmi.c. This hook should look such as

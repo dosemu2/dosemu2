@@ -2257,7 +2257,6 @@ void run_dpmi(void)
   }
   else {
     int retcode;
-    if (pic_irr & ~(pic_isr | pice_imr)) dpmi_eflags |= VIP;
     retcode = (
 #ifdef X86_EMULATOR
 	config.cpuemu>1?
@@ -3324,6 +3323,7 @@ if ((_ss & 4) == 4) {
       do_cpu_exception(scp);
 #endif
 
+  if (pic_irr & ~(pic_isr | pic_imr)) dpmi_eflags |= VIP;
   if (in_dpmi_dos_int || (dpmi_eflags & VIP)) {
     dpmi_eflags &= ~VIP;
     Return_to_dosemu_code(scp,0);

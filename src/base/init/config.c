@@ -29,6 +29,7 @@
 #include "init.h"
 #include "disks.h"
 #include "userhook.h"
+#include "pktdrvr.h"
 
 #include "dos2linux.h"
 #include "utilities.h"
@@ -492,7 +493,7 @@ static void config_pre_process(void)
 		/* speed division factor to get 838ns from CPU clock */
 		config.cpu_tick_spd = (LLF_TICKS*1000000)/chz;
 
-		warn ("Linux kernel %d.%d.%d; CPU speed is %Ld Hz\n",
+		warn ("Linux kernel %d.%d.%d; CPU speed is %lld Hz\n",
 		   kernel_version_code >> 16, (kernel_version_code >> 8) & 255,
 		   kernel_version_code & 255,chz);
 /*		fprintf (stderr,"CPU speed factors %ld,%ld\n",
@@ -588,7 +589,7 @@ static void config_post_process(void)
         config.pci = 0;
     }
 
-    if (config.vnet == 1) {
+    if (config.vnet == VNET_TYPE_DSN) {
 	error("DOSNET is deprecated and will soon be removed.\n"
 	"Please consider using TAP instead.\n"
 	"To do this, you have to set $_vnet=\"TAP\"\n");

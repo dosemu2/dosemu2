@@ -82,6 +82,7 @@
 #include "timers.h"
 #include "sound.h"
 #include "pic.h"
+#include "dpmi.h"
 #include "bitops.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -891,14 +892,14 @@ static inline void dma_start(void)
     SB_dsp.empty_state |= START_DMA_AT_EMPTY;
   dma_pending = 1;
   dma_assert_DREQ(config.sb_dma);
-  if (!SB_info.speaker && !pic_icount) {
+  if (!SB_info.speaker) {
    /* 
     * it seems that when speaker is disabled, DMA transfer is running at
     * maximum speed, disregarding the sampling rate. So we are going to
     * start and complete it right now.
     */
-    dma_run();
-    sb_check_complete();
+    if (in_dpmi)
+      dpmi_eflags |= VIP;
   }
 }
     
@@ -2026,8 +2027,7 @@ static void handle_dma_IO(int size)
       }
       else {
 	SB_dsp.empty_state |= IRQ_AT_EMPTY;
-	if (!pic_icount)		/* broken PIC, ST3 HACK */
-	  sb_check_complete();
+	sb_check_complete();
       }
     }
   }

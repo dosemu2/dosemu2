@@ -31,6 +31,12 @@ mitshm		"Use MIT Shared Memory extensions under X"
 		If you encounter problems with your X-server, try to switch
 		this off.
 
+vidmode		"Use video mode extensions under X"
+
+		You normal would like to have this activated, if you want
+		X to change resolution in fullscreen-mode (Ctrl-Alt-F),
+		where applicable.
+
 x		"Use X-Windows"
 
 		With this set on, you enable the X-windows support of DOSEMU.

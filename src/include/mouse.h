@@ -51,7 +51,7 @@ typedef struct  {
   int fd;
   int type;
   int flags;
-  boolean add_to_io_select;
+  boolean async_io;
   boolean intdrv;
   boolean emulate3buttons;
   boolean has3buttons;
@@ -170,11 +170,10 @@ extern void DOSEMUSetupMouse(void);
 
 extern void mouse_event(void);
 extern void do_mouse_irq(void);
+extern void mouse_io_callback(void);
 
 extern void mouse_move_buttons(int lbutton, int mbutton, int rbutton);
 extern void mouse_move_relative(int dx, int dy);
 extern void mouse_move_absolute(int x, int y, int x_range, int y_range);
-
-extern int mouse_has_data(fd_set *fds);
 
 #endif /* MOUSE_H */

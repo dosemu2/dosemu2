@@ -203,7 +203,7 @@ static int tty_lock(char *path, int mode)
 /* This function opens ONE serial port for DOSEMU.  Normally called only
  * by do_ser_init below.   [num = port, return = file descriptor]
  */
-static int ser_open(int num)
+int ser_open(int num)
 {
   s_printf("SER%d: Running ser_open, fd=%d\n",num, com[num].fd);
   
@@ -249,7 +249,7 @@ static int ser_open(int num)
   return (com[num].fd);
 }
 
-static void ser_set_params(int num)
+void ser_set_params(int num)
 {
   int data = 0;
   /* The following adjust raw line settings needed for DOSEMU serial     */
@@ -320,9 +320,12 @@ static void ser_set_params(int num)
 
   /* Pull down DTR and RTS.  This is the most natural for most comm */
   /* devices including mice so that DTR rises during mouse init.    */
-  if (!com[num].virtual) {
+  if (!com[num].pseudo) {
     data = TIOCM_DTR | TIOCM_RTS;
-    ioctl(com[num].fd, TIOCMBIC, &data);
+    if (ioctl(com[num].fd, TIOCMBIC, &data) && errno == EINVAL) {
+      s_printf("SER%d: TIOCMBIC unsupported, setting pseudo flag\n", num);
+      com[num].pseudo = 1;
+    }
   }
 }
 
@@ -357,12 +360,6 @@ static Bit8u com_readb(ioport_t port) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {
-      if (com[tmp].fd == -1) {
-        if (ser_open(tmp) >= 0)
-	  ser_set_params(tmp);
-      }
-      if (com[tmp].fd < 0)
-        return 0;
       return(do_serial_in(tmp, (int)port));
     }
   }
@@ -373,12 +370,6 @@ static void com_writeb(ioport_t port, Bit8u value) {
   int tmp;
   for (tmp = 0; tmp < config.num_ser; tmp++) {
     if (((u_short)(port & ~7)) == com[tmp].base_port) {
-      if (com[tmp].fd == -1) {
-        if (ser_open(tmp) >= 0)
-	  ser_set_params(tmp);
-      }
-      if (com[tmp].fd < 0)
-        return;
       do_serial_out(tmp, (int)port, (int)value);
     }
   }

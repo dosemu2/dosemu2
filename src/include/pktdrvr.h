@@ -17,7 +17,9 @@
  *
  */
 
-#define PICPKT 1
+#define VNET_TYPE_ETH 0
+#define VNET_TYPE_DSN 1
+#define VNET_TYPE_TAP 2
 
 #define F_DRIVER_INFO	1
 #define F_ACCESS_TYPE	2
@@ -86,6 +88,7 @@ struct pkt_statistics {
 extern int pkt_check_receive(int timeout);
 extern void pkt_check_receive_quick(void);
 extern void pkt_receiver_callback(void);
+extern void pkt_receive_async(void);
 extern void pkt_init (int vec);
 
 #endif				/* PKTDRVR_H */

@@ -141,6 +141,7 @@ static Keymap_Scan_Type Generic_backspace[] =
   {"", 0}
 };
 
+#if 0
 static Keymap_Scan_Type Meta_ALT[] =
 {
 /* Alt keys (high bit set) */
@@ -199,6 +200,7 @@ static Keymap_Scan_Type Meta_ALT[] =
   {"\211", KEY_TAB         | ALT_MASK },	/* Alt Tab */
   {"", 0}
 };
+#endif
 
 static Keymap_Scan_Type Esc_ALT[] =
 {
@@ -717,8 +719,10 @@ static int init_slang_keymaps(void)
 	term = getenv("TERM");
 	if( term && !strncmp("xterm", term, 5) ) {
 		/* Oh no, this is _BAD_, there are so many different things called 'xterm'*/
-		
+#if 0
+/* This breaks the 8-bit charsets, disable it for now */		
 		define_keyset(Meta_ALT, m);		/* For xterms */
+#endif
 		define_keyset(Esc_ALT, m);		/* For rxvt */
 		define_keyset(vtxxx_fkeys, m);
 		define_keyset(Xterm_Xkeys, m);
@@ -1452,13 +1456,13 @@ static int slang_keyb_init(void)
 		Keyboard_slang.run = do_slang_getkeys;
 	}
 
-	if (use_sigio && !isatty(keyb_state.kbd_fd)) {
+	if (!isatty(keyb_state.kbd_fd)) {
 		k_printf("KBD: Using SIGIO\n");
-		add_to_io_select(keyb_state.kbd_fd, 1);
+		add_to_io_select(keyb_state.kbd_fd, 1, keyb_client_run);
 	}
 	else {
 		k_printf("KBD: Not using SIGIO\n");
-		add_to_io_select(keyb_state.kbd_fd, 0);
+		add_to_io_select(keyb_state.kbd_fd, 0, keyb_client_run);
 	}
    
 	k_printf("KBD: slang_keyb_init() ok\n");

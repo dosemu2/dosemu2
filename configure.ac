@@ -232,8 +232,9 @@ AC_ARG_WITH(slangdir, [  --with-slangdir=dir     Specify S-Lang directory],
   fi
   dnl --- now that we've found it, check the link
   AC_MSG_RESULT($SLANGINC $SLANGLIB)
-  AC_CHECK_LIB(slang, SLsmg_write_nwchars, 
-    [AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang.])]
+  AC_CHECK_LIB(slang, SLsmg_write_nwchars,
+    AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang.])
+    buggy_slang=yes
     ./mkpluginhooks enable slang yes,
    AC_CHECK_LIB(slang, SLtt_get_terminfo, 
                 LIBS="$LIBS -lslang -lm -ldl";LDFLAGS="$LDFLAGS $SLANGLIB",
@@ -287,10 +288,13 @@ if test "$no_x" != "yes" ; then
          [#include <X11/Xlib.h>])
     fi
 
-    AC_CHECK_HEADER(X11/extensions/xf86vmode.h,
-         [AC_DEFINE(HAVE_XVIDMODE,1) LIBS="-lXxf86vm $LIBS"],
-         AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
-         [#include <X11/Xlib.h>])
+    AC_ARG_ENABLE(novidmode,
+              [  --enable-novidmode      do NOT use the XF86 vidmode extension],
+               AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
+	       AC_CHECK_HEADER(X11/extensions/xf86vmode.h,
+		 [AC_DEFINE(HAVE_XVIDMODE,1) LIBS="-lXxf86vm $LIBS"],
+                 AC_MSG_NOTICE(Compiling without the XF86 video mode extension),
+                 [#include <X11/Xlib.h>]))
 fi
 
 PACKAGE_VERSION=`cat VERSION`
@@ -775,6 +779,10 @@ if test "$GCC" != "yes" ; then
   AC_MSG_WARN(your path.)
 fi
   
+if test "$buggy_slang" = "yes" ; then
+  AC_MSG_WARN( )
+  AC_MSG_WARN([Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin.])
+fi
 if test "$no_x" = "yes" ; then
   AC_MSG_WARN( )
   AC_MSG_WARN(Compiling without X support.)

@@ -73,6 +73,9 @@
 #define PAGE_SIZE       4096
 #endif
 
+#define MAX_FD 1024
+void (*io_callback_func[MAX_FD])(void);
+
 #if defined(SIG)
 int SillyG_pendind_irq_bits=0;
 
@@ -127,8 +130,8 @@ static int numselectfd= 0;
 void
 io_select(fd_set fds)
 {
-  static int selrtn;
-  static struct timeval tvptr;
+  int selrtn, i;
+  struct timeval tvptr;
 
   tvptr.tv_sec=0L;
   tvptr.tv_usec=0L;
@@ -154,37 +157,14 @@ io_select(fd_set fds)
       break;
 
     default:			/* has at least 1 descriptor ready */
-
-      if (mouse_has_data(&fds))
-        pic_request(PIC_IMOUSE);
-      if (kbd_fd >= 0) {
-        if (FD_ISSET(kbd_fd, &fds)) {
-	   keyb_client_run();
-        }
+      for(i = 0; i < numselectfd; i++) {
+        if (FD_ISSET(i, &fds) && io_callback_func[i]) {
+	  g_printf("GEN: fd %i has data\n", i);
+	  io_callback_func[i]();
+	}
       }
-      {
-	if (uhook_fdin != -1) if (FD_ISSET(uhook_fdin, &fds)) uhook_input();
-      }
-
-      /* here we include the hooks to possible plug-ins */
-      #include "plugin_ioselect.h"
-
-
-#ifdef USE_MHPDBG
-      if (mhpdbg.fdin != -1) if (FD_ISSET(mhpdbg.fdin, &fds)) mhp_input();
-#endif
-      /* XXX */
-#if 0
-      fflush(stdout);
-#endif
       break;
     }
-#if 0
-#ifdef USING_NET
-    pic_request(16);
-#endif
-#endif
-
 }
 
 /* @@@ MOVE_END @@@ 24576 */
@@ -221,21 +201,26 @@ io_select_init(void) {
  * DANG_END_FUNCTION
  */
 void 
-add_to_io_select(int new_fd, u_char want_sigio)
+add_to_io_select(int new_fd, u_char want_sigio, void (*func)(void))
 {
     if ((new_fd+1) > numselectfd) numselectfd = new_fd+1;
-    if (use_sigio && want_sigio) {
+    if (numselectfd > MAX_FD) {
+	error("Too many IO fds used.\n");
+	leavedos(76);
+    }
+    if (want_sigio) {
 	int             flags;
 	flags = fcntl(new_fd, F_GETFL);
 	fcntl(new_fd, F_SETOWN, getpid());
-	fcntl(new_fd, F_SETFL, flags | use_sigio);
+	fcntl(new_fd, F_SETFL, flags | O_ASYNC);
 	FD_SET(new_fd, &fds_sigio);
-	g_printf("GEN: fd=%d gets SIGIO, use_sigio=%d\n", new_fd, use_sigio);
+	g_printf("GEN: fd=%d gets SIGIO\n", new_fd);
     } else {
 	FD_SET(new_fd, &fds_no_sigio);
-	g_printf("GEN: fd=%d does not get SIGIO, use_sigio=%d\n", new_fd, use_sigio);
+	g_printf("GEN: fd=%d does not get SIGIO\n", new_fd);
 	not_use_sigio++;
     }
+    io_callback_func[new_fd] = func;
 }
 
 /*
@@ -258,11 +243,11 @@ remove_from_io_select(int new_fd, u_char used_sigio)
 	g_printf("GEN: removing bogus fd %d (ignoring)\n", new_fd);
 	return;
     }
-    if (use_sigio && used_sigio) {
+    if (used_sigio) {
 	int             flags;
 	flags = fcntl(new_fd, F_GETFL);
 	fcntl(new_fd, F_SETOWN, NULL);
-	fcntl(new_fd, F_SETFL, flags & ~(use_sigio));
+	fcntl(new_fd, F_SETFL, flags & ~O_ASYNC);
 	FD_CLR(new_fd, &fds_sigio);
 	g_printf("GEN: fd=%d removed from select SIGIO\n", new_fd);
     } else {
@@ -270,6 +255,7 @@ remove_from_io_select(int new_fd, u_char used_sigio)
 	g_printf("GEN: fd=%d removed from select\n", new_fd);
 	not_use_sigio++;
     }
+    io_callback_func[new_fd] = NULL;
 }
 
 int

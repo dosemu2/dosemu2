@@ -482,7 +482,7 @@ void init_uhook(char *pipes)
 			fdin = -1;
 			return;
 		}
-		add_to_io_select(fdin, 0);
+		add_to_io_select(fdin, 0, uhook_input);
 		if (outpipename) {
 			/* NOTE: need to open read/write
 			 * else O_NONBLOCK would fail to open */

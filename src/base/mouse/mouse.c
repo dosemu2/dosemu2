@@ -1913,14 +1913,12 @@ void mouse_post_boot(void)
   SETIVEC(0x10, INT10_WATCHER_SEG, INT10_WATCHER_OFF);
 }
 
-int mouse_has_data(fd_set *fds)
+void mouse_io_callback(void)
 {
-  if (mouse_is_ps2() && mice->fd >= 0)
-    if (FD_ISSET(mice->fd, fds)) {
-      m_printf("MOUSE: We have data\n");
-      return 1;
-    }
-  return 0;
+  if (mouse_is_ps2() && mice->fd >= 0) {
+    m_printf("MOUSE: We have data\n");
+    pic_request(PIC_IMOUSE);
+  }
 }
 
 void parent_close_mouse (void)
@@ -1928,7 +1926,7 @@ void parent_close_mouse (void)
   if (mice->intdrv)
      {
 	if (mice->fd > 0) {
-   	   remove_from_io_select(mice->fd, mice->add_to_io_select);
+   	   remove_from_io_select(mice->fd, mice->async_io);
            DOS_SYSCALL(close (mice->fd));
 	}
     }
@@ -1960,11 +1958,11 @@ int parent_open_mouse (void)
       if (mice->fd == -1) {
  	mice->intdrv = FALSE;
  	mice->type = MOUSE_NONE;
- 	mice->add_to_io_select = 0;
+ 	mice->async_io = 0;
  	return 0;
       }
       /* want_sigio causes problems with internal mouse driver */
-      add_to_io_select(mice->fd, mice->add_to_io_select);
+      add_to_io_select(mice->fd, mice->async_io, mouse_io_callback);
     }
   else
     child_open_mouse ();

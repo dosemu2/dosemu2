@@ -45,12 +45,8 @@
 #include <netinet/if_ether.h>
 #include "libpacket.h"
 #include "dosnet.h"
-
-/* flag to activate use of pic by packet driver */
-#ifdef PICPKT
 #include "pic.h"
 #include "dpmi.h"
-#endif
 
 #define min(a,b)	((a) < (b)? (a) : (b))
 
@@ -86,7 +82,6 @@ struct pkt_globs
     unsigned char hw_address[8];	/* our hardware address */
     short type;				/* our type */
     int flags;				/* configuration flags */
-    int helpvec;			/* vector number for helper */
     int nfds;				/* number of fd's for select() */
     fd_set sockset;			/* set of sockets for select() */
 
@@ -110,11 +105,11 @@ static char devname[10];		/* linux device name */
 /* calculates offset of a label from the start of the packet driver */
 #define MK_PKT_OFS(ofs) ((long)(ofs)-(long)PKTDRV_start)
 
-#define pkt_buf ((char *)MK_PTR(PKTDRV_buf))
+char pkt_buf[PKT_BUF_SIZE];
 
-short *p_helper_size;
-long *p_helper_receiver;
-short *p_helper_handle;
+short p_helper_size;
+long p_helper_receiver;
+short p_helper_handle;
 struct pkt_param *p_param;
 struct pkt_statistics *p_stats;
 
@@ -128,35 +123,35 @@ pkt_init(int vec)
 
     pktdrvr_installed = 1; /* Will be cleared if some error occurs */
 
-    p_helper_size = MK_PTR(PKTDRV_size);
-    p_helper_receiver = MK_PTR(PKTDRV_receiver);
-    p_helper_handle = MK_PTR(PKTDRV_handle);
     p_param = MK_PTR(PKTDRV_param);
     p_stats = MK_PTR(PKTDRV_stats);
 
     /* use dosnet device (dsn0) for virtual net */
     pd_printf("PKT: VNET mode is %i\n", config.vnet);
     switch (config.vnet) {
-      case 0:
+      case VNET_TYPE_ETH:
         strncpy(devname, config.netdev, sizeof(devname) - 1);
         devname[sizeof(devname) - 1] = 0;
 	break;
 
-      case 1:
+      case VNET_TYPE_DSN:
 	strcpy(devname, DOSNET_DEVICE);
 	if (Open_sockets() < 0) {
 	    error("Cannot open dosnet device\n");
 	    goto fail;
 	}
+	add_to_io_select(pkt_fd, 1, pkt_receive_async);
+	add_to_io_select(pkt_broadcast_fd, 1, pkt_receive_async);		    
 	break;
 
-      case 2:
+      case VNET_TYPE_TAP:
         strcpy(devname, TAP_DEVICE);
 	if ((pkt_fd = tun_alloc(devname)) < 0) {
 	  error("Cannot allocate TAP device\n");
 	  goto fail;
 	}
 	max_pkt_fd = pkt_fd + 1;
+	add_to_io_select(pkt_fd, 1, pkt_receive_async);
 	break;
 
       default:
@@ -167,7 +162,6 @@ pkt_init(int vec)
 
     /* hook the interrupt vector by pointing it into the magic table */
     SETIVEC(vec, PKTDRV_SEG, PKTDRV_OFF);
-    strcpy(MK_PTR(PKTDRV_signature), "PKT DRVR");
     
     /* fill other global data */
 
@@ -185,8 +179,6 @@ pkt_init(int vec)
     p_param->rcv_bufs = 8 - 1;		/* a guess */
     p_param->xmt_bufs = 2 - 1;
 
-    pg.helpvec = vec + 1;		/* use this for helper vec */
-    SETIVEC(pg.helpvec, BIOSSEG, (long)PKTDRV_helper-(long)bios_f000);
     return;
 
 fail:
@@ -352,10 +344,10 @@ pkt_int (void)
 		    }
 		}
 	    }
-	    if (config.vnet)
+	    if (config.vnet) {
 		Insert_Type(free_handle, hdlp->packet_type_len, 
 			    hdlp->packet_type);
-	    else {
+	    } else {
 		hdlp->sock = OpenNetworkType(type); /* open the socket */
 
 		if (hdlp->sock < 0) {
@@ -365,7 +357,7 @@ pkt_int (void)
 		}
 
 		FD_SET(hdlp->sock, &pg.sockset); /* keep track of sockets */
-		add_to_io_select(hdlp->sock, 1);
+		add_to_io_select(hdlp->sock, 1, pkt_receive_async);
 		if (hdlp->sock >= pg.nfds)
 		    pg.nfds = hdlp->sock + 1;
 	    }
@@ -445,13 +437,6 @@ pkt_int (void)
 				   SEG_ADR((char *), ds, si),
 				   LWORD(ecx)) >= 0) {
 		    pd_printf("Write to net was ok\n");
-		    /* check for a reply to speedup things 
-		       (background poll is quite slow) */
-#ifdef PICPKT
-		    pic_request(PIC_NET);
-#else
-		    pkt_check_receive(50000);
-#endif
 		    return 1;
 		} 
 		else {
@@ -616,12 +601,37 @@ Remove_Type(int handle)
 
 void pkt_receiver_callback(void)
 {
+    struct vm86_regs saved_regs;
+
+    if (p_helper_size == 0)
+      return;
+
     if(in_dpmi && !in_dpmi_dos_int)
 	fake_pm_int();
-    run_int(pg.helpvec);
-   /* push iret frame. At F000:20F7 (bios.S) we get an
-    * iret and return to F000:2140 for EOI */
-    fake_int(BIOSSEG, EOI_OFF);
+
+    saved_regs = REGS;
+
+    _AX = 0;
+    _BX = p_helper_handle;
+    _CX = p_helper_size;
+    do_call_back(p_helper_receiver);
+    if (_ES == 0 && _DI == 0)
+      goto out;
+    MEMCPY_2DOS(SEGOFF2LINEAR(_ES, _DI), pkt_buf, p_helper_size);
+    _DS = _ES;
+    _SI = _DI;
+    _AX = 1;
+    _BX = p_helper_handle;
+    do_call_back(p_helper_receiver);
+
+out:
+    p_helper_size = 0;
+    REGS = saved_regs;
+}
+
+void pkt_receive_async(void)
+{
+  pic_request(PIC_NET);
 }
 
 void
@@ -645,24 +655,6 @@ pkt_check_receive(int timeout)
 	return -1;
     }
 
-    /*
-    ** sometimes, dosemu enters this routine with the previous packet 
-    ** not sent by helper, and the packet driver hangs. 
-    ** This patch tryes to resend the packet, and make dosemu happy :)
-    **
-    ** Gloriano 
-    */
-    if (*p_helper_size != 0)			/* transfer area busy? */
-    {
-#ifdef PICPKT
-	do_irq();
-#else
-	run_int(pg.helpvec);
-#endif
-	pd_printf("Called the helpvector... (after failure)\n");
-	return 1;
-    }
-
     tv.tv_sec = 0;				/* set a (small) timeout */
     tv.tv_usec = timeout;
 
@@ -670,18 +662,16 @@ pkt_check_receive(int timeout)
     if (config.vnet) {
 	FD_ZERO(&readset);
 	FD_SET(pkt_fd, &readset);
-	add_to_io_select(pkt_fd, 1);
-	if (config.vnet == 1) {
+	if (config.vnet == VNET_TYPE_DSN) {
 	  FD_SET(pkt_broadcast_fd, &readset);
-	  add_to_io_select(pkt_broadcast_fd, 1);
-	  /* anything ready? */
 	}
+	/* anything ready? */
 	if (select(max_pkt_fd,&readset,NULL,NULL,&tv) <= 0)
 	    return 0;
 
 	if(FD_ISSET(pkt_fd, &readset)) 
 	    fd = pkt_fd;
-	else if(config.vnet == 1 && FD_ISSET(pkt_broadcast_fd, &readset)) 
+	else if(config.vnet == VNET_TYPE_DSN && FD_ISSET(pkt_broadcast_fd, &readset)) 
 	    fd = pkt_broadcast_fd;
 	else return 0;
 
@@ -707,7 +697,7 @@ pkt_check_receive(int timeout)
 	    printbuf("received packet:", (struct ethhdr *)pkt_buf); 
 
             /* VINOD: If it is broadcast type, translate it back ... */
-	    if (config.vnet == 1 && memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
+	    if (config.vnet == VNET_TYPE_DSN && memcmp(pkt_buf, DOSNET_BROADCAST_ADDRESS, 4) == 0) {
 		pd_printf("It is a broadcast packet\n");
 		if(memcmp(pkt_buf + ETH_ALEN, pg.hw_address, ETH_ALEN) == 0) {
 		    /* Ignore our own ethernet broadcast. */
@@ -744,14 +734,12 @@ pkt_check_receive(int timeout)
 	    /* stuff things in global vars and queue a hardware */
 	    /* interrupt which will perform the upcall */
 
-	    *p_helper_size = size;
-	    *p_helper_receiver = hdlp->receiver;
-	    *p_helper_handle = handle;
-#ifdef PICPKT
-	    do_irq();
-#else
-	    run_int(pg.helpvec);
-#endif
+	    p_helper_size = size;
+	    p_helper_receiver = hdlp->receiver;
+	    p_helper_handle = handle;
+
+	    pkt_receiver_callback();
+
 	    pd_printf("Called the helpvector ... \n");
 	    return 1;
 	} else {
@@ -808,14 +796,12 @@ pkt_check_receive(int timeout)
 			
 		    /* stuff things in global vars and queue a hardware */
 		    /* interrupt which will perform the upcall */
-			*p_helper_size = size;
-			*p_helper_receiver = hdlp->receiver;
-			*p_helper_handle = handle;
-#ifdef PICPKT
-			do_irq();
-#else
-			run_int(pg.helpvec);
-#endif
+			p_helper_size = size;
+			p_helper_receiver = hdlp->receiver;
+			p_helper_handle = handle;
+
+			pkt_receiver_callback();
+
 			return 1;
 		    } else
 			p_stats->packets_lost++; /* not really lost... */

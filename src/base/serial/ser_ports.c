@@ -33,6 +33,8 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
+#include <errno.h>
 
 #include "config.h"
 #include "emu.h"
@@ -241,7 +243,7 @@ void ser_termios(int num)
 
   /* Return if not a tty */
   if (tcgetattr(com[num].fd, &com[num].newset) == -1) {
-    if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY.\n",num);
+    if(s1_printf) s_printf("SER%d: Line Control: NOT A TTY (%s).\n",num,strerror(errno));
     return;
   }
   s_printf("SER%d: LCR = 0x%x, ",num,com[num].LCR);
@@ -945,6 +947,15 @@ int
 do_serial_in(int num, ioport_t address)
 {
   int val;
+
+  /* delayed open happens here */
+  if (com[num].fd == -1) {
+    if (ser_open(num) >= 0)
+      ser_set_params(num);
+  }
+  if (com[num].fd < 0)
+    return 0;
+
   switch (address - com[num].base_port) {
   case UART_RX:		/* Read from Received Byte Register */	
 /*case UART_DLL:*/      /* or Read from Baudrate Divisor Latch LSB */
@@ -1027,6 +1038,15 @@ do_serial_in(int num, ioport_t address)
 int
 do_serial_out(int num, ioport_t address, int val)
 {
+
+  /* delayed open happens here */
+  if (com[num].fd == -1) {
+    if (ser_open(num) >= 0)
+      ser_set_params(num);
+  }
+  if (com[num].fd < 0)
+    return 0;
+
   switch (address - com[num].base_port) {
   case UART_TX:		/* Write to Transmit Holding Register */
 /*case UART_DLL:*/	/* or write to Baudrate Divisor Latch LSB */

@@ -63,7 +63,6 @@ EXTERN struct vm86plus_struct vm86s INIT ( {
 
 EXTERN volatile sig_atomic_t signal_pending INIT(0);
 EXTERN fd_set fds_sigio, fds_no_sigio;
-EXTERN unsigned int use_sigio INIT(0);
 EXTERN unsigned int not_use_sigio INIT(0);
 EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
@@ -418,8 +417,8 @@ EXTERN void pkt_helper(void);
 EXTERN short pop_word(struct vm86_regs *);
 EXTERN void ems_init(void);
 EXTERN void leavedos(int) NORETURN;
-EXTERN void add_to_io_select(int, unsigned char);
-EXTERN void remove_from_io_select(int, unsigned char);
+EXTERN void add_to_io_select(int, u_char, void(*)(void));
+EXTERN void remove_from_io_select(int, u_char);
 EXTERN void sigquit(int);
 #ifdef __linux__
 EXTERN void sigalrm(int, struct sigcontext_struct);

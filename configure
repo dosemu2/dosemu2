@@ -858,6 +858,7 @@ Optional Features:
 
   --enable-mitshm         force use of MITSHM X extension
   --enable-nomitshm       do NOT use the MITSHM X extension
+  --enable-novidmode      do NOT use the XF86 vidmode extension
   --enable-experimental   enable configuration of EXPERIMENTAL stuff
   --enable-dodebug        do compile for with debug info
   --enable-aspi           do compile with ASPI support
@@ -6528,6 +6529,7 @@ echo "${ECHO_T}$ac_cv_lib_slang_SLsmg_write_nwchars" >&6
 if test $ac_cv_lib_slang_SLsmg_write_nwchars = yes; then
   { echo "$as_me:$LINENO: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang." >&5
 echo "$as_me: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Using supplied S-Lang." >&2;}
+    buggy_slang=yes
     ./mkpluginhooks enable slang yes
 else
   echo "$as_me:$LINENO: checking for SLtt_get_terminfo in -lslang" >&5
@@ -8080,7 +8082,13 @@ fi
 
     fi
 
-    echo "$as_me:$LINENO: checking for X11/extensions/xf86vmode.h" >&5
+    # Check whether --enable-novidmode or --disable-novidmode was given.
+if test "${enable_novidmode+set}" = set; then
+  enableval="$enable_novidmode"
+  { echo "$as_me:$LINENO: Compiling without the XF86 video mode extension" >&5
+echo "$as_me: Compiling without the XF86 video mode extension" >&6;}
+else
+  echo "$as_me:$LINENO: checking for X11/extensions/xf86vmode.h" >&5
 echo $ECHO_N "checking for X11/extensions/xf86vmode.h... $ECHO_C" >&6
 if test "${ac_cv_header_X11_extensions_xf86vmode_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -8130,6 +8138,7 @@ echo "$as_me: Compiling without the XF86 video mode extension" >&6;}
 fi
 
 
+fi;
 fi
 
 PACKAGE_VERSION=`cat VERSION`
@@ -9963,6 +9972,12 @@ echo "$as_me: WARNING: Of course you could also include the gcc bin directory in
 echo "$as_me: WARNING: your path." >&2;}
 fi
 
+if test "$buggy_slang" = "yes" ; then
+  { echo "$as_me:$LINENO: WARNING: " >&5
+echo "$as_me: WARNING: " >&2;}
+  { echo "$as_me:$LINENO: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin." >&5
+echo "$as_me: WARNING: Rejecting system S-Lang with UTF-8 support. It is incompatible with DOSEMU. Forcing use of the supplied S-Lang plugin." >&2;}
+fi
 if test "$no_x" = "yes" ; then
   { echo "$as_me:$LINENO: WARNING: " >&5
 echo "$as_me: WARNING: " >&2;}

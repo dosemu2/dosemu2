@@ -56,6 +56,9 @@ while [ "$1" != "" ]; do
     mitshm)
       if [ "$2" = "off" ]; then STRING="$STRING --enable-nomitshm"; fi
       ;;
+    vidmode)
+      if [ "$2" = "off" ]; then STRING="$STRING --enable-novidmode"; fi
+      ;;
     sbemu)
       if [ "$2" = "off" ]; then STRING="$STRING --enable-nosbemu"; fi
       ;;

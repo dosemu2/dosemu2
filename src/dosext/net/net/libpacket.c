@@ -32,6 +32,7 @@
 #include "priv.h"
 #include "libpacket.h"
 #include "dosnet.h"
+#include "pktdrvr.h"
 
 static int GetDosnetID(void);
 
@@ -148,7 +149,7 @@ WriteToNetwork(int sock, const char *device, const char *data, int len)
 {
 	struct sockaddr sa;
 
-	if (config.vnet == 2) {
+	if (config.vnet == VNET_TYPE_TAP) {
 	  return write(sock, data, len);
 	}
 
@@ -187,7 +188,7 @@ ReadFromNetwork(int sock, char *device, char *data, int len)
 	int sz = sizeof(sa);
 	int error;
 
-	if (config.vnet == 2) {
+	if (config.vnet == VNET_TYPE_TAP) {
 		return read(sock, data, len);
 	}
 

@@ -280,12 +280,6 @@ void		bios_IPX_FarCall(void);
 /* various declarations for interfacing with the packet driver code in
    bios.S */
 
-void		PKTDRV_size(void);
-void		PKTDRV_handle(void);
-void		PKTDRV_receiver(void);
-void		PKTDRV_buf(void);
-void		PKTDRV_helper(void);
-void		PKTDRV_signature(void);
 void		PKTDRV_driver_name(void);
 void		PKTDRV_param(void);
 void		PKTDRV_stats(void);

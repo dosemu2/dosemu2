@@ -225,7 +225,7 @@ void modstat_engine(int num)		/* Internal Modem Status processing */
   
   ioctl(com[num].fd, TIOCMGET, &control);	/* WARNING: Non re-entrant! */
   
-  if(com[num].virtual)
+  if(com[num].pseudo)
     newmsr = UART_MSR_CTS |
              convert_bit(control, TIOCM_DSR, UART_MSR_DSR) |
              convert_bit(control, TIOCM_RNG, UART_MSR_RI) |
@@ -624,6 +624,7 @@ serial_run(void)
    * system if they are called 100x's per second.
    */
   for (i = 0; !into_irq && (i < config.num_ser); i++) {
+    if (com[i].fd < 0) continue;
     receive_engine(i);		/* Receive operations */
     transmit_engine(i);		/* Transmit operations */
     modstat_engine(i);  	/* Modem Status operations */

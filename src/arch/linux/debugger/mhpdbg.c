@@ -158,7 +158,7 @@ static void mhp_init(void)
         /* NOTE: need to open read/write else O_NONBLOCK would fail to open */
         mhpdbg.fdout = open(pipename_out, O_RDWR | O_NONBLOCK);
         if (mhpdbg.fdout != -1) {
-          add_to_io_select(mhpdbg.fdin,0);
+          add_to_io_select(mhpdbg.fdin, 0, mhp_input);
         }
         else {
           close(mhpdbg.fdin);

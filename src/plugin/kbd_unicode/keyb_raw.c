@@ -160,13 +160,13 @@ static int raw_keyboard_init(void)
   /* initialise the server's shift state to the current keyboard state */ 
   set_shiftstate(get_kbd_flags());
    
-  if (use_sigio && !isatty(kbd_fd)) {
+  if (!isatty(kbd_fd)) {
     k_printf("KBD(raw): Using SIGIO\n");
-    add_to_io_select(kbd_fd, 1);
+    add_to_io_select(kbd_fd, 1, keyb_client_run);
   }
   else {
     k_printf("KBD(raw): Not using SIGIO\n");
-    add_to_io_select(kbd_fd, 0);
+    add_to_io_select(kbd_fd, 0, keyb_client_run);
   }
    
   return TRUE;

@@ -196,11 +196,7 @@ void hardware_setup(void)
   pic_seti(PIC_IPX, do_irq, 0, IPXCallRel);
   pic_unmaski(PIC_IPX);
 #endif
-#ifdef PICPKT
-  pic_seti(PIC_NET, pkt_check_receive_quick, 0x61, pkt_receiver_callback);
-#else
   pic_seti(PIC_NET, pkt_check_receive_quick, 0, NULL);
-#endif
   pic_unmaski(PIC_NET);
 #endif
   
@@ -509,7 +505,6 @@ void version_init(void) {
   running_kversion = atoi(strtok(version,".")) *1000000;
   running_kversion += atoi(strtok(NULL,".")) *1000;
   running_kversion += atoi(strtok(NULL,"."));
-  use_sigio=O_ASYNC;
 #endif
   
 
@@ -520,7 +515,6 @@ void version_init(void) {
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) ||
          unames.release[2] > 1 ) {
-      use_sigio=O_ASYNC;
     }
   }
 #endif

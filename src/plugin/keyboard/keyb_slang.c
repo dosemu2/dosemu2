@@ -1410,13 +1410,13 @@ int slang_keyb_init(void) {
     leavedos(31);
   }
 
-  if (use_sigio && !isatty(kbd_fd)) {
+  if (!isatty(kbd_fd)) {
     k_printf("KBD: Using SIGIO\n");
-    add_to_io_select(kbd_fd, 1);
+    add_to_io_select(kbd_fd, 1, keyb_client_run);
   }
   else {
     k_printf("KBD: Not using SIGIO\n");
-    add_to_io_select(kbd_fd, 0);
+    add_to_io_select(kbd_fd, 0, keyb_client_run);
   }
    
   k_printf("KBD: slang_keyb_init() ok\n");

@@ -220,15 +220,9 @@ idle_cycle:
 	.org	((PKTDRV_SEG - BIOSSEG) << 4) + PKTDRV_OFF
 /* ======================= Addr = F000:3100 (F3100) */
 
-	.globl	CISH(PKTDRV_size)
-	.globl	CISH(PKTDRV_handle)
-	.globl	CISH(PKTDRV_receiver)
-	.globl	CISH(PKTDRV_buf)
-	.globl	CISH(PKTDRV_helper)
 	.globl	CISH(PKTDRV_driver_name)
 	.globl	CISH(PKTDRV_param)
 	.globl	CISH(PKTDRV_stats)
-	.globl	CISH(PKTDRV_signature)
 	.globl	CISH(PKTDRV_start)
 
 CISH(PKTDRV_start):
@@ -236,15 +230,11 @@ CISH(PKTDRV_start):
 
 /* The packet driver signature will be written here when the packet
    driver is initialized. */
-CISH(PKTDRV_signature):
-		.byte	0,0,0,0,0,0,0,0,0
+	.asciz	"PKT DRVR"
 
 CISH(PKTDRV_driver_name):
 	.asciz	"Linux$"
 	.byte	0
-CISH(PKTDRV_size):	.word	0
-CISH(PKTDRV_handle):	.word	0
-CISH(PKTDRV_receiver): .long	0
 
 	/* parameter packet, filled in by pkt_init */
 CISH(PKTDRV_param):
@@ -254,50 +244,6 @@ CISH(PKTDRV_param):
 CISH(PKTDRV_stats):
 	.long	0,0,0,0,0,0,0
 
-	/* helper routine to transfer received packets and call receiver */
-CISH(PKTDRV_helper):
-	pusha
-	pushw	%ds
-	pushw	%es
-	movw	%cs:PKTDRV_size,%cx
-	jcxz	PKTDRV_nothing
-	xorw	%ax,%ax
-	movw	%cs:PKTDRV_handle,%bx
-	pushw	%cx
-	pushw	%bx
-	lcall	INDIRECT_PTR(%cs:PKTDRV_receiver)
-	popw	%bx
-	popw	%cx
-	movw	%es,%ax
-	orw	%di,%ax
-	jz	PKTDRV_norecv
-	pushw	%cs
-	popw	%ds
-	movw	$PKTDRV_buf,%si
-	pushw	%di
-	pushw	%cx
-	cld
-	shrw	%cx
-	rep;	movsw
-	jnc	PKTDRV_nobyte
-	movsb
-PKTDRV_nobyte:
-	popw	%cx
-	popw	%si
-	pushw	%es
-	popw	%ds
-	movw	$1,%ax
-	lcall	INDIRECT_PTR(%cs:PKTDRV_receiver)
-PKTDRV_norecv:
-	movw	$0,%cs:PKTDRV_size
-PKTDRV_nothing:
-	popw	%es
-	popw	%ds
-	popa
-	iret
-
-	.align	16,0
-CISH(PKTDRV_buf):
 
 /* ----------------------------------------------------------------- */
 

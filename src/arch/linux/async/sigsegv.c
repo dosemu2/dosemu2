@@ -205,8 +205,12 @@ sgleave:
 
 #if X_GRAPHICS
       if(_trapno==0x0e && config.X) {
-        if(VGA_EMU_FAULT(scp,code,1)==True)
+        if(VGA_EMU_FAULT(scp,code,1)==True) {
+	  if (dpmi_eflags & VIP) {
+	    dpmi_sigio(scp);
+	  }
           return;
+	}
       }
 #endif /* X_GRAPHICS */
 

@@ -120,7 +120,7 @@ static unsigned check_key_available(int extended)
   static int trigger = 0, trigger1 = 0;
   
   if(keyptr == -1 && config.hogthreshold && CAN_SLEEP()) {
-    if(port60_buffer & 0x80)
+    if(!port60_buffer || (port60_buffer & 0x80))
       trigger1++;
     else
       trigger1=0;

@@ -539,9 +539,6 @@ static void callback_return(void)
  * do_call_back() calls a 16-bit DOS routine with a far call.
  * NOTE: It does _not_ save any of the vm86 registers except old cs:ip !!
  *       The _caller_ has to do this.
- *
- * FIXME: This does not yet handle DPMI stuff, it should not be called
- *        while in_dpmi is active.
  */
 void do_call_back(Bit32u codefarptr)
 {
@@ -550,9 +547,14 @@ void do_call_back(Bit32u codefarptr)
 	Bit16u oldcs, oldip;
 	int level;
 
+	if (in_dpmi && !in_dpmi_dos_int) {
+		error("do_call_back() cannot call protected mode code\n");
+		leavedos(25);
+	}
+
 	/* we push the address of our HLT place in the bios
 	 * as return address on the stack and run vm86 mode.
-	 * Hence we get awaoken by sigsegv, whih in return calls
+	 * When the call returns and HLT causes GPF, vm86_GP_fault() calls
 	 * callback_return() above, which then decreases callback_level
 	 * ... and then we return from here
 	 */
@@ -569,10 +571,22 @@ void do_call_back(Bit32u codefarptr)
         level = callback_level++;
         while (callback_level > level) {
 		if (fatalerr) leavedos(99);
-		loopstep_run_vm86();
+	/*
+	 * BIG WARNING: we can't allow IRQs during the callback, otherwise, if
+	 * the pic_run() activates the IRQ after callback_level is decremented
+	 * (i.e. after the last vm86() call for that callback), we will return
+	 * here after EOI (before iret, inside the handler) and we'll screw up
+	 * the registers and stack.
+	 * Therefore we should NOT use things like loopstep_run_vm86() here!
+	 * Only the plain run_vm86() and run_dpmi() are safe (also DPMI-safe).
+	 * -SS
+	 */
+		if (!in_dpmi)
+			run_vm86();
+		else
+			run_dpmi();
         }
 	/* ... and back we are */
 	REG(cs) = oldcs;
 	LWORD(eip) = oldip;
 }
-

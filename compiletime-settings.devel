@@ -2,6 +2,7 @@ config {
   experimental on
   sbemu on
   mitshm on
+  vidmode on
   x on
   net on
   dodebug on

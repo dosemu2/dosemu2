@@ -323,10 +323,17 @@ void handle_signals(void) {
  */
       if (SIGNAL_head != SIGNAL_tail) {
 	signal_pending = 1;
-	if (in_dpmi)
-	  dpmi_eflags |= VIP;
-        REG(eflags) |= VIP;
       }
+  }
+
+  if (!signal_pending) {
+    if (in_dpmi)
+      dpmi_eflags &= ~VIP;
+    REG(eflags) &= ~VIP;
+  } else {
+    if (in_dpmi)
+      dpmi_eflags |= VIP;
+    REG(eflags) |= VIP;
   }
 }
 
@@ -369,10 +376,6 @@ static void SIGALRM_call(void)
     first = 1;
   }
 
-#if defined(SIG)
-  irq_select();  /* we need this in order to catch lost IRQ-SIGIOs */
-#endif
-
 #ifdef X_SUPPORT
   if (config.X) {
      X_handle_events();
@@ -389,16 +392,6 @@ static void SIGALRM_call(void)
   
   keyb_server_run();
    
-
-
-#if 1
-#ifdef USING_NET
-  /* check for available packets on the packet driver interface */
-  /* (timeout=0, so it immediately returns when none are available) */
-  if (config.pktdrv)
-    pic_request(PIC_NET);
-#endif
-#endif
 
   /* If it is running in termcap mode, then update the screen.
    * First it sets a running flag, so as to avoid re-entrancy of 
@@ -493,6 +486,7 @@ static void SIGALRM_call(void)
  }
 #endif
 
+  io_select(fds_sigio);	/* we need this in order to catch lost SIGIOs */
   if (not_use_sigio)
     io_select(fds_no_sigio);
 

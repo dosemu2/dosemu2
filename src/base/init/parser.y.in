@@ -69,6 +69,7 @@
 #include "memory.h"
 #include "utilities.h"
 #include "aspi.h"
+#include "pktdrvr.h"
 
 #include "parsglob.h"
 
@@ -570,7 +571,7 @@ line		: HOGTHRESH expression	{ config.hogthreshold = $2; }
 		    }
 		| PKTDRIVER bool
 		    {
-		      if (config.vnet == 2 || $2 == 0 || is_in_allowed_classes(CL_NET)) {
+		      if (config.vnet == VNET_TYPE_TAP || $2 == 0 || is_in_allowed_classes(CL_NET)) {
 			config.pktdrv = ($2!=0);
 			c_printf("CONF: Packet Driver %s.\n", 
 				($2) ? "enabled" : "disabled");
@@ -1269,6 +1270,7 @@ serial_flag	: DEVICE string_expr		{ strcpy(sptr->dev, $2);
 		| VIRTUAL		  {
 					   if (isatty(0)) {
 					     sptr->virtual = TRUE;
+					     sptr->pseudo = TRUE;
 					     no_local_video = 1;
 					     strcpy(sptr->dev, ttyname(0));
 					   } else {
@@ -1759,6 +1761,7 @@ static void start_serial(void)
     sptr->fd = -1;
     sptr->mouse = 0;
     sptr->virtual = FALSE;
+    sptr->pseudo = FALSE;
   }
 }
 
@@ -1884,17 +1887,17 @@ static void start_disk(void)
 
 static void start_vnet(char *mode) {
   if (strcmp(mode, "tap") == 0) {
-    config.vnet = 2;
+    config.vnet = VNET_TYPE_TAP;
     return;
   }
   IFCLASS(CL_NET);
   if (strlen(mode) == 0)
-    config.vnet = 0;
+    config.vnet = VNET_TYPE_ETH;
   else if (strcmp(mode, "dosnet") == 0)
-    config.vnet = 1;
+    config.vnet = VNET_TYPE_DSN;
   else {
     error("Unknown vnet mode %s\n", mode);
-    config.vnet = 0;
+    config.vnet = VNET_TYPE_ETH;
   } 
 }
 

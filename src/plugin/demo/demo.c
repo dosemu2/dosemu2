@@ -24,7 +24,7 @@ void demo_plugin_init(void)
 	if (!my_plugin_conf) return;
 	my_plugin_fd = open("/tmp/plugin_test_pipe", O_RDWR | O_NONBLOCK);
 	if (my_plugin_fd != -1) {
-		add_to_io_select(my_plugin_fd, 0);
+		add_to_io_select(my_plugin_fd, 0, my_plugin_ioselect);
 		fprintf(stderr, "PLUGIN: test_pipe listening\n");
 	}
 }

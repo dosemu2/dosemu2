@@ -947,13 +947,13 @@ void leave_cpu_emu(void)
 		GDT = NULL; IDT = NULL;
 		dbug_printf("======================= LEAVE CPU-EMU ===============\n");
 #ifdef PROFILE
-		dbug_printf("Total cpuemu time %16Ld us (incl.trace)\n",TotalTime/config.CPUSpeedInMhz);
-		dbug_printf("Total codgen time %16Ld us\n",GenTime/config.CPUSpeedInMhz);
-		dbug_printf("Total linker time %16Ld us\n",LinkTime/config.CPUSpeedInMhz);
-		dbug_printf("Total exec   time %16Ld us (incl.faults)\n",ExecTime/config.CPUSpeedInMhz);
-		dbug_printf("Total insert time %16Ld us\n",AddTime/config.CPUSpeedInMhz);
-		dbug_printf("Total search time %16Ld us\n",SearchTime/config.CPUSpeedInMhz);
-		dbug_printf("Total clean  time %16Ld us\n",CleanupTime/config.CPUSpeedInMhz);
+		dbug_printf("Total cpuemu time %16lld us (incl.trace)\n",TotalTime/config.CPUSpeedInMhz);
+		dbug_printf("Total codgen time %16lld us\n",GenTime/config.CPUSpeedInMhz);
+		dbug_printf("Total linker time %16lld us\n",LinkTime/config.CPUSpeedInMhz);
+		dbug_printf("Total exec   time %16lld us (incl.faults)\n",ExecTime/config.CPUSpeedInMhz);
+		dbug_printf("Total insert time %16lld us\n",AddTime/config.CPUSpeedInMhz);
+		dbug_printf("Total search time %16lld us\n",SearchTime/config.CPUSpeedInMhz);
+		dbug_printf("Total clean  time %16lld us\n",CleanupTime/config.CPUSpeedInMhz);
 		dbug_printf("Max tree nodes    %16d\n",MaxNodes);
 		dbug_printf("Max node size     %16d\n",MaxNodeSize);
 		dbug_printf("Max tree depth    %16d\n",MaxDepth);
@@ -963,9 +963,9 @@ void leave_cpu_emu(void)
 		if (TotalNodesExecd) {
 		  unsigned long long k;
 		  k = ((long long)NodesFound * 100UL) / (long long)TotalNodesExecd;
-		  dbug_printf("Find hits         %16d (%Ld%%)\n",NodesFound,k);
+		  dbug_printf("Find hits         %16d (%lld%%)\n",NodesFound,k);
 		  k = ((long long)NodesFastFound * 100UL) / (long long)TotalNodesExecd;
-		  dbug_printf("Find last hits    %16d (%Ld%%)\n",NodesFastFound,k);
+		  dbug_printf("Find last hits    %16d (%lld%%)\n",NodesFastFound,k);
 		}
 		dbug_printf("Page faults       %16d\n",PageFaults);
 		dbug_printf("Signals received  %16d\n",EmuSignals);
@@ -1120,7 +1120,7 @@ int e_vm86(void)
   demusav=debug_level('e'); if (debug_level('e')) set_debug_level('e', 1);
 #endif
 //  if (lastEMUsig && (debug_level('e')>1))
-//    e_printf("EMU86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
+//    e_printf("EMU86: last sig at %lld, curr=%lld, next=%lld\n",lastEMUsig>>16,
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
  /* This emulates VM86_ENTER */
@@ -1241,7 +1241,7 @@ int e_dpmi(struct sigcontext_struct *scp)
 	D_printf("EMU86: DPMI enter at %08lx\n",swa);
   }
 //  if (lastEMUsig)
-//    e_printf("DPM86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
+//    e_printf("DPM86: last sig at %lld, curr=%lld, next=%lld\n",lastEMUsig>>16,
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
   /* ------ OUTER LOOP: exit for code >=0 and return to dosemu code */

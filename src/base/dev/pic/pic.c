@@ -404,6 +404,9 @@ if(ilevel != pic_ilevel)
   error("PIC0: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
     ilevel, pic_ilevel, pic_isr);
 
+if (in_dpmi)
+  dpmi_eflags |= VIP;	/* we have to leave the signal context */
+
 if(!port){                          /* icw1, ocw2, ocw3 */
   if(value&0x10){                   /* icw1 */
     icw_max_state = (value & 1) + 1;
@@ -456,6 +459,9 @@ if (pic_isr)
 if(ilevel != pic_ilevel)
   error("PIC1: ilevel=%x != pic_ilevel=%x, pic_isr=%lx\n",
     ilevel, pic_ilevel, pic_isr);
+
+if (in_dpmi)
+  dpmi_eflags |= VIP;	/* we have to leave the signal context */
 
 if(!port){                            /* icw1, ocw2, ocw3 */
   if(value&0x10){                     /* icw1 */
@@ -682,6 +688,8 @@ void run_irqs(void)
  exit:
        /* whether we did or didn't :-( get one, we must still reset pic_ilevel */
        pic_ilevel=old_ilevel;
+       if ((pic_ilevel==32 && pic_isr!=0) || (pic_ilevel!=32 && pic_ilevel!=find_bit(pic_isr)))
+         error("PIC: pic_ilevel=0x%x pic_isr=0x%x\n", pic_ilevel, pic_isr);
 }
 
    
@@ -729,10 +737,11 @@ int do_irq(void)
 
     if(ilevel==PIC_IRQ9)      /* unvectored irq9 just calls int 0x0a.. */
       if(!IS_REDIRECTED(intr)) {intr=0x0a;pic1_isr&= 0xffef;} /* & one EOI */
-    {
+
      if (test_bit(ilevel, &pic_irqall)) {
        pic_push(ilevel);
        set_bit(ilevel, &pic_irqs_active);
+       pic_icount++;
      }
 
      if (!in_dpmi || in_dpmi_dos_int) {
@@ -767,9 +776,6 @@ int do_irq(void)
  /* schedule the requested interrupt, then enter the vm86() loop */
          run_int(intr);
        }
-     }
-
-      pic_icount++;
 
  /* enter PIC loop - we can continue only when pic_isr has been cleared */
       while(!fatalerr && test_bit(ilevel,&pic_isr))
@@ -781,13 +787,16 @@ int do_irq(void)
           ++pic_dpmi_count;
 	  pic_print(2, "Initiating DPMI irq lvl ", ilevel, " in do_irq");
 	  run_dpmi();
-	  }
+	}
 	else {
 	  ++pic_vm86_count;
 	  pic_print(2, "Initiating VM86 irq lvl ", ilevel, " in do_irq");
           run_vm86();
-          }
+        }
         pic_isr &= pic_irqall;    /*  levels 0 and 16-31 are Auto-EOI  */
+	if (!test_bit(ilevel,&pic_isr))
+	  break;
+
         serial_run();           /*  delete when moved to timer stuff */
         pic_run();
       }
@@ -1023,7 +1032,7 @@ unsigned long pic_newirr;
   if(config.pic_watchdog > 0) {
     if(pic_icount && !pic_isr) {
       if(++pic_wcount >= config.pic_watchdog) {
-        error("PIC: force reschedule\n");
+        r_printf("PIC: force reschedule\n");
         pic_resched();
         pic_wcount = 0;
       }
