@@ -145,8 +145,9 @@ virtual console
 .TP
 .I [-E] dos-command
 Run DOS command when starting DOSEMU, and, if '-E' is not given, exit
-DOSEMU after running the command. Note: this only works if your 
-autoexec.bat contains a "unix -e" command.
+DOSEMU after running the command. The command can also be given with
+a Linux path (for example /home/joeuser/dosemu/freedos/bin/xcopy.exe).
+Note: this only works if your autoexec.bat contains a "unix -e" command.
 .TP
 .I -V
 use direct console video with VGA graphics and use the native graphics 
