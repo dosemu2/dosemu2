@@ -234,6 +234,7 @@ void uart_clear_fifo(int num, int fifo)
     com[num].int_condition &= ~TX_INTR;	/* Clear TX int condition */
     tx_buffer_dump(num);		/* Clear transmit buffer */
   }
+  com[num].IIR &= ~UART_IIR_FIFO;
 
   serial_int_engine(num, 0);		/* Update interrupt status */
 }
