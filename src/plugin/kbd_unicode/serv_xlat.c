@@ -681,6 +681,26 @@ static void init_charset_deadmap(struct character_translate_rules *charset)
 	traverse_dead_key_list(charset, init_one_deadkey);
 }
 
+static void check_video_mem_charset(struct character_translate_rules *charset)
+{
+	int i;
+	struct char_set *vmem_charset = trconfig.video_mem_charset;
+
+	/* any mapping from < 0x20 to Unicode >= 0x20 ? */
+	for (i = 0x20; i < NUM_KEYSYMS; i++) {
+		unsigned char buff[1];
+		size_t result;
+		struct char_set_state vmem_state;
+		init_charset_state(&vmem_state, vmem_charset);
+		result = unicode_to_charset(&vmem_state, i, buff, 1);
+		if (result == 1 && buff[0] < 0x20 &&
+		    charset->keys[buff[0]].key != NUM_VOID) {
+			charset->keys[i] = charset->keys[buff[0]];
+		}
+		cleanup_charset_state(&vmem_state);
+	}
+}
+
 static void init_one_approximation(void *p, t_unicode symbol, t_unicode approximation)
 {
 	struct character_translate_rules *charset = p;
@@ -748,6 +768,10 @@ static void init_charset_keys(struct character_translate_rules *charset,
 
 	/* dead keys */
 	init_charset_deadmap(charset);
+
+	/* check for any keys between 0 and 31 that are mapped in the
+	   video mem character set */
+	check_video_mem_charset(charset);
 
 	/* approximations for cut & paste */
 	init_charset_approximations(charset);

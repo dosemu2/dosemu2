@@ -311,7 +311,7 @@ CONST t_keysym key_map_de[] =
 
 CONST t_keysym shift_map_de[] =
 {
-  U_VOID, 27, '!', '"', 21, '$', '%', '&',
+  U_VOID, 27, '!', '"', 0x00a7, '$', '%', '&',
   '/', '(', ')', '=', '?', '`', 127, 9,
   'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I',
   'O', 'P', 0x00dc, '*', 13, U_VOID, 'A', 'S',
