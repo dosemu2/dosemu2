@@ -276,11 +276,19 @@ DOSEMUMouseProtocol(rBuf, nBytes)
 	   break;
 	}
 
-        /*
-	*  Here for 3 button emulation, if needed ? 
-	DOSEMUPostMseEvent(buttons, dx, dy);
-	*/
-	
+	/* Provide 3 button emulation on 2 button mice.
+	   Middle press if left/right pressed together. 
+	   Middle release done for us by the above routines. 
+	   This bit also resets the left/right button, because
+	   we can't have all three buttons pressed at once. 
+	   Well, we could, but not under emulation on 2 button mice. 
+
+	   I might provide an option for dosemu.conf for real three
+	   button mice if this is a problem. - Alan Hourihane */
+
+	if ((buttons & 0x04) && (buttons & 0x01)) 
+	  buttons = 0x02;	/* Set middle button */
+	  
 	/*
 	 * calculate the new values for buttons, dx and dy
 	 */

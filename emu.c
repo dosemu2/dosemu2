@@ -1071,8 +1071,13 @@ void memory_init(void) {
   /* Install the new packet driver interface */
   pkt_init(0x60);
 
+  if (config.num_lpt >= 1)
   bios_address_lpt1 = 0x378;
+  if (config.num_lpt >= 2)
   bios_address_lpt2 = 0x278;
+  if (config.num_lpt >= 3)
+  bios_address_lpt3 = 0x3bc;
+      
   bios_configuration = configuration;
   bios_memory_size = config.mem_size;	/* size of memory */
 
@@ -3059,7 +3064,45 @@ static void cdrom_helper(void)
    return ;
 }
 
-
+static void
+mouse_helper(void) 
+{
+  if (!mice->intdrv) {
+    m_printf("MOUSE No Internaldriver set, exiting mouse_helper()\n");
+    LWORD(eax) = 0xffff;
+    return;
+  }
+ 
+  LWORD(eax) = 0;		/* Set successful completion */
+    
+  switch (LO(bx)) {
+  case 0:				/* Reset iret for mouse */
+    m_printf("MOUSE move iret !\n");
+    SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
+    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+    break;
+  case 1:				/* Select Microsoft Mode */
+    m_printf("MOUSE Microsoft Mouse selected.\n");
+    mouse.mode = TRUE;
+    break;
+  case 2:				/* Select PC Mouse (3 button) */
+    m_printf("MOUSE PC Mouse selected.\n");
+    mouse.mode = FALSE;
+    break;
+  case 3:				/* Tell me what mode we are in ? */
+    if (mouse.mode)
+      HI(bx) = 0x10;		/* We are currently in Microsoft Mode */
+    else
+      HI(bx) = 0x20;		/* We are currently in PC Mouse Mode */
+    break;
+  case 0xff:
+    m_printf("MOUSE Checking InternalDriver presence !!\n");
+    break;
+  default:
+    m_printf("MOUSE Unknown mouse_helper function\n");
+    LWORD(eax) = 1;		/* Set unsuccessful completion */
+  }
+}
 
 static void
  ems_helper(void) {
@@ -3304,8 +3347,7 @@ dos_helper(void) {
     break;
 
   case 0x33:			/* set mouse vector */
-    SETIVEC(0x33, Mouse_SEG, Mouse_ROUTINE_OFF);
-    SETIVEC(0x74, Mouse_SEG, Mouse_ROUTINE_OFF);
+    mouse_helper();
     break;
 
   /*  run the unix command in ds:dx (a null terminated buffer) */
@@ -3561,60 +3603,31 @@ int15(u_char i)
     return;			/* no ebios area */
   case 0xc2:
         m_printf("PS2MOUSE: Call ax=0x%04x\n", LWORD(eax));
-	if (!mice->intdrv) {
+	if (!mice->intdrv)
           if (mice->type != MOUSE_PS2) {
                 REG(eax) = 0500;        /* No ps2 mouse device handler */
                 CARRY;
                 return;
-          }
-	  else return;
-	}
+	  }
                 
         switch (REG(eax) &= 0x00FF)
         {
                 case 0x0000:                    
-                        if (LO(bx)) mouse.cursor_on = 1;
-                                else mouse.cursor_on = 0;
-                        HI(ax) = 0;             
-			NOCARRY;
+			HI(ax) = 0;
+			NOCARRY;		/* We are ignoring state for now */
                         break;
                 case 0x0001:
                         HI(ax) = 0;
                         LWORD(ebx) = 0xAAAA;    /* we have a ps2 mouse */
 			NOCARRY;
                         break;
-		case 0x0002:			/* set sampling rate */
-			HI(ax) = 0;		/* invalid function  but who cares */
-			NOCARRY;
-			break;
-		case 0x0003:
-			switch (LO(bx))
-			{
-			case 0x00:	
-				mouse.ratio = 1;
-				break;
-			case 0x01:
-				mouse.ratio = 2;
-				break;
-			case 0x02:
-				mouse.ratio = 4;
-				break;
-			case 0x03:
-				mouse.ratio = 8;
-			} 
-			HI(ax) = 0;
-			NOCARRY;
-			break;
 		case 0x0004:
 			HI(bx) = 0xAA;
 			HI(ax) = 0;
 			NOCARRY;
 			break;
-		case 0x0005:
-			HI(ax) = 0;
-			NOCARRY;
-			break;
                 default:
+			HI(ax) = 1;
                         g_printf("PS2MOUSE: Unknown call ax=0x%04x\n", LWORD(eax));
                         CARRY;
         }

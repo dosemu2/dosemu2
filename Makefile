@@ -9,12 +9,6 @@
 # if you are doing the first compile.
 #
 
-# Kernel version
-#if less than 1.1.67
-# export KERNEL=-DOLD_KERNEL
-#if less than 1.1.73
-# export KERNEL2=-DOLD_KERNEL2
-
 # Want to try SLANG?
 USE_SLANG=-DUSE_SLANG
 ifdef USE_SLANG
@@ -47,11 +41,13 @@ endif
 endif
 
 #Change the following line if the right kernel includes reside elsewhere
-LINUX_INCLUDE = /usr/src/linux/include # why not
+LINUX_KERNEL = /usr/src/linux
+LINUX_INCLUDE = $(LINUX_KERNEL)/include
+export LINUX_KERNEL
 export LINUX_INCLUDE  
 
 #Change the following line to point to your ncurses include
-NCURSES_INC = $(HOME)/include/ncurses
+NCURSES_INC = /usr/include/ncurses
 
 #Change the following line to point to your loadable modules directory
 BOOTDIR = /boot/modules
@@ -105,7 +101,7 @@ DEPENDS = dos.d emu.d
 EMUVER  =   0.53
 export EMUVER
 VERNUM  =   0x53
-PATCHL  =   38
+PATCHL  =   39
 LIBDOSEMU = libdosemu$(EMUVER)pl$(PATCHL)
 
 # DON'T CHANGE THIS: this makes libdosemu start high enough to be safe. 
@@ -166,7 +162,7 @@ OFILES= Makefile Makefile.common ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
 	NOVELL-HOWTO.txt BOGUS-Notes \
 	README.ncurses vga.pcf vga.bdf xtermdos.sh xinstallvgafont.sh README.X \
-	README.CDROM README.video Configure DANG_CONFIG
+	README.CDROM README.video Configure DANG_CONFIG README.HOGTHRESHOLD
 
 BFILES=
 
@@ -359,8 +355,11 @@ docsubdirs:	$(DOCS)
 $(DOCS) $(OPTIONALSUBDIRS) $(LIBSUBDIRS) $(REQUIRED):
 	$(MAKE) -C $@ 
 
-config: include/config.h
 
+include/kversion.h:
+	./tools/kversion.sh $(LINUX_KERNEL) ./
+
+config: include/config.h include/kversion.h
 #	./dosconfig $(CONFIGINFO) > include/config.h
 
 installnew: 

@@ -446,8 +446,8 @@ u_char redirected_drives = 0;
 int calculate_drive_pointers(int);
 
 /* dos_disk.c */
-struct dir_ent *get_dir();
-void auspr();
+static struct dir_ent *get_dir();
+static void auspr();
 
 boolean_t drives_initialized = FALSE;
 char *dos_roots[MAX_DRIVE];
@@ -542,6 +542,7 @@ int sda_ext_mode_off = 0x2e1;
 struct direct *dos_readdir(DIR *);
 
 #if DOSEMU
+/* FIXME -- move elsewhere (inline/) */
 __inline__ int
 exchange_uids(void)
 {
@@ -556,7 +557,7 @@ exchange_uids(void)
 #endif
 
 /* Try and work out if the current command is for any of my drives */
-__inline__ int
+static int
 select_drive(state)
      state_t *state;
 {
@@ -754,7 +755,7 @@ select_drive(state)
   return (1);
 }
 
-__inline__ int
+static int
 get_dos_attr(int mode)
 {
   int attr = 0;
@@ -768,7 +769,7 @@ get_dos_attr(int mode)
   return (attr);
 }
 
-__inline__ int
+static int
 get_unix_attr(int mode, int attr)
 {
 #define S_IWRITEA (S_IWUSR | S_IWGRP | S_IWOTH)
@@ -787,7 +788,7 @@ get_unix_attr(int mode, int attr)
   return (mode);
 }
 
-__inline__ int
+static int
 get_disk_space(char *cwd, int *free, int *total)
 {
   struct statfs fsbuf;
@@ -801,8 +802,8 @@ get_disk_space(char *cwd, int *free, int *total)
     return (0);
 }
 
-__inline__ void
-init_all_drives()
+static void
+init_all_drives(void)
 {
   int dd;
 
@@ -828,7 +829,7 @@ init_all_drives()
   * \T -> current tmp directory
   *
   */
-__inline__ void
+static void
 get_unix_path(char *new_path, char *path)
 {
   char str[MAXPATHLEN];
@@ -905,7 +906,7 @@ get_unix_path(char *new_path, char *path)
   return;
 }
 
-int
+static int
 init_drive(int dd, char *path, char *options)
 {
   struct stat st;
@@ -1020,7 +1021,7 @@ mfs_inte6(void)
 
 /* include a few necessary functions from dos_disk.c in the mach
    code as well */
-__inline__ boolean_t
+static boolean_t
 extract_filename(filename, name, ext)
      char *filename;
      char *name;
@@ -1137,8 +1138,8 @@ extract_filename(filename, name, ext)
   return (TRUE);
 }
 
-__inline__ struct dir_ent *
-make_entry()
+static struct dir_ent *
+make_entry(void)
 {
   struct dir_ent *entry;
 
@@ -1153,7 +1154,7 @@ make_entry()
   return (entry);
 }
 
-__inline__ void
+static  void
 free_list(list)
      struct dir_ent *list;
 {
@@ -1170,7 +1171,7 @@ free_list(list)
   free(list);
 }
 
-__inline__ struct dir_ent *
+static  struct dir_ent *
 _get_dir(char *name, char *mname, char *mext)
 {
   DIR *cur_dir;
@@ -1288,7 +1289,7 @@ _get_dir(char *name, char *mname, char *mext)
   return (dir_list);
 }
 
-__inline__ struct dir_ent *
+static __inline__ struct dir_ent *
 get_dir(char *name, char *fname, char *fext)
 {
   struct dir_ent *r;
@@ -1303,7 +1304,7 @@ get_dir(char *name, char *fname, char *fext)
  * Another useless specialized parsing routine!
  * Assumes that a legal string is passed in.
  */
-__inline__ void
+static void
 auspr(filestring, name, ext)
      char *filestring;
      char *name;
@@ -1354,7 +1355,7 @@ auspr(filestring, name, ext)
   }
 }
 
-__inline__ void
+static void
 init_dos_offsets(ver)
      int ver;
 {
@@ -1537,11 +1538,14 @@ init_dos_offsets(ver)
   }
 }
 
-__inline__ void
-init_dos_side()
+#ifndef DOSEMU
+static void
+init_dos_side(void)
 {
   mach_fs_enabled = TRUE;
 }
+
+#endif
 
 struct direct *
 dos_readdir(dir)

@@ -2,7 +2,8 @@
  * File: LREDIR.C
  *  Program for Linux DOSEMU disk redirector functions
  * Written: 10/29/93 by Tim Bird
- *
+ * Fixes: 1/7/95 by Tim Josling TEJ: check correct # args 
+ *      :                            display read/write status correctly
  * NOTES:
  *  LREDIR supports the following commands:
  *  LREDIR drive filepath
@@ -16,6 +17,7 @@
  *  LREDIR HELP or LREDIR ?
  *    show usage information for LREDIR ???
  ***********************************************/  
+
 #include <stdio.h>    /* for printf */
 #include <dos.h>    /* for geninterrupt and MK_FP */
 #include <string.h>
@@ -58,7 +60,6 @@ typedef unsigned int uint16;
 /* returns non-zero major version number if DOSEMU is loaded */ 
 uint16 CheckForDOSEMU(void) 
 {
-  
   _AL = DOS_HELPER_DOSEMU_CHECK;
   
     geninterrupt(DOS_HELPER_INT);
@@ -86,7 +87,7 @@ GetListOfLists()
   char far *LOL;
 
   
-    
+
     _AX = DOS_GET_LIST_OF_LISTS;
   
     geninterrupt(0x21);
@@ -107,6 +108,7 @@ GetSDAPointer(void)
 
   
     
+
     _AX = DOS_GET_SDA_POINTER;
   
     asm {
@@ -129,7 +131,7 @@ GetSDAPointer(void)
 /********************************************
  * InitMFS - call Emulator to initialize MFS
  ********************************************/ 
-uint16 InitMFS(void) 
+void InitMFS(void) /* tej - changed return type to void as nothing returned */
 {
   
     uint16 ccode;
@@ -138,6 +140,7 @@ uint16 InitMFS(void)
 
   
     char far *SDA;
+
 
   
     
@@ -310,7 +313,7 @@ uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceStr,
     asm {
     
       push bp 
-      int 21 h 
+      int 33 
      pop bp 
      pushf 
      pop dx /* get flags into DX */  
@@ -319,7 +322,7 @@ uint16 GetRedirection(uint16 redirIndex, char *deviceStr, char *resourceStr,
   
    ccode = _AX;
   
-    deviceTypeTemp = _BL;	/* save device type before C ruins it */
+    deviceTypeTemp = _BL;       /* save device type before C ruins it */
   
     *deviceType = deviceTypeTemp;
   
@@ -446,9 +449,9 @@ ShowMyRedirections(void)
 	/* read attribute is returned in the device parameter */ 
 	if (deviceParam & 0x80) {
 	
-	  printf("attrib = ");
+	  printf("attrib = ",deviceParam);
 	
-	  switch (deviceParam) {
+	  switch (deviceParam & 0x7f) { /* tej 1/7/95 */
 	  
 	case READ_ONLY_DRIVE_ATTRIBUTE:
 	  
@@ -560,17 +563,9 @@ main(int argc, char **argv)
     
   }
   
-    
-    if (strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {
-    
-      DeleteDriveRedirection(argv[2]);
-    
-      exit(0);
-    
-  }
   
     
-    if (strcmpi(argv[1], "HELP") == 0 || argv[1][0] == '?') {
+    if (argc ==2) { /* tej one parm is either error or HELP/-help etc */
     
       printf("Usage: LREDIR drive: LINUX\\FS\\path [R]\n");
     
@@ -594,6 +589,14 @@ main(int argc, char **argv)
     
   }
   
+    
+    if (strncmpi(argv[1], KEYWORD_DEL, KEYWORD_DEL_COMPARE_LENGTH) == 0) {
+    
+      DeleteDriveRedirection(argv[2]);
+    
+      exit(0);
+    
+  }
     
     /* assume the command is to redirect a drive */ 
     /* read the drive letter and resource string */ 
@@ -642,4 +645,3 @@ MainExit:
 }
 
 
-

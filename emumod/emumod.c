@@ -4,6 +4,7 @@
  * (C) 1994 under GPL, Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
   
+#include "kversion.h"
 
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -24,7 +25,7 @@
  *   (so, don't panic if you get a GCC warning "_kernel_version not used" )
  */
 #include <linux/module.h>
-#ifdef KERNEL2
+#if KERNEL_VERSION < 1001072
 #include "../../linux/tools/version.h"
 #else
 #include "linux/version.h"

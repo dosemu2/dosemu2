@@ -30,6 +30,7 @@ CFILES = vm86.c traps.c emumod.c emusys.c
 SFILES = fastsys.S
 HFILES = emumod.h
 OFILES = vm86.o traps.o emumod.o emusys.o
+KVFILE = ../include/kversion.h
 
 # Insert all source- and header-files here.
 
@@ -39,8 +40,6 @@ ALL = $(CFILES) $(HFILES) $(SFILES) README.emumod
 
 OBJS= vm86.o traps.o emumod.o fastsys.o emusys.o
  
-CFLAGS += KERNEL2
-
 all: $(OBJS) emumodule.o
 
 .c.o:
@@ -49,20 +48,20 @@ all: $(OBJS) emumodule.o
 emumodule.o: ${OBJS}
 	ld -r -o emumodule.o $(OBJS)
 
-vm86.o:  vm86.c emumod.h 
-	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
+vm86.o:  vm86.c emumod.h ${KVFILE}
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c vm86.c -o vm86.o
 
-emumod.o:  emumod.c emumod.h 
-	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
+emumod.o:  emumod.c emumod.h ${KVFILE}
+	$(CC) ${KCFLAGS} -D_LOADABLE_VM86_  -c emumod.c -o emumod.o
 
-emusys.o:  emusys.c 
-	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
+emusys.o:  emusys.c ${KVFILE}
+	$(CC)  ${KCFLAGS} -D_LOADABLE_VM86_  -c emusys.c -o emusys.o
 
-traps.o:  traps.c emumod.h 
-	$(CC) $(EXTRA_HEADERS) ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
+traps.o:  traps.c emumod.h ${KVFILE}
+	$(CC)  ${KCFLAGS} -D_LOADABLE_VM86_  -c traps.c -o traps.o
 
-fastsys.o: fastsys.S
-	$(CC) -c $(KERNEL) -D__ASSEMBLY__ $(EXTRA_HEADERS) fastsys.S -o fastsys.o
+fastsys.o: fastsys.S ${KVFILE}
+	$(CC) ${KCFLAGS} -c -D__ASSEMBLY__  fastsys.S -o fastsys.o
 
 checkin:
 	-ci $(ALL) Makefile
@@ -82,7 +81,7 @@ dist: $(ALL) Makefile
 	install -d $(DISTPATH)/emumod
 	install -m 0644 $(ALL) Makefile $(DISTPATH)/emumod
 
-depend dep: $(CFILES) $(HFILES)
+depend dep: $(CFILES) $(HFILES) ${KVFILE}
 	$(CPP) -MM $(CFLAGS) $(CFILES) $(INCDIR) -I$(USRSRCDIR) > .depend
 
 dummy:

@@ -75,13 +75,13 @@ extern struct mouse_struct {
   int cx, cy;
 
   /* these are for sensitivity options */
-  int horzsen, vertsen, threshold;
+  int threshold;
   int language;
 
   signed short mickeyx, mickeyy;
 
   int ratio;
-  unsigned char cursor_on;
+  unsigned int cursor_on;
   unsigned long cursor_type;
 
   /* this is for the user-defined subroutine */
@@ -91,6 +91,8 @@ extern struct mouse_struct {
 
   unsigned short hidchar;
   unsigned int hidx, hidy;
+
+  boolean mode;
 } mouse;
 
 void mouse_keyboard(int), mouse_curtick(void), mouse_sethandler(void *, unsigned short *, unsigned short *);

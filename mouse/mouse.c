@@ -249,7 +249,7 @@ mouse_int(void)
     break;
 
   case 2:			/* Hide Mouse Cursor */
-    mouse_cursor(0);
+    mouse_cursor(-1);
     break;
 
   case 3:			/* Get Mouse Position and Button Status */
@@ -295,16 +295,16 @@ mouse_int(void)
   case 0xf:
      m_printf("MOUSE: function 0f: cx=%04x, dx=%04x\n",LWORD(ecx),LWORD(edx));
      mouse.speed_x = LWORD(ecx);
-     if (mouse.speed_x <= 0)
-        mouse.speed_x = 1;
      mouse.speed_y = LWORD(edx);
-     if (mouse.speed_y <= 0)
-        mouse.speed_y = 1;
      break;
 
   case 0x11: 
-    LWORD(eax) = 0xffff;	/* Genius mouse driver, return 2 buttons */
-    LWORD(ebx) = 2;
+    if (!mouse.mode && (MOUSE_VERSION > 0x0906)) {
+      LWORD(eax) = 0xffff;	/* Genius mouse driver, return 2 buttons */
+      LWORD(ebx) = 2;
+    } else {
+      /* Documentation says leave alone */
+    }  
     break;
 
   case 0x14:
@@ -337,20 +337,20 @@ mouse_int(void)
       struct mouse_struct *mpt;
       mpt=&mouse;
       memcpy(mpt, (u_char *)(LWORD(es) << 4)+LWORD(edx), sizeof(mouse));
-      mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
+      mouse.cursor_on = -1;	/* Assuming software reset, turns off mouse */
       m_printf("MOUSE: Restore mouse state\n");
     }
     break;
 
   case 0x1a:			/* SET MOUSE SENSITIVITY */
-    mouse.horzsen = LWORD(ebx);
-    mouse.vertsen = LWORD(ecx);
+    mouse.speed_x = LWORD(ebx);
+    mouse.speed_y = LWORD(ecx);
     mouse.threshold = LWORD(edx);
     break;
 
   case 0x1b:
-    LWORD(ebx) = mouse.horzsen;		/* horizontal speed */
-    LWORD(ecx) = mouse.vertsen;		/* vertical speed */
+    LWORD(ebx) = mouse.speed_x;		/* horizontal speed */
+    LWORD(ecx) = mouse.speed_y;		/* vertical speed */
     LWORD(edx) = mouse.threshold;	/* double speed threshold */
     break;
 
@@ -364,7 +364,7 @@ mouse_int(void)
 
   case 0x21:			
     m_printf("MOUSE: software reset on mouse\n");
-    mouse.cursor_on = 0;	/* Assuming software reset, turns off mouse */
+    mouse.cursor_on = -1;	/* Assuming software reset, turns off mouse */
     mouse.cs=0;
     mouse.ip=0;
 #ifdef X_SUPPORT
@@ -372,11 +372,10 @@ mouse_int(void)
        X_change_mouse_cursor(0);
 #endif
     LWORD(eax) = 0xffff;
-#if 0
-    LWORD(ebx) = 3;
-#else
-    LWORD(ebx) = 2;
-#endif
+    if (!mouse.mode)
+      LWORD(ebx) = 3;
+    else
+      LWORD(ebx) = 2;
     break;
 
   case 0x22:			/* Set language for messages */
@@ -393,7 +392,7 @@ mouse_int(void)
     break;
 
   case 0x26:			/* Return Maximal Co-ordinates */
-    LWORD(ebx) = !mouse.cursor_on;
+    LWORD(ebx) = !mice->intdrv;
     LWORD(ecx) = mouse.maxx;
     LWORD(edx) = mouse.maxy;
     m_printf("MOUSE: COORDINATES: x: %d, y: %d\n",mouse.maxx,mouse.maxy);
@@ -408,15 +407,16 @@ mouse_int(void)
     break;
  
   case 0x42:
-    LWORD(eax) = 0x42;		/* Configures mouse for Microsoft Mode */
-  
-   /* LWORD(eax) = 0xffff;	 Uncomment this for PC Mouse Mode */
-   /* LWORD(ebx) = sizeof(mouse);	 applies to Genius Mouse too */
+    if (mouse.mode) {
+      LWORD(eax) = 0x42;		/* Configures mouse for Microsoft Mode */
+    } else {
+      LWORD(eax) = 0xffff;	 	/* Uncomment this for PC Mouse Mode */
+      LWORD(ebx) = sizeof(mouse);	/* applies to Genius Mouse too */
+    }
     break;
 
   default:
     error("MOUSE: function 0x%04x not implemented\n", LWORD(eax));
-    LWORD(eax) = 0xFFFF;	/* probably wrong, but let's try. */
     break;
   }
 }
@@ -427,13 +427,12 @@ mouse_reset(void)
     m_printf("MOUSE: reset mouse/installed!\n");
     mouse.cs=0;
     mouse.ip=0;
-#if 1
     LWORD(eax) = 0xffff;
-    LWORD(ebx)=3; 
-#else
-    LWORD(eax) = 0x1;
-    LWORD(ebx)=2; 
-#endif
+    if (!mouse.mode) {
+      LWORD(ebx)=3; 
+    } else {
+      LWORD(ebx)=2; 
+    }
 
   mouse.minx = mouse.miny = 0;
 
@@ -449,7 +448,7 @@ mouse_reset(void)
 
   mouse.points = (*(unsigned short *)0x485);
   mouse.ratio = 1;
-  mouse.cursor_on = 0;
+  mouse.cursor_on = -1;
 #ifdef X_SUPPORT
   if (config.X)
      X_change_mouse_cursor(0);
@@ -468,9 +467,7 @@ mouse_reset(void)
   mouse.ip = mouse.cs = 0;
   mouse.mask = 0;		/* no interrupts */
 
-  mouse.horzsen = 75;
-  mouse.vertsen = 75;
-  mouse.threshold = 20;
+  mouse.threshold = 5000;
 
   mouse.lpcount = mouse.lrcount = mouse.rpcount = mouse.rrcount = 0;
   mouse.lpx = mouse.lpy = mouse.lrx = mouse.lry = 0;
@@ -485,12 +482,12 @@ mouse_reset(void)
 void 
 mouse_cursor(int flag)
 {
-  mouse.cursor_on = flag;
+  mouse.cursor_on = mouse.cursor_on + flag;
 #ifdef X_SUPPORT
   if (config.X)
 	  X_change_mouse_cursor(flag);
 #endif
-  m_printf("MOUSE: %s mouse cursor\n", flag ? "show" : "hide");
+  m_printf("MOUSE: %s mouse cursor %d\n", mouse.cursor_on ? "hide" : "show", mouse.cursor_on);
 }
 
 void 
@@ -870,7 +867,7 @@ mouse_event()
     REG(cs) = mouse.cs;
     REG(eip) = mouse.ip;
 
-    /* REG(ds) = *mouse.csp;  	put DS in user routine */
+    REG(ds) = *mouse.csp;	/* put DS in user routine */
 
     m_printf("MOUSE: event %d, x %d ,y %d, mx %d, my %d, b %x\n",
 	     mouse_events, mouse.x, mouse.y, mouse.maxx, mouse.maxy, LWORD(ebx));
@@ -938,7 +935,7 @@ mouse_do_cur(void)
 void
 mouse_curtick(void)
 {
-  if (!mouse.cursor_on || config.X)
+  if ((mouse.cursor_on != 0) || config.X)
     return;
 
   m_printf("MOUSE: curtick x: %d  y:%d\n", mouse.cx, mouse.cy);
@@ -974,8 +971,10 @@ mouse_init(void)
   int old_mice_flags = -1;
 #endif
 
+  mouse.cursor_on = -1;
   mouse.speed_x = 8;
   mouse.speed_y = 16;
+  mouse.mode = TRUE;		/* Microsoft 2 Button Mouse selected */
 #ifdef X_SUPPORT
   if (config.X) {
     mice->intdrv = TRUE;
@@ -1051,5 +1050,5 @@ mouse_close(void)
   if ((mice->type == MOUSE_PS2) || (mice->type == MOUSE_BUSMOUSE))
     DOS_SYSCALL(close(mice->fd));
 }
-	
+
 #undef MOUSE_C

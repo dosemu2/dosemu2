@@ -13,22 +13,39 @@
  * to mainly kill the offending process (probably by giving it a signal,
  * but possibly by killing it outright if necessary).
  */
-#include </usr/src/linux/include/asm-i386/segment.h>
+#ifdef _LOADABLE_VM86_
+  #include "kversion.h"
+#else
+  #define KERNEL_VERSION 1001076 /* last verified kernel version */
+#endif
 #include <linux/head.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#ifdef EXTRA_HEADERS
-#include <linux/segment.h>
+#if KERNEL_VERSION >= 1001067
+#include <asm/segment.h>
 #endif
 #include <linux/ptrace.h>
+
+#if KERNEL_VERSION >= 1001075
+#ifndef _LOADABLE_VM86_
+#include <linux/config.h>
+#include <linux/timer.h>
+#endif
+#endif
 
 #include <asm/system.h>
 #include <asm/segment.h>
 #include <asm/io.h>
 
 #ifndef _LOADABLE_VM86_
+
+#if KERNEL_VERSION >= 1001075
+asmlinkage int system_call(void);
+asmlinkage void lcall7(void);
+struct desc_struct default_ldt;
+#endif
 
 static inline void console_verbose(void)
 {
@@ -275,10 +292,56 @@ asmlinkage void do_coprocessor_error(struct pt_regs * regs, long error_code)
 	math_error();
 }
 
+#if KERNEL_VERSION >= 1001075
+/*
+ *  'math_state_restore()' saves the current math information in the
+ * old math state array, and gets the new ones from the current task
+ *
+ * Careful.. There are problems with IBM-designed IRQ13 behaviour.
+ * Don't touch unless you *really* know how it works.
+ */
+asmlinkage void math_state_restore(void)
+{
+	__asm__ __volatile__("clts");
+	if (last_task_used_math == current)
+		return;
+	timer_table[COPRO_TIMER].expires = jiffies+50;
+	timer_active |= 1<<COPRO_TIMER;	
+	if (last_task_used_math)
+		__asm__("fnsave %0":"=m" (last_task_used_math->tss.i387));
+	else
+		__asm__("fnclex");
+	last_task_used_math = current;
+	if (current->used_math) {
+		__asm__("frstor %0": :"m" (current->tss.i387));
+	} else {
+		__asm__("fninit");
+		current->used_math=1;
+	}
+	timer_active &= ~(1<<COPRO_TIMER);
+}
+
+#ifndef CONFIG_MATH_EMULATION
+
+asmlinkage void math_emulate(long arg)
+{
+  printk("math-emulation not enabled and no coprocessor found.\n");
+  printk("killing %s.\n",current->comm);
+  send_sig(SIGFPE,current,1);
+  schedule();
+}
+
+#endif /* CONFIG_MATH_EMULATION */
+#endif /* KERNEL_VERSION >= 1001075 */
+
 void trap_init(void)
 {
 	int i;
-
+#if KERNEL_VERSION >= 1001075
+	struct desc_struct * p;
+	
+	set_call_gate(&default_ldt,lcall7);
+#endif
 	set_trap_gate(0,&divide_error);
 	set_trap_gate(1,&debug);
 	set_trap_gate(2,&nmi);
@@ -299,6 +362,25 @@ void trap_init(void)
 	set_trap_gate(17,&alignment_check);
 	for (i=18;i<48;i++)
 		set_trap_gate(i,&reserved);
+#if KERNEL_VERSION >= 1001075
+	set_system_gate(0x80,&system_call);
+/* set up GDT task & ldt entries */
+	p = gdt+FIRST_TSS_ENTRY;
+	set_tss_desc(p, &init_task.tss);
+	p++;
+	set_ldt_desc(p, &default_ldt, 1);
+	p++;
+	for(i=1 ; i<NR_TASKS ; i++) {
+		p->a=p->b=0;
+		p++;
+		p->a=p->b=0;
+		p++;
+	}
+/* Clear NT, so that we won't have troubles with that later on */
+	__asm__("pushfl ; andl $0xffffbfff,(%esp) ; popfl");
+	load_TR(0);
+	load_ldt(0);
+#endif
 }
 
 #endif /* NOT _LOADABLE_VM86_ */

@@ -43,7 +43,8 @@
 
 #ifdef MODULE
 #include <linux/module.h>
-#ifdef KERNEL2
+#include "kversion.h"
+#if KERNEL_VERSION >= 1001073
 #include "/usr/src/linux/tools/version.h"
 #else
 #include "linux/version.h"

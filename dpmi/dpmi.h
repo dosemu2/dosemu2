@@ -5,8 +5,14 @@
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
+#define DPMI_page_size		4096	/* 4096 bytes per page */
+
 #define DPMI_private_paragraphs	0x0100	/* private data for DPMI server */
-#define DPMI_pm_stack_size	0x1000	/* protected mode stack for exceptions etc. */
+#define DPMI_pm_stack_size	0x1000	/* locked protected mode stack for exceptions, */
+					/* hardware interrupts, software interrups 0x1c, */
+					/* 0x23, 0x24 and real mode callbacks */
+
+#define DPMI_rm_stack_size	16	/* times vm86_regs */
 
 #define UCODESEL 0x23
 #define UDATASEL 0x2b
@@ -18,6 +24,7 @@ void dpmi_get_entry_point();
 
 void dpmi_fault(struct sigcontext_struct *);
 void dpmi_realmode_hlt(unsigned char *);
+void run_pm_int(int);
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \
@@ -80,6 +87,7 @@ struct RealModeCallStructure {
   unsigned short ss;
 };
 
+#if 0
 #define DPMI_show_state \
     D_printf("eip: 0x%08lx  esp: 0x%08lx  eflags: 0x%08lx\n" \
 	     "trapno: 0x%02lx  errorcode: 0x%08lx  cr2: 0x%08lx\n" \
@@ -125,5 +133,8 @@ struct RealModeCallStructure {
     for (i = 0; i < 10; i++) \
       D_printf("%02x ", *ssp2++); \
     D_printf("\n");
+#else
+#define DPMI_show_state 
+#endif
 
 #endif /* DPMI_H */

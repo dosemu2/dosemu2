@@ -11,13 +11,13 @@ CFLAGS+= $(KERNEL)
 	dd if=$*.tmp of=$@ bs=1 skip=288
 	rm -f $*.tmp $*.o
 
-ALL = dpmi.c dpmi.h \
+ALL = dpmi.c dpmi.h meminfo.c meminfo.h \
 	testdpmi.S
 
 SUBDIR=dpmi
 
-OBJS = $(SUBDIR).o
-DEPENDS=dpmi.d
+OBJS = dpmi.o meminfo.o
+DEPENDS=dpmi.d meminfo.d
 
 all:  lib testdpmi.com
 

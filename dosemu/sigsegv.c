@@ -335,7 +335,7 @@ static int do_43(boolean_t in_out, int val)
  *
  * DANG_END_FUNCTION
  */
-static inline int
+static int
 inb(int port)
 {
 
@@ -519,7 +519,7 @@ inw(int port)
   return( read_port_w(port) );
 }
 
-static inline void
+static void
 outb(int port, int byte)
 {
   static int timer_beep = 0;
@@ -798,7 +798,7 @@ void update_timers(void) {
  * DANG_END_FUNCTION
  */
 
-void vm86_GP_fault()
+void vm86_GP_fault(void)
 {
 
   unsigned char *csp, *lina;

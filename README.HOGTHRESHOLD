@@ -1,0 +1,93 @@
+From popserver Sun Jan  7 00:29:47 GMT 1995
+Received: from nymphe.m.isar.de (root@nymphe.m.ISAR.de [193.141.69.3]) by Fox.nstn.ns.ca (8.6.8.1/8.6.6) with SMTP id UAA10060 for <jmaclean@fox.nstn.ns.ca>; Fri, 6 Jan 1995 20:28:26 -0400
+Received: from andiunx.m.isar.de (Uandiunx@localhost) by nymphe.m.isar.de (8.6.9/ny-1.1) with UUCP id WAA19642 for fox.nstn.ns.ca!jmaclean; Fri, 6 Jan 1995 22:26:03 +0100
+Received: by andiunx.m.isar.de (Smail3.1.28.1 #6)
+	id m0rQN2l-000DiYC; Fri, 6 Jan 95 22:21 GMT
+Message-Id: <m0rQN2l-000DiYC@andiunx.m.isar.de>
+From: andi@andiunx.m.isar.de (Andreas Kies)
+Subject: Q&A for hogthreshold
+To: jmaclean@fox.nstn.ns.ca
+Date: Fri, 6 Jan 1995 22:21:58 +0000 (GMT)
+X-Mailer: ELM [version 2.4 PL21]
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Length: 1901      
+Status: RO
+
+Hi Jes,
+
+Here comes the promised documentation for HogThreshold.
+It's not much, but anyway it might be helpful for some people.
+It you find it good enough, please include it in the next version
+of DOSEMU.
+
+Thanks
+Andi.
+
+
+----------------------------------------------------------------------
+
+This files is some kind of FAQ on how to use the 'HogThreshold' value in the
+dosemu config file.
+
+In case you have more questions feel free to ask me
+( andi@andiunx.m.isar.de ).
+
+Those of you who simply want to have DOSEMU running at highest possible speed
+simply leave the value to zero, but if you are concerned about
+DOSEMU eating too much CPU time it's worth playing with the HogThreshold value.
+
+
+Q.:
+Why do I need to set the HogThreshold value, why can't DOSEMU
+     just stop if it is waiting for a keystroke ?
+
+A.:
+The reason is the way how DOS and a lot of applications have implemented
+'waiting for a keystroke'.
+
+It's most often done by something similar to the following code fragment :
+
+wait_for_key:
+	; do something
+	mov ah,1
+	int 0x16 ; check key status
+	jz	wait_for_key ; jump if no key
+	; found a key
+        mov ah,0
+        int 0x16 ; get key
+
+This means that the application is busy waiting for the keystroke.
+
+
+Q.:
+What is a good value for HogThreshold to start with ?
+
+A.:
+On a 40 MHZ 486 start with a value of 7000.
+Increase this value if you to have your DOS application run faster,
+decrease it if you think too much CPU time is used.
+
+Q.:
+It does not work on my machine.
+
+A.:
+You need to have at least dosemu0.53pl27 in order to have the
+anti-hog code in effect.
+
+
+Q.:
+Why not simply use a very low value of "HogThreshold" ?
+Do I really have to try an individual value of HogThreshold ?
+
+A.:
+This would slow down your DOS application. But why not, DOS is slow
+anyway :-).
+
+
+Q.:
+How do I found out about CPU usage of DOSEMU ?
+
+A.:
+Simply use 'top'. It displays cpu and memory usage.

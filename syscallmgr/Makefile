@@ -29,7 +29,6 @@ OFILES =
 
 ALL = $(CFILES) $(HFILES) $(OFILES) README.syscallmgr
 
-CFLAGS += $(KERNEL) $(KERNEL2)
 
 # All object-files are included here.
 
@@ -50,7 +49,7 @@ testmain:	testmain.c
 	$(CC) -m486 -Wall $(INCDIR) -O6 testmain.c -o testmain
 
 insmod:	insmod.c
-	$(CC) -m486 -Wall -O6 insmod.c -o insmod
+	$(CC) -m486 -Wall $(INCDIR) -O6 insmod.c -o insmod
 
 checkin:
 	-ci $(ALL) Makefile

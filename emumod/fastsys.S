@@ -1,7 +1,8 @@
-#ifdef OLD_KERNEL
-#include <linux/segment.h>
-#else
+#include "kversion.h"
+#if KERNEL_VERSION >= 01001067
 #include <asm/segment.h>
+#else
+#include <linux/segment.h>
 #endif
 
 #include <linux/sys.h>

@@ -10,6 +10,7 @@
  * added by Hans Lermen <lermen@elserv.ffm.fgan.de>
  */
 
+#include "kversion.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,8 +80,17 @@ struct zSystem_entry {
 };
 
 int use_zSystem=0, use_zSystem_local=0;
+
 char *zsystem_map_name="/usr/src/linux/zSystem.map";
 
+#if KERNEL_VERSION >= 1001076
+char *system_map_name="/usr/src/linux/System.map";
+static void check_system_map_name()
+{
+  struct stat buf;
+  if (stat(zsystem_map_name, &buf)) zsystem_map_name=system_map_name; 
+}
+#endif
 
 static struct zSystem_entry *build_zSystem_syms(char *name)
 {
@@ -428,6 +438,9 @@ main(int argc, char **argv) {
 	if (use_zSystem) {
 	  struct zSystem_entry *zsym;
 		
+#if KERNEL_VERSION >= 1001076
+	  check_system_map_name();
+#endif
 	  fprintf(stderr,"Now resolving from %s\n", zsystem_map_name);
 	  zsym=build_zSystem_syms(zsystem_map_name);
 	  if (!zsym) exit(2);

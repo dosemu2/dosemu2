@@ -92,7 +92,6 @@ int17(u_char ii)
   if (LWORD(edx) + 1 > config.num_lpt) {
     p_printf("LPT: print to non-defined printer LPT%d\n",
 	     LWORD(edx) + 1);
-    HI(ax) = LPT_TIMEOUT;
     CARRY;
     return;
   }

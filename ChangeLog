@@ -1,3 +1,79 @@
+Sun Jan  8 	1995
+
+-	Released pre0.53_39
+-	All Hans' patches to get a working kversion.h system in place.
+	Finally we can easily(?) keep dosemu working with various
+	releases.
+-	From Alan:
+
+	Hi James,
+
+		I saw in the code you've been doing a bit of hacking with 2/3 button
+	mice. Well I modified a bit of the code and hope this helps a little.
+
+		What I've done is provided switchable PC Mouse/Microsoft mice modes
+	within DOSEMU. I've re-written mouse.S to become mouse.asm (Sorry, I couldn't
+	suss out gas to compile dos progs, so I had to use a86). Anyway I've also
+	provided the NEW ! raw mouse.com at the end of this message in uuencoded
+	format.
+
+		There have been a few more subtle changes to the code that you'll
+	probably notice too. One of the more obvious, is that the internaldriver
+	now can have 3 button emulation on 2 button mice. 
+
+		Anyway MOUSE.COM now takes some arguments...
+
+			r - resets the iret. Put "mouse r" in your autoexec now..
+			i - inquire current configuration of mouse driver.
+			p - Set PC Mouse mode (3 buttons)
+			m - Set Microsoft mode (2 buttons)
+
+	I'll be implementing more as we go along...
+
+	Some of the PS/2 Mouse BIOS routines have been deleted/re-written, as the
+	existing code was wrong.
+
+	Alan.
+
+	Hi again.
+
+		Some more fixes.
+
+		Apparently according to my documentation there are some wrong doings
+	in the show/hide stuff. There should be a counter which if 0 the cursor shows,
+	but it is possible to do ... hide(), hide() which will make the counter -2,
+	then doing a show() with put the counter at -1, but will still not show the
+	cursor. Doing another show() will make the cursor appear.
+
+-	Alan's patches to get Hans' emumod system compiling again.
+-	Added new lredir.exe and lredir.c from Tim Josling <tej@melbpc.org.au>:
+
+	The problems fixed are:
+
+	Doesn't check that argv[2] exists before using it, causing a loop in some
+	cases.
+
+	Function that returns nothing is specified to return some type of int,
+	causing compiler complaints.
+
+	Drive mounted read-only is reported as read-write.
+
+	I tested the fixes pretty thoroughly so they shoudl be OK. I compiled
+	with Turbo C++ 3.0 when I tested them.
+
+	The file below is the full source in dos format (with ^M's). I tried to
+	generate a diff file but this didn't work as the original file didn't
+	have the ^M's on many lines so as my editer put them on every line I
+	ended up with many spurious diff's.
+
+	The version of lredir was the one from 0.53pl37.
+
+	Regards,
+	Tim Josling
+
+-	Added Lutz's latest DPMI patches. GO32 now runs and shows
+	memory. Some go32 DPMI programs are running. Yah Lutz.
+
 Wed Jan  4 	1995
 
 -	Released pre0.53_38. Happy New Year.
