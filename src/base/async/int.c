@@ -1858,14 +1858,14 @@ static int int2f(void)
   return !IS_REDIRECTED(0x2f);
 }
 
+int int33_post(void);
+
 /* mouse */
 static int int33(void) {
 /* New code introduced by Ed Sirett (ed@cityscape.co.uk)  26/1/95 to give 
  * garrot control when the dos app is polling the mouse and the mouse is 
  * taking a break. */
   
-  static unsigned short int oldx=0, oldy=0;
-
   /* set the mouse int33 back to where it should be in case DOS put it to iret */
   if (config.mouse.intdrv && IS_IRET(0x33)) {
     SETIVEC(0x33, BIOSSEG, INT_OFF(0x33));
@@ -1879,16 +1879,30 @@ static int int33(void) {
  * Do we need/have we got post_interrupt (IRET) handlers? 
  */
 /* We have post_interrupt handlers in dpmi --EB 28 Oct 1997 */
-#if 0
-  if (IS_REDIRECTED(0x33)) {
-    /* avoid recursion */
-    interrupt_function[0x33] = mouse_int;
-    do_intr_call_back(0x33);
-    interrupt_function[0x33] = int33;
+
+  /* avoid recursion */
+  interrupt_function[0x33] = mouse_int;
+  if (fault_cnt) {
+    /* we are called from a signal handler. This means DPMI and calling
+       do_intr_call_back is not safe. int33_post is called from the DPMI
+       code to deal with hogthreshold */
+    if (!IS_REDIRECTED(0x33))
+      return mouse_int();
+    real_run_int(0x33);
+    return 0;
   }
+  if (IS_REDIRECTED(0x33))
+    do_intr_call_back(0x33);
   else
-#endif
     mouse_int();
+  return int33_post();
+}
+
+int int33_post(void)
+{
+  static unsigned short int oldx=0, oldy=0;
+
+  interrupt_function[0x33] = int33;
 
 /* It seems that the only mouse sub-function that could be plausibly used to 
  * poll the mouse is AX=3 - get mouse buttons and position. 
