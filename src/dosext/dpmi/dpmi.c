@@ -588,8 +588,8 @@ int SetSelector(unsigned short selector, unsigned long base_addr, unsigned int l
     D_printf("DPMI: set_ldt_entry() failed\n");
     return -1;
   }
-  D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x big=%i\n",
-    selector, base_addr, limit, is_big);
+  D_printf("DPMI: SetSelector: 0x%04x base=0x%lx limit=0x%x big=%i type=%hhi\n",
+    selector, base_addr, limit, is_big, type);
   Segments[ldt_entry].base_addr = base_addr;
   Segments[ldt_entry].limit = limit;
   Segments[ldt_entry].type = type;
@@ -823,8 +823,8 @@ AR byte must indicate a writable data segment else #GP(selector);
    Load SS with descriptor.
 FI;
 */
-  if (!ValidAndUsedSelector(_ss) || ((_ss & 3) != 3) || /* writable??? */
-     Segments[_ss >> 3].not_present ||
+  if (!ValidAndUsedSelector(_ss) || ((_ss & 3) != 3) ||
+     Segments[_ss >> 3].readonly || Segments[_ss >> 3].not_present ||
      (Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_STACK &&
       Segments[_ss >> 3].type != MODIFY_LDT_CONTENTS_DATA)) {
     error("SS selector invalid: 0x%04X, type=%x np=%i\n",
