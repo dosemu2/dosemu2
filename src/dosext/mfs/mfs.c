@@ -1741,6 +1741,7 @@ scan_dir(char *path, char *name)
   if (cur_dir->dir == NULL) {
     /* we're on VFAT: no need to scan since "stat" would have
        found it before */
+    dos_closedir(cur_dir);
     return (FALSE);
   }
 
