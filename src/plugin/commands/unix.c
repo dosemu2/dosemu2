@@ -13,6 +13,7 @@
  ************************************************/
 
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,13 +31,6 @@
 #include "msetenv.h"
 #include "unix.h"
 
-#define printf  com_printf
-#define fprintf com_fprintf
-#undef stderr
-#define stderr  com_stderr
-#define puts	com_puts
-#define system	com_system
-#define errno	com_errno
 #define FP_OFF(x) FP_OFF32(x)
 #define FP_SEG(x) FP_SEG32(x)
 
@@ -87,25 +81,25 @@ int unix_main(int argc, char **argv)
 
 static int usage (void)
 {
-  printf ("Usage: UNIX [FLAG COMMAND]\n");
-  printf ("Run Linux commands from DOSEMU\n\n");
+  com_printf ("Usage: UNIX [FLAG COMMAND]\n");
+  com_printf ("Run Linux commands from DOSEMU\n\n");
 #if CAN_EXECUTE_DOS
-  printf ("UNIX -e [ENVVAR]\n");
-  printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\".\n");
-  printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
-  printf ("UNIX -c [ENVVAR]\n");
-  printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
-  printf ("  variable \"ENVVAR\".\n");
-  printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
+  com_printf ("UNIX -e [ENVVAR]\n");
+  com_printf ("  Execute the DOS command given in the Linux environment variable \"ENVVAR\".\n");
+  com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
+  com_printf ("UNIX -c [ENVVAR]\n");
+  com_printf ("  Execute the DOS program whose Linux path is given in the Linux environment\n");
+  com_printf ("  variable \"ENVVAR\".\n");
+  com_printf ("  If not given, use the argument to the -E flag of DOSEMU\n\n");
 #endif
-  printf ("UNIX -s ENVVAR\n");
-  printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
-  printf ("UNIX command [arg1 ...]\n");
-  printf ("  Execute the Linux command with the arguments given.\n\n");
-  printf ("UNIX\n");
-  printf ("  show this help screen\n\n");
-  printf ("Note: Use UNIX only to run Linux commands that terminates without user\n");
-  printf ("      interaction. Otherwise it will start and wait forever!\n");
+  com_printf ("UNIX -s ENVVAR\n");
+  com_printf ("  Set the DOS environment to the Linux environment variable \"ENVVAR\".\n\n");
+  com_printf ("UNIX command [arg1 ...]\n");
+  com_printf ("  Execute the Linux command with the arguments given.\n\n");
+  com_printf ("UNIX\n");
+  com_printf ("  show this help screen\n\n");
+  com_printf ("Note: Use UNIX only to run Linux commands that terminates without user\n");
+  com_printf ("      interaction. Otherwise it will start and wait forever!\n");
 
   return (1);
 }
@@ -121,12 +115,12 @@ static int send_command(char **argv)
 
     while(*argv)
     {
-	strcat(command_line, *argv);
-	strcat(command_line, " ");
-	argv++;
+        strcat(command_line, *argv);
+        strcat(command_line, " ");
+        argv++;
     }
 
-    printf("Effective commandline: %s\n", command_line);
+    com_printf("Effective commandline: %s\n", command_line);
 
     preg.r_ax = DOS_HELPER_RUN_UNIX;
     preg.r_dx = FP_OFF(command_line);
@@ -171,7 +165,9 @@ static int findDrive (char *linux_path_resolved)
 
     if (GetRedirectionRoot (drive, &drive_linux_root, &drive_ro) == 0/*success*/) {
       if (!realpath (drive_linux_root, drive_linux_root_resolved)) {
-        fprintf (stderr, "ERROR: Cannot canonicalize drive root path (%s)\n", strerror (errno));
+        com_fprintf (com_stderr,
+                     "ERROR: %s.  Cannot canonicalize drive root path.\n",
+                     strerror (errno));
         return -27;
       }
 
@@ -226,7 +222,9 @@ static int setupDOSCommand (char *linux_path)
 
   
   if (!realpath (linux_path, linux_path_resolved)) {
-    fprintf (stderr, "ERROR: Cannot canonicalize path (%s)\n", strerror (errno));
+    com_fprintf (com_stderr,
+                 "ERROR: %s.  Cannot canonicalize path.\n",
+                 strerror (errno));
     return (1);
   }
 
@@ -237,7 +235,8 @@ static int setupDOSCommand (char *linux_path)
     
     if (drive >= 26) {
       if (drive == 26) {
-        fprintf (stderr, "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
+        com_fprintf (com_stderr,
+                     "ERROR: Cannot find a free DOS drive to use for LREDIR\n");
       }
       
       return (1);
@@ -251,7 +250,8 @@ static int setupDOSCommand (char *linux_path)
 
     j_printf ("Redirecting %c: to /\n", drive + 'A');
     if (RedirectDisk (drive, LINUX_RESOURCE "/", 0/*rw*/) != 0/*success*/) {
-      fprintf (stderr, "ERROR: Could not redirect %c: to /\n", drive + 'A');
+      com_fprintf (com_stderr,
+                   "ERROR: Could not redirect %c: to /\n", drive + 'A');
       return (1);
     }
   }
@@ -261,10 +261,10 @@ static int setupDOSCommand (char *linux_path)
   j_printf ("Switching to drive %i (%c:)\n", drive, drive + 'A');
   com_dossetdrive (drive);
   if (com_dosgetdrive () != drive) {
-    fprintf (stderr, "ERROR: Could not change to %c:\n", drive + 'A');
+    com_fprintf (com_stderr, "ERROR: Could not change to %c:\n", drive + 'A');
      
     if (com_dossetdrive (com_dosgetdrive ()) < 26)
-      fprintf (stderr, "Try 'LASTDRIVE=Z' in CONFIG.SYS.\n");
+      com_fprintf (com_stderr, "Try 'LASTDRIVE=Z' in CONFIG.SYS.\n");
 
     return (1);
   }
@@ -283,11 +283,13 @@ static int setupDOSCommand (char *linux_path)
     
     j_printf ("Changing to directory '%s'\n", dos_dir);
     if (com_dossetcurrentdir (dos_dir)) {
-      fprintf (stderr, "ERROR: Could not change to directory: %s\n", dos_dir);
+      com_fprintf (com_stderr,
+                   "ERROR: Could not change to directory: %s\n",
+                   dos_dir);
       return (1);
     }
   } else {
-    fprintf (stderr, "INTERNAL ERROR: no backslash in DOS path\n");
+    com_fprintf (com_stderr, "INTERNAL ERROR: no backslash in DOS path\n");
     return (1);
   }
   
@@ -325,11 +327,11 @@ static int do_execute_dos (int argc, char **argv, int isLiteralCommand)
         return (1);
     
     if (*data) {
-      printf ("About to Execute : %s\n", data);
+      com_printf ("About to Execute : %s\n", data);
 
-      if (system (data)) {
+      if (com_system (data)) {
         /* SYSTEM failed ... */
-        fprintf (stderr, "SYSTEM failed ....(%d)\n", errno);
+        com_fprintf (com_stderr, "SYSTEM failed ....(%d)\n", com_errno);
         return (1);
       }
  
@@ -368,7 +370,7 @@ static int do_set_dosenv (int argc, char **argv)
 
   if (! preg.r_ax) {
     if (msetenv(argv[0],data))
-    	return (0);
+      return (0);
   }
   return (1);
 }
