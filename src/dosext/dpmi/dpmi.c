@@ -629,7 +629,11 @@ static unsigned short AllocateDescriptorsAt(unsigned short selector,
   int ldt_entry = selector >> 3, i;
 
   if (ldt_entry <= 0x10) return 0;
-  if (ldt_entry == MAX_SELECTORS-number_of_descriptors+1) return 0;
+  if (ldt_entry > MAX_SELECTORS-number_of_descriptors) {
+    error("DPMI: Insufficient descriptors, requested %i, avail %i\n",
+      number_of_descriptors, MAX_SELECTORS);
+    return 0;
+  }
   for (i=0;i<number_of_descriptors;i++)
     if (Segments[ldt_entry+i].used) return 0;
 
@@ -655,12 +659,20 @@ unsigned short AllocateDescriptors(int number_of_descriptors)
 {
   int next_ldt=0x10, i;		/* first 0x10 descriptors are reserved */
   unsigned char isfree=1;
+#if 0
+  if (number_of_descriptors > MAX_SELECTORS - 0x100)
+    number_of_descriptors = MAX_SELECTORS - 0x100;
+#endif
   while (isfree) {
     next_ldt++;
+    if (next_ldt > MAX_SELECTORS-number_of_descriptors) {
+      error("DPMI: Insufficient descriptors, requested %i, avail %i\n",
+        number_of_descriptors, MAX_SELECTORS);
+      return 0;
+    }
     isfree=0;
     for (i=0;i<number_of_descriptors;i++)
       isfree |= Segments[next_ldt+i].used;
-    if (next_ldt == MAX_SELECTORS-number_of_descriptors+1) return 0;
   }
   return AllocateDescriptorsAt((next_ldt<<3) | 0x0007, number_of_descriptors);
 }
