@@ -299,6 +299,20 @@ wait_vc_active (void)
     return 0;
 }
 
+static void wait_for_active_vc(void)
+{
+#if 0
+  config.console_video = 0;
+#endif
+  v_printf ("VID: get_video_ram WAITING\n");
+  /* XXX - wait until our console is current (mixed signal functions) */
+  do {
+    if (!wait_vc_active ())
+      break;
+    v_printf ("Keeps waiting...And\n");
+  } while (errno == EINTR);
+}
+
 static inline void
 release_vt (int sig, struct sigcontext_struct context)
 {
@@ -307,186 +321,128 @@ release_vt (int sig, struct sigcontext_struct context)
   SIGNAL_save (SIGRELEASE_call);
 }
 
+
+static void unmap_video_ram(int copyback)
+{
+  char *putbuf = NULL, *base = (char *)GRAPH_BASE;
+  size_t size = GRAPH_SIZE;
+
+  if (!config.vga) {
+    size = TEXT_SIZE;
+    base = scr_state.virt_address;
+  }
+  if (copyback) {
+    putbuf = malloc(TEXT_SIZE);
+    memcpy (putbuf, base, size);
+  }
+  mmap_mapping(MAPPING_VC | MAPPING_SCRATCH, base, size,
+	       PROT_EXEC | PROT_READ | PROT_WRITE, 0);
+  if (copyback) {
+    memcpy (base, putbuf, TEXT_SIZE);
+    free (putbuf);
+  }
+  scr_state.mapped = 0;
+}
+
+static void map_video_ram(void)
+{ 
+  char *graph_mem;
+  size_t  ssize = GRAPH_SIZE;
+  char *pbase = (char *) GRAPH_BASE;
+  char *vbase = pbase;
+  char *textbuf = NULL;
+
+  if (!config.vga) {
+    pbase = (char *)phys_text_base; /* physical page address    */
+    vbase = scr_state.virt_address; /* new virtual page address */
+    ssize = TEXT_SIZE;
+    /* this is used for page switching */
+    textbuf = malloc(ssize);
+    if (textbuf)
+      memcpy (textbuf, vbase, ssize); 
+  }
+
+  g_printf ("mapping %s\n", config.vga ? "GRAPH_BASE" : "PAGE_ADDR");
+
+  graph_mem = mmap_mapping(MAPPING_VC | MAPPING_KMEM, vbase, ssize,
+			   PROT_READ | PROT_WRITE, pbase);
+
+  /* the code below is done by the video save/restore code for config.vga */
+  if (!config.vga) {
+    if ((long) graph_mem < 0) {
+      error("mmap error in get_video_ram (text): %x, errno %d\n",
+	    (Bit32u)graph_mem, errno);
+      return;
+    } else
+      v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
+		(void *) pbase, vbase);
+
+    /* copy contents of page onto video RAM */
+    if (textbuf) {
+      memcpy (vbase, textbuf, ssize);
+      free(textbuf);
+    }
+  }
+  scr_state.phys_address = graph_mem;
+  scr_state.mapped = 1;
+}
+
+void init_get_video_ram(int waitflag)
+{
+  size_t size = GRAPH_SIZE;
+  char *base = (char *) GRAPH_BASE;
+  if (!config.vga) {
+    size = GRAPH_SIZE;
+    base = (char *)phys_text_base;
+  }
+  if (waitflag == WAIT)
+    wait_for_active_vc();
+  alloc_mapping(MAPPING_VC | MAPPING_KMEM, size, base);
+  map_video_ram();
+}
+
 /* allows remapping even if memory is mapped in...this is useful, as it
  * remembers where the video mem *was* mapped, unmaps from that, and then
  * remaps it to where the text page number says it should be
  */
-void
-get_video_ram (int waitflag)
+void get_video_ram (int waitflag)
 {
-  char *graph_mem;
-  char *sbase;
-  size_t ssize;
-
-  char *textbuf = NULL, *vgabuf = NULL;
-  int page = 0;
-  int video_mode = 3;
-  static int first_time = 1;
+  int page;
 
   if (!can_do_root_stuff && mem_fd == -1) return;
+  v_printf ("get_video_ram STARTED\n");
+  if (waitflag == WAIT)
+    wait_for_active_vc();
 
   page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
-  video_mode = READ_BYTE(BIOS_VIDEO_MODE);
-
-  v_printf ("get_video_ram STARTED\n");
-  if (config.vga)
-    {
-      ssize = GRAPH_SIZE;
-      sbase = (char *) GRAPH_BASE;
-    }
-  else
-    {
-      ssize = TEXT_SIZE;
-      sbase = PAGE_ADDR (page);
-    }
-
-  if (waitflag == WAIT)
-    {
-#if 0
-      config.console_video = 0;
-#endif
-      v_printf ("VID: get_video_ram WAITING\n");
-      /* XXX - wait until our console is current (mixed signal functions) */
-      do
-	{
-	  if (!wait_vc_active ())
-	    break;
-	  v_printf ("Keeps waiting...And\n");
-	}
-      while (errno == EINTR);
-    }
-
-  if (config.vga && !first_time)
-    {
-      if (video_mode == 3 && page < 8)
-	{
-	  textbuf = malloc (TEXT_SIZE * 8);
-	  memcpy (textbuf, PAGE_ADDR (0), TEXT_SIZE * 8);
-	}
-
-      if (scr_state.mapped)
-	{
-	  vgabuf = malloc (GRAPH_SIZE);
-	  memcpy (vgabuf, (caddr_t) GRAPH_BASE, GRAPH_SIZE);
-	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
-			(caddr_t) GRAPH_BASE, GRAPH_SIZE,
-			PROT_EXEC | PROT_READ | PROT_WRITE, 0);
-	  memcpy ((caddr_t) GRAPH_BASE, vgabuf, GRAPH_SIZE);
-	}
-    }
-  else if (!first_time)
-    {
-      textbuf = malloc (TEXT_SIZE);
-      memcpy (textbuf, scr_state.virt_address, TEXT_SIZE);
-
-      if (scr_state.mapped)
-	{
-	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
-			(caddr_t) scr_state.virt_address, TEXT_SIZE,
-			PROT_EXEC | PROT_READ | PROT_WRITE, 0);
-	  memcpy (scr_state.virt_address, textbuf, TEXT_SIZE);
-	}
-    }
-  scr_state.mapped = 0;
-
-  if (config.vga)
-    {
-      if (video_mode == 3)
-	{
-	  if (dosemu_regs.mem && textbuf)
-	    memcpy (dosemu_regs.mem, textbuf, dosemu_regs.save_mem_size[0]);
-	  /*      else error("ERROR: no dosemu_regs.mem!\n"); */
-	}
-      g_printf ("mapping GRAPH_BASE\n");
-      if (first_time)
-	alloc_mapping(MAPPING_VC | MAPPING_KMEM, GRAPH_SIZE, (caddr_t)GRAPH_BASE);
-      graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
-			(caddr_t) GRAPH_BASE, GRAPH_SIZE,
-			PROT_READ | PROT_WRITE, (caddr_t)GRAPH_BASE);
-
-      /* the code below is done by the video save/restore code */
-    }
-  else
-    {
-      /* this is used for page switching */
-      if (textbuf && PAGE_ADDR (page) != scr_state.virt_address)
-	memcpy (textbuf, PAGE_ADDR (page), TEXT_SIZE);
-
-      g_printf ("mapping PAGE_ADDR\n");
-
-      if (first_time)
-	alloc_mapping(MAPPING_VC | MAPPING_KMEM, TEXT_SIZE,
-			(caddr_t)phys_text_base);
-      graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
-			(caddr_t)PAGE_ADDR (page),
-			TEXT_SIZE, PROT_READ | PROT_WRITE,
-			(caddr_t)phys_text_base);
-
-      if ((long) graph_mem < 0)
-	{
-	  error("mmap error in get_video_ram (text): %x, errno %d\n",
-		 (Bit32u)graph_mem, errno);
-	  return;
-	}
-      else
-	v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
-		  (void *) phys_text_base, (void *) PAGE_ADDR (page));
-
-      /* copy contents of page onto video RAM */
-      if (textbuf)
-	memcpy ((caddr_t) PAGE_ADDR (page), textbuf, TEXT_SIZE);
-    }
-
-  if (vgabuf)
-    free (vgabuf);
-  if (textbuf)
-    free (textbuf);
-
-  scr_state.pageno = page;
-  scr_state.virt_address = PAGE_ADDR (page);
-  scr_state.phys_address = graph_mem;
-  scr_state.mapped = 1;
-  first_time = 0;
-}
-
-
-void
-put_video_ram (void)
-{
-  char *putbuf = (char *) malloc (TEXT_SIZE);
-  char *graph_mem;
+  if (READ_BYTE(BIOS_VIDEO_MODE) == 3 && page < 8) {
+    if (dosemu_regs.mem)
+      memcpy (dosemu_regs.mem, PAGE_ADDR(0), TEXT_SIZE * 8);
+    /* else error("ERROR: no dosemu_regs.mem!\n"); */
+  }
 
   if (scr_state.mapped)
-    {
-      v_printf ("put_video_ram called\n");
+    unmap_video_ram(1);
 
-      if (config.vga)
-	{
-	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
-				(caddr_t) GRAPH_BASE, GRAPH_SIZE,
-				PROT_EXEC | PROT_READ | PROT_WRITE, 0);
-	  if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8) {
-	    memcpy ((caddr_t) PAGE_ADDR(0), dosemu_regs.mem, dosemu_regs.save_mem_size[0]);
-	  }
-	}
-      else
-	{
-	  memcpy (putbuf, scr_state.virt_address, TEXT_SIZE);
-	  graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_SCRATCH,
-				(caddr_t)scr_state.virt_address,
-				TEXT_SIZE, PROT_EXEC | PROT_READ | PROT_WRITE,
-				0);
-	  memcpy (scr_state.virt_address, putbuf, TEXT_SIZE);
-	}
+  scr_state.pageno = page;
+  scr_state.virt_address = PAGE_ADDR(scr_state.pageno);
+  map_video_ram();
+}
 
-      scr_state.mapped = 0;
+void put_video_ram (void)
+{
+  if (scr_state.mapped) {
+    v_printf ("put_video_ram called\n");
+    unmap_video_ram(!config.vga);
+    if (config.vga) {
+      if (dosemu_regs.mem && READ_BYTE(BIOS_VIDEO_MODE) == 3 &&
+	  READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
+	memcpy (PAGE_ADDR(0), dosemu_regs.mem, TEXT_SIZE * 8);
     }
+  }
   else
     warn ("VID: put_video-ram but not mapped!\n");
 
-
-  if (putbuf)
-    free (putbuf);
   v_printf ("put_video_ram completed\n");
 }
 

@@ -433,7 +433,7 @@ video_config_init(void) {
   reserve_video_memory();
 }
 
-static void vga_post_init(void)
+static int vga_post_init(void)
 {
   /* this function sets up the video ram mmaps and initializes
      vc switch routines */
@@ -451,6 +451,7 @@ static void vga_post_init(void)
   dump_video_linux();
   video_initialized = 1;
   /* release_perm(); */
+  return 0;
 }
 
 void video_post_init(void)

@@ -100,7 +100,7 @@ void set_console_video(void)
   }
 }
 
-static void console_post_init(void)
+static int console_post_init(void)
 {
   int kdmode;
   if (!config.vga)
@@ -140,14 +140,14 @@ static void console_post_init(void)
   /* XXX - get this working correctly! */
 #define OLD_SET_CONSOLE 1
 #ifdef OLD_SET_CONSOLE
-  get_video_ram(WAIT);
+  init_get_video_ram(WAIT);
   scr_state.mapped = 1;
 #endif
   if (vc_active()) {
     int other_no = (scr_state.console_no == 1 ? 2 : 1);
     v_printf("VID: we're active, waiting...\n");
 #ifndef OLD_SET_CONSOLE
-    get_video_ram(WAIT);
+    init_get_video_ram(WAIT);
     scr_state.mapped = 1;
 #endif
     if (!config.vga) {
@@ -166,6 +166,7 @@ static void console_post_init(void)
     v_printf("VID: not active, going on\n");
 
   allow_switch();
+  return 0;
 }
 
 void clear_console_video(void)

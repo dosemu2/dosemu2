@@ -114,6 +114,7 @@ extern __inline__ void allow_switch(void);
 extern void dump_video_linux(void);
 extern void set_vc_screen_page(int);
 extern void get_video_ram(int);
+extern void init_get_video_ram(int);
 extern void set_linux_video(void);
 extern void put_video_ram(void);
 extern void clear_process_control(void);
