@@ -590,7 +590,7 @@ void dpmi_get_entry_point(void)
     if (in_dpmi)
       LWORD(esi) = 0;
     else
-      LWORD(esi) = DPMI_private_paragraphs + 0x1008;
+      LWORD(esi) = DPMI_private_paragraphs + 0x8;
 
     D_printf("DPMI entry returned\n");
 }
@@ -1264,9 +1264,11 @@ static void get_ext_API(struct sigcontext_struct *scp)
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
 #ifdef WANT_WINDOWS
       if ((!strcmp("WINOS2", ptr))||(!strcmp("MS-DOS", ptr))) {
-	_LO(ax) = 0;
-	_es = DPMI_CLIENT.DPMI_SEL;
-	_edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
+        if (config.pm_dos_api) {
+	  _LO(ax) = 0;
+	  _es = DPMI_CLIENT.DPMI_SEL;
+	  _edi = DPMI_OFF + HLT_OFF(DPMI_API_extension);
+	}
       } else
 #endif
       if (!strcmp("VIRTUAL SUPPORT", ptr)) {
@@ -2101,6 +2103,7 @@ static void quit_dpmi(struct sigcontext_struct *scp, unsigned short errcode)
     }
     in_dpmi_pm_stack = 0;
   }
+  free(DPMI_CLIENT.pm_block_root);
   cli_blacklisted = 0;
   in_dpmi_dos_int = 1;
   in_dpmi--;
@@ -2159,11 +2162,28 @@ static void do_dpmi_int(struct sigcontext_struct *scp, int i)
     REG(esi) = _esi;
     REG(edi) = _edi;
     REG(ebp) = _ebp;
-    REG(cs) = DPMI_SEG;
-    REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
-    if(msdos_pre_extender(scp, i)) {
-	    restore_rm_regs();
-	    return;
+    if (config.pm_dos_api && i == 0x21 && _HI(ax) == 0x4b) {
+	D_printf("BCC: call dos exec.\n");
+	REG(cs) = DPMI_SEG;
+	REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos_exec);
+	msdos_pre_exec(scp);
+	/* fork a new client */
+	copy_context(&DPMI_CLIENT.stack_frame, scp);
+	in_dpmi++;
+	DPMI_CLIENT = PREV_DPMI_CLIENT;
+	DPMI_CLIENT.ems_frame_mapped = 0;
+    } else {
+	REG(cs) = DPMI_SEG;
+	REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dosint) + i;
+	if (config.pm_dos_api) {
+	    if(msdos_pre_extender(scp, i)) {
+		if (DPMI_CLIENT.ems_frame_mapped) {
+		    error("BUG in pre_extender, int=%x ax=%x\n", i, LWORD(eax));
+		}
+		restore_rm_regs();
+		return;
+	    }
+	}
     }
     in_dpmi_dos_int = 1;
     D_printf("DPMI: calling real mode interrupt 0x%02x, ax=0x%04x\n",i,LWORD(eax));
@@ -2692,7 +2712,8 @@ static void dpmi_init(void)
 	pic_icount);
     pic_resched();
   }
-  DPMI_CLIENT.pm_block_root = 0;
+  DPMI_CLIENT.pm_block_root = calloc(1, sizeof(dpmi_pm_block_root));
+  DPMI_CLIENT.ems_frame_mapped = 0;
   memset((void *)(&DPMI_CLIENT.realModeCallBack[0]), 0,
 	 sizeof(RealModeCallBack)*0x10);
   DPMI_CLIENT.stack_frame.eip	= my_ip;
@@ -3616,6 +3637,7 @@ void dpmi_realmode_hlt(unsigned char * lina)
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos_exec))) {
 
     D_printf("DPMI: Return from DOS exec\n");
+    in_dpmi--;
     msdos_post_exec();
 
     restore_rm_regs();
@@ -3637,7 +3659,9 @@ void dpmi_realmode_hlt(unsigned char * lina)
     DPMI_CLIENT.stack_frame.edi = REG(edi);
     DPMI_CLIENT.stack_frame.ebp = REG(ebp);
 
-    msdos_post_extender(intr);
+    if (config.pm_dos_api) {
+	msdos_post_extender(intr);
+    }
 
     restore_rm_regs();
     in_dpmi_dos_int = 0;

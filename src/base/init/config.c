@@ -154,8 +154,8 @@ void dump_config_status(void *printfunc)
         config.hdiskboot, config.mem_size);
     (*print)("ems_size 0x%x\nems_frame 0x%x\n",
         config.ems_size, config.ems_frame);
-    (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\n",
-        config.xms_size, config.max_umb, config.dpmi);
+    (*print)("xms_size 0x%x\nmax_umb 0x%x\ndpmi 0x%x\npm_dos_api %i\n",
+        config.xms_size, config.max_umb, config.dpmi, config.pm_dos_api);
     (*print)("mapped_bios %d\nvbios_file %s\n",
         config.mapped_bios, (config.vbios_file ? config.vbios_file :""));
     (*print)("vbios_copy %d\nvbios_seg 0x%x\nvbios_size 0x%x\n",
@@ -593,6 +593,8 @@ static void config_post_process(void)
               "restricting to 640K\n", config.mem_size);
         config.mem_size = 640;
     }
+    if (!config.dpmi)
+	config.pm_dos_api = 0;
 
     /* UID scrub */
     if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");

@@ -65,6 +65,7 @@
 #include "memory.h"
 #include "machcompat.h"
 #include "mapping.h"
+#include "emm.h"
 
 static inline boolean_t unmap_page(int);
 
@@ -94,8 +95,6 @@ static inline boolean_t unmap_page(int);
 #define SET_REGISTERS		0x1
 #define	GET_AND_SET_REGISTERS	0x2
 #define GET_SIZE_FOR_PAGE_MAP	0x3
-
-#define PAGE_MAP_SIZE		(sizeof(u_short) * 2 * EMM_MAX_PHYS)
 
 #define PARTIAL_MAP_REGISTERS	0x4f	/* V4.0 */
 #define	PARTIAL_GET		0x0
@@ -140,17 +139,6 @@ static inline boolean_t unmap_page(int);
 #else
 /* now defined in emu.h */
 #endif
-
-#define	MAX_HANDLES	255	/* must fit in a byte */
-/* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */
-#define MAX_EMM		(config.ems_size / 16)
-#ifndef PAGE_SIZE
-#define PAGE_SIZE	4096
-#endif
-#define	EMM_PAGE_SIZE	(16*1024)
-#define EMM_MAX_PHYS	4
-#define NULL_HANDLE	-1
-#define	NULL_PAGE	0xffff
 
 /* Support EMM version 3.2 */
 #define EMM_VERS	0x40	/* was 0x32 */
@@ -298,7 +286,7 @@ ems_init(void)
   int sh_base;
   int j;
 
-  if (!config.ems_size)
+  if (!config.ems_size && !config.pm_dos_api)
     return;
 
   open_mapping(MAPPING_EMS);
@@ -426,17 +414,32 @@ deallocate_handle(int handle)
   return (TRUE);
 }
 
-static void _do_map_page(caddr_t base, caddr_t logical)
+static void _do_map_page(caddr_t dst, caddr_t src, int size)
 {
-  E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)base, (int)logical);
+  E_printf("EMS: mmap()ing from 0x%x to 0x%x\n", (int)src, (int)dst);
   
-  if ((caddr_t)base != mmap_mapping(MAPPING_EMS|MAPPING_ALIAS, base,
-			      EMM_PAGE_SIZE,
+  if ((caddr_t)dst != mmap_mapping(MAPPING_EMS|MAPPING_ALIAS, dst, size,
 			      PROT_READ | PROT_WRITE | PROT_EXEC,
-			      (void *) logical)) {
+			      (void *) src)) {
     E_printf("EMS: mmap() failed: %s\n",strerror(errno));
     leavedos(2);
   }
+}
+
+static void _do_unmap_page(caddr_t base, int size)
+{
+  E_printf("EMS: unmmap()ing from 0x%x\n", (int)base);
+
+  munmap_mapping(MAPPING_EMS, base, size);
+  mapscratch_mapping(MAPPING_EMS, base, size,
+	PROT_EXEC | PROT_READ | PROT_WRITE);
+}
+
+void emm_unmap_all()
+{
+  if (!config.ems_size)
+    return;
+  _do_unmap_page((caddr_t) EMM_BASE_ADDRESS, EMS_FRAME_SIZE);
 }
 
 static boolean_t
@@ -457,7 +460,7 @@ __map_page(int physical_page)
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
   logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
-  _do_map_page(base, logical);
+  _do_map_page(base, logical, EMM_PAGE_SIZE);
   return (TRUE);
 }
 
@@ -465,7 +468,7 @@ static boolean_t
 __unmap_page(int physical_page)
 {
   int handle;
-  caddr_t logical, base;
+  caddr_t base;
 
   if ((physical_page < 0) || (physical_page >= EMM_MAX_PHYS))
     return (FALSE);
@@ -477,11 +480,8 @@ __unmap_page(int physical_page)
            physical_page,handle,emm_map[physical_page].logical_page);
 
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
-  logical = (caddr_t) handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
-  munmap_mapping(MAPPING_EMS, base, EMM_PAGE_SIZE);
-  mapscratch_mapping(MAPPING_EMS, base, EMM_PAGE_SIZE,
-	PROT_EXEC | PROT_READ | PROT_WRITE);
+  _do_unmap_page(base, EMM_PAGE_SIZE);
   	
   return (TRUE);
 }
@@ -533,7 +533,7 @@ map_page(int handle, int physical_page, int logical_page)
   base = (caddr_t) EMM_BASE_ADDRESS + (physical_page * EMM_PAGE_SIZE);
   logical = (caddr_t) handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
    
-  _do_map_page(base, logical);
+  _do_map_page(base, logical, EMM_PAGE_SIZE);
 
   emm_map[physical_page].handle = handle;
   emm_map[physical_page].logical_page = logical_page;
@@ -1283,6 +1283,47 @@ allocate_std_pages(state_t * state)
   return 0;
 }
 
+void emm_get_map_registers(char *ptr)
+{
+  u_short *buf = (u_short *)ptr;
+  int i;
+  if (!config.ems_size)
+    return;
+
+  for (i = 0; i < EMM_MAX_PHYS; i++) {
+    buf[i * 2] = emm_map[i].handle;
+    buf[i * 2 + 1] = emm_map[i].logical_page;
+    Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
+	     i, emm_map[i].handle,
+	     emm_map[i].logical_page));
+  }
+}
+
+void emm_set_map_registers(char *ptr)
+{
+  u_short *buf = (u_short *)ptr;
+  int i;
+  int handle;
+  int logical_page;
+  if (!config.ems_size)
+    return;
+
+  for (i = 0; i < EMM_MAX_PHYS; i++) {
+    handle = buf[i * 2];
+    if (handle == OS_HANDLE)
+      E_printf("EMS: trying to use OS handle in ALT_SET_REGISTERS\n");
+
+    logical_page = buf[i * 2 + 1];
+    if ((u_short)handle != 0xffff)
+      map_page(handle, i, logical_page);
+    else
+      unmap_page(i);
+
+    Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
+	    i, handle, logical_page));
+  }
+}
+
 static int save_es=0;
 static int save_di=0;
 
@@ -1297,20 +1338,10 @@ alternate_map_register(state_t * state)
   switch (LOW(state->eax)) {
     case 0:{			/* Get Alternate Map Register */
         if (save_es){
-	  int i;
-	  u_short *ptr = (u_short *)((save_es << 4 ) + save_di);
-
 	  Kdebug1((dbg_fd, "bios_emm: Get Alternate Map Registers\n"));
 
-	  for (i = 0; i < EMM_MAX_PHYS; i++) {
-	    *ptr = emm_map[i].handle;
-	    ptr++;
-	    *ptr = emm_map[i].logical_page;
-	    ptr++;
-	    Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
-		     i, emm_map[i].handle,
-		     emm_map[i].logical_page));
-	  }
+	  emm_get_map_registers((char *)((save_es << 4 ) + save_di));
+
           SETWORD(&(state->es),(u_short)save_es);
           SETWORD(&(state->edi),(u_short)save_di);
           SETHIGH(&(state->eax), EMM_NO_ERR);
@@ -1350,27 +1381,7 @@ alternate_map_register(state_t * state)
 	 Kdebug1((dbg_fd, "bios_emm: Set Alternate Registers\n"));
 
          if (WORD(state->es)) {
-	   int i;
-	   u_short *ptr;
-	   int handle;
-	   int logical_page;
-	   ptr = (u_short *) Addr(state, es, edi);
-
-	   for (i = 0; i < EMM_MAX_PHYS; i++) {
-	     handle = *ptr;
-	     if (handle == OS_HANDLE)
-	       E_printf("EMS: trying to use OS handle in ALT_SET_REGISTERS\n");
-
-	     ptr++;
-	     logical_page = *ptr;
-	     ptr++;
-	     Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
-		     i, handle, logical_page));
-	     if ((u_short)handle != 0xffff)
-	       map_page(handle, i, logical_page);
-	     else
-	       unmap_page(i);
-	   }
+	   emm_set_map_registers((char *) Addr(state, es, edi));
          }
          SETHIGH(&(state->eax), EMM_NO_ERR);
          save_es=WORD(state->es);
@@ -1700,78 +1711,22 @@ ems_fn(state)
 
       switch (LOW(state->eax)) {
       case GET_REGISTERS:{
-	  int i;
-	  u_short *ptr = (u_short *) Addr(state, es, edi);
-
 	  Kdebug1((dbg_fd, "bios_emm: Get Registers\n"));
-
-	  for (i = 0; i < EMM_MAX_PHYS; i++) {
-	    *ptr = emm_map[i].handle;
-	    ptr++;
-	    *ptr = emm_map[i].logical_page;
-	    ptr++;
-	    Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
-		     i, emm_map[i].handle,
-		     emm_map[i].logical_page));
-	  }
+	  emm_get_map_registers((char *) Addr(state, es, edi));
 
 	  break;
 	}
       case SET_REGISTERS:{
-	  int i;
-	  u_short *ptr = (u_short *) Addr(state, ds, esi);
-	  int handle;
-	  int logical_page;
-
 	  Kdebug1((dbg_fd, "bios_emm: Set Registers\n"));
-
-	  for (i = 0; i < EMM_MAX_PHYS; i++) {
-	    handle = *ptr;
-	    ptr++;
-
-	    if (handle == OS_HANDLE)
-	      E_printf("EMS: trying to use OS handle\n in SET_REGISTERS");
-
-	    logical_page = *ptr;
-	    ptr++;
-	    Kdebug1((dbg_fd, "phy %d h %x lp %x\n",
-		     i, handle, logical_page));
-	    if (handle != 0xffff)
-	      map_page(handle, i, logical_page);
-	    else
-	      unmap_page(i);
-	  }
+	  emm_set_map_registers((char *) Addr(state, ds, esi));
 
 	  break;
 	}
       case GET_AND_SET_REGISTERS:{
-	  int i;
-	  u_short *ptr;
-	  int handle;
-	  int logical_page;
-
 	  Kdebug1((dbg_fd, "bios_emm: Get and Set Registers\n"));
 
-	  ptr = (u_short *) Addr(state, es, edi);
-
-	  for (i = 0; i < EMM_MAX_PHYS; i++) {
-	    *ptr = emm_map[i].handle;
-	    ptr++;
-	    *ptr = emm_map[i].logical_page;
-	    ptr++;
-	  }
-
-	  ptr = (u_short *) Addr(state, ds, esi);
-
-	  for (i = 0; i < EMM_MAX_PHYS; i++) {
-	    handle = *ptr;
-	    ptr++;
-	    if (handle == OS_HANDLE)
-	      E_printf("EMS: trying to use OS handle in GET_AND_SET_REGISTERS\n");
-	    logical_page = *ptr;
-	    ptr++;
-	    map_page(handle, i, logical_page);
-	  }
+	  emm_get_map_registers((char *) Addr(state, es, edi));
+	  emm_set_map_registers((char *) Addr(state, ds, esi));
 
 	  break;
 	}

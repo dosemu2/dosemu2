@@ -107,7 +107,8 @@ static int FindFreeHandle(int);
 #else
 /*  EMS page frame now is configurable via /etc/dosemu.conf */
 #define SPACE_64K   0x10000
-#define IN_EMM_SPACE(addr) (config.ems_size && (int)(addr) >= EMM_BASE_ADDRESS \
+#define IN_EMM_SPACE(addr) ((config.ems_size || config.pm_dos_api) \
+			    && (int)(addr) >= EMM_BASE_ADDRESS \
                             && (int)(addr) < (EMM_BASE_ADDRESS+SPACE_64K))
 
 #define IN_HARDWARE_PAGES(addr) ( config.must_spare_hardware_ram\
@@ -183,7 +184,7 @@ umb_setup(void)
     int umb,tumb;
     vm_address_t addr;
 
-    if (config.ems_size) {
+    if (config.ems_size || config.pm_dos_api) {
       /* set up EMS page frame */
       umb = umb_find_unused();
       

@@ -8,6 +8,8 @@
 #ifndef DPMI_H
 #define DPMI_H
 
+#include "emm.h"
+
 #define DPMI_VERSION   		0x00	/* major version 0 */
 #define DPMI_DRIVER_VERSION	0x5a	/* minor version 0.90 */
 
@@ -130,10 +132,14 @@ typedef struct dpmi_pm_block_stuct {
   char     from_pool;
 } dpmi_pm_block;
 
+typedef struct dpmi_pm_block_root_struc {
+  dpmi_pm_block *first_pm_block;
+} dpmi_pm_block_root;
+
 struct DPMIclient_struct {
   struct sigcontext_struct stack_frame;
   int is_32;
-  dpmi_pm_block *pm_block_root;
+  dpmi_pm_block_root *pm_block_root;
   /* for real mode call back, DPMI function 0x303 0x304 */
   RealModeCallBack realModeCallBack[0x10];
   INTDESC Interrupt_Table[0x100];
@@ -147,8 +153,8 @@ struct DPMIclient_struct {
   unsigned short USER_PSP_SEL;
   unsigned short CURRENT_PSP;
   unsigned short CURRENT_ENV_SEL;
-  unsigned short PARENT_PSP;
-  unsigned short PARENT_ENV_SEL;
+  char ems_map_buffer[PAGE_MAP_SIZE];
+  int ems_frame_mapped;
 };
 extern struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
