@@ -38,7 +38,7 @@ static int start_gdb(pid_t dosemu_pid)
 static void do_debug(void)
 {
   char *cmd1 = "info registers\n";
-  char *cmd2 = "backtrace\n";
+  char *cmd2 = "backtrace full\n";
 
   gdb_command(cmd1);
   gdb_command(cmd2);
@@ -65,6 +65,7 @@ static void collect_info(void)
   char *cmd2 = "getconf GNU_LIBPTHREAD_VERSION";
   char *cmd3 = "gcc -v";
   char *cmd4 = "uname -a";
+  char *cmd5 = "cat /proc/self/maps";
 
   printf("System info:\n");
   fflush(stdout);
@@ -75,6 +76,7 @@ static void collect_info(void)
   system(cmd2);
   system(cmd3);
   system(cmd4);
+  system(cmd5);
   fflush(stdout);
 }
 
