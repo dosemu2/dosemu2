@@ -499,7 +499,7 @@ int vga_initialize(void)
   /* don't release it; we're trying text mode restoration */
   dosemu_regs.release_video = 1;
 
-  v_printf("VGA: mem size %d, banks %d\n", config.gfxmemsize,
+  v_printf("VGA: mem size %ld, banks %d\n", config.gfxmemsize,
 	   dosemu_regs.banks);
   return 0;
 }

@@ -10,7 +10,7 @@
 #include "emu.h"
 #include "int.h"
 #include "utilities.h"
-#include "zalloc.h"
+#include "smalloc.h"
 
 /* hope 2K is enough */
 #define LOWMEM_POOL_SIZE 0x800
@@ -23,7 +23,7 @@ static char builtin_name[9];
 
 int com_errno;
 
-static MemPool mp;
+static smpool mp;
 static char *lowmem_pool;
 static int pool_used = 0;
 #define current_builtin (pool_used - 1)
@@ -293,7 +293,7 @@ static void com_dosfreemem(char *p)
 
 char * lowmem_alloc(int size)
 {
-	char *ptr = znalloc(&mp, size);
+	char *ptr = smalloc(&mp, size);
 	if (!ptr) {
 		error("builtin %s OOM\n", builtin_name);
 		leavedos(86);
@@ -308,7 +308,11 @@ char * lowmem_alloc(int size)
 
 void lowmem_free(char *p, int size)
 {
-	return zfree(&mp, p, size);
+	if (smget_area_size(&mp, p) != size) {
+		error("lowmem_free size mismatch: found %i, requested %i, builtin=%s\n",
+			smget_area_size(&mp, p), size, builtin_name);
+	}
+	return smfree(&mp, p);
 }
 
 char * com_strdup(char *s)
@@ -550,13 +554,6 @@ static char *com_getarg0(void)
 	return memchr(env, 1, 0x10000) + 2;
 }
 
-static void zpanic(const char *ctl, ...)
-{
-	error(ctl);
-	error("\nzalloc failure for builtin %s\n", builtin_name);
-	leavedos(85);
-}
-
 int commands_plugin_inte6(void)
 {
 #define MAX_ARGS 63
@@ -586,9 +583,7 @@ int commands_plugin_inte6(void)
 		error("Unable to allocate memory pool\n");
 		return 0;
 	    }
-	    zinitPool(&mp, "lowmem_pool", zpanic, znot,
-		lowmem_pool, LOWMEM_POOL_SIZE);
-	    zclearPool(&mp);
+	    sminit(&mp, lowmem_pool, LOWMEM_POOL_SIZE);
 	}
 	pool_used++;
 	BMEM(allocated) = 0;
@@ -624,7 +619,10 @@ int commands_plugin_inte6_done(void)
 	}
 	pool_used--;
 	if (!pool_used) {
-	    zclearPool(&mp);
+	    int leaked = smdestroy(&mp);
+	    if (leaked)
+		error("inte6_plugin: leaked %i bytes, builtin=%s\n",
+		    leaked, builtin_name);
 	    com_dosfreemem(lowmem_pool);
 	}
 	return 1;

@@ -251,7 +251,7 @@ static Boolean matroxProbe(void)
 
   if (config.gfxmemsize < MGA_memsize)
 	config.gfxmemsize = MGA_memsize;
-  v_printf("MGA memory size : %d kbyte\n", config.gfxmemsize);
+  v_printf("MGA memory size : %ld kbyte\n", config.gfxmemsize);
   v_8514_base = MGA_8514_base;
 
   UnMapVidMem(MGAMMIOBase, 0x4000);
