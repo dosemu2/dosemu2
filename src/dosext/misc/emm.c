@@ -439,13 +439,35 @@ new_memory_object(size_t bytes)
 #ifdef USE_DEVZERO_MAPPING
   int fd_zero;
   mach_port_t addr;
+  void * hole;
   if ((fd_zero = open("/dev/zero", O_RDWR)) == -1 ) {
     error("EMM: can't open /dev/zero\n");
     return 0;
   }
+  /* kludge to avoid kernel bug:
+   * If there exist a VMA _just_ before that what we get allocated
+   * _and_ has different attributes as we are mapping,
+   * then (for some unknown reasons) the kernel will return with -EINVAL
+   * when we do a mmap(selfmem_fd) later on this mapping.
+   * Making an address space hole before our block works around this bug.
+   * (strange, is the kernel joining the two different attributed VMAs ?)
+   * -- Hans, July 1997
+   */
+ #define MEMSELF_KERNEL_KLUDGE
+ #ifdef MEMSELF_KERNEL_KLUDGE
+  hole = mmap((void *)0, 0x1000,
+			PROT_READ | PROT_WRITE | PROT_EXEC,
+			MAP_PRIVATE|MAP_FILE, fd_zero, 0);
+ #endif
+
   addr = (mach_port_t) mmap((void *)0, bytes,
 			PROT_READ | PROT_WRITE | PROT_EXEC,
 			MAP_PRIVATE|MAP_FILE, fd_zero, 0);
+
+ #ifdef MEMSELF_KERNEL_KLUDGE
+  munmap(hole,0x1000);
+ #endif
+
   close(fd_zero);
   if ((int)addr == -1) return 0;
 #else

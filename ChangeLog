@@ -1,3 +1,14 @@
+97/06/29 ver. 0.67.6 released
+	From Alberto
+	- fix for n_serv_xlat.c, grey +/- on num keypad.
+	- fix for mhpdbgc.c, adjust segment limit value following the
+	  granularity when disassembling.
+	From Marty
+	- some fixes to ./configure so it doesn't generate '-I' and
+	  and barf the compiles.
+	From Hans
+	- kludge in src/dosext/misc/emm.c to work around kernel bug
+	  (/proc/self/mem mapping again)
 97/07/03 ver. 0.67.6.1 unofficial pre-release
 	From Alistair
 	- big docs rebuild. Nearly all README.s are now 'sgml' and the

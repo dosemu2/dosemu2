@@ -2999,7 +2999,7 @@ fi
 if test "$x_includes" = /usr/include; then
     XINCLUDES="# no special path needed"
 elif test "$x_includes" != "NONE"; then
-    XINCLUDES=" -I$x_includes"
+    XINCLUDES="-I$x_includes"
 else
     echo "checking for X11 header files" 1>&6
     XINCLUDES="# no special path needed"
@@ -3023,7 +3023,7 @@ rm -f conftest*
         dirs="/usr/unsupported/include /usr/local/include /usr/X386/include /usr/include/X11R4 /usr/X11R5/include /usr/include/X11R5 /usr/openwin/include /usr/X11/include"
         for i in $dirs ; do
 	    if test -r $i/X11/Intrinsic.h; then
-	        XINCLUDES=" -I$i"
+	        XINCLUDES="-I$i"
 	    fi
         done
     fi
@@ -3033,7 +3033,7 @@ if test "$XINCLUDES" = nope; then
   XINCLUDES="# no include files found"
 fi
 if test "$XINCLUDES" = "-I"; then
-  XINCLUDES =""
+  XINCLUDES=""
 fi
 
 
@@ -3262,7 +3262,7 @@ XLIBSW="$XLIBSWD $XLIBSWL"
 REALTOPDIR=`nolinks=1; pwd`
 VERSION="0"
 SUBLEVEL="67"
-PATCHLEVEL="6.1"
+PATCHLEVEL="7.0"
 THISVERSION="$VERSION.$SUBLEVEL.$PATCHLEVEL"
 EMUVER="VERSION.$SUBLEVEL"
 RELEASE_DATE=`head -n1 $REALTOPDIR/ChangeLog | cut '-d ' -f1`

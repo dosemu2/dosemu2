@@ -930,6 +930,7 @@ static void* mhp_getadr(unsigned char * a1, unsigned int * s1, unsigned int *o1,
    /* Second 32 bits of descriptor */
    base_addr |= (*lp & 0xFF000000) | ((*lp << 16) & 0x00FF0000);
    limit |= (*lp & 0x000F0000);
+   if (*lp & 0x00800000) limit <<= 12;
 
    if ((limit == 0) && (base_addr == 0)) {
      mhp_printf("selector %x appears to be invalid\n", seg1);

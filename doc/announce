@@ -1,7 +1,7 @@
 
 ANNOUNCEMENT
 ~~~~~~~~~~~~
-The DOSEMU team is proud to announce DOSEMU 0.66.6, the PC Emulator for
+The DOSEMU team is proud to announce DOSEMU 0.66.7, the PC Emulator for
 x86 based *nix. Please remember to consider this as ALPHA software.
 
 
@@ -78,8 +78,8 @@ The DOSEMU PC Emulator can be downloaded from the following FTP sites:
 
   tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/...
   ftp.suse.com:/pub/dosemu/...
-                                     .../dosemu-0.66.6-bin.tgz
-                                     .../dosemu-0.66.6.tgz
+                                     .../dosemu-0.66.7-bin.tgz
+                                     .../dosemu-0.66.7.tgz
 
 The binary distribution is statically linked against libc-5.4.23 and libX*
 from XFree-3.3. It should run on all current Linux distributions.
