@@ -1657,16 +1657,18 @@ static int redir_it(void)
 
 static void dos_post_boot(void)
 {
-  static int first = 1;
-  if (first) {
-    first = 0;
+  /* Ignore the first invocation, otherwise we set the mouse
+   * intvector too early and DOS resets it to iret :( */
+  static int first = 2;
+  if (!first)
+    return;
+  if (!--first) {
     mouse_post_boot();
   }
 }
 
 /* KEYBOARD BUSY LOOP */
 static int int28(void) {
-  dos_post_boot();
   idle(0, 50, INT28_IDLE_USECS, "int28");
   return 0;
 }
