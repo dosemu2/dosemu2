@@ -70,7 +70,7 @@ EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
 EXTERN int running_kversion INIT(0);
 
-EXTERN char *cstack[16384];
+EXTERN char *(*cstack)[16384];
 
 /* this is DEBUGGING code! */
 EXTERN int sizes INIT(0);
@@ -500,7 +500,7 @@ do { \
 		/* Point to the top of the stack, minus 4 \
 		   just in case, and make it aligned  */ \
 		sa.sa_restorer = \
-		(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3); \
 		dosemu_sigaction(sig, &sa, NULL); \
 	}
 
@@ -523,7 +523,7 @@ do { \
 		/* Point to the top of the stack, minus 4 \
 		   just in case, and make it aligned  */ \
 		sa.sa_restorer = \
-		(void (*)(void)) (((unsigned int)(cstack) + sizeof(cstack) - 4) & ~3); \
+		(void (*)(void)) (((unsigned int)(cstack) + sizeof(*cstack) - 4) & ~3); \
 		dosemu_sigaction(sig, &sa, NULL); \
 	}
 #endif

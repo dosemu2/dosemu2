@@ -197,7 +197,7 @@ signal_init(void)
   {
     stack_t ss;
     ss.ss_sp = cstack;
-    ss.ss_size = sizeof(cstack);
+    ss.ss_size = sizeof(*cstack);
     ss.ss_flags = SS_ONSTACK;
     
     if (sigaltstack(&ss, NULL) == 0)

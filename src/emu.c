@@ -285,10 +285,12 @@ int
 emulate(int argc, char **argv)
 #endif
 {
+    char *signalstack[16384];
     int e;
 
     srand(time(NULL));
     memset(&config, 0, sizeof(config));
+    cstack = &signalstack;
 
     if ((e=setjmp(NotJEnv))) {
         flush_log();
