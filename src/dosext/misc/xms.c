@@ -33,7 +33,9 @@ static int umb_find_unused(void);
  * the 1 MEG mark.  ugly.  fix this.
  */
 
+/*
 static char RCSxms[] = "$Header: /usr/src/dosemu0.60/dosemu/RCS/xms.c,v 2.11 1995/05/06 16:25:30 root Exp root $";
+*/
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -390,8 +392,7 @@ xms_init(void)
     return;
   }
 
-  x_printf("XMS: initializing XMS...\nRCS: %s\n%d handles\n\n",
-	   RCSxms, NUM_HANDLES);
+  x_printf("XMS: initializing XMS... %d handles\n", NUM_HANDLES);
 
   freeHMA = 1;
 
@@ -428,7 +429,6 @@ xms_control(void)
     LWORD(edx) = 1;		/* HMA exists */
     x_printf("XMS driver version. XMS Spec: %04x dosemu-XMS: %04x\n",
 	     LWORD(eax), LWORD(ebx));
-    x_printf(RCSxms);
     break;
 
   case 1:			/* Request High Memory Area */

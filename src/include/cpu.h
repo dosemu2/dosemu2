@@ -357,7 +357,9 @@ void dosemu_fault(int, struct sigcontext_struct);
 #endif
 
 void show_regs(char *, int), show_ints(int, int);
-__inline__ int do_hard_int(int), do_soft_int(int);
+#ifdef USE_INT_QUEUE
+__inline__ int do_hard_int(int);
+#endif
 
 extern unsigned int read_port_w(unsigned short port);
 extern int write_port_w(unsigned int value,unsigned short port);

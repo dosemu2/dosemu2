@@ -1,3 +1,22 @@
+97/05/19 ver. 0.67.3 released
+	From Alberto
+	- some more comments on DIRECT_DPMI_CONTEXT_SWITCH
+	- removed bogus RCS printout in src/dosext/misc/xms.c
+	- some remaining fixes on USE_INT_QUEUE
+	- some fixes in DPMI
+	  - low 12 bits in limit > 1M was not checked
+	  - forgotten 'volatile' in do_LAR
+	  - logging of ingnored 0x0506-0x0508,0x0700,0x0702,0x0703
+	    DPMI-functions
+	  - asm code for copy_context under DIRECT_DPMI_CONTEXT_SWITCH
+	  - DPMI page fault should do leavedos()
+	  - dead loop detection for 'cli' in dpmi_fault()
+	From Steffen
+	- (some) fix to cut&paste in src/env/video/n_X.c
+	From Eric
+	- src/base/keyboard/n_keyb_X.c:   Added some missing key
+	  definitions. Needed to get the keypad keys working in X when
+	  numlock is off.
 97/05/19 ver. 0.67.2.1 unofficial pre-release
 				( taking over stuff from pre-0.66.5 )
 	From Alberto

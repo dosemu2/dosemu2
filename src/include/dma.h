@@ -1,3 +1,6 @@
+#ifndef DMA_H
+#define DMA_H
+
 void dma_init(void);
 void dma_reset(void);
 
@@ -148,3 +151,5 @@ when it's finished */
 /* There are several other write registers.  Generally they seem to reuse
 DMA_CH_SELECT, and the following: */
 #define DMA_SELECT_BIT        0x04
+
+#endif /* DMA_H */

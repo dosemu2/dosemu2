@@ -15,6 +15,9 @@
 
 #ifdef __linux__                  
 #define DIRECT_DPMI_CONTEXT_SWITCH
+#ifdef DIRECT_DPMI_CONTEXT_SWITCH
+  #define COPY_CONTEXT_USE_ASM
+#endif
 #endif
 
 #include "config.h"
@@ -535,34 +538,35 @@ unsigned long inline client_esp(struct sigcontext_struct *scp)
  *-06	context->edx
  *-05	context->ecx
  *-04	context->eax
- *-03	p->eflags
- *-02	p->esp
- *-01	p->ss
+ *-03	context->eflags	(cs,eip are written into dpmi_switch_jmp)
+ *-02	context->esp
+ *-01	context->ss
  * --------------------------------------------------------------
  * 00	unsigned short gs, __gsh;	00 -88 -> emu_stack_frame
  * 01	unsigned short fs, __fsh;	04 -84
  * 02	unsigned short es, __esh;	08 -80
  * 03	unsigned short ds, __dsh;	12 -76
- * 04	unsigned long edi;		16 -72
- * 05	unsigned long esi;		20 -68
- * 06	unsigned long ebp;		24 -64
- * 07	unsigned long esp;		28 -60 (+40)
- * 08	unsigned long ebx;		32 -56
- * 09	unsigned long edx;		36 -52
- * 10	unsigned long ecx;		40 -48
- * 11	unsigned long eax;		44 -44
- *
- * 12	unsigned long trapno;		48 -40
- * 13	unsigned long err;		52 -36
- * 14	unsigned long eip;		56 -32
+ * 04	unsigned long edi;		16 -72 ---------\
+ * 05	unsigned long esi;		20 -68		|
+ * 06	unsigned long ebp;		24 -64		|
+ *    esp contains &edi when pushed; we adjust it to point at eip below
+ * 07	unsigned long esp;		28 -60		|
+ * 08	unsigned long ebx;		32 -56		|
+ * 09	unsigned long edx;		36 -52		|
+ * 10	unsigned long ecx;		40 -48		|
+ * 11	unsigned long eax;		44 -44		|(+40)
+ *							|
+ * 12	unsigned long trapno;		48 -40  zeroed  |
+ * 13	unsigned long err;		52 -36  zeroed  |
+ * 14	unsigned long eip;		56 -32  dpmi_switch_return
  * 15	unsigned short cs, __csh;	60 -28
  * 16	unsigned long eflags;		64 -24
  *
- * 17	unsigned long esp_at_signal;	68 -20
+ * 17	unsigned long esp_at_signal;	68 -20  ==esp
  * 18	unsigned short ss, __ssh;	72 -16
- * 19	struct _fpstate * fpstate;	76 -12
- * 20	unsigned long oldmask;		80 -08
- * 21	unsigned long cr2;		84 -04
+ * 19	struct _fpstate * fpstate;	76 -12  dirty
+ * 20	unsigned long oldmask;		80 -08  dirty
+ * 21	unsigned long cr2;		84 -04  dirty
  * --------------------------------------------------------------
  */
 static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
@@ -628,7 +632,7 @@ static int direct_dpmi_switch(struct sigcontext_struct *dpmi_context)
 }
 #endif
 
-
+/* ======================================================================== */
 /*
  * DANG_BEGIN_FUNCTION dpmi_control
  *
@@ -660,8 +664,51 @@ static int dpmi_control(void)
  *       the sigcontext technique, so we build a proper sigcontext structure
  *       even for 'hand made taskswitch'. (Hans Lermen, June 1996)
  *
+ * dpmi_control is called only from dpmi_run when in_dpmi_dos_int==0
  *
  * DANG_END_REMARK
+ */
+
+/* STANDARD SWITCH example
+ *
+ * run_dpmi() -> dpmi_control (cs==UCODESEL)
+ *			xor %eax,%eax
+ *			hlt
+ *		 -> dpmi_fault: save scp to emu_stack_frame
+ *	[C>S>E]			move client frame to scp
+ *				return -> jump to DPMI code
+ *		========== into client code =================
+ *		 -> dpmi_fault (cs==DPMI_SEL)
+ *				perform fault action (e.g. I/O) on scp
+ *		========== into client code =================
+ *		 -> dpmi_fault with return to dosemu code:
+ *				save scp to client frame
+ *	[E>S>C]			move emu_stack_frame to scp
+ *				return
+ *	         dpmi_control <-
+ *			return %eax
+ * run_dpmi() <-
+ *
+ * DIRECT SWITCH example
+ *
+ * run_dpmi() -> dpmi_control (cs==UCODESEL) -> direct_dpmi_switch
+ *				*** there's no scp ***
+ *				create new emu_stack_frame ON STACK
+ *				push client frame
+ *				pop and jump to DPMI code (client cs:eip)
+ *		========== into client code =================
+ *		 -> dpmi_fault (cs==DPMI_SEL)
+ *				perform fault action (e.g. I/O) on scp
+ *		========== into client code =================
+ *		 -> dpmi_fault with return to dosemu code:
+ *				save scp to client frame
+ *	[E>S>C]			move emu_stack_frame to scp
+ *				return
+ *			dpmi_switch_return <-
+ *	         dpmi_control <-
+ *			return %eax
+ * run_dpmi() <-
+ *
  */
 
   register int ret;
@@ -854,6 +901,8 @@ static int SetSegmentLimit(unsigned short selector, unsigned int limit)
   if (!Segments[ldt_entry].used)
     return -1;
   if (limit > 0x0fffff) {
+    /* "Segment limits greater than 1M must have the low 12 bits set" */
+    if (~limit & 0xfff) return -1;
     Segments[ldt_entry].limit = (limit>>12) & 0xfffff;
     Segments[ldt_entry].is_big = 1;
   } else {
@@ -923,7 +972,7 @@ static unsigned short CreateCSAlias(unsigned short selector)
 
 static int inline do_LAR(us selector)
 {
-  __asm__ ("
+  __asm__ volatile("
     movzwl  %%ax,%%eax
     larw %%ax,%%ax
     jz   1f
@@ -1681,15 +1730,10 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     _LWORD(ebx) = 0;
     _LWORD(ecx) = DPMI_page_size;
     break;
-  case 0x0700:	/* Reserved,MARK PAGES AS PAGING CANDIDATES, see intr. lst */
-    break;
   case 0x0701:	/* Reserved, DISCARD PAGES, see interrupt lst */
     D_printf("DPMI: undoc. func. 0x0701 called\n");
     D_printf("      BX=0x%04x, CX=0x%04x, SI=0x%04x, DI=0x%04x\n",
 			_LWORD(ebx), _LWORD(ecx), _LWORD(esi), _LWORD(edi));
-    break;
-  case 0x0702:	/* Mark Page as Demand Paging Candidate */
-  case 0x0703:	/* Discard Page Contents */
     break;
   case 0x0900:	/* Get and Disable Virtual Interrupt State */
     _LO(ax) = (dpmi_eflags & IF) ? 1 : 0;
@@ -1733,7 +1777,19 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
     break;
   case 0x0e01:	/* Set Coprocessor Emulation */
     break;
+
+  case 0x0506:			/* ??? */
+  case 0x0507:			/* ??? */
+  case 0x0508:			/* ??? */
+
+  case 0x0700:	/* Reserved,MARK PAGES AS PAGING CANDIDATES, see intr. lst */
+  case 0x0702:	/* Mark Page as Demand Paging Candidate */
+  case 0x0703:	/* Discard Page Contents */
+    D_printf("DPMI: unimplemented int31 func %#x\n",inumber);
+    break;
+
   default:
+    D_printf("DPMI: unimplemented int31 func %#x\n",inumber);
     _eflags |= CF;
   } /* switch */
   if (_eflags & CF)
@@ -1771,7 +1827,15 @@ void do_int31(struct sigcontext_struct *scp, int inumber)
 
 static inline void copy_context(struct sigcontext_struct *d, struct sigcontext_struct *s)
 {
+ #ifdef COPY_CONTEXT_USE_ASM
+  __asm__ __volatile__ ("
+	cld
+	rep; movsl
+  ":: "S" (s), "D" (d), "c" ((((int)(&s->eax) - (int)(s))+ sizeof(s->eax)) >> 2)
+   : "cx", "si", "di" );
+ #else
   memcpy(d, s, ((int)(&s->eax) - (int)(s))+ sizeof(s->eax));
+ #endif
   d->eip = s->eip;
   *((long *)(&d->cs)) = *((long *)(&s->cs));
   d->eflags = s->eflags;
@@ -2429,6 +2493,8 @@ static void do_cpu_exception(struct sigcontext *scp, int code)
 #ifdef SHOWREGS
   print_ldt();
 #endif
+  if ( _trapno == 0xe)
+    leavedos(98);
 #ifdef DPMI_DEBUG
   d.dpmi = dd;
 #endif
@@ -2805,6 +2871,14 @@ if ((_ss & 7) == 7) {
 	  REG(ss) = rmreg->ss;
 	  REG(esp) = (long) rmreg->sp;
 	  
+/* ---------------------------------------------------
+	| 000FC927 | <- ssp still here, must be restored
+	| dpmi_sel |
+	|  eflags  |
+   ---------------------------------------------------
+   get the stack pointer back from the sigcontext - this should
+   accomodate both the 16- and 32-bit clients
+*/
 	  PMSTACK_ESP = client_esp(scp);
 
 	  /* dpmi_stack_frame[current_client], will be saved in */
@@ -2901,6 +2975,13 @@ if ((_ss & 7) == 7) {
       break;
     case 0xfa:			/* cli */
       _eip += 1;
+      /*
+       * are we trapped in a deadly loop? (tasmx)
+       */
+      if ((csp[0] == 0xeb) && (csp[1] == 0xfe)) {
+	dbug_printf("OUCH! deadly loop, cannot continue");
+	leavedos(97);
+      }
       dpmi_cli();
       break;
     case 0xfb:			/* sti */

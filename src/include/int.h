@@ -3,6 +3,7 @@
 
 #include "extern.h"
 
+/* -------------------- int queue stuff - UNUSED ----------------------- */
 #ifdef USE_INT_QUEUE
 /*
    Queue to hold all pending hard-interrupts. When an interrupt is
@@ -21,6 +22,9 @@ struct int_queue_struct {
   int (*callend) ();
 };
 EXTERN struct int_queue_struct int_queue[IQUEUE_LEN];
+
+void int_queue_run(void);
+extern void queue_hard_int(int i, void (*callstart), void (*callend));
 
 /*
    This is here to allow multiple hard_int's to be running concurrently.
@@ -41,7 +45,7 @@ struct int_queue_list_struct {
 EXTERN struct int_queue_list_struct int_queue_head[NUM_INT_QUEUE];
 
 EXTERN int int_queue_running INIT(0);
-
+/* -------------------- int queue stuff - UNUSED ----------------------- */
 #else  /* not USE_INT_QUEUE */
   #define int_queue_running (0)
 #endif /* not USE_INT_QUEUE */
@@ -58,8 +62,6 @@ EXTERN u_char ignore_segv INIT(0);      /* ignore sigsegv's */
 void do_int(int);
 void setup_interrupts(void);
 void version_init(void);
-void int_queue_run(void);
-extern void queue_hard_int(int i, void (*callstart), void (*callend));
 
 #define REVECT		0
 #define NO_REVECT	1

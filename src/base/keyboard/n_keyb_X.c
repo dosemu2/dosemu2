@@ -101,7 +101,23 @@ static const struct
 
     { XK_Scroll_Lock,   KEY_SCROLL },
     { XK_Break,         KEY_BREAK },
-    { XK_X386_SysReq,	KEY_SYSRQ },
+    { XK_X386_SysReq,   KEY_SYSRQ },
+
+	/* These are what my X Server sends when numlock is off for the
+	 * keypad keys. -- EB 22 Oct 1996 
+	 */
+
+    { XK_KP_Home,       KEY_PAD_7 },
+    { XK_KP_Left,       KEY_PAD_4 },
+    { XK_KP_Up,         KEY_PAD_8 },
+    { XK_KP_Right,      KEY_PAD_6 },
+    { XK_KP_Down,       KEY_PAD_2 },
+    { XK_KP_Page_Up,    KEY_PAD_9 },
+    { XK_KP_Page_Down,  KEY_PAD_3 },
+    { XK_KP_End,        KEY_PAD_1 },
+    { XK_KP_Begin,      KEY_PAD_5 },
+    { XK_KP_Insert,     KEY_PAD_0 },
+    { XK_KP_Delete,     KEY_PAD_DECIMAL },
 };
 
 #define NUM_OTHER (sizeof(other_keys)/sizeof(other_keys[0]))

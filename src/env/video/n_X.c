@@ -2258,6 +2258,7 @@ static void end_selection(void)
 static void send_selection(Time time, Window requestor, Atom target, Atom property)
 {
   int i;
+  u_char *sel_text_latin;
   XEvent e;
   e.xselection.type = SelectionNotify;
   e.xselection.selection = XA_PRIMARY;
@@ -2271,27 +2272,30 @@ static void send_selection(Time time, Window requestor, Atom target, Atom proper
   else if ((target == XA_STRING) || (target == compound_text_atom)) {
     X_printf("X: selection (dos): %s\n",sel_text);   
     e.xselection.target = target;
-    for (i=0; i<strlen(sel_text);i++)
-      switch (sel_text[i]) 
+    sel_text_latin = malloc(strlen(sel_text) + 1);
+    strcpy(sel_text_latin, sel_text);
+    for (i=0; i<strlen(sel_text_latin);i++)
+      switch (sel_text_latin[i]) 
 	{
 	case 21 : /* § */
-	  sel_text[i] = 0xa7;
+	  sel_text_latin[i] = 0xa7;
 	  break;
 	case 20 : /* ¶ */
-	  sel_text[i] = 0xb6;
+	  sel_text_latin[i] = 0xb6;
 	  break;
 	case 124 : /* ¦ */
-	  sel_text[i] = 0xa6;
+	  sel_text_latin[i] = 0xa6;
 	  break;
 	case 0x80 ... 0xff: 
-	  sel_text[i]=dos_to_latin[ sel_text[i] - 0x80 ];
+	  sel_text_latin[i]=dos_to_latin[sel_text_latin[i] - 0x80];
 	} 
-    X_printf("X: selection (latin): %s\n",sel_text);  
+    X_printf("X: selection (latin): %s\n",sel_text_latin);  
     XChangeProperty(display, requestor, property, target, 8, PropModeReplace, 
-      sel_text, strlen(sel_text));
+      sel_text_latin, strlen(sel_text_latin));
     e.xselection.property = property;
     X_printf("X: Selection sent to window 0x%lx as %s\n", 
       (unsigned long) requestor, (target==XA_STRING)?"string":"compound_text");
+    free(sel_text_latin);
   }
   else
   {
