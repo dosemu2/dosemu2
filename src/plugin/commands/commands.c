@@ -166,6 +166,12 @@ int vgaon_main(int argc, char **argv)
 	return 0;
 }
 
+static int generic_main(int argc, char **argv)
+{
+	com_printf("generic.com should not be invoked directly.\n", argv[0]);
+	return 0;
+}
+
 
 void commands_plugin_init(void)
 {
@@ -173,6 +179,8 @@ void commands_plugin_init(void)
 
 	if (done) return;
 	done = 1;
+
+	register_com_program("generic", generic_main);
 
 	/* old xxx.S files */
 	register_com_program("bootoff", bootoff_main);
