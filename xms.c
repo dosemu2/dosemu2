@@ -1,12 +1,18 @@
 /* xms.c for the DOS emulator 
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/xms.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 22:21:03 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/xms.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: xms.c,v $
+ * Revision 1.3  1993/11/30  22:21:03  root
+ * Final Freeze for release pl3
+ *
+ * Revision 1.2  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -59,7 +65,7 @@
  * the 1 MEG mark.  ugly.  fix this.
  */
 
-static char RCSxms[]="$Header: /home/src/dosemu0.49pl2/RCS/xms.c,v 1.1 1993/11/12 12:32:17 root Exp root $";
+static char RCSxms[]="$Header: /home/src/dosemu0.49pl3/RCS/xms.c,v 1.3 1993/11/30 22:21:03 root Exp root $";
 
 #define	 XMS_GET_VERSION		0x00
 #define	 XMS_ALLOCATE_HIGH_MEMORY	0x01
@@ -157,7 +163,7 @@ int size;
 			return FALSE;
 		}
 	}
-	Debug0((dbg_fd,"Found free UMB region: %x\n",addr));
+ Debug0((dbg_fd,"Found free UMB region: %p\n", (void *)addr));
 	return (TRUE);
 }
 
@@ -216,7 +222,8 @@ umb_setup()
 				umbs[umb].free = TRUE;
 				umbs[umb].addr = addr;
 				umbs[umb].size = UMB_PAGE;
-				Debug0((dbg_fd,"New UMB region: %x\n",addr));
+    Debug0((dbg_fd,"New UMB region: %p\n",
+     (void *)addr));
 			}
 		}
 	}
@@ -234,7 +241,8 @@ umb_setup()
 				  FALSE)), 
 				  "vm_allocate of umb block.");
 #else
-  Debug0((dbg_fd, "umb_setup: addr 0x%08x size 0x%04x\n", addr, size));
+   Debug0((dbg_fd, "umb_setup: addr %p size 0x%04x\n",
+    (void *)addr, size));
 #endif
 		}
 	}
@@ -469,8 +477,8 @@ xms_control(void)
 		{
 			int size = WORD(state->edx)*16;
 			vm_address_t addr = umb_allocate(size);
-		    	Debug0((dbg_fd, "Allocate UMB memory: %x\n",
-					     WORD(state->edx)));
+       Debug0((dbg_fd, "Allocate UMB memory: 0x%04x\n",
+    (unsigned)WORD(state->edx)));
 			if (addr == (vm_address_t)0) {
 				SETWORD(&(state->eax),0);
 				SETLOW(&(state->ebx),0xb0);
@@ -480,8 +488,9 @@ xms_control(void)
 				SETWORD(&(state->ebx),(int)addr>>4);
 				SETWORD(&(state->edx),size>>4);
 			}
-		    	Debug0((dbg_fd, "umb_allocated: %x, %x\n",
-				     WORD(state->ebx), WORD(state->edx)));
+       Debug0((dbg_fd, "umb_allocated: 0x%04x, 0x%04x\n",
+    (unsigned)WORD(state->ebx),
+    (unsigned)WORD(state->edx)));
 			/* retval = UNCHANGED; */
 			break;
 		}
@@ -490,7 +499,8 @@ xms_control(void)
 		{
 			umb_free(WORD(state->edx));
 			SETWORD(&(state->eax),1);
-			Debug0((dbg_fd,"umb_freed: %x\n", WORD(state->edx)));
+   Debug0((dbg_fd,"umb_freed: 0x%04x\n",
+          (unsigned)WORD(state->edx)));
 			/* retval = UNCHANGED; */
 			break;
 		}
@@ -597,8 +607,9 @@ void xms_query_freemem(int api)
     }
   else
     {
-      _regs.eax = _regs.edx = subtotal;
-      x_printf("XMS query free memory(new): %dK %dK\n", _regs.eax, _regs.edx);
+      REG(eax) = REG(edx) = subtotal;
+      x_printf("XMS query free memory(new): %ldK %ldK\n",
+        REG(eax), REG(edx));
     }
 
   LO(bx)=0;  /* no error */
@@ -612,7 +623,7 @@ void xms_allocate_EMB(int api)
   if (api == OLDXMS)
     x_printf("XMS alloc EMB(old) size 0x%04x\n", LWORD(edx));
   else
-    x_printf("XMS alloc EMB(new) size 0x%08x\n", _regs.edx);
+    x_printf("XMS alloc EMB(new) size 0x%08lx\n", REG(edx));
 
   if (! (h=FindFreeHandle(FIRST_HANDLE)) )
     {
@@ -625,7 +636,7 @@ void xms_allocate_EMB(int api)
       if (api == OLDXMS)
 	handles[h].size=LWORD(edx) * 1024;
       else
-	handles[h].size=_regs.edx * 1024;
+	handles[h].size=REG(edx) * 1024;
 
       /* I could just rely on the behavior of malloc(0) here, but
        * I'd rather not.  I'm going to interpret the XMS 3.0 spec
@@ -640,12 +651,12 @@ void xms_allocate_EMB(int api)
       handles[h].lockcount=0;
       handle_count++;
 
-      x_printf("XMS: allocated EMB %d at %08x\n", h, handles[h].addr);
+      x_printf("XMS: allocated EMB %lu at %p\n", h, (void *)handles[h].addr);
 
       if (api == OLDXMS)
 	LWORD(edx)=h;  /* handle # */
       else
-	_regs.edx=h;
+	REG(edx)=h;
 
       LWORD(eax)=1;  /* success */
     }
@@ -665,7 +676,7 @@ void xms_free_EMB(void)
     } else {
       
       if (handles[h].addr) free(handles[h].addr);
-      else x_printf("XMS WARNING: freeing handle w/no address, size 0x%08x\n",
+      else x_printf("XMS WARNING: freeing handle w/no address, size 0x%08lx\n",
 		    handles[h].size);
       handles[h].valid=0;
       handle_count--;
@@ -679,7 +690,7 @@ void xms_free_EMB(void)
 void xms_move_EMB(void)
 {
   char *src, *dest;
-  struct EMM e = get_emm(_regs.ds, LWORD(esi));
+  struct EMM e = get_emm(REG(ds), LWORD(esi));
 
   x_printf("XMS move extended memory block\n");
   show_emm(e);
@@ -704,8 +715,8 @@ void xms_move_EMB(void)
       dest = handles[e.DestHandle].addr + e.DestOffset;
     }
 
-  x_printf("XMS: block move from %08x to %08x len %08x\n", 
-	   src, dest, e.Length);
+  x_printf("XMS: block move from %p to %p len 0x%lx\n",
+    (void *)src, (void *)dest, e.Length);
 
   memmove(dest, src, e.Length);
   LWORD(eax)=1;  /* success */
@@ -761,7 +772,7 @@ void xms_EMB_info(int api)
 	{
 	  HI(bx) = handles[h].lockcount;
 	  LWORD(ecx) = NUM_HANDLES - handle_count;
-	  _regs.edx = handles[h].size / 1024;
+	  REG(edx) = handles[h].size / 1024;
 	  LWORD(eax)=1;
 	  x_printf("XMS Get EMB info(new) %d\n", h); 
 	}
@@ -808,7 +819,7 @@ void xms_realloc_EMB(int api)
   if (api == OLDXMS)
       handles[h].size = LWORD(ebx) * 1024;
   else
-      handles[h].size = _regs.ebx * 1024;
+      handles[h].size = REG(ebx) * 1024;
 
   x_printf((api == OLDXMS) ? "XMS realloc EMB(old) %d to size 0x%04x\n" :
 	                     "XMS realloc EMB(new) %d to size 0x%08x\n",
@@ -879,7 +890,9 @@ void show_emm(struct EMM e)
 {
   x_printf("XMS show_emm:\n");
 
-  x_printf("L: 0x%08x\nSH: 0x%04x  SO: 0x%08x\nDH: 0x%04x  DO: 0x%08x\n",
+  x_printf("L: 0x%08lx\n"
+    "SH: 0x%04x  SO: 0x%08lx\n"
+    "DH: 0x%04x  DO: 0x%08lx\n",
 	   e.Length, e.SourceHandle, e.SourceOffset,
 	   e.DestHandle, e.DestOffset);
 }

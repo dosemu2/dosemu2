@@ -2,7 +2,7 @@
 /* Extensions by Robert Sanders, 1992-93
  *
  * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/dos.c,v $
+ * $Source: /home/src/dosemu0.49pl3/RCS/dos.c,v $
  * $Revision: 1.1 $
  * $State: Exp $
  *

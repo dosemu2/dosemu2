@@ -1,5 +1,4 @@
 /*
-
 Work started by Tim Bird (tbird@novell.com) 28th October 1993
 
 	
@@ -147,6 +146,21 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 1.7  1993/11/30  22:21:03  root
+ * Final Freeze for release pl3
+ *
+ * Revision 1.6  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
+ * Revision 1.5  1993/11/29  00:05:32  root
+ * Add code for Open DOS write to Truncate File.
+ *
+ * Revision 1.4  1993/11/25  22:45:21  root
+ * About to destroy keybaord routines.
+ *
+ * Revision 1.3  1993/11/23  22:24:53  root
+ * Truncate file problem
+ *
  * Revision 1.2  1993/11/17  22:29:33  root
  * Added \ to CWD returned dir
  *
@@ -229,7 +243,10 @@ TODO:
 #include <sys/types.h>
 #include <sys/time.h>
 #include <ctype.h>
-#include <sys/errno.h>
+#include <errno.h>
+#include <sys/param.h>
+#include <stdlib.h>
+#include <malloc.h>
 
 #if !DOSEMU
 #include <mach/message.h>
@@ -272,16 +289,22 @@ boolean_t mach_fs_enabled = FALSE;
 #define	FIND_NEXT		0x1c
 #define	CLOSE_ALL		0x1d
 #define	CONTROL_REDIRECT	0x1e
+/*#define PRINTER_SETUP  0x1f */
 #define	FLUSH_ALL_DISK_BUFFERS	0x20
 #define	SEEK_FROM_EOF		0x21
 #define	PROCESS_TERMINATED	0x22
 #define	QUALIFY_FILENAME	0x23
+/*#define TURN_OFF_PRINTER   0x24 */
 #define MULTIPURPOSE_OPEN	0x2e	/* Used in DOS 4.0+ */
-#define UNDOCUMENTED_FUNCTION_2	0x25	/* Used in DOS 4.0+ */
+#define PRINTER_MODE  0x25    /* Used in DOS 3.1+ */
+/*#define UNDOCUMENTED_FUNCTION_2 0x25 /* Used in DOS 4.0+ */
+#define EXTENDED_ATTRIBUTES 0x2d    /* Used in DOS 4.x */
 
 #define EOS		'\0'
 #define	SLASH		'/'
 #define BACKSLASH	'\\'
+
+int fds[256];
 
 /* dos_disk.c */
 struct dir_ent *get_dir ();
@@ -414,12 +437,13 @@ select_drive (state)
   cdsfarptr = lol_cdsfarptr (lol);
   cds_base = (cds_t) Addr_8086 (cdsfarptr.segment, cdsfarptr.offset);
 
-  Debug0 ((dbg_fd, "selecting drive fn=%x sda_cds=%x\n", fn, sda_cds));
+  Debug0 ((dbg_fd, "selecting drive fn=%x sda_cds=%p\n",
+    fn, (void *)sda_cds));
 
   switch (fn)
     {
     case INSTALLATION_CHECK:	/* 0x0 */
-	case CONTROL_REDIRECT:		/* 0x1e */
+    case CONTROL_REDIRECT:	/* 0x1e */
       check_always = TRUE;
       break;
     case QUALIFY_FILENAME:	/* 0x23 */
@@ -532,14 +556,14 @@ select_drive (state)
 
   if (!found && check_dssi_fn)
     {
-      char *fn = (char *) Addr (state, ds, esi);
-printf("FNX=%c%c%c%c%c%c%c%c%c%c\n", fn[0], fn[1], fn[2], fn[3], fn[4], fn[5], fn[6], fn[7], fn[8], fn[9]);
+      char *name = (char *) Addr (state, ds, esi);
+      Debug0 ((dbg_fd, "FNX=%.10s\n", name));
       for (dd = 0; dd < num_drives && !found; dd++)
 	{
 	  if (!dos_roots[dd])
 	    continue;
-	  if ((toupper (fn[0]) - 'A') == dd
-	      && (fn[1] == ':' || fn[1] == '\\'))
+	  if ((toupper (name[0]) - 'A') == dd
+	      && (name[1] == ':' || name[1] == '\\'))
 	    found = 1;
 	}
     }
@@ -639,21 +663,101 @@ init_all_drives ()
   umask (process_mask);
 }
 
+ /*
+  *  this routine takes care of things
+  * like getting environment variables
+  * and such.  \ is used as an escape character.
+  * \\ -> \
+  * \${VAR} -> value of environment variable VAR
+  * \T -> current tmp directory
+  *
+  */
+ char *
+ get_unix_path (char *path) {
+   char str[MAXPATHLEN];
+   char var[256];
+   char *orig_path = path;
+   char *val;
+   char *tmp_str;
+   int i;
+   int esc;
+   extern char *tmpdir;
+   i = 0;
+   esc = 0;
+   for  (; *path != 0; path++) {
+     if (esc) {
+       switch (*path) {
+       case '\\': /* really meant a \ */
+ 	 str[i++] = '\\';
+ 	 break;
+       case 'T': /* the name of the temporary directory */
+	  strncpy (&str[i], tmpdir, MAXPATHLEN-2-i);
+	  str[MAXPATHLEN-2]=0;
+	  i = strlen (str);
+	  break;
+       case '$': /* substitute an environment variable. */
+	  path++;
+	  if (*path != '{') {
+	    var[0]=*path;
+	    var[1]=0;
+	  } else {
+	    for (tmp_str = var; *path != 0 && tmp_str != &var[255]; tmp_str++) {
+	      path++;
+	      if (*path == '}')  break;
+	      *tmp_str = *path;
+	    }
+	    *tmp_str = 0;
+	    val = getenv(var);
+	    if (val == NULL) {
+	      Debug0((dbg_fd,
+	       "In path=%s, Environment Variable $%s is not set.\n",
+	       orig_path, var));
+	      break;
+	    }
+	    strncpy (&str[i], val, MAXPATHLEN-2-i);
+	    str[MAXPATHLEN-2]=0;
+	    i = strlen (str);
+	    esc=0;
+	    break;
+	  }
+       }
+     } else {
+       if (*path == '\\') {
+	  esc = 1;
+       } else {
+	  str[i++] = *path;
+       }
+     }
+     if (i >= MAXPATHLEN-2)  {
+       i = MAXPATHLEN-2;
+       break;
+     }
+   }
+  if (i==0 || str[i-1] != '/')
+    str[i++]='/';
+  str[i] = 0;
+  tmp_str = malloc (strlen (str) + 1);
+  if (tmp_str == NULL) {
+    Debug0((dbg_fd,
+     "Out of memory in path %s.\n",
+     orig_path));
+    return (NULL);
+  }
+  strcpy (tmp_str, str);
+  Debug0((dbg_fd,
+  "unix_path returning %s from %s.\n",
+  tmp_str, orig_path));
+  return (tmp_str);
+}
 
 int 
 init_drive (int dd, char *path, char *options)
 {
   struct stat st;
-  int l = strlen (path);
-  if (path[l - 1] != '/')
-    l++;
-  dos_roots[dd] = (char *) malloc (l + 1);
-  strcpy (dos_roots[dd], path);
-  if (strlen (path) != l)
-    strcat (dos_roots[dd], "/");
-  dos_root_lens[dd] = l;
 
-  Debug0((dbg_fd,"init_drive: drive %d, path %s, opts %s, root %s, length %d\n",
+  dos_roots[dd] = get_unix_path (path);
+  dos_root_lens[dd] = strlen (dos_roots[dd]);
+  Debug0((dbg_fd,"path %s opts %s root %s length %d\n",
 	  dd, path, options, dos_roots[dd], dos_root_lens[dd]));
 
   /* now a kludge to find the true name of the path */
@@ -704,7 +808,7 @@ mfs_redirector (void)
 #endif
 
   PS (MFS);
-  ret = dos_fs_redirect (&_regs);
+  ret = dos_fs_redirect (&REGS);
   PE (MFS);
   
   Debug0((dbg_fd,"Finished dos_fs_redirect\n"));
@@ -718,10 +822,10 @@ mfs_redirector (void)
   switch (ret)
     {
     case FALSE:
-      _regs.eflags |= CF;
+      REG(eflags) |= CF;
       return 1;
     case TRUE:
-      _regs.eflags &= ~CF;
+      REG(eflags) &= ~CF;
       return 1;
     case UNCHANGED:
       return 1;
@@ -742,7 +846,7 @@ mfs_inte5 (void)
     return 0;
 #endif
 
-  result = dos_fs_dev (&_regs);
+  result = dos_fs_dev (&REGS);
 #if DOSEMU
   exchange_uids ();
 #endif
@@ -1407,7 +1511,7 @@ dos_fs_dev (state)
   static int init_count = 0;
   u_char drive_to_redirect;
 
-  Debug0 ((dbg_fd, "emufs operation: 0x%x\n", state->ebx));
+  Debug0 ((dbg_fd, "emufs operation: 0x%08lx\n", state->ebx));
 
   if (WORD (state->ebx) == 0x500)
     {
@@ -1421,8 +1525,8 @@ dos_fs_dev (state)
       dos_minor = HIGH (state->ecx);
       Debug0 ((dbg_fd, "dos_fs: dos_major:minor = 0x%d:%d.\n",
 	       dos_major, dos_minor));
-      Debug0 ((dbg_fd, "lol=%x\n", lol));
-      Debug0 ((dbg_fd, "sda=%x\n", sda));
+      Debug0 ((dbg_fd, "lol=%p\n", (void *)lol));
+      Debug0 ((dbg_fd, "sda=%p\n", (void *)sda));
       if ((dos_major == 3) && (dos_minor > 9) && (dos_minor <= 31))
 	{
 	  dos_ver = DOSVER_31_33;
@@ -2040,7 +2144,8 @@ debug_dump_sft (handle)
 
   ptr = (u_short *) (FARPTR ((far_t *) (lol + 0x4)));
 
-  fprintf (dbg_fd, "SFT: han = %x, sftptr = %x\n", handle, ptr);
+  fprintf (dbg_fd, "SFT: han = 0x%x, sftptr = %p\n",
+    handle, (void *)ptr);
 
   /* Assume 3.1 or 3.3 Dos */
   sftn = handle;
@@ -2064,7 +2169,7 @@ debug_dump_sft (handle)
 		   sft_attribute_byte (sptr));
 	  fprintf (dbg_fd, "device_info = %x\n",
 		   sft_device_info (sptr));
-	  fprintf (dbg_fd, "dev_drive_ptr = %x\n",
+   fprintf (dbg_fd, "dev_drive_ptr = %lx\n",
 		   sft_dev_drive_ptr (sptr));
 	  fprintf (dbg_fd, "starting cluster = %x\n",
 		   sft_start_cluster (sptr));
@@ -2072,9 +2177,9 @@ debug_dump_sft (handle)
 		   sft_time (sptr));
 	  fprintf (dbg_fd, "file date = %x\n",
 		   sft_date (sptr));
-	  fprintf (dbg_fd, "file size = %x\n",
+   fprintf (dbg_fd, "file size = %lx\n",
 		   sft_size (sptr));
-	  fprintf (dbg_fd, "pos = %x\n",
+   fprintf (dbg_fd, "pos = %lx\n",
 		   sft_position (sptr));
 	  fprintf (dbg_fd, "rel cluster = %x\n",
 		   sft_rel_cluster (sptr));
@@ -2095,19 +2200,15 @@ debug_dump_sft (handle)
     }
 }
 
+/* convert forward slashes to back slashes for DOS */
+
 void
 path_to_dos( char *path )
 {
 	char *s;
 	
-	/* convert forward slashes to back slashes for DOS */	
-	s = path;
-	while( *s ) {
-		if( *s=='/' ) {
-			*s=='\\';
-		}
-		s++;
-	}
+ for (s = path; (s = strchr(s, '/')) != NULL; ++s)
+  *s = '\\';
 }
 
 int
@@ -2153,8 +2254,9 @@ GetRedirection(state, index)
 				/* NetWare shell doesn't get confused */
 				returnCX = read_onlys[dd] | 0x80;
 				
-				Debug0 ((dbg_fd, "GetRedirection user stack =%x, CX=\n",
-					userStack, returnCX ));
+    Debug0 ((dbg_fd, "GetRedirection "
+      "user stack=%p, CX=%x\n",
+      (void *)userStack, returnCX));
 				userStack[1] = returnBX;
 				userStack[2] = returnCX;
 				/* XXXTRB - should set session number in returnBP if */
@@ -2223,7 +2325,7 @@ RedirectDevice( state_t *state )
 	
 	/* if low bit of CX is set, then set for read only access */
 	Debug0 ((dbg_fd, "read-only attribute = %d\n",
-		state->ecx & 1 ));
+   (int)(state->ecx & 1)));
 	if( init_drive( current_drive, path, (state->ecx & 1)?"R":NULL )==0 ) {
 	    SETWORD (&(state->eax), NETWORK_NAME_NOT_FOUND);
 		return( FALSE );
@@ -2354,11 +2456,15 @@ dos_fs_redirect (state)
   fflush (NULL);
 #endif
 
+if (_regs.eax == 0x1100) {
+	show_regs();
+}
+
   switch (LOW (state->eax))
     {
     case INSTALLATION_CHECK:	/* 0x00 */
       Debug0 ((dbg_fd, "Installation check\n"));
-	  SETLOW(&(state->eax),0xFF);
+      SETLOW(&(state->eax),0xFF);
       return (TRUE);
     case REMOVE_DIRECTORY:	/* 0x01 */
     case REMOVE_DIRECTORY_2:	/* 0x02 */
@@ -2424,8 +2530,9 @@ dos_fs_redirect (state)
 	}
       return (TRUE);
     case SET_CURRENT_DIRECTORY:/* 0x05 */
-	  Debug0((dbg_fd,"set directory %s\n",filename1));
+      Debug0 ((dbg_fd, "set directory to: %s\n", filename1));
       build_ufs_path (fpath, filename1);
+      Debug0 ((dbg_fd, "set directory to ufs path: %s\n", fpath));
 
       /* Try the given path */
       if (!find_file (fpath, &st))
@@ -2439,32 +2546,22 @@ dos_fs_redirect (state)
 	  Debug0 ((dbg_fd, "Set Directory %s not found\n", fpath));
 	  return (FALSE);
 	}
-      else
-	{
-	  int i = strlen (filename1);
+      /* what we do now is update the cds_current_path, although it is
+  probably superflous in most cases as dos seems to do it for us */
+      {
+ char *fp, *cwd;
 
-	  /* what we do now is update the
-	   cds_current_path, although it is probably
-	   superflous in most cases as dos seems to
-	   do it for us */
-	  {
-	    char *fp = fpath + strlen (dos_root);
-	    char *cwd = cds_current_path (cds);
+ fp = fpath + strlen (dos_root);
 
-	    /* Skip over leading <drive>:\ */
-	    cwd += cds_rootlen (cds) + 1;
+ /* Skip over leading <drive>:\ */
+ cwd = cds_current_path (cds) + cds_rootlen (cds) + 1;
 
-	    /* now copy the rest of the path
-	     changing / to \ */
-	    do
-	      *cwd++ = (*fp == '/' ? '\\' : *fp);
-	    while (*fp++);
-
-	    Debug0 ((dbg_fd, "New CWD is %s\n",
-		     cds_current_path (cds)));
-	  }
-	  Debug0 ((dbg_fd, "Set Directory %s\n", fpath));
-	}
+ /* now copy the rest of the path, changing / to \ */
+ do
+   *cwd++ = (*fp == '/' ? '\\' : *fp);
+ while (*fp++);
+      }
+      Debug0 ((dbg_fd, "New CWD is %s\n", cds_current_path (cds)));
       return (TRUE);
     case CLOSE_FILE:		/* 0x06 */
       fd = sft_fd (sft);
@@ -2493,9 +2590,9 @@ dos_fs_redirect (state)
 	int itisnow;
 	cnt = WORD (state->ecx);
 	fd = sft_fd (sft);
-	Debug0 ((dbg_fd, "Read file fd=%x, dta=%x,cnt=%d\n",
-		 fd, dta, cnt));
-	Debug0 ((dbg_fd, "Read file pos = %d\n",
+ Debug0 ((dbg_fd, "Read file fd=%x, dta=%p, cnt=%d\n",
+   fd, (void *)dta, cnt));
+ Debug0 ((dbg_fd, "Read file pos = %ld\n",
 		 sft_position (sft)));
 	Debug0 ((dbg_fd, "Handle cnt %d\n",
 		 sft_handle_cnt (sft)));
@@ -2523,13 +2620,66 @@ dos_fs_redirect (state)
 	sft_abs_cluster (sft) = 0x174a;	/* XXX a test */
 	Debug0 ((dbg_fd, "File data %c %c %c\n",
 		 dta[0], dta[1], dta[2]));
-	Debug0 ((dbg_fd, "Read file pos after = %d\n",
+ Debug0 ((dbg_fd, "Read file pos after = %ld\n",
 		 sft_position (sft)));
 	return (return_val);
       }
     case WRITE_FILE:		/* 0x09 */
       cnt = WORD (state->ecx);
       fd = sft_fd (sft);
+
+/* Another Kludge for DOS wanting to be able to open a file O_TRUNC and
+   close it with file left INTACT. Seems to work, but needs more testing */ 
+
+      if (fds[fd]) {
+	Debug0 ((dbg_fd, "Opening file again for write OTRUNC\n"));
+        if (close (fd) != 0){
+	    Debug0 ((dbg_fd, "Unable to close for open and trunc\n"));
+	    return (FALSE);
+	    fds[fd]=0;
+        }
+	build_ufs_path (fpath, filename1);
+	{
+	  int fdx=fd;
+          if ((fd = open (fpath, fds[fd])) < 0)
+    	    {
+	      Debug0 ((dbg_fd, "access denied:'%s'\n", fpath));
+	      SETWORD (&(state->eax), ACCESS_DENIED);
+	      fds[fdx]=0;
+	      return (FALSE);
+	    }
+
+         for (i = 0, bs_pos = 0; fpath[i] != EOS; i++)
+	{
+	  if (fpath[i] == SLASH)
+	    bs_pos = i;
+	}
+
+      auspr (fpath + bs_pos + 1,
+	     sft_name (sft),
+	     sft_ext (sft));
+      sft_open_mode (sft) = sda_open_mode (sda) & 0x7f;
+      sft_dev_drive_ptr (sft) = 0;
+      sft_directory_entry (sft) = 0;
+      sft_directory_sector (sft) = 0;
+#ifdef NOTEST
+      sft_attribute_byte (sft) = attr;
+#else
+      sft_attribute_byte (sft) = 0x20;
+#endif	/* NOTEST */
+      sft_device_info (sft) = current_drive + (0x8040);
+      time_to_dos (&st.st_mtime,
+		   &sft_date (sft), &sft_time (sft));
+      sft_size (sft) = st.st_size;
+      sft_position (sft) = 0;
+      sft_fd (sft) = fd;
+      Debug0 ((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
+      Debug0 ((dbg_fd, "Size : %d\n", st.st_size));
+	fds[fdx]=0;
+	fds[fd]=0;
+       }
+  }
+
       Debug0 ((dbg_fd, "Write file fd=%x count=%x\n",fd,cnt));
       if (read_only)
 	{
@@ -2569,7 +2719,7 @@ dos_fs_redirect (state)
       if (us_debug_level > Debug_Level_0) {
         s_pos = lseek (fd, sft_position (sft), L_SET);
       }
-      Debug0 ((dbg_fd, "dta = %x, cnt = %x\n", dta, cnt));
+      Debug0 ((dbg_fd, "sft_size = %x, sft_pos = %x, dta = %p, cnt = %x\n", sft_size (sft), sft_position (sft), (void *)dta, cnt));
       if (us_debug_level > Debug_Level_0) {
         ret = dos_write (fd, dta, cnt);
         if ((ret + s_pos) > sft_size (sft)) {
@@ -2582,7 +2732,8 @@ dos_fs_redirect (state)
         Debug0 ((dbg_fd, "Write Failed : %s\n", strerror(errno)));
 	return (FALSE);
       }
-      Debug0 ((dbg_fd, "Sft_position : %d, Sft_size : %d\n", sft_position (sft), sft_size (sft)));
+      Debug0 ((dbg_fd, "sft_position=%lu, Sft_size=%lu\n",
+        sft_position (sft), sft_size (sft)));
       SETWORD (&(state->ecx), ret);
       sft_position (sft) += ret;
       sft_abs_cluster (sft) = 0x174a;	/* XXX a test */
@@ -2634,24 +2785,23 @@ dos_fs_redirect (state)
       }
     case SET_FILE_ATTRIBUTES:	/* 0x0e */
       {
-		int attr = *(u_short *) Addr (state, ss, esp);
-		
-      Debug0 ((dbg_fd, "Set File Attributes %s %x\n",filename1,attr));
-      if (read_only)
-	{
-	  SETWORD (&(state->eax), ACCESS_DENIED);
-	  return (FALSE);
-	}
+ u_short att = *(u_short *) Addr (state, ss, esp);
+
+ Debug0 ((dbg_fd, "Set File Attributes %s 0%o\n",filename1,att));
+ if (read_only)
+   {
+     SETWORD (&(state->eax), ACCESS_DENIED);
+     return (FALSE);
+   }
 
 	build_ufs_path (fpath, filename1);
-	Debug0 ((dbg_fd, "Set attr: '%s' --> %x\n",
-		 fpath, attr));
+ Debug0 ((dbg_fd, "Set attr: '%s' --> 0%o\n", fpath, att));
 	if (!find_file (fpath, &st))
 	  {
 	    SETWORD (&(state->eax), FILE_NOT_FOUND);
 	    return (FALSE);
 	  }
-	if (chmod (fpath, get_unix_attr (st.st_mode, attr)) != 0)
+ if (chmod (fpath, get_unix_attr (st.st_mode, att)) != 0)
 	  {
 	    SETWORD (&(state->eax), ACCESS_DENIED);
 	    return (FALSE);
@@ -2713,7 +2863,7 @@ dos_fs_redirect (state)
 	}
     case DELETE_FILE:		/* 0x13 */
       {
-	struct dir_ent *hlist = NULL;
+ struct dir_ent *de = NULL;
 
 	Debug0 ((dbg_fd, "Delete file %s\n",filename1));
 	if (read_only)
@@ -2735,11 +2885,10 @@ dos_fs_redirect (state)
 	    strcpy (fpath, "/");
 	  }
 
-	free_list (hlist);
-	hlist = match_filename_prune_list (
-				 get_dir (fpath, fname, fext), fname, fext);
+ de = match_filename_prune_list (get_dir (fpath, fname, fext),
+     fname, fext);
 
-	if (hlist == NULL)
+ if (de == NULL)
 	  {
 	    build_ufs_path (fpath, filename1);
 	    if (!find_file (fpath, &st))
@@ -2755,32 +2904,30 @@ dos_fs_redirect (state)
 	      }
 	    return (TRUE);
 	  }
-	else
-	  while (hlist != NULL)
-	    {
-	      if (hlist->mode & S_IFDIR)
-		{
-		  goto delete_next;
-		}
-	      strncpy (fpath + bs_pos + 1, hlist->name, 8);
-	      fpath[bs_pos] = SLASH;
-	      fpath[bs_pos + 9] = '.';
-	      fpath[bs_pos + 13] = EOS;
-	      strncpy (fpath + bs_pos + 10, hlist->ext, 3);
-	      strip_char (fpath, ' ');
-	      cnt = strlen (fpath);
-	      if (fpath[cnt - 1] == '.')
-		fpath[cnt - 1] = EOS;
-	      if (find_file (fpath, &st))
-		{
-		  unlink (fpath);
-		  Debug0 ((dbg_fd, "Deleted %s\n", fpath));
-		}
-	    delete_next:
-	      tmp = hlist->next;
-	      free (hlist);
-	      hlist = tmp;
-	    }
+
+ while (de != NULL)
+   {
+     if ((de->mode & S_IFMT) == S_IFREG)
+       {
+  strncpy (fpath + bs_pos + 1, de->name, 8);
+  fpath[bs_pos] = SLASH;
+  fpath[bs_pos + 9] = '.';
+  fpath[bs_pos + 13] = EOS;
+  strncpy (fpath + bs_pos + 10, de->ext, 3);
+  strip_char (fpath, ' ');
+  cnt = strlen (fpath);
+  if (fpath[cnt - 1] == '.')
+    fpath[cnt - 1] = EOS;
+  if (find_file (fpath, &st))
+    {
+      unlink (fpath);
+      Debug0 ((dbg_fd, "Deleted %s\n", fpath));
+    }
+       }
+     tmp = de->next;
+     free (de);
+     de = tmp;
+   }
 	return (TRUE);
       }
 
@@ -2788,7 +2935,7 @@ dos_fs_redirect (state)
       mode = sda_open_mode (sda) & 0x3;
       attr = *(u_short *) Addr (state, ss, uesp);
       Debug0 ((dbg_fd, "Open existing file %s\n",filename1));
-      Debug0 ((dbg_fd, "mode, attr %x, %x\n", mode, attr));
+      Debug0 ((dbg_fd, "mode=0x%x, attr=0%o\n", mode, attr));
 
     do_open_existing:
       if (read_only && mode != O_RDONLY)
@@ -2824,8 +2971,7 @@ dos_fs_redirect (state)
 	}
       else
 	{
-	  Debug0 ((dbg_fd, "Illegal access_mode 0x%x\n",
-		   mode));
+   Debug0 ((dbg_fd, "Illegal access_mode 0x%x\n", mode));
 	  mode = O_RDONLY;
 	}
       if (read_only && mode != O_RDONLY)
@@ -2833,12 +2979,21 @@ dos_fs_redirect (state)
 	  SETWORD (&(state->eax), ACCESS_DENIED);
 	  return (FALSE);
 	}
+
       if ((fd = open (fpath, mode)) < 0)
 	{
 	  Debug0 ((dbg_fd, "access denied:'%s'\n", fpath));
 	  SETWORD (&(state->eax), ACCESS_DENIED);
 	  return (FALSE);
 	}
+
+/* If file is opened WRITE, truncate the file to 0 */
+      if (mode & 1)
+	{
+	  /* mode |= O_TRUNC; */
+	  fds[fd] = (mode |= O_TRUNC);
+	}
+	else fds[fd] = 0;
 
       for (i = 0, bs_pos = 0; fpath[i] != EOS; i++)
 	{
@@ -2865,7 +3020,7 @@ dos_fs_redirect (state)
       sft_position (sft) = 0;
       sft_fd (sft) = fd;
       Debug0 ((dbg_fd, "open succeeds: '%s' fd = 0x%x\n", fpath, fd));
-      Debug0 ((dbg_fd, "Size : %d\n", st.st_size));
+      Debug0 ((dbg_fd, "Size : %ld\n", (long)st.st_size));
       return (TRUE);
     case CREATE_TRUNCATE_NO_CDS:	/* 0x18 */
     case CREATE_TRUNCATE_FILE:	/* 0x17 */
@@ -2911,8 +3066,8 @@ dos_fs_redirect (state)
 	  if ((fd = open (fpath, (O_RDWR | O_CREAT | O_TRUNC),
 			  get_unix_attr (0664, attr))) < 0)
 	    {
-	      Debug0 ((dbg_fd, "access denied '%s' errno=%d(%s)\n",
-		       errno,sys_errlist[errno],fpath));
+       Debug0 ((dbg_fd, "can't open %s: %s (%d)\n",
+         fpath, strerror(errno), errno));
 	      SETWORD (&(state->eax), ACCESS_DENIED);
 	      return (FALSE);
 	    }
@@ -2939,7 +3094,7 @@ dos_fs_redirect (state)
       sft_position (sft) = 0;
       sft_fd (sft) = fd;
       Debug0 ((dbg_fd, "create succeeds: '%s' fd = 0x%x\n", fpath, fd));
-      Debug0 ((dbg_fd, "size = %x\n", sft_size (sft)));
+      Debug0 ((dbg_fd, "size = 0x%lx\n", sft_size (sft)));
       return (TRUE);
 
     case FIND_FIRST_NO_CDS:	/* 0x19 */
@@ -2979,7 +3134,8 @@ dos_fs_redirect (state)
       sdb_dir_entry (sdb) = 0x0;
 
       Debug0 ((dbg_fd, "Find first %8.8s.%3.3s\n",
-               sdb_template_name (sdb),sdb_template_ext (sdb)));
+               (char *)sdb_template_name (sdb),
+        (char *)sdb_template_ext (sdb)));
 
       strncpy(last_find_name,sdb_template_name(sdb),8);
       strncpy(last_find_ext,sdb_template_ext(sdb),3);
@@ -3062,7 +3218,8 @@ dos_fs_redirect (state)
       return (TRUE);
     case FIND_NEXT:		/* 0x1c */
       Debug0 ((dbg_fd, "Find next %8.8s.%3.3s\n",
-	       sdb_template_name (sdb),sdb_template_ext (sdb)));
+        (char *)sdb_template_name (sdb),
+        (char *)sdb_template_ext (sdb)));
       if (strncmp(last_find_name,sdb_template_name(sdb),8)!=0 ||
 	  strncmp(last_find_ext,sdb_template_ext(sdb),3)!=0)
 	{
@@ -3116,6 +3273,7 @@ dos_fs_redirect (state)
 	char *fn = (char *) Addr (state, ds, esi);
 	char *qfn = (char *) Addr (state, es, edi);
 	char *cpath = cds_current_path (cds);
+
 #if DOQUALIFY
 	if (fn[1] == ':')
 	  {
@@ -3143,6 +3301,7 @@ dos_fs_redirect (state)
       break;
     case LOCK_FILE_REGION:	/* 0x0a */
       Debug0 ((dbg_fd, "Lock file region\n"));
+      return (TRUE);
       break;
     case UNLOCK_FILE_REGION:	/* 0x0b */
       Debug0 ((dbg_fd, "Unlock file region\n"));
@@ -3236,20 +3395,37 @@ dos_fs_redirect (state)
 	    goto do_create_truncate;
 	  }
 
-
-	Debug0 ((dbg_fd, "Multiopen failed: %x\n",
-		 LOW (state->eax)));
+ Debug0 ((dbg_fd, "Multiopen failed: 0x%02x\n",
+   (int) LOW (state->eax)));
 	/* Fail if file does exist */
 	SETWORD (&(state->eax), FILE_NOT_FOUND);
 	return (FALSE);
       }
+    case EXTENDED_ATTRIBUTES: {
+       switch (LOW(state->ebx)) {
+         case 2: /* get extended attributes */
+         case 3: /* get extended attribute properties */
+	  if (WORD(state->ecx) >=2) {
+	    *(short *)(Addr(state, es,edi)) = 0;
+	    SETWORD (&(state->ecx), 0x2);}
+         case 4: /* set extended attributes */
+          return (TRUE);
+       }
+       return (FALSE);
+     }
+     case PRINTER_MODE: {
+       SETLOW (&(state->edx), 1);
+       return (TRUE);
+     }
+#ifdef UNDOCUMENTED_FUNCTION_2
     case UNDOCUMENTED_FUNCTION_2:
-      Debug0 ((dbg_fd, "Undocumented function: %x\n",
-	       LOW (state->eax)));
+      Debug0 ((dbg_fd, "Undocumented function: %02x\n",
+	(int) LOW (state->eax)));
       return (TRUE);
+#endif
     default:
-      Debug0 ((dbg_fd, "Undocumented function: %x\n",
-	       LOW (state->eax)));
+      Debug0 ((dbg_fd, "Undocumented function: %02x\n",
+	 (int) LOW (state->eax)));
       return (REDIRECT);
     }
   return (ret);

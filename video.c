@@ -1,9 +1,9 @@
 /* video.c - for the Linux DOS emulator
  *  Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/15 19:56:49 $
- * $Source: /home/src/dosemu0.49pl2/RCS/video.c,v $
- * $Revision: 1.2 $
+ * $Date: 1993/11/30 22:21:03 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/video.c,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * Revision 1.3  1993/10/03  21:38:22  root
@@ -76,7 +76,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
@@ -91,6 +90,7 @@
 #include <linux/vt.h>
 #include <linux/kd.h>
 
+#include "config.h"
 #include "emu.h"
 #include "memory.h"
 #include "termio.h"
@@ -98,7 +98,6 @@
 #include "mouse.h"
 #include "dosipc.h"
 #include "modes.h"
-#include "config.h"
 #include "machcompat.h"
 
 extern struct config_info config;
@@ -223,7 +222,7 @@ set_dos_video ()
   if (!config.vga)
     return;
 
-  v_printf ("Setting DOS video: gfx_mode: %d modecr = 0x%x\n", gfx_mode);
+  v_printf ("Setting DOS video: gfx_mode: %d\n", gfx_mode);
 
   /* jesx */
   /* After all that fun up there, get permissions and save/restore states */
@@ -421,8 +420,8 @@ get_video_ram (int waitflag)
 	  return;
 	}
       else
-	v_printf ("CONSOLE VIDEO address: 0x%x 0x%x 0x%x\n", graph_mem,
-		  PHYS_TEXT_BASE, PAGE_ADDR (SCREEN));
+ v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *)graph_mem,
+    (void *)PHYS_TEXT_BASE, (void *) PAGE_ADDR (SCREEN));
 
       get_permissions ();
       /* copy contents of page onto video RAM */
@@ -615,7 +614,7 @@ map_bios (void)
       return;
     }
   else
-    g_printf ("VIDEO BIOS address: 0x%x\n", video_bios_mem);
+    g_printf ("VIDEO BIOS address: %p\n", (void *)video_bios_mem);
 
 #if MAP_SYSTEM_BIOS
 
@@ -730,10 +729,10 @@ int10 (void)
       break;
 
     case 0x1:			/* define cursor shape */
-      v_printf ("define cursor: 0x%x\n", _regs.ecx);
+      v_printf ("define cursor: 0x%04x\n", LWORD(ecx));
       /* 0x20 is the cursor no blink/off bit */
       /*	if (HI(cx) & 0x20) */
-      if (_regs.ecx == 0x2000)
+      if (REG(ecx) == 0x2000)
 	hide_cursor ();
       else
 	show_cursor ();
@@ -768,7 +767,7 @@ int10 (void)
 	  CARRY;
 	  return;
 	}
-      _regs.edx = (YPOS (s) << 8) | XPOS (s);
+      REG(edx) = (YPOS (s) << 8) | XPOS (s);
       break;
 
     case 0x5:
@@ -822,7 +821,7 @@ int10 (void)
 	  break;
 	}
       sm = SCREEN_ADR (s);
-      _regs.eax = sm[CO * YPOS (s) + XPOS (s)];
+      REG(eax) = sm[CO * YPOS (s) + XPOS (s)];
       break;
 
       /* these two put literal character codes into memory, and do
@@ -837,7 +836,7 @@ int10 (void)
 
 	s = HI (bx);
 	sadr = SCREEN_ADR (s) + YPOS (s) * CO + XPOS (s);
-	x = *(us *) & _regs.ecx;
+	x = *(us *) & REG(ecx);
 	c = LO (ax);
 
 	/* XXX - need to make sure this doesn't overrun video memory!
@@ -863,12 +862,12 @@ int10 (void)
       }
 
     case 0xe:			/* print char */
-      char_out (*(char *) &_regs.eax, SCREEN, ADVANCE);	/* char in AL */
+      char_out (*(char *) &REG(eax), SCREEN, ADVANCE);	/* char in AL */
       break;
 
     case 0x0f:			/* get screen mode */
-      _regs.eax = (CO << 8) | screen_mode;
-      v_printf ("get screen mode: 0x%04x s=%d\n", _regs.eax, SCREEN);
+      REG(eax) = (CO << 8) | screen_mode;
+      v_printf ("get screen mode: 0x%04x s=%d\n", LWORD(eax), SCREEN);
       HI (bx) = SCREEN;
       break;
 
@@ -900,16 +899,15 @@ int10 (void)
 
     case 0x12:			/* video subsystem config */
       v_printf ("get video subsystem config ax=0x%04x bx=0x%04x\n",
-		_regs.eax, _regs.ebx);
+  LWORD(eax), LWORD(ebx));
       switch (LO (bx))
 	{
 	case 0x10:
 	  HI (bx) = VID_SUBSYS;
 	  /* this breaks qedit! (any but 0x10) */
 	  /* LO(bx)=3;  */
-	  v_printf ("video subsystem 0x10 BX=0x%04x\n", _regs.ebx);
-	  _regs.ecx = 0x0809;
-
+   v_printf ("video subsystem 0x10 BX=0x%04x\n", LWORD(ebx));
+	  REG(ecx) = 0x0809;
 	  break;
 	case 0x20:
 	  v_printf ("select alternate printscreen\n");
@@ -945,7 +943,7 @@ int10 (void)
     case 0x4f:			/* vesa interrupt */
 
     default:
-      error ("new unknown video int 0x%x\n", _regs.eax);
+      error ("new unknown video int 0x%x\n", LWORD(eax));
       CARRY;
       break;
     }
@@ -1352,6 +1350,7 @@ restore_vga_mem (u_char * mem, u_char mem_size[], u_char banks)
     }
   else
     {
+      plane = 0;
       for (cbank = 0; cbank < banks; cbank++)
 	{
 	  position = 0;
@@ -2242,7 +2241,6 @@ trident_ext_video_port_out (u_char value, int port)
       if (dosemu_regs.regs[GRAI] == 0x0f)
 	{
 	  v_printf ("Write to GRAD at 0x0f put 0x%02x->0x%02x\n", value, dosemu_regs.xregs[8]);
-	  dosemu_regs.xregs[8];
 	  return;
 	}
       break;

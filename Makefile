@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1993/11/17 22:29:33 $
-# $Source: /home/src/dosemu0.49pl2/RCS/Makefile,v $
-# $Revision: 1.4 $
+# $Date: 1993/11/29 00:05:32 $
+# $Source: /home/src/dosemu0.49pl3/RCS/Makefile,v $
+# $Revision: 1.5 $
 # $State: Exp $
 #
 # define LATIN1 if if you have defined KBD_XX_LATIN1 in your linux Makefile.
@@ -31,7 +31,7 @@ LNKOPTS=-s
 #endif
 
 # dosemu version
-EMUVER  =   0.49pl2
+EMUVER  =   0.49pl3
 VERNUM  =   0x49
 
 # DON'T CHANGE THIS: this makes libemu start high enough to be safe. should be 
@@ -157,6 +157,11 @@ LDFLAGS    = $(LNKOPTS) # exclude symbol information
 AS86 = as86
 LD86 = ld86 -0 -s
 
+DISTBASE=/tmp
+DISTNAME=dosemu$(EMUVER)
+DISTPATH=$(DISTBASE)/$(DISTNAME)
+DISTFILE=$(DISTBASE)/$(DISTNAME).tar.z
+
 all:	warnconf dos libemu dossubdirs
 
 .EXPORT_ALL_VARIABLES:
@@ -234,10 +239,6 @@ checkout:
 	@for i in $(SUBDIRS); do (cd $$i && echo $$i && $(MAKE) checkout) || exit; done
 
 dist: $(CFILES) $(HFILES) $(OFILES) $(BFILES)
-DISTBASE=/tmp
-DISTNAME=dosemu$(EMUVER)
-DISTPATH=$(DISTBASE)/$(DISTNAME)
-DISTFILE=$(DISTBASE)/$(DISTNAME).tar.z
 	install -d $(DISTPATH)
 	install -m 0644 $(CFILES) $(HFILES) $(OFILES) $(BFILES) .depend \
 	       $(DISTPATH)

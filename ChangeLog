@@ -1,3 +1,81 @@
+Mon Nov 29 00:00:00 1993  jmaclean
+
+* Another update of multiple bugfixes :-).
+
+	- Keyboard internals have been really rearranged. I'm not sure I'm
+	  keeping them this way, but now cut&paste problems should hopefully
+	  go away. Also any program that looked at the bios memory for 
+	  checking ctrl-alt-shift statuses have a better chance of operating.
+          Still seems to be some lagging (somewhere).
+
+	- German keyboard patches thanks to hein@tlaloc.in.tu-clausthal.de
+	  (Jochen Hein) which should fix that multiple alt key problem a 
+	  couple people have asked about, as well as some incorrect mappings.
+
+	- As always mfs.c has been updated again to react to another funny
+	  one on DOS's part. If a file was open write, and actually written to,
+	  it should be O_TRUNC first. If its just opened for writing, and not 
+	  actually written to, the file should exist as was when closed. ARG!
+	  The fix is a kludge, and needs some work!
+
+	- Ross Biro <bir7@leland.Stanford.EDU> gives us some more fixes for
+	  the redirector, and includes a new toy/option for emufs.sys. Now
+	  in you config.sys you can add a device statement like:
+		- device=c:\emufs.sys \${HOME}/dosstuff
+	  which will allow you to use your home directory as part of the
+	  path. Any environment variable can be used.
+
+	- alan@spri.levels.unisa.edu.au (Alan Modra) fixed some flag setting
+	  problems in the emulated int13 code.
+
+	- bde@kralizec.zeta.org.au (Bruce Evans) noticed some initilization
+	  problems as did -
+
+	- alan@spri.levels.unisa.edu.au (Alan Modra), so we have changes to 
+	  the registers at boot time, good for some disks that need everything
+	  just right :-).
+
+	- And not to forget fin!chip@dg-rtp.dg.com (Chip Salzenberg) who got
+	  rid of those annoying errors when bison was running.
+
+	- Makefile has been altered hopefully to cleanup those 'separator
+	  missing messages'.
+
+	- parse/parse.c will not be contained in the distribution and should
+	  limit that parse.tab.h not found error.
+
+* From announce0.49pl2
+
+	- This release has some important changes, actually bug fixes, and some
+	new functionality to emufs.sys. (The hardrive redirector) It allows
+	us to redirect the redirected drives using a DOS program LREDIR after
+	booting, thanks to Tim Bird (Tim_R_Bird@Novell.COM) .
+	 
+	- Video switching is still growing, and has had some fixes for Trident
+	cards, as well as changing routines for saving and restoring video
+	memory above the first bank. ET4000 code is still giving some problems
+	so be aware. 
+
+	- Keyboard control has been enhanced using a real time int16 interrupt.
+	Thanks Tim. This is important for WordPerfect users, Dosshell,
+	Qbasic, and many other problems that have been attributed to keyboard
+	problems. This has not been proved to fix the 1 key behind problem
+	yet.:-(
+
+	- Sdh@po.cwru.edu (Scott D. Heavner) has allowed us to specify an
+	alternate config file using dos -F'filename' etc with his patches.
+
+	- A problem writing files in WordPerfect on emufs.sys drives has been
+	irraticated. 
+
+	- Dir listings that included the volume label attribute were only 
+	returning the volume label, and no dir listing. Fixed. Thanks to
+	karel@obelix.icce.rug.nl.
+
+	- Finally the keyboard problem has had another important fix thanks to
+	ronnie@lysator.liu.se (ronnie s.) via Robert (gt8134b@prism.gatech.edu)
+	that should fix the keyboard behind by 1 problem.
+
 Tue Jul 13 19:54:13 1993  rsanders
 
 	* Makefile: cleanups...

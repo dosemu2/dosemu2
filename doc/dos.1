@@ -43,13 +43,14 @@ allocation through the XMS specification.
 .PP
 Because 
 .B dosemu
-is not really an emulator, a copy of MS-DOS 3.3-5.0 is required.
+is not really an emulator, a copy of MS-DOS 3.3-6.2 is required.
 (Future versions of MS-DOS may run, but have of course not been verified.
 DR-DOS 6.0 has also been reported to work.)
 .PP
 See the files 
-.B README.first,
-.B README, 
+.B QuickStart,
+.B ChangeLog, 
+.B doc/announce0.49pl3, 
 and the
 .B Makefile
 contained in the source distribution
@@ -61,7 +62,9 @@ Balasubramanian's
 .B ipcdelta
 patches compiled in.  These patches add the System V InterProcess 
 Communication facilities to Linux.  Of these, dosemu currently only uses shared
-memory.
+memory. Kernels from 0.99pl12 and above already have IPC in the Make config
+and libc.so.4.4.2 already include the IPC lib (don't use -lipc if you have
+a libc from this point on).
 .SH OPTIONS
 .TP
 .PD 0
@@ -344,9 +347,9 @@ can be ftp'ed from tsx-11.mit.edu in the /pub/linux/ALPHA/dosemu directory.
 .PP
 .BR /lib/libemu
 (the actual emulator code as a shared library)
-.BR README.first
+.BR QuickStart
 and
-.BR README
+.BR ChangeLog
 distributed with dosemu.
 .PP
 the

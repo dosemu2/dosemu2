@@ -3,12 +3,18 @@
  *     for dosemu 0.48+
  *     Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/timers.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/29 00:05:32 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/timers.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: timers.c,v $
+ * Revision 1.3  1993/11/29  00:05:32  root
+ * *** empty log message ***
+ *
+ * Revision 1.2  1993/11/23  22:24:53  root
+ * *** empty log message ***
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -89,6 +95,7 @@ inline int int28(void)	 /* keyboard busy loop */
   /* if this is an idle call :-), wait for a bit */
   if (IS_IRET(0x28))
     {
+      k_printf("In int28 keyboard busy loop\n");
       usleep(INT28_IDLE_USECS);
       return 1;
     }
@@ -99,46 +106,3 @@ inline int int28(void)	 /* keyboard busy loop */
 }
 
 #undef TIMERS_C
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

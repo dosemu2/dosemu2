@@ -16,12 +16,15 @@
  *   is said to start 1 sector earlier than it actually does (and therefore
  *   512 bytes earlier).
  *
- * $Date: 1993/11/12 12:41:41 $
- * $Source: /home/src/dosemu0.49pl2/periph/RCS/hdinfo.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 21:27:27 $
+ * $Source: /home/src/dosemu0.49pl3/periph/RCS/hdinfo.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: hdinfo.c,v $
+ * Revision 1.2  1993/11/30  21:27:27  root
+ * Freeze before 0.49pl3
+ *
  * Revision 1.1  1993/11/12  12:41:41  root
  * Initial revision
  *
@@ -68,10 +71,10 @@ print_part(struct partition *part, size_t offset, int sect_off, int ext)
 
   if (part->sys_ind == EXT_MAGIC && !ext)
     {
-      char ext[512];
+      char extblock[512];
 
       lseek(fd, part->start_sect * SECTOR_SIZE + offset, SEEK_SET);
-      if (read(fd, ext, 512) < 512)
+      if (read(fd, extblock, 512) < 512)
 	{
 	  perror("hdinfo: Could not read sector");
 	  exit(1);
@@ -79,7 +82,7 @@ print_part(struct partition *part, size_t offset, int sect_off, int ext)
 
       for (i=0; i<4; i++)
 	{
-	  print_part((struct partition *) (ext + 0x1be + i*16), offset, 
+   print_part((struct partition *) (extblock + 0x1be + i*16), offset, 
 		     part->start_sect, 1);
 	}
     }
@@ -91,7 +94,7 @@ main(int argc, char **argv)
 {
   int i, hdimage_off=0;
   char *filename;
-  char mbr[1024], ext[512];
+  char mbr[1024];
   struct partition *part;
 
   fmtstring = decfmt;
@@ -138,8 +141,3 @@ main(int argc, char **argv)
       print_part( (struct partition *) (mbr + 0x1be + hdimage_off + i*16), 
 		 hdimage_off, 0, 0 );
 }
-
-
-
-
-

@@ -1,11 +1,14 @@
 /* putrom.c; put VBIOS ROM image into /dev/mem (should fail except for weird caches!)
  *
- * $Date: 1993/11/12 12:41:41 $
- * $Source: /home/src/dosemu0.49pl2/periph/RCS/putrom.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 21:27:27 $
+ * $Source: /home/src/dosemu0.49pl3/periph/RCS/putrom.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: putrom.c,v $
+ * Revision 1.2  1993/11/30  21:27:27  root
+ * Freeze before 0.49pl3
+ *
  * Revision 1.1  1993/11/12  12:41:41  root
  * Initial revision
  *
@@ -21,7 +24,6 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <errno.h>
-#include <malloc.h>
 
 #define ROM_SIZE	(64*1024)
 #define ROM_ADDR	(0xc0000)
@@ -40,7 +42,7 @@
 int
 main(int argc, char **argv)
 {
-  int mem_fd, file_fd, i;
+  int mem_fd, file_fd, rd;
   u_char *memptr=valloc(ROM_SIZE);
   u_char *tmpptr=malloc(ROM_SIZE);
 
@@ -63,9 +65,9 @@ main(int argc, char **argv)
 
   scan(memptr,ROM_SIZE);
 
-  if ( (i=read(file_fd, tmpptr, ROM_SIZE)) == -1)
+  if ( (rd=read(file_fd, tmpptr, ROM_SIZE)) == -1)
     diee("reading VBIOSFILE");
-  else fprintf(stderr, "read %d bytes\n", i);
+  else fprintf(stderr, "read %d bytes\n", rd);
 
   memcpy(memptr, tmpptr, ROM_SIZE);
 

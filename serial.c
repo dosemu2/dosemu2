@@ -3,12 +3,21 @@
  *
  * Basic 16450 UART emulation.  16550 FIFOs to come later?
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/serial.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 21:26:44 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/serial.c,v $
+ * $Revision: 1.4 $
  * $State: Exp $
  *
  * $Log: serial.c,v $
+ * Revision 1.4  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
+ * Revision 1.3  1993/11/29  22:44:11  root
+ * Prepare for pl3 release
+ *
+ * Revision 1.2  1993/11/23  22:24:53  root
+ * Work on serial to 9600
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -45,10 +54,10 @@
 #include "mutex.h"
 #include "serial.h"
 
+extern int_count[8];
 
 extern struct CPU cpu;
 extern config_t config;
-extern pid_t parent_pid, ser_pid;
 
 /* dosemu only supports 2 serial ports */
 serial_t com[2];
@@ -99,7 +108,7 @@ ser_enqueue(int num, int byte)
    */
   if (QEND == QSTART) QSTART = (QSTART+1) % SER_QUEUE_LEN; 
 
-/*  dump_ser_queue(num); */
+  /* dump_ser_queue(num); */
 
   mutex_release(com[num].sem);
 }
@@ -270,9 +279,10 @@ do_ser_init(int num)
 
   ser_termios(num);
 
-  *((u_short *)(0x400) + num) = com[num].base_port;
-  g_printf("SERIAL: num %d, port 0x%x, address 0x%x, mem 0x%x\n", num,
-	com[num].base_port, ((u_short *)(0x400) + num), *((u_short *)(0x400) + num));
+  *((u_short *)0x400 + num) = com[num].base_port;
+  g_printf("SERIAL: num %d, port 0x%04x, address %p, mem 0x%x\n",
+    num, com[num].base_port, (void *)((u_short *)0x400 + num),
+    *((u_short *)0x400 + num));
   
   com[num].LSR = UART_LSR_TEMT | UART_LSR_THRE;
   com[num].IIR = UART_IIR_NO_INT;
@@ -366,14 +376,24 @@ ser_interrupt(int num)
   mutex_get(param->ser_locked);
   param->ser[num].num_ints++;
   mutex_release(param->ser_locked);
-  kill(parent_pid, SIG_SER); 
+  if (num == 0 && !int_count[0x4]){
+  if (parent_pid > 1)
+    kill(parent_pid, SIG_SER); 
+    s_printf("Parent SIG_SER 0\n");
+  }
+  else
+    if (num == 1 && !int_count[0x3]) {
+      kill(parent_pid, SIG_SER);
+      s_printf("Parent SIG_SER 1\n");
+    }
 }
   
 
 int
 check_serial_ready(fd_set *set)
 {
-#define BYTES_SIZE 50
+/* #define BYTES_SIZE 50 */
+#define BYTES_SIZE 100
   int x, size;
   u_char bytes[BYTES_SIZE];
 
@@ -386,7 +406,7 @@ check_serial_ready(fd_set *set)
 
 	    for (i=0; i<size; i++) {
 	      ser_enqueue(x, bytes[i]);
-	      ser_interrupt(x); 
+	      ser_interrupt(x);
 	    }
 	    
 	  }
@@ -489,7 +509,7 @@ put_tx(int num, int val)
       ser_interrupt(num);
       return;
     }
-  else RPT_SYSCALL(write(com[num].fd, &val, 1));
+  else RPT_SYSCALL2(write(com[num].fd, &val, 1));
 
   if ((com[num].IER & UART_IER_THRI) && (com[num].MCR & UART_MCR_OUT2)) {
     com[num].IIR = UART_IIR_THRI;
@@ -757,7 +777,7 @@ inline void
 do_ser(int num)
 {
   com[num].dready = 1;
-  if ((com[num].IER & UART_IER_RDI) && (com[num].MCR & UART_MCR_OUT2))
+  if ( (com[num].IER & UART_IER_RDI) && (com[num].MCR & UART_MCR_OUT2))
     {
       com[num].in_interrupt=1;
       /* must dequeue RX in begin_serint() */
@@ -800,5 +820,3 @@ void
 sigser(int sig)
 {
 }
-
-

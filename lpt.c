@@ -1,11 +1,14 @@
 /* for the Linux dos emulator versions 0.49 and newer
  *
- * $Date: 1993/11/12 12:43:18 $
- * $Source: /home/src/dosemu0.49pl2/RCS/lpt.c,v $
- * $Revision: 1.2 $
+ * $Date: 1993/11/30 21:26:44 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/lpt.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: lpt.c,v $
+ * Revision 1.3  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
  * Revision 1.2  1993/11/12  12:43:18  root
  * Added patch from sdh.po.cwru.edu to stop mouse grabs.
  *
@@ -113,10 +116,10 @@ printer_open(int prnum)
     }
     else lpt[prnum].file = fopen(lpt[prnum].dev, "a");
   }
-
-  p_printf("LPT: opened printer %d to %s, file %x\n", prnum, 
-	   lpt[prnum].dev, lpt[prnum].file);
   umask(um);
+
+  p_printf("LPT: opened printer %d to %s, file %p\n", prnum, 
+    lpt[prnum].dev, (void *)lpt[prnum].file);
 }
 
 

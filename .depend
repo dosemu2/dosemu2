@@ -17,6 +17,6 @@ serial.o : serial.c config.h cpu.h emu.h dosipc.h mutex.h serial.h
 termio.o : termio.c config.h memory.h emu.h cpu.h termio.h dosvga.h mouse.h \
   dosipc.h mutex.h 
 timers.o : timers.c emu.h cpu.h timers.h 
-video.o : video.c emu.h cpu.h memory.h termio.h dosvga.h mouse.h dosipc.h mutex.h \
-  modes.h config.h machcompat.h 
+video.o : video.c config.h emu.h cpu.h memory.h termio.h dosvga.h mouse.h dosipc.h \
+  mutex.h modes.h machcompat.h 
 xms.o : xms.c emu.h cpu.h config.h memory.h xms.h dosipc.h mutex.h machcompat.h 

@@ -3,7 +3,7 @@
  * cheesy program to create an hdimage header
  *
  * $Date: 1993/11/12 12:41:41 $
- * $Source: /home/src/dosemu0.49pl2/periph/RCS/mkhdimage.c,v $
+ * $Source: /home/src/dosemu0.49pl3/periph/RCS/mkhdimage.c,v $
  * $Revision: 1.1 $
  * $State: Exp $
  *

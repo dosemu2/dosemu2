@@ -14,9 +14,14 @@ void memory_setup(void), set_a20(int);
 
 void sigipc(int);
 
+extern pid_t parent_pid, ipc_pid, ser_pid;
+
 /* these are the UNIX domain stream sockets used for communication.
  * the parent process writes to and reads from PARENT_FD
  */
+
+extern int ipc_fd[2], key_fd[2];
+
 #define PARENT_FD	ipc_fd[0]
 #define CHILD_FD	ipc_fd[1]
 #define PK_FD		key_fd[0]
@@ -44,6 +49,7 @@ void sigipc(int);
 #define DMSG_SER		15
 #define DMSG_MOPEN		16	/* open mouse */
 #define DMSG_MCLOSE		17	/* close mouse */
+#define DMSG_SENDINT		18	/* Interrupt */
 
 struct ipcpkt {
   u_int cmd;
@@ -58,17 +64,20 @@ struct ipcpkt {
 
 /* do, while necessary because if { ... }; precludes an else, while
  * do { ... } while(); does not. ugly */
-#define HMA_MAP(newshm) do { \
-      if (shmdt((char *)0x100000) == -1) \
-	error("ERROR: HMA detach errno=%d, %s\n", strerror(errno));	\
-      if (shmat(newshm, (char *)0x100000, 0) == (char *)-1) \
-    	error("ERROR: HMA attach errno=%d, %s\n", strerror(errno));} while (0)
+#define HMA_MAP(newshm) \
+   do { \
+      if (shmdt((char *)0x100000) == -1)    \
+ error("ERROR: HMA detach: %s (%d)\n", strerror(errno), errno); \
+      if (shmat(newshm, (char *)0x100000, 0) == (char *)-1)  \
+     error("ERROR: HMA attach: %s (%d)\n", strerror(errno), errno); \
+   } while (0)
 
 
 
 /* these are for the shared parameter area */
 #define PARAM_SIZE	(64*1024)
-#define SER_QUEUE_LEN	400
+/* #define SER_QUEUE_LEN	400 */
+#define SER_QUEUE_LEN	(1000)
 
 
 struct ser_param {

@@ -3,12 +3,15 @@
 #define TERMIO_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/termio.h,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/29 00:05:32 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/termio.h,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: termio.h,v $
+ * Revision 1.2  1993/11/29  00:05:32  root
+ * Overhaul keyboard
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -82,19 +85,33 @@
 #define KF_INSERT	7	/* Insert ACTIVE */
 #define EKF_LCTRL	8
 #define EKF_LALT	9
+/*
 #define EKF_RCTRL	10
 #define EKF_RALT	11
+#define EKF_SCRLOCK	12
+#define EKF_NUMLOCK	13
+#define EKF_CAPSLOCK	14
+#define EKF_SYSRQ	15
+*/
+#define EKF_SYSRQ	10
+#define EKF_PAUSE	11
 #define EKF_SCRLOCK	12	/* ScrLock PRESSED */
 #define EKF_NUMLOCK	13	/* NumLock PRESSED */
 #define EKF_CAPSLOCK	14	/* CapsLock PRESSED */
-#define EKF_SYSRQ	15	/* SysRq PRESSED */
+#define EKF_INSERT	15	/* SysRq PRESSED */
 
 /* KEY FLAGS */
-#define KKF_E0		0
-#define KKF_E1		1
+#define KKF_E1		0
+#define KKF_E0		1
 #define KKF_RCTRL	2
 #define KKF_RALT	3
 #define KKF_KBD102	4  /* set if 102-key keyboard installed */	
+#define KKF_FORCENUM	5 
+#define KKF_FIRSTID	6 
+#define KKF_READID	7 
+#define KKF_SCRLOCK	8 
+#define KKF_NUMLOCK	9 
+#define KKF_CAPSLOCK	10
 
 /* LED FLAGS (from Linux keyboard code) */
 #define LED_SCRLOCK	0

@@ -1,9 +1,9 @@
 /* cpu.h, for the Linux DOS emulator
  *    Copyright (C) 1993 Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/cpu.h,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 22:21:03 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/cpu.h,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  */
 
@@ -11,6 +11,7 @@
 #define CPU_H
 
 #include <linux/vm86.h>
+#define _regs vm86s.regs
 #define _regs	vm86s.regs
 
 #ifndef CPU_C
@@ -19,31 +20,37 @@
 #define CPU_EXTERN
 #endif
 
-#define SEG_ADR(type, seg, reg) type((int)(*(us *)&_regs.seg<<4)\
-				 + *(us *)&_regs.e##reg)
+/* all registers as a structure */
+#define REGS  vm86s.regs
+
+/* this is used like: REG(eax) = 0xFFFFFFF */
+#define REG(reg) (REGS.##reg)
 
 /* these are used like:  LO(ax) = 2 (sets al to 2) */
-#define LO(reg)		(int)(*(unsigned char *)&_regs.e##reg)
-#define HI(reg)		(int)(*((unsigned char *)&_regs.e##reg +1))
+#define LO(reg)  (*(unsigned char *)&REG(e##reg))
+#define HI(reg)  (*((unsigned char *)&REG(e##reg) + 1))
 
 /* these are used like: LWORD(eax) = 65535 (sets ax to 65535) */
-#define LWORD(reg)      (int)(*((unsigned short *)&_regs.##reg))
-#define HWORD(reg)      (int)(*((unsigned short *)&_regs.##reg + 1))
+#define LWORD(reg)      (*((unsigned short *)&REG(reg)))
+#define HWORD(reg)      (*((unsigned short *)&REG(reg) + 1))
 
-#define CF  0x01
-#define PF  0x04
-#define AF  0x10
-#define ZF  0x40
-#define SF  0x80
-#define TF  0x100
-#define IF  0x200
-#define DF  (1<<0xa)
-#define OF  (1<<0xb)
-#define NT  (1<<0xe)
-#define RF  (1<<0x10)
-#define VM  0x20000
-#define B15 (1<<15)
-#define AC  (1<<18)
+/* this is used like: SEG_ADR((char *), es, bx) */
+#define SEG_ADR(type, seg, reg)  type((LWORD(seg) << 4) + LWORD(e##reg))
+
+/* flags */
+#define CF  (1 <<  0)
+#define PF  (1 <<  2)
+#define AF  (1 <<  4)
+#define ZF  (1 <<  6)
+#define SF  (1 <<  7)
+#define TF  (1 <<  8)
+#define IF  (1 <<  9)
+#define DF  (1 << 10)
+#define OF  (1 << 11)
+#define NT  (1 << 14)
+#define RF  (1 << 16)
+#define VM  (1 << 17)
+#define AC  (1 << 18)
 
 #define IOPL_MASK  (3 << 12)
 
@@ -83,11 +90,11 @@ CPU_EXTERN struct vec_t *ivecs;
 #define IS_IRET(i)		(*(unsigned char *)IVEC(i) == OP_IRET)
 
 /*
-#define WORD(i) (i&0xffff)
+#define WORD(i) (unsigned short)(i)
 */
 
-#define CARRY	(_regs.eflags|=CF)
-#define NOCARRY (_regs.eflags&=~CF)
+#define CARRY (REG(eflags) |= CF)
+#define NOCARRY (REG(eflags) &= ~CF)
 
 typedef struct 
 {

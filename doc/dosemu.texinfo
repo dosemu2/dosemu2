@@ -7,7 +7,7 @@
 
 @c $Author: root $
 @c $Date: 1993/11/12 12:41:35 $
-@c $Source: /home/src/dosemu0.49pl2/doc/RCS/dosemu.texinfo,v $
+@c $Source: /home/src/dosemu0.49pl3/doc/RCS/dosemu.texinfo,v $
 @c $Revision: 1.1 $
 @c $State: Exp $
 

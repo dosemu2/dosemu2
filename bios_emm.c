@@ -30,6 +30,9 @@
  *
  * HISTORY: 
  * $Log: bios_emm.c,v $
+ * Revision 1.2  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -226,7 +229,8 @@ struct handle_record {
 
 #define NOFUNC() \
   { SETHIGH(&(state->eax),EMM_FUNC_NOSUP); \
-    Kdebug0((dbg_fd, "function not supported: 0x%04x\n", WORD(state->eax))); }
+    Kdebug0((dbg_fd, "function not supported: 0x%04x\n", \
+     (unsigned)WORD(state->eax))); }
 
 #define PHYS_PAGE_SEGADDR(i) \
   (EMM_SEGMENT + (0x400 * (i)))
@@ -344,7 +348,7 @@ new_memory_object(size_t bytes)
   mach_port_t addr = (mach_port_t)valloc(bytes);
   char *ptr;
 
-  E_printf("EMS: allocating 0x%08x bytes @ 0x%08x\n", bytes, addr);
+  E_printf("EMS: allocating 0x%08x bytes @ %p\n", bytes, (void *)addr);
 
 #if 1
   /* touch memory */
@@ -358,7 +362,7 @@ new_memory_object(size_t bytes)
 void
 destroy_memory_object(mach_port_t object)
 {
-  E_printf("EMS: destroyed EMS object 0x%08x\n", object);
+  E_printf("EMS: destroyed EMS object @ %p\n", (void *)object);
   free(object);
 }
 #endif /* __linux__ */
@@ -581,7 +585,8 @@ SEG_TO_PHYS(int segaddr)
 int
 partial_map_registers(state_t *state)
 {
-  Kdebug0((dbg_fd,"partial_map_registers %d called\n",LOW(state->eax)));
+  Kdebug0((dbg_fd,"partial_map_registers %d called\n",
+    (int)LOW(state->eax)));
 }
 
 
@@ -590,7 +595,8 @@ map_unmap_multiple(state_t *state)
 {
   int handle;
 
-  Kdebug0((dbg_fd,"map_unmap_multiple %d called\n",LOW(state->eax)));
+  Kdebug0((dbg_fd,"map_unmap_multiple %d called\n",
+    (int)LOW(state->eax)));
 
   switch(LOW(state->eax)) 
     {
@@ -600,7 +606,9 @@ map_unmap_multiple(state_t *state)
       int i=0, phys, log;
       u_short *array = (u_short *) Addr(state, ds, esi);
 
-      Kdebug0((dbg_fd,"...using mult_logphys method, handle %d, map_len %d, array @ 0x%08x\n", handle, map_len, array));
+      Kdebug0((dbg_fd,"...using mult_logphys method, "
+        "handle %d, map_len %d, array @ %p\n",
+        handle, map_len, (void *)array));
 
       for (i=0; i < map_len; i++) {
 	log=*(u_short *)array;
@@ -620,7 +628,9 @@ map_unmap_multiple(state_t *state)
       u_short *array = (u_short *) Addr(state, ds, esi);
 
 
-      Kdebug0((dbg_fd,"...using mult_logseg method, handle %d, map_len %d, array @ 0x%08x\n", handle, map_len, array));
+      Kdebug0((dbg_fd,"...using mult_logseg method, "
+        "handle %d, map_len %d, array @ %p\n",
+        handle, map_len, (void *)array));
 
       for (i=0; i < map_len; i++) {
 	log=*(u_short *)array;
@@ -646,7 +656,9 @@ map_unmap_multiple(state_t *state)
 
       
     default:
-      Kdebug0((dbg_fd, "ERROR: map_unmap_multiple subfunction %d not supported\n", LOW(state->eax)));
+      Kdebug0((dbg_fd,
+        "ERROR: map_unmap_multiple subfunction %d not supported\n",
+        (int)LOW(state->eax)));
       return;
     }
 }
@@ -743,7 +755,8 @@ handle_name(state_t *state)
 	 break;
        }
        default:
-	 Kdebug0((dbg_fd, "bad handle_name function %d\n", LOW(state->eax)));
+  Kdebug0((dbg_fd, "bad handle_name function %d\n",
+    (int)LOW(state->eax)));
 	 SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
 	 return;
      }
@@ -753,7 +766,7 @@ handle_name(state_t *state)
 void
 handle_dir(state_t *state)
 {
-  Kdebug0((dbg_fd,"handle_dir %d called\n", LOW(state->eax)));
+  Kdebug0((dbg_fd,"handle_dir %d called\n", (int)LOW(state->eax)));
 
   switch(LOW(state->eax))
     {
@@ -770,7 +783,7 @@ handle_dir(state_t *state)
 	  memmove(array + 8, handle_info[handle].name, 8);
 	  array += 10;
 	  Kdebug0((dbg_fd, "GET_DIR found handle %d name %s\n",
-		   handle, array));
+     handle, (char *)array));
 	}
 	SETHIGH(&(state->eax), EMM_NO_ERR);
 	SETLOW(&(state->eax), count);
@@ -785,7 +798,7 @@ handle_dir(state_t *state)
       for (handle=0; handle < MAX_HANDLES; handle++) {
 	if ( ! HANDLE_ALLOCATED(handle) ) continue;
 	if (! strncmp(handle_info[handle].name, array, 8)) {
-	  Kdebug0((dbg_fd, "name match %s!\n", array));
+   Kdebug0((dbg_fd, "name match %s!\n", (char *)array));
 	  SETHIGH(&(state->eax), EMM_NO_ERR);
 	  SETWORD(&(state->edx), handle);
 	  return;
@@ -804,7 +817,8 @@ handle_dir(state_t *state)
     }
 
     default:
-	 Kdebug0((dbg_fd, "bad handle_dir function %d\n", LOW(state->eax)));
+  Kdebug0((dbg_fd, "bad handle_dir function %d\n",
+    (int)LOW(state->eax)));
 	 SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
 	 return;
     }
@@ -814,14 +828,14 @@ handle_dir(state_t *state)
 int
 alter_map_and_jump(state_t *state)
 {
-  Kdebug0((dbg_fd,"alter_map_and_jump %d called\n", LOW(state->eax)));
+  Kdebug0((dbg_fd,"alter_map_and_jump %d called\n", (int)LOW(state->eax)));
 }
 
 
 int
 alter_map_and_call(state_t *state)
 {
-  Kdebug0((dbg_fd,"alter_map_and_call %d called\n", LOW(state->eax)));
+  Kdebug0((dbg_fd,"alter_map_and_call %d called\n", (int)LOW(state->eax)));
 }
 
 
@@ -834,7 +848,7 @@ get_mpa_array(state_t *state)
       u_short *ptr = (u_short *)Addr(state, es,edi);
       int i;
 
-      Kdebug0((dbg_fd,"GET_MPA addr 0x%08x called\n", ptr));
+      Kdebug0((dbg_fd,"GET_MPA addr %p called\n", (void *)ptr));
 
       for (i=0; i<EMM_MAX_PHYS; i++) {
 	*ptr = PHYS_PAGE_SEGADDR(i);  ptr++;
@@ -1059,8 +1073,8 @@ boolean_t bios_emm_fn(state)
 		    int tot_pages=0, tot_handles=0;
 		    u_short * ptr = (u_short *) Addr(state, es, edi);
 
-		    Kdebug1((dbg_fd,"bios_emm: Get Pages For all to 0x%08x\n",
-			     ptr));
+      Kdebug1((dbg_fd,"bios_emm: Get Pages For all to %p\n",
+        (void *)ptr));
 
 		    for (i = 0; i < MAX_HANDLES; i++) {
 			    if (handle_info[i].numpages > 0) {
@@ -1213,8 +1227,9 @@ boolean_t bios_emm_fn(state)
 	      break;
 	      
 	    default: {
-		    Kdebug1((dbg_fd,"bios_emm: EMM function not supported 0x%x\n",
-			     WORD(state->eax)));
+      Kdebug1((dbg_fd,
+        "bios_emm: EMM function not supported 0x%04x\n",
+        (unsigned)WORD(state->eax)));
 
 		    SETHIGH(&(state->eax), EMM_FUNC_NOSUP);
 		    break;

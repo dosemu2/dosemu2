@@ -3,12 +3,15 @@
  *
  * rudimentary attempt at config file parsing for dosemu
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/parse.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 21:26:44 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/parse.c,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  *
  * $Log: parse.c,v $
+ * Revision 1.2  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -32,7 +35,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <malloc.h>
 #include <string.h>
 #include <setjmp.h>
 
@@ -394,7 +396,8 @@ do_ports(word_t *word, arg_t a1, arg_t a2)
 
       num1 = strtol(arg, &end, 0);
       num2 = strtol(arg2, &end, 0);
-      c_printf("CONF: range of I/O ports 0x%x-0x%x\n", num1, num2);
+      c_printf("CONF: range of I/O ports 0x%04x-0x%04x\n",
+        (unsigned short) num1, (unsigned short) num2);
       allow_io(num1, num2-num1+1, ports_permission,ports_ormask,ports_andmask);
       break;
     }
@@ -980,7 +983,7 @@ start_disk (word_t *word, arg_t arg1, arg_t arg2)
     dptr->dev_name=NULL;
     dptr->rdonly=0;
     dptr->sectors = dptr->heads = dptr->tracks = -1;
-    dptr->type = -1;
+    dptr->type = NODISK;
     dptr->header = 0;
   }
 }
@@ -994,13 +997,13 @@ stop_disk (word_t *word, arg_t arg1, arg_t arg2)
     if (!dptr->dev_name) die("no device name!");
     else c_printf("device: %s ", dptr->dev_name);
     
-    if (dptr->type < 0) die("no device type!");
+    if (dptr->type == NODISK) die("no device type!");
     else c_printf("type %d ", dptr->type);
     
     if (dptr->type == PARTITION) c_printf("partition# %d ",
 					  dptr->part_info.number); 
     
-    if (dptr->header) c_printf("header_size: %d ", dptr->header);
+    if (dptr->header) c_printf("header_size: %ld ", (long) dptr->header);
     
     c_printf("h: %d  s: %d   t: %d\n", dptr->heads, dptr->sectors,
 	     dptr->tracks);
@@ -1012,13 +1015,13 @@ stop_disk (word_t *word, arg_t arg1, arg_t arg2)
     if (!dptr->dev_name) die("no device name!");
     else c_printf("device: %s ", dptr->dev_name);
     
-    if (dptr->type < 0) die("no device type!");
+    if (dptr->type == NODISK) die("no device type!");
     else c_printf("type %d ", dptr->type);
     
     if (dptr->type == PARTITION) c_printf("partition# %d ",
 					  dptr->part_info.number); 
     
-    if (dptr->header) c_printf("header_size: %d ", dptr->header);
+    if (dptr->header) c_printf("header_size: %ld ", (long) dptr->header);
     
     c_printf("h: %d  s: %d   t: %d\n", dptr->heads, dptr->sectors,
 	     dptr->tracks);
@@ -1152,20 +1155,23 @@ parse_file(word_t *words, FILE *fd)
 }
 
 int
-parse_config(const char *confname)
+parse_config(char *confname)
 {
-  FILE *fd;
-  char name[500];
+  FILE * volatile fd;
 
-  if (confname) strcpy(name,confname);
-  else sprintf(name,"%s/.dosrc", getenv("HOME"));  /* clean me up */
+  if (confname)
+    fd = open_file(confname);
+  else {
+    char *home = getenv("HOME");
+    char *name = malloc(strlen(home) + 20);
+    sprintf(name,"%s/.dosrc", home);
+    fd = open_file(name);
+    free(name);
+  }
 
-  if ( !(fd = open_file(name)) ) {
-    if ( !(fd = open_file(CONFIG_FILE)) ) 
-      {
-	die("cannot open configuration files!");
-	return 0;
-      }
+  if ( !fd && !(fd = open_file(CONFIG_FILE)) )  {
+    die("cannot open configuration files!");
+    return 0;
   }
 
   c_hdisks=0;

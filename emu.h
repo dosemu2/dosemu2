@@ -3,12 +3,18 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/emu.h,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 21:26:44 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/emu.h,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 1.3  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
+ * Revision 1.2  1993/11/23  22:24:53  root
+ * Work on serial to 9600
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -165,8 +171,14 @@ struct debug_flags
     config;
 };
 
-int ifprintf(unsigned char,const char *, ...);
-void p_dos_str(char *, ...);
+#if __GNUC__ >= 2
+# define FORMAT(T,A,B)  __attribute__((format(T,A,B)))
+#else
+# define FORMAT(T,A,B)
+#endif
+
+int ifprintf(unsigned char,const char *, ...) FORMAT(printf, 2, 3);
+void p_dos_str(char *, ...) FORMAT(printf, 1, 2);
 
 #define dbug_printf(f,a...)	ifprintf(1,f,##a)
 #define k_printf(f,a...) 	ifprintf(d.keyb,f,##a)
@@ -261,6 +273,12 @@ extern struct ioctlq iq, curi;
    do { \
 	  s_tmp = sc; \
       } while ((s_tmp == -1) && (errno == EINTR)); \
+  s_tmp; })
+
+#define RPT_SYSCALL2(sc) ({ int s_tmp; \
+   do { \
+	  s_tmp = sc; \
+      } while ((s_tmp == -1) ); \
   s_tmp; })
 
 #define FALSE	0

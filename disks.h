@@ -14,8 +14,11 @@
 #define PARTITION_PATH	"/etc/dosemu/partition"
 
 /* disk file types */
-typedef enum { IMAGE = 0, HDISK, FLOPPY, PARTITION, MAXIDX_DTYPES , NUM_DTYPES } 
- disk_t;
+typedef enum {
+  NODISK = -1,
+  IMAGE = 0, HDISK, FLOPPY, PARTITION, MAXIDX_DTYPES,
+  NUM_DTYPES
+} disk_t;
 
 #define DISK_RDWR	0
 #define DISK_RDONLY	1

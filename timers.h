@@ -25,7 +25,7 @@ inline int int28(void);
 #define BIOS_TICK_ADDR		(void *)0x46c
 #define TICK_OVERFLOW_ADDR	(void *)0x470
 
-/* these were 330000 and 250000 in dosemu0.4 */
+/* thes were 330000 and 250000 in dosemu0.4 */
 #define UPDATE  config.update	/* waiting time in usec...this is the main
 				 * dosemu "system" clock . 54945*/
 #define DELAY	250000		/* sleeping time in usec */

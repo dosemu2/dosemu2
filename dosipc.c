@@ -2,12 +2,28 @@
  *
  * Robert Sanders, started 3/1/93 
  *
- * $Date: 1993/11/17 22:29:33 $
- * $Source: /home/src/dosemu0.49pl2/RCS/dosipc.c,v $
- * $Revision: 1.2 $
+ * $Date: 1993/11/30 21:26:44 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/dosipc.c,v $
+ * $Revision: 1.7 $
  * $State: Exp $
  *
  * $Log: dosipc.c,v $
+ * Revision 1.7  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
+ * Revision 1.6  1993/11/29  22:44:11  root
+ * More work on keyboards
+ * ,
+ *
+ * Revision 1.5  1993/11/29  00:05:32  root
+ * Overhaul Keyboard.
+ *
+ * Revision 1.4  1993/11/25  22:45:21  root
+ * About to destroy keybaord routines.
+ *
+ * Revision 1.3  1993/11/23  22:24:53  root
+ * *** empty log message ***
+ *
  * Revision 1.2  1993/11/17  22:29:33  root
  * Keyboard char behind patch
  *
@@ -53,6 +69,9 @@
 /* also includes <sys/ipc.h> and <sys/shm.h> */
 #include "dosipc.h"
 
+/* #define SIG 1 */
+
+extern int_count[];
 extern struct config_info  config;
 extern int in_readkeyboard, keybint;
 extern int ignore_segv;
@@ -77,11 +96,10 @@ param_t *param;
 				sigaddset(&sa.sa_mask, SIGALRM);  \
 				sigaction(sig, &sa, NULL);
 
-pid_t ipc_pid, parent_pid, ser_pid;
-int ipc_fd[2], key_fd[2];
+pid_t parent_pid = -1, ipc_pid = -1;
+int ipc_fd[2] = { -1, -1 }, key_fd[2] = { -1, -1 };
 int exitipc=0;
 int in_int16=0;
-
 int readkey=0;
 
 /* sent_key is is used to hold answers to a DMSG_READKEY request */
@@ -93,6 +111,7 @@ void child_tick(int sig);
 int printer_tick(u_long secno);
 void ipc_command(struct ipcpkt *pkt), ipc_command_channel(void);
 void child_dokey(int);
+void inline process_interrupt(int);
 
 /* my test shared memory IDs */
 struct {
@@ -145,10 +164,10 @@ void memory_setup(void)
    * munmap() from the second page to start of video mem, and
    * top of video buffer to top of HMA */
   if (munmap((caddr_t)PAGE_SIZE, (size_t)(0xa0000-PAGE_SIZE)) == -1)
-    error("ERROR: munmap1 failed errno=%d, %s\n", strerror(errno));
+    error("ERROR: munmap1 failed: %s (%d)\n", strerror(errno), errno);
 
   if (munmap((caddr_t)0x100000, (size_t)(0x110000-0x100000)) == -1)
-    error("ERROR: munmap2 failed errno=%d, %s\n", strerror(errno));
+    error("ERROR: munmap2 failed: %s (%d)\n", strerror(errno), errno);
 
 
   /* create the shared memory regions.
@@ -158,8 +177,8 @@ void memory_setup(void)
    */
 #define ALLOC_SHMSEG(keyholder, size, perms) do { \
   if ((keyholder = shmget(IPC_PRIVATE, size, perms)) == - 1) \
-    error("ERROR: shmget size 0x%08x failed errno=%d, %s\n", size, \
-	  errno, strerror(errno)); } while(0)
+    error("ERROR: shmget size 0x%08x failed: %s (%d)\n", size, \
+   strerror(errno), errno); } while(0)
 
   ALLOC_SHMSEG(sharedmem.idt, 0x10000, 0755);
   ALLOC_SHMSEG(sharedmem.low, 0xa0000-0x10000, 0755);
@@ -176,8 +195,8 @@ void memory_setup(void)
    */
 #define ATTACH_SHMSEG(key, address, flags) ({ char *tmp; \
   if ( (tmp=shmat(key, (char *)(address), flags)) == (char *)-1) \
-    error("ERROR: shmat @ 0x%08x failed errno=%d, %s\n", address, \
-	  errno, strerror(errno)); tmp; })
+    error("ERROR: shmat @ 0x%08x failed: %s (%d)\n", address, \
+   strerror(errno), errno); tmp; })
 
   /* initially, no HMA */
   sharedmem.hmastate=0;
@@ -189,7 +208,7 @@ void memory_setup(void)
   /* XXX - to be safe, we should specify the address here */
   param = (param_t *) sharedmem.paramaddr = ATTACH_SHMSEG(sharedmem.param, 0, 0);
 
-  I_printf("PARAM: number %d, address 0x%08x\n", 
+  I_printf("PARAM: number %d, address %p\n", 
 	   sharedmem.param, sharedmem.paramaddr);
 
   /* mark the three attached segments for deletion.  Note that the
@@ -226,6 +245,9 @@ post_dosipc(void)
 {
 }
 
+#ifdef SIG
+static int SillyG=0;
+#endif
 
 void 
 start_dosipc(void)
@@ -247,10 +269,27 @@ start_dosipc(void)
 
   I_printf("IPC: starting up...fd's %d and %d\n", ipc_fd[0], ipc_fd[1]);
 
-  parent_pid=getpid();
+  parent_pid = getpid();
 
-  if ( (ipc_pid = fork()) )  /* fork and return to parent */
-    return;
+  if ((ipc_pid = fork()) == -1) {
+    error("ERROR: can't fork: %s (%d)\n", strerror(errno), errno);
+    leavedos(1);
+  }
+  if (ipc_pid)
+    return;   /* parent process: return */
+
+#ifdef SIG
+  /* Get in touch with my Silly Interupt Driver */
+  if ((SillyG=open("/dev/int/12", O_RDWR)) < 1) {
+    printf("Not gonna touch INT you requested!\n");
+    SillyG=0;
+  }
+  else {
+  /* Reset interupt incase it went off already */
+    write(SillyG,NULL,(int)NULL);
+    printf("Gonna monitor the INT you requested, Return=0x%02x\n", SillyG);
+  }
+#endif
 
 /* NOTE! the child inherits the parent's shared memory segments at
  * the same attach points; this is like an implicit shmat() for every
@@ -275,10 +314,10 @@ start_dosipc(void)
    */
 
   if (munmap((caddr_t)0xa0000, (size_t)(0xc0000-0xa0000)) == -1)
-    error("ERROR: child munmap1 failed errno=%d, %s\n", strerror(errno));
+    error("ERROR: child munmap1 failed: %s (%d)\n", strerror(errno), errno);
 
   if (munmap((caddr_t)0x110000, (size_t)(LIBSTART-0x110000)) == -1)
-    error("ERROR: child munmap2 failed errno=%d, %s\n", strerror(errno));
+    error("ERROR: child munmap2 failed: %s (%d)\n", strerror(errno), errno);
 
   /* attach HMA segment to 0x1000000, and then mark it for deletion
    * this makes sure that the HMA shared segment will be deleted on
@@ -304,32 +343,54 @@ start_dosipc(void)
 void 
 stop_dosipc(void)
 {
-  int status;
+  if (ipc_pid > 1) {
+     pid_t pid;
+     int status, i;
+ 
+     I_printf("IPC: closing %ld down..\n", (long) ipc_pid);
 
-  I_printf("IPC: closing %d down..\n", ipc_pid);
-
-  /* DMSG_ACK any outstanding waits, write "exit" message to pipe, 
-   * & set exitipc */
-  /* ipc_send2child(DMSG_ACK); */
-  ipc_send2child(DMSG_EXIT);
-
-  /* this is just in case...things are changing fast, so we should be
-   * on the safe side.
-   */
-  kill(ipc_pid, SIGHUP);   
-/*  kill(ser_pid, SIGHUP); */
+#ifdef SIG
+  if (SillyG) {
+    close(SillyG);
+    printf("Closing INT you opened!\n");
+  }
+#endif
+ 
+     /* DMSG_ACK any outstanding waits, write "exit" message to pipe, 
+      * & set exitipc */
+     /* ipc_send2child(DMSG_ACK); */
+     ipc_send2child(DMSG_EXIT);
+ 
+     /* Wait up to two seconds for ipc_pid to die */
+     for (i = 0; i < 10; ++i) {
+       usleep(200 * 1000L);
+       pid = waitpid(ipc_pid, &status, WNOHANG);
+       if (pid == ipc_pid)
+  break;
+     }
+  
+     /* If it didn't die on its own, kill it */
+     if (pid != ipc_pid) {
+       kill(ipc_pid, SIGHUP);
+       pid = waitpid(ipc_pid, &status, 0);
+     }
+  
+     /* Report child status */
+     if (pid == -1)
+       I_printf("wait error: %s (%d)\n", strerror(errno), errno);
+     else {
+       I_printf("IPC: exited with status 0x%X..", status);
+       if (WIFEXITED(status))
+  I_printf("exit argument: %d\n", WEXITSTATUS(status));
+       else if (WIFSIGNALED(status))
+  I_printf("terminal signal: %d\n", WTERMSIG(status));
+       else if (WIFSTOPPED(status))
+  I_printf("stopped: %d\n", WSTOPSIG(status));
+       else I_printf("\nERROR: cannot determine how child died!\n");
+     }
 
   wait(&status);
-  I_printf("IPC: exited with status %d..", status);
-  if (WIFEXITED(status))
-    I_printf("exit argument: %d\n", WEXITSTATUS(status));
-  else if (WIFSIGNALED(status))
-    I_printf("terminal signal: %d\n", WTERMSIG(status));
-  else if (WIFSTOPPED(status))
-    I_printf("stopped: %d\n", WSTOPSIG(status));
-  else I_printf("\nERROR: cannot determine how child died!\n");
-
-  wait(&status);
+   }
 
   memory_shutdown();  /* kill all shared memory */
 }
@@ -427,7 +488,7 @@ do
 
     if (pkt.cmd != DMSG_ACK)
       {
-	error("IPC: non DMSG_ACK message %d in wait_for_ack\n");
+ error("IPC: non DMSG_ACK message %d in wait_for_ack\n", pkt.cmd);
 	ipc_command(&pkt);
       }
 
@@ -442,7 +503,8 @@ void
 ipc_wakeparent()
 {
   I_printf("IPC: waking parent\n");
-  kill(parent_pid, SIGIPC);
+  if (parent_pid > 1)
+    kill(parent_pid, SIGIPC);
 }
 
 /* the reason for the RPT_SYSCALL() around select() is this: system call
@@ -459,6 +521,12 @@ do
     FD_ZERO(&fds);
     FD_SET(kbd_fd, &fds);
     FD_SET(CHILD_FD, &fds);
+
+#ifdef SIG
+if (SillyG)
+    FD_SET(SillyG, &fds);
+#endif
+
     serial_fdset(&fds);
     
     switch(selrtn=RPT_SYSCALL( select(255, &fds, NULL, NULL, NULL) )) 
@@ -472,6 +540,14 @@ do
 	break;
 
       default:  /* has at least 1 descriptor ready */
+
+#ifdef SIG
+if (SillyG)
+	if (FD_ISSET(SillyG, &fds)) {
+	  process_interrupt(SillyG);
+	}
+#endif
+
 	if (FD_ISSET(kbd_fd, &fds)) {
 	  child_dokey(kbd_fd);
 	}
@@ -483,7 +559,7 @@ do
 	  ipc_command_channel();
 	}
 
-	check_serial_ready(&fds); 
+ 	check_serial_ready(&fds);
 
 	break;
       }
@@ -614,15 +690,26 @@ void ipc_command_channel(void)
   char command;
   int count;
   struct ipcpkt pkt;
+  struct timeval tv;
+  fd_set fds;
+
+   /* signals dont queue while packets do */
+do {
 
   ipc_recvpktfromparent(&pkt);
 
   /* parse the actual command */
   ipc_command(&pkt);
+    /* check if any other packet has arrived with the same si */
+    FD_ZERO(&fds);
+    FD_SET(CHILD_FD,&fds);
+    tv.tv_sec=0;
+    tv.tv_usec=0;
+  } while( select(255,&fds,NULL,NULL,&tv)==1 );
 }
 
 #if AJT
-void child_setscan(u_short scan)
+void parent_setscan(u_short scan)
 {
   struct ipcpkt pkt;
 
@@ -637,83 +724,105 @@ void child_setscan(u_short scan)
 u_short scan_queue[SCANQ_LEN];
 int scan_queue_start=0;
 int scan_queue_end=0;
+u_char scanned=0;
+extern int convKey();
+extern int InsKeyboard();
 
 int parent_nextscan()
 {
+  int chr;
   lastscan = scan_queue[scan_queue_start];
   if (scan_queue_start != scan_queue_end)
     scan_queue_start = (scan_queue_start+1)%SCANQ_LEN;
-
+  scanned=1;
+  if (!config.console_keyb)
+    chr=lastscan;
+  else
+    chr=convKey(lastscan);
+  k_printf("parent nextscan found chr = 0x%02x, latscan = 0x%04x\n", chr, lastscan);
+  k_printf("key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n", *(u_char *)0x496, *(u_char *)0x497, *(u_char *)0x417, *(u_char *)0x418);
+  if (chr) {
+    k_printf("IPC/KBD: (child) putting key in buffer\n");
+    if (InsKeyboard(chr))
+      dump_kbuffer();
+    else error("ERROR: InsKeyboard could not put key into buffer!\n");
+  }
   return 0; /* no error */
 }
+
 #endif
 
-void sigipc(int sig)
-{
-  struct ipcpkt pkt;
-  struct timeval tv;
-  fd_set fds;
-
-  in_vm86 = 0;
-   /* signals dont queue while packets do */
- do{
-
-
-  I_printf("IPC: (parent) sigipc!!\n");
-
-  if (!ipc_waitingfromchild())
-	{
-	  I_printf("IPC: (parent) no data ready\n");
-	  return;
-	}
-
-  ipc_recvpktfromchild(&pkt);
-
-  switch(pkt.cmd) 
-    {
-    case DMSG_CTRLBRK:
-      I_printf("IPC: ctrl-break!\n");
-      do_int(0x1b);
-      break;
-    case DMSG_INT8:
-      I_printf("IPC: timer int req!\n");
-      do_hard_int(8);
-      break;
-    case DMSG_INT9:
-      I_printf("IPC: keyb int req!\n");
-      do_hard_int(9);
-      break;
-    case DMSG_PAUSE:
-      I_printf("IPC: parent pausing\n");
-      /* XXX - bad, no other commands processed */
-      do {
-	ipc_recvpktfromchild(&pkt);
-      } while (pkt.cmd != DMSG_UNPAUSE);
-      break;
-    case DMSG_UNPAUSE:
-      I_printf("IPC: ERROR: unpause packet!\n");
-      break;
+  void sigipc(int sig)
+  {
+      struct timeval tv;
+      fd_set fds;
+    in_vm86 = 0;
+  
+do {
+    I_printf("IPC: (parent) sigipc!!\n");
+  
+  while (ipc_waitingfromchild())
+      {
+      struct ipcpkt pkt;
+  
+      ipc_recvpktfromchild(&pkt);
+  
+      switch(pkt.cmd) 
+   {
+ case DMSG_CTRLBRK:
+   I_printf("IPC: ctrl-break!\n");
+   _regs.eflags &= ~0x40;
+   do_int(0x1b);
+   break;
+ case DMSG_INT8:
+   I_printf("IPC: timer int req!\n");
+   do_hard_int(8);
+   break;
+ case DMSG_INT9:
+   I_printf("IPC: keyb int req!\n");
+   do_hard_int(9);
+   break;
+ case DMSG_PAUSE:
+   I_printf("IPC: parent pausing\n");
+   /* XXX - bad, no other commands processed */
+   do {
+     ipc_recvpktfromchild(&pkt);
+   } while (pkt.cmd != DMSG_UNPAUSE);
+   break;
+ case DMSG_UNPAUSE:
+   I_printf("IPC: ERROR: unpause packet!\n");
+   break;
 #if AJT
-    case DMSG_SETSCAN:
-      I_printf("parent got set scan %x\n",pkt.u.key);
-      scan_queue[scan_queue_end] = pkt.u.key;
-      scan_queue_end = (scan_queue_end+1)%SCANQ_LEN;
-      queue_hard_int(9,parent_nextscan,NULL);
-      break;
+ case DMSG_SETSCAN:
+   I_printf("parent got set scan %x\n",pkt.u.key);
+   scan_queue[scan_queue_end] = pkt.u.key;
+   scan_queue_end = (scan_queue_end+1)%SCANQ_LEN;
+
+   if (config.keybint)
+	queue_hard_int(9,NULL,NULL);
+   else
+	parent_nextscan();
+   break;
 #endif
-    case DMSG_SER:
-      s_printf("COMCOMCOMCOMCOM: ser packet in parent ser:%d\n", pkt.u.params.param1);
-      break;
-    case DMSG_EXIT:
-      I_printf("IPC: child requested exit\n");
-      leavedos(0);
-      break;
-    case DMSG_SENDKEY:
-      I_printf("IPC: (par) got SENDKEY\n");
-      sent_key = pkt.u.key;
-      break;
-    default:
-      I_printf("IPC: (par) unknown packet type %d\n", pkt.cmd);
+ case DMSG_SER:
+   s_printf("COMCOMCOMCOMCOM: ser packet in parent ser:%d\n",
+     pkt.u.params.param1);
+   break;
+ case DMSG_EXIT:
+   I_printf("IPC: child requested exit\n");
+   leavedos(0);
+   break;
+ case DMSG_SENDKEY:
+   I_printf("IPC: (par) got SENDKEY\n");
+   sent_key = pkt.u.key;
+   break;
+ case DMSG_SENDINT:
+   I_printf("IPC: Hard interrupt request!\n");
+   do_hard_int(pkt.u.key);
+   break;
+ default:
+   I_printf("IPC: (par) unknown packet type %d\n", pkt.cmd);
+   }
     }
     /* check if any other packet has arrived with the same si */
     FD_ZERO(&fds);
@@ -721,54 +830,46 @@ void sigipc(int sig)
     tv.tv_sec=0;
     tv.tv_usec=0;
   } while( select(255,&fds,NULL,NULL,&tv)==1 );
-
-
-  if (ipc_waitingfromchild())
-	{
-	  I_printf("sigipc() more data\n");
-	  sigipc(sig);
-	}
-
 }
-
-
+  
 void child_dokey(int fd)
 {
   int pollret;
   u_int chr;
 
-  while (ReadKeyboard(&chr, NOWAIT))
-    {
-      k_printf("IPC/KBD: readret = 0x%04x\n", chr);
-      
-      if (readkey) {
-	struct ipcpkt pkt;
-	
-	k_printf("IPC/KBD: (child) sending key to parent\n");
-	pkt.cmd = DMSG_SENDKEY;
-	pkt.u.key = chr;
-	ipc_wakeparent();
-	ipc_sendpkt2parent(&pkt);
-	if (chr != 0)
-	  readkey = 0;	
-      } else {
-	
-	k_printf("IPC/KBD: (child) putting key in buffer\n");
-	if (InsKeyboard(chr))
-	  dump_kbuffer();
-	else error("ERROR: InsKeyboard could not put key into buffer!\n");
-
+  k_printf("Prior to ReadKeyboard dosipc.c\n");
+  ReadKeyboard(&chr, NOWAIT);
+  k_printf("IPC/KBD: readret = 0x%04x\n", chr);
 #if !AJT
-	if (config.keybint) {
-	  ipc_wakeparent();
-	  ipc_send2parent(DMSG_INT9);
-	}
+  if (config.keybint) {
+    ipc_wakeparent();
+    ipc_send2parent(DMSG_INT9);
+  }
 #endif
-      }
-    } /* else error("ERROR: (child) no return from ReadKeyboard\n"); */
+  k_printf("After ReadKeyboard dosipc.c\n");
 
 }
 
+void inline process_interrupt(int fd)
+{
+  int pollret, rrtn;
+  u_int chr;
+
+  if ((rrtn = read( fd, " ", 1)))
+  {
+	struct ipcpkt pkt;
+	
+  	printf("IPC/INTERRUPT: 0x%02x, fd=%x\n", rrtn, fd);
+	pkt.cmd = DMSG_SENDINT;
+        if (rrtn < 8)
+	  pkt.u.key = rrtn+8;
+        else
+	  pkt.u.key = rrtn+0x68;
+	printf("pkt.u.key = 0x%02x\n", pkt.u.key);
+	ipc_wakeparent();
+	ipc_sendpkt2parent(&pkt);
+    } 
+}
 
 void child_tick(int sig)
 {

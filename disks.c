@@ -1,9 +1,9 @@
 /* dos emulator, Matthias Lautner 
  * Extensions by Robert Sanders, 1992-93 
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/disks.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 22:21:03 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/disks.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * floppy disks, dos partitions or their images (files) (maximum 8 heads)
@@ -93,7 +93,8 @@ struct disk disktab[4] /* = {  FLOPPY_A, FLOPPY_B, EXTRA_FLOPPY } */ ;
  * for a trial run.
  */
 
-struct disk hdisktab[] = 
+#define MAX_HDISKS 4  /* XXX parse.c still access this many */
+struct disk hdisktab[MAX_HDISKS] = 
 {
 #define OLD_DISKS 1
 #ifdef OLD_DISKS
@@ -197,8 +198,9 @@ read_sectors(struct disk *dp, char *buffer, long head, long sector,
 	mbrcount = dp->part_info.mbr_size - mbroff;
       }
 
-      d_printf("WARNING: %d (%x) read for %d below %s, h:%d s:%d t:%d\n", 
-	       pos, -pos, readsize, 
+      d_printf("WARNING: %ld (0x%lx) read for %d below %s, "
+        "h:%ld s:%ld t:%ld\n", 
+        pos, (unsigned long) -pos, readsize, 
 	       dp->dev_name, head, sector, track);
 
       memcpy(buffer, dp->part_info.mbr + mbroff, mbrcount);
@@ -312,8 +314,9 @@ image_auto(struct disk *dp)
   dp->tracks = *(long *)&header[15];
   dp->header = *(long *)&header[19];
 
-  d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%d\n",
-	   dp->dev_name, dp->heads, dp->sectors, dp->tracks, dp->header);
+  d_printf("IMAGE auto_info disk %s; h=%d, s=%d, t=%d, off=%ld\n",
+    dp->dev_name, dp->heads, dp->sectors, dp->tracks,
+    (long) dp->header);
 }
 
 
@@ -351,7 +354,6 @@ partition_setup(struct disk *dp)
 {
   int part_fd, i;
   unsigned char tmp_mbr[SECTOR_SIZE];
-  struct partition *p;
 
 #define PART_BYTE(p,b)  *((unsigned char *)tmp_mbr + PART_INFO_START + \
 			  (PART_INFO_LEN * (p-1)) + b)
@@ -364,7 +366,7 @@ partition_setup(struct disk *dp)
   d_printf("PARTITION SETUP for %s\n", dp->dev_name);
 
   if ((part_fd = DOS_SYSCALL(open(PARTITION_PATH, O_RDONLY))) == -1) {
-    error("ERROR: cannot open file %s for PARTITION %d\n", 
+    error("ERROR: cannot open file %s for PARTITION %s\n", 
 	  PARTITION_PATH, dp->dev_name);
     leavedos(1);
   }
@@ -411,9 +413,10 @@ partition_setup(struct disk *dp)
 	   dp->part_info.beg_cyl,
 	   dp->part_info.end_head, dp->part_info.end_sec, 
 	   dp->part_info.end_cyl);
-  d_printf("pre_secs %ld, num_secs %ld = %lx, -dp->header %d = 0x%x\n", 
+  d_printf("pre_secs %ld, num_secs %ld = %lx, -dp->header %ld = 0x%lx\n", 
 	   dp->part_info.pre_secs, dp->part_info.num_secs,
-	   dp->part_info.num_secs, -dp->header, -dp->header);
+    dp->part_info.num_secs,
+    (long) -dp->header, (unsigned long) -dp->header);
 
   /* XXX - make sure there is only 1 partition by zero'ing out others */
   for (i=1; i<=3; i++) {
@@ -496,10 +499,12 @@ void disk_close_all(void)
 
 void disk_init(void)
 {
-  int s;
   struct disk * dp;
   struct stat stbuf;
+#ifdef SILLY_GET_GEOMETRY
+  int s;
   char buf[512], label[12];
+#endif
   
   for (dp = disktab; dp < &disktab[FDISKS]; dp++) {
     if (stat(dp->dev_name, &stbuf) < 0) {
@@ -587,7 +592,7 @@ void disk_init(void)
 }
 
 
-checkdp(struct disk *disk)
+int checkdp(struct disk *disk)
 {
   if (disk == NULL) 
     {
@@ -603,7 +608,8 @@ checkdp(struct disk *disk)
 
 void int13(void)
 {
-  unsigned int disk, head, sect, track, number, res;
+  unsigned int disk, head, sect, track, number;
+  int res;
   long pos;
   char *buffer;
   struct disk *dp;
@@ -637,18 +643,22 @@ void int13(void)
       FLUSHDISK(dp);
       disk_open(dp);
       head = HI(dx);
-      sect = (_regs.ecx & 0x3f) -1;
+      sect = (REG(ecx) & 0x3f) -1;
       track = (HI(cx)) |
-	((_regs.ecx & 0xc0) << 2);
+	((REG(ecx) & 0xc0) << 2);
       buffer = SEG_ADR((char *), es, bx);
       number = LO(ax);
-      /* d_printf("DISK %d read [h%d,s%d,t%d](%d)->0x%x\n", disk, head, sect, track, number, buffer); */
+#if 0
+      d_printf("DISK %d read [h:%d,s:%d,t:%d](%d)->%p\n",
+        disk, head, sect, track, number, (void *)buffer);
+#endif
+
       if (checkdp(dp) || head >= dp->heads || 
 	  sect >= dp->sectors || track >= dp->tracks) {
 	error("ERROR: Sector not found 1!\n");
-	show_regs();
 	HI(ax) = DERR_NOTFOUND;
-	_regs.eflags |= CF;
+	REG(eflags) |= CF;
+	show_regs();
 	break;
       }
       
@@ -658,6 +668,7 @@ void int13(void)
 	{
 	  HI(ax) = -res;
 	  CARRY;
+	  break;
 	}
       else  if (res & 511) { /* must read multiple of 512 bytes */
 	error("ERROR: sector_corrupt 1, return = %d!\n", res);
@@ -668,7 +679,7 @@ void int13(void)
       }
 
       LWORD(eax) = res >> 9;
-      _regs.eflags &= ~CF;
+      REG(eflags) &= ~CF;
       R_printf("DISK read @%d/%d/%d (%d) OK.\n",
 	       head, track, sect, res >> 9); 
       break;
@@ -677,19 +688,20 @@ void int13(void)
       FLUSHDISK(dp);
       disk_open(dp);
       head = HI(dx);
-      sect = (_regs.ecx & 0x3f) -1;
+      sect = (REG(ecx) & 0x3f) -1;
       track = (HI(cx)) |
-	((_regs.ecx & 0xc0) << 2);
+	((REG(ecx) & 0xc0) << 2);
       buffer = SEG_ADR((char *), es, bx);
       number = LO(ax);
-      W_printf("DISK write [h%d,s%d,t%d](%d)->0x%x\n", head, sect, track, number, buffer); 
+      W_printf("DISK write [h:%d,s:%d,t:%d](%d)->%p\n",
+        head, sect, track, number, (void *)buffer); 
 
       if (checkdp(dp) || head >= dp->heads || 
 	  sect >= dp->sectors || track >= dp->tracks) {
 	error("ERROR: Sector not found 3!\n");
 	show_regs();
 	HI(ax) = DERR_NOTFOUND;
-	_regs.eflags |= CF;
+	REG(eflags) |= CF;
 	break;
       }
 
@@ -700,7 +712,7 @@ void int13(void)
 	  HI(ax) = DERR_WP;
 	else
 	  HI(ax) = DERR_WRITEFLT;
-	_regs.eflags |= CF;
+	REG(eflags) |= CF;
 	break;
       }
 
@@ -722,7 +734,7 @@ void int13(void)
       }
 
       LWORD(eax) = res >> 9;
-      _regs.eflags &= ~CF;
+      REG(eflags) &= ~CF;
       W_printf("DISK write @%d/%d/%d (%d) OK.\n",
 	       head, track, sect, res >> 9); 
       break;
@@ -731,15 +743,17 @@ void int13(void)
       FLUSHDISK(dp);
       disk_open(dp);
       head = HI(dx);
-      sect = (_regs.ecx & 0x3f) -1;
+      sect = (REG(ecx) & 0x3f) -1;
       track = (HI(cx)) |
-	((_regs.ecx & 0xc0) << 2);
+	((REG(ecx) & 0xc0) << 2);
       number = LO(ax);
-      d_printf("DISK %d test [h%d,s%d,t%d](%d)\n", disk, head, sect, track, number);
+      d_printf("DISK %d test [h:%d,s:%d,t:%d](%d)\n",
+        disk, head, sect, track, number);
+
       if (checkdp(dp) || head >= dp->heads || 
 	  sect >= dp->sectors || track >= dp->tracks) {
 	HI(ax) = DERR_NOTFOUND;
-	_regs.eflags |= CF;
+	REG(eflags) |= CF;
 	error("ERROR: test: sector not found 5\n");
 	dbug_printf("hds: %d, sec: %d, tks: %d\n",
 		    dp->heads, dp->sectors, dp->tracks);
@@ -751,7 +765,7 @@ void int13(void)
       
       if (pos != lseek(dp->fdesc, pos, 0)) {
 	HI(ax) = DERR_NOTFOUND;
-	_regs.eflags |= CF;
+	REG(eflags) |= CF;
 	error("ERROR: test: sector not found 6\n");
 	break;
       }
@@ -759,13 +773,13 @@ void int13(void)
       res = lseek(dp->fdesc, number << 9, 0);
       if (res & 0x1ff) { /* must read multiple of 512 bytes  and res != -1 */
 	HI(ax) = DERR_BADSEC;
-	_regs.eflags |= CF;
+	REG(eflags) |= CF;
 	error("ERROR: test: sector corrupt 3\n");
 	break;
       }
       LWORD(eax) = res >> 9;
 #endif
-      _regs.eflags &= ~CF;
+      REG(eflags) &= ~CF;
       break;
       
     case 8: /* get disk drive parameters */
@@ -774,7 +788,7 @@ void int13(void)
       if (dp != NULL) {
 	/* get CMOS type */
 	/* LO(bx) = 3; */
-	switch(dp->tracks)
+	switch(dp->sectors)
 	  {
 	  case 9:
 	    LO(bx)=3;
@@ -808,13 +822,13 @@ void int13(void)
 	LO(cx) = dp->sectors | ((dp->tracks & 0x300) >> 2);
 	LO(ax) = 0;
 	HI(ax) = DERR_NOERR;
-	_regs.eflags &= ~CF; /* no error */
+	REG(eflags) &= ~CF; /* no error */
       } else {
 	LWORD(edx) = 0; /* no hard disks */
 	LWORD(ecx) = 0;
 	LO(bx) = 0;
 	HI(ax) = DERR_BADCMD;
-	_regs.eflags |= CF; /* error */
+	REG(eflags) |= CF; /* error */
       }	
       break;
       
@@ -863,13 +877,13 @@ void int13(void)
 
     case 0x12:	/* XT diagnostics */
     case 0x13:
-      _regs.eax&=0xFF;
+      REG(eax)&=0xFF;
       CARRY;
       break;
 
     case 0x14:	/* AT diagnostics. Unix keeps the drive happy
 		   so report ok if it valid */
-      _regs.eax&=0xFF;
+      REG(eax)&=0xFF;
       NOCARRY;
       break;
       /* end of Alan's additions */
@@ -890,7 +904,7 @@ void int13(void)
 	  LWORD(ecx) = number >> 16;
 	  LWORD(edx) = number & 0xffff;
 	}
-	_regs.eflags &= ~CF; /* no error */
+	REG(eflags) &= ~CF; /* no error */
       } else {
 	if (dp != NULL)
 	  {
@@ -902,7 +916,7 @@ void int13(void)
 	  {
 	    error("ERROR: gettype: no disk %d\n", disk);
 	    HI(ax) = 0; /* disk not there */
-	    _regs.eflags |= CF; /* error */
+	    REG(eflags) |= CF; /* error */
 	  }
       }
       break;
@@ -916,8 +930,8 @@ void int13(void)
 	{
 	  d_printf("int13: DISK CHANGED\n");
 	  CARRY;
-	  /* _regs.eax&=0xFF;
-	     _regs.eax|=0x200; */
+	  /* REG(eax)&=0xFF;
+	     REG(eax)|=0x200; */
 	  HI(ax)=1;  /* change occurred */
 	}
       else {
@@ -983,5 +997,3 @@ floppy_tick(void)
 }
 
 #undef DISKS_C
-
-

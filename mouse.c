@@ -1,12 +1,18 @@
 /* mouse.c for the DOS emulator 
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/mouse.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 22:21:03 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/mouse.c,v $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 1.3  1993/11/30  22:21:03  root
+ * Final Freeze for release pl3
+ *
+ * Revision 1.2  1993/11/30  21:26:44  root
+ * Chips First set of patches, WOW!
+ *
  * Revision 1.1  1993/11/12  12:32:17  root
  * Initial revision
  *
@@ -268,7 +274,7 @@ void mouse_setyminmax(void)
 void mouse_set_gcur(void)
 {
   m_printf("MOUSE: set gfx cursor...hspot: %d, vspot: %d, masks: %04x:%04x\n",
-	   LWORD(ebx), LWORD(ecx), _regs.es, LWORD(edx));
+    LWORD(ebx), LWORD(ecx), LWORD(es), LWORD(edx));
 }
 
 
@@ -281,7 +287,7 @@ void mouse_set_tcur(void)
 
 void mouse_setsub(void)
 {
-  mouse.cs=_regs.es;
+  mouse.cs=REG(es);
   mouse.ip=LWORD(edx);
 
   *mouse.csp=mouse.cs;
@@ -289,8 +295,8 @@ void mouse_setsub(void)
 
   mouse.mask=LWORD(ecx);
 
-  m_printf("MOUSE: user defined sub %04x:%04x, mask 0x%02x\n", _regs.es,
-	   LWORD(edx), LWORD(ecx));
+  m_printf("MOUSE: user defined sub %04x:%04x, mask 0x%02x\n",
+    LWORD(es), LWORD(edx), LWORD(ecx));
 }
 
 
@@ -434,9 +440,9 @@ void fake_int(void)
 
   ssp = SEG_ADR((us *), ss, sp);
   *--ssp = LWORD(eflags);
-  *--ssp = _regs.cs;
+  *--ssp = REG(cs);
   *--ssp = LWORD(eip);
-  _regs.esp -= 6;
+  REG(esp) -= 6;
 }
 
 void fake_call(int cs, int ip)
@@ -444,11 +450,11 @@ void fake_call(int cs, int ip)
   unsigned short *ssp;
 
   ssp = SEG_ADR((us *), ss, sp);
-  m_printf("MOUSE: fake_call() shows S: %04x:%04x = 0x%05x\n", _regs.ss,
-	   _regs.esp, ssp);
+  m_printf("MOUSE: fake_call() shows S: %04x:%04x = %p\n",
+    LWORD(ss), LWORD(esp), (void *)ssp);
   *--ssp = cs;
   *--ssp = ip;
-  _regs.esp -= 4;
+  REG(esp) -= 4;
 }
 
 
@@ -465,7 +471,7 @@ void fake_pusha(void)
   *--ssp = LWORD(ebp);
   *--ssp = LWORD(esi);
   *--ssp = LWORD(edi);
-  _regs.esp -= 16;
+  REG(esp) -= 16;
 }
 
 
@@ -487,14 +493,16 @@ void mouse_delta(int event)
 
       fake_call(Mouse_SEG, Mouse_OFF + 4);  /* skip to popa */
 
-      _regs.cs  = mouse.cs;
-      _regs.eip = mouse.ip; 
+      REG(cs)  = mouse.cs;
+      REG(eip) = mouse.ip; 
 
-      _regs.ds  = *mouse.csp;  /* put DS in user routine */
+      REG(ds)  = *mouse.csp;  /* put DS in user routine */
 
-      m_printf("MOUSE: event type %d, should call %04x:%04x (actually %04x:%04x)\n.........jmping to %04x:%04x\n", 
+      m_printf("MOUSE: event type %d, "
+        "should call %04x:%04x (actually %04x:%04x)\n"
+        ".........jmping to %04x:%04x\n", 
 	       event, mouse.cs, mouse.ip, *mouse.csp, *mouse.ipp, 
-	       _regs.cs, LWORD(eip));
+        LWORD(cs), LWORD(eip));
       return;
     }
 }
@@ -527,7 +535,8 @@ void mouse_curtick(void)
 /* are ip and cs in right order?? */
 void mouse_sethandler(void *f, us *cs, us *ip)
 {
-  m_printf("MOUSE: sethandler...0x%08x, 0x%08x, 0x%08x\n", f, cs, ip);
+  m_printf("MOUSE: sethandler...%p, %p, %p\n",
+    (void *)f, (void *)cs, (void *)ip);
   m_printf("...............CS:%04x.....IP:%04x\n", *cs, *ip);
   mouse.csp=cs;
   mouse.ipp=ip;

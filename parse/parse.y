@@ -1,7 +1,7 @@
 /*
- * $Date: 1993/11/12 12:41:40 $
- * $Source: /home/src/dosemu0.49pl2/parse/RCS/parse.y,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/29 00:08:20 $
+ * $Source: /home/src/dosemu0.49pl3/parse/RCS/parse.y,v $
+ * $Revision: 1.2 $
  * $State: Exp $
  */
 
@@ -26,8 +26,8 @@ line:  /* empty */
        | line thing
 
 giblet:   WORD  { printf("WORD: %s\n", $1); }
-	| NUM
-	| STR
+	| NUM { }
+	| STR { }
 
 internal: /* empty */
 	| internal giblet

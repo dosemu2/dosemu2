@@ -2,16 +2,15 @@
 #define TERMIO_C 1
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1993/11/12 12:32:17 $
- * $Source: /home/src/dosemu0.49pl2/RCS/termio.c,v $
- * $Revision: 1.1 $
+ * $Date: 1993/11/30 21:26:44 $
+ * $Source: /home/src/dosemu0.49pl3/RCS/termio.c,v $
+ * $Revision: 1.5 $
  * $State: Exp $
  */
 
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
@@ -33,6 +32,10 @@
 #include "dosvga.h"
 #include "mouse.h"
 #include "dosipc.h"
+
+unsigned int convascii(int *);
+/* Was a toggle key already port in'd */
+u_char ins_stat=0, scroll_stat=0, num_stat=0, caps_stat=0;
 
 /* these are the structures in keymaps.c */
 extern unsigned char shift_map[97],
@@ -87,7 +90,10 @@ static void gettermcap(void),
  caps(unsigned int),
  uncaps(unsigned int),
  scroll(unsigned int),
+ unscroll(unsigned int),
  num(unsigned int),
+ unnum(unsigned int),
+ unins(unsigned int),
  do_self(unsigned int),
  cursor(unsigned int),
  func(unsigned int),
@@ -101,18 +107,24 @@ static void gettermcap(void),
  none(unsigned int),
  spacebar(unsigned int);
 
+ void child_set_flags(int sc);
+
  void set_kbd_flag(int),
   clr_kbd_flag(int),
   chg_kbd_flag(int),
+  child_set_kbd_flag(int),
+  child_clr_kbd_flag(int),
   set_key_flag(int),
   clr_key_flag(int),
   chg_key_flag(int);
 
  int kbd_flag(int),
+     child_kbd_flag(int),
      key_flag(int);
 
 
 /* initialize these in OpenKeyboard! */
+unsigned int child_kbd_flags = 0;
 unsigned int kbd_flags = 0;
 unsigned int key_flags = 0;
 int altchar=0;
@@ -172,10 +184,10 @@ static fptr key_table[] = {
 	unalt,none,uncaps,none,			/* B8-BB unalt br uncaps br */
 	none,none,none,none,			/* BC-BF br br br br */
 	none,none,none,none,			/* C0-C3 br br br br */
-	none,none,none,none,			/* C4-C7 br br br br */
+	none,unnum,unscroll,none,			/* C4-C7 br br br br */
 	none,none,none,none,			/* C8-CB br br br br */
 	none,none,none,none,			/* CC-CF br br br br */
-	none,none,none,none,			/* D0-D3 br br br br */
+	none,none,unins,none,			/* D0-D3 br br unins br */
 	none,none,none,none,			/* D4-D7 br br br br */
 	none,none,none,none,			/* D8-DB br ? ? ? */
 	none,none,none,none,			/* DC-DF ? ? ? ? */
@@ -199,7 +211,7 @@ int kbd_fd=-1,		/* the fd for the keyboard */
 /* these are in DOSIPC.C */
 extern int ipc_fd[2];
 
-int kbcount;
+int kbcount=0;
 unsigned char kbbuf[KBBUF_SIZE], *kbp, erasekey;
 static  struct termio   oldtermio;      /* original terminal modes */
 
@@ -235,26 +247,26 @@ struct funkeystruct {
 
 #define FUNKEYS 20
 static struct funkeystruct funkey[FUNKEYS] = {
-	{NULL, "kI", 0x5200}, /* Ins */
-	{NULL, "kD", 0x5300}, /* Del...he had 127 */
-	{NULL, "kh", 0x4700}, /* Ho...he had 0x5c00 */
-	{NULL, "kH", 0x4f00}, /* End...he had 0x6100 */
-	{NULL, "ku", 0x4800}, /* Up */
-	{NULL, "kd", 0x5000}, /* Dn */
-	{NULL, "kr", 0x4d00}, /* Ri */
-	{NULL, "kl", 0x4b00}, /* Le */
-	{NULL, "kP", 0x4900}, /* PgUp */
-	{NULL, "kN", 0x5100}, /* PgDn */
-	{NULL, "k1", 0x3b00}, /* F1 */
-	{NULL, "k2", 0x3c00}, /* F2 */
-	{NULL, "k3", 0x3d00}, /* F3 */
-	{NULL, "k4", 0x3e00}, /* F4 */
-	{NULL, "k5", 0x3f00}, /* F5 */
-	{NULL, "k6", 0x4000}, /* F6 */
-	{NULL, "k7", 0x4100}, /* F7 */
-	{NULL, "k8", 0x4200}, /* F8 */
-	{NULL, "k9", 0x4300}, /* F9 */
-	{NULL, "k0", 0x4400}, /* F10 */
+        {NULL, "kI", 0x5200}, /* Ins */
+        {NULL, "kD", 0x5300}, /* Del...he had 127 */
+        {NULL, "kh", 0x4700}, /* Ho...he had 0x5c00 */
+        {NULL, "kH", 0x4f00}, /* End...he had 0x6100 */
+        {NULL, "ku", 0x4800}, /* Up */
+        {NULL, "kd", 0x5000}, /* Dn */
+        {NULL, "kr", 0x4d00}, /* Ri */
+        {NULL, "kl", 0x4b00}, /* Le */
+        {NULL, "kP", 0x4900}, /* PgUp */
+        {NULL, "kN", 0x5100}, /* PgDn */
+        {NULL, "k1", 0x3b00}, /* F1 */
+        {NULL, "k2", 0x3c00}, /* F2 */
+        {NULL, "k3", 0x3d00}, /* F3 */
+        {NULL, "k4", 0x3e00}, /* F4 */
+        {NULL, "k5", 0x3f00}, /* F5 */
+        {NULL, "k6", 0x4000}, /* F6 */
+        {NULL, "k7", 0x4100}, /* F7 */
+        {NULL, "k8", 0x4200}, /* F8 */
+        {NULL, "k9", 0x4300}, /* F9 */
+        {NULL, "k0", 0x4400}, /* F10 */
 };
 
 /* this table is used by convKey() to give the int16 functions the
@@ -451,6 +463,7 @@ OpenKeyboard(void)
 	  {
 	    set_raw_mode();
 	    kbd_flags=0;
+	    child_kbd_flags=0;
 	    get_leds(); 
 	    key_flags=0;
 	    *KEYFLAG_ADDR=0;
@@ -460,7 +473,7 @@ OpenKeyboard(void)
 	if (config.console_video)
 	    set_console_video();
 
-	dbug_printf("$Header: /home/src/dosemu0.49pl2/RCS/termio.c,v 1.1 1993/11/12 12:32:17 root Exp root $\n");
+	dbug_printf("$Header: /home/src/dosemu0.49pl3/RCS/termio.c,v 1.5 1993/11/30 21:26:44 root Exp root $\n");
 
 	return 0;
 }
@@ -503,22 +516,25 @@ int tty_raw(int fd)
 #endif
   return(0);
 }
-
 static us alt_keys[] = { /* <ALT>-A ... <ALT>-Z */
-	0x1e00, 0x3000, 0x2e00, 0x2000, 0x1200, 0x2100,
-	0x2200, 0x2300, 0x1700, 0x2400, 0x2500, 0x2600,
-	0x3200, 0x3100, 0x1800, 0x1900, 0x1000, 0x1300,
-	0x1f00, 0x1400, 0x1600, 0x2f00, 0x1100, 0x2d00,
-	0x1500, 0x2c00};
+        0x1e00, 0x3000, 0x2e00, 0x2000, 0x1200, 0x2100,
+        0x2200, 0x2300, 0x1700, 0x2400, 0x2500, 0x2600,
+        0x3200, 0x3100, 0x1800, 0x1900, 0x1000, 0x1300,
+        0x1f00, 0x1400, 0x1600, 0x2f00, 0x1100, 0x2d00,
+        0x1500, 0x2c00};
 
 static us alt_nums[] = { /* <ALT>-0 ... <ALT>-9 */
-	0x8100, 0x7800, 0x7900, 0x7a00, 0x7b00, 0x7c00,
-	0x7d00, 0x7e00, 0x7f00, 0x8000};
+        0x8100, 0x7800, 0x7900, 0x7a00, 0x7b00, 0x7c00,
+        0x7d00, 0x7e00, 0x7f00, 0x8000};
 
 static void getKeys(void)
 {
-  int     cc;
+  int cc;
   int tmp;
+
+  if (config.console_keyb) {
+    kbcount=0;
+  }
 
   if (kbcount == 0) {
     kbp = kbbuf;
@@ -528,55 +544,125 @@ static void getKeys(void)
   }
 
   /* IPC change here!...was read(kbd_fd... */
-  cc = read(kbd_fd, &kbp[kbcount], &kbbuf[KBBUF_SIZE] - (kbp+kbcount));
+  cc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE);
+
+k_printf(" cc found %d characters\n", cc);
 
 #if AJT
-  if (cc>0 && config.keybint && config.console_keyb)
+  if (cc>0 && config.console_keyb)
     {
       int i;
-      for (i=0;i<cc;i++)
-	child_setscan(kbp[kbcount+i]);
+      for (i=0;i<cc;i++){
+	child_set_flags(kbp[kbcount+i]);
+	parent_setscan(kbp[kbcount+i]);
+      }
     }
+  else 
+  {
+    if (cc > 0) {
+      if (kbp+kbcount+cc > &kbbuf[KBBUF_SIZE])
+        error("ERROR: getKeys() has overwritten the buffer!\n");
+      kbcount += cc;
+    }
+    while (cc) {
+  	  convascii(&cc);
+    }
+  }
 #endif
   
-  if (cc > 0) {
-    if (kbp+kbcount+cc > &kbbuf[KBBUF_SIZE])
-      error("ERROR: getKeys() has overwritten the buffer!\n");
-    kbcount += cc;
-  }
 }
 
+void child_set_flags(int sc) {
+	switch (sc) {
+	case 0xe0:
+	case 0xe1:
+		child_set_kbd_flag(4);
+		return;
+	case 0x2a:
+		if (child_kbd_flag(4))
+			child_clr_kbd_flag(4);
+		else
+			child_set_kbd_flag(1);
+		return;
+	case 0x36:
+		child_set_kbd_flag(1);
+		return;
+	case 0x1d:
+	case 0x10:
+		child_set_kbd_flag(2);
+		return;
+	case 0x38:
+		child_set_kbd_flag(3);
+		return;
+	case 0xaa:
+		if (child_kbd_flag(4))
+			child_clr_kbd_flag(4);
+		else
+			child_clr_kbd_flag(1);
+		return;
+	case 0xb6:
+		child_clr_kbd_flag(1);
+		return;
+	case 0x9d:
+	case 0x90:
+		child_clr_kbd_flag(2);
+		return;
+	case 0xb8:
+		child_clr_kbd_flag(3);
+		return;
+	case 0x3b:
+	case 0x3c:
+	case 0x3d:
+	case 0x3e:
+	case 0x3f:
+	case 0x40:
+	case 0x41:
+	case 0x42:
+	case 0x43:
+	case 0x44:
+	case 0x57:
+	case 0x58:
+		if (
+			 child_kbd_flag(3) &&
+			!child_kbd_flag(2) &&
+			!child_kbd_flag(1) 
+		   ) {
+		  int fnum=sc-0x3a;
+		  k_printf("Doing VC switch\n");
+		  if (fnum > 10) fnum -= 0x12;   /* adjust if f11 or f12 */
 
-/* static */ unsigned int convKey()
-{
+/* can't just do the ioctl() here, as PollKeyboard will probably have
+ * been called from a signal handler, and ioctl() is not reentrant.
+ * hence the delay until out of the signal handler...
+ */
+		  activate(fnum);
+		  return;
+		}
+		return;
+	case 0x51:
+		if (
+			 child_kbd_flag(2) &&
+			 child_kbd_flag(3) &&
+			!child_kbd_flag(1)
+		   ) {
+		  dbug_printf("ctrl-alt-pgdn\n");
+		  ipc_wakeparent();
+		  ipc_send2parent(DMSG_EXIT);
+		}
+		return;
+	}
+}
+
+unsigned int convascii(int *cc) {
+
+/* get here only if in cooked mode (i.e. K_XLATE) */
 	int i;
 	struct timeval scr_tv;
 	struct funkeystruct *fkp;
 	fd_set fds;
-	unsigned int kbd_mode;
-
-	if (kbcount == 0) return 0;
-
-	if (config.console_keyb)
-	  {
-		unsigned char scancode = *kbp & 0xff;
-		unsigned int tmpcode = 0;
-	
-		lastscan=scancode;
-		kbp++;
-		kbcount--; 
-		if (kbp > kbbuf+KBBUF_SIZE)
-		  k_printf("ERROR: in convKey...kbp: 0x%08x kbbuf 0x%08x\n",
-			   kbp,kbbuf);
-		tmpcode = convscanKey(scancode);
-
-		return tmpcode;
-	  }
-
-	xlate:
-	/* get here only if in cooked mode (i.e. K_XLATE) */
 	if (*kbp == '\033') {
-	        in_readkeyboard=1;
+		int ccc;
+		in_readkeyboard=1;
 		if (kbcount == 1) {
 		char contin;
 		do {
@@ -589,83 +675,117 @@ static void getKeys(void)
 			FD_SET(kbd_fd, &fds);
 			RPT_SYSCALL( select(kbd_fd+1, &fds, NULL, NULL,
 					   &scr_tv) );
-			getKeys();
+			ccc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE - kbcount);
+			if (ccc > 0) {
+			  kbcount += ccc;
+			  *cc += ccc;
+			}
 		} while (contin!=kbcount);
 
-			if (kbcount == 1) {
-				kbcount--;
-				return ((highscan[*kbp] << 8 ) +
-					(unsigned char)*kbp++); 
-			}
-
+		if (kbcount == 1) {
+			kbcount--;
+			(*cc)--; 
+                        parent_setscan((highscan[*kbp] << 8 ) +
+                                     (unsigned char)*kbp++);
+			return;
 		}
+
+	}
 #define LATIN1 1
 #define METAKEY 1
 #ifdef LATIN1
-		k_printf("latin1 extended keysensing\n");
-		if (islower((unsigned char)kbp[1])) {
-			kbcount -= 2;
-			kbp++;
-			return alt_keys[*kbp++ - 'a'];
-		} else if (isdigit((unsigned char)kbp[1])) {
-			kbcount -= 2;
-			kbp++;
-			return alt_nums[*kbp++ - '0'];
-		}
+	k_printf("latin1 extended keysensing\n");
+	if (islower((unsigned char)kbp[1])) {
+		kbcount -= 2;
+		*cc -= 2;
+		kbp++;
+		parent_setscan( alt_keys[*kbp++ - 'a']);
+		return;
+	} else if (isdigit((unsigned char)kbp[1])) {
+		kbcount -= 2;
+		*cc -= 2;
+		kbp++;
+		parent_setscan( alt_nums[*kbp++ - '0']);
+		return;
+	}
 #endif
-		fkp = funkey;
+	fkp = funkey;
 
-		for (i=1;;) {
-		  if (fkp->esc == NULL || 
-		      (unsigned char)fkp->esc[i] < kbp[i]) {
-		    if (++fkp >= &funkey[FUNKEYS])
-		      break;
-		  } else if ((unsigned char)fkp->esc[i] == kbp[i]) {
-		    if (fkp->esc[++i] == '\0') {
-		      kbcount -= i;
-		      kbp += i;
-		      return fkp->code;
-		    }
-		    if (kbcount <= i) {
-		      getKeys();
+	for (i=1;;) {
+	  if (fkp->esc == NULL || 
+	      (unsigned char)fkp->esc[i] < kbp[i]) {
+	    if (++fkp >= &funkey[FUNKEYS])
+	      break;
+	  } else if ((unsigned char)fkp->esc[i] == kbp[i]) {
+	    if (fkp->esc[++i] == '\0') {
+	      kbcount -= i;
+	      *cc -= i;
+	      kbp += i;
+	      parent_setscan( fkp->code);
+	      return;
+	    }
+	    if (kbcount <= i) {
+	      char contin;
+	      do {
+			contin=kbcount;
+			scr_tv.tv_sec = 0;
+			scr_tv.tv_usec = 100000;
+			FD_ZERO(&fds);
 
-		      if (kbcount <= i) {
-			break;
-		      }
-		    }
-		  } else {
-		    break;
-		  }
-		}
-		in_readkeyboard=0;
+			/* IPC change here! */
+			FD_SET(kbd_fd, &fds);
+			RPT_SYSCALL( select(kbd_fd+1, &fds, NULL, NULL,
+					   &scr_tv) );
+			ccc = read(kbd_fd, &kbp[0 + kbcount], KBBUF_SIZE - kbcount);
+			if (ccc > 0) {
+			  kbcount += ccc;
+			  *cc += ccc;
+			}
+	      } while (contin!=kbcount);
+	      if (kbcount <= i) {
+		break;
+	      }
+	    }
+	  } else {
+	    break;
+	  }
+	}
+	in_readkeyboard=0;
 	/* end of if (*kbp == '\033')... */
 	} else if (*kbp == erasekey) {
 		kbcount--;
+	        (*cc)--;
 		kbp++;
-		return (((unsigned char)highscan[8] << 8)  + (unsigned char)8);
-
+		parent_setscan(((unsigned char)highscan[8] << 8)  + (unsigned char)8);
+		return;
 #ifdef METAKEY
 /* #ifndef LATIN1 */
 	} else if ((unsigned char)*kbp >= ('a'|0x80) && 
 		   (unsigned char)*kbp <= ('z'|0x80)) {
 		kbcount--;
-		return ((unsigned short int)alt_keys[*kbp++ - ('a'|0x80)]);
+	        (*cc)--;
+		parent_setscan((unsigned short int)alt_keys[*kbp++ - ('a'|0x80)]);
+		return;
 	} else if ((unsigned char)*kbp >= ('0'|0x80) && 
 		   (unsigned char)*kbp <= ('9'|0x80)) {
 		kbcount--;
-		return alt_nums[(unsigned char)*kbp++ - ('0'|0x80)];
-#endif
+	        (*cc)--;
+		parent_setscan( alt_nums[(unsigned char)*kbp++ - ('0'|0x80)]);
+		return;
+	#endif
 	}
 
-	
+
 	i=highscan[*kbp] << 8;   /* get scancode */
 
-	/* extended scancodes return 0 for the ascii value */
-	if ((unsigned char)*kbp < 0x80) i |= (unsigned char)*kbp;
+/* extended scancodes return 0 for the ascii value */
+        if ((unsigned char)*kbp < 0x80) i |= (unsigned char)*kbp;
 
-        kbcount--;
+	parent_setscan(i); 
+
+	kbcount--;
+	(*cc)--;
 	kbp++;
-	return (i); 
 }
 
 /* InsKeyboard
@@ -696,6 +816,29 @@ int InsKeyboard (unsigned short scancode)
 
 	/* dump_kbuffer(); */
 	return 1;
+}
+
+/* static */ unsigned int convKey(int scancode)
+{
+	int i;
+	struct timeval scr_tv;
+	struct funkeystruct *fkp;
+	fd_set fds;
+	unsigned int kbd_mode;
+
+	k_printf("convKey = 0x%04x\n", scancode);
+
+	if (scancode == 0) return 0;
+
+	if ( config.console_keyb )
+	  {
+		unsigned int tmpcode = 0;
+	
+		lastscan=scancode;
+		tmpcode = convscanKey(scancode);
+
+		return tmpcode;
+	  }
 }
 
 dump_kbuffer()
@@ -854,30 +997,9 @@ int ReadKeyboard(unsigned int *buf, int wait)
 
 	in_readkeyboard=1;
 
-	while (!aktkey) {
-		if (kbcount == 0 && wait == WAIT) {
-		        in_readkeyboard=1;
-
-			/* IPC change */
-		        FD_ZERO(&fds);
-			FD_SET(kbd_fd, &fds);
-			r = RPT_SYSCALL( select(kbd_fd+1, &fds, NULL,
-						NULL, NULL) );
-		}
-		getKeys();
-		if (kbcount == 0 && wait != WAIT) 
-		  {
-		    in_readkeyboard=0;
-		    return 0;
-		  }
-		aktkey = convKey();
-		/* if console keyboard, lastscan is set in
-		 * convKey()
-		 */
-		if (!config.console_keyb) lastscan = aktkey >> 8;
-	}
-	*buf = aktkey;
-	if (wait != TEST) aktkey = 0;
+	k_printf("Doing get keys\n");
+	getKeys();
+	k_printf("Returning from ReadKeyboard\n");
 	in_readkeyboard=0;
 	return 1;
 }
@@ -954,14 +1076,29 @@ void termioClose()
  * this is copied verbatim from the Linux kernel (keyboard.c) *
  **************************************************************/
 
+static unsigned char resetid=0;
+static unsigned char firstid=0;
+
 unsigned int convscanKey(unsigned char scancode)
 {
-	static unsigned char rep = 0xff;
+ 	static unsigned char rep = 0xff;
 
-	if (scancode == 0xe0)
+	k_printf("convscanKey scancode = 0x%04x\n", scancode);
+
+	if (scancode == 0xe0){
 		set_key_flag(KKF_E0);
-	else if (scancode == 0xe1)
+		set_key_flag(KKF_FIRSTID);
+		set_key_flag(KKF_READID);
+		resetid=1;
+		firstid=0;
+	}
+	else if (scancode == 0xe1){
 		set_key_flag(KKF_E1);
+		set_key_flag(KKF_FIRSTID);
+		set_key_flag(KKF_READID);
+		resetid=1;
+		firstid=0;
+	}
 
 	if (scancode == 0xe0 || scancode == 0xe1)
 		return(0);
@@ -975,6 +1112,8 @@ unsigned int convscanKey(unsigned char scancode)
 	if (key_flag(KKF_E0) && (scancode == 0x2a || scancode == 0xaa)) {
 		clr_key_flag(KKF_E0);
 		clr_key_flag(KKF_E1);
+		resetid=0;
+		firstid=0;
 		return(0);
 	}
 	/*
@@ -987,6 +1126,13 @@ unsigned int convscanKey(unsigned char scancode)
 	queue=0;
 	key_table[scancode](scancode); 
 
+	k_printf("resetid = %d firstid = %d\n", resetid, firstid);
+	if (resetid) {
+		if (firstid) clr_key_flag(KKF_FIRSTID);
+		clr_key_flag(KKF_READID);
+		resetid=firstid=0;
+	}
+
 	clr_key_flag(KKF_E0);
 	clr_key_flag(KKF_E1);
 
@@ -997,7 +1143,6 @@ unsigned int convscanKey(unsigned char scancode)
 static void ctrl(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
-    set_kbd_flag(EKF_RCTRL);
     set_key_flag(KKF_RCTRL);
   }
   else
@@ -1009,7 +1154,6 @@ static void ctrl(unsigned int sc)
 static void alt(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
-    set_kbd_flag(EKF_RALT);
     set_key_flag(KKF_RALT);
   }
   else
@@ -1021,26 +1165,25 @@ static void alt(unsigned int sc)
 static void unctrl(unsigned int sc)
 {
 	if (key_flag(KKF_E0)) {
-		clr_kbd_flag(EKF_RCTRL);
 		clr_key_flag(KKF_RCTRL);
 	      }
 	else
 		clr_kbd_flag(EKF_LCTRL);
 
-	if ( !kbd_flag(EKF_LCTRL) && !kbd_flag(EKF_RCTRL) )
+	if ( !kbd_flag(EKF_LCTRL) && !key_flag(KKF_RCTRL) )
 	        clr_kbd_flag(KF_CTRL);
 }
 
 static void unalt(unsigned int sc)
 {
+/*  if (!resetid) { */
 	if (key_flag(KKF_E0)) {
-		clr_kbd_flag(EKF_RALT);
 		clr_key_flag(KKF_RALT);
 	      }
 	else 
 		clr_kbd_flag(EKF_LALT);
 
-	if (! (kbd_flag(EKF_LALT) && kbd_flag(EKF_RALT)) )
+	if (! (kbd_flag(EKF_LALT) && key_flag(KKF_RALT)) )
 	  {
 	        clr_kbd_flag(KF_ALT);		
 
@@ -1054,6 +1197,7 @@ static void unalt(unsigned int sc)
 		  }
 		altchar=0;
 	  }
+  /* } */
 }
 
 static void lshift(unsigned int sc)
@@ -1063,7 +1207,9 @@ static void lshift(unsigned int sc)
 
 static void unlshift(unsigned int sc)
 {
+  if (!resetid) {
 	clr_kbd_flag(KF_LSHIFT);
+  }
 }
 
 static void rshift(unsigned int sc)
@@ -1073,24 +1219,36 @@ static void rshift(unsigned int sc)
 
 static void unrshift(unsigned int sc)
 {
+  if (!resetid) {
 	clr_kbd_flag(KF_RSHIFT);
+  }
 }
 
 static void caps(unsigned int sc)
 {
-  if (kbd_flag(EKF_RCTRL) && kbd_flag(EKF_LCTRL))
+  if (kbd_flag(KKF_RCTRL) && kbd_flag(EKF_LCTRL))
     {
       keyboard_mouse = keyboard_mouse ? 0 : 1;
       m_printf("MOUSE: toggled keyboard mouse %s\n", 
 	       keyboard_mouse ? "on" : "off");
       return;
     }
-  chg_kbd_flag(KF_CAPSLOCK);	/* toggle; this means SET/UNSET */
-  set_leds();
+  else {
+    set_kbd_flag(EKF_CAPSLOCK);
+    if (!caps_stat) {
+      chg_kbd_flag(KF_CAPSLOCK);	/* toggle; this means SET/UNSET */
+      set_leds();
+      caps_stat = 1;
+    }
+  }
 }
 
 static void uncaps(unsigned int sc)
 {
+  if (!resetid) {
+    clr_kbd_flag(EKF_CAPSLOCK);
+    caps_stat = 0;
+  }
 }
 
 static void sysreq(unsigned int sc)
@@ -1117,9 +1275,9 @@ static void scroll(unsigned int sc)
 
       return;
     }
-  else if (kbd_flag(EKF_RCTRL))
+  else if (kbd_flag(KKF_RCTRL))
     show_ints(0,0x33);
-  else if (kbd_flag(EKF_RALT))
+  else if (kbd_flag(KKF_RALT))
     show_regs();
   else if (kbd_flag(KF_RSHIFT))
     {
@@ -1135,9 +1293,18 @@ static void scroll(unsigned int sc)
       ipc_send2parent(DMSG_INT9);
     }
   else {
-    chg_kbd_flag(KF_SCRLOCK);
-    set_leds();
+    set_kbd_flag(EKF_SCRLOCK);
+    if (!scroll_stat) {
+      chg_kbd_flag(KF_SCRLOCK);
+      set_leds();
+      scroll_stat=1;
+    }
   }
+}
+
+static void unscroll(unsigned int sc){
+  clr_kbd_flag(EKF_SCRLOCK);
+  scroll_stat=0;
 }
 
 static void num(unsigned int sc)
@@ -1158,20 +1325,37 @@ static void num(unsigned int sc)
     }
   }
   else {
-    k_printf("NUMLOCK!\n");
-    chg_kbd_flag(KF_NUMLOCK);
-    set_leds();
+    set_kbd_flag(EKF_NUMLOCK);
+    if (!num_stat) {
+      k_printf("NUMLOCK!\n");
+      chg_kbd_flag(KF_NUMLOCK);
+      set_leds();
+      num_stat=1;
+    }
   }
 }
 
+static void unnum(unsigned int sc) {
+  num_stat=0;
+  clr_kbd_flag(EKF_NUMLOCK);
+}
 
 set_leds()
 {
   unsigned int led_state=0;
 
-  if (kbd_flag(KF_SCRLOCK)) led_state |= (1 << LED_SCRLOCK);
-  if (kbd_flag(KF_NUMLOCK)) led_state |= (1 << LED_NUMLOCK);
-  if (kbd_flag(KF_CAPSLOCK)) led_state |= (1 << LED_CAPSLOCK);
+  if (kbd_flag(KF_SCRLOCK)) {
+	led_state |= (1 << LED_SCRLOCK);
+	set_key_flag(KKF_SCRLOCK);
+  }
+  if (kbd_flag(KF_NUMLOCK)) {
+	led_state |= (1 << LED_NUMLOCK);
+	set_key_flag(KKF_NUMLOCK);
+  }
+  if (kbd_flag(KF_CAPSLOCK)) {
+	led_state |= (1 << LED_CAPSLOCK);
+	set_key_flag(KKF_CAPSLOCK);
+  }
 
   do_ioctl(ioc_fd, KDSETLED, led_state);
 }
@@ -1196,7 +1380,18 @@ static void do_self(unsigned int sc)
 
 	if (kbd_flag(KF_ALT))
 	  {
-	    ch = alt_map[sc];
+          /* On a german keyboard the Left-Alt- (Alt-) and the Right-Alt-
+             (Alt-Gr-) Keys are different. The keys pressed with AltGr
+             return the codes defined in keymaps.c in the alt_map.
+             Pressed with the Left-Alt-Key they return the normal symbol
+             with the alt-modifier. I've tested this with the 4DOS-Alias-
+             Command.                  hein@tlaloc.in.tu-clausthal.de       */
+#ifdef KBD_GR_LATIN1                   /* Only valid for GR_LATIN1-keyboard */
+	     if (kbd_flag(EKF_LALT))    /* Left-Alt-Key pressed ?            */
+	       ch = alt_map[0];         /* Return Key with Alt-modifier      */
+	     else                       /* otherwise (this is Alt-Gr)        */
+	#endif                                 /* or no GR_LATIN1-keyboard          */
+	      ch = alt_map[sc];        /* Return key from alt_map           */
 	    if ((sc >= 2) && (sc <= 0xb))  /* numbers */
 	      sc += 0x76;
 	    else if (sc == 0xd) sc = 0x83;  /* = */
@@ -1247,6 +1442,10 @@ unsigned short shift_cursor[] = {
   0x5032,0x5133,0x5230,0x532e
   };
 
+static void unins(unsigned int sc) {
+  ins_stat=0;
+}
+
 static void cursor(unsigned int sc)
 {
   int old_sc;
@@ -1263,9 +1462,7 @@ static void cursor(unsigned int sc)
       dos_ctrl_alt_del();
     if (sc == 0x51) /*pgdn*/
       {
-	dbug_printf("ctrl-alt-pgdn\n");
-	ipc_wakeparent();
-	ipc_send2parent(DMSG_EXIT);
+	leavedos(0);
       }
     /* if the arrow keys, or home end, do keyboard mouse */
   }
@@ -1276,6 +1473,14 @@ static void cursor(unsigned int sc)
       mouse_keyboard(sc);
       return;
     }
+
+  if (sc == 0x52){
+	if (!ins_stat) {
+	  chg_kbd_flag(KF_INSERT);
+	  ins_stat=1;
+	}
+	else return;
+  }
 
   sc -= 0x47;
 
@@ -1339,18 +1544,13 @@ static void func(unsigned int sc)
   if (fnum > 10) fnum -= 0x12;   /* adjust if f11 or f12 */
 
   /* this checks for the VC-switch key sequence */
-  if (kbd_flag(EKF_LALT) && !kbd_flag(EKF_RALT) && !kbd_flag(KF_RSHIFT)
+  if (kbd_flag(EKF_LALT) && !key_flag(KKF_RALT) && !kbd_flag(KF_RSHIFT)
       && !kbd_flag(KF_LSHIFT) && !kbd_flag(KF_CTRL))
     {
       clr_kbd_flag(EKF_LALT);
-      if (!kbd_flag(EKF_RALT))
+      if (!key_flag(KKF_RALT))
 	clr_kbd_flag(KF_ALT); 
 
-      /* can't just do the ioctl() here, as PollKeyboard will probably have
-       * been called from a signal handler, and ioctl() is not reentrant.
-       * hence the delay until out of the signal handler...
-       */
-      activate(fnum);
       return;
     }
 
@@ -1520,6 +1720,23 @@ static void none(unsigned int sc)
 	return ((kbd_flags >> flag) & 1);
 }
 
+/* These are added to allow the CHILD process to keep its own flags on keyboard
+   status */
+
+ void child_set_kbd_flag(int flag)
+{
+	child_kbd_flags |= 1 << flag;
+}
+
+ void child_clr_kbd_flag(int flag)
+{
+	child_kbd_flags &= ~(1 << flag);
+}
+
+ int child_kbd_flag(int flag)
+{
+	return ((child_kbd_flags >> flag) & 1);
+}
 
 /* these are the KEY flags */
  void set_key_flag(int flag)

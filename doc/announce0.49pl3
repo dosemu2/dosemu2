@@ -1,0 +1,109 @@
+        Announcing DOSEMU release dosemu0.49pl2. 
+
+  From the folks that brought you dosemu0.49pl2, we are proud to bestow
+upon the masses this amazing vm86 mode emulator for Linux. This will
+allow you to boot DOS in many versions while under Linux, keeping a
+Linux engine alive while you run those leftover DOS programs.
+
+  Definitely still consider this ALPHA software, and as such please
+beware it is not yet fully functional, or always smooth sailing.
+
+At this time, it can be found at:
+
+dspsun.eas.asu.edu:/pub/dosemu/dosemu0.49pl2.tar.gz
+Thanks again to deisher@enws125.EAS.ASU.EDU (Michael E. Deisher) for
+providing the site :-).
+
+And soon:
+
+tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dosemu0.49pl3.tar.gz
+sunsite.unc.edu:/pub/Linux/system/Emulators/dosemu0.49pl3.tar.gz
+
+Updated in this release:
+- Keyboard internals have been really rearranged. I'm not sure I'm
+  keeping them this way, but now cut&paste problems should hopefully
+  go away. Also any program that looked at the bios memory for 
+  checking ctrl-alt-shift statuses have a better chance of operating.
+  Still seems to be some lagging (somewhere).
+
+- German keyboard patches thanks to hein@tlaloc.in.tu-clausthal.de
+  (Jochen Hein) which should fix that multiple alt key problem a 
+  couple people have asked about, as well as some incorrect mappings.
+
+- As always mfs.c has been updated again to react to another funny
+  one on DOS's part. If a file was open write, and actually written to,
+  it should be O_TRUNC first. If its just opened for writing, and not 
+  actually written to, the file should exist as was when closed. ARG!
+  The fix is a kludge, and needs some work!
+
+- Ross Biro <bir7@leland.Stanford.EDU> gives us some more fixes for
+  the redirector, and includes a new toy/option for emufs.sys. Now
+  in you config.sys you can add a device statement like:
+	- device=c:\emufs.sys \${HOME}/dosstuff
+  which will allow you to use your home directory as part of the
+  path. Any environment variable can be used.
+
+- alan@spri.levels.unisa.edu.au (Alan Modra) fixed some flag setting
+  problems in the emulated int13 code.
+
+- bde@kralizec.zeta.org.au (Bruce Evans) noticed some initilization
+  problems as did -
+
+- alan@spri.levels.unisa.edu.au (Alan Modra), so we have changes to 
+  the registers at boot time, good for some disks that need everything
+  just right :-).
+
+- And not to forget fin!chip@dg-rtp.dg.com (Chip Salzenberg) who got
+  rid of those annoying errors when bison was running. He has even
+  started to bring order to the chaos of code. With a bit of elbow
+  grease he has made a macro for handling _regs, REG(xxx) as well
+  as some other improvments, way to go :-). 
+
+- Makefile has been altered hopefully to cleanup those 'separator
+  missing messages'.
+
+- parse/parse.c will not be contained in the distribution and should
+  limit that parse.tab.h not found error.
+
+- There's more from many folks, some of whom I've possibly not had
+  a chance to get in. If your patch is not in this release, please
+  call again.
+
+Still of importance:
+
+- This is a patch that Linus received that may or may not allow 
+DOSEMU to work in the latest pl13[o-r] versions. I have not yet
+tested it to verify one way or the other:
+
+-----------------------------------------------------------------------
+From Linus:
+
+I think I've found it thanks to somebody else (forget his name..). There
+is an incorrect initialization of 'saved_kernel_stack' in
+<linux/sched.h>, where there is a line like this:
+
+! /* stack */ (unsigned long) &init_kernel_stack, \
+!   (unsigned long) &init_kernel_stack, \
+
+which should read as:
+
+! /* stack */ 0, (unsigned long) &init_kernel_stack, \
+
+(ie the first value should be zero, not &init_kernel_stack). Hope the
+above helps?
+
+  Linus
+--------------------------------------------------------------------
+
+  Many, many thanks to all who have helped with this release, either
+by sending in bug reports so we knew something was wrong, by sending
+in bug fixes (which may not have made it into this release), or by just
+providing a sounding board for ideas that come up.
+  My apologies for not having answered every letter, and possibly 
+missing some of the important information. If you know something you
+think we should, try to contact me again, please.
+
+Go on, give it a try,
+JES
+jmaclean@fox.nstn.ns.ca
+---

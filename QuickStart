@@ -1,6 +1,8 @@
 
 How to quickly get dosemu up and running:
 
+(Please refer to doc/announce0.49pl3 for info on patching kernel pl13[k-r].)
+
 1) Make a DOS bootable disk:
 	- Boot DOS
 	- Format a: /S
@@ -8,6 +10,7 @@ How to quickly get dosemu up and running:
 	- Copy sys.com to the diskette
 2) Make dosemu:
 	- Modify the Makefile if you need special keyboard, etc
+	- Do make clean
 	- Do make config
 	- Do make dep
 	- Do make install
@@ -21,9 +24,14 @@ How to quickly get dosemu up and running:
 	- From the a: drive do sys c:
 	- type exitemu
 4) Go for it:
-	- type dos >/dev/null
+	- type dos -D-a>/dev/null
 	- From here you are on your own. Please read the documentation
 	  in the doc subdirectory, and most of all ENJOY!!!!!
+5) Something not right?:
+   Please run a session 'dos -D+a>debug' and send
+   me your debug (gzip|uuencoded if large), your /etc/dosemu/config
+   file, and background on the system your running (video card, linux 
+   release, cpu size, memory).
 
   Some notes from Tim Bird (Tim_R_Bird@Novell.COM) on lredir found
 in the commands subdir :
@@ -46,7 +54,7 @@ Notes:
    you are running MS DOS. LREDIR them after the boot, maybe in your
    config.sys. DR. DOS accepts any number.
  - A mouse driver that works is mscmouse found on Simtel and the 
-   mirrors.
+   mirrors.(msdos/mouse/mouse701.zip)
  - Various reports have been received that showed DR.DOS is not up
    to 100% under emufs.sys. I'm thinking it's something invalid in
    the expected data area's used, but we have yet to track it down.
@@ -57,7 +65,7 @@ Notes:
    send a debug output anyway :-).
 
 Many thanks to all involved, including all those who submitted debug
-output for my viewing pleasurei, keep it coming.
+output for my viewing pleasure, keep it coming.
 
 jmaclean@fox.nstn.ns.ca
 James B. MacLean

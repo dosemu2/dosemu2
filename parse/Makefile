@@ -2,6 +2,8 @@ LEX = flex
 YACC = bison
 YFLAGS = -d
 
+default: par
+
 all: par
 
 scan.c: scan.l
@@ -29,6 +31,6 @@ clean:
 
 install: par
 
-dist: parse.y scan.l scan.c parse.c
+dist: parse.y scan.l 
 	install -d $(DISTPATH)/parse
-	install -m 0644 Makefile parse.y scan.l scan.c parse.c $(DISTPATH)/parse
+	install -m 0644 Makefile parse.y scan.l scan.c $(DISTPATH)/parse
