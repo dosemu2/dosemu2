@@ -276,6 +276,8 @@ bad:
 	  _trapno, _err, _cr2,
 	  _eip, _esp, _eflags, _cs, _ds, _es, _ss);
 
+    gdb_debug();
+
     print_exception_info(scp);
 
     dbug_printf("  VFLAGS(b): ");
@@ -324,8 +326,6 @@ bad:
     dbug_printf("\n");
  
     show_regs(__FILE__, __LINE__);
-
-    gdb_debug();
 
     fatalerr = 4;
     leavedos(fatalerr);		/* shouldn't return */

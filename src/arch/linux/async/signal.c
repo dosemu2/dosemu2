@@ -92,7 +92,7 @@ static void cleanup_child(void)
   if (portserver_pid &&
       waitpid(portserver_pid, &status, WNOHANG) > 0 &&
       WIFSIGNALED(status)) {
-    gdb_debug();
+    error("port server terminated, exiting\n");
     leavedos(1);
   }
 }
