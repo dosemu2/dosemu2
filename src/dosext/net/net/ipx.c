@@ -33,7 +33,6 @@
 #include "int.h"
 #include "dpmi.h"
 #include "bios.h"
-#include "inifile.h"
 #include "doshelpers.h"
 
 #define MAX_PACKET_DATA		1500
