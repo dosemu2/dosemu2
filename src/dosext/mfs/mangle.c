@@ -498,11 +498,8 @@ static void init_unicode_to_dos_table(void)
     result = unicode_to_charset(&dos_state, symbol, dest, 1);
     if (result == -1 && errno == -E2BIG)
       error("BUG: Internal multibyte character sets can't happen\n");
-    if ((result == -1 && errno == EILSEQ) ||
-	(result == 1 && *dest == '?')) 
+    if (result != 1 || *dest == '?')
       *dest = '_';
-    else
-      *dest = '\0';
     cleanup_charset_state(&dos_state);
     dest++;
   }
@@ -557,7 +554,7 @@ convert a filename to uppercase 8.3 format. return True if successful.
 ****************************************************************************/
 BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
 {
-  char *UOutName = malloc(strlen(InName) + 1); /* uppercase out name */
+  char UOutName[strlen(InName) + 1];
   
   /* initially just copy or convert it */
 #if defined KANJI
@@ -575,12 +572,10 @@ BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
   /* check if it's already in 8.3 format */
   if (is_8_3(UOutName)) {
     strcpy(OutName, UOutName);
-    free(UOutName);
     return(True);
   }
 
   if (!mangle) {
-    free(UOutName);    
     return(False);
   }
 
@@ -592,7 +587,6 @@ BOOL name_convert(char *OutName,char *InName,BOOL mangle, char *MangledMap)
 
   DEBUG(5,("to %s\n",OutName));
   
-  free(UOutName);    
   return(True);
 }
 
