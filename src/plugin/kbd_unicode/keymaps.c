@@ -17,14 +17,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 
 #ifdef X_SUPPORT
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
-#ifdef HAVE_XKB
-#include <X11/XKBlib.h>
-#endif
 #endif
 
 #include "keymaps.h"
@@ -2482,67 +2480,6 @@ static t_unicode keysym_to_unicode(t_unicode ch)
 	return ch;
 }
 
-static t_keysym KEYBOARD_MapDeadKeysym(KeySym keysym)
-{
-        switch (keysym) {
-        /* symbolic ASCII is the same as defined in rfc1345 */
-#ifdef XK_dead_tilde
-	case XK_dead_tilde :
-#endif
-	case 0x1000FE7E : /* Xfree's XK_Dtilde */
-		return KEY_DEAD_TILDE;
-#ifdef XK_dead_acute
-	case XK_dead_acute :
-#endif
-	case 0x1000FE27 : /* Xfree's XK_Dacute_accent */
-		return KEY_DEAD_ACUTE;
-#ifdef XK_dead_circumflex
-	case XK_dead_circumflex:
-#endif
-	case 0x1000FE5E : /* Xfree's XK_Dcircumflex_accent */
-		return KEY_DEAD_CIRCUMFLEX;
-#ifdef XK_dead_grave
-	case XK_dead_grave :
-#endif
-	case 0x1000FE60 : /* Xfree's XK_Dgrave_accent */
-		return KEY_DEAD_GRAVE;
-#ifdef XK_dead_diaeresis
-	case XK_dead_diaeresis :
-#endif
-	case 0x1000FE22 : /* Xfree's XK_Ddiaeresis */
-	        return KEY_DEAD_DIAERESIS;
-#ifdef XK_dead_cedilla
-	case XK_dead_cedilla :
-	        return KEY_DEAD_CEDILLA;
-#endif
-#ifdef XK_dead_breve
-	case XK_dead_breve :
-	        return KEY_DEAD_BREVE;
-#endif
-#ifdef XK_dead_abovedot
-	case XK_dead_abovedot :
-	        return KEY_DEAD_ABOVEDOT;
-#endif
-#ifdef XK_dead_abovering
-	case XK_dead_abovering :
-	        return KEY_DEAD_ABOVERING;
-#endif
-#ifdef XK_dead_doubleacute
-	case XK_dead_doubleacute :
-	        return KEY_DEAD_DOUBLEACUTE;
-#endif
-#ifdef XK_dead_caron
-	case XK_dead_caron :
-	        return KEY_DEAD_CARON;
-#endif
-#ifdef XK_dead_ogonek
-	case XK_dead_ogonek :
-	        return KEY_DEAD_OGONEK;
-#endif
-	}
-        return 0;
-}
-
 /* This function is borrowed from Wine (LGPL'ed)
    http://source.winehq.org/source/dlls/x11drv/keyboard.c
    with adjustments to match dosemu
@@ -2561,35 +2498,31 @@ static int X11_DetectLayout (void)
 {
   Display *display;
   unsigned match, mismatch, seq, i, syms;
-  int score, keyc, key, pkey, ok;
+  int score, keyc, key, pkey, ok = 0;
   KeySym keysym;
   unsigned max_seq = 0;
-  int max_score = 0, ismatch = 0;
+  int max_score = INT_MIN, ismatch = 0;
   int min_keycode, max_keycode;
-  KeySym *ksp;
-  wchar_t ckey[4] = {0, 0, 0, 0};
-  t_keysym lkey[3] = {0, 0, 0};
-  char mbkey[MB_CUR_MAX];
-  int major_version, minor_version;
+  t_unicode ckey[4] = {0, 0, 0, 0};
+  t_keysym lkey[4] = {0, 0, 0, 0};
   struct keytable_entry *kt;
-  int use_xkb;
+  struct char_set_state X_charset;
 
   char *display_name = config.X_display ? config.X_display : getenv("DISPLAY");
   display = XOpenDisplay(display_name);
   if (display == NULL) return 1;
 
   XDisplayKeycodes(display, &min_keycode, &max_keycode);
-  ksp = XGetKeyboardMapping(display, min_keycode,
-                             max_keycode + 1 - min_keycode, &syms);
   /* We are only interested in keysyms_per_keycode.
      There is no need to hold a local copy of the keysyms table */
-  XFree(ksp);
+  XFree(XGetKeyboardMapping(display, min_keycode,
+			    max_keycode + 1 - min_keycode, &syms));
   if (syms > 4) {
     k_printf("%d keysyms per keycode not supported, set to 4\n", syms);
     syms = 4;
   }
 
-  use_xkb = XkbLibraryVersion(&major_version, &minor_version);
+  init_charset_state(&X_charset, lookup_charset("X_keysym"));
   for (kt = keytable_list; kt->name; kt++) {
     k_printf("Attempting to match against \"%s\"\n", kt->name);
     match = 0;
@@ -2601,34 +2534,16 @@ static int X11_DetectLayout (void)
       /* get data for keycode from X server */
       for (i = 0; i < syms; i++) {
         keysym = XKeycodeToKeysym (display, keyc, i);
-        /* Allow both one-byte and two-byte national keysyms */
-        if ((keysym < 0x8000) && (keysym != ' '))
-        {
-#ifdef HAVE_XKB
-            if (!use_xkb || !XkbTranslateKeySym(display, &keysym, 0, mbkey, MB_CUR_MAX, NULL))
-#endif
-            {
-                /* FIXME: query what keysym is used as Mode_switch, fill XKeyEvent
-                 * with appropriate ShiftMask and Mode_switch, use XLookupString
-                 * to get character in the local encoding.
-                 */
-                ckey[i] = keysym & 0xFF;
-            } else {
-	        mbtowc(&ckey[i], mbkey, MB_CUR_MAX);
-            }
-        }
-        else {
-          ckey[i] = KEYBOARD_MapDeadKeysym(keysym);
-        }
-	if (ckey[i] == 0) ckey[i] = U_VOID;
+	charset_to_unicode(&X_charset, &ckey[i],
+                (const char *)&keysym, sizeof(keysym));
       }
-      if (ckey[0] != U_VOID) {
+      if (ckey[0] != U_VOID && (ckey[0] & 0xf000) != 0xe000) {
         /* search for a match in layout table */
         /* right now, we just find an absolute match for defined positions */
         /* (undefined positions are ignored, so if it's defined as "3#" in */
         /* the table, it's okay that the X server has "3#£", for example) */
         /* however, the score will be higher for longer matches */
-        for (key = 0; key < NUM_KEY_NUMS; key++) {
+        for (key = 0; key < kt->sizemap; key++) {
 	  lkey[0] = keysym_to_unicode(kt->key_map[key]);
 	  lkey[1] = keysym_to_unicode(kt->shift_map[key]);
 	  lkey[2] = keysym_to_unicode(kt->alt_map[key]);
@@ -2640,9 +2555,9 @@ static int X11_DetectLayout (void)
               ok = -1;
           }
 	  if (debug_level('k') > 5)
-	    k_printf("score %d for keycode %d, %x %x %x, "
-		     "got %lx %lx %lx %lx\n",
-		     ok, keyc, lkey[0], lkey[1], lkey[2], 
+	    k_printf("key: %d score %d for keycode %d, %x %x %x, "
+		     "got %x %x %x %x\n",
+		     key, ok, keyc, lkey[0], lkey[1], lkey[2], 
 		     ckey[0], ckey[1], ckey[2], ckey[3]);
           if (ok > 0) {
             score += ok;
@@ -2666,8 +2581,8 @@ static int X11_DetectLayout (void)
     k_printf("matches=%d, mismatches=%d, seq=%d, score=%d\n",
            match, mismatch, seq, score);
     if (score > max_score ||
-       (score == max_score && seq > max_seq) ||
-       (score == max_score && seq == max_seq && kt->keyboard == KEYB_AUTO)) {
+       (score == max_score && ((seq > max_seq) ||
+                               (seq == max_seq && kt->keyboard == KEYB_AUTO)))) {
       /* best match so far */
       config.keytable = kt;
       max_score = score;
@@ -2675,6 +2590,8 @@ static int X11_DetectLayout (void)
       ismatch = !mismatch;
     }
   }
+  cleanup_charset_state(&X_charset);
+
   /* we're done, report results if necessary */
   if (!ismatch)
     k_printf("Using closest match (%s) for scan/virtual codes mapping.\n",
@@ -2748,11 +2665,11 @@ void setup_default_keytable()
     ctrl_alt_map[i] = U_VOID;
   }
   /* Copy in the us keymap for a default */
-  memcpy(plain_map, key_map_us, sizeof(plain_map));
-  memcpy(shift_map, shift_map_us, sizeof(shift_map));
-  memcpy(alt_map, alt_map_us, sizeof(alt_map));
-  memcpy(num_map, num_table_dot, sizeof(num_map));
-  memcpy(ctrl_map, ctrl_map_us, sizeof(ctrl_map));
+  memcpy(plain_map, key_map_us, sizeof(key_map_us));
+  memcpy(shift_map, shift_map_us, sizeof(shift_map_us));
+  memcpy(alt_map, alt_map_us, sizeof(alt_map_us));
+  memcpy(num_map, num_table_dot, sizeof(num_table_dot));
+  memcpy(ctrl_map, ctrl_map_us, sizeof(ctrl_map_us));
 
   /* Now copy parameters for the linux kernel keymap */
   if(read_kbd_table(kt)) {
