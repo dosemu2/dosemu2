@@ -320,23 +320,7 @@ void tty_char_out(unsigned char ch, int s, int attr)
 /* i10_deb("tty_char_out: char 0x%02x, page %d, attr 0x%02x\n", ch, s, attr); */
 
   if (config.cardtype == CARD_NONE) {
-#if 1
-     /* FIXME
-      *
-      * For some unknown reasons (FILE *)stdout gets clobbered
-      * when we open a debug file (dbg_fd, -o/-O options on commandline)
-      * and even fputc(ch, stdout) then does not write anything.
-      * I could not find out _where_ this happens.
-      *
-      * However, writing directly to fd 1 still works. Therefore, because
-      * we do setbuf(stdout, NULL) anyway (src/base/init/init.c), we work
-      * around here this way.
-      *                         --Hans, 2001/04/27
-      */
-     write(1, &ch, 1);
-#else
      putchar (ch);
-#endif
      return;
   }
 
