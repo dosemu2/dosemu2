@@ -1,12 +1,15 @@
 /* mouse.c for the DOS emulator
  *       Robert Sanders, gt8134b@prism.gatech.edu
  *
- * $Date: 1994/08/01 14:27:57 $
+ * $Date: 1994/08/09 01:51:17 $
  * $Source: /home/src/dosemu0.60/mouse/RCS/mouse.c,v $
- * $Revision: 2.7 $
+ * $Revision: 2.8 $
  * $State: Exp $
  *
  * $Log: mouse.c,v $
+ * Revision 2.8  1994/08/09  01:51:17  root
+ * Prep for pre53_11.
+ *
  * Revision 2.7  1994/08/01  14:27:57  root
  * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
  *
@@ -750,7 +753,7 @@ mouse_init(void)
   else {
     sptr = &com[config.num_ser];
     if (!(sptr->mouse)) {
-      m_printf("MOUSE: Failed to add internal serial mouse, no 'mouse' keyword in serial config! num_ser=%d\n",config.num_ser);
+      m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
       mice->intdrv = FALSE;
     }
   }

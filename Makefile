@@ -1,8 +1,8 @@
 # Makefile for Linux DOS emulator
 #
-# $Date: 1994/08/05 22:29:31 $
+# $Date: 1994/08/09 01:49:57 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.20 $
+# $Revision: 2.21 $
 # $State: Exp $
 #
 
@@ -100,7 +100,8 @@ SFILES=bios.S
 
 OFILES= Makefile ChangeLog dosconfig.c QuickStart \
 	DOSEMU-HOWTO.txt DOSEMU-HOWTO.ps DOSEMU-HOWTO.sgml \
-	README.ncurses vga.pcf xdosemu xinstallvgafont README.X
+	README.ncurses vga.pcf xdosemu xinstallvgafont README.X \
+	README.CDROM
 
 BFILES=
 

@@ -121,7 +121,7 @@ extern void yyrestart(FILE *input_file);
 %token COMMAND TIMEOUT OPTIONS L_FILE
 	/* disk */
 %token L_PARTITION WHOLEDISK THREEINCH FIVEINCH READONLY LAYOUT
-%token SECTORS CYLINDERS HEADS OFFSET HDIMAGE
+%token SECTORS CYLINDERS TRACKS HEADS OFFSET HDIMAGE
 	/* ports/io */
 %token RDONLY WRONLY RDWR ORMASK ANDMASK RANGE
 
@@ -136,13 +136,23 @@ lines		: line
 line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
  		| EMUSYS STRING
 		    {
-		    config.emusys = strdup($2);
-		    c_printf("CONF: config.emusys = %s\n", $2);
+		    config.emusys = $2;
+		    c_printf("CONF: config.emusys = '%s'\n", $2);
+		    }
+		| EMUSYS '{' STRING '}'
+		    {
+		    config.emusys = $3;
+		    c_printf("CONF: config.emusys = '%s'\n", $3);
 		    }
  		| EMUBAT STRING
 		    {
-		    config.emusys = strdup($2);
-		    c_printf("CONF: config.emusys = %s\n", $2);
+		    config.emusys = $2;
+		    c_printf("CONF: config.emubat = '%s'\n", $2);
+		    }
+		| EMUBAT '{' STRING '}'
+		    {
+		    config.emusys = $3;
+		    c_printf("CONF: config.emubat = '%s'\n", $3);
 		    }
 		| FASTFLOPPY bool	{ config.fastfloppy = $2; }
 		| CPU INTEGER		{ vm86s.cpu_type = ($2/100)%10; }
@@ -151,7 +161,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| TIMINT bool
 		    {
 		    config.timers = $2;
-		    c_printf("CONF: timint %s", ($2) ? "on" : "off");
+		    c_printf("CONF: timint %s\n", ($2) ? "on" : "off");
 		    }
 		| TIMER INTEGER
 		    {
@@ -161,22 +171,34 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		| DOSBANNER bool
 		    {
 		    config.dosbanner = $2;
-		    c_printf("CONF: dosbanner %s", ($2) ? "on" : "off");
+		    c_printf("CONF: dosbanner %s\n", ($2) ? "on" : "off");
 		    }
 		| ALLOWVIDEOPORT bool
 		    {
 		    config.allowvideoportaccess = $2;
-		    c_printf("CONF: allowvideoport %s", ($2) ? "on" : "off");
+		    c_printf("CONF: allowvideoportaccess %s\n", ($2) ? "on" : "off");
 		    }
-		| L_EMS mem_bool	{ config.ems_size = $2; }
-		| L_XMS mem_bool	{ config.xms_size = $2; }
-		| L_DPMI mem_bool	{ config.dpmi_size = $2; }
+		| L_EMS mem_bool
+		    {
+		    config.ems_size = $2;
+		    if ($2 > 0) c_printf("CONF: %dk bytes EMS memory\n", $2);
+		    }
+		| L_XMS mem_bool
+		    {
+		    config.xms_size = $2;
+		    if ($2 > 0) c_printf("CONF: %dk bytes XMS memory\n", $2);
+		    }
+		| L_DPMI mem_bool
+		    {
+		    config.dpmi_size = $2;
+		    if ($2 > 0) c_printf("CONF: %dk bytes DPMI memory\n", $2);
+		    }
 		| DOSMEM mem_bool	{ config.mem_size = $2; }
 		| MATHCO bool		{ config.mathco = $2; }
 		| IPXSUPPORT bool	{ config.ipxsup = $2; }
 		    {
 		    config.ipxsup = $2;
-		    c_printf("CONF: IPX support %s", ($2) ? "on" : "off");
+		    c_printf("CONF: IPX support %s\n", ($2) ? "on" : "off");
 		    }
 		| PKTDRIVER NOVELLHACK	{ config.pktflags = 1; }
 		| SPEAKER speaker
@@ -226,7 +248,7 @@ line		: HOGTHRESH INTEGER	{ config.hogthreshold = $2; }
 		  '{' printer_flags '}'
 		    { stop_printer(); }
 		| STRING
-		    { yyerror("unrecognized command '%s'", $1); }
+		    { yyerror("unrecognized command '%s'", $1); free($1); }
 		| error
 		;
 
@@ -249,7 +271,7 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		| CONSOLE		{ config.console_video = 1; }
 		| FULLREST		{ config.fullrestore = 1; }
 		| PARTREST		{ config.fullrestore = 0; }
-		| VBIOS_FILE STRING	{ config.vbios_file = strdup($2);
+		| VBIOS_FILE STRING	{ config.vbios_file = $2;
 					  config.mapped_bios = 1;
 					  config.vbios_copy = 0; }
 		| VBIOS_COPY		{ config.vbios_file = NULL;
@@ -270,7 +292,8 @@ video_flag	: VGA			{ config.cardtype = CARD_VGA; }
 		      }
 		   }
 		| STRING
-		    { yyerror("unrecognized video option '%s'", $1); }
+		    { yyerror("unrecognized video option '%s'", $1);
+		      free($1); }
 		| error
 		;
 
@@ -286,18 +309,19 @@ term_flag	: METHOD method_val	{ config.term_method = $2; }
 		| COLOR color_val	{ config.term_color = $2; }
 		| CORNER bool		{ config.term_corner = $2; }
 		| STRING
-		    { yyerror("unrecognized terminal option '%s'", $1); }
+		    { yyerror("unrecognized terminal option '%s'", $1);
+		      free($1); }
 		| error
 		;
 
-color_val	: L_OFF			{ return 0; }
-		| L_ON			{ return COLOR_NORMAL; }
-		| NORMAL		{ return COLOR_NORMAL; }
-		| XTERM			{ return COLOR_XTERM; }
+color_val	: L_OFF			{ $$ = 0; }
+		| L_ON			{ $$ = COLOR_NORMAL; }
+		| NORMAL		{ $$ = COLOR_NORMAL; }
+		| XTERM			{ $$ = COLOR_XTERM; }
 		;
 
-method_val	: FAST			{ return METHOD_FAST; }
-		| NCURSES		{ return METHOD_NCURSES; }
+method_val	: FAST			{ $$ = METHOD_FAST; }
+		| NCURSES		{ $$ = METHOD_NCURSES; }
 		;
 
 	/* debugging */
@@ -327,7 +351,7 @@ debug_flag	: VIDEO bool		{ d.video = $2; }
 		| NETWORK bool		{ d.network = $2; }
 		| L_X bool		{ d.X = $2; }
 		| STRING
-		    { yyerror("unrecognized debug flag '%s'", $1); }
+		    { yyerror("unrecognized debug flag '%s'", $1); free($1); }
 		| error
 		;
 
@@ -336,7 +360,7 @@ debug_flag	: VIDEO bool		{ d.video = $2; }
 mouse_flags	: mouse_flag
 		| mouse_flags mouse_flag
 		;
-mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); }
+mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); free($2); }
 		| INTERNALDRIVER	{ mptr->intdrv = TRUE; }
 		| BAUDRATE INTEGER	{ mptr->baudRate = $2; }
 		| CLEARDTR
@@ -386,7 +410,7 @@ mouse_flag	: DEVICE STRING		{ strcpy(mptr->dev, $2); }
 		  mptr->flags = 0;
 		  }
 		| STRING
-		    { yyerror("unrecognized mouse flag '%s'", $1); }
+		    { yyerror("unrecognized mouse flag '%s'", $1); free($1); }
 		| error
 		;
 
@@ -400,7 +424,8 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 		| RAWKEYBOARD bool	{ config.console_keyb = $2; }
 		| KEYBINT bool		{ config.keybint = $2; }
 		| STRING
-		    { yyerror("unrecognized keyboard flag '%s'", $1); }
+		    { yyerror("unrecognized keyboard flag '%s'", $1);
+		      free($1);}
 		| error
 		;
 
@@ -409,7 +434,7 @@ keyboard_flag	: LAYOUT KEYB_LAYOUT	{ keyb_layout($2); }
 serial_flags	: serial_flag
 		| serial_flags serial_flag
 		;
-serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2); }
+serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2); free($2); }
 		| COM INTEGER		{ sptr->real_comport = $2;
 					  com_port_used[$2] = 1; }
 		| BASE INTEGER		{ sptr->base_port = $2; }
@@ -417,7 +442,7 @@ serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2); }
 		| INTERRUPT INTEGER	{ sptr->interrupt = $2; }
 		| MOUSE			{ sptr->mouse = 1; }
 		| STRING
-		    { yyerror("unrecognized serial flag '%s'", $1); }
+		    { yyerror("unrecognized serial flag '%s'", $1); free($1); }
 		| error
 		;
 
@@ -426,12 +451,12 @@ serial_flag	: DEVICE STRING		{ strcpy(sptr->dev, $2); }
 printer_flags	: printer_flag
 		| printer_flags printer_flag
 		;
-printer_flag	: COMMAND STRING	{ pptr->prtcmd = strdup($2); }
+printer_flag	: COMMAND STRING	{ pptr->prtcmd = $2; }
 		| TIMEOUT INTEGER	{ pptr->delay = $2; }
-		| OPTIONS STRING	{ pptr->prtopt = strdup($2); }
-		| L_FILE STRING		{ pptr->dev = strdup($2); }
+		| OPTIONS STRING	{ pptr->prtopt = $2; }
+		| L_FILE STRING		{ pptr->dev = $2; }
 		| STRING
-		    { yyerror("unrecognized printer flag %s", $1); }
+		    { yyerror("unrecognized printer flag %s", $1); free($1); }
 		| error
 		;
 
@@ -445,19 +470,20 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		| FIVEINCH	{ dptr->default_cmos = FIVE_INCH_FLOPPY; }
 		| SECTORS INTEGER	{ dptr->sectors = $2; }
 		| CYLINDERS INTEGER	{ dptr->tracks = $2; }
+		| TRACKS INTEGER	{ dptr->tracks = $2; }
 		| HEADS INTEGER		{ dptr->heads = $2; }
 		| OFFSET INTEGER	{ dptr->header = $2; }
 		| DEVICE STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
-		  dptr->dev_name = strdup($2);
+		  dptr->dev_name = $2;
 		  }
 		| L_FILE STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a disk-image file or device given.");
-		  dptr->dev_name = strdup($2);
+		  dptr->dev_name = $2;
 		  }
 		| HDIMAGE STRING
 		  {
@@ -465,21 +491,21 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		    yyerror("Two names for a harddisk-image file given.");
 		  dptr->type = IMAGE;
 		  dptr->header = HEADER_SIZE;
-		  dptr->dev_name = strdup($2);
+		  dptr->dev_name = $2;
 		  }
 		| WHOLEDISK STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a harddisk given.");
 		  dptr->type = HDISK;
-		  dptr->dev_name = strdup($2);
+		  dptr->dev_name = $2;
 		  }
 		| L_FLOPPY STRING
 		  {
 		  if (dptr->dev_name != NULL)
 		    yyerror("Two names for a floppy-device given.");
 		  dptr->type = FLOPPY;
-		  dptr->dev_name = strdup($2);
+		  dptr->dev_name = $2;
 		  }
 		| L_PARTITION STRING INTEGER
 		  {
@@ -487,14 +513,14 @@ disk_flag	: READONLY		{ dptr->rdonly = 1; }
 		    yyerror("Two names for a partition given.");
 		  dptr->type = PARTITION;
 		  dptr->part_info.number = $3;
-		  dptr->dev_name = strdup($2);
+		  dptr->dev_name = $2;
 
 		  dptr->part_info.file = malloc(strlen(PARTITION_PATH ".")+10); 
 		  dptr->part_info.file = strcpy(dptr->part_info.file,PARTITION_PATH "."); 
 		  dptr->part_info.file = strcat(dptr->part_info.file,dptr->dev_name+5);
 		  }
 		| STRING
-		    { yyerror("unrecognized disk flag '%s'\n", $1); }
+		    { yyerror("unrecognized disk flag '%s'\n", $1); free($1); }
 		| error
 		;
 
@@ -521,22 +547,27 @@ port_flag	: INTEGER
 		| ORMASK INTEGER	{ ports_ormask = $2; }
 		| ANDMASK INTEGER	{ ports_andmask = $2; }
 		| STRING
-		    { yyerror("unrecognized port command '%s'", $1); }
+		    { yyerror("unrecognized port command '%s'", $1);
+		      free($1); }
 		| error
 		;
 
 	/* booleans */
 
-bool		: L_YES
-		| L_NO
-		| L_ON
-		| L_OFF
+bool		: L_YES		{ $$ = 1; }
+		| L_NO		{ $$ = 0; }
+		| L_ON		{ $$ = 1; }
+		| L_OFF		{ $$ = 0; }
 		| INTEGER	{ $$ = $1 != 0; }
+		| STRING        { yyerror("got '%s', expected 'on' or 'off'", $1);
+				  free($1); }
                 | error         { yyerror("expected 'on' or 'off'"); }
 		;
 
 mem_bool	: L_OFF		{ $$ = 0; }
 		| INTEGER
+		| STRING        { yyerror("got '%s', expected 'off' or an integer", $1);
+				  free($1); }
 		| error         { yyerror("expected 'off' or an integer"); }
 		;
 
@@ -545,6 +576,8 @@ mem_bool	: L_OFF		{ $$ = 0; }
 speaker		: L_OFF		{ $$ = SPKR_OFF; }
 		| NATIVE	{ $$ = SPKR_NATIVE; }
 		| EMULATED	{ $$ = SPKR_EMULATED; }
+		| STRING        { yyerror("got '%s', expected 'emulated' or 'native'", $1);
+				  free($1); }
 		| error         { yyerror("expected 'emulated' or 'native'"); }
 		;
 
@@ -1041,6 +1074,11 @@ int
 parse_config(char *confname)
 {
   FILE *volatile fd;
+#if YYDEBUG != 0
+  extern int yydebug;
+
+  yydebug  = 1;
+#endif
 
   c_hdisks = 0;
   c_fdisks = 0;
@@ -1051,8 +1089,8 @@ parse_config(char *confname)
 
   yyin = fd;
   line_count = 1;
-  yyparse();
-
+  if (yyparse())
+    yyerror("error in configuration file");
   close_file(fd);
 
   if (!exchange_uids()) die("Cannot exchange uids\n");
@@ -1064,6 +1102,7 @@ parse_config(char *confname)
 
     sprintf(name, "%s/.dosrc", home);
     fd = open_file(name);
+fprintf(stderr, "PARSE:  opening '%s'\n", name);
     free(name);
   }
   if (!exchange_uids()) die("Cannot changeback uids\n");
@@ -1071,15 +1110,20 @@ parse_config(char *confname)
   if (fd) {
     yyin = fd;
     line_count = 1;
-    yyrestart(fd);
-    yyparse();
+    if (yyparse())
+      yyerror("error in configuration file");
     close_file(fd);
   }
+
+#ifdef TESTING
+  error("TESTING: parser is terminating program\n");
+  leavedos(0);
+#endif
 
   return 1;
 }
 
-#if TESTING
+#ifdef TESTING_MAIN
 int
 main(int argc, char **argv)
 {

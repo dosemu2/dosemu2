@@ -23,6 +23,8 @@
 #include "parser.h"
 int line_count;
 
+extern char* strdup(const char *); /* Not defined in string.h :-( */
+
 #undef YY_DECL
 #define YY_DECL int yylex YY_PROTO(( YYSTYPE* yylval ))
 %}
@@ -80,6 +82,7 @@ threeinch		return(THREEINCH);
 fiveinch		return(FIVEINCH);
 sectors			return(SECTORS);
 cylinders		return(CYLINDERS);
+tracks			return(TRACKS);
 heads			return(HEADS);
 offset			return(OFFSET);
 floppy			return(L_FLOPPY);
@@ -231,19 +234,20 @@ no			{ yylval->i_value = 0; return(L_NO); }
 
 	/* strings */
 
-\"[^\"]*\"		{ yylval->s_value = &yytext[1];
-			  yytext[strlen(yytext)-1] = '\0';
+\"[^\"]*\"		{ yytext[strlen(yytext)-1] = '\0';
+			  yylval->s_value = strdup(&yytext[1]);
 			  return(STRING); }
-\'[^\']*\'		{ yylval->s_value = &yytext[1];
-			  yytext[strlen(yytext)-1] = '\0';
+\'[^\']*\'		{ yytext[strlen(yytext)-1] = '\0';
+			  yylval->s_value = strdup(&yytext[1]);
 			  return(STRING); }
-[a-z0-9/\~@$-_\+=:,\.]+ { yylval->s_value = yytext; return(STRING); }
+[a-z0-9/\~@$-_\+=:,\.]+ { yylval->s_value = strdup(yytext);
+			  return(STRING); }
 
 	/* comments & whitespace */
 
-[#\;\!][^\n]*\n		line_count++;	/* comments to EOLN */
+[#\;\!][^\n]*$		line_count++;	/* comments to EOLN */
 [ \t]+			;   		/* ignore all white space */
 \n			line_count++;	/* keep track of lines seen */
 .			fprintf(stderr, "discarding char '%c'\n", yytext[0]);
 
-%%
+

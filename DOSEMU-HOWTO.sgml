@@ -7,7 +7,7 @@
 
 <title>The dosemu HOWTO
 <author>edited by Mike Deisher, <tt/deisher@dspsun.eas.asu.edu/ 
-<date>v0.52.1, 9 July 1994
+<date>v0.52.2, 5 Aug 1994
 
 <abstract>
 This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
@@ -90,6 +90,21 @@ know about that, don't you.  It is also posted once in a while to the
 MSDOS channel of Linux Activists.  The most recent version can be
 found on <tt>dspsun.eas.asu.edu:/pub/dosemu</tt>.
 
+<sect1>How do I submit changes or additions to the HOWTO?
+
+<p>The preferred method is to edit the file,
+<tt>dosemu-HOWTO-xx.x.sgml</tt> to incorporate the changes, create a
+diff file by typing something like
+
+<verb>
+               diff original-file new-file
+</verb>
+
+and send it to <tt>deisher@dspsun.eas.asu.edu</tt>.  If you do not
+know SGML, that's ok.  Changes or new information in any form will be
+accepted.  Creating the diff file just makes it easier on the HOWTO
+maintainer.  :-)
+
 <sect>Compiling and installing dosemu
 
 <sect1>Where are the installation instructions?
@@ -153,6 +168,8 @@ below).  On a multi-user system you may want to use
 where "home" is the name of an environmental variable that contains
 the location of the dos directory (/dos in this example).
 
+---------------------
+
 <p>Tim Bird (Tim_R_Bird@Novell.COM) states that LREDIR users should
 
 be careful when they use LREDIR in the autoexec, because COMMAND.COM
@@ -161,6 +178,8 @@ the same file offset where it left off in the autoexec.bat on the
 physical drive.  For this reason, it is safest to have the
 autoexec.bat on the redirected drive and the physical drive
 (diskimage) be the same.
+
+---------------------
 
 <p> Robert D. Warren (<tt>rw11258@xx.acs.appstate.edu</tt>) reported
 (4/28/94) that
@@ -194,12 +213,43 @@ distribution).
 from Linux while you are using dosemu with wholedisk or partition
 access.  This is an easy way to destroy the data on your dos partition.]
 
+---------------------
+
+If LILO is installed, the above will not work.  However...
+
+Thomas Mockridge (<tt>thomas@aztec.co.za</tt>) reported (8/5/94) that
+
+To boot dosemu with LILO and Stacker 4.0 I did a little work around...
+
+1. <tt>dd</tt> the MBR to a file. (or norton utility, etc., first 512 bytes)
+
+2. Boot dos (from full boot not emu), do a fdisk /mbr, make your dos
+   partition active with (dos) fdisk.
+
+3. Copy the new MBR to a file.
+
+4. Replace the original MBR
+
+5. Copy the second MBR to /var/lib/dosemu/partition.hda? (Whichever is
+   your dos partition)  
+
+6. Set dosemu.conf 
+<verb>
+               disk {partition "/dev/hda? ?"}
+</verb>
+
+7. Start dosemu and and voila!  No LILO.
+
+---------------------
+
 Holger Schemel (<tt>q99492@pbhrzx.uni-paderborn.de</tt>) reported
 (2/10/94) that
 
 Works even fine under DOSEMU with MS-DOS 6.0. If you have problems, then
 you have to edit the file 'DBLSPACE.INI' manually and change the disk
 letter to the letter your drive gets under DOSEMU.
+
+---------------------
 
 Darren J Moffat (<tt>moffatd@dcs.gla.ac.uk</tt>) also reported
 (3/27/94)
@@ -598,6 +648,8 @@ TIP: Use the nnansi.com ANSI driver to speed up the "dir" output
 even more at roughly 50%-100% more.  It works properly in non-graphics 
 mode, unlike turbo.com.  
 
+---------------------
+
 <p>Joel M. Hoffman (<tt>joel@rac1.wam.umd.edu</tt>)
 reported (4/23/94) that
 
@@ -615,6 +667,8 @@ Put the following in your .emacs:
 and then "emacs -f do-dos" will run the dosemu inside the buffer.
 Make sure you emacs window is 25x80, of course.
 
+---------------------
+
 <p>Pete Heist (<tt>heistp@rpi.edu</tt>) reported (5/13/94) that
 
 If you compile it with the "<tt>-funroll-all-loops</tt>" option you
@@ -622,6 +676,8 @@ will get MUCH faster screen output.  Some other parts of the emulator
 will run much faster as well.  Realize that the consequence of this is
 a larger executable which eats a little more memory, even though it's
 demand loaded.
+
+---------------------
 
 <p>Georg Wiegand (<tt>gw@gwcomp.e.open.de</tt>) reported (5/16/94)
 that

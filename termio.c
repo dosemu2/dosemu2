@@ -20,11 +20,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/01 14:26:23 $
+ * $Date: 1994/08/09 01:49:57 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.7 $
+ * $Revision: 2.8 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.8  1994/08/09  01:49:57  root
+ * Prep for pre53_11.
+ *
  * Revision 2.7  1994/08/01  14:26:23  root
  * Prep for pre53_7  with Markks latest, EMS patch, and Makefile changes.
  *
@@ -556,7 +559,7 @@ gettermcap(void)
   for (fkp = funkey; fkp->code; fkp++) {
     if (fkp->tce != NULL) {
       fkp->esc = tigetstr(fkp->tce);
-      error("TERMINFO string %s = %s\n", fkp->tce, fkp->esc);
+      k_printf("TERMINFO string %s = %s\n", fkp->tce, fkp->esc);
       /*if (!fkp->esc) error("ERROR: can't get terminfo %s\n", fkp->tce);*/
     }
   }
@@ -591,6 +594,17 @@ CloseKeyboard(void)
   }
 }
 
+struct termios save_termios;
+
+void print_termios(struct termios term) {
+ k_printf("KBD: TERMIOS Structure:\n");
+ k_printf("KBD: 	c_iflag=%x\n", term.c_iflag);
+ k_printf("KBD: 	c_oflag=%x\n", term.c_oflag);
+ k_printf("KBD: 	c_cflag=%x\n", term.c_cflag);
+ k_printf("KBD: 	c_lflag=%x\n", term.c_lflag);
+ k_printf("KBD: 	c_line =%x\n", term.c_line);
+}
+
 static int
 OpenKeyboard(void)
 {
@@ -600,6 +614,7 @@ OpenKeyboard(void)
   struct new_utsname unames;
 
   uname(&unames);
+  fprintf(stderr, "DOSEMU%s is coming up on %s version %s\n", VERSTR, unames.sysname, unames.release);
   if (unames.release[0] > 0 ) {
     if ((unames.release[2] == 1  && unames.release[3] > 1 ) || 
          unames.release[2] > 1 ) {
@@ -655,6 +670,7 @@ OpenKeyboard(void)
   }
 
   newtermio = oldtermio;
+#if 0
   newtermio.c_iflag &= (ISTRIP | IGNBRK);  /* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
   /* newtermio.c_oflag &= ~OPOST; */
   newtermio.c_lflag &= 0;                  /* ISIG */
@@ -663,9 +679,8 @@ OpenKeyboard(void)
   erasekey = newtermio.c_cc[VERASE];
   if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
     error("ERROR: Couldn't ioctl(STDIN,TCSETAF,...) !\n");
-    /* close(kbd_fd); kbd_fd = -1; return -1;  <---- XXXXXXXX remove this */
   }
-
+#endif
   if (config.console_keyb || config.console_video)
     set_process_control();
 
@@ -673,16 +688,10 @@ OpenKeyboard(void)
   child_kbd_flags = 0;
   key_flags = 0;
 
-  if (config.console_keyb) {
-    set_raw_mode();
-    get_leds();
-    set_key_flag(KKF_KBD102);
-  }
-
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.7 1994/08/01 14:26:23 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.8 1994/08/09 01:49:57 root Exp root $\n");
 
   return 0;
 }
@@ -691,18 +700,21 @@ void
 clear_raw_mode()
 {
   do_ioctl(ioc_fd, KDSKBMODE, K_XLATE);
+  if (tcsetattr(ioc_fd, TCSAFLUSH, &save_termios) < 0) {
+    k_printf("KBD: Resetting Keyboard to K_XLATE mode failed.\n");
+    return;
+  }
 }
 
 void
 set_raw_mode()
 {
-  k_printf("Setting keyboard to RAW mode\n");
+  k_printf("KBD: Setting keyboard to RAW mode\n");
   if (!config.console_video)
     fprintf(stderr, "\nEntering RAW mode for DOS!\n");
   do_ioctl(ioc_fd, KDSKBMODE, K_RAW);
+  tty_raw(ioc_fd);
 }
-
-static struct termios save_termios;
 
 int
 tty_raw(int fd)
@@ -711,22 +723,31 @@ tty_raw(int fd)
 
   if (tcgetattr(fd, &save_termios) < 0)
     return (-1);
+
   buf = save_termios;
 
+  print_termios(buf);
+
   buf.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  buf.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+  buf.c_iflag &= ~(IMAXBEL | IGNBRK | IGNCR | IGNPAR | BRKINT | INLCR | ICRNL | INPCK | ISTRIP | IXON | IUCLC | IXANY | IXOFF | IXON);
   buf.c_cflag &= ~(CSIZE | PARENB);
+  buf.c_oflag &= ~(OCRNL | OLCUC | ONLCR | OPOST);
   buf.c_cflag |= CS8;
-  buf.c_oflag &= ~(OPOST);
-  buf.c_cc[VMIN] = 2;
+  buf.c_cc[VMIN] = 1;
   buf.c_cc[VTIME] = 0;
 
-  if (tcsetattr(fd, TCSAFLUSH, &buf) < 0)
+  k_printf("KBD: Setting TERMIOS Structure.\n");
+
+  print_termios(buf);
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &buf) < 0) { 
+    k_printf("KBD: Setting to RAW mode failed.\n");
     return (-1);
-#if 0
-  ttystate = RAW;
-  ttysavefd = fd;
-#endif
+  }
+  if (tcgetattr(fd, &buf) < 0) {
+    k_printf("Termios ERROR\n");
+  }
+  print_termios(buf);
+
   return (0);
 }
 
@@ -741,7 +762,7 @@ getKeys(void)
 
     /* IPC change here!...was read(kbd_fd... */
     cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - 1);
-    k_printf("KEY: cc found %d characters\n", cc);
+    k_printf("KBD: cc found %d characters\n", cc);
     if (cc == -1) return;
 
     if (cc > 0) {
@@ -749,7 +770,7 @@ getKeys(void)
       for (i = 0; i < cc; i++) {
         child_set_flags(kbp[kbcount + i]);
         DOS_setscan(kbp[kbcount + i]);
-        k_printf("KEY: cc pushing %d'th character\n", i);
+        k_printf("KBD: cc pushing %d'th character\n", i);
       }
     }
   }
@@ -764,7 +785,7 @@ getKeys(void)
 
     /* IPC change here!...was read(kbd_fd... */
     cc = read(kbd_fd, &kbp[kbcount], KBBUF_SIZE - kbcount - 1);
-    k_printf("KEY: cc found %d characters\n", cc);
+    k_printf("KBD: cc found %d characters\n", cc);
     if (cc == -1) return;
 
     if (cc > 0) {
@@ -772,7 +793,7 @@ getKeys(void)
 	error("ERROR: getKeys() has overwritten the buffer!\n");
       kbcount += cc;
       while (cc) {
-        k_printf("Converting cc=%d\n", cc);
+        k_printf("KBD: Converting cc=%d\n", cc);
         convascii(&cc);
       }
     }
@@ -840,7 +861,7 @@ child_set_flags(int sc)
     if ( child_kbd_flag(3) && child_kbd_flag(2) && !child_kbd_flag(1) ) {
       int fnum = sc - 0x3a;
 
-      k_printf("Doing VC switch\n");
+      k_printf("KDB: Doing VC switch\n");
       if (fnum > 10)
 	fnum -= 0x12;		/* adjust if f11 or f12 */
 
@@ -1003,7 +1024,7 @@ InsKeyboard(unsigned short scancode)
 convKey(int scancode)
 {
 
-  k_printf("convKey = 0x%04x\n", scancode);
+  k_printf("KBD: convKey = 0x%04x\n", scancode);
 
   if (scancode == 0)
     return 0;
@@ -1057,7 +1078,15 @@ termioInit()
     error("ERROR: can't open keyboard\n");
     leavedos(19);
   }
+
   terminal_initialize(); 
+
+  if (config.console_keyb) {
+    set_raw_mode();
+    get_leds();
+    set_key_flag(KKF_KBD102);
+  }
+
   setupterm(NULL, 1, (int *)0);
   gettermcap();
   li = 25;
@@ -1088,7 +1117,7 @@ convscanKey(unsigned char scancode)
 {
   static unsigned char rep = 0xff;
 
-  k_printf("convscanKey scancode = 0x%04x\n", scancode);
+  k_printf("KBD: convscanKey scancode = 0x%04x\n", scancode);
 
   if (scancode == 0xe0) {
     set_key_flag(KKF_E0);
@@ -1132,7 +1161,7 @@ convscanKey(unsigned char scancode)
   queue = 0;
   key_table[scancode] (scancode);
 
-  k_printf("resetid = %d firstid = %d\n", resetid, firstid);
+  k_printf("KBD: resetid = %d firstid = %d\n", resetid, firstid);
   if (resetid) {
     if (firstid)
       clr_key_flag(KKF_FIRSTID);
@@ -1277,7 +1306,7 @@ static void
 Scroll(unsigned int sc)
 {
   if (key_flag(KKF_E0)) {
-    k_printf("ctrl-break!\n");
+    k_printf("KBD: ctrl-break!\n");
     ignore_segv++;
     *(unsigned char *) 0x471 = 0x80;	/* ctrl-break flag */
     KBD_Head = KBD_Tail = KBD_Start;
@@ -1322,7 +1351,7 @@ num(unsigned int sc)
   static int lastpause = 0;
 
   if (kbd_flag(EKF_LCTRL)) {
-    k_printf("PAUSE!\n");
+    k_printf("KBD: PAUSE!\n");
     if (lastpause) {
       I_printf("IPC: waking parent up!\n");
 #if 0
@@ -1341,11 +1370,11 @@ num(unsigned int sc)
   else {
     set_kbd_flag(EKF_NUMLOCK);
     if (!num_stat) {
-      k_printf("NUMLOCK!\n");
+      k_printf("KBD: NUMLOCK!\n");
       if (keepkey) {
 	chg_kbd_flag(KF_NUMLOCK);
       }
-      k_printf("kbd=%d\n", kbd_flag(KF_NUMLOCK));
+      k_printf("KBD: kbd=%d\n", kbd_flag(KF_NUMLOCK));
       set_leds();
       num_stat = 1;
     }
@@ -1383,7 +1412,7 @@ set_leds()
   else
     clr_key_flag(KKF_CAPSLOCK);
 
-  k_printf("SET_LEDS() called\n");
+  k_printf("KBD: SET_LEDS() called\n");
   do_ioctl(ioc_fd, KDSETLED, led_state);
 }
 
@@ -1412,7 +1441,7 @@ get_leds()
   else {
     clr_kbd_flag(KF_CAPSLOCK);
   }
-  k_printf("KEY: GET LEDS key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
+  k_printf("KBD: GET LEDS key 96 0x%02x, 97 0x%02x, kbc1 0x%02x, kbc2 0x%02x\n",
 	   *(u_char *) 0x496, *(u_char *) 0x497, *(u_char *) 0x417, *(u_char *) 0x418);
 }
 
@@ -1463,7 +1492,7 @@ do_self(unsigned int sc)
   if (kbd_flag(KF_CTRL))	/* ctrl */
     ch &= 0x1f;
 
-  k_printf("sc=%02x, ch=%02x\n", sc, ch);
+  k_printf("KBD: sc=%02x, ch=%02x\n", sc, ch);
 
   put_queue((sc << 8) | ch);
 }
@@ -1516,7 +1545,7 @@ cursor(unsigned int sc)
     if (sc == 0x53 /*del*/  || sc == 0x49 /*pgup*/ )
       dos_ctrl_alt_del();
     if (sc == 0x51) {		/*pgdn*/
-      k_printf("ctrl-alt-pgdn taking her down!\n");
+      k_printf("KBD: ctrl-alt-pgdn taking her down!\n");
       leavedos(0);
     }
     /* if the arrow keys, or home end, do keyboard mouse */
@@ -1620,7 +1649,7 @@ func(unsigned int sc)
 
 #define FCH(n,a,b) ((n <= 10) ? a : b)
 
-  k_printf("sc=%x, fnum=%x\n", sc, fnum);
+  k_printf("KBD: sc=%x, fnum=%x\n", sc, fnum);
 
   if (kbd_flag(KF_LSHIFT) || kbd_flag(KF_RSHIFT))
     put_queue((sc + FCH(fnum, 0x19, 0x30)) << 8);
@@ -1639,7 +1668,7 @@ void
 activate(int con_num)
 {
   if (in_ioctl) {
-    k_printf("can't ioctl for activate, in a signal handler\n");
+    k_printf("KBD: can't ioctl for activate, in a signal handler\n");
     do_ioctl(ioc_fd, VT_ACTIVATE, con_num);
   }
   else
@@ -1652,7 +1681,7 @@ do_ioctl(int fd, int req, int param3)
   int tmp;
 
   if (in_sighandler && in_ioctl) {
-    k_printf("do_ioctl(): in ioctl %d 0x%04x 0x%04x.\nqueuing: %d 0x%04x 0x%04x\n",
+    k_printf("KBD: do_ioctl(): in ioctl %d 0x%04x 0x%04x.\nqueuing: %d 0x%04x 0x%04x\n",
 	     curi.fd, curi.req, curi.param3, fd, req, param3);
     queue_ioctl(fd, req, param3);
     errno = EDEADLOCK;
@@ -1668,7 +1697,7 @@ do_ioctl(int fd, int req, int param3)
     curi.req = req;
     curi.param3 = param3;
     if (iq.queued) {
-      k_printf("detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
+      k_printf("KBD: detected queued ioctl in do_ioctl(): %d 0x%04x 0x%04x\n",
 	       iq.fd, iq.req, iq.param3);
     }
     tmp = ioctl(fd, req, param3);

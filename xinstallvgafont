@@ -7,17 +7,8 @@
 # ag115@freenet.carleton.ca
 #
 
-# Test if the user isn't root, and then display a warning message.
-if ! [ "$USER" = "root" ]; then
-	echo "You aren't root, so this script is unable to install the font."
-	echo "If you prefer not to run this script as root, you can manually install"
-	echo "the VGA font by copying the file 'vga.pcf' to /usr/lib/X11/fonts/misc"
-	echo "and then going in that directory, then type the 'mkfontdir' command to"
-	echo "compile the font."
-	echo ""
-
 # Test for existence of /usr/lib/X11
-elif ! [ -e /usr/lib/X11 ]; then
+if ! [ -e /usr/lib/X11 ]; then
 	echo "This system doesn't have a /usr/lib/X11 directory!"
 	echo "Perhaps you don't have Xwindows installed?"
 

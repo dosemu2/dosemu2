@@ -1,5 +1,6 @@
 
 
+
                  _____________________________________
                 |                                     |
                 |       Dosemu Project Registry       |
@@ -78,7 +79,7 @@ Video maintaince: - James MacLean (again, dosen't he ever rest :)
         This is mainly bug fixing the DOSEMU video routines.
 
 
-*Xwindows color/graphics support: - Jason E Gorden
+*Xwindows color/graphics support: - Jason E Gorden - marky
 
         Xwindows support needs to be added.  Ideally dosemu, when run
 would open a color xterm, then run color text dos programs.  When a
@@ -116,8 +117,9 @@ Graphics in a xwindow is just a dream right now...
 {sunsite.unc.edu:/pub/Linux/X11/xutils/terms/ansi_xterm-src.tgz.
 
 
-*Text output: - Savio Lam, Corey Sweeney (Me) and Mark Rejhon
+*Text output: - Mark Rejhon
 
+        -* This is done except for bugfixing *-
 Right now, termcap is being used.  Color & the IBM charactor set 
 must be added to dosemu.  By using ncurses, not only will we pick 
 up a terminal-independant way of displaying color, but we will also 
@@ -132,9 +134,10 @@ mapping would be easy to handle, as long as only ASCII codes above 32
 are used.
 
 
+
 Serial maintaince: - Mark Rejhon (formerly Ronnie)
 
-	This is the code for modems and mice.  It has a big performance
+        This is the code for modems and mice.  It has a big performance
 increase over previous serial code.  Currently, serial performance 
 ranges from 9600bps to 38400bps in DOSEMU, with an excellent emulation
 of a 16550 UART, even on serial ports that does not have a 16550.
@@ -169,6 +172,8 @@ reported to work with dosemu.
 
 DANG: - Alistair Macdonald
 
+        -* the dang has pretty much been finished
+                        the DANG now updates it'self *-
         For those of you who don't remember the DANG is a document
 that provides information on the differn't sections of dosemu.  It's
 soposto be a helpfull guide for C programmers who wish to make a
@@ -223,6 +228,8 @@ http://www.theo-physik.uni-kiel.de/~molgedey/projects/computing/linux/dosemu.
 
 One part of DPMI is getting Windows 3.1 to run. Lutz could need any help with
 it since he hates undocumented functions :-).
+
+
 
 
 *Performance improvements:  Linus & Lutz - (Tim played with this, but
@@ -283,25 +290,23 @@ comforms to the debian instalation standard.  It would probably be a
 good idea for him to make james start following the FFSSTTD.
 
 
-------------------------------------------------------------------
 
-The following projects need someone to work on them:
+dynamic setup: - mike
+
+        this should allow you to change the dosemu configureation
+while it is running. (example turn off the speaker after it gets
+annoying). I have no idea how this is going allong.
 
 
-Memory:
 
-The memory for dosemu needs to be dynamically allocated.  This means
-that the linux system should be using all available memory for
-buffers,  when dosmeu starts up,  it only takes the ammount of memory
-that it needs to run the dosemu system it'self and the 640K to run the
-program.  Then when the program requests memory from the system, the
-dosemu system should take the nessacary memory from the linux buffers,
-and allocate it as EMS or XMS (whichever was requested).  Once that
-program gives up the memory, dosmeu should return the memory to the
-linux system.
+Name: LEXEC - Amit Margalt & Oren Tirosh
 
-Note that this eliminates the need to colectivize XMS & EMS into one
-memory pool, and it also eliminates the need to colectivize the memory
+Description: 
+
+LEXEC enables the user to run Linux programs from within DOSEMU, piping the I/O
+
+through DOSEMU itself between the Linux program and the DOS "console"...
+Our ideize the memory
 pools of every dosemu session running at the same time.
 
 I checked the way that this works right now.  And it appears that the
@@ -322,7 +327,8 @@ Terminal input:
 The extended keys (ex: F12, Shift-F5, Controll-Pageup, Alt-Shift) must
 be recognized by dosemu.  Some keys like the F11 & F12 must be added
 as specified in the TNT (which is now becoming integrated into the dos
-FAQ). Pageup, and tilda (that little squigle) fall into this catagory
+FAQ (which is now the dosemu HOWTO)).
+Pageup, and tilda (that little squigle) fall into this catagory
 too.  However to get things like Shift-F5 to work, a special kind of
 process must be made.  This process must be rigged so that when the 
 correct sequence to represent the shift key being pressed, is passed
@@ -361,41 +367,8 @@ map to dynamically change drive mappings etc.
 {API calls into Linux IPX socket calls. Since the release of patch level 
 {14 of Linux, there is a kernel driver for the IPX protocol.  Although it 
 {has some bugs, I am confident that they will be worked out soon, and I 
-{have also heard of another, independent effort to get the IPX protocol 
-{working on Linux (via the X-Kernel protocol stack from the University of 
-{Arizona).  In any event, I believe that relatively soon, Linux will have  
-{a reliable IPX protocol stack running.  My IPX API emulation will allow 
-{DOS programs which use IPX (such as the NetWare shell) to be supported in 
-{DOSEMU.  I am almost finished with a first cut of the IPX emulation.  The 
-{last part I need to work on is integrating my asynchronous callouts with 
-{the DOSEMU 2-process IPC system.
-
-
-Sound driver - link emulated soundblaster card to the sound device.
-
-Divide overflow error - fix the "24" hour bug.
-
-Add .config file support (it checks the users home directory for a config
-file *then* looks for the default)
-
-
-------------------------------------------------------------------------
-
-Future project ideas:
-
-more video card drivers (eg. S3)
-how to become a developer document
-internetional keyboard support - there used to be a problem with this.
-        has it been fixed?
-
-automatic "ports" assignment (create a "jill" config script, that can
-be called with "dos -s jill 2> /dev/tty8" - basically the idea here
-would be that people could distribute litte configuration files for
-certain programs.  (possibly called config.jill or config.simearth
-(you get the pattern))
-
-run console mode as non-root
-boot from memory image (this would decrase the delay before you run
+{have also heard of another, independent eot from memory image (this would
+decrase the delay before you run
         your program.
 
 automatic dos program execution
@@ -478,11 +451,8 @@ Mark Rejhon             - ag115@freenet.carleton.ca
 Michael E. Deisher      - deisher@enws99.EAS.ASU.EDU
 James Maclean           - jmaclean@fox.nstn.ns.ca
 Larry Stephan           - jlarry@ssnet.com
-Lutz Molgedey		- molgedey@solid.theo-physik.uni-kiel.de
+Lutz Molgedey           - molgedey@solid.theo-physik.uni-kiel.de
+Amit Margalt            - amit@tavis.enet.dec.com
 
 Corey Sweeney
 corey@bbs.xnet.com
-
-
-
-------------------------------

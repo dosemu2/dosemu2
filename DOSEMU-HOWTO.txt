@@ -1,6 +1,6 @@
   The dosemu HOWTO
   edited by Mike Deisher, deisher@dspsun.eas.asu.edu
-  v0.52.1, 9 July 1994
+  v0.52.2, 5 Aug 1994
 
   This is the `Frequently Asked Questions' (FAQ) / HOWTO document for
   dosemu.  The most up-to-date version of the dosemu-HOWTO may be found
@@ -87,6 +87,22 @@
   found on dspsun.eas.asu.edu:/pub/dosemu.
 
 
+  1.5.  How do I submit changes or additions to the HOWTO?
+
+  The preferred method is to edit the file, dosemu-HOWTO-xx.x.sgml to
+  incorporate the changes, create a diff file by typing something like
+
+
+                 diff original-file new-file
+
+
+
+  and send it to deisher@dspsun.eas.asu.edu.  If you do not know SGML,
+  that's ok.  Changes or new information in any form will be accepted.
+  Creating the diff file just makes it easier on the HOWTO maintainer.
+  :-)
+
+
   2.  Compiling and installing dosemu
 
   2.1.  Where are the installation instructions?
@@ -112,6 +128,8 @@
   a.k.a. Top Ten Stupid Mistakes installing dosemu (7/9/94)
 
 
+
+
   1. Don't read the QuickStart Guide.
   2. Try to compile with a kernel older than 1.0.8.
   3. Try to compile with an *unpatched* kernel >= 1.0.8.
@@ -127,7 +145,6 @@
 
   [Please send me your stupid mistakes for inclusion in this list.  I
   promise you will remain anonymous.  ;-)]
-
 
 
   3.  Hard disk setup
@@ -158,6 +175,8 @@
   where "home" is the name of an environmental variable that contains
   the location of the dos directory (/dos in this example).
 
+  ---------------------
+
 
   Tim Bird (Tim_R_Bird@Novell.COM) states that LREDIR users should
 
@@ -168,13 +187,14 @@
   autoexec.bat on the redirected drive and the physical drive
   (diskimage) be the same.
 
+  ---------------------
+
 
   Robert D. Warren (rw11258@xx.acs.appstate.edu) reported (4/28/94) that
 
   I boot off a small hdimage file (less than 1 MB - and twice as large
   as needs be at that), and the next to last line in my config.sys file
   on the hdimage boot image is:
-
 
           install=c:\lredir.exe LINUX\FS\home/dos
 
@@ -195,7 +215,6 @@
 
   line in their dosemu config file.  Others have had success using
 
-
      disk { partition "/dev/hda1" 1 }
 
 
@@ -207,12 +226,43 @@
   access.  This is an easy way to destroy the data on your dos
   partition.]
 
+  ---------------------
+
+  If LILO is installed, the above will not work.  However...
+
+  Thomas Mockridge (thomas@aztec.co.za) reported (8/5/94) that
+
+  To boot dosemu with LILO and Stacker 4.0 I did a little work around...
+
+  1. dd the MBR to a file. (or norton utility, etc., first 512 bytes)
+
+  2. Boot dos (from full boot not emu), do a fdisk /mbr, make your dos
+  partition active with (dos) fdisk.
+
+  3. Copy the new MBR to a file.
+
+  4. Replace the original MBR
+
+  5. Copy the second MBR to /var/lib/dosemu/partition.hda? (Whichever is
+  your dos partition)
+
+  6. Set dosemu.conf
+
+                 disk {partition "/dev/hda? ?"}
+
+
+
+  7. Start dosemu and and voila!  No LILO.
+
+  ---------------------
+
   Holger Schemel (q99492@pbhrzx.uni-paderborn.de) reported (2/10/94)
   that
 
   Works even fine under DOSEMU with MS-DOS 6.0. If you have problems,
   then you have to edit the file 'DBLSPACE.INI' manually and change the
   disk letter to the letter your drive gets under DOSEMU.
+  ---------------------
 
   Darren J Moffat (moffatd@dcs.gla.ac.uk) also reported (3/27/94)
 
@@ -262,6 +312,7 @@
   According to jmorriso@bogomips.ee.ubc.ca, "dosemu still clobbers COM4
   (0x2e8, IRQ 5). 0x2e8 isn't in ports{} in config.  I have to run
   setserial /dev/cua3 irq 5 on it after dosemu exits."
+
   This is caused by your VGA BIOS.  I have found that by enabling the IO
   port trace and seeing where it was clobbered.
 
@@ -328,6 +379,7 @@
   Then add a "ka" entry to your termcap.  After that, every time you hit
   the sequence stored in your termcap for ka, your dos program recog-
   nizes an "F11."
+
   Warning:  Make sure that ka is not in use in your termcap.  If it is
   you are headed for trouble.
 
@@ -407,6 +459,7 @@
   I'll pass along some directions.
 
 
+
   6.  dosemu and X-windows
 
   6.1.  Can I run dosemu in console mode while running X?
@@ -459,7 +512,6 @@
   the font information in tmp/fontdata.  I use a file called fix which
   consists of the line:
 
-
      restorefont -r /tmp/fontdata
 
 
@@ -474,7 +526,6 @@
 
   [The screen flickers violently, displays the video BIOS startup
   message, and hangs.]
-
   Andrew Tridgell (tridge@nimbus.anu.edu.au) reported (1/29/94) that
 
   I found with early versions it would work if I used:
@@ -589,9 +640,6 @@
   You should disable your video and/or bios caching.
 
 
-
-
-
   9.4.  Some dos applications still do not detect DPMI under dosemu0.52.
 
   James B. MacLean (jmaclean@fox.nstn.ns.ca) reported (6/19/94) that
@@ -609,7 +657,6 @@
 
   This is a known bug.  It will (hopefully) be fixed in an upcoming
   release.  For now, you can simply exit dosemu and start it again.
-
 
   9.6.  Why will dosemu run in a term but not in the console?
 
@@ -632,6 +679,8 @@
   more at roughly 50%-100% more.  It works properly in non-graphics
   mode, unlike turbo.com.
 
+  ---------------------
+
 
   Joel M. Hoffman (joel@rac1.wam.umd.edu) reported (4/23/94) that
 
@@ -650,6 +699,8 @@
   and then "emacs -f do-dos" will run the dosemu inside the buffer.
   Make sure you emacs window is 25x80, of course.
 
+  ---------------------
+
 
   Pete Heist (heistp@rpi.edu) reported (5/13/94) that
 
@@ -658,6 +709,10 @@
   much faster as well.  Realize that the consequence of this is a larger
   executable which eats a little more memory, even though it's demand
   loaded.
+
+  ---------------------
+
+
   Georg Wiegand (gw@gwcomp.e.open.de) reported (5/16/94) that
 
   You also can use the keyword HogThreshold in /etc/dosemu.conf.  The
@@ -723,7 +778,6 @@
 
 
 
-
   Shouldn't be a problem in dosemu0.52.
 
 
@@ -779,17 +833,6 @@
   James B. MacLean (jmaclean@fox.nstn.ns.ca) is responsible for
   organizing the latest releases of dosemu.
 
-
-
-
-
-
-
-
-
-
-
-
                          History of dosemu
 
             Version    Date                Person
@@ -818,6 +861,29 @@
   The dosemu project is a team effort.  If you wish to contribute, see
   the DPR (DOSEMU Project Registry).  A current copy may be found in
   dspsun.eas.asu.edu:/pub/dosemu.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
