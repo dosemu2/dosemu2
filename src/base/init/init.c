@@ -188,6 +188,8 @@ void hardware_setup(void)
   pic_unmaski(PIC_IRQ1);
   pic_seti(PIC_IRQ8, rtc_int8, 0, NULL);
   pic_unmaski(PIC_IRQ8);
+  pic_seti(PIC_IRQ13, do_irq, 0, NULL);
+  pic_unmaski(PIC_IRQ13);
 #ifdef USING_NET
 #ifdef IPX
   pic_seti(PIC_IPX, ipx_receive, 0, ipx_recv_esr_call);
