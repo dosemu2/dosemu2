@@ -20,7 +20,7 @@ Yup, that's the trick ;-)
 However, to 'compile with -g' one has to do:
 
     make pristine
-    ./default-configure --enable-dodebug
+    ./default-configure --enable-debug
     make
 
 > (but its very difficult to debug programs under
@@ -34,6 +34,30 @@ its nearly impossible, for that we have 'dosdebug', the bultin debugger.
 
 hmm, can gdb handle 16 bit code or even segmented code?
 
-
 Hans
 <lermen@fgan.de>
+
+Bart:
+It can handle 16 bit code but you have to handle the segmentation yourself,
+e.g. use
+  set architecture i8086
+  x/20i 0x9089*16+0x18e
+to dump 9089:019e
+
+Another issue is that whilst single stepping the SIGALRM handler may
+disturb. You can avoid that using hooks, as below, and paste everything
+into a .gdbinit file.
+
+define hook-stop
+     handle SIGALRM nopass
+end
+     
+define hook-run
+     handle SIGALRM pass
+end
+     
+define hook-continue
+     handle SIGLARM pass
+end
+
+handle SIGSEGV nostop noprint
