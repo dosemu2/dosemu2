@@ -4,4 +4,19 @@
 # install DOSEMU.
 #
 
-include $(REALTOPDIR)/src/arch/$(OS)/Makefile.main
+ifndef REALTOPDIR
+# user did 'make'  from ./dosemu/src directory (here)
+
+ifndef WAIT
+  export WAIT=no
+endif
+
+default .DEFAULT:
+	@$(MAKE) -C ../ $@
+
+else
+# we are invoked via top Makefile
+
+  include $(REALTOPDIR)/src/arch/$(OS)/Makefile.main
+
+endif

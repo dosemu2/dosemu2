@@ -647,7 +647,7 @@ void putrawkey(t_rawkeycode code) {
 
       is_shift = do_shift_keys(make,key);
 
-      ascii = (make && !is_shift) ? translate(key, &is_accent) : 0;
+      ascii = (make && !is_shift) ? translate(key, &is_accent) : (is_accent=0);
 
       /* quick hack: translate ALT+letter keys */
       if (   config.keyboard != KEYB_US && (shiftstate & ALT)
@@ -657,7 +657,7 @@ void putrawkey(t_rawkeycode code) {
         key = ascii_keys[config.key_map[key] - 0x20];
       }
 
-#if 0     
+#if 1     
       k_printf("KBD: in putrawkey(): make=%d is_shift=%d key=%08x isaccent=%d ascii=0x%02x\n",
                make,is_shift,key,is_accent,ascii);
 #endif

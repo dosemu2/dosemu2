@@ -1,6 +1,9 @@
 # Makefile for DOSEMU
 #
 
+# defining some (development wise) temporary variables
+XXXCFLAGS = -DTEMP_DISABLED
+
 # exporting some './configure-independend' variables
 #
 export VERSION=$(shell cut -d. -f1 VERSION)
@@ -43,7 +46,12 @@ else
 #
 include Makefile.conf
 
+CFLAGS += $(XXXCFLAGS)
+export CFLAGS
+
+ifndef WAIT
 export WAIT=yes
+endif
 export do_DEBUG=no
 
 

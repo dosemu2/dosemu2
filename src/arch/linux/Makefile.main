@@ -303,8 +303,8 @@ versetup:
 	@ln -sf $(BINPATH)/commands ../commands
 
 
-doslibnew: 
-	$(MAKE) doslib
+doslibnew: doslib
+
 
 doslib: $(REQUIRED) all
 	@echo ""

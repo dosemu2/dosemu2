@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.67.10
+<date> version dosemu-0.67.11
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -196,6 +196,241 @@ These are the functions defined in include/emu.h.
  The var `fatalerr` can be given a true value at any time to have DOSEMU
  exit on the next return from vm86 mode.
  
+<sect>The Init group of Modules
+
+<p>
+These files are used for initialization and runtime configuration of DOSEMU
+
+
+<sect1>base/init/init.c Information
+
+<p>
+<sect1>Functions in base/init/init.c
+
+<p>
+These are the functions defined in base/init/init.c.
+
+<sect2>dosemu_banner
+
+
+<p>
+ 
+  Setup the call stack to draw the dosemu banner
+ 
+ 
+
+
+<sect2>stdio_init
+
+
+<p>
+ 
+  Initialize stdio, open debugging output file if user specified one
+ 
+ 
+
+
+<sect2>tmpdir_init
+
+
+<p>
+ 
+  Initialize the temporary directory
+ 
+ 
+
+
+<sect2>time_setting_init
+
+
+<p>
+ 
+  Beats me
+ 
+ 
+
+
+<sect2>timer_interrupt_init
+
+
+<p>
+ 
+  Tells the OS to send us periodic timer messages
+ 
+ 
+
+
+<sect2>hardware_setup
+
+
+<p>
+ 
+  Initialize any leftover hardware. 
+ 
+ 
+
+
+<sect2>map_video_bios
+
+
+<p>
+ 
+  Map the video bios into main memory
+ 
+ 
+
+
+<sect2>map_hardware_ram
+
+
+<p>
+ 
+  Initialize the hardware direct-mapped pages
+ 
+ 
+
+
+<sect2>map_custom_bios
+
+
+<p>
+ 
+  Setup the dosemu amazing custom BIOS
+ 
+ 
+
+
+<sect2>bios_mem_setup
+
+
+<p>
+ 
+  Set up all memory areas as would be present on a typical i86 during
+ the boot phase.
+ 
+ 
+
+
+<sect2>memory_init
+
+
+<p>
+ 
+  Set up all memory areas as would be present on a typical i86 during
+ the boot phase.
+ 
+ 
+
+
+<sect2>device_init
+
+
+<p>
+ 
+  Calls all initialization routines for devices (keyboard, video, serial,
+    disks, etc.)
+ 
+ 
+
+
+<sect2>low_mem_init
+
+
+<p>
+ 
+  Initializes the lower 1Meg via mmap &amp; sets up the HMA region
+ 
+ 
+
+
+<sect2>version_init
+
+
+<p>
+ 
+  Find version of OS running and set necessary global parms.
+ 
+ 
+
+
+<sect1>Items for Fixing in base/init/init.c
+
+<p>
+ config.timer is undocumented and probably obsolete
+
+<sect1>base/init/config.c Information
+
+<p>
+<sect1>Functions in base/init/config.c
+
+<p>
+These are the functions defined in base/init/config.c.
+
+<sect2>config_defaults
+
+
+<p>
+ 
+ Set all values in the `config` structure to their default
+ value. These will be modified by the config parser.
+ 
+ 
+
+
+<sect2>config_init
+
+
+<p>
+ 
+ This is called to parse the command-line arguments and config
+ files. 
+ 
+ 
+
+
+<sect2>parse_debugflags
+
+
+<p>
+ 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  s - string of options.
+</itemize>
+ This part is fairly flexible...you specify the debugging
+ flags you wish with -D string.  The string consists of the following
+ characters: +   turns the following options on (initial state) -
+ turns the following options off a   turns all the options on/off,
+ depending on whether +/- is set 0-9 sets debug levels (0 is off, 9 is
+ most verbose) &num;   where &num; is a letter from the valid option list (see
+ docs), turns that option off/on depending on the +/- state.
+ 
+ Any option letter can occur in any place.  Even meaningless combinations,
+ such as &dquot;01-a-1+0vk&dquot; will be parsed without error, so be careful. Some
+ options are set by default, some are clear. This is subject to my whim.
+ You can ensure which are set by explicitly specifying.
+ 
+ 
+
+
+<sect1>Remarks in base/init/config.c
+
+<p>
+ For simpler support of X, DOSEMU can be started
+ by a symbolic link called `xdos` which DOSEMU will use to switch
+ into X-mode. 
+<sect1>base/init/dev_list.c Information
+
+<p>
+ Description:
+  Manages a list of the available I/O devices.  It will automatically
+  call their initialization and termination routines.
+  The current I/O device list includes:
+<p><verb>
+     Fully emulated:      pit, pic, cmos, serial
+     Partially emulated:  rtc, keyb, lpt
+     Unemulated:          dma, hdisk, floppy, pos
+</verb>
 <sect>The DPMI group of Modules
 
 <p>
@@ -368,6 +603,44 @@ These are the functions defined in dosext/dpmi/dpmi.c.
  try to write to this table, we will bomb into sigsegv()
  and and emulate direct ldt access
  
+<sect1>dosext/dpmi/msdos.h Information
+
+<p>
+ MS-DOS API translator allows DPMI programs to call DOS service directly
+ in protected mode.
+
+<sect1>Functions in dosext/dpmi/msdos.h
+
+<p>
+These are the functions defined in dosext/dpmi/msdos.h.
+
+<sect2>msdos_pre_extender
+
+
+<p>
+ 
+ This function is called before a protected mode client goes to real
+ mode for DOS service. All protected mode selector is changed to
+ real mode segment register. And if client\'s data buffer is above 1MB,
+ necessary buffer copying is performed. This function returns 1 if
+ it does not need to go to real mode, otherwise returns 0.
+
+ 
+
+
+<sect2>msdos_post_extender
+
+
+<p>
+ 
+ This function is called after return from real mode DOS service
+ All real mode segment registers are changed to protected mode selectors
+ And if client\'s data buffer is above 1MB, necessary buffer copying
+ is performed.
+
+ 
+
+
 <sect>The Video group of Modules
 
 <p>
@@ -753,52 +1026,51 @@ These are the functions defined in env/video/n_vgaemu.c.
 </itemize>
 
 
-<sect1>env/video/vesa.c Information
+<sect1>env/video/n_vesa.c Information
 
 <p>
- VESA BIOS enhancements for vgaemu.
-<sect1>Functions in env/video/vesa.c
-
-<p>
-These are the functions defined in env/video/vesa.c.
-
-<sect2>vesa_init
-
-
-<p>
+ VESA BIOS Extensions for VGAEmu.
  
- Initializes the VESA emulator, i.e. sets up the VESA BIOS.
+ Supported are VBE version 2.0, including a linear frame buffer
+ and display power management support.
 
- 
+<sect1>Functions in env/video/n_vesa.c
 
+<p>
+These are the functions defined in env/video/n_vesa.c.
 
-<sect2>vesa_emu_fault(struct sigcontext_struct *scp)
+<sect2>vbe_init
 
 
 <p>
  
-  vesa_emu_fault() is used to handle video ROM acces.
-  This function is called from ./video/vgaemu.c:vga_emu_fault().
-  The sigcontext_struct is defined in include/cpu.h
-  It just jumps over the intruction (LWORD (eip)+=instr-len)
-  which caused the write exeption to the video ROM. It is needed for 
-  some dirty programs that try to write to a ROM (dos=high,umb seems 
-  to do this, but not on all PC's) We're sure now, nobody can write to 
-  the ROM and we don't crash on it, just ignore as it should be!
+ Initializes the VGA/VBE BIOS and the VBE support.
 
- 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  vedt - Pointer to struct describing the type of display we are actually
+<ITEM>         attached to.
+</itemize>
 
 
-<sect2>vesa_translate_mode
+<sect2>vesa_emu_fault
 
 
 <p>
  
- Translates a VESA mode number to an (own) OEM mode number using
- the mode_translate_table. Returns the OEM mode if succesful or
- -1 otherwise.
+ vesa_emu_fault() is used to handle video ROM accesses.
+ This function is called from env/video/vgaemu.c:vga_emu_fault().
+ The sigcontext_struct is defined in include/cpu.h
+ It just jumps over the instruction (LWORD (eip) += instr-len)
+ which caused the write exception to the video ROM. It is needed for
+ some dirty programs that try to write to a ROM (dos=high,umb seems
+ to do this, but not on all PC's). We're sure now, nobody can write to
+ the ROM and we don't crash on it, just ignore as it should be!
 
- 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  scp - A pointer to a struct sigcontext_struct holding some relevant data.
+</itemize>
 
 
 <sect2>do_vesa_int
@@ -806,49 +1078,45 @@ These are the functions defined in env/video/vesa.c.
 
 <p>
  
- This is the VESA interrupt handler. It is called from int10.c: int10().
- The VESA interrupt is called with 0x4f in AH and the function number
- in AL.
+ This is the VESA interrupt handler.
+
+ It is called from base/bios/int10.c::int10(). The VESA interrupt is called
+ with 0x4f in AH and the function number (0x00 ... 0x10) in AL.
 
  
 
 
-<sect2>vesa_get_SVGA_info
-
+<sect1>env/video/vesabios.S Information
 
 <p>
+ The VGA/VESA BIOS for VGAEmu.
  
- Fills out a table with SuperVGA information. AH=0 if succesfull.
+ This is what DOS applications see as their video BIOS. It will be
+ mapped at 0xc000:0x0000 and typically be less than one page in size.
+ This video BIOS is write-protected, write accesses to this memory
+ are emulated by vesa_emu_fault() in env/video/vesa.c.
 
- 
+ It doesn't have much functionality, just stores the VESA mode table
+ and the protected mode interface necessary for VESA BIOS Extension (VBE)
+ support.
 
+ Note that some parts of the video BIOS are added by vbe_init()
+ in env/video/vesa.c.
 
-<sect2>vesa_get_SVGA_mode_info
-
+<sect1>env/video/vesabios_pm.S Information
 
 <p>
- 
- Fills out a table with SuperVGA information. AH=0 if succesfull.
-
- 
-
-
-<sect2>vesa_set_SVGA_mode
-
-
-<p>
- 
- Is called from int10.c:int10-&gt;vesa.c:do_vesa_int
- Calls int10:set_video_mode, which calls X_setmode
- pff...
- But it has this way to be I think / root@sjoerd /
- The dangerous thing is when the functions disagree
- 
-
-
 <sect1>env/video/attremu.c Information
 
 <p>
+ The protected mode code for the VESA BIOS Extensions.
+ 
+ We define some functions here that are required to support the
+ VBE 2.0 protected mode interface.
+
+ The whole code _must_ be fully relocatable. It will be copied into
+ the video BIOS during VBE initialization (cf. vbe_init()).
+
  The Attribute Controller emulator for VGAemu.
 <sect1>Functions in env/video/attremu.c
 
@@ -1060,6 +1328,34 @@ These are the functions defined in env/video/dacemu.c.
  
 
 
+<sect1>env/video/seqemu.c Information
+
+<p>
+<sect1>env/video/crtcemu.c Information
+
+<p>
+ The VGA sequencer for VGAemu.
+ The VGA CRT controller emulator for VGAEmu.
+
+ This emulates a very basic CRT controller. Just
+ the start address registers (0xc, 0xd).
+
+<sect1>env/video/remap.c Information
+
+<p>
+ Transform a 2D image (rescale and color space conversion).
+ 
+ Here are functions to adapt the VGA graphics to various
+ X displays.
+
+<sect1>env/video/remap_asm.S Information
+
+<p>
+ Low-level assembler functions for remapping 2D images.
+ 
+ Note that these functions mostly call other functions that
+ have been calculated in remap.c.
+
 <sect1>env/video/console.c Information
 
 <p>
@@ -1251,6 +1547,14 @@ These are the functions defined in env/video/vgaemu.c.
  
 
 
+<sect1>include/vgaemu.h Information
+
+<p>
+ Header file for the VGA emulator for DOSEmu.
+ 
+ This file describes the interface to the VGA emulator.
+ Have a look at env/video/vgaemu.c and env/video/vesa.c for details.
+
 <sect>The Keyboard group of Modules
 
 <p>
@@ -1410,6 +1714,42 @@ Rainer Zimmermann  <htmlurl url="mailto:zimmerm@mathematik.uni-marburg.de" name=
  This code provides truly rudimentary 8042 controller emulation.
  Not having any documentation on the 8042 makes it hard to improve. :)
 
+<sect1>base/keyboard/n_keyb_raw.c Information
+
+<p>
+<sect1>Functions in base/keyboard/n_keyb_raw.c
+
+<p>
+These are the functions defined in base/keyboard/n_keyb_raw.c.
+
+<sect2>raw_keyboard_init
+
+
+<p>
+ 
+ Initialize the keyboard for RAW mode.
+ 
+ 
+
+
+<sect1>base/keyboard/n_keyb_slang.c Information
+
+<p>
+<sect1>Functions in base/keyboard/n_keyb_slang.c
+
+<p>
+These are the functions defined in base/keyboard/n_keyb_slang.c.
+
+<sect2>slang_keyb_init()
+
+
+<p>
+ 
+ Code is called at start up to set up the terminal line for non-raw mode.
+ 
+ 
+
+
 <sect>The Misc group of Modules
 
 <p>
@@ -1445,6 +1785,62 @@ amongst the most important.
  returned to DOS programs via the XMS requests, or int15 fnc88 is set in
  &dquot;/etc/dosemu.conf&dquot; via the XMS paramter.
  
+<sect1>base/async/int.c Information
+
+<p>
+<sect1>Functions in base/async/int.c
+
+<p>
+These are the functions defined in base/async/int.c.
+
+<sect2>DEFAULT_INTERRUPT 
+
+
+<p>
+ 
+ DEFAULT_INTERRUPT is the default interrupt service routine 
+ called when DOSEMU initializes.
+
+ 
+
+
+<sect2>DO_INT 
+
+
+<p>
+ 
+ DO_INT is used to deal with interrupts returned to DOSEMU by the
+ kernel.
+
+ 
+
+
+<sect2>setup_interrupts
+
+
+<p>
+ 
+ SETUP_INTERRUPTS is used to initialize the interrupt_function
+ array which directs handling of interrupts in protected mode and
+ also initializes the base vector for interrupts in real mode.
+
+ 
+
+
+<sect2>int_vector_setup
+
+
+<p>
+ 
+ Setup initial interrupts which can be revectored so that the kernel
+ does not need to return to DOSEMU if such an interrupt occurs.
+
+ 
+
+
+<sect1>include/int.h Information
+
+<p>
 <sect1>arch/linux/async/sigsegv.c Information
 
 <p>
@@ -1475,9 +1871,97 @@ These are the functions defined in arch/linux/async/sigsegv.c.
  
 
 
-<sect1>include/int.h Information
+<sect1>arch/linux/async/signal.c Information
 
 <p>
+<sect1>Functions in arch/linux/async/signal.c
+
+<p>
+These are the functions defined in arch/linux/async/signal.c.
+
+<sect2>signal_init
+
+
+<p>
+ 
+  Initialize the signals to have NONE being blocked.
+ Currently this is NOT of much use to DOSEMU.
+
+ 
+
+
+<sect2>cli
+
+
+<p>
+ 
+  Stop additional signals from interrupting DOSEMU.
+
+ 
+
+
+<sect2>sti
+
+
+<p>
+ 
+  Allow all signals to interrupt DOSEMU.
+
+ 
+
+
+<sect2>handle_signals
+
+
+<p>
+ 
+  Due to signals happening at any time, the actual work to be done 
+ because a signal occurs is done here in a serial fashion.
+
+ The concept, should this eventualy work, is that a signal should only
+ flag that it has occurred and let DOSEMU deal with it in an orderly 
+ fashion as it executes the rest of it's code.
+
+ 
+
+
+<sect2>SIGNAL_save
+
+
+<p>
+ 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  context     - signal context to save.
+<ITEM>  signal_call - signal handling routine to be called.
+</itemize>
+  Save into an array structure queue the signal context of the current
+ signal as well as the function to call for dealing with this signal.
+ This is a queue because any signal may occur multiple times before
+ DOSEMU deals with it down the road.
+
+ 
+
+
+<sect2>SIGIO_call
+
+
+<p>
+ 
+  Whenever I/O occurs on devices allowing SIGIO to occur, DOSEMU
+ will be flagged to run this call which inturn checks which 
+ fd(s) was set and execute the proper routine to get the I/O
+ from that device.
+
+ 
+
+
+<sect1>Remarks in arch/linux/async/signal.c
+
+<p>
+ Check for keyboard coming from client
+  For now, first byte is interrupt requests from Client 
+ 
 <sect1>include/ports.h Information
 
 <p>
@@ -1502,9 +1986,6 @@ These are the functions defined in base/misc/disks.c.
  
 
 
-<sect1>emi-i386/cpu.c Information
-
-<p>
 <sect1>dev/misc/lpt.c Information
 
 <p>
@@ -1580,6 +2061,527 @@ These are the functions defined in base/dev/misc/timers.c.
  
 
 
+<sect1>base/misc/shared.c Information
+
+<p>
+	Memory areas needed to be shared between the DOSEMU process
+	and other clients.
+<sect1>Functions in base/misc/shared.c
+
+<p>
+These are the functions defined in base/misc/shared.c.
+
+<sect2>shared_qf_memory_init
+
+
+<p>
+ 
+ Setup all memory areas to be shared with clients.
+
+ 
+
+
+<sect1>Remarks in base/misc/shared.c
+
+<p>
+ Set to 0 all client request area
+ 
+-----
+
+ Output info required for client activity
+ 
+<sect1>base/misc/dos2linux.c Information
+
+<p>
+ 
+ This file contains a simple system for passing information through to
+ DOSEMU from the Linux side. It does not allow dynamic message passing,
+ but it intended to provide useful information for the DOS user.
+ 
+ As such, the current set of implemented commands are :
+ GET_USER_ENVVAR and GET_COMMAND
+
+ These are made available to the DOSEMU by using the DOS_HELPER interrupt
+ (Currently 0xE6) and writing a string into a location passed to this 
+ interrupt handler using the registers. In the case of GET_USER_ENVVAR the
+ string also contains the name of the environment variable to interrogate.
+ (The string is overwritten with the reply).
+
+<sect1>Functions in base/misc/dos2linux.c
+
+<p>
+These are the functions defined in base/misc/dos2linux.c.
+
+<sect2>run_unix_command
+
+
+<p>
+ 
+  Runs a command and prints the (stdout and stderr) output on the dosemu 
+  screen.
+
+<p>Return values mean:&nl;
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>    buffer - string with command to execute
+</itemize>
+
+
+<sect1>base/misc/ioctl.c Information
+
+<p>
+<sect1>Functions in base/misc/ioctl.c
+
+<p>
+These are the functions defined in base/misc/ioctl.c.
+
+<sect2>io_select_init
+
+
+<p>
+ 
+ Initialize fd_sets to NULL for both SIGIO and NON-SIGIO.
+ 
+ 
+
+
+<sect2>add_to_io_select
+
+
+<p>
+ 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  fd - File handle to add to select statment
+<ITEM>  want_sigio - want SIGIO (1) if it's available, or not (0).
+</itemize>
+ Add file handle to one of 2 select FDS_SET's depending on
+ whether the kernel can handle SIGIO.
+ 
+ 
+
+
+<sect2>remove_from_io_select
+
+
+<p>
+ 
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>  fd - File handle to remove from select statment. 
+<ITEM>  used_sigio - used SIGIO (1) if it's available, or not (0).
+</itemize>
+ Remove a file handle from one of 2 select FDS_SET's depending
+ on whether the kernel can handle SIGIO.
+ 
+ 
+
+
+<sect1>base/dev/misc/cmos.c Information
+
+<p>
+<sect1>base/dev/misc/lpt.c Information
+
+<p>
+<sect1>Functions in base/dev/misc/lpt.c
+
+<p>
+These are the functions defined in base/dev/misc/lpt.c.
+
+<sect2>printer_init
+
+
+<p>
+ 
+  Initialize printer control structures
+
+ 
+
+
+<sect1>base/dev/misc/pci.c Information
+
+<p>
+<sect1>Functions in base/dev/misc/pci.c
+
+<p>
+These are the functions defined in base/dev/misc/pci.c.
+
+<sect2>pci_read_header
+
+
+<p>
+ 
+ Use standard 32-bit (type 1) access method to read PCI
+ configuration space data
+
+ 
+
+
+<sect2>pci_read_header
+
+
+<p>
+ 
+ 32-bit I/O port output on PCI ports (0xcf8=addr,0xcfc=data)
+ Optimization: trap the config writes (outd 0xcf8 with bit31=1).
+ Since this kind of access is always followed by another R/W access
+ to port 0xcfc, we can just set it as pending and merge it with the
+ following operation, saving two calls to priv_iopl().
+
+ 
+
+
+<sect2>pci_read_header
+
+
+<p>
+ 
+ Register standard PCI ports 0xcf8-0xcff
+
+ 
+
+
+<sect1>include/doshelpers.h Information
+
+<p>
+<sect1>Remarks in include/doshelpers.h
+
+<p>
+ The Helper Interrupt uses the following groups:
+ 
+ 0x00      - Check for DOSEMU
+ 0x01-0x11 - Initialisation functions &amp; Debugging
+ 0x12      - Set hogthreshold (aka garrot?)
+ 0x20      - MFS functions
+ 0x21-0x22 - EMS functions
+ 0x28      - Garrot Functions for use with the mouse
+ 0x29      - Serial functions
+ 0x30      - Whether to use the BOOTDISK predicate
+ 0x33      - Mouse Functions
+ 0x40      - CD-ROM functions
+ 0x50-0x52 - DOSEMU/Linux communications
+      50 -- run unix command in ES:DX
+      51,52?
+      53 -- do system(ES:DX)
+ 0x7a      - IPX functions
+ 0x8x   -- utility functions
+	0x80 -- getcwd(ES:DX, size AX)
+	0x81 -- chdir(ES:DX)
+ 0xfe      - called from our MBR, emulate MBR-code.
+ 0xff      - Terminate DOSEMU
+ 
+ There are (as yet) no guidelines on choosing areas for new functions.
+ 
+<sect>The CPU_Intel group of Modules
+
+<p>
+These files all relate to Intel-x86 specific code.
+
+
+<sect1>emu-i386/cpu.c Information
+
+<p>
+ CPU/V86 support for dosemu
+<sect1>Functions in emu-i386/cpu.c
+
+<p>
+These are the functions defined in emu-i386/cpu.c.
+
+<sect2>cpu_trap_0f
+
+
+<p>
+ 
+ process opcodes 0F xx xx trapped by GP_fault
+ returns 1 if handled, 0 otherwise
+ Main difference with previous version: bits in our pseudo-control
+ regs can now be written. This should make CPU detection pgms happy.
+
+ 
+
+
+<sect2>cpu_setup
+
+
+<p>
+ 
+  Setup initial interrupts which can be revectored so that the kernel
+ does not need to return to DOSEMU if such an interrupt occurs.
+
+ 
+
+
+<sect1>emu-i386/ports.c Information
+
+<p>
+<sect1>Functions in emu-i386/ports.c
+
+<p>
+These are the functions defined in emu-i386/ports.c.
+
+<sect2>inb
+
+
+<p>
+ 
+  INB is used to do controlled emulation of input from ports.
+
+<p>Arguments are:&nl;
+<itemize>
+<ITEM>   port - port to input from.
+</itemize>
+
+
+<sect1>emu-i386/do_vm86.c Information
+
+<p>
+<sect1>Functions in emu-i386/do_vm86.c
+
+<p>
+These are the functions defined in emu-i386/do_vm86.c.
+
+<sect2>vm86_GP_fault
+
+
+<p>
+ 
+ All from the kernel unhandled general protection faults from V86 mode
+ are handled here. This are mainly port IO and the HLT instruction.
+
+ 
+
+
+<sect2>run_vm86
+
+
+<p>
+ 
+ Here is where DOSEMU runs VM86 mode with the vm86() call
+ which also has the registers that it will be called with. It will stop
+ vm86 mode for many reasons, like trying to execute an interrupt, doing
+ port I/O to ports not opened for I/O, etc ...
+ 
+ 
+
+
+<sect1>Remarks in emu-i386/do_vm86.c
+
+<p>
+ In a properly functioning emulator :-), sigsegv's will never come
+ while in a non-reentrant system call (ioctl, select, etc).  Therefore,
+ there's really no reason to worry about them, so I say that I'm NOT
+ in a signal handler (I might make this a little clearer later, to
+ show that the purpose of in_sighandler is to stop non-reentrant system
+ calls from being reentered.
+ I reiterate: sigsegv's should only happen when I'm running the vm86
+ system call, so I really shouldn't be in a non-reentrant system call
+ (except maybe vm86)
+ - Robert Sanders
+ 
+-----
+
+ Here we handle all prefixes prior switching to the appropriate routines
+ The exception CS:EIP will point to the first prefix that effects
+ the faulting instruction, hence, 0x65 0x66 is same as 0x66 0x65.
+ So we collect all prefixes and remember them.
+ - Hans Lermen
+ 
+<sect1>emu-i386/fake_cpu.c Information
+
+<p>
+ Contains the functions to fake the stack push's &amp; pop's
+<sect1>emu-i386/portss.c Information
+
+<p>
+ This is the code that allows and disallows port access within DOSEMU.
+ The BOCHS port IO code was actually very cleverly done.  So I stole
+ the idea.
+<sect1>Functions in emu-i386/portss.c
+
+<p>
+These are the functions defined in emu-i386/portss.c.
+
+<sect2>port_inb(Bit32u port)
+
+
+<p>
+ 
+   Handles/simulates an inb() port IO read
+
+ 
+
+
+<sect2>port_outb(Bit32u port, Bit8u byte)
+
+
+<p>
+ 
+   Handles/simulates an outb() port IO write
+
+ 
+
+
+<sect2>port_inw(Bit32u port)
+
+
+<p>
+ 
+   Handles/simulates an inw() port IO read.  Usually this invokes
+   port_inb() twice, but it may be necessary to do full word i/o for
+   some video boards.
+
+ 
+
+
+<sect2>port_outw(Bit32u port, Bit16u word)
+
+
+<p>
+ 
+   Handles/simulates an outw() port IO write
+
+ 
+
+
+<sect2>port_ind(Bit32u port)
+
+
+<p>
+ 
+   Handles/simulates an ind() port IO read.  For the moment, this just
+   does port_inw() twice, but it may be necessary to do full dword i/o for
+   some video boards.
+
+ 
+
+
+<sect2>port_outd(Bit32u port, Bit32u dword)
+
+
+<p>
+ 
+   Handles/simulates an outd() port IO write
+
+ 
+
+
+<sect2>port_init(void)
+
+
+<p>
+ 
+   Resets all the port port_handler information
+
+ 
+
+
+<sect1>emu-i386/cputime.c Information
+
+<p>
+<P>Maintainers:
+<p>
+<sect1>Functions in emu-i386/cputime.c
+
+<p>
+These are the functions defined in emu-i386/cputime.c.
+
+<sect2>GETcpuTIME
+
+
+<p>
+ 
+ GETcpuTIME is a pointer to a function which returns the
+ relative CPU time. Different methods of getting the time can
+ then be implemented, currently there are two using
+ gettimeofday() for 486 and TSC for pentium
+
+ 
+
+
+<sect2>GETusTIME(sc)
+
+
+<p>
+ 
+ GETusTIME returns the DOS ('stretched') time with 1-usec resolution
+  using GETcpuTIME to get the implementation-dependent CPU time.
+ The 'sc' parameter controls the granularity of the stretching
+  algorithm (not yet there, see the docs)
+
+ 
+
+
+<sect2>GETtickTIME(sc)
+
+
+<p>
+ 
+ GETtickTIME returns the DOS (stretched) time with 838ns resolution
+  using GETcpuTIME to get the implementation-dependent CPU time.
+ The 'sc' parameter works like in GETusTIME.
+
+ 
+
+
+<sect2>GETusSYSTIME()
+
+
+<p>
+ 
+ GETusSYSTIME returns the real CPU time with 1-usec resolution
+
+ 
+
+
+<sect1>Remarks in emu-i386/cputime.c
+
+<p>
+ At the heart of the timing system in dosemu &gt;= 0.67.11 is the availability
+ of the system time as a 64-bit &lsqb;type hitimer_t&rsqb; monoton value.
+ (a 64-bit timer on a 200MHz CPU increments by 2^48 a day).
+ 
+ Dosemu needs this time under two resolutions:
+<p><verb>
+   - a MICROSECOND resolution for general timing purposes
+   - a TICK(838ns) resolution for PIT
+</verb>
+ On non-pentium machines, only the first one is available via the
+ kernel call gettimeofday(). On the pentium and up, the situation is better
+ since we have a cheap hi-res timer on-chip, and worse since this
+ timer runs at a speed depending from the CPU clock (which we need
+ to know/measure, and could be not 100&percnt; accurate esp. if the speed is
+ a non-integer multiple of 33.3333).
+
+ dosemu &gt;= 0.67.11 can use both timing methods (call them 486 and pentium),
+ and switch between them in a dynamic way when configuring.
+
+ At the first level (local to the file cputime.c) there are the
+ RAW timer functions, addressed by RAWcpuTIME(). These get the
+ actual absolute CPU time in usecs.
+
+ At the second level, GETcpuTIME() returns the relative, zero-based
+ system time. This is where the 486/pentium switch happens.
+
+ The third level is the actual timer interface for dosemu and is
+ made of two functions:
+<p><verb>
+  - GETusTIME(s)   gives the time in usecs
+  - GETtickTIME(s) gives the time in ticks
+</verb>
+ The 's' parameter can be used to control secondary time functions
+ like 'time stretching' (see the READMEs).
+ The function GETusSYSTIME() never activates this stretching, and
+ is used only by the realtime thread-based 1-sec timer in rtc.c.
+
+ All timing are RELATIVE to a base. The use of a based time allows us
+ to play more freely with time, e.g. stop and restart it during debugging,
+ stretch it, make it go at different speeds between real-time and CPU
+ emulation, etc. The base has been chosen to be zero, because it will
+ avoid overflows in calculations, produce more readable and more easily
+ comparable debug log files, and also because only int0x1a and BIOS
+ timer require knowledge of the actual time, PIT and PIC are not sensitive.
+
+ 
 <sect>The Serial group of Modules
 
 <p>
@@ -1850,6 +2852,74 @@ These are the functions defined in base/serial/ser_irq.c.
 
  Perhaps this can be modified to limit max chain length?
 
+<sect1>base/serial/int14.c Information
+
+<p>
+ int14.c: Serial BIOS services for DOSEMU.
+ Please read the README.serial file in this directory for more info!
+ 
+ Copyright (C) 1995 by Mark Rejhon
+ 
+ The code in this module is free software; you can redistribute it
+ and/or modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2 of 
+ the License, or (at your option) any later version.
+
+ This module is maintained by Mark Rejhon at these Email addresses:
+      marky@magmacom.com
+      ag115@freenet.carleton.ca
+
+<sect1>Functions in base/serial/int14.c
+
+<p>
+These are the functions defined in base/serial/int14.c.
+
+<sect2>int14
+
+
+<p>
+ The following function executes a BIOS interrupt 0x14 function.
+ This code by Mark Rejhon replaced some very buggy, old int14 interface
+ a while back.  These routines are not flawless since it does not wait
+ for a character during receive, and this may confuse some programs.
+ 
+
+
+<sect1>New Ideas for base/serial/int14.c
+
+<p>
+ If any of you coders are ambitious, try thinking of the following:
+ - Converting this into inline assembler and use direct port access 
+ 
+<sect1>base/serial/fossil.c Information
+
+<p>
+ fossil.c: FOSSIL serial driver emulator for dosemu.
+ 
+ Copyright (C) 1995 by Pasi Eronen.
+ Portions Copyright (C) 1995 by Mark Rejhon
+ 
+ The code in this module is free software; you can redistribute it
+ and/or modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; either version 2 of 
+ the License, or (at your option) any later version.
+
+<sect1>Items for Fixing in base/serial/fossil.c
+
+<p>
+ This really should be write-with-wait. */
+
+<sect1>include/serial.h Information
+
+<p>
+ serial.h: Include file for port data array for DOSEMU serial.
+ Please send bug reports and bugfixes to marky@magmacom.com
+ Please read the files in the 'serial' subdirectory for more info.
+<sect1>Items for Fixing in include/serial.h
+
+<p>
+ Why does a RX_BUFFER_SIZE of 256 cause slower performance than a size of 128?
+
 <sect>The Mouse group of Modules
 
 <p>
@@ -1889,16 +2959,356 @@ These are the functions defined in base/mouse/mouse.c.
 <sect1>base/bios/bios.S Information
 
 <p>
+<sect1>base/bios/hlt.c Information
+
+<p>
+<sect1>Functions in base/bios/hlt.c
+
+<p>
+These are the functions defined in base/bios/hlt.c.
+
+<sect2>hlt_init(void)
+
+
+<p>
+ 
+   Resets all the HLT handlers
+
+ 
+
+
+<sect2>hlt_handle()
+
+
+<p>
+ 
+ Handles a HLT instruction reached inside the dos emulator.
+
+ 
+
+
 <sect>The PIC group of Modules
 
 <p>
   All of the PIC handling code is in the &dquot;PIC&dquot; subdirectory.
 
 
-<sect1>dev/pic/pic.c Information
+<sect1>base/dev/pic/pic.c Information
 
 <p>
-<sect1>devpic/pic.h Information
+  pic.c is a fairly complete emulation of both 8259 Priority Interrupt 
+  Controllers.  It also includes provision for 16 lower level interrupts.
+  This implementation supports the following i/o commands:
+ 
+<p><verb>
+      ICW1    bits 0 and 1     number of ICWs to expect
+      ICW2    bits 3 - 7       base address of IRQs
+      ICW3    no bits          accepted but ignored
+      ICW4    no bits          accepted but ignored
+
+      OCW1    all bits         sets interrupt mask
+      OCW2    bits 7,5-0       EOI commands only
+      OCW3    bits 0,1,5,6     select read register, 
+                               select special mask mode
+
+     Reads of both pic ports are supported completely.
+</verb>
+
+  An important concept to understand in pic is the interrupt level.
+  This is a value which represents the priority of the current interrupt.  
+  It is used to identify interrupts, and IRQs can be mapped to these 
+  levels(see pic.h~). The currently active interrupt level is maintained 
+  in pic_ilevel, which is globally available,   A pic_ilevel of 32 means
+  no interrupts are active; 0, the highest priority, represents the NMI.
+  IRQs 0 through 15 are mapped, in priority order, to values of 1-15
+  (there is no IRQ2 in an AT). Values of 16 - 31 represent additional
+  interrupt levels available for internal dosemu usage.
+
+     More detail is available in the file README.pic
+
+  Debug information:
+
+  A debug flag of +r or 1r will generate debug messages concerning
+  reads and writes to pic ports.  Many of these messages are not yet
+  implemented.  A debug flag of 2r will generate messages concerning
+  activation, nesting, and completion of interrupts.  A flag of -r
+  or 0r will turn off debugging messages.  Flags may be combined:
+  to get both 1r and 2r, use a value of 3r.
+
+<sect1>Functions in base/dev/pic/pic.c
+
+<p>
+These are the functions defined in base/dev/pic/pic.c.
+
+<sect2>pic_print
+
+
+<p>
+ 
+ This is the pic debug message printer.  It writes out some basic 
+ information, followed by an informative message.  The basic information
+ consists of: 
+       interrupt nesting counter change flag (+, -, or blank)
+       interrupt nesting count (pic_icount)
+       interrupt level change flag (+, -, or blank)
+       current interrupt level
+       interrupt in-service register
+       interrupt mask register
+       interrupt request register
+       message part one
+       decimal data value
+       message part two
+
+ If the message part 2 pointer is a null pointer, then only message
+ part one (without the data value) is printed.
+
+ The change flags are there to facilitate grepping for changes in 
+ pic_ilevel and pic_icount
+ 
+ To avoid line wrap, the first seven values are printed without labels.
+ Instead, a header line is printed every 15 messages.
+
+ 
+
+
+<sect2>write_pic0,write_pic1
+
+
+<p>
+ 
+ write_pic_0() and write_pic1() implement dos writes to the pic ports.
+ They are called by the code that emulates inb and outb instructions.
+ Each function implements both ports for the pic:  pic0 is on ports
+ 0x20 and 0x21; pic1 is on ports 0xa0 and 0xa1.  These functions take
+<p>Arguments are:&nl;
+
+
+<sect2>read_pic0,read_pic1
+
+
+<p>
+ 
+ read_pic0 and read_pic1 return the values for the interrupt mask register
+ (port 1), or either the in service register or interrupt request register,
+ as determined by the last OCW3 command (port 0).  These functions take
+ a single parameter, which is a port number (0 or 1).  They are called by
+ code that emulates the inb instruction.
+
+ 
+
+
+<sect2>pic_mask,pic_unmask
+
+
+<p>
+ 
+ The pic maintains an additional interrupt mask which is not visible
+ to the DOS process.  This is normally cleared (enabling an interrupt)
+ when an interrupt is initialized, but dosemu code may choose to
+ use this mask internally.  One possible use is to implement the interrupt
+ gate controlled by the OUT2 bit of the 16550A UART's Modem Control 
+ Register.  This mask is cleared by pic_unmaski() and set by pic_maski()
+
+ 
+
+
+<sect2>pic_seti
+
+
+<p>
+ 
+ pic_seti is used to initialize an interrupt for dosemu.  It requires
+ three parameters.  The first parameter is the interrupt level, which
+ man select the NMI, any of the IRQs, or any of the 16 extra levels
+ (16 - 31).  The second parameter is the dosemu function to be called
+ when the interrupt is activated.  This function should call do_irq()
+ if the DOS interruptis really to be activated.  If there is no special
+ dosemu code to call, the second parameter can specify do_irq(), but
+ see that description for some special considerations.
+
+ 
+
+
+<sect2>run_irqs
+
+
+<p>
+ 
+ run_irqs, which is initiated via the macro pic_run, is the &dquot;brains&dquot; of
+ the pic.  It is called from the vm86() loop, checks for the highest
+ priority interrupt requested, and executes it.  This function is
+ written in assembly language in order to take advantage of atomic
+ (indivisible) instructions, so that it should be safe for a two
+ process model, even in a multiple CPU machine.  A c language
+ version was started, but it became impossible, even with in-line 
+ assembly macros, because such macros can only return a single result.
+ If I find a way to do it in c, I will, but don't hold your breath.
+
+ 
+
+
+<sect2>do_irq
+
+
+<p>
+ 
+  do_irq() calls the correct do_int().
+  It then executes a vm86 loop until an outb( end-of-interrupt) is found.
+  For priority levels 0 and &gt;15 (not real IRQs), vm86 executes once, then 
+  returns, since no outb20 will come.
+  Returns: 0 = complete, 1 = interrupt not run because it directly
+  calls our &dquot;bios&dquot;   See run_timer_tick() in timer.c for an example
+  To assure notification when the irq completes, we push flags, ip, and cs
+  here and fake cs:ip to PIC_&lsqb;SEG,OFF&rsqb;, where there is a hlt.  This makes 
+  the irq generate a sigsegv, which calls pic_iret when it completes.
+  pic_iret then pops the real cs:ip from the stack.
+  This routine is RE-ENTRANT - it calls run_irqs,
+  which may call an interrupt routine,
+  which may call do_irq().  Be Careful!  !!!!!!!!!!!!!!!!!! 
+  No single interrupt is ever re-entered.
+
+ Callers:
+ base/misc/ioctl.c
+ base/keyboard/n_serv_8042.c
+ base/keyboard/keyboard-server.c
+ base/serial/ser_irq.c
+ dosext/sound/sound.c
+ dosext/net/net/pktnew.c
+
+ 
+
+
+<sect2>pic_request
+
+
+<p>
+ 
+ pic_request triggers an interrupt.  There is presently no way to
+ &dquot;un-trigger&dquot; an interrupt.  The interrupt will be initiated the
+ next time pic_run is called, unless masked or superceded by a 
+ higher priority interrupt.  pic_request takes one argument, an
+ interrupt level, which specifies the interrupt to be triggered.
+ If that interrupt is already active, the request will be queued 
+ until all active interrupts have been completed.  The queue is
+ only one request deep for each interrupt, so it is the responsibility
+ of the interrupt code to retrigger itself if more interrupts are
+ needed.
+
+ 
+
+
+<sect2>pic_iret
+
+
+<p>
+ 
+ pic_iret is used to sense that all active interrupts are really complete,
+ so that interrupts queued by pic_request can be triggered.
+ Interrupts end when they issue an outb 0x20 to the pic, however it is
+ not yet safe at that time to retrigger interrupts, since the stack has
+ not been restored to its initial state by an iret.  pic_iret is called
+ whenever interrupts have been enabled by a popf, sti, or iret.  It 
+ determines if an iret was the cause by comparing stack contents with
+ cs and ip.  If so, it decrements a count of interrupts on the stack
+ (set by do_irq()).  If the count is then zero, pic_iret moves all queued
+ interrupts to the interrupt request register.  It is possible for pic_iret
+ to be fooled by dos code; for this reason active interrupts are checked,
+ any queued interrupts that are also active will remain queued.  Also,
+ some programs fake an iret, so that it is possible for pic_iret to fail.
+ See pic_watch for the watchdog timer that catches and fixes this event.
+
+ 
+
+
+<sect2>pic_watch
+
+
+<p>
+ 
+ pic_watch is a watchdog timer for pending interrupts.  If pic_iret
+ somehow fails to activate a pending interrupt request for 2 consecutive 
+ timer ticks, pic_watch will activate them anyway.  pic_watch is called
+ ONLY by timer_tick, the interval timer signal handler, so the two functions
+ will probably be merged.
+
+ 
+
+
+<sect2>pic_pending
+
+
+<p>
+ This function returns a non-zero value if the designated interrupt has
+ been requested and is not masked.  In these circumstances, it is important
+ for a hardware emulation to return a status which does *not* reflect the
+ event(s) which caused the request, until the interrupt actually gets 
+ processed.  This, in turn, hides the interrupt latency of pic from the dos
+ software.
+ 
+ The single parameter ilevel is the interrupt level (see pic.h) of the
+ interrupt of interest.
+
+ If the requested interrupt level is currently active, the returned status
+ will depend upon whether the interrupt code has re-requested itself.  If
+ no re-request has occurred, a value of false (zero) will be returned.  
+ 
+
+
+<sect2>pic_activate
+
+
+<p>
+ 
+ pic_activate requests any interrupts whose scheduled time has arrived.
+ anything after pic_dos_time and before pic_sys_time is activated.
+ pic_dos_time is advanced to the earliest time scheduled.
+ 
+
+
+<sect2>pic_sched
+
+
+<p>
+ pic_sched schedules an interrupt for activation after a designated
+ time interval.  The time measurement is in unis of 1193047/second,
+ ( or if using MONOTON_MICRO_TIMING in units of PIT_TICK_RATE/second )
+ the same rate as the pit counters.  This is convenient for timer
+ emulation, but can also be used for pacing other functions, such as
+ serial emulation, incoming keystrokes, or video updates.  Some sample 
+ intervals:
+ 
+ rate/sec:	5	7.5	11	13.45	15	30	60
+ interval:	238608	159072	108459	88702	79536	39768	19884
+
+ rate/sec:	120	180	200	240	360	480	720
+ interval:	9942	6628	5965	4971	3314	2485	1657
+
+ rate/sec:	960	1440	1920	2880	3840	5760	11520
+ interval:	1243	829	621	414	311	207	103	
+
+ pic_sched expects two parameters: an interrupt level and an interval.
+ To assure proper repeat scheduling, pic_sched should be called from
+ within the interrupt handler for the same interrupt.  The maximum 
+ interval is 15 minutes (0x3fffffff).
+ 
+
+
+<sect1>Remarks in base/dev/pic/pic.c
+
+<p>
+ pic_push,pic_pop
+ 
+ Pic maintains two stacks of the current interrupt level. an internal one
+ is maintained by run_irqs, and is valid whenever the emulator code for
+ an interrupt is active.  These functions maintain an external stack,
+ which is valid from the time the dos interrupt code is called until
+ the code has issued all necessary EOIs.  Because pic will not necessarily 
+ get control immediately after an EOI, another EOI (for another interrupt)
+ could occur.  This external stack is kept strictly synchronized with
+ the actions of the dos code to avoid any problems.  pic_push and pic_pop
+ maintain the external stack.
+ 
+<sect1>include/pic.h Information
 
 <p>
 <sect>The Sound group of Modules
@@ -2087,6 +3497,96 @@ These are the functions defined in dosext/sound/sound.c.
 -----
 
  Stopping Auto-Init DMA is not implemented
+
+<sect1>arch/linux/dosext/sound/linux_sound.c Information
+
+<p>
+<P>Maintainers:
+<p>
+Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">&nl;
+David Brauman  <htmlurl url="mailto:crisk@netvision.net.il" name="&lt;crisk@netvision.net.il&gt;">&nl;
+Michael Karcher  <htmlurl url="mailto:karcher@dpk.berlin.fido.de" name="&lt;karcher@dpk.berlin.fido.de&gt;">&nl;
+<sect1>base/dev/dma/dma.c Information
+
+<p>
+<P>Maintainers:
+<p>
+Alistair MacDonald  <htmlurl url="mailto:alistair@slitesys.demon.co.uk" name="&lt;alistair@slitesys.demon.co.uk&gt;">&nl;
+David Brauman  <htmlurl url="mailto:crisk@netvision.net.il" name="&lt;crisk@netvision.net.il&gt;">&nl;
+<sect1>Remarks in base/dev/dma/dma.c
+
+<p>
+ **** WARNING ****
+ This Code _HAS_ changed.
+ 
+-----
+
+ The Emulated DMA channels are provided by using files and writes.
+ This means that they are easy to track.
+ It might cause problems when attempting to interface to the REAL DMA
+ controller. (Necessary to talk to hardware which uses DMA.)
+ 
+ Note that DMA controller 2 uses word granular addressing and controller 1
+ uses byte granular address ... this simplifies the code !
+
+ 
+-----
+
+ I think that DREQ should only be set on auto-init if we are the 
+ reading portion.
+ 
+<sect1>Items for Fixing in base/dev/dma/dma.c
+
+<p>
+ : Pipe Creation failed. Lets hope that it times out ! 
+
+-----
+
+ : Cascade Mode Reads are not supported 
+
+-----
+
+ : The Verify Mode is not supported 
+
+-----
+
+ : The Invalid Mode is not supported (!) 
+
+<sect>The FileAccess group of Modules
+
+<p>
+This hold all kind of accessing files on a Unix filesysten from DOS.
+
+
+<sect1>dosext/mfs/mfs.c Information
+
+<p>
+ This is the file redirector code for DOSEMU. It was built on the Mach
+ DOS redirector and as such continues that copyright as well in 
+ addition the GNU copyright. This redirector uses the 
+ DOS int2f fnx 11 calls to give running DOS programs access to any 
+ Unix mounted drives that permissions exist for.
+ 
+<sect1>Remarks in dosext/mfs/mfs.c
+
+<p>
+ The msdos_dir_ent structure has much more than 28 bytes. 
+ Is this significant?
+ 
+-----
+
+ Added compares to NUL so that newer versions of Foxpro which test directories
+ using xx\yy\nul perform closer to whats DOS does.
+ 
+ 
+<sect1>Items for Fixing in dosext/mfs/mfs.c
+
+<p>
+ We probably should use llseek here for file &gt; 2 GBytes
+
+-----
+
+ returned size of struct dir_ent seems wrong at 28 bytes. */
 
 <sect>The Threads group of Modules
 

@@ -946,7 +946,7 @@ make_entry(void)
 /* DANG_BEGIN_REMARK
  * The msdos_dir_ent structure has much more than 28 bytes. 
  * Is this significant?
- * DANG_END_FUNCTION
+ * DANG_END_REMARK
  */
   entry = (struct dir_ent *) malloc(sizeof(struct dir_ent)+10);
   entry->hidden = FALSE;
@@ -1009,7 +1009,7 @@ _get_dir(char *name, char *mname, char *mext)
  * Added compares to NUL so that newer versions of Foxpro which test directories
  * using xx\yy\nul perform closer to whats DOS does.
  * 
- * DANG_END_FUNCTION
+ * DANG_END_REMARK
  */
   if (strncasecmp(mname, "NUL     ", strlen(mname)) == 0 &&
       strncasecmp(mext, "   ", strlen(mext)) == 0) {

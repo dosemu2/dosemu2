@@ -805,7 +805,7 @@ void do_slang_getkeys(void)
  * 
  * Code is called at start up to set up the terminal line for non-raw mode.
  * 
- * DANG_END_REMARK
+ * DANG_END_FUNCTION
  */
    
 int slang_keyb_init(void) {

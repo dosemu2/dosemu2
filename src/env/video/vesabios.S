@@ -18,7 +18,7 @@
  * in env/video/vesa.c.
  *
  * /REMARK
- * DANG_END_NODULE
+ * DANG_END_MODULE
  *
  * This is vgaemu's VESA BIOS (C000:0 .. C800:0)
  *

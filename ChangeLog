@@ -1,3 +1,21 @@
+97/09/20 ver. 0.67.11 released
+	From Michael Karcher
+	- fixed bug in src/dosext/misc/xms.c allocating unlimited memory.
+	From Reinhard Karcher
+	- fixed bug in n_serv_xlat.c concerning numerical ASCII input
+	  over ALT-keypad. A variable sometimes wasn't initialized.
+	From Eric
+	- fixed possibe make recursion in Makefile.main, which happens
+	  to occure with some newer make versions. (looks like the order
+	  of making differs between versions).
+	From Hans
+	- made Eric happy ;-)  'cd src; make' now works again as expected.
+	- temporary disabled Alberto's (0.67.10.3) pentium timer until he/we
+	  find the bug which breaks FoxPro (when it uses XMS/EMS memory,
+	  which it does by default) :-(
+	  To re-enable it uncomment TEMP_DISABLED in the top Makefile.
+	- Updated DANG_CONF such that it now collects all files, which
+	  contain usefull DANG/SIDOC statements. Look at doc/DANG.txt ;-)
 97/09/19 ver. 0.67.10.3 unofficial pre-release
 	From Alberto
 	  final (except for bug fixing) part of timer patches:

@@ -684,13 +684,32 @@ xms_query_freemem(int api)
 static void
 xms_allocate_EMB(int api)
 {
+  unsigned long totalBytes, subtotal;
   unsigned long h;
+  unsigned long kbsize;
 
   if (api == OLDXMS)
-    x_printf("XMS alloc EMB(old) size 0x%04x\n", LWORD(edx));
+    kbsize = LWORD(edx);
   else
-    x_printf("XMS alloc EMB(new) size 0x%08lx\n", REG(edx));
+    kbsize = REG(edx);
+  x_printf("XMS alloc EMB(%s) size 0x%08lx KB\n", (api==OLDXMS)?"old":"new",kbsize);
 
+  totalBytes = 0;
+  for (h = FIRST_HANDLE; h <= NUM_HANDLES; h++) {
+    if (ValidHandle(h))
+      totalBytes += handles[h].size;
+  }
+
+  subtotal = config.xms_size - (totalBytes / 1024);
+  /* total free is max allowable XMS - the number of K already allocated */
+  if(kbsize > subtotal)
+  {
+    x_printf("XMS: out of memory (only %ldK available)\n",subtotal);
+    LWORD(eax) = 0;
+    LWORD(ebx) = 0xFFa0; /* Out of memory */
+    return;
+  }
+  
   if (!(h = FindFreeHandle(FIRST_HANDLE))) {
     x_printf("XMS: out of handles\n");
     LWORD(eax) = 0;
@@ -699,12 +718,9 @@ xms_allocate_EMB(int api)
   else {
     handles[h].num = h;
     handles[h].valid = 1;
-    if (api == OLDXMS)
-      handles[h].size = (long)(LWORD(edx) * 1024);
-    else
-      handles[h].size = (long)(REG(edx) * 1024);
+    handles[h].size = kbsize*1024;
 
-    x_printf("XMS: EMB size %d\n", (int) handles[h].size);
+    x_printf("XMS: EMB size %ld bytes\n", handles[h].size);
 
     /* I could just rely on the behavior of malloc(0) here, but
        * I'd rather not.  I'm going to interpret the XMS 3.0 spec

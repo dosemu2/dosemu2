@@ -102,6 +102,12 @@ config_defaults(void)
     }
     vm86s.cpu_type = config.realcpu;
     fprintf(stderr,"Running on CPU=%ld86, FPU=%d\n",vm86s.cpu_type,config.mathco);
+#ifdef TEMP_DISABLED
+    if (config.realcpu > CPU_386) {
+      fprintf(stderr,"sorry, for now CPU forced down to 386\n");
+      vm86s.cpu_type = config.realcpu = CPU_386;
+    }
+#endif
 
     config.hdiskboot = 1;	/* default hard disk boot */
     config.mem_size = 640;
