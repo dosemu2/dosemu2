@@ -185,6 +185,9 @@ static void mhp_init(void)
       }
     }
   }
+  else {
+    fprintf(stderr, "Can't create debugger pipes, dosdebug not available\n");
+  }
   if (mhpdbg.fdin == -1) {
     enter_priv_on();
     unlink(pipename_in);

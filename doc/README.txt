@@ -193,6 +193,8 @@
   are set:
   +o  which users are allowed to use DOSEMU.
 
+  +o  which users are allowed to use DOSEMU suid root.
+
   +o  what kind of access class the user belongs to.
 
   +o  wether the user is allowed to define a private global.conf that
@@ -209,14 +211,19 @@
   to /etc/dosemu.users.
 
          root c_all     # root is allowed to do all weird things
-         nobody guest   # variable 'guest' is checked in global.conf
-                        # to allow only DEXE execution
-         guest guest    # login guest treated as `nobody'
-         all restricted # all other users have normal user restrictions
+         nobody nosuidroot guest # variable 'guest' is checked in global.conf
+                                 # to allow only DEXE execution
+         guest nosuidroot guest  # login guest treated as `nobody'
+         all nosuidroot restricted # all other users have normal user restrictions
 
   Note that the above `restricted' is checked in global.conf and will
   disable all secure relevant feature. Setting `guest' will force set-
   ting `restricted' too.
+
+  The use of `nosuidroot' will force a suid root dosemu binary to exit,
+  the user may however use a non-suid root copy of the binary.  For more
+  information on this look at README-tech, chapter 11.1 `Priveleges and
+  Running as User'
 
   Nevertheless, for a first try of DOSEMU you may prefer
   etc/dosemu.users.easy, which just contains
@@ -316,11 +323,11 @@
 
   Defining the memory layout, which DOS should see:
 
-         $_xms = (1024)          # in Kbyte
-         $_ems = (1024)          # in Kbyte
-         $_ems_frame = (0xe000)
-         $_dpmi = (off)          # in Kbyte
-         $_dosmem = (640)        # in Kbyte, < 640
+    $_xms = (1024)          # in Kbyte
+    $_ems = (1024)          # in Kbyte
+    $_ems_frame = (0xe000)
+    $_dpmi = (off)          # in Kbyte
+    $_dosmem = (640)        # in Kbyte, < 640
 
   Note that (other as in native DOS) each piece of mem is separate,
   hence DOS perhaps will show other values for 'extended' memory. To
@@ -370,9 +377,9 @@
   a different file extension, so DOS will get other files when running
   under DOSEMU.
 
-    $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
-    $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
-    $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
+         $_emusys = ""    # empty or 3 char., config.sys   -> config.XXX
+         $_emubat = ""    # empty or 3 char., autoexec.bat -> autoexec.XXX
+         $_emuini = ""    # empty or 3 char., system.ini   -> system.XXX
 
   As you would realize at the first glance: DOS will _n_o_t have the the
   CPU for its own. But how much it gets from Linux, depends on the
@@ -410,10 +417,10 @@
   Color terminal support is now built into DOSEMU.  Skip this section
   for now to use terminal defaults, until you get DOSEMU to work.
 
-    $_term_char_set = ""  # empty == automatic, else 'ibm' or 'latin'
-    $_term_color = (on)   # terminal with color support
-    $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
-    $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
+         $_term_char_set = ""  # empty == automatic, else 'ibm' or 'latin'
+         $_term_color = (on)   # terminal with color support
+         $_term_updfreq = (4)  # time between refreshs (units: 20 == 1 second)
+         $_escchar = (30)      # 30 == Ctrl-^, special-sequence prefix
 
   `term_updfreq' is a number indicating the frequency of terminal
   updates of the screen. The smaller the number, the more frequent.  A
@@ -450,11 +457,11 @@
   where `name' is one of the above. To load a keytable you just prefix
   the string with "load" such as
 
-         $_layout = "load de-latin1"
+    $_layout = "load de-latin1"
 
   Note, however, that you have to set
 
-    $_X_keycode = (on)
+         $_X_keycode = (on)
 
   to use this feature under X, because per default the keytable is
   forced to be neutral (us). Normally you will have the correct settings
@@ -714,6 +721,17 @@
   is (even temporary) connected to the internet or other machines, or
   that otherwise allows 'foreign' people login to your machine.
 
+  +o  Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
+     lowfeature mode without the -s bit set. If you want fullfeatures
+     for some of your users, just use the keyword `nosuidroot' in
+     /etc/dosemu.users to forbid some (or all) users execution of a suid
+     root running dosemu (they may use a non-suid root copy of the
+     binary though).
+
+  +o  Use proper file permissions to restrict access to a suid root
+     DOSEMU binary in addition to /etc/dosemu.users `nosuidroot'.  (
+     double security is better ).
+
   +o  _N_E_V_E_R let foreign users execute dosemu under root login !!!
      (Starting with dosemu-0.66.1.4 this isn't necessary any more, all
      functionality should also be available when running as user)
@@ -724,7 +742,7 @@
      permanently run under root privileges and only disable them when
      accessing secure relevant resources, ... not so good.
 
-  +o  Never allow DPMI programms to run, when dosemu is suid root,
+  +o  Never allow DPMI programms to run, when dosemu is suid root.
 
      (in /etc/dosemu.conf set 'dpmi off' to disable)
 
@@ -855,7 +873,7 @@
   extracts the configuration out of 'dexefile' and puts it into
   'configfile'
 
-         # dexeconfig -i configfile dexefile
+    # dexeconfig -i configfile dexefile
 
   does the reverse.
 
@@ -911,6 +929,7 @@
   Tetris like games that I found on an old CDrom and which runs in
   300x200 on console and X (not Slang-terminal). When you put it into
   you /var/lib/dosemu/* directory, you may start it via:
+
           dosexec fallout.dexe -X
 
   Hope we get more of *.dexe in the future ....
@@ -944,8 +963,8 @@
   Example: Given you have a bootable DOS-partition in /dev/hda1, then
   this ...
 
-         # cd ./dexe
-         # ./mkdexe myhdimage -b /dev/hda1 -o noapp
+    # cd ./dexe
+    # ./mkdexe myhdimage -b /dev/hda1 -o noapp
 
   will generate a direct bootable 'myhdimage' from your existing DOS
   installation. You need not to make a boot floppy, nor need you to
@@ -957,8 +976,8 @@
   helps more to firsttime install DOSEMU's hdimage. It prompts for
   needed things and should work on most machines.
 
-    # cd /where/I/have/dosemu
-    # ./setup-hdimage
+         # cd /where/I/have/dosemu
+         # ./setup-hdimage
 
   44..44..  AAcccceessssiinngg hhddiimmaaggee ffiilleess uussiinngg mmttoooollss
 
@@ -994,7 +1013,6 @@
   the instruments required for use on some soundcards. It is also
   possible to get various instruments by redirecting '/var/run/dosemu-
   midi' to the relevant part of the sound driver eg:
-
        % ln -s /dev/midi /var/run/dosemu-midi
 
   This will send all output straight to the default midi device and use
@@ -1121,10 +1139,16 @@
   This section of the document by Hans, <lermen@fgan.de>. Last updated
   on June 16, 1997.
 
-  1. You have to make 'dos' suid root, this normally is done when you
-     run 'make install'.
+  1. You have to make 'dos' suid root, if want a fullfeature DOSEMU,
+     this normally is done when you run 'make install'.  But as od
+     dosemu-0.97.10, you need not if you don't access to ports, external
+     DOSish hardware and won't use the console other then in normal
+     terminal mode.
+  2. You can restrict access to the suid root binary via
+     /etc/dosemu.user.  by specifying `nosuidroot' for a given user (or
+     all).
 
-  2. Have the users that are allow to execute dosemu in
+  3. Have the users that are allow to execute dosemu in
      /etc/dosemu.user.  The format is:
 
             loginname [ c_strict ] [ classes ...] [ c_dexeonly ] [ other ]
@@ -1134,9 +1158,10 @@
   !!!):
 
             root c_all
-            all c_all
+            lermen c_all
+            all nosuidroot c_all
 
-  3. The msdos partitions, that you want to be accessable through
+  4. The msdos partitions, that you want to be accessable through
      ``lredir'' should be mounted with proper permissions. I recommend
      doing this via 'group's, not via user ownership. Given you have a
      group 'dosemu' for this and want to give the user 'lermen' access,
@@ -1173,7 +1198,7 @@
   Of course normal lredir'ed unix directories should have the same per-
   missions.
 
-  4. Make sure you have read/write permissions of the devices you
+  5. Make sure you have read/write permissions of the devices you
      configured (in /etc/dosemu.conf) for serial and mouse.
 
   Starting with dosemu-0.66.1.4 there should be no reason against
@@ -1184,7 +1209,8 @@
   configuring dosemu with the as (suid) root and only use user
   privileges when accessing secure relevant resources. Normally dosemu
   will permanently run as user and only temporarily use root privilege
-  when needed.
+  when needed and in case of non-suid root (as of dosemu-0.97.10), it
+  will run in lowfeature mode without any priviledges.
 
   88..  UUssiinngg CCDDRROOMMSS
 
@@ -1374,7 +1400,6 @@
 
   +o  starting xdos in the background (like from a window manager menu)
      appears not to work for some reason.
-
   +o  Keyboard support in the dosemu window isn't perfect yet. It
      probably could be faster, some key combos still don't work (e.g.
      Ctrl-Fn), etc.  However, input through the terminal window (i.e.
@@ -1400,7 +1425,7 @@
   +o  tell your window manager to use it. For fvwm, add the following
      line to your fvwmrc file:
 
-       Icon "xdos"   dosemu.xpm
+            Icon "xdos"   dosemu.xpm
 
   This assumes you have defined a PixmapPath. Otherwise, specify the
   entire pathname.
@@ -1513,6 +1538,7 @@
      switching.  This is very i386-Linux specific, don't be surprised if
      it doesn't work under NetBSD or another Linux flavour
      (Alpha/Sparc/MIPS/etc).
+
   +o  The DAC (Digital to Analog Converter). The DAC is completely
      emulated, except for the pelmask. This is not difficult to
      implement, but it is terribly slow because a change in the pelmask
@@ -1700,16 +1726,16 @@
 
   1111..22..  WWiinnddoowwss 33..11 PPrrootteecctteedd MMooddee
 
-       ***************************************************************
-       *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-       *                                                             *
-       *  Danger Will Robinson!!!  This is not yet fully supported   *
-       *  and there are many known bugs!  Large programs will almost *
-       *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
-       *  YOU TRY THIS!!!                                            *
-       *                                                             *
-       *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
-       ***************************************************************
+  ***************************************************************
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  *                                                             *
+  *  Danger Will Robinson!!!  This is not yet fully supported   *
+  *  and there are many known bugs!  Large programs will almost *
+  *  certainly NOT WORK!!!  BE PREPARED FOR SYSTEM CRASHES IF   *
+  *  YOU TRY THIS!!!                                            *
+  *                                                             *
+  *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
+  ***************************************************************
 
   What, you're still reading?
 
@@ -1799,6 +1825,7 @@
 
   +o  In order to let the mouse properly work you need the following in
      your win.ini file:
+
             [windows]
             MouseThreshold1=0
             MouseThreshold2=0
@@ -1816,7 +1843,6 @@
      gets forced to 0,0 and then back to its right coordinates. Hence,
      if you want to re-calibrate the cursor, just move the cursor
      outside and then inside the DOS-Box again.
-
   1122..  MMoouussee GGaarrrroott
 
   This section, and Mouse Garrot were written by Ed Sirett
@@ -1865,31 +1891,31 @@
   interpreted as in C and leads in ESC-codes. Here a list of of the
   current implemented ones:
 
-       \r     Carriage return == <ENTER>
-       \n     LF
-       \t     tab
-       \b     backspace
-       \f     formfeed
-       \a     bell
-       \v     vertical tab
+  \r     Carriage return == <ENTER>
+  \n     LF
+  \t     tab
+  \b     backspace
+  \f     formfeed
+  \a     bell
+  \v     vertical tab
 
-       \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
-              (e.g.: \^[ == <Ctrl>[ == ESC )
+  \^x    <Ctrl>x, where X is one of the usual C,M,L,[ ...
+         (e.g.: \^[ == <Ctrl>[ == ESC )
 
-       \Ax    <Alt>x, hence  \Ad means <Alt>d
+  \Ax    <Alt>x, hence  \Ad means <Alt>d
 
-       \Fn;   Function key Fn. Note that the trailing ';' is needed.
-              (e.g.:  \F10;  == F10 )
+  \Fn;   Function key Fn. Note that the trailing ';' is needed.
+         (e.g.:  \F10;  == F10 )
 
-       \Pn;   Set the virtual typematic rate, thats the speed for
-              autotyping in. It is given in unix timer ticks to wait
-              between two strokes. A value of 7 for example leads to
-              a rate of 100/7=14 cps.
+  \Pn;   Set the virtual typematic rate, thats the speed for
+         autotyping in. It is given in unix timer ticks to wait
+         between two strokes. A value of 7 for example leads to
+         a rate of 100/7=14 cps.
 
-       \pn;   Before typing the next stroke wait n unix ticks.
-              This is usefull, when the DOS-application fushes the
-              keybord buffer on startup. Your strokes would be discared,
-              if you don't wait.
+  \pn;   Before typing the next stroke wait n unix ticks.
+         This is usefull, when the DOS-application fushes the
+         keybord buffer on startup. Your strokes would be discared,
+         if you don't wait.
 
   When using X, the keystroke feature can be used to directly fire up a
   DOS application with one click, if you have the right entry in your
@@ -1901,9 +1927,9 @@
      dosemu and to start your dos-application, ... and don't forget to
      have CRLF for 'ENTER'. FILE may look like this (as on my machine):
 
-       2^M                    <== this chooses point 2 of the boot menu
-       dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
-       exitemu^M              <== this terminates dosemu
+            2^M                    <== this chooses point 2 of the boot menu
+            dir > C:\garbage^M     <== this executes 'dir', result to 'garbage'
+            exitemu^M              <== this terminates dosemu
 
   (the ^M stands for CR)
 
@@ -2004,6 +2030,7 @@
 
   P.S.  If you want to change the HogThreshold value during execution,
   simply call
+
         mov al,12h
         mov bx,the_new_value
         int e6h
@@ -2069,7 +2096,6 @@
 
      llrreeddiirr..ccoomm
         redirect Linux directory to Dosemu
-
      +o  lredir -- show current redirections
 
      +o  lredir D: LINUXFSmp -- redirects /tmp to drive D:
@@ -2163,7 +2189,7 @@
 
   as root type
 
-          loadkeys dosemu.new.keymap
+               loadkeys dosemu.new.keymap
 
   (then run dosemu via telnet, or something in slang mode)
 
@@ -2470,8 +2496,8 @@
 
   +o  Make the dosnet linux module:
 
-             cd ./src/dosext/net/v-net
-             make
+        cd ./src/dosext/net/v-net
+        make
 
   +o  Make the new dosemu, with right packet driver support built-in:
 
@@ -2515,48 +2541,48 @@
      parameters, if you have the time to play with this file. You can
      also setup this stuff from the winsock setup dialog-box).
 
-          [Trumpet Winsock]
-          netmask=255.255.255.0  <-- class C netmask.
-          gateway=144.16.112.1   <-- address in the default gateway.
-          dns=www.xxx.yyy.zzz    <-- You must use right value for the dns.
-          domain=hi-net.it
-          ip=144.16.112.10       <-- Windows address in the dosnet.
-          vector=60              <-- packet driver interrupt vector.
-          mtu=1500
-          rwin=4096
-          mss=1460
-          rtomax=60
-          ip-buffers=32
-          slip-enabled=0         <--- disable slip
-          slip-port=2
-          slip-baudrate=57600
-          slip-handshake=1
-          slip-compressed=0
-          dial-option=1
-          online-check=0
-          inactivity-timeout=5
-          slip-timeout=0
-          slip-redial=0
-          dial-parity=0
-          font=Courier,9
-          registration-name=""
-          registration-password=""
-          use-socks=0
-          socks-host=0.0.0.0
-          socks-port=1080
-          socks-id=
-          socks-local1=0.0.0.0 0.0.0.0
-          socks-local2=0.0.0.0 0.0.0.0
-          socks-local3=0.0.0.0 0.0.0.0
-          socks-local4=0.0.0.0 0.0.0.0
-          ppp-enabled=0            <-------- disable ppp
-          ppp-usepap=0
-          ppp-username=""
-          ppp-password=""
-          win-posn=42 220 867 686 -1 -1 -4 -4 1
-          trace-options=16392
+               [Trumpet Winsock]
+               netmask=255.255.255.0  <-- class C netmask.
+               gateway=144.16.112.1   <-- address in the default gateway.
+               dns=www.xxx.yyy.zzz    <-- You must use right value for the dns.
+               domain=hi-net.it
+               ip=144.16.112.10       <-- Windows address in the dosnet.
+               vector=60              <-- packet driver interrupt vector.
+               mtu=1500
+               rwin=4096
+               mss=1460
+               rtomax=60
+               ip-buffers=32
+               slip-enabled=0         <--- disable slip
+               slip-port=2
+               slip-baudrate=57600
+               slip-handshake=1
+               slip-compressed=0
+               dial-option=1
+               online-check=0
+               inactivity-timeout=5
+               slip-timeout=0
+               slip-redial=0
+               dial-parity=0
+               font=Courier,9
+               registration-name=""
+               registration-password=""
+               use-socks=0
+               socks-host=0.0.0.0
+               socks-port=1080
+               socks-id=
+               socks-local1=0.0.0.0 0.0.0.0
+               socks-local2=0.0.0.0 0.0.0.0
+               socks-local3=0.0.0.0 0.0.0.0
+               socks-local4=0.0.0.0 0.0.0.0
+               ppp-enabled=0            <-------- disable ppp
+               ppp-usepap=0
+               ppp-username=""
+               ppp-password=""
+               win-posn=42 220 867 686 -1 -1 -4 -4 1
+               trace-options=16392
 
-          [default vars]
+               [default vars]
 
   +o  Now you can run windows, startup trumpet winsock and .....  enjoy
      with your windoze tcp/ip :-)

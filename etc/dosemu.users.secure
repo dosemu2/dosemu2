@@ -5,6 +5,9 @@
 # For a more easier (especially when you are new to DOSEMU), but INSECURE one
 # look at ./etc/dosemu.users.easy
 #
+# To give sense to the 'nosuidroot' keyword, the sysadmin should supply
+# a non-suid root copy of the dosemu binary besides the suid root one.
+#
 # Format:
 #
 #   [ <login> | all ] [ confvar [ confvar [ ... ] ] ]
@@ -17,8 +20,8 @@
 # For more details look at ./doc/README.txt
 
 root c_all		# root is allowed to do all weird things
-nobody guest		# variable 'guest' is checked in /etc/dosemu.conf
+nobody nosuidroot guest	# variable 'guest' is checked in /etc/dosemu.conf
 			# to allow only DEXE execution
-guest guest		# login guest treated as 'nobody'
-all restricted		# all other users have normal user restrictions
+guest nosuidroot guest	# login guest treated as 'nobody'
+all nosuidroot restricted # all other users have normal user restrictions
 

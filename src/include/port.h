@@ -8,6 +8,7 @@
 
 #include "config.h"
 #include "types.h"
+#include "priv.h"
 
 /* port i/o privileges */
 #define IO_READ  1
@@ -47,6 +48,7 @@ typedef struct {
 
 static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 {
+  if (!can_do_root_stuff) return;
   __asm__ __volatile__ ("outb %0,%1"
 		    ::"a" ((Bit8u) value), "d"((Bit16u) port));
 }
@@ -54,6 +56,7 @@ static __inline__ void port_real_outb(ioport_t port, Bit8u value)
 static __inline__ Bit8u port_real_inb(ioport_t port)
 {
   Bit8u _v;
+  if (!can_do_root_stuff) return 0xff;
   __asm__ __volatile__ ("inb %1,%0"
 		    :"=a" (_v):"d"((Bit16u) port));
   return _v;
@@ -61,6 +64,7 @@ static __inline__ Bit8u port_real_inb(ioport_t port)
 
 static __inline__ void port_real_outw(ioport_t port, Bit16u value)
 {
+  if (!can_do_root_stuff) return;
   __asm__ __volatile__ ("outw %0,%1" :: "a" ((Bit16u) value),
 		"d" ((Bit16u) port));
 }
@@ -68,12 +72,14 @@ static __inline__ void port_real_outw(ioport_t port, Bit16u value)
 static __inline__ Bit16u port_real_inw(ioport_t port)
 {
   Bit16u _v;
+  if (!can_do_root_stuff) return 0xffff;
   __asm__ __volatile__ ("inw %1,%0":"=a" (_v) : "d" ((Bit16u) port));
   return _v;
 }
 
 static __inline__ void port_real_outd(ioport_t port, Bit32u value)
 {
+  if (!can_do_root_stuff) return;
   __asm__ __volatile__ ("outl %0,%1" : : "a" (value),
 		"d" ((Bit16u) port));
 }
@@ -81,6 +87,7 @@ static __inline__ void port_real_outd(ioport_t port, Bit32u value)
 static __inline__ Bit32u port_real_ind(ioport_t port)
 {
   Bit32u _v;
+  if (!can_do_root_stuff) return 0xffffffff;
   __asm__ __volatile__ ("inl %1,%0":"=a" (_v) : "d" ((Bit16u) port));
   return _v;
 }
@@ -91,6 +98,8 @@ static __inline__ Bit32u port_real_ind(ioport_t port)
 #define port_out(v,p)	port_real_outb((p),(v))
 #define port_in_w(p)	port_real_inw((p))
 #define port_out_w(v,p)	port_real_outw((p),(v))
+#define port_in_d(p)	port_real_inw((p))
+#define port_out_d(v,p)	port_real_outw((p),(v))
 
 
 extern Bit8u   port_inb(ioport_t port);

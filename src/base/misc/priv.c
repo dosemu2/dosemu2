@@ -21,6 +21,8 @@ static gid_t cur_gid, cur_egid;
 #define cur_egid (OWN_TCB->egid)
 #endif
 
+static int skip_priv_setting = 0;
+
 #ifdef __NetBSD__
 /* NOTE: Sorry, but the NetBSD stuff is broken currently,
          ... John Kohl is the man to help us with this ;-) */
@@ -127,21 +129,21 @@ static __inline__ int _priv_off(void) {
 
 int real_enter_priv_on(saved_priv_status *privs)
 {
-  if (under_root_login) return 1;
+  if (skip_priv_setting) return 1;
   push_priv(privs);
   return _priv_on();
 }
   
 int real_enter_priv_off(saved_priv_status *privs)
 {
-  if (under_root_login) return 1;
+  if (skip_priv_setting) return 1;
   push_priv(privs);
   return _priv_off();
 }
   
 int real_leave_priv_setting(saved_priv_status *privs)
 {
-  if (under_root_login) return 1;
+  if (skip_priv_setting) return 1;
   if (PRIVS_WERE_ON(privs)) return _priv_on();
   return _priv_off();
 }
@@ -217,32 +219,28 @@ int is_in_groups(gid_t gid)
 }
 
 
-
 void priv_init(void)
 {
   uid  = cur_uid  = getuid();
   if (!uid) under_root_login =1;
   euid = cur_euid = geteuid();
+  if (!euid) can_do_root_stuff = skip_priv_setting = 1;
   gid  = cur_gid  = getgid();
   egid = cur_egid = getegid();
 
   if ((euid != 0) && (uid == euid))
     {
-      /* Nothing else is set up yet so don't try anything fancy */
-      fprintf(stderr,"I must be setuid root (or run by root) to run!\n");
-      exit(1);
+      skip_priv_setting = 1;
+      can_do_root_stuff = 0;
+      fprintf(stderr,"\nRunning unpriviledged in low feature mode\n");
     }
-#if 0 /* we defined it as a macro, because it _alway_ is '1'
-       * (the checks for it will be optimized away by GCC )
-       */
-  i_am_root = 1;
-#endif
 
   num_groups = getgroups(0,0);
   groups = malloc(num_groups * sizeof(gid_t));
   getgroups(num_groups,groups);
 
 #ifndef RUN_AS_ROOT
-  _priv_off();
+  if (!skip_priv_setting) _priv_off();
 #endif
 }
+

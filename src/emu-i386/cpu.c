@@ -682,7 +682,7 @@ write_port_w(unsigned int value,unsigned short port)
 
 void safe_port_out_byte(const unsigned short port, const unsigned char byte)
 {
-        if(i_am_root)  {
+        if(can_do_root_stuff)  {
                 int result;
 
                 result = set_ioperm(port, 1, 1);
@@ -700,7 +700,7 @@ char safe_port_in_byte(const unsigned short port)
 {
         unsigned char value=0;
 
-        if(i_am_root) {
+        if(can_do_root_stuff) {
                 int result;
 
                 result = set_ioperm(port, 1, 1);
@@ -710,7 +710,7 @@ char safe_port_in_byte(const unsigned short port)
 		if (result) error("failed to disable port %x\n", port);
         }       else i_printf("want to ");
         i_printf("in(%x)", port);
-        if(i_am_root)
+        if(can_do_root_stuff)
                 i_printf(" = 0x%x", value);
         i_printf("\n");
         return value;

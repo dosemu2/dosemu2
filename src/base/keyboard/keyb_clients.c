@@ -142,7 +142,7 @@ int keyb_client_init()  {
    }
    else 
 #endif
-   if (config.usesX || config.console_keyb)  {
+   if (config.usesX || (config.console_keyb && can_do_root_stuff))  {
       if (config.usesX || config.console)
          Keyboard = &Keyboard_raw;
       else {

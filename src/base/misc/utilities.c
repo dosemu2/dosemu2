@@ -354,3 +354,17 @@ int integer_sqrt(int x)
 	return y;
 }
 
+int exists_dir(char *name)
+{
+	struct stat st;
+	if (stat(name, &st)) return 0;
+	return (S_ISDIR(st.st_mode));
+}
+
+int exists_file(char *name)
+{
+	struct stat st;
+	if (stat(name, &st)) return 0;
+	return (S_ISREG(st.st_mode));
+}
+

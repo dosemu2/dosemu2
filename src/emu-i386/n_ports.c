@@ -1143,7 +1143,7 @@ set_ioperm(int start, int size, int flag)
 	PRIV_SAVE_AREA
 	int tmp;
 
-	if (!i_am_root || (start>0x3ff))
+	if (!can_do_root_stuff || (start>0x3ff))
 	    return -1;		/* don't bother */
 	if ((start+size)>0x3ff) size=0x400-start;
 

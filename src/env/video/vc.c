@@ -157,7 +157,7 @@ void check_console(void) {
     minor = chkbuf.st_rdev & 0xff;
 
     /* console major num is 4, minor 64 is the first serial line */
-    if ((major == 4) && (minor < 64)) {
+    if (can_do_root_stuff && (major == 4) && (minor < 64)) {
        scr_state.console_no = minor;
        config.console=1;
     }

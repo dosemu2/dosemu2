@@ -8,8 +8,14 @@ updated on June 16, 1997.
 <p>
 
 <enum>
-<item> You have to make 'dos' suid root, this normally is done when you
-   run 'make install'.
+<item> You have to make 'dos' suid root, if want a fullfeature DOSEMU,
+   this normally is done when you run 'make install'.
+   But as od dosemu-0.97.10, you need not if you don't access to ports,
+   external DOSish hardware and won't use the console other then
+   in normal terminal mode.
+
+<item> You can restrict access to the suid root binary via /etc/dosemu.user.
+    by specifying `nosuidroot' for a given user (or all).
 
 <item> Have the users that are allow to execute dosemu in /etc/dosemu.user.
    The format is:
@@ -24,7 +30,8 @@ updated on June 16, 1997.
 
 <tscreen><verb>
      root c_all
-     all c_all
+     lermen c_all
+     all nosuidroot c_all
 </verb></tscreen>
 
 <item> The msdos partitions, that you want to be accessable through 
@@ -82,4 +89,6 @@ you run as user, you should first try configuring dosemu with the
 'runasroot' option (see setup-dosemu tool). This lets dosemu permanently run
 as (suid) root and only use user privileges when accessing secure relevant
 resources. Normally dosemu will permanently run as user and only temporarily
-use root privilege when needed.
+use root privilege when needed and in case of non-suid root
+(as of dosemu-0.97.10), it will run in lowfeature mode without any priviledges.
+

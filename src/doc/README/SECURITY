@@ -10,6 +10,18 @@ These are the hints we give you, when running dosemu on a machine that is
 otherwise allows 'foreign' people login to your machine.
 
 <itemize>
+
+<item> Don't set the -s bit, as of dosemu-0.97.10 DOSEMU can run in
+   lowfeature mode without the -s bit set. If you want fullfeatures
+   for some of your users, just use the keyword `nosuidroot' in
+   /etc/dosemu.users to forbid some (or all) users execution of
+   a suid root running dosemu (they may use a non-suid root copy of
+   the binary though).
+
+<item> Use proper file permissions to restrict access to a
+   suid root DOSEMU binary in addition to /etc/dosemu.users `nosuidroot'.
+   ( double security is better ).
+
 <item> <em/NEVER/ let foreign users execute dosemu under root login !!!
    (Starting with dosemu-0.66.1.4 this isn't necessary any more,
    all functionality should also be available when running as user)
@@ -20,8 +32,8 @@ otherwise allows 'foreign' people login to your machine.
    would permanently run under root privileges and only disable them
    when accessing secure relevant resources, ... not so good.
 
-<item> Never allow DPMI programms to run, when dosemu is suid root,
-   ... and this normally is the case else only root could run dosemu.
+<item> Never allow DPMI programms to run, when dosemu is suid root.
+
 <p>
    (in /etc/dosemu.conf set 'dpmi off' to disable)
 <p>

@@ -161,3 +161,39 @@ This works as follows
    configuration time.  Then will be the task of finding ways to do things
    without root permissions.
 
+<p>
+<verb>Enter Hans (960626): </verb>
+<p>
+   Last <em/act/ of this story: DOSEMU now can run <em/non-/suid root and
+   though it looses a lot of features because of not beeing able to run on
+   console in this mode or not able to do any ports stuff e.t.c., its quite
+   useable under X (I was even able to run win31, hence  DPMI is secure now
+   with the s-bit off).
+
+   The names of some variables where changed, such that it conforms more
+   to what they now do: i_am_root became can_do_root_stuff, and
+   under_root_login was splitted into the static skip_priv_setting,
+   while the global valiable under_root_login keeps its meaning.
+
+   skip_priv_setting is set for both: running as root <em/and/ running as
+   user non-suid root. can_do_root_stuff is global and used in the same
+   places were i_am_root was used before.
+
+   On start of DOSEMU, we now call parse_dosemu_users() directly
+   after priv_init(), and this is top of main(). This way we catch any
+   hacker attack quite early and should be <em/much/ securer as ever before.
+
+   Additionally, parse_dosemu_users now checks for the keyword `nosuidroot'
+   in /etc/dosemu.users and if this is found for a user, this user is not
+   allowed to execute DOSEMU on a suid root binary (though he can use
+   a non-suid root copy of it) and dosemu will exit in this case.
+   Dropping all priviledges on a suid root binary and continue (as if
+   the -s bit wasn't set) is not possible, because /proc/self/mem has
+   the ownership of the suid binary (hence root) and dosemu would crash
+   later, when trying to open it. Do a chown on /proc/self/mem doesn't
+   work either.
+
+   The last action to make the non-suid root stuff working, was moving
+   the files from /var/run/* to some user accessable location. This
+   now is ~/.dosemu/* and dosdebug was adapted to support that.
+

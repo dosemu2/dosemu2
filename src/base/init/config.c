@@ -591,11 +591,6 @@ config_init(int argc, char **argv)
     }
 #endif
 
-    /* Parse dosemu.users _before_ any argument usage to catch
-     * a not allowed user playing with overruns and kick him out
-     */
-    parse_dosemu_users();
-
     opterr = 0;
     confname = CONFIG_SCRIPT;
     while ((c = getopt(argc, argv, "ABCcF:f:I:kM:D:P:VNtsgh:H:x:KL:m23456e:E:dXY:Z:o:Ou:")) != EOF) {
@@ -893,6 +888,16 @@ config_init(int argc, char **argv)
 	    c_printf("CONF: Forceing neutral Keyboard-layout, X-server will translate\n");
 	}
 	config.console_video = config.vga = config.graphics = 0;
+    }
+    else {
+	if (!can_do_root_stuff && config.console) {
+	    /* force use of Slang-terminal on console too */
+	    config.console = config.console_video = config.vga = config.graphics = 0;
+	    config.cardtype = 0;
+	    config.vbios_seg = 0;
+	    config.mapped_bios = 0;
+	    fprintf(stderr, "no console on low feature (non-suid root) DOSEMU\n");
+	}
     }
     check_for_env_autoexec_or_config();
     if (under_root_login)  c_printf("CONF: running exclusively as ROOT:");

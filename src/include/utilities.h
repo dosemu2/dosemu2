@@ -10,6 +10,8 @@ void advance_proc_bufferptr(void);
 void reset_proc_bufferptr(void);
 int get_proc_intvalue_by_key(char *key);
 int integer_sqrt(int x);
+int exists_dir(char *name);
+int exists_file(char *name);
 
 /* returns y = sqrt(x), for y*y beeing a power of 2 below x
  */

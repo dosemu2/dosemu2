@@ -55,20 +55,6 @@ EXTERN int terminal_pipe;
 EXTERN int terminal_fd INIT(-1);
 EXTERN int running_kversion INIT(0);
 
-/* set to one if runing setuid as root */
-#if 1
-#define i_am_root 1  /* neadless to have it variable, it will be allways 1
-                      * If dosemu isn't suid root, it will terminate
-                      */
-#else
-EXTERN int i_am_root INIT(0);
-#endif
-
-/* set, if dosemu was started from a 'root login',
- * unset, if dosemu was started from a 'user login' (running suid root)
- */
-EXTERN int under_root_login INIT(0);
-
 EXTERN char *cstack[16384];
 
 /* this is DEBUGGING code! */

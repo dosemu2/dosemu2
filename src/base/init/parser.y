@@ -68,6 +68,7 @@ int allow_io(unsigned int start, int size, int permission, int ormask,
 #include "timers.h"
 #include "keymaps.h"
 #include "memory.h"
+#include "utilities.h"
 
 #include "parsglob.h"
 #include "lexer.h"
@@ -76,6 +77,7 @@ int allow_io(unsigned int start, int size, int permission, int ormask,
 #define USERVAR_PREF	"dosemu_"
 static int user_scope_level;
 
+static int after_secure_check = 0;
 static serial_t *sptr;
 static serial_t nullser;
 static mouse_t *mptr;
@@ -2294,7 +2296,7 @@ void
 parse_dosemu_users(void)
 {
 #define ALL_USERS "all"
-#define PBUFLEN 80
+#define PBUFLEN 256
 
   PRIV_SAVE_AREA
   FILE *volatile fp;
@@ -2305,6 +2307,21 @@ parse_dosemu_users(void)
   int log_syslog=0;
   int uid;
   int have_vars=0;
+
+  /* We come here _very_ early (at top of main()) to avoid security conflicts.
+   * priv_init() has already been called, but nothing more.
+   *
+   * We will exit, if /etc/dosemu.users says that the user has no right
+   * to run a suid root dosemu (and we are on), but will continue, if the user
+   * is running a non-suid copy _and_ is mentioned in dosemu users.
+   * The dosemu.users entry for such a user is:
+   *
+   *      joeodd  ... nosuidroot
+   *
+   * The functions we call rely on the following setting:
+   */
+  after_secure_check = 0;
+  priv_lvl = 0;
 
   /* get our own hostname and define it as 'h_hostname'
    * and in $DOSEMU_HOST
@@ -2325,6 +2342,7 @@ parse_dosemu_users(void)
       }
     }
   }
+
   /* Get the log level*/
   if((fp = open_file(DOSEMU_LOGLEVEL_FILE)))
      {
@@ -2384,6 +2402,12 @@ parse_dosemu_users(void)
 		   if (ustr[0] == '#') break;
 		   define_config_variable(ustr);
 		   have_vars = 1;
+                   if (!under_root_login && can_do_root_stuff && !strcmp(ustr,"nosuidroot")) {
+                     fprintf(stderr,
+                       "\nSorry, you are not allowed to run this suid root binary\n"
+                       "but you may run a non-suid root copy of it\n\n");
+                     exit(1);
+                   }
 		 }
 		 if (!have_vars) {
 		   if (uid) define_config_variable("c_normal");
@@ -2410,6 +2434,30 @@ parse_dosemu_users(void)
      userok=1;  /* This must be root, so always allow DOSEMU start */
   }
 
+  /* check wether we are we are running non-suid root
+   * If so eventually rearange some file locations.
+   */
+  if (!can_do_root_stuff) {
+    char *home = getenv("HOME");
+    char *s;
+    if (!home) {
+      fprintf(stderr, "odd environment, you don't have $HOME, giving up\n");
+      exit(1);
+    }
+    s = malloc(strlen(home) + 128);
+    sprintf(s, "%s/%s", home, TMPDIR);
+    if (!exists_dir(s)) {
+      if (mkdir(s, S_IRWXU)) {
+        fprintf(stderr, "can't create local %s directory, giving up\n", s);
+        exit(1);
+      }
+    }
+    TMPDIR = strdup(s);
+    sprintf(s, "%s/dosemu.", TMPDIR);
+    TMPFILE = strdup(s);
+    free(s);
+  }
+
   if(userok==0) {
        fprintf(stderr,
 	       "Sorry %s. You are not allowed to use DOSEMU. Contact System Admin.\n",
@@ -2427,12 +2475,15 @@ parse_dosemu_users(void)
        exit(1);
   }
   else {
-       sprintf(buf, "DOSEMU start by %s (uid=%i)", pwd->pw_name, uid);
+       sprintf(buf, "DOSEMU started%s by %s (uid/euid=%i/%i)",
+            (can_do_root_stuff && !under_root_login)? " suid root" : "",
+            pwd->pw_name, uid, get_orig_euid());
             
        if(log_syslog>=2)
          write_to_syslog(buf);
 
   }
+  after_secure_check = 1;
 }
 
 
@@ -2838,11 +2889,13 @@ int define_config_variable(char *name)
       if (!priv_lvl) update_class_mask();
     }
     else {
-      c_printf("CONF: overflow on config variable list\n");
+      if (after_secure_check)
+        c_printf("CONF: overflow on config variable list\n");
       return 0;
     }
   }
-  c_printf("CONF: config variable %s set\n", name);
+  if (after_secure_check)
+    c_printf("CONF: config variable %s set\n", name);
   return 1;
 }
 

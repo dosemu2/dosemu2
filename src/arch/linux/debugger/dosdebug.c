@@ -25,7 +25,11 @@
 #include <linux/vt.h> 
 #include <sys/ioctl.h>
 
-#include "shared.h"
+#define    TMPFILE_		"/var/run/dosemu."
+#define    TMPFILE_HOME		".dosemu/dosemu."
+#define    TMPFILE               dosemu_tmpfile_path 
+static char dosemu_tmpfile_path[256];
+
 #define MHP_BUFFERSIZE 8192
 
 #define FOREVER ((((unsigned long)-1L) >> 1) / CLOCKS_PER_SEC)
@@ -39,14 +43,16 @@ static  char pipename_in[128], pipename_out[128], shared_info_file[128];
 int fdout, fdin;
 
 
-int find_dosemu_pid()
+int find_dosemu_pid(char *tmpfile, int local)
 {
   DIR *dir;
   struct dirent *p;
-  char dn[]=TMPFILE;
+  char dn[128];
   char *id;
   int i,j,pid;
+  static int once =1;
 
+  strcpy(dn, tmpfile);
   j=i=strlen(dn);
   while (dn[i--] != '/');  /* remove 'dosemu.' */
   i++;
@@ -56,18 +62,20 @@ int find_dosemu_pid()
   
   dir = opendir(dn);
   if (!dir) {
+    if (local) return -1;
     fprintf(stderr, "can't open directory %s\n",dn);
     exit(1);
   }
   i=0;
   while (p = readdir(dir)) {
     if (!strncmp(id,p->d_name,j) && (p->d_name[j] != 'd')) {
-      if (i++ ==1) {
+      if (once && (i++ ==1)) {
         fprintf(stderr,
           "Multiple dosemu processes running or stalled files in %s\n"
           "restart dosdebug with one of the following pids as first arg:\n"
           "%d", dn, pid
         );
+        once = 0;
       }
       pid=strtol(p->d_name+j,0,0);
       if (i >1) fprintf(stderr, " %d", pid);
@@ -76,9 +84,11 @@ int find_dosemu_pid()
   closedir(dir);
   if (i > 1) {
     fprintf(stderr, "\n");
+    if (local) return -1;
     exit(1);
   }
   if (!i) {
+    if (local) return -1;
     fprintf(stderr, "No dosemu process running, giving up.\n");
     exit(1);
   }
@@ -179,7 +189,18 @@ int main (int argc, char **argv)
   
   FD_ZERO(&readfds);
 
-  if (!argv[1]) dospid=find_dosemu_pid();  
+  if (!argv[1]) {
+    char *s = getenv("HOME");
+    dospid = -1;
+    if (s) {
+      sprintf(TMPFILE, "%s/%s", s, TMPFILE_HOME);
+      dospid=find_dosemu_pid(TMPFILE, 1);
+    }
+    if (dospid == -1) {
+      strcpy(TMPFILE, TMPFILE_);
+      dospid=find_dosemu_pid(TMPFILE, 0);
+    }
+  }  
   else dospid=strtol(argv[1], 0, 0);
 
   if (!check_pid(dospid)) {

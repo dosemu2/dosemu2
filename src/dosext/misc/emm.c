@@ -390,6 +390,15 @@ ems_init(void)
      /* currently running Linux 2.0.17 I have to be root to open my
       * own /proc/self/mem.  Is this a bug or a feature???
       * It's certainly a pain. -- EB 6 Sept 1996
+      * Its a feature and behaves as follows (determined by trying;-):
+      * For a suid binary it gets the ownership of the fileowner.
+      * Hence, when DOSEMU is suid root its owned by root and then
+      * only root can access it. If you want access /proc/self/mem
+      * as user, just don't set the -s bit.
+      * This behave makes sense, because a suid root program dropping its
+      * priviledges may want to hide its sensible data to the  unpriviledged
+      * running part, thus restricting /proc/self/mem is reasonable.
+      *                        -- Hans May 26 1998
       */
      enter_priv_on();
      selfmem_fd = open(MEMFILE, O_RDWR);

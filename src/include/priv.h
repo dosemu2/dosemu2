@@ -3,12 +3,18 @@
 
 #include "config.h"
 
-#ifndef i_am_root
-  #define i_am_root 1
-#endif
+/* set, we either are logged in under root or are suid root
+ * Means: we can do stuff that needs root access (iopl, ioperm, e.t.c.)
+ * Dos NOT mean, that _have_ that rights already, it needs enter_priv_on
+ * anyway.
+ */ 
+EXTERN int can_do_root_stuff INIT(0);
 
-extern int under_root_login;
-
+/* set, if dosemu was started from a 'root login',
+ * unset, if dosemu was started from a 'user login'
+ */
+EXTERN int under_root_login INIT(0);
+  
 typedef int saved_priv_status;
 
 #define PRIV_MAGIC 0x56697250	/* "PriV" */
@@ -19,6 +25,7 @@ typedef int saved_priv_status;
 #define leave_priv_setting()	real_leave_priv_setting(&PRIV_LOCAL_VAR)
 
 void priv_init(void);
+void priv_drop_total(void);
 int real_enter_priv_on(saved_priv_status *);
 int real_enter_priv_off(saved_priv_status *);
 int real_leave_priv_setting(saved_priv_status *);
@@ -65,8 +72,9 @@ int priv_drop(void);
       broke this 'holy law' myself was when printing the log, showing both
       values (the _real_ and the cashed on).
 
-   4. In case dosemu was started out of a root login, we skip 
-      _all_ priv-settings. There is a new variable 'under_root_login'
+   4. In case dosemu was started out of a root login (or non-suid-root
+      out of a user login), we skip _all_ priv-settings.
+      There is a new variable 'under_root_login'
       which is only set when dosemu is started from a root login.
 
    5. On all places were iopl() is called outside a enter_priv...leave_priv

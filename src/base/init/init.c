@@ -316,6 +316,10 @@ static inline void map_hardware_ram(void)
 
   if (!config.must_spare_hardware_ram)
     return;
+  if (!can_do_root_stuff) {
+    fprintf(stderr, "can't use hardware ram in low feature (non-suid root) DOSEMU\n");
+    return;
+  }
   open_kmem ();
   i = 0;
   do {

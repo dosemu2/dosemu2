@@ -397,6 +397,14 @@ emulate(int argc, char **argv)
     /* NOW! it is safe to touch the priv code.  */
     priv_init();  /* This must come first! */
 
+    /* This has to come next:
+     * Parse dosemu.users _before_ any argument usage to catch
+     * a not allowed user playing with overruns and kick him out
+     * Additionally, we check a non-suid root condition, if dosemu.user
+     * says so and exit if needed.
+     */
+    parse_dosemu_users();
+
     /* the transposal of (config_|stdio_)init allows the addition of -o */
     /* to specify a debug out filename, if you're wondering */
 

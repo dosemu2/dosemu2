@@ -35,6 +35,7 @@ Within /etc/dosemu.users the general permissions are set:
 
 <itemize>
   <item> which users are allowed to use DOSEMU.
+  <item> which users are allowed to use DOSEMU suid root.
   <item> what kind of access class the user belongs to.
   <item> wether the user is allowed to define a private global.conf
     that replaces /var/lib/dosemu/global.conf (option -F).
@@ -52,14 +53,19 @@ The below example is from etc/dosemu.users.secure, which you may copy
 to /etc/dosemu.users.
 <tscreen><verb>
   root c_all     # root is allowed to do all weird things
-  nobody guest   # variable 'guest' is checked in global.conf
-                 # to allow only DEXE execution
-  guest guest    # login guest treated as `nobody'
-  all restricted # all other users have normal user restrictions
+  nobody nosuidroot guest # variable 'guest' is checked in global.conf
+                          # to allow only DEXE execution
+  guest nosuidroot guest  # login guest treated as `nobody'
+  all nosuidroot restricted # all other users have normal user restrictions
 </verb></tscreen>
 Note that the above `restricted' is checked in global.conf and will
 disable all secure relevant feature. Setting `guest' will force
 setting `restricted' too.
+
+The use of `nosuidroot' will force a suid root dosemu binary to exit,
+the user may however use a non-suid root copy of the binary.
+For more information on this look at README-tech,
+chapter 11.1 `Priveleges and Running as User'
 
 Nevertheless, for a first try of DOSEMU you may prefer etc/dosemu.users.easy,
 which just contains

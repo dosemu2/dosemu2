@@ -1,3 +1,19 @@
+98/06/26 ver. 0.97.9.2 unofficial pre-release
+	From Hans
+	- Second round of security fixes: got non-suid-root DOSEMU running.
+	  However, this has reduced features: no port access, no hardware
+	  access e.t.c, on console only pure terminal (Slang, no raw kbd).
+	  On X it does a lot more: I was even able to run win31
+	  (hence, DPMI is secure now with the s-bit off).
+	- Moved parse_dosemu_users again, this time _directly_ behind
+	  priv_init at top of main(). This allows checking, wether this
+	  user is allowed to run a suid binary. In /etc/dosemu.users there
+	  is a new keyword ('nosuidroot') which only allows to run
+	  non-suid root (copies of) DOSEMU.
+	- In case of non-suid root we now use a ~/.dosemu/* directory
+	  (will create it if missing) for the stuff, we usually have
+	  in /var/run/*. Dosdebug was adapted to support that.
+	- updated the docs to reflect the above changes.
 98/06/24 ver. 0.97.9.1 unofficial pre-release
 	From Alberto
 	- fix a 'diabolic' missing '*/' in src/base/async/int.c

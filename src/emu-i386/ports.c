@@ -699,7 +699,7 @@ Bit8u port_safe_inb(Bit32u port)
   Bit8u res = 0;
 
   i_printf("PORT: safe_inb ");
-  if (i_am_root) {
+  if (can_do_root_stuff) {
     enter_priv_on();
     iopl(3);
     res = port_in(port);
@@ -710,7 +710,7 @@ Bit8u port_safe_inb(Bit32u port)
   else
     i_printf("want to ");
   i_printf("in(%lx)", port);
-  if (i_am_root)
+  if (can_do_root_stuff)
     i_printf(" = %hx", res);
   i_printf("\n");
   return res;
@@ -720,7 +720,7 @@ void port_safe_outb(Bit32u port, Bit8u byte)
 {
   PRIV_SAVE_AREA
   i_printf("PORT: safe_outb ");
-  if (i_am_root) {
+  if (can_do_root_stuff) {
     enter_priv_on();
     iopl(3);
     port_out(byte, port);
@@ -738,7 +738,7 @@ Bit16u port_safe_inw(Bit32u port)
   Bit16u res = 0;
 
   i_printf("PORT: safe_inw ");
-  if (i_am_root) {
+  if (can_do_root_stuff) {
     enter_priv_on();
     iopl(3);
     res = port_in_w(port);
@@ -748,7 +748,7 @@ Bit16u port_safe_inw(Bit32u port)
   else
     i_printf("want to ");
   i_printf("inw(%lx)", port);
-  if (i_am_root)
+  if (can_do_root_stuff)
     i_printf(" = %x", res);
   i_printf("\n");
   return res;
@@ -758,7 +758,7 @@ void port_safe_outw(Bit32u port, Bit16u word)
 {
   PRIV_SAVE_AREA
   i_printf("PORT: safe_outw ");
-  if (i_am_root) {
+  if (can_do_root_stuff) {
     enter_priv_on();
     iopl(3);
     port_out_w(word, port);
@@ -787,7 +787,7 @@ set_ioperm(int start, int size, int flag)
     PRIV_SAVE_AREA
     int             tmp;
 
-    if (!i_am_root)
+    if (!can_do_root_stuff)
 	return -1;		/* don't bother */
 
 #ifdef X86_EMULATOR

@@ -379,6 +379,8 @@
 
   +o  which users are allowed to use DOSEMU.
 
+  +o  which users are allowed to use DOSEMU suid root.
+
   +o  what kind of access class the user belongs to.
 
   +o  wether the user is allowed to define a private global.conf that
@@ -423,6 +425,12 @@
         valid login name (root also is one) or 'all'. The later means
         any user not mentioned in previous lines.
 
+     nnoossuuiiddrroooott
+        Do not allow execution of a suid dosemu binary. The user may,
+        howver, use a non-suid root copy of DOSEMU (reasonable sysadmins
+        will supply it) For more information on this look at chapter
+        11.1 (`Priveleges and Running as User')
+
      cc__ssttrriicctt
         Do not allow -F option (global.conf can't be replaced)
 
@@ -431,13 +439,13 @@
 
      ccllaasssseess
         One or more of the following:
-
         cc__aallll
            no restriction
 
         cc__nnoorrmmaall
            normal restrictions, all but the following classes: c_var,
            c_boot, c_vport, c_secure, c_irq, c_hardram.
+
         cc__vvaarr
            allow (un)setting of configuration- and environment variables
 
@@ -500,8 +508,8 @@
   login name is given (no further parameters, old format) the following
   setting is assumed:
 
-    if 'root'  c_all
-    else       c_normal
+         if 'root'  c_all
+         else       c_normal
 
   Other than with previous DOSEMU versions, the /etc/dosemu.users now is
   mandatory. Also note, that you may restrict 'root' doing something
@@ -601,12 +609,11 @@
          ifdef <configuration variable>
 
   or
-
-    ifndef <configuration variable>
-      ...
-    else
-      ...
-    endif
+         ifndef <configuration variable>
+           ...
+         else
+           ...
+         endif
 
   where _v_a_r_i_a_b_l_e is a _c_o_n_f_i_g_u_r_a_t_i_o_n _v_a_r_i_a_b_l_e (not an environment
   variable). Additionally there is a `normal' _i_f _s_t_a_t_e_m_e_n_t, a _w_h_i_l_e
@@ -1769,6 +1776,14 @@
 
          dpmi 4086                # DPMI size in K, or "off"
 
+  The best solution (security wise), however, is to run dosemu _n_o_n_-_s_u_i_d
+  _r_o_o_t under X (which is possible since dosemu-0.97.10). Under X most of
+  the things we would need to run under root privilidges aren't needed,
+  as the X server supports them. And giving DPMI access to non-suid root
+  dosemu is _n_o_t at all critical. You may forbid some users to use an
+  eventually available suid root binary by setting `nosuidroot' in
+  /etc/dosemu.users.
+
   XMS is enabled by the following statement
 
          xms 1024                 # XMS size in K,  or "off"
@@ -1789,7 +1804,6 @@
   regions with hardware_ram { .. }. You can only map in entities of 4k,
   you give the address, not the segment.  The below maps
   0xc8000..0xc8fff and 0xcc000..0xcffff:
-
          hardware_ram { 0xc8000 range 0xcc000 0xcffff }
 
   With the below you define the maximum conventional RAM to show apps:
@@ -1972,7 +1986,7 @@
   used if the floppies are write-protected.  Use an integer value to set
   the time between floppy updates.
 
-         FastFloppy 8
+    FastFloppy 8
 
   22..22..2233..  PPrriinntteerrss
 
@@ -2010,7 +2024,7 @@
   Be sure to also add a port line to allow the application access to the
   port:
 
-         ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
+    ports { device /dev/lp0 0x3bc 0x3bd 0x3be }
 
   NOTE: applications that require this will not interfere with
   applications that continue to use the standard bios calls.  These
@@ -2101,6 +2115,7 @@
   ports.c. Note that the code in portss.c (retrieved from Scott
   Buchholz's pre-0.61) was previously disabled (not used), because it
   had problems with older versions of dosemu.
+
   The _r_e_p_;_i_n_,_o_u_t instructions will been optimized so to call iopl() only
   once.
 
@@ -2220,6 +2235,7 @@
 
   +o  Now, how is this realized? This is a bit more complicated.  We have
      3 places were the eflag register is stored in memory:
+
      vvmm8866ss..rreeggss..eeffllaaggss
         in user space, seen by dosemu
 
@@ -2270,7 +2286,6 @@
      userspace vm86s.regs.eflags. This is done by save_v86_state() and
      this does _n_o_t translate the VIF to IF, it should be as it was on
      entry of sys_vm86: set to 1.
-
   +o  Now what are we doing with eflags in dosemu ?  Well, this I don't
      really know. I saw IF used (told it Larry), I saw VIF tested an
      set, I saw TF cleared, and NT flag e.t.c.
@@ -2281,6 +2296,7 @@
 
      How I think we should proceed? Well this I did describe in my last
      mail.
+
      ,,,, and this from a follow-up mail:
 
      _N_O_T_E VIF and VIP in DOS-CPU-flagsregister are inherited from
@@ -2461,6 +2477,7 @@
 
   If the above INTx happens from within old style vm86() call, the
   exceptions also are handled `the old way'. (backward comptibility)
+
   55..33..  AAbbaannddoonneedd ``bbeellllss aanndd wwhhiissttlleess'' ffrroomm oollddeerr eemmuummoodduullee
 
   ( If you have an application that needs it, well then it won't work,
@@ -2571,6 +2588,7 @@
 
   +o  sigalrm now again checks the dirty bit(s) in vm86s.screen_bitmap
      before calling update_screen.
+
      At the moment, it doesn't seem to achieve much, but it might help
      when we use mark's scroll detector, and will be absolutely
      necessary for a good X graphics support.
@@ -2983,7 +3001,6 @@
 
   +o  CAPS LOCK uppercase translation may be incorrect for some (non-
      german) national characters.
-
   +o  typematic codes in X and non-raw modes are Make+Break, not just
      Make.  This shouldn't hurt, though.
 
@@ -3060,6 +3077,7 @@
   values: "latin" "ibm" and "fullibm".   View ./video/terminal.h for
   more information on these character set.  Here are the instructions on
   how to activate the 8-bit graphical IBM character set for DOSEMU:
+
   99..11..11..  IIBBMM cchhaarraacctteerr sseett iinn aann xxtteerrmm
 
   GREAT NEWS: You just use your existing ordinary "rxvt" or "xterm".
@@ -3333,6 +3351,41 @@
   options that are only possible when we are suid root, at dosemu
   configuration time.  Then will be the task of finding ways to do
   things without root permissions.
+
+  Enter Hans (960626):
+
+  Last _a_c_t of this story: DOSEMU now can run _n_o_n_-suid root and though it
+  looses a lot of features because of not beeing able to run on console
+  in this mode or not able to do any ports stuff e.t.c., its quite
+  useable under X (I was even able to run win31, hence  DPMI is secure
+  now with the s-bit off).
+
+  The names of some variables where changed, such that it conforms more
+  to what they now do: i_am_root became can_do_root_stuff, and
+  under_root_login was splitted into the static skip_priv_setting, while
+  the global valiable under_root_login keeps its meaning.
+
+  skip_priv_setting is set for both: running as root _a_n_d running as user
+  non-suid root. can_do_root_stuff is global and used in the same places
+  were i_am_root was used before.
+
+  On start of DOSEMU, we now call parse_dosemu_users() directly after
+  priv_init(), and this is top of main(). This way we catch any hacker
+  attack quite early and should be _m_u_c_h securer as ever before.
+
+  Additionally, parse_dosemu_users now checks for the keyword
+  `nosuidroot' in /etc/dosemu.users and if this is found for a user,
+  this user is not allowed to execute DOSEMU on a suid root binary
+  (though he can use a non-suid root copy of it) and dosemu will exit in
+  this case.  Dropping all priviledges on a suid root binary and
+  continue (as if the -s bit wasn't set) is not possible, because
+  /proc/self/mem has the ownership of the suid binary (hence root) and
+  dosemu would crash later, when trying to open it. Do a chown on
+  /proc/self/mem doesn't work either.
+
+  The last action to make the non-suid root stuff working, was moving
+  the files from /var/run/* to some user accessable location. This now
+  is  /.dosemu/* and dosdebug was adapted to support that.
 
   1122..  TTiimmiinngg iissssuueess iinn ddoosseemmuu
 

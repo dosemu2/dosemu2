@@ -31,6 +31,7 @@ Within /etc/dosemu.users the general permissions are set:
 
 <itemize>
   <item> which users are allowed to use DOSEMU.
+  <item> which users are allowed to use DOSEMU suid root.
   <item> what kind of access class the user belongs to.
   <item> wether the user is allowed to define a private global.conf
     that replaces /var/lib/dosemu/global.conf (option -F).
@@ -79,6 +80,12 @@ Each line corresponds to exactly _one_ valid user count:
 <descrip>
   <tag/loginname/ valid login name (root also is one) or 'all'. The later means
              any user not mentioned in previous lines.
+  <tag/nosuidroot/ Do not allow execution of a suid dosemu binary. The user
+	may, howver, use a non-suid root copy of DOSEMU
+	(reasonable sysadmins will supply it)
+        For more information on this look at chapter 11.1
+        (`Priveleges and Running as User')
+
   <tag/c_strict/ Do not allow -F option (global.conf can't be replaced)
 
   <tag/c_dexeonly/ Only allow execution of DEXE files, forbid any other use.
@@ -1538,6 +1545,12 @@ The below enables/disables DPMI and sets the size of DPMI memory.
   dpmi 4086                # DPMI size in K, or "off"
 </verb></tscreen>
 
+The best solution (security wise), however, is to run dosemu <em/non-suid root/
+under X (which is possible since dosemu-0.97.10). Under X most of the
+things we would need to run under root privilidges aren't needed, as the
+X server supports them. And giving DPMI access to non-suid root dosemu
+is <em/not/ at all critical. You may forbid some users to use an eventually
+available suid root binary by setting `nosuidroot' in /etc/dosemu.users.
 
 XMS is enabled by the following statement
 
