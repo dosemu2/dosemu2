@@ -5,10 +5,11 @@
 #
 # USAGE:
 #
-#   rebuild [all] [inst]
+#   rebuild [all] [inst] [static]
 #
-#      all   force a complete rebuild, don't rely on previous make
-#      inst  test install of the binary (if running root) suid-root in $TGT
+#      all    force a complete rebuild, don't rely on previous make
+#      inst   test install of the binary (if running root) suid-root in $TGT
+#      static build portable static binaries
 #
 #
 TGT=/usr/bin
@@ -16,11 +17,13 @@ TGT=/usr/bin
 
 ALL=0
 INST=0
+PORTABLE=0
 
 while [ -n "$1" ]; do
   case $1 in
     all)   ALL=1 ;;
     inst)  INST=1 ;;
+    static) PORTABLE=1 ;;
     *) ;;
   esac
   shift
@@ -31,6 +34,10 @@ if [ $ALL = 1 -o ! -f Makefile ]; then
     make distclean
   fi
 fi
+if [ $PORTABLE = 1 -a ! -f Makefile.conf ]; then
+  ./default-configure --enable-linkstatic
+fi
+
 make 'WAIT=' 2>&1 | tee -a gen.log
 grep 'warning' gen.log
 

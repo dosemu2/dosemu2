@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -159,6 +159,27 @@ static void write_port60(Bit8u value)
       /* no ack() */
       wstate=0;
       break;
+    case 0xd1:
+      h_printf("8042: drive output port lines, value=0x%02x\n", value);
+      switch (value) {
+	extern void set_a20(int);
+        case 0xdf:	/* enable A20 */
+	  h_printf("8042: enable A20 line\n");
+	  if (config.xms_size < 64) {
+	    error("Your booted DOS and/or application wants A20 enabled,\n"
+		  "but you have not (enough) XMS configured in dosemu.conf\n");
+	    leavedos(99);
+	  }
+	  set_a20(1);
+	  break;
+        case 0xdd:	/* disable A20) */
+	  h_printf("8042: disable A20 line\n");
+	  set_a20(0);
+	  break;
+      }
+      port60_ready=0;
+      wstate=0;
+      break;      
     case 0xed:        /* set LED mode */
       h_printf("8042: write port 0x60 set LED mode to 0x%02x\n", value);
       ack();
@@ -227,6 +248,16 @@ static void write_port64(Bit8u value) {
 	     output_byte_8042(0xff);   /* just send _something_... */
 	     break;
 #endif	  
+	  case 0xd1:       /* next write to port 0x60 drives hardware port */
+	     wstate=0xd1;
+	     break;
+
+	  case 0xf0 ... 0xff: /* produce 6ms pulse on hardware port */
+	     h_printf("8042: produce 6ms pulse on hardware port, ignored\n");
+	     wstate=0;
+	     port60_ready=0;
+	     break;
+
 	  default:
 	     h_printf("8042: write port 0x64 unsupported command 0x%02x, ignored\n",
 		      value);

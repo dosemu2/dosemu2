@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -1003,6 +1003,11 @@ mouse_pos(void)
 void 
 mouse_setpos(void)
 {
+  extern int grab_active;
+  if (config.X && !grab_active) {
+    m_printf("MOUSE: ignoring 'set cursor pos' in X with no grab active\n");
+    return;
+  }
   mouse.x = LWORD(ecx);
   mouse.y = LWORD(edx);
   mouse_move();

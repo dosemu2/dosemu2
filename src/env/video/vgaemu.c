@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -145,6 +145,9 @@
  * --beo
  *
  * 2000/06/01: Over the last weeks: speeded up Logical_VGA_{read,write}.
+ * --beo
+ *
+ * 2001/03/14: Added vgaemu_put_pixel and vgaemu_get_pixel.
  * --beo
  *
  * DANG_END_CHANGELOG
@@ -2876,6 +2879,132 @@ void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr)
       vga.mem.dirty_map[page1 + 0x20] = 1;
       vga.mem.dirty_map[page1 + 0x30] = 1;
       break;
+  }
+}
+
+/* TODO: support page number */
+void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr)
+{
+  unsigned ofs, u, page0, v;
+  unsigned col = attr;
+
+  vga_msg(
+    "vgaemu_put_pixel: x.y %d.%d, page 0x%02x, attr 0x%02x\n",
+    x, y, page, attr
+  );
+
+  ofs = vgaemu_xy2ofs(x, y);
+  vga_msg("vgaemu_put_pixel: ofs 0x%x\n", ofs);
+
+  if(ofs >= vga.mem.size) {
+    vga_msg("vgaemu_put_pixel: values out of range\n");
+    return;
+  }
+
+  page0 = ofs >> 12;
+
+  switch(vga.mode_type) {
+      case CGA:
+        if(vga.color_bits == 1)
+          v = (attr & 1) << (7 - (x & 7));
+        else {	/* vga.color_bits == 2 */
+          v = (attr & 3) << (2 * (3 - (x & 3)));
+        }
+        if((attr & 0x80)) {
+          vga.mem.base[ofs] ^= v;
+        }
+        else {
+          vga.mem.base[ofs] &= ~v;
+          vga.mem.base[ofs] |= v;
+        }
+        break;
+
+      case PL1:
+        col &= 1;
+      case PL2:
+        col &= 3;
+      case PL4:
+        col &= 15;
+        v = 1 << (7 - (x & 7));
+        v |= v<<8;
+        v |= v<<16;
+        v &= color2pixels[col]; 
+        for (u = 0; u < 4; u++) {
+          if((attr & 0x80)) {
+            vga.mem.base[ofs] ^= v;
+          } else {
+            vga.mem.base[ofs] &= ~v;
+            vga.mem.base[ofs] |= v;
+          }
+          v >>= 8;
+          ofs += 0x10000;
+        }
+        break;
+
+      case P8:
+        vga.mem.base[ofs] = attr;
+        break;
+  }
+
+  vga.mem.dirty_map[page0] = 1;
+
+  switch(vga.mode_type) {
+    case PL1:
+    case PL2:
+    case PL4:
+      vga.mem.dirty_map[page0 + 0x10] = 1;
+      vga.mem.dirty_map[page0 + 0x20] = 1;
+      vga.mem.dirty_map[page0 + 0x30] = 1;
+      break;
+  }
+}
+
+/* TODO: support page number */
+unsigned char vgaemu_get_pixel(int x, int y, unsigned char page)
+{
+  unsigned ofs, u = 0, v = 0;
+
+  vga_msg(
+    "vgaemu_get_pixel: x.y %d.%d, page 0x%02x\n",
+    x, y, page
+  );
+
+  ofs = vgaemu_xy2ofs(x, y);
+  vga_msg("vgaemu_get_pixel: ofs 0x%x\n", ofs);
+
+  if(ofs >= vga.mem.size) {
+    vga_msg("vgaemu_get_pixel: values out of range\n");
+    return 0;
+  }
+
+  switch(vga.mode_type) {
+      case CGA:
+        if(vga.color_bits == 1)
+          return (vga.mem.base[ofs] >> (7 - (x & 7))) & 1;
+        else 	/* vga.color_bits == 2 */
+          return (vga.mem.base[ofs] >> (2 * (3 - (x & 3)))) & 3;
+
+      case PL1:
+        u--;
+        ofs -= 0x10000;
+      case PL2:
+        u -= 2;
+        ofs -= 0x20000;
+      case PL4:
+        u += 4;
+        ofs += 0x40000;
+        while (u--) {
+          ofs -= 0x10000;
+          v <<= 1;
+          v |= (vga.mem.base[ofs] >> (7 - (x & 7))) & 1;
+        }
+        return v;
+
+      case P8:
+        return vga.mem.base[ofs];
+
+      default:
+        return 0;
   }
 }
 

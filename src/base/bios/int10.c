@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -1583,15 +1583,18 @@ void int10_new()
 
 
     case 0x0c:		/* write pixel */
-      i10_msg("write pixel: NOT IMPLEMENTED\n");
+      if(vga.mode_class != TEXT)
+        vgaemu_put_pixel(LWORD(ecx), LWORD(edx), HI(bx), LO(ax));
       break;
 
 
     case 0x0d:		/* read pixel */
-      i10_msg("read pixel: NOT IMPLEMENTED\n");
       LO(ax) = 0;
+      if(vga.mode_class != TEXT) {
+        LO(ax) = vgaemu_get_pixel(LWORD(ecx), LWORD(edx), HI(bx));
+        i10_msg("read pixel: 0x%02x\n", LO(ax));
+      }
       break;
-
 
     case 0x0e:		/* print char */
       if(vga.mode_class == TEXT) {

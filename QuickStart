@@ -6,15 +6,41 @@ However, if you are reasonable just execute ViewDocs to read the docs.
                                             ========
 
 --------------------------------------------------------------------------
-1. Compile
+1. Install and use the ready-to-use DOSEMU binary distribution
+--------------------------------------------------------------------------
+
+The most easiest way to get DOSEMU working on your maschine is to use
+the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
+
+  - ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
+    (A tarball containing a collection of suitable FreeDos binaries)
+
+  - ftp://ftp.dosemu.org/dosemu/dosemu-<version>-bin.tgz
+    (A tarball containing the recent DOSEMU binaries)
+
+You have to unpack both tarballs (as normal user, NOT as root) into
+the same directory in your HOME, such as:
+
+  $ mkdir mydos
+  $ cd mydos
+  $ tar -zxf dosemu-freedos-bin.tgz
+  $ tar -zxf dosemu-1.0.2-bin.tgz
+  $ cd dosemu
+
+Now execute DOSEMU
+
+  $ ./xdosemu
+
+For a more detailed description have a look at README.bindist
+
+--------------------------------------------------------------------------
+2. Compile
 --------------------------------------------------------------------------
 
 - make
-- su
-- make install
 
 --------------------------------------------------------------------------
-1.  Want to use not standard configuration ?
+3.  Want to use not standard configuration ?
 --------------------------------------------------------------------------
 
 Then you have to edit compiletime-settings (changing on/off) and run
@@ -32,26 +58,12 @@ the appropriate action ...
 
 
 --------------------------------------------------------------------------
-2.  First tiny test
+4.  Configure for a system wide installation
 --------------------------------------------------------------------------
 
-You may want to instantaneously start dosemu. We supply a ready to boot
-hdimage with a tiny FreeDos installation (just the kernel). This may
-be booted via
-
-- become root
-- ./first-test
-
-FreeDos kernel will show up, and you can leave it via
-
-- C:> exitemu
-or
-- C:> exit
-      ... oh well, FreeDos also exits on top level command.com :-(
-
---------------------------------------------------------------------------
-3.  Configure  ... the _real_ stuff
---------------------------------------------------------------------------
+(Note: You normally don't need it for a non-suid-root DOSEMU.
+       and for an suid-root one your Linux distributor will hav done
+       it for you)
 
 - Copy ./etc/dosemu.conf to /etc if you are installing for the first time.
   ( make install would have done this, if /etc/dosemu.conf dosen't exist )
@@ -74,85 +86,18 @@ or
   at ./doc/README.txt 'Running dosemu as a normal user' (chapter 7).
 
 --------------------------------------------------------------------------
-4  Boot ( 'comfortable' method ;-)
+5.  Something's not right!!!
 --------------------------------------------------------------------------
 
-The most comfortable method to get DOSEMU booting your DOS is to
-prepare a socalled 'bootdir'. This is a Linux directory under
-/var/lib/dosemu, which contains all you normally have in the native
-DOS partition. You may use
+- Check your dosemu.users file (maybe insufficient privileges set)
 
-  ./setup-bootdir
-
-to generate a /var/lib/dosemu/bootdir.first. But this one only serves
-as starting point, so you better do it manually (or enhance the
-./setup-bootdir generated one) as described:
-
-Just copy/symlink all your DOS system files (IO.SYS, MSDOS.SYS) into it,
-create a CONFIG.SYS and AUTOEXEC.BAT and symlink the rest of your (mounted)
-native DOS partition into it. Here the possible contents of a
-/var/lib/dosemu/bootdir.first (/dos beeing your mounted DOS):
-
-  config.sys
-  autoexec.bat
-  dosemu           # directory containing the DOSEMU supplied stuff
-  command.com -> /dos/command.com
-  io.sys -> /dos/io.sys
-  msdos.sys -> /dos/msdos.sys
-  dos -> /dos/dos
-
-If you have a special DOS, that needs a private bootsector, copy this
-one (using 'dd if=/dev/xxx of=boot.blk bs=512 count=1') into
-/var/lib/dosemu/bootdir/boot.blk.
-Then put a '$_hdimage = "bootdir.first"' in to your /etc/dosemu.conf
-and you can boot from this directory:
-
-- Run 'dos -O 2>/tmp/error.out', ... and dosemu should boot your DOS...
-  ... If not make certain that the /etc/dosemu.conf and /etc/dosemu.users
-  are setup correctly. You can examine '/tmp/error.out' for errors/remarks
-  that were reported by DOSEMU.
-
-- Exit dos by running "c:\dosmeu\exitemu".  If you have problems, hold down
-  the <ctrl> and <alt> buttons simultaneously while pressing <pgdn>.
-  (<ctrl><alt><pgdn> will automatically exit dosemu.)
-
-The bootdir method, however, doesn't work if you use the DosC (FreeDos)
-kernel, for this you have to use 'hdimages' and ./setup-hdimage. Have a look
-at ./doc/README.txt, chapter 2 and ./doc/README-tech.txt, chapter 5.)
-
-
---------------------------------------------------------------------------
-5. Some more hints after you've set up your bootdir (or hdimage)
---------------------------------------------------------------------------
-
-- If hitting Alt-FunctionKey doesn't switch virtual consoles from DOSEMU,
-  try using Ctrl-Alt-FunctionKey to switch from the virtual console running
-  DOSEMU.
-
-- You can start setting up /etc/dosemu.conf more throughly.
-
-- You can set up DOSEMU to boot directly off your DOS hard disk partition.
-
-- If you want to use disk compression such as STACKER or DOUBLESPACE with
-  DOSEMU, you will have to configure /etc/dosemu.conf for partition access.
-
-- From here you are on your own. Please read the documentation in
-  ./doc/README.txt (chapter 2), the "DOSEMU-HOWTO" file, and the other files
-  in the ./doc subdirectory.
-
---------------------------------------------------------------------------
-6.  Something's not right!!!
---------------------------------------------------------------------------
-
-- Check your /etc/dosemu.users file (maybe insufficient privileges set)
-
-- Read your /etc/dosemu.config file carefully and make corrections.
+- Read your dosemu.config file carefully and make corrections.
 
 - Try disabling certain features.  The video options and some of the
   rawkeyboard options sometimes cause problems.
 
 - If the video support does not work, ensure that the video BIOS address
-  in /etc/dosemu.conf (variable $_vbios_seg) is correct.
+  in dosemu.conf (variable $_vbios_seg) is correct.
 
 - Read all documentation files carefully, and try to get some help from
   others who have used DOSEMU.
@@ -160,22 +105,29 @@ at ./doc/README.txt, chapter 2 and ./doc/README-tech.txt, chapter 5.)
 - Read the dosemu-HOWTO for Q&A's.
 
 - If no luck, please send us a debug report by typing 'dos -D+a -o debug'
-  and prepare this mail via the tool we supply:
+  and send the file debug together with your config files and a
+  description of your problem to
 
-    ./submit-bug-report
+    dosemu-bugs@dosemu.org
 
-  The tool will either send directly or save the mail to a file.
-  For more on this please read the file ./doc/bugreports.txt
+  Don't forget to mention the versions of DOSEMU, GCC, LIBC, Binutils e.t.c.
+  For problems together with DOSEMU installationa made by Linux distributors,
+  please bother them directly, we won't hunt after those bugs.
 
   For general discussion on dosemu use the mailing list
-  linux-msdos@vger.rutgers.edu
+  linux-msdos@vger.kernel.org
 
 - Please be patient with us.  We get flooded with bug reports and do our
   best to respond in a timely fashion.
 
 --------------------------------------------------------------------------
-7.  Available documentation -- mostly somewhat outdated :(
+6.  Available documentation -- mostly somewhat outdated :(
 --------------------------------------------------------------------------
+
+./README.bindist
+	Describes the ready-to-use DOSEMU binary distribution, which
+	frees you from all bothering about compilation, installation
+	and configuration ... just _use_ it.
 
 ./doc/dosemu-HOWTO.txt
 	This is the F.A.Q. for DOSEMU.  It is a little bit outdated,
@@ -201,14 +153,8 @@ at ./doc/README.txt, chapter 2 and ./doc/README-tech.txt, chapter 5.)
 	Readme file for various applications and general purpose settings.
 ./doc/README-tech.txt
 	Readme file for various technical details and settings.
-./doc/bugreports.txt
-	How to report bug via gnats
 ./doc/configuration.txt
 	How to use the menu driven configuration tools
-./contrib/dosC/readme.dosemu
-	Usage of FreeDos kernel within DOSEMU
-./dexe/*
-	Tools to make directly bootable DOS-apps and hdimages
 
 
 ----------

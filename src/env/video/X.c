@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -419,8 +419,8 @@ static vga_emu_update_type veut;
 static int remap_src_modes = 0;
 static vgaemu_display_type X_screen;
 
+int grab_active = 0;
 #if CONFIG_X_MOUSE
-static int grab_active = 0;
 static char *grab_keystring = "Home";
 static int grab_keysym = NoSymbol;
 static int mouse_x = 0, mouse_y = 0;

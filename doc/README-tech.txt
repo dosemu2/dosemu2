@@ -75,8 +75,6 @@ Alistair MacDonald
                       
               2.2.25. Sound
                       
-              2.2.26. DEXE support
-                      
    3. Accessing ports with dosemu
           
         3.1. General
@@ -89,204 +87,191 @@ Alistair MacDonald
                       
    4. The Virtual Flags
           
-   5. The old way of generating a bootable DOSEMU
+   5. New Keyboard Code
           
-        5.1. Boot ( tool generated `hdimage' method )
+        5.1. Whats New
                 
-        5.2. Boot ( `traditional' method )
+        5.2. Status
                 
-              5.2.1. If you are new to DOSEMU
+        5.3. Keyboard server interface
+                
+        5.4. Keyboard server structure
+                
+              5.4.1. queue handling functions
                       
-              5.2.2. If you already have a HDIMAGE file
+              5.4.2. The Front End
                       
-              5.2.3. If you don't know how to copy files from/to the
-                      hdimage
+              5.4.3. The Back End
                       
-   6. New Keyboard Code
+        5.5. Known bugs & incompatibilites
+                
+        5.6. Changes from 0.61.10
+                
+        5.7. TODO
+                
+   6. Setting HogThreshold
           
-        6.1. Whats New
-                
-        6.2. Status
-                
-        6.3. Keyboard server interface
-                
-        6.4. Keyboard server structure
-                
-              6.4.1. queue handling functions
-                      
-              6.4.2. The Front End
-                      
-              6.4.3. The Back End
-                      
-        6.5. Known bugs & incompatibilites
-                
-        6.6. Changes from 0.61.10
-                
-        6.7. TODO
-                
-   7. Setting HogThreshold
+   7. Privileges and Running as User
           
-   8. Privileges and Running as User
+        7.1. What we were suffering from
+                
+        7.2. The new 'priv stuff'
+                
+   8. Timing issues in dosemu
           
-        8.1. What we were suffering from
+        8.1. The 64-bit timers
                 
-        8.2. The new 'priv stuff'
+        8.2. DOS 'view of time' and time stretching
                 
-   9. Timing issues in dosemu
+        8.3. Non-periodic timer modes in PIT
+                
+        8.4. Fast timing
+                
+        8.5. PIC/PIT synchronization and interrupt delay
+                
+        8.6. The RTC emulation
+                
+        8.7. General warnings
+                
+   9. Pentium-specific issues in dosemu
           
-        9.1. The 64-bit timers
+        9.1. The pentium cycle counter
                 
-        9.2. DOS 'view of time' and time stretching
+        9.2. How to compile for pentium
                 
-        9.3. Non-periodic timer modes in PIT
+        9.3. Runtime calibration
                 
-        9.4. Fast timing
+        9.4. Timer precision
                 
-        9.5. PIC/PIT synchronization and interrupt delay
+        9.5. Additional points
                 
-        9.6. The RTC emulation
-                
-        9.7. General warnings
-                
-   10. Pentium-specific issues in dosemu
+   10. The DANG system
           
-        10.1. The pentium cycle counter
+        10.1. Description
                 
-        10.2. How to compile for pentium
+        10.2. Changes from last compiler release
                 
-        10.3. Runtime calibration
+        10.3. Using DANG in your code
                 
-        10.4. Timer precision
+        10.4. DANG Markers
                 
-        10.5. Additional points
-                
-   11. The DANG system
-          
-        11.1. Description
-                
-        11.2. Changes from last compiler release
-                
-        11.3. Using DANG in your code
-                
-        11.4. DANG Markers
-                
-              11.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
+              10.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
                       
-              11.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+              10.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
                       
-              11.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
+              10.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
                       
-              11.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+              10.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
                       
-              11.4.5. DANG_FIXTHIS
+              10.4.5. DANG_FIXTHIS
                       
-              11.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+              10.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
                       
-        11.5. Usage
+        10.5. Usage
                 
-        11.6. Future
+        10.6. Future
                 
-   12. mkfatimage -- Make a FAT hdimage pre-loaded with files
+   11. mkfatimage -- Make a FAT hdimage pre-loaded with files
           
-   13. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
+   12. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
           
-   14. Documenting DOSEMU
+   13. Documenting DOSEMU
           
-        14.1. Sections
+        13.1. Sections
                 
-        14.2. Emphasising text
+        13.2. Emphasising text
                 
-        14.3. Lists
+        13.3. Lists
                 
-        14.4. Quoting stuff
+        13.4. Quoting stuff
                 
-        14.5. Special Characters
+        13.5. Special Characters
                 
-        14.6. Cross-References & URLs
+        13.6. Cross-References & URLs
                 
-              14.6.1. Cross-References
+              13.6.1. Cross-References
                       
-              14.6.2. URLs
+              13.6.2. URLs
                       
-              14.6.3. Email addresses
+              13.6.3. Email addresses
                       
-        14.7. References
+        13.7. References
                 
-   15. Sound Code
+   14. Sound Code
           
-        15.1. Current DOSEMU sound code
+        14.1. Current DOSEMU sound code
                 
-        15.2. Original DOSEMU sound code
+        14.2. Original DOSEMU sound code
                 
-              15.2.1. Reference
+              14.2.1. Reference
                       
-   16. DMA Code
+   15. DMA Code
           
-        16.1. Current DOSEMU DMA code
+        15.1. Current DOSEMU DMA code
                 
-        16.2. Original DOSEMU DMA code
+        15.2. Original DOSEMU DMA code
                 
-              16.2.1. Adding DMA devices to DOSEMU
+              15.2.1. Adding DMA devices to DOSEMU
                       
-              16.2.2. References
+              15.2.2. References
                       
-   17. DOSEMU Programmable Interrupt Controller
+   16. DOSEMU Programmable Interrupt Controller
           
-        17.1. Other features
+        16.1. Other features
                 
-        17.2. Caveats
+        16.2. Caveats
                 
-        17.3. Notes on theory of operation:
+        16.3. Notes on theory of operation:
                 
-              17.3.1. Functions supported from DOSEMU side
+              16.3.1. Functions supported from DOSEMU side
                       
-              17.3.2. Other Functions
+              16.3.2. Other Functions
                       
-        17.4. A (very) little technical information for the curious
+        16.4. A (very) little technical information for the curious
                 
-   18. DOSEMU debugger v0.6
+   17. DOSEMU debugger v0.6
           
-        18.1. Introduction
+        17.1. Introduction
                 
-        18.2. Usage
+        17.2. Usage
                 
-        18.3. Commands
+        17.3. Commands
                 
-        18.4. Performance
+        17.4. Performance
                 
-        18.5. Wish List
+        17.5. Wish List
                 
-        18.6. BUGS
+        17.6. BUGS
                 
-              18.6.1. Known bugs
+              17.6.1. Known bugs
                       
-   19. MARK REJHON'S 16550 UART EMULATOR
+   18. MARK REJHON'S 16550 UART EMULATOR
           
-        19.1. PROGRAMMING INFORMATION
+        18.1. PROGRAMMING INFORMATION
                 
-        19.2. DEBUGGING HELP
+        18.2. DEBUGGING HELP
                 
-        19.3. FOSSIL EMULATION
+        18.3. FOSSIL EMULATION
                 
-        19.4. COPYRIGHTS
+        18.4. COPYRIGHTS
                 
-   20. Recovering the console after a crash
+   19. Recovering the console after a crash
           
-        20.1. The mail message
+        19.1. The mail message
                 
-   21. Net code
+   20. Net code
           
-   22. Software X386 emulation
+   21. Software X386 emulation
           
-        22.1. The CPU emulator
+        21.1. The CPU emulator
                 
-   23. MFS and National Language Support
+   22. MFS and National Language Support
           
-        23.1. MFS and National Language Support
+        22.1. MFS and National Language Support
                 
-        23.2. Patching of MFS
+        22.2. Patching of MFS
                 
-        23.3. TODO:
+        22.3. TODO:
                 
 1. Introduction
 
@@ -1931,17 +1916,9 @@ l
    WARNING: DAMAGE MIGHT RESULT TO YOUR HARD DISK (LINUX AND/OR DOS) IF
    YOU FIDDLE WITH THIS SECTION WITHOUT KNOWING WHAT YOU'RE DOING!
    
-   The best way to get started is to start with a hdimage, and set
-   "bootC" and "disk {image "var/lib/dosemu/hdimage.first" }/" in
-   global.conf. To generate this first working and bootable hdimage, you
-   should use "setup-hdimage" in the dosemu root directory. This script
-   extracts your DOS from any native bootable DOS-partition and builts a
-   bootable hdimage. (for experience dosemu users: you need not to fiddle
-   with floppies any more) Keep using the hdimage while you are setting
-   this hard disk configuration up for DOSEMU, and testing by using DIR
-   C: or something like that. Whenever possible, use hdimage, mount your
-   DOS partition under Linux and "lredir" it into dosemu. Look at , ,
-   QuickStart etc. on how to use "lredir".
+   The best way to get started with DOSEMU is to use use the bootdisk
+   method (see doc/README.txt, chapter "Disks, boot directories and
+   floppies"). Fiddling with hdimages and real harddisk is obsolete now.
    
    As a last resort, if you want DOSEMU to be able to access a DOS
    partition, the safer type of access is "partition" access, because
@@ -2121,37 +2098,6 @@ isk }
    
       sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound
                   sb_mixer /dev/mixer mpu_base 0x330 }
-     _________________________________________________________________
-   
-2.2.26. DEXE support
-
-   These are the setting for DEXE type DOS application, which are
-   executed by DOSEMU via the -L option. ( for information on DEXE is
-   look at ./doc/README.dexe )
-   
-   set the below to force 'secure on', when -L option is used _and_ the
-   user isn't root.
-   
-      dexe { secure }
-
-   set the below, if you want that a dexe may be allowed to have
-   additional disks. Normally the hdimage containing the DOS app (the
-   .dexe itself) is the only available disk, all other 'disk {}'
-   statement are ignored.
-   
-      dexe { allowdisk }
-
-   set the below, if you want a DEXE to be forced to 'xdos', when X
-   available. This mainly is intended for beeing included into the
-   configuration of a DEXE file (see mkdexe). e.g. when the application
-   needs graphic it should not run on slang-terminal.
-   
-      dexe { forcexdos }
-
-   set the below, if you want a DEXE _only_ running on X (because it
-   otherwise would not run)
-   
-      dexe { xdosonly }
      _________________________________________________________________
    
 3. Accessing ports with dosemu
@@ -2361,98 +2307,7 @@ isk }
        of the masks of vm86.
      _________________________________________________________________
    
-5. The old way of generating a bootable DOSEMU
-
-   Since dosemu-0.66.4 and once again since dosemu-0.99.6 you will not
-   need the complicated method of generating a bootable dosemu suite (see
-   Quickstart). However, who knows, maybe you need the old information
-   too and in case you are using the DosC (FreeDos) kernel, you will need
-   the below info, because at the time of writing DosC can't cope with
-   drive redirection.
-     _________________________________________________________________
-   
-5.1. Boot ( tool generated `hdimage' method )
-
-   Short reminder: a hdimage is a virtual disk the contents of which are
-   put into a nomal Linux file. There is a tool to help you generating a
-   bootable hdimage It doesn't require to boot native DOS (as decsribed
-   below), nor do you need to fiddle with a floppy:
-   
-     * You need to have mtools-3.8 for this to work
-     * You need an already installed (native) bootable DOS in one of your
-       partitions (maybe a floppy). If this is the case, you just need to
-       type
-       
-      ./setup-hdimage
-
-       in the dosemu directory. It will prompt for needed information and
-       generate a bootable /var/lib/dosemu/hdimage.first
-     * Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf
-       is pointing to /var/lib/dosemu/hdimage.first!
-     * Run 'dos -C', and dosemu should boot your DOS. If not make certain
-       that the /etc/dosemu.conf is setup correctly. You can't do much
-       DOS stuff at this moment, though you may use the tiny ezedit.com
-       editor to change the config.sys / autoexec.bat to your needs.
-     * Exit dos by running "c:\exitemu". If you have problems, hold down
-       the <ctrl> and <alt> buttons simultaneously while pressing <pgdn>.
-       (<ctrl><alt><pgdn> will automatically exit dosemu.)
-       
-   If you don't know how to copy files from/to the hdimage, have a look
-   at the recent mtools package (version 3.6 at time of writeing). If you
-   have the following line in /etc/mtools.conf
-    drive g: file="/var/lib/dosemu/hdimage.first" partition=1 offset=128
-
-   then you can use all mtool commands to access it, such as
-        # mcopy g:autoexec.bat -
-        Copying autoexec.bat
-        @echo off
-        echo "Welcome to dosemu 0.99!"
-     _________________________________________________________________
-   
-5.2. Boot ( `traditional' method )
-
-5.2.1. If you are new to DOSEMU
-
-     * Make CERTAIN that your first disk statement in /etc/dosemu.conf IS
-       pointing to your hdimage!
-     * Reboot DOS (the real version, not DOSEMU.) Put a newly formatted
-       diskette in your a: drive. Run "sys a:" to transfer the system
-       files to the diskette. Copy SYS.COM from your DOS directory
-       (usually C:\\DOS) to the diskette.
-     * Reboot Linux. Run 'dos -A'. After a short pause, the system should
-       come up. Try "dir c:" which should list the files on the harddrive
-       distribution image. If that works, run: "sys c:". Exit dos by
-       running "c:\exitemu". If you have problems, hold down the <ctrl>
-       and <alt> buttons simultaneously while pressing <pgdn>.
-       (<ctrl><alt><pgdn> will automatically exit dosemu.)
-     _________________________________________________________________
-   
-5.2.2. If you already have a HDIMAGE file
-
-     * If you have a previous version of DOSEMU running, you should copy
-       the *.SYS, *.COM, & *.EXE files in the ./commands directory over
-       to the hdimage drive that you boot from. Some of these files have
-       changed.
-     _________________________________________________________________
-   
-5.2.3. If you don't know how to copy files from/to the hdimage
-
-     * Have a look at the recent mtools package (version 3.6 at time of
-       writeing). If you have the following line in /etc/mtools.conf
-       
-         drive g: file="/var/lib/dosemu/hdimage" partition=1 offset=128
-
-       then you can use all the mtool commands to access it, such as
-       
-        # mcopy g:autoexec.bat -
-        Copying autoexec.bat
-        @echo off
-        echo "Welcome to dosemu 0.99!"
-
-   all clear ? ;-)
-     _________________________________________________________________
-   
-6. New Keyboard Code
+5. New Keyboard Code
 
    This file describes the new keyboard code which was written in late
    '95 for scottb's dosemu-0.61, and adapted to the mainstream 0.63 in
@@ -2463,7 +2318,7 @@ isk }
    <lermen@fgan.de> on 17 Jan 97. ( correction notes marked *HH -- Hans )
      _________________________________________________________________
    
-6.1. Whats New
+5.1. Whats New
 
    What's new in the new keyboard code? A lot.
    
@@ -2507,7 +2362,7 @@ isk }
    and keybint=on/off modes.
      _________________________________________________________________
    
-6.2. Status
+5.2. Status
 
    Almost everything seems to work well now.
    
@@ -2522,7 +2377,7 @@ isk }
    they don't.
      _________________________________________________________________
    
-6.3. Keyboard server interface
+5.3. Keyboard server interface
 
    This is all you should need to know if you just want to send
    keystrokes to DOS.
@@ -2549,7 +2404,7 @@ isk }
    which runs on top of the server.
      _________________________________________________________________
    
-6.4. Keyboard server structure
+5.4. Keyboard server structure
 
    [NOTE: you won't need to read this unless you actually want to modify
    the keyboard server code. In that case, however, you MUST read it!]
@@ -2579,7 +2434,7 @@ isk }
    should always contain something.
      _________________________________________________________________
    
-6.4.1. queue handling functions
+5.4.1. queue handling functions
 
      * static inline Boolean queue_empty(void);
      * static inline void clear_queue(void);
@@ -2596,7 +2451,7 @@ isk }
        keycodes to DOS
      _________________________________________________________________
    
-6.4.2. The Front End
+5.4.2. The Front End
 
 
      putrawkey() -------->----+
@@ -2621,7 +2476,7 @@ isk }
 
      _________________________________________________________________
    
-6.4.2.1. Functions in serv_xlat.c
+5.4.2.1. Functions in serv_xlat.c
 
      * static Boolean do_shift_keys(Boolean make, t_keysym key);
      * static Bit16u make_bios_code(Boolean make, t_keysym key, uchar
@@ -2638,21 +2493,21 @@ isk }
    putkey, and putkey_shift.
      _________________________________________________________________
    
-6.4.2.1.1. putrawkey
+5.4.2.1.1. putrawkey
 
    is called with a single raw scancode byte. Scancodes from subsequent
    calls are assembled into complete keyboard events, translated and
    placed into the queue.
      _________________________________________________________________
    
-6.4.2.1.2. putkey & others
+5.4.2.1.2. putkey & others
 
    ,,,to be documented.
      _________________________________________________________________
    
-6.4.3. The Back End
+5.4.3. The Back End
 
-6.4.3.1. Queue Back End in keybint=on mode
+5.4.3.1. Queue Back End in keybint=on mode
 
 
                        EMULATOR SIDE        |    x86 SIDE
@@ -2680,7 +2535,7 @@ er
     out_b_8042() = output_byte_8042()
      _________________________________________________________________
    
-6.4.3.2. Queue Back End in keybint=off mode
+5.4.3.2. Queue Back End in keybint=off mode
 
                       EMULATOR SIDE         |    x86 SIDE
                                             |
@@ -2695,7 +2550,7 @@ er
                                             |
      _________________________________________________________________
    
-6.4.3.3. Functions in newkbd-server.c
+5.4.3.3. Functions in newkbd-server.c
 
      * void do_irq1();
      * void clear_keybuf();
@@ -2760,7 +2615,7 @@ er
    keyboard server, you can't avoid reading the code, I'm afraid ;-)
      _________________________________________________________________
    
-6.5. Known bugs & incompatibilites
+5.5. Known bugs & incompatibilites
 
      * behaviour wrt. cli/sti is inaccurate, because the PIC code
        currently doesn't allow un-requesting if IRQ's.
@@ -2789,7 +2644,7 @@ er
        above.
      _________________________________________________________________
    
-6.6. Changes from 0.61.10
+5.6. Changes from 0.61.10
 
      * adapted to 0.63.55
      * adapted to 0.63.33
@@ -2801,7 +2656,7 @@ er
        initialisation and paste support.
      _________________________________________________________________
    
-6.7. TODO
+5.7. TODO
 
      * find what's wrong with TC++ 1.0
      * implement pause key
@@ -2810,7 +2665,7 @@ er
      * once everything is proved to work, remove the old keyboard code
      _________________________________________________________________
    
-7. Setting HogThreshold
+6. Setting HogThreshold
 
    Greetings DOSEMU fans,
    
@@ -2896,13 +2751,13 @@ er
    rewrite something into the int16 bios.
      _________________________________________________________________
    
-8. Privileges and Running as User
+7. Privileges and Running as User
 
    This section written by Hans Lermen <lermen@fgan.de> , Apr 6, 1997.
    And updated by Eric Biederman <ebiederm+eric@npwt.net> 30 Nov 1997.
      _________________________________________________________________
    
-8.1. What we were suffering from
+7.1. What we were suffering from
 
    Well, I got sick with the complaints about 'have problems running as
    user' and did much effort to 'learn' about what we were doing with
@@ -2978,7 +2833,7 @@ er
    so the above thread related arguments too.
      _________________________________________________________________
    
-8.2. The new 'priv stuff'
+7.2. The new 'priv stuff'
 
    This works as follows
    
@@ -3087,13 +2942,13 @@ er
    is ~/.dosemu/* and dosdebug was adapted to support that.
      _________________________________________________________________
    
-9. Timing issues in dosemu
+8. Timing issues in dosemu
 
    This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
    10, 1997
      _________________________________________________________________
    
-9.1. The 64-bit timers
+8.1. The 64-bit timers
 
    The idea for the 64-bit timers came, of course, from using the pentium
    cycle counter, and has been extended in dosemu to the whole timing
@@ -3121,7 +2976,7 @@ er
    DANG notes about emu-i386/cputime.c for details.
      _________________________________________________________________
    
-9.2. DOS 'view of time' and time stretching
+8.2. DOS 'view of time' and time stretching
 
    The time stretcher implements DOS 'view of time', as opposed to the
    system time. It would be very easy to just give DOS its time, by
@@ -3141,7 +2996,7 @@ er
    kernel resources.
      _________________________________________________________________
    
-9.3. Non-periodic timer modes in PIT
+8.3. Non-periodic timer modes in PIT
 
    Normally, PIT timer 0 runs in a periodic mode (mode 2 or 3), it counts
    down to 0 then it issues an int8 and reinitializes itself. But many
@@ -3164,7 +3019,7 @@ er
    that do not run under Win95 actually run under dosemu.
      _________________________________________________________________
    
-9.4. Fast timing
+8.4. Fast timing
 
    By "fast timing", I define a timer 0 period less than half of the
    Linux "jiffie" time (10ms). This is empirically determined - programs
@@ -3185,7 +3040,7 @@ er
    slow machines (386,486) - but it will maybe never work for all cases.
      _________________________________________________________________
    
-9.5. PIC/PIT synchronization and interrupt delay
+8.5. PIC/PIT synchronization and interrupt delay
 
    Another tricky issue... There are actually two timing systems for
    int8, the one connected to the interrupt in PIC, the other to port
@@ -3202,7 +3057,7 @@ er
    is restarted, the PIT must be reset too. And so on.
      _________________________________________________________________
    
-9.6. The RTC emulation
+8.6. The RTC emulation
 
    There is a totally new emulation of the CMOS Real Time Clock, complete
    with alarm interrupt. A process ticks at exactly 1sec, always in real
@@ -3213,7 +3068,7 @@ er
    CMOS and time-stretching features.
      _________________________________________________________________
    
-9.7. General warnings
+8.7. General warnings
 
    Do not try to use games or programs with hi-freq timers while running
    heavy tasks in the background. I tried to make dosemu quite robust in
@@ -3221,13 +3076,13 @@ er
    unplayable, the game could behave in unpredictable ways.
      _________________________________________________________________
    
-10. Pentium-specific issues in dosemu
+9. Pentium-specific issues in dosemu
 
    This section written by Alberto Vignani <vignani@mbox.vol.it> , Aug
    10, 1997
      _________________________________________________________________
    
-10.1. The pentium cycle counter
+9.1. The pentium cycle counter
 
    On 586 and higher CPUs the 'rdtsc' instruction allows access to an
    internal 64-bit TimeStamp Counter (TSC) which increments at the CPU
@@ -3249,14 +3104,14 @@ er
    486-style code).
      _________________________________________________________________
    
-10.2. How to compile for pentium
+9.2. How to compile for pentium
 
    There are no special options required to compile for pentium, the CPU
    selection is done at runtime by parsing /proc/cpuinfo. You can't
    override the CPU selection of the real CPU, only the emulated one.
      _________________________________________________________________
    
-10.3. Runtime calibration
+9.3. Runtime calibration
 
    At the very start of dosemu the bogospeed() function in
    base/init/config.c is called. This function first looks for the CPUID
@@ -3289,7 +3144,7 @@ er
    clock.
      _________________________________________________________________
    
-10.4. Timer precision
+9.4. Timer precision
 
    I found no info about this issue. It is reasonable to assume that if
    your CPU is specified to run at 100MHz, it should run at that exact
@@ -3302,7 +3157,7 @@ er
    the TSC.
      _________________________________________________________________
    
-10.5. Additional points
+9.5. Additional points
 
    The experimental 'time stretching' algorithm is only enabled when
    using the pentium (with or without TSC). I found that it is a bit
@@ -3317,9 +3172,9 @@ er
    in your configuration file.
      _________________________________________________________________
    
-11. The DANG system
+10. The DANG system
 
-11.1. Description
+10.1. Description
 
    The DANG compiler is a perl script which produces a linuxdoc-sgml
    document from special comments embedded in the DOSEMU source code.
@@ -3327,14 +3182,14 @@ er
    the benefit of hackers.
      _________________________________________________________________
    
-11.2. Changes from last compiler release
+10.2. Changes from last compiler release
 
      * Recognizes 'maintainer:' information.
      * '-i' (irritating) flag.
      * Corrections to sgml special character protection.
      _________________________________________________________________
    
-11.3. Using DANG in your code
+10.3. Using DANG in your code
 
    THE FOLLOWING MAY NOT SOUND VERY NICE, BUT IS INTENDED TO KEEP DANG AS
    IT WAS DESIGNED TO BE - A GUIDE FOR NOVICES.
@@ -3351,7 +3206,7 @@ er
    work. The comments are the responsibility of all of us.)
      _________________________________________________________________
    
-11.4. DANG Markers
+10.4. DANG Markers
 
    Some initial comments:
    
@@ -3371,7 +3226,7 @@ er
        users who are actually reading the SOURCE file.
      _________________________________________________________________
    
-11.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
+10.4.1. DANG_BEGIN_MODULE / DANG_END_MODULE
 
    These should enclose a piece of summary text at the start of a file.
    It should explain the purpose of the file. Anything on the same line
@@ -3403,7 +3258,7 @@ re
      */
      _________________________________________________________________
    
-11.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
+10.4.2. DANG_BEGIN_FUNCTION / DANG_END_FUNCTION
 
    This is used to describe functions. Ideally this should only be
    complicated or important functions as this avoids cluttering DANG with
@@ -3435,7 +3290,7 @@ re
      */
      _________________________________________________________________
    
-11.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
+10.4.3. DANG_BEGIN_REMARK / DANG_END_REMARK
 
    This is used to provide in-context comments within the code. They can
    be used to describe some particularly interesting or complex code. It
@@ -3455,7 +3310,7 @@ pe
      */
      _________________________________________________________________
    
-11.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
+10.4.4. DANG_BEGIN_NEWIDEA / DANG_END_NEWIDEA
 
    This is used to make a note of a new idea which we would like to have
    implemented, or an alternative way of coding something. This can be
@@ -3475,7 +3330,7 @@ pe
      */
      _________________________________________________________________
    
-11.4.5. DANG_FIXTHIS
+10.4.5. DANG_FIXTHIS
 
    This is for single line comments on an area which needs fixing. This
    should say where the fix is required. This may become a multi-line
@@ -3486,7 +3341,7 @@ pe
 b */
      _________________________________________________________________
    
-11.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
+10.4.6. DANG_BEGIN_CHANGELOG / DANG_END_CHANGELOG
 
    This is not currently used. It should be placed around the CHANGES
    section in the code. It was intended to be used along with the DPR.
@@ -3494,7 +3349,7 @@ b */
    * No Example *
      _________________________________________________________________
    
-11.5. Usage
+10.5. Usage
 
    The current version of the configuration file resides in
    './src/doc/DANG'. The program needs to be told where to find this
@@ -3513,7 +3368,7 @@ b */
    markers, etc.
      _________________________________________________________________
    
-11.6. Future
+10.6. Future
 
    I have vaguelly started writing the successor of this program. This
    will be a more general program with a more flexible configuration
@@ -3522,7 +3377,7 @@ b */
    structure, as well as providing feedback on errors.
      _________________________________________________________________
    
-12. mkfatimage -- Make a FAT hdimage pre-loaded with files
+11. mkfatimage -- Make a FAT hdimage pre-loaded with files
 
    This section from Pasi Eronen <pe@iki.fi> (1995-08-28)
    
@@ -3540,7 +3395,7 @@ b */
    As always, comments, suggestions, etc. are welcome.
      _________________________________________________________________
    
-13. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
+12. mkfatimage16 -- Make a large FAT hdimage pre-loaded with files
 
    I have also attached (gzipped in MIME format) mkfatimage16.c, a
    modified version of mkfatimage which takes an additional switch [-t
@@ -3550,7 +3405,7 @@ b */
    DOS system within a big hdimage!
      _________________________________________________________________
    
-14. Documenting DOSEMU
+13. Documenting DOSEMU
 
    Effective from dosemu-1.0.1 the documentation format for DOSEMU is
    DocBook. Currently this is DocBook 3.0, but formatted in lower case
@@ -3564,7 +3419,7 @@ b */
    is the file ./src/doc/README/doc)
      _________________________________________________________________
    
-14.1. Sections
+13.1. Sections
 
    There are 5 section levels you can use. They are all automatically
    numbered. Your choices are:
@@ -3593,7 +3448,7 @@ b */
      * Each paragraph of text must be enclosed within <para>...</para>.
      _________________________________________________________________
    
-14.2. Emphasising text
+13.2. Emphasising text
 
    There is only one way to do this.
    
@@ -3601,7 +3456,7 @@ b */
           Emphasises text like this.
      _________________________________________________________________
    
-14.3. Lists
+13.3. Lists
 
    Here we have 3 useful types:
    
@@ -3633,7 +3488,7 @@ b */
     </variableList>
      _________________________________________________________________
    
-14.4. Quoting stuff
+13.4. Quoting stuff
 
    If you want to quote a small amount use <literal>...</literal>. eg:
     This is <literal>./src/doc/README/doc</literal>
@@ -3648,7 +3503,7 @@ b */
      most other characters should be OK.
      _________________________________________________________________
    
-14.5. Special Characters
+13.5. Special Characters
 
    Obviously some characters are going to need to be quoted. In general
    these are the same ones as HTML. The most common ones are:
@@ -3663,13 +3518,13 @@ b */
           &amp;
      _________________________________________________________________
    
-14.6. Cross-References & URLs
+13.6. Cross-References & URLs
 
    One of the extra feature that this lets us do is include URLs and
    cross-references.
      _________________________________________________________________
    
-14.6.1. Cross-References
+13.6.1. Cross-References
 
    These have 2 parts: a label, and a reference.
    
@@ -3682,7 +3537,7 @@ b */
    inserted automatically at site of the <xref>.
      _________________________________________________________________
    
-14.6.2. URLs
+13.6.2. URLs
 
    This is <ulink url="...">...</ulink>. The url will be active only for
    HTML. The text will be used at all times. eg:
@@ -3692,7 +3547,7 @@ b */
    Which will appear as See the DOSEMU website.
      _________________________________________________________________
    
-14.6.3. Email addresses
+13.6.3. Email addresses
 
    Whilst it is possible to do insert email addresses as URLs there is a
    better way. Simply enclose the address in <email>...</email>. eg:
@@ -3700,7 +3555,7 @@ b */
     <email>alistair@slitesys.demon.co.uk</email>
      _________________________________________________________________
    
-14.7. References
+13.7. References
 
    Here are a few other places to find information about writing using
    DocBook.
@@ -3718,9 +3573,9 @@ b */
           as this is now the preferred MarkUp for the LDP.
      _________________________________________________________________
    
-15. Sound Code
+14. Sound Code
 
-15.1. Current DOSEMU sound code
+14.1. Current DOSEMU sound code
 
    Unfortunately I haven't documented this yet. However, the current code
    has been completely rewritten and has been designed to support
@@ -3730,7 +3585,7 @@ b */
    WWW page at http://www.slitesys.demon.co.uk/a.macdonald/dosemu/sound/
      _________________________________________________________________
    
-15.2. Original DOSEMU sound code
+14.2. Original DOSEMU sound code
 
         Copyright (C) 1995  Joel N. Weber II
 
@@ -3788,7 +3643,7 @@ b */
    that....)
      _________________________________________________________________
    
-15.2.1. Reference
+14.2.1. Reference
 
    PC Game Programers Encyclopedia
    ftp://teeri.oulu.fi/pub/msdos/programming/gpe/
@@ -3798,15 +3653,15 @@ b */
    July 17, 1995
      _________________________________________________________________
    
-16. DMA Code
+15. DMA Code
 
-16.1. Current DOSEMU DMA code
+15.1. Current DOSEMU DMA code
 
    Unfortunately I haven't documented this yet. However, the current code
    has been completely rewritten from this.
      _________________________________________________________________
    
-16.2. Original DOSEMU DMA code
+15.2. Original DOSEMU DMA code
 
         DOSEMU DMA code
         Copyright (C) 1995  Joel N. Weber II
@@ -3861,7 +3716,7 @@ b */
    Pascal before that.
      _________________________________________________________________
    
-16.2.1. Adding DMA devices to DOSEMU
+15.2.1. Adding DMA devices to DOSEMU
 
    Read include/dma.h. In the dma_ch[] struct, you'll find some fields
    that don't exist on the real DMA controller itself. Those are for you
@@ -3872,7 +3727,7 @@ b */
    background, open the file with O_NONBLOCK.
      _________________________________________________________________
    
-16.2.2. References
+15.2.2. References
 
    PC Game Programers Encyclopedia
    ftp://teeri.oulu.fi/pub/msdos/programming/gpe/
@@ -3884,7 +3739,7 @@ b */
    like it that I can find in the Hawaii State Library System :-)
      _________________________________________________________________
    
-17. DOSEMU Programmable Interrupt Controller
+16. DOSEMU Programmable Interrupt Controller
 
    This emulation, in files picu.c and picu.h, emulates all of the useful
    features of the two 8259 programmable interrupt controllers. Support
@@ -3914,7 +3769,7 @@ b */
    Reads of both PICs ports are supported completely.
      _________________________________________________________________
    
-17.1. Other features
+16.1. Other features
 
      * Support for 16 additional lower priority interrupts. Interrupts
        are run in a fully nested fashion. All interrupts call dosemu
@@ -3939,7 +3794,7 @@ b */
        trigger an interrupt.
      _________________________________________________________________
    
-17.2. Caveats
+16.2. Caveats
 
    OCW2 support is not exactly correct for IRQs 8 - 15. The correct
    sequence is that an OCW2 to PIC0 enables IRQs 0, 1, 3, 4, 5, 6, and 7;
@@ -3967,7 +3822,7 @@ b */
    this way.
      _________________________________________________________________
    
-17.3. Notes on theory of operation:
+16.3. Notes on theory of operation:
 
    The documentation refers to levels. These are priority levels, the
    lowest (0) having highest priority. Priority zero is reserved for use
@@ -3991,9 +3846,9 @@ b */
    quite common.
      _________________________________________________________________
    
-17.3.1. Functions supported from DOSEMU side
+16.3.1. Functions supported from DOSEMU side
 
-17.3.1.1. Functions that Interface with DOS:
+16.3.1.1. Functions that Interface with DOS:
 
    unsigned char read_picu0(port), unsigned char read_picu1(port)
           should be called by the i/o handler whenever a read of the PIC
@@ -4058,7 +3913,7 @@ b */
           situation, and pops the real flags, cs, and ip.
      _________________________________________________________________
    
-17.3.2. Other Functions
+16.3.2. Other Functions
 
    void run_irqs()
           causes the PIC code to run all requested interrupts, in
@@ -4109,7 +3964,7 @@ b */
           activated.
      _________________________________________________________________
    
-17.4. A (very) little technical information for the curious
+16.4. A (very) little technical information for the curious
 
    There are two big differences when using pic. First, interrupts are
    not queued beyond a depth of 1 for each interrupt. It is up to the
@@ -4123,13 +3978,13 @@ b */
    there is anything in the scan_queue.
      _________________________________________________________________
    
-18. DOSEMU debugger v0.6
+17. DOSEMU debugger v0.6
 
    This section written on 98/02/08. Send comments to Max Parke
    <mhp@light.lightlink.com> and to Hans Lermen <lermen@fgan.de>
      _________________________________________________________________
    
-18.1. Introduction
+17.1. Introduction
 
    This is release v0.6 of the DOSEMU debugger, with the following
    features:
@@ -4160,7 +4015,7 @@ b */
      * code base is on dosemu-0.97.2.1
      _________________________________________________________________
    
-18.2. Usage
+17.2. Usage
 
    To run, start up DOSEMU. Then switch to another virtual console (or
    remote login or use another xterm) and do:
@@ -4189,7 +4044,7 @@ b */
    code.
      _________________________________________________________________
    
-18.3. Commands
+17.3. Commands
 
    See mhpdbgc.c for code and cmd table.
    
@@ -4203,7 +4058,7 @@ b */
           
    kill
           Kill the dosemu process (this may take a while, so be patient)
-          See also Section 20
+          See also Section 19
           
    console n
           Switch to console n
@@ -4351,26 +4206,26 @@ b */
     5. a dollar sign($): SS:SP (ss:esp)
      _________________________________________________________________
    
-18.4. Performance
+17.4. Performance
 
    If you have dosemu compiled with the debugger support, but the
    debugger is not active and/or the process is not stopped, you will not
    see any great performance penalty.
      _________________________________________________________________
    
-18.5. Wish List
+17.5. Wish List
 
    Main wish is to add support for hardware debug registers (if someone
    would point me in the direction, what syscalls to use, etc.) Then you
    could breakpoint on memory reads/writes, etc!
      _________________________________________________________________
    
-18.6. BUGS
+17.6. BUGS
 
    There must be some.
      _________________________________________________________________
    
-18.6.1. Known bugs
+17.6.1. Known bugs
 
      * Though you may set breakpoints and do singlestep in Windows31,
        this is a 'one shot': It will bomb after you type 'g' again. ( I
@@ -4394,7 +4249,7 @@ b */
        disabled.
      _________________________________________________________________
    
-19. MARK REJHON'S 16550 UART EMULATOR
+18. MARK REJHON'S 16550 UART EMULATOR
 
    The ./src/base/serial directory contains Mark Rejhon's 16550A UART
    emulation code.
@@ -4435,7 +4290,7 @@ b */
    Public License (GPL). See end of this file for more information.
      _________________________________________________________________
    
-19.1. PROGRAMMING INFORMATION
+18.1. PROGRAMMING INFORMATION
 
    Information on a 16550 is based on information from HELPPC.EXE 2.1 and
    results from National Semiconductor's COMTEST.EXE diagnostics program.
@@ -4493,7 +4348,7 @@ b */
                      com[i].real_comport, com[i].base_port);
      _________________________________________________________________
    
-19.2. DEBUGGING HELP
+18.2. DEBUGGING HELP
 
    If you require heavy debugging output for serial operations, please
    take a look in ./ser_defs.h for the following defines:
@@ -4516,7 +4371,7 @@ b */
           super-heavy FOSSIL debug output, including all status checks.
      _________________________________________________________________
    
-19.3. FOSSIL EMULATION
+18.3. FOSSIL EMULATION
 
    The FOSSIL emulation requires a memory-resident DOS module,
    FOSSIL.COM. If you don't load it, the code in fossil.c does nothing,
@@ -4534,7 +4389,7 @@ b */
    sender with flow control (I'm not sure why).
      _________________________________________________________________
    
-19.4. COPYRIGHTS
+18.4. COPYRIGHTS
 
    Most of the code in the DOSEMU 'serial' subdirectory is: Copyright (C)
    1995 by Mark D. Rejhon <marky@magmacom.com> with the following
@@ -4556,7 +4411,7 @@ b */
    License, or (at your option) any later version.
      _________________________________________________________________
    
-20. Recovering the console after a crash
+19. Recovering the console after a crash
 
    The below is a mail from Kevin Buhr <buhr@stat.wisc.edu> , that was
    posted on linux-msdos some time ago. Because it describes a way to
@@ -4589,7 +4444,7 @@ b */
              on the console you switched to.
      _________________________________________________________________
    
-20.1. The mail message
+19.1. The mail message
 
     Date: Fri, 21 Apr 95 14:16 CDT
     To: tegla@katalin.csoma.elte.hu
@@ -4688,7 +4543,7 @@ b */
 
      _________________________________________________________________
    
-21. Net code
+20. Net code
 
      * Added support for multiple type handling. So it does type
        demultiplexing within dosemu.
@@ -4723,13 +4578,13 @@ b */
    Vinod <vinod@cse.iitb.ernet.in>
      _________________________________________________________________
    
-22. Software X386 emulation
+21. Software X386 emulation
 
    This section written in a hurry by Alberto Vignani
    <vignani@mbox.vol.it> , Oct 20, 1997
      _________________________________________________________________
    
-22.1. The CPU emulator
+21.1. The CPU emulator
 
    The CPU emulator has been derived from <the Twin Willows libraries>.
    Only the relevant parts of the library, namely the /intp32
@@ -4809,13 +4664,13 @@ b */
    reached, it truncates the file to zero and continues writing to it.
      _________________________________________________________________
    
-23. MFS and National Language Support
+22. MFS and National Language Support
 
    This section written by Oleg V. Zhirov <O.V.Zhirov@inp.nsk.su> , Aug
    3, 1998
      _________________________________________________________________
    
-23.1. MFS and National Language Support
+22.1. MFS and National Language Support
 
    Main problem is that *nix and DOS uses codesets, which can differ. So,
    in Russia the most popular codeset for *nix is koi8-r, while DOS
@@ -4865,7 +4720,7 @@ b */
        shortnames.
      _________________________________________________________________
    
-23.2. Patching of MFS
+22.2. Patching of MFS
 
    Presented patch of MFS cures problem (3) only. Summary of
    modification:
@@ -4938,7 +4793,7 @@ b */
    long filenames, and files with long filenames are irrelevant.
      _________________________________________________________________
    
-23.3. TODO:
+22.3. TODO:
 
     1. In Linux kernel: Cure in VFAT module upper/lowercase bugs for
        ascii>127.

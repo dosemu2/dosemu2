@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -8,9 +8,6 @@
 # You should do a "make" to compile and a "make install" as root to
 # install DOSEMU.
 
-
-
-DOSC = $(REALTOPDIR)/contrib/dosC/dist
 
 PICOBJS = libpic.a
 export PICOBJS
@@ -285,14 +282,6 @@ versetup:
 	@rm -f ../bin ../commands
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands
-	@mkdir -p ../testboot
-	@rm -f core ../testboot/*
-	@(cd $(DOSC); for i in *; \
-	  do ln -sf $(DOSC)/$$i $(REALTOPDIR)/testboot/$$i; done)
-	@(cd ../testboot; \
-	  ln -sf ../commands dosemu; \
-	  ln -sf ../commands/exitemu.com exitemu.com; \
-	  ln -sf ../commands/autoexec.bat autoexec.bat)
 
 doslibnew: doslib
 
@@ -374,8 +363,8 @@ ifdef X_SUPPORT
 	 echo "		xmodmap -e \"key 108 = 0xff0d\"  [Return = 0xff0d]"; \
 	 echo ""
 endif
-	@echo "  - Try ./commands/emumouse.exe -r if your INTERNAL mouse won't work"; \
-	 echo "  - Try ./commands/unix.exe to run a Unix command under DOSEMU"; \
+	@echo "  - Try emumouse.exe -r if your INTERNAL mouse won't work"; \
+	 echo "  - Try unix.exe to run a Unix command under DOSEMU"; \
 	 echo -e "\n  NOTE: DOSEMU no longer is installed suid-root by default!"; \
 	 echo -e   "        If you need it, do a \'chmod u+s $(INSTROOT)/usr/bin/dos\'"; \
 	 echo ""
@@ -405,7 +394,6 @@ dist:: $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) include/config.h
 	install -d $(DISTPATH)/lib
 	cp -a dosemu.xpm libslang.a $(CFILES) $(HFILES) $(SFILES) $(OFILES) $(BFILES) $(DISTPATH)
 	cp -a hdimages/hdimage.dist $(DISTPATH)/hdimage.dist
-	cp -a hddummy $(DISTPATH)/hddummy
 	@for i in $(REQUIRED) $(LIBS) $(DOCS) ipxutils $(OPTIONALSUBDIRS); do \
 	    (cd $$i && echo $$i && $(MAKE) dist) || exit; \
 	done

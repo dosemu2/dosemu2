@@ -661,10 +661,6 @@ by David Hodges, davidhodges@altavista.iname.com
    
 3.4. Creating your own hdimage file.
 
-   The easy way is to use mkdexe - see README.txt for details. The
-   old-fashioned way (I don't know why anyone would want to do it that
-   way any more but here it is, just in case) is as follows:
-   
    There is an extra util program called mkfatimage16 which allows for
    creating a hdimage file headers. The full information is in the
    manpage (man/mkfatimage16.1) included in your distribution.
@@ -788,9 +784,7 @@ by David Hodges, davidhodges@altavista.iname.com
    input 2. use the keystroke configuration option and the -I command
    line option as described in the README.txt file to specify keystrokes
    on the command line that will act exactly as if you had typed them
-   within dosemu 3. use the mkdexe program to create a DEXE file - a
-   small DOS filesystem image containing just the program you want to run
-   - see the README.txt file for details.
+   within dosemu
    
    Here are some additional alternatives:
    

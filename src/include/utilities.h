@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -30,6 +30,7 @@ int get_proc_intvalue_by_key(char *key);
 int integer_sqrt(int x);
 int exists_dir(char *name);
 int exists_file(char *name);
+void subst_file_ext(char *ptr);
 char *strcatdup(char *s1, char *s2);
 char *assemble_path(char *dir, char *file, int append_pid);
 char *mkdir_under(char *basedir, char *dir, int append_pid);

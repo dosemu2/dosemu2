@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -68,7 +68,7 @@ check if a name is a special msdos reserved name
 char *is_reserved_msdos(char *fname)
 {
   static char upperFname[13];
-  char *p;
+  char *p , *p_;
 
   /*
    * LPTx e.t.c. is reserved no matter the path (e.g. .\LPT1 _is_ reserved),
@@ -76,6 +76,8 @@ char *is_reserved_msdos(char *fname)
    *             -- Rob Clark <rclark@list-clark.com> 2000/05/09
    */
   p = strrchr(fname,'\\');
+  p_ = strrchr(fname,'/');
+  if (p_ > p) p = p_;	/* take what ever is nearer to the end */
   if (p) fname = p+1;	/* strip the directory part */
 
   StrnCpy (upperFname, fname, 12);

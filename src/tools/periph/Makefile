@@ -1,18 +1,16 @@
 #
-# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
 
 D=$(REALTOPDIR)/etc
-DOSC=$(REALTOPDIR)/contrib/dosC/dist
 IDEST=/var/lib
 
 SRC=hdinfo.c bootsect.S mkhdimage.c putrom.c mkfatimage.c mkfatimage16.c \
     dexeconfig.c scsicheck.c dosctrl.c vbioscheck.c
 OBJ=hdinfo bootsect mkhdimage putrom mkfatimage mkfatimage16 dexeconfig \
     scsicheck dosctrl vbioscheck $(D)/hdimage.dist
-# $(D)/hdimage.test
 SCRIPT=getrom
 
 all: $(OBJ)
@@ -25,11 +23,6 @@ bootsect: bootsect.S
 
 $(D)/hdimage.dist: mkfatimage
 	./mkfatimage -l DOSEMU $(REALTOPDIR)/$(THISVERSION)/commands/* >$(D)/hdimage.dist
-
-$(D)/hdimage.test: mkfatimage16
-	./mkfatimage16 -b $(DOSC)/boot.bin -l DOSEMU \
-	$(DOSC)/ipl.sys $(DOSC)/kernel.exe $(DOSC)/command.com \
-	$(REALTOPDIR)/$(THISVERSION)/commands/* >$(D)/hdimage.test
 
 install:
 	install -d $(IDEST)/dosemu

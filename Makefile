@@ -1,5 +1,5 @@
 #
-# (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+# (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
 #
 # for details see file COPYING in the DOSEMU distribution
 #
@@ -68,6 +68,9 @@ default install clean realclean echo help depend version:
 all:
 	@$(MAKE) -C src default
 
+dosbin:
+	@$(MAKE) -C src/commands
+
 docs:
 	@$(MAKE) -C src/doc all
 
@@ -102,10 +105,3 @@ endif
 
 
 # the below targets do not require ./configure
-
-bindist:
-	@echo "making binary distribution package in /tmp/$(PACKETNAME)-bin.tgz"
-	rm -rf /tmp/$(PACKETNAME)-bin
-	./src/tools/mkbindist -m -s -t /tmp/$(PACKETNAME)-bin -d usr/doc/dosemu -- --host=i386-unknown-linux
-	(cd /tmp/$(PACKETNAME)-bin; tar -cf- . | gzip -9 > /tmp/$(PACKETNAME)-bin.tgz)
-

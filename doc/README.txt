@@ -49,113 +49,103 @@ Alistair MacDonald
                       
    3. Security
           
-   4. Directly executable DOS applications using dosemu (DEXE)
+   4. Sound
           
-        4.1. Making and Using DEXEs
+        4.1. Using the MPU-401 "Emulation"
                 
-        4.2. Using binfmt_misc to spawn DEXEs directly
+        4.2. The MIDI daemon
                 
-        4.3. Making a bootable hdimage for general purpose
+        4.3. Disabling the Emulation at Runtime
                 
-        4.4. Accessing hdimage files using mtools
-                
-   5. Sound
+   5. Using Lredir
           
-        5.1. Using the MPU-401 "Emulation"
+        5.1. how do you use it?
                 
-        5.2. The MIDI daemon
+        5.2. Other alternatives using Lredir
                 
-        5.3. Disabling the Emulation at Runtime
-                
-   6. Using Lredir
+   6. Running dosemu as a normal user
           
-        6.1. how do you use it?
-                
-        6.2. Other alternatives using Lredir
-                
-   7. Running dosemu as a normal user
+   7. Using CDROMS
           
-   8. Using CDROMS
+        7.1. The built in driver
+                
+   8. Using X
           
-        8.1. The built in driver
+        8.1. Latest Info
                 
-   9. Using X
-          
-        9.1. Latest Info
+        8.2. Slightly older information
                 
-        9.2. Slightly older information
+        8.3. The appearance of Graphics modes (November 13, 1995)
                 
-        9.3. The appearance of Graphics modes (November 13, 1995)
-                
-              9.3.1. vgaemu
+              8.3.1. vgaemu
                       
-              9.3.2. vesa
+              8.3.2. vesa
                       
-              9.3.3. X
+              8.3.3. X
                       
-        9.4. The new VGAEmu/X code (July 11, 1997)
+        8.4. The new VGAEmu/X code (July 11, 1997)
                 
-        9.5. Planar (16 color and mode-X) modes and fonts. (May 2000)
+        8.5. Planar (16 color and mode-X) modes and fonts. (May 2000)
                 
-   10. Running Windows under DOSEMU
+   9. Running Windows under DOSEMU
           
-        10.1. Windows 3.0 Real Mode
+        9.1. Windows 3.0 Real Mode
                 
-        10.2. Windows 3.1 Protected Mode
+        9.2. Windows 3.1 Protected Mode
                 
-        10.3. Windows 3.x in xdos
+        9.3. Windows 3.x in xdos
                 
-   11. The DOSEMU mouse
+   10. The DOSEMU mouse
           
-        11.1. Setting up the emulated mouse in DOSEMU
+        10.1. Setting up the emulated mouse in DOSEMU
                 
-        11.2. Problems
+        10.2. Problems
                 
-   12. Mouse Garrot
+   11. Mouse Garrot
           
-   13. Running a DOS-application directly from Unix shell
+   12. Running a DOS-application directly from Unix shell
           
-        13.1. Using the keystroke and commandline options.
+        12.1. Using the keystroke and commandline options.
                 
-        13.2. Using an input file
+        12.2. Using an input file
                 
-        13.3. Running DOSEMU within a cron job
+        12.3. Running DOSEMU within a cron job
                 
-   14. Commands & Utilities
+   13. Commands & Utilities
           
-        14.1. Programs
+        13.1. Programs
                 
-        14.2. Drivers
+        13.2. Drivers
                 
-   15. Keymaps
+   14. Keymaps
           
-   16. Networking using DOSEMU
+   15. Networking using DOSEMU
           
-        16.1. The DOSNET virtual device.
+        15.1. The DOSNET virtual device.
                 
-        16.2. Setup for virtual TCP/IP
+        15.2. Setup for virtual TCP/IP
                 
-        16.3. Full Details
+        15.3. Full Details
                 
-              16.3.1. Introduction
+              15.3.1. Introduction
                       
-              16.3.2. Design
+              15.3.2. Design
                       
-              16.3.3. Implementation
+              15.3.3. Implementation
                       
-              16.3.4. Virtual device 'dsn0'
+              15.3.4. Virtual device 'dsn0'
                       
-              16.3.5. Packet driver code
+              15.3.5. Packet driver code
                       
-              16.3.6. Conclusion
+              15.3.6. Conclusion
                       
-   17. Using Windows and Winsock
+   16. Using Windows and Winsock
           
-        17.1. LIST OF REQUIRED SOFTWARE
+        16.1. LIST OF REQUIRED SOFTWARE
                 
-        17.2. STEP BY STEP OPERATION (LINUX SIDE)
+        16.2. STEP BY STEP OPERATION (LINUX SIDE)
                 
-        17.3. STEP BY STEP OPERATION (DOS SIDE)
+        16.3. STEP BY STEP OPERATION (DOS SIDE)
                 
 1. Introduction
 
@@ -169,7 +159,29 @@ Alistair MacDonald
 2. Runtime Configuration Options
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on Feb 12, 1999.
+   on Mar 11, 2001.
+   
+   Befor you even continue to read further -- especially if you never
+   tried DOSEMU -- I strongly recommend to start with the ready to use
+   DOSEMU binary distribution. This one comes in 2 packages:
+   
+     * ftp://ftp.dosemu.org/dosemu/dosemu-1.0.2-bin.tgz
+       A tarball containing the recent DOSEMU binaries together with a
+       user local configuration setup. This installation fits into any
+       user HOME directory and can be used and installed without root
+       permissions.
+     * ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
+       A tarball containing a collection of suitable FreeDos binaries,
+       eventually patched to fit DOSEMU needs together with some GNU
+       tools you may find usefull and the Bourne shell like command line
+       interpreter from Terry R. McConnell, which is configured per
+       default.
+       
+   You have to unpack both tarballs (as normal user, NOT as root) into
+   the same directory , `cd' into the directory `dosemu' and excute
+   `./xdosemu' or `./dosemu'. After you played with this a while and have
+   looked into the files under `dosemu/conf', you will be much better
+   prepared to understand the rest of this chapter.
    
    Most of DOSEMU configuration is done during runtime and per default it
    expects the system wide configuration file /etc/dosemu.conf optionally
@@ -708,12 +720,10 @@ ge
    hdimage is a file containing a virtual image of a DOS-FAT filesystem.
    Once you have booted it, you (or autoexec.bat) can use `lredir' to
    access any directory in your Linux tree as DOS drive (a -t msdos
-   mounted too). Note, however, that the DosC kernel (FreeDos) is not
-   capable yet for redirection, for this you need a proprietary DOS such
-   as MSDOS, PCDOS, DRDOS. Look at chapter 6 (Using Lredir) and for more
-   details on creating your own (better) hdimage look at chapter 4.3 of
-   this README (Making a bootable hdimage for general purpose). Chapter
-   4.4 also describes how to import/export files from/to a hdimage.
+   mounted too). Look at chapter 6 (Using Lredir) and for more details on
+   creating your own (better) hdimage look at chapter 4.3 of this README
+   (Making a bootable hdimage for general purpose). Chapter 4.4 also
+   describes how to import/export files from/to a hdimage.
    
    Starting with dosemu-0.99.8, there is a more convenient method
    available: you just can have a Linux directory containing all what you
@@ -740,10 +750,6 @@ ge
       bc -> /dos/bc
       windows -> /dos/windows
 
-   There is, however, one drawback, you can't use the DosC kernel
-   (FreeDos) for it, because it hasn't yet a working redirector (will
-   hopefully be available some time in the future).
-   
    As a further enhancement of your drives setup you may even use the
    following strategie: Given you have the following directory structure
    under /var/lib/dosemu
@@ -1037,232 +1043,7 @@ s
        Anyway, better 'secure on' than nothing.
      _________________________________________________________________
    
-4. Directly executable DOS applications using dosemu (DEXE)
-
-   This section of the document by Hans, <lermen@fgan.de>. Last updated
-   on June 16, 1997.
-     _________________________________________________________________
-   
-4.1. Making and Using DEXEs
-
-   Well, you may have wondered what these *.dexe file extension stands
-   for. Looking at the title above you now know it ;-)
-   
-   In fact its a tiny hdimage which is bootable and just contains one DOS
-   application. Because this has isolated access to the hdimage only, it
-   may have less security issues then a complete DOS environement under
-   Linux and, more worth, you need not to fiddle with installation,
-   because the implementor already has done this for you.
-   
-   On the other hand, you may create your own *.dexe files using the
-   script `mkdexe'. For this to run however you need at least mtools-3.6
-   because this versions has options that older versions don't have.
-   
-   In detail you need the following to make a *.dexe:
-   
-     * have mtools-3.6 available.
-     * have dosemu already compiled and did not 'make pristine'
-     * have a *.zip file containing the all files which belong to the DOS
-       application (may be whole directories)
-     * have the following info handy before starting 'mkdexe':
-          + The partition size needed for the hdimage
-          + The DOS version that you want to put onto the hdimage. If
-            your DOS app can run under the FreeDos kernel, you don't need
-            that, else 'mkdexe' needs to know from what bootable existing
-            partition to get the system from.
-          + The contents of the config.sys and autoexec.bat
-     * then (as root) do
-       
-           # cd ./dexe
-           # mkdexe myapp.zip -x myapp.exe -o confirm
-
-     * If all went ok, you then have a /var/lib/dosemu/myapp.dexe and
-       this one can be executed via
-       
-           # dos -L myapp.dex [ dosemu-options ]
-
-       or
-       
-           # dosexec myapp.dex [ dosemu-options ]
-
-   Here is what ./mkdexe will print as help, when called without
-   argument:
-   
-       USAGE:
-         mkdexe [{ application | hdimage}]
-                            [-b dospart] [{-s|-S} size] [-x appname]
-                            [-c confsys] [-a autoexe] [-C comcom ] [-d dosemuco
-nf]
-                            [-i IOname] [-m MSname]
-                            [-o <option> [-o ...]]
-
-         application  the whole DOS application packet into a *.zip file
-         hdimage      the name of the target hdimage, ih -o noapp is give
-                      (see below)
-         dospart      If not given, FreeDos will be used as system
-                      If given it must be either a bootable DOS partion (/dev/.
-..)
-                      or a already made bootable dosemu hdimage
-         -s size      The _additional_ free space (in Kbytes) on the hdimage
-         -S size      The total size (in Kbytes) of the hdimage -s,-S are mutua
-l
-                      exclusive.
-         appname      The DOS filename of the application, that should be execu
-ted
-         confsys      Template for config.sys
-         autoexe      Template for autoexec.bat
-         comcom       file name of the shell, usually command.com
-         dosemuconf   Template for the dosemu.conf to use
-         IOname       The name of DOS file, that usually is called IO.SYS,
-                      (default for FreeDos: IPL.SYS) this one is always put as
-                      first file onto the hdimage
-         MSname       The name of DOS file, that usually is called MSDOS.SYS,
-                      (default for FreeDos: MSDOS.SYS) this one is always put a
-s
-                      second file onto the hdimage
-         -o <option>  Following option flags are recognized:
-                        confirm   offer config.sys, autoexec.bat and dconfig
-                                  to edit via $EDITOR
-                        nocomcom  Omit command.com, because its not used anyway
-                                  when using  shell=c:\appname.exe
-                        noapp     Make a simple bootable hdimage for standard
-                                  DOSEMU usage (replacement for hdimage.dist)
-
-   If you want to change the builtin configuration file, you may use
-   ./src/tools/periph/dexeconfig to extract/re-insert the configuration.
-   
-      # dexeconfig -x configfile dexefile
-
-   extracts the configuration out of 'dexefile' and puts it into
-   'configfile'
-   
-      # dexeconfig -i configfile dexefile
-
-   does the reverse.
-   
-   There is a problem, however, when you want allow a user to execute a
-   DEXE and the DOS application needs to write to a file within the dexe
-   (which is in fact a whole DOS FS). For this would have to give write
-   permissions to the user (what is not what you want). DEXEs have a
-   workaround for this: You may set read-only permissions for the DEXE
-   file itself in the Linux-FS, but set a flag in the DEXE itself, so
-   that DOSEMU will open this file read/write anyway. This means: The
-   user cannot delete or replace the DEXE, but the imbedded
-   DOS-application can (totally isolated) write to DOS files within the
-   DEXE (complicated, isn't it?). To set such a permission, you (again)
-   need `dexeconfig':
-   
-      # dexeconfig -p W dexefile
-
-   Here is what 'dexeconfig' will print as help, when called without
-   argument:
-   
-       USAGE:
-          dexeconfig [-M] [-p {w|W}] -i configfile dexefile
-          dexeconfig -x configfile dexefile
-          dexeconfig -v  dexefile
-          dexeconfig -p {w|W}  dexefile
-
-       where is
-          -i      insert a config file
-          -x      extract a config file
-          -p w    clear write permission
-          -p W    set write permission
-          -v      view status information
-
-   It would be great, if we could collect an archive of working, free
-   distributatble *.dexe files, and I'm herein asking for contribution.
-   However, BIG NOTE, if you want to contribute a *.dexe file to the
-   public, please do NOT use any other DOS than FreeDos else you would
-   violate existing copyrights. This also (unfortunately) is true for
-   OpenDos which can only be distributed after Caldera did allow you to
-   do so :-(
-   
-   If you have assembled a *.dexe and you wnat to contribute it, please
-   send me a mail and upload the stuff to
-   
-       tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/Development/Incoming
-
-   I'll then put it into
-   
-       tsx-11.mit.edu:/pub/linux/ALPHA/dosemu/dexe/*
-       ftp.suse.com:/pub/dosemu/dexe/*
-
-   There currently only is one in that archive: fallout.dexe Its a nice
-   Tetris like games that I found on an old CDrom and which runs in
-   300x200 on console and X (not Slang-terminal). When you put it into
-   you /var/lib/dosemu/* directory, you may start it via:
-   
-       dosexec fallout.dexe -X
-
-   Hope we get more of *.dexe in the future ....
-     _________________________________________________________________
-   
-4.2. Using binfmt_misc to spawn DEXEs directly
-
-   If you have binfmt_misc configured into your kernel (you should most
-   likely if you use the precompiled kernel of any common Linux
-   distribution), then you can execute a DEXE just by typing its name at
-   the Bash prompt. To register DEXE format using binfmt_misc you do (in
-   your /etc/rc.-whatever)
-   
-      cd /proc/sys/fs/binfmt_misc
-      echo :DEXE:M::\\x0eDEXE::/usr/bin/dosexec: >register
-
-   thats all.
-     _________________________________________________________________
-   
-4.3. Making a bootable hdimage for general purpose
-
-   You may also use './mkdexe' do generate a _normal_ bootable hdimage,
-   it then has the advantage, that you no longer need to fiddle with a
-   DOS boot disk. I succeded to make a bootable hdimage with FreeDos,
-   MSDOS-6.2 and also WINDOWS'95 (yes, that can be booted with the
-   DOSEMU-own MBR ;-) I did not test other DOSes, but I guess, they also
-   will work, as long as you pass the correct system file names to
-   'mkdexe' (-i, -m options)
-   
-   Example: Given you have a bootable DOS-partition in /dev/hda1, then
-   this ...
-   
-      # cd ./dexe
-      # ./mkdexe myhdimage -b /dev/hda1 -o noapp
-
-   will generate a direct bootable 'myhdimage' from your existing DOS
-   installation. You need not to make a boot floppy, nor need you to
-   fiddle with fdisk /MBR and sys.com any more. Using -o confirm you may
-   also edit the configuration files before they are put onto the
-   hdimage.
-   
-   Further more, there is a script on top of mkdexe: setup-hdimage, which
-   helps more to firsttime install DOSEMU's hdimage. It prompts for
-   needed things and should work on most machines.
-   
-      # cd /where/I/have/dosemu
-      # ./setup-hdimage
-     _________________________________________________________________
-   
-4.4. Accessing hdimage files using mtools
-
-   In the ./dexe directory there is also a script, that allows you to
-   directly access the hdimage's files, even without changing your
-   /etc/mtools.conf. The usage of this script is:
-   
-       USAGE:
-         do_mtools device mcommand [ arg1 [...] ]
-
-       where is:
-         device    = DOS-partition such as '/dev/hda1'
-                     or a DOSEMU hdimage
-         mcommand  = any valid mtools comand
-         argX      = any valid mtools argument.
-                     NOTE: for the DOS drive use 'W:'
-
-       example:
-         do_mtools /var/lib/dosemu/hdimage mcopy W:/autoexec.bat -
-     _________________________________________________________________
-   
-5. Sound
+4. Sound
 
    The SB code is currently in a state of flux. Some changes to the code
    have been made which mean that I can separate the DSP handling from
@@ -1271,7 +1052,7 @@ s
    access to the MPU-401 chip into the main OS.
      _________________________________________________________________
    
-5.1. Using the MPU-401 "Emulation"
+4.1. Using the MPU-401 "Emulation"
 
    The Sound driver opens "/var/run/dosemu-midi" and writes the Raw MIDI
    data to this. A daemon is provided which can be can be used to seletc
@@ -1285,7 +1066,7 @@ s
    whatever instruments happen to be loaded.
      _________________________________________________________________
    
-5.2. The MIDI daemon
+4.2. The MIDI daemon
 
       make midid
 
@@ -1310,7 +1091,7 @@ s
    DOSEMU from.)
      _________________________________________________________________
    
-5.3. Disabling the Emulation at Runtime
+4.3. Disabling the Emulation at Runtime
 
    You can now disable the code after it is compiled in by setting the
    IRQ or DMA channels to invalid values (ie IRQ = 0 or > 15, or DMA = 4
@@ -1318,7 +1099,7 @@ s
    /etc/dosemu.conf
      _________________________________________________________________
    
-6. Using Lredir
+5. Using Lredir
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
    on April, 18 1999.
@@ -1331,7 +1112,7 @@ s
    partition access.
      _________________________________________________________________
    
-6.1. how do you use it?
+5.1. how do you use it?
 
    First make sure you aren't using DosC (the FreeDos kernel), because
    unfortunately this can't yet cope with the redirector stuff.
@@ -1396,7 +1177,7 @@ s
    newly 'redired' drive. ... you see what is meant?
      _________________________________________________________________
    
-6.2. Other alternatives using Lredir
+5.2. Other alternatives using Lredir
 
    To have a redirected drive available at time of config.sys you may
    either use emufs.sys such as
@@ -1417,7 +1198,7 @@ s
    normal user.
      _________________________________________________________________
    
-7. Running dosemu as a normal user
+6. Running dosemu as a normal user
 
    This section of the document by Hans, <lermen@fgan.de>. Last updated
    on June 16, 1997.
@@ -1443,7 +1224,7 @@ s
          all nosuidroot c_all
 
     4. The msdos partitions, that you want to be accessable through
-       Section 6 should be mounted with proper permissions. I recommend
+       Section 5 should be mounted with proper permissions. I recommend
        doing this via 'group's, not via user ownership. Given you have a
        group 'dosemu' for this and want to give the user 'lermen' access,
        then the following should be
@@ -1493,9 +1274,9 @@ s
    privileges.
      _________________________________________________________________
    
-8. Using CDROMS
+7. Using CDROMS
 
-8.1. The built in driver
+7.1. The built in driver
 
    This documents the cdrom extension rucker@astro.uni-bonn.de has
    written for Dosemu.
@@ -1573,12 +1354,12 @@ s
    Support for up to 4 drives December 4, 1998
      _________________________________________________________________
    
-9. Using X
+8. Using X
 
    Please read all of this for a more complete X information ;-)
      _________________________________________________________________
    
-9.1. Latest Info
+8.1. Latest Info
 
    From Uwe Bonnes <bon@elektron.ikp.physik.th-darmstadt.de>:
    
@@ -1632,7 +1413,7 @@ s
     keycode  157 = Delete
      _________________________________________________________________
    
-9.2. Slightly older information
+8.2. Slightly older information
 
    From Rainer Zimmermann <zimmerm@mathematik.uni-marburg.de>
    
@@ -1697,7 +1478,7 @@ s
        think it's a real bug, please tell me.
      _________________________________________________________________
    
-9.3. The appearance of Graphics modes (November 13, 1995)
+8.3. The appearance of Graphics modes (November 13, 1995)
 
    Erik Mouw <J.A.K.Mouw@et.tudelft.nl> & Arjan Filius
    <I.A.Filius@et.tudelft.nl>
@@ -1709,7 +1490,7 @@ s
    done through vgaemu, the VGA emulator. Status of the work:
      _________________________________________________________________
    
-9.3.1. vgaemu
+8.3.1. vgaemu
 
      * Video memory. 1 Mb is allocated. It is mapped with mmap() in the
        VGA memory region of dosemu (0xa00000-0xbfffff) to support bank
@@ -1731,7 +1512,7 @@ s
        get it more generic.
      _________________________________________________________________
    
-9.3.2. vesa
+8.3.2. vesa
 
      * VESA set/get mode, get information and bankswitch functions work.
      * All VESA 256 color (640x480, 800x600, 1024x768) modes work, but
@@ -1742,7 +1523,7 @@ s
      * To do: implement the other VESA functions.
      _________________________________________________________________
    
-9.3.3. X
+8.3.3. X
 
      * Added own colormap support for the 256 color modes.
      * Support for vgaemu.
@@ -1761,7 +1542,7 @@ s
    Erik
      _________________________________________________________________
    
-9.4. The new VGAEmu/X code (July 11, 1997)
+8.4. The new VGAEmu/X code (July 11, 1997)
 
    Steffen Winterfeldt <wfeldt@suse.de>
    
@@ -1876,7 +1657,7 @@ s
    distorted otherwise.
      _________________________________________________________________
    
-9.5. Planar (16 color and mode-X) modes and fonts. (May 2000)
+8.5. Planar (16 color and mode-X) modes and fonts. (May 2000)
 
    All standard vga modes work now. For planar modes, vgaemu has to
    switch to part ial cpu emulation. This can be slow, but expect it to
@@ -1890,20 +1671,20 @@ s
    graphics modes.
      _________________________________________________________________
    
-10. Running Windows under DOSEMU
+9. Running Windows under DOSEMU
 
    Okay, perhaps you've heard the hooplah. DOSEMU can run Windows (sort
    of.)
      _________________________________________________________________
    
-10.1. Windows 3.0 Real Mode
+9.1. Windows 3.0 Real Mode
 
    DOSEMU has been able to run Windows 3.0 in Real Mode for some time
    now. If you really, really, really want to run Windows under DOSEMU,
    this is the route to take for the moment.
      _________________________________________________________________
    
-10.2. Windows 3.1 Protected Mode
+9.2. Windows 3.1 Protected Mode
 
     ***************************************************************
     *    WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!   *
@@ -1958,7 +1739,7 @@ s
    WE DO NOT RECOMMEND YOU TRY THIS!!!
      _________________________________________________________________
    
-10.3. Windows 3.x in xdos
+9.3. Windows 3.x in xdos
 
    As of version 0.64.3 DOSEMU is able to run Windows in xdos. Of course,
    this is not recommended at all, but if you really want to try, it is
@@ -2005,12 +1786,12 @@ s
        outside and then inside the DOS-Box again.
      _________________________________________________________________
    
-11. The DOSEMU mouse
+10. The DOSEMU mouse
 
    This section written by Eric Biederman <eric@dosemu.org>
      _________________________________________________________________
    
-11.1. Setting up the emulated mouse in DOSEMU
+10.1. Setting up the emulated mouse in DOSEMU
 
    For most dos applications you should be able to use the internal mouse
    with very little setup, and very little trouble.
@@ -2032,7 +1813,7 @@ s
    repeater, you need to set $_mouse and $_mouse_dev to different values.
      _________________________________________________________________
    
-11.2. Problems
+10.2. Problems
 
    In X there are 2 ways applications can get into trouble.
    
@@ -2144,7 +1925,7 @@ s
    the limit.
      _________________________________________________________________
    
-12. Mouse Garrot
+11. Mouse Garrot
 
    This section, and Mouse Garrot were written by Ed Sirett
    <ed@cityscape.co.uk> on 30 Jan 1995.
@@ -2176,12 +1957,12 @@ s
    this way are immune to the efforts of Mouse Garrot.
      _________________________________________________________________
    
-13. Running a DOS-application directly from Unix shell
+12. Running a DOS-application directly from Unix shell
 
    This part of the document was written by Hans <lermen@fgan.de>.
      _________________________________________________________________
    
-13.1. Using the keystroke and commandline options.
+12.1. Using the keystroke and commandline options.
 
    Make use of the keystroke configure option and the -I commandline
    option of DOSEMU (>=dosemu-0.66.2) such as
@@ -2227,7 +2008,7 @@ s
    .fvwmrc
      _________________________________________________________________
    
-13.2. Using an input file
+12.2. Using an input file
 
      * Make a file "FILE" containing all keystrokes you need to boot
        dosemu and to start your dos-application, ... and don't forget to
@@ -2261,7 +2042,7 @@ s
    you.
      _________________________________________________________________
    
-13.3. Running DOSEMU within a cron job
+12.3. Running DOSEMU within a cron job
 
    When you try to use one of the above to start dosemu out of a crontab,
    then you have to asure, that the process has a proper environement set
@@ -2277,12 +2058,12 @@ s
    Slang.
      _________________________________________________________________
    
-14. Commands & Utilities
+13. Commands & Utilities
 
    These are some utitlies to assist you in using Dosemu.
      _________________________________________________________________
    
-14.1. Programs
+13.1. Programs
 
    bootoff.com
           switch off the bootfile to access disk see examples/config.dist
@@ -2371,7 +2152,7 @@ s
           set special X parameter when running as xdos
      _________________________________________________________________
    
-14.2. Drivers
+13.2. Drivers
 
    These are useful drivers for Dosemu
    
@@ -2391,7 +2172,7 @@ s
           FOSSIL serial driver (TSR)
      _________________________________________________________________
    
-15. Keymaps
+14. Keymaps
 
    This keymap is for using dosemu over telnet, and having *all* your
    keys work. This keymap is not complete. But hopefully with everyones
@@ -2445,13 +2226,13 @@ s
    Sytron Computers
      _________________________________________________________________
    
-16. Networking using DOSEMU
+15. Networking using DOSEMU
 
    A mini-HOWTO from Bart Hartgers <barth@stack.nl> ( for the detailed
    original description see below )
      _________________________________________________________________
    
-16.1. The DOSNET virtual device.
+15.1. The DOSNET virtual device.
 
    Dosnet.o is a kernel module that implements a special virtual network
    device. In combination with pktdrv.c and libpacket.c, this will enable
@@ -2463,7 +2244,7 @@ s
    kernel, connect to any host on your network.
      _________________________________________________________________
    
-16.2. Setup for virtual TCP/IP
+15.2. Setup for virtual TCP/IP
 
    Go to ./src/dosext/net/v-net and make dosnet.o. As root, insmod
    dosnet.o. Now as root, configure the dsn0 interface (for example:
@@ -2478,7 +2259,7 @@ s
    you can use a dos telnet client to telnet to your own machine!
      _________________________________________________________________
    
-16.3. Full Details
+15.3. Full Details
 
    Modified description of Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
    
@@ -2487,7 +2268,7 @@ s
    Resulting in multiple dosemu's to use netware, ncsa telnet etc.
      _________________________________________________________________
    
-16.3.1. Introduction
+15.3.1. Introduction
 
    Allowing network access from dosemu is an important functionality. For
    pc based network product developers, it will offer an easy development
@@ -2503,7 +2284,7 @@ s
    the packets to the actual stacks which run as user programs.
      _________________________________________________________________
    
-16.3.2. Design
+15.3.2. Design
 
    Have a virtual device which provides routing interface at one end (so
    it is a network device from linux side) and at other end, it
@@ -2523,7 +2304,7 @@ s
    Every user stack will have a unique virtual ethernet address.
      _________________________________________________________________
    
-16.3.3. Implementation
+15.3.3. Implementation
 
    This package includes:
    
@@ -2546,7 +2327,7 @@ s
        implementing this rfc.
      _________________________________________________________________
    
-16.3.4. Virtual device 'dsn0'
+15.3.4. Virtual device 'dsn0'
 
    Compile the module dosnet and insmod it, and give it an IP address,
    with a new IP network number. And You have to set up proper routing
@@ -2612,7 +2393,7 @@ s
           duplicated if more than one SOCK_PACKET asks for same type. )
      _________________________________________________________________
    
-16.3.5. Packet driver code
+15.3.5. Packet driver code
 
    I have add the code for handling multiple protocols.
    
@@ -2639,7 +2420,7 @@ s
        handler table... how to reduce?
      _________________________________________________________________
    
-16.3.6. Conclusion
+15.3.6. Conclusion
 
    So at last one can open multiple DOSEMU's and access network from each
    of them ... However, you HAVE TO set up ROUTING TABLES etc.
@@ -2647,7 +2428,7 @@ s
    Vinod G Kulkarni <vinod@cse.iitb.ernet.in>
      _________________________________________________________________
    
-16.3.6.1. Telnetting to other Systems
+15.3.6.1. Telnetting to other Systems
 
    Other systems need to have route to this "new" network. The easiest
    way to do this is to have static route for dosnet IP network included
@@ -2663,7 +2444,7 @@ s
    if you need to connect to outside of 144.16.98.0.
      _________________________________________________________________
    
-16.3.6.2. Accessing Novell netware
+15.3.6.2. Accessing Novell netware
 
    Since dosemu is now on "different device", IPX needs to be either
    bridged or routed. If it is bridged, then there is no requirement for
@@ -2703,7 +2484,7 @@ s
    Vinod.
      _________________________________________________________________
    
-17. Using Windows and Winsock
+16. Using Windows and Winsock
 
    This is the Windows Net Howto by Frisoni Gloriano <gfrisoni@hi-net.it>
    on 15 may 1997
@@ -2722,7 +2503,7 @@ s
    real (hardware) net.
      _________________________________________________________________
    
-17.1. LIST OF REQUIRED SOFTWARE
+16.1. LIST OF REQUIRED SOFTWARE
 
      * The WINPKT.COM virtual packet driver, version 11.2 I have found
        this little tsr in the Crynwr packet driver distribution file
@@ -2730,7 +2511,7 @@ s
      * The Trumpet Winsock 2.0 revision B winsock driver for windows.
      _________________________________________________________________
    
-17.2. STEP BY STEP OPERATION (LINUX SIDE)
+16.2. STEP BY STEP OPERATION (LINUX SIDE)
 
      * Enable "dosnet" based dosemu packet driver:
        
@@ -2764,10 +2545,10 @@ s
           route add -net 144.16.112.0 dsn0
      _________________________________________________________________
    
-17.3. STEP BY STEP OPERATION (DOS SIDE)
+16.3. STEP BY STEP OPERATION (DOS SIDE)
 
    I suppose you know how to run windows in dosemu. You can read the
-   Section 10 document if you need more information. Windows is not very
+   Section 9 document if you need more information. Windows is not very
    stable, but works.
    
      * start dosemu.

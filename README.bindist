@@ -1,0 +1,126 @@
+====================================================
+The DOSEMU/FreeDos ready-to-use binary distribution.
+====================================================
+
+BIG-FAT_NOTE:
+
+    do NOT install the configuration files included within the binary
+    distribution systemwide as root. For this have a look at the
+    ./etc directory of the DOSEMU source distribution.
+
+
+INSTALL
+-------
+
+The most easiest way to get DOSEMU working on your maschine is to use
+the ready-to-use DOSEMU binary distribution. This one comes in 2 packages:
+
+  - ftp://ftp.dosemu.org/dosemu/dosemu-freedos-bin.tgz
+
+      A tarball containing a collection of suitable FreeDos binaries,
+      eventually patched to fit DOSEMU needs, together with some GNU
+      tools you may find usefull and the Bourne shell like command line
+      interpreter from Terry R. McConnell, which is configured per
+      default.
+
+  - ftp://ftp.dosemu.org/dosemu/dosemu-<version>-bin.tgz
+
+      A tarball containing the recent DOSEMU binaries together with a
+      user local configuration setup.
+
+This installation fits into any user HOME directory and can be used
+and installed without root permissions.
+You have to unpack _both_ tarballs (as normal user, NOT as root) into
+the same directory (regardless what ever) within your HOME, such as:
+
+  $ mkdir mydos
+  $ cd mydos
+  $ tar -zxf dosemu-freedos-bin.tgz
+  $ tar -zxf dosemu-1.0.2-bin.tgz
+  $ cd dosemu
+
+now look where you are and what was installed:
+
+  $ pwd
+  /home/joeuser/mydos/dosemu
+  $ ls
+  README.bindist  bin/            conf/           freedos/
+  Xfonts/         boot.log        dosemu*         xdosemu@
+
+
+
+RUN
+---
+
+After you got the install right you now can execute DOSEMU with
+
+  $ cd ~mydos/dosemu             # (your CWD _must_ be here)
+  $ ./xdosemu
+
+which will use X or execute
+
+  $ ./dosemu
+
+which will just start within the current terminal or console.
+
+If you never used DOSEMU before, you will get prompted (once) that you have
+read the liability disclaimer and after you agreed, DOSEMU will boot FreeDos
+and give you a command prompt.
+
+If for some reasons it does not start, look at boot.log for details.
+
+Remember, that you can't use <Ctrl>-C _within_ DOS to exit _from_ DOS.
+For this you need to execute 'exitemu' or, when using xdosemu,
+<Ctrl><Alt><PgDn>.
+
+The shell installed by default is command.com, however, this one at time
+of writing is _very_ memory hungry, so for larger programs (or if you
+prefer Unix like shells) you may use Terry's Bourne shell like commandline
+interpreter. This one gives you more DOS memory below 640K, such that you
+can run larger DOS applications upto 616K. You get it by starting DOSEMU with
+
+  $ ./dosemu -shell
+or
+  $ ./xdosemu -shell
+
+Once having booted DOS this way you can, however, switch between 'shell'
+and 'command.com' at any time by typeing
+
+  shell C:\> command
+
+or you just execute _one_ program or a command.com-builtin with
+
+  shell C:\> call myprog
+
+Note, that the 'autoexec.bat' of Terry's shell is 'shell.rc'. Additional
+documentation about it can be found with the C:\doc\shell directory.
+Second note: Terry's shell may convert your a slash '/' to backslash '\'
+and interprete '\' as escape for special characters. If you are in doubt,
+just quote your arguments such as in
+
+  shell C:\> lredir d: "linux\fs/tmp"
+
+
+
+SOURCES
+-------
+
+The sources of the here included binaries can befound at
+
+  http://www.dosemu.org/
+  http://www.freedos.org/
+  http://freedos.sourceforge.net/download/
+  http://www.gnu.org/
+  ftp://barnyard.syr.edu/pub/mcconnell/IBM/shell21.zip
+
+
+POLICIES
+--------
+
+  All software herein can be distributed and used freely,
+  most is GPL, other not GPL licenses can be found in the
+  doc/* directories.
+
+
+                                  -- Hans <lermen@fgan.de>
+				     2001/03/24

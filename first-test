@@ -1,9 +1,0 @@
-#! /bin/sh
-
-# This just starts the dosemu testsuite, its quite tiny now, but it
-# should boot FreDos from ./etc/hdimage.test
-# You can't do much with it currently, but you may use mtools to
-# put some stuff from you onto this hdimage an play with ;-)
-#
-
-./bin/dos $* -F etc/config.test

@@ -1,3 +1,41 @@
+2001/10/28 ver. 1.1.1.6 unofficial pre-release
+	From Stas Sergeev <stas_orel@yahoo.com>
+	- fix for emusys/emubat/emuini file extension substitution not
+	  working correctly for redirector/PC-DOS (modified by Hans).
+	  Note: the DCONFIG.SYS part is disabled because it can't be handled
+	  consistently in fatfs.c. Involved files: utilities.[ch], async/int.c
+	- fix for DPMI: run_dpmi() must not be called from timer_int_engine()
+	  (just delay ints until the timer routine is finished)
+	From Bart
+	- small fix for mfs to get DRDOS use 'con' without error
+	- vgaemu_put_pixel patch (int 10h, function 0ch and 0dh)
+	- temp fix for mouse in applications, which do 'mousing' only
+	  by reading mickeys and drawing their own cursors (WP Office):
+	  In mouse.c, 'mouse_setpos()' disabled for X without mouse grab.
+	From Hans
+	- ./mknewyear ;-)
+	- fixed typo in global.conf, $__debug --> $_debug
+	- fixed bug in mfs for special devices given as full path by
+	  by FDkernel. Involved files: src/dosext/mfs/{mfs,mangle}.c
+	- fixed small bug in mappingdriver detection (mapping.c)
+	- fixed src/base/misc/fatfs.c so 'emusys' and 'emubat' are handled
+	  (emuini isn't needed here, because at that time we are lredir'ed)
+	- reduced signon banner to be less verbose
+	  (+292 ./src/base/async/int.c)
+	- implemented A20 handling in 8042 emulation, needed for WinME
+	  involved file: src/base/keyboard/serv_8042.c
+	- removed binary stuff, we have it now in dosemu-<version>-bin.tgz
+	  or drop it. Involved files/directories:
+	  dexe, etc/{config.test,hddummy}, setup-bootdir, setup-hdimage,
+	  first-test, dosemu.spec, src/doc/README/{dexe,oldboot},
+	  src/tools/{mkbindist,Mkbindist,QuickStart.bindist},
+	  contrib/dosC, src/commands/precompiled/*.{com,exe,sys,doc}
+	- adapted the Makefile to reflect the binary remove
+	- the commands dir now is only compiled on demand, target: dosbin
+	- adapted the docs to reflect the binary remove
+	- added a short description about the binary distribution to
+	  doc/README.txt, Quickstart and a larger one in README.bindist
+	- adapted Quickstart
 2001/10/28 ver. 1.1.1.5 unofficial pre-release
 	From Hans
 	- fixed typo in emm.c, error code wrongly went into BH instead AH

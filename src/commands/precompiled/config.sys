@@ -1,4 +1,0 @@
-rem this sets up the redirector to look at the Linux root directory.
-rem this is probably not a good idea once you have dosemu installed
-device=c:\emufs.sys /
-device=c:\ems.sys

@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -517,6 +517,72 @@ int argparse(char *s, char *argvx[], int maxarg)
    }
    argvx[argcx] = 0;
    return(argcx);
+}
+
+void subst_file_ext(char *ptr)
+{
+#define ext_fix(s) { char *r=(s); \
+		     while (*r) { *r=toupper(*r); r++; } }
+    static int subst_bat=0, subst_sys=0;
+    static int needed = -1;
+
+    if (!needed) return;
+
+    if (needed < 0) {
+	needed = 0;
+        if (config.emubat) {
+	    needed++;
+	    subst_bat = 3;	/* This realy is an ugly hack:
+				 * freedos needs 3 fakes,  PCDOS 2 and MSDOS 1
+				 */
+        }
+        if (config.emusys) {
+	    needed++;
+	    subst_sys = 2;
+        }
+        if (config.emuini) {
+	    needed++;
+        }
+	if (!needed) return;
+    }
+
+    /* skip leading drive name and \ */
+    if (ptr[1]==':' && ptr[2]=='\\') ptr+=3;
+    else if (ptr[0]=='\\') ptr++;
+
+    if (config.emuini && !strncasecmp(ptr, "WINDOWS\\SYSTEM.INI", 18)) {
+	ext_fix(config.emuini);
+	sprintf(ptr, "WINDOWS\\SYSTEM.%s", config.emuini);
+	d_printf("DISK: Substituted %s for system.ini\n", ptr+8);
+	return;
+    }
+
+    if (subst_bat && config.emubat && !strncasecmp(ptr, "AUTOEXEC.BAT", 12)) {
+	ext_fix(config.emubat);
+	sprintf(ptr, "AUTOEXEC.%-3s", config.emubat);
+	d_printf("DISK: Substituted %s for AUTOEXEC.BAT\n", ptr);
+	if (! --subst_bat) needed--;
+	return;
+    } 
+
+    if (subst_sys) {
+#if 0	/*
+	 * NOTE: as the method used in fatfs.c can't handle multiple
+	 * files to be faked, we can't do it here, because this would
+	 * confuse more than doing anything valuable --Hans 2001/03/16
+	 */
+
+	/* skip the D for DCONFIG.SYS in DR-DOS */
+	if (toupper(ptr[0]) == 'D') ptr++;
+#endif
+	if (config.emusys && !strncasecmp(ptr, "CONFIG.SYS", 10)) {
+	    ext_fix(config.emusys);
+	    sprintf(ptr, "CONFIG.%-3s", config.emusys);
+	    d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
+	    if (! --subst_sys) needed--;
+	    return;
+	}
+    } 
 }
 
 void call_cmd(const char *cmd, int maxargs, const struct cmd_db *cmdtab,

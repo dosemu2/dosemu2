@@ -3174,17 +3174,9 @@ IF YOU FIDDLE WITH THIS SECTION WITHOUT KNOWING WHAT YOU'RE DOING!</emphasis>
 </para>
 
 <para>
-The best way to get started is to start with a hdimage, and set "<literal remap="tt">bootC</literal>"
-and "<literal remap="tt">disk {image "</literal>var/lib/dosemu/hdimage.first" }/" in global.conf.
-To generate this first working and bootable hdimage, you should use
-"<literal remap="tt">setup-hdimage</literal>" in the dosemu root directory. This script extracts your 
-DOS from any native bootable DOS-partition and builts a bootable hdimage.
-(for experience dosemu users: you need not to fiddle with floppies any more)
-Keep using the hdimage while you are setting this hard disk configuration up
-for DOSEMU, and testing by using <literal remap="tt">DIR C:</literal> or something like that.
-Whenever possible, use hdimage, mount your DOS partition under Linux
-and "<literal remap="tt">lredir</literal>" it into dosemu. Look at <xref linkend="lredir">, <xref linkend="runasuser">,
-QuickStart etc. on how to use "lredir".
+The best way to get started with DOSEMU is to use use the bootdisk method
+(see doc/README.txt, chapter "Disks, boot directories and floppies").
+Fiddling with hdimages and real harddisk is obsolete now.
 </para>
 
 <para>
@@ -3566,72 +3558,6 @@ NetBSD defaults
 <screen>
   sound_emu { sb_base 0x220 sb_irq 5 sb_dma 1 sb_dsp /dev/sound
               sb_mixer /dev/mixer mpu_base 0x330 }
-</screen>
-
-</para>
-
-</sect3>
-
-<sect3>
-<title>DEXE support</title>
-
-<para>
-These are the setting for DEXE type DOS application, which are executed
-by DOSEMU via the -L option.
-( for information on DEXE is look at ./doc/README.dexe )
-</para>
-
-<para>
-set the below to force 'secure on', when -L option is used _and_ the user
-isn't root.
-</para>
-
-<para>
-
-<screen>
-  dexe { secure }
-</screen>
-
-</para>
-
-<para>
-set the below, if you want that a dexe may be allowed to have additional
-disks. Normally the hdimage containing the DOS app (the .dexe itself) is
-the only available disk, all other 'disk {}' statement are ignored.
-</para>
-
-<para>
-
-<screen>
-  dexe { allowdisk }
-</screen>
-
-</para>
-
-<para>
-set the below, if you want a DEXE to be forced to 'xdos', when X
-available. This mainly is intended for beeing included into the
-configuration of a DEXE file (see mkdexe). e.g. when the application
-needs graphic it should not run on slang-terminal.
-</para>
-
-<para>
-
-<screen>
-  dexe { forcexdos }
-</screen>
-
-</para>
-
-<para>
-set the below, if you want a DEXE _only_ running on X (because it otherwise
-would not run)
-</para>
-
-<para>
-
-<screen>
-  dexe { xdosonly }
 </screen>
 
 </para>

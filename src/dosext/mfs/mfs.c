@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -361,7 +361,7 @@ struct direct *dos_readdir(DIR *);
 
 #endif
 
-void build_ufs_path(char *ufs, char *path);
+static int build_ufs_path(char *ufs, char *path);
 char *is_reserved_msdos (char *s);
 static void set_long_path_on_dirs(struct dir_ent *);
 static int is_long_path(const char *s);
@@ -1703,8 +1703,7 @@ path_to_ufs(char *ufs, char *path, int PreserveEnvVar)
   Debug0((dbg_fd, "dos_gen: path_to_ufs '%s'\n", ufs));
 }
 
-void
-build_ufs_path(ufs, path)
+static int build_ufs_path(ufs, path)
      char *ufs;
      char *path;
 {
@@ -1716,6 +1715,7 @@ build_ufs_path(ufs, path)
   Debug0((dbg_fd,"MFS: Special File, so name changed to '%s'\n", s));
   strcpy (path, s);
   strcpy (ufs, s);
+  return FALSE;
  }
  else {
   /* Set ufs to dos_roots[current_drive] */
@@ -1749,6 +1749,7 @@ build_ufs_path(ufs, path)
   }
  }
   Debug0((dbg_fd, "dos_fs: build_ufs_path result is '%s'\n", ufs));
+  return TRUE;
 }
 
 /*
@@ -1822,6 +1823,18 @@ _find_file(char *fpath, struct stat * st)
   if (stat(fpath, st) == 0)
     return (TRUE);
 
+  /* check for device files like NUL, CON, etc. */
+  if ((slash1=is_reserved_msdos(fpath))) {
+      if (strcmp(slash1, "NUL") == 0) {
+          Debug0((dbg_fd, "nul cmpr\n"));
+          stat("/dev/null", st);
+          return (TRUE);
+      } else {
+          Debug0((dbg_fd, "Device file %s\n", slash1));
+          return (FALSE);
+      }
+  }
+  
   /* if it isn't an absolute path then we're in trouble */
   if (*fpath != '/') {
     error("MFS: non-absolute path in find_file: %s\n", fpath);
@@ -1837,12 +1850,6 @@ _find_file(char *fpath, struct stat * st)
     *slash2 = tolowerDOS(*slash2);
   if (stat(fpath, st) == 0)
     return (TRUE);
-
-  if (!strncmpDOS((u_char *) (fpath + strlen(fpath) - 3), "nul", 3)) {
-    Debug0((dbg_fd, "nul cmpr\n"));
-    stat("/dev/null", st);
-    return (TRUE);
-  }
 
   /* now match each part of the path name separately, trying the names
      as is first, then tring to scan the directory for matching names */
@@ -3444,32 +3451,23 @@ dos_fs_redirect(state)
       long_path = TRUE;
     }    
 
-    build_ufs_path(fpath, filename1);
+    if (!build_ufs_path(fpath, filename1)) {
+      struct stat st;
+      sdb_dir_entry(sdb) = HLIST_STACK_SIZE*2; /* no findnext */
+      sdb_file_attr(sdb) = 0;
+      time_to_dos(&st.st_mtime, &sdb_file_date(sdb), &sdb_file_time(sdb));
+      sdb_file_size(sdb) = 0;
+      strncpy(sdb_file_name(sdb), "        ", 8);
+      memcpy(sdb_file_name(sdb), fpath, strlen(fpath));
+      strncpy(sdb_file_ext(sdb), "   ", 3);
+      return (TRUE);
+    }
 
     for (i = 0, bs_pos = 0; fpath[i] != EOS; i++) {
       if (fpath[i] == SLASH)
 	bs_pos = i;
     }
     fpath[bs_pos] = EOS;
-
-    /* check for NUL quasi-existence */
-    /* note: path_to_ufs turns the name into lowercase! */
-    if (strcmpDOS(fpath + bs_pos + 1, "nul") == 0) {
-   struct stat st;
-   sdb_dir_entry(sdb) = HLIST_STACK_SIZE*2; /* no findnext */
-   /* check directory existence, bs_pos == 0 -> root, no check needed */
-   if (bs_pos > 0 && !find_file(fpath, &st)) {
-     SETWORD(&(state->eax), PATH_NOT_FOUND);
-     return (FALSE);
-   }
-   sdb_file_attr(sdb) = 0;
-   st.st_mtime = 0;
-   time_to_dos(&st.st_mtime, &sdb_file_date(sdb), &sdb_file_time(sdb));
-   sdb_file_size(sdb) = 0;
-   strncpy(sdb_file_name(sdb), "NUL     ", 8);
-   strncpy(sdb_file_ext(sdb), "   ", 3);
-   return (TRUE);
-    }
 
     auspr(fpath + bs_pos + 1, fname, fext);
     strncpy(sdb_template_name(sdb), fname, 8);

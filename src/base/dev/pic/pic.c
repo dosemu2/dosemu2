@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -697,6 +697,17 @@ if ((!(REG(eflags) & VIF)) && (!in_dpmi) ) {
 #else
 if (!(REG(eflags) & VIF)) return;
 #endif
+
+/* Without this one dope crashes (DPMI_rm_procedure_* running increases 
+ * up to a stack fault)
+ *
+ * This is a gross disgusting cludge, that I am going to make even grosser
+ * and more disgusting in an attempt to get it to work properly.  Someday
+ * I am going to find and fix the root problems that are making this 
+ * necessary.  -KenC
+ */
+if (in_dpmi && in_dpmi_timer_int) return;
+
 #warning using assembly run_irqs,expect pic1_mask not used
   __asm__ __volatile__
   ("movl "CISH_INLINE(pic_ilevel)",%%ecx\n\t" /* get old ilevel              */

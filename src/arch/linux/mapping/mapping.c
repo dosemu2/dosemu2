@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -69,6 +69,7 @@ void mapping_init(void)
       }
     }
   }
+  if (found < 0) found = 0;
   for (i=found; i < numdrivers; i++) {
     if (mappingdrv[i] && (*mappingdrv[i]->open)(MAPPING_PROBE)) {
       memcpy(&mappingdriver, mappingdrv[i], sizeof(struct mappingdrivers));

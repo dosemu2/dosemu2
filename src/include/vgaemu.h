@@ -1,6 +1,6 @@
 /* 
  * All modifications in this file to the original code are
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -486,6 +486,8 @@ int changed_vga_colors(DAC_entry *);
 void vgaemu_adj_cfg(unsigned, unsigned);
 void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
 void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr);
+void vgaemu_put_pixel(int x, int y, unsigned char page, unsigned char attr);
+unsigned char vgaemu_get_pixel(int x, int y, unsigned char page);
 unsigned char Logical_VGA_read(unsigned offset);
 void Logical_VGA_write(unsigned offset, unsigned char value);
 /* for cpuemu: */

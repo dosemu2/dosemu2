@@ -363,8 +363,10 @@ AC_DEFINE_UNQUOTED(PATCHLEVEL, $PATCHLEVEL)
 AC_DEFINE_UNQUOTED(VERSTR, "$THISVERSION")
 AC_DEFINE_UNQUOTED(VERDATE, "$RELEASE_DATE")
 
-OPTIONALSUBDIRS="dosext/net/v-net"
-REQUIRED="tools commands tools/periph"
+#OPTIONALSUBDIRS="dosext/net/v-net"
+OPTIONALSUBDIRS="dosext/net/v-net commands"
+#REQUIRED="tools commands tools/periph"
+REQUIRED="tools tools/periph"
 
 dnl enable EXPERIMENTAL stuff
  AC_ARG_ENABLE(experimental,
@@ -384,8 +386,10 @@ dnl but only vm86plus
    USE_MHPDBG="-DUSE_MHPDBG"
    AC_SUBST(USE_MHPDBG)
    DEBUGGER="arch/$CONFIG_HOST/debugger"
-   OPTIONALSUBDIRS="dosext/net/v-net"
-   REQUIRED="tools commands tools/periph"
+#   OPTIONALSUBDIRS="dosext/net/v-net"
+   OPTIONALSUBDIRS="dosext/net/v-net commands"
+#   REQUIRED="tools commands tools/periph"
+   REQUIRED="tools tools/periph"
 fi
 AC_SUBST(DEBUGGER)
 

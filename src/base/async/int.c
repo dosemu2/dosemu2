@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -35,6 +35,7 @@
 #include "vc.h"
 #include "priv.h"
 #include "doshelpers.h"
+#include "utilities.h"
 
 #ifdef USING_NET
 #include "ipx.h"
@@ -291,10 +292,12 @@ static int dos_helper(void)
   case DOS_HELPER_SHOW_BANNER:		/* show banner */
     p_dos_str("\n\nLinux DOS emulator " VERSTR " $Date: " VERDATE " $\n");
     p_dos_str("Last configured at %s on %s\n", CONFIG_TIME, CONFIG_HOST);
+#if 0
     p_dos_str("This is work in progress.\n");
     p_dos_str("Please test against a recent version before reporting bugs and problems.\n");
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */
     p_dos_str("Bugs, Patches & New Code to linux-msdos@vger.kernel.org\n\n");
+#endif
     if (config.dpmi)
       p_dos_str("DPMI-Server Version 0.9 installed\n\n");
     break;
@@ -1157,35 +1160,13 @@ Return: nothing
  */
 #define EMM_FILE_HANDLE 200
 
-/* uppercase and truncate to 3 letters the replacement extension */
-/* pay attention to writable strings! */
-#define ext_fix(s) { char *r=(s); \
-		     while (*r) { *r=toupper(*r); r++; } \
-		     if ((r - s) > 3) s[3]=0; }
 
 static int ms_dos(int nr)
 {
   switch (nr) {
   case 0x3d:       /* DOS handle open */
-  {
-    char *ptr = SEG_ADR((char *), ds, dx);
-
-    /* ignore explicitly selected drive by incrementing ptr by 1 */
-    if (config.emubat && !strncasecmp(ptr + 1, ":\\AUTOEXEC.BAT", 14)) {
-      ext_fix(config.emubat);
-      sprintf(ptr + 1, ":\\AUTOEXEC.%-3s", config.emubat);
-      d_printf("DISK: Substituted %s for AUTOEXEC.BAT\n", ptr + 1);
-    } else if (config.emusys && !strncmp(ptr, "\\CONFIG.SYS", 11)) {
-      ext_fix(config.emusys);
-      sprintf(ptr, "\\CONFIG.%-3s", config.emusys);
-      d_printf("DISK: Substituted %s for CONFIG.SYS\n", ptr);
- } else if (config.emuini && !strncmp(ptr+2, "\\WINDOWS\\SYSTEM.INI", 19)) {
- ext_fix(config.emuini);
-      sprintf(ptr+2, "\\WINDOWS\\SYSTEM.%s", config.emuini);
-      d_printf("DISK: Substituted %s for system.ini\n", ptr);
-    }
 #ifdef INTERNAL_EMS
-    else if (config.ems_size && !strncmp(ptr, "EMMXXXX0", 8)) {
+    if (config.ems_size && !strncmp(ptr, "EMMXXXX0", 8)) {
       E_printf("EMS: opened EMM file!\n");
       LWORD(eax) = EMM_FILE_HANDLE;
       NOCARRY;
@@ -1193,9 +1174,8 @@ static int ms_dos(int nr)
       return 1;
     }
 #endif
-
-  return 0;
-  }
+    subst_file_ext(SEG_ADR((char *), ds, dx));
+    return 0;
 
 #ifdef INTERNAL_EMS
   case 0x3e:       /* DOS handle close */
@@ -1797,10 +1777,10 @@ static void int2f(u_char i)
 
   switch (HI(ax)) {
   case 0x11:              /* redirector call? */
-    if (mfs_redirector())
-    return;
+    if (LO(ax) == 0x23) subst_file_ext(SEG_ADR((char *), ds, si));
+    if (mfs_redirector()) return;
     break;
-
+  
   case 0x16:		/* misc PM/Win functions */
     if (!config.dpmi) {
 /*  d.emu=4; */

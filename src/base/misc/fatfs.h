@@ -1,5 +1,5 @@
 /* 
- * (C) Copyright 1992, ..., 2000 the "DOSEMU-Development-Team".
+ * (C) Copyright 1992, ..., 2001 the "DOSEMU-Development-Team".
  *
  * for details see file COPYING in the DOSEMU distribution
  */
@@ -18,6 +18,8 @@ typedef struct {
     unsigned not_real	:1;		/* entry doesn't need a start cluster */
     unsigned this_dir	:1;		/* is "." entry */
     unsigned parent_dir	:1;		/* is ".." entry */
+    unsigned faked_sys	:1;		/* is faked by config.emusys */
+    unsigned faked_bat	:1;		/* is faked by config.emubat */
   } is;
   unsigned start, len;			/* start cluster, length in clusters */
   unsigned parent;			/* index of parent object */
