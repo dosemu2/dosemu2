@@ -258,17 +258,6 @@ int com_system(char *command, int quit)
 	return load_and_run_DOS_program(program, cmdline, quit);
 }
 
-static char * com_dosallocmem(int size)
-{
-	return lowmem_heap_alloc(size);
-}
-
-static void com_dosfreemem(char *p)
-{
-	lowmem_heap_free(p);
-	return;
-}
-
 char * lowmem_alloc(int size)
 {
 	char *ptr = smalloc(&mp, size);
@@ -557,7 +546,7 @@ int commands_plugin_inte6(void)
 	    return 0;
 	}
 	if (!pool_used) {
-	    if (!(lowmem_pool = com_dosallocmem(LOWMEM_POOL_SIZE))) {
+	    if (!(lowmem_pool = lowmem_heap_alloc(LOWMEM_POOL_SIZE))) {
 		error("Unable to allocate memory pool\n");
 		return 0;
 	    }
@@ -601,7 +590,7 @@ int commands_plugin_inte6_done(void)
 	    if (leaked)
 		error("inte6_plugin: leaked %i bytes, builtin=%s\n",
 		    leaked, builtin_name);
-	    com_dosfreemem(lowmem_pool);
+	    lowmem_heap_free(lowmem_pool);
 	}
 	return 1;
 }
