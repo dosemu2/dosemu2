@@ -346,7 +346,6 @@ emulate(int argc, char **argv)
     stdio_init();		/* initialize stdio & open debug file */
     print_version();            /* log version information */
     module_init();
-    low_mem_init(1);		/* HACK */
     time_setting_init();	/* get the startup time */
     cpu_setup();		/* setup the CPU */
     pcibios_init();
@@ -354,8 +353,6 @@ emulate(int argc, char **argv)
     extra_port_init();		/* setup ports dependent on config */
     signal_init();              /* initialize sig's & sig handlers */
     device_init();		/* initialize keyboard, disk, video, etc. */
-    map_video_bios();           /* map the video bios */
-    map_hardware_ram();         /* map the direct hardware ram */
     pkt_priv_init();
 
     /* here we include the hooks to possible plug-ins */
@@ -368,11 +365,16 @@ emulate(int argc, char **argv)
 
     if (can_do_root_stuff && !under_root_login) {
         g_printf("dropping root privileges\n");
+	open_kmem();
     }
     priv_drop();
     
     mapping_init();		/* initialize mapping drivers */
-    low_mem_init(0);		/* initialize the lower 1Meg */
+    low_mem_init();		/* initialize the lower 1Meg */
+    map_hardware_ram();         /* map the direct hardware ram */
+    map_video_bios();           /* map (really: copy) the video bios */
+    close_kmem();
+
     HMA_init();			/* HMA can only be done now after mapping
                                    is initialized*/
 #ifdef X_SUPPORT
@@ -381,6 +383,7 @@ emulate(int argc, char **argv)
 #endif
     
     memory_init();		/* initialize the memory contents */
+    iodev_reset();		/* reset all i/o devices          */
     boot();			/* read the boot sector & get moving */
 
     if (not_use_sigio)

@@ -693,7 +693,6 @@ int X_init()
   X_printf("X: X_init\n");
 
   co = 80; li = 25;
-  set_video_bios_size();		/* make it stick */
 
   /* Open X connection. */
   display_name = config.X_display ? config.X_display : getenv("DISPLAY");
@@ -3444,7 +3443,7 @@ void load_text_font()
 {
   const char *p = config.X_font;
   font = NULL;
-  if (strlen(p)) {
+  if (p && strlen(p)) {
     font = XLoadQueryFont(display, p);
     if(font == NULL) {
       error("X: Unable to open font \"%s\", using builtin\n", p);

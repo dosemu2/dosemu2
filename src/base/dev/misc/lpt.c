@@ -196,6 +196,16 @@ printer_write(int prnum, int outchar)
   return (LPT_NOTBUSY | LPT_ACK | LPT_ONLINE);
 }
 
+void
+printer_mem_setup(void)
+{
+  int i;
+  for (i = 0; i < 3; i++) {
+    /* set the port address for each printer in bios */
+    *((u_short *)(0x408) + i) = lpt[i].base_port;
+  }
+}
+
 /* DANG_BEGIN_FUNCTION printer_init
  *
  * description:
@@ -214,8 +224,6 @@ printer_init(void)
     lpt[i].remaining = -1;	/* mark not accessed yet */
     lpt[i].fops = def_pfops;
     if (i >= config.num_lpt) lpt[i].base_port = 0;
-    /* set the port address for each printer in bios */
-    *((u_short *)(0x408) + i) = lpt[i].base_port;
   }
 }
 

@@ -162,7 +162,6 @@ void set_console_video(void)
     v_printf("VID: not active, going on\n");
 
   allow_switch();
-  clear_screen(0, 7);
 }
 
 void clear_console_video(void)

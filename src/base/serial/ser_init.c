@@ -518,22 +518,6 @@ static void do_ser_init(int num)
         num, com[num].real_comport, com[num].interrupt, 
         com[num].base_port, com[num].dev);
 
-  /* Write serial port information into BIOS data area 0040:0000
-   * This is for DOS and many programs to recognize ports automatically
-   */
-  if ((com[num].real_comport >= 1) && (com[num].real_comport <= 4)) {
-#if 1
-    *((u_short *) (0x400) + (com[num].real_comport-1)) = com[num].base_port;
-#else
-    WRITE_WORD(0x400 + (com[num].real_comport-1)*2, com[num].base_port);
-#endif
-
-/* Debugging to determine whether memory location was written properly */
-    s_printf("SER%d: BIOS memory location 0x%x has value of 0x%x\n", num,
-	(int)((u_short *) (0x400) + (com[num].real_comport-1)) 
-	,READ_WORD(0x400 + 2*(com[num].real_comport-1)));
-  }
-
   /* first call to serial timer update func to initialize the timer */
   /* value, before the com[num] structure is initialized */
   serial_timer_update();
@@ -542,6 +526,39 @@ static void do_ser_init(int num)
   com[num].fd = -1;  
 }
 
+void serial_reset(void)
+{
+  int num;
+  /* Clean the BIOS data area at 0040:0000 for serial ports */
+#if 1
+  *(u_short *) 0x400 = 0;
+  *(u_short *) 0x402 = 0;
+  *(u_short *) 0x404 = 0;
+  *(u_short *) 0x406 = 0;
+#else
+  WRITE_WORD(0x400, 0);
+  WRITE_WORD(0x402, 0);
+  WRITE_WORD(0x404, 0);
+  WRITE_WORD(0x406, 0);
+#endif
+  /* Write serial port information into BIOS data area 0040:0000
+   * This is for DOS and many programs to recognize ports automatically
+   */
+  for (num = 0; num < config.num_ser; num++) {
+    if ((com[num].real_comport >= 1) && (com[num].real_comport <= 4)) {
+#if 1
+      *((u_short *) (0x400) + (com[num].real_comport-1)) = com[num].base_port;
+#else
+      WRITE_WORD(0x400 + (com[num].real_comport-1)*2, com[num].base_port);
+#endif
+
+      /* Debugging to determine whether memory location was written properly */
+      s_printf("SER%d: BIOS memory location 0x%x has value of 0x%x\n", num,
+	       (int)((u_short *) (0x400) + (com[num].real_comport-1)) 
+	       ,READ_WORD(0x400 + 2*(com[num].real_comport-1)));
+    }
+  }
+}
 
 /* DANG_BEGIN_FUNCTION serial_init
  * 
@@ -560,19 +577,6 @@ void serial_init(void)
   int i;
   warn("SERIAL $Header$\n");
   s_printf("SER: Running serial_init, %d serial ports\n", config.num_ser);
-
-  /* Clean the BIOS data area at 0040:0000 for serial ports */
-#if 1
-  *(u_short *) 0x400 = 0;
-  *(u_short *) 0x402 = 0;
-  *(u_short *) 0x404 = 0;
-  *(u_short *) 0x406 = 0;
-#else
-  WRITE_WORD(0x400, 0);
-  WRITE_WORD(0x402, 0);
-  WRITE_WORD(0x404, 0);
-  WRITE_WORD(0x406, 0);
-#endif
 
   /* Do UART init here - Need to set up registers and init the lines. */
   for (i = 0; i < config.num_ser; i++) {

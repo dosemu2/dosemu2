@@ -1005,9 +1005,8 @@ static void mouse_reset(int flag)
       LWORD(ebx)=3; 
     else 
       LWORD(ebx)=2; 
+    mouse_reset_to_current_video_mode();
   }
-
-  mouse_reset_to_current_video_mode();
 
   /* turn cursor off if reset requested by software and it was on. */
   if ((flag == 0) && (mouse.cursor_on >= 0)) {
@@ -1835,6 +1834,12 @@ static void mouse_client_init(void)
   }
 }
 
+void dosemu_mouse_reset(void)
+{
+  /* We set the defaults at the end so that we can test the mouse type */
+  mouse_reset(1);		/* Let's set defaults now ! */
+}
+
 /*
  * DANG_BEGIN_FUNCTION mouse_init
  *
@@ -1886,8 +1891,6 @@ dosemu_mouse_init(void)
     pic_unmaski(PIC_IMOUSE);
   }
 
-  /* We set the defaults at the end so that we can test the mouse type */
-  mouse_reset(1);		/* Let's set defaults now ! */
   m_printf("MOUSE: INIT complete\n");
 }
 
@@ -1900,6 +1903,7 @@ void mouse_post_boot(void)
   /* This is needed here to revectoring the interrupt, after dos
    * has revectored it. --EB 1 Nov 1997 */
   
+  mouse_reset_to_current_video_mode();
   mouse_enable_internaldriver();
   
   /* grab int10 back from video card for mouse */
@@ -1941,7 +1945,7 @@ static int serial_mouse_init(void)
     sptr = &com[x];
     if (sptr->mouse) break;
   }
-  if (!(sptr->mouse)) {
+  if (!sptr || !(sptr->mouse)) {
     m_printf("MOUSE: No mouse configured in serial config! num_ser=%d\n",config.num_ser);
     return FALSE;
   }

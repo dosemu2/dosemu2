@@ -512,9 +512,9 @@ int parent_open_mouse (void)
       }
       mice->fd = -1;
       /* gpm + non-graphics mode doesn't work */
-      if (!S_ISFIFO(buf.st_mode) || config.vga)
+      if ((!S_ISFIFO(buf.st_mode) || config.vga) && mice->dev)
       {
-        mice->fd = DOS_SYSCALL(open(mice->dev, mode));
+	mice->fd = DOS_SYSCALL(open(mice->dev, mode));
         if (mice->fd == -1) {
           error("Cannot open internal mouse device %s\n",mice->dev);
         }

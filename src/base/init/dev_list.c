@@ -67,8 +67,8 @@ static int current_device = -1;
 static struct io_dev_struct io_devices[MAX_IO_DEVICES] = {
   { "pit",     pit_init,     pit_reset,     NULL },
   { "cmos",    cmos_init,    cmos_reset,    NULL },
-  { "internal_mouse",  dosemu_mouse_init,  NULL, dosemu_mouse_close },
-  { "serial",  serial_init,  NULL,          serial_close },
+  { "internal_mouse",  dosemu_mouse_init,  dosemu_mouse_reset, dosemu_mouse_close },
+  { "serial",  serial_init,  serial_reset,  serial_close },
   { "pic",     pic_init,     pic_reset,     NULL },
 #ifdef HAVE_KEYBOARD_V1
   { "keyb",    keyb_8042_init, keyb_8042_reset, NULL },
@@ -102,10 +102,6 @@ void iodev_init(void)        /* called at startup */
     }
 
   current_device = -1;
-
-  for (i = 0; i < MAX_IO_DEVICES; i++)
-    if (io_devices[i].reset_func)
-      io_devices[i].reset_func();
 }
 
 void iodev_reset(void)        /* called at reboot */

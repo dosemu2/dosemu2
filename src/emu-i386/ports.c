@@ -985,12 +985,13 @@ int extra_port_init(void)
   	  SET_HANDLE_COND(0x3ba,HANDLE_SPECIAL);		/* R */
 	  SET_HANDLE_COND(0x3da,HANDLE_SPECIAL);		/* R */
 	  SET_HANDLE_COND(0x3db,HANDLE_SPECIAL);		/* R */
-	}
-
-	i = READ_WORD(BIOS_VIDEO_PORT);
-	if (i && !config.X) {	/* !config.vga */
+	  i = 0x3d4;
+	  if ((configuration & MDA_CONF_SCREEN_MODE) == MDA_CONF_SCREEN_MODE)
+	    i = 0x3b4;
+	  if (i) {	/* !config.vga */
 	    SET_HANDLE_COND(i,HANDLE_SPECIAL);		/* W */
 	    SET_HANDLE_COND(i+1,HANDLE_SPECIAL);	/* W */
+	  }
 	}
 
         if (can_do_root_stuff) {

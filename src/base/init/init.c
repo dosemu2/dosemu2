@@ -333,6 +333,9 @@ static inline void bios_mem_setup(void)
 {
   int b;
 
+  video_mem_setup();
+  printer_mem_setup();
+
   /* show 0 serial ports and 3 parallel ports, maybe a mouse, game card and the
    * configured number of floppy disks
    */
@@ -469,19 +472,14 @@ void device_init(void)
  *
  * DANG_END_FUNCTION
  */
-void low_mem_init(int hack)
+void low_mem_init(void)
 {
-  char *result = NULL;
+  char *result;
 
-  if (hack) {
-    g_printf ("DOS memory area being hacked in\n");
-    result = mmap_mapping(/*MAPPING_HACK | */MAPPING_SCRATCH, 0,
-		0x100000, PROT_EXEC | PROT_READ | PROT_WRITE, 0);
-  } else {
-    open_mapping(MAPPING_INIT_LOWRAM);
-    g_printf ("DOS+HMA memory area being mapped in\n");
-    result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
-  }
+  open_mapping(MAPPING_INIT_LOWRAM);
+  g_printf ("DOS+HMA memory area being mapped in\n");
+  result = alloc_mapping(MAPPING_INIT_LOWRAM, LOWMEM_SIZE + HMASIZE, 0);
+
   if (result != NULL)
     {
       perror ("anonymous mmap");

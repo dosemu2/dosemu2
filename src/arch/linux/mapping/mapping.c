@@ -132,26 +132,19 @@ static void kmem_map_mapping(int cap, void *addr, int mapsize)
   }
 }
 
-static size_t kmem_check_memcpy(char *tmp)
+static size_t kmem_check(void)
 {
   size_t lowmem_base_size = LOWMEM_SIZE;
-  char *p;
   int i;
 
   for (i = 0; i < kmem_mappings; i++) {
     if ((size_t)(kmem_map[i].dst) < lowmem_base_size)
       lowmem_base_size = (size_t)(kmem_map[i].dst);
   }
-  for (p = (char *)lowmem_base_size; p < (char *)LOWMEM_SIZE; p += PAGE_SIZE) {
-    if (map_find(kmem_map, kmem_mappings, p, PAGE_SIZE, 1) == -1) {
-      memcpy(tmp + (size_t)p, p, PAGE_SIZE);
-      munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, p, PAGE_SIZE);
-    }
-  }
   return lowmem_base_size;
 }
 
-static void kmem_check_memcpy_back(size_t lowmem_base_size, char *tmp)
+static void kmem_check_back(size_t lowmem_base_size)
 {
   size_t q = lowmem_base_size;
   size_t p;
@@ -171,7 +164,6 @@ static void kmem_check_memcpy_back(size_t lowmem_base_size, char *tmp)
 		     PROT_READ | PROT_WRITE | PROT_EXEC, (char *)q);
 	if (p == LOWMEM_SIZE + HMASIZE)
 	  p -= HMASIZE; /* for HMA (don't copy) */
-	memcpy((char *)q, tmp + q, p - q);
       }
     }
   }
@@ -408,26 +400,17 @@ void *alloc_mapping(int cap, int mapsize, void *target)
   mprotect_mapping(cap, addr, mapsize, PROT_READ | PROT_WRITE);
 
   if (cap & MAPPING_INIT_LOWRAM) {
-    char *tmp = NULL;
-    size_t lowmem_base_size = LOWMEM_SIZE;
-
+    size_t lowmem_base_size;
     Q__printf("MAPPING: LOWRAM_INIT, cap=%s, base=%p\n", cap, addr);
     lowmem_base = addr;
-    /* init hack: convert scratch memory into aliased memory
-       after dropping privileges */
-    tmp = malloc(0x100000);
-    lowmem_base_size = kmem_check_memcpy(tmp);
-    memcpy(tmp, 0, lowmem_base_size);
-    munmap_mapping(/*MAPPING_HACK | */MAPPING_OTHER, 0, lowmem_base_size);
+    lowmem_base_size = kmem_check();
     if (lowmem_base_size == LOWMEM_SIZE)
       lowmem_base_size += HMASIZE;
     addr = mmap_mapping(MAPPING_INIT_LOWRAM | MAPPING_ALIAS, target,
 	    lowmem_base_size, PROT_READ | PROT_WRITE | PROT_EXEC, lowmem_base);
     if (lowmem_base_size > LOWMEM_SIZE)
       lowmem_base_size = LOWMEM_SIZE;
-    memcpy(0, tmp, lowmem_base_size);
-    kmem_check_memcpy_back(lowmem_base_size, tmp);
-    free(tmp);
+    kmem_check_back(lowmem_base_size);
   }
   return addr;
 }

@@ -319,8 +319,21 @@ get_video_ram (int waitflag)
   size_t ssize;
 
   char *textbuf = NULL, *vgabuf = NULL;
+  int page = 0;
+  int video_mode = 3;
+  static int first_time = 1;
 
   if (!can_do_root_stuff) return;
+
+  /* XXX - the console code is actively flipping at the init stage;
+   * and Video isn't set then
+   * checking for Video is just a quick workaround, to be
+   * cleaned up later */
+  if (Video) {
+    page = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
+    video_mode = READ_BYTE(BIOS_VIDEO_MODE);
+  }
+
   v_printf ("get_video_ram STARTED\n");
   if (config.vga)
     {
@@ -330,7 +343,7 @@ get_video_ram (int waitflag)
   else
     {
       ssize = TEXT_SIZE;
-      sbase = PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+      sbase = PAGE_ADDR (page);
     }
 
   if (waitflag == WAIT)
@@ -349,9 +362,9 @@ get_video_ram (int waitflag)
       while (errno == EINTR);
     }
 
-  if (config.vga)
+  if (config.vga && !first_time)
     {
-      if (READ_BYTE(BIOS_VIDEO_MODE) == 3 && READ_BYTE(BIOS_CURRENT_SCREEN_PAGE) < 8)
+      if (video_mode == 3 && page < 8 && Video)
 	{
 	  textbuf = malloc (TEXT_SIZE * 8);
 	  memcpy (textbuf, PAGE_ADDR (0), TEXT_SIZE * 8);
@@ -367,7 +380,7 @@ get_video_ram (int waitflag)
 	  memcpy ((caddr_t) GRAPH_BASE, vgabuf, GRAPH_SIZE);
 	}
     }
-  else
+  else if (!first_time)
     {
       textbuf = malloc (TEXT_SIZE);
       memcpy (textbuf, scr_state.virt_address, TEXT_SIZE);
@@ -384,14 +397,15 @@ get_video_ram (int waitflag)
 
   if (config.vga)
     {
-      if (READ_BYTE(BIOS_VIDEO_MODE) == 3)
+      if (video_mode == 3)
 	{
 	  if (dosemu_regs.mem && textbuf)
 	    memcpy (dosemu_regs.mem, textbuf, dosemu_regs.save_mem_size[0]);
 	  /*      else error("ERROR: no dosemu_regs.mem!\n"); */
 	}
       g_printf ("mapping GRAPH_BASE\n");
-      alloc_mapping(MAPPING_VC | MAPPING_KMEM, GRAPH_SIZE, (caddr_t)GRAPH_BASE);
+      if (first_time)
+	alloc_mapping(MAPPING_VC | MAPPING_KMEM, GRAPH_SIZE, (caddr_t)GRAPH_BASE);
       graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
 			(caddr_t) GRAPH_BASE, GRAPH_SIZE,
 			PROT_READ | PROT_WRITE, (caddr_t)GRAPH_BASE);
@@ -401,15 +415,16 @@ get_video_ram (int waitflag)
   else
     {
       /* this is used for page switching */
-      if (PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)) != scr_state.virt_address)
-	memcpy (textbuf, PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)), TEXT_SIZE);
+      if (textbuf && PAGE_ADDR (page) != scr_state.virt_address)
+	memcpy (textbuf, PAGE_ADDR (page), TEXT_SIZE);
 
       g_printf ("mapping PAGE_ADDR\n");
 
-      alloc_mapping(MAPPING_VC | MAPPING_KMEM, TEXT_SIZE,
+      if (first_time)
+	alloc_mapping(MAPPING_VC | MAPPING_KMEM, TEXT_SIZE,
 			(caddr_t)phys_text_base);
       graph_mem = (char *)mmap_mapping(MAPPING_VC | MAPPING_KMEM,
-			(caddr_t)PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)),
+			(caddr_t)PAGE_ADDR (page),
 			TEXT_SIZE, PROT_READ | PROT_WRITE,
 			(caddr_t)phys_text_base);
 
@@ -421,10 +436,11 @@ get_video_ram (int waitflag)
 	}
       else
 	v_printf ("CONSOLE VIDEO address: %p %p %p\n", (void *) graph_mem,
-		  (void *) phys_text_base, (void *) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)));
+		  (void *) phys_text_base, (void *) PAGE_ADDR (page));
 
       /* copy contents of page onto video RAM */
-      memcpy ((caddr_t) PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE)), textbuf, TEXT_SIZE);
+      if (textbuf)
+	memcpy ((caddr_t) PAGE_ADDR (page), textbuf, TEXT_SIZE);
     }
 
   if (vgabuf)
@@ -432,10 +448,11 @@ get_video_ram (int waitflag)
   if (textbuf)
     free (textbuf);
 
-  scr_state.pageno = READ_BYTE(BIOS_CURRENT_SCREEN_PAGE);
-  scr_state.virt_address = PAGE_ADDR (READ_BYTE(BIOS_CURRENT_SCREEN_PAGE));
+  scr_state.pageno = page;
+  scr_state.virt_address = PAGE_ADDR (page);
   scr_state.phys_address = graph_mem;
   scr_state.mapped = 1;
+  first_time = 0;
 }
 
 

@@ -253,7 +253,7 @@ void freeze_dosemu(void)
   
   speaker_pause();
   
-  if (Video->change_config)
+  if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
 }
 
@@ -268,7 +268,7 @@ void unfreeze_dosemu(void)
   dosemu_user_froze = 0;
   dbug_printf("*** dosemu unfrozen\n");
 
-  if (Video->change_config)
+  if (Video && Video->change_config)
     Video->change_config (CHG_TITLE, NULL);
 }
 
