@@ -37,6 +37,16 @@
 #include "codegen.h"
 #include <math.h>
 
+/*
+ * This code just works. Please don't ask me to remember how I did it :-)
+ *
+ * Well, really... tags are not completely implemented, and also all
+ * the stuff is in 64-bit, not 80-bit, precision, so no wonder if you
+ * get errors in FP test programs. It was meant to be moved one day
+ * to other CPUs which have no idea of an 80-bit FP type.
+ *
+ */
+
 unsigned short nxta[8] =
 {	0x0801,0x1002,0x1803,0x2004,0x2805,0x3006,0x3807,0x0000 };
 
@@ -49,62 +59,62 @@ unsigned short prva[8] =
 #define FPSELEM		sizeof(double)
 
 //	movl	FPRSTT,esi
-#define FTOS2ESI	{G2(0x358b);G4((long)&FPRSTT);}
+#define FTOS2ESI	{G2(0x358b,Cp);G4((long)&FPRSTT,Cp);}
 //	movl	FPRSTT,ecx
-#define FTOS2ECX	{G2(0x0d8b);G4((long)&FPRSTT);}
+#define FTOS2ECX	{G2(0x0d8b,Cp);G4((long)&FPRSTT,Cp);}
 //	incfstp
-#define DISCARD		G4(0xf7d9c0dd)
+#define DISCARD		G4(0xf7d9c0dd,Cp)
 
 //	leal	n*8(esi),ecx
 //	pushf
 //	andb	0x3f,cl
 //	popf
-#define FSRN2CX(r)	{if (r) {G2(0x4e8d);G1((r)*FPSELEM);G4(0x3fe1809c);G1(0x9d);}\
-			 else G2(0xf189);}
+#define FSRN2CX(r)	{if (r) {G2(0x4e8d,Cp);G1((r)*FPSELEM,Cp);G4(0x3fe1809c,Cp);G1(0x9d,Cp);}\
+			 else G2(0xf189,Cp);}
 //	movl	FPRSTT,ecx
 //	pushf
 //	addb	(reg*8),cl
 //	andb	0x3f,cl
 //	popf
-#define FTOS2CX(r)	{FTOS2ECX; if (r) {G3(0xc1809c);G1((r)*FPSELEM);G4(0x9d3fe180);}}
+#define FTOS2CX(r)	{FTOS2ECX; if (r) {G3(0xc1809c,Cp);G1((r)*FPSELEM,Cp);G4(0x9d3fe180,Cp);}}
 
 //	fldl	(esi)
-#define FLDfromESI	G2(0x06dd)
+#define FLDfromESI	G2(0x06dd,Cp)
 //	fstpl	(esi)
-#define FSTPfromESI	G2(0x1edd)
+#define FSTPfromESI	G2(0x1edd,Cp)
 //	fldl	(ecx)
-#define FLDfromECX	G2(0x01dd)
+#define FLDfromECX	G2(0x01dd,Cp)
 //	fstpl	(ecx)
-#define FSTPfromECX	G2(0x19dd)
+#define FSTPfromECX	G2(0x19dd,Cp)
 
 // ! replace TOS field !
 //	fstcw	FPUS(ebx)
-#define	SAVESW		{G3(0x7bdd9b);G1(Ofs_FPUS);}
+#define	SAVESW		{G3(0x7bdd9b,Cp);G1(Ofs_FPUS,Cp);}
 
 //	movzbl	FPSTT(ebx),eax
 //	movl	&nxta,ecx
 //	movw	(ecx,eax,2),ax
 //	movb	al,FPSTT(ebx)
 //	movb	ah,FPRSTT
-#define INCFSP	{G3(0x43b60f);G1(Ofs_FPSTT);G1(0xb9);G4((long)&nxta);\
-		G4(0x41048b66);G2(0x4388);G1(Ofs_FPSTT);G2(0x2588);\
-		G4((long)&FPRSTT);}
+#define INCFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&nxta,Cp);\
+		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
+		G4((long)&FPRSTT,Cp);}
 //	movzbl	FPSTT(ebx),eax
 //	movl	&nxta2,ecx
 //	movw	(ecx,eax,2),ax
 //	movb	al,FPSTT(ebx)
 //	movb	ah,FPRSTT
-#define INCFSP2	{G3(0x43b60f);G1(Ofs_FPSTT);G1(0xb9);G4((long)&nxta2);\
-		G4(0x41048b66);G2(0x4388);G1(Ofs_FPSTT);G2(0x2588);\
-		G4((long)&FPRSTT);}
+#define INCFSP2	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&nxta2,Cp);\
+		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
+		G4((long)&FPRSTT,Cp);}
 //	movzbl	FPSTT(ebx),eax
 //	movl	&prva,ecx
 //	movw	(ecx,eax,2),ax
 //	movb	al,FPSTT(ebx)
 //	movb	ah,FPRSTT
-#define DECFSP	{G3(0x43b60f);G1(Ofs_FPSTT);G1(0xb9);G4((long)&prva);\
-		G4(0x41048b66);G2(0x4388);G1(Ofs_FPSTT);G2(0x2588);\
-		G4((long)&FPRSTT);}
+#define DECFSP	{G3(0x43b60f,Cp);G1(Ofs_FPSTT,Cp);G1(0xb9,Cp);G4((long)&prva,Cp);\
+		G4(0x41048b66,Cp);G2(0x4388,Cp);G1(Ofs_FPSTT,Cp);G2(0x2588,Cp);\
+		G4((long)&FPRSTT,Cp);}
 
 /* required to align the 64-byte FP register block to a 256-byte boundary */
 static char _fparea[320];
@@ -133,6 +143,7 @@ void init_emu_npu (void)
 int Fp87_op(int exop, int reg)
 {
 	unsigned char rcod;
+	register unsigned char *Cp = CodePtr;
 
 //	42	DA 11000nnn	FCMOVB	st(0),st(n)
 //	43	DB 11000nnn	FCMOVNB	st(0),st(n)
@@ -161,7 +172,7 @@ int Fp87_op(int exop, int reg)
 //	2B	DB xx101nnn	FLD	ext
 //	2F	DF xx101nnn	FILD	qw
 		DECFSP;	FTOS2ESI;
-		G2M(0xd8+(exop&7),(exop&0x38)|7);	// Fop (edi)
+		G2M(0xd8+(exop&7),(exop&0x38)|7,Cp);	// Fop (edi)
 		SAVESW;	FSTPfromESI;
 		break;
 
@@ -214,7 +225,7 @@ int Fp87_op(int exop, int reg)
 //	3C	DC xx111nnn	FDIVR	dr
 //	3E	DE xx111nnn	FIDIVR	w
 		FTOS2ESI; FLDfromESI;
-		G2M(0xd8+(exop&7),(exop&0x38)|7);	// Fop (edi)
+		G2M(0xd8+(exop&7),(exop&0x38)|7,Cp);	// Fop (edi)
 		SAVESW;	FSTPfromESI;
 		break;
 
@@ -251,7 +262,7 @@ int Fp87_op(int exop, int reg)
 //	1E	DE xx011nnn	FICOMP	w
 //	1F	DF xx011nnn	FISTP	w
 		FTOS2ESI; FLDfromESI;
-		G2M(0xd8+(exop&7),0x17);	// Fop (edi), no pop
+		G2M(0xd8+(exop&7),0x17,Cp);	// Fop (edi), no pop
 		SAVESW; DISCARD;
 		if (exop&8) INCFSP;
 		break;
@@ -266,55 +277,55 @@ int Fp87_op(int exop, int reg)
 		rcod = 0x3f;
 fpp002:
 		FTOS2ESI; FLDfromESI;
-		G2M(0xd8+(exop&7),rcod);	// Fop (edi), pop
+		G2M(0xd8+(exop&7),rcod,Cp);	// Fop (edi), pop
 		SAVESW; INCFSP;
 		break;
 
 /*29*/	case 0x29:
 //*	29	D9 xx101nnn	FLDCW	2b
 		// movw	(edi),ax
-		G3(0x078b66);
+		G3(0x078b66,Cp);
 		// movl	eax,ecx
 		// pushf
-		G3(0x9cc189);
+		G3(0x9cc189,Cp);
 		// andb	0x1f,ah
 		// popf
-		G4(0x9d1fe480);
+		G4(0x9d1fe480,Cp);
 		// movb 0xff,al
-		G2(0xffb0);
+		G2(0xffb0,Cp);
 		// movw	ax,FPUC(ebx)		
-		G3(0x438966); G1(Ofs_FPUC);
+		G3(0x438966,Cp); G1(Ofs_FPUC,Cp);
 		// fldcw FPUC(ebx)
-		G2(0x6bd9); G1(Ofs_FPUC);
+		G2(0x6bd9,Cp); G1(Ofs_FPUC,Cp);
 		// movw	cx,FPUC(ebx)
-		G3(0x4b8966); G1(Ofs_FPUC);
+		G3(0x4b8966,Cp); G1(Ofs_FPUC,Cp);
 		break;
 /*39*/	case 0x39:
 //*	39	D9 xx111nnn	FSTCW	2b
-		G3(0x438b66); G1(Ofs_FPUC); G3(0x078966);
+		G3(0x438b66,Cp); G1(Ofs_FPUC,Cp); G3(0x078966,Cp);
 		break;
 
-/*67*/	case 0x67: if (reg!=0) return -1;
+/*67*/	case 0x67: if (reg!=0) goto fp_notok;
 //	67.0	DF 11000000	FSTSW	ax
 /*3d*/	case 0x3d:
 //	3D	DD xx111nnn	FSTSW	2b
 		// movw	FPUS(ebx),ax
-		G3(0x438b66); G1(Ofs_FPUS);
+		G3(0x438b66,Cp); G1(Ofs_FPUS,Cp);
 		// pushf
 		// andw	0xc7ff,ax
 		// movw	FPSTT(ebx),cx
-		G4(0xff25669c); G4(0x4b8b66c7); G1(Ofs_FPSTT);
+		G4(0xff25669c,Cp); G4(0x4b8b66c7,Cp); G1(Ofs_FPSTT,Cp);
 		// andw	0x07,cx
 		// shll	11,ecx
 		// orl	ecx,eax
 		// popf
-		G4(0x07e18366); G4(0x090be1c1); G2(0x9dc8);
+		G4(0x07e18366,Cp); G4(0x090be1c1,Cp); G2(0x9dc8,Cp);
 		if (exop==0x3d) {
 			// movw	ax,(edi)
-			G3(0x078966);
+			G3(0x078966,Cp);
 		}
 		else {
-			G3(0x438966); G1(Ofs_AX);
+			G3(0x438966,Cp); G1(Ofs_AX,Cp);
 		}
 		break;
 
@@ -333,7 +344,7 @@ fpp002:
 		FTOS2ESI;		// &e_st(0) -> esi
 		FSRN2CX(reg);		// &e_st(n) -> ecx
 		FLDfromESI;		// (esi) -> st(0)
-		G2M(0xdc,0x01|(exop&0x38));	// op (ecx)
+		G2M(0xdc,0x01|(exop&0x38),Cp);	// op (ecx)
 		SAVESW;
 		FSTPfromESI;		// st(0) -> (esi)
 		break;
@@ -343,12 +354,12 @@ fpp002:
 //*	50	D8 11010nnn	FCOM	st,st(n)
 //*	58	D8 11011nnn	FCOMP	st,st(n)
 		FTOS2ESI; FSRN2CX(reg);
-		FLDfromESI; G2M(0xdc,0x11);	// fcom (ecx)
+		FLDfromESI; G2M(0xdc,0x11,Cp);	// fcom (ecx)
 		SAVESW;	DISCARD;
 		if (exop&8) { INCFSP; }
 		break;
 
-/*6a*/	case 0x6a: if (reg!=1) return -1;
+/*6a*/	case 0x6a: if (reg!=1) goto fp_notok;
 /*6d*/	case 0x6d:
 /*65*/	case 0x65:
 //	65	DD 11000nnn	FUCOM	st(n),st(0)
@@ -357,7 +368,7 @@ fpp002:
 		FTOS2ESI; FSRN2CX(reg);
 		FLDfromECX;	// (ecx)->st(1)
 		FLDfromESI;	// (esi)->st(0)
-		G2M(0xda,0xe9);	// fucompp
+		G2M(0xda,0xe9,Cp);	// fucompp
 		SAVESW;
 		if (exop==0x6a) { INCFSP; }
 		if (exop>=0x6a) { INCFSP; }
@@ -371,11 +382,11 @@ fpp002:
 /*5e*/	case 0x5e: if (reg==1) {
 //	5E.1	DE 11011001	FCOMPP
 			FTOS2ESI; FSRN2CX(1);
-			FLDfromESI; G2M(0xdc,0x11);
+			FLDfromESI; G2M(0xdc,0x11,Cp);
 			SAVESW;	DISCARD;
 			INCFSP2;
 		   }
-		   else return -1;
+		   else goto fp_notok;
 		   break;
 
 /*44*/	case 0x44:
@@ -388,7 +399,7 @@ fpp002:
 //	4E	DE 11001nnn	FMULP	st(n),st
 		FTOS2ESI; FSRN2CX(reg);
 		FLDfromECX;
-		G2M(0xdc,0x06|(exop&0x38));	// op (esi)
+		G2M(0xdc,0x06|(exop&0x38),Cp);	// op (esi)
 		SAVESW; FSTPfromECX;
 		if (exop&2) { INCFSP; }
 		break;
@@ -411,7 +422,7 @@ fpp002:
 //	7E	DE 11111nnn	FDIVP	st(n),st(0)
 		FTOS2ESI; FSRN2CX(reg);
 		FLDfromECX;
-		G2M(0xdc,0x06|((exop&0x38)^8));
+		G2M(0xdc,0x06|((exop&0x38)^8),Cp);
 		SAVESW; FSTPfromECX;
 		if (exop&2) { INCFSP; }
 		break;
@@ -427,9 +438,9 @@ fpp002:
 /*51*/	case 0x51: if (reg==0) {
 //	45	DD 11000nnn	FFREE	st(n)		set tag(n) empty
 //*	51.0	D9 11010000	FNOP
-			G1(NOP);
+			G1(NOP,Cp);
 		   }
-		   else return -1;
+		   else goto fp_notok;
 		   break;
 
 /*49*/	case 0x49:
@@ -437,8 +448,8 @@ fpp002:
 		FTOS2ESI; FSRN2CX(reg);
 //		FLDfromESI; FLDfromECX;
 //		FSTPfromESI; FSTPfromECX;
-/*integer*/	G4(0x118b068b); G4(0x16890189);
-		G4(0x8b04468b); G4(0x41890451); G4(0x04568904);
+/*integer*/	G4(0x118b068b,Cp); G4(0x16890189,Cp);
+		G4(0x8b04468b,Cp); G4(0x41890451,Cp); G4(0x04568904,Cp);
 		break;
 
 /*55*/	case 0x55:
@@ -458,15 +469,15 @@ fpp002:
 		FTOS2ESI; FLDfromESI;
 		switch(reg) {
 		   case 0:		/* FCHS */
-			G2(0xe0d9); break;
+			G2(0xe0d9,Cp); break;
 		   case 1:		/* FABS */
-			G2(0xe1d9); break;
+			G2(0xe1d9,Cp); break;
 		   case 4:		/* FTST */
-			G2(0xe4d9); break;
+			G2(0xe4d9,Cp); break;
 		   case 5:		/* FXAM */
-			G2(0xe5d9); break;
+			G2(0xe5d9,Cp); break;
 		   default:
-			return -1;
+			goto fp_notok;
 		}
 		SAVESW; FSTPfromESI;
 		break;
@@ -487,7 +498,7 @@ fpp002:
 			break;
 		   default: /* FNENI,FNDISI: 8087 */
 			    /* FSETPM,FRSTPM: 80287 */
-			return 0;	// do nothing
+			goto fp_ok;	// do nothing
 		   }
 		   break;
 
@@ -499,9 +510,9 @@ fpp002:
 //*	69.4	D9 11101100	FLDLG2
 //*	69.5	D9 11101101	FLDLN2
 //*	69.6	D9 11101110	FLDZ
-			if (reg==7) return -1;
+			if (reg==7) goto fp_notok;
 			DECFSP; FTOS2ESI;
-			G2M(0xd9,0xe8|reg); SAVESW;
+			G2M(0xd9,0xe8|reg,Cp); SAVESW;
 			FSTPfromESI;
 		   }
 		   break;
@@ -517,28 +528,28 @@ fpp002:
 //	71.7	D9 11110111	FINCSTP
 		   case 0:		/* FX2M1 */
 			FTOS2ESI; FLDfromESI;
-			G2(0xf0d9); SAVESW;
+			G2(0xf0d9,Cp); SAVESW;
 			FSTPfromESI; break;
 		   case 1:		/* FYL2X */
 		   case 3:		/* FPATAN */
 			FTOS2ESI; FSRN2CX(1);
 			FLDfromECX;	// (ecx)->st(1)
 			FLDfromESI;	// (esi)->st(0)
-			G2M(0xd9,0xf0|reg); SAVESW;
+			G2M(0xd9,0xf0|reg,Cp); SAVESW;
 			FSTPfromECX;	// st(0)->(ecx)
 			INCFSP; break;
 		   case 2:		/* FPTAN */
 		   case 4:		/* FXTRACT */
 			FTOS2ESI; FLDfromESI;
-			G2M(0xd9,0xf0|reg); SAVESW;
-			G2(0xc9d9);	// xchg: st(1)->(esi)
+			G2M(0xd9,0xf0|reg,Cp); SAVESW;
+			G2(0xc9d9,Cp);	// xchg: st(1)->(esi)
 			FSTPfromESI; DECFSP; FTOS2ESI; FSTPfromESI;
 			break;
 		   case 5:		/* FPREM1 */
 			FTOS2ESI; FSRN2CX(1);
 			FLDfromECX;	// (ecx)->st(1)
 			FLDfromESI;	// (esi)->st(0)
-			G2(0xf5d9); SAVESW;
+			G2(0xf5d9,Cp); SAVESW;
 			FSTPfromESI; DISCARD;
 			break;
 		   case 6:		/* FDECSTP */
@@ -562,14 +573,14 @@ fpp002:
 			FTOS2ESI; FSRN2CX(1);
 			FLDfromECX;	// (ecx)->st(1)
 			FLDfromESI;	// (esi)->st(0)
-			G2M(0xd9,0xf8|reg); SAVESW;
+			G2M(0xd9,0xf8|reg,Cp); SAVESW;
 			FSTPfromESI; DISCARD;
 			break;
 		   case 1:		/* FYL2XP1 */
 			FTOS2ESI; FSRN2CX(1);
 			FLDfromECX;	// (ecx)->st(1)
 			FLDfromESI;	// (esi)->st(0)
-			G2(0xf9d9);
+			G2(0xf9d9,Cp);
 			FSTPfromECX;	// st(0)->(ecx)
 			SAVESW; INCFSP; break;
 		   case 2:		/* FSQRT */
@@ -577,12 +588,12 @@ fpp002:
 		   case 6:		/* FSIN */
 		   case 7:		/* FCOS */
 			FTOS2ESI; FLDfromESI;
-			G2M(0xd9,0xf8|reg);
+			G2M(0xd9,0xf8|reg,Cp);
 			SAVESW; FSTPfromESI; break;
 		   case 3:		/* FSINCOS */
 			FTOS2ESI; FLDfromESI;
-			G2(0xfbd9); SAVESW;
-			G2(0xc9d9);	// xchg: st(1)->(esi)
+			G2(0xfbd9,Cp); SAVESW;
+			G2(0xc9d9,Cp);	// xchg: st(1)->(esi)
 			FSTPfromESI; DECFSP; FTOS2ESI; FSTPfromESI;
 			break;
 		   }
@@ -732,9 +743,13 @@ fpp002:
 		   }
 		   break;
 
-
-/*xx*/	default:   return -1;
+/*xx*/	default:
+fp_notok:
+	CodePtr = Cp;
+	return -1;
 	}
+fp_ok:
+	CodePtr = Cp;
 	return 0;
 }
 

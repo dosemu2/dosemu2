@@ -20,7 +20,7 @@
  *		original source
  *
  * Changes for DOSEMU:
- *		9/97 Alberto Vignani <vignani@mail.tin.it>
+ *		9/97 Alberto Vignani <vignani@tin.it>
  */
 
 #include <stdio.h>

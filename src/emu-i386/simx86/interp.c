@@ -36,12 +36,12 @@
 #include "emu86.h"
 #include "codegen.h"
 #include "port.h"
+#include "dpmi.h"
 
 unsigned char *P0;
 static int NewNode = 1;
 static int basemode = 0;
 static unsigned char *locJtgt;
-extern int Running;
 
 static int ArOpsR[] =
 	{ O_ADD_R, O_OR_R, O_ADC_R, O_SBB_R, O_AND_R, O_SUB_R, O_XOR_R, O_CMP_R };
@@ -86,11 +86,13 @@ static __inline__ void SetCPU_WL(int m, char o, unsigned long v)
  */
 #define	CODE_FLUSH()	if (IsCodeInBuf()) {\
 			  unsigned char *P2 = CloseAndExec(P0, mode);\
-			  if (TheCPU.err) return P0;\
+			  if (TheCPU.err) return P2;\
 			  if (P2 != P0) { PC=P2; continue; }\
 			} NewNode=0
 
 #define UNPREFIX(m)	((m)&~(DATA16|ADDR16))|(basemode&(DATA16|ADDR16))
+
+#define MAX_FWD_JUMP	256
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -126,7 +128,7 @@ static int MAKESEG(int mode, int ofs, unsigned short sv)
 		e_printf("MAKESEG CS: big=%d basemode=%04x\n",big&1,basemode);
 	}
 	if (ofs==Ofs_SS) {
-		if (big) basemode &= ~STACK16; else basemode |= STACK16;
+		TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
 		e_printf("MAKESEG SS: big=%d basemode=%04x\n",big&1,basemode);
 	}
 	memcpy(segc,&tseg,sizeof(SDTR));
@@ -194,7 +196,7 @@ unsigned char *JumpGen(unsigned char *P2, int *mode, int cond,
 	}
 #endif
 #if defined(OPTIMIZE_FW_JUMPS) && !defined(SINGLESTEP)
-	if ((dsp > 0) && (dsp<=0x20) && IsCodeInBuf() && (cond<0x10)) {
+	if ((dsp > 0) && (dsp<=MAX_FWD_JUMP) && IsCodeInBuf() && (cond<0x10)) {
 		unsigned long hp;
 		hp = (long)P2 - LONG_CS + dsp;
 		if (*mode&ADDR16) hp &= 0xffff;
@@ -304,7 +306,15 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 				/* execute the code fragment found and exit
 				 * with a new PC */
 				m = mode | (G->flags<<16) | XECFND;
+#if 0
 				P0 = PC = CloseAndExec(G->addr, m);
+#else
+				/* if we detect a modified block we exit the
+				 * loop here and reparse it. We must pass G
+				 * to the exec function; sorry for the trick */
+				{ unsigned char *tmp = CloseAndExec((void *)G, m);
+					if (tmp) P0 = PC = tmp; else break; }
+#endif
 				if (TheCPU.err) return PC;
 			}
 #endif
@@ -351,7 +361,10 @@ unsigned char *Interp86(unsigned char *PC, int mod0)
 			}
 		}
 // ------ temp ------- debug ------------------------
-		if (*((long *)PC)==0) {
+		if ((PC==NULL)||(*((long *)PC)==0)) {
+			d.emu=9;
+			dbug_printf("%s\nFetch %08lx at %08lx mode %x\n",
+				e_print_regs(),*((long *)PC),(long)PC,mode);
 			TheCPU.err = -99; return PC;
 		}
 // ------ temp ------- debug ------------------------
@@ -497,22 +510,26 @@ override:
 
 /*9c*/	case PUSHF: {
 			CODE_FLUSH();
-			if (V86MODE() /*&& (IOPL<3)*/) {
-				temp =  (TheCPU.veflags&~EFLAGS_VIP) |
+			if (V86MODE() && (IOPL<3)) {
+				/* virtual-8086 monitor:
+				 * 1) move VIP from dosemu flags to veflags */
+				temp =  (eVEFLAGS&~EFLAGS_VIP) |
 					(vm86s.regs.eflags&EFLAGS_VIP);
-				TheCPU.eflags &= ~EFLAGS_IF;
-				TheCPU.veflags = temp;
+				/* 2) move veflags VIF to eflags IF */
+				EFLAGS &= ~EFLAGS_IF;
+				eVEFLAGS = temp;
 				if (temp&EFLAGS_VIF)
-					TheCPU.eflags |= EFLAGS_IF;
+					EFLAGS |= EFLAGS_IF;
 				if ((temp&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
 					CEmuStat |= CeS_RPIC;
-				temp =	(TheCPU.eflags & 0xeff) |	(temp & eTSSMASK);
+				temp = (EFLAGS & 0xeff) | (temp & eTSSMASK);
 			}
-			else
-				temp = TheCPU.eflags & ~(EFLAGS_RF|EFLAGS_VM);
+			else {
+				temp = EFLAGS & 0xfcfeff;
+			}
 			PUSH(mode, &temp);
 			if (d.emu>1)
-				e_printf("Pushed flags %08lx->%08lx\n",TheCPU.eflags,temp);
+				e_printf("Pushed flags %08lx->%08lx\n",EFLAGS,temp);
 			PC++; }
 			break;
 /*9e*/	case SAHF:
@@ -534,18 +551,19 @@ override:
 			Gen(O_OPAX, mode, 2, AAM, Fetch(PC+1)); PC+=2; break;
 /*d5*/	case AAD:
 			Gen(O_OPAX, mode, 2, AAD, Fetch(PC+1)); PC+=2; break;
-#if 0
-/*d6*/	case 0xd6:    /* Undocumented */
-			AL = (CARRYB & 1? 0xff:0x00);
-			PC += 1;
-			goto not_implemented;
-/*62*/	case BOUND:		/* not implemented */
-			goto not_implemented;
+
+/*d6*/	case 0xd6:	/* Undocumented */
+			CODE_FLUSH();
+			e_printf("Undocumented op 0xd6\n");
+			rAL = (EFLAGS & EFLAGS_CF? 0xff:0x00);
 			PC++; break;
-/*63*/	case ARPL:		/* not implemented */
+/*62*/	case BOUND:
+			CODE_FLUSH();
 			goto not_implemented;
-			PC++; break;
-#endif
+/*63*/	case ARPL:
+			CODE_FLUSH();
+			goto not_implemented;
+
 /*d7*/	case XLAT:
 			Gen(O_XLAT, mode); PC++; break;
 /*98*/	case CBW:
@@ -584,7 +602,7 @@ override:
 			    POP_ONLY(mode);
 			    TheCPU.ss = sv;
 			    memcpy(&SS_DTR,&tseg,sizeof(SDTR));
-			    if (big) basemode &= ~STACK16; else basemode |= STACK16;
+			    TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
 			}
 			CEmuStat |= CeS_LOCK;
 			PC++;
@@ -667,13 +685,13 @@ override:
 /*57*/	case PUSHdi: {
 #if defined(OPTIMIZE_COMMON_SEQ) && !defined(SINGLESTEP)
 			int m = mode;
-			Gen(O_PUSH1, m);	// tests STACK16
+			Gen(O_PUSH1, m);
 			do {
 				Gen(O_PUSH2, m, SEL_WL_X(m,D_LO(Fetch(PC))));
 				m = UNPREFIX(m);
 				PC++;
 			} while ((Fetch(PC)&0xf8)==0x50);
-			Gen(O_PUSH3, m);	// tests STACK16
+			Gen(O_PUSH3, m);
 #else
 			Gen(O_PUSH, mode, SEL_WL_X(mode,D_LO(opc))); PC++;
 #endif
@@ -705,7 +723,7 @@ override:
 				m = UNPREFIX(m);
 				PC++;
 			} while ((Fetch(PC)&0xf8)==0x58);
-			Gen(O_POP3, m);
+			if (opc!=POPsp) Gen(O_POP3, m);
 #else
 			Gen(O_POP, mode, SEL_WL_X(mode,D_LO(opc))); PC++;
 #endif
@@ -900,7 +918,7 @@ override:
 			    switch (REG1) {
 				case Ofs_DS: TheCPU.ds=sv; chp=&DS_DTR; break;
 				case Ofs_SS: TheCPU.ss=sv; chp=&SS_DTR;
-				    if (big) basemode &= ~STACK16; else basemode |= STACK16;
+				    TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
 				    CEmuStat |= CeS_LOCK;
 				    break;
 				case Ofs_ES: TheCPU.es=sv; chp=&ES_DTR; break;
@@ -914,10 +932,7 @@ override:
 
 /*9b*/	case oWAIT:
 /*90*/	case NOP:
-			/* sorry but it's too dangerous to compile NOPs,
-			 * because of self-modifying code (like Sourcer) and
-			 * other things. Better keep it as a sync point */
-			CODE_FLUSH(); PC++;
+			PC++;
 			while (Fetch(PC) == NOP) PC++;
 			break;
 /*91*/	case XCHGcx:
@@ -1094,7 +1109,10 @@ override:
 				Gen(O_RCR, m, count);
 				break;
 			case Ofs_DH:	/*6*/	// undoc
-				if (opc==SHIFTbv) goto illegal_op;
+				if (opc==SHIFTbv) {
+					CODE_FLUSH();
+					goto illegal_op;
+				}
 			case Ofs_AH:	/*4*/	// SHL,SAL
 				Gen(O_SHL, m, count);
 				break;
@@ -1131,7 +1149,10 @@ override:
 				Gen(O_RCR, m, count);
 				break;
 			case Ofs_SI:	/*6*/	// undoc
-				if ((opc==SHIFTw)||(opc==SHIFTwv)) goto illegal_op;
+				if ((opc==SHIFTw)||(opc==SHIFTwv)) {
+					CODE_FLUSH();
+					goto illegal_op;
+				}
 			case Ofs_SP:	/*4*/	// SHL,SAL
 				Gen(O_SHL, m, count);
 				break;
@@ -1211,7 +1232,8 @@ override:
 			POP(mode, &TheCPU.eip);
 			if (d.emu>2)
 				e_printf("RET: ret=%08lx inc_sp=%d\n",TheCPU.eip,dr);
-			if (mode&STACK16) rSP+=dr; else rESP+=dr;
+			temp = rESP + dr;
+			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			PC = (unsigned char *)(LONG_CS + TheCPU.eip); }
 			break;
 /*c3*/	case RET:
@@ -1237,14 +1259,8 @@ override:
 			CODE_FLUSH();
 			level = Fetch(PC+3) & 0x1f;
 			ds = (mode&DATA16? 2:4);
-			if (mode&STACK16) {
-				sp = LONG_SS + rSP - ds;
-				bp = LONG_SS + rBP;
-			}
-			else {
-				sp = LONG_SS + rESP - ds;
-				bp = LONG_SS + rEBP;
-			}
+			sp = LONG_SS + ((rESP - ds) & TheCPU.StackMask);
+			bp = LONG_SS + (rEBP & TheCPU.StackMask);
 			PUSH(mode, &rEBP);
 			frm = sp - LONG_SS;
 			if (level) {
@@ -1259,10 +1275,8 @@ override:
 			}
 			if (mode&DATA16) rBP = frm; else rEBP = frm;
 			sp -= FetchW(PC+1);
-			if (mode&STACK16)
-				rSP = sp - LONG_SS;
-			else
-				rESP = sp - LONG_SS;
+			temp = sp - LONG_SS;
+			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
 			PC += 4; }
 			break;
 /*c9*/	case LEAVE: {
@@ -1285,7 +1299,9 @@ override:
 			if (d.emu>2)
 				e_printf("RET_%ld: ret=%08lx\n",dr,TheCPU.eip);
 			PC = (unsigned char *)(LONG_CS + TheCPU.eip);
-			if (mode&STACK16) rSP+=dr; else rESP+=dr; }
+			temp = rESP + dr;
+			rESP = (temp&TheCPU.StackMask) | (rESP&~TheCPU.StackMask);
+			}
 			break;
 /*cc*/	case INT3:
 			CODE_FLUSH();
@@ -1321,40 +1337,68 @@ override:
 			if (d.emu>1) {
 				e_printf("IRET: ret=%04lx:%08lx\n",sv,TheCPU.eip);
 			}
-			POP(m, &temp); }
-			goto popf001;	// hmm, really?
-/*9d*/	case POPF: {
-			CODE_FLUSH();
-			POP(mode, &temp);
-popf001:
-			if (V86MODE() /*&& (IOPL<3)*/) {
-			// IOPL<3: GPF
-			// IOPL==3: VM,RF,IOPL,VIP,VIF unchaged
-				TheCPU.veflags &= ~(eTSSMASK|EFLAGS_VIP|EFLAGS_VIF);
-				TheCPU.veflags |= ((temp & eTSSMASK) |
-					(vm86s.regs.eflags&EFLAGS_VIP));
-				if ((TheCPU.veflags&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
-					CEmuStat |= CeS_RPIC;
-				if (temp&EFLAGS_IF) {
-					TheCPU.veflags |= EFLAGS_VIF;
-					if (TheCPU.veflags & EFLAGS_VIP)
-						CEmuStat = (CEmuStat & ~CeS_RPIC) | CeS_STI;
-				}
-				TheCPU.eflags &= ~0xddf;
-				TheCPU.eflags |= (temp & 0xfdf);
+			temp=0; POP(m, &temp);
+			if (REALMODE())
+			    FLAGS = temp;
+			else if (V86MODE()) {
+			    goto stack_return_from_vm86;
 			}
 			else {
-			// Rmode or CPL==0: VIP=VIF=0, VM unchanged
-			// CPL>0 && CPL<=IOPL: same, IOPL unchanged
-			// CPL>=IOPL: IF changed
-				if (mode & DATA16)
-					TheCPU.eflags = (temp&0x7dd5) | (TheCPU.eflags&0x270200) | 2;
-				else
-					TheCPU.eflags = (temp&0x277dd5) | (TheCPU.eflags&0x200) | 2;
-				dpmi_eflags = (dpmi_eflags&~EFLAGS_IF)|(temp&EFLAGS_IF);
+			    /* if (EFLAGS&EFLAGS_NT) goto task_return */
+			    /* if (temp&EFLAGS_VM) goto stack_return_to_vm86 */
+			    /* else stack_return */
+			    int amask = (CPL==0? EFLAGS_IOPL_MASK:0) | 2;
+			    if (mode & DATA16)
+				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
+			    else	/* should use eTSSMASK */
+				EFLAGS = (EFLAGS&amask) |
+					 ((temp&(eTSSMASK|0xfd7))&~amask);
+			    if (d.emu>1)
+				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,dpmi_eflags);
 			}
-			if (d.emu>1)
-				e_printf("Popped flags %08lx->{r=%08lx v=%08lx}\n",temp,TheCPU.eflags,TheCPU.veflags);
+			} break;
+
+/*9d*/	case POPF: {
+			CODE_FLUSH();
+			temp=0; POP(mode, &temp);
+			if (V86MODE()) {
+stack_return_from_vm86:
+			    if (IOPL==3) {	/* Intel manual */
+				if (mode & DATA16)
+				    FLAGS = temp;	/* oh,really? */
+				else
+				    EFLAGS = (temp&~0x1b3000) | (EFLAGS&0x1b3000);
+			    }
+			    else {
+				/* virtual-8086 monitor */
+				eVEFLAGS &= ~(eTSSMASK|EFLAGS_VIP|EFLAGS_VIF);
+				eVEFLAGS |= ((temp & eTSSMASK) |
+					(vm86s.regs.eflags&EFLAGS_VIP));
+				if ((eVEFLAGS&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
+					CEmuStat |= CeS_RPIC;
+				if (temp&EFLAGS_IF) {
+					eVEFLAGS |= EFLAGS_VIF;
+					if (eVEFLAGS & EFLAGS_VIP)
+						CEmuStat = (CEmuStat & ~CeS_RPIC) | CeS_STI;
+				}
+				EFLAGS &= ~0xddf;
+				EFLAGS |= (temp & 0xfdf);
+			    }
+			    if (d.emu>1)
+				e_printf("Popped flags %08lx->{r=%08lx v=%08lx}\n",temp,EFLAGS,eVEFLAGS);
+			}
+			else {
+			    int amask = (CPL==0? EFLAGS_IOPL_MASK:0) |
+			    		(CPL<=IOPL? EFLAGS_IF:0) |
+			    		(EFLAGS_VM|EFLAGS_RF) | 2;
+			    if (mode & DATA16)
+				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask);
+			    else
+				EFLAGS = (EFLAGS&amask) |
+					 ((temp&(eTSSMASK|0xfd7))&~amask);
+			    if (d.emu>1)
+				e_printf("Popped flags %08lx->{r=%08lx v=%08x}\n",temp,EFLAGS,dpmi_eflags);
+			}
 			if (opc==POPF) PC++; }
 			break;
 
@@ -1370,11 +1414,12 @@ repag0:
 				case INSw:
 				case OUTSb:
 				case OUTSw:
+					CODE_FLUSH();
 					goto not_implemented;
-					PC++; break;
 				case LODSb:
 				case LODSw:
-					PC++; break;		// not implemented
+					CODE_FLUSH();
+					goto not_implemented;
 				case MOVSb:
 					repmod |= MBYTE;
 					Gen(O_MOVS_SetA, repmod);
@@ -1481,10 +1526,10 @@ repag0:
 				Gen(O_IMUL, mode|MBYTE);		// al*[edi]->AX signed
 				break;
 			case Ofs_DH:	/*6*/	/* DIV AL */
-				Gen(O_DIV, mode|MBYTE);			// ah:al/[edi]->AH:AL unsigned
+				Gen(O_DIV, mode|MBYTE, P0);			// ah:al/[edi]->AH:AL unsigned
 				break;
 			case Ofs_BH:	/*7*/	/* IDIV AL */
-				Gen(O_IDIV, mode|MBYTE);		// ah:al/[edi]->AH:AL signed
+				Gen(O_IDIV, mode|MBYTE, P0);		// ah:al/[edi]->AH:AL signed
 				break;
 			} }
 			break;
@@ -1510,10 +1555,10 @@ repag0:
 				Gen(O_IMUL, mode);			// (e)ax*[edi]->(E)DX:(E)AX signed
 				break;
 			case Ofs_SI:	/*6*/	/* DIV AX+DX */
-				Gen(O_DIV, mode);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
+				Gen(O_DIV, mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX unsigned
 				break;
 			case Ofs_DI:	/*7*/	/* IDIV AX+DX */
-				Gen(O_IDIV, mode);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
+				Gen(O_IDIV, mode, P0);		// (e)ax:(e)dx/[edi]->(E)AX:(E)DX signed
 				break;
 			} }
 			break;
@@ -1533,37 +1578,53 @@ repag0:
 			break;
 /*fa*/	case CLI:
 			CODE_FLUSH();
-			if (REALMODE() || (CPL <= IOPL)) {
+			if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
 				EFLAGS &= ~EFLAGS_IF;
 			}
-			else if (V86MODE()) {
-				if (d.emu>2) e_printf("Virtual CLI\n");
-				TheCPU.veflags &= ~(EFLAGS_VIP|EFLAGS_VIF);
-				TheCPU.veflags |= (vm86s.regs.eflags&EFLAGS_VIP);
-				if ((TheCPU.veflags&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
+			else {
+			    /* virtual-8086 monitor */
+			    if (V86MODE()) {
+				if (d.emu>2) e_printf("Virtual VM86 CLI\n");
+				eVEFLAGS &= ~(EFLAGS_VIP|EFLAGS_VIF);
+				eVEFLAGS |= (vm86s.regs.eflags&EFLAGS_VIP);
+				if ((eVEFLAGS&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
 					CEmuStat |= CeS_RPIC;
+			    }
+			    else if (in_dpmi) {
+				if (d.emu>2) e_printf("Virtual DPMI CLI\n");
+				/* does not change eflags, but dpmi_eflags */
+				dpmi_cli();
+			    }
+			    else
+				goto not_permitted;	/* GPF */
 			}
-			else
-				goto not_permitted;
 			PC++;
 			break;
 /*fb*/	case STI:
 			CODE_FLUSH();
-			if (REALMODE() || (CPL <= IOPL)) {
-				EFLAGS |= EFLAGS_IF;
-			}
-			else if (V86MODE()) {
-				if (d.emu>2) e_printf("Virtual STI\n");
-				TheCPU.veflags &= ~EFLAGS_VIP;
-				TheCPU.veflags |= (EFLAGS_VIF |
+			if (V86MODE()) {    /* traps always (Intel man) */
+				/* virtual-8086 monitor */
+				if (d.emu>2) e_printf("Virtual VM86 STI\n");
+				eVEFLAGS &= ~EFLAGS_VIP;
+				eVEFLAGS |= (EFLAGS_VIF |
 					(vm86s.regs.eflags&EFLAGS_VIP));
-				if ((TheCPU.veflags&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
+				if ((eVEFLAGS&EFLAGS_IF)&&(vm86s.vm86plus.force_return_for_pic))
 					CEmuStat |= CeS_RPIC;
-				if (TheCPU.veflags & EFLAGS_VIP)
+				if (eVEFLAGS & EFLAGS_VIP)
 					CEmuStat = (CEmuStat & ~CeS_RPIC) | CeS_STI;
 			}
-			else
-				goto not_permitted;
+			else {
+			    if (REALMODE() || (CPL <= IOPL) || (IOPL==3)) {
+				EFLAGS |= EFLAGS_IF;
+			    }
+			    else if (in_dpmi) {
+				if (d.emu>2) e_printf("Virtual DPMI STI\n");
+				/* does not change eflags, but dpmi_eflags */
+				dpmi_sti();
+			    }
+			    else
+				goto not_permitted;	/* GPF */
+			}
 			PC++;
 			break;
 /*fc*/	case CLD:
@@ -1587,7 +1648,9 @@ repag0:
 				Gen(O_INC, mode|MBYTE); break;
 			case Ofs_CL:	/*1*/
 				Gen(O_DEC, mode|MBYTE); break;
-			default: goto illegal_op;
+			default:
+				CODE_FLUSH();
+				goto illegal_op;
 			}
 			break;
 /*ff*/	case GRP2wrm:
@@ -1603,13 +1666,13 @@ repag0:
 			case Ofs_DX: {	/*2*/	 // CALL near indirect
 					long dp;
 					CODE_FLUSH();
-					PC += ModRMSim(PC, mode);
+					PC += ModRMSim(PC, mode|NOFLDR);
 					TheCPU.eip = (long)PC - LONG_CS;
 					dp = DataGetWL_U(mode, TheCPU.mem_ref);
 					if (REG1==Ofs_DX) { 
 						PUSH(mode, &TheCPU.eip);
 						if (d.emu>2)
-							e_printf("CALL indirect: ret=%08lx\n      calling:     %08lx\n",
+							e_printf("CALL indirect: ret=%08lx\n\tcalling: %08lx\n",
 								TheCPU.eip,dp);
 					}
 					PC = (unsigned char *)(LONG_CS + dp);
@@ -1620,7 +1683,7 @@ repag0:
 					unsigned short ocs,jcs;
 					unsigned long oip,xcs,jip=0;
 					CODE_FLUSH();
-					PC += ModRMSim(PC, mode);
+					PC += ModRMSim(PC, mode|NOFLDR);
 					TheCPU.eip = (long)PC - LONG_CS;
 					/* get new cs:ip */
 					jip = DataGetWL_U(mode, TheCPU.mem_ref);
@@ -1639,7 +1702,7 @@ repag0:
 						PUSH(mode, &ocs);
 						PUSH(mode, &oip);
 						if (d.emu>2)
-							e_printf("CALL_FAR indirect: ret=%04x:%08lx\n          calling:      %04x:%08lx\n",
+							e_printf("CALL_FAR indirect: ret=%04x:%08lx\n\tcalling: %04x:%08lx\n",
 								ocs,oip,jcs,jip);
 					}
 					else {
@@ -1660,7 +1723,9 @@ repag0:
 				PC += ModRM(PC, mode);
 				Gen(O_PUSH, mode|MEMADR); break;	// push [mem]
 				break;
-			default: goto illegal_op;
+			default:
+				CODE_FLUSH();
+				goto illegal_op;
 			}
 			break;
 
@@ -1677,42 +1742,75 @@ repag0:
 			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
 			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
-/*ec*/	case INvb: {
-			unsigned short a;
+/*ec*/	case INvb:
+#ifdef CPUEMU_DIRECT_IO
+			if (!config.X)
+				Gen(O_INPDX, mode|MBYTE);
+			else
+#endif
+			{ unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
+#ifdef X_SUPPORT
+			if (config.X) {
+			  extern unsigned char VGA_emulate_inb(short);
+			  switch(a) {
+			    case 0x3d4:	/*CRTC_INDEX*/
+			    case 0x3d5:	/*CRTC_DATA*/
+			    case 0x3c4:	/*SEQUENCER_INDEX*/
+			    case 0x3c5:	/*SEQUENCER_DATA*/
+			    case 0x3c0:	/*ATTRIBUTE_INDEX*/
+			    case 0x3c1:	/*ATTRIBUTE_DATA*/
+			    case 0x3c6:	/*DAC_PEL_MASK*/
+			    case 0x3c7:	/*DAC_STATE*/
+			    case 0x3c8:	/*DAC_WRITE_INDEX*/
+			    case 0x3c9:	/*DAC_DATA*/
+			    case 0x3da:	/*INPUT_STATUS_1*/
+				rAL = VGA_emulate_inb(a);
+				goto end0xec;
+			  }
+			}
+#endif
 			if (test_ioperm(a)) rAL = port_real_inb(a);
 				else rAL = port_inb(a);
-			PC++; } break;
+end0xec:
+			} PC++; break;
 /*e4*/	case INb: {
 			unsigned short a;
 			CODE_FLUSH();
 			E_TIME_STRETCH;		// for PIT
+			/* there's no reason to compile this, as most of
+			 * the ports under 0x100 are emulated by dosemu */
 			a = Fetch(PC+1);
 			if (test_ioperm(a)) rAL = port_real_inb(a);
 				else rAL = port_inb(a);
 			PC += 2; } break;
-/*6d*/	case INSw:
-/*ed*/	case INvw: {
+/*6d*/	case INSw: {
+			unsigned long rd;
+			void *p;
+			int dp;
 			CODE_FLUSH();
-			if (opc==INSw) {
-				unsigned long rd = (mode&ADDR16? rDI:rEDI);
-				void *p = (void *)(LONG_ES+rd);
-				int dp;
-				if (mode&DATA16) {
-					*((short *)p) = port_inw(rDX); dp=2;
-				}
-				else {
-					*((long *)p) = port_ind(rDX); dp=4;
-				}
-				if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
-				if (mode&ADDR16) rDI=rd; else rEDI=rd;
+			rd = (mode&ADDR16? rDI:rEDI);
+			p = (void *)(LONG_ES+rd);
+			if (mode&DATA16) {
+				*((short *)p) = port_inw(rDX); dp=2;
 			}
 			else {
-				if (mode&DATA16) rAX = port_inw(rDX);
-				else rEAX = port_ind(rDX);
+				*((long *)p) = port_ind(rDX); dp=4;
 			}
+			if (EFLAGS & EFLAGS_DF) rd-=dp; else rd+=dp;
+			if (mode&ADDR16) rDI=rd; else rEDI=rd;
 			PC++; } break;
+/*ed*/	case INvw:
+#ifdef CPUEMU_DIRECT_IO
+			if (!config.X)
+				Gen(O_INPDX, mode);
+			else
+#endif
+			{ CODE_FLUSH();
+			if (mode&DATA16) rAX = port_inw(rDX);
+			else rEAX = port_ind(rDX);
+			} PC++; break;
 /*e5*/	case INw: {
 			unsigned short a;
 			CODE_FLUSH();
@@ -1722,43 +1820,95 @@ repag0:
 
 /*6e*/	case OUTSb: {
 			unsigned short a;
-			unsigned long rd;
+			unsigned long rs;
+			int iop;
 			CODE_FLUSH();
 			a = rDX;
-			rd = (mode&ADDR16? rDI:rEDI);
-			if (test_ioperm(a))
-				port_real_outb(a,((char *)LONG_ES)[rd]);
+			rs = (mode&ADDR16? rSI:rESI);
+			iop = test_ioperm(a);
+			do {
+			    if (iop)
+				port_real_outb(a,((char *)LONG_DS)[rs]);
+			    else
+				port_outb(a,((char *)LONG_DS)[rs]);
+			    if (EFLAGS & EFLAGS_DF) rs--; else rs++;
+			    PC++;
+			} while (Fetch(PC)==OUTSb);
+			if (mode&ADDR16) rSI=rs; else rESI=rs;
+			} break;
+/*ee*/	case OUTvb:
+#ifdef CPUEMU_DIRECT_IO
+			if (!config.X)
+				Gen(O_OUTPDX, mode|MBYTE);
 			else
-				port_outb(a,((char *)LONG_ES)[rd]);
-			if (EFLAGS & EFLAGS_DF) rd--; else rd++;
-			if (mode&ADDR16) rDI=rd; else rEDI=rd;
-			PC++; } break;
-/*ee*/	case OUTvb: {
-			unsigned short a;
+#endif
+			{ unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
+#ifdef X_SUPPORT
+			if (config.X) {
+			  extern void VGA_emulate_outb(short,char);
+			  switch(a) {
+			    case 0x3d4:	/*CRTC_INDEX*/
+			    case 0x3d5:	/*CRTC_DATA*/
+			    case 0x3c4:	/*SEQUENCER_INDEX*/
+			    case 0x3c5:	/*SEQUENCER_DATA*/
+			    case 0x3c0:	/*ATTRIBUTE_INDEX*/
+			    case 0x3c6:	/*DAC_PEL_MASK*/
+			    case 0x3c7:	/*DAC_READ_INDEX*/
+			    case 0x3c8:	/*DAC_WRITE_INDEX*/
+			    case 0x3c9:	/*DAC_DATA*/
+				VGA_emulate_outb(a,rAL);
+				goto end0xee;
+			  }
+			}
+#endif
 			if (test_ioperm(a)) port_real_outb(a,rAL);
 				else port_outb(a,rAL);
-			PC++; } break;
+end0xee:
+			} PC++; break;
 /*e6*/	case OUTb:  {
 			unsigned short a;
 			CODE_FLUSH();
 			a = Fetch(PC+1);
+			/* there's no reason to compile this, as most of
+			 * the ports under 0x100 are emulated by dosemu */
 			if (test_ioperm(a)) port_real_outb(a,rAL);
 				else port_outb(a,rAL);
 			PC += 2; } break;
-/*6f*/	case OUTSw:	goto not_implemented;
-/*ef*/	case OUTvw: {
-			unsigned short a;
+/*6f*/	case OUTSw:
+			CODE_FLUSH();
+			goto not_implemented;
+/*ef*/	case OUTvw:
+#ifdef CPUEMU_DIRECT_IO
+			if (!config.X)
+				Gen(O_OUTPDX, mode);
+			else
+#endif
+			{ unsigned short a;
 			CODE_FLUSH();
 			a = rDX;
+#ifdef X_SUPPORT
+			if (config.X) {
+			  extern void VGA_emulate_outw(short,short);
+			  if (mode&DATA16) switch(a) {
+			    case 0x3d4:	/*CRTC_INDEX*/
+			    case 0x3c4:	/*SEQUENCER_INDEX*/
+			    case 0x3c6:	/*DAC_PEL_MASK*/
+			    case 0x3c8:	/*DAC_WRITE_INDEX*/
+				VGA_emulate_outw(a,rAX);
+				goto end0xef;
+			  }
+			}
+#endif
 			if (test_ioperm(a)) {
 			    if (mode&DATA16) port_real_outw(a,rAX); else port_real_outd(a,rEAX);
 			}
 			else {
 			    if (mode&DATA16) port_outw(a,rAX); else port_outd(a,rEAX);
 			}
-			PC++; } break;
+end0xef:
+			} PC++; break;
 
 /*e7*/	case OUTw:  {
 			unsigned short a;
@@ -1829,6 +1979,7 @@ repag0:
 				case 5: /* VERW */
 				case 6: /* JMP indirect to IA64 code */
 				case 7: /* Illegal */
+				    CODE_FLUSH();
 				    goto illegal_op;
 				} }
 				break;
@@ -1853,6 +2004,7 @@ repag0:
 				case 6: /* LMSW, 80286 compatibility, Privileged */
 				    /* Load Machine Status Word */
 				case 7: /* Illegal */
+				    CODE_FLUSH();
 				    goto illegal_op;
 				} }
 				break;
@@ -1860,8 +2012,8 @@ repag0:
 			case 0x02:   /* LAR */ /* Load Access Rights Byte */
 			case 0x03: { /* LSL */ /* Load Segment Limit */
 				unsigned short sv; int tmp;
-				if (REALMODE()) goto illegal_op;
 				CODE_FLUSH();
+				if (REALMODE()) goto illegal_op;
 				PC += ModRMSim(PC+1, mode) + 1;
 				sv = GetDWord(TheCPU.mem_ref);
 				if (!e_larlsl(mode, sv)) {
@@ -1886,6 +2038,7 @@ repag0:
 			/* case 0x05:	LOADALL(286) - SYSCALL(K6) */
 			case 0x06: /* CLTS */ /* Privileged */
 				/* Clear Task State Register */
+				CODE_FLUSH();
 				if (CPL != 0) goto not_permitted;
 				TheCPU.cr[0] &= ~8;
 				PC += 2; break;
@@ -1896,11 +2049,14 @@ repag0:
 				/* Write-Back and INValiDate cache */
 				PC += 2; break;
 			case 0x0a:
-			case 0x0b: goto illegal_op;	/* UD2 */
+			case 0x0b:
+				CODE_FLUSH();
+				goto illegal_op;	/* UD2 */
 			/* case 0x0d:	Code Extension 25(AMD-3D) */
 			/* case 0x0e:	FEMMS(K6-3D) */
 			case 0x0f:	/* AMD-3D */
 			/* case 0x10-0x1f:	various V20/MMX instr. */
+				CODE_FLUSH();
 				goto not_implemented;
 			case 0x20:   /* MOVcdrd */ /* Privileged */
 			case 0x22:   /* MOVrdcd */ /* Privileged */
@@ -1909,13 +2065,13 @@ repag0:
 			case 0x24:   /* MOVtdrd */ /* Privileged */
 			case 0x26: { /* MOVrdtd */ /* Privileged */
 				long *srg; int reg; unsigned char b,opd;
-				if (REALMODE()) goto not_permitted;
 				CODE_FLUSH();
+				if (REALMODE()) goto not_permitted;
 				b = Fetch(PC+2);
 				if (D_HO(b)!=3) goto illegal_op;
 				reg = D_MO(b); b = D_LO(b);
 				if ((b==4)||(b==5)) goto illegal_op;
-				srg = (long *)((char *)&TheCPU + R1Tab_l[b]);
+				srg = (long *)CPUOFFS(R1Tab_l[b]);
 				opd = Fetch(PC+1)&2;
 		    		if (opc2&1) {
 				    if (opd) TheCPU.dr[reg] = *srg;
@@ -1943,13 +2099,15 @@ repag0:
 		    		}
 		    		} PC += 3; break;
 			case 0x30: /* WRMSR */
+			    CODE_FLUSH();
 			    goto not_implemented;
 
 			case 0x31: /* RDTSC */
 				Gen(O_RDTSC, mode);
 				PC+=2; break;
 			case 0x32: /* RDMSR */
-				goto not_implemented;
+			    CODE_FLUSH();
+			    goto not_implemented;
 
 			/* case 0x33:	RDPMC(P6) */
 			/* case 0x34:	SYSENTER(PII) */
@@ -1961,6 +2119,7 @@ repag0:
 			case 0x74 ... 0x77:
 			/* case 0x78-0x7e:	Cyrix */
 			case 0x7e: case 0x7f:
+			    CODE_FLUSH();
 			    goto not_implemented;
 //
 			case 0x80: /* JOimmdisp */
@@ -2055,6 +2214,7 @@ repag0:
 				case 0x08: /* Illegal */
 				case 0x10: /* Illegal */
 				case 0x18: /* Illegal */
+				    CODE_FLUSH();
 				    goto illegal_op;
 				case 0x20: /* BT */
 				case 0x28: /* BTS */
@@ -2087,6 +2247,7 @@ repag0:
 
 			case 0xa6: /* CMPXCHGb */
 			case 0xa7: /* CMPXCHGw */
+			    CODE_FLUSH();
 			    goto not_implemented;
 ///
 			case 0xa8: /* PUSHgs */
@@ -2112,6 +2273,7 @@ repag0:
 				break;
 ///
 			case 0xaa:
+			    CODE_FLUSH();
 			    goto illegal_op;
 			/* case 0xae:	Code Extension 24(MMX) */
 			case 0xaf: /* IMULregrm */
@@ -2119,6 +2281,7 @@ repag0:
 				Gen(O_IMUL, mode|MEMADR, REG1);	// reg*[edi]->reg signed
 				break;
 			case 0xb0-0xb1:		/* CMPXCHG */
+			    CODE_FLUSH();
 			    goto not_implemented;
 ///
 			case 0xb2: /* LSS */
@@ -2142,7 +2305,7 @@ repag0:
 				    if (TheCPU.err) return P0;
 				    SetCPU_WL(mode, REG1, rv);
 				    TheCPU.ss = sv;
-				    if (big) basemode &= ~STACK16; else basemode |= STACK16;
+				    TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
 				    memcpy(&SS_DTR,&tseg,sizeof(SDTR));
 				}
 				break;
@@ -2211,11 +2374,13 @@ repag0:
 ///
 			case 0xb8:	/* JMP absolute to IA64 code */
 			case 0xb9:
+			    CODE_FLUSH();
 			    goto illegal_op;	/* UD2 */
 			case 0xc0: /* XADDb */
 			case 0xc1: /* XADDw */
 			/* case 0xc2-0xc6:	MMX */
 			/* case 0xc7:	Code Extension 23 - 01=CMPXCHG8B mem */
+			    CODE_FLUSH();
 			    goto not_implemented;
 
 			case 0xc8: /* BSWAPeax */
@@ -2237,18 +2402,20 @@ repag0:
 			case 0xf1 ... 0xf3:
 			case 0xf5 ... 0xf7:
 			case 0xfc ... 0xfe:
+			    CODE_FLUSH();
 			    goto not_implemented;
 ///
-			case 0xff: /* illegal */
-				CloseAndExec(PC, mode); NewNode=0;
-				if (TheCPU.err) return P0;
-				goto illegal_op;
+			case 0xff: /* illegal, used by Windows */
+			    CODE_FLUSH();
+			    goto illegal_op;
 			default:
-				goto not_implemented;
+			    CODE_FLUSH();
+			    goto not_implemented;
 			} }
 			break;
 
 /*xx*/	default:
+			CODE_FLUSH();
 			goto not_implemented;
 		}
 

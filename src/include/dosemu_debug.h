@@ -24,8 +24,27 @@
 # define NORETURN
 #endif
 
+/*  DONT_DEBUG_BOOT - if you set that, debug messages are
+ *	skipped until the cpuemu is activated by int0xe6, so you can
+ *	avoid the long DOS intro when using high debug values.
+ *	You have to define it if you want to trace into the DOS boot
+ *	phase (i.e. from the loading at 0x7c00 on) */
 #if 1
 #define DONT_DEBUG_BOOT
+#endif
+
+/*  CIRCULAR_LOGBUFFER (utilities.c) - another way to reduce the size of
+ *	the debug logfile by keeping only the last n lines (n=~20000)
+ */
+#if 0
+#define	CIRCULAR_LOGBUFFER
+#endif
+
+/* this is for cpuemu-like tracing via TF (w/o dosdebug) */
+#ifdef X86_EMULATOR	/* for the moment */
+#if 0
+#define TRACE_DPMI
+#endif
 #endif
 
 /*
@@ -41,7 +60,7 @@
  * this comment in sync with the reality:
  *
  *   used: aA  cCdDeE  g h iI  k   mMn   pP QrRsStT  v wWxX      and '#'
- *   free:   bB      fF G H  jJ KlL   NoO  q       uU V    yYzZ
+ *   free:   bB      fF G H  jJ KlL   NoO  q        U V    yYzZ
  */
 struct debug_flags {
   unsigned char
@@ -76,6 +95,8 @@ struct debug_flags {
    pci                  /* PCI               "Z" */
 #ifdef X86_EMULATOR
    ,emu			/* CPU emulation     "e" */
+#endif
+#ifdef TRACE_DPMI
    ,dpmit		/* DPMI emu-debug    "t" */
 #endif
    ;
@@ -99,10 +120,14 @@ extern FILE *dbg_fd;
 
 EXTERN int shut_debug INIT(0);
 
-#ifdef DEBUG_LITE
-#define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(0x10000|__LINE__,fmt,##a); }while(0)
+#ifndef NO_DEBUGPRINT_AT_ALL
+# ifdef DEBUG_LITE
+#  define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(0x10000|__LINE__,fmt,##a); }while(0)
+# else
+#  define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(flg,fmt,##a); }while(0)
+# endif
 #else
-#define ifprintf(flg,fmt,a...)	do{ if (flg) log_printf(flg,fmt,##a); }while(0)
+# define ifprintf(flg,fmt,a...) 
 #endif
 
 /* unconditional message into debug log */
@@ -113,8 +138,6 @@ void error(const char *fmt, ...);
 void verror(const char *fmt, va_list args);
 
 #define flush_log()		{ if (dbg_fd) log_printf(-1, "\n"); }
-
-#ifndef NO_DEBUGPRINT_AT_ALL
 
 /* "dRWDCvXkiTsm#pgcwhIExMnPrS" */
 #define d_printf(f,a...) 	ifprintf(d.disk,f,##a)
@@ -151,40 +174,12 @@ void verror(const char *fmt, va_list args);
 #define t_printf(f,a...)     	ifprintf(d.dpmit,f,##a)
 #endif
 
+#ifndef NO_DEBUGPRINT_AT_ALL
+
 #define ALL_DEBUG_ON	memset(&d,9,sizeof(d))
 #define ALL_DEBUG_OFF	memset(&d,0,sizeof(d))
 
 #else
-
-#define d_printf(f,a...)
-#define R_printf(f,a...)
-#define W_printf(f,a...)
-#define ds_printf(f,a...)
-#define C_printf(f,a...)
-#define v_printf(f,a...)
-#define X_printf(f,a...)
-#define k_printf(f,a...)
-#define i_printf(f,a...)
-#define T_printf(f,a...)
-#define s_printf(f,a...)
-#define m_printf(f,a...)
-#define di_printf(f,a...)
-#define p_printf(f,a...)
-#define g_printf(f,a...)
-#define c_printf(f,a...)
-#define warn(f,a...)
-#define h_printf(f,a...)
-#define I_printf(f,a...)
-#define E_printf(f,a...)
-#define x_printf(f,a...)
-#define D_printf(f,a...)
-#define n_printf(f,a...)
-#define pd_printf(f,a...)
-#define r_printf(f,a...)
-#define S_printf(f,a...)
-#define A_printf(f,a...)
-#define e_printf(f,a...)
-#define Q_printf(f,a...)
 
 #define ALL_DEBUG_ON
 #define ALL_DEBUG_OFF

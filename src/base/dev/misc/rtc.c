@@ -9,7 +9,7 @@
  *
  * Description: CMOS handling and RTC emulation
  * 
- * Maintainers: Alberto Vignani (vignani@mail.tin.it)
+ * Maintainers: Alberto Vignani (vignani@tin.it)
  *
  * SIDOC_END_MODULE
  *

@@ -88,7 +88,8 @@ typedef struct {
 /*68*/		 long err;
 /*6c*/	unsigned long long EMUtime;
 /*74*/	unsigned int  mode;
-/*78,7c	... */
+/*78*/	unsigned long StackMask;
+/*7c	... */
 /* ------------------------------------------------ */
 	unsigned long tr[2];
 /*
@@ -163,6 +164,8 @@ extern SynCPU TheCPU;
 #define Ofs_ERR		(char)(offsetof(SynCPU,err)-SCBASE)
 #define Ofs_REG1	(char)(offsetof(SynCPU,sreg1)-SCBASE)
 #define Ofs_CR0		(char)(offsetof(SynCPU,cr[0])-SCBASE)
+#define Ofs_CR2		(char)(offsetof(SynCPU,cr2)-SCBASE)
+#define Ofs_STACKM	(char)(offsetof(SynCPU,StackMask)-SCBASE)
 
 #define Ofs_FPR		(char)(offsetof(SynCPU,fpregs)-SCBASE)
 #define Ofs_FPSTT	(char)(offsetof(SynCPU,fpstt)-SCBASE)
@@ -218,6 +221,7 @@ extern SynCPU TheCPU;
 #define SBASE		TheCPU.xreg1
 #define MEMREF		TheCPU.mem_ref
 #define EFLAGS		TheCPU.eflags
+#define FLAGS		*((unsigned short *)&(TheCPU.eflags))
 #define eVEFLAGS	TheCPU.veflags
 #define FPX		TheCPU.fpstt
 

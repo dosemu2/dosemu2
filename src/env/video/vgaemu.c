@@ -184,14 +184,6 @@
 #define	DEBUG_BANK	0	/* (<= 2) bank switching */
 #define	DEBUG_COL	0	/* (<= 1) color interpretation changes */
 
-/*
- * whether we emulate only writes to VGA memory or read & write
- * (0 -> no instruction emulation, the 'normal' case)
- * cf. vga.inst_emu
- */
-#define EMU_WRITE_INST	1
-#define EMU_ALL_INST	2
-
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 #if !defined True
 #define False 0
@@ -299,9 +291,7 @@ int load_file(char *name, int foffset, char *mstart, int msize);
  * functions local to this file
  */
 
-static int vga_emu_protect_page(unsigned, int);
 static int vga_emu_protect(unsigned, unsigned, int);
-static int vga_emu_adjust_protection(unsigned, unsigned);
 static int vga_emu_map(unsigned, unsigned);
 #if 0
 static int vgaemu_unmap(unsigned);
@@ -341,11 +331,13 @@ volatile static int my_fault = 0;
 
 static void chk_ro()
 {
-  volatile char *p = (char *) 0xa0077;
-  my_fault = 1;
-  *p = 0x99;
-  if(my_fault) {
-    vga_deb_map("vga_emu_fault: IS WRITABLE\n");
+  if (config.cpuemu<1) {
+    volatile char *p = (char *) 0xa0077;
+    my_fault = 1;
+    *p = 0x99;
+    if(my_fault) {
+      vga_deb_map("vga_emu_fault: IS WRITABLE\n");
+    }
   }
   my_fault = 0;
 }
@@ -461,6 +453,13 @@ int VGA_emulate_outb(ioport_t port, Bit8u value)
 }
 
 
+int VGA_emulate_outw(ioport_t port, Bit16u value)
+{
+    if (VGA_emulate_outb(port,value)==0) return 0;
+    return VGA_emulate_outb(port+1,value>>8);
+}
+
+
 /*
  * DANG_BEGIN_FUNCTION VGA_emulate_inb
  *
@@ -573,6 +572,13 @@ Bit8u VGA_emulate_inb(ioport_t port)
   return uc;
 }
 
+Bit16u VGA_emulate_inw(ioport_t port)
+{
+    Bit16u v = VGA_emulate_inb(port);
+    return v | (VGA_emulate_inb(port+1)<<8);
+}
+
+
 /* 
  * This routine emulates a logical VGA read (CPU read  within the
  * VGA memory range a0000-bffff).  This usually doesn't just read the
@@ -680,9 +686,8 @@ static Bit32u rasterop(Bit32u value)
   return 0;
 }
 
-void Logical_VGA_write(unsigned offset, unsigned char value)
+static Bit32u Logical_VGA_CalcNewVal (unsigned char value)
 {
-  unsigned vga_page;
   Bit32u enable_set_reset, new_val = 0; 
   Bit8u bitmask;
 
@@ -693,17 +698,15 @@ void Logical_VGA_write(unsigned offset, unsigned char value)
       new_val |= new_val<<8;
       new_val |= new_val<<16; /* value extended over 4 bytes */
       enable_set_reset = color2pixels[EnableSetReset];
-      new_val = rasterop((new_val & ~enable_set_reset) | 
+      return rasterop((new_val & ~enable_set_reset) | 
                          (color2pixels[SetReset] & enable_set_reset));
-      break;
 
     case 1: /* write mode 1 */
-      new_val = *((unsigned *)VGALatch);;
+      return *((unsigned *)VGALatch);
       break;
 
     case 2: /* write mode 2 */
-      new_val = rasterop(color2pixels[value & 0xf]);
-      break;
+      return rasterop(color2pixels[value & 0xf]);
 
     case 3: /* write mode 3 */
       bitmask = BitMask; 
@@ -718,22 +721,31 @@ void Logical_VGA_write(unsigned offset, unsigned char value)
       break;
     }
   
+  return new_val;
+}
+
+void Logical_VGA_write(unsigned offset, unsigned char value)
+{
+  unsigned vga_page;
+  unsigned char *p;
+  Bit32u new_val;
+
+  new_val = Logical_VGA_CalcNewVal(value);
+
   vga_page = offset >> 12;
+  p = (unsigned char *)(vga.mem.base + offset);
 
   if(MapMask & 0x01) {
-    *(vga.mem.base + offset) = new_val & 0xff;
+    *p = new_val;
   }
-  
   if(MapMask & 0x02) {
-    *(vga.mem.base + offset + 0x10000) = (new_val >> 8) & 0xff;
+    p[0x10000] = new_val >> 8;
   }
-  
   if(MapMask & 0x04) {
-    *(vga.mem.base + offset + 0x20000) = (new_val >> 16) & 0xff;
+    p[0x20000] = new_val >> 16;
   }
-  
   if(MapMask & 0x08) {
-    *(vga.mem.base + offset + 0x30000) = new_val >> 24;
+    p[0x30000] = new_val >> 24;
   }
 
   if(MapMask) {
@@ -872,16 +884,23 @@ int vga_emu_fault(struct sigcontext_struct *scp)
  
   if(vga_page < vga.mem.pages) {
     vga.mem.dirty_map[vga_page] = 1;
+#ifdef X86_EMULATOR
+    if (config.cpuemu>1) {
+	error("VGAEmu: CPU emulation collision, should not be here\n");
+	leavedos(0x4945);
+    }
+#endif
     if(!vga.inst_emu) {
       /* Normal: make the display page writeable after marking it dirty */
       vga_emu_adjust_protection(vga_page, page_fault);
     }  
-    else  
+    else {
       /* A VGA mode PL4/PL2 video memory access has been trapped 
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
        * simulated. */
-            instr_emu(scp);
+        instr_emu(scp);
+    }
   }
   return True;
 }
@@ -928,7 +947,7 @@ static int vgaemu_prot_ok(unsigned page, int prot)
  *
  */
 
-static int vga_emu_protect_page(unsigned page, int prot)
+int vga_emu_protect_page(unsigned page, int prot)
 {
   int i;
   int sys_prot;
@@ -1036,7 +1055,7 @@ static int vga_emu_protect(unsigned page, unsigned mapped_page, int prot)
  *
  */
 
-static int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
+int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
 {
   int prot;
   int i, err, j, k;
@@ -1046,7 +1065,11 @@ static int vga_emu_adjust_protection(unsigned page, unsigned mapped_page)
     return 1;
   }
 
-  prot = vga.inst_emu == EMU_ALL_INST ? NONE : RO;
+  prot = (vga.inst_emu==EMU_ALL_INST
+#ifdef X86_EMULATOR
+	|| config.cpuemu>1
+#endif
+	? NONE : RO);
 
   if(!vga.inst_emu) {
     if(vga.mem.dirty_map[page]) prot = RW;
@@ -1163,6 +1186,11 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   if(vmt->pages + first_page > vga.mem.pages) return 2;
 
   /* default protection for dirty pages */
+#ifdef X86_EMULATOR
+  if (config.cpuemu>1)
+      prot = VGA_EMU_NONE_PROT;
+  else
+#endif
   switch(vga.inst_emu) {
     case EMU_WRITE_INST:
       prot = VGA_EMU_RO_PROT;
@@ -1378,8 +1406,8 @@ int vga_emu_init(vgaemu_display_type *vedt)
   /* register VGA ports */
   io_device.read_portb = VGA_emulate_inb;
   io_device.write_portb = (void (*)(ioport_t, Bit8u)) VGA_emulate_outb;
-  io_device.read_portw = NULL;
-  io_device.write_portw = NULL;
+  io_device.read_portw = VGA_emulate_inw;
+  io_device.write_portw = (void (*)(ioport_t, Bit16u)) VGA_emulate_outw;
   io_device.read_portd = NULL;
   io_device.write_portd = NULL;
   io_device.irq = EMU_NO_IRQ;
@@ -2037,7 +2065,7 @@ int vga_emu_setmode(int mode, int width, int height)
     vga.pixel_size = (vga.pixel_size + 7) & ~7;		/* assume byte alignment for these modes */
     vga.scan_len *= vga.pixel_size >> 3;
   }
-  vga.inst_emu = vga.mode_type == PL4 || vga.mode_type == PL2 ? EMU_ALL_INST : 0;
+  vga.inst_emu = ((vga.mode_type==PL4 || vga.mode_type==PL2) ? EMU_ALL_INST : 0);
 
   vga_msg("vga_emu_setmode: scan_len = %d\n", vga.scan_len);
   i = vga.scan_len;

@@ -175,6 +175,7 @@ TODO:
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -200,6 +201,11 @@ TODO:
 #include "memory.h"
 #include "mangle.h"
 #endif
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE	4096
+#endif
+
 
 /* these universal globals defined here (externed in dos.h) */
 boolean_t mach_fs_enabled = FALSE;
@@ -2843,6 +2849,9 @@ dos_fs_redirect(state)
     {				/* 0x08 */
       int return_val;
       int itisnow;
+#ifdef X86_EMULATOR
+      extern void InvalidateTreePaged(char *, int);
+#endif
 
       cnt = WORD(state->ecx);
       fd = sft_fd(sft);
@@ -2855,6 +2864,16 @@ dos_fs_redirect(state)
       itisnow = lseek(fd, sft_position(sft), L_SET);
       Debug0((dbg_fd, "Actual pos %d\n",
 	      itisnow));
+
+#ifdef X86_EMULATOR
+      if (config.cpuemu>1) {
+	long dtb = (long)dta & ~(PAGE_SIZE-1);
+	long dtl = (long)dta - dtb + cnt;
+	if (mprotect((void *)dtb, dtl, PROT_READ|PROT_WRITE))
+		perror("mprotect");
+	InvalidateTreePaged((unsigned char *)dta, dtl);
+      }
+#endif
       ret = dos_read(fd, dta, cnt);
 
       Debug0((dbg_fd, "Read returned : %d\n",

@@ -81,11 +81,11 @@ int e_sigpa_count;
 
 int emu_dpmi_retcode = -1;
 int in_dpmi_emu = 0;
-int emu_under_X = 0;
 
 SynCPU	TheCPU;
 
 int Running = 0;
+int InCompiledCode = 0;
 
 unsigned long trans_addr, return_addr;	// PC
 
@@ -291,7 +291,10 @@ char *e_print_regs(void)
 	exprintl(rEDI,buf,(ERB_L2+ERB_LEFTM)+13);
 	exprintl(rEBP,buf,(ERB_L2+ERB_LEFTM)+26);
 	exprintl(rESP,buf,(ERB_L2+ERB_LEFTM)+39);
-	exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
+	if (TheCPU.eflags&EFLAGS_VM)
+		exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
+	else
+		exprintl(dpmi_eflags,buf,(ERB_L3+ERB_LEFTM));
 	exprintw(TheCPU.cs,buf,(ERB_L3+ERB_LEFTM)+13);
 	exprintw(TheCPU.ds,buf,(ERB_L3+ERB_LEFTM)+26);
 	exprintw(TheCPU.es,buf,(ERB_L3+ERB_LEFTM)+39);
@@ -299,14 +302,14 @@ char *e_print_regs(void)
 	exprintw(TheCPU.gs,buf,(ERB_L4+ERB_LEFTM)+13);
 	exprintw(TheCPU.ss,buf,(ERB_L4+ERB_LEFTM)+26);
 	exprintl(TheCPU.eflags,buf,(ERB_L4+ERB_LEFTM)+39);
-	if (TheCPU.mode & DSPSTK) {
-		int i;
-		unsigned short *stk = (unsigned short *)(LONG_SS+TheCPU.esp);
-		for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
-		   exprintw(*stk++,buf,i);
-		}
-	}
-	else
+//	if (TheCPU.mode & DSPSTK) {
+//		int i;
+//		unsigned short *stk = (unsigned short *)(LONG_SS+TheCPU.esp);
+//		for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
+//		   exprintw(*stk++,buf,i);
+//		}
+//	}
+//	else
 		buf[ERB_L5]=0;
 	return buf;
 }
@@ -333,7 +336,10 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 	exprintl(_edi,buf,(ERB_L2+ERB_LEFTM)+13);
 	exprintl(_ebp,buf,(ERB_L2+ERB_LEFTM)+26);
 	exprintl(_esp,buf,(ERB_L2+ERB_LEFTM)+39);
-	exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
+	if (pmode & 1)
+		exprintl(dpmi_eflags,buf,(ERB_L3+ERB_LEFTM));
+	else
+		exprintl(TheCPU.veflags,buf,(ERB_L3+ERB_LEFTM));
 	exprintw(_cs,buf,(ERB_L3+ERB_LEFTM)+13);
 	exprintw(_ds,buf,(ERB_L3+ERB_LEFTM)+26);
 	exprintw(_es,buf,(ERB_L3+ERB_LEFTM)+39);
@@ -341,16 +347,21 @@ char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode)
 	exprintw(_gs,buf,(ERB_L4+ERB_LEFTM)+13);
 	exprintw(_ss,buf,(ERB_L4+ERB_LEFTM)+26);
 	exprintl(_eflags,buf,(ERB_L4+ERB_LEFTM)+39);
-	if (pmode) {
+	if (pmode & 2) {
+		buf[(ERB_L4+ERB_LEFTM)+47] = 0;
+	}
+	else {
+	    if (pmode & 1) {
 	        if (Segments[_ss>>3].is_32)
 		    stk = (unsigned short *)(GetSegmentBaseAddress(_ss)+_esp);
 	        else
 		    stk = (unsigned short *)(GetSegmentBaseAddress(_ss)+_LWORD(esp));
-	}
-	else
+	    }
+	    else
 		stk = (unsigned short *)((_ss<<4)+_LWORD(esp));
-	for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
-	    exprintw(*stk++,buf,i);
+	    for (i=(ERB_L5+ERB_LEFTM); i<(ERB_L6-2); i+=5) {
+		exprintw(*stk++,buf,i);
+	    }
 	}
 	return buf;
 }
@@ -388,15 +399,16 @@ char *e_emu_disasm(unsigned char *org, int is32)
    return buf;
 }
 
+#ifdef TRACE_DPMI
 char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
 {
    static char insrep = 0;
-   static unsigned char buf[256];
+   static unsigned char buf[1024];
    static unsigned char frmtbuf[256];
    static unsigned long lasta = 0;
    int rc;
    int i;
-   unsigned char *p, *org, *csp2;
+   unsigned char *p, *pb, *org, *org2, *csp2;
    unsigned int seg;
    unsigned int refseg;
    unsigned int ref;
@@ -417,16 +429,22 @@ char *e_scp_disasm(struct sigcontext_struct *scp, int pmode)
    rc = dis_8086((unsigned long)org, org, frmtbuf, (pmode&&IsSegment32(scp->cs)? 3:0),
    	&refseg, &ref, (pmode? (int)csp2 : 0), 1);
 
-   p = buf + sprintf(buf,"%08lx: ",(long)org);
+   pb = buf;
+   org2 = org;
+   while ((*org2&0xfc)==0x64) org2++;	/* skip most prefixes */
+   if ((d.dpmit>3)||(InterOps[*org2]&2))
+	pb += sprintf(pb,"%s",e_print_scp_regs(scp,pmode));
+
+   p = pb + sprintf(pb,"    %08lx: ",(long)org);
    for (i=0; i<rc && i<8; i++) {
            p += sprintf(p, "%02x", *(org+i));
    }
    sprintf(p,"%20s", " ");
-   sprintf(buf+28, "%04x:%04lx %s\n", scp->cs, scp->eip, frmtbuf);
+   sprintf(pb+28, "%04x:%04lx %s\n", scp->cs, scp->eip, frmtbuf);
 
    return buf;
 }
-
+#endif
 
 #undef FP_DISPHEX
 
@@ -495,11 +513,11 @@ static void Reg2Cpu (struct vm86plus_struct *info, int mode)
   if (config.cpuemu>2) {
     /* a vm86 call switch has been detected.
        Setup flags for the 1st time. */
-    TheCPU.eflags = (TheCPU.veflags&0x2346d5) | 0x20002;
+    TheCPU.eflags = (TheCPU.veflags&0x1906d5) | 0x20002;
     config.cpuemu=2;
   }
   else
-    TheCPU.eflags = (info->regs.eflags&0x274ed5) | 0x20002 |
+    TheCPU.eflags = (info->regs.eflags&(eTSSMASK|0x10cd5)) | 0x20002 |
 	(TheCPU.veflags&EFLAGS_VIF? EFLAGS_IF:0);
   (void)SET_SEGREG(CS_DTR,big,Ofs_CS,TheCPU.cs);
   (void)SET_SEGREG(DS_DTR,big,Ofs_DS,TheCPU.ds);
@@ -509,8 +527,12 @@ static void Reg2Cpu (struct vm86plus_struct *info, int mode)
   (void)SET_SEGREG(GS_DTR,big,Ofs_GS,TheCPU.gs);
   trans_addr   = LONG_CS + TheCPU.eip;
 
-  if (d.emu>1) e_printf("Reg2Cpu: %08lx -> %08lx\n%s\n",
-  	info->regs.eflags, TheCPU.eflags, e_print_regs());
+  if (d.emu>1) {
+	if (d.emu==3) e_printf("Reg2Cpu: %08lx -> %08lx\n%s\n",
+  		info->regs.eflags, TheCPU.eflags, e_print_regs());
+	else e_printf("Reg2Cpu: %08lx -> %08lx\n",
+  		info->regs.eflags, TheCPU.eflags);
+  }
 }
 
 
@@ -550,12 +572,10 @@ static void Scp2CpuR (struct sigcontext_struct *scp)
   memcpy(&TheCPU.FIELD0,scp,sizeof(struct sigcontext_struct));
   TheCPU.err = 0;
 
-  if (in_dpmi) {
-    TheCPU.eflags = (scp->eflags&(eTSSMASK|0x210cd5)) | 0x202;
-    TheCPU.veflags = (TheCPU.veflags&~(VIP|VIF|IF)) | (dpmi_eflags&(VIP|VIF|IF));
+  if (in_dpmi) {	// vm86 during dpmi active
+	e_printf("** Scp2Cpu VM in_dpmi\n");
   }
-  else
-    TheCPU.eflags = (scp->eflags&(eTSSMASK|0x210ed5)) | 0x20002;
+  TheCPU.eflags = (scp->eflags&(eTSSMASK|0x10ed5)) | 0x20002;
   trans_addr = ((scp->cs<<4) + scp->eip);
 
   if (d.emu>1)
@@ -578,9 +598,9 @@ static void Cpu2Scp (struct sigcontext_struct *scp,
     scp->cs = TheCPU.cs;
     scp->eip = return_addr - LONG_CS;
     scp->eflags = (dpmi_eflags & (VIP|VIF|IF)) |
-  		      (TheCPU.eflags & (eTSSMASK|0xcd5)) | 0x10002;
+  		      (TheCPU.eflags & (eTSSMASK|0xed5)) | 0x10002;
     if (d.emu>1)
-	e_printf("DPM86: flags: %08lx %08x -> %08lx\n",
+	e_printf("Cpu2Scp: flags: %08lx %08x -> %08lx\n",
 		TheCPU.eflags, dpmi_eflags, scp->eflags);
   }
   else {
@@ -609,11 +629,12 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
 
   mode |= ADDR16;	/* just a default */
   TheCPU.err = SET_SEGREG(CS_DTR,big,Ofs_CS,TheCPU.cs);
-  if (big) mode=0; else mode |= (DATA16|STACK16);
+  if (big) mode=0; else mode |= DATA16;
   if (!TheCPU.err) {
     TheCPU.err = SET_SEGREG(DS_DTR,big,Ofs_DS,TheCPU.ds);
     if (!TheCPU.err) {
-      SET_SEGREG(SS_DTR,big,Ofs_SS,TheCPU.ss); if (big) mode&=~STACK16;
+      SET_SEGREG(SS_DTR,big,Ofs_SS,TheCPU.ss);
+      TheCPU.StackMask = (big? 0xffffffff : 0x0000ffff);
       if (!TheCPU.err) {
 	SET_SEGREG(ES_DTR,big,Ofs_ES,TheCPU.es);
 	SET_SEGREG(FS_DTR,big,Ofs_FS,TheCPU.fs);
@@ -621,67 +642,15 @@ static int Scp2CpuD (struct sigcontext_struct *scp)
       }
     }
   }
-  TheCPU.eflags = (scp->eflags&(eTSSMASK|0x210cd5)) | 0x202;
-  TheCPU.veflags = (TheCPU.veflags&~(VIP|VIF|IF)) | (dpmi_eflags&IF) |
-	(scp->eflags&(VIP|VIF));
+  TheCPU.eflags = (scp->eflags&(eTSSMASK|0x10ed5)) | 2;
   trans_addr = LONG_CS + scp->eip;
-  if (d.emu>1)
-	e_printf("Scp2CpuD: %08lx -> %08lx\n\tIP=%08lx:%08lx\n%s\n",
-		scp->eflags, TheCPU.eflags, LONG_CS, scp->eip,
-		e_print_regs());
-  return mode;
-}
-
-
-/* ======================================================================= */
-
-#define SKIP_BOUND	// info only, for the moment
-
-
-int e_decode_bound_excp (unsigned char *csp, struct sigcontext_struct *scp)
-{
-#ifdef USE_BOUND
-  unsigned char modrm,sib;
-  long l, r, *bp = NULL;
-
-  modrm = csp[1];
-  dbug_printf("BOUND exception at %#04x:%#08lx: %02x %02x%02x%02x%02x\n",
-	_cs,_eip, modrm, csp[2], csp[3], csp[4], csp[5]);
-  if (*csp != BOUND) return 2;	// goto blank screen & reset
-
-  /* bound does not occur in 16-bit code */
-  r = ((long *)&(scp->edi))[7-D_MO(modrm)];
-  l = 2;
-  switch (D_HO(modrm)) {	// some decoding of range ptr (else CS)
-    case 0:
-	switch (D_LO(modrm)) {
-	    case 4: l++; sib=csp[2]; if (D_LO(sib)==5) l+=4; break;
-	    case 5: l+=4; bp = (long *)(*((long *)(csp+2))); break;
-	    default: break;
-	} break;
-    case 2: l+=3;
-    case 1: l++;
-	if (D_LO(modrm)==4) l++;
-	break;
-    case 3:	// register
-	bp = (long *)(((long *)&(scp->edi))[D_LO(modrm)]);
-	break;
+  if (d.emu>1) {
+	if (d.emu==3) e_printf("Scp2CpuD: %08lx -> %08lx\n\tIP=%08lx:%08lx\n%s\n",
+			scp->eflags, TheCPU.eflags, LONG_CS, scp->eip,
+			e_print_regs());
+	else e_printf("Scp2CpuD: %08lx -> %08lx\n",scp->eflags, TheCPU.eflags);
   }
-  if (bp)
-    e_printf("BOUND excp for %08lx in (%08lx..%08lx)\n",r,bp[0],bp[1]);
-  else
-    e_printf("BOUND excp for %08lx in default CS:(%08lx..%08lx)\n",r,
-	CS_DTR.BoundL,CS_DTR.BoundH);
-#ifdef SKIP_BOUND
-  _eip += l;
-  return 0;
-#else
-  leavedos(0x4244);
-  return 1;
-#endif
-#else
-  return 1;
-#endif
+  return mode;
 }
 
 
@@ -712,7 +681,8 @@ void init_emu_cpu (void)
   TheCPU.gs_cache.BoundL = 0;
   TheCPU.gs_cache.BoundH = 0x10ffff;
 
-  Reg2Cpu(&vm86s,ADDR16|DATA16|STACK16);
+  Reg2Cpu(&vm86s,ADDR16|DATA16);
+  TheCPU.StackMask = 0x0000ffff;
   init_emu_npu();
 
   switch (vm86s.cpu_type) {
@@ -787,9 +757,6 @@ void enter_cpu_emu(void)
 		TheCPU.LDTR.Base = (long)LDT;
 		TheCPU.LDTR.Limit = 0xffff;
 	}
-#ifdef X_SUPPORT
-	emu_under_X = (config.X != 0);
-#endif
 #ifdef SKIP_EMU_VBIOS
 	if ((ISEG(0x10)==INT10_WATCHER_SEG)&&(IOFF(0x10)==INT10_WATCHER_OFF))
 		IOFF(0x10)=CPUEMU_WATCHER_OFF;
@@ -814,6 +781,8 @@ void enter_cpu_emu(void)
 	e_printf("TIME: using %d usec for updating PROF timer\n", config.realdelta);
 	setitimer(ITIMER_PROF, &itv, NULL);
 	SETSIG(SIGPROF, e_gen_sigprof);
+	NEWSETSIG(SIGFPE, e_emu_fault);
+	NEWSETSIG(SIGSEGV, e_emu_fault);
 
 	dbug_printf("======================= ENTER CPU-EMU ===============\n");
 	flush_log();
@@ -823,6 +792,7 @@ void enter_cpu_emu(void)
 void leave_cpu_emu(void)
 {
 	struct sigaction sa;
+	extern int MaxDepth, MaxNodes;
 	if (config.cpuemu > 1) {
 		config.cpuemu=1;
 #ifdef SKIP_EMU_VBIOS
@@ -832,6 +802,8 @@ void leave_cpu_emu(void)
 		e_printf("EMU86: turning emuretrace OFF\n");
 		config.emuretrace = last_emuretrace;
 
+		NEWSETSIG(SIGFPE, dosemu_fault);
+		NEWSETSIG(SIGSEGV, dosemu_fault);
 		e_printf("EMU86: switching SIGALRMs\n");
 		NEWSETQSIG(SIGALRM, sigalrm);
 		SETSIG(SIGPROF, SIG_IGN);
@@ -844,6 +816,8 @@ void leave_cpu_emu(void)
 		dbug_printf("Total search time %16Ld us\n",SearchTime/config.CPUSpeedInMhz);
 		dbug_printf("Total exec   time %16Ld us\n",ExecTime/config.CPUSpeedInMhz);
 		dbug_printf("Total clean  time %16Ld us\n",CleanupTime/config.CPUSpeedInMhz);
+		dbug_printf("Max tree nodes    %16d\n",MaxNodes);
+		dbug_printf("Max tree depth    %16d\n",MaxDepth);
 	}
 	flush_log();
 }
@@ -973,7 +947,7 @@ int e_vm86(void)
 
   tt0 = GETTSC();
   e_sigpa_count = 0;
-  mode = ADDR16|DATA16|STACK16;
+  mode = ADDR16|DATA16; TheCPU.StackMask = 0x0000ffff;
   TheCPU.EMUtime = GETTSC();
 #ifdef SKIP_VM86_TRACE
   demusav=d.emu; if (d.emu) d.emu=1;
@@ -982,11 +956,11 @@ int e_vm86(void)
 //    e_printf("EMU86: last sig at %Ld, curr=%Ld, next=%Ld\n",lastEMUsig>>16,
 //    	TheCPU.EMUtime>>16,sigEMUtime>>16);
 
- /* This emulates VM86_ENTER only */
+ /* This emulates VM86_ENTER */
  /*
-  * The eflags register is also special: we cannot trust that the user
-  * has set it up safely, so this makes sure interrupt etc flags are
-  * inherited from protected mode.
+  * Copy the dosemu flags (in vm86s) into our veflags, which are the
+  * equivalent of the VEFLAGS in /linux/arch/i386/kernel/vm86.c
+  * We'll move back our flags into vm86s when exiting this function.
   */
   TheCPU.veflags = REG(eflags);
   REG(eflags) &= SAFE_MASK;
@@ -1161,12 +1135,14 @@ int e_dpmi(struct sigcontext_struct *scp)
 	if (emu_dpmi_retcode >= 0) {
 		retval=emu_dpmi_retcode; emu_dpmi_retcode = -1;
 	}
-	else switch (scp->trapno) {
-	  case 0x6c: case 0x6d: case 0x6e: case 0x6f:
-	  case 0xe4: case 0xe5: case 0xe6: case 0xe7:
-	  case 0xec: case 0xed: case 0xee: case 0xef:
-	  case 0xfa: case 0xfb: retval = -1; break;
-	  default: retval = 0; break;
+	else {
+	  switch (scp->trapno) {
+	    case 0x6c: case 0x6d: case 0x6e: case 0x6f:
+	    case 0xe4: case 0xe5: case 0xe6: case 0xe7:
+	    case 0xec: case 0xed: case 0xee: case 0xef:
+	    case 0xfa: case 0xfb: retval = -1; break;
+	    default: retval = 0; break;
+	  }
 	}
 	scp->trapno = 0;
     }

@@ -32,6 +32,48 @@
  *
  ***************************************************************************/
 
+/*
+ * BACK-END for the cpuemu interpreter.
+ *
+ * It translates the intermediate ops (defined in codegen.h) to their
+ * final binary form and stores the generated code into a temporary
+ * buffer (CodeBuf).
+ * These intermediate ops are still being reworked and grow in an
+ * incremental way; I hope they will converge to some better defined
+ * set as soon as I'll start coding for some other processor.
+ *
+ * There should be other similar modules, one for each target. So you
+ * can have codegen-ppc.c or codegen-emulated.c or whatever else.
+ *
+ * This module generates x86 code. Hey, wait... x86 from x86?
+ * Actually the generated code runs always in 32-bit mode, so in a way
+ * the 16-bit V86 mode is "emulated".
+ * 
+ * All instructions operate on a virtual CPU image in memory ("TheCPU"),
+ * and are completely self-contained. They read from TheCPU registers,
+ * operate, and store back to the same registers. There's an exception -
+ * FLAGS, which are not stored back until the end of a code block.
+ * In fact, you will note that there's NO flag handling here, because on
+ * x86 we use the real hardware to calculate them, and this speeds up
+ * things a lot compared to a full interpreter. Flags will be a nightmare
+ * for non-x86 host CPUs.
+ * There is NO optimization for the produced code. It is a very pipeline-
+ * unconscious code full of register dependencies and reloadings.
+ * Clearly we hope that the 1st level cache of the host CPU works as
+ * advertised ;-)
+ *
+ * There are two main functions here:
+ *	AddrGen, which implements the AGU (Address Generation Unit).
+ *		It calculates the address coming from ModRM and stores
+ *		it into a well-defined register (edi in the x86 case)
+ *	Gen, which does the ALU work and all the rest. There is no
+ *		branch specific unit, as the branches are (in principle)
+ *		all interpreted.
+ * Both functions use a variable parameter approach, just to make them
+ *	hard to follow ;-)
+ *
+ */
+
 /***************************************************************************
  *
  * Registers on enter:
@@ -45,7 +87,7 @@
  *	edx		scratch, data
  *	esi		scratch, address
  *	edi		memory/register address
- *	ebp		not modified
+ *	ebp		stack pointer
  *	esp		not modified
  *	flags		modified
  *
@@ -64,6 +106,18 @@
 #include "emu86.h"
 #include "codegen.h"
 
+/* If you define this, in 16-bit stack mode the stack pointer will be
+ * masked after every inc/dec operation. If undefined (faster) it can
+ * temporarily over- or underflow (but this should trigger a fault
+ * anyway). For 32-bit stacks this masking is only a waste of time. */
+#undef  STACK_WRAP_MP
+
+/* If you undefine this, in 16-bit stack mode the high 16 bits of ESP
+ * will be zeroed after every push/pop operation. There's a small
+ * possibility of breaking some code, you can easily figure out how.
+ * For 32-bit stacks, keeping ESP is also a waste of time. */
+#undef KEEP_ESP
+
 extern int NextFreeIMeta;
 
 /* Buffer and pointers to store generated code */
@@ -72,10 +126,14 @@ unsigned char *CodePtr = NULL;
 unsigned char *PrevCodePtr = NULL;
 unsigned char *MaxCodePtr = NULL;
 
+unsigned long e_vga_base, e_vga_end;
+int TrapVgaOn = 0;
+
 /////////////////////////////////////////////////////////////////////////////
 
-#define	Offs_From_Arg	G1(va_arg(ap,int))
+#define	Offs_From_Arg(p)	G1(va_arg(ap,int),(p))
 
+/* WARNING - these are signed char offsets, NOT pointers! */
 char OVERR_DS=Ofs_XDS, OVERR_SS=Ofs_XSS;
 
 /* This code is appended at the end of every instruction sequence. It saves
@@ -89,18 +147,125 @@ char OVERR_DS=Ofs_XDS, OVERR_SS=Ofs_XSS;
 unsigned char TailCode[8] =
 	{ 0x9c,0x5a,0xb8,0,0,0,0,0xc3 };
 
+#ifndef __KERNEL__
+/* This comes from the kernel, include/asm/string.h */
+static inline void * __memcpy(void * to, const void * from, size_t n)
+{
+int d0, d1, d2;
+__asm__ __volatile__(
+	"rep ; movsl\n\t"
+	"testb $2,%b4\n\t"
+	"je 1f\n\t"
+	"movsw\n"
+	"1:\ttestb $1,%b4\n\t"
+	"je 2f\n\t"
+	"movsb\n"
+	"2:"
+	: "=&c" (d0), "=&D" (d1), "=&S" (d2)
+	:"0" (n/4), "q" (n),"1" ((long) to),"2" ((long) from)
+	: "memory");
+return (to);
+}
+#endif
+
+/*
+ * This function is here just for looking at the generated binary code
+ * with objdump.
+ */
 static void _test_(void)
 {
 	__asm__ __volatile__ ("
+		.byte	0xec
 		nop
-		" : : "m"(TailCode) : "memory" );
+		" : : : "memory" );
 }
 
 /////////////////////////////////////////////////////////////////////////////
-/*
- * The actual code generator (x86-on-x86, this makes things a bit easier
- * to test)
- */
+
+unsigned e_VgaRead(unsigned offs, int mode);
+void e_VgaWrite(unsigned offs, unsigned u, int mode);
+
+#if X_GRAPHICS
+static inline void TRAPVGAR(unsigned char *Cp, int mode)
+{
+	if (!Cp) {	/* gcc-2.95 trick */
+_cf_0s:	__asm__ ("
+		pushfl
+		cmpl	e_vga_end,%%edi
+		jge	1f
+		cmpl	e_vga_base,%%edi
+		jl	1f
+		pushl	%%ebp" : : );
+_cf_01:	__asm__ ("
+		pushl	$0
+		movl	$e_VgaRead,%%ecx
+		pushl	%%edi
+		call	*%%ecx
+		addl	$0x08,%%esp
+		popl	%%ebp
+1:		popfl"	: : );
+	}
+_cf_0e:	if (TrapVgaOn) {
+		int SIZ = (&&_cf_0e - &&_cf_0s);
+		*((char *)(&&_cf_01+1)) = (char)mode;
+		__memcpy(Cp,&&_cf_0s,SIZ); Cp += SIZ;
+	}
+}
+
+static inline void TRAPVGAW(unsigned char *Cp, int mode)
+{
+	if (!Cp) {	/* gcc-2.95 trick */
+_cf_0s:	__asm__ ("
+		pushfl
+		cmpl	e_vga_end,%%edi
+		jge	1f
+		cmpl	e_vga_base,%%edi
+		jl	1f
+		pushl	%%ebp" : : );
+_cf_01:	__asm__ ("
+		pushl	$0
+		pushl	%%eax
+		movl	$e_VgaWrite,%%ecx
+		pushl	%%edi
+		call	*%%ecx
+		addl	$0x0c,%%esp
+		popl	%%ebp
+1:		popfl"	: : );
+	}
+_cf_0e:	if (TrapVgaOn) {
+		int SIZ = (&&_cf_0e - &&_cf_0s);
+		*((char *)(&&_cf_01+1)) = (char)mode;
+		__memcpy(Cp,&&_cf_0s,SIZ); Cp += SIZ;
+	}
+}
+#else
+#define TRAPVGAR(c)
+#define TRAPVGAW(c)
+#endif
+
+#define GenLeaECX(o)	if (((o) > -128) && ((o) < 128)) {\
+			G2(0x498d,Cp); G1((o),Cp); } else {\
+			G2(0x898d,Cp); G4((o),Cp); }
+
+#define GenLeaEDI(o)	if (((o) > -128) && ((o) < 128)) {\
+			G2(0x7f8d,Cp); G1((o),Cp); } else {\
+			G2(0xbf8d,Cp); G4((o),Cp); }
+
+#define StackMaskEBP	{G3(0x6b239c,Cp); G1(Ofs_STACKM,Cp); G1(0x9d,Cp);}
+
+/////////////////////////////////////////////////////////////////////////////
+//
+//	given addr in edi and data in eax:
+//		mov	edi,edx
+//		sub	#vga_base,edx	if >=0 this is over 0xa0000
+//		jl	isnovga
+//		cmp	#vga_size,edx	if > this is over vga
+//		jge	isnovga
+//	call Logical_VGA_{read|write}(edx,eax)
+//	else mov eax,[edi]
+//
+/////////////////////////////////////////////////////////////////////////////
+
 
 void InitGen(void)
 {
@@ -118,15 +283,19 @@ void InitGen(void)
 void AddrGen(int op, int mode, ...)
 {
 	va_list	ap;
+	register unsigned char *Cp = CodePtr;
+
 	va_start(ap, mode);
 	switch(op) {
 	case LEA_DI_R:
 		if (mode&IMMED)	{
-			// lea edi, [edi+#imm]:	8d bf ww ww ww ww
-			G2M(LEA,0xbf); G4(va_arg(ap,int));
+			int o = va_arg(ap,int);
+			// leal immed(%%edi),%%edi: 8d 7f xx | bf xxxxxxxx
+			GenLeaEDI(o);
 		}
 		else {
-			G2M(LEA,0x7b); Offs_From_Arg;
+			// leal offs(%%ebx),%%edi
+			G2M(0x8d,0x7b,Cp); Offs_From_Arg(Cp);
 		}
 		break;
 	case A_DI_0:			// base(32), imm
@@ -136,66 +305,67 @@ void AddrGen(int op, int mode, ...)
 			if (mode & MLEA) {		// discard base	reg
 				idsp = va_arg(ap,int);
 				// can't use xor because it changes flags
-				G1(MOVidi); G4(0);	// mov #0,edi
+				// movl	$0,%%edi
+				G1(0xbf,Cp); G4(0,Cp);
 			}
 			else {
-				G2M(MOVwtrm,0x7b); Offs_From_Arg;	// mov edi,LONG_seg
+				// movl offs(%%ebx),%%edi (seg reg offset)
+				G2M(0x8b,0x7b,Cp); Offs_From_Arg(Cp);
 			}
 			if (mode&IMMED)	{
 				idsp = va_arg(ap,int);
 				if (op==A_DI_0) {
-					if (idsp) {
-						// lea edi, [edi+#imm]:	8d bf ww ww ww ww
-						G2M(LEA,0xbf); G4(idsp);
-					}
+					if (idsp) { GenLeaEDI(idsp); }
 					break;
 				}
 			}
 			if (mode & ADDR16) {
 				int k = 0;
-				// movzx ecx,[ebx+oo]:	0f b7 4b oo
-				G3M(TwoByteESC,0xb7,0x4b); Offs_From_Arg;
+				// movzwl offs(%%ebx),%%ecx
+				G3M(0x0f,0xb7,0x4b,Cp); Offs_From_Arg(Cp);
 				if (op==A_DI_2)	{
-					// movzx oo(ebx),edx
-					G3M(TwoByteESC,0xb7,0x53); Offs_From_Arg;
-					// lea (ecx,edx,1),ecx
-					G3M(LEA,0x0c,0x11); k=1;
+					// movzwl offs(%%ebx),%%edx
+					G3M(0x0f,0xb7,0x53,Cp); Offs_From_Arg(Cp);
+					// leal (%%ecx,%%edx,1),%%ecx
+					G3M(0x8d,0x0c,0x11,Cp); k=1;
 				}
 				if (mode&IMMED)	{
 					if (idsp) {
-						// lea ecx, [ecx+#imm]
-						G2M(LEA,0x89); G4(idsp&0xffff);
+					    /*unsigned?*/ short ds = idsp;
+					    // leal immed(%%ecx),%%ecx
+					    GenLeaECX(ds);
 					}
 					k=1;
 				}
 				if (k) {
-					// movzx cx,ecx
-					G3M(TwoByteESC,0xb7,0xc9);
+					// movzwl %%cx,%%ecx
+					G3M(0x0f,0xb7,0xc9,Cp);
 				}
-				// lea edi, [ecx+edi]: 8d 3c 39
-				G3M(LEA,0x3c,0x39);
+				// leal (%%edi,%%ecx,1),%%edi
+				G3M(0x8d,0x3c,0x39,Cp);
 			}
 			else {
-				// mov ecx, dword ptr o[ebx]: 8b 4b oo
-				G2M(MOVwtrm,0x4b); Offs_From_Arg;
-				// lea edi, [ecx+edi]: 8d 3c 39
-				G3M(LEA,0x3c,0x39);
+				// movl offs(%%ebx),%%ecx
+				G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
+				// leal (%%edi,%%ecx,1),%%edi
+				G3M(0x8d,0x3c,0x39,Cp);
 				if (op==A_DI_2)	{
-					//  mov	ecx, (dword ptr	o[ebx] << sh): 8b 4b oo
-					G2M(MOVwtrm,0x4b); Offs_From_Arg;
+					// movl offs(%%ebx),%%ecx
+					G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
 					if (mode & RSHIFT) {
-						unsigned char sh = (unsigned char)(va_arg(ap,int));
-						if (sh)	{
-							if (sh==1) { G3M(PUSHF,SHIFTw,0xe1); G1(POPF); }
-								else { G3M(PUSHF,SHIFTwi,0xe1); G1(sh); G1(POPF); }
-						}
+					    unsigned char sh = (unsigned char)(va_arg(ap,int));
+					    if (sh) {
+						// pushfl; shll $1,%%ecx; popfl
+						if (sh==1) { G3M(0x9c,0xd1,0xe1,Cp); G1(0x9d,Cp); }
+						// pushfl; shll $count,%%ecx; popfl
+						else { G3M(0x9c,0xc1,0xe1,Cp); G1(sh,Cp); G1(0x9d,Cp); }
+					    }
 					}
-					// lea edi, [ecx+edi]: 8d 3c 39
-					G3M(LEA,0x3c,0x39);
+					// leal (%%edi,%%ecx,1),%%edi
+					G3M(0x8d,0x3c,0x39,Cp);
 				}
 				if ((mode&IMMED) && idsp) {
-					// lea edi, [edi+#imm]:	8d bf ww ww ww ww
-					G2M(LEA,0xbf); G4(idsp);
+				    GenLeaEDI(idsp);
 				}
 			}
 		}
@@ -203,41 +373,44 @@ void AddrGen(int op, int mode, ...)
 	case A_DI_2D: {			// modrm_sibd, 32-bit mode
 			long idsp;
 			if (mode & MLEA) {
-				G1(MOVidi); G4(0);	// mov #0,edi
+				// movl $0,%%edi
+				G1(0xbf,Cp); G4(0,Cp);
 			}
 			else {
-				G2M(MOVwtrm,0x7b); G1(OVERR_DS);  // mov edi,&LONG_seg
+				// movl offs(%%ebx),%%edi (seg reg offset)
+				G2M(0x8b,0x7b,Cp); G1(OVERR_DS,Cp);
 			}
 			idsp = va_arg(ap,int);
 			if (idsp) {
-				// lea edi,[edi+#imm]:	8d bf ww ww ww ww
-				G2M(LEA,0xbf); G4(idsp);
+				GenLeaEDI(idsp);
 			}
 			if (!(mode & IMMED)) {
 				unsigned char sh;
-				// mov ecx,[ebx+oo]:	8b 4b oo
-				G2M(MOVwtrm,0x4b); Offs_From_Arg;
-				// shl ecx,sh
+				// movl offs(%%ebx),%%ecx
+				G2M(0x8b,0x4b,Cp); Offs_From_Arg(Cp);
+				// shll $count,%%ecx
 				sh = (unsigned char)(va_arg(ap,int));
 				if (sh)	{
-					if (sh==1) { G3M(PUSHF,SHIFTw,0xe1); G1(POPF); }
-						else { G3M(PUSHF,SHIFTwi,0xe1); G1(sh); G1(POPF); }
+				    // pushfl; shll $1,%%ecx; popfl
+				    if (sh==1) { G3M(0x9c,0xd1,0xe1,Cp); G1(0x9d,Cp); }
+				    // pushfl; shll $count,%%ecx; popfl
+				    else { G3M(0x9c,0xc1,0xe1,Cp); G1(sh,Cp); G1(0x9d,Cp); }
 				}
-				// lea edi,[ecx+edi]:	8d 3c 39
-				G3M(LEA,0x3c,0x39);
+				// leal (%%edi,%%ecx,1),%%edi
+				G3M(0x8d,0x3c,0x39,Cp);
 			}
 		}
 		break;
 	case A_SR_SH4:	// real mode make base addr from seg
-		// mov	 #0,edx
-		// movzw sr(ebx),ecx
-		G4(0x000000ba); G4(0x4bb70f00); Offs_From_Arg;
-		// lea	 (edx,ecx*8),edx
-		// lea	 (edx,edx),ecx
-		// mov	 ecx,xsr(ebx)
-		G4(0x8dca148d); G4(0x4b89120c); Offs_From_Arg;
+		// pushfl; movzwl offs(%%ebx),%%edx
+		G4(0x53b70f9c,Cp); Offs_From_Arg(Cp);
+		// shll  $4,%%edx; popfl
+		G4(0x9d04e2c1,Cp);
+		// movl	 %%edx,offs(%%ebx)
+		G2(0x5389,Cp); Offs_From_Arg(Cp);
 		break;
 	}
+	CodePtr = Cp;
 	va_end(ap);
 }
 
@@ -246,24 +419,29 @@ void Gen(int op, int mode, ...)
 {
 	int rcod=0;
 	va_list	ap;
+	register unsigned char *Cp = CodePtr;
+
 	va_start(ap, mode);
 	switch(op) {
 	// This is the x86-on-x86 lazy way to generate code...
 	case L_LITERAL:
 		rcod = va_arg(ap,int);	// n.bytes
 		while (rcod >= 4) {
-			G4(va_arg(ap,int)); rcod-=4;
+			G4(va_arg(ap,int),Cp); rcod-=4;
 		}
-		*((unsigned long *)CodePtr)=va_arg(ap,int); CodePtr+=rcod;
+		*((unsigned long *)Cp)=va_arg(ap,int); Cp+=rcod;
 		break;
 	// Load Accumulator from CPU register
 	case L_XREG1:
-		G1(MOViax); G4(va_arg(ap,int));
+		// movl $immed,%%eax
+		G1(0xb8,Cp); G4(va_arg(ap,int),Cp);
 		break;
 	// Special case: CR0&0x3f
 	case L_CR0:
-		G2(0x438b); G1(Ofs_CR0);
-		G4(0x3fe0839c); G1(0x9d);
+		// movl Ofs_CR0(%%ebx),%%eax
+		G2(0x438b,Cp); G1(Ofs_CR0,Cp);
+		// pushfl; andl $0x3f,%%eax; popfl
+		G4(0x3fe0839c,Cp); G1(0x9d,Cp);
 		break;
 
 	// mov eax, reg
@@ -273,12 +451,15 @@ void Gen(int op, int mode, ...)
 	case L_DI_R1:				// [edi]->ax
 		rcod |= 0x1;
 	case L_SI_R1:				// [esi]->ax
+		TRAPVGAR(Cp,mode); /* check address in VGA range if under X */
 		if (mode&MBYTE)	{
-			G2M(MOVbtrm,rcod+6);
+			// movb (%%e{ds}i),%%al
+			G2M(0x8a,rcod+6,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(MOVwtrm,rcod+6);
+			// mov{wl} (%%e{ds}i),%%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x8b,rcod+6,Cp);
 		}
 		break;
 	// mov [esi],eax	89 06
@@ -287,82 +468,102 @@ void Gen(int op, int mode, ...)
 	case S_DI:					// al,(e)ax->[edi]
 		rcod = 0x1;
 	case S_SI:					// al,(e)ax->[esi]
+		TRAPVGAW(Cp,mode); /* check address in VGA range if under X */
 		if (mode&MBYTE)	{
-			G2M(MOVbfrm,rcod+6);
+			// movb %%al,(%e{ds}i)
+			G2M(0x88,rcod+6,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(MOVwfrm,rcod+6);
+			// mov{wl} %%{e}ax,(%%e{ds}i)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x89,rcod+6,Cp);
 		}
 		break;
 	case S_DI_R:
-		if (mode&DATA16) G1(OPERoverride);
-		G2M(MOVwfrm,0x7b); Offs_From_Arg;
+		// mov{wl} %%{e}ax,offs(%%ebx)
+		if (mode&DATA16) G1(OPERoverride,Cp);
+		G2M(0x89,0x7b,Cp); Offs_From_Arg(Cp);
 		break;
 
 	case L_IMM:
 		if (mode&MBYTE)	{
-			G2M(MOVbirm,0x43); Offs_From_Arg;
-			G1(va_arg(ap,int));	// immediate code byte
+			// movb $immed,offs(%%ebx)
+			G2M(0xc6,0x43,Cp); Offs_From_Arg(Cp);
+			G1(va_arg(ap,int),Cp);	// immediate code byte
 		}
 		else if	(mode&DATA16) {
-			G3M(OPERoverride,MOVwirm,0x43); Offs_From_Arg;
-			G2(va_arg(ap,int));	// immediate code word
+			// movw $immed,offs(%%ebx)
+			G3M(OPERoverride,0xc7,0x43,Cp); Offs_From_Arg(Cp);
+			G2(va_arg(ap,int),Cp);	// immediate code word
 		}
 		else {
-			G2M(MOVwirm,0x43); Offs_From_Arg;
-			G4(va_arg(ap,int));	// immediate code long
+			// movl $immed,offs(%%ebx)
+			G2M(0xc7,0x43,Cp); Offs_From_Arg(Cp);
+			G4(va_arg(ap,int),Cp);	// immediate code long
 		}
 		break;
 	case L_IMM_R1:
 		if (mode&MBYTE)	{
-			G1(MOVial); G1(va_arg(ap,int)); // immediate code byte
+			// movb $immed,%%al
+			G1(0xb0,Cp); G1(va_arg(ap,int),Cp); // immediate code byte
 		}
 		else if	(mode&DATA16) {
-			G2M(OPERoverride,MOViax);
-			G2(va_arg(ap,int));	// immediate code word
+			// movw $immed,%%ax
+			G2M(OPERoverride,0xb8,Cp);
+			G2(va_arg(ap,int),Cp);	// immediate code word
 		}
 		else {
-			G1(MOViax); G4(va_arg(ap,int)); // immediate code long
+			// movl $immed,%%eax
+			G1(0xb8,Cp); G4(va_arg(ap,int),Cp); // immediate code long
 		}
 		break;
 	case L_MOVZS:
 		rcod = (va_arg(ap,int)&1)<<3;	// 0=z 8=s
 		if (mode & MBYTX) {
-			if (mode&DATA16) G1(OPERoverride);
-			G3M(0x0f,(0xb6|rcod),0x07);
+			// mov{sz}bw (%%edi),%%ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G3M(0x0f,(0xb6|rcod),0x07,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G3M(0x0f,(0xb7|rcod),0x07);
+			// mov{sz}wl (%%edi),%%eax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G3M(0x0f,(0xb7|rcod),0x07,Cp);
 		}
-		if (mode&DATA16) G1(OPERoverride);
-		G2M(0x89,0x43); Offs_From_Arg;
+		// mov{wl} %%{e}ax,offs(%%ebx)
+		if (mode&DATA16) G1(OPERoverride,Cp);
+		G2M(0x89,0x43,Cp); Offs_From_Arg(Cp);
 		break;
 
 	case L_LXS1:
-		if (mode&DATA16) G1(OPERoverride);
-		G2M(0x8b,0x07);			// mov (edi),ax
-		if (mode&DATA16) G1(OPERoverride);
-		G2M(0x89,0x43); Offs_From_Arg;	// mov ax,reg(ebx)
-		G2M(0x8d,0x7f);
-		G1(mode&DATA16? 2:4);		// lea n(edi),edi
+		// mov{wl} (%%edi),%%{e}ax
+		if (mode&DATA16) G1(OPERoverride,Cp);
+		G2M(0x8b,0x07,Cp);
+		// mov{wl} %%{e}ax,offs(%%ebx)
+		if (mode&DATA16) G1(OPERoverride,Cp);
+		G2M(0x89,0x43,Cp); Offs_From_Arg(Cp);
+		// leal {2|4}(%%edi),%%edi
+		G2M(0x8d,0x7f,Cp);
+		G1((mode&DATA16? 2:4),Cp);
 		break;
-	case L_LXS2:
-		G4(0x000000ba); G4(0x07b70f00);	// mov #0,edx; movzw (edi),eax
-		G4(0x66c2148d); G2(0x4389);	// lea (edx,eax*8),edx
-		Offs_From_Arg;			// mov ax,seg(ebx)
-		G3(0x12048d); G2(0x4389);	// lea (edx,edx),eax
-		Offs_From_Arg;			// mov eax,xseg(ebx)
+	case L_LXS2:	/* real mode segment base from segment value */
+		// pushfl; movzwl (%%edi),%%eax
+		G4(0x07b70f9c,Cp);
+		// movw %%ax,offs(%%ebx)
+		G3(0x438966,Cp); Offs_From_Arg(Cp);
+		// shll $4,%%eax; popfl
+		G4(0x9d04e0c1,Cp);
+		// movl %%eax,offs(%%ebx)
+		G2(0x4389,Cp); Offs_From_Arg(Cp);
 		break;
 	case L_ZXAX:
-		G3(0xc0b70f);			// movzxw ax,eax
+		// movzwl %%ax,%%eax
+		G3(0xc0b70f,Cp);
 		break;
 
 	case L_REG:
-		rcod = MOVbtrm; goto arith0;
+		rcod = 0x8a; goto arith0;
 	case S_REG:
-		rcod = MOVbfrm; goto arith0;
+		rcod = 0x88; goto arith0;
 	case O_ADD_R:				// acc = acc op	reg
 		rcod = ADDbtrm; goto arith0;
 	case O_OR_R:
@@ -386,29 +587,32 @@ void Gen(int op, int mode, ...)
 arith0:
 		if (mode & MBYTE) {
 			if (mode & IMMED) {
-				G1(rcod+2);
-				G1(va_arg(ap,int)); // immediate code byte
+				// OPb $immed,%%al
+				G1(rcod+2,Cp);
+				G1(va_arg(ap,int),Cp); // immediate code byte
 			}
 			else {
-				// add al, o[ebx]	02 43 oo
-				G2(0x4300|rcod); Offs_From_Arg;
+				// OPb offs(%%ebx),%%al
+				G2(0x4300|rcod,Cp); Offs_From_Arg(Cp);
 			}
 		}
 		else {
 			if (mode & IMMED) {
 				if (mode&DATA16) {
-					G1(OPERoverride); G1(rcod+3);
-					G2(va_arg(ap,int));	// immediate code word
+					// OPw $immed,%%ax
+					G1(OPERoverride,Cp); G1(rcod+3,Cp);
+					G2(va_arg(ap,int),Cp);
 				}
 				else {
-					G1(rcod+3);
-					G4(va_arg(ap,int));	// immediate code dword
+					// OPl $immed,%%eax
+					G1(rcod+3,Cp);
+					G4(va_arg(ap,int),Cp);
 				}
 			}
 			else {
-				if (mode&DATA16) G1(OPERoverride);
-				// add (e)ax, o[ebx]	(66) 03	43 oo
-				G2(0x4301|rcod); Offs_From_Arg;
+				// OP{wl} offs(%%ebx),%%{e}ax
+				if (mode&DATA16) G1(OPERoverride,Cp);
+				G2(0x4301|rcod,Cp); Offs_From_Arg(Cp);
 			}
 		}
 		break;
@@ -421,96 +625,103 @@ arith0:
 arith1:
 		if (mode & MBYTE) {
 			if (mode & IMMED) {
-				// sbb al,#imm	1c xx
-				G1(rcod+2);
-				G1(va_arg(ap,int)); // immediate code byte
+				// OPb $immed,%%al
+				G1(rcod+2,Cp);
+				G1(va_arg(ap,int),Cp);
 			}
 			else {
-				// sbb al,[edi]	1a 07
-				G2(0x0700|rcod);
+				// OPb (%%edi),%%al
+				G2(0x0700|rcod,Cp);
 			}
 		}
 		else {
 			if (mode & IMMED) {
 				if (mode&DATA16) {
-					G1(OPERoverride);
-					// sbb ax,#imm	1d xx
-					G1(rcod+3);
-					G2(va_arg(ap,int));	// immediate code word
+					// OPw $immed,%%ax
+					G1(OPERoverride,Cp); G1(rcod+3,Cp);
+					G2(va_arg(ap,int),Cp);
 				}
 				else {
-					// sbb eax,#imm	1d xx
-					G1(rcod+3);
-					G4(va_arg(ap,int));	// immediate code dword
+					// OPl $immed,%%eax
+					G1(rcod+3,Cp);
+					G4(va_arg(ap,int),Cp);
 				}
 			}
 			else {
-				if (mode&DATA16) G1(OPERoverride);
-				// sbb (e)ax,[edi]	(66) 1b	07
-				G2(0x0701|rcod);
+				// OP{wl} (%%edi),%%eax
+				if (mode&DATA16) G1(OPERoverride,Cp);
+				G2(0x0701|rcod,Cp);
 			}
 		}
 		break;
 	case O_NOT:
 		if (mode & MBYTE) {
-			G2M(GRP1brm,0x17);
+			// notb %%al
+			G2M(0xf6,0x17,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(GRP1wrm,0x17);
+			// NOT{wl} %%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0xf7,0x17,Cp);
 		}
 		break;
 	case O_NEG:
 		if (mode & MBYTE) {
-			G2M(GRP1brm,0x1f);
+			// negb %%al
+			G2M(0xf6,0x1f,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(GRP1wrm,0x1f);
+			// neg{wl} %%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0xf7,0x1f,Cp);
 		}
 		break;
 	case O_INC:
 		if (mode & MBYTE) {
-			G2M(GRP2brm,0x07);		// inc [edi]
+			// incb (%%edi)
+			G2M(GRP2brm,0x07,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(GRP2wrm,0x07);		// inc [edi]
+			// inc{wl} (%%edi)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(GRP2wrm,0x07,Cp);
 		}
 		break;
 	case O_DEC:
 		if (mode & MBYTE) {
-			G2M(GRP2brm,0x0f);		// inc [edi]
+			// decb (%%edi)
+			G2M(GRP2brm,0x0f,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(GRP2wrm,0x0f);		// inc [edi]
+			// dec{wl} (%%edi)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(GRP2wrm,0x0f,Cp);
 		}
 		break;
 	case O_XCHG: {
 			unsigned char o1;
 			o1 = (unsigned char)va_arg(ap,int);
 			if (mode & MBYTE) {
-				// mov al,[ebx+o]
-				G2M(MOVbtrm,0x43); G1(o1);
-				// mov dl,[edi]; mov [ebx+o],dl
-				G4M(MOVbtrm,0x17,MOVbfrm,0x53); G1(o1);
-				// mov [edi],al
-				G2M(MOVbfrm,0x07);
+				// movb offs(%%ebx),%%al
+				G2M(0x8a,0x43,Cp); G1(o1,Cp);
+				// movb (%%edi),%%dl; movb %%dl,offs(%%ebx)
+				G4M(0x8a,0x17,0x88,0x53,Cp); G1(o1,Cp);
+				// movb %%al,(%%edi)
+				G2M(0x88,0x07,Cp);
 			}
 			else {
-				// mov (e)ax,[ebx+o]
-				if (mode&DATA16) G1(OPERoverride);
-				G2M(MOVwtrm,0x43); G1(o1);
-				// mov (e)dx,[edi]
-				if (mode&DATA16) G1(OPERoverride);
-				G2M(MOVwtrm,0x17);
-				// mov [ebx+o],(e)dx
-				if (mode&DATA16) G1(OPERoverride);
-				G2M(MOVwfrm,0x53); G1(o1);
-				// mov [edi],(e)ax
-				if (mode&DATA16) G1(OPERoverride);
-				G2M(MOVwfrm,0x07);
+				// mov{wl} offs(%%ebx),%%{e}ax
+				if (mode&DATA16) G1(OPERoverride,Cp);
+				G2M(0x8b,0x43,Cp); G1(o1,Cp);
+				// mov{wl} (%%edi),%%{e}dx
+				if (mode&DATA16) G1(OPERoverride,Cp);
+				G2M(0x8b,0x17,Cp);
+				// mov{wl} %%{e}dx,offs(%%ebx)
+				if (mode&DATA16) G1(OPERoverride,Cp);
+				G2M(0x89,0x53,Cp); G1(o1,Cp);
+				// movl %%{e}ax,(%%edi)
+				if (mode&DATA16) G1(OPERoverride,Cp);
+				G2M(0x89,0x07,Cp);
 			}
 		}
 		break;
@@ -518,205 +729,286 @@ arith1:
 			unsigned char o1,o2;
 			o1 = (unsigned char)va_arg(ap,int);
 			o2 = (unsigned char)va_arg(ap,int);
-			// mov (e)ax,[ebx+o1]
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(MOVwtrm,0x43); G1(o1);
-			// mov (e)dx,[ebx+o2]
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(MOVwtrm,0x53); G1(o2);
-			// mov [ebx+o2],(e)ax
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(MOVwfrm,0x43); G1(o2);
-			// mov [ebx+o1],(e)dx
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(MOVwfrm,0x53); G1(o1);
+			// mov{wl} offs1(%%ebx),%%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x8b,0x43,Cp); G1(o1,Cp);
+			// mov{wl} offs2(%%ebx),%%{e}dx
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x8b,0x53,Cp); G1(o2,Cp);
+			// mov{wl} %%{e}ax,offs2(%%ebx)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x89,0x43,Cp); G1(o2,Cp);
+			// mov{wl} %%{e}dx,offs1(%%ebx)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x89,0x53,Cp); G1(o1,Cp);
 		}
 		break;
 	case O_MUL:
 		if (mode & MBYTE) {
-			G2M(MOVbtrm,0x43); G1(Ofs_AL);
-			G2M(GRP1brm,0x27);
-			G3M(OPERoverride,MOVwfrm,0x43); G1(Ofs_AX);
+			// movb Ofs_AL(%%ebx),%%al
+			G2M(0x8a,0x43,Cp); G1(Ofs_AL,Cp);
+			// mulb (%%edi),%%al
+			G2M(0xf6,0x27,Cp);
+			// movb %%al,Ofs_AX(%%ebx)
+			G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
 		}
 		else {
 			if (mode&DATA16) {
-				G3M(OPERoverride,MOVwtrm,0x43); G1(Ofs_AX);
-				G3M(OPERoverride,GRP1wrm,0x27);
-				G3M(OPERoverride,MOVwfrm,0x43); G1(Ofs_AX);
-				G3M(OPERoverride,MOVwfrm,0x53); G1(Ofs_DX);
+				// movw Ofs_AX(%%ebx),%%ax
+				G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+				// mulw (%%edi),%%ax
+				G3M(OPERoverride,0xf7,0x27,Cp);
+				// movw %%ax,Ofs_AX(%%ebx)
+				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+				// movw %%dx,Ofs_DX(%%ebx)
+				G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
 			}
 			else {
-				G2M(MOVwtrm,0x43); G1(Ofs_EAX);
-				G2M(GRP1wrm,0x27);
-				G2M(MOVwfrm,0x43); G1(Ofs_EAX);
-				G2M(MOVwfrm,0x53); G1(Ofs_EDX);
+				// movl Ofs_EAX(%%ebx),%%eax
+				G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+				// mull (%%edi),%%eax
+				G2M(0xf7,0x27,Cp);
+				// movl %%eax,Ofs_EAX(%%ebx)
+				G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+				// movl %%edx,Ofs_EDX(%%ebx)
+				G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
 			}
 		}
 		break;
 	case O_IMUL:
 		if (mode & MBYTE) {
 			if ((mode&(IMMED|DATA16))==(IMMED|DATA16)) {
-				G3M(OPERoverride,0x8b,0x17);
-				G3M(OPERoverride,0x6b,0xc2);
-				G1(va_arg(ap,int));
-				G3M(OPERoverride,0x89,0x43); Offs_From_Arg;  
+              			// movw (%%edi),%%dx
+				G3M(OPERoverride,0x8b,0x17,Cp);
+				// imul $immed,%%dx,%%ax
+				G3M(OPERoverride,0x6b,0xc2,Cp);
+				G1(va_arg(ap,int),Cp);
+				// movw %%ax,offs(%%ebx)
+				G3M(OPERoverride,0x89,0x43,Cp); Offs_From_Arg(Cp);
 			}
 			else if ((mode&(IMMED|DATA16))==IMMED) {
-				G2M(0x8b,0x17);		// mov (edi),(e)dx
-				G2M(0x6b,0xc2);		// imul #bb,(e)dx,(e)ax
-				G1(va_arg(ap,int));
-				G2M(0x89,0x43); Offs_From_Arg;  // movw (e)ax,o(ebx)
+              			// movl (%%edi),%%edx
+				G2M(0x8b,0x17,Cp);
+				// imul $immed,%%edx,%%eax
+				G2M(0x6b,0xc2,Cp);
+				G1(va_arg(ap,int),Cp);
+				// movl %%eax,offs(%%ebx)
+				G2M(0x89,0x43,Cp); Offs_From_Arg(Cp);
 			}
 			else {
-				G2M(MOVbtrm,0x43); G1(Ofs_AL);
-				G2M(GRP1brm,0x2f);
-				G3M(OPERoverride,MOVwfrm,0x43); G1(Ofs_AX);
+				// movb Ofs_AL(%%ebx),%%al
+				G2M(0x8a,0x43,Cp); G1(Ofs_AL,Cp);
+				// imul (%%edi),%%al
+				G2M(0xf6,0x2f,Cp);
+				// movw %%ax,Ofs_AX(%%ebx)
+				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
 			}
 		}
 		else {
 			if (mode&DATA16) {
 				if (mode&IMMED) {
-					G3M(OPERoverride,0x8b,0x17);
-					G3M(OPERoverride,0x69,0xc2);
-					G2(va_arg(ap,int));
-					G3M(OPERoverride,0x89,0x43); Offs_From_Arg;
+	              			// movw (%%edi),%%dx
+					G3M(OPERoverride,0x8b,0x17,Cp);
+					// imul $immed,%%dx,%%ax
+					G3M(OPERoverride,0x69,0xc2,Cp);
+					G2(va_arg(ap,int),Cp);
+					// movw %%ax,offs(%%ebx)
+					G3M(OPERoverride,0x89,0x43,Cp); Offs_From_Arg(Cp);
 				}
 				else if (mode&MEMADR) {
 					unsigned char o1;
 					o1 = (unsigned char)va_arg(ap,int);
-					G3M(OPERoverride,0x8b,0x43); G1(o1);
-					G4M(OPERoverride,0x0f,0xaf,0x07);
-					G3M(OPERoverride,0x89,0x43); G1(o1);
+					// movw offs(%%ebx),%%ax
+					G3M(OPERoverride,0x8b,0x43,Cp); G1(o1,Cp);
+					// imul (%%edi),%%ax
+					G4M(OPERoverride,0x0f,0xaf,0x07,Cp);
+					// movw %%ax,offs(%%ebx)
+					G3M(OPERoverride,0x89,0x43,Cp); G1(o1,Cp);
 				}
 				else {
-					G3M(OPERoverride,MOVwtrm,0x43); G1(Ofs_AX);
-					G3M(OPERoverride,GRP1wrm,0x2f);
-					G3M(OPERoverride,MOVwfrm,0x43); G1(Ofs_AX);
-					G3M(OPERoverride,MOVwfrm,0x53); G1(Ofs_DX);
+					// movw Ofs_AX(%%ebx),%%ax
+					G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+					// imul (%%edi),%%ax
+					G3M(OPERoverride,0xf7,0x2f,Cp);
+					// movw %%ax,Ofs_AX(%%ebx)
+					G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+					// movw %%dx,Ofs_DX(%%ebx)
+					G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
 				}
 			}
 			else {
 				if (mode&IMMED) {
-					G2M(0x8b,0x17);	// mov (edi),(e)dx
-					G2M(0x69,0xc2);	// imul #ww,(e)dx,(e)ax
-					G4(va_arg(ap,int));
-					G2M(0x89,0x43); Offs_From_Arg;  // movw (e)ax,o(ebx)
+	              			// movl (%%edi),%%edx
+					G2M(0x8b,0x17,Cp);
+					// imul $immed,%%edx,%%eax
+					G2M(0x69,0xc2,Cp);
+					G4(va_arg(ap,int),Cp);
+					// movl %%eax,offs(%%ebx)
+					G2M(0x89,0x43,Cp); Offs_From_Arg(Cp);  // movw (e)ax,o(ebx)
 				}
 				else if (mode&MEMADR) {
 					unsigned char o1;
 					o1 = (unsigned char)va_arg(ap,int);
-					G2M(0x8b,0x43); G1(o1);
-					G3M(0x0f,0xaf,0x07);
-					G2M(0x89,0x43); G1(o1);
+					// movl offs(%%ebx),%%eax
+					G2M(0x8b,0x43,Cp); G1(o1,Cp);
+					// imul (%%edi),%%eax
+					G3M(0x0f,0xaf,0x07,Cp);
+					// movl %%eax,offs(%%ebx)
+					G2M(0x89,0x43,Cp); G1(o1,Cp);
 				}
 				else {
-					G2M(MOVwtrm,0x43); G1(Ofs_EAX);
-					G2M(GRP1wrm,0x2f);
-					G2M(MOVwfrm,0x43); G1(Ofs_EAX);
-					G2M(MOVwfrm,0x53); G1(Ofs_EDX);
+					// movl Ofs_EAX(%%ebx),%%eax
+					G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+					// imul (%%edi),%%eax
+					G2M(0xf7,0x2f,Cp);
+					// movl %%eax,Ofs_EAX(%%ebx)
+					G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+					// movl %%edx,Ofs_EDX(%%ebx)
+					G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
 				}
 			}
 		}
 		break;
 	case O_DIV:
-		/* must	trap div by 0 */
 		if (mode & MBYTE) {
-			G3M(OPERoverride,0x8b,0x43); G1(Ofs_AX);
-			G2M(0xf6,0x37);
-			G3M(OPERoverride,0x89,0x43); G1(Ofs_AX);
+			// movw Ofs_AX(%%ebx),%%ax
+			G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+			/* exception trap: save current PC */
+			// movl $eip,Ofs_CR2(%%ebx)
+			G2M(0xc7,0x43,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
+			// div (%%edi),%%al
+			G2M(0xf6,0x37,Cp);
+			// movw %%ax,Ofs_AX(%%ebx)
+			G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
 		}
 		else {
 			if (mode&DATA16) {
-				G3M(OPERoverride,0x8b,0x43); G1(Ofs_AX);
-				G3M(OPERoverride,0x8b,0x53); G1(Ofs_DX);
-				G3M(OPERoverride,0xf7,0x37);
-				G3M(OPERoverride,0x89,0x43); G1(Ofs_AX);
-				G3M(OPERoverride,0x89,0x53); G1(Ofs_DX);
+				// movw Ofs_AX(%%ebx),%%ax
+				G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+				// movw Ofs_DX(%%ebx),%%dx
+				G3M(OPERoverride,0x8b,0x53,Cp); G1(Ofs_DX,Cp);
+				/* exception trap: save current PC */
+				// movl $eip,Ofs_CR2(%%ebx)
+				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
+				// div (%%edi),%%ax
+				G3M(OPERoverride,0xf7,0x37,Cp);
+				// movw %%ax,Ofs_AX(%%ebx)
+				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+				// movw %%dx,Ofs_DX(%%ebx)
+				G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
 			}
 			else {
-				G2M(0x8b,0x43); G1(Ofs_EAX);
-				G2M(0x8b,0x53); G1(Ofs_EDX);
-				G2M(0xf7,0x37);
-				G2M(0x89,0x43); G1(Ofs_EAX);
-				G2M(0x89,0x53); G1(Ofs_EDX);
+				// movl Ofs_EAX(%%ebx),%%eax
+				G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+				// movl Ofs_EDX(%%ebx),%%edx
+				G2M(0x8b,0x53,Cp); G1(Ofs_EDX,Cp);
+				/* exception trap: save current PC */
+				// movl $eip,Ofs_CR2(%%ebx)
+				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
+				// div (%%edi),%%eax
+				G2M(0xf7,0x37,Cp);
+				// movl %%eax,Ofs_EAX(%%ebx)
+				G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+				// movl %%edx,Ofs_EDX(%%ebx)
+				G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
 			}
 		}
 		break;
 	case O_IDIV:
-		/* must	trap div by 0 */
 		if (mode & MBYTE) {
-			G3M(OPERoverride,0x8b,0x43); G1(Ofs_AX);
-			G2M(0xf6,0x3f);
-			G3M(OPERoverride,0x89,0x43); G1(Ofs_AX);
+			// movw Ofs_AX(%%ebx),%%ax
+			G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+			/* exception trap: save current PC */
+			// movl $eip,Ofs_CR2(%%ebx)
+			G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
+			// idiv (%%edi),%%al
+			G2M(0xf6,0x3f,Cp);
+			// movw %%ax,Ofs_AX(%%ebx)
+			G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
 		}
 		else {
 			if (mode&DATA16) {
-				G3M(OPERoverride,0x8b,0x43); G1(Ofs_AX);
-				G3M(OPERoverride,0x8b,0x53); G1(Ofs_DX);
-				G3M(OPERoverride,0xf7,0x3f);
-				G3M(OPERoverride,0x89,0x43); G1(Ofs_AX);
-				G3M(OPERoverride,0x89,0x53); G1(Ofs_DX);
+				// movw Ofs_AX(%%ebx),%%ax
+				G3M(OPERoverride,0x8b,0x43,Cp); G1(Ofs_AX,Cp);
+				// movw Ofs_DX(%%ebx),%%dx
+				G3M(OPERoverride,0x8b,0x53,Cp); G1(Ofs_DX,Cp);
+				/* exception trap: save current PC */
+				// movl $eip,Ofs_CR2(%%ebx)
+				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
+				// idiv (%%edi),%%ax
+				G3M(OPERoverride,0xf7,0x3f,Cp);
+				// movw %%ax,Ofs_AX(%%ebx)
+				G3M(OPERoverride,0x89,0x43,Cp); G1(Ofs_AX,Cp);
+				// movw %%dx,Ofs_DX(%%ebx)
+				G3M(OPERoverride,0x89,0x53,Cp); G1(Ofs_DX,Cp);
 			}
 			else {
-				G2M(0x8b,0x43); G1(Ofs_EAX);
-				G2M(0x8b,0x53); G1(Ofs_EDX);
-				G2M(0xf7,0x3f);
-				G2M(0x89,0x43); G1(Ofs_EAX);
-				G2M(0x89,0x53); G1(Ofs_EDX);
+				// movl Ofs_EAX(%%ebx),%%eax
+				G2M(0x8b,0x43,Cp); G1(Ofs_EAX,Cp);
+				// movl Ofs_EDX(%%ebx),%%edx
+				G2M(0x8b,0x53,Cp); G1(Ofs_EDX,Cp);
+				/* exception trap: save current PC */
+				// movl $eip,Ofs_CR2(%%ebx)
+				G2(0x43c7,Cp); G1(Ofs_CR2,Cp); G4(va_arg(ap,int),Cp);
+				// idiv (%%edi),%%eax
+				G2M(0xf7,0x3f,Cp);
+				// movl %%eax,Ofs_EAX(%%ebx)
+				G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+				// movl %%edx,Ofs_EDX(%%ebx)
+				G2M(0x89,0x53,Cp); G1(Ofs_EDX,Cp);
 			}
 		}
 		break;
 	case O_CBWD:
+		// movl Ofs_EAX(%%ebx),%%eax
+		G2(0x438b,Cp); G1(Ofs_EAX,Cp);
 		if (mode & MBYTE) {		/* 0x98: CBW,CWDE */
-			if (mode & DATA16) {
-				// mov al,[ebx+AL]
-				G2(0x438a); G1(Ofs_AL);
+			if (mode & DATA16) {	// AL->AX
 				// cbw
-				G2(0x9866);
-				// mov [ebx+AH],ah
-				G2(0x6388); G1(Ofs_AH);
+				G2(0x9866,Cp);
+				// movw %%ax,Ofs_AX(%%ebx)
+				G3(0x438966,Cp); G1(Ofs_AX,Cp);
 			}
-			else {
-				// mov ax,[ebx+AX]
-				G3(0x438b66); G1(Ofs_AX);
+			else {			// AX->EAX
 				// cwde
-				G1(0x98);
-				// mov [ebx+AXH],dx
-				G3(0x538966); G1(Ofs_AXH);
+				G1(0x98,Cp);
+				// movl %%eax,Ofs_EAX(%%ebx)
+				G2(0x4389,Cp); G1(Ofs_EAX,Cp);
 			}
 		}
-		else if	(mode &	DATA16)	{	/* 0x99	*/
-			// mov ax,[ebx+AX]
-			G3(0x438b66); G1(Ofs_AX);
+		else if	(mode &	DATA16)	{	/* 0x99: AX->DX:AX */
 			// cwd
-			G2(0x9966);
-			// mov [ebx+DX],dx
-			G3(0x538966); G1(Ofs_DX);
+			G2(0x9966,Cp);
+			// movw %%dx,Ofs_DX(%%ebx)
+			G3(0x538966,Cp); G1(Ofs_DX,Cp);
 		}
-		else {	/* 0x99	*/
-			// mov eax,[ebx+EAX]
-			G2(0x438b); G1(Ofs_EAX);
+		else {	/* 0x99: EAX->EDX:EAX */
 			// cdq
-			G1(0x99);
-			// mov [ebx+EDX],edx
-			G2(0x5389); G1(Ofs_EDX);
+			G1(0x99,Cp);
+			// movl %%edx,Ofs_EDX(%%ebx)
+			G2(0x5389,Cp); G1(Ofs_EDX,Cp);
 		}
 		break;
 	case O_XLAT:
-		G2(0x7b8b);	G1(OVERR_DS);
+		// movl OVERR_DS(%%ebx),%%edi
+		G2(0x7b8b,Cp); G1(OVERR_DS,Cp);
 		if (mode & DATA16) {
-			G3(0x4bb70f); G1(Ofs_BX);
-			// lea edi, [ecx+edi]: 8d 3c 39
+			// movzwl Ofs_BX(%%ebx),%%ecx
+			G3(0x4bb70f,Cp); G1(Ofs_BX,Cp);
 		}
 		else {
-			// mov ecx, dword ptr o[ebx]: 8b 4b oo
-			G2(0x4b8b);	G1(Ofs_EBX);
-			// lea edi, [ecx+edi]: 8d 3c 39
+			// movl Ofs_EBX(%%ebx),%%ecx
+			G2(0x4b8b,Cp); G1(Ofs_EBX,Cp);
 		}
-		G3(0x393c8d);
-		G3(0x4bb60f); G1(Ofs_AL);
-		G3(0x393c8d);
-		G4(0x4388078a);	G1(Ofs_AL);
+		// leal (%%ecx,%%edi,1),%%edi
+		G3(0x393c8d,Cp);
+		// movzbl Ofs_AL(%%ebx),%%ecx
+		G3(0x4bb60f,Cp); G1(Ofs_AL,Cp);
+		// leal (%%ecx,%%edi,1),%%edi
+		G3(0x393c8d,Cp);
+		// movb (%%edi),%%al
+		// movb %%al,Ofs_AL(%%ebx)
+		G4(0x4388078a,Cp); G1(Ofs_AL,Cp);
 		break;
 
 	case O_ROL:
@@ -740,13 +1032,15 @@ shrot0:
 			// op [edi],n:	c0 07+r	n
 			// op [edi],cl:	d2 07+r
 			if (mode & IMMED) {
-				G1(o1==1? 0xd0:0xc0);
-				G1(0x07	| rcod);
-				if (o1!=1) G1(o1);
+				G1(o1==1? 0xd0:0xc0,Cp);
+				G1(0x07	| rcod,Cp);
+				if (o1!=1) G1(o1,Cp);
 			}
 			else {
-				G2(0x4b8a); G1(Ofs_CL);
-				G1(0xd2); G1(0x07 | rcod);
+				// movb Ofs_CL(%%ebx),%%cl
+				G2(0x4b8a,Cp); G1(Ofs_CL,Cp);
+				// OPb %%cl,(%%edi)
+				G1(0xd2,Cp); G1(0x07 | rcod,Cp);
 			}
 		}
 		else {
@@ -755,425 +1049,712 @@ shrot0:
 			// op [edi],n:	(66) c1	07+r n
 			// op [edi],cl:	(66) d3	07+r
 			if (mode & IMMED) {
-				if (mode & DATA16) G1(OPERoverride);
-				G1(o1==1? 0xd1:0xc1);
-				G1(0x07	| rcod);
-				if (o1!=1) G1(o1);
+				if (mode & DATA16) G1(OPERoverride,Cp);
+				G1(o1==1? 0xd1:0xc1,Cp);
+				G1(0x07	| rcod,Cp);
+				if (o1!=1) G1(o1,Cp);
 			}
 			else {
-				G2(0x4b8a); G1(Ofs_CL);
-				if (mode & DATA16) G1(OPERoverride);
-				G1(0xd3); G1(0x07 | rcod);
+				// movb Ofs_CL(%%ebx),%%cl
+				G2(0x4b8a,Cp); G1(Ofs_CL,Cp);
+				// OP{wl} %%cl,(%%edi)
+				if (mode & DATA16) G1(OPERoverride,Cp);
+				G1(0xd3,Cp); G1(0x07 | rcod,Cp);
 			}
 		}
 		break;
-	case O_OPAX: {
+	case O_OPAX: {	/* used by DAA..AAD */
 			int n =	va_arg(ap,int);
-			G2(0x438b); G1(Ofs_EAX);
-			while (n--) Offs_From_Arg;
-			G2(0x4389); G1(Ofs_EAX);
+			// movl Ofs_EAX(%%ebx),%%eax
+			G2(0x438b,Cp); G1(Ofs_EAX,Cp);
+			// get n bytes from parameter stack
+			while (n--) Offs_From_Arg(Cp);
+			// movl %%eax,Ofs_EAX(%%ebx)
+			G2(0x4389,Cp); G1(Ofs_EAX,Cp);
 		}
 		break;
 
-	case O_PUSH:
-		// STACK16:	esi = esi + (rSP-size)&0xffff
-		// STACK32:	esi = esi + rESP - size
-		//
-		// mov esi,[ebx+xss]:	8b 73 oo
-		G2(0x738b); G1(Ofs_XSS);
-		if (mode & STACK16) {
-			// movzx sp(ebx),ecx:	0f b7 4b oo
-			G3(0x4bb70f); G1(Ofs_SP);
+	case O_PUSH: {
+		static char pseq16[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// leal -2(%%ebp),%%ebp
+			0x8d,0x6d,0xfe,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// movw (%%edi),%%ax
+/*0e*/			0x66,0x8b,0x07,0x90,
+			// movw %%ax,(%%esi,%%ebp,1)
+			0x66,0x89,0x04,0x2e,
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		static char pseq32[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// leal -4(%%ebp),%%ebp
+			0x8d,0x6d,0xfc,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// movl (%%edi),%%eax
+/*0e*/			0x90,0x8b,0x07,0x90,
+			// movl %%eax,(%%esi,%%ebp,1)
+			0x89,0x04,0x2e,
+#if 0	/* keep high 16-bits of ESP in small-stack mode */
+			// pushfl; movl StackMask(%%ebx),%%edx
+			0x9c,0x8b,0x53,Ofs_STACKM,
+			// notl %%edx
+			0xf7,0xd2,
+			// andl Ofs_ESP(%%ebx),%%edx
+			0x23,0x53,Ofs_ESP,
+			// orl %%edx,%%ebp; popfl
+			0x09,0xd5,
+			0x9d,
+#endif
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		register char *p; int sz;
+		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
+			else p=pseq32,sz=sizeof(pseq32);
+		if (mode&MEMADR) {
+			*((short *)(p+0x10)) = 0x9007;
 		}
 		else {
-			// mov esp(ebx),ecx
-			G2(0x4b8b); G1(Ofs_ESP);
+			// mov{wl} offs(%%ebx),%%{e}ax
+			p[0x10] = 0x43;
+			p[0x11] = va_arg(ap,char);
 		}
-		//	lea -size(ecx),ecx
-		//	movzx cx,ecx (stack16)
-		G2(0x498d); G1(mode&DATA16? 0xfe:0xfc);
-		if (mode & STACK16) {G3(0xc9b70f);}
-		if (mode & DATA16) G1(OPERoverride);
-		if (mode & MEMADR) {
-			// mov (e)ax,[edi]:	(66) 8b	07
-			G2(0x078b);
-		}
-		else {
-			// mov (e)ax,[ebx+oo]:	(66) 8b	43 oo
-			G2(0x438b); Offs_From_Arg;
-		}
-		if (mode & DATA16) G1(OPERoverride);
-		// mov [esi+ecx],(e)ax:		89 04 0e
-		G3(0x0e0489);
-		if (mode & STACK16) {
-			// mov [ebx+sp],cx:	66 89 4b oo
-			G3(0x4b8966); G1(Ofs_SP);
-		}
-		else {
-			// mov [ebx+esp],ecx:	89 4b oo
-			G2(0x4b89); G1(Ofs_ESP);
-		}
-		break;
+		GNX(Cp, p, sz);
+		} break;
+
 /* PUSH derived (sub-)sequences: */
-	case O_PUSH1:
-		G2(0x738b); G1(Ofs_XSS);
-		if (mode & STACK16) {G3(0x4bb70f); G1(Ofs_SP);}
-			else {G2(0x4b8b); G1(Ofs_ESP);}
-		break;
-	case O_PUSH2:
-		G2(0x498d); G1(mode&DATA16? 0xfe:0xfc);
-		if (mode & STACK16) {G3(0xc9b70f);}
-		if (mode & DATA16) G1(OPERoverride);
-		if (mode & MEMADR) {G2(0x078b);}
-			else {G2(0x438b); Offs_From_Arg;}
-		if (mode & DATA16) G1(OPERoverride);
-		G3(0x0e0489);
-		break;
-	case O_PUSH3:
-		if (mode & STACK16) {G3(0x4b8966); G1(Ofs_SP);}
-			else {G2(0x4b89); G1(Ofs_ESP);}
-		break;
-	case O_PUSHI:
-		G2(0x738b); G1(Ofs_XSS);
-		if (mode & STACK16) {
-			G3(0x4bb70f); G1(Ofs_SP);
-			G2(0x498d); G1(mode&DATA16? 0xfe:0xfc);
-			G3(0xc9b70f); G3(0x0e348d);
-			if (mode & DATA16) G1(OPERoverride);
-			G2(0x06c7);
-			if (mode & DATA16) {G2(va_arg(ap,int));}
-				else {G4(va_arg(ap,int));}
-			G3(0x4b8966); G1(Ofs_SP);
+	case O_PUSH1: {
+		static char pseq[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+#ifndef STACK_WRAP_MP	/* mask before decrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d
+#endif
+		};
+		GNX(Cp, pseq, sizeof(pseq));
+		} break;
+
+	case O_PUSH2: {
+		static char pseq16[] = {
+			// leal -2(%%ebp),%%ebp
+			0x8d,0x6d,0xfe,
+#ifdef STACK_WRAP_MP	/* mask after decrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+#endif
+			// movw (%%edi),%%ax
+/*03|08*/		0x66,0x8b,0x07,0x90,
+			// movw %%ax,(%%esi,%%ebp,1)
+			0x66,0x89,0x04,0x2e
+		};
+		static char pseq32[] = {
+			// leal -4(%%ebp),%%ebp
+			0x8d,0x6d,0xfc,
+#ifdef STACK_WRAP_MP	/* mask after decrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+#endif
+			// movw (%%edi),%%ax
+/*03|08*/		0x90,0x8b,0x07,0x90,
+			// movw %%ax,(%%esi,%%ebp,1)
+			0x89,0x04,0x2e
+		};
+		register char *p; int sz;
+#ifdef STACK_WRAP_MP
+		const int ix = 10;
+#else
+		const int ix = 5;
+#endif
+		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
+			else p=pseq32,sz=sizeof(pseq32);
+		if (mode&MEMADR) {
+			*((short *)(p+ix)) = 0x9007;
 		}
 		else {
-			G2(0x4b8b); G1(Ofs_ESP);
-			G2(0x498d); G1(mode&DATA16? 0xfe:0xfc);
-			G3(0x0e348d);
-			if (mode & DATA16) G1(OPERoverride);
-			G2(0x06c7);
-			if (mode & DATA16) {G2(va_arg(ap,int));}
-				else {G4(va_arg(ap,int));}
-			G2(0x4b89); G1(Ofs_ESP);
+			// mov{wl} offs(%%ebx),%%{e}ax
+			p[ix] = 0x43;
+			p[ix+1] = va_arg(ap,char);
 		}
+		GNX(Cp, p, sz);
+		} break;
+
+	case O_PUSH3:
+		G2(0x6b89,Cp); G1(Ofs_ESP,Cp);
 		break;
+
+	case O_PUSHI: {
+		static char pseq16[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// leal -2(%%ebp),%%ebp
+			0x8d,0x6d,0xfe,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// leal (%%esi,%%ebp,1),%%eax
+			0x8d,0x04,0x2e,
+			// movw $immed,(%%eax)
+/*11*/			0x66,0xc7,0x00,0x00,0x00,
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		static char pseq32[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// leal -4(%%ebp),%%ebp
+			0x8d,0x6d,0xfc,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// leal (%%esi,%%ebp,1),%%eax
+			0x8d,0x04,0x2e,
+			// movl $immed,(%%eax)
+/*11*/			0xc7,0x00,0x00,0x00,0x00,0x00,
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		register char *p; int sz;
+		if (mode&DATA16) {
+			p = pseq16,sz=sizeof(pseq16);
+			*((short *)(p+0x14)) = va_arg(ap,short);
+		}
+		else {
+			p = pseq32,sz=sizeof(pseq32);
+			*((long *)(p+0x13)) = va_arg(ap,long);
+		}
+		GNX(Cp, p, sz);
+		} break;
+
 	case O_PUSHA: {
 		/* push order: eax ecx edx ebx esp ebp esi edi */
 		static char pseq16[] = {	// wrong if SP wraps!
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// leal -16(%%ebp),%%ebp
+			0x8d,0x6d,0xf0,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// pushl %%esi; leal (%%esi,%%ebp,1),%%esi
+			0x56,0x8d,0x34,0x2e,
+			// movl Ofs_EDI(%%ebx),%%eax
+			// movl Ofs_ESI(%%ebx),%%edx
 			0x8b,0x43,Ofs_EDI,0x8b,0x53,Ofs_ESI,
+			// movw %%ax,0(%%esi)
+			// movw %%dx,2(%%esi)
 			0x66,0x89,0x46,0x00,0x66,0x89,0x56,0x02,
+			// movl Ofs_EBP(%%ebx),%%eax
+			// movl Ofs_ESP(%%ebx),%%edx
 			0x8b,0x43,Ofs_EBP,0x8b,0x53,Ofs_ESP,
+			// movw %%ax,4(%%esi)
+			// movw %%dx,6(%%esi)
 			0x66,0x89,0x46,0x04,0x66,0x89,0x56,0x06,
+			// movl Ofs_EBX(%%ebx),%%eax
+			// movl Ofs_EDX(%%ebx),%%edx
 			0x8b,0x43,Ofs_EBX,0x8b,0x53,Ofs_EDX,
+			// movw %%ax,8(%%esi)
+			// movw %%dx,10(%%esi)
 			0x66,0x89,0x46,0x08,0x66,0x89,0x56,0x0a,
+			// movl Ofs_ECX(%%ebx),%%eax
+			// movl Ofs_EAX(%%ebx),%%edx
 			0x8b,0x43,Ofs_ECX,0x8b,0x53,Ofs_EAX,
-			0x66,0x89,0x46,0x0c,0x66,0x89,0x56,0x0e
+			// movw %%ax,12(%%esi)
+			// movw %%dx,14(%%esi)
+			0x66,0x89,0x46,0x0c,0x66,0x89,0x56,0x0e,
+			// popl %%esi; movl %%ebp,Ofs_ESP(%%ebx)
+			0x5e,0x89,0x6b,Ofs_ESP
 		};
 		static char pseq32[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// leal -32(%%ebp),%%ebp
+			0x8d,0x6d,0xe0,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// pushl %%esi; leal (%%esi,%%ebp,1),%%esi
+			0x56,0x8d,0x34,0x2e,
+			// movl Ofs_EDI(%%ebx),%%eax
+			// movl Ofs_ESI(%%ebx),%%edx
 			0x8b,0x43,Ofs_EDI,0x8b,0x53,Ofs_ESI,
+			// movl %%eax,0(%%esi)
+			// movl %%edx,4(%%esi)
 			0x89,0x46,0x00,0x89,0x56,0x04,
+			// movl Ofs_EBP(%%ebx),%%eax
+			// movl Ofs_ESP(%%ebx),%%edx
 			0x8b,0x43,Ofs_EBP,0x8b,0x53,Ofs_ESP,
+			// movl %%eax,8(%%esi)
+			// movl %%edx,12(%%esi)
 			0x89,0x46,0x08,0x89,0x56,0x0c,
+			// movl Ofs_EBX(%%ebx),%%eax
+			// movl Ofs_EDX(%%ebx),%%edx
 			0x8b,0x43,Ofs_EBX,0x8b,0x53,Ofs_EDX,
+			// movl %%eax,16(%%esi)
+			// movl %%edx,20(%%esi)
 			0x89,0x46,0x10,0x89,0x56,0x14,
+			// movl Ofs_ECX(%%ebx),%%eax
+			// movl Ofs_EAX(%%ebx),%%edx
 			0x8b,0x43,Ofs_ECX,0x8b,0x53,Ofs_EAX,
-			0x89,0x46,0x18,0x89,0x56,0x1c
+			// movl %%eax,24(%%esi)
+			// movl %%edx,28(%%esi)
+			0x89,0x46,0x18,0x89,0x56,0x1c,
+			// popl %%esi; movl %%ebp,Ofs_ESP(%%ebx)
+			0x5e,0x89,0x6b,Ofs_ESP
 		};
-		// STACK16:	esi = esi + (rSP-size)&0xffff
-		// STACK32:	esi = esi + rESP - size
-		// mov esi,[ebx+xss]:	8b 73 oo
-		G2(0x738b); G1(Ofs_XSS);
-		if (mode & STACK16) {
-			// movzx sp(ebx),ecx:	0f b7 4b oo
-			G3(0x4bb70f); G1(Ofs_SP);
-			//	lea -size(ecx),ecx
-			//	movzx cx,ecx
-			G2(0x498d); G1(mode&DATA16? 0xf0:0xe0);
-			G3(0xc9b70f);
+		register char *p; int sz;
+		if (mode&DATA16) {
+			p = pseq16,sz=sizeof(pseq16);
 		}
 		else {
-			// mov esp(ebx),ecx:	8b 4b oo
-			G2(0x4b8b); G1(Ofs_ESP);
-			//	lea -size(ecx),ecx
-			G2(0x498d); G1(mode&DATA16? 0xf0:0xe0);
+			p = pseq32,sz=sizeof(pseq32);
 		}
-		// 	lea (esi,ecx,1),esi
-		G3(0x0e348d);
-		if (mode & DATA16) {
-			GNX(pseq16);
-		}
-		else {
-			GNX(pseq32);
-		}
-		if (mode & STACK16) {
-			// mov cx,sp(ebx):	66 89 4b oo
-			G3(0x4b8966); G1(Ofs_SP);
-		}
-		else {
-			// mov ecx,esp(ebx):	89 4b oo
-			G2(0x4b89); G1(Ofs_ESP);
-		} }
-		break;
+		GNX(Cp, p, sz);
+		} break;
 
-	case O_POP:
-		// STACK16:	esi = esi + (sp-size)&0xffff
-		// STACK32:	esi = esi + esp	- size
-		// mov xss(ebx),esi:	8b 73 oo
-		G2(0x738b); G1(Ofs_XSS);
-		if (mode & STACK16) {
-			// movzx sp(ebx),ecx:	0f b7 4b oo
-			G3(0x4bb70f); G1(Ofs_SP);
-		}
-		else {
-			// mov esp(ebx),ecx: 8b 4b oo
-			G2(0x4b8b); G1(Ofs_ESP);
-		}
-		// stack address: data to pop
-		if (mode & DATA16) G1(OPERoverride);
-		// mov (esi+ecx),{e}ax:	(66) 8b	04 0e
-		G3(0x0e048b);
+	case O_POP: {
+		static char pseq16[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// movw (%%esi,%%ebp,1),%%ax
+			0x66,0x8b,0x04,0x2e,
+			// movw %%ax,offs(%%ebx)
+/*0f*/			0x66,0x89,0x43,0x00,
+			// leal 2(%%ebp),%%ebp
+			0x8d,0x6d,0x02,
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+#endif
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		static char pseq32[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// movl (%%esi,%%ebp,1),%%eax
+			0x90,0x8b,0x04,0x2e,
+			// movl %%eax,offs(%%ebx)
+/*0f*/			0x90,0x89,0x43,0x00,
+			// leal 4(%%ebp),%%ebp
+			0x8d,0x6d,0x04,
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+#endif
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+			// pushfl; movl StackMask(%%ebx),%%edx
+			0x9c,0x8b,0x53,Ofs_STACKM,
+			// notl %%edx
+			0xf7,0xd2,
+			// andl Ofs_ESP(%%ebx),%%edx
+			0x23,0x53,Ofs_ESP,
+			// orl %%edx,%%ebp; popfl
+			0x09,0xd5,
+			0x9d,
+#endif
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		register char *p; int sz;
+		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
+			else p=pseq32,sz=sizeof(pseq32);
 		// for popping into memory the sequence is:
 		//	first pop, then adjust stack, then
 		//	do address calculation and last store data
-		if (!(mode & MEMADR)) {
-			if (mode & DATA16) G1(OPERoverride);
-			// mov {e}ax,oo(ebx):	(66) 89 43 oo
-			G2(0x4389); Offs_From_Arg;
-		}
-		// inc and save	(e)sp
-		// lea size(ecx),ecx:	8d 49 sz
-		G2(0x498d); G1(mode & DATA16? 2:4);
-		if (mode & STACK16) {G3(0xc9b70f);}
-		// mov {e}cx,{e}sp(ebx):	(66) 89	4b oo
-		if (mode & STACK16) {
-			G3(0x4b8966); G1(Ofs_SP);
+		if (mode & MEMADR) {
+			*((long *)(p+0x0f)) = 0x90909090;
 		}
 		else {
-			G2(0x4b89); G1(Ofs_ESP);
+			*((short *)(p+0x10)) = 0x4389;
+			p[0x12] = va_arg(ap,char);
 		}
-		break;
+		GNX(Cp, p, sz);
+		} break;
+
 /* POP derived (sub-)sequences: */
-	case O_POP1:
-		G2(0x738b); G1(Ofs_XSS);
-		if (mode & STACK16) {G3(0x4bb70f); G1(Ofs_SP);}
-			else {G2(0x4b8b); G1(Ofs_ESP);}
-		break;
-	case O_POP2:
-		if (mode & DATA16) G1(OPERoverride);
-		G3(0x0e048b);
-		if (!(mode & MEMADR)) {
-			if (mode & DATA16) G1(OPERoverride);
-			G2(0x4389); Offs_From_Arg;
-		}
-		G2(0x498d); G1(mode & DATA16? 2:4);
-		if (mode & STACK16) {G3(0xc9b70f);}
-		break;
-	case O_POP3:
-		if (mode & STACK16) {G3(0x4b8966); G1(Ofs_SP);}
-			else {G2(0x4b89); G1(Ofs_ESP);}
-		break;
-	case O_POPA: {
-		// STACK16:	esi = esi + (sp-size)&0xffff
-		// STACK32:	esi = esi + esp	- size
-		static char pseq16[] = {	// wrong if SP wraps!
-			0x66,0x8b,0x46,0x00,0x66,0x8b,0x56,0x02,
-			0x66,0x89,0x43,Ofs_DI,0x66,0x89,0x53,Ofs_SI,
-			0x66,0x8b,0x46,0x04,
-			0x66,0x89,0x43,Ofs_BP,
-			0x66,0x8b,0x46,0x08,0x66,0x8b,0x56,0x0a,
-			0x66,0x89,0x43,Ofs_BX,0x66,0x89,0x53,Ofs_DX,
-			0x66,0x8b,0x46,0x0c,0x66,0x8b,0x56,0x0e,
-			0x66,0x89,0x43,Ofs_CX,0x66,0x89,0x53,Ofs_AX
+	case O_POP1: {
+		static char pseq[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d
+		};
+		GNX(Cp, pseq, sizeof(pseq));
+		} break;
+
+	case O_POP2: {
+		static char pseq16[] = {
+			// movw (%%esi,%%ebp,1),%%ax
+			0x66,0x8b,0x04,0x2e,
+			// movw %%ax,offs(%%ebx)
+/*04*/			0x66,0x89,0x43,0x00,
+			// leal 2(%%ebp),%%ebp
+			0x8d,0x6d,0x02,
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d
+#endif
 		};
 		static char pseq32[] = {
-			0x8b,0x46,0x00,0x8b,0x56,0x04,
-			0x89,0x43,Ofs_EDI,0x89,0x53,Ofs_ESI,
-			0x8b,0x46,0x08,
-			0x89,0x43,Ofs_EBP,
-			0x8b,0x46,0x10,0x8b,0x56,0x14,
-			0x89,0x43,Ofs_EBX,0x89,0x53,Ofs_EDX,
-			0x8b,0x46,0x18,0x8b,0x56,0x1c,
-			0x89,0x43,Ofs_ECX,0x89,0x53,Ofs_EAX
+			// movl (%%esi,%%ebp,1),%%eax
+			0x90,0x8b,0x04,0x2e,
+			// movl %%eax,offs(%%ebx)
+/*04*/			0x90,0x89,0x43,0x00,
+			// leal 4(%%ebp),%%ebp
+			0x8d,0x6d,0x04,
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+#endif
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+			// pushfl; movl StackMask(%%ebx),%%edx
+			0x9c,0x8b,0x53,Ofs_STACKM,
+			// notl %%edx
+			0xf7,0xd2,
+			// andl Ofs_ESP(%%ebx),%%edx
+			0x23,0x53,Ofs_ESP,
+			// orl %%edx,%%ebp; popfl
+			0x09,0xd5,
+			0x9d,
+#endif
 		};
-		// mov esi,[ebx+xss]:	8b 73 oo
-		G2(0x738b); G1(Ofs_XSS);
-		if (mode & STACK16) {
-			// movzx sp(ebx),ecx:	0f b7 4b oo
-			G3(0x4bb70f); G1(Ofs_SP);
+		register char *p; int sz;
+		if (mode&DATA16) p=pseq16,sz=sizeof(pseq16);
+			else p=pseq32,sz=sizeof(pseq32);
+		// for popping into memory the sequence is:
+		//	first pop, then adjust stack, then
+		//	do address calculation and last store data
+		if (mode & MEMADR) {
+			*((long *)(p+0x04)) = 0x90909090;
 		}
 		else {
-			// mov esp(ebx),ecx:	8b 4b oo
-			G2(0x4b8b); G1(Ofs_ESP);
+			*((short *)(p+0x05)) = 0x4389;
+			p[0x07] = va_arg(ap,char);
 		}
-		// stack address: data to pop
-		// 	lea (esi,ecx,1),esi
-		G3(0x0e348d);
-		if (mode & DATA16) {
-			GNX(pseq16);
-		}
-		else {
-			GNX(pseq32);
-		}
-		// inc and save (e)sp
-		// lea ecx,[ecx+sz]:	8d 49 sz
-		G2(0x498d); G1(mode & DATA16? 16:32);
-		// mov [ebx+(e)sp],(e)cx:	(66) 89	4b oo
-		if (mode & STACK16) {
-			G3(0x4b8966); G1(Ofs_SP);
-		}
-		else {
-			G2(0x4b89); G1(Ofs_ESP);
-		} }
+		GNX(Cp, p, sz);
+		} break;
+
+	case O_POP3:
+		G2(0x6b89,Cp); G1(Ofs_ESP,Cp);
 		break;
 
-	case O_MOVS_SetA:
-		// mov esi,OVERR_DS+[ebx+(e)si]
-		G2(0x738b);	G1(OVERR_DS);
-		if (mode&ADDR16) {
-			G3(0x53b70f); G1(Ofs_SI);	// CPU_(e)SI ->	edx
+	case O_POPA: {
+		static char pseq16[] = {	// wrong if SP wraps!
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// pushl %%esi; leal (%%esi,%%ebp,1),%%esi
+			0x56,0x8d,0x34,0x2e,
+			// movw 0(%%esi),%%ax
+			// movw 2(%%esi),%%dx
+			0x66,0x8b,0x46,0x00,0x66,0x8b,0x56,0x02,
+			// movw %%ax,Ofs_DI(%%ebx)
+			// movw %%dx,Ofs_SI(%%ebx)
+			0x66,0x89,0x43,Ofs_DI,0x66,0x89,0x53,Ofs_SI,
+			// movw 4(%%esi),%%ax
+			0x66,0x8b,0x46,0x04,
+			// movw %%ax,Ofs_BP(%%ebx)
+			0x66,0x89,0x43,Ofs_BP,
+			// movw 8(%%esi),%%ax
+			// movw 10(%%esi),%%dx
+			0x66,0x8b,0x46,0x08,0x66,0x8b,0x56,0x0a,
+			// movw %%ax,Ofs_BX(%%ebx)
+			// movw %%dx,Ofs_DX(%%ebx)
+			0x66,0x89,0x43,Ofs_BX,0x66,0x89,0x53,Ofs_DX,
+			// movw 12(%%esi),%%ax
+			// movw 14(%%esi),%%dx
+			0x66,0x8b,0x46,0x0c,0x66,0x8b,0x56,0x0e,
+			// movw %%ax,Ofs_CX(%%ebx)
+			// movw %%dx,Ofs_AX(%%ebx)
+			0x66,0x89,0x43,Ofs_CX,0x66,0x89,0x53,Ofs_AX,
+			// popl %%esi; leal 16(%%ebp),%%ebp
+			0x5e,0x8d,0x6d,0x10,
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+#endif
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		static char pseq32[] = {
+			// movl Ofs_XSS(%%ebx),%%esi
+			0x8b,0x73,Ofs_XSS,
+			// movl Ofs_ESP(%%ebx),%%ebp
+			0x8b,0x6b,Ofs_ESP,
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+			// pushl %%esi; leal (%%esi,%%ebp,1),%%esi
+			0x56,0x8d,0x34,0x2e,
+			// movl 0(%%esi),%%eax
+			// movl 4(%%esi),%%edx
+			0x8b,0x46,0x00,0x8b,0x56,0x04,
+			// movl %%eax,Ofs_EDI(%%ebx)
+			// movl %%edx,Ofs_ESI(%%ebx)
+			0x89,0x43,Ofs_EDI,0x89,0x53,Ofs_ESI,
+			// movl 8(%%esi),%%eax
+			0x8b,0x46,0x08,
+			// movl %%eax,Ofs_EBP(%%ebx)
+			0x89,0x43,Ofs_EBP,
+			// movl 16(%%esi),%%eax
+			// movl 20(%%esi),%%edx
+			0x8b,0x46,0x10,0x8b,0x56,0x14,
+			// movl %%eax,Ofs_EBX(%%ebx)
+			// movl %%edx,Ofs_EDX(%%ebx)
+			0x89,0x43,Ofs_EBX,0x89,0x53,Ofs_EDX,
+			// movl 24(%%esi),%%eax
+			// movl 28(%%esi),%%edx
+			0x8b,0x46,0x18,0x8b,0x56,0x1c,
+			// movl %%eax,Ofs_ECX(%%ebx)
+			// movl %%edx,Ofs_EAX(%%ebx)
+			0x89,0x43,Ofs_ECX,0x89,0x53,Ofs_EAX,
+			// popl %%esi; leal 32(%%ebp),%%ebp
+			0x5e,0x8d,0x6d,0x20,
+#ifdef STACK_WRAP_MP	/* mask after incrementing */
+			// pushfl; andl StackMask(%%ebx),%%ebp; popfl
+			0x9c,0x23,0x6b,Ofs_STACKM,0x9d,
+#endif
+#ifdef KEEP_ESP	/* keep high 16-bits of ESP in small-stack mode */
+			// pushfl; movl StackMask(%%ebx),%%edx
+			0x9c,0x8b,0x53,Ofs_STACKM,
+			// notl %%edx
+			0xf7,0xd2,
+			// andl Ofs_ESP(%%ebx),%%edx
+			0x23,0x53,Ofs_ESP,
+			// orl %%edx,%%ebp; popfl
+			0x09,0xd5,
+			0x9d,
+#endif
+			// movl %%ebp,Ofs_ESP(%%ebx)
+			0x89,0x6b,Ofs_ESP
+		};
+		register char *p; int sz;
+		if (mode&DATA16) {
+			p = pseq16,sz=sizeof(pseq16);
 		}
 		else {
-			G2(0x538b); G1(Ofs_ESI);
+			p = pseq32,sz=sizeof(pseq32);
 		}
-		G3(0x32348d);
-		// mov edi,LONG_ES+[ebx+(e)di]
-		G2(0x7b8b);	G1(Ofs_XES);
-		if (mode&ADDR16) {
-			G3(0x4bb70f); G1(Ofs_DI);	// CPU_(e)DI ->	ecx
+		GNX(Cp, p, sz);
 		}
-		else {
-			G2(0x4b8b); G1(Ofs_EDI);
-		}
-		G3(0x393c8d);
-		if (mode&(MREP|MREPNE))	{
-			if (mode&ADDR16) {
-				G3(0x4bb70f); G1(Ofs_CX);
-			}
-			else {
-				G2(0x4b8b); G1(Ofs_ECX);
-			}
-		}
-		G2(0x071e);
 		break;
-	case O_MOVS_MovD:
-		if (mode&(MREP|MREPNE))	{ G1(REP); }
-		if (mode&MBYTE)	{ G1(MOVSb);	}
+
+	case O_MOVS_SetA: {
+		static char pseq16[] = {
+			// movl OVERR_DS(%%ebx),%%esi
+/*00*/			0x8b,0x73,0x00,
+			// movzwl Ofs_SI(%%ebx),%%edx
+			0x0f,0xb7,0x53,Ofs_SI,
+			// leal (%%edx,%%esi,1),%%esi
+			0x8d,0x34,0x32,
+			// movl Ofs_XES(%%ebx),%%edi
+			0x8b,0x7b,Ofs_XES,
+			// movzwl Ofs_DI(%%ebx),%%ecx
+			0x0f,0xb7,0x4b,Ofs_DI,
+			// leal (%%ecx,%%edi,1),%%edi
+			0x8d,0x3c,0x39,
+			// movzwl Ofs_CX(%%ebx),%%ecx (unused if not REP)
+			0x0f,0xb7,0x4b,Ofs_CX,
+			// push ds; pop es	(dangerous?)
+			//0x1e,0x07
+		};
+		static char pseq32[] = {
+			// movl OVERR_DS(%%ebx),%%esi
+/*00*/			0x8b,0x73,0x00,
+			// movl Ofs_ESI(%%ebx),%%edx
+			0x8b,0x53,Ofs_ESI,
+			// leal (%%edx,%%esi,1),%%esi
+			0x8d,0x34,0x32,
+			// movl Ofs_XES(%%ebx),%%edi
+			0x8b,0x7b,Ofs_XES,
+			// movl Ofs_EDI(%%ebx),%%ecx
+			0x8b,0x4b,Ofs_EDI,
+			// leal (%%ecx,%%edi,1),%%edi
+			0x8d,0x3c,0x39,
+			// movl Ofs_ECX(%%ebx),%%ecx (unused if not REP)
+			0x8b,0x4b,Ofs_ECX,
+			// push ds; pop es	(dangerous?)
+			//0x1e,0x07
+		};
+		register char *p; int sz;
+		if (mode&ADDR16) {
+			p = pseq16,sz=sizeof(pseq16);
+		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G1(MOVSw);
+			p = pseq32,sz=sizeof(pseq32);
+		}
+		p[2] = OVERR_DS;
+		GNX(Cp, p, sz);
+		} break;
+
+	case O_MOVS_MovD:
+		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
+		if (mode&MBYTE)	{ G1(MOVSb,Cp); }
+		else {
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G1(MOVSw,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_LodD:
-		if (mode&(MREP|MREPNE))	{ G1(REP); }
-		if (mode&MBYTE)	{ G1(LODSb);	}
+		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
+		if (mode&MBYTE)	{ G1(LODSb,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G1(LODSw);
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G1(LODSw,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_StoD:
-		if (mode&(MREP|MREPNE))	{ G1(REP); }
-		if (mode&MBYTE)	{ G1(STOSb);	}
+		if (mode&(MREP|MREPNE))	{ G1(REP,Cp); }
+		if (mode&MBYTE)	{ G1(STOSb,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G1(STOSw);
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G1(STOSw,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_ScaD:
-		if (mode&MREP) { G1(REP); }
-			else if	(mode&MREPNE) {	G1(REPNE); }
-		if (mode&MBYTE)	{ G1(SCASb);	}
+		if (mode&MREP) { G1(REP,Cp); }
+			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
+		if (mode&MBYTE)	{ G1(SCASb,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G1(SCASw);
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G1(SCASw,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
 	case O_MOVS_CmpD:
-		if (mode&MREP) { G1(REP); }
-			else if	(mode&MREPNE) {	G1(REPNE); }
-		if (mode&MBYTE)	{ G1(CMPSb);	}
+		if (mode&MREP) { G1(REP,Cp); }
+			else if	(mode&MREPNE) {	G1(REPNE,Cp); }
+		if (mode&MBYTE)	{ G1(CMPSb,Cp); }
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G1(CMPSw);
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G1(CMPSw,Cp);
 		}
 		// ! Warning DI,SI wrap	in 16-bit mode
 		break;
-	case O_MOVS_SavA:
-		if (mode&(MREP|MREPNE))	{
-			if (mode&ADDR16) {
-				G1(OPERoverride);
-				G2(0x4b89); G1(Ofs_CX);
-			}
-			else {
-				G2(0x4b89); G1(Ofs_ECX);
-			}
-		}
-		// esi = base1 + CPU_(e)SI +- n
-		// edi = base2 + CPU_(e)DI +- n
-		// pushf; sub esi,OVERR_DS
-		G3(0x732b9c); G1(OVERR_DS);
-		// sub edi,LONG_ES; popf
-		G2(0x7b2b); G1(Ofs_XES); G1(0x9d);
+
+	case O_MOVS_SavA: {
+		static char pseq16[] = {
+			// movw %%cx,Ofs_CX(%%ebx) (redundant if not REP)
+			0x66,0x89,0x4b,Ofs_CX,
+			// esi = base1 + CPU_(e)SI +- n
+			// edi = base2 + CPU_(e)DI +- n
+			// pushfl; subl OVERR_DS(%%ebx),%%esi
+/*04*/			0x9c,0x2b,0x73,0x00,
+			// subl Ofs_XES(%%ebx),%%edi; popfl
+			0x2b,0x7b,Ofs_XES,0x9d,
+			// movw %%si,Ofs_SI(%%ebx)
+			0x66,0x89,0x73,Ofs_SI,
+			// movw %%di,Ofs_DI(%%ebx)
+			0x66,0x89,0x7b,Ofs_DI
+		};
+		static char pseq32[] = {
+			// movl %%ecx,Ofs_ECX(%%ebx) (redundant if not REP)
+			0x89,0x4b,Ofs_ECX,
+			// esi = base1 + CPU_(e)SI +- n
+			// edi = base2 + CPU_(e)DI +- n
+			// pushfl; subl OVERR_DS(%%ebx),%%esi
+/*03*/			0x9c,0x2b,0x73,0x00,
+			// subl Ofs_XES(%%ebx),%%edi; popfl
+			0x2b,0x7b,Ofs_XES,0x9d,
+			// movl %%esi,Ofs_ESI(%%ebx)
+			0x89,0x73,Ofs_ESI,
+			// movl %%edi,Ofs_EDI(%%ebx)
+			0x89,0x7b,Ofs_EDI
+		};
+		register char *p; int sz;
 		if (mode&ADDR16) {
-			G3(0x738966); G1(Ofs_SI);
-			G3(0x7b8966); G1(Ofs_DI);
+			p = pseq16,sz=sizeof(pseq16);
+			p[7] = OVERR_DS;
 		}
 		else {
-			G2(0x7389); G1(Ofs_ESI);
-			G2(0x7b89); G1(Ofs_EDI);
+			p = pseq32,sz=sizeof(pseq32);
+			p[6] = OVERR_DS;
 		}
-		break;
+		GNX(Cp, p, sz);
+		} break;
 
 	case O_CJMP:
 		rcod = va_arg(ap,int);	// cond
 		if (rcod < 16) {
-			G1(0x0f); G1(rcod+0x80);
+			G1(0x0f,Cp); G1(rcod+0x80,Cp);
 		}
 		else
-			G1(0xe9);
+			G1(0xe9,Cp);
 		rcod = va_arg(ap,int);	// target
-		G4(rcod	- (long)CodePtr - 4);
+		G4(rcod-(long)Cp-4,Cp);
 		break;
 
 	case O_SLAHF:
 		rcod = va_arg(ap,int)&1;	// 0=LAHF 1=SAHF
-		if (rcod==0) {
-			// LAHF:mov al,eflags
-			G2M(PUSHF,POPax);
-			// LAHF:mov [ebx+AH],al
-			G2M(0x88,0x43); G1(Ofs_AH);
+		// pushfl; popl %%eax
+		G2M(0x9c,POPax,Cp);
+		if (rcod==0) {		/* LAHF */
+			// movb %%al,Ofs_AH(%%ebx)
+			G2M(0x88,0x43,Cp); G1(Ofs_AH,Cp);
 		}
-		else {
-			// SAHF:mov al,[ebx+AH]
-			G2M(PUSHF,POPax);
-			G2M(0x8a,0x43); G1(Ofs_AH);
-			// SAHF:mov eflags,al
-			G2M(PUSHax,POPF);
+		else {			/* SAHF */
+			// movb Ofs_AH(%%ebx),%%al
+			G2M(0x8a,0x43,Cp); G1(Ofs_AH,Cp);
+			// pushl %%eax; popfl
+			G2M(PUSHax,0x9d,Cp);
 		}
 		break;
 	case O_SETFL: {
 		unsigned char o1 = (unsigned char)va_arg(ap,int);
 		switch(o1) {	// these are direct on x86
-		case CMC:	G1(CMC); break;
-		case CLC:	G1(CLC); break;
-		case STC:	G1(STC); break;
-		case CLD:	G1(CLD); break;
-		case STD:	G1(STD); break;
+		case CMC: G1(CMC,Cp); break;
+		case CLC: G1(CLC,Cp); break;
+		case STC: G1(STC,Cp); break;
+		case CLD: G1(CLD,Cp); break;
+		case STD: G1(STD,Cp); break;
 		} }
 		break;
 	case O_BSWAP: {
 		unsigned char o1 = (unsigned char)va_arg(ap,int);
-		G2M(0x8b,0x43); G1(o1);
-		G2M(0x0f,0xc8);
-		G2M(0x89,0x43); G1(o1);
+		// movl offs(%%ebx),%%eax
+		G2M(0x8b,0x43,Cp); G1(o1,Cp);
+		// bswap %%eax
+		G2M(0x0f,0xc8,Cp);
+		// movl %%eax,offs(%%ebx)
+		G2M(0x89,0x43,Cp); G1(o1,Cp);
 		}
 		break;
 	case O_SETCC: {
 		unsigned char o1 = (unsigned char)va_arg(ap,int);
-		G3M(0x0f,(0x90|(o1&15)),0x07);	// setcc (%%edi)
+		// setcc (%%edi)
+		G3M(0x0f,(0x90|(o1&15)),0x07,Cp);
 		}
 		break;
 	case O_BITOP: {
@@ -1185,17 +1766,20 @@ shrot0:
 		case 0x1b: /* BTC */
 		case 0x1c: /* BSF */
 		case 0x1d: /* BSR */
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(0x8b,0x43); Offs_From_Arg;
-			if (mode&DATA16) G1(OPERoverride);
-			G3M(0x0f,(o1+0xa0),0x07);
+			// mov{wl} offs(%%ebx),%%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x8b,0x43,Cp); Offs_From_Arg(Cp);
+			// OP{wl} %%{e}ax,(%%edi)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G3M(0x0f,(o1+0xa0),0x07,Cp);
 			break;
 		case 0x20: /* BT  imm8 */
 		case 0x28: /* BTS imm8 */
 		case 0x30: /* BTR imm8 */
 		case 0x38: /* BTC imm8 */
-			if (mode&DATA16) G1(OPERoverride);
-			G3M(0x0f,0xba,(o1|0x07)); Offs_From_Arg;
+			// OP{wl} $immed,(%%edi)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G3M(0x0f,0xba,(o1|0x07),Cp); Offs_From_Arg(Cp);
 			break;
 		}
 		}
@@ -1204,83 +1788,149 @@ shrot0:
 		unsigned char l_r = (unsigned char)va_arg(ap,int)&8;
 		if (mode & IMMED) {
 			unsigned char shc = (unsigned char)va_arg(ap,int)&0x1f;
-			if (mode&DATA16) G1(OPERoverride);	// REG1->(e)ax
-			G2M(0x8b,0x43); Offs_From_Arg;
-			if (mode&DATA16) G1(OPERoverride);
-			G4M(0x0f,(0xa4|l_r),0x07,shc);	// shxd nn,(e)ax,(edi)
+			// mov{wl} offs(%%ebx),%%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x8b,0x43,Cp); Offs_From_Arg(Cp);
+			// sh{lr}d $immed,%%{e}ax,(%%edi)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G4M(0x0f,(0xa4|l_r),0x07,shc,Cp);
 		}
 		else {
-			if (mode&DATA16) G1(OPERoverride);
-			G2M(0x8b,0x43); Offs_From_Arg;
-			G2M(0x8b,0x4b); G1(Ofs_ECX);
-			if (mode&DATA16) G1(OPERoverride);
-			G3M(0x0f,(0xa5|l_r),0x07);	// shxd cl,(e)ax,(edi)
+			// mov{wl} offs(%%ebx),%%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2M(0x8b,0x43,Cp); Offs_From_Arg(Cp);
+			// movl Ofs_ECX(%%ebx),%%ecx
+			G2M(0x8b,0x4b,Cp); G1(Ofs_ECX,Cp);
+			// sh{lr}d %%cl,%%{e}ax,(%%edi)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G3M(0x0f,(0xa5|l_r),0x07,Cp);
 		}
 		}
 		break;
 
 	case O_RDTSC: {
 		long a = (long)&(TheCPU.EMUtime);
-		G1(0xa1); G4(a); G2M(0x89,0x43); G1(Ofs_EAX);
-		G1(0xa1); G4(a+4); G2M(0x89,0x43); G1(Ofs_EDX);
+		// movl TheCPU.EMUtime,%%eax
+		// movl %%eax,Ofs_EAX(%%ebx)
+		G1(0xa1,Cp); G4(a,Cp); G2M(0x89,0x43,Cp); G1(Ofs_EAX,Cp);
+		// movl TheCPU.EMUtime+4,%%eax
+		// movl %%eax,Ofs_EDX(%%ebx)
+		G1(0xa1,Cp); G4(a+4,Cp); G2M(0x89,0x43,Cp); G1(Ofs_EDX,Cp);
 		}
 		break;
+
+#ifdef CPUEMU_DIRECT_IO
+	case O_INPDX:
+		// movl Ofs_EDX(%%ebx),%%edx
+		G2(0x538b,Cp); G1(Ofs_EDX,Cp);
+		if (mode&MBYTE) {
+			// inb (%%dx),%%al; movb %%al,Ofs_AL(%%ebx)
+			G3(0x4388ec,Cp); G1(Ofs_AL,Cp);
+		}
+		else {
+			// in{wl} (%%dx),%%{e}ax
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G1(0xed,Cp);
+			// mov{wl} %%{e}ax,Ofs_EAX(%%ebx)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G2(0x4389,Cp); G1(Ofs_EAX,Cp);
+		}
+		break;
+	case O_OUTPDX:
+		// movl Ofs_EDX(%%ebx),%%edx
+		G2(0x538b,Cp); G1(Ofs_EDX,Cp);
+		if (mode&MBYTE) {
+			// movb Ofs_AL(%%ebx),%%al; outb %%al,(%%dx)
+			G2(0x438a,Cp); G1(Ofs_AL,Cp); G1(0xee,Cp);
+		}
+		else {
+			// movl Ofs_EAX(%%ebx),%%eax
+			G2(0x438b,Cp); G1(Ofs_EAX,Cp);
+			// out{wl} %%{e}ax,(%%dx)
+			if (mode&DATA16) G1(OPERoverride,Cp);
+			G1(0xef,Cp);
+		}
+		break;
+#endif
 
 #ifdef OPTIMIZE_BACK_JUMPS
 	case JB_LOCAL: {	// cond, tgt_addr_in_buf, PC_here
 		unsigned char cond = (unsigned char)va_arg(ap,int);
+		/* target address */
 		long p = va_arg(ap,int);
 		/* check for signals, to avoid infinite loops */
-		G2(0x0d8b); G4((long)&e_signal_pending); G2(0x08e3);
-		/* termination code */
-		G3(0xb85a9c); G4(va_arg(ap,int)); G1(0xc3);
+		// movl e_signal_pending,%%ecx
+		G2(0x0d8b,Cp); G4((long)&e_signal_pending,Cp);
+		// jecxz +8
+		G2(0x08e3,Cp);
+		/* standard termination code */
+		// pushfl; pop %%edx
+		// movl $arg,%%eax
+		// ret
+		G3(0xb85a9c,Cp); G4(va_arg(ap,int),Cp); G1(0xc3,Cp);
 		if (cond < 0x10) {
-			p -= ((long)CodePtr + 6);
-			G2M(0x0f,(0x80|cond)); G4((int)p);
+			p -= ((long)Cp+6); /* here plus instruction len */
+			// jcond target-*+6
+			G2M(0x0f,(0x80|cond),Cp); G4((int)p,Cp);
 		}
 		else {
-			p -= ((long)CodePtr + 5);
-			G1(0xe9); G4((int)p);
+			p -= ((long)Cp+5); /* here plus instruction len */
+			// jmp target-*+5
+			G1(0xe9,Cp); G4((int)p,Cp);
 		}
 		}
 		break;
 	case JCXZ_LOCAL: {	// tgt_addr_in_buf
 		long p = va_arg(ap,int);
-		// load ecx
-		G2(0x4b8b); G1(Ofs_ECX);
-		// test (e)cx
-		if (mode&ADDR16) G1(ADDRoverride);
-		G4(0x05eb02e3);		// jmp around jmp
-		p -= ((long)CodePtr + 5);
-		G1(0xe9); G4((int)p);
+		// movl Ofs_ECX(%%ebx),%%ecx
+		G2(0x4b8b,Cp); G1(Ofs_ECX,Cp);
+		// j{e}cxz +2; jmp +5	(jmp around jmp)
+		if (mode&ADDR16) G1(ADDRoverride,Cp);
+		G4(0x05eb02e3,Cp);
+		p -= ((long)Cp+5); /* here plus instruction len */
+		// jmp target-*+5
+		G1(0xe9,Cp); G4((int)p,Cp);
 		}
 		break;
 	case JLOOP_LOCAL: {	// cond, tgt_addr_in_buf, PC_here
 		// cond is 00(loop),04(z),05(nz)
 		unsigned char cond = (unsigned char)va_arg(ap,int);
+		/* target address */
 		long p = va_arg(ap,int);
-		/* dec and check (e)cx */
-		G1(0x9c);
-		if (mode&ADDR16) G1(OPERoverride); G2(0x4bff); G1(Ofs_ECX);
-		G1(0x9d);
-		G2(0x4b8b); G1(Ofs_ECX);
-		if (mode&ADDR16) G1(ADDRoverride);
-		if (cond) {G2(0x1ae3);} else {G2(0x19e3);}
+		// pushfl; dec{wl} Ofs_ECX(%%ebx); popfl
+		G1(0x9c,Cp);
+		if (mode&ADDR16) G1(OPERoverride,Cp);
+		G2(0x4bff,Cp); G1(Ofs_ECX,Cp);
+		G1(0x9d,Cp);
+		// movl Ofs_ECX(%%ebx),%%ecx
+		G2(0x4b8b,Cp); G1(Ofs_ECX,Cp);
+		// j{e}cxz +25 or +26
+		if (mode&ADDR16) G1(ADDRoverride,Cp);
+		if (cond) {G2(0x1ae3,Cp);} else {G2(0x19e3,Cp);}
 		/* check for signals, to avoid infinite loops */
-		G2(0x0d8b); G4((long)&e_signal_pending); G2(0x0ce3);
-		/* termination code */
-		G2(0x5a9c);
-		// oops.. restore (e)cx
-		if (mode&ADDR16) G1(OPERoverride); else G1(NOP);
-		G2(0x43ff); G1(Ofs_ECX);
-		G1(0xb8); G4(va_arg(ap,int)); G1(0xc3);
+		// movl e_signal_pending,%%ecx
+		G2(0x0d8b,Cp); G4((long)&e_signal_pending,Cp);
+		// jecxz +12
+		G2(0x0ce3,Cp);
+		/* modified termination code */
+		// pushfl; pop %%edx
+		G2(0x5a9c,Cp);
+		/* oops.. restore (e)cx */
+		// inc{wl} Ofs_ECX(%%ebx)
+		if (mode&ADDR16) G1(OPERoverride,Cp); else G1(NOP,Cp);
+		G2(0x43ff,Cp); G1(Ofs_ECX,Cp);
+		// movl $arg,%%eax
+		// ret
+		G1(0xb8,Cp); G4(va_arg(ap,int),Cp); G1(0xc3,Cp);
 		if (cond) {
-			p -= ((long)CodePtr + 6);
-			G2M(0x0f,(0x80|cond)); G4((int)p);
+			p -= ((long)Cp+6); /* here plus instruction len */
+			// jcond target-*+6
+			G2M(0x0f,(0x80|cond),Cp); G4((int)p,Cp);
 		}
 		else {
-			p -= ((long)CodePtr + 5);
-			G1(0xe9); G4((int)p);
+			p -= ((long)Cp+5); /* here plus instruction len */
+			// jmp target-*+5
+			G1(0xe9,Cp); G4((int)p,Cp);
 		}
 		}
 		break;
@@ -1288,14 +1938,19 @@ shrot0:
 #ifdef OPTIMIZE_FW_JUMPS
 	case JF_LOCAL: {	// cond, PC_there
 		unsigned char cond = (unsigned char)va_arg(ap,int);
-		G2M(0x70|(cond^1),8);		// reverse cond
-		/* termination code */
-		G3(0xb85a9c); G4(va_arg(ap,int)); G1(0xc3);
+		// j_not_cc +8
+		G2M(0x70|(cond^1),8,Cp);	// reverse cond
+		/* standard termination code */
+		// pushfl; pop %%edx
+		// movl $arg,%%eax
+		// ret
+		G3(0xb85a9c,Cp); G4(va_arg(ap,int),Cp); G1(0xc3,Cp);
 		}
 		break;
 #endif
 	}
 
+	CodePtr = Cp;
 	va_end(ap);
 }
 
@@ -1306,9 +1961,7 @@ shrot0:
 #ifdef OPTIMIZE_FW_JUMPS
 static void AdjustFwRefs(unsigned char *PC)
 {
-	/* There's too much self-modifying code around. Do not
-	 * jump everywhere if in real/V86 mode. Sigh. */
-	IMeta *F = (REALADDR()? NULL:ForwIRef);
+	IMeta *F = ForwIRef;
 	while (F) {
 	    // this is a forward jump, so start from next instruction
 	    int n = (F - InstrMeta) + 1;
@@ -1340,6 +1993,37 @@ static void AdjustFwRefs(unsigned char *PC)
 #endif
 
 
+/////////////////////////////////////////////////////////////////////////////
+/*
+ * This is the function which actually executes the generated code.
+ *
+ * It can take two paths depending on the XECFND ("eXEC block FouND")
+ * flag in the ubiquitous parameter "mode":
+ * 1) if XECFND is 0 we are ending a code generation phase, and our code
+ *	is still in the CodeBuf together with all its detailed info stored
+ *	in InstrMeta. We close the sequence adding the TailCode, execute
+ *	it, and then move it to the collecting tree and clear the temporary
+ *	structures.
+ *	The input PC is the address in the original code of the next
+ *	instruction following the end of the code block. It is stored
+ *	into the TailCode of the block.
+ * 2) if XECFND is not 0 we are executing a sequence found in the collecting
+ *	tree. The input PC is (not counting tricks) the starting address
+ *	of the block in the original code.
+ *	Currently a checksum of the block is calculated every time, and
+ *	we go back to the parser if the code was modified. This is heavy;
+ *	the real solution for detecting self-modifying stuff will be to
+ *	implement write faults on code segments.
+ *
+ * If the block is executed until its normal end, it returns the address
+ * stored in its TailCode, which is the point where the interpreter can
+ * look for another precompiled block and/or resume parsing.
+ * The returned PC can be different if:
+ * - a forward jump out of the block is taken. See AdjustFwRefs above.
+ * - a loop is suspended because of a pending signal.
+ * - an instruction in the block generates a fault.
+ */
+
 unsigned char *CloseAndExec(unsigned char *PC, int mode)
 {
 	static unsigned long flg, ecpu;
@@ -1351,17 +2035,24 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	int ifl;
 
 	if (mode & XECFND) {
+		/* sorry for the reuse of parameter PC this way */
+		TNode *G = (TNode *)PC;
+		PC = G->addr;
 		SeqStart = PC;
 		seqflg = mode >> 16;
 	}
 	else if (IsCodeInBuf()) {
 		unsigned char *p = CodePtr;
+		/* we only know here the total length of the original
+		 * code block */
+		InstrMeta[0].cklen = PC - InstrMeta[0].npc;
+		if (d.emu>3) e_printf("Seq len %d\n",InstrMeta[0].cklen);
 		// tail	instructions
 		memcpy(p, TailCode, sizeof(TailCode));
 		*((long	*)(p+3)) = (long)PC;
 		SeqStart = CodeBuf;
 		seqflg = InstrMeta[0].flags;
-		if (d.emu>3) {
+		if (d.emu>2) {
 			e_printf("============ Closing sequence at %08lx\n** Adding tail code at %08lx\n",
 				(long)PC,(long)p);
 		}
@@ -1374,7 +2065,7 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 	}
 
 	ecpu = (long)CPUOFFS(0);
-	if (d.emu>3) {
+	if (d.emu>2) {
 		e_printf("** Executing code at %08lx flg=%04x\n",
 			(long)SeqStart,seqflg);
 		if (e_signal_pending) e_printf("** SIGNAL is pending\n");
@@ -1395,35 +2086,46 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 		: "=m"(flg)
 		:
 		: "memory");
+
 	/* pass TF=0, IF=1 */
 	flg = (flg & ~0xfd5) | (EFLAGS & 0xcd5) | 0x200;
+
+	/* This is for exception processing */
+	InCompiledCode = mode | MCEXEC;	/* to make it != 0 */
+
 	__asm__	__volatile__ ("
 		pushfl\n
-		pushl	%%ebx\n
-		pushl	%%edi\n
+		pushl	%%ebp\n		/* looks like saving these four */
+		pushl	%%ebx\n		/* registers is enough; if not, */
+		pushl	%%edi\n		/* you'll discover soon         */
 		pushl	%%esi\n
 		rdtsc\n
-		movl	%7,%%ebx\n
-		movl	%%eax,%0\n
+		movl	%7,%%ebx\n	/* address of TheCPU (+0x80 !)  */
+		movl	%%eax,%0\n	/* save time before execution   */
 		movl	%%edx,%1\n
-		pushw	%8\n
+		pushw	%8\n		/* push and get TheCPU flags    */
 		popfw\n
-		call	*%9\n
-		movl	%%edx,%2\n
-		movl	%%eax,%3\n
+		call	*%9\n		/* call SeqStart                */
+		movl	%%edx,%2\n	/* save flags                   */
+		movl	%%eax,%3\n	/* save PC at block exit        */
 		rdtsc\n
-		movl	%%edi,%6\n
-		movl	%%eax,%4\n
+		movl	%%edi,%6\n	/* save last calculated address */
+		movl	%%eax,%4\n	/* save time after execution    */
 		movl	%%edx,%5\n
-		popl	%%esi\n
+		popl	%%esi\n		/* restore regs                 */
 		popl	%%edi\n
 		popl	%%ebx\n
+		popl	%%ebp\n
 		popfl"
 		: "=m"(t0.t.tl),"=m"(t0.t.th),"=m"(flg),"=m"(ePC),"=m"(t1.t.tl),"=m"(t1.t.th),"=m"(mem_ref)
 		: "m"(ecpu),"2"(flg),"c"(SeqStart)
 		: "%eax","%edx","memory" );
+	InCompiledCode = 0;
+
 	EFLAGS = (flg &	0xcff) | ifl;
 	TheCPU.mem_ref = mem_ref;
+
+	/* was there at least one FP op in the sequence? */
 	if (seqflg & F_FPOP) {
 		int exs = TheCPU.fpus & 0x7f;
 		__asm__ __volatile__ ("
@@ -1438,13 +2140,15 @@ unsigned char *CloseAndExec(unsigned char *PC, int mode)
 			}
 		}
 	}
+
+	/* adjust total execution time */
 	t1.td -= t0.td;
 	TheCPU.EMUtime += t1.td;
 	ExecTime += t1.td;
 	e_signal_pending = 0;
 	if (d.emu>2) {
 		e_printf("** End code, PC=%08lx\n",(long)ePC);
-		if (d.emu>3) e_printf("\n%s",e_print_regs());
+		e_printf("\n%s",e_print_regs());
 		if (seqflg & F_FPOP) {
 			e_printf("  %s\n", e_trace_fp());
 		}

@@ -35,7 +35,7 @@
 EXTERN int in_dpmi INIT(0);        /* Set to 1 when running under DPMI */
 #define current_client (in_dpmi-1)
 EXTERN int in_win31 INIT(0);       /* Set to 1 when running Windows 3.1 */
-EXTERN int dpmi_eflags INIT(0);    /* used for virtuell interruptflag and pending interrupts */
+EXTERN int dpmi_eflags INIT(0);    /* used for virtual interruptflag and pending interrupts */
 EXTERN int in_dpmi_dos_int INIT(0);
 EXTERN int in_dpmi_timer_int INIT(0);
 EXTERN int dpmi_mhp_TF INIT(0);
@@ -63,6 +63,42 @@ int dpmi_mhp_getselbase(unsigned short selector);
 unsigned long dpmi_mhp_getreg(int regnum);
 void dpmi_mhp_setreg(int regnum, unsigned long val);
 #endif
+
+/* DANG_BEGIN_REMARK
+ * Handling of the virtual interrupt flag is still not correct and there
+ * are many open questions since DPMI specifications are unclear in this
+ * point.
+ * An example: If IF=1 in protected mode and real mode code is called
+ * which is disabling interrupts via cli and returning to protected
+ * mode, is IF then still one or zero?
+ * I guess I have to think a lot about this and to write a small dpmi
+ * client running under a commercial dpmi server :-).
+ * DANG_END_REMARK
+ */
+
+#define dpmi_cli() 	({ dpmi_eflags &= ~IF; pic_cli(); })
+
+#define dpmi_sti() 	({ dpmi_eflags |= IF; pic_sti(); })
+
+#define CHECK_SELECTOR(x) \
+{ if ( (((x) >> 3) >= MAX_SELECTORS) || (!Segments[((x) >> 3)].used) \
+      || (((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
+      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
+	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
+      _LWORD(eax) = 0x8022; \
+      _eflags |= CF; \
+      break; \
+    } \
+}
+#define CHECK_SELECTOR_ALLOC(x) \
+{ if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
+      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
+	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
+      _LWORD(eax) = 0x8022; \
+      _eflags |= CF; \
+      break; \
+    } \
+}
 
 /* this is used like: SEL_ADR(_ss, _esp) */
 #define SEL_ADR(seg, reg) \

@@ -10,7 +10,7 @@
  * Description: PCI configuration space access
  * currently used only by the Matrox video driver
  * 
- * Maintainers: Alberto Vignani (vignani@mail.tin.it)
+ * Maintainers: Alberto Vignani (vignani@tin.it)
  *
  * SIDOC_END_MODULE
  */

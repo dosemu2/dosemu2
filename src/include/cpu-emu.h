@@ -37,16 +37,6 @@ extern void e_priv_iopl(int);
 #define	SKIP_EMU_VBIOS
 #endif
 
-/*  DONT_DEBUG_BOOT (in emu.h) - if you set that, debug messages are
- *	skipped until the cpuemu is activated by int0xe6, so you can
- *	avoid the long DOS intro when using high debug values.
- *  CIRCULAR_LOGBUFFER (utilities.c) - another way to reduce the size of
- *	the debug logfile by keeping only the last n lines (n=~20000)
- */
-#if 0
-#define	CIRCULAR_LOGBUFFER
-#endif
-
 /* if defined, trace instructions (with d.emu>3) only in protected
  * mode code. This is useful to skip timer interrupts and/or better
  * follow the instruction flow */
@@ -54,9 +44,16 @@ extern void e_priv_iopl(int);
 #define SKIP_VM86_TRACE
 #endif
 
-/* this is for cpuemu-like tracing via TF (w/o dosdebug) */
-#if 1
-#define TRACE_DPMI
+/* another tradeoff. If you set this to 1 some I/O instructions will be
+ * compiled in, otherwise all I/O will be interpreted. The benefits of
+ * using direct I/O are longer code sequences and very fast access to
+ * the untrapped ports, mainly in console graphics; the drawbacks are
+ * lots of faults. Besides, this makes no sense under X where all video
+ * I/O is emulated. As most users insist in using dosemu under X, I will
+ * let this undefined -- AV
+ */
+#if 0
+#define CPUEMU_DIRECT_IO
 #endif
 
 /* ----------------------------------------------------------------------- */
@@ -72,6 +69,7 @@ extern void e_priv_iopl(int);
 #define CeS_DRTRAP	0x2000	/* Debug Registers active */
 
 extern int CEmuStat;
+extern int InCompiledCode;
 
 /* called from dpmi.c */
 void emu_mhp_SetTypebyte (unsigned short selector, int typebyte);

@@ -550,7 +550,7 @@ leavedos(int sig)
        longjmp(NotJEnv, sig);
       }
     leavedos_recurse_check = 1;
-    warn("leavedos(%d) called - shutting down\n", sig);
+    dbug_printf("leavedos(%d|0x%x) called - shutting down\n", sig, sig);
 #if 1 /* BUG CATCHER */
     if (in_vm86) {
       g_printf("\nkilled while in vm86(), trying to dump DOS-registers:\n");

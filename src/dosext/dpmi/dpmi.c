@@ -644,7 +644,7 @@ static int dpmi_control(void)
   register int ret;
 #ifdef DIRECT_DPMI_CONTEXT_SWITCH
   struct sigcontext_struct *scp=&dpmi_stack_frame[current_client];
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+#ifdef TRACE_DPMI
   if (d.dpmit) _eflags |= TF;
 #endif
   if (!(_eflags & TF)) {
@@ -1093,51 +1093,6 @@ void fake_pm_int(void)
   REG(eip) = DPMI_OFF + HLT_OFF(DPMI_return_from_dos);
   in_dpmi_dos_int = 1;
 }
-
-/* DANG_BEGIN_REMARK
- * Handling of the virtual interrupt flag is still not correct and there
- * are many open questions since DPMI specifications are unclear in this
- * point.
- * An example: If IF=1 in protected mode and real mode code is called
- * which is disabling interrupts via cli and returning to protected
- * mode, is IF then still one or zero?
- * I guess I have to think a lot about this and to write a small dpmi
- * client running under a commercial dpmi server :-).
- * DANG_END_REMARK
- */
-
-static __inline__ void dpmi_cli()
-{
-  dpmi_eflags &= ~IF;
-  pic_cli();
-}
-
-static __inline__ void dpmi_sti()
-{
-  dpmi_eflags |= IF;
-  pic_sti();
-}
-
-#define CHECK_SELECTOR(x) \
-{ if ( (((x) >> 3) >= MAX_SELECTORS) || (!Segments[((x) >> 3)].used) \
-      || (((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
-      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
-	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
-      _LWORD(eax) = 0x8022; \
-      _eflags |= CF; \
-      break; \
-    } \
-}
-#define CHECK_SELECTOR_ALLOC(x) \
-{ if ((((x) & 4) != 4) || (((x) & 0xfffc) == (DPMI_SEL & 0xfffc)) \
-      || (((x) & 0xfffc ) == (PMSTACK_SEL & 0xfffc)) \
-	|| (((x) & 0xfffc ) == (LDT_ALIAS & 0xfffc))) { \
-      _LWORD(eax) = 0x8022; \
-      _eflags |= CF; \
-      break; \
-    } \
-}
-
 
 void do_int31(struct sigcontext_struct *scp, int inumber)
 {
@@ -2139,6 +2094,9 @@ void run_dpmi(void)
 #endif
 
     if (
+#ifdef TRACE_DPMI
+	((d.dpmit==0)||((REG(cs)!=0x70)&&(REG(eip)!=0x5b0)))&&
+#endif
 	(d.dpmi>2)) {
 	D_printf ("DPMI: do_vm86,  %04x:%04lx %08lx %08lx %08x\n", REG(cs),
 		REG(eip), REG(esp), REG(eflags), dpmi_eflags);
@@ -2149,13 +2107,13 @@ void run_dpmi(void)
     in_vm86=0;
 
     if (
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+#ifdef TRACE_DPMI
 	(retval!=1)&&
 #endif
 	(d.dpmi>3)) {
 	D_printf ("DPMI: ret_vm86, %04x:%04lx %08lx %08lx %08x ret=%#x\n",
 		REG(cs), REG(eip), REG(esp), REG(eflags), dpmi_eflags, retval);
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+#ifdef TRACE_DPMI
 	D_printf ("ax=%04x bx=%04x ss=%04x sp=%04x bp=%04x\n"
 	      		 "           cx=%04x dx=%04x ds=%04x cs=%04x ip=%04x\n"
 	      		 "           si=%04x di=%04x es=%04x flg=%08x\n",
@@ -2180,9 +2138,15 @@ void run_dpmi(void)
 		vm86_GP_fault();
 		break;
 	case VM86_STI:
+#ifdef X86_EMULATOR
+		D_printf("DPMI: Return from vm86() for timeout\n");
+#endif
 		pic_iret();
 		break;
 	case VM86_INTx:
+#ifdef X86_EMULATOR
+		D_printf("DPMI: Return from vm86() for interrupt\n");
+#endif
 #ifdef SHOWREGS
     show_regs(__FILE__, __LINE__);
 #endif
@@ -2200,10 +2164,16 @@ void run_dpmi(void)
 		}
 		break;
 #ifdef USE_MHPDBG
-    case VM86_TRAP:
-	if(!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
-	   do_int(VM86_ARG(retval));
-	break;
+	case VM86_TRAP:
+#ifdef X86_EMULATOR
+		D_printf("DPMI: Return from vm86() for trap\n");
+#endif
+		if (!mhp_debug(DBG_TRAP + (VM86_ARG(retval) << 8), 0, 0))
+#ifdef TRACE_DPMI
+		   if ((d.dpmit==0)||(VM86_ARG(retval)!=1))
+#endif
+		   do_int(VM86_ARG(retval));
+		break;
 #endif
 	case VM86_PICRETURN:
 	case VM86_SIGNAL:
@@ -2508,6 +2478,9 @@ void dpmi_init()
   in_sigsegv--;
   for (; (!fatalerr && in_dpmi) ;) {
     if (d.dpmi>6) {
+#ifdef TRACE_DPMI
+	if (d.dpmit==0)
+#endif
 	D_printf("------ DPMI: dpmi loop ---------------------\n");
     }
     run_dpmi();
@@ -2566,14 +2539,13 @@ static  void do_default_cpu_exception(struct sigcontext_struct *scp, int trapno)
     case 0x04: /* overflow */
     case 0x05: /* bounds */
     case 0x07: /* device_not_available */
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
-	       if ((d.dpmit>1) && (trapno==1)) {
-	         extern char *e_print_scp_regs();
+#ifdef TRACE_DPMI
+	       if (d.dpmit && (trapno==1)) {
 	         extern char *e_scp_disasm();
-	         char *pr = e_print_scp_regs(scp,1);
-	         if (pr && *pr)
-		     dbug_printf("\n%s    %s",pr,e_scp_disasm(scp,1));
-	       } else
+	         if (d.dpmit>1)
+			dbug_printf("\n%s",e_scp_disasm(scp,1));
+		 return;
+	       }
 #endif
 	       D_printf("DPMI: do_default_cpu_exception %d at %#x:%#x\n",
 		 trapno, (int)_cs, (int)_eip);
@@ -2618,27 +2590,17 @@ static void do_cpu_exception(struct sigcontext_struct *scp)
   d.dpmi = 1;
 #endif
 
-#ifdef X86_EMULATOR
 #ifdef TRACE_DPMI
   if (d.dpmit && (_trapno == 1)) {
     do_default_cpu_exception(scp, _trapno);
     return;
   }
 #endif
-  if ((_trapno==0x05) && (config.cpuemu>1)) {
-	unsigned char *csp2 = (unsigned char *)(GetSegmentBaseAddress(_cs)+_eip);
-	if (!e_decode_bound_excp(csp2, scp)) {
-#ifdef DPMI_DEBUG
-		d.dpmi = dd;
-#endif
-		return;
-	}
-  }
-#endif
 
   D_printf("DPMI: do_cpu_exception(0x%02lx) at %#x:%#x\n",_trapno,
   	(int)_cs, (int)_eip);
   if ( _trapno == 0xe) {
+      d.dpmi = 9;
       D_printf("DPMI: page fault. in dosemu?\n");
       /* why should we let dpmi continue after this point and crash
        * the system? */
@@ -2836,8 +2798,17 @@ if ((_ss & 4) == 4) {
     _eip += (csp-lina);
 
 #ifdef X86_EMULATOR
-    /* trick, because dpmi_fault must return void */
-    if (config.cpuemu>1) _trapno = *csp;
+    if (config.cpuemu>1) {
+	/* trick, because dpmi_fault must return void */
+	_trapno = *csp;
+#ifdef CPUEMU_DIRECT_IO
+	if (InCompiledCode && !DPMIclient_is_32) {
+	    prefix66 ^= 1; prefix67 ^= 1; /* since we come from 32-bit code */
+/**/ e_printf("dpmi_fault: adjust prefixes to 66=%d,67=%d\n",
+		prefix66,prefix67);
+	}
+#endif
+    }
 #endif
 
     switch (*csp++) {
@@ -3452,8 +3423,8 @@ void run_pm_mouse()
 }
 void dpmi_realmode_hlt(unsigned char * lina)
 {
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
-  if ((d.dpmit==0)||(lina!=0xfc80a))
+#ifdef TRACE_DPMI
+  if ((d.dpmit==0)||((int)lina!=0xfc80a))
 #endif
   D_printf("DPMI: realmode hlt: %p\n", lina);
   if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_dpmi_init))) {
@@ -3465,8 +3436,8 @@ void dpmi_realmode_hlt(unsigned char * lina)
 
   } else if (lina == (unsigned char *) (DPMI_ADD + HLT_OFF(DPMI_return_from_dos))) {
 
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
-    if ((d.dpmit==0)||(lina!=0xfc80a))
+#ifdef TRACE_DPMI
+    if ((d.dpmit==0)||((int)lina!=0xfc80a))
 #endif
     D_printf("DPMI: Return from DOS Interrupt without register translation\n");
     restore_rm_regs();

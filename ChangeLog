@@ -1,3 +1,28 @@
+2000/10/06 ver. 1.1.0.2 unofficial pre-release
+	From Alberto
+	- cpuemu stuff: reworked the tree structures to use an AVL
+	  tree (with code from libavl-1.4.0 (C) 1998,1999 FSF)
+	- self-modifying code is now handled via segfaults on
+	  write-protected memory pages. Not perfect but faster than
+	  checksumming or rebuilding a whole tree. Every time code
+	  is generated, it protects its own page; every time we get
+	  a fault, all code on that page is marked as dirty and
+	  the page is unprotected.
+	- memory overwrites coming from disk also remove any nodes from
+	  the tree over the affected pages. There is currently only
+	  one hook in mfs.c to do that, hoping that there aren't other
+	  ways to overwrite memory...
+	- added fault handling in cpuemu for div by zero, page and I/O
+	  faults.
+	- hooks for VGAemu to make the whole thing working under X,
+	  replacing Bart's instremu.
+	- rewritten comments in code generator in a more consistent
+	  way (gcc-like)
+	- fixed bugs in POP SP and STOSb instructions
+	- moved some defines from dpmi.c to dpmi.h for use by cpuemu
+	From Hans
+	- small fixes to compile simx86 on other than Alberto's systems;)
+	  - changed 'sigcontext' to 'sigcontext_struct' in simx86/cpu-emu.c
 2000/10/05 ver. 1.1.0.1 unofficial pre-release
 	From Herbert Xu <herbert@gondor.apana.org.au>
 	- fix for not working caps/num lock with X_keycode
@@ -23,7 +48,7 @@
 2000/07/09 ver. 1.1.0 released, starting new development tree
 	From Alberto
 	- new cpuemu stuff: new name: simx86
-	  (for more detaila see preliminary src/docs/README/simx86)
+	  (for more details see preliminary src/docs/README/simx86)
 	- ZeroBaseTime is now in cycles instead of us
 	- SIGTIME has been un-macroed to its standard value of SIGALRM
 	- SIGPROF to be reserved/used in the future for cpuemu

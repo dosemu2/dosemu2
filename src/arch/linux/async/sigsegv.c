@@ -95,13 +95,11 @@ int signal, struct sigcontext_struct *scp
       case 0x04: /* overflow */
       case 0x05: /* bounds */
       case 0x07: /* device_not_available */
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
-		 if ((d.dpmit>1) && (_trapno==1)) {
-	           extern char *e_print_scp_regs();
+#ifdef TRACE_DPMI
+		 if (d.dpmit && (_trapno==1)) {
 	           extern char *e_scp_disasm();
-	           char *pr = e_print_scp_regs(scp,0);
-	           if (pr && *pr)
-		     dbug_printf("\n%s    %s",pr,e_scp_disasm(scp,0));
+	           if (d.dpmit>1)
+			dbug_printf("\n%s",e_scp_disasm(scp,0));
 		 }
 #endif
 		 return (void) do_int(_trapno);
@@ -237,13 +235,6 @@ sgleave:
 #endif /* __linux__ */
 
   csp = (char *) _eip;
-
-#ifdef X86_EMULATOR
-  if ((_trapno==0x05) && (config.cpuemu>1)) {
-	if (!e_decode_bound_excp(csp, scp))
-		return;
-  }
-#endif
 
 #if 0
   /* This was added temporarily as most illegal sigsegv's are attempt

@@ -43,9 +43,6 @@
 #include "dpmi.h"
 
 #include "keyb_server.h"
-#ifdef X86_EMULATOR
-#include "cpu-emu.h"	/* for TRACE_DPMI */
-#endif
 
 #define DJGPP_HACK	/* AV Feb 97 */
 #undef  DEBUG_INT1A
@@ -528,15 +525,25 @@ static int dos_helper(void)
         break;
 #ifdef X86_EMULATOR
   case DOS_HELPER_CPUEMUON:
-#ifdef DONT_DEBUG_BOOT
-	memcpy(&d,&d_save,sizeof(struct debug_flags));
+#ifdef TRACE_DPMI
+	if (d.dpmit==0)
 #endif
-	/* we could also enter from inside dpmi, provided we already
-	 * mirrored the LDT into the emu's own one */
-  	if ((config.cpuemu==1) && !in_dpmi) enter_cpu_emu();
+	{
+#ifdef DONT_DEBUG_BOOT
+	    memcpy(&d,&d_save,sizeof(struct debug_flags));
+#endif
+	    /* we could also enter from inside dpmi, provided we already
+	     * mirrored the LDT into the emu's own one */
+	    if ((config.cpuemu==1) && !in_dpmi) enter_cpu_emu();
+  	}
         break;
   case DOS_HELPER_CPUEMUOFF:
-  	if ((config.cpuemu>1) && !in_dpmi) leave_cpu_emu();
+	if ((config.cpuemu>1) 
+#ifdef TRACE_DPMI
+	&& (d.dpmit==0) 
+#endif
+	&& !in_dpmi)
+	    leave_cpu_emu();
         break;
 #endif
     case DOS_HELPER_XCONFIG:

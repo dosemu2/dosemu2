@@ -37,9 +37,12 @@
 
 #include "config.h"
 
-#ifdef X86_EMULATOR
-
 /* ======================================================================= */
+/*
+ * Some protected-mode stuff, not much changed from the 1999 version.
+ * Interfaces with DPMI and its LDT format.
+ * Will be heavily reworked later.
+ */
 
 #include <stdlib.h>
 #include <setjmp.h>
@@ -75,12 +78,16 @@ int SetSegreg(int mode, SDTR *sd, unsigned char *big, unsigned long csel)
 	sel = csel & 0xffff;
 	if (REALADDR()) {
 	    sd->BoundL = (sel<<4); if (big) *big=0;
+#ifdef USE_BOUND
 	    /*
 	     * Intel docs say: BOUND gives an error if index<boundl or
 	     * index>(boundh+2 or 4). For the moment BOUND is only
 	     * generated in 32-bit mode -> err if index>=((limit+1)+4).
 	     */
 	    sd->BoundH = sd->BoundL + 0xfffb;
+#else
+	    sd->BoundH = sd->BoundL + 0xffff;
+#endif
 	    if (d.emu>4) {
 		    e_printf("SetSeg REAL %08lx -> %08lx:%08lx\n",csel,
 		    	sd->BoundL,sd->BoundH);
@@ -91,7 +98,8 @@ int SetSegreg(int mode, SDTR *sd, unsigned char *big, unsigned long csel)
 	sofs = (csel>>16)&0xff;
 	if (sel < 4) {
 	    if ((sofs==Ofs_CS)||(sofs==Ofs_SS)) return EXCP0D_GPF;
-	    return 0;	/* DS..GS can be 0 */
+	    sd->BoundL = 0xc0000000;
+	    return 0;	/* DS..GS can be 0 for some while */
 	}
 
 	/* DT checks */
@@ -381,9 +389,9 @@ int emu_modify_ldt(int func, void *ptr, unsigned long bytecount)
 	int ret = -ENOSYS;
 
 #if 1
-	D_printf("EMU86: modify_ldt %02x %ld [%08lx %08lx %08lx %08lx]\n",
-		func, bytecount, ((long *)ptr)[0], ((long *)ptr)[1], 
-		((long *)ptr)[2], ((long *)ptr)[3] );
+	{ long *lptr = (long *)ptr;
+	  D_printf("EMU86: modify_ldt %02x %ld [%08lx %08lx %08lx %08lx]\n",
+		func, bytecount, lptr[0], lptr[1], lptr[2], lptr[3] ); }
 #endif
 	switch (func) {
 	case 0:
@@ -411,16 +419,23 @@ int e_larlsl(int mode, unsigned short sel)
 	dt  = (sel & 4? LDT : GDT);
 	dtr = (sel & 4? &(TheCPU.LDTR) : &(TheCPU.GDTR));
 	/* check DT and limits */
-	if (dt==NULL || ((sel&0xfff8) > dtr->Limit)) return 0;
-	/* check system segments */
+	if (dt==NULL || ((sel&0xfff8) > dtr->Limit)) {
+		return 0;
+	}
+	/* check system segments if in GDT */
 	if (dt==GDT && (GDT[sel>>3].S==0)) {
+	    /* "is a valid descriptor type" */
 	    int styp=GDT[sel>>3].type;
 	    if (styp==0 || styp==6 || styp==7 || styp==8 ||
 		styp==10 || styp==13 || styp==14 || styp==15) return 0;
 	}
-	/* check present bit and RPL */
+	/* "if the selector is visible at the current privilege level
+	 *  (modified by the selector's RPL)" */
 	pl = CPL; if ((sel&3)>pl) pl=(sel&3);
-	if (dt[sel>>3].present==0 || (pl > dt->DPL)) return 0;
+	if (pl > dt->DPL) {
+		return 0;
+	}
+	/* Intel manual says nothing about present bit */
 	/* is all ok now? */
 	return 1;
 }
@@ -457,4 +472,3 @@ void emu_mhp_SetTypebyte (unsigned short selector, int typebyte)
 
 /* ======================================================================= */
 
-#endif	/* X86_EMULATOR */

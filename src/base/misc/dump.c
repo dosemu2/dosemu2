@@ -130,22 +130,26 @@ show_regs(char *file, int line)
   /* display the 10 bytes before and after CS:EIP.  the -> points
    * to the byte at address CS:EIP
    */
-  g_printf("STACK: ");
-  sp -= 10;
-  for (i = 0; i < 10; i++)
-    g_printf("%02x ", *sp++);
-  g_printf("-> ");
-  for (i = 0; i < 10; i++)
-    g_printf("%02x ", *sp++);
-  g_printf("\n");
-  g_printf("OPS  : ");
-  cp -= 10;
-  for (i = 0; i < 10; i++)
-    g_printf("%02x ", *cp++);
-  g_printf("-> ");
-  for (i = 0; i < 10; i++)
-    g_printf("%02x ", *cp++);
-  g_printf("\n\t%s\n", emu_disasm(1,0));
+  if (((unsigned) sp < 0xa0000) && ((unsigned)sp >10)) {
+	  g_printf("STACK: ");
+	  sp -= 10;
+	  for (i = 0; i < 10; i++)
+		  g_printf("%02x ", *sp++);
+	  g_printf("-> ");
+	  for (i = 0; i < 10; i++)
+		  g_printf("%02x ", *sp++);
+	  g_printf("\n");
+  }
+  if (((unsigned) cp < 0xa0000) && ((unsigned)cp>10)) {
+	  g_printf("OPS  : ");
+	  cp -= 10;
+	  for (i = 0; i < 10; i++)
+		  g_printf("%02x ", *cp++);
+	  g_printf("-> ");
+	  for (i = 0; i < 10; i++)
+		  g_printf("%02x ", *cp++);
+	  g_printf("\n\t%s\n", emu_disasm(1,0));
+  }
 }
 
 void

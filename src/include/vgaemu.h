@@ -463,7 +463,9 @@ extern vgaemu_bios_type vgaemu_bios;
  */
 
 int VGA_emulate_outb(ioport_t, Bit8u);
-unsigned char VGA_emulate_inb(ioport_t);
+int VGA_emulate_outw(ioport_t, Bit16u);
+Bit8u VGA_emulate_inb(ioport_t);
+Bit16u VGA_emulate_inw(ioport_t);
 #ifdef __linux__
 int vga_emu_fault(struct sigcontext_struct *);
 #define VGA_EMU_FAULT(scp,code) vga_emu_fault(scp)
@@ -486,6 +488,9 @@ void vgaemu_scroll(int x0, int y0, int x1, int y1, int n, unsigned char attr);
 void vgaemu_put_char(int x, int y, unsigned char c, unsigned char attr);
 unsigned char Logical_VGA_read(unsigned offset);
 void Logical_VGA_write(unsigned offset, unsigned char value);
+/* for cpuemu: */
+int vga_emu_protect_page(unsigned, int);
+int vga_emu_adjust_protection(unsigned, unsigned);
 
 /*
  * Functions defined in env/video/vesa.c.
@@ -593,6 +598,14 @@ unsigned char Herc_get_mode_ctrl(void);
 
 unsigned instr_len(unsigned char *);
 void instr_emu(struct sigcontext_struct *scp);
+
+/*
+ * whether we emulate only writes to VGA memory or read & write
+ * (0 -> no instruction emulation, the 'normal' case)
+ * cf. vga.inst_emu
+ */
+#define EMU_WRITE_INST	1
+#define EMU_ALL_INST	2
 
 /*
  * VGA bitmap fonts from env/video/vgafonts.c

@@ -36,6 +36,13 @@
 #include "emu86.h"
 #include "codegen.h"
 
+/*
+ * Why this one? It is only a duplicate of modrm-gen but it interpretes
+ * addresses instead of compiling them. After some headaches I decided
+ * that it was better to have a duplicate than to parse,compile,execute,
+ * find the node,delete it etc.
+ *
+ */
 unsigned long rods, ross;
 
 /////////////////////////////////////////////////////////////////////////////
@@ -180,7 +187,7 @@ int ModRMSim(unsigned char *PC, int mode)
 				case 7: MEMREF = rods + rEDI; break;
 			}
 			break;
-		case 1:
+	    case 1:
 	    case 2: {
 			int dsp=0;
 			if (mode & ADDR16) {
@@ -213,7 +220,7 @@ int ModRMSim(unsigned char *PC, int mode)
 						if (mod==1) { dsp=(signed char)Fetch(PC+3); l=4; }
 							else { dsp=FetchL(PC+3); l=7; }
 						}
-						MEMREF = dsp;
+						MEMREF += dsp;
 						break;
 					case 5: MEMREF = ross + rEBP + dsp; break;
 					case 6: MEMREF = rods + rESI + dsp; break;

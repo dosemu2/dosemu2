@@ -69,6 +69,8 @@ GetDebugFlagsHelper(char *debugStr, int print)
   debugStr[i++] = DebugFlag(d.mapping);  debugStr[i++] = 'Q';
 #ifdef X86_EMULATOR
   debugStr[i++] = DebugFlag(d.emu);      debugStr[i++] = 'e';
+#endif
+#ifdef TRACE_DPMI
   debugStr[i++] = DebugFlag(d.dpmit);    debugStr[i++] = 't';
 #endif
 

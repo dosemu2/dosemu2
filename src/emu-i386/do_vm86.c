@@ -155,7 +155,7 @@ void vm86_GP_fault(void)
    */
   in_sighandler = 0;
 
-#if !defined(X86_EMULATOR) || !defined(TRACE_DPMI)
+#ifndef TRACE_DPMI
   if (LWORD(eflags) & TF) {
     g_printf("SIGSEGV received while TF is set\n");
     show_regs(__FILE__, __LINE__);
@@ -201,6 +201,13 @@ void vm86_GP_fault(void)
   org_eip = REG(eip);
   LWORD(eip) += (csp-lina);
 
+#if defined(X86_EMULATOR) && defined(CPUEMU_DIRECT_IO)
+  if (InCompiledCode) {
+    prefix66 ^= 1; prefix67 ^= 1;	/* since we come from 32-bit code */
+/**/ e_printf("vm86_GP_fault: adjust prefixes to 66=%d,67=%d\n",
+	prefix66,prefix67);
+  }
+#endif
   switch (*csp) {
   
        /* interrupt calls after prefix: we go back to vm86 */
@@ -385,7 +392,7 @@ op0ferr:
     leavedos(fatalerr);		/* shouldn't return */
   }				/* end of switch() */
 
-#if defined(X86_EMULATOR) && defined(TRACE_DPMI)
+#ifdef TRACE_DPMI
   if (d.dpmit==0)
 #endif
   if (LWORD(eflags) & TF) {

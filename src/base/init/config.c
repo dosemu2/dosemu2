@@ -1064,7 +1064,7 @@ int parse_debugflags(const char *s, unsigned char flag)
     const char      allopts[] = "dARWDCvkiTtsm#pQgcwhIExMnPrSeZ";
 #endif
 /*    abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ  */
-/*      *** *** * ** * **  ***  * ***   *   *  *****  ** *  */
+/*      *** *** * ** * *** ***  * ***   *   *  *****  ** *  */
 
     /*
      * if you add new classes of debug messages, make sure to add the
@@ -1182,6 +1182,8 @@ int parse_debugflags(const char *s, unsigned char flag)
 	case 'e':		/* cpu-emu */
 	    d.emu = flag;
 	    break;
+#endif
+#ifdef TRACE_DPMI
 	case 't':		/* dpmi */
 	    d.dpmit = flag;
 	    break;
@@ -1192,14 +1194,15 @@ int parse_debugflags(const char *s, unsigned char flag)
 		newopts[0] = flag ? '+' : '-';
 		newopts[1] = 0;
 		strcat(newopts, allopts);
-#if 1 /* we need to _allways_ remove that flag here !!! #ifdef X86_EMULATOR */
-		/* hack-do not set 'e' flag if not explicitly specified */
-		{char *p=newopts; while (*p) {if (*p=='e') *p='g'; p++;}}
+#if 1 /* we need to _always_ remove these flags here !!! #ifdef X86_EMULATOR */
+		/* hack-do not set 'e,t' flags if not explicitly specified */
+		{char *p=newopts;
+		 while (*p) {if ((*p=='e')||(*p=='t')) *p='g'; p++;}}
 #endif
 		parse_debugflags(newopts, flag);
 		free(newopts);
-		break;
 	    }
+	    break;
 	case '0'...'9':	/* set debug level, 0 is off, 9 is most
 				 * verbose */
 	    flag = c - '0';

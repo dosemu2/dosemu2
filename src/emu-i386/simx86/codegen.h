@@ -36,6 +36,7 @@
 #define _EMU86_CODEGEN_H
 
 #include "syncpu.h"
+#include "trees.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -110,40 +111,47 @@
 #define O_POP		82
 #define O_PUSHA		83
 #define O_POPA		84
-#define O_MOVS_SetA	85
-#define O_MOVS_MovD	86
-#define O_MOVS_SavA	87
-#define O_MOVS_LodD	88
-#define O_MOVS_StoD	89
-#define O_MOVS_ScaD	90
-#define O_MOVS_CmpD	91
-#define O_RDTSC		92
+#define O_PUSH1		85
+#define O_PUSH2		86
+#define O_PUSH3		87
+#define O_POP1		88
+#define O_POP2		89
+#define O_POP3		90
 
-#define O_PUSH1		93
-#define O_PUSH2		94
-#define O_PUSH3		95
-#define O_POP1		96
-#define O_POP2		97
-#define O_POP3		98
+#define O_MOVS_SetA	91
+#define O_MOVS_MovD	92
+#define O_MOVS_SavA	93
+#define O_MOVS_LodD	94
+#define O_MOVS_StoD	95
+#define O_MOVS_ScaD	96
+#define O_MOVS_CmpD	97
+#define O_RDTSC		98
+
+#define O_INPDX		100
+#define O_INPPC		101
+#define O_OUTPDX	102
+#define O_OUTPPC	103
 
 #ifdef OPTIMIZE_BACK_JUMPS
-#define JB_LOCAL	100
-#define JCXZ_LOCAL	101
-#define JLOOP_LOCAL	102
+#define JB_LOCAL	110
+#define JCXZ_LOCAL	111
+#define JLOOP_LOCAL	112
 #endif
 #ifdef OPTIMIZE_FW_JUMPS
-#define JF_LOCAL	103
+#define JF_LOCAL	113
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
 //
 #define ADDR16	0x00000001
+#define ADDR32	0x00000000
 #define BitADDR16	0
 #define DATA16	0x00000002
+#define DATA32	0x00000000
 #define BitDATA16	1
 #define MBYTE	0x00000004
 #define IMMED	0x00000008
-#define STACK16	0x00000010
+#define MCEXEC	0x00000010
 #define RSHIFT	0x00000020
 #define SEGREG	0x00000040
 #define MLEA	0x00000080
@@ -175,115 +183,53 @@
 
 static __inline__ void PUSH(int m, void *w)
 {
-	if (m&STACK16) {
-		unsigned short sp = *((unsigned short *)&TheCPU.esp)-2;
-		if (m&DATA16) PutSWord(w);
-		else {
-			sp-=2; PutSLong(w);
-		}
-		*((unsigned short *)&TheCPU.esp) = sp;
-	}
+	unsigned long sp = (TheCPU.esp-2) & TheCPU.StackMask;
+	if (m&DATA16) PutSWord(w);
 	else {
-		unsigned long sp = TheCPU.esp-2;
-		if (m&DATA16) PutSWord(w);
-		else {
-			sp-=2; PutSLong(w);
-		}
-		TheCPU.esp = sp;
+		sp = (sp-2)&TheCPU.StackMask; PutSLong(w);
 	}
+	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
 }
 
 static __inline__ void POP(int m, void *w)
 {
-	if (m&STACK16) {
-		unsigned short sp = *((unsigned short *)&TheCPU.esp);
-		if (m&DATA16) {
-			GetSWord(w); sp+=2;
-		}
-		else {
-			GetSLong(w); sp+=4;
-		}
-		*((unsigned short *)&TheCPU.esp) = sp;
+	unsigned long sp = TheCPU.esp & TheCPU.StackMask;
+	if (m&DATA16) {
+		GetSWord(w); sp+=2;
 	}
 	else {
-		unsigned long sp = TheCPU.esp;
-		if (m&DATA16) {
-			GetSWord(w); sp+=2;
-		}
-		else {
-			GetSLong(w); sp+=4;
-		}
-		TheCPU.esp = sp;
+		GetSLong(w); sp+=4;
 	}
+	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
 }
 
 static __inline__ void TOS_WORD(int m, void *w)		// for segments
 {
-	if (m&STACK16) {
-		unsigned short sp = *((unsigned short *)&TheCPU.esp);
-		GetSWord(w);
-	}
-	else {
-		unsigned long sp = TheCPU.esp;
-		GetSWord(w);
-	}
+	unsigned long sp = TheCPU.esp & TheCPU.StackMask;
+	GetSWord(w);
 }
 
 static __inline__ void NOS_WORD(int m, void *w)		// for segments
 {
-	if (m&STACK16) {
-		unsigned short sp = *((unsigned short *)&TheCPU.esp)+(m&DATA16? 2:4);
-		GetSWord(w);
-	}
-	else {
-		unsigned long sp = TheCPU.esp+(m&DATA16? 2:4);
-		GetSWord(w);
-	}
+	unsigned long sp = (TheCPU.esp+(m&DATA16? 2:4)) & TheCPU.StackMask;
+	GetSWord(w);
 }
 
 static __inline__ void POP_ONLY(int m)
 {
-	if (m&STACK16) {
-		unsigned short *sp = (unsigned short *)&TheCPU.esp;
-		*sp += (m&DATA16? 2:4);
-	}
-	else {
-		TheCPU.esp += (m&DATA16? 2:4);
-	}
+	unsigned long sp = TheCPU.esp + (m&DATA16? 2:4);
+	TheCPU.esp = (sp&TheCPU.StackMask) | (TheCPU.esp&~TheCPU.StackMask);
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
-//
-// Tree node key definition.
-// The 64-bit key is composed of two parts: the most sigificant (a)
-// is the (almost)bit-reversal of the program counter, the least
-// significant (c) keeps the four code bytes found at that address.
-// This way we can identify almost all the cases when the code at
-// a given address changes (by overwriting or self-modifying). Being
-// limited to the first four bytes means, however, that this is not
-// 100% foolproof, especially if the code sequence is quite long.
-// Using e.g. the checksum of the full code block would be safer, but
-// doesn't look very efficient.
-//
-typedef	union {
-	struct { long c, a; } sk;
-    	long long lk;
-} GKey;
 
 typedef struct _imeta {
 	unsigned char *addr, *npc, *jtgt;
 	struct _imeta *fwref;
 	unsigned short ncount, len, flags;
+	unsigned short cklen;
 } IMeta;
-
-typedef struct _tnode {
-	struct _tnode *root, *left, *right, *prev, *next;
-	GKey key;
-	unsigned char *addr, *npc;
-	int jcount;
-	unsigned short len, flags;
-} TNode;
 
 #define MAXGNODES	512
 extern IMeta InstrMeta[];
@@ -299,29 +245,22 @@ extern unsigned char *MaxCodePtr;
 extern unsigned char TailCode[8];
 
 /* Code generation macros for x86 */
-#define	G1(b)		*CodePtr++=(unsigned char)(b)
-#define	G2(w)		{*((unsigned short *)CodePtr)=(w);CodePtr+=2;}
-#define	G2M(c,b)	{*((unsigned short *)CodePtr)=((b)<<8)|(c);CodePtr+=2;}
-#define	G3(l)		{*((unsigned long *)CodePtr)=(l);CodePtr+=3;}
-#define	G3M(c,b1,b2)	{*((unsigned long *)CodePtr)=((b2)<<16)|((b1)<<8)|(c);CodePtr+=3;}
-#define	G4(l)		{*((unsigned long *)CodePtr)=(l);CodePtr+=4;}
-#define	G4M(c,b1,b2,b3)	{*((unsigned long *)CodePtr)=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
-				CodePtr+=4;}
-#define GNX(v)		{memcpy(CodePtr,&(v),sizeof(v));CodePtr+=sizeof(v);}
+#define	G1(b,p)		*(p)++=(unsigned char)(b)
+#define	G2(w,p)		{*((unsigned short *)(p))=(w);(p)+=2;}
+#define	G2M(c,b,p)	{*((unsigned short *)(p))=((b)<<8)|(c);(p)+=2;}
+#define	G3(l,p)		{*((unsigned long *)(p))=(l);(p)+=3;}
+#define	G3M(c,b1,b2,p)	{*((unsigned long *)(p))=((b2)<<16)|((b1)<<8)|(c);(p)+=3;}
+#define	G4(l,p)		{*((unsigned long *)(p))=(l);(p)+=4;}
+#define	G4M(c,b1,b2,b3,p) {*((unsigned long *)(p))=((b3)<<24)|((b2)<<16)|((b1)<<8)|(c);\
+				(p)+=4;}
+#define GNX(d,s,l)	{__memcpy((d),(s),(l));(d)+=(l);}
 
 //
-TNode *FindTree(unsigned char *addr);
-TNode *Move2ITree(void);
-//
-void GCPrint(unsigned char *cp, int len);
-//
 void InitGen(void);
-void InitTrees(void);
 IMeta *NewIMeta(unsigned char *newa, int mode, int *rc, void *aux);
 void Gen(int op, int mode, ...);
 void AddrGen(int op, int mode, ...);
 int  Fp87_op(int exop, int reg);
-//void InvalidateITree(unsigned long lo_a, unsigned long hi_a);
 unsigned char *CloseAndExec(unsigned char *newa, int mode);
 void EndGen(void);
 //

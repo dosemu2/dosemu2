@@ -3,97 +3,72 @@
 ** NOTE - This code is still under development and may be UNSTABLE ***
 **********************************************************************
 
-The CPU emulator was taken from the TWIN library from Willows Software
-(http://www.willows.com). Current version as of this writing is 3.1.12,
-but the emulator hasn't changed at least since version 3.1.1.
+The current version of the CPU emulator, as of dosemu-1.1.x, has been
+rewritten from scratch, and is now called simx86.
 
 Dosemu started to introduce the emulator in version 0.97. The first step
 was to port the vm86 kernel interface in November 1997. At that time, I
 was only able to boot DOS (up to the C:> prompt) in plain console mode.
-One year later, I have implemented the DPMI interface and 32-bit code.
+One year later, I implemented the DPMI interface and 32-bit code.
 
-The original Willows emulator had only one entry point at 16-bit code:
+In dosemu-0.99 I ported part of the TWIN library from Willows Software
+(http://www.willows.com). In Twin, only a very small fraction of the
+time is spent emulating CPU instructions; most of the time is taken by
+API calls. OTOH, in dosemu most of the work is done by the emulated CPU,
+and a totally high-level language approach, while good for portability,
+is unacceptably slow.
 
-               |--67h--> 16/32 --66h-->|
-               |                       |
-  o--->16/16-->|                       |-->32/32
-               |                       |
-               |--66h--> 32/16 --67h-->|
-
-and the 32-bit code was, I guess, limited to the few instructions actually
-found in 16-bit Windows code.
-I made the emulator fully symmetric:
-
-               |--67h--> 16/32 --66h-->|
-               |<-66h---       <-67h---|
-  o--->16/16<->|                       |<->32/32<---o
-               |<-67h---       <-66h---|
-               |--66h--> 32/16 --67h-->|
-
-and implemented the missing parts of the 32-bit code interpreter and the
-DPMI interface. Work is in progress to go beyond DPMI so to have the whole
-range of modes (real-VM86-protected) directly available.
-
+Two approaches remain:
+1) scan the instruction flow for sensitive instructions and put
+   breakpoints on them, executing the rest of the code natively.
+   This is the fastest way but it is not portable.
+   Please have a look at plex86 (http://www.plex86.org), it runs DOS.
+2) try to speed up things with a binary compiler. Porting it to
+   other architectures requires only to rewrite the backend.
+   This is the way I choose for simx86.
 
 The purposes of this emulator are:
 
 1) porting dosemu on other CPUs (Alpha,PPC,...)
-	it should be a straightforward task to port the TWIN part, which
-	was already portable, while porting the rest of dosemu could
-	be much more challenging, as it has a lot of ix86-isms
+   The need for such a port is decreasing with time; first, who cares
+   anymore about DOS programs today?; then, the only successful non-
+   Intel platform out there is the iMac, where AFAIK no one ever asked
+   for dosemu...
+   I promise I will start working on the PPC port next week... :-)
 2) allowing us to run 'ring-0' protected-mode programs
-	... up to Win95? Hmmm, wine will be there LONG before us.
+   ... up to Win95? Hmmm, wine will be there LONG before us.
 3) being a debugging tool for DOS programs and for dosemu itself
-	this is currently the only reason for emulating an ix86 on
-	an ix86 machine :-)
+   this is still the main reason for emulating an ix86 on
+   an ix86 machine :-)
+4) replacing Bart Oldemans instremu (part of vgaemu) with a more
+   complete and robust CPU emulation.
 
 **********************************************************************
 
-As of 1999/01/08, the programs I tested under the emulator include:
+As of Oct 1,2000, I'm developing on a 350MHz Pentium II and a 550MHz Athlon.
 
-- IBM PC DOS 7.0	RM		ok
-- ezedit		RM		ok
-- Borland tasmx		DPMI16		ok
-- Norton Commander 5	RM		ok - why it says 'Pentium 0 MHz'?
-- some djggp test pgms	DPMI32		ok
-- gcc (djgpp)		DPMI32		ok
-- doom[2]		DPMI32		ok
-- Borland C++3.1	DPMI16		ok
-- Xtree Gold		?		ok
-- joe			DPMI32		ok
-- MS Flight Sim 5.1	?		ok
-- Norton Diagnostics	?		ok - why it says 'Pentium 0 MHz'?
-- IDA 3.75 (DOS)	DPMI32		ok
-- UltiBoard 4.90	DPMI		ok
-- dope(demo)		?		ok but wrong colours
-- inside(demo)		?		ok
-
-What doesn't work yet:
-- some instructions are still unimplemented
-- there are still bugs in the FP code
+The programs I saw working under the emulator include:
+- IBM PC DOS 7.0
+- ezedit
+- Borland tasmx
+- Norton Commander 5
+- some djggp test pgms
+- gcc (djgpp)
+- doom[2]
+- Norton Diagnostics
+- WinOS2 (Win 3.1), more or less (mouse and timing problems?)
 
 What will probably never work:
 - serial code, sound code, and all sort of fast,realtime stuff
-  (but who knows)
+  (but who knows, 1GHz CPUs are already available)
 
-Is the emulator slow? Of course yes, but not so much; on a 400MHz CPU
-the average speed is about that of a 486, with wide variations depending
-on the cpuemu/dosemu ratio. CPU-intensive programs are the slowest,
-text-mode apps like editors or file managers are almost as fast as the
-real thing, while graphics apps are normally quite slow.
+Note that FPU diagnostic programs will likely always fail, because all
+the FP instructions are emulated with double (64-bit) precision, instead
+of long double (80-bits) as in the real FPU.
 
-There are some speed tricks, like avoiding emulation of the video BIOS
-code in console mode, or directly calling vgaemu under X from the in/out
-instructions. Other (less portable) speed tricks involved stack and
-register allocation on the ix86 and helped getting a greater speedup (up
-to making doom _playable_); however, they are not available for all gcc
-versions.
+**********************************************************************
 
-Note that FPU diagnostic programs will likely always fail, because many
-of the FP instructions are emulated with libc calls, and so have only
-double (64-bit) precision, instead of long double (80-bits) as in the
-real FPU. Besides, the emulated FPU doesn't support precision control
-and some other things (e.g. exceptions).
+(technical description still missing)
 
 **********************************************************************
 
@@ -125,14 +100,14 @@ comments.
 There is an added debug option ('e') for the cpuemu. Note that using
 'a' enables all debug options BUT this one, if you really want a full
 debug trace you must use -Dae instead of -Da.
-Any setting of 'e' beyond 2 is VERY HEAVY both for your CPU and for
-the space on your hard disk, use this option with care if you need it
-(but... do you really _need_ it? :-)
+Any setting of 'e' greater than 2 is VERY HEAVY both for your CPU and
+for the space on your hard disk, use this option with care if you need
+it (but... do you really _need_ it? :-)
 
 There are also some undocumented options, mainly for debugging cpuemu
 itself, so they'll better stay undocumented.
 
 Happy emulating.
 
-Alberto Vignani	- 1999/01/12
+Alberto Vignani	- Oct.6,2000
 

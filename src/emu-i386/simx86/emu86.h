@@ -535,11 +535,20 @@ extern hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime;	// for d
 #define IS_PF_SET		((EFLAGS & EFLAGS_PF)!=0)
 
 #define REALMODE()		((TheCPU.cr[0] & CR0_PE)==0)
-#define PROTMODE()		((TheCPU.cr[0] & CR0_PE)!=0)
 #define V86MODE()		((TheCPU.eflags&EFLAGS_VM)!=0)
+#define PROTMODE()		(!REALMODE() && !V86MODE())
 #define REALADDR()		(REALMODE() || V86MODE())
 
 #if 1
+/*
+ * CPL is 0 in 'real' realmode, 3 (but can be less) in VM86 mode
+ * in PM it depends on the CS DPL
+ *
+ * if CPL<=IOPL the following insns DO NOT trap:
+ *	IN, INS, OUT, OUTS, CLI, STI
+ * only POPF and IRET can change IOPL iff CPL==0
+ * only POPF can change IF iff CPL<=IOPL
+ */
 //#define CPL	(REALMODE()? 0:(V86MODE()? 3:(TheCPU.cs&3)))
 #define CPL	(V86MODE()? 3:(TheCPU.cs&3))
 #define IOPL	((EFLAGS & EFLAGS_IOPL_MASK) >> EFLAGS_IOPL_SHIFT)
@@ -600,10 +609,21 @@ extern hitimer_t TotalTime, AddTime, SearchTime, ExecTime, CleanupTime;	// for d
 			  ZeroTimeBase.td += (t0 - TheCPU.EMUtime);\
 			  TheCPU.EMUtime = t0; }
 
+#ifndef min
+#define min(a,b)	((a)<(b)?(a):(b))
+#endif
+#ifndef max
+#define max(a,b)	((a)>(b)?(a):(b))
+#endif
+#ifndef PAGE_SIZE
+#define PAGE_SIZE	4096
+#endif
+
 /////////////////////////////////////////////////////////////////////////////
 //
 extern unsigned long eTSSMASK;
 extern volatile sig_atomic_t e_signal_pending;
+extern int Running;		/* into interpreter loop */
 //
 unsigned char *do_hwint(int mode, int intno);
 unsigned char *Interp86(unsigned char *PC, int mode);
@@ -614,7 +634,10 @@ void ModGetReg1(unsigned char *PC, int mode);
 //
 char *e_emu_disasm(unsigned char *org, int is32);
 char *e_print_regs(void);
+char *e_print_scp_regs(struct sigcontext_struct *scp, int pmode);
 char *e_trace_fp(void);
+//
+void e_emu_fault(int, struct sigcontext_struct);
 //
 /////////////////////////////////////////////////////////////////////////////
 
