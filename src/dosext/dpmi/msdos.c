@@ -728,7 +728,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	char *src, *dst;
 	int len;
 	prepare_ems_frame();
-	DS_MAPPED = _ds;
 	REG(ds) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_ds);
 	dst = (char *)(REG(ds)<<4);
@@ -744,7 +743,6 @@ int msdos_pre_extender(struct sigcontext_struct *scp, int intr)
 	char *src, *dst;
 	int len;
 	prepare_ems_frame();
-	ES_MAPPED = _es;
 	REG(es) = TRANS_BUFFER_SEG;
 	src = (char *)GetSegmentBaseAddress(_es);
 	dst = (char *)(REG(es)<<4);
@@ -864,10 +862,10 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	int len;
 	my_ds = TRANS_BUFFER_SEG;
 	src = (char *)(my_ds<<4);
-	dst = (char *)GetSegmentBaseAddress(DS_MAPPED);
-	len = ((Segments[DS_MAPPED >> 3].limit > 0xffff) ||
-	    	Segments[DS_MAPPED >> 3].is_big) ?
-		0xffff : Segments[DS_MAPPED >> 3].limit;
+	dst = (char *)GetSegmentBaseAddress(_ds);
+	len = ((Segments[_ds >> 3].limit > 0xffff) ||
+	    	Segments[_ds >> 3].is_big) ?
+		0xffff : Segments[_ds >> 3].limit;
 	D_printf("DPMI: DS_MAPPED seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -879,10 +877,10 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	int len;
 	my_es = TRANS_BUFFER_SEG;
 	src = (char *)(my_es<<4);
-	dst = (char *)GetSegmentBaseAddress(ES_MAPPED);
-	len = ((Segments[ES_MAPPED >> 3].limit > 0xffff) ||
-	    	Segments[ES_MAPPED >> 3].is_big) ?
-		0xffff : Segments[ES_MAPPED >> 3].limit;
+	dst = (char *)GetSegmentBaseAddress(_es);
+	len = ((Segments[_es >> 3].limit > 0xffff) ||
+	    	Segments[_es >> 3].is_big) ?
+		0xffff : Segments[_es >> 3].limit;
 	D_printf("DPMI: ES_MAPPED seg at %#x copy back at %#x for %#x\n",
 		(int)src, (int)dst, len);
 	MEMCPY_DOS2DOS(dst, src, len);
@@ -956,8 +954,7 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	case 0x34:		/* Get Address of InDOS Flag */
 	case 0x35:		/* GET Vector */
 	case 0x52:		/* Get List of List */
-	    if (!ES_MAPPED)
-	      SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
+	    SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
 	    break;
 
 	case 0x39:		/* mkdir */
@@ -1000,12 +997,12 @@ int msdos_post_extender(struct sigcontext_struct *scp, int intr)
 	  break;
 
         case 0x59:		/* Get EXTENDED ERROR INFORMATION */
-	    if(LWORD(eax) == 0x22 && !ES_MAPPED) { /* only this code has a pointer */
+	    if(LWORD(eax) == 0x22) { /* only this code has a pointer */
 		SET_REG(es, ConvertSegmentToDescriptor(REG(es)));
 	    }
 	    break;
 	case 0x38:
-	    if (_LO(ax) == 0x00 && !DS_MAPPED) { /* get country info */
+	    if (_LO(ax) == 0x00) { /* get country info */
 		SET_REG(ds, ConvertSegmentToDescriptor(REG(ds)));
 	    }
 	    break;
