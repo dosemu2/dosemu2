@@ -59,7 +59,8 @@ struct debug_flags {
    pd,			/* Packet driver     "P" */
    request,		/* PIC               "r" */
    sound, 		/* SOUND	     "S" */
-   aspi			/* ASPI interface    "A" */
+   aspi,		/* ASPI interface    "A" */
+   pci                  /* PCI               "Z" */
 #ifdef X86_EMULATOR
    ,emu			/* CPU emulation     "e" */
 #endif
@@ -129,6 +130,7 @@ void verror(const char *fmt, va_list args);
 #define r_printf(f,a...)        ifprintf(d.request,f,##a)
 #define S_printf(f,a...)     	ifprintf(d.sound,f,##a)
 #define A_printf(f,a...)     	ifprintf(d.aspi,f,##a)
+#define Z_printf(f,a...)        ifprintf(d.pci,f,##a)
 #ifdef X86_EMULATOR
 #define e_printf(f,a...)     	ifprintf(d.emu,f,##a)
 #endif

@@ -303,7 +303,7 @@ version:	versetup
 versetup:
 	@mkdir -p $(BINPATH)/bin
 	@mkdir -p $(BINPATH)/commands
-	@cp -p commands/precompiled/* $(BINPATH)/commands
+	@cp -p commands/precompiled/* $(BINPATH)/commands || true
 	@rm -f ../bin ../commands
 	@ln -sf $(THISVERSION)/bin ../bin
 	@ln -sf $(THISVERSION)/commands ../commands

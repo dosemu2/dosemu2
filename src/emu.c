@@ -447,6 +447,7 @@ emulate(int argc, char **argv)
     signal_init();		/* initialize sig's & sig handlers */
     device_init();		/* initialize keyboard, disk, video, etc. */
     cpu_setup();		/* setup the CPU */
+    pcibios_init();
     pci_setup();
     hardware_setup();		/* setup any hardware */
     extra_port_init();		/* setup ports dependent on config */

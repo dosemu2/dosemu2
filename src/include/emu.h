@@ -150,9 +150,9 @@ void getKeys(void);
      int set_ioperm(int, int, int);
 
 #ifdef X86_EMULATOR
-EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
 #else
-EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
+EXTERN struct debug_flags d INIT({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
 #endif
 #ifdef DONT_DEBUG_BOOT
 EXTERN struct debug_flags d_save;

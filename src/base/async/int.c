@@ -52,6 +52,8 @@
 int X_change_config(unsigned, void *);
 #endif
 
+extern void pci_bios(void);
+
 /*
    This flag will be set when doing video routines so that special
    access can be given
@@ -1094,19 +1096,7 @@ Return: nothing
     break;
  
   case 0xb1:			/* Intel PCI BIOS v 2.0c */
-    switch (LO(ax)) {
-      case 1: case 0x81:	/* installation check */
-        NOCARRY;		/* AH==0 if installed */
-        break;
-      case 2: case 0x82:	/* find PCI device */
-        g_printf("FIND PCI device %d id=%04x vend=%04x\n", LWORD(esi),
-        	LWORD(ecx), LWORD(edx));
-      case 3: case 0x83:	/* find PCI class code */
-	HI(ax) = 0x86;		/* not found */
-      default:
-        CARRY;
-        break;
-    }
+      pci_bios();
     break;
 
   default:

@@ -1,3 +1,14 @@
+99/07/09 ver. 0.99.13 released
+	From Egbert Eich <eich@hilbert.ikp.physik.tu-darmstadt.de>
+	- implemented PCI-BIOS support (PCI Cfg Type 1 + 2)
+	  All functions are implemented except 'special cycle support',
+	  'get irq routing options' and 'set pci irq' (don't believe the
+	  missing ones are important for DOSEMU;-).
+	 ( good work, Egbert! --Hans)
+	From Hans
+	- changed man/dos.1 to reflect the new -D+Z (PCI) flag.
+	- DANG recompile
+	- docs recompile
 99/07/07 ver. 0.99.12.3 unofficial pre-release
 	From Alberto
 	- dosdebug.c: Add segment to XLAT. Correct order of src/dest for

@@ -19,6 +19,7 @@
 #include "port.h"
 #include "pci.h"
 
+
 /* SIDOC_BEGIN_FUNCTION pci_read_header
  *
  * Use standard 32-bit (type 1) access method to read PCI
@@ -26,12 +27,41 @@
  *
  * SIDOC_END_FUNCTION
  */
-int pci_read_header (unsigned char bus, unsigned char device,
+int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
+			  unsigned char func, unsigned long *buf);
+int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
+			  unsigned char func, unsigned long *buf);
+int (*pci_read_header) (unsigned char bus, unsigned char device,
+			int func, unsigned long *buf) = pci_read_header_cfg1;
+
+/*
+ * So far only config type 1 is supported. Return 0 if
+ * no PCI is present or PCI config type != 1.
+ */
+int pci_check_conf(void)
+{
+    unsigned long save, val;
+    
+    priv_iopl(3);
+    save = port_real_ind(PCI_CONF_ADDR);
+    port_real_outd(PCI_CONF_ADDR,PCI_EN);
+    val = port_real_ind(PCI_CONF_ADDR);
+    port_real_outd(PCI_CONF_ADDR, save);
+    priv_iopl(0);
+    if (val == PCI_EN)
+	return 1;
+    else
+	return 0;
+}
+
+
+int pci_read_header_cfg1 (unsigned char bus, unsigned char device,
 	unsigned char fn, unsigned long *buf)
 {
   int i;
   unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
-  			0x80000000;
+                      PCI_EN;
+  
 
   priv_iopl(3);
   for (i=0; i<64; i++) {
@@ -42,6 +72,56 @@ int pci_read_header (unsigned char bus, unsigned char device,
   return 0;
 }
 
+int pci_check_device_present_cfg1(unsigned char bus, unsigned char device,
+			     unsigned char fn)
+{
+    unsigned long val;
+    unsigned long bx = ((fn&7)<<8) | ((device&31)<<11) | (bus<<16) |
+	                 PCI_EN;
+    
+    priv_iopl(3);
+    port_real_outd (PCI_CONF_ADDR, bx);
+    val = port_real_ind (PCI_CONF_DATA);
+    priv_iopl(0);
+
+    if (val == 0xFFFFFFFF)
+	return 0 ;
+    else
+	return 1;
+}
+
+int pci_read_header_cfg2 (unsigned char bus, unsigned char device,
+			  unsigned char fn, unsigned long *buf)
+{
+  int i;
+  
+  priv_iopl(3);
+    port_real_outb(PCI_MODE2_ENABLE_REG,0xF1);
+  port_real_outb(PCI_MODE2_FORWARD_REG,bus);
+  for (i=0; i<64; i++) {
+	buf[i] = port_real_ind ((device << 8) + i);
+  }
+  port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+  priv_iopl(0);
+  return 0;
+}
+
+int pci_check_device_present_cfg2(unsigned char bus, unsigned char device)
+{
+    unsigned long val;
+    
+    priv_iopl(3);
+    port_real_outb(PCI_MODE2_ENABLE_REG,0xF1);
+    port_real_outb(PCI_MODE2_FORWARD_REG,bus);
+    val = port_real_ind ((device << 8));
+    port_real_outb(PCI_MODE2_ENABLE_REG, 0x00);
+    priv_iopl(0);
+
+    if (val == 0xFFFFFFFF || val == 0xf0f0f0f0)
+	return 0 ;
+    else
+	return 1;
+}
 
 static unsigned int wcf8_pend = 0;
 
@@ -107,7 +187,7 @@ static Bit32u pci_port_ind(ioport_t port)
  */
 static void pci_port_outd(ioport_t port, Bit32u value)
 {
-	if ((port==0xcf8)&&(value&0x80000000)&&(!wcf8_pend)) {
+	if ((port==0xcf8)&&(value&PCI_EN)&&(!wcf8_pend)) {
 		wcf8_pend=value;
 		i_printf("PCICFG: %08x pending\n", value);
 	}
@@ -147,4 +227,3 @@ int pci_setup (void)
   }
   return 0;
 }
-

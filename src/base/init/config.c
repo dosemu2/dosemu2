@@ -1053,9 +1053,9 @@ int parse_debugflags(const char *s, unsigned char flag)
     char            c;
     int ret = 0;
 #ifdef X_SUPPORT
-    const char      allopts[] = "dARWDCvXkiTsm#pgcwhIExMnPrSe";
+    const char      allopts[] = "dARWDCvXkiTsm#pgcwhIExMnPrSeZ";
 #else
-    const char      allopts[] = "dARWDCvkiTsm#pgcwhIExMnPrSe";
+    const char      allopts[] = "dARWDCvkiTsm#pgcwhIExMnPrSeZ";
 #endif
 
     /*
@@ -1163,6 +1163,9 @@ int parse_debugflags(const char *s, unsigned char flag)
 	    break;
 	case 'A':		/* ASPI */
 	    d.aspi = flag;
+	    break;
+	case 'Z':
+	    d.pci = flag;       /* PCI */
 	    break;
 #ifdef X86_EMULATOR
 	case 'e':		/* cpu-emu */

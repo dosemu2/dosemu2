@@ -7,7 +7,7 @@
 #  src/base/misc/dyndeb.c -> ../async/dyndeb.c
 #  src/base/misc/int.c -> ../async/int.c
 
-CFILES=dyndeb.c int.c
+CFILES=dyndeb.c int.c pci_bios.c
 
 SFILES=
 ALL=$(CFILES) $(SFILES)

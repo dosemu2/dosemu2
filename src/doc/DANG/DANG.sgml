@@ -3,7 +3,7 @@
 
 <title> The DOSEMU Alterer Novices Guide
 <author> Author: Alistair MacDonald, <tt/alistair\@slitesys.demon.co.uk/
-<date> version dosemu-0.99.12
+<date> version dosemu-0.99.13
 <abstract>
 This Document is the DOSEMU Alterer Novices Guide. It is known as the DANG.
 </abstract>
@@ -195,6 +195,14 @@ These are the functions defined in include/emu.h.
 
  The var `fatalerr` can be given a true value at any time to have DOSEMU
  exit on the next return from vm86 mode.
+ 
+-----
+
+ The var 'running_DosC' is set by the DosC kernel and is used to handle
+ some things differently, e.g. the redirector.
+ It interfaces via INTe6,0xDC (DOS_HELPER_DOSC), but only if running_DosC
+ is !=0. At the very startup DosC issues a INTe6,0xdcDC to set running_DosC
+ with the contents of BX (which is the internal DosC version).
  
 <sect>The Init group of Modules
 
@@ -2710,6 +2718,7 @@ These are the functions defined in base/dev/misc/pci.c.
  0x8x   -- utility functions
 	0x80 -- getcwd(ES:DX, size AX)
 	0x81 -- chdir(ES:DX)
+ 0xdc      - helper for DosC kernel
  0xfe      - called from our MBR, emulate MBR-code.
  0xff      - Terminate DOSEMU
  
