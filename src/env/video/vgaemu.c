@@ -906,6 +906,17 @@ int vga_emu_fault(struct sigcontext_struct *scp, int pmode)
       vga_emu_adjust_protection(vga_page, page_fault);
     }  
     else {
+#if 1
+      /* XXX Hack: dosemu touched the protected page of video mem, which is
+       * a bug. However for the video modes that do not require instremu, we
+       * can allow that access. For the planar modes we cant and will fail :(
+       */
+      if(pmode && _cs == UCODESEL) {
+	error("BUG: dosemu touched the protected video memory!!!\n");
+	return False;
+      }
+#endif
+
       /* A VGA mode PL4/PL2 video memory access has been trapped 
        * while we are using X.  Leave the display page read/write-protected
        * so that each instruction that accesses it can be trapped and
