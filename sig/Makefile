@@ -23,7 +23,7 @@ CFLAGS=-O2 -Wall # -Wmissing-prototypes \
 
 CFILES = 
 HFILES = 
-OFILES = Makefile.kernel HowTo int.c mem.c
+OFILES = Makefile.kernel HowTo int.c mem.c fcntl.c exit.c
 
 # Insert all source- and header-files here.
 

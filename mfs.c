@@ -146,6 +146,9 @@ TODO:
  *
  * HISTORY:
  * $Log: mfs.c,v $
+ * Revision 2.7  1994/10/03  00:24:25  root
+ * Checkin prior to pre53_25.tgz
+ *
  * Revision 2.6  1994/09/23  01:29:36  root
  * Prep for pre53_21.
  *
@@ -1131,10 +1134,14 @@ make_entry()
 {
   struct dir_ent *entry;
 
-  entry = (struct dir_ent *) malloc(sizeof(struct dir_ent));
-
+/* DANG_FIXTHIS returned size of struct dir_ent seems wrong at 28 bytes. */
+/* DANG_BEGIN_REMARK
+ * The msdos_dir_ent structure has much more than 28 bytes. 
+ * Is this significant?
+ * DANG_END_FUNCTION
+ */
+  entry = (struct dir_ent *) malloc(sizeof(struct dir_ent)+10);
   entry->next = NULL;
-
   return (entry);
 }
 
@@ -1187,7 +1194,7 @@ _get_dir(char *name, char *mname, char *mext)
 
 #if 1
   if (strncasecmp(mname, "NUL     ", strlen(mname)) == 0 &&
-      strncasecmp(mext, "   ", strlen(mname)) == 0) {
+      strncasecmp(mext, "   ", strlen(mext)) == 0) {
 
     entry = make_entry();
     dir_list = entry;
@@ -1219,14 +1226,13 @@ _get_dir(char *name, char *mname, char *mext)
 	if ((cur_ent->d_namlen == 2) &&
 	    (cur_ent->d_name[1] != '.'))
 	  continue;
-	strncpy(fname, "..", cur_ent->d_namlen);
+	strncpy(fname, "..      ", cur_ent->d_namlen);
 	strncpy(fname + cur_ent->d_namlen, "        ",
 		8 - cur_ent->d_namlen);
 	strncpy(fext, "   ", 3);
       }
       else {
-	if (!extract_filename(cur_ent->d_name,
-			      fname, fext))
+	if (!extract_filename(cur_ent->d_name, fname, fext))
 	  continue;
 	if (mname && mext && !compare(fname, fext, mname, mext))
 	  continue;

@@ -43,6 +43,9 @@
  *
  * HISTORY: (DANG_BEGIN_CHANGELOG
  * $Log: bios_emm.c,v $
+ * Revision 2.9  1994/10/03  00:24:25  root
+ * Checkin prior to pre53_25.tgz
+ *
  * Revision 2.8  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *

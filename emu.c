@@ -20,12 +20,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/10/03 00:24:25 $
  * $Source: /home/src/dosemu0.60/RCS/emu.c,v $
- * $Revision: 2.26 $
+ * $Revision: 2.27 $
  * $State: Exp $
  *
  * $Log: emu.c,v $
+ * Revision 2.27  1994/10/03  00:24:25  root
+ * Checkin prior to pre53_25.tgz
+ *
  * Revision 2.26  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *
@@ -2472,7 +2475,7 @@ int
 
 void
  usage(void) {
-  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.26 1994/09/26 23:10:13 root Exp root $\n");
+  fprintf(stdout, "$Header: /home/src/dosemu0.60/RCS/emu.c,v 2.27 1994/10/03 00:24:25 root Exp root $\n");
   fprintf(stdout, "usage: dos [-ABCckbVNtsgxKm234e] [-D flags] [-M SIZE] [-P FILE] [ -F File ] 2> dosdbg\n");
   fprintf(stdout, "    -A boot from first defined floppy disk (A)\n");
   fprintf(stdout, "    -B boot from second defined floppy disk (B) (#)\n");
@@ -3158,7 +3161,7 @@ dos_helper(void) {
     }
 
   case 5:			/* show banner */
-    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/09/26 23:10:13 $\n");
+    p_dos_str("\n\nLinux DOS emulator " VERSTR "pl" PATCHSTR " $Date: 1994/10/03 00:24:25 $\n");
     p_dos_str("Last configured at %s\n", CONFIG_TIME);
     p_dos_str("on %s\n", CONFIG_HOST);
     /* p_dos_str("Formerly maintained by Robert Sanders, gt8134b@prism.gatech.edu\n\n"); */

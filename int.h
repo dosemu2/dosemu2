@@ -7,12 +7,15 @@
  *
  * DANG_END_MODULE
  *
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/10/03 00:24:25 $
  * $Source: /home/src/dosemu0.60/RCS/int.h,v $
- * $Revision: 2.13 $
+ * $Revision: 2.14 $
  * $State: Exp $
  *
  * $Log: int.h,v $
+ * Revision 2.14  1994/10/03  00:24:25  root
+ * Checkin prior to pre53_25.tgz
+ *
  * Revision 2.13  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *

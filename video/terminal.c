@@ -92,6 +92,7 @@ terminal_initialize()
 
   initscr();
   raw();
+  nonl();
 
   if (config.console_video || config.usesX) {
     config.term_method = METHOD_FAST;

@@ -3,12 +3,15 @@
 #define EMU_H
 /* Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/09/26 23:10:13 $
+ * $Date: 1994/10/03 00:24:25 $
  * $Source: /home/src/dosemu0.60/RCS/emu.h,v $
- * $Revision: 2.17 $
+ * $Revision: 2.18 $
  * $State: Exp $
  *
  * $Log: emu.h,v $
+ * Revision 2.18  1994/10/03  00:24:25  root
+ * Checkin prior to pre53_25.tgz
+ *
  * Revision 2.17  1994/09/26  23:10:13  root
  * Prep for pre53_22.
  *

@@ -31,12 +31,15 @@
  * DANG_END_MODULE
  *
  * DANG_BEGIN_CHANGELOG
- * $Date: 1994/09/26 23:12:22 $
+ * $Date: 1994/10/03 00:27:30 $
  * $Source: /home/src/dosemu0.60/sig/RCS/int.c,v $
- * $Revision: 1.2 $
+ * $Revision: 1.3 $
  * $State: Exp $
  *
  * $Log: int.c,v $
+ * Revision 1.3  1994/10/03  00:27:30  root
+ * Checkin prior to pre53_25.tgz
+ *
  * Revision 1.2  1994/09/26  23:12:22  root
  * Prep for pre53_22.
  *

@@ -1,8 +1,8 @@
 # Makefile for Linux DOSEMU
 #
-# $Date: 1994/09/28 00:55:59 $
+# $Date: 1994/10/03 00:24:25 $
 # $Source: /home/src/dosemu0.60/RCS/Makefile,v $
-# $Revision: 2.32 $
+# $Revision: 2.33 $
 # $State: Exp $
 #
 # You should do a "make doeverything" or a "make most" (excludes TeX)
