@@ -3140,6 +3140,10 @@ dos_fs_redirect(state_t *state)
       itisnow = lseek(fd, sft_position(sft), SEEK_SET);
       Debug0((dbg_fd, "Actual pos %d\n",
 	      itisnow));
+      if (itisnow < 0) {
+	SETWORD(&(state->ecx), 0);
+	return (TRUE);
+      }
 
 #ifdef X86_EMULATOR
       if (config.cpuemu>1) {
@@ -3197,6 +3201,10 @@ dos_fs_redirect(state_t *state)
 
     if (us_debug_level > Debug_Level_0) {
       s_pos = lseek(fd, sft_position(sft), SEEK_SET);
+      if (s_pos < 0) {
+	SETWORD(&(state->ecx), 0);
+	return (TRUE);
+      }
     }
     Debug0((dbg_fd, "Handle cnt %d\n",
 	    sft_handle_cnt(sft)));
