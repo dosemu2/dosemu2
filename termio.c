@@ -20,11 +20,14 @@
  * DANG_BEGIN_CHANGELOG
  * Extensions by Robert Sanders, 1992-93
  *
- * $Date: 1994/08/09 01:49:57 $
+ * $Date: 1994/08/11 01:11:34 $
  * $Source: /home/src/dosemu0.60/RCS/termio.c,v $
- * $Revision: 2.8 $
+ * $Revision: 2.9 $
  * $State: Exp $
  * $Log: termio.c,v $
+ * Revision 2.9  1994/08/11  01:11:34  root
+ * Modifications for proper backspace behavior in non-raw mode.
+ *
  * Revision 2.8  1994/08/09  01:49:57  root
  * Prep for pre53_11.
  *
@@ -669,8 +672,15 @@ OpenKeyboard(void)
     /* close(kbd_fd); kbd_fd = -1; return -1; <------ XXXXXXX Remove this */
   }
 
+/*
+ * DANG_BEGIN_REMARK
+ *
+ *  This code is called to set up the terminal line for non-raw
+ *  mode.
+ *
+ * DANG_END_REMARK
+ */
   newtermio = oldtermio;
-#if 0
   newtermio.c_iflag &= (ISTRIP | IGNBRK);  /* (IXON|IXOFF|IXANY|ISTRIP|IGNBRK);*/
   /* newtermio.c_oflag &= ~OPOST; */
   newtermio.c_lflag &= 0;                  /* ISIG */
@@ -680,7 +690,6 @@ OpenKeyboard(void)
   if (ioctl(kbd_fd, TCSETAF, &newtermio) < 0) {
     error("ERROR: Couldn't ioctl(STDIN,TCSETAF,...) !\n");
   }
-#endif
   if (config.console_keyb || config.console_video)
     set_process_control();
 
@@ -691,7 +700,7 @@ OpenKeyboard(void)
   if (config.console_video)
     set_console_video();
 
-  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.8 1994/08/09 01:49:57 root Exp root $\n");
+  dbug_printf("$Header: /home/src/dosemu0.60/RCS/termio.c,v 2.9 1994/08/11 01:11:34 root Exp root $\n");
 
   return 0;
 }

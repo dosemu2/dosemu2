@@ -1,3 +1,13 @@
+Wed Aug 10 1994 Jmaclean
+
+-	Added back some termio ioctl's to set ISTRIP,IGNBRK,OPOST
+	and such. Seems to remove backspace in non-rawkeyboard
+	mode.
+- 	Added -lfl to toplevel makefile for fixing new parser not
+	resolving required libs.
+-	Added check to NOT add release key for ascii's with high 
+	byte 0x00.
+
 Mon Aug 08 1994 Jmaclean
 
 -	Thanks to Rob for pointing out the NCURSES raw() command
@@ -7,6 +17,7 @@ Mon Aug 08 1994 Jmaclean
 	Rucker (rucker@astro.uni-bonn.de).
 - 	Parser additions from Scottb. We are back to the NEW
 	parser. Developer/Tester beware :-).
+- 	DOSEMU-HOWTO updates from Mike.
 
 Fri Aug 05 1994 Jmaclean
 

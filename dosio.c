@@ -4,12 +4,15 @@
 /*
  * Robert Sanders, started 3/1/93
  *
- * $Date: 1994/08/05 22:29:31 $
+ * $Date: 1994/08/11 01:11:34 $
  * $Source: /home/src/dosemu0.60/RCS/dosio.c,v $
- * $Revision: 2.3 $
+ * $Revision: 2.4 $
  * $State: Exp $
  *
  * $Log: dosio.c,v $
+ * Revision 2.4  1994/08/11  01:11:34  root
+ * Added check to NOT add release key for ascii's with high byte 0x00.
+ *
  * Revision 2.3  1994/08/05  22:29:31  root
  * Prep dir pre53_10.
  *
@@ -459,7 +462,9 @@ DOS_setscan(u_short scan)
     scan_to_buffer();
   }
   if (!config.console_keyb) {
-    if ((scan & 0xff00) < 0x8000) {
+    static u_short tmp_scan;
+    tmp_scan = scan & 0xff00;
+    if (tmp_scan < 0x8000 && tmp_scan > 0) {
       k_printf("Adding Key-Release\n");
       DOS_setscan(scan | 0x8000);
     }
