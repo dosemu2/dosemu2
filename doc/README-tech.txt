@@ -1,7 +1,7 @@
   DOSEmu Technical Guide
   The DOSEmu team, Edited by Alistair MacDonald  <alis-
   tair@slitesys.demon.co.uk>
-  For DOSEMU v0.99 pl4.0
+  For DOSEMU v0.99 pl11.0
 
   This document is the amalgamation of a series of technical README
   files which were created to deal with the lack of DOSEmu documenta-
@@ -136,10 +136,11 @@
 
   7. The old way of generating a bootable DOSEmu
 
-     7.1 Boot ( 'traditional' method )
-        7.1.1 If you are
-        7.1.2 If you already have a HDIMAGE file
-        7.1.3 If you don't know how to copy files from/to the hdimage
+     7.1 Boot ( tool generated `hdimage' method )
+     7.2 Boot ( `traditional' method )
+        7.2.1 If you are
+        7.2.2 If you already have a HDIMAGE file
+        7.2.3 If you don't know how to copy files from/to the hdimage
 
   8. New Keyboard Code
 
@@ -261,7 +262,6 @@
      22.2 DEBUGGING HELP
      22.3 FOSSIL EMULATION
      22.4 COPYRIGHTS
-
   23. Recovering the console after a crash
 
      23.1 The mail message
@@ -3545,22 +3545,83 @@
 
   77..  TThhee oolldd wwaayy ooff ggeenneerraattiinngg aa bboooottaabbllee DDOOSSEEmmuu
 
-  Since dosemu-0.66.4 you will not need the complicated method of
-  generating a bootable dosemu suite (see Quickstart). However, who
-  knows, maybe you need the old information too ...
+  Since dosemu-0.66.4 and once again since dosemu-0.99.6 you will not
+  need the complicated method of generating a bootable dosemu suite (see
+  Quickstart).  However, who knows, maybe you need the old information
+  too and in case you are using the DosC (FreeDos) kernel, you will _n_e_e_d
+  the below info, because at the time of writing DosC can't cope with
+  drive redirection.
 
 
-  77..11..  BBoooott (( ''ttrraaddiittiioonnaall'' mmeetthhoodd ))
+  77..11..  BBoooott (( ttooooll ggeenneerraatteedd ``hhddiimmaaggee'' mmeetthhoodd ))
+
+
+  Short reminder: a hdimage is a virtual disk the contents of which are
+  put into a nomal Linux file. There is a tool to help you generating a
+  bootable hdimage It doesn't require to boot native DOS (as decsribed
+  below), nor do you need to fiddle with a floppy:
+
+
+  +o  You need to have mtools-3.8 for this to work
+
+  +o  You need an already installed (native) bootable DOS in one of your
+     partitions (maybe a floppy). If this is the case, you just need to
+     type
+
+
+         ./setup-hdimage
 
 
 
-  77..11..11..  IIff yyoouu aarree nneeww ttoo DDOOSSEEMMUU
+
+  in the dosemu directory. It will prompt for needed information and
+  generate a bootable /var/lib/dosemu/hdimage.first
+
+  +o  Make _CERTAIN_ that your first disk statement in /etc/dosemu.conf
+     is pointing to /var/lib/dosemu/hdimage.first!
+
+  +o  Run 'dos -C', and dosemu should boot your DOS.  If not make certain
+     that the /etc/dosemu.conf is setup correctly.  You can't do much
+     DOS stuff at this moment, though you may use the tiny ezedit.com
+     editor to change the config.sys / autoexec.bat to your needs.
+
+  +o  Exit dos by running "c:\exitemu".  If you have problems, hold down
+     the <ctrl> and  <alt> buttons simultaneously while pressing <pgdn>.
+     (<ctrl><alt><pgdn> will automatically exit dosemu.)
+
+  If you _d_o_n_'_t _k_n_o_w _h_o_w _t_o _c_o_p_y _f_i_l_e_s from/to the hdimage, have a look
+  at the recent mtools package (version 3.6 at time of writeing).  If
+  you have the following line in /etc/mtools.conf
+
+
+       drive g: file="/var/lib/dosemu/hdimage.first" partition=1 offset=128
+
+
+
+
+  then you can use _a_l_l _m_t_o_o_l _c_o_m_m_a_n_d_s to access it, such as
+
+
+           # mcopy g:autoexec.bat -
+           Copying autoexec.bat
+           @echo off
+           echo "Welcome to dosemu 0.99!"
+
+
+
+
+
+
+  77..22..  BBoooott (( ``ttrraaddiittiioonnaall'' mmeetthhoodd ))
+
+
+
+  77..22..11..  IIff yyoouu aarree nneeww ttoo DDOOSSEEMMUU
 
 
 
   +o  Make _C_E_R_T_A_I_N that your first disk statement in /etc/dosemu.conf _I_S
      pointing to your hdimage!
-
 
   +o  Reboot DOS (the real version, not DOSEMU.)  Put a newly formatted
      diskette in your a: drive.  Run "sys a:" to transfer the system
@@ -3575,7 +3636,7 @@
      (<ctrl><alt><pgdn> will automatically exit dosemu.)
 
 
-  77..11..22..  IIff yyoouu aallrreeaaddyy hhaavvee aa HHDDIIMMAAGGEE ffiillee
+  77..22..22..  IIff yyoouu aallrreeaaddyy hhaavvee aa HHDDIIMMAAGGEE ffiillee
 
 
 
@@ -3585,7 +3646,7 @@
      changed.
 
 
-  77..11..33..  IIff yyoouu ddoonn''tt kknnooww hhooww ttoo ccooppyy ffiilleess ffrroomm//ttoo tthhee hhddiimmaaggee
+  77..22..33..  IIff yyoouu ddoonn''tt kknnooww hhooww ttoo ccooppyy ffiilleess ffrroomm//ttoo tthhee hhddiimmaaggee
 
 
 
@@ -3607,7 +3668,7 @@
            # mcopy g:autoexec.bat -
            Copying autoexec.bat
            @echo off
-           echo "Welcome to dosemu 0.66!"
+           echo "Welcome to dosemu 0.99!"
 
 
 
@@ -3698,6 +3759,7 @@
 
 
 
+
   88..33..  KKeeyybbooaarrdd sseerrvveerr iinntteerrffaaccee
 
 
@@ -3759,6 +3821,10 @@
   shift state after this event was processed.  Note that the bios_key
   field can be empty (=0), e.g. for shift keys, while the raw field
   should always contain something.
+
+
+
+
 
   88..44..11..  qquueeuuee hhaannddlliinngg ffuunnccttiioonnss
 

@@ -39,8 +39,8 @@ Cambridge, MA 02139, USA.
 The maintainer of the Willows TWIN Libraries may be reached (Email) 
 at the address twin@willows.com	
 
-changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
-changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
+changes for use with dosemu-0.67 1997/10/20 vignani@tin.it
+changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
 
 *********************************************************************/
 
@@ -48,12 +48,12 @@ changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 #define hsw_interp__h
 /* "@(#)hsw_interp.h	1.23 :/users/sccs/src/win/intp32/s.hsw_interp.h 1/23/97 17:25:08"  */
 
-#include "windows.h"
-#include "kerndef.h"
-#include "BinTypes.h"
-#include "DPMI.h"
+#include "internal.h"
+#ifndef DOSEMU
+#include <setjmp.h>
+#endif
 
-#ifndef DOSEMU_TYPESONLY
+#ifdef _IN_INTP32
 
 #define ADDbfrm		0x00
 #define ADDwfrm		0x01
@@ -616,13 +616,13 @@ changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 
 #define JUMP(lp)	PC = PC + 2 +(signed char)(*(lp)); 
 
-#if defined(DOSEMU) && defined(__i386__)
+#ifdef __i386__
 #define TOS_WORD	(BIG_SS? *((unsigned short *)(LONG_SS+ESP)):\
 			*((unsigned short *)(LONG_SS+SP)))
 
 #define PUSHWORD(w) if (BIG_SS) {ESP-=2; \
-		*((unsigned short *)(LONG_SS+ESP))=(w);} else \
-		{SP-=2; *((unsigned short *)(LONG_SS+SP))=(w);}
+		*((unsigned short *)(LONG_SS+ESP))=(unsigned short)(w);} else \
+		{SP-=2; *((unsigned short *)(LONG_SS+SP))=(unsigned short)(w);}
 #define PUSHQUAD(dw) if (BIG_SS) {ESP-=4; \
 		*((unsigned long *)(LONG_SS+ESP))=(dw);} else \
 		{SP-=4; *((unsigned long *)(LONG_SS+SP))=(dw);}
@@ -655,12 +655,7 @@ changes for use with dosemu-0.99 1998/12/13 vignani@mbox.vol.it
 
 #define SELECTOR_PADDRESS(sel) GetPhysicalAddress(sel)
 
-#ifdef DOSEMU
-extern int SetSegreg(unsigned char **lp, unsigned char *big,
-	unsigned long csel);
-#define SET_SEGREG(lp,big,mk,sel)	SetSegreg(&(lp),&(big),(mk|sel))
-
-#else
+#ifndef DOSEMU
 #define SET_SEGREG(lp,big,mk,sel) ({ \
 	WORD wFlags; \
 	char prnt_buf[40]; \
@@ -676,16 +671,21 @@ extern int SetSegreg(unsigned char **lp, unsigned char *big,
 		    FatalAppExit(0,prnt_buf); \
 	        } \
 	    } \
-	    lp = GetPhysicalAddress(sel), 0 \
-	} })
+	    lp = GetPhysicalAddress(sel); \
+	} 0; })
+
+#else
+extern int SetSegreg(unsigned char **lp, unsigned char *big,
+	unsigned long csel);
+#define SET_SEGREG(lp,big,mk,sel)	SetSegreg(&(lp),&(big),(mk|sel))
 
 #endif	/* DOSEMU */
 
-#endif	/* DOSEMU_TYPESONLY */
+#endif
 
 /* ======================= target-specific stuff ====================== */
 
-#if defined(X386) 
+#ifdef __i386__
 /* use true 80-bit registers on i386 */
 typedef	long double	Ldouble;
 #else
@@ -736,7 +736,7 @@ typedef	union {
 			unsigned int dummy1;
 		} byte;
 	} Interp_VAR_flags_czsp;
-#elif defined(X386) 
+#elif defined(__i386__) 
 typedef	union {
 		unsigned long res;
 		struct {
@@ -920,7 +920,7 @@ typedef struct keyENV{
 } Interp_ENV;
 #endif
 
-#if defined(X386) 
+#if defined(__i386__) 
 typedef struct keyENV{
 	union {
 		unsigned int ds;
@@ -1047,9 +1047,7 @@ typedef struct keyENV{
 	} gs;
 	BINADDR		trans_addr;
 	BINADDR		return_addr;
-#ifdef DOSEMU
-	unsigned long	error_addr;
-#else
+#ifndef DOSEMU
 	LPVOID		machine_stack;
 	struct ENV	*prev_env;
 	unsigned long   active;
@@ -1058,6 +1056,7 @@ typedef struct keyENV{
 	struct HSW_86_CATCHBUF *buf;
 	jmp_buf		jump_buffer;
 #endif
+	unsigned long	error_addr;
 	unsigned char *seg_regs[7];
 	Interp_VAR_flags_czsp flags_czsp;
 /*
@@ -1292,7 +1291,7 @@ typedef struct keyENV{
 #endif
 
 
-#ifndef DOSEMU_TYPESONLY
+#ifdef _IN_INTP32
 
 /* CARRY is tricky, as it accesses also byte 3 (BYTE_OP); use with care
  * when writing into it, if in doubt use CARRYB -- AV */
@@ -1319,7 +1318,7 @@ typedef struct keyENV{
 #define IS_MODE_REG env->mode_reg
 
 /* try to gain some speed/space/regs on a heavily-used macro... */
-#if (GCC_VERSION_CODE>=2091) && defined(DOSEMU) && defined(__i686__)
+#if (GCC_VERSION_CODE>=2091) && defined(__GNUC__) && defined(__i686__)
 /* a bonus for Intel chips only ... never mind */
 #define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
 	__asm__ __volatile__ ("movl	%1,%%eax\n \
@@ -1330,7 +1329,7 @@ typedef struct keyENV{
 	: "g"(OVERRIDE), "g"(default) \
 	: "%eax", "memory"); \
 	_v; })
-#elif (GCC_VERSION_CODE>=2091) && defined(DOSEMU) && defined(__i586__)
+#elif (GCC_VERSION_CODE>=2091) && defined(__GNUC__) && defined(__i586__)
 #define ALLOW_OVERRIDE(default)	({ unsigned char *_v; \
 	__asm__ __volatile__ ("movl	$-1,%%eax\n \
 	movl	%1,%0\n \
@@ -1344,11 +1343,6 @@ typedef struct keyENV{
 /* plain version for old gcc */
 #define ALLOW_OVERRIDE(default) ((OVERRIDE!=INVALID_OVR)?OVERRIDE:default)
 #endif
-
-#define FETCH_XREG(addr)	*(WORD *)addr
-#define FETCH_EREG(addr)	*(DWORD *)addr
-#define PUT_XREG(addr,data)	*(WORD *)addr=data
-#define PUT_EREG(addr,data)	*(DWORD *)addr=data
 
 /* ========================== FLAG setting ============================ */
 /* Use similar macros to save the op state for later flag evaluation -
@@ -1365,8 +1359,8 @@ typedef struct keyENV{
  * SETBFLAGS requires definition of variables: src1,src2,res
  */
 #define SETBFLAGS(s) { RES_32=((res&0x1ff)|(BYTE_OP<<16))<<8;\
-	SRC1_8=src1;\
-	if (s) SRC2_8=((src2&0xff)==0x80? 0:-src2); else SRC2_8=src2;}
+	SRC1_8=(BYTE)src1;\
+	if (s) SRC2_8=((src2&0xff)==0x80? 0:-((int)src2)); else SRC2_8=(BYTE)src2;}
 
 /*
  *		[-----------------res------------------]
@@ -1380,8 +1374,8 @@ typedef struct keyENV{
  * SETWFLAGS requires definition of variables: src1,src2,res
  */
 #define SETWFLAGS(s) { RES_32=res&0x1ffff;\
-	SRC1_16=src1;\
-	if (s) SRC2_16=((src2&0xffff)==0x8000? 0:-src2); else SRC2_16=src2;}
+	SRC1_16=(WORD)src1;\
+	if (s) SRC2_16=((src2&0xffff)==0x8000? 0:-((int)src2)); else SRC2_16=(WORD)src2;}
 
 /* add/sub rule for carry using bit31:
  *	src1 src2  res	b31(a) b31(s)
@@ -1411,7 +1405,7 @@ typedef struct keyENV{
  * done by setting bit 8 if the original value was not zero, so that 16-bit
  * zero test will give the correct answer -- AV
  */
-#if (GCC_VERSION_CODE < 2092) && defined(DOSEMU) && defined(__i386__)
+#if !defined(__PIC__) && (GCC_VERSION_CODE < 2092) && defined(__GNUC__) && defined(__i386__)
 #define PACK32_16(sr,de)	__asm__ __volatile__ ("\
 	bswap	%0\n\
 	roll	$8,%0\n\
@@ -1422,7 +1416,7 @@ typedef struct keyENV{
 	: "=q"(sr),"=g"(*((short *)&de))\
 	: "0"(sr)\
 	: "memory" )
-#elif (GCC_VERSION_CODE>=2092) && defined(DOSEMU) && defined(__i386__)
+#elif !defined(__PIC__) && (GCC_VERSION_CODE>=2092) && defined(__GNUC__) && defined(__i386__)
 /* gcc 2.7.2.3 and egcs-1.1 versions do not like this one,
  * while development egcs versions accept it */
 #define PACK32_16(sr,de)	__asm__ __volatile__ ("\
@@ -1436,11 +1430,11 @@ typedef struct keyENV{
 	: "0"(sr)\
 	: "memory" )
 #else
-#define PACK32_16(sr,de)	de=((((sr)>>16)&0xff00) |\
-				((sr)&0xff) | ((sr)!=0? 0x100:0))
+#define PACK32_16(sr,de)	de=((WORD)(((sr)>>16)&0xff00) |\
+				(WORD)((sr)&0xff) | (WORD)((sr)!=0? 0x100:0))
 #endif
 
-#if defined(DOSEMU) && defined(__i386__)
+#ifdef __i386__
 /*
  *		[-----------------res------------------]
  *	     	[----------sssssssc][--res(3)---res(0)-]
@@ -1456,14 +1450,14 @@ typedef struct keyENV{
 #define SETDFLAGS(c,s) { register DWORD _res1=res;\
 	PACK32_16(_res1,RES_16);\
 	_res1=src1; PACK32_16(_res1,SRC1_16);\
-	if (s) {_res1=(src2==0x80000000? 0:-src2); src2=~src2;}\
+	if (s) {_res1=(src2==0x80000000? 0:-((int)src2)); src2=~src2;}\
 	else _res1=src2; PACK32_16(_res1,SRC2_16);\
 	if (c) CARRY = IS_CF_SETD(src1,src2,res) ^ (s); else BYTE_FLAG=0;}
 
 #else	/* original */
 
 #define SETDFLAGS(c,s) { register DWORD res1=res;\
-	if (s) src2 = ((src2==0x80000000)? 0:-src2);\
+	if (s) src2 = ((src2==0x80000000)? 0:-((int)src2));\
 	if (d.emu>4) e_printf("S1=%#lx S2=%#lx R=%#lx\n",src1,src2,res);\
 	PACK32_16(res,RES_16);\
 	CARRY = IS_CF_SETD;\
@@ -1473,47 +1467,91 @@ typedef struct keyENV{
 	PACK32_16(src2,SRC2_16);}
 #endif
 
-#if defined(DOSEMU) && defined(__i386__)
-#define	GETWORD(p)	(unsigned short)*((unsigned short *)(p))
-#define PUTWORD(p,w)	{*((unsigned short *)(p))=(unsigned short)(w);}
-#define PUTDWORD(p,dw)	{*((unsigned long *)(p))=(unsigned long)(dw);}
-#define GETDWORD(p)	(unsigned long)*((unsigned long *)(p))
-#else
-#include "Endian.h"
+/* ================== MEMORY and REGISTERS access ===================== */
+/*
+ * on x86, the CPU registers are stored in memory; there is no
+ * difference in accessing. We keep things separate for compatibility.
+ */
+
+#ifdef __i386__	/* ... and known little-endian machines */
+#define	GETBYTE(p)	(BYTE)*((BYTE *)(p))
+#define	GETWORD(p)	(WORD)*((WORD *)(p))
+#define GETDWORD(p)	(DWORD)*((DWORD *)(p))
+#define PUTBYTE(p,b)	*((BYTE *)(p))=(BYTE)(b)
+#define PUTWORD(p,w)	*((WORD *)(p))=(WORD)(w)
+#define PUTDWORD(p,dw)	*((DWORD *)(p))=(DWORD)(dw)
+#else	/* Twin: ugly but endian-independent */
+#define	GETWORD(p) (WORD)(((LPBYTE)(p))[0]+((WORD)(((LPBYTE)(p))[1])<<8))
+/* warning: problems with 'if..else' using brackets */
+#define PUTWORD(p,w) { *((LPBYTE)(p)) = (BYTE)((WORD)(w) % 0x100); \
+		       *((LPBYTE)(p) + 1) = (BYTE)((WORD)(w)>>8); }
+
+#define PUTDWORD(p,dw) { PUTWORD((LPBYTE)(p),LOWORD((DWORD)(dw))); \
+			PUTWORD((LPBYTE)(p)+2,HIWORD((DWORD)(dw))); }
+#define GETDWORD(p) ((DWORD)((DWORD)(GETWORD((LPBYTE)(p)+2)<<16) \
+			     + GETWORD((LPBYTE)(p))))
 #endif
 
+/* register definitions - can be different for some architectures */
+#define FETCH_HREG	GETBYTE
+#define FETCH_XREG	GETWORD
+#define FETCH_EREG	GETDWORD
+#define PUT_HREG	PUTBYTE
+#define PUT_XREG	PUTWORD
+#define PUT_EREG	PUTDWORD
+
+/* memory definitions */
+#define FETCH_BYTE	GETBYTE
 #define	FETCH_WORD	GETWORD
 #define	FETCH_QUAD	GETDWORD
+#define PUT_BYTE	PUTBYTE
 #define	PUT_WORD	PUTWORD
 #define	PUT_QUAD	PUTDWORD
+
+/* register/memory selection via macro */
+#ifdef DOSEMU
+#define mFETCH_BYTE	GETBYTE
+#define mFETCH_WORD	GETWORD
+#define mFETCH_QUAD	GETDWORD
+#define mPUT_BYTE	PUTBYTE
+#define mPUT_WORD	PUTWORD
+#define mPUT_QUAD	PUTDWORD
+#else
+#define mFETCH_BYTE(p)	(IS_MODE_REG? FETCH_HREG((p)):FETCH_BYTE((p)))
+#define mFETCH_WORD(p)	(IS_MODE_REG? FETCH_XREG((p)):FETCH_WORD((p)))
+#define mFETCH_QUAD(p)	(IS_MODE_REG? FETCH_EREG((p)):FETCH_QUAD((p)))
+#define mPUT_BYTE(p,b)	do{if(IS_MODE_REG) PUT_HREG((p),(b)); else PUT_BYTE((p),(b));}while(0)
+#define mPUT_WORD(p,w)	do{if(IS_MODE_REG) PUT_XREG((p),(w)); else PUT_WORD((p),(w));}while(0)
+#define mPUT_QUAD(p,dw)	do{if(IS_MODE_REG) PUT_EREG((p),(dw)); else PUT_QUAD((p),(dw));}while(0)
+#endif
+
 
 /* These are for multiply/divide. I ASSUME that every version of gcc on
  * every 32-bit target has a 'long long' 64-bit type */
 typedef union {
-  long long sd;
+  QLONG sd;
   struct { long sl,sh; } s;
 } s_i64_u;
 
 typedef union {
-  unsigned long long ud;
+  QWORD ud;
   struct { long ul,uh; } u;
 } u_i64_u;
 
-#ifdef DOSEMU
-#include "cpu-emu.h"
-#include "dosemu_debug.h"
-
-#else
+#ifndef DOSEMU
 #define error(s...)	fprintf(stderr,##s)
-extern void INT_handler(int, ENV *);
+/*extern void INT_handler(int, ENV *);	TODO */
+#else
+#include "cpu-emu.h"
+/*#include "dosemu_debug.h"*/
 #endif
 
 typedef void (*FUNCT_PTR)();
 
-#ifdef DEBUG
-extern void e_debug (Interp_ENV *, unsigned char *, unsigned char *,
+#ifndef NO_TRACE_MSGS
+extern void e_trace (Interp_ENV *, unsigned char *, unsigned char *,
   	int);
-extern void e_debug_fp (ENV87 *);
+extern void e_trace_fp (ENV87 *);
 #endif
 /* debug registers (DRs) emulation */
 extern int e_debug_check(unsigned char *);
@@ -1551,7 +1589,11 @@ trans_flags_to_interp(Interp_ENV *, DWORD);
 extern DWORD
 trans_interp_flags(Interp_ENV *);
 
-#ifdef DOSEMU
+extern int
+init_cpuemu(unsigned long);
+
+#endif	/* _IN_INTP32 */
+
 #define e_AL env->rax.x.x.h.l
 #define e_AH env->rax.x.x.h.h
 #define e_AX env->rax.x.x.x
@@ -1585,12 +1627,9 @@ trans_interp_flags(Interp_ENV *);
 #define e_EIP env->trans_addr
 #define e_EFLAGS env->flags
 
-#endif	/* DOSEMU */
-#endif	/* DOSEMU_TYPESONLY */
-
 extern BOOL code32, data32;
 extern void FatalAppExit(UINT, LPCSTR);
-extern unsigned long long EMUtime;
+extern QWORD EMUtime;
 
 #define MK_CS	0x00000
 #define MK_DS	0x10000
@@ -1641,7 +1680,7 @@ extern unsigned long long EMUtime;
 #define EXCP_GOBACK	64
 #define EXCP_SIGNAL	65
 
-#ifdef TWIN
+#ifdef _IN_INTP32
 
 extern void hsw_fp87_00m(), hsw_fp87_01m(), hsw_fp87_02m(), hsw_fp87_03m();
 extern void hsw_fp87_04m(), hsw_fp87_05m(), hsw_fp87_06m(), hsw_fp87_07m();
@@ -1693,10 +1732,11 @@ extern FUNCT_PTR hsw_fp87_reg5[8];
 extern FUNCT_PTR hsw_fp87_reg6[8];
 extern FUNCT_PTR hsw_fp87_reg7[8];
 
+#endif
+
 extern BYTE parity[];
 extern char unknown_msg[], illegal_msg[], unsupp_msg[];
 extern ENV87 hsw_env87;
 
-#endif	/* TWIN */
-
 #endif /* hsw_interp__h */
+

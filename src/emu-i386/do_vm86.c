@@ -336,7 +336,7 @@ void vm86_GP_fault(void)
     }
 
     else {
-#if 1
+#ifndef SKIP_EMU_VBIOS
       error("HLT requested: lina=%p!\n", lina);
       show_regs(__FILE__, __LINE__);
 #if 0

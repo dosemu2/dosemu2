@@ -7,7 +7,7 @@
 #ifndef _EMU_LDT_H
 #define _EMU_LDT_H
 
-#if 1
+#ifdef DOSEMU
 #if LX_KERNEL_VERSION < 2001000
   #include <linux/ldt.h>
 #else
@@ -42,7 +42,7 @@
  *
  */
 
-#if defined(X86_EMULATOR)||defined(_IN_INTP32)
+#ifdef DOSEMU
 
 typedef struct {
 	unsigned char *lpSelBase;	/* unscrambled segment base */

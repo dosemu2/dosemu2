@@ -16,7 +16,7 @@
 
 #include "cpu-emu.h"
 
-#if defined(__i386__) && defined(USE_GLOBAL_EBP)
+#if defined(__i386__) && defined(USE_GLOBAL_EBP) && !defined(__PIC__)
 register unsigned char *PC asm("%ebp");
 #else
 #define _PC	PC

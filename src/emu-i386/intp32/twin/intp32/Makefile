@@ -40,23 +40,26 @@ TWIN_APISIZE=
 #
 ############################################
 
-TWIN_SYSINC=-I../include
-TWIN_WININC=-I../win
+TWIN_SYSINC=
+TWIN_WININC=
 
-CPUTYPE = CPU
+CPUTYPE = INT
 
-TWIN_CFLAGS   = -DX386 -Dlinux -DDOSEMU -DTWIN -DDEBUG
+TWIN_CFLAGS   = -Dlinux -DDOSEMU -O6 -D_IN_INTP32
+
+# original TWIN flags:
+# -DNO_DEBUG_MSGS -DNO_TRACE_MSGS -DX386 -Dlinux -DTWIN32
 
 TWIN_IFLAGS   = $(TWIN_WININC) $(TWIN_AUXINC) $(TWIN_SYSINC)
 TWIN_BFLAGS   = $(TWIN_XFLAGS)
 TWIN_CFLAGS  += $(TWIN_IFLAGS) $(TWIN_BFLAGS)
 
-CFLAGS   += -fwritable-strings $(TWIN_CFLAGS)
+CFLAGS   += -fwritable-strings -I../.. $(TWIN_CFLAGS)
 
 ##########################################################################   
 
 CFILES	=	fp87.c interp_main.c interp_modrm.c interp_16_32.c \
-		interp_32_16.c interp_32_32.c
+		interp_32_16.c interp_32_32.c emu-utils.c
 
 ##########################################################################   
 

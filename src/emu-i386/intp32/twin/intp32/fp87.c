@@ -43,7 +43,8 @@ To send email to the maintainer of the Willows Twin Libraries.
 
 	mailto:twin@willows.com 
 
-changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
+changes for use with dosemu-0.67 1997/10/20 vignani@tin.it
+changes for use with dosemu-0.99 1998/12/13 vignani@tin.it
  */
 
 #include "emu-globv.h"
@@ -58,9 +59,10 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #define DPLOG2_10 log(10.0)/log(2.0)
 #define MAXTAN pow(2.0,63.0)
 
-#if defined(DOSEMU) && defined(__i386__)
-#define DBLCOPY(de,sr)	{*((long long *)(de))=*((long long *)(sr));}
+#ifdef __i386__
+#define DBLCOPY(de,sr)	{*((QWORD *)(de))=*((QWORD *)(sr));}
 
+#ifdef __GNUC__
 static inline void TDBLCPY(const void *de, const void *sr)
 {
 	__asm__ ("
@@ -88,15 +90,25 @@ static inline int L_ISZERO(const void *sr)
 		: "memory");
 	return _res;
 }
+#else
+#define TDBLCPY(de,sr)	{*((QWORD *)(de))=*((QWORD *)(sr));\
+				*((WORD *)(((char *)de)+8))=*((WORD *)(((char *)sr)+8));}
+
+static __inline int L_ISZERO(const void *sr)
+{
+	unsigned int *wp = (unsigned int *)sr;
+	return ((wp[0] | wp[1] | (wp[2]&0xffff))==0);
+}
+#endif
 
 #define STORE32INT(addr,i32)	*((long *)(addr)) = (long)i32
 #define STORE16INT(addr,i16)	*((short *)(addr)) = (short)i16
-#define STORE64INT(addr,i64)	*((long long *)(addr)) = (long long)i64
+#define STORE64INT(addr,i64)	*((QWORD *)(addr)) = (QWORD)i64
 #define GET32INT(addr)		(*((unsigned long *)(addr)))
 #define GET16INT(addr)		(*((unsigned short *)(addr)))
-#define GET64INT(addr)		(*((long long *)(addr)))
-#define GET64REAL(dtmp,addr)	(*(long long *)&dtmp=*(long long *)(addr), dtmp)
-#define STORE64REAL(addr,dtmp)	(*(long long *)(addr)=*(long long *)&dtmp)
+#define GET64INT(addr)		(*((QLONG *)(addr)))
+#define GET64REAL(dtmp,addr)	(*(QWORD *)&dtmp=*(QWORD *)(addr), dtmp)
+#define STORE64REAL(addr,dtmp)	(*(QWORD *)(addr)=*(QWORD *)&dtmp)
 #define GET32REAL(dtmp,addr)	(*(long *)&dtmp=*(long *)(addr), dtmp)
 #define STORE32REAL(addr,dtmp)	(*(long *)(addr)=*(long *)&dtmp)
 #define EXPONENT64(addr)	((((unsigned short *)(addr))[3]&0x7ff0)>>4)
@@ -196,12 +208,21 @@ if(!(*(r80+9)|*(r80+8)|*(r80+7)|*(r80+6)|*(r80+5)|*(r80+4)|*(r80+3)|*(r80+2)|\
 #define FPR_ST(r)	hsw_env87.fpregs[(F_ST+(r))&0x7]
 #define FPIRQMASK	(hsw_env87.fpuc&0x3f)
 
+#ifdef __GNUC__
 #define FP_INVFLG	({char v=(0x01 & FPIRQMASK); (v? v|0x80:v);})
 #define FP_DENORMFLG	({char v=(0x02 & FPIRQMASK); (v? v|0x80:v);})
 #define FP_ZEROFLG	({char v=(0x04 & FPIRQMASK); (v? v|0x80:v);})
 #define FP_OVFLFLG	({char v=(0x08 & FPIRQMASK); (v? v|0x80:v);})
 #define FP_UNDFLFLG	({char v=(0x10 & FPIRQMASK); (v? v|0x80:v);})
 #define FP_PRECFLG	({char v=(0x20 & FPIRQMASK); (v? v|0x80:v);})
+#else
+#define FP_INVFLG	((FPIRQMASK&0x01)? (FPIRQMASK&0x01)|0x80:(FPIRQMASK&0x01))
+#define FP_DENORMFLG	((FPIRQMASK&0x02)? (FPIRQMASK&0x02)|0x80:(FPIRQMASK&0x02))
+#define FP_ZEROFLG	((FPIRQMASK&0x04)? (FPIRQMASK&0x04)|0x80:(FPIRQMASK&0x04))
+#define FP_OVFLFLG	((FPIRQMASK&0x08)? (FPIRQMASK&0x08)|0x80:(FPIRQMASK&0x08))
+#define FP_UNDFLFLG	((FPIRQMASK&0x10)? (FPIRQMASK&0x10)|0x80:(FPIRQMASK&0x10))
+#define FP_PRECFLG	((FPIRQMASK&0x20)? (FPIRQMASK&0x20)|0x80:(FPIRQMASK&0x20))
+#endif
 
 #define FPUC_RC		(hsw_env87.fpuc&0xc00)
 #define RC_NEAR		0x000
@@ -472,7 +493,7 @@ hsw_fp87_12m(unsigned char *mem_ref)
 {
 /* FSTm32r_FNOP */
 	float m32r;
-	m32r = FPR_ST0;
+	m32r = (float)FPR_ST0;
 	STORE32REAL(mem_ref,m32r);
 }
 
@@ -490,7 +511,7 @@ hsw_fp87_13m(unsigned char *mem_ref)
 {
 /* FSTPm32r */
 	float m32r;
-	m32r = FPR_ST0;
+	m32r = (float)FPR_ST0;
 	STORE32REAL(mem_ref,m32r);
 	POPFSP;
 }
@@ -547,7 +568,7 @@ hsw_fp87_14r(int reg_num)
 			/* else ( not comparable ) hsw_env87.fpus |= 0x4500 */
 			} return;
 		case 5: /* FXAM */ {
-			long long i64lh;
+			QLONG i64lh;
 			double fptemp;
 			hsw_env87.fpus &= (~0x4700);  /* (C3,C2,C1,C0) <-- 0000 */
 			if ( FPR_ST0 < 0.0 )
@@ -555,12 +576,20 @@ hsw_fp87_14r(int reg_num)
 			fptemp = FPR_ST0;
 			expdif = EXPONENT64(&fptemp);
 			if ( expdif == 0x7ff ) {
-			    i64lh = *((long long *)&fptemp) & 0xfffffffffffffLL;
+#ifdef __GNUC__
+				i64lh = *((QLONG *)&fptemp) & 0xfffffffffffffLL;
+#else
+				i64lh = *((QLONG *)&fptemp) & 0xfffffffffffff;
+#endif
 			    hsw_env87.fpus |= (i64lh == 0?
 				0x500 /*Infinity*/: 0x100 /*NaN*/);
 			}
 			else if ( expdif == 0x0 ) {
-			    i64lh = *((long long *)&fptemp) & 0xfffffffffffffLL;
+#ifdef __GNUC__
+			    i64lh = *((QLONG *)&fptemp) & 0xfffffffffffffLL;
+#else
+				i64lh = *((QLONG *)&fptemp) & 0xfffffffffffff;
+#endif
 			    hsw_env87.fpus |= (i64lh == 0?
 				0x4000 /*Zero*/: 0x4400 /*Denormal*/);
 			}
@@ -736,7 +765,7 @@ hsw_fp87_16r(int reg_num)
 				dblq = fpsrcop / fptemp;
 				dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
 				FPR_ST0 = fpsrcop - fptemp*dblq;
-				q = dblq; /* cutting off top bits is assumed here */
+				q = (int)dblq; /* cutting off top bits is assumed here */
 				hsw_env87.fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
 				/* (C0,C1,C3) <-- (q2,q1,q0) */
 				hsw_env87.fpus |= (q&0x4) << 6; /* (C0) <-- q2 */
@@ -791,7 +820,7 @@ hsw_fp87_17r(int reg_num)
 				dblq = fpsrcop / fptemp;
 				dblq = (dblq < 0.0)? ceil(dblq): floor(dblq);
 				FPR_ST0 = fpsrcop - fptemp*dblq;
-				q = dblq; /* cutting off top bits is assumed here */
+				q = (int)dblq; /* cutting off top bits is assumed here */
 				hsw_env87.fpus &= (~0x4700); /* (C3,C2,C1,C0) <-- 0000 */
 				/* (C0,C1,C3) <-- (q2,q1,q0) */
 				hsw_env87.fpus |= (q&0x4) << 6; /* (C0) <-- q2 */
@@ -1079,7 +1108,7 @@ hsw_fp87_32m(unsigned char *mem_ref)
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
-    m32i = fpsrcop;
+    m32i = (int)fpsrcop;
     STORE32INT(mem_ref,m32i);
 }
 
@@ -1106,7 +1135,7 @@ hsw_fp87_33m(unsigned char *mem_ref)
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
-    m32i = fpsrcop;
+    m32i = (int)fpsrcop;
 #ifdef DEBUG
     e_printf("FP: storing %#x\n",m32i);
 #endif
@@ -1153,7 +1182,7 @@ void
 hsw_fp87_35m(unsigned char *mem_ref)
 {
 /* FLDm80r */
-#if !defined(DOSEMU) || !defined(__i386__)
+#ifndef __i386__
 	int expdif;
 	signed short i16;
 #endif
@@ -1186,7 +1215,7 @@ void
 hsw_fp87_37m(unsigned char *mem_ref)
 {
 /* FSTPm80r */
-#if !defined(DOSEMU) || !defined(__i386__)
+#ifndef __i386__
 	int expdif;
 	signed short i16;
 #endif
@@ -1406,7 +1435,7 @@ void
 hsw_fp87_54m(unsigned char *mem_ref)
 {
     int i, st;
-#if !defined(DOSEMU) || !defined(__i386__)
+#ifndef __i386__
     int expdif;
 #endif
 /* FRSTOR */
@@ -1513,7 +1542,7 @@ void
 hsw_fp87_56m(unsigned char *mem_ref)
 {
     int i, st, fptag, ntag;
-#if !defined(DOSEMU) || !defined(__i386__)
+#ifndef __i386__
     int expdif;
 #endif
 /* FSAVE */
@@ -1783,7 +1812,7 @@ hsw_fp87_72m(unsigned char *mem_ref)
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
-    i16 = fpsrcop;
+    i16 = (short)fpsrcop;
     STORE16INT(mem_ref,i16);
 }
 
@@ -1809,7 +1838,7 @@ hsw_fp87_73m(unsigned char *mem_ref)
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
-    i16 = fpsrcop;
+    i16 = (short)fpsrcop;
 #ifdef DEBUG
     e_printf("FP: storing %#x\n",i16);
 #endif
@@ -1833,7 +1862,7 @@ hsw_fp87_74m(unsigned char *mem_ref)
     /* in this code, seg/m32i will be used as temporary ptr/int */
     seg = mem_ref + 8;
     if ( *seg-- != 0 || (*seg & 0xf0) != 0 ) /* d15..d17 non-zero*/
-        e_printf("This BCD number exceeds the range of DOUBLE REAL!\n");
+        e_printf0("This BCD number exceeds the range of DOUBLE REAL!\n");
     m32i = *seg--;  /* <-- d14 */
     m32i = MUL10(m32i) + (*seg >> 4);  /* <-- val * 10 + d13 */
     m32i = MUL10(m32i) + (*seg & 0xf); /* <-- val * 10 + d12 */
@@ -1880,18 +1909,18 @@ hsw_fp87_75m(unsigned char *mem_ref)
 {
 /* FILDm64i */
     Ldouble fptemp;
-    long long i64lh;
+    QLONG i64lh;
 
     i64lh = GET64INT((mem_ref));
     PUSHFSP;
-#ifndef X386
+#ifndef __i386__
     /* check if significant digits can be loaded into a 53-bit mantissa */
-    { long long absi64l = (i64lh>0? i64lh:-i64lh);
+    { QLONG absi64l = (i64lh>0? i64lh:-i64lh);
     if ((absi64l & 0xffe0000000000000LL) && (absi64l & 0x7ff)) {
 	e_printf("This 64-bit INT exceeds DOUBLE REAL mantissa!\n"); 
     } }
 #endif
-    fptemp = i64lh;
+    fptemp = (Ldouble)i64lh;
     FPR_ST0 = fptemp;
     VALID_ST0;
 }
@@ -1929,7 +1958,7 @@ hsw_fp87_76m(unsigned char *mem_ref)
     for ( mem_ref++;  fpsrcop != 0.0;  mem_ref++ ) {
         fptemp = floor(fpsrcop/10.0);
         i16 = ((int)(fpsrcop - fptemp*10.0));
-        if  (!L_ISZERO(&fptemp))  { *mem_ref = i16; break; }
+        if  (!L_ISZERO(&fptemp))  { *mem_ref = (BYTE)i16; break; }
         fpsrcop = fptemp;
         fptemp = floor(fpsrcop/10.0);
         *mem_ref = i16 | (((int)(fpsrcop - fptemp*10.0)) << 4);
@@ -1950,7 +1979,7 @@ hsw_fp87_77m(unsigned char *mem_ref)
 {
 /* FISTPm64i */
     Ldouble fpsrcop;
-    long long i64lh;
+    QLONG i64lh;
 
     TDBLCPY(&fpsrcop,&FPR_ST0);
     if (FPUC_RC == RC_CHOP) /*Chop towards zero*/
@@ -1962,7 +1991,7 @@ hsw_fp87_77m(unsigned char *mem_ref)
         fpsrcop = floor(fpsrcop);
     else  /*Round towards +INFI*/
         fpsrcop = ceil(fpsrcop);
-    i64lh = fpsrcop;
+    i64lh = (QLONG)fpsrcop;
 #ifdef DEBUG
     e_printf("FP: storing %#Lx\n",i64lh);
 #endif

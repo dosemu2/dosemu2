@@ -1,3 +1,8 @@
+99/04/22 ver. 0.99.11 released
+	From Alberto
+	- major cpuemu cleanup, bugfixes
+	From Hans
+	- docs recompile
 99/04/21 ver. 0.99.10.3 unofficial pre-release
 	From Marcus (bug report from gvz@pop.de)
 	- fix (errm, workaround) for the 57 characters path limit in MFS

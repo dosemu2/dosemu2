@@ -7,7 +7,9 @@
 #ifndef DOSEMU_CPUEMU_H
 #define DOSEMU_CPUEMU_H
 
+#ifdef DOSEMU
 #include "kversion.h"
+#endif
 
 /*
  * Size of io_bitmap in longwords: 32 is ports 0-0x3ff.
@@ -46,8 +48,10 @@ extern void e_priv_iopl(int);
  *	some more registers. Cpuemu will run a bit slower but we should
  *	avoid gcc register allocation problems.
  */
+#ifdef DOSEMU
 #if 0
 #define	EMU_GLOBAL_VAR
+#endif
 #endif
 
 /*

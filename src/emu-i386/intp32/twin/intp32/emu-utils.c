@@ -47,9 +47,10 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
  */
 
 #include "emu-globv.h"
+#ifdef DOSEMU
 #include "config.h"
+#endif
 
-#ifdef X86_EMULATOR
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,19 +60,13 @@ changes for use with dosemu-0.67 1997/10/20 vignani@mbox.vol.it
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#define TWIN
 #include "hsw_interp.h"
 
 #undef CARRY_FLAG	/* well-coordinated work */
 #undef ZERO_FLAG
-#include "kerndef.h"
-#include "BinTypes.h"
 
-#include "utils.h"
-#include "Log.h"
 #include <ctype.h>
 #include "emu-ldt.h"
-#include "port.h"
 
 #undef	FP_DISPHEX
  
@@ -82,10 +77,13 @@ extern long instr_count;
 #ifdef DOSEMU
 extern int in_dpmi, in_dpmi_emu;
 extern void leavedos(int) NORETURN;
+#else
+#define in_dpmi	0
 #endif
 
-void WINAPI
-FatalAppExit(UINT wAction,LPCSTR lpText)
+#ifdef DOSEMU
+void
+FatalAppExit(UINT wAction, LPCSTR lpText)
 {
     extern void print_ldt(void);
     if (lpText) {
@@ -95,12 +93,9 @@ FatalAppExit(UINT wAction,LPCSTR lpText)
     if (in_dpmi) {
 	d.dpmi=1; in_dpmi_emu=0; print_ldt();
     }
-#ifdef DOSEMU
     leavedos(173);
-#else
-    exit(0);
-#endif
 }
+#endif
 
 
 void e_priv_iopl(int pl)
@@ -112,9 +107,93 @@ void e_priv_iopl(int pl)
 }
 
 
+#ifndef NO_TRACE_MSGS
+#ifdef DOSEMU
 extern int  dis_8086(unsigned int, const unsigned char *,
                      unsigned char *, int, unsigned int *, unsigned int *,
                      unsigned int, int);
+#else
+
+int opcode_table[256];
+
+void print_table()
+{
+    int i,j;
+    for (i = 0; i < 256; i += 16) {
+	for (j = 0; j < 8; j++, printf(" ")) {
+	    if (opcode_table[i+j] > 0xffff)
+		printf("+%03x", (opcode_table[i+j]>>16) & 0xfff);
+	    else
+		printf("%04x", opcode_table[i+j]);
+	}
+	printf("-");
+	for (j = 8; j < 16; j++, printf(" ")) {
+	    if (opcode_table[i+j] > 0xffff)
+		printf("+%03x", (opcode_table[i+j]>>16) & 0xfff);
+	    else
+		printf("%04x", opcode_table[i+j]);
+	}
+	printf("\n\n");
+    }
+}
+
+char *inst[256] = {
+	"ADDbfrm", "ADDwfrm", "ADDbtrm", "ADDwtrm", "ADDbia", "ADDwia",
+	"PUSHes", "POPes", "ORbfrm", "ORwfrm", "ORbtrm", "ORwtrm", "ORbi",
+	"ORwi", "PUSHcs", "TwoByteEscape", "ADCbfrm", "ADCwfrm", "ADCbtrm", 
+	"ADCwtrm",
+	"ADCbi", "ADCwi", "PUSHss", "POPss", "SBBbfrm", "SBBwfrm", "SBBbtrm",
+	"SBBwtrm", "SBBbi", "SBBwi", "PUSHds", "POPds", "ANDbfrm", "ANDwfrm",
+	"ANDbtrm", "ANDwtrm", "ANDbi", "ANDwi", "SEGes", "DAA", "SUBbfrm",
+	"SUBwfrm", "SUBbtrm", "SUBwtrm", "SUBbi", "SUBwi", "SEGcs", "DAS",
+	"XORbfrm", "XORwfrm", "XORbtrm", "XORwtrm", "XORbi", "XORwi", "SEGss",
+	"AAA", "CMPbfrm", "CMPwfrm", "CMPbtrm", "CMPwtrm", "CMPbi", "CMPwi",
+	"SEGds", "AAS", "INCax", "INCcx", "INCdx", "INCbx", "INCsp", "INCbp",
+	"INCsi", "INCdi", "DECax", "DECcx", "DECdx", "DECbx", "DECsp", "DECbp",
+	"DECsi", "DECdi", "PUSHax", "PUSHcx", "PUSHdx", "PUSHbx", "PUSHsp",
+	"PUSHbp", "PUSHsi", "PUSHdi", "POPax", "POPcx", "POPdx", "POPbx",
+	"POPsp", "POPbp", "POPsi", "POPdi", "PUSHA", "POPA", "BOUND", "ARPL",
+	"SEGfs", "SEGgs", "OPER32", "ADDR32", "PUSHwi", "IMULwrm",
+	"PUSHbi", "IMULbrm", "INSb", "INSw", "OUTSb", "OUTSw", "JO", "JNO",
+	"JB_JNAE", "JNB_JAE", "JE_JZ", "JNE_JNZ", "JBE_JNA", "JNBE_JA",
+	"JS", "JNS", "JP_JPE", "JNP_JPO", "JL_JNGE", "JNL_JGE", "JLE_JNG",
+	"JNLE_JG", "IMMEDbrm", "IMMEDwrm", "IMMEDbrm2", "IMMEDisrm", "TESTbrm",
+	"TESTwrm", "XCHGbrm", "XCHGwrm", "MOVbfrm", "MOVwfrm", "MOVbtrm",
+	"MOVwtrm", "MOVsrtrm", "LEA", "MOVsrfrm", "POPrm", "NOP", "XCHGcx",
+	"XCHGdx", "XCHGbx", "XCHGsp", "XCHGbp", "XCHGsi", "XCHGdi", "CBW",
+	"CWD", "CALLl", "WAIT", "PUSHF", "POPF", "SAHF", "LAHF", "MOVmal",
+	"MOVmax", "MOValm", "MOVaxm", "MOVSb", "MOVSw", "CMPSb", "CMPSw",
+	"TESTbi", "TESTwi", "STOSb", "STOSw", "LODSb", "LODSw", "SCASb",
+	"SCASw", "MOVial", "MOVicl", "MOVidl", "MOVibl", "MOViah", "MOVich",
+	"MOVidh", "MOVibh", "MOViax", "MOVicx", "MOVidx", "MOVibx", "MOVisp",
+	"MOVibp", "MOVisi", "MOVidi", "SHIFTbi", "SHIFTwi", "RETisp", "RET",
+	"LES", "LDS", "MOVbirm", "MOVwirm", "ENTER", "LEAVE", "RETlisp", "RETl",
+	"INT3", "INT", "INTO", "IRET", "SHIFTb", "SHIFTw", "SHIFTbv", "SHIFTwv",
+	"AAM", "AAD", "ILLEGAL", "XLAT", "ESC0", "ESC1", "ESC2", "ESC3", "ESC4",
+	"ESC5", "ESC6", "ESC7", "LOOPNZ_LOOPNE", "LOOPZ_LOOPE", "LOOP", "JCXZ",
+	"INb", "INw", "OUTb", "OUTw", "CALLd", "JMPd", "JMPld", "JMPsid",
+	"INvb", "INvw", "OUTvb", "OUTvw", "LOCK", "ILLEGAL", "REPNE", "REP",
+	"HLT", "CMC", "GRP1brm", "GRP1wrm", "CLC", "STC", "CLI", "STI", "CLD",
+	"STD", "GRP2brm", "GRP2wrm", };
+
+char *
+decode(opcode, modrm)
+int opcode, modrm;
+{
+
+    return(inst[opcode]);
+
+}
+
+int dis_8086(unsigned int org, const unsigned char *code,
+                     unsigned char *outbuf, int def_size,
+		     unsigned int *refseg, unsigned int *refoff,
+                     unsigned int refsegbase, int nlines)
+{
+/* TBD - better check dosemu::src/arch/linux/debugger/dis8086.c */
+  return 1;
+}
+#endif
 
 static char *e_emu_disasm(Interp_ENV *env, unsigned char *org, int is32)
 {
@@ -177,7 +256,7 @@ static char *e_print_cpuemu_regs(Interp_ENV *env, int is32)
 	char *p;
 
 	*buf = 0;
-	if (d.emu>3) {
+	if (d_emu>3) {
 	  long lflags;
 	  p = buf;
 	  p += sprintf(p,"\teax=%08lx ebx=%08lx ecx=%08lx edx=%08lx\n",
@@ -243,7 +322,7 @@ static char *e_print_internal_regs(Interp_ENV *v)
 	char *p;
 
 	*buf = 0;
-	if (d.emu>6) {
+	if (d_emu>6) {
 	  p = buf;
 	  p += sprintf(p,"\t    --RS32-- |-CY- RS16| |BY CB R8 P16|    lCS=%08x\n",
 		(int)v->seg_regs[0]);
@@ -284,7 +363,7 @@ static char *e_print_internal_regs(Interp_ENV *v)
 	return buf;
 }
 
-void e_debug_fp(ENV87 *ef)
+void e_trace_fp(ENV87 *ef)
 {
 	int i, ifpr, fpus;
 
@@ -313,10 +392,10 @@ void e_debug_fp(ENV87 *ef)
 }
 
 
-void e_debug (Interp_ENV *env, unsigned char *dP0, unsigned char *dPC,
+void e_trace (Interp_ENV *env, unsigned char *dP0, unsigned char *dPC,
   	int is32)
 {
-	if ((d.emu>2) && TRACE_HIGH && (dP0==dPC)) {
+	if ((d_emu>2) && TRACE_HIGH && (dP0==dPC)) {
 	    e_printf("%ld\n%s%s    %s\n", instr_count,
 		((((*dPC&0xf8)==0xd8) || (CEmuStat & CeS_LOCK)) ?
 		    "" :
@@ -327,4 +406,4 @@ void e_debug (Interp_ENV *env, unsigned char *dP0, unsigned char *dPC,
 	}
 }
 
-#endif	/* X86_EMULATOR */
+#endif	/* TRACE_MSGS */

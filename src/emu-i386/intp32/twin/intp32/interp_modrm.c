@@ -340,18 +340,18 @@ hsw_modrm_sib(Interp_ENV *env, int sib, unsigned char **ovr)
 }
 
 
-#if defined(DOSEMU) && defined(MODRM_DEBUG)
+#if !defined(NO_DEBUG_MSGS) && defined(MODRM_DEBUG)
 /* WARNING! */
 #define return(x) ret=(x);break
 #define DEBUG_ENTRY int ret=0;
 
 #define DEBUG_EXIT(args...) \
-	if (d.emu>4) e_printf(##args); \
+	if (d_emu>4) e_printf(##args); \
 	return ret  /* NOTE: use 'return xx', _not_ 'return(xx)' !!! */
 
 #else
   #define DEBUG_ENTRY
-  #define DEBUG_EXIT(args...) return 0
+  #define DEBUG_EXIT
 #endif
 
 int
@@ -1384,7 +1384,11 @@ hsw_modrm_16_byte(Interp_ENV *env, unsigned char *mPC)
 			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 	}
+#ifdef MODRM_DEBUG
 	DEBUG_EXIT("------- [EA=%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
+#else
+	return 0;
+#endif
 }
 
 
@@ -2418,7 +2422,11 @@ hsw_modrm_16_word(Interp_ENV *env, unsigned char *mPC)
 			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 	}
+#ifdef MODRM_DEBUG
 	DEBUG_EXIT("------- [EA=%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
+#else
+	return 0;
+#endif
 }
 
 
@@ -3452,7 +3460,11 @@ hsw_modrm_16_quad(Interp_ENV *env, unsigned char *mPC)
 			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 	}
+#ifdef MODRM_DEBUG
 	DEBUG_EXIT("------- [EA=%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));
+#else
+	return 0;
+#endif
 }
 
 
@@ -4568,7 +4580,11 @@ hsw_modrm_32_byte(Interp_ENV *env, unsigned char *mPC)
 			env->reg1 = &(BH);
 			IS_MODE_REG = 1; return(2);
 	}
+#ifdef MODRM_DEBUG
 	DEBUG_EXIT("------- [EA=%p]=%02x\n",MEM_REF,*((unsigned char *)MEM_REF));
+#else
+	return 0;
+#endif
 }
 
 
@@ -5684,7 +5700,11 @@ hsw_modrm_32_word(Interp_ENV *env, unsigned char *mPC)
 			env->reg1 = (unsigned char *)&(DI);
 			IS_MODE_REG = 1; return(2);
 	}
+#ifdef MODRM_DEBUG
 	DEBUG_EXIT("------- [EA=%p]=%04x\n",MEM_REF,*((unsigned short *)MEM_REF));
+#else
+	return 0;
+#endif
 }
 
 
@@ -6800,5 +6820,9 @@ hsw_modrm_32_quad(Interp_ENV *env, unsigned char *mPC)
 			env->reg1 = (unsigned char *)&(EDI);
 			IS_MODE_REG = 1; return(2);
 	}
+#ifdef MODRM_DEBUG
 	DEBUG_EXIT("------- [EA=%p]=%08x\n",MEM_REF,*((unsigned int *)MEM_REF));
+#else
+	return 0;
+#endif
 }
